@@ -1,0 +1,284 @@
+#                                               -*- Autoconf -*-
+# Process this file with autoconf to produce a configure script.
+
+AC_PREREQ([2.59])
+AC_INIT(innodbmemcache, proto4, )
+AC_CONFIG_SRCDIR([src/atomics.c])
+AM_INIT_AUTOMAKE(AC_PACKAGE_NAME, AC_PACKAGE_VERSION)
+AC_CONFIG_HEADERS([config.h])
+m4_ifdef([AM_SILENT_RULES],[AM_SILENT_RULES([yes])])
+
+AC_PREFIX_PROGRAM(memcached)
+
+# Automake dependency tracking
+if test "x${enable_dependency_tracking}" = "x"
+then
+  enable_dependency_tracking=yes
+fi
+
+# M4 include files
+m4_include([m4/compilers.m4])
+m4_include([m4/alignment.m4])
+m4_include([m4/c99printf.m4])
+
+
+# Checks for programs.
+AC_PROG_CC
+AM_PROG_CC_C_O
+AC_PROG_CXX
+AC_DISABLE_STATIC
+AC_PROG_LIBTOOL
+AC_PROG_INSTALL
+
+# GCC, Sun Compiler, ICC
+AS_IF(test "x$GCC" = "xyes",
+      DETECT_ICC([CFLAGS="-pthread $CFLAGS"], [CFLAGS="-fvisibility=hidden -pthread $CFLAGS"]),
+      ICC=no
+      DETECT_SUNCC([CFLAGS="-xldscope=hidden -mt $CFLAGS"], []))
+
+if test "$ICC" = "no"; then
+   AC_PROG_CC_C99
+fi
+
+ 
+# Checks for libraries.
+
+
+dnl ---- GCC atomics ---
+AC_CACHE_CHECK([for gcc atomic builtins],
+               [ac_cv_gcc_atomic_builtins], [AC_TRY_RUN([
+  int main()
+  {
+    int foo= -10; 
+    int bar= 10;
+    /* operation returns 0 and foo should be 0 */
+    if (!__sync_fetch_and_add(&foo, bar) || foo)
+      return -1;
+    bar= __sync_lock_test_and_set(&foo, bar);
+    /* Now bar is the return value 0 and foo is set to 10 */
+    if (bar || foo != 10)
+      return -1;
+    __sync_val_compare_and_swap(&bar, foo, 15);
+    /* CAS should have failed and bar is still 0 */
+    if (bar)
+      return -1;
+    return 0;
+  }
+], [ac_cv_gcc_atomic_builtins=yes],
+   [ac_cv_gcc_atomic_builtins=no],
+   [ac_cv_gcc_atomic_builtins=no])])
+
+if test "x$ac_cv_gcc_atomic_builtins" = xyes; then
+  AC_DEFINE(HAVE_GCC_ATOMIC_BUILTINS, 1,
+            [GCC atomic builtins.])
+fi
+
+dnl ---- Solaris Atomics ---
+AC_CACHE_CHECK([for solaris atomic.h],
+               [ac_cv_solaris_atomics], [AC_TRY_RUN([
+  #include <atomic.h>
+  int main()
+  {
+    volatile unsigned int foo = 5; 
+    atomic_add_32(&foo, 6);
+    if(foo != 11) 
+      return -1;
+    return 0;
+  }
+], [ac_cv_solaris_atomics=yes],
+   [ac_cv_solaris_atomics=no],
+   [ac_cv_solaris_atomics=no])])
+
+if test "x$ac_cv_solaris_atomics" = xyes; then
+  AC_DEFINE(HAVE_SOLARIS_ATOMICS, 1,
+            [Solaris Atomic functions.])
+fi
+
+dnl ---- Apple OSAtomic  ---
+AC_CACHE_CHECK([for Apple OSAtomic],
+               [ac_cv_mac_atomics], [AC_TRY_RUN([
+  #include <libkern/OSAtomic.h>
+  int main()
+  {
+    volatile int foo = 5; 
+    OSAtomicAdd32(6, &foo);
+    if(foo != 11) 
+      return -1;
+    return 0;
+  }
+], [ac_cv_mac_atomics=yes],
+   [ac_cv_mac_atomics=no],
+   [ac_cv_mac_atomics=no])])
+
+if test "x$ac_cv_mac_atomics" = xyes; then
+  AC_DEFINE(HAVE_DARWIN_ATOMICS, 1,
+            [Darwin libkern OSAtomic functions.])
+fi
+
+dnl ------------- libdispatch. ----------------------------
+dnl Look for libdispatch.  On Mac it is in /usr and will be found automatically.
+dnl On FreeBSD it is in /usr/local which might not be in the path yet.
+
+AC_ARG_WITH(libdispatch,
+            [AS_HELP_STRING([--with-libdispatch],
+                            [Specify path to installed libdispatch ])],
+                            [dispath=$withval],
+                            [dispath="no"])
+if test "x$dispath" != xno ; then
+  if test "x$dispath" = "xyes" ; then 
+     dispath="/usr/local"
+  fi
+  CPPFLAGS="${CPPFLAGS} -I${dispath}/include"
+  LIBS="${LIBS} -L${dispath}/lib"
+  AC_CHECK_LIB([dispatch], [dispatch_get_global_queue])
+fi
+AC_CHECK_HEADERS([dispatch/dispatch.h])
+dnl ------------- End of libdispatch stuff ----------------
+
+
+# Checks for header files.
+AC_CHECK_HEADERS_ONCE([mach/mach_time.h sys/param.h sys/socket.h netinet/in.h])
+AC_CHECK_HEADERS([fcntl.h inttypes.h stddef.h stdint.h stdlib.h string.h unistd.h])
+
+# Checks for typedefs, structures, and compiler characteristics.
+AC_HEADER_STDBOOL
+AC_C_INLINE
+AC_C_BIGENDIAN
+AC_C_ALIGNMENT
+AC_C_CONST
+AC_TYPE_INT32_T
+AC_TYPE_INT64_T
+AC_TYPE_SIZE_T
+AC_TYPE_UINT16_T
+AC_TYPE_UINT32_T
+AC_TYPE_UINT64_T
+AC_TYPE_UINT8_T
+
+AC_C_DETECT_UINT64_SUPPORT
+AS_IF([test "x$ac_cv_c_uint64_support" = "xno"],
+      [AC_MSG_WARN([
+
+Failed to use print macros (PRIu) as defined in C99 section 7.8.1.
+
+])])
+
+
+
+# Checks for library functions.
+AC_FUNC_MALLOC
+AC_FUNC_REALLOC
+AC_SEARCH_LIBS(clock_gettime, rt)
+AC_CHECK_FUNCS([memset clock_gettime srandomdev gethrtime gethrvtime])
+
+# Optional Features
+
+AC_ARG_ENABLE(debug, 
+   [AS_HELP_STRING([--enable-debug],[Enable debug logging])], 
+   AC_DEFINE([DEBUG_OUTPUT], [1], [Enable debug log]))
+
+# --enable-debug also turns on the -g flag:
+if test "x$enable_debug" = "xyes"
+then
+  CFLAGS="$CFLAGS -g"
+fi
+
+AC_ARG_ENABLE(64bit,
+  [AS_HELP_STRING([--enable-64bit],[build 64bit version])])
+if test "x$enable_64bit" = "xyes"
+then
+    org_cflags=$CFLAGS
+    CFLAGS=-m64
+    AC_RUN_IFELSE(
+      [AC_LANG_PROGRAM([], [dnl
+return sizeof(void*) == 8 ? 0 : 1;
+      ])
+    ],[
+      CFLAGS="-m64 $org_cflags"
+    ],[
+    AC_MSG_ERROR([Don't know how to build a 64-bit object.])
+    ])
+fi
+
+
+dnl Let the compiler be a bit more picky. Please note that you cannot
+dnl specify these flags to the compiler before AC_CHECK_FUNCS, because
+dnl the test program will generate a compilation warning and hence fail
+dnl to detect the function ;-)
+if test "$ICC" = "yes"
+then
+   dnl ICC trying to be gcc.
+   CFLAGS="$CFLAGS -diag-disable 187 -Wall -Werror"
+   AC_DEFINE([_GNU_SOURCE],[1],[find sigignore on Linux])
+elif test "$GCC" = "yes"
+then
+  GCC_VERSION=`$CC -dumpversion`
+  CFLAGS="$CFLAGS -Wall -pedantic -Wmissing-prototypes -Wmissing-declarations -Wredundant-decls"
+  case $GCC_VERSION in
+    4.4.*)
+    CFLAGS="$CFLAGS -fno-strict-aliasing"
+    ;;
+  esac
+  AC_DEFINE([_GNU_SOURCE],[1],[find sigignore on Linux])
+elif test "$SUNCC" = "yes"
+then
+  CFLAGS="$CFLAGS -errfmt=error -errwarn -errshort=tags"
+fi
+
+
+# The essentials: Memcache and NDB
+
+
+dnl -----------------------------------------------
+dnl Find the installed Memcache public header files
+AC_ARG_WITH(memcached,
+       [  --with-memcached=PATH     Specify path to installed memcached  ],
+       [  trymcdir=$withval ]
+)
+save_CPPFLAGS="${CPPFLAGS}"
+AS_IF([test "x${trymcdir}" != "x"],[
+  CPPFLAGS="${CPPFLAGS} -I${trymcdir} -I${trymcdir}/include"
+  ])
+CPPFLAGS="${CPPFLAGS} -I${prefix}/include"
+
+AC_CACHE_CHECK([if memcached supports external engines],[ac_cv_memcached_engines],[
+  AC_COMPILE_IFELSE([
+    AC_LANG_PROGRAM([[
+  #include <memcached/engine.h>
+    ]],[[
+  ENGINE_HANDLE_V1 *testme;
+    ]])
+    ],[
+      ac_cv_memcached_engines=yes
+    ],[
+      ac_cv_memcached_engines=no
+    ])
+])
+
+AS_IF([test "x${ac_cv_memcached_engines}" != "xyes"], 
+  AC_MSG_ERROR([
+
+***  Either memcached/engine.h must be installed under --prefix  
+     or configure --with-memcached=/path/to/installed/memcached.
+     --prefix is: ${prefix}]))
+
+
+# Verbatim text that goes into config.h.in:
+
+AH_BOTTOM([#if HAVE_STDBOOL_H
+#include <stdbool.h>
+#else
+#define bool char
+#define false 0
+#define true 1
+#endif 
+
+#ifdef HAVE_INTTYPES_H
+#include <inttypes.h>
+#endif
+])
+
+
+AC_CONFIG_FILES([Makefile])
+AC_OUTPUT
+
+

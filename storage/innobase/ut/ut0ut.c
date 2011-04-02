@@ -714,6 +714,12 @@ ut_strerr(
 		return("No index on referenced keys in referenced table");
 	case DB_END_OF_INDEX:
 		return("End of index");
+	case DB_DATA_MISMATCH:
+		return("data mismatch");
+	case DB_SCHEMA_NOT_LOCKED:
+		return("schema not locked");
+	case DB_NOT_FOUND:
+		return("not found");
 	/* do not add default: in order to produce a warning if new code
 	is added to the enum but not added here */
 	}

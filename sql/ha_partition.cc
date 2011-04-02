@@ -2564,7 +2564,9 @@ bool ha_partition::populate_partition_name_hash()
   uint i= 0;
 #ifndef DBUG_OFF
   if (table_share->tmp_table == NO_TMP_TABLE)
+  {
     mysql_mutex_assert_owner(&table_share->LOCK_ha_data);
+  }
 #endif
 
   DBUG_ENTER("ha_partition::populate_partition_name_hash");

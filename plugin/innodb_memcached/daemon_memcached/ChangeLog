@@ -1,0 +1,621 @@
+2010-10-11
+	* ChangeLog is no longer being updated.
+	See http://code.google.com/p/memcached/wiki/ReleaseNotes
+
+2009-04-10
+
+	* *critical bugfix*. In 1.2.7 under multithreaded mode, memcached
+	  would never restart accepting connections after hitting the
+	  maximum connection limit.
+
+2009-04-02
+
+	* Fix: Rewrote stat buffer handling (Trond)
+
+2009-03-31
+
+	* Feature:  -b option for configuring backlog
+
+	* Feature:  stats settings
+
+	* Fix: binary stat alignment bug (bug26)
+
+	* Fix: buffer overflow in stats (bug27)
+
+	* Fix: recycle memory more aggressively (bug14)
+
+	* Fix: incr validation (bug31)
+
+	* Fix: 64-bit incr/decr delta problem (bug21)
+
+	* Fix: Ascii UDP set (bug36)
+
+	* Fix: stats slabs' used chunks (bug29)
+
+	* Fix: stats reset resetting more (bug22)
+
+	* Misc: More tests, documentation, cleanliness (godliness)
+
+	* Stable merge (stats, debuggability, listen bugs)
+
+2009-03-11
+
+	* Protocol:  Binary complete (Dustin, Trond, Toru, etc...)
+
+	* Performance:  improvements from facebook (Dormando)
+
+	* Performance:  per-thread stats (Trond)
+
+	* Performance:  Hash expansion in its own thread (Trond)
+
+	* Stats:  Lots of new stats (Dustin)
+
+	* Bug fixes (various)
+
+	See the 1.3.2 release notes or revision control for more detail.
+
+2008-09-06
+       * Display error status on listen failures (Dormando)
+
+       * Remove managed instance code. Incomplete/etc. (Dormando)
+
+          * Handle broken IPV6 stacks better (Brian Aker)
+
+          * Generate warnings on setsockopt() failures (Brian Aker)
+
+          * Fix some indentation issues (Brian Aker)
+
+          * UDP/TCP can be disabled by setting their port to zero (Brian Aker)
+
+          * Zero out libevent thread structures before use (Ricky Zhou)
+
+          * New stat: Last accessed time for last evicted item per slab class.
+            (Dormando)
+
+          * Use a dedicated socket accept thread (Facebook)
+
+          * Add -R option. Limit the number of requests processed by a connection
+            at once. Prevents starving other threads if bulk loading. (Facebook)
+
+2008-07-29 [Version 1.2.6 released]
+
+2008-07-24 [Version 1.2.6-rc1 released]
+
+       * Add support for newer automake (Facebook)
+
+       * DTrace support for Solaris/etc (Trond Norbye)
+
+       * LRU tests (Steve Yen)
+
+       * Handle negative length items properly (Dormando)
+
+       * Don't leave stale data after failed set attempts (Dormando)
+
+       * Fix refcount leaks, which would result in OOM's on all sets
+	       (Dormando)
+
+       * Fix buffer overruns (Dustin Sallings, Tomash Brechko)
+
+       * Fix memory corruption with CAS (Dustin Sallings)
+
+2008-06-11
+
+       * Fix -k to work with -d. (reported by Gary Zhu)
+
+2008-03-02 [Version 1.2.5-rc1 released]
+
+       * Add per-item-class tracking of evictions and OOM errors (dormando)
+
+       * Optimize item_alloc() a little (dormando)
+
+       * Give 'SERVER_ERROR out of memory' errors more context (dormando)
+
+       * Enable usage of large memory pages under solaris
+         (Trond.Norbye@Sun.COM)
+
+       * Enable UDP by default, clean up server socket code
+         (brian@tangent.org)
+
+       * 'noreply' support (Tomash Brechko)
+
+       * IPv6 support, and IPv6 multi-interface support (brian@tangent.org)
+
+       * Add compiler options for Sun Studio compilers with --enable-threads
+	     (Trond.Norbye@Sun.COM)
+
+       * Add --enable-64bit for mulitarget platforms (Trond.Norbye@Sun.COM)
+
+       * Use gettimeofday(2) instead of time(2).
+
+       * Make -k option work (Tomash Brechko)
+
+	   * Fix chunk slab alignment (Trond.Norbye@Sun.COM)
+
+2007-12-06 [Version 1.2.4 released]
+
+2007-12-05
+
+       * Fix compilation on panther (JS and Dormando)
+
+	   * More CAS tests (Chris Goffinet)
+
+	   * Final fixes for all 1.2.4 features are in, -rc2 sent out.
+
+2007-11-19 [Version 1.2.4-rc1 released]
+
+2007-11-19  Dormando <dormando@rydia.net>
+
+       * Patch series from Tomash Brechko <tomash.brechko@gmail.com>:
+         Minor fixes and optimisations.
+
+       * Patches from Chris, Dustin, and Dormando to fix CAS.
+
+       * Prepping for 1.2.4 release.
+
+2007-11-13  Dormando <dormando@rydia.net>
+
+	* Adjusted patch from js <ebgssth@gmail.com>: Compile on OS X Panther
+	  and earlier.
+
+2007-11-12  Steven Grimm  <sgrimm@facebook.com>
+
+	* Patch from Tomash Brechko <tomash.brechko@gmail.com>: Always send
+	  "SERVER_ERROR out of memory" when memory exhausted.
+
+2007-10-15  Paul Lindner  <lindner@inuus.com>
+
+	* Patch from David Bremner <bremner@unb.ca> that implements
+	  a new option "-a" which takes an octal permission mask
+	  (like chmod) sets the permissions on the unix domain socket 
+	  (specified by "-s").
+
+2007-10-03 Paul Lindner <lindner@inuus.com>
+	* Incorporate "cas" operation developed by Dustin
+	  Sallings <dustin@spy.net> This change allows you
+	  to do atomic changes to an existing key.
+
+	* Fix for stats.evictions not incrementing
+	  when exptime == 0 items are kicked off the cache. 
+	  from Jean-Francois BUSTARRET <jfbustarret@wat.tv>.
+
+	* Fix for do_item_cachedump() which was returning
+	  an incorrect timestamp.
+	
+	* Switch to unsigned 64-bit increment/decrement counters
+	  from Evan Miller and Dustin Sallings.
+
+	* Add append command support written by Filipe Laborde.
+	  Thread safe version plus prepend command from Maxim Dounin
+	  <mdounin@mdounin.ru>
+
+	* The memcached-tool script can now display stats.  Patch
+	  provided by Dan Christian <dchristian@google.com>
+
+	* Fix for Unix Domain sockets on FreeBSD
+	  FreeBSD's sendmsg() requires msg_name in msghdr structure 
+	  to be NULL if not used, setting msg_namelen to 0 isn't enough.
+	  Patch from Maxim Dounin <mdounin@mdounin.ru>
+
+2007-08-21 Paul Lindner <lindner@inuus.com>
+	* Incorporate incrememnt patch from Evan Miller 
+	  <emiller@imvu.com> to define increment overflow
+	  behavior.
+
+2007-08-07 Leon Brocard <acme@astray.com>
+	* Bring the memcached.1 manpage up to date
+
+2007-08-06 Paul Lindner <lindner@inuus.com>
+	* Fix crash when using -P and -d flags on x86_64
+	  with latest libevent release.
+
+2007-07-08  Steven Grimm  <sgrimm@facebook.com>
+
+	* Item stats commands weren't thread-safe; wrap them with locks
+	  when compiled in multithreaded mode.
+	* The "stats items" command now works again; it broke with the
+	  introduction of the powers-of-N chunk size change.
+
+2007-07-06 [Version 1.2.3 released]
+
+2007-06-19  Paul Lindner  <lindner@mirth.inuus.com>
+
+	* Solaris portability fixes from Trond Norbye
+
+2007-05-29  Paul Lindner  <lindner@mirth.inuus.com>
+
+	* Properly document evictions statistic value
+
+2007-05-10  Paul Lindner  <lindner@inuus.com>
+
+	* Flesh out tests for unix domain sockets and binary data.
+	* Update rpm spec file to run tests
+
+2007-05-07  Paul Lindner  <lindner@inuus.com>
+
+	* Fix compilation bug on freebsd 6.x (and maybe others)
+	* Update RPM spec file per redhat bugzilla #238994
+	* Move unistd.h to memcached.h to get rid of warnings
+	* Add string.h to thread.c to get correctly prototyped strerror()
+
+2007-05-04  Paul Lindner  <lindner@inuus.com>
+
+	* Add fedora/redhat style init script and RPM spec file
+
+2007-05-12 [Version 1.2.2 released]
+
+2007-04-16  Steven Grimm  <sgrimm@facebook.com>
+
+	* Command tokenizer performance and cleanliness improvement.
+	  Patch contributed by Paolo Borelli <paolo.borelli@gmail.com>.
+
+2007-04-16  Paul Lindner  <lindner@inuus.com>
+
+	* Add notes to README about MacOS, libevent and kqueue.
+
+	* Windows Patch integration -- part 1, warnings elimination.
+
+2007-04-12  Paul Lindner  <lindner@mirth.inuus.com>
+
+	* Allow changes to the verbosity level of the server with a new
+	  "verbosity" command and some compiler cleanups. 
+          Patch contributed by Paolo Borelli <paolo.borelli@gmail.com>.
+
+2007-04-08  Paul Lindner  <lindner@inuus.com>
+
+	* Add cleanup patch from "Tim Yardley" <liquid@haveheart.com> to
+	  clean up source spacing issues, fix -Wall warnings, add some
+	  null checks, adds asserts at the top of each function for any
+	  use of conn *c without checking to see if c is NULL first.
+
+        * Also adjust clean-whitespace.pl to clean *.ac files.  Add
+          script to test-suite to test for tabs.
+
+2007-04-04  Paul Lindner  <lindner@inuus.com>
+
+	* Add clarification of flush_all in the protocol docs
+	  from Elizabeth Mattijsen <liz@dijkmat.nl>
+
+2007-03-31  Paul Lindner  <lindner@inuus.com>
+
+	* Add patch from Eli Bingham <eli@pandora.com> to 
+	  re-enable the -n switch to memcached.
+
+2007-03-20  Paul Lindner  <lindner@inuus.com>
+	* Add patch to collect eviction statistics from
+          Jean-Francois BUSTARRET <jfbustarret@wat.tv>.
+
+        * Updated docs, added new test cases for t/stats.t
+
+2007-03-18  Paul Lindner  <lindner@inuus.com>
+
+	* Add more test cases using larger buffer sizes up to and greater
+	  than 1MB.
+
+	* Remove unused parameter to item_size_ok()
+
+	* Use a single printf() in usage()
+
+	* Add a failing test for conforming with maximum connections.
+
+2007-03-17
+	* crash fix from Thomas van Gulick <thomas@partyflock.nl> in
+	  conn_shrink(), passing &ptr, instead of ptr to realloc().
+
+2007-03-05  Paul Lindner  <lindner@inuus.com>
+	* Fix a number of places where (s)printf calls were using unsigned
+	  or signed formats that did not match their arguments.
+
+	* Add support for stdbool.h and stdint.h to use the bool and
+	  uint8_t types.
+
+	* Major refactoring - move API calls for assoc/items/slabs to
+	  their own individual header files.  Add apropriate const and
+	  static declarations as appropriate.
+	
+	* Avoid type-punning.  Do a more efficient realloc inside the
+	  conn_shrink routine.
+
+        * Fix overflow bug where uninitialized access to slabclass caused
+	  size-0 mallocs during slab preallocation.
+
+	* Use EXIT_SUCCESS/EXIT_FAILURE constants.
+
+	* Convert some sprintf calls to snprintf to protect against
+	  buffer overflows.
+
+	* Explicitly compare against NULL or zero in many places.
+
+2007-03-05
+	* Steven Grimm <sgrimm@facebook.com>: Per-object-type stats collection
+	  support. Specify the object type delimiter with the -D command line
+	  option. Turn stats gathering on and off with "stats detail on" and
+	  "stats detail off". Dump the per-object-type details with
+	  "stats detail dump".
+
+2007-03-01
+	* Steven Grimm <sgrimm@facebook.com>: Fix an off-by-one error in the
+	  multithreaded version's message passing code.
+
+2006-12-23
+	* fix expirations of items set with absolute expiration times in
+	  the past, before the server's start time.  bug was introduced in
+	  1.2.0 with rel_time_t.  Thanks to Adam Dixon
+	  <adamtdixon@gmail.com> for the bug report and test case!
+
+2006-11-26
+	* Steven Grimm <sgrimm@facebook.com>: Performance improvements:
+	  
+	  Dynamic sizing of hashtable to reduce collisions on very large
+	  caches and conserve memory on small caches.
+
+	  Only reposition items in the LRU queue once a minute, to reduce
+	  overhead of accessing extremely frequently-used items.
+
+	  Stop listening for new connections until an existing one closes
+	  if we run out of available file descriptors.
+
+	  Command parser refactoring: Add a single-pass tokenizer to cut
+	  down on string scanning.  Split the command processing into
+	  separate functions for easier profiling and better readability.
+	  Pass key lengths along with the keys in all API functions that
+	  need keys, to avoid needing to call strlen() repeatedly.
+
+2006-11-25
+	* Steve Peters <steve@fisharerojo.org>: OpenBSD has a malloc.h,
+	but warns to use stdlib.h instead
+
+2006-11-22
+	* Steven Grimm <sgrimm@facebook.com>: Add support for multithreaded
+	  execution. Run configure with "--enable-threads" to enable. See
+	  doc/threads.txt for details.
+
+2006-11-13
+	* Iain Wade <iwade@optusnet.com.au>: Fix for UDP responses on non-"get"
+	 commands.
+
+2006-10-15
+	* Steven Grimm <sgrimm@facebook.com>: Dynamic sizing of hashtable to
+	  reduce collisions on very large caches and conserve memory on
+	  small caches.
+
+2006-10-13
+	* Steven Grimm <sgrimm@facebook.com>: New faster hash function.
+
+2006-09-20
+
+	* don't listen on UDP by default; more clear message when UDP port in use
+
+2006-09-09
+	* release 1.2.0 (along with 1.1.13, which is the more tested branch)
+
+	nobody has run 1.2.0 in production, to my knowledge.  facebook has run
+	their pre-merge-with-trunk version, but bugs were discovered (and fixed)
+	after the merge.  there might be more.  you've been warned.  :)
+
+2006-09-04
+	* improved autoconf libevent detection, from the Tor project.
+
+2006-09-03
+	* test suite and lot of expiration, delete, flush_all, etc corner
+	  case bugs fixed (Brad Fitzpatrick)
+
+2006-09-02
+	* Nathan Neulinger <nneul@umr.edu>: fix breakage in expiration code
+	  causing expiration times to not be processed correctly.
+
+2006-08-21
+	* Nathan Neulinger <nneul@umr.edu>: fix incompatabilities with
+	  unix domain socket support and the UDP code and clean up stale 
+	  sockets
+
+2006-08-20
+	* Nathan Neulinger <nneul@umr.edu>: unix domain socket support
+
+2006-05-03
+	* Steven Grimm <sgrimm@facebook.com>:  big bunch of changes:
+	  big CPU reduction work, UDP-based interface, increased memory
+	  efficiency.  (intertwined patch, committed all together)
+	  <http://lists.danga.com/pipermail/memcached/2006-May/002164.html>
+	  or see svn commit logs
+
+2006-04-30
+	* River Tarnell:  autoconf work for Solaris 10.  Brad:
+	merge and verify it works on Nexenta.
+
+2006-03-04
+	* avva: bucket/generation patch (old, but Brad's just finally
+	committing it)
+
+2006-01-01
+	* Brad Fitzpatrick <brad@danga.com>:  allocate 1 slab per class
+	on start-up, to avoid confusing users with out-of-memory errors
+	later.  this is 18 MB of allocation on start, unless max memory
+	allowed with -m is lower, in which case only the smaller slab
+	classes are allocated.
+
+2005-08-09
+	* Elizabeth Mattijsen <liz@dijkmat.nl>: needed a way to flush all
+	memcached backend servers, but not at exactly the same time (to
+	reduce load peaks), I've added some simple functionality to the
+	memcached protocol in the "flush_all" command that allows you to
+	specify a time at which the flush will actually occur (instead of
+	always at the moment the "flush_all" command is received).
+
+2005-05-25
+	* patch from Peter van Dijk <peter@nextgear.nl> to make
+	  stderr unbuffered, for running under daemontools
+
+2005-04-04
+	* patch from Don MacAskill <don@smugmug.com> 'flush_all' doesn't
+	seem to work properly.  Basically, if you try to add a key which
+	is present, but expired, the store fails but the old key is no
+	longer expired.
+
+	* release 1.1.12
+
+2005-01-14
+	* Date: Thu, 18 Nov 2004 15:25:59 -0600
+	  From: David Phillips <electrum@gmail.com>
+	Here is a patch to configure.ac and Makefile.am to put the man page in
+	the correct location.  Trying to install the man page from a
+	subdirectory results in the subdirectory being used in the install
+	path (it tries to install to doc/memcached.1).  This is the correct
+	thing to  do:
+
+	- create a Makefile.am in the doc directory that installs the man page
+	  with man_MANS
+	- modify Makefile.am in the base directory to reference the doc
+  	  directory using SUBDIRS
+	- modify the AC_CONFIG_FILES macro in configure.ac to output the 
+	  Makefile in doc
+
+	
+2005-01-14
+	* pidfile saving support from Lisa Seelye <lisa@gentoo.org>, sent
+	  Jan 13, 2005
+
+2005-01-14
+	* don't delete libevent events that haven't been added (the deltimer)
+	  patch from Ted Schundler <tschundler@gmail.com>
+
+2004-12-10
+	* document -M and -r in manpage (Doug Porter <dsp@dsp.name>)
+
+2004-07-22
+	* fix buffer overflow in items.c with 250 byte keys along with
+	  other info on the same line going into a 256 byte char[].
+	  thanks to Andrei Nigmatulin <anight@monamour.ru>
+	
+2004-06-15
+	* immediate deletes weren't being unlinked a few seconds,
+	  preventing "add" commands to the same key in that time period.
+	  thanks to Michael Alan Dorman <mdorman@debian.org> for the
+	  bug report and demo script.
+	
+2004-04-30
+	* released 1.1.11
+
+2004-04-24
+	* Avva: Add a new command line option: -r , to maximize core file
+	limit.
+
+2004-03-31
+	* Avva: Use getrlimit and setrlimit to set limits for number of
+	simultaneously open file descriptors. Get the current limits and
+	try to raise them if they're not enough for the specified (or the
+	default) setting of max connections.
+	
+2004-02-24
+	* Adds a '-M' flag to turn off tossing items from the cache.
+	  (Jason Titus <jtitus@postini.com>)
+
+2004-02-19 (Evan)
+	* Install manpage on "make install", etc.
+
+2003-12-30 (Brad)
+	* remove static build stuff.  interferes with PAM setuid stuff
+	  and was only included as a possible fix with the old memory
+	  allocator.  really shouldn't make a difference.
+	* add Jay Bonci's Debian scripts and manpage
+	* release version 1.1.10
+
+2003-12-01 (Avva)
+	* New command: flush_all, causes all existing items to
+	  be invalidated immediately (without deleting them from
+	  memory, merely causing memcached to no longer return them).
+2003-10-23
+	* Shift init code around to fix daemon mode on FreeBSD,
+	* and drop root only after creating the server socket (to
+	* allow the use of privileged ports)
+	* version 1.1.10pre
+
+2003-10-09
+	* BSD compile fixes from Ryan T. Dean
+	* version 1.1.9
+	
+2003-09-29
+	* ignore SIGPIPE at start instead of crashing in rare cases it
+	  comes up.  no other code had to be modified, since everything
+	  else is already dead-connection-aware.  (avva)
+	
+2003-09-09 (Avva, Lisa Marie Seelye <lisa@gentoo.org>)
+	* setuid support
+	
+2003-09-05 (Avva)
+	* accept all new connections in the same event (so we work with ET epoll)
+	* mark all items as clsid=0 after slab page reassignment to please future
+	  asserts (on the road to making slab page reassignment work fully)
+
+2003-08-12 (Brad Fitzpatrick)
+	* use TCP_CORK on Linux or TCP_PUSH on BSD
+	* only use TCP_NODELAY when we don't have alternatives
+	
+2003-08-10
+	* disable Nagel's Algorithm (TCP_NODELAY) for better performance (avva)
+
+2003-08-10
+	* support multiple levels of verbosity (-vv)
+
+2003-08-10  (Evan Martin)
+	* Makefile.am: debug, optimization, and static flags are controlled
+	  by the configure script.
+	* configure.ac:
+	  - allow specifying libevent directory with --with-libevent=DIR
+	  - check for malloc.h (unavailable on BSDs)
+	  - check for socklen_t (unavailable on OSX)
+	* assoc.c, items.c, slabs.c:  Remove some unused headers.
+	* memcached.c:  allow for nonexistence of malloc.h; #define a POSIX
+	  macro to import mlockall flags.
+
+2003-07-29
+	* version 1.1.7
+	* big bug fix: item exptime 0 meant expire immediately, not never
+	* version 1.1.8
+
+2003-07-22
+	* make 'delete' take second arg, of time to refuse new add/replace
+	* set/add/replace/delete can all take abs or delta time (delta can't
+	  be larger than a month)
+
+2003-07-21
+	* added doc/protocol.txt
+
+2003-07-01
+	* report CPU usage in stats
+	 
+2003-06-30
+	* version 1.1.6
+	* fix a number of obscure bugs
+	* more stats reporting
+	
+2003-06-10
+	* removing use of Judy; use a hash.  (judy caused memory fragmentation)
+	* shrink some structures
+	* security improvements
+	* version 1.1.0
+	
+2003-06-18
+	* changing maxsize back to an unsigned int
+	
+2003-06-16
+	* adding PHP support
+	* added CONTRIBUTORS file
+	* version 1.0.4
+	
+2003-06-15
+	* forgot to distribute website/api (still learning auto*)
+	* version 1.0.3
+	
+2003-06-15
+	* update to version 1.0.2
+	* autoconf/automake fixes for older versions
+	* make stats report version number
+	* change license from GPL to BSD
+	
+Fri, 13 Jun 2003 10:05:51 -0700  Evan Martin  <martine@danga.com>
+
+	* configure.ac, autogen.sh, Makefile.am:  Use autotools.
+	* items.c, memcached.c:  #include <time.h> for time(),
+	  printf time_t as %lu (is this correct?),
+	  minor warnings fixes.
+

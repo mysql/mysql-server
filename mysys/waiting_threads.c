@@ -1238,7 +1238,9 @@ void wt_thd_release(WT_THD *thd, const WT_RESOURCE_ID *resid)
         pthread_cond_broadcast(&rc->cond);
 #ifndef DBUG_OFF
         if (rc->cond_mutex)
+	{
           safe_mutex_assert_owner(rc->cond_mutex);
+	}
 #endif
       }
       unlock_lock_and_free_resource(thd, rc);
