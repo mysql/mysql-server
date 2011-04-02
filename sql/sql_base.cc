@@ -7797,6 +7797,18 @@ bool setup_tables(THD *thd, Name_resolution_context *context,
       if (res)
         DBUG_RETURN(1);
     }
+    if (table_list->jtbm_subselect)
+    {
+      Item *item= table_list->jtbm_subselect;
+      if (item->fix_fields(thd, &item))
+      {
+        my_error(ER_TOO_MANY_TABLES,MYF(0),MAX_TABLES); /* psergey-todo: WHY ER_TOO_MANY_TABLES ???*/
+        DBUG_RETURN(1);
+      }
+      DBUG_ASSERT(item == table_list->jtbm_subselect);
+      if (table_list->jtbm_subselect->setup_engine(FALSE))
+        DBUG_RETURN(1);
+    }
   }
 
   /* Precompute and store the row types of NATURAL/USING joins. */
@@ -8195,7 +8207,7 @@ int setup_conds(THD *thd, TABLE_LIST *tables, TABLE_LIST *leaves,
       goto err_no_arena;
   }
 
-  thd->thd_marker.emb_on_expr_nest= (TABLE_LIST*)1;
+  thd->thd_marker.emb_on_expr_nest= NO_JOIN_NEST;
   if (*conds)
   {
     thd->where="where clause";

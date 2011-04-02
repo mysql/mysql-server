@@ -36,26 +36,6 @@ class Item_subselect :public Item_result_field
 protected:
   /* thread handler, will be assigned in fix_fields only */
   THD *thd;
-  /* 
-    Used inside Item_subselect::fix_fields() according to this scenario:
-      > Item_subselect::fix_fields
-        > engine->prepare
-          > child_join->prepare
-            (Here we realize we need to do the rewrite and set
-             substitution= some new Item, eg. Item_in_optimizer )
-          < child_join->prepare
-        < engine->prepare
-        *ref= substitution;
-      < Item_subselect::fix_fields
-  */
-  Item *substitution;
-public:
-  /* unit of subquery */
-  st_select_lex_unit *unit;
-protected:
-  Item *expr_cache;
-  /* engine that perform execution of subselect (single select or union) */
-  subselect_engine *engine;
   /* old engine if engine was changed */
   subselect_engine *old_engine;
   /* cache of used external tables */
@@ -72,6 +52,25 @@ protected:
   bool inside_first_fix_fields;
   bool done_first_fix_fields;
 public:
+  /* 
+    Used inside Item_subselect::fix_fields() according to this scenario:
+      > Item_subselect::fix_fields
+        > engine->prepare
+          > child_join->prepare
+            (Here we realize we need to do the rewrite and set
+             substitution= some new Item, eg. Item_in_optimizer )
+          < child_join->prepare
+        < engine->prepare
+        *ref= substitution;
+        substitution= NULL;
+      < Item_subselect::fix_fields
+  */
+  Item *substitution;
+  /* unit of subquery */
+  st_select_lex_unit *unit;
+  Item *expr_cache;
+  /* engine that perform execution of subselect (single select or union) */
+  subselect_engine *engine;
   /* A reference from inside subquery predicate to somewhere outside of it */
   class Ref_to_outside : public Sql_alloc
   {
@@ -148,6 +147,7 @@ public:
   bool mark_as_dependent(THD *thd, st_select_lex *select, Item *item);
   void fix_after_pullout(st_select_lex *new_parent, Item **ref);
   void recalc_used_tables(st_select_lex *new_parent, bool after_pullout);
+  virtual int optimize();
   virtual bool exec();
   virtual void fix_length_and_dec();
   table_map used_tables() const;
@@ -312,6 +312,8 @@ public:
 };
 
 
+TABLE_LIST * const NO_JOIN_NEST=(TABLE_LIST*)0x1;
+
 /**
   Representation of IN subquery predicates of the form
   "left_expr IN (SELECT ...)".
@@ -350,10 +352,10 @@ protected:
     all JOIN in UNION
   */
   Item *expr;
-  Item_in_optimizer *optimizer;
   bool was_null;
   bool abort_on_null;
 public:
+  Item_in_optimizer *optimizer;
   /* Used to trigger on/off conditions that were pushed down to subselect */
   bool *pushed_cond_guards;
   
@@ -362,7 +364,7 @@ public:
   /*
     Used by subquery optimizations to keep track about in which clause this
     subquery predicate is located: 
-      (TABLE_LIST*) 1   - the predicate is an AND-part of the WHERE
+      NO_JOIN_NEST      - the predicate is an AND-part of the WHERE
       join nest pointer - the predicate is an AND-part of ON expression
                           of a join nest   
       NULL              - for all other locations
@@ -374,7 +376,7 @@ public:
      - pointer to join nest if the subquery predicate is in the ON expression
      - (TABLE_LIST*)1 if the predicate is in the WHERE.
   */
-  TABLE_LIST *expr_join_nest;
+  //TABLE_LIST *expr_join_nest;
   /*
     Types of left_expr and subquery's select list allow to perform subquery
     materialization. Currently, we set this to FALSE when it as well could
@@ -396,6 +398,11 @@ public:
   };
   enum_exec_method exec_method;
 
+  /*
+    TRUE<=>this is a flattenable semi-join, false overwise.
+  */
+  bool is_flattenable_semijoin;
+  
   bool *get_cond_guard(int i)
   {
     return pushed_cond_guards ? pushed_cond_guards + i : NULL;
@@ -412,7 +419,7 @@ public:
   Item_in_subselect(Item * left_expr, st_select_lex *select_lex);
   Item_in_subselect()
     :Item_exists_subselect(), left_expr_cache(0), first_execution(TRUE),
-    is_constant(FALSE), optimizer(0), abort_on_null(0),
+    is_constant(FALSE), abort_on_null(0), optimizer(0),
     pushed_cond_guards(NULL), exec_method(NOT_TRANSFORMED), upper_item(0)
   {}
   void cleanup();
@@ -445,7 +452,7 @@ public:
   bool fix_fields(THD *thd, Item **ref);
   void fix_after_pullout(st_select_lex *new_parent, Item **ref);
   void update_used_tables();
-  bool setup_engine();
+  bool setup_engine(bool dont_switch_arena);
   bool init_left_expr_cache();
   /* Inform 'this' that it was computed, and contains a valid result. */
   void set_first_execution() { if (first_execution) first_execution= FALSE; }
@@ -521,6 +528,7 @@ public:
   THD * get_thd() { return thd; }
   virtual int prepare()= 0;
   virtual void fix_length_and_dec(Item_cache** row)= 0;
+  virtual int optimize() { DBUG_ASSERT(0); return 0; }
   /*
     Execute the engine
 
@@ -751,7 +759,7 @@ inline bool Item_subselect::is_uncacheable() const
 
 class subselect_hash_sj_engine : public subselect_engine
 {
-protected:
+public:
   /* The table into which the subquery is materialized. */
   TABLE *tmp_table;
   /* TRUE if the subquery was materialized into a temp table. */
@@ -763,64 +771,34 @@ protected:
     of subselect_single_select_engine::[prepare | cols].
   */
   subselect_single_select_engine *materialize_engine;
-  /* The engine used to compute the IN predicate. */
-  subselect_engine *lookup_engine;
   /*
     QEP to execute the subquery and materialize its result into a
     temporary table. Created during the first call to exec().
   */
   JOIN *materialize_join;
-
-  /* Keyparts of the only non-NULL composite index in a rowid merge. */
-  MY_BITMAP non_null_key_parts;
-  /* Keyparts of the single column indexes with NULL, one keypart per index. */
-  MY_BITMAP partial_match_key_parts;
-  uint count_partial_match_columns;
-  uint count_null_only_columns;
   /*
     A conjunction of all the equality condtions between all pairs of expressions
     that are arguments of an IN predicate. We need these to post-filter some
     IN results because index lookups sometimes match values that are actually
     not equal to the search key in SQL terms.
- */
+  */
   Item_cond_and *semi_join_conds;
-  /* Possible execution strategies that can be used to compute hash semi-join.*/
-  enum exec_strategy {
-    UNDEFINED,
-    COMPLETE_MATCH, /* Use regular index lookups. */
-    PARTIAL_MATCH,  /* Use some partial matching strategy. */
-    PARTIAL_MATCH_MERGE, /* Use partial matching through index merging. */
-    PARTIAL_MATCH_SCAN,  /* Use partial matching through table scan. */
-    IMPOSSIBLE      /* Subquery materialization is not applicable. */
-  };
-  /* The chosen execution strategy. Computed after materialization. */
-  exec_strategy strategy;
-protected:
-  exec_strategy get_strategy_using_schema();
-  exec_strategy get_strategy_using_data();
-  ulonglong rowid_merge_buff_size(bool has_non_null_key,
-                                  bool has_covering_null_row,
-                                  MY_BITMAP *partial_match_key_parts);
-  void choose_partial_match_strategy(bool has_non_null_key,
-                                     bool has_covering_null_row,
-                                     MY_BITMAP *partial_match_key_parts);
-  bool make_semi_join_conds();
-  subselect_uniquesubquery_engine* make_unique_engine();
 
-public:
   subselect_hash_sj_engine(THD *thd, Item_subselect *in_predicate,
                            subselect_single_select_engine *old_engine)
-    :subselect_engine(thd, in_predicate, NULL), tmp_table(NULL),
-    is_materialized(FALSE), materialize_engine(old_engine), lookup_engine(NULL),
-    materialize_join(NULL), count_partial_match_columns(0),
-    count_null_only_columns(0), semi_join_conds(NULL), strategy(UNDEFINED)
+    : subselect_engine(thd, in_predicate, NULL), 
+      tmp_table(NULL), is_materialized(FALSE), materialize_engine(old_engine),
+      materialize_join(NULL),  semi_join_conds(NULL), lookup_engine(NULL),
+      count_partial_match_columns(0), count_null_only_columns(0),
+      strategy(UNDEFINED)
   {}
   ~subselect_hash_sj_engine();
 
-  bool init_permanent(List<Item> *tmp_columns);
+  bool init_permanent(List<Item> *tmp_columns, uint subquery_id);
   bool init_runtime();
   void cleanup();
   int prepare() { return 0; } /* Override virtual function in base class. */
+  int optimize();
   int exec();
   virtual void print(String *str, enum_query_type query_type);
   uint cols()
@@ -840,6 +818,38 @@ public:
   //=>base class
   bool change_result(Item_subselect *si, select_result_interceptor *result);
   bool no_tables();//=>base class
+
+protected:
+  /* The engine used to compute the IN predicate. */
+  subselect_engine *lookup_engine;
+  /* Keyparts of the only non-NULL composite index in a rowid merge. */
+  MY_BITMAP non_null_key_parts;
+  /* Keyparts of the single column indexes with NULL, one keypart per index. */
+  MY_BITMAP partial_match_key_parts;
+  uint count_partial_match_columns;
+  uint count_null_only_columns;
+  /* Possible execution strategies that can be used to compute hash semi-join.*/
+  enum exec_strategy {
+    UNDEFINED,
+    COMPLETE_MATCH, /* Use regular index lookups. */
+    PARTIAL_MATCH,  /* Use some partial matching strategy. */
+    PARTIAL_MATCH_MERGE, /* Use partial matching through index merging. */
+    PARTIAL_MATCH_SCAN,  /* Use partial matching through table scan. */
+    IMPOSSIBLE      /* Subquery materialization is not applicable. */
+  };
+  /* The chosen execution strategy. Computed after materialization. */
+  exec_strategy strategy;
+  exec_strategy get_strategy_using_schema();
+  exec_strategy get_strategy_using_data();
+  ulonglong rowid_merge_buff_size(bool has_non_null_key,
+                                  bool has_covering_null_row,
+                                  MY_BITMAP *partial_match_key_parts);
+  void choose_partial_match_strategy(bool has_non_null_key,
+                                     bool has_covering_null_row,
+                                     MY_BITMAP *partial_match_key_parts);
+  bool make_semi_join_conds();
+  subselect_uniquesubquery_engine* make_unique_engine();
+
 };
 
 

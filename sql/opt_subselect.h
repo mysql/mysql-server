@@ -1,4 +1,6 @@
-/* */
+/*
+  Semi-join subquery optimization code definitions
+*/
 
 #ifdef USE_PRAGMA_INTERFACE
 #pragma interface			/* gcc class implementation */
@@ -366,4 +368,10 @@ int clear_sj_tmp_tables(JOIN *join);
 int rewrite_to_index_subquery_engine(JOIN *join);
 
 
+void get_delayed_table_estimates(TABLE *table,
+                                 ha_rows *out_rows, 
+                                 double *scan_time,
+                                 double *startup_cost);
+
+enum_nested_loop_state join_tab_execution_startup(JOIN_TAB *tab);
 

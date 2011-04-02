@@ -690,7 +690,8 @@ bool st_select_lex_unit::cleanup()
     if ((join= fake_select_lex->join))
     {
       join->tables_list= 0;
-      join->tables= 0;
+      join->table_count= 0;
+      join->top_join_tab_count= 0;
     }
     error|= fake_select_lex->cleanup();
     /*

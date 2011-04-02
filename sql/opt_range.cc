@@ -341,8 +341,9 @@ public:
   SEL_ARG(Field *field, uint8 part, uchar *min_value, uchar *max_value,
 	  uint8 min_flag, uint8 max_flag, uint8 maybe_flag);
   SEL_ARG(enum Type type_arg)
-    :min_flag(0),elements(1),use_count(1),left(0),right(0),next_key_part(0),
-    color(BLACK), type(type_arg)
+    :min_flag(0), max_part_no(0) /* first key part means 1. 0 mean 'no parts'*/, 
+     elements(1),use_count(1),left(0),right(0),
+     next_key_part(0), color(BLACK), type(type_arg)
   {}
   inline bool is_same(SEL_ARG *arg)
   {
@@ -2909,7 +2910,8 @@ int SQL_SELECT::test_quick_select(THD *thd, key_map keys_to_use,
   quick=0;
   needed_reg.clear_all();
   quick_keys.clear_all();
-  if (keys_to_use.is_clear_all())
+  DBUG_ASSERT(!head->is_filled_at_execution());
+  if (keys_to_use.is_clear_all() || head->is_filled_at_execution())
     DBUG_RETURN(0);
   records= head->file->stats.records;
   if (!records)
@@ -4317,7 +4319,7 @@ double get_sweep_read_cost(const PARAM *param, ha_rows records)
       return 1;
     */
     JOIN *join= param->thd->lex->select_lex.join;
-    if (!join || join->tables == 1)
+    if (!join || join->table_count == 1)
     {
       /* No join, assume reading is done in one 'sweep' */
       result= busy_blocks*(DISK_SEEK_BASE_COST +
@@ -11268,7 +11270,7 @@ get_best_group_min_max(PARAM *param, SEL_TREE *tree)
   /* Perform few 'cheap' tests whether this access method is applicable. */
   if (!join)
     DBUG_RETURN(NULL);        /* This is not a select statement. */
-  if ((join->tables != 1) ||  /* The query must reference one table. */
+  if ((join->table_count != 1) ||  /* The query must reference one table. */
       ((!join->group_list) && /* Neither GROUP BY nor a DISTINCT query. */
        (!join->select_distinct)) ||
       (join->select_lex->olap == ROLLUP_TYPE)) /* Check (B3) for ROLLUP */
