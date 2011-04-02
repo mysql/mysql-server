@@ -1,6 +1,5 @@
 /*
-   Copyright (C) 2010 Sun Microsystems Inc.
-   All rights reserved. Use is subject to license terms.
+   Copyright (c) 2010, 2011, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -30,6 +29,7 @@ import com.mysql.clusterj.core.spi.ValueHandler;
 import com.mysql.clusterj.core.store.Column;
 import com.mysql.clusterj.core.store.Dictionary;
 import com.mysql.clusterj.core.store.Index;
+import com.mysql.clusterj.core.store.Table;
 
 import com.mysql.clusterj.core.util.I18NHelper;
 import com.mysql.clusterj.core.util.Logger;
@@ -57,18 +57,25 @@ public class DomainTypeHandlerImpl<T> extends AbstractDomainTypeHandlerImpl<T> {
     static Map<String, DomainTypeHandlerImpl<?>> domainTypeHandlerMap = new HashMap<String, DomainTypeHandlerImpl<?>>();
 
     /** Find a domain type handler by table name or create a new one.
-     * 
+     * If the table does not exist in ndb, return null.
      * @param tableName the name of the table
      * @param dictionary the dictionary
-     * @return the domain type handle for the table
+     * @return the domain type handle for the table or null if the table does not exist in ndb
      */
     public static DomainTypeHandlerImpl<?> getDomainTypeHandler(String tableName, Dictionary dictionary) {
         DomainTypeHandlerImpl<?> result = null;
         synchronized (domainTypeHandlerMap) {
             result = domainTypeHandlerMap.get(tableName);
             if (result == null) {
-                result = new DomainTypeHandlerImpl(tableName, dictionary);
-                domainTypeHandlerMap.put(tableName, result);
+                Table table = dictionary.getTable(tableName);
+                if (table != null) {
+                    result = new DomainTypeHandlerImpl(tableName, dictionary);
+                    domainTypeHandlerMap.put(tableName, result);
+                    if (logger.isDetailEnabled()) logger.detail("New DomainTypeHandler created for table " + tableName);
+                } else {
+                    if (logger.isDetailEnabled()) logger.detail("DomainTypeHandler for table " + tableName
+                            + " not created; table is not an ndb table.");
+                }
             } else {
                 if (logger.isDetailEnabled()) logger.detail("Found DomainTypeHandler for table " + tableName);
             }

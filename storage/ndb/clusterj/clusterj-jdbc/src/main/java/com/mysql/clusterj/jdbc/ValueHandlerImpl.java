@@ -49,14 +49,22 @@ public class ValueHandlerImpl implements ValueHandler {
     private ParameterBindings parameterBindings;
     private int[] fieldNumberMap;
 
-    public ValueHandlerImpl(ParameterBindings parameterBindings, int[] fieldNumberMap) {
+    /** The offset into the parameter bindings, used for batch processing */
+    private int offset;
+
+    public ValueHandlerImpl(ParameterBindings parameterBindings, int[] fieldNumberMap, int offset) {
         this.parameterBindings = parameterBindings;
         this.fieldNumberMap = fieldNumberMap;
+        this.offset = offset;
+    }
+
+    public ValueHandlerImpl(ParameterBindings parameterBindings, int[] fieldNumberMap) {
+        this(parameterBindings, fieldNumberMap, 0);
     }
 
     public BigDecimal getBigDecimal(int fieldNumber) {
         try {
-            return parameterBindings.getBigDecimal(fieldNumberMap[fieldNumber]);
+            return parameterBindings.getBigDecimal(offset + fieldNumberMap[fieldNumber]);
         } catch (SQLException e) {
             throw new ClusterJDatastoreException(e);
         }
@@ -64,7 +72,7 @@ public class ValueHandlerImpl implements ValueHandler {
 
     public BigInteger getBigInteger(int fieldNumber) {
         try {
-            return parameterBindings.getBigDecimal(fieldNumberMap[fieldNumber]).toBigInteger();
+            return parameterBindings.getBigDecimal(offset + fieldNumberMap[fieldNumber]).toBigInteger();
         } catch (SQLException e) {
             throw new ClusterJDatastoreException(e);
         }
@@ -72,7 +80,7 @@ public class ValueHandlerImpl implements ValueHandler {
 
     public boolean getBoolean(int fieldNumber) {
         try {
-            return parameterBindings.getBoolean(fieldNumberMap[fieldNumber]);
+            return parameterBindings.getBoolean(offset + fieldNumberMap[fieldNumber]);
         } catch (SQLException e) {
             throw new ClusterJDatastoreException(e);
         }
@@ -84,7 +92,7 @@ public class ValueHandlerImpl implements ValueHandler {
 
     public byte getByte(int fieldNumber) {
         try {
-            return parameterBindings.getByte(fieldNumberMap[fieldNumber]);
+            return parameterBindings.getByte(offset + fieldNumberMap[fieldNumber]);
         } catch (SQLException e) {
             throw new ClusterJDatastoreException(e);
         }
@@ -96,7 +104,7 @@ public class ValueHandlerImpl implements ValueHandler {
 
     public double getDouble(int fieldNumber) {
         try {
-            return parameterBindings.getDouble(fieldNumberMap[fieldNumber]);
+            return parameterBindings.getDouble(offset + fieldNumberMap[fieldNumber]);
         } catch (SQLException e) {
             throw new ClusterJDatastoreException(e);
         }
@@ -104,7 +112,7 @@ public class ValueHandlerImpl implements ValueHandler {
 
     public float getFloat(int fieldNumber) {
         try {
-            return parameterBindings.getFloat(fieldNumberMap[fieldNumber]);
+            return parameterBindings.getFloat(offset + fieldNumberMap[fieldNumber]);
         } catch (SQLException e) {
             throw new ClusterJDatastoreException(e);
         }
@@ -112,7 +120,7 @@ public class ValueHandlerImpl implements ValueHandler {
 
     public int getInt(int fieldNumber) {
         try {
-            return parameterBindings.getInt(fieldNumberMap[fieldNumber]);
+            return parameterBindings.getInt(offset + fieldNumberMap[fieldNumber]);
         } catch (SQLException e) {
             throw new ClusterJDatastoreException(e);
         }
@@ -120,7 +128,7 @@ public class ValueHandlerImpl implements ValueHandler {
 
     public Date getJavaSqlDate(int fieldNumber) {
         try {
-            return parameterBindings.getDate(fieldNumberMap[fieldNumber]);
+            return parameterBindings.getDate(offset + fieldNumberMap[fieldNumber]);
         } catch (SQLException e) {
             throw new ClusterJDatastoreException(e);
         }
@@ -128,7 +136,7 @@ public class ValueHandlerImpl implements ValueHandler {
 
     public Time getJavaSqlTime(int fieldNumber) {
         try {
-            return parameterBindings.getTime(fieldNumberMap[fieldNumber]);
+            return parameterBindings.getTime(offset + fieldNumberMap[fieldNumber]);
         } catch (SQLException e) {
             throw new ClusterJDatastoreException(e);
         }
@@ -136,7 +144,7 @@ public class ValueHandlerImpl implements ValueHandler {
 
     public Timestamp getJavaSqlTimestamp(int fieldNumber) {
         try {
-            return parameterBindings.getTimestamp(fieldNumberMap[fieldNumber]);
+            return parameterBindings.getTimestamp(offset + fieldNumberMap[fieldNumber]);
         } catch (SQLException e) {
             throw new ClusterJDatastoreException(e);
         }
@@ -144,7 +152,7 @@ public class ValueHandlerImpl implements ValueHandler {
 
     public java.util.Date getJavaUtilDate(int fieldNumber) {
         try {
-            return parameterBindings.getDate(fieldNumberMap[fieldNumber]);
+            return parameterBindings.getDate(offset + fieldNumberMap[fieldNumber]);
         } catch (SQLException e) {
             throw new ClusterJDatastoreException(e);
         }
@@ -152,7 +160,7 @@ public class ValueHandlerImpl implements ValueHandler {
 
     public long getLong(int fieldNumber) {
         try {
-            return parameterBindings.getLong(fieldNumberMap[fieldNumber]);
+            return parameterBindings.getLong(offset + fieldNumberMap[fieldNumber]);
         } catch (SQLException e) {
             throw new ClusterJDatastoreException(e);
         }
@@ -164,7 +172,7 @@ public class ValueHandlerImpl implements ValueHandler {
 
     public Byte getObjectByte(int fieldNumber) {
         try {
-            return parameterBindings.getByte(fieldNumberMap[fieldNumber]);
+            return parameterBindings.getByte(offset + fieldNumberMap[fieldNumber]);
         } catch (SQLException e) {
             throw new ClusterJDatastoreException(e);
         }
@@ -172,7 +180,7 @@ public class ValueHandlerImpl implements ValueHandler {
 
     public Double getObjectDouble(int fieldNumber) {
         try {
-            return parameterBindings.getDouble(fieldNumberMap[fieldNumber]);
+            return parameterBindings.getDouble(offset + fieldNumberMap[fieldNumber]);
         } catch (SQLException e) {
             throw new ClusterJDatastoreException(e);
         }
@@ -180,7 +188,7 @@ public class ValueHandlerImpl implements ValueHandler {
 
     public Float getObjectFloat(int fieldNumber) {
         try {
-            return parameterBindings.getFloat(fieldNumberMap[fieldNumber]);
+            return parameterBindings.getFloat(offset + fieldNumberMap[fieldNumber]);
         } catch (SQLException e) {
             throw new ClusterJDatastoreException(e);
         }
@@ -188,7 +196,7 @@ public class ValueHandlerImpl implements ValueHandler {
 
     public Integer getObjectInt(int fieldNumber) {
         try {
-            return parameterBindings.getInt(fieldNumberMap[fieldNumber]);
+            return parameterBindings.getInt(offset + fieldNumberMap[fieldNumber]);
         } catch (SQLException e) {
             throw new ClusterJDatastoreException(e);
         }
@@ -196,7 +204,7 @@ public class ValueHandlerImpl implements ValueHandler {
 
     public Long getObjectLong(int fieldNumber) {
         try {
-            return parameterBindings.getLong(fieldNumberMap[fieldNumber]);
+            return parameterBindings.getLong(offset + fieldNumberMap[fieldNumber]);
         } catch (SQLException e) {
             throw new ClusterJDatastoreException(e);
         }
@@ -204,7 +212,7 @@ public class ValueHandlerImpl implements ValueHandler {
 
     public Short getObjectShort(int fieldNumber) {
         try {
-            return parameterBindings.getShort(fieldNumberMap[fieldNumber]);
+            return parameterBindings.getShort(offset + fieldNumberMap[fieldNumber]);
         } catch (SQLException e) {
             throw new ClusterJDatastoreException(e);
         }
@@ -212,7 +220,7 @@ public class ValueHandlerImpl implements ValueHandler {
 
     public short getShort(int fieldNumber) {
         try {
-            return parameterBindings.getShort(fieldNumberMap[fieldNumber]);
+            return parameterBindings.getShort(offset + fieldNumberMap[fieldNumber]);
         } catch (SQLException e) {
             throw new ClusterJDatastoreException(e);
         }
@@ -220,7 +228,7 @@ public class ValueHandlerImpl implements ValueHandler {
 
     public String getString(int fieldNumber) {
         try {
-            return parameterBindings.getString(fieldNumberMap[fieldNumber]);
+            return parameterBindings.getString(offset + fieldNumberMap[fieldNumber]);
         } catch (SQLException e) {
             throw new ClusterJDatastoreException(e);
         }
@@ -232,7 +240,7 @@ public class ValueHandlerImpl implements ValueHandler {
 
     public boolean isNull(int fieldNumber) {
         try {
-            return parameterBindings.isNull(fieldNumberMap[fieldNumber]);
+            return parameterBindings.isNull(offset + fieldNumberMap[fieldNumber]);
         } catch (SQLException e) {
             throw new ClusterJDatastoreException(e);
         }
