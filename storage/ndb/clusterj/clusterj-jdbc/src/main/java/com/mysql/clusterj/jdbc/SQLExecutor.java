@@ -54,6 +54,9 @@ public class SQLExecutor {
     /** The column names in the SQL statement */
     protected List<String> columnNames = null;
 
+    /** The number of fields in the domain object (also the number of mapped columns) */
+    protected int numberOfFields;
+
     /** The map of field numbers to parameter numbers */
     protected int[] fieldNumberToColumnNumberMap = null;
 
@@ -151,7 +154,7 @@ public class SQLExecutor {
 
         public ResultSetInternalMethods execute(SessionSPI session,
                 ParameterBindings parameterBindings) throws SQLException {
-            logParameterBindings(parameterBindings);
+            if (logger.isDetailEnabled()) logParameterBindings(parameterBindings);
             // for now, the only delete operation supported is delete all rows
             if (queryDomainType == null) {
                 int rowsDeleted = session.deletePersistentAll(domainTypeHandler);
@@ -172,11 +175,24 @@ public class SQLExecutor {
 
         public ResultSetInternalMethods execute(SessionSPI session,
                 ParameterBindings parameterBindings) throws SQLException {
-            logParameterBindings(parameterBindings);
+            int numberOfParameters = countParameters(parameterBindings);
+            int numberOfStatements = numberOfParameters / numberOfFields;
+            if (logger.isDebugEnabled()) logger.debug("SQLExecutor.Insert.execute"
+                    + " numberOfParameters: " + numberOfParameters
+                    + " numberOfFields: " + numberOfFields
+                    + " numberOfStatements: " + numberOfStatements
+                    );
+            // interceptor.beforeClusterjStart();
             // session asks for values by field number which are converted to parameter number
-            ValueHandler valueHandler = getValueHandler(parameterBindings, fieldNumberToColumnNumberMap);
-            session.insert(domainTypeHandler, valueHandler);
-            return new ResultSetInternalMethodsUpdateCount(1);
+            int offset = 0;
+            for (int i = 0; i < numberOfParameters; i += numberOfFields) {
+                ValueHandler valueHandler = getValueHandler(parameterBindings, fieldNumberToColumnNumberMap, offset);
+                offset += numberOfFields;
+                session.insert(domainTypeHandler, valueHandler);
+            }
+            session.flush();
+            // interceptor.afterClusterjStart();
+            return new ResultSetInternalMethodsUpdateCount(numberOfStatements);
         }
     }
 
@@ -225,9 +241,10 @@ public class SQLExecutor {
         // the index into the int[] is the 0-origin field number (columns in order of definition in the schema)
         // the value is the index into the parameter bindings (columns in order of the sql insert statement)
         String[] fieldNames = domainTypeHandler.getFieldNames();
-        fieldNumberToColumnNumberMap = new int[fieldNames.length];
+        numberOfFields = fieldNames.length;
+        fieldNumberToColumnNumberMap = new int[numberOfFields];
         columnNumberToFieldNumberMap = new int[1 + columnNames.size()];
-        for (int i= 0; i < fieldNames.length; ++i) {
+        for (int i= 0; i < numberOfFields; ++i) {
             columnNameToFieldNumberMap.put(fieldNames[i], i);
             int index = columnNames.indexOf(fieldNames[i]);
             if (index >= 0) {
@@ -253,11 +270,12 @@ public class SQLExecutor {
     /** Create a value handler (part of the clusterj spi) to retrieve values from jdbc parameter bindings.
      * @param parameterBindings the jdbc parameter bindings from prepared statements
      * @param fieldNumberToParameterNumberMap map from field number to parameter number
+     * @param offset into the parameter bindings for this instance (used for batch execution)
      * @return
      */
     protected ValueHandler getValueHandler(ParameterBindings parameterBindings,
-            int[] fieldNumberToParameterNumberMap) {
-        return new ValueHandlerImpl(parameterBindings, fieldNumberToParameterNumberMap);
+            int[] fieldNumberToParameterNumberMap, int offset) {
+        return new ValueHandlerImpl(parameterBindings, fieldNumberToParameterNumberMap, offset);
     }
 
     /** If detailed logging is enabled write the parameter bindings to the log.
@@ -277,6 +295,31 @@ public class SQLExecutor {
                 }
             }
         }
+    }
+
+    /** Count the number of bound parameters. If this is a batch execution, then the
+     * number of bound parameters is the number of statements in the batch times the
+     * number of parameters per statement.
+     * If detailed logging is enabled write the parameter bindings to the log.
+     * @param parameterBindings the jdbc parameter bindings
+     */
+    protected static int countParameters(ParameterBindings parameterBindings) {
+        int i = 0;
+        while (true) {
+            try {
+                ++i;
+                // parameters are 1-origin per jdbc specification
+                Object objectValue = parameterBindings.getObject(i);
+                if (logger.isDetailEnabled()) {
+                    String stringValue = objectValue.toString();
+                    logger.detail("parameterBinding: parameter " + i + " has value: " + stringValue);
+                }
+            } catch (Exception e) {
+                // we don't know how many parameters are bound...
+                break;
+            }
+        }
+        return i - 1;
     }
 
 }

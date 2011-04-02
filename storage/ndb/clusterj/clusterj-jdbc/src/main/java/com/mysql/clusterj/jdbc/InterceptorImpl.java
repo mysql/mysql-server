@@ -188,6 +188,17 @@ public class InterceptorImpl {
         return result;
     }
 
+    /** Return the interceptor assigned to the connection. If there is no interceptor, return null.
+     * 
+     * @param connection the connection
+     * @return the interceptor for this connection or null if there is no interceptor
+     */
+    public static InterceptorImpl getInterceptorImpl(java.sql.Connection connection) {
+        synchronized (interceptorImplMap) {
+            return interceptorImplMap.get(connection);
+        }
+    }
+
     @Override
     public String toString() {
         return "InterceptorImpl "
@@ -264,15 +275,8 @@ public class InterceptorImpl {
         Executor result = null;
         // parse the sql
         CommonTree root = parse(preparedSql);
-//            System.out.println("StatementInterceptorImpl.preProcess result of parsing is "
-//                    + root.toStringTree());
         // get the root of the tree
         int tokenType = root.getType();
-//            System.out.println("StatementInterceptorImpl.preProcess"
-//                    + " tokenText: " + tokenText + " tokenType " + tokenType
-//                    + " child count " + childCount);
-        // walk the tree
-        // walk(root);
         // perform command-specific actions
         String tableName = "";
         CommonTree tableNode;
@@ -451,14 +455,10 @@ public class InterceptorImpl {
     }
 
     public void destroy(StatementInterceptor statementInterceptor) {
-        // TODO Auto-generated method stub
-        
     }
 
     public void destroy(
             ConnectionLifecycleInterceptor connectionLifecycleInterceptor) {
-        // TODO Auto-generated method stub
-        
     }
 
     private void assertReady() {

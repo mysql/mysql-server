@@ -19,6 +19,8 @@ package com.mysql.clusterj.jdbc.antlr.node;
 
 import org.antlr.runtime.Token;
 
+import com.mysql.clusterj.jdbc.antlr.MySQL51Parser;
+
 public class DeleteNode extends CommandNode {
 
     public DeleteNode(Token token) {
@@ -32,6 +34,10 @@ public class DeleteNode extends CommandNode {
     @Override
     public DeleteNode dupNode() {
         return new DeleteNode(this);
+    }
+
+    public WhereNode getWhereNode() {
+        return (WhereNode)getFirstChildWithType(MySQL51Parser.WHERE);
     }
 
 }

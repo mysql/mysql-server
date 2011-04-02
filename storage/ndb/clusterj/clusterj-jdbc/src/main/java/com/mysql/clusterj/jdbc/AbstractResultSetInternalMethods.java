@@ -56,6 +56,9 @@ public abstract class AbstractResultSetInternalMethods implements
     /** My logger */
     static final Logger logger = LoggerFactoryService.getFactory().getInstance(InterceptorImpl.class);
 
+    /** First char of query */
+    protected char firstCharOfQuery;
+
     public void buildIndexMapping() throws SQLException {
         throw new SQLException(local.message("ERR_Should_Not_Occur")); 
     }
@@ -137,7 +140,7 @@ public abstract class AbstractResultSetInternalMethods implements
     }
 
     public void setFirstCharOfQuery(char arg0) {
-        throw new RuntimeException(local.message("ERR_Should_Not_Occur"));
+        firstCharOfQuery = arg0;
     }
 
     public void setOwningStatement(StatementImpl arg0) {

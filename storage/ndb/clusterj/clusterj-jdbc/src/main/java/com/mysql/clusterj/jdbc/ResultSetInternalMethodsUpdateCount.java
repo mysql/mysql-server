@@ -17,6 +17,8 @@
 
 package com.mysql.clusterj.jdbc;
 
+import java.sql.SQLException;
+
 import com.mysql.clusterj.core.util.I18NHelper;
 import com.mysql.clusterj.core.util.Logger;
 import com.mysql.clusterj.core.util.LoggerFactoryService;
@@ -61,4 +63,8 @@ public class ResultSetInternalMethodsUpdateCount extends
         return false;
     }
 
+    @Override
+    public void realClose(boolean arg0) throws SQLException {
+    }
+ 
 }
