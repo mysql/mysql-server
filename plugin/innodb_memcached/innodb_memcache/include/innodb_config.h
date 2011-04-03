@@ -28,9 +28,12 @@ Created 03/15/2011      Jimmy Yang
 #include "api0api.h"
 
 
+/* Database name and table name for our metadata "system" table for
+memcached */
 #define	INNODB_META_DB			"innodb_memcache"
 #define INNODB_META_CONTAINER_TABLE	"containers"
 
+/** structure describes each column's basic info (name, field_id etc.) */
 typedef struct meta_columns {
 	char*		m_str;
 	int		m_len;
@@ -40,6 +43,8 @@ typedef struct meta_columns {
 
 #define	META_CONTAINER_TO_GET		8
 
+/** ID into the meta_info_t->m_item, describes metadata info for table and its
+columns corresponding to each memcached field */
 enum meta_container_idx {
 	META_NAME,
 	META_DB,
@@ -51,12 +56,14 @@ enum meta_container_idx {
 	META_EXP
 };
 
+/** Indicate whether type of index on "key" column of the table. */
 typedef enum meta_use_idx {
 	META_NO_INDEX = 1,
 	META_CLUSTER,
 	META_SECONDARY
 } meta_use_idx_t;
 
+/** Describes the index's name and ID of the index on the "key" column */
 typedef struct meta_index {
 	char*		m_name;
 	int		m_id;
@@ -66,6 +73,8 @@ typedef struct meta_index {
 
 typedef struct meta_container_info {
 	meta_column_t	m_item[META_CONTAINER_TO_GET];
+	meta_column_t*	m_add_item;
+	int		m_num_add;
 	meta_index_t	m_index;
 	bool		flag_enabled;
 	bool		cas_enabled;

@@ -8,7 +8,6 @@ noinst_LTLIBRARIES = libmcd_util.la
 
 innodb_engine_la_SOURCES= \
                     src/innodb_config.c \
-                    src/KeyPrefix.cc \
                     src/atomics.c \
                     src/debug.c \
                     src/hash_item_util.c \
