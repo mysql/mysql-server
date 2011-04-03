@@ -53,6 +53,8 @@ enum mci_item_idx {
 
 typedef struct mci_items {
 	mci_column_t	mci_item[MCI_ITEM_TO_GET];
+	mci_column_t*	mci_add_value;
+	int		mci_add_num;
 } mci_item_t;
 
 /** Following are callback function defines for InnoDB APIs */
