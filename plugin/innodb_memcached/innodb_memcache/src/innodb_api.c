@@ -102,7 +102,7 @@ innodb_api_read_int(
 	ib_tpl_t        read_tpl,
 	int		i)
 {
-	uint64_t	value;
+	uint64_t	value = 0;
 
 	assert (m_col->type == IB_INT);
 	assert (m_col->type_len == 8 || m_col->type_len == 4);
@@ -175,6 +175,70 @@ innodb_api_write_int(
 	return(DB_SUCCESS);
 }
 
+static
+bool
+innodb_api_fill_mci(
+/*================*/
+	ib_tpl_t	read_tpl,
+	int		col_id,
+	mci_column_t*	mci_item)
+{
+	ib_ulint_t      data_len;
+	ib_col_meta_t   col_meta;
+
+	data_len = ib_cb_col_get_meta(read_tpl, col_id, &col_meta);
+
+	if (data_len == IB_SQL_NULL) {
+		mci_item->m_str = NULL;
+		mci_item->m_len = 0;
+	} else {
+		mci_item->m_str = (char*)ib_cb_col_get_value(read_tpl, col_id);
+		mci_item->m_len = data_len;
+	}
+
+	mci_item->m_is_str = TRUE;
+	mci_item->m_enabled = TRUE;
+
+	return(TRUE);
+}
+
+/*************************************************************//**
+Position a row accord to key, and fetch value if needed
+@return DB_SUCCESS if successful otherwise, error code */
+static
+ib_err_t
+innodb_api_fill_value(
+/*==================*/
+	meta_info_t*	meta_info, 
+	mci_item_t*	item,		/*!< in: result */
+	ib_tpl_t	read_tpl,
+	int		col_id)
+{
+	ib_err_t	err = DB_NOT_FOUND;
+
+	if (meta_info->m_num_add == 0) {
+		meta_column_t*	col_info = meta_info->m_item;
+
+		if (col_id == col_info[META_VALUE].m_field_id) {
+
+			innodb_api_fill_mci(read_tpl, col_id,
+					    &item->mci_item[MCI_COL_VALUE]);
+			err = DB_SUCCESS;
+		}
+	} else {
+		int	i;
+		for (i = 0; i < meta_info->m_num_add; i++) {
+			if (col_id == meta_info->m_add_item[i].m_field_id) {
+				innodb_api_fill_mci(read_tpl, col_id,
+						    &item->mci_add_value[i]);
+				err = DB_SUCCESS;
+			}
+		}
+	}
+
+	return(err);
+}
+
 /*************************************************************//**
 Position a row accord to key, and fetch value if needed
 @return DB_SUCCESS if successful otherwise, error code */
@@ -235,6 +299,17 @@ innodb_api_search(
 
 		n_cols = ib_cb_tuple_get_n_cols(read_tpl);
 
+
+		if (meta_info->m_num_add > 0) {
+			item->mci_add_value = malloc(
+				meta_info->m_num_add
+				* sizeof(*item->mci_add_value));
+			item->mci_add_num = meta_info->m_num_add;
+		} else {
+			item->mci_add_value = NULL;
+			item->mci_add_num = 0;
+		}
+
 		/* The table must have at least MCI_ITEM_TO_GET columns for key
 		value store, and the cas and time expiration info */
 		assert(n_cols >= MCI_ITEM_TO_GET);
@@ -252,12 +327,6 @@ innodb_api_search(
 				item->mci_item[MCI_COL_KEY].m_len = data_len;
 				item->mci_item[MCI_COL_KEY].m_is_str = TRUE;
 				item->mci_item[MCI_COL_KEY].m_enabled = TRUE;
-			} else if (i == col_info[META_VALUE].m_field_id) {
-				item->mci_item[MCI_COL_VALUE].m_str =
-					(char*)ib_cb_col_get_value(read_tpl, i);
-				item->mci_item[MCI_COL_VALUE].m_len = data_len;
-				item->mci_item[MCI_COL_VALUE].m_is_str = TRUE;
-				item->mci_item[MCI_COL_VALUE].m_enabled = TRUE;
 			} else if (meta_info->flag_enabled
 				   && i == col_info[META_FLAG].m_field_id) {
 				item->mci_item[MCI_COL_FLAG].m_digit =
@@ -285,6 +354,9 @@ innodb_api_search(
 				item->mci_item[MCI_COL_EXP].m_is_str = FALSE;
 				item->mci_item[MCI_COL_EXP].m_len = data_len;
 				item->mci_item[MCI_COL_EXP].m_enabled = TRUE;
+			} else {
+				innodb_api_fill_value(meta_info, item,
+						      read_tpl, i);
 			}
 		}
 
@@ -601,7 +673,7 @@ innodb_api_arithmetic(
 	mci_item_t	result;
 	ib_tpl_t	old_tpl;
 	ib_tpl_t	new_tpl;
-	uint64_t	value;
+	uint64_t	value = 0;
 	ibool		create_new = FALSE;
 	char*		end_ptr;
 	meta_info_t*	meta_info = &engine->meta_info;
