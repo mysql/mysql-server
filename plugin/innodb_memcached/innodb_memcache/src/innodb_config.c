@@ -45,7 +45,7 @@ This function frees meta info structure */
 void
 innodb_config_free(
 /*===============*/
-	meta_info_t*	item)
+	meta_info_t*	item)	/*!< in: meta info structure */
 {
 	int	i;
 
@@ -58,6 +58,70 @@ innodb_config_free(
 	if (item->m_index.m_name) {
 		free(item->m_index.m_name);
 	}
+
+	if (item->m_add_item) {
+		for (i = 0; i < item->m_num_add; i++) {
+			free(item->m_add_item[i].m_str);
+		}
+
+		free(item->m_add_item);
+	}
+
+	return;
+}
+
+/**********************************************************************//**
+This function parses possible multiple column name separated by ",", ";"
+or " " in the input "str" for the memcached "value" field.
+@return TRUE if everything works out fine */
+static
+bool
+innodb_config_parse_value_col(
+/*==========================*/
+	meta_info_t*	item,		/*!< in: meta info structure */
+	char*		str,		/*!< in: column name(s) string */
+	int		len)		/*!< in: length of above string */
+{
+        static const char*	sep = " ;,";
+        char*			last;
+	char*			column_str;
+	int			num_cols = 0;
+	char*			my_str = my_strdupl(str, len);
+
+	assert(my_str);
+
+	/* Find out how many column names in the string */
+	for (column_str = strtok_r(my_str, sep, &last);
+	     column_str;
+	     column_str = strtok_r(NULL, sep, &last)) {
+		num_cols++;
+	}
+
+	free(my_str);
+
+	item->m_num_add = num_cols;
+
+	my_str = str;
+
+	if (num_cols > 1) {
+		int	i = 0;
+		item->m_add_item = malloc(num_cols * sizeof(*item->m_add_item));
+
+		for (column_str = strtok_r(my_str, sep, &last);
+		     column_str;
+		     column_str = strtok_r(NULL, sep, &last)) {
+			item->m_add_item[i].m_len = strlen(column_str);
+			item->m_add_item[i].m_str = my_strdupl(
+				column_str, item->m_add_item[i].m_len);
+			i++;
+		}
+
+		assert(i == num_cols);
+	} else {
+		item->m_add_item = NULL;
+	}
+
+	return(TRUE);
 }
 
 /**********************************************************************//**
@@ -67,7 +131,7 @@ table and column info that used for memcached data
 bool
 innodb_config(
 /*==========*/
-	meta_info_t*	item)
+	meta_info_t*	item)	/*!< in: meta info structure */
 {
 	ib_trx_t		ib_trx;
 	ib_crsr_t		crsr = NULL;
@@ -125,6 +189,11 @@ innodb_config(
 
 		item->m_item[i].m_str = my_strdupl(
 			(char*)ib_cb_col_get_value(tpl, i), data_len);
+
+		if (i == META_VALUE) {
+			innodb_config_parse_value_col(
+				item, item->m_item[i].m_str, data_len);
+		}
 	}
 
 	/* Last column is about the unique index name on key column */
@@ -156,13 +225,70 @@ func_exit:
 }
 
 /**********************************************************************//**
+This function parses possible multiple column name separated by ",", ";"
+or " " in the input "str" for the memcached "value" field
+@return TRUE if everything works out fine */
+static
+ib_err_t
+innodb_config_value_col_verify(
+/*===========================*/
+	char*		name,		/*!< in: column name */
+	meta_info_t*	meta_info,	/*!< in: meta info structure */
+	ib_col_meta_t*	col_meta,	/*!< in: column metadata */
+	int		col_id)		/*!< in: column ID */
+{
+	ib_err_t	err = DB_NOT_FOUND;
+
+	if (!meta_info->m_add_item) {
+		meta_column_t*	cinfo = meta_info->m_item;
+
+		if (strcmp(name, cinfo[META_VALUE].m_str) == 0) {
+			if (col_meta->type != IB_VARCHAR
+			    && col_meta->type != IB_CHAR
+			    && col_meta->type != IB_BLOB) {
+				err = DB_DATA_MISMATCH;
+			}
+
+			cinfo[META_VALUE].m_field_id = col_id;
+			cinfo[META_VALUE].m_col = *col_meta;
+			err = DB_SUCCESS;
+		}
+	} else {
+		int	i;
+
+		for (i = 0; i < meta_info->m_num_add; i++) {
+			if (strcmp(name, meta_info->m_add_item[i].m_str) == 0) {
+				if (col_meta->type != IB_VARCHAR
+				    && col_meta->type != IB_CHAR
+				    && col_meta->type != IB_BLOB) {
+					err = DB_DATA_MISMATCH;
+				}
+
+				meta_info->m_add_item[i].m_field_id = col_id;
+				meta_info->m_add_item[i].m_col = *col_meta;
+
+				/* FIXME: this is how we going to parse
+				the value to be stored in multiple column. */
+				meta_info->m_item[META_VALUE].m_field_id = col_id;
+				meta_info->m_item[META_VALUE].m_col = *col_meta;
+				err = DB_SUCCESS;
+			}
+		}
+
+	}
+
+	return(err);
+}
+				
+			
+/**********************************************************************//**
 This function verify the table configuration information, and fill
 in columns used for memcached functionalities (cas, exp etc.)
 @return TRUE if everything works out fine */
 bool
 innodb_verify(
 /*==========*/
-	meta_info_t*       container)
+	meta_info_t*       container)	/*!< in: meta info structure */
 {
 	ib_crsr_t	crsr = NULL;
 	ib_crsr_t	idx_crsr = NULL;
@@ -205,10 +331,22 @@ innodb_verify(
 	n_cols = ib_tuple_get_n_cols(tpl);
 
 	for (i = 0; i < n_cols; i++) {
+		ib_err_t	result = DB_SUCCESS;
 		meta_column_t*	cinfo = container->m_item;
 
 		name = ib_cb_col_get_name(crsr, i);
 		ib_cb_col_get_meta(tpl, i, &col_meta);
+
+		result = innodb_config_value_col_verify(
+			name, container, &col_meta, i);
+
+		if (result == DB_SUCCESS) {
+			is_value_col = TRUE;
+			continue;
+		} else if (result == DB_DATA_MISMATCH) {
+			err = DB_DATA_MISMATCH;
+			goto func_exit;
+		}
 
 		if (strcmp(name, cinfo[META_KEY].m_str) == 0) {
 			if (col_meta.type != IB_VARCHAR
@@ -219,16 +357,6 @@ innodb_verify(
 			cinfo[META_KEY].m_field_id = i;
 			cinfo[META_KEY].m_col = col_meta;
 			is_key_col = TRUE;
-		} else if (strcmp(name, cinfo[META_VALUE].m_str) == 0) {
-			if (col_meta.type != IB_VARCHAR
-			    && col_meta.type != IB_CHAR
-			    && col_meta.type != IB_BLOB) {
-				err = DB_DATA_MISMATCH;
-				goto func_exit;
-			}
-			cinfo[META_VALUE].m_field_id = i;
-			cinfo[META_VALUE].m_col = col_meta;
-			is_value_col = TRUE;
 		} else if (strcmp(name, cinfo[META_FLAG].m_str) == 0) {
 			if (col_meta.type != IB_INT) {
 				err = DB_DATA_MISMATCH;

@@ -493,6 +493,7 @@ static ENGINE_ERROR_CODE innodb_get(ENGINE_HANDLE* handle,
 	uint64_t		exp = 0;
 	uint64_t		flags = 0;
 	innodb_conn_data_t*	conn_data;
+	int			total_len;
 
 	ib_trx = ib_cb_trx_begin(IB_TRX_READ_UNCOMMITTED);
 
@@ -507,6 +508,7 @@ static ENGINE_ERROR_CODE innodb_get(ENGINE_HANDLE* handle,
 		goto func_exit;
 	}
 
+		
 	/* Only if expiration field is enabled, and the value is not zero,
 	we will check whether the item is expired */
 	if (result.mci_item[MCI_COL_EXP].m_enabled
@@ -532,8 +534,16 @@ static ENGINE_ERROR_CODE innodb_get(ENGINE_HANDLE* handle,
 		exp = result.mci_item[MCI_COL_EXP].m_digit;
 	}
 
-	innodb_allocate(handle, cookie, item, key, nkey,
-			result.mci_item[MCI_COL_VALUE].m_len, flags, exp);
+	if (result.mci_add_value) {
+		int	i;
+		for (i = 0; i < result.mci_add_num; i++) {
+			total_len += result.mci_add_value[i].m_len + 1;
+		}
+	} else {
+		total_len = result.mci_item[MCI_COL_VALUE].m_len;
+	}
+
+	innodb_allocate(handle, cookie, item, key, nkey, total_len, flags, exp);
 
         it = *item;
 
@@ -541,9 +551,24 @@ static ENGINE_ERROR_CODE innodb_get(ENGINE_HANDLE* handle,
 		hash_item_set_cas(it, cas);
 	}
 
-        it->nbytes = result.mci_item[MCI_COL_VALUE].m_len;
-	memcpy(hash_item_get_data(it),
-	       result.mci_item[MCI_COL_VALUE].m_str, it->nbytes);
+        it->nbytes = total_len;
+
+	if (result.mci_add_value) {
+		int	i;
+		int	len = 0;
+		char*	c_value = hash_item_get_data(it);
+
+		for (i = 0; i < result.mci_add_num; i++) {
+			memcpy(c_value,
+			       result.mci_add_value[i].m_str,
+			       result.mci_add_value[i].m_len);
+
+			c_value += result.mci_add_value[i].m_len;
+		}
+	} else {
+		memcpy(hash_item_get_data(it),
+		       result.mci_item[MCI_COL_VALUE].m_str, it->nbytes);
+	}
 
 func_exit:
 	innodb_api_cursor_reset(conn_data);
