@@ -770,6 +770,22 @@ ib_index_find_col(
 	return(NULL);
 }
 
+#ifdef __WIN__
+/*****************************************************************//**
+Convert a string to lower case. */
+static
+void
+ib_to_lower_case(
+/*=============*/
+	char*		ptr)		/*!< string to convert to lower case */
+{
+	while (*ptr) {
+		*ptr = tolower(*ptr);
+		++ptr;
+	}
+}
+#endif /* __WIN__ */
+
 /*****************************************************************//**
 Normalizes a table name string. A normalized name consists of the
 database name catenated to '/' and table name. An example:
