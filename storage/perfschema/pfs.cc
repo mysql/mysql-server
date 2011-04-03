@@ -4597,13 +4597,16 @@ static void end_socket_wait_v1(PSI_socket_locker *locker, size_t byte_count)
   DBUG_ASSERT(state != NULL);
   ulonglong timer_end= 0;
   ulonglong wait_time= 0;
+  bool socket_destroyed= false;
 
   PFS_socket *socket= reinterpret_cast<PFS_socket *>(state->m_socket);
   DBUG_ASSERT(socket != NULL);
   PFS_thread *thread= reinterpret_cast<PFS_thread *>(state->m_thread);
 
   PFS_byte_stat *byte_stat;
-
+  register uint flags= state->m_flags;
+  size_t bytes= ((int)byte_count > -1 ? byte_count : 0);
+  
   switch (state->m_operation)
   {
   /** Group read operations */
@@ -4632,6 +4635,7 @@ static void end_socket_wait_v1(PSI_socket_locker *locker, size_t byte_count)
     byte_stat= &socket->m_socket_stat.m_io_stat.m_misc;
     /* This socket will no longer be used by the server */
     destroy_socket(socket);
+    socket_destroyed= true;
     break;
 
   default:
@@ -4640,9 +4644,6 @@ static void end_socket_wait_v1(PSI_socket_locker *locker, size_t byte_count)
     break;
   }
 
-  register uint flags= state->m_flags;
-  size_t bytes= ((int)byte_count > -1 ? byte_count : 0);
-  
   /** Aggregation for EVENTS_WAITS_SUMMARY_BY_INSTANCE */
   if (flags & STATE_FLAG_TIMED)
   {
@@ -4660,16 +4661,32 @@ static void end_socket_wait_v1(PSI_socket_locker *locker, size_t byte_count)
   /** Global thread aggregation */
   if (flags & STATE_FLAG_THREAD)
   {
+    DBUG_ASSERT(thread != NULL);
+
+    PFS_single_stat *event_name_array;
+    event_name_array= thread->m_instr_class_waits_stats;
+    uint index= socket->m_class->m_event_name_index;
+
     /*
-       Aggregate to EVENTS_WAITS_SUMMARY_BY_THREAD_BY_EVENT_NAME (counted).
-       Aggregation of socket wait stats per thread are deferred.
-     */
-    if (flags & ~STATE_FLAG_TIMED) // TODO MA: Moved to consumer except count
+       To reduce overhead per operation, aggregate the accumulated socket stats
+       after the socket has been destroyed.
+    */
+    if (socket_destroyed)
     {
-      PFS_single_stat *event_name_array;
-      event_name_array= thread->m_instr_class_waits_stats;
-      uint index= socket->m_class->m_event_name_index;
-      event_name_array[index].aggregate_counted();
+      /* Combine stats for all operations */
+      PFS_single_stat stat;
+      socket->m_socket_stat.m_io_stat.sum_waits(&stat);
+
+      if (flags & STATE_FLAG_TIMED)
+      {
+        /* Aggregate to EVENTS_WAITS_SUMMARY_BY_THREAD_BY_EVENT_NAME (timed) */
+        event_name_array[index].aggregate(&stat);
+      }
+      else
+      {
+        /* Aggregate to EVENTS_WAITS_SUMMARY_BY_THREAD_BY_EVENT_NAME (counted). */
+        event_name_array[index].aggregate_counted(stat.m_count);
+      }
     }
 
     /* Aggregate to EVENTS_WAITS_CURRENT and EVENTS_WAITS_HISTORY */
