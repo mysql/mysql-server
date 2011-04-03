@@ -180,7 +180,7 @@ void PFS_instance_iterator::visit_file_instances(PFS_file_class *klass,
   }
 }
 
-/** Socket instance iterator visting all socket instances */
+/** Socket instance iterator visting a socket class and all instances */
 
 void PFS_instance_iterator::visit_socket_instances(PFS_socket_class *klass,
                                                    PFS_instance_visitor *visitor)
@@ -200,7 +200,10 @@ void PFS_instance_iterator::visit_socket_instances(PFS_socket_class *klass,
   }
 }
 
-/** Socket instance iterator visting sockets owned by PFS_thread */
+/**
+    Socket instance iterator visting sockets owned by PFS_thread.
+    The socket class is not visited.
+*/
 
 void PFS_instance_iterator::visit_socket_instances(PFS_socket_class *klass,
                                                    PFS_instance_visitor *visitor,
@@ -208,9 +211,6 @@ void PFS_instance_iterator::visit_socket_instances(PFS_socket_class *klass,
 {
   DBUG_ASSERT(visitor != NULL);
   DBUG_ASSERT(thread != NULL);
-
-  /* Get accumulated socket stats for this thread */
-  visitor->visit_socket_class(klass);
 
   /* Get current socket stats from each socket instance owned by this thread */
   PFS_socket *pfs= socket_array;

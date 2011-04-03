@@ -71,6 +71,11 @@ struct PFS_single_stat
     m_count++;
   }
 
+  inline void aggregate_counted(ulonglong count)
+  {
+    m_count+= count;
+  }
+
   inline void aggregate_value(ulonglong value)
   {
     m_count++;
