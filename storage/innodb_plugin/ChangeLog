@@ -1,3 +1,19 @@
+2011-03-30	The InnoDB Team
+
+	* srv/srv0srv.c, sync/sync0arr.h, sync/sync0arr.c:
+	Fix Bug#11877216 InnoDB too eager to commit suicide on a busy server
+
+2011-03-15	The InnoDB Team
+
+	* btr/btr0cur.c, page/page0zip.c:
+	Fix Bug#11849231 inflateInit() invoked without initializing all memory
+
+2011-02-28	The InnoDB Team
+
+	* btr/btr0sea.c, buf/buf0buf.c, buf/buf0lru.c:
+	Fix Bug#58549 Race condition in buf_LRU_drop_page_hash_for_tablespace()
+	and compressed tables
+
 2011-02-15	The InnoDB Team
 
 	* sync/sync0rw.c, innodb_bug59307.test:
