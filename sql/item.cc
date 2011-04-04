@@ -8501,14 +8501,3 @@ void view_error_processor(THD *thd, void *data)
   ((TABLE_LIST *)data)->hide_view_error(thd);
 }
 
-/*****************************************************************************
-** Instantiate templates
-*****************************************************************************/
-
-#ifdef HAVE_EXPLICIT_TEMPLATE_INSTANTIATION
-template class List<Item>;
-template class List_iterator<Item>;
-template class List_iterator_fast<Item>;
-template class List_iterator_fast<Item_field>;
-template class List<List_item>;
-#endif

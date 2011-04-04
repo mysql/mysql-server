@@ -5486,11 +5486,6 @@ bool rpl_master_erroneous_autoinc(THD *thd)
   return FALSE;
 }
 
-#ifdef HAVE_EXPLICIT_TEMPLATE_INSTANTIATION
-template class I_List_iterator<i_string>;
-template class I_List_iterator<i_string_pair>;
-#endif
-
 /**
   a copy of active_mi->rli->slave_skip_counter, for showing in SHOW VARIABLES,
   INFORMATION_SCHEMA.GLOBAL_VARIABLES and @@sql_slave_skip_counter without
