@@ -1297,7 +1297,6 @@ BackupFile::BackupFile(void (* _free_data_callback)())
   : free_data_callback(_free_data_callback)
 {
   memset(&m_file,0,sizeof(m_file));
-  m_file.file = -1;
   m_path[0] = 0;
   m_fileName[0] = 0;
 
@@ -1311,30 +1310,25 @@ BackupFile::BackupFile(void (* _free_data_callback)())
   m_is_undolog = false;
 }
 
-BackupFile::~BackupFile(){
-  if(m_file.file > 1)
-  {
-    ndbzclose(&m_file);
-    memset(&m_file,0,sizeof(m_file));
-  }
+BackupFile::~BackupFile()
+{
+  (void)ndbzclose(&m_file);
+
   if(m_buffer != 0)
     free(m_buffer);
 }
 
 bool
 BackupFile::openFile(){
-  if(m_file.file > 1){
-    ndbzclose(&m_file);
-    m_file.file = 0;
-    m_file_size = 0;
-    m_file_pos = 0;
-  }
+  (void)ndbzclose(&m_file);
+  m_file_size = 0;
+  m_file_pos = 0;
 
   info.setLevel(254);
   info << "Opening file '" << m_fileName << "'\n";
   int r= ndbzopen(&m_file, m_fileName, O_RDONLY);
 
-  if(m_file.file < 0)
+  if(r != 1)
     return false;
 
   size_t size;
