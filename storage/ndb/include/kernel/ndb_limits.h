@@ -118,11 +118,6 @@
  * Maximum number of Parallel Scan queries on one hash index fragment
  */
 #define MAX_PARALLEL_SCANS_PER_FRAG 12
-/*
- * Maximum parallel ordered index scans per primary table fragment.
- * Implementation limit is (256 minus 12).
- */
-#define MAX_PARALLEL_INDEX_SCANS_PER_FRAG 32
 
 /**
  * Computed defines

@@ -146,7 +146,6 @@ INSERT INTO t VALUES (''),(''),(''),(''),(''),(''),(''),(''),(''),(''),('');
 SELECT * FROM (SELECT default(a) FROM t GROUP BY a) d;
 DROP TABLE t;
 
-
 --echo #
 --echo # End of 5.1 tests.
 --echo #
