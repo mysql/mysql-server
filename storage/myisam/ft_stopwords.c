@@ -16,7 +16,7 @@
 /* Written by Sergei A. Golubchik, who has a shared copyright to this code */
 
 #include "ftdefs.h"
-#include "my_handler.h"
+#include "my_compare.h"
 
 typedef struct st_ft_stopwords
 {
