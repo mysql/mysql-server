@@ -447,4 +447,7 @@ IF(
 count(*), 1)
 1
 DROP TABLE t1;
+select @v:=@v:=sum(1) from dual;
+@v:=@v:=sum(1)
+1
 End of 5.1 tests

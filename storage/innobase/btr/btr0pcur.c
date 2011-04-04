@@ -429,7 +429,6 @@ btr_pcur_move_backward_from_page(
 	mtr_t*		mtr)	/* in: mtr */
 {
 	ulint	prev_page_no;
-	ulint	space;
 	page_t*	page;
 	page_t*	prev_page;
 	ulint	latch_mode;
@@ -465,7 +464,6 @@ btr_pcur_move_backward_from_page(
 	page = btr_pcur_get_page(cursor);
 
 	prev_page_no = btr_page_get_prev(page, mtr);
-	space = buf_frame_get_space_id(page);
 
 	if (btr_pcur_is_before_first_on_page(cursor, mtr)
 	    && (prev_page_no != FIL_NULL)) {

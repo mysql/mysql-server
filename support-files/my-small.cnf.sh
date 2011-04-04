@@ -4,11 +4,11 @@
 # from time to time and it's important that the mysqld daemon
 # doesn't use much resources.
 #
-# You can copy this file to
-# /etc/my.cnf to set global options,
-# mysql-data-dir/my.cnf to set server-specific options (in this
-# installation this directory is @localstatedir@) or
-# ~/.my.cnf to set user-specific options.
+# MySQL programs look for option files in a set of
+# locations which depend on the deployment platform.
+# You can copy this option file to one of those
+# locations. For information about these locations, see:
+# http://dev.mysql.com/doc/mysql/en/option-files.html
 #
 # In this file, you can use all long options that a program supports.
 # If you want to know which options a program supports, run the program
@@ -52,9 +52,9 @@ server-id	= 1
 #binlog_format=mixed
 
 # Uncomment the following if you are using InnoDB tables
-#innodb_data_home_dir = @localstatedir@/
+#innodb_data_home_dir = @localstatedir@
 #innodb_data_file_path = ibdata1:10M:autoextend
-#innodb_log_group_home_dir = @localstatedir@/
+#innodb_log_group_home_dir = @localstatedir@
 # You can set .._buffer_pool_size up to 50 - 80 %
 # of RAM but beware of setting memory usage too high
 #innodb_buffer_pool_size = 16M

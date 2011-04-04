@@ -474,4 +474,25 @@ SHOW CREATE TRIGGER db1.trg;
 ERROR 42000: Access denied; you need the TRIGGER privilege for this operation
 DROP USER 'no_rights'@'localhost';
 DROP DATABASE db1;
+DROP DATABASE IF EXISTS mysqltest_db1;
+CREATE DATABASE mysqltest_db1;
+USE mysqltest_db1;
+GRANT ALL ON mysqltest_db1.* TO mysqltest_u1@localhost;
+CREATE TABLE t1 (
+a1 int,
+a2 int
+);
+INSERT INTO t1 VALUES (1, 20);
+CREATE TRIGGER mysqltest_db1.upd_t1
+BEFORE UPDATE ON t1 FOR EACH ROW SET new.a2 = 200;
+CREATE TABLE t2 (
+a1 int
+);
+INSERT INTO t2 VALUES (2);
+REVOKE ALL PRIVILEGES, GRANT OPTION FROM mysqltest_u1@localhost;
+UPDATE IGNORE t1, t2 SET t1.a1 = 2, t2.a1 = 3 WHERE t1.a1 = 1 AND t2.a1 = 2;
+ERROR 42000: TRIGGER command denied to user 'mysqltest_u1'@'localhost' for table 't1'
+DROP DATABASE mysqltest_db1;
+DROP USER mysqltest_u1@localhost;
+USE test;
 End of 5.1 tests.
