@@ -67,6 +67,10 @@ innodb_config_free(
 		free(item->m_add_item);
 	}
 
+	if (item->m_separator) {
+		free(item->m_separator);
+	}
+
 	return;
 }
 
@@ -99,8 +103,6 @@ innodb_config_parse_value_col(
 
 	free(my_str);
 
-	item->m_num_add = num_cols;
-
 	my_str = str;
 
 	if (num_cols > 1) {
@@ -117,20 +119,211 @@ innodb_config_parse_value_col(
 		}
 
 		assert(i == num_cols);
+		item->m_num_add = num_cols;
 	} else {
 		item->m_add_item = NULL;
+		item->m_num_add = 0;
 	}
 
 	return(TRUE);
 }
 
 /**********************************************************************//**
-This function opens the default configuration table, and find the
+This function opens the cache_policy configuration table, and find the
 table and column info that used for memcached data
 @return TRUE if everything works out fine */
+static
 bool
-innodb_config(
-/*==========*/
+innodb_read_cache_policy(
+/*=====================*/
+	meta_info_t*	item)	/*!< in: meta info structure */
+{
+	ib_trx_t		ib_trx;
+	ib_crsr_t		crsr = NULL;
+	ib_crsr_t		idx_crsr = NULL;
+	ib_tpl_t		tpl = NULL;
+	ib_err_t		err = DB_SUCCESS;
+	int			n_cols;
+	int			i;
+	ib_ulint_t		data_len;
+	ib_col_meta_t		col_meta;
+
+	ib_trx = ib_cb_trx_begin(IB_TRX_READ_COMMITTED);
+	err = innodb_api_begin(NULL, INNODB_META_DB,
+			       INNODB_CACHE_POLICIES, ib_trx,
+			       &crsr, &idx_crsr, IB_LOCK_IS);	
+
+	if (err != DB_SUCCESS) {
+		fprintf(stderr, "  InnoDB_Memcached: Cannot open config table"
+				"'%s' in database '%s'\n",
+			INNODB_CACHE_POLICIES, INNODB_META_DB);
+		err = DB_ERROR;
+		goto func_exit;
+	}
+
+	tpl = ib_clust_read_tuple_create(crsr);
+
+	/* Currently, we support one table per memcached set up.
+	We could extend that later */
+	err = ib_cb_cursor_first(crsr);
+
+	if (err != DB_SUCCESS) {
+		fprintf(stderr, "  InnoDB_Memcached: fail to locate entry in"
+				" config table '%s' in database '%s' \n",
+			INNODB_CACHE_POLICIES, INNODB_META_DB);
+		err = DB_ERROR;
+		goto func_exit;
+	}
+
+	err = ib_cb_read_row(crsr, tpl);
+
+	n_cols = ib_cb_tuple_get_n_cols(tpl);
+
+	assert(n_cols >= CACHE_OPT_NUM_COLS);
+
+	for (i = 0; i < CACHE_OPT_NUM_COLS; ++i) {
+		char			opt_name;
+		meta_cache_option_t	opt_val;
+
+		/* Skip cache policy name for now, We could have
+		different cache policy stored, and switch dynamically */
+		if (i == CACHE_OPT_NAME) {
+			continue;
+		}
+
+		data_len = ib_cb_col_get_meta(tpl, i, &col_meta);
+
+		if (data_len == IB_SQL_NULL) {
+			opt_val = META_INNODB;
+		} else {
+			opt_name = *(char*)ib_cb_col_get_value(tpl, i);
+
+			opt_val = (meta_cache_option_t) opt_name;
+		}
+
+		switch (i) {
+		case CACHE_OPT_GET:
+			item->m_get_option = opt_val;	
+			break;
+		case CACHE_OPT_SET:
+			item->m_set_option = opt_val;	
+			break;
+		case CACHE_OPT_DEL:
+			item->m_del_option = opt_val;	
+			break;
+		case CACHE_OPT_FLUSH:
+			item->m_flush_option = opt_val;	
+			break;
+		default:
+			assert(0);
+		}
+	}
+
+func_exit:
+
+	if (crsr) {
+		ib_cb_cursor_close(crsr);
+	}
+
+	if (tpl) {
+		ib_cb_tuple_delete(tpl);
+	}
+
+	ib_cb_trx_commit(ib_trx);
+
+	return(err == DB_SUCCESS);
+}
+
+/**********************************************************************//**
+This function opens the config_options configuration table, and find the
+table and column info that used for memcached data
+@return TRUE if everything works out fine */
+static
+bool
+innodb_read_config_option(
+/*======================*/
+	meta_info_t*	item)	/*!< in: meta info structure */
+{
+	ib_trx_t		ib_trx;
+	ib_crsr_t		crsr = NULL;
+	ib_crsr_t		idx_crsr = NULL;
+	ib_tpl_t		tpl = NULL;
+	ib_err_t		err = DB_SUCCESS;
+	int			n_cols;
+	int			i;
+	ib_ulint_t		data_len;
+	ib_col_meta_t		col_meta;
+
+	ib_trx = ib_cb_trx_begin(IB_TRX_READ_COMMITTED);
+	err = innodb_api_begin(NULL, INNODB_META_DB,
+			       INNODB_CONFIG_OPTIONS, ib_trx,
+			       &crsr, &idx_crsr, IB_LOCK_IS);	
+
+	if (err != DB_SUCCESS) {
+		fprintf(stderr, "  InnoDB_Memcached: Cannot open config table"
+				"'%s' in database '%s'\n",
+			INNODB_CONFIG_OPTIONS, INNODB_META_DB);
+		err = DB_ERROR;
+		goto func_exit;
+	}
+
+	tpl = ib_clust_read_tuple_create(crsr);
+
+	err = ib_cb_cursor_first(crsr);
+
+	if (err != DB_SUCCESS) {
+		fprintf(stderr, "  InnoDB_Memcached: fail to locate entry in"
+				" config table '%s' in database '%s' \n",
+			INNODB_CONFIG_OPTIONS, INNODB_META_DB);
+		err = DB_ERROR;
+		goto func_exit;
+	}
+
+	err = ib_cb_read_row(crsr, tpl);
+
+	n_cols = ib_cb_tuple_get_n_cols(tpl);
+
+	assert(n_cols >= CONFIG_NUM_COLS);
+
+	for (i = 0; i < CONFIG_NUM_COLS; ++i) {
+		char*	key;
+
+		data_len = ib_cb_col_get_meta(tpl, i, &col_meta);
+
+		assert(data_len != IB_SQL_NULL);
+
+		if (i == CONFIG_KEY) {
+			key =(char*)ib_cb_col_get_value(tpl, i);
+		}
+
+		if (i == CONFIG_VALUE) {
+			item->m_separator = my_strdupl(
+				(char*)ib_cb_col_get_value(tpl, i), data_len);
+		}
+	}
+
+func_exit:
+
+	if (crsr) {
+		ib_cb_cursor_close(crsr);
+	}
+
+	if (tpl) {
+		ib_cb_tuple_delete(tpl);
+	}
+
+	ib_cb_trx_commit(ib_trx);
+
+	return(err == DB_SUCCESS);
+}
+/**********************************************************************//**
+This function opens the "containers" configuration table, and find the
+table and column info that used for memcached data
+@return TRUE if everything works out fine */
+static
+bool
+innodb_config_container(
+/*====================*/
 	meta_info_t*	item)	/*!< in: meta info structure */
 {
 	ib_trx_t		ib_trx;
@@ -288,7 +481,7 @@ in columns used for memcached functionalities (cas, exp etc.)
 bool
 innodb_verify(
 /*==========*/
-	meta_info_t*       container)	/*!< in: meta info structure */
+	meta_info_t*       info)	/*!< in: meta info structure */
 {
 	ib_crsr_t	crsr = NULL;
 	ib_crsr_t	idx_crsr = NULL;
@@ -305,11 +498,11 @@ innodb_verify(
 	int		index_type;
 	ib_id_t		index_id;
 
-	dbname = container->m_item[META_DB].m_str;
-	name = container->m_item[META_TABLE].m_str;
-	container->flag_enabled = FALSE;
-	container->cas_enabled = FALSE;
-	container->exp_enabled = FALSE;
+	dbname = info->m_item[META_DB].m_str;
+	name = info->m_item[META_TABLE].m_str;
+	info->flag_enabled = FALSE;
+	info->cas_enabled = FALSE;
+	info->exp_enabled = FALSE;
 
 #ifdef __WIN__
 	sprintf(table_name, "%s\%s", dbname, name);
@@ -332,13 +525,13 @@ innodb_verify(
 
 	for (i = 0; i < n_cols; i++) {
 		ib_err_t	result = DB_SUCCESS;
-		meta_column_t*	cinfo = container->m_item;
+		meta_column_t*	cinfo = info->m_item;
 
 		name = ib_cb_col_get_name(crsr, i);
 		ib_cb_col_get_meta(tpl, i, &col_meta);
 
 		result = innodb_config_value_col_verify(
-			name, container, &col_meta, i);
+			name, info, &col_meta, i);
 
 		if (result == DB_SUCCESS) {
 			is_value_col = TRUE;
@@ -364,7 +557,7 @@ innodb_verify(
 			}
 			cinfo[META_FLAG].m_field_id = i;
 			cinfo[META_FLAG].m_col = col_meta;
-			container->flag_enabled = TRUE;
+			info->flag_enabled = TRUE;
 		} else if (strcmp(name, cinfo[META_CAS].m_str) == 0) {
 			if (col_meta.type != IB_INT) {
 				err = DB_DATA_MISMATCH;
@@ -372,7 +565,7 @@ innodb_verify(
 			}
 			cinfo[META_CAS].m_field_id = i;
 			cinfo[META_CAS].m_col = col_meta;
-			container->cas_enabled = TRUE;
+			info->cas_enabled = TRUE;
 		} else if (strcmp(name, cinfo[META_EXP].m_str) == 0) {
 			if (col_meta.type != IB_INT) {
 				err = DB_DATA_MISMATCH;
@@ -380,7 +573,7 @@ innodb_verify(
 			}
 			cinfo[META_EXP].m_field_id = i;
 			cinfo[META_EXP].m_col = col_meta;
-			container->exp_enabled = TRUE;
+			info->exp_enabled = TRUE;
 		}
 	}
 
@@ -395,21 +588,20 @@ innodb_verify(
 		goto func_exit;
 	}
 
-	ib_cb_cursor_open_index_using_name(crsr, container->m_index.m_name,
+	ib_cb_cursor_open_index_using_name(crsr, info->m_index.m_name,
 					   &idx_crsr, &index_type, &index_id);
 
 	if (index_type & IB_CLUSTERED) {
 		assert(!idx_crsr);
-		container->m_index.m_use_idx = META_CLUSTER;
+		info->m_index.m_use_idx = META_CLUSTER;
 	} else if (!idx_crsr || !(index_type & IB_UNIQUE)) {
 		fprintf(stderr, "  InnoDB_Memcached: Index on key column"
 				" must be a Unique index\n");
-		container->m_index.m_use_idx = META_NO_INDEX;
+		info->m_index.m_use_idx = META_NO_INDEX;
 		err = DB_ERROR;
 	} else {
-		container->m_index.m_id = index_id;
-		container->m_index.m_use_idx = META_SECONDARY;
-		container->m_index.m_idx_crsr = idx_crsr;
+		info->m_index.m_id = index_id;
+		info->m_index.m_use_idx = META_SECONDARY;
 	}
 
 	if (idx_crsr) {
@@ -426,4 +618,29 @@ func_exit:
 	}
 
 	return(err == DB_SUCCESS);
+}
+
+/**********************************************************************//**
+This function configures the server with configuration tables
+@return TRUE if everything works out fine */
+bool
+innodb_config(
+/*==========*/
+	meta_info_t*	item)	/*!< in: meta info structure */
+{
+	if (!innodb_config_container(item)) {
+		return(FALSE);
+	}
+
+	if (!innodb_verify(item)) {
+		return(FALSE);
+	}
+
+	/* Following two configure operations are optional, and can be
+        failed */
+        innodb_read_cache_policy(item);
+        
+        innodb_read_config_option(item);
+
+	return(TRUE);
 }
