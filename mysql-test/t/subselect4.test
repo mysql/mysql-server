@@ -1200,3 +1200,67 @@ WHERE (SELECT SQ2_t2.f1
 ORDER BY f3 ;
 
 drop table t1,t2;
+
+--echo #
+--echo # LP BUG#715062: Wrong result with VIEW + UNION + subquery in maria-5.3-mwl89
+--echo #
+
+create table t1 (f1 int);
+create table t2 (f2 int);
+create table t3 (f3 int);
+insert into t1 values (2);
+insert into t2 values (2);
+insert into t3 values (7);
+
+CREATE VIEW v1 AS SELECT 2 UNION SELECT 2 ;
+CREATE VIEW v2 AS SELECT * from t1 UNION SELECT * from t2 ;
+
+set @save_optimizer_switch=@@optimizer_switch;
+SET @@optimizer_switch = 'in_to_exists=off,semijoin=off,materialization=on';
+
+EXPLAIN
+SELECT 'bug' FROM DUAL WHERE ( 5 ) IN ( SELECT * FROM v1 );
+SELECT 'bug' FROM DUAL WHERE ( 5 ) IN ( SELECT * FROM v1 );
+
+EXPLAIN
+SELECT ( 5 ) IN ( SELECT * FROM v1 );
+SELECT ( 5 ) IN ( SELECT * FROM v1 );
+
+EXPLAIN
+SELECT 'bug' FROM DUAL WHERE ( 5 ) IN (SELECT * FROM v2);
+SELECT 'bug' FROM DUAL WHERE ( 5 ) IN (SELECT * FROM v2);
+
+EXPLAIN
+SELECT 'bug' FROM t3 WHERE ( 5 ) IN (SELECT * FROM v2);
+SELECT 'bug' FROM t3 WHERE ( 5 ) IN (SELECT * FROM v2);
+
+EXPLAIN
+SELECT ( 5 ) IN ( SELECT * FROM v2 );
+SELECT ( 5 ) IN ( SELECT * FROM v2 );
+
+SET @@optimizer_switch = 'in_to_exists=on,semijoin=off,materialization=off';
+
+EXPLAIN
+SELECT 'bug' FROM DUAL WHERE ( 5 ) IN ( SELECT * FROM v1 );
+SELECT 'bug' FROM DUAL WHERE ( 5 ) IN ( SELECT * FROM v1 );
+
+EXPLAIN
+SELECT ( 5 ) IN ( SELECT * FROM v1 );
+SELECT ( 5 ) IN ( SELECT * FROM v1 );
+
+EXPLAIN
+SELECT 'bug' FROM DUAL WHERE ( 5 ) IN (SELECT * FROM v2);
+SELECT 'bug' FROM DUAL WHERE ( 5 ) IN (SELECT * FROM v2);
+
+EXPLAIN
+SELECT 'bug' FROM t3 WHERE ( 5 ) IN (SELECT * FROM v2);
+SELECT 'bug' FROM t3 WHERE ( 5 ) IN (SELECT * FROM v2);
+
+EXPLAIN
+SELECT ( 5 ) IN ( SELECT * FROM v2 );
+SELECT ( 5 ) IN ( SELECT * FROM v2 );
+
+set @@optimizer_switch=@save_optimizer_switch;
+
+drop table t1,t2,t3;
+drop view v1,v2;
