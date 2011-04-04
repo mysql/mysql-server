@@ -791,25 +791,37 @@ row_prebuilt_free(
 		mem_heap_free(prebuilt->old_vers_heap);
 	}
 
-	for (i = 0; i < MYSQL_FETCH_CACHE_SIZE; i++) {
-		if (prebuilt->fetch_cache[i] != NULL) {
+	if (prebuilt->fetch_cache[0] != NULL) {
+		byte*	base = prebuilt->fetch_cache[0] - 4;
+		byte*	ptr = base;
 
-			if ((ROW_PREBUILT_FETCH_MAGIC_N != mach_read_from_4(
-				     (prebuilt->fetch_cache[i]) - 4))
-			    || (ROW_PREBUILT_FETCH_MAGIC_N != mach_read_from_4(
-					(prebuilt->fetch_cache[i])
-					+ prebuilt->mysql_row_len))) {
+		for (i = 0; i < MYSQL_FETCH_CACHE_SIZE; i++) {
+			byte*	row;
+			ulint	magic1;
+			ulint	magic2;
+
+			magic1 = mach_read_from_4(ptr);
+			ptr += 4;
+
+			row = ptr;
+			ptr += prebuilt->mysql_row_len;
+
+			magic2 = mach_read_from_4(ptr);
+			ptr += 4;
+
+			if (ROW_PREBUILT_FETCH_MAGIC_N != magic1
+			    || row != prebuilt->fetch_cache[i]
+			    || ROW_PREBUILT_FETCH_MAGIC_N != magic2) {
+
 				fputs("InnoDB: Error: trying to free"
-				      " a corrupt fetch buffer.\n", stderr);
+					" a corrupt fetch buffer.\n", stderr);
 
-				mem_analyze_corruption(
-					prebuilt->fetch_cache[i]);
-
+				mem_analyze_corruption(base);
 				ut_error;
 			}
-
-			mem_free((prebuilt->fetch_cache[i]) - 4);
 		}
+
+		mem_free(base);
 	}
 
 	dict_table_close(prebuilt->table, dict_locked);
