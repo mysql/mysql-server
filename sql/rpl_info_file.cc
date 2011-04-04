@@ -313,6 +313,11 @@ bool Rpl_info_file::do_is_transactional()
   return FALSE;
 }
 
+bool Rpl_info_file::do_update_is_transactional()
+{
+  return FALSE;
+}
+
 int init_strvar_from_file(char *var, int max_size, IO_CACHE *f,
                           const char *default_val)
 {
