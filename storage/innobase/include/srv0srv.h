@@ -442,16 +442,8 @@ typedef enum srv_stats_method_name_enum		srv_stats_method_name_t;
 #ifndef UNIV_HOTBACKUP
 /** Types of threads existing in the system. */
 enum srv_thread_type {
-	SRV_COM = 1,	/**< threads serving communication and queries */
-	SRV_CONSOLE,	/**< thread serving console */
-	SRV_WORKER,	/**< threads serving parallelized queries and
+	SRV_WORKER = 0,	/**< threads serving parallelized queries and
 			queries released from lock wait */
-#if 0
-	/* Utility threads */
-	SRV_BUFFER,	/**< thread flushing dirty buffer blocks */
-	SRV_RECOVERY,	/**< threads finishing a recovery */
-	SRV_INSERT,	/**< thread flushing the insert buffer to disk */
-#endif
 	SRV_MASTER	/**< the master thread, (whose type number must
 			be biggest) */
 };
@@ -489,13 +481,6 @@ UNIV_INTERN
 ulint
 srv_get_n_threads(void);
 /*===================*/
-/*********************************************************************//**
-Returns the calling thread type.
-@return	SRV_COM, ... */
-
-enum srv_thread_type
-srv_get_thread_type(void);
-/*=====================*/
 /*********************************************************************//**
 Check whether thread type has reserved a slot.
 @return	slot number or UNDEFINED if not found*/
