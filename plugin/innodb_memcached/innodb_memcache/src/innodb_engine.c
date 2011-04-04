@@ -42,8 +42,6 @@ with this program; if not, write to the Free Software Foundation, Inc.,
 /* A static global variable */
 EXTENSION_LOGGER_DESCRIPTOR *logger;
 
-static ib_crsr_t	g_crsr = NULL;
-
 /* Static and local to this file */
 const char * set_ops[] = { "","add","set","replace","append","prepend","cas" };
 
@@ -136,7 +134,6 @@ create_instance(
 	}
 
 	struct innodb_engine *innodb_eng = malloc(sizeof(struct innodb_engine)); 
-
 	if(innodb_eng == NULL) {
 		return ENGINE_ENOMEM;
 	}
@@ -157,7 +154,7 @@ create_instance(
 	innodb_eng->engine.arithmetic      = innodb_arithmetic;
 	innodb_eng->engine.flush           = innodb_flush;
 	innodb_eng->engine.unknown_command = innodb_unknown_command;
-	innodb_eng->engine.item_set_cas    = item_set_cas;           /* reused */
+	innodb_eng->engine.item_set_cas    = item_set_cas;
 	innodb_eng->engine.get_item_info   = innodb_get_item_info; 
 	innodb_eng->engine.get_stats_struct = NULL;
 	innodb_eng->engine.errinfo = NULL;
@@ -358,7 +355,6 @@ innodb_conn_init(
 	innodb_conn_data_t*	conn_data;
 	meta_info_t*		meta_info = &engine->meta_info;
 	meta_index_t*		meta_index = &meta_info->m_index;
-	ib_crsr_t		idx_crsr;
 	ib_err_t		err = DB_SUCCESS;
 
 	conn_data = engine->server.cookie->get_engine_specific(cookie);
@@ -379,7 +375,7 @@ innodb_conn_init(
 				       lock_mode);
 
 		conn_data->c_in_use = FALSE;
-		conn_data->c_cookie = cookie;
+		conn_data->c_cookie = (void*) cookie;
 
 		engine->server.cookie->store_engine_specific(
 			cookie, conn_data);
@@ -395,10 +391,8 @@ innodb_conn_init(
 		ib_cb_cursor_lock(crsr, lock_mode);
 		if (meta_index->m_use_idx == META_SECONDARY) {
 			idx_crsr = conn_data->c_idx_crsr;
-			ib_cb_cursor_new_trx(meta_index->m_idx_crsr,
-					     ib_trx);
-			ib_cb_cursor_lock(meta_index->m_idx_crsr,
-					  lock_mode);
+			ib_cb_cursor_new_trx(idx_crsr, ib_trx);
+			ib_cb_cursor_lock(idx_crsr, lock_mode);
 		}
 
 		pthread_mutex_lock(&engine->conn_mutex);
@@ -424,16 +418,30 @@ innodb_remove(
 	uint16_t vbucket)
 {
 	struct innodb_engine*	innodb_eng = innodb_handle(handle);
-	//struct default_engine*def_eng = default_handle(innodb_eng);
+	struct default_engine*	def_eng = default_handle(innodb_eng);
 	ib_err_t		innodb_err;
-	ENGINE_ERROR_CODE	err;
+	ENGINE_ERROR_CODE	err = ENGINE_SUCCESS;
 	ib_trx_t		ib_trx;
 	innodb_conn_data_t*	conn_data;
+	meta_info_t*		meta_info = &innodb_eng->meta_info;
+
+	if (meta_info->m_set_option == META_CACHE
+	    || meta_info->m_set_option == META_MIX) {
+		hash_item*	item = item_get(def_eng, key, nkey);
+
+		if (item != NULL) {
+			item_unlink(def_eng, item);
+			item_release(def_eng, item);
+		}
+
+		if (meta_info->m_set_option == META_CACHE) {
+			return(ENGINE_SUCCESS);
+		}
+	}
 
 	ib_trx = ib_cb_trx_begin(IB_TRX_READ_UNCOMMITTED);
 
-	conn_data = innodb_conn_init(innodb_eng, cookie, ib_trx,
-				     IB_LOCK_IX);
+	conn_data = innodb_conn_init(innodb_eng, cookie, ib_trx, IB_LOCK_IX);
 
 	/* In the binary protocol there is such a thing as a CAS delete.
 	This is the CAS check. If we will also be deleting from the database,
@@ -457,15 +465,6 @@ static void innodb_release(ENGINE_HANDLE* handle, const void *cookie,
 {
 	struct innodb_engine*	innodb_eng = innodb_handle(handle);
 	//struct default_engine*def_eng = default_handle(innodb_eng);
-	innodb_conn_data_t*	conn_data;
-
-	conn_data = innodb_eng->server.cookie->get_engine_specific(cookie);
-	assert(conn_data);
-
-	pthread_mutex_lock(&innodb_eng->conn_mutex);
-        //assert(conn_data->c_in_use);
-        conn_data->c_in_use = FALSE; 
-        pthread_mutex_unlock(&innodb_eng->conn_mutex);
 
 	if (item) {
 //		item_release(def_eng, (hash_item *) item);
@@ -494,6 +493,20 @@ static ENGINE_ERROR_CODE innodb_get(ENGINE_HANDLE* handle,
 	uint64_t		flags = 0;
 	innodb_conn_data_t*	conn_data;
 	int			total_len;
+	meta_info_t*		meta_info = &innodb_eng->meta_info;
+
+	if (meta_info->m_set_option == META_CACHE
+	    || meta_info->m_set_option == META_MIX) {
+		*item = item_get(default_handle(innodb_eng), key, nkey);
+
+		if (*item != NULL) {
+			return(ENGINE_SUCCESS);
+		}
+
+		if (meta_info->m_set_option == META_CACHE) {
+			return(ENGINE_KEY_ENOENT);
+		}
+	}
 
 	ib_trx = ib_cb_trx_begin(IB_TRX_READ_UNCOMMITTED);
 
@@ -620,6 +633,17 @@ static ENGINE_ERROR_CODE innodb_store(ENGINE_HANDLE* handle,
 	ib_trx_t		ib_trx;
 	uint64_t		input_cas;
 	innodb_conn_data_t*	conn_data;
+	meta_info_t*		meta_info = &innodb_eng->meta_info;
+
+	if (meta_info->m_set_option == META_CACHE
+	    || meta_info->m_set_option == META_MIX) {
+		result = store_item(default_handle(innodb_eng), item, cas,
+				    op, cookie);
+
+		if (meta_info->m_set_option == META_CACHE) {
+			return(result);
+		}
+	}
 
 	ib_trx = ib_cb_trx_begin(IB_TRX_READ_UNCOMMITTED);
 
@@ -634,10 +658,6 @@ static ENGINE_ERROR_CODE innodb_store(ENGINE_HANDLE* handle,
 	innodb_api_cursor_reset(conn_data);
 	ib_cb_trx_commit(ib_trx);
 
-	/* write to cache */
-	//return store_item(default_handle(innodb_eng), item, cas, op, cookie);
-  
-	/* NOP case: db_write and mc_write are both disabled. */
 	return(result);  
 }
 
@@ -657,9 +677,25 @@ static ENGINE_ERROR_CODE innodb_arithmetic(ENGINE_HANDLE* handle,
                                         uint16_t vbucket)
 {
 	struct innodb_engine*	innodb_eng = innodb_handle(handle);
-	//struct default_engine*def_eng = default_handle(innodb_eng);
+	struct default_engine*	def_eng = default_handle(innodb_eng);
 	ib_trx_t		ib_trx;
 	innodb_conn_data_t*	conn_data;
+	meta_info_t*		meta_info = &innodb_eng->meta_info;
+	ENGINE_ERROR_CODE	err;
+
+	if (meta_info->m_set_option == META_CACHE
+	    || meta_info->m_set_option == META_MIX) {
+		/* For cache-only, forward this to the
+		default engine */
+		err = def_eng->engine.arithmetic(
+			innodb_eng->m_default_engine, cookie, key, nkey,
+			increment, create, delta, initial, exptime, cas,
+			result, vbucket);
+
+		if (meta_info->m_set_option == META_CACHE) {
+			return(err);
+		}
+	}
 
 	ib_trx = ib_cb_trx_begin(IB_TRX_READ_UNCOMMITTED);
 
@@ -674,17 +710,6 @@ static ENGINE_ERROR_CODE innodb_arithmetic(ENGINE_HANDLE* handle,
 	ib_cb_trx_commit(ib_trx);
 
 	return ENGINE_SUCCESS;
-
-
-	/* For cache-only prefixes, forward this to the default engine */
-	/*
-	if(! prefix.use_ndb) {
-	return def_eng->engine.arithmetic(innodb_eng->m_default_engine, cookie,
-				      key, nkey, increment, create, 
-				      delta, initial, exptime, cas,
-				      result, vbucket);    
-	}
-	*/
 }
 
 
@@ -695,13 +720,23 @@ static ENGINE_ERROR_CODE innodb_flush(ENGINE_HANDLE* handle,
 	struct innodb_engine* innodb_eng = innodb_handle(handle);
 	struct default_engine *def_eng = default_handle(innodb_eng);
 	ENGINE_ERROR_CODE	err = ENGINE_SUCCESS;
+	meta_info_t*		meta_info = &innodb_eng->meta_info;
+
+	if (meta_info->m_set_option == META_CACHE
+	    || meta_info->m_set_option == META_MIX) {
+		/* default engine flush */
+		err = def_eng->engine.flush(innodb_eng->m_default_engine,
+					    cookie, when);
+
+		if (meta_info->m_set_option == META_CACHE) {
+			return(err);
+		}
+	}
 
 	err = innodb_api_flush(
 		innodb_eng->meta_info.m_item[META_DB].m_str,
 		innodb_eng->meta_info.m_item[META_TABLE].m_str);
 	
-	/* default engine flush */
-	//return def_eng->engine.flush(innodb_eng->m_default_engine, cookie, when);
 	return(err);
 }
 
@@ -827,10 +862,6 @@ int fetch_core_settings(struct innodb_engine *engine,
   
 	/* InnoDB related configuration setup */
 	if (!innodb_config(&engine->meta_info)) {
-		return(FALSE);
-	}
-
-	if (!innodb_verify(&engine->meta_info)) {
 		return(FALSE);
 	}
 

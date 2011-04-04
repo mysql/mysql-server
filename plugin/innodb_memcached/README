@@ -34,10 +34,7 @@ sql < innodb_memcache/scripts/innodb_config.sql
 
 8) Install the plugin:
 
-mysql>  install plugin daemon_memcached soname "libmemcached.so";
-
-if anything happened, you can uninstall and reinstall it
-mysql> uninstall plugin daemon_memcached;
+mysql> install plugin daemon_memcached soname "libmemcached.so";
 
 9) Test it out
 telnet 127.0.0.1 11211

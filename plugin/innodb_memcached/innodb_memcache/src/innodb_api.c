@@ -34,8 +34,8 @@ innodb_api_begin(
 	const char*	dbname,		/*!< in: database name */
 	const char*	name,		/*!< in: table name */
 	ib_trx_t	ib_trx,		/*!< in: transaction */
-	ib_crsr_t*	crsr,		/*!< out: innodb cursor */
-	ib_crsr_t*	idx_crsr,	/*!< out: innodb index cursor */
+	ib_crsr_t*	crsr,		/*!< in/out: innodb cursor */
+	ib_crsr_t*	idx_crsr,	/*!< in/out: innodb index cursor */
 	ib_lck_mode_t	lock_mode)	/*!< in:  lock mode */
 {
 	ib_err_t	err = DB_SUCCESS;
@@ -71,7 +71,6 @@ innodb_api_begin(
 					idx_crsr, &index_type, &index_id);
 
 				ib_cb_cursor_lock(*idx_crsr, lock_mode);
-				meta_index->m_idx_crsr = *idx_crsr;
 			}
 		}
 	} else {
@@ -82,8 +81,8 @@ innodb_api_begin(
 			meta_info_t*	meta_info = &engine->meta_info;
 			meta_index_t*	meta_index = &meta_info->m_index;
 			if (meta_index->m_use_idx == META_SECONDARY) {
-				ib_cb_cursor_new_trx(meta_index->m_idx_crsr, ib_trx);
-				ib_cb_cursor_lock(meta_index->m_idx_crsr, lock_mode);
+				ib_cb_cursor_new_trx(*idx_crsr, ib_trx);
+				ib_cb_cursor_lock(*idx_crsr, lock_mode);
 			}
 		}
 	}
