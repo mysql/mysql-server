@@ -600,6 +600,7 @@ ulint
 rec_offs_size(
 /*==========*/
 	const ulint*	offsets);/*!< in: array returned by rec_get_offsets() */
+#ifdef UNIV_DEBUG
 /**********************************************************//**
 Returns a pointer to the start of the record.
 @return	pointer to start */
@@ -607,7 +608,7 @@ UNIV_INLINE
 byte*
 rec_get_start(
 /*==========*/
-	rec_t*		rec,	/*!< in: pointer to record */
+	const rec_t*	rec,	/*!< in: pointer to record */
 	const ulint*	offsets);/*!< in: array returned by rec_get_offsets() */
 /**********************************************************//**
 Returns a pointer to the end of the record.
@@ -616,8 +617,12 @@ UNIV_INLINE
 byte*
 rec_get_end(
 /*========*/
-	rec_t*		rec,	/*!< in: pointer to record */
+	const rec_t*	rec,	/*!< in: pointer to record */
 	const ulint*	offsets);/*!< in: array returned by rec_get_offsets() */
+#else /* UNIV_DEBUG */
+# define rec_get_start(rec, offsets) ((rec) - rec_offs_extra_size(offsets))
+# define rec_get_end(rec, offsets) ((rec) + rec_offs_data_size(offsets))
+#endif /* UNIV_DEBUG */
 /***************************************************************//**
 Copies a physical record to a buffer.
 @return	pointer to the origin of the copy */
