@@ -997,8 +997,12 @@ bool Item::get_date(MYSQL_TIME *ltime,uint fuzzydate)
   }
   else
   {
-    longlong value= val_int();
     int was_cut;
+    longlong value= val_int();
+
+    if (null_value)
+      goto err;
+
     if (number_to_datetime(value, ltime, fuzzydate, &was_cut) == LL(-1))
     {
       char buff[22], *end;
@@ -1059,7 +1063,9 @@ int Item::save_in_field_no_warnings(Field *field, bool no_conversions)
   ulonglong sql_mode= thd->variables.sql_mode;
   thd->variables.sql_mode&= ~(MODE_NO_ZERO_IN_DATE | MODE_NO_ZERO_DATE);
   thd->count_cuted_fields= CHECK_FIELD_IGNORE;
+
   res= save_in_field(field, no_conversions);
+
   thd->count_cuted_fields= tmp;
   dbug_tmp_restore_column_map(table->write_set, old_map);
   thd->variables.sql_mode= sql_mode;
@@ -2514,7 +2520,9 @@ my_decimal *Item_float::val_decimal(my_decimal *decimal_value)
 
 void Item_string::print(String *str, enum_query_type query_type)
 {
-  if (query_type == QT_ORDINARY && is_cs_specified())
+  const bool print_introducer=
+    !(query_type & QT_WITHOUT_INTRODUCERS) && is_cs_specified();
+  if (print_introducer)
   {
     str->append('_');
     str->append(collation.collation->csname);
@@ -2522,27 +2530,52 @@ void Item_string::print(String *str, enum_query_type query_type)
 
   str->append('\'');
 
-  if (query_type == QT_ORDINARY ||
-      my_charset_same(str_value.charset(), system_charset_info))
+  if (query_type & QT_TO_SYSTEM_CHARSET)
   {
-    str_value.print(str);
+    if (print_introducer)
+    {
+      /*
+        Because we wrote an introducer, we must print str_value in its
+        charset, and the resulting bytes must not be changed until they
+        reach the end client.
+        But the caller is asking for system_charset_info, and may later
+        convert into character_set_results. That means two conversions: we
+        must ensure that they don't change our printed bytes.
+        So we print str_value in the least common denominator of the three
+        charsets involved: ASCII. Non-ASCII characters are printed as \xFF
+        sequences (which is ASCII too). This way, our bytes will not be
+        changed.
+      */
+      ErrConvString tmp(str_value.ptr(), str_value.length(), &my_charset_bin);
+      str->append(tmp.ptr());
+    }
+    else
+    {
+      if (my_charset_same(str_value.charset(), system_charset_info))
+        str_value.print(str); // already in system_charset_info
+      else // need to convert
+      {
+        THD *thd= current_thd;
+        LEX_STRING utf8_lex_str;
+
+        thd->convert_string(&utf8_lex_str,
+                            system_charset_info,
+                            str_value.c_ptr_safe(),
+                            str_value.length(),
+                            str_value.charset());
+
+        String utf8_str(utf8_lex_str.str,
+                        utf8_lex_str.length,
+                        system_charset_info);
+
+        utf8_str.print(str);
+      }
+    }
   }
   else
   {
-    THD *thd= current_thd;
-    LEX_STRING utf8_lex_str;
-
-    thd->convert_string(&utf8_lex_str,
-                        system_charset_info,
-                        str_value.c_ptr_safe(),
-                        str_value.length(),
-                        str_value.charset());
-
-    String utf8_str(utf8_lex_str.str,
-                    utf8_lex_str.length,
-                    system_charset_info);
-
-    utf8_str.print(str);
+    // Caller wants a result in the charset of str_value.
+    str_value.print(str);
   }
 
   str->append('\'');
@@ -2858,6 +2891,16 @@ bool Item_param::set_longdata(const char *str, ulong length)
     (here), and first have to concatenate all pieces together,
     write query to the binary log and only then perform conversion.
   */
+  if (str_value.length() + length > max_long_data_size)
+  {
+    my_message(ER_UNKNOWN_ERROR,
+               "Parameter of prepared statement which is set through "
+               "mysql_send_long_data() is longer than "
+               "'max_long_data_size' bytes",
+               MYF(0));
+    DBUG_RETURN(true);
+  }
+
   if (str_value.append(str, length, &my_charset_bin))
     DBUG_RETURN(TRUE);
   state= LONG_DATA_VALUE;
@@ -7429,7 +7472,7 @@ String *Item_cache_int::val_str(String *str)
   DBUG_ASSERT(fixed == 1);
   if (!has_value())
     return NULL;
-  str->set(value, default_charset());
+  str->set_int(value, unsigned_flag, default_charset());
   return str;
 }
 
@@ -7462,16 +7505,43 @@ longlong Item_cache_int::val_int()
 bool  Item_cache_datetime::cache_value_int()
 {
   if (!example)
-    return FALSE;
+    return false;
 
-  value_cached= TRUE;
+  value_cached= true;
   // Mark cached string value obsolete
-  str_value_cached= FALSE;
-  /* Assume here that the underlying item will do correct conversion.*/
-  int_value= example->val_int_result();
+  str_value_cached= false;
+
+  MYSQL_TIME ltime;
+  const bool eval_error= 
+    (field_type() == MYSQL_TYPE_TIME) ?
+    example->get_time(&ltime) :
+    example->get_date(&ltime, TIME_FUZZY_DATE);
+
+  if (eval_error)
+    int_value= 0;
+  else
+  {
+    switch(field_type())
+    {
+    case MYSQL_TYPE_DATETIME:
+    case MYSQL_TYPE_TIMESTAMP:
+      int_value= TIME_to_ulonglong_datetime(&ltime);
+      break;
+    case MYSQL_TYPE_TIME:
+      int_value= TIME_to_ulonglong_time(&ltime);
+      break;
+    default:
+      int_value= TIME_to_ulonglong_date(&ltime);
+      break;
+    }
+    if (ltime.neg)
+      int_value= -int_value;
+  }
+
   null_value= example->null_value;
   unsigned_flag= example->unsigned_flag;
-  return TRUE;
+
+  return true;
 }
 
 

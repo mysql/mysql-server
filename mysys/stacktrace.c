@@ -704,11 +704,11 @@ void my_safe_print_str(const char *val, int len)
 {
   __try
   {
-    fprintf(stderr,"=%.*s\n", len, val);
+    fprintf(stderr, "%.*s\n", len, val);
   }
   __except(EXCEPTION_EXECUTE_HANDLER)
   {
-    fprintf(stderr,"is an invalid string pointer\n");
+    fprintf(stderr, "is an invalid string pointer\n");
   }
 }
 #endif /*__WIN__*/

@@ -3344,7 +3344,21 @@ connection default;
 DROP TABLE t1;
 disconnect con1;
 
+--echo
 --echo #
---echo # End of 6.0 tests.
+--echo # Bug#56115: invalid memory reads when PS selecting from
+--echo #            information_schema tables
+--echo # Bug#58701: crash in Field::make_field, cursor-protocol
+--echo #
+--echo # NOTE: MTR should be run both with --ps-protocol and --cursor-protocol.
+--echo #
+--echo
+
+SELECT *
+FROM (SELECT 1 UNION SELECT 2) t;
+
+
+--echo #
+--echo # End of 5.5 tests.
 
 ###########################################################################

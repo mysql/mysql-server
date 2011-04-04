@@ -1,4 +1,4 @@
-/* Copyright (C) 2004-2005 MySQL AB, 2008-2009 Sun Microsystems, Inc
+/* Copyright (c) 2004, 2011, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -30,6 +30,7 @@
 #include "sql_db.h"                        // get_default_db_collation
 #include "sql_acl.h"                       // *_ACL, is_acl_user
 #include "sql_handler.h"                        // mysql_ha_rm_tables
+#include "sp_cache.h"                     // sp_invalidate_cache
 
 /*************************************************************************/
 
@@ -467,8 +468,7 @@ bool mysql_create_or_drop_trigger(THD *thd, TABLE_LIST *tables, bool create)
   if (thd->locked_tables_mode)
   {
     /* Under LOCK TABLES we must only accept write locked tables. */
-    if (!(tables->table= find_table_for_mdl_upgrade(thd->open_tables,
-                                                    tables->db,
+    if (!(tables->table= find_table_for_mdl_upgrade(thd, tables->db,
                                                     tables->table_name,
                                                     FALSE)))
       goto end;
@@ -517,6 +517,12 @@ bool mysql_create_or_drop_trigger(THD *thd, TABLE_LIST *tables, bool create)
     keep master/slave in consistent state.
   */
   thd->locked_tables_list.reopen_tables(thd);
+
+  /*
+    Invalidate SP-cache. That's needed because triggers may change list of
+    pre-locking tables.
+  */
+  sp_cache_invalidate();
 
 end:
   if (!result)
