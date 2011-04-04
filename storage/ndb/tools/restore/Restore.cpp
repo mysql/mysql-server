@@ -1335,25 +1335,22 @@ BackupFile::openFile(){
   int r= ndbzopen(&m_file, m_fileName, O_RDONLY);
 
   if(m_file.file < 0)
-    r= -1;
+    return false;
 
-  if (r==0)
+  size_t size;
+  if (ndbz_file_size(&m_file, &size) == 0)
   {
-    struct stat buf;
-    if (fstat(m_file.file, &buf) == 0)
-    {
-      m_file_size = (Uint64)buf.st_size;
-      info << "File size " << m_file_size << " bytes\n";
-    }
-    else
-    {
-      info << "Progress reporting degraded output since fstat failed,"
-           << "errno: " << errno << endl;
-      m_file_size = 0;
-    }
+    m_file_size = (Uint64)size;
+    info << "File size " << m_file_size << " bytes\n";
+  }
+  else
+  {
+    info << "Progress reporting degraded output since fstat failed,"
+         << "errno: " << errno << endl;
+    m_file_size = 0;
   }
 
-  return r != 0;
+  return true;
 }
 
 Uint32 BackupFile::buffer_get_ptr_ahead(void **p_buf_ptr, Uint32 size, Uint32 nmemb)
@@ -1634,9 +1631,9 @@ BackupFile::readHeader(){
          because footer contain 4 bytes 0 at the end of file.
          we discard the remain data stored in m_buffer.
       */
-      struct stat buf;
-      if (fstat(m_file.file, &buf) == 0)
-        m_file_size = (Uint64)buf.st_size;
+      size_t size;
+      if (ndbz_file_size(&m_file, &size) == 0)
+        m_file_size = (Uint64)size;
       ndbzseek(&m_file, 4, SEEK_END);
       m_file_pos = m_file_size - 4;
       m_buffer_data_left = 0;
