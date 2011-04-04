@@ -575,10 +575,10 @@ c1	c2	c3
 drop table t1,t2,t3,t4,t5,t6,t7,t8,t9,t10,t11,t11_c;
 select epoch from mysql.ndb_apply_status where server_id=0;
 epoch
-331
+332
 select epoch from mysql.ndb_apply_status where server_id=0;
 epoch
-151
+152
 select epoch > (1 << 32) from mysql.ndb_apply_status where server_id=0;
 epoch > (1 << 32)
 1
