@@ -1,5 +1,4 @@
-/*
-   Copyright (C) 2000-2007 MySQL AB
+/* Copyright (c) 2000, 2011, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -11,10 +10,8 @@
    GNU General Public License for more details.
 
    You should have received a copy of the GNU General Public License
-   along with this program; see the file COPYING. If not, write to the
-   Free Software Foundation, Inc., 51 Franklin St, Fifth Floor, Boston,
-   MA  02110-1301  USA.
-*/
+   along with this program; if not, write to the Free Software
+   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
 
 /*  The crypto wrapper source implements the policies for the cipher
  *  components used by SSL.
@@ -990,25 +987,5 @@ x509* PemToDer(FILE* file, CertType type, EncryptedInfo* info)
 
 } // namespace
 
-
-#ifdef HAVE_EXPLICIT_TEMPLATE_INSTANTIATION
-namespace yaSSL {
-template void ysDelete<DiffieHellman::DHImpl>(DiffieHellman::DHImpl*);
-template void ysDelete<Integer::IntegerImpl>(Integer::IntegerImpl*);
-template void ysDelete<RSA::RSAImpl>(RSA::RSAImpl*);
-template void ysDelete<DSS::DSSImpl>(DSS::DSSImpl*);
-template void ysDelete<RandomPool::RandomImpl>(RandomPool::RandomImpl*);
-template void ysDelete<AES::AESImpl>(AES::AESImpl*);
-template void ysDelete<RC4::RC4Impl>(RC4::RC4Impl*);
-template void ysDelete<DES_EDE::DES_EDEImpl>(DES_EDE::DES_EDEImpl*);
-template void ysDelete<DES::DESImpl>(DES::DESImpl*);
-template void ysDelete<HMAC_RMD::HMAC_RMDImpl>(HMAC_RMD::HMAC_RMDImpl*);
-template void ysDelete<HMAC_SHA::HMAC_SHAImpl>(HMAC_SHA::HMAC_SHAImpl*);
-template void ysDelete<HMAC_MD5::HMAC_MD5Impl>(HMAC_MD5::HMAC_MD5Impl*);
-template void ysDelete<RMD::RMDImpl>(RMD::RMDImpl*);
-template void ysDelete<SHA::SHAImpl>(SHA::SHAImpl*);
-template void ysDelete<MD5::MD5Impl>(MD5::MD5Impl*);
-}
-#endif // HAVE_EXPLICIT_TEMPLATE_INSTANTIATION
 
 #endif // !USE_CRYPTOPP_LIB

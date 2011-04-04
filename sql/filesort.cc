@@ -37,10 +37,6 @@
 #include "sql_select.h"
 #include "debug_sync.h"
 
-#ifdef HAVE_EXPLICIT_TEMPLATE_INSTANTIATION
-template class Bounded_queue<uchar, uchar>;
-#endif
-
 	/* functions defined in this file */
 
 static void make_char_array(FILESORT_INFO *info, uint fields, uint length);

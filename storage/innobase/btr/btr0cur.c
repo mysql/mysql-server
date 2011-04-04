@@ -402,7 +402,7 @@ btr_cur_search_to_nth_level(
 
 	ut_ad(level == 0 || mode == PAGE_CUR_LE);
 	ut_ad(dict_index_check_search_tuple(index, tuple));
-	ut_ad(!dict_index_is_ibuf(index) || ibuf_inside());
+	ut_ad(!dict_index_is_ibuf(index) || ibuf_inside(mtr));
 	ut_ad(dtuple_check_typed(tuple));
 
 #ifdef UNIV_DEBUG
@@ -4534,8 +4534,8 @@ btr_check_blob_fil_page_type(
 		ulint	flags = fil_space_get_flags(space_id);
 
 #ifndef UNIV_DEBUG /* Improve debug test coverage */
-		if (UNIV_LIKELY
-		    ((flags & DICT_TF_FORMAT_MASK) == DICT_TF_FORMAT_51)) {
+		if (UNIV_LIKELY((flags & DICT_TF_FORMAT_MASK)
+				== (UNIV_FORMAT_A << DICT_TF_FORMAT_SHIFT))) {
 			/* Old versions of InnoDB did not initialize
 			FIL_PAGE_TYPE on BLOB pages.  Do not print
 			anything about the type mismatch when reading
@@ -4935,8 +4935,8 @@ btr_copy_zblob_prefix(
 	page_zip_set_alloc(&d_stream, heap);
 
 	ut_ad(ut_is_2pow(zip_size));
-	ut_ad(zip_size >= PAGE_ZIP_MIN_SIZE);
-	ut_ad(zip_size <= UNIV_PAGE_SIZE);
+	ut_ad(zip_size >= UNIV_ZIP_SIZE_MIN);
+	ut_ad(zip_size <= UNIV_ZIP_SIZE_MAX);
 	ut_ad(space_id);
 
 	err = inflateInit(&d_stream);
