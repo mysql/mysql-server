@@ -370,6 +370,14 @@ class MYSQL_BIN_LOG: public TC_LOG, private MYSQL_LOG
   bool no_auto_events;
   /* Queue of transactions queued up to participate in group commit. */
   group_commit_entry *group_commit_queue;
+  /*
+    Condition variable to mark that the group commit queue is busy.
+    Used when each thread does it's own commit_ordered() (when
+    binlog_optimize_thread_scheduling=1).
+    Used with the LOCK_commit_ordered mutex.
+  */
+  my_bool group_commit_queue_busy;
+  pthread_cond_t COND_queue_busy;
   /* Total number of committed transactions. */
   ulonglong num_commits;
   /* Number of group commits done. */

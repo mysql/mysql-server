@@ -67,6 +67,7 @@ static int binlog_start_consistent_snapshot(handlerton *hton, THD *thd);
 static LEX_STRING const write_error_msg=
     { C_STRING_WITH_LEN("error writing to the binary log") };
 
+static my_bool opt_optimize_thread_scheduling= TRUE;
 #ifndef DBUG_OFF
 static ulong opt_binlog_dbug_fsync_sleep= 0;
 #endif
@@ -2542,7 +2543,8 @@ const char *MYSQL_LOG::generate_name(const char *log_name,
 MYSQL_BIN_LOG::MYSQL_BIN_LOG()
   :bytes_written(0), prepared_xids(0), file_id(1), open_count(1),
    need_start_event(TRUE),
-   group_commit_queue(0), num_commits(0), num_group_commits(0),
+   group_commit_queue(0), group_commit_queue_busy(FALSE),
+   num_commits(0), num_group_commits(0),
    is_relay_log(0),
    description_event_for_exec(0), description_event_for_queue(0)
 {
@@ -2599,6 +2601,7 @@ void MYSQL_BIN_LOG::init_pthread_objects()
   (void) my_pthread_mutex_init(&LOCK_index, MY_MUTEX_INIT_SLOW, "LOCK_index",
                                MYF_NO_DEADLOCK_DETECTION);
   (void) pthread_cond_init(&update_cond, 0);
+  (void) pthread_cond_init(&COND_queue_busy, 0);
 }
 
 
@@ -5155,6 +5158,32 @@ MYSQL_BIN_LOG::write_transaction_to_binlog_events(group_commit_entry *entry)
   else
     trx_group_commit_leader(entry);
 
+  if (!opt_optimize_thread_scheduling)
+  {
+    /* For the leader, trx_group_commit_leader() already took the lock. */
+    if (orig_queue != NULL)
+      pthread_mutex_lock(&LOCK_commit_ordered);
+
+    DEBUG_SYNC(entry->thd, "commit_loop_entry_commit_ordered");
+    ++num_commits;
+    if (entry->trx_data->using_xa && !entry->error)
+      run_commit_ordered(entry->thd, entry->all);
+
+    group_commit_entry *next= entry->next;
+    if (!next)
+    {
+      group_commit_queue_busy= FALSE;
+      pthread_cond_signal(&COND_queue_busy);
+      DEBUG_SYNC(entry->thd, "commit_after_group_run_commit_ordered");
+    }
+    pthread_mutex_unlock(&LOCK_commit_ordered);
+
+    if (next)
+    {
+      next->thd->signal_wakeup_ready();
+    }
+  }
+
   if (likely(!entry->error))
     return 0;
 
@@ -5331,6 +5360,24 @@ MYSQL_BIN_LOG::trx_group_commit_leader(group_commit_entry *leader)
   pthread_mutex_unlock(&LOCK_log);
   DEBUG_SYNC(leader->thd, "commit_after_release_LOCK_log");
   ++num_group_commits;
+
+  if (!opt_optimize_thread_scheduling)
+  {
+    /*
+      If we want to run commit_ordered() each in the transaction's own thread
+      context, then we need to mark the queue reserved; we need to finish all
+      threads in one group commit before the next group commit can be allowed
+      to proceed, and we cannot unlock a simple pthreads mutex in a different
+      thread from the one that locked it.
+    */
+
+    while (group_commit_queue_busy)
+      pthread_cond_wait(&COND_queue_busy, &LOCK_commit_ordered);
+    group_commit_queue_busy= TRUE;
+
+    /* Note that we return with LOCK_commit_ordered locked! */
+    DBUG_VOID_RETURN;
+  }
 
   /*
     Wakeup each participant waiting for our group commit, first calling the
@@ -6775,6 +6822,19 @@ static SHOW_VAR binlog_status_vars_top[]= {
   {NullS, NullS, SHOW_LONG}
 };
 
+static MYSQL_SYSVAR_BOOL(
+  optimize_thread_scheduling,
+  opt_optimize_thread_scheduling,
+  PLUGIN_VAR_READONLY,
+  "Run fast part of group commit in a single thread, to optimize kernel "
+  "thread scheduling. On by default. Disable to run each transaction in group "
+  "commit in its own thread, which can be slower at very high concurrency. "
+  "This option is mostly for testing one algorithm versus the other, and it "
+  "should not normally be necessary to change it.",
+  NULL,
+  NULL,
+  1);
+
 #ifndef DBUG_OFF
 static MYSQL_SYSVAR_ULONG(
   dbug_fsync_sleep,
@@ -6787,13 +6847,16 @@ static MYSQL_SYSVAR_ULONG(
   0,
   ULONG_MAX,
   0);
+#endif
 
 static struct st_mysql_sys_var *binlog_sys_vars[]=
 {
+  MYSQL_SYSVAR(optimize_thread_scheduling),
+#ifndef DBUG_OFF
   MYSQL_SYSVAR(dbug_fsync_sleep),
+#endif
   NULL
 };
-#endif
 
 
 /*
@@ -6857,11 +6920,7 @@ mysql_declare_plugin(binlog)
   NULL, /* Plugin Deinit */
   0x0100 /* 1.0 */,
   binlog_status_vars_top,     /* status variables                */
-#ifndef DBUG_OFF
   binlog_sys_vars,            /* system variables                */
-#else
-  NULL,                       /* system variables                */
-#endif
   NULL                        /* config options                  */
 }
 mysql_declare_plugin_end;
