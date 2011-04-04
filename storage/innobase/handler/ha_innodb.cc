@@ -79,6 +79,7 @@ extern "C" {
 #include "../storage/innobase/include/dict0crea.h"
 #include "../storage/innobase/include/btr0cur.h"
 #include "../storage/innobase/include/btr0btr.h"
+#include "../storage/innobase/include/ibuf0ibuf.h"
 #include "../storage/innobase/include/fsp0fsp.h"
 #include "../storage/innobase/include/sync0sync.h"
 #include "../storage/innobase/include/fil0fil.h"
@@ -3723,17 +3724,18 @@ include_field:
 		n_requested_fields++;
 
 		templ->col_no = i;
+		templ->clust_rec_field_no = dict_col_get_clust_pos_noninline(
+			&index->table->cols[i], clust_index);
+		ut_ad(templ->clust_rec_field_no != ULINT_UNDEFINED);
 
 		if (index == clust_index) {
-			templ->rec_field_no = dict_col_get_clust_pos_noninline(
-				&index->table->cols[i], index);
+			templ->rec_field_no = templ->clust_rec_field_no;
 		} else {
 			templ->rec_field_no = dict_index_get_nth_col_pos(
 								index, i);
-		}
-
-		if (templ->rec_field_no == ULINT_UNDEFINED) {
-			prebuilt->need_to_access_clustered = TRUE;
+			if (templ->rec_field_no == ULINT_UNDEFINED) {
+				prebuilt->need_to_access_clustered = TRUE;
+			}
 		}
 
 		if (field->null_ptr) {
@@ -3785,9 +3787,7 @@ skip_field:
 		for (i = 0; i < n_requested_fields; i++) {
 			templ = prebuilt->mysql_template + i;
 
-			templ->rec_field_no = dict_col_get_clust_pos_noninline(
-				&index->table->cols[templ->col_no],
-				clust_index);
+			templ->rec_field_no = templ->clust_rec_field_no;
 		}
 	}
 }
@@ -5983,7 +5983,6 @@ innobase_drop_database(
 	trx_t*	parent_trx;
 	trx_t*	trx;
 	char*	ptr;
-	int	error;
 	char*	namebuf;
 	THD*	thd		= current_thd;
 
@@ -6021,7 +6020,7 @@ innobase_drop_database(
 		trx->check_foreigns = FALSE;
 	}
 
-	error = row_drop_database_for_mysql(namebuf, trx);
+	row_drop_database_for_mysql(namebuf, trx);
 	my_free(namebuf, MYF(0));
 
 	/* Flush the log to reduce probability that the .frm files and
@@ -6037,13 +6036,7 @@ innobase_drop_database(
 
 	innobase_commit_low(trx);
 	trx_free_for_mysql(trx);
-#ifdef NO_LONGER_INTERESTED_IN_DROP_DB_ERROR
-	error = convert_error_code_to_mysql(error, NULL);
-
-	return(error);
-#else
 	return;
-#endif
 }
 
 /*************************************************************************
@@ -6374,9 +6367,12 @@ Returns statistics information of the table to the MySQL interpreter,
 in various fields of the handle object. */
 
 int
-ha_innobase::info(
-/*==============*/
-	uint flag)	/* in: what information MySQL requests */
+ha_innobase::info_low(
+/*==================*/
+	uint	flag,			/* in: what information MySQL
+					requests */
+	bool	called_from_analyze)	/* in: TRUE if called from
+					::analyze() */
 {
 	dict_table_t*	ib_table;
 	dict_index_t*	index;
@@ -6407,7 +6403,7 @@ ha_innobase::info(
 	ib_table = prebuilt->table;
 
 	if (flag & HA_STATUS_TIME) {
-		if (innobase_stats_on_metadata) {
+		if (called_from_analyze || innobase_stats_on_metadata) {
 			/* In sql_show we call with this flag: update
 			then statistics so that they are up-to-date */
 
@@ -6623,6 +6619,18 @@ func_exit:
   	DBUG_RETURN(0);
 }
 
+/*************************************************************************
+Returns statistics information of the table to the MySQL interpreter,
+in various fields of the handle object. */
+
+int
+ha_innobase::info(
+/*==============*/
+	uint flag)	/* in: what information MySQL requests */
+{
+	return(info_low(flag, false /* not called from analyze */));
+}
+
 /**************************************************************************
 Updates index cardinalities of the table, based on 8 random dives into
 each index tree. This does NOT calculate exact statistics on the table. */
@@ -6639,7 +6647,8 @@ ha_innobase::analyze(
 	pthread_mutex_lock(&analyze_mutex);
 
 	/* Simply call ::info() with all the flags */
-	info(HA_STATUS_TIME | HA_STATUS_CONST | HA_STATUS_VARIABLE);
+	info_low(HA_STATUS_TIME | HA_STATUS_CONST | HA_STATUS_VARIABLE,
+		 true /* called from analyze */);
 
 	pthread_mutex_unlock(&analyze_mutex);
 
@@ -6812,8 +6821,6 @@ ha_innobase::get_foreign_key_create_info(void)
 	flen = ftell(srv_dict_tmpfile);
 	if (flen < 0) {
 		flen = 0;
-	} else if (flen > 64000 - 1) {
-		flen = 64000 - 1;
 	}
 
 	/* allocate buffer for the string, and
@@ -7560,12 +7567,9 @@ innodb_show_status(
 
 	mutex_exit_noninline(&srv_monitor_file_mutex);
 
-	bool result = FALSE;
+	stat_print(thd, innobase_hton_name, (uint) strlen(innobase_hton_name),
+		   STRING_WITH_LEN(""), str, flen);
 
-	if (stat_print(thd, innobase_hton_name, (uint) strlen(innobase_hton_name),
-			STRING_WITH_LEN(""), str, flen)) {
-		result= TRUE;
-	}
 	my_free(str, MYF(0));
 
 	DBUG_RETURN(FALSE);
@@ -8986,6 +8990,13 @@ static MYSQL_SYSVAR_LONG(autoinc_lock_mode, innobase_autoinc_lock_mode,
   AUTOINC_OLD_STYLE_LOCKING,	/* Minimum value */
   AUTOINC_NO_LOCKING, 0);	/* Maximum value */
 
+#if defined UNIV_DEBUG || defined UNIV_IBUF_DEBUG
+static MYSQL_SYSVAR_UINT(change_buffering_debug, ibuf_debug,
+  PLUGIN_VAR_RQCMDARG,
+  "Debug flags for InnoDB change buffering (0=none)",
+  NULL, NULL, 0, 0, 1, 0);
+#endif /* UNIV_DEBUG || UNIV_IBUF_DEBUG */
+
 static struct st_mysql_sys_var* innobase_system_variables[]= {
   MYSQL_SYSVAR(additional_mem_pool_size),
   MYSQL_SYSVAR(autoextend_increment),
@@ -9027,6 +9038,9 @@ static struct st_mysql_sys_var* innobase_system_variables[]= {
   MYSQL_SYSVAR(thread_concurrency),
   MYSQL_SYSVAR(thread_sleep_delay),
   MYSQL_SYSVAR(autoinc_lock_mode),
+#if defined UNIV_DEBUG || defined UNIV_IBUF_DEBUG
+  MYSQL_SYSVAR(change_buffering_debug),
+#endif /* UNIV_DEBUG || UNIV_IBUF_DEBUG */
   NULL
 };
 

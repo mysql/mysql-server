@@ -2273,8 +2273,6 @@ void Item_extract::print(String *str, enum_query_type query_type)
 
 void Item_extract::fix_length_and_dec()
 {
-  value.alloc(32);				// alloc buffer
-
   maybe_null=1;					// If wrong date
   switch (int_type) {
   case INTERVAL_YEAR:		max_length=4; date_value=1; break;
@@ -2317,6 +2315,8 @@ longlong Item_extract::val_int()
   }
   else
   {
+    char buf[40];
+    String value(buf, sizeof(buf), &my_charset_bin);;
     String *res= args[0]->val_str(&value);
     if (!res || str_to_time_with_warn(res->ptr(), res->length(), &ltime))
     {
@@ -2459,14 +2459,14 @@ String *Item_char_typecast::val_str(String *str)
   {
     // Convert character set if differ
     uint dummy_errors;
-    if (!(res= args[0]->val_str(&tmp_value)) ||
-        str->copy(res->ptr(), res->length(), from_cs,
-        cast_cs, &dummy_errors))
+    if (!(res= args[0]->val_str(str)) ||
+        tmp_value.copy(res->ptr(), res->length(), from_cs,
+                       cast_cs, &dummy_errors))
     {
       null_value= 1;
       return 0;
     }
-    res= str;
+    res= &tmp_value;
   }
 
   res->set_charset(cast_cs);
@@ -2500,9 +2500,9 @@ String *Item_char_typecast::val_str(String *str)
     {
       if (res->alloced_length() < (uint) cast_length)
       {
-        str->alloc(cast_length);
-        str->copy(*res);
-        res= str;
+        str_value.alloc(cast_length);
+        str_value.copy(*res);
+        res= &str_value;
       }
       bzero((char*) res->ptr() + res->length(),
             (uint) cast_length - res->length());

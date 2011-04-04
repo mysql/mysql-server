@@ -400,7 +400,7 @@ row_mysql_convert_row_to_innobase(
 					row is used, as row may contain
 					pointers to this record! */
 {
-	mysql_row_templ_t*	templ;
+	const mysql_row_templ_t*templ;
 	dfield_t*		dfield;
 	ulint			i;
 
@@ -1457,7 +1457,12 @@ run_again:
 		srv_n_rows_updated++;
 	}
 
-	row_update_statistics_if_needed(prebuilt->table);
+	/* We update table statistics only if it is a DELETE or UPDATE
+	that changes indexed columns, UPDATEs that change only non-indexed
+	columns would not affect statistics. */
+	if (node->is_delete || !(node->cmpl_info & UPD_NODE_NO_ORD_CHANGE)) {
+		row_update_statistics_if_needed(prebuilt->table);
+	}
 
 	trx->op_info = "";
 
@@ -1608,6 +1613,9 @@ row_update_cascade_for_mysql(
 
 	trx = thr_get_trx(thr);
 
+	/* Increment fk_cascade_depth to record the recursive call depth on
+	a single update/delete that affects multiple tables chained
+	together with foreign key relations. */
 	thr->fk_cascade_depth++;
 
 	if (thr->fk_cascade_depth > FK_MAX_CASCADE_DEL) {
@@ -1618,6 +1626,12 @@ run_again:
 	thr->prev_node = node;
 
 	row_upd_step(thr);
+
+	/* The recursive call for cascading update/delete happens
+	in above row_upd_step(), reset the counter once we come
+	out of the recursive call, so it does not accumulate for
+	different row deletes */
+	thr->fk_cascade_depth = 0;
 
 	err = trx->error_state;
 
@@ -1967,6 +1981,7 @@ row_create_table_for_mysql(
 		table already exists */
 
 		trx->error_state = DB_SUCCESS;
+		dict_mem_table_free(table);
 	}
 
 	que_graph_free((que_t*) que_node_get_parent(thr));

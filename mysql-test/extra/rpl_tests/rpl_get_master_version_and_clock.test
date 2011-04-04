@@ -34,7 +34,7 @@
 #
 
 connection slave;
-if (`SELECT $debug_sync_action = ''`)
+if (!$debug_sync_action)
 {
     --die Cannot continue. Please set value for debug_sync_action.
 }
