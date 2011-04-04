@@ -638,7 +638,7 @@ innobase_add_index_cleanup(
 {
 	mem_heap_free(heap);
 
-	trx_general_rollback_for_mysql(trx, NULL);
+	trx_rollback_to_savepoint(trx, NULL);
 
 	ut_a(trx != prebuilt->trx);
 
