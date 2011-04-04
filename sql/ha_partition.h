@@ -1100,8 +1100,8 @@ public:
     virtual int preload_keys(THD *thd, HA_CHECK_OPT *check_opt);
     virtual int dump(THD* thd, int fd = -1);
     virtual int net_read_dump(NET* net);
-    virtual uint checksum() const;
   */
+    virtual uint checksum() const;
 
   /*
     -------------------------------------------------------------------------

@@ -15,6 +15,38 @@ drop table if exists t1, t2;
 --enable_warnings
 
 --echo #
+--echo # BUG#11933226 - 60681: CHECKSUM TABLE RETURNS 0 FOR PARTITIONED TABLE
+--echo #
+CREATE TABLE t1 (
+  i INT
+) ENGINE=MyISAM
+  PARTITION BY RANGE (i) (
+    PARTITION p3 VALUES LESS THAN (3),
+    PARTITION p5 VALUES LESS THAN (5),
+    PARTITION pMax VALUES LESS THAN MAXVALUE);
+INSERT INTO t1 VALUES (1), (2), (3), (4), (5), (6);
+CHECKSUM TABLE t1;
+ALTER TABLE t1 CHECKSUM = 1;
+CHECKSUM TABLE t1 EXTENDED;
+--echo # Before patch this returned 0!
+CHECKSUM TABLE t1;
+SHOW CREATE TABLE t1;
+DROP TABLE t1;
+
+--echo # Same test without partitioning
+CREATE TABLE t1 (
+  i INT
+) ENGINE=MyISAM;
+SHOW CREATE TABLE t1;
+INSERT INTO t1 VALUES (1), (2), (3), (4), (5), (6);
+CHECKSUM TABLE t1;
+ALTER TABLE t1 CHECKSUM = 1;
+CHECKSUM TABLE t1 EXTENDED;
+CHECKSUM TABLE t1;
+SHOW CREATE TABLE t1;
+DROP TABLE t1;
+
+--echo #
 --echo # Bug#59297: Can't find record in 'tablename' on update inner join
 --echo #
 
