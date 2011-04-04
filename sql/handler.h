@@ -29,7 +29,7 @@
 #include "sql_cache.h"
 #include "structs.h"                            /* SHOW_COMP_OPTION */
 
-#include <my_handler.h>
+#include <my_compare.h>
 #include <ft_global.h>
 #include <keycache.h>
 
@@ -153,6 +153,12 @@
     ordered.
 */
 #define HA_DUPLICATE_KEY_NOT_IN_ORDER    (LL(1) << 36)
+/*
+  Engine supports REPAIR TABLE. Used by CHECK TABLE FOR UPGRADE if an
+  incompatible table is detected. If this flag is set, CHECK TABLE FOR UPGRADE
+  will report ER_TABLE_NEEDS_UPGRADE, otherwise ER_TABLE_NEED_REBUILD.
+*/
+#define HA_CAN_REPAIR                    (LL(1) << 37)
 
 /*
   Set of all binlog flags. Currently only contain the capabilities
@@ -2010,7 +2016,10 @@ private:
      upon the table.
   */
   virtual int repair(THD* thd, HA_CHECK_OPT* check_opt)
-  { return HA_ADMIN_NOT_IMPLEMENTED; }
+  {
+    DBUG_ASSERT(!(ha_table_flags() & HA_CAN_REPAIR));
+    return HA_ADMIN_NOT_IMPLEMENTED;
+  }
   virtual void start_bulk_insert(ha_rows rows) {}
   virtual int end_bulk_insert() { return 0; }
   virtual int index_read(uchar * buf, const uchar * key, uint key_len,

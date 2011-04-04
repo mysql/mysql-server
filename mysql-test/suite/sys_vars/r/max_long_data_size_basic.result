@@ -1,0 +1,14 @@
+select @@global.max_long_data_size=20;
+@@global.max_long_data_size=20
+0
+select @@session.max_long_data_size;
+ERROR HY000: Variable 'max_long_data_size' is a GLOBAL variable
+SELECT @@global.max_long_data_size = VARIABLE_VALUE
+FROM INFORMATION_SCHEMA.GLOBAL_VARIABLES
+WHERE VARIABLE_NAME='max_long_data_size';
+@@global.max_long_data_size = VARIABLE_VALUE
+1
+set global max_long_data_size=1;
+ERROR HY000: Variable 'max_long_data_size' is a read only variable
+set session max_long_data_size=1;
+ERROR HY000: Variable 'max_long_data_size' is a read only variable

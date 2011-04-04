@@ -1917,7 +1917,7 @@ bool mysql_rm_table(THD *thd,TABLE_LIST *tables, my_bool if_exists,
             by parser) it is safe to cache pointer to the TABLE instances
             in its elements.
           */
-          table->table= find_table_for_mdl_upgrade(thd->open_tables, table->db,
+          table->table= find_table_for_mdl_upgrade(thd, table->db,
                                                    table->table_name, false);
           if (!table->table)
             DBUG_RETURN(true);
@@ -5281,17 +5281,12 @@ mysql_prepare_alter_table(THD *thd, TABLE *table,
   if (!(used_fields & HA_CREATE_USED_KEY_BLOCK_SIZE))
     create_info->key_block_size= table->s->key_block_size;
 
-  if (!create_info->tablespace && create_info->storage_media != HA_SM_MEMORY)
-  {
-    char *tablespace= static_cast<char *>(thd->alloc(FN_LEN + 1));
-    /*
-       Regular alter table of disk stored table (no tablespace/storage change)
-       Copy tablespace name
-    */
-    if (tablespace &&
-        (table->file->get_tablespace_name(thd, tablespace, FN_LEN)))
-      create_info->tablespace= tablespace;
-  }
+  if (!create_info->tablespace)
+    create_info->tablespace= table->s->tablespace;
+
+  if (create_info->storage_media == HA_SM_DEFAULT)
+    create_info->storage_media= table->s->default_storage_media;
+
   restore_record(table, s->default_values);     // Empty record for DEFAULT
   Create_field *def;
 

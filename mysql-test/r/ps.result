@@ -3731,5 +3731,19 @@ CREATE TABLE t1 (a INT);
 BEGIN;
 PREPARE stmt1 FROM "SELECT * FROM t1";
 DROP TABLE t1;
+
 #
-# End of 6.0 tests.
+# Bug#56115: invalid memory reads when PS selecting from
+#            information_schema tables
+# Bug#58701: crash in Field::make_field, cursor-protocol
+#
+# NOTE: MTR should be run both with --ps-protocol and --cursor-protocol.
+#
+
+SELECT *
+FROM (SELECT 1 UNION SELECT 2) t;
+1
+1
+2
+#
+# End of 5.5 tests.

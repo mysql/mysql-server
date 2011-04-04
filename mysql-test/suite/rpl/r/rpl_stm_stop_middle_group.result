@@ -11,6 +11,8 @@ insert into tm set a=null;
 Warnings:
 Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statement is unsafe because it accesses a non-transactional table after accessing a transactional table within the same transaction.
 commit;
+call mtr.add_suppression("Slave SQL.*Request to stop slave SQL Thread received while applying a group that has non-transactional changes; waiting for completion of the group");
+call mtr.add_suppression("Slave SQL.*Slave SQL Thread stopped with incomplete event group having non-transactional changes");
 include/wait_for_slave_sql_to_stop.inc
 SELECT "NO" AS Last_SQL_Error, @check as `true`;
 Last_SQL_Error	true
@@ -34,9 +36,9 @@ Warnings:
 Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statement is unsafe because it accesses a non-transactional table after accessing a transactional table within the same transaction.
 commit;
 include/wait_for_slave_sql_to_stop.inc
-SELECT "Fatal error: ... The slave SQL is stopped, leaving the current group of events unfinished with a non-transaction table changed. If the group consists solely of Row-based events, you can try restarting the slave with --slave-exec-mode=IDEMPOTENT, which ignores duplicate key, key not found, and similar errors (see documentation for details)." AS Last_SQL_Error, @check as `true`;
+SELECT "Fatal error: ... Slave SQL Thread stopped with incomplete event group having non-transactional changes. If the group consists solely of row-based events, you can try to restart the slave with --slave-exec-mode=IDEMPOTENT, which ignores duplicate key, key not found, and similar errors (see documentation for details)." AS Last_SQL_Error, @check as `true`;
 Last_SQL_Error	true
-Fatal error: ... The slave SQL is stopped, leaving the current group of events unfinished with a non-transaction table changed. If the group consists solely of Row-based events, you can try restarting the slave with --slave-exec-mode=IDEMPOTENT, which ignores duplicate key, key not found, and similar errors (see documentation for details).	1
+Fatal error: ... Slave SQL Thread stopped with incomplete event group having non-transactional changes. If the group consists solely of row-based events, you can try to restart the slave with --slave-exec-mode=IDEMPOTENT, which ignores duplicate key, key not found, and similar errors (see documentation for details).	1
 select count(*) as one  from tm;
 one
 1
@@ -51,9 +53,9 @@ set @@global.debug="+d,stop_slave_middle_group";
 set @@global.debug="+d,incomplete_group_in_relay_log";
 update tm as t1, ti as t2 set t1.a=t1.a * 2, t2.a=t2.a * 2;
 include/wait_for_slave_sql_to_stop.inc
-SELECT "Fatal error: ... The slave SQL is stopped, leaving the current group of events unfinished with a non-transaction table changed. If the group consists solely of Row-based events, you can try restarting the slave with --slave-exec-mode=IDEMPOTENT, which ignores duplicate key, key not found, and similar errors (see documentation for details)." AS Last_SQL_Error, @check as `true`;
+SELECT "Fatal error: ... Slave SQL Thread stopped with incomplete event group having non-transactional changes. If the group consists solely of row-based events, you can try to restart the slave with --slave-exec-mode=IDEMPOTENT, which ignores duplicate key, key not found, and similar errors (see documentation for details)." AS Last_SQL_Error, @check as `true`;
 Last_SQL_Error	true
-Fatal error: ... The slave SQL is stopped, leaving the current group of events unfinished with a non-transaction table changed. If the group consists solely of Row-based events, you can try restarting the slave with --slave-exec-mode=IDEMPOTENT, which ignores duplicate key, key not found, and similar errors (see documentation for details).	1
+Fatal error: ... Slave SQL Thread stopped with incomplete event group having non-transactional changes. If the group consists solely of row-based events, you can try to restart the slave with --slave-exec-mode=IDEMPOTENT, which ignores duplicate key, key not found, and similar errors (see documentation for details).	1
 select max(a) as two from tm;
 two
 2

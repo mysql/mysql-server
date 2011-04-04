@@ -126,6 +126,7 @@ extern char *default_storage_engine;
 extern bool opt_endinfo, using_udf_functions;
 extern my_bool locked_in_memory;
 extern bool opt_using_transactions;
+extern ulong max_long_data_size;
 extern ulong current_pid;
 extern ulong expire_logs_days;
 extern my_bool relay_log_recovery;
@@ -241,6 +242,7 @@ extern PSI_mutex_key key_BINLOG_LOCK_index, key_BINLOG_LOCK_prep_xids,
   key_relay_log_info_log_space_lock, key_relay_log_info_run_lock,
   key_structure_guard_mutex, key_TABLE_SHARE_LOCK_ha_data,
   key_LOCK_error_messages, key_LOCK_thread_count, key_PARTITION_LOCK_auto_inc;
+extern PSI_mutex_key key_RELAYLOG_LOCK_index;
 
 extern PSI_rwlock_key key_rwlock_LOCK_grant, key_rwlock_LOCK_logger,
   key_rwlock_LOCK_sys_init_connect, key_rwlock_LOCK_sys_init_slave,
@@ -260,6 +262,7 @@ extern PSI_cond_key key_BINLOG_COND_prep_xids, key_BINLOG_update_cond,
   key_relay_log_info_start_cond, key_relay_log_info_stop_cond,
   key_TABLE_SHARE_cond, key_user_level_lock_cond,
   key_COND_thread_count, key_COND_thread_cache, key_COND_flush_thread_cache;
+extern PSI_cond_key key_RELAYLOG_update_cond;
 
 extern PSI_thread_key key_thread_bootstrap, key_thread_delayed_insert,
   key_thread_handle_manager, key_thread_kill_server, key_thread_main,
@@ -277,6 +280,7 @@ extern PSI_file_key key_file_binlog, key_file_binlog_index, key_file_casetest,
   key_file_pid, key_file_relay_log_info, key_file_send_file, key_file_tclog,
   key_file_trg, key_file_trn, key_file_init;
 extern PSI_file_key key_file_query_log, key_file_slow_log;
+extern PSI_file_key key_file_relaylog, key_file_relaylog_index;
 
 void init_server_psi_keys();
 #endif /* HAVE_PSI_INTERFACE */
@@ -394,21 +398,22 @@ enum options_mysqld
   OPT_UPDATE_LOG,
   OPT_WANT_CORE,
   OPT_ENGINE_CONDITION_PUSHDOWN,
-  OPT_LOG_ERROR
+  OPT_LOG_ERROR,
+  OPT_MAX_LONG_DATA_SIZE
 };
 
 
 /**
-  Query type constants.
-
-  QT_ORDINARY -- ordinary SQL query.
-  QT_IS -- SQL query to be shown in INFORMATION_SCHEMA (in utf8 and without
-  character set introducers).
+   Query type constants (usable as bitmap flags).
 */
 enum enum_query_type
 {
-  QT_ORDINARY,
-  QT_IS
+  /// Nothing specific, ordinary SQL query.
+  QT_ORDINARY= 0,
+  /// In utf8.
+  QT_TO_SYSTEM_CHARSET= (1 << 0),
+  /// Without character set introducers.
+  QT_WITHOUT_INTRODUCERS= (1 << 1)
 };
 
 /* query_id */
