@@ -141,7 +141,7 @@ t1.frm
 t1.par
 EXPLAIN PARTITIONS SELECT COUNT(*) FROM t1 WHERE f_date = '1000-02-10';
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	part1	ALL	NULL	NULL	NULL	NULL	20	Using where
+1	SIMPLE	t1	part1	ALL	NULL	NULL	NULL	NULL	7	Using where
 # check read single success: 1
 # check read all success: 1
 # check read row by row success: 1
@@ -165,7 +165,7 @@ t1.frm
 t1.par
 EXPLAIN PARTITIONS SELECT COUNT(*) FROM t1 WHERE f_date = '1000-02-10';
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	p0	ALL	NULL	NULL	NULL	NULL	20	Using where
+1	SIMPLE	t1	p0	ALL	NULL	NULL	NULL	NULL	5	Using where
 # check read single success: 1
 # check read all success: 1
 # check read row by row success: 1
@@ -190,7 +190,7 @@ t1.frm
 t1.par
 EXPLAIN PARTITIONS SELECT COUNT(*) FROM t1 WHERE f_date = '1000-02-10';
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	p0	ALL	NULL	NULL	NULL	NULL	20	Using where
+1	SIMPLE	t1	p0	ALL	NULL	NULL	NULL	NULL	3	Using where
 # check read single success: 1
 # check read all success: 1
 # check read row by row success: 1
@@ -226,7 +226,7 @@ t1.frm
 t1.par
 EXPLAIN PARTITIONS SELECT COUNT(*) FROM t1 WHERE f_date = '1000-02-10';
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	p6	ALL	NULL	NULL	NULL	NULL	20	Using where
+1	SIMPLE	t1	p6	ALL	NULL	NULL	NULL	NULL	3	Using where
 # check read single success: 1
 # check read all success: 1
 # check read row by row success: 1
@@ -248,7 +248,7 @@ t1.frm
 t1.par
 EXPLAIN PARTITIONS SELECT COUNT(*) FROM t1 WHERE f_date = '1000-02-10';
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	p4	ALL	NULL	NULL	NULL	NULL	20	Using where
+1	SIMPLE	t1	p4	ALL	NULL	NULL	NULL	NULL	4	Using where
 # check read single success: 1
 # check read all success: 1
 # check read row by row success: 1
@@ -269,7 +269,7 @@ t1.frm
 t1.par
 EXPLAIN PARTITIONS SELECT COUNT(*) FROM t1 WHERE f_date = '1000-02-10';
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	p0	ALL	NULL	NULL	NULL	NULL	20	Using where
+1	SIMPLE	t1	p0	ALL	NULL	NULL	NULL	NULL	4	Using where
 # check read single success: 1
 # check read all success: 1
 # check read row by row success: 1
@@ -289,7 +289,7 @@ t1.frm
 t1.par
 EXPLAIN PARTITIONS SELECT COUNT(*) FROM t1 WHERE f_date = '1000-02-10';
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	p0	ALL	NULL	NULL	NULL	NULL	20	Using where
+1	SIMPLE	t1	p0	ALL	NULL	NULL	NULL	NULL	5	Using where
 # check read single success: 1
 # check read all success: 1
 # check read row by row success: 1
@@ -308,7 +308,7 @@ t1.frm
 t1.par
 EXPLAIN PARTITIONS SELECT COUNT(*) FROM t1 WHERE f_date = '1000-02-10';
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	part1	ALL	NULL	NULL	NULL	NULL	20	Using where
+1	SIMPLE	t1	part1	ALL	NULL	NULL	NULL	NULL	7	Using where
 # check read single success: 1
 # check read all success: 1
 # check read row by row success: 1
@@ -326,7 +326,7 @@ t1.frm
 t1.par
 EXPLAIN PARTITIONS SELECT COUNT(*) FROM t1 WHERE f_date = '1000-02-10';
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	p0	ALL	NULL	NULL	NULL	NULL	20	Using where
+1	SIMPLE	t1	p0	ALL	NULL	NULL	NULL	NULL	10	Using where
 # check read single success: 1
 # check read all success: 1
 # check read row by row success: 1
@@ -452,7 +452,7 @@ t1.frm
 t1.par
 EXPLAIN PARTITIONS SELECT COUNT(*) <> 1 FROM t1 WHERE f_int1 = 3;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	part7	ALL	NULL	NULL	NULL	NULL	20	Using where
+1	SIMPLE	t1	part7	ALL	NULL	NULL	NULL	NULL	7	Using where
 # check read single success: 1
 # check read all success: 1
 # check read row by row success: 1
@@ -476,7 +476,7 @@ t1.frm
 t1.par
 EXPLAIN PARTITIONS SELECT COUNT(*) <> 1 FROM t1 WHERE f_int1 = 3;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	part7	ALL	NULL	NULL	NULL	NULL	20	Using where
+1	SIMPLE	t1	part7	ALL	NULL	NULL	NULL	NULL	5	Using where
 # check read single success: 1
 # check read all success: 1
 # check read row by row success: 1
@@ -504,7 +504,7 @@ t1.frm
 t1.par
 EXPLAIN PARTITIONS SELECT COUNT(*) <> 1 FROM t1 WHERE f_int1 = 3;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	p6	ALL	NULL	NULL	NULL	NULL	20	Using where
+1	SIMPLE	t1	p6	ALL	NULL	NULL	NULL	NULL	3	Using where
 # check read single success: 1
 # check read all success: 1
 # check read row by row success: 1
@@ -538,7 +538,7 @@ t1.frm
 t1.par
 EXPLAIN PARTITIONS SELECT COUNT(*) <> 1 FROM t1 WHERE f_int1 = 3;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	p0	ALL	NULL	NULL	NULL	NULL	20	Using where
+1	SIMPLE	t1	p0	ALL	NULL	NULL	NULL	NULL	4	Using where
 # check read single success: 1
 # check read all success: 1
 # check read row by row success: 1
@@ -563,7 +563,7 @@ t1.frm
 t1.par
 EXPLAIN PARTITIONS SELECT COUNT(*) <> 1 FROM t1 WHERE f_int1 = 3;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	part7	ALL	NULL	NULL	NULL	NULL	20	Using where
+1	SIMPLE	t1	part7	ALL	NULL	NULL	NULL	NULL	3	Using where
 # check read single success: 1
 # check read all success: 1
 # check read row by row success: 1
@@ -587,7 +587,7 @@ t1.frm
 t1.par
 EXPLAIN PARTITIONS SELECT COUNT(*) <> 1 FROM t1 WHERE f_int1 = 3;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	p4	ALL	NULL	NULL	NULL	NULL	23	Using where
+1	SIMPLE	t1	p4	ALL	NULL	NULL	NULL	NULL	10	Using where
 # check read single success: 1
 # check read all success: 1
 # check read row by row success: 1
@@ -610,7 +610,7 @@ t1.frm
 t1.par
 EXPLAIN PARTITIONS SELECT COUNT(*) <> 1 FROM t1 WHERE f_int1 = 3;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	part7	ALL	NULL	NULL	NULL	NULL	20	Using where
+1	SIMPLE	t1	part7	ALL	NULL	NULL	NULL	NULL	5	Using where
 # check read single success: 1
 # check read all success: 1
 # check read row by row success: 1
@@ -632,7 +632,7 @@ t1.frm
 t1.par
 EXPLAIN PARTITIONS SELECT COUNT(*) <> 1 FROM t1 WHERE f_int1 = 3;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	part7	ALL	NULL	NULL	NULL	NULL	20	Using where
+1	SIMPLE	t1	part7	ALL	NULL	NULL	NULL	NULL	7	Using where
 # check read single success: 1
 # check read all success: 1
 # check read row by row success: 1
@@ -653,7 +653,7 @@ t1.frm
 t1.par
 EXPLAIN PARTITIONS SELECT COUNT(*) <> 1 FROM t1 WHERE f_int1 = 3;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	p0	ALL	NULL	NULL	NULL	NULL	20	Using where
+1	SIMPLE	t1	p0	ALL	NULL	NULL	NULL	NULL	10	Using where
 # check read single success: 1
 # check read all success: 1
 # check read row by row success: 1

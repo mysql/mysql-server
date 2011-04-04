@@ -32,8 +32,15 @@
 
 /* GNU C/C++ */
 #if defined __GNUC__
+/* Convenience macro to test the minimum required GCC version. */
+# define MY_GNUC_PREREQ(maj, min) \
+    ((__GNUC__ << 16) + __GNUC_MINOR__ >= ((maj) << 16) + (min))
 /* Any after 2.95... */
 # define MY_ALIGN_EXT
+/* Comunicate to the compiler the unreachability of the code. */
+# if MY_GNUC_PREREQ(4,5)
+#   define MY_ASSERT_UNREACHABLE()   __builtin_unreachable()
+# endif
 
 /* Microsoft Visual C++ */
 #elif defined _MSC_VER
@@ -67,8 +74,13 @@
 #endif
 
 /**
-  Generic compiler-dependent features.
+  Generic (compiler-independent) features.
 */
+
+#ifndef MY_GNUC_PREREQ
+# define MY_GNUC_PREREQ(maj, min) (0)
+#endif
+
 #ifndef MY_ALIGNOF
 # ifdef __cplusplus
     template<typename type> struct my_alignof_helper { char m1; type m2; };
@@ -77,6 +89,10 @@
 # else
 #   define MY_ALIGNOF(type)   offsetof(struct { char m1; type m2; }, m2)
 # endif
+#endif
+
+#ifndef MY_ASSERT_UNREACHABLE
+# define MY_ASSERT_UNREACHABLE()  do { assert(0); } while (0)
 #endif
 
 /**
