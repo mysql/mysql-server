@@ -1209,6 +1209,13 @@ DROP PROCEDURE sp1;
 DROP TABLE t1;
 DROP TABLE t2;
 
+--echo #
+--echo # Bug#57257 Replace(ExtractValue(...)) causes MySQL crash
+--echo #
+SET NAMES utf8;
+SELECT CONVERT(REPLACE(EXPORT_SET('a','a','a','','a'),'00','') USING ujis);
+
+
 set names default;
 set character_set_database=default;
 set character_set_server=default;

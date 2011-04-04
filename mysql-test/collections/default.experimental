@@ -17,5 +17,8 @@ rpl.rpl_row_sp011         @solaris       # Joro : Bug #54138
 # the below testcase have been reworked to avoid the bug, test contains comment, keep bug open
 rpl_ndb.rpl_ndb_2ndb   # rpl_ndb_2ndb fails sporadically
 
-binlog.binlog_unsafe @solaris            # Bug #47128 Test "binlog_unsafe" exceds default stack allocation
+rpl_ndb.rpl_ndb_log                      # Bug#38998
 
+main.gis-rtree                           # svoj: due to BUG#38965
+main.type_float                          # svoj: due to BUG#38965
+main.type_newdecimal                     # svoj: due to BUG#38965

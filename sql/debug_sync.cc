@@ -1718,7 +1718,7 @@ static void debug_sync_execute(THD *thd, st_debug_sync_action *action)
 
   if (action->execute)
   {
-    const char  *old_proc_info;
+    const char *UNINIT_VAR(old_proc_info);
 
     action->execute--;
 
