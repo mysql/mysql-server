@@ -60,11 +60,11 @@ main(int argc, const char * argv[]){
   ndbzio_stream fo;
   bzero(&fo, sizeof(fo));
   int r= ndbzopen(&fo,argv[1], O_RDONLY);
-  
-  if(fo.file < 0)
+
+  if(r != 1)
   {
-    ndbout << "Failed to open" << argv[1] << endl;
-    ndbout_c("file: %d r: %d", fo.file, r);
+    ndbout_c("Failed to open file '%s', error: %d",
+             argv[1], r);
     exit(1);
   }
 
