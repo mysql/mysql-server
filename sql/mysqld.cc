@@ -409,6 +409,7 @@ TYPELIB log_output_typelib= {array_elements(log_output_names)-1,"",
 
 /* the default log output is log tables */
 static bool lower_case_table_names_used= 0;
+static bool max_long_data_size_used= false;
 static bool volatile select_thread_in_use, signal_thread_in_use;
 static bool volatile ready_to_exit;
 static my_bool opt_debugging= 0, opt_external_locking= 0, opt_console= 0;
@@ -574,6 +575,11 @@ ulong delayed_insert_errors,flush_time;
 ulong specialflag=0;
 ulong binlog_cache_use= 0, binlog_cache_disk_use= 0;
 ulong max_connections, max_connect_errors;
+/*
+  Maximum length of parameter value which can be set through
+  mysql_send_long_data() call.
+*/
+ulong max_long_data_size;
 uint  max_user_connections= 0;
 /**
   Limit of the total number of prepared statements in the server.
@@ -5800,7 +5806,8 @@ enum options_mysqld
   OPT_SLOW_QUERY_LOG_FILE,
   OPT_IGNORE_BUILTIN_INNODB,
   OPT_BINLOG_DIRECT_NON_TRANS_UPDATE,
-  OPT_DEFAULT_CHARACTER_SET_OLD
+  OPT_DEFAULT_CHARACTER_SET_OLD,
+  OPT_MAX_LONG_DATA_SIZE
 };
 
 
@@ -6880,6 +6887,13 @@ thread is in the relay logs.",
     &global_system_variables.max_length_for_sort_data,
     &max_system_variables.max_length_for_sort_data, 0, GET_ULONG,
     REQUIRED_ARG, 1024, 4, 8192*1024L, 0, 1, 0},
+  {"max_long_data_size", OPT_MAX_LONG_DATA_SIZE,
+   "The maximum size of prepared statement parameter which can be provided "
+   "through mysql_send_long_data() API call. "
+   "Deprecated option; use max_allowed_packet instead.",
+   &max_long_data_size,
+   &max_long_data_size, 0, GET_ULONG,
+   REQUIRED_ARG, 1024*1024L, 1024, UINT_MAX32, MALLOC_OVERHEAD, 1, 0},
   {"max_prepared_stmt_count", OPT_MAX_PREPARED_STMT_COUNT,
    "Maximum number of prepared statements in the server.",
    &max_prepared_stmt_count, &max_prepared_stmt_count,
@@ -8688,6 +8702,10 @@ mysqld_get_one_option(int optid,
     }
     break;
 #endif /* defined(ENABLED_DEBUG_SYNC) */
+  case OPT_MAX_LONG_DATA_SIZE:
+    max_long_data_size_used= true;
+    WARN_DEPRECATED(NULL, VER_CELOSIA, "--max_long_data_size", "--max_allowed_packet");
+    break;
   }
   return 0;
 }
@@ -8777,6 +8795,14 @@ static int get_options(int *argc,char **argv)
        opt_log_slow_slave_statements) &&
       !opt_slow_log)
     sql_print_warning("options --log-slow-admin-statements, --log-queries-not-using-indexes and --log-slow-slave-statements have no effect if --log_slow_queries is not set");
+  if (global_system_variables.net_buffer_length > 
+      global_system_variables.max_allowed_packet)
+  {
+    sql_print_warning("net_buffer_length (%lu) is set to be larger "
+                      "than max_allowed_packet (%lu). Please rectify.",
+                      global_system_variables.net_buffer_length, 
+                      global_system_variables.max_allowed_packet);
+  }
 
 #if defined(HAVE_BROKEN_REALPATH)
   my_use_symdir=0;
@@ -8849,6 +8875,14 @@ static int get_options(int *argc,char **argv)
   else
     pool_of_threads_scheduler(&thread_scheduler);  /* purecov: tested */
 #endif
+
+  /*
+    If max_long_data_size is not specified explicitly use
+    value of max_allowed_packet.
+  */
+  if (!max_long_data_size_used)
+    max_long_data_size= global_system_variables.max_allowed_packet;
+
   return 0;
 }
 
