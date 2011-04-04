@@ -1,4 +1,27 @@
 /*
+   Copyright (c) 2011, Oracle and/or its affiliates. All rights reserved.
+
+   This program is free software; you can redistribute it and/or modify
+   it under the terms of the GNU General Public License as published by
+   the Free Software Foundation; version 2 of the License.
+
+   This program is distributed in the hope that it will be useful,
+   but WITHOUT ANY WARRANTY; without even the implied warranty of
+   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+   GNU General Public License for more details.
+
+   You should have received a copy of the GNU General Public License
+   along with this program; if not, write to the Free Software
+   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
+*/
+
+/*
+  ndbzio is a modified version of azio with a cleaner interface.
+
+    - Magnus Blåudd
+*/
+
+/*
   azio is a modified version of gzio. It  makes use of mysys and removes mallocs.
     -Brian Aker
 */
@@ -11,7 +34,7 @@
  */
 
 /* gzio.c -- IO on .gz files
- * Copyright (c) 2007, 2010, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (C) 1995-2005 Jean-loup Gailly.
  * For conditions of distribution and use, see copyright notice in zlib.h
  *
  */
@@ -28,7 +51,7 @@
 #include "../../../../zlib/inflate.h"
 #include "../../../../zlib/deflate.h"
 
-#include <util/azlib.h>
+#include <util/ndbzio.h>
 
 #include <my_sys.h>
 
@@ -38,6 +61,42 @@
 #define VALGRIND_MAKE_MEM_DEFINED(a,b) do {} while(0);
 #define VALGRIND_MAKE_MEM_NOACCESS(a,b) do {} while(0);
 #endif
+
+/* Start of MySQL Specific Information */
+
+
+#define AZHEADER_SIZE 29
+#define AZMETA_BUFFER_SIZE 512-AZHEADER_SIZE
+
+#define AZ_MAGIC_POS 0
+#define AZ_VERSION_POS 1
+#define AZ_MINOR_VERSION_POS 2
+#define AZ_BLOCK_POS 3
+#define AZ_STRATEGY_POS 4
+#define AZ_FRM_POS 5
+#define AZ_FRM_LENGTH_POS 9
+#define AZ_META_POS 13
+#define AZ_META_LENGTH_POS 17
+#define AZ_START_POS 21
+#define AZ_ROW_POS 29
+#define AZ_FLUSH_POS 37
+#define AZ_CHECK_POS 45
+#define AZ_AUTOINCREMENT_POS 53
+#define AZ_LONGEST_POS 61
+#define AZ_SHORTEST_POS 65
+#define AZ_COMMENT_POS 69
+#define AZ_COMMENT_LENGTH_POS 73
+#define AZ_DIRTY_POS 77
+
+
+/*
+  Flags for state
+*/
+#define AZ_STATE_CLEAN 0
+#define AZ_STATE_DIRTY 1
+#define AZ_STATE_SAVED 2
+#define AZ_STATE_CRASHED 3
+
 
 static int const gz_magic[2] = {0x1f, 0x8b}; /* gzip magic header */
 static int const az_magic[3] = {0xfe, 0x03, 0x01}; /* az magic header */
@@ -52,24 +111,24 @@ static int const az_magic[3] = {0xfe, 0x03, 0x01}; /* az magic header */
 
 #define AZ_MEMLEVEL 8
 
-int az_open(azio_stream *s, const char *path, int Flags, File  fd);
-int do_flush(azio_stream *file, int flush);
-int    get_byte(azio_stream *s);
-unsigned char* get_block(azio_stream *s, int blksz);
-int   check_header(azio_stream *s);
-int write_header(azio_stream *s);
-int    destroy(azio_stream *s);
-void putLong(azio_stream *s, uLong x);
-uLong  getLong(azio_stream *s);
-void read_header(azio_stream *s, unsigned char *buffer);
+static int ndbz_open(ndbzio_stream *s, const char *path, int Flags, File  fd);
+static int do_flush(ndbzio_stream *file, int flush);
+static int get_byte(ndbzio_stream *s);
+static unsigned char* get_block(ndbzio_stream *s, int blksz);
+static int check_header(ndbzio_stream *s);
+static int write_header(ndbzio_stream *s);
+static int destroy(ndbzio_stream *s);
+static void putLong(ndbzio_stream *s, uLong x);
+static uLong getLong(ndbzio_stream *s);
+static void read_header(ndbzio_stream *s, unsigned char *buffer);
 
-size_t az_inflate_mem_size()
+size_t ndbz_inflate_mem_size()
 {
   return sizeof(struct inflate_state)            /* state */
     + ((1U << MAX_WBITS)*sizeof(unsigned char)); /* window */
 }
 
-size_t az_deflate_mem_size()
+size_t ndbz_deflate_mem_size()
 {
   return sizeof(deflate_state)
     + ((1U << MAX_WBITS)*(2*sizeof(Byte)))      /* window = wsize,2*|Byte| */
@@ -79,10 +138,10 @@ size_t az_deflate_mem_size()
 						*/
 }
 
-voidpf az_alloc(voidpf opaque, uInt items, uInt size)
+voidpf ndbz_alloc(voidpf opaque, uInt items, uInt size)
 {
   void * retval;
-  struct az_alloc_rec *r = (struct az_alloc_rec*)opaque;
+  struct ndbz_alloc_rec *r = (struct ndbz_alloc_rec*)opaque;
 
   if((items * size) > r->mfree || r->mfree==0)
     abort();
@@ -96,12 +155,12 @@ voidpf az_alloc(voidpf opaque, uInt items, uInt size)
 
   return retval;
 }
-void az_free(voidpf opaque, voidpf address)
+void ndbz_free(voidpf opaque, voidpf address)
 {
-  struct az_alloc_rec *r;
+  struct ndbz_alloc_rec *r;
   (void)address;
   /* Oh how we hack. */
-  r = (struct az_alloc_rec*)opaque;
+  r = (struct ndbz_alloc_rec*)opaque;
   r->mfree= r->size;
   if(r->mfree==r->size)
     VALGRIND_MAKE_MEM_NOACCESS(r->mem,r->size);
@@ -136,11 +195,24 @@ static inline int posix_memalign(void **memptr, size_t alignment, size_t size)
 }
 #endif
 
+#define AZ_BUFSIZE_READ 32768
+#define AZ_BUFSIZE_WRITE 16384
+
+size_t ndbz_bufsize_read(void)
+{
+  return AZ_BUFSIZE_READ;
+}
+
+size_t ndbz_bufsize_write(void)
+{
+  return AZ_BUFSIZE_WRITE;
+}
+
 /* ===========================================================================
   Opens a gzip (.gz) file for reading or writing. The mode parameter
   is as in fopen ("rb" or "wb"). The file is given either by file descriptor
   or path name (if fd == -1).
-  az_open returns NULL if the file could not be opened or if there was
+  ndbz_open returns NULL if the file could not be opened or if there was
   insufficient memory to allocate the (de)compression state; errno
   can be checked to distinguish the two cases (if errno is zero, the
   zlib error is Z_MEM_ERROR).
@@ -149,7 +221,7 @@ static inline int posix_memalign(void **memptr, size_t alignment, size_t size)
 
   NOTE: If called without a fd, my_open *WILL* malloc()
 */
-int az_open (azio_stream *s, const char *path, int Flags, File fd)
+int ndbz_open (ndbzio_stream *s, const char *path, int Flags, File fd)
 {
   int err;
   int level = Z_DEFAULT_COMPRESSION; /* compression level */
@@ -157,10 +229,9 @@ int az_open (azio_stream *s, const char *path, int Flags, File fd)
 
   if(s->stream.opaque)
   {
-    s->stream.zalloc = (alloc_func)az_alloc;
-    s->stream.zfree = (free_func)az_free;
+    s->stream.zalloc = (alloc_func)ndbz_alloc;
+    s->stream.zfree = (free_func)ndbz_free;
   }
-/*  s->stream.opaque = (voidpf)r; */
   s->bufalloced = 0;
   if(!s->inbuf)
   {
@@ -196,8 +267,8 @@ int az_open (azio_stream *s, const char *path, int Flags, File fd)
     We do our own version of append by nature. 
     We must always have write access to take card of the header.
   */
-  DBUG_ASSERT(Flags | O_APPEND);
-  DBUG_ASSERT(Flags | O_WRONLY);
+  assert(Flags | O_APPEND);
+  assert(Flags | O_WRONLY);
 
   if (Flags & O_RDWR || Flags & O_WRONLY)
     s->mode = 'w';
@@ -279,7 +350,7 @@ int az_open (azio_stream *s, const char *path, int Flags, File fd)
 }
 
 
-int write_header(azio_stream *s)
+int write_header(ndbzio_stream *s)
 {
   char *buffer= (char*)s->outbuf;
   char *ptr= buffer;
@@ -325,31 +396,31 @@ int write_header(azio_stream *s)
 /* ===========================================================================
   Opens a gzip (.gz) file for reading or writing.
 */
-int azopen(azio_stream *s, const char *path, int Flags)
+int ndbzopen(ndbzio_stream *s, const char *path, int Flags)
 {
-  return az_open(s, path, Flags, -1);
+  return ndbz_open(s, path, Flags, -1);
 }
 
 /* ===========================================================================
   Associate a gzFile with the file descriptor fd. fd is not dup'ed here
   to mimic the behavio(u)r of fdopen.
 */
-int azdopen(azio_stream *s, File fd, int Flags)
+int ndbzdopen(ndbzio_stream *s, File fd, int Flags)
 {
   if (fd < 0) return 0;
 
-  return az_open (s, NULL, Flags, fd);
+  return ndbz_open (s, NULL, Flags, fd);
 }
 
 /*
-  Read from azio_stream into buffer.
+  Read from ndbzio_stream into buffer.
   Reads up to AZ_BUFSIZE_READ bytes.
 
   Number of Bytes read is in: s->stream.avail_in
 
   return 0 on success
  */
-int read_buffer(azio_stream *s)
+int read_buffer(ndbzio_stream *s)
 {
   if (s->z_eof) return EOF;
   my_errno= 0;
@@ -368,12 +439,11 @@ int read_buffer(azio_stream *s)
 }
 
 /*
-  Read a byte from a azio_stream; update next_in and avail_in.
+  Read a byte from a ndbzio_stream; update next_in and avail_in.
 
   returns EOF on error;
 */
-int get_byte(s)
-  azio_stream *s;
+int get_byte(ndbzio_stream *s)
 {
   if (s->stream.avail_in == 0)
     if(read_buffer(s))
@@ -387,7 +457,7 @@ int get_byte(s)
  * *MUST* be < buffer size
  * *MUST* be aligned to IO size (i.e. not be only partially in buffer)
  */
-unsigned char* get_block(azio_stream *s,int blksz)
+unsigned char* get_block(ndbzio_stream *s,int blksz)
 {
   unsigned char *r= s->stream.next_in;
   if (s->stream.avail_in == 0)
@@ -400,7 +470,7 @@ unsigned char* get_block(azio_stream *s,int blksz)
 }
 
 /* ===========================================================================
-  Check the gzip header of a azio_stream opened for reading. Set the stream
+  Check the gzip header of a ndbzio_stream opened for reading. Set the stream
   mode to transparent if the gzip magic header is not present; set s->err
   to Z_DATA_ERROR if the magic header is present but the rest of the header
   is incorrect.
@@ -408,7 +478,7 @@ unsigned char* get_block(azio_stream *s,int blksz)
   s->stream.avail_in is zero for the first time, but may be non-zero
   for concatenated .gz files.
 */
-int check_header(azio_stream *s)
+int check_header(ndbzio_stream *s)
 {
   int method; /* method uchar */
   int flags;  /* flags uchar */
@@ -476,7 +546,7 @@ int check_header(azio_stream *s)
   else
   {
     s->transparent = 1;
-    azseek(s,0,SEEK_SET);
+    ndbzseek(s,0,SEEK_SET);
     s->z_err = Z_OK;
 
     return 0;
@@ -485,7 +555,7 @@ int check_header(azio_stream *s)
   return 0;
 }
 
-void read_header(azio_stream *s, unsigned char *buffer)
+void read_header(ndbzio_stream *s, unsigned char *buffer)
 {
   if (buffer[0] == az_magic[0]  && buffer[1] == az_magic[1])
   {
@@ -507,17 +577,16 @@ void read_header(azio_stream *s, unsigned char *buffer)
   }
   else
   {
-    DBUG_ASSERT(buffer[0] == az_magic[0]  && buffer[1] == az_magic[1]);
+    assert(buffer[0] == az_magic[0]  && buffer[1] == az_magic[1]);
     return;
   }
 }
 
 /* ===========================================================================
- * Cleanup then free the given azio_stream. Return a zlib error code.
+ * Cleanup then free the given ndbzio_stream. Return a zlib error code.
  Try freeing in the reverse order of allocations.
  */
-int destroy (s)
-  azio_stream *s;
+int destroy (ndbzio_stream *s)
 {
   int err = Z_OK;
 
@@ -547,9 +616,9 @@ int destroy (s)
 
 /* ===========================================================================
   Reads the given number of uncompressed bytes from the compressed file.
-  azread returns the number of bytes actually read (0 for end of file).
+  ndbzread returns the number of bytes actually read (0 for end of file).
 */
-unsigned int ZEXPORT azread ( azio_stream *s, voidp buf, unsigned int len, int *error)
+unsigned int ZEXPORT ndbzread ( ndbzio_stream *s, voidp buf, unsigned int len, int *error)
 {
   Bytef *start = (Bytef*)buf; /* starting point for crc computation */
   Byte  *next_out; /* == stream.next_out but not forced far (for MSDOS) */
@@ -677,7 +746,7 @@ unsigned int ZEXPORT azread ( azio_stream *s, voidp buf, unsigned int len, int *
 /*
   Write last remaining 512 byte block of write buffer, 0 padded.
  */
-int flush_write_buffer(azio_stream *s)
+int flush_write_buffer(ndbzio_stream *s)
 {
   uInt real_len = AZ_BUFSIZE_WRITE - s->stream.avail_out;
   uInt len = ((real_len+0x1FF)>>9)<<9;
@@ -693,7 +762,7 @@ int flush_write_buffer(azio_stream *s)
   return 0;
 }
 
-int write_buffer(azio_stream *s)
+int write_buffer(ndbzio_stream *s)
 {
   if (s->stream.avail_out == 0)
   {
@@ -711,9 +780,9 @@ int write_buffer(azio_stream *s)
 
 /* ===========================================================================
   Writes the given number of uncompressed bytes into the compressed file.
-  azwrite returns the number of bytes actually written (0 in case of error).
+  ndbzwrite returns the number of bytes actually written (0 in case of error).
 */
-unsigned int azwrite (azio_stream *s, const void*  buf, unsigned int len)
+unsigned int ndbzwrite (ndbzio_stream *s, const void*  buf, unsigned int len)
 {
   unsigned int i;
   s->stream.next_in = (Bytef*)buf;
@@ -751,7 +820,7 @@ unsigned int azwrite (azio_stream *s, const void*  buf, unsigned int len)
   Flushes all pending output into the compressed file. The parameter
   flush is as in the deflate() function.
 */
-int do_flush (azio_stream *s, int flush)
+int do_flush (ndbzio_stream *s, int flush)
 {
   uInt len;
   int done = 0;
@@ -786,20 +855,10 @@ int do_flush (azio_stream *s, int flush)
   else
     s->dirty= AZ_STATE_SAVED; /* Mark it clean, we should be good now */
 
-/*  afterwrite_pos= my_tell(s->file, MYF(0));
-  if(afterwrite_pos == -1)
-    return Z_ERRNO;
-  if(write_header(s) == -1)
-    return Z_ERRNO;
-  if(my_seek(s->file, afterwrite_pos, SEEK_SET, MYF(0)) == MY_FILEPOS_ERROR)
-    return Z_ERRNO;
-*/
   return  s->z_err == Z_STREAM_END ? Z_OK : s->z_err;
 }
 
-int ZEXPORT azflush (s, flush)
-  azio_stream *s;
-  int flush;
+int ZEXPORT ndbzflush (ndbzio_stream *s, int flush)
 {
   int err;
 
@@ -828,8 +887,7 @@ int ZEXPORT azflush (s, flush)
 /* ===========================================================================
   Rewinds input file.
 */
-int azrewind (s)
-  azio_stream *s;
+int ndbzrewind (ndbzio_stream *s)
 {
   if (s == NULL || s->mode != 'r') return -1;
 
@@ -846,17 +904,14 @@ int azrewind (s)
 }
 
 /* ===========================================================================
-  Sets the starting position for the next azread or azwrite on the given
+  Sets the starting position for the next ndbzread or ndbzwrite on the given
   compressed file. The offset represents a number of bytes in the
-  azseek returns the resulting offset location as measured in bytes from
+  ndbzseek returns the resulting offset location as measured in bytes from
   the beginning of the uncompressed stream, or -1 in case of error.
   SEEK_END is not implemented, returns error.
-  In this version of the library, azseek can be extremely slow.
+  In this version of the library, ndbzseek can be extremely slow.
 */
-my_off_t azseek (s, offset, whence)
-  azio_stream *s;
-  my_off_t offset;
-  int whence;
+my_off_t ndbzseek (ndbzio_stream *s, my_off_t offset, int whence)
 {
 
   if (s == NULL || whence == SEEK_END ||
@@ -876,7 +931,7 @@ my_off_t azseek (s, offset, whence)
       uInt size = AZ_BUFSIZE_WRITE;
       if (offset < AZ_BUFSIZE_WRITE) size = (uInt)offset;
 
-      size = azwrite(s, s->inbuf, size);
+      size = ndbzwrite(s, s->inbuf, size);
       if (size == 0) return -1L;
 
       offset -= size;
@@ -904,7 +959,7 @@ my_off_t azseek (s, offset, whence)
   /* For a negative seek, rewind and use positive seek */
   if (offset >= s->out) {
     offset -= s->out;
-  } else if (azrewind(s)) {
+  } else if (ndbzrewind(s)) {
     return -1L;
   }
   /* offset is now the number of bytes to skip. */
@@ -920,7 +975,7 @@ my_off_t azseek (s, offset, whence)
     unsigned int size = AZ_BUFSIZE_READ;
     if (offset < AZ_BUFSIZE_READ) size = (int)offset;
 
-    size = azread(s, s->outbuf, size, &error);
+    size = ndbzread(s, s->outbuf, size, &error);
     if (error <= 0) return -1L;
     offset -= size;
   }
@@ -928,21 +983,20 @@ my_off_t azseek (s, offset, whence)
 }
 
 /* ===========================================================================
-  Returns the starting position for the next azread or azwrite on the
+  Returns the starting position for the next ndbzread or ndbzwrite on the
   given compressed file. This position represents a number of bytes in the
   uncompressed data stream.
 */
-my_off_t ZEXPORT aztell (file)
-  azio_stream *file;
+my_off_t ZEXPORT ndbztell (ndbzio_stream *file)
 {
-  return azseek(file, 0L, SEEK_CUR);
+  return ndbzseek(file, 0L, SEEK_CUR);
 }
 
 
 /* ===========================================================================
-  Outputs a long in LSB order to the given azio_stream
+  Outputs a long in LSB order to the given ndbzio_stream
 */
-void putLong (azio_stream *s, uLong x)
+void putLong (ndbzio_stream *s, uLong x)
 {
   int n;
 
@@ -957,10 +1011,10 @@ void putLong (azio_stream *s, uLong x)
 }
 
 /* ===========================================================================
-  Reads a long in LSB order from the given azio_stream. Sets z_err in case
+  Reads a long in LSB order from the given ndbzio_stream. Sets z_err in case
   of error.
 */
-uLong getLong (azio_stream *s)
+uLong getLong (ndbzio_stream *s)
 {
   uLong x = (uLong)get_byte(s);
   int c;
@@ -977,7 +1031,7 @@ uLong getLong (azio_stream *s)
   Flushes all pending output if necessary, closes the compressed file
   and deallocates all the (de)compression state.
 */
-int azclose (azio_stream *s)
+int ndbzclose (ndbzio_stream *s)
 {
 
   if (s == NULL) return Z_STREAM_ERROR;
@@ -997,73 +1051,23 @@ int azclose (azio_stream *s)
     putLong(s, 0x4E444244);
 
     flush_write_buffer(s);
-
-/*    write_header(s); */
   }
 
   return destroy(s);
 }
 
-/*
-  Though this was added to support MySQL's FRM file, anything can be 
-  stored in this location.
-*/
-int azwrite_frm(azio_stream *s, char *blob, unsigned int length)
+#include <my_dir.h>  // MY_STAT, my_fstat
+
+int ndbz_file_size(ndbzio_stream *s, size_t *size)
 {
-  if (s->mode == 'r') 
-    return 1;
+  MY_STAT stat_buf;
 
-  if (s->rows > 0) 
-    return 1;
+  if (s == NULL || size == NULL)
+    return -1;
 
-  s->frm_start_pos= (uint) s->start;
-  s->frm_length= length;
-  s->start+= length;
+  if (my_fstat(s->file, &stat_buf, 0) != 0)
+    return -1;
 
-  my_pwrite(s->file, (uchar*) blob, s->frm_length, s->frm_start_pos, MYF(0));
-
-  write_header(s);
-  my_seek(s->file, 0, MY_SEEK_END, MYF(0));
-
-  return 0;
-}
-
-int azread_frm(azio_stream *s, char *blob)
-{
-  my_pread(s->file, (uchar*) blob, s->frm_length, s->frm_start_pos, MYF(0));
-
-  return 0;
-}
-
-
-/*
-  Simple comment field
-*/
-int azwrite_comment(azio_stream *s, char *blob, unsigned int length)
-{
-  if (s->mode == 'r') 
-    return 1;
-
-  if (s->rows > 0) 
-    return 1;
-
-  s->comment_start_pos= (uint) s->start;
-  s->comment_length= length;
-  s->start+= length;
-
-  my_pwrite(s->file, (uchar*) blob, s->comment_length, s->comment_start_pos,
-            MYF(0));
-
-  write_header(s);
-  my_seek(s->file, 0, MY_SEEK_END, MYF(0));
-
-  return 0;
-}
-
-int azread_comment(azio_stream *s, char *blob)
-{
-  my_pread(s->file, (uchar*) blob, s->comment_length, s->comment_start_pos,
-           MYF(0));
-
-  return 0;
+  *size = stat_buf.st_size;
+  return 0; // OK
 }
