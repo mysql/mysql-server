@@ -147,6 +147,8 @@ static void sys_default_general_log_path(THD *thd, enum_var_type type);
 static bool sys_update_slow_log_path(THD *thd, set_var * var);
 static void sys_default_slow_log_path(THD *thd, enum_var_type type);
 static uchar *get_myisam_mmap_size(THD *thd);
+static int check_max_allowed_packet(THD *thd,  set_var *var);
+static int check_net_buffer_length(THD *thd,  set_var *var);
 
 /*
   Variable definition list
@@ -360,7 +362,8 @@ static sys_var_const    sys_lower_case_table_names(&vars,
                                                    (uchar*)
                                                    &lower_case_table_names);
 static sys_var_thd_ulong_session_readonly sys_max_allowed_packet(&vars, "max_allowed_packet",
-					       &SV::max_allowed_packet);
+					       &SV::max_allowed_packet,
+                                               check_max_allowed_packet);
 static sys_var_ulonglong_ptr sys_max_binlog_cache_size(&vars, "max_binlog_cache_size",
                                                        &max_binlog_cache_size);
 static sys_var_long_ptr	sys_max_binlog_size(&vars, "max_binlog_size",
@@ -394,6 +397,12 @@ static sys_var_thd_ulong	sys_max_seeks_for_key(&vars, "max_seeks_for_key",
 					      &SV::max_seeks_for_key);
 static sys_var_thd_ulong   sys_max_length_for_sort_data(&vars, "max_length_for_sort_data",
                                                  &SV::max_length_for_sort_data);
+static sys_var_const    sys_max_long_data_size(&vars,
+                                               "max_long_data_size",
+                                               OPT_GLOBAL, SHOW_LONG,
+                                               (uchar*)
+                                               &max_long_data_size);
+
 #ifndef TO_BE_DELETED	/* Alias for max_join_size */
 static sys_var_thd_ha_rows	sys_sql_max_join_size(&vars, "sql_max_join_size",
 					      &SV::max_join_size,
@@ -444,7 +453,8 @@ static sys_var_const            sys_named_pipe(&vars, "named_pipe",
 /* purecov: end */
 #endif
 static sys_var_thd_ulong_session_readonly sys_net_buffer_length(&vars, "net_buffer_length",
-					      &SV::net_buffer_length);
+					      &SV::net_buffer_length,
+                                              check_net_buffer_length);
 static sys_var_thd_ulong	sys_net_read_timeout(&vars, "net_read_timeout",
 					     &SV::net_read_timeout,
 					     0, fix_net_read_timeout);
@@ -4305,6 +4315,36 @@ uchar *sys_var_event_scheduler::value_ptr(THD *thd, enum_var_type type,
   return (uchar *) Events::get_opt_event_scheduler_str();
 }
 #endif
+
+
+int 
+check_max_allowed_packet(THD *thd,  set_var *var)
+{
+  longlong val= var->value->val_int();
+  if (val < (longlong) global_system_variables.net_buffer_length)
+  {
+    push_warning(thd, MYSQL_ERROR::WARN_LEVEL_WARN, 
+                        ER_UNKNOWN_ERROR, 
+                        "The value of 'max_allowed_packet' should be no less than "
+                        "the value of 'net_buffer_length'");
+  }
+  return 0;
+}
+
+
+int 
+check_net_buffer_length(THD *thd,  set_var *var)
+{
+  longlong val= var->value->val_int();
+  if (val > (longlong) global_system_variables.max_allowed_packet)
+  {
+    push_warning(thd, MYSQL_ERROR::WARN_LEVEL_WARN, 
+                        ER_UNKNOWN_ERROR, 
+                        "The value of 'max_allowed_packet' should be no less than "
+                        "the value of 'net_buffer_length'");
+  }
+  return 0;
+}
 
 /****************************************************************************
   Used templates
