@@ -1056,3 +1056,18 @@ int ndbzclose (ndbzio_stream *s)
   return destroy(s);
 }
 
+#include <my_dir.h>  // MY_STAT, my_fstat
+
+int ndbz_file_size(ndbzio_stream *s, size_t *size)
+{
+  MY_STAT stat_buf;
+
+  if (s == NULL || size == NULL)
+    return -1;
+
+  if (my_fstat(s->file, &stat_buf, 0) != 0)
+    return -1;
+
+  *size = stat_buf.st_size;
+  return 0; // OK
+}

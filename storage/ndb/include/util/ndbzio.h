@@ -209,6 +209,11 @@ extern int ndbzclose(ndbzio_stream *file);
    error number (see function gzerror below).
 */
 
+/*
+  Return file size of the open ndbzio_stream
+*/
+extern int ndbz_file_size(ndbzio_stream *file, size_t *size);
+
 #ifdef	__cplusplus
 }
 #endif
