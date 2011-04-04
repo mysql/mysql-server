@@ -3417,7 +3417,7 @@ SELECT t2.sku, t2.sppr, t2.name, t1.sku, t1.pr
 FROM t2, t1 WHERE t2.sku=20 AND (t2.sku=t1.sku OR t2.sppr=t1.sku);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	t2	const	PRIMARY	PRIMARY	4	const	1	
-1	SIMPLE	t1	range	PRIMARY	PRIMARY	4	NULL	2	Using index condition; Using MRR
+1	SIMPLE	t1	range	PRIMARY	PRIMARY	4	NULL	2	Using index condition; Rowid-ordered scan
 DROP TABLE t1,t2;
 CREATE TABLE t1 (i TINYINT UNSIGNED NOT NULL);
 INSERT t1 SET i = 0;
@@ -3453,7 +3453,7 @@ In next EXPLAIN, B.rows must be exactly 10:
 explain select * from t2 A, t2 B where A.a=5 and A.b=5 and A.C<5
 and B.a=5 and B.b=A.e and (B.b =1 or B.b = 3 or B.b=5);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	A	range	PRIMARY	PRIMARY	12	NULL	4	Using index condition; Using where; Using MRR
+1	SIMPLE	A	range	PRIMARY	PRIMARY	12	NULL	4	Using index condition; Using where; Rowid-ordered scan
 1	SIMPLE	B	ref	PRIMARY	PRIMARY	8	const,test.A.e	10	
 drop table t1, t2;
 CREATE TABLE t1 (a int PRIMARY KEY, b int, INDEX(b));
@@ -3467,12 +3467,12 @@ INSERT INTO t2 VALUES
 EXPLAIN
 SELECT a, c, d, f FROM t1,t2 WHERE a=c AND b BETWEEN 4 AND 6;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	range	PRIMARY,b	b	5	NULL	3	Using index condition; Using MRR
+1	SIMPLE	t1	range	PRIMARY,b	b	5	NULL	3	Using index condition; Rowid-ordered scan
 1	SIMPLE	t2	ref	c	c	5	test.t1.a	2	
 EXPLAIN
 SELECT a, c, d, f FROM t1,t2 WHERE a=c AND b BETWEEN 4 AND 6 AND a > 0;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	range	PRIMARY,b	b	5	NULL	3	Using index condition; Using where; Using MRR
+1	SIMPLE	t1	range	PRIMARY,b	b	5	NULL	3	Using index condition; Using where; Rowid-ordered scan
 1	SIMPLE	t2	ref	c	c	5	test.t1.a	2	
 DROP TABLE t1, t2;
 create table t1 (
@@ -3562,19 +3562,19 @@ EXPLAIN SELECT t2.*
 FROM t1 JOIN t2 ON t2.fk=t1.pk
 WHERE t2.fk < 'c' AND t2.pk=t1.fk;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	range	PRIMARY	PRIMARY	12	NULL	3	Using index condition; Using where; Using MRR
+1	SIMPLE	t1	range	PRIMARY	PRIMARY	12	NULL	3	Using index condition; Using where; Rowid-ordered scan
 1	SIMPLE	t2	eq_ref	PRIMARY	PRIMARY	18	test.t1.fk	1	Using where
 EXPLAIN SELECT t2.* 
 FROM t1 JOIN t2 ON t2.fk=t1.pk 
 WHERE t2.fk BETWEEN 'a' AND 'b' AND t2.pk=t1.fk;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	range	PRIMARY	PRIMARY	12	NULL	2	Using index condition; Using where; Using MRR
+1	SIMPLE	t1	range	PRIMARY	PRIMARY	12	NULL	2	Using index condition; Using where; Rowid-ordered scan
 1	SIMPLE	t2	eq_ref	PRIMARY	PRIMARY	18	test.t1.fk	1	Using where
 EXPLAIN SELECT t2.* 
 FROM t1 JOIN t2 ON t2.fk=t1.pk 
 WHERE t2.fk IN ('a','b') AND t2.pk=t1.fk;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	range	PRIMARY	PRIMARY	12	NULL	2	Using index condition; Using where; Using MRR
+1	SIMPLE	t1	range	PRIMARY	PRIMARY	12	NULL	2	Using index condition; Using where; Rowid-ordered scan
 1	SIMPLE	t2	eq_ref	PRIMARY	PRIMARY	18	test.t1.fk	1	Using where
 DROP TABLE t1,t2;
 CREATE TABLE t1 (a int, b varchar(20) NOT NULL, PRIMARY KEY(a));
@@ -3608,7 +3608,7 @@ WHERE t1.id = 8 AND t2.i BETWEEN t1.b AND t1.e AND
 t3.a=t2.a AND t3.c IN ('bb','ee');
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	t1	const	PRIMARY	PRIMARY	4	const	1	
-1	SIMPLE	t2	range	si	si	5	NULL	4	Using index condition; Using where; Using MRR
+1	SIMPLE	t2	range	si	si	5	NULL	4	Using index condition; Using where; Rowid-ordered scan
 1	SIMPLE	t3	eq_ref	PRIMARY,ci	PRIMARY	4	test.t2.a	1	Using where
 EXPLAIN
 SELECT t3.a FROM t1,t2,t3
@@ -3616,7 +3616,7 @@ WHERE t1.id = 8 AND t2.i BETWEEN t1.b AND t1.e AND
 t3.a=t2.a AND t3.c IN ('bb','ee') ;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	t1	const	PRIMARY	PRIMARY	4	const	1	
-1	SIMPLE	t2	range	si,ai	si	5	NULL	4	Using index condition; Using where; Using MRR
+1	SIMPLE	t2	range	si,ai	si	5	NULL	4	Using index condition; Using where; Rowid-ordered scan
 1	SIMPLE	t3	eq_ref	PRIMARY,ci	PRIMARY	4	test.t2.a	1	Using where
 EXPLAIN 
 SELECT t3.a FROM t1,t2 FORCE INDEX (si),t3
@@ -3624,7 +3624,7 @@ WHERE t1.id = 8 AND (t2.i=t1.b OR t2.i=t1.e) AND t3.a=t2.a AND
 t3.c IN ('bb','ee');
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	t1	const	PRIMARY	PRIMARY	4	const	1	
-1	SIMPLE	t2	range	si	si	5	NULL	2	Using index condition; Using where; Using MRR
+1	SIMPLE	t2	range	si	si	5	NULL	2	Using index condition; Using where; Rowid-ordered scan
 1	SIMPLE	t3	eq_ref	PRIMARY,ci	PRIMARY	4	test.t2.a	1	Using where
 EXPLAIN 
 SELECT t3.a FROM t1,t2,t3
@@ -3632,7 +3632,7 @@ WHERE t1.id = 8 AND (t2.i=t1.b OR t2.i=t1.e) AND t3.a=t2.a AND
 t3.c IN ('bb','ee');
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	t1	const	PRIMARY	PRIMARY	4	const	1	
-1	SIMPLE	t2	range	si,ai	si	5	NULL	2	Using index condition; Using where; Using MRR
+1	SIMPLE	t2	range	si,ai	si	5	NULL	2	Using index condition; Using where; Rowid-ordered scan
 1	SIMPLE	t3	eq_ref	PRIMARY,ci	PRIMARY	4	test.t2.a	1	Using where
 DROP TABLE t1,t2,t3;
 CREATE TABLE t1 ( f1 int primary key, f2 int, f3 int, f4 int, f5 int, f6 int, checked_out int);
@@ -3752,7 +3752,7 @@ AND t1.ts BETWEEN t2.dt1 AND t2.dt2
 AND t1.ts BETWEEN "2006-01-01" AND "2006-12-31";
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	t2	const	PRIMARY	PRIMARY	4	const	1	
-1	SIMPLE	t1	range	ts	ts	4	NULL	1	Using index condition; Using where; Using MRR
+1	SIMPLE	t1	range	ts	ts	4	NULL	1	Using index condition; Using where; Rowid-ordered scan
 Warnings:
 Warning	1292	Incorrect datetime value: '2999-12-31 00:00:00' for column 'ts' at row 1
 SELECT * FROM t1 LEFT JOIN t2 ON (t1.a=t2.a) WHERE t1.a=30
@@ -4376,12 +4376,12 @@ CREATE TABLE t1 (a INT KEY, b INT);
 INSERT INTO t1 VALUES (1,1), (2,2), (3,3), (4,4);
 EXPLAIN EXTENDED SELECT a, b FROM t1 WHERE a > 1 AND a = b LIMIT 2;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	range	PRIMARY	PRIMARY	4	NULL	3	100.00	Using index condition; Using where; Using MRR
+1	SIMPLE	t1	range	PRIMARY	PRIMARY	4	NULL	3	100.00	Using index condition; Using where; Rowid-ordered scan
 Warnings:
 Note	1003	select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b` from `test`.`t1` where ((`test`.`t1`.`b` = `test`.`t1`.`a`) and (`test`.`t1`.`a` > 1)) limit 2
 EXPLAIN EXTENDED SELECT a, b FROM t1 WHERE a > 1 AND b = a LIMIT 2;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	range	PRIMARY	PRIMARY	4	NULL	3	100.00	Using index condition; Using where; Using MRR
+1	SIMPLE	t1	range	PRIMARY	PRIMARY	4	NULL	3	100.00	Using index condition; Using where; Rowid-ordered scan
 Warnings:
 Note	1003	select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b` from `test`.`t1` where ((`test`.`t1`.`b` = `test`.`t1`.`a`) and (`test`.`t1`.`a` > 1)) limit 2
 DROP TABLE t1;

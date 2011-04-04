@@ -19648,11 +19648,29 @@ static void select_describe(JOIN *join, bool need_tmp_table, bool need_order,
 	if (table->reginfo.not_exists_optimize)
 	  extra.append(STRING_WITH_LEN("; Not exists"));
 
+        /*
         if (quick_type == QUICK_SELECT_I::QS_TYPE_RANGE &&
             !(((QUICK_RANGE_SELECT*)(tab->select->quick))->mrr_flags &
              HA_MRR_USE_DEFAULT_IMPL))
         {
 	  extra.append(STRING_WITH_LEN("; Using MRR"));
+        }
+        */
+        if (quick_type == QUICK_SELECT_I::QS_TYPE_RANGE)
+        {
+          char mrr_str_buf[128];
+          mrr_str_buf[0]=0;
+          int len;
+          uint mrr_flags= 
+            ((QUICK_RANGE_SELECT*)(tab->select->quick))->mrr_flags;
+          len= table->file->multi_range_read_explain_info(mrr_flags,
+                                                          mrr_str_buf,
+                                                          sizeof(mrr_str_buf));
+          if (len > 0)
+          {
+            extra.append(STRING_WITH_LEN("; "));
+            extra.append(mrr_str_buf, len);
+          }
         }
 
 	if (need_tmp_table)

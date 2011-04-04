@@ -397,7 +397,7 @@ ON City.Country=Country.Code AND City.Population > 5000000
 WHERE Country.Name LIKE 'C%' AND Country.Population > 10000000;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	Country	ALL	NULL	NULL	NULL	NULL	239	Using where
-1	SIMPLE	City	hash_range	City_Population	#hash#$hj:City_Population	3:4	world.Country.Code	25	Using where; Using MRR; Using join buffer (flat, BNLH join)
+1	SIMPLE	City	hash_range	City_Population	#hash#$hj:City_Population	3:4	world.Country.Code	25	Using where; Rowid-ordered scan; Using join buffer (flat, BNLH join)
 SELECT Country.Name, Country.Population, City.Name, City.Population 
 FROM Country LEFT JOIN City
 ON City.Country=Country.Code AND City.Population > 5000000
@@ -813,7 +813,7 @@ SELECT City.Name, Country.Name FROM City,Country
 WHERE City.Country=Country.Code AND 
 Country.Name LIKE 'L%' AND City.Population > 100000;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	Country	range	PRIMARY,Name	Name	52	NULL	10	Using index condition; Using MRR
+1	SIMPLE	Country	range	PRIMARY,Name	Name	52	NULL	10	Using index condition; Rowid-ordered scan
 1	SIMPLE	City	hash_ALL	Population,Country	#hash#Country	3	world.Country.Code	4079	Using where; Using join buffer (flat, BNLH join)
 SELECT City.Name, Country.Name FROM City,Country
 WHERE City.Country=Country.Code AND 
@@ -887,7 +887,7 @@ SELECT Name FROM City
 WHERE City.Country IN (SELECT Code FROM Country WHERE Country.Name LIKE 'L%') AND
 City.Population > 100000;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	PRIMARY	Country	range	PRIMARY,Name	Name	52	NULL	10	Using index condition; Using MRR
+1	PRIMARY	Country	range	PRIMARY,Name	Name	52	NULL	10	Using index condition; Rowid-ordered scan
 1	PRIMARY	City	hash_ALL	Population,Country	#hash#Country	3	world.Country.Code	4079	Using where; Using join buffer (flat, BNLH join)
 SELECT Name FROM City
 WHERE City.Country IN (SELECT Code FROM Country WHERE Country.Name LIKE 'L%') AND
@@ -1013,7 +1013,7 @@ SELECT City.Name, Country.Name FROM City,Country
 WHERE City.Country=Country.Code AND 
 Country.Name LIKE 'L%' AND City.Population > 100000;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	Country	range	PRIMARY,Name	Name	52	NULL	10	Using index condition; Using MRR
+1	SIMPLE	Country	range	PRIMARY,Name	Name	52	NULL	10	Using index condition; Rowid-ordered scan
 1	SIMPLE	City	hash_ALL	Population,Country	#hash#Country	3	world.Country.Code	4079	Using where; Using join buffer (flat, BNLH join)
 SELECT City.Name, Country.Name FROM City,Country
 WHERE City.Country=Country.Code AND 
@@ -1087,7 +1087,7 @@ SELECT Name FROM City
 WHERE City.Country IN (SELECT Code FROM Country WHERE Country.Name LIKE 'L%') AND
 City.Population > 100000;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	PRIMARY	Country	range	PRIMARY,Name	Name	52	NULL	10	Using index condition; Using MRR
+1	PRIMARY	Country	range	PRIMARY,Name	Name	52	NULL	10	Using index condition; Rowid-ordered scan
 1	PRIMARY	City	hash_ALL	Population,Country	#hash#Country	3	world.Country.Code	4079	Using where; Using join buffer (flat, BNLH join)
 SELECT Name FROM City
 WHERE City.Country IN (SELECT Code FROM Country WHERE Country.Name LIKE 'L%') AND
@@ -1207,8 +1207,8 @@ FROM Country LEFT JOIN City
 ON City.Country=Country.Code AND City.Population > 5000000
 WHERE Country.Name LIKE 'C%' AND Country.Population > 10000000;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	Country	range	Name	Name	52	NULL	#	Using index condition; Using where; Using MRR
-1	SIMPLE	City	hash_range	Population,Country	#hash#Country:Population	3:4	world.Country.Code	#	Using where; Using MRR; Using join buffer (flat, BNLH join)
+1	SIMPLE	Country	range	Name	Name	52	NULL	#	Using index condition; Using where; Rowid-ordered scan
+1	SIMPLE	City	hash_range	Population,Country	#hash#Country:Population	3:4	world.Country.Code	#	Using where; Rowid-ordered scan; Using join buffer (flat, BNLH join)
 SELECT Country.Name, Country.Population, City.Name, City.Population 
 FROM Country LEFT JOIN City
 ON City.Country=Country.Code AND City.Population > 5000000
@@ -1235,7 +1235,7 @@ ON City.Country=Country.Code AND
 (City.Population > 5000000 OR City.Name LIKE 'Za%')
 WHERE Country.Name LIKE 'C%' AND Country.Population > 10000000;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	Country	range	Name	Name	52	NULL	17	Using index condition; Using where; Using MRR
+1	SIMPLE	Country	range	Name	Name	52	NULL	17	Using index condition; Using where; Rowid-ordered scan
 1	SIMPLE	City	hash_index_merge	Population,Country,City_Name	#hash#Country:Population,City_Name	3:4,35	world.Country.Code	96	Using sort_union(Population,City_Name); Using where; Using join buffer (flat, BNLH join)
 SELECT Country.Name, Country.Population, City.Name, City.Population
 FROM Country LEFT JOIN City 
@@ -1272,8 +1272,8 @@ SELECT City.Name, Country.Name FROM City,Country
 WHERE City.Country=Country.Code AND 
 Country.Name LIKE 'L%' AND City.Population > 100000;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	Country	range	PRIMARY,Name	Name	52	NULL	10	Using index condition; Using MRR
-1	SIMPLE	City	ref	Population,Country	Country	3	world.Country.Code	18	Using where; Using join buffer (flat, BKA join)
+1	SIMPLE	Country	range	PRIMARY,Name	Name	52	NULL	10	Using index condition; Rowid-ordered scan
+1	SIMPLE	City	ref	Population,Country	Country	3	world.Country.Code	18	Using where; Using join buffer (flat, BKA join); Key-ordered Rowid-ordered scan
 SELECT City.Name, Country.Name FROM City,Country
 WHERE City.Country=Country.Code AND 
 Country.Name LIKE 'L%' AND City.Population > 100000;
@@ -1303,8 +1303,8 @@ CountryLanguage.Percentage > 50 AND
 LENGTH(Language) < LENGTH(City.Name) - 2;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	CountryLanguage	ALL	PRIMARY,Percentage	NULL	NULL	NULL	984	Using where
-1	SIMPLE	Country	eq_ref	PRIMARY	PRIMARY	3	world.CountryLanguage.Country	1	Using where; Using join buffer (flat, BKA join)
-1	SIMPLE	City	ref	Country	Country	3	world.CountryLanguage.Country	18	Using where; Using join buffer (flat, BKA join)
+1	SIMPLE	Country	eq_ref	PRIMARY	PRIMARY	3	world.CountryLanguage.Country	1	Using where; Using join buffer (flat, BKA join); Key-ordered Rowid-ordered scan
+1	SIMPLE	City	ref	Country	Country	3	world.CountryLanguage.Country	18	Using where; Using join buffer (flat, BKA join); Key-ordered Rowid-ordered scan
 SELECT City.Name, Country.Name, CountryLanguage.Language
 FROM City,Country,CountryLanguage
 WHERE City.Country=Country.Code AND
@@ -1346,8 +1346,8 @@ SELECT Name FROM City
 WHERE City.Country IN (SELECT Code FROM Country WHERE Country.Name LIKE 'L%') AND
 City.Population > 100000;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	PRIMARY	Country	range	PRIMARY,Name	Name	52	NULL	10	Using index condition; Using MRR
-1	PRIMARY	City	ref	Population,Country	Country	3	world.Country.Code	18	Using where; Using join buffer (flat, BKA join)
+1	PRIMARY	Country	range	PRIMARY,Name	Name	52	NULL	10	Using index condition; Rowid-ordered scan
+1	PRIMARY	City	ref	Population,Country	Country	3	world.Country.Code	18	Using where; Using join buffer (flat, BKA join); Key-ordered Rowid-ordered scan
 SELECT Name FROM City
 WHERE City.Country IN (SELECT Code FROM Country WHERE Country.Name LIKE 'L%') AND
 City.Population > 100000;
@@ -1375,7 +1375,7 @@ WHERE
 Country.Population > 10000000;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	Country	ALL	NULL	NULL	NULL	NULL	239	Using where
-1	SIMPLE	CountryLanguage	eq_ref	PRIMARY	PRIMARY	33	world.Country.Code,const	1	Using where; Using join buffer (flat, BKA join)
+1	SIMPLE	CountryLanguage	eq_ref	PRIMARY	PRIMARY	33	world.Country.Code,const	1	Using where; Using join buffer (flat, BKA join); Key-ordered Rowid-ordered scan
 SELECT Country.Name, IF(ISNULL(CountryLanguage.Country), NULL, CountryLanguage.Percentage)
 FROM Country LEFT JOIN CountryLanguage ON
 (CountryLanguage.Country=Country.Code AND Language='English')
@@ -1469,8 +1469,8 @@ SELECT City.Name, Country.Name FROM City,Country
 WHERE City.Country=Country.Code AND 
 Country.Name LIKE 'L%' AND City.Population > 100000;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	Country	range	PRIMARY,Name	Name	52	NULL	10	Using index condition; Using MRR
-1	SIMPLE	City	ref	Population,Country	Country	3	world.Country.Code	18	Using where; Using join buffer (flat, BKA join)
+1	SIMPLE	Country	range	PRIMARY,Name	Name	52	NULL	10	Using index condition; Rowid-ordered scan
+1	SIMPLE	City	ref	Population,Country	Country	3	world.Country.Code	18	Using where; Using join buffer (flat, BKA join); Key-ordered Rowid-ordered scan
 SELECT City.Name, Country.Name FROM City,Country
 WHERE City.Country=Country.Code AND 
 Country.Name LIKE 'L%' AND City.Population > 100000;
@@ -1500,8 +1500,8 @@ CountryLanguage.Percentage > 50 AND
 LENGTH(Language) < LENGTH(City.Name) - 2;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	CountryLanguage	ALL	PRIMARY,Percentage	NULL	NULL	NULL	984	Using where
-1	SIMPLE	Country	eq_ref	PRIMARY	PRIMARY	3	world.CountryLanguage.Country	1	Using where; Using join buffer (flat, BKA join)
-1	SIMPLE	City	ref	Country	Country	3	world.CountryLanguage.Country	18	Using where; Using join buffer (incremental, BKA join)
+1	SIMPLE	Country	eq_ref	PRIMARY	PRIMARY	3	world.CountryLanguage.Country	1	Using where; Using join buffer (flat, BKA join); Key-ordered Rowid-ordered scan
+1	SIMPLE	City	ref	Country	Country	3	world.CountryLanguage.Country	18	Using where; Using join buffer (incremental, BKA join); Key-ordered Rowid-ordered scan
 SELECT City.Name, Country.Name, CountryLanguage.Language
 FROM City,Country,CountryLanguage
 WHERE City.Country=Country.Code AND
@@ -1543,8 +1543,8 @@ SELECT Name FROM City
 WHERE City.Country IN (SELECT Code FROM Country WHERE Country.Name LIKE 'L%') AND
 City.Population > 100000;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	PRIMARY	Country	range	PRIMARY,Name	Name	52	NULL	10	Using index condition; Using MRR
-1	PRIMARY	City	ref	Population,Country	Country	3	world.Country.Code	18	Using where; Using join buffer (flat, BKA join)
+1	PRIMARY	Country	range	PRIMARY,Name	Name	52	NULL	10	Using index condition; Rowid-ordered scan
+1	PRIMARY	City	ref	Population,Country	Country	3	world.Country.Code	18	Using where; Using join buffer (flat, BKA join); Key-ordered Rowid-ordered scan
 SELECT Name FROM City
 WHERE City.Country IN (SELECT Code FROM Country WHERE Country.Name LIKE 'L%') AND
 City.Population > 100000;
@@ -1572,7 +1572,7 @@ WHERE
 Country.Population > 10000000;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	Country	ALL	NULL	NULL	NULL	NULL	239	Using where
-1	SIMPLE	CountryLanguage	eq_ref	PRIMARY	PRIMARY	33	world.Country.Code,const	1	Using where; Using join buffer (flat, BKA join)
+1	SIMPLE	CountryLanguage	eq_ref	PRIMARY	PRIMARY	33	world.Country.Code,const	1	Using where; Using join buffer (flat, BKA join); Key-ordered Rowid-ordered scan
 SELECT Country.Name, IF(ISNULL(CountryLanguage.Country), NULL, CountryLanguage.Percentage)
 FROM Country LEFT JOIN CountryLanguage ON
 (CountryLanguage.Country=Country.Code AND Language='English')
@@ -1666,8 +1666,8 @@ SELECT City.Name, Country.Name FROM City,Country
 WHERE City.Country=Country.Code AND 
 Country.Name LIKE 'L%' AND City.Population > 100000;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	Country	range	PRIMARY,Name	Name	52	NULL	10	Using index condition; Using MRR
-1	SIMPLE	City	ref	Population,Country	Country	3	world.Country.Code	18	Using where; Using join buffer (flat, BKAH join)
+1	SIMPLE	Country	range	PRIMARY,Name	Name	52	NULL	10	Using index condition; Rowid-ordered scan
+1	SIMPLE	City	ref	Population,Country	Country	3	world.Country.Code	18	Using where; Using join buffer (flat, BKAH join); Key-ordered Rowid-ordered scan
 SELECT City.Name, Country.Name FROM City,Country
 WHERE City.Country=Country.Code AND 
 Country.Name LIKE 'L%' AND City.Population > 100000;
@@ -1697,8 +1697,8 @@ CountryLanguage.Percentage > 50 AND
 LENGTH(Language) < LENGTH(City.Name) - 2;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	CountryLanguage	ALL	PRIMARY,Percentage	NULL	NULL	NULL	984	Using where
-1	SIMPLE	Country	eq_ref	PRIMARY	PRIMARY	3	world.CountryLanguage.Country	1	Using where; Using join buffer (flat, BKAH join)
-1	SIMPLE	City	ref	Country	Country	3	world.CountryLanguage.Country	18	Using where; Using join buffer (flat, BKAH join)
+1	SIMPLE	Country	eq_ref	PRIMARY	PRIMARY	3	world.CountryLanguage.Country	1	Using where; Using join buffer (flat, BKAH join); Key-ordered Rowid-ordered scan
+1	SIMPLE	City	ref	Country	Country	3	world.CountryLanguage.Country	18	Using where; Using join buffer (flat, BKAH join); Key-ordered Rowid-ordered scan
 SELECT City.Name, Country.Name, CountryLanguage.Language
 FROM City,Country,CountryLanguage
 WHERE City.Country=Country.Code AND
@@ -1740,8 +1740,8 @@ SELECT Name FROM City
 WHERE City.Country IN (SELECT Code FROM Country WHERE Country.Name LIKE 'L%') AND
 City.Population > 100000;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	PRIMARY	Country	range	PRIMARY,Name	Name	52	NULL	10	Using index condition; Using MRR
-1	PRIMARY	City	ref	Population,Country	Country	3	world.Country.Code	18	Using where; Using join buffer (flat, BKAH join)
+1	PRIMARY	Country	range	PRIMARY,Name	Name	52	NULL	10	Using index condition; Rowid-ordered scan
+1	PRIMARY	City	ref	Population,Country	Country	3	world.Country.Code	18	Using where; Using join buffer (flat, BKAH join); Key-ordered Rowid-ordered scan
 SELECT Name FROM City
 WHERE City.Country IN (SELECT Code FROM Country WHERE Country.Name LIKE 'L%') AND
 City.Population > 100000;
@@ -1769,7 +1769,7 @@ WHERE
 Country.Population > 10000000;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	Country	ALL	NULL	NULL	NULL	NULL	239	Using where
-1	SIMPLE	CountryLanguage	eq_ref	PRIMARY	PRIMARY	33	world.Country.Code,const	1	Using where; Using join buffer (flat, BKAH join)
+1	SIMPLE	CountryLanguage	eq_ref	PRIMARY	PRIMARY	33	world.Country.Code,const	1	Using where; Using join buffer (flat, BKAH join); Key-ordered Rowid-ordered scan
 SELECT Country.Name, IF(ISNULL(CountryLanguage.Country), NULL, CountryLanguage.Percentage)
 FROM Country LEFT JOIN CountryLanguage ON
 (CountryLanguage.Country=Country.Code AND Language='English')
@@ -1863,8 +1863,8 @@ SELECT City.Name, Country.Name FROM City,Country
 WHERE City.Country=Country.Code AND 
 Country.Name LIKE 'L%' AND City.Population > 100000;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	Country	range	PRIMARY,Name	Name	52	NULL	10	Using index condition; Using MRR
-1	SIMPLE	City	ref	Population,Country	Country	3	world.Country.Code	18	Using where; Using join buffer (flat, BKAH join)
+1	SIMPLE	Country	range	PRIMARY,Name	Name	52	NULL	10	Using index condition; Rowid-ordered scan
+1	SIMPLE	City	ref	Population,Country	Country	3	world.Country.Code	18	Using where; Using join buffer (flat, BKAH join); Key-ordered Rowid-ordered scan
 SELECT City.Name, Country.Name FROM City,Country
 WHERE City.Country=Country.Code AND 
 Country.Name LIKE 'L%' AND City.Population > 100000;
@@ -1894,8 +1894,8 @@ CountryLanguage.Percentage > 50 AND
 LENGTH(Language) < LENGTH(City.Name) - 2;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	CountryLanguage	ALL	PRIMARY,Percentage	NULL	NULL	NULL	984	Using where
-1	SIMPLE	Country	eq_ref	PRIMARY	PRIMARY	3	world.CountryLanguage.Country	1	Using where; Using join buffer (flat, BKAH join)
-1	SIMPLE	City	ref	Country	Country	3	world.CountryLanguage.Country	18	Using where; Using join buffer (incremental, BKAH join)
+1	SIMPLE	Country	eq_ref	PRIMARY	PRIMARY	3	world.CountryLanguage.Country	1	Using where; Using join buffer (flat, BKAH join); Key-ordered Rowid-ordered scan
+1	SIMPLE	City	ref	Country	Country	3	world.CountryLanguage.Country	18	Using where; Using join buffer (incremental, BKAH join); Key-ordered Rowid-ordered scan
 SELECT City.Name, Country.Name, CountryLanguage.Language
 FROM City,Country,CountryLanguage
 WHERE City.Country=Country.Code AND
@@ -1937,8 +1937,8 @@ SELECT Name FROM City
 WHERE City.Country IN (SELECT Code FROM Country WHERE Country.Name LIKE 'L%') AND
 City.Population > 100000;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	PRIMARY	Country	range	PRIMARY,Name	Name	52	NULL	10	Using index condition; Using MRR
-1	PRIMARY	City	ref	Population,Country	Country	3	world.Country.Code	18	Using where; Using join buffer (flat, BKAH join)
+1	PRIMARY	Country	range	PRIMARY,Name	Name	52	NULL	10	Using index condition; Rowid-ordered scan
+1	PRIMARY	City	ref	Population,Country	Country	3	world.Country.Code	18	Using where; Using join buffer (flat, BKAH join); Key-ordered Rowid-ordered scan
 SELECT Name FROM City
 WHERE City.Country IN (SELECT Code FROM Country WHERE Country.Name LIKE 'L%') AND
 City.Population > 100000;
@@ -1966,7 +1966,7 @@ WHERE
 Country.Population > 10000000;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	Country	ALL	NULL	NULL	NULL	NULL	239	Using where
-1	SIMPLE	CountryLanguage	eq_ref	PRIMARY	PRIMARY	33	world.Country.Code,const	1	Using where; Using join buffer (flat, BKAH join)
+1	SIMPLE	CountryLanguage	eq_ref	PRIMARY	PRIMARY	33	world.Country.Code,const	1	Using where; Using join buffer (flat, BKAH join); Key-ordered Rowid-ordered scan
 SELECT Country.Name, IF(ISNULL(CountryLanguage.Country), NULL, CountryLanguage.Percentage)
 FROM Country LEFT JOIN CountryLanguage ON
 (CountryLanguage.Country=Country.Code AND Language='English')
@@ -2064,7 +2064,7 @@ SELECT City.Name, Country.Name FROM City,Country
 WHERE City.Country=Country.Code AND 
 Country.Name LIKE 'L%' AND City.Population > 100000;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	Country	range	PRIMARY,Name	Name	52	NULL	10	Using index condition; Using MRR
+1	SIMPLE	Country	range	PRIMARY,Name	Name	52	NULL	10	Using index condition; Rowid-ordered scan
 1	SIMPLE	City	hash_ALL	Population,Country	#hash#Country	3	world.Country.Code	4079	Using where; Using join buffer (flat, BNLH join)
 SELECT City.Name, Country.Name FROM City,Country
 WHERE City.Country=Country.Code AND 
@@ -2138,7 +2138,7 @@ SELECT Name FROM City
 WHERE City.Country IN (SELECT Code FROM Country WHERE Country.Name LIKE 'L%') AND
 City.Population > 100000;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	PRIMARY	Country	range	PRIMARY,Name	Name	52	NULL	10	Using index condition; Using MRR
+1	PRIMARY	Country	range	PRIMARY,Name	Name	52	NULL	10	Using index condition; Rowid-ordered scan
 1	PRIMARY	City	hash_ALL	Population,Country	#hash#Country	3	world.Country.Code	4079	Using where; Using join buffer (flat, BNLH join)
 SELECT Name FROM City
 WHERE City.Country IN (SELECT Code FROM Country WHERE Country.Name LIKE 'L%') AND
@@ -2168,7 +2168,7 @@ SELECT City.Name, Country.Name FROM City,Country
 WHERE City.Country=Country.Code AND 
 Country.Name LIKE 'L%' AND City.Population > 100000;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	Country	range	PRIMARY,Name	Name	52	NULL	10	Using index condition; Using MRR
+1	SIMPLE	Country	range	PRIMARY,Name	Name	52	NULL	10	Using index condition; Rowid-ordered scan
 1	SIMPLE	City	hash_ALL	Population,Country	#hash#Country	3	world.Country.Code	4079	Using where; Using join buffer (flat, BNLH join)
 SELECT City.Name, Country.Name FROM City,Country
 WHERE City.Country=Country.Code AND 
@@ -2242,7 +2242,7 @@ SELECT Name FROM City
 WHERE City.Country IN (SELECT Code FROM Country WHERE Country.Name LIKE 'L%') AND
 City.Population > 100000;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	PRIMARY	Country	range	PRIMARY,Name	Name	52	NULL	10	Using index condition; Using MRR
+1	PRIMARY	Country	range	PRIMARY,Name	Name	52	NULL	10	Using index condition; Rowid-ordered scan
 1	PRIMARY	City	hash_ALL	Population,Country	#hash#Country	3	world.Country.Code	4079	Using where; Using join buffer (flat, BNLH join)
 SELECT Name FROM City
 WHERE City.Country IN (SELECT Code FROM Country WHERE Country.Name LIKE 'L%') AND
@@ -2272,8 +2272,8 @@ SELECT City.Name, Country.Name FROM City,Country
 WHERE City.Country=Country.Code AND 
 Country.Name LIKE 'L%' AND City.Population > 100000;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	Country	range	PRIMARY,Name	Name	52	NULL	10	Using index condition; Using MRR
-1	SIMPLE	City	ref	Population,Country	Country	3	world.Country.Code	18	Using where; Using join buffer (flat, BKA join)
+1	SIMPLE	Country	range	PRIMARY,Name	Name	52	NULL	10	Using index condition; Rowid-ordered scan
+1	SIMPLE	City	ref	Population,Country	Country	3	world.Country.Code	18	Using where; Using join buffer (flat, BKA join); Key-ordered Rowid-ordered scan
 SELECT City.Name, Country.Name FROM City,Country
 WHERE City.Country=Country.Code AND 
 Country.Name LIKE 'L%' AND City.Population > 100000;
@@ -2303,8 +2303,8 @@ CountryLanguage.Percentage > 50 AND
 LENGTH(Language) < LENGTH(City.Name) - 2;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	CountryLanguage	ALL	PRIMARY,Percentage	NULL	NULL	NULL	984	Using where
-1	SIMPLE	Country	eq_ref	PRIMARY	PRIMARY	3	world.CountryLanguage.Country	1	Using where; Using join buffer (flat, BKA join)
-1	SIMPLE	City	ref	Country	Country	3	world.CountryLanguage.Country	18	Using where; Using join buffer (flat, BKA join)
+1	SIMPLE	Country	eq_ref	PRIMARY	PRIMARY	3	world.CountryLanguage.Country	1	Using where; Using join buffer (flat, BKA join); Key-ordered Rowid-ordered scan
+1	SIMPLE	City	ref	Country	Country	3	world.CountryLanguage.Country	18	Using where; Using join buffer (flat, BKA join); Key-ordered Rowid-ordered scan
 SELECT City.Name, Country.Name, CountryLanguage.Language
 FROM City,Country,CountryLanguage
 WHERE City.Country=Country.Code AND
@@ -2346,8 +2346,8 @@ SELECT Name FROM City
 WHERE City.Country IN (SELECT Code FROM Country WHERE Country.Name LIKE 'L%') AND
 City.Population > 100000;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	PRIMARY	Country	range	PRIMARY,Name	Name	52	NULL	10	Using index condition; Using MRR
-1	PRIMARY	City	ref	Population,Country	Country	3	world.Country.Code	18	Using where; Using join buffer (flat, BKA join)
+1	PRIMARY	Country	range	PRIMARY,Name	Name	52	NULL	10	Using index condition; Rowid-ordered scan
+1	PRIMARY	City	ref	Population,Country	Country	3	world.Country.Code	18	Using where; Using join buffer (flat, BKA join); Key-ordered Rowid-ordered scan
 SELECT Name FROM City
 WHERE City.Country IN (SELECT Code FROM Country WHERE Country.Name LIKE 'L%') AND
 City.Population > 100000;
@@ -2376,8 +2376,8 @@ SELECT City.Name, Country.Name FROM City,Country
 WHERE City.Country=Country.Code AND 
 Country.Name LIKE 'L%' AND City.Population > 100000;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	Country	range	PRIMARY,Name	Name	52	NULL	10	Using index condition; Using MRR
-1	SIMPLE	City	ref	Population,Country	Country	3	world.Country.Code	18	Using where; Using join buffer (flat, BKA join)
+1	SIMPLE	Country	range	PRIMARY,Name	Name	52	NULL	10	Using index condition; Rowid-ordered scan
+1	SIMPLE	City	ref	Population,Country	Country	3	world.Country.Code	18	Using where; Using join buffer (flat, BKA join); Key-ordered Rowid-ordered scan
 SELECT City.Name, Country.Name FROM City,Country
 WHERE City.Country=Country.Code AND 
 Country.Name LIKE 'L%' AND City.Population > 100000;
@@ -2407,8 +2407,8 @@ CountryLanguage.Percentage > 50 AND
 LENGTH(Language) < LENGTH(City.Name) - 2;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	CountryLanguage	ALL	PRIMARY,Percentage	NULL	NULL	NULL	984	Using where
-1	SIMPLE	Country	eq_ref	PRIMARY	PRIMARY	3	world.CountryLanguage.Country	1	Using where; Using join buffer (flat, BKA join)
-1	SIMPLE	City	ref	Country	Country	3	world.CountryLanguage.Country	18	Using where; Using join buffer (incremental, BKA join)
+1	SIMPLE	Country	eq_ref	PRIMARY	PRIMARY	3	world.CountryLanguage.Country	1	Using where; Using join buffer (flat, BKA join); Key-ordered Rowid-ordered scan
+1	SIMPLE	City	ref	Country	Country	3	world.CountryLanguage.Country	18	Using where; Using join buffer (incremental, BKA join); Key-ordered Rowid-ordered scan
 SELECT City.Name, Country.Name, CountryLanguage.Language
 FROM City,Country,CountryLanguage
 WHERE City.Country=Country.Code AND
@@ -2450,8 +2450,8 @@ SELECT Name FROM City
 WHERE City.Country IN (SELECT Code FROM Country WHERE Country.Name LIKE 'L%') AND
 City.Population > 100000;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	PRIMARY	Country	range	PRIMARY,Name	Name	52	NULL	10	Using index condition; Using MRR
-1	PRIMARY	City	ref	Population,Country	Country	3	world.Country.Code	18	Using where; Using join buffer (flat, BKA join)
+1	PRIMARY	Country	range	PRIMARY,Name	Name	52	NULL	10	Using index condition; Rowid-ordered scan
+1	PRIMARY	City	ref	Population,Country	Country	3	world.Country.Code	18	Using where; Using join buffer (flat, BKA join); Key-ordered Rowid-ordered scan
 SELECT Name FROM City
 WHERE City.Country IN (SELECT Code FROM Country WHERE Country.Name LIKE 'L%') AND
 City.Population > 100000;
@@ -2480,8 +2480,8 @@ SELECT City.Name, Country.Name FROM City,Country
 WHERE City.Country=Country.Code AND 
 Country.Name LIKE 'L%' AND City.Population > 100000;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	Country	range	PRIMARY,Name	Name	52	NULL	10	Using index condition; Using MRR
-1	SIMPLE	City	ref	Population,Country	Country	3	world.Country.Code	18	Using where; Using join buffer (flat, BKAH join)
+1	SIMPLE	Country	range	PRIMARY,Name	Name	52	NULL	10	Using index condition; Rowid-ordered scan
+1	SIMPLE	City	ref	Population,Country	Country	3	world.Country.Code	18	Using where; Using join buffer (flat, BKAH join); Key-ordered Rowid-ordered scan
 SELECT City.Name, Country.Name FROM City,Country
 WHERE City.Country=Country.Code AND 
 Country.Name LIKE 'L%' AND City.Population > 100000;
@@ -2511,8 +2511,8 @@ CountryLanguage.Percentage > 50 AND
 LENGTH(Language) < LENGTH(City.Name) - 2;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	CountryLanguage	ALL	PRIMARY,Percentage	NULL	NULL	NULL	984	Using where
-1	SIMPLE	Country	eq_ref	PRIMARY	PRIMARY	3	world.CountryLanguage.Country	1	Using where; Using join buffer (flat, BKAH join)
-1	SIMPLE	City	ref	Country	Country	3	world.CountryLanguage.Country	18	Using where; Using join buffer (flat, BKAH join)
+1	SIMPLE	Country	eq_ref	PRIMARY	PRIMARY	3	world.CountryLanguage.Country	1	Using where; Using join buffer (flat, BKAH join); Key-ordered Rowid-ordered scan
+1	SIMPLE	City	ref	Country	Country	3	world.CountryLanguage.Country	18	Using where; Using join buffer (flat, BKAH join); Key-ordered Rowid-ordered scan
 SELECT City.Name, Country.Name, CountryLanguage.Language
 FROM City,Country,CountryLanguage
 WHERE City.Country=Country.Code AND
@@ -2554,8 +2554,8 @@ SELECT Name FROM City
 WHERE City.Country IN (SELECT Code FROM Country WHERE Country.Name LIKE 'L%') AND
 City.Population > 100000;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	PRIMARY	Country	range	PRIMARY,Name	Name	52	NULL	10	Using index condition; Using MRR
-1	PRIMARY	City	ref	Population,Country	Country	3	world.Country.Code	18	Using where; Using join buffer (flat, BKAH join)
+1	PRIMARY	Country	range	PRIMARY,Name	Name	52	NULL	10	Using index condition; Rowid-ordered scan
+1	PRIMARY	City	ref	Population,Country	Country	3	world.Country.Code	18	Using where; Using join buffer (flat, BKAH join); Key-ordered Rowid-ordered scan
 SELECT Name FROM City
 WHERE City.Country IN (SELECT Code FROM Country WHERE Country.Name LIKE 'L%') AND
 City.Population > 100000;
@@ -2584,8 +2584,8 @@ SELECT City.Name, Country.Name FROM City,Country
 WHERE City.Country=Country.Code AND 
 Country.Name LIKE 'L%' AND City.Population > 100000;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	Country	range	PRIMARY,Name	Name	52	NULL	10	Using index condition; Using MRR
-1	SIMPLE	City	ref	Population,Country	Country	3	world.Country.Code	18	Using where; Using join buffer (flat, BKAH join)
+1	SIMPLE	Country	range	PRIMARY,Name	Name	52	NULL	10	Using index condition; Rowid-ordered scan
+1	SIMPLE	City	ref	Population,Country	Country	3	world.Country.Code	18	Using where; Using join buffer (flat, BKAH join); Key-ordered Rowid-ordered scan
 SELECT City.Name, Country.Name FROM City,Country
 WHERE City.Country=Country.Code AND 
 Country.Name LIKE 'L%' AND City.Population > 100000;
@@ -2615,8 +2615,8 @@ CountryLanguage.Percentage > 50 AND
 LENGTH(Language) < LENGTH(City.Name) - 2;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	CountryLanguage	ALL	PRIMARY,Percentage	NULL	NULL	NULL	984	Using where
-1	SIMPLE	Country	eq_ref	PRIMARY	PRIMARY	3	world.CountryLanguage.Country	1	Using where; Using join buffer (flat, BKAH join)
-1	SIMPLE	City	ref	Country	Country	3	world.CountryLanguage.Country	18	Using where; Using join buffer (incremental, BKAH join)
+1	SIMPLE	Country	eq_ref	PRIMARY	PRIMARY	3	world.CountryLanguage.Country	1	Using where; Using join buffer (flat, BKAH join); Key-ordered Rowid-ordered scan
+1	SIMPLE	City	ref	Country	Country	3	world.CountryLanguage.Country	18	Using where; Using join buffer (incremental, BKAH join); Key-ordered Rowid-ordered scan
 SELECT City.Name, Country.Name, CountryLanguage.Language
 FROM City,Country,CountryLanguage
 WHERE City.Country=Country.Code AND
@@ -2658,8 +2658,8 @@ SELECT Name FROM City
 WHERE City.Country IN (SELECT Code FROM Country WHERE Country.Name LIKE 'L%') AND
 City.Population > 100000;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	PRIMARY	Country	range	PRIMARY,Name	Name	52	NULL	10	Using index condition; Using MRR
-1	PRIMARY	City	ref	Population,Country	Country	3	world.Country.Code	18	Using where; Using join buffer (flat, BKAH join)
+1	PRIMARY	Country	range	PRIMARY,Name	Name	52	NULL	10	Using index condition; Rowid-ordered scan
+1	PRIMARY	City	ref	Population,Country	Country	3	world.Country.Code	18	Using where; Using join buffer (flat, BKAH join); Key-ordered Rowid-ordered scan
 SELECT Name FROM City
 WHERE City.Country IN (SELECT Code FROM Country WHERE Country.Name LIKE 'L%') AND
 City.Population > 100000;
@@ -2743,8 +2743,8 @@ EXPLAIN
 SELECT City.Name, Country.Name FROM City,Country
 WHERE City.Country=Country.Code AND City.Population > 3000000;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	City	range	Population,Country	Population	4	NULL	#	Using index condition; Using MRR
-1	SIMPLE	Country	eq_ref	PRIMARY	PRIMARY	3	world.City.Country	#	Using join buffer (flat, BKAH join)
+1	SIMPLE	City	range	Population,Country	Population	4	NULL	#	Using index condition; Rowid-ordered scan
+1	SIMPLE	Country	eq_ref	PRIMARY	PRIMARY	3	world.City.Country	#	Using join buffer (flat, BKAH join); Key-ordered Rowid-ordered scan
 SELECT City.Name, Country.Name FROM City,Country
 WHERE City.Country=Country.Code AND City.Population > 3000000;
 Name	Name
@@ -3033,15 +3033,15 @@ t1.metaid = t2.metaid AND t1.affiliateid = '2';
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	t6	system	PRIMARY	NULL	NULL	NULL	1	
 1	SIMPLE	t1	ref	t1_affiliateid,t1_metaid	t1_affiliateid	4	const	1	
-1	SIMPLE	t4	ref	PRIMARY,t4_formatclassid,t4_formats_idx	t4_formats_idx	1	const	1	Using index condition; Using where; Using join buffer (flat, BKA join)
-1	SIMPLE	t5	eq_ref	PRIMARY,t5_formattypeid	PRIMARY	4	test.t4.formatclassid	1	Using where; Using join buffer (incremental, BKA join)
-1	SIMPLE	t2	eq_ref	PRIMARY	PRIMARY	4	test.t1.metaid	1	Using join buffer (incremental, BKA join)
+1	SIMPLE	t4	ref	PRIMARY,t4_formatclassid,t4_formats_idx	t4_formats_idx	1	const	1	Using index condition; Using where; Using join buffer (flat, BKA join); Key-ordered Rowid-ordered scan
+1	SIMPLE	t5	eq_ref	PRIMARY,t5_formattypeid	PRIMARY	4	test.t4.formatclassid	1	Using where; Using join buffer (incremental, BKA join); Key-ordered Rowid-ordered scan
+1	SIMPLE	t2	eq_ref	PRIMARY	PRIMARY	4	test.t1.metaid	1	Using join buffer (incremental, BKA join); Key-ordered Rowid-ordered scan
 1	SIMPLE	t7	ref	PRIMARY	PRIMARY	4	test.t1.metaid	1	Using index
-1	SIMPLE	t3	ref	t3_metaid,t3_formatid,t3_metaidformatid	t3_metaid	4	test.t1.metaid	2	Using where; Using join buffer (flat, BKA join)
-1	SIMPLE	t8	eq_ref	PRIMARY	PRIMARY	4	test.t7.artistid	1	Using join buffer (incremental, BKA join)
+1	SIMPLE	t3	ref	t3_metaid,t3_formatid,t3_metaidformatid	t3_metaid	4	test.t1.metaid	2	Using where; Using join buffer (flat, BKA join); Key-ordered Rowid-ordered scan
+1	SIMPLE	t8	eq_ref	PRIMARY	PRIMARY	4	test.t7.artistid	1	Using join buffer (incremental, BKA join); Key-ordered Rowid-ordered scan
 1	SIMPLE	t9	index	PRIMARY,t9_subgenreid,t9_metaid	PRIMARY	8	NULL	2	Using where; Using index; Using join buffer (incremental, BNL join)
-1	SIMPLE	t10	eq_ref	PRIMARY,t10_genreid	PRIMARY	4	test.t9.subgenreid	1	Using join buffer (incremental, BKA join)
-1	SIMPLE	t11	eq_ref	PRIMARY	PRIMARY	4	test.t10.genreid	1	Using join buffer (incremental, BKA join)
+1	SIMPLE	t10	eq_ref	PRIMARY,t10_genreid	PRIMARY	4	test.t9.subgenreid	1	Using join buffer (incremental, BKA join); Key-ordered Rowid-ordered scan
+1	SIMPLE	t11	eq_ref	PRIMARY	PRIMARY	4	test.t10.genreid	1	Using join buffer (incremental, BKA join); Key-ordered Rowid-ordered scan
 SELECT t1.uniquekey, t1.xml AS affiliateXml,
 t8.name AS artistName, t8.artistid, 
 t11.name AS genreName, t11.genreid, t11.priority AS genrePriority,
@@ -3122,7 +3122,7 @@ FROM t1,t2,t3 WHERE a1=a2 AND b2=b3 AND MOD(c3,10)>7;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	t1	ALL	NULL	NULL	NULL	NULL	9	Using where
 1	SIMPLE	t2	ref	PRIMARY	PRIMARY	4	test.t1.a1	1	Using index
-1	SIMPLE	t3	ref	idx	idx	5	test.t2.b2	5	Using where; Using join buffer (flat, BKA join)
+1	SIMPLE	t3	ref	idx	idx	5	test.t2.b2	5	Using where; Using join buffer (flat, BKA join); Key-ordered Rowid-ordered scan
 SELECT a1<>a2, a1, a2, b2, b3, c3,
 SUBSTR(filler1,1,1) AS s1, SUBSTR(filler2,1,1) AS s2
 FROM t1,t2,t3 WHERE a1=a2 AND b2=b3 AND MOD(c3,10)>7;
@@ -3154,7 +3154,7 @@ set join_cache_level=8;
 EXPLAIN SELECT * FROM t1,t2 WHERE t1.a=t2.a AND t1.b >= 30;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	t1	ALL	idx	NULL	NULL	NULL	7	Using where
-1	SIMPLE	t2	ref	idx	idx	5	test.t1.a	2	Using join buffer (flat, BKAH join)
+1	SIMPLE	t2	ref	idx	idx	5	test.t1.a	2	Using join buffer (flat, BKAH join); Key-ordered Rowid-ordered scan
 SELECT * FROM t1,t2 WHERE t1.a=t2.a AND t1.b >= 30;
 a	b	a	b
 7	40	7	10
@@ -3187,7 +3187,7 @@ EXPLAIN
 SELECT * FROM t1 LEFT JOIN t2 ON t1.a=t2.a WHERE t2.b IS NULL;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	t1	ALL	NULL	NULL	NULL	NULL	5	
-1	SIMPLE	t2	ref	i_a	i_a	4	test.t1.a	2	Using where; Not exists; Using join buffer (flat, BKA join)
+1	SIMPLE	t2	ref	i_a	i_a	4	test.t1.a	2	Using where; Not exists; Using join buffer (flat, BKA join); Key-ordered Rowid-ordered scan
 SELECT * FROM t1 LEFT JOIN t2 ON t1.a=t2.a WHERE t2.b IS NULL;
 a	a	b
 3	NULL	NULL
@@ -3214,7 +3214,7 @@ select t1.a, count(t2.p) as count
 from t1 left join t2 on t1.a=t2.a and t2.p % 2 = 1 group by t1.a;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	t1	ALL	NULL	NULL	NULL	NULL	8	Using temporary; Using filesort
-1	SIMPLE	t2	ref	i_a	i_a	5	test.t1.a	2	Using where; Using join buffer (flat, BKA join)
+1	SIMPLE	t2	ref	i_a	i_a	5	test.t1.a	2	Using where; Using join buffer (flat, BKA join); Key-ordered Rowid-ordered scan
 select t1.a, count(t2.p) as count
 from t1 left join t2 on t1.a=t2.a and t2.p % 2 = 1 group by t1.a;
 a	count
@@ -3333,7 +3333,7 @@ set join_buffer_size=1024;
 EXPLAIN SELECT AVG(c) FROM t1,t2 WHERE t1.a=t2.b;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	t1	ALL	NULL	NULL	NULL	NULL	2050	Using where
-1	SIMPLE	t2	ref	idx	idx	5	test.t1.a	640	Using join buffer (flat, BKA join)
+1	SIMPLE	t2	ref	idx	idx	5	test.t1.a	640	Using join buffer (flat, BKA join); Key-ordered Rowid-ordered scan
 SELECT AVG(c) FROM t1,t2 WHERE t1.a=t2.b;
 AVG(c)
 5.0000
@@ -3373,8 +3373,8 @@ WHERE t1.a=t2.a AND t2.a=t3.a AND
 t1.b IS NULL AND t2.b IS NULL AND t3.b IS NULL;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	t1	ALL	PRIMARY	NULL	NULL	NULL	16384	Using where
-1	SIMPLE	t2	eq_ref	PRIMARY	PRIMARY	4	test.t1.a	1	Using where; Using join buffer (flat, BKAH join)
-1	SIMPLE	t3	eq_ref	PRIMARY	PRIMARY	4	test.t1.a	1	Using where; Using join buffer (flat, BKAH join)
+1	SIMPLE	t2	eq_ref	PRIMARY	PRIMARY	4	test.t1.a	1	Using where; Using join buffer (flat, BKAH join); Key-ordered Rowid-ordered scan
+1	SIMPLE	t3	eq_ref	PRIMARY	PRIMARY	4	test.t1.a	1	Using where; Using join buffer (flat, BKAH join); Key-ordered Rowid-ordered scan
 SELECT COUNT(*) FROM t1,t2,t3
 WHERE t1.a=t2.a AND t2.a=t3.a AND
 t1.b IS NULL AND t2.b IS NULL AND t3.b IS NULL;
@@ -3439,7 +3439,7 @@ WHERE t1.a=t2.a;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	t1	index	PRIMARY	PRIMARY	8	NULL	2	Using index
 1	SIMPLE	t2	ref	PRIMARY	PRIMARY	8	test.t1.a	1	Using index
-1	SIMPLE	t3	ref	idx	idx	16	test.t1.a,test.t2.b	2	Using join buffer (flat, BKA join)
+1	SIMPLE	t3	ref	idx	idx	16	test.t1.a,test.t2.b	2	Using join buffer (flat, BKA join); Key-ordered Rowid-ordered scan
 SELECT t1.a, t2.a, t3.a, t2.b, t3.b, t3.val 
 FROM (t1,t2) LEFT JOIN t3 ON (t1.a=t3.a AND t2.b=t3.b) 
 WHERE t1.a=t2.a;
@@ -3510,7 +3510,7 @@ explain select t2.f1, t2.f2, t2.f3 from t1,t2
 where t1.f1=t2.f1 and t2.f2 between t1.f1 and t2.f2;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	t1	ALL	NULL	NULL	NULL	NULL	3	Using where
-1	SIMPLE	t2	ref	f1	f1	4	test.t1.f1	3	Using index condition(BKA); Using join buffer (flat, BKA join)
+1	SIMPLE	t2	ref	f1	f1	4	test.t1.f1	3	Using index condition(BKA); Using join buffer (flat, BKA join); Key-ordered Rowid-ordered scan
 set join_cache_level=6;
 select t2.f1, t2.f2, t2.f3 from t1,t2
 where t1.f1=t2.f1 and t2.f2 between t1.f1 and t1.f2 and t2.f2 + 1 >= t1.f1 + 1;
@@ -3523,7 +3523,7 @@ explain select t2.f1, t2.f2, t2.f3 from t1,t2
 where t1.f1=t2.f1 and t2.f2 between t1.f1 and t2.f2;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	t1	ALL	NULL	NULL	NULL	NULL	3	Using where
-1	SIMPLE	t2	ref	f1	f1	4	test.t1.f1	3	Using index condition(BKA); Using join buffer (flat, BKA join)
+1	SIMPLE	t2	ref	f1	f1	4	test.t1.f1	3	Using index condition(BKA); Using join buffer (flat, BKA join); Key-ordered Rowid-ordered scan
 set join_cache_level=7;
 select t2.f1, t2.f2, t2.f3 from t1,t2
 where t1.f1=t2.f1 and t2.f2 between t1.f1 and t1.f2 and t2.f2 + 1 >= t1.f1 + 1;
@@ -3536,7 +3536,7 @@ explain select t2.f1, t2.f2, t2.f3 from t1,t2
 where t1.f1=t2.f1 and t2.f2 between t1.f1 and t2.f2;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	t1	ALL	NULL	NULL	NULL	NULL	3	Using where
-1	SIMPLE	t2	ref	f1	f1	4	test.t1.f1	3	Using index condition(BKA); Using where; Using join buffer (flat, BKAH join)
+1	SIMPLE	t2	ref	f1	f1	4	test.t1.f1	3	Using index condition(BKA); Using where; Using join buffer (flat, BKAH join); Key-ordered Rowid-ordered scan
 set join_cache_level=8;
 select t2.f1, t2.f2, t2.f3 from t1,t2
 where t1.f1=t2.f1 and t2.f2 between t1.f1 and t1.f2 and t2.f2 + 1 >= t1.f1 + 1;
@@ -3549,7 +3549,7 @@ explain select t2.f1, t2.f2, t2.f3 from t1,t2
 where t1.f1=t2.f1 and t2.f2 between t1.f1 and t2.f2;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	t1	ALL	NULL	NULL	NULL	NULL	3	Using where
-1	SIMPLE	t2	ref	f1	f1	4	test.t1.f1	3	Using index condition(BKA); Using where; Using join buffer (flat, BKAH join)
+1	SIMPLE	t2	ref	f1	f1	4	test.t1.f1	3	Using index condition(BKA); Using where; Using join buffer (flat, BKAH join); Key-ordered Rowid-ordered scan
 drop table t1,t2;
 set join_cache_level=default;
 #
@@ -3568,7 +3568,7 @@ select t1.id1, sum(t2.id2) from t1 join t2 on t1.id1=t2.id1
 where t1.d=3 group by t1.id1;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	t1	ref	idx1	idx1	5	const	4	Using where; Using index; Using temporary; Using filesort
-1	SIMPLE	t2	ref	idx2	idx2	5	test.t1.id1	2	Using join buffer (flat, BKA join)
+1	SIMPLE	t2	ref	idx2	idx2	5	test.t1.id1	2	Using join buffer (flat, BKA join); Key-ordered Rowid-ordered scan
 select t1.id1, sum(t2.id2) from t1 join t2 on t1.id1=t2.id1 
 where t1.d=3 group by t1.id1;
 id1	sum(t2.id2)
@@ -3580,7 +3580,7 @@ select t1.id1  from t1 join t2 on t1.id1=t2.id1
 where t1.d=3 and t2.id2 > 200 order by t1.id1;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	t1	ref	idx1	idx1	5	const	4	Using where; Using index; Using temporary; Using filesort
-1	SIMPLE	t2	ref	idx2	idx2	5	test.t1.id1	2	Using where; Using join buffer (flat, BKA join)
+1	SIMPLE	t2	ref	idx2	idx2	5	test.t1.id1	2	Using where; Using join buffer (flat, BKA join); Key-ordered Rowid-ordered scan
 select t1.id1  from t1 join t2 on t1.id1=t2.id1 
 where t1.d=3 and t2.id2 > 200 order by t1.id1;
 id1
@@ -3637,9 +3637,9 @@ select t1.a, t1.b, t1.c, t1.d, t2.e, t3.f, t4.g from t1,t2,t3,t4
 where t2.b=t1.b and t3.d=t1.d and t4.c=t1.c;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	t1	ALL	NULL	NULL	NULL	NULL	7	Using where
-1	SIMPLE	t2	ref	idx	idx	5	test.t1.b	1	Using join buffer (flat, BKA join)
-1	SIMPLE	t3	ref	idx	idx	5	test.t1.d	1	Using join buffer (incremental, BKA join)
-1	SIMPLE	t4	ref	idx	idx	5	test.t1.c	1	Using join buffer (incremental, BKA join)
+1	SIMPLE	t2	ref	idx	idx	5	test.t1.b	1	Using join buffer (flat, BKA join); Key-ordered Rowid-ordered scan
+1	SIMPLE	t3	ref	idx	idx	5	test.t1.d	1	Using join buffer (incremental, BKA join); Key-ordered Rowid-ordered scan
+1	SIMPLE	t4	ref	idx	idx	5	test.t1.c	1	Using join buffer (incremental, BKA join); Key-ordered Rowid-ordered scan
 select t1.a, t1.b, t1.c, t1.d, t2.e, t3.f, t4.g from t1,t2,t3,t4
 where t2.b=t1.b and t3.d=t1.d and t4.c=t1.c;
 a	b	c	d	e	f	g
@@ -3688,10 +3688,10 @@ WHERE t1.id1=t5.id1 AND t1.id2=t5.id2 and  t4.id2=t1.id2 AND
 t5.enum2='Active' AND t3.id4=t2.id4 AND t2.id3=t1.id3 AND t3.text1<'D';
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	t1	ALL	NULL	NULL	NULL	NULL	349	Using where
-1	SIMPLE	t2	eq_ref	PRIMARY	PRIMARY	8	test.t1.id3	1	Using where; Using join buffer (flat, BKAH join)
-1	SIMPLE	t3	eq_ref	PRIMARY	PRIMARY	8	test.t2.id4	1	Using where; Using join buffer (incremental, BKAH join)
-1	SIMPLE	t4	eq_ref	PRIMARY	PRIMARY	8	test.t1.id2	1	Using join buffer (incremental, BKAH join)
-1	SIMPLE	t5	eq_ref	PRIMARY	PRIMARY	16	test.t1.id1,test.t1.id2	1	Using where; Using join buffer (incremental, BKAH join)
+1	SIMPLE	t2	eq_ref	PRIMARY	PRIMARY	8	test.t1.id3	1	Using where; Using join buffer (flat, BKAH join); Key-ordered Rowid-ordered scan
+1	SIMPLE	t3	eq_ref	PRIMARY	PRIMARY	8	test.t2.id4	1	Using where; Using join buffer (incremental, BKAH join); Key-ordered Rowid-ordered scan
+1	SIMPLE	t4	eq_ref	PRIMARY	PRIMARY	8	test.t1.id2	1	Using join buffer (incremental, BKAH join); Key-ordered Rowid-ordered scan
+1	SIMPLE	t5	eq_ref	PRIMARY	PRIMARY	16	test.t1.id1,test.t1.id2	1	Using where; Using join buffer (incremental, BKAH join); Key-ordered Rowid-ordered scan
 SELECT STRAIGHT_JOIN t1.id1, t1.num3, t3.text1, t3.id4, t2.id3, t4.dummy
 FROM t1 JOIN  t2 JOIN  t3 JOIN  t4 JOIN  t5 
 WHERE t1.id1=t5.id1 AND t1.id2=t5.id2 and  t4.id2=t1.id2 AND
@@ -3904,7 +3904,7 @@ SELECT t3.a FROM t1,t2,t3 WHERE t1.a = t3.a AND t1.b = t3.b;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	t1	ALL	NULL	NULL	NULL	NULL	2	Using where
 1	SIMPLE	t2	ALL	NULL	NULL	NULL	NULL	5	Using join buffer (flat, BNL join)
-1	SIMPLE	t3	eq_ref	PRIMARY	PRIMARY	4	test.t1.a	1	Using where; Using join buffer (incremental, BKA join)
+1	SIMPLE	t3	eq_ref	PRIMARY	PRIMARY	4	test.t1.a	1	Using where; Using join buffer (incremental, BKA join); Key-ordered Rowid-ordered scan
 SELECT t3.a FROM t1,t2,t3 WHERE t1.a = t3.a AND t1.b = t3.b;
 a
 27
@@ -3966,7 +3966,7 @@ set join_cache_level = 5;
 explain SELECT t2.a FROM t1 LEFT JOIN t2 ON t2.b  = t1.b;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	t1	ALL	NULL	NULL	NULL	NULL	2	
-1	SIMPLE	t2	ref	b	b	5	test.t1.b	2	Using where; Using join buffer (flat, BKA join)
+1	SIMPLE	t2	ref	b	b	5	test.t1.b	2	Using where; Using join buffer (flat, BKA join); Key-ordered Rowid-ordered scan
 SELECT t2.a FROM t1 LEFT JOIN t2 ON t2.b  = t1.b;
 a
 NULL
@@ -3975,7 +3975,7 @@ set join_cache_level = 8;
 explain SELECT t2.a FROM t1 LEFT JOIN t2 ON t2.b  = t1.b;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	t1	ALL	NULL	NULL	NULL	NULL	2	
-1	SIMPLE	t2	ref	b	b	5	test.t1.b	2	Using where; Using join buffer (flat, BKAH join)
+1	SIMPLE	t2	ref	b	b	5	test.t1.b	2	Using where; Using join buffer (flat, BKAH join); Key-ordered Rowid-ordered scan
 SELECT t2.a FROM t1 LEFT JOIN t2 ON t2.b  = t1.b;
 a
 NULL
@@ -3986,7 +3986,7 @@ set join_cache_level = 5;
 explain SELECT t2.a FROM t1 LEFT JOIN t2 ON t2.b  = t1.b;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	t1	ALL	NULL	NULL	NULL	NULL	2	
-1	SIMPLE	t2	ref	b	b	5	test.t1.b	2	Using where; Using join buffer (flat, BKA join)
+1	SIMPLE	t2	ref	b	b	5	test.t1.b	2	Using where; Using join buffer (flat, BKA join); Key-ordered Rowid-ordered scan
 SELECT t2.a FROM t1 LEFT JOIN t2 ON t2.b  = t1.b;
 a
 NULL
@@ -4000,7 +4000,7 @@ set join_cache_level = 5;
 explain SELECT t2.a FROM t1 LEFT JOIN t2 ON t2.b  = t1.b;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	t1	ALL	NULL	NULL	NULL	NULL	2	
-1	SIMPLE	t2	ref	b	b	103	test.t1.b	2	Using where; Using join buffer (flat, BKA join)
+1	SIMPLE	t2	ref	b	b	103	test.t1.b	2	Using where; Using join buffer (flat, BKA join); Key-ordered Rowid-ordered scan
 SELECT t2.a FROM t1 LEFT JOIN t2 ON t2.b  = t1.b;
 a
 NULL
@@ -4009,7 +4009,7 @@ set join_cache_level = 8;
 explain SELECT t2.a FROM t1 LEFT JOIN t2 ON t2.b  = t1.b;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	t1	ALL	NULL	NULL	NULL	NULL	2	
-1	SIMPLE	t2	ref	b	b	103	test.t1.b	2	Using where; Using join buffer (flat, BKAH join)
+1	SIMPLE	t2	ref	b	b	103	test.t1.b	2	Using where; Using join buffer (flat, BKAH join); Key-ordered Rowid-ordered scan
 SELECT t2.a FROM t1 LEFT JOIN t2 ON t2.b  = t1.b;
 a
 NULL
@@ -4035,7 +4035,7 @@ SELECT t.a FROM t1 t, t1 s FORCE INDEX(idx)
 WHERE s.pk AND s.a  >= t.pk AND  s.b  = t.c;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	t	ALL	NULL	NULL	NULL	NULL	2	Using where
-1	SIMPLE	s	ref	idx	idx	19	test.t.c	1	Using index condition(BKA); Using where; Using join buffer (flat, BKAH join)
+1	SIMPLE	s	ref	idx	idx	19	test.t.c	1	Using index condition(BKA); Using where; Using join buffer (flat, BKAH join); Key-ordered Rowid-ordered scan
 SELECT t.a FROM t1 t, t1 s FORCE INDEX(idx)
 WHERE s.pk AND s.a  >= t.pk AND  s.b  = t.c;
 a
@@ -4227,8 +4227,8 @@ SELECT t2.v FROM t1, t2, t3 WHERE t3.v <> t2.v AND t3.pk = t2.i AND t1.v = t3.v
 GROUP BY t2.v ORDER BY t1.pk,t2.v;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	t2	ALL	idx1	NULL	NULL	NULL	20	Using temporary; Using filesort
-1	SIMPLE	t3	eq_ref	PRIMARY,idx2	PRIMARY	4	test.t2.i	1	Using where; Using join buffer (flat, BKA join)
-1	SIMPLE	t1	ref	idx2	idx2	3	test.t3.v	2	Using join buffer (incremental, BKA join)
+1	SIMPLE	t3	eq_ref	PRIMARY,idx2	PRIMARY	4	test.t2.i	1	Using where; Using join buffer (flat, BKA join); Key-ordered Rowid-ordered scan
+1	SIMPLE	t1	ref	idx2	idx2	3	test.t3.v	2	Using join buffer (incremental, BKA join); Key-ordered Rowid-ordered scan
 SELECT t2.v FROM t1, t2, t3 WHERE t3.v <> t2.v AND t3.pk = t2.i AND t1.v = t3.v 
 GROUP BY t2.v ORDER BY t1.pk,t2.v;
 v
@@ -4698,7 +4698,7 @@ SELECT * FROM t1 LEFT JOIN t2 JOIN t3 ON t3.a3 = t2.a2 ON t3.b3 <> 0;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	t1	ALL	NULL	NULL	NULL	NULL	2	
 1	SIMPLE	t2	ALL	PRIMARY	NULL	NULL	NULL	1	Using where; Using join buffer (flat, BNL join)
-1	SIMPLE	t3	eq_ref	PRIMARY	PRIMARY	4	test.t2.a2	1	Using where; Using join buffer (incremental, BKA join)
+1	SIMPLE	t3	eq_ref	PRIMARY	PRIMARY	4	test.t2.a2	1	Using where; Using join buffer (incremental, BKA join); Key-ordered Rowid-ordered scan
 SELECT * FROM t1 LEFT JOIN t2 JOIN t3 ON t3.a3 = t2.a2 ON t3.b3 <> 0;
 a1	a2	b2	a3	b3
 0	2	1	2	1
@@ -4759,7 +4759,7 @@ id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	t2	ALL	PRIMARY	NULL	NULL	NULL	1	Using where
 1	SIMPLE	t3	eq_ref	PRIMARY	PRIMARY	4	test.t2.a2	1	Using index
 1	SIMPLE	t4	ALL	NULL	NULL	NULL	NULL	1	Using where; Using join buffer (flat, BNL join)
-1	SIMPLE	t5	eq_ref	PRIMARY	PRIMARY	4	test.t2.a2	1	Using where; Using join buffer (incremental, BKA join)
+1	SIMPLE	t5	eq_ref	PRIMARY	PRIMARY	4	test.t2.a2	1	Using where; Using join buffer (incremental, BKA join); Key-ordered Rowid-ordered scan
 SELECT t4.a4, t5.b5 
 FROM ((t1 LEFT JOIN (t2 JOIN t3 ON t2.a2 = t3.a3) ON t2.b2 = t1.a1)
 LEFT JOIN t4 ON t4.a4 <> 0) LEFT JOIN t5 ON t5.a5 = t2.a2;
@@ -4817,8 +4817,8 @@ EXPLAIN
 SELECT * FROM t1,t2
 WHERE t1.f1 = t2.f4 AND (t1.f3 = 1 AND t2.f3 = 4 OR t1.f3 = 2 AND t2.f3 = 6);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	range	PRIMARY	PRIMARY	4	NULL	2	Using where; Using MRR
-1	SIMPLE	t2	range	PRIMARY	PRIMARY	4	NULL	2	Using where; Using MRR; Using join buffer (flat, BNL join)
+1	SIMPLE	t1	range	PRIMARY	PRIMARY	4	NULL	2	Using where; Rowid-ordered scan
+1	SIMPLE	t2	range	PRIMARY	PRIMARY	4	NULL	2	Using where; Rowid-ordered scan; Using join buffer (flat, BNL join)
 SELECT * FROM t1,t2
 WHERE t1.f1 = t2.f4 AND (t1.f3 = 1 AND t2.f3 = 4 OR t1.f3 = 2 AND t2.f3 = 6);
 f1	f3	f3	f2	f4
@@ -4827,8 +4827,8 @@ EXPLAIN
 SELECT * FROM t1,t2
 WHERE t1.f1 = t2.f4 AND (t1.f3 = 1 AND t2.f3 = 4 OR t1.f3 = 2 AND t2.f3 = 6);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	range	PRIMARY	PRIMARY	4	NULL	2	Using index condition; Using MRR
-1	SIMPLE	t2	range	PRIMARY	PRIMARY	4	NULL	2	Using index condition; Using where; Using MRR; Using join buffer (flat, BNL join)
+1	SIMPLE	t1	range	PRIMARY	PRIMARY	4	NULL	2	Using index condition; Rowid-ordered scan
+1	SIMPLE	t2	range	PRIMARY	PRIMARY	4	NULL	2	Using index condition; Using where; Rowid-ordered scan; Using join buffer (flat, BNL join)
 SELECT * FROM t1,t2
 WHERE t1.f1 = t2.f4 AND (t1.f3 = 1 AND t2.f3 = 4 OR t1.f3 = 2 AND t2.f3 = 6);
 f1	f3	f3	f2	f4
@@ -4900,7 +4900,7 @@ EXPLAIN
 SELECT * FROM t1,t2 WHERE t1.a < 3 and t2.a IS NULL;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	t1	range	PRIMARY	PRIMARY	4	NULL	3	Using where; Using index
-1	SIMPLE	t2	hash_range	idx	#hash#idx:idx	5:5	const	4	Using index condition; Using MRR; Using join buffer (flat, BNLH join)
+1	SIMPLE	t2	hash_range	idx	#hash#idx:idx	5:5	const	4	Using index condition; Rowid-ordered scan; Using join buffer (flat, BNLH join)
 SELECT * FROM t1,t2 WHERE t1.a < 3 and t2.a IS NULL;
 a	a	b
 1	NULL	10

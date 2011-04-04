@@ -167,7 +167,7 @@ from t3;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	PRIMARY	t3	ALL	NULL	NULL	NULL	NULL	3	100.00	
 2	DEPENDENT SUBQUERY	t1	ref_or_null	a	a	5	func	4	100.00	Using where; Full scan on NULL key
-2	DEPENDENT SUBQUERY	t2	ref	a	a	5	test.t1.b	1	100.00	Using where; Using join buffer (flat, BKA join)
+2	DEPENDENT SUBQUERY	t2	ref	a	a	5	test.t1.b	1	100.00	Using where; Using join buffer (flat, BKA join); Key-ordered Rowid-ordered scan
 Warnings:
 Note	1276	Field or reference 'test.t3.oref' of SELECT #2 was resolved in SELECT #1
 Note	1003	select `test`.`t3`.`a` AS `a`,`test`.`t3`.`oref` AS `oref`,<expr_cache><`test`.`t3`.`a`,`test`.`t3`.`oref`>(<in_optimizer>(`test`.`t3`.`a`,<exists>(select 1 from `test`.`t1` join `test`.`t2` where ((`test`.`t2`.`a` = `test`.`t1`.`b`) and (`test`.`t2`.`b` = `test`.`t3`.`oref`) and trigcond(((<cache>(`test`.`t3`.`a`) = `test`.`t1`.`a`) or isnull(`test`.`t1`.`a`)))) having trigcond(<is_not_null_test>(`test`.`t1`.`a`))))) AS `Z` from `test`.`t3`
@@ -195,7 +195,7 @@ from t3;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	PRIMARY	t3	ALL	NULL	NULL	NULL	NULL	3	100.00	
 2	DEPENDENT SUBQUERY	t1	ref	a	a	4	func	2	100.00	Using where; Full scan on NULL key
-2	DEPENDENT SUBQUERY	t2	ref	a	a	4	test.t1.b	1	100.00	Using where; Using join buffer (flat, BKA join)
+2	DEPENDENT SUBQUERY	t2	ref	a	a	4	test.t1.b	1	100.00	Using where; Using join buffer (flat, BKA join); Key-ordered Rowid-ordered scan
 Warnings:
 Note	1276	Field or reference 'test.t3.oref' of SELECT #2 was resolved in SELECT #1
 Note	1003	select `test`.`t3`.`a` AS `a`,`test`.`t3`.`oref` AS `oref`,<expr_cache><`test`.`t3`.`a`,`test`.`t3`.`oref`>(<in_optimizer>(`test`.`t3`.`a`,<exists>(select 1 from `test`.`t1` join `test`.`t2` where ((`test`.`t2`.`a` = `test`.`t1`.`b`) and (`test`.`t2`.`b` = `test`.`t3`.`oref`) and trigcond((<cache>(`test`.`t3`.`a`) = `test`.`t1`.`a`)))))) AS `Z` from `test`.`t3`
@@ -739,7 +739,7 @@ WHERE t3.name='xxx' AND t2.id=t3.id);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	4	Using where
 2	DEPENDENT SUBQUERY	t2	eq_ref	PRIMARY	PRIMARY	4	func	1	Using where; Using index; Full scan on NULL key
-2	DEPENDENT SUBQUERY	t3	eq_ref	PRIMARY	PRIMARY	4	func	1	Using index condition(BKA); Using where; Full scan on NULL key; Using join buffer (flat, BKA join)
+2	DEPENDENT SUBQUERY	t3	eq_ref	PRIMARY	PRIMARY	4	func	1	Using index condition(BKA); Using where; Full scan on NULL key; Using join buffer (flat, BKA join); Key-ordered Rowid-ordered scan
 SELECT * FROM t1
 WHERE t1.id NOT IN (SELECT t2.id FROM t2,t3 
 WHERE t3.name='xxx' AND t2.id=t3.id);
@@ -1142,7 +1142,7 @@ and t4.pk=t1.c);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	PRIMARY	t3	ALL	NULL	NULL	NULL	NULL	100	
 1	PRIMARY	subselect2	eq_ref	unique_key	unique_key	5	func	1	
-2	SUBQUERY	t1	range	kp1	kp1	5	NULL	48	Using index condition; Using where; Using MRR
+2	SUBQUERY	t1	range	kp1	kp1	5	NULL	48	Using index condition; Using where; Rowid-ordered scan
 2	SUBQUERY	t4	eq_ref	PRIMARY	PRIMARY	4	test.t1.c	1	Using index
 drop table t1, t3, t4;
 create table t1 (a int) as select * from t0 where a < 5;
@@ -1175,7 +1175,7 @@ insert into t3 select A.a + 10*B.a, 'filler' from t0 A, t0 B;
 explain select * from t3 where a in (select a from t2) and (a > 5 or a < 10);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	PRIMARY	subselect2	ALL	unique_key	NULL	NULL	NULL	2	
-1	PRIMARY	t3	ref	a	a	5	test.t2.a	1	Using join buffer (flat, BKA join)
+1	PRIMARY	t3	ref	a	a	5	test.t2.a	1	Using join buffer (flat, BKA join); Key-ordered Rowid-ordered scan
 2	SUBQUERY	t2	ALL	NULL	NULL	NULL	NULL	2	Using where
 select * from t3 where a in (select a from t2);
 a	filler
@@ -1224,7 +1224,7 @@ explain select * from t1, t3 where t3.a in (select a from t2) and (t3.a < 10 or 
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	10	Using where
 1	PRIMARY	subselect2	ALL	unique_key	NULL	NULL	NULL	10	
-1	PRIMARY	t3	ref	a	a	5	test.t2.a	10	Using join buffer (flat, BKA join)
+1	PRIMARY	t3	ref	a	a	5	test.t2.a	10	Using join buffer (flat, BKA join); Key-ordered Rowid-ordered scan
 2	SUBQUERY	t2	ALL	NULL	NULL	NULL	NULL	10	Using where
 explain select straight_join * from t1 A, t1 B where A.a in (select a from t2);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
@@ -1254,14 +1254,14 @@ explain select * from t0, t3 where t3.a in (select a from t2) and (t3.a < 10 or 
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	PRIMARY	t0	system	NULL	NULL	NULL	NULL	1	
 1	PRIMARY	subselect2	ALL	unique_key	NULL	NULL	NULL	10	
-1	PRIMARY	t3	ref	a	a	5	test.t2.a	10	Using join buffer (flat, BKA join)
+1	PRIMARY	t3	ref	a	a	5	test.t2.a	10	Using join buffer (flat, BKA join); Key-ordered Rowid-ordered scan
 2	SUBQUERY	t2	ALL	NULL	NULL	NULL	NULL	10	Using where
 create table t4 as select a as x, a as y from t1;
 explain select * from t0, t3 where (t3.a, t3.b) in (select x,y from t4) and (t3.a < 10 or t3.a >30);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	PRIMARY	t0	system	NULL	NULL	NULL	NULL	1	
 1	PRIMARY	subselect2	ALL	unique_key	NULL	NULL	NULL	10	
-1	PRIMARY	t3	ref	a	a	5	test.t4.x	10	Using where; Using join buffer (flat, BKA join)
+1	PRIMARY	t3	ref	a	a	5	test.t4.x	10	Using where; Using join buffer (flat, BKA join); Key-ordered Rowid-ordered scan
 2	SUBQUERY	t4	ALL	NULL	NULL	NULL	NULL	10	Using where
 drop table t0,t1,t2,t3,t4;
 create table t0 (a int);
@@ -1412,7 +1412,7 @@ id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	PRIMARY	subselect2	ALL	unique_key	NULL	NULL	NULL	2	1.00	
 1	PRIMARY	a	index	PRIMARY	PRIMARY	4	NULL	2	100.00	Using where; Using index; Using join buffer (flat, BNL join)
 2	SUBQUERY	cona	ALL	NULL	NULL	NULL	NULL	2	100.00	Using where
-2	SUBQUERY	c	eq_ref	PRIMARY	PRIMARY	4	test.cona.idContact	1	100.00	Using join buffer (flat, BKA join)
+2	SUBQUERY	c	eq_ref	PRIMARY	PRIMARY	4	test.cona.idContact	1	100.00	Using join buffer (flat, BKA join); Key-ordered Rowid-ordered scan
 Warnings:
 Note	1003	select `test`.`a`.`idIndividual` AS `idIndividual` from `test`.`t1` `a` semi join (`test`.`t3` `cona` join `test`.`t2` `c`) where ((`test`.`c`.`idContact` = `test`.`cona`.`idContact`) and (`test`.`a`.`idIndividual` = `test`.`c`.`idObj`) and (`test`.`cona`.`postalStripped` = 'T2H3B2'))
 drop table t1,t2,t3;

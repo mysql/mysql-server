@@ -170,7 +170,8 @@ public:
   ha_rows multi_range_read_info(uint keyno, uint n_ranges, uint keys,
                                 uint key_parts, uint *bufsz, 
                                 uint *flags, COST_VECT *cost);
-  
+  int multi_range_read_explain_info(uint mrr_mode, char *str, size_t size);
+
   /* Index condition pushdown implementation */
   Item *idx_cond_push(uint keyno, Item* idx_cond);
 private:

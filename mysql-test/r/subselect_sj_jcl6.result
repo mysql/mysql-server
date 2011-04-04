@@ -60,7 +60,7 @@ flattening a nested subquery
 explain select * from t1 where a in (select pk from t10 where t10.a in (select pk from t12));
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	3	Using where
-1	PRIMARY	t10	eq_ref	PRIMARY	PRIMARY	4	test.t1.a	1	Using where; Using join buffer (flat, BKA join)
+1	PRIMARY	t10	eq_ref	PRIMARY	PRIMARY	4	test.t1.a	1	Using where; Using join buffer (flat, BKA join); Key-ordered Rowid-ordered scan
 1	PRIMARY	t12	eq_ref	PRIMARY	PRIMARY	4	test.t10.a	1	Using index
 select * from t1 where a in (select pk from t10 where t10.a in (select pk from t12));
 a	b
@@ -71,7 +71,7 @@ flattening subquery w/ several tables
 explain extended select * from t1 where a in (select t10.pk from t10, t12 where t12.pk=t10.a);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	3	100.00	Using where
-1	PRIMARY	t10	eq_ref	PRIMARY	PRIMARY	4	test.t1.a	1	100.00	Using where; Using join buffer (flat, BKA join)
+1	PRIMARY	t10	eq_ref	PRIMARY	PRIMARY	4	test.t1.a	1	100.00	Using where; Using join buffer (flat, BKA join); Key-ordered Rowid-ordered scan
 1	PRIMARY	t12	eq_ref	PRIMARY	PRIMARY	4	test.t10.a	1	100.00	Using index
 Warnings:
 Note	1003	select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b` from `test`.`t10` join `test`.`t12` join `test`.`t1` where ((`test`.`t10`.`pk` = `test`.`t1`.`a`) and (`test`.`t12`.`pk` = `test`.`t10`.`a`))
@@ -516,7 +516,7 @@ EXPLAIN EXTENDED SELECT vkey FROM t0 WHERE pk IN
 (SELECT t1.pk FROM t0 t1 JOIN t0 t2 ON t2.vkey = t1.vnokey);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	PRIMARY	t0	ALL	PRIMARY	NULL	NULL	NULL	5	100.00	
-1	PRIMARY	t1	eq_ref	PRIMARY	PRIMARY	4	test.t0.pk	1	100.00	Using where; Using join buffer (flat, BKA join)
+1	PRIMARY	t1	eq_ref	PRIMARY	PRIMARY	4	test.t0.pk	1	100.00	Using where; Using join buffer (flat, BKA join); Key-ordered Rowid-ordered scan
 1	PRIMARY	t2	ref	vkey	vkey	4	test.t1.vnokey	2	100.00	Using index; FirstMatch(t1)
 Warnings:
 Note	1003	select `test`.`t0`.`vkey` AS `vkey` from `test`.`t0` `t1` semi join (`test`.`t0` `t2`) join `test`.`t0` where ((`test`.`t2`.`vkey` = `test`.`t1`.`vnokey`) and (`test`.`t1`.`pk` = `test`.`t0`.`pk`))
@@ -820,7 +820,7 @@ EXPLAIN EXTENDED SELECT pk FROM t1 WHERE (a, b) IN (SELECT a, b FROM t2 WHERE pk
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	2	100.00	
 1	PRIMARY	subselect2	eq_ref	unique_key	unique_key	13	func	1	1.00	
-2	SUBQUERY	t2	range	PRIMARY	PRIMARY	4	NULL	2	100.00	Using index condition; Using MRR
+2	SUBQUERY	t2	range	PRIMARY	PRIMARY	4	NULL	2	100.00	Using index condition; Rowid-ordered scan
 Warnings:
 Note	1003	select `test`.`t1`.`pk` AS `pk` from `test`.`t1` semi join (`test`.`t2`) where ((`test`.`t2`.`pk` > 0))
 SELECT pk FROM t1 WHERE (a, b) IN (SELECT a, b FROM t2 WHERE pk > 0);
@@ -829,7 +829,7 @@ pk
 EXPLAIN EXTENDED SELECT pk FROM t1 WHERE (b, c) IN (SELECT b, c FROM t2 WHERE pk > 0);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	2	100.00	
-1	PRIMARY	t2	range	PRIMARY	PRIMARY	4	NULL	2	100.00	Using index condition; Using where; Using MRR; FirstMatch(t1); Using join buffer (flat, BNL join)
+1	PRIMARY	t2	range	PRIMARY	PRIMARY	4	NULL	2	100.00	Using index condition; Using where; Rowid-ordered scan; FirstMatch(t1); Using join buffer (flat, BNL join)
 Warnings:
 Note	1003	select `test`.`t1`.`pk` AS `pk` from `test`.`t1` semi join (`test`.`t2`) where ((`test`.`t2`.`c` = `test`.`t1`.`c`) and (`test`.`t2`.`b` = `test`.`t1`.`b`) and (`test`.`t2`.`pk` > 0))
 SELECT pk FROM t1 WHERE (b, c) IN (SELECT b, c FROM t2 WHERE pk > 0);
@@ -839,7 +839,7 @@ pk
 EXPLAIN EXTENDED SELECT pk FROM t1 WHERE (b, d) IN (SELECT b, d FROM t2 WHERE pk > 0);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	2	100.00	
-1	PRIMARY	t2	range	PRIMARY	PRIMARY	4	NULL	2	100.00	Using index condition; Using where; Using MRR; FirstMatch(t1); Using join buffer (flat, BNL join)
+1	PRIMARY	t2	range	PRIMARY	PRIMARY	4	NULL	2	100.00	Using index condition; Using where; Rowid-ordered scan; FirstMatch(t1); Using join buffer (flat, BNL join)
 Warnings:
 Note	1003	select `test`.`t1`.`pk` AS `pk` from `test`.`t1` semi join (`test`.`t2`) where ((`test`.`t2`.`d` = `test`.`t1`.`d`) and (`test`.`t2`.`b` = `test`.`t1`.`b`) and (`test`.`t2`.`pk` > 0))
 SELECT pk FROM t1 WHERE (b, d) IN (SELECT b, d FROM t2 WHERE pk > 0);
@@ -848,7 +848,7 @@ pk
 EXPLAIN EXTENDED SELECT pk FROM t1 WHERE (b, e) IN (SELECT b, e FROM t2 WHERE pk > 0);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	2	100.00	
-1	PRIMARY	t2	range	PRIMARY	PRIMARY	4	NULL	2	100.00	Using index condition; Using where; Using MRR; FirstMatch(t1); Using join buffer (flat, BNL join)
+1	PRIMARY	t2	range	PRIMARY	PRIMARY	4	NULL	2	100.00	Using index condition; Using where; Rowid-ordered scan; FirstMatch(t1); Using join buffer (flat, BNL join)
 Warnings:
 Note	1003	select `test`.`t1`.`pk` AS `pk` from `test`.`t1` semi join (`test`.`t2`) where ((`test`.`t2`.`e` = `test`.`t1`.`e`) and (`test`.`t2`.`b` = `test`.`t1`.`b`) and (`test`.`t2`.`pk` > 0))
 SELECT pk FROM t1 WHERE (b, e) IN (SELECT b, e FROM t2 WHERE pk > 0);
@@ -858,7 +858,7 @@ pk
 EXPLAIN EXTENDED SELECT pk FROM t1 WHERE (b, f) IN (SELECT b, f FROM t2 WHERE pk > 0);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	2	100.00	
-1	PRIMARY	t2	range	PRIMARY	PRIMARY	4	NULL	2	100.00	Using index condition; Using where; Using MRR; FirstMatch(t1); Using join buffer (flat, BNL join)
+1	PRIMARY	t2	range	PRIMARY	PRIMARY	4	NULL	2	100.00	Using index condition; Using where; Rowid-ordered scan; FirstMatch(t1); Using join buffer (flat, BNL join)
 Warnings:
 Note	1003	select `test`.`t1`.`pk` AS `pk` from `test`.`t1` semi join (`test`.`t2`) where ((`test`.`t2`.`f` = `test`.`t1`.`f`) and (`test`.`t2`.`b` = `test`.`t1`.`b`) and (`test`.`t2`.`pk` > 0))
 SELECT pk FROM t1 WHERE (b, f) IN (SELECT b, f FROM t2 WHERE pk > 0);
@@ -868,7 +868,7 @@ pk
 EXPLAIN EXTENDED SELECT pk FROM t1 WHERE (b, g) IN (SELECT b, g FROM t2 WHERE pk > 0);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	2	100.00	
-1	PRIMARY	t2	range	PRIMARY	PRIMARY	4	NULL	2	100.00	Using index condition; Using where; Using MRR; FirstMatch(t1); Using join buffer (flat, BNL join)
+1	PRIMARY	t2	range	PRIMARY	PRIMARY	4	NULL	2	100.00	Using index condition; Using where; Rowid-ordered scan; FirstMatch(t1); Using join buffer (flat, BNL join)
 Warnings:
 Note	1003	select `test`.`t1`.`pk` AS `pk` from `test`.`t1` semi join (`test`.`t2`) where ((`test`.`t2`.`g` = `test`.`t1`.`g`) and (`test`.`t2`.`b` = `test`.`t1`.`b`) and (`test`.`t2`.`pk` > 0))
 SELECT pk FROM t1 WHERE (b, g) IN (SELECT b, g FROM t2 WHERE pk > 0);
@@ -878,7 +878,7 @@ pk
 EXPLAIN EXTENDED SELECT pk FROM t1 WHERE (b, h) IN (SELECT b, h FROM t2 WHERE pk > 0);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	2	100.00	
-1	PRIMARY	t2	range	PRIMARY	PRIMARY	4	NULL	2	100.00	Using index condition; Using where; Using MRR; FirstMatch(t1); Using join buffer (flat, BNL join)
+1	PRIMARY	t2	range	PRIMARY	PRIMARY	4	NULL	2	100.00	Using index condition; Using where; Rowid-ordered scan; FirstMatch(t1); Using join buffer (flat, BNL join)
 Warnings:
 Note	1003	select `test`.`t1`.`pk` AS `pk` from `test`.`t1` semi join (`test`.`t2`) where ((`test`.`t2`.`h` = `test`.`t1`.`h`) and (`test`.`t2`.`b` = `test`.`t1`.`b`) and (`test`.`t2`.`pk` > 0))
 SELECT pk FROM t1 WHERE (b, h) IN (SELECT b, h FROM t2 WHERE pk > 0);
@@ -888,7 +888,7 @@ pk
 EXPLAIN EXTENDED SELECT pk FROM t1 WHERE (b, i) IN (SELECT b, i FROM t2 WHERE pk > 0);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	2	100.00	
-1	PRIMARY	t2	range	PRIMARY	PRIMARY	4	NULL	2	100.00	Using index condition; Using where; Using MRR; FirstMatch(t1); Using join buffer (flat, BNL join)
+1	PRIMARY	t2	range	PRIMARY	PRIMARY	4	NULL	2	100.00	Using index condition; Using where; Rowid-ordered scan; FirstMatch(t1); Using join buffer (flat, BNL join)
 Warnings:
 Note	1003	select `test`.`t1`.`pk` AS `pk` from `test`.`t1` semi join (`test`.`t2`) where ((`test`.`t2`.`i` = `test`.`t1`.`i`) and (`test`.`t2`.`b` = `test`.`t1`.`b`) and (`test`.`t2`.`pk` > 0))
 SELECT pk FROM t1 WHERE (b, i) IN (SELECT b, i FROM t2 WHERE pk > 0);
@@ -898,7 +898,7 @@ pk
 EXPLAIN EXTENDED SELECT pk FROM t1 WHERE (b, j) IN (SELECT b, j FROM t2 WHERE pk > 0);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	2	100.00	
-1	PRIMARY	t2	range	PRIMARY	PRIMARY	4	NULL	2	100.00	Using index condition; Using where; Using MRR; FirstMatch(t1); Using join buffer (flat, BNL join)
+1	PRIMARY	t2	range	PRIMARY	PRIMARY	4	NULL	2	100.00	Using index condition; Using where; Rowid-ordered scan; FirstMatch(t1); Using join buffer (flat, BNL join)
 Warnings:
 Note	1003	select `test`.`t1`.`pk` AS `pk` from `test`.`t1` semi join (`test`.`t2`) where ((`test`.`t2`.`j` = `test`.`t1`.`j`) and (`test`.`t2`.`b` = `test`.`t1`.`b`) and (`test`.`t2`.`pk` > 0))
 SELECT pk FROM t1 WHERE (b, j) IN (SELECT b, j FROM t2 WHERE pk > 0);
@@ -908,7 +908,7 @@ pk
 EXPLAIN EXTENDED SELECT pk FROM t1 WHERE (b, k) IN (SELECT b, k FROM t2 WHERE pk > 0);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	2	100.00	
-1	PRIMARY	t2	range	PRIMARY	PRIMARY	4	NULL	2	100.00	Using index condition; Using where; Using MRR; FirstMatch(t1); Using join buffer (flat, BNL join)
+1	PRIMARY	t2	range	PRIMARY	PRIMARY	4	NULL	2	100.00	Using index condition; Using where; Rowid-ordered scan; FirstMatch(t1); Using join buffer (flat, BNL join)
 Warnings:
 Note	1003	select `test`.`t1`.`pk` AS `pk` from `test`.`t1` semi join (`test`.`t2`) where ((`test`.`t2`.`k` = `test`.`t1`.`k`) and (`test`.`t2`.`b` = `test`.`t1`.`b`) and (`test`.`t2`.`pk` > 0))
 SELECT pk FROM t1 WHERE (b, k) IN (SELECT b, k FROM t2 WHERE pk > 0);
@@ -1268,8 +1268,8 @@ SELECT * FROM t0 WHERE t0.a IN
 (SELECT t1.a FROM t1, t2 WHERE t2.a=t0.a AND t1.b=t2.b);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	PRIMARY	t0	ALL	NULL	NULL	NULL	NULL	5	Using where; Start temporary
-1	PRIMARY	t1	ref	a	a	5	test.t0.a	1	Using join buffer (flat, BKA join)
-1	PRIMARY	t2	eq_ref	PRIMARY	PRIMARY	4	test.t0.a	1	Using where; End temporary; Using join buffer (incremental, BKA join)
+1	PRIMARY	t1	ref	a	a	5	test.t0.a	1	Using join buffer (flat, BKA join); Key-ordered Rowid-ordered scan
+1	PRIMARY	t2	eq_ref	PRIMARY	PRIMARY	4	test.t0.a	1	Using where; End temporary; Using join buffer (incremental, BKA join); Key-ordered Rowid-ordered scan
 SELECT * FROM t0 WHERE t0.a IN 
 (SELECT t1.a FROM t1, t2 WHERE t2.a=t0.a AND t1.b=t2.b);
 a

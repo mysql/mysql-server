@@ -49,14 +49,14 @@ SELECT * FROM City
 WHERE (Population >= 100000 OR Name LIKE 'P%') AND Country='CAN' OR
 (Population < 100000 OR Name Like 'T%') AND Country='ARG';
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	City	range	Population,Country,Name	Country	3	NULL	104	Using index condition; Using where; Using MRR
+1	SIMPLE	City	range	Population,Country,Name	Country	3	NULL	104	Using index condition; Using where; Rowid-ordered scan
 EXPLAIN
 SELECT * FROM City
 WHERE Population < 200000 AND Name LIKE 'P%' AND
 (Population > 300000 OR Name LIKE 'T%') AND
 (Population < 100000 OR Name LIKE 'Pa%');
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	City	range	Population,Name	Name	35	NULL	135	Using index condition; Using where; Using MRR
+1	SIMPLE	City	range	Population,Name	Name	35	NULL	135	Using index condition; Using where; Rowid-ordered scan
 EXPLAIN
 SELECT * FROM City
 WHERE Population > 100000 AND Name LIKE 'Aba%' OR
@@ -69,12 +69,12 @@ EXPLAIN
 SELECT * FROM City
 WHERE (Population > 101000 AND Population < 115000);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	City	range	Population	Population	4	NULL	459	Using index condition; Using MRR
+1	SIMPLE	City	range	Population	Population	4	NULL	459	Using index condition; Rowid-ordered scan
 EXPLAIN 
 SELECT * FROM City
 WHERE (Population > 101000 AND Population < 102000);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	City	range	Population	Population	4	NULL	39	Using index condition; Using MRR
+1	SIMPLE	City	range	Population	Population	4	NULL	39	Using index condition; Rowid-ordered scan
 EXPLAIN 
 SELECT * FROM City
 WHERE ((Name > 'Ca' AND Name < 'Cf') OR (Country > 'E' AND Country < 'F'));
@@ -91,7 +91,7 @@ SELECT * FROM City
 WHERE ((Name > 'Ca' AND Name < 'Cf') OR (Country > 'E' AND Country < 'F'))
 AND (Population > 101000 AND Population < 102000);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	City	range	Population,Country,Name	Population	4	NULL	39	Using index condition; Using where; Using MRR
+1	SIMPLE	City	range	Population,Country,Name	Population	4	NULL	39	Using index condition; Using where; Rowid-ordered scan
 SELECT * FROM City USE INDEX ()
 WHERE ((Name > 'Ca' AND Name < 'Cf') OR (Country > 'E' AND Country < 'F'))
 AND (Population > 101000 AND Population < 115000);
@@ -171,37 +171,37 @@ ID	Name	Country	Population
 EXPLAIN
 SELECT  * FROM City WHERE (Name < 'Ac');
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	City	range	Name	Name	35	NULL	13	Using index condition; Using MRR
+1	SIMPLE	City	range	Name	Name	35	NULL	13	Using index condition; Rowid-ordered scan
 EXPLAIN
 SELECT  * FROM City WHERE (Name < 'Bb');
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	City	range	Name	Name	35	NULL	208	Using index condition; Using MRR
+1	SIMPLE	City	range	Name	Name	35	NULL	208	Using index condition; Rowid-ordered scan
 EXPLAIN
 SELECT  * FROM City WHERE (Country > 'A' AND Country < 'B');
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	City	range	Country	Country	3	NULL	104	Using index condition; Using MRR
+1	SIMPLE	City	range	Country	Country	3	NULL	104	Using index condition; Rowid-ordered scan
 EXPLAIN
 SELECT  * FROM City WHERE (Name BETWEEN 'P' AND 'Pb');
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	City	range	Name	Name	35	NULL	39	Using index condition; Using MRR
+1	SIMPLE	City	range	Name	Name	35	NULL	39	Using index condition; Rowid-ordered scan
 EXPLAIN
 SELECT  * FROM City WHERE (Name BETWEEN 'P' AND 'S');
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	City	range	Name	Name	35	NULL	221	Using index condition; Using MRR
+1	SIMPLE	City	range	Name	Name	35	NULL	221	Using index condition; Rowid-ordered scan
 EXPLAIN
 SELECT  * FROM City WHERE (Population > 101000 AND Population < 110000);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	City	range	Population	Population	4	NULL	328	Using index condition; Using MRR
+1	SIMPLE	City	range	Population	Population	4	NULL	328	Using index condition; Rowid-ordered scan
 EXPLAIN
 SELECT  * FROM City WHERE (Population > 103000 AND Population < 104000);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	City	range	Population	Population	4	NULL	37	Using index condition; Using MRR
+1	SIMPLE	City	range	Population	Population	4	NULL	37	Using index condition; Rowid-ordered scan
 EXPLAIN
 SELECT  * FROM City 
 WHERE (Name < 'Ac' AND (Country > 'A' AND Country < 'B')) OR
 (Name BETWEEN 'P' AND 'Pb' AND (Population > 101000 AND Population < 110000));
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	City	range	Population,Country,Name	Name	35	NULL	52	Using index condition; Using where; Using MRR
+1	SIMPLE	City	range	Population,Country,Name	Name	35	NULL	52	Using index condition; Using where; Rowid-ordered scan
 EXPLAIN
 SELECT  * FROM City
 WHERE (Name < 'Ac' AND (Country > 'A' AND Country < 'B')) OR
@@ -327,11 +327,11 @@ ID	Name	Country	Population
 EXPLAIN
 SELECT * FROM City WHERE (ID < 10) OR (ID BETWEEN 100 AND 110);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	City	range	PRIMARY	PRIMARY	4	NULL	21	Using index condition; Using MRR
+1	SIMPLE	City	range	PRIMARY	PRIMARY	4	NULL	21	Using index condition; Rowid-ordered scan
 EXPLAIN
 SELECT * FROM City WHERE (ID < 200) OR (ID BETWEEN 100 AND 200);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	City	range	PRIMARY	PRIMARY	4	NULL	201	Using index condition; Using MRR
+1	SIMPLE	City	range	PRIMARY	PRIMARY	4	NULL	201	Using index condition; Rowid-ordered scan
 EXPLAIN
 SELECT * FROM City WHERE (ID < 600) OR (ID BETWEEN 900 AND 1500);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
@@ -339,22 +339,22 @@ id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 EXPLAIN
 SELECT * FROM City WHERE Country > 'A' AND Country < 'ARG';
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	City	range	Country	Country	3	NULL	19	Using index condition; Using MRR
+1	SIMPLE	City	range	Country	Country	3	NULL	19	Using index condition; Rowid-ordered scan
 EXPLAIN
 SELECT * FROM City WHERE Name LIKE 'H%' OR Name LIKE 'P%' ;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	City	range	Name	Name	35	NULL	222	Using index condition; Using MRR
+1	SIMPLE	City	range	Name	Name	35	NULL	222	Using index condition; Rowid-ordered scan
 EXPLAIN
 SELECT * FROM City WHERE Name LIKE 'Ha%' OR Name LIKE 'Pa%' ;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	City	range	Name	Name	35	NULL	72	Using index condition; Using MRR
+1	SIMPLE	City	range	Name	Name	35	NULL	72	Using index condition; Rowid-ordered scan
 EXPLAIN
 SELECT * FROM City
 WHERE ((ID < 10) AND (Name LIKE 'H%' OR (Country > 'A' AND Country < 'ARG')))
 OR ((ID BETWEEN 100 AND 110) AND 
 (Name LIKE 'P%' OR (Population > 103000 AND Population < 104000)));
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	City	range	PRIMARY,Population,Country,Name	PRIMARY	4	NULL	21	Using index condition; Using where; Using MRR
+1	SIMPLE	City	range	PRIMARY,Population,Country,Name	PRIMARY	4	NULL	21	Using index condition; Using where; Rowid-ordered scan
 EXPLAIN
 SELECT * FROM City
 WHERE ((ID < 800) AND (Name LIKE 'Ha%' OR (Country > 'A' AND Country < 'ARG')))
@@ -576,39 +576,39 @@ ID	Name	Country	Population
 EXPLAIN 
 SELECT * FROM City WHERE Population > 101000 AND Population < 102000;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	City	range	Population	Population	4	NULL	39	Using index condition; Using MRR
+1	SIMPLE	City	range	Population	Population	4	NULL	39	Using index condition; Rowid-ordered scan
 EXPLAIN 
 SELECT * FROM City WHERE Population > 101000 AND Population < 110000;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	City	range	Population	Population	4	NULL	328	Using index condition; Using MRR
+1	SIMPLE	City	range	Population	Population	4	NULL	328	Using index condition; Rowid-ordered scan
 EXPLAIN 
 SELECT * FROM City WHERE Country < 'C';
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	City	range	Country	Country	3	NULL	436	Using index condition; Using MRR
+1	SIMPLE	City	range	Country	Country	3	NULL	436	Using index condition; Rowid-ordered scan
 EXPLAIN 
 SELECT * FROM City WHERE Country < 'AGO';
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	City	range	Country	Country	3	NULL	6	Using index condition; Using MRR
+1	SIMPLE	City	range	Country	Country	3	NULL	6	Using index condition; Rowid-ordered scan
 EXPLAIN 
 SELECT * FROM City WHERE Name BETWEEN 'P' AND 'S';
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	City	range	Name	Name	35	NULL	221	Using index condition; Using MRR
+1	SIMPLE	City	range	Name	Name	35	NULL	221	Using index condition; Rowid-ordered scan
 EXPLAIN 
 SELECT * FROM City WHERE Name BETWEEN 'P' AND 'Pb';
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	City	range	Name	Name	35	NULL	39	Using index condition; Using MRR
+1	SIMPLE	City	range	Name	Name	35	NULL	39	Using index condition; Rowid-ordered scan
 EXPLAIN 
 SELECT * FROM City WHERE ID BETWEEN 3400 AND 3800;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	City	range	PRIMARY	PRIMARY	4	NULL	401	Using index condition; Using MRR
+1	SIMPLE	City	range	PRIMARY	PRIMARY	4	NULL	401	Using index condition; Rowid-ordered scan
 EXPLAIN 
 SELECT * FROM City WHERE ID BETWEEN 3790 AND 3800;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	City	range	PRIMARY	PRIMARY	4	NULL	11	Using index condition; Using MRR
+1	SIMPLE	City	range	PRIMARY	PRIMARY	4	NULL	11	Using index condition; Rowid-ordered scan
 EXPLAIN 
 SELECT * FROM City WHERE Name LIKE 'P%';
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	City	range	Name	Name	35	NULL	135	Using index condition; Using MRR
+1	SIMPLE	City	range	Name	Name	35	NULL	135	Using index condition; Rowid-ordered scan
 EXPLAIN
 SELECT * FROM City
 WHERE ((Population > 101000 AND Population < 102000) AND
@@ -679,15 +679,15 @@ CREATE INDEX CountryPopulation ON City(Country,Population);
 EXPLAIN
 SELECT * FROM City WHERE Name LIKE 'Pas%';
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	City	range	Name	Name	35	NULL	5	Using index condition; Using MRR
+1	SIMPLE	City	range	Name	Name	35	NULL	5	Using index condition; Rowid-ordered scan
 EXPLAIN
 SELECT * FROM City WHERE Name LIKE 'P%';
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	City	range	Name	Name	35	NULL	135	Using index condition; Using MRR
+1	SIMPLE	City	range	Name	Name	35	NULL	135	Using index condition; Rowid-ordered scan
 EXPLAIN
 SELECT * FROM City WHERE (Population > 101000 AND Population < 103000);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	City	range	Population	Population	4	NULL	81	Using index condition; Using MRR
+1	SIMPLE	City	range	Population	Population	4	NULL	81	Using index condition; Rowid-ordered scan
 EXPLAIN
 SELECT * FROM City WHERE Country='USA';
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
@@ -764,39 +764,39 @@ id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 EXPLAIN
 SELECT * FROM City WHERE ID BETWEEN 3790 AND 3800;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	City	range	PRIMARY	PRIMARY	4	NULL	11	Using index condition; Using MRR
+1	SIMPLE	City	range	PRIMARY	PRIMARY	4	NULL	11	Using index condition; Rowid-ordered scan
 EXPLAIN
 SELECT * FROM City WHERE ID BETWEEN 4025 AND 4035;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	City	range	PRIMARY	PRIMARY	4	NULL	11	Using index condition; Using MRR
+1	SIMPLE	City	range	PRIMARY	PRIMARY	4	NULL	11	Using index condition; Rowid-ordered scan
 EXPLAIN
 SELECT * FROM City WHERE ID BETWEEN 4028 AND 4032;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	City	range	PRIMARY	PRIMARY	4	NULL	5	Using index condition; Using MRR
+1	SIMPLE	City	range	PRIMARY	PRIMARY	4	NULL	5	Using index condition; Rowid-ordered scan
 EXPLAIN
 SELECT * FROM City WHERE ID BETWEEN 3500 AND 3800;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	City	range	PRIMARY	PRIMARY	4	NULL	301	Using index condition; Using MRR
+1	SIMPLE	City	range	PRIMARY	PRIMARY	4	NULL	301	Using index condition; Rowid-ordered scan
 EXPLAIN
 SELECT * FROM City WHERE ID BETWEEN 4000 AND 4300;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	City	range	PRIMARY	PRIMARY	4	NULL	80	Using index condition; Using MRR
+1	SIMPLE	City	range	PRIMARY	PRIMARY	4	NULL	80	Using index condition; Rowid-ordered scan
 EXPLAIN
 SELECT * FROM City WHERE ID BETWEEN 250 and 260 ;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	City	range	PRIMARY	PRIMARY	4	NULL	11	Using index condition; Using MRR
+1	SIMPLE	City	range	PRIMARY	PRIMARY	4	NULL	11	Using index condition; Rowid-ordered scan
 EXPLAIN
 SELECT * FROM City WHERE (Population > 101000 AND Population < 102000);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	City	range	Population	Population	4	NULL	39	Using index condition; Using MRR
+1	SIMPLE	City	range	Population	Population	4	NULL	39	Using index condition; Rowid-ordered scan
 EXPLAIN
 SELECT * FROM City WHERE (Population > 101000 AND Population < 103000);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	City	range	Population	Population	4	NULL	81	Using index condition; Using MRR
+1	SIMPLE	City	range	Population	Population	4	NULL	81	Using index condition; Rowid-ordered scan
 EXPLAIN
 SELECT * FROM City WHERE Name LIKE 'Pa%';
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	City	range	Name	Name	35	NULL	41	Using index condition; Using MRR
+1	SIMPLE	City	range	Name	Name	35	NULL	41	Using index condition; Rowid-ordered scan
 EXPLAIN
 SELECT * FROM City
 WHERE ((Population > 101000 AND Population < 102000) OR
@@ -949,14 +949,14 @@ WHERE ((Population > 101000 AND Population < 11000) OR
 ID BETWEEN 3500 AND 3800) AND Country='USA'
         AND (Name LIKE 'P%' OR ID BETWEEN 4000 AND 4300);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	City	range	PRIMARY,Population,Country,Name,CountryPopulation,CountryName	CountryName	38	NULL	23	Using index condition; Using where; Using MRR
+1	SIMPLE	City	range	PRIMARY,Population,Country,Name,CountryPopulation,CountryName	CountryName	38	NULL	23	Using index condition; Using where; Rowid-ordered scan
 EXPLAIN
 SELECT * FROM City
 WHERE ((Population > 101000 AND Population < 11000) OR
 ID BETWEEN 3500 AND 3800) AND Country='USA'
         AND (Name LIKE 'Pho%' OR ID BETWEEN 4000 AND 4300);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	City	range	PRIMARY,Population,Country,Name,CountryPopulation,CountryName	Name	35	NULL	1	Using where; Using MRR
+1	SIMPLE	City	range	PRIMARY,Population,Country,Name,CountryPopulation,CountryName	Name	35	NULL	1	Using where; Rowid-ordered scan
 SELECT * FROM City USE INDEX ()
 WHERE ((Population > 101000 AND Population < 11000) OR
 ID BETWEEN 3500 AND 3800) AND Country='USA'

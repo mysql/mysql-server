@@ -1358,6 +1358,31 @@ void get_sweep_read_cost(TABLE *table, ha_rows nrows, bool interrupted,
 */
 #define HA_MRR_MATERIALIZED_KEYS 256
 
+/*
+  The following bits are reserved for use by MRR implementation. The intended
+  use scenario:
+
+  * sql layer calls handler->multi_range_read_info[_const]() 
+    - MRR implementation figures out what kind of scan it will perform, saves
+      the result in *mrr_mode parameter.
+  * sql layer remembers what was returned in *mrr_mode
+
+  * the optimizer picks the query plan (which may or may not include the MRR 
+    scan that was estimated by the multi_range_read_info[_const] call)
+
+  * if the query is an EXPLAIN statement, sql layer will call 
+    handler->multi_range_read_explain_info(mrr_mode) to get a text description
+    of the picked MRR scan; the description will be a part of EXPLAIN output.
+*/
+#define HA_MRR_IMPLEMENTATION_FLAG1 512
+#define HA_MRR_IMPLEMENTATION_FLAG2 1024
+#define HA_MRR_IMPLEMENTATION_FLAG3 2048
+#define HA_MRR_IMPLEMENTATION_FLAG4 4096
+#define HA_MRR_IMPLEMENTATION_FLAG5 8192
+#define HA_MRR_IMPLEMENTATION_FLAG6 16384
+
+#define HA_MRR_IMPLEMENTATION_FLAGS \
+  (512 | 1024 | 2048 | 4096 | 8192 | 16384)
 
 /*
   This is a buffer area that the handler can use to store rows.
@@ -1863,14 +1888,40 @@ public:
   virtual ha_rows multi_range_read_info_const(uint keyno, RANGE_SEQ_IF *seq,
                                               void *seq_init_param, 
                                               uint n_ranges, uint *bufsz,
-                                              uint *flags, COST_VECT *cost);
+                                              uint *mrr_mode, COST_VECT *cost);
   virtual ha_rows multi_range_read_info(uint keyno, uint n_ranges, uint keys,
                                         uint key_parts, uint *bufsz, 
-                                        uint *flags, COST_VECT *cost);
+                                        uint *mrr_mode, COST_VECT *cost);
   virtual int multi_range_read_init(RANGE_SEQ_IF *seq, void *seq_init_param,
-                                    uint n_ranges, uint mode, 
+                                    uint n_ranges, uint mrr_mode, 
                                     HANDLER_BUFFER *buf);
   virtual int multi_range_read_next(range_id_t *range_info);
+  /*
+    Return string representation of the MRR plan.
+
+    This is intended to be used for EXPLAIN, via the following scenario:
+    1. SQL layer calls handler->multi_range_read_info().
+    1.1. Storage engine figures out whether it will use some non-default
+         MRR strategy, sets appropritate bits in *mrr_mode, and returns 
+         control to SQL layer
+    2. SQL layer remembers the returned mrr_mode
+    3. SQL layer compares various options and choses the final query plan. As
+       a part of that, it makes a choice of whether to use the MRR strategy
+       picked in 1.1
+    4. EXPLAIN code converts the query plan to its text representation. If MRR
+       strategy is part of the plan, it calls
+       multi_range_read_explain_info(mrr_mode) to get a text representation of
+       the picked MRR strategy.
+
+    @param mrr_mode   Mode which was returned by multi_range_read_info[_const]
+    @param str        INOUT string to be printed for EXPLAIN
+    @param str_end    End of the string buffer. The function is free to put the 
+                      string into [str..str_end] memory range.
+  */
+  virtual int multi_range_read_explain_info(uint mrr_mode, char *str, 
+                                            size_t size)
+  { return 0; }
+
   virtual int read_range_first(const key_range *start_key,
                                const key_range *end_key,
                                bool eq_range, bool sorted);

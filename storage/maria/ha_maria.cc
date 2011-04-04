@@ -3665,6 +3665,11 @@ ha_rows ha_maria::multi_range_read_info(uint keyno, uint n_ranges, uint keys,
   return ds_mrr.dsmrr_info(keyno, n_ranges, keys, key_parts, bufsz, flags, cost);
 }
 
+int ha_maria::multi_range_read_explain_info(uint mrr_mode, char *str, 
+                                            size_t size)
+{
+  return ds_mrr.dsmrr_explain_info(mrr_mode, str, size);
+}
 /* MyISAM MRR implementation ends */
 
 

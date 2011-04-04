@@ -21,7 +21,7 @@ Table	Op	Msg_type	Msg_text
 test.t0	analyze	status	OK
 explain select * from t0 where key1 < 3 or key1 > 1020;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t0	range	i1	i1	4	NULL	78	Using index condition; Using MRR
+1	SIMPLE	t0	range	i1	i1	4	NULL	78	Using index condition; Rowid-ordered scan
 explain
 select * from t0 where key1 < 3 or key2 > 1020;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
@@ -74,7 +74,7 @@ id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	t0	index_merge	i1,i2	i1,i2	4,4	NULL	17	Using sort_union(i1,i2); Using where
 explain select * from t0 where key2 = 45 or key1 <=> null;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t0	range	i1,i2	i2	4	NULL	1	Using where; Using MRR
+1	SIMPLE	t0	range	i1,i2	i2	4	NULL	1	Using where; Rowid-ordered scan
 explain select * from t0 where key2 = 45 or key1 is not null;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	t0	ALL	i1,i2	NULL	NULL	NULL	1024	Using where
@@ -277,7 +277,7 @@ id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 explain select * from t0,t1 where t0.key1 < 3 and
 (t1.key1 = t0.key1 or t1.key8 = t0.key1);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t0	range	i1	i1	4	NULL	3	Using index condition; Using MRR
+1	SIMPLE	t0	range	i1	i1	4	NULL	3	Using index condition; Rowid-ordered scan
 1	SIMPLE	t1	ALL	i1,i8	NULL	NULL	NULL	1024	Range checked for each record (index map: 0x81)
 explain select * from t1 where key1=3 or key2=4
 union select * from t1 where key1<4 or key3=5;
@@ -1379,7 +1379,7 @@ primary key (pk1, pk2)
 );
 explain select * from t1 where pk1 = 1 and pk2 < 80  and key1=0;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	range	PRIMARY,key1	PRIMARY	8	NULL	7	Using index condition; Using where; Using MRR
+1	SIMPLE	t1	range	PRIMARY,key1	PRIMARY	8	NULL	7	Using index condition; Using where; Rowid-ordered scan
 select * from t1 where pk1 = 1 and pk2 < 80  and key1=0;
 pk1	pk2	key1	key2	pktail1ok	pktail2ok	pktail3bad	pktail4bad	pktail5bad	pk2copy	badkey	filler1	filler2
 1	19	0	0	0	0	0	0	0	19	0	filler-data-19	filler2
