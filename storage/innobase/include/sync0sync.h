@@ -110,7 +110,6 @@ extern mysql_pfs_key_t	syn_arr_mutex_key;
 extern mysql_pfs_key_t	sync_thread_mutex_key;
 # endif /* UNIV_SYNC_DEBUG */
 extern mysql_pfs_key_t	trx_doublewrite_mutex_key;
-extern mysql_pfs_key_t	thr_local_mutex_key;
 extern mysql_pfs_key_t	trx_undo_mutex_key;
 #endif /* UNIV_PFS_MUTEX */
 
