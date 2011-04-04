@@ -135,12 +135,12 @@ int Rpl_info_file::do_check_info()
     failure as a detailed error code is not returned. For that
     reason, we print out such information in here.
   */
-  if (my_access(info_fname, F_OK | R_OK | W_OK) && errno != ENOENT)
+  if (my_access(info_fname, F_OK | R_OK | W_OK))
     sql_print_warning("Info file is not ready to be used. Info file "
                       "'%s' cannot be accessed (errno %d).", info_fname,
                       errno);
   
-  return my_access(info_fname, W_OK);
+  return my_access(info_fname, F_OK);
 }
 
 int Rpl_info_file::do_flush_info(const bool force)
