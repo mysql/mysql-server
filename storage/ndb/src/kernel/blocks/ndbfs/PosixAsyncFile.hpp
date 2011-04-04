@@ -25,7 +25,7 @@
  * Also does direct IO, preallocation.
  */
 
-#include <azlib.h>
+#include <ndbzio.h>
 
 /**
  * PREAD/PWRITE is needed to use file != thread
@@ -66,9 +66,9 @@ private:
   int theFd;
 
   int use_gz;
-  azio_stream azf;
-  struct az_alloc_rec az_mempool;
-  void* azfBufferUnaligned;
+  ndbzio_stream nzf;
+  struct ndbz_alloc_rec nz_mempool;
+  void* nzfBufferUnaligned;
 
   int check_odirect_read(Uint32 flags, int&new_flags, int mode);
   int check_odirect_write(Uint32 flags, int&new_flags, int mode);
