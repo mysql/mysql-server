@@ -8,6 +8,10 @@
 # Don't test this under valgrind, memory leaks will occur as we crash
 --source include/not_valgrind.inc
 
+# The test case currently uses grep and tail, which may be unavailable on
+# some windows systems. But see MWL#191 for how to remove the need for grep.
+--source include/not_windows.inc
+
 # XtraDB stores the binlog position corresponding to the last commit, and
 # prints it during crash recovery.
 # Test that we get the correct position when we group commit several
