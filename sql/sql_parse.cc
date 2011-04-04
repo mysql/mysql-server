@@ -4439,7 +4439,11 @@ static bool execute_sqlcom_select(THD *thd, TABLE_LIST *all_tables)
         char buff[1024];
         String str(buff,(uint32) sizeof(buff), system_charset_info);
         str.length(0);
-        thd->lex->unit.print(&str, QT_ORDINARY);
+        /*
+          The warnings system requires input in utf8, @see
+          mysqld_show_warnings().
+        */
+        thd->lex->unit.print(&str, QT_TO_SYSTEM_CHARSET);
         str.append('\0');
         push_warning(thd, MYSQL_ERROR::WARN_LEVEL_NOTE,
                      ER_YES, str.ptr());

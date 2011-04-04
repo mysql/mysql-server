@@ -147,6 +147,8 @@ sync_slave_with_master;
 connection master;
 INSERT INTO t4 VALUES (4);
 connection slave;
+call mtr.add_suppression("Slave SQL.*Table definition on master and slave does not match: Column [012] type mismatch.* Error_code: 1535");
+call mtr.add_suppression("Slave SQL.*Column [0-9] of table .test.t[0-9]. cannot be converted from type.* Error_code: 1677");
 --let $slave_skip_counter= 2
 --let $slave_sql_errno= 1677
 --let $show_slave_sql_error= 1

@@ -194,6 +194,10 @@ my $opt_debug_common;
 our $opt_debug_server;
 our @opt_cases;                  # The test cases names in argv
 our $opt_embedded_server;
+# -1 indicates use default, override with env.var.
+my $opt_ctest= env_or_val(MTR_UNIT_TESTS => -1);
+# Unit test report stored here for delayed printing
+my $ctest_report;
 
 # Options used when connecting to an already running server
 my %opts_extern;
@@ -493,11 +497,20 @@ sub main {
     mtr_error("Not all tests completed");
   }
 
+  mark_time_used('init');
+
+  push @$completed, run_ctest() if $opt_ctest;
+
   mtr_print_line();
 
   if ( $opt_gcov ) {
     gcov_collect($basedir, $opt_gcov_exe,
 		 $opt_gcov_msg, $opt_gcov_err);
+  }
+
+  if ($ctest_report) {
+    print "$ctest_report\n";
+    mtr_print_line();
   }
 
   print_total_times($opt_parallel) if $opt_report_times;
@@ -1055,6 +1068,7 @@ sub command_line_setup {
 	     'max-connections=i'        => \$opt_max_connections,
 	     'default-myisam!'          => \&collect_option,
 	     'report-times'             => \$opt_report_times,
+	     'unit-tests!'              => \$opt_ctest,
 
              'help|h'                   => \$opt_usage,
 	     # list-options is internal, not listed in help
@@ -1483,6 +1497,14 @@ sub command_line_setup {
     mtr_error("--user-args cannot be combined with named suites or tests")
       if $opt_suites || @opt_cases;
   }
+
+  # --------------------------------------------------------------------------
+  # Don't run ctest if tests or suites named
+  # --------------------------------------------------------------------------
+
+  $opt_ctest= 0 if $opt_ctest == -1 && ($opt_suites || @opt_cases);
+  # Override: disable if running in the PB test environment
+  $opt_ctest= 0 if $opt_ctest == -1 && defined $ENV{PB2WORKDIR};
 
   # --------------------------------------------------------------------------
   # Check use of wait-all
@@ -5648,6 +5670,78 @@ sub valgrind_exit_reports() {
   return $found_err;
 }
 
+sub run_ctest() {
+  my $olddir= getcwd();
+  chdir ($bindir) or die ("Could not chdir to $bindir");
+  my $tinfo;
+  my $no_ctest= (IS_WINDOWS) ? 256 : -1;
+  my $ctest_vs= "";
+
+  # Just ignore if not configured/built to run ctest
+  if (! -f "CTestTestfile.cmake") {
+    chdir($olddir);
+    return;
+  }
+
+  # Add vs-config option if needed
+  $ctest_vs= "-C $opt_vs_config" if $opt_vs_config;
+
+  # Also silently ignore if we don't have ctest and didn't insist
+  # Special override: also ignore in Pushbuild, some platforms may not have it
+  # Now, run ctest and collect output
+  my $ctest_out= `ctest $ctest_vs 2>&1`;
+  if ($? == $no_ctest && $opt_ctest == -1 && ! defined $ENV{PB2WORKDIR}) {
+    chdir($olddir);
+    return;
+  }
+
+  # Create minimalistic "test" for the reporting
+  $tinfo = My::Test->new
+    (
+     name           => 'unit_tests',
+    );
+  # Set dummy worker id to align report with normal tests
+  $tinfo->{worker} = 0 if $opt_parallel > 1;
+
+  my $ctfail= 0;		# Did ctest fail?
+  if ($?) {
+    $ctfail= 1;
+    $tinfo->{result}= 'MTR_RES_FAILED';
+    $tinfo->{comment}= "ctest failed with exit code $?, see result below";
+    $ctest_out= "" unless $ctest_out;
+  }
+  my $ctfile= "$opt_vardir/ctest.log";
+  my $ctres= 0;			# Did ctest produce report summary?
+
+  open (CTEST, " > $ctfile") or die ("Could not open output file $ctfile");
+
+  # Put ctest output in log file, while analyzing results
+  for (split ('\n', $ctest_out)) {
+    print CTEST "$_\n";
+    if (/tests passed/) {
+      $ctres= 1;
+      $ctest_report .= "\nUnit tests: $_\n";
+    }
+    if ( /FAILED/ or /\(Failed\)/ ) {
+      $ctfail= 1;
+      $ctest_report .= "  $_\n";
+    }
+  }
+  close CTEST;
+
+  # Set needed 'attributes' for test reporting
+  $tinfo->{comment}.= "\nctest did not pruduce report summary" if ! $ctres;
+  $tinfo->{result}= ($ctres && !$ctfail)
+    ? 'MTR_RES_PASSED' : 'MTR_RES_FAILED';
+  $ctest_report .= "Report from unit tests in $ctfile";
+  $tinfo->{failures}= ($tinfo->{result} eq 'MTR_RES_FAILED');
+
+  mark_time_used('test');
+  mtr_report_test($tinfo);
+  chdir($olddir);
+  return $tinfo;
+}
+
 #
 # Usage
 #
@@ -5866,6 +5960,9 @@ Misc options
                         engine to InnoDB.
   report-times          Report how much time has been spent on different
                         phases of test execution.
+  nounit-tests          Do not run unit tests. Normally run if configured
+                        and if not running named tests/suites
+  unit-tests            Run unit tests even if they would otherwise not be run
 
 Some options that control enabling a feature for normal test runs,
 can be turned off by prepending 'no' to the option, e.g. --notimer.

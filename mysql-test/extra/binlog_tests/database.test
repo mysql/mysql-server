@@ -30,3 +30,30 @@ drop table tt1, t1;
 source include/show_binlog_events.inc;
 
 FLUSH STATUS;
+
+
+--echo #
+--echo # Bug#11765416 58381: FAILED DROP DATABASE CAN BREAK STATEMENT
+--echo #              BASED REPLICATION
+--echo #
+
+--disable_warnings
+DROP DATABASE IF EXISTS db1;
+DROP TABLE IF EXISTS t3;
+--enable_warnings
+
+CREATE DATABASE db1;
+CREATE TABLE db1.t1 (a INT);
+CREATE TABLE db1.t2 (b INT, KEY(b)) engine=innodb;
+CREATE TABLE t3 (a INT, KEY (a), FOREIGN KEY(a) REFERENCES db1.t2(b))
+  engine=innodb;
+RESET MASTER;
+
+--error ER_ROW_IS_REFERENCED
+DROP DATABASE db1;                      # Fails because of the fk
+SHOW TABLES FROM db1;                   # t1 was dropped, t2 remains
+--source include/show_binlog_events.inc # Check that the binlog drops t1
+
+# Cleanup
+DROP TABLE t3;
+DROP DATABASE db1;

@@ -1030,13 +1030,32 @@ static bool session_readonly(sys_var *self, THD *thd, set_var *var)
            self->name.str, "GLOBAL");
   return true;
 }
+
+static bool
+check_max_allowed_packet(sys_var *self, THD *thd,  set_var *var)
+{
+  longlong val;
+  if (session_readonly(self, thd, var))
+    return true;
+
+  val= var->save_result.ulonglong_value;
+  if (val < (longlong) global_system_variables.net_buffer_length)
+  {
+    push_warning_printf(thd, MYSQL_ERROR::WARN_LEVEL_WARN,
+                        WARN_OPTION_BELOW_LIMIT, ER(WARN_OPTION_BELOW_LIMIT),
+                        "max_allowed_packet", "net_buffer_length");
+  }
+  return false;
+}
+
+
 static Sys_var_ulong Sys_max_allowed_packet(
        "max_allowed_packet",
        "Max packet length to send to or receive from the server",
        SESSION_VAR(max_allowed_packet), CMD_LINE(REQUIRED_ARG),
        VALID_RANGE(1024, 1024*1024*1024), DEFAULT(1024*1024),
        BLOCK_SIZE(1024), NO_MUTEX_GUARD, NOT_IN_BINLOG,
-       ON_CHECK(session_readonly));
+       ON_CHECK(check_max_allowed_packet));
 
 static Sys_var_ulonglong Sys_max_binlog_cache_size(
        "max_binlog_cache_size",
@@ -1182,6 +1201,16 @@ static Sys_var_harows Sys_sql_max_join_size(
        NO_MUTEX_GUARD, NOT_IN_BINLOG, ON_CHECK(0),
        ON_UPDATE(fix_max_join_size), DEPRECATED(70000, 0));
 
+static Sys_var_ulong Sys_max_long_data_size(
+       "max_long_data_size",
+       "The maximum BLOB length to send to server from "
+       "mysql_send_long_data API. Deprecated option; "
+       "use max_allowed_packet instead.",
+       READ_ONLY GLOBAL_VAR(max_long_data_size),
+       CMD_LINE(REQUIRED_ARG, OPT_MAX_LONG_DATA_SIZE),
+       VALID_RANGE(1024, UINT_MAX32), DEFAULT(1024*1024),
+       BLOCK_SIZE(1));
+
 static PolyLock_mutex PLock_prepared_stmt_count(&LOCK_prepared_stmt_count);
 static Sys_var_ulong Sys_max_prepared_stmt_count(
        "max_prepared_stmt_count",
@@ -1257,12 +1286,29 @@ static Sys_var_mybool Sys_named_pipe(
        DEFAULT(FALSE));
 #endif
 
+
+static bool 
+check_net_buffer_length(sys_var *self, THD *thd,  set_var *var)
+{
+  longlong val;
+  if (session_readonly(self, thd, var))
+    return true;
+
+  val= var->save_result.ulonglong_value;
+  if (val > (longlong) global_system_variables.max_allowed_packet)
+  {
+    push_warning_printf(thd, MYSQL_ERROR::WARN_LEVEL_WARN,
+                        WARN_OPTION_BELOW_LIMIT, ER(WARN_OPTION_BELOW_LIMIT),
+                        "max_allowed_packet", "net_buffer_length");
+  }
+  return false;
+}
 static Sys_var_ulong Sys_net_buffer_length(
        "net_buffer_length",
        "Buffer length for TCP/IP and socket communication",
        SESSION_VAR(net_buffer_length), CMD_LINE(REQUIRED_ARG),
        VALID_RANGE(1024, 1024*1024), DEFAULT(16384), BLOCK_SIZE(1024),
-       NO_MUTEX_GUARD, NOT_IN_BINLOG, ON_CHECK(session_readonly));
+       NO_MUTEX_GUARD, NOT_IN_BINLOG, ON_CHECK(check_net_buffer_length));
 
 static bool fix_net_read_timeout(sys_var *self, THD *thd, enum_var_type type)
 {
@@ -2756,7 +2802,7 @@ static Sys_var_charptr Sys_slow_log_path(
        ON_CHECK(check_log_path), ON_UPDATE(fix_slow_log_file));
 
 /// @todo deprecate these four legacy have_PLUGIN variables and use I_S instead
-export SHOW_COMP_OPTION have_csv, have_innodb;
+export SHOW_COMP_OPTION have_csv, have_innodb= SHOW_OPTION_DISABLED;
 export SHOW_COMP_OPTION have_ndbcluster, have_partitioning;
 static Sys_var_have Sys_have_csv(
        "have_csv", "have_csv",

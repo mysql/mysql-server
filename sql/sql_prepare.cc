@@ -2784,6 +2784,7 @@ void mysql_sql_stmt_close(THD *thd)
   }
 }
 
+
 /**
   Handle long data in pieces from client.
 
@@ -2840,16 +2841,25 @@ void mysql_stmt_get_longdata(THD *thd, char *packet, ulong packet_length)
 
   param= stmt->param_array[param_number];
 
+  Diagnostics_area new_stmt_da, *save_stmt_da= thd->stmt_da;
+  Warning_info new_warnning_info(thd->query_id), *save_warinig_info= thd->warning_info;
+
+  thd->stmt_da= &new_stmt_da;
+  thd->warning_info= &new_warnning_info;
+
 #ifndef EMBEDDED_LIBRARY
-  if (param->set_longdata(packet, (ulong) (packet_end - packet)))
+  param->set_longdata(packet, (ulong) (packet_end - packet));
 #else
-  if (param->set_longdata(thd->extra_data, thd->extra_length))
+  param->set_longdata(thd->extra_data, thd->extra_length);
 #endif
+  if (thd->stmt_da->is_error())
   {
     stmt->state= Query_arena::ERROR;
-    stmt->last_errno= ER_OUTOFMEMORY;
-    sprintf(stmt->last_error, ER(ER_OUTOFMEMORY), 0);
+    stmt->last_errno= thd->stmt_da->sql_errno();
+    strncpy(stmt->last_error, thd->stmt_da->message(), MYSQL_ERRMSG_SIZE);
   }
+  thd->stmt_da= save_stmt_da;
+  thd->warning_info= save_warinig_info;
 
   general_log_print(thd, thd->command, NullS);
 
@@ -3389,6 +3399,13 @@ Prepared_statement::execute_loop(String *expanded_query,
   bool error;
   int reprepare_attempt= 0;
 
+  /* Check if we got an error when sending long data */
+  if (state == Query_arena::ERROR)
+  {
+    my_message(last_errno, last_error, MYF(0));
+    return TRUE;
+  }
+
   if (set_parameters(expanded_query, packet, packet_end))
     return TRUE;
 
@@ -3656,12 +3673,6 @@ bool Prepared_statement::execute(String *expanded_query, bool open_cursor)
 
   status_var_increment(thd->status_var.com_stmt_execute);
 
-  /* Check if we got an error when sending long data */
-  if (state == Query_arena::ERROR)
-  {
-    my_message(last_errno, last_error, MYF(0));
-    return TRUE;
-  }
   if (flags & (uint) IS_IN_USE)
   {
     my_error(ER_PS_NO_RECURSION, MYF(0));

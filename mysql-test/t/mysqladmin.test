@@ -45,3 +45,17 @@ remove_file $MYSQLTEST_VARDIR/tmp/bug10608.cnf;
 --cat_file $MYSQLTEST_VARDIR/tmp/mysqladmin.tmp
 
 --remove_file $MYSQLTEST_VARDIR/tmp/mysqladmin.tmp
+
+--echo #
+--echo # BUG#11766184 - 59234: cmdline clients crash --defaults-extra-file
+--echo #                with no .cnf or .ini extension.
+--echo #
+
+--echo # Creating an empty file 'cnf_file'
+--write_file $MYSQLTEST_VARDIR/tmp/cnf_file
+EOF
+
+--echo # Using --defaults-extra-file option with 'cnf_file'.
+--exec $MYSQLADMIN --defaults-extra-file=$MYSQLTEST_VARDIR/tmp/cnf_file -uroot -S $MASTER_MYSOCK -P $MASTER_MYPORT ping 2>&1
+
+--remove_file $MYSQLTEST_VARDIR/tmp/cnf_file

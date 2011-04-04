@@ -2198,10 +2198,22 @@ ALTER DATABASE `test-database` CHARACTER SET utf8 COLLATE utf8_unicode_ci ;
 --exec $MYSQL_DUMP --quote-names --compact test-database
 
 DROP DATABASE `test-database`;
+# Switching back to test database.
+USE `test`;
 
 --echo #
 --echo # End of 5.1 tests
 --echo #
+
+--echo #
+--echo # Verify that two modes can be given in --compatible;
+--echo # and are reflected in SET SQL_MODE in the mysqldump output.
+--echo # Also verify that a prefix of the mode's name is enough.
+--echo #
+CREATE TABLE t1 (a INT);
+# no_t = no_table_options; no_f = no_field_options
+--exec $MYSQL_DUMP --compatible=no_t,no_f --skip-comments test
+DROP TABLE t1;
 
 # Wait till we reached the initial number of concurrent sessions
 --source include/wait_until_count_sessions.inc

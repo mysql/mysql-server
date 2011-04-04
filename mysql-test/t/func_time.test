@@ -862,6 +862,38 @@ INSERT INTO t1 VALUES (''),('');
 SELECT COUNT(*) FROM t1 GROUP BY TIME_TO_SEC(a);
 DROP TABLE t1;
 
+--echo #
+--echo # Bug#11766112  59151:UNINITIALIZED VALUES IN EXTRACT_DATE_TIME WITH STR_TO_DATE(SPACE(..) ...
+--echo #
+
+SELECT STR_TO_DATE(SPACE(2),'1');
+
+--echo #
+--echo # Bug#11765216  58154: UNINITIALIZED VARIABLE FORMAT IN STR_TO_DATE FUNCTION
+--echo #
+
+SET GLOBAL SQL_MODE='';
+DO  STR_TO_DATE((''), FROM_DAYS(@@GLOBAL.SQL_MODE));
+SET GLOBAL SQL_MODE=DEFAULT;
+
+--echo #
+--echo # Bug#11766087  59125: VALGRIND UNINITIALISED VALUE WARNING IN ULL2DEC, LONGLONG2DECIMAL
+--echo #
+
+SELECT FORMAT(YEAR(STR_TO_DATE('',GET_FORMAT(TIME,''))),1);
+
+--echo #
+--echo # Bug#11766126  59166: ANOTHER DATETIME VALGRIND UNINITIALIZED WARNING
+--echo #
+
+SELECT CAST((MONTH(FROM_UNIXTIME(@@GLOBAL.SQL_MODE))) AS BINARY(1025));
+
+--echo #
+--echo # Bug#11766124  59164: VALGRIND: UNINITIALIZED VALUE IN NUMBER_TO_DATETIME
+--echo #
+
+SELECT ADDDATE(MONTH(FROM_UNIXTIME(NULL)),INTERVAL 1 HOUR);
+
 --echo End of 5.1 tests
 
 --echo #
@@ -888,4 +920,12 @@ SELECT MONTHNAME(0), MONTHNAME(0) IS NULL, MONTHNAME(0) + 1;
 SET storage_engine=NULL;
 
 --echo #
+--echo # Bug #59686 crash in String::copy() with time data type
+--echo #
 
+SELECT min(timestampadd(month, 1>'', from_days('%Z')));
+
+create table t1(a time);
+insert into t1 values ('00:00:00'),('00:01:00');
+select 1 from t1 where 1 < some (select cast(a as datetime) from t1);
+drop table t1;

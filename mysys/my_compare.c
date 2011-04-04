@@ -1,27 +1,23 @@
-/* Copyright (C) 2002-2006 MySQL AB
-   
-   This library is free software; you can redistribute it and/or
-   modify it under the terms of the GNU Library General Public
-   License as published by the Free Software Foundation; version 2
-   of the License.
-   
-   This library is distributed in the hope that it will be useful,
+/* Copyright (c) 2011, Oracle and/or its affiliates. All rights reserved.
+
+   This program is free software; you can redistribute it and/or modify
+   it under the terms of the GNU General Public License as published by
+   the Free Software Foundation; version 2 of the License.
+
+   This program is distributed in the hope that it will be useful,
    but WITHOUT ANY WARRANTY; without even the implied warranty of
-   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
-   Library General Public License for more details.
+   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+   GNU General Public License for more details.
 
-   You should have received a copy of the GNU Library General Public
-   License along with this library; if not, write to the Free
-   Software Foundation, Inc., 59 Temple Place - Suite 330, Boston,
-   MA 02111-1307, USA */
-
+   You should have received a copy of the GNU General Public License
+   along with this program; if not, write to the Free Software
+   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
+   
 #include <my_global.h>
 #include <m_ctype.h>
 #include <my_base.h>
-#include <my_handler.h>
+#include <my_compare.h>
 #include <my_sys.h>
-
-#include "my_handler_errors.h"
 
 #define CMP_NUM(a,b)    (((a) < (b)) ? -1 : ((a) == (b)) ? 0 : 1)
 
@@ -478,127 +474,3 @@ end:
 } /* ha_key_cmp */
 
 
-/*
-  Find the first NULL value in index-suffix values tuple
-
-  SYNOPSIS
-    ha_find_null()
-      keyseg     Array of keyparts for key suffix
-      a          Key suffix value tuple
-
-  DESCRIPTION
-    Find the first NULL value in index-suffix values tuple.
-
-  TODO
-    Consider optimizing this function or its use so we don't search for
-    NULL values in completely NOT NULL index suffixes.
-
-  RETURN
-    First key part that has NULL as value in values tuple, or the last key
-    part (with keyseg->type==HA_TYPE_END) if values tuple doesn't contain
-    NULLs.
-*/
-
-HA_KEYSEG *ha_find_null(HA_KEYSEG *keyseg, uchar *a)
-{
-  for (; (enum ha_base_keytype) keyseg->type != HA_KEYTYPE_END; keyseg++)
-  {
-    uchar *end;
-    if (keyseg->null_bit)
-    {
-      if (!*a++)
-        return keyseg;
-    }
-    end= a+ keyseg->length;
-
-    switch ((enum ha_base_keytype) keyseg->type) {
-    case HA_KEYTYPE_TEXT:
-    case HA_KEYTYPE_BINARY:
-    case HA_KEYTYPE_BIT:
-      if (keyseg->flag & HA_SPACE_PACK)
-      {
-        int a_length;
-        get_key_length(a_length, a);
-        a += a_length;
-        break;
-      }
-      else
-        a= end;
-      break;
-    case HA_KEYTYPE_VARTEXT1:
-    case HA_KEYTYPE_VARTEXT2:
-    case HA_KEYTYPE_VARBINARY1:
-    case HA_KEYTYPE_VARBINARY2:
-      {
-        int a_length;
-        get_key_length(a_length, a);
-        a+= a_length;
-        break;
-      }
-    case HA_KEYTYPE_NUM:
-      if (keyseg->flag & HA_SPACE_PACK)
-      {
-        int alength= *a++;
-        end= a+alength;
-      }
-      a= end;
-      break;
-    case HA_KEYTYPE_INT8:
-    case HA_KEYTYPE_SHORT_INT:
-    case HA_KEYTYPE_USHORT_INT:
-    case HA_KEYTYPE_LONG_INT:
-    case HA_KEYTYPE_ULONG_INT:
-    case HA_KEYTYPE_INT24:
-    case HA_KEYTYPE_UINT24:
-#ifdef HAVE_LONG_LONG
-    case HA_KEYTYPE_LONGLONG:
-    case HA_KEYTYPE_ULONGLONG:
-#endif
-    case HA_KEYTYPE_FLOAT:
-    case HA_KEYTYPE_DOUBLE:
-      a= end;
-      break;
-    case HA_KEYTYPE_END:                        /* purecov: inspected */
-      /* keep compiler happy */
-      DBUG_ASSERT(0);
-      break;
-    }
-  }
-  return keyseg;
-}
-
-
-
-/*
-  Register handler error messages for usage with my_error()
-
-  NOTES
-    This is safe to call multiple times as my_error_register()
-    will ignore calls to register already registered error numbers.
-*/
-
-static const char **get_handler_error_messages()
-{
-  return handler_error_messages;
-}
-
-void my_handler_error_register(void)
-{
-  /*
-    If you got compilation error here about compile_time_assert array, check
-    that every HA_ERR_xxx constant has a corresponding error message in
-    handler_error_messages[] list (check mysys/ma_handler_errors.h and
-    include/my_base.h).
-  */
-  compile_time_assert(HA_ERR_FIRST + array_elements(handler_error_messages) ==
-                      HA_ERR_LAST + 1);
-  my_error_register(get_handler_error_messages, HA_ERR_FIRST,
-                    HA_ERR_FIRST+ array_elements(handler_error_messages)-1);
-}
-
-
-void my_handler_error_unregister(void)
-{
-  my_error_unregister(HA_ERR_FIRST,
-                      HA_ERR_FIRST+ array_elements(handler_error_messages)-1);
-}
