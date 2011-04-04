@@ -288,6 +288,8 @@ THD *Rpl_info_table_access::create_thd()
     thd= new THD;
     thd->thread_stack= (char*) &thd;
     thd->store_globals();
+    thd->security_ctx->skip_grants();
+    thd->system_thread= SYSTEM_THREAD_INFO_REPOSITORY;
   }
   else
     thd= current_thd;

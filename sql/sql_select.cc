@@ -4516,7 +4516,6 @@ static ha_rows get_quick_record_count(THD *thd, SQL_SELECT *select,
 				      TABLE *table,
 				      const key_map *keys,ha_rows limit)
 {
-  int error;
   DBUG_ENTER("get_quick_record_count");
   uchar buff[STACK_BUFF_ALLOC];
   if (check_stack_overrun(thd, STACK_MIN_SIZE, buff))
@@ -4524,8 +4523,13 @@ static ha_rows get_quick_record_count(THD *thd, SQL_SELECT *select,
   if (select)
   {
     select->head=table;
-    if ((error= select->test_quick_select(thd, *(key_map *)keys,(table_map) 0,
-                                          limit, 0, FALSE)) == 1)
+    int error= select->test_quick_select(thd, 
+                                         *keys, 
+                                         0,      //empty table_map
+                                         limit, 
+                                         false,  //don't force quick range
+                                         ORDER::ORDER_NOT_RELEVANT);
+    if (error == 1)
       DBUG_RETURN(select->quick->records);
     if (error == -1)
     {
@@ -9895,13 +9899,14 @@ static bool make_join_select(JOIN *join, Item *cond)
 	    if (sel->cond && !sel->cond->fixed)
 	      sel->cond->quick_fix_field();
 
-	    if (sel->test_quick_select(thd, tab->keys,
-				       used_tables & ~ current_map,
-				       (join->select_options &
-					OPTION_FOUND_ROWS ?
-					HA_POS_ERROR :
-					join->unit->select_limit_cnt), 0,
-                                        FALSE) < 0)
+            if (sel->test_quick_select(thd, tab->keys,
+                                       used_tables & ~ current_map,
+                                       (join->select_options &
+                                        OPTION_FOUND_ROWS ?
+                                        HA_POS_ERROR :
+                                        join->unit->select_limit_cnt),
+                                       false,   // don't force quick range
+                                       ORDER::ORDER_NOT_RELEVANT) < 0)
             {
 	      /*
 		Before reporting "Impossible WHERE" for the whole query
@@ -9914,8 +9919,9 @@ static bool make_join_select(JOIN *join, Item *cond)
                                          (join->select_options &
                                           OPTION_FOUND_ROWS ?
                                           HA_POS_ERROR :
-                                          join->unit->select_limit_cnt),0,
-                                          FALSE) < 0)
+                                          join->unit->select_limit_cnt),
+                                         false,   //don't force quick range
+                                         ORDER::ORDER_NOT_RELEVANT) < 0)
 		DBUG_RETURN(1);			// Impossible WHERE
             }
             else
@@ -10980,7 +10986,7 @@ bool setup_sj_materialization(JOIN_TAB *tab)
 {
   uint i;
   DBUG_ENTER("setup_sj_materialization");
-  TABLE_LIST *emb_sj_nest= tab->table->pos_in_table_list->embedding;
+  TABLE_LIST *emb_sj_nest= tab->emb_sj_nest;
   Semijoin_mat_exec *sjm= emb_sj_nest->sj_mat_exec;
   THD *thd= tab->join->thd;
   /* First the calls come to the materialization function */
@@ -12008,13 +12014,6 @@ public:
   Item_func *cmp_func;
   COND_CMP(Item *a,Item_func *b) :and_level(a),cmp_func(b) {}
 };
-
-#ifdef HAVE_EXPLICIT_TEMPLATE_INSTANTIATION
-template class I_List<COND_CMP>;
-template class I_List_iterator<COND_CMP>;
-template class List<Item_func_match>;
-template class List_iterator<Item_func_match>;
-#endif
 
 
 /**
@@ -18424,9 +18423,12 @@ test_if_quick_select(JOIN_TAB *tab)
 {
   delete tab->select->quick;
   tab->select->quick=0;
-  return tab->select->test_quick_select(tab->join->thd, tab->keys,
-					(table_map) 0, HA_POS_ERROR, 0,
-                                        FALSE);
+  return tab->select->test_quick_select(tab->join->thd, 
+                                        tab->keys,
+                                        0,          // empty table map
+                                        HA_POS_ERROR, 
+                                        false,      // don't force quick range
+                                        ORDER::ORDER_NOT_RELEVANT);
 }
 
 
@@ -19651,9 +19653,11 @@ static int test_if_order_by_key(ORDER *order, TABLE *table, uint idx,
     if (key_part->field != field || !field->part_of_sortkey.is_set(idx))
       DBUG_RETURN(0);
 
+    const ORDER::enum_order keypart_order= 
+      (key_part->key_part_flag & HA_REVERSE_SORT) ? 
+      ORDER::ORDER_DESC : ORDER::ORDER_ASC;
     /* set flag to 1 if we can use read-next on key, else to -1 */
-    flag= ((order->asc == !(key_part->key_part_flag & HA_REVERSE_SORT)) ?
-           1 : -1);
+    flag= (order->direction == keypart_order) ? 1 : -1;
     if (reverse && flag != reverse)
       DBUG_RETURN(0);
     reverse=flag;				// Remember if reverse
@@ -20110,13 +20114,15 @@ test_if_skip_sort_order(JOIN_TAB *tab,ORDER *order,ha_rows select_limit,
           new_ref_key_map.set_bit(new_ref_key); // only for new_ref_key.
 
           select->quick= 0;
-          if (select->test_quick_select(tab->join->thd, new_ref_key_map, 0,
+          if (select->test_quick_select(tab->join->thd, 
+                                        new_ref_key_map, 
+                                        0,       // empty table_map
                                         (tab->join->select_options &
                                          OPTION_FOUND_ROWS) ?
                                         HA_POS_ERROR :
-                                        tab->join->unit->select_limit_cnt,0,
-                                        TRUE) <=
-              0)
+                                        tab->join->unit->select_limit_cnt,
+                                        false,   // don't force quick range
+                                        order->direction) <= 0)
             goto use_filesort;
 	}
         ref_key= new_ref_key;
@@ -20161,11 +20167,14 @@ test_if_skip_sort_order(JOIN_TAB *tab,ORDER *order,ha_rows select_limit,
         key_map map;           // Force the creation of quick select
         map.set_bit(best_key); // only best_key.
         select->quick= 0;
-        select->test_quick_select(join->thd, map, 0,
+        select->test_quick_select(join->thd, 
+                                  map, 
+                                  0,        // empty table_map
                                   join->select_options & OPTION_FOUND_ROWS ?
                                   HA_POS_ERROR :
                                   join->unit->select_limit_cnt,
-                                  TRUE, FALSE);
+                                  true,     // force quick range
+                                  order->direction);
       }
       order_direction= best_key_direction;
       /*
@@ -20195,18 +20204,13 @@ check_reverse_order:
       */
       if (select->quick->reverse_sorted())
         goto skipped_filesort;
-      else
-      {
-        int quick_type= select->quick->get_type();
-        if (quick_type == QUICK_SELECT_I::QS_TYPE_INDEX_MERGE ||
-            quick_type == QUICK_SELECT_I::QS_TYPE_ROR_INTERSECT ||
-            quick_type == QUICK_SELECT_I::QS_TYPE_ROR_UNION ||
-            quick_type == QUICK_SELECT_I::QS_TYPE_GROUP_MIN_MAX)
-        {
-          tab->limit= 0;
-          goto use_filesort;                   // Use filesort
-        }
-      }
+
+      /*
+        test_quick_select() should not create a quick that cannot do
+        reverse ordering
+      */
+      DBUG_ASSERT((select->quick == save_quick) ||
+                  select->quick->reverse_sort_possible());
     }
   }
 
@@ -20316,7 +20320,7 @@ check_reverse_order:
   /*
     Cleanup:
     We may have both a 'select->quick' and 'save_quick' (original)
-    at this point. Delete the one that we wan't use.
+    at this point. Delete the one that we won't use.
   */
 
 skipped_filesort:
@@ -20823,7 +20827,7 @@ SORT_FIELD *make_unireg_sortorder(ORDER *order, uint *length,
     }
     else
       pos->item= *order->item;
-    pos->reverse=! order->asc;
+    pos->reverse= (order->direction == ORDER::ORDER_DESC);
     DBUG_ASSERT(pos->field != NULL || pos->item != NULL);
   }
   *length=count;
@@ -21336,7 +21340,7 @@ create_distinct_group(THD *thd, Item **ref_pointer_array,
         */
         ord->item= ref_pointer_array;
       }
-      ord->asc=1;
+      ord->direction= ORDER::ORDER_ASC;
       *prev=ord;
       prev= &ord->next;
     }
@@ -21413,7 +21417,7 @@ test_if_subpart(ORDER *a,ORDER *b)
   for (; a && b; a=a->next,b=b->next)
   {
     if ((*a->item)->eq(*b->item,1))
-      a->asc=b->asc;
+      a->direction= b->direction;
     else
       return 0;
   }

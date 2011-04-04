@@ -190,16 +190,22 @@ private:
 
 typedef struct st_order {
   struct st_order *next;
-  Item	 **item;			/* Point at item in select fields */
-  Item	 *item_ptr;			/* Storage for initial item */
+  Item   **item;                        /* Point at item in select fields */
+  Item   *item_ptr;                     /* Storage for initial item */
   int    counter;                       /* position in SELECT list, correct
-                                           only if counter_used is true*/
-  bool	 asc;				/* true if ascending */
-  bool	 free_me;			/* true if item isn't shared  */
-  bool	 in_field_list;			/* true if in select field list */
+                                           only if counter_used is true */
+  enum enum_order {
+    ORDER_NOT_RELEVANT,
+    ORDER_ASC,
+    ORDER_DESC
+  };
+
+  enum_order direction;                 /* Requested direction of ordering */
+  bool   free_me;                       /* true if item isn't shared  */
+  bool   in_field_list;                 /* true if in select field list */
   bool   counter_used;                  /* parameter was counter of columns */
-  Field  *field;			/* If tmp-table group */
-  char	 *buff;				/* If tmp-table group */
+  Field  *field;                        /* If tmp-table group */
+  char   *buff;                         /* If tmp-table group */
   table_map used, depend_map;
 } ORDER;
 
@@ -686,6 +692,16 @@ struct TABLE_SHARE
     table *may* be replicated.
   */
   int cached_row_logging_check;
+
+  /*
+    Storage media to use for this table (unless another storage
+    media has been specified on an individual column - in versions
+    where that is supported)
+  */
+  enum ha_storage_media default_storage_media;
+
+  /* Name of the tablespace used for this table */
+  char *tablespace;
 
 #ifdef WITH_PARTITION_STORAGE_ENGINE
   /* filled in when reading from frm */
@@ -1654,7 +1670,6 @@ struct TABLE_LIST
   bool          check_option_processed;
   /* FRMTYPE_ERROR if any type is acceptable */
   enum frm_type_enum required_type;
-  handlerton	*db_type;		/* table_type for handler */
   char		timestamp_buffer[20];	/* buffer for timestamp (19+1) */
   /*
     This TABLE_LIST object is just placeholder for prelocking, it will be
@@ -1674,9 +1689,6 @@ struct TABLE_LIST
     /* Don't associate a table share. */
     OPEN_STUB
   } open_strategy;
-  /* For transactional locking. */
-  int           lock_timeout;           /* NOWAIT or WAIT [X]               */
-  bool          lock_transactional;     /* If transactional lock requested. */
   bool          internal_tmp_table;
   /** TRUE if an alias for this table was specified in the SQL. */
   bool          is_alias;
@@ -2190,6 +2202,10 @@ extern LEX_STRING SLOW_LOG_NAME;
 /* information schema */
 extern LEX_STRING INFORMATION_SCHEMA_NAME;
 extern LEX_STRING MYSQL_SCHEMA_NAME;
+
+/* replication's tables */
+extern LEX_STRING RLI_INFO_NAME;
+extern LEX_STRING MI_INFO_NAME;
 
 inline bool is_infoschema_db(const char *name, size_t len)
 {

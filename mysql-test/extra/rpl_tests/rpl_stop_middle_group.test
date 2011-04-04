@@ -47,6 +47,7 @@ source include/wait_for_slave_sql_to_stop.inc;
 --let $assert_cond= [SELECT COUNT(*) AS Val FROM ti, Val, 1] = 1
 --source include/assert.inc
 
+--source include/stop_slave.inc
 set @@global.debug="-d";
 
 #
@@ -104,12 +105,15 @@ let $slave_sql_errno= 1593; # ER_SLAVE_FATAL_ERROR
 --let $assert_cond= [SELECT COUNT(*) AS Val FROM ti, Val, 1] = 0
 --source include/assert.inc
 
+--source include/stop_slave.inc
 set @@global.debug="-d";
 
 #
 # The mixed multi-table update
 #
-stop slave;
+
+# above tests for Bug#11765758 - 58754 made sure slave is down
+
 truncate table tm;
 source include/start_slave.inc;
 
@@ -146,6 +150,7 @@ let $slave_sql_errno= 1593; # ER_SLAVE_FATAL_ERROR
 --let $assert_cond= [SELECT MAX(a) AS Val FROM ti, Val, 1] = 1
 --source include/assert.inc
 
+--source include/stop_slave.inc
 set @@global.debug="-d";
 
 #

@@ -36,6 +36,8 @@
 #include <thr_alarm.h>
 #include "rpl_slave.h"
 #include "rpl_mi.h"
+#include "rpl_rli.h"
+#include "rpl_slave.h"
 #include "rpl_info_factory.h"
 #include "transaction.h"
 #include "mysqld.h"
@@ -490,6 +492,73 @@ static Sys_var_mybool Sys_binlog_direct(
        CMD_LINE(OPT_ARG), DEFAULT(FALSE),
        NO_MUTEX_GUARD, NOT_IN_BINLOG, ON_CHECK(binlog_direct_check));
 
+static bool repository_check(sys_var *self, THD *thd, set_var *var, SLAVE_THD_TYPE thread_mask)
+{
+  bool ret= FALSE;
+#ifndef NO_EMBEDDED_ACCESS_CHECKS
+  if (!(thd->security_ctx->master_access & SUPER_ACL))
+  {
+    my_error(ER_SPECIFIC_ACCESS_DENIED_ERROR, MYF(0), "SUPER");
+    return TRUE;
+  }
+#endif
+#ifdef HAVE_REPLICATION
+  int running= 0;
+  const char *msg= NULL;
+  mysql_mutex_lock(&LOCK_active_mi);
+  if (active_mi)
+  {
+    lock_slave_threads(active_mi);
+    init_thread_mask(&running, active_mi, FALSE);
+    if(!running)
+    {
+      switch (thread_mask)
+      {
+        case SLAVE_THD_IO:
+        if (Rpl_info_factory::change_mi_repository(active_mi,
+                                                   var->save_result.ulonglong_value,
+                                                   &msg))
+        {
+          ret= TRUE;
+          my_error(ER_CHANGE_RPL_INFO_REPOSITORY_FAILURE, MYF(0), msg);
+        }
+        break;
+        case SLAVE_THD_SQL:
+          if (Rpl_info_factory::change_rli_repository(active_mi->rli,
+                                                      var->save_result.ulonglong_value,
+                                                      &msg))
+          {
+            ret= TRUE;
+            my_error(ER_CHANGE_RPL_INFO_REPOSITORY_FAILURE, MYF(0), msg);
+          }
+        break;
+        default:
+          assert(0);
+        break;
+      }
+    }
+    else
+    {
+      ret= TRUE;
+      my_error(ER_SLAVE_MUST_STOP, MYF(0));
+    }
+    unlock_slave_threads(active_mi);
+  }
+  mysql_mutex_unlock(&LOCK_active_mi);
+#endif
+  return ret;
+}
+
+static bool relay_log_info_repository_check(sys_var *self, THD *thd, set_var *var)
+{
+  return repository_check(self, thd, var, SLAVE_THD_SQL);
+}
+
+static bool master_info_repository_check(sys_var *self, THD *thd, set_var *var)
+{
+  return repository_check(self, thd, var, SLAVE_THD_IO);
+}
+
 static const char *repository_names[]=
 {
   "FILE", "TABLE", 0
@@ -499,15 +568,19 @@ ulong opt_mi_repository_id;
 static Sys_var_enum Sys_mi_repository(
        "master_info_repository",
        "Defines the type of the repository for the master information."
-       , READ_ONLY GLOBAL_VAR(opt_mi_repository_id), CMD_LINE(REQUIRED_ARG),
-       repository_names, DEFAULT(0));
+       ,GLOBAL_VAR(opt_mi_repository_id), CMD_LINE(REQUIRED_ARG),
+       repository_names, DEFAULT(0), NO_MUTEX_GUARD, NOT_IN_BINLOG,
+       ON_CHECK(master_info_repository_check),
+       ON_UPDATE(0));
 
 ulong opt_rli_repository_id;
 static Sys_var_enum Sys_rli_repository(
        "relay_log_info_repository",
        "Defines the type of the repository for the relay log information."
-       , READ_ONLY GLOBAL_VAR(opt_rli_repository_id), CMD_LINE(REQUIRED_ARG),
-       repository_names, DEFAULT(0));
+       ,GLOBAL_VAR(opt_rli_repository_id), CMD_LINE(REQUIRED_ARG),
+       repository_names, DEFAULT(0), NO_MUTEX_GUARD, NOT_IN_BINLOG,
+       ON_CHECK(relay_log_info_repository_check),
+       ON_UPDATE(0));
 
 static Sys_var_mybool Sys_binlog_rows_query(
        "binlog_rows_query_log_events",
@@ -1179,13 +1252,32 @@ static bool session_readonly(sys_var *self, THD *thd, set_var *var)
            self->name.str, "GLOBAL");
   return true;
 }
+
+static bool
+check_max_allowed_packet(sys_var *self, THD *thd,  set_var *var)
+{
+  longlong val;
+  if (session_readonly(self, thd, var))
+    return true;
+
+  val= var->save_result.ulonglong_value;
+  if (val < (longlong) global_system_variables.net_buffer_length)
+  {
+    push_warning_printf(thd, MYSQL_ERROR::WARN_LEVEL_WARN,
+                        WARN_OPTION_BELOW_LIMIT, ER(WARN_OPTION_BELOW_LIMIT),
+                        "max_allowed_packet", "net_buffer_length");
+  }
+  return false;
+}
+
+
 static Sys_var_ulong Sys_max_allowed_packet(
        "max_allowed_packet",
        "Max packet length to send to or receive from the server",
        SESSION_VAR(max_allowed_packet), CMD_LINE(REQUIRED_ARG),
        VALID_RANGE(1024, 1024*1024*1024), DEFAULT(1024*1024),
        BLOCK_SIZE(1024), NO_MUTEX_GUARD, NOT_IN_BINLOG,
-       ON_CHECK(session_readonly));
+       ON_CHECK(check_max_allowed_packet));
 
 static Sys_var_ulonglong Sys_max_binlog_cache_size(
        "max_binlog_cache_size",
@@ -1413,12 +1505,29 @@ static Sys_var_mybool Sys_named_pipe(
        DEFAULT(FALSE));
 #endif
 
+
+static bool 
+check_net_buffer_length(sys_var *self, THD *thd,  set_var *var)
+{
+  longlong val;
+  if (session_readonly(self, thd, var))
+    return true;
+
+  val= var->save_result.ulonglong_value;
+  if (val > (longlong) global_system_variables.max_allowed_packet)
+  {
+    push_warning_printf(thd, MYSQL_ERROR::WARN_LEVEL_WARN,
+                        WARN_OPTION_BELOW_LIMIT, ER(WARN_OPTION_BELOW_LIMIT),
+                        "max_allowed_packet", "net_buffer_length");
+  }
+  return false;
+}
 static Sys_var_ulong Sys_net_buffer_length(
        "net_buffer_length",
        "Buffer length for TCP/IP and socket communication",
        SESSION_VAR(net_buffer_length), CMD_LINE(REQUIRED_ARG),
        VALID_RANGE(1024, 1024*1024), DEFAULT(16384), BLOCK_SIZE(1024),
-       NO_MUTEX_GUARD, NOT_IN_BINLOG, ON_CHECK(session_readonly));
+       NO_MUTEX_GUARD, NOT_IN_BINLOG, ON_CHECK(check_net_buffer_length));
 
 static bool fix_net_read_timeout(sys_var *self, THD *thd, enum_var_type type)
 {

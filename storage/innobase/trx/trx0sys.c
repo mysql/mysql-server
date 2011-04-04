@@ -1189,7 +1189,7 @@ trx_sys_file_format_id_to_name(
 
 /*****************************************************************//**
 Check for the max file format tag stored on disk. Note: If max_format_id
-is == DICT_TF_FORMAT_MAX + 1 then we only print a warning.
+is == UNIV_FORMAT_MAX + 1 then we only print a warning.
 @return	DB_SUCCESS or error code */
 UNIV_INTERN
 ulint
@@ -1206,15 +1206,15 @@ trx_sys_file_format_max_check(
 	if (format_id == ULINT_UNDEFINED) {
 		/* Format ID was not set. Set it to minimum possible
 		value. */
-		format_id = DICT_TF_FORMAT_MIN;
+		format_id = UNIV_FORMAT_MIN;
 	}
 
 	ut_print_timestamp(stderr);
 	fprintf(stderr,
 		" InnoDB: highest supported file format is %s.\n",
-		trx_sys_file_format_id_to_name(DICT_TF_FORMAT_MAX));
+		trx_sys_file_format_id_to_name(UNIV_FORMAT_MAX));
 
-	if (format_id > DICT_TF_FORMAT_MAX) {
+	if (format_id > UNIV_FORMAT_MAX) {
 
 		ut_a(format_id < FILE_FORMAT_NAME_N);
 
@@ -1222,11 +1222,11 @@ trx_sys_file_format_max_check(
 		fprintf(stderr,
 			" InnoDB: %s: the system tablespace is in a file "
 			"format that this version doesn't support - %s\n",
-			((max_format_id <= DICT_TF_FORMAT_MAX)
+			((max_format_id <= UNIV_FORMAT_MAX)
 				? "Error" : "Warning"),
 			trx_sys_file_format_id_to_name(format_id));
 
-		if (max_format_id <= DICT_TF_FORMAT_MAX) {
+		if (max_format_id <= UNIV_FORMAT_MAX) {
 			return(DB_ERROR);
 		}
 	}
@@ -1255,7 +1255,7 @@ trx_sys_file_format_max_set(
 {
 	ibool		ret = FALSE;
 
-	ut_a(format_id <= DICT_TF_FORMAT_MAX);
+	ut_a(format_id <= UNIV_FORMAT_MAX);
 
 	mutex_enter(&file_format_max.mutex);
 
@@ -1286,7 +1286,7 @@ trx_sys_file_format_tag_init(void)
 
 	/* If format_id is not set then set it to the minimum. */
 	if (format_id == ULINT_UNDEFINED) {
-		trx_sys_file_format_max_set(DICT_TF_FORMAT_MIN, NULL);
+		trx_sys_file_format_max_set(UNIV_FORMAT_MIN, NULL);
 	}
 }
 
@@ -1305,7 +1305,7 @@ trx_sys_file_format_max_upgrade(
 
 	ut_a(name);
 	ut_a(file_format_max.name != NULL);
-	ut_a(format_id <= DICT_TF_FORMAT_MAX);
+	ut_a(format_id <= UNIV_FORMAT_MAX);
 
 	mutex_enter(&file_format_max.mutex);
 
@@ -1342,7 +1342,7 @@ trx_sys_file_format_init(void)
 
 	/* We don't need a mutex here, as this function should only
 	be called once at start up. */
-	file_format_max.id = DICT_TF_FORMAT_MIN;
+	file_format_max.id = UNIV_FORMAT_MIN;
 
 	file_format_max.name = trx_sys_file_format_id_to_name(
 		file_format_max.id);

@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1996, 2010, Innobase Oy. All Rights Reserved.
+Copyright (c) 1996, 2011, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -63,13 +63,15 @@ dict_mem_table_create(
 				ignored if the table is made a member of
 				a cluster */
 	ulint		n_cols,	/*!< in: number of columns */
-	ulint		flags)	/*!< in: table flags */
+	ulint		flags,	/*!< in: table flags */
+	ulint		flags2)	/*!< in: table flags2 */
 {
 	dict_table_t*	table;
 	mem_heap_t*	heap;
 
 	ut_ad(name);
-	ut_a(!(flags & (~0 << DICT_TF2_BITS)));
+	ut_a(!(flags & ~DICT_TF_BIT_MASK));
+	ut_a(!(flags2 & ~DICT_TF2_BIT_MASK));
 
 	heap = mem_heap_create(DICT_HEAP_SIZE);
 
@@ -78,6 +80,7 @@ dict_mem_table_create(
 	table->heap = heap;
 
 	table->flags = (unsigned int) flags;
+	table->flags2 = (unsigned int) flags2;
 	table->name = ut_malloc(strlen(name) + 1);
 	memcpy(table->name, name, strlen(name) + 1);
 	table->space = (unsigned int) space;

@@ -36,6 +36,51 @@
 
 namespace TaoCrypt {
 
+// like atoi but only use first byte
+word32 btoi(byte b)
+{
+    return b - 0x30;
+}
+
+
+// two byte date/time, add to value
+void GetTime(int *value, const byte* date, int& i)
+{
+    *value += btoi(date[i++]) * 10;
+    *value += btoi(date[i++]);
+}
+
+
+void ASN1_TIME_extract(const unsigned char* date, unsigned char format,
+                       tm *t)
+{
+  int i = 0;
+  memset(t, 0, sizeof (tm));
+
+  assert(format == UTC_TIME || format == GENERALIZED_TIME);
+
+  if (format == UTC_TIME) {
+    if (btoi(date[0]) >= 5)
+      t->tm_year = 1900;
+    else
+      t->tm_year = 2000;
+  }
+  else  { // format == GENERALIZED_TIME
+    t->tm_year += btoi(date[i++]) * 1000;
+    t->tm_year += btoi(date[i++]) * 100;
+  }
+
+  GetTime(&t->tm_year, date, i);     t->tm_year -= 1900; // adjust
+  GetTime(&t->tm_mon,  date, i);     t->tm_mon  -= 1;    // adjust
+  GetTime(&t->tm_mday, date, i);
+  GetTime(&t->tm_hour, date, i);
+  GetTime(&t->tm_min,  date, i);
+  GetTime(&t->tm_sec,  date, i);
+
+  assert(date[i] == 'Z');     // only Zulu supported for this profile
+}
+
+
 namespace { // locals
 
 
@@ -70,50 +115,14 @@ bool operator<(tm& a, tm&b)
 }
 
 
-// like atoi but only use first byte
-word32 btoi(byte b)
-{
-    return b - 0x30;
-}
-
-
-// two byte date/time, add to value
-void GetTime(int& value, const byte* date, int& i)
-{
-    value += btoi(date[i++]) * 10;
-    value += btoi(date[i++]);
-}
-
-
 // Make sure before and after dates are valid
 bool ValidateDate(const byte* date, byte format, CertDecoder::DateType dt)
 {
     tm certTime;
-    memset(&certTime, 0, sizeof(certTime));
-    int i = 0;
-
-    if (format == UTC_TIME) {
-        if (btoi(date[0]) >= 5)
-            certTime.tm_year = 1900;
-        else
-            certTime.tm_year = 2000;
-    }
-    else  { // format == GENERALIZED_TIME
-        certTime.tm_year += btoi(date[i++]) * 1000;
-        certTime.tm_year += btoi(date[i++]) * 100;
-    }
-
-    GetTime(certTime.tm_year, date, i);     certTime.tm_year -= 1900; // adjust
-    GetTime(certTime.tm_mon,  date, i);     certTime.tm_mon  -= 1;    // adjust
-    GetTime(certTime.tm_mday, date, i);
-    GetTime(certTime.tm_hour, date, i); 
-    GetTime(certTime.tm_min,  date, i); 
-    GetTime(certTime.tm_sec,  date, i); 
-
-    assert(date[i] == 'Z');     // only Zulu supported for this profile
-
     time_t ltime = time(0);
     tm* localTime = gmtime(&ltime);
+
+    ASN1_TIME_extract(date, format, &certTime);
 
     if (dt == CertDecoder::BEFORE) {
         if (*localTime < certTime)
@@ -805,10 +814,12 @@ void CertDecoder::GetDate(DateType dt)
     if (dt == BEFORE) {
         memcpy(beforeDate_, date, length);
         beforeDate_[length] = 0;
+        beforeDateType_= b;
     }
     else {  // after
         memcpy(afterDate_, date, length);
         afterDate_[length] = 0;
+        afterDateType_= b;
     }       
 }
 
