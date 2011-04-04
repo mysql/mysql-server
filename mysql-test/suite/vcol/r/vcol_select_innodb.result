@@ -44,7 +44,7 @@ a	b	c
 1	-1	-1
 explain select * from t3 where c>=-1;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t3	range	c	c	5	NULL	1	Using index condition; Using MRR
+1	SIMPLE	t3	range	c	c	5	NULL	1	Using index condition; Rowid-ordered scan
 # select_type=SIMPLE, type=ref
 select * from t1,t3 where t1.c=t3.c and t3.c=-1;
 a	b	c	a	b	c
@@ -141,7 +141,7 @@ a	b	c
 2	-2	-2
 explain select * from t3 where c >= -2;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t3	range	c	c	5	NULL	1	Using index condition; Using MRR
+1	SIMPLE	t3	range	c	c	5	NULL	1	Using index condition; Rowid-ordered scan
 # SELECT * FROM tbl_name WHERE <non-vcol expr>
 select * from t3 where a between 1 and 2;
 a	b	c
@@ -165,7 +165,7 @@ a	b	c
 2	-2	-2
 explain select * from t3 where c between -2 and -1;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t3	range	c	c	5	NULL	1	Using index condition; Using MRR
+1	SIMPLE	t3	range	c	c	5	NULL	1	Using index condition; Rowid-ordered scan
 # SELECT * FROM tbl_name WHERE <non-vcol expr> ORDER BY <non-indexed vcol>
 select * from t3 where a between 1 and 2 order by b;
 a	b	c
@@ -205,7 +205,7 @@ a	b	c
 1	-1	-1
 explain select * from t3 where c between -2 and -1 order by b;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t3	range	c	c	5	NULL	1	Using index condition; Using MRR; Using filesort
+1	SIMPLE	t3	range	c	c	5	NULL	1	Using index condition; Rowid-ordered scan; Using filesort
 # SELECT * FROM tbl_name WHERE <non-indexed vcol expr> ORDER BY <indexed vcol>
 select * from t3 where b between -2 and -1 order by c;
 a	b	c

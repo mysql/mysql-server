@@ -1358,6 +1358,22 @@ void get_sweep_read_cost(TABLE *table, ha_rows nrows, bool interrupted,
 */
 #define HA_MRR_MATERIALIZED_KEYS 256
 
+/*
+  The following bits are reserved for use by MRR implementation. The intended
+  use scenario:
+
+  * sql layer calls handler->multi_range_read_info[_const]() 
+    - MRR implementation figures out what kind of scan it will perform, saves
+      the result in *mrr_mode parameter.
+  * sql layer remembers what was returned in *mrr_mode
+
+  * the optimizer picks the query plan (which may or may not include the MRR 
+    scan that was estimated by the multi_range_read_info[_const] call)
+
+  * if the query is an EXPLAIN statement, sql layer will call 
+    handler->multi_range_read_explain_info(mrr_mode) to get a text description
+    of the picked MRR scan; the description will be a part of EXPLAIN output.
+*/
 #define HA_MRR_IMPLEMENTATION_FLAG1 512
 #define HA_MRR_IMPLEMENTATION_FLAG2 1024
 #define HA_MRR_IMPLEMENTATION_FLAG3 2048
