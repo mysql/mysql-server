@@ -285,7 +285,12 @@ int Rpl_info_table::do_check_info()
   if (access->open_table(thd, str_schema, str_table,
                          get_number_info(), TL_READ,
                          &table, &backup))
+  {
+    sql_print_warning("Info table is not ready to be used. Table "
+                      "'%s.%s' cannot be opened.", str_schema.str,
+                      str_table.str);
     goto end;
+  }
 
   /*
     Points the cursor at the row to be deleted where the the master_id
