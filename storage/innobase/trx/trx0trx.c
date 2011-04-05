@@ -214,10 +214,6 @@ trx_allocate_for_mysql(void)
 
 	mutex_exit(&kernel_mutex);
 
-	trx->mysql_thread_id = os_thread_get_curr_id();
-
-	trx->mysql_process_no = os_proc_get_number();
-
 	return(trx);
 }
 
@@ -1728,12 +1724,6 @@ trx_print(
 	default:
 		fprintf(f, " state %lu", (ulong) trx->conc_state);
 	}
-
-#ifdef UNIV_LINUX
-	fprintf(f, ", process no %lu", trx->mysql_process_no);
-#endif
-	fprintf(f, ", OS thread id %lu",
-		(ulong) os_thread_pf(trx->mysql_thread_id));
 
 	if (*trx->op_info) {
 		putc(' ', f);
