@@ -231,6 +231,7 @@ innodb_api_fill_value(
 				innodb_api_fill_mci(read_tpl, col_id,
 						    &item->mci_add_value[i]);
 				err = DB_SUCCESS;
+				break;
 			}
 		}
 	}
@@ -403,13 +404,50 @@ Insert a row
 @return DB_SUCCESS if successful otherwise, error code */
 static
 ib_err_t
+innodb_api_set_multi_cols(
+/*======================*/
+	ib_tpl_t	tpl,		/*!< in: tuple for insert */
+	meta_info_t*	meta_info,	/*!< in: metadata info */
+	char*		value,		/*!< in: value to insert */
+	int		value_len)	/*!< in: value length */
+{
+	ib_err_t	err = DB_ERROR;
+	meta_column_t*	col_info;
+	char*		last;
+	char*		col_val;
+	char*		end = value + value_len;
+	int		i = 0;
+	char*		sep = meta_info->m_separator;
+
+	col_info = meta_info->m_add_item;
+
+	for (col_val = strtok_r(value, sep, &last);
+	     col_val && last <= end && i < meta_info->m_num_add;
+	     col_val = strtok_r(NULL, sep, &last), i++) {
+
+		err = ib_cb_col_set_value(tpl, col_info[i].m_field_id,
+					  col_val, strlen(col_val));
+
+		if (err != DB_SUCCESS) {
+			break;
+		}
+	}
+
+	return(err);
+}
+
+/*************************************************************//**
+Insert a row
+@return DB_SUCCESS if successful otherwise, error code */
+static
+ib_err_t
 innodb_api_set_tpl(
 /*===============*/
 	ib_tpl_t	tpl,		/*!< in: tuple for insert */
 	meta_info_t*	meta_info,	/*!< in: metadata info */
 	meta_column_t*	col_info,	/*!< in: insert col info */
-	const char*	key,		/*!< in: value to insert */
-	int		key_len,	/*!< in: value length */
+	const char*	key,		/*!< in: key */
+	int		key_len,	/*!< in: key length */
 	const char*	value,		/*!< in: value to insert */
 	int		value_len,	/*!< in: value length */
 	uint64_t	cas,		/*!< in: cas */
@@ -422,8 +460,14 @@ innodb_api_set_tpl(
 				  key, key_len);
 	assert(err == DB_SUCCESS);
 
-	err = ib_cb_col_set_value(tpl, col_info[META_VALUE].m_field_id,
-				  value, value_len);
+	if (meta_info->m_num_add > 0) {
+		err = innodb_api_set_multi_cols(tpl, meta_info,
+						(char*) value, value_len);
+	} else {
+		err = ib_cb_col_set_value(tpl, col_info[META_VALUE].m_field_id,
+					  value, value_len);
+	}
+
 	assert(err == DB_SUCCESS);
 
 	if (meta_info->cas_enabled) {
@@ -700,8 +744,11 @@ innodb_api_arithmetic(
 	}
 
 	errno = 0;	
-	value = strtoull(result.mci_item[MCI_COL_VALUE].m_str,
-			&end_ptr, 10);
+
+	if (result.mci_item[MCI_COL_VALUE].m_str) {
+		value = strtoull(result.mci_item[MCI_COL_VALUE].m_str,
+				&end_ptr, 10);
+	}
 	
 	if (errno == ERANGE) {
 		ib_cb_tuple_delete(old_tpl);

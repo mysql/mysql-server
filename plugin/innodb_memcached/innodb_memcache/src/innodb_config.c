@@ -299,6 +299,7 @@ innodb_read_config_option(
 		if (i == CONFIG_VALUE) {
 			item->m_separator = my_strdupl(
 				(char*)ib_cb_col_get_value(tpl, i), data_len);
+			item->m_sep_len = strlen(item->m_separator);
 		}
 	}
 

@@ -492,7 +492,7 @@ static ENGINE_ERROR_CODE innodb_get(ENGINE_HANDLE* handle,
 	uint64_t		exp = 0;
 	uint64_t		flags = 0;
 	innodb_conn_data_t*	conn_data;
-	int			total_len;
+	int			total_len = 0;
 	meta_info_t*		meta_info = &innodb_eng->meta_info;
 
 	if (meta_info->m_set_option == META_CACHE
@@ -550,8 +550,17 @@ static ENGINE_ERROR_CODE innodb_get(ENGINE_HANDLE* handle,
 	if (result.mci_add_value) {
 		int	i;
 		for (i = 0; i < result.mci_add_num; i++) {
-			total_len += result.mci_add_value[i].m_len + 1;
+
+			if (result.mci_add_value[i].m_len == 0) {
+				continue;
+			}
+
+			total_len += (result.mci_add_value[i].m_len
+				      + meta_info->m_sep_len);
 		}
+
+		/* No need to add the last separator */
+		total_len -= meta_info->m_sep_len;
 	} else {
 		total_len = result.mci_item[MCI_COL_VALUE].m_len;
 	}
@@ -572,11 +581,19 @@ static ENGINE_ERROR_CODE innodb_get(ENGINE_HANDLE* handle,
 		char*	c_value = hash_item_get_data(it);
 
 		for (i = 0; i < result.mci_add_num; i++) {
+
+			if (result.mci_add_value[i].m_len == 0) {
+				continue;
+			}
+
 			memcpy(c_value,
 			       result.mci_add_value[i].m_str,
 			       result.mci_add_value[i].m_len);
 
 			c_value += result.mci_add_value[i].m_len;
+			memcpy(c_value, meta_info->m_separator,
+			       meta_info->m_sep_len);
+			c_value += meta_info->m_sep_len;
 		}
 	} else {
 		memcpy(hash_item_get_data(it),
