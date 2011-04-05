@@ -3082,11 +3082,7 @@ suspend_thread:
 	os_event_wait(slot->event);
 
 	if (srv_shutdown_state == SRV_SHUTDOWN_EXIT_THREADS) {
-		/* This is only extra safety, the thread should exit
-		already when the event wait ends */
-
 		os_thread_exit(NULL);
-
 	}
 
 	/* When there is user activity, InnoDB will set the event and the

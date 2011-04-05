@@ -150,10 +150,7 @@ os_event_free(
 	os_event_t	event);	/*!< in: event to free */
 
 /**********************************************************//**
-Waits for an event object until it is in the signaled state. If
-srv_shutdown_state == SRV_SHUTDOWN_EXIT_THREADS this also exits the
-waiting thread when the event becomes signaled (or immediately if the
-event is already in the signaled state).
+Waits for an event object until it is in the signaled state.
 
 Typically, if the event has been signalled after the os_event_reset()
 we'll return immediately because event->is_set == TRUE.
