@@ -335,9 +335,15 @@ bool Rpl_info_factory::decide_repository(Rpl_info *info,
 
       /Alfranio
     */
-    if (info->copy_info(*handler_src, *handler_dest) || (*handler_src)->remove_info())
+    if (info->copy_info(*handler_src, *handler_dest))
     {
       *msg= "Error transfering information";
+      goto err;
+    }
+    (*handler_src)->end_info();
+    if ((*handler_src)->remove_info())
+    {
+      *msg= "Error removing old repository";
       goto err;
     }
   }
@@ -407,19 +413,17 @@ bool Rpl_info_factory::change_repository(Rpl_info *info,
 
       /Alfranio
     */
-    if (info->copy_info(*handler_src, *handler_dest) || (*handler_src)->remove_info())
+    if (info->copy_info(*handler_src, *handler_dest))
     {
       *msg= "Error transfering information";
       goto err;
     }
   }
-  else
+  (*handler_src)->end_info();
+  if ((*handler_src)->remove_info())
   {
-    if ((*handler_src)->remove_info())
-    {
-      *msg= "Error removing old repository";
-      goto err;
-    }
+    *msg= "Error removing old repository";
+    goto err;
   }
 
   info->set_rpl_info_handler(NULL);
