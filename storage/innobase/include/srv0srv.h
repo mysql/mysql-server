@@ -774,8 +774,6 @@ struct export_var_struct{
 
 /** Thread slot in the thread table.  */
 struct srv_slot_struct{
-	os_thread_id_t	id;			/*!< thread id */
-	os_thread_t	handle;			/*!< thread handle */
 	enum srv_thread_type
 			type;			/*!< thread type: user,
 						utility etc. */

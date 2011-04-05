@@ -3145,6 +3145,8 @@ logs_empty_and_mark_files_at_shutdown(void)
 	ulint			total_trx;
 	ulint			pending_io;
 	enum srv_thread_type	active_thd;
+	const char*		thread_name;
+	ibool			server_busy;
 
 	if (srv_print_verbose_log) {
 		ut_print_timestamp(stderr);
@@ -3159,29 +3161,24 @@ loop:
 
 	count++;
 
-	/* We need the monitor threads to stop before we proceed with a
-	normal shutdown. In case of very fast shutdown, however, we can
-	proceed without waiting for monitor threads. */
+	/* We need the monitor threads to stop before we proceed with
+	a shutdown. */
 
-	if (srv_fast_shutdown < 2) {
-	       	const char*	thread_name;
-		
-		thread_name = srv_any_background_threads_are_active();
+	thread_name = srv_any_background_threads_are_active();
 
-		if (thread_name != NULL) {
-			/* Print a message every 60 seconds if we are waiting
-			for the monitor thread to exit. Master and worker
-		       	threads check will be done later. */
+	if (thread_name != NULL) {
+		/* Print a message every 60 seconds if we are waiting
+		for the monitor thread to exit. Master and worker
+		threads check will be done later. */
 
-			if (srv_print_verbose_log && count > 600) {
-				ut_print_timestamp(stderr);
-				fprintf(stderr, "  InnoDB: Waiting for %s "
-					"to exit\n", thread_name);
-				count = 0;
-			}
-
-			goto loop;
+		if (srv_print_verbose_log && count > 600) {
+			ut_print_timestamp(stderr);
+			fprintf(stderr, "  InnoDB: Waiting for %s to exit\n",
+				thread_name);
+			count = 0;
 		}
+
+		goto loop;
 	}
 
 	/* Check that there are no longer transactions. We need this wait even
@@ -3202,21 +3199,6 @@ loop:
 		}
 
 		goto loop;
-	}
-
-	if (srv_fast_shutdown == 2) {
-
-		/* In this fastest shutdown we do not flush the buffer pool:
-		it is essentially a 'crash' of the InnoDB server. Make sure
-		that the log is all flushed to disk, so that we can recover
-		all committed transactions in a crash recovery. We must not
-		write the lsn stamps to the data files, since at a startup
-		InnoDB deduces from the stamps if the previous shutdown was
-		clean. */
-
-		log_buffer_flush_to_disk();
-
-		return; /* We SKIP ALL THE REST !! */
 	}
 
 	/* Check that the background threads are suspended */
@@ -3276,16 +3258,15 @@ loop:
 		}
 	}
 
-	mutex_enter(&(log_sys->mutex));
-
-	if (log_sys->n_pending_checkpoint_writes
+	mutex_enter(&log_sys->mutex);
+	server_busy = log_sys->n_pending_checkpoint_writes
 #ifdef UNIV_LOG_ARCHIVE
-	    || log_sys->n_pending_archive_ios
+		|| log_sys->n_pending_archive_ios
 #endif /* UNIV_LOG_ARCHIVE */
-	    || log_sys->n_pending_writes) {
+		|| log_sys->n_pending_writes;
+	mutex_exit(&log_sys->mutex);
 
-		mutex_exit(&(log_sys->mutex));
-
+	if (server_busy) {
 		if (srv_print_verbose_log && count > 600) {
 			ut_print_timestamp(stderr);
 			fprintf(stderr,
@@ -3297,8 +3278,6 @@ loop:
 		}
 		goto loop;
 	}
-
-	mutex_exit(&(log_sys->mutex));
 
 	pending_io = buf_pool_check_no_pending_io();
 
@@ -3317,10 +3296,36 @@ loop:
 #ifdef UNIV_LOG_ARCHIVE
 	log_archive_all();
 #endif /* UNIV_LOG_ARCHIVE */
+	if (srv_fast_shutdown == 2) {
+		/* In this fastest shutdown we do not flush the buffer pool:
+		it is essentially a 'crash' of the InnoDB server. Make sure
+		that the log is all flushed to disk, so that we can recover
+		all committed transactions in a crash recovery. We must not
+		write the lsn stamps to the data files, since at a startup
+		InnoDB deduces from the stamps if the previous shutdown was
+		clean. */
+
+		log_buffer_flush_to_disk();
+
+		/* Check that the background threads stay suspended */
+		thread_name = srv_any_background_threads_are_active();
+		if (thread_name != NULL) {
+			fprintf(stderr,
+				"InnoDB: Warning: background thread %s"
+				" woke up during shutdown\n", thread_name);
+			goto loop;
+		}
+
+		srv_shutdown_state = SRV_SHUTDOWN_LAST_PHASE;
+		fil_close_all_files();
+		thread_name = srv_any_background_threads_are_active();
+		ut_a(!thread_name);
+		return;
+	}
 
 	log_make_checkpoint_at(LSN_MAX, TRUE);
 
-	mutex_enter(&(log_sys->mutex));
+	mutex_enter(&log_sys->mutex);
 
 	lsn = log_sys->lsn;
 
@@ -3331,7 +3336,7 @@ loop:
 #endif /* UNIV_LOG_ARCHIVE */
 	    ) {
 
-		mutex_exit(&(log_sys->mutex));
+		mutex_exit(&log_sys->mutex);
 
 		goto loop;
 	}
@@ -3349,13 +3354,14 @@ loop:
 	log_archive_close_groups(TRUE);
 #endif /* UNIV_LOG_ARCHIVE */
 
-	mutex_exit(&(log_sys->mutex));
+	mutex_exit(&log_sys->mutex);
 
 	/* Check that the background threads stay suspended */
-	if (srv_get_active_thread_type() != SRV_NONE) {
+	thread_name = srv_any_background_threads_are_active();
+	if (thread_name != NULL) {
 		fprintf(stderr,
-			"InnoDB: Warning: some background thread woke up"
-			" during shutdown\n");
+			"InnoDB: Warning: background thread %s"
+			" woke up during shutdown\n", thread_name);
 
 		goto loop;
 	}

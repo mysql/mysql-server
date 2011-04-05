@@ -591,7 +591,7 @@ information is outdated for the time of one machine instruction, at least.
 the machine supports atomic swap.)
 
 The above solution with priority inheritance may become actual in the
-future, currently we don't implement any priority twiddling solution.
+future, currently we do not implement any priority twiddling solution.
 Our general aim is to reduce the contention of all mutexes by making
 them more fine grained.
 
@@ -783,8 +783,6 @@ srv_table_reserve_slot(
 	slot->suspended = FALSE;
 	slot->type = type;
 	ut_ad(srv_slot_get_type(slot) == type);
-	slot->id = os_thread_get_curr_id();
-	slot->handle = os_thread_get_curr();
 
 	return(slot);
 }
@@ -802,7 +800,6 @@ srv_suspend_thread(
 	srv_sys_mutex_enter();
 	ut_ad(slot->in_use);
 	ut_ad(!slot->suspended);
-	ut_ad(slot->id == os_thread_get_curr_id());
 
 	if (srv_print_thread_releases) {
 		fprintf(stderr,
@@ -863,10 +860,9 @@ srv_release_threads(
 
 			if (srv_print_thread_releases) {
 				fprintf(stderr,
-					"Releasing thread %lu type %lu"
+					"Releasing thread type %lu"
 					" from slot %lu\n",
-					(ulong) slot->id, (ulong) type,
-					(ulong) i);
+					(ulong) type, (ulong) i);
 			}
 
 			count++;
@@ -1039,6 +1035,10 @@ srv_conc_enter_innodb(
 	srv_conc_slot_t*	slot	  = NULL;
 	ulint			i;
 
+#ifdef UNIV_SYNC_DEBUG
+	ut_ad(!sync_thread_levels_nonempty_trx(trx->has_search_latch));
+#endif /* UNIV_SYNC_DEBUG */
+
 	if (trx->mysql_thd != NULL
 	    && thd_is_replication_slave_thread(trx->mysql_thd)) {
 
@@ -1162,6 +1162,10 @@ retry:
 	/* Go to wait for the event; when a thread leaves InnoDB it will
 	release this thread */
 
+	ut_ad(!trx->has_search_latch);
+#ifdef UNIV_SYNC_DEBUG
+	ut_ad(!sync_thread_levels_nonempty_trx(trx->has_search_latch));
+#endif /* UNIV_SYNC_DEBUG */
 	trx->op_info = "waiting in InnoDB queue";
 
 	thd_wait_begin(trx->mysql_thd, THD_WAIT_ROW_TABLE_LOCK);
@@ -1197,6 +1201,10 @@ srv_conc_force_enter_innodb(
 	trx_t*	trx)	/*!< in: transaction object associated with the
 			thread */
 {
+#ifdef UNIV_SYNC_DEBUG
+	ut_ad(!sync_thread_levels_nonempty_trx(trx->has_search_latch));
+#endif /* UNIV_SYNC_DEBUG */
+
 	if (UNIV_LIKELY(!srv_thread_concurrency)) {
 
 		return;
@@ -1268,6 +1276,10 @@ srv_conc_force_exit_innodb(
 	if (slot != NULL) {
 		os_event_set(slot->event);
 	}
+
+#ifdef UNIV_SYNC_DEBUG
+	ut_ad(!sync_thread_levels_nonempty_trx(trx->has_search_latch));
+#endif /* UNIV_SYNC_DEBUG */
 }
 
 /*********************************************************************//**
@@ -1279,6 +1291,10 @@ srv_conc_exit_innodb(
 	trx_t*	trx)	/*!< in: transaction object associated with the
 			thread */
 {
+#ifdef UNIV_SYNC_DEBUG
+	ut_ad(!sync_thread_levels_nonempty_trx(trx->has_search_latch));
+#endif /* UNIV_SYNC_DEBUG */
+
 	if (trx->n_tickets_to_enter_innodb > 0) {
 		/* We will pretend the thread is still inside InnoDB though it
 		now leaves the InnoDB engine. In this way we save
@@ -2632,11 +2648,7 @@ suspend_thread:
 	os_event_wait(slot->event);
 
 	if (srv_shutdown_state == SRV_SHUTDOWN_EXIT_THREADS) {
-		/* This is only extra safety, the thread should exit
-		already when the event wait ends */
-
 		os_thread_exit(NULL);
-
 	}
 
 	goto loop;
