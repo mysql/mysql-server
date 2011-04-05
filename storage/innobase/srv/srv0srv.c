@@ -558,7 +558,7 @@ happening in the server which requires intervention of the master
 thread. Such situations may be, for example, when flushing of dirty
 blocks is needed in the buffer pool or old version of database rows
 have to be cleaned away (purged). The user can configure a separate
-dedicated purge thread(s) too, in which case the master thread doesn't
+dedicated purge thread(s) too, in which case the master thread does not
 do any purging.
 
 The threads which we call user threads serve the queries of the MySQL
@@ -639,16 +639,6 @@ UNIV_INTERN os_event_t	srv_monitor_event;
 
 /** Event to signal the error thread */
 UNIV_INTERN os_event_t	srv_error_event;
-
-/*********************************************************************//**
-Asynchronous purge thread.
-@return	a dummy parameter */
-UNIV_INTERN
-os_thread_ret_t
-srv_purge_thread(
-/*=============*/
-	void*	arg __attribute__((unused)));	/*!< in: a dummy parameter
-						required by os_thread_create */
 
 /***********************************************************************
 Prints counters for work done by srv_master_thread. */

@@ -639,16 +639,6 @@ void
 srv_inc_activity_count(void);
 /*=========================*/
 
-/*********************************************************************//**
-Asynchronous purge thread.
-@return	a dummy parameter */
-UNIV_INTERN
-os_thread_ret_t
-srv_purge_thread(
-/*=============*/
-	void*	arg __attribute__((unused)));	/*!< in: a dummy parameter
-						required by os_thread_create */
-
 /**********************************************************************//**
 Enqueues a task to server task queue and releases a worker thread, if there
 is a suspended one. */
