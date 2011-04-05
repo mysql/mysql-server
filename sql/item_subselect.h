@@ -371,12 +371,6 @@ public:
     See also THD::emb_on_expr_nest.
   */
   TABLE_LIST *emb_on_expr_nest;
-  /* 
-    Location of the subquery predicate. It is either
-     - pointer to join nest if the subquery predicate is in the ON expression
-     - (TABLE_LIST*)1 if the predicate is in the WHERE.
-  */
-  //TABLE_LIST *expr_join_nest;
   /*
     Types of left_expr and subquery's select list allow to perform subquery
     materialization. Currently, we set this to FALSE when it as well could
@@ -402,6 +396,18 @@ public:
     TRUE<=>this is a flattenable semi-join, false overwise.
   */
   bool is_flattenable_semijoin;
+
+  /*
+    Used to determine how this subselect item is represented in the item tree,
+    in case there is a need to locate it there and replace with something else.
+    Two options are possible:
+      1. This item is there 'as-is'.
+      1. This item is wrapped within Item_in_optimizer.
+  */
+  Item *original_item()
+  {
+    return is_flattenable_semijoin ? (Item*)this : (Item*)optimizer;
+  }
   
   bool *get_cond_guard(int i)
   {

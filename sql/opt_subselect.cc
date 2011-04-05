@@ -712,16 +712,7 @@ bool convert_join_subqueries_to_semijoins(JOIN *join)
     {
       Item **tree= ((*in_subq)->emb_on_expr_nest == NO_JOIN_NEST)?
                      &join->conds : &((*in_subq)->emb_on_expr_nest->on_expr);
-      Item *replace_me= *in_subq;
-      /*
-        JTBM: the subquery was already mapped with Item_in_optimizer, so we
-        should search for that, not for original Item_in_subselect.
-        TODO: what about delaying that rewrite until here?
-      */
-      if (!(*in_subq)->is_flattenable_semijoin)
-      {
-        replace_me= (*in_subq)->optimizer;
-      }
+      Item *replace_me= (*in_subq)->original_item();
       if (replace_where_subcondition(join, tree, replace_me, new Item_int(1),
                                      FALSE))
         DBUG_RETURN(TRUE); /* purecov: inspected */
@@ -756,18 +747,7 @@ skip_conversion:
     bool do_fix_fields= !(*in_subq)->substitution->fixed;
     Item **tree= ((*in_subq)->emb_on_expr_nest == NO_JOIN_NEST)?
                    &join->conds : &((*in_subq)->emb_on_expr_nest->on_expr);
-
-    Item *replace_me= *in_subq;
-    /*
-      JTBM: the subquery was already mapped with Item_in_optimizer, so we
-      should search for that, not for original Item_in_subselect.
-      TODO: what about delaying that rewrite until here?
-    */
-    if (!(*in_subq)->is_flattenable_semijoin)
-    {
-      replace_me= (*in_subq)->optimizer;
-    }
-
+    Item *replace_me= (*in_subq)->original_item();
     if (replace_where_subcondition(join, tree, replace_me, substitute, 
                                    do_fix_fields))
       DBUG_RETURN(TRUE);
