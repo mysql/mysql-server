@@ -569,11 +569,6 @@ struct trx_struct{
 	ib_int64_t	mysql_log_offset;/* if MySQL binlog is used, this field
 					contains the end offset of the binlog
 					entry */
-	os_thread_id_t	mysql_thread_id;/* id of the MySQL thread associated
-					with this transaction object */
-	ulint		mysql_process_no;/* since in Linux, 'top' reports
-					process id's and not thread id's, we
-					store the process number too */
 	/*------------------------------*/
 	ulint		n_mysql_tables_in_use; /* number of Innobase tables
 					used in the processing of the current

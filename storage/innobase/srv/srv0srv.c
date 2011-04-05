@@ -687,8 +687,6 @@ Unix.*/
 
 /* Thread slot in the thread table */
 struct srv_slot_struct{
-	os_thread_id_t	id;		/*!< thread id */
-	os_thread_t	handle;		/*!< thread handle */
 	unsigned	type:1;		/*!< thread type: user, utility etc. */
 	unsigned	in_use:1;	/*!< TRUE if this slot is in use */
 	unsigned	suspended:1;	/*!< TRUE if the thread is waiting
@@ -887,8 +885,6 @@ srv_table_reserve_slot(
 	slot->suspended = FALSE;
 	slot->type = type;
 	ut_ad(srv_slot_get_type(slot) == type);
-	slot->id = os_thread_get_curr_id();
-	slot->handle = os_thread_get_curr();
 
 	return(slot);
 }
@@ -907,7 +903,6 @@ srv_suspend_thread(
 	ut_ad(mutex_own(&kernel_mutex));
 	ut_ad(slot->in_use);
 	ut_ad(!slot->suspended);
-	ut_ad(slot->id == os_thread_get_curr_id());
 
 	if (srv_print_thread_releases) {
 		fprintf(stderr,
@@ -962,10 +957,9 @@ srv_release_threads(
 
 			if (srv_print_thread_releases) {
 				fprintf(stderr,
-					"Releasing thread %lu type %lu"
+					"Releasing thread type %lu"
 					" from slot %lu\n",
-					(ulong) slot->id, (ulong) type,
-					(ulong) i);
+					(ulong) type, (ulong) i);
 			}
 
 			count++;
@@ -1149,6 +1143,10 @@ srv_conc_enter_innodb(
 	srv_conc_slot_t*	slot	  = NULL;
 	ulint			i;
 
+#ifdef UNIV_SYNC_DEBUG
+	ut_ad(!sync_thread_levels_nonempty_trx(trx->has_search_latch));
+#endif /* UNIV_SYNC_DEBUG */
+
 	if (trx->mysql_thd != NULL
 	    && thd_is_replication_slave_thread(trx->mysql_thd)) {
 
@@ -1272,6 +1270,10 @@ retry:
 	/* Go to wait for the event; when a thread leaves InnoDB it will
 	release this thread */
 
+	ut_ad(!trx->has_search_latch);
+#ifdef UNIV_SYNC_DEBUG
+	ut_ad(!sync_thread_levels_nonempty_trx(trx->has_search_latch));
+#endif /* UNIV_SYNC_DEBUG */
 	trx->op_info = "waiting in InnoDB queue";
 
 	thd_wait_begin(trx->mysql_thd, THD_WAIT_ROW_TABLE_LOCK);
@@ -1307,6 +1309,10 @@ srv_conc_force_enter_innodb(
 	trx_t*	trx)	/*!< in: transaction object associated with the
 			thread */
 {
+#ifdef UNIV_SYNC_DEBUG
+	ut_ad(!sync_thread_levels_nonempty_trx(trx->has_search_latch));
+#endif /* UNIV_SYNC_DEBUG */
+
 	if (UNIV_LIKELY(!srv_thread_concurrency)) {
 
 		return;
@@ -1378,6 +1384,10 @@ srv_conc_force_exit_innodb(
 	if (slot != NULL) {
 		os_event_set(slot->event);
 	}
+
+#ifdef UNIV_SYNC_DEBUG
+	ut_ad(!sync_thread_levels_nonempty_trx(trx->has_search_latch));
+#endif /* UNIV_SYNC_DEBUG */
 }
 
 /*********************************************************************//**
@@ -1389,6 +1399,10 @@ srv_conc_exit_innodb(
 	trx_t*	trx)	/*!< in: transaction object associated with the
 			thread */
 {
+#ifdef UNIV_SYNC_DEBUG
+	ut_ad(!sync_thread_levels_nonempty_trx(trx->has_search_latch));
+#endif /* UNIV_SYNC_DEBUG */
+
 	if (trx->n_tickets_to_enter_innodb > 0) {
 		/* We will pretend the thread is still inside InnoDB though it
 		now leaves the InnoDB engine. In this way we save
@@ -1505,10 +1519,9 @@ srv_table_reserve_slot_for_mysql(void)
 				slot = srv_mysql_table + i;
 
 				fprintf(stderr,
-					"Slot %lu: thread id %lu, type %lu,"
+					"Slot %lu: thread type %lu,"
 					" in use %lu, susp %lu, time %lu\n",
 					(ulong) i,
-					(ulong) os_thread_pf(slot->id),
 					(ulong) slot->type,
 					(ulong) slot->in_use,
 					(ulong) slot->suspended,
@@ -1525,8 +1538,6 @@ srv_table_reserve_slot_for_mysql(void)
 	ut_a(slot->in_use == FALSE);
 
 	slot->in_use = TRUE;
-	slot->id = os_thread_get_curr_id();
-	slot->handle = os_thread_get_curr();
 
 	return(slot);
 }
@@ -1733,6 +1744,10 @@ srv_suspend_mysql_thread(
 
 		trx->error_state = DB_INTERRUPTED;
 	}
+
+#ifdef UNIV_SYNC_DEBUG
+	ut_ad(!sync_thread_levels_nonempty_trx(trx->has_search_latch));
+#endif /* UNIV_SYNC_DEBUG */
 }
 
 /********************************************************************//**

@@ -1716,7 +1716,7 @@ buf_flush_batch(
 	ut_ad(flush_type == BUF_FLUSH_LRU || flush_type == BUF_FLUSH_LIST);
 #ifdef UNIV_SYNC_DEBUG
 	ut_ad((flush_type != BUF_FLUSH_LIST)
-	      || sync_thread_levels_empty_gen(TRUE));
+	      || sync_thread_levels_empty_except_dict());
 #endif /* UNIV_SYNC_DEBUG */
 
 	buf_pool_mutex_enter(buf_pool);
