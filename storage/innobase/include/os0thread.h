@@ -107,8 +107,9 @@ UNIV_INTERN
 void
 os_thread_exit(
 /*===========*/
-	void*	exit_value);	/*!< in: exit value; in Windows this void*
+	void*	exit_value)	/*!< in: exit value; in Windows this void*
 				is cast as a DWORD */
+	__attribute__((cold, noreturn));
 /*****************************************************************//**
 Returns the thread identifier of current thread.
 @return	current thread identifier */
