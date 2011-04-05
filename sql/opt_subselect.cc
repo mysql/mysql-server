@@ -364,10 +364,13 @@ int check_and_do_in_subquery_rewrites(JOIN *join)
             (Subquery is correlated to the immediate outer query &&
              Subquery !contains {GROUP BY, ORDER BY [LIMIT],
              aggregate functions}) && subquery predicate is not under "NOT IN"))
-        6. No execution method was already chosen (by a prepared statement).
 
         (*) The subquery must be part of a SELECT statement. The current
              condition also excludes multi-table update statements.
+
+        A note about prepared statements: we want the if-branch to be taken on
+        PREPARE and each EXECUTE. The rewrites are only done once, but we need 
+        join->sj_subselects list to be populated for every EXECUTE. 
 
         Determine whether we will perform subquery materialization before
         calling the IN=>EXISTS transformation, so that we know whether to
@@ -534,6 +537,20 @@ bool make_in_exists_conversion(THD *thd, JOIN *join, Item_in_subselect *item)
   DBUG_ENTER("make_in_exists_conversion");
   JOIN *child_join= item->unit->first_select()->join;
   Item_subselect::trans_res res;
+
+  /* 
+    We're going to finalize IN->EXISTS conversion. 
+    Normally, IN->EXISTS conversion takes place inside the 
+    Item_subselect::fix_fields() call, where item_subselect->fixed==FALSE (as
+    fix_fields() haven't finished yet) and item_subselect->changed==FALSE (as 
+    the conversion haven't been finalized)
+
+    At the end of Item_subselect::fix_fields() we had to set fixed=TRUE,
+    changed=TRUE (the only other option would have been to return error).
+
+    So, now we have to set these back for the duration of select_transformer()
+    call.
+  */
   item->changed= 0;
   item->fixed= 0;
 
@@ -566,6 +583,10 @@ bool make_in_exists_conversion(THD *thd, JOIN *join, Item_in_subselect *item)
     DBUG_RETURN(TRUE);
   item->substitution= NULL;
    
+    /*
+      If this is a prepared statement, repeat the above operation for
+      prep_where (or prep_on_expr). 
+    */
   if (!thd->stmt_arena->is_conventional())
   {
     tree= (item->emb_on_expr_nest == (TABLE_LIST*)NO_JOIN_NEST)?
@@ -752,7 +773,12 @@ skip_conversion:
                                    do_fix_fields))
       DBUG_RETURN(TRUE);
     (*in_subq)->substitution= NULL;
-     
+    
+    /*
+      If this is a prepared statement, repeat the above operation for
+      prep_where (or prep_on_expr). Subquery-to-semijoin conversion is 
+      done once for prepared statement.
+    */
     if (!thd->stmt_arena->is_conventional())
     {
       tree= ((*in_subq)->emb_on_expr_nest == NO_JOIN_NEST)?
