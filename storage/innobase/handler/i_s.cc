@@ -47,8 +47,6 @@ extern "C" {
 #include "trx0trx.h" /* for TRX_QUE_STATE_STR_MAX_LEN */
 }
 
-static const char plugin_author[] = "Innobase Oy";
-
 #define OK(expr)		\
 	if ((expr) != 0) {	\
 		DBUG_RETURN(1);	\
@@ -1059,7 +1057,7 @@ UNIV_INTERN struct st_mysql_plugin	i_s_innodb_lock_waits =
 
 	/* plugin author (for SHOW PLUGINS) */
 	/* const char* */
-	STRUCT_FLD(author, "Innobase Oy"),
+	STRUCT_FLD(author, plugin_author),
 
 	/* general descriptive text (for SHOW PLUGINS) */
 	/* const char* */
