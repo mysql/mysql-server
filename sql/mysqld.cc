@@ -8130,20 +8130,6 @@ void refresh_status(THD *thd)
   This section should go away soon
 *****************************************************************************/
 
-/*****************************************************************************
-  Instantiate templates
-*****************************************************************************/
-
-#ifdef HAVE_EXPLICIT_TEMPLATE_INSTANTIATION
-/* Used templates */
-template class I_List<THD>;
-template class I_List_iterator<THD>;
-template class I_List<i_string>;
-template class I_List<i_string_pair>;
-template class I_List<Statement>;
-template class I_List_iterator<Statement>;
-#endif
-
 #ifdef HAVE_PSI_INTERFACE
 #ifdef HAVE_MMAP
 PSI_mutex_key key_PAGE_lock, key_LOCK_sync, key_LOCK_active, key_LOCK_pool;

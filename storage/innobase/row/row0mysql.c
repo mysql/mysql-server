@@ -579,7 +579,7 @@ handle_new_error:
 	switch (err) {
 	case DB_LOCK_WAIT_TIMEOUT:
 		if (row_rollback_on_timeout) {
-			trx_general_rollback_for_mysql(trx, NULL);
+			trx_rollback_to_savepoint(trx, NULL);
 			break;
 		}
 		/* fall through */
@@ -596,7 +596,7 @@ handle_new_error:
 			/* Roll back the latest, possibly incomplete
 			insertion or update */
 
-			trx_general_rollback_for_mysql(trx, savept);
+			trx_rollback_to_savepoint(trx, savept);
 		}
 		/* MySQL will roll back the latest SQL statement */
 		break;
@@ -618,7 +618,7 @@ handle_new_error:
 		/* Roll back the whole transaction; this resolution was added
 		to version 3.23.43 */
 
-		trx_general_rollback_for_mysql(trx, NULL);
+		trx_rollback_to_savepoint(trx, NULL);
 		break;
 
 	case DB_MUST_GET_MORE_FILE_SPACE:
@@ -1941,7 +1941,7 @@ err_exit:
 		break;
 	case DB_OUT_OF_FILE_SPACE:
 		trx->error_state = DB_SUCCESS;
-		trx_general_rollback_for_mysql(trx, NULL);
+		trx_rollback_to_savepoint(trx, NULL);
 
 		ut_print_timestamp(stderr);
 		fputs("  InnoDB: Warning: cannot create table ",
@@ -1971,7 +1971,7 @@ err_exit:
 		table already exists */
 
 		trx->error_state = DB_SUCCESS;
-		trx_general_rollback_for_mysql(trx, NULL);
+		trx_rollback_to_savepoint(trx, NULL);
 		dict_mem_table_free(table);
 		break;
 	}
@@ -2095,7 +2095,7 @@ error_handling:
 
 		trx->error_state = DB_SUCCESS;
 
-		trx_general_rollback_for_mysql(trx, NULL);
+		trx_rollback_to_savepoint(trx, NULL);
 
 		row_drop_table_for_mysql(table_name, trx, FALSE);
 
@@ -2164,7 +2164,7 @@ row_table_add_foreign_constraints(
 
 		trx->error_state = DB_SUCCESS;
 
-		trx_general_rollback_for_mysql(trx, NULL);
+		trx_rollback_to_savepoint(trx, NULL);
 
 		row_drop_table_for_mysql(name, trx, FALSE);
 
@@ -2533,7 +2533,7 @@ row_discard_tablespace_for_mysql(
 
 	if (err != DB_SUCCESS) {
 		trx->error_state = DB_SUCCESS;
-		trx_general_rollback_for_mysql(trx, NULL);
+		trx_rollback_to_savepoint(trx, NULL);
 		trx->error_state = DB_SUCCESS;
 	} else {
 		dict_table_change_id_in_cache(table, new_id);
@@ -2542,7 +2542,7 @@ row_discard_tablespace_for_mysql(
 
 		if (!success) {
 			trx->error_state = DB_SUCCESS;
-			trx_general_rollback_for_mysql(trx, NULL);
+			trx_rollback_to_savepoint(trx, NULL);
 			trx->error_state = DB_SUCCESS;
 
 			err = DB_ERROR;
@@ -3028,7 +3028,7 @@ next_rec:
 
 	if (err != DB_SUCCESS) {
 		trx->error_state = DB_SUCCESS;
-		trx_general_rollback_for_mysql(trx, NULL);
+		trx_rollback_to_savepoint(trx, NULL);
 		trx->error_state = DB_SUCCESS;
 		ut_print_timestamp(stderr);
 		fputs("  InnoDB: Unable to assign a new identifier to table ",
@@ -3494,7 +3494,7 @@ check_next_foreign:
 		fprintf(stderr, ".\n");
 
 		trx->error_state = DB_SUCCESS;
-		trx_general_rollback_for_mysql(trx, NULL);
+		trx_rollback_to_savepoint(trx, NULL);
 		trx->error_state = DB_SUCCESS;
 	}
 
@@ -4085,7 +4085,7 @@ end:
 			      "InnoDB: succeed.\n", stderr);
 		}
 		trx->error_state = DB_SUCCESS;
-		trx_general_rollback_for_mysql(trx, NULL);
+		trx_rollback_to_savepoint(trx, NULL);
 		trx->error_state = DB_SUCCESS;
 	} else {
 		/* The following call will also rename the .ibd data file if
@@ -4094,7 +4094,7 @@ end:
 		if (!dict_table_rename_in_cache(table, new_name,
 						!new_is_tmp)) {
 			trx->error_state = DB_SUCCESS;
-			trx_general_rollback_for_mysql(trx, NULL);
+			trx_rollback_to_savepoint(trx, NULL);
 			trx->error_state = DB_SUCCESS;
 			goto funct_exit;
 		}
@@ -4134,7 +4134,7 @@ end:
 			ut_a(dict_table_rename_in_cache(table,
 							old_name, FALSE));
 			trx->error_state = DB_SUCCESS;
-			trx_general_rollback_for_mysql(trx, NULL);
+			trx_rollback_to_savepoint(trx, NULL);
 			trx->error_state = DB_SUCCESS;
 		}
 	}

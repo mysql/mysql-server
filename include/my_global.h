@@ -126,6 +126,7 @@
 /* Define missing access() modes. */
 #define F_OK 0
 #define W_OK 2
+#define R_OK 4                        /* Test for read permission.  */
 
 /* Define missing file locking constants. */
 #define F_RDLCK 1

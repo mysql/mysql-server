@@ -1751,10 +1751,6 @@ public:
   CSET_STRING query_string;
 };
 
-#ifdef HAVE_EXPLICIT_TEMPLATE_INSTANTIATION
-template class I_List<thread_info>;
-#endif
-
 static const char *thread_state_info(THD *tmp)
 {
 #ifndef EMBEDDED_LIBRARY
@@ -7521,11 +7517,6 @@ ST_SCHEMA_TABLE schema_tables[]=
   {0, 0, 0, 0, 0, 0, 0, 0, 0, 0}
 };
 
-
-#ifdef HAVE_EXPLICIT_TEMPLATE_INSTANTIATION
-template class List_iterator_fast<char>;
-template class List<char>;
-#endif
 
 int initialize_schema_table(st_plugin_int *plugin)
 {

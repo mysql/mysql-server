@@ -37,7 +37,6 @@ SELECT COUNT(@@SESSION.relay_log_info_repository);
 ####################################################################
 #   Check if Value can set                                         #
 ####################################################################
---error ER_INCORRECT_GLOBAL_LOCAL_VAR
 SET @@GLOBAL.relay_log_info_repository= "TABLE";
 
 SELECT @@GLOBAL.relay_log_info_repository;
@@ -74,3 +73,10 @@ SELECT COUNT(@@local.relay_log_info_repository);
 
 SELECT COUNT(@@GLOBAL.relay_log_info_repository);
 --echo 1 Expected
+
+
+--echo '#---------------------BS_STVARS_002_06----------------------#'
+################################################################################
+#                                     Clean up                                 #
+################################################################################
+SET @@GLOBAL.relay_log_info_repository= "FILE";
