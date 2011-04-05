@@ -84,7 +84,7 @@ INSERT INTO t1 (f_int1, f_int2, f_char1, f_char2, f_charbig)
 SELECT f_int1, f_int1, CAST(f_int1 AS CHAR),
 CAST(f_int1 AS CHAR), 'delete me' FROM t0_template
 WHERE f_int1 IN (2,3);
-ERROR 23000: Can't write; duplicate key in table 't1'
+ERROR 23000: Can't write; duplicate key in table ''
 # check prerequisites-3 success:    1
 # INFO: f_int1 AND/OR f_int2 AND/OR (f_int1,f_int2) is UNIQUE
 INSERT INTO t1 (f_int1, f_int2, f_char1, f_char2, f_charbig)
@@ -253,7 +253,7 @@ ERROR 22012: Division by 0
 COMMIT;
 	
 # check transactions-8 success: 	1
-# INFO: Storage engine used for t1 seems to be unable to revert
+# INFO: Storage engine used for t1 seems to be able to revert
 #       changes made by the failing statement.
 SET @@session.sql_mode = '';
 SET AUTOCOMMIT= 1;
@@ -515,7 +515,7 @@ AND f_int2 <> CAST(f_char1 AS SIGNED INT)
 AND f_charbig = '####updated per insert trigger####';
 ANALYZE  TABLE t1;
 Table	Op	Msg_type	Msg_text
-test.t1	analyze	note	The storage engine for the table doesn't support analyze
+test.t1	analyze	status	OK
 CHECK    TABLE t1 EXTENDED;
 Table	Op	Msg_type	Msg_text
 test.t1	check	note	The storage engine for the table doesn't support check
@@ -524,7 +524,7 @@ Table	Checksum
 test.t1	<some_value>
 OPTIMIZE TABLE t1;
 Table	Op	Msg_type	Msg_text
-test.t1	optimize	note	The storage engine for the table doesn't support optimize
+test.t1	optimize	status	OK
 # check layout success:    1
 REPAIR   TABLE t1 EXTENDED;
 Table	Op	Msg_type	Msg_text
@@ -573,7 +573,7 @@ INSERT INTO t1 (f_int1, f_int2, f_char1, f_char2, f_charbig)
 SELECT f_int1, f_int1, CAST(f_int1 AS CHAR),
 CAST(f_int1 AS CHAR), 'delete me' FROM t0_template
 WHERE f_int1 IN (2,3);
-ERROR 23000: Can't write; duplicate key in table 't1'
+ERROR 23000: Can't write; duplicate key in table ''
 # check prerequisites-3 success:    1
 # INFO: f_int1 AND/OR f_int2 AND/OR (f_int1,f_int2) is UNIQUE
 INSERT INTO t1 (f_int1, f_int2, f_char1, f_char2, f_charbig)
@@ -742,7 +742,7 @@ ERROR 22012: Division by 0
 COMMIT;
 	
 # check transactions-8 success: 	1
-# INFO: Storage engine used for t1 seems to be unable to revert
+# INFO: Storage engine used for t1 seems to be able to revert
 #       changes made by the failing statement.
 SET @@session.sql_mode = '';
 SET AUTOCOMMIT= 1;
@@ -1004,7 +1004,7 @@ AND f_int2 <> CAST(f_char1 AS SIGNED INT)
 AND f_charbig = '####updated per insert trigger####';
 ANALYZE  TABLE t1;
 Table	Op	Msg_type	Msg_text
-test.t1	analyze	note	The storage engine for the table doesn't support analyze
+test.t1	analyze	status	OK
 CHECK    TABLE t1 EXTENDED;
 Table	Op	Msg_type	Msg_text
 test.t1	check	note	The storage engine for the table doesn't support check
@@ -1013,7 +1013,7 @@ Table	Checksum
 test.t1	<some_value>
 OPTIMIZE TABLE t1;
 Table	Op	Msg_type	Msg_text
-test.t1	optimize	note	The storage engine for the table doesn't support optimize
+test.t1	optimize	status	OK
 # check layout success:    1
 REPAIR   TABLE t1 EXTENDED;
 Table	Op	Msg_type	Msg_text
@@ -1062,7 +1062,7 @@ INSERT INTO t1 (f_int1, f_int2, f_char1, f_char2, f_charbig)
 SELECT f_int1, f_int1, CAST(f_int1 AS CHAR),
 CAST(f_int1 AS CHAR), 'delete me' FROM t0_template
 WHERE f_int1 IN (2,3);
-ERROR 23000: Can't write; duplicate key in table 't1'
+ERROR 23000: Can't write; duplicate key in table ''
 # check prerequisites-3 success:    1
 # INFO: f_int1 AND/OR f_int2 AND/OR (f_int1,f_int2) is UNIQUE
 INSERT INTO t1 (f_int1, f_int2, f_char1, f_char2, f_charbig)
@@ -1231,7 +1231,7 @@ ERROR 22012: Division by 0
 COMMIT;
 	
 # check transactions-8 success: 	1
-# INFO: Storage engine used for t1 seems to be unable to revert
+# INFO: Storage engine used for t1 seems to be able to revert
 #       changes made by the failing statement.
 SET @@session.sql_mode = '';
 SET AUTOCOMMIT= 1;
@@ -1493,7 +1493,7 @@ AND f_int2 <> CAST(f_char1 AS SIGNED INT)
 AND f_charbig = '####updated per insert trigger####';
 ANALYZE  TABLE t1;
 Table	Op	Msg_type	Msg_text
-test.t1	analyze	note	The storage engine for the table doesn't support analyze
+test.t1	analyze	status	OK
 CHECK    TABLE t1 EXTENDED;
 Table	Op	Msg_type	Msg_text
 test.t1	check	note	The storage engine for the table doesn't support check
@@ -1502,7 +1502,7 @@ Table	Checksum
 test.t1	<some_value>
 OPTIMIZE TABLE t1;
 Table	Op	Msg_type	Msg_text
-test.t1	optimize	note	The storage engine for the table doesn't support optimize
+test.t1	optimize	status	OK
 # check layout success:    1
 REPAIR   TABLE t1 EXTENDED;
 Table	Op	Msg_type	Msg_text
@@ -1551,7 +1551,7 @@ INSERT INTO t1 (f_int1, f_int2, f_char1, f_char2, f_charbig)
 SELECT f_int1, f_int1, CAST(f_int1 AS CHAR),
 CAST(f_int1 AS CHAR), 'delete me' FROM t0_template
 WHERE f_int1 IN (2,3);
-ERROR 23000: Can't write; duplicate key in table 't1'
+ERROR 23000: Can't write; duplicate key in table ''
 # check prerequisites-3 success:    1
 # INFO: f_int1 AND/OR f_int2 AND/OR (f_int1,f_int2) is UNIQUE
 INSERT INTO t1 (f_int1, f_int2, f_char1, f_char2, f_charbig)
@@ -1720,7 +1720,7 @@ ERROR 22012: Division by 0
 COMMIT;
 	
 # check transactions-8 success: 	1
-# INFO: Storage engine used for t1 seems to be unable to revert
+# INFO: Storage engine used for t1 seems to be able to revert
 #       changes made by the failing statement.
 SET @@session.sql_mode = '';
 SET AUTOCOMMIT= 1;
@@ -1982,7 +1982,7 @@ AND f_int2 <> CAST(f_char1 AS SIGNED INT)
 AND f_charbig = '####updated per insert trigger####';
 ANALYZE  TABLE t1;
 Table	Op	Msg_type	Msg_text
-test.t1	analyze	note	The storage engine for the table doesn't support analyze
+test.t1	analyze	status	OK
 CHECK    TABLE t1 EXTENDED;
 Table	Op	Msg_type	Msg_text
 test.t1	check	note	The storage engine for the table doesn't support check
@@ -1991,7 +1991,7 @@ Table	Checksum
 test.t1	<some_value>
 OPTIMIZE TABLE t1;
 Table	Op	Msg_type	Msg_text
-test.t1	optimize	note	The storage engine for the table doesn't support optimize
+test.t1	optimize	status	OK
 # check layout success:    1
 REPAIR   TABLE t1 EXTENDED;
 Table	Op	Msg_type	Msg_text
@@ -2040,7 +2040,7 @@ INSERT INTO t1 (f_int1, f_int2, f_char1, f_char2, f_charbig)
 SELECT f_int1, f_int1, CAST(f_int1 AS CHAR),
 CAST(f_int1 AS CHAR), 'delete me' FROM t0_template
 WHERE f_int1 IN (2,3);
-ERROR 23000: Can't write; duplicate key in table 't1'
+ERROR 23000: Can't write; duplicate key in table ''
 # check prerequisites-3 success:    1
 # INFO: f_int1 AND/OR f_int2 AND/OR (f_int1,f_int2) is UNIQUE
 INSERT INTO t1 (f_int1, f_int2, f_char1, f_char2, f_charbig)
@@ -2209,7 +2209,7 @@ ERROR 22012: Division by 0
 COMMIT;
 	
 # check transactions-8 success: 	1
-# INFO: Storage engine used for t1 seems to be unable to revert
+# INFO: Storage engine used for t1 seems to be able to revert
 #       changes made by the failing statement.
 SET @@session.sql_mode = '';
 SET AUTOCOMMIT= 1;
@@ -2471,7 +2471,7 @@ AND f_int2 <> CAST(f_char1 AS SIGNED INT)
 AND f_charbig = '####updated per insert trigger####';
 ANALYZE  TABLE t1;
 Table	Op	Msg_type	Msg_text
-test.t1	analyze	note	The storage engine for the table doesn't support analyze
+test.t1	analyze	status	OK
 CHECK    TABLE t1 EXTENDED;
 Table	Op	Msg_type	Msg_text
 test.t1	check	note	The storage engine for the table doesn't support check
@@ -2480,7 +2480,7 @@ Table	Checksum
 test.t1	<some_value>
 OPTIMIZE TABLE t1;
 Table	Op	Msg_type	Msg_text
-test.t1	optimize	note	The storage engine for the table doesn't support optimize
+test.t1	optimize	status	OK
 # check layout success:    1
 REPAIR   TABLE t1 EXTENDED;
 Table	Op	Msg_type	Msg_text
@@ -2529,7 +2529,7 @@ INSERT INTO t1 (f_int1, f_int2, f_char1, f_char2, f_charbig)
 SELECT f_int1, f_int1, CAST(f_int1 AS CHAR),
 CAST(f_int1 AS CHAR), 'delete me' FROM t0_template
 WHERE f_int1 IN (2,3);
-ERROR 23000: Can't write; duplicate key in table 't1'
+ERROR 23000: Can't write; duplicate key in table ''
 # check prerequisites-3 success:    1
 # INFO: f_int1 AND/OR f_int2 AND/OR (f_int1,f_int2) is UNIQUE
 INSERT INTO t1 (f_int1, f_int2, f_char1, f_char2, f_charbig)
@@ -2698,7 +2698,7 @@ ERROR 22012: Division by 0
 COMMIT;
 	
 # check transactions-8 success: 	1
-# INFO: Storage engine used for t1 seems to be unable to revert
+# INFO: Storage engine used for t1 seems to be able to revert
 #       changes made by the failing statement.
 SET @@session.sql_mode = '';
 SET AUTOCOMMIT= 1;
@@ -2960,7 +2960,7 @@ AND f_int2 <> CAST(f_char1 AS SIGNED INT)
 AND f_charbig = '####updated per insert trigger####';
 ANALYZE  TABLE t1;
 Table	Op	Msg_type	Msg_text
-test.t1	analyze	note	The storage engine for the table doesn't support analyze
+test.t1	analyze	status	OK
 CHECK    TABLE t1 EXTENDED;
 Table	Op	Msg_type	Msg_text
 test.t1	check	note	The storage engine for the table doesn't support check
@@ -2969,7 +2969,7 @@ Table	Checksum
 test.t1	<some_value>
 OPTIMIZE TABLE t1;
 Table	Op	Msg_type	Msg_text
-test.t1	optimize	note	The storage engine for the table doesn't support optimize
+test.t1	optimize	status	OK
 # check layout success:    1
 REPAIR   TABLE t1 EXTENDED;
 Table	Op	Msg_type	Msg_text
@@ -3018,7 +3018,7 @@ INSERT INTO t1 (f_int1, f_int2, f_char1, f_char2, f_charbig)
 SELECT f_int1, f_int1, CAST(f_int1 AS CHAR),
 CAST(f_int1 AS CHAR), 'delete me' FROM t0_template
 WHERE f_int1 IN (2,3);
-ERROR 23000: Can't write; duplicate key in table 't1'
+ERROR 23000: Can't write; duplicate key in table ''
 # check prerequisites-3 success:    1
 # INFO: f_int1 AND/OR f_int2 AND/OR (f_int1,f_int2) is UNIQUE
 INSERT INTO t1 (f_int1, f_int2, f_char1, f_char2, f_charbig)
@@ -3187,7 +3187,7 @@ ERROR 22012: Division by 0
 COMMIT;
 	
 # check transactions-8 success: 	1
-# INFO: Storage engine used for t1 seems to be unable to revert
+# INFO: Storage engine used for t1 seems to be able to revert
 #       changes made by the failing statement.
 SET @@session.sql_mode = '';
 SET AUTOCOMMIT= 1;
@@ -3449,7 +3449,7 @@ AND f_int2 <> CAST(f_char1 AS SIGNED INT)
 AND f_charbig = '####updated per insert trigger####';
 ANALYZE  TABLE t1;
 Table	Op	Msg_type	Msg_text
-test.t1	analyze	note	The storage engine for the table doesn't support analyze
+test.t1	analyze	status	OK
 CHECK    TABLE t1 EXTENDED;
 Table	Op	Msg_type	Msg_text
 test.t1	check	note	The storage engine for the table doesn't support check
@@ -3458,7 +3458,7 @@ Table	Checksum
 test.t1	<some_value>
 OPTIMIZE TABLE t1;
 Table	Op	Msg_type	Msg_text
-test.t1	optimize	note	The storage engine for the table doesn't support optimize
+test.t1	optimize	status	OK
 # check layout success:    1
 REPAIR   TABLE t1 EXTENDED;
 Table	Op	Msg_type	Msg_text
@@ -3507,7 +3507,7 @@ INSERT INTO t1 (f_int1, f_int2, f_char1, f_char2, f_charbig)
 SELECT f_int1, f_int1, CAST(f_int1 AS CHAR),
 CAST(f_int1 AS CHAR), 'delete me' FROM t0_template
 WHERE f_int1 IN (2,3);
-ERROR 23000: Can't write; duplicate key in table 't1'
+ERROR 23000: Can't write; duplicate key in table ''
 # check prerequisites-3 success:    1
 # INFO: f_int1 AND/OR f_int2 AND/OR (f_int1,f_int2) is UNIQUE
 INSERT INTO t1 (f_int1, f_int2, f_char1, f_char2, f_charbig)
@@ -3676,7 +3676,7 @@ ERROR 22012: Division by 0
 COMMIT;
 	
 # check transactions-8 success: 	1
-# INFO: Storage engine used for t1 seems to be unable to revert
+# INFO: Storage engine used for t1 seems to be able to revert
 #       changes made by the failing statement.
 SET @@session.sql_mode = '';
 SET AUTOCOMMIT= 1;
@@ -3938,7 +3938,7 @@ AND f_int2 <> CAST(f_char1 AS SIGNED INT)
 AND f_charbig = '####updated per insert trigger####';
 ANALYZE  TABLE t1;
 Table	Op	Msg_type	Msg_text
-test.t1	analyze	note	The storage engine for the table doesn't support analyze
+test.t1	analyze	status	OK
 CHECK    TABLE t1 EXTENDED;
 Table	Op	Msg_type	Msg_text
 test.t1	check	note	The storage engine for the table doesn't support check
@@ -3947,7 +3947,7 @@ Table	Checksum
 test.t1	<some_value>
 OPTIMIZE TABLE t1;
 Table	Op	Msg_type	Msg_text
-test.t1	optimize	note	The storage engine for the table doesn't support optimize
+test.t1	optimize	status	OK
 # check layout success:    1
 REPAIR   TABLE t1 EXTENDED;
 Table	Op	Msg_type	Msg_text
@@ -3997,7 +3997,7 @@ INSERT INTO t1 (f_int1, f_int2, f_char1, f_char2, f_charbig)
 SELECT f_int1, f_int1, CAST(f_int1 AS CHAR),
 CAST(f_int1 AS CHAR), 'delete me' FROM t0_template
 WHERE f_int1 IN (2,3);
-ERROR 23000: Can't write; duplicate key in table 't1'
+ERROR 23000: Can't write; duplicate key in table ''
 # check prerequisites-3 success:    1
 # INFO: f_int1 AND/OR f_int2 AND/OR (f_int1,f_int2) is UNIQUE
 INSERT INTO t1 (f_int1, f_int2, f_char1, f_char2, f_charbig)
@@ -4166,7 +4166,7 @@ ERROR 22012: Division by 0
 COMMIT;
 	
 # check transactions-8 success: 	1
-# INFO: Storage engine used for t1 seems to be unable to revert
+# INFO: Storage engine used for t1 seems to be able to revert
 #       changes made by the failing statement.
 SET @@session.sql_mode = '';
 SET AUTOCOMMIT= 1;
@@ -4428,7 +4428,7 @@ AND f_int2 <> CAST(f_char1 AS SIGNED INT)
 AND f_charbig = '####updated per insert trigger####';
 ANALYZE  TABLE t1;
 Table	Op	Msg_type	Msg_text
-test.t1	analyze	note	The storage engine for the table doesn't support analyze
+test.t1	analyze	status	OK
 CHECK    TABLE t1 EXTENDED;
 Table	Op	Msg_type	Msg_text
 test.t1	check	note	The storage engine for the table doesn't support check
@@ -4437,7 +4437,7 @@ Table	Checksum
 test.t1	<some_value>
 OPTIMIZE TABLE t1;
 Table	Op	Msg_type	Msg_text
-test.t1	optimize	note	The storage engine for the table doesn't support optimize
+test.t1	optimize	status	OK
 # check layout success:    1
 REPAIR   TABLE t1 EXTENDED;
 Table	Op	Msg_type	Msg_text
@@ -4486,7 +4486,7 @@ INSERT INTO t1 (f_int1, f_int2, f_char1, f_char2, f_charbig)
 SELECT f_int1, f_int1, CAST(f_int1 AS CHAR),
 CAST(f_int1 AS CHAR), 'delete me' FROM t0_template
 WHERE f_int1 IN (2,3);
-ERROR 23000: Can't write; duplicate key in table 't1'
+ERROR 23000: Can't write; duplicate key in table ''
 # check prerequisites-3 success:    1
 # INFO: f_int1 AND/OR f_int2 AND/OR (f_int1,f_int2) is UNIQUE
 INSERT INTO t1 (f_int1, f_int2, f_char1, f_char2, f_charbig)
@@ -4655,7 +4655,7 @@ ERROR 22012: Division by 0
 COMMIT;
 	
 # check transactions-8 success: 	1
-# INFO: Storage engine used for t1 seems to be unable to revert
+# INFO: Storage engine used for t1 seems to be able to revert
 #       changes made by the failing statement.
 SET @@session.sql_mode = '';
 SET AUTOCOMMIT= 1;
@@ -4917,7 +4917,7 @@ AND f_int2 <> CAST(f_char1 AS SIGNED INT)
 AND f_charbig = '####updated per insert trigger####';
 ANALYZE  TABLE t1;
 Table	Op	Msg_type	Msg_text
-test.t1	analyze	note	The storage engine for the table doesn't support analyze
+test.t1	analyze	status	OK
 CHECK    TABLE t1 EXTENDED;
 Table	Op	Msg_type	Msg_text
 test.t1	check	note	The storage engine for the table doesn't support check
@@ -4926,7 +4926,7 @@ Table	Checksum
 test.t1	<some_value>
 OPTIMIZE TABLE t1;
 Table	Op	Msg_type	Msg_text
-test.t1	optimize	note	The storage engine for the table doesn't support optimize
+test.t1	optimize	status	OK
 # check layout success:    1
 REPAIR   TABLE t1 EXTENDED;
 Table	Op	Msg_type	Msg_text
@@ -4975,7 +4975,7 @@ INSERT INTO t1 (f_int1, f_int2, f_char1, f_char2, f_charbig)
 SELECT f_int1, f_int1, CAST(f_int1 AS CHAR),
 CAST(f_int1 AS CHAR), 'delete me' FROM t0_template
 WHERE f_int1 IN (2,3);
-ERROR 23000: Can't write; duplicate key in table 't1'
+ERROR 23000: Can't write; duplicate key in table ''
 # check prerequisites-3 success:    1
 # INFO: f_int1 AND/OR f_int2 AND/OR (f_int1,f_int2) is UNIQUE
 INSERT INTO t1 (f_int1, f_int2, f_char1, f_char2, f_charbig)
@@ -5144,7 +5144,7 @@ ERROR 22012: Division by 0
 COMMIT;
 	
 # check transactions-8 success: 	1
-# INFO: Storage engine used for t1 seems to be unable to revert
+# INFO: Storage engine used for t1 seems to be able to revert
 #       changes made by the failing statement.
 SET @@session.sql_mode = '';
 SET AUTOCOMMIT= 1;
@@ -5406,7 +5406,7 @@ AND f_int2 <> CAST(f_char1 AS SIGNED INT)
 AND f_charbig = '####updated per insert trigger####';
 ANALYZE  TABLE t1;
 Table	Op	Msg_type	Msg_text
-test.t1	analyze	note	The storage engine for the table doesn't support analyze
+test.t1	analyze	status	OK
 CHECK    TABLE t1 EXTENDED;
 Table	Op	Msg_type	Msg_text
 test.t1	check	note	The storage engine for the table doesn't support check
@@ -5415,7 +5415,7 @@ Table	Checksum
 test.t1	<some_value>
 OPTIMIZE TABLE t1;
 Table	Op	Msg_type	Msg_text
-test.t1	optimize	note	The storage engine for the table doesn't support optimize
+test.t1	optimize	status	OK
 # check layout success:    1
 REPAIR   TABLE t1 EXTENDED;
 Table	Op	Msg_type	Msg_text
@@ -5464,7 +5464,7 @@ INSERT INTO t1 (f_int1, f_int2, f_char1, f_char2, f_charbig)
 SELECT f_int1, f_int1, CAST(f_int1 AS CHAR),
 CAST(f_int1 AS CHAR), 'delete me' FROM t0_template
 WHERE f_int1 IN (2,3);
-ERROR 23000: Can't write; duplicate key in table 't1'
+ERROR 23000: Can't write; duplicate key in table ''
 # check prerequisites-3 success:    1
 # INFO: f_int1 AND/OR f_int2 AND/OR (f_int1,f_int2) is UNIQUE
 INSERT INTO t1 (f_int1, f_int2, f_char1, f_char2, f_charbig)
@@ -5633,7 +5633,7 @@ ERROR 22012: Division by 0
 COMMIT;
 	
 # check transactions-8 success: 	1
-# INFO: Storage engine used for t1 seems to be unable to revert
+# INFO: Storage engine used for t1 seems to be able to revert
 #       changes made by the failing statement.
 SET @@session.sql_mode = '';
 SET AUTOCOMMIT= 1;
@@ -5895,7 +5895,7 @@ AND f_int2 <> CAST(f_char1 AS SIGNED INT)
 AND f_charbig = '####updated per insert trigger####';
 ANALYZE  TABLE t1;
 Table	Op	Msg_type	Msg_text
-test.t1	analyze	note	The storage engine for the table doesn't support analyze
+test.t1	analyze	status	OK
 CHECK    TABLE t1 EXTENDED;
 Table	Op	Msg_type	Msg_text
 test.t1	check	note	The storage engine for the table doesn't support check
@@ -5904,7 +5904,7 @@ Table	Checksum
 test.t1	<some_value>
 OPTIMIZE TABLE t1;
 Table	Op	Msg_type	Msg_text
-test.t1	optimize	note	The storage engine for the table doesn't support optimize
+test.t1	optimize	status	OK
 # check layout success:    1
 REPAIR   TABLE t1 EXTENDED;
 Table	Op	Msg_type	Msg_text
@@ -5953,7 +5953,7 @@ INSERT INTO t1 (f_int1, f_int2, f_char1, f_char2, f_charbig)
 SELECT f_int1, f_int1, CAST(f_int1 AS CHAR),
 CAST(f_int1 AS CHAR), 'delete me' FROM t0_template
 WHERE f_int1 IN (2,3);
-ERROR 23000: Can't write; duplicate key in table 't1'
+ERROR 23000: Can't write; duplicate key in table ''
 # check prerequisites-3 success:    1
 # INFO: f_int1 AND/OR f_int2 AND/OR (f_int1,f_int2) is UNIQUE
 INSERT INTO t1 (f_int1, f_int2, f_char1, f_char2, f_charbig)
@@ -6122,7 +6122,7 @@ ERROR 22012: Division by 0
 COMMIT;
 	
 # check transactions-8 success: 	1
-# INFO: Storage engine used for t1 seems to be unable to revert
+# INFO: Storage engine used for t1 seems to be able to revert
 #       changes made by the failing statement.
 SET @@session.sql_mode = '';
 SET AUTOCOMMIT= 1;
@@ -6384,7 +6384,7 @@ AND f_int2 <> CAST(f_char1 AS SIGNED INT)
 AND f_charbig = '####updated per insert trigger####';
 ANALYZE  TABLE t1;
 Table	Op	Msg_type	Msg_text
-test.t1	analyze	note	The storage engine for the table doesn't support analyze
+test.t1	analyze	status	OK
 CHECK    TABLE t1 EXTENDED;
 Table	Op	Msg_type	Msg_text
 test.t1	check	note	The storage engine for the table doesn't support check
@@ -6393,7 +6393,7 @@ Table	Checksum
 test.t1	<some_value>
 OPTIMIZE TABLE t1;
 Table	Op	Msg_type	Msg_text
-test.t1	optimize	note	The storage engine for the table doesn't support optimize
+test.t1	optimize	status	OK
 # check layout success:    1
 REPAIR   TABLE t1 EXTENDED;
 Table	Op	Msg_type	Msg_text
@@ -6442,7 +6442,7 @@ INSERT INTO t1 (f_int1, f_int2, f_char1, f_char2, f_charbig)
 SELECT f_int1, f_int1, CAST(f_int1 AS CHAR),
 CAST(f_int1 AS CHAR), 'delete me' FROM t0_template
 WHERE f_int1 IN (2,3);
-ERROR 23000: Can't write; duplicate key in table 't1'
+ERROR 23000: Can't write; duplicate key in table ''
 # check prerequisites-3 success:    1
 # INFO: f_int1 AND/OR f_int2 AND/OR (f_int1,f_int2) is UNIQUE
 INSERT INTO t1 (f_int1, f_int2, f_char1, f_char2, f_charbig)
@@ -6611,7 +6611,7 @@ ERROR 22012: Division by 0
 COMMIT;
 	
 # check transactions-8 success: 	1
-# INFO: Storage engine used for t1 seems to be unable to revert
+# INFO: Storage engine used for t1 seems to be able to revert
 #       changes made by the failing statement.
 SET @@session.sql_mode = '';
 SET AUTOCOMMIT= 1;
@@ -6873,7 +6873,7 @@ AND f_int2 <> CAST(f_char1 AS SIGNED INT)
 AND f_charbig = '####updated per insert trigger####';
 ANALYZE  TABLE t1;
 Table	Op	Msg_type	Msg_text
-test.t1	analyze	note	The storage engine for the table doesn't support analyze
+test.t1	analyze	status	OK
 CHECK    TABLE t1 EXTENDED;
 Table	Op	Msg_type	Msg_text
 test.t1	check	note	The storage engine for the table doesn't support check
@@ -6882,7 +6882,7 @@ Table	Checksum
 test.t1	<some_value>
 OPTIMIZE TABLE t1;
 Table	Op	Msg_type	Msg_text
-test.t1	optimize	note	The storage engine for the table doesn't support optimize
+test.t1	optimize	status	OK
 # check layout success:    1
 REPAIR   TABLE t1 EXTENDED;
 Table	Op	Msg_type	Msg_text
@@ -6931,7 +6931,7 @@ INSERT INTO t1 (f_int1, f_int2, f_char1, f_char2, f_charbig)
 SELECT f_int1, f_int1, CAST(f_int1 AS CHAR),
 CAST(f_int1 AS CHAR), 'delete me' FROM t0_template
 WHERE f_int1 IN (2,3);
-ERROR 23000: Can't write; duplicate key in table 't1'
+ERROR 23000: Can't write; duplicate key in table ''
 # check prerequisites-3 success:    1
 # INFO: f_int1 AND/OR f_int2 AND/OR (f_int1,f_int2) is UNIQUE
 INSERT INTO t1 (f_int1, f_int2, f_char1, f_char2, f_charbig)
@@ -7100,7 +7100,7 @@ ERROR 22012: Division by 0
 COMMIT;
 	
 # check transactions-8 success: 	1
-# INFO: Storage engine used for t1 seems to be unable to revert
+# INFO: Storage engine used for t1 seems to be able to revert
 #       changes made by the failing statement.
 SET @@session.sql_mode = '';
 SET AUTOCOMMIT= 1;
@@ -7362,7 +7362,7 @@ AND f_int2 <> CAST(f_char1 AS SIGNED INT)
 AND f_charbig = '####updated per insert trigger####';
 ANALYZE  TABLE t1;
 Table	Op	Msg_type	Msg_text
-test.t1	analyze	note	The storage engine for the table doesn't support analyze
+test.t1	analyze	status	OK
 CHECK    TABLE t1 EXTENDED;
 Table	Op	Msg_type	Msg_text
 test.t1	check	note	The storage engine for the table doesn't support check
@@ -7371,7 +7371,7 @@ Table	Checksum
 test.t1	<some_value>
 OPTIMIZE TABLE t1;
 Table	Op	Msg_type	Msg_text
-test.t1	optimize	note	The storage engine for the table doesn't support optimize
+test.t1	optimize	status	OK
 # check layout success:    1
 REPAIR   TABLE t1 EXTENDED;
 Table	Op	Msg_type	Msg_text
@@ -7420,7 +7420,7 @@ INSERT INTO t1 (f_int1, f_int2, f_char1, f_char2, f_charbig)
 SELECT f_int1, f_int1, CAST(f_int1 AS CHAR),
 CAST(f_int1 AS CHAR), 'delete me' FROM t0_template
 WHERE f_int1 IN (2,3);
-ERROR 23000: Can't write; duplicate key in table 't1'
+ERROR 23000: Can't write; duplicate key in table ''
 # check prerequisites-3 success:    1
 # INFO: f_int1 AND/OR f_int2 AND/OR (f_int1,f_int2) is UNIQUE
 INSERT INTO t1 (f_int1, f_int2, f_char1, f_char2, f_charbig)
@@ -7589,7 +7589,7 @@ ERROR 22012: Division by 0
 COMMIT;
 	
 # check transactions-8 success: 	1
-# INFO: Storage engine used for t1 seems to be unable to revert
+# INFO: Storage engine used for t1 seems to be able to revert
 #       changes made by the failing statement.
 SET @@session.sql_mode = '';
 SET AUTOCOMMIT= 1;
@@ -7851,7 +7851,7 @@ AND f_int2 <> CAST(f_char1 AS SIGNED INT)
 AND f_charbig = '####updated per insert trigger####';
 ANALYZE  TABLE t1;
 Table	Op	Msg_type	Msg_text
-test.t1	analyze	note	The storage engine for the table doesn't support analyze
+test.t1	analyze	status	OK
 CHECK    TABLE t1 EXTENDED;
 Table	Op	Msg_type	Msg_text
 test.t1	check	note	The storage engine for the table doesn't support check
@@ -7860,7 +7860,7 @@ Table	Checksum
 test.t1	<some_value>
 OPTIMIZE TABLE t1;
 Table	Op	Msg_type	Msg_text
-test.t1	optimize	note	The storage engine for the table doesn't support optimize
+test.t1	optimize	status	OK
 # check layout success:    1
 REPAIR   TABLE t1 EXTENDED;
 Table	Op	Msg_type	Msg_text
@@ -7911,7 +7911,7 @@ INSERT INTO t1 (f_int1, f_int2, f_char1, f_char2, f_charbig)
 SELECT f_int1, f_int1, CAST(f_int1 AS CHAR),
 CAST(f_int1 AS CHAR), 'delete me' FROM t0_template
 WHERE f_int1 IN (2,3);
-ERROR 23000: Can't write; duplicate key in table 't1'
+ERROR 23000: Can't write; duplicate key in table ''
 # check prerequisites-3 success:    1
 # INFO: f_int1 AND/OR f_int2 AND/OR (f_int1,f_int2) is UNIQUE
 INSERT INTO t1 (f_int1, f_int2, f_char1, f_char2, f_charbig)
@@ -8096,7 +8096,7 @@ ERROR 22012: Division by 0
 COMMIT;
 	
 # check transactions-8 success: 	1
-# INFO: Storage engine used for t1 seems to be unable to revert
+# INFO: Storage engine used for t1 seems to be able to revert
 #       changes made by the failing statement.
 SET @@session.sql_mode = '';
 SET AUTOCOMMIT= 1;
@@ -8358,7 +8358,7 @@ AND f_int2 <> CAST(f_char1 AS SIGNED INT)
 AND f_charbig = '####updated per insert trigger####';
 ANALYZE  TABLE t1;
 Table	Op	Msg_type	Msg_text
-test.t1	analyze	note	The storage engine for the table doesn't support analyze
+test.t1	analyze	status	OK
 CHECK    TABLE t1 EXTENDED;
 Table	Op	Msg_type	Msg_text
 test.t1	check	note	The storage engine for the table doesn't support check
@@ -8367,7 +8367,7 @@ Table	Checksum
 test.t1	<some_value>
 OPTIMIZE TABLE t1;
 Table	Op	Msg_type	Msg_text
-test.t1	optimize	note	The storage engine for the table doesn't support optimize
+test.t1	optimize	status	OK
 # check layout success:    1
 REPAIR   TABLE t1 EXTENDED;
 Table	Op	Msg_type	Msg_text
@@ -8416,7 +8416,7 @@ INSERT INTO t1 (f_int1, f_int2, f_char1, f_char2, f_charbig)
 SELECT f_int1, f_int1, CAST(f_int1 AS CHAR),
 CAST(f_int1 AS CHAR), 'delete me' FROM t0_template
 WHERE f_int1 IN (2,3);
-ERROR 23000: Can't write; duplicate key in table 't1'
+ERROR 23000: Can't write; duplicate key in table ''
 # check prerequisites-3 success:    1
 # INFO: f_int1 AND/OR f_int2 AND/OR (f_int1,f_int2) is UNIQUE
 INSERT INTO t1 (f_int1, f_int2, f_char1, f_char2, f_charbig)
@@ -8601,7 +8601,7 @@ ERROR 22012: Division by 0
 COMMIT;
 	
 # check transactions-8 success: 	1
-# INFO: Storage engine used for t1 seems to be unable to revert
+# INFO: Storage engine used for t1 seems to be able to revert
 #       changes made by the failing statement.
 SET @@session.sql_mode = '';
 SET AUTOCOMMIT= 1;
@@ -8863,7 +8863,7 @@ AND f_int2 <> CAST(f_char1 AS SIGNED INT)
 AND f_charbig = '####updated per insert trigger####';
 ANALYZE  TABLE t1;
 Table	Op	Msg_type	Msg_text
-test.t1	analyze	note	The storage engine for the table doesn't support analyze
+test.t1	analyze	status	OK
 CHECK    TABLE t1 EXTENDED;
 Table	Op	Msg_type	Msg_text
 test.t1	check	note	The storage engine for the table doesn't support check
@@ -8872,7 +8872,7 @@ Table	Checksum
 test.t1	<some_value>
 OPTIMIZE TABLE t1;
 Table	Op	Msg_type	Msg_text
-test.t1	optimize	note	The storage engine for the table doesn't support optimize
+test.t1	optimize	status	OK
 # check layout success:    1
 REPAIR   TABLE t1 EXTENDED;
 Table	Op	Msg_type	Msg_text
@@ -8921,7 +8921,7 @@ INSERT INTO t1 (f_int1, f_int2, f_char1, f_char2, f_charbig)
 SELECT f_int1, f_int1, CAST(f_int1 AS CHAR),
 CAST(f_int1 AS CHAR), 'delete me' FROM t0_template
 WHERE f_int1 IN (2,3);
-ERROR 23000: Can't write; duplicate key in table 't1'
+ERROR 23000: Can't write; duplicate key in table ''
 # check prerequisites-3 success:    1
 # INFO: f_int1 AND/OR f_int2 AND/OR (f_int1,f_int2) is UNIQUE
 INSERT INTO t1 (f_int1, f_int2, f_char1, f_char2, f_charbig)
@@ -9106,7 +9106,7 @@ ERROR 22012: Division by 0
 COMMIT;
 	
 # check transactions-8 success: 	1
-# INFO: Storage engine used for t1 seems to be unable to revert
+# INFO: Storage engine used for t1 seems to be able to revert
 #       changes made by the failing statement.
 SET @@session.sql_mode = '';
 SET AUTOCOMMIT= 1;
@@ -9368,7 +9368,7 @@ AND f_int2 <> CAST(f_char1 AS SIGNED INT)
 AND f_charbig = '####updated per insert trigger####';
 ANALYZE  TABLE t1;
 Table	Op	Msg_type	Msg_text
-test.t1	analyze	note	The storage engine for the table doesn't support analyze
+test.t1	analyze	status	OK
 CHECK    TABLE t1 EXTENDED;
 Table	Op	Msg_type	Msg_text
 test.t1	check	note	The storage engine for the table doesn't support check
@@ -9377,7 +9377,7 @@ Table	Checksum
 test.t1	<some_value>
 OPTIMIZE TABLE t1;
 Table	Op	Msg_type	Msg_text
-test.t1	optimize	note	The storage engine for the table doesn't support optimize
+test.t1	optimize	status	OK
 # check layout success:    1
 REPAIR   TABLE t1 EXTENDED;
 Table	Op	Msg_type	Msg_text
@@ -9426,7 +9426,7 @@ INSERT INTO t1 (f_int1, f_int2, f_char1, f_char2, f_charbig)
 SELECT f_int1, f_int1, CAST(f_int1 AS CHAR),
 CAST(f_int1 AS CHAR), 'delete me' FROM t0_template
 WHERE f_int1 IN (2,3);
-ERROR 23000: Can't write; duplicate key in table 't1'
+ERROR 23000: Can't write; duplicate key in table ''
 # check prerequisites-3 success:    1
 # INFO: f_int1 AND/OR f_int2 AND/OR (f_int1,f_int2) is UNIQUE
 INSERT INTO t1 (f_int1, f_int2, f_char1, f_char2, f_charbig)
@@ -9611,7 +9611,7 @@ ERROR 22012: Division by 0
 COMMIT;
 	
 # check transactions-8 success: 	1
-# INFO: Storage engine used for t1 seems to be unable to revert
+# INFO: Storage engine used for t1 seems to be able to revert
 #       changes made by the failing statement.
 SET @@session.sql_mode = '';
 SET AUTOCOMMIT= 1;
@@ -9873,7 +9873,7 @@ AND f_int2 <> CAST(f_char1 AS SIGNED INT)
 AND f_charbig = '####updated per insert trigger####';
 ANALYZE  TABLE t1;
 Table	Op	Msg_type	Msg_text
-test.t1	analyze	note	The storage engine for the table doesn't support analyze
+test.t1	analyze	status	OK
 CHECK    TABLE t1 EXTENDED;
 Table	Op	Msg_type	Msg_text
 test.t1	check	note	The storage engine for the table doesn't support check
@@ -9882,7 +9882,7 @@ Table	Checksum
 test.t1	<some_value>
 OPTIMIZE TABLE t1;
 Table	Op	Msg_type	Msg_text
-test.t1	optimize	note	The storage engine for the table doesn't support optimize
+test.t1	optimize	status	OK
 # check layout success:    1
 REPAIR   TABLE t1 EXTENDED;
 Table	Op	Msg_type	Msg_text
@@ -9931,7 +9931,7 @@ INSERT INTO t1 (f_int1, f_int2, f_char1, f_char2, f_charbig)
 SELECT f_int1, f_int1, CAST(f_int1 AS CHAR),
 CAST(f_int1 AS CHAR), 'delete me' FROM t0_template
 WHERE f_int1 IN (2,3);
-ERROR 23000: Can't write; duplicate key in table 't1'
+ERROR 23000: Can't write; duplicate key in table ''
 # check prerequisites-3 success:    1
 # INFO: f_int1 AND/OR f_int2 AND/OR (f_int1,f_int2) is UNIQUE
 INSERT INTO t1 (f_int1, f_int2, f_char1, f_char2, f_charbig)
@@ -10116,7 +10116,7 @@ ERROR 22012: Division by 0
 COMMIT;
 	
 # check transactions-8 success: 	1
-# INFO: Storage engine used for t1 seems to be unable to revert
+# INFO: Storage engine used for t1 seems to be able to revert
 #       changes made by the failing statement.
 SET @@session.sql_mode = '';
 SET AUTOCOMMIT= 1;
@@ -10378,7 +10378,7 @@ AND f_int2 <> CAST(f_char1 AS SIGNED INT)
 AND f_charbig = '####updated per insert trigger####';
 ANALYZE  TABLE t1;
 Table	Op	Msg_type	Msg_text
-test.t1	analyze	note	The storage engine for the table doesn't support analyze
+test.t1	analyze	status	OK
 CHECK    TABLE t1 EXTENDED;
 Table	Op	Msg_type	Msg_text
 test.t1	check	note	The storage engine for the table doesn't support check
@@ -10387,7 +10387,7 @@ Table	Checksum
 test.t1	<some_value>
 OPTIMIZE TABLE t1;
 Table	Op	Msg_type	Msg_text
-test.t1	optimize	note	The storage engine for the table doesn't support optimize
+test.t1	optimize	status	OK
 # check layout success:    1
 REPAIR   TABLE t1 EXTENDED;
 Table	Op	Msg_type	Msg_text
@@ -10436,7 +10436,7 @@ INSERT INTO t1 (f_int1, f_int2, f_char1, f_char2, f_charbig)
 SELECT f_int1, f_int1, CAST(f_int1 AS CHAR),
 CAST(f_int1 AS CHAR), 'delete me' FROM t0_template
 WHERE f_int1 IN (2,3);
-ERROR 23000: Can't write; duplicate key in table 't1'
+ERROR 23000: Can't write; duplicate key in table ''
 # check prerequisites-3 success:    1
 # INFO: f_int1 AND/OR f_int2 AND/OR (f_int1,f_int2) is UNIQUE
 INSERT INTO t1 (f_int1, f_int2, f_char1, f_char2, f_charbig)
@@ -10621,7 +10621,7 @@ ERROR 22012: Division by 0
 COMMIT;
 	
 # check transactions-8 success: 	1
-# INFO: Storage engine used for t1 seems to be unable to revert
+# INFO: Storage engine used for t1 seems to be able to revert
 #       changes made by the failing statement.
 SET @@session.sql_mode = '';
 SET AUTOCOMMIT= 1;
@@ -10883,7 +10883,7 @@ AND f_int2 <> CAST(f_char1 AS SIGNED INT)
 AND f_charbig = '####updated per insert trigger####';
 ANALYZE  TABLE t1;
 Table	Op	Msg_type	Msg_text
-test.t1	analyze	note	The storage engine for the table doesn't support analyze
+test.t1	analyze	status	OK
 CHECK    TABLE t1 EXTENDED;
 Table	Op	Msg_type	Msg_text
 test.t1	check	note	The storage engine for the table doesn't support check
@@ -10892,7 +10892,7 @@ Table	Checksum
 test.t1	<some_value>
 OPTIMIZE TABLE t1;
 Table	Op	Msg_type	Msg_text
-test.t1	optimize	note	The storage engine for the table doesn't support optimize
+test.t1	optimize	status	OK
 # check layout success:    1
 REPAIR   TABLE t1 EXTENDED;
 Table	Op	Msg_type	Msg_text
@@ -10941,7 +10941,7 @@ INSERT INTO t1 (f_int1, f_int2, f_char1, f_char2, f_charbig)
 SELECT f_int1, f_int1, CAST(f_int1 AS CHAR),
 CAST(f_int1 AS CHAR), 'delete me' FROM t0_template
 WHERE f_int1 IN (2,3);
-ERROR 23000: Can't write; duplicate key in table 't1'
+ERROR 23000: Can't write; duplicate key in table ''
 # check prerequisites-3 success:    1
 # INFO: f_int1 AND/OR f_int2 AND/OR (f_int1,f_int2) is UNIQUE
 INSERT INTO t1 (f_int1, f_int2, f_char1, f_char2, f_charbig)
@@ -11126,7 +11126,7 @@ ERROR 22012: Division by 0
 COMMIT;
 	
 # check transactions-8 success: 	1
-# INFO: Storage engine used for t1 seems to be unable to revert
+# INFO: Storage engine used for t1 seems to be able to revert
 #       changes made by the failing statement.
 SET @@session.sql_mode = '';
 SET AUTOCOMMIT= 1;
@@ -11388,7 +11388,7 @@ AND f_int2 <> CAST(f_char1 AS SIGNED INT)
 AND f_charbig = '####updated per insert trigger####';
 ANALYZE  TABLE t1;
 Table	Op	Msg_type	Msg_text
-test.t1	analyze	note	The storage engine for the table doesn't support analyze
+test.t1	analyze	status	OK
 CHECK    TABLE t1 EXTENDED;
 Table	Op	Msg_type	Msg_text
 test.t1	check	note	The storage engine for the table doesn't support check
@@ -11397,7 +11397,7 @@ Table	Checksum
 test.t1	<some_value>
 OPTIMIZE TABLE t1;
 Table	Op	Msg_type	Msg_text
-test.t1	optimize	note	The storage engine for the table doesn't support optimize
+test.t1	optimize	status	OK
 # check layout success:    1
 REPAIR   TABLE t1 EXTENDED;
 Table	Op	Msg_type	Msg_text
@@ -11446,7 +11446,7 @@ INSERT INTO t1 (f_int1, f_int2, f_char1, f_char2, f_charbig)
 SELECT f_int1, f_int1, CAST(f_int1 AS CHAR),
 CAST(f_int1 AS CHAR), 'delete me' FROM t0_template
 WHERE f_int1 IN (2,3);
-ERROR 23000: Can't write; duplicate key in table 't1'
+ERROR 23000: Can't write; duplicate key in table ''
 # check prerequisites-3 success:    1
 # INFO: f_int1 AND/OR f_int2 AND/OR (f_int1,f_int2) is UNIQUE
 INSERT INTO t1 (f_int1, f_int2, f_char1, f_char2, f_charbig)
@@ -11631,7 +11631,7 @@ ERROR 22012: Division by 0
 COMMIT;
 	
 # check transactions-8 success: 	1
-# INFO: Storage engine used for t1 seems to be unable to revert
+# INFO: Storage engine used for t1 seems to be able to revert
 #       changes made by the failing statement.
 SET @@session.sql_mode = '';
 SET AUTOCOMMIT= 1;
@@ -11893,7 +11893,7 @@ AND f_int2 <> CAST(f_char1 AS SIGNED INT)
 AND f_charbig = '####updated per insert trigger####';
 ANALYZE  TABLE t1;
 Table	Op	Msg_type	Msg_text
-test.t1	analyze	note	The storage engine for the table doesn't support analyze
+test.t1	analyze	status	OK
 CHECK    TABLE t1 EXTENDED;
 Table	Op	Msg_type	Msg_text
 test.t1	check	note	The storage engine for the table doesn't support check
@@ -11902,7 +11902,7 @@ Table	Checksum
 test.t1	<some_value>
 OPTIMIZE TABLE t1;
 Table	Op	Msg_type	Msg_text
-test.t1	optimize	note	The storage engine for the table doesn't support optimize
+test.t1	optimize	status	OK
 # check layout success:    1
 REPAIR   TABLE t1 EXTENDED;
 Table	Op	Msg_type	Msg_text
@@ -11952,7 +11952,7 @@ INSERT INTO t1 (f_int1, f_int2, f_char1, f_char2, f_charbig)
 SELECT f_int1, f_int1, CAST(f_int1 AS CHAR),
 CAST(f_int1 AS CHAR), 'delete me' FROM t0_template
 WHERE f_int1 IN (2,3);
-ERROR 23000: Can't write; duplicate key in table 't1'
+ERROR 23000: Can't write; duplicate key in table ''
 # check prerequisites-3 success:    1
 # INFO: f_int1 AND/OR f_int2 AND/OR (f_int1,f_int2) is UNIQUE
 INSERT INTO t1 (f_int1, f_int2, f_char1, f_char2, f_charbig)
@@ -12137,7 +12137,7 @@ ERROR 22012: Division by 0
 COMMIT;
 	
 # check transactions-8 success: 	1
-# INFO: Storage engine used for t1 seems to be unable to revert
+# INFO: Storage engine used for t1 seems to be able to revert
 #       changes made by the failing statement.
 SET @@session.sql_mode = '';
 SET AUTOCOMMIT= 1;
@@ -12399,7 +12399,7 @@ AND f_int2 <> CAST(f_char1 AS SIGNED INT)
 AND f_charbig = '####updated per insert trigger####';
 ANALYZE  TABLE t1;
 Table	Op	Msg_type	Msg_text
-test.t1	analyze	note	The storage engine for the table doesn't support analyze
+test.t1	analyze	status	OK
 CHECK    TABLE t1 EXTENDED;
 Table	Op	Msg_type	Msg_text
 test.t1	check	note	The storage engine for the table doesn't support check
@@ -12408,7 +12408,7 @@ Table	Checksum
 test.t1	<some_value>
 OPTIMIZE TABLE t1;
 Table	Op	Msg_type	Msg_text
-test.t1	optimize	note	The storage engine for the table doesn't support optimize
+test.t1	optimize	status	OK
 # check layout success:    1
 REPAIR   TABLE t1 EXTENDED;
 Table	Op	Msg_type	Msg_text
@@ -12457,7 +12457,7 @@ INSERT INTO t1 (f_int1, f_int2, f_char1, f_char2, f_charbig)
 SELECT f_int1, f_int1, CAST(f_int1 AS CHAR),
 CAST(f_int1 AS CHAR), 'delete me' FROM t0_template
 WHERE f_int1 IN (2,3);
-ERROR 23000: Can't write; duplicate key in table 't1'
+ERROR 23000: Can't write; duplicate key in table ''
 # check prerequisites-3 success:    1
 # INFO: f_int1 AND/OR f_int2 AND/OR (f_int1,f_int2) is UNIQUE
 INSERT INTO t1 (f_int1, f_int2, f_char1, f_char2, f_charbig)
@@ -12642,7 +12642,7 @@ ERROR 22012: Division by 0
 COMMIT;
 	
 # check transactions-8 success: 	1
-# INFO: Storage engine used for t1 seems to be unable to revert
+# INFO: Storage engine used for t1 seems to be able to revert
 #       changes made by the failing statement.
 SET @@session.sql_mode = '';
 SET AUTOCOMMIT= 1;
@@ -12904,7 +12904,7 @@ AND f_int2 <> CAST(f_char1 AS SIGNED INT)
 AND f_charbig = '####updated per insert trigger####';
 ANALYZE  TABLE t1;
 Table	Op	Msg_type	Msg_text
-test.t1	analyze	note	The storage engine for the table doesn't support analyze
+test.t1	analyze	status	OK
 CHECK    TABLE t1 EXTENDED;
 Table	Op	Msg_type	Msg_text
 test.t1	check	note	The storage engine for the table doesn't support check
@@ -12913,7 +12913,7 @@ Table	Checksum
 test.t1	<some_value>
 OPTIMIZE TABLE t1;
 Table	Op	Msg_type	Msg_text
-test.t1	optimize	note	The storage engine for the table doesn't support optimize
+test.t1	optimize	status	OK
 # check layout success:    1
 REPAIR   TABLE t1 EXTENDED;
 Table	Op	Msg_type	Msg_text
@@ -12962,7 +12962,7 @@ INSERT INTO t1 (f_int1, f_int2, f_char1, f_char2, f_charbig)
 SELECT f_int1, f_int1, CAST(f_int1 AS CHAR),
 CAST(f_int1 AS CHAR), 'delete me' FROM t0_template
 WHERE f_int1 IN (2,3);
-ERROR 23000: Can't write; duplicate key in table 't1'
+ERROR 23000: Can't write; duplicate key in table ''
 # check prerequisites-3 success:    1
 # INFO: f_int1 AND/OR f_int2 AND/OR (f_int1,f_int2) is UNIQUE
 INSERT INTO t1 (f_int1, f_int2, f_char1, f_char2, f_charbig)
@@ -13147,7 +13147,7 @@ ERROR 22012: Division by 0
 COMMIT;
 	
 # check transactions-8 success: 	1
-# INFO: Storage engine used for t1 seems to be unable to revert
+# INFO: Storage engine used for t1 seems to be able to revert
 #       changes made by the failing statement.
 SET @@session.sql_mode = '';
 SET AUTOCOMMIT= 1;
@@ -13409,7 +13409,7 @@ AND f_int2 <> CAST(f_char1 AS SIGNED INT)
 AND f_charbig = '####updated per insert trigger####';
 ANALYZE  TABLE t1;
 Table	Op	Msg_type	Msg_text
-test.t1	analyze	note	The storage engine for the table doesn't support analyze
+test.t1	analyze	status	OK
 CHECK    TABLE t1 EXTENDED;
 Table	Op	Msg_type	Msg_text
 test.t1	check	note	The storage engine for the table doesn't support check
@@ -13418,7 +13418,7 @@ Table	Checksum
 test.t1	<some_value>
 OPTIMIZE TABLE t1;
 Table	Op	Msg_type	Msg_text
-test.t1	optimize	note	The storage engine for the table doesn't support optimize
+test.t1	optimize	status	OK
 # check layout success:    1
 REPAIR   TABLE t1 EXTENDED;
 Table	Op	Msg_type	Msg_text
@@ -13467,7 +13467,7 @@ INSERT INTO t1 (f_int1, f_int2, f_char1, f_char2, f_charbig)
 SELECT f_int1, f_int1, CAST(f_int1 AS CHAR),
 CAST(f_int1 AS CHAR), 'delete me' FROM t0_template
 WHERE f_int1 IN (2,3);
-ERROR 23000: Can't write; duplicate key in table 't1'
+ERROR 23000: Can't write; duplicate key in table ''
 # check prerequisites-3 success:    1
 # INFO: f_int1 AND/OR f_int2 AND/OR (f_int1,f_int2) is UNIQUE
 INSERT INTO t1 (f_int1, f_int2, f_char1, f_char2, f_charbig)
@@ -13652,7 +13652,7 @@ ERROR 22012: Division by 0
 COMMIT;
 	
 # check transactions-8 success: 	1
-# INFO: Storage engine used for t1 seems to be unable to revert
+# INFO: Storage engine used for t1 seems to be able to revert
 #       changes made by the failing statement.
 SET @@session.sql_mode = '';
 SET AUTOCOMMIT= 1;
@@ -13914,7 +13914,7 @@ AND f_int2 <> CAST(f_char1 AS SIGNED INT)
 AND f_charbig = '####updated per insert trigger####';
 ANALYZE  TABLE t1;
 Table	Op	Msg_type	Msg_text
-test.t1	analyze	note	The storage engine for the table doesn't support analyze
+test.t1	analyze	status	OK
 CHECK    TABLE t1 EXTENDED;
 Table	Op	Msg_type	Msg_text
 test.t1	check	note	The storage engine for the table doesn't support check
@@ -13923,7 +13923,7 @@ Table	Checksum
 test.t1	<some_value>
 OPTIMIZE TABLE t1;
 Table	Op	Msg_type	Msg_text
-test.t1	optimize	note	The storage engine for the table doesn't support optimize
+test.t1	optimize	status	OK
 # check layout success:    1
 REPAIR   TABLE t1 EXTENDED;
 Table	Op	Msg_type	Msg_text
@@ -13972,7 +13972,7 @@ INSERT INTO t1 (f_int1, f_int2, f_char1, f_char2, f_charbig)
 SELECT f_int1, f_int1, CAST(f_int1 AS CHAR),
 CAST(f_int1 AS CHAR), 'delete me' FROM t0_template
 WHERE f_int1 IN (2,3);
-ERROR 23000: Can't write; duplicate key in table 't1'
+ERROR 23000: Can't write; duplicate key in table ''
 # check prerequisites-3 success:    1
 # INFO: f_int1 AND/OR f_int2 AND/OR (f_int1,f_int2) is UNIQUE
 INSERT INTO t1 (f_int1, f_int2, f_char1, f_char2, f_charbig)
@@ -14157,7 +14157,7 @@ ERROR 22012: Division by 0
 COMMIT;
 	
 # check transactions-8 success: 	1
-# INFO: Storage engine used for t1 seems to be unable to revert
+# INFO: Storage engine used for t1 seems to be able to revert
 #       changes made by the failing statement.
 SET @@session.sql_mode = '';
 SET AUTOCOMMIT= 1;
@@ -14419,7 +14419,7 @@ AND f_int2 <> CAST(f_char1 AS SIGNED INT)
 AND f_charbig = '####updated per insert trigger####';
 ANALYZE  TABLE t1;
 Table	Op	Msg_type	Msg_text
-test.t1	analyze	note	The storage engine for the table doesn't support analyze
+test.t1	analyze	status	OK
 CHECK    TABLE t1 EXTENDED;
 Table	Op	Msg_type	Msg_text
 test.t1	check	note	The storage engine for the table doesn't support check
@@ -14428,7 +14428,7 @@ Table	Checksum
 test.t1	<some_value>
 OPTIMIZE TABLE t1;
 Table	Op	Msg_type	Msg_text
-test.t1	optimize	note	The storage engine for the table doesn't support optimize
+test.t1	optimize	status	OK
 # check layout success:    1
 REPAIR   TABLE t1 EXTENDED;
 Table	Op	Msg_type	Msg_text
@@ -14477,7 +14477,7 @@ INSERT INTO t1 (f_int1, f_int2, f_char1, f_char2, f_charbig)
 SELECT f_int1, f_int1, CAST(f_int1 AS CHAR),
 CAST(f_int1 AS CHAR), 'delete me' FROM t0_template
 WHERE f_int1 IN (2,3);
-ERROR 23000: Can't write; duplicate key in table 't1'
+ERROR 23000: Can't write; duplicate key in table ''
 # check prerequisites-3 success:    1
 # INFO: f_int1 AND/OR f_int2 AND/OR (f_int1,f_int2) is UNIQUE
 INSERT INTO t1 (f_int1, f_int2, f_char1, f_char2, f_charbig)
@@ -14662,7 +14662,7 @@ ERROR 22012: Division by 0
 COMMIT;
 	
 # check transactions-8 success: 	1
-# INFO: Storage engine used for t1 seems to be unable to revert
+# INFO: Storage engine used for t1 seems to be able to revert
 #       changes made by the failing statement.
 SET @@session.sql_mode = '';
 SET AUTOCOMMIT= 1;
@@ -14924,7 +14924,7 @@ AND f_int2 <> CAST(f_char1 AS SIGNED INT)
 AND f_charbig = '####updated per insert trigger####';
 ANALYZE  TABLE t1;
 Table	Op	Msg_type	Msg_text
-test.t1	analyze	note	The storage engine for the table doesn't support analyze
+test.t1	analyze	status	OK
 CHECK    TABLE t1 EXTENDED;
 Table	Op	Msg_type	Msg_text
 test.t1	check	note	The storage engine for the table doesn't support check
@@ -14933,7 +14933,7 @@ Table	Checksum
 test.t1	<some_value>
 OPTIMIZE TABLE t1;
 Table	Op	Msg_type	Msg_text
-test.t1	optimize	note	The storage engine for the table doesn't support optimize
+test.t1	optimize	status	OK
 # check layout success:    1
 REPAIR   TABLE t1 EXTENDED;
 Table	Op	Msg_type	Msg_text
@@ -14982,7 +14982,7 @@ INSERT INTO t1 (f_int1, f_int2, f_char1, f_char2, f_charbig)
 SELECT f_int1, f_int1, CAST(f_int1 AS CHAR),
 CAST(f_int1 AS CHAR), 'delete me' FROM t0_template
 WHERE f_int1 IN (2,3);
-ERROR 23000: Can't write; duplicate key in table 't1'
+ERROR 23000: Can't write; duplicate key in table ''
 # check prerequisites-3 success:    1
 # INFO: f_int1 AND/OR f_int2 AND/OR (f_int1,f_int2) is UNIQUE
 INSERT INTO t1 (f_int1, f_int2, f_char1, f_char2, f_charbig)
@@ -15167,7 +15167,7 @@ ERROR 22012: Division by 0
 COMMIT;
 	
 # check transactions-8 success: 	1
-# INFO: Storage engine used for t1 seems to be unable to revert
+# INFO: Storage engine used for t1 seems to be able to revert
 #       changes made by the failing statement.
 SET @@session.sql_mode = '';
 SET AUTOCOMMIT= 1;
@@ -15429,7 +15429,7 @@ AND f_int2 <> CAST(f_char1 AS SIGNED INT)
 AND f_charbig = '####updated per insert trigger####';
 ANALYZE  TABLE t1;
 Table	Op	Msg_type	Msg_text
-test.t1	analyze	note	The storage engine for the table doesn't support analyze
+test.t1	analyze	status	OK
 CHECK    TABLE t1 EXTENDED;
 Table	Op	Msg_type	Msg_text
 test.t1	check	note	The storage engine for the table doesn't support check
@@ -15438,7 +15438,7 @@ Table	Checksum
 test.t1	<some_value>
 OPTIMIZE TABLE t1;
 Table	Op	Msg_type	Msg_text
-test.t1	optimize	note	The storage engine for the table doesn't support optimize
+test.t1	optimize	status	OK
 # check layout success:    1
 REPAIR   TABLE t1 EXTENDED;
 Table	Op	Msg_type	Msg_text
@@ -15487,7 +15487,7 @@ INSERT INTO t1 (f_int1, f_int2, f_char1, f_char2, f_charbig)
 SELECT f_int1, f_int1, CAST(f_int1 AS CHAR),
 CAST(f_int1 AS CHAR), 'delete me' FROM t0_template
 WHERE f_int1 IN (2,3);
-ERROR 23000: Can't write; duplicate key in table 't1'
+ERROR 23000: Can't write; duplicate key in table ''
 # check prerequisites-3 success:    1
 # INFO: f_int1 AND/OR f_int2 AND/OR (f_int1,f_int2) is UNIQUE
 INSERT INTO t1 (f_int1, f_int2, f_char1, f_char2, f_charbig)
@@ -15672,7 +15672,7 @@ ERROR 22012: Division by 0
 COMMIT;
 	
 # check transactions-8 success: 	1
-# INFO: Storage engine used for t1 seems to be unable to revert
+# INFO: Storage engine used for t1 seems to be able to revert
 #       changes made by the failing statement.
 SET @@session.sql_mode = '';
 SET AUTOCOMMIT= 1;
@@ -15934,7 +15934,7 @@ AND f_int2 <> CAST(f_char1 AS SIGNED INT)
 AND f_charbig = '####updated per insert trigger####';
 ANALYZE  TABLE t1;
 Table	Op	Msg_type	Msg_text
-test.t1	analyze	note	The storage engine for the table doesn't support analyze
+test.t1	analyze	status	OK
 CHECK    TABLE t1 EXTENDED;
 Table	Op	Msg_type	Msg_text
 test.t1	check	note	The storage engine for the table doesn't support check
@@ -15943,7 +15943,7 @@ Table	Checksum
 test.t1	<some_value>
 OPTIMIZE TABLE t1;
 Table	Op	Msg_type	Msg_text
-test.t1	optimize	note	The storage engine for the table doesn't support optimize
+test.t1	optimize	status	OK
 # check layout success:    1
 REPAIR   TABLE t1 EXTENDED;
 Table	Op	Msg_type	Msg_text
@@ -15995,7 +15995,7 @@ INSERT INTO t1 (f_int1, f_int2, f_char1, f_char2, f_charbig)
 SELECT f_int1, f_int1, CAST(f_int1 AS CHAR),
 CAST(f_int1 AS CHAR), 'delete me' FROM t0_template
 WHERE f_int1 IN (2,3);
-ERROR 23000: Can't write; duplicate key in table 't1'
+ERROR 23000: Can't write; duplicate key in table ''
 # check prerequisites-3 success:    1
 # INFO: f_int1 AND/OR f_int2 AND/OR (f_int1,f_int2) is UNIQUE
 INSERT INTO t1 (f_int1, f_int2, f_char1, f_char2, f_charbig)
@@ -16164,7 +16164,7 @@ ERROR 22012: Division by 0
 COMMIT;
 	
 # check transactions-8 success: 	1
-# INFO: Storage engine used for t1 seems to be unable to revert
+# INFO: Storage engine used for t1 seems to be able to revert
 #       changes made by the failing statement.
 SET @@session.sql_mode = '';
 SET AUTOCOMMIT= 1;
@@ -16426,7 +16426,7 @@ AND f_int2 <> CAST(f_char1 AS SIGNED INT)
 AND f_charbig = '####updated per insert trigger####';
 ANALYZE  TABLE t1;
 Table	Op	Msg_type	Msg_text
-test.t1	analyze	note	The storage engine for the table doesn't support analyze
+test.t1	analyze	status	OK
 CHECK    TABLE t1 EXTENDED;
 Table	Op	Msg_type	Msg_text
 test.t1	check	note	The storage engine for the table doesn't support check
@@ -16435,7 +16435,7 @@ Table	Checksum
 test.t1	<some_value>
 OPTIMIZE TABLE t1;
 Table	Op	Msg_type	Msg_text
-test.t1	optimize	note	The storage engine for the table doesn't support optimize
+test.t1	optimize	status	OK
 # check layout success:    1
 REPAIR   TABLE t1 EXTENDED;
 Table	Op	Msg_type	Msg_text
@@ -16485,7 +16485,7 @@ INSERT INTO t1 (f_int1, f_int2, f_char1, f_char2, f_charbig)
 SELECT f_int1, f_int1, CAST(f_int1 AS CHAR),
 CAST(f_int1 AS CHAR), 'delete me' FROM t0_template
 WHERE f_int1 IN (2,3);
-ERROR 23000: Can't write; duplicate key in table 't1'
+ERROR 23000: Can't write; duplicate key in table ''
 # check prerequisites-3 success:    1
 # INFO: f_int1 AND/OR f_int2 AND/OR (f_int1,f_int2) is UNIQUE
 INSERT INTO t1 (f_int1, f_int2, f_char1, f_char2, f_charbig)
@@ -16654,7 +16654,7 @@ ERROR 22012: Division by 0
 COMMIT;
 	
 # check transactions-8 success: 	1
-# INFO: Storage engine used for t1 seems to be unable to revert
+# INFO: Storage engine used for t1 seems to be able to revert
 #       changes made by the failing statement.
 SET @@session.sql_mode = '';
 SET AUTOCOMMIT= 1;
@@ -16916,7 +16916,7 @@ AND f_int2 <> CAST(f_char1 AS SIGNED INT)
 AND f_charbig = '####updated per insert trigger####';
 ANALYZE  TABLE t1;
 Table	Op	Msg_type	Msg_text
-test.t1	analyze	note	The storage engine for the table doesn't support analyze
+test.t1	analyze	status	OK
 CHECK    TABLE t1 EXTENDED;
 Table	Op	Msg_type	Msg_text
 test.t1	check	note	The storage engine for the table doesn't support check
@@ -16925,7 +16925,7 @@ Table	Checksum
 test.t1	<some_value>
 OPTIMIZE TABLE t1;
 Table	Op	Msg_type	Msg_text
-test.t1	optimize	note	The storage engine for the table doesn't support optimize
+test.t1	optimize	status	OK
 # check layout success:    1
 REPAIR   TABLE t1 EXTENDED;
 Table	Op	Msg_type	Msg_text
@@ -16975,7 +16975,7 @@ INSERT INTO t1 (f_int1, f_int2, f_char1, f_char2, f_charbig)
 SELECT f_int1, f_int1, CAST(f_int1 AS CHAR),
 CAST(f_int1 AS CHAR), 'delete me' FROM t0_template
 WHERE f_int1 IN (2,3);
-ERROR 23000: Can't write; duplicate key in table 't1'
+ERROR 23000: Can't write; duplicate key in table ''
 # check prerequisites-3 success:    1
 # INFO: f_int1 AND/OR f_int2 AND/OR (f_int1,f_int2) is UNIQUE
 INSERT INTO t1 (f_int1, f_int2, f_char1, f_char2, f_charbig)
@@ -17144,7 +17144,7 @@ ERROR 22012: Division by 0
 COMMIT;
 	
 # check transactions-8 success: 	1
-# INFO: Storage engine used for t1 seems to be unable to revert
+# INFO: Storage engine used for t1 seems to be able to revert
 #       changes made by the failing statement.
 SET @@session.sql_mode = '';
 SET AUTOCOMMIT= 1;
@@ -17406,7 +17406,7 @@ AND f_int2 <> CAST(f_char1 AS SIGNED INT)
 AND f_charbig = '####updated per insert trigger####';
 ANALYZE  TABLE t1;
 Table	Op	Msg_type	Msg_text
-test.t1	analyze	note	The storage engine for the table doesn't support analyze
+test.t1	analyze	status	OK
 CHECK    TABLE t1 EXTENDED;
 Table	Op	Msg_type	Msg_text
 test.t1	check	note	The storage engine for the table doesn't support check
@@ -17415,7 +17415,7 @@ Table	Checksum
 test.t1	<some_value>
 OPTIMIZE TABLE t1;
 Table	Op	Msg_type	Msg_text
-test.t1	optimize	note	The storage engine for the table doesn't support optimize
+test.t1	optimize	status	OK
 # check layout success:    1
 REPAIR   TABLE t1 EXTENDED;
 Table	Op	Msg_type	Msg_text
@@ -17465,7 +17465,7 @@ INSERT INTO t1 (f_int1, f_int2, f_char1, f_char2, f_charbig)
 SELECT f_int1, f_int1, CAST(f_int1 AS CHAR),
 CAST(f_int1 AS CHAR), 'delete me' FROM t0_template
 WHERE f_int1 IN (2,3);
-ERROR 23000: Can't write; duplicate key in table 't1'
+ERROR 23000: Can't write; duplicate key in table ''
 # check prerequisites-3 success:    1
 # INFO: f_int1 AND/OR f_int2 AND/OR (f_int1,f_int2) is UNIQUE
 INSERT INTO t1 (f_int1, f_int2, f_char1, f_char2, f_charbig)
@@ -17634,7 +17634,7 @@ ERROR 22012: Division by 0
 COMMIT;
 	
 # check transactions-8 success: 	1
-# INFO: Storage engine used for t1 seems to be unable to revert
+# INFO: Storage engine used for t1 seems to be able to revert
 #       changes made by the failing statement.
 SET @@session.sql_mode = '';
 SET AUTOCOMMIT= 1;
@@ -17896,7 +17896,7 @@ AND f_int2 <> CAST(f_char1 AS SIGNED INT)
 AND f_charbig = '####updated per insert trigger####';
 ANALYZE  TABLE t1;
 Table	Op	Msg_type	Msg_text
-test.t1	analyze	note	The storage engine for the table doesn't support analyze
+test.t1	analyze	status	OK
 CHECK    TABLE t1 EXTENDED;
 Table	Op	Msg_type	Msg_text
 test.t1	check	note	The storage engine for the table doesn't support check
@@ -17905,7 +17905,7 @@ Table	Checksum
 test.t1	<some_value>
 OPTIMIZE TABLE t1;
 Table	Op	Msg_type	Msg_text
-test.t1	optimize	note	The storage engine for the table doesn't support optimize
+test.t1	optimize	status	OK
 # check layout success:    1
 REPAIR   TABLE t1 EXTENDED;
 Table	Op	Msg_type	Msg_text
@@ -17955,7 +17955,7 @@ INSERT INTO t1 (f_int1, f_int2, f_char1, f_char2, f_charbig)
 SELECT f_int1, f_int1, CAST(f_int1 AS CHAR),
 CAST(f_int1 AS CHAR), 'delete me' FROM t0_template
 WHERE f_int1 IN (2,3);
-ERROR 23000: Can't write; duplicate key in table 't1'
+ERROR 23000: Can't write; duplicate key in table ''
 # check prerequisites-3 success:    1
 # INFO: f_int1 AND/OR f_int2 AND/OR (f_int1,f_int2) is UNIQUE
 INSERT INTO t1 (f_int1, f_int2, f_char1, f_char2, f_charbig)
@@ -18124,7 +18124,7 @@ ERROR 22012: Division by 0
 COMMIT;
 	
 # check transactions-8 success: 	1
-# INFO: Storage engine used for t1 seems to be unable to revert
+# INFO: Storage engine used for t1 seems to be able to revert
 #       changes made by the failing statement.
 SET @@session.sql_mode = '';
 SET AUTOCOMMIT= 1;
@@ -18386,7 +18386,7 @@ AND f_int2 <> CAST(f_char1 AS SIGNED INT)
 AND f_charbig = '####updated per insert trigger####';
 ANALYZE  TABLE t1;
 Table	Op	Msg_type	Msg_text
-test.t1	analyze	note	The storage engine for the table doesn't support analyze
+test.t1	analyze	status	OK
 CHECK    TABLE t1 EXTENDED;
 Table	Op	Msg_type	Msg_text
 test.t1	check	note	The storage engine for the table doesn't support check
@@ -18395,7 +18395,7 @@ Table	Checksum
 test.t1	<some_value>
 OPTIMIZE TABLE t1;
 Table	Op	Msg_type	Msg_text
-test.t1	optimize	note	The storage engine for the table doesn't support optimize
+test.t1	optimize	status	OK
 # check layout success:    1
 REPAIR   TABLE t1 EXTENDED;
 Table	Op	Msg_type	Msg_text
@@ -18445,7 +18445,7 @@ INSERT INTO t1 (f_int1, f_int2, f_char1, f_char2, f_charbig)
 SELECT f_int1, f_int1, CAST(f_int1 AS CHAR),
 CAST(f_int1 AS CHAR), 'delete me' FROM t0_template
 WHERE f_int1 IN (2,3);
-ERROR 23000: Can't write; duplicate key in table 't1'
+ERROR 23000: Can't write; duplicate key in table ''
 # check prerequisites-3 success:    1
 # INFO: f_int1 AND/OR f_int2 AND/OR (f_int1,f_int2) is UNIQUE
 INSERT INTO t1 (f_int1, f_int2, f_char1, f_char2, f_charbig)
@@ -18614,7 +18614,7 @@ ERROR 22012: Division by 0
 COMMIT;
 	
 # check transactions-8 success: 	1
-# INFO: Storage engine used for t1 seems to be unable to revert
+# INFO: Storage engine used for t1 seems to be able to revert
 #       changes made by the failing statement.
 SET @@session.sql_mode = '';
 SET AUTOCOMMIT= 1;
@@ -18876,7 +18876,7 @@ AND f_int2 <> CAST(f_char1 AS SIGNED INT)
 AND f_charbig = '####updated per insert trigger####';
 ANALYZE  TABLE t1;
 Table	Op	Msg_type	Msg_text
-test.t1	analyze	note	The storage engine for the table doesn't support analyze
+test.t1	analyze	status	OK
 CHECK    TABLE t1 EXTENDED;
 Table	Op	Msg_type	Msg_text
 test.t1	check	note	The storage engine for the table doesn't support check
@@ -18885,7 +18885,7 @@ Table	Checksum
 test.t1	<some_value>
 OPTIMIZE TABLE t1;
 Table	Op	Msg_type	Msg_text
-test.t1	optimize	note	The storage engine for the table doesn't support optimize
+test.t1	optimize	status	OK
 # check layout success:    1
 REPAIR   TABLE t1 EXTENDED;
 Table	Op	Msg_type	Msg_text
@@ -18935,7 +18935,7 @@ INSERT INTO t1 (f_int1, f_int2, f_char1, f_char2, f_charbig)
 SELECT f_int1, f_int1, CAST(f_int1 AS CHAR),
 CAST(f_int1 AS CHAR), 'delete me' FROM t0_template
 WHERE f_int1 IN (2,3);
-ERROR 23000: Can't write; duplicate key in table 't1'
+ERROR 23000: Can't write; duplicate key in table ''
 # check prerequisites-3 success:    1
 # INFO: f_int1 AND/OR f_int2 AND/OR (f_int1,f_int2) is UNIQUE
 INSERT INTO t1 (f_int1, f_int2, f_char1, f_char2, f_charbig)
@@ -19104,7 +19104,7 @@ ERROR 22012: Division by 0
 COMMIT;
 	
 # check transactions-8 success: 	1
-# INFO: Storage engine used for t1 seems to be unable to revert
+# INFO: Storage engine used for t1 seems to be able to revert
 #       changes made by the failing statement.
 SET @@session.sql_mode = '';
 SET AUTOCOMMIT= 1;
@@ -19366,7 +19366,7 @@ AND f_int2 <> CAST(f_char1 AS SIGNED INT)
 AND f_charbig = '####updated per insert trigger####';
 ANALYZE  TABLE t1;
 Table	Op	Msg_type	Msg_text
-test.t1	analyze	note	The storage engine for the table doesn't support analyze
+test.t1	analyze	status	OK
 CHECK    TABLE t1 EXTENDED;
 Table	Op	Msg_type	Msg_text
 test.t1	check	note	The storage engine for the table doesn't support check
@@ -19375,7 +19375,7 @@ Table	Checksum
 test.t1	<some_value>
 OPTIMIZE TABLE t1;
 Table	Op	Msg_type	Msg_text
-test.t1	optimize	note	The storage engine for the table doesn't support optimize
+test.t1	optimize	status	OK
 # check layout success:    1
 REPAIR   TABLE t1 EXTENDED;
 Table	Op	Msg_type	Msg_text
@@ -19425,7 +19425,7 @@ INSERT INTO t1 (f_int1, f_int2, f_char1, f_char2, f_charbig)
 SELECT f_int1, f_int1, CAST(f_int1 AS CHAR),
 CAST(f_int1 AS CHAR), 'delete me' FROM t0_template
 WHERE f_int1 IN (2,3);
-ERROR 23000: Can't write; duplicate key in table 't1'
+ERROR 23000: Can't write; duplicate key in table ''
 # check prerequisites-3 success:    1
 # INFO: f_int1 AND/OR f_int2 AND/OR (f_int1,f_int2) is UNIQUE
 INSERT INTO t1 (f_int1, f_int2, f_char1, f_char2, f_charbig)
@@ -19594,7 +19594,7 @@ ERROR 22012: Division by 0
 COMMIT;
 	
 # check transactions-8 success: 	1
-# INFO: Storage engine used for t1 seems to be unable to revert
+# INFO: Storage engine used for t1 seems to be able to revert
 #       changes made by the failing statement.
 SET @@session.sql_mode = '';
 SET AUTOCOMMIT= 1;
@@ -19856,7 +19856,7 @@ AND f_int2 <> CAST(f_char1 AS SIGNED INT)
 AND f_charbig = '####updated per insert trigger####';
 ANALYZE  TABLE t1;
 Table	Op	Msg_type	Msg_text
-test.t1	analyze	note	The storage engine for the table doesn't support analyze
+test.t1	analyze	status	OK
 CHECK    TABLE t1 EXTENDED;
 Table	Op	Msg_type	Msg_text
 test.t1	check	note	The storage engine for the table doesn't support check
@@ -19865,7 +19865,7 @@ Table	Checksum
 test.t1	<some_value>
 OPTIMIZE TABLE t1;
 Table	Op	Msg_type	Msg_text
-test.t1	optimize	note	The storage engine for the table doesn't support optimize
+test.t1	optimize	status	OK
 # check layout success:    1
 REPAIR   TABLE t1 EXTENDED;
 Table	Op	Msg_type	Msg_text
@@ -19916,7 +19916,7 @@ INSERT INTO t1 (f_int1, f_int2, f_char1, f_char2, f_charbig)
 SELECT f_int1, f_int1, CAST(f_int1 AS CHAR),
 CAST(f_int1 AS CHAR), 'delete me' FROM t0_template
 WHERE f_int1 IN (2,3);
-ERROR 23000: Can't write; duplicate key in table 't1'
+ERROR 23000: Can't write; duplicate key in table ''
 # check prerequisites-3 success:    1
 # INFO: f_int1 AND/OR f_int2 AND/OR (f_int1,f_int2) is UNIQUE
 INSERT INTO t1 (f_int1, f_int2, f_char1, f_char2, f_charbig)
@@ -20085,7 +20085,7 @@ ERROR 22012: Division by 0
 COMMIT;
 	
 # check transactions-8 success: 	1
-# INFO: Storage engine used for t1 seems to be unable to revert
+# INFO: Storage engine used for t1 seems to be able to revert
 #       changes made by the failing statement.
 SET @@session.sql_mode = '';
 SET AUTOCOMMIT= 1;
@@ -20347,7 +20347,7 @@ AND f_int2 <> CAST(f_char1 AS SIGNED INT)
 AND f_charbig = '####updated per insert trigger####';
 ANALYZE  TABLE t1;
 Table	Op	Msg_type	Msg_text
-test.t1	analyze	note	The storage engine for the table doesn't support analyze
+test.t1	analyze	status	OK
 CHECK    TABLE t1 EXTENDED;
 Table	Op	Msg_type	Msg_text
 test.t1	check	note	The storage engine for the table doesn't support check
@@ -20356,7 +20356,7 @@ Table	Checksum
 test.t1	<some_value>
 OPTIMIZE TABLE t1;
 Table	Op	Msg_type	Msg_text
-test.t1	optimize	note	The storage engine for the table doesn't support optimize
+test.t1	optimize	status	OK
 # check layout success:    1
 REPAIR   TABLE t1 EXTENDED;
 Table	Op	Msg_type	Msg_text
@@ -20406,7 +20406,7 @@ INSERT INTO t1 (f_int1, f_int2, f_char1, f_char2, f_charbig)
 SELECT f_int1, f_int1, CAST(f_int1 AS CHAR),
 CAST(f_int1 AS CHAR), 'delete me' FROM t0_template
 WHERE f_int1 IN (2,3);
-ERROR 23000: Can't write; duplicate key in table 't1'
+ERROR 23000: Can't write; duplicate key in table ''
 # check prerequisites-3 success:    1
 # INFO: f_int1 AND/OR f_int2 AND/OR (f_int1,f_int2) is UNIQUE
 INSERT INTO t1 (f_int1, f_int2, f_char1, f_char2, f_charbig)
@@ -20575,7 +20575,7 @@ ERROR 22012: Division by 0
 COMMIT;
 	
 # check transactions-8 success: 	1
-# INFO: Storage engine used for t1 seems to be unable to revert
+# INFO: Storage engine used for t1 seems to be able to revert
 #       changes made by the failing statement.
 SET @@session.sql_mode = '';
 SET AUTOCOMMIT= 1;
@@ -20837,7 +20837,7 @@ AND f_int2 <> CAST(f_char1 AS SIGNED INT)
 AND f_charbig = '####updated per insert trigger####';
 ANALYZE  TABLE t1;
 Table	Op	Msg_type	Msg_text
-test.t1	analyze	note	The storage engine for the table doesn't support analyze
+test.t1	analyze	status	OK
 CHECK    TABLE t1 EXTENDED;
 Table	Op	Msg_type	Msg_text
 test.t1	check	note	The storage engine for the table doesn't support check
@@ -20846,7 +20846,7 @@ Table	Checksum
 test.t1	<some_value>
 OPTIMIZE TABLE t1;
 Table	Op	Msg_type	Msg_text
-test.t1	optimize	note	The storage engine for the table doesn't support optimize
+test.t1	optimize	status	OK
 # check layout success:    1
 REPAIR   TABLE t1 EXTENDED;
 Table	Op	Msg_type	Msg_text
@@ -20896,7 +20896,7 @@ INSERT INTO t1 (f_int1, f_int2, f_char1, f_char2, f_charbig)
 SELECT f_int1, f_int1, CAST(f_int1 AS CHAR),
 CAST(f_int1 AS CHAR), 'delete me' FROM t0_template
 WHERE f_int1 IN (2,3);
-ERROR 23000: Can't write; duplicate key in table 't1'
+ERROR 23000: Can't write; duplicate key in table ''
 # check prerequisites-3 success:    1
 # INFO: f_int1 AND/OR f_int2 AND/OR (f_int1,f_int2) is UNIQUE
 INSERT INTO t1 (f_int1, f_int2, f_char1, f_char2, f_charbig)
@@ -21065,7 +21065,7 @@ ERROR 22012: Division by 0
 COMMIT;
 	
 # check transactions-8 success: 	1
-# INFO: Storage engine used for t1 seems to be unable to revert
+# INFO: Storage engine used for t1 seems to be able to revert
 #       changes made by the failing statement.
 SET @@session.sql_mode = '';
 SET AUTOCOMMIT= 1;
@@ -21327,7 +21327,7 @@ AND f_int2 <> CAST(f_char1 AS SIGNED INT)
 AND f_charbig = '####updated per insert trigger####';
 ANALYZE  TABLE t1;
 Table	Op	Msg_type	Msg_text
-test.t1	analyze	note	The storage engine for the table doesn't support analyze
+test.t1	analyze	status	OK
 CHECK    TABLE t1 EXTENDED;
 Table	Op	Msg_type	Msg_text
 test.t1	check	note	The storage engine for the table doesn't support check
@@ -21336,7 +21336,7 @@ Table	Checksum
 test.t1	<some_value>
 OPTIMIZE TABLE t1;
 Table	Op	Msg_type	Msg_text
-test.t1	optimize	note	The storage engine for the table doesn't support optimize
+test.t1	optimize	status	OK
 # check layout success:    1
 REPAIR   TABLE t1 EXTENDED;
 Table	Op	Msg_type	Msg_text
@@ -21386,7 +21386,7 @@ INSERT INTO t1 (f_int1, f_int2, f_char1, f_char2, f_charbig)
 SELECT f_int1, f_int1, CAST(f_int1 AS CHAR),
 CAST(f_int1 AS CHAR), 'delete me' FROM t0_template
 WHERE f_int1 IN (2,3);
-ERROR 23000: Can't write; duplicate key in table 't1'
+ERROR 23000: Can't write; duplicate key in table ''
 # check prerequisites-3 success:    1
 # INFO: f_int1 AND/OR f_int2 AND/OR (f_int1,f_int2) is UNIQUE
 INSERT INTO t1 (f_int1, f_int2, f_char1, f_char2, f_charbig)
@@ -21555,7 +21555,7 @@ ERROR 22012: Division by 0
 COMMIT;
 	
 # check transactions-8 success: 	1
-# INFO: Storage engine used for t1 seems to be unable to revert
+# INFO: Storage engine used for t1 seems to be able to revert
 #       changes made by the failing statement.
 SET @@session.sql_mode = '';
 SET AUTOCOMMIT= 1;
@@ -21817,7 +21817,7 @@ AND f_int2 <> CAST(f_char1 AS SIGNED INT)
 AND f_charbig = '####updated per insert trigger####';
 ANALYZE  TABLE t1;
 Table	Op	Msg_type	Msg_text
-test.t1	analyze	note	The storage engine for the table doesn't support analyze
+test.t1	analyze	status	OK
 CHECK    TABLE t1 EXTENDED;
 Table	Op	Msg_type	Msg_text
 test.t1	check	note	The storage engine for the table doesn't support check
@@ -21826,7 +21826,7 @@ Table	Checksum
 test.t1	<some_value>
 OPTIMIZE TABLE t1;
 Table	Op	Msg_type	Msg_text
-test.t1	optimize	note	The storage engine for the table doesn't support optimize
+test.t1	optimize	status	OK
 # check layout success:    1
 REPAIR   TABLE t1 EXTENDED;
 Table	Op	Msg_type	Msg_text
@@ -21876,7 +21876,7 @@ INSERT INTO t1 (f_int1, f_int2, f_char1, f_char2, f_charbig)
 SELECT f_int1, f_int1, CAST(f_int1 AS CHAR),
 CAST(f_int1 AS CHAR), 'delete me' FROM t0_template
 WHERE f_int1 IN (2,3);
-ERROR 23000: Can't write; duplicate key in table 't1'
+ERROR 23000: Can't write; duplicate key in table ''
 # check prerequisites-3 success:    1
 # INFO: f_int1 AND/OR f_int2 AND/OR (f_int1,f_int2) is UNIQUE
 INSERT INTO t1 (f_int1, f_int2, f_char1, f_char2, f_charbig)
@@ -22045,7 +22045,7 @@ ERROR 22012: Division by 0
 COMMIT;
 	
 # check transactions-8 success: 	1
-# INFO: Storage engine used for t1 seems to be unable to revert
+# INFO: Storage engine used for t1 seems to be able to revert
 #       changes made by the failing statement.
 SET @@session.sql_mode = '';
 SET AUTOCOMMIT= 1;
@@ -22307,7 +22307,7 @@ AND f_int2 <> CAST(f_char1 AS SIGNED INT)
 AND f_charbig = '####updated per insert trigger####';
 ANALYZE  TABLE t1;
 Table	Op	Msg_type	Msg_text
-test.t1	analyze	note	The storage engine for the table doesn't support analyze
+test.t1	analyze	status	OK
 CHECK    TABLE t1 EXTENDED;
 Table	Op	Msg_type	Msg_text
 test.t1	check	note	The storage engine for the table doesn't support check
@@ -22316,7 +22316,7 @@ Table	Checksum
 test.t1	<some_value>
 OPTIMIZE TABLE t1;
 Table	Op	Msg_type	Msg_text
-test.t1	optimize	note	The storage engine for the table doesn't support optimize
+test.t1	optimize	status	OK
 # check layout success:    1
 REPAIR   TABLE t1 EXTENDED;
 Table	Op	Msg_type	Msg_text
@@ -22366,7 +22366,7 @@ INSERT INTO t1 (f_int1, f_int2, f_char1, f_char2, f_charbig)
 SELECT f_int1, f_int1, CAST(f_int1 AS CHAR),
 CAST(f_int1 AS CHAR), 'delete me' FROM t0_template
 WHERE f_int1 IN (2,3);
-ERROR 23000: Can't write; duplicate key in table 't1'
+ERROR 23000: Can't write; duplicate key in table ''
 # check prerequisites-3 success:    1
 # INFO: f_int1 AND/OR f_int2 AND/OR (f_int1,f_int2) is UNIQUE
 INSERT INTO t1 (f_int1, f_int2, f_char1, f_char2, f_charbig)
@@ -22535,7 +22535,7 @@ ERROR 22012: Division by 0
 COMMIT;
 	
 # check transactions-8 success: 	1
-# INFO: Storage engine used for t1 seems to be unable to revert
+# INFO: Storage engine used for t1 seems to be able to revert
 #       changes made by the failing statement.
 SET @@session.sql_mode = '';
 SET AUTOCOMMIT= 1;
@@ -22797,7 +22797,7 @@ AND f_int2 <> CAST(f_char1 AS SIGNED INT)
 AND f_charbig = '####updated per insert trigger####';
 ANALYZE  TABLE t1;
 Table	Op	Msg_type	Msg_text
-test.t1	analyze	note	The storage engine for the table doesn't support analyze
+test.t1	analyze	status	OK
 CHECK    TABLE t1 EXTENDED;
 Table	Op	Msg_type	Msg_text
 test.t1	check	note	The storage engine for the table doesn't support check
@@ -22806,7 +22806,7 @@ Table	Checksum
 test.t1	<some_value>
 OPTIMIZE TABLE t1;
 Table	Op	Msg_type	Msg_text
-test.t1	optimize	note	The storage engine for the table doesn't support optimize
+test.t1	optimize	status	OK
 # check layout success:    1
 REPAIR   TABLE t1 EXTENDED;
 Table	Op	Msg_type	Msg_text
@@ -22856,7 +22856,7 @@ INSERT INTO t1 (f_int1, f_int2, f_char1, f_char2, f_charbig)
 SELECT f_int1, f_int1, CAST(f_int1 AS CHAR),
 CAST(f_int1 AS CHAR), 'delete me' FROM t0_template
 WHERE f_int1 IN (2,3);
-ERROR 23000: Can't write; duplicate key in table 't1'
+ERROR 23000: Can't write; duplicate key in table ''
 # check prerequisites-3 success:    1
 # INFO: f_int1 AND/OR f_int2 AND/OR (f_int1,f_int2) is UNIQUE
 INSERT INTO t1 (f_int1, f_int2, f_char1, f_char2, f_charbig)
@@ -23025,7 +23025,7 @@ ERROR 22012: Division by 0
 COMMIT;
 	
 # check transactions-8 success: 	1
-# INFO: Storage engine used for t1 seems to be unable to revert
+# INFO: Storage engine used for t1 seems to be able to revert
 #       changes made by the failing statement.
 SET @@session.sql_mode = '';
 SET AUTOCOMMIT= 1;
@@ -23287,7 +23287,7 @@ AND f_int2 <> CAST(f_char1 AS SIGNED INT)
 AND f_charbig = '####updated per insert trigger####';
 ANALYZE  TABLE t1;
 Table	Op	Msg_type	Msg_text
-test.t1	analyze	note	The storage engine for the table doesn't support analyze
+test.t1	analyze	status	OK
 CHECK    TABLE t1 EXTENDED;
 Table	Op	Msg_type	Msg_text
 test.t1	check	note	The storage engine for the table doesn't support check
@@ -23296,7 +23296,7 @@ Table	Checksum
 test.t1	<some_value>
 OPTIMIZE TABLE t1;
 Table	Op	Msg_type	Msg_text
-test.t1	optimize	note	The storage engine for the table doesn't support optimize
+test.t1	optimize	status	OK
 # check layout success:    1
 REPAIR   TABLE t1 EXTENDED;
 Table	Op	Msg_type	Msg_text
@@ -23346,7 +23346,7 @@ INSERT INTO t1 (f_int1, f_int2, f_char1, f_char2, f_charbig)
 SELECT f_int1, f_int1, CAST(f_int1 AS CHAR),
 CAST(f_int1 AS CHAR), 'delete me' FROM t0_template
 WHERE f_int1 IN (2,3);
-ERROR 23000: Can't write; duplicate key in table 't1'
+ERROR 23000: Can't write; duplicate key in table ''
 # check prerequisites-3 success:    1
 # INFO: f_int1 AND/OR f_int2 AND/OR (f_int1,f_int2) is UNIQUE
 INSERT INTO t1 (f_int1, f_int2, f_char1, f_char2, f_charbig)
@@ -23515,7 +23515,7 @@ ERROR 22012: Division by 0
 COMMIT;
 	
 # check transactions-8 success: 	1
-# INFO: Storage engine used for t1 seems to be unable to revert
+# INFO: Storage engine used for t1 seems to be able to revert
 #       changes made by the failing statement.
 SET @@session.sql_mode = '';
 SET AUTOCOMMIT= 1;
@@ -23777,7 +23777,7 @@ AND f_int2 <> CAST(f_char1 AS SIGNED INT)
 AND f_charbig = '####updated per insert trigger####';
 ANALYZE  TABLE t1;
 Table	Op	Msg_type	Msg_text
-test.t1	analyze	note	The storage engine for the table doesn't support analyze
+test.t1	analyze	status	OK
 CHECK    TABLE t1 EXTENDED;
 Table	Op	Msg_type	Msg_text
 test.t1	check	note	The storage engine for the table doesn't support check
@@ -23786,7 +23786,7 @@ Table	Checksum
 test.t1	<some_value>
 OPTIMIZE TABLE t1;
 Table	Op	Msg_type	Msg_text
-test.t1	optimize	note	The storage engine for the table doesn't support optimize
+test.t1	optimize	status	OK
 # check layout success:    1
 REPAIR   TABLE t1 EXTENDED;
 Table	Op	Msg_type	Msg_text
@@ -23837,7 +23837,7 @@ INSERT INTO t1 (f_int1, f_int2, f_char1, f_char2, f_charbig)
 SELECT f_int1, f_int1, CAST(f_int1 AS CHAR),
 CAST(f_int1 AS CHAR), 'delete me' FROM t0_template
 WHERE f_int1 IN (2,3);
-ERROR 23000: Can't write; duplicate key in table 't1'
+ERROR 23000: Can't write; duplicate key in table ''
 # check prerequisites-3 success:    1
 # INFO: f_int1 AND/OR f_int2 AND/OR (f_int1,f_int2) is UNIQUE
 INSERT INTO t1 (f_int1, f_int2, f_char1, f_char2, f_charbig)
@@ -24006,7 +24006,7 @@ ERROR 22012: Division by 0
 COMMIT;
 	
 # check transactions-8 success: 	1
-# INFO: Storage engine used for t1 seems to be unable to revert
+# INFO: Storage engine used for t1 seems to be able to revert
 #       changes made by the failing statement.
 SET @@session.sql_mode = '';
 SET AUTOCOMMIT= 1;
@@ -24268,7 +24268,7 @@ AND f_int2 <> CAST(f_char1 AS SIGNED INT)
 AND f_charbig = '####updated per insert trigger####';
 ANALYZE  TABLE t1;
 Table	Op	Msg_type	Msg_text
-test.t1	analyze	note	The storage engine for the table doesn't support analyze
+test.t1	analyze	status	OK
 CHECK    TABLE t1 EXTENDED;
 Table	Op	Msg_type	Msg_text
 test.t1	check	note	The storage engine for the table doesn't support check
@@ -24277,7 +24277,7 @@ Table	Checksum
 test.t1	<some_value>
 OPTIMIZE TABLE t1;
 Table	Op	Msg_type	Msg_text
-test.t1	optimize	note	The storage engine for the table doesn't support optimize
+test.t1	optimize	status	OK
 # check layout success:    1
 REPAIR   TABLE t1 EXTENDED;
 Table	Op	Msg_type	Msg_text
@@ -24327,7 +24327,7 @@ INSERT INTO t1 (f_int1, f_int2, f_char1, f_char2, f_charbig)
 SELECT f_int1, f_int1, CAST(f_int1 AS CHAR),
 CAST(f_int1 AS CHAR), 'delete me' FROM t0_template
 WHERE f_int1 IN (2,3);
-ERROR 23000: Can't write; duplicate key in table 't1'
+ERROR 23000: Can't write; duplicate key in table ''
 # check prerequisites-3 success:    1
 # INFO: f_int1 AND/OR f_int2 AND/OR (f_int1,f_int2) is UNIQUE
 INSERT INTO t1 (f_int1, f_int2, f_char1, f_char2, f_charbig)
@@ -24496,7 +24496,7 @@ ERROR 22012: Division by 0
 COMMIT;
 	
 # check transactions-8 success: 	1
-# INFO: Storage engine used for t1 seems to be unable to revert
+# INFO: Storage engine used for t1 seems to be able to revert
 #       changes made by the failing statement.
 SET @@session.sql_mode = '';
 SET AUTOCOMMIT= 1;
@@ -24758,7 +24758,7 @@ AND f_int2 <> CAST(f_char1 AS SIGNED INT)
 AND f_charbig = '####updated per insert trigger####';
 ANALYZE  TABLE t1;
 Table	Op	Msg_type	Msg_text
-test.t1	analyze	note	The storage engine for the table doesn't support analyze
+test.t1	analyze	status	OK
 CHECK    TABLE t1 EXTENDED;
 Table	Op	Msg_type	Msg_text
 test.t1	check	note	The storage engine for the table doesn't support check
@@ -24767,7 +24767,7 @@ Table	Checksum
 test.t1	<some_value>
 OPTIMIZE TABLE t1;
 Table	Op	Msg_type	Msg_text
-test.t1	optimize	note	The storage engine for the table doesn't support optimize
+test.t1	optimize	status	OK
 # check layout success:    1
 REPAIR   TABLE t1 EXTENDED;
 Table	Op	Msg_type	Msg_text
@@ -24817,7 +24817,7 @@ INSERT INTO t1 (f_int1, f_int2, f_char1, f_char2, f_charbig)
 SELECT f_int1, f_int1, CAST(f_int1 AS CHAR),
 CAST(f_int1 AS CHAR), 'delete me' FROM t0_template
 WHERE f_int1 IN (2,3);
-ERROR 23000: Can't write; duplicate key in table 't1'
+ERROR 23000: Can't write; duplicate key in table ''
 # check prerequisites-3 success:    1
 # INFO: f_int1 AND/OR f_int2 AND/OR (f_int1,f_int2) is UNIQUE
 INSERT INTO t1 (f_int1, f_int2, f_char1, f_char2, f_charbig)
@@ -24986,7 +24986,7 @@ ERROR 22012: Division by 0
 COMMIT;
 	
 # check transactions-8 success: 	1
-# INFO: Storage engine used for t1 seems to be unable to revert
+# INFO: Storage engine used for t1 seems to be able to revert
 #       changes made by the failing statement.
 SET @@session.sql_mode = '';
 SET AUTOCOMMIT= 1;
@@ -25248,7 +25248,7 @@ AND f_int2 <> CAST(f_char1 AS SIGNED INT)
 AND f_charbig = '####updated per insert trigger####';
 ANALYZE  TABLE t1;
 Table	Op	Msg_type	Msg_text
-test.t1	analyze	note	The storage engine for the table doesn't support analyze
+test.t1	analyze	status	OK
 CHECK    TABLE t1 EXTENDED;
 Table	Op	Msg_type	Msg_text
 test.t1	check	note	The storage engine for the table doesn't support check
@@ -25257,7 +25257,7 @@ Table	Checksum
 test.t1	<some_value>
 OPTIMIZE TABLE t1;
 Table	Op	Msg_type	Msg_text
-test.t1	optimize	note	The storage engine for the table doesn't support optimize
+test.t1	optimize	status	OK
 # check layout success:    1
 REPAIR   TABLE t1 EXTENDED;
 Table	Op	Msg_type	Msg_text
@@ -25307,7 +25307,7 @@ INSERT INTO t1 (f_int1, f_int2, f_char1, f_char2, f_charbig)
 SELECT f_int1, f_int1, CAST(f_int1 AS CHAR),
 CAST(f_int1 AS CHAR), 'delete me' FROM t0_template
 WHERE f_int1 IN (2,3);
-ERROR 23000: Can't write; duplicate key in table 't1'
+ERROR 23000: Can't write; duplicate key in table ''
 # check prerequisites-3 success:    1
 # INFO: f_int1 AND/OR f_int2 AND/OR (f_int1,f_int2) is UNIQUE
 INSERT INTO t1 (f_int1, f_int2, f_char1, f_char2, f_charbig)
@@ -25476,7 +25476,7 @@ ERROR 22012: Division by 0
 COMMIT;
 	
 # check transactions-8 success: 	1
-# INFO: Storage engine used for t1 seems to be unable to revert
+# INFO: Storage engine used for t1 seems to be able to revert
 #       changes made by the failing statement.
 SET @@session.sql_mode = '';
 SET AUTOCOMMIT= 1;
@@ -25738,7 +25738,7 @@ AND f_int2 <> CAST(f_char1 AS SIGNED INT)
 AND f_charbig = '####updated per insert trigger####';
 ANALYZE  TABLE t1;
 Table	Op	Msg_type	Msg_text
-test.t1	analyze	note	The storage engine for the table doesn't support analyze
+test.t1	analyze	status	OK
 CHECK    TABLE t1 EXTENDED;
 Table	Op	Msg_type	Msg_text
 test.t1	check	note	The storage engine for the table doesn't support check
@@ -25747,7 +25747,7 @@ Table	Checksum
 test.t1	<some_value>
 OPTIMIZE TABLE t1;
 Table	Op	Msg_type	Msg_text
-test.t1	optimize	note	The storage engine for the table doesn't support optimize
+test.t1	optimize	status	OK
 # check layout success:    1
 REPAIR   TABLE t1 EXTENDED;
 Table	Op	Msg_type	Msg_text
@@ -25797,7 +25797,7 @@ INSERT INTO t1 (f_int1, f_int2, f_char1, f_char2, f_charbig)
 SELECT f_int1, f_int1, CAST(f_int1 AS CHAR),
 CAST(f_int1 AS CHAR), 'delete me' FROM t0_template
 WHERE f_int1 IN (2,3);
-ERROR 23000: Can't write; duplicate key in table 't1'
+ERROR 23000: Can't write; duplicate key in table ''
 # check prerequisites-3 success:    1
 # INFO: f_int1 AND/OR f_int2 AND/OR (f_int1,f_int2) is UNIQUE
 INSERT INTO t1 (f_int1, f_int2, f_char1, f_char2, f_charbig)
@@ -25966,7 +25966,7 @@ ERROR 22012: Division by 0
 COMMIT;
 	
 # check transactions-8 success: 	1
-# INFO: Storage engine used for t1 seems to be unable to revert
+# INFO: Storage engine used for t1 seems to be able to revert
 #       changes made by the failing statement.
 SET @@session.sql_mode = '';
 SET AUTOCOMMIT= 1;
@@ -26228,7 +26228,7 @@ AND f_int2 <> CAST(f_char1 AS SIGNED INT)
 AND f_charbig = '####updated per insert trigger####';
 ANALYZE  TABLE t1;
 Table	Op	Msg_type	Msg_text
-test.t1	analyze	note	The storage engine for the table doesn't support analyze
+test.t1	analyze	status	OK
 CHECK    TABLE t1 EXTENDED;
 Table	Op	Msg_type	Msg_text
 test.t1	check	note	The storage engine for the table doesn't support check
@@ -26237,7 +26237,7 @@ Table	Checksum
 test.t1	<some_value>
 OPTIMIZE TABLE t1;
 Table	Op	Msg_type	Msg_text
-test.t1	optimize	note	The storage engine for the table doesn't support optimize
+test.t1	optimize	status	OK
 # check layout success:    1
 REPAIR   TABLE t1 EXTENDED;
 Table	Op	Msg_type	Msg_text
@@ -26287,7 +26287,7 @@ INSERT INTO t1 (f_int1, f_int2, f_char1, f_char2, f_charbig)
 SELECT f_int1, f_int1, CAST(f_int1 AS CHAR),
 CAST(f_int1 AS CHAR), 'delete me' FROM t0_template
 WHERE f_int1 IN (2,3);
-ERROR 23000: Can't write; duplicate key in table 't1'
+ERROR 23000: Can't write; duplicate key in table ''
 # check prerequisites-3 success:    1
 # INFO: f_int1 AND/OR f_int2 AND/OR (f_int1,f_int2) is UNIQUE
 INSERT INTO t1 (f_int1, f_int2, f_char1, f_char2, f_charbig)
@@ -26456,7 +26456,7 @@ ERROR 22012: Division by 0
 COMMIT;
 	
 # check transactions-8 success: 	1
-# INFO: Storage engine used for t1 seems to be unable to revert
+# INFO: Storage engine used for t1 seems to be able to revert
 #       changes made by the failing statement.
 SET @@session.sql_mode = '';
 SET AUTOCOMMIT= 1;
@@ -26718,7 +26718,7 @@ AND f_int2 <> CAST(f_char1 AS SIGNED INT)
 AND f_charbig = '####updated per insert trigger####';
 ANALYZE  TABLE t1;
 Table	Op	Msg_type	Msg_text
-test.t1	analyze	note	The storage engine for the table doesn't support analyze
+test.t1	analyze	status	OK
 CHECK    TABLE t1 EXTENDED;
 Table	Op	Msg_type	Msg_text
 test.t1	check	note	The storage engine for the table doesn't support check
@@ -26727,7 +26727,7 @@ Table	Checksum
 test.t1	<some_value>
 OPTIMIZE TABLE t1;
 Table	Op	Msg_type	Msg_text
-test.t1	optimize	note	The storage engine for the table doesn't support optimize
+test.t1	optimize	status	OK
 # check layout success:    1
 REPAIR   TABLE t1 EXTENDED;
 Table	Op	Msg_type	Msg_text
@@ -26777,7 +26777,7 @@ INSERT INTO t1 (f_int1, f_int2, f_char1, f_char2, f_charbig)
 SELECT f_int1, f_int1, CAST(f_int1 AS CHAR),
 CAST(f_int1 AS CHAR), 'delete me' FROM t0_template
 WHERE f_int1 IN (2,3);
-ERROR 23000: Can't write; duplicate key in table 't1'
+ERROR 23000: Can't write; duplicate key in table ''
 # check prerequisites-3 success:    1
 # INFO: f_int1 AND/OR f_int2 AND/OR (f_int1,f_int2) is UNIQUE
 INSERT INTO t1 (f_int1, f_int2, f_char1, f_char2, f_charbig)
@@ -26946,7 +26946,7 @@ ERROR 22012: Division by 0
 COMMIT;
 	
 # check transactions-8 success: 	1
-# INFO: Storage engine used for t1 seems to be unable to revert
+# INFO: Storage engine used for t1 seems to be able to revert
 #       changes made by the failing statement.
 SET @@session.sql_mode = '';
 SET AUTOCOMMIT= 1;
@@ -27208,7 +27208,7 @@ AND f_int2 <> CAST(f_char1 AS SIGNED INT)
 AND f_charbig = '####updated per insert trigger####';
 ANALYZE  TABLE t1;
 Table	Op	Msg_type	Msg_text
-test.t1	analyze	note	The storage engine for the table doesn't support analyze
+test.t1	analyze	status	OK
 CHECK    TABLE t1 EXTENDED;
 Table	Op	Msg_type	Msg_text
 test.t1	check	note	The storage engine for the table doesn't support check
@@ -27217,7 +27217,7 @@ Table	Checksum
 test.t1	<some_value>
 OPTIMIZE TABLE t1;
 Table	Op	Msg_type	Msg_text
-test.t1	optimize	note	The storage engine for the table doesn't support optimize
+test.t1	optimize	status	OK
 # check layout success:    1
 REPAIR   TABLE t1 EXTENDED;
 Table	Op	Msg_type	Msg_text
@@ -27267,7 +27267,7 @@ INSERT INTO t1 (f_int1, f_int2, f_char1, f_char2, f_charbig)
 SELECT f_int1, f_int1, CAST(f_int1 AS CHAR),
 CAST(f_int1 AS CHAR), 'delete me' FROM t0_template
 WHERE f_int1 IN (2,3);
-ERROR 23000: Can't write; duplicate key in table 't1'
+ERROR 23000: Can't write; duplicate key in table ''
 # check prerequisites-3 success:    1
 # INFO: f_int1 AND/OR f_int2 AND/OR (f_int1,f_int2) is UNIQUE
 INSERT INTO t1 (f_int1, f_int2, f_char1, f_char2, f_charbig)
@@ -27436,7 +27436,7 @@ ERROR 22012: Division by 0
 COMMIT;
 	
 # check transactions-8 success: 	1
-# INFO: Storage engine used for t1 seems to be unable to revert
+# INFO: Storage engine used for t1 seems to be able to revert
 #       changes made by the failing statement.
 SET @@session.sql_mode = '';
 SET AUTOCOMMIT= 1;
@@ -27698,7 +27698,7 @@ AND f_int2 <> CAST(f_char1 AS SIGNED INT)
 AND f_charbig = '####updated per insert trigger####';
 ANALYZE  TABLE t1;
 Table	Op	Msg_type	Msg_text
-test.t1	analyze	note	The storage engine for the table doesn't support analyze
+test.t1	analyze	status	OK
 CHECK    TABLE t1 EXTENDED;
 Table	Op	Msg_type	Msg_text
 test.t1	check	note	The storage engine for the table doesn't support check
@@ -27707,7 +27707,7 @@ Table	Checksum
 test.t1	<some_value>
 OPTIMIZE TABLE t1;
 Table	Op	Msg_type	Msg_text
-test.t1	optimize	note	The storage engine for the table doesn't support optimize
+test.t1	optimize	status	OK
 # check layout success:    1
 REPAIR   TABLE t1 EXTENDED;
 Table	Op	Msg_type	Msg_text
