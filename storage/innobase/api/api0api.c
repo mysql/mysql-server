@@ -2171,7 +2171,7 @@ ib_col_set_value(
 
 		len = ut_min(len, dtype_get_len(dtype));
 
-		if (dst == NULL) {
+		if (dst == NULL || len > dfield_get_len(dfield)) {
 			dst = mem_heap_alloc(tuple->heap, dtype_get_len(dtype));
 			ut_a(dst != NULL);
 		}
