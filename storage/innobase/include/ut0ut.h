@@ -275,7 +275,8 @@ UNIV_INTERN
 void
 ut_print_timestamp(
 /*===============*/
-	FILE*  file); /*!< in: file where to print */
+	FILE*	file)	/*!< in: file where to print */
+	__attribute__((nonnull, cold));
 /**********************************************************//**
 Sprintfs a timestamp to a buffer, 13..14 chars plus terminating NUL. */
 UNIV_INTERN
