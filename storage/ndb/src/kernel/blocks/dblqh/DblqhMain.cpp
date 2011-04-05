@@ -5792,7 +5792,7 @@ void Dblqh::execTUP_DEALLOCREQ(Signal* signal)
     regTcPtr.p->m_row_id.m_page_no = signal->theData[2];
     regTcPtr.p->m_row_id.m_page_idx = signal->theData[3];
 
-    TRACE_OP(regTcPtr.p, "DEALLOC");
+    TRACE_OP(regTcPtr.p, "SET DEALLOC");
     
     ndbrequire(regTcPtr.p->m_dealloc == 0);
     regTcPtr.p->m_dealloc = 1;
@@ -7096,7 +7096,7 @@ void Dblqh::releaseOprec(Signal* signal)
     if (TRACENR_FLAG)
       TRACENR("DELETED: " << regTcPtr->m_row_id << endl);
 
-    TRACE_OP(regTcPtr, "DEALLOC");
+    TRACE_OP(regTcPtr, "DO DEALLOC");
     
     signal->theData[0] = regTcPtr->fragmentid;
     signal->theData[1] = regTcPtr->tableref;
@@ -12175,6 +12175,11 @@ void Dblqh::continueFirstCopyAfterBlockedLab(Signal* signal)
    * Start sending ROWID for all operations from now on
    */
   fragptr.p->m_copy_started_state = Fragrecord::AC_NR_COPY;
+  if (ERROR_INSERTED(5714))
+  {
+    ndbout_c("Starting copy of tab: %u frag: %u",
+             fragptr.p->tabRef, fragptr.p->fragId);
+  }
 
   scanptr.i = tcConnectptr.p->tcScanRec;
   c_scanRecordPool.getPtr(scanptr);
@@ -12700,7 +12705,12 @@ void Dblqh::closeCopyLab(Signal* signal)
    * Stop sending ROWID for all operations from now on
    */
   fragptr.p->m_copy_started_state = Fragrecord::AC_NORMAL;
-  
+  if (ERROR_INSERTED(5714))
+  {
+    ndbout_c("Copy of tab: %u frag: %u complete",
+             fragptr.p->tabRef, fragptr.p->fragId);
+  }
+
   scanptr.i = tcConnectptr.p->tcScanRec;
   c_scanRecordPool.getPtr(scanptr);
   scanptr.p->scanState = ScanRecord::WAIT_CLOSE_COPY;
