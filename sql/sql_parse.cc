@@ -475,7 +475,6 @@ void init_update_queries(void)
   sql_command_flags[SQLCOM_SELECT]|=          CF_PREOPEN_TMP_TABLES;
   sql_command_flags[SQLCOM_SET_OPTION]|=      CF_PREOPEN_TMP_TABLES;
   sql_command_flags[SQLCOM_DO]|=              CF_PREOPEN_TMP_TABLES;
-  sql_command_flags[SQLCOM_HA_OPEN]|=         CF_PREOPEN_TMP_TABLES;
   sql_command_flags[SQLCOM_CALL]|=            CF_PREOPEN_TMP_TABLES;
   sql_command_flags[SQLCOM_CHECKSUM]|=        CF_PREOPEN_TMP_TABLES;
   sql_command_flags[SQLCOM_ANALYZE]|=         CF_PREOPEN_TMP_TABLES;
@@ -3726,32 +3725,6 @@ end_with_restore_list:
     break;
   }
 #endif
-  case SQLCOM_HA_OPEN:
-    DBUG_ASSERT(first_table == all_tables && first_table != 0);
-    if (check_table_access(thd, SELECT_ACL, all_tables, FALSE, UINT_MAX, FALSE))
-      goto error;
-    /* Close temporary tables which were pre-opened for privilege checking. */
-    close_thread_tables(thd);
-    all_tables->table= NULL;
-    res= mysql_ha_open(thd, first_table, 0);
-    break;
-  case SQLCOM_HA_CLOSE:
-    DBUG_ASSERT(first_table == all_tables && first_table != 0);
-    res= mysql_ha_close(thd, first_table);
-    break;
-  case SQLCOM_HA_READ:
-    DBUG_ASSERT(first_table == all_tables && first_table != 0);
-    /*
-      There is no need to check for table permissions here, because
-      if a user has no permissions to read a table, he won't be
-      able to open it (with SQLCOM_HA_OPEN) in the first place.
-    */
-    unit->set_limit(select_lex);
-    res= mysql_ha_read(thd, first_table, lex->ha_read_mode, lex->ident.str,
-                       lex->insert_list, lex->ha_rkey_mode, select_lex->where,
-                       unit->select_limit_cnt, unit->offset_limit_cnt);
-    break;
-
   case SQLCOM_BEGIN:
     if (trans_begin(thd, lex->start_transaction_opt))
       goto error;
@@ -4438,6 +4411,9 @@ create_sp_error:
   case SQLCOM_REPAIR:
   case SQLCOM_TRUNCATE:
   case SQLCOM_ALTER_TABLE:
+  case SQLCOM_HA_OPEN:
+  case SQLCOM_HA_READ:
+  case SQLCOM_HA_CLOSE:
     DBUG_ASSERT(first_table == all_tables && first_table != 0);
     /* fall through */
   case SQLCOM_SIGNAL:

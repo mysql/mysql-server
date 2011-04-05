@@ -798,7 +798,7 @@ ERROR HY000: Can't execute the given command because you have active locked tabl
 handler t2 close;
 ERROR HY000: Can't execute the given command because you have active locked tables or an active transaction
 handler t3 open;
-ERROR HY000: Can't reopen table: 't3'
+ERROR HY000: Can't execute the given command because you have active locked tables or an active transaction
 handler t4 open;
 ERROR HY000: Can't execute the given command because you have active locked tables or an active transaction
 # After UNLOCK TABLES handlers should be around and

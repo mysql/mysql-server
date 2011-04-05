@@ -819,7 +819,7 @@ handler t1 open;
 handler t1 read next;
 --error ER_LOCK_OR_ACTIVE_TRANSACTION
 handler t2 close;
---error ER_CANT_REOPEN_TABLE
+--error ER_LOCK_OR_ACTIVE_TRANSACTION
 handler t3 open;
 --error ER_LOCK_OR_ACTIVE_TRANSACTION
 handler t4 open;
