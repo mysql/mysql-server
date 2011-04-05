@@ -4064,13 +4064,13 @@ os_aio_func(
 	}
 
 try_again:
-	if (mode == OS_AIO_NORMAL) {
-		if (type == OS_FILE_READ) {
-			array = os_aio_read_array;
-		} else {
-			array = os_aio_write_array;
-		}
-	} else if (mode == OS_AIO_IBUF) {
+	switch (mode) {
+	case OS_AIO_NORMAL:
+		array = (type == OS_FILE_READ)
+			? os_aio_read_array
+			: os_aio_write_array;
+		break;
+	case OS_AIO_IBUF:
 		ut_ad(type == OS_FILE_READ);
 		/* Reduce probability of deadlock bugs in connection with ibuf:
 		do not let the ibuf i/o handler sleep */
@@ -4078,19 +4078,21 @@ try_again:
 		wake_later = FALSE;
 
 		array = os_aio_ibuf_array;
-	} else if (mode == OS_AIO_LOG) {
-
+		break;
+	case OS_AIO_LOG:
 		array = os_aio_log_array;
-	} else if (mode == OS_AIO_SYNC) {
+		break;
+	case OS_AIO_SYNC:
 		array = os_aio_sync_array;
 
 #if defined(LINUX_NATIVE_AIO)
 		/* In Linux native AIO we don't use sync IO array. */
 		ut_a(!srv_use_native_aio);
 #endif /* LINUX_NATIVE_AIO */
-	} else {
-		array = NULL; /* Eliminate compiler warning */
+		break;
+	default:
 		ut_error;
+		array = NULL; /* Eliminate compiler warning */
 	}
 
 	slot = os_aio_array_reserve_slot(type, array, message1, message2, file,
@@ -4253,11 +4255,17 @@ os_aio_windows_handle(
 					   INFINITE);
 	}
 
-	if (srv_shutdown_state == SRV_SHUTDOWN_EXIT_THREADS) {
-		os_thread_exit(NULL);
+	os_mutex_enter(array->mutex);
+
+	if (srv_shutdown_state == SRV_SHUTDOWN_EXIT_THREADS
+	    && array->n_reserved == 0) {
+		*message1 = NULL;
+		*message2 = NULL;
+		os_mutex_exit(array->mutex);
+		return(TRUE);
 	}
 
-	os_mutex_enter(array->mutex);
+	ut_a(i >= WAIT_OBJECT_0 && i <= WAIT_OBJECT_0 + n);
 
 	slot = os_aio_array_get_nth_slot(array, i + segment * n);
 
@@ -4403,14 +4411,6 @@ os_aio_linux_collect(
 
 retry:
 
-	/* Go down if we are in shutdown mode.
-	In case of srv_fast_shutdown == 2, there may be pending
-	IO requests but that should be OK as we essentially treat
-	that as a crash of InnoDB. */
-	if (srv_shutdown_state == SRV_SHUTDOWN_EXIT_THREADS) {
-		os_thread_exit(NULL);
-	}
-
 	/* Initialize the events. The timeout value is arbitrary.
 	We probably need to experiment with it a little. */
 	memset(events, 0, sizeof(*events) * seg_size);
@@ -4419,76 +4419,72 @@ retry:
 
 	ret = io_getevents(io_ctx, 1, seg_size, events, &timeout);
 
+	if (ret > 0) {
+		for (i = 0; i < ret; i++) {
+			os_aio_slot_t*	slot;
+			struct iocb*	control;
+
+			control = (struct iocb *)events[i].obj;
+			ut_a(control != NULL);
+
+			slot = (os_aio_slot_t *) control->data;
+
+			/* Some sanity checks. */
+			ut_a(slot != NULL);
+			ut_a(slot->reserved);
+
+#if defined(UNIV_AIO_DEBUG)
+			fprintf(stderr,
+				"io_getevents[%c]: slot[%p] ctx[%p]"
+				" seg[%lu]\n",
+				(slot->type == OS_FILE_WRITE) ? 'w' : 'r',
+				slot, io_ctx, segment);
+#endif
+
+			/* We are not scribbling previous segment. */
+			ut_a(slot->pos >= start_pos);
+
+			/* We have not overstepped to next segment. */
+			ut_a(slot->pos < end_pos);
+
+			/* Mark this request as completed. The error handling
+			will be done in the calling function. */
+			os_mutex_enter(array->mutex);
+			slot->n_bytes = events[i].res;
+			slot->ret = events[i].res2;
+			slot->io_already_done = TRUE;
+			os_mutex_exit(array->mutex);
+		}
+		return;
+	}
+
+	if (UNIV_UNLIKELY(srv_shutdown_state == SRV_SHUTDOWN_EXIT_THREADS)) {
+		return;
+	}
+
 	/* This error handling is for any error in collecting the
 	IO requests. The errors, if any, for any particular IO
 	request are simply passed on to the calling routine. */
 
-	/* Not enough resources! Try again. */
-	if (ret == -EAGAIN) {
+	switch (ret) {
+	case -EAGAIN:
+		/* Not enough resources! Try again. */
+	case -EINTR:
+		/* Interrupted! I have tested the behaviour in case of an
+		interrupt. If we have some completed IOs available then
+		the return code will be the number of IOs. We get EINTR only
+		if there are no completed IOs and we have been interrupted. */
+	case 0:
+		/* No pending request! Go back and check again. */
 		goto retry;
 	}
 
-	/* Interrupted! I have tested the behaviour in case of an
-	interrupt. If we have some completed IOs available then
-	the return code will be the number of IOs. We get EINTR only
-	if there are no completed IOs and we have been interrupted. */
-	if (ret == -EINTR) {
-		goto retry;
-	}
-
-	/* No pending request! Go back and check again. */
-	if (ret == 0) {
-		goto retry;
-	}
-
-	/* All other errors! should cause a trap for now. */
-	if (UNIV_UNLIKELY(ret < 0)) {
-		ut_print_timestamp(stderr);
-		fprintf(stderr,
-			"  InnoDB: unexpected ret_code[%d] from"
-			" io_getevents()!\n", ret);
-		ut_error;
-	}
-
-	ut_a(ret > 0);
-
-	for (i = 0; i < ret; i++) {
-		os_aio_slot_t*	slot;
-		struct iocb*	control;
-
-		control = (struct iocb *)events[i].obj;
-		ut_a(control != NULL);
-
-		slot = (os_aio_slot_t *) control->data;
-
-		/* Some sanity checks. */
-		ut_a(slot != NULL);
-		ut_a(slot->reserved);
-
-#if defined(UNIV_AIO_DEBUG)
-		fprintf(stderr,
-			"io_getevents[%c]: slot[%p] ctx[%p]"
-			" seg[%lu]\n",
-			(slot->type == OS_FILE_WRITE) ? 'w' : 'r',
-			slot, io_ctx, segment);
-#endif
-
-		/* We are not scribbling previous segment. */
-		ut_a(slot->pos >= start_pos);
-
-		/* We have not overstepped to next segment. */
-		ut_a(slot->pos < end_pos);
-
-		/* Mark this request as completed. The error handling
-		will be done in the calling function. */
-		os_mutex_enter(array->mutex);
-		slot->n_bytes = events[i].res;
-		slot->ret = events[i].res2;
-		slot->io_already_done = TRUE;
-		os_mutex_exit(array->mutex);
-	}
-
-	return;
+	/* All other errors should cause a trap for now. */
+	ut_print_timestamp(stderr);
+	fprintf(stderr,
+		"  InnoDB: unexpected ret_code[%d] from io_getevents()!\n",
+		ret);
+	ut_error;
 }
 
 /**********************************************************************//**
@@ -4532,20 +4528,35 @@ os_aio_linux_handle(
 
 	/* Loop until we have found a completed request. */
 	for (;;) {
+		ibool	any_reserved = FALSE;
 		os_mutex_enter(array->mutex);
 		for (i = 0; i < n; ++i) {
 			slot = os_aio_array_get_nth_slot(
-					array, i + segment * n);
-			if (slot->reserved && slot->io_already_done) {
+				array, i + segment * n);
+			if (!slot->reserved) {
+				continue;
+			} else if (slot->io_already_done) {
 				/* Something for us to work on. */
 				goto found;
+			} else {
+				any_reserved = TRUE;
 			}
 		}
 
 		os_mutex_exit(array->mutex);
 
-		/* We don't have any completed request.
-		Wait for some request. Note that we return
+		/* There is no completed request.
+		If there is no pending request at all,
+		and the system is being shut down, exit. */
+		if (UNIV_UNLIKELY
+		    (!any_reserved
+		     && srv_shutdown_state == SRV_SHUTDOWN_EXIT_THREADS)) {
+			*message1 = NULL;
+			*message2 = NULL;
+			return(TRUE);
+		}
+
+		/* Wait for some request. Note that we return
 		from wait iff we have found a request. */
 
 		srv_set_io_thread_op_info(global_seg,
@@ -4641,6 +4652,7 @@ os_aio_simulated_handle(
 	byte*		combined_buf;
 	byte*		combined_buf2;
 	ibool		ret;
+	ibool		any_reserved;
 	ulint		n;
 	ulint		i;
 
@@ -4671,18 +4683,21 @@ restart:
 		goto recommended_sleep;
 	}
 
-	os_mutex_enter(array->mutex);
-
 	srv_set_io_thread_op_info(global_segment,
 				  "looking for i/o requests (b)");
 
 	/* Check if there is a slot for which the i/o has already been
 	done */
+	any_reserved = FALSE;
+
+	os_mutex_enter(array->mutex);
 
 	for (i = 0; i < n; i++) {
 		slot = os_aio_array_get_nth_slot(array, i + segment * n);
 
-		if (slot->reserved && slot->io_already_done) {
+		if (!slot->reserved) {
+			continue;
+		} else if (slot->io_already_done) {
 
 			if (os_aio_print_debug) {
 				fprintf(stderr,
@@ -4694,7 +4709,21 @@ restart:
 			ret = TRUE;
 
 			goto slot_io_done;
+		} else {
+			any_reserved = TRUE;
 		}
+	}
+
+	/* There is no completed request.
+	If there is no pending request at all,
+	and the system is being shut down, exit. */
+	if (UNIV_UNLIKELY
+	    (!any_reserved
+	     && srv_shutdown_state == SRV_SHUTDOWN_EXIT_THREADS)) {
+		os_mutex_exit(array->mutex);
+		*message1 = NULL;
+		*message2 = NULL;
+		return(TRUE);
 	}
 
 	n_consecutive = 0;
