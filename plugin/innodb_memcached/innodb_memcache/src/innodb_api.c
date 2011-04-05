@@ -24,6 +24,9 @@ with this program; if not, write to the Free Software Foundation, Inc.,
 #include <errno.h>
 #include "memcached/util.h"
 
+/** Tells whether to update all value columns or a specific value
+column */
+#define UPDATE_ALL_VAL_COL		-1
 
 /*********************************************************************
 Open a table and return a cursor for the table. */
@@ -444,6 +447,7 @@ ib_err_t
 innodb_api_set_tpl(
 /*===============*/
 	ib_tpl_t	tpl,		/*!< in: tuple for insert */
+	ib_tpl_t	old_tpl,	/*!< in: old tuple */
 	meta_info_t*	meta_info,	/*!< in: metadata info */
 	meta_column_t*	col_info,	/*!< in: insert col info */
 	const char*	key,		/*!< in: key */
@@ -452,17 +456,30 @@ innodb_api_set_tpl(
 	int		value_len,	/*!< in: value length */
 	uint64_t	cas,		/*!< in: cas */
 	uint64_t	exp,		/*!< in: expiration */
-	uint64_t	flag)		/*!< in: flag */
+	uint64_t	flag,		/*!< in: flag */
+	int		col_to_set)	/*!< in: column to set */
 {
 	ib_err_t	err = DB_ERROR;
+
+	if (old_tpl) {
+		ib_cb_tuple_copy(tpl, old_tpl);
+	}
 
 	err = ib_cb_col_set_value(tpl, col_info[META_KEY].m_field_id,
 				  key, key_len);
 	assert(err == DB_SUCCESS);
 
 	if (meta_info->m_num_add > 0) {
-		err = innodb_api_set_multi_cols(tpl, meta_info,
-						(char*) value, value_len);
+		if (col_to_set == UPDATE_ALL_VAL_COL) {
+			err = innodb_api_set_multi_cols(tpl, meta_info,
+							(char*) value,
+							value_len);
+		} else {
+			err = ib_cb_col_set_value(
+				tpl,
+				meta_info->m_add_item[col_to_set].m_field_id,
+				value, value_len);
+		}
 	} else {
 		err = ib_cb_col_set_value(tpl, col_info[META_VALUE].m_field_id,
 					  value, value_len);
@@ -522,9 +539,9 @@ innodb_api_insert(
 		exp += time;
 	}
 
-	err = innodb_api_set_tpl(tpl, meta_info, col_info, key, len,
+	err = innodb_api_set_tpl(tpl, NULL, meta_info, col_info, key, len,
 				 key + len, strlen(key) - len,
-				 new_cas, exp, flags);
+				 new_cas, exp, flags, UPDATE_ALL_VAL_COL);
 
 	err = ib_cb_insert_row(cursor_data->c_crsr, tpl);
 	assert(err == DB_SUCCESS);
@@ -574,9 +591,9 @@ innodb_api_update(
 		exp += time;
 	}
 
-	err = innodb_api_set_tpl(new_tpl, meta_info, col_info, key, len,
-				 key + len, strlen(key) - len,
-				 new_cas, exp, flags);
+	err = innodb_api_set_tpl(new_tpl, old_tpl, meta_info, col_info, key,
+				 len, key + len, strlen(key) - len,
+				 new_cas, exp, flags, UPDATE_ALL_VAL_COL);
 
 	err = ib_cb_update_row(srch_crsr, old_tpl, new_tpl);
 	assert(err == DB_SUCCESS);
@@ -616,6 +633,7 @@ innodb_api_delete(
 	return(err == DB_SUCCESS ? ENGINE_SUCCESS : ENGINE_KEY_ENOENT);
 }
 
+
 /*************************************************************//**
 Link the value with a string, driver function for command
 "prepend" or "append"
@@ -646,22 +664,38 @@ innodb_api_link(
 	uint64_t	new_cas;
 	meta_info_t*	meta_info = &engine->meta_info;
 	meta_column_t*	col_info = meta_info->m_item;
+	char*		before_val;
+	int		column_used;
 
-	before_len = result->mci_item[MCI_COL_VALUE].m_len;
+	/* If we have multiple value columns, the column to append the
+	string needs to be defined. We will use user supplied flags
+	as an indication on which column to apply the operation. Otherwise,
+	the first column will be appended / prepended */
+	if (meta_info->m_num_add > 0) {
+		if (flags < meta_info->m_num_add) {
+			column_used = flags;
+		} else {
+			column_used = 0;
+		}
+
+		before_len = result->mci_add_value[column_used].m_len;
+		before_val = result->mci_add_value[column_used].m_str;
+	} else {
+		before_len = result->mci_item[MCI_COL_VALUE].m_len;
+		before_val = result->mci_item[MCI_COL_VALUE].m_str;
+		column_used = UPDATE_ALL_VAL_COL;
+	}
 
 	total_len = before_len + strlen(key) - len;
 
 	append_buf = (char*)malloc(total_len);
 
 	if (append) {
-		memcpy(append_buf, result->mci_item[MCI_COL_VALUE].m_str,
-		       before_len);
-		memcpy(append_buf + before_len, key + len,
-		       strlen(key) - len);
+		memcpy(append_buf, before_val, before_len);
+		memcpy(append_buf + before_len, key + len, strlen(key) - len);
 	} else {
 		memcpy(append_buf, key + len, strlen(key) - len);
-		memcpy(append_buf + strlen(key) - len,
-		       result->mci_item[MCI_COL_VALUE].m_str, before_len);
+		memcpy(append_buf + strlen(key) - len, before_val, before_len);
 	}
 
 	new_tpl = ib_cb_read_tuple_create(cursor_data->c_crsr);
@@ -673,9 +707,9 @@ innodb_api_link(
 		exp += time;
 	}
 
-	err = innodb_api_set_tpl(new_tpl, meta_info, col_info, key, len,
-				 append_buf, total_len,
-				 new_cas, exp, flags);
+	err = innodb_api_set_tpl(new_tpl, old_tpl, meta_info, col_info,
+				 key, len, append_buf, total_len,
+				 new_cas, exp, flags, column_used);
 
 	err = ib_cb_update_row(srch_crsr, old_tpl, new_tpl);
 
@@ -722,6 +756,9 @@ innodb_api_arithmetic(
 	meta_info_t*	meta_info = &engine->meta_info;
 	meta_column_t*	col_info = meta_info->m_item;
 	ib_crsr_t       srch_crsr = cursor_data->c_crsr;
+	char*		before_val;
+	int		before_len;
+	int		column_used = 0;
 
 	err = innodb_api_search(engine, cursor_data, &srch_crsr, key, len,
 				&result, &old_tpl);
@@ -738,16 +775,36 @@ innodb_api_arithmetic(
 		}
 	}
 
-	if (result.mci_item[MCI_COL_VALUE].m_len >= (sizeof(value_buf) - 1)) {
+	/* If we have multiple value columns, the column to append the
+	string needs to be defined. We will use user supplied flags
+	as an indication on which column to apply the operation. Otherwise,
+	the first column will be appended / prepended */
+	if (meta_info->m_num_add > 0) {
+		uint64_t flags = result.mci_item[MCI_COL_FLAG].m_digit;
+
+		if (flags < meta_info->m_num_add) {
+			column_used = flags;
+		} else {
+			column_used = 0;
+		}
+
+		before_len = result.mci_add_value[column_used].m_len;
+		before_val = result.mci_add_value[column_used].m_str;
+	} else {
+		before_len = result.mci_item[MCI_COL_VALUE].m_len;
+		before_val = result.mci_item[MCI_COL_VALUE].m_str;
+		column_used = UPDATE_ALL_VAL_COL;
+	}
+
+	if (before_len >= (sizeof(value_buf) - 1)) {
 		ib_cb_tuple_delete(old_tpl);
 		return ENGINE_EINVAL;
 	}
 
 	errno = 0;	
 
-	if (result.mci_item[MCI_COL_VALUE].m_str) {
-		value = strtoull(result.mci_item[MCI_COL_VALUE].m_str,
-				&end_ptr, 10);
+	if (before_val) {
+		value = strtoull(before_val, &end_ptr, 10);
 	}
 	
 	if (errno == ERANGE) {
@@ -774,13 +831,12 @@ create_new_value:
 
 	/* The cas, exp and flags field are not changing, so use the
 	data from result */
-	err = innodb_api_set_tpl(new_tpl, meta_info, col_info, key, len,
-				 value_buf, strlen(value_buf),
-				 result.mci_item[MCI_COL_CAS].m_digit,
+	err = innodb_api_set_tpl(new_tpl, old_tpl, meta_info, col_info,
+				 key, len, value_buf, strlen(value_buf),
+				 *cas,
 				 result.mci_item[MCI_COL_EXP].m_digit,
-				 result.mci_item[MCI_COL_FLAG].m_digit);
-
-	*cas = result.mci_item[MCI_COL_CAS].m_digit;
+				 result.mci_item[MCI_COL_FLAG].m_digit,
+				 column_used);
 
 	assert(err == DB_SUCCESS);
 
