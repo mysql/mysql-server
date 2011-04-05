@@ -936,3 +936,37 @@ update t1 set a=123;
 execute s;
 drop table t0, t1;
 set optimizer_switch='firstmatch=on';
+
+--echo #
+--echo # MWL#90, review feedback: check what happens when the subquery
+--echo #   looks like candidate for MWL#90 checking at the first glance
+--echo #   but then subselect_hash_sj_engine::init_permanent() discovers
+--echo #   that it's not possible to perform duplicate removal for the 
+--echo #   selected datatypes, and so materialization isn't applicable after
+--echo #   all.
+--echo #
+set @blob_len = 1024;
+set @suffix_len = @blob_len - @prefix_len;
+
+create table t1_1024 (a1 blob(1024), a2 blob(1024));
+create table t2_1024 (b1 blob(1024), b2 blob(1024));
+
+insert into t1_1024 values
+ (concat('1 - 00', repeat('x', @suffix_len)), concat('2 - 00', repeat('x', @suffix_len)));
+insert into t1_1024 values
+ (concat('1 - 01', repeat('x', @suffix_len)), concat('2 - 01', repeat('x', @suffix_len)));
+insert into t1_1024 values
+ (concat('1 - 02', repeat('x', @suffix_len)), concat('2 - 02', repeat('x', @suffix_len)));
+
+insert into t2_1024 values
+ (concat('1 - 01', repeat('x', @suffix_len)), concat('2 - 01', repeat('x', @suffix_len)));
+insert into t2_1024 values
+ (concat('1 - 02', repeat('x', @suffix_len)), concat('2 - 02', repeat('x', @suffix_len)));
+insert into t2_1024 values
+ (concat('1 - 03', repeat('x', @suffix_len)), concat('2 - 03', repeat('x', @suffix_len)));
+
+explain select left(a1,7), left(a2,7) from t1_1024 where (a1,3) in (select substring(b1,1,1024), count(*) from t2_1024 where b1 > '0');
+select left(a1,7), left(a2,7) from t1_1024 where (a1,3) in (select substring(b1,1,1024), count(*) from t2_1024 where b1 > '0');
+
+drop table t1_1024, t2_1024;
+
