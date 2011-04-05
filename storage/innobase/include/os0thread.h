@@ -118,13 +118,6 @@ os_thread_id_t
 os_thread_get_curr_id(void);
 /*========================*/
 /*****************************************************************//**
-Returns handle to the current thread.
-@return	current thread handle */
-UNIV_INTERN
-os_thread_t
-os_thread_get_curr(void);
-/*====================*/
-/*****************************************************************//**
 Advises the os to give up remainder of the thread's time slice. */
 UNIV_INTERN
 void
@@ -137,29 +130,6 @@ void
 os_thread_sleep(
 /*============*/
 	ulint	tm);	/*!< in: time in microseconds */
-/******************************************************************//**
-Gets a thread priority.
-@return	priority */
-UNIV_INTERN
-ulint
-os_thread_get_priority(
-/*===================*/
-	os_thread_t	handle);/*!< in: OS handle to the thread */
-/******************************************************************//**
-Sets a thread priority. */
-UNIV_INTERN
-void
-os_thread_set_priority(
-/*===================*/
-	os_thread_t	handle,	/*!< in: OS handle to the thread */
-	ulint		pri);	/*!< in: priority: one of OS_PRIORITY_... */
-/******************************************************************//**
-Gets the last operating system error code for the calling thread.
-@return	last error on Windows, 0 otherwise */
-UNIV_INTERN
-ulint
-os_thread_get_last_error(void);
-/*==========================*/
 
 #ifndef UNIV_NONINL
 #include "os0thread.ic"
