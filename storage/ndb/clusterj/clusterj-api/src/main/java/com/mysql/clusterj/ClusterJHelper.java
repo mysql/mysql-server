@@ -19,6 +19,7 @@ package com.mysql.clusterj;
 
 import java.io.BufferedReader;
 import java.io.IOException;
+import java.io.InputStream;
 import java.io.InputStreamReader;
 
 import java.net.URL;
@@ -95,10 +96,14 @@ public class ClusterJHelper {
             throw new ClusterJFatalUserException(ex);
         }
         while (urls.hasMoreElements()) {
+            InputStream inputStream = null;
+            InputStreamReader inputStreamReader = null;
+            BufferedReader bufferedReader = null;
             try {
                 URL url = urls.nextElement();
-                InputStreamReader inputStreamReader = new InputStreamReader(url.openStream());
-                BufferedReader bufferedReader = new BufferedReader(inputStreamReader);
+                inputStream = url.openStream();
+                inputStreamReader = new InputStreamReader(inputStream);
+                bufferedReader = new BufferedReader(inputStreamReader);
                 factoryName = bufferedReader.readLine();
                 Class<T> serviceClass = (Class<T>)Class.forName(factoryName, true, loader);
                 T service = serviceClass.newInstance();
@@ -113,6 +118,14 @@ public class ClusterJHelper {
                 errorMessages.append(ex.toString());
             } catch (IllegalAccessException ex) {
                 errorMessages.append(ex.toString());
+            } finally {
+                try {
+                    if (inputStream != null) {
+                        inputStream.close();
+                    }
+                } catch (IOException ioex) {
+                    // nothing to do here
+                }
             }
         }
         return result;
