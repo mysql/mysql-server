@@ -113,6 +113,7 @@ typedef struct meta_container_info {
 	char*		m_separator;		/*!< separator that separates
 						incoming "value" string for
 						multiple columns */
+	int		m_sep_len;		/*!< separator length */
 	meta_cache_option_t m_set_option;	/*!< cache option for "set" */
 	meta_cache_option_t m_get_option;	/*!< cache option for "get" */
 	meta_cache_option_t m_del_option;	/*!< cache option for
