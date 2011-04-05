@@ -1,5 +1,4 @@
-/*
-   Copyright (C) 2000-2007 MySQL AB
+/* Copyright (c) 2000, 2011, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -11,12 +10,8 @@
    GNU General Public License for more details.
 
    You should have received a copy of the GNU General Public License
-   along with this program; see the file COPYING. If not, write to the
-   Free Software Foundation, Inc., 51 Franklin St, Fifth Floor, Boston,
-   MA  02110-1301  USA.
-*/
-
-
+   along with this program; if not, write to the Free Software
+   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
 
 /* based on Wei Dai's integer.cpp from CryptoPP */
 
@@ -3953,18 +3948,5 @@ Integer CRT(const Integer &xp, const Integer &p, const Integer &xq,
     // isn't operator overloading great?
     return p * (u * (xq-xp) % q) + xp;
 }
-
-
-#ifdef HAVE_EXPLICIT_TEMPLATE_INSTANTIATION
-#ifndef TAOCRYPT_NATIVE_DWORD_AVAILABLE
-template hword DivideThreeWordsByTwo<hword, Word>(hword*, hword, hword, Word*);
-#endif
-template word DivideThreeWordsByTwo<word, DWord>(word*, word, word, DWord*);
-#ifdef SSE2_INTRINSICS_AVAILABLE
-template class AlignedAllocator<word>;
-#endif
-#endif
-
-
 } // namespace
 
