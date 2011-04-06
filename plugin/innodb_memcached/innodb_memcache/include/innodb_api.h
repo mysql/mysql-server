@@ -234,6 +234,25 @@ ib_err_t
 	ib_trx_t	ib_trx);
 
 typedef
+ib_err_t
+(*CB_TRX_START)(
+/*===============*/
+	ib_trx_t	ib_trx,
+	ib_trx_level_t	ib_trx_level);
+
+typedef
+ib_trx_state_t
+(*CB_TRX_STATE)(
+/*===============*/
+	ib_trx_t	ib_trx);
+
+typedef
+ib_trx_state_t
+(*CB_TRX_RELEASE)(
+/*===============*/
+	ib_trx_t	ib_trx);
+
+typedef
 ib_ulint_t
 (*CB_TUPLE_GET_N_COLS)(
 /*===================*/
@@ -347,6 +366,9 @@ CB_COL_GET_META			ib_cb_col_get_meta;
 CB_TRX_BEGIN			ib_cb_trx_begin;
 CB_TRX_COMMIT			ib_cb_trx_commit;
 CB_TRX_ROLLBACK			ib_cb_trx_rollback;
+CB_TRX_START			ib_cb_trx_start;
+CB_TRX_STATE			ib_cb_trx_state;
+CB_TRX_RELEASE			ib_cb_trx_release;
 CB_TUPLE_GET_N_COLS		ib_cb_tuple_get_n_cols;
 CB_CURSOR_SET_MATCH_MODE	ib_cb_cursor_set_match_mode;
 CB_CURSOR_LOCK			ib_cb_cursor_lock;
@@ -387,7 +409,8 @@ innodb_api_search(
 	const char*		key,	/*!< in: key to search */
 	int			len,	/*!< in: key length */
 	mci_item_t*		item,	/*!< in: result */
-	ib_tpl_t*		r_tpl);	/*!< in: tpl for other DML operations */
+	ib_tpl_t*		r_tpl,	/*!< in: tpl for other DML operations */
+	bool			sel_only); /*!< in: for select only */
 
 /*************************************************************//**
 Insert a row
@@ -470,11 +493,20 @@ uint64_t
 mci_get_time(void);
 /*==============*/
 
+typedef enum conn_op_type {
+        CONN_OP_READ,
+        CONN_OP_WRITE,
+        CONN_OP_DELETE
+} op_type_t;
+
 /*************************************************************//**
 reset the cursor */
 void
 innodb_api_cursor_reset(
 /*====================*/
-	innodb_conn_data_t*	conn_data);	/*!< in/out: cursor affiliated
+	innodb_engine_t*	engine,		 /*!< in: InnoDB Memcached
+						engine */
+	innodb_conn_data_t*	conn_data,	/*!< in/out: cursor affiliated
 						with a connection */
+	op_type_t               op_type);	/*!< in: type of DML performed */
 #endif
