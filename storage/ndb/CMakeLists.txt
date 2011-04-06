@@ -105,6 +105,7 @@ ELSE()
   IF(WITH_NDB_TEST)
     ADD_SUBDIRECTORY(src/cw/cpcd)
   ENDIF()
+  ADD_SUBDIRECTORY(clusterj)
 
 ENDIF()
 
