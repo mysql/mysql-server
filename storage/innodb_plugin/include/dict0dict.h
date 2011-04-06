@@ -318,7 +318,8 @@ void
 dict_table_replace_index_in_foreign_list(
 /*=====================================*/
 	dict_table_t*	table,  /*!< in/out: table */
-	dict_index_t*	index);	/*!< in: index to be replaced */
+	dict_index_t*	index,	/*!< in: index to be replaced */
+	const trx_t*	trx);	/*!< in: transaction handle */
 /*********************************************************************//**
 Checks if a index is defined for a foreign key constraint. Index is a part
 of a foreign key constraint if the index is referenced by foreign key
@@ -1053,19 +1054,13 @@ Calculates new estimates for table and index statistics. The statistics
 are used in query optimization. */
 UNIV_INTERN
 void
-dict_update_statistics_low(
-/*=======================*/
-	dict_table_t*	table,		/*!< in/out: table */
-	ibool		has_dict_mutex);/*!< in: TRUE if the caller has the
-					dictionary mutex */
-/*********************************************************************//**
-Calculates new estimates for table and index statistics. The statistics
-are used in query optimization. */
-UNIV_INTERN
-void
 dict_update_statistics(
 /*===================*/
-	dict_table_t*	table);	/*!< in/out: table */
+	dict_table_t*	table,		/*!< in/out: table */
+	ibool		only_calc_if_missing_stats);/*!< in: only
+					update/recalc the stats if they have
+					not been initialized yet, otherwise
+					do nothing */
 /********************************************************************//**
 Reserves the dictionary system mutex for MySQL. */
 UNIV_INTERN
@@ -1079,21 +1074,25 @@ void
 dict_mutex_exit_for_mysql(void);
 /*===========================*/
 /**********************************************************************//**
-Lock the appropriate mutex to protect index->stat_n_diff_key_vals[].
-index->id is used to pick the right mutex and it should not change
-before dict_index_stat_mutex_exit() is called on this index. */
+Lock the appropriate latch to protect a given table's statistics.
+table->id is used to pick the corresponding latch from a global array of
+latches. */
 UNIV_INTERN
 void
-dict_index_stat_mutex_enter(
-/*========================*/
-	const dict_index_t*	index);	/*!< in: index */
+dict_table_stats_lock(
+/*==================*/
+	const dict_table_t*	table,		/*!< in: table */
+	ulint			latch_mode);	/*!< in: RW_S_LATCH or
+						RW_X_LATCH */
 /**********************************************************************//**
-Unlock the appropriate mutex that protects index->stat_n_diff_key_vals[]. */
+Unlock the latch that has been locked by dict_table_stats_lock() */
 UNIV_INTERN
 void
-dict_index_stat_mutex_exit(
-/*=======================*/
-	const dict_index_t*	index);	/*!< in: index */
+dict_table_stats_unlock(
+/*====================*/
+	const dict_table_t*	table,		/*!< in: table */
+	ulint			latch_mode);	/*!< in: RW_S_LATCH or
+						RW_X_LATCH */
 /********************************************************************//**
 Checks if the database name in two table names is the same.
 @return	TRUE if same db name */

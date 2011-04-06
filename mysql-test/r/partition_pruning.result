@@ -1,5 +1,29 @@
 drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9;
 #
+# Bug#53806: Wrong estimates for range query in partitioned MyISAM table
+# Bug#46754: 'rows' field doesn't reflect partition pruning
+#
+CREATE TABLE t1 (a INT PRIMARY KEY)
+PARTITION BY RANGE (a) (
+PARTITION p0 VALUES LESS THAN (1),
+PARTITION p1 VALUES LESS THAN (2),
+PARTITION p2 VALUES LESS THAN (3),
+PARTITION p3 VALUES LESS THAN (4),
+PARTITION p4 VALUES LESS THAN (5),
+PARTITION p5 VALUES LESS THAN (6),
+PARTITION max VALUES LESS THAN MAXVALUE);
+INSERT INTO t1 VALUES (-1),(0),(1),(2),(3),(4),(5),(6),(7),(8);
+EXPLAIN PARTITIONS SELECT * FROM t1 WHERE a <= 1;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	Extra
+#	#	#	#	#	#	#	#	#	3	#
+EXPLAIN PARTITIONS SELECT * FROM t1 WHERE a < 7;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	Extra
+#	#	#	#	#	#	#	#	#	9	#
+EXPLAIN PARTITIONS SELECT * FROM t1 WHERE a <= 1;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	Extra
+#	#	#	#	#	#	#	#	#	3	#
+DROP TABLE t1;
+#
 # Bug#49742: Partition Pruning not working correctly for RANGE
 #
 CREATE TABLE t1 (a INT PRIMARY KEY)
@@ -89,7 +113,7 @@ a
 1
 EXPLAIN PARTITIONS SELECT * FROM t1 WHERE a <= 1;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	p0,p1	index	PRIMARY	PRIMARY	4	NULL	10	Using where; Using index
+1	SIMPLE	t1	p0,p1	index	PRIMARY	PRIMARY	4	NULL	3	Using where; Using index
 SELECT * FROM t1 WHERE a <= 2;
 a
 -1
@@ -98,7 +122,7 @@ a
 2
 EXPLAIN PARTITIONS SELECT * FROM t1 WHERE a <= 2;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	p0,p1,p2	index	PRIMARY	PRIMARY	4	NULL	10	Using where; Using index
+1	SIMPLE	t1	p0,p1,p2	index	PRIMARY	PRIMARY	4	NULL	4	Using where; Using index
 SELECT * FROM t1 WHERE a <= 3;
 a
 -1
@@ -108,7 +132,7 @@ a
 3
 EXPLAIN PARTITIONS SELECT * FROM t1 WHERE a <= 3;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	p0,p1,p2,p3	index	PRIMARY	PRIMARY	4	NULL	10	Using where; Using index
+1	SIMPLE	t1	p0,p1,p2,p3	index	PRIMARY	PRIMARY	4	NULL	5	Using where; Using index
 SELECT * FROM t1 WHERE a <= 4;
 a
 -1
@@ -119,7 +143,7 @@ a
 4
 EXPLAIN PARTITIONS SELECT * FROM t1 WHERE a <= 4;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	p0,p1,p2,p3,p4	index	PRIMARY	PRIMARY	4	NULL	10	Using where; Using index
+1	SIMPLE	t1	p0,p1,p2,p3,p4	index	PRIMARY	PRIMARY	4	NULL	6	Using where; Using index
 SELECT * FROM t1 WHERE a <= 5;
 a
 -1
@@ -131,7 +155,7 @@ a
 5
 EXPLAIN PARTITIONS SELECT * FROM t1 WHERE a <= 5;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	p0,p1,p2,p3,p4,p5	index	PRIMARY	PRIMARY	4	NULL	10	Using where; Using index
+1	SIMPLE	t1	p0,p1,p2,p3,p4,p5	index	PRIMARY	PRIMARY	4	NULL	7	Using where; Using index
 SELECT * FROM t1 WHERE a <= 6;
 a
 -1
@@ -213,7 +237,7 @@ a
 8
 EXPLAIN PARTITIONS SELECT * FROM t1 WHERE a >= 1;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	p1,p2,p3,p4,p5,max	index	PRIMARY	PRIMARY	4	NULL	10	Using where; Using index
+1	SIMPLE	t1	p1,p2,p3,p4,p5,max	index	PRIMARY	PRIMARY	4	NULL	8	Using where; Using index
 SELECT * FROM t1 WHERE a >= 2;
 a
 2
@@ -225,7 +249,7 @@ a
 8
 EXPLAIN PARTITIONS SELECT * FROM t1 WHERE a >= 2;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	p2,p3,p4,p5,max	index	PRIMARY	PRIMARY	4	NULL	10	Using where; Using index
+1	SIMPLE	t1	p2,p3,p4,p5,max	index	PRIMARY	PRIMARY	4	NULL	7	Using where; Using index
 SELECT * FROM t1 WHERE a >= 3;
 a
 3
@@ -236,7 +260,7 @@ a
 8
 EXPLAIN PARTITIONS SELECT * FROM t1 WHERE a >= 3;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	p3,p4,p5,max	index	PRIMARY	PRIMARY	4	NULL	10	Using where; Using index
+1	SIMPLE	t1	p3,p4,p5,max	index	PRIMARY	PRIMARY	4	NULL	6	Using where; Using index
 SELECT * FROM t1 WHERE a >= 4;
 a
 4
@@ -246,7 +270,7 @@ a
 8
 EXPLAIN PARTITIONS SELECT * FROM t1 WHERE a >= 4;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	p4,p5,max	index	PRIMARY	PRIMARY	4	NULL	10	Using where; Using index
+1	SIMPLE	t1	p4,p5,max	index	PRIMARY	PRIMARY	4	NULL	5	Using where; Using index
 SELECT * FROM t1 WHERE a >= 5;
 a
 5
@@ -255,7 +279,7 @@ a
 8
 EXPLAIN PARTITIONS SELECT * FROM t1 WHERE a >= 5;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	p5,max	index	PRIMARY	PRIMARY	4	NULL	10	Using where; Using index
+1	SIMPLE	t1	p5,max	index	PRIMARY	PRIMARY	4	NULL	4	Using where; Using index
 SELECT * FROM t1 WHERE a >= 6;
 a
 6
@@ -263,14 +287,14 @@ a
 8
 EXPLAIN PARTITIONS SELECT * FROM t1 WHERE a >= 6;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	max	index	PRIMARY	PRIMARY	4	NULL	10	Using where; Using index
+1	SIMPLE	t1	max	index	PRIMARY	PRIMARY	4	NULL	3	Using where; Using index
 SELECT * FROM t1 WHERE a >= 7;
 a
 7
 8
 EXPLAIN PARTITIONS SELECT * FROM t1 WHERE a >= 7;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	max	index	PRIMARY	PRIMARY	4	NULL	10	Using where; Using index
+1	SIMPLE	t1	max	index	PRIMARY	PRIMARY	4	NULL	3	Using where; Using index
 SELECT * FROM t1 WHERE a > 1;
 a
 2
@@ -282,7 +306,7 @@ a
 8
 EXPLAIN PARTITIONS SELECT * FROM t1 WHERE a > 1;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	p2,p3,p4,p5,max	index	PRIMARY	PRIMARY	4	NULL	10	Using where; Using index
+1	SIMPLE	t1	p2,p3,p4,p5,max	index	PRIMARY	PRIMARY	4	NULL	7	Using where; Using index
 SELECT * FROM t1 WHERE a > 2;
 a
 3
@@ -293,7 +317,7 @@ a
 8
 EXPLAIN PARTITIONS SELECT * FROM t1 WHERE a > 2;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	p3,p4,p5,max	index	PRIMARY	PRIMARY	4	NULL	10	Using where; Using index
+1	SIMPLE	t1	p3,p4,p5,max	index	PRIMARY	PRIMARY	4	NULL	6	Using where; Using index
 SELECT * FROM t1 WHERE a > 3;
 a
 4
@@ -303,7 +327,7 @@ a
 8
 EXPLAIN PARTITIONS SELECT * FROM t1 WHERE a > 3;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	p4,p5,max	index	PRIMARY	PRIMARY	4	NULL	10	Using where; Using index
+1	SIMPLE	t1	p4,p5,max	index	PRIMARY	PRIMARY	4	NULL	5	Using where; Using index
 SELECT * FROM t1 WHERE a > 4;
 a
 5
@@ -312,7 +336,7 @@ a
 8
 EXPLAIN PARTITIONS SELECT * FROM t1 WHERE a > 4;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	p5,max	index	PRIMARY	PRIMARY	4	NULL	10	Using where; Using index
+1	SIMPLE	t1	p5,max	index	PRIMARY	PRIMARY	4	NULL	4	Using where; Using index
 SELECT * FROM t1 WHERE a > 5;
 a
 6
@@ -320,20 +344,20 @@ a
 8
 EXPLAIN PARTITIONS SELECT * FROM t1 WHERE a > 5;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	max	index	PRIMARY	PRIMARY	4	NULL	10	Using where; Using index
+1	SIMPLE	t1	max	index	PRIMARY	PRIMARY	4	NULL	3	Using where; Using index
 SELECT * FROM t1 WHERE a > 6;
 a
 7
 8
 EXPLAIN PARTITIONS SELECT * FROM t1 WHERE a > 6;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	max	index	PRIMARY	PRIMARY	4	NULL	10	Using where; Using index
+1	SIMPLE	t1	max	index	PRIMARY	PRIMARY	4	NULL	3	Using where; Using index
 SELECT * FROM t1 WHERE a > 7;
 a
 8
 EXPLAIN PARTITIONS SELECT * FROM t1 WHERE a > 7;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	max	index	PRIMARY	PRIMARY	4	NULL	10	Using where; Using index
+1	SIMPLE	t1	max	index	PRIMARY	PRIMARY	4	NULL	3	Using where; Using index
 DROP TABLE t1;
 CREATE TABLE t1 (a INT PRIMARY KEY)
 PARTITION BY RANGE (a) (
@@ -408,7 +432,7 @@ a
 1
 EXPLAIN PARTITIONS SELECT * FROM t1 WHERE a <= 1;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	p0,p1	index	PRIMARY	PRIMARY	4	NULL	9	Using where; Using index
+1	SIMPLE	t1	p0,p1	index	PRIMARY	PRIMARY	4	NULL	3	Using where; Using index
 SELECT * FROM t1 WHERE a <= 2;
 a
 -1
@@ -417,7 +441,7 @@ a
 2
 EXPLAIN PARTITIONS SELECT * FROM t1 WHERE a <= 2;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	p0,p1,p2	index	PRIMARY	PRIMARY	4	NULL	9	Using where; Using index
+1	SIMPLE	t1	p0,p1,p2	index	PRIMARY	PRIMARY	4	NULL	4	Using where; Using index
 SELECT * FROM t1 WHERE a <= 3;
 a
 -1
@@ -427,7 +451,7 @@ a
 3
 EXPLAIN PARTITIONS SELECT * FROM t1 WHERE a <= 3;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	p0,p1,p2,p3	index	PRIMARY	PRIMARY	4	NULL	9	Using where; Using index
+1	SIMPLE	t1	p0,p1,p2,p3	index	PRIMARY	PRIMARY	4	NULL	5	Using where; Using index
 SELECT * FROM t1 WHERE a <= 4;
 a
 -1
@@ -438,7 +462,7 @@ a
 4
 EXPLAIN PARTITIONS SELECT * FROM t1 WHERE a <= 4;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	p0,p1,p2,p3,p4	index	PRIMARY	PRIMARY	4	NULL	9	Using where; Using index
+1	SIMPLE	t1	p0,p1,p2,p3,p4	index	PRIMARY	PRIMARY	4	NULL	6	Using where; Using index
 SELECT * FROM t1 WHERE a <= 5;
 a
 -1
@@ -511,7 +535,7 @@ a
 7
 EXPLAIN PARTITIONS SELECT * FROM t1 WHERE a >= 1;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	p1,p2,p3,p4,max	index	PRIMARY	PRIMARY	4	NULL	9	Using where; Using index
+1	SIMPLE	t1	p1,p2,p3,p4,max	index	PRIMARY	PRIMARY	4	NULL	7	Using where; Using index
 SELECT * FROM t1 WHERE a >= 2;
 a
 2
@@ -522,7 +546,7 @@ a
 7
 EXPLAIN PARTITIONS SELECT * FROM t1 WHERE a >= 2;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	p2,p3,p4,max	index	PRIMARY	PRIMARY	4	NULL	9	Using where; Using index
+1	SIMPLE	t1	p2,p3,p4,max	index	PRIMARY	PRIMARY	4	NULL	6	Using where; Using index
 SELECT * FROM t1 WHERE a >= 3;
 a
 3
@@ -532,7 +556,7 @@ a
 7
 EXPLAIN PARTITIONS SELECT * FROM t1 WHERE a >= 3;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	p3,p4,max	index	PRIMARY	PRIMARY	4	NULL	9	Using where; Using index
+1	SIMPLE	t1	p3,p4,max	index	PRIMARY	PRIMARY	4	NULL	5	Using where; Using index
 SELECT * FROM t1 WHERE a >= 4;
 a
 4
@@ -541,7 +565,7 @@ a
 7
 EXPLAIN PARTITIONS SELECT * FROM t1 WHERE a >= 4;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	p4,max	index	PRIMARY	PRIMARY	4	NULL	9	Using where; Using index
+1	SIMPLE	t1	p4,max	index	PRIMARY	PRIMARY	4	NULL	4	Using where; Using index
 SELECT * FROM t1 WHERE a >= 5;
 a
 5
@@ -549,14 +573,14 @@ a
 7
 EXPLAIN PARTITIONS SELECT * FROM t1 WHERE a >= 5;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	max	index	PRIMARY	PRIMARY	4	NULL	9	Using where; Using index
+1	SIMPLE	t1	max	index	PRIMARY	PRIMARY	4	NULL	3	Using where; Using index
 SELECT * FROM t1 WHERE a >= 6;
 a
 6
 7
 EXPLAIN PARTITIONS SELECT * FROM t1 WHERE a >= 6;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	max	index	PRIMARY	PRIMARY	4	NULL	9	Using where; Using index
+1	SIMPLE	t1	max	index	PRIMARY	PRIMARY	4	NULL	3	Using where; Using index
 SELECT * FROM t1 WHERE a > 1;
 a
 2
@@ -567,7 +591,7 @@ a
 7
 EXPLAIN PARTITIONS SELECT * FROM t1 WHERE a > 1;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	p2,p3,p4,max	index	PRIMARY	PRIMARY	4	NULL	9	Using where; Using index
+1	SIMPLE	t1	p2,p3,p4,max	index	PRIMARY	PRIMARY	4	NULL	6	Using where; Using index
 SELECT * FROM t1 WHERE a > 2;
 a
 3
@@ -577,7 +601,7 @@ a
 7
 EXPLAIN PARTITIONS SELECT * FROM t1 WHERE a > 2;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	p3,p4,max	index	PRIMARY	PRIMARY	4	NULL	9	Using where; Using index
+1	SIMPLE	t1	p3,p4,max	index	PRIMARY	PRIMARY	4	NULL	5	Using where; Using index
 SELECT * FROM t1 WHERE a > 3;
 a
 4
@@ -586,7 +610,7 @@ a
 7
 EXPLAIN PARTITIONS SELECT * FROM t1 WHERE a > 3;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	p4,max	index	PRIMARY	PRIMARY	4	NULL	9	Using where; Using index
+1	SIMPLE	t1	p4,max	index	PRIMARY	PRIMARY	4	NULL	4	Using where; Using index
 SELECT * FROM t1 WHERE a > 4;
 a
 5
@@ -594,20 +618,20 @@ a
 7
 EXPLAIN PARTITIONS SELECT * FROM t1 WHERE a > 4;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	max	index	PRIMARY	PRIMARY	4	NULL	9	Using where; Using index
+1	SIMPLE	t1	max	index	PRIMARY	PRIMARY	4	NULL	3	Using where; Using index
 SELECT * FROM t1 WHERE a > 5;
 a
 6
 7
 EXPLAIN PARTITIONS SELECT * FROM t1 WHERE a > 5;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	max	index	PRIMARY	PRIMARY	4	NULL	9	Using where; Using index
+1	SIMPLE	t1	max	index	PRIMARY	PRIMARY	4	NULL	3	Using where; Using index
 SELECT * FROM t1 WHERE a > 6;
 a
 7
 EXPLAIN PARTITIONS SELECT * FROM t1 WHERE a > 6;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	max	index	PRIMARY	PRIMARY	4	NULL	9	Using where; Using index
+1	SIMPLE	t1	max	index	PRIMARY	PRIMARY	4	NULL	3	Using where; Using index
 DROP TABLE t1;
 # test of RANGE and index
 CREATE TABLE t1 (a DATE, KEY(a))
@@ -757,10 +781,10 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	t1	pNULL,p0001-01-01,p1001-01-01,p2001-01-01	range	a	a	4	NULL	5	Using where; Using index
 EXPLAIN PARTITIONS SELECT * FROM t1 WHERE a >= '1999-02-31';
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	pNULL,p2001-01-01	index	a	a	4	NULL	7	Using where; Using index
+1	SIMPLE	t1	pNULL,p2001-01-01	index	a	a	4	NULL	4	Using where; Using index
 EXPLAIN PARTITIONS SELECT * FROM t1 WHERE a > '1999-02-31';
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	pNULL,p2001-01-01	index	a	a	4	NULL	7	Using where; Using index
+1	SIMPLE	t1	pNULL,p2001-01-01	index	a	a	4	NULL	4	Using where; Using index
 EXPLAIN PARTITIONS SELECT * FROM t1 WHERE a = '1999-02-31';
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	t1	pNULL	ref	a	a	4	const	1	Using where; Using index
@@ -880,34 +904,34 @@ a
 1001-01-01
 EXPLAIN PARTITIONS SELECT * FROM t1 WHERE a < '1001-01-01';
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	pNULL,p0001-01-01,p1001-01-01	ALL	NULL	NULL	NULL	NULL	7	Using where
+1	SIMPLE	t1	pNULL,p0001-01-01,p1001-01-01	ALL	NULL	NULL	NULL	NULL	6	Using where
 EXPLAIN PARTITIONS SELECT * FROM t1 WHERE a <= '1001-01-01';
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	pNULL,p0001-01-01,p1001-01-01	ALL	NULL	NULL	NULL	NULL	7	Using where
+1	SIMPLE	t1	pNULL,p0001-01-01,p1001-01-01	ALL	NULL	NULL	NULL	NULL	6	Using where
 EXPLAIN PARTITIONS SELECT * FROM t1 WHERE a >= '1001-01-01';
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	pNULL,p1001-01-01,p2001-01-01	ALL	NULL	NULL	NULL	NULL	7	Using where
+1	SIMPLE	t1	pNULL,p1001-01-01,p2001-01-01	ALL	NULL	NULL	NULL	NULL	5	Using where
 EXPLAIN PARTITIONS SELECT * FROM t1 WHERE a > '1001-01-01';
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	pNULL,p2001-01-01	ALL	NULL	NULL	NULL	NULL	7	Using where
+1	SIMPLE	t1	pNULL,p2001-01-01	ALL	NULL	NULL	NULL	NULL	4	Using where
 EXPLAIN PARTITIONS SELECT * FROM t1 WHERE a = '1001-01-01';
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	t1	p1001-01-01	system	NULL	NULL	NULL	NULL	1	
 EXPLAIN PARTITIONS SELECT * FROM t1 WHERE a < '1001-00-00';
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	pNULL,p0001-01-01,p1001-01-01	ALL	NULL	NULL	NULL	NULL	7	Using where
+1	SIMPLE	t1	pNULL,p0001-01-01,p1001-01-01	ALL	NULL	NULL	NULL	NULL	6	Using where
 EXPLAIN PARTITIONS SELECT * FROM t1 WHERE a <= '1001-00-00';
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	pNULL,p0001-01-01,p1001-01-01	ALL	NULL	NULL	NULL	NULL	7	Using where
+1	SIMPLE	t1	pNULL,p0001-01-01,p1001-01-01	ALL	NULL	NULL	NULL	NULL	6	Using where
 EXPLAIN PARTITIONS SELECT * FROM t1 WHERE a >= '1001-00-00';
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	pNULL,p1001-01-01,p2001-01-01	ALL	NULL	NULL	NULL	NULL	7	Using where
+1	SIMPLE	t1	pNULL,p1001-01-01,p2001-01-01	ALL	NULL	NULL	NULL	NULL	5	Using where
 EXPLAIN PARTITIONS SELECT * FROM t1 WHERE a > '1001-00-00';
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	pNULL,p1001-01-01,p2001-01-01	ALL	NULL	NULL	NULL	NULL	7	Using where
+1	SIMPLE	t1	pNULL,p1001-01-01,p2001-01-01	ALL	NULL	NULL	NULL	NULL	5	Using where
 EXPLAIN PARTITIONS SELECT * FROM t1 WHERE a = '1001-00-00';
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	pNULL	ALL	NULL	NULL	NULL	NULL	7	Using where
+1	SIMPLE	t1	pNULL	ALL	NULL	NULL	NULL	NULL	3	Using where
 # Disabling warnings for the invalid date
 EXPLAIN PARTITIONS SELECT * FROM t1 WHERE a < '1999-02-31';
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	Extra
@@ -917,25 +941,25 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	t1	pNULL,p0001-01-01,p1001-01-01,p2001-01-01	ALL	NULL	NULL	NULL	NULL	7	Using where
 EXPLAIN PARTITIONS SELECT * FROM t1 WHERE a >= '1999-02-31';
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	pNULL,p2001-01-01	ALL	NULL	NULL	NULL	NULL	7	Using where
+1	SIMPLE	t1	pNULL,p2001-01-01	ALL	NULL	NULL	NULL	NULL	4	Using where
 EXPLAIN PARTITIONS SELECT * FROM t1 WHERE a > '1999-02-31';
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	pNULL,p2001-01-01	ALL	NULL	NULL	NULL	NULL	7	Using where
+1	SIMPLE	t1	pNULL,p2001-01-01	ALL	NULL	NULL	NULL	NULL	4	Using where
 EXPLAIN PARTITIONS SELECT * FROM t1 WHERE a = '1999-02-31';
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	pNULL	ALL	NULL	NULL	NULL	NULL	7	Using where
+1	SIMPLE	t1	pNULL	ALL	NULL	NULL	NULL	NULL	3	Using where
 EXPLAIN PARTITIONS SELECT * FROM t1 WHERE a BETWEEN '0000-00-00' AND '1002-00-00';
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	t1	pNULL,p0001-01-01,p1001-01-01,p2001-01-01	ALL	NULL	NULL	NULL	NULL	7	Using where
 EXPLAIN PARTITIONS SELECT * FROM t1 WHERE a BETWEEN '0000-00-00' AND '1001-01-01';
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	pNULL,p0001-01-01,p1001-01-01	ALL	NULL	NULL	NULL	NULL	7	Using where
+1	SIMPLE	t1	pNULL,p0001-01-01,p1001-01-01	ALL	NULL	NULL	NULL	NULL	6	Using where
 EXPLAIN PARTITIONS SELECT * FROM t1 WHERE a BETWEEN '0001-01-02' AND '1002-00-00';
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	pNULL,p1001-01-01,p2001-01-01	ALL	NULL	NULL	NULL	NULL	7	Using where
+1	SIMPLE	t1	pNULL,p1001-01-01,p2001-01-01	ALL	NULL	NULL	NULL	NULL	5	Using where
 EXPLAIN PARTITIONS SELECT * FROM t1 WHERE a BETWEEN '0001-01-01' AND '1001-01-01';
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	pNULL,p0001-01-01,p1001-01-01	ALL	NULL	NULL	NULL	NULL	7	Using where
+1	SIMPLE	t1	pNULL,p0001-01-01,p1001-01-01	ALL	NULL	NULL	NULL	NULL	6	Using where
 DROP TABLE t1;
 # test of LIST and index
 CREATE TABLE t1 (a DATE, KEY(a))
@@ -1086,10 +1110,10 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	t1	p0001-01-01,pNULL,p0000-01-02,p1001-01-01	range	a	a	4	NULL	5	Using where; Using index
 EXPLAIN PARTITIONS SELECT * FROM t1 WHERE a >= '1999-02-31';
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	p2001-01-01,pNULL	index	a	a	4	NULL	7	Using where; Using index
+1	SIMPLE	t1	p2001-01-01,pNULL	index	a	a	4	NULL	4	Using where; Using index
 EXPLAIN PARTITIONS SELECT * FROM t1 WHERE a > '1999-02-31';
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	p2001-01-01,pNULL	index	a	a	4	NULL	7	Using where; Using index
+1	SIMPLE	t1	p2001-01-01,pNULL	index	a	a	4	NULL	4	Using where; Using index
 EXPLAIN PARTITIONS SELECT * FROM t1 WHERE a = '1999-02-31';
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	t1	pNULL	ref	a	a	4	const	1	Using where; Using index
@@ -1101,7 +1125,7 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	t1	p0001-01-01,pNULL,p0000-01-02,p1001-01-01	range	a	a	4	NULL	4	Using where; Using index
 EXPLAIN PARTITIONS SELECT * FROM t1 WHERE a BETWEEN '0001-01-02' AND '1002-00-00';
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	pNULL,p1001-01-01	index	a	a	4	NULL	7	Using where; Using index
+1	SIMPLE	t1	pNULL,p1001-01-01	index	a	a	4	NULL	4	Using where; Using index
 EXPLAIN PARTITIONS SELECT * FROM t1 WHERE a BETWEEN '0001-01-01' AND '1001-01-01';
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	t1	p0001-01-01,pNULL,p1001-01-01	range	a	a	4	NULL	3	Using where; Using index
@@ -1209,62 +1233,62 @@ a
 1001-01-01
 EXPLAIN PARTITIONS SELECT * FROM t1 WHERE a < '1001-01-01';
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	p0001-01-01,pNULL,p0000-01-02	ALL	NULL	NULL	NULL	NULL	7	Using where
+1	SIMPLE	t1	p0001-01-01,pNULL,p0000-01-02	ALL	NULL	NULL	NULL	NULL	5	Using where
 EXPLAIN PARTITIONS SELECT * FROM t1 WHERE a <= '1001-01-01';
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	p0001-01-01,pNULL,p0000-01-02,p1001-01-01	ALL	NULL	NULL	NULL	NULL	7	Using where
+1	SIMPLE	t1	p0001-01-01,pNULL,p0000-01-02,p1001-01-01	ALL	NULL	NULL	NULL	NULL	6	Using where
 EXPLAIN PARTITIONS SELECT * FROM t1 WHERE a >= '1001-01-01';
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	p2001-01-01,pNULL,p1001-01-01	ALL	NULL	NULL	NULL	NULL	7	Using where
+1	SIMPLE	t1	p2001-01-01,pNULL,p1001-01-01	ALL	NULL	NULL	NULL	NULL	5	Using where
 EXPLAIN PARTITIONS SELECT * FROM t1 WHERE a > '1001-01-01';
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	p2001-01-01,pNULL	ALL	NULL	NULL	NULL	NULL	7	Using where
+1	SIMPLE	t1	p2001-01-01,pNULL	ALL	NULL	NULL	NULL	NULL	4	Using where
 EXPLAIN PARTITIONS SELECT * FROM t1 WHERE a = '1001-01-01';
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	t1	p1001-01-01	system	NULL	NULL	NULL	NULL	1	
 EXPLAIN PARTITIONS SELECT * FROM t1 WHERE a < '1001-00-00';
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	p0001-01-01,pNULL,p0000-01-02	ALL	NULL	NULL	NULL	NULL	7	Using where
+1	SIMPLE	t1	p0001-01-01,pNULL,p0000-01-02	ALL	NULL	NULL	NULL	NULL	5	Using where
 EXPLAIN PARTITIONS SELECT * FROM t1 WHERE a <= '1001-00-00';
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	p0001-01-01,pNULL,p0000-01-02	ALL	NULL	NULL	NULL	NULL	7	Using where
+1	SIMPLE	t1	p0001-01-01,pNULL,p0000-01-02	ALL	NULL	NULL	NULL	NULL	5	Using where
 EXPLAIN PARTITIONS SELECT * FROM t1 WHERE a >= '1001-00-00';
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	p2001-01-01,pNULL,p1001-01-01	ALL	NULL	NULL	NULL	NULL	7	Using where
+1	SIMPLE	t1	p2001-01-01,pNULL,p1001-01-01	ALL	NULL	NULL	NULL	NULL	5	Using where
 EXPLAIN PARTITIONS SELECT * FROM t1 WHERE a > '1001-00-00';
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	p2001-01-01,pNULL,p1001-01-01	ALL	NULL	NULL	NULL	NULL	7	Using where
+1	SIMPLE	t1	p2001-01-01,pNULL,p1001-01-01	ALL	NULL	NULL	NULL	NULL	5	Using where
 EXPLAIN PARTITIONS SELECT * FROM t1 WHERE a = '1001-00-00';
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	pNULL	ALL	NULL	NULL	NULL	NULL	7	Using where
+1	SIMPLE	t1	pNULL	ALL	NULL	NULL	NULL	NULL	3	Using where
 # Disabling warnings for the invalid date
 EXPLAIN PARTITIONS SELECT * FROM t1 WHERE a < '1999-02-31';
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	p0001-01-01,pNULL,p0000-01-02,p1001-01-01	ALL	NULL	NULL	NULL	NULL	7	Using where
+1	SIMPLE	t1	p0001-01-01,pNULL,p0000-01-02,p1001-01-01	ALL	NULL	NULL	NULL	NULL	6	Using where
 EXPLAIN PARTITIONS SELECT * FROM t1 WHERE a <= '1999-02-31';
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	p0001-01-01,pNULL,p0000-01-02,p1001-01-01	ALL	NULL	NULL	NULL	NULL	7	Using where
+1	SIMPLE	t1	p0001-01-01,pNULL,p0000-01-02,p1001-01-01	ALL	NULL	NULL	NULL	NULL	6	Using where
 EXPLAIN PARTITIONS SELECT * FROM t1 WHERE a >= '1999-02-31';
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	p2001-01-01,pNULL	ALL	NULL	NULL	NULL	NULL	7	Using where
+1	SIMPLE	t1	p2001-01-01,pNULL	ALL	NULL	NULL	NULL	NULL	4	Using where
 EXPLAIN PARTITIONS SELECT * FROM t1 WHERE a > '1999-02-31';
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	p2001-01-01,pNULL	ALL	NULL	NULL	NULL	NULL	7	Using where
+1	SIMPLE	t1	p2001-01-01,pNULL	ALL	NULL	NULL	NULL	NULL	4	Using where
 EXPLAIN PARTITIONS SELECT * FROM t1 WHERE a = '1999-02-31';
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	pNULL	ALL	NULL	NULL	NULL	NULL	7	Using where
+1	SIMPLE	t1	pNULL	ALL	NULL	NULL	NULL	NULL	3	Using where
 EXPLAIN PARTITIONS SELECT * FROM t1 WHERE a BETWEEN '0000-00-00' AND '1002-00-00';
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	p0001-01-01,pNULL,p0000-01-02,p1001-01-01	ALL	NULL	NULL	NULL	NULL	7	Using where
+1	SIMPLE	t1	p0001-01-01,pNULL,p0000-01-02,p1001-01-01	ALL	NULL	NULL	NULL	NULL	6	Using where
 EXPLAIN PARTITIONS SELECT * FROM t1 WHERE a BETWEEN '0000-00-00' AND '1001-01-01';
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	p0001-01-01,pNULL,p0000-01-02,p1001-01-01	ALL	NULL	NULL	NULL	NULL	7	Using where
+1	SIMPLE	t1	p0001-01-01,pNULL,p0000-01-02,p1001-01-01	ALL	NULL	NULL	NULL	NULL	6	Using where
 EXPLAIN PARTITIONS SELECT * FROM t1 WHERE a BETWEEN '0001-01-02' AND '1002-00-00';
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	pNULL,p1001-01-01	ALL	NULL	NULL	NULL	NULL	7	Using where
+1	SIMPLE	t1	pNULL,p1001-01-01	ALL	NULL	NULL	NULL	NULL	4	Using where
 EXPLAIN PARTITIONS SELECT * FROM t1 WHERE a BETWEEN '0001-01-01' AND '1001-01-01';
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	p0001-01-01,pNULL,p1001-01-01	ALL	NULL	NULL	NULL	NULL	7	Using where
+1	SIMPLE	t1	p0001-01-01,pNULL,p1001-01-01	ALL	NULL	NULL	NULL	NULL	5	Using where
 DROP TABLE t1;
 # Test with DATETIME column NOT NULL
 CREATE TABLE t1 (
@@ -1289,25 +1313,25 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	t1	p20090401,p20090402,p20090403	index	NULL	PRIMARY	12	NULL	8	Using where; Using index
 EXPLAIN PARTITIONS SELECT * FROM t1 WHERE b = CAST('2009-04-03' AS DATETIME);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	p20090403	index	NULL	PRIMARY	12	NULL	8	Using where; Using index
+1	SIMPLE	t1	p20090403	index	NULL	PRIMARY	12	NULL	2	Using where; Using index
 EXPLAIN PARTITIONS SELECT * FROM t1 WHERE b >= CAST('2009-04-03' AS DATETIME);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	p20090401,p20090403,p20090404,p20090405	index	NULL	PRIMARY	12	NULL	13	Using where; Using index
+1	SIMPLE	t1	p20090401,p20090403,p20090404,p20090405	index	NULL	PRIMARY	12	NULL	10	Using where; Using index
 EXPLAIN PARTITIONS SELECT * FROM t1 WHERE b > CAST('2009-04-03' AS DATETIME);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	p20090401,p20090403,p20090404,p20090405	index	NULL	PRIMARY	12	NULL	13	Using where; Using index
+1	SIMPLE	t1	p20090401,p20090403,p20090404,p20090405	index	NULL	PRIMARY	12	NULL	10	Using where; Using index
 EXPLAIN PARTITIONS SELECT * FROM t1
 WHERE b < CAST('2009-04-02 23:59:59' AS DATETIME);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	p20090401,p20090402	index	NULL	PRIMARY	12	NULL	13	Using where; Using index
+1	SIMPLE	t1	p20090401,p20090402	index	NULL	PRIMARY	12	NULL	6	Using where; Using index
 EXPLAIN PARTITIONS SELECT * FROM t1
 WHERE b <= CAST('2009-04-02 23:59:59' AS DATETIME);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	p20090401,p20090402	index	NULL	PRIMARY	12	NULL	13	Using where; Using index
+1	SIMPLE	t1	p20090401,p20090402	index	NULL	PRIMARY	12	NULL	6	Using where; Using index
 EXPLAIN PARTITIONS SELECT * FROM t1
 WHERE b = CAST('2009-04-02 23:59:59' AS DATETIME);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	p20090402	index	NULL	PRIMARY	12	NULL	13	Using where; Using index
+1	SIMPLE	t1	p20090402	index	NULL	PRIMARY	12	NULL	3	Using where; Using index
 EXPLAIN PARTITIONS SELECT * FROM t1
 WHERE b >= CAST('2009-04-02 23:59:59' AS DATETIME);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	Extra
@@ -1315,99 +1339,99 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	Extra
 EXPLAIN PARTITIONS SELECT * FROM t1
 WHERE b > CAST('2009-04-02 23:59:59' AS DATETIME);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	p20090401,p20090403,p20090404,p20090405	index	NULL	PRIMARY	12	NULL	13	Using where; Using index
+1	SIMPLE	t1	p20090401,p20090403,p20090404,p20090405	index	NULL	PRIMARY	12	NULL	10	Using where; Using index
 EXPLAIN PARTITIONS SELECT * FROM t1 WHERE b < CAST('2009-04-03' AS DATE);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	p20090401,p20090402	index	NULL	PRIMARY	12	NULL	13	Using where; Using index
+1	SIMPLE	t1	p20090401,p20090402	index	NULL	PRIMARY	12	NULL	6	Using where; Using index
 EXPLAIN PARTITIONS SELECT * FROM t1 WHERE b <= CAST('2009-04-03' AS DATE);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	p20090401,p20090402,p20090403	index	NULL	PRIMARY	12	NULL	13	Using where; Using index
+1	SIMPLE	t1	p20090401,p20090402,p20090403	index	NULL	PRIMARY	12	NULL	8	Using where; Using index
 EXPLAIN PARTITIONS SELECT * FROM t1 WHERE b = CAST('2009-04-03' AS DATE);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	p20090403	index	NULL	PRIMARY	12	NULL	13	Using where; Using index
+1	SIMPLE	t1	p20090403	index	NULL	PRIMARY	12	NULL	2	Using where; Using index
 EXPLAIN PARTITIONS SELECT * FROM t1 WHERE b >= CAST('2009-04-03' AS DATE);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	p20090401,p20090403,p20090404,p20090405	index	NULL	PRIMARY	12	NULL	13	Using where; Using index
+1	SIMPLE	t1	p20090401,p20090403,p20090404,p20090405	index	NULL	PRIMARY	12	NULL	10	Using where; Using index
 EXPLAIN PARTITIONS SELECT * FROM t1 WHERE b > CAST('2009-04-03' AS DATE);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	p20090401,p20090403,p20090404,p20090405	index	NULL	PRIMARY	12	NULL	13	Using where; Using index
+1	SIMPLE	t1	p20090401,p20090403,p20090404,p20090405	index	NULL	PRIMARY	12	NULL	10	Using where; Using index
 EXPLAIN PARTITIONS SELECT * FROM t1 WHERE b < '2009-04-03 00:00:00';
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	p20090401,p20090402	index	NULL	PRIMARY	12	NULL	13	Using where; Using index
+1	SIMPLE	t1	p20090401,p20090402	index	NULL	PRIMARY	12	NULL	6	Using where; Using index
 EXPLAIN PARTITIONS SELECT * FROM t1 WHERE b <= '2009-04-03 00:00:00';
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	p20090401,p20090402,p20090403	index	NULL	PRIMARY	12	NULL	13	Using where; Using index
+1	SIMPLE	t1	p20090401,p20090402,p20090403	index	NULL	PRIMARY	12	NULL	8	Using where; Using index
 EXPLAIN PARTITIONS SELECT * FROM t1 WHERE b = '2009-04-03 00:00:00';
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	p20090403	index	NULL	PRIMARY	12	NULL	13	Using where; Using index
+1	SIMPLE	t1	p20090403	index	NULL	PRIMARY	12	NULL	2	Using where; Using index
 EXPLAIN PARTITIONS SELECT * FROM t1 WHERE b >= '2009-04-03 00:00:00';
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	p20090401,p20090403,p20090404,p20090405	index	NULL	PRIMARY	12	NULL	13	Using where; Using index
+1	SIMPLE	t1	p20090401,p20090403,p20090404,p20090405	index	NULL	PRIMARY	12	NULL	10	Using where; Using index
 EXPLAIN PARTITIONS SELECT * FROM t1 WHERE b > '2009-04-03 00:00:00';
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	p20090401,p20090403,p20090404,p20090405	index	NULL	PRIMARY	12	NULL	13	Using where; Using index
+1	SIMPLE	t1	p20090401,p20090403,p20090404,p20090405	index	NULL	PRIMARY	12	NULL	10	Using where; Using index
 EXPLAIN PARTITIONS SELECT * FROM t1 WHERE b < '2009-04-02 23:59:59';
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	p20090401,p20090402	index	NULL	PRIMARY	12	NULL	13	Using where; Using index
+1	SIMPLE	t1	p20090401,p20090402	index	NULL	PRIMARY	12	NULL	6	Using where; Using index
 EXPLAIN PARTITIONS SELECT * FROM t1 WHERE b <= '2009-04-02 23:59:59';
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	p20090401,p20090402	index	NULL	PRIMARY	12	NULL	13	Using where; Using index
+1	SIMPLE	t1	p20090401,p20090402	index	NULL	PRIMARY	12	NULL	6	Using where; Using index
 EXPLAIN PARTITIONS SELECT * FROM t1 WHERE b = '2009-04-02 23:59:59';
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	p20090402	index	NULL	PRIMARY	12	NULL	13	Using where; Using index
+1	SIMPLE	t1	p20090402	index	NULL	PRIMARY	12	NULL	3	Using where; Using index
 EXPLAIN PARTITIONS SELECT * FROM t1 WHERE b >= '2009-04-02 23:59:59';
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	t1	p20090401,p20090402,p20090403,p20090404,p20090405	index	NULL	PRIMARY	12	NULL	13	Using where; Using index
 EXPLAIN PARTITIONS SELECT * FROM t1 WHERE b > '2009-04-02 23:59:59';
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	p20090401,p20090403,p20090404,p20090405	index	NULL	PRIMARY	12	NULL	13	Using where; Using index
+1	SIMPLE	t1	p20090401,p20090403,p20090404,p20090405	index	NULL	PRIMARY	12	NULL	10	Using where; Using index
 EXPLAIN PARTITIONS SELECT * FROM t1 WHERE b < '2009-04-03';
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	p20090401,p20090402	index	NULL	PRIMARY	12	NULL	13	Using where; Using index
+1	SIMPLE	t1	p20090401,p20090402	index	NULL	PRIMARY	12	NULL	6	Using where; Using index
 EXPLAIN PARTITIONS SELECT * FROM t1 WHERE b <= '2009-04-03';
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	p20090401,p20090402,p20090403	index	NULL	PRIMARY	12	NULL	13	Using where; Using index
+1	SIMPLE	t1	p20090401,p20090402,p20090403	index	NULL	PRIMARY	12	NULL	8	Using where; Using index
 EXPLAIN PARTITIONS SELECT * FROM t1 WHERE b = '2009-04-03';
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	p20090403	index	NULL	PRIMARY	12	NULL	13	Using where; Using index
+1	SIMPLE	t1	p20090403	index	NULL	PRIMARY	12	NULL	2	Using where; Using index
 EXPLAIN PARTITIONS SELECT * FROM t1 WHERE b >= '2009-04-03';
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	p20090401,p20090403,p20090404,p20090405	index	NULL	PRIMARY	12	NULL	13	Using where; Using index
+1	SIMPLE	t1	p20090401,p20090403,p20090404,p20090405	index	NULL	PRIMARY	12	NULL	10	Using where; Using index
 EXPLAIN PARTITIONS SELECT * FROM t1 WHERE b > '2009-04-03';
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	p20090401,p20090403,p20090404,p20090405	index	NULL	PRIMARY	12	NULL	13	Using where; Using index
+1	SIMPLE	t1	p20090401,p20090403,p20090404,p20090405	index	NULL	PRIMARY	12	NULL	10	Using where; Using index
 EXPLAIN PARTITIONS SELECT * FROM t1
 WHERE b < CAST('2009-04-03 00:00:01' AS DATETIME);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	p20090401,p20090402,p20090403	index	NULL	PRIMARY	12	NULL	13	Using where; Using index
+1	SIMPLE	t1	p20090401,p20090402,p20090403	index	NULL	PRIMARY	12	NULL	8	Using where; Using index
 EXPLAIN PARTITIONS SELECT * FROM t1
 WHERE b <= CAST('2009-04-03 00:00:01' AS DATETIME);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	p20090401,p20090402,p20090403	index	NULL	PRIMARY	12	NULL	13	Using where; Using index
+1	SIMPLE	t1	p20090401,p20090402,p20090403	index	NULL	PRIMARY	12	NULL	8	Using where; Using index
 EXPLAIN PARTITIONS SELECT * FROM t1
 WHERE b = CAST('2009-04-03 00:00:01' AS DATETIME);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	p20090403	index	NULL	PRIMARY	12	NULL	13	Using where; Using index
+1	SIMPLE	t1	p20090403	index	NULL	PRIMARY	12	NULL	2	Using where; Using index
 EXPLAIN PARTITIONS SELECT * FROM t1
 WHERE b >= CAST('2009-04-03 00:00:01' AS DATETIME);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	p20090401,p20090403,p20090404,p20090405	index	NULL	PRIMARY	12	NULL	13	Using where; Using index
+1	SIMPLE	t1	p20090401,p20090403,p20090404,p20090405	index	NULL	PRIMARY	12	NULL	10	Using where; Using index
 EXPLAIN PARTITIONS SELECT * FROM t1
 WHERE b > CAST('2009-04-03 00:00:01' AS DATETIME);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	p20090401,p20090403,p20090404,p20090405	index	NULL	PRIMARY	12	NULL	13	Using where; Using index
+1	SIMPLE	t1	p20090401,p20090403,p20090404,p20090405	index	NULL	PRIMARY	12	NULL	10	Using where; Using index
 EXPLAIN PARTITIONS SELECT * FROM t1
 WHERE b < CAST('2009-04-02 23:59:58' AS DATETIME);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	p20090401,p20090402	index	NULL	PRIMARY	12	NULL	13	Using where; Using index
+1	SIMPLE	t1	p20090401,p20090402	index	NULL	PRIMARY	12	NULL	6	Using where; Using index
 EXPLAIN PARTITIONS SELECT * FROM t1
 WHERE b <= CAST('2009-04-02 23:59:58' AS DATETIME);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	p20090401,p20090402	index	NULL	PRIMARY	12	NULL	13	Using where; Using index
+1	SIMPLE	t1	p20090401,p20090402	index	NULL	PRIMARY	12	NULL	6	Using where; Using index
 EXPLAIN PARTITIONS SELECT * FROM t1
 WHERE b = CAST('2009-04-02 23:59:58' AS DATETIME);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	p20090402	index	NULL	PRIMARY	12	NULL	13	Using where; Using index
+1	SIMPLE	t1	p20090402	index	NULL	PRIMARY	12	NULL	3	Using where; Using index
 EXPLAIN PARTITIONS SELECT * FROM t1
 WHERE b >= CAST('2009-04-02 23:59:58' AS DATETIME);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	Extra
@@ -1440,21 +1464,21 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	t1	p20090401,p20090402,p20090403	index	NULL	PRIMARY	7	NULL	7	Using where; Using index
 EXPLAIN PARTITIONS SELECT * FROM t1 WHERE b = CAST('2009-04-03' AS DATETIME);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	p20090403	index	NULL	PRIMARY	7	NULL	7	Using where; Using index
+1	SIMPLE	t1	p20090403	index	NULL	PRIMARY	7	NULL	2	Using where; Using index
 EXPLAIN PARTITIONS SELECT * FROM t1 WHERE b >= CAST('2009-04-03' AS DATETIME);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	p20090401,p20090403,p20090404,p20090405	index	NULL	PRIMARY	7	NULL	12	Using where; Using index
+1	SIMPLE	t1	p20090401,p20090403,p20090404,p20090405	index	NULL	PRIMARY	7	NULL	10	Using where; Using index
 EXPLAIN PARTITIONS SELECT * FROM t1 WHERE b > CAST('2009-04-03' AS DATETIME);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	p20090401,p20090404,p20090405	index	NULL	PRIMARY	7	NULL	12	Using where; Using index
+1	SIMPLE	t1	p20090401,p20090404,p20090405	index	NULL	PRIMARY	7	NULL	8	Using where; Using index
 EXPLAIN PARTITIONS SELECT * FROM t1
 WHERE b < CAST('2009-04-02 23:59:59' AS DATETIME);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	p20090401,p20090402	index	NULL	PRIMARY	7	NULL	12	Using where; Using index
+1	SIMPLE	t1	p20090401,p20090402	index	NULL	PRIMARY	7	NULL	5	Using where; Using index
 EXPLAIN PARTITIONS SELECT * FROM t1
 WHERE b <= CAST('2009-04-02 23:59:59' AS DATETIME);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	p20090401,p20090402	index	NULL	PRIMARY	7	NULL	12	Using where; Using index
+1	SIMPLE	t1	p20090401,p20090402	index	NULL	PRIMARY	7	NULL	5	Using where; Using index
 EXPLAIN PARTITIONS SELECT * FROM t1
 WHERE b = CAST('2009-04-02 23:59:59' AS DATETIME);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	Extra
@@ -1462,79 +1486,79 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	Extra
 EXPLAIN PARTITIONS SELECT * FROM t1
 WHERE b >= CAST('2009-04-02 23:59:59' AS DATETIME);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	p20090401,p20090403,p20090404,p20090405	index	NULL	PRIMARY	7	NULL	12	Using where; Using index
+1	SIMPLE	t1	p20090401,p20090403,p20090404,p20090405	index	NULL	PRIMARY	7	NULL	10	Using where; Using index
 EXPLAIN PARTITIONS SELECT * FROM t1
 WHERE b > CAST('2009-04-02 23:59:59' AS DATETIME);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	p20090401,p20090403,p20090404,p20090405	index	NULL	PRIMARY	7	NULL	12	Using where; Using index
+1	SIMPLE	t1	p20090401,p20090403,p20090404,p20090405	index	NULL	PRIMARY	7	NULL	10	Using where; Using index
 EXPLAIN PARTITIONS SELECT * FROM t1 WHERE b < CAST('2009-04-03' AS DATE);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	p20090401,p20090402	index	NULL	PRIMARY	7	NULL	12	Using where; Using index
+1	SIMPLE	t1	p20090401,p20090402	index	NULL	PRIMARY	7	NULL	5	Using where; Using index
 EXPLAIN PARTITIONS SELECT * FROM t1 WHERE b <= CAST('2009-04-03' AS DATE);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	p20090401,p20090402,p20090403	index	NULL	PRIMARY	7	NULL	12	Using where; Using index
+1	SIMPLE	t1	p20090401,p20090402,p20090403	index	NULL	PRIMARY	7	NULL	7	Using where; Using index
 EXPLAIN PARTITIONS SELECT * FROM t1 WHERE b = CAST('2009-04-03' AS DATE);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	p20090403	index	NULL	PRIMARY	7	NULL	12	Using where; Using index
+1	SIMPLE	t1	p20090403	index	NULL	PRIMARY	7	NULL	2	Using where; Using index
 EXPLAIN PARTITIONS SELECT * FROM t1 WHERE b >= CAST('2009-04-03' AS DATE);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	p20090401,p20090403,p20090404,p20090405	index	NULL	PRIMARY	7	NULL	12	Using where; Using index
+1	SIMPLE	t1	p20090401,p20090403,p20090404,p20090405	index	NULL	PRIMARY	7	NULL	10	Using where; Using index
 EXPLAIN PARTITIONS SELECT * FROM t1 WHERE b > CAST('2009-04-03' AS DATE);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	p20090401,p20090404,p20090405	index	NULL	PRIMARY	7	NULL	12	Using where; Using index
+1	SIMPLE	t1	p20090401,p20090404,p20090405	index	NULL	PRIMARY	7	NULL	8	Using where; Using index
 EXPLAIN PARTITIONS SELECT * FROM t1 WHERE b < '2009-04-03 00:00:00';
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	p20090401,p20090402	index	NULL	PRIMARY	7	NULL	12	Using where; Using index
+1	SIMPLE	t1	p20090401,p20090402	index	NULL	PRIMARY	7	NULL	5	Using where; Using index
 EXPLAIN PARTITIONS SELECT * FROM t1 WHERE b <= '2009-04-03 00:00:00';
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	p20090401,p20090402,p20090403	index	NULL	PRIMARY	7	NULL	12	Using where; Using index
+1	SIMPLE	t1	p20090401,p20090402,p20090403	index	NULL	PRIMARY	7	NULL	7	Using where; Using index
 EXPLAIN PARTITIONS SELECT * FROM t1 WHERE b = '2009-04-03 00:00:00';
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	p20090403	index	NULL	PRIMARY	7	NULL	12	Using where; Using index
+1	SIMPLE	t1	p20090403	index	NULL	PRIMARY	7	NULL	2	Using where; Using index
 EXPLAIN PARTITIONS SELECT * FROM t1 WHERE b >= '2009-04-03 00:00:00';
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	p20090401,p20090403,p20090404,p20090405	index	NULL	PRIMARY	7	NULL	12	Using where; Using index
+1	SIMPLE	t1	p20090401,p20090403,p20090404,p20090405	index	NULL	PRIMARY	7	NULL	10	Using where; Using index
 EXPLAIN PARTITIONS SELECT * FROM t1 WHERE b > '2009-04-03 00:00:00';
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	p20090401,p20090404,p20090405	index	NULL	PRIMARY	7	NULL	12	Using where; Using index
+1	SIMPLE	t1	p20090401,p20090404,p20090405	index	NULL	PRIMARY	7	NULL	8	Using where; Using index
 EXPLAIN PARTITIONS SELECT * FROM t1 WHERE b < '2009-04-02 23:59:59';
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	p20090401,p20090402	index	NULL	PRIMARY	7	NULL	12	Using where; Using index
+1	SIMPLE	t1	p20090401,p20090402	index	NULL	PRIMARY	7	NULL	5	Using where; Using index
 EXPLAIN PARTITIONS SELECT * FROM t1 WHERE b <= '2009-04-02 23:59:59';
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	p20090401,p20090402	index	NULL	PRIMARY	7	NULL	12	Using where; Using index
+1	SIMPLE	t1	p20090401,p20090402	index	NULL	PRIMARY	7	NULL	5	Using where; Using index
 EXPLAIN PARTITIONS SELECT * FROM t1 WHERE b = '2009-04-02 23:59:59';
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE noticed after reading const tables
 EXPLAIN PARTITIONS SELECT * FROM t1 WHERE b >= '2009-04-02 23:59:59';
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	p20090401,p20090403,p20090404,p20090405	index	NULL	PRIMARY	7	NULL	12	Using where; Using index
+1	SIMPLE	t1	p20090401,p20090403,p20090404,p20090405	index	NULL	PRIMARY	7	NULL	10	Using where; Using index
 EXPLAIN PARTITIONS SELECT * FROM t1 WHERE b > '2009-04-02 23:59:59';
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	p20090401,p20090403,p20090404,p20090405	index	NULL	PRIMARY	7	NULL	12	Using where; Using index
+1	SIMPLE	t1	p20090401,p20090403,p20090404,p20090405	index	NULL	PRIMARY	7	NULL	10	Using where; Using index
 EXPLAIN PARTITIONS SELECT * FROM t1 WHERE b < '2009-04-03';
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	p20090401,p20090402	index	NULL	PRIMARY	7	NULL	12	Using where; Using index
+1	SIMPLE	t1	p20090401,p20090402	index	NULL	PRIMARY	7	NULL	5	Using where; Using index
 EXPLAIN PARTITIONS SELECT * FROM t1 WHERE b <= '2009-04-03';
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	p20090401,p20090402,p20090403	index	NULL	PRIMARY	7	NULL	12	Using where; Using index
+1	SIMPLE	t1	p20090401,p20090402,p20090403	index	NULL	PRIMARY	7	NULL	7	Using where; Using index
 EXPLAIN PARTITIONS SELECT * FROM t1 WHERE b = '2009-04-03';
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	p20090403	index	NULL	PRIMARY	7	NULL	12	Using where; Using index
+1	SIMPLE	t1	p20090403	index	NULL	PRIMARY	7	NULL	2	Using where; Using index
 EXPLAIN PARTITIONS SELECT * FROM t1 WHERE b >= '2009-04-03';
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	p20090401,p20090403,p20090404,p20090405	index	NULL	PRIMARY	7	NULL	12	Using where; Using index
+1	SIMPLE	t1	p20090401,p20090403,p20090404,p20090405	index	NULL	PRIMARY	7	NULL	10	Using where; Using index
 EXPLAIN PARTITIONS SELECT * FROM t1 WHERE b > '2009-04-03';
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	p20090401,p20090404,p20090405	index	NULL	PRIMARY	7	NULL	12	Using where; Using index
+1	SIMPLE	t1	p20090401,p20090404,p20090405	index	NULL	PRIMARY	7	NULL	8	Using where; Using index
 EXPLAIN PARTITIONS SELECT * FROM t1
 WHERE b < CAST('2009-04-03 00:00:01' AS DATETIME);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	p20090401,p20090402,p20090403	index	NULL	PRIMARY	7	NULL	12	Using where; Using index
+1	SIMPLE	t1	p20090401,p20090402,p20090403	index	NULL	PRIMARY	7	NULL	7	Using where; Using index
 EXPLAIN PARTITIONS SELECT * FROM t1
 WHERE b <= CAST('2009-04-03 00:00:01' AS DATETIME);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	p20090401,p20090402,p20090403	index	NULL	PRIMARY	7	NULL	12	Using where; Using index
+1	SIMPLE	t1	p20090401,p20090402,p20090403	index	NULL	PRIMARY	7	NULL	7	Using where; Using index
 EXPLAIN PARTITIONS SELECT * FROM t1
 WHERE b = CAST('2009-04-03 00:00:01' AS DATETIME);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	Extra
@@ -1542,19 +1566,19 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	Extra
 EXPLAIN PARTITIONS SELECT * FROM t1
 WHERE b >= CAST('2009-04-03 00:00:01' AS DATETIME);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	p20090401,p20090404,p20090405	index	NULL	PRIMARY	7	NULL	12	Using where; Using index
+1	SIMPLE	t1	p20090401,p20090404,p20090405	index	NULL	PRIMARY	7	NULL	8	Using where; Using index
 EXPLAIN PARTITIONS SELECT * FROM t1
 WHERE b > CAST('2009-04-03 00:00:01' AS DATETIME);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	p20090401,p20090404,p20090405	index	NULL	PRIMARY	7	NULL	12	Using where; Using index
+1	SIMPLE	t1	p20090401,p20090404,p20090405	index	NULL	PRIMARY	7	NULL	8	Using where; Using index
 EXPLAIN PARTITIONS SELECT * FROM t1
 WHERE b < CAST('2009-04-02 23:59:58' AS DATETIME);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	p20090401,p20090402	index	NULL	PRIMARY	7	NULL	12	Using where; Using index
+1	SIMPLE	t1	p20090401,p20090402	index	NULL	PRIMARY	7	NULL	5	Using where; Using index
 EXPLAIN PARTITIONS SELECT * FROM t1
 WHERE b <= CAST('2009-04-02 23:59:58' AS DATETIME);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	p20090401,p20090402	index	NULL	PRIMARY	7	NULL	12	Using where; Using index
+1	SIMPLE	t1	p20090401,p20090402	index	NULL	PRIMARY	7	NULL	5	Using where; Using index
 EXPLAIN PARTITIONS SELECT * FROM t1
 WHERE b = CAST('2009-04-02 23:59:58' AS DATETIME);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	Extra
@@ -1562,11 +1586,11 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	Extra
 EXPLAIN PARTITIONS SELECT * FROM t1
 WHERE b >= CAST('2009-04-02 23:59:58' AS DATETIME);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	p20090401,p20090403,p20090404,p20090405	index	NULL	PRIMARY	7	NULL	12	Using where; Using index
+1	SIMPLE	t1	p20090401,p20090403,p20090404,p20090405	index	NULL	PRIMARY	7	NULL	10	Using where; Using index
 EXPLAIN PARTITIONS SELECT * FROM t1
 WHERE b > CAST('2009-04-02 23:59:58' AS DATETIME);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	p20090401,p20090403,p20090404,p20090405	index	NULL	PRIMARY	7	NULL	12	Using where; Using index
+1	SIMPLE	t1	p20090401,p20090403,p20090404,p20090405	index	NULL	PRIMARY	7	NULL	10	Using where; Using index
 DROP TABLE t1;
 # Test with DATETIME column NULL
 CREATE TABLE t1 (
@@ -1590,25 +1614,25 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	t1	p20090401,p20090402,p20090403	ALL	NULL	NULL	NULL	NULL	8	Using where
 EXPLAIN PARTITIONS SELECT * FROM t1 WHERE b = CAST('2009-04-03' AS DATETIME);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	p20090403	ALL	NULL	NULL	NULL	NULL	8	Using where
+1	SIMPLE	t1	p20090403	ALL	NULL	NULL	NULL	NULL	2	Using where
 EXPLAIN PARTITIONS SELECT * FROM t1 WHERE b >= CAST('2009-04-03' AS DATETIME);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	p20090401,p20090403,p20090404,p20090405	ALL	NULL	NULL	NULL	NULL	13	Using where
+1	SIMPLE	t1	p20090401,p20090403,p20090404,p20090405	ALL	NULL	NULL	NULL	NULL	10	Using where
 EXPLAIN PARTITIONS SELECT * FROM t1 WHERE b > CAST('2009-04-03' AS DATETIME);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	p20090401,p20090403,p20090404,p20090405	ALL	NULL	NULL	NULL	NULL	13	Using where
+1	SIMPLE	t1	p20090401,p20090403,p20090404,p20090405	ALL	NULL	NULL	NULL	NULL	10	Using where
 EXPLAIN PARTITIONS SELECT * FROM t1
 WHERE b < CAST('2009-04-02 23:59:59' AS DATETIME);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	p20090401,p20090402	ALL	NULL	NULL	NULL	NULL	13	Using where
+1	SIMPLE	t1	p20090401,p20090402	ALL	NULL	NULL	NULL	NULL	6	Using where
 EXPLAIN PARTITIONS SELECT * FROM t1
 WHERE b <= CAST('2009-04-02 23:59:59' AS DATETIME);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	p20090401,p20090402	ALL	NULL	NULL	NULL	NULL	13	Using where
+1	SIMPLE	t1	p20090401,p20090402	ALL	NULL	NULL	NULL	NULL	6	Using where
 EXPLAIN PARTITIONS SELECT * FROM t1
 WHERE b = CAST('2009-04-02 23:59:59' AS DATETIME);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	p20090402	ALL	NULL	NULL	NULL	NULL	13	Using where
+1	SIMPLE	t1	p20090402	ALL	NULL	NULL	NULL	NULL	3	Using where
 EXPLAIN PARTITIONS SELECT * FROM t1
 WHERE b >= CAST('2009-04-02 23:59:59' AS DATETIME);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	Extra
@@ -1616,99 +1640,99 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	Extra
 EXPLAIN PARTITIONS SELECT * FROM t1
 WHERE b > CAST('2009-04-02 23:59:59' AS DATETIME);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	p20090401,p20090403,p20090404,p20090405	ALL	NULL	NULL	NULL	NULL	13	Using where
+1	SIMPLE	t1	p20090401,p20090403,p20090404,p20090405	ALL	NULL	NULL	NULL	NULL	10	Using where
 EXPLAIN PARTITIONS SELECT * FROM t1 WHERE b < CAST('2009-04-03' AS DATE);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	p20090401,p20090402	ALL	NULL	NULL	NULL	NULL	13	Using where
+1	SIMPLE	t1	p20090401,p20090402	ALL	NULL	NULL	NULL	NULL	6	Using where
 EXPLAIN PARTITIONS SELECT * FROM t1 WHERE b <= CAST('2009-04-03' AS DATE);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	p20090401,p20090402,p20090403	ALL	NULL	NULL	NULL	NULL	13	Using where
+1	SIMPLE	t1	p20090401,p20090402,p20090403	ALL	NULL	NULL	NULL	NULL	8	Using where
 EXPLAIN PARTITIONS SELECT * FROM t1 WHERE b = CAST('2009-04-03' AS DATE);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	p20090403	ALL	NULL	NULL	NULL	NULL	13	Using where
+1	SIMPLE	t1	p20090403	ALL	NULL	NULL	NULL	NULL	2	Using where
 EXPLAIN PARTITIONS SELECT * FROM t1 WHERE b >= CAST('2009-04-03' AS DATE);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	p20090401,p20090403,p20090404,p20090405	ALL	NULL	NULL	NULL	NULL	13	Using where
+1	SIMPLE	t1	p20090401,p20090403,p20090404,p20090405	ALL	NULL	NULL	NULL	NULL	10	Using where
 EXPLAIN PARTITIONS SELECT * FROM t1 WHERE b > CAST('2009-04-03' AS DATE);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	p20090401,p20090403,p20090404,p20090405	ALL	NULL	NULL	NULL	NULL	13	Using where
+1	SIMPLE	t1	p20090401,p20090403,p20090404,p20090405	ALL	NULL	NULL	NULL	NULL	10	Using where
 EXPLAIN PARTITIONS SELECT * FROM t1 WHERE b < '2009-04-03 00:00:00';
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	p20090401,p20090402	ALL	NULL	NULL	NULL	NULL	13	Using where
+1	SIMPLE	t1	p20090401,p20090402	ALL	NULL	NULL	NULL	NULL	6	Using where
 EXPLAIN PARTITIONS SELECT * FROM t1 WHERE b <= '2009-04-03 00:00:00';
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	p20090401,p20090402,p20090403	ALL	NULL	NULL	NULL	NULL	13	Using where
+1	SIMPLE	t1	p20090401,p20090402,p20090403	ALL	NULL	NULL	NULL	NULL	8	Using where
 EXPLAIN PARTITIONS SELECT * FROM t1 WHERE b = '2009-04-03 00:00:00';
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	p20090403	ALL	NULL	NULL	NULL	NULL	13	Using where
+1	SIMPLE	t1	p20090403	ALL	NULL	NULL	NULL	NULL	2	Using where
 EXPLAIN PARTITIONS SELECT * FROM t1 WHERE b >= '2009-04-03 00:00:00';
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	p20090401,p20090403,p20090404,p20090405	ALL	NULL	NULL	NULL	NULL	13	Using where
+1	SIMPLE	t1	p20090401,p20090403,p20090404,p20090405	ALL	NULL	NULL	NULL	NULL	10	Using where
 EXPLAIN PARTITIONS SELECT * FROM t1 WHERE b > '2009-04-03 00:00:00';
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	p20090401,p20090403,p20090404,p20090405	ALL	NULL	NULL	NULL	NULL	13	Using where
+1	SIMPLE	t1	p20090401,p20090403,p20090404,p20090405	ALL	NULL	NULL	NULL	NULL	10	Using where
 EXPLAIN PARTITIONS SELECT * FROM t1 WHERE b < '2009-04-02 23:59:59';
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	p20090401,p20090402	ALL	NULL	NULL	NULL	NULL	13	Using where
+1	SIMPLE	t1	p20090401,p20090402	ALL	NULL	NULL	NULL	NULL	6	Using where
 EXPLAIN PARTITIONS SELECT * FROM t1 WHERE b <= '2009-04-02 23:59:59';
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	p20090401,p20090402	ALL	NULL	NULL	NULL	NULL	13	Using where
+1	SIMPLE	t1	p20090401,p20090402	ALL	NULL	NULL	NULL	NULL	6	Using where
 EXPLAIN PARTITIONS SELECT * FROM t1 WHERE b = '2009-04-02 23:59:59';
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	p20090402	ALL	NULL	NULL	NULL	NULL	13	Using where
+1	SIMPLE	t1	p20090402	ALL	NULL	NULL	NULL	NULL	3	Using where
 EXPLAIN PARTITIONS SELECT * FROM t1 WHERE b >= '2009-04-02 23:59:59';
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	t1	p20090401,p20090402,p20090403,p20090404,p20090405	ALL	NULL	NULL	NULL	NULL	13	Using where
 EXPLAIN PARTITIONS SELECT * FROM t1 WHERE b > '2009-04-02 23:59:59';
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	p20090401,p20090403,p20090404,p20090405	ALL	NULL	NULL	NULL	NULL	13	Using where
+1	SIMPLE	t1	p20090401,p20090403,p20090404,p20090405	ALL	NULL	NULL	NULL	NULL	10	Using where
 EXPLAIN PARTITIONS SELECT * FROM t1 WHERE b < '2009-04-03';
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	p20090401,p20090402	ALL	NULL	NULL	NULL	NULL	13	Using where
+1	SIMPLE	t1	p20090401,p20090402	ALL	NULL	NULL	NULL	NULL	6	Using where
 EXPLAIN PARTITIONS SELECT * FROM t1 WHERE b <= '2009-04-03';
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	p20090401,p20090402,p20090403	ALL	NULL	NULL	NULL	NULL	13	Using where
+1	SIMPLE	t1	p20090401,p20090402,p20090403	ALL	NULL	NULL	NULL	NULL	8	Using where
 EXPLAIN PARTITIONS SELECT * FROM t1 WHERE b = '2009-04-03';
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	p20090403	ALL	NULL	NULL	NULL	NULL	13	Using where
+1	SIMPLE	t1	p20090403	ALL	NULL	NULL	NULL	NULL	2	Using where
 EXPLAIN PARTITIONS SELECT * FROM t1 WHERE b >= '2009-04-03';
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	p20090401,p20090403,p20090404,p20090405	ALL	NULL	NULL	NULL	NULL	13	Using where
+1	SIMPLE	t1	p20090401,p20090403,p20090404,p20090405	ALL	NULL	NULL	NULL	NULL	10	Using where
 EXPLAIN PARTITIONS SELECT * FROM t1 WHERE b > '2009-04-03';
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	p20090401,p20090403,p20090404,p20090405	ALL	NULL	NULL	NULL	NULL	13	Using where
+1	SIMPLE	t1	p20090401,p20090403,p20090404,p20090405	ALL	NULL	NULL	NULL	NULL	10	Using where
 EXPLAIN PARTITIONS SELECT * FROM t1
 WHERE b < CAST('2009-04-03 00:00:01' AS DATETIME);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	p20090401,p20090402,p20090403	ALL	NULL	NULL	NULL	NULL	13	Using where
+1	SIMPLE	t1	p20090401,p20090402,p20090403	ALL	NULL	NULL	NULL	NULL	8	Using where
 EXPLAIN PARTITIONS SELECT * FROM t1
 WHERE b <= CAST('2009-04-03 00:00:01' AS DATETIME);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	p20090401,p20090402,p20090403	ALL	NULL	NULL	NULL	NULL	13	Using where
+1	SIMPLE	t1	p20090401,p20090402,p20090403	ALL	NULL	NULL	NULL	NULL	8	Using where
 EXPLAIN PARTITIONS SELECT * FROM t1
 WHERE b = CAST('2009-04-03 00:00:01' AS DATETIME);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	p20090403	ALL	NULL	NULL	NULL	NULL	13	Using where
+1	SIMPLE	t1	p20090403	ALL	NULL	NULL	NULL	NULL	2	Using where
 EXPLAIN PARTITIONS SELECT * FROM t1
 WHERE b >= CAST('2009-04-03 00:00:01' AS DATETIME);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	p20090401,p20090403,p20090404,p20090405	ALL	NULL	NULL	NULL	NULL	13	Using where
+1	SIMPLE	t1	p20090401,p20090403,p20090404,p20090405	ALL	NULL	NULL	NULL	NULL	10	Using where
 EXPLAIN PARTITIONS SELECT * FROM t1
 WHERE b > CAST('2009-04-03 00:00:01' AS DATETIME);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	p20090401,p20090403,p20090404,p20090405	ALL	NULL	NULL	NULL	NULL	13	Using where
+1	SIMPLE	t1	p20090401,p20090403,p20090404,p20090405	ALL	NULL	NULL	NULL	NULL	10	Using where
 EXPLAIN PARTITIONS SELECT * FROM t1
 WHERE b < CAST('2009-04-02 23:59:58' AS DATETIME);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	p20090401,p20090402	ALL	NULL	NULL	NULL	NULL	13	Using where
+1	SIMPLE	t1	p20090401,p20090402	ALL	NULL	NULL	NULL	NULL	6	Using where
 EXPLAIN PARTITIONS SELECT * FROM t1
 WHERE b <= CAST('2009-04-02 23:59:58' AS DATETIME);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	p20090401,p20090402	ALL	NULL	NULL	NULL	NULL	13	Using where
+1	SIMPLE	t1	p20090401,p20090402	ALL	NULL	NULL	NULL	NULL	6	Using where
 EXPLAIN PARTITIONS SELECT * FROM t1
 WHERE b = CAST('2009-04-02 23:59:58' AS DATETIME);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	p20090402	ALL	NULL	NULL	NULL	NULL	13	Using where
+1	SIMPLE	t1	p20090402	ALL	NULL	NULL	NULL	NULL	3	Using where
 EXPLAIN PARTITIONS SELECT * FROM t1
 WHERE b >= CAST('2009-04-02 23:59:58' AS DATETIME);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	Extra
@@ -1740,21 +1764,21 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	t1	p20090401,p20090402,p20090403	ALL	NULL	NULL	NULL	NULL	7	Using where
 EXPLAIN PARTITIONS SELECT * FROM t1 WHERE b = CAST('2009-04-03' AS DATETIME);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	p20090403	ALL	NULL	NULL	NULL	NULL	7	Using where
+1	SIMPLE	t1	p20090403	ALL	NULL	NULL	NULL	NULL	2	Using where
 EXPLAIN PARTITIONS SELECT * FROM t1 WHERE b >= CAST('2009-04-03' AS DATETIME);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	p20090401,p20090403,p20090404,p20090405	ALL	NULL	NULL	NULL	NULL	12	Using where
+1	SIMPLE	t1	p20090401,p20090403,p20090404,p20090405	ALL	NULL	NULL	NULL	NULL	10	Using where
 EXPLAIN PARTITIONS SELECT * FROM t1 WHERE b > CAST('2009-04-03' AS DATETIME);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	p20090401,p20090404,p20090405	ALL	NULL	NULL	NULL	NULL	12	Using where
+1	SIMPLE	t1	p20090401,p20090404,p20090405	ALL	NULL	NULL	NULL	NULL	8	Using where
 EXPLAIN PARTITIONS SELECT * FROM t1
 WHERE b < CAST('2009-04-02 23:59:59' AS DATETIME);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	p20090401,p20090402	ALL	NULL	NULL	NULL	NULL	12	Using where
+1	SIMPLE	t1	p20090401,p20090402	ALL	NULL	NULL	NULL	NULL	5	Using where
 EXPLAIN PARTITIONS SELECT * FROM t1
 WHERE b <= CAST('2009-04-02 23:59:59' AS DATETIME);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	p20090401,p20090402	ALL	NULL	NULL	NULL	NULL	12	Using where
+1	SIMPLE	t1	p20090401,p20090402	ALL	NULL	NULL	NULL	NULL	5	Using where
 EXPLAIN PARTITIONS SELECT * FROM t1
 WHERE b = CAST('2009-04-02 23:59:59' AS DATETIME);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	Extra
@@ -1762,79 +1786,79 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	Extra
 EXPLAIN PARTITIONS SELECT * FROM t1
 WHERE b >= CAST('2009-04-02 23:59:59' AS DATETIME);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	p20090401,p20090403,p20090404,p20090405	ALL	NULL	NULL	NULL	NULL	12	Using where
+1	SIMPLE	t1	p20090401,p20090403,p20090404,p20090405	ALL	NULL	NULL	NULL	NULL	10	Using where
 EXPLAIN PARTITIONS SELECT * FROM t1
 WHERE b > CAST('2009-04-02 23:59:59' AS DATETIME);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	p20090401,p20090403,p20090404,p20090405	ALL	NULL	NULL	NULL	NULL	12	Using where
+1	SIMPLE	t1	p20090401,p20090403,p20090404,p20090405	ALL	NULL	NULL	NULL	NULL	10	Using where
 EXPLAIN PARTITIONS SELECT * FROM t1 WHERE b < CAST('2009-04-03' AS DATE);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	p20090401,p20090402	ALL	NULL	NULL	NULL	NULL	12	Using where
+1	SIMPLE	t1	p20090401,p20090402	ALL	NULL	NULL	NULL	NULL	5	Using where
 EXPLAIN PARTITIONS SELECT * FROM t1 WHERE b <= CAST('2009-04-03' AS DATE);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	p20090401,p20090402,p20090403	ALL	NULL	NULL	NULL	NULL	12	Using where
+1	SIMPLE	t1	p20090401,p20090402,p20090403	ALL	NULL	NULL	NULL	NULL	7	Using where
 EXPLAIN PARTITIONS SELECT * FROM t1 WHERE b = CAST('2009-04-03' AS DATE);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	p20090403	ALL	NULL	NULL	NULL	NULL	12	Using where
+1	SIMPLE	t1	p20090403	ALL	NULL	NULL	NULL	NULL	2	Using where
 EXPLAIN PARTITIONS SELECT * FROM t1 WHERE b >= CAST('2009-04-03' AS DATE);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	p20090401,p20090403,p20090404,p20090405	ALL	NULL	NULL	NULL	NULL	12	Using where
+1	SIMPLE	t1	p20090401,p20090403,p20090404,p20090405	ALL	NULL	NULL	NULL	NULL	10	Using where
 EXPLAIN PARTITIONS SELECT * FROM t1 WHERE b > CAST('2009-04-03' AS DATE);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	p20090401,p20090404,p20090405	ALL	NULL	NULL	NULL	NULL	12	Using where
+1	SIMPLE	t1	p20090401,p20090404,p20090405	ALL	NULL	NULL	NULL	NULL	8	Using where
 EXPLAIN PARTITIONS SELECT * FROM t1 WHERE b < '2009-04-03 00:00:00';
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	p20090401,p20090402	ALL	NULL	NULL	NULL	NULL	12	Using where
+1	SIMPLE	t1	p20090401,p20090402	ALL	NULL	NULL	NULL	NULL	5	Using where
 EXPLAIN PARTITIONS SELECT * FROM t1 WHERE b <= '2009-04-03 00:00:00';
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	p20090401,p20090402,p20090403	ALL	NULL	NULL	NULL	NULL	12	Using where
+1	SIMPLE	t1	p20090401,p20090402,p20090403	ALL	NULL	NULL	NULL	NULL	7	Using where
 EXPLAIN PARTITIONS SELECT * FROM t1 WHERE b = '2009-04-03 00:00:00';
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	p20090403	ALL	NULL	NULL	NULL	NULL	12	Using where
+1	SIMPLE	t1	p20090403	ALL	NULL	NULL	NULL	NULL	2	Using where
 EXPLAIN PARTITIONS SELECT * FROM t1 WHERE b >= '2009-04-03 00:00:00';
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	p20090401,p20090403,p20090404,p20090405	ALL	NULL	NULL	NULL	NULL	12	Using where
+1	SIMPLE	t1	p20090401,p20090403,p20090404,p20090405	ALL	NULL	NULL	NULL	NULL	10	Using where
 EXPLAIN PARTITIONS SELECT * FROM t1 WHERE b > '2009-04-03 00:00:00';
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	p20090401,p20090404,p20090405	ALL	NULL	NULL	NULL	NULL	12	Using where
+1	SIMPLE	t1	p20090401,p20090404,p20090405	ALL	NULL	NULL	NULL	NULL	8	Using where
 EXPLAIN PARTITIONS SELECT * FROM t1 WHERE b < '2009-04-02 23:59:59';
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	p20090401,p20090402	ALL	NULL	NULL	NULL	NULL	12	Using where
+1	SIMPLE	t1	p20090401,p20090402	ALL	NULL	NULL	NULL	NULL	5	Using where
 EXPLAIN PARTITIONS SELECT * FROM t1 WHERE b <= '2009-04-02 23:59:59';
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	p20090401,p20090402	ALL	NULL	NULL	NULL	NULL	12	Using where
+1	SIMPLE	t1	p20090401,p20090402	ALL	NULL	NULL	NULL	NULL	5	Using where
 EXPLAIN PARTITIONS SELECT * FROM t1 WHERE b = '2009-04-02 23:59:59';
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE noticed after reading const tables
 EXPLAIN PARTITIONS SELECT * FROM t1 WHERE b >= '2009-04-02 23:59:59';
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	p20090401,p20090403,p20090404,p20090405	ALL	NULL	NULL	NULL	NULL	12	Using where
+1	SIMPLE	t1	p20090401,p20090403,p20090404,p20090405	ALL	NULL	NULL	NULL	NULL	10	Using where
 EXPLAIN PARTITIONS SELECT * FROM t1 WHERE b > '2009-04-02 23:59:59';
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	p20090401,p20090403,p20090404,p20090405	ALL	NULL	NULL	NULL	NULL	12	Using where
+1	SIMPLE	t1	p20090401,p20090403,p20090404,p20090405	ALL	NULL	NULL	NULL	NULL	10	Using where
 EXPLAIN PARTITIONS SELECT * FROM t1 WHERE b < '2009-04-03';
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	p20090401,p20090402	ALL	NULL	NULL	NULL	NULL	12	Using where
+1	SIMPLE	t1	p20090401,p20090402	ALL	NULL	NULL	NULL	NULL	5	Using where
 EXPLAIN PARTITIONS SELECT * FROM t1 WHERE b <= '2009-04-03';
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	p20090401,p20090402,p20090403	ALL	NULL	NULL	NULL	NULL	12	Using where
+1	SIMPLE	t1	p20090401,p20090402,p20090403	ALL	NULL	NULL	NULL	NULL	7	Using where
 EXPLAIN PARTITIONS SELECT * FROM t1 WHERE b = '2009-04-03';
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	p20090403	ALL	NULL	NULL	NULL	NULL	12	Using where
+1	SIMPLE	t1	p20090403	ALL	NULL	NULL	NULL	NULL	2	Using where
 EXPLAIN PARTITIONS SELECT * FROM t1 WHERE b >= '2009-04-03';
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	p20090401,p20090403,p20090404,p20090405	ALL	NULL	NULL	NULL	NULL	12	Using where
+1	SIMPLE	t1	p20090401,p20090403,p20090404,p20090405	ALL	NULL	NULL	NULL	NULL	10	Using where
 EXPLAIN PARTITIONS SELECT * FROM t1 WHERE b > '2009-04-03';
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	p20090401,p20090404,p20090405	ALL	NULL	NULL	NULL	NULL	12	Using where
+1	SIMPLE	t1	p20090401,p20090404,p20090405	ALL	NULL	NULL	NULL	NULL	8	Using where
 EXPLAIN PARTITIONS SELECT * FROM t1
 WHERE b < CAST('2009-04-03 00:00:01' AS DATETIME);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	p20090401,p20090402,p20090403	ALL	NULL	NULL	NULL	NULL	12	Using where
+1	SIMPLE	t1	p20090401,p20090402,p20090403	ALL	NULL	NULL	NULL	NULL	7	Using where
 EXPLAIN PARTITIONS SELECT * FROM t1
 WHERE b <= CAST('2009-04-03 00:00:01' AS DATETIME);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	p20090401,p20090402,p20090403	ALL	NULL	NULL	NULL	NULL	12	Using where
+1	SIMPLE	t1	p20090401,p20090402,p20090403	ALL	NULL	NULL	NULL	NULL	7	Using where
 EXPLAIN PARTITIONS SELECT * FROM t1
 WHERE b = CAST('2009-04-03 00:00:01' AS DATETIME);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	Extra
@@ -1842,19 +1866,19 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	Extra
 EXPLAIN PARTITIONS SELECT * FROM t1
 WHERE b >= CAST('2009-04-03 00:00:01' AS DATETIME);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	p20090401,p20090404,p20090405	ALL	NULL	NULL	NULL	NULL	12	Using where
+1	SIMPLE	t1	p20090401,p20090404,p20090405	ALL	NULL	NULL	NULL	NULL	8	Using where
 EXPLAIN PARTITIONS SELECT * FROM t1
 WHERE b > CAST('2009-04-03 00:00:01' AS DATETIME);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	p20090401,p20090404,p20090405	ALL	NULL	NULL	NULL	NULL	12	Using where
+1	SIMPLE	t1	p20090401,p20090404,p20090405	ALL	NULL	NULL	NULL	NULL	8	Using where
 EXPLAIN PARTITIONS SELECT * FROM t1
 WHERE b < CAST('2009-04-02 23:59:58' AS DATETIME);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	p20090401,p20090402	ALL	NULL	NULL	NULL	NULL	12	Using where
+1	SIMPLE	t1	p20090401,p20090402	ALL	NULL	NULL	NULL	NULL	5	Using where
 EXPLAIN PARTITIONS SELECT * FROM t1
 WHERE b <= CAST('2009-04-02 23:59:58' AS DATETIME);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	p20090401,p20090402	ALL	NULL	NULL	NULL	NULL	12	Using where
+1	SIMPLE	t1	p20090401,p20090402	ALL	NULL	NULL	NULL	NULL	5	Using where
 EXPLAIN PARTITIONS SELECT * FROM t1
 WHERE b = CAST('2009-04-02 23:59:58' AS DATETIME);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	Extra
@@ -1862,11 +1886,11 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	Extra
 EXPLAIN PARTITIONS SELECT * FROM t1
 WHERE b >= CAST('2009-04-02 23:59:58' AS DATETIME);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	p20090401,p20090403,p20090404,p20090405	ALL	NULL	NULL	NULL	NULL	12	Using where
+1	SIMPLE	t1	p20090401,p20090403,p20090404,p20090405	ALL	NULL	NULL	NULL	NULL	10	Using where
 EXPLAIN PARTITIONS SELECT * FROM t1
 WHERE b > CAST('2009-04-02 23:59:58' AS DATETIME);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	p20090401,p20090403,p20090404,p20090405	ALL	NULL	NULL	NULL	NULL	12	Using where
+1	SIMPLE	t1	p20090401,p20090403,p20090404,p20090405	ALL	NULL	NULL	NULL	NULL	10	Using where
 DROP TABLE t1;
 # For better code coverage of the patch
 CREATE TABLE t1 (
@@ -1930,7 +1954,7 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	t2	p0,p1	ALL	NULL	NULL	NULL	NULL	3	Using where
 explain partitions select * from t2 where a=1 and b=1;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t2	p0	ALL	NULL	NULL	NULL	NULL	3	Using where
+1	SIMPLE	t2	p0	ALL	NULL	NULL	NULL	NULL	2	Using where
 create table t3 (
 a int
 )
@@ -1988,25 +2012,25 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	Extra
 explain partitions select * from t5
 where (a=10 and b=1) or (a=10 and b=2) or (a=10 and b = 3);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t5	p0_p0sp0,p0_p0sp1	ALL	NULL	NULL	NULL	NULL	4	Using where
+1	SIMPLE	t5	p0_p0sp0,p0_p0sp1	ALL	NULL	NULL	NULL	NULL	2	Using where
 explain partitions select * from t5 where (a=10 and b=2) or (a=10 and b=3)
 or (a=10 and b = 4);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	t5	p0_p0sp0,p0_p0sp1,p1_p1sp0,p1_p1sp1	ALL	NULL	NULL	NULL	NULL	4	Using where
 explain partitions select * from t5 where (c=1 and d=1);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t5	p0_p0sp0,p1_p1sp0	ALL	NULL	NULL	NULL	NULL	4	Using where
+1	SIMPLE	t5	p0_p0sp0,p1_p1sp0	ALL	NULL	NULL	NULL	NULL	2	Using where
 explain partitions select * from t5 where (c=2 and d=1);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t5	p0_p0sp1,p1_p1sp1	ALL	NULL	NULL	NULL	NULL	4	Using where
+1	SIMPLE	t5	p0_p0sp1,p1_p1sp1	ALL	NULL	NULL	NULL	NULL	2	Using where
 explain partitions select * from t5 where (a=10 and b=2 and c=1 and d=1) or 
 (c=2 and d=1);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t5	p0_p0sp0,p0_p0sp1,p1_p1sp1	ALL	NULL	NULL	NULL	NULL	4	Using where
+1	SIMPLE	t5	p0_p0sp0,p0_p0sp1,p1_p1sp1	ALL	NULL	NULL	NULL	NULL	3	Using where
 explain partitions select * from t5 where (a=10 and b=2 and c=1 and d=1) or 
 (b=2 and c=2 and d=1);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t5	p0_p0sp0,p0_p0sp1,p1_p1sp1	ALL	NULL	NULL	NULL	NULL	4	Using where
+1	SIMPLE	t5	p0_p0sp0,p0_p0sp1,p1_p1sp1	ALL	NULL	NULL	NULL	NULL	3	Using where
 create table t6 (a int not null) partition by LIST(a) (
 partition p1 values in (1),
 partition p3 values in (3),
@@ -2044,7 +2068,7 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	t6	p5,p7,p9	system	NULL	NULL	NULL	NULL	1	
 explain partitions select * from t6 where a >= 3 and a <= 8;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t6	p3,p5,p7	ALL	NULL	NULL	NULL	NULL	3	Using where
+1	SIMPLE	t6	p3,p5,p7	ALL	NULL	NULL	NULL	NULL	2	Using where
 explain partitions select * from t6 where a > 3 and a < 5;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE noticed after reading const tables
@@ -2086,7 +2110,7 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	t6	p5,p7,p9	system	NULL	NULL	NULL	NULL	1	
 explain partitions select * from t6 where a >= 3 and a <= 8;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t6	p3,p5,p7	ALL	NULL	NULL	NULL	NULL	3	Using where
+1	SIMPLE	t6	p3,p5,p7	ALL	NULL	NULL	NULL	NULL	2	Using where
 explain partitions select * from t6 where a > 3 and a < 5;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE noticed after reading const tables
@@ -2325,7 +2349,7 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	Extra
 explain partitions
 select * from t1 X, t1 Y where X.a = Y.a and (X.a=1 or X.a=2);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	X	p1,p2	ALL	a	NULL	NULL	NULL	4	Using where
+1	SIMPLE	X	p1,p2	ALL	a	NULL	NULL	NULL	2	Using where
 1	SIMPLE	Y	p1,p2	ref	a	a	4	test.X.a	2	
 drop table t1;
 create table t1 (a int) partition by hash(a) partitions 20;
@@ -2338,7 +2362,7 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	t1	p1,p2	ALL	NULL	NULL	NULL	NULL	2	Using where
 explain partitions select * from t1 where a >  1 and a <= 3;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	p2,p3	ALL	NULL	NULL	NULL	NULL	3	Using where
+1	SIMPLE	t1	p2,p3	ALL	NULL	NULL	NULL	NULL	2	Using where
 explain partitions select * from t1 where a >= 1 and a <= 3;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	t1	p1,p2,p3	ALL	NULL	NULL	NULL	NULL	3	Using where
@@ -2428,22 +2452,22 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	t2	p0,p1,p2,p3,p4	ALL	NULL	NULL	NULL	NULL	1010	
 explain partitions select * from t2 where a < 801 and a > 200;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t2	p1,p2,p3,p4	ALL	NULL	NULL	NULL	NULL	1010	Using where
+1	SIMPLE	t2	p1,p2,p3,p4	ALL	NULL	NULL	NULL	NULL	800	Using where
 explain partitions select * from t2 where a < 801 and a > 800;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t2	p4	ALL	NULL	NULL	NULL	NULL	1010	Using where
+1	SIMPLE	t2	p4	ALL	NULL	NULL	NULL	NULL	200	Using where
 explain partitions select * from t2 where a > 600;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t2	p3,p4	ALL	NULL	NULL	NULL	NULL	1010	Using where
+1	SIMPLE	t2	p3,p4	ALL	NULL	NULL	NULL	NULL	400	Using where
 explain partitions select * from t2 where a > 600 and b = 1;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t2	p3,p4	ALL	NULL	NULL	NULL	NULL	1010	Using where
+1	SIMPLE	t2	p3,p4	ALL	NULL	NULL	NULL	NULL	400	Using where
 explain partitions select * from t2 where a > 600 and b = 4;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t2	p3,p4	ALL	NULL	NULL	NULL	NULL	1010	Using where
+1	SIMPLE	t2	p3,p4	ALL	NULL	NULL	NULL	NULL	400	Using where
 explain partitions select * from t2 where a > 600 and b = 5;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t2	p3,p4	ALL	NULL	NULL	NULL	NULL	1010	Using where
+1	SIMPLE	t2	p3,p4	ALL	NULL	NULL	NULL	NULL	400	Using where
 explain partitions select * from t2 where b = 5;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	t2	p0,p1,p2,p3,p4	ALL	NULL	NULL	NULL	NULL	1010	Using where
@@ -2498,19 +2522,19 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	t2	p0,p1,p2,p3,p4	ALL	NULL	NULL	NULL	NULL	910	
 explain partitions select * from t2 where a = 101;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t2	p0	ALL	NULL	NULL	NULL	NULL	910	Using where
+1	SIMPLE	t2	p0	ALL	NULL	NULL	NULL	NULL	110	Using where
 explain partitions select * from t2 where a = 550;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t2	p2	ALL	NULL	NULL	NULL	NULL	910	Using where
+1	SIMPLE	t2	p2	ALL	NULL	NULL	NULL	NULL	200	Using where
 explain partitions select * from t2 where a = 833;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t2	p4	ALL	NULL	NULL	NULL	NULL	910	Using where
+1	SIMPLE	t2	p4	ALL	NULL	NULL	NULL	NULL	200	Using where
 explain partitions select * from t2 where (a = 100 OR a = 900);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t2	p0,p4	ALL	NULL	NULL	NULL	NULL	910	Using where
+1	SIMPLE	t2	p0,p4	ALL	NULL	NULL	NULL	NULL	310	Using where
 explain partitions select * from t2 where (a > 100 AND a < 600);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t2	p0,p1,p2	ALL	NULL	NULL	NULL	NULL	910	Using where
+1	SIMPLE	t2	p0,p1,p2	ALL	NULL	NULL	NULL	NULL	510	Using where
 explain partitions select * from t2 where b = 4;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	t2	p0,p1,p2,p3,p4	ref	b	b	5	const	76	Using where
@@ -2796,17 +2820,17 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	Extra
 explain partitions select * from t1 
 where a >= 18446744073709551000-1 and a <= 18446744073709551000+1;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	p3,p4	ALL	NULL	NULL	NULL	NULL	4	Using where
+1	SIMPLE	t1	p3,p4	ALL	NULL	NULL	NULL	NULL	3	Using where
 explain partitions select * from t1 
 where a between 18446744073709551001 and 18446744073709551002;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	p4	ALL	NULL	NULL	NULL	NULL	4	Using where
+1	SIMPLE	t1	p4	ALL	NULL	NULL	NULL	NULL	2	Using where
 explain partitions select * from t1 where a = 18446744073709551000;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	p4	ALL	NULL	NULL	NULL	NULL	4	Using where
+1	SIMPLE	t1	p4	ALL	NULL	NULL	NULL	NULL	2	Using where
 explain partitions select * from t1 where a = 18446744073709551613;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	p4	ALL	NULL	NULL	NULL	NULL	4	Using where
+1	SIMPLE	t1	p4	ALL	NULL	NULL	NULL	NULL	2	Using where
 explain partitions select * from t1 where a = 18446744073709551614;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE noticed after reading const tables
@@ -2833,10 +2857,10 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	t2	p0	ALL	NULL	NULL	NULL	NULL	2	Using where
 explain partitions select * from t1 where a=0xFE;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	p2	ALL	NULL	NULL	NULL	NULL	4	Using where
+1	SIMPLE	t1	p2	ALL	NULL	NULL	NULL	NULL	2	Using where
 explain partitions select * from t2 where a=0xFE;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t2	p2	ALL	NULL	NULL	NULL	NULL	4	Using where
+1	SIMPLE	t2	p2	ALL	NULL	NULL	NULL	NULL	2	Using where
 explain partitions select * from t1 where a > 0xFE AND a <= 0xFF;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE noticed after reading const tables
@@ -2845,22 +2869,22 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE noticed after reading const tables
 explain partitions select * from t1 where a >= 0xFE AND a <= 0xFF;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	p2	ALL	NULL	NULL	NULL	NULL	4	Using where
+1	SIMPLE	t1	p2	ALL	NULL	NULL	NULL	NULL	2	Using where
 explain partitions select * from t2 where a >= 0xFE AND a <= 0xFF;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t2	p2	ALL	NULL	NULL	NULL	NULL	4	Using where
+1	SIMPLE	t2	p2	ALL	NULL	NULL	NULL	NULL	2	Using where
 explain partitions select * from t1 where a < 64 AND a >= 63;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	p0	ALL	NULL	NULL	NULL	NULL	4	Using where
+1	SIMPLE	t1	p0	ALL	NULL	NULL	NULL	NULL	2	Using where
 explain partitions select * from t2 where a < 64 AND a >= 63;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t2	p0	ALL	NULL	NULL	NULL	NULL	4	Using where
+1	SIMPLE	t2	p0	ALL	NULL	NULL	NULL	NULL	2	Using where
 explain partitions select * from t1 where a <= 64 AND a >= 63;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	p0,p1	ALL	NULL	NULL	NULL	NULL	6	Using where
+1	SIMPLE	t1	p0,p1	ALL	NULL	NULL	NULL	NULL	4	Using where
 explain partitions select * from t2 where a <= 64 AND a >= 63;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t2	p0,p1	ALL	NULL	NULL	NULL	NULL	6	Using where
+1	SIMPLE	t2	p0,p1	ALL	NULL	NULL	NULL	NULL	4	Using where
 drop table t1;
 drop table t2;
 create table t1(a bigint unsigned not null) partition by range(a+0) (
