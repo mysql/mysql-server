@@ -210,11 +210,6 @@ INSERT INTO global_suppressions VALUES
    a configuration that is not crash-safe.
  */
  (".*If a crash happens this configuration does not guarantee.*"),
- /*
-   Warning message is printed out whenever a repository is checked
-   and is not ready to be used.
- */
- ("Info file is not ready to be used."),
 
  ("THE_LAST_SUPPRESSION")||
 
