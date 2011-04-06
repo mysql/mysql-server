@@ -255,6 +255,19 @@ easy way to get it to work. See http://bugs.mysql.com/bug.php?id=52263. */
 #else
 # define UNIV_INTERN
 #endif
+#if defined __GNUC__ && (__GNUC__ > 4 || __GNUC__ == 4 && __GNUC_MINOR__ >= 3)
+/** Starting with GCC 4.3, the "cold" attribute is used to inform the
+compiler that a function is unlikely executed.  The function is
+optimized for size rather than speed and on many targets it is placed
+into special subsection of the text section so all cold functions
+appears close together improving code locality of non-cold parts of
+program.  The paths leading to call of cold functions within code are
+marked as unlikely by the branch prediction mechanism.  optimize a
+rarely invoked function for size instead for speed. */
+# define UNIV_COLD __attribute__((cold))
+#else
+# define UNIV_COLD /* empty */
+#endif
 
 #ifndef UNIV_MUST_NOT_INLINE
 /* Definition for inline version */
