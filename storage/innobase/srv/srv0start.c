@@ -1678,10 +1678,6 @@ innobase_start_or_create_for_mysql(void)
 
 		srv_startup_is_before_trx_rollback_phase = FALSE;
 
-		/* Initialize the fsp free limit global variable in the log
-		system */
-		fsp_header_get_free_limit();
-
 		recv_recovery_from_archive_finish();
 #endif /* UNIV_LOG_ARCHIVE */
 	} else {
@@ -1738,10 +1734,6 @@ innobase_start_or_create_for_mysql(void)
 		therefore requires that the trx_sys is inited. */
 
 		trx_purge_sys_create(srv_n_purge_threads, ib_bh);
-
-		/* Initialize the fsp free limit global variable in the log
-		system */
-		fsp_header_get_free_limit();
 
 		/* recv_recovery_from_checkpoint_finish needs trx lists which
 		are initialized in trx_sys_init_at_db_start(). */

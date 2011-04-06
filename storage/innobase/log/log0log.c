@@ -76,10 +76,6 @@ reduce the size of the log.
 
 */
 
-/* Current free limit of space 0; protected by the log sys mutex; 0 means
-uninitialized */
-UNIV_INTERN ulint	log_fsp_current_free_limit		= 0;
-
 /* Global log system variable */
 UNIV_INTERN log_t*	log_sys	= NULL;
 
@@ -163,33 +159,6 @@ void
 log_io_complete_archive(void);
 /*=========================*/
 #endif /* UNIV_LOG_ARCHIVE */
-
-/****************************************************************//**
-Sets the global variable log_fsp_current_free_limit. Also makes a checkpoint,
-so that we know that the limit has been written to a log checkpoint field
-on disk. */
-UNIV_INTERN
-void
-log_fsp_current_free_limit_set_and_checkpoint(
-/*==========================================*/
-	ulint	limit)	/*!< in: limit to set */
-{
-	ibool	success;
-
-	mutex_enter(&(log_sys->mutex));
-
-	log_fsp_current_free_limit = limit;
-
-	mutex_exit(&(log_sys->mutex));
-
-	/* Try to make a synchronous checkpoint */
-
-	success = FALSE;
-
-	while (!success) {
-		success = log_checkpoint(TRUE, TRUE);
-	}
-}
 
 /****************************************************************//**
 Returns the oldest modified block lsn in the pool, or log_sys->lsn if none
@@ -1839,15 +1808,6 @@ log_group_checkpoint(
 	fold = ut_fold_binary(buf + LOG_CHECKPOINT_LSN,
 			      LOG_CHECKPOINT_CHECKSUM_2 - LOG_CHECKPOINT_LSN);
 	mach_write_to_4(buf + LOG_CHECKPOINT_CHECKSUM_2, fold);
-
-	/* Starting from InnoDB-3.23.50, we also write info on allocated
-	size in the tablespace */
-
-	mach_write_to_4(buf + LOG_CHECKPOINT_FSP_FREE_LIMIT,
-			log_fsp_current_free_limit);
-
-	mach_write_to_4(buf + LOG_CHECKPOINT_FSP_MAGIC_N,
-			LOG_CHECKPOINT_FSP_MAGIC_N_VAL);
 
 	/* We alternate the physical place of the checkpoint info in the first
 	log file */
