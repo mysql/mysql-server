@@ -1325,24 +1325,6 @@ NdbTransaction::releaseScanOperations(NdbIndexScanOperation* cursorOp)
   }
 }//NdbTransaction::releaseScanOperations()
 
-/*****************************************************************************
-void releaseScanOperation();
-
-Remark:         Release scan op when hupp'ed trans closed (save memory)
-******************************************************************************/
-#if 0
-void 
-NdbTransaction::releaseExecutedScanOperation(NdbIndexScanOperation* cursorOp)
-{
-  DBUG_ENTER("NdbTransaction::releaseExecutedScanOperation");
-  DBUG_PRINT("enter", ("this: 0x%lx  op: 0x%lx", (long) this, (long) cursorOp));
-  
-  releaseScanOperation(&m_firstExecutedScanOp, 0, cursorOp);
-  
-  DBUG_VOID_RETURN;
-}//NdbTransaction::releaseExecutedScanOperation()
-#endif
-
 bool
 NdbTransaction::releaseScanOperation(NdbIndexScanOperation** listhead,
 				     NdbIndexScanOperation** listtail,
