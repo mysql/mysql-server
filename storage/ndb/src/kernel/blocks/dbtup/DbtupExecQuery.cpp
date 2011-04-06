@@ -1927,6 +1927,7 @@ int Dbtup::handleDeleteReq(Signal* signal,
   {
     regOperPtr->tupVersion= req_struct->m_tuple_ptr->get_tuple_version();
   }
+  req_struct->changeMask.set();
 
   if(disk && regOperPtr->m_undo_buffer_space == 0)
   {

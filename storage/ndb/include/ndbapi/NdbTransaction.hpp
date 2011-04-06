@@ -992,8 +992,6 @@ private:
   bool releaseScanOperation(NdbIndexScanOperation** listhead,
 			    NdbIndexScanOperation** listtail,
 			    NdbIndexScanOperation* op);
-  void releaseExecutedScanOperation(NdbIndexScanOperation*);
-
   void          releaseLockHandles();
   
   // Set the transaction identity of the transaction

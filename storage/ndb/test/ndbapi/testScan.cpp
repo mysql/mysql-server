@@ -297,6 +297,7 @@ int runScanRead(NDBT_Context* ctx, NDBT_Step* step){
   int parallelism = ctx->getProperty("Parallelism", 240);
   int abort = ctx->getProperty("AbortProb", 5);
   int tupscan = ctx->getProperty("TupScan", (Uint32)0);
+  int lockmode = ctx->getProperty("LockMode", NdbOperation::LM_CommittedRead);
 
   int i = 0;
   HugoTransactions hugoTrans(*ctx->getTab());
@@ -308,12 +309,13 @@ int runScanRead(NDBT_Context* ctx, NDBT_Step* step){
     {
       scan_flags |= NdbScanOperation::SF_TupScan;
       if (hugoTrans.scanReadRecords(GETNDB(step), records, abort, parallelism,
-                                    NdbOperation::LM_CommittedRead,
+                                    NdbOperation::LockMode(lockmode),
                                     scan_flags) != 0)
         return NDBT_FAILED;
     }
-    else if (hugoTrans.scanReadRecords(GETNDB(step), records, abort, parallelism)
-             != 0)
+    else if (hugoTrans.scanReadRecords(GETNDB(step), records, abort,
+                                       parallelism,
+                                       NdbOperation::LockMode(lockmode)) != 0)
     {
       return NDBT_FAILED;
     }
@@ -363,11 +365,13 @@ int runRandScanRead(NDBT_Context* ctx, NDBT_Step* step){
 
 int runScanReadIndex(NDBT_Context* ctx, NDBT_Step* step){
   int loops = ctx->getNumLoops();
-  int records = ctx->getNumRecords();
+  int records = ctx->getProperty("Rows", ctx->getNumRecords());
   int parallelism = ctx->getProperty("Parallelism", 240);
   int abort = ctx->getProperty("AbortProb", 5);
-  const NdbDictionary::Index * pIdx = 
-    GETNDB(step)->getDictionary()->getIndex(orderedPkIdxName, 
+  int lockmode = ctx->getProperty("LockMode", NdbOperation::LM_CommittedRead);
+  int rand_mode = ctx->getProperty("RandScanOptions", Uint32(1));
+  const NdbDictionary::Index * pIdx =
+    GETNDB(step)->getDictionary()->getIndex(orderedPkIdxName,
 					    ctx->getTab()->getName());
 
   int i = 0;
@@ -376,11 +380,17 @@ int runScanReadIndex(NDBT_Context* ctx, NDBT_Step* step){
     g_info << i << ": ";
     bool sort = (rand() % 100) > 50 ? true : false;
     bool desc = (rand() % 100) > 50 ? true : false;
+    NdbOperation::LockMode lm = (NdbOperation::LockMode)(rand() % 3);
     desc = false;       // random causes too many deadlocks
+    if (rand_mode == 0)
+    {
+      sort = false;
+      desc = false;
+      lm = (NdbOperation::LockMode)lockmode;
+    }
     int scan_flags =
       (NdbScanOperation::SF_OrderBy & -(int)sort) |
       (NdbScanOperation::SF_Descending & -(int)desc);
-    NdbOperation::LockMode lm = (NdbOperation::LockMode)(rand() % 3);
     if (hugoTrans.scanReadRecords(GETNDB(step), pIdx,
 				  records, abort, parallelism,
 				  lm,
@@ -1414,6 +1424,115 @@ runBug54945(NDBT_Context* ctx, NDBT_Step* step)
   return NDBT_OK;
 }
 
+#define CHK_RET_FAILED(x) if (!(x)) { ndbout_c("Failed on line: %u", __LINE__); return NDBT_FAILED; }
+
+int
+runMixedDML(NDBT_Context* ctx, NDBT_Step* step)
+{
+  Ndb* pNdb = GETNDB(step);
+  const NdbDictionary::Table* pTab = ctx->getTab();
+
+  unsigned seed = (unsigned)NdbTick_CurrentMillisecond();
+
+  const int rows = ctx->getNumRecords();
+  const int loops = 10 * ctx->getNumLoops();
+  const int until_stopped = ctx->getProperty("UntilStopped");
+  const int batch = ctx->getProperty("Batch", Uint32(50));
+
+  const NdbRecord * pRowRecord = pTab->getDefaultRecord();
+  CHK_RET_FAILED(pRowRecord != 0);
+
+  const Uint32 len = NdbDictionary::getRecordRowLength(pRowRecord);
+  Uint8 * pRow = new Uint8[len];
+
+  int count_ok = 0;
+  int count_failed = 0;
+  for (int i = 0; i < loops || (until_stopped && !ctx->isTestStopped()); i++)
+  {
+    NdbTransaction* pTrans = pNdb->startTransaction();
+    CHK_RET_FAILED(pTrans != 0);
+
+    int lastrow = 0;
+    int result = 0;
+    for (int rowNo = 0; rowNo < batch; rowNo++)
+    {
+      int left = rows - lastrow;
+      int rowId = lastrow;
+      if (left)
+      {
+        rowId += ndb_rand_r(&seed) % (left / 10 + 1);
+      }
+      else
+      {
+        break;
+      }
+      lastrow = rowId;
+
+      bzero(pRow, len);
+
+      HugoCalculator calc(* pTab);
+      calc.setValues(pRow, pRowRecord, rowId, rand());
+
+      NdbOperation::OperationOptions opts;
+      bzero(&opts, sizeof(opts));
+
+      const NdbOperation* pOp = 0;
+      switch(ndb_rand_r(&seed) % 3){
+      case 0:
+        pOp = pTrans->writeTuple(pRowRecord, (char*)pRow,
+                                 pRowRecord, (char*)pRow,
+                                 0,
+                                 &opts,
+                                 sizeof(opts));
+        break;
+      case 1:
+        pOp = pTrans->deleteTuple(pRowRecord, (char*)pRow,
+                                  pRowRecord, (char*)pRow,
+                                  0,
+                                  &opts,
+                                  sizeof(opts));
+        break;
+      case 2:
+        pOp = pTrans->updateTuple(pRowRecord, (char*)pRow,
+                                  pRowRecord, (char*)pRow,
+                                  0,
+                                  &opts,
+                                  sizeof(opts));
+        break;
+      }
+      CHK_RET_FAILED(pOp != 0);
+      result = pTrans->execute(NoCommit, AO_IgnoreError);
+      if (result != 0)
+      {
+        goto found_error;
+      }
+    }
+
+    result = pTrans->execute(Commit, AO_IgnoreError);
+    if (result != 0)
+    {
+  found_error:
+      count_failed++;
+      NdbError err = pTrans->getNdbError();
+      ndbout << err << endl;
+      CHK_RET_FAILED(err.status == NdbError::TemporaryError ||
+                     err.classification == NdbError::NoDataFound ||
+                     err.classification == NdbError::ConstraintViolation);
+    }
+    else
+    {
+      count_ok++;
+    }
+    pTrans->close();
+  }
+
+  ndbout_c("count_ok: %d count_failed: %d",
+           count_ok, count_failed);
+  delete [] pRow;
+
+  return NDBT_OK;
+}
+
 NDBT_TESTSUITE(testScan);
 TESTCASE("ScanRead", 
 	 "Verify scan requirement: It should be possible "\
@@ -1950,6 +2069,15 @@ TESTCASE("Bug42559", "")
 TESTCASE("Bug54945", "")
 {
   INITIALIZER(runBug54945);
+}
+TESTCASE("Bug12324191", "")
+{
+  TC_PROPERTY("LockMode", Uint32(NdbOperation::LM_Read));
+  TC_PROPERTY("TupScan", Uint32(1));
+  TC_PROPERTY("Rows", Uint32(0));
+  INITIALIZER(runLoadTable);
+  STEP(runScanRead);
+  STEPS(runMixedDML,10);
 }
 NDBT_TESTSUITE_END(testScan);
 

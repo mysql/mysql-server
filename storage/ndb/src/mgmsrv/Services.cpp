@@ -34,7 +34,7 @@
 
 #include "ndb_mgmd_error.h"
 
-#include <base64.h>
+#include <ndb_base64.h>
 #include <ndberror.h>
 
 extern bool g_StopServer;
@@ -2098,7 +2098,7 @@ void MgmApiSession::setConfig(Parser_t::Context &ctx, Properties const &args)
     } while(start < len64);
 
     char* decoded = new char[base64_needed_decoded_length((size_t)len64 - 1)];
-    int decoded_len= base64_decode(buf64, len64-1, decoded, NULL);
+    int decoded_len= ndb_base64_decode(buf64, len64-1, decoded, NULL);
     delete[] buf64;
 
     ConfigValuesFactory cvf;
