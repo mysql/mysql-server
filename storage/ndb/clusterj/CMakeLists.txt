@@ -13,19 +13,19 @@
 # along with this program; if not, write to the Free Software
 # Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 
-IF(HAVE_JDK)
+IF(!HAVE_JDK)
   RETURN()
-ENDIF(HAVE_JDK)
+ENDIF()
 
 MESSAGE(STATUS "including ClusterJ")
 
 IF("${WITH_CLASSPATH}" MATCHES "junit-(.+).jar")
-  MESSAGE ( STATUS "Found junit jar listed in WITH_CLASSPATH" )
+  MESSAGE ( STATUS "Found junit jar" )
   SET(HAVE_JUNIT TRUE)
 ENDIF()
 
 IF("${WITH_CLASSPATH}" MATCHES "openjpa-(.+).jar")
-  MESSAGE ( STATUS "Found openjpa jar listed in WITH_CLASSPATH" )
+  MESSAGE ( STATUS "Found openjpa jar" )
   SET(HAVE_OPENJPA TRUE)
 ENDIF()
 
