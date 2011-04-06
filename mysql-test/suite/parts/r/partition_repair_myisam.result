@@ -53,16 +53,16 @@ test.t1_will_crash	repair	warning	Number of rows changed from 1 to 4
 test.t1_will_crash	repair	status	OK
 SELECT * FROM t1_will_crash;
 a
-1
-2
 3
-4
-5
 6
-7
-8
 9
+1
+4
+7
 10
+2
+5
+8
 11
 FLUSH TABLES;
 # test with ALTER TABLE ... CHECK/REPAIR PARTITION
@@ -94,16 +94,16 @@ test.t1_will_crash	repair	warning	Number of rows changed from 1 to 4
 test.t1_will_crash	repair	status	OK
 SELECT * FROM t1_will_crash;
 a
-1
-2
 3
-4
-5
 6
-7
-8
 9
+1
+4
+7
 10
+2
+5
+8
 11
 DROP TABLE t1_will_crash;
 # test of check/repair of a damaged subpartition's MYI-file
@@ -117,16 +117,16 @@ PARTITION p1 VALUES LESS THAN MAXVALUE);
 INSERT INTO t1_will_crash VALUES (1), (2), (3), (4), (5), (6), (7), (8), (9), (10), (11);
 SELECT * FROM t1_will_crash;
 a
-1
 2
-3
 4
-5
 6
-7
+1
+3
+5
 8
-9
 10
+7
+9
 11
 FLUSH TABLES;
 # test with CHECK/REPAIR TABLE
@@ -144,16 +144,16 @@ test.t1_will_crash	repair	warning	Number of rows changed from 1 to 2
 test.t1_will_crash	repair	status	OK
 SELECT * FROM t1_will_crash;
 a
-1
 2
-3
 4
-5
 6
-7
+1
+3
+5
 8
-9
 10
+7
+9
 11
 FLUSH TABLES;
 # test with ALTER TABLE ... CHECK/REPAIR PARTITION
@@ -185,16 +185,16 @@ test.t1_will_crash	repair	warning	Number of rows changed from 1 to 2
 test.t1_will_crash	repair	status	OK
 SELECT * FROM t1_will_crash;
 a
-1
 2
-3
 4
-5
 6
-7
+1
+3
+5
 8
-9
 10
+7
+9
 11
 DROP TABLE t1_will_crash;
 # test of check/repair of crashed partitions in variuos states
