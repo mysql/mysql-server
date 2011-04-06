@@ -1095,6 +1095,7 @@ private:
   NdbOperation*	theFirstExecOpInList;	    // First executing operation in list
   NdbOperation*	theLastExecOpInList;	    // Last executing operation in list.
 
+
   NdbOperation*	theCompletedFirstOp;	    // First & last operation in completed 
   NdbOperation*	theCompletedLastOp;         // operation list.
 
@@ -1151,11 +1152,6 @@ private:
   
   int report_node_failure(Uint32 id);
 
-  // Query operation (aka multicursor)
-  NdbQueryImpl* m_firstQuery;        // First query in defining list.
-  NdbQueryImpl* m_firstExecQuery;    // First query to send for execution
-  NdbQueryImpl* m_firstActiveQuery;  // First query actively executing, or completed
-
   // Scan operations
   bool m_waitForReply;     
   NdbIndexScanOperation* m_theFirstScanOperation;
@@ -1165,9 +1161,10 @@ private:
 
   // Scan operations or queries:
   // The operation or query actually performing the scan.
-  // (Only one of these may be non-NULL, which indirectly indicates the type)
+  // (Only one of theScanningOp/m_scanningQuery be non-NULL,
+  //  which indirectly indicates the type)
   NdbScanOperation* theScanningOp;
-  NdbQueryImpl* m_scanningQuery;
+
   Uint32 theBuddyConPtr;
   // optim: any blobs
   bool theBlobFlag;
@@ -1201,6 +1198,17 @@ private:
 
   NdbTransaction(const NdbTransaction&); // Not impl.
   NdbTransaction&operator=(const NdbTransaction&);
+
+  // Query operation (aka multicursor)
+  NdbQueryImpl* m_firstQuery;        // First query in defining list.
+  NdbQueryImpl* m_firstExecQuery;    // First query to send for execution
+  NdbQueryImpl* m_firstActiveQuery;  // First query actively executing, or completed
+
+  // Scan operations or queries:
+  // The operation or query actually performing the scan.
+  // (Only one of theScanningOp/m_scanningQuery be non-NULL,
+  //  which indirectly indicates the type)
+  NdbQueryImpl* m_scanningQuery;
 };
 
 #ifndef DOXYGEN_SHOULD_SKIP_INTERNAL
