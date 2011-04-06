@@ -593,7 +593,6 @@ innodb_verify(
 					   &idx_crsr, &index_type, &index_id);
 
 	if (index_type & IB_CLUSTERED) {
-		assert(!idx_crsr);
 		info->m_index.m_use_idx = META_CLUSTER;
 	} else if (!idx_crsr || !(index_type & IB_UNIQUE)) {
 		fprintf(stderr, "  InnoDB_Memcached: Index on key column"

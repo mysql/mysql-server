@@ -254,7 +254,8 @@ innodb_api_search(
 	const char*		key,	/*!< in: key to search */
 	int			len,	/*!< in: key length */
 	mci_item_t*		item,	/*!< in: result */
-	ib_tpl_t*		r_tpl)	/*!< in: tpl for other DML operations */
+	ib_tpl_t*		r_tpl,	/*!< in: tpl for other DML operations */
+	bool			sel_only) /*!< in: for select only */
 {
 	ib_tpl_t        key_tpl;
 	ib_err_t        err = DB_SUCCESS;
@@ -265,15 +266,30 @@ innodb_api_search(
 
 	if (meta_index->m_use_idx == META_SECONDARY) {
 		ib_crsr_t	idx_crsr;
-		idx_crsr = cursor_data->c_idx_crsr;
+
+		if (sel_only) {
+			idx_crsr = cursor_data->c_r_idx_crsr;
+		} else {
+			idx_crsr = cursor_data->c_idx_crsr;
+		}
+
 		ib_cursor_set_cluster_access(idx_crsr);
 
 		key_tpl = ib_cb_search_tuple_create(idx_crsr);
+
 		srch_crsr = idx_crsr;
 
 	} else {
-		key_tpl = ib_cb_search_tuple_create(cursor_data->c_crsr);
-		srch_crsr = cursor_data->c_crsr;
+		ib_crsr_t	c_crsr;
+
+		if (sel_only) {
+			c_crsr = cursor_data->c_r_crsr;
+		} else {
+			c_crsr = cursor_data->c_crsr;
+		}
+
+		key_tpl = ib_cb_search_tuple_create(c_crsr);
+		srch_crsr = c_crsr;
 	}
 
 	err = ib_cb_col_set_value(key_tpl, 0, (char*) key, len);
@@ -622,7 +638,7 @@ innodb_api_delete(
 	ib_crsr_t	srch_crsr = cursor_data->c_crsr;
 
 	err = innodb_api_search(engine, cursor_data, &srch_crsr, key, len,
-				NULL, NULL);
+				NULL, NULL, FALSE);
 
 	if (err != DB_SUCCESS) {
 		return(ENGINE_KEY_ENOENT);
@@ -761,7 +777,7 @@ innodb_api_arithmetic(
 	int		column_used = 0;
 
 	err = innodb_api_search(engine, cursor_data, &srch_crsr, key, len,
-				&result, &old_tpl);
+				&result, &old_tpl, FALSE);
 
 	if (err != DB_SUCCESS) {
 		ib_tuple_delete(old_tpl);
@@ -883,7 +899,7 @@ innodb_api_store(
 	ib_crsr_t	srch_crsr = cursor_data->c_crsr;
 
 	err = innodb_api_search(engine, cursor_data, &srch_crsr,
-				key, len, &result, &old_tpl);
+				key, len, &result, &old_tpl, FALSE);
 	switch (op) {
 	case OPERATION_ADD:
 		/* Only add if the key does not exist */
@@ -978,16 +994,61 @@ reset the cursor */
 void
 innodb_api_cursor_reset(
 /*====================*/
-	innodb_conn_data_t*	conn_data)	/*!< in/out: cursor affiliated
+	innodb_engine_t*	engine,		/*!< in: InnoDB Memcached
+						engine */
+	innodb_conn_data_t*	conn_data,	/*!< in/out: cursor affiliated
 						with a connection */
+	op_type_t		op_type)	/*!< in: type of DML performed */
 {
-	ib_cb_cursor_reset(conn_data->c_crsr);
-        ib_cb_cursor_reset(conn_data->c_idx_crsr);
+	ib_err_t        err = DB_SUCCESS;
 
-	//pthread_mutex_lock(&innodb_eng->conn_mutex);
+	switch (op_type) {
+	case CONN_OP_READ:
+		conn_data->c_r_count++;
+		conn_data->c_r_count_commit++;
+		break;
+	case CONN_OP_DELETE:
+	case CONN_OP_WRITE:
+		conn_data->c_w_count++;
+		conn_data->c_w_count_commit++;
+		break;
+	}
+
+	if (conn_data->c_crsr
+	    && conn_data->c_w_count_commit > CONN_NUM_WRITE_COMMIT) {
+		ib_cb_cursor_reset(conn_data->c_crsr);
+
+		if (conn_data->c_idx_crsr) {
+			ib_cb_cursor_reset(conn_data->c_idx_crsr);
+		}
+
+		if (conn_data->c_trx) {
+			err = ib_cb_trx_commit(conn_data->c_trx);
+			conn_data->c_trx = NULL;
+		}
+		conn_data->c_w_count_commit = 0;
+	}
+
+	if (conn_data->c_r_crsr
+	    && conn_data->c_r_count_commit > CONN_NUM_READ_COMMIT) {
+		ib_cb_cursor_reset(conn_data->c_r_crsr);
+
+		if (conn_data->c_r_idx_crsr) {
+			ib_cb_cursor_reset(conn_data->c_r_idx_crsr);
+		}
+
+		if (conn_data->c_r_trx) {
+			err = ib_cb_trx_commit(conn_data->c_r_trx);
+			conn_data->c_r_trx = NULL;
+		}
+		conn_data->c_r_count_commit = 0;
+	}
+
+	pthread_mutex_lock(&engine->conn_mutex);
 	assert(conn_data->c_in_use);
 	conn_data->c_in_use = FALSE;
-	//pthread_mutex_unlock(&innodb_eng->conn_mutex);
+
+	pthread_mutex_unlock(&engine->conn_mutex);
 
 	return;
 }

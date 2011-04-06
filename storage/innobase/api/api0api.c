@@ -1148,7 +1148,7 @@ ib_cursor_open_index_using_name(
 
 	/* Traverse the user defined indexes. */
 	while (index != NULL) {
-		if (strcmp(index->name, index_name) == 0) {
+		if (innobase_strcasecmp(index->name, index_name) == 0) {
 			index_id = (index->id);
 			*idx_type = index->type;
 			*idx_id = index_id;
@@ -1163,7 +1163,7 @@ ib_cursor_open_index_using_name(
 			ib_crsr, table, index_id, cursor->prebuilt->trx);
 	}
 
-	if (ib_crsr != NULL) {
+	if (*ib_crsr != NULL) {
 		const ib_cursor_t*	cursor;
 
 		cursor = *(ib_cursor_t**) ib_crsr;
