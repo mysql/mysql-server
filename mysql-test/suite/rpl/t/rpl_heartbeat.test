@@ -25,7 +25,7 @@ connection slave;
 # The warning has to be disabled as mtr can change the init value
 # for slave_net_timeout
 --disable_warnings
---let SAVE_NET_TIMEOUT=`select @@global.slave_net_timeout`;
+--let SAVE_NET_TIMEOUT=`select @@global.slave_net_timeout`
 set @@global.slave_net_timeout= 10;
 --enable_warnings
 ###

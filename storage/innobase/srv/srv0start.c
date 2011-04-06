@@ -1247,6 +1247,23 @@ innobase_start_or_create_for_mysql(void)
 
 	fil_init(srv_max_n_open_files);
 
+	/* Print time to initialize the buffer pool */
+	ut_print_timestamp(stderr);
+	fprintf(stderr,
+		"  InnoDB: Initializing buffer pool, size =");
+
+	if (srv_pool_size * UNIV_PAGE_SIZE >= 1024 * 1024 * 1024) {
+		fprintf(stderr,
+			" %.1fG\n",
+			((double) (srv_pool_size * UNIV_PAGE_SIZE))
+				 / (1024 * 1024 * 1024));
+	} else {
+		fprintf(stderr,
+			" %.1fM\n",
+			((double) (srv_pool_size * UNIV_PAGE_SIZE))
+				 / (1024 * 1024));
+	}
+
 	if (srv_use_awe) {
 		fprintf(stderr,
 			"InnoDB: Using AWE: Memory window is %lu MB"
@@ -1267,6 +1284,8 @@ innobase_start_or_create_for_mysql(void)
 				    srv_pool_size);
 	}
 
+	ut_print_timestamp(stderr);
+
 	if (ret == NULL) {
 		fprintf(stderr,
 			"InnoDB: Fatal error: cannot allocate the memory"
@@ -1274,6 +1293,9 @@ innobase_start_or_create_for_mysql(void)
 
 		return(DB_ERROR);
 	}
+
+	fprintf(stderr,
+		"  InnoDB: Completed initialization of buffer pool\n");
 
 	fsp_init();
 	log_init();

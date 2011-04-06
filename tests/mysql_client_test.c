@@ -1178,7 +1178,7 @@ my_bool fetch_n(const char **query_list, unsigned query_count,
 
 /* Separate thread query to test some cases */
 
-static my_bool thread_query(char *query)
+static my_bool thread_query(const char *query)
 {
   MYSQL *l_mysql;
   my_bool error;
@@ -1200,7 +1200,7 @@ static my_bool thread_query(char *query)
     goto end;
   }
   l_mysql->reconnect= 1;
-  if (mysql_query(l_mysql, (char *)query))
+  if (mysql_query(l_mysql, query))
   {
      fprintf(stderr, "Query failed (%s)\n", mysql_error(l_mysql));
      error= 1;
@@ -5824,7 +5824,7 @@ static void test_prepare_alter()
   rc= mysql_stmt_execute(stmt);
   check_execute(stmt, rc);
 
-  if (thread_query((char *)"ALTER TABLE test_prep_alter change id id_new varchar(20)"))
+  if (thread_query("ALTER TABLE test_prep_alter change id id_new varchar(20)"))
     exit(1);
 
   is_null= 1;
@@ -18300,6 +18300,107 @@ static void test_bug54041()
 }
 
 
+/**
+  Bug#47485: mysql_store_result returns a result set for a prepared statement
+*/
+static void test_bug47485()
+{
+  MYSQL_STMT   *stmt;
+  MYSQL_RES    *res;
+  MYSQL_BIND    bind[2];
+  int           rc;
+  const char*   sql_select = "SELECT 1, 'a'";
+  int           int_data;
+  char          str_data[16];
+  my_bool       is_null[2];
+  my_bool       error[2];
+  unsigned long length[2];
+
+  DBUG_ENTER("test_bug47485");
+  myheader("test_bug47485");
+
+  stmt= mysql_stmt_init(mysql);
+  check_stmt(stmt);
+  rc= mysql_stmt_prepare(stmt, sql_select, strlen(sql_select));
+  check_execute(stmt, rc);
+
+  rc= mysql_stmt_execute(stmt);
+  check_execute(stmt, rc);
+
+  res = mysql_store_result(mysql);
+  DIE_UNLESS(res == NULL);
+
+  mysql_stmt_reset(stmt);
+
+  rc= mysql_stmt_execute(stmt);
+  check_execute(stmt, rc);
+
+  res = mysql_use_result(mysql);
+  DIE_UNLESS(res == NULL);
+
+  mysql_stmt_reset(stmt);
+
+  memset(bind, 0, sizeof(bind));
+  bind[0].buffer_type= MYSQL_TYPE_LONG;
+  bind[0].buffer= (char *)&int_data;
+  bind[0].is_null= &is_null[0];
+  bind[0].length= &length[0];
+  bind[0].error= &error[0];
+
+  bind[1].buffer_type= MYSQL_TYPE_STRING;
+  bind[1].buffer= (char *)str_data;
+  bind[1].buffer_length= sizeof(str_data);
+  bind[1].is_null= &is_null[1];
+  bind[1].length= &length[1];
+  bind[1].error= &error[1];
+
+  rc= mysql_stmt_bind_result(stmt, bind);
+  check_execute(stmt, rc);
+
+  rc= mysql_stmt_execute(stmt);
+  check_execute(stmt, rc);
+
+  rc= mysql_stmt_store_result(stmt);
+  check_execute(stmt, rc);
+
+  while (!(rc= mysql_stmt_fetch(stmt)))
+    ;
+
+  DIE_UNLESS(rc == MYSQL_NO_DATA);
+
+  mysql_stmt_reset(stmt);
+
+  memset(bind, 0, sizeof(bind));
+  bind[0].buffer_type= MYSQL_TYPE_LONG;
+  bind[0].buffer= (char *)&int_data;
+  bind[0].is_null= &is_null[0];
+  bind[0].length= &length[0];
+  bind[0].error= &error[0];
+
+  bind[1].buffer_type= MYSQL_TYPE_STRING;
+  bind[1].buffer= (char *)str_data;
+  bind[1].buffer_length= sizeof(str_data);
+  bind[1].is_null= &is_null[1];
+  bind[1].length= &length[1];
+  bind[1].error= &error[1];
+
+  rc= mysql_stmt_bind_result(stmt, bind);
+  check_execute(stmt, rc);
+
+  rc= mysql_stmt_execute(stmt);
+  check_execute(stmt, rc);
+
+  while (!(rc= mysql_stmt_fetch(stmt)))
+    ;
+
+  DIE_UNLESS(rc == MYSQL_NO_DATA);
+
+  mysql_stmt_close(stmt);
+
+  DBUG_VOID_RETURN;
+}
+
+
 /*
   Read and parse arguments and MySQL options from my.cnf
 */
@@ -18625,6 +18726,7 @@ static struct my_tests_st my_tests[]= {
   { "test_bug44495", test_bug44495 },
   { "test_bug42373", test_bug42373 },
   { "test_bug54041", test_bug54041 },
+  { "test_bug47485", test_bug47485 },
   { 0, 0 }
 };
 
