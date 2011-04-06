@@ -136,9 +136,10 @@ int Rpl_info_file::do_check_info()
     reason, we print out such information in here.
   */
   if (my_access(info_fname, F_OK | R_OK | W_OK))
-    sql_print_warning("Info file is not ready to be used. Info file "
-                      "'%s' cannot be accessed (errno %d).", info_fname,
-                      errno);
+    sql_print_information("Info file %s cannot be accessed (errno %d)."
+                          " Most likely this is a new slave or you are "
+                          " changing the repository type.", info_fname,
+                          errno);
   
   return my_access(info_fname, F_OK);
 }
