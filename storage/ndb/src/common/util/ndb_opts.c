@@ -121,12 +121,12 @@ my_bool ndb_is_load_default_arg_separator(const char* arg)
 #error "Need MYSQL_VERSION_ID defined"
 #endif
 
-#if MYSQL_VERSION_ID >= 50501
+#if MYSQL_VERSION_ID >= 50510
   /*
     load_default() in 5.5+ returns an extra arg which has to
     be skipped when processing the argv array
    */
-  if (arg == args_separator)
+  if (my_getopt_is_args_separator(arg))
     return TRUE;
 #else
   (void)arg;
