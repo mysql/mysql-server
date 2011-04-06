@@ -885,7 +885,15 @@ void
 NdbReceiver::setErrorCode(int code)
 {
   theMagicNumber = 0;
-  NdbOperation* const op = (NdbOperation*)getOwner();
-  assert(op->checkMagicNumber()==0);
-  op->setErrorCode(code);
+  if (getType()==NDB_QUERY_OPERATION)
+  {
+    NdbQueryOperationImpl* op = (NdbQueryOperationImpl*)getOwner();
+    op->getQuery().setErrorCode(code);
+  }
+  else
+  {
+    NdbOperation* const op = (NdbOperation*)getOwner();
+    assert(op->checkMagicNumber()==0);
+    op->setErrorCode(code);
+  }
 }

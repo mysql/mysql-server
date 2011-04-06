@@ -1,0 +1,36 @@
+# Test Bug #57255. Cascade deletes that affect different rows should not
+# result in DB_FOREIGN_EXCEED_MAX_CASCADE error
+
+--source include/have_innodb.inc
+
+create table A(id int not null primary key) engine=innodb;
+
+create table B(id int not null auto_increment primary key, f1 int not null, foreign key(f1) references A(id) on delete cascade) engine=innodb;
+
+create table C(id int not null auto_increment primary key, f1 int not null, foreign key(f1) references B(id) on delete cascade) engine=innodb;
+
+insert into A values(1), (2);
+
+--disable_query_log
+let $i=257;
+while ($i)
+{
+insert into B(f1) values(1);
+dec $i;
+}
+let $i=486;
+while ($i)
+{
+insert into C(f1) values(2);
+dec $i;
+}
+--enable_query_log
+
+# Following Deletes should not report error
+DELETE FROM A where id = 1;
+DELETE FROM C where f1 = 2;
+DELETE FROM A where id = 1;
+
+DROP TABLE C;
+DROP TABLE B;
+DROP TABLE A;

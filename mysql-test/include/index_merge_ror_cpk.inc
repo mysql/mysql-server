@@ -126,3 +126,19 @@ WHERE
 
 drop table t1;
 
+--echo #
+--echo # Bug#50402 Optimizer producing wrong results when using Index Merge on InnoDB
+--echo #
+CREATE TABLE t1 (f1 INT, PRIMARY KEY (f1));
+INSERT INTO t1 VALUES (2);
+CREATE TABLE t2 (f1 INT, f2 INT, f3 char(1),
+                 PRIMARY KEY (f1), KEY (f2), KEY (f3) );
+INSERT INTO t2 VALUES (1, 1, 'h'), (2, 3, 'h'), (3, 2, ''), (4, 2, '');
+
+SELECT t1.f1 FROM t1
+WHERE (SELECT COUNT(*) FROM t2 WHERE t2.f3 = 'h' AND t2.f2 = t1.f1) = 0 AND t1.f1 = 2;
+
+EXPLAIN SELECT t1.f1 FROM t1
+WHERE (SELECT COUNT(*) FROM t2 WHERE t2.f3 = 'h' AND t2.f2 = t1.f1) = 0 AND t1.f1 = 2;
+
+DROP TABLE t1,t2;

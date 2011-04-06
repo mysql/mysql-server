@@ -57,9 +57,7 @@
   messages with the same digest, when n is the digest size in bits.
   Therefore, this algorithm can serve as a means of providing a
   "fingerprint" for a message.
-*/
 
-/*
  PORTABILITY ISSUES
    SHA-1 is defined in terms of 32-bit "words".  This code uses
    <stdint.h> (included via "sha1.h" to define 32 and 8 bit unsigned
