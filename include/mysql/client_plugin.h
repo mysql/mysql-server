@@ -156,8 +156,7 @@ mysql_client_register_plugin(struct st_mysql *mysql,
 
   @retval 0 on success, 1 in case of failure
 **/
-int STDCALL mysql_plugin_options(struct st_mysql_client_plugin *plugin,
-                                 const char *option,
-                                 const void *value);
+int mysql_plugin_options(struct st_mysql_client_plugin *plugin,
+                         const char *option, const void *value);
 #endif
 
