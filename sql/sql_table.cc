@@ -3337,6 +3337,7 @@ mysql_prepare_create_table(THD *thd, HA_CREATE_INFO *create_info,
       key_part_info->length=(uint16) length;
       /* Use packed keys for long strings on the first column */
       if (!((*db_options) & HA_OPTION_NO_PACK_KEYS) &&
+          !((create_info->table_options & HA_OPTION_NO_PACK_KEYS)) &&
 	  (length >= KEY_DEFAULT_PACK_LENGTH &&
 	   (sql_field->sql_type == MYSQL_TYPE_STRING ||
 	    sql_field->sql_type == MYSQL_TYPE_VARCHAR ||
@@ -3910,7 +3911,7 @@ bool mysql_create_table_no_lock(THD *thd,
       Then she could create the table. This case is pretty obscure and
       therefore we don't introduce a new error message only for it.
     */
-    if (get_cached_table_share(db, alias))
+    if (get_cached_table_share(db, table_name))
     {
       my_error(ER_TABLE_EXISTS_ERROR, MYF(0), table_name);
       goto unlock_and_end;
@@ -4433,9 +4434,6 @@ static int prepare_for_repair(THD *thd, TABLE_LIST *table_list,
     table= &tmp_table;
     pthread_mutex_unlock(&LOCK_open);
   }
-
-  /* A MERGE table must not come here. */
-  DBUG_ASSERT(!table->child_l);
 
   /*
     REPAIR TABLE ... USE_FRM for temporary tables makes little sense.
@@ -7333,7 +7331,6 @@ view_err:
 			  table->alias);
     }
 
-    VOID(pthread_mutex_lock(&LOCK_open));
     /*
       Unlike to the above case close_cached_table() below will remove ALL
       instances of TABLE from table cache (it will also remove table lock
@@ -7354,6 +7351,7 @@ view_err:
       */
       ha_autocommit_or_rollback(thd, 0);
 
+      VOID(pthread_mutex_lock(&LOCK_open));
       /*
         Then do a 'simple' rename of the table. First we need to close all
         instances of 'source' table.
@@ -7386,6 +7384,8 @@ view_err:
         }
       }
     }
+    else
+      VOID(pthread_mutex_lock(&LOCK_open));
 
     if (error == HA_ERR_WRONG_COMMAND)
     {
