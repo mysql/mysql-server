@@ -6,10 +6,8 @@
 --source include/have_binlog_format_mixed_or_row.inc
 --source suite/rpl_ndb/ndb_master-slave.inc
 
---disable_warnings
 --disable_query_log
 --connection master
-drop table if exists mysql.ndb_replication;
 CREATE TABLE mysql.ndb_replication
   (db VARBINARY(63),
    table_name VARBINARY(63),
@@ -18,14 +16,6 @@ CREATE TABLE mysql.ndb_replication
    conflict_fn VARBINARY(128),
    PRIMARY KEY USING HASH (db,table_name,server_id))
   ENGINE=NDB PARTITION BY KEY(db,table_name);
-
-drop table if exists t1_old;
-drop table if exists `test`.`t1_old$EX`;
-drop table if exists t1_max;
-drop table if exists `test`.`t1_max$EX`;
-drop table if exists t1_max_delete_win;
-drop table if exists `test`.`t1_max_delete_win$EX`;
---enable_warnings
 --enable_query_log
 
 # only test with binlog_type = 7, as everything else feels insane in context of conflict resolution
@@ -123,3 +113,5 @@ delete from t1_max;
 drop table mysql.ndb_replication;
 drop table t1_old, `t1_old$EX`, t1_max, `t1_max$EX`, t1_max_delete_win, `t1_max_delete_win$EX`;
 --sync_slave_with_master
+
+--source include/master-slave-end.inc
