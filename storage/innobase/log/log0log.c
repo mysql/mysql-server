@@ -3137,6 +3137,14 @@ loop:
 	log_archive_all();
 #endif /* UNIV_LOG_ARCHIVE */
 	if (srv_fast_shutdown == 2) {
+		ut_print_timestamp(stderr);
+		fprintf(stderr,
+			"  InnoDB: MySQL has requested a very fast shutdown"
+			" without flushing "
+			"the InnoDB buffer pool to data files."
+			" At the next mysqld startup "
+			"InnoDB will do a crash recovery!\n");
+
 		/* In this fastest shutdown we do not flush the buffer
 		pool: it is essentially a 'crash' of the InnoDB
 		server. Make sure that the log is all flushed to disk,
