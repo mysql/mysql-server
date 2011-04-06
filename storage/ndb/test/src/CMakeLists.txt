@@ -48,4 +48,6 @@ ADD_LIBRARY(ndbNDBT STATIC
 	SocketInputStream2.cpp
         AtrtClient.cpp
         DbUtil.cpp
+	HugoQueryBuilder.cpp
+        HugoQueries.cpp
 )

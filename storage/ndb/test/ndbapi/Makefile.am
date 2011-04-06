@@ -17,6 +17,7 @@ SUBDIRS = bank
 EXTRA_DIST = CMakeLists.txt
 
 ndbtest_PROGRAMS = \
+testSpj \
 flexBench \
 drop_all_tabs \
 create_all_tabs \
@@ -86,6 +87,7 @@ flexTT_SOURCES = flexTT.cpp
 #flex_bench_mysql_SOURCES = flex_bench_mysql.cpp
 testBackup_SOURCES = testBackup.cpp
 testBasic_SOURCES = testBasic.cpp
+testSpj_SOURCES = testSpj.cpp
 testBasicAsynch_SOURCES = testBasicAsynch.cpp
 testBlobs_SOURCES = testBlobs.cpp
 testDataBuffers_SOURCES = testDataBuffers.cpp

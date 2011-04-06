@@ -65,6 +65,7 @@ ADD_EXECUTABLE(testSRBank testSRBank.cpp)
 ADD_EXECUTABLE(test_event_merge test_event_merge.cpp)
 Add_EXECUTABLE(testNdbinfo testNdbinfo.cpp)
 ADD_EXECUTABLE(testNativeDefault testNativeDefault.cpp)
+ADD_EXECUTABLE(testSpj testSpj.cpp)
 TARGET_LINK_LIBRARIES(testBackup ndbbank)
 TARGET_LINK_LIBRARIES(testSRBank ndbbank)
 ADD_EXECUTABLE(testLimits testLimits.cpp)
@@ -80,5 +81,5 @@ INSTALL(TARGETS create_all_tabs create_tab
   testDeadlock test_event ndbapi_slow_select testReadPerf
   testLcp testPartitioning testBitfield DbCreate
   DbAsyncGenerator test_event_merge testNdbinfo
-  testNativeDefault testLimits
+  testNativeDefault testLimits testSpj
 DESTINATION bin)
