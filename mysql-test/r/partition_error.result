@@ -1008,4 +1008,14 @@ PARTITION p VALUES LESS THAN (1219089600),
 PARTITION pmax VALUES LESS THAN MAXVALUE);
 ERROR HY000: Constant, random or timezone-dependent expressions in (sub)partitioning function are not allowed
 DROP TABLE old;
+#
+# Bug #56709: Memory leaks at running the 5.1 test suite
+# 
+CREATE TABLE t1 (a TIMESTAMP NOT NULL PRIMARY KEY);
+ALTER TABLE t1
+PARTITION BY RANGE (EXTRACT(DAY FROM a)) (
+PARTITION p VALUES LESS THAN (18),
+PARTITION pmax VALUES LESS THAN MAXVALUE);
+ERROR HY000: Constant, random or timezone-dependent expressions in (sub)partitioning function are not allowed
+DROP TABLE t1;
 End of 5.1 tests
