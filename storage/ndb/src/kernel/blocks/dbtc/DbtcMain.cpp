@@ -13957,6 +13957,10 @@ bool Dbtc::receivedAllINDXATTRINFO(TcIndexOperation* indexOp)
   return (indexOp->pendingAttrInfo == 0);
 }
 
+#ifdef ERROR_INSERT
+extern bool ErrorImportActive;
+#endif
+
 bool  Dbtc::saveTRANSID_AI(Signal* signal,
 			   TcIndexOperation* indexOp, 
                            const Uint32 *src,
@@ -14035,9 +14039,22 @@ bool  Dbtc::saveTRANSID_AI(Signal* signal,
     {
       jam();
       /* Add key information to long section */
-      if (appendToSection(indexOp->transIdAISectionIVal,
-                          src,
-                          remain))
+#ifdef ERROR_INSERT
+      if (ERROR_INSERTED(8066))
+      {
+        ErrorImportActive = true;
+      }
+#endif
+
+      bool res = appendToSection(indexOp->transIdAISectionIVal, src, remain);
+#ifdef ERROR_INSERT
+      if (ERROR_INSERTED(8066))
+      {
+        ErrorImportActive = false;
+      }
+#endif
+
+      if (res)
       {
         jam();
         remain= 0;
