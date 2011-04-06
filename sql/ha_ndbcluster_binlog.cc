@@ -5621,6 +5621,9 @@ ndb_binlog_thread_func(void *arg)
   thd->security_ctx->skip_grants();
   my_net_init(&thd->net, 0);
 
+  // Ndb binlog thread always use row format
+  thd->set_current_stmt_binlog_format_row();
+
   /*
     Set up ndb binlog
   */
