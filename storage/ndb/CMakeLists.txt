@@ -73,6 +73,30 @@ ELSE()
       SET(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -DERROR_INSERT")
     ENDIF()
   ENDIF()
+  
+  # Check for Java and JDK needed by ndbjtie and clusterj
+  INCLUDE(FindJava)
+  INCLUDE(FindJNI)
+  INCLUDE("${CMAKE_SOURCE_DIR}/storage/ndb/config/type_JAVA.cmake")
+
+  IF(JAVA_COMPILE AND JAVA_ARCHIVE)
+    MESSAGE(STATUS "Found Java")
+    SET(HAVE_JAVA TRUE)
+  ELSE()
+    MESSAGE(STATUS "Could not find Java")
+    SET(HAVE_JAVA FALSE)
+  ENDIF()
+
+  IF(JAVA_INCLUDE_PATH AND JAVA_INCLUDE_PATH2)
+    MESSAGE(STATUS "Found JDK")
+    SET(HAVE_JDK TRUE)
+  ELSE()
+    MESSAGE(STATUS "Could not find JDK")
+    SET(HAVE_JDK FALSE)
+  ENDIF()
+
+  SET(WITH_CLASSPATH ${WITH_CLASSPATH} CACHE STRING
+    "Enable the classpath for MySQL Cluster Java Connector")
 
   ADD_SUBDIRECTORY(include)
   ADD_SUBDIRECTORY(src)
@@ -84,45 +108,6 @@ ELSE()
 
 ENDIF()
 
-INCLUDE(${CMAKE_ROOT}/Modules/FindJava.cmake)
-INCLUDE(${CMAKE_ROOT}/Modules/FindJNI.cmake)
-INCLUDE("${CMAKE_SOURCE_DIR}/storage/ndb/config/type_JAVA.cmake")
-
-SET(WITH_CLASSPATH ${WITH_CLASSPATH} CACHE STRING
-  "Enable the classpath for MySQL Cluster Java Connector")
-
-IF(JAVA_INCLUDE_PATH AND JAVA_INCLUDE_PATH2)
-  MESSAGE(STATUS "Found JDK - enabling clusterj")
-  SET(HAVE_JDK TRUE)
-ELSE()
-  MESSAGE(STATUS "Found no JDK - disabling clusterj")
-  SET(HAVE_JDK FALSE)
-ENDIF()
-
-IF(JAVA_COMPILE AND JAVA_ARCHIVE)
-  MESSAGE(STATUS "Found Java")
-  SET(HAVE_JAVA TRUE)
-ELSE()
-  MESSAGE(STATUS "Found no Java")
-  SET(HAVE_JAVA FALSE)
-ENDIF()
-
-IF("${WITH_CLASSPATH}" MATCHES "junit-(.+).jar")
-  MESSAGE ( STATUS "FOUND JUNIT" )
-  SET(HAVE_JUNIT TRUE)
-ENDIF()
-
-IF("${WITH_CLASSPATH}" MATCHES "openjpa-(.+).jar")
-  MESSAGE ( STATUS "FOUND OpenJPA" )
-  SET(HAVE_OPENJPA TRUE)
-ENDIF()
-
-IF(NOT SOURCE_SUBLIBS)
-  IF(HAVE_JDK)
-    MESSAGE(STATUS "including ClusterJ")
-    ADD_SUBDIRECTORY(clusterj)
-  ENDIF(HAVE_JDK)
-ENDIF()
 
 IF(WITHOUT_PARTITION_STORAGE_ENGINE)
   MESSAGE(FATAL_ERROR "NDBCLUSTER can't be compiled without PARTITION")
