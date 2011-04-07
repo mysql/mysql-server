@@ -240,6 +240,12 @@ INSERT INTO global_suppressions VALUES
   */
  ("Found lock of type 6 that is write and read locked"),
 
+ /*
+   Warning message is printed out whenever a slave is started with
+   a configuration that is not crash-safe.
+ */
+ (".*If a crash happens this configuration does not guarantee.*"),
+
  ("THE_LAST_SUPPRESSION")||
 
 

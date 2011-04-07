@@ -78,6 +78,7 @@ class CertManager {
     CertList     peerList_;             // peer
     input_buffer peerPublicKey_;
     X509*        peerX509_;             // peer's openSSL X509
+    X509*        selfX509_;             // our own openSSL X509
 
     SignatureAlgorithm keyType_;        // self   key type
     SignatureAlgorithm peerKeyType_;    // peer's key type
@@ -104,6 +105,7 @@ public:
     const opaque*      get_peerKey()     const;
     const opaque*      get_privateKey()  const;
           X509*        get_peerX509()    const;
+          X509*        get_selfX509()    const;
     SignatureAlgorithm get_keyType()     const;
     SignatureAlgorithm get_peerKeyType() const;
 

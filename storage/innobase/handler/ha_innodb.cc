@@ -70,7 +70,6 @@ extern "C" {
 #include "fil0fil.h"
 #include "trx0xa.h"
 #include "row0merge.h"
-#include "thr0loc.h"
 #include "dict0boot.h"
 #include "dict0stats.h"
 #include "ha_prototypes.h"
@@ -284,7 +283,6 @@ static PSI_mutex_info all_innodb_mutexes[] = {
 	{&sync_thread_mutex_key, "sync_thread_mutex", 0},
 #  endif /* UNIV_SYNC_DEBUG */
 	{&trx_doublewrite_mutex_key, "trx_doublewrite_mutex", 0},
-	{&thr_local_mutex_key, "thr_local_mutex", 0},
 	{&trx_undo_mutex_key, "trx_undo_mutex", 0},
 	{&srv_sys_mutex_key, "srv_sys_mutex", 0},
 	{&lock_sys_mutex_key, "lock_mutex", 0},
@@ -2524,7 +2522,7 @@ mem_free_and_error:
 		format_id = innobase_file_format_name_lookup(
 			innobase_file_format_name);
 
-		if (format_id > DICT_TF_FORMAT_MAX) {
+		if (format_id > UNIV_FORMAT_MAX) {
 
 			sql_print_error("InnoDB: wrong innodb_file_format.");
 
@@ -2550,12 +2548,12 @@ mem_free_and_error:
 	if (!innobase_file_format_check) {
 
 		/* Set the value to disable checking. */
-		srv_max_file_format_at_startup = DICT_TF_FORMAT_MAX + 1;
+		srv_max_file_format_at_startup = UNIV_FORMAT_MAX + 1;
 
 	} else {
 
 		/* Set the value to the lowest supported format. */
-		srv_max_file_format_at_startup = DICT_TF_FORMAT_MIN;
+		srv_max_file_format_at_startup = UNIV_FORMAT_MIN;
 	}
 
 	/* Did the user specify a format name that we support?
@@ -2569,7 +2567,7 @@ mem_free_and_error:
 				"should be any value up to %s or its "
 				"equivalent numeric id",
 				trx_sys_file_format_id_to_name(
-					DICT_TF_FORMAT_MAX));
+					UNIV_FORMAT_MAX));
 
 		goto mem_free_and_error;
 	}
@@ -2828,10 +2826,8 @@ innobase_alter_table_flags(
 	uint	flags)
 {
 	return(HA_INPLACE_ADD_INDEX_NO_READ_WRITE
-		| HA_INPLACE_ADD_INDEX_NO_WRITE
 		| HA_INPLACE_DROP_INDEX_NO_READ_WRITE
 		| HA_INPLACE_ADD_UNIQUE_INDEX_NO_READ_WRITE
-		| HA_INPLACE_ADD_UNIQUE_INDEX_NO_WRITE
 		| HA_INPLACE_DROP_UNIQUE_INDEX_NO_READ_WRITE
 		| HA_INPLACE_ADD_PK_INDEX_NO_READ_WRITE);
 }
@@ -3264,7 +3260,6 @@ innobase_close_connection(
 
 	innobase_rollback_trx(trx);
 
-	thr_local_free(trx->mysql_thread_id);
 	trx_free_for_mysql(trx);
 
 	DBUG_RETURN(0);
@@ -3294,16 +3289,16 @@ ha_innobase::get_row_type() const
 		ut_ad(flags & DICT_TF_COMPACT);
 
 		switch (flags & DICT_TF_FORMAT_MASK) {
-		case DICT_TF_FORMAT_51 << DICT_TF_FORMAT_SHIFT:
+		case UNIV_FORMAT_A << DICT_TF_FORMAT_SHIFT:
 			return(ROW_TYPE_COMPACT);
-		case DICT_TF_FORMAT_ZIP << DICT_TF_FORMAT_SHIFT:
+		case UNIV_FORMAT_B << DICT_TF_FORMAT_SHIFT:
 			if (flags & DICT_TF_ZSSIZE_MASK) {
 				return(ROW_TYPE_COMPRESSED);
 			} else {
 				return(ROW_TYPE_DYNAMIC);
 			}
-#if DICT_TF_FORMAT_ZIP != DICT_TF_FORMAT_MAX
-# error "DICT_TF_FORMAT_ZIP != DICT_TF_FORMAT_MAX"
+#if UNIV_FORMAT_B != UNIV_FORMAT_MAX
+# error "UNIV_FORMAT_B != UNIV_FORMAT_MAX"
 #endif
 		}
 	}
@@ -6664,7 +6659,8 @@ create_table_def(
 					an .ibd file for it (no .ibd extension
 					in the path, though); otherwise this
 					is NULL */
-	ulint		flags)		/*!< in: table flags */
+	ulint		flags,		/*!< in: table flags */
+	ulint		flags2)		/*!< in: table flags2 */
 {
 	Field*		field;
 	dict_table_t*	table;
@@ -6704,7 +6700,7 @@ create_table_def(
 	/* We pass 0 as the space id, and determine at a lower level the space
 	id where to store the table */
 
-	table = dict_mem_table_create(table_name, 0, n_cols, flags);
+	table = dict_mem_table_create(table_name, 0, n_cols, flags, flags2);
 
 	if (path_of_temp_table) {
 		table->dir_path_of_temp_table =
@@ -7023,7 +7019,7 @@ get_row_format_name(
 
 /** If file-format is Antelope, issue warning and set ret false */
 #define CHECK_ERROR_ROW_TYPE_NEEDS_GT_ANTELOPE			\
-	if (srv_file_format < DICT_TF_FORMAT_ZIP) {		\
+	if (srv_file_format < UNIV_FORMAT_B) {		\
 		push_warning_printf(				\
 			thd, MYSQL_ERROR::WARN_LEVEL_WARN,	\
 			ER_ILLEGAL_HA_CREATE_OPTION,		\
@@ -7081,7 +7077,7 @@ create_options_are_valid(
 					" innodb_file_per_table.");
 				ret = FALSE;
 			}
-			if (srv_file_format < DICT_TF_FORMAT_ZIP) {
+			if (srv_file_format < UNIV_FORMAT_B) {
 				push_warning(
 					thd, MYSQL_ERROR::WARN_LEVEL_WARN,
 					ER_ILLEGAL_HA_CREATE_OPTION,
@@ -7179,7 +7175,8 @@ ha_innobase::create(
 	char		norm_name[FN_REFLEN];
 	THD*		thd = ha_thd();
 	ib_int64_t	auto_inc_value;
-	ulint		flags;
+	ulint		flags = 0;
+	ulint		flags2 = 0;
 	/* Cache the value of innodb_file_format, in case it is
 	modified by another thread while the table is being created. */
 	const ulint	file_format = srv_file_format;
@@ -7249,8 +7246,6 @@ ha_innobase::create(
 
 	/* Create the table definition in InnoDB */
 
-	flags = 0;
-
 	/* Validate create options if innodb_strict_mode is set. */
 	if (!create_options_are_valid(thd, form, create_info)) {
 		error = ER_ILLEGAL_HA_CREATE_OPTION;
@@ -7271,7 +7266,7 @@ ha_innobase::create(
 			if (key_block_size == ksize) {
 				flags = ssize << DICT_TF_ZSSIZE_SHIFT
 					| DICT_TF_COMPACT
-					| DICT_TF_FORMAT_ZIP
+					| UNIV_FORMAT_B
 					  << DICT_TF_FORMAT_SHIFT;
 				break;
 			}
@@ -7286,7 +7281,7 @@ ha_innobase::create(
 			flags = 0;
 		}
 
-		if (file_format < DICT_TF_FORMAT_ZIP) {
+		if (file_format < UNIV_FORMAT_B) {
 			push_warning(
 				thd, MYSQL_ERROR::WARN_LEVEL_WARN,
 				ER_ILLEGAL_HA_CREATE_OPTION,
@@ -7335,7 +7330,7 @@ ha_innobase::create(
 			flags = (DICT_TF_ZSSIZE_MAX - 1)
 				<< DICT_TF_ZSSIZE_SHIFT
 				| DICT_TF_COMPACT
-				| DICT_TF_FORMAT_ZIP
+				| UNIV_FORMAT_B
 				<< DICT_TF_FORMAT_SHIFT;
 #if DICT_TF_ZSSIZE_MAX < 1
 # error "DICT_TF_ZSSIZE_MAX < 1"
@@ -7355,7 +7350,7 @@ ha_innobase::create(
 				"InnoDB: ROW_FORMAT=%s requires"
 				" innodb_file_per_table.",
 				get_row_format_name(row_format));
-		} else if (file_format < DICT_TF_FORMAT_ZIP) {
+		} else if (file_format < UNIV_FORMAT_B) {
 			push_warning_printf(
 				thd, MYSQL_ERROR::WARN_LEVEL_WARN,
 				ER_ILLEGAL_HA_CREATE_OPTION,
@@ -7364,7 +7359,7 @@ ha_innobase::create(
 				get_row_format_name(row_format));
 		} else {
 			flags |= DICT_TF_COMPACT
-			         | (DICT_TF_FORMAT_ZIP
+			         | (UNIV_FORMAT_B
 			            << DICT_TF_FORMAT_SHIFT);
 			break;
 		}
@@ -7403,12 +7398,12 @@ ha_innobase::create(
 	}
 
 	if (create_info->options & HA_LEX_CREATE_TMP_TABLE) {
-		flags |= DICT_TF2_TEMPORARY << DICT_TF2_SHIFT;
+		flags2 |= DICT_TF2_TEMPORARY;
 	}
 
 	error = create_table_def(trx, form, norm_name,
 		create_info->options & HA_LEX_CREATE_TMP_TABLE ? name2 : NULL,
-		flags);
+		flags, flags2);
 
 	if (error) {
 		goto cleanup;
@@ -11072,13 +11067,13 @@ innobase_file_format_name_lookup(
 	/* Check for valid parse. */
 	if (*endp == '\0' && *format_name != '\0') {
 
-		if (format_id <= DICT_TF_FORMAT_MAX) {
+		if (format_id <= UNIV_FORMAT_MAX) {
 
 			return(format_id);
 		}
 	} else {
 
-		for (format_id = 0; format_id <= DICT_TF_FORMAT_MAX;
+		for (format_id = 0; format_id <= UNIV_FORMAT_MAX;
 		     format_id++) {
 			const char*	name;
 
@@ -11091,7 +11086,7 @@ innobase_file_format_name_lookup(
 		}
 	}
 
-	return(DICT_TF_FORMAT_MAX + 1);
+	return(UNIV_FORMAT_MAX + 1);
 }
 
 /************************************************************//**
@@ -11108,7 +11103,7 @@ innobase_file_format_validate_and_set(
 
 	format_id = innobase_file_format_name_lookup(format_max);
 
-	if (format_id < DICT_TF_FORMAT_MAX + 1) {
+	if (format_id < UNIV_FORMAT_MAX + 1) {
 		srv_max_file_format_at_startup = format_id;
 
 		return((int) format_id);
@@ -11147,7 +11142,7 @@ innodb_file_format_name_validate(
 		format_id = innobase_file_format_name_lookup(
 			file_format_input);
 
-		if (format_id <= DICT_TF_FORMAT_MAX) {
+		if (format_id <= UNIV_FORMAT_MAX) {
 
 			/* Save a pointer to the name in the
 			'file_format_name_map' constant array. */
@@ -11189,7 +11184,7 @@ innodb_file_format_name_update(
 
 		format_id = innobase_file_format_name_lookup(format_name);
 
-		if (format_id <= DICT_TF_FORMAT_MAX) {
+		if (format_id <= UNIV_FORMAT_MAX) {
 			srv_file_format = format_id;
 		}
 	}
@@ -11244,8 +11239,8 @@ innodb_file_format_max_validate(
 			  "InnoDB: invalid innodb_file_format_max "
 			  "value; can be any format up to %s "
 			  "or equivalent id of %d",
-			  trx_sys_file_format_id_to_name(DICT_TF_FORMAT_MAX),
-			  DICT_TF_FORMAT_MAX);
+			  trx_sys_file_format_id_to_name(UNIV_FORMAT_MAX),
+			  UNIV_FORMAT_MAX);
 		}
 	}
 
@@ -11284,7 +11279,7 @@ innodb_file_format_max_update(
 
 	format_id = innobase_file_format_name_lookup(format_name_in);
 
-	if (format_id > DICT_TF_FORMAT_MAX) {
+	if (format_id > UNIV_FORMAT_MAX) {
 		/* DEFAULT is "on", which is invalid at runtime. */
 		push_warning_printf(thd, MYSQL_ERROR::WARN_LEVEL_WARN,
 				    ER_WRONG_ARGUMENTS,

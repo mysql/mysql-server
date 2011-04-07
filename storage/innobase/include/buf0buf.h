@@ -1838,8 +1838,8 @@ struct buf_pool_struct{
 #if BUF_BUDDY_HIGH != UNIV_PAGE_SIZE
 # error "BUF_BUDDY_HIGH != UNIV_PAGE_SIZE"
 #endif
-#if BUF_BUDDY_LOW > PAGE_ZIP_MIN_SIZE
-# error "BUF_BUDDY_LOW > PAGE_ZIP_MIN_SIZE"
+#if BUF_BUDDY_LOW > UNIV_ZIP_SIZE_MIN
+# error "BUF_BUDDY_LOW > UNIV_ZIP_SIZE_MIN"
 #endif
 	/* @} */
 };
