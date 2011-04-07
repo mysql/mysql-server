@@ -50,7 +50,7 @@ int NdbObjectIdMap::expand(Uint32 incSize)
       m_map[i].m_next = 2 * (i + 1) + 1;
     }
     m_firstFree = (2 * m_size) + 1;
-    m_map[newSize-1].m_next = InvalidId;
+    m_map[newSize-1].m_next = Uint32(InvalidId);
     m_size = newSize;
   }
   else
