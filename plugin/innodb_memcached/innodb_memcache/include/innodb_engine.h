@@ -47,9 +47,6 @@ struct innodb_conn_data {
 					write/update/delete */
 	uint64_t	c_w_count_commit;/*!< number of updates since
 					last commit */
-	char*		c_buf;		/*!< buffer */
-	uint64_t	c_blen;		/*!< buffer length */
-
 	UT_LIST_NODE_T(innodb_conn_data_t) c_list; /*!< list ptr */
 };
 
