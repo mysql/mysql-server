@@ -405,10 +405,6 @@ SOURCE=.\my_fstream.c
 # End Source File
 # Begin Source File
 
-SOURCE=.\my_gethostbyname.c
-# End Source File
-# Begin Source File
-
 SOURCE=.\my_gethwaddr.c
 # End Source File
 # Begin Source File
@@ -425,7 +421,7 @@ SOURCE=.\my_getwd.c
 # End Source File
 # Begin Source File
 
-SOURCE=.\my_handler.c
+SOURCE=.\my_compare.c
 # End Source File
 # Begin Source File
 
