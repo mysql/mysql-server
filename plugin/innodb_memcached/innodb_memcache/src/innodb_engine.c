@@ -644,12 +644,6 @@ static ENGINE_ERROR_CODE innodb_get(ENGINE_HANDLE* handle,
 		hash_item_set_cas(it, cas);
 	}
 
-	if (flags) {
-		hash_item_set_flag(it, flags);
-	}
-
-        it->nbytes = total_len;
-
 	if (result.mci_add_value) {
 		int	i;
 		int	len = 0;

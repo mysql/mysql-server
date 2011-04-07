@@ -30,36 +30,31 @@ struct mysql_memcached_context
 	memcached_context_t	memcached_conf;
 };
 
-/** Some system configuration parameter passed to memcached, including
-the name of our Memcached InnoDB engine to be loaded by memcached.
-More configuration to be added */
+/** Configuration info passed to memcached, including
+the name of our Memcached InnoDB engine and memcached configure
+string to be loaded by memcached. */
 static char*	mci_engine_library = NULL;
-static char*	mci_address = NULL; 
-static char*	mci_tcp_port = NULL;
-static char*	mci_max_conn = NULL;
+static char*	mci_eng_lib_path = NULL; 
+static char*	mci_memcached_option = NULL;
 
-static MYSQL_SYSVAR_STR(engine_library, mci_engine_library,
-  PLUGIN_VAR_READONLY | PLUGIN_VAR_MEMALLOC,
-  "memcached engine library name", NULL, NULL, NULL);
+static MYSQL_SYSVAR_STR(engine_lib_name, mci_engine_library,
+			PLUGIN_VAR_READONLY | PLUGIN_VAR_MEMALLOC,
+			"memcached engine library name", NULL, NULL,
+			"innodb_engine.so");
 
-static MYSQL_SYSVAR_STR(address, mci_address,
-  PLUGIN_VAR_READONLY | PLUGIN_VAR_MEMALLOC,
-  "memcached address", NULL, NULL, NULL);
+static MYSQL_SYSVAR_STR(engine_lib_path, mci_eng_lib_path,
+			PLUGIN_VAR_READONLY | PLUGIN_VAR_MEMALLOC,
+			"memcached engine library path", NULL, NULL, NULL);
 
-static MYSQL_SYSVAR_STR(tcp_port, mci_tcp_port,
-  PLUGIN_VAR_READONLY | PLUGIN_VAR_MEMALLOC,
-  "memcached port", NULL, NULL, NULL);
-
-static MYSQL_SYSVAR_STR(max_conn, mci_max_conn,
-  PLUGIN_VAR_READONLY | PLUGIN_VAR_MEMALLOC,
-  "max number of connection", NULL, NULL, NULL);
+static MYSQL_SYSVAR_STR(option, mci_memcached_option,
+			PLUGIN_VAR_READONLY | PLUGIN_VAR_MEMALLOC,
+			"memcached option string", NULL, NULL, NULL);
 
 static struct st_mysql_sys_var *daemon_memcached_sys_var[] = {
-  MYSQL_SYSVAR(engine_library),
-  MYSQL_SYSVAR(address),
-  MYSQL_SYSVAR(tcp_port),
-  MYSQL_SYSVAR(max_conn),
-  0
+	MYSQL_SYSVAR(engine_lib_name),
+	MYSQL_SYSVAR(engine_lib_path),
+	MYSQL_SYSVAR(option),
+	0
 };
 
 static int daemon_memcached_plugin_deinit(void *p)
@@ -81,8 +76,6 @@ static int daemon_memcached_plugin_deinit(void *p)
 
 	my_free(con);
 
-	mci_engine_library = NULL;
-
 	return(0);
 }
 
@@ -92,24 +85,22 @@ static int daemon_memcached_plugin_init(void *p)
 	pthread_attr_t			attr;
 	struct st_plugin_int*		plugin = (struct st_plugin_int *)p;
 
-	con = (mysql_memcached_context*)malloc(sizeof(*con));
-
-	/* This is for testing purpose for now. Remove before final version */
-	mci_engine_library = (char*) "innodb_engine.so";
+	con = (mysql_memcached_context*) malloc(sizeof(*con));
 
 	if (mci_engine_library) {
+		char* lib_path = (mci_eng_lib_path)
+				 ? mci_eng_lib_path : opt_plugin_dir;
+
 		con->memcached_conf.m_engine_library = (char*) malloc(
-			strlen(opt_plugin_dir)
-			+ strlen(mci_engine_library) + 1);
-		strxmov(con->memcached_conf.m_engine_library, opt_plugin_dir,
+			strlen(lib_path) + strlen(mci_engine_library) + 1);
+
+		strxmov(con->memcached_conf.m_engine_library, lib_path,
 			FN_DIRSEP, mci_engine_library, NullS);
 	} else {
 		con->memcached_conf.m_engine_library = NULL;
 	}
 
-	con->memcached_conf.m_address = mci_address; 
-	con->memcached_conf.m_tcp_port = mci_tcp_port;
-	con->memcached_conf.m_max_conn = mci_max_conn;
+	con->memcached_conf.m_mem_option = mci_memcached_option;
 	con->memcached_conf.m_innodb_api_cb = plugin->data;
 
 	pthread_attr_init(&attr);
