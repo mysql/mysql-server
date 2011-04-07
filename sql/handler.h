@@ -20,7 +20,6 @@
 #pragma interface			/* gcc class implementation */
 #endif
 
-#include <my_handler.h>
 #include <ft_global.h>
 #include <keycache.h>
 
