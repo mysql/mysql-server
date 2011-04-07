@@ -1287,12 +1287,12 @@ int
 runBug25090(NDBT_Context* ctx, NDBT_Step* step){
   
   Ndb* pNdb = GETNDB(step);
-  NdbDictionary::Dictionary * dict = pNdb->getDictionary();
+  //NdbDictionary::Dictionary * dict = pNdb->getDictionary();
 
   HugoOperations ops(*ctx->getTab());
   
   int loops = ctx->getNumLoops();
-  const int rows = ctx->getNumRecords();
+  //const int rows = ctx->getNumRecords();
   
   while (loops--)
   {
@@ -1317,7 +1317,7 @@ runDeleteRead(NDBT_Context* ctx, NDBT_Step* step){
 
   int a;
   int loops = ctx->getNumLoops();
-  const int rows = ctx->getNumRecords();
+  //const int rows = ctx->getNumRecords();
   
   while (loops--)
   {
@@ -1371,12 +1371,12 @@ runBug27756(NDBT_Context* ctx, NDBT_Step* step)
 {
   
   Ndb* pNdb = GETNDB(step);
-  NdbDictionary::Dictionary * dict = pNdb->getDictionary();
+  //NdbDictionary::Dictionary * dict = pNdb->getDictionary();
   
   HugoOperations ops(*ctx->getTab());
 
   int loops = ctx->getNumLoops();
-  const int rows = ctx->getNumRecords();
+  //const int rows = ctx->getNumRecords();
   
   Vector<Uint64> copies;
   while (loops--)
@@ -1832,7 +1832,7 @@ runBug34348(NDBT_Context* ctx, NDBT_Step* step)
         }
       }
       chk1(result == NDBT_OK);
-      assert(BitmaskImpl::count(sz, rowmask)== rowcnt);
+      assert(BitmaskImpl::count(sz, rowmask)== (Uint32)rowcnt);
 
       // delete about 1/2 remaining
       while (result == NDBT_OK)
@@ -1852,7 +1852,7 @@ runBug34348(NDBT_Context* ctx, NDBT_Step* step)
         break;
       }
       chk1(result == NDBT_OK);
-      assert(BitmaskImpl::count(sz, rowmask)== rowcnt);
+      assert(BitmaskImpl::count(sz, rowmask)== (Uint32)rowcnt);
 
       // insert until full again
       while (result == NDBT_OK)
@@ -1874,7 +1874,7 @@ runBug34348(NDBT_Context* ctx, NDBT_Step* step)
         break;
       }
       chk1(result == NDBT_OK);
-      assert(BitmaskImpl::count(sz, rowmask)== rowcnt);
+      assert(BitmaskImpl::count(sz, rowmask)== (Uint32)rowcnt);
 
       // delete all
       while (result == NDBT_OK)
@@ -1892,7 +1892,7 @@ runBug34348(NDBT_Context* ctx, NDBT_Step* step)
         break;
       }
       chk1(result == NDBT_OK);
-      assert(BitmaskImpl::count(sz, rowmask)== rowcnt);
+      assert(BitmaskImpl::count(sz, rowmask)== (Uint32)rowcnt);
       assert(rowcnt == 0);
 
       loop++;

@@ -611,6 +611,10 @@ void Dbtup::execTUPFRAGREQ(Signal* signal)
   Uint64 minRows =
     (((Uint64)req->minRowsHigh) << 32) + req->minRowsLow;
 
+  (void)reqinfo;
+  (void)maxRows;
+  (void)minRows;
+
   if (req->userPtr == (Uint32)-1) 
   {
     jam();
@@ -2456,14 +2460,14 @@ Dbtup::start_restore_lcp(Uint32 tableId, Uint32 fragId)
   TablerecPtr tabPtr;
   tabPtr.i= tableId;
   ptrCheckGuard(tabPtr, cnoOfTablerec, tablerec);
-  
-  ndbassert(tabPtr.p->m_attributes[DD].m_no_of_fixsize < (1 << 16));
-  ndbassert(tabPtr.p->m_attributes[DD].m_no_of_varsize < (1 << 16));
-  
-  Uint32 saveAttrCounts = 
-    (tabPtr.p->m_attributes[DD].m_no_of_fixsize << 16) |
-    (tabPtr.p->m_attributes[DD].m_no_of_varsize << 0);
-  
+
+  ndbassert(Uint16(tabPtr.p->m_attributes[DD].m_no_of_fixsize << 16) == 0);
+  ndbassert(Uint16(tabPtr.p->m_attributes[DD].m_no_of_varsize << 16) == 0);
+
+  Uint32 saveAttrCounts =
+    (Uint32(tabPtr.p->m_attributes[DD].m_no_of_fixsize) << 16) |
+    (Uint32(tabPtr.p->m_attributes[DD].m_no_of_varsize) << 0);
+
   tabPtr.p->m_dropTable.tabUserPtr= saveAttrCounts;
   tabPtr.p->m_dropTable.tabUserRef= (tabPtr.p->m_bits & Tablerec::TR_RowGCI)? 1 : 0;
   tabPtr.p->m_createTable.defValLocation = tabPtr.p->m_default_value_location;

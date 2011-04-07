@@ -112,3 +112,5 @@ btr/btr0cur.c : .*
 # Ignore warning C4090 on Windows, until bug#55527 is fixed
 .* : .*C4090.*
 
+# newly introduce windows warning (5.1.53) bug#56423
+sql_update.cc : conversion from '__int64' to 'uchar'.*
