@@ -1,4 +1,4 @@
-/* Copyright (c) 2009, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2009, 2011, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -5378,24 +5378,6 @@ THD::binlog_prepare_pending_rows_event(TABLE* table, uint32 serv_id,
   }
   DBUG_RETURN(pending);        /* This is the current pending event */
 }
-
-#ifdef HAVE_EXPLICIT_TEMPLATE_INSTANTIATION
-/*
-  Instantiate the versions we need, we have -fno-implicit-template as
-  compiling option.
-*/
-template Rows_log_event*
-THD::binlog_prepare_pending_rows_event(TABLE*, uint32, size_t, bool,
-				       Write_rows_log_event*);
-
-template Rows_log_event*
-THD::binlog_prepare_pending_rows_event(TABLE*, uint32, size_t, bool,
-				       Delete_rows_log_event *);
-
-template Rows_log_event* 
-THD::binlog_prepare_pending_rows_event(TABLE*, uint32, size_t, bool,
-				       Update_rows_log_event *);
-#endif
 
 /* Declare in unnamed namespace. */
 CPP_UNNAMED_NS_START

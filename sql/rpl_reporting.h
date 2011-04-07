@@ -23,6 +23,11 @@
  */
 #define MAX_SLAVE_ERRMSG      1024
 
+// todo: consider to remove rpl_reporting.cc,h from building embedded
+#if !defined(EMBEDDED_LIBRARY)
+class THD;
+#endif
+
 /**
    Mix-in to handle the message logging and reporting for relay log
    info and master log info structures.
@@ -65,6 +70,13 @@ public:
     mysql_mutex_unlock(&err_lock);
   }
 
+#if !defined(EMBEDDED_LIBRARY)
+  /**
+     Check if the current error is of temporary nature or not.
+  */
+  int has_temporary_error(THD *thd, uint error_arg= 0) const;
+#endif // EMBEDDED_LIBRARY
+  
   /**
      Error information structure.
    */

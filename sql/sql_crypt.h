@@ -17,10 +17,6 @@
    51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA */
 
 
-#ifdef USE_PRAGMA_INTERFACE 
-#pragma interface			/* gcc class implementation */
-#endif
-
 #include "sql_list.h"                           /* Sql_alloc */
 #include "mysql_com.h"                          /* rand_struct */
 

@@ -626,10 +626,10 @@ bool Log_to_csv_event_handler::
     if (table->field[SQLT_FIELD_LOCK_TIME]->store_time(&t, MYSQL_TIMESTAMP_TIME))
       goto err;
     /* rows_sent */
-    if (table->field[SQLT_FIELD_ROWS_SENT]->store((longlong) thd->sent_row_count, TRUE))
+    if (table->field[SQLT_FIELD_ROWS_SENT]->store((longlong) thd->get_sent_row_count(), TRUE))
       goto err;
     /* rows_examined */
-    if (table->field[SQLT_FIELD_ROWS_EXAMINED]->store((longlong) thd->examined_row_count, TRUE))
+    if (table->field[SQLT_FIELD_ROWS_EXAMINED]->store((longlong) thd->get_examined_row_count(), TRUE))
       goto err;
   }
   else
@@ -1931,8 +1931,8 @@ bool MYSQL_QUERY_LOG::write(THD *thd, time_t current_time,
                     "# Query_time: %s  Lock_time: %s"
                     " Rows_sent: %lu  Rows_examined: %lu\n",
                     query_time_buff, lock_time_buff,
-                    (ulong) thd->sent_row_count,
-                    (ulong) thd->examined_row_count) == (uint) -1)
+                    (ulong) thd->get_sent_row_count(),
+                    (ulong) thd->get_examined_row_count()) == (uint) -1)
       tmp_errno= errno;
     if (thd->db && strcmp(thd->db, db))
     {						// Database changed

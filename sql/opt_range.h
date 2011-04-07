@@ -19,10 +19,6 @@
 #ifndef _opt_range_h
 #define _opt_range_h
 
-#ifdef USE_PRAGMA_INTERFACE
-#pragma interface			/* gcc class implementation */
-#endif
-
 #include "thr_malloc.h"                         /* sql_memdup */
 #include "records.h"                            /* READ_RECORD */
 #include "queues.h"                             /* QUEUE */
@@ -280,16 +276,28 @@ public:
   /* Range end should be called when we have looped over the whole index */
   virtual void range_end() {}
 
-  virtual bool reverse_sorted() = 0;
+  /** 
+    Whether the range access method returns records in reverse order.
+  */
+  virtual bool reverse_sorted() const = 0;
+  /** 
+    Whether the range access method is capable of returning records 
+    in reverse order.
+  */
+  virtual bool reverse_sort_possible() const = 0;
   virtual bool unique_key_range() { return false; }
   virtual bool clustered_pk_range() { return false; }
   
   /*
-    Request that this quick select produces sorted output. Not all quick
-    selects can do it, the caller is responsible for calling this function
-    only for those quick selects that can.
+    Request that this quick select produces sorted output if 'sort==true'.
+    Not all quick selects can provide sorted output, the caller is responsible 
+    for calling this function only for those quick selects that can.
+    Caller is allowed to later cancel its sorted request by setting 
+    'sort==false'. However, the implementation is allowed to provide sorted 
+    output even in this case if benificial, or required by implementation 
+    internals.
   */
-  virtual void need_sorted_output() = 0;
+  virtual void need_sorted_output(bool sort) = 0;
   enum {
     QS_TYPE_RANGE = 0,
     QS_TYPE_INDEX_MERGE = 1,
@@ -399,7 +407,7 @@ uint quick_range_seq_next(range_seq_t rseq, KEY_MULTI_RANGE *range);
 
 /*
   Quick select that does a range scan on a single key. The records are
-  returned in key order.
+  returned in key order if ::need_sorted_output(true) has been called.
 */
 class QUICK_RANGE_SELECT : public QUICK_SELECT_I
 {
@@ -465,14 +473,15 @@ public:
                      MEM_ROOT *parent_alloc, bool *create_error);
   ~QUICK_RANGE_SELECT();
   
-  void need_sorted_output();
+  void need_sorted_output(bool sort);
   int init();
   int reset(void);
   int get_next();
   void range_end();
   int get_next_prefix(uint prefix_length, uint group_key_parts, 
                       uchar *cur_prefix);
-  bool reverse_sorted() { return 0; }
+  bool reverse_sorted() const { return false; }
+  bool reverse_sort_possible() const { return true; }
   bool unique_key_range();
   int init_ror_merged_scan(bool reuse_handler);
   void save_last_pos()
@@ -569,10 +578,11 @@ public:
   ~QUICK_INDEX_MERGE_SELECT();
 
   int  init();
-  void need_sorted_output() { DBUG_ASSERT(0); /* Can't do it */ }
+  void need_sorted_output(bool sort) { DBUG_ASSERT(!sort); /* Can't do it */ }
   int  reset(void);
   int  get_next();
-  bool reverse_sorted() { return false; }
+  bool reverse_sorted() const { return false; }
+  bool reverse_sort_possible() const { return false; }
   bool unique_key_range() { return false; }
   int get_type() { return QS_TYPE_INDEX_MERGE; }
   void add_keys_and_lengths(String *key_names, String *used_lengths);
@@ -647,10 +657,11 @@ public:
   ~QUICK_ROR_INTERSECT_SELECT();
 
   int  init();
-  void need_sorted_output() { DBUG_ASSERT(0); /* Can't do it */ }
+  void need_sorted_output(bool sort) { DBUG_ASSERT(!sort); /* Can't do it */ }
   int  reset(void);
   int  get_next();
-  bool reverse_sorted() { return false; }
+  bool reverse_sorted() const { return false; }
+  bool reverse_sort_possible() const { return false; }
   bool unique_key_range() { return false; }
   int get_type() { return QS_TYPE_ROR_INTERSECT; }
   void add_keys_and_lengths(String *key_names, String *used_lengths);
@@ -718,10 +729,11 @@ public:
   ~QUICK_ROR_UNION_SELECT();
 
   int  init();
-  void need_sorted_output() { DBUG_ASSERT(0); /* Can't do it */ }
+  void need_sorted_output(bool sort) { DBUG_ASSERT(!sort); /* Can't do it */ }
   int  reset(void);
   int  get_next();
-  bool reverse_sorted() { return false; }
+  bool reverse_sorted() const { return false; }
+  bool reverse_sort_possible() const { return false; }
   bool unique_key_range() { return false; }
   int get_type() { return QS_TYPE_ROR_UNION; }
   void add_keys_and_lengths(String *key_names, String *used_lengths);
@@ -860,10 +872,11 @@ public:
   void adjust_prefix_ranges();
   bool alloc_buffers();
   int init();
-  void need_sorted_output() { /* always do it */ }
+  void need_sorted_output(bool sort) { /* always do it */ }
   int reset();
   int get_next();
-  bool reverse_sorted() { return false; }
+  bool reverse_sorted() const { return false; }
+  bool reverse_sort_possible() const { return false; }
   bool unique_key_range() { return false; }
   int get_type() { return QS_TYPE_GROUP_MIN_MAX; }
   void add_keys_and_lengths(String *key_names, String *used_lengths);
@@ -885,7 +898,8 @@ public:
   QUICK_SELECT_DESC(QUICK_RANGE_SELECT *q, uint used_key_parts, 
                     bool *create_err);
   int get_next();
-  bool reverse_sorted() { return 1; }
+  bool reverse_sorted() const { return true; }
+  bool reverse_sort_possible() const { return true; }
   int get_type() { return QS_TYPE_RANGE_DESC; }
   QUICK_SELECT_I *make_reverse(uint used_key_parts_arg)
   {
@@ -921,7 +935,8 @@ class SQL_SELECT :public Sql_alloc {
   bool check_quick(THD *thd, bool force_quick_range, ha_rows limit)
   {
     key_map tmp(key_map::ALL_BITS);
-    return test_quick_select(thd, tmp, 0, limit, force_quick_range, FALSE) < 0;
+    return test_quick_select(thd, tmp, 0, limit, force_quick_range,
+                             ORDER::ORDER_NOT_RELEVANT) < 0;
   }
   inline bool skip_record(THD *thd, bool *skip_record)
   {
@@ -929,8 +944,8 @@ class SQL_SELECT :public Sql_alloc {
     return thd->is_error();
   }
   int test_quick_select(THD *thd, key_map keys, table_map prev_tables,
-			ha_rows limit, bool force_quick_range, 
-                        bool ordered_output);
+                        ha_rows limit, bool force_quick_range,
+                        const ORDER::enum_order interesting_order);
 };
 
 

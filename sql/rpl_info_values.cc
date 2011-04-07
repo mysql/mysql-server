@@ -39,8 +39,5 @@ bool Rpl_info_values::init()
 
 Rpl_info_values::~Rpl_info_values()
 {
-  for (int pos= 0; pos < ninfo; pos++)
-    value[pos].~String();
-
   delete [] value;
 }
