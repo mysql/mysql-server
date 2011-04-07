@@ -138,7 +138,7 @@ handle_new_error:
 
         switch (err) {
         case DB_LOCK_WAIT_TIMEOUT:
-                       trx_rollback_for_mysql(trx);
+                       trx_general_rollback_for_mysql(trx, NULL);
                        break;
                 /* fall through */
         case DB_DUPLICATE_KEY:
@@ -153,10 +153,11 @@ handle_new_error:
                         /* Roll back the latest, possibly incomplete
                         insertion or update */
 
-			trx_rollback_for_mysql(trx);
+			trx_general_rollback_for_mysql(trx, savept);
                 }
                 break;
         case DB_LOCK_WAIT:
+		lock_wait_suspend_thread(thr);
 
                 if (trx->error_state != DB_SUCCESS) {
                         que_thr_stop_for_mysql(thr);
@@ -173,7 +174,7 @@ handle_new_error:
                 /* Roll back the whole transaction; this resolution was added
                 to version 3.23.43 */
 
-                trx_rollback_for_mysql(trx);
+                trx_general_rollback_for_mysql(trx, NULL);
                 break;
 
         case DB_MUST_GET_MORE_FILE_SPACE:
@@ -181,6 +182,7 @@ handle_new_error:
                 exit(1);
 
         case DB_CORRUPTION:
+	case DB_FOREIGN_EXCEED_MAX_CASCADE:
                 break;
         default:
                 ut_error;
