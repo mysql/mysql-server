@@ -124,6 +124,9 @@ bool mysql_create_frm(THD *thd, const char *file_name,
 #endif
   Pack_header_error_handler pack_header_error_handler;
   int error;
+  const uint format_section_header_size= 8;
+  uint format_section_length;
+  uint tablespace_length= 0;
   DBUG_ENTER("mysql_create_frm");
 
   DBUG_ASSERT(*fn_rext((char*)file_name)); // Check .frm extension
@@ -256,6 +259,18 @@ bool mysql_create_frm(THD *thd, const char *file_name,
     forminfo[46]=(uchar) create_info->comment.length;
   }
 
+  /*
+    Add room in extra segment for "format section" with additional
+    table and column properties
+  */
+  if (create_info->tablespace)
+    tablespace_length= strlen(create_info->tablespace);
+  format_section_length=
+    format_section_header_size +
+    tablespace_length + 1 +
+    create_fields.elements;
+  create_info->extra_size+= format_section_length;
+
   if ((file=create_frm(thd, file_name, db, table, reclength, fileinfo,
 		       create_info, keys, key_info)) < 0)
   {
@@ -351,6 +366,55 @@ bool mysql_create_frm(THD *thd, const char *file_name,
         mysql_file_write(file, (uchar*) create_info->comment.str,
                          create_info->comment.length, MYF(MY_NABP)))
       goto err;
+  }
+
+  /* "Format section" with additional table and column properties */
+  {
+    uchar *ptr, *format_section_buff;
+    if (!(format_section_buff=(uchar*) my_malloc(format_section_length,
+                                                 MYF(MY_WME))))
+      goto err;
+    ptr= format_section_buff;
+
+    /* header */
+    const uint format_section_flags=
+      create_info->storage_media; // 3 bits
+    const uint format_section_unused= 0;
+    int2store(ptr+0, format_section_length);
+    int4store(ptr+2, format_section_flags);
+    int2store(ptr+6, format_section_unused);
+    ptr+= format_section_header_size;
+
+    /* tablespace name */
+    if (tablespace_length > 0)
+      memcpy(ptr, create_info->tablespace, tablespace_length);
+    ptr+= tablespace_length;
+    *ptr= 0; /* tablespace string terminating zero */
+    ptr++;
+
+    /* column properties  */
+    Create_field *field;
+    List_iterator<Create_field> it(create_fields);
+    while ((field=it++))
+    {
+      const uchar field_storage= 0; /* Used in MySQL Cluster */
+      const uchar field_column_format= 0; /* Used in MySQL Cluster */
+      const uchar field_flags=
+        field_storage + (field_column_format << COLUMN_FORMAT_SHIFT);
+      *ptr= field_flags;
+      ptr++;
+    }
+    DBUG_ASSERT(format_section_buff + format_section_length == ptr);
+
+    if (mysql_file_write(file, format_section_buff,
+                         format_section_length, MYF_RW))
+    {
+      my_free(format_section_buff);
+      goto err;
+    }
+    DBUG_PRINT("info", ("wrote format section, length: %u",
+                        format_section_length));
+    my_free(format_section_buff);
   }
 
   mysql_file_seek(file, filepos, MY_SEEK_SET, MYF(0));

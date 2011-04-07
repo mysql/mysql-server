@@ -144,8 +144,11 @@ public:
   { DBUG_ASSERT(fixed == 1); return (double) Item_func_month::val_int(); }
   String *val_str(String *str) 
   {
-    str->set(val_int(), collation.collation);
-    return null_value ? 0 : str;
+    longlong nr= val_int();
+    if (null_value)
+      return 0;
+    str->set(nr, collation.collation);
+    return str;
   }
   const char *func_name() const { return "month"; }
   enum Item_result result_type () const { return INT_RESULT; }

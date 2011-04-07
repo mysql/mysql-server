@@ -997,8 +997,12 @@ bool Item::get_date(MYSQL_TIME *ltime,uint fuzzydate)
   }
   else
   {
-    longlong value= val_int();
     int was_cut;
+    longlong value= val_int();
+
+    if (null_value)
+      goto err;
+
     if (number_to_datetime(value, ltime, fuzzydate, &was_cut) == LL(-1))
     {
       char buff[22], *end;
@@ -7468,7 +7472,7 @@ String *Item_cache_int::val_str(String *str)
   DBUG_ASSERT(fixed == 1);
   if (!has_value())
     return NULL;
-  str->set(value, default_charset());
+  str->set_int(value, unsigned_flag, default_charset());
   return str;
 }
 

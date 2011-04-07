@@ -23,8 +23,8 @@ SET(MYSYS_SOURCES  array.c charset-def.c charset.c checksum.c default.c
 				mf_tempfile.c mf_unixpath.c mf_wcomp.c mulalloc.c my_access.c
 				my_aes.c my_alloc.c my_bit.c my_bitmap.c my_chsize.c
 				my_compress.c my_copy.c  my_create.c my_delete.c
-				my_div.c my_error.c my_file.c my_fopen.c my_fstream.c my_gethostbyname.c 
-				my_gethwaddr.c my_getopt.c my_getsystime.c my_getwd.c my_handler.c my_init.c
+				my_div.c my_error.c my_file.c my_fopen.c my_fstream.c 
+				my_gethwaddr.c my_getopt.c my_getsystime.c my_getwd.c my_compare.c my_init.c
 				my_lib.c my_lock.c my_malloc.c my_mess.c
 				my_mkdir.c my_mmap.c my_once.c my_open.c my_pread.c my_pthread.c
 				my_quick.c my_read.c my_redel.c my_rename.c my_seek.c my_sleep.c
@@ -62,11 +62,6 @@ ENDIF()
 
 IF(HAVE_MLOCK)
  SET(MYSYS_SOURCES ${MYSYS_SOURCES} my_lockmem.c)
-ENDIF()
-
-IF(UNIX)
- # some workarounds
- SET(MYSYS_SOURCES ${MYSYS_SOURCES} my_port.c)
 ENDIF()
 
 ADD_CONVENIENCE_LIBRARY(mysys ${MYSYS_SOURCES})

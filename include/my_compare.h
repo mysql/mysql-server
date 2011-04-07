@@ -1,22 +1,20 @@
-/* Copyright (C) 2002-2006 MySQL AB
+/* Copyright (c) 2011, Oracle and/or its affiliates. All rights reserved.
 
-   This program is free software; you can redistribute it and/or
-   modify it under the terms of the GNU Library General Public
-   License as published by the Free Software Foundation; version 2
-   of the License.
+   This program is free software; you can redistribute it and/or modify
+   it under the terms of the GNU General Public License as published by
+   the Free Software Foundation; version 2 of the License.
 
    This program is distributed in the hope that it will be useful,
    but WITHOUT ANY WARRANTY; without even the implied warranty of
-   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
-   Library General Public License for more details.
+   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+   GNU General Public License for more details.
 
-   You should have received a copy of the GNU Library General Public
-   License along with this library; if not, write to the Free
-   Software Foundation, Inc., 59 Temple Place - Suite 330, Boston,
-   MA 02111-1307, USA */
+   You should have received a copy of the GNU General Public License
+   along with this program; if not, write to the Free Software
+   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
 
-#ifndef _my_handler_h
-#define _my_handler_h
+#ifndef _my_compare_h
+#define _my_compare_h
 
 #include "myisampack.h"
 #ifdef	__cplusplus
@@ -114,9 +112,6 @@ extern int ha_key_cmp(register HA_KEYSEG *keyseg, register uchar *a,
 		      register uchar *b, uint key_length, uint nextflag,
 		      uint *diff_pos);
 
-extern HA_KEYSEG *ha_find_null(HA_KEYSEG *keyseg, uchar *a);
-extern void my_handler_error_register(void);
-extern void my_handler_error_unregister(void);
 /*
   Inside an in-memory data record, memory pointers to pieces of the
   record (like BLOBs) are stored in their native byte order and in
@@ -127,4 +122,4 @@ extern void my_handler_error_unregister(void);
 }
 #endif
 
-#endif /* _my_handler_h */
+#endif /* _my_compare_h */

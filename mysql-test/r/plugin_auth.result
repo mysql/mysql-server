@@ -400,4 +400,51 @@ ORDER BY COLUMN_NAME;
 IS_NULLABLE	COLUMN_NAME
 YES	authentication_string
 YES	plugin
+#
+# Bug #11936829: diff. between mysql.user (authentication_string) 
+#   in fresh and upgraded 5.5.11
+#
+SELECT IS_NULLABLE, COLUMN_NAME FROM INFORMATION_SCHEMA.COLUMNS
+WHERE TABLE_SCHEMA= 'mysql' AND TABLE_NAME= 'user' AND
+COLUMN_NAME IN ('plugin', 'authentication_string')
+ORDER BY COLUMN_NAME;
+IS_NULLABLE	COLUMN_NAME
+YES	authentication_string
+YES	plugin
+ALTER TABLE mysql.user MODIFY plugin char(64) DEFAULT '' NOT NULL;
+ALTER TABLE mysql.user MODIFY authentication_string TEXT NOT NULL;
+Run mysql_upgrade on a 5.5.10 external authentication column layout
+mtr.global_suppressions                            OK
+mtr.test_suppressions                              OK
+mysql.columns_priv                                 OK
+mysql.db                                           OK
+mysql.event                                        OK
+mysql.func                                         OK
+mysql.general_log                                  OK
+mysql.help_category                                OK
+mysql.help_keyword                                 OK
+mysql.help_relation                                OK
+mysql.help_topic                                   OK
+mysql.host                                         OK
+mysql.ndb_binlog_index                             OK
+mysql.plugin                                       OK
+mysql.proc                                         OK
+mysql.procs_priv                                   OK
+mysql.proxies_priv                                 OK
+mysql.servers                                      OK
+mysql.slow_log                                     OK
+mysql.tables_priv                                  OK
+mysql.time_zone                                    OK
+mysql.time_zone_leap_second                        OK
+mysql.time_zone_name                               OK
+mysql.time_zone_transition                         OK
+mysql.time_zone_transition_type                    OK
+mysql.user                                         OK
+SELECT IS_NULLABLE, COLUMN_NAME FROM INFORMATION_SCHEMA.COLUMNS
+WHERE TABLE_SCHEMA= 'mysql' AND TABLE_NAME= 'user' AND
+COLUMN_NAME IN ('plugin', 'authentication_string')
+ORDER BY COLUMN_NAME;
+IS_NULLABLE	COLUMN_NAME
+YES	authentication_string
+YES	plugin
 End of 5.5 tests
