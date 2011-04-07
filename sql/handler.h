@@ -26,7 +26,7 @@
 #include "structs.h"                            /* SHOW_COMP_OPTION */
 
 #include <my_global.h>
-#include <my_handler.h>
+#include <my_compare.h>
 #include <ft_global.h>
 #include <keycache.h>
 

@@ -40,15 +40,9 @@
 // Maximum allowed exponent value for converting string to decimal
 #define MAX_EXPONENT 1024
 
-/*****************************************************************************
-  Instansiate templates and static variables
-*****************************************************************************/
-
-#ifdef HAVE_EXPLICIT_TEMPLATE_INSTANTIATION
-template class List<Create_field>;
-template class List_iterator<Create_field>;
-#endif
-
+/**
+  Static variables
+*/
 uchar Field_null::null[1]={1};
 const char field_separator=',';
 
