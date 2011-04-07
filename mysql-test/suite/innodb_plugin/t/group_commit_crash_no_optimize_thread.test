@@ -6,7 +6,7 @@
 
 # Binary must be compiled with debug for crash to occur
 --source include/have_debug.inc
---source include/have_innodb.inc
+--source include/have_innodb_plugin.inc
 --source include/have_log_bin.inc
 
 let $file_format_check=`SELECT @@innodb_file_format_check`;
