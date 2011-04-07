@@ -561,7 +561,6 @@ innodb_api_insert(
 				 new_cas, exp, flags, UPDATE_ALL_VAL_COL);
 
 	err = ib_cb_insert_row(cursor_data->c_crsr, tpl);
-	assert(err == DB_SUCCESS);
 
 	if (err == DB_SUCCESS) {
 		*cas = new_cas;
@@ -614,7 +613,6 @@ innodb_api_update(
 				 new_cas, exp, flags, UPDATE_ALL_VAL_COL);
 
 	err = ib_cb_update_row(srch_crsr, old_tpl, new_tpl);
-	assert(err == DB_SUCCESS);
 
 	ib_cb_tuple_delete(new_tpl);
 
