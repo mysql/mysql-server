@@ -422,6 +422,7 @@ innodb_api_insert(
 	innodb_conn_data_t*	cursor_data,/*!< in: cursor info */
 	const char*		key,	/*!< in: value to insert */
 	int			len,	/*!< in: value length */
+	uint32_t		val_len,/*!< in: value length */
 	uint64_t		exp,	/*!< in: expire time */
 	uint64_t*		cas,	/*!< in/out: cas value */
         uint64_t		flags);	/*!< in: flags */
@@ -473,6 +474,7 @@ innodb_api_store(
 	innodb_conn_data_t*	cursor_data,/*!< in: cursor info */
 	const char*		key,	/*!< in: key value */
 	int			len,	/*!< in: key length */
+	uint32_t		val_len,/*!< in: value length */
 	uint64_t		exp,	/*!< in: expire time */
 	uint64_t*		cas,	/*!< out: cas value */
 	uint64_t		input_cas,/*!< in: cas value supplied by user */

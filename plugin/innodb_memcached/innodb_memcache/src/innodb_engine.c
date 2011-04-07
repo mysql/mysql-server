@@ -310,10 +310,6 @@ innodb_conn_clean(
 				ib_cb_trx_commit(conn_data->c_trx);
 			}
 
-			if (conn_data->c_buf) {
-				free(conn_data->c_buf);
-			}
-
 			free(conn_data);
 
 			if (clear_all) {
@@ -366,59 +362,11 @@ static ENGINE_ERROR_CODE innodb_allocate(ENGINE_HANDLE* handle,
 	struct innodb_engine* innodb_eng = innodb_handle(handle);
 	struct default_engine *def_eng = default_handle(innodb_eng);
 
-#if 0
-	innodb_conn_data_t*	conn_data;
-	uint64_t		total_len = nbytes + 2 * sizeof(*item);
-	hash_item*		my_item;
-
-	conn_data = innodb_eng->server.cookie->get_engine_specific(cookie);
-	
-	if (!conn_data) {
-		if (UT_LIST_GET_LEN(innodb_eng->conn_data) > 2048) {
-			innodb_conn_clean(innodb_eng, FALSE);
-		}
-
-		conn_data = malloc(sizeof(*conn_data));
-		memset(conn_data, 0, sizeof(*conn_data));
-		conn_data->c_cookie = (void*) cookie;
-		UT_LIST_ADD_LAST(c_list, innodb_eng->conn_data, conn_data);
-		innodb_eng->server.cookie->store_engine_specific(
-			cookie, conn_data);
-		conn_data->c_buf = malloc(2048);
-		conn_data->c_blen = 2048;
-	}
-
-	if (total_len > conn_data->c_blen) {
-		if (conn_data->c_blen) {
-			free(conn_data->c_buf);
-		}
-
-		conn_data->c_buf = malloc(total_len);
-		conn_data->c_blen = total_len;
-	}
-	
-	memset(conn_data->c_buf, 0, total_len);
-
-	*item = conn_data->c_buf;
-
-	my_item = (hash_item*)conn_data->c_buf;
-
-	my_item->iflag = ITEM_WITH_CAS;
-	memcpy(hash_item_get_key(my_item), key, nkey);
-	my_item->exptime = exptime;
-	my_item->nkey = nkey;
-	my_item->nbytes = nbytes;
-	my_item->flags = flags;
-
-	return(ENGINE_SUCCESS);
-
-#else
 	/* We use default engine's memory allocator to allocate memory
 	for item */
 	return def_eng->engine.allocate(innodb_eng->m_default_engine,
 					cookie, item, key, nkey, nbytes,
 					flags, exptime);
-#endif
 }
 
 
@@ -446,8 +394,6 @@ innodb_conn_init(
 		conn_data = malloc(sizeof(*conn_data));
 		memset(conn_data, 0, sizeof(*conn_data));
 		conn_data->c_cookie = (void*) cookie;
-		conn_data->c_buf = malloc(2048);
-		conn_data->c_blen = 2048;
 		UT_LIST_ADD_LAST(c_list, engine->conn_data, conn_data);
 		engine->server.cookie->store_engine_specific(
 			cookie, conn_data);
@@ -596,7 +542,7 @@ static void innodb_release(ENGINE_HANDLE* handle, const void *cookie,
 	struct default_engine*	def_eng = default_handle(innodb_eng);
 
 	if (item) {
-		//item_release(def_eng, (hash_item *) item);
+		item_release(def_eng, (hash_item *) item);
 	}
 
 	return;
@@ -779,6 +725,7 @@ static ENGINE_ERROR_CODE innodb_store(ENGINE_HANDLE* handle,
 	uint64_t		input_cas;
 	innodb_conn_data_t*	conn_data;
 	meta_info_t*		meta_info = &innodb_eng->meta_info;
+	uint32_t		val_len = ((hash_item*)item)->nbytes;
 
 	if (meta_info->m_set_option == META_CACHE
 	    || meta_info->m_set_option == META_MIX) {
@@ -794,7 +741,7 @@ static ENGINE_ERROR_CODE innodb_store(ENGINE_HANDLE* handle,
 
 	input_cas = hash_item_get_cas(item);
 
-	result = innodb_api_store(innodb_eng, conn_data, value, len,
+	result = innodb_api_store(innodb_eng, conn_data, value, len, val_len,
 				  exptime, cas, input_cas, flags, op);
 
 	innodb_api_cursor_reset(innodb_eng, conn_data, CONN_OP_WRITE);

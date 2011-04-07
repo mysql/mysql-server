@@ -281,7 +281,6 @@ innodb_api_search(
 
 	} else {
 		ib_crsr_t	c_crsr;
-
 		if (sel_only) {
 			c_crsr = cursor_data->c_r_crsr;
 		} else {
@@ -312,7 +311,8 @@ innodb_api_search(
 
 		memset(item, 0, sizeof(*item));
 
-		read_tpl = ib_cb_read_tuple_create(cursor_data->c_crsr);
+		read_tpl = ib_cb_read_tuple_create(
+				sel_only ? cursor_data->c_r_crsr : cursor_data->c_crsr);
 
 		err = ib_cb_read_row(srch_crsr, read_tpl);
 
@@ -534,6 +534,7 @@ innodb_api_insert(
 	innodb_conn_data_t*     cursor_data,/*!< in: cursor info */
 	const char*		key,	/*!< in: value to insert */
 	int			len,	/*!< in: value length */
+	uint32_t		val_len,/*!< in: value length */
 	uint64_t		exp,	/*!< in: expire time */
 	uint64_t*		cas,	/*!< in/out: cas value */
 	uint64_t		flags)	/*!< in: flags */
@@ -556,7 +557,7 @@ innodb_api_insert(
 	}
 
 	err = innodb_api_set_tpl(tpl, NULL, meta_info, col_info, key, len,
-				 key + len, strlen(key) - len,
+				 key + len, val_len,
 				 new_cas, exp, flags, UPDATE_ALL_VAL_COL);
 
 	err = ib_cb_insert_row(cursor_data->c_crsr, tpl);
@@ -583,6 +584,7 @@ innodb_api_update(
 	ib_crsr_t		srch_crsr,/*!< in: cursor to use for write */
 	const char*		key,	/*!< in: value to insert */
 	int			len,	/*!< in: value length */
+	uint32_t		val_len,/*!< in: value length */
 	uint64_t		exp,	/*!< in: expire time */
 	uint64_t*		cas,	/*!< in/out: cas value */
 	uint64_t		flags,	/*!< in: flags */
@@ -608,7 +610,7 @@ innodb_api_update(
 	}
 
 	err = innodb_api_set_tpl(new_tpl, old_tpl, meta_info, col_info, key,
-				 len, key + len, strlen(key) - len,
+				 len, key + len, val_len,
 				 new_cas, exp, flags, UPDATE_ALL_VAL_COL);
 
 	err = ib_cb_update_row(srch_crsr, old_tpl, new_tpl);
@@ -663,6 +665,7 @@ innodb_api_link(
 	ib_crsr_t		srch_crsr,/*!< in: cursor to use for write */
 	const char*		key,	/*!< in: key value */
 	int			len,	/*!< in: key length */
+	uint32_t		val_len,/*!< in: value length */
 	uint64_t		exp,	/*!< in: expire time */
 	uint64_t*		cas,	/*!< out: cas value */
 	uint64_t		flags,	/*!< in: flags */
@@ -702,16 +705,16 @@ innodb_api_link(
 		column_used = UPDATE_ALL_VAL_COL;
 	}
 
-	total_len = before_len + strlen(key) - len;
+	total_len = before_len + val_len;
 
 	append_buf = (char*)malloc(total_len);
 
 	if (append) {
 		memcpy(append_buf, before_val, before_len);
-		memcpy(append_buf + before_len, key + len, strlen(key) - len);
+		memcpy(append_buf + before_len, key + len, val_len);
 	} else {
-		memcpy(append_buf, key + len, strlen(key) - len);
-		memcpy(append_buf + strlen(key) - len, before_val, before_len);
+		memcpy(append_buf, key + len, val_len);
+		memcpy(append_buf + val_len, before_val, before_len);
 	}
 
 	new_tpl = ib_cb_read_tuple_create(cursor_data->c_crsr);
@@ -886,6 +889,7 @@ innodb_api_store(
 	innodb_conn_data_t*	cursor_data,/*!< in: cursor info */
 	const char*		key,	/*!< in: key value */
 	int			len,	/*!< in: key length */
+	uint32_t		val_len,/*!< in: value length */
 	uint64_t		exp,	/*!< in: expire time */
 	uint64_t*		cas,	/*!< out: cas value */
 	uint64_t		input_cas,/*!< in: cas value supplied by user */
@@ -905,7 +909,7 @@ innodb_api_store(
 		/* Only add if the key does not exist */
 		if (err != DB_SUCCESS) {
 			err = innodb_api_insert(engine, cursor_data, key, len,
-						exp, cas, flags);
+						val_len, exp, cas, flags);
 		} else {
 			err = DB_ERROR;
 		} 
@@ -913,7 +917,7 @@ innodb_api_store(
 	case OPERATION_REPLACE:
 		if (err == DB_SUCCESS) {
 			err = innodb_api_update(engine, cursor_data, srch_crsr,
-						key, len, exp,
+						key, len, val_len, exp,
 						cas, flags, old_tpl);
 		}
 		break;
@@ -927,7 +931,7 @@ innodb_api_store(
 
 		if (err == DB_SUCCESS) {
 			err = innodb_api_link(engine, cursor_data, srch_crsr,
-					      key, len, exp,
+					      key, len, val_len, exp,
 					      cas, flags,
 					      (op == OPERATION_APPEND),
 					      old_tpl, &result);
@@ -936,12 +940,12 @@ innodb_api_store(
 	case OPERATION_SET:
 		if (err == DB_SUCCESS) {
 			err = innodb_api_update(engine, cursor_data,
-						srch_crsr, key, len,
+						srch_crsr, key, len, val_len,
 						exp, cas, flags,
 						old_tpl);
 		} else {
 			err = innodb_api_insert(engine, cursor_data, key, len,
-						exp, cas, flags);
+						val_len, exp, cas, flags);
 		}
 		break;
 	case OPERATION_CAS:
@@ -950,7 +954,7 @@ innodb_api_store(
 
 		} else if (input_cas == result.mci_item[MCI_COL_CAS].m_digit) {
 			err = innodb_api_update(engine, cursor_data, srch_crsr,
-						key, len, exp,
+						key, len, val_len, exp,
 						cas, flags, old_tpl);
 
 		} else {
