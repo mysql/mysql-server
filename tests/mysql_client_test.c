@@ -1,4 +1,4 @@
-/* Copyright (c) 2002, 2010, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2002, 2011, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -15694,8 +15694,11 @@ static void test_bug13488()
   check_execute(stmt1, rc);
 
   if (!opt_silent)
-    printf("data is: %s", (f1 == 1 && f2 == 1 && f3 == 2)?"OK":
-           "wrong");
+  {
+    printf("data: f1: %d; f2: %d; f3: %d\n", f1, f2, f3);
+    printf("data is: %s\n",
+           (f1 == 1 && f2 == 1 && f3 == 2) ? "OK" : "wrong");
+  }
   DIE_UNLESS(f1 == 1 && f2 == 1 && f3 == 2);
   rc= mysql_query(mysql, "drop table t1, t2");
   myquery(rc);

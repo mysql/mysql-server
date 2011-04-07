@@ -1379,17 +1379,24 @@ int store_create_info(THD *thd, TABLE_LIST *table_list, String *packet,
   if (!(thd->variables.sql_mode & MODE_NO_TABLE_OPTIONS) && !foreign_db_mode)
   {
     show_table_options= TRUE;
-    /*
-      Get possible table space definitions and append them
-      to the CREATE TABLE statement
-    */
 
-    if ((for_str= file->get_tablespace_name(thd,0,0)))
+    /* TABLESPACE and STORAGE */
+    if (share->tablespace ||
+        share->default_storage_media != HA_SM_DEFAULT)
     {
-      packet->append(STRING_WITH_LEN(" /*!50100 TABLESPACE "));
-      packet->append(for_str, strlen(for_str));
-      packet->append(STRING_WITH_LEN(" STORAGE DISK */"));
-      my_free(for_str);
+      packet->append(STRING_WITH_LEN(" /*!50100"));
+      if (share->tablespace)
+      {
+        packet->append(STRING_WITH_LEN(" TABLESPACE "));
+        packet->append(share->tablespace, strlen(share->tablespace));
+      }
+
+      if (share->default_storage_media == HA_SM_DISK)
+        packet->append(STRING_WITH_LEN(" STORAGE DISK"));
+      if (share->default_storage_media == HA_SM_MEMORY)
+        packet->append(STRING_WITH_LEN(" STORAGE MEMORY"));
+
+      packet->append(STRING_WITH_LEN(" */"));
     }
 
     /*
@@ -3549,6 +3556,12 @@ int get_all_tables(THD *thd, TABLE_LIST *tables, COND *cond)
   it.rewind(); /* To get access to new elements in basis list */
   while ((db_name= it++))
   {
+    LEX_STRING orig_db_name;
+
+    /* db_name can be changed in make_table_list() func */
+    if (!thd->make_lex_string(&orig_db_name, db_name->str,
+                              db_name->length, FALSE))
+      goto err;
 #ifndef NO_EMBEDDED_ACCESS_CHECKS
     if (!(check_access(thd, SELECT_ACL, db_name->str,
                        &thd->col_access, NULL, 0, 1) ||
@@ -3613,17 +3626,13 @@ int get_all_tables(THD *thd, TABLE_LIST *tables, COND *cond)
             }
 
             int res;
-            LEX_STRING tmp_lex_string, orig_db_name;
+            LEX_STRING tmp_lex_string;
             /*
               Set the parent lex of 'sel' because it is needed by
               sel.init_query() which is called inside make_table_list.
             */
             thd->no_warnings_for_error= 1;
             sel.parent_lex= lex;
-            /* db_name can be changed in make_table_list() func */
-            if (!thd->make_lex_string(&orig_db_name, db_name->str,
-                                      db_name->length, FALSE))
-              goto err;
             if (make_table_list(thd, &sel, db_name, table_name))
               goto err;
             TABLE_LIST *show_table_list= sel.table_list.first;
@@ -5496,12 +5505,9 @@ static void store_schema_partitions_record(THD *thd, TABLE *schema_table,
                               strlen(part_elem->tablespace_name), cs);
     else
     {
-      char *ts= showing_table->file->get_tablespace_name(thd,0,0);
+      char *ts= showing_table->s->tablespace;
       if(ts)
-      {
         table->field[24]->store(ts, strlen(ts), cs);
-        my_free(ts);
-      }
       else
         table->field[24]->set_null();
     }
