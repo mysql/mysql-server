@@ -467,10 +467,10 @@ dict_table_flags_to_zip_size(
 	ulint	zip_size = flags & DICT_TF_ZSSIZE_MASK;
 
 	if (UNIV_UNLIKELY(zip_size)) {
-		zip_size = ((PAGE_ZIP_MIN_SIZE >> 1)
+		zip_size = ((UNIV_ZIP_SIZE_MIN >> 1)
 			 << (zip_size >> DICT_TF_ZSSIZE_SHIFT));
 
-		ut_ad(zip_size <= UNIV_PAGE_SIZE);
+		ut_ad(zip_size <= UNIV_ZIP_SIZE_MAX);
 	}
 
 	return(zip_size);

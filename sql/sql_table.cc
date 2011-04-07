@@ -2394,10 +2394,6 @@ int mysql_rm_table_no_locks(THD *thd, TABLE_LIST *tables, bool if_exists,
     else
     {
       char *end;
-      /*
-        Cannot use the db_type from the table, since that might have changed
-        while waiting for the exclusive name lock.
-      */
       if (frm_db_type == DB_TYPE_UNKNOWN)
       {
         dd_frm_type(thd, path, &frm_db_type);

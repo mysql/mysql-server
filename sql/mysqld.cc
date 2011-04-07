@@ -6772,6 +6772,110 @@ static int show_ssl_get_cipher_list(THD *thd, SHOW_VAR *var, char *buff)
   return 0;
 }
 
+
+#ifdef HAVE_YASSL
+
+static char *
+my_asn1_time_to_string(ASN1_TIME *time, char *buf, size_t len)
+{
+  return yaSSL_ASN1_TIME_to_string(time, buf, len);
+}
+
+#else /* openssl */
+
+static char *
+my_asn1_time_to_string(ASN1_TIME *time, char *buf, size_t len)
+{
+  int n_read;
+  char *res= NULL;
+  BIO *bio= BIO_new(BIO_s_mem());
+
+  if (bio == NULL)
+    return NULL;
+
+  if (!ASN1_TIME_print(bio, time))
+    goto end;
+
+  n_read= BIO_read(bio, buf, (int) (len - 1));
+
+  if (n_read > 0)
+  {
+    buf[n_read]= 0;
+    res= buf;
+  }
+
+end:
+  BIO_free(bio);
+  return res;
+}
+
+#endif
+
+
+/**
+  Handler function for the 'ssl_get_server_not_before' variable
+
+  @param      thd  the mysql thread structure
+  @param      var  the data for the variable
+  @param[out] buf  the string to put the value of the variable into
+
+  @return          status
+  @retval     0    success
+*/
+
+static int
+show_ssl_get_server_not_before(THD *thd, SHOW_VAR *var, char *buff)
+{
+  var->type= SHOW_CHAR;
+  if(thd->vio_ok() && thd->net.vio->ssl_arg)
+  {
+    SSL *ssl= (SSL*) thd->net.vio->ssl_arg;
+    X509 *cert= SSL_get_certificate(ssl);
+    ASN1_TIME *not_before= X509_get_notBefore(cert);
+
+    var->value= my_asn1_time_to_string(not_before, buff,
+                                       SHOW_VAR_FUNC_BUFF_SIZE);
+    if (!var->value)
+      return 1;
+    var->value= buff;
+  }
+  else
+    var->value= empty_c_string;
+  return 0;
+}
+
+
+/**
+  Handler function for the 'ssl_get_server_not_after' variable
+
+  @param      thd  the mysql thread structure
+  @param      var  the data for the variable
+  @param[out] buf  the string to put the value of the variable into
+
+  @return          status
+  @retval     0    success
+*/
+
+static int
+show_ssl_get_server_not_after(THD *thd, SHOW_VAR *var, char *buff)
+{
+  var->type= SHOW_CHAR;
+  if(thd->vio_ok() && thd->net.vio->ssl_arg)
+  {
+    SSL *ssl= (SSL*) thd->net.vio->ssl_arg;
+    X509 *cert= SSL_get_certificate(ssl);
+    ASN1_TIME *not_after= X509_get_notAfter(cert);
+
+    var->value= my_asn1_time_to_string(not_after, buff,
+                                       SHOW_VAR_FUNC_BUFF_SIZE);
+    if (!var->value)
+      return 1;
+  }
+  else
+    var->value= empty_c_string;
+  return 0;
+}
+
 #endif /* HAVE_OPENSSL && !EMBEDDED_LIBRARY */
 
 
@@ -6890,6 +6994,10 @@ SHOW_VAR status_vars[]= {
   {"Ssl_verify_depth",         (char*) &show_ssl_get_verify_depth, SHOW_FUNC},
   {"Ssl_verify_mode",          (char*) &show_ssl_get_verify_mode, SHOW_FUNC},
   {"Ssl_version",              (char*) &show_ssl_get_version, SHOW_FUNC},
+  {"Ssl_server_not_before",    (char*) &show_ssl_get_server_not_before,
+    SHOW_FUNC},
+  {"Ssl_server_not_after",     (char*) &show_ssl_get_server_not_after,
+    SHOW_FUNC},
 #endif
 #endif /* HAVE_OPENSSL */
   {"Table_locks_immediate",    (char*) &locks_immediate,        SHOW_LONG},
@@ -8021,20 +8129,6 @@ void refresh_status(THD *thd)
   Instantiate variables for missing storage engines
   This section should go away soon
 *****************************************************************************/
-
-/*****************************************************************************
-  Instantiate templates
-*****************************************************************************/
-
-#ifdef HAVE_EXPLICIT_TEMPLATE_INSTANTIATION
-/* Used templates */
-template class I_List<THD>;
-template class I_List_iterator<THD>;
-template class I_List<i_string>;
-template class I_List<i_string_pair>;
-template class I_List<Statement>;
-template class I_List_iterator<Statement>;
-#endif
 
 #ifdef HAVE_PSI_INTERFACE
 #ifdef HAVE_MMAP
