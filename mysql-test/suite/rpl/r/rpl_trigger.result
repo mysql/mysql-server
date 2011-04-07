@@ -1,9 +1,5 @@
-stop slave;
-drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9;
-reset master;
-reset slave;
-drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9;
-start slave;
+include/master-slave.inc
+[connection master]
 CALL mtr.add_suppression("Statement may not be safe to log in statement format.");
 DROP TABLE IF EXISTS t1;
 DROP TABLE IF EXISTS t2;
@@ -863,8 +859,8 @@ drop table t21,t31;
 drop table t11;
 STOP SLAVE;
 FLUSH LOGS;
---> Stop master server
---> Start master server
+include/rpl_stop_server.inc [server_number=1]
+include/rpl_start_server.inc [server_number=1]
 --> Master binlog: Server ver: 5.0.16-debug-log, Binlog ver: 4
 RESET SLAVE;
 START SLAVE;
@@ -979,12 +975,7 @@ a	b
 2	b
 3	c
 drop table t1;
-stop slave;
-drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9;
-reset master;
-reset slave;
-drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9;
-start slave;
+include/rpl_reset.inc
 create table t1 ( f int ) engine = innodb;
 create table log ( r int ) engine = myisam;
 create trigger tr
@@ -995,6 +986,7 @@ insert into t1 values ( 1 );
 rollback;
 Warnings:
 Warning	1196	Some non-transactional changed tables couldn't be rolled back
-Comparing tables master:test.t1 and slave:test.t1
-Comparing tables master:test.log and slave:test.log
+include/diff_tables.inc [master:t1, slave:t1]
+include/diff_tables.inc [master:log, slave:log]
 drop table t1, log;
+include/rpl_end.inc

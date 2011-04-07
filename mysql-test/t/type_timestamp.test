@@ -357,3 +357,20 @@ SELECT f1,f2-f3 FROM t1;
 DROP TABLE t1;
 
 --echo End of 5.0 tests
+
+--echo #
+--echo # Bug #55779: select does not work properly in mysql server
+--echo #             Version "5.1.42 SUSE MySQL RPM"
+--echo #
+
+CREATE TABLE t1 (a TIMESTAMP, KEY (a));
+
+INSERT INTO t1 VALUES ('2000-01-01 00:00:00'), ('2000-01-01 00:00:00'),
+                      ('2000-01-01 00:00:01'), ('2000-01-01 00:00:01');
+
+SELECT a FROM t1 WHERE a >=  20000101000000;
+SELECT a FROM t1 WHERE a >= '20000101000000';
+
+DROP TABLE t1;
+
+--echo End of 5.1 tests

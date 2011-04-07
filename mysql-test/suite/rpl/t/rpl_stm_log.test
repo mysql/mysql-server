@@ -7,3 +7,4 @@ let $engine_type=MyISAM;
 
 # End of 4.1 tests
 # Adding comment for force manual merge 5.0 -> wl1012: Delete me
+--source include/rpl_end.inc

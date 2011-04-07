@@ -1,6 +1,4 @@
-/*
-   Copyright 2000-2008 MySQL AB, 2008 Sun Microsystems, Inc.
-    All rights reserved. Use is subject to license terms.
+/* Copyright (c) 2000, 2010, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -73,10 +71,8 @@
 #endif
 
 /* stack traces are only supported on linux intel */
-#if defined(__linux__)  && defined(__i386__) && defined(USE_PSTACK)
+#if defined(__linux__)  && defined(__i386__)
 #define	HAVE_STACK_TRACE_ON_SEGV
-#include "../pstack/pstack.h"
-char pstack_file_name[80];
 #endif /* __linux__ */
 
 /* We have HAVE_purify below as this speeds up the shutdown of MySQL */
@@ -2545,7 +2541,7 @@ the thread stack. Please read http://dev.mysql.com/doc/mysql/en/linux.html\n\n",
 
   if (!(test_flags & TEST_NO_STACKTRACE))
   {
-    fprintf(stderr, "thd: 0x%lx\n",(long) thd);
+    fprintf(stderr, "Thread pointer: 0x%lx\n", (long) thd);
     fprintf(stderr, "Attempting backtrace. You can use the following "
                     "information to find out\nwhere mysqld died. If "
                     "you see no messages after this, something went\n"
@@ -2573,11 +2569,13 @@ the thread stack. Please read http://dev.mysql.com/doc/mysql/en/linux.html\n\n",
       kreason= "KILLED_NO_VALUE";
       break;
     }
-    fprintf(stderr, "Trying to get some variables.\n\
-Some pointers may be invalid and cause the dump to abort...\n");
-    my_safe_print_str("thd->query", thd->query(), 1024);
-    fprintf(stderr, "thd->thread_id=%lu\n", (ulong) thd->thread_id);
-    fprintf(stderr, "thd->killed=%s\n", kreason);
+    fprintf(stderr, "\nTrying to get some variables.\n"
+                    "Some pointers may be invalid and cause the dump to abort.\n");
+    fprintf(stderr, "Query (%p): ", thd->query());
+    my_safe_print_str(thd->query(), min(1024, thd->query_length()));
+    fprintf(stderr, "Connection ID (thread ID): %lu\n", (ulong) thd->thread_id);
+    fprintf(stderr, "Status: %s\n", kreason);
+    fputc('\n', stderr);
   }
   fprintf(stderr, "\
 The manual page at http://dev.mysql.com/doc/mysql/en/crashing.html contains\n\
@@ -2795,14 +2793,6 @@ pthread_handler_t signal_hand(void *arg __attribute__((unused)))
   if (!opt_bootstrap)
     create_pid_file();
 
-#ifdef HAVE_STACK_TRACE_ON_SEGV
-  if (opt_do_pstack)
-  {
-    sprintf(pstack_file_name,"mysqld-%lu-%%d-%%d.backtrace", (ulong)getpid());
-    pstack_install_segv_action(pstack_file_name);
-  }
-#endif /* HAVE_STACK_TRACE_ON_SEGV */
-
   /*
     signal to start_signal_handler that we are ready
     This works by waiting for start_signal_handler to free mutex,
@@ -2863,7 +2853,7 @@ pthread_handler_t signal_hand(void *arg __attribute__((unused)))
     case SIGHUP:
       if (!abort_loop)
       {
-        bool not_used;
+        int not_used;
 	mysql_print_status();		// Print some debug info
 	reload_acl_and_cache((THD*) 0,
 			     (REFRESH_LOG | REFRESH_TABLES | REFRESH_FAST |
@@ -6006,9 +5996,10 @@ struct my_option my_long_options[] =
    NO_ARG, 0, 0, 0, 0, 0, 0},
 #endif
 #ifdef HAVE_STACK_TRACE_ON_SEGV
-  {"enable-pstack", OPT_DO_PSTACK, "Print a symbolic stack trace on failure.",
-   &opt_do_pstack, &opt_do_pstack, 0, GET_BOOL, NO_ARG, 0, 0,
-   0, 0, 0, 0},
+  {"enable-pstack", OPT_DO_PSTACK, "Print a symbolic stack trace on failure. "
+   "This option is deprecated and has no effect; a symbolic stack trace will "
+   "be printed after a crash whenever possible.", &opt_do_pstack, &opt_do_pstack,
+   0, GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0},
 #endif /* HAVE_STACK_TRACE_ON_SEGV */
   {"engine-condition-pushdown",
    OPT_ENGINE_CONDITION_PUSHDOWN,
@@ -6899,7 +6890,7 @@ thread is in the relay logs.",
    "as much as you can afford; 1GB on a 4GB machine that mainly runs MySQL is "
    "quite common.",
    &dflt_key_cache_var.param_buff_size, NULL, NULL, (GET_ULL | GET_ASK_ADDR),
-   REQUIRED_ARG, KEY_CACHE_SIZE, MALLOC_OVERHEAD, SIZE_T_MAX, MALLOC_OVERHEAD,
+   REQUIRED_ARG, KEY_CACHE_SIZE, 0, SIZE_T_MAX, MALLOC_OVERHEAD,
    IO_SIZE, 0},
   {"key_cache_age_threshold", OPT_KEY_CACHE_AGE_THRESHOLD,
    "This characterizes the number of hits a hot block has to be untouched "
@@ -8828,6 +8819,13 @@ mysqld_get_one_option(int optid,
     lower_case_table_names= argument ? atoi(argument) : 1;
     lower_case_table_names_used= 1;
     break;
+#ifdef HAVE_STACK_TRACE_ON_SEGV
+  case OPT_DO_PSTACK:
+    sql_print_warning("'--enable-pstack' is deprecated and will be removed "
+                      "in a future release. A symbolic stack trace will be "
+                      "printed after a crash whenever possible.");
+    break;
+#endif
 #if defined(ENABLED_DEBUG_SYNC)
   case OPT_DEBUG_SYNC_TIMEOUT:
     /*

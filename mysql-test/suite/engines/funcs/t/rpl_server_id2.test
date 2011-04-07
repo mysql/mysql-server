@@ -9,6 +9,9 @@ reset master;
 stop slave;
 --replace_result $SLAVE_MYPORT SLAVE_PORT
 eval change master to master_port=$SLAVE_MYPORT;
+--replace_result $SLAVE_MYPORT SLAVE_PORT
+--replace_column 18 #
+show slave status;
 start slave;
 insert into t1 values (1);
 save_master_pos;

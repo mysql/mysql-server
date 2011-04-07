@@ -434,6 +434,11 @@ void free_table_share(TABLE_SHARE *share)
       key_info->flags= 0;
     }
   }
+  if (share->ha_data_destroy)
+  {
+    share->ha_data_destroy(share->ha_data);
+    share->ha_data_destroy= NULL;
+  }
   /* We must copy mem_root from share because share is allocated through it */
   memcpy((char*) &mem_root, (char*) &share->mem_root, sizeof(mem_root));
   free_root(&mem_root, MYF(0));                 // Free's share
@@ -1671,6 +1676,11 @@ static int open_binary_frm(THD *thd, TABLE_SHARE *share, uchar *head,
   delete crypted;
   delete handler_file;
   hash_free(&share->name_hash);
+  if (share->ha_data_destroy)
+  {
+    share->ha_data_destroy(share->ha_data);
+    share->ha_data_destroy= NULL;
+  }
 
   open_table_error(share, error, share->open_errno, errarg);
   DBUG_RETURN(error);
@@ -1919,8 +1929,8 @@ int open_table_from_share(THD *thd, TABLE_SHARE *share, const char *alias,
     {
       if (work_part_info_used)
         tmp= fix_partition_func(thd, outparam, (open_mode != OTM_OPEN));
-      outparam->part_info->item_free_list= part_func_arena.free_list;
     }
+    outparam->part_info->item_free_list= part_func_arena.free_list;
 partititon_err:
     if (tmp)
     {

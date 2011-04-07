@@ -413,7 +413,7 @@ row_purge_upd_exist_or_extern(
 	while (node->index != NULL) {
 		index = node->index;
 
-		if (row_upd_changes_ord_field_binary(NULL, node->index,
+		if (row_upd_changes_ord_field_binary(NULL, NULL, node->index,
 						     node->update)) {
 			/* Build the older version of the index entry */
 			entry = row_build_index_entry(node->row, NULL,
@@ -684,7 +684,9 @@ row_purge_step(
 	que_thr_t*	thr)	/*!< in: query thread */
 {
 	purge_node_t*	node;
+#ifdef UNIV_DEBUG
 	ulint		err;
+#endif /* UNIV_DEBUG */
 
 	ut_ad(thr);
 
@@ -692,7 +694,10 @@ row_purge_step(
 
 	ut_ad(que_node_get_type(node) == QUE_NODE_PURGE);
 
-	err = row_purge(node, thr);
+#ifdef UNIV_DEBUG
+	err =
+#endif /* UNIV_DEBUG */
+	row_purge(node, thr);
 
 	ut_ad(err == DB_SUCCESS);
 

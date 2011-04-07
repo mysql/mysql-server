@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2010 Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2011, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -539,7 +539,8 @@ JOIN::prepare(Item ***rref_pointer_array,
     thd->lex->allow_sum_func= save_allow_sum_func;
   }
 
-  if (!thd->lex->view_prepare_mode && !(select_options & SELECT_DESCRIBE))
+  if (!(thd->lex->context_analysis_only & CONTEXT_ANALYSIS_ONLY_VIEW) &&
+      !(select_options & SELECT_DESCRIBE))
   {
     Item_subselect *subselect;
     /* Is it subselect? */
@@ -1488,6 +1489,15 @@ JOIN::optimize()
     if (order)
     {
       /*
+        Do we need a temporary table due to the ORDER BY not being equal to
+        the GROUP BY? The call to test_if_skip_sort_order above tests for the
+        GROUP BY clause only and hence is not valid in this case. So the
+        estimated number of rows to be read from the first table is not valid.
+        We clear it here so that it doesn't show up in EXPLAIN.
+       */
+      if (need_tmp && (select_options & SELECT_DESCRIBE) != 0)
+        join_tab[const_tables].limit= 0;
+      /*
         Force using of tmp table if sorting by a SP or UDF function due to
         their expensive and probably non-deterministic nature.
       */
@@ -1704,6 +1714,9 @@ JOIN::reinit()
     while ((func= *(func_ptr++)))
       func->clear();
   }
+
+  if (!(select_options & SELECT_DESCRIBE))
+    init_ftfuncs(thd, select_lex, test(order));
 
   DBUG_RETURN(0);
 }
@@ -2479,6 +2492,13 @@ mysql_select(THD *thd, Item ***rref_pointer_array,
 	{
 	  DBUG_RETURN(TRUE);
 	}
+        /*
+          Original join tabs might be overwritten at first
+          subselect execution. So we need to restore them.
+        */
+        Item_subselect *subselect= select_lex->master_unit()->item;
+        if (subselect && subselect->is_uncacheable() && join->reinit())
+          DBUG_RETURN(TRUE);
       }
       else
       {
@@ -4026,8 +4046,12 @@ update_ref_and_keys(THD *thd, DYNAMIC_ARRAY *keyuse,JOIN_TAB *join_tab,
 	  continue;
       }
 
-#ifdef HAVE_purify
-      /* Valgrind complains about overlapped memcpy when save_pos==use. */
+#if defined(__GNUC__) && !MY_GNUC_PREREQ(4,4)
+      /*
+        Old gcc used a memcpy(), which is undefined if save_pos==use:
+        http://gcc.gnu.org/bugzilla/show_bug.cgi?id=19410
+        http://gcc.gnu.org/bugzilla/show_bug.cgi?id=39480
+      */
       if (save_pos != use)
 #endif
         *save_pos= *use;
@@ -6357,7 +6381,6 @@ make_join_select(JOIN *join,SQL_SELECT *select,COND *cond)
           tab->select_cond=sel->cond=tmp;
           /* Push condition to storage engine if this is enabled
              and the condition is not guarded */
-          tab->table->file->pushed_cond= NULL;
 	  if (thd->variables.engine_condition_pushdown)
           {
             COND *push_cond= 
@@ -9794,7 +9817,12 @@ Field *create_tmp_field(THD *thd, TABLE *table,Item *item, Item::Type type,
                                           convert_blob_length);
     if (orig_type == Item::REF_ITEM && orig_modify)
       ((Item_ref*)orig_item)->set_result_field(result);
-    if (field->field->eq_def(result))
+    /*
+      Fields that are used as arguments to the DEFAULT() function already have
+      their data pointers set to the default value during name resulotion. See
+      Item_default_value::fix_fields.
+    */
+    if (orig_type != Item::DEFAULT_VALUE_ITEM && field->field->eq_def(result))
       *default_field= field->field;
     return result;
   }
@@ -11179,22 +11207,20 @@ do_select(JOIN *join,List<Item> *fields,TABLE *table,Procedure *procedure)
   if (error == NESTED_LOOP_NO_MORE_ROWS)
     error= NESTED_LOOP_OK;
 
+  if (table == NULL)					// If sending data to client
+    /*
+      The following will unlock all cursors if the command wasn't an
+      update command
+    */
+    join->join_free();			// Unlock all cursors
   if (error == NESTED_LOOP_OK)
   {
     /*
       Sic: this branch works even if rc != 0, e.g. when
       send_data above returns an error.
     */
-    if (!table)					// If sending data to client
-    {
-      /*
-	The following will unlock all cursors if the command wasn't an
-	update command
-      */
-      join->join_free();			// Unlock all cursors
-      if (join->result->send_eof())
-	rc= 1;                                  // Don't send error
-    }
+    if (table == NULL && join->result->send_eof()) // If sending data to client
+      rc= 1;                                  // Don't send error 
     DBUG_PRINT("info",("%ld records output", (long) join->send_records));
   }
   else
@@ -13209,6 +13235,8 @@ static bool
 list_contains_unique_index(TABLE *table,
                           bool (*find_func) (Field *, void *), void *data)
 {
+  if (table->pos_in_table_list->outer_join)
+    return 0;
   for (uint keynr= 0; keynr < table->s->keys; keynr++)
   {
     if (keynr == table->s->primary_key ||
@@ -13222,7 +13250,7 @@ list_contains_unique_index(TABLE *table,
            key_part < key_part_end;
            key_part++)
       {
-        if (key_part->field->maybe_null() || 
+        if (key_part->field->real_maybe_null() || 
             !find_func(key_part->field, data))
           break;
       }
@@ -15205,6 +15233,8 @@ calc_group_buffer(JOIN *join,ORDER *group)
         {
           key_length+= 8;
         }
+        else if (type == MYSQL_TYPE_BLOB)
+          key_length+= MAX_BLOB_WIDTH;		// Can't be used as a key
         else
         {
           /*
@@ -16686,7 +16716,15 @@ static void select_describe(JOIN *join, bool need_tmp_table, bool need_order,
         if (tab->select && tab->select->quick)
           examined_rows= tab->select->quick->records;
         else if (tab->type == JT_NEXT || tab->type == JT_ALL)
-          examined_rows= tab->limit ? tab->limit : tab->table->file->records();
+        {
+          if (tab->limit)
+            examined_rows= tab->limit;
+          else
+          {
+            tab->table->file->info(HA_STATUS_VARIABLE);
+            examined_rows= tab->table->file->stats.records;
+          }
+        }
         else
           examined_rows=(ha_rows)join->best_positions[i].records_read; 
  

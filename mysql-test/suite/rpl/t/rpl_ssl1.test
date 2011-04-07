@@ -9,11 +9,8 @@ source include/master-slave.inc;
 connection master;
 grant replication slave on *.* to replssl@localhost require ssl;
 create table t1 (t int);
-save_master_pos;
 
-#syncing with master
-connection slave;
-sync_with_master;
+sync_slave_with_master;
 
 #trying to use this user without ssl
 stop slave;
@@ -37,9 +34,7 @@ start slave;
 
 #avoiding unneeded sleeps
 connection master;
-save_master_pos;
-connection slave;
-sync_with_master;
+sync_slave_with_master;
 
 #checking that replication is ok
 select * from t1;
@@ -56,9 +51,8 @@ start slave;
 connection master;
 drop user replssl@localhost;
 drop table t1;
-save_master_pos;
-connection slave;
-sync_with_master;
+
+sync_slave_with_master;
 source include/show_slave_status.inc;
 source include/check_slave_is_running.inc;
 # End of 4.1 tests
@@ -90,6 +84,19 @@ select * from t1;
 source include/show_slave_status.inc;
 --source include/check_slave_is_running.inc
 
+# ==== Clean up ====
+
 connection master;
 drop table t1;
 sync_slave_with_master;
+--source include/stop_slave.inc
+CHANGE MASTER TO
+ master_host="127.0.0.1",
+ master_ssl_ca ='',
+ master_ssl_cert='',
+ master_ssl_key='',
+ master_ssl_verify_server_cert=0,
+ master_ssl=0;
+
+--let $rpl_only_running_threads= 1
+--source include/rpl_end.inc

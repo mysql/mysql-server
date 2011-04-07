@@ -312,23 +312,18 @@ let $MYSQLD_DATADIR= `select @@datadir`;
 FLUSH LOGS;
 
 # Stop master server
---echo --> Stop master server
---write_file $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
-wait
-EOF
---shutdown_server 10
---source include/wait_until_disconnected.inc
+--let $rpl_server_number= 1
+--source include/rpl_stop_server.inc
+
 # Replace binlog
 remove_file $MYSQLD_DATADIR/master-bin.000001;
 copy_file $MYSQL_TEST_DIR/std_data/bug16266.000001 $MYSQLD_DATADIR/master-bin.000001;
-  
---echo --> Start master server
---append_file $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
-restart
-EOF
---enable_reconnect
---source include/wait_until_connected_again.inc
+
+--let $rpl_server_number= 1
+--source include/rpl_start_server.inc
+
 let $binlog_version= query_get_value(SHOW BINLOG EVENTS, Info, 1);
+
 
 # Make the slave to replay the new binlog.
 --echo --> Master binlog: $binlog_version
@@ -505,7 +500,8 @@ sync_slave_with_master;
 #
 
 connection master;
-source include/master-slave-reset.inc;
+--source include/rpl_reset.inc
+
 source include/have_innodb.inc;
 connection slave;
 source include/have_innodb.inc;
@@ -522,12 +518,10 @@ insert into t1 values ( 1 );
 rollback;
 sync_slave_with_master;
 
-let $diff_table_1=master:test.t1;
-let $diff_table_2=slave:test.t1;
+let $diff_tables= master:t1, slave:t1;
 --source include/diff_tables.inc
 
-let $diff_table_1=master:test.log;
-let $diff_table_2=slave:test.log;
+let $diff_tables= master:log, slave:log;
 --source include/diff_tables.inc
 
 connection master;
@@ -537,3 +531,4 @@ sync_slave_with_master;
 #
 # End of tests
 #
+--source include/rpl_end.inc

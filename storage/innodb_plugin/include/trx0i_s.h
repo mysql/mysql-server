@@ -110,6 +110,8 @@ struct i_s_trx_row_struct {
 						/*!< thd_get_thread_id() */
 	const char*		trx_query;	/*!< MySQL statement being
 						executed in the transaction */
+	struct charset_info_st*	trx_query_cs;	/*!< charset encode the MySQL
+						statement */
 };
 
 /** This structure represents INFORMATION_SCHEMA.innodb_lock_waits row */
