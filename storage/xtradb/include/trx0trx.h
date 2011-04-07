@@ -511,7 +511,7 @@ struct trx_struct{
 					in that case we must flush the log
 					in trx_commit_complete_for_mysql() */
 	ulint		duplicates;	/*!< TRX_DUP_IGNORE | TRX_DUP_REPLACE */
-	ulint		active_trans;	/*!< TRX_ACTIVE_IN_MYSQL  - set if a
+	ulint		active_flag;	/*!< TRX_ACTIVE_IN_MYSQL  - set if a
 					transaction in MySQL is active.
 					TRX_ACTIVE_COMMIT_ORDERED - set if
 					innobase_commit_ordered has run */
@@ -825,7 +825,7 @@ Multiple flags can be combined with bitwise OR. */
 #define TRX_SIG_OTHER_SESS	1	/* sent by another session (which
 					must hold rights to this) */
 
-/* Flag bits for trx_struct.active_trans */
+/* Flag bits for trx_struct.active_flag */
 #define TRX_ACTIVE_IN_MYSQL       (1<<0)
 #define TRX_ACTIVE_COMMIT_ORDERED (1<<1)
 
