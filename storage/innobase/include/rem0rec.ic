@@ -1462,6 +1462,7 @@ rec_offs_size(
 	return(rec_offs_data_size(offsets) + rec_offs_extra_size(offsets));
 }
 
+#ifdef UNIV_DEBUG
 /**********************************************************//**
 Returns a pointer to the end of the record.
 @return	pointer to end */
@@ -1469,11 +1470,11 @@ UNIV_INLINE
 byte*
 rec_get_end(
 /*========*/
-	rec_t*		rec,	/*!< in: pointer to record */
+	const rec_t*	rec,	/*!< in: pointer to record */
 	const ulint*	offsets)/*!< in: array returned by rec_get_offsets() */
 {
 	ut_ad(rec_offs_validate(rec, NULL, offsets));
-	return(rec + rec_offs_data_size(offsets));
+	return((rec_t*) rec + rec_offs_data_size(offsets));
 }
 
 /**********************************************************//**
@@ -1483,12 +1484,13 @@ UNIV_INLINE
 byte*
 rec_get_start(
 /*==========*/
-	rec_t*		rec,	/*!< in: pointer to record */
+	const rec_t*	rec,	/*!< in: pointer to record */
 	const ulint*	offsets)/*!< in: array returned by rec_get_offsets() */
 {
 	ut_ad(rec_offs_validate(rec, NULL, offsets));
-	return(rec - rec_offs_extra_size(offsets));
+	return((rec_t*) rec - rec_offs_extra_size(offsets));
 }
+#endif /* UNIV_DEBUG */
 
 /***************************************************************//**
 Copies a physical record to a buffer.

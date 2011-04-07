@@ -16,6 +16,8 @@
 #ifndef RPL_SLAVE_H
 #define RPL_SLAVE_H
 
+typedef enum {SLAVE_THD_IO, SLAVE_THD_SQL} SLAVE_THD_TYPE;
+
 /**
   MASTER_DELAY can be at most (1 << 31) - 1.
 */

@@ -21,10 +21,6 @@
   This file implements classes defined in field.h
 */
 
-#ifdef USE_PRAGMA_IMPLEMENTATION
-#pragma implementation				// gcc: Class implementation
-#endif
-
 #include "sql_priv.h"
 #include "sql_select.h"
 #include "rpl_rli.h"                            // Pull in Relay_log_info
@@ -44,15 +40,9 @@
 // Maximum allowed exponent value for converting string to decimal
 #define MAX_EXPONENT 1024
 
-/*****************************************************************************
-  Instansiate templates and static variables
-*****************************************************************************/
-
-#ifdef HAVE_EXPLICIT_TEMPLATE_INSTANTIATION
-template class List<Create_field>;
-template class List_iterator<Create_field>;
-#endif
-
+/**
+  Static variables
+*/
 uchar Field_null::null[1]={1};
 const char field_separator=',';
 

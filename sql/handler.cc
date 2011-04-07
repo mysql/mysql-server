@@ -19,10 +19,6 @@
   Handler-calling-functions
 */
 
-#ifdef USE_PRAGMA_IMPLEMENTATION
-#pragma implementation				// gcc: Class implementation
-#endif
-
 #include "sql_priv.h"
 #include "unireg.h"
 #include "rpl_handler.h"

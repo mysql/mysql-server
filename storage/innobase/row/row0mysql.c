@@ -579,7 +579,7 @@ handle_new_error:
 	switch (err) {
 	case DB_LOCK_WAIT_TIMEOUT:
 		if (row_rollback_on_timeout) {
-			trx_general_rollback_for_mysql(trx, NULL);
+			trx_rollback_to_savepoint(trx, NULL);
 			break;
 		}
 		/* fall through */
@@ -596,7 +596,7 @@ handle_new_error:
 			/* Roll back the latest, possibly incomplete
 			insertion or update */
 
-			trx_general_rollback_for_mysql(trx, savept);
+			trx_rollback_to_savepoint(trx, savept);
 		}
 		/* MySQL will roll back the latest SQL statement */
 		break;
@@ -618,7 +618,7 @@ handle_new_error:
 		/* Roll back the whole transaction; this resolution was added
 		to version 3.23.43 */
 
-		trx_general_rollback_for_mysql(trx, NULL);
+		trx_rollback_to_savepoint(trx, NULL);
 		break;
 
 	case DB_MUST_GET_MORE_FILE_SPACE:
@@ -1610,14 +1610,12 @@ row_unlock_for_mysql(
 			/* We did not update the record: unlock it */
 
 			rec = btr_pcur_get_rec(pcur);
-			index = btr_pcur_get_btr_cur(pcur)->index;
 
 			lock_rec_unlock(trx, btr_pcur_get_block(pcur),
 					rec, prebuilt->select_lock_type);
 
 			if (prebuilt->new_rec_locks >= 2) {
 				rec = btr_pcur_get_rec(clust_pcur);
-				index = btr_pcur_get_btr_cur(clust_pcur)->index;
 
 				lock_rec_unlock(trx,
 						btr_pcur_get_block(clust_pcur),
@@ -1943,7 +1941,7 @@ err_exit:
 		break;
 	case DB_OUT_OF_FILE_SPACE:
 		trx->error_state = DB_SUCCESS;
-		trx_general_rollback_for_mysql(trx, NULL);
+		trx_rollback_to_savepoint(trx, NULL);
 
 		ut_print_timestamp(stderr);
 		fputs("  InnoDB: Warning: cannot create table ",
@@ -1973,7 +1971,7 @@ err_exit:
 		table already exists */
 
 		trx->error_state = DB_SUCCESS;
-		trx_general_rollback_for_mysql(trx, NULL);
+		trx_rollback_to_savepoint(trx, NULL);
 		dict_mem_table_free(table);
 		break;
 	}
@@ -2097,7 +2095,7 @@ error_handling:
 
 		trx->error_state = DB_SUCCESS;
 
-		trx_general_rollback_for_mysql(trx, NULL);
+		trx_rollback_to_savepoint(trx, NULL);
 
 		row_drop_table_for_mysql(table_name, trx, FALSE);
 
@@ -2166,7 +2164,7 @@ row_table_add_foreign_constraints(
 
 		trx->error_state = DB_SUCCESS;
 
-		trx_general_rollback_for_mysql(trx, NULL);
+		trx_rollback_to_savepoint(trx, NULL);
 
 		row_drop_table_for_mysql(name, trx, FALSE);
 
@@ -2535,7 +2533,7 @@ row_discard_tablespace_for_mysql(
 
 	if (err != DB_SUCCESS) {
 		trx->error_state = DB_SUCCESS;
-		trx_general_rollback_for_mysql(trx, NULL);
+		trx_rollback_to_savepoint(trx, NULL);
 		trx->error_state = DB_SUCCESS;
 	} else {
 		dict_table_change_id_in_cache(table, new_id);
@@ -2544,7 +2542,7 @@ row_discard_tablespace_for_mysql(
 
 		if (!success) {
 			trx->error_state = DB_SUCCESS;
-			trx_general_rollback_for_mysql(trx, NULL);
+			trx_rollback_to_savepoint(trx, NULL);
 			trx->error_state = DB_SUCCESS;
 
 			err = DB_ERROR;
@@ -3030,7 +3028,7 @@ next_rec:
 
 	if (err != DB_SUCCESS) {
 		trx->error_state = DB_SUCCESS;
-		trx_general_rollback_for_mysql(trx, NULL);
+		trx_rollback_to_savepoint(trx, NULL);
 		trx->error_state = DB_SUCCESS;
 		ut_print_timestamp(stderr);
 		fputs("  InnoDB: Unable to assign a new identifier to table ",
@@ -3418,8 +3416,7 @@ check_next_foreign:
 			is_temp = TRUE;
 		} else {
 			name_or_path = name;
-			is_temp = (table->flags >> DICT_TF2_SHIFT)
-				& DICT_TF2_TEMPORARY;
+			is_temp = table->flags2 & DICT_TF2_TEMPORARY;
 		}
 
 		dict_table_remove_from_cache(table);
@@ -3497,7 +3494,7 @@ check_next_foreign:
 		fprintf(stderr, ".\n");
 
 		trx->error_state = DB_SUCCESS;
-		trx_general_rollback_for_mysql(trx, NULL);
+		trx_rollback_to_savepoint(trx, NULL);
 		trx->error_state = DB_SUCCESS;
 	}
 
@@ -3554,15 +3551,19 @@ row_mysql_drop_temp_tables(void)
 			break;
 		}
 
+		/* The high order bit of N_COLS is set unless
+		ROW_FORMAT=REDUNDANT. */
 		rec = btr_pcur_get_rec(&pcur);
 		field = rec_get_nth_field_old(rec, 4/*N_COLS*/, &len);
-		if (len != 4 || !(mach_read_from_4(field) & 0x80000000UL)) {
+		if (len != 4
+		    || !(mach_read_from_4(field) & DICT_N_COLS_COMPACT)) {
 			continue;
 		}
 
-		/* Because this is not a ROW_FORMAT=REDUNDANT table,
-		the is_temp flag is valid.  Examine it. */
-
+		/* Older versions of InnoDB, which only supported tables
+		in ROW_FORMAT=REDUNDANT could write garbage to
+		SYS_TABLES.MIX_LEN, where we now store the is_temp flag.
+		Above, we assumed is_temp=0 if ROW_FORMAT=REDUNDANT. */
 		field = rec_get_nth_field_old(rec, 7/*MIX_LEN*/, &len);
 		if (len != 4
 		    || !(mach_read_from_4(field) & DICT_TF2_TEMPORARY)) {
@@ -4084,7 +4085,7 @@ end:
 			      "InnoDB: succeed.\n", stderr);
 		}
 		trx->error_state = DB_SUCCESS;
-		trx_general_rollback_for_mysql(trx, NULL);
+		trx_rollback_to_savepoint(trx, NULL);
 		trx->error_state = DB_SUCCESS;
 	} else {
 		/* The following call will also rename the .ibd data file if
@@ -4093,7 +4094,7 @@ end:
 		if (!dict_table_rename_in_cache(table, new_name,
 						!new_is_tmp)) {
 			trx->error_state = DB_SUCCESS;
-			trx_general_rollback_for_mysql(trx, NULL);
+			trx_rollback_to_savepoint(trx, NULL);
 			trx->error_state = DB_SUCCESS;
 			goto funct_exit;
 		}
@@ -4133,7 +4134,7 @@ end:
 			ut_a(dict_table_rename_in_cache(table,
 							old_name, FALSE));
 			trx->error_state = DB_SUCCESS;
-			trx_general_rollback_for_mysql(trx, NULL);
+			trx_rollback_to_savepoint(trx, NULL);
 			trx->error_state = DB_SUCCESS;
 		}
 	}

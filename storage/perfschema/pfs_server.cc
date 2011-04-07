@@ -27,6 +27,8 @@
 #include "pfs_instr_class.h"
 #include "pfs_instr.h"
 #include "pfs_events_waits.h"
+#include "pfs_events_stages.h"
+#include "pfs_events_statements.h"
 #include "pfs_timer.h"
 #include "pfs_setup_actor.h"
 #include "pfs_setup_object.h"
@@ -69,9 +71,15 @@ initialize_performance_schema(const PFS_global_param *param)
       init_thread_class(param->m_thread_class_sizing) ||
       init_table_share(param->m_table_share_sizing) ||
       init_file_class(param->m_file_class_sizing) ||
+      init_stage_class(param->m_stage_class_sizing) ||
+      init_statement_class(param->m_statement_class_sizing) ||
       init_instruments(param) ||
       init_events_waits_history_long(
         param->m_events_waits_history_long_sizing) ||
+      init_events_stages_history_long(
+        param->m_events_stages_history_long_sizing) ||
+      init_events_statements_history_long(
+        param->m_events_statements_history_long_sizing) ||
       init_file_hash() ||
       init_table_share_hash() ||
       init_setup_actor(param) ||
@@ -118,7 +126,11 @@ static void cleanup_performance_schema(void)
   cleanup_thread_class();
   cleanup_table_share();
   cleanup_file_class();
+  cleanup_stage_class();
+  cleanup_statement_class();
   cleanup_events_waits_history_long();
+  cleanup_events_stages_history_long();
+  cleanup_events_statements_history_long();
   cleanup_table_share_hash();
   cleanup_file_hash();
   cleanup_setup_actor();

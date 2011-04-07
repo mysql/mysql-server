@@ -14,9 +14,6 @@
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
 
-#ifdef USE_PRAGMA_IMPLEMENTATION
-#pragma implementation				// gcc: Class implementation
-#endif
 #include "my_global.h"                          /* NO_EMBEDDED_ACCESS_CHECKS */
 #include "sql_priv.h"
 #include "unireg.h"                    // REQUIRED: for other includes
@@ -1009,8 +1006,12 @@ bool Item::get_date(MYSQL_TIME *ltime,uint fuzzydate)
   }
   else
   {
-    longlong value= val_int();
     int was_cut;
+    longlong value= val_int();
+
+    if (null_value)
+      goto err;
+
     if (number_to_datetime(value, ltime, fuzzydate, &was_cut) == LL(-1))
     {
       char buff[22], *end;
@@ -6741,7 +6742,19 @@ my_decimal *Item_ref::val_decimal(my_decimal *decimal_value)
 int Item_ref::save_in_field(Field *to, bool no_conversions)
 {
   int res;
-  DBUG_ASSERT(!result_field);
+  if (result_field)
+  {
+    if (result_field->is_null())
+    {
+      null_value= 1;
+      res= set_field_to_null_with_conversions(to, no_conversions);
+      return res;
+    }
+    to->set_notnull();
+    res= field_conv(to, result_field);
+    null_value= 0;
+    return res;
+  }
   res= (*ref)->save_in_field(to, no_conversions);
   null_value= (*ref)->null_value;
   return res;
@@ -7600,7 +7613,7 @@ String *Item_cache_int::val_str(String *str)
   DBUG_ASSERT(fixed == 1);
   if (!has_value())
     return NULL;
-  str->set(value, default_charset());
+  str->set_int(value, unsigned_flag, default_charset());
   return str;
 }
 
@@ -8500,14 +8513,3 @@ void view_error_processor(THD *thd, void *data)
   ((TABLE_LIST *)data)->hide_view_error(thd);
 }
 
-/*****************************************************************************
-** Instantiate templates
-*****************************************************************************/
-
-#ifdef HAVE_EXPLICIT_TEMPLATE_INSTANTIATION
-template class List<Item>;
-template class List_iterator<Item>;
-template class List_iterator_fast<Item>;
-template class List_iterator_fast<Item_field>;
-template class List<List_item>;
-#endif

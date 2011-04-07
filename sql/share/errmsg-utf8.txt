@@ -6492,3 +6492,9 @@ ER_NO_SUCH_PARTITION
 # message as mysqlcheck parses the error message looking for ALTER TABLE.
 ER_TABLE_NEEDS_REBUILD
         eng "Table rebuild required. Please do \"ALTER TABLE `%-.32s` FORCE\" or dump/reload to fix it!"
+
+WARN_OPTION_BELOW_LIMIT
+  eng "The value of '%s' should be no less than the value of '%s'"
+
+ER_CHANGE_RPL_INFO_REPOSITORY_FAILURE
+  eng "Failure while changing the type of replication repository: %s."
