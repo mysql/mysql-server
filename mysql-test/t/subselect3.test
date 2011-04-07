@@ -949,9 +949,9 @@ set @save_max_heap_table_size=@@max_heap_table_size;
 set @@optimizer_switch='firstmatch=off,materialization=off';
 set @@max_heap_table_size= 16384;
 
-explain select count(*) from t0 A, t0 B, t0 C, t0 D where D.a in (select a from t1 E);
+explain select count(*) from t0 A, t0 B, t0 C, t0 D where D.a in (select a from t1 E where a+1 < 10000 + A.a + B.a +C.a+D.a);
 flush status;
-select count(*) from t0 A, t0 B, t0 C, t0 D where D.a in (select a from t1 E);
+select count(*) from t0 A, t0 B, t0 C, t0 D where D.a in (select a from t1 E where a+1 < 10000 + A.a + B.a +C.a+D.a);
 show status like 'Created_tmp_disk_tables';
 set @save_max_heap_table_size=@@max_heap_table_size;
 set @@optimizer_switch=@save_optimizer_switch;

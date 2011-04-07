@@ -573,6 +573,8 @@ typedef struct st_position
     semi-join's ON expression so we can correctly account for fanout.
   */
   table_map sjm_scan_need_tables;
+
+  table_map prefix_dups_producing_tables;
 } POSITION;
 
 

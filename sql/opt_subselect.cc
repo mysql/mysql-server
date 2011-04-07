@@ -1861,6 +1861,7 @@ void advance_sj_state(JOIN *join, table_map remaining_tables,
       }
     }
   }
+  pos->prefix_dups_producing_tables= join->cur_dups_producing_tables;
 }
 
 
@@ -1882,6 +1883,8 @@ void restore_prev_sj_state(const table_map remaining_tables,
       tab->join->cur_sj_inner_tables &= ~emb_sj_nest->sj_inner_tables;
     }
   }
+  POSITION *pos= tab->join->positions + idx;
+  tab->join->cur_dups_producing_tables= pos->prefix_dups_producing_tables;
 }
 
 
