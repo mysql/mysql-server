@@ -61,7 +61,7 @@ NdbObjectIdMap::map(void * object){
   
   //  lock();
   
-  if(m_firstFree == InvalidId && expand(m_expandSize))
+  if(m_firstFree == Uint32(InvalidId) && expand(m_expandSize))
     return InvalidId;
   
   Uint32 ff = m_firstFree;
