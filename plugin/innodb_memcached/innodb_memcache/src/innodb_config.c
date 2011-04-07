@@ -20,9 +20,9 @@ with this program; if not, write to the Free Software Foundation, Inc.,
 #include <stdlib.h>
 #include <stdio.h>
 #include <string.h>
-#include "innodb_api.h"
 #include <errno.h>
 
+#include "innodb_api.h"
 #include "innodb_config.h"
 
 /**********************************************************************//**

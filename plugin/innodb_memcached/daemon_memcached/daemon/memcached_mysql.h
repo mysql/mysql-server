@@ -11,9 +11,7 @@
 struct memcached_context
 {
 	char*		m_engine_library;
-	char*		m_address;
-	char*		m_tcp_port;
-	char*		m_max_conn;
+	char*		m_mem_option;
 	void*		m_innodb_api_cb;
 }; 
 
@@ -22,9 +20,11 @@ typedef struct memcached_context        memcached_context_t;
 #ifdef __cplusplus
 extern "C" {
 #endif
+
 void* daemon_memcached_main(void *p);
 
 void shutdown_server();
+
 #ifdef __cplusplus
 }
 #endif
