@@ -776,5 +776,100 @@ Warning	1364	Field 'COL1000' doesn't have a default value
 SELECT col999 FROM t1 WHERE col1000 = "3" AND col1003 <=> sysdate();
 col999
 DROP TABLE t1;
+#
+# Bug#11873324 "WRONG RESULT WITH ICP AND STRAIGHT_JOIN"
+#
+CREATE TABLE t1 (  
+pk INTEGER NOT NULL,
+i1 INTEGER,
+PRIMARY KEY (pk),
+KEY col_int_key (i1)
+);
+INSERT INTO t1 VALUES (14,NULL), (18,133);
+CREATE TABLE t2 (  
+pk INTEGER NOT NULL,
+i1 INTEGER,
+c1 VARCHAR(1),
+PRIMARY KEY (pk),
+KEY col_int_key (i1)
+);
+INSERT INTO t2 VALUES (1,7,'f');
+EXPLAIN SELECT t1.i1
+FROM t1
+WHERE t1.i1 NOT IN
+( SELECT STRAIGHT_JOIN SUBQUERY_t1.pk
+FROM t1 AS SUBQUERY_t1
+JOIN t2 AS SUBQUERY_t2
+ON SUBQUERY_t2.i1 = SUBQUERY_t1.pk
+WHERE SUBQUERY_t1.i1 > 0
+OR SUBQUERY_t2.c1 = 'a'
+);
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	t1	index	NULL	col_int_key	5	NULL	2	Using where; Using index
+2	DEPENDENT SUBQUERY	SUBQUERY_t1	eq_ref	PRIMARY,col_int_key	PRIMARY	4	func	1	Using where; Full scan on NULL key
+2	DEPENDENT SUBQUERY	SUBQUERY_t2	ref	col_int_key	col_int_key	5	func	1	Using where; Full scan on NULL key
+SELECT t1.i1
+FROM t1
+WHERE t1.i1 NOT IN
+( SELECT STRAIGHT_JOIN SUBQUERY_t1.pk
+FROM t1 AS SUBQUERY_t1
+JOIN t2 AS SUBQUERY_t2
+ON SUBQUERY_t2.i1 = SUBQUERY_t1.pk
+WHERE SUBQUERY_t1.i1 > 0
+OR SUBQUERY_t2.c1 = 'a'
+);
+i1
+NULL
+133
+DROP TABLE t1,t2;
+#
+# Bug#11876420 "MISSING ROW IN RESULT WITH SUBQUERY + IN + XOR + 
+#               NULL VALUES AND ICP ENABLED"
+# 
+CREATE TABLE t1 (  
+i1 INTEGER,
+c1 VARCHAR(1),
+KEY col_varchar_key (c1)
+);
+INSERT INTO t1 VALUES (1,'j'), (0,'e'), (210,'f'), (8,'v'), (7,'x'),
+(5,'m'), (NULL,'c');
+CREATE TABLE t2 (  
+i1 INTEGER,
+c1 VARCHAR(1),
+KEY col_varchar_key (c1)
+);
+INSERT INTO t2 VALUES (8,NULL);
+CREATE TABLE t3 (  
+i1 INTEGER,
+c1 VARCHAR(1),
+KEY col_varchar_key (c1)
+) ENGINE=InnoDB;
+INSERT INTO t3 VALUES (NULL,'w'), (1,NULL), (2,'d');
+EXPLAIN SELECT i1
+FROM t3
+WHERE c1 IN
+( SELECT t1.c1
+FROM t2 JOIN t1
+ON t2.i1 >= t1.i1
+WHERE t1.c1 > t2.c1
+)
+XOR i1;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	t3	ALL	NULL	NULL	NULL	NULL	3	Using where
+2	DEPENDENT SUBQUERY	t2	ALL	col_varchar_key	NULL	NULL	NULL	1	
+2	DEPENDENT SUBQUERY	t1	ref_or_null	col_varchar_key	col_varchar_key	4	func	2	Using where; Full scan on NULL key
+SELECT i1
+FROM t3
+WHERE c1 IN
+( SELECT t1.c1
+FROM t2 JOIN t1
+ON t2.i1 >= t1.i1
+WHERE t1.c1 > t2.c1
+)
+XOR i1;
+i1
+1
+2
+DROP TABLE t1, t2, t3;
 set default_storage_engine= @save_storage_engine;
 set optimizer_switch=default;
