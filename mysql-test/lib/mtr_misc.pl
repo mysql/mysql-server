@@ -1,5 +1,5 @@
 # -*- cperl -*-
-# Copyright (c) 2004, 2010, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2004, 2011, Oracle and/or its affiliates. All rights reserved.
 #
 # This program is free software; you can redistribute it and/or
 # modify it under the terms of the GNU Library General Public
@@ -36,6 +36,7 @@ sub start_timer($);
 sub has_expired($);
 sub init_timers();
 sub mark_time_used($);
+sub mark_time_idle();
 sub add_total_times($);
 sub print_times_used($$);
 sub print_total_times($);
@@ -224,6 +225,7 @@ my %time_used= (
   'ch-warn' => 0,
   'test'    => 0,
   'init'    => 0,
+  'admin'   => 0,
 );
 
 my %time_text= (
@@ -232,7 +234,8 @@ my %time_text= (
  'check'   => "Check-testcase",
  'ch-warn' => "Check for warnings",
  'test'    => "Test execution",
- 'init'    => "Initialization etc.",
+ 'init'    => "Initialization/cleanup",
+ 'admin'   => "Test administration",
 );
 
 # Counts number of reports from workers
@@ -253,6 +256,10 @@ sub mark_time_used($) {
   my $curr_time= gettimeofday();
   $time_used{$name}+= int (($curr_time - $last_timer_set) * 1000 + .5);
   $last_timer_set= $curr_time;
+}
+
+sub mark_time_idle() {
+  $last_timer_set= gettimeofday() if $opt_report_times;
 }
 
 sub add_total_times($) {

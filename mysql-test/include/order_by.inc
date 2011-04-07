@@ -847,8 +847,7 @@ CALL mtr.add_suppression("Out of sort memory");
 --error ER_OUT_OF_SORTMEMORY
 select * from t1 order by b;
 drop table t1;
-
-
+call mtr.add_suppression("Out of sort memory; increase server sort buffer size");
 --echo #
 --echo # Bug #39844: Query Crash Mysql Server 5.0.67
 --echo #
