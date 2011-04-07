@@ -3556,6 +3556,12 @@ int get_all_tables(THD *thd, TABLE_LIST *tables, COND *cond)
   it.rewind(); /* To get access to new elements in basis list */
   while ((db_name= it++))
   {
+    LEX_STRING orig_db_name;
+
+    /* db_name can be changed in make_table_list() func */
+    if (!thd->make_lex_string(&orig_db_name, db_name->str,
+                              db_name->length, FALSE))
+      goto err;
 #ifndef NO_EMBEDDED_ACCESS_CHECKS
     if (!(check_access(thd, SELECT_ACL, db_name->str,
                        &thd->col_access, NULL, 0, 1) ||
@@ -3620,17 +3626,13 @@ int get_all_tables(THD *thd, TABLE_LIST *tables, COND *cond)
             }
 
             int res;
-            LEX_STRING tmp_lex_string, orig_db_name;
+            LEX_STRING tmp_lex_string;
             /*
               Set the parent lex of 'sel' because it is needed by
               sel.init_query() which is called inside make_table_list.
             */
             thd->no_warnings_for_error= 1;
             sel.parent_lex= lex;
-            /* db_name can be changed in make_table_list() func */
-            if (!thd->make_lex_string(&orig_db_name, db_name->str,
-                                      db_name->length, FALSE))
-              goto err;
             if (make_table_list(thd, &sel, db_name, table_name))
               goto err;
             TABLE_LIST *show_table_list= sel.table_list.first;
