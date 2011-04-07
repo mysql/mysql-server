@@ -1064,6 +1064,7 @@ set names latin1;
 #
 --error ER_NO_SUCH_TABLE,ER_FILE_NOT_FOUND
 show columns from `#mysql50#????????`;
+call mtr.add_suppression("Can.t find file: '.\\\\test\\\\\\?{8}.frm'");
 
 #
 # SHOW CREATE TRIGGER test.
