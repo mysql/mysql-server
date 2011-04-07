@@ -1,25 +1,6 @@
-stop slave;
-drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9;
-reset master;
-reset slave;
-drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9;
-start slave;
-
-# On slave2
-# Connect slave2 to slave
-CHANGE MASTER TO MASTER_HOST='127.0.0.1', MASTER_PORT=SLAVE_MYPORT;,
-MASTER_LOG_FILE='slave-bin.000001', MASTER_USER='root';
-START SLAVE;
-
-# [On master]
-DROP VIEW IF EXISTS v_user;
-DROP VIEW IF EXISTS v_tables_priv;
-DROP VIEW IF EXISTS v_procs_priv;
-DROP PROCEDURE IF EXISTS p1;
-DROP PROCEDURE IF EXISTS my_grant;
-DROP PROCEDURE IF EXISTS my_revoke;
-DROP FUNCTION IF EXISTS my_user;
-DROP EVENT IF EXISTS e1;
+include/rpl_init.inc [topology=1->2->3]
+include/rpl_connect.inc [creating master]
+include/rpl_connect.inc [creating slave]
 CREATE TABLE t1(c1 char(100));
 CREATE VIEW test.v_user AS SELECT * FROM mysql.user WHERE User LIKE 'bug48321%';
 CREATE VIEW test.v_tables_priv AS SELECT * FROM mysql.tables_priv WHERE User LIKE 'bug48321%';
@@ -41,76 +22,76 @@ ERROR HY000: String '01234567890123456789012345678901234567890123456789012345678
 # [On conn1]
 # Verify 'REVOKE ALL' statement
 REVOKE ALL PRIVILEGES, GRANT OPTION FROM CURRENT_USER();
-Comparing tables master:test.v_user and slave:test.v_user
-Comparing tables master:test.v_user and slave2:test.v_user
+include/rpl_sync.inc
+include/diff_tables.inc [server_1:v_user, server_2:v_user, server_3:v_user]
 
 # Verify 'GRANT ... ON TABLE ...' statement
 GRANT CREATE, INSERT, SELECT ON TABLE test.t1 TO CURRENT_USER();
-Comparing tables master:test.v_tables_priv and slave:test.v_tables_priv
-Comparing tables master:test.v_tables_priv and slave2:test.v_tables_priv
+include/rpl_sync.inc
+include/diff_tables.inc [server_1:v_tables_priv, server_2:v_tables_priv, server_3:v_tables_priv]
 
 # Verify 'GRANT ... ON PROCEDURE...' statement
 GRANT ALTER ROUTINE, EXECUTE ON PROCEDURE p1 TO CURRENT_USER();
-Comparing tables master:test.v_procs_priv and slave:test.v_procs_priv
-Comparing tables master:test.v_procs_priv and slave2:test.v_procs_priv
+include/rpl_sync.inc
+include/diff_tables.inc [server_1:v_procs_priv, server_2:v_procs_priv, server_3:v_procs_priv]
 
 # Verify 'GRANT ... ON *.* ...' statement
 GRANT ALL PRIVILEGES ON *.* TO CURRENT_USER() WITH GRANT OPTION;
-Comparing tables master:test.v_procs_priv and slave:test.v_procs_priv
-Comparing tables master:test.v_procs_priv and slave2:test.v_procs_priv
+include/rpl_sync.inc
+include/diff_tables.inc [server_1:v_procs_priv, server_2:v_procs_priv, server_3:v_procs_priv]
 
 # Verify 'REVOKE ... ON TABLE ...' statement
 REVOKE CREATE, INSERT, SELECT ON TABLE t1 FROM CURRENT_USER();
-Comparing tables master:test.v_tables_priv and slave:test.v_tables_priv
-Comparing tables master:test.v_tables_priv and slave2:test.v_tables_priv
+include/rpl_sync.inc
+include/diff_tables.inc [server_1:v_tables_priv, server_2:v_tables_priv, server_3:v_tables_priv]
 
 # Verify 'REVOKE ... ON PROCEDURE...' statement
 REVOKE ALTER ROUTINE, EXECUTE ON PROCEDURE p1 FROM CURRENT_USER();
-Comparing tables master:test.v_procs_priv and slave:test.v_procs_priv
-Comparing tables master:test.v_procs_priv and slave2:test.v_procs_priv
+include/rpl_sync.inc
+include/diff_tables.inc [server_1:v_procs_priv, server_2:v_procs_priv, server_3:v_procs_priv]
 
 # Verify 'REVOKE ... ON *.* ...' statement
 REVOKE ALL PRIVILEGES ON *.* FROM CURRENT_USER();
-Comparing tables master:test.v_user and slave:test.v_user
-Comparing tables master:test.v_user and slave2:test.v_user
+include/rpl_sync.inc
+include/diff_tables.inc [server_1:v_user, server_2:v_user, server_3:v_user]
 
 # Verify 'GRANT ...' statement in the procedure
 CREATE PROCEDURE my_grant()
 GRANT CREATE, INSERT, SELECT ON TABLE test.t1 TO CURRENT_USER();
 call my_grant;
-Comparing tables master:test.v_tables_priv and slave:test.v_tables_priv
-Comparing tables master:test.v_tables_priv and slave2:test.v_tables_priv
+include/rpl_sync.inc
+include/diff_tables.inc [server_1:v_tables_priv, server_2:v_tables_priv, server_3:v_tables_priv]
 
 # Verify 'REVOKE ... ON TABLE ...' statement in the procedure
 CREATE PROCEDURE my_revoke()
 REVOKE CREATE, INSERT, SELECT ON TABLE t1 FROM CURRENT_USER();
 call my_revoke;
-Comparing tables master:test.v_tables_priv and slave:test.v_tables_priv
-Comparing tables master:test.v_tables_priv and slave2:test.v_tables_priv
+include/rpl_sync.inc
+include/diff_tables.inc [server_1:v_tables_priv, server_2:v_tables_priv, server_3:v_tables_priv]
 
 # Verify 'RENAME USER ...' statement
 RENAME USER CURRENT_USER TO 'bug48321_2'@'localhost';
-Comparing tables master:test.v_user and slave:test.v_user
-Comparing tables master:test.v_user and slave2:test.v_user
+include/rpl_sync.inc
+include/diff_tables.inc [server_1:v_user, server_2:v_user, server_3:v_user]
 
 # Verify 'DROP USER ...' statement
 GRANT CREATE USER ON *.* TO 'bug48321_2'@'localhost';
 DROP USER CURRENT_USER();
-Comparing tables master:test.v_user and slave:test.v_user
-Comparing tables master:test.v_user and slave2:test.v_user
+include/rpl_sync.inc
+include/diff_tables.inc [server_1:v_user, server_2:v_user, server_3:v_user]
 
 # Verify 'ALTER EVENT...' statement
 CREATE EVENT e1 ON SCHEDULE EVERY 1 DAY DO SELECT * FROM t1;
 # Explicitly assign CURRENT_USER() to definer
 ALTER DEFINER=CURRENT_USER() EVENT e1 ENABLE;
-Comparing tables master:test.v_event and slave:test.v_event
-Comparing tables master:test.v_event and slave2:test.v_event
+include/rpl_sync.inc
+include/diff_tables.inc [server_1:v_event, server_2:v_event, server_3:v_event]
 
 # Session user will be set as definer, if the statement does not assign
 # a definer
 ALTER EVENT e1 ENABLE;
-Comparing tables master:test.v_event and slave:test.v_event
-Comparing tables master:test.v_event and slave2:test.v_event
+include/rpl_sync.inc
+include/diff_tables.inc [server_1:v_event, server_2:v_event, server_3:v_event]
 
 # Verify that this patch does not affect the calling of CURRENT_USER() 
 # in the other statements
@@ -127,7 +108,7 @@ SELECT * FROM t1;
 c1
 @
 1234
-# [On slave2]
+# [On server_3]
 SELECT * FROM t1;
 c1
 @
@@ -145,7 +126,7 @@ SELECT * FROM t1;
 c1
 @
 @
-# [On slave2]
+# [On server_3]
 SELECT * FROM t1;
 c1
 @
@@ -159,7 +140,7 @@ c1
 # [On slave]
 SELECT * FROM t1;
 c1
-# [On slave2]
+# [On server_3]
 SELECT * FROM t1;
 c1
 # [On master]
@@ -187,7 +168,7 @@ c1
 SELECT * FROM t2;
 c1
 @
-# [On slave2]
+# [On server_3]
 SELECT * FROM t1;
 c1
 @
@@ -203,3 +184,4 @@ DROP PROCEDURE my_grant;
 DROP PROCEDURE my_revoke;
 DROP FUNCTION my_user;
 DROP EVENT e1;
+include/rpl_end.inc

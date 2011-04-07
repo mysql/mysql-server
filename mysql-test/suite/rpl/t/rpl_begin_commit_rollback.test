@@ -169,4 +169,4 @@ SELECT * FROM db1.t1 WHERE a IN (30, 40);
 connection master;
 DROP DATABASE db1;
 DROP DATABASE db2;
-source include/master-slave-end.inc;
+--source include/rpl_end.inc

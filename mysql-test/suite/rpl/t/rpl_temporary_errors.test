@@ -27,13 +27,13 @@ set @@global.slave_exec_mode= default;
 SHOW STATUS LIKE 'Slave_retried_transactions';
 SELECT * FROM t1;
 source include/check_slave_is_running.inc;
-DROP TABLE t1;
 
 --echo **** On Master ****
 connection master;
-SET SQL_LOG_BIN= 0;
 DROP TABLE t1;
-SET SQL_LOG_BIN= 1;
+--sync_slave_with_master
+--connection master
+
 
 # BUG#Bug #53259 Unsafe statement binlogged in statement format w/MyIsam temp tables
 #
@@ -71,3 +71,5 @@ ROLLBACK;
 source include/show_binlog_events.inc;
 
 DROP TABLE t_myisam, t_innodb;
+
+--source include/rpl_end.inc

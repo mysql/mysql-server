@@ -1,9 +1,5 @@
-stop slave;
-drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9;
-reset master;
-reset slave;
-drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9;
-start slave;
+include/master-slave.inc
+[connection master]
 DROP DATABASE IF EXISTS replica;
 CREATE DATABASE replica;
 CREATE TABLE t1 (a INT NOT NULL KEY, b text NOT NULL)ENGINE=NDB;
@@ -52,3 +48,4 @@ Tables_in_test
 USE test;
 DROP TABLE t1, t2;
 DROP DATABASE IF EXISTS replica;
+include/rpl_end.inc

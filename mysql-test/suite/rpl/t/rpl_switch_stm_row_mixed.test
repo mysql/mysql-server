@@ -611,3 +611,4 @@ sync_slave_with_master;
 connection master;
 # Restore binlog format setting
 set global binlog_format =@my_binlog_format;
+--source include/rpl_end.inc

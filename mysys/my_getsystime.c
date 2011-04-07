@@ -1,6 +1,4 @@
-/*
-   Copyright (C) 2004 MySQL AB
-    All rights reserved. Use is subject to license terms.
+/* Copyright (c) 2004, 2011, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -173,7 +171,13 @@ ulonglong my_micro_time_and_time(time_t *time_arg)
 
   pthread_mutex_lock(&THR_LOCK_time);
   cur_gethrtime= gethrtime();
-  if ((cur_gethrtime - prev_gethrtime) > DELTA_FOR_SECONDS)
+  /*
+    Due to bugs in the Solaris (x86) implementation of gethrtime(),
+    the time returned by it might not be monotonic. Don't use the
+    cached time(2) value if this is a case.
+  */
+  if ((prev_gethrtime > cur_gethrtime) ||
+      ((cur_gethrtime - prev_gethrtime) > DELTA_FOR_SECONDS))
   {
     cur_time= time(0);
     prev_gethrtime= cur_gethrtime;

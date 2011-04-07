@@ -41,3 +41,4 @@ show grants for x@y;
 drop user x@y;
 drop database d1;
 --sync_slave_with_master
+--source include/rpl_end.inc

@@ -115,4 +115,4 @@ SELECT * FROM t1 ORDER BY a;
 # cleanup
 --connection master
 DROP TABLE t1;
--- source include/master-slave-end.inc
+-- source include/rpl_end.inc

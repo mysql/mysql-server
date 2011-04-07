@@ -1,11 +1,5 @@
-stop slave;
-drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9;
-reset master;
-reset slave;
-drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9;
-start slave;
-DROP PROCEDURE IF EXISTS test.p1;
-DROP TABLE IF EXISTS test.t1;
+include/master-slave.inc
+[connection master]
 CREATE PROCEDURE test.p1(IN i INT)
 BEGIN
 DECLARE CONTINUE HANDLER FOR sqlexception BEGIN END;
@@ -46,5 +40,6 @@ num
 SELECT * FROM test.t1;
 num
 13
-DROP PROCEDURE IF EXISTS test.p1;
-DROP TABLE IF EXISTS test.t1;
+DROP PROCEDURE test.p1;
+DROP TABLE test.t1;
+include/rpl_end.inc

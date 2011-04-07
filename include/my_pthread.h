@@ -1,6 +1,4 @@
-/*
-   Copyright (C) 2000 MySQL AB
-    All rights reserved. Use is subject to license terms.
+/* Copyright (c) 2000, 2011, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -129,7 +127,9 @@ struct tm *gmtime_r(const time_t *timep,struct tm *tmp);
 
 void pthread_exit(void *a);	 /* was #define pthread_exit(A) ExitThread(A)*/
 
-#define ETIMEDOUT 145		    /* Win32 doesn't have this */
+#ifndef ETIMEDOUT
+#define ETIMEDOUT 145		    /* Win32 might not have this */
+#endif
 #define getpid() GetCurrentThreadId()
 #define HAVE_LOCALTIME_R		1
 #define _REENTRANT			1

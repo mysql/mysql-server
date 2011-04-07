@@ -1,9 +1,5 @@
-stop slave;
-drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9;
-reset master;
-reset slave;
-drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9;
-start slave;
+include/master-slave.inc
+[connection master]
 CALL mtr.add_suppression('Statement may not be safe to log in statement format.');
 CREATE TABLE t1 (a VARCHAR(1000));
 INSERT INTO t1 VALUES (CONNECTION_ID());
@@ -23,5 +19,6 @@ INSERT INTO t1 VALUES
 (UTC_TIMESTAMP());
 INSERT INTO t1 VALUES (RAND());
 INSERT INTO t1 VALUES (LAST_INSERT_ID());
-Comparing tables master:test.t1 and slave:test.t1
+include/diff_tables.inc [master:t1, slave:t1]
 DROP TABLE t1;
+include/rpl_end.inc
