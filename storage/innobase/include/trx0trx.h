@@ -19,7 +19,12 @@ Created 3/26/1996 Heikki Tuuri
 #include "dict0types.h"
 #include "trx0xa.h"
 
+/* Number of transactions currently allocated for MySQL: protected by
+the kernel mutex */
 extern ulint	trx_n_mysql_transactions;
+/* Number of transactions currently in the XA PREPARED state: protected by
+the kernel mutex */
+extern ulint	trx_n_prepared;
 
 /************************************************************************
 Releases the search latch if trx has reserved it. */
