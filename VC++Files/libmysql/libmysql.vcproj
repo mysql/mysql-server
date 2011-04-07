@@ -330,9 +330,6 @@
 			RelativePath="..\mysys\my_fstream.c">
 		</File>
 		<File
-			RelativePath="..\mysys\my_gethostbyname.c">
-		</File>
-		<File
 			RelativePath="..\mysys\my_getopt.c">
 		</File>
 		<File
