@@ -219,6 +219,7 @@ extern uint statement_stack_max;
 */
 #define PFS_MAX_ALLOC_RETRY 1000
 
+/** The maximun number of passes in @sa PFS_scan. */
 #define PFS_MAX_SCAN_PASS 2
 
 /**
@@ -232,24 +233,42 @@ extern uint statement_stack_max;
 struct PFS_scan
 {
 public:
+  /**
+    Initialize a new scan.
+    @param random a random index to start from
+    @param max_size the max size of the interval to scan
+  */
   void init(uint random, uint max_size);
 
+  /**
+    Predicate, has a next pass.
+    @return true if there is a next pass to perform.
+  */
   bool has_pass() const
   { return (m_pass < m_pass_max); }
 
+  /**
+    Iterator, proceed to the next pass.
+  */
   void next_pass()
   { m_pass++; }
   
+  /** First index for this pass. */
   uint first() const
   { return m_first[m_pass]; }
 
+  /** Last index for this pass. */
   uint last() const
   { return m_last[m_pass]; }
 
 private:
+  /** Current pass. */
   uint m_pass;
+  /** Maximum number of passes. */
   uint m_pass_max;
+  /** First element for each pass. */
   uint m_first[PFS_MAX_SCAN_PASS];
+  /** Last element for each pass. */
   uint m_last[PFS_MAX_SCAN_PASS];
 };
 

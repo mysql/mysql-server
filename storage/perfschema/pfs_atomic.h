@@ -27,7 +27,9 @@
 class PFS_atomic
 {
 public:
+  /** Initialise the PFS_atomic component. */
   static void init();
+  /** Cleanup the PFS_atomic component. */
   static void cleanup();
 
   /** Atomic load. */
@@ -112,6 +114,10 @@ public:
 private:
   static my_atomic_rwlock_t m_rwlock_array[256];
 
+  /**
+    Helper used only with non native atomic implementations.
+    @sa MY_ATOMIC_MODE_RWLOCKS
+  */
   static inline my_atomic_rwlock_t *get_rwlock(volatile void *ptr)
   {
     /*
@@ -123,21 +129,37 @@ private:
     return result;
   }
 
+  /**
+    Helper used only with non native atomic implementations.
+    @sa MY_ATOMIC_MODE_RWLOCKS
+  */
   static inline void rdlock(volatile void *ptr)
   {
     my_atomic_rwlock_rdlock(get_rwlock(ptr));
   }
 
+  /**
+    Helper used only with non native atomic implementations.
+    @sa MY_ATOMIC_MODE_RWLOCKS
+  */
   static inline void wrlock(volatile void *ptr)
   {
     my_atomic_rwlock_wrlock(get_rwlock(ptr));
   }
 
+  /**
+    Helper used only with non native atomic implementations.
+    @sa MY_ATOMIC_MODE_RWLOCKS
+  */
   static inline void rdunlock(volatile void *ptr)
   {
     my_atomic_rwlock_rdunlock(get_rwlock(ptr));
   }
 
+  /**
+    Helper used only with non native atomic implementations.
+    @sa MY_ATOMIC_MODE_RWLOCKS
+  */
   static inline void wrunlock(volatile void *ptr)
   {
     my_atomic_rwlock_wrunlock(get_rwlock(ptr));

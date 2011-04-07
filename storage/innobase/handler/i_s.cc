@@ -39,7 +39,7 @@ extern "C" {
 #include "btr0pcur.h"	/* for file sys_tables related info. */
 #include "btr0types.h"
 #include "buf0buddy.h"	/* for i_s_cmpmem */
-#include "buf0buf.h"	/* for buf_pool and PAGE_ZIP_MIN_SIZE */
+#include "buf0buf.h"	/* for buf_pool */
 #include "dict0load.h"	/* for file sys_tables related info. */
 #include "dict0mem.h"
 #include "dict0types.h"
@@ -1371,7 +1371,7 @@ i_s_cmp_fill_low(
 	for (uint i = 0; i < PAGE_ZIP_NUM_SSIZE - 1; i++) {
 		page_zip_stat_t*	zip_stat = &page_zip_stat[i];
 
-		table->field[0]->store(PAGE_ZIP_MIN_SIZE << i);
+		table->field[0]->store(UNIV_ZIP_SIZE_MIN << i);
 
 		/* The cumulated counts are not protected by any
 		mutex.  Thus, some operation in page0zip.c could
@@ -3190,8 +3190,9 @@ i_s_innodb_buffer_page_fill(
 			page_info->data_size));
 
 		OK(fields[IDX_BUFFER_PAGE_ZIP_SIZE]->store(
-			page_info->zip_ssize ?
-				 512 << page_info->zip_ssize : 0));
+			page_info->zip_ssize
+			? (UNIV_ZIP_SIZE_MIN >> 1) << page_info->zip_ssize
+			: 0));
 
 #if BUF_PAGE_STATE_BITS > 3
 # error "BUF_PAGE_STATE_BITS > 3, please ensure that all 1<<BUF_PAGE_STATE_BITS values are checked for"

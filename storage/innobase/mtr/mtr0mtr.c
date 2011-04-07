@@ -37,6 +37,25 @@ Created 11/26/1995 Heikki Tuuri
 
 #ifndef UNIV_HOTBACKUP
 # include "log0recv.h"
+
+/***************************************************//**
+Checks if a mini-transaction is dirtying a clean page.
+@return TRUE if the mtr is dirtying a clean page. */
+UNIV_INTERN
+ibool
+mtr_block_dirtied(
+/*==============*/
+	const buf_block_t*	block)	/*!< in: block being x-fixed */
+{
+	ut_ad(buf_block_get_state(block) == BUF_BLOCK_FILE_PAGE);
+	ut_ad(block->page.buf_fix_count > 0);
+
+	/* It is OK to read oldest_modification because no
+	other thread can be performing a write of it and it
+	is only during write that the value is reset to 0. */
+	return(block->page.oldest_modification == 0);
+}
+
 /*****************************************************************//**
 Releases the item in the slot given. */
 static
@@ -128,7 +147,7 @@ mtr_memo_slot_note_modification(
 	if (slot->object != NULL && slot->type == MTR_MEMO_PAGE_X_FIX) {
 		buf_block_t*	block = (buf_block_t*) slot->object;
 
-		ut_ad(log_flush_order_mutex_own());
+		ut_ad(!mtr->made_dirty || log_flush_order_mutex_own());
 		buf_flush_note_modification(block, mtr);
 	}
 }
@@ -227,7 +246,15 @@ mtr_log_reserve_and_write(
 	mtr->end_lsn = log_close();
 
 func_exit:
-	log_flush_order_mutex_enter();
+
+	/* No need to acquire log_flush_order_mutex if this mtr has
+	not dirtied a clean page. log_flush_order_mutex is used to
+	ensure ordered insertions in the flush_list. We need to
+	insert in the flush_list iff the page in question was clean
+	before modifications. */
+	if (mtr->made_dirty) {
+		log_flush_order_mutex_enter();
+	}
 
 	/* It is now safe to release the log mutex because the
 	flush_order mutex will ensure that we are the first one
@@ -238,7 +265,9 @@ func_exit:
 		mtr_memo_note_modifications(mtr);
 	}
 
-	log_flush_order_mutex_exit();
+	if (mtr->made_dirty) {
+		log_flush_order_mutex_exit();
+	}
 }
 #endif /* !UNIV_HOTBACKUP */
 
@@ -253,6 +282,7 @@ mtr_commit(
 	ut_ad(mtr);
 	ut_ad(mtr->magic_n == MTR_MAGIC_N);
 	ut_ad(mtr->state == MTR_ACTIVE);
+	ut_ad(!mtr->inside_ibuf);
 	ut_d(mtr->state = MTR_COMMITTING);
 
 #ifndef UNIV_HOTBACKUP

@@ -2196,7 +2196,7 @@ void st_select_lex::print_order(String *str,
     }
     else
       (*order->item)->print(str, query_type);
-    if (!order->asc)
+    if (order->direction == ORDER::ORDER_DESC)
       str->append(STRING_WITH_LEN(" desc"));
     if (order->next)
       str->append(',');

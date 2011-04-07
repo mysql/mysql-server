@@ -123,6 +123,57 @@ SELECT * FROM t3;
 source include/check_slave_is_running.inc;
 --echo
 
+#
+# bug#11748510/36524 incident of deadlock on slave is overdramatized
+#
+# Observe that the slave stopped when the number of transation retries 
+# exceeds @@global.slave_transaction_retries
+#
+connection master;
+
+--echo *** Test the deadlock warning to be escalated into the error ***
+
+delete from t1;
+delete from t2;
+delete from t3;
+
+sync_slave_with_master;
+
+# make sure slave's unilateral row gone as well
+delete from t1;
+delete from t2;
+delete from t3;
+
+# the first attempt to run a deadlock scenario of p 1) leads to the error
+set @save.slave_transaction_retries= @@global.slave_transaction_retries;
+set @@global.slave_transaction_retries= 0;
+source include/stop_slave.inc;
+
+connection master;
+
+BEGIN;
+INSERT INTO t1 VALUES (1);
+# We make a long transaction here
+INSERT INTO t2 VALUES (2), (2), (2), (2), (2), (2), (2), (2), (2), (2);
+INSERT INTO t3 VALUES (3);
+COMMIT;
+
+connection slave;
+BEGIN;
+SELECT count(*) as zero FROM t1 FOR UPDATE;
+
+start slave;
+
+--echo *** Now the slave must be stopped due to timeout ***
+
+let $slave_sql_errno= 1205; # ER_LOCK_TIMEOUT
+let $show_slave_sql_error= 0;
+source include/wait_for_slave_sql_error.inc;
+
+rollback;
+
+set @@global.slave_transaction_retries= @save.slave_transaction_retries;
+source include/start_slave.inc;
 # Clean up
 --echo *** Clean up ***
 connection master;
