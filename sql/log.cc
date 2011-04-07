@@ -6936,11 +6936,7 @@ maria_declare_plugin(binlog)
   NULL, /* Plugin Deinit */
   0x0100 /* 1.0 */,
   binlog_status_vars_top,     /* status variables                */
-#ifndef DBUG_OFF
   binlog_sys_vars,            /* system variables                */
-#else
-  NULL,                       /* system variables                */
-#endif
   "1.0",                      /* string version */
   MariaDB_PLUGIN_MATURITY_STABLE /* maturity */
 }
