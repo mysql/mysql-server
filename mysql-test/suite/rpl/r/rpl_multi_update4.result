@@ -1,9 +1,5 @@
-stop slave;
-drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9;
-reset master;
-reset slave;
-drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9;
-start slave;
+include/master-slave.inc
+[connection master]
 drop database if exists d1;
 drop database if exists d2;
 drop database if exists d2;
@@ -23,3 +19,4 @@ id
 0
 drop database d1;
 drop database d2;
+include/rpl_end.inc

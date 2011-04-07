@@ -123,3 +123,5 @@ delete from t1_max;
 drop table mysql.ndb_replication;
 drop table t1_old, `t1_old$EX`, t1_max, `t1_max$EX`, t1_max_delete_win, `t1_max_delete_win$EX`;
 --sync_slave_with_master
+
+--source include/rpl_end.inc

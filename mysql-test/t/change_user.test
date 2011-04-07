@@ -20,7 +20,7 @@ SET @@session.max_join_size = default;
 SELECT @@session.sql_big_selects;
 # On some machines the following will result into a warning
 --disable_warnings
-SET @@global.max_join_size = -1;
+SET @@global.max_join_size = 18446744073709551615;
 --enable_warnings
 SET @@session.max_join_size = default;
 --echo change_user

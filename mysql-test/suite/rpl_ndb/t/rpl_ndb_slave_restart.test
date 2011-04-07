@@ -33,6 +33,7 @@ stop slave;
 
 # restart the slave server
 let $mysqld_name=mysqld.1.slave;
+let $allow_rpl_inited=1;
 --source include/restart_mysqld.inc
 
 # get the master binlog pos from the epoch, from the _other_ "master", server2

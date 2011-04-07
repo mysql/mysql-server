@@ -120,6 +120,6 @@ connection master;
 FLUSH LOGS;
 
 DROP DATABASE mysqltest1;
--- source include/master-slave-end.inc
+--source include/rpl_end.inc
 
 --echo End of 5.1 tests

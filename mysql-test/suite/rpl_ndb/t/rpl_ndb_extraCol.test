@@ -18,4 +18,7 @@ call mtr.add_suppression("Slave: Can't find record in 't9' Error_code: 1032");
 call mtr.add_suppression("Slave: Got error 120 during COMMIT Error_code: 1180");
 -- enable_query_log
 
--- source extra/rpl_tests/rpl_extraSlave_Col.test
+-- source extra/rpl_tests/rpl_extra_col_slave.test
+
+
+--source include/rpl_end.inc

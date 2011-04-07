@@ -66,4 +66,4 @@ select * from t1 order by a;
 --connection master
 drop table t1;
 
--- source include/master-slave-end.inc
+-- source include/rpl_end.inc

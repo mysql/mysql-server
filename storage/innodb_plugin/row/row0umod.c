@@ -114,12 +114,17 @@ row_undo_mod_clust_low(
 	btr_pcur_t*	pcur;
 	btr_cur_t*	btr_cur;
 	ulint		err;
+#ifdef UNIV_DEBUG
 	ibool		success;
+#endif /* UNIV_DEBUG */
 
 	pcur = &(node->pcur);
 	btr_cur = btr_pcur_get_btr_cur(pcur);
 
-	success = btr_pcur_restore_position(mode, pcur, mtr);
+#ifdef UNIV_DEBUG
+	success =
+#endif /* UNIV_DEBUG */
+	btr_pcur_restore_position(mode, pcur, mtr);
 
 	ut_ad(success);
 
@@ -663,19 +668,18 @@ row_undo_mod_upd_exist_sec(
 	while (node->index != NULL) {
 		index = node->index;
 
-		if (row_upd_changes_ord_field_binary(node->row, node->index,
-						     node->update)) {
+		if (row_upd_changes_ord_field_binary(
+			    node->row, node->ext, node->index, node->update)) {
 
 			/* Build the newest version of the index entry */
 			entry = row_build_index_entry(node->row, node->ext,
 						      index, heap);
 			if (UNIV_UNLIKELY(!entry)) {
 				/* The server must have crashed in
-				row_upd_clust_rec_by_insert(), in
-				row_ins_index_entry_low() before
-				btr_store_big_rec_extern_fields()
-				has written the externally stored columns
-				(BLOBs) of the new clustered index entry. */
+				row_upd_clust_rec_by_insert() before
+				the updated externally stored columns (BLOBs)
+				of the new clustered index entry were
+				written. */
 
 				/* The table must be in DYNAMIC or COMPRESSED
 				format.  REDUNDANT and COMPACT formats

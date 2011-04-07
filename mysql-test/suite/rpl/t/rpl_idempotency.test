@@ -37,10 +37,7 @@ SELECT * FROM t2 ORDER BY a;
 sync_slave_with_master;
 SELECT * FROM t1 ORDER BY a;
 SELECT * FROM t2 ORDER BY a;
-let $last_error = query_get_value("SHOW SLAVE STATUS", Last_SQL_Errno, 1);
-disable_query_log;
-eval SELECT "$last_error" AS Last_SQL_Error;
-enable_query_log;
+--source include/check_slave_no_error.inc
 
 # An insert of a row that already exists. Since we are replacing the
 # row if it already exists, the most apropriate representation is
@@ -53,10 +50,7 @@ INSERT IGNORE INTO t1 VALUES (-2);
 SELECT * FROM t1 ORDER BY a;
 sync_slave_with_master;
 SELECT * FROM t1 ORDER BY a;
-let $last_error = query_get_value("SHOW SLAVE STATUS", Last_SQL_Errno, 1);
-disable_query_log;
-eval SELECT "$last_error" AS Last_SQL_Error;
-enable_query_log;
+--source include/check_slave_no_error.inc
 
 # BUG#19958: RBR idempotency issue for UPDATE and DELETE
 
@@ -80,10 +74,7 @@ SELECT * FROM t2 ORDER BY a;
 sync_slave_with_master;
 SELECT * FROM t1 ORDER BY a;
 SELECT * FROM t2 ORDER BY a;
-let $last_error = query_get_value("SHOW SLAVE STATUS", Last_SQL_Errno, 1);
-disable_query_log;
-eval SELECT "$last_error" AS Last_SQL_Error;
-enable_query_log;
+--source include/check_slave_no_error.inc
 
 connection master;
 DROP TABLE t1, t2;
@@ -211,12 +202,9 @@ select * from ti1 order by b /* must be (2),(3) */;
 
 --echo *** slave must stop (Trying to delete a referenced foreing key)
 connection slave;
-source include/wait_for_slave_sql_to_stop.inc;
-
-let $last_error = query_get_value("SHOW SLAVE STATUS", Last_SQL_Errno, 1);
-disable_query_log;
-eval SELECT "$last_error" AS Last_SQL_Error;
-enable_query_log;
+# 1451 = ER_ROW_ID_REFERENCED_2
+--let $slave_sql_errno= 1451
+--source include/wait_for_slave_sql_error.inc
 
 select * from ti1 order by b /* must be (1),(2),(3) - not deleted */;
 set foreign_key_checks= 0;
@@ -245,12 +233,9 @@ insert into ti2 set a=3, b=3 /* offending write event */;
 
 --echo *** slave must stop (Trying to insert an invalid foreign key)
 connection slave;
-source include/wait_for_slave_sql_to_stop.inc;
-
-let $last_error = query_get_value("SHOW SLAVE STATUS", Last_SQL_Errno, 1);
-disable_query_log;
-eval SELECT "$last_error" AS Last_SQL_Error;
-enable_query_log;
+# 1452 = ER_NO_REFERENCED_ROW_2
+--let $slave_sql_errno= 1452
+--source include/wait_for_slave_sql_error.inc
 
 select * from ti2 order by b /* must be (2,2) */;
 set foreign_key_checks= 0;
@@ -284,12 +269,9 @@ insert into ti1 set b=1 /* offending write event */;
 
 --echo *** slave must stop (Trying to insert a dupliacte key)
 connection slave;
-source include/wait_for_slave_sql_to_stop.inc;
-
-let $last_error = query_get_value("SHOW SLAVE STATUS", Last_SQL_Errno, 1);
-disable_query_log;
-eval SELECT "$last_error" AS Last_SQL_Error;
-enable_query_log;
+# 1062 = ER_DUP_ENTRY
+--let $slave_sql_errno= 1062
+--source include/wait_for_slave_sql_error.inc
 
 set foreign_key_checks= 0;
 delete from ti1 where b=1;
@@ -319,12 +301,9 @@ DELETE FROM t1 WHERE a = -2;
 
 --echo *** slave must stop (Key was not found)
 connection slave;
-source include/wait_for_slave_sql_to_stop.inc;
-
-let $last_error = query_get_value("SHOW SLAVE STATUS", Last_SQL_Errno, 1);
-disable_query_log;
-eval SELECT "$last_error" AS Last_SQL_Error;
-enable_query_log;
+# 1032 = ER_KEY_NOT_FOUND
+--let $slave_sql_errno= 1032
+--source include/wait_for_slave_sql_error.inc
 
 set global slave_exec_mode='IDEMPOTENT';
 start slave sql_thread;
@@ -337,12 +316,9 @@ connection master;
 DELETE FROM t2 WHERE a = -2; 
 --echo *** slave must stop (Key was not found)
 connection slave;
-source include/wait_for_slave_sql_to_stop.inc;
-
-let $last_error = query_get_value("SHOW SLAVE STATUS", Last_SQL_Errno, 1);
-disable_query_log;
-eval SELECT "$last_error" AS Last_SQL_Error;
-enable_query_log;
+# 1032 = ER_KEY_NOT_FOUND
+--let $slave_sql_errno= 1032
+source include/wait_for_slave_sql_error.inc;
 
 set global slave_exec_mode='IDEMPOTENT';
 start slave sql_thread;
@@ -359,12 +335,9 @@ UPDATE t1 SET a = 1 WHERE a = -1;
 
 --echo *** slave must stop (Key was not found)
 connection slave;
-source include/wait_for_slave_sql_to_stop.inc;
-
-let $last_error = query_get_value("SHOW SLAVE STATUS", Last_SQL_Errno, 1);
-disable_query_log;
-eval SELECT "$last_error" AS Last_SQL_Error;
-enable_query_log;
+# 1032 = ER_KEY_NOT_FOUND
+--let $slave_sql_errno= 1032
+source include/wait_for_slave_sql_error.inc;
 
 set global slave_exec_mode='IDEMPOTENT';
 start slave sql_thread;
@@ -379,12 +352,9 @@ UPDATE t2 SET a = 1 WHERE a = -1;
 
 --echo *** slave must stop (Key was not found)
 connection slave;
-source include/wait_for_slave_sql_to_stop.inc;
-
-let $last_error = query_get_value("SHOW SLAVE STATUS", Last_SQL_Errno, 1);
-disable_query_log;
-eval SELECT "$last_error" AS Last_SQL_Error;
-enable_query_log;
+# 1032 = ER_KEY_NOT_FOUND
+--let $slave_sql_errno= 1032
+source include/wait_for_slave_sql_error.inc;
 
 set global slave_exec_mode='IDEMPOTENT';
 start slave sql_thread;
@@ -399,6 +369,6 @@ connection master;
 set @@session.binlog_format= @save_binlog_format;
 drop table t1,t2,ti2,ti1;
 
---source include/master-slave-end.inc
+--source include/rpl_end.inc
 
 --echo *** end of tests

@@ -1,9 +1,5 @@
-stop slave;
-drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9;
-reset master;
-reset slave;
-drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9;
-start slave;
+include/master-slave.inc
+[connection master]
 *** Test 1 ********************************************************
 * test native NDB$MAX_DELETE_WIN() conflict resolution
 * test with both allowed "conflict column" types, uint32 and uint64
@@ -913,3 +909,4 @@ a	b	c	d
 3	Master t2 a=3 at c=13	13	111222333
 drop table t1, t2;
 *** test cleanup
+include/rpl_end.inc

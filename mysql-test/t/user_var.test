@@ -346,4 +346,23 @@ FROM t1 GROUP BY a LIMIT 1;
 
 DROP TABLE t1;
 
+#
+# BUG#56138 "valgrind errors about overlapping memory when
+# double-assigning same variable"
+#
+
+select @v:=@v:=sum(1) from dual;
+
+#
+# Bug #57187: more user variable fun with multiple assignments and
+#             comparison in query
+#
+
+CREATE TABLE t1(a DECIMAL(31,21));
+INSERT INTO t1 VALUES (0);
+
+SELECT (@v:=a) <> (@v:=1) FROM t1;
+
+DROP TABLE t1;
+
 --echo End of 5.1 tests

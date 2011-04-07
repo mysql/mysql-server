@@ -1,9 +1,5 @@
-stop slave;
-drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9;
-reset master;
-reset slave;
-drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9;
-start slave;
+include/master-slave.inc
+[connection master]
 call mtr.add_suppression("Slave: Unknown table 't6' Error_code: 1051");
 **** Diff Table Def Start ****
 *** On Slave ***
@@ -57,6 +53,7 @@ a	b	c
 3	4	QA TESTING
 *** Start Slave ***
 START SLAVE;
+include/wait_for_slave_sql_to_stop.inc
 SHOW SLAVE STATUS;
 Slave_IO_State	#
 Master_Host	127.0.0.1
@@ -127,6 +124,7 @@ INSERT INTO t3 () VALUES(@b1,2,'Kyle, TEX'),(@b1,1,'JOE AUSTIN'),(@b1,4,'QA TEST
 ********************************************
 *** Expect slave to fail with Error 1522 ***
 ********************************************
+include/wait_for_slave_sql_to_stop.inc
 SHOW SLAVE STATUS;
 Slave_IO_State	#
 Master_Host	127.0.0.1
@@ -192,6 +190,7 @@ INSERT INTO t4 () VALUES(100.22,2,'Kyle, TEX'),(200.26,1,'JOE AUSTIN'),
 ********************************************
 *** Expect slave to fail with Error 1522 ***
 ********************************************
+include/wait_for_slave_sql_to_stop.inc
 SHOW SLAVE STATUS;
 Slave_IO_State	#
 Master_Host	127.0.0.1
@@ -257,6 +256,7 @@ INSERT INTO t5 () VALUES(1,'Kyle',200.23,1,'b1b1',23.00098),
 ********************************************
 *** Expect slave to fail with Error 1522 ***
 ********************************************
+include/wait_for_slave_sql_to_stop.inc
 SHOW SLAVE STATUS;
 Slave_IO_State	#
 Master_Host	127.0.0.1
@@ -321,6 +321,7 @@ INSERT INTO t6 () VALUES(1,'Kyle',200.23,1),
 ********************************************
 *** Expect slave to fail with Error 1522 ***
 ********************************************
+include/wait_for_slave_sql_to_stop.inc
 SHOW SLAVE STATUS;
 Slave_IO_State	#
 Master_Host	127.0.0.1
@@ -433,13 +434,13 @@ START SLAVE;
 set @b1 = 'b1b1b1b1';
 set @b1 = concat(@b1,@b1);
 INSERT INTO t9 () VALUES(1,@b1,'Kyle'),(2,@b1,'JOE'),(3,@b1,'QA');
-Last_SQL_Errno=0
+include/wait_for_slave_sql_to_stop.inc
+Last_SQL_Errno=1032
 Last_SQL_Error
-
+Error 'Can't find record in 't9'' on query. Default database: ''. Query: 'COMMIT'
 STOP SLAVE;
 SET GLOBAL SQL_SLAVE_SKIP_COUNTER=2;
 START SLAVE;
-*** Drop t9  ***
 DROP TABLE t9;
 *** Create t10 on slave  ***
 STOP SLAVE;
@@ -459,6 +460,7 @@ INSERT INTO t10 () VALUES(1,@b1,'Kyle'),(2,@b1,'JOE'),(3,@b1,'QA');
 ********************************************
 *** Expect slave to fail with Error 1522 ***
 ********************************************
+include/wait_for_slave_sql_to_stop.inc
 SHOW SLAVE STATUS;
 Slave_IO_State	#
 Master_Host	127.0.0.1
@@ -523,6 +525,7 @@ INSERT INTO t11 () VALUES(1,@b1,'Kyle'),(2,@b1,'JOE'),(3,@b1,'QA');
 ********************************************
 *** Expect slave to fail with Error 1522 ***
 ********************************************
+include/wait_for_slave_sql_to_stop.inc
 SHOW SLAVE STATUS;
 Slave_IO_State	#
 Master_Host	127.0.0.1
@@ -723,6 +726,7 @@ c1	c4	c5	c6	c7
 4	b1b1b1b1b1b1b1b1	NULL	NULL	CURRENT_TIMESTAMP
 5	b1b1b1b1b1b1b1b1	NULL	NULL	CURRENT_TIMESTAMP
 6	b1b1b1b1b1b1b1b1	NULL	NULL	CURRENT_TIMESTAMP
+DROP TABLE t14a;
 *** connect to master and drop columns ***
 ALTER TABLE t14 DROP COLUMN c2;
 ALTER TABLE t14 DROP COLUMN c4;
@@ -776,6 +780,7 @@ ALTER TABLE t15 ADD COLUMN c6 INT AFTER c5;
 ********************************************
 *** Expect slave to fail with Error 1060 ***
 ********************************************
+include/wait_for_slave_sql_to_stop.inc
 SHOW SLAVE STATUS;
 Slave_IO_State	#
 Master_Host	127.0.0.1
@@ -919,6 +924,7 @@ INSERT INTO t17 () VALUES(9223372036854775807,2,'Kyle, TEX');
 ********************************************
 *** Expect slave to fail with Error 1522 ***
 ********************************************
+include/wait_for_slave_sql_to_stop.inc
 SHOW SLAVE STATUS;
 Slave_IO_State	#
 Master_Host	127.0.0.1
@@ -965,3 +971,4 @@ SET GLOBAL SQL_SLAVE_SKIP_COUNTER=2;
 START SLAVE;
 ** DROP table t17 ***
 DROP TABLE t17;
+include/rpl_end.inc

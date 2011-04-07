@@ -1,8 +1,8 @@
 ==== Setup tables ====
 CREATE TABLE t1 (a INT);
-CREATE TABLE t2 (a CHAR(40));
+CREATE TABLE t2 (a TEXT);
 CREATE TABLE t3 (a INT AUTO_INCREMENT PRIMARY KEY);
-CREATE TABLE trigger_table (a CHAR(7));
+CREATE TABLE trigger_table (a TEXT);
 CREATE TABLE trigger_table2 (a INT);
 ==== Non-deterministic statements ====
 INSERT DELAYED INTO t1 VALUES (5);
@@ -271,7 +271,7 @@ INSERT INTO t1 SELECT * FROM t2 LIMIT 1;
 DROP TABLE t1,t2;
 "Should NOT have any warning message issued in the following func7() and trig"
 CREATE TABLE t1 (a INT);
-CREATE TABLE t2 (a CHAR(40));
+CREATE TABLE t2 (a TEXT);
 CREATE TABLE trigger_table (a CHAR(7));
 CREATE FUNCTION func7()
 RETURNS INT

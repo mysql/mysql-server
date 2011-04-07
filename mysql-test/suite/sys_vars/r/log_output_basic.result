@@ -1,7 +1,7 @@
 SET @start_value = @@global.log_output;
 SELECT @start_value;
 @start_value
-FILE,TABLE
+FILE
 '#--------------------FN_DYNVARS_065_01------------------------#'
 SET @@global.log_output = FILE;
 SET @@global.log_output = DEFAULT;
@@ -172,4 +172,4 @@ TABLE
 SET @@global.log_output = @start_value;
 SELECT @@global.log_output;
 @@global.log_output
-FILE,TABLE
+FILE

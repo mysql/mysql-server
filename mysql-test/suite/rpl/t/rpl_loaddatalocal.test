@@ -168,3 +168,4 @@ SET SESSION sql_mode=@old_mode;
 sync_slave_with_master;
 
 connection master;
+--source include/rpl_end.inc

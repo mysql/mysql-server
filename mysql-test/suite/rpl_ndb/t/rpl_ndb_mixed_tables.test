@@ -316,28 +316,22 @@ SELECT * FROM ndb_myisam    ORDER BY a;
 SELECT * FROM innodb_ndb    ORDER BY a;
 SELECT * FROM ndb_innodb    ORDER BY a;
 
-let $diff_table_1=master:test.myisam_innodb;
-let $diff_table_2=slave:test.myisam_innodb;
+let $diff_tables= master:myisam_innodb, slave:myisam_innodb;
 source include/diff_tables.inc;
 
-let $diff_table_1=master:test.innodb_myisam;
-let $diff_table_2=slave:test.innodb_myisam;
+let $diff_tables= master:innodb_myisam, slave:innodb_myisam;
 source include/diff_tables.inc;
 
-let $diff_table_1=master:test.myisam_ndb;
-let $diff_table_2=slave:test.myisam_ndb;
+let $diff_tables= master:myisam_ndb, slave:myisam_ndb;
 source include/diff_tables.inc;
 
-let $diff_table_1=master:test.ndb_myisam;
-let $diff_table_2=slave:test.ndb_myisam;
+let $diff_tables= master:ndb_myisam, slave:ndb_myisam;
 source include/diff_tables.inc;
 
-let $diff_table_1=master:test.innodb_ndb;
-let $diff_table_2=slave:test.innodb_ndb;
+let $diff_tables= master:innodb_ndb, slave:innodb_ndb;
 source include/diff_tables.inc;
 
-let $diff_table_1=master:test.ndb_innodb;
-let $diff_table_2=slave:test.ndb_innodb;
+let $diff_tables= master:ndb_innodb, slave:ndb_innodb;
 source include/diff_tables.inc;
 
 
@@ -347,3 +341,4 @@ drop table myisam_innodb, innodb_myisam;
 drop table myisam_ndb, ndb_myisam;
 drop table innodb_ndb, ndb_innodb;
 sync_slave_with_master;
+--source include/rpl_end.inc

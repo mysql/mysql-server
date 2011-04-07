@@ -1,9 +1,0 @@
-create table ABC (i int) engine=ibmdb2i;
-insert into ABC values(1);
-create table abc (i int) engine=ibmdb2i;
-insert into abc values (2);
-select * from ABC;
-i
-1
-drop table ABC;
-drop table abc;

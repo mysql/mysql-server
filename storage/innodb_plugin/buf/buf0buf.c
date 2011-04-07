@@ -375,7 +375,7 @@ buf_page_is_corrupted(
 				"you may have copied the InnoDB\n"
 				"InnoDB: tablespace but not the InnoDB "
 				"log files. See\n"
-				"InnoDB: " REFMAN "forcing-recovery.html\n"
+				"InnoDB: " REFMAN "forcing-innodb-recovery.html\n"
 				"InnoDB: for more information.\n",
 				(ulong) mach_read_from_4(read_buf
 							 + FIL_PAGE_OFFSET),
@@ -2286,6 +2286,30 @@ wait_until_unfixed:
 	bytes. */
 	UNIV_MEM_ASSERT_RW(&block->page, sizeof block->page);
 #endif
+#if defined UNIV_DEBUG || defined UNIV_IBUF_DEBUG
+	if (mode == BUF_GET_IF_IN_POOL && ibuf_debug) {
+		/* Try to evict the block from the buffer pool, to use the
+		insert buffer as much as possible. */
+
+		if (buf_LRU_free_block(&block->page, TRUE, NULL)
+		    == BUF_LRU_FREED) {
+			buf_pool_mutex_exit();
+			mutex_exit(&block->mutex);
+			fprintf(stderr,
+				"innodb_change_buffering_debug evict %u %u\n",
+				(unsigned) space, (unsigned) offset);
+			return(NULL);
+		} else if (buf_flush_page_try(block)) {
+			fprintf(stderr,
+				"innodb_change_buffering_debug flush %u %u\n",
+				(unsigned) space, (unsigned) offset);
+			guess = block;
+			goto loop;
+		}
+
+		/* Failed to evict the page; change it directly */
+	}
+#endif /* UNIV_DEBUG || UNIV_IBUF_DEBUG */
 
 	buf_block_buf_fix_inc(block, file, line);
 
@@ -3216,7 +3240,7 @@ corrupt:
 			      "InnoDB: TABLE to scan your"
 			      " table for corruption.\n"
 			      "InnoDB: See also "
-			      REFMAN "forcing-recovery.html\n"
+			      REFMAN "forcing-innodb-recovery.html\n"
 			      "InnoDB: about forcing recovery.\n", stderr);
 
 			if (srv_force_recovery < SRV_FORCE_IGNORE_CORRUPT) {
