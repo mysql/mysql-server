@@ -82,4 +82,4 @@ drop datafile 'datafile02.dat'
 engine=ndb;
 DROP TABLESPACE ts1 ENGINE=NDB;
 DROP LOGFILE GROUP lg1 ENGINE=NDB;
--- source include/master-slave-end.inc
+--source include/rpl_end.inc

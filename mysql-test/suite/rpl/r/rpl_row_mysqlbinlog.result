@@ -1,9 +1,5 @@
-stop slave;
-drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9;
-reset master;
-reset slave;
-drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9;
-start slave;
+include/master-slave.inc
+[connection master]
 
 ---Setup Section  --
 set timestamp=1000000000;
@@ -380,3 +376,4 @@ a	b
 1	1
 FLUSH LOGS;
 DROP TABLE IF EXISTS t1, t2, t3, t04, t05, t4, t5;
+include/rpl_end.inc

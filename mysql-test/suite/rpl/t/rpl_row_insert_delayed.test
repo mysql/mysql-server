@@ -12,3 +12,4 @@ set @@global.binlog_format = row;
 
 connection master;
 set @@global.binlog_format = @old_global_binlog_format;
+--source include/rpl_end.inc

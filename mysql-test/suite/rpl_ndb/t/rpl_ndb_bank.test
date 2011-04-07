@@ -179,3 +179,4 @@ diff_files $MYSQLTEST_VARDIR/tmp/master_BANK.sql $MYSQLTEST_VARDIR/tmp/slave_BAN
 
   --dec $2
 }
+--source include/rpl_end.inc

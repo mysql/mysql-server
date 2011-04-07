@@ -1,0 +1,48 @@
+# ==== Purpose ====
+#
+# Unknown.
+#
+# ==== Notes ====
+#
+# This test uses the -slave.opt file to start the slave with
+# --skip-slave-start.
+
+--source include/not_windows.inc
+
+--let $rpl_skip_start_slave= 1
+--source include/master-slave.inc
+
+--connection slave
+--let $slave_datadir= `SELECT @@datadir`
+
+--remove_file $slave_datadir/master.info
+--write_file $slave_datadir/master.info
+master-bin.000001
+4
+127.0.0.1
+replicate
+aaaaaaaaaaaaaaab
+$MASTER_MYPORT
+1
+0
+EOF
+
+connection master;
+grant replication slave on *.* to replicate@localhost identified by 'aaaaaaaaaaaaaaab';
+grant replication slave on *.* to replicate@127.0.0.1 identified by 'aaaaaaaaaaaaaaab';
+connection slave;
+--source include/start_slave.inc
+
+connection master;
+create table t1(n int);
+insert into t1 values(24);
+sync_slave_with_master;
+select * from t1;
+connection master;
+drop table t1;
+delete from mysql.user where user="replicate";
+
+# End of 4.1 tests
+--source include/rpl_end.inc
+
+--source include/force_restart.inc

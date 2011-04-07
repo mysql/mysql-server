@@ -450,4 +450,10 @@ DROP TABLE t1;
 select @v:=@v:=sum(1) from dual;
 @v:=@v:=sum(1)
 1
+CREATE TABLE t1(a DECIMAL(31,21));
+INSERT INTO t1 VALUES (0);
+SELECT (@v:=a) <> (@v:=1) FROM t1;
+(@v:=a) <> (@v:=1)
+1
+DROP TABLE t1;
 End of 5.1 tests

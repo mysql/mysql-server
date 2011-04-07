@@ -43,3 +43,5 @@ use test;
 drop table t3;
 
 --sync_slave_with_master slave
+
+--source include/rpl_end.inc
