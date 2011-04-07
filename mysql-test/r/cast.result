@@ -455,6 +455,8 @@ DROP TABLE t1;
 # Bug #11765023: 57934: DOS POSSIBLE SINCE BINARY CASTING 
 #   DOESN'T ADHERE TO MAX_ALLOWED_PACKET
 SET @@GLOBAL.max_allowed_packet=2048;
+Warnings:
+Warning	1708	The value of 'max_allowed_packet' should be no less than the value of 'net_buffer_length'
 SELECT CONVERT('a', BINARY(2049));
 CONVERT('a', BINARY(2049))
 NULL
