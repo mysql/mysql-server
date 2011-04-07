@@ -343,7 +343,7 @@ static int load_table()
   size_t op = 0;
   size_t rows = 0;
   size_t uncommitted = 0;
-  bool prepared = false;
+  //bool prepared = false;
   for(size_t i = 0; i<(size_t)g_rows; i++){
     for(op %= OP_COUNT; !((1 << op) & g_use_ops); op = (op + 1) % OP_COUNT);
     g_ops[i] = g_op_types[op++];

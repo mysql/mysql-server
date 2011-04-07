@@ -1270,7 +1270,7 @@ void
 TransporterRegistry::consume_extra_sockets()
 {
   char buf[4096];
-  int ret;
+  ssize_t ret;
   int err;
   NDB_SOCKET_TYPE sock = m_extra_wakeup_sockets[0];
   do
