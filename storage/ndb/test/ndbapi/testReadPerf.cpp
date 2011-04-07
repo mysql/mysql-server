@@ -138,7 +138,7 @@ main(int argc, const char** argv){
   for(i = optind; i<argc; i++){
     const char * T = argv[i];
     g_info << "Testing " << T << endl;
-    BaseString::snprintf(g_table, sizeof(g_table), T);
+    BaseString::snprintf(g_table, sizeof(g_table), "%s", T);
     BaseString::snprintf(g_ordered, sizeof(g_ordered), "IDX_O_%s", T);
     BaseString::snprintf(g_unique, sizeof(g_unique), "IDX_U_%s", T);
     if(create_table())
@@ -254,9 +254,9 @@ void err(NdbError e){
 
 int
 run_read(){
-  int iter = g_paramters[P_LOOPS].value;
+  //int iter = g_paramters[P_LOOPS].value;
   NDB_TICKS start1, stop;
-  int sum_time= 0;
+  //int sum_time= 0;
   
   const Uint32 rows = g_paramters[P_ROWS].value;
   const Uint32 range = g_paramters[P_RANGE].value;

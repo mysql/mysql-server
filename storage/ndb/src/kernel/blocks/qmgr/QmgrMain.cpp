@@ -1117,7 +1117,7 @@ retry:
 		       "I think president is: %d",
 		       nodeId, president, cpresident);
 
-  ndbout_c(buf);
+  ndbout_c("%s", buf);
   CRASH_INSERTION(933);
 
   if (getNodeState().startLevel == NodeState::SL_STARTED)
@@ -2791,7 +2791,7 @@ void Qmgr::checkStartInterface(Signal* signal, Uint64 now)
                                nodePtr.i, 
                                (getNodeInfo(nodePtr.i).m_heartbeat_cnt + 1)/60,
                                nodePtr.p->failState);
-	  warningEvent(buf);
+	  warningEvent("%s", buf);
           if (((getNodeInfo(nodePtr.i).m_heartbeat_cnt + 1) % 300) == 0)
           {
             jam();
@@ -5772,7 +5772,7 @@ Qmgr::execDUMP_STATE_ORD(Signal* signal)
         sprintf(buf, "Node %d: <UNKNOWN>(%d)", i, nodePtr.p->phase);
         break;
       }
-      infoEvent(buf);
+      infoEvent("%s", buf);
     }
   }
 

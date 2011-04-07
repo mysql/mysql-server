@@ -757,7 +757,7 @@ void getTextUNDORecordsExecuted(QQQQ) {
 		       theData[11]);
 }
 void getTextInfoEvent(QQQQ) {
-  BaseString::snprintf(m_text, m_text_len, (char *)&theData[1]);
+  BaseString::snprintf(m_text, m_text_len, "%s", (char *)&theData[1]);
 }
 const char bytes_unit[]= "B";
 const char kbytes_unit[]= "KB";
@@ -797,7 +797,7 @@ void getTextEventBufferStatus(QQQQ) {
 		       theData[7], theData[6]);
 }
 void getTextWarningEvent(QQQQ) {
-  BaseString::snprintf(m_text, m_text_len, (char *)&theData[1]);
+  BaseString::snprintf(m_text, m_text_len, "%s", (char *)&theData[1]);
 }
 void getTextGCP_TakeoverStarted(QQQQ) {
   BaseString::snprintf(m_text, m_text_len, "GCP Take over started");
@@ -1393,25 +1393,25 @@ EventLogger::log(int eventType, const Uint32* theData, Uint32 len,
 
     switch (severity){
     case Logger::LL_ALERT:
-      alert(log_text);
+      alert("%s", log_text);
       break;
     case Logger::LL_CRITICAL:
-      critical(log_text); 
+      critical("%s", log_text);
       break;
     case Logger::LL_WARNING:
-      warning(log_text); 
+      warning("%s", log_text);
       break;
     case Logger::LL_ERROR:
-      error(log_text); 
+      error("%s", log_text);
       break;
     case Logger::LL_INFO:
-      info(log_text); 
+      info("%s", log_text);
       break;
     case Logger::LL_DEBUG:
-      debug(log_text); 
+      debug("%s", log_text);
       break;
     default:
-      info(log_text); 
+      info("%s", log_text);
       break;
     }
   } // if (..

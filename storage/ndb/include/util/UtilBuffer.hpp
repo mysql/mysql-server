@@ -89,7 +89,7 @@ public:
     len = 0;
   }
 
-  int length() const { return len; }
+  int length() const { assert(Uint64(len) == Uint32(len)); return (int)len; }
 
   void *get_data() const { return data; }
 
