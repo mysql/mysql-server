@@ -549,7 +549,9 @@ sub run_test_server ($$$) {
   my $s= IO::Select->new();
   $s->add($server);
   while (1) {
+    mark_time_used('admin');
     my @ready = $s->can_read(1); # Wake up once every second
+    mark_time_idle();
     foreach my $sock (@ready) {
       if ($sock == $server) {
 	# New client connected
@@ -891,7 +893,7 @@ sub run_worker ($) {
       if ( $opt_gprof ) {
 	gprof_collect (find_mysqld($basedir), keys %gprof_dirs);
       }
-      mark_time_used('init');
+      mark_time_used('admin');
       print_times_used($server, $thread_num);
       exit($valgrind_reports);
     }
@@ -3775,7 +3777,7 @@ sub run_testcase ($) {
 
   do_before_run_mysqltest($tinfo);
 
-  mark_time_used('init');
+  mark_time_used('admin');
 
   if ( $opt_check_testcases and check_testcase($tinfo, "before") ){
     # Failed to record state of server or server crashed
@@ -5248,7 +5250,7 @@ sub start_mysqltest ($) {
   my $exe= $exe_mysqltest;
   my $args;
 
-  mark_time_used('init');
+  mark_time_used('admin');
 
   mtr_init_args(\$args);
 
