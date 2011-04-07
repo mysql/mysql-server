@@ -4900,7 +4900,12 @@ bool MYSQL_BIN_LOG::write(Log_event *event_info)
     if ((thd && !(thd->variables.option_bits & OPTION_BIN_LOG)) ||
 	(thd->lex->sql_command != SQLCOM_ROLLBACK_TO_SAVEPOINT &&
          thd->lex->sql_command != SQLCOM_SAVEPOINT &&
+#ifndef MCP_BUG11799583
+         ((event_info->flags & LOG_EVENT_NO_FILTER_F) == 0 &&
+          !binlog_filter->db_ok(local_db))))
+#else
          !binlog_filter->db_ok(local_db)))
+#endif
       DBUG_RETURN(0);
 #endif /* HAVE_REPLICATION */
 

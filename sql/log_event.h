@@ -4003,7 +4003,11 @@ class Incident_log_event : public Log_event {
 public:
 #ifdef MYSQL_SERVER
   Incident_log_event(THD *thd_arg, Incident incident)
+#ifndef MCP_BUG11799583
+    : Log_event(thd_arg, LOG_EVENT_NO_FILTER_F, FALSE), m_incident(incident)
+#else
     : Log_event(thd_arg, 0, FALSE), m_incident(incident)
+#endif
   {
     DBUG_ENTER("Incident_log_event::Incident_log_event");
     DBUG_PRINT("enter", ("m_incident: %d", m_incident));
@@ -4014,7 +4018,11 @@ public:
   }
 
   Incident_log_event(THD *thd_arg, Incident incident, LEX_STRING const msg)
+#ifndef MCP_BUG11799583
+    : Log_event(thd_arg, LOG_EVENT_NO_FILTER_F, FALSE), m_incident(incident)
+#else
     : Log_event(thd_arg, 0, FALSE), m_incident(incident)
+#endif
   {
     DBUG_ENTER("Incident_log_event::Incident_log_event");
     DBUG_PRINT("enter", ("m_incident: %d", m_incident));
