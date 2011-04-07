@@ -430,11 +430,16 @@ MgmApiSession::runSession()
 
       if (msg){
         g_eventLogger->debug("%s: %s, '%s'",
-                             name(), msg, ctx.m_currentToken);
+                             name(),
+                             msg,
+                             ctx.m_currentToken != 0 ?
+                             ctx.m_currentToken : "<NULL>");
 
         // Send result to client
         m_output->println("result: %s, '%s'",
-                          msg, ctx.m_currentToken);
+                          msg,
+                          ctx.m_currentToken != 0 ?
+                          ctx.m_currentToken : "<NULL>");
         m_output->print("\n");
       }
     }
