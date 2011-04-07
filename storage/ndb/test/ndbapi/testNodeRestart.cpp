@@ -2344,10 +2344,10 @@ runDropBigTable(NDBT_Context* ctx, NDBT_Step* step)
 int
 runBug31525(NDBT_Context* ctx, NDBT_Step* step)
 {
-  int result = NDBT_OK;
-  int loops = ctx->getNumLoops();
-  int records = ctx->getNumRecords();
-  Ndb* pNdb = GETNDB(step);
+  //int result = NDBT_OK;
+  //int loops = ctx->getNumLoops();
+  //int records = ctx->getNumRecords();
+  //Ndb* pNdb = GETNDB(step);
   NdbRestarter res;
 
   if (res.getNumDbNodes() < 2)
@@ -2418,9 +2418,9 @@ runBug31525(NDBT_Context* ctx, NDBT_Step* step)
 int
 runBug31980(NDBT_Context* ctx, NDBT_Step* step)
 {
-  int result = NDBT_OK;
-  int loops = ctx->getNumLoops();
-  int records = ctx->getNumRecords();
+  //int result = NDBT_OK;
+  //int loops = ctx->getNumLoops();
+  //int records = ctx->getNumRecords();
   Ndb* pNdb = GETNDB(step);
   NdbRestarter res;
 
@@ -2470,10 +2470,10 @@ runBug31980(NDBT_Context* ctx, NDBT_Step* step)
 int
 runBug32160(NDBT_Context* ctx, NDBT_Step* step)
 {
-  int result = NDBT_OK;
-  int loops = ctx->getNumLoops();
-  int records = ctx->getNumRecords();
-  Ndb* pNdb = GETNDB(step);
+  //int result = NDBT_OK;
+  //int loops = ctx->getNumLoops();
+  //int records = ctx->getNumRecords();
+  //Ndb* pNdb = GETNDB(step);
   NdbRestarter res;
 
   if (res.getNumDbNodes() < 2)
@@ -2515,10 +2515,10 @@ runBug32160(NDBT_Context* ctx, NDBT_Step* step)
 int
 runBug32922(NDBT_Context* ctx, NDBT_Step* step)
 {
-  int result = NDBT_OK;
+  //int result = NDBT_OK;
   int loops = ctx->getNumLoops();
-  int records = ctx->getNumRecords();
-  Ndb* pNdb = GETNDB(step);
+  //int records = ctx->getNumRecords();
+  //Ndb* pNdb = GETNDB(step);
   NdbRestarter res;
 
   if (res.getNumDbNodes() < 2)
@@ -2744,10 +2744,10 @@ runNF_commit(NDBT_Context* ctx, NDBT_Step* step)
 int
 runBug34702(NDBT_Context* ctx, NDBT_Step* step)
 {
-  int result = NDBT_OK;
+  //int result = NDBT_OK;
   int loops = ctx->getNumLoops();
-  int records = ctx->getNumRecords();
-  Ndb* pNdb = GETNDB(step);
+  //int records = ctx->getNumRecords();
+  //Ndb* pNdb = GETNDB(step);
   NdbRestarter res;
 
   if (res.getNumDbNodes() < 2)
@@ -2780,7 +2780,7 @@ runBug34702(NDBT_Context* ctx, NDBT_Step* step)
 int
 runMNF(NDBT_Context* ctx, NDBT_Step* step)
 {
-  int result = NDBT_OK;
+  //int result = NDBT_OK;
   NdbRestarter res;
   
   if (res.getNumDbNodes() < 2)
@@ -2981,8 +2981,8 @@ runMNF(NDBT_Context* ctx, NDBT_Step* step)
 int 
 runBug36199(NDBT_Context* ctx, NDBT_Step* step)
 {
-  int result = NDBT_OK;
-  int loops = ctx->getNumLoops();
+  //int result = NDBT_OK;
+  //int loops = ctx->getNumLoops();
   NdbRestarter res;
 
   if (res.getNumDbNodes() < 4)
@@ -3030,8 +3030,8 @@ runBug36199(NDBT_Context* ctx, NDBT_Step* step)
 int 
 runBug36246(NDBT_Context* ctx, NDBT_Step* step)
 { 
-  int result = NDBT_OK;
-  int loops = ctx->getNumLoops();
+  //int result = NDBT_OK;
+  //int loops = ctx->getNumLoops();
   NdbRestarter res;
   Ndb* pNdb = GETNDB(step);
 
@@ -3118,8 +3118,8 @@ loop:
 int 
 runBug36247(NDBT_Context* ctx, NDBT_Step* step)
 { 
-  int result = NDBT_OK;
-  int loops = ctx->getNumLoops();
+  //int result = NDBT_OK;
+  //int loops = ctx->getNumLoops();
   NdbRestarter res;
   Ndb* pNdb = GETNDB(step);
 
@@ -3212,10 +3212,10 @@ loop:
 int 
 runBug36276(NDBT_Context* ctx, NDBT_Step* step)
 { 
-  int result = NDBT_OK;
-  int loops = ctx->getNumLoops();
+  //int result = NDBT_OK;
+  //int loops = ctx->getNumLoops();
   NdbRestarter res;
-  Ndb* pNdb = GETNDB(step);
+  //Ndb* pNdb = GETNDB(step);
   
   if (res.getNumDbNodes() < 4)
     return NDBT_OK;
@@ -3257,8 +3257,8 @@ runBug36276(NDBT_Context* ctx, NDBT_Step* step)
 int 
 runBug36245(NDBT_Context* ctx, NDBT_Step* step)
 { 
-  int result = NDBT_OK;
-  int loops = ctx->getNumLoops();
+  //int result = NDBT_OK;
+  //int loops = ctx->getNumLoops();
   NdbRestarter res;
   Ndb* pNdb = GETNDB(step);
 
@@ -3767,10 +3767,10 @@ runBug44952(NDBT_Context* ctx, NDBT_Step* step)
 
   const int codes [] = {
     5051, 5052, 5053, 0
-  };
+  }; (void)codes;
 
-  int randomId = myRandom48(res.getNumDbNodes());
-  int nodeId = res.getDbNodeId(randomId);
+  //int randomId = myRandom48(res.getNumDbNodes());
+  //int nodeId = res.getDbNodeId(randomId);
 
   int loops = ctx->getNumLoops();
   const int val[] = { DumpStateOrd::CmvmiSetRestartOnErrorInsert, 1 } ;
