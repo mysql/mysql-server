@@ -30,7 +30,7 @@ extern "C" {
 #include <thr_lock.h>
 #endif
 
-#include "my_handler.h"
+#include "my_compare.h"
 #include "my_tree.h"
 
 	/* defines used by heap-funktions */
