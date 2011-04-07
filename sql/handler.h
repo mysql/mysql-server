@@ -29,7 +29,7 @@
 #include "sql_cache.h"
 #include "structs.h"                            /* SHOW_COMP_OPTION */
 
-#include <my_handler.h>
+#include <my_compare.h>
 #include <ft_global.h>
 #include <keycache.h>
 
