@@ -129,3 +129,7 @@ btr/btr0cur.c : .*
 
 # newly introduce windows warning (5.1.53) bug#56423
 sql_update.cc : conversion from '__int64' to 'uchar'.*
+
+# newly introduced windows warning (5.1.56) bug#57450
+readline.cc : input_file_stat' : unreferenced local variable
+
