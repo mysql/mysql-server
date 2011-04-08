@@ -6479,7 +6479,7 @@ void Item_ref::print(String *str, enum_query_type query_type)
     {
       THD *thd= current_thd;
       append_identifier(thd, str, (*ref)->real_item()->name,
-                        (*ref)->real_item()->name_length);
+                        strlen((*ref)->real_item()->name));
     }
     else
       (*ref)->print(str, query_type);
