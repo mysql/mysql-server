@@ -1,4 +1,4 @@
-call mtr.add_suppression("./test/t1_will_crash");
+call mtr.add_suppression("t1_will_crash");
 call mtr.add_suppression("Got an error from unknown thread, ha_myisam.cc");
 CREATE TABLE t1_will_crash (a INT, KEY (a)) ENGINE=MyISAM;
 INSERT INTO t1_will_crash VALUES (1), (2), (3), (4), (5), (6), (7), (8), (9), (10), (11);
