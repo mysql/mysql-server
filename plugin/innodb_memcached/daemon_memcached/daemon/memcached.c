@@ -6656,13 +6656,17 @@ static bool sanitycheck(void) {
     return true;
 }
 
-static char* my_strdupl(const char* str, int len)
+static
+char*
+my_strdupl(const char* str, int len)
 {
         char*   s = (char*) malloc(len + 1);
         s[len] = 0;
         return((char*) memcpy(s, str, len));
 }
 
+/** Function that messages MySQL config variable string to something
+that can be parsed by getopt() */
 static
 void
 daemon_memcached_make_option(char* option, int* option_argc,
@@ -6704,6 +6708,13 @@ daemon_memcached_make_option(char* option, int* option_argc,
 	return;
 }
 
+/* Structure that adds the call back functions struture pointers,
+passed to InnoDB engine */
+typedef struct eng_config_info {
+	char*	option_string;
+	void*	cb_ptr;
+} eng_config_info_t;
+
 #if 0 
 int main (int argc, char **argv) {
 #endif
@@ -6731,13 +6742,17 @@ void* daemon_memcached_main(void *p) {
     char *old_opts = old_options;
     int option_argc;
     char** option_argv;
+    eng_config_info_t my_eng_config;
 
     if (m_config->m_engine_library) {
 	engine = m_config->m_engine_library;
 
 	/* FIXME: We should have a better way to pass the callback structure
-	point to storage engine */
-	engine_config = (const char *) m_config->m_innodb_api_cb;
+	point to storage engine. It is now appended in the configure
+	string in eng_config_info_t structure */
+	my_eng_config.cb_ptr = m_config->m_innodb_api_cb;
+	my_eng_config.option_string = old_opts;
+	engine_config = (const char *) (&my_eng_config);
 
     } else {
 	engine = "default_engine.so";
