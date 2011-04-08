@@ -51,6 +51,7 @@ sync_with_master;
 # End of 4.1 tests
 --echo master_bind tests
 connection slave;
+let $save_master_bind= query_get_value(SHOW SLAVE STATUS, Master_Bind, 1);
 stop slave;
 --replace_column 1 # 7 # 8 # 9 # 22 # 23 #
 --replace_result $MASTER_MYPORT MASTER_PORT
@@ -88,7 +89,8 @@ select * from t1;
 
 connection slave;
 stop slave;
-change master to master_bind='127.0.0.1';
+--replace_result $save_master_bind <save_master_bind>
+eval change master to master_bind='$save_master_bind';
 start slave;
 sync_with_master;
 select * from t1;
