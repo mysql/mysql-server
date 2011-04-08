@@ -21,6 +21,7 @@ with this program; if not, write to the Free Software Foundation, Inc.,
 #include <string.h>
 #include <assert.h>
 #include <pthread.h>
+#include <arpa/inet.h>
 
 //#include "config.h"
 
@@ -34,6 +35,7 @@ with this program; if not, write to the Free Software Foundation, Inc.,
 #include "innodb_engine_private.h"
 #include "debug.h"
 #include "innodb_api.h"
+#include "hash_item_util.h"
 
 
 #define DEBUG_THD_NAME "engine"
@@ -207,15 +209,23 @@ static void register_innodb_cb(uchar* p)
 	}
 }
 
+typedef struct eng_config_info {
+	char*   option_string;
+	void*   cb_ptr;
+} eng_config_info_t;
+
 static ENGINE_ERROR_CODE innodb_initialize(ENGINE_HANDLE* handle,
                                         const char* config_str) 
 {   
-	int		nthreads;
-	ENGINE_ERROR_CODE return_status;
-	struct innodb_engine *innodb_eng = innodb_handle(handle);
-	struct default_engine *def_eng = default_handle(innodb_eng);
+	ENGINE_ERROR_CODE	return_status;
+	struct innodb_engine*	innodb_eng = innodb_handle(handle);
+	struct default_engine*	def_eng = default_handle(innodb_eng);
+	eng_config_info_t*	my_eng_config;
   
-	register_innodb_cb((void*) config_str);
+	my_eng_config = (eng_config_info_t*) config_str;
+
+	/* Register the call back function */
+	register_innodb_cb((void*) my_eng_config->cb_ptr);
 
 	UT_LIST_INIT(innodb_eng->conn_data);
 	pthread_mutex_init(&innodb_eng->conn_mutex, NULL);
@@ -224,28 +234,16 @@ static ENGINE_ERROR_CODE innodb_initialize(ENGINE_HANDLE* handle,
 	DEBUG_INIT(NULL, innodb_eng->startup_options.debug_enable);
 	DEBUG_ENTER();
 
-	/* Fetch some settings from the memcached core */
-	if (!fetch_core_settings(innodb_eng, def_eng)) {
+	/* Fetch InnoDB specific settings */
+	if (!innodb_config(&innodb_eng->meta_info)) {
 		return(ENGINE_FAILED);
 	}
 
-	nthreads = innodb_eng->server_options.nthreads;
-
-	logger->log(LOG_WARNING, NULL, "Server started with %d threads.\n", nthreads);
-	logger->log(LOG_WARNING, NULL, "Priming the pump ... ");
-
-
-	/* Now initialize the default engine with no options
-	(it already has them) */
 	return_status = def_eng->engine.initialize(
-			innodb_eng->m_default_engine, "");
+		innodb_eng->m_default_engine, my_eng_config->option_string);
 
-	return return_status;
+	return(return_status);
 }
-
-#define	ut_ad	while (0)
-#define ut_a	while (0)
-
 
 static
 int
@@ -284,7 +282,7 @@ innodb_conn_clean(
 		/* Either we are clearing all conn_data or this conn_data is
 		not in use */
 		if (clear_all || stale_data) {
-			UT_LIST_REMOVE(c_list, engine->conn_data, conn_data);
+			MCI_LIST_REMOVE(c_list, engine->conn_data, conn_data);
 
 			if (conn_data->c_idx_crsr) {
 				ib_cb_cursor_close(conn_data->c_idx_crsr);
@@ -497,7 +495,6 @@ innodb_remove(
 {
 	struct innodb_engine*	innodb_eng = innodb_handle(handle);
 	struct default_engine*	def_eng = default_handle(innodb_eng);
-	ib_err_t		innodb_err;
 	ENGINE_ERROR_CODE	err = ENGINE_SUCCESS;
 	innodb_conn_data_t*	conn_data;
 	meta_info_t*		meta_info = &innodb_eng->meta_info;
@@ -646,7 +643,6 @@ static ENGINE_ERROR_CODE innodb_get(ENGINE_HANDLE* handle,
 
 	if (result.mci_add_value) {
 		int	i;
-		int	len = 0;
 		char*	c_value = hash_item_get_data(it);
 
 		for (i = 0; i < result.mci_add_num; i++) {
@@ -799,7 +795,6 @@ static ENGINE_ERROR_CODE innodb_flush(ENGINE_HANDLE* handle,
 	struct default_engine *def_eng = default_handle(innodb_eng);
 	ENGINE_ERROR_CODE	err = ENGINE_SUCCESS;
 	meta_info_t*		meta_info = &innodb_eng->meta_info;
-	innodb_conn_data_t*	conn_data;
 	ib_err_t		ib_err = DB_SUCCESS;
 
 	if (meta_info->m_set_option == META_CACHE
@@ -842,8 +837,6 @@ static bool innodb_get_item_info(ENGINE_HANDLE *handle,
                               const item* item, 
                               item_info *item_info)
 {
-	struct innodb_engine* innodb_eng = innodb_handle(handle);
-
 	if (item_info->nvalue < 1) {
 	THREAD_DEBUG_PRINT("nvalue too small.");
 	return false;
@@ -871,7 +864,8 @@ static bool innodb_get_item_info(ENGINE_HANDLE *handle,
    We create a single config_items structure containing options for both 
    engines.
 */
-void read_cmdline_options(struct innodb_engine *ndb, struct default_engine *se,
+void read_cmdline_options(struct innodb_engine *innodb,
+			  struct default_engine *se,
                           const char * conf)
 {
   DEBUG_ENTER();
@@ -922,30 +916,5 @@ void read_cmdline_options(struct innodb_engine *ndb, struct default_engine *se,
       case 0: /* success */
         break;
   }
-}
-
-
-int fetch_core_settings(struct innodb_engine *engine,
-                         struct default_engine *se) {
-	DEBUG_ENTER();
-
-	/* Set up a struct config_item containing the keys
-	we're interested in. */
-	struct config_item items[] = {    
-		{ .key = "cas_enabled",
-		.datatype = DT_BOOL,
-		.value.dt_bool = &engine->server_options.cas_enabled },
-		{ .key = "num_threads",
-		.datatype = DT_SIZE,
-		.value.dt_size = &engine->server_options.nthreads },
-		{ .key = NULL }
-	};
-  
-	/* InnoDB related configuration setup */
-	if (!innodb_config(&engine->meta_info)) {
-		return(FALSE);
-	}
-
-	return(TRUE);
 }
 

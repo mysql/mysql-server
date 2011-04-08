@@ -147,4 +147,22 @@ innodb_config_free(
 /*===============*/
         meta_info_t*	item);
 
+/*******************************************************************//**
+Removes a node from a linked list. */
+#define MCI_LIST_REMOVE(NAME, BASE, N)					\
+do {									\
+        ((BASE).count)--;						\
+        if (((N)->NAME).next != NULL) {					\
+                ((((N)->NAME).next)->NAME).prev = ((N)->NAME).prev;	\
+        } else {							\
+                (BASE).end = ((N)->NAME).prev;				\
+        }								\
+        if (((N)->NAME).prev != NULL) {					\
+                ((((N)->NAME).prev)->NAME).next = ((N)->NAME).next;	\
+        } else {							\
+                (BASE).start = ((N)->NAME).next;			\
+        }								\
+        UT_LIST_REMOVE_CLEAR(NAME, N);					\
+} while (0)
+
 #endif
