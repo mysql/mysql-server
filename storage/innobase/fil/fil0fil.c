@@ -3346,7 +3346,7 @@ fil_load_single_table_tablespace(
 		return;
 	}
 #endif
-	/* Read the first page of the tablespace if the size big enough */
+	/* Read the first page of the tablespace if the size is big enough */
 
 	buf2 = ut_malloc(2 * UNIV_PAGE_SIZE);
 	/* Align the memory for file i/o if we might have O_DIRECT set */

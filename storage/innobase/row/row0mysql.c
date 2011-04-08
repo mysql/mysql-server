@@ -3262,12 +3262,12 @@ check_next_foreign:
 		CREATE TABLE t2 (PRIMARY KEY (a)) SELECT * FROM t1;
 
 	If after the user transaction has done the SELECT and there is a
-       	problem in completing the CREATE TABLE operation, MySQL will drop
-       	the table. InnoDB will create a new background transaction to do the
-       	actual drop, the trx instance that is passed to this function. To
-       	preserve existing behaviour we remove the locks but ideally we
-       	shouldn't have to. There should never be record locks on a table
-       	that is going to be dropped. */
+	problem in completing the CREATE TABLE operation, MySQL will drop
+	the table. InnoDB will create a new background transaction to do the
+	actual drop, the trx instance that is passed to this function. To
+	preserve existing behaviour we remove the locks but ideally we
+	shouldn't have to. There should never be record locks on a table
+	that is going to be dropped. */
 
 	if (table->n_ref_count == 0) {
 		lock_remove_all_on_table(table, TRUE);
@@ -3301,7 +3301,7 @@ check_next_foreign:
 	}
 
 	/* If we get this far then the table to be dropped must not have
-       	any table or record locks on it. */
+	any table or record locks on it. */
 
 	ut_a(!lock_table_has_locks(table));
 

@@ -1239,7 +1239,7 @@ buf_pool_init_instance(
 		buf_pool->curr_size = chunk->size;
 		buf_pool->curr_pool_size = buf_pool->curr_size * UNIV_PAGE_SIZE;
 
-		/* Number of locks portecting page_hash must be a
+		/* Number of locks protecting page_hash must be a
 		power of two */
 		srv_n_page_hash_locks =
 				 ut_2_power_up(srv_n_page_hash_locks);
