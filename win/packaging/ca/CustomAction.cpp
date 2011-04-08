@@ -29,6 +29,7 @@ Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
 
 #include <winservice.h>
 
+#define ONE_MB 1048576
 UINT ExecRemoveDataDirectory(wchar_t *dir)
 {
    /* Strip stray backslash */
@@ -436,16 +437,49 @@ LExit:
   return WcaFinalize(er); 
 }
 
-
-
+/* 
+  Get maximum size of the buffer process can allocate.
+  this is calculated as min(RAM,virtualmemorylimit)
+  For 32bit processes, virtual address memory is 2GB (x86 OS)
+  or 4GB(x64 OS).
+  
+  Fragmentation due to loaded modules, heap  and stack 
+  limit maximum size of continous memory block further,
+  so that limit for 32 bit process is about 1200 on 32 bit OS 
+  or 2000 MB on 64 bit OS(found experimentally).
+*/
+unsigned long long GetMaxBufferSize(unsigned long long totalPhys)
+{
+#ifdef _M_IX86
+  BOOL wow64;
+  if (IsWow64Process(GetCurrentProcess(), &wow64))
+    return min(totalPhys, 2000ULL*ONE_MB);
+  else
+    return min(totalPhys, 1200ULL*ONE_MB);
+#else
+  return totalPhys;
+#endif
+}
+/*
+  Checks SERVICENAME, PORT and BUFFERSIZE parameters 
+*/
 extern "C" UINT  __stdcall CheckDatabaseProperties (MSIHANDLE hInstall) 
 {
   wchar_t ServiceName[MAX_PATH]={0};
   wchar_t SkipNetworking[MAX_PATH]={0};
+  wchar_t QuickConfig[MAX_PATH]={0};
   wchar_t Port[6];
+  wchar_t BufferPoolSize[16];
   DWORD PortLen=6;
   bool haveInvalidPort=false;
   const wchar_t *ErrorMsg=0;
+  HRESULT hr= S_OK;
+  UINT er= ERROR_SUCCESS;
+
+
+  hr = WcaInitialize(hInstall, __FUNCTION__);
+  ExitOnFailure(hr, "Failed to initialize");
+  WcaLog(LOGMSG_STANDARD, "Initialized.");
 
   DWORD ServiceNameLen = MAX_PATH;
   MsiGetPropertyW (hInstall, L"SERVICENAME", ServiceName, &ServiceNameLen);
@@ -454,7 +488,7 @@ extern "C" UINT  __stdcall CheckDatabaseProperties (MSIHANDLE hInstall)
     if(ServiceNameLen > 256)
     {
       ErrorMsg= L"Invalid service name. The maximum length is 256 characters.";
-      goto err;
+      goto LExit;
     }
     for(DWORD i=0; i< ServiceNameLen;i++)
     {
@@ -464,7 +498,7 @@ extern "C" UINT  __stdcall CheckDatabaseProperties (MSIHANDLE hInstall)
         ErrorMsg = 
           L"Invalid service name. Forward slash and back slash are forbidden."
           L"Single and double quotes are also not permitted.";
-        goto err;
+        goto LExit;
       }
     }
     if(CheckServiceExists(ServiceName))
@@ -472,7 +506,7 @@ extern "C" UINT  __stdcall CheckDatabaseProperties (MSIHANDLE hInstall)
       ErrorMsg=
         L"A service with the same name already exists. "
         L"Please use a different name.";
-      goto err;
+      goto LExit;
     }
   }
 
@@ -508,7 +542,7 @@ extern "C" UINT  __stdcall CheckDatabaseProperties (MSIHANDLE hInstall)
     {
       ErrorMsg =
         L"Invalid port number. Please use a number between 1025 and 65535.";
-      goto err;
+      goto LExit;
     }
 
     short port = (short)_wtoi(Port);
@@ -517,15 +551,133 @@ extern "C" UINT  __stdcall CheckDatabaseProperties (MSIHANDLE hInstall)
       ErrorMsg = 
         L"The TCP Port you selected is already in use. "
         L"Please choose a different port.";
-      goto err;
+      goto LExit;
     }
   }
+  
+  
+  DWORD QuickConfigLen = MAX_PATH;
+  MsiGetPropertyW (hInstall, L"STDCONFIG", QuickConfig, &QuickConfigLen);
+  if(QuickConfig[0] !=0)
+  {
+     MEMORYSTATUSEX memstatus;
+     memstatus.dwLength =sizeof(memstatus);
+     wchar_t invalidValueMsg[256];
 
-err:
+     if (!GlobalMemoryStatusEx(&memstatus))
+     {
+        WcaLog(LOGMSG_STANDARD, "Error %u from GlobalMemoryStatusEx", 
+          GetLastError());
+        er= ERROR_INSTALL_FAILURE;
+        goto LExit;
+     }
+     DWORD BufferPoolSizeLen= 16;
+     MsiGetPropertyW(hInstall, L"BUFFERPOOLSIZE", BufferPoolSize, &BufferPoolSizeLen);
+     /* Strip spaces */
+     for(DWORD i=BufferPoolSizeLen-1; i > 0; i--)
+     {
+      if(BufferPoolSize[i]== ' ')
+        BufferPoolSize[i] = 0;
+     }
+     unsigned long long availableMemory=
+       GetMaxBufferSize(memstatus.ullTotalPhys)/ONE_MB;
+     swprintf_s(invalidValueMsg,
+        L"Invalid buffer pool size. Please use a number between 1 and %llu",
+         availableMemory);
+     if(BufferPoolSizeLen == 0 || BufferPoolSizeLen > 15)
+     {
+       ErrorMsg= invalidValueMsg;
+       goto LExit;
+     }
+     for (DWORD i=0; i < BufferPoolSizeLen && BufferPoolSize[BufferPoolSizeLen];
+       i++)
+     {
+       if(BufferPoolSize[i]< '0' || BufferPoolSize[i] > '9')
+       {
+         ErrorMsg= invalidValueMsg;
+         goto LExit;
+       }
+     }
+     BufferPoolSize[BufferPoolSizeLen]=0;
+     MsiSetPropertyW(hInstall, L"BUFFERPOOLSIZE", BufferPoolSize);
+     long long sz = _wtoi64(BufferPoolSize);
+     if(sz <= 0 || sz > (long long)availableMemory)
+     {
+       if(sz > 0)
+       {
+         swprintf_s(invalidValueMsg,
+           L"Value for buffer pool size is too large."
+           L"Only approximately %llu MB is available for allocation."
+           L"Please use a number between 1 and %llu.",
+          availableMemory, availableMemory);
+       }
+       ErrorMsg= invalidValueMsg;
+       goto LExit;
+     }
+  }
+LExit:
   MsiSetPropertyW (hInstall, L"WarningText", ErrorMsg);
-  return ERROR_SUCCESS;
+  return WcaFinalize(er);
 }
 
+/* 
+  Sets Innodb buffer pool size (1/8 of RAM by default), if not already specified
+  via command line.
+  Calculates innodb log file size as min(50, innodb buffer pool size/8)
+*/
+extern "C" UINT __stdcall PresetDatabaseProperties(MSIHANDLE hInstall)
+{
+  unsigned long long InnodbBufferPoolSize= 256;
+  unsigned long long InnodbLogFileSize= 50;
+  wchar_t buff[MAX_PATH];
+  UINT er = ERROR_SUCCESS;
+  HRESULT hr= S_OK;
+  MEMORYSTATUSEX memstatus;
+  hr = WcaInitialize(hInstall, __FUNCTION__);
+  ExitOnFailure(hr, "Failed to initialize");
+  WcaLog(LOGMSG_STANDARD, "Initialized.");
+
+  /* Check if bufferpoolsize parameter was given on the command line*/
+  DWORD BufferPoolsizeParamLen = MAX_PATH;
+  MsiGetPropertyW(hInstall, L"BUFFERPOOLSIZE", buff, &BufferPoolsizeParamLen);
+
+  if (BufferPoolsizeParamLen && buff[0])
+  {
+    WcaLog(LOGMSG_STANDARD, "BUFFERPOOLSIZE=%s, len=%u",buff, BufferPoolsizeParamLen);
+    InnodbBufferPoolSize= _wtoi64(buff);
+  }
+  else
+  {
+    memstatus.dwLength = sizeof(memstatus);
+    if (!GlobalMemoryStatusEx(&memstatus))
+    {
+       WcaLog(LOGMSG_STANDARD, "Error %u from GlobalMemoryStatusEx", 
+         GetLastError());
+       er= ERROR_INSTALL_FAILURE;
+       goto LExit;
+    }
+    unsigned long long totalPhys= memstatus.ullTotalPhys;
+    /* Give innodb 12.5% of available physical memory. */
+    InnodbBufferPoolSize= totalPhys/ONE_MB/8;
+ #ifdef _M_IX86
+    /* 
+      For 32 bit processes, take virtual address space limitation into account.
+      Do not try to use more than 3/4 of virtual address space, even if there
+      is plenty of physical memory.
+    */
+    InnodbBufferPoolSize= min(GetMaxBufferSize(totalPhys)/ONE_MB*3/4,
+      InnodbBufferPoolSize);
+ #endif 
+    swprintf_s(buff, L"%llu",InnodbBufferPoolSize);
+    MsiSetPropertyW(hInstall, L"BUFFERPOOLSIZE", buff);
+  }
+  InnodbLogFileSize = min(50, InnodbBufferPoolSize);
+  swprintf_s(buff, L"%llu",InnodbLogFileSize);
+  MsiSetPropertyW(hInstall, L"LOGFILESIZE", buff);
+
+LExit:
+  return WcaFinalize(er);
+}
 /* Remove service and data directory created by CreateDatabase operation */
 extern "C" UINT __stdcall CreateDatabaseRollback(MSIHANDLE hInstall) 
 {

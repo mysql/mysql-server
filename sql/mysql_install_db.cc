@@ -322,7 +322,7 @@ static const char update_root_passwd_part2[]=
 static const char remove_default_user_cmd[]= 
   "DELETE FROM mysql.user where User='';\n";
 static const char allow_remote_root_access_cmd[]=
-  "CREATE TEMPORARY TABLE tmp_user LIKE user engine=memory;\n"
+  "CREATE TEMPORARY TABLE tmp_user LIKE user;\n"
   "INSERT INTO tmp_user SELECT * from user where user='root' "
     " AND host='localhost';\n"
   "UPDATE tmp_user SET host='%';\n"
