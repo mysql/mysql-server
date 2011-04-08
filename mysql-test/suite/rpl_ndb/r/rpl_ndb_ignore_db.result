@@ -1,9 +1,5 @@
-stop slave;
-drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9;
-reset master;
-reset slave;
-drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9;
-start slave;
+include/master-slave.inc
+[connection master]
 delete from mysql.ndb_apply_status;
 use mysql;
 create table t1 (a int primary key, b int) engine=myisam;
@@ -31,3 +27,4 @@ drop table t1;
 drop table t2;
 use test;
 drop table t3;
+include/rpl_end.inc

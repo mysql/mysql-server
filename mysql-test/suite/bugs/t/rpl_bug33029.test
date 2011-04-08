@@ -23,3 +23,4 @@ insert into `t1` values ();
 sync_slave_with_master;
 select * from t1;
 
+--source include/rpl_end.inc

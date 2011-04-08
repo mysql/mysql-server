@@ -1,22 +1,10 @@
 #############################################################################
-# Original Author: JBM                                                      #
-# Original Date: Aug/15/2005                                                #
-# Updated: 08/29/2005 Remove sleeps                                         #
-#############################################################################
 # TEST: SP that creates table, starts tranaction inserts. Save point, insert#
 #       rollback to save point and then commits.                            #
 #############################################################################
 # Includes
 -- source include/have_binlog_format_row.inc
 -- source include/master-slave.inc
-
-# Begin clean up test section
-connection master;
---disable_warnings
-DROP PROCEDURE IF EXISTS test.p1;
-DROP TABLE IF EXISTS test.t1;
---enable_warnings
-# End of cleanup
 
 # Begin test section 1
 delimiter |;
@@ -42,9 +30,7 @@ SELECT * FROM test.t1;
 
 let $message=< ---- Slave selects-- >;
 --source include/show_msg.inc
-save_master_pos;
-connection slave;
-sync_with_master;
+sync_slave_with_master;
 SELECT * FROM test.t1;
 
 let $message=< ---- Master selects-- >;
@@ -55,16 +41,15 @@ SELECT * FROM test.t1;
 
 let $message=< ---- Slave selects-- >;
 --source include/show_msg.inc
-save_master_pos;
-connection slave;
-sync_with_master;
+sync_slave_with_master;
 SELECT * FROM test.t1;
 
 connection master;
 #show binlog events;
 
 
-DROP PROCEDURE IF EXISTS test.p1;
-DROP TABLE IF EXISTS test.t1;
+DROP PROCEDURE test.p1;
+DROP TABLE test.t1;
 
 # End of 5.0 test case
+--source include/rpl_end.inc

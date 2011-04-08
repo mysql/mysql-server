@@ -1,9 +1,5 @@
-stop slave;
-drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9;
-reset master;
-reset slave;
-drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9;
-start slave;
+include/master-slave.inc
+[connection master]
 create table t1(pk int not null primary key, i int) engine = ndb;
 select count(*) from t1;
 count(*)
@@ -15,14 +11,14 @@ master-bin.000002	#	Incident	1	<end_pos>	#1 (LOST_EVENTS)
 start slave;
 Sync Slave with master
 Show that Slave has not stopped (has skipped GAP)
-Slave_IO_Running	Yes
-Slave_SQL_Running	Yes
-Last_Errno	0
-Last_Error	
+Slave_IO_Running = 'Yes'
+Slave_SQL_Running = 'Yes'
+Last_Errno = '0'
+Last_Error = ''
 Show that replication can continue
 insert into t1 values (1001, 1001);
 select count(*) from t1;
 count(*)
 1001
-drop table if exists t1;
 drop table t1;
+include/stop_slave.inc

@@ -22,11 +22,13 @@ connection master;
 insert into t1 values (1);
 
 connection slave;
-# slave should have stopped because can't find table t1 
+# slave should have stopped because can't find table t1
+wait_for_slave_to_stop;
 # see if we have a good error message:
---let $slave_sql_errno= 1146
---let $show_slave_sql_error= 1
---source include/wait_for_slave_sql_error.inc
+--replace_result $MASTER_MYPORT MASTER_MYPORT
+--replace_column 1 # 7 # 8 # 9 # 22 # 23 # 33 #
+--vertical_results
+show slave status;
 
 # cleanup
 connection master;

@@ -121,3 +121,4 @@ drop table t1i, t2m;
 sync_slave_with_master;
 
 # End of tests
+--source include/rpl_end.inc

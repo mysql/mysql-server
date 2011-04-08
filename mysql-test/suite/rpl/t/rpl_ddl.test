@@ -30,3 +30,4 @@ let $temp_engine_type= MEMORY;
 let $show_binlog = 0;
 let $manipulate = 0;
 -- source extra/rpl_tests/rpl_ddl.test
+--source include/rpl_end.inc

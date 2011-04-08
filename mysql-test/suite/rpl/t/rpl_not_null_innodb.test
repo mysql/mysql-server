@@ -17,3 +17,4 @@
 
 let $engine=Innodb;
 --source extra/rpl_tests/rpl_not_null.test
+--source include/rpl_end.inc

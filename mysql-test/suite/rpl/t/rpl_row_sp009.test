@@ -103,3 +103,4 @@ DROP TABLE test.t2;
 sync_slave_with_master;
 
 # End of 5.0 test case
+--source include/rpl_end.inc

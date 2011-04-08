@@ -334,7 +334,7 @@ buf_page_is_corrupted(
 				"InnoDB: tablespace but not the InnoDB "
 				"log files. See\n"
 				"InnoDB: http://dev.mysql.com/doc/refman/"
-				"5.1/en/forcing-recovery.html\n"
+				"5.1/en/forcing-innodb-recovery.html\n"
 				"InnoDB: for more information.\n",
 				(ulong) mach_read_from_4(read_buf
 							 + FIL_PAGE_OFFSET),
@@ -2067,7 +2067,7 @@ buf_page_io_complete(
 			      " table for corruption.\n"
 			      "InnoDB: See also"
 			      " http://dev.mysql.com/doc/refman/5.1/en/"
-			      "forcing-recovery.html\n"
+			      "forcing-innodb-recovery.html\n"
 			      "InnoDB: about forcing recovery.\n", stderr);
 
 			if (srv_force_recovery < SRV_FORCE_IGNORE_CORRUPT) {

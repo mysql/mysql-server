@@ -1,21 +1,17 @@
-stop slave;
-drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9;
-reset master;
-reset slave;
-drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9;
-start slave;
-Master_User	root
-Master_Host	127.0.0.1
+include/master-slave.inc
+[connection master]
+Master_User = 'root'
+Master_Host = '127.0.0.1'
 include/stop_slave.inc
 change master to master_user='test';
-Master_User	test
-Master_Host	127.0.0.1
+Master_User = 'test'
+Master_Host = '127.0.0.1'
 reset slave;
-Master_User	root
-Master_Host	127.0.0.1
+Master_User = 'root'
+Master_Host = '127.0.0.1'
 include/start_slave.inc
-Master_User	root
-Master_Host	127.0.0.1
+Master_User = 'root'
+Master_Host = '127.0.0.1'
 include/stop_slave.inc
 reset slave;
 include/start_slave.inc
@@ -28,13 +24,19 @@ Variable_name	Value
 Slave_open_temp_tables	0
 include/stop_slave.inc
 reset slave;
+include/check_slave_no_error.inc
 change master to master_user='impossible_user_name';
 start slave;
-include/stop_slave.inc
+include/wait_for_slave_io_error.inc [errno=1045]
+include/stop_slave_sql.inc
 change master to master_user='root';
 include/start_slave.inc
+include/check_slave_no_error.inc
 include/stop_slave.inc
 change master to master_user='impossible_user_name';
 start slave;
-include/stop_slave.inc
+include/wait_for_slave_io_error.inc [errno=1045]
+include/stop_slave_sql.inc
 reset slave;
+include/check_slave_no_error.inc
+include/rpl_end.inc
