@@ -131,7 +131,7 @@ const char *delimiter= "\n";
 
 const char *create_schema_string= "mysqlslap";
 
-static my_bool opt_preserve= TRUE;
+static my_bool opt_preserve= TRUE, opt_no_drop= FALSE;
 static my_bool debug_info_flag= 0, debug_check_flag= 0;
 static my_bool opt_only_print= FALSE;
 static my_bool opt_compress= FALSE, tty_password= FALSE,
@@ -599,6 +599,8 @@ static struct my_option my_long_options[] =
     REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
   {"iterations", 'i', "Number of times to run the tests.", &iterations,
     &iterations, 0, GET_UINT, REQUIRED_ARG, 1, 0, 0, 0, 0, 0},
+  {"no-drop", OPT_SLAP_NO_DROP, "Do not drop the schema after the test.",
+   &opt_no_drop, &opt_no_drop, 0, GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0},
   {"number-char-cols", 'x', 
     "Number of VARCHAR columns to create in table if specifying --auto-generate-sql.",
     &num_char_cols_opt, &num_char_cols_opt, 0, GET_STR, REQUIRED_ARG,
@@ -1147,8 +1149,11 @@ get_options(int *argc,char ***argv)
   if (!user)
     user= (char *)"root";
 
-  /* If something is created we clean it up, otherwise we leave schemas alone */
-  if (create_string || auto_generate_sql)
+  /*
+    If something is created and --no-drop is not specified, we drop the
+    schema.
+  */
+  if (!opt_no_drop && (create_string || auto_generate_sql))
     opt_preserve= FALSE;
 
   if (auto_generate_sql && (create_string || user_supplied_query))
