@@ -226,7 +226,7 @@ connection master;
 
 # Reset both slave and master
 # This should reset binlog to #1
---source include/master-slave-reset.inc
+--source include/rpl_reset.inc
 
 --echo
 

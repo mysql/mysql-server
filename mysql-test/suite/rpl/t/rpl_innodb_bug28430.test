@@ -150,4 +150,4 @@ DROP TABLE test.regular_tbl;
 DROP TABLE test.bykey_tbl;
 DROP TABLE test.byrange_tbl;
 
---source include/master-slave-end.inc
+--source include/rpl_end.inc

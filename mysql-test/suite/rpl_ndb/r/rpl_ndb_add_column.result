@@ -1,9 +1,5 @@
-stop slave;
-drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9;
-reset master;
-reset slave;
-drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9;
-start slave;
+include/master-slave.inc
+[connection master]
 CREATE TABLE t1 (c1 INT KEY) ROW_FORMAT=DYNAMIC ENGINE=NDB;
 INSERT INTO t1 VALUES (1),(2),(3);
 ALTER TABLE t1 ADD c2 INT;
@@ -175,3 +171,4 @@ a	b	c	d	e
 1	1	NULL	NULL	NULL
 2	2	NULL	NULL	NULL
 DROP TABLE t1;
+include/rpl_end.inc

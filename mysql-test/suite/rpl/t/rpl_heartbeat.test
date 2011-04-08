@@ -178,5 +178,7 @@ drop table t1;
 #connection slave;
 sync_slave_with_master;
 
+--source include/stop_slave.inc
 
 --echo End of tests
+

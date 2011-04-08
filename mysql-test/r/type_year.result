@@ -341,4 +341,18 @@ ta_y	s	tb_y	s
 2001	2001	2001	2001
 DROP TABLE t1;
 #
+# Bug #59211: Select Returns Different Value for min(year) Function
+#
+CREATE TABLE t1(c1 YEAR(4));
+INSERT INTO t1 VALUES (1901),(2155),(0000);
+SELECT * FROM t1;
+c1
+1901
+2155
+0000
+SELECT COUNT(*) AS total_rows, MIN(c1) AS min_value, MAX(c1) FROM t1;
+total_rows	min_value	MAX(c1)
+3	0	2155
+DROP TABLE t1;
+#
 End of 5.1 tests

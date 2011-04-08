@@ -25,6 +25,8 @@ select count(*) from t1;
 --connection master
 
 --echo Restarting mysqld
+ # Hack to allow using restart_mysqld.inc from rpl test
+let $allow_rpl_inited=1;
 let $mysqld_name=mysqld.1.1;
 --source include/restart_mysqld.inc
 #show binlog events in 'master-bin.000002';
@@ -61,9 +63,12 @@ insert into t1 values (1001, 1001);
 
 select count(*) from t1;
 
-drop table if exists t1;
-
 --connection master
 drop table t1;
 
+--sync_slave_with_master
 
+# NOTE: rpl_end.inc doesnt seem to work after having used restart_mysqld.inc
+# or something like that...probably needs investigation
+--connection slave
+--source include/stop_slave.inc

@@ -23,3 +23,4 @@ sync_slave_with_master;
 connection master;
 
 # End of 5.0 tests
+--source include/rpl_end.inc

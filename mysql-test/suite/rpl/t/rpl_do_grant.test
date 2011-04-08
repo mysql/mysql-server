@@ -216,15 +216,17 @@ DROP DATABASE bug42217_db;
 -- connection master
 
 # user was already dropped in the slave before
-# so no need to wait for the slave to replicate
-# this statement (if it did and we later synced
-# the slave it would end up in an error anyway)
+# so we should not replicate this statement.
+SET SQL_LOG_BIN= 0;
 DROP USER 'create_rout_db'@'localhost';
+SET SQL_LOG_BIN= 1;
 
 # finish entire clean up (remove binlogs)
 # so that we leave a pristine environment for the
 # following tests
--- source include/master-slave-reset.inc
+--let $rpl_only_running_threads= 1
+-- source include/rpl_reset.inc
+USE test;
 
 # BUG#49119: Master crashes when executing 'REVOKE ... ON
 # {PROCEDURE|FUNCTION} FROM ...'
@@ -249,7 +251,7 @@ DROP USER 'create_rout_db'@'localhost';
 
 -- echo ######## BUG#49119 #######
 -- echo ### i) test case from the 'how to repeat section'
--- source include/master-slave-reset.inc
+
 -- connection master
 
 CREATE TABLE t1(c1 INT);
@@ -270,7 +272,7 @@ DROP PROCEDURE p1;
 -- echo ### ii) Test case in which REVOKE partially succeeds
 
 -- connection master
--- source include/master-slave-reset.inc
+-- source include/rpl_reset.inc
 -- connection master
 
 CREATE TABLE t1(c1 INT);
@@ -330,8 +332,7 @@ DROP USER 'user49119'@'localhost';
 # Bug #51987  	revoke privileges logs wrong error code
 #
 
--- connection master
--- source include/master-slave-reset.inc
+-- source include/rpl_reset.inc
 -- connection master
 
 grant all on *.* to foo@"1.2.3.4";
@@ -345,11 +346,7 @@ revoke all privileges, grant option from "foo";
 
 ## assertion: slave replicates revoke and does not fail because master
 ##            logged revoke with correct expected error code
--- let $err= query_get_value(SHOW SLAVE STATUS, Last_SQL_Errno, 1)
-  if ($err)
-{
-    -- die UNEXPECTED ERROR AT SLAVE: $err
-}
+--source include/check_slave_no_error.inc
 
 -- connection master
 DROP USER foo@"1.2.3.4";
@@ -357,8 +354,7 @@ DROP USER foo@"1.2.3.4";
 
 --echo 
 --echo # Bug#27606 GRANT statement should be replicated with DEFINER information
---connection master
---source include/master-slave-reset.inc
+--source include/rpl_reset.inc
 --connection master
 GRANT SELECT, INSERT ON mysql.user TO user_bug27606@localhost;
 
@@ -375,5 +371,5 @@ SELECT Grantor FROM mysql.tables_priv WHERE User='user_bug27606';
 --connection master
 DROP USER user_bug27606@localhost;
 
---source include/master-slave-end.inc
 --echo "End of test"
+--source include/rpl_end.inc

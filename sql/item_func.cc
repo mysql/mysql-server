@@ -1,6 +1,4 @@
-/*
-   Copyright 2000-2008 MySQL AB, 2008 Sun Microsystems, Inc.
-    All rights reserved. Use is subject to license terms.
+/* Copyright (c) 2000, 2010, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -1332,9 +1330,14 @@ void Item_func_div::fix_length_and_dec()
   {
     decimals=max(args[0]->decimals,args[1]->decimals)+prec_increment;
     set_if_smaller(decimals, NOT_FIXED_DEC);
-    max_length=args[0]->max_length - args[0]->decimals + decimals;
     uint tmp=float_length(decimals);
-    set_if_smaller(max_length,tmp);
+    if (decimals == NOT_FIXED_DEC)
+      max_length= tmp;
+    else
+    {
+      max_length=args[0]->max_length - args[0]->decimals + decimals;
+      set_if_smaller(max_length,tmp);
+    }
     break;
   }
   case INT_RESULT:
@@ -4073,7 +4076,7 @@ my_decimal *user_var_entry::val_decimal(my_bool *null_value, my_decimal *val)
     int2my_decimal(E_DEC_FATAL_ERROR, *(longlong*) value, 0, val);
     break;
   case DECIMAL_RESULT:
-    val= (my_decimal *)value;
+    my_decimal2decimal((my_decimal *) value, val);
     break;
   case STRING_RESULT:
     str2my_decimal(E_DEC_FATAL_ERROR, value, length, collation.collation, val);
@@ -4887,7 +4890,7 @@ void Item_func_get_system_var::fix_length_and_dec()
       decimals=0;
       break;
     case SHOW_LONGLONG:
-      unsigned_flag= FALSE;
+      unsigned_flag= TRUE;
       max_length= MY_INT64_NUM_DECIMAL_DIGITS;
       decimals=0;
       break;
@@ -5028,7 +5031,7 @@ longlong Item_func_get_system_var::val_int()
   {
     case SHOW_INT:      get_sys_var_safe (uint);
     case SHOW_LONG:     get_sys_var_safe (ulong);
-    case SHOW_LONGLONG: get_sys_var_safe (longlong);
+    case SHOW_LONGLONG: get_sys_var_safe (ulonglong);
     case SHOW_HA_ROWS:  get_sys_var_safe (ha_rows);
     case SHOW_BOOL:     get_sys_var_safe (bool);
     case SHOW_MY_BOOL:  get_sys_var_safe (my_bool);
@@ -6077,7 +6080,7 @@ Item_func_sp::fix_fields(THD *thd, Item **ref)
   if (res)
     DBUG_RETURN(res);
 
-  if (thd->lex->view_prepare_mode)
+  if (thd->lex->context_analysis_only & CONTEXT_ANALYSIS_ONLY_VIEW)
   {
     /*
       Here we check privileges of the stored routine only during view

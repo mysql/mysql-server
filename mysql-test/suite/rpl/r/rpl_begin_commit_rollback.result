@@ -1,9 +1,5 @@
-stop slave;
-drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9;
-reset master;
-reset slave;
-drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9;
-start slave;
+include/master-slave.inc
+[connection master]
 DROP DATABASE IF EXISTS db1;
 DROP DATABASE IF EXISTS db2;
 CREATE DATABASE db1;
@@ -49,6 +45,7 @@ before call db1.p1()
 after call db1.p1()
 [on slave]
 start slave until master_log_file='master-bin.000001', master_log_pos=MASTER_POS;
+include/wait_for_slave_sql_to_stop.inc
 #
 # If we got non-zero here, then we're suffering BUG#43263
 #
@@ -87,6 +84,7 @@ executed db1.p2()
 after call db1.p2()
 [on slave]
 start slave until master_log_file='master-bin.000001', master_log_pos=MASTER_POS;
+include/wait_for_slave_sql_to_stop.inc
 #
 # If we got non-zero here, then we're suffering BUG#43263
 #
@@ -105,6 +103,7 @@ s
 before call db1.p1()
 executed db1.p2()
 START SLAVE;
+include/wait_for_slave_sql_to_start.inc
 #
 # SAVEPOINT and ROLLBACK TO have the same problem in BUG#43263
 # This was reported by BUG#50407
@@ -167,3 +166,4 @@ a
 #
 DROP DATABASE db1;
 DROP DATABASE db2;
+include/rpl_end.inc

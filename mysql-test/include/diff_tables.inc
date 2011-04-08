@@ -1,35 +1,41 @@
 # ==== Purpose ====
 #
-# Check if the two given tables (possibly residing on different
-# master/slave servers) are equal.
+# Check if all tables in the given list are equal. The tables may have
+# different names, exist in different connections, and/or reside in
+# different databases.
+#
 #
 # ==== Usage ====
 #
-# The tables to check are given by the test language variables
-# $diff_table_1 and $diff_table_2.  They must be of the
-# following form:
+# --let $diff_tables= [con1:][db1.]t1, [con2:][db2.]t2, ... , [conN:][dbN.]tN
+# [--let $rpl_debug= 1]
+# --source include/diff_tables.inc
 #
-#  [master:|slave:]database.table
+# Parameters:
+#   $diff_tables
+#     Comma-separated list of tables to compare. Each table has the form
 #
-# I.e., both database and table must be speicified.  Optionally, you
-# can prefix the name with 'master:' (to read the table on master) or
-# with 'slave:' (to read the table on slave).  If no prefix is given,
-# reads the table from the current connection.  If one of these
-# variables has a prefix, both should have a prefix.
+#       [CONNECTION:][DATABASE.]table
+#
+#     If CONNECTION is given, then that connection is used. If
+#     CONNECTION is not given, then the connection of the previous
+#     table is used (or the current connection, if this is the first
+#     table).  If DATABASE is given, the table is read in that
+#     database. If DATABASE is not given, the table is read in the
+#     connection's current database.
+#
+#   $rpl_debug
+#     See include/rpl_init.inc
+#
 #
 # ==== Side effects ====
 #
-# - Prints "Comparing tables $diff_table_1 and $diff_tables_2".
+# - Prints "include/diff_tables.inc [$diff_tables]".
 #
 # - If the tables are different, prints the difference in a
 #   system-specific format (unified diff if supported) and generates
 #   an error.
 #
-# - If $diff_table_1 or $diff_table_2 begins with 'master:' or
-#   'slave:', it will stay connected to one of those hosts after
-#   execution.  The host is only guaranteed to remain unchanged if
-#   none of $diff_table_1 or $diff_table_2 begins with 'master:' or
-#   'slave:'.
 #
 # ==== Bugs ====
 #
@@ -50,69 +56,135 @@
 #   by character case.
 
 
+--let $include_filename= diff_tables.inc [$diff_tables]
+--source include/begin_include_file.inc
+
+
+if (!$rpl_debug)
+{
+  --disable_query_log
+}
+
+
+# Check sanity
+if (`SELECT LOCATE(',', '$diff_tables') = 0`)
+{
+  --die ERROR IN TEST: $diff_tables must contain at least two tables (separated by comma)
+}
+
+
 # ==== Save both tables to file ====
 
---echo Comparing tables $diff_table_1 and $diff_table_2
-disable_query_log;
+# Trim off whitespace
+--let $_dt_tables= `SELECT REPLACE('$diff_tables', ' ', '')`
 
---error 0,1
---remove_file $MYSQLTEST_VARDIR/tmp/diff_table_1
---error 0,1
---remove_file $MYSQLTEST_VARDIR/tmp/diff_table_2
+# Iterate over all tables
+--let $_dt_outfile=
+--let $_dt_prev_outfile=
+while (`SELECT '$_dt_tables' != ''`)
+{
+  --let $_dt_table= `SELECT SUBSTRING_INDEX('$_dt_tables', ',', 1)`
+  --let $_dt_tables= `SELECT SUBSTRING('$_dt_tables', LENGTH('$_dt_table') + 2)`
 
-let $_diff_table=$diff_table_2;
-let $_diff_i=2;
-while ($_diff_i) {
-
-  # Parse out any leading "master:" or "slave:" from the table specification
-# and connect the appropriate server.
-  let $_pos= `SELECT LOCATE(':', '$_diff_table')`;
-  let $_diff_conn=`SELECT SUBSTR('$_diff_table', 1, $_pos-1)`;
-  if (`SELECT 'XX$_diff_conn' <> 'XX'`) {
-    let $_diff_table=`SELECT SUBSTR('$_diff_table', $_pos+1)`;
-    connection $_diff_conn;
+  # Parse connection, if any
+  --let $_dt_colon_index= `SELECT LOCATE(':', '$_dt_table')`
+  if ($_dt_colon_index)
+  {
+    --let $_dt_connection= `SELECT SUBSTRING('$_dt_table', 1, $_dt_colon_index - 1)`
+    --let $_dt_table= `SELECT SUBSTRING('$_dt_table', $_dt_colon_index + 1)`
+    --let $rpl_connection_name= $_dt_connection
+    --source include/rpl_connection.inc
   }
 
-  # Sanity-check the input.
-  let $_diff_error= `SELECT '$_diff_table' NOT LIKE '_%._%'`;
-  if ($_diff_error) {
-    --echo !!!ERROR IN TEST: \$diff_table_$_diff_i='$_diff_table' is not in the form database.table
-    exit;
+  # Parse database name, if any
+  --let $_dt_database_index= `SELECT LOCATE('.', '$_dt_table')`
+  if ($_dt_database_index)
+  {
+    --let $_dt_database= `SELECT SUBSTRING('$_dt_table', 1, $_dt_database_index - 1)`
+    --let $_dt_table= `SELECT SUBSTRING('$_dt_table', $_dt_database_index + 1)`
+  }
+  if (!$_dt_database_index)
+  {
+    --let $_dt_database= `SELECT DATABASE()`
   }
 
-  # We need the output files to be sorted (so that diff_files does not
-  # think the files are different just because they are differently
-  # ordered).  To this end, we first generate a query that sorts the
-  # table by all columns.  Since ORDER BY accept column indices, we
-  # just generate a comma-separated list of all numbers from 1 to the
-  # number of columns in the table.
-  let $_diff_column_index=`SELECT MAX(ordinal_position)
-                           FROM information_schema.columns
-                           WHERE CONCAT(table_schema, '.', table_name) =
-                                 '$_diff_table'`;
-  let $_diff_column_list=$_diff_column_index;
-  dec $_diff_column_index;
-  while ($_diff_column_index) {
-    let $_diff_column_list=$_diff_column_index, $_diff_column_list;
-    dec $_diff_column_index;
+  if ($rpl_debug)
+  {
+    --echo con='$_dt_connection' db='$_dt_database' table='$_dt_table'
+    --echo rest of tables='$_dt_tables'
+  }
+
+  # We need to sort the output files so that diff_files does not think
+  # the tables are different just because the rows are differently
+  # ordered.  To this end, we first generate a string containing a
+  # comma-separated list of all column names. This is used in the
+  # ORDER BY clause of the following SELECT statement. We get the
+  # column names from INFORMATION_SCHEMA.COLUMNS, and we concatenate
+  # them with GROUP_CONCAT. Since GROUP_CONCAT is limited by the
+  # @@SESSION.group_concat_max_len, which is only 1024 by default, we
+  # first compute the total size of all columns and then increase this
+  # limit if needed. We restore the limit afterwards so as not to
+  # interfere with the test case.
+
+  # Compute length of ORDER BY clause.
+  let $_dt_order_by_length=
+    `SELECT SUM(LENGTH(column_name) + 3) FROM information_schema.columns
+            WHERE table_schema = '$_dt_database' AND table_name = '$_dt_table'`;
+  if (!$_dt_order_by_length)
+  {
+    --echo ERROR IN TEST: table $_dt_database.$_dt_table not found in INFORMATION_SCHEMA.COLUMNS. Did you misspell it?
+    --die ERROR IN TEST: table not found in INFORMATION_SCHEMA. Did you misspell it?
+  }
+  --let $_dt_old_group_concat_max_len=
+  # Increase group_concat_max_len if needed.
+  if (`SELECT $_dt_order_by_length > @@SESSION.group_concat_max_len`)
+  {
+    --let $_dt_old_group_concat_max_len= `SELECT @@SESSION.group_concat_max_len`
+    --eval SET SESSION group_concat_max_len = $_dt_order_by_length;
+    if ($rpl_debug)
+    {
+      --echo # increasing group_concat_max_len from $_dt_old_group_concat_max_len to $_dt_order_by_length
+    }
+  }
+  # Generate ORDER BY clause.
+  # It would be better to do GROUP_CONCAT(CONCAT('`', column_name, '`')) but
+  # BUG#58087 prevents us from returning strings that begin with backticks.
+  let $_dt_column_list=
+    `SELECT GROUP_CONCAT(column_name ORDER BY ORDINAL_POSITION SEPARATOR '`,`')
+            FROM information_schema.columns
+            WHERE table_schema = '$_dt_database' AND table_name = '$_dt_table'`;
+  # Restore group_concat_max_len.
+  if ($_dt_old_group_concat_max_len)
+  {
+    --let $_dt_dummy= `SET SESSION group_concat_max_len = $_dt_old_group_concat_max_len
+  }
+  if ($rpl_debug)
+  {
+    --echo using ORDER BY clause '`$_dt_column_list`'
   }
 
   # Now that we have the comma-separated list of columns, we can write
   # the table to a file.
-  eval SELECT * FROM $_diff_table ORDER BY $_diff_column_list
-              INTO OUTFILE '$MYSQLTEST_VARDIR/tmp/diff_table_$_diff_i';
+  --let $_dt_outfile= `SELECT @@datadir`
+  --let $_dt_outfile= $_dt_outfile/diff_table-$_dt_connection-$_dt_database-$_dt_table
+  eval SELECT * FROM $_dt_database.$_dt_table ORDER BY `$_dt_column_list` INTO OUTFILE '$_dt_outfile';
 
-  # Do the same for $diff_table_1.
-  dec $_diff_i;
-  let $_diff_table=$diff_table_1;
+  # Compare files.
+  if ($_dt_prev_outfile)
+  {
+    if ($rpl_debug)
+    {
+      --echo # diffing $_dt_prev_outfile vs $_dt_outfile
+    }
+    --diff_files $_dt_prev_outfile $_dt_outfile
+    # Remove previous outfile. Keep current file for comparison with next table.
+    --remove_file $_dt_prev_outfile
+  }
+  --let $_dt_prev_outfile= $_dt_outfile
 }
 
+--remove_file $_dt_prev_outfile
 
-# ==== Compare the generated files ====
 
-diff_files $MYSQLTEST_VARDIR/tmp/diff_table_1 $MYSQLTEST_VARDIR/tmp/diff_table_2;
-
---remove_file $MYSQLTEST_VARDIR/tmp/diff_table_1
---remove_file $MYSQLTEST_VARDIR/tmp/diff_table_2
-
-enable_query_log;
+--let $include_filename= diff_tables.inc [$diff_tables]
+--source include/end_include_file.inc

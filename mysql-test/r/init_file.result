@@ -21,4 +21,3 @@ y
 11
 13
 drop table t1, t2;
-call mtr.force_restart();
