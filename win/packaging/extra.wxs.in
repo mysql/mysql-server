@@ -1,8 +1,24 @@
 <?xml version="1.0" encoding="utf-8"?>
 <Wix xmlns="http://schemas.microsoft.com/wix/2006/wi"  xmlns:util="http://schemas.microsoft.com/wix/UtilExtension">
   <Fragment>
-    <Property Id="PortTemplate" Value="#####" />
+    <!--
+      Check, if upgrade wizard was built 
+      It currently requires MFC, which is not in SDK 
+      neither in express edítions of VS.
+    -->
+    <?ifndef HaveUpgradeWizard ?>
+      <?define HaveUpgradeWizard="1"?>
+    <?endif?>
 
+    <!-- If Innodb is compiled in, enable "optimize for transactions" checkbox -->
+    <?ifndef HaveInnodb ?>
+      <?define HaveInnodb="0"?>
+    <?endif?>
+
+    <Property Id="PortTemplate" Value="#####" />
+    <?if $(var.HaveInnodb) = "1" ?>
+      <Property Id="BufferPoolSizeTemplate" Value="#######" />
+    <?endif?>
     <!--
       Installation parameters that can be passed via msiexec command line
       For "booleans" (like skip networking), just providing any value means property set to "yes".
@@ -30,15 +46,14 @@
     <Property Id="CLEANUPDATA" Secure="yes" Value="1"/>
     <!-- Force per machine installation -->
     <Property Id="ALLUSERS" Secure="yes" Value="1"/>
-    <!--
-      Check, if upgrade wizard was built 
-      It currently requires MFC, which is not in SDK 
-      neither in express edítions of VS.
-    -->
-    <?ifndef HaveUpgradeWizard ?>
-      <?define HaveUpgradeWizard="1"?>
+    <?if $(var.HaveInnodb) = "1" ?>
+      <!-- Quick configuration : set default storage engine to innodb, use strict sql_mode -->
+      <Property Id="STDCONFIG" Secure="yes" Value="1"/>
     <?endif?>
-	
+    <!-- Innodb Buffer pool size in MB-->
+    <Property Id="BUFFERPOOLSIZE" Secure="yes"/>
+
+
     <!-- 
       User interface dialogs 
      -->
@@ -142,6 +157,8 @@
       
       <!-- Error popup dialog -->
       <Dialog Id="WarningDlg" Width="320" Height="85" Title="[ProductName] Setup" NoMinimize="yes">
+       <Control Id="Icon" Type="Icon" X="15" Y="15" Width="24" Height="24"
+       ToolTip="Information icon" FixedSize="yes" IconSize="32" Text="WixUI_Ico_Info" />
         <Control Id="Ok" Type="PushButton" X="132" Y="57" Width="56" Height="17"
           Default="yes" Cancel="yes" Text="OK">
           <Publish Property="WarningText">1</Publish>
@@ -261,6 +278,31 @@
           <Condition Action="enable" >EnableNetworking</Condition>
           <Condition Action="disable">Not EnableNetworking</Condition>
         </Control>
+
+        <?if $(var.HaveInnodb) = "1" ?>
+        <Control Id="CheckBoxStandardConfig" Type="CheckBox" Height="18" Width="220" X="9" Y="171" Property="STDCONFIG" CheckBoxValue="1">
+          <Text>{\Font1}Optimize for transactions</Text>
+        </Control>
+
+        <Control Id="StandardConfigExplain" Type="Text" X="25" Y="190" Width="270" Height="14" TabSkip="yes">
+          <Text>(Uses transactional storage engine and "strict" SQL mode)</Text>
+          <Condition Action="enable" >STDCONFIG</Condition>
+          <Condition Action="disable">Not STDCONFIG</Condition>
+        </Control>
+        <Control Id="LabelInnodbBufferpool" Type="Text" Height="17" Width="77" X="25" Y="210" Text="Buffer pool size:" >
+        <Condition Action="enable" >STDCONFIG</Condition>
+          <Condition Action="disable">Not STDCONFIG</Condition>
+        </Control>
+        <Control Id="BPSize" Type="MaskedEdit" X="104" Y="208" Width="40" Height="15" Property="BUFFERPOOLSIZE"  Sunken="yes" Text="[BufferPoolSizeTemplate]">
+          <Condition Action="enable" >STDCONFIG</Condition>
+          <Condition Action="disable">Not STDCONFIG</Condition>
+        </Control>
+        <Control Id="LabelMB" Type="Text" Height="17" Width="15" X="150" Y="210" Text="MB" >
+        <Condition Action="enable" >STDCONFIG</Condition>
+          <Condition Action="disable">Not STDCONFIG</Condition>
+        </Control>
+       <?endif?>
+
         <!-- Navigation buttons-->
         <Control Id="Back" Type="PushButton" X="180" Y="243" Width="56" Height="17" Text="&amp;Back">
           <Publish Event="NewDialog" Value="UserSettingsDlg">1</Publish>
@@ -379,7 +421,42 @@
         <ServiceControl Id='DBInstanceServiceStop' Name='[SERVICENAME]'  Stop='both' Remove='uninstall' Wait='yes'/>
         <ServiceControl Id='DBInstanceServiceStart' Name='[SERVICENAME]' Start='install' Wait='yes'/>
       </Component>
-
+      <?if $(var.HaveInnodb) = "1" ?>
+      <Component Id="C.myiniconfig" Guid="*" Directory="DATADIR">
+      <Condition>STDCONFIG</Condition>
+        <RegistryValue Root='HKLM'
+           Key='SOFTWARE\@MANUFACTURER@\@CPACK_WIX_PACKAGE_NAME@'
+           Name='STDCONFIG' Value='1' Type='string' KeyPath='yes'/>
+        <IniFile Id="Ini1"
+            Action="createLine"
+            Directory="DATADIR"
+            Section="mysqld"
+            Name="my.ini"
+            Key="sql_mode"
+            Value="&quot;STRICT_TRANS_TABLES,NO_ENGINE_SUBSTITUTION&quot;" />
+        <IniFile Id="Ini2"
+            Action="createLine"
+            Directory="DATADIR"
+            Section="mysqld"
+            Name="my.ini"
+            Key="default_storage_engine"
+            Value="innodb" />
+        <IniFile Id="Ini3"
+            Action="createLine"
+            Directory="DATADIR"
+            Section="mysqld"
+            Name="my.ini"
+            Key="innodb_buffer_pool_size"
+            Value="[BUFFERPOOLSIZE]M" />
+        <IniFile Id="Ini4"
+            Action="createLine"
+            Directory="DATADIR"
+            Section="mysqld"
+            Name="my.ini"
+            Key="innodb_log_file_size"
+            Value="[LOGFILESIZE]M" />
+      </Component>
+      <?endif?>
       <!--- Grant service account permission to the database folder (Windows 7 and later) -->
       <Component Id="C.serviceaccount.permission" Guid="*" Directory='DATADIR' Transitive='yes'>
         <Condition><![CDATA[SERVICENAME AND (VersionNT > 600)]]></Condition>
@@ -484,7 +561,8 @@
         Name="Upgrade Wizard (@CPACK_WIX_PACKAGE_NAME@)"
        Target="[INSTALLDIR]bin\mysql_upgrade_wizard.exe"
        Directory="ShortcutFolder"
-       Description="Upgrades older instances of MariaDB/MySQL services to version @MAJOR_VERSION@.@MINOR_VERSION@" />
+       Description="Upgrades older instances of MariaDB/MySQL services to version @MAJOR_VERSION@.@MINOR_VERSION@"  
+       Advertise="no"/>
      </Component>
      <?endif?>
     </Feature>
@@ -494,6 +572,7 @@
     <SetProperty Sequence='execute'  Before='CreateDatabaseCommand'  Id="ALLOWREMOTEROOTACCESS" Value="--allow-remote-root-access">ALLOWREMOTEROOTACCESS</SetProperty>
     <SetProperty Sequence='execute'  Before='CreateDatabaseCommand' Id="DEFAULTUSER" Value="--default-user">DEFAULTUSER</SetProperty>
     <CustomAction Id='CheckDatabaseProperties' BinaryKey='wixca.dll' DllEntry='CheckDatabaseProperties' />
+    <CustomAction Id='PresetDatabaseProperties' BinaryKey='wixca.dll' DllEntry='PresetDatabaseProperties' />
     <CustomAction Id="CreateDatabaseCommand" Property="CreateDatabase"
     Value=
     "&quot;[#F.bin.mysql_install_db.exe]&quot;  &quot;--service=[SERVICENAME]&quot; --port=[PORT] &quot;--password=[PASSWORD]&quot; &quot;--datadir=[DATADIR]\&quot; [SKIPNETWORKING] [ALLOWREMOTEROOTACCESS] [DEFAULTUSER]"
@@ -576,9 +655,11 @@
                   BinaryKey="wixca.dll" DllEntry="CheckDBInUse"  Execute="firstSequence"/>
     <InstallExecuteSequence>
       <Custom Action="CheckDBInUse" Before="LaunchConditions">Installed</Custom>
+      <Custom Action="PresetDatabaseProperties" After="CheckDBInUse"></Custom>
     </InstallExecuteSequence>
     <InstallUISequence>
       <Custom Action="CheckDBInUse" Before="LaunchConditions">Installed</Custom>
+      <Custom Action="PresetDatabaseProperties" After="CheckDBInUse"></Custom>
     </InstallUISequence>
 
     <!-- Store some properties persistently in registry, mainly for upgrades -->
