@@ -188,14 +188,20 @@ create_instance(
 
 
 /*** get_info ***/
-static const engine_info* innodb_get_info(ENGINE_HANDLE* handle)
+static
+const engine_info*
+innodb_get_info(
+/*============*/
+	ENGINE_HANDLE*	handle)
 {
-  return & innodb_handle(handle)->info.info;
+	return & innodb_handle(handle)->info.info;
 }
 
-/*** initialize ***/
-
-static void register_innodb_cb(uchar* p)
+static
+void
+register_innodb_cb(
+/*===============*/
+	uchar*	p)
 {
 	int	i;
 	int	array_size; 
@@ -214,8 +220,13 @@ typedef struct eng_config_info {
 	void*   cb_ptr;
 } eng_config_info_t;
 
-static ENGINE_ERROR_CODE innodb_initialize(ENGINE_HANDLE* handle,
-                                        const char* config_str) 
+/*** initialize ***/
+static
+ENGINE_ERROR_CODE
+innodb_initialize(
+/*==============*/
+	ENGINE_HANDLE*	handle,
+	const char*	config_str) 
 {   
 	ENGINE_ERROR_CODE	return_status;
 	struct innodb_engine*	innodb_eng = innodb_handle(handle);
@@ -326,7 +337,12 @@ innodb_conn_clean(
 }
 
 /*** destroy ***/
-static void innodb_destroy(ENGINE_HANDLE* handle, bool force) 
+static
+void
+innodb_destroy(
+/*===========*/
+	ENGINE_HANDLE*	handle,
+	bool		force) 
 {
 	DEBUG_ENTER();
 
@@ -348,14 +364,18 @@ static void innodb_destroy(ENGINE_HANDLE* handle, bool force)
    the default engine; we'll intercept it later in store().
    This is also called directly from finalize_read() in the commit thread.
 */
-static ENGINE_ERROR_CODE innodb_allocate(ENGINE_HANDLE* handle,
-                                           const void* cookie,
-                                           item **item,
-                                           const void* key,
-                                           const size_t nkey,
-                                           const size_t nbytes,
-                                           const int flags,
-                                           const rel_time_t exptime)
+static
+ENGINE_ERROR_CODE
+innodb_allocate(
+/*============*/
+	ENGINE_HANDLE*	handle,
+	const void*	cookie,
+	item **		item,
+	const void*	key,
+	const size_t	nkey,
+	const size_t	nbytes,
+	const int	flags,
+	const rel_time_t exptime)
 {
 	struct innodb_engine* innodb_eng = innodb_handle(handle);
 	struct default_engine *def_eng = default_handle(innodb_eng);
@@ -486,12 +506,12 @@ static
 ENGINE_ERROR_CODE
 innodb_remove(
 /*==========*/
-	ENGINE_HANDLE* handle,
-	const void* cookie,
-	const void* key,
-	const size_t nkey,
-	uint64_t cas,
-	uint16_t vbucket)
+	ENGINE_HANDLE*		handle,
+	const void*		cookie,
+	const void*		key,
+	const size_t		nkey,
+	uint64_t		cas,
+	uint16_t		vbucket)
 {
 	struct innodb_engine*	innodb_eng = innodb_handle(handle);
 	struct default_engine*	def_eng = default_handle(innodb_eng);
@@ -532,8 +552,13 @@ innodb_remove(
 
 
 /*** release ***/
-static void innodb_release(ENGINE_HANDLE* handle, const void *cookie,
-                        item* item)
+static
+void
+innodb_release(
+/*===========*/
+	ENGINE_HANDLE*		handle,
+	const void*		cookie,
+	item*			item)
 {
 	struct innodb_engine*	innodb_eng = innodb_handle(handle);
 	struct default_engine*	def_eng = default_handle(innodb_eng);
@@ -546,12 +571,16 @@ static void innodb_release(ENGINE_HANDLE* handle, const void *cookie,
 }  
 
 /*** get ***/
-static ENGINE_ERROR_CODE innodb_get(ENGINE_HANDLE* handle,
-                                 const void* cookie,
-                                 item** item,
-                                 const void* key,
-                                 const int nkey,
-                                 uint16_t vbucket)
+static
+ENGINE_ERROR_CODE
+innodb_get(
+/*=======*/
+	ENGINE_HANDLE*		handle,
+	const void*		cookie,
+	item**			item,
+	const void*		key,
+	const int		nkey,
+	uint16_t		vbucket)
 {
 	struct innodb_engine*	innodb_eng = innodb_handle(handle);
 	hash_item*		it = NULL;
@@ -674,11 +703,15 @@ func_exit:
 
 
 /*** get_stats ***/
-static ENGINE_ERROR_CODE innodb_get_stats(ENGINE_HANDLE* handle,
-                                       const void *cookie,
-                                       const char *stat_key,
-                                       int nkey,
-                                       ADD_STAT add_stat)
+static
+ENGINE_ERROR_CODE
+innodb_get_stats(
+/*=============*/
+	ENGINE_HANDLE*		handle,
+	const void*		cookie,
+	const char*		stat_key,
+	int			nkey,
+	ADD_STAT		add_stat)
 {
 	struct innodb_engine* innodb_eng = innodb_handle(handle);
 	struct default_engine *def_eng = default_handle(innodb_eng);
@@ -688,8 +721,12 @@ static ENGINE_ERROR_CODE innodb_get_stats(ENGINE_HANDLE* handle,
 
 
 /*** reset_stats ***/
-static void innodb_reset_stats(ENGINE_HANDLE* handle, 
-                            const void *cookie)
+static
+void
+innodb_reset_stats(
+/*===============*/
+	ENGINE_HANDLE* handle, 
+	const void *cookie)
 {
 	struct innodb_engine* innodb_eng = innodb_handle(handle);
 	struct default_engine *def_eng = default_handle(innodb_eng);
@@ -699,12 +736,16 @@ static void innodb_reset_stats(ENGINE_HANDLE* handle,
 
 /*** store ***/
 
-static ENGINE_ERROR_CODE innodb_store(ENGINE_HANDLE* handle,
-                                   const void *cookie,
-                                   item* item,
-                                   uint64_t *cas,
-                                   ENGINE_STORE_OPERATION op,
-                                   uint16_t vbucket)
+static
+ENGINE_ERROR_CODE
+innodb_store(
+/*=========*/
+	ENGINE_HANDLE*		handle,
+	const void*		cookie,
+	item*			item,
+	uint64_t*		cas,
+	ENGINE_STORE_OPERATION	op,
+	uint16_t		vbucket)
 {
 	struct innodb_engine*	innodb_eng = innodb_handle(handle);
 	uint16_t		len = hash_item_get_key_len(item);
@@ -741,18 +782,22 @@ static ENGINE_ERROR_CODE innodb_store(ENGINE_HANDLE* handle,
 
 
 /*** arithmetic ***/
-static ENGINE_ERROR_CODE innodb_arithmetic(ENGINE_HANDLE* handle,
-                                        const void* cookie,
-                                        const void* key,
-                                        const int nkey,
-                                        const bool increment,
-                                        const bool create,
-                                        const uint64_t delta,
-                                        const uint64_t initial,
-                                        const rel_time_t exptime,
-                                        uint64_t *cas,
-                                        uint64_t *result,
-                                        uint16_t vbucket)
+static
+ENGINE_ERROR_CODE
+innodb_arithmetic(
+/*==============*/
+	ENGINE_HANDLE*	handle,
+	const void*	cookie,
+	const void*	key,
+	const int	nkey,
+	const bool	increment,
+	const bool	create,
+	const uint64_t	delta,
+	const uint64_t	initial,
+	const rel_time_t exptime,
+	uint64_t*	cas,
+	uint64_t*	result,
+	uint16_t	vbucket)
 {
 	struct innodb_engine*	innodb_eng = innodb_handle(handle);
 	struct default_engine*	def_eng = default_handle(innodb_eng);
@@ -788,8 +833,13 @@ static ENGINE_ERROR_CODE innodb_arithmetic(ENGINE_HANDLE* handle,
 
 
 /*** flush ***/
-static ENGINE_ERROR_CODE innodb_flush(ENGINE_HANDLE* handle,
-                                   const void* cookie, time_t when)
+static
+ENGINE_ERROR_CODE
+innodb_flush(
+/*=========*/
+	ENGINE_HANDLE*	handle,
+	const void*	cookie,
+	time_t		when)
 {                                   
 	struct innodb_engine* innodb_eng = innodb_handle(handle);
 	struct default_engine *def_eng = default_handle(innodb_eng);
@@ -818,10 +868,14 @@ static ENGINE_ERROR_CODE innodb_flush(ENGINE_HANDLE* handle,
 
 
 /*** unknown_command ***/
-static ENGINE_ERROR_CODE innodb_unknown_command(ENGINE_HANDLE* handle,
-                                             const void* cookie,
-                                             protocol_binary_request_header *request,
-                                             ADD_RESPONSE response)
+static
+ENGINE_ERROR_CODE
+innodb_unknown_command(
+/*===================*/
+	ENGINE_HANDLE*	handle,
+	const void*	cookie,
+	protocol_binary_request_header *request,
+	ADD_RESPONSE	response)
 {
 	struct innodb_engine* innodb_eng = innodb_handle(handle);
 	struct default_engine *def_eng = default_handle(innodb_eng);
@@ -832,10 +886,14 @@ static ENGINE_ERROR_CODE innodb_unknown_command(ENGINE_HANDLE* handle,
 
 
 /*** get_item_info ***/
-static bool innodb_get_item_info(ENGINE_HANDLE *handle, 
-                              const void *cookie,
-                              const item* item, 
-                              item_info *item_info)
+static
+bool
+innodb_get_item_info(
+/*=================*/
+	ENGINE_HANDLE*		handle, 
+	const void*		cookie,
+	const item* 		item, 
+	item_info*		item_info)
 {
 	if (item_info->nvalue < 1) {
 	THREAD_DEBUG_PRINT("nvalue too small.");
@@ -860,61 +918,66 @@ static bool innodb_get_item_info(ENGINE_HANDLE *handle,
 
 
 /* read_cmdline_options requires duplicating code from the default engine. 
-   If the default engine supports a new option, you will need to add it here.
-   We create a single config_items structure containing options for both 
-   engines.
+If the default engine supports a new option, you will need to add it here.
+We create a single config_items structure containing options for both 
+engines. This function is not used for now. We passed the configure
+string to default engine for its initialization. But we would need this
+function if we would need to parse InnoDB specific configure strings.
 */
-void read_cmdline_options(struct innodb_engine *innodb,
-			  struct default_engine *se,
-                          const char * conf)
+void
+read_cmdline_options(
+/*=================*/
+	struct innodb_engine*	innodb,
+	struct default_engine*	se,
+	const char*		conf)
 {
-  DEBUG_ENTER();
-  int did_parse = 0;   /* 0 = success from parse_config() */
-  if (conf != NULL) {
-    struct config_item items[] = {
-      /* DEFAULT ENGINE OPTIONS */
-      { .key = "use_cas",
-        .datatype = DT_BOOL,
-        .value.dt_bool = &se->config.use_cas },
-      { .key = "verbose",
-        .datatype = DT_SIZE,
-        .value.dt_size = &se->config.verbose },
-      { .key = "eviction",
-        .datatype = DT_BOOL,
-        .value.dt_bool = &se->config.evict_to_free },
-      { .key = "cache_size",
-        .datatype = DT_SIZE,
-        .value.dt_size = &se->config.maxbytes },
-      { .key = "preallocate",
-        .datatype = DT_BOOL,
-        .value.dt_bool = &se->config.preallocate },
-      { .key = "factor",
-        .datatype = DT_FLOAT,
-        .value.dt_float = &se->config.factor },
-      { .key = "chunk_size",
-        .datatype = DT_SIZE,
-        .value.dt_size = &se->config.chunk_size },
-      { .key = "item_size_max",
-        .datatype = DT_SIZE,
-        .value.dt_size = &se->config.item_size_max },
-      { .key = "config_file",
-        .datatype = DT_CONFIGFILE },
-      { .key = NULL}
-    };
-    
-    did_parse = se->server.core->parse_config(conf, items, stderr);
-  }
-  switch(did_parse) {
-      case -1:
-        logger->log(LOG_WARNING, NULL, 
-                    "Unknown tokens in config string \"%s\"\n", conf);
-        break;
-      case 1:
-        logger->log(LOG_WARNING, NULL, 
-                    "Illegal values in config string: \"%s\"\n", conf);
-        break;
-      case 0: /* success */
-        break;
-  }
+	DEBUG_ENTER();
+	int did_parse = 0;   /* 0 = success from parse_config() */
+	if (conf != NULL) {
+		struct config_item items[] = {
+			/* DEFAULT ENGINE OPTIONS */
+			{ .key = "use_cas",
+			.datatype = DT_BOOL,
+			.value.dt_bool = &se->config.use_cas },
+			{ .key = "verbose",
+			.datatype = DT_SIZE,
+			.value.dt_size = &se->config.verbose },
+			{ .key = "eviction",
+			.datatype = DT_BOOL,
+			.value.dt_bool = &se->config.evict_to_free },
+			{ .key = "cache_size",
+			.datatype = DT_SIZE,
+			.value.dt_size = &se->config.maxbytes },
+			{ .key = "preallocate",
+			.datatype = DT_BOOL,
+			.value.dt_bool = &se->config.preallocate },
+			{ .key = "factor",
+			.datatype = DT_FLOAT,
+			.value.dt_float = &se->config.factor },
+			{ .key = "chunk_size",
+			.datatype = DT_SIZE,
+			.value.dt_size = &se->config.chunk_size },
+			{ .key = "item_size_max",
+			.datatype = DT_SIZE,
+			.value.dt_size = &se->config.item_size_max },
+			{ .key = "config_file",
+			.datatype = DT_CONFIGFILE },
+			{ .key = NULL}
+		};
+
+		did_parse = se->server.core->parse_config(conf, items, stderr);
+	}
+	switch(did_parse) {
+	case -1:
+		logger->log(LOG_WARNING, NULL, 
+				    "Unknown tokens in config string \"%s\"\n", conf);
+		break;
+	case 1:
+		logger->log(LOG_WARNING, NULL, 
+			    "Illegal values in config string: \"%s\"\n", conf);
+		break;
+	case 0: /* success */
+		break;
+	}
 }
 
