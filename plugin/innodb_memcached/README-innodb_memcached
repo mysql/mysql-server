@@ -103,4 +103,5 @@ binary prependq                         [pass]
 binary stat                             [pass]
 All tests passed
 
+11) You can also configure the commit batch size by specifying boot time system variable "daemon_memcached-w_batch_size" and "daemon_memcached-r_batch_size" (--loose-daemon_memcached-w_batch_size=100).
 

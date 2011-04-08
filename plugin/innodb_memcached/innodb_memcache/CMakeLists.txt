@@ -53,4 +53,3 @@ MYSQL_ADD_PLUGIN(innodb_engine ${INNODB_ENGINE_SOURCES}
 
 TARGET_LINK_LIBRARIES(innodb_engine libmcd_util)
 
-INSTALL(FILES scripts/innodb_memcached_config.sql DESTINATION ${CMAKE_CURRENT_BINARY_DIR}/scripts OPTIONAL COMPONENT Server)

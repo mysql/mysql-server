@@ -74,8 +74,8 @@ typedef struct innodb_engine {
 	conn_base_t	conn_data;
 	pthread_mutex_t conn_mutex;
 	ib_cb_t*	innodb_cb;
-	
+	uint64_t	r_batch_size;
+	uint64_t	w_batch_size;	
 } innodb_engine_t;
-
 
 #endif

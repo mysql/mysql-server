@@ -1024,7 +1024,7 @@ innodb_api_cursor_reset(
 	}
 
 	if (conn_data->c_crsr
-	    && conn_data->c_w_count_commit > CONN_NUM_WRITE_COMMIT) {
+	    && conn_data->c_w_count_commit >= engine->w_batch_size) {
 		ib_cb_cursor_reset(conn_data->c_crsr);
 
 		if (conn_data->c_idx_crsr) {
@@ -1039,7 +1039,7 @@ innodb_api_cursor_reset(
 	}
 
 	if (conn_data->c_r_crsr
-	    && conn_data->c_r_count_commit > CONN_NUM_READ_COMMIT) {
+	    && conn_data->c_r_count_commit > engine->r_batch_size) {
 		ib_cb_cursor_reset(conn_data->c_r_crsr);
 
 		if (conn_data->c_r_idx_crsr) {

@@ -15,7 +15,8 @@
 
 # Common defines and includes
 ADD_DEFINITIONS(-DHAVE_CONFIG_H)
-INCLUDE_DIRECTORIES(${CMAKE_SOURCE_DIR}/plugin/innodb_memcached/libeventcompat/sys})
+INCLUDE_DIRECTORIES(${CMAKE_SOURCE_DIR}/plugin/innodb_memcached/libevent/compat/sys
+		    ${CMAKE_SOURCE_DIR}/plugin/innodb_memcached/libevent)
 
 SET(LIBEVENT_CORE_SOURCES
 		event.c

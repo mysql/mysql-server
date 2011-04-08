@@ -6714,8 +6714,10 @@ daemon_memcached_make_option(char* option, int* option_argc,
 /* Structure that adds the call back functions struture pointers,
 passed to InnoDB engine */
 typedef struct eng_config_info {
-	char*	option_string;
-	void*	cb_ptr;
+	char*		option_string;
+	void*		cb_ptr;
+	unsigned int	eng_r_batch_size;
+	unsigned int	eng_w_batch_size;
 } eng_config_info_t;
 
 #if 0 
@@ -6754,6 +6756,8 @@ void* daemon_memcached_main(void *p) {
 	point to storage engine. It is now appended in the configure
 	string in eng_config_info_t structure */
 	my_eng_config.cb_ptr = m_config->m_innodb_api_cb;
+	my_eng_config.eng_r_batch_size = m_config->m_r_batch_size;
+	my_eng_config.eng_w_batch_size = m_config->m_w_batch_size;
 	my_eng_config.option_string = old_opts;
 	engine_config = (const char *) (&my_eng_config);
 

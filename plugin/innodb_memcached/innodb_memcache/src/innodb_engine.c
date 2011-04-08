@@ -22,23 +22,15 @@ with this program; if not, write to the Free Software Foundation, Inc.,
 #include <assert.h>
 #include <pthread.h>
 #include <arpa/inet.h>
-
-//#include "config.h"
-
 #include "default_engine.h"
-
 #include <memcached/util.h>
 #include <memcached/config_parser.h>
 
 #include "innodb_engine.h"
 #include "innodb_engine_private.h"
-#include "debug.h"
 #include "innodb_api.h"
 #include "hash_item_util.h"
 
-
-#define DEBUG_THD_NAME "engine"
-#define DEBUG_THD_ID pipeline->id
 
 /* Static and local to this file */
 const char * set_ops[] = { "","add","set","replace","append","prepend","cas" };
@@ -85,8 +77,6 @@ ib_cb_t* innodb_memcached_api[] = {
 	(ib_cb_t*) &ib_cb_table_truncate,
 	(ib_cb_t*) &ib_cb_cursor_open_index_using_name
 };
-
-
 
 static inline
 struct innodb_engine*
@@ -209,8 +199,10 @@ register_innodb_cb(
 }
 
 typedef struct eng_config_info {
-	char*   option_string;
-	void*   cb_ptr;
+	char*		option_string;
+	void*		cb_ptr;
+	unsigned int	eng_r_batch_size;
+	unsigned int	eng_w_batch_size;
 } eng_config_info_t;
 
 /*** initialize ***/
@@ -225,18 +217,21 @@ innodb_initialize(
 	struct innodb_engine*	innodb_eng = innodb_handle(handle);
 	struct default_engine*	def_eng = default_handle(innodb_eng);
 	eng_config_info_t*	my_eng_config;
-  
+
 	my_eng_config = (eng_config_info_t*) config_str;
 
 	/* Register the call back function */
 	register_innodb_cb((void*) my_eng_config->cb_ptr);
 
+	innodb_eng->r_batch_size = (my_eng_config->eng_r_batch_size
+					? my_eng_config->eng_r_batch_size
+					: CONN_NUM_READ_COMMIT);
+	innodb_eng->w_batch_size = (my_eng_config->eng_w_batch_size
+					? my_eng_config->eng_w_batch_size
+					: CONN_NUM_WRITE_COMMIT);
+
 	UT_LIST_INIT(innodb_eng->conn_data);
 	pthread_mutex_init(&innodb_eng->conn_mutex, NULL);
-
-	/* Initalize the debug library */
-	DEBUG_INIT(NULL, innodb_eng->startup_options.debug_enable);
-	DEBUG_ENTER();
 
 	/* Fetch InnoDB specific settings */
 	if (!innodb_config(&innodb_eng->meta_info)) {
@@ -337,8 +332,6 @@ innodb_destroy(
 	ENGINE_HANDLE*	handle,
 	bool		force) 
 {
-	DEBUG_ENTER();
-
 	struct innodb_engine* innodb_eng = innodb_handle(handle);
 	struct default_engine *def_eng = default_handle(innodb_eng);
 
@@ -889,7 +882,6 @@ innodb_get_item_info(
 	item_info*		item_info)
 {
 	if (item_info->nvalue < 1) {
-	THREAD_DEBUG_PRINT("nvalue too small.");
 	return false;
 	}
 	/* Use a hash item */
@@ -904,8 +896,6 @@ innodb_get_item_info(
 	item_info->key = hash_item_get_key(it);
 	item_info->value[0].iov_base = hash_item_get_data(it);
 	item_info->value[0].iov_len = it->nbytes;    
-	THREAD_DEBUG_PRINT("hash_item [KEY: %s][CAS: %llu].", 
-		       hash_item_get_key(it), hash_item_get_cas(it));
 	return true;
 }
 
@@ -924,7 +914,6 @@ read_cmdline_options(
 	struct default_engine*	se,
 	const char*		conf)
 {
-	DEBUG_ENTER();
 	int did_parse = 0;   /* 0 = success from parse_config() */
 	if (conf != NULL) {
 		struct config_item items[] = {
