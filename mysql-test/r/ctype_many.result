@@ -1683,3 +1683,18 @@ ARMENIAN CAPIT DA	2
 ARMENIAN CAPIT ECH	2
 ARMENIAN CAPIT ZA	2
 DROP TABLE t1;
+#
+# Start of 5.1 tests
+#
+#
+# Bug#58371 Assertion failed: !s.uses_buffer_owned_by(this) with format string function
+#
+SET NAMES latin1;
+DO CONVERT(CAST(SUBSTRING_INDEX(FORMAT(1,'1111'), FORMAT('','Zpq'),1) 
+AS BINARY(0)) USING utf8);
+Warnings:
+Warning	1292	Truncated incorrect INTEGER value: 'Zpq'
+Warning	1292	Truncated incorrect BINARY(0) value: '1.'
+#
+# End of 5.1 tests
+#

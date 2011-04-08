@@ -548,6 +548,13 @@ primary key using hash(c1)) engine=ndb partition by key(c1);
 drop table t1;
 
 #
+# test bug#53354 - crash when creating partitioned table with multiple columns in the partition key
+#
+
+--error ER_FIELD_NOT_FOUND_PART_ERROR
+create table `t1` (`a` int, b int, primary key (a,b)) engine=ndb partition by key(`a`,`b`,`a`);
+
+#
 # test max size of attribute name and truncation
 #
 
