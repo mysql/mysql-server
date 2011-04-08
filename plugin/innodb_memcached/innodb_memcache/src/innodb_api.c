@@ -395,7 +395,8 @@ func_exit:
 }
 
 /*************************************************************//**
-Get montonically increased cas ID */
+Get montonically increased cas ID.
+FIXME: This shall be atomic operation */
 static
 uint64_t
 mci_get_cas(void)

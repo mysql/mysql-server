@@ -10,10 +10,7 @@ mysql> select @@plugin_dir;
 +----------------------------------------------------+
 1 row in set (0.00 sec)
 
-2) Install libevent
-
-In libevent directory
-run automake, autoconf, ./configure, make, and sudo make install
+2) Install libevent. libevent is required for memcached. It is included in our package. However, if you need other memcached related utilities (memcapable etc.) please make sure you have libevent installed.
 
 3) Build MySQL/InnoDB server
 

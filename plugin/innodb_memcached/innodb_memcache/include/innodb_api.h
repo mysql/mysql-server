@@ -27,8 +27,6 @@ Created 03/15/2011      Jimmy Yang
 
 #include <memcached/types.h>
 #include "api0api.h"
-//#include "univ.i"
-#include "dict0types.h"
 #include "innodb_engine.h"
 
 typedef struct mci_column {
@@ -279,15 +277,6 @@ ib_err_t
 	ib_crsr_t	ib_crsr);
 
 typedef
-ib_err_t
-(*CB_CREATE_CURSOR)(
-/*================*/
-	ib_crsr_t*	ib_crsr,
-	dict_table_t*	table,
-	ib_id_t		index_id,
-	trx_t*		trx);
-
-typedef
 void*
 (*CB_OPEN_TABLE_BY_NAME)(
 /*=====================*/
@@ -374,7 +363,6 @@ CB_CURSOR_SET_MATCH_MODE	ib_cb_cursor_set_match_mode;
 CB_CURSOR_LOCK			ib_cb_cursor_lock;
 CB_CURSOR_CLOSE			ib_cb_cursor_close;
 CB_CURSOR_NEW_TRX		ib_cb_cursor_new_trx;
-CB_CREATE_CURSOR		ib_cb_cursor_create;
 CB_OPEN_TABLE_BY_NAME		ib_cb_open_table_by_name;
 CB_CURSOR_RESET			ib_cb_cursor_reset;
 CB_COL_GET_NAME			ib_cb_col_get_name;

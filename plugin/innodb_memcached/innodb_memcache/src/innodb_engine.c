@@ -29,7 +29,6 @@ with this program; if not, write to the Free Software Foundation, Inc.,
 
 #include <memcached/util.h>
 #include <memcached/config_parser.h>
-#include <memcached/extension_loggers.h>
 
 #include "innodb_engine.h"
 #include "innodb_engine_private.h"
@@ -40,9 +39,6 @@ with this program; if not, write to the Free Software Foundation, Inc.,
 
 #define DEBUG_THD_NAME "engine"
 #define DEBUG_THD_ID pipeline->id
-
-/* A static global variable */
-EXTENSION_LOGGER_DESCRIPTOR *logger;
 
 /* Static and local to this file */
 const char * set_ops[] = { "","add","set","replace","append","prepend","cas" };
@@ -84,7 +80,6 @@ ib_cb_t* innodb_memcached_api[] = {
 	(ib_cb_t*) &ib_cb_cursor_close,
 	(ib_cb_t*) &ib_cb_cursor_new_trx,
 	(ib_cb_t*) &ib_cb_cursor_reset,
-	(ib_cb_t*) &ib_cb_cursor_create,
 	(ib_cb_t*) &ib_cb_open_table_by_name,
 	(ib_cb_t*) &ib_cb_col_get_name,
 	(ib_cb_t*) &ib_cb_table_truncate,
@@ -142,8 +137,6 @@ create_instance(
 	if(innodb_eng == NULL) {
 		return ENGINE_ENOMEM;
 	}
-
-	logger = get_stderr_logger();
 
 	innodb_eng->engine.interface.interface = 1;
 	innodb_eng->engine.get_info        = innodb_get_info;
@@ -966,18 +959,6 @@ read_cmdline_options(
 		};
 
 		did_parse = se->server.core->parse_config(conf, items, stderr);
-	}
-	switch(did_parse) {
-	case -1:
-		logger->log(LOG_WARNING, NULL, 
-				    "Unknown tokens in config string \"%s\"\n", conf);
-		break;
-	case 1:
-		logger->log(LOG_WARNING, NULL, 
-			    "Illegal values in config string: \"%s\"\n", conf);
-		break;
-	case 0: /* success */
-		break;
 	}
 }
 

@@ -21,6 +21,11 @@ extern void initialize_sockets(void);
 #define initialize_sockets()
 #endif
 
+#define HAVE_NETDB_H 1
+#define HAVE_NETINET_TCP_H 1
+#define HAVE_NETINET_IN_H 1
+#define HAVE_SIGIGNORE 1
+
 #ifdef HAVE_DLFCN_H
 #include <dlfcn.h>
 #endif
