@@ -23,6 +23,7 @@ with this program; if not, write to the Free Software Foundation, Inc.,
 #include "innodb_api.h"
 #include <errno.h>
 #include "memcached/util.h"
+#include <sys/time.h>
 
 /** Tells whether to update all value columns or a specific value
 column */
@@ -416,7 +417,7 @@ mci_get_time(void)
 
 	gettimeofday(&tv,NULL);
 
-	return ((ulonglong)tv.tv_sec);
+	return ((uint64_t)tv.tv_sec);
 }
 
 /*************************************************************//**
@@ -775,7 +776,7 @@ innodb_api_arithmetic(
 	ib_tpl_t	old_tpl;
 	ib_tpl_t	new_tpl;
 	uint64_t	value = 0;
-	ibool		create_new = FALSE;
+	bool		create_new = FALSE;
 	char*		end_ptr;
 	meta_info_t*	meta_info = &engine->meta_info;
 	meta_column_t*	col_info = meta_info->m_item;

@@ -184,7 +184,7 @@ static
 void
 register_innodb_cb(
 /*===============*/
-	uchar*	p)
+	char*	p)
 {
 	int	i;
 	int	array_size; 
@@ -736,8 +736,8 @@ innodb_store(
 	struct innodb_engine*	innodb_eng = innodb_handle(handle);
 	uint16_t		len = hash_item_get_key_len(item);
 	char*			value = hash_item_get_key(item);
-	uint64			exptime = hash_item_get_exp(item);
-	uint64			flags = hash_item_get_flag(item);
+	uint64_t		exptime = hash_item_get_exp(item);
+	uint64_t		flags = hash_item_get_flag(item);
 	ENGINE_ERROR_CODE	result;
 	uint64_t		input_cas;
 	innodb_conn_data_t*	conn_data;

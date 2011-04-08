@@ -19,7 +19,7 @@ Place, Suite 330, Boston, MA 02111-1307 USA
 #define INNOBASE_API_H
 
 #include "db0err.h"
-#include "univ.i"
+//#include "univ.i"
 
 /* API_BEGIN_INCLUDE */
 #include <stdio.h>
@@ -124,6 +124,7 @@ typedef uint64_t                ib_u64_t;
 typedef void*			ib_opaque_t;
 typedef ib_opaque_t		ib_charset_t;
 typedef ib_ulint_t		ib_bool_t;
+typedef ib_u64_t		ib_id_t;
 
 /** @enum ib_cfg_type_t Possible types for a configuration variable. */
 typedef enum {

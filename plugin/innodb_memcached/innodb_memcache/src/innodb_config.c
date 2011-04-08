@@ -33,7 +33,7 @@ char*
 my_strdupl(
 /*=======*/
         const char*     str,    /*!< in: string to be copied */
-        ulint           len)    /*!< in: length of str, in bytes */
+        int             len)    /*!< in: length of str, in bytes */
 {
         char*   s = (char*) malloc(len + 1);
         s[len] = 0;
@@ -92,8 +92,6 @@ innodb_config_parse_value_col(
 	int			num_cols = 0;
 	char*			my_str = my_strdupl(str, len);
 
-	assert(my_str);
-
 	/* Find out how many column names in the string */
 	for (column_str = strtok_r(my_str, sep, &last);
 	     column_str;
@@ -118,7 +116,6 @@ innodb_config_parse_value_col(
 			i++;
 		}
 
-		assert(i == num_cols);
 		item->m_num_add = num_cols;
 	} else {
 		item->m_add_item = NULL;

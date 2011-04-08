@@ -404,7 +404,7 @@ typedef unsigned long long int	ullint;
 #define IB_ULONGLONG_MAX	((ib_uint64_t) (~0ULL))
 
 /** The generic InnoDB system object identifier data type */
-typedef ib_uint64_t	ib_id_t;
+typedef ib_uint64_t	ib_idd_t;
 
 /* The 'undefined' value for a ullint */
 #define ULLINT_UNDEFINED        ((ullint)(-1))
