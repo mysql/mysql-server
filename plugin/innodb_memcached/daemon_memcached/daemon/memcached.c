@@ -13,7 +13,10 @@
  *      Anatoly Vorobey <mellon@pobox.com>
  *      Brad Fitzpatrick <brad@danga.com>
  */
+
+
 #include "config.h"
+#include "config_static.h"
 #include "memcached.h"
 #include "memcached_mysql.h"
 #include "memcached/extension_loggers.h"

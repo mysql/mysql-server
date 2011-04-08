@@ -399,7 +399,6 @@ ib_cb_t innodb_api_cb[] = {
 	(ib_cb_t) ib_cursor_close,
 	(ib_cb_t) ib_cursor_new_trx,
 	(ib_cb_t) ib_cursor_reset,
-	(ib_cb_t) ib_create_cursor,
 	(ib_cb_t) ib_open_table_by_name,
 	(ib_cb_t) ib_col_get_name,
 	(ib_cb_t) ib_table_truncate,

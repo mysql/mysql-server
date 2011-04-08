@@ -967,6 +967,7 @@ ib_table_get_id_low(
 /*****************************************************************//**
 Create an internal cursor instance.
 @return	DB_SUCCESS or err code */
+static
 ib_err_t
 ib_create_cursor(
 /*=============*/

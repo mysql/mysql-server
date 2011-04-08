@@ -11,8 +11,6 @@
 #include <memcached/visibility.h>
 #include <innodb_config.h>
 
-#include "atomics.h"
-
 /** The InnoDB engine global data.
 
 Inside memcached, a pointer to this is treated as simply an ENGINE_HANDLE_V1 
@@ -70,9 +68,6 @@ typedef struct innodb_engine {
 
 	bool		initialized;
 	bool		connected;
-
-	unsigned int	cas_hi;
-	ndbmc_atomic32_t cas_lo;
 
 	meta_info_t	meta_info;
 

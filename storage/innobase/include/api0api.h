@@ -20,8 +20,6 @@ Place, Suite 330, Boston, MA 02111-1307 USA
 
 #include "db0err.h"
 #include "univ.i"
-#include "dict0types.h"
-#include "trx0types.h"
 
 /* API_BEGIN_INCLUDE */
 #include <stdio.h>
@@ -52,18 +50,80 @@ typedef unsigned char		ib_byte_t;
 /** Representation of an unsigned long int within InnoDB */
 typedef unsigned long int	ib_ulint_t;
 
-typedef int8			ib_i8_t;
-typedef uint8			ib_u8_t;
-typedef uint16			ib_u16_t;
-typedef int16			ib_i16_t;
-typedef uint32			ib_u32_t;
-typedef uint32			ib_i32_t;
-typedef int64			ib_i64_t;
-typedef uint64			ib_u64_t;
+/* We assume C99 support except when using VisualStudio. */
+#if !defined(_MSC_VER)
+#include <stdint.h>
+#endif /* _MSC_VER */
+
+/* Integer types used by the API. Microsft VS defines its own types
+and we use the Microsoft types when building with Visual Studio. */
+#if defined(_MSC_VER)
+/** A signed 8 bit integral type. */
+typedef __int8			ib_i8_t;
+#else
+/** A signed 8 bit integral type. */
+typedef int8_t                  ib_i8_t;
+#endif
+
+#if defined(_MSC_VER)
+/** An unsigned 8 bit integral type. */
+typedef unsigned __int8		ib_u8_t;
+#else
+/** An unsigned 8 bit integral type. */
+typedef uint8_t                 ib_u8_t;
+#endif
+
+#if defined(_MSC_VER)
+/** A signed 16 bit integral type. */
+typedef __int16			ib_i16_t;
+#else
+/** A signed 16 bit integral type. */
+typedef int16_t                 ib_i16_t;
+#endif
+
+#if defined(_MSC_VER)
+/** An unsigned 16 bit integral type. */
+typedef unsigned __int16	ib_u16_t;
+#else
+/** An unsigned 16 bit integral type. */
+typedef uint16_t                ib_u16_t;
+#endif
+
+#if defined(_MSC_VER)
+/** A signed 32 bit integral type. */
+typedef __int32			ib_i32_t;
+#else
+/** A signed 32 bit integral type. */
+typedef int32_t                 ib_i32_t;
+#endif
+
+#if defined(_MSC_VER)
+/** An unsigned 32 bit integral type. */
+typedef unsigned __int32	ib_u32_t;
+#else
+/** An unsigned 32 bit integral type. */
+typedef uint32_t                ib_u32_t;
+#endif
+
+#if defined(_MSC_VER)
+/** A signed 64 bit integral type. */
+typedef __int64			ib_i64_t;
+#else
+/** A signed 64 bit integral type. */
+typedef int64_t                 ib_i64_t;
+#endif
+
+#if defined(_MSC_VER)
+/** An unsigned 64 bit integral type. */
+typedef unsigned __int64	ib_u64_t;
+#else
+/** An unsigned 64 bit integral type. */
+typedef uint64_t                ib_u64_t;
+#endif
+
 typedef void*			ib_opaque_t;
 typedef ib_opaque_t		ib_charset_t;
 typedef ib_ulint_t		ib_bool_t;
-
 
 /** @enum ib_cfg_type_t Possible types for a configuration variable. */
 typedef enum {
@@ -587,7 +647,7 @@ by calling ib_trx_release().
 @param ib_trx is the transaction to restart
 @param ib_trx_level is the transaction isolation level
 @return	innobase txn handle */
-UNIV_INTERN
+
 ib_err_t
 ib_trx_start(
 /*=========*/
@@ -600,7 +660,7 @@ put the transaction in the active state.
 @ingroup trx
 @param ib_trx_level is the transaction isolation level
 @return	innobase txn handle */
-UNIV_INTERN
+
 ib_trx_t
 ib_trx_begin(
 /*=========*/
@@ -617,7 +677,7 @@ code indicating this. @see DB_DEADLOCK, @see DB_LOCK_TABLE_FULL and
 @ingroup trx
 @param ib_trx is the transaction handle
 @return	transaction state */
-UNIV_INTERN
+
 ib_trx_state_t
 ib_trx_state(
 /*=========*/
@@ -631,7 +691,7 @@ to free the transaction handle.
 @ingroup trx
 @param ib_trx is the transaction handle
 @return	DB_SUCCESS or err code */
-UNIV_INTERN
+
 ib_err_t
 ib_trx_release(
 /*===========*/
@@ -644,7 +704,7 @@ It will also free the transaction handle.
 @ingroup trx
 @param ib_trx is thr transaction handle
 @return	DB_SUCCESS or err code */
-UNIV_INTERN
+
 ib_err_t
 ib_trx_commit(
 /*==========*/
@@ -657,7 +717,7 @@ It will also free the transaction handle.
 @ingroup trx
 @param ib_trx is the transaction handle
 @return	DB_SUCCESS or err code */
-UNIV_INTERN
+
 ib_err_t
 ib_trx_rollback(
 /*============*/
@@ -668,7 +728,7 @@ Set to true if it's a simple select.
 
 @ingroup sql
 @param[in, out] ib_crsr is the cursor to update */
-UNIV_INTERN
+
 void
 ib_cursor_set_simple_select(
 /*========================*/
@@ -682,7 +742,7 @@ Open an InnoDB table and return a cursor handle to it.
 @param ib_trx is the current transaction handle, can be NULL
 @param[out] ib_crsr is the new cursor
 @return	DB_SUCCESS or err code */
-UNIV_INTERN
+
 ib_err_t
 ib_cursor_open_table_using_id(
 /*==========================*/
@@ -698,7 +758,7 @@ Open an InnoDB index and return a cursor handle to it.
 @param ib_trx is the current transaction handlem can be NULL
 @param[out] ib_crsr is the new cursor
 @return	DB_SUCCESS or err code */
-UNIV_INTERN
+
 ib_err_t
 ib_cursor_open_index_using_id(
 /*==========================*/
@@ -709,7 +769,7 @@ ib_cursor_open_index_using_id(
 /*****************************************************************//**
 Open an InnoDB secondary index cursor and return a cursor handle to it.
 @return DB_SUCCESS or err code */
-UNIV_INTERN
+
 ib_err_t
 ib_cursor_open_index_using_name(
 /*============================*/
@@ -727,7 +787,7 @@ Open an InnoDB table by name and return a cursor handle to it.
 @param ib_trx is the current transactionm, can be NULL
 @param ib_crsr is the new cursor
 @return	DB_SUCCESS or err code */
-UNIV_INTERN
+
 ib_err_t
 ib_cursor_open_table(
 /*=================*/
@@ -738,7 +798,7 @@ ib_cursor_open_table(
 /*****************************************************************//**
 Reset the cursor.
 @return	DB_SUCCESS or err code */
-UNIV_INTERN
+
 ib_err_t
 ib_cursor_reset(
 /*============*/
@@ -747,7 +807,7 @@ ib_cursor_reset(
 /*****************************************************************//**
 Close an InnoDB table and free the cursor.
 @return	DB_SUCCESS or err code */
-UNIV_INTERN
+
 ib_err_t
 ib_cursor_close(
 /*============*/
@@ -756,7 +816,7 @@ ib_cursor_close(
 /*****************************************************************//**
 Close the table, decrement n_ref_count count.
 @return DB_SUCCESS or err code */
-UNIV_INTERN
+
 ib_err_t
 ib_cursor_close_table(
 /*==================*/
@@ -765,19 +825,7 @@ ib_cursor_close_table(
 /*****************************************************************//**
 Create an internal cursor instance.
 @return DB_SUCCESS or err code */
-UNIV_INTERN
-ib_err_t
-ib_create_cursor(
-/*=============*/
-	ib_crsr_t*	ib_crsr,	/*!< out: InnoDB cursor */
-	dict_table_t*	table,		/*!< in: table instance */
-	ib_id_t		index_id,	/*!< in: index id or 0 */
-	trx_t*		trx);		/*!< in: transaction */
 
-/*****************************************************************//**
-Create an internal cursor instance.
-@return DB_SUCCESS or err code */
-UNIV_INTERN
 ib_err_t
 ib_cursor_new_trx(
 /*==============*/
@@ -787,7 +835,7 @@ ib_cursor_new_trx(
 /********************************************************************//**
 Open a table using the table name, if found then increment table ref count.
 @return table instance if found */
-UNIV_INTERN
+
 void*
 ib_open_table_by_name(
 /*==================*/
@@ -800,7 +848,7 @@ Insert a row to a table.
 @param ib_crsr is an open cursor
 @param ib_tpl is the tuple to insert
 @return	DB_SUCCESS or err code */
-UNIV_INTERN
+
 ib_err_t
 ib_cursor_insert_row(
 /*=================*/
@@ -815,7 +863,7 @@ Update a row in a table.
 @param ib_old_tpl is the old tuple in the table
 @param ib_new_tpl is the new tuple with the updated values
 @return	DB_SUCCESS or err code */
-UNIV_INTERN
+
 ib_err_t
 ib_cursor_update_row(
 /*=================*/
@@ -829,7 +877,7 @@ Delete a row in a table.
 @ingroup dml
 @param ib_crsr is the cursor instance
 @return	DB_SUCCESS or err code */
-UNIV_INTERN
+
 ib_err_t
 ib_cursor_delete_row(
 /*=================*/
@@ -842,7 +890,7 @@ Read current row.
 @param ib_crsr is the cursor instance
 @param[out] ib_tpl is the tuple to read the column values
 @return	DB_SUCCESS or err code */
-UNIV_INTERN
+
 ib_err_t
 ib_cursor_read_row(
 /*===============*/
@@ -855,7 +903,7 @@ Move cursor to the first record in the table.
 @ingroup cursor
 @param ib_crsr is the cursor instance
 @return	DB_SUCCESS or err code */
-UNIV_INTERN
+
 ib_err_t
 ib_cursor_first(
 /*============*/
@@ -867,7 +915,7 @@ Move cursor to the last record in the table.
 @ingroup cursor
 @param ib_crsr is the cursor instance
 @return	DB_SUCCESS or err code */
-UNIV_INTERN
+
 ib_err_t
 ib_cursor_last(
 /*===========*/
@@ -883,7 +931,7 @@ Search for key.
 @param[out] result is -1, 0 or 1 depending on tuple eq or gt than
        the current row
 @return	DB_SUCCESS or err code */
-UNIV_INTERN
+
 ib_err_t
 ib_cursor_moveto(
 /*=============*/
@@ -898,7 +946,7 @@ attached to another transaction.
 @ingroup cursor
 @param ib_crsr is the cursor instance
 @param ib_trx is the transaction to attach to the cursor */
-UNIV_INTERN
+
 void
 ib_cursor_attach_trx(
 /*=================*/
@@ -910,7 +958,7 @@ Set the client comparison function for BLOBs and client types.
 
 @ingroup misc
 @param client_cmp_func is the index key compare callback function */
-UNIV_INTERN
+
 void
 ib_set_client_compare(
 /*==================*/
@@ -922,7 +970,7 @@ Set the match mode for ib_cursor_move().
 @ingroup cursor
 @param ib_crsr is the cursor instance
 @param match_mode is the match mode to set */
-UNIV_INTERN
+
 void
 ib_cursor_set_match_mode(
 /*=====================*/
@@ -1681,7 +1729,7 @@ ib_status_get_i64(
 /*****************************************************************//**
 Get a column type, length and attributes from the tuple.
 @return len of column data */
-UNIV_INTERN
+
 const char*
 ib_col_get_name(
 /*============*/
@@ -1692,7 +1740,7 @@ ib_col_get_name(
 /*****************************************************************//**
 Truncate a table.
 @return DB_SUCCESS or error code */
-UNIV_INTERN
+
 ib_err_t
 ib_table_truncate(
 /*==============*/
@@ -1703,7 +1751,7 @@ ib_table_truncate(
 Check whether the table name conforms to our requirements. Currently
 we only do a simple check for the presence of a '/'.
 @return DB_SUCCESS or err code */
-UNIV_INTERN
+
 ib_err_t
 ib_table_name_check(
 /*================*/

@@ -8,6 +8,7 @@
  */
 #include <event.h>
 #include <pthread.h>
+#include <config_static.h>
 
 #include <memcached/protocol_binary.h>
 #include <memcached/engine.h>
