@@ -1,6 +1,4 @@
-/*
-   Copyright (C) 2004 MySQL AB
-    All rights reserved. Use is subject to license terms.
+/* Copyright (C) 2008 MySQL AB, 2009 Sun Microsystems, Inc.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by

@@ -1,7 +1,7 @@
 /******************************************************
 The wait array used in synchronization primitives
 
-(c) 1995 Innobase Oy
+Copyright (c) 1995, 2011, Oracle and/or its affiliates. All Rights Reserved.
 
 Created 9/5/1995 Heikki Tuuri
 *******************************************************/
@@ -709,7 +709,7 @@ print:
 					fprintf(stderr, "rw-lock %p ",
 						(void*) lock);
 					sync_array_cell_print(stderr, cell);
-					rw_lock_debug_print(debug);
+					rw_lock_debug_print(stderr, debug);
 					return(TRUE);
 				}
 			}
