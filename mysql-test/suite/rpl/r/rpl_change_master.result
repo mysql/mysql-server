@@ -203,7 +203,7 @@ n
 1
 2
 stop slave;
-change master to master_bind='<save_master_bind>';
+change master to master_bind='';
 start slave;
 select * from t1;
 n
