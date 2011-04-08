@@ -42,3 +42,4 @@ Tables_in_test
 t1
 drop table t1;
 end of the tests
+include/rpl_end.inc
