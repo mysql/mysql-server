@@ -564,6 +564,9 @@ innodb_api_insert(
 
 	if (err == DB_SUCCESS) {
 		*cas = new_cas;
+	} else {
+		ib_cb_trx_rollback(cursor_data->c_trx);
+		cursor_data->c_trx = NULL;
 	}
 
 	ib_cb_tuple_delete(tpl);
@@ -614,11 +617,14 @@ innodb_api_update(
 
 	err = ib_cb_update_row(srch_crsr, old_tpl, new_tpl);
 
-	ib_cb_tuple_delete(new_tpl);
-
 	if (err == DB_SUCCESS) {
 		*cas = new_cas;
+	} else {
+		ib_cb_trx_rollback(cursor_data->c_trx);
+		cursor_data->c_trx = NULL;
 	}
+
+	ib_cb_tuple_delete(new_tpl);
 
 	return(err);
 }

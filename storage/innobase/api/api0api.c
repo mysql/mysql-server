@@ -299,6 +299,25 @@ ib_lookup_table_by_name(
 	return(table);
 }
 
+/********************************************************************//**
+Increments innobase_active_counter and every INNOBASE_WAKE_INTERVALth
+time calls srv_active_wake_master_thread. This function should be used
+when a single database operation may introduce a small need for
+server utility activity, like checkpointing. */
+UNIV_INLINE
+void
+ib_wake_master_thread(void)
+/*=======================*/
+{
+        static ulint    ib_signal_counter = 0;
+
+        ++ib_signal_counter;
+
+        if ((ib_signal_counter % INNOBASE_WAKE_INTERVAL) == 0) {
+                srv_active_wake_master_thread();
+        }
+}
+
 /*********************************************************************//**
 Calculate the max row size of the columns in a cluster index.
 @return	max row length */
@@ -652,7 +671,7 @@ ib_trx_rollback(
 	err = ib_trx_release(ib_trx);
 	ut_a(err == DB_SUCCESS);
 
-	//ib_wake_master_thread();
+	ib_wake_master_thread();
 
 	return(err);
 }
@@ -944,28 +963,7 @@ ib_table_get_id_low(
 	return(err);
 }
 
-/*****************************************************************//**
-Create an internal cursor instance.
-@return	DB_SUCCESS or err code */
-ib_err_t
-ib_cursor_new_trx(
-/*==============*/
-	ib_crsr_t	ib_crsr,	/*!< in/out: InnoDB cursor */
-	ib_trx_t	ib_trx)		/*!< in: transaction */
-{
-	ib_err_t        err = DB_SUCCESS;
-	ib_cursor_t*    cursor = (ib_cursor_t*) ib_crsr;
-	trx_t*          trx = (trx_t*) ib_trx;
 
-	row_prebuilt_t*	prebuilt = cursor->prebuilt;
-
-	row_update_prebuilt_trx(prebuilt, trx);
-
-	trx_assign_read_view(prebuilt->trx);
-
-	return(err);
-
-}
 /*****************************************************************//**
 Create an internal cursor instance.
 @return	DB_SUCCESS or err code */
@@ -1269,6 +1267,32 @@ ib_cursor_reset(
 	mem_heap_empty(cursor->query_heap);
 
 	return(DB_SUCCESS);
+}
+
+/*****************************************************************//**
+update the cursor with new transactions and also reset the cursor
+@return	DB_SUCCESS or err code */
+ib_err_t
+ib_cursor_new_trx(
+/*==============*/
+	ib_crsr_t	ib_crsr,	/*!< in/out: InnoDB cursor */
+	ib_trx_t	ib_trx)		/*!< in: transaction */
+{
+	ib_err_t        err = DB_SUCCESS;
+	ib_cursor_t*    cursor = (ib_cursor_t*) ib_crsr;
+	trx_t*          trx = (trx_t*) ib_trx;
+
+	row_prebuilt_t*	prebuilt = cursor->prebuilt;
+
+	row_update_prebuilt_trx(prebuilt, trx);
+
+	trx_assign_read_view(prebuilt->trx);
+
+        ib_qry_proc_free(&cursor->q_proc);
+
+        mem_heap_empty(cursor->query_heap);
+
+	return(err);
 }
 
 /*****************************************************************//**
