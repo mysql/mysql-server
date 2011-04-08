@@ -29,14 +29,10 @@ DELETE FROM t0_definition;
 let $MYSQLD_DATADIR= `select LEFT(@@datadir, LENGTH(@@datadir)-1)`;
 #echo MYSQLD_DATADIR: $MYSQLD_DATADIR;
 
-# Dump the current definition of the table t1 to tmp1
-# This complicated method - let another mysqltest collect the output - is used
-# because of two reasons
+# Save the current definition of the table t1
 # - SHOW CREATE TABLE t1 is at least currently most probably more reliable than
 #   the corresponding SELECT on the INFORMATION_SCHEMA
-# - SHOW CREATE TABLE .. cannot write its out put into a file like SELECT
-let $show_file= $MYSQLD_DATADIR/test/tmp1;
---exec echo "SHOW CREATE TABLE t1; exit; " | $MYSQL_TEST > $show_file 2>&1
+let $show_create= `SHOW CREATE TABLE t1`;
 if ($do_file_tests)
 {
   # List the files belonging to the table t1
@@ -57,12 +53,13 @@ if (!$do_file_tests)
 
 # Insert the current definition of the table t1 into t0_definition
 eval INSERT INTO t0_definition SET state = 'old',
-     create_command = load_file('$show_file'),
+     create_command = "$show_create",
      file_list      = @aux;
 
 # Print the create table statement into the protocol
+# Added the concat to avoid changing the result files
 --replace_result $MYSQLTEST_VARDIR MYSQLTEST_VARDIR '\r' ''
-SELECT create_command FROM t0_definition WHERE state = 'old';
+SELECT concat('SHOW CREATE TABLE t1;\nTable\tCreate Table\n',create_command,'\n') as `create_command` FROM t0_definition WHERE state = 'old';
 if ($do_file_tests)
 {
    # We stored the list of files, therefore printing the content makes sense

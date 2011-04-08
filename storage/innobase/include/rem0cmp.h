@@ -141,6 +141,10 @@ cmp_rec_rec_with_match(
 	const ulint*	offsets1,/* in: rec_get_offsets(rec1, index) */
 	const ulint*	offsets2,/* in: rec_get_offsets(rec2, index) */
 	dict_index_t*	index,	/* in: data dictionary index */
+	ibool		nulls_unequal,
+				/* in: TRUE if this is for index statistics
+				cardinality estimation, and innodb_stats_method
+				is "nulls_unequal" or "nulls_ignored" */
 	ulint*		matched_fields, /* in/out: number of already completely
 				matched fields; when the function returns,
 				contains the value the for current
