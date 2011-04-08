@@ -112,6 +112,7 @@ UNIV_INTERN ulint	srv_max_file_format_at_startup = UNIV_FORMAT_MAX;
 #if UNIV_FORMAT_A
 # error "UNIV_FORMAT_A must be 0!"
 #endif
+
 /** Place locks to records only i.e. do not use next-key locking except
 on duplicate key checking and foreign key checking */
 UNIV_INTERN ibool	srv_locks_unsafe_for_binlog = FALSE;

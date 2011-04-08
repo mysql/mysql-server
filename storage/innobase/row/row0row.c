@@ -298,7 +298,8 @@ row_build(
 		/* REDUNDANT and COMPACT formats store a local
 		768-byte prefix of each externally stored
 		column. No cache is needed. */
-		ut_ad(dict_table_get_format(index->table) < UNIV_FORMAT_B);
+		ut_ad(dict_table_get_format(index->table)
+		      < UNIV_FORMAT_B);
 	} else if (j) {
 		*ext = row_ext_create(j, ext_cols, row,
 				      dict_table_zip_size(index->table),

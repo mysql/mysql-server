@@ -348,7 +348,7 @@ including new BLOB treatment */
 /** log2 of largest compressed page size (1<<14 == 16384 bytes).
 A compressed page directory entry reserves 14 bits for the start offset
 and 2 bits for flags. This limits the uncompressed page size to 16k.
-So even though a 16k uncompressed page can theoretically be compressed
+Even though a 16k uncompressed page can theoretically be compressed
 into a larger compressed page, it is not a useful feature so we will
 limit both with this same constant. */
 #define UNIV_ZIP_SIZE_SHIFT_MAX	14

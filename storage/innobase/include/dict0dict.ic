@@ -144,7 +144,7 @@ ulint
 dict_col_get_fixed_size(
 /*====================*/
 	const dict_col_t*	col,	/*!< in: column */
-	ulint			comp)	/*!< in: nonzero=ROW_FORMAT=COMPACT  */
+	ulint			comp)	/*!< in: nonzero=ROW_FORMAT=COMPACT */
 {
 	return(dtype_get_fixed_size_low(col->mtype, col->prtype, col->len,
 					col->mbminmaxlen, comp));

@@ -534,7 +534,7 @@ srv_calc_low32(
 
 /*********************************************************************//**
 Calculates the high 32 bits when a file size which is given as a number
-database pages is converted to the number of bytes.
+of database pages is converted to the number of bytes.
 @return	high 32 bytes of file size when expressed in bytes */
 static
 ulint
