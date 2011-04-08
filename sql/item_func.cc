@@ -2550,7 +2550,8 @@ void Item_func_min_max::fix_length_and_dec()
   }
   if (cmp_type == STRING_RESULT)
   {
-    agg_arg_charsets_for_comparison(collation, args, arg_count);
+    agg_arg_charsets_for_string_result_with_comparison(collation,
+                                                       args, arg_count);
     if (datetime_found)
     {
       thd= current_thd;
