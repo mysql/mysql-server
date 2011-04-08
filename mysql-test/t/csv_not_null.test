@@ -55,10 +55,8 @@ INSERT INTO t1 VALUES();
 SELECT * FROM t1;
 
 -- disable_warnings
-# NOTE - Test disabled due to enum crash for this INSERT
-# See Bug#33717 - INSERT...(default) fails for enum. 
-# Crashes CSV tables, loads spaces for MyISAM
-#INSERT INTO t1 VALUES(default,default,default,default,default,default);
+# Bug#33717 - INSERT...(default) fails for enum. 
+INSERT INTO t1 VALUES(default,default,default,default,default,default);
 -- enable_warnings
 
 SELECT * FROM t1;

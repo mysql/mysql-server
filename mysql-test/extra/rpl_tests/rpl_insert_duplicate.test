@@ -1,0 +1,64 @@
+# BUG#59338 Inconsistency in binlog for statements that don't change any rows STATEMENT SBR
+# In SBR, if a statement does not fail, it is always written to the binary log,
+# regardless if rows are changed or not. If there is a failure, a statement is
+# only written to the binary log if a non-transactional (.e.g. MyIsam) engine
+# is updated. INSERT ON DUPLICATE KEY UPDATE was not following the rule above
+# and was not written to the binary log, if then engine was Innodb.
+#
+# In this test case, we check if INSERT ON DUPLICATE KEY UPDATE that does not
+# change anything is still written to the binary log.
+
+# Prepare environment
+--connection master
+
+eval CREATE TABLE t1 (
+ a INT UNSIGNED NOT NULL PRIMARY KEY
+) ENGINE=$engine_type;
+
+eval CREATE TABLE t2 (
+ a INT UNSIGNED
+) ENGINE=$engine_type;
+
+INSERT INTO t1 VALUES (1);
+INSERT INTO t2 VALUES (1);
+
+# An insert duplicate that does not update anything must be written to the binary
+# log in SBR and MIXED modes. We check this property by summing a before and after
+# the update and comparing the binlog positions. The sum should be the same at both
+# points and the statement should be in the binary log.
+--let $binlog_file= query_get_value("SHOW MASTER STATUS", File, 1)
+--let $binlog_start= query_get_value("SHOW MASTER STATUS", Position, 1)
+--let $statement_file=INSERT INTO t1 SELECT t2.a FROM t2 ORDER BY t2.a ON DUPLICATE KEY UPDATE t1.a= t1.a
+--eval $statement_file
+
+--let $assert_cond= SUM(a) = 1 FROM t1
+--let $assert_text= Sum of elements in t1 should be 1.
+--source include/assert.inc
+
+if (`SELECT @@BINLOG_FORMAT = 'ROW'`)
+{
+  --let $binlog_position_cmp= =
+  --let $assert_cond= [SHOW MASTER STATUS, Position, 1] $binlog_position_cmp $binlog_start
+  --let $assert_text= In SBR or MIXED modes, the event in the binlog should be the same that was executed. In RBR mode, binlog position should stay unchanged.
+}
+if (`SELECT @@BINLOG_FORMAT != 'ROW' && UPPER('$engine_type') = UPPER('Innodb')`)
+{
+  --let $assert_cond= \'[\'SHOW BINLOG EVENTS IN "$binlog_file" FROM $binlog_start LIMIT 1, 1\', Info, 1]\' LIKE \'%$statement_file\'
+  --let $assert_text= In SBR or MIXED modes, the event in the binlog should be the same that was executed. In RBR mode, binlog position should stay unchanged.
+}
+if (`SELECT @@BINLOG_FORMAT != 'ROW' && UPPER('$engine_type') = UPPER('MyIsam')`)
+{
+  --let $assert_cond= \'[\'SHOW BINLOG EVENTS IN "$binlog_file" FROM $binlog_start LIMIT 0, 1\', Info, 1]\' LIKE \'%$statement_file\'
+  --let $assert_text= In SBR or MIXED modes, the event in the binlog should be the same that was executed. In RBR mode, binlog position should stay unchanged.
+}
+--source include/assert.inc
+
+# Compare master and slave
+--sync_slave_with_master
+--let $diff_tables= master:test.t1 , slave:test.t1
+--source include/diff_tables.inc
+
+# Clean up
+--connection master
+drop table t1, t2;
+--sync_slave_with_master
