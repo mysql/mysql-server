@@ -79,8 +79,8 @@ eval CREATE TABLE t1 (
 --echo # Insert some big rows.
 --echo #
 
---echo 256MB
-INSERT INTO t1 VALUES (REPEAT('ManyMegaByteBlck', 16777216));
+--echo 64MB
+INSERT INTO t1 VALUES (REPEAT('ManyMegaByteBlck', 4194304));
 
 --echo 32MB
 INSERT INTO t1 VALUES (REPEAT('ManyMegaByteBlck', 2097152));
