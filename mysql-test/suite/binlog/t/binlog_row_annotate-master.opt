@@ -1,0 +1,1 @@
+--timezone=GMT-3 --binlog-do-db=test1 --binlog-do-db=test2 --binlog-do-db=test3

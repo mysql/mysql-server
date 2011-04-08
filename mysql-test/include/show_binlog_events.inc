@@ -3,7 +3,7 @@
 #
 # Useage: 
 # let $binlog_file= master-bin.000002; 
-# let $binlog_start= 106; 
+# let $binlog_start= 240; 
 # let $binlog_limit= 1, 3; 
 # source include/show_binlog_events.inc;
 #

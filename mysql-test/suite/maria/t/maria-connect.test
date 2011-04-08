@@ -4,6 +4,9 @@
 
 -- source include/have_maria.inc
 -- source include/have_log_bin.inc
+-- source include/binlog_start_pos.inc
+
+let $start_pos= `select @binlog_start_pos`;
 
 let $default=`select @@global.storage_engine`;
 set global storage_engine=aria;
@@ -27,7 +30,9 @@ insert t1 values (1),(2),(3);
 --error ER_DUP_ENTRY
 insert t1 values (4),(2),(5);
 select * from t1;
-SHOW BINLOG EVENTS FROM 106;
+--replace_result $start_pos <start_pos>
+--replace_column 2 # 5 #
+eval SHOW BINLOG EVENTS FROM $start_pos;
 drop table t1;
 set binlog_format=default;
 

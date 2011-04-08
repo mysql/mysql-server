@@ -233,7 +233,7 @@ extern ulong	srv_ibuf_active_contract;
 extern ulong	srv_ibuf_accel_rate;
 extern ulint	srv_checkpoint_age_target;
 extern ulong	srv_flush_neighbor_pages;
-extern ulong	srv_enable_unsafe_group_commit;
+extern ulong	srv_deprecated_enable_unsafe_group_commit;
 extern ulong	srv_read_ahead;
 extern ulong	srv_adaptive_checkpoint;
 
@@ -347,6 +347,9 @@ extern ulint srv_buf_pool_reads;
 
 /** Time in seconds between automatic buffer pool dumps */
 extern uint srv_auto_lru_dump;
+
+/** Release row locks already in the prepare phase */
+extern my_bool innobase_release_locks_early;
 
 /** Status variables to be passed to MySQL */
 typedef struct export_var_struct export_struc;

@@ -108,6 +108,9 @@ static int		pbxt_end(void *p);
 static int		pbxt_panic(handlerton *hton, enum ha_panic_function flag);
 static void		pbxt_drop_database(handlerton *hton, char *path);
 static int		pbxt_close_connection(handlerton *hton, THD* thd);
+#ifdef MARIADB_BASE_VERSION
+static void		pbxt_commit_ordered(handlerton *hton, THD *thd, bool all);
+#endif
 static int		pbxt_commit(handlerton *hton, THD *thd, bool all);
 static int		pbxt_rollback(handlerton *hton, THD *thd, bool all);
 static int		pbxt_prepare(handlerton *hton, THD *thd, bool all);
@@ -1147,6 +1150,9 @@ static int pbxt_init(void *p)
 		pbxt_hton->state = SHOW_OPTION_YES;
 		pbxt_hton->db_type = DB_TYPE_PBXT; // Wow! I have my own!
 		pbxt_hton->close_connection = pbxt_close_connection; /* close_connection, cleanup thread related data. */
+#ifdef MARIADB_BASE_VERSION
+		pbxt_hton->commit_ordered = pbxt_commit_ordered;
+#endif
 		pbxt_hton->commit = pbxt_commit; /* commit */
 		pbxt_hton->rollback = pbxt_rollback; /* rollback */
 		if (pbxt_support_xa) {
@@ -1484,6 +1490,29 @@ static int pbxt_start_consistent_snapshot(handlerton *hton, THD *thd)
 	return err;
 }
 
+#ifdef MARIADB_BASE_VERSION
+/*
+ * Quickly commit the transaction to memory and make it visible to others.
+ * The remaining part of commit will happen later, in pbxt_commit().
+ */
+static void pbxt_commit_ordered(handlerton *hton, THD *thd, bool all)
+{
+	XTThreadPtr	self;
+
+	if ((self = (XTThreadPtr) *thd_ha_data(thd, hton))) {
+		XT_PRINT2(self, "%s pbxt_commit_ordered all=%d\n", all ? "END CONN XACT" : "END STAT", all);
+
+		if (self->st_xact_data) {
+			if (all || self->st_auto_commit) {
+				self->st_commit_ordered = TRUE;
+				self->st_writer = self->st_xact_writer;
+				self->st_delayed_error= !xt_xn_commit_fast(self, self->st_writer);
+			}
+		}
+	}
+}
+#endif
+
 /*
  * Commit the PBXT transaction of the given thread.
  * thd is the MySQL thread structure.
@@ -1512,7 +1541,13 @@ static int pbxt_commit(handlerton *hton, THD *thd, bool all)
 			if (all || self->st_auto_commit) {
 				XT_PRINT0(self, "xt_xn_commit in pbxt_commit\n");
 
-				if (!xt_xn_commit(self))
+				if (self->st_commit_ordered) {
+					self->st_commit_ordered = FALSE;
+					err = !xt_xn_commit_slow(self, self->st_writer) || self->st_delayed_error;
+				} else {
+					err = !xt_xn_commit(self);
+				}
+				if (err)
 					err = xt_ha_pbxt_thread_error_for_mysql(thd, self, FALSE);
 			}
 		}
@@ -6064,7 +6099,7 @@ static MYSQL_SYSVAR_INT(max_threads, pbxt_max_threads,
 	NULL, NULL, 0, 0, 20000, 1);
 #endif
 
-#ifndef DEBUG
+#if !defined(DEBUG) || defined(MARIADB_BASE_VERSION)
 static MYSQL_SYSVAR_BOOL(support_xa, pbxt_support_xa,
 	PLUGIN_VAR_OPCMDARG,
 	"Enable PBXT support for the XA two-phase commit, default is enabled",

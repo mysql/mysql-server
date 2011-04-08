@@ -2,6 +2,7 @@
 --source include/not_embedded.inc
 --source include/have_innodb.inc
 --source include/have_archive.inc
+--source include/have_log_bin.inc
 
 --disable_warnings
 drop table if exists t1, t2, t3, t4, t5, t6;
@@ -1124,3 +1125,84 @@ DROP VIEW  v1;
 DROP TABLE t1;
 
 SET GLOBAL storage_engine=@old_engine;
+
+# Test fully non-locking mysqldump with consistent binlog position (MWL#136).
+
+connect(c1,127.0.0.1,root,,test,$MASTER_MYPORT,);
+connect(c2,127.0.0.1,root,,test,$MASTER_MYPORT,);
+connect(c3,127.0.0.1,root,,test,$MASTER_MYPORT,);
+
+connection default;
+--echo # Connection default
+SET binlog_format= mixed;
+RESET MASTER;
+CREATE TABLE t1 (a INT PRIMARY KEY) ENGINE=InnoDB;
+INSERT INTO t1 VALUES (1),(2);
+CREATE TABLE t2 (a INT PRIMARY KEY, b INT) ENGINE=InnoDB;
+INSERT INTO t2 VALUES (1,0), (2,0);
+SELECT GET_LOCK("block_queries_1", 120);
+
+connection c3;
+--echo # Connection c3
+SELECT GET_LOCK("block_queries_2", 120);
+
+# Start two queries that will be running on the tables during mysqldump
+connection c1;
+--echo # Connection c1
+SET @c= 0;
+send SELECT IF(@c<1, @c:=@c+1, GET_LOCK("block_queries_1", 120)) FROM t1 ORDER BY a;
+
+connection c2;
+--echo # Connection c2
+SET binlog_format="row";
+SET @d= 10;
+send UPDATE t2 SET b=IF(@d<=10, @d:=@d+1, GET_LOCK("block_queries_2", 120)) ORDER BY a;
+
+connection default;
+--echo # Connection default
+--echo # Make sure other queries are running (and waiting).
+let $wait_condition=
+  SELECT COUNT(*) FROM information_schema.processlist
+   WHERE state = "User lock" AND info LIKE 'SELECT%block_queries_1%';
+--source include/wait_condition.inc
+let $wait_condition=
+  SELECT COUNT(*) FROM information_schema.processlist
+   WHERE state = "User lock" AND info LIKE 'UPDATE%block_queries_2%';
+--source include/wait_condition.inc
+
+--exec $MYSQL_DUMP --master-data=2 --single-transaction test t1 t2 > $MYSQLTEST_VARDIR/tmp/mwl136.sql
+
+SELECT RELEASE_LOCK("block_queries_1");
+
+connection c3;
+--echo # Connection c3
+SELECT RELEASE_LOCK("block_queries_2");
+
+connection c1;
+--echo # Connection c1
+reap;
+
+connection c2;
+--echo # Connection c2
+reap;
+
+connection default;
+--echo # Connection default
+SELECT * FROM t2 ORDER BY a;
+DROP TABLE t1;
+DROP TABLE t2;
+--exec $MYSQL test < $MYSQLTEST_VARDIR/tmp/mwl136.sql
+
+--replace_regex /\/\* xid=.* \*\//\/* XID *\// /Server ver: .*, Binlog ver: .*/Server ver: #, Binlog ver: #/ /table_id: [0-9]+/table_id: #/
+SHOW BINLOG EVENTS LIMIT 6,3;
+--perl
+my $f= "$ENV{MYSQLTEST_VARDIR}/tmp/mwl136.sql";
+open F, '<', $f or die "Failed to open $f: $!\n";
+while (<F>) {
+   print if /CHANGE MASTER TO/;
+}
+EOF
+SELECT * FROM t1 ORDER BY a;
+SELECT * FROM t2 ORDER BY a;
+
+DROP TABLE t1,t2;

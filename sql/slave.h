@@ -106,6 +106,7 @@ extern MYSQL_PLUGIN_IMPORT char *relay_log_info_file;
 extern char *opt_relay_logname, *opt_relaylog_index_name;
 extern my_bool opt_skip_slave_start, opt_reckless_slave;
 extern my_bool opt_log_slave_updates;
+extern my_bool opt_replicate_annotate_rows_events;
 extern ulonglong relay_log_space_limit;
 
 /*

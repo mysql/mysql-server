@@ -121,7 +121,7 @@ trx_create(
 	trx->table_id = ut_dulint_zero;
 
 	trx->mysql_thd = NULL;
-	trx->active_trans = 0;
+	trx->active_flag = 0;
 	trx->duplicates = 0;
 
 	trx->n_mysql_tables_in_use = 0;

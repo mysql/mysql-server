@@ -1,5 +1,6 @@
 -- source include/have_innodb.inc
 -- source include/have_binlog_format_statement.inc
+-- source include/binlog_start_pos.inc
 
 # You cannot use `KILL' with the Embedded MySQL Server library,
 # because the embedded server merely runs inside the threads of the host
@@ -51,7 +52,8 @@ reap;
 let $rows= `select count(*) from t2  /* must be 2 or 0 */`;
 
 let $MYSQLD_DATADIR= `select @@datadir`;
---exec $MYSQL_BINLOG --force-if-open --start-position=134 $MYSQLD_DATADIR/master-bin.000001 > $MYSQLTEST_VARDIR/tmp/kill_query_calling_sp.binlog
+let $start_pos= `select @binlog_start_pos + 28`;
+--exec $MYSQL_BINLOG --force-if-open --start-position=$start_pos $MYSQLD_DATADIR/master-bin.000001 > $MYSQLTEST_VARDIR/tmp/kill_query_calling_sp.binlog
 --replace_result $MYSQLTEST_VARDIR MYSQLTEST_VARDIR
 eval select
 (@a:=load_file("$MYSQLTEST_VARDIR/tmp/kill_query_calling_sp.binlog"))

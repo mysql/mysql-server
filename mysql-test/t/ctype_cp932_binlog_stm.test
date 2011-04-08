@@ -28,14 +28,6 @@ delimiter ;|
 
 --echo End of 5.0 tests
 
-#
-# #28436: Incorrect position in SHOW BINLOG EVENTS causes server coredump 
-# Note: 364 is a magic position (found experimentally, depends on 
-# the log's contents) that caused the server crash.
-
---error 1220
-SHOW BINLOG EVENTS FROM 365;
-
 --echo Bug#44352 UPPER/LOWER function doesn't work correctly on cp932 and sjis environment.
 CREATE TABLE t1 (a varchar(16)) character set cp932;
 INSERT INTO t1 VALUES (0x8372835E),(0x8352835E);

@@ -451,6 +451,7 @@ struct system_variables
   ulong ndb_index_stat_cache_entries;
   ulong ndb_index_stat_update_freq;
   ulong binlog_format; // binlog format for this thd (see enum_binlog_format)
+  my_bool binlog_annotate_rows_events;
   my_bool binlog_direct_non_trans_update;
   /*
     In slave thread we need to know in behalf of which
@@ -1577,7 +1578,8 @@ public:
   */
   void binlog_start_trans_and_stmt();
   void binlog_set_stmt_begin();
-  int binlog_write_table_map(TABLE *table, bool is_transactional);
+  int binlog_write_table_map(TABLE *table, bool is_transactional,
+                             my_bool *with_annotate= 0);
   int binlog_write_row(TABLE* table, bool is_transactional,
                        MY_BITMAP const* cols, size_t colcnt,
                        const uchar *buf);
@@ -2551,6 +2553,14 @@ public:
     return backup;
   }
 
+  void clear_wakeup_ready() { wakeup_ready= false; }
+  /*
+    Sleep waiting for others to wake us up with signal_wakeup_ready().
+    Must call clear_wakeup_ready() before waiting.
+  */
+  void wait_for_wakeup_ready();
+  /* Wake this thread up from wait_for_wakeup_ready(). */
+  void signal_wakeup_ready();
 private:
   /** The current internal error handler for this thread, or NULL. */
   Internal_error_handler *m_internal_handler;
@@ -2589,6 +2599,16 @@ private:
    */
   LEX_STRING invoker_user;
   LEX_STRING invoker_host;
+  /*
+    Flag, mutex and condition for a thread to wait for a signal from another
+    thread.
+
+    Currently used to wait for group commit to complete, can also be used for
+    other purposes.
+  */
+  bool wakeup_ready;
+  pthread_mutex_t LOCK_wakeup_ready;
+  pthread_cond_t COND_wakeup_ready;
 };
 
 /** A short cut for thd->main_da.set_ok_status(). */

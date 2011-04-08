@@ -1,0 +1,16 @@
+###############################################################################
+# WL47: Store in binlog text of statements that caused RBR events
+# Wrapper for extra/rpl/rpl_row_annotate.test.
+# Intended to test that if the --replicate-annotate-rows-events option
+# is switched on on slave then Annotate_events:
+# - are reproduced on slave
+# - are reproduced only once for "multi-table-maps" rbr queries
+# - are not reproduced when the corresponding queries are filtered away
+#   on replication
+# - are reproduced when the corresponding queries are filtered away partialy
+#   (e.g. in case of multi-delete)
+# - are not generated on slave for queries that are not annotated on master.
+###############################################################################
+
+--source include/have_binlog_format_row.inc
+--source extra/rpl_tests/rpl_row_annotate.test
