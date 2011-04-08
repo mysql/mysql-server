@@ -6,33 +6,21 @@
 # of their server id).
 # It also will test BUG#13861.
 
-source include/master-slave.inc;
 source include/have_innodb.inc;
 
-
-# set up "dual head"
-
-# Needed for debug info in wait_for_slave_sql_to_stop.
-let $master_connection= slave;
-connection slave;
-reset master;
-
-connection master;
---replace_result $SLAVE_MYPORT SLAVE_PORT
-eval change master to master_host="127.0.0.1",master_port=$SLAVE_MYPORT,master_user="root";
-
-source include/start_slave.inc;
+--let $rpl_topology= 1->2->1
+--source include/rpl_init.inc
 
 # now we test it
 
-connection slave;
+connection server_2;
 
 create table t1 (n int);
 let $master_log_file= query_get_value(SHOW MASTER STATUS, File, 1);
 let $master_log_pos_1= query_get_value(SHOW MASTER STATUS, Position, 1);
 let $master_log_pos_1= `SELECT $master_log_pos_1 + 3`;
 
-sync_slave_with_master master;
+--sync_slave_with_master server_1
 
 #
 # BUG#13861 - START SLAVE UNTIL may stop 1 evnt too late if
@@ -42,7 +30,7 @@ source include/stop_slave.inc;
 
 create table t2 (n int); # create one ignored event
 
-sync_slave_with_master;
+--sync_slave_with_master server_2
 
 show tables;
 
@@ -59,7 +47,8 @@ insert into t3 values(3);
 commit;
 insert into t3 values(4);
 
-connection master;
+
+connection server_1;
 
 # bug is that START SLAVE UNTIL may stop too late, we test that by
 # asking it to stop before creation of t3.
@@ -89,26 +78,20 @@ source include/start_slave.inc;
 
 # BUG#13023 is that Exec_master_log_pos may stay too low "forever":
 
-connection master;
+connection server_1;
 
 create table t4 (n int); # create 3 ignored events
 create table t5 (n int);
 create table t6 (n int);
 
-sync_slave_with_master;
-sync_slave_with_master master;
+--sync_slave_with_master server_2
 
 # then BUG#13023 caused hang below ("master" looks behind, while it's
 # not in terms of updates done).
+--sync_slave_with_master server_1
 
 show tables;
 
 # cleanup
-
-source include/stop_slave.inc;
-reset slave;
-drop table t1,t2,t3,t4,t5,t6;
-
-sync_slave_with_master;
-
-# End of 4.1 tests
+drop table t1, t2, t3, t4, t5, t6;
+--source include/rpl_end.inc

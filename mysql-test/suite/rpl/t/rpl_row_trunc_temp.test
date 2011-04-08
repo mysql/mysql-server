@@ -32,4 +32,4 @@ SELECT * FROM t2;
 DROP TABLE t1;
 connection master;
 DROP TABLE t2;
---source include/master-slave-end.inc
+--source include/rpl_end.inc

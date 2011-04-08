@@ -33,3 +33,4 @@ connection master;
 DROP TABLE t1, t2;
 sync_slave_with_master;
 connection master;
+--source include/rpl_end.inc

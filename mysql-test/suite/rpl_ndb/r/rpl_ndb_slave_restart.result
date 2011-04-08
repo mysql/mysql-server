@@ -1,9 +1,5 @@
-stop slave;
-drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9;
-reset master;
-reset slave;
-drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9;
-start slave;
+include/master-slave.inc
+[connection master]
 CREATE TABLE t1 (c1 CHAR(15), c2 CHAR(15), c3 INT, PRIMARY KEY (c3)) ENGINE = NDB ;
 CREATE TABLE t2 (a int key) ENGINE = NDB ;
 reset master;
@@ -67,3 +63,5 @@ row5	E	5
 DROP TABLE t1;
 DROP TABLE t2;
 STOP SLAVE;
+CHANGE MASTER TO
+master_port=<MASTER_PORT>;

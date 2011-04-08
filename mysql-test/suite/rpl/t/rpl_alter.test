@@ -1,7 +1,4 @@
 source include/master-slave.inc;
---disable_warnings
-drop database if exists mysqltest;
---enable_warnings
 create database mysqltest;
 
 create table mysqltest.t1 ( n int);
@@ -58,14 +55,16 @@ if (`SELECT 'table_id: 0 (test.t2)' = '$_info'`)
   --die test.t2's table map id is 0;
 }
 
-let diff_table= test.t1;
-source include/rpl_diff_tables.inc;
-let diff_table= test.t2;
-source include/rpl_diff_tables.inc;
+--sync_slave_with_master
+
+--let $diff_tables= master:t1, slave:t1
+--source include/diff_tables.inc
+--let $diff_tables= master:t2, slave:t2
+--source include/diff_tables.inc
 
 --echo
 connection master;
 DROP TABLE t1, t2;
 
-source include/master-slave-end.inc;
 # End of 4.1 tests
+--source include/rpl_end.inc

@@ -235,4 +235,73 @@ Bug #47147: mysql client option --skip-column-names does not apply to vertical o
 *************************** 1. row ***************************
 1
 
+#
+# Bug #54899: --one-database option cannot handle DROP/CREATE DATABASE 
+#             commands.
+#
+CREATE DATABASE connected_db;
+USE connected_db;
+SHOW TABLES;
+Tables_in_connected_db
+table_in_connected_db
+DROP DATABASE connected_db;
+
+#
+# Testing --one-database option
+#
+CREATE DATABASE connected_db;
+SHOW TABLES IN connected_db;
+Tables_in_connected_db
+t1
+SHOW TABLES IN test;
+Tables_in_test
+t1
+USE test;
+DROP TABLE t1;
+DROP DATABASE connected_db;
+
+SHOW TABLES IN test;
+Tables_in_test
+SHOW TABLES IN test1;
+Tables_in_test1
+DROP DATABASE test1;
+
+#
+# Checking --one-database option followed by the execution of 
+# connect command.
+#
+CREATE DATABASE connected_db;
+SHOW TABLES IN connected_db;
+Tables_in_connected_db
+t1
+t2
+SHOW TABLES IN test;
+Tables_in_test
+t1
+t2
+DROP TABLE test.t1;
+DROP TABLE test.t2;
+DROP DATABASE connected_db;
+
+#
+# Checking --one-database option with no database specified
+# at command-line.
+#
+SHOW TABLES IN test;
+Tables_in_test
+
+#
+# Checking --one-database option with non_existent_db 
+# specified with USE command
+#
+CREATE DATABASE connected_db;
+SHOW TABLES IN connected_db;
+Tables_in_connected_db
+table_in_connected_db
+
+SHOW TABLES IN connected_db;
+Tables_in_connected_db
+table_in_connected_db
+DROP DATABASE connected_db;
+
 End of tests

@@ -3,87 +3,104 @@
 # Print status information for replication, typically used to debug
 # test failures.
 #
-# First, the following is printed on slave:
+# The following is printed on the current connection:
 #
+#   SELECT NOW()
 #   SHOW SLAVE STATUS
+#   SHOW MASTER STATUS
 #   SHOW PROCESSLIST
 #   SHOW BINLOG EVENTS IN <binlog_name>
 #
 # Where <binlog_name> is the currently active binlog.
 #
-# Then, the following is printed on master:
+# Then, the same is printed from all connections configured by
+# rpl_init.inc - i.e., on connection server_N, where
+# 1 <= N <= $rpl_server_count
 #
-#   SHOW MASTER STATUS
-#   SHOW PROCESSLIST
-#   SHOW BINLOG EVENTS IN <sql_binlog_name>
-#   SHOW BINLOG EVENTS IN <io_binlog_name>
-#
-# Where <sql_binlog_name> is the binlog name that the slave sql thread
-# is currently reading from and <io_binlog_name> is the binlog that
-# the slave IO thread is currently reading from.
 #
 # ==== Usage ====
 #
-# [let $master_connection= <connection>;]
-# source include/show_rpl_debug_info.inc;
+# [--let $rpl_only_current_connection= 1]
+# --source include/show_rpl_debug_info.inc
 #
-# If $master_connection is set, debug info will be retrieved from the
-# connection named $master_connection.  Otherwise, it will be
-# retrieved from the 'master' connection if the current connection is
-# 'slave'.
+# Parameters:
+#   $rpl_only_current_connection
+#     By default, debug info is printed from all connections, starting
+#     with the current connection. If this variable is set, debug
+#     info is printed only for the current connection.
+#     
+#
+# ==== Side effects ====
+#
+# Turns on enable_query_log, enable_result_log, enable_warnings,
+# horizontal_results, and enable_abort_on_error.
+#
+# Prints non-deterministic output to the query log.  This file should
+# never be called in a test that does not fail.
 
-let $_con= $CURRENT_CONNECTION;
---echo
---echo [on $_con]
---echo
-SELECT NOW();
---echo **** SHOW SLAVE STATUS on $_con ****
-query_vertical SHOW SLAVE STATUS;
---echo
---echo **** SHOW PROCESSLIST on $_con ****
-SHOW PROCESSLIST;
---echo
---echo **** SHOW BINLOG EVENTS on $_con ****
-let $binlog_name= query_get_value("SHOW MASTER STATUS", File, 1);
-eval SHOW BINLOG EVENTS IN '$binlog_name';
 
-let $_master_con= $master_connection;
-if (!$_master_con)
+--enable_query_log
+--enable_result_log
+--enable_warnings
+--disable_abort_on_error
+--horizontal_results
+
+
+--let $_rpl_old_con= $CURRENT_CONNECTION
+--let $_rpl_is_first_server= 1
+--let $_rpl_server= $rpl_server_count
+--inc $_rpl_server
+
+
+while ($_rpl_server)
 {
-  if (`SELECT '$_con' = 'slave'`)
+  if (!$_rpl_is_first_server)
   {
-    let $_master_con= master;
+    --connection server_$_rpl_server
   }
-  if (!$_master_con)
-  {
-    --echo Unable to determine master connection. No debug info printed for master.
-    --echo Please fix the test case by setting $master_connection before sourcing
-    --echo show_rpl_debug_info.inc.
-  }
-}
 
-if ($_master_con)
-{
-
-  let $master_binlog_name_io= query_get_value("SHOW SLAVE STATUS", Master_Log_File, 1);
-  let $master_binlog_name_sql= query_get_value("SHOW SLAVE STATUS", Relay_Master_Log_File, 1);
   --echo
-  --echo [on $_master_con]
-  connection $_master_con;
+  --echo ############################## $CURRENT_CONNECTION ##############################
   --echo
-  SELECT NOW();
-  --echo **** SHOW MASTER STATUS on $_master_con ****
+  --echo **** SHOW WARNINGS on $CURRENT_CONNECTION ****
+  SHOW WARNINGS;
+  --echo
+  --echo **** SELECT replication-related variables on $CURRENT_CONNECTION ****
+  SELECT NOW(), @@SERVER_ID;
+  --echo
+  --echo **** SHOW SLAVE STATUS on $CURRENT_CONNECTION ****
+  query_vertical SHOW SLAVE STATUS;
+  --echo
+  --echo **** SHOW MASTER STATUS on $CURRENT_CONNECTION ****
   query_vertical SHOW MASTER STATUS;
   --echo
-  --echo **** SHOW PROCESSLIST on $_master_con ****
+  --echo **** SHOW SLAVE HOSTS on $CURRENT_CONNECTION ****
+  query_vertical SHOW SLAVE HOSTS;
+  --echo
+  --echo **** SHOW PROCESSLIST on $CURRENT_CONNECTION ****
   SHOW PROCESSLIST;
   --echo
-  --echo **** SHOW BINLOG EVENTS on $_master_con ****
-  eval SHOW BINLOG EVENTS IN '$master_binlog_name_sql';
-  if (`SELECT '$master_binlog_name_io' != '$master_binlog_name_sql'`)
-  {
-    eval SHOW BINLOG EVENTS IN '$master_binlog_name_io';
-  }
+  --echo **** SHOW BINARY LOGS on $CURRENT_CONNECTION ****
+  SHOW BINARY LOGS;
+  --echo
+  --echo **** SHOW BINLOG EVENTS on $CURRENT_CONNECTION ****
+  let $binlog_name= query_get_value("SHOW MASTER STATUS", File, 1);
+  --echo binlog_name = '$binlog_name'
+  eval SHOW BINLOG EVENTS IN '$binlog_name';
 
-  connection $_con;
+
+  --let $_rpl_is_first_server= 0
+  --dec $_rpl_server
+  # Don't use same connection twice.
+  if (`SELECT 'server_$_rpl_server' = '$_rpl_old_con'`)
+  {
+    --dec $_rpl_server
+    if ($rpl_only_current_connection)
+    {
+      --let $_rpl_server= 0
+    }
+  }
 }
+
+--connection $_rpl_old_con
+--enable_abort_on_error

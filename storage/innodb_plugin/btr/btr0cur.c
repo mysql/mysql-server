@@ -1756,7 +1756,8 @@ btr_cur_update_in_place(
 		NOT call it if index is secondary */
 
 		if (!dict_index_is_clust(index)
-		    || row_upd_changes_ord_field_binary(NULL, index, update)) {
+		    || row_upd_changes_ord_field_binary(NULL, NULL,
+							index, update)) {
 
 			/* Remove possible hash index pointer to this record */
 			btr_search_update_hash_on_delete(cursor);
@@ -2508,27 +2509,24 @@ ulint
 btr_cur_del_mark_set_clust_rec(
 /*===========================*/
 	ulint		flags,	/*!< in: undo logging and locking flags */
-	btr_cur_t*	cursor,	/*!< in: cursor */
+	buf_block_t*	block,	/*!< in/out: buffer block of the record */
+	rec_t*		rec,	/*!< in/out: record */
+	dict_index_t*	index,	/*!< in: clustered index of the record */
+	const ulint*	offsets,/*!< in: rec_get_offsets(rec) */
 	ibool		val,	/*!< in: value to set */
 	que_thr_t*	thr,	/*!< in: query thread */
 	mtr_t*		mtr)	/*!< in: mtr */
 {
-	dict_index_t*	index;
-	buf_block_t*	block;
 	roll_ptr_t	roll_ptr;
 	ulint		err;
-	rec_t*		rec;
 	page_zip_des_t*	page_zip;
 	trx_t*		trx;
-	mem_heap_t*	heap		= NULL;
-	ulint		offsets_[REC_OFFS_NORMAL_SIZE];
-	ulint*		offsets		= offsets_;
-	rec_offs_init(offsets_);
 
-	rec = btr_cur_get_rec(cursor);
-	index = cursor->index;
+	ut_ad(dict_index_is_clust(index));
+	ut_ad(rec_offs_validate(rec, index, offsets));
 	ut_ad(!!page_rec_is_comp(rec) == dict_table_is_comp(index->table));
-	offsets = rec_get_offsets(rec, index, offsets, ULINT_UNDEFINED, &heap);
+	ut_ad(buf_block_get_frame(block) == page_align(rec));
+	ut_ad(page_is_leaf(page_align(rec)));
 
 #ifdef UNIV_DEBUG
 	if (btr_cur_print_record_ops && thr) {
@@ -2540,13 +2538,12 @@ btr_cur_del_mark_set_clust_rec(
 	ut_ad(dict_index_is_clust(index));
 	ut_ad(!rec_get_deleted_flag(rec, rec_offs_comp(offsets)));
 
-	err = lock_clust_rec_modify_check_and_lock(flags,
-						   btr_cur_get_block(cursor),
+	err = lock_clust_rec_modify_check_and_lock(flags, block,
 						   rec, index, offsets, thr);
 
 	if (err != DB_SUCCESS) {
 
-		goto func_exit;
+		return(err);
 	}
 
 	err = trx_undo_report_row_operation(flags, TRX_UNDO_MODIFY_OP, thr,
@@ -2554,10 +2551,8 @@ btr_cur_del_mark_set_clust_rec(
 					    &roll_ptr);
 	if (err != DB_SUCCESS) {
 
-		goto func_exit;
+		return(err);
 	}
-
-	block = btr_cur_get_block(cursor);
 
 	if (block->is_hashed) {
 		rw_lock_x_lock(&btr_search_latch);
@@ -2581,10 +2576,6 @@ btr_cur_del_mark_set_clust_rec(
 	btr_cur_del_mark_set_clust_rec_log(flags, rec, index, val, trx,
 					   roll_ptr, mtr);
 
-func_exit:
-	if (UNIV_LIKELY_NULL(heap)) {
-		mem_heap_free(heap);
-	}
 	return(err);
 }
 
@@ -3476,107 +3467,35 @@ btr_cur_set_ownership_of_extern_field(
 }
 
 /*******************************************************************//**
-Marks not updated extern fields as not-owned by this record. The ownership
-is transferred to the updated record which is inserted elsewhere in the
+Marks non-updated off-page fields as disowned by this record. The ownership
+must be transferred to the updated record which is inserted elsewhere in the
 index tree. In purge only the owner of externally stored field is allowed
-to free the field.
-@return TRUE if BLOB ownership was transferred */
+to free the field. */
 UNIV_INTERN
-ibool
-btr_cur_mark_extern_inherited_fields(
-/*=================================*/
+void
+btr_cur_disown_inherited_fields(
+/*============================*/
 	page_zip_des_t*	page_zip,/*!< in/out: compressed page whose uncompressed
 				part will be updated, or NULL */
 	rec_t*		rec,	/*!< in/out: record in a clustered index */
 	dict_index_t*	index,	/*!< in: index of the page */
 	const ulint*	offsets,/*!< in: array returned by rec_get_offsets() */
 	const upd_t*	update,	/*!< in: update vector */
-	mtr_t*		mtr)	/*!< in: mtr, or NULL if not logged */
+	mtr_t*		mtr)	/*!< in/out: mini-transaction */
 {
-	ulint	n;
-	ulint	j;
 	ulint	i;
-	ibool	change_ownership = FALSE;
 
-	ut_ad(rec_offs_validate(rec, NULL, offsets));
+	ut_ad(rec_offs_validate(rec, index, offsets));
 	ut_ad(!rec_offs_comp(offsets) || !rec_get_node_ptr_flag(rec));
+	ut_ad(rec_offs_any_extern(offsets));
+	ut_ad(mtr);
 
-	if (!rec_offs_any_extern(offsets)) {
-
-		return(FALSE);
-	}
-
-	n = rec_offs_n_fields(offsets);
-
-	for (i = 0; i < n; i++) {
-		if (rec_offs_nth_extern(offsets, i)) {
-
-			/* Check it is not in updated fields */
-
-			if (update) {
-				for (j = 0; j < upd_get_n_fields(update);
-				     j++) {
-					if (upd_get_nth_field(update, j)
-					    ->field_no == i) {
-
-						goto updated;
-					}
-				}
-			}
-
+	for (i = 0; i < rec_offs_n_fields(offsets); i++) {
+		if (rec_offs_nth_extern(offsets, i)
+		    && !upd_get_field_by_field_no(update, i)) {
 			btr_cur_set_ownership_of_extern_field(
 				page_zip, rec, index, offsets, i, FALSE, mtr);
-
-			change_ownership = TRUE;
-updated:
-			;
 		}
-	}
-
-	return(change_ownership);
-}
-
-/*******************************************************************//**
-The complement of the previous function: in an update entry may inherit
-some externally stored fields from a record. We must mark them as inherited
-in entry, so that they are not freed in a rollback. */
-UNIV_INTERN
-void
-btr_cur_mark_dtuple_inherited_extern(
-/*=================================*/
-	dtuple_t*	entry,		/*!< in/out: updated entry to be
-					inserted to clustered index */
-	const upd_t*	update)		/*!< in: update vector */
-{
-	ulint		i;
-
-	for (i = 0; i < dtuple_get_n_fields(entry); i++) {
-
-		dfield_t*	dfield = dtuple_get_nth_field(entry, i);
-		byte*		data;
-		ulint		len;
-		ulint		j;
-
-		if (!dfield_is_ext(dfield)) {
-			continue;
-		}
-
-		/* Check if it is in updated fields */
-
-		for (j = 0; j < upd_get_n_fields(update); j++) {
-			if (upd_get_nth_field(update, j)->field_no == i) {
-
-				goto is_updated;
-			}
-		}
-
-		data = dfield_get_data(dfield);
-		len = dfield_get_len(dfield);
-		data[len - BTR_EXTERN_FIELD_REF_SIZE + BTR_EXTERN_LEN]
-			|= BTR_EXTERN_INHERITED_FLAG;
-
-is_updated:
-		;
 	}
 }
 
@@ -3611,29 +3530,6 @@ btr_cur_unmark_extern_fields(
 
 			btr_cur_set_ownership_of_extern_field(
 				page_zip, rec, index, offsets, i, TRUE, mtr);
-		}
-	}
-}
-
-/*******************************************************************//**
-Marks all extern fields in a dtuple as owned by the record. */
-UNIV_INTERN
-void
-btr_cur_unmark_dtuple_extern_fields(
-/*================================*/
-	dtuple_t*	entry)		/*!< in/out: clustered index entry */
-{
-	ulint	i;
-
-	for (i = 0; i < dtuple_get_n_fields(entry); i++) {
-		dfield_t* dfield = dtuple_get_nth_field(entry, i);
-
-		if (dfield_is_ext(dfield)) {
-			byte*	data = dfield_get_data(dfield);
-			ulint	len = dfield_get_len(dfield);
-
-			data[len - BTR_EXTERN_FIELD_REF_SIZE + BTR_EXTERN_LEN]
-				&= ~BTR_EXTERN_OWNER_FLAG;
 		}
 	}
 }

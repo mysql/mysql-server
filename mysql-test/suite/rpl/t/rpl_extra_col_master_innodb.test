@@ -1,0 +1,17 @@
+#############################################################
+# Purpose: To test having extra columns on the master WL#3915
+#############################################################
+-- source include/master-slave.inc
+-- source include/have_innodb.inc
+
+let $engine_type = 'InnoDB';
+
+set binlog_format=row;
+-- source extra/rpl_tests/rpl_extra_col_master.test
+
+set binlog_format=statement;
+-- source extra/rpl_tests/rpl_extra_col_master.test
+
+set binlog_format=mixed;
+-- source extra/rpl_tests/rpl_extra_col_master.test
+--source include/rpl_end.inc

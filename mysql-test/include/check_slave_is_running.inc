@@ -2,17 +2,29 @@
 #
 # Assert that the slave threads are running and don't have any errors.
 #
+#
 # ==== Usage ====
 #
-# --source include/check_slave_running.inc
+# [--let $rpl_debug= 1]
+# --source include/check_slave_is_running.inc
+#
+# Parameters:
+#   $rpl_debug
+#     See include/rpl_init.inc
 
---echo Checking that both slave threads are running.
 
---let $slave_sql_running = query_get_value(SHOW SLAVE STATUS, Slave_SQL_Running, 1)
---let $slave_io_running = query_get_value(SHOW SLAVE STATUS, Slave_IO_Running, 1)
+--let $include_filename= check_slave_is_running.inc
+--source include/begin_include_file.inc
 
-if (`SELECT '$slave_sql_running' != 'Yes' OR '$slave_io_running' != 'Yes'`) {
-  --echo Slave not running: Slave_SQL_Running = $slave_sql_running Slave_IO_Running = $slave_io_running
-  --source include/show_rpl_debug_info.inc
-  --die Expected slave to be running, but it was not running.
-}
+
+--let $slave_param= Slave_IO_Running
+--let $slave_param_value= Yes
+--source include/check_slave_param.inc
+
+--let $slave_param= Slave_SQL_Running
+--let $slave_param_value= Yes
+--source include/check_slave_param.inc
+
+
+--let $include_filename= check_slave_is_running.inc
+--source include/end_include_file.inc

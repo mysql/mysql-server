@@ -147,4 +147,4 @@ sync_slave_with_master;
 connection master;
 DROP TABLE t1;
 
-source include/master-slave-end.inc;
+--source include/rpl_end.inc
