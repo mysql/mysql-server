@@ -1429,6 +1429,7 @@ CALL mtr.add_suppression("Out of sort memory");
 select * from t1 order by b;
 ERROR HY001: Out of sort memory, consider increasing server sort buffer size
 drop table t1;
+call mtr.add_suppression("Out of sort memory; increase server sort buffer size");
 #
 # Bug #39844: Query Crash Mysql Server 5.0.67
 #
