@@ -367,7 +367,7 @@ dfield_print_also_hex(
 	prtype = dtype_get_prtype(dfield_get_type(dfield));
 
 	switch (dtype_get_mtype(dfield_get_type(dfield))) {
-		ib_id_t	id;
+		ib_idd_t	id;
 	case DATA_INT:
 		switch (len) {
 			ulint	val;

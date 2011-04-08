@@ -36,6 +36,15 @@ NDB memcache, so to make the memcache setup compatible between the two.*/
 #define INNODB_CACHE_POLICIES		"cache_policies"
 #define INNODB_CONFIG_OPTIONS		"config_options"
 
+#ifndef TRUE
+
+#define TRUE    1
+#define FALSE   0
+
+#endif
+#define MAX_TABLE_NAME_LEN      192
+#define MAX_DATABASE_NAME_LEN   MAX_TABLE_NAME_LEN
+
 /** structure describes each column's basic info (name, field_id etc.) */
 typedef struct meta_columns {
 	char*		m_str;			/*!< column name */
