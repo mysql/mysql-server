@@ -1,9 +1,5 @@
-stop slave;
-drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9;
-reset master;
-reset slave;
-drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9;
-start slave;
+include/master-slave.inc
+[connection master]
 CREATE TABLE t1 (a INT AUTO_INCREMENT KEY) ENGINE=INNODB;
 CREATE TABLE t2 (b INT AUTO_INCREMENT KEY, c INT, FOREIGN KEY(b) REFERENCES t1(a)) ENGINE=INNODB;
 SET FOREIGN_KEY_CHECKS=0;
@@ -53,3 +49,4 @@ select count(*) from t1 /* must be zero */;
 count(*)
 0
 drop table t2,t1;
+include/rpl_end.inc

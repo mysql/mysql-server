@@ -1,6 +1,4 @@
 # Bug#12691: Exec_master_log_pos corrupted with SQL_SLAVE_SKIP_COUNTER
-# Date: 01/31/2008
-# Added: Serge Kozlov <skozlov@mysql.com>
 
 --source include/master-slave.inc
 --connection master
@@ -47,5 +45,5 @@ SELECT COUNT(*) FROM t1;
 --echo
 --echo **** On Master ****
 DROP TABLE t1;
---sync_slave_with_master
 
+--source include/rpl_end.inc

@@ -1,9 +1,5 @@
-stop slave;
-drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9;
-reset master;
-reset slave;
-drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9;
-start slave;
+include/master-slave.inc
+[connection master]
 set binlog_format=row;
 
 ***********************************************************
@@ -550,6 +546,7 @@ INSERT INTO t10 () VALUES(1,@b1,DEFAULT,'Kyle',DEFAULT),
 *** Expect slave to fail with Error 1523 ***
 ********************************************
 
+include/wait_for_slave_sql_to_stop.inc
 SHOW SLAVE STATUS;
 Slave_IO_State	#
 Master_Host	127.0.0.1
@@ -628,6 +625,7 @@ INSERT INTO t11 () VALUES(1,@b1,'Testing is fun','Kyle',DEFAULT),
 *** Expect slave to fail with Error 1523 ***
 ********************************************
 
+include/wait_for_slave_sql_to_stop.inc
 SHOW SLAVE STATUS;
 Slave_IO_State	#
 Master_Host	127.0.0.1
@@ -782,6 +780,7 @@ c1	c3	hex(c4)	c5	c6
 ************
 * Bug30415 *
 ************
+include/wait_for_slave_sql_to_stop.inc
 SHOW SLAVE STATUS;
 Slave_IO_State	#
 Master_Host	127.0.0.1
@@ -871,6 +870,7 @@ c1	hex(c4)	c5	c6	c7	c2
 *** Expect slave to fail with Error 1054 ***
 ********************************************
 
+include/wait_for_slave_sql_to_stop.inc
 SHOW SLAVE STATUS;
 Slave_IO_State	#
 Master_Host	127.0.0.1
@@ -960,6 +960,7 @@ c1	hex(c4)	c5	c6	c7
 *** BUG 30434 ***
 *****************
 
+include/wait_for_slave_sql_to_stop.inc
 SHOW SLAVE STATUS;
 Slave_IO_State	#
 Master_Host	127.0.0.1
@@ -1165,7 +1166,6 @@ c1	hex(c4)	c5
 2	6231623162316231	JOE
 3	6231623162316231	QA
 DROP TABLE t5;
-
 set binlog_format=mixed;
 
 ***********************************************************
@@ -1712,6 +1712,7 @@ INSERT INTO t10 () VALUES(1,@b1,DEFAULT,'Kyle',DEFAULT),
 *** Expect slave to fail with Error 1523 ***
 ********************************************
 
+include/wait_for_slave_sql_to_stop.inc
 SHOW SLAVE STATUS;
 Slave_IO_State	#
 Master_Host	127.0.0.1
@@ -1790,6 +1791,7 @@ INSERT INTO t11 () VALUES(1,@b1,'Testing is fun','Kyle',DEFAULT),
 *** Expect slave to fail with Error 1523 ***
 ********************************************
 
+include/wait_for_slave_sql_to_stop.inc
 SHOW SLAVE STATUS;
 Slave_IO_State	#
 Master_Host	127.0.0.1
@@ -1944,6 +1946,7 @@ c1	c3	hex(c4)	c5	c6
 ************
 * Bug30415 *
 ************
+include/wait_for_slave_sql_to_stop.inc
 SHOW SLAVE STATUS;
 Slave_IO_State	#
 Master_Host	127.0.0.1
@@ -2033,6 +2036,7 @@ c1	hex(c4)	c5	c6	c7	c2
 *** Expect slave to fail with Error 1054 ***
 ********************************************
 
+include/wait_for_slave_sql_to_stop.inc
 SHOW SLAVE STATUS;
 Slave_IO_State	#
 Master_Host	127.0.0.1
@@ -2122,6 +2126,7 @@ c1	hex(c4)	c5	c6	c7
 *** BUG 30434 ***
 *****************
 
+include/wait_for_slave_sql_to_stop.inc
 SHOW SLAVE STATUS;
 Slave_IO_State	#
 Master_Host	127.0.0.1
@@ -2327,4 +2332,4 @@ c1	hex(c4)	c5
 2	6231623162316231	JOE
 3	6231623162316231	QA
 DROP TABLE t5;
-
+include/rpl_end.inc

@@ -1,9 +1,5 @@
-stop slave;
-drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9;
-reset master;
-reset slave;
-drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9;
-start slave;
+include/master-slave.inc
+[connection master]
 create database if not exists mysqltest1;
 DROP VIEW IF EXISTS mysqltest1.v1;
 DROP VIEW IF EXISTS mysqltest1.v2;
@@ -102,3 +98,4 @@ DROP TABLE IF EXISTS mysqltest1.t2;
 DROP TABLE IF EXISTS mysqltest1.t4;
 DROP TABLE IF EXISTS mysqltest1.t10;
 DROP DATABASE mysqltest1;
+include/rpl_end.inc

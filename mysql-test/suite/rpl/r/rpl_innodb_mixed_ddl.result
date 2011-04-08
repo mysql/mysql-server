@@ -1,9 +1,5 @@
-stop slave;
-drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9;
-reset master;
-reset slave;
-drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9;
-start slave;
+include/master-slave.inc
+[connection master]
 ==========MASTER==========
 show global variables like 'binlog_format%';
 Variable_name	Value
@@ -157,3 +153,4 @@ master-bin.000001	#	Query	#	#	use `test_rpl`; CREATE INDEX index2 on t2 (d)
 master-bin.000001	#	Query	#	#	use `test_rpl`; CREATE INDEX index3 on t2 (a, d)
 master-bin.000001	#	Query	#	#	use `test_rpl`; ALTER TABLE t2 DROP COLUMN d
 drop database test_rpl;
+include/rpl_end.inc

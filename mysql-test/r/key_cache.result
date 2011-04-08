@@ -334,8 +334,7 @@ test.t1	check	status	OK
 DROP TABLE t1,t2;
 set global key_cache_block_size= @my_key_cache_block_size;
 set @@global.key_buffer_size=0;
-Warnings:
-Warning	1438	Cannot drop default keycache
+ERROR HY000: Cannot drop default keycache
 select @@global.key_buffer_size;
 @@global.key_buffer_size
 2097152

@@ -7,3 +7,4 @@
 let $engine_type=innodb;
 let $engine_type2=myisam;
 -- source extra/rpl_tests/rpl_insert_ignore.test
+--source include/rpl_end.inc

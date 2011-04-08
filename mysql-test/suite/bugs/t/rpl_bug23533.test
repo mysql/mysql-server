@@ -1,7 +1,4 @@
 #############################################################
-# Author: Serge Kozlov <skozlov@mysql.com>
-# Date:   02/26/2008
-# Purpose: testing bug report
 #  Bug#23533: CREATE SELECT max_binlog_cache_size test 
 #  case needed
 #############################################################
@@ -9,11 +6,6 @@
 --source include/have_innodb.inc
 --source include/have_binlog_format_row.inc
 --source include/master-slave.inc
-
-
---disable_warnings
-DROP TABLE IF EXISTS t1,t2;
---enable_warnings
 
 SET AUTOCOMMIT=0;
 SET GLOBAL max_binlog_cache_size=4096;
@@ -41,3 +33,4 @@ SHOW TABLES LIKE 't%';
 
 
 # 5.1 End of Test
+--source include/rpl_end.inc

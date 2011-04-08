@@ -19,12 +19,11 @@ SELECT * FROM t1 ORDER BY a;
 SELECT * FROM t2 ORDER BY a;
 
 UPDATE t1, t2 SET t1.b = t2.b WHERE t1.a = t2.a;
-save_master_pos;
-connection slave;
-sync_with_master;
+sync_slave_with_master;
 
 # End of 4.1 tests
 
 connection master;
 drop table t1, t2;
-sync_slave_with_master;
+
+--source include/rpl_end.inc
