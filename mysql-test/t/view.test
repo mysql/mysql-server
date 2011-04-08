@@ -3979,6 +3979,18 @@ DROP TABLE t1;
 CREATE VIEW v1 AS SELECT 1 IN (1 LIKE 2,0) AS f;
 DROP VIEW v1;
 
+--echo #
+--echo # Bug 11829681 - 60295: ERROR 1356 ON VIEW THAT EXECUTES FINE AS A QUERY
+--echo #
+
+CREATE TABLE t1 (a INT);
+CREATE VIEW v1 AS SELECT s.* FROM t1 s, t1 b HAVING a;
+
+SELECT * FROM v1; 
+
+DROP VIEW v1;
+DROP TABLE t1;
+
 --echo # -----------------------------------------------------------------
 --echo # -- End of 5.1 tests.
 --echo # -----------------------------------------------------------------

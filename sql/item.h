@@ -548,6 +548,10 @@ public:
    */
   Item *next;
   uint32 max_length;                    /* Maximum length, in bytes */
+  /*
+    TODO: convert name and name_length fields into String to keep them in sync
+    (see bug #11829681/60295 etc).
+  */
   uint name_length;                     /* Length of name */
   int8 marker;
   uint8 decimals;
