@@ -53,3 +53,18 @@ CREATE PROCEDURE p1() SELECT 1;
 --exec $MYSQL_SLAP --create-schema=test --delimiter=";" --query="CALL p1; SELECT 1;" --silent 2>&1 
 
 DROP PROCEDURE p1;
+
+
+--echo #
+--echo # Bug #11765157 - 58090: mysqlslap drops schema specified in
+--echo #                 create_schema if auto-generate-sql also set.
+--echo #
+
+--exec $MYSQL_SLAP --silent --create-schema=bug58090 --concurrency=5 --iterations=20 --auto-generate-sql
+--echo # 'bug58090' database should not be present.
+SHOW DATABASES;
+--exec $MYSQL_SLAP --silent --create-schema=bug58090 --no-drop --auto-generate-sql
+--echo # 'bug58090' database should be present.
+SHOW DATABASES;
+DROP DATABASE bug58090;
+
