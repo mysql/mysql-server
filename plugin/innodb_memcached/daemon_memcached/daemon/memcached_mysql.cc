@@ -37,7 +37,7 @@ static char*	mci_engine_library = NULL;
 static char*	mci_eng_lib_path = NULL; 
 static char*	mci_memcached_option = NULL;
 static unsigned int mci_r_batch_size = 1048576;
-static unsigned int mci_w_batch_size = 1;
+static unsigned int mci_w_batch_size = 32;
 
 static MYSQL_SYSVAR_STR(engine_lib_name, mci_engine_library,
 			PLUGIN_VAR_READONLY | PLUGIN_VAR_MEMALLOC,
@@ -55,12 +55,12 @@ static MYSQL_SYSVAR_STR(option, mci_memcached_option,
 static MYSQL_SYSVAR_UINT(r_batch_size, mci_r_batch_size,
 			 PLUGIN_VAR_READONLY,
 			 "read batch commit size", 0, 0, 1048576,
-			 1073741824, 0, 0);
+			 1, 1073741824, 0);
 
 static MYSQL_SYSVAR_UINT(w_batch_size, mci_w_batch_size,
 			 PLUGIN_VAR_READONLY,
-			 "write batch commit size", 0, 0, 1,
-			 1048576, 0, 0);
+			 "write batch commit size", 0, 0, 32,
+			 1, 1048576, 0);
 
 static struct st_mysql_sys_var *daemon_memcached_sys_var[] = {
 	MYSQL_SYSVAR(engine_lib_name),

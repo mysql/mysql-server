@@ -13,6 +13,8 @@ struct memcached_context
 	char*		m_engine_library;
 	char*		m_mem_option;
 	void*		m_innodb_api_cb;
+	unsigned int	m_r_batch_size;
+	unsigned int	m_w_batch_size;
 }; 
 
 typedef struct memcached_context        memcached_context_t;
