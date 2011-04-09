@@ -1683,3 +1683,7 @@ max-time: 300
 cmd: testDict
 args: -n Bug57057 T1
 
+max-time: 600
+cmd: testNodeRestart
+args: -n ClusterSplitLatency T1
+
