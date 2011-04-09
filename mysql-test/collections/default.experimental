@@ -22,3 +22,5 @@ rpl_ndb.rpl_ndb_2ndb   # rpl_ndb_2ndb fails sporadically
 main.gis-rtree                           # svoj: due to BUG#38965
 main.type_float                          # svoj: due to BUG#38965
 main.type_newdecimal                     # svoj: due to BUG#38965
+
+innodb_plugin.innodb-index               # jonas: 2011-04-09 - fails with random result file
