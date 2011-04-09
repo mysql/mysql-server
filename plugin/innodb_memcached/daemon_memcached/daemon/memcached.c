@@ -6745,8 +6745,8 @@ void* daemon_memcached_main(void *p) {
     const char *engine_config = NULL;
     char old_options[1024] = { [0] = '\0' };
     char *old_opts = old_options;
-    int option_argc;
-    char** option_argv;
+    int option_argc = 0;
+    char** option_argv = NULL;
     eng_config_info_t my_eng_config;
 
     if (m_config->m_engine_library) {
