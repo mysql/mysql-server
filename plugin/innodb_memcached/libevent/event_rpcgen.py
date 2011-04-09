@@ -446,7 +446,7 @@ class EntryBytes(Entry):
         Entry.__init__(self, type, name, tag)
 
         self._length = length
-        self._ctype = 'uint8_t'
+        self._ctype = 'uint32_t'
 
     def GetDeclaration(self, funcname):
         code = [ 'int %s(struct %s *, %s **);' % (
@@ -518,6 +518,7 @@ class EntryBytes(Entry):
     def CodeNew(self, name):
         code  = ['memset(%s->%s_data, 0, sizeof(%s->%s_data));' % (
             name, self._name, name, self._name)]
+        code.extend(Entry.CodeNew(self, name))
         return code
 
     def Verify(self):

@@ -44,7 +44,7 @@
 #include <windows.h>
 #else
 #include <sys/socket.h>
-#include <signal.h>
+#include <sys/signal.h>
 #include <sys/resource.h>
 #endif
 #include <fcntl.h>
