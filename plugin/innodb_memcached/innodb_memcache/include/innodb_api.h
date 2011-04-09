@@ -28,6 +28,7 @@ Created 03/15/2011      Jimmy Yang
 #include <memcached/types.h>
 #include "api0api.h"
 #include "innodb_engine.h"
+#include "assert.h"
 
 typedef struct mci_column {
 	char*		m_str;
