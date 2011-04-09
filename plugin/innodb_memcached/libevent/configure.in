@@ -2,7 +2,7 @@ dnl configure.in for libevent
 dnl Dug Song <dugsong@monkey.org>
 AC_INIT(event.c)
 
-AM_INIT_AUTOMAKE(libevent,1.4.11-stable)
+AM_INIT_AUTOMAKE(libevent,1.4.3-stable)
 AM_CONFIG_HEADER(config.h)
 dnl AM_MAINTAINER_MODE
 
@@ -117,9 +117,9 @@ dnl - (this is how we check for a windows version of GCC)
 AC_MSG_CHECKING(for WIN32)
 AC_TRY_COMPILE(,
 	[
-#ifndef WIN32
-die horribly
-#endif
+	#ifndef WIN32
+	#error
+	#endif
 	],
 	bwin32=true; AC_MSG_RESULT(yes),
 	bwin32=false; AC_MSG_RESULT(no),

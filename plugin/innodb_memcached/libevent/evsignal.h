@@ -30,11 +30,11 @@
 typedef void (*ev_sighandler_t)(int);
 
 struct evsignal_info {
+	struct event_list signalqueue;
 	struct event ev_signal;
 	int ev_signal_pair[2];
 	int ev_signal_added;
 	volatile sig_atomic_t evsignal_caught;
-	struct event_list evsigevents[NSIG];
 	sig_atomic_t evsigcaught[NSIG];
 #ifdef HAVE_SIGACTION
 	struct sigaction **sh_old;

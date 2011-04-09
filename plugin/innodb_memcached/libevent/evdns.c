@@ -39,6 +39,10 @@
 #include "config.h"
 #endif
 
+#ifdef WIN32
+#include "misc.h"
+#endif
+
 #ifdef DNS_USE_FTIME_FOR_ID
 #include <sys/timeb.h>
 #endif
@@ -140,6 +144,7 @@ typedef unsigned int uint;
 #define u8  ev_uint8_t
 
 #ifdef WIN32
+#define snprintf _snprintf
 #define open _open
 #define read _read
 #define close _close
@@ -384,7 +389,7 @@ debug_ntoa(u32 address)
 {
 	static char buf[32];
 	u32 a = ntohl(address);
-	evutil_snprintf(buf, sizeof(buf), "%d.%d.%d.%d",
+	snprintf(buf, sizeof(buf), "%d.%d.%d.%d",
                       (int)(u8)((a>>24)&0xff),
                       (int)(u8)((a>>16)&0xff),
                       (int)(u8)((a>>8 )&0xff),
@@ -415,7 +420,11 @@ _evdns_log(int warn, const char *fmt, ...)
   if (!evdns_log_fn)
     return;
   va_start(args,fmt);
-  evutil_vsnprintf(buf, sizeof(buf), fmt, args);
+#ifdef WIN32
+  _vsnprintf(buf, sizeof(buf), fmt, args);
+#else
+  vsnprintf(buf, sizeof(buf), fmt, args);
+#endif
   buf[sizeof(buf)-1] = '\0';
   evdns_log_fn(warn, buf);
   va_end(args);
@@ -680,10 +689,7 @@ reply_callback(struct request *const req, u32 ttl, u32 err, struct reply *reply)
 static void
 reply_handle(struct request *const req, u16 flags, u32 ttl, struct reply *reply) {
 	int error;
-	static const int error_codes[] = {
-		DNS_ERR_FORMAT, DNS_ERR_SERVERFAILED, DNS_ERR_NOTEXIST,
-		DNS_ERR_NOTIMPL, DNS_ERR_REFUSED
-	};
+	static const int error_codes[] = {DNS_ERR_FORMAT, DNS_ERR_SERVERFAILED, DNS_ERR_NOTEXIST, DNS_ERR_NOTIMPL, DNS_ERR_REFUSED};
 
 	if (flags & 0x020f || !reply || !reply->have_answer) {
 		/* there was an error */
@@ -704,18 +710,16 @@ reply_handle(struct request *const req, u16 flags, u32 ttl, struct reply *reply)
 			/* we regard these errors as marking a bad nameserver */
 			if (req->reissue_count < global_max_reissues) {
 				char msg[64];
-				evutil_snprintf(msg, sizeof(msg),
-				    "Bad response %d (%s)",
+				snprintf(msg, sizeof(msg), "Bad response %d (%s)",
 					 error, evdns_err_to_string(error));
 				nameserver_failed(req->ns, msg);
 				if (!request_reissue(req)) return;
 			}
 			break;
 		case DNS_ERR_SERVERFAILED:
-			/* rcode 2 (servfailed) sometimes means "we
-			 * are broken" and sometimes (with some binds)
-			 * means "that request was very confusing."
-			 * Treat this as a timeout, not a failure.
+			/* rcode 2 (servfailed) sometimes means "we are broken" and
+			 * sometimes (with some binds) means "that request was very
+			 * confusing."  Treat this as a timeout, not a failure. 
 			 */
 			log(EVDNS_LOG_DEBUG, "Got a SERVERFAILED from nameserver %s; "
 				"will allow the request to time out.",
@@ -727,13 +731,10 @@ reply_handle(struct request *const req, u16 flags, u32 ttl, struct reply *reply)
 		}
 
 		if (req->search_state && req->request_type != TYPE_PTR) {
-			/* if we have a list of domains to search in,
-			 * try the next one */
+			/* if we have a list of domains to search in, try the next one */
 			if (!search_try_next(req)) {
-				/* a new request was issued so this
-				 * request is finished and */
-				/* the user callback will be made when
-				 * that request (or a */
+				/* a new request was issued so this request is finished and */
+				/* the user callback will be made when that request (or a */
 				/* child of it) finishes. */
 				request_finished(req, &req_head);
 				return;
@@ -810,10 +811,10 @@ name_parse(u8 *packet, int length, int *idx, char *name_out, int name_out_len) {
 /* parses a raw request from a nameserver */
 static int
 reply_parse(u8 *packet, int length) {
-	int j = 0, k = 0;  /* index into packet */
+	int j = 0;  /* index into packet */
 	u16 _t;  /* used by the macros */
 	u32 _t32;  /* used by the macros */
-	char tmp_name[256], cmp_name[256]; /* used by the macros */
+	char tmp_name[256]; /* used by the macros */
 
 	u16 trans_id, questions, answers, authority, additional, datalength;
         u16 flags = 0;
@@ -846,21 +847,10 @@ reply_parse(u8 *packet, int length) {
 
 	/* This macro skips a name in the DNS reply. */
 #define SKIP_NAME \
-	do { tmp_name[0] = '\0';				\
-		if (name_parse(packet, length, &j, tmp_name, sizeof(tmp_name))<0)\
-			goto err;				\
-	} while(0)
-#define TEST_NAME \
-	do { tmp_name[0] = '\0';				\
-		cmp_name[0] = '\0';				\
-		k = j;						\
-		if (name_parse(packet, length, &j, tmp_name, sizeof(tmp_name))<0)\
-			goto err;					\
-		if (name_parse(req->request, req->request_len, &k, cmp_name, sizeof(cmp_name))<0)	\
-			goto err;				\
-		if (memcmp(tmp_name, cmp_name, strlen (tmp_name)) != 0)	\
-			return (-1); /* we ignore mismatching names */	\
-	} while(0)
+	do { tmp_name[0] = '\0';					\
+		if (name_parse(packet, length, &j, tmp_name, sizeof(tmp_name))<0) \
+			goto err;													\
+	} while(0);
 
 	reply.type = req->request_type;
 
@@ -869,7 +859,7 @@ reply_parse(u8 *packet, int length) {
 		/* the question looks like
 		 *   <label:name><u16:type><u16:class>
 		 */
-		TEST_NAME;
+		SKIP_NAME;
 		j += 4;
 		if (j > length) goto err;
 	}
@@ -1043,16 +1033,12 @@ default_transaction_id_fn(void)
 	u16 trans_id;
 #ifdef DNS_USE_CPU_CLOCK_FOR_ID
 	struct timespec ts;
-	static int clkid = -1;
-	if (clkid == -1) {
-		clkid = CLOCK_REALTIME;
 #ifdef CLOCK_MONOTONIC
-		if (clock_gettime(CLOCK_MONOTONIC, &ts) != -1)
-			clkid = CLOCK_MONOTONIC;
+	if (clock_gettime(CLOCK_MONOTONIC, &ts) == -1)
+#else
+	if (clock_gettime(CLOCK_REALTIME, &ts) == -1)
 #endif
-	}
-	if (clock_gettime(clkid, &ts) == -1)
-		event_err(1, "clock_gettime");
+	event_err(1, "clock_gettime");
 	trans_id = ts.tv_nsec & 0xffff;
 #endif
 
@@ -1064,7 +1050,7 @@ default_transaction_id_fn(void)
 
 #ifdef DNS_USE_GETTIMEOFDAY_FOR_ID
 	struct timeval tv;
-	evutil_gettimeofday(&tv, NULL);
+	gettimeofday(&tv, NULL);
 	trans_id = tv.tv_usec & 0xffff;
 #endif
 
@@ -1074,7 +1060,7 @@ default_transaction_id_fn(void)
 		/* down to using gettimeofday. */
 		/*
 		  struct timeval tv;
-		  evutil_gettimeofday(&tv, NULL);
+		  gettimeofday(&tv, NULL);
 		  trans_id = tv.tv_usec & 0xffff;
 		*/
 		abort();
@@ -1582,7 +1568,7 @@ evdns_server_request_add_ptr_reply(struct evdns_server_request *req, struct in_a
 	assert(!(in && inaddr_name));
 	if (in) {
 		a = ntohl(in->s_addr);
-		evutil_snprintf(buf, sizeof(buf), "%d.%d.%d.%d.in-addr.arpa",
+		snprintf(buf, sizeof(buf), "%d.%d.%d.%d.in-addr.arpa",
 				(int)(u8)((a	)&0xff),
 				(int)(u8)((a>>8 )&0xff),
 				(int)(u8)((a>>16)&0xff),
@@ -1599,7 +1585,7 @@ int
 evdns_server_request_add_cname_reply(struct evdns_server_request *req, const char *name, const char *cname, int ttl)
 {
 	return evdns_server_request_add_reply(
-		  req, EVDNS_ANSWER_SECTION, name, TYPE_CNAME, CLASS_INET,
+		  req, EVDNS_ANSWER_SECTION, name, TYPE_A, CLASS_INET,
 		  ttl, -1, 1, cname);
 }
 
@@ -2295,13 +2281,13 @@ int evdns_resolve_ipv6(const char *name, int flags,
 	}
 }
 
-int evdns_resolve_reverse(const struct in_addr *in, int flags, evdns_callback_type callback, void *ptr) {
+int evdns_resolve_reverse(struct in_addr *in, int flags, evdns_callback_type callback, void *ptr) {
 	char buf[32];
 	struct request *req;
 	u32 a;
 	assert(in);
 	a = ntohl(in->s_addr);
-	evutil_snprintf(buf, sizeof(buf), "%d.%d.%d.%d.in-addr.arpa",
+	snprintf(buf, sizeof(buf), "%d.%d.%d.%d.in-addr.arpa",
 			(int)(u8)((a	)&0xff),
 			(int)(u8)((a>>8 )&0xff),
 			(int)(u8)((a>>16)&0xff),
@@ -2313,7 +2299,7 @@ int evdns_resolve_reverse(const struct in_addr *in, int flags, evdns_callback_ty
 	return 0;
 }
 
-int evdns_resolve_reverse_ipv6(const struct in6_addr *in, int flags, evdns_callback_type callback, void *ptr) {
+int evdns_resolve_reverse_ipv6(struct in6_addr *in, int flags, evdns_callback_type callback, void *ptr) {
 	/* 32 nybbles, 32 periods, "ip6.arpa", NUL. */
 	char buf[73];
 	char *cp;

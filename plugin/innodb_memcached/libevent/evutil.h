@@ -50,14 +50,13 @@ extern "C" {
 #ifdef _EVENT_HAVE_SYS_TYPES_H
 #include <sys/types.h>
 #endif
-#include <stdarg.h>
 
 #ifdef _EVENT_HAVE_UINT64_T
 #define ev_uint64_t uint64_t
 #define ev_int64_t int64_t
 #elif defined(WIN32)
-#define ev_uint64_t unsigned __int64
-#define ev_int64_t signed __int64
+#define ev_uint64_t __uint64_t
+#define ev_int64_t __int64_t
 #elif _EVENT_SIZEOF_LONG_LONG == 8
 #define ev_uint64_t unsigned long long
 #define ev_int64_t long long
@@ -149,10 +148,14 @@ int evutil_make_socket_nonblocking(int sock);
 #define	evutil_timerclear(tvp)	(tvp)->tv_sec = (tvp)->tv_usec = 0
 #endif
 
+#ifdef _EVENT_HAVE_TIMERCMP
+#define evutil_timercmp(tvp, uvp, cmp) timercmp((tvp), (uvp), cmp)
+#else
 #define	evutil_timercmp(tvp, uvp, cmp)							\
 	(((tvp)->tv_sec == (uvp)->tv_sec) ?							\
 	 ((tvp)->tv_usec cmp (uvp)->tv_usec) :						\
 	 ((tvp)->tv_sec cmp (uvp)->tv_sec))
+#endif
 
 #ifdef _EVENT_HAVE_TIMERISSET
 #define evutil_timerisset(tvp) timerisset(tvp)
@@ -163,20 +166,6 @@ int evutil_make_socket_nonblocking(int sock);
 
 /* big-int related functions */
 ev_int64_t evutil_strtoll(const char *s, char **endptr, int base);
-
-
-#ifdef _EVENT_HAVE_GETTIMEOFDAY
-#define evutil_gettimeofday(tv, tz) gettimeofday((tv), (tz))
-#else
-int evutil_gettimeofday(struct timeval *tv, struct timezone *tz);
-#endif
-
-int evutil_snprintf(char *buf, size_t buflen, const char *format, ...)
-#ifdef __GNUC__
-	__attribute__((format(printf, 3, 4)))
-#endif
-	;
-int evutil_vsnprintf(char *buf, size_t buflen, const char *format, va_list ap);
 
 #ifdef __cplusplus
 }

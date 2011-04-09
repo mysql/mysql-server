@@ -75,7 +75,7 @@ static int epoll_del	(void *, struct event *);
 static int epoll_dispatch	(struct event_base *, void *, struct timeval *);
 static void epoll_dealloc	(struct event_base *, void *);
 
-const struct eventop epollops = {
+struct eventop epollops = {
 	"epoll",
 	epoll_init,
 	epoll_add,
@@ -95,14 +95,6 @@ const struct eventop epollops = {
 #endif
 
 #define NEVENT	32000
-
-/* On Linux kernels at least up to 2.6.24.4, epoll can't handle timeout
- * values bigger than (LONG_MAX - 999ULL)/HZ.  HZ in the wild can be
- * as big as 1000, and LONG_MAX can be as small as (1<<31)-1, so the
- * largest number of msec we can support here is 2147482.  Let's
- * round that down by 47 seconds.
- */
-#define MAX_EPOLL_TIMEOUT_MSEC (35*60*1000)
 
 static void *
 epoll_init(struct event_base *base)
@@ -128,8 +120,7 @@ epoll_init(struct event_base *base)
 	/* Initalize the kernel queue */
 
 	if ((epfd = epoll_create(nfiles)) == -1) {
-		if (errno != ENOSYS)
-			event_warn("epoll_create");
+                event_warn("epoll_create");
 		return (NULL);
 	}
 
@@ -166,7 +157,7 @@ epoll_recalc(struct event_base *base, void *arg, int max)
 {
 	struct epollop *epollop = arg;
 
-	if (max >= epollop->nfds) {
+	if (max > epollop->nfds) {
 		struct evepoll *fds;
 		int nfds;
 
@@ -199,12 +190,6 @@ epoll_dispatch(struct event_base *base, void *arg, struct timeval *tv)
 	if (tv != NULL)
 		timeout = tv->tv_sec * 1000 + (tv->tv_usec + 999) / 1000;
 
-	if (timeout > MAX_EPOLL_TIMEOUT_MSEC) {
-		/* Linux kernels can wait forever if the timeout is too big;
-		 * see comment on MAX_EPOLL_TIMEOUT_MSEC. */
-		timeout = MAX_EPOLL_TIMEOUT_MSEC;
-	}
-
 	res = epoll_wait(epollop->epfd, events, epollop->nevents, timeout);
 
 	if (res == -1) {
@@ -224,11 +209,8 @@ epoll_dispatch(struct event_base *base, void *arg, struct timeval *tv)
 	for (i = 0; i < res; i++) {
 		int what = events[i].events;
 		struct event *evread = NULL, *evwrite = NULL;
-		int fd = events[i].data.fd;
 
-		if (fd < 0 && fd >= epollop->nfds)
-			continue;
-		evep = &epollop->fds[fd];
+		evep = (struct evepoll *)events[i].data.ptr;
 
 		if (what & (EPOLLHUP|EPOLLERR)) {
 			evread = evep->evread;
@@ -290,7 +272,7 @@ epoll_add(void *arg, struct event *ev)
 	if (ev->ev_events & EV_WRITE)
 		events |= EPOLLOUT;
 
-	epev.data.fd = fd;
+	epev.data.ptr = evep;
 	epev.events = events;
 	if (epoll_ctl(epollop->epfd, op, ev->ev_fd, &epev) == -1)
 			return (-1);
@@ -342,7 +324,7 @@ epoll_del(void *arg, struct event *ev)
 	}
 
 	epev.events = events;
-	epev.data.fd = fd;
+	epev.data.ptr = evep;
 
 	if (needreaddelete)
 		evep->evread = NULL;

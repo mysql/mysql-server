@@ -63,7 +63,6 @@
 
 #include "event.h"
 #include "config.h"
-#include "evutil.h"
 
 struct evbuffer *
 evbuffer_new(void)
@@ -155,13 +154,18 @@ evbuffer_add_vprintf(struct evbuffer *buf, const char *fmt, va_list ap)
 #endif
 		va_copy(aq, ap);
 
-		sz = evutil_vsnprintf(buffer, space, fmt, aq);
+#ifdef WIN32
+		sz = vsnprintf(buffer, space - 1, fmt, aq);
+		buffer[space - 1] = '\0';
+#else
+		sz = vsnprintf(buffer, space, fmt, aq);
+#endif
 
 		va_end(aq);
 
 		if (sz < 0)
 			return (-1);
-		if ((size_t)sz < space) {
+		if (sz < space) {
 			buf->off += sz;
 			if (buf->cb != NULL)
 				(*buf->cb)(buf, oldoff, buf->off, buf->cbarg);
@@ -370,7 +374,7 @@ evbuffer_read(struct evbuffer *buf, int fd, int howmuch)
 		 * about it.  If the reader does not tell us how much
 		 * data we should read, we artifically limit it.
 		 */
-		if ((size_t)n > buf->totallen << 2)
+		if (n > buf->totallen << 2)
 			n = buf->totallen << 2;
 		if (n < EVBUFFER_MAX_READ)
 			n = EVBUFFER_MAX_READ;

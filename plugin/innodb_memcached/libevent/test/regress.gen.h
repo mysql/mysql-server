@@ -129,8 +129,6 @@ int kill_how_often_get(struct kill *, uint32_t *);
 /* Tag definition for run */
 enum run_ {
   RUN_HOW=1,
-  RUN_SOME_BYTES=2,
-  RUN_FIXED_BYTES=3,
   RUN_MAX_TAGS
 };
 
@@ -138,23 +136,14 @@ enum run_ {
 struct run_access_ {
   int (*how_assign)(struct run *, const char *);
   int (*how_get)(struct run *, char * *);
-  int (*some_bytes_assign)(struct run *, const uint8_t *, uint32_t);
-  int (*some_bytes_get)(struct run *, uint8_t * *, uint32_t *);
-  int (*fixed_bytes_assign)(struct run *, const uint8_t *);
-  int (*fixed_bytes_get)(struct run *, uint8_t **);
 };
 
 struct run {
   struct run_access_ *base;
 
   char *how_data;
-  uint8_t *some_bytes_data;
-  uint32_t some_bytes_length;
-  uint8_t fixed_bytes_data[24];
 
   uint8_t how_set;
-  uint8_t some_bytes_set;
-  uint8_t fixed_bytes_set;
 };
 
 struct run *run_new(void);
@@ -169,10 +158,6 @@ int evtag_unmarshal_run(struct evbuffer *, uint32_t,
     struct run *);
 int run_how_assign(struct run *, const char *);
 int run_how_get(struct run *, char * *);
-int run_some_bytes_assign(struct run *, const uint8_t *, uint32_t);
-int run_some_bytes_get(struct run *, uint8_t * *, uint32_t *);
-int run_fixed_bytes_assign(struct run *, const uint8_t *);
-int run_fixed_bytes_get(struct run *, uint8_t **);
 /* --- run done --- */
 
 #endif  /* ___REGRESS_RPC_ */

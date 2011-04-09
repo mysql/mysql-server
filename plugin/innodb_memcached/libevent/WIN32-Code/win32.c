@@ -347,7 +347,7 @@ win32_dispatch(struct event_base *base, void *op,
 {
 	struct win32op *win32op = op;
 	int res = 0;
-	unsigned i;
+	int i;
 	int fd_count;
 
 	fd_set_copy(win32op->readset_out, win32op->readset_in);

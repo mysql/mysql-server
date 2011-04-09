@@ -66,8 +66,6 @@ struct event_base {
 	struct timeval event_tv;
 
 	struct min_heap timeheap;
-
-	struct timeval tv_cache;
 };
 
 /* Internal use only: Functions that might be missing from <sys/queue.h> */
