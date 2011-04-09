@@ -995,6 +995,18 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
     STR_VALUE(MAX_INT_RNIL) },
 
   {
+    CFG_DB_CONNECT_CHECK_DELAY,
+    "ConnectCheckIntervalDelay",
+    DB_TOKEN,
+    "Time between "DB_TOKEN_PRINT" connectivity check stages.  "DB_TOKEN_PRINT" considered suspect after 1 and dead after 2 intervals.",
+    ConfigInfo::CI_USED,
+    0,
+    ConfigInfo::CI_INT,
+    "0",
+    "0",
+    STR_VALUE(MAX_INT_RNIL) },
+
+  {
     CFG_DB_API_HEARTBEAT_INTERVAL,
     "HeartbeatIntervalDbApi",
     DB_TOKEN,

@@ -23,6 +23,7 @@
 #include <NdbConfig.h>
 #include <kernel/BlockNumbers.h>
 #include <signaldata/ArbitSignalData.hpp>
+#include <signaldata/FailRep.hpp>
 #include <NodeState.hpp>
 #include <version.h>
 #include <ndb_version.h>
@@ -1180,6 +1181,141 @@ void getTextSavedEvent(QQQQ)
   abort();
 }
 
+void getTextConnectCheckStarted(QQQQ)
+{
+  /* EventReport format :
+   * 1 : other_node_count
+   * 2 : reason (FailRep causes or 0)
+   * 3 : causing_node (if from FailRep)
+   * 4 : bitmask wordsize
+   * 5 : bitmask[2]
+   */
+  Uint32 other_node_count = theData[1];
+  Uint32 reason = theData[2];
+  Uint32 causing_node = theData[3];
+  Uint32 bitmaskSz = theData[4];
+  char otherNodeMask[100];
+  char suspectNodeMask[100];
+  BitmaskImpl::getText(bitmaskSz, theData + 5 + (0 * bitmaskSz), otherNodeMask);
+  BitmaskImpl::getText(bitmaskSz, theData + 5 + (1 * bitmaskSz), suspectNodeMask);
+  Uint32 suspectCount = BitmaskImpl::count(bitmaskSz, theData + 5 + (1 * bitmaskSz));
+
+  if (reason)
+  {
+    /* Connect check started for specific reason */
+    const char * reasonText = NULL;
+    switch (reason)
+    {
+    case FailRep::ZHEARTBEAT_FAILURE:
+      reasonText = "Heartbeat failure";
+      break;
+    case FailRep::ZCONNECT_CHECK_FAILURE:
+      reasonText = "Connectivity check request";
+      break;
+    default:
+      reasonText = "UNKNOWN";
+      break;
+    }
+
+    BaseString::snprintf(m_text, m_text_len,
+                         "Connectivity Check of %u other nodes (%s) started due to %s from node %u.",
+                         other_node_count,
+                         otherNodeMask,
+                         reasonText,
+                         causing_node);
+  }
+  else
+  {
+    /* Connect check restarted due to suspect nodes */
+    BaseString::snprintf(m_text, m_text_len,
+                         "Connectivity Check of %u nodes (%s) restarting due to %u suspect nodes (%s).",
+                         other_node_count,
+                         otherNodeMask,
+                         suspectCount,
+                         suspectNodeMask);
+  }
+}
+
+void getTextConnectCheckCompleted(QQQQ)
+{
+  /* EventReport format
+   * 1 : Nodes checked
+   * 2 : Suspect nodes
+   * 3 : Failed nodes
+   */
+
+  Uint32 nodes_checked = theData[1];
+  Uint32 suspect_nodes = theData[2];
+  Uint32 failed_nodes = theData[3];
+
+  if ((failed_nodes + suspect_nodes) == 0)
+  {
+    /* All connectivity ok */
+    BaseString::snprintf(m_text, m_text_len,
+                         "Connectivity Check completed on %u nodes, connectivity ok",
+                         nodes_checked);
+  }
+  else
+  {
+    if (failed_nodes > 0)
+    {
+      if (suspect_nodes > 0)
+      {
+        BaseString::snprintf(m_text, m_text_len,
+                             "Connectivity Check completed on %u nodes.  %u nodes failed.  "
+                             "%u nodes still suspect, repeating check.",
+                             nodes_checked,
+                             failed_nodes,
+                             suspect_nodes);
+      }
+      else
+      {
+        BaseString::snprintf(m_text, m_text_len,
+                             "Connectivity Check completed on %u nodes.  %u nodes failed.  "
+                             "Connectivity now OK",
+                             nodes_checked,
+                             failed_nodes);
+      }
+    }
+    else
+    {
+      /* Just suspect nodes */
+      BaseString::snprintf(m_text, m_text_len,
+                           "Connectivity Check completed on %u nodes.  %u nodes still suspect, "
+                           "repeating check.",
+                           nodes_checked,
+                           suspect_nodes);
+    }
+  }
+}
+
+void getTextNodeFailRejected(QQQQ)
+{
+  Uint32 reason = theData[1];
+  Uint32 failed_node = theData[2];
+  Uint32 source_node = theData[3];
+
+  const char* reasonText = "Unknown";
+  switch (reason)
+  {
+  case FailRep::ZCONNECT_CHECK_FAILURE:
+    reasonText = "Connect Check Failure";
+    break;
+  case FailRep::ZLINK_FAILURE:
+    reasonText = "Link Failure";
+    break;
+  }
+
+  BaseString::snprintf(m_text, m_text_len,
+                       "Received FAIL_REP (%s (%u)) for node %u sourced by suspect node %u.  "
+                       "Rejecting as failure of node %u.",
+                       reasonText,
+                       reason,
+                       failed_node,
+                       source_node,
+                       source_node);
+}
+
 #if 0
 BaseString::snprintf(m_text, 
 		     m_text_len, 
@@ -1252,6 +1388,10 @@ const EventLoggerBase::EventRepLogLevelMatrix EventLoggerBase::matrix[] = {
   ROW(GCP_TakeoverCompleted,   LogLevel::llNodeRestart, 7, Logger::LL_INFO ),
   ROW(LCP_TakeoverStarted,     LogLevel::llNodeRestart, 7, Logger::LL_INFO ),
   ROW(LCP_TakeoverCompleted,   LogLevel::llNodeRestart, 7, Logger::LL_INFO ),
+
+  ROW(ConnectCheckStarted,     LogLevel::llNodeRestart, 6, Logger::LL_INFO ),
+  ROW(ConnectCheckCompleted,   LogLevel::llNodeRestart, 6, Logger::LL_INFO ),
+  ROW(NodeFailRejected,        LogLevel::llNodeRestart, 6, Logger::LL_ALERT ),
 
   // STATISTIC
   ROW(TransReportCounters,     LogLevel::llStatistic,   8, Logger::LL_INFO ),
