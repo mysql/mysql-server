@@ -1,38 +1,18 @@
 Following are simple steps to get everything started:
 
-1) Find out your plugin dir:
+1) Install prerequisite - libevent. libevent is required for memcached
 
-mysql> select @@plugin_dir;
-+----------------------------------------------------+
-| @@plugin_dir                                       |
-+----------------------------------------------------+
-| /home/jy/work2/mysql-5.6-memcached-labs/lib/plugin |
-+----------------------------------------------------+
-1 row in set (0.00 sec)
+2) Start MySQL server
 
-2) Install libevent. libevent is required for memcached. It is included in our package. However, if you need to try other memcached related utilities (such as memcapable etc.) please make sure you have libevent installed.
-
-3) Build MySQL/InnoDB server
-
-4) cd "daemon_memcached" and "innodb_memcache" directory, make and generate two .so file in .libs directory. Or you can find the "libmemcached.so" and "innodb_engine.so" in lib direcotry.
-
-5) Copy generated shared library to plugin dir
-
-cp libmemcached.so /home/jy/work2/mysql-5.6-memcached-labs/lib/plugin
-cp innodb_engine.so /home/jy/work2/mysql-5.6-memcached-labs/lib/plugin
-
-6) Boot the server 
-
-7) Create the configure table and an demo table by running innodb_memcached_config.sql
+3) Create the configure table and a demo table by running innodb_memcached_config.sql
 
 sql < scripts/innodb_memcached_config.sql
 
-
-8) Install the plugin:
+4) Install the memcached daemon plugin:
 
 mysql> install plugin daemon_memcached soname "libmemcached.so";
 
-9) Test it out
+5) Test it out
 telnet 127.0.0.1 11211
 
 set a11 0 0 9
@@ -43,7 +23,7 @@ VALUE a11 0 9
 123456789
 END
 
-10) Run memcapable
+6) Run memcapable
 Memcapable is part of libmemcached package, it is available at "https://code.launchpad.net/~libmemcached-developers/libmemcached/trunk"
 
 jy@jy-laptop:~/work2/mysql-5.6-labs-innodb-memcached/bld/mysql-test$ memcapable -v
@@ -103,5 +83,5 @@ binary prependq                         [pass]
 binary stat                             [pass]
 All tests passed
 
-11) You can also configure the commit batch size by specifying boot time system variable "daemon_memcached-w_batch_size" and "daemon_memcached-r_batch_size" (--loose-daemon_memcached-w_batch_size=100).
+7) You can also configure the commit batch size by specifying boot time system variable "daemon_memcached-w_batch_size" and "daemon_memcached-r_batch_size" (--loose-daemon_memcached-w_batch_size=100).
 
