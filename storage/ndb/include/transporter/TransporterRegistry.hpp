@@ -324,6 +324,13 @@ public:
 #ifdef DEBUG_TRANSPORTER
   void printState();
 #endif
+
+#ifdef ERROR_INSERT
+  /* Utils for testing latency issues */
+  bool isBlocked(NodeId nodeId);
+  void blockReceive(NodeId nodeId);
+  void unblockReceive(NodeId nodeId);
+#endif
   
   class Transporter_interface {
   public:
@@ -353,6 +360,13 @@ private:
   int nTCPTransporters;
   int nSCITransporters;
   int nSHMTransporters;
+
+#ifdef ERROR_INSERT
+  Bitmask<MAX_NTRANSPORTERS/32> m_blocked;
+  Bitmask<MAX_NTRANSPORTERS/32> m_blocked_with_data;
+  Bitmask<MAX_NTRANSPORTERS/32> m_blocked_disconnected;
+  int m_disconnect_errors[MAX_NTRANSPORTERS];
+#endif
 
   /**
    * Bitmask of transporters that has data "carried over" since

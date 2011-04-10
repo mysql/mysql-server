@@ -584,8 +584,11 @@ extern const GlobalSignalNumber NO_OF_SIGNAL_NAMES;
 #define GSN_EVENT_SUBSCRIBE_REQ         458
 #define GSN_EVENT_SUBSCRIBE_CONF        459
 #define GSN_EVENT_SUBSCRIBE_REF         460
-/* 461 unused */
-/* 462 unused */
+
+/* NODE_PING signals */
+#define GSN_NODE_PING_REQ               461 /* distr. */
+#define GSN_NODE_PING_CONF              462 /* distr. */
+
 /* 463 unused */
 /* 464 unused */
 
