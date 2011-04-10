@@ -11,6 +11,7 @@
 
 source include/master-slave.inc;
 source include/have_binlog_format_mixed.inc;
+source include/have_innodb.inc;
 
 --echo ==== Initialize ====
 
@@ -31,6 +32,7 @@ SHOW STATUS LIKE "Slave_open_temp_tables";
 --connection master
 
 disconnect master;
+--echo [on master1]
 --connection master1
 
 # waiting DROP TEMPORARY TABLE event to be written into binlog
@@ -46,7 +48,10 @@ SHOW STATUS LIKE "Slave_open_temp_tables";
 --echo ==== Clean up ====
 
 --echo [on master]
---connection master1
+--let $rpl_connection_name= master
+--let $rpl_server_number= 1
+--source include/rpl_connect.inc
+--connection master
 DROP TABLE t1;
 
 --echo [on slave]
@@ -88,8 +93,7 @@ sync_slave_with_master;
 #    10. in the end the slave should not have open temp tables.
 #  
 
-connect (master,127.0.0.1,root,,test,$MASTER_MYPORT,);
--- source include/master-slave-reset.inc
+--source include/rpl_reset.inc
 -- connection master
 
 # action: setup environment
@@ -146,3 +150,57 @@ DROP TABLE t3, t1;
 -- sync_slave_with_master
 
 -- source include/show_binlog_events.inc
+
+--echo
+--echo # Bug#55478 Row events wrongly apply on the temporary table of the same name
+--echo # ==========================================================================
+connection master;
+
+let $binlog_file= query_get_value(SHOW MASTER STATUS, File, 1);
+let $binlog_start= query_get_value(SHOW MASTER STATUS, Position, 1);
+
+--echo # The statement should be binlogged
+CREATE TEMPORARY TABLE t1(c1 INT) ENGINE=InnoDB;
+
+--echo
+--echo # Case 1: CREATE TABLE t1 ... SELECT
+--echo # ----------------------------------
+let $binlog_file= query_get_value(SHOW MASTER STATUS, File, 1);
+let $binlog_start= query_get_value(SHOW MASTER STATUS, Position, 1);
+
+--echo
+--echo # The statement generates row events on t1. And the rows events should
+--echo # be inserted into the base table on slave.
+CREATE TABLE t1 ENGINE=MyISAM SELECT rand();
+
+source include/show_binlog_events.inc;
+let $binlog_file= query_get_value(SHOW MASTER STATUS, File, 1);
+let $binlog_start= query_get_value(SHOW MASTER STATUS, Position, 1);
+
+--echo
+--echo # Case 2: DROP TEMPORARY TABLE in a transacation(happens only on 5.5+)
+--echo # --------------------------------------------------------------------
+--echo
+
+BEGIN;
+DROP TEMPORARY TABLE t1;
+
+--echo # The statement will binlogged after 'DROP TEMPORARY TABLE t1'
+INSERT INTO t1 VALUES(1);
+
+--echo # The rows event will binlogged after 'INSERT INTO t1 VALUES(1)'
+INSERT INTO t1 VALUES(Rand());
+COMMIT;
+
+source include/show_binlog_events.inc;
+
+--sync_slave_with_master
+
+--echo # Compare the base table.
+--let $diff_tables= master:t1, slave:t1
+--source include/diff_tables.inc
+
+--echo
+connection master;
+DROP TABLE t1;
+--source include/rpl_end.inc

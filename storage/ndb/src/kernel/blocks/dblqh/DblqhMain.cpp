@@ -22159,12 +22159,12 @@ Dblqh::match_and_print(Signal* signal, Ptr<TcConnectionrec> tcRec)
 		       tcRec.p->transid[0], tcRec.p->transid[1],
 		       op,
 		       state);
-  
+
   if (!ERROR_INSERTED(4002))
-    infoEvent(buf);
+    infoEvent("%s", buf);
   else
-    ndbout_c(buf);
-  
+    ndbout_c("%s", buf);
+
   memcpy(signal->theData, temp, 4*len);
   return true;
 }
@@ -22809,7 +22809,7 @@ Dblqh::execDUMP_STATE_ORD(Signal* signal)
 			   "OP[%u]: transid: 0x%x 0x%x key: %s",
 			   tcRec.i,
 			   tcRec.p->transid[0], tcRec.p->transid[1], key.c_str());
-      infoEvent(buf);
+      infoEvent("%s", buf);
     }
   }
   

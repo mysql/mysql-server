@@ -392,7 +392,7 @@ TCP_Transporter::doReceive() {
   // It reads the external TCP/IP interface once
   Uint32 size = receiveBuffer.sizeOfBuffer - receiveBuffer.sizeOfData;
   if(size > 0){
-    const int nBytesRead = my_recv(theSocket,
+    const int nBytesRead = (int)my_recv(theSocket,
 				receiveBuffer.insertPtr,
 				size < maxReceiveSize ? size : maxReceiveSize,
 				0);

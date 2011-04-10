@@ -1,7 +1,4 @@
 source include/master-slave.inc;
---disable_warnings
-drop database if exists mysqltest;
---enable_warnings
 create database mysqltest;
 
 create table mysqltest.t1 ( n int);
@@ -10,15 +7,64 @@ insert into mysqltest.t1 values (1,2);
 create table mysqltest.t2 (n int);
 insert into mysqltest.t2 values (45);
 rename table mysqltest.t2 to mysqltest.t3, mysqltest.t1 to mysqltest.t2;
-save_master_pos;
-connection slave;
-sync_with_master;
+
+sync_slave_with_master;
 select * from mysqltest.t2;
 select * from mysqltest.t3;
+
 connection master;
 drop database mysqltest;
-save_master_pos;
-connection slave;
-sync_with_master;
+sync_slave_with_master;
+
+--echo
+--echo # BUG#56226 Table map set to 0 after altering MyISAM table
+--echo
+connection master;
+SET SESSION binlog_format='ROW';
+USE test;
+
+CREATE TABLE t1 (a INT, b INT) ENGINE MyISAM;
+CREATE TABLE t2 (a VARCHAR(255), b VARCHAR(255)) ENGINE MyISAM;
+
+--delimiter //
+CREATE TRIGGER trg_t1ai 
+  AFTER INSERT ON t1 FOR EACH ROW 
+BEGIN
+  INSERT INTO t2 (a) VALUES (NEW.a);
+END;//
+--delimiter ;
+
+ALTER TABLE t1 CHANGE b c INT;
+ALTER TABLE t2 CHANGE b c VARCHAR(255);
+let $binlog_file= query_get_value(SHOW MASTER STATUS, File, 1);
+let $binlog_start= query_get_value(SHOW MASTER STATUS, Position, 1);
+
+--echo
+INSERT INTO t1 (a) VALUES(2);
+let _info= query_get_value(SHOW BINLOG EVENTS IN '$binlog_file' FROM $binlog_start, Info, 2);
+# Table map id should not be 0.
+if (`SELECT 'table_id: 0 (test.t1)' = '$_info'`)
+{
+  --echo test.t1's table map id is 0;
+  --die test.t1's table map id is 0;
+}
+let _info= query_get_value(SHOW BINLOG EVENTS IN '$binlog_file' FROM $binlog_start, Info, 3);
+if (`SELECT 'table_id: 0 (test.t2)' = '$_info'`)
+{
+  --echo test.t2's table map id is 0;
+  --die test.t2's table map id is 0;
+}
+
+--sync_slave_with_master
+
+--let $diff_tables= master:t1, slave:t1
+--source include/diff_tables.inc
+--let $diff_tables= master:t2, slave:t2
+--source include/diff_tables.inc
+
+--echo
+connection master;
+DROP TABLE t1, t2;
 
 # End of 4.1 tests
+--source include/rpl_end.inc

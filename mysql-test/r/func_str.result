@@ -2600,4 +2600,32 @@ ORDER BY QUOTE(t1.a);
 1
 1
 DROP TABLE t1;
+#
+# Bug#57913 large negative number to string conversion functions crash
+# Bug#57810 case/when/then : Assertion failed: length || !scale
+#
+SELECT '1' IN ('1', SUBSTRING(-9223372036854775809, 1));
+'1' IN ('1', SUBSTRING(-9223372036854775809, 1))
+1
+SELECT CONVERT(('' IN (REVERSE(CAST(('') AS DECIMAL)), '')), CHAR(3));
+CONVERT(('' IN (REVERSE(CAST(('') AS DECIMAL)), '')), CHAR(3))
+1
+Warnings:
+Warning	1292	Truncated incorrect DECIMAL value: ''
+# 
+# Bug#58165: "my_empty_string" gets modified and causes LOAD DATA to fail
+# and other crashes
+#
+CREATE TABLE t1 ( a TEXT );
+SELECT 'aaaaaaaaaaaaaa' INTO OUTFILE 'bug58165.txt';
+SELECT insert( substring_index( 'a', 'a', 'b' ), 1, 0, 'x' );
+insert( substring_index( 'a', 'a', 'b' ), 1, 0, 'x' )
+x
+Warnings:
+Warning	1292	Truncated incorrect INTEGER value: 'b'
+LOAD DATA INFILE 'bug58165.txt' INTO TABLE t1;
+SELECT * FROM t1;
+a
+aaaaaaaaaaaaaa
+DROP TABLE t1;
 End of 5.1 tests

@@ -1,0 +1,124 @@
+source include/master-slave.inc;
+source include/have_innodb.inc;
+source include/have_debug.inc;
+source include/have_debug_sync.inc;
+source include/have_binlog_format_mixed_or_statement.inc;
+
+--echo
+--echo # BUG#56118 STOP SLAVE does not wait till trx with CREATE TMP TABLE ends
+--echo #
+--echo # If a temporary table is created or dropped, the transaction should be
+--echo # regarded similarly that a non-transactional table is modified. So 
+--echo # STOP SLAVE should wait until the transaction has finished.
+
+CREATE TABLE t1(c1 INT) ENGINE=InnoDB;
+CREATE TABLE t2(c1 INT) ENGINE=InnoDB;
+
+sync_slave_with_master;
+SET DEBUG_SYNC= 'RESET';
+source include/stop_slave.inc;
+
+--echo
+--echo # Suspend the INSERT statement in current transaction on SQL thread.
+--echo # It guarantees that SQL thread is applying the transaction when
+--echo # STOP SLAVE command launchs.
+let $debug_save= `SELECT @@GLOBAL.debug`;
+SET GLOBAL debug= 'd,after_mysql_insert';
+source include/start_slave.inc;
+
+--echo
+--echo # CREATE TEMPORARY TABLE with InnoDB engine
+--echo # -----------------------------------------
+let $tmp_table_stm= CREATE TEMPORARY TABLE tt1(c1 INT) ENGINE = InnoDB;
+source extra/rpl_tests/rpl_stop_slave.test;
+
+--echo
+--echo # CREATE TEMPORARY TABLE with MyISAM engine
+--echo # -----------------------------------------
+let $tmp_table_stm= CREATE TEMPORARY TABLE tt1(c1 INT) ENGINE = MyISAM;
+source extra/rpl_tests/rpl_stop_slave.test;
+
+--echo
+--echo # CREATE TEMPORARY TABLE ... SELECT with InnoDB engine
+--echo # ----------------------------------------------------
+let $tmp_table_stm= CREATE TEMPORARY TABLE tt1(c1 INT) ENGINE = InnoDB
+                    SELECT c1 FROM t2;
+source extra/rpl_tests/rpl_stop_slave.test;
+
+--echo
+--echo # CREATE TEMPORARY TABLE ... SELECT with MyISAM engine
+--echo # ----------------------------------------------------
+let $tmp_table_stm= CREATE TEMPORARY TABLE tt1(c1 INT) ENGINE = MyISAM
+                    SELECT 1 AS c1;
+source extra/rpl_tests/rpl_stop_slave.test;
+
+--echo # Test end
+SET GLOBAL debug= '$debug_save';
+source include/restart_slave_sql.inc;
+
+--source include/rpl_connection_master.inc
+DROP TABLE t1, t2;
+
+--echo
+--echo # Bug#58546 test rpl_packet timeout failure sporadically on PB
+--echo # ----------------------------------------------------------------------
+--echo # STOP SLAVE stopped IO thread first and then stopped SQL thread. It was
+--echo # possible that IO thread stopped after replicating part of a transaction
+--echo # which SQL thread was executing. SQL thread would be hung if the
+--echo # transaction could not be rolled back safely.
+--echo # It caused some sporadic failures on PB2.
+--echo #
+--echo # This test verifies that when 'STOP SLAVE' is issued by a user, IO
+--echo # thread will continue to fetch the rest events of the transaction which
+--echo # is being executed by SQL thread and is not able to be rolled back safely.
+
+CREATE TABLE t1 (c1 INT KEY, c2 INT) ENGINE=InnoDB;
+CREATE TABLE t2 (c1 INT) ENGINE=MyISAM;
+INSERT INTO t1 VALUES(1, 1);
+
+sync_slave_with_master;
+
+--source include/rpl_connection_master.inc
+
+let $debug_save= `SELECT @@GLOBAL.debug`;
+SET GLOBAL debug= 'd,dump_thread_wait_before_send_xid';
+
+--source include/rpl_connection_slave.inc
+source include/restart_slave_sql.inc;
+
+BEGIN;
+UPDATE t1 SET c2 = 2 WHERE c1 = 1;
+
+--source include/rpl_connection_master.inc
+BEGIN;
+INSERT INTO t1 VALUES(2, 2);
+INSERT INTO t2 VALUES(1);
+UPDATE t1 SET c2 = 3 WHERE c1 = 1;
+COMMIT;
+
+--source include/rpl_connection_slave1.inc
+let $show_statement= SHOW PROCESSLIST;
+let $field= Info;
+let $condition= = 'UPDATE t1 SET c2 = 3 WHERE c1 = 1';
+source include/wait_show_condition.inc;
+
+send STOP SLAVE;
+
+--source include/rpl_connection_slave.inc
+ROLLBACK;
+
+--source include/rpl_connection_master.inc
+SET DEBUG_SYNC= 'now SIGNAL signal.continue';
+SET DEBUG_SYNC= 'RESET';
+
+--source include/rpl_connection_slave.inc
+source include/wait_for_slave_to_stop.inc;
+
+--source include/rpl_connection_slave1.inc
+reap;
+source include/start_slave.inc;
+
+--source include/rpl_connection_master.inc
+DROP TABLE t1, t2;
+SET GLOBAL debug= $debug_save;
+--source include/rpl_end.inc

@@ -42,6 +42,9 @@ C_MODE_START
 #include "../mysys/my_static.h"			// For soundex_map
 C_MODE_END
 
+/**
+   @todo Remove this. It is not safe to use a shared String object.
+ */
 String my_empty_string("",default_charset_info);
 
 
@@ -464,7 +467,7 @@ String *Item_func_des_encrypt::val_str(String *str)
   if ((null_value= args[0]->null_value))
     return 0;                                   // ENCRYPT(NULL) == NULL
   if ((res_length=res->length()) == 0)
-    return &my_empty_string;
+    return make_empty_result();
 
   if (arg_count == 1)
   {
@@ -655,7 +658,7 @@ String *Item_func_concat_ws::val_str(String *str)
     }
 
   if (i ==  arg_count)
-    return &my_empty_string;
+    return make_empty_result();
 
   for (i++; i < arg_count ; i++)
   {
@@ -806,7 +809,7 @@ String *Item_func_reverse::val_str(String *str)
     return 0;
   /* An empty string is a special case as the string pointer may be null */
   if (!res->length())
-    return &my_empty_string;
+    return make_empty_result();
   if (tmp_value.alloced_length() < res->length() &&
       tmp_value.realloc(res->length()))
   {
@@ -907,9 +910,15 @@ String *Item_func_replace::val_str(String *str)
     search=res2->ptr();
     search_end=search+from_length;
 redo:
+    DBUG_ASSERT(res->ptr() || !offset);
     ptr=res->ptr()+offset;
     strend=res->ptr()+res->length();
-    end=strend-from_length+1;
+    /*
+      In some cases val_str() can return empty string
+      with ptr() == NULL and length() == 0.
+      Let's check strend to avoid overflow.
+    */
+    end= strend ? strend - from_length + 1 : NULL;
     while (ptr < end)
     {
         if (*ptr == *search)
@@ -1015,6 +1024,20 @@ String *Item_func_insert::val_str(String *str)
     return res;                                 // Wrong param; skip insert
   if ((length < 0) || (length > res->length()))
     length= res->length();
+
+  /*
+    There is one exception not handled (intentionaly) by the character set
+    aggregation code. If one string is strong side and is binary, and
+    another one is weak side and is a multi-byte character string,
+    then we need to operate on the second string in terms on bytes when
+    calling ::numchars() and ::charpos(), rather than in terms of characters.
+    Lets substitute its character set to binary.
+  */
+  if (collation.collation == &my_charset_bin)
+  {
+    res->set_charset(&my_charset_bin);
+    res2->set_charset(&my_charset_bin);
+  }
 
   /* start and length are now sufficiently valid to pass to charpos function */
    start= res->charpos((int) start);
@@ -1126,8 +1149,7 @@ String *Item_func_left::val_str(String *str)
 
   /* if "unsigned_flag" is set, we have a *huge* positive number. */
   if ((length <= 0) && (!args[1]->unsigned_flag))
-    return &my_empty_string;
-
+    return make_empty_result();
   if ((res->length() <= (ulonglong) length) ||
       (res->length() <= (char_pos= res->charpos((int) length))))
     return res;
@@ -1170,7 +1192,7 @@ String *Item_func_right::val_str(String *str)
 
   /* if "unsigned_flag" is set, we have a *huge* positive number. */
   if ((length <= 0) && (!args[1]->unsigned_flag))
-    return &my_empty_string; /* purecov: inspected */
+    return make_empty_result(); /* purecov: inspected */
 
   if (res->length() <= (ulonglong) length)
     return res; /* purecov: inspected */
@@ -1209,7 +1231,7 @@ String *Item_func_substr::val_str(String *str)
   /* Negative or zero length, will return empty string. */
   if ((arg_count == 3) && (length <= 0) && 
       (length == 0 || !args[2]->unsigned_flag))
-    return &my_empty_string;
+    return make_empty_result();
 
   /* Assumes that the maximum length of a String is < INT_MAX32. */
   /* Set here so that rest of code sees out-of-bound value as such. */
@@ -1220,12 +1242,12 @@ String *Item_func_substr::val_str(String *str)
   /* Assumes that the maximum length of a String is < INT_MAX32. */
   if ((!args[1]->unsigned_flag && (start < INT_MIN32 || start > INT_MAX32)) ||
       (args[1]->unsigned_flag && ((ulonglong) start > INT_MAX32)))
-    return &my_empty_string;
+    return make_empty_result();
 
   start= ((start < 0) ? res->numchars() + start : start - 1);
   start= res->charpos((int) start);
   if ((start < 0) || ((uint) start + 1 > res->length()))
-    return &my_empty_string;
+    return make_empty_result();
 
   length= res->charpos((int) length, (uint32) start);
   tmp_length= res->length() - start;
@@ -1288,7 +1310,7 @@ String *Item_func_substr_index::val_str(String *str)
   null_value=0;
   uint delimiter_length= delimiter->length();
   if (!res->length() || !delimiter_length || !count)
-    return &my_empty_string;		// Wrong parameters
+    return make_empty_result();		// Wrong parameters
 
   res->set_charset(collation.collation);
 
@@ -1637,7 +1659,7 @@ String *Item_func_password::val_str(String *str)
   if ((null_value=args[0]->null_value))
     return 0;
   if (res->length() == 0)
-    return &my_empty_string;
+    return make_empty_result();
   my_make_scrambled_password(tmp_value, res->ptr(), res->length());
   str->set(tmp_value, SCRAMBLED_PASSWORD_CHAR_LENGTH, res->charset());
   return str;
@@ -1661,7 +1683,7 @@ String *Item_func_old_password::val_str(String *str)
   if ((null_value=args[0]->null_value))
     return 0;
   if (res->length() == 0)
-    return &my_empty_string;
+    return make_empty_result();
   my_make_scrambled_password_323(tmp_value, res->ptr(), res->length());
   str->set(tmp_value, SCRAMBLED_PASSWORD_CHAR_LENGTH_323, res->charset());
   return str;
@@ -1689,8 +1711,7 @@ String *Item_func_encrypt::val_str(String *str)
   if ((null_value=args[0]->null_value))
     return 0;
   if (res->length() == 0)
-    return &my_empty_string;
-
+    return make_empty_result();
   if (arg_count == 1)
   {					// generate random salt
     time_t timestamp=current_thd->query_start();
@@ -1950,7 +1971,7 @@ String *Item_func_soundex::val_str(String *str)
   for ( ; ; ) /* Skip pre-space */
   {
     if ((rc= cs->cset->mb_wc(cs, &wc, (uchar*) from, (uchar*) end)) <= 0)
-      return &my_empty_string; /* EOL or invalid byte sequence */
+      return make_empty_result(); /* EOL or invalid byte sequence */
     
     if (rc == 1 && cs->ctype)
     {
@@ -1975,7 +1996,7 @@ String *Item_func_soundex::val_str(String *str)
         {
           /* Extra safety - should not really happen */
           DBUG_ASSERT(false);
-          return &my_empty_string;
+          return make_empty_result();
         }
         to+= rc;
         break;
@@ -2272,7 +2293,7 @@ String *Item_func_make_set::val_str(String *str)
 	  else
 	  {
 	    if (tmp_str.copy(*res))		// Don't use 'str'
-	      return &my_empty_string;
+              return make_empty_result();
 	    result= &tmp_str;
 	  }
 	}
@@ -2282,11 +2303,11 @@ String *Item_func_make_set::val_str(String *str)
 	  {					// Copy data to tmp_str
 	    if (tmp_str.alloc(result->length()+res->length()+1) ||
 		tmp_str.copy(*result))
-	      return &my_empty_string;
+              return make_empty_result();
 	    result= &tmp_str;
 	  }
 	  if (tmp_str.append(STRING_WITH_LEN(","), &my_charset_bin) || tmp_str.append(*res))
-	    return &my_empty_string;
+            return make_empty_result();
 	}
       }
     }
@@ -2425,7 +2446,7 @@ String *Item_func_repeat::val_str(String *str)
   null_value= 0;
 
   if (count <= 0 && (count == 0 || !args[1]->unsigned_flag))
-    return &my_empty_string;
+    return make_empty_result();
 
   /* Assumes that the maximum length of a String is < INT_MAX32. */
   /* Bounds check on count:  If this is triggered, we will error. */
@@ -2517,6 +2538,20 @@ String *Item_func_rpad::val_str(String *str)
   /* Set here so that rest of code sees out-of-bound value as such. */
   if ((ulonglong) count > INT_MAX32)
     count= INT_MAX32;
+  /*
+    There is one exception not handled (intentionaly) by the character set
+    aggregation code. If one string is strong side and is binary, and
+    another one is weak side and is a multi-byte character string,
+    then we need to operate on the second string in terms on bytes when
+    calling ::numchars() and ::charpos(), rather than in terms of characters.
+    Lets substitute its character set to binary.
+  */
+  if (collation.collation == &my_charset_bin)
+  {
+    res->set_charset(&my_charset_bin);
+    rpad->set_charset(&my_charset_bin);
+  }
+
   if (count <= (res_char_length= res->numchars()))
   {						// String to pad is big enough
     res->length(res->charpos((int) count));	// Shorten result if longer
@@ -2619,6 +2654,20 @@ String *Item_func_lpad::val_str(String *str)
   if ((ulonglong) count > INT_MAX32)
     count= INT_MAX32;
 
+  /*
+    There is one exception not handled (intentionaly) by the character set
+    aggregation code. If one string is strong side and is binary, and
+    another one is weak side and is a multi-byte character string,
+    then we need to operate on the second string in terms on bytes when
+    calling ::numchars() and ::charpos(), rather than in terms of characters.
+    Lets substitute its character set to binary.
+  */
+  if (collation.collation == &my_charset_bin)
+  {
+    res->set_charset(&my_charset_bin);
+    pad->set_charset(&my_charset_bin);
+  }
+
   res_char_length= res->numchars();
 
   if (count <= res_char_length)
@@ -2705,7 +2754,7 @@ String *Item_func_conv::val_str(String *str)
 
   ptr= longlong2str(dec, ans, to_base);
   if (str->copy(ans, (uint32) (ptr-ans), default_charset()))
-    return &my_empty_string;
+    return make_empty_result();
   return str;
 }
 
@@ -2715,22 +2764,16 @@ String *Item_func_conv_charset::val_str(String *str)
   DBUG_ASSERT(fixed == 1);
   if (use_cached_value)
     return null_value ? 0 : &str_value;
-  /* 
-    Here we don't pass 'str' as a parameter to args[0]->val_str()
-    as 'str' may point to 'str_value' (e.g. see Item::save_in_field()),
-    which we use below to convert string. 
-    Use argument's 'str_value' instead.
-  */
-  String *arg= args[0]->val_str(&args[0]->str_value);
+  String *arg= args[0]->val_str(str);
   uint dummy_errors;
   if (!arg)
   {
     null_value=1;
     return 0;
   }
-  null_value= str_value.copy(arg->ptr(),arg->length(),arg->charset(),
+  null_value= tmp_value.copy(arg->ptr(), arg->length(), arg->charset(),
                              conv_charset, &dummy_errors);
-  return null_value ? 0 : check_well_formed_result(&str_value);
+  return null_value ? 0 : check_well_formed_result(&tmp_value);
 }
 
 void Item_func_conv_charset::fix_length_and_dec()
@@ -2872,7 +2915,7 @@ String *Item_func_hex::val_str(String *str)
       return 0;
     ptr= longlong2str(dec,ans,16);
     if (str->copy(ans,(uint32) (ptr-ans),default_charset()))
-      return &my_empty_string;			// End of memory
+      return make_empty_result();			// End of memory
     return str;
   }
 
@@ -3096,6 +3139,7 @@ String* Item_func_inet_ntoa::val_str(String* str)
   if ((null_value= (args[0]->null_value || n > (ulonglong) LL(4294967295))))
     return 0;					// Null value
 
+  str->set_charset(collation.collation);
   str->length(0);
   int4store(buf,n);
 

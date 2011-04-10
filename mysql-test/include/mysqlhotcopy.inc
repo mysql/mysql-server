@@ -4,11 +4,25 @@
 
 --source include/not_windows.inc
 --source include/not_embedded.inc
+--source include/have_dbi_dbd-mysql.inc
 
-if ($MYSQLHOTCOPY)
+if (!$MYSQLHOTCOPY)
 {
+  # Fail the test if the mysqlhotcopy script is missing.
+  # If the tool's location changes, mysql-test-run.pl must be updated to
+  # reflect this (look for "MYSQLHOTCOPY").
   die due to missing mysqlhotcopy tool;
 }
+
+# NOTE (johnemb, 2011-01-26):
+#       In this test mysqlhotcopy (a perl script) is executed as a standalone
+#       executable, i.e. not necessarily using the perl interpreter in PATH,
+#       because that is how the documentation demonstrates it.
+#
+#       We include have_dbi_dbd-mysql.inc above so that the test will
+#       be skipped if Perl modules required by the mysqlhotcopy tool are not
+#       found when the script is run this way.
+
 
 let $MYSQLD_DATADIR= `SELECT @@datadir`;
 --disable_warnings
@@ -93,7 +107,7 @@ DROP DATABASE hotcopy_save;
 --replace_result $MYSQLD_DATADIR MYSQLD_DATADIR
 --list_files $MYSQLD_DATADIR/hotcopy_save
 --replace_result $MASTER_MYSOCK MASTER_MYSOCK
---error 9,2304
+--error 9,11,2304
 --exec $MYSQLHOTCOPY --quiet -S $MASTER_MYSOCK -u root hotcopy_test hotcopy_save
 --replace_result $MASTER_MYSOCK MASTER_MYSOCK
 --exec $MYSQLHOTCOPY --quiet --allowold -S $MASTER_MYSOCK -u root hotcopy_test hotcopy_save

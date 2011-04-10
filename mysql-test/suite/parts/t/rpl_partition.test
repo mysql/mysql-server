@@ -12,13 +12,6 @@ SET GLOBAL binlog_format = 'ROW';
 SET SESSION binlog_format = 'ROW';
 select @@global.binlog_format, @@session.binlog_format;
 
---disable_warnings
-DROP TABLE IF EXISTS t1, t2, t3;
-DROP PROCEDURE IF EXISTS p1;
-DROP PROCEDURE IF EXISTS p2;
-DROP PROCEDURE IF EXISTS p3;
---enable_warnings
-
 eval CREATE TABLE t1(id MEDIUMINT NOT NULL AUTO_INCREMENT,
                            dt TIMESTAMP, user CHAR(255), uuidf LONGBLOB,
                            fkid MEDIUMINT, filler VARCHAR(255),
@@ -140,7 +133,6 @@ SELECT count(*) as "Master bykey" FROM t2;
 CALL p3();
 SELECT count(*) as "Master byrange" FROM t3;
 
-#--source include/master-slave-end.inc
 --sync_slave_with_master
 connection slave;
 show create table t3; 
@@ -153,11 +145,9 @@ connection master;
 set @@global.binlog_format=  @old_global_binlog_format;
 set @@session.binlog_format=  @old_session_binlog_format;
 DROP TABLE t1, t2, t3;
-DROP PROCEDURE IF EXISTS p1;
-DROP PROCEDURE IF EXISTS p2;
-DROP PROCEDURE IF EXISTS p3;
-save_master_pos;
-connection slave;
-sync_with_master;
+DROP PROCEDURE p1;
+DROP PROCEDURE p2;
+DROP PROCEDURE p3;
 
 # End of 5.1 tests
+--source include/rpl_end.inc

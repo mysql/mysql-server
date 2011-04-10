@@ -113,3 +113,4 @@ sync_slave_with_master;
 diff_files $MYSQLTEST_VARDIR/tmp/trig001_master.sql $MYSQLTEST_VARDIR/tmp/trig001_slave.sql;
 
 # End of 5.0 test case
+--source include/rpl_end.inc

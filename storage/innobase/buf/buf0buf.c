@@ -334,7 +334,7 @@ buf_page_is_corrupted(
 				"InnoDB: tablespace but not the InnoDB "
 				"log files. See\n"
 				"InnoDB: http://dev.mysql.com/doc/refman/"
-				"5.1/en/forcing-recovery.html\n"
+				"5.1/en/forcing-innodb-recovery.html\n"
 				"InnoDB: for more information.\n",
 				(ulong) mach_read_from_4(read_buf
 							 + FIL_PAGE_OFFSET),
@@ -1270,6 +1270,30 @@ loop:
 		buf_awe_map_page_to_frame(block, TRUE);
 	}
 
+#if defined UNIV_DEBUG || defined UNIV_IBUF_DEBUG
+	if (mode == BUF_GET_IF_IN_POOL && ibuf_debug) {
+		/* Try to evict the block from the buffer pool, to use the
+		insert buffer as much as possible. */
+
+		if (buf_LRU_free_block(block)) {
+			mutex_exit(&buf_pool->mutex);
+			mutex_exit(&block->mutex);
+			fprintf(stderr,
+				"innodb_change_buffering_debug evict %u %u\n",
+				(unsigned) space, (unsigned) offset);
+			return(NULL);
+		} else if (buf_flush_page_try(block)) {
+			fprintf(stderr,
+				"innodb_change_buffering_debug flush %u %u\n",
+				(unsigned) space, (unsigned) offset);
+			guess = block->frame;
+			goto loop;
+		}
+
+		/* Failed to evict the page; change it directly */
+	}
+#endif /* UNIV_DEBUG || UNIV_IBUF_DEBUG */
+
 #ifdef UNIV_SYNC_DEBUG
 	buf_block_buf_fix_inc_debug(block, file, line);
 #else
@@ -2043,7 +2067,7 @@ buf_page_io_complete(
 			      " table for corruption.\n"
 			      "InnoDB: See also"
 			      " http://dev.mysql.com/doc/refman/5.1/en/"
-			      "forcing-recovery.html\n"
+			      "forcing-innodb-recovery.html\n"
 			      "InnoDB: about forcing recovery.\n", stderr);
 
 			if (srv_force_recovery < SRV_FORCE_IGNORE_CORRUPT) {

@@ -8123,7 +8123,7 @@ runBug58277errtest(NDBT_Context* ctx, NDBT_Step* step)
   NdbDictionary::Dictionary* pDic = pNdb->getDictionary();
   const int loops = ctx->getNumLoops();
   int result = NDBT_OK;
-  const int rows = ctx->getNumRecords();
+  //const int rows = ctx->getNumRecords();
   NdbRestarter restarter;
   const char* tabname = tabName_Bug58277;
   const char* indname = indName_Bug58277;
@@ -8342,7 +8342,6 @@ runBug58277scanop(NDBT_Context* ctx, NDBT_Step* step, int cnt[1+3])
           }
           if (type == 3)
           {
-            NdbOperation* pOp = 0;
             CHK2(pSOp->deleteCurrentTuple(pTx) == 0, pSOp->getNdbError());
             break;
           }
@@ -8640,7 +8639,7 @@ runBug57057(NDBT_Context* ctx, NDBT_Step* step)
   const bool rss_check = ctx->getProperty("RSS_CHECK", (Uint32)0);
   NdbRestarter restarter;
   const char* tabname = tabName_Bug58277;
-  const char* indname = indName_Bug58277;
+  //const char* indname = indName_Bug58277;
   (void)pDic->dropTable(tabname);
 
   int loop = 0;

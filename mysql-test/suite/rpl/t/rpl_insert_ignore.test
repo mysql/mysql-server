@@ -4,6 +4,11 @@
 -- source include/not_ndb_default.inc
 -- source include/have_innodb.inc
 -- source include/master-slave.inc
-let $engine_type=innodb;
-let $engine_type2=myisam;
+
+-- let $engine_type=innodb
 -- source extra/rpl_tests/rpl_insert_ignore.test
+
+-- let $engine_type=myisam
+-- source extra/rpl_tests/rpl_insert_ignore.test
+
+--source include/rpl_end.inc

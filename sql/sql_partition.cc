@@ -1,6 +1,4 @@
-/*
-   Copyright 2005-2008 MySQL AB, 2008 Sun Microsystems, Inc.
-    All rights reserved. Use is subject to license terms.
+/* Copyright (c) 2005, 2011, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -764,10 +762,8 @@ static bool handle_list_of_fields(List_iterator<char> it,
   bool result;
   char *field_name;
   bool is_list_empty= TRUE;
-#ifndef MCP_BUG53354
   int fields_handled = 0;
   char* field_name_array[MAX_KEY];
-#endif
 
   DBUG_ENTER("handle_list_of_fields");
 
@@ -785,24 +781,24 @@ static bool handle_list_of_fields(List_iterator<char> it,
       goto end;
     }
 
-#ifndef MCP_BUG53354
-    /* Check for duplicate fields in the list.
-     * Assuming that there are not many fields in the partition key list.
-     * If there were, it would be better to replace the for-loop
-     * with a more efficient algorithm.
-     */
+    /*
+      Check for duplicate fields in the list.
+      Assuming that there are not many fields in the partition key list.
+      If there were, it would be better to replace the for-loop
+      with a more efficient algorithm.
+    */
 
     field_name_array[fields_handled] = field_name;
     for (int i = 0; i < fields_handled; ++i)
     {
-      if (strcmp(field_name_array[i], field_name) == 0)
+      if (my_strcasecmp(system_charset_info,
+                        field_name_array[i], field_name) == 0)
       {
-         my_error(ER_FIELD_NOT_FOUND_PART_ERROR, MYF(0));
-         DBUG_RETURN(TRUE);
+        my_error(ER_FIELD_NOT_FOUND_PART_ERROR, MYF(0));
+        DBUG_RETURN(TRUE);
       }
     }
     fields_handled++;
-#endif
   }
   if (is_list_empty)
   {
@@ -1041,12 +1037,13 @@ static bool fix_fields_part_func(THD *thd, Item* func_expr, TABLE *table,
   }
 
   /*
-    We don't allow creating partitions with timezone-dependent expressions as
-    a (sub)partitioning function, but we want to allow such expressions when
-    opening existing tables for easier maintenance. This exception should be
-    deprecated at some point in future so that we always throw an error.
+    We don't allow creating partitions with expressions with non matching
+    arguments as a (sub)partitioning function,
+    but we want to allow such expressions when opening existing tables for
+    easier maintenance. This exception should be deprecated at some point
+    in future so that we always throw an error.
   */
-  if (func_expr->walk(&Item::is_timezone_dependent_processor,
+  if (func_expr->walk(&Item::check_valid_arguments_processor,
                       0, NULL))
   {
     if (is_create_table_ind)
@@ -5997,6 +5994,12 @@ static void alter_partition_lock_handling(ALTER_PARTITION_PARAM_TYPE *lpt)
   if (lpt->thd->locked_tables)
   {
     /*
+      Close the table if open, to remove/destroy the already altered
+      table->part_info object, so that it is not reused.
+    */
+    if (lpt->table->db_stat)
+      abort_and_upgrade_lock_and_close_table(lpt);
+    /*
       When we have the table locked, it is necessary to reopen the table
       since all table objects were closed and removed as part of the
       ALTER TABLE of partitioning structure.
@@ -6498,7 +6501,20 @@ uint fast_alter_partition_table(THD *thd, TABLE *table,
                                  table, table_list, FALSE, NULL,
                                  written_bin_log));
 err:
-  close_thread_tables(thd);
+  if (thd->locked_tables)
+  {
+    /*
+      table->part_info was altered in prep_alter_part_table and must be
+      destroyed and recreated, since otherwise it will be reused, since
+      we are under LOCK TABLE.
+    */
+    alter_partition_lock_handling(lpt);
+  }
+  else
+  {
+    /* Force the table to be closed to avoid reuse of the table->part_info */
+    close_thread_tables(thd);
+  }
   DBUG_RETURN(TRUE);
 }
 #endif
@@ -6809,8 +6825,8 @@ int get_part_iter_for_interval_via_mapping(partition_info *part_info,
 {
   DBUG_ASSERT(!is_subpart);
   Field *field= part_info->part_field_array[0];
-  uint32             max_endpoint_val;
-  get_endpoint_func  get_endpoint;
+  uint32             UNINIT_VAR(max_endpoint_val);
+  get_endpoint_func  UNINIT_VAR(get_endpoint);
   bool               can_match_multiple_values;  /* is not '=' */
   uint field_len= field->pack_length_in_rec();
   part_iter->ret_null_part= part_iter->ret_null_part_orig= FALSE;
@@ -6848,8 +6864,8 @@ int get_part_iter_for_interval_via_mapping(partition_info *part_info,
     }
   }
   else
-    assert(0);
-  
+    MY_ASSERT_UNREACHABLE();
+
   can_match_multiple_values= (flags || !min_value || !max_value ||
                               memcmp(min_value, max_value, field_len));
   if (can_match_multiple_values &&

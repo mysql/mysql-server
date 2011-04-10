@@ -1,9 +1,5 @@
-stop slave;
-drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9;
-reset master;
-reset slave;
-drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9;
-start slave;
+include/master-slave.inc
+[connection master]
 SET @saved_slave_type_conversions = @@slave_type_conversions;
 SET GLOBAL SLAVE_TYPE_CONVERSIONS = 'ALL_NON_LOSSY';
 CREATE DATABASE track;
@@ -70,3 +66,4 @@ event_id	visit_id	timestamp	src	data	visits_events_id
 SET GLOBAL SLAVE_TYPE_CONVERSIONS = @saved_slave_type_conversions;
 DROP DATABASE track;
 End of 5.1 tests
+include/rpl_end.inc

@@ -1,6 +1,4 @@
-/*
-   Copyright 2000-2008 MySQL AB, 2008 Sun Microsystems, Inc.
-    All rights reserved. Use is subject to license terms.
+/* Copyright (c) 2000, 2010, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -8472,13 +8470,18 @@ int QUICK_RANGE_SELECT::reset()
   in_range= FALSE;
   cur_range= (QUICK_RANGE**) ranges.buffer;
 
+  if (file->inited == handler::NONE)
+  {
+    if (in_ror_merged_scan)
+      head->column_bitmaps_set_no_signal(&column_bitmap, &column_bitmap);
 #ifdef MCP_BUG11764737
-  if (file->inited == handler::NONE && (error= file->ha_index_init(index,1)))
+    if ((error= file->ha_index_init(index,1)))
 #else
-  if (file->inited == handler::NONE && (error= file->ha_index_init(index,sorted)))
+    if ((error= file->ha_index_init(index,sorted)))
 #endif
-    DBUG_RETURN(error);
- 
+        DBUG_RETURN(error);
+  }
+
   /* Do not allocate the buffers twice. */
   if (multi_range_length)
   {

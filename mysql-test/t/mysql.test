@@ -412,5 +412,154 @@ drop table t1;
 --echo
 --exec $MYSQL --skip-column-names --vertical test -e "select 1 as a"
 
+#
+# Bug#57450: mysql client enter in an infinite loop if the standard input is a directory
+#
+--error 1
+--exec $MYSQL < .
+
+--echo
+
+--echo #
+--echo # Bug #54899: --one-database option cannot handle DROP/CREATE DATABASE 
+--echo #             commands.
+--echo #
+--write_file $MYSQLTEST_VARDIR/tmp/bug54899.sql
+DROP DATABASE connected_db;
+CREATE DATABASE connected_db;
+USE connected_db;
+CREATE TABLE `table_in_connected_db`(a INT);
+EOF
+
+CREATE DATABASE connected_db;
+--exec $MYSQL --one-database connected_db < $MYSQLTEST_VARDIR/tmp/bug54899.sql
+USE connected_db;
+SHOW TABLES;
+DROP DATABASE connected_db;
+--remove_file $MYSQLTEST_VARDIR/tmp/bug54899.sql
+
+--echo
+
+--echo #
+--echo # Testing --one-database option
+--echo #
+--write_file $MYSQLTEST_VARDIR/tmp/one_db.sql
+CREATE TABLE t1 (i INT);
+CREATE TABLE test.t1 (i INT);
+USE test;
+# Following statements should be filtered.
+CREATE TABLE connected_db.t2 (i INT);
+CREATE TABLE t2 (i INT);
+EOF
+
+CREATE DATABASE connected_db;
+--exec $MYSQL --one-database connected_db < $MYSQLTEST_VARDIR/tmp/one_db.sql
+SHOW TABLES IN connected_db;
+SHOW TABLES IN test;
+USE test;
+DROP TABLE t1;
+DROP DATABASE connected_db;
+--remove_file $MYSQLTEST_VARDIR/tmp/one_db.sql
+
+--echo
+--write_file $MYSQLTEST_VARDIR/tmp/one_db.sql
+CREATE DATABASE test1;
+USE test1;
+USE test1;
+# Following statements should be filtered.
+CREATE TABLE connected_db.t1 (i INT);
+EOF
+
+--exec $MYSQL --one-database test < $MYSQLTEST_VARDIR/tmp/one_db.sql
+SHOW TABLES IN test;
+SHOW TABLES IN test1;
+DROP DATABASE test1;
+--remove_file $MYSQLTEST_VARDIR/tmp/one_db.sql
+
+--echo
+
+--echo #
+--echo # Checking --one-database option followed by the execution of 
+--echo # connect command.
+--echo #
+--write_file $MYSQLTEST_VARDIR/tmp/one_db.sql
+CREATE TABLE t1 (i INT);
+CREATE TABLE test.t1 (i INT);
+CONNECT test;
+CREATE TABLE connected_db.t2 (i INT);
+CREATE TABLE t2 (i INT);
+USE connected_db;
+# Following statements should be filtered.
+CREATE TABLE connected_db.t3 (i INT);
+CREATE TABLE t3 (i INT);
+EOF
+
+CREATE DATABASE connected_db;
+--exec $MYSQL --one-database connected_db < $MYSQLTEST_VARDIR/tmp/one_db.sql
+SHOW TABLES IN connected_db;
+SHOW TABLES IN test;
+DROP TABLE test.t1;
+DROP TABLE test.t2;
+DROP DATABASE connected_db;
+--remove_file $MYSQLTEST_VARDIR/tmp/one_db.sql
+
+--echo
+
+--echo #
+--echo # Checking --one-database option with no database specified
+--echo # at command-line.
+--echo #
+--write_file $MYSQLTEST_VARDIR/tmp/one_db.sql
+# All following statements should be filtered.
+CREATE TABLE t1 (i INT);
+CREATE TABLE test.t1 (i INT);
+USE test;
+CREATE TABLE test.t2 (i INT);
+CREATE TABLE t2 (i INT);
+EOF
+
+--exec $MYSQL --one-database < $MYSQLTEST_VARDIR/tmp/one_db.sql
+SHOW TABLES IN test;
+--remove_file $MYSQLTEST_VARDIR/tmp/one_db.sql
+
+--echo
+
+--echo #
+--echo # Checking --one-database option with non_existent_db 
+--echo # specified with USE command
+--echo #
+
+# CASE 1 : When 'connected_db' database exists and passed at commandline.
+--write_file $MYSQLTEST_VARDIR/tmp/one_db_1.sql
+CREATE TABLE `table_in_connected_db`(i INT);
+USE non_existent_db;
+# Following statement should be filtered out.
+CREATE TABLE `table_in_non_existent_db`(i INT);
+EOF
+
+# CASE 2 : When 'connected_db' database exists but dropped and recreated in
+# load file.
+--write_file $MYSQLTEST_VARDIR/tmp/one_db_2.sql
+DROP DATABASE connected_db;
+CREATE DATABASE connected_db;
+USE non_existent_db;
+# Following statements should be filtered out.
+CREATE TABLE `table_in_non_existent_db`(i INT);
+USE connected_db;
+# Following statements should not be filtered out.
+CREATE TABLE `table_in_connected_db`(i INT);
+EOF
+
+CREATE DATABASE connected_db;
+--exec $MYSQL --one-database connected_db < $MYSQLTEST_VARDIR/tmp/one_db_1.sql
+SHOW TABLES IN connected_db;
+--echo
+--exec $MYSQL --one-database connected_db < $MYSQLTEST_VARDIR/tmp/one_db_2.sql
+SHOW TABLES IN connected_db;
+DROP DATABASE connected_db;
+
+--remove_file $MYSQLTEST_VARDIR/tmp/one_db_1.sql
+--remove_file $MYSQLTEST_VARDIR/tmp/one_db_2.sql
+
 --echo
 --echo End of tests

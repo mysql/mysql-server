@@ -1,6 +1,4 @@
-/*
-   Copyright (C) 1995-2002 MySQL AB
-    All rights reserved. Use is subject to license terms.
+/* Copyright (c) 2002, 2010, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -1691,7 +1689,7 @@ static bool mysql_test_create_view(Prepared_statement *stmt)
   if (open_normal_and_derived_tables(thd, tables, 0))
     goto err;
 
-  lex->view_prepare_mode= 1;
+  lex->context_analysis_only|=  CONTEXT_ANALYSIS_ONLY_VIEW;
   res= select_like_stmt_test(stmt, 0, 0);
 
 err:
@@ -2237,19 +2235,6 @@ end:
 }
 
 
-/** Init PS/SP specific parse tree members.  */
-
-static void init_stmt_after_parse(LEX *lex)
-{
-  SELECT_LEX *sl= lex->all_selects_list;
-  /*
-    Switch off a temporary flag that prevents evaluation of
-    subqueries in statement prepare.
-  */
-  for (; sl; sl= sl->next_select_in_list())
-   sl->uncacheable&= ~UNCACHEABLE_PREPARE;
-}
-
 /**
   SQLCOM_PREPARE implementation.
 
@@ -2365,11 +2350,15 @@ void reinit_stmt_before_use(THD *thd, LEX *lex)
         sl->where= sl->prep_where->copy_andor_structure(thd);
         sl->where->cleanup();
       }
+      else
+        sl->where= NULL;
       if (sl->prep_having)
       {
         sl->having= sl->prep_having->copy_andor_structure(thd);
         sl->having->cleanup();
       }
+      else
+        sl->having= NULL;
       DBUG_ASSERT(sl->join == 0);
       ORDER *order;
       /* Fix GROUP list */
@@ -3079,6 +3068,7 @@ bool Prepared_statement::prepare(const char *packet, uint packet_len)
 
   parser_state.m_lip.stmt_prepare_mode= TRUE;
   lex_start(thd);
+  lex->context_analysis_only|= CONTEXT_ANALYSIS_ONLY_PREPARE;
 
   error= parse_sql(thd, & parser_state, NULL) ||
     thd->is_error() ||
@@ -3131,7 +3121,7 @@ bool Prepared_statement::prepare(const char *packet, uint packet_len)
   if (error == 0)
   {
     setup_set_params();
-    init_stmt_after_parse(lex);
+    lex->context_analysis_only&= ~CONTEXT_ANALYSIS_ONLY_PREPARE;
     state= Query_arena::PREPARED;
     flags&= ~ (uint) IS_IN_USE;
     /*

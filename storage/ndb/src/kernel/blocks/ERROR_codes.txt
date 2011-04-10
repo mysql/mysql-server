@@ -43,6 +43,8 @@ Crash president when he starts to run in ArbitState 1-9.
 935 : Crash master on node failure (delayed) 
       and skip sending GSN_COMMIT_FAILREQ to specified node
 
+938 : Resume communications (DUMP 9991) when > 25% nodes failed
+
 ERROR CODES FOR TESTING NODE FAILURE, GLOBAL CHECKPOINT HANDLING:
 -----------------------------------------------------------------
 

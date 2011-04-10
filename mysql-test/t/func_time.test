@@ -819,6 +819,28 @@ SELECT '2008-02-18' + INTERVAL 1 FRAC_SECOND;
 --error ER_PARSE_ERROR
 SELECT '2008-02-18' - INTERVAL 1 FRAC_SECOND;
 
+
+--echo #
+--echo # Bug #52315 part 2 : utc_date() crashes when system time > year 2037
+--echo #
+
+--disable_result_log
+--error ER_WRONG_VALUE_FOR_VAR
+SET TIMESTAMP=-147490000; SELECT UTC_TIMESTAMP();
+--error ER_WRONG_VALUE_FOR_VAR
+SET TIMESTAMP=2147483648; SELECT UTC_TIMESTAMP();
+SET TIMESTAMP=2147483646; SELECT UTC_TIMESTAMP();
+SET TIMESTAMP=2147483647; SELECT UTC_TIMESTAMP();
+SET TIMESTAMP=0; SELECT UTC_TIMESTAMP();
+--error ER_WRONG_VALUE_FOR_VAR
+SET TIMESTAMP=-1; SELECT UTC_TIMESTAMP();
+SET TIMESTAMP=1; SELECT UTC_TIMESTAMP();
+--enable_result_log
+
+#reset back the timestamp value
+SET TIMESTAMP=0;
+
+
 --echo End of 5.0 tests
 
 #
@@ -847,6 +869,16 @@ CREATE TABLE t1(a DOUBLE NOT NULL);
 INSERT INTO t1 VALUES (0),(9.216e-096);
 --echo # should not crash
 SELECT 1 FROM t1 ORDER BY @x:=makedate(a,a);
+DROP TABLE t1;
+
+--echo #
+--echo # Bug #52160: crash and inconsistent results when grouping
+--echo #             by a function and column
+--echo #
+
+CREATE TABLE t1(a CHAR(10) NOT NULL);
+INSERT INTO t1 VALUES (''),('');
+SELECT COUNT(*) FROM t1 GROUP BY TIME_TO_SEC(a);
 DROP TABLE t1;
 
 --echo End of 5.1 tests

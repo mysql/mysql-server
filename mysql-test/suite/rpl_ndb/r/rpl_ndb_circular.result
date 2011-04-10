@@ -1,12 +1,6 @@
-stop slave;
-drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9;
-reset master;
-reset slave;
-drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9;
-start slave;
-RESET MASTER;
-CHANGE MASTER TO master_host="127.0.0.1",master_port=SLAVE_PORT,master_user="root";
-START SLAVE;
+include/rpl_init.inc [topology=1->2->1]
+include/rpl_connect.inc [creating master]
+include/rpl_connect.inc [creating slave]
 CREATE TABLE t1 (a int key, b int) ENGINE=ndb;
 SHOW TABLES;
 Tables_in_test
@@ -84,12 +78,12 @@ slave-bin.000001	#	Table_map	2	#	table_id: # (mysql.ndb_apply_status)
 slave-bin.000001	#	Write_rows	2	#	table_id: #
 slave-bin.000001	#	Write_rows	2	#	table_id: # flags: STMT_END_F
 slave-bin.000001	#	Query	2	#	COMMIT
-Checking that both slave threads are running.
+include/check_slave_is_running.inc
 SELECT * FROM t1 ORDER BY a;
 a	b
 1	2
 2	3
-Checking that both slave threads are running.
+include/check_slave_is_running.inc
 Master Binlog contains only Master ops as log_slave_updates is off
 show variables like 'server_id';
 Variable_name	Value
@@ -177,3 +171,4 @@ set global ndb_log_apply_status=off;
 stop slave;
 drop table t1;
 drop table t1;
+include/rpl_end.inc

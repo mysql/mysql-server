@@ -1,12 +1,219 @@
+2011-01-31	The InnoDB Team
+
+	* btr/btr0cur.c, include/row0upd.h,
+	row/row0purge.c, row/row0umod.c, row/row0upd.c:
+	Bug#59230 assert 0 row_upd_changes_ord_field_binary()
+	in post-crash rollback or purge
+
+2011-01-27	The InnoDB Team
+
+	* btr/btr0cur.c:
+	Bug#59465 btr_estimate_number_of_different_key_vals use
+	incorrect offset for external_size
+
+2011-01-27	The InnoDB Team
+
+	* include/trx0trx.h, trx/trx0trx.c:
+	Bug#59440 Race condition in XA ROLLBACK and XA COMMIT
+	after server restart
+
+2011-01-25	The InnoDB Team
+
+	* row/row0upd.c:
+	Bug#59585 Fix 58912 introduces compiler warning
+	due to potentially uninitialized variable
+
+2011-01-25	The InnoDB Team
+
+	* mtr/mtr0log.c:
+	Bug#59486 Incorrect usage of UNIV_UNLIKELY() in mlog_parse_string()
+
+2011-01-25	The InnoDB Team
+
+	* row/row0vers.c:
+	Fix Bug#59464 Race condition in row_vers_build_for_semi_consistent_read
+
+2011-01-25	The InnoDB Team
+
+	* btr/btr0btr.c, btr/btr0cur.c, btr/btr0sea.c,
+	buf/buf0buddy.c, buf/buf0buf.c, buf/buf0lru.c,
+	include/buf0buf.h, include/buf0buf.ic, include/buf0lru.h,
+	mem/mem0mem.c, page/page0zip.c:
+	Fix Bug#59707 Unused compression-related parameters
+	in buffer pool functions
+
+2011-01-18	The InnoDB Team
+
+	* include/sync0rw.h, sync/sync0arr.c, sync/sync0rw.c:
+	Fix Bug#59579 rw_lock_debug_print outputs to stderr, not to
+	SHOW ENGINE INNODB STATUS
+
+2011-01-14	The InnoDB Team
+	* btr/btr0cur.c, dict/dict0dict.c, handler/ha_innodb.cc,
+	include/btr0cur.h, include/dict0mem.h, include/rem0cmp.h,
+	include/rem0cmp.ic, include/srv0srv.h, rem/rem0cmp.c,
+	srv/srv0srv.c, innodb_bug30423.test:
+	Fix Bug#30423 InnoDBs treatment of NULL in index stats causes
+	bad "rows examined" estimates
+
+2011-01-06	The InnoDB Team
+	* row/row0merge.c:
+	Fix Bug#59312 Examine MAX_FULL_NAME_LEN in InnoDB to address
+	possible insufficient name buffer
+
+2011-01-06	The InnoDB Team
+	* dict/dict0dict.c, handler/ha_innodb.cc, handler/i_s.cc,
+	include/univ.i: 
+	Fix Bug#58643 InnoDB: too long table name
+
+2011-01-06	The InnoDB Team
+	* handler/i_s.cc, include/trx0i_s.h, trx/trx0i_s.c:
+	Fix Bug#55397 cannot select from innodb_trx when trx_query contains
+	blobs that aren't strings
+
+2011-01-04	The InnoDB Team
+	* dict/dict0dict.c:
+	Fix Bug#59197 double quote in field comment prevents foreign
+	key constraint creation
+
+2010-12-21	The InnoDB Team
+	* include/btr0cur.h, include/row0upd.h, btr/btr0cur.c,
+	row/row0umod.c, row/row0upd.c:
+	Fix Bug#55284 Double free of off-page columns due to lock wait
+	while updating PRIMARY KEY
+
+2010-12-21	The InnoDB Team
+
+	* include/data0data.h, include/data0data.ic, include/row0upd.h,
+	btr/btr0cur.c, row/row0purge.c, row/row0umod.c, row/row0upd.c,
+	innodb.result, innodb.test:
+	Fix Bug#58912 InnoDB unnecessarily avoids update-in-place
+	on column prefix indexes
+
+2010-12-09	The InnoDB Team
+
+	* buf/buf0lru.c:
+	Fix Bug#57600 output of I/O sum[%lu] can go negative
+
+2010-11-11	The InnoDB Team
+
+	* thr/thr0loc.c, trx/trx0i_s.c:
+	Fix Bug#57802 Empty ASSERTION parameter passed to the HASH_SEARCH macro
+
+2010-11-10	The InnoDB Team
+
+	* dict/dict0dict.c, handler/handler0alter.cc, include/dict0dict.h
+	row/row0merge.c:
+	Fix Bug#55084 InnoDB crash and corruption after ALTER TABLE
+
+2010-11-10	The InnoDB Team
+
+	* srv/srv0start.c:
+	Fix Bug#48026 Log start and end of InnoDB buffer pool
+	initialization to the error log
+
+2010-11-03	The InnoDB Team
+
+	* include/btr0btr.h, include/btr0btr.ic, dict/dict0crea.c:
+	Fix Bug#57947 InnoDB diagnostics shows btr_block_get calls
+	instead of real callers
+
+2010-11-03	The InnoDB Team
+
+	* fil/fil0fil.c, fsp/fsp0fsp.c, handler/ha_innodb.cc,
+	include/fil0fil.h, include/univ.i:
+	Fix Bug #54538 - use of exclusive innodb dictionary lock limits
+	performance.
+
+2010-11-02	The InnoDB Team
+
+	* btr/btr0cur.c, dict/dict0dict.c, dict/dict0load.c,
+	handler/ha_innodb.cc, include/dict0dict.h, row/row0mysql.c,
+	innodb_bug53046.result, innodb_bug53046.test:
+	Fix Bug#53046 dict_update_statistics_low can still be run
+	concurrently on same table
+
+2010-11-02	The InnoDB Team
+
+	* row/row0sel.c:
+	Fix Bug#57799 READ UNCOMMITTED access failure of off-page
+	DYNAMIC or COMPRESSED columns again
+
+2010-10-24	The InnoDB Team
+
+	* row/row0mysql.c
+	Fix Bug#57700 Latching order violation in
+	row_truncate_table_for_mysql()
+
+2010-10-20	The InnoDB Team
+
+	* dict/dict0load.c
+	Fix Bug#57616 Sig 11 in dict_load_table() when failed to load
+	index or foreign key
+
+2010-10-19	The InnoDB Team
+
+	* btr/btr0cur.c, buf/buf0buf.c, buf/buf0flu.c, handler/ha_innodb.cc,
+	ibuf/ibuf0ibuf.c, include/btr0cur.h, include/buf0flu.h,
+	include/ibuf0ibuf.h, include/row0mysql.h,
+	row/row0mysql.c, row/row0sel.c,
+	innodb_bug56680.test, innodb_bug56680.result:
+	Fix Bug#56680 InnoDB may return wrong results from a
+	case-insensitive covering index
+
+2010-10-18	The InnoDB Team
+
+	* handler/ha_innodb.cc, handler/ha_innodb.h, innodb_bug57252.result,
+	innodb_bug57252.test:
+	Fix Bug#57252 disabling innobase_stats_on_metadata disables ANALYZE
+
+2010-10-14	The InnoDB Team
+
+	* handler/ha_innodb.cc, innodb_bug56143.result, innodb_bug56143.test:
+	Fix Bug#56143 too many foreign keys causes output of show create
+	table to become invalid
+
+2010-10-14	The InnoDB Team
+
+	* srv/srv0start.c:
+	Fix Bug#57397 io_handler_thread() will never cleanup
+
+2010-10-11	The InnoDB Team
+
+	* row/row0sel.c
+	Fix Bug #57345 btr_pcur_store_position abort for load with
+	concurrent lock/unlock tables
+
+2010-10-11	The InnoDB Team
+
+	* row/row0mysql.c, innodb_bug56947.result, innodb_bug56947.test:
+	Fix Bug #56947 InnoDB leaks memory when failing to create a table
+
+2010-10-06	The InnoDB Team
+
+	* row/row0mysql.c, innodb_bug57255.result, innodb_bug57255.test
+	Fix Bug #57255 Cascade Delete results in "Got error -1 from
+	storage engine"
+
+2010-09-27	The InnoDB Team
+
+	* row/row0sel.c, innodb_bug56716.result, innodb_bug56716.test:
+	Fix Bug#56716 InnoDB locks a record gap without locking the table
+
+2010-09-06	The InnoDB Team
+
+	* dict/dict0load.c, innodb_bug53756.test innodb_bug53756.result:
+	Fix Bug#53756 ALTER TABLE ADD PRIMARY KEY affects crash recovery
+
 2010-08-24	The InnoDB Team
 
 	* handler/ha_innodb.c, dict/dict0dict.c:
-	Fix Bug #55832 selects crash too easily when innodb_force_recovery>3
+	Fix Bug#55832 selects crash too easily when innodb_force_recovery>3
 
 2010-08-03	The InnoDB Team
 
 	* include/dict0dict.h, include/dict0dict.ic, row/row0mysql.c:
-	Fix bug #54678, InnoDB, TRUNCATE, ALTER, I_S SELECT, crash or deadlock
+	Fix Bug#54678 InnoDB, TRUNCATE, ALTER, I_S SELECT, crash or deadlock
 
 2010-08-03	The InnoDB Team
 
@@ -19,13 +226,13 @@
 2010-08-03	The InnoDB Team
 
 	* include/ut0mem.h, ut/ut0mem.c:
-	Fix Bug #55627 segv in ut_free pars_lexer_close innobase_shutdown
+	Fix Bug#55627 segv in ut_free pars_lexer_close innobase_shutdown
 	innodb-use-sys-malloc=0
 
 2010-08-01	The InnoDB Team
 
-	* handler/ha_innodb.cc
-	Fix Bug #55382 Assignment with SELECT expressions takes unexpected
+	* handler/ha_innodb.cc:
+	Fix Bug#55382 Assignment with SELECT expressions takes unexpected
 	S locks in READ COMMITTED
 
 2010-07-27	The InnoDB Team
@@ -47,8 +254,8 @@
 
 2010-06-29	The InnoDB Team
 
-	* btr/btr0cur.c, include/btr0cur.h,
-	include/row0mysql.h, row/row0merge.c, row/row0sel.c:
+	* btr/btr0cur.c, include/btr0cur.h, include/row0mysql.h,
+	row/row0merge.c, row/row0sel.c:
 	Fix Bug#54358 READ UNCOMMITTED access failure of off-page DYNAMIC
 	or COMPRESSED columns
 
@@ -80,7 +287,7 @@
 
 	* dict/dict0load.c, fil/fil0fil.c:
 	Fix Bug#54658: InnoDB: Warning: allocated tablespace %lu,
-	old maximum was 0 (introduced in Bug #53578 fix)
+	old maximum was 0 (introduced in Bug#53578 fix)
 
 2010-06-16	The InnoDB Team
 

@@ -1,6 +1,4 @@
-/*
-   Copyright 2000-2008 MySQL AB, 2008 Sun Microsystems, Inc.
-    All rights reserved. Use is subject to license terms.
+/* Copyright (c) 2000, 2011, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -433,6 +431,11 @@ void free_table_share(TABLE_SHARE *share)
       plugin_unlock(NULL, key_info->parser);
       key_info->flags= 0;
     }
+  }
+  if (share->ha_data_destroy)
+  {
+    share->ha_data_destroy(share->ha_data);
+    share->ha_data_destroy= NULL;
   }
   /* We must copy mem_root from share because share is allocated through it */
   memcpy((char*) &mem_root, (char*) &share->mem_root, sizeof(mem_root));
@@ -1671,6 +1674,11 @@ static int open_binary_frm(THD *thd, TABLE_SHARE *share, uchar *head,
   delete crypted;
   delete handler_file;
   hash_free(&share->name_hash);
+  if (share->ha_data_destroy)
+  {
+    share->ha_data_destroy(share->ha_data);
+    share->ha_data_destroy= NULL;
+  }
 
   open_table_error(share, error, share->open_errno, errarg);
   DBUG_RETURN(error);
@@ -1919,8 +1927,8 @@ int open_table_from_share(THD *thd, TABLE_SHARE *share, const char *alias,
     {
       if (work_part_info_used)
         tmp= fix_partition_func(thd, outparam, (open_mode != OTM_OPEN));
-      outparam->part_info->item_free_list= part_func_arena.free_list;
     }
+    outparam->part_info->item_free_list= part_func_arena.free_list;
 partititon_err:
     if (tmp)
     {

@@ -63,3 +63,4 @@ drop table t1;
 save_master_pos;
 connection slave;
 sync_with_master;
+--source include/rpl_end.inc
