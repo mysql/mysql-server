@@ -34,7 +34,7 @@ public:
    *  Set/Get alarm time of timer
    */
   inline void       setDelay(NDB_TICKS delay_time) { m_delay = delay_time;  }
-  inline NDB_TICKS  getDelay()                     { return m_delay; }
+  inline NDB_TICKS  getDelay() const               { return m_delay; }
 
   /**
    *  Start timer
