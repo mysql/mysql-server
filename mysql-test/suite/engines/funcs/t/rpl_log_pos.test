@@ -11,41 +11,36 @@
 # Passes with rbr no problem, removed statement include [jbm]
 
 source include/master-slave.inc;
-let $master_log_pos= query_get_value(SHOW MASTER STATUS, Position, 1);
+--replace_column 3 <Binlog_Ignore_DB>
+show master status;
 sync_slave_with_master;
+--replace_result $MASTER_MYPORT MASTER_PORT
+--replace_column 1 # 8 # 9 # 23 # 33 #
+show slave status;
 stop slave;
-
---replace_result $master_log_pos MASTER_LOG_POS
-eval change master to master_log_pos=$master_log_pos;
+change master to master_log_pos=106;
 start slave;
 sleep 5;
 stop slave;
-
---replace_result $master_log_pos MASTER_LOG_POS
-eval change master to master_log_pos=$master_log_pos;
---let $slave_param= Read_Master_Log_Pos
---let $slave_param_value= $master_log_pos
---source include/wait_for_slave_param.inc
-
+change master to master_log_pos=106;
+--replace_result $MASTER_MYPORT MASTER_PORT
+--replace_column 1 # 8 # 9 # 23 # 33 #
+show slave status;
 start slave;
 sleep 5;
---let $slave_param= Read_Master_Log_Pos
---let $slave_param_value= $master_log_pos
---source include/wait_for_slave_param.inc
---source include/check_slave_no_error.inc
-
+--replace_result $MASTER_MYPORT MASTER_PORT
+--replace_column 1 # 8 # 9 # 23 # 33 #
+show slave status;
 stop slave;
---echo # impossible position leads to an error
---replace_result 177 MASTER_LOG_POS
 change master to master_log_pos=177;
 start slave;
 sleep 2;
-let $slave_io_errno= 1236;
-let $show_slave_io_error= 1;
-source include/wait_for_slave_io_error.inc;
+--replace_result $MASTER_MYPORT MASTER_PORT
+--replace_column 1 # 8 # 9 # 23 # 33 #
+show slave status;
 connection master;
-
-let $master_log_pos= query_get_value(SHOW MASTER STATUS, Position, 1);
+--replace_column 3 <Binlog_Ignore_DB>
+show master status;
 create table if not exists t1 (n int);
 drop table if exists t1;
 create table t1 (n int);
@@ -53,9 +48,7 @@ insert into t1 values (1),(2),(3);
 save_master_pos;
 connection slave;
 stop slave;
-
---replace_result $master_log_pos MASTER_LOG_POS
-eval change master to master_log_pos=$master_log_pos;
+change master to master_log_pos=206;
 start slave;
 sync_with_master;
 select * from t1 ORDER BY n;

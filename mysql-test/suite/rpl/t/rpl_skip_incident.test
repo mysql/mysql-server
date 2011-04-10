@@ -26,3 +26,5 @@ connection master;
 show binary logs;
 DROP TABLE t1;
 --sync_slave_with_master
+
+--source include/rpl_end.inc

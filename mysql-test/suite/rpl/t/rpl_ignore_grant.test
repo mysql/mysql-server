@@ -57,3 +57,4 @@ delete from mysql.db where user=_binary'rpl_ignore_grant';
 flush privileges;
 
 # End of 4.1 tests
+--source include/rpl_end.inc

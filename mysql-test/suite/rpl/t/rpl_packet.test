@@ -26,8 +26,8 @@ let $old_net_buffer_length= `SELECT @@global.net_buffer_length`;
 SET @@global.max_allowed_packet=1024;
 SET @@global.net_buffer_length=1024;
 
+sync_slave_with_master;
 # Restart slave for setting to take effect
-connection slave;
 source include/stop_slave.inc;
 source include/start_slave.inc;
 
@@ -43,20 +43,16 @@ select @@net_buffer_length, @@max_allowed_packet;
 create table `t1` (`f1` LONGTEXT) ENGINE=MyISAM;
 
 INSERT INTO `t1`(`f1`) VALUES ('aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa1023');
-save_master_pos;
 
-connection slave;
-sync_with_master;
+sync_slave_with_master;
 eval select count(*) from `$db`.`t1` /* must be 1 */;
 
 SHOW STATUS LIKE 'Slave_running';
 select * from information_schema.session_status where variable_name= 'SLAVE_RUNNING';
 connection master;
 eval drop database $db;
-save_master_pos;
 
-connection slave;
-sync_with_master;
+sync_slave_with_master;
 
 #
 # Bug #23755: Replicated event larger that max_allowed_packet infinitely re-transmits
@@ -89,17 +85,21 @@ connection master;
 
 INSERT INTO `t1`(`f1`) VALUES ('aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa2048');
 
-# The slave I/O thread must stop after trying to read the above event
-connection slave;
---source include/wait_for_slave_io_to_stop.inc
-let $slave_io_running= query_get_value(SHOW SLAVE STATUS, Slave_IO_Running, 1);
---echo Slave_IO_Running = $slave_io_running (expect No)
+
 #
 # Bug#42914: The slave I/O thread must stop after trying to read the above
 # event, However there is no Last_IO_Error report.
 #
-let $last_io_error= query_get_value(SHOW SLAVE STATUS, Last_IO_Error, 1);
-eval SELECT "$last_io_error" AS Last_IO_Error;
+
+# The slave I/O thread must stop after trying to read the above event
+connection slave;
+# 1153 = ER_NET_PACKET_TOO_LARGE
+--let $slave_io_errno= 1153
+--let $show_slave_io_error= 1
+--source include/wait_for_slave_io_error.inc
+
+# TODO: this is needed because of BUG#55790. Remove once that is fixed.
+--source include/stop_slave_sql.inc
 
 #
 # Bug#42914: On the master, if a binary log event is larger than
@@ -107,7 +107,14 @@ eval SELECT "$last_io_error" AS Last_IO_Error;
 # is sent to a slave when it requests a dump from the master, thus leading the
 # I/O thread to stop. However, there is no Last_IO_Error reported.
 #
-source include/master-slave-reset.inc;
+
+--let $rpl_only_running_threads= 1
+--source include/rpl_reset.inc
+--connection master
+DROP TABLE t1;
+--sync_slave_with_master
+
+
 connection master;
 CREATE TABLE t1 (f1 int PRIMARY KEY, f2 LONGTEXT, f3 LONGTEXT) ENGINE=MyISAM;
 sync_slave_with_master;
@@ -117,12 +124,10 @@ INSERT INTO t1(f1, f2, f3) VALUES(1, REPEAT('a', @@global.max_allowed_packet), R
 
 connection slave;
 # The slave I/O thread must stop after receiving
-# ER_MASTER_FATAL_ERROR_READING_BINLOG error message from master.
---source include/wait_for_slave_io_to_stop.inc
-let $slave_io_running= query_get_value(SHOW SLAVE STATUS, Slave_IO_Running, 1);
---echo Slave_IO_Running = $slave_io_running (expect No)
-let $last_io_error= query_get_value(SHOW SLAVE STATUS, Last_IO_Error, 1);
-eval SELECT "$last_io_error" AS Last_IO_Error;
+# 1236=ER_MASTER_FATAL_ERROR_READING_BINLOG error message from master.
+--let $slave_io_errno= 1236
+--let $show_slave_io_error= 1
+--source include/wait_for_slave_io_error.inc
 
 # Remove the bad binlog and clear error status on slave.
 STOP SLAVE;
@@ -165,4 +170,8 @@ eval SET @@global.net_buffer_length= $old_net_buffer_length;
 connection slave;
 DROP TABLE t1;
 
+# Clear Last_IO_Error
+RESET SLAVE;
+
+--source include/rpl_end.inc
 # End of tests

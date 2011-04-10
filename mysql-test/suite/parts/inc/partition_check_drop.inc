@@ -66,10 +66,10 @@ if ($found_garbage)
    }
    # Do a manual cleanup, because the following tests should not suffer from
    # remaining files
-   --exec rm -f $MYSQLD_DATADIR/test/t1* || true
+   --remove_files_wildcard $MYSQLD_DATADIR/test t1*
    if ($with_directories)
    {
-	   --exec rm -f $MYSQLTEST_VARDIR/tmp/t1* || true
+           --remove_files_wildcard $MYSQLTEST_VARDIR/tmp t1*
    }
 }
 --enable_query_log

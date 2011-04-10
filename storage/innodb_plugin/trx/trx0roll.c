@@ -48,8 +48,8 @@ Created 3/26/1996 Heikki Tuuri
 rollback */
 #define TRX_ROLL_TRUNC_THRESHOLD	1
 
-/** In crash recovery, the current trx to be rolled back */
-static trx_t*		trx_roll_crash_recv_trx	= NULL;
+/** In crash recovery, the current trx to be rolled back; NULL otherwise */
+static const trx_t*	trx_roll_crash_recv_trx	= NULL;
 
 /** In crash recovery we set this to the undo n:o of the current trx to be
 rolled back. Then we can print how many % the rollback has progressed. */
@@ -740,12 +740,7 @@ trx_undo_arr_remove_info(
 	undo_no_t	undo_no)/*!< in: undo number */
 {
 	trx_undo_inf_t*	cell;
-	ulint		n_used;
-	ulint		n;
 	ulint		i;
-
-	n_used = arr->n_used;
-	n = 0;
 
 	for (i = 0;; i++) {
 		cell = trx_undo_arr_get_nth_info(arr, i);

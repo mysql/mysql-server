@@ -1,10 +1,5 @@
-stop slave;
-drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9;
-reset master;
-reset slave;
-drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9;
-start slave;
-drop database if exists mysqltest;
+include/master-slave.inc
+[connection master]
 create database mysqltest;
 create table mysqltest.t1 ( n int);
 alter table mysqltest.t1 add m int;
@@ -19,3 +14,24 @@ select * from mysqltest.t3;
 n
 45
 drop database mysqltest;
+
+# BUG#56226 Table map set to 0 after altering MyISAM table
+
+SET SESSION binlog_format='ROW';
+USE test;
+CREATE TABLE t1 (a INT, b INT) ENGINE MyISAM;
+CREATE TABLE t2 (a VARCHAR(255), b VARCHAR(255)) ENGINE MyISAM;
+CREATE TRIGGER trg_t1ai 
+AFTER INSERT ON t1 FOR EACH ROW 
+BEGIN
+INSERT INTO t2 (a) VALUES (NEW.a);
+END;//
+ALTER TABLE t1 CHANGE b c INT;
+ALTER TABLE t2 CHANGE b c VARCHAR(255);
+
+INSERT INTO t1 (a) VALUES(2);
+include/diff_tables.inc [master:t1, slave:t1]
+include/diff_tables.inc [master:t2, slave:t2]
+
+DROP TABLE t1, t2;
+include/rpl_end.inc

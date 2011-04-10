@@ -47,3 +47,4 @@ set storage_engine=ndbcluster;
 --connection slave
 set @@global.slave_exec_mode= 'STRICT';
 drop table mysql.ndb_apply_status;
+--source include/rpl_end.inc

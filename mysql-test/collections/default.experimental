@@ -13,11 +13,14 @@ main.func_str  @solaris                  # joro: Bug#40928
 main.sp @solaris                         # joro : Bug#54138
 main.outfile_loaddata @solaris           # joro : Bug #46895
 
-rpl.rpl_innodb_bug28430*  @solaris       # Bug#46029
+rpl.rpl_innodb_bug28430   @solaris       # Bug#46029
 rpl.rpl_row_sp011         @solaris       # Joro : Bug #54138
 
 # the below testcase have been reworked to avoid the bug, test contains comment, keep bug open
 rpl_ndb.rpl_ndb_2ndb   # rpl_ndb_2ndb fails sporadically
 
-binlog.binlog_unsafe @solaris            # Bug #47128 Test "binlog_unsafe" exceds default stack allocation
+main.gis-rtree                           # svoj: due to BUG#38965
+main.type_float                          # svoj: due to BUG#38965
+main.type_newdecimal                     # svoj: due to BUG#38965
 
+innodb_plugin.innodb-index               # jonas: 2011-04-09 - fails with random result file

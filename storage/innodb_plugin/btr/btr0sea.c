@@ -141,7 +141,7 @@ btr_search_check_free_space_in_heap(void)
 	be enough free space in the hash table. */
 
 	if (heap->free_block == NULL) {
-		buf_block_t*	block = buf_block_alloc(0);
+		buf_block_t*	block = buf_block_alloc();
 
 		rw_lock_x_lock(&btr_search_latch);
 
@@ -1495,7 +1495,6 @@ btr_search_update_hash_on_delete(
 	rec_t*		rec;
 	ulint		fold;
 	dulint		index_id;
-	ibool		found;
 	ulint		offsets_[REC_OFFS_NORMAL_SIZE];
 	mem_heap_t*	heap		= NULL;
 	rec_offs_init(offsets_);
@@ -1528,7 +1527,7 @@ btr_search_update_hash_on_delete(
 	}
 	rw_lock_x_lock(&btr_search_latch);
 
-	found = ha_search_and_delete_if_found(table, fold, rec);
+	ha_search_and_delete_if_found(table, fold, rec);
 
 	rw_lock_x_unlock(&btr_search_latch);
 }

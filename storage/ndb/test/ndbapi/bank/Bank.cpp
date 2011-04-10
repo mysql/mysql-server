@@ -2221,7 +2221,7 @@ int Bank::increaseSystemValue(SystemValueId sysValId, Uint64 &value){
     printf("value actual=%lld\n", valueNewRec->u_64_value());
     printf("value expected=%lld actual=%lld\n", value, valueNewRec->u_64_value());
     
-    DBUG_PRINT("info", ("value expected=%ld actual=%ld", value, valueNewRec->u_64_value()));
+    DBUG_PRINT("info", ("value expected=%ld actual=%ld", (long)value, (long)valueNewRec->u_64_value()));
     g_err << "getNextTransactionId: value was not updated" << endl;
     m_ndb.closeTransaction(pTrans);
     DBUG_RETURN(NDBT_FAILED);

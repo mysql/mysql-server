@@ -2344,10 +2344,10 @@ runDropBigTable(NDBT_Context* ctx, NDBT_Step* step)
 int
 runBug31525(NDBT_Context* ctx, NDBT_Step* step)
 {
-  int result = NDBT_OK;
-  int loops = ctx->getNumLoops();
-  int records = ctx->getNumRecords();
-  Ndb* pNdb = GETNDB(step);
+  //int result = NDBT_OK;
+  //int loops = ctx->getNumLoops();
+  //int records = ctx->getNumRecords();
+  //Ndb* pNdb = GETNDB(step);
   NdbRestarter res;
 
   if (res.getNumDbNodes() < 2)
@@ -2418,9 +2418,9 @@ runBug31525(NDBT_Context* ctx, NDBT_Step* step)
 int
 runBug31980(NDBT_Context* ctx, NDBT_Step* step)
 {
-  int result = NDBT_OK;
-  int loops = ctx->getNumLoops();
-  int records = ctx->getNumRecords();
+  //int result = NDBT_OK;
+  //int loops = ctx->getNumLoops();
+  //int records = ctx->getNumRecords();
   Ndb* pNdb = GETNDB(step);
   NdbRestarter res;
 
@@ -2470,10 +2470,10 @@ runBug31980(NDBT_Context* ctx, NDBT_Step* step)
 int
 runBug32160(NDBT_Context* ctx, NDBT_Step* step)
 {
-  int result = NDBT_OK;
-  int loops = ctx->getNumLoops();
-  int records = ctx->getNumRecords();
-  Ndb* pNdb = GETNDB(step);
+  //int result = NDBT_OK;
+  //int loops = ctx->getNumLoops();
+  //int records = ctx->getNumRecords();
+  //Ndb* pNdb = GETNDB(step);
   NdbRestarter res;
 
   if (res.getNumDbNodes() < 2)
@@ -2515,10 +2515,10 @@ runBug32160(NDBT_Context* ctx, NDBT_Step* step)
 int
 runBug32922(NDBT_Context* ctx, NDBT_Step* step)
 {
-  int result = NDBT_OK;
+  //int result = NDBT_OK;
   int loops = ctx->getNumLoops();
-  int records = ctx->getNumRecords();
-  Ndb* pNdb = GETNDB(step);
+  //int records = ctx->getNumRecords();
+  //Ndb* pNdb = GETNDB(step);
   NdbRestarter res;
 
   if (res.getNumDbNodes() < 2)
@@ -2744,10 +2744,10 @@ runNF_commit(NDBT_Context* ctx, NDBT_Step* step)
 int
 runBug34702(NDBT_Context* ctx, NDBT_Step* step)
 {
-  int result = NDBT_OK;
+  //int result = NDBT_OK;
   int loops = ctx->getNumLoops();
-  int records = ctx->getNumRecords();
-  Ndb* pNdb = GETNDB(step);
+  //int records = ctx->getNumRecords();
+  //Ndb* pNdb = GETNDB(step);
   NdbRestarter res;
 
   if (res.getNumDbNodes() < 2)
@@ -2780,7 +2780,7 @@ runBug34702(NDBT_Context* ctx, NDBT_Step* step)
 int
 runMNF(NDBT_Context* ctx, NDBT_Step* step)
 {
-  int result = NDBT_OK;
+  //int result = NDBT_OK;
   NdbRestarter res;
   
   if (res.getNumDbNodes() < 2)
@@ -2981,8 +2981,8 @@ runMNF(NDBT_Context* ctx, NDBT_Step* step)
 int 
 runBug36199(NDBT_Context* ctx, NDBT_Step* step)
 {
-  int result = NDBT_OK;
-  int loops = ctx->getNumLoops();
+  //int result = NDBT_OK;
+  //int loops = ctx->getNumLoops();
   NdbRestarter res;
 
   if (res.getNumDbNodes() < 4)
@@ -3030,8 +3030,8 @@ runBug36199(NDBT_Context* ctx, NDBT_Step* step)
 int 
 runBug36246(NDBT_Context* ctx, NDBT_Step* step)
 { 
-  int result = NDBT_OK;
-  int loops = ctx->getNumLoops();
+  //int result = NDBT_OK;
+  //int loops = ctx->getNumLoops();
   NdbRestarter res;
   Ndb* pNdb = GETNDB(step);
 
@@ -3118,8 +3118,8 @@ loop:
 int 
 runBug36247(NDBT_Context* ctx, NDBT_Step* step)
 { 
-  int result = NDBT_OK;
-  int loops = ctx->getNumLoops();
+  //int result = NDBT_OK;
+  //int loops = ctx->getNumLoops();
   NdbRestarter res;
   Ndb* pNdb = GETNDB(step);
 
@@ -3212,10 +3212,10 @@ loop:
 int 
 runBug36276(NDBT_Context* ctx, NDBT_Step* step)
 { 
-  int result = NDBT_OK;
-  int loops = ctx->getNumLoops();
+  //int result = NDBT_OK;
+  //int loops = ctx->getNumLoops();
   NdbRestarter res;
-  Ndb* pNdb = GETNDB(step);
+  //Ndb* pNdb = GETNDB(step);
   
   if (res.getNumDbNodes() < 4)
     return NDBT_OK;
@@ -3257,8 +3257,8 @@ runBug36276(NDBT_Context* ctx, NDBT_Step* step)
 int 
 runBug36245(NDBT_Context* ctx, NDBT_Step* step)
 { 
-  int result = NDBT_OK;
-  int loops = ctx->getNumLoops();
+  //int result = NDBT_OK;
+  //int loops = ctx->getNumLoops();
   NdbRestarter res;
   Ndb* pNdb = GETNDB(step);
 
@@ -3767,10 +3767,10 @@ runBug44952(NDBT_Context* ctx, NDBT_Step* step)
 
   const int codes [] = {
     5051, 5052, 5053, 0
-  };
+  }; (void)codes;
 
-  int randomId = myRandom48(res.getNumDbNodes());
-  int nodeId = res.getDbNodeId(randomId);
+  //int randomId = myRandom48(res.getNumDbNodes());
+  //int nodeId = res.getDbNodeId(randomId);
 
   int loops = ctx->getNumLoops();
   const int val[] = { DumpStateOrd::CmvmiSetRestartOnErrorInsert, 1 } ;
@@ -4201,6 +4201,552 @@ runBug58453(NDBT_Context* ctx, NDBT_Step* step)
     res.waitClusterStarted();
     hugoOps.clearTable(pNdb);
   }
+
+  return NDBT_OK;
+}
+
+
+
+int runRestartToDynamicOrder(NDBT_Context* ctx, NDBT_Step* step)
+{
+  /* Here we perform node restarts to get the various node's
+   * dynamic ids in a particular order
+   * This affects which nodes heartbeat which (low -> high)
+   * and which is the president (lowest).
+   * Each restarting node gets a higher dynamic id, so the
+   * first node restarted will eventually become president
+   * Note that we're assuming NoOfReplicas == 2 here.
+   */
+  /* TODO :
+   * Refactor into
+   *   1) Get current cluster dynorder info
+   *   2) Choose a dynorder info
+   *   3) Restart to given dynorder if necessary
+   */
+  Uint32 dynOrder = ctx->getProperty("DynamicOrder", Uint32(0));
+  NdbRestarter restarter;
+  Uint32 numNodes = restarter.getNumDbNodes();
+
+  Vector<Uint32> currOrder;
+  Vector<Uint32> newOrder;
+  Vector<Uint32> odds;
+  Vector<Uint32> evens;
+
+  if (numNodes == 2)
+  {
+    ndbout_c("No Dynamic reordering possible with 2 nodes");
+    return NDBT_OK;
+  }
+  if (numNodes & 1)
+  {
+    ndbout_c("Non multiple-of-2 number of nodes.  Not supported");
+    return NDBT_FAILED;
+  }
+
+  Uint32 master = restarter.getMasterNodeId();
+
+  for (Uint32 n=0; n < numNodes; n++)
+  {
+    currOrder.push_back(master);
+    master = restarter.getNextMasterNodeId(master);
+  }
+
+  for (Uint32 n=0; n < numNodes; n++)
+  {
+    Uint32 nodeId = restarter.getDbNodeId(n);
+    if (nodeId & 1)
+    {
+      odds.push_back(nodeId);
+    }
+    else
+    {
+      evens.push_back(nodeId);
+    }
+  }
+
+  if (odds.size() != evens.size())
+  {
+    ndbout_c("Failed - odds.size() (%u) != evens.size() (%u)",
+             odds.size(),
+             evens.size());
+    return NDBT_FAILED;
+  }
+
+  ndbout_c("Current dynamic ordering : ");
+  for (Uint32 n=0; n<numNodes; n++)
+  {
+    ndbout_c("  %u %s", currOrder[n], ((n==0)?"*":""));
+  }
+
+  if (dynOrder == 0)
+  {
+    ndbout_c("No change in dynamic order");
+    return NDBT_OK;
+  }
+
+  Uint32 control= dynOrder - 1;
+
+  bool oddPresident = control & 1;
+  bool interleave = control & 2;
+  bool reverseSideA = control & 4;
+  bool reverseSideB = control & 8;
+
+  /*     Odds first    Interleave O/E  Reverse A  Reverse B
+   * 1       N              N              N         N
+   * 2       Y              N              N         N
+   * 3       N              Y              N         N
+   * 4       Y              Y              N         N
+   * 5       N              N              Y         N
+   * 6       Y              N              Y         N
+   * 7       N              Y              Y         N
+   * 8       Y              Y              Y         N
+   * 9       N              N              N         Y
+   * 10      Y              N              N         Y
+   * 11      N              Y              N         Y
+   * 12      Y              Y              N         Y
+   * 13      N              N              Y         Y
+   * 14      Y              N              Y         Y
+   * 15      N              Y              Y         Y
+   * 16      Y              Y              Y         Y
+   *
+   * Interesting values
+   *   1) Even first, no interleave, no reverse
+   *      e.g. 2->4->6->3->5->7
+   *   2) Odd first, no interleave, no reverse
+   *      e.g. 3->5->7->2->4->6
+   *   3) Even first, interleave, no reverse
+   *      e.g. 2->3->4->5->6->7
+   *   9) Even first, no interleave, reverse B
+   *      e.g. 2->4->6->7->5->3
+   *
+   *  'First' node becomes president.
+   *  Which node(s) monitor president affects when
+   *  arbitration may be required
+   */
+
+  ndbout_c("Generating ordering with %s president, sides %sinterleaved",
+           (oddPresident?"odd": "even"),
+           (interleave?"":"not "));
+  if (reverseSideA)
+    ndbout_c("  %s reversed", (oddPresident?"odds": "evens"));
+
+    if (reverseSideB)
+    ndbout_c("  %s reversed", (oddPresident?"evens": "odds"));
+
+  Vector<Uint32>* sideA;
+  Vector<Uint32>* sideB;
+
+  if (oddPresident)
+  {
+    sideA = &odds;
+    sideB = &evens;
+  }
+  else
+  {
+    sideA = &evens;
+    sideB = &odds;
+  }
+
+  if (interleave)
+  {
+    for (Uint32 n=0; n < sideA->size(); n++)
+    {
+      Uint32 indexA = reverseSideA? (sideA->size() - (n+1)) : n;
+      newOrder.push_back((*sideA)[indexA]);
+      Uint32 indexB = reverseSideB? (sideB->size() - (n+1)) : n;
+      newOrder.push_back((*sideB)[indexB]);
+    }
+  }
+  else
+  {
+    for (Uint32 n=0; n < sideA->size(); n++)
+    {
+      Uint32 indexA = reverseSideA? (sideA->size() - (n+1)) : n;
+      newOrder.push_back((*sideA)[indexA]);
+    }
+    for (Uint32 n=0; n < sideB->size(); n++)
+    {
+      Uint32 indexB = reverseSideB? (sideB->size() - (n+1)) : n;
+      newOrder.push_back((*sideB)[indexB]);
+    }
+  }
+
+
+  bool diff = false;
+  for (Uint32 n=0; n < newOrder.size(); n++)
+  {
+    ndbout_c("  %u %s",
+             newOrder[n],
+             ((n==0)?"*":" "));
+
+    diff |= (newOrder[n] != currOrder[n]);
+  }
+
+  if (!diff)
+  {
+    ndbout_c("Cluster already in correct configuration");
+    return NDBT_OK;
+  }
+
+  for (Uint32 n=0; n < newOrder.size(); n++)
+  {
+    ndbout_c("Now restarting node %u", newOrder[n]);
+    if (restarter.restartOneDbNode(newOrder[n],
+                                   false, // initial
+                                   true,  // nostart
+                                   true)  // abort
+        != NDBT_OK)
+    {
+      ndbout_c("Failed to restart node");
+      return NDBT_FAILED;
+    }
+    if (restarter.waitNodesNoStart((const int*) &newOrder[n], 1) != NDBT_OK)
+    {
+      ndbout_c("Failed waiting for node to enter NOSTART state");
+      return NDBT_FAILED;
+    }
+    if (restarter.startNodes((const int*) &newOrder[n], 1) != NDBT_OK)
+    {
+      ndbout_c("Failed to start node");
+      return NDBT_FAILED;
+    }
+    if (restarter.waitNodesStarted((const int*) &newOrder[n], 1) != NDBT_OK)
+    {
+      ndbout_c("Failed waiting for node to start");
+      return NDBT_FAILED;
+    }
+    ndbout_c("  Done.");
+  }
+
+  ndbout_c("All restarts completed.  NdbRestarter says master is %u",
+           restarter.getMasterNodeId());
+  if (restarter.getMasterNodeId() != (int) newOrder[0])
+  {
+    ndbout_c("  Should be %u, failing", newOrder[0]);
+    return NDBT_FAILED;
+  }
+
+  return NDBT_OK;
+}
+
+struct NodeGroupMembers
+{
+  Uint32 ngid;
+  Uint32 membCount;
+  Uint32 members[4];
+};
+
+template class Vector<NodeGroupMembers>;
+
+int analyseDynamicOrder(NDBT_Context* ctx, NDBT_Step* step)
+{
+  NdbRestarter restarter;
+  Uint32 numNodes = restarter.getNumDbNodes();
+  Uint32 master = restarter.getMasterNodeId();
+  Vector<Uint32> dynamicOrder;
+  Vector<Uint32> nodeGroup;
+  Vector<Uint32> monitorsNode;
+  Vector<Uint32> monitoredByNode;
+  Vector<Uint32> monitorsRemote;
+  Vector<Uint32> remoteMonitored;
+  Vector<Uint32> sameNGMonitored;
+  Vector<Uint32> distanceToRemote;
+  Vector<Uint32> nodeIdToDynamicIndex;
+  Uint32 maxDistanceToRemoteLink = 0;
+
+  /* TODO :
+   * Refactor into :
+   *   1) Determine dynorder from running cluster
+   *   2) Analyse dynorder in general
+   *   3) Analyse dynorder from point of view of latency split
+   *
+   *   4) Support splits other than odd/even total
+   *      - Partial split
+   *      - Some link failures
+   */
+
+  /* Determine dynamic order from running cluster */
+  for (Uint32 n=0; n < numNodes; n++)
+  {
+    dynamicOrder.push_back(master);
+    nodeGroup.push_back(restarter.getNodeGroup(master));
+    master = restarter.getNextMasterNodeId(master);
+    Uint32 zero=0;
+    nodeIdToDynamicIndex.set(n, master, zero);
+  }
+
+  /* Look at implied HB links */
+  for (Uint32 n=0; n < numNodes; n++)
+  {
+    Uint32 nodeId = dynamicOrder[n];
+    Uint32 monitoredByIndex = (n+1) % numNodes;
+    Uint32 monitorsIndex = (n+ numNodes - 1) % numNodes;
+    monitoredByNode.push_back(dynamicOrder[monitoredByIndex]);
+    monitorsNode.push_back(dynamicOrder[monitorsIndex]);
+    remoteMonitored.push_back((nodeId & 1) != (monitoredByNode[n] & 1));
+    monitorsRemote.push_back((nodeId & 1) != (monitorsNode[n] & 1));
+    sameNGMonitored.push_back(nodeGroup[n] == nodeGroup[monitoredByIndex]);
+  }
+
+  /* Look at split implications */
+  for (Uint32 n=0; n < numNodes; n++)
+  {
+    Uint32 distanceToRemoteHBLink = 0;
+    for (Uint32 m=0; m < numNodes; m++)
+    {
+      if (remoteMonitored[n+m])
+        break;
+      distanceToRemoteHBLink++;
+    }
+
+    distanceToRemote.push_back(distanceToRemoteHBLink);
+    maxDistanceToRemoteLink = MAX(maxDistanceToRemoteLink, distanceToRemoteHBLink);
+  }
+
+
+  ndbout_c("Dynamic order analysis");
+
+  for (Uint32 n=0; n < numNodes; n++)
+  {
+    ndbout_c("  %u %s %u%s%u%s%u \t Monitored by %s nodegroup, Dist to remote link : %u",
+             dynamicOrder[n],
+             ((n==0)?"*":" "),
+             monitorsNode[n],
+             ((monitorsRemote[n])?"  >":"-->"),
+             dynamicOrder[n],
+             ((remoteMonitored[n])?"  >":"-->"),
+             monitoredByNode[n],
+             ((sameNGMonitored[n])?"same":"other"),
+             distanceToRemote[n]);
+  }
+
+  ndbout_c("\n");
+
+  Vector<NodeGroupMembers> nodeGroupMembers;
+
+  for (Uint32 n=0; n < numNodes; n++)
+  {
+    Uint32 ng = nodeGroup[n];
+
+    bool ngfound = false;
+    for (Uint32 m = 0; m < nodeGroupMembers.size(); m++)
+    {
+      if (nodeGroupMembers[m].ngid == ng)
+      {
+        NodeGroupMembers& ngInfo = nodeGroupMembers[m];
+        ngInfo.members[ngInfo.membCount++] = dynamicOrder[n];
+        ngfound = true;
+        break;
+      }
+    }
+
+    if (!ngfound)
+    {
+      NodeGroupMembers newGroupInfo;
+      newGroupInfo.ngid = ng;
+      newGroupInfo.membCount = 1;
+      newGroupInfo.members[0] = dynamicOrder[n];
+      nodeGroupMembers.push_back(newGroupInfo);
+    }
+  }
+
+  ndbout_c("Nodegroups");
+
+  for (Uint32 n=0; n < nodeGroupMembers.size(); n++)
+  {
+    ndbout << "  " << nodeGroupMembers[n].ngid << " (";
+    bool allRemoteMonitored = true;
+    for (Uint32 m=0; m < nodeGroupMembers[n].membCount; m++)
+    {
+      Uint32 nodeId = nodeGroupMembers[n].members[m];
+      ndbout << nodeId;
+      if ((m+1) < nodeGroupMembers[n].membCount)
+        ndbout << ",";
+      Uint32 dynamicIndex = nodeIdToDynamicIndex[nodeId];
+      allRemoteMonitored &= remoteMonitored[dynamicIndex];
+    }
+    ndbout << ") Entirely remote monitored NGs risk : "
+           << (allRemoteMonitored?"Y":"N") << "\n";
+  }
+  ndbout_c("\n");
+
+  ndbout_c("Cluster-split latency behaviour");
+
+  Uint32 oddPresident = dynamicOrder[0];
+  Uint32 evenPresident = dynamicOrder[0];
+
+  for (Uint32 n=0; n <= maxDistanceToRemoteLink; n++)
+  {
+    Vector<Uint32> failedNodeGroups;
+    ndbout << "  " << n <<" HB latency period(s), nodes (";
+    bool useComma = false;
+    bool presidentFailed = false;
+    for (Uint32 m=0; m < numNodes; m++)
+    {
+      if (distanceToRemote[m] == n)
+      {
+        Uint32 failingNodeId = dynamicOrder[m];
+        if (useComma)
+          ndbout << ",";
+
+        useComma = true;
+        ndbout << failingNodeId;
+
+        if ((failingNodeId == evenPresident) ||
+            (failingNodeId == oddPresident))
+        {
+          ndbout << "*";
+          presidentFailed = true;
+        }
+
+        {
+          Uint32 ng = nodeGroup[m];
+          for (Uint32 i=0; i< nodeGroupMembers.size(); i++)
+          {
+            if (nodeGroupMembers[i].ngid == ng)
+            {
+              if ((--nodeGroupMembers[i].membCount) == 0)
+              {
+                failedNodeGroups.push_back(ng);
+              }
+            }
+          }
+        }
+      }
+    }
+    ndbout << ") will be declared failed." << endl;
+    if (failedNodeGroups.size() != 0)
+    {
+      ndbout << "    NG failure risk on reconnect for nodegroups : ";
+      for (Uint32 i=0; i< failedNodeGroups.size(); i++)
+      {
+        if (i > 0)
+          ndbout << ",";
+        ndbout << failedNodeGroups[i];
+      }
+      ndbout << endl;
+    }
+    if (presidentFailed)
+    {
+      /* A president (even/odd/both) has failed, we should
+       * calculate the new president(s) from the p.o.v.
+       * of both sides
+       */
+      Uint32 newOdd=0;
+      Uint32 newEven=0;
+      for (Uint32 i=0; i< numNodes; i++)
+      {
+        /* Each side finds either the first node on their
+         * side, or the first node on the other side which
+         * is still 'alive' from their point of view
+         */
+        bool candidateIsOdd = dynamicOrder[i] & 1;
+
+        if (!newOdd)
+        {
+          if (candidateIsOdd ||
+              (distanceToRemote[i] > n))
+          {
+            newOdd = dynamicOrder[i];
+          }
+        }
+        if (!newEven)
+        {
+          if ((!candidateIsOdd) ||
+              (distanceToRemote[i] > n))
+          {
+            newEven = dynamicOrder[i];
+          }
+        }
+      }
+
+      bool oddPresidentFailed = (oddPresident != newOdd);
+      bool evenPresidentFailed = (evenPresident != newEven);
+
+      if (oddPresidentFailed)
+      {
+        ndbout_c("    Odd president (%u) failed, new odd president : %u",
+                 oddPresident, newOdd);
+        oddPresident = newOdd;
+      }
+      if (evenPresidentFailed)
+      {
+        ndbout_c("    Even president (%u) failed, new even president : %u",
+                 evenPresident, newEven);
+        evenPresident = newEven;
+      }
+
+      if (oddPresident != evenPresident)
+      {
+        ndbout_c("    President role duplicated, Odd (%u), Even (%u)",
+                 oddPresident, evenPresident);
+      }
+
+    }
+  }
+
+  ndbout << endl << endl;
+
+  return NDBT_OK;
+}
+
+int runSplitLatency25PctFail(NDBT_Context* ctx, NDBT_Step* step)
+{
+  /* Use dump commands to inject artificial inter-node latency
+   * Use an error insert to cause latency to disappear when
+   * a node observes > 25% of nodes failed.
+   * This should trigger a race of FAIL_REQs from both sides
+   * of the cluster, and can result in cluster failure
+   */
+  NdbRestarter restarter;
+
+  /*
+   * First set the ConnectCheckIntervalDelay to 1500
+   */
+  {
+    int dump[] = { 9994, 1500 };
+    restarter.dumpStateAllNodes(dump, 2);
+  }
+
+  {
+    int val2[] = { DumpStateOrd::CmvmiSetRestartOnErrorInsert, 1 };
+    restarter.dumpStateAllNodes(val2, 2);
+  }
+
+  /* First the error insert which will drop latency (QMGR) */
+  restarter.insertErrorInAllNodes(938);
+
+  /* Now the dump code which causes the system to experience
+   * latency along odd/even lines (CMVMI)
+   *
+   */
+  int dumpStateArgs[] = {9990, 1};
+  restarter.dumpStateAllNodes(dumpStateArgs, 2);
+
+  /**
+   * Now wait for half of cluster to die...
+   */
+  ndbout_c("Waiting for half of cluster to die");
+  int not_started = 0;
+  const int node_count = restarter.getNumDbNodes();
+  do
+  {
+    not_started = 0;
+    for (int i = 0; i < node_count; i++)
+    {
+      if (restarter.getNodeStatus(restarter.getDbNodeId(i)) == NDB_MGM_NODE_STATUS_NOT_STARTED)
+        not_started++;
+    }
+  } while (2 * not_started != node_count);
+
+  ndbout_c("Restarting cluster");
+  restarter.restartAll(false, true, true);
+  ndbout_c("Waiting cluster not started");
+  restarter.waitClusterNoStart();
+
+  ndbout_c("Starting");
+  restarter.startAll();
+  restarter.waitClusterStarted();
 
   return NDBT_OK;
 }
@@ -4739,6 +5285,14 @@ TESTCASE("Bug57522", "")
 TESTCASE("ForceStopAndRestart", "Test restart and stop -with force flag")
 {
   STEP(runForceStopAndRestart);
+}
+TESTCASE("ClusterSplitLatency",
+         "Test behaviour of 2-replica cluster with latency between halves")
+{
+  TC_PROPERTY("DynamicOrder", Uint32(9));
+  INITIALIZER(runRestartToDynamicOrder);
+  INITIALIZER(analyseDynamicOrder);
+  INITIALIZER(runSplitLatency25PctFail);
 }
 NDBT_TESTSUITE_END(testNodeRestart);
 

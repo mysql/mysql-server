@@ -1,0 +1,13 @@
+##############################################################################
+#
+#  List the test cases that are to be disabled temporarily.
+#
+#  Separate the test case name and the comment with ':'.
+#
+#    <testcasename> : BUG#<xxxx> <date disabled> <disabler> <comment>
+#
+#  Do not use any TAB characters for whitespace.
+#
+##############################################################################
+sys_vars.max_binlog_cache_size_basic_64 : bug#56408 2010-08-31 Horst
+sys_vars.max_binlog_cache_size_basic_32 : bug#56408 2010-08-31 Horst

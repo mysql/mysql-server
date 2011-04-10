@@ -28,3 +28,4 @@ connection master;
 drop database mysqltest1;
 drop database mysqltest2;
 sync_slave_with_master;
+--source include/rpl_end.inc

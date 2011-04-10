@@ -88,7 +88,7 @@ select * from t1;
 
 connection slave;
 stop slave;
-change master to master_bind='127.0.0.1';
+eval change master to master_bind='';
 start slave;
 sync_with_master;
 select * from t1;
@@ -98,3 +98,4 @@ drop table t1;
 save_master_pos;
 connection slave;
 sync_with_master;
+--source include/rpl_end.inc

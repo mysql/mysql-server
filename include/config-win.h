@@ -179,6 +179,11 @@ typedef uint rf_SetTimer;
 #define SIZEOF_LONG		4
 #define SIZEOF_LONG_LONG	8
 #define SIZEOF_OFF_T		8
+/*
+  The size of time_t depends on the compiler.
+  But it's 8 for all the supported VC versions.
+*/
+#define SIZEOF_TIME_T		8
 #ifdef _WIN64
 #define SIZEOF_CHARP		8
 #else
@@ -354,6 +359,7 @@ inline ulonglong double2ulonglong(double d)
 /* File name handling */
 
 #define FN_LIBCHAR	'\\'
+#define FN_DIRSEP       "/\\"               /* Valid directory separators */
 #define FN_ROOTDIR	"\\"
 #define FN_DEVCHAR	':'
 #define FN_NETWORK_DRIVES	/* Uses \\ to indicate network drives */

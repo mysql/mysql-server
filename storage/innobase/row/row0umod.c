@@ -89,12 +89,17 @@ row_undo_mod_clust_low(
 	btr_pcur_t*	pcur;
 	btr_cur_t*	btr_cur;
 	ulint		err;
+#ifdef UNIV_DEBUG
 	ibool		success;
+#endif /* UNIV_DEBUG */
 
 	pcur = &(node->pcur);
 	btr_cur = btr_pcur_get_btr_cur(pcur);
 
-	success = btr_pcur_restore_position(mode, pcur, mtr);
+#ifdef UNIV_DEBUG
+	success =
+#endif /* UNIV_DEBUG */
+	btr_pcur_restore_position(mode, pcur, mtr);
 
 	ut_ad(success);
 

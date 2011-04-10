@@ -126,8 +126,8 @@ UNIV_INTERN
 void
 row_upd_index_entry_sys_field(
 /*==========================*/
-	const dtuple_t*	entry,	/*!< in: index entry, where the memory buffers
-				for sys fields are already allocated:
+	dtuple_t*	entry,	/*!< in/out: index entry, where the memory
+				buffers for sys fields are already allocated:
 				the function just copies the new values to
 				them */
 	dict_index_t*	index,	/*!< in: clustered index */
@@ -167,8 +167,11 @@ row_upd_changes_field_size_or_external(
 	const upd_t*	update);/*!< in: update vector */
 #endif /* !UNIV_HOTBACKUP */
 /***********************************************************//**
-Replaces the new column values stored in the update vector to the record
-given. No field size changes are allowed. */
+Replaces the new column values stored in the update vector to the
+record given. No field size changes are allowed. This function is
+usually invoked on a clustered index. The only use case for a
+secondary index is row_ins_sec_index_entry_by_modify() or its
+counterpart in ibuf_insert_to_index_page(). */
 UNIV_INTERN
 void
 row_upd_rec_in_place(
@@ -277,16 +280,29 @@ NOTE: we compare the fields as binary strings!
 @return TRUE if update vector changes an ordering field in the index record */
 UNIV_INTERN
 ibool
-row_upd_changes_ord_field_binary(
-/*=============================*/
+row_upd_changes_ord_field_binary_func(
+/*==================================*/
+	dict_index_t*	index,	/*!< in: index of the record */
+	const upd_t*	update,	/*!< in: update vector for the row; NOTE: the
+				field numbers in this MUST be clustered index
+				positions! */
+#ifdef UNIV_DEBUG
+	const que_thr_t*thr,	/*!< in: query thread */
+#endif /* UNIV_DEBUG */
 	const dtuple_t*	row,	/*!< in: old value of row, or NULL if the
 				row and the data values in update are not
 				known when this function is called, e.g., at
 				compile time */
-	dict_index_t*	index,	/*!< in: index of the record */
-	const upd_t*	update);/*!< in: update vector for the row; NOTE: the
-				field numbers in this MUST be clustered index
-				positions! */
+	const row_ext_t*ext)	/*!< NULL, or prefixes of the externally
+				stored columns in the old row */
+	__attribute__((nonnull(1,2), warn_unused_result));
+#ifdef UNIV_DEBUG
+# define row_upd_changes_ord_field_binary(index,update,thr,row,ext)	\
+	row_upd_changes_ord_field_binary_func(index,update,thr,row,ext)
+#else /* UNIV_DEBUG */
+# define row_upd_changes_ord_field_binary(index,update,thr,row,ext)	\
+	row_upd_changes_ord_field_binary_func(index,update,row,ext)
+#endif /* UNIV_DEBUG */
 /***********************************************************//**
 Checks if an update vector changes an ordering field of an index record.
 This function is fast if the update vector is short or the number of ordering
@@ -459,11 +475,16 @@ struct upd_node_struct{
 #define UPD_NODE_INSERT_CLUSTERED  3	/* clustered index record should be
 					inserted, old record is already delete
 					marked */
-#define UPD_NODE_UPDATE_ALL_SEC	   4	/* an ordering field of the clustered
+#define UPD_NODE_INSERT_BLOB	   4	/* clustered index record should be
+					inserted, old record is already
+					delete-marked; non-updated BLOBs
+					should be inherited by the new record
+					and disowned by the old record */
+#define UPD_NODE_UPDATE_ALL_SEC	   5	/* an ordering field of the clustered
 					index record was changed, or this is
 					a delete operation: should update
 					all the secondary index records */
-#define	UPD_NODE_UPDATE_SOME_SEC   5	/* secondary index entries should be
+#define UPD_NODE_UPDATE_SOME_SEC   6	/* secondary index entries should be
 					looked at and updated if an ordering
 					field changed */
 
