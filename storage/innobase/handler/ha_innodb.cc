@@ -189,7 +189,7 @@ innobase_index_name_is_reserved(
 /*============================*/
 					/* out: true if index name matches a
 					reserved name */
-	const trx_t*	trx,		/* in: InnoDB transaction handle */
+	THD*		thd,		/* in/out: MySQL connection */
 	const TABLE*	form,		/* in: information on table
 					columns and indexes */
 	const char*	norm_name);	/* in: table name */
@@ -5285,10 +5285,6 @@ create_table_def(
 	DBUG_PRINT("enter", ("table_name: %s", table_name));
 
 	ut_a(trx->mysql_thd != NULL);
-	if (IS_MAGIC_TABLE_AND_USER_DENIED_ACCESS(table_name,
-						  (THD*) trx->mysql_thd)) {
-		DBUG_RETURN(HA_ERR_GENERIC);
-	}
 
 	n_cols = form->s->fields;
 
@@ -5396,6 +5392,8 @@ err_col:
 				charset_no),
 			col_len);
 	}
+
+	srv_lower_case_table_names = lower_case_table_names;
 
 	error = row_create_table_for_mysql(table, trx);
 
@@ -5642,6 +5640,35 @@ ha_innobase::create(
 		DBUG_RETURN(HA_ERR_TO_BIG_ROW);
 	}
 
+	strcpy(name2, name);
+
+	normalize_table_name(norm_name, name2);
+
+	/* Create the table definition in InnoDB */
+
+	flags = form->s->row_type != ROW_TYPE_REDUNDANT ? DICT_TF_COMPACT : 0;
+
+	/* Look for a primary key */
+
+	primary_key_no= (form->s->primary_key != MAX_KEY ?
+			 (int) form->s->primary_key :
+			 -1);
+
+	/* Our function row_get_mysql_key_number_for_index assumes
+	the primary key is always number 0, if it exists */
+
+	DBUG_ASSERT(primary_key_no == -1 || primary_key_no == 0);
+
+	/* Check for name conflicts (with reserved name) for
+	any user indices to be created. */
+	if (innobase_index_name_is_reserved(thd, form, norm_name)) {
+		DBUG_RETURN(-1);
+	}
+
+	if (IS_MAGIC_TABLE_AND_USER_DENIED_ACCESS(norm_name, thd)) {
+		DBUG_RETURN(HA_ERR_GENERIC);
+	}
+
 	/* Get the transaction associated with the current thd, or create one
 	if not yet created */
 
@@ -5665,47 +5692,11 @@ ha_innobase::create(
 		trx->check_unique_secondary = FALSE;
 	}
 
-	if (lower_case_table_names) {
-		srv_lower_case_table_names = TRUE;
-	} else {
-		srv_lower_case_table_names = FALSE;
-	}
-
-	strcpy(name2, name);
-
-	normalize_table_name(norm_name, name2);
-
 	/* Latch the InnoDB data dictionary exclusively so that no deadlocks
 	or lock waits can happen in it during a table create operation.
 	Drop table etc. do this latching in row0mysql.c. */
 
 	row_mysql_lock_data_dictionary(trx);
-
-	/* Create the table definition in InnoDB */
-
-	flags = 0;
-
-	if (form->s->row_type != ROW_TYPE_REDUNDANT) {
-		flags |= DICT_TF_COMPACT;
-	}
-
-	/* Look for a primary key */
-
-	primary_key_no= (form->s->primary_key != MAX_KEY ?
-			 (int) form->s->primary_key :
-			 -1);
-
-	/* Our function row_get_mysql_key_number_for_index assumes
-	the primary key is always number 0, if it exists */
-
-	DBUG_ASSERT(primary_key_no == -1 || primary_key_no == 0);
-
-	/* Check for name conflicts (with reserved name) for
-	any user indices to be created. */
-	if (innobase_index_name_is_reserved(trx, form, norm_name)) {
-		error = -1;
-		goto cleanup;
-	}
 
 	error = create_table_def(trx, form, norm_name,
 		create_info->options & HA_LEX_CREATE_TMP_TABLE ? name2 : NULL,
@@ -5936,12 +5927,6 @@ ha_innobase::delete_table(
 
 	trx_search_latch_release_if_reserved(parent_trx);
 
-	if (lower_case_table_names) {
-		srv_lower_case_table_names = TRUE;
-	} else {
-		srv_lower_case_table_names = FALSE;
-	}
-
 	trx = trx_allocate_for_mysql();
 
 	trx->mysql_thd = thd;
@@ -5960,6 +5945,8 @@ ha_innobase::delete_table(
 	assert(name_len < 1000);
 
 	/* Drop the table in InnoDB */
+
+	srv_lower_case_table_names = lower_case_table_names;
 
 	error = row_drop_table_for_mysql(norm_name, trx,
 					 thd_sql_command(thd)
@@ -6089,12 +6076,6 @@ ha_innobase::rename_table(
 
 	trx_search_latch_release_if_reserved(parent_trx);
 
-	if (lower_case_table_names) {
-		srv_lower_case_table_names = TRUE;
-	} else {
-		srv_lower_case_table_names = FALSE;
-	}
-
 	trx = trx_allocate_for_mysql();
 	trx->mysql_thd = thd;
 	INNOBASE_COPY_STMT(thd, trx);
@@ -6113,6 +6094,8 @@ ha_innobase::rename_table(
 	normalize_table_name(norm_to, to);
 
 	/* Rename the table in InnoDB */
+
+	srv_lower_case_table_names = lower_case_table_names;
 
 	error = row_rename_table_for_mysql(norm_from, norm_to, trx);
 
@@ -8826,7 +8809,7 @@ innobase_index_name_is_reserved(
 /*============================*/
 					/* out: true if an index name
 					matches the reserved name */
-	const trx_t*	trx,		/* in: InnoDB transaction handle */
+	THD*		thd,		/* in/out: MySQL connection */
 	const TABLE*	form,		/* in: information on table
 					columns and indexes */
 	const char*	norm_name)	/* in: table name */
@@ -8840,7 +8823,7 @@ innobase_index_name_is_reserved(
 		if (innobase_strcasecmp(key->name,
 					innobase_index_reserve_name) == 0) {
 			/* Push warning to mysql */
-			push_warning_printf((THD*) trx->mysql_thd,
+			push_warning_printf(thd,
 					    MYSQL_ERROR::WARN_LEVEL_WARN,
 					    ER_CANT_CREATE_TABLE,
 					    "Cannot Create Index with name "
