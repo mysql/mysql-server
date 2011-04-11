@@ -286,21 +286,6 @@ private:
 };
 
 
-
-/**
-  Hook class which via its methods specifies which members
-  of T should be used for participating in MDL lists.
-*/
-
-template <typename T, T* T::*next, T** T::*prev>
-struct I_P_List_adapter
-{
-  static inline T **next_ptr(T *el) { return &(el->*next); }
-
-  static inline T ***prev_ptr(T *el) { return &(el->*prev); }
-};
-
-
 /**
   A pending metadata lock request.
 
