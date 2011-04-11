@@ -37,6 +37,7 @@ Created 3/26/1996 Heikki Tuuri
 #include "trx0rseg.h"
 #include "trx0undo.h"
 #include "srv0srv.h"
+#include "srv0start.h"
 #include "trx0purge.h"
 #include "log0log.h"
 #include "log0recv.h"
@@ -1617,10 +1618,12 @@ void
 trx_sys_close(void)
 /*===============*/
 {
+	trx_t*		trx;
 	trx_rseg_t*	rseg;
 	read_view_t*	view;
 
 	ut_ad(trx_sys != NULL);
+	ut_ad(srv_shutdown_state == SRV_SHUTDOWN_EXIT_THREADS);
 
 	/* Check that all read views are closed except read view owned
 	by a purge. */
@@ -1651,6 +1654,13 @@ trx_sys_close(void)
 	mutex_free(&trx_doublewrite->mutex);
 	mem_free(trx_doublewrite);
 	trx_doublewrite = NULL;
+
+	/* Only prepared transactions may be left in the system. Free them. */
+	ut_a(UT_LIST_GET_LEN(trx_sys->trx_list) == trx_n_prepared);
+
+	while ((trx = UT_LIST_GET_FIRST(trx_sys->trx_list)) != NULL) {
+		trx_free_prepared(trx);
+	}
 
 	/* There can't be any active transactions. */
 	rseg = UT_LIST_GET_FIRST(trx_sys->rseg_list);

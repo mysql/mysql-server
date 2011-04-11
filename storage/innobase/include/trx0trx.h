@@ -44,6 +44,9 @@ extern sess_t*	trx_dummy_sess;
 /** Number of transactions currently allocated for MySQL: protected by
 the kernel mutex */
 extern ulint	trx_n_mysql_transactions;
+/** Number of transactions currently in the XA PREPARED state: protected by
+the kernel mutex */
+extern ulint	trx_n_prepared;
 
 /********************************************************************//**
 Releases the search latch if trx has reserved it. */
@@ -107,6 +110,14 @@ void
 trx_free(
 /*=====*/
 	trx_t*	trx);	/*!< in, own: trx object */
+/********************************************************************//**
+At shutdown, frees a transaction object that is in the PREPARED state. */
+UNIV_INTERN
+void
+trx_free_prepared(
+/*==============*/
+	trx_t*	trx)	/*!< in, own: trx object */
+	UNIV_COLD __attribute__((nonnull));
 /********************************************************************//**
 Frees a transaction object for MySQL. */
 UNIV_INTERN
