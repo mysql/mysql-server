@@ -112,7 +112,6 @@ extern mysql_pfs_key_t	trx_undo_mutex_key;
 extern mysql_pfs_key_t	trx_mutex_key;
 extern mysql_pfs_key_t	lock_sys_mutex_key;
 extern mysql_pfs_key_t	lock_sys_wait_mutex_key;
-extern mysql_pfs_key_t	trx_sys_rw_lock_key;
 extern mysql_pfs_key_t	read_view_mutex_key;
 extern mysql_pfs_key_t	srv_sys_mutex_key;
 extern mysql_pfs_key_t	srv_sys_tasks_mutex_key;
@@ -120,7 +119,6 @@ extern mysql_pfs_key_t	srv_conc_mutex_key;
 extern mysql_pfs_key_t	event_os_mutex_key;
 extern mysql_pfs_key_t	ut_list_mutex_key;
 extern mysql_pfs_key_t	os_mutex_key;
-
 #endif /* UNIV_PFS_MUTEX */
 
 /******************************************************************//**
