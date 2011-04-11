@@ -1,5 +1,10 @@
 2011-04-07	The InnoDB Team
 
+	* handler/ha_innodb.cc, handler/ha_innodb.h, handler/handler0alter.cc:
+	Fix Bug #52409 Assertion failure: long semaphore wait
+
+2011-04-07	The InnoDB Team
+
 	* handler/ha_innodb.cc, include/trx0trx.h, include/trx0undo.h,
 	log/log0log.c, trx/trx0sys.c, trx/trx0trx.c, trx/trx0undo.c:
 	Fix Bug #59641 Prepared XA transaction in system after hard crash
