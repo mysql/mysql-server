@@ -475,6 +475,21 @@ Dbtup::execACCKEYCONF(Signal* signal)
   jamEntry();
   ScanOpPtr scanPtr;
   scanPtr.i = signal->theData[0];
+
+  Uint32 localKey1 = signal->theData[3];
+  Uint32 localKey2 = signal->theData[4];
+  Uint32 localKeyFlag = signal->theData[5];
+  Local_key tmp;
+  if (localKeyFlag == 1)
+  {
+    tmp.assref(localKey1);
+  }
+  else
+  {
+    tmp.m_page_no = localKey1;
+    tmp.m_page_idx = localKey2;
+  }
+
   c_scanOpPool.getPtr(scanPtr);
   ScanOp& scan = *scanPtr.p;
   ndbrequire(scan.m_bits & ScanOp::SCAN_LOCK_WAIT && scan.m_accLockOp != RNIL);
@@ -482,10 +497,37 @@ Dbtup::execACCKEYCONF(Signal* signal)
   if (scan.m_state == ScanOp::Blocked) {
     // the lock wait was for current entry
     jam();
-    scan.m_state = ScanOp::Locked;
-    // LQH has the ball
-    return;
+
+    if (likely(scan.m_scanPos.m_key_mm.m_page_no == tmp.m_page_no &&
+               scan.m_scanPos.m_key_mm.m_page_idx == tmp.m_page_idx))
+    {
+      jam();
+      scan.m_state = ScanOp::Locked;
+      // LQH has the ball
+      return;
+    }
+    else
+    {
+      jam();
+      /**
+       * This means that there was DEL/INS on rowid that we tried to lock
+       *   and the primary key that was previously located on this rowid
+       *   (scanPos.m_key_mm) has moved.
+       *   (DBACC keeps of track of primary keys)
+       *
+       * We don't care about the primary keys, but is interested in ROWID
+       *   so rescan this position.
+       *   Which is implemented by using execACCKEYREF...
+       */
+      ndbout << "execACCKEYCONF "
+             << scan.m_scanPos.m_key_mm
+             << " != " << tmp << " ";
+      scan.m_bits |= ScanOp::SCAN_LOCK_WAIT;
+      execACCKEYREF(signal);
+      return;
+    }
   }
+
   if (scan.m_state != ScanOp::Aborting) {
     // we were moved, release lock
     jam();

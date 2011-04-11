@@ -42,6 +42,9 @@
 #include <NdbOut.hpp>
 #include <Configuration.hpp>
 
+#include <EventLogger.hpp>
+extern EventLogger * g_eventLogger;
+
 inline
 int pageSize( const NewVARIABLE* baseAddrRef )
 {
@@ -515,6 +518,11 @@ Ndbfs::execFSCLOSEREQ(Signal * signal)
     fsRef->setErrorCode(fsRef->errorCode, FsRef::fsErrFileDoesNotExist);
     fsRef->osErrorCode  = ~0; // Indicate local error
     sendSignal(userRef, GSN_FSCLOSEREF, signal, 3, JBB);
+
+    g_eventLogger->warning("Trying to close unknown file!! %u", userPointer);
+    g_eventLogger->warning("Dumping files");
+    signal->theData[0] = 405;
+    execDUMP_STATE_ORD(signal);
     return;
   }
 
@@ -1122,6 +1130,14 @@ Ndbfs::report(Request * request, Signal* signal)
     case Request:: close: {
       jam();
       sendSignal(ref, GSN_FSCLOSEREF, signal, FsRef::SignalLength, JBB);
+
+      g_eventLogger->warning("Error closing file: %s %u/%u",
+                             request->file->theFileName.c_str(),
+                             fsRef->errorCode,
+                             fsRef->osErrorCode);
+      g_eventLogger->warning("Dumping files");
+      signal->theData[0] = 405;
+      execDUMP_STATE_ORD(signal);
       break;
     }
     case Request:: writeSync:
@@ -1547,6 +1563,19 @@ Ndbfs::execDUMP_STATE_ORD(Signal* signal)
       ndbout_c("%2d (0x%lx): %s", i, (long) file, file->isOpen()?"OPEN":"CLOSED");
     }
 #endif
+  }
+
+  if(signal->theData[0] == 405)
+  {
+    for (unsigned i = 0; i < theFiles.size(); i++)
+    {
+      AsyncFile* file = theFiles[i];
+      if (file == 0)
+        continue;
+      ndbout_c("%u : %s %s", i,
+               file->theFileName.c_str() ? file->theFileName.c_str() : "",
+               file->isOpen() ? "OPEN" : "CLOSED");
+    }
   }
 }//Ndbfs::execDUMP_STATE_ORD()
 

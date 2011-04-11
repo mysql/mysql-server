@@ -15,7 +15,7 @@
 
 EXTRA_DIST = CMakeLists.txt
 
-ndbtest_PROGRAMS = hugoLoad hugoFill hugoLockRecords hugoPkDelete hugoPkRead hugoPkReadRecord  hugoPkUpdate hugoScanRead hugoScanUpdate restart verify_index copy_tab create_index  ndb_cpcc listen_event eventlog rep_latency ndb_connect
+ndbtest_PROGRAMS = hugoLoad hugoFill hugoLockRecords hugoPkDelete hugoPkRead hugoPkReadRecord  hugoPkUpdate hugoScanRead hugoScanUpdate restart verify_index copy_tab create_index  ndb_cpcc listen_event eventlog rep_latency ndb_connect hugoJoin
 
 hugoFill_SOURCES = hugoFill.cpp
 hugoLoad_SOURCES = hugoLoad.cpp
@@ -26,6 +26,8 @@ hugoPkReadRecord_SOURCES = hugoPkReadRecord.cpp
 hugoPkUpdate_SOURCES = hugoPkUpdate.cpp
 hugoScanRead_SOURCES = hugoScanRead.cpp
 hugoScanUpdate_SOURCES = hugoScanUpdate.cpp
+hugoJoin_SOURCES = hugoJoin.cpp
+
 restart_SOURCES = restart.cpp
 verify_index_SOURCES = verify_index.cpp
 copy_tab_SOURCES = copy_tab.cpp

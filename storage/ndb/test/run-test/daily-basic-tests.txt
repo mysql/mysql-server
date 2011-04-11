@@ -106,6 +106,18 @@ cmd: testBasic
 args: -n DeleteRead
 
 max-time: 500
+cmd: testSpj
+args: -n LookupJoin
+
+max-time: 500
+cmd: testSpj
+args: -n ScanJoin
+
+max-time: 500
+cmd: testSpj
+args: -n MixedJoin
+
+max-time: 500
 cmd: testBasic
 args: -n PkReadAndLocker T6 D1 D2
 
@@ -563,6 +575,10 @@ max-time: 500
 cmd: testScan
 args: -n Bug54945 T1
 
+max-time: 600
+cmd: testScan
+args: -n Bug12324191 T1 T6 T13
+
 max-time: 1800
 cmd: testNodeRestart
 args: -n Bug27003 T1
@@ -670,6 +686,10 @@ args: -n NFNR1_O T6 T13
 max-time: 2500
 cmd: testIndex
 args: -n NFNR2_O T6 T13 
+
+max-time: 2500
+cmd: testSpj
+args: -n NF_Join T6 T13
 
 #
 # DICT TESTS
