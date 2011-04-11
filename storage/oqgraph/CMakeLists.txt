@@ -13,6 +13,13 @@
 # along with this program; if not, write to the Free Software
 # Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 
+FIND_PACKAGE(Boost)
+
+IF(Boost_FOUND)
+  INCLUDE_DIRECTORIES(${Boost_INCLUDE_DIRS})
+  SET(CMAKE_REQUIRED_INCLUDES ${Boost_INCLUDE_DIRS})
+ENDIF()
+
 INCLUDE (CheckCXXSourceCompiles)
 CHECK_CXX_SOURCE_COMPILES(
 "#include <boost/version.hpp>
@@ -21,8 +28,9 @@ CHECK_CXX_SOURCE_COMPILES(
 #error oops
 #endif
 int main() { return 0; }" BOOST_OK)
-
-IF(BOOST_OK)
+ 
+# Only compile OQGRAPH on 32 bit, 64 bit does not compile yet (LPBUG 756966)
+IF(BOOST_OK AND CMAKE_SIZEOF_VOID_P EQUAL 4)
   INCLUDE("${PROJECT_SOURCE_DIR}/storage/mysql_storage_engine.cmake")
 
   SET(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -DHAVE_OQGRAPH /EHsc")
