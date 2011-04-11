@@ -132,11 +132,14 @@ static const ulint	FILE_FORMAT_NAME_N
 /* Key to register the mutex with performance schema */
 UNIV_INTERN mysql_pfs_key_t	trx_doublewrite_mutex_key;
 UNIV_INTERN mysql_pfs_key_t	file_format_max_mutex_key;
-/* Key to register the trx_sys->lock with performance schema */
-UNIV_INTERN mysql_pfs_key_t	trx_sys_rw_lock_key;
 /* Key to register the trx_sys->read_view_mutex with performance schema */
 UNIV_INTERN mysql_pfs_key_t	read_view_mutex_key;
 #endif /* UNIV_PFS_MUTEX */
+
+#ifdef UNIV_PFS_RWLOCK
+/* Key to register the trx_sys->lock with performance schema */
+UNIV_INTERN mysql_pfs_key_t	trx_sys_rw_lock_key;
+#endif /* UNIV_PFS_RWLOCK */
 
 #ifndef UNIV_HOTBACKUP
 /** This is used to track the maximum file format id known to InnoDB. It's
