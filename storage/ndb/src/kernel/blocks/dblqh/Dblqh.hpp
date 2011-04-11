@@ -3342,7 +3342,16 @@ Dblqh::accminupdate(Signal* signal, Uint32 opId, const Local_key* key)
   signal->theData[0] = regTcPtr.p->accConnectrec;
   signal->theData[1] = key->m_page_no << MAX_TUPLES_BITS | key->m_page_idx;
   c_acc->execACCMINUPDATE(signal);
-  
+
+  if (ERROR_INSERTED(5714))
+  {
+    FragrecordPtr regFragptr;
+    regFragptr.i = regTcPtr.p->fragmentptr;
+    c_fragment_pool.getPtr(regFragptr);
+    if (regFragptr.p->m_copy_started_state == Fragrecord::AC_NR_COPY)
+      ndbout << " LK: " << *key;
+  }
+
   if (ERROR_INSERTED(5712) || ERROR_INSERTED(5713))
     ndbout << " LK: " << *key;
   regTcPtr.p->m_row_id = *key;
@@ -3352,6 +3361,14 @@ inline
 bool
 Dblqh::TRACE_OP_CHECK(const TcConnectionrec* regTcPtr)
 {
+  if (ERROR_INSERTED(5714))
+  {
+    FragrecordPtr regFragptr;
+    regFragptr.i = regTcPtr->fragmentptr;
+    c_fragment_pool.getPtr(regFragptr);
+    return regFragptr.p->m_copy_started_state == Fragrecord::AC_NR_COPY;
+  }
+
   return (ERROR_INSERTED(5712) && 
 	  (regTcPtr->operation == ZINSERT ||
 	   regTcPtr->operation == ZDELETE)) ||
