@@ -494,7 +494,7 @@ trx_sys_get_n_trx(void);
 /*===================*/
 
 /*********************************************************************
-Check if there are any active transactions.
+Check if there are any active (non-prepared) transactions.
 @return total number of active transactions or 0 if none */
 UNIV_INTERN
 ulint
@@ -677,6 +677,10 @@ struct trx_sys_struct{
 	rw_lock_t	lock;		/*!< read-write lock protecting most
 					fields in this structure except when
 					noted otherwise */
+	ulint		n_mysql_trx;	/*!< Number of transactions currently
+					allocated for MySQL */
+	ulint		n_prepared_trx;	/*!< Number of transactions currently
+					in the XA PREPARED state */
 	trx_id_t	max_trx_id;	/*!< The smallest number not yet
 					assigned as a transaction id or
 					transaction number */

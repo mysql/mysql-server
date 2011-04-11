@@ -6226,14 +6226,19 @@ lock_trx_release_locks(
 /*===================*/
 	trx_t*	trx)	/*!< in/out: transaction */
 {
+	if (UNIV_UNLIKELY(trx_state_eq(trx, TRX_STATE_PREPARED))) {
+		rw_lock_x_lock(&trx_sys->lock);
+		ut_a(trx_sys->n_prepared_trx > 0);
+		trx_sys->n_prepared_trx--;
+		rw_lock_x_unlock(&trx_sys->lock);
+	} else {
+		ut_ad(trx_state_eq(trx, TRX_STATE_ACTIVE));
+	}
+
 	/* The transition of trx->state to TRX_STATE_COMMITTED_IN_MEMORY
 	is protected by both the lock_sys->mutex and the trx->mutex. */
 	lock_mutex_enter();
 	trx_mutex_enter(trx);
-
-	ut_ad(trx->state == TRX_STATE_ACTIVE
-	      || trx->state == TRX_STATE_PREPARED);
-	ut_ad(trx->in_trx_list);
 
 	/* The following assignment makes the transaction committed in memory
 	and makes its changes to data visible to other transactions.
