@@ -37,6 +37,7 @@ Created 3/26/1996 Heikki Tuuri
 #include "trx0rseg.h"
 #include "trx0undo.h"
 #include "srv0srv.h"
+#include "srv0start.h"
 #include "trx0purge.h"
 #include "log0log.h"
 #include "log0recv.h"
@@ -1634,9 +1635,11 @@ trx_sys_close(void)
 /*===============*/
 {
 	ulint		i;
+	trx_t*		trx;
 	read_view_t*	view;
 
 	ut_ad(trx_sys != NULL);
+	ut_ad(srv_shutdown_state == SRV_SHUTDOWN_EXIT_THREADS);
 
 	/* Check that all read views are closed except read view owned
 	by a purge. */
@@ -1671,6 +1674,14 @@ trx_sys_close(void)
 	trx_doublewrite = NULL;
 
 	rw_lock_x_lock(&trx_sys->lock);
+
+	/* Only prepared transactions may be left in the system. Free them. */
+	ut_a(UT_LIST_GET_LEN(trx_sys->trx_list) == trx_sys->n_prepared_trx);
+
+	while ((trx = UT_LIST_GET_FIRST(trx_sys->trx_list)) != NULL) {
+		trx_free_prepared(trx);
+	}
+
 	mutex_free(&trx_sys->read_view_mutex);
 
 	/* There can't be any active transactions. */
@@ -1713,7 +1724,7 @@ trx_sys_close(void)
 #endif /* !UNIV_HOTBACKUP */
 
 /*********************************************************************
-Check if there are any active transactions.
+Check if there are any active (non-prepared) transactions.
 @return total number of active transactions or 0 if none */
 UNIV_INTERN
 ulint
@@ -1725,7 +1736,9 @@ trx_sys_any_active_transactions(void)
 	rw_lock_s_lock(&trx_sys->lock);
 
 	total_trx = UT_LIST_GET_LEN(trx_sys->trx_list)
-	       	  + trx_n_mysql_transactions;
+		+ trx_sys->n_mysql_trx;
+	ut_a(total_trx >= trx_sys->n_prepared_trx);
+	total_trx -= trx_sys->n_prepared_trx;
 
 	rw_lock_s_unlock(&trx_sys->lock);
 

@@ -49,10 +49,6 @@ Created 3/26/1996 Heikki Tuuri
 /** Dummy session used currently in MySQL interface */
 UNIV_INTERN sess_t*		trx_dummy_sess = NULL;
 
-/** Number of transactions currently allocated for MySQL: protected by
-trx_sys->lock */
-UNIV_INTERN ulint		trx_n_mysql_transactions = 0;
-
 #ifdef UNIV_PFS_MUTEX
 /* Key to register the mutex with performance schema */
 UNIV_INTERN mysql_pfs_key_t	trx_mutex_key;
@@ -171,7 +167,7 @@ trx_allocate_for_mysql(void)
 
 	rw_lock_x_lock(&trx_sys->lock);
 
-	++trx_n_mysql_transactions;
+	trx_sys->n_mysql_trx++;
 
 	ut_d(trx->in_mysql_trx_list = TRUE);
 	UT_LIST_ADD_FIRST(mysql_trx_list, trx_sys->mysql_trx_list, trx);
@@ -232,8 +228,6 @@ trx_free(
 		putc('\n', stderr);
 	}
 
-	trx_mutex_enter(trx);
-
 	ut_a(trx->magic_n == TRX_MAGIC_N);
 
 	trx->magic_n = 11112222;
@@ -266,15 +260,11 @@ trx_free(
 		mem_heap_free(trx->global_read_view_heap);
 	}
 
-	trx->global_read_view = NULL;
-
 	ut_a(trx->read_view == NULL);
 
 	ut_a(ib_vector_is_empty(trx->autoinc_locks));
 	/* We allocated a dedicated heap for the vector. */
 	ib_vector_free(trx->autoinc_locks);
-
-	trx_mutex_exit(trx);
 
 	mutex_free(&trx->mutex);
 
@@ -293,6 +283,55 @@ trx_free_for_background(
 }
 
 /********************************************************************//**
+At shutdown, frees a transaction object that is in the PREPARED state. */
+UNIV_INTERN
+void
+trx_free_prepared(
+/*==============*/
+	trx_t*	trx)	/*!< in, own: trx object */
+{
+#ifdef UNIV_SYNC_DEBUG
+	ut_ad(rw_lock_own(&trx_sys->lock, RW_LOCK_EX));
+#endif /* UNIV_SYNC_DEBUG */
+
+	ut_a(trx_state_eq(trx, TRX_STATE_PREPARED));
+	ut_a(trx->magic_n == TRX_MAGIC_N);
+
+	trx_undo_free_prepared(trx);
+
+	mutex_free(&trx->undo_mutex);
+
+	if (trx->undo_no_arr) {
+		trx_undo_arr_free(trx->undo_no_arr);
+	}
+
+	ut_a(trx->lock.wait_lock == NULL);
+	ut_a(trx->lock.wait_thr == NULL);
+
+	ut_a(!trx->has_search_latch);
+
+	ut_a(trx->dict_operation_lock_mode == 0);
+
+	if (trx->lock.lock_heap) {
+		mem_heap_free(trx->lock.lock_heap);
+	}
+
+	ut_a(UT_LIST_GET_LEN(trx->lock.trx_locks) == 0);
+
+	if (trx->global_read_view_heap) {
+		mem_heap_free(trx->global_read_view_heap);
+	}
+
+	ut_a(ib_vector_is_empty(trx->autoinc_locks));
+	ib_vector_free(trx->autoinc_locks);
+
+	UT_LIST_REMOVE(trx_list, trx_sys->trx_list, trx);
+
+	mutex_free(&trx->mutex);
+	mem_free(trx);
+}
+
+/********************************************************************//**
 Frees a transaction object for MySQL. */
 UNIV_INTERN
 void
@@ -308,7 +347,7 @@ trx_free_for_mysql(
 
 	ut_ad(trx_sys_validate_trx_list());
 
-	--trx_n_mysql_transactions;
+	trx_sys->n_mysql_trx--;
 
 	rw_lock_x_unlock(&trx_sys->lock);
 
@@ -401,6 +440,7 @@ trx_resurrect_insert(
 			if (srv_force_recovery == 0) {
 
 				trx->state = TRX_STATE_PREPARED;
+				trx_sys->n_prepared_trx++;
 			} else {
 				fprintf(stderr,
 					"InnoDB: Since innodb_force_recovery"
@@ -459,6 +499,11 @@ trx_resurrect_update_in_prepared_state(
 			" was in the XA prepared state.\n", trx->id);
 
 		if (srv_force_recovery == 0) {
+			if (trx_state_eq(trx, TRX_STATE_NOT_STARTED)) {
+				trx_sys->n_prepared_trx++;
+			} else {
+				ut_ad(trx_state_eq(trx, TRX_STATE_PREPARED));
+			}
 
 			trx->state = TRX_STATE_PREPARED;
 		} else {
@@ -550,7 +595,7 @@ trx_lists_init_at_db_start(void)
 			continue;
 		}
 
-		/* Ressurrect transactions that were doing inserts. */
+		/* Resurrect transactions that were doing inserts. */
 		for (undo = UT_LIST_GET_FIRST(rseg->insert_undo_list);
 		     undo != NULL;
 		     undo = UT_LIST_GET_NEXT(undo_list, undo)) {
@@ -850,6 +895,7 @@ trx_commit(
 	/* Remove the transaction from the list of active transactions
 	now that it no longer holds any user locks. */
 
+	ut_ad(trx_state_eq(trx, TRX_STATE_COMMITTED_IN_MEMORY));
 	rw_lock_x_lock(&trx_sys->lock);
 	ut_ad(trx->in_trx_list);
 	ut_d(trx->in_trx_list = FALSE);
@@ -1561,7 +1607,10 @@ trx_prepare(
 
 	/*--------------------------------------*/
 	ut_a(trx->state == TRX_STATE_ACTIVE);
+	rw_lock_x_lock(&trx_sys->lock);
 	trx->state = TRX_STATE_PREPARED;
+	trx_sys->n_prepared_trx++;
+	rw_lock_x_unlock(&trx_sys->lock);
 	/*--------------------------------------*/
 
 	if (lsn) {
@@ -1727,7 +1776,8 @@ trx_get_trx_by_xid(
 		of gtrid_length+bqual_length bytes should be
 		the same */
 
-		if (trx_state_eq(trx, TRX_STATE_PREPARED)
+		if (trx->is_recovered
+		    && trx_state_eq(trx, TRX_STATE_PREPARED)
 		    && xid->gtrid_length == trx->xid.gtrid_length
 		    && xid->bqual_length == trx->xid.bqual_length
 		    && memcmp(xid->data, trx->xid.data,

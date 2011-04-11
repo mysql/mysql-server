@@ -42,10 +42,6 @@ Created 3/26/1996 Heikki Tuuri
 /** Dummy session used currently in MySQL interface */
 extern sess_t*	trx_dummy_sess;
 
-/** Number of transactions currently allocated for MySQL: protected by
-trx_sys->lock */
-extern ulint	trx_n_mysql_transactions;
-
 /********************************************************************//**
 Releases the search latch if trx has reserved it. */
 UNIV_INTERN
@@ -93,18 +89,26 @@ trx_t*
 trx_allocate_for_background(void);
 /*=============================*/
 /********************************************************************//**
-Frees a transaction object for MySQL. */
-UNIV_INTERN
-void
-trx_free_for_mysql(
-/*===============*/
-	trx_t*	trx);	/*!< in, own: trx object */
-/********************************************************************//**
 Frees a transaction object of a background operation of the master thread. */
 UNIV_INTERN
 void
 trx_free_for_background(
 /*====================*/
+	trx_t*	trx);	/*!< in, own: trx object */
+/********************************************************************//**
+At shutdown, frees a transaction object that is in the PREPARED state. */
+UNIV_INTERN
+void
+trx_free_prepared(
+/*==============*/
+	trx_t*	trx)	/*!< in, own: trx object */
+	UNIV_COLD __attribute__((nonnull));
+/********************************************************************//**
+Frees a transaction object for MySQL. */
+UNIV_INTERN
+void
+trx_free_for_mysql(
+/*===============*/
 	trx_t*	trx);	/*!< in, own: trx object */
 /****************************************************************//**
 Creates trx objects for transactions and initializes the trx list of
@@ -545,7 +549,7 @@ struct trx_struct{
 					and ACTIVE->PREPARED->COMMITTED
 					are possible when trx->in_trx_list.
 					The transition ACTIVE->PREPARED is
-					not protected by any mutex.
+					protected by trx_sys->lock.
 					The transitions ACTIVE->COMMITTED
 					and PREPARED->COMMITTED are protected
 					by lock_sys->mutex and trx->mutex.

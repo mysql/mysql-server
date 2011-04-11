@@ -3141,9 +3141,10 @@ loop:
 		goto loop;
 	}
 
-	/* Check that there are no longer transactions. We need this wait even
-	for the 'very fast' shutdown, because the InnoDB layer may have
-	committed or prepared transactions and we don't want to lose them. */
+	/* Check that there are no longer transactions, except for
+	PREPARED ones. We need this wait even for the 'very fast'
+	shutdown, because the InnoDB layer may have committed or
+	prepared transactions and we don't want to lose them. */
 
 	total_trx = trx_sys_any_active_transactions();
 
@@ -3177,9 +3178,10 @@ loop:
 
 			switch (active_thd) {
 			case SRV_NONE:
-				/* This shouldn't happen because we've already
-				checked for this case before entering the if().
-				We handle it here to avoid a compiler worning. */
+				/* This shouldn't happen because we've
+				already checked for this case before
+				entering the if().  We handle it here
+				to avoid a compiler warning. */
 				ut_error;
 			case SRV_WORKER:
 				thread_type = "worker threads";
