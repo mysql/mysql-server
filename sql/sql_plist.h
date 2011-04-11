@@ -188,6 +188,20 @@ public:
 
 
 /**
+  Hook class which via its methods specifies which members
+  of T should be used for participating in a intrusive list.
+*/
+
+template <typename T, T* T::*next, T** T::*prev>
+struct I_P_List_adapter
+{
+  static inline T **next_ptr(T *el) { return &(el->*next); }
+
+  static inline T ***prev_ptr(T *el) { return &(el->*prev); }
+};
+
+
+/**
   Element counting policy class for I_P_List to be used in
   cases when no element counting should be done.
 */
