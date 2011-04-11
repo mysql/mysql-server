@@ -576,9 +576,16 @@ while ($i)
   let $separator=,;
   dec $i;
 }
+let $sql=$sql, c500 varchar(11000);
 let $sql=$sql, primary key using hash(c1)) engine=ndb;
 eval $sql; # eval the sql and create the table
 
-insert into t1 (c1) values (1), (2), (3);
+set @v10 = '0123456789';
+set @v100 = concat(@v10,@v10,@v10,@v10,@v10,@v10,@v10,@v10,@v10,@v10);
+set @v1000 =concat(@v100,@v100,@v100,@v100,@v100,@v100,@v100,@v100,@v100,@v100);
+set @v10000 = concat(@v1000,@v1000,@v1000,@v1000,@v1000,@v1000,@v1000,@v1000,@v1000,@v1000);
+set @v11000 = concat(@v10000, @v1000);
+
+insert into t1 (c1,c500) values (1,@v11000), (2,@v11000), (3,@v11000);
 --source include/ndb_backup.inc
 drop table t1;
