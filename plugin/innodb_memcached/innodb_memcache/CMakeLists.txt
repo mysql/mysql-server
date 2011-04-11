@@ -24,7 +24,7 @@ INCLUDE_DIRECTORIES(${CMAKE_SOURCE_DIR}/plugin/innodb_memcached/innodb_memcache
 		    ${CMAKE_SOURCE_DIR}/plugin/innodb_memcached/innodb_memcache/cache-src
 		    ${CMAKE_SOURCE_DIR}/plugin/innodb_memcached/daemon_memcached/include)
 
-SET(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -std=gnu99")
+SET(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} ${CMAKE_SHARED_LIBRARY_C_FLAGS} -std=gnu99")
 
 SET(MCD__UTILITITY_SOURCES
 		util-src/config_parser.c
@@ -32,7 +32,7 @@ SET(MCD__UTILITITY_SOURCES
 
 ADD_LIBRARY(libmcd_util STATIC ${MCD__UTILITITY_SOURCES})
 
-SET(CMAKE_CPP_FLAGS "${CMAKE_CPP_FLAGS}
+SET(CMAKE_CPP_FLAGS "${CMAKE_CPP_FLAGS} -std=gnu99
                      -I${CMAKE_SOURCE_DIR}/plugin/innodb_memcached/innodb_memcache/include
                      -I${CMAKE_SOURCE_DIR}/plugin/innodb_memcached/innodb_memcache/cache-src")
 

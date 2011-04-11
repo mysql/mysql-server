@@ -2,7 +2,7 @@ Following are simple steps to get everything started:
 
 1) Install prerequisite - libevent. libevent is required for memcached
 
-2) Start MySQL server
+2) Start MySQL server. (make sure libmemcached.so and innodb_engine.so are copied to MySQL plugin directory).
 
 3) Create the configure table and a demo table by running innodb_memcached_config.sql
 
@@ -83,5 +83,7 @@ binary prependq                         [pass]
 binary stat                             [pass]
 All tests passed
 
-7) You can also configure the commit batch size by specifying boot time system variable "daemon_memcached-w_batch_size" and "daemon_memcached-r_batch_size" (--loose-daemon_memcached-w_batch_size=100).
+7) memcached command line options now can be set by specifying MySQL configure variable "daemon_memcached-option"
+
+8) You can also configure the commit batch size by specifying boot time system variable "daemon_memcached-w_batch_size" and "daemon_memcached-r_batch_size" (--loose-daemon_memcached-w_batch_size=100).
 
