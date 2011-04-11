@@ -24,7 +24,7 @@ INCLUDE_DIRECTORIES(${CMAKE_SOURCE_DIR}/plugin/innodb_memcached/daemon_memcached
 		    ${CMAKE_SOURCE_DIR}/regex
 		    ${CMAKE_SOURCE_DIR}/include/mysql)
 
-SET(CMAKE_CPP_FLAGS "${CMAKE_CPP_FLAGS} -I${CMAKE_SOURCE_DIR}/plugin/innodb_memcached/daemon_memcached/utilities")
+SET(CMAKE_CPP_FLAGS "${CMAKE_CPP_FLAGS} ${CMAKE_SHARED_LIBRARY_C_FLAGS} -I${CMAKE_SOURCE_DIR}/plugin/innodb_memcached/daemon_memcached/utilities")
 
 SET(LIBMEMCACHED_UTILITIES_SOURCES
 		include/memcached/config_parser.h
@@ -40,9 +40,8 @@ SET(LIBMEMCACHED_UTILITIES_SOURCES
 
 ADD_LIBRARY(memcached_utilities STATIC ${LIBMEMCACHED_UTILITIES_SOURCES})
 
-SET(CMAKE_CPP_FLAGS "${CMAKE_CPP_FLAGS} -I${CMAKE_SOURCE_DIR}/plugin/innodb_memcached/daemon_memcached/daemon")
-SET(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -DMYSQL_DYNAMIC_PLUGIN")
-SET(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -std=gnu99 -DMYSQL_DYNAMIC_PLUGIN")
+SET(CMAKE_CPP_FLAGS "${CMAKE_CPP_FLAGS} ${CMAKE_SHARED_LIBRARY_C_FLAGS} -I${CMAKE_SOURCE_DIR}/plugin/innodb_memcached/daemon_memcached/daemon")
+SET(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} ${CMAKE_SHARED_LIBRARY_C_FLAGS} -std=gnu99")
 
 SET(MEMCACHED_SOURCES
 		daemon/memcached_mysql.h
