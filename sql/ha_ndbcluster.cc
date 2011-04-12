@@ -8505,7 +8505,7 @@ int ha_ndbcluster::create(const char *name,
 
   // Check partition info
   part_info= form->part_info;
-  if ((my_errno= set_up_partition_info(part_info, form, (void*)&tab)))
+  if ((my_errno= set_up_partition_info(part_info, (void*)&tab)))
     goto abort;
 
   if (tab.getFragmentType() == NDBTAB::HashMapPartition && 
@@ -13806,7 +13806,6 @@ error:
 
 int
 ha_ndbcluster::set_up_partition_info(partition_info *part_info,
-                                     TABLE *table,
                                      void *tab_par) const
 {
   uint32 frag_data[MAX_PARTITIONS];
