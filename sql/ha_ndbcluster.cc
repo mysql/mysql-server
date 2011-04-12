@@ -13713,7 +13713,9 @@ void ha_ndbcluster::set_auto_partitions(partition_info *part_info)
 }
 
 
-int ha_ndbcluster::set_range_data(void *tab_ref, partition_info *part_info)
+int
+ha_ndbcluster::set_range_data(void *tab_ref,
+                              partition_info *part_info) const
 {
   const uint num_parts = partition_info_num_parts(part_info);
   NDBTAB *tab= (NDBTAB*)tab_ref;
@@ -13751,7 +13753,10 @@ error:
   DBUG_RETURN(error);
 }
 
-int ha_ndbcluster::set_list_data(void *tab_ref, partition_info *part_info)
+
+int
+ha_ndbcluster::set_list_data(void *tab_ref,
+                             partition_info *part_info) const
 {
   const uint num_list_values = partition_info_num_list_values(part_info);
   NDBTAB *tab= (NDBTAB*)tab_ref;
@@ -13799,9 +13804,10 @@ error:
   implement the function to map to a partition.
 */
 
-uint ha_ndbcluster::set_up_partition_info(partition_info *part_info,
-                                          TABLE *table,
-                                          void *tab_par)
+uint
+ha_ndbcluster::set_up_partition_info(partition_info *part_info,
+                                     TABLE *table,
+                                     void *tab_par) const
 {
   uint32 frag_data[MAX_PARTITIONS];
   char *ts_names[MAX_PARTITIONS];
