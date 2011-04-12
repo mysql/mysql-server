@@ -555,5 +555,11 @@ SELECT CASE a WHEN a THEN a END FROM t1 GROUP BY a WITH ROLLUP;
 DROP TABLE t1;
 
 --echo #
+--echo # Bug #11766212  59270: NOT IN (YEAR( ... ), ... ) PRODUCES MANY VALGRIND WARNINGS
+--echo #
+
+SELECT 1 IN (YEAR(FROM_UNIXTIME(NULL)) ,1);
+
+--echo #
 
 --echo End of 5.1 tests
