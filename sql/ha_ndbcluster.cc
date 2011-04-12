@@ -8503,7 +8503,7 @@ int ha_ndbcluster::create(const char *name,
   }
 
   // Check partition info
-  if ((my_errno= set_up_partition_info(form->part_info, (void*)&tab)))
+  if ((my_errno= set_up_partition_info(form->part_info, tab)))
     goto abort;
 
   if (tab.getFragmentType() == NDBTAB::HashMapPartition && 
@@ -13712,11 +13712,10 @@ void ha_ndbcluster::set_auto_partitions(partition_info *part_info)
 
 
 int
-ha_ndbcluster::set_range_data(void *tab_ref,
-                              partition_info *part_info) const
+ha_ndbcluster::set_range_data(partition_info *part_info,
+                              NdbDictionary::Table& ndbtab) const
 {
   const uint num_parts = partition_info_num_parts(part_info);
-  NDBTAB *tab= (NDBTAB*)tab_ref;
   int error= 0;
   bool unsigned_flag= part_info->part_expr->unsigned_flag;
   DBUG_ENTER("set_range_data");
@@ -13745,7 +13744,7 @@ ha_ndbcluster::set_range_data(void *tab_ref,
     }
     range_data[i]= (int32)range_val;
   }
-  tab->setRangeListData(range_data, num_parts);
+  ndbtab.setRangeListData(range_data, num_parts);
 error:
   my_free((char*)range_data, MYF(0));
   DBUG_RETURN(error);
@@ -13753,11 +13752,10 @@ error:
 
 
 int
-ha_ndbcluster::set_list_data(void *tab_ref,
-                             partition_info *part_info) const
+ha_ndbcluster::set_list_data(partition_info *part_info,
+                             NdbDictionary::Table& ndbtab) const
 {
   const uint num_list_values = partition_info_num_list_values(part_info);
-  NDBTAB *tab= (NDBTAB*)tab_ref;
   int32 *list_data= (int32*)my_malloc(num_list_values*2*sizeof(int32), MYF(0));
   int error= 0;
   bool unsigned_flag= part_info->part_expr->unsigned_flag;
@@ -13783,7 +13781,7 @@ ha_ndbcluster::set_list_data(void *tab_ref,
     list_data[2*i]= (int32)list_val;
     list_data[2*i+1]= list_entry->partition_id;
   }
-  tab->setRangeListData(list_data, 2*num_list_values);
+  ndbtab.setRangeListData(list_data, 2*num_list_values);
 error:
   my_free((char*)list_data, MYF(0));
   DBUG_RETURN(error);
@@ -13804,12 +13802,11 @@ error:
 
 int
 ha_ndbcluster::set_up_partition_info(partition_info *part_info,
-                                     void *tab_par) const
+                                     NdbDictionary::Table& ndbtab) const
 {
   uint32 frag_data[MAX_PARTITIONS];
   char *ts_names[MAX_PARTITIONS];
   ulong fd_index= 0, i, j;
-  NDBTAB *tab= (NDBTAB*)tab_par;
   NDBTAB::FragmentType ftype= NDBTAB::UserDefined;
   partition_element *part_elem;
   List_iterator<partition_element> part_it(part_info->partitions);
@@ -13825,7 +13822,7 @@ ha_ndbcluster::set_up_partition_info(partition_info *part_info,
 
     for (i= 0; i < part_info->part_field_list.elements; i++)
     {
-      NDBCOL *col= tab->getColumn(fields[i]->field_index);
+      NDBCOL *col= ndbtab.getColumn(fields[i]->field_index);
       DBUG_PRINT("info",("setting dist key on %s", col->getName()));
       col->setPartitionKey(TRUE);
     }
@@ -13857,23 +13854,23 @@ ha_ndbcluster::set_up_partition_info(partition_info *part_info,
     col.setNullable(FALSE);
     col.setPrimaryKey(FALSE);
     col.setAutoIncrement(FALSE);
-    tab->addColumn(col);
+    ndbtab.addColumn(col);
     if (part_info->part_type == RANGE_PARTITION)
     {
-      if ((error= set_range_data((void*)tab, part_info)))
+      if ((error= set_range_data(part_info, ndbtab)))
       {
         DBUG_RETURN(error);
       }
     }
     else if (part_info->part_type == LIST_PARTITION)
     {
-      if ((error= set_list_data((void*)tab, part_info)))
+      if ((error= set_list_data(part_info, ndbtab)))
       {
         DBUG_RETURN(error);
       }
     }
   }
-  tab->setFragmentType(ftype);
+  ndbtab.setFragmentType(ftype);
   i= 0;
   do
   {
@@ -13901,8 +13898,8 @@ ha_ndbcluster::set_up_partition_info(partition_info *part_info,
 
   const bool use_default_num_parts =
     partition_info_use_default_num_partitions(part_info);
-  tab->setDefaultNoPartitionsFlag(use_default_num_parts);
-  tab->setLinearFlag(part_info->linear_hash_ind);
+  ndbtab.setDefaultNoPartitionsFlag(use_default_num_parts);
+  ndbtab.setLinearFlag(part_info->linear_hash_ind);
   {
     ha_rows max_rows= table_share->max_rows;
     ha_rows min_rows= table_share->min_rows;
@@ -13910,12 +13907,12 @@ ha_ndbcluster::set_up_partition_info(partition_info *part_info,
       max_rows= min_rows;
     if (max_rows != (ha_rows)0) /* default setting, don't set fragmentation */
     {
-      tab->setMaxRows(max_rows);
-      tab->setMinRows(min_rows);
+      ndbtab.setMaxRows(max_rows);
+      ndbtab.setMinRows(min_rows);
     }
   }
-  tab->setFragmentCount(fd_index);
-  tab->setFragmentData(frag_data, fd_index);
+  ndbtab.setFragmentCount(fd_index);
+  ndbtab.setFragmentData(frag_data, fd_index);
   DBUG_RETURN(0);
 }
 
