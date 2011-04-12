@@ -4000,13 +4000,11 @@ void Item_func_in::fix_length_and_dec()
       uint j=0;
       for (uint i=1 ; i < arg_count ; i++)
       {
-	if (!args[i]->null_value)			// Skip NULL values
-        {
-          array->set(j,args[i]);
-	  j++;
-        }
-	else
-	  have_null= 1;
+        array->set(j,args[i]);
+        if (!args[i]->null_value)                      // Skip NULL values
+          j++;
+        else
+          have_null= 1;
       }
       if ((array->used_count= j))
 	array->sort();
