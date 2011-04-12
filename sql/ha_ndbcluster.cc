@@ -13809,7 +13809,6 @@ uint ha_ndbcluster::set_up_partition_info(partition_info *part_info,
   NDBTAB *tab= (NDBTAB*)tab_par;
   NDBTAB::FragmentType ftype= NDBTAB::UserDefined;
   partition_element *part_elem;
-  uint tot_ts_name_len;
   List_iterator<partition_element> part_it(part_info->partitions);
   int error;
   DBUG_ENTER("ha_ndbcluster::set_up_partition_info");
@@ -13873,7 +13872,6 @@ uint ha_ndbcluster::set_up_partition_info(partition_info *part_info,
   }
   tab->setFragmentType(ftype);
   i= 0;
-  tot_ts_name_len= 0;
   do
   {
     uint ng;
