@@ -640,9 +640,9 @@ private:
   bool has_null_in_unique_index(uint idx_no) const;
   bool check_index_fields_not_null(KEY *key_info);
 
-  uint set_up_partition_info(partition_info *part_info,
-                             TABLE *table,
-                             void *tab) const;
+  int set_up_partition_info(partition_info *part_info,
+                            TABLE *table,
+                            void *tab) const;
   int set_range_data(void *tab, partition_info* part_info) const;
   int set_list_data(void *tab, partition_info* part_info) const;
   int ndb_pk_update_row(THD *thd, 
