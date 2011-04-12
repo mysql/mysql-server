@@ -12091,6 +12091,14 @@ static MYSQL_SYSVAR_ULONG(purge_threads, srv_n_purge_threads,
   0,			/* Minimum value */
   32, 0);		/* Maximum value */
 
+static MYSQL_SYSVAR_ULONG(sync_array_size, srv_sync_array_size,
+  PLUGIN_VAR_OPCMDARG,
+  "Size of the mutex/lock wait array. Default is 32.",
+  NULL, NULL,
+  32,			/* Default setting */
+  1,			/* Minimum value */
+  1024, 0);		/* Maximum value */
+
 static MYSQL_SYSVAR_ULONG(fast_shutdown, innobase_fast_shutdown,
   PLUGIN_VAR_OPCMDARG,
   "Speeds up the shutdown process of the InnoDB storage engine. Possible "
@@ -12507,6 +12515,7 @@ static struct st_mysql_sys_var* innobase_system_variables[]= {
 #endif /* defined UNIV_DEBUG || defined UNIV_PERF_DEBUG */
   MYSQL_SYSVAR(print_all_deadlocks),
   MYSQL_SYSVAR(rollback_segments),
+  MYSQL_SYSVAR(sync_array_size),
   NULL
 };
 

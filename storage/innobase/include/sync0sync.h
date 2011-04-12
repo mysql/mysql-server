@@ -774,11 +774,6 @@ struct mutex_struct {
 #endif
 };
 
-/** The global array of wait cells for implementation of the databases own
-mutexes and read-write locks. */
-extern sync_array_t*	sync_primary_wait_array;/* Appears here for
-						debugging purposes only! */
-
 /** Constant determining how long spin wait is continued before suspending
 the thread. A value 600 rounds on a 1995 100 MHz Pentium seems to correspond
 to 20 microseconds. */
