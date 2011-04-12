@@ -8182,7 +8182,6 @@ int ha_ndbcluster::create(const char *name,
   bool use_disk= FALSE;
   NdbDictionary::Table::SingleUserMode single_user_mode= NdbDictionary::Table::SingleUserModeLocked;
   bool ndb_sys_table= FALSE;
-  partition_info *part_info;
   int result= 0;
   NdbDictionary::ObjectId objId;
 
@@ -8504,8 +8503,7 @@ int ha_ndbcluster::create(const char *name,
   }
 
   // Check partition info
-  part_info= form->part_info;
-  if ((my_errno= set_up_partition_info(part_info, (void*)&tab)))
+  if ((my_errno= set_up_partition_info(form->part_info, (void*)&tab)))
     goto abort;
 
   if (tab.getFragmentType() == NDBTAB::HashMapPartition && 
