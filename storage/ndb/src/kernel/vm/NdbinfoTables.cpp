@@ -141,14 +141,15 @@ DECLARE_NDBINFO_TABLE(COUNTERS,5) =
   }
 };
 
-DECLARE_NDBINFO_TABLE(NODES,4) =
-{ { "nodes", 4, 0, "node status" },
+DECLARE_NDBINFO_TABLE(NODES,5) =
+{ { "nodes", 5, 0, "node status" },
   {
     {"node_id",            Ndbinfo::Number, ""},
 
     {"uptime",             Ndbinfo::Number64, "time in seconds that node has been running"},
     {"status",             Ndbinfo::Number, "starting/started/stopped etc."},
-    {"start_phase",        Ndbinfo::Number, "start phase if node is starting"}
+    {"start_phase",        Ndbinfo::Number, "start phase if node is starting"},
+    {"config_generation",  Ndbinfo::Number, "configuration generation number"}
   }
 };
 

@@ -545,6 +545,16 @@ Configuration::getClusterConfigIterator() const {
   return m_clusterConfigIter;
 }
 
+Uint32 
+Configuration::get_config_generation() const {
+  Uint32 generation = ~0;
+  ndb_mgm_configuration_iterator sys_iter(*m_clusterConfig,
+                                          CFG_SECTION_SYSTEM);
+  sys_iter.get(CFG_SYS_CONFIG_GENERATION, &generation);
+  return generation;
+}
+ 
+
 void
 Configuration::calcSizeAlt(ConfigValues * ownConfig){
   const char * msg = "Invalid configuration fetched";
