@@ -13804,7 +13804,7 @@ error:
   implement the function to map to a partition.
 */
 
-uint
+int
 ha_ndbcluster::set_up_partition_info(partition_info *part_info,
                                      TABLE *table,
                                      void *tab_par) const
