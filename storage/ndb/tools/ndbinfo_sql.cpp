@@ -153,7 +153,8 @@ struct view {
     "  WHEN 8 THEN \"STOPPING_4\""
     "  ELSE \"<unknown>\" "
     " END AS status, "
-    "start_phase "
+    "start_phase, "
+    "config_generation "
     "FROM <NDBINFO_DB>.<TABLE_PREFIX>nodes"
    },
   { "memoryusage",
