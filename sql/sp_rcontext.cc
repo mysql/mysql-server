@@ -651,7 +651,7 @@ int Select_fetch_into_spvars::prepare(List<Item> &fields, SELECT_LEX_UNIT *u)
 }
 
 
-bool Select_fetch_into_spvars::send_data(List<Item> &items)
+int Select_fetch_into_spvars::send_data(List<Item> &items)
 {
   List_iterator_fast<struct sp_variable> spvar_iter(*spvar_list);
   List_iterator_fast<Item> item_iter(items);
@@ -668,7 +668,7 @@ bool Select_fetch_into_spvars::send_data(List<Item> &items)
   for (; spvar= spvar_iter++, item= item_iter++; )
   {
     if (thd->spcont->set_variable(thd, spvar->offset, &item))
-      return TRUE;
+      return 1;
   }
-  return FALSE;
+  return 0;
 }

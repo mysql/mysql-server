@@ -757,7 +757,7 @@ multi_delete::~multi_delete()
 }
 
 
-bool multi_delete::send_data(List<Item> &values)
+int multi_delete::send_data(List<Item> &values)
 {
   int secure_counter= delete_while_scanning ? -1 : 0;
   TABLE_LIST *del_table;

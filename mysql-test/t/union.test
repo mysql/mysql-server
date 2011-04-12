@@ -1155,5 +1155,13 @@ SELECT * FROM t2 UNION SELECT * FROM t2
 
 DROP TABLE t1,t2;
 
+#
+# lp:732124 union + limit returns wrong result
+#
+create table t1 (a int);
+insert into t1 values (10),(10),(10),(2),(3),(4),(5),(6),(7),(8),(9),(1),(10);
+--sorted_result
+select a from t1 where false UNION select a from t1 limit 8;
+drop table t1;
 
 --echo End of 5.1 tests

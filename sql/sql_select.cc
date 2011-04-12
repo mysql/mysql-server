@@ -1811,7 +1811,7 @@ JOIN::exec()
       {
 	if (do_send_rows &&
             (procedure ? (procedure->send_row(procedure_fields_list) ||
-             procedure->end_of_records()) : result->send_data(fields_list)))
+             procedure->end_of_records()) : result->send_data(fields_list)> 0))
 	  error= 1;
 	else
 	{
@@ -7423,7 +7423,7 @@ return_zero_rows(JOIN *join, select_result *result,TABLE_LIST *tables,
       Item *item;
       while ((item= it++))
 	item->no_rows_in_result();
-      send_error= result->send_data(fields);
+      send_error= result->send_data(fields) > 0;
     }
     if (!send_error)
       result->send_eof();				// Should be safe
@@ -11466,7 +11466,7 @@ do_select(JOIN *join,List<Item> *fields,TABLE *table,Procedure *procedure)
     {
       List<Item> *columns_list= (procedure ? &join->procedure_fields_list :
                                  fields);
-      rc= join->result->send_data(*columns_list);
+      rc= join->result->send_data(*columns_list) > 0;
     }
   }
   else
@@ -12687,7 +12687,13 @@ end_send(JOIN *join, JOIN_TAB *join_tab __attribute__((unused)),
     if (join->procedure)
       error=join->procedure->send_row(join->procedure_fields_list);
     else if (join->do_send_rows)
-      error=join->result->send_data(*join->fields);
+    {
+      if ((error= join->result->send_data(*join->fields)) < 0)
+      {
+        /* row was not accepted. Don't count it */
+        DBUG_RETURN(NESTED_LOOP_OK);
+      }
+    }
     if (error)
       DBUG_RETURN(NESTED_LOOP_ERROR); /* purecov: inspected */
     if (++join->send_records >= join->unit->select_limit_cnt &&
@@ -12799,7 +12805,15 @@ end_send_group(JOIN *join, JOIN_TAB *join_tab __attribute__((unused)),
 	  else
 	  {
 	    if (join->do_send_rows)
-	      error=join->result->send_data(*join->fields) ? 1 : 0;
+            {
+	      error= join->result->send_data(*join->fields);
+              if (error < 0)
+              {
+                /* Duplicate row, don't count */
+                join->send_records--;
+                error= 0;
+              }
+            }
 	    join->send_records++;
 	  }
 	  if (join->rollup.state != ROLLUP::STATE_NONE && error <= 0)
@@ -16678,6 +16692,7 @@ int JOIN::rollup_send_data(uint idx)
   uint i;
   for (i= send_group_parts ; i-- > idx ; )
   {
+    int res= 0;
     /* Get reference pointers to sum functions in place */
     memcpy((char*) ref_pointer_array,
 	   (char*) rollup.ref_pointer_arrays[i],
@@ -16685,9 +16700,10 @@ int JOIN::rollup_send_data(uint idx)
     if ((!having || having->val_int()))
     {
       if (send_records < unit->select_limit_cnt && do_send_rows &&
-	  result->send_data(rollup.fields[i]))
+	  (res= result->send_data(rollup.fields[i])) > 0)
 	return 1;
-      send_records++;
+      if (!res)
+        send_records++;
     }
   }
   /* Restore ref_pointer_array */

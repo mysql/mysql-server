@@ -662,7 +662,7 @@ void Materialized_cursor::fetch(ulong num_rows)
       If network write failed (i.e. due to a closed socked),
       the error has already been set. Just return.
     */
-    if (result->send_data(item_list))
+    if (result->send_data(item_list) > 0)
       return;
   }
 

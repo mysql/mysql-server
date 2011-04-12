@@ -106,7 +106,7 @@ class Select_fetch_protocol_binary: public select_send
 public:
   Select_fetch_protocol_binary(THD *thd);
   virtual bool send_fields(List<Item> &list, uint flags);
-  virtual bool send_data(List<Item> &items);
+  virtual int send_data(List<Item> &items);
   virtual bool send_eof();
 #ifdef EMBEDDED_LIBRARY
   void begin_dataset()
@@ -2840,11 +2840,11 @@ bool Select_fetch_protocol_binary::send_eof()
 }
 
 
-bool
+int
 Select_fetch_protocol_binary::send_data(List<Item> &fields)
 {
   Protocol *save_protocol= thd->protocol;
-  bool rc;
+  int rc;
 
   thd->protocol= &protocol;
   rc= select_send::send_data(fields);
