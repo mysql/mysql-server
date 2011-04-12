@@ -598,4 +598,15 @@ SELECT * FROM t1
 
 DROP TABLE t1,subq;
 
+--echo #
+--echo # Bug #11766270  59343: YEAR(4): INCORRECT RESULT AND VALGRIND WARNINGS WITH MIN/MAX, UNION
+--echo #
+
+CREATE TABLE t1(f1 YEAR(4));
+INSERT INTO t1 VALUES (0000),(2001);
+--enable_metadata
+(SELECT MAX(f1) FROM t1) UNION (SELECT MAX(f1) FROM t1);
+--disable_metadata
+DROP TABLE t1;
+
 --echo End of 5.1 tests
