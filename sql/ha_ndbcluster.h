@@ -642,8 +642,10 @@ private:
 
   int set_up_partition_info(partition_info *part_info,
                             NdbDictionary::Table&) const;
-  int set_range_data(partition_info* part_info, NdbDictionary::Table&) const;
-  int set_list_data(partition_info* part_info, NdbDictionary::Table&) const;
+  int set_range_data(const partition_info* part_info,
+                     NdbDictionary::Table&) const;
+  int set_list_data(const partition_info* part_info,
+                    NdbDictionary::Table&) const;
   int ndb_pk_update_row(THD *thd, 
                         const uchar *old_data, uchar *new_data,
                         uint32 old_part_id);

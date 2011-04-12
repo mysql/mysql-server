@@ -13712,7 +13712,7 @@ void ha_ndbcluster::set_auto_partitions(partition_info *part_info)
 
 
 int
-ha_ndbcluster::set_range_data(partition_info *part_info,
+ha_ndbcluster::set_range_data(const partition_info *part_info,
                               NdbDictionary::Table& ndbtab) const
 {
   const uint num_parts = partition_info_num_parts(part_info);
@@ -13752,7 +13752,7 @@ error:
 
 
 int
-ha_ndbcluster::set_list_data(partition_info *part_info,
+ha_ndbcluster::set_list_data(const partition_info *part_info,
                              NdbDictionary::Table& ndbtab) const
 {
   const uint num_list_values = partition_info_num_list_values(part_info);
