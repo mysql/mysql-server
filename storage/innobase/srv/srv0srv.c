@@ -1624,17 +1624,6 @@ srv_suspend_mysql_thread(
 
 	mutex_exit(&kernel_mutex);
 
-	if (trx->declared_to_be_inside_innodb) {
-
-		was_declared_inside_innodb = TRUE;
-
-		/* We must declare this OS thread to exit InnoDB, since a
-		possible other thread holding a lock which this thread waits
-		for must be allowed to enter, sooner or later */
-
-		srv_conc_force_exit_innodb(trx);
-	}
-
 	had_dict_lock = trx->dict_operation_lock_mode;
 
 	switch (had_dict_lock) {
@@ -1662,11 +1651,33 @@ srv_suspend_mysql_thread(
 
 	ut_a(trx->dict_operation_lock_mode == 0);
 
+	if (trx->declared_to_be_inside_innodb) {
+
+		was_declared_inside_innodb = TRUE;
+
+		/* We must declare this OS thread to exit InnoDB, since a
+		possible other thread holding a lock which this thread waits
+		for must be allowed to enter, sooner or later */
+
+		srv_conc_force_exit_innodb(trx);
+	}
+
 	/* Suspend this thread and wait for the event. */
 
 	thd_wait_begin(trx->mysql_thd, THD_WAIT_ROW_TABLE_LOCK);
 	os_event_wait(event);
 	thd_wait_end(trx->mysql_thd);
+
+#ifdef UNIV_SYNC_DEBUG
+	ut_ad(!sync_thread_levels_nonempty_trx(trx->has_search_latch));
+#endif /* UNIV_SYNC_DEBUG */
+
+	if (was_declared_inside_innodb) {
+
+		/* Return back inside InnoDB */
+
+		srv_conc_force_enter_innodb(trx);
+	}
 
 	/* After resuming, reacquire the data dictionary latch if
 	necessary. */
@@ -1681,13 +1692,6 @@ srv_suspend_mysql_thread(
 		ha_innobase::add_index() in InnoDB Plugin 1.0. */
 		row_mysql_lock_data_dictionary(trx);
 		break;
-	}
-
-	if (was_declared_inside_innodb) {
-
-		/* Return back inside InnoDB */
-
-		srv_conc_force_enter_innodb(trx);
 	}
 
 	mutex_enter(&kernel_mutex);
@@ -1744,10 +1748,6 @@ srv_suspend_mysql_thread(
 
 		trx->error_state = DB_INTERRUPTED;
 	}
-
-#ifdef UNIV_SYNC_DEBUG
-	ut_ad(!sync_thread_levels_nonempty_trx(trx->has_search_latch));
-#endif /* UNIV_SYNC_DEBUG */
 }
 
 /********************************************************************//**
