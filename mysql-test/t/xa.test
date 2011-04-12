@@ -318,6 +318,8 @@ INSERT INTO t1 VALUES (2); # used to cause InnoDB assert
 SAVEPOINT savep;
 --error ER_XAER_RMFAIL
 SET @a=(SELECT * FROM t1); # used to cause InnoDB assert
+--error ER_XAER_RMFAIL
+UPDATE t1 SET a=1 WHERE a=2;
 
 XA COMMIT 'a';
 SELECT * FROM t1;
