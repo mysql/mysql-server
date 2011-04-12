@@ -642,9 +642,9 @@ private:
 
   uint set_up_partition_info(partition_info *part_info,
                              TABLE *table,
-                             void *tab);
-  int set_range_data(void *tab, partition_info* part_info);
-  int set_list_data(void *tab, partition_info* part_info);
+                             void *tab) const;
+  int set_range_data(void *tab, partition_info* part_info) const;
+  int set_list_data(void *tab, partition_info* part_info) const;
   int ndb_pk_update_row(THD *thd, 
                         const uchar *old_data, uchar *new_data,
                         uint32 old_part_id);
