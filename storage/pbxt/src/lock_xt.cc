@@ -1424,6 +1424,7 @@ xtPublic void xt_spinxslock_init(struct XTThread *XT_UNUSED(self), XTSpinXSLockP
 #endif
 {
 	sxs->sxs_xlocked = 0;
+	sxs->sxs_xwaiter = 0;
 	sxs->sxs_rlock_count = 0;
 	sxs->sxs_wait_count = 0;
 #ifdef DEBUG
