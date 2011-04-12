@@ -278,7 +278,6 @@ static PSI_mutex_info all_innodb_mutexes[] = {
 	{&srv_innodb_monitor_mutex_key, "srv_innodb_monitor_mutex", 0},
 	{&srv_misc_tmpfile_mutex_key, "srv_misc_tmpfile_mutex", 0},
 	{&srv_monitor_file_mutex_key, "srv_monitor_file_mutex", 0},
-	{&syn_arr_mutex_key, "syn_arr_mutex", 0},
 #  ifdef UNIV_SYNC_DEBUG
 	{&sync_thread_mutex_key, "sync_thread_mutex", 0},
 #  endif /* UNIV_SYNC_DEBUG */

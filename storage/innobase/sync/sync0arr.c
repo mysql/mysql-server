@@ -148,11 +148,6 @@ static	sync_array_t**	sync_wait_array;
 /** count of how many times an object has been signalled */
 static ulint		sg_count;
 
-#ifdef UNIV_PFS_MUTEX
-/* Key to register the mutex with performance schema */
-UNIV_INTERN mysql_pfs_key_t	syn_arr_mutex_key;
-#endif
-
 #ifdef UNIV_SYNC_DEBUG
 /******************************************************************//**
 This function is called only in the debug version. Detects a deadlock
