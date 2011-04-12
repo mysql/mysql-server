@@ -182,10 +182,6 @@ static ib_int64_t	mutex_os_wait_count		= 0;
 monitoring. */
 UNIV_INTERN ib_int64_t	mutex_exit_count		= 0;
 
-/** The global array of wait cells for implementation of the database's own
-mutexes and read-write locks */
-UNIV_INTERN sync_array_t*	sync_primary_wait_array;
-
 /** This variable is set to TRUE when sync_init is called */
 UNIV_INTERN ibool	sync_initialized	= FALSE;
 
@@ -488,8 +484,9 @@ mutex_spin_wait(
 					requested */
 	ulint		line)		/*!< in: line where requested */
 {
-	ulint	   index; /* index of the reserved wait cell */
-	ulint	   i;	  /* spin round count */
+	ulint		i;		/* spin round count */
+	ulint		index;		/* index of the reserved wait cell */
+	sync_array_t*	sync_arr;
 #ifdef UNIV_DEBUG
 	ib_int64_t lstart_time = 0, lfinish_time; /* for timing os_wait */
 	ulint ltime_diff;
@@ -577,8 +574,10 @@ spin_loop:
 		goto spin_loop;
 	}
 
-	sync_array_reserve_cell(sync_primary_wait_array, mutex,
-				SYNC_MUTEX, file_name, line, &index);
+	sync_arr = sync_array_get();
+
+	sync_array_reserve_cell(
+		sync_arr, mutex, SYNC_MUTEX, file_name, line, &index);
 
 	/* The memory order of the array reservation and the change in the
 	waiters field is important: when we suspend a thread, we first
@@ -593,7 +592,7 @@ spin_loop:
 		if (mutex_test_and_set(mutex) == 0) {
 			/* Succeeded! Free the reserved wait cell */
 
-			sync_array_free_cell(sync_primary_wait_array, index);
+			sync_array_free_cell(sync_arr, index);
 
 			ut_d(mutex->thread_id = os_thread_get_curr_id());
 #ifdef UNIV_SYNC_DEBUG
@@ -641,7 +640,7 @@ spin_loop:
 #endif /* UNIV_HOTBACKUP */
 #endif /* UNIV_DEBUG */
 
-	sync_array_wait_event(sync_primary_wait_array, index);
+	sync_array_wait_event(sync_arr, index);
 	goto mutex_loop;
 
 finish_timing:
@@ -674,7 +673,7 @@ mutex_signal_object(
 	/* The memory order of resetting the waiters field and
 	signaling the object is important. See LEMMA 1 above. */
 	os_event_set(mutex->event);
-	sync_array_object_signalled(sync_primary_wait_array);
+	sync_array_object_signalled();
 }
 
 #ifdef UNIV_SYNC_DEBUG
@@ -1499,11 +1498,8 @@ sync_init(void)
 
 	sync_initialized = TRUE;
 
-	/* Create the primary system wait array which is protected by an OS
-	mutex */
+	sync_array_init(OS_THREAD_MAX_N);
 
-	sync_primary_wait_array = sync_array_create(OS_THREAD_MAX_N,
-						    SYNC_ARRAY_OS_MUTEX);
 #ifdef UNIV_SYNC_DEBUG
 	/* Create the thread latch level array where the latch levels
 	are stored for each OS thread */
@@ -1576,7 +1572,7 @@ sync_close(void)
 {
 	mutex_t*	mutex;
 
-	sync_array_free(sync_primary_wait_array);
+	sync_array_close();
 
 	for (mutex = UT_LIST_GET_FIRST(mutex_list);
 	     mutex != NULL;
@@ -1659,7 +1655,7 @@ sync_print(
 	rw_lock_list_print_info(file);
 #endif /* UNIV_SYNC_DEBUG */
 
-	sync_array_print_info(file, sync_primary_wait_array);
+	sync_array_print(file);
 
 	sync_print_wait_info(file);
 }

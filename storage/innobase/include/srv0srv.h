@@ -304,6 +304,9 @@ extern ulong srv_purge_batch_size;
 /* the number of rollback segments to use */
 extern ulong srv_rollback_segments;
 
+/* the number of sync wait arrays */
+extern ulong srv_sync_array_size;
+
 /* variable that counts amount of data read in total (in bytes) */
 extern ulint srv_data_read;
 
