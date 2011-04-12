@@ -1128,5 +1128,17 @@ SELECT MAX(LENGTH(a)), LENGTH(MAX(a)), MIN(a), MAX(a), CONCAT(MIN(a)), CONCAT(MA
 DROP TABLE t1;
 
 --echo #
+--echo # Bug #11766270  59343: YEAR(4): INCORRECT RESULT AND VALGRIND WARNINGS WITH MIN/MAX, UNION
+--echo #
+
+CREATE TABLE t1(f1 YEAR(4));
+INSERT INTO t1 VALUES (0000),(2001);
+--enable_metadata
+(SELECT MAX(f1) FROM t1) UNION (SELECT MAX(f1) FROM t1);
+--disable_metadata
+DROP TABLE t1;
+
+
+--echo #
 --echo End of 5.1 tests
 
