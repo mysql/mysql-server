@@ -13809,7 +13809,6 @@ uint ha_ndbcluster::set_up_partition_info(partition_info *part_info,
   NDBTAB *tab= (NDBTAB*)tab_par;
   NDBTAB::FragmentType ftype= NDBTAB::UserDefined;
   partition_element *part_elem;
-  bool first= TRUE;
   uint tot_ts_name_len;
   List_iterator<partition_element> part_it(part_info->partitions);
   int error;
@@ -13897,7 +13896,6 @@ uint ha_ndbcluster::set_up_partition_info(partition_info *part_info,
         frag_data[fd_index++]= ng;
       } while (++j < partition_info_num_subparts(part_info));
     }
-    first= FALSE;
   } while (++i < partition_info_num_parts(part_info));
 
   const bool use_default_num_parts =
