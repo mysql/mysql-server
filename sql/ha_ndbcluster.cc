@@ -8224,7 +8224,7 @@ int ha_ndbcluster::create(const char *name,
     */
     if ((my_errno= write_ndb_file(name)))
       DBUG_RETURN(my_errno);
-    ndbcluster_create_binlog_setup(thd, get_ndb(thd), name, strlen(name),
+    ndbcluster_create_binlog_setup(thd, ndb, name, strlen(name),
                                    m_dbname, m_tabname, FALSE);
     DBUG_RETURN(my_errno);
   }
