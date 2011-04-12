@@ -1532,9 +1532,6 @@ ERROR HY000: Cannot drop default keycache
 SET @@global.key_cache_block_size=0;
 Warnings:
 Warning	1292	Truncated incorrect key_cache_block_size value: '0'
-select @@max_long_data_size;
-@@max_long_data_size
-1048576
 #
 # Bug#11766424  59527: DECIMAL_BIN_SIZE: ASSERTION `SCALE >= 0 && PRECISION > 0 && SCALE <= PRE
 #
