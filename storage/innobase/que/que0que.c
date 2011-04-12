@@ -1216,9 +1216,6 @@ loop:
 		goto loop;
 
 	case QUE_THR_LOCK_WAIT:
-		/* The ..._mysql_... function works also for InnoDB's
-		internal threads. Let us wait that the lock wait ends. */
-
 		lock_wait_suspend_thread(thr);
 
 		trx_mutex_enter(thr_get_trx(thr));
