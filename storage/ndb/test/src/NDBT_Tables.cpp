@@ -918,14 +918,14 @@ NDBT_Table* createMaxKeyMaxColsHugoTabDef(const char* name)
 
     /* Last attr uses remaining attr space */
     BaseString::snprintf(namebuff, buffsize, "A%d", attrNum);
+    Uint32 sz32 = NDB_MAX_TUPLE_SIZE_IN_WORDS;
+    sz32 -= NDB_MAX_KEYSIZE_IN_WORDS;
+    sz32 -= NDB_MAX_ATTRIBUTES_IN_INDEX;
+    sz32 -= 2 * NDB_MAX_ATTRIBUTES_IN_TABLE;
     attrs[attrNum]= new NDBT_Attribute(namebuff,
-                                       NdbDictionary::Column::Char,
-                                       (NDB_MAX_TUPLE_SIZE_IN_WORDS -
-                                        NDB_MAX_KEYSIZE_IN_WORDS -
-                                        ((NDB_MAX_ATTRIBUTES_IN_TABLE -
-                                          NDB_MAX_ATTRIBUTES_IN_INDEX) - 1)) * 4,
+                                       NdbDictionary::Column::Char, 4 * sz32,
                                        false);
-    
+
     WIDE_MAXKEYMAXCOLS_HUGO= new NDBT_Table(name, NDB_MAX_ATTRIBUTES_IN_TABLE,
                                             attrs);
 

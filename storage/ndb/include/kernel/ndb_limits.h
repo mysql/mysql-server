@@ -82,7 +82,7 @@
  * When sending a SUB_TABLE_DATA from SUMA to API
  *
  */
-#define MAX_SUMA_MESSAGE_IN_WORDS 8000
+#define MAX_SUMA_MESSAGE_IN_WORDS 8028
 
 /**
  * When sending a SUB_TABLE_DATA
