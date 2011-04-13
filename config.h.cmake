@@ -157,7 +157,6 @@
 #cmakedefine HAVE_GETADDRINFO 1
 #cmakedefine HAVE_GETCWD 1
 #cmakedefine HAVE_GETHOSTBYADDR_R 1
-#cmakedefine HAVE_GETHOSTBYNAME_R 1
 #cmakedefine HAVE_GETHRTIME 1
 #cmakedefine HAVE_GETLINE 1
 #cmakedefine HAVE_GETNAMEINFO 1
@@ -448,8 +447,6 @@
 
 
 #cmakedefine HAVE_SOLARIS_STYLE_GETHOST 1
-#cmakedefine HAVE_GETHOSTBYNAME_R_GLIBC2_STYLE 1
-#cmakedefine HAVE_GETHOSTBYNAME_R_RETURN_INT 1
 
 #cmakedefine MY_ATOMIC_MODE_DUMMY 1
 #cmakedefine MY_ATOMIC_MODE_RWLOCKS 1
