@@ -95,6 +95,7 @@ public:
     *last= a;
     *B::prev_ptr(a)= last;
     I::set_last(B::next_ptr(a));
+    C::inc();
   }
   inline void insert_after(T *pos, T *a)
   {
@@ -112,6 +113,7 @@ public:
       }
       else
         I::set_last(B::next_ptr(a));
+      C::inc();
     }
   }
   inline void remove(T *a)
