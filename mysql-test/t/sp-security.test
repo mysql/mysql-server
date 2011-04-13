@@ -942,11 +942,9 @@ GRANT SELECT(db) ON mysql.proc TO user2@localhost;
  
 --echo # Connection con2 as user2
 connect (con2, localhost, user2);
---echo # The below statements before disclosed info from body_utf8 column.
+--echo # The statement below before disclosed info from body_utf8 column.
 --error ER_SP_DOES_NOT_EXIST
 SHOW CREATE PROCEDURE db1.p1;
---error ER_SP_DOES_NOT_EXIST
-SHOW PROCEDURE CODE db1.p1;
 
 --echo # Check that SHOW works with SELECT grant on whole table
 --echo # Connection default
@@ -957,7 +955,6 @@ GRANT SELECT ON mysql.proc TO user2@localhost;
 connection con2;
 --echo # This should work
 SHOW CREATE PROCEDURE db1.p1;
-SHOW PROCEDURE CODE db1.p1;
 
 --echo # Connection default
 connection default;
