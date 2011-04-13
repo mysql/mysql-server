@@ -212,6 +212,7 @@ SET(TESTS
   my_decimal
   my_regex
   sql_list
+  sql_plist
   thread_utils
   )
 
