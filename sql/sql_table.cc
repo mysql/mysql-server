@@ -6660,15 +6660,15 @@ bool mysql_alter_table(THD *thd,char *new_db, char *new_name,
       NO need to tamper with MERGE tables. The real open is done later.
     */
     Open_table_context ot_ctx(thd, MYSQL_OPEN_REOPEN);
-    TABLE *t_table;
+    TABLE_LIST temp_table_list;
+    TABLE_LIST *t_table_list;
     if (new_name != table_name || new_db != db)
     {
-      table_list->alias= new_name;
-      table_list->table_name= new_name;
-      table_list->table_name_length= strlen(new_name);
-      table_list->db= new_db;
-      table_list->db_length= strlen(new_db);
-      table_list->mdl_request.ticket= target_mdl_request.ticket;
+      temp_table_list.init_one_table(new_db, strlen(new_db),
+                                     new_name, strlen(new_name),
+                                     new_name, TL_READ_NO_INSERT);
+      temp_table_list.mdl_request.ticket= target_mdl_request.ticket;
+      t_table_list= &temp_table_list;
     }
     else
     {
@@ -6678,20 +6678,21 @@ bool mysql_alter_table(THD *thd,char *new_db, char *new_name,
         to request the lock.
       */
       table_list->mdl_request.ticket= mdl_ticket;
+      t_table_list= table_list;
     }
-    if (open_table(thd, table_list, thd->mem_root, &ot_ctx))
+    if (open_table(thd, t_table_list, thd->mem_root, &ot_ctx))
     {
       goto err_with_mdl;
     }
-    t_table= table_list->table;
 
     /* Tell the handler that a new frm file is in place. */
-    error= t_table->file->ha_create_handler_files(path, NULL, CHF_INDEX_FLAG,
-                                               create_info);
+    error= t_table_list->table->file->ha_create_handler_files(path, NULL,
+                                                              CHF_INDEX_FLAG,
+                                                              create_info);
 
-    DBUG_ASSERT(thd->open_tables == t_table);
+    DBUG_ASSERT(thd->open_tables == t_table_list->table);
     close_thread_table(thd, &thd->open_tables);
-    table_list->table= 0;
+    t_table_list->table= NULL;
 
     if (error)
       goto err_with_mdl;
