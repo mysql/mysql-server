@@ -111,6 +111,8 @@ public:
   }
 
   BaseString m_systemPrefix; // Buffer for preformatted for <sys>/<def>/
+  
+  void* customDataPtr;
 
   /**
    * NOTE free lists must be _after_ theNdbObjectIdMap take
@@ -350,5 +352,4 @@ Ndb_free_list_t<T>::release(Uint32 cnt, T* head, T* tail)
   }
 #endif
 }
-
 #endif

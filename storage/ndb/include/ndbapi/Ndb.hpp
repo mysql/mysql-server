@@ -1717,6 +1717,10 @@ public:
   };
 
   Free_list_usage * get_free_list_usage(Free_list_usage*);
+
+  /* Get/Set per-Ndb custom data pointer */
+  void setCustomData(void*);
+  void* getCustomData() const;
 #endif
 
 private:

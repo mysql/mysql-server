@@ -208,7 +208,8 @@ NdbImpl::NdbImpl(Ndb_cluster_connection *ndb_cluster_connection,
     theNdbObjectIdMap(m_transporter_facade->theMutexPtr,
 		      1024,1024),
     theNoOfDBnodes(0),
-    m_ev_op(0)
+    m_ev_op(0),
+    customDataPtr(0)
 {
   int i;
   for (i = 0; i < MAX_NDB_NODES; i++) {
