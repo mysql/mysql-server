@@ -23,9 +23,6 @@
 class Rpl_info_handler
 {
 public:
-  Rpl_info_handler(const int nparam);
-  virtual ~Rpl_info_handler();
-
   /**
     After creating an object and assembling components, this method is
     used to initialize internal structures. Everything that does not
@@ -260,12 +257,29 @@ public:
   */
   bool is_transactional() { return do_is_transactional(); }
 
+  /**
+    Updates the value returned by the member function is_transactional()
+    because it may be expensive to compute it whenever is_transactional()
+    is called.
+
+    In the current implementation, the type of the repository can only be
+    changed when replication, i.e. slave, is stopped. For that reason,
+    this member function, i.e. update_is__transactional(), must be called
+    when slave is starting.
+
+    @retval FALSE No error
+    @retval TRUE Failure
+  */
+  bool update_is_transactional() { return do_update_is_transactional(); }
+
   /*                                                                                                                                    
     Pre-store information before writing it to the repository and if
     necessary after reading it from the repository. The decision is
     delegated to the sub-classes.
   */
   Rpl_info_values *field_values;
+
+  virtual ~Rpl_info_handler();
 
 protected:
   /* Number of fields to be stored in the repository. */
@@ -288,6 +302,8 @@ protected:
    The number of events after which we should fsync.
   */
   uint sync_period;
+
+  Rpl_info_handler(const int nparam);
 
 private:
   virtual int do_init_info()= 0;
@@ -315,8 +331,10 @@ private:
                            const Server_ids *default_value)= 0;
   virtual char* do_get_description_info()= 0;
   virtual bool do_is_transactional()= 0;
+  virtual bool do_update_is_transactional()= 0;
+
+  Rpl_info_handler(const Rpl_info_handler& handler);
 
   Rpl_info_handler& operator=(const Rpl_info_handler& handler);
-  Rpl_info_handler(const Rpl_info_handler& handler);
 };
 #endif /* RPL_INFO_HANDLER_H */

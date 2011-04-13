@@ -16,10 +16,6 @@
 #ifndef TRANSACTION_H
 #define TRANSACTION_H
 
-#ifdef USE_PRAGMA_INTERFACE
-#pragma interface                      /* gcc class implementation */
-#endif
-
 #include <my_global.h>
 #include <m_string.h>
 

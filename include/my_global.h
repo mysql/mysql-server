@@ -46,11 +46,6 @@
 #define HAVE_ERRNO_AS_DEFINE
 #endif /* __CYGWIN__ */
 
-/* to make command line shorter we'll define USE_PRAGMA_INTERFACE here */
-#ifdef USE_PRAGMA_IMPLEMENTATION
-#define USE_PRAGMA_INTERFACE
-#endif
-
 #if defined(__OpenBSD__) && (OpenBSD >= 200411)
 #define HAVE_ERRNO_AS_DEFINE
 #endif
@@ -131,6 +126,7 @@
 /* Define missing access() modes. */
 #define F_OK 0
 #define W_OK 2
+#define R_OK 4                        /* Test for read permission.  */
 
 /* Define missing file locking constants. */
 #define F_RDLCK 1
@@ -285,7 +281,7 @@ C_MODE_END
 #define ulonglong2double(A) my_ulonglong2double(A)
 #define my_off_t2double(A)  my_ulonglong2double(A)
 C_MODE_START
-double my_ulonglong2double(unsigned long long A);
+inline double my_ulonglong2double(unsigned long long A) { return (double A); }
 C_MODE_END
 #endif /* _AIX */
 

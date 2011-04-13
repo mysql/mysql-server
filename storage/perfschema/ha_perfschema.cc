@@ -146,6 +146,10 @@ static struct st_mysql_show_var pfs_status_vars[]=
   /* table handles, can be flushed */
   {"Performance_schema_table_handles_lost",
     (char*) &table_lost, SHOW_LONG},
+  {"Performance_schema_stage_classes_lost",
+    (char*) &stage_class_lost, SHOW_LONG},
+  {"Performance_schema_statement_classes_lost",
+    (char*) &statement_class_lost, SHOW_LONG},
   {NullS, NullS, SHOW_LONG}
 };
 
