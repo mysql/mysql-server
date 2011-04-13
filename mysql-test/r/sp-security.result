@@ -586,10 +586,8 @@ CREATE PROCEDURE db1.p1() SELECT 1;
 CREATE USER user2@localhost IDENTIFIED BY '';
 GRANT SELECT(db) ON mysql.proc TO user2@localhost;
 # Connection con2 as user2
-# The below statements before disclosed info from body_utf8 column.
+# The statement below before disclosed info from body_utf8 column.
 SHOW CREATE PROCEDURE db1.p1;
-ERROR 42000: PROCEDURE p1 does not exist
-SHOW PROCEDURE CODE db1.p1;
 ERROR 42000: PROCEDURE p1 does not exist
 # Check that SHOW works with SELECT grant on whole table
 # Connection default
@@ -600,9 +598,6 @@ SHOW CREATE PROCEDURE db1.p1;
 Procedure	sql_mode	Create Procedure
 p1		CREATE DEFINER=`root`@`localhost` PROCEDURE `p1`()
 SELECT 1
-SHOW PROCEDURE CODE db1.p1;
-Pos	Instruction
-0	stmt 0 "SELECT 1"
 # Connection default
 DROP USER user2@localhost;
 DROP DATABASE db1;
