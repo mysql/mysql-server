@@ -25,6 +25,7 @@ Created 11/5/1995 Heikki Tuuri
 
 #include "buf0lru.h"
 
+#ifndef UNIV_HOTBACKUP
 #ifdef UNIV_NONINL
 #include "buf0lru.ic"
 #endif
@@ -2390,3 +2391,4 @@ buf_LRU_print(void)
 	}
 }
 #endif /* UNIV_DEBUG_PRINT || UNIV_DEBUG || UNIV_BUF_DEBUG */
+#endif /* !UNIV_HOTBACKUP */

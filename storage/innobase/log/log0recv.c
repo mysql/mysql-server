@@ -801,8 +801,8 @@ recv_read_checkpoint_info_for_backup(
 	*lsn = mach_read_from_8(cp_buf + LOG_CHECKPOINT_LSN);
 	*offset = mach_read_from_4(
 		cp_buf + LOG_CHECKPOINT_OFFSET_LOW32);
-	*offset |= mach_read_from_4(
-		cp_buf + LOG_CHECKPOINT_OFFSET_HIGH32) << 32;
+	*offset |= ((lsn_t) mach_read_from_4(
+			    cp_buf + LOG_CHECKPOINT_OFFSET_HIGH32)) << 32;
 
 	*cp_no = mach_read_from_8(cp_buf + LOG_CHECKPOINT_NO);
 
@@ -1934,7 +1934,7 @@ recv_apply_log_recs_for_backup(void)
 			if (!success) {
 				fprintf(stderr,
 					"InnoDB: Fatal error: cannot extend"
-					" tablespace %lu to hold %lu pages\n",
+					" tablespace %u to hold %u pages\n",
 					recv_addr->space, recv_addr->page_no);
 
 				exit(1);
