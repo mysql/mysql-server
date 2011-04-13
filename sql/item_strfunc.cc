@@ -25,10 +25,6 @@
     (This shouldn't be needed)
 */
 
-#ifdef USE_PRAGMA_IMPLEMENTATION
-#pragma implementation				// gcc: Class implementation
-#endif
-
 /* May include caustic 3rd-party defs. Use early, so it can override nothing. */
 #include "sha2.h"
 #include "my_global.h"                          // HAVE_*
@@ -1265,7 +1261,7 @@ void Item_func_replace::fix_length_and_dec()
     char_length+= max_substrs * (uint) diff;
   }
 
-  if (agg_arg_charsets_for_comparison(collation, args, 3))
+  if (agg_arg_charsets_for_string_result_with_comparison(collation, args, 3))
     return;
   fix_char_length_ulonglong(char_length);
 }
@@ -1555,7 +1551,7 @@ void Item_func_substr::fix_length_and_dec()
 
 void Item_func_substr_index::fix_length_and_dec()
 { 
-  if (agg_arg_charsets_for_comparison(collation, args, 2))
+  if (agg_arg_charsets_for_string_result_with_comparison(collation, args, 2))
     return;
   fix_char_length(args[0]->max_char_length());
 }
@@ -1894,7 +1890,8 @@ void Item_func_trim::fix_length_and_dec()
   {
     // Handle character set for args[1] and args[0].
     // Note that we pass args[1] as the first item, and args[0] as the second.
-    if (agg_arg_charsets_for_comparison(collation, &args[1], 2, -1))
+    if (agg_arg_charsets_for_string_result_with_comparison(collation,
+                                                           &args[1], 2, -1))
       return;
   }
   fix_char_length(args[0]->max_char_length());
@@ -3216,6 +3213,15 @@ String *Item_func_weight_string::val_str(String *str)
   tmp_length= result_length ? result_length :
               cs->coll->strnxfrmlen(cs, cs->mbmaxlen *
                                     max(res->length(), nweights));
+
+  if(tmp_length > current_thd->variables.max_allowed_packet)
+  {
+    push_warning_printf(current_thd, MYSQL_ERROR::WARN_LEVEL_WARN,
+                        ER_WARN_ALLOWED_PACKET_OVERFLOWED,
+                        ER(ER_WARN_ALLOWED_PACKET_OVERFLOWED), func_name(),
+                        current_thd->variables.max_allowed_packet);
+    goto nl;
+  }
 
   if (tmp_value.alloc(tmp_length))
     goto nl;

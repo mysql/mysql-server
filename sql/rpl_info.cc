@@ -36,7 +36,7 @@ Rpl_info::Rpl_info(const char* type
 #endif
   info_thd(0), inited(0), abort_slave(0),
   slave_running(0), slave_run_id(0),
-  handler(0)
+  handler(0), rpl_info_type(INVALID_INFO_REPOSITORY)
 {
 #ifdef HAVE_PSI_INTERFACE
   mysql_mutex_init(*key_info_run_lock,
@@ -65,13 +65,7 @@ Rpl_info::~Rpl_info()
   mysql_cond_destroy(&start_cond);
   mysql_cond_destroy(&stop_cond);
 
-  if (handler)
-    delete handler;
+  delete handler;
 
   DBUG_VOID_RETURN;
-}
-
-void Rpl_info::set_rpl_info_handler(Rpl_info_handler * param_handler)
-{
-  handler= param_handler;
 }

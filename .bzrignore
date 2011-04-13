@@ -10,6 +10,7 @@
 *.core
 *.d
 *.da
+*.dir
 *.dll
 *.dylib
 *.exe
@@ -32,6 +33,7 @@
 *.pdb
 *.reject
 *.res
+*.rule
 *.sbr
 *.so
 *.so.*
@@ -39,6 +41,8 @@
 *.user
 *.vcproj
 *.vcproj.cmake
+*.vcxproj
+*.vcxproj.filters
 */*.dir/*
 */*_pure_*warnings
 */.deps
@@ -47,7 +51,7 @@
 */debug/*
 */minsizerel/*
 */release/*
-*/relwithdebinfo/*
+RelWithDebInfo
 *~
 .*.swp
 ./CMakeCache.txt

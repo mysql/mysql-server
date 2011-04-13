@@ -21,10 +21,6 @@
 **
 *****************************************************************************/
 
-#ifdef USE_PRAGMA_IMPLEMENTATION
-#pragma implementation				// gcc: Class implementation
-#endif
-
 #include "my_global.h"                          /* NO_EMBEDDED_ACCESS_CHECKS */
 #include "sql_priv.h"
 #include "unireg.h"                    // REQUIRED: for other includes
@@ -60,6 +56,8 @@
 #include "sql_callback.h"
 #include "lock.h"
 
+#include <mysql/psi/mysql_statement.h>
+
 /*
   The following is used to initialise Table_ident with a internal
   table name
@@ -68,23 +66,6 @@ char internal_table_name[2]= "*";
 char empty_c_string[1]= {0};    /* used for not defined db */
 
 const char * const THD::DEFAULT_WHERE= "field list";
-
-
-/*****************************************************************************
-** Instansiate templates
-*****************************************************************************/
-
-#ifdef HAVE_EXPLICIT_TEMPLATE_INSTANTIATION
-/* Used templates */
-template class List<Key>;
-template class List_iterator<Key>;
-template class List<Key_part_spec>;
-template class List_iterator<Key_part_spec>;
-template class List<Alter_drop>;
-template class List_iterator<Alter_drop>;
-template class List<Alter_column>;
-template class List_iterator<Alter_column>;
-#endif
 
 /****************************************************************************
 ** User variables
@@ -511,9 +492,10 @@ THD::THD(bool enable_plugins)
    first_successful_insert_id_in_prev_stmt_for_binlog(0),
    first_successful_insert_id_in_cur_stmt(0),
    stmt_depends_on_first_successful_insert_id_in_prev_stmt(FALSE),
-   examined_row_count(0),
+   m_examined_row_count(0),
    warning_info(&main_warning_info),
    stmt_da(&main_da),
+   m_statement_psi(NULL),
    is_fatal_error(0),
    transaction_rollback_request(0),
    is_fatal_sub_stmt_error(0),
@@ -555,7 +537,7 @@ THD::THD(bool enable_plugins)
   tmp_table=0;
   used_tables=0;
   cuted_fields= 0L;
-  sent_row_count= 0L;
+  m_sent_row_count= 0L;
   limit_found_rows= 0;
   m_row_count_func= -1;
   statement_id_counter= 0UL;
@@ -1918,7 +1900,7 @@ bool select_send::send_data(List<Item> &items)
     DBUG_RETURN(TRUE);
   }
 
-  thd->sent_row_count++;
+  thd->inc_sent_row_count(1);
 
   if (thd->vio_ok())
     DBUG_RETURN(protocol->write());
@@ -2010,7 +1992,7 @@ select_to_file::~select_to_file()
 
 select_export::~select_export()
 {
-  thd->sent_row_count=row_count;
+  thd->set_sent_row_count(row_count);
 }
 
 
@@ -3434,8 +3416,8 @@ void THD::reset_sub_statement_state(Sub_statement_state *backup,
   backup->in_sub_stmt=     in_sub_stmt;
   backup->enable_slow_log= enable_slow_log;
   backup->limit_found_rows= limit_found_rows;
-  backup->examined_row_count= examined_row_count;
-  backup->sent_row_count=   sent_row_count;
+  backup->examined_row_count= m_examined_row_count;
+  backup->sent_row_count= m_sent_row_count;
   backup->cuted_fields=     cuted_fields;
   backup->client_capabilities= client_capabilities;
   backup->savepoints= transaction.savepoints;
@@ -3458,8 +3440,8 @@ void THD::reset_sub_statement_state(Sub_statement_state *backup,
   /* Disable result sets */
   client_capabilities &= ~CLIENT_MULTI_RESULTS;
   in_sub_stmt|= new_state;
-  examined_row_count= 0;
-  sent_row_count= 0;
+  m_examined_row_count= 0;
+  m_sent_row_count= 0;
   cuted_fields= 0;
   transaction.savepoints= 0;
   first_successful_insert_id_in_cur_stmt= 0;
@@ -3505,7 +3487,7 @@ void THD::restore_sub_statement_state(Sub_statement_state *backup)
   first_successful_insert_id_in_cur_stmt= 
     backup->first_successful_insert_id_in_cur_stmt;
   limit_found_rows= backup->limit_found_rows;
-  sent_row_count=   backup->sent_row_count;
+  set_sent_row_count(backup->sent_row_count);
   client_capabilities= backup->client_capabilities;
   /*
     If we've left sub-statement mode, reset the fatal error flag.
@@ -3523,7 +3505,7 @@ void THD::restore_sub_statement_state(Sub_statement_state *backup)
     The following is added to the old values as we are interested in the
     total complexity of the query
   */
-  examined_row_count+= backup->examined_row_count;
+  inc_examined_row_count(backup->examined_row_count);
   cuted_fields+=       backup->cuted_fields;
   DBUG_VOID_RETURN;
 }
@@ -3536,6 +3518,146 @@ void THD::set_statement(Statement *stmt)
   mysql_mutex_unlock(&LOCK_thd_data);
 }
 
+void THD::set_sent_row_count(ha_rows count)
+{
+  m_sent_row_count= count;
+  MYSQL_SET_STATEMENT_ROWS_SENT(m_statement_psi, m_sent_row_count);
+}
+
+void THD::set_examined_row_count(ha_rows count)
+{
+  m_examined_row_count= count;
+  MYSQL_SET_STATEMENT_ROWS_EXAMINED(m_statement_psi, m_examined_row_count);
+}
+
+void THD::inc_sent_row_count(ha_rows count)
+{
+  m_sent_row_count+= count;
+  MYSQL_SET_STATEMENT_ROWS_SENT(m_statement_psi, m_sent_row_count);
+}
+
+void THD::inc_examined_row_count(ha_rows count)
+{
+  m_examined_row_count+= count;
+  MYSQL_SET_STATEMENT_ROWS_EXAMINED(m_statement_psi, m_examined_row_count);
+}
+
+void THD::inc_status_created_tmp_disk_tables()
+{
+  status_var_increment(status_var.created_tmp_disk_tables);
+#ifdef HAVE_PSI_INTERFACE
+  if (PSI_server && m_statement_psi)
+    PSI_server->inc_statement_created_tmp_disk_tables(m_statement_psi, 1);
+#endif
+}
+
+void THD::inc_status_created_tmp_tables()
+{
+  status_var_increment(status_var.created_tmp_tables);
+#ifdef HAVE_PSI_INTERFACE
+  if (PSI_server && m_statement_psi)
+    PSI_server->inc_statement_created_tmp_tables(m_statement_psi, 1);
+#endif
+}
+
+void THD::inc_status_select_full_join()
+{
+  status_var_increment(status_var.select_full_join_count);
+#ifdef HAVE_PSI_INTERFACE
+  if (PSI_server && m_statement_psi)
+    PSI_server->inc_statement_select_full_join(m_statement_psi, 1);
+#endif
+}
+
+void THD::inc_status_select_full_range_join()
+{
+  status_var_increment(status_var.select_full_range_join_count);
+#ifdef HAVE_PSI_INTERFACE
+  if (PSI_server && m_statement_psi)
+    PSI_server->inc_statement_select_full_range_join(m_statement_psi, 1);
+#endif
+}
+
+void THD::inc_status_select_range()
+{
+  status_var_increment(status_var.select_range_count);
+#ifdef HAVE_PSI_INTERFACE
+  if (PSI_server && m_statement_psi)
+    PSI_server->inc_statement_select_range(m_statement_psi, 1);
+#endif
+}
+
+void THD::inc_status_select_range_check()
+{
+  status_var_increment(status_var.select_range_check_count);
+#ifdef HAVE_PSI_INTERFACE
+  if (PSI_server && m_statement_psi)
+    PSI_server->inc_statement_select_range_check(m_statement_psi, 1);
+#endif
+}
+
+void THD::inc_status_select_scan()
+{
+  status_var_increment(status_var.select_scan_count);
+#ifdef HAVE_PSI_INTERFACE
+  if (PSI_server && m_statement_psi)
+    PSI_server->inc_statement_select_scan(m_statement_psi, 1);
+#endif
+}
+
+void THD::inc_status_sort_merge_passes()
+{
+  status_var_increment(status_var.filesort_merge_passes);
+#ifdef HAVE_PSI_INTERFACE
+  if (PSI_server && m_statement_psi)
+    PSI_server->inc_statement_sort_merge_passes(m_statement_psi, 1);
+#endif
+}
+
+void THD::inc_status_sort_range()
+{
+  status_var_increment(status_var.filesort_range_count);
+#ifdef HAVE_PSI_INTERFACE
+  if (PSI_server && m_statement_psi)
+    PSI_server->inc_statement_sort_range(m_statement_psi, 1);
+#endif
+}
+
+void THD::inc_status_sort_rows(ha_rows count)
+{
+  statistic_add(status_var.filesort_rows, count, &LOCK_status);
+#ifdef HAVE_PSI_INTERFACE
+  if (PSI_server && m_statement_psi)
+    PSI_server->inc_statement_sort_rows(m_statement_psi, count);
+#endif
+}
+
+void THD::inc_status_sort_scan()
+{
+  status_var_increment(status_var.filesort_scan_count);
+#ifdef HAVE_PSI_INTERFACE
+  if (PSI_server && m_statement_psi)
+    PSI_server->inc_statement_sort_scan(m_statement_psi, 1);
+#endif
+}
+
+void THD::set_status_no_index_used()
+{
+  server_status|= SERVER_QUERY_NO_INDEX_USED;
+#ifdef HAVE_PSI_INTERFACE
+  if (PSI_server && m_statement_psi)
+    PSI_server->set_statement_no_index_used(m_statement_psi);
+#endif
+}
+
+void THD::set_status_no_good_index_used()
+{
+  server_status|= SERVER_QUERY_NO_GOOD_INDEX_USED;
+#ifdef HAVE_PSI_INTERFACE
+  if (PSI_server && m_statement_psi)
+    PSI_server->set_statement_no_good_index_used(m_statement_psi);
+#endif
+}
 
 void THD::set_command(enum enum_server_command command)
 {

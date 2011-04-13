@@ -97,7 +97,7 @@ table_ews_global_by_event_name::delete_all_rows(void)
   reset_events_waits_by_instance();
   reset_table_waits_by_table_handle();
   reset_table_waits_by_table();
-  reset_global_wait_stat();
+  reset_events_waits_global();
   return 0;
 }
 
