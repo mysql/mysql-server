@@ -13,17 +13,18 @@
 #
 # 
 
---source include/master-slave.inc
+--source include/have_log_bin.inc
+--source include/have_binlog_format_mixed.inc
 
-create table t1(id int);
+CREATE TABLE t1(id INT);
+let $binlog= query_get_value(SHOW MASTER STATUS, File, 1);
+let $binlog_path= `SELECT CONCAT(@@DATADIR, '$binlog')`;
+SHOW TABLES;
+FLUSH LOGS;
+DROP TABLE t1;
 
-show tables;
+--exec $MYSQL_BINLOG $binlog_path | $MYSQL test
+SHOW TABLES;
 
---source include/show_master_status.inc
-
-flush logs;
-
---exec $MYSQL_BINLOG $MYSQL_TEST_DIR/var/log/master-bin.000001 | $MYSQL test
-
-drop table t1;
---source include/rpl_end.inc
+# Clean up
+DROP TABLE t1;
