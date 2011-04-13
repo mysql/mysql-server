@@ -1429,23 +1429,6 @@ trx_sys_print_mysql_binlog_offset_from_page(
 	}
 }
 
-
-/* THESE ARE COPIED FROM NON-HOTBACKUP PART OF THE INNODB SOURCE TREE
-   (This code duplicaton should be fixed at some point!)
-*/
-
-#define	TRX_SYS_SPACE	0	/* the SYSTEM tablespace */
-/* The offset of the file format tag on the trx system header page */
-#define TRX_SYS_FILE_FORMAT_TAG		(UNIV_PAGE_SIZE - 16)
-/* We use these random constants to reduce the probability of reading
-garbage (from previous versions) that maps to an actual format id. We
-use these as bit masks at the time of  reading and writing from/to disk. */
-#define TRX_SYS_FILE_FORMAT_TAG_MAGIC_N_LOW	3645922177UL
-#define TRX_SYS_FILE_FORMAT_TAG_MAGIC_N_HIGH	2745987765UL
-
-/* END OF COPIED DEFINITIONS */
-
-
 /*****************************************************************//**
 Reads the file format id from the first system table space file.
 Even if the call succeeds and returns TRUE, the returned format id
@@ -1724,7 +1707,6 @@ trx_sys_close(void)
 
 	trx_sys = NULL;
 }
-#endif /* !UNIV_HOTBACKUP */
 
 /*********************************************************************
 Check if there are any active (non-prepared) transactions.
@@ -1775,3 +1757,4 @@ trx_sys_validate_trx_list(void)
 	return(TRUE);
 }
 #endif /* UNIV_DEBUG */
+#endif /* !UNIV_HOTBACKUP */

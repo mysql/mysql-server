@@ -34,8 +34,8 @@ Created 1/8/1996 Heikki Tuuri
 #include "mach0data.h"
 #include "dict0dict.h"
 #include "srv0srv.h" /* srv_lower_case_table_names */
-#include "ha_prototypes.h" /* innobase_casedn_str()*/
 #ifndef UNIV_HOTBACKUP
+# include "ha_prototypes.h" /* innobase_casedn_str()*/
 # include "lock0lock.h"
 #endif /* !UNIV_HOTBACKUP */
 #ifdef UNIV_BLOB_DEBUG
@@ -275,6 +275,7 @@ dict_mem_index_create(
 	return(index);
 }
 
+#ifndef UNIV_HOTBACKUP
 /**********************************************************************//**
 Creates and initializes a foreign constraint memory object.
 @return	own: foreign constraint struct */
@@ -348,6 +349,7 @@ dict_mem_referenced_table_name_lookup_set(
 			= foreign->referenced_table_name;
 	}
 }
+#endif /* !UNIV_HOTBACKUP */
 
 /**********************************************************************//**
 Adds a field definition to an index. NOTE: does not take a copy

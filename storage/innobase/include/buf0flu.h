@@ -28,10 +28,10 @@ Created 11/5/1995 Heikki Tuuri
 
 #include "univ.i"
 #include "ut0byte.h"
+#include "log0log.h"
 #ifndef UNIV_HOTBACKUP
 #include "mtr0types.h"
 #include "buf0types.h"
-#include "log0log.h"
 
 /** Flag indicating if the page_cleaner is in active state. */
 extern ibool buf_page_cleaner_is_active;
