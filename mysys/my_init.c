@@ -467,10 +467,6 @@ PSI_mutex_key key_my_file_info_mutex;
 PSI_mutex_key key_LOCK_localtime_r;
 #endif /* !defined(HAVE_LOCALTIME_R) || !defined(HAVE_GMTIME_R) */
 
-#ifndef HAVE_GETHOSTBYNAME_R
-PSI_mutex_key key_LOCK_gethostbyname_r;
-#endif /* HAVE_GETHOSTBYNAME_R */
-
 PSI_mutex_key key_BITMAP_mutex, key_IO_CACHE_append_buffer_lock,
   key_IO_CACHE_SHARE_mutex, key_KEY_CACHE_cache_lock, key_LOCK_alarm,
   key_my_thread_var_mutex, key_THR_LOCK_charset, key_THR_LOCK_heap,
@@ -487,9 +483,6 @@ static PSI_mutex_info all_mysys_mutexes[]=
 #if !defined(HAVE_LOCALTIME_R) || !defined(HAVE_GMTIME_R)
   { &key_LOCK_localtime_r, "LOCK_localtime_r", PSI_FLAG_GLOBAL},
 #endif /* !defined(HAVE_LOCALTIME_R) || !defined(HAVE_GMTIME_R) */
-#ifndef HAVE_GETHOSTBYNAME_R
-  { &key_LOCK_gethostbyname_r, "LOCK_gethostbyname_r", PSI_FLAG_GLOBAL},
-#endif /* HAVE_GETHOSTBYNAME_R */
   { &key_BITMAP_mutex, "BITMAP::mutex", 0},
   { &key_IO_CACHE_append_buffer_lock, "IO_CACHE::append_buffer_lock", 0},
   { &key_IO_CACHE_SHARE_mutex, "IO_CACHE::SHARE_mutex", 0},

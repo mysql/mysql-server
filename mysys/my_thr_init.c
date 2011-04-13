@@ -34,9 +34,6 @@ uint 		my_thread_end_wait_time= 5;
 #if !defined(HAVE_LOCALTIME_R) || !defined(HAVE_GMTIME_R)
 mysql_mutex_t LOCK_localtime_r;
 #endif
-#ifndef HAVE_GETHOSTBYNAME_R
-mysql_mutex_t LOCK_gethostbyname_r;
-#endif
 #ifdef PTHREAD_ADAPTIVE_MUTEX_INITIALIZER_NP
 pthread_mutexattr_t my_fast_mutexattr;
 #endif
@@ -222,10 +219,6 @@ my_bool my_thread_global_init(void)
 #if !defined(HAVE_LOCALTIME_R) || !defined(HAVE_GMTIME_R)
   mysql_mutex_init(key_LOCK_localtime_r, &LOCK_localtime_r, MY_MUTEX_INIT_SLOW);
 #endif
-#ifndef HAVE_GETHOSTBYNAME_R
-  mysql_mutex_init(key_LOCK_gethostbyname_r,
-                   &LOCK_gethostbyname_r, MY_MUTEX_INIT_SLOW);
-#endif
 
 #ifdef _MSC_VER
   install_sigabrt_handler();
@@ -288,9 +281,6 @@ void my_thread_global_end(void)
   }
 #if !defined(HAVE_LOCALTIME_R) || !defined(HAVE_GMTIME_R)
   mysql_mutex_destroy(&LOCK_localtime_r);
-#endif
-#ifndef HAVE_GETHOSTBYNAME_R
-  mysql_mutex_destroy(&LOCK_gethostbyname_r);
 #endif
 
   my_thread_global_init_done= 0;
