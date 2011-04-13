@@ -46,11 +46,17 @@ public:
   STATIC_CONST(MinKeyMaxVarTypeAttrBytes= MinKeyMaxAttrBytes - 2);
 
   STATIC_CONST(UniqueIndexOverheadBytes= 4); // For FragId
-  STATIC_CONST(MaxKeyMaxVarTypeAttrBytesIndex = 
-               MaxKeyMaxVarTypeAttrBytes - UniqueIndexOverheadBytes);
 
-  /* Hugo requires 2 unsigned int columns somewhere in the table */
-  STATIC_CONST(HugoOverheadBytes= 2 * 4); 
+  // Note that since we'll put an unique index on this...it can't be bigger
+  // than MaxKeyBytes
+  STATIC_CONST(MaxKeyMaxVarTypeAttrBytesIndex =
+               ((MaxKeyMaxVarTypeAttrBytes <= MaxKeyBytes) ?
+                MaxKeyMaxVarTypeAttrBytes : MaxKeyBytes) - UniqueIndexOverheadBytes);
+
+  /* Hugo requires 2 unsigned int columns somewhere in the table
+   * and these also counts towards #attributes relation
+   */
+  STATIC_CONST(HugoOverheadBytes= 2 * (4 + 4));
 
   static int createTable(Ndb* pNdb, const char* _name, bool _temp = false, 
 			 bool existsOK = false, NDBT_CreateTableHook = 0,
