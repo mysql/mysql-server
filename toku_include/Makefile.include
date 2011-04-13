@@ -241,7 +241,7 @@ ifeq ($(CC),icc)
     COMBINE_C = -ipo-c
     FORMAT= #No argument for extra format warnings.
     WALL  = -Wall -Wcheck # '-Wextra' becomes '-Wcheck' in icc
-    SYMBOLS= -g -debug all -inline-debug-info
+    SYMBOLS= -g -debug all # deprecated -inline-debug-info
     PORTABILITY=-diag-enable port-win
     AR=xiar
     DISABLE_WARNING=
