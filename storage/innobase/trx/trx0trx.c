@@ -92,7 +92,8 @@ trx_t*
 trx_create(void)
 /*============*/
 {
-	trx_t*	trx;
+	trx_t*		trx;
+	mem_heap_t*	heap;
 
 	trx = mem_zalloc(sizeof(*trx));
 
@@ -130,9 +131,15 @@ trx_create(void)
 
 	trx->op_info = "";
 
+	heap = mem_heap_create(sizeof(ib_vector_t) + sizeof(void*) * 8);
+
 	/* Remember to free the vector explicitly in trx_free(). */
-	trx->autoinc_locks = ib_vector_create(
-		mem_heap_create(sizeof(ib_vector_t) + sizeof(void*) * 4), 4);
+	trx->autoinc_locks = ib_vector_create(heap, 4);
+
+	/* Remember to free the vector explicitly in trx_free(). */
+	heap = mem_heap_create(sizeof(ib_vector_t) + sizeof(void*) * 128);
+
+	trx->lock.table_locks = ib_vector_create(heap, 32);
 
 	return(trx);
 }
@@ -265,6 +272,9 @@ trx_free(
 	ut_a(ib_vector_is_empty(trx->autoinc_locks));
 	/* We allocated a dedicated heap for the vector. */
 	ib_vector_free(trx->autoinc_locks);
+
+	/* We allocated a dedicated heap for the vector. */
+	ib_vector_free(trx->lock.table_locks);
 
 	mutex_free(&trx->mutex);
 
@@ -698,6 +708,9 @@ trx_start_low(
 
 	ut_a(trx->rseg == NULL);
 	trx->rseg = rseg;
+
+	ut_a(ib_vector_is_empty(trx->autoinc_locks));
+	ut_a(ib_vector_is_empty(trx->lock.table_locks));
 
 	rw_lock_x_lock(&trx_sys->lock);
 
