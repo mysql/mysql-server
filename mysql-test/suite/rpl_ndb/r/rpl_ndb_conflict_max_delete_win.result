@@ -1,9 +1,5 @@
-stop slave;
-drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9;
-reset master;
-reset slave;
-drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9;
-start slave;
+include/master-slave.inc
+[connection master]
 *** Test 1 ********************************************************
 * test native NDB$MAX_DELETE_WIN() conflict resolution
 * test with both allowed "conflict column" types, uint32 and uint64
@@ -45,8 +41,8 @@ VARIABLE_VALUE-@init_ndb_conflict_fn_max
 SELECT VARIABLE_VALUE-@init_ndb_conflict_fn_old FROM INFORMATION_SCHEMA.GLOBAL_STATUS WHERE VARIABLE_NAME LIKE "NDB_CONFLICT_FN_OLD";
 VARIABLE_VALUE-@init_ndb_conflict_fn_old
 0
-SELECT server_id, master_server_id, master_epoch, count-@init_ndb_conflict_fn_old, a, d FROM `t1$EX` ORDER BY server_id, master_server_id, master_epoch, count;
-server_id	master_server_id	master_epoch	count-@init_ndb_conflict_fn_old	a	d
+SELECT server_id, master_server_id, master_epoch, count, a, d FROM `t1$EX` ORDER BY server_id, master_server_id, master_epoch, count;
+server_id	master_server_id	master_epoch	count	a	d
 SELECT * FROM `t1$EX` ORDER BY a, d;
 server_id	master_server_id	master_epoch	count	a	d
 SELECT * FROM `t2$EX` ORDER BY server_id, master_server_id, master_epoch, count;
@@ -71,8 +67,8 @@ VARIABLE_VALUE-@init_ndb_conflict_fn_max
 SELECT VARIABLE_VALUE-@init_ndb_conflict_fn_old FROM INFORMATION_SCHEMA.GLOBAL_STATUS WHERE VARIABLE_NAME LIKE "NDB_CONFLICT_FN_OLD";
 VARIABLE_VALUE-@init_ndb_conflict_fn_old
 0
-SELECT server_id, master_server_id, master_epoch, count-@init_ndb_conflict_fn_old, a, d FROM `t1$EX` ORDER BY server_id, master_server_id, master_epoch, count;
-server_id	master_server_id	master_epoch	count-@init_ndb_conflict_fn_old	a	d
+SELECT server_id, master_server_id, master_epoch, count, a, d FROM `t1$EX` ORDER BY server_id, master_server_id, master_epoch, count;
+server_id	master_server_id	master_epoch	count	a	d
 SELECT * FROM `t1$EX` ORDER BY a, d;
 server_id	master_server_id	master_epoch	count	a	d
 SELECT * FROM `t2$EX` ORDER BY server_id, master_server_id, master_epoch, count;
@@ -91,8 +87,8 @@ VARIABLE_VALUE-@init_ndb_conflict_fn_max
 SELECT VARIABLE_VALUE-@init_ndb_conflict_fn_old FROM INFORMATION_SCHEMA.GLOBAL_STATUS WHERE VARIABLE_NAME LIKE "NDB_CONFLICT_FN_OLD";
 VARIABLE_VALUE-@init_ndb_conflict_fn_old
 0
-SELECT server_id, master_server_id, master_epoch, count-@init_ndb_conflict_fn_old, a, d FROM `t1$EX` ORDER BY server_id, master_server_id, master_epoch, count;
-server_id	master_server_id	master_epoch	count-@init_ndb_conflict_fn_old	a	d
+SELECT server_id, master_server_id, master_epoch, count, a, d FROM `t1$EX` ORDER BY server_id, master_server_id, master_epoch, count;
+server_id	master_server_id	master_epoch	count	a	d
 SELECT * FROM `t1$EX` ORDER BY a, d;
 server_id	master_server_id	master_epoch	count	a	d
 SELECT * FROM `t2$EX` ORDER BY server_id, master_server_id, master_epoch, count;
@@ -118,8 +114,8 @@ VARIABLE_VALUE-@init_ndb_conflict_fn_max
 SELECT VARIABLE_VALUE-@init_ndb_conflict_fn_old FROM INFORMATION_SCHEMA.GLOBAL_STATUS WHERE VARIABLE_NAME LIKE "NDB_CONFLICT_FN_OLD";
 VARIABLE_VALUE-@init_ndb_conflict_fn_old
 0
-SELECT server_id, master_server_id, master_epoch, count-@init_ndb_conflict_fn_old, a, d FROM `t1$EX` ORDER BY server_id, master_server_id, master_epoch, count;
-server_id	master_server_id	master_epoch	count-@init_ndb_conflict_fn_old	a	d
+SELECT server_id, master_server_id, master_epoch, count, a, d FROM `t1$EX` ORDER BY server_id, master_server_id, master_epoch, count;
+server_id	master_server_id	master_epoch	count	a	d
 SELECT * FROM `t1$EX` ORDER BY a, d;
 server_id	master_server_id	master_epoch	count	a	d
 SELECT * FROM `t2$EX` ORDER BY server_id, master_server_id, master_epoch, count;
@@ -166,8 +162,8 @@ VARIABLE_VALUE-@init_ndb_conflict_fn_max
 SELECT VARIABLE_VALUE-@init_ndb_conflict_fn_old FROM INFORMATION_SCHEMA.GLOBAL_STATUS WHERE VARIABLE_NAME LIKE "NDB_CONFLICT_FN_OLD";
 VARIABLE_VALUE-@init_ndb_conflict_fn_old
 0
-SELECT server_id, master_server_id, master_epoch, count-@init_ndb_conflict_fn_old, a, d FROM `t1$EX` ORDER BY server_id, master_server_id, master_epoch, count;
-server_id	master_server_id	master_epoch	count-@init_ndb_conflict_fn_old	a	d
+SELECT server_id, master_server_id, master_epoch, count, a, d FROM `t1$EX` ORDER BY server_id, master_server_id, master_epoch, count;
+server_id	master_server_id	master_epoch	count	a	d
 SELECT * FROM `t1$EX` ORDER BY a, d;
 server_id	master_server_id	master_epoch	count	a	d
 SELECT * FROM `t2$EX` ORDER BY server_id, master_server_id, master_epoch, count;
@@ -202,8 +198,8 @@ VARIABLE_VALUE-@init_ndb_conflict_fn_max
 SELECT VARIABLE_VALUE-@init_ndb_conflict_fn_old FROM INFORMATION_SCHEMA.GLOBAL_STATUS WHERE VARIABLE_NAME LIKE "NDB_CONFLICT_FN_OLD";
 VARIABLE_VALUE-@init_ndb_conflict_fn_old
 0
-SELECT server_id, master_server_id, master_epoch, count-@init_ndb_conflict_fn_old, a, d FROM `t1$EX` ORDER BY server_id, master_server_id, master_epoch, count;
-server_id	master_server_id	master_epoch	count-@init_ndb_conflict_fn_old	a	d
+SELECT server_id, master_server_id, master_epoch, count, a, d FROM `t1$EX` ORDER BY server_id, master_server_id, master_epoch, count;
+server_id	master_server_id	master_epoch	count	a	d
 SELECT * FROM `t1$EX` ORDER BY a, d;
 server_id	master_server_id	master_epoch	count	a	d
 SELECT * FROM `t2$EX` ORDER BY server_id, master_server_id, master_epoch, count;
@@ -263,8 +259,8 @@ VARIABLE_VALUE-@init_ndb_conflict_fn_max
 SELECT VARIABLE_VALUE-@init_ndb_conflict_fn_old FROM INFORMATION_SCHEMA.GLOBAL_STATUS WHERE VARIABLE_NAME LIKE "NDB_CONFLICT_FN_OLD";
 VARIABLE_VALUE-@init_ndb_conflict_fn_old
 0
-SELECT server_id, master_server_id, master_epoch, count-@init_ndb_conflict_fn_old, a, d FROM `t1$EX` ORDER BY server_id, master_server_id, master_epoch, count;
-server_id	master_server_id	master_epoch	count-@init_ndb_conflict_fn_old	a	d
+SELECT server_id, master_server_id, master_epoch, count, a, d FROM `t1$EX` ORDER BY server_id, master_server_id, master_epoch, count;
+server_id	master_server_id	master_epoch	count	a	d
 SELECT * FROM `t1$EX` ORDER BY a, d;
 server_id	master_server_id	master_epoch	count	a	d
 SELECT * FROM `t2$EX` ORDER BY server_id, master_server_id, master_epoch, count;
@@ -289,8 +285,8 @@ VARIABLE_VALUE-@init_ndb_conflict_fn_max
 SELECT VARIABLE_VALUE-@init_ndb_conflict_fn_old FROM INFORMATION_SCHEMA.GLOBAL_STATUS WHERE VARIABLE_NAME LIKE "NDB_CONFLICT_FN_OLD";
 VARIABLE_VALUE-@init_ndb_conflict_fn_old
 0
-SELECT server_id, master_server_id, master_epoch, count-@init_ndb_conflict_fn_old, a, d FROM `t1$EX` ORDER BY server_id, master_server_id, master_epoch, count;
-server_id	master_server_id	master_epoch	count-@init_ndb_conflict_fn_old	a	d
+SELECT server_id, master_server_id, master_epoch, count, a, d FROM `t1$EX` ORDER BY server_id, master_server_id, master_epoch, count;
+server_id	master_server_id	master_epoch	count	a	d
 SELECT * FROM `t1$EX` ORDER BY a, d;
 server_id	master_server_id	master_epoch	count	a	d
 SELECT * FROM `t2$EX` ORDER BY server_id, master_server_id, master_epoch, count;
@@ -309,8 +305,8 @@ VARIABLE_VALUE-@init_ndb_conflict_fn_max
 SELECT VARIABLE_VALUE-@init_ndb_conflict_fn_old FROM INFORMATION_SCHEMA.GLOBAL_STATUS WHERE VARIABLE_NAME LIKE "NDB_CONFLICT_FN_OLD";
 VARIABLE_VALUE-@init_ndb_conflict_fn_old
 0
-SELECT server_id, master_server_id, master_epoch, count-@init_ndb_conflict_fn_old, a, d FROM `t1$EX` ORDER BY server_id, master_server_id, master_epoch, count;
-server_id	master_server_id	master_epoch	count-@init_ndb_conflict_fn_old	a	d
+SELECT server_id, master_server_id, master_epoch, count, a, d FROM `t1$EX` ORDER BY server_id, master_server_id, master_epoch, count;
+server_id	master_server_id	master_epoch	count	a	d
 SELECT * FROM `t1$EX` ORDER BY a, d;
 server_id	master_server_id	master_epoch	count	a	d
 SELECT * FROM `t2$EX` ORDER BY server_id, master_server_id, master_epoch, count;
@@ -336,8 +332,8 @@ VARIABLE_VALUE-@init_ndb_conflict_fn_max
 SELECT VARIABLE_VALUE-@init_ndb_conflict_fn_old FROM INFORMATION_SCHEMA.GLOBAL_STATUS WHERE VARIABLE_NAME LIKE "NDB_CONFLICT_FN_OLD";
 VARIABLE_VALUE-@init_ndb_conflict_fn_old
 0
-SELECT server_id, master_server_id, master_epoch, count-@init_ndb_conflict_fn_old, a, d FROM `t1$EX` ORDER BY server_id, master_server_id, master_epoch, count;
-server_id	master_server_id	master_epoch	count-@init_ndb_conflict_fn_old	a	d
+SELECT server_id, master_server_id, master_epoch, count, a, d FROM `t1$EX` ORDER BY server_id, master_server_id, master_epoch, count;
+server_id	master_server_id	master_epoch	count	a	d
 SELECT * FROM `t1$EX` ORDER BY a, d;
 server_id	master_server_id	master_epoch	count	a	d
 SELECT * FROM `t2$EX` ORDER BY server_id, master_server_id, master_epoch, count;
@@ -384,8 +380,8 @@ VARIABLE_VALUE-@init_ndb_conflict_fn_max
 SELECT VARIABLE_VALUE-@init_ndb_conflict_fn_old FROM INFORMATION_SCHEMA.GLOBAL_STATUS WHERE VARIABLE_NAME LIKE "NDB_CONFLICT_FN_OLD";
 VARIABLE_VALUE-@init_ndb_conflict_fn_old
 0
-SELECT server_id, master_server_id, master_epoch, count-@init_ndb_conflict_fn_old, a, d FROM `t1$EX` ORDER BY server_id, master_server_id, master_epoch, count;
-server_id	master_server_id	master_epoch	count-@init_ndb_conflict_fn_old	a	d
+SELECT server_id, master_server_id, master_epoch, count, a, d FROM `t1$EX` ORDER BY server_id, master_server_id, master_epoch, count;
+server_id	master_server_id	master_epoch	count	a	d
 SELECT * FROM `t1$EX` ORDER BY a, d;
 server_id	master_server_id	master_epoch	count	a	d
 SELECT * FROM `t2$EX` ORDER BY server_id, master_server_id, master_epoch, count;
@@ -420,8 +416,8 @@ VARIABLE_VALUE-@init_ndb_conflict_fn_max
 SELECT VARIABLE_VALUE-@init_ndb_conflict_fn_old FROM INFORMATION_SCHEMA.GLOBAL_STATUS WHERE VARIABLE_NAME LIKE "NDB_CONFLICT_FN_OLD";
 VARIABLE_VALUE-@init_ndb_conflict_fn_old
 0
-SELECT server_id, master_server_id, master_epoch, count-@init_ndb_conflict_fn_old, a, d FROM `t1$EX` ORDER BY server_id, master_server_id, master_epoch, count;
-server_id	master_server_id	master_epoch	count-@init_ndb_conflict_fn_old	a	d
+SELECT server_id, master_server_id, master_epoch, count, a, d FROM `t1$EX` ORDER BY server_id, master_server_id, master_epoch, count;
+server_id	master_server_id	master_epoch	count	a	d
 SELECT * FROM `t1$EX` ORDER BY a, d;
 server_id	master_server_id	master_epoch	count	a	d
 SELECT * FROM `t2$EX` ORDER BY server_id, master_server_id, master_epoch, count;
@@ -481,8 +477,8 @@ VARIABLE_VALUE-@init_ndb_conflict_fn_max
 SELECT VARIABLE_VALUE-@init_ndb_conflict_fn_old FROM INFORMATION_SCHEMA.GLOBAL_STATUS WHERE VARIABLE_NAME LIKE "NDB_CONFLICT_FN_OLD";
 VARIABLE_VALUE-@init_ndb_conflict_fn_old
 3
-SELECT server_id, master_server_id, master_epoch, count-@init_ndb_conflict_fn_old, a, d FROM `t1$EX` ORDER BY server_id, master_server_id, master_epoch, count;
-server_id	master_server_id	master_epoch	count-@init_ndb_conflict_fn_old	a	d
+SELECT server_id, master_server_id, master_epoch, count, a, d FROM `t1$EX` ORDER BY server_id, master_server_id, master_epoch, count;
+server_id	master_server_id	master_epoch	count	a	d
 2	1	#	1	#	#
 2	1	#	2	#	#
 2	1	#	3	#	#
@@ -513,8 +509,8 @@ VARIABLE_VALUE-@init_ndb_conflict_fn_max
 SELECT VARIABLE_VALUE-@init_ndb_conflict_fn_old FROM INFORMATION_SCHEMA.GLOBAL_STATUS WHERE VARIABLE_NAME LIKE "NDB_CONFLICT_FN_OLD";
 VARIABLE_VALUE-@init_ndb_conflict_fn_old
 4
-SELECT server_id, master_server_id, master_epoch, count-@init_ndb_conflict_fn_old, a, d FROM `t1$EX` ORDER BY server_id, master_server_id, master_epoch, count;
-server_id	master_server_id	master_epoch	count-@init_ndb_conflict_fn_old	a	d
+SELECT server_id, master_server_id, master_epoch, count, a, d FROM `t1$EX` ORDER BY server_id, master_server_id, master_epoch, count;
+server_id	master_server_id	master_epoch	count	a	d
 2	1	#	1	#	#
 2	1	#	2	#	#
 2	1	#	3	#	#
@@ -541,8 +537,8 @@ VARIABLE_VALUE-@init_ndb_conflict_fn_max
 SELECT VARIABLE_VALUE-@init_ndb_conflict_fn_old FROM INFORMATION_SCHEMA.GLOBAL_STATUS WHERE VARIABLE_NAME LIKE "NDB_CONFLICT_FN_OLD";
 VARIABLE_VALUE-@init_ndb_conflict_fn_old
 4
-SELECT server_id, master_server_id, master_epoch, count-@init_ndb_conflict_fn_old, a, d FROM `t1$EX` ORDER BY server_id, master_server_id, master_epoch, count;
-server_id	master_server_id	master_epoch	count-@init_ndb_conflict_fn_old	a	d
+SELECT server_id, master_server_id, master_epoch, count, a, d FROM `t1$EX` ORDER BY server_id, master_server_id, master_epoch, count;
+server_id	master_server_id	master_epoch	count	a	d
 2	1	#	1	#	#
 2	1	#	2	#	#
 2	1	#	3	#	#
@@ -576,8 +572,8 @@ VARIABLE_VALUE-@init_ndb_conflict_fn_max
 SELECT VARIABLE_VALUE-@init_ndb_conflict_fn_old FROM INFORMATION_SCHEMA.GLOBAL_STATUS WHERE VARIABLE_NAME LIKE "NDB_CONFLICT_FN_OLD";
 VARIABLE_VALUE-@init_ndb_conflict_fn_old
 0
-SELECT server_id, master_server_id, master_epoch, count-@init_ndb_conflict_fn_old, a, d FROM `t1$EX` ORDER BY server_id, master_server_id, master_epoch, count;
-server_id	master_server_id	master_epoch	count-@init_ndb_conflict_fn_old	a	d
+SELECT server_id, master_server_id, master_epoch, count, a, d FROM `t1$EX` ORDER BY server_id, master_server_id, master_epoch, count;
+server_id	master_server_id	master_epoch	count	a	d
 SELECT * FROM `t1$EX` ORDER BY a, d;
 server_id	master_server_id	master_epoch	count	a	d
 SELECT * FROM `t2$EX` ORDER BY server_id, master_server_id, master_epoch, count;
@@ -624,11 +620,11 @@ VARIABLE_VALUE-@init_ndb_conflict_fn_max
 SELECT VARIABLE_VALUE-@init_ndb_conflict_fn_old FROM INFORMATION_SCHEMA.GLOBAL_STATUS WHERE VARIABLE_NAME LIKE "NDB_CONFLICT_FN_OLD";
 VARIABLE_VALUE-@init_ndb_conflict_fn_old
 3
-SELECT server_id, master_server_id, master_epoch, count-@init_ndb_conflict_fn_old, a, d FROM `t1$EX` ORDER BY server_id, master_server_id, master_epoch, count;
-server_id	master_server_id	master_epoch	count-@init_ndb_conflict_fn_old	a	d
-2	1	#	1	#	#
-2	1	#	2	#	#
-2	1	#	3	#	#
+SELECT server_id, master_server_id, master_epoch, count, a, d FROM `t1$EX` ORDER BY server_id, master_server_id, master_epoch, count;
+server_id	master_server_id	master_epoch	count	a	d
+2	1	#	5	#	#
+2	1	#	6	#	#
+2	1	#	7	#	#
 SELECT * FROM `t1$EX` ORDER BY a, d;
 server_id	master_server_id	master_epoch	count	a	d
 2	1	#	#	1	111
@@ -666,14 +662,14 @@ VARIABLE_VALUE-@init_ndb_conflict_fn_max
 SELECT VARIABLE_VALUE-@init_ndb_conflict_fn_old FROM INFORMATION_SCHEMA.GLOBAL_STATUS WHERE VARIABLE_NAME LIKE "NDB_CONFLICT_FN_OLD";
 VARIABLE_VALUE-@init_ndb_conflict_fn_old
 6
-SELECT server_id, master_server_id, master_epoch, count-@init_ndb_conflict_fn_old, a, d FROM `t1$EX` ORDER BY server_id, master_server_id, master_epoch, count;
-server_id	master_server_id	master_epoch	count-@init_ndb_conflict_fn_old	a	d
-2	1	#	1	#	#
-2	1	#	2	#	#
-2	1	#	3	#	#
-2	1	#	4	#	#
+SELECT server_id, master_server_id, master_epoch, count, a, d FROM `t1$EX` ORDER BY server_id, master_server_id, master_epoch, count;
+server_id	master_server_id	master_epoch	count	a	d
 2	1	#	5	#	#
 2	1	#	6	#	#
+2	1	#	7	#	#
+2	1	#	8	#	#
+2	1	#	9	#	#
+2	1	#	10	#	#
 SELECT * FROM `t1$EX` ORDER BY a, d;
 server_id	master_server_id	master_epoch	count	a	d
 2	1	#	#	1	111
@@ -737,8 +733,8 @@ VARIABLE_VALUE-@init_ndb_conflict_fn_max
 SELECT VARIABLE_VALUE-@init_ndb_conflict_fn_old FROM INFORMATION_SCHEMA.GLOBAL_STATUS WHERE VARIABLE_NAME LIKE "NDB_CONFLICT_FN_OLD";
 VARIABLE_VALUE-@init_ndb_conflict_fn_old
 0
-SELECT server_id, master_server_id, master_epoch, count-@init_ndb_conflict_fn_old, a, d FROM `t1$EX` ORDER BY server_id, master_server_id, master_epoch, count;
-server_id	master_server_id	master_epoch	count-@init_ndb_conflict_fn_old	a	d
+SELECT server_id, master_server_id, master_epoch, count, a, d FROM `t1$EX` ORDER BY server_id, master_server_id, master_epoch, count;
+server_id	master_server_id	master_epoch	count	a	d
 SELECT * FROM `t1$EX` ORDER BY a, d;
 server_id	master_server_id	master_epoch	count	a	d
 SELECT * FROM `t2$EX` ORDER BY server_id, master_server_id, master_epoch, count;
@@ -763,8 +759,8 @@ VARIABLE_VALUE-@init_ndb_conflict_fn_max
 SELECT VARIABLE_VALUE-@init_ndb_conflict_fn_old FROM INFORMATION_SCHEMA.GLOBAL_STATUS WHERE VARIABLE_NAME LIKE "NDB_CONFLICT_FN_OLD";
 VARIABLE_VALUE-@init_ndb_conflict_fn_old
 0
-SELECT server_id, master_server_id, master_epoch, count-@init_ndb_conflict_fn_old, a, d FROM `t1$EX` ORDER BY server_id, master_server_id, master_epoch, count;
-server_id	master_server_id	master_epoch	count-@init_ndb_conflict_fn_old	a	d
+SELECT server_id, master_server_id, master_epoch, count, a, d FROM `t1$EX` ORDER BY server_id, master_server_id, master_epoch, count;
+server_id	master_server_id	master_epoch	count	a	d
 SELECT * FROM `t1$EX` ORDER BY a, d;
 server_id	master_server_id	master_epoch	count	a	d
 SELECT * FROM `t2$EX` ORDER BY server_id, master_server_id, master_epoch, count;
@@ -783,8 +779,8 @@ VARIABLE_VALUE-@init_ndb_conflict_fn_max
 SELECT VARIABLE_VALUE-@init_ndb_conflict_fn_old FROM INFORMATION_SCHEMA.GLOBAL_STATUS WHERE VARIABLE_NAME LIKE "NDB_CONFLICT_FN_OLD";
 VARIABLE_VALUE-@init_ndb_conflict_fn_old
 0
-SELECT server_id, master_server_id, master_epoch, count-@init_ndb_conflict_fn_old, a, d FROM `t1$EX` ORDER BY server_id, master_server_id, master_epoch, count;
-server_id	master_server_id	master_epoch	count-@init_ndb_conflict_fn_old	a	d
+SELECT server_id, master_server_id, master_epoch, count, a, d FROM `t1$EX` ORDER BY server_id, master_server_id, master_epoch, count;
+server_id	master_server_id	master_epoch	count	a	d
 SELECT * FROM `t1$EX` ORDER BY a, d;
 server_id	master_server_id	master_epoch	count	a	d
 SELECT * FROM `t2$EX` ORDER BY server_id, master_server_id, master_epoch, count;
@@ -810,8 +806,8 @@ VARIABLE_VALUE-@init_ndb_conflict_fn_max
 SELECT VARIABLE_VALUE-@init_ndb_conflict_fn_old FROM INFORMATION_SCHEMA.GLOBAL_STATUS WHERE VARIABLE_NAME LIKE "NDB_CONFLICT_FN_OLD";
 VARIABLE_VALUE-@init_ndb_conflict_fn_old
 0
-SELECT server_id, master_server_id, master_epoch, count-@init_ndb_conflict_fn_old, a, d FROM `t1$EX` ORDER BY server_id, master_server_id, master_epoch, count;
-server_id	master_server_id	master_epoch	count-@init_ndb_conflict_fn_old	a	d
+SELECT server_id, master_server_id, master_epoch, count, a, d FROM `t1$EX` ORDER BY server_id, master_server_id, master_epoch, count;
+server_id	master_server_id	master_epoch	count	a	d
 SELECT * FROM `t1$EX` ORDER BY a, d;
 server_id	master_server_id	master_epoch	count	a	d
 SELECT * FROM `t2$EX` ORDER BY server_id, master_server_id, master_epoch, count;
@@ -858,8 +854,8 @@ VARIABLE_VALUE-@init_ndb_conflict_fn_max
 SELECT VARIABLE_VALUE-@init_ndb_conflict_fn_old FROM INFORMATION_SCHEMA.GLOBAL_STATUS WHERE VARIABLE_NAME LIKE "NDB_CONFLICT_FN_OLD";
 VARIABLE_VALUE-@init_ndb_conflict_fn_old
 0
-SELECT server_id, master_server_id, master_epoch, count-@init_ndb_conflict_fn_old, a, d FROM `t1$EX` ORDER BY server_id, master_server_id, master_epoch, count;
-server_id	master_server_id	master_epoch	count-@init_ndb_conflict_fn_old	a	d
+SELECT server_id, master_server_id, master_epoch, count, a, d FROM `t1$EX` ORDER BY server_id, master_server_id, master_epoch, count;
+server_id	master_server_id	master_epoch	count	a	d
 SELECT * FROM `t1$EX` ORDER BY a, d;
 server_id	master_server_id	master_epoch	count	a	d
 SELECT * FROM `t2$EX` ORDER BY server_id, master_server_id, master_epoch, count;
@@ -894,8 +890,8 @@ VARIABLE_VALUE-@init_ndb_conflict_fn_max
 SELECT VARIABLE_VALUE-@init_ndb_conflict_fn_old FROM INFORMATION_SCHEMA.GLOBAL_STATUS WHERE VARIABLE_NAME LIKE "NDB_CONFLICT_FN_OLD";
 VARIABLE_VALUE-@init_ndb_conflict_fn_old
 0
-SELECT server_id, master_server_id, master_epoch, count-@init_ndb_conflict_fn_old, a, d FROM `t1$EX` ORDER BY server_id, master_server_id, master_epoch, count;
-server_id	master_server_id	master_epoch	count-@init_ndb_conflict_fn_old	a	d
+SELECT server_id, master_server_id, master_epoch, count, a, d FROM `t1$EX` ORDER BY server_id, master_server_id, master_epoch, count;
+server_id	master_server_id	master_epoch	count	a	d
 SELECT * FROM `t1$EX` ORDER BY a, d;
 server_id	master_server_id	master_epoch	count	a	d
 SELECT * FROM `t2$EX` ORDER BY server_id, master_server_id, master_epoch, count;
@@ -913,3 +909,4 @@ a	b	c	d
 3	Master t2 a=3 at c=13	13	111222333
 drop table t1, t2;
 *** test cleanup
+include/rpl_end.inc

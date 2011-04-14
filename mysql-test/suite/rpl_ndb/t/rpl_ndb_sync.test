@@ -98,3 +98,5 @@ reset slave;
 select * from mysql.ndb_apply_status;
 
 # End 5.1 Test
+--let $rpl_only_running_threads= 1
+--source include/rpl_end.inc

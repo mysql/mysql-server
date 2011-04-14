@@ -2612,7 +2612,7 @@ runBug56829(NDBT_Context* ctx, NDBT_Step* step)
         const NdbDictionary::Column* col = pTab->getColumn(j);
         if (col->getPrimaryKey() || calc.isUpdateCol(j))
           continue;
-        CHARSET_INFO* cs = col->getCharset();
+        //CHARSET_INFO* cs = col->getCharset();
         if (NdbSqlUtil::check_column_for_ordered_index(col->getType(), col->getCharset()) == 0)
         {
           ind.addColumn(*col);

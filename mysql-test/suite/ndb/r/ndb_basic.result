@@ -539,6 +539,8 @@ create table t1 ( c512 int, c511 int, c510 int, c509 int, c508 int, c507 int, c5
 insert into t1 (c1) values (1), (2), (3);
 delete from t1;
 drop table t1;
+create table `t1` (`a` int, b int, primary key (a,b)) engine=ndb partition by key(`a`,`b`,`a`);
+ERROR HY000: Duplicate partition field name 'a'
 create table t1 (
 a1234567890123456789012345678901234567890 int primary key,
 a12345678901234567890123456789a1234567890 int,

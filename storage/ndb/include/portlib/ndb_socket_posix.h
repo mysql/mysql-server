@@ -82,13 +82,13 @@ static inline ndb_socket_t my_socket_create(int domain, int type, int protocol)
   return s;
 }
 
-static inline size_t my_recv(ndb_socket_t s, char* buf, size_t len, int flags)
+static inline ssize_t my_recv(ndb_socket_t s, char* buf, size_t len, int flags)
 {
   return recv(s.fd, buf, len, flags);
 }
 
 static inline
-size_t my_send(ndb_socket_t s, const char* buf, size_t len, int flags)
+ssize_t my_send(ndb_socket_t s, const char* buf, size_t len, int flags)
 {
   return send(s.fd, buf, len, flags);
 }

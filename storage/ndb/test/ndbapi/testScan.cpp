@@ -626,7 +626,7 @@ int runScanUpdate(NDBT_Context* ctx, NDBT_Step* step){
 }
 
 int runScanUpdateUntilStopped(NDBT_Context* ctx, NDBT_Step* step){
-  int records = ctx->getNumRecords();
+  //int records = ctx->getNumRecords();
   int i = 0;
 
   int parallelism = ctx->getProperty("Parallelism", 240);
@@ -1109,8 +1109,8 @@ runScanParallelism(NDBT_Context* ctx, NDBT_Step* step){
 int
 runScanVariants(NDBT_Context* ctx, NDBT_Step* step)
 {
-  int loops = ctx->getNumLoops();
-  int records = ctx->getNumRecords();
+  //int loops = ctx->getNumLoops();
+  //int records = ctx->getNumRecords();
   Ndb * pNdb = GETNDB(step);
   const NdbDictionary::Table*  pTab = ctx->getTab();
   
@@ -1176,7 +1176,7 @@ runScanVariants(NDBT_Context* ctx, NDBT_Step* step)
 	    }
 	    
 	    int res;
-	    int row = 0;
+	    //int row = 0;
 	    while((res = pOp->nextResult()) == 0);
 	  }
 	  pCon->close();
@@ -1247,7 +1247,7 @@ runBug24447(NDBT_Context* ctx, NDBT_Step* step){
       return NDBT_FAILED;
     }
 
-    for (Uint32 j = 0; i<10; i++)
+    for (Uint32 j = 0; j<10; j++)
     {
       hugoTrans.scanReadRecords(GETNDB(step), records, abort, 0, 
 				NdbOperation::LM_CommittedRead);
