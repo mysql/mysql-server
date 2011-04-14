@@ -291,9 +291,7 @@ trx_purge_add_update_undo_to_history(
 	rw_lock_x_unlock(&trx_sys->lock);
 #endif /* HAVE_ATOMIC_BUILTINS */
 
-	if (!(trx_sys->rseg_history_len %  srv_purge_batch_size)) {
-		srv_wake_purge_thread_if_not_active();
-	}
+	srv_wake_purge_thread_if_not_active();
 
 	/* Write the trx number to the undo log header */
 	mlog_write_ull(undo_header + TRX_UNDO_TRX_NO, trx->no, mtr);
