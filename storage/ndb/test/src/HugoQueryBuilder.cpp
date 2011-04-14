@@ -1,6 +1,5 @@
 /*
-   Copyright (C) 2003 MySQL AB
-    All rights reserved. Use is subject to license terms.
+   Copyright (c) 2011, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -563,9 +562,9 @@ loop:
 }
 
 const NdbQueryDef *
-HugoQueryBuilder::createQuery(Ndb* pNdb, bool takeOwnership)
+HugoQueryBuilder::createQuery(bool takeOwnership)
 {
-  NdbQueryBuilder* const builder = NdbQueryBuilder::create(*pNdb);
+  NdbQueryBuilder* const builder = NdbQueryBuilder::create();
   if (builder == NULL)
   {
     ndbout << "Failed to create NdbQueryBuilder." << endl;

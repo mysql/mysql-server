@@ -23,7 +23,6 @@
 #include <Vector.hpp>
 #include "signaldata/QueryTree.hpp"
 
-#include <Ndb.hpp>
 #include "NdbDictionaryImpl.hpp"
 #include <NdbRecord.hpp>
 #include "AttributeHeader.hpp"
@@ -686,9 +685,9 @@ NdbQueryOperationDef::getIndex() const
  * Implementation of NdbQueryBuilder factory
  ******************************************/
 // Static method.
-NdbQueryBuilder* NdbQueryBuilder::create(Ndb& ndb)
+NdbQueryBuilder* NdbQueryBuilder::create()
 {
-  NdbQueryBuilderImpl* const impl = new NdbQueryBuilderImpl(ndb);
+  NdbQueryBuilderImpl* const impl = new NdbQueryBuilderImpl();
   if (likely (impl != NULL))
   {
     if (likely(impl->getNdbError().code == 0))
@@ -1128,9 +1127,9 @@ NdbQueryBuilder::prepare()
 // The (hidden) Impl of NdbQueryBuilder
 ////////////////////////////////////////
 
-NdbQueryBuilderImpl::NdbQueryBuilderImpl(Ndb& ndb)
+NdbQueryBuilderImpl::NdbQueryBuilderImpl()
 : m_interface(*this),
-  m_ndb(ndb), m_error(),
+  m_error(),
   m_operations(),
   m_operands(),
   m_paramCnt(0),
@@ -2895,15 +2894,14 @@ main(int argc, const char** argv)
   assert (sizeof(NdbParamOperand) == sizeof(NdbQueryOperandImpl*));
   assert (sizeof(NdbLinkedOperand) == sizeof(NdbQueryOperandImpl*));
 
-  Ndb *myNdb = 0;
-  NdbQueryBuilder myBuilder(*myNdb);
+  NdbQueryBuilder* const myBuilder= NdbQueryBuilder::create();
 
   const NdbDictionary::Table *manager = (NdbDictionary::Table*)0xDEADBEAF;
 //  const NdbDictionary::Index *ix = (NdbDictionary::Index*)0x11223344;
 
-  NdbQueryDef* q1 = 0;
+  const NdbQueryDef* q1 = 0;
   {
-    NdbQueryBuilder* qb = &myBuilder; //myDict->getQueryBuilder();
+    NdbQueryBuilder* qb = myBuilder;
 
     const NdbQueryOperand* managerKey[] =  // Manager is indexed om {"dept_no", "emp_no"}
     {  qb->constValue("d005"),             // dept_no = "d005"
