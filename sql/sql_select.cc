@@ -284,7 +284,10 @@ public:
                                         join->tables - join->const_tables)),
     prune_level(thd->variables.optimizer_prune_level),
     thd(thd), join(join),
-    cur_embedding_map(0)
+    cur_embedding_map(0),
+    excluded_tables(sjm_nest ?
+                    join->all_table_map & ~sjm_nest->sj_inner_tables :
+                    0)
   {                                        
     this->join->emb_sjm_nest= sjm_nest;
   }
@@ -311,6 +314,15 @@ private:
     partial join.
   */
   nested_join_map cur_embedding_map;
+  /**
+    When calculating a plan for a materialized semi-join nest,
+    best_access_plan() needs to know not only the remaining tables within the
+    semi-join nest, but also all tables outside of this nest, because there may
+    be key references between the semi-join nest and the outside tables
+    that should not be considered when materializing the semi-join nest.
+    @c excluded_tables tracks these tables.
+  */
+  const table_map excluded_tables;
   /**
     @todo: Add remaining Join optimization state members here,
     ie emb_sjm_nest, positions, cur_sj_inner_tables.
@@ -7017,6 +7029,12 @@ public:
   semijoin nest and those outside of it. The way to control this is to add
   the set of outside tables to the @c remaining_tables argument.
 
+  @todo: Add this function to class Optimize_table_order. When this is done,
+  best_access_path() will have access to the excluded_tables member, and
+  there will no longer be a need to pass that set of tables as part of
+  remaining_tables. Notice also that excluded_tables can be non-empty only
+  at those places where it is actually passed as argument.
+
   @param join             pointer to the structure providing all context info
                           for the query
   @param s                the table to be joined by the function
@@ -7032,9 +7050,6 @@ public:
   @param[out] pos         Table access plan
   @param[out] loose_scan_pos  Table plan that uses loosescan, or set cost to 
                               DBL_MAX if not possible.
-
-  @return
-    None
 */
 
 static void
@@ -7653,7 +7668,7 @@ bool Optimize_table_order::choose_table_order()
        tables from this semi-join as first
     */
     jtab_sort_func= join_tab_cmp_embedded_first;
-    join_tables= join->all_table_map & ~join->const_table_map;
+    join_tables= join->emb_sjm_nest->sj_inner_tables;
   }
   else
   {
@@ -7888,7 +7903,8 @@ void Optimize_table_order::optimize_straight_join(table_map join_tables)
     DBUG_ASSERT(!check_interleaving_with_nj(s));
     /* Find the best access method from 's' to the current partial plan */
     POSITION  loose_scan_pos;
-    best_access_path(join, s, join_tables, idx, FALSE, record_count,
+    best_access_path(join, s, excluded_tables | join_tables,
+                     idx, FALSE, record_count,
                      join->positions + idx, &loose_scan_pos);
 
     /* compute the cost of the new plan extended with 's' */
@@ -8079,10 +8095,7 @@ bool Optimize_table_order::greedy_search(table_map remaining_tables)
   DBUG_ENTER("Optimize_table_order::greedy_search");
 
   /* Number of tables that we are optimizing */
-  const uint n_tables= my_count_bits(remaining_tables &
-                                     (join->emb_sjm_nest? 
-                                       join->emb_sjm_nest->sj_inner_tables :
-                                       ~(table_map)0));
+  const uint n_tables= my_count_bits(remaining_tables);
 
   /* Number of tables remaining to be optimized */
   uint size_remain= n_tables;
@@ -8334,10 +8347,6 @@ bool Optimize_table_order::best_extension_by_limited_search(
 
   DBUG_EXECUTE("opt", print_plan(join, idx, record_count, read_time, read_time,
                                 "part_plan"););
-
-  table_map allowed_tables= ~(table_map)0;
-  if (join->emb_sjm_nest)
-    allowed_tables= join->emb_sjm_nest->sj_inner_tables;
   /*
     No need to call advance_sj_state() when
      1) there are no semijoin nests or
@@ -8364,7 +8373,6 @@ bool Optimize_table_order::best_extension_by_limited_search(
     swap_variables(JOIN_TAB*, join->best_ref[idx], *pos);
 
     if ((remaining_tables & real_table_bit) && 
-        (allowed_tables & real_table_bit) &&
         !(remaining_tables & s->dependent) && 
         (!idx || !check_interleaving_with_nj(s)))
     {
@@ -8373,7 +8381,7 @@ bool Optimize_table_order::best_extension_by_limited_search(
 
       /* Find the best access method from 's' to the current partial plan */
       POSITION loose_scan_pos;
-      best_access_path(join, s, remaining_tables,
+      best_access_path(join, s, excluded_tables | remaining_tables,
                        idx, false, record_count, 
                        position, &loose_scan_pos);
 
@@ -8445,8 +8453,7 @@ bool Optimize_table_order::best_extension_by_limited_search(
         }
       }
 
-      if ((current_search_depth > 1) &&
-          (remaining_tables & ~real_table_bit) & allowed_tables )
+      if ((current_search_depth > 1) && (remaining_tables & ~real_table_bit))
       {
         /* Explore more best extensions of plan */
         if (best_extension_by_limited_search(remaining_tables & ~real_table_bit,
