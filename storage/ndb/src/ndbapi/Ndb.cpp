@@ -2194,6 +2194,17 @@ Ndb::getNdbErrorDetail(const NdbError& err, char* buff, Uint32 buffLen) const
   DBUG_RETURN(NULL);
 }
 
+void
+Ndb::setCustomData(void* _customDataPtr)
+{
+  theImpl->customDataPtr = _customDataPtr;
+}
+
+void*
+Ndb::getCustomData() const
+{
+  return theImpl->customDataPtr;
+}
 
 Uint32
 Ndb::getMinDbNodeVersion() const
