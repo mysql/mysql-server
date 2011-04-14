@@ -7236,6 +7236,13 @@ struct NDB_Modifier ndb_table_modifiers[] =
   { NDB_Modifier::M_BOOL, 0, 0, 0, {0} }
 };
 
+static const
+struct NDB_Modifier ndb_column_modifiers[] =
+{
+  { NDB_Modifier::M_BOOL, STRING_WITH_LEN("MAX_BLOB_PART_SIZE"), 0, {0} },
+  { NDB_Modifier::M_BOOL, 0, 0, 0, {0} }
+};
+
 /**
  * NDB_Modifiers
  *
@@ -7497,6 +7504,12 @@ ndb_blob_striping()
   return false;
 }
 
+#if NDB_VERSION_D < NDB_MAKE_VERSION(7,2,0)
+const Uint32 OLD_NDB_MAX_TUPLE_SIZE_IN_WORDS = 2013;
+#else
+const Uint32 OLD_NDB_MAX_TUPLE_SIZE_IN_WORDS = NDB_MAX_TUPLE_SIZE_IN_WORDS;
+#endif
+
 static int create_ndb_column(THD *thd,
                              NDBCOL &col,
                              Field *field,
@@ -7518,6 +7531,13 @@ static int create_ndb_column(THD *thd,
   CHARSET_INFO *cs= field->charset();
   // Set type and sizes
   const enum enum_field_types mysql_type= field->real_type();
+
+  NDB_Modifiers column_modifiers(ndb_column_modifiers);
+  column_modifiers.parse(thd, "NDB_COLUMN=",
+                         field->comment.str,
+                         field->comment.length);
+
+  const NDB_Modifier * mod_maxblob = column_modifiers.get("MAX_BLOB_PART_SIZE");
 
   {
     /* Clear default value (col obj is reused for whole table def) */
@@ -7760,6 +7780,10 @@ static int create_ndb_column(THD *thd,
         col.setInlineSize(256);
         col.setPartSize(2000);
         col.setStripeSize(ndb_blob_striping() ? 16 : 0);
+        if (mod_maxblob->m_found)
+        {
+          col.setPartSize(4 * (NDB_MAX_TUPLE_SIZE_IN_WORDS - /* safty */ 13));
+        }
       }
       else if (field_blob->max_data_length() < (1 << 24))
         goto mysql_type_medium_blob;
@@ -7778,6 +7802,10 @@ static int create_ndb_column(THD *thd,
     col.setInlineSize(256);
     col.setPartSize(4000);
     col.setStripeSize(ndb_blob_striping() ? 8 : 0);
+    if (mod_maxblob->m_found)
+    {
+      col.setPartSize(4 * (NDB_MAX_TUPLE_SIZE_IN_WORDS - /* safty */ 13));
+    }
     break;
   mysql_type_long_blob:
   case MYSQL_TYPE_LONG_BLOB:  
@@ -7788,8 +7816,12 @@ static int create_ndb_column(THD *thd,
       col.setCharset(cs);
     }
     col.setInlineSize(256);
-    col.setPartSize(4 * (NDB_MAX_TUPLE_SIZE_IN_WORDS - /* safty */ 13));
+    col.setPartSize(4 * (OLD_NDB_MAX_TUPLE_SIZE_IN_WORDS - /* safty */ 13));
     col.setStripeSize(ndb_blob_striping() ? 4 : 0);
+    if (mod_maxblob->m_found)
+    {
+      col.setPartSize(4 * (NDB_MAX_TUPLE_SIZE_IN_WORDS - /* safty */ 13));
+    }
     break;
   // Other types
   case MYSQL_TYPE_ENUM:
@@ -8370,6 +8402,9 @@ int ha_ndbcluster::create(const char *name,
      * 2 - words from pk in blob table
      * 5 - from extra words added by tup/dict??
      */
+
+    // To be upgrade/downgrade safe...we currently use
+    // old NDB_MAX_TUPLE_SIZE_IN_WORDS, unless MAX_BLOB_PART_SIZE is set
     switch (form->field[i]->real_type()) {
     case MYSQL_TYPE_GEOMETRY:
     case MYSQL_TYPE_BLOB:    
@@ -8377,11 +8412,15 @@ int ha_ndbcluster::create(const char *name,
     case MYSQL_TYPE_LONG_BLOB: 
     {
       NdbDictionary::Column * column= tab.getColumn(i);
-      int size= pk_length + (column->getPartSize()+3)/4 + 7;
-      if (size > NDB_MAX_TUPLE_SIZE_IN_WORDS && 
-         (pk_length+7) < NDB_MAX_TUPLE_SIZE_IN_WORDS)
+      unsigned size= pk_length + (column->getPartSize()+3)/4 + 7;
+      unsigned ndb_max= OLD_NDB_MAX_TUPLE_SIZE_IN_WORDS;
+      if (column->getPartSize() > (int)(4 * ndb_max))
+        ndb_max= NDB_MAX_TUPLE_SIZE_IN_WORDS; // MAX_BLOB_PART_SIZE
+
+      if (size > ndb_max &&
+          (pk_length+7) < ndb_max)
       {
-        size= NDB_MAX_TUPLE_SIZE_IN_WORDS - pk_length - 7;
+        size= ndb_max - pk_length - 7;
         column->setPartSize(4*size);
       }
       /**
