@@ -32,7 +32,7 @@ static inline unsigned int rbuf_get_roffset(struct rbuf *r) {
     return r->ndone;
 }
 
-static inline unsigned int rbuf_char (struct rbuf *r) {
+static inline unsigned char rbuf_char (struct rbuf *r) {
     assert(r->ndone<r->size);
     return r->buf[r->ndone++];
 }

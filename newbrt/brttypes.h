@@ -66,7 +66,11 @@ typedef struct {
 
 #if !TOKU_WINDOWS && !defined(BOOL_DEFINED)
 #define BOOL_DEFINED
-typedef enum __toku_bool { FALSE=0, TRUE=1} BOOL;
+#include <stdbool.h>
+// typedef enum __toku_bool { FALSE=0, TRUE=1} BOOL;
+#define TRUE true
+#define FALSE false
+typedef bool BOOL;
 #endif
 
 typedef struct tokulogger *TOKULOGGER;

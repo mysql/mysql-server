@@ -459,7 +459,7 @@ static const ULE_S ule_committed_delete = {
 };
 
 static BRT_MSG_S
-msg_init(int type, XIDS xids,
+msg_init(enum brt_msg_type type, XIDS xids,
          DBT *key, DBT *val) {
     BRT_MSG_S msg;
     msg.type = type;

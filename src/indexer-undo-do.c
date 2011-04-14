@@ -362,7 +362,14 @@ indexer_xid_state(DB_INDEXER *indexer, TXNID xid) {
     TOKUTXN_STATE result = TOKUTXN_RETIRED;
     // TEST
     if (indexer->i->test_xid_state) {
-        result = indexer->i->test_xid_state(indexer, xid);
+        int r = indexer->i->test_xid_state(indexer, xid);
+        switch (r) {
+        case 0: result = TOKUTXN_LIVE; break;
+        case 1: result = TOKUTXN_COMMITTING; break;
+        case 2: result = TOKUTXN_ABORTING; break;
+        case 3: result = TOKUTXN_RETIRED; break;
+        default: assert(0); break;
+        }
     } else {
         DB_ENV *env = indexer->i->env;
         TOKUTXN txn = NULL;
@@ -416,7 +423,7 @@ static TOKUTXN
 indexer_get_innermost_live_txn(DB_INDEXER *indexer, XIDS xids) {
     DB_ENV *env = indexer->i->env;
     uint8_t num_xids = xids_get_num_xids(xids);
-    TXNID xid = xids_get_xid(xids, num_xids-1);
+    TXNID xid = xids_get_xid(xids, (u_int8_t)(num_xids-1));
     TOKUTXN txn = NULL;
     int result = toku_txnid2txn(env->i->logger, xid, &txn);
     invariant(result == 0);
