@@ -3,9 +3,6 @@ CREATE TABLE t1 (a INT NOT NULL AUTO_INCREMENT, b TEXT, PRIMARY KEY(a)) ENGINE=I
 SELECT COUNT(*) FROM t1;
 COUNT(*)
 1000
-SHOW VARIABLES LIKE 'max_binlog_cache_size';
-Variable_name	Value
-max_binlog_cache_size	4294963200
 SET @saved_max_binlog_cache_size=@@max_binlog_cache_size;
 SET GLOBAL max_binlog_cache_size=4096;
 START TRANSACTION;
