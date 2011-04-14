@@ -36,10 +36,10 @@ public:
   static bool create(uint mi_option, Master_info **mi,
                      uint rli_option, Relay_log_info **rli);
   static Master_info *create_mi(uint rli_option);
-  static bool change_mi_repository(Master_info *mi, uint mi_option,
+  static bool change_mi_repository(Master_info *mi, const uint mi_option,
                                    const char **msg);
   static Relay_log_info *create_rli(uint rli_option, bool is_slave_recovery);
-  static bool change_rli_repository(Relay_log_info *mi, uint mi_option,
+  static bool change_rli_repository(Relay_log_info *mi, const uint mi_option,
                                     const char **msg);
 private:
   static bool decide_repository(Rpl_info *info,
