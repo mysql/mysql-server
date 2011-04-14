@@ -2782,6 +2782,67 @@ runBug12315582(NDBT_Context* ctx, NDBT_Step* step)
   return NDBT_OK;
 }
 
+int
+runBug60851(NDBT_Context* ctx, NDBT_Step* step)
+{
+  const NdbDictionary::Table * pTab = ctx->getTab();
+  Ndb* pNdb = GETNDB(step);
+  NdbDictionary::Dictionary * dict = pNdb->getDictionary();
+
+  const NdbDictionary::Index* pIdx= dict->getIndex(pkIdxName, pTab->getName());
+  CHK_RET_FAILED(pIdx != 0);
+
+  const NdbRecord * pRowRecord = pTab->getDefaultRecord();
+  CHK_RET_FAILED(pRowRecord != 0);
+  const NdbRecord * pIdxRecord = pIdx->getDefaultRecord();
+  CHK_RET_FAILED(pIdxRecord != 0);
+
+  const Uint32 len = NdbDictionary::getRecordRowLength(pRowRecord);
+  Uint8 * pRow = new Uint8[len];
+
+  NdbTransaction* pTrans = pNdb->startTransaction();
+  CHK_RET_FAILED(pTrans != 0);
+
+  const NdbOperation * pOp[3] = { 0, 0, 0};
+  for (Uint32 i = 0; i<3; i++)
+  {
+    NdbInterpretedCode code;
+    if (i == 1)
+      code.interpret_exit_nok();
+    else
+      code.interpret_exit_ok();
+
+    code.finalise();
+
+    bzero(pRow, len);
+    HugoCalculator calc(* pTab);
+    calc.equalForRow(pRow, pRowRecord, i);
+
+    NdbOperation::OperationOptions opts;
+    bzero(&opts, sizeof(opts));
+    opts.optionsPresent = NdbOperation::OperationOptions::OO_INTERPRETED;
+    opts.interpretedCode = &code;
+
+    pOp[i] = pTrans->deleteTuple(pIdxRecord, (char*)pRow,
+                                 pRowRecord, (char*)pRow,
+                                 0,
+                                 &opts,
+                                 sizeof(opts));
+    CHK_RET_FAILED(pOp[i]);
+  }
+
+  int res = pTrans->execute(Commit, AO_IgnoreError);
+
+  CHK_RET_FAILED(res == 0);
+  CHK_RET_FAILED(pOp[0]->getNdbError().code == 0);
+  CHK_RET_FAILED(pOp[1]->getNdbError().code != 0);
+  CHK_RET_FAILED(pOp[2]->getNdbError().code == 0);
+
+  delete [] pRow;
+
+  return NDBT_OK;
+}
+
 NDBT_TESTSUITE(testIndex);
 TESTCASE("CreateAll", 
 	 "Test that we can create all various indexes on each table\n"
@@ -3194,6 +3255,15 @@ TESTCASE("Bug12315582", "")
   INITIALIZER(createPkIndex);
   INITIALIZER(runLoadTable);
   INITIALIZER(runBug12315582);
+  FINALIZER(createPkIndex_Drop);
+}
+TESTCASE("Bug60851", "")
+{
+  TC_PROPERTY("LoggedIndexes", Uint32(0));
+  TC_PROPERTY("OrderedIndex", Uint32(0));
+  INITIALIZER(createPkIndex);
+  INITIALIZER(runLoadTable);
+  INITIALIZER(runBug60851);
   FINALIZER(createPkIndex_Drop);
 }
 NDBT_TESTSUITE_END(testIndex);
