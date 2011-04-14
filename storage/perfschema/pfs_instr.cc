@@ -1401,7 +1401,6 @@ PFS_socket* create_socket(PFS_socket_class *klass, const void *identity)
           pfs->m_identity= pfs;
           pfs->m_class= klass;
           pfs->m_idle= false;
-          pfs->m_wait_stat.reset();
           pfs->m_socket_stat.reset();
           pfs->m_lock.dirty_to_allocated();
           if (klass->is_singleton())
@@ -1486,7 +1485,7 @@ static void reset_socket_waits_by_instance(void)
   PFS_socket *pfs_last= socket_array + socket_max;
 
   for ( ; pfs < pfs_last; pfs++)
-    pfs->m_wait_stat.reset();
+    pfs->m_socket_stat.reset();
 }
 
 /** Reset the wait statistics per object instance. */

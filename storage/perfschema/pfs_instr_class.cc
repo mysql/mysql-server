@@ -577,7 +577,6 @@ static void init_instr_class(PFS_instr_class *klass,
   klass->m_flags= flags;
   klass->m_enabled= true;
   klass->m_timed= true;
-  klass->m_deferred= false;
   klass->m_type= class_type;
 }
 
@@ -1029,7 +1028,6 @@ PFS_socket_key register_socket_class(const char *name, uint name_length,
     entry->m_index= index;
     entry->m_event_name_index= socket_class_start + index;
     entry->m_singleton= NULL;
-    entry->m_deferred= true;
     PFS_atomic::add_u32(&socket_class_allocated_count, 1);
     return (index + 1);
   }

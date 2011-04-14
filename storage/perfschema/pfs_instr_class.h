@@ -103,8 +103,6 @@ struct PFS_instr_class
   bool m_enabled;
   /** True if this instrument is timed. */
   bool m_timed;
-  /** True if this instrument requires deferred aggregation */
-  bool m_deferred;
   /**
     Instrument name index.
     Self index in:
@@ -117,6 +115,19 @@ struct PFS_instr_class
   bool is_singleton() const
   {
     return m_flags & PSI_FLAG_GLOBAL;
+  }
+
+  bool is_deferred() const
+  {
+    switch(m_type)
+    {
+      case PFS_CLASS_SOCKET:
+        return true;
+        break;
+      default:
+        return false;
+        break;
+    };
   }
 };
 

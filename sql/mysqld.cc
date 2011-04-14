@@ -8556,8 +8556,8 @@ PSI_socket_key key_socket_tcpip, key_socket_unix, key_socket_client_connection;
 
 static PSI_socket_info all_server_sockets[]=
 {
-  { &key_socket_tcpip, "server_tcpip_socket", 0},
-  { &key_socket_unix, "server_unix_socket", 0},
+  { &key_socket_tcpip, "server_tcpip_socket", PSI_FLAG_GLOBAL},
+  { &key_socket_unix, "server_unix_socket", PSI_FLAG_GLOBAL},
   { &key_socket_client_connection, "client_connection", 0}
 };
 

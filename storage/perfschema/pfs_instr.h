@@ -223,8 +223,6 @@ struct PFS_socket : public PFS_instr
   bool m_idle;
   /** Socket class. */
   PFS_socket_class *m_class;
-  /** Instrument wait statistics. */
-  PFS_single_stat m_wait_stat;
   /** Socket usage statistics. */
   PFS_socket_stat m_socket_stat;
 };

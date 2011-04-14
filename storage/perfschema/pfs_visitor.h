@@ -161,19 +161,24 @@ public:
     Visit a socket class and related instances.
     @param klass the klass to visit.
     @param visitor the visitor to call
+    @param thread the owning thread to match
+    @param visit_class if true then visit the socket class
   */
   static void visit_socket_instances(PFS_socket_class *klass,
                                      PFS_instance_visitor *visitor,
-                                     PFS_thread *thread);
+                                     PFS_thread *thread,
+                                     bool visit_class= true);
   /**
     Visit an instrument class and related instances.
     @param klass the klass to visit.
     @param visitor the visitor to call
     @param thread comparison criteria
+    @param visit_class if true then visit the class
   */
   static void visit_instances(PFS_instr_class *klass,
                               PFS_instance_visitor *visitor,
-                              PFS_thread *thread);
+                              PFS_thread *thread,
+                              bool visit_class= true);
 };
 
 /**

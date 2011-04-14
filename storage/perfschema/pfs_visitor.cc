@@ -189,61 +189,92 @@ void PFS_instance_iterator::visit_socket_instances(PFS_socket_class *klass,
 
   visitor->visit_socket_class(klass);
 
-  PFS_socket *pfs= socket_array;
-  PFS_socket *pfs_last= pfs + socket_max;
-  for ( ; pfs < pfs_last; pfs++)
+  if (klass->is_singleton())
   {
-    if ((pfs->m_class == klass) && pfs->m_lock.is_populated())
+    PFS_socket *pfs= sanitize_socket(klass->m_singleton);
+    if (likely(pfs != NULL))
     {
-      visitor->visit_socket(pfs);
+      if (likely(pfs->m_lock.is_populated()))
+      {
+        visitor->visit_socket(pfs);
+      }
+    }
+  }
+  else
+  {
+    PFS_socket *pfs= socket_array;
+    PFS_socket *pfs_last= pfs + socket_max;
+    for ( ; pfs < pfs_last; pfs++)
+    {
+      if ((pfs->m_class == klass) && pfs->m_lock.is_populated())
+      {
+        visitor->visit_socket(pfs);
+      }
     }
   }
 }
 
-/**
-    Socket instance iterator visting sockets owned by PFS_thread.
-    The socket class is not visited.
-*/
+/** Socket instance iterator visting sockets owned by PFS_thread. */
 
 void PFS_instance_iterator::visit_socket_instances(PFS_socket_class *klass,
                                                    PFS_instance_visitor *visitor,
-                                                   PFS_thread *thread)
+                                                   PFS_thread *thread,
+                                                   bool visit_class)
 {
   DBUG_ASSERT(visitor != NULL);
   DBUG_ASSERT(thread != NULL);
 
-  /* Get current socket stats from each socket instance owned by this thread */
-  PFS_socket *pfs= socket_array;
-  PFS_socket *pfs_last= pfs + socket_max;
-  ulong thread_id= thread->m_thread_internal_id;
+  if (visit_class)
+    visitor->visit_socket_class(klass);
 
-  for ( ; pfs < pfs_last; pfs++)
+  if (klass->is_singleton())
   {
-    if (pfs->m_class == klass && pfs->m_lock.is_populated()
-         && pfs->m_thread_owner != NULL)
+    PFS_socket *pfs= sanitize_socket(klass->m_singleton);
+    if (likely(pfs != NULL))
     {
-      if (pfs->m_thread_owner->m_thread_internal_id == thread_id)
-        visitor->visit_socket(pfs);
+      if (likely(pfs->m_lock.is_populated())
+          && pfs->m_thread_owner != NULL)
+      {
+        if (pfs->m_thread_owner == thread)
+          visitor->visit_socket(pfs);
+      }
+    }
+  }
+  else
+  {
+    /* Get current socket stats from each socket instance owned by this thread */
+    PFS_socket *pfs= socket_array;
+    PFS_socket *pfs_last= pfs + socket_max;
+
+    for ( ; pfs < pfs_last; pfs++)
+    {
+      if (pfs->m_class == klass && pfs->m_lock.is_populated()
+           && pfs->m_thread_owner != NULL)
+      {
+        if (pfs->m_thread_owner == thread)
+          visitor->visit_socket(pfs);
+      }
     }
   }
 }
 
-
 /** Generic instance iterator with PFS_thread as matching criteria */
 
-void PFS_instance_iterator::visit_instances(PFS_instr_class *instr_class,
+void PFS_instance_iterator::visit_instances(PFS_instr_class *klass,
                                             PFS_instance_visitor *visitor,
-                                            PFS_thread *thread)
+                                            PFS_thread *thread,
+                                            bool visit_class)
 {
   DBUG_ASSERT(visitor != NULL);
-  DBUG_ASSERT(instr_class != NULL);
+  DBUG_ASSERT(klass != NULL);
 
-  switch (instr_class->m_type)
+  switch (klass->m_type)
   {
   case PFS_CLASS_SOCKET:
     {
-      PFS_socket_class *klass= reinterpret_cast<PFS_socket_class *>(instr_class);
-      PFS_instance_iterator::visit_socket_instances(klass, visitor, thread);
+    PFS_socket_class *socket_class= reinterpret_cast<PFS_socket_class*>(klass);
+    PFS_instance_iterator::visit_socket_instances(socket_class, visitor,
+                                                  thread, visit_class);
     }
     break;
   default:
@@ -425,7 +456,7 @@ void PFS_instance_wait_visitor::visit_socket_class(PFS_socket_class *pfs)
   m_stat.aggregate(&global_instr_class_waits_array[index]);
 
   /* If deferred, then pull wait stats directly from the socket class. */
-  if (pfs->m_deferred)
+  if (pfs->is_deferred())
     pfs->m_socket_stat.m_io_stat.sum_waits(&m_stat);
 }
 
@@ -602,8 +633,6 @@ void PFS_table_lock_stat_visitor::visit_table(PFS_table *pfs)
 {
   m_stat.aggregate(& pfs->m_table_stat.m_lock_stat);
 }
-
-/** Socket IO stat visitor */
 
 PFS_instance_socket_io_stat_visitor::PFS_instance_socket_io_stat_visitor()
 {}
