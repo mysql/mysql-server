@@ -37,6 +37,7 @@ send INSERT INTO t1 VALUES ("con1");
 connection con2;
 set DEBUG_SYNC= "now WAIT_FOR group1_running";
 SET DEBUG_SYNC= "commit_after_prepare_ordered SIGNAL group2_con2";
+SET DEBUG_SYNC= "commit_before_get_LOCK_commit_ordered SIGNAL group2_running";
 SET DEBUG_SYNC= "commit_after_release_LOCK_log WAIT_FOR group3_committed";
 SET DEBUG_SYNC= "commit_after_group_run_commit_ordered SIGNAL group2_visible WAIT_FOR group2_checked";
 send INSERT INTO t1 VALUES ("con2");
@@ -70,6 +71,7 @@ SELECT * FROM t1 ORDER BY a;
 connection con5;
 SET DEBUG_SYNC= "commit_before_get_LOCK_commit_ordered SIGNAL group3_con5";
 SET DEBUG_SYNC= "commit_after_get_LOCK_log SIGNAL con5_leader WAIT_FOR con6_queued";
+set DEBUG_SYNC= "now WAIT_FOR group2_running";
 send INSERT INTO t1 VALUES ("con5");
 
 connection con6;
