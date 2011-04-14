@@ -577,11 +577,10 @@ int mysql_update(THD *thd,
       /* Change select to use tempfile */
       if (select)
       {
-	delete select->quick;
-	if (select->free_cond)
-	  delete select->cond;
-	select->quick=0;
-	select->cond=0;
+        select->set_quick(NULL);
+        if (select->free_cond)
+          delete select->cond;
+        select->cond= NULL;
       }
       else
       {

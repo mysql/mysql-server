@@ -263,12 +263,10 @@ int Master_info::init_info()
   if (necessary_to_configure)
   {
     init_master_log_pos();
-    goto end;
   }
   else if (read_info(handler))
     goto err;
 
-end:
   if (flush_info(TRUE))
     goto err;
 
@@ -276,7 +274,7 @@ end:
   DBUG_RETURN(0);
 
 err:
-  sql_print_error("Error reading master configuration");
+  sql_print_error("Error reading master configuration.");
   DBUG_RETURN(1);
 }
 

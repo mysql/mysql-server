@@ -1154,8 +1154,7 @@ SQL_SELECT::SQL_SELECT() :quick(0),cond(0),icp_cond(0),free_cond(0)
 
 void SQL_SELECT::cleanup()
 {
-  delete quick;
-  quick= 0;
+  set_quick(NULL);
   if (free_cond)
   {
     free_cond=0;
@@ -2216,8 +2215,7 @@ int SQL_SELECT::test_quick_select(THD *thd, key_map keys_to_use,
 		      (ulong) keys_to_use.to_ulonglong(), (ulong) prev_tables,
 		      (ulong) const_tables));
   DBUG_PRINT("info", ("records: %lu", (ulong) head->file->stats.records));
-  delete quick;
-  quick=0;
+  set_quick(NULL);
   needed_reg.clear_all();
   quick_keys.clear_all();
   if (keys_to_use.is_clear_all())
@@ -2458,10 +2456,7 @@ int SQL_SELECT::test_quick_select(THD *thd, key_map keys_to_use,
     {
       records= best_trp->records;
       if (!(quick= best_trp->make_quick(&param, TRUE)) || quick->init())
-      {
-        delete quick;
-        quick= NULL;
-      }
+        set_quick(NULL);
     }
 
   free_mem:
@@ -11963,12 +11958,3 @@ void QUICK_GROUP_MIN_MAX_SELECT::dbug_dump(int indent, bool verbose)
 
 
 #endif /* !DBUG_OFF */
-
-/*****************************************************************************
-** Instantiate templates 
-*****************************************************************************/
-
-#ifdef HAVE_EXPLICIT_TEMPLATE_INSTANTIATION
-template class List<QUICK_RANGE>;
-template class List_iterator<QUICK_RANGE>;
-#endif

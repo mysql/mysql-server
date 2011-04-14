@@ -245,11 +245,7 @@ inline void setup_fpu()
 
 #define MYSQL_KILL_SIGNAL SIGTERM
 
-#ifdef HAVE_GLIBC2_STYLE_GETHOSTBYNAME_R
-#include <sys/types.h>
-#else
 #include <my_pthread.h>			// For thr_setconcurency()
-#endif
 
 #ifdef SOLARIS
 extern "C" int gethostname(char *name, int namelen);
@@ -324,7 +320,6 @@ static PSI_rwlock_key key_rwlock_openssl;
 
 /* the default log output is log tables */
 static bool lower_case_table_names_used= 0;
-static bool max_long_data_size_used= false;
 static bool volatile select_thread_in_use, signal_thread_in_use;
 /* See Bug#56666 and Bug#56760 */;
 volatile bool ready_to_exit;
@@ -483,11 +478,6 @@ ulong specialflag=0;
 ulong binlog_cache_use= 0, binlog_cache_disk_use= 0;
 ulong binlog_stmt_cache_use= 0, binlog_stmt_cache_disk_use= 0;
 ulong max_connections, max_connect_errors;
-/*
-  Maximum length of parameter value which can be set through
-  mysql_send_long_data() call.
-*/
-ulong max_long_data_size;
 /**
   Limit of the total number of prepared statements in the server.
   Is necessary to protect the server against out-of-memory attacks.
@@ -7602,10 +7592,6 @@ mysqld_get_one_option(int optid,
     if (argument == NULL) /* no argument */
       log_error_file_ptr= const_cast<char*>("");
     break;
-  case OPT_MAX_LONG_DATA_SIZE:
-    max_long_data_size_used= true;
-    WARN_DEPRECATED(NULL, "--max_long_data_size", "'--max_allowed_packet'");
-    break;
   }
   return 0;
 }
@@ -7839,13 +7825,6 @@ static int get_options(int *argc_ptr, char ***argv_ptr)
          OPTIMIZER_SWITCH_ENGINE_CONDITION_PUSHDOWN);
 
   opt_readonly= read_only;
-
-  /*
-    If max_long_data_size is not specified explicitly use
-    value of max_allowed_packet.
-  */
-  if (!max_long_data_size_used)
-    max_long_data_size= global_system_variables.max_allowed_packet;
 
   return 0;
 }
@@ -8139,20 +8118,6 @@ void refresh_status(THD *thd)
   Instantiate variables for missing storage engines
   This section should go away soon
 *****************************************************************************/
-
-/*****************************************************************************
-  Instantiate templates
-*****************************************************************************/
-
-#ifdef HAVE_EXPLICIT_TEMPLATE_INSTANTIATION
-/* Used templates */
-template class I_List<THD>;
-template class I_List_iterator<THD>;
-template class I_List<i_string>;
-template class I_List<i_string_pair>;
-template class I_List<Statement>;
-template class I_List_iterator<Statement>;
-#endif
 
 #ifdef HAVE_PSI_INTERFACE
 #ifdef HAVE_MMAP

@@ -1777,12 +1777,9 @@ enum_nested_loop_state JOIN_CACHE_BNL::join_matching_records(bool skip_last)
   if (skip_last)     
     put_record();     
  
-  if (join_tab->use_quick == 2 && join_tab->select->quick)
-  { 
+  if (join_tab->use_quick == QS_DYNAMIC_RANGE && join_tab->select->quick)
     /* A dynamic range access was used last. Clean up after it */
-    delete join_tab->select->quick;
-    join_tab->select->quick= 0;
-  }
+    join_tab->select->set_quick(NULL);
 
   for (tab= join->join_tab; tab != join_tab ; tab++)
   {

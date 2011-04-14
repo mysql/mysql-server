@@ -5488,13 +5488,3 @@ bool is_simple_order(ORDER *order)
   }
   return TRUE;
 }
-
-
-/*****************************************************************************
-** Instansiate templates
-*****************************************************************************/
-
-#ifdef HAVE_EXPLICIT_TEMPLATE_INSTANTIATION
-template class List<String>;
-template class List_iterator<String>;
-#endif

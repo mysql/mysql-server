@@ -19,22 +19,15 @@
 #include "rpl_info_handler.h"
 #include "rpl_info_table_access.h"
 
+class Rpl_info_factory;
+
 class Rpl_info_table : public Rpl_info_handler
 {
+  friend class Rpl_info_factory;
+
 public:
-  Rpl_info_table(uint nparam, uint param_field_id, const char* param_schema,
-                 const char *param_table);
   virtual ~Rpl_info_table();
-  /*
-    This enables to change the engine in use by internally executing
-    an ALTER TABLE ENGINE= engine.
 
-    @param[in]  engine  Type of the engine, e.g. Innodb, MyIsam.
-
-    @retval FALSE No error
-    @retval TRUE  Failure
-  */
-  bool change_engine(const char* engine);
 private:
   /*
     This property identifies the name of the schema where a
@@ -65,6 +58,12 @@ private:
   */
   Rpl_info_table_access *access;
 
+  /*
+    Identifies if a table is transactional or non-transactional.
+    This is used to provide a crash-safe behaviour.
+  */
+  bool is_transactional;
+
   int do_init_info();
   int do_check_info();
   void do_end_info();
@@ -90,9 +89,12 @@ private:
                    const Server_ids *default_value);
   char* do_get_description_info();
   bool do_is_transactional();
+  bool do_update_is_transactional();
+
+  Rpl_info_table(uint nparam, uint param_field_id, const char* param_schema,
+                 const char *param_table);
+  Rpl_info_table(const Rpl_info_table& info);
 
   Rpl_info_table& operator=(const Rpl_info_table& info);
-  Rpl_info_table(const Rpl_info_table& info);
 };
-
 #endif /* RPL_INFO_TABLE_H */

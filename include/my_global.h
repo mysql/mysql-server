@@ -126,6 +126,7 @@
 /* Define missing access() modes. */
 #define F_OK 0
 #define W_OK 2
+#define R_OK 4                        /* Test for read permission.  */
 
 /* Define missing file locking constants. */
 #define F_RDLCK 1
@@ -296,9 +297,6 @@ C_MODE_END
 #undef HAVE_PWRITE
 #endif
 
-#ifdef UNDEF_HAVE_GETHOSTBYNAME_R		/* For OSF4.x */
-#undef HAVE_GETHOSTBYNAME_R
-#endif
 #ifdef UNDEF_HAVE_INITGROUPS			/* For AIX 4.3 */
 #undef HAVE_INITGROUPS
 #endif
