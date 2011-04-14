@@ -51,7 +51,7 @@ public:
    */
   bool equal(const Vector<T>& obj) const;
 
-  int assign(const T*, Uint32 cnt);
+  int assign(const T*, unsigned cnt);
   int assign(const Vector<T>& obj) { return assign(obj.getBase(), obj.size());}
 
   T* getBase() { return m_items;}
@@ -94,7 +94,7 @@ Vector<T>::Vector(const Vector& src):
     m_incSize = 0;
     return;
   }
-  for(Uint32 i = 0; i < m_size; i++){
+  for(unsigned i = 0; i < m_size; i++){
     m_items[i] = src.m_items[i];
   }
 }
@@ -207,7 +207,7 @@ Vector<T>&
 Vector<T>::operator=(const Vector<T>& obj){
   if(this != &obj){
     clear();
-    for(size_t i = 0; i<obj.size(); i++){
+    for(unsigned i = 0; i<obj.size(); i++){
       push_back(obj[i]);
     }
   }
@@ -216,10 +216,10 @@ Vector<T>::operator=(const Vector<T>& obj){
 
 template<class T>
 int
-Vector<T>::assign(const T* src, Uint32 cnt)
+Vector<T>::assign(const T* src, unsigned cnt)
 {
   clear();
-  for (Uint32 i = 0; i<cnt; i++)
+  for (unsigned i = 0; i<cnt; i++)
   {
     int ret;
     if ((ret = push_back(src[i])))

@@ -3946,7 +3946,7 @@ Dbdict::startRestoreSchema(Signal* signal, Callback cb)
   if (c_restartRecord.m_start_banner)
   {
     jam();
-    infoEvent(c_restartRecord.m_start_banner);
+    infoEvent("%s", c_restartRecord.m_start_banner);
   }
 }
 
@@ -4168,7 +4168,7 @@ Dbdict::restart_fromWriteSchemaFile(Signal* signal,
   if (c_restartRecord.m_end_banner)
   {
     jam();
-    infoEvent(c_restartRecord.m_end_banner);
+    infoEvent("%s", c_restartRecord.m_end_banner);
   }
 
   execute(signal, c_schemaRecord.m_callback, retCode);

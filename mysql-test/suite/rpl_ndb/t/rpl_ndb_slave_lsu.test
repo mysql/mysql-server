@@ -40,12 +40,6 @@ connect (srv_slave,127.0.0.1,root,,test,$SLAVE_MYPORT,);
 connect (srv_slave1,127.0.0.1,root,,test,$SLAVE_MYPORT1,);
 connect (srv_slave2,127.0.0.1,root,,test,$SLAVE_MYPORT2,);
 
-connection slave;
---disable_warnings
-STOP SLAVE;
-source include/wait_for_slave_to_stop.inc;
---enable_warnings
-
 --echo *** Waiting for each cluster to startup ***
 
 # Check schema op binlogging enabled between servers on cluster1
@@ -119,15 +113,8 @@ source include/wait_for_slave_to_start.inc;
 --source suite/rpl_ndb/t/rpl_ndb_multi_binlog_update.inc
 
 
-
 --echo *** Configuring replication via Slave1 ***
 connection slave;
---disable_warnings
-STOP SLAVE;
-source include/wait_for_slave_to_stop.inc;
---enable_warnings
-
-connection srv_slave1;
 --disable_warnings
 STOP SLAVE;
 source include/wait_for_slave_to_stop.inc;
@@ -169,15 +156,8 @@ source include/wait_for_slave_to_start.inc;
 --source suite/rpl_ndb/t/rpl_ndb_multi_binlog_update.inc
 
 
-
 --echo *** Configuring replication via Slave2 ***
 connection srv_slave1;
---disable_warnings
-STOP SLAVE;
-source include/wait_for_slave_to_stop.inc;
---enable_warnings
-
-connection srv_slave2;
 --disable_warnings
 STOP SLAVE;
 source include/wait_for_slave_to_stop.inc;
@@ -217,3 +197,29 @@ source include/wait_for_slave_to_start.inc;
 
 --let $which_slave=srv_slave2
 --source suite/rpl_ndb/t/rpl_ndb_multi_binlog_update.inc
+
+##
+#
+# cleanup everything so that "check-testcase" doesn't fail
+# NOTE that if I didn't add the CHANGE MASTER TO MASTER_HOST="";
+# slave seems to still keep some config...
+# i.e that RESET SLAVE doesnt really "take-effect"
+#
+# probably needs investigation
+#
+--connection srv_slave
+--echo "cleanup srv_slave"
+RESET SLAVE;
+CHANGE MASTER TO MASTER_HOST="";
+
+--connection srv_slave1
+--echo "cleanup srv_slave1"
+RESET SLAVE;
+CHANGE MASTER TO MASTER_HOST="";
+
+--connection srv_slave2
+--echo "cleanup srv_slave2"
+STOP SLAVE;
+source include/wait_for_slave_to_stop.inc;
+RESET SLAVE;
+CHANGE MASTER TO MASTER_HOST="";
