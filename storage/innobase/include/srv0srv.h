@@ -522,6 +522,16 @@ srv_master_thread(
 	void*	arg);	/*!< in: a dummy parameter required by
 			os_thread_create */
 /*******************************************************************//**
+Tells the purge thread that there has been activity in the database
+and wakes up the purge thread if it is suspended (not sleeping).  Note
+that there is a small chance that the purge thread stays suspended
+(we do not protect our operation with the srv_sys_t:mutex, for
+performance reasons). */
+UNIV_INTERN
+void
+srv_wake_purge_thread_if_not_active(void);
+/*=====================================*/
+/*******************************************************************//**
 Wakes up the purge thread if it's not already awake. */
 UNIV_INTERN
 void

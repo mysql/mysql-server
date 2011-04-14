@@ -2086,7 +2086,7 @@ and wakes up the purge thread if it is suspended (not sleeping).  Note
 that there is a small chance that the purge thread stays suspended
 (we do not protect our operation with the srv_sys_t:mutex, for
 performance reasons). */
-static
+UNIV_INTERN
 void
 srv_wake_purge_thread_if_not_active(void)
 /*=====================================*/
@@ -2760,6 +2760,59 @@ srv_worker_thread(
 }
 
 /*********************************************************************//**
+Do the actual purge operation. */
+static
+void
+srv_do_purge(
+/*=========*/
+	ulint		n_threads,	/*!< in: number of threads to use */
+	ulint		batch_size,	/*!< in: purge batch size */
+	ulint*		n_total_purged)	/*!< in/out: total pages purged */
+{
+	if (n_threads <= 1) {
+		ulint	n_pages_purged;
+
+		/* Purge until there are no more records to
+		purge and there is no change in configuration
+		or server state. */
+
+		do {
+			n_pages_purged = trx_purge(0, batch_size);
+
+			*n_total_purged += n_pages_purged;
+
+		} while (n_pages_purged > 0 && !srv_fast_shutdown);
+
+	} else {
+		ulint	n_pages_purged;
+
+		do {
+			n_pages_purged = trx_purge(n_threads, batch_size);
+
+			*n_total_purged += n_pages_purged;
+
+			/* During shutdown the worker threads can
+			exit when they detect a change in state.
+			Force the coordinator thread to do the purge
+			tasks from the work queue. */
+
+			while (srv_get_task_queue_length() > 0) {
+
+				ibool	success;
+
+				ut_a(srv_shutdown_state);
+
+				success = srv_task_execute();
+				ut_a(success);
+			}
+
+		} while (trx_sys->rseg_history_len > 100
+			 && srv_shutdown_state == SRV_SHUTDOWN_NONE
+			 && srv_fast_shutdown == 0);
+	}
+}
+
+/*********************************************************************//**
 Purge coordinator thread that schedules the purge tasks.
 @return	a dummy parameter */
 UNIV_INTERN
@@ -2770,6 +2823,8 @@ srv_purge_coordinator_thread(
 						required by os_thread_create */
 {
 	srv_slot_t*	slot;
+	ulint		retries = 0;
+	ulint           n_total_purged = ULINT_UNDEFINED;
 
 	ut_a(srv_n_purge_threads >= 1);
 
@@ -2793,119 +2848,57 @@ srv_purge_coordinator_thread(
 
 	srv_sys_mutex_exit();
 
-	for (;;) {
-		ulint		n_pages_purged;
-		ib_time_t	last_time = ut_time();
-		ulint		count = srv_sys->activity_count;
-		ulint		batch_size = srv_purge_batch_size;
-		ulint		sleep_ms = ut_rnd_gen_ulint() % 10000;
+	while (srv_shutdown_state != SRV_SHUTDOWN_EXIT_THREADS) {
 
-		if (srv_shutdown_state != SRV_SHUTDOWN_NONE
-		    && srv_fast_shutdown != 0) {
+		ulint	n_threads = srv_n_purge_threads;
+		ulint	batch_size = srv_purge_batch_size;
+
+		if (srv_shutdown_state != SRV_SHUTDOWN_NONE) {
+
+			/* If shutdown is signalled, then switch
+			to single threaded purge. There are no user
+			threads to contended with and secondly purge
+			worker threads can exit silently, causing a
+			potential hang. We try and avoid that as much
+			as we can until the underlying problem is fixed
+			properly. */
+
+			n_threads = 1;
+		}
+
+		/* If there are very few records to purge or the last
+		purge didn't purge any records then wait for activity.
+	        We peek at the history len without holding any mutex
+		because in the worst case we will end up waiting for
+		the next purge event. */
+
+		if (trx_sys->rseg_history_len < batch_size
+		    || (n_total_purged == 0
+			&& retries >= TRX_SYS_N_RSEGS)) {
+
+			srv_suspend_thread(slot);
+
+			os_event_wait(slot->event);
+
+			retries = 0;
+		}
+
+		/* Check for shutdown and whether we should do purge at all. */
+		if (srv_force_recovery >= SRV_FORCE_NO_BACKGROUND
+		    || srv_shutdown_state != SRV_SHUTDOWN_NONE
+		    || srv_fast_shutdown) {
 
 			break;
 		}
 
-		/* If number of threads is 1 then we let trx_purge() do
-		the actual purge for us. */
-		if (srv_n_purge_threads == 1) {
-
-			do {
-				n_pages_purged = trx_purge(0, batch_size);
-
-				/* FIXME: Do some black magic. This code
-				is purely guess work and needs to be tuned
-				properly after some benchmarking. */
-				if (srv_check_activity(count)) {
-					sleep_ms = 60000;
-					batch_size = srv_purge_batch_size;
-				} else if (n_pages_purged == 0) {
-					sleep_ms = 120000;
-					batch_size = srv_purge_batch_size;
-				} else {
-					sleep_ms = 0;
-					batch_size = 500;
-				}
-
-				/* No point in sleeping during shutdown. */
-				if (srv_shutdown_state == SRV_SHUTDOWN_NONE
-				    && sleep_ms > 0) {
-
-					os_thread_sleep(sleep_ms);
-				}
-
-				/* Take snapshot to check for user
-				activity at every second. */
-				if (ut_time() - last_time >= 1) {
-					count = srv_sys->activity_count;
-					last_time = ut_time();
-				}
-
-			} while (n_pages_purged > 0 && srv_fast_shutdown == 0);
-
-		} else {
-			do {
-
-				n_pages_purged = trx_purge(
-					srv_n_purge_threads, batch_size);
-
-				/* During shutdown the worker threads can
-				exit when they detect a change in state.
-				Force the coordinator thread to do the purge
-				tasks from the work queue. */
-				while (srv_get_task_queue_length() > 0) {
-
-					ibool	success;
-
-					ut_a(srv_shutdown_state);
-
-					success = srv_task_execute();
-					ut_a(success);
-				}
-
-				/* No point in sleeping during shutdown. */
-				if (srv_shutdown_state == SRV_SHUTDOWN_NONE
-				    && sleep_ms > 0) {
-
-					os_thread_sleep(sleep_ms);
-				}
-
-				/* FIXME: Do some black magic. This code
-				is purely guess work and needs to be tuned
-				properly after some benchmarking. */
-				if (!srv_check_activity(count)
-				    && trx_sys->rseg_history_len > 500) {
-					sleep_ms = 0;
-					batch_size = 500;
-				} else {
-					sleep_ms = 60000;
-
-					if (n_pages_purged > 0) {
-						sleep_ms = 150000;
-					}
-
-					batch_size = srv_purge_batch_size;
-				}
-
-				/* Take snapshot to check for user
-				activity at every second. */
-				if (ut_time() - last_time >= 1) {
-					count = srv_sys->activity_count;
-					last_time = ut_time();
-				}
-
-			} while (trx_sys->rseg_history_len > 100
-				 && srv_shutdown_state == SRV_SHUTDOWN_NONE
-				 && srv_fast_shutdown == 0);
+		if (n_total_purged == 0 && retries <= TRX_SYS_N_RSEGS) {
+			++retries;
+		} else if (n_total_purged > 0) {
+			retries = 0;
+			n_total_purged = 0;
 		}
 
-		/* Check if Slow shutdown and no more pages to purge. */
-		if (srv_shutdown_state != SRV_SHUTDOWN_NONE
-		    && srv_fast_shutdown == 0
-		    && n_pages_purged == 0) {
-
-			break;
-		}
+		srv_do_purge(n_threads, batch_size, &n_total_purged);
 	}
 
 	/* The task queue should always be empty, independent of fast
