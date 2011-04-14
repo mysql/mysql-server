@@ -84,6 +84,14 @@ ib_vector_is_empty(
 	const ib_vector_t*	vec);	/*!< in: vector */
 
 /****************************************************************//**
+Reset the vector to empty. */
+UNIV_INLINE
+void
+ib_vector_reset(
+/*============*/
+	ib_vector_t*	vec);	/*!< in/out: vector */
+
+/****************************************************************//**
 Get the n'th element.
 @return	n'th element */
 UNIV_INLINE

@@ -483,6 +483,11 @@ struct trx_lock_struct {
 					insertions are protected by trx->mutex
 					and lock_sys->mutex; removals are
 					protected by lock_sys->mutex */
+
+	ib_vector_t*	table_locks;	/*!< All table locks requested by this
+					transaction, except AUTOINC locks.
+					It shares the heap with the
+					trx_t::autoinc_locks. */
 };
 
 #define TRX_MAGIC_N	91118598

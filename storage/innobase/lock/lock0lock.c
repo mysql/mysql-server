@@ -1403,7 +1403,8 @@ lock_rec_get_prev(
 /*============= FUNCTIONS FOR ANALYZING TABLE LOCK QUEUE ================*/
 
 /*********************************************************************//**
-Checks if a transaction has the specified table lock, or stronger.
+Checks if a transaction has the specified table lock, or stronger. This
+function should only be called by the thread that owns the transaction.
 @return	lock or NULL */
 UNIV_INLINE
 const lock_t*
@@ -1413,21 +1414,32 @@ lock_table_has(
 	const dict_table_t*	table,	/*!< in: table */
 	enum lock_mode		mode)	/*!< in: lock mode */
 {
-	const lock_t*	lock;
+	lint			i;
 
-	ut_ad(lock_mutex_own());
+	if (ib_vector_is_empty(trx->lock.table_locks)) {
+		return(NULL);
+	}
 
 	/* Look for stronger locks the same trx already has on the table */
 
-	for (lock = UT_LIST_GET_LAST(table->locks);
-	     lock != NULL;
-	     lock = UT_LIST_GET_PREV(un_member.tab_lock.locks, lock)) {
+	for (i = ib_vector_size(trx->lock.table_locks) - 1; i >= 0; --i) {
+		const lock_t*	lock;
+		enum lock_mode	lock_mode;
 
-		if (lock->trx == trx
-		    && lock_mode_stronger_or_eq(lock_get_mode(lock), mode)) {
+		lock = ib_vector_get(trx->lock.table_locks, i);
 
-			/* The same trx already has locked the table in
-			a mode stronger or equal to the mode given */
+		if (lock == NULL) {
+			continue;
+		}
+
+		lock_mode = lock_get_mode(lock);
+
+		ut_ad(trx == lock->trx);
+		ut_ad(lock_get_type_low(lock) & LOCK_TABLE);
+		ut_ad(lock->un_member.tab_lock.table != NULL);
+
+		if (table == lock->un_member.tab_lock.table
+		    && lock_mode_stronger_or_eq(lock_mode, mode)) {
 
 			ut_ad(!lock_get_wait(lock));
 
@@ -3821,8 +3833,6 @@ lock_table_create(
 		lock = mem_heap_alloc(trx->lock.lock_heap, sizeof(*lock));
 	}
 
-	UT_LIST_ADD_LAST(trx_locks, trx->lock.trx_locks, lock);
-
 	lock->type_mode = type_mode | LOCK_TABLE;
 	lock->trx = trx;
 
@@ -3830,12 +3840,15 @@ lock_table_create(
 
 	ut_ad(table->n_ref_count > 0 || !table->can_be_evicted);
 
+	UT_LIST_ADD_LAST(trx_locks, trx->lock.trx_locks, lock);
 	UT_LIST_ADD_LAST(un_member.tab_lock.locks, table->locks, lock);
 
 	if (UNIV_UNLIKELY(type_mode & LOCK_WAIT)) {
 
 		lock_set_lock_and_trx_wait(lock, trx);
 	}
+
+	ib_vector_push(lock->trx->lock.table_locks, lock);
 
 	MONITOR_INC(MONITOR_TABLELOCK_CREATED);
 	MONITOR_INC(MONITOR_NUM_TABLELOCK);
@@ -3936,7 +3949,7 @@ lock_table_remove_low(
 	table = lock->un_member.tab_lock.table;
 
 	/* Remove the table from the transaction's AUTOINC vector, if
-	the lock that is being release is an AUTOINC lock. */
+	the lock that is being released is an AUTOINC lock. */
 	if (lock_get_mode(lock) == LOCK_AUTO_INC) {
 
 		/* The table's AUTOINC lock can get transferred to
@@ -4080,9 +4093,9 @@ lock_table_other_has_incompatible(
 	     lock != NULL;
 	     lock = UT_LIST_GET_PREV(un_member.tab_lock.locks, lock)) {
 
-		if ((lock->trx != trx)
-		    && (!lock_mode_compatible(lock_get_mode(lock), mode))
-		    && (wait || !(lock_get_wait(lock)))) {
+		if (lock->trx != trx
+		    && !lock_mode_compatible(lock_get_mode(lock), mode)
+		    && (wait || !lock_get_wait(lock))) {
 
 			return(lock);
 		}
@@ -4106,8 +4119,9 @@ lock_table(
 	enum lock_mode	mode,	/*!< in: lock mode */
 	que_thr_t*	thr)	/*!< in: query thread */
 {
-	trx_t*	trx;
-	ulint	err;
+	trx_t*		trx;
+	ulint		err;
+	lock_t*		lock;
 
 	ut_ad(table && thr);
 
@@ -4120,35 +4134,32 @@ lock_table(
 
 	trx = thr_get_trx(thr);
 
-	lock_mutex_enter();
-
-	/* Look for stronger locks the same trx already has on the table */
+	/* Look for equal or stronger locks the same trx already
+	has on the table. No need to acquire the lock mutex here
+	because only this transacton can add/access table locks
+	to/from trx_t::table_locks. */
 
 	if (lock_table_has(trx, table, mode)) {
 
-		err = DB_SUCCESS;
+		return(DB_SUCCESS);
+	}
 
-	} else if (lock_table_other_has_incompatible(
-				trx, LOCK_WAIT, table, mode)) {
+	lock_mutex_enter();
 
 	/* We have to check if the new lock is compatible with any locks
 	other transactions have in the table lock queue. */
 
-		/* Another trx has a request on the table in an incompatible
-		mode: this trx may have to wait */
+	lock = lock_table_other_has_incompatible(trx, LOCK_WAIT, table, mode);
 
-		trx_mutex_enter(trx);
+	trx_mutex_enter(trx);
 
+	/* Another trx has a request on the table in an incompatible
+	mode: this trx may have to wait */
+
+	if (lock != NULL) {
 		err = lock_table_enqueue_waiting(mode | flags, table, thr);
-
-		trx_mutex_exit(trx);
 	} else {
-
-		trx_mutex_enter(trx);
-
 		lock_table_create(table, mode | flags, trx);
-
-		trx_mutex_exit(trx);
 
 		ut_a(!flags || mode == LOCK_S || mode == LOCK_X);
 
@@ -4156,6 +4167,8 @@ lock_table(
 	}
 
 	lock_mutex_exit();
+
+	trx_mutex_exit(trx);
 
 	return(err);
 }
@@ -4365,8 +4378,15 @@ lock_release(
 		++count;
 	}
 
+	/* We don't remove the locks one by one from the vector for
+	efficiency reasons. We simply reset it because we would have
+	released all the locks anyway. */
+
+	ib_vector_reset(trx->lock.table_locks);
+
 	ut_a(UT_LIST_GET_LEN(trx->lock.trx_locks) == 0);
-	ut_a(ib_vector_size(trx->autoinc_locks) == 0);
+	ut_a(ib_vector_is_empty(trx->autoinc_locks));
+	ut_a(ib_vector_is_empty(trx->lock.table_locks));
 
 	mem_heap_empty(trx->lock.lock_heap);
 }
@@ -4376,6 +4396,42 @@ lock_release(
 	(lock_get_mode(lock) == LOCK_S \
 	 || lock_get_mode(lock) == LOCK_X)
 
+/*********************************************************************//**
+Removes table locks of the transaction on a table to be dropped. */
+static
+void
+lock_trx_table_locks_remove(
+/*========================*/
+	const lock_t*	lock_to_remove)		/*!< in: lock to remove */
+{
+	lint		i;
+	trx_t*		trx = lock_to_remove->trx;
+
+	ut_ad(lock_mutex_own());
+
+	trx_mutex_enter(trx);
+
+	for (i = ib_vector_size(trx->lock.table_locks) - 1; i >= 0; --i) {
+		const lock_t*	lock;
+
+		lock = ib_vector_get(trx->lock.table_locks, i);
+
+		ut_a(trx == lock->trx);
+		ut_a(lock_get_type_low(lock) & LOCK_TABLE);
+		ut_a(lock->un_member.tab_lock.table != NULL);
+
+		if (lock == lock_to_remove) {
+			ib_vector_set(trx->lock.table_locks, i, NULL);
+			trx_mutex_exit(trx);
+			return;
+		}
+	}
+
+	trx_mutex_exit(trx);
+
+	/* Lock must exist in the vector. */
+	ut_error;
+}
 
 /*********************************************************************//**
 Removes locks of a transaction on a table to be dropped.
@@ -4391,15 +4447,14 @@ lock_remove_all_on_table_for_trx(
 	ibool		remove_also_table_sx_locks)/*!< in: also removes
 						table S and X locks */
 {
-	lock_t*	lock;
+	lock_t*		lock;
+	lock_t*		prev_lock;
 
 	ut_ad(lock_mutex_own());
 
 	for (lock = UT_LIST_GET_LAST(trx->lock.trx_locks);
 	     lock != NULL;
-	     /* No op */) {
-
-		lock_t*	prev_lock;
+	     lock = prev_lock) {
 
 		prev_lock = UT_LIST_GET_PREV(trx_locks, lock);
 
@@ -4415,10 +4470,9 @@ lock_remove_all_on_table_for_trx(
 
 			ut_a(!lock_get_wait(lock));
 
+			lock_trx_table_locks_remove(lock);
 			lock_table_remove_low(lock);
 		}
-
-		lock = prev_lock;
 	}
 }
 
@@ -4504,16 +4558,16 @@ lock_remove_all_on_table(
 						table S and X locks */
 {
 	lock_t*		lock;
-	lock_t*		prev_lock;
 
 	lock_mutex_enter();
 
-	lock = UT_LIST_GET_FIRST(table->locks);
+	for (lock = UT_LIST_GET_FIRST(table->locks);
+	     lock != NULL;
+	     /* No op */) {
 
-	while (lock != NULL) {
+		lock_t*	prev_lock;
 
-		prev_lock = UT_LIST_GET_PREV(un_member.tab_lock.locks,
-					     lock);
+		prev_lock = UT_LIST_GET_PREV(un_member.tab_lock.locks, lock);
 
 		/* If we should remove all locks (remove_also_table_sx_locks
 		is TRUE), or if the lock is not table-level S or X lock,
@@ -4525,8 +4579,8 @@ lock_remove_all_on_table(
 			ut_a(!lock_get_wait(lock));
 		}
 
-		lock_remove_all_on_table_for_trx(table, lock->trx,
-						 remove_also_table_sx_locks);
+		lock_remove_all_on_table_for_trx(
+			table, lock->trx, remove_also_table_sx_locks);
 
 		if (prev_lock == NULL) {
 			if (lock == UT_LIST_GET_FIRST(table->locks)) {
@@ -4978,6 +5032,44 @@ print_rec:
 
 #ifdef UNIV_DEBUG
 /*********************************************************************//**
+Find the the lock in the trx_t::trx_lock_t::table_locks vector.
+@return TRUE if found */
+static
+ibool
+lock_trx_table_locks_find(
+/*======================*/
+	trx_t*		trx,		/*!< in: trx to validate */
+	const lock_t*	find_lock)	/*!< in: lock to find */
+{
+	lint		i;
+	ibool		found = FALSE;
+
+	trx_mutex_enter(trx);
+
+	for (i = ib_vector_size(trx->lock.table_locks) - 1; i >= 0; --i) {
+		const lock_t*	lock;
+
+		lock = ib_vector_get(trx->lock.table_locks, i);
+
+		if (lock == NULL) {
+			continue;
+		} else if (lock == find_lock) {
+			/* Can't be duplicates. */
+			ut_a(!found);
+			found = TRUE;
+		}
+
+		ut_a(trx == lock->trx);
+		ut_a(lock_get_type_low(lock) & LOCK_TABLE);
+		ut_a(lock->un_member.tab_lock.table != NULL);
+	}
+
+	trx_mutex_exit(trx);
+
+	return(found);
+}
+
+/*********************************************************************//**
 Validates the lock queue on a table.
 @return	TRUE if ok */
 static
@@ -4986,7 +5078,8 @@ lock_table_queue_validate(
 /*======================*/
 	dict_table_t*	table)	/*!< in: table */
 {
-	lock_t*	lock;
+	lock_t*		lock;
+	ulint		count = 0;
 
 	ut_ad(lock_mutex_own());
 #ifdef UNIV_SYNC_DEBUG
@@ -5012,7 +5105,12 @@ lock_table_queue_validate(
 
 			ut_a(lock_table_has_to_wait_in_queue(lock));
 		}
+
+		ut_a(lock_trx_table_locks_find(lock->trx, lock));
+		count += ib_vector_size(lock->trx->lock.table_locks);
 	}
+
+	ut_a(count == UT_LIST_GET_LEN(table->locks));
 
 	return(TRUE);
 }
@@ -5897,6 +5995,9 @@ lock_release_autoinc_last_lock(
 
 	/* This will remove the lock from the trx autoinc_locks too. */
 	lock_table_dequeue(lock);
+
+	/* Remove from the table vector too. */
+	lock_trx_table_locks_remove(lock);
 }
 
 /*******************************************************************//**
@@ -6270,6 +6371,7 @@ lock_trx_release_locks(
 	the is_recovered flag. */
 
 	trx->is_recovered = FALSE;
+
 	trx_mutex_exit(trx);
 
 	lock_release(trx);
