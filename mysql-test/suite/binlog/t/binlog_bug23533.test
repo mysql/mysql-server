@@ -22,7 +22,6 @@ while ($i)
 SELECT COUNT(*) FROM t1;
 
 # Set small value for max_binlog_cache_size
-SHOW VARIABLES LIKE 'max_binlog_cache_size';
 SET @saved_max_binlog_cache_size=@@max_binlog_cache_size;
 SET GLOBAL max_binlog_cache_size=4096;
 
