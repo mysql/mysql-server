@@ -1,4 +1,4 @@
-/* Copyright (C) 2000-2003 MySQL AB, 2008-2009 Sun Microsystems, Inc
+/* Copyright (C) 2000, 2011, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -504,6 +504,30 @@ int terminate_slave_threads(Master_info* mi,int thread_mask,bool skip_lock)
   mysql_mutex_t *sql_lock = &mi->rli.run_lock, *io_lock = &mi->run_lock;
   mysql_mutex_t *log_lock= mi->rli.relay_log.get_log_lock();
 
+  if (thread_mask & (SLAVE_SQL|SLAVE_FORCE_ALL))
+  {
+    DBUG_PRINT("info",("Terminating SQL thread"));
+    mi->rli.abort_slave=1;
+    if ((error=terminate_slave_thread(mi->rli.sql_thd, sql_lock,
+                                      &mi->rli.stop_cond,
+                                      &mi->rli.slave_running,
+                                      skip_lock)) &&
+        !force_all)
+      DBUG_RETURN(error);
+
+    mysql_mutex_lock(log_lock);
+
+    DBUG_PRINT("info",("Flushing relay-log info file."));
+    if (current_thd)
+      thd_proc_info(current_thd, "Flushing relay-log info file.");
+    if (flush_relay_log_info(&mi->rli))
+      DBUG_RETURN(ER_ERROR_DURING_FLUSH_LOGS);
+    
+    if (my_sync(mi->rli.info_fd, MYF(MY_WME)))
+      DBUG_RETURN(ER_ERROR_DURING_FLUSH_LOGS);
+
+    mysql_mutex_unlock(log_lock);
+  }
   if (thread_mask & (SLAVE_IO|SLAVE_FORCE_ALL))
   {
     DBUG_PRINT("info",("Terminating IO thread"));
@@ -528,30 +552,6 @@ int terminate_slave_threads(Master_info* mi,int thread_mask,bool skip_lock)
       DBUG_RETURN(ER_ERROR_DURING_FLUSH_LOGS);
 
     if (my_sync(mi->fd, MYF(MY_WME)))
-      DBUG_RETURN(ER_ERROR_DURING_FLUSH_LOGS);
-
-    mysql_mutex_unlock(log_lock);
-  }
-  if (thread_mask & (SLAVE_SQL|SLAVE_FORCE_ALL))
-  {
-    DBUG_PRINT("info",("Terminating SQL thread"));
-    mi->rli.abort_slave=1;
-    if ((error=terminate_slave_thread(mi->rli.sql_thd, sql_lock,
-                                      &mi->rli.stop_cond,
-                                      &mi->rli.slave_running,
-                                      skip_lock)) &&
-        !force_all)
-      DBUG_RETURN(error);
-
-    mysql_mutex_lock(log_lock);
-
-    DBUG_PRINT("info",("Flushing relay-log info file."));
-    if (current_thd)
-      thd_proc_info(current_thd, "Flushing relay-log info file.");
-    if (flush_relay_log_info(&mi->rli))
-      DBUG_RETURN(ER_ERROR_DURING_FLUSH_LOGS);
-    
-    if (my_sync(mi->rli.info_fd, MYF(MY_WME)))
       DBUG_RETURN(ER_ERROR_DURING_FLUSH_LOGS);
 
     mysql_mutex_unlock(log_lock);

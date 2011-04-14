@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2010, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2011, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -143,7 +143,7 @@ FILE *stderror_file=0;
 static char *shared_memory_base_name=0;
 #endif
 static uint opt_protocol= 0;
-static char *opt_plugin_dir= 0, *opt_default_auth;
+static char *opt_plugin_dir= 0, *opt_default_auth= 0;
 
 /*
 Dynamic_string wrapper functions. In this file use these
@@ -518,7 +518,7 @@ static struct my_option my_long_options[] =
   {"plugin_dir", OPT_PLUGIN_DIR, "Directory for client-side plugins.",
    (uchar**) &opt_plugin_dir, (uchar**) &opt_plugin_dir, 0,
    GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
-  {"default_auth", OPT_PLUGIN_DIR,
+  {"default_auth", OPT_DEFAULT_AUTH,
    "Default authentication client-side plugin to use.",
    (uchar**) &opt_default_auth, (uchar**) &opt_default_auth, 0,
    GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
@@ -2256,6 +2256,15 @@ static uint get_table_structure(char *table, char *db, char *table_type,
   const char *insert_option;
   char	     name_buff[NAME_LEN+3],table_buff[NAME_LEN*2+3];
   char       table_buff2[NAME_LEN*2+3], query_buff[QUERY_LENGTH];
+  const char *show_fields_stmt= "SELECT `COLUMN_NAME` AS `Field`, "
+                                "`COLUMN_TYPE` AS `Type`, "
+                                "`IS_NULLABLE` AS `Null`, "
+                                "`COLUMN_KEY` AS `Key`, "
+                                "`COLUMN_DEFAULT` AS `Default`, "
+                                "`EXTRA` AS `Extra`, "
+                                "`COLUMN_COMMENT` AS `Comment` "
+                                "FROM `INFORMATION_SCHEMA`.`COLUMNS` WHERE "
+                                "TABLE_SCHEMA = '%s' AND TABLE_NAME = '%s'";
   FILE       *sql_file= md_result_file;
   int        len;
   MYSQL_RES  *result;
@@ -2523,8 +2532,8 @@ static uint get_table_structure(char *table, char *db, char *table_type,
     verbose_msg("%s: Warning: Can't set SQL_QUOTE_SHOW_CREATE option (%s)\n",
                 my_progname, mysql_error(mysql));
 
-    my_snprintf(query_buff, sizeof(query_buff), "show fields from %s",
-                result_table);
+    my_snprintf(query_buff, sizeof(query_buff), show_fields_stmt, db, table);
+
     if (mysql_query_with_error_report(mysql, &result, query_buff))
       DBUG_RETURN(0);
 
@@ -4727,7 +4736,7 @@ static ulong find_set(TYPELIB *lib, const char *x, uint length,
       for (; pos != end && *pos != ','; pos++) ;
       var_len= (uint) (pos - start);
       strmake(buff, start, min(sizeof(buff) - 1, var_len));
-      find= find_type(buff, lib, var_len);
+      find= find_type(buff, lib, FIND_TYPE_BASIC);
       if (!find)
       {
         *err_pos= (char*) start;

@@ -1,7 +1,7 @@
 #ifndef ITEM_INCLUDED
 #define ITEM_INCLUDED
 
-/* Copyright (c) 2000, 2010, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2011, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -3449,7 +3449,7 @@ class Item_cache_datetime: public Item_cache
 {
 protected:
   String str_value;
-  ulonglong int_value;
+  longlong int_value;
   bool str_value_cached;
 public:
   Item_cache_datetime(enum_field_types field_type_arg):

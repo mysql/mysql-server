@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2010 Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2011 Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -543,9 +543,10 @@ bool Protocol::send_ok(uint server_status, uint statement_warn_count,
                        const char *message)
 {
   DBUG_ENTER("Protocol::send_ok");
-
-  DBUG_RETURN(net_send_ok(thd, server_status, statement_warn_count,
-                          affected_rows, last_insert_id, message));
+  const bool retval= 
+    net_send_ok(thd, server_status, statement_warn_count,
+                affected_rows, last_insert_id, message);
+  DBUG_RETURN(retval);
 }
 
 
@@ -558,8 +559,8 @@ bool Protocol::send_ok(uint server_status, uint statement_warn_count,
 bool Protocol::send_eof(uint server_status, uint statement_warn_count)
 {
   DBUG_ENTER("Protocol::send_eof");
-
-  DBUG_RETURN(net_send_eof(thd, server_status, statement_warn_count));
+  const bool retval= net_send_eof(thd, server_status, statement_warn_count);
+  DBUG_RETURN(retval);
 }
 
 
@@ -573,8 +574,8 @@ bool Protocol::send_error(uint sql_errno, const char *err_msg,
                           const char *sql_state)
 {
   DBUG_ENTER("Protocol::send_error");
-
-  DBUG_RETURN(net_send_error_packet(thd, sql_errno, err_msg, sql_state));
+  const bool retval= net_send_error_packet(thd, sql_errno, err_msg, sql_state);
+  DBUG_RETURN(retval);
 }
 
 

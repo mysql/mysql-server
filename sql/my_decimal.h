@@ -1,4 +1,4 @@
-/* Copyright (C) 2005-2006 MySQL AB
+/* Copyright (c) 2005, 2011, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -101,6 +101,24 @@ class my_decimal :public decimal_t
   decimal_digit_t buffer[DECIMAL_BUFF_LENGTH];
 
 public:
+
+  my_decimal(const my_decimal &rhs) : decimal_t(rhs)
+  {
+    for (uint i= 0; i < DECIMAL_BUFF_LENGTH; i++)
+      buffer[i]= rhs.buffer[i];
+    fix_buffer_pointer();
+  }
+
+  my_decimal& operator=(const my_decimal &rhs)
+  {
+    if (this == &rhs)
+      return *this;
+    decimal_t::operator=(rhs);
+    for (uint i= 0; i < DECIMAL_BUFF_LENGTH; i++)
+      buffer[i]= rhs.buffer[i];
+    fix_buffer_pointer();
+    return *this;
+  }
 
   void init()
   {
@@ -248,7 +266,6 @@ inline
 void my_decimal2decimal(const my_decimal *from, my_decimal *to)
 {
   *to= *from;
-  to->fix_buffer_pointer();
 }
 
 

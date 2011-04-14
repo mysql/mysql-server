@@ -82,6 +82,36 @@ static struct st_mysql_auth auth_test_handler=
   auth_test_plugin
 };
 
+/**
+  dialog test plugin mimicking the ordinary auth mechanism. Used to test the clear text plugin API
+*/
+static int auth_cleartext_plugin(MYSQL_PLUGIN_VIO *vio, 
+                                 MYSQL_SERVER_AUTH_INFO *info)
+{
+  unsigned char *pkt;
+  int pkt_len;
+
+  /* read the password */
+  if ((pkt_len= vio->read_packet(vio, &pkt)) < 0)
+    return CR_ERROR;
+
+  info->password_used= PASSWORD_USED_YES;
+
+  /* fail if the password is wrong */
+  if (strcmp((const char *) pkt, info->auth_string))
+    return CR_ERROR;
+
+  return CR_OK;
+}
+
+
+static struct st_mysql_auth auth_cleartext_handler=
+{
+  MYSQL_AUTHENTICATION_INTERFACE_VERSION,
+  "mysql_clear_password", /* requires the clear text plugin */
+  auth_cleartext_plugin
+};
+
 mysql_declare_plugin(test_plugin)
 {
   MYSQL_AUTHENTICATION_PLUGIN,
@@ -96,8 +126,23 @@ mysql_declare_plugin(test_plugin)
   NULL,
   NULL,
   NULL
+},
+{
+  MYSQL_AUTHENTICATION_PLUGIN,
+  &auth_cleartext_handler,
+  "cleartext_plugin_server",
+  "Georgi Kodinov",
+  "cleartext plugin API test plugin",
+  PLUGIN_LICENSE_GPL,
+  NULL,
+  NULL,
+  0x0100,
+  NULL,
+  NULL,
+  NULL
 }
 mysql_declare_plugin_end;
+
 
 /********************* CLIENT SIDE ***************************************/
 /*
