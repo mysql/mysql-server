@@ -961,7 +961,7 @@ JOIN::optimize()
       If all items were resolved by opt_sum_query, there is no need to
       open any tables.
     */
-    if ((res=opt_sum_query(select_lex->leaf_tables, all_fields, conds)))
+    if ((res=opt_sum_query(thd, select_lex->leaf_tables, all_fields, conds)))
     {
       if (res == HA_ERR_KEY_NOT_FOUND)
       {
