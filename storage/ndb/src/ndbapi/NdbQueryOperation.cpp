@@ -2898,7 +2898,6 @@ NdbQueryImpl::closeTcCursor(bool forceSend)
   assert (m_queryDef.isScanQuery());
 
   NdbImpl* const ndb = m_transaction.getNdb()->theImpl;
-  NdbImpl* const impl = ndb;
   const Uint32 timeout  = ndb->get_waitfor_timeout();
   const Uint32 nodeId   = m_transaction.getConnectedNodeId();
   const Uint32 seq      = m_transaction.theNodeSequence;
@@ -2908,7 +2907,7 @@ NdbQueryImpl::closeTcCursor(bool forceSend)
    */
   PollGuard poll_guard(*ndb);
 
-  if (unlikely(impl->getNodeSequence(nodeId) != seq))
+  if (unlikely(ndb->getNodeSequence(nodeId) != seq))
   {
     setErrorCode(Err_NodeFailCausedAbort);
     return -1;  // Transporter disconnected and reconnected, no need to close
@@ -2920,7 +2919,7 @@ NdbQueryImpl::closeTcCursor(bool forceSend)
     const FetchResult result = static_cast<FetchResult>
         (poll_guard.wait_scan(3*timeout, nodeId, forceSend));
 
-    if (unlikely(impl->getNodeSequence(nodeId) != seq))
+    if (unlikely(ndb->getNodeSequence(nodeId) != seq))
       setFetchTerminated(Err_NodeFailCausedAbort,false);
     else if (unlikely(result != FetchResult_ok))
     {
@@ -2955,7 +2954,7 @@ NdbQueryImpl::closeTcCursor(bool forceSend)
       const FetchResult result = static_cast<FetchResult>
           (poll_guard.wait_scan(3*timeout, nodeId, forceSend));
 
-      if (unlikely(impl->getNodeSequence(nodeId) != seq))
+      if (unlikely(ndb->getNodeSequence(nodeId) != seq))
         setFetchTerminated(Err_NodeFailCausedAbort,false);
       else if (unlikely(result != FetchResult_ok))
       {
