@@ -1,6 +1,5 @@
-/* Copyright (C) 2009, 2011, Oracle and/or its affiliates. All rights
-   reserved
-
+/* Copyright (c) 2009, 2011, Oracle and/or its affiliates. All rights reserved.
+ 
  This program is free software; you can redistribute it and/or modify
  it under the terms of the GNU General Public License as published by
  the Free Software Foundation; version 2 of the License.
@@ -516,8 +515,8 @@
 #cmakedefine CYBOZU 1
 
 /* Character sets and collations */
-#cmakedefine MYSQL_DEFAULT_CHARSET_NAME "latin1"
-#cmakedefine MYSQL_DEFAULT_COLLATION_NAME "latin1_swedish_ci"
+#cmakedefine MYSQL_DEFAULT_CHARSET_NAME "@MYSQL_DEFAULT_CHARSET_NAME@"
+#cmakedefine MYSQL_DEFAULT_COLLATION_NAME "@MYSQL_DEFAULT_COLLATION_NAME@"
 
 #cmakedefine USE_MB 1
 #cmakedefine USE_MB_IDENT 1
@@ -614,5 +613,10 @@
 #define VERSION "@VERSION@"
 #define PROTOCOL_VERSION 10
 
+
+/* time_t related defines */
+
+#cmakedefine SIZEOF_TIME_T @SIZEOF_TIME_T@
+#cmakedefine TIME_T_UNSIGNED @TIME_T_UNSIGNED@
 
 #endif

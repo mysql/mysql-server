@@ -1,4 +1,4 @@
-/* Copyright (C) 2000 MySQL AB
+/* Copyright (c) 2000, 2011, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -284,10 +284,12 @@ int get_topics_for_keyword(THD *thd, TABLE *topics, TABLE *relations,
   Field *rtopic_id, *rkey_id;
   DBUG_ENTER("get_topics_for_keyword");
 
-  if ((iindex_topic= find_type((char*) primary_key_name,
-			       &topics->s->keynames, 1+2)-1)<0 ||
-      (iindex_relations= find_type((char*) primary_key_name,
-				   &relations->s->keynames, 1+2)-1)<0)
+  if ((iindex_topic=
+       find_type(primary_key_name, &topics->s->keynames,
+                 FIND_TYPE_NO_PREFIX) - 1) < 0 ||
+      (iindex_relations=
+       find_type(primary_key_name, &relations->s->keynames,
+                 FIND_TYPE_NO_PREFIX) - 1) < 0)
   {
     my_message(ER_CORRUPT_HELP_DB, ER(ER_CORRUPT_HELP_DB), MYF(0));
     DBUG_RETURN(-1);

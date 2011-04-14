@@ -556,24 +556,27 @@ Item *Item_sum::set_arg(uint i, THD *thd, Item *new_val)
 
 int Item_sum::set_aggregator(Aggregator::Aggregator_type aggregator)
 {
-  if (aggr)
+  /*
+    Dependent subselects may be executed multiple times, making
+    set_aggregator to be called multiple times. The aggregator type
+    will be the same, but it needs to be reset so that it is
+    reevaluated with the new dependent data.
+    This function may also be called multiple times during query optimization.
+    In this case, the type may change, so we delete the old aggregator,
+    and create a new one.
+  */
+  if (aggr && aggregator == aggr->Aggrtype())
   {
-    /* 
-      Dependent subselects may be executed multiple times, making
-      set_aggregator to be called multiple times. The aggregator type
-      will be the same, but it needs to be reset so that it is
-      reevaluated with the new dependent data.
-    */
-    DBUG_ASSERT(aggregator == aggr->Aggrtype());
     aggr->clear();
     return FALSE;
   }
+
+  delete aggr;
   switch (aggregator)
   {
   case Aggregator::DISTINCT_AGGREGATOR:
     aggr= new Aggregator_distinct(this);
     break;
-
   case Aggregator::SIMPLE_AGGREGATOR:
     aggr= new Aggregator_simple(this);
     break;
@@ -1900,7 +1903,10 @@ double Item_sum_hybrid::val_real()
   DBUG_ASSERT(fixed == 1);
   if (null_value)
     return 0.0;
-  return value->val_real();
+  double retval= value->val_real();
+  if ((null_value= value->null_value))
+    DBUG_ASSERT(retval == 0.0);
+  return retval;
 }
 
 longlong Item_sum_hybrid::val_int()
@@ -1908,7 +1914,10 @@ longlong Item_sum_hybrid::val_int()
   DBUG_ASSERT(fixed == 1);
   if (null_value)
     return 0;
-  return value->val_int();
+  longlong retval= value->val_int();
+  if ((null_value= value->null_value))
+    DBUG_ASSERT(retval == 0);
+  return retval;
 }
 
 
@@ -1917,7 +1926,10 @@ my_decimal *Item_sum_hybrid::val_decimal(my_decimal *val)
   DBUG_ASSERT(fixed == 1);
   if (null_value)
     return 0;
-  return value->val_decimal(val);
+  my_decimal *retval= value->val_decimal(val);
+  if ((null_value= value->null_value))
+    DBUG_ASSERT(retval == NULL);
+  return retval;
 }
 
 
@@ -1927,7 +1939,10 @@ Item_sum_hybrid::val_str(String *str)
   DBUG_ASSERT(fixed == 1);
   if (null_value)
     return 0;
-  return value->val_str(str);
+  String *retval= value->val_str(str);
+  if ((null_value= value->null_value))
+    DBUG_ASSERT(retval == NULL);
+  return retval;
 }
 
 

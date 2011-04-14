@@ -859,6 +859,12 @@ insert into t1 values ('`select 42`');
 let $a= `select * from t1`;
 # This should output `select 42`, not evaluate it again to 42
 echo $a;
+insert into t1 values ('$dollar');
+# These should also output the string without evaluating it.
+let $a= query_get_value(select * from t1 order by a, a, 1);
+echo $a;
+let $a= query_get_value(select * from t1 order by a, a, 2);
+echo $a;
 drop table t1;
 
 --error 1

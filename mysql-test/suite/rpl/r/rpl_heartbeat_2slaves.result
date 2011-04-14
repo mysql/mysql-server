@@ -2,13 +2,21 @@ include/rpl_init.inc [topology=1->2,1->3]
 include/rpl_connect.inc [creating master]
 include/rpl_connect.inc [creating slave_1]
 include/rpl_connect.inc [creating slave_2]
+include/stop_slave.inc
+CHANGE MASTER TO MASTER_HEARTBEAT_PERIOD = 0.1;
+include/start_slave.inc
+include/stop_slave.inc
+CHANGE MASTER TO MASTER_HEARTBEAT_PERIOD = 1;
+include/start_slave.inc
 Slave has received heartbeat event
-slave_2 has received heartbeat event
-slave_1 has received more heartbeats than slave_2 (1 means 'yes'): 0
+include/assert.inc [slave_1 should have received more heartbeats than slave_2]
 
 include/rpl_stop_slaves.inc
 include/rpl_change_topology.inc [new topology=1->3->2]
 include/rpl_start_slaves.inc
+include/stop_slave.inc
+CHANGE MASTER TO MASTER_HEARTBEAT_PERIOD=0.1;
+include/start_slave.inc
 slave_1 has received heartbeat event
 [on master]
 CREATE TABLE t1 (a INT PRIMARY KEY, b VARCHAR(10), c LONGTEXT);
@@ -26,7 +34,7 @@ Tables_in_test
 [on master]
 creating updates on master and send to slave_2 during 5 second
 [on slave_1]
-slave_1 has received heartbeats (1 means 'yes'): 0
+include/assert.inc [slave_1 should have received heartbeats]
 
 *** Clean up ***
 DROP TABLE t1;

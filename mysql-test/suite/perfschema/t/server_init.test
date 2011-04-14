@@ -52,9 +52,6 @@ select count(name) from mutex_instances
 select count(name) from mutex_instances
  where name like "wait/synch/mutex/mysys/THR_LOCK_charset";
 
-select count(name) from mutex_instances
- where name like "wait/synch/mutex/mysys/THR_LOCK_time";
-
 # There are no global rwlock in mysys
 
 # Verify that these global conditions have been properly initilized in mysys

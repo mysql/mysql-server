@@ -489,3 +489,14 @@ as foo;
 CREATE TABLE t1(a char(0));
 INSERT INTO t1 (SELECT -pi());
 DROP TABLE t1;
+
+--echo #
+--echo # Bug #59241 invalid memory read
+--echo #            in do_div_mod with doubly assigned variables
+--echo #
+SELECT ((@a:=@b:=1.0) div (@b:=@a:=get_format(datetime, 'usa')));
+
+--echo #
+--echo # Bug #59498 div function broken in mysql-trunk
+--echo #
+SELECT 1 div null;

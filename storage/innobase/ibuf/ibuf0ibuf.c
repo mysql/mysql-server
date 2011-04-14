@@ -2276,9 +2276,9 @@ ibuf_remove_free_page(void)
 	fseg_free_page(header_page + IBUF_HEADER + IBUF_TREE_SEG_HEADER,
 		       IBUF_SPACE_ID, page_no, &mtr);
 
-#ifdef UNIV_DEBUG_FILE_ACCESSES
+#if defined UNIV_DEBUG_FILE_ACCESSES || defined UNIV_DEBUG
 	buf_page_reset_file_page_was_freed(IBUF_SPACE_ID, page_no);
-#endif
+#endif /* UNIV_DEBUG_FILE_ACCESSES || UNIV_DEBUG */
 
 	ibuf_enter();
 
@@ -2322,9 +2322,9 @@ ibuf_remove_free_page(void)
 	ibuf_bitmap_page_set_bits(
 		bitmap_page, page_no, zip_size, IBUF_BITMAP_IBUF, FALSE, &mtr);
 
-#ifdef UNIV_DEBUG_FILE_ACCESSES
+#if defined UNIV_DEBUG_FILE_ACCESSES || defined UNIV_DEBUG
 	buf_page_set_file_page_was_freed(IBUF_SPACE_ID, page_no);
-#endif
+#endif /* UNIV_DEBUG_FILE_ACCESSES || UNIV_DEBUG */
 	mtr_commit(&mtr);
 
 	ibuf_exit();
@@ -2585,23 +2585,6 @@ ibuf_contract_ext(
 
 	if (UNIV_UNLIKELY(ibuf->empty)
 	    && UNIV_LIKELY(!srv_shutdown_state)) {
-ibuf_is_empty:
-
-#if 0 /* TODO */
-		if (srv_shutdown_state) {
-			/* If the insert buffer becomes empty during
-			shutdown, note it in the system tablespace. */
-
-			trx_sys_set_ibuf_format(TRX_SYS_IBUF_EMPTY);
-		}
-
-		/* TO DO: call trx_sys_set_ibuf_format() at startup
-		and whenever ibuf_use is changed to allow buffered
-		delete-marking or deleting.  Never downgrade the
-		stamped format except when the insert buffer becomes
-		empty. */
-#endif
-
 		return(0);
 	}
 
@@ -2631,7 +2614,7 @@ ibuf_is_empty:
 		mtr_commit(&mtr);
 		btr_pcur_close(&pcur);
 
-		goto ibuf_is_empty;
+		return(0);
 	}
 
 	sum_sizes = ibuf_get_merge_page_nos(TRUE, btr_pcur_get_rec(&pcur),
