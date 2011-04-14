@@ -1757,6 +1757,10 @@ public:
   /* Get minimum known DB node version */
   Uint32 getMinDbNodeVersion() const;
 
+  /* Get/Set per-Ndb custom data pointer */
+  void setCustomData(void*);
+  void* getCustomData() const;
+  
   /* Some client behaviour counters to assist
    * optimisation
    */
