@@ -485,9 +485,7 @@ struct trx_lock_struct {
 					protected by lock_sys->mutex */
 
 	ib_vector_t*	table_locks;	/*!< All table locks requested by this
-					transaction, except AUTOINC locks.
-					It shares the heap with the
-					trx_t::autoinc_locks. */
+					transaction, including AUTOINC locks */
 };
 
 #define TRX_MAGIC_N	91118598
