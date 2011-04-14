@@ -574,16 +574,15 @@ NdbQueryIndexScanOperationDef::~NdbQueryIndexScanOperationDef()
 
 NdbQueryOperationDefImpl::~NdbQueryOperationDefImpl()
 {
+  // Unlink any parent and child refering this object
   if (m_parent != NULL)
   {
     m_parent->removeChild(this);
   }
-  // Delete children recursively also.
   for (Uint32 i = 0; i<m_children.size(); i++)
   {
     assert(m_children[i]->m_parent == this);
     m_children[i]->m_parent = NULL;
-    delete m_children[i];
   }
 }
 
@@ -1145,12 +1144,13 @@ NdbQueryBuilderImpl::NdbQueryBuilderImpl()
 NdbQueryBuilderImpl::~NdbQueryBuilderImpl()
 {
   // Delete all operand and operator in Vector's
-  if (m_operations.size() > 0)
+  for (Uint32 i=0; i<m_operations.size(); ++i)
   {
-    delete m_operations[0];
+    delete m_operations[i];
   }
   for (Uint32 i=0; i<m_operands.size(); ++i)
-  { delete m_operands[i];
+  {
+    delete m_operands[i];
   }
 }
 
@@ -1297,12 +1297,13 @@ NdbQueryDefImpl(const Vector<NdbQueryOperationDefImpl*>& operations,
 NdbQueryDefImpl::~NdbQueryDefImpl()
 {
   // Release all NdbQueryOperations
-  if (m_operations.size() > 0)
+  for (Uint32 i=0; i<m_operations.size(); ++i)
   {
-    delete m_operations[0];
+    delete m_operations[i];
   }
   for (Uint32 i=0; i<m_operands.size(); ++i)
-  { delete m_operands[i];
+  {
+    delete m_operands[i];
   }
 }
 
