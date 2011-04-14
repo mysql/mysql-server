@@ -210,8 +210,8 @@ our $opt_clean_vardir= $ENV{'MTR_CLEAN_VARDIR'};
 
 our $opt_gcov;
 our $opt_gcov_exe= "gcov";
-our $opt_gcov_err= "mysql-test-gcov.msg";
-our $opt_gcov_msg= "mysql-test-gcov.err";
+our $opt_gcov_err= "mysql-test-gcov.err";
+our $opt_gcov_msg= "mysql-test-gcov.msg";
 
 our $opt_gprof;
 our %gprof_dirs;
@@ -507,7 +507,7 @@ sub main {
   mtr_print_line();
 
   if ( $opt_gcov ) {
-    gcov_collect($basedir, $opt_gcov_exe,
+    gcov_collect($bindir, $opt_gcov_exe,
 		 $opt_gcov_msg, $opt_gcov_err);
   }
 
