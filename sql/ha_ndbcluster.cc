@@ -467,8 +467,7 @@ ha_ndbcluster::make_pushed_join(ndb_pushed_builder_ctx& context,
    * Parent operation is not defined before we have found the first 
    * appendable child.
    */
-  NdbQueryBuilder* const builder = 
-    NdbQueryBuilder::create(*m_thd_ndb->ndb);
+  NdbQueryBuilder* const builder= NdbQueryBuilder::create();
   if (unlikely (builder==NULL))
   {
     DBUG_RETURN(HA_ERR_OUT_OF_MEM);

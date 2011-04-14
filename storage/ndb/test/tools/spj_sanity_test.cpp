@@ -544,7 +544,7 @@ namespace SPJSanityTest{
 
   Query::Query(Ndb& ndb):
     m_ndb(ndb),
-    m_builder(NdbQueryBuilder::create(ndb)),
+    m_builder(NdbQueryBuilder::create()),
     m_root(NULL),
     m_queryDef(NULL),
     m_query(NULL),

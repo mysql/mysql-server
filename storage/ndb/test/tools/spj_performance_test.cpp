@@ -248,7 +248,7 @@ void TestThread::run(){
 }
 
 void TestThread::doLinkedAPITest(){
-  NdbQueryBuilder* const builder = NdbQueryBuilder::create(m_ndb);
+  NdbQueryBuilder* const builder = NdbQueryBuilder::create();
       
   const NdbQueryDef* queryDef = NULL;
   const Row** resultPtrs = new const Row*[m_params->m_depth+1];
