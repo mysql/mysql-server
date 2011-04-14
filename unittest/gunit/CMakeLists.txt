@@ -25,10 +25,6 @@ ELSE()
 ENDIF() 
 
 IF(CMAKE_COMPILER_IS_GNUCXX)
-  # Remove -fno-implicit-templates, gunit sources cannot be compiled with it.
-  STRING(REPLACE "-fno-implicit-templates" "" CMAKE_CXX_FLAGS
-    ${CMAKE_CXX_FLAGS})
-
   # MySQL is often compiled/linked with gcc rather than g++
   # (to avoid dependencies on libstdc++.so)
   # This does not work for googletest binaries.
@@ -216,6 +212,7 @@ SET(TESTS
   my_decimal
   my_regex
   sql_list
+  sql_plist
   thread_utils
   )
 

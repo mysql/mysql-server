@@ -21,9 +21,18 @@
 #include "rpl_info_handler.h"
 #include "rpl_reporting.h"
 
+enum enum_info_repository
+{
+  INVALID_INFO_REPOSITORY= -1,
+  INFO_REPOSITORY_FILE= 0,
+  INFO_REPOSITORY_TABLE= 1
+};
+
 class Rpl_info : public Slave_reporting_capability
 {
 public:
+  virtual ~Rpl_info();
+
   /*
     standard lock acquisition order to avoid deadlocks:
     run_lock, data_lock, relay_log.LOCK_log, relay_log.LOCK_index
@@ -53,16 +62,45 @@ public:
   int events_until_exit;
 #endif
 
-  Rpl_info(const char* type
-#ifdef HAVE_PSI_INTERFACE
-           ,PSI_mutex_key *param_key_info_run_lock,
-           PSI_mutex_key *param_key_info_data_lock,
-           PSI_mutex_key *param_key_info_data_cond,
-           PSI_mutex_key *param_key_info_start_cond,
-           PSI_mutex_key *param_key_info_stop_cond
-#endif
-          );
-  virtual ~Rpl_info();
+  /**
+    Defines the type of the repository that is used.
+
+    @param param_rpl_info_type Type of repository.
+  */
+  void set_rpl_info_type(uint param_rpl_info_type)
+  {
+    rpl_info_type= param_rpl_info_type;
+  }
+
+  /**
+    Gets the type of the repository that is used.
+
+    @return Type of repository.
+  */
+  uint get_rpl_info_type()
+  {
+    return(rpl_info_type);
+  }
+
+  /**
+    Sets the persistency component/handler.
+
+    @param[in] hanlder Pointer to the handler.
+  */ 
+  void set_rpl_info_handler(Rpl_info_handler * param_handler)
+  {
+    handler= param_handler;
+  }
+
+  /**
+    Gets the persistency component/handler.
+
+    @return the handler if there is one.
+  */ 
+  Rpl_info_handler *get_rpl_info_handler()
+  {
+    return (handler);
+  }
 
   int check_info()
   {
@@ -79,6 +117,11 @@ public:
     return (handler->is_transactional());
   }
 
+  bool update_is_transactional()
+  {
+    return (handler->update_is_transactional());
+  }
+
   char *get_description_info()
   {
     return (handler->get_description_info());
@@ -92,21 +135,26 @@ public:
     return(FALSE);
   }
 
-  /**
-    Sets the persistency component/handler.
-
-    @param[in] hanlder Pointer to the handler.
-  */ 
-  void set_rpl_info_handler(Rpl_info_handler * handler);
-
 protected:
   Rpl_info_handler *handler;
+
+  uint rpl_info_type;
+
+  Rpl_info(const char* type
+#ifdef HAVE_PSI_INTERFACE
+           ,PSI_mutex_key *param_key_info_run_lock,
+           PSI_mutex_key *param_key_info_data_lock,
+           PSI_mutex_key *param_key_info_data_cond,
+           PSI_mutex_key *param_key_info_start_cond,
+           PSI_mutex_key *param_key_info_stop_cond
+#endif
+          );
 
 private:
   virtual bool read_info(Rpl_info_handler *from)= 0;
   virtual bool write_info(Rpl_info_handler *to, bool force)= 0;
 
-  Rpl_info& operator=(const Rpl_info& info);
   Rpl_info(const Rpl_info& info);
+  Rpl_info& operator=(const Rpl_info& info);
 };
 #endif /* RPL_INFO_H */

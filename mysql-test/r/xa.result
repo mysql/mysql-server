@@ -193,6 +193,8 @@ SAVEPOINT savep;
 ERROR XAE07: XAER_RMFAIL: The command cannot be executed when global transaction is in the  PREPARED state
 SET @a=(SELECT * FROM t1);
 ERROR XAE07: XAER_RMFAIL: The command cannot be executed when global transaction is in the  PREPARED state
+UPDATE t1 SET a=1 WHERE a=2;
+ERROR XAE07: XAER_RMFAIL: The command cannot be executed when global transaction is in the  PREPARED state
 XA COMMIT 'a';
 SELECT * FROM t1;
 a
