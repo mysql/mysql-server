@@ -5460,6 +5460,8 @@ void Dbdict::handleTabInfo(SimpleProperties::Reader & it,
 	     CreateTableRef::InvalidPrimaryKeySize);
   tabRequire(keyLength > 0, 
 	     CreateTableRef::InvalidPrimaryKeySize);
+  tabRequire(CHECK_SUMA_MESSAGE_SIZE(keyCount, keyLength, attrCount, recordLength),
+             CreateTableRef::RecordTooBig);
 
   if(tablePtr.p->m_tablespace_id != RNIL || counts[3] || counts[4])
   {

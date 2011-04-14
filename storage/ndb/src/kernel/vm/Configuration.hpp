@@ -124,6 +124,7 @@ public:
   ndb_mgm_configuration_iterator * getClusterConfigIterator() const;
 
   ndb_mgm_configuration* getClusterConfig() const { return m_clusterConfig; }
+  Uint32 get_config_generation() const; 
 
 private:
   friend class Cmvmi;

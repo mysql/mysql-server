@@ -760,12 +760,17 @@ while ($i)
   let $separator=,;
   dec $i;
 }
+let $sql=$sql, c501 varchar(10000);
 let $sql=$sql, primary key using hash(c1)) engine=ndb;
 eval $sql; # eval the sql and create the table
 
 insert into t1 (c1) values (1), (2), (3);
 alter offline table t1 modify c1 int auto_increment;
 alter online table t1 add column c500 bit(1) column_format DYNAMIC;
+--error ER_TOO_BIG_ROWSIZE
+alter offline table t1 add column c502 varchar(2000);
+--error ER_TOO_BIG_ROWSIZE
+alter online table t1 add column c502 varchar(2000);
 delete from t1;
 drop table t1;
 
