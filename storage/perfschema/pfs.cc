@@ -871,15 +871,15 @@ static inline int mysql_mutex_lock(...)
    |
    | [1]
    |
-   |-> pfs_socket(F)                            =====>> [B], [C], [D], [E]
-   |    |
-   |    | [2]
-   |    |
-   |    |-> pfs_socket_class(F.class)           =====>> [C], [D]
-   |
-   |-> pfs_thread(T).event_name(F)            =====>> [A]
+   |-> pfs_socket(F)                            =====>> [A], [B], [C], [D], [E]
         |
-       ...
+        | [2]
+        |
+        |-> pfs_socket_class(F.class)           =====>> [C], [D]
+        |   
+        |-> pfs_thread(T).event_name(F)         =====>> [A]
+        |
+        ...
 @endverbatim
 
   Implemented as:
@@ -2810,7 +2810,7 @@ get_thread_socket_locker_v1(PSI_socket_locker_state *state,
 
   if (flag_thread_instrumentation)
   {
-    PFS_thread *pfs_thread= my_pthread_getspecific_ptr(PFS_thread*, THR_PFS);
+    PFS_thread *pfs_thread= pfs_socket->m_thread_owner;
 
     if (unlikely(pfs_thread == NULL))
       return NULL;
@@ -2835,9 +2835,10 @@ get_thread_socket_locker_v1(PSI_socket_locker_state *state,
       state->m_wait= wait;
       flags|= STATE_FLAG_EVENT;
 
-#ifdef HAVE_NESTED_EVENTS
-      wait->m_nesting_event_id= (wait - 1)->m_event_id;
-#endif
+      PFS_events_waits *parent_event= wait - 1;
+      wait->m_event_type= EVENT_TYPE_WAIT;
+      wait->m_nesting_event_id= parent_event->m_event_id;
+      wait->m_nesting_event_id= parent_event->m_event_type;
       wait->m_thread=      pfs_thread;
       wait->m_class=       klass;
       wait->m_timer_start= 0;
@@ -2856,7 +2857,6 @@ get_thread_socket_locker_v1(PSI_socket_locker_state *state,
     if (klass->m_timed)
     {
       flags= STATE_FLAG_TIMED;
-      state->m_thread= NULL;
     }
     else
     {
@@ -2880,8 +2880,7 @@ get_thread_socket_locker_v1(PSI_socket_locker_state *state,
       case PSI_SOCKET_CLOSE:
         {
         PFS_socket *pfs_socket= reinterpret_cast<PFS_socket *>(socket);
-        /* Aggregate to EVENTS_WAITS_SUMMARY_BY_INSTANCE (counted) */
-        pfs_socket->m_wait_stat.aggregate_counted();
+        pfs_socket->m_socket_stat.m_io_stat.m_misc.aggregate_counted();
         return NULL;
         }
         break;
@@ -4597,7 +4596,7 @@ static void end_socket_wait_v1(PSI_socket_locker *locker, size_t byte_count)
   DBUG_ASSERT(state != NULL);
   ulonglong timer_end= 0;
   ulonglong wait_time= 0;
-  bool socket_destroyed= false;
+  bool socket_closed= false;
 
   PFS_socket *socket= reinterpret_cast<PFS_socket *>(state->m_socket);
   DBUG_ASSERT(socket != NULL);
@@ -4634,8 +4633,7 @@ static void end_socket_wait_v1(PSI_socket_locker *locker, size_t byte_count)
   case PSI_SOCKET_CLOSE:
     byte_stat= &socket->m_socket_stat.m_io_stat.m_misc;
     /* This socket will no longer be used by the server */
-    destroy_socket(socket);
-    socket_destroyed= true;
+    socket_closed= true;
     break;
 
   default:
@@ -4667,11 +4665,8 @@ static void end_socket_wait_v1(PSI_socket_locker *locker, size_t byte_count)
     event_name_array= thread->m_instr_class_waits_stats;
     uint index= socket->m_class->m_event_name_index;
 
-    /*
-       To reduce overhead per operation, aggregate the accumulated socket stats
-       after the socket has been destroyed.
-    */
-    if (socket_destroyed)
+    /* Reduce overhead by aggregating after the socket has been closed. */
+    if (socket_closed)
     {
       /* Combine stats for all operations */
       PFS_single_stat stat;
@@ -4709,6 +4704,10 @@ static void end_socket_wait_v1(PSI_socket_locker *locker, size_t byte_count)
       thread->m_events_waits_count--;
     }
   }
+
+  /* This socket will no longer be used */
+  if (socket_closed)
+    destroy_socket(socket);
 }
 
 static void set_socket_state_v1(PSI_socket *socket, PSI_socket_state state)
