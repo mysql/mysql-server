@@ -4416,6 +4416,10 @@ lock_trx_table_locks_remove(
 
 		lock = ib_vector_get(trx->lock.table_locks, i);
 
+		if (lock == NULL) {
+			continue;
+		}
+
 		ut_a(trx == lock->trx);
 		ut_a(lock_get_type_low(lock) & LOCK_TABLE);
 		ut_a(lock->un_member.tab_lock.table != NULL);
