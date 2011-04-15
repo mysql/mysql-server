@@ -653,13 +653,13 @@ page_zip_dir_encode(
 Allocate memory for zlib. */
 static
 void*
-page_zip_malloc(
+page_zip_zalloc(
 /*============*/
 	void*	opaque,	/*!< in/out: memory heap */
 	uInt	items,	/*!< in: number of items to allocate */
 	uInt	size)	/*!< in: size of an item in bytes */
 {
-	return(mem_heap_alloc(opaque, items * size));
+	return(mem_heap_zalloc(opaque, items * size));
 }
 
 /**********************************************************************//**
@@ -684,7 +684,7 @@ page_zip_set_alloc(
 {
 	z_stream*	strm = stream;
 
-	strm->zalloc = page_zip_malloc;
+	strm->zalloc = page_zip_zalloc;
 	strm->zfree = page_zip_free;
 	strm->opaque = heap;
 }
@@ -2912,18 +2912,17 @@ zlib_error:
 
 	page_zip_set_alloc(&d_stream, heap);
 
-	if (UNIV_UNLIKELY(inflateInit2(&d_stream, UNIV_PAGE_SIZE_SHIFT)
-			  != Z_OK)) {
-		ut_error;
-	}
-
 	d_stream.next_in = page_zip->data + PAGE_DATA;
 	/* Subtract the space reserved for
 	the page header and the end marker of the modification log. */
 	d_stream.avail_in = page_zip_get_size(page_zip) - (PAGE_DATA + 1);
-
 	d_stream.next_out = page + PAGE_ZIP_START;
 	d_stream.avail_out = UNIV_PAGE_SIZE - PAGE_ZIP_START;
+
+	if (UNIV_UNLIKELY(inflateInit2(&d_stream, UNIV_PAGE_SIZE_SHIFT)
+			  != Z_OK)) {
+		ut_error;
+	}
 
 	/* Decode the zlib header and the index information. */
 	if (UNIV_UNLIKELY(inflate(&d_stream, Z_BLOCK) != Z_OK)) {

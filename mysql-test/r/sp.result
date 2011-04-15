@@ -7452,4 +7452,34 @@ c1
 # Cleanup
 drop table t1;
 drop procedure p1;
+
+# --
+# -- Bug 11765684 - 58674: SP-cache does not detect changes in
+# -- pre-locking list caused by triggers
+# --- 
+DROP TABLE IF EXISTS t1;
+DROP TABLE IF EXISTS t2;
+DROP TABLE IF EXISTS t3;
+DROP PROCEDURE IF EXISTS p1;
+CREATE TABLE t1(a INT);
+CREATE TABLE t2(a INT);
+CREATE TABLE t3(a INT);
+CREATE PROCEDURE p1()
+INSERT INTO t1(a) VALUES (1);
+
+CREATE TRIGGER t1_ai AFTER INSERT ON t1
+FOR EACH ROW
+INSERT INTO t2(a) VALUES (new.a);
+
+CALL p1();
+
+CREATE TRIGGER t1_bi BEFORE INSERT ON t1
+FOR EACH ROW
+INSERT INTO t3(a) VALUES (new.a);
+
+CALL p1();
+
+DROP TABLE t1, t2, t3;
+DROP PROCEDURE p1;
+
 # End of 5.5 test

@@ -6,11 +6,12 @@ DROP DATABASE IF EXISTS mysqltest2;
 CREATE USER mysqltest_1@localhost;
 CREATE DATABASE mysqltest2;
 USE mysqltest2;
-CREATE TABLE t1 (a INT);
+CREATE TABLE t1 (a INT) ENGINE = MyISAM;
 INSERT INTO t1 VALUES (0);
 # user mysqltest_1:
 USE test;
 CREATE TABLE t1 (a INT)
+ENGINE = MyISAM
 PARTITION BY LIST (a) (
 PARTITION p0 VALUES IN (0)
 DATA DIRECTORY 'MYSQLTEST_VARDIR/tmp'
@@ -47,6 +48,7 @@ DROP DATABASE mysqltest2;
 CREATE DATABASE mysqltest2;
 USE mysqltest2;
 CREATE TABLE t1 (a INT)
+ENGINE = MyISAM
 PARTITION BY LIST (a) (
 PARTITION p0 VALUES IN (0)
 DATA DIRECTORY 'MYSQLTEST_VARDIR/tmp'
@@ -58,6 +60,7 @@ DATA DIRECTORY 'MYSQLTEST_VARDIR/tmp'
 # user mysqltest_1:
 USE test;
 CREATE TABLE t1 (a INT)
+ENGINE = MyISAM
 PARTITION BY LIST (a) (
 PARTITION p0 VALUES IN (0)
 DATA DIRECTORY 'MYSQLTEST_VARDIR/tmp'
@@ -68,6 +71,7 @@ DATA DIRECTORY 'MYSQLTEST_VARDIR/tmp'
    );
 Got one of the listed errors
 CREATE TABLE t1 (a INT)
+ENGINE = MyISAM
 PARTITION BY LIST (a) (
 PARTITION p0 VALUES IN (0)
 DATA DIRECTORY 'MYSQLTEST_VARDIR/tmp'
@@ -82,6 +86,7 @@ DROP DATABASE mysqltest2;
 USE test;
 DROP USER mysqltest_1@localhost;
 create table t2 (i int )
+ENGINE = MyISAM
 partition by range (i)
 (
 partition p01 values less than (1000)
@@ -94,6 +99,7 @@ select @@sql_mode;
 @@sql_mode
 NO_DIR_IN_CREATE
 create table t1 (i int )
+ENGINE = MyISAM
 partition by range (i)
 (
 partition p01 values less than (1000)
@@ -113,10 +119,12 @@ t2	CREATE TABLE `t2` (
 DROP TABLE t1, t2;
 set @@sql_mode=@org_mode;
 create table t1 (a int)
+ENGINE = MyISAM
 partition by key (a)
 (partition p0 DATA DIRECTORY 'part-data' INDEX DIRECTORY 'part-data');
 Got one of the listed errors
 create table t1 (a int)
+ENGINE = MyISAM
 partition by key (a)
 (partition p0,
 partition p1 DATA DIRECTORY 'part-data' INDEX DIRECTORY 'part-data');

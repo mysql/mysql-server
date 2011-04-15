@@ -263,7 +263,7 @@ static bool mysql_admin_table(THD* thd, TABLE_LIST* tables,
                               const char *operator_name,
                               thr_lock_type lock_type,
                               bool open_for_modify,
-                              bool no_warnings_for_error,
+                              bool repair_table_use_frm,
                               uint extra_open_options,
                               int (*prepare_func)(THD *, TABLE_LIST *,
                                                   HA_CHECK_OPT *),
@@ -331,18 +331,43 @@ static bool mysql_admin_table(THD* thd, TABLE_LIST* tables,
       lex->query_tables= table;
       lex->query_tables_last= &table->next_global;
       lex->query_tables_own_last= 0;
-      /*
-        Under locked tables, we know that the table can be opened,
-        so any errors opening the table are logical errors.
-        In these cases it makes sense to report them.
-      */
-      if (!thd->locked_tables_mode)
-        thd->no_warnings_for_error= no_warnings_for_error;
+
       if (view_operator_func == NULL)
         table->required_type=FRMTYPE_TABLE;
 
-      open_error= open_and_lock_tables(thd, table, TRUE, 0);
-      thd->no_warnings_for_error= 0;
+      if (!thd->locked_tables_mode && repair_table_use_frm)
+      {
+        /*
+          If we're not under LOCK TABLES and we're executing REPAIR TABLE
+          USE_FRM, we need to ignore errors from open_and_lock_tables().
+          REPAIR TABLE USE_FRM is a heavy weapon used when a table is
+          critically damaged, so open_and_lock_tables() will most likely
+          report errors. Those errors are not interesting for the user
+          because it's already known that the table is badly damaged.
+        */
+
+        Warning_info wi(thd->query_id, false);
+        Warning_info *wi_saved= thd->warning_info;
+
+        thd->warning_info= &wi;
+
+        open_error= open_and_lock_tables(thd, table, TRUE, 0);
+
+        thd->warning_info= wi_saved;
+      }
+      else
+      {
+        /*
+          It's assumed that even if it is REPAIR TABLE USE_FRM, the table
+          can be opened if we're under LOCK TABLES (otherwise LOCK TABLES
+          would fail). Thus, the only errors we could have from
+          open_and_lock_tables() are logical ones, like incorrect locking
+          mode. It does make sense for the user to see such errors.
+        */
+
+        open_error= open_and_lock_tables(thd, table, TRUE, 0);
+      }
+
       table->next_global= save_next_global;
       table->next_local= save_next_local;
       thd->open_options&= ~extra_open_options;
@@ -771,8 +796,12 @@ send_result_message:
       size_t length;
 
       protocol->store(STRING_WITH_LEN("error"), system_charset_info);
-      length=my_snprintf(buf, sizeof(buf), ER(ER_TABLE_NEEDS_UPGRADE),
-                         table->table_name);
+      if (table->table->file->ha_table_flags() & HA_CAN_REPAIR)
+        length= my_snprintf(buf, sizeof(buf), ER(ER_TABLE_NEEDS_UPGRADE),
+                            table->table_name);
+      else
+        length= my_snprintf(buf, sizeof(buf), ER(ER_TABLE_NEEDS_REBUILD),
+                            table->table_name);
       protocol->store(buf, length, system_charset_info);
       fatal_error=1;
       break;
