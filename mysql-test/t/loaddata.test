@@ -611,5 +611,18 @@ DROP TABLE t1;
 let $MYSQLD_DATADIR= `select @@datadir`;
 remove_file $MYSQLD_DATADIR/test/tmpp2.txt;
 
+--echo #
+--echo # Bug#11765139  58069: LOAD DATA INFILE: VALGRIND REPORTS INVALID MEMORY READS AND WRITES WITH U
+--echo #
+
+CREATE TABLE t1(f1 INT);
+EVAL SELECT 0xE1BB30 INTO OUTFILE 't1.dat';
+--disable_warnings
+LOAD DATA INFILE 't1.dat' IGNORE INTO TABLE t1 CHARACTER SET utf8;
+--enable_warnings
+
+DROP TABLE t1;
+let $MYSQLD_DATADIR= `select @@datadir`;
+remove_file $MYSQLD_DATADIR/test/t1.dat;
 
 --echo End of 5.1 tests
