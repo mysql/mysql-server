@@ -95,6 +95,7 @@ public:
     *last= a;
     *B::prev_ptr(a)= last;
     I::set_last(B::next_ptr(a));
+    C::inc();
   }
   inline void insert_after(T *pos, T *a)
   {
@@ -112,6 +113,7 @@ public:
       }
       else
         I::set_last(B::next_ptr(a));
+      C::inc();
     }
   }
   inline void remove(T *a)
@@ -184,6 +186,20 @@ public:
   {
     current= list->m_first;
   }
+};
+
+
+/**
+  Hook class which via its methods specifies which members
+  of T should be used for participating in a intrusive list.
+*/
+
+template <typename T, T* T::*next, T** T::*prev>
+struct I_P_List_adapter
+{
+  static inline T **next_ptr(T *el) { return &(el->*next); }
+
+  static inline T ***prev_ptr(T *el) { return &(el->*prev); }
 };
 
 

@@ -11,7 +11,7 @@
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
-   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
+   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
 /*
   This file is also used to make handling of sockets and ioctl()
@@ -27,18 +27,23 @@
 C_MODE_START
 
 #include <errno.h>
+
 #ifdef HAVE_SYS_SOCKET_H
 #include <sys/socket.h>
 #endif
+
 #ifdef HAVE_NETINET_IN_H
 #include <netinet/in.h>
 #endif
+
 #ifdef HAVE_ARPA_INET_H
 #include <arpa/inet.h>
 #endif
+
 #ifdef HAVE_POLL
 #include <sys/poll.h>
 #endif
+
 #ifdef HAVE_SYS_IOCTL_H
 #include <sys/ioctl.h>
 #endif
@@ -47,9 +52,9 @@ C_MODE_START
 #include <netinet/in_systm.h>
 #include <netinet/in.h>
 #include <netinet/ip.h>
-#if !defined(alpha_linux_port)
-#include <netinet/tcp.h>
-#endif
+# if !defined(alpha_linux_port)
+#   include <netinet/tcp.h>
+# endif
 #endif
 
 #if defined(__WIN__)
@@ -61,7 +66,8 @@ C_MODE_START
   #define SD_BOTH 0x02
 */
 #define SHUT_RDWR 0x02
-
+#else
+#include <netdb.h>     /* getaddrinfo() & co */
 #endif
 
 /*
