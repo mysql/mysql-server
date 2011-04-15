@@ -1,6 +1,7 @@
 #
 # Test of procedure analyse
 #
+-- source include/have_innodb.inc
 
 --disable_warnings
 drop table if exists t1,t2;
@@ -133,3 +134,26 @@ DROP TABLE t1;
 
 
 --echo End of 5.0 tests
+
+--echo #
+--echo # Bug#11765202: Dbug_violation_helper::~Dbug_violation_helper(): Assertion `!_entered' failed.
+--echo #
+
+DROP TABLE IF EXISTS t1;
+CREATE TABLE t1 (a VARCHAR(2) CHARSET UTF8 NOT NULL);
+INSERT INTO t1 VALUES ('e'),('e'),('e-');
+SELECT * FROM t1 PROCEDURE ANALYSE();
+DROP TABLE t1;
+
+--echo #
+--echo # Bug#11756242  48137: PROCEDURE ANALYSE() LEAKS MEMORY WHEN RETURNING NULL
+--echo #
+
+CREATE TABLE t1(f1 INT) ENGINE=MYISAM;
+CREATE TABLE t2(f2 INT) ENGINE=INNODB;
+INSERT INTO t2 VALUES (1);
+SELECT DISTINCTROW f1 FROM t1 NATURAL RIGHT OUTER JOIN t2 PROCEDURE ANALYSE();
+SELECT * FROM t2 LIMIT 1 PROCEDURE ANALYSE();
+DROP TABLE t1, t2;
+
+--echo End of 5.1 tests

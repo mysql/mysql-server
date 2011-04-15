@@ -104,6 +104,22 @@ UNIV_INTERN
 void
 ibuf_update_max_tablespace_id(void);
 /*===============================*/
+/***************************************************************//**
+Starts an insert buffer mini-transaction. */
+UNIV_INLINE
+void
+ibuf_mtr_start(
+/*===========*/
+	mtr_t*	mtr)	/*!< out: mini-transaction */
+	__attribute__((nonnull));
+/***************************************************************//**
+Commits an insert buffer mini-transaction. */
+UNIV_INLINE
+void
+ibuf_mtr_commit(
+/*============*/
+	mtr_t*	mtr)	/*!< in/out: mini-transaction */
+	__attribute__((nonnull));
 /*********************************************************************//**
 Initializes an ibuf bitmap page. */
 UNIV_INTERN
@@ -224,19 +240,12 @@ routine.
 For instance, a read-ahead of non-ibuf pages is forbidden by threads
 that are executing an insert buffer routine.
 @return TRUE if inside an insert buffer routine */
-UNIV_INTERN
+UNIV_INLINE
 ibool
 ibuf_inside(
-        mtr_t*          mtr);/*!< in: ibuf_inside stored on mtr */
-/*=============*/
-/***********************************************************************//**
-Sets ibuf_inside indicator on current MTR.
-*/
-UNIV_INTERN
-void
-ibuf_enter(
-        mtr_t*          mtr);/*!< in: ibuf_inside stored on mtr */
-/*=============*/
+/*========*/
+	const mtr_t*	mtr)	/*!< in: mini-transaction */
+	__attribute__((nonnull, pure));
 /***********************************************************************//**
 Checks if a page address is an ibuf bitmap page (level 3 page) address.
 @return	TRUE if a bitmap page */

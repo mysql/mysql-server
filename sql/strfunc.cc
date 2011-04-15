@@ -1,4 +1,4 @@
-/* Copyright (C) 2003 MySQL AB
+/* Copyright (c) 2003, 2011, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -96,7 +96,7 @@ ulonglong find_set(TYPELIB *lib, const char *str, uint length, CHARSET_INFO *cs,
 
 /*
   Function to find a string in a TYPELIB
-  (Same format as mysys/typelib.c)
+  (similar to find_type() of mysys/typelib.c)
 
   SYNOPSIS
    find_type()

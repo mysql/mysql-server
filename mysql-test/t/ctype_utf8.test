@@ -1550,6 +1550,16 @@ SELECT COUNT(*) FROM t1, t1 t2
 GROUP BY INSERT('', t2.a, t1.a, (@@global.max_binlog_size));
 DROP TABLE t1;
 
+--echo #
+--echo # Bug#11764503 (Bug#57341) Query in EXPLAIN EXTENDED shows wrong characters
+--echo #
+# Emulate utf8 client erroneously started with --default-character-set=latin1,
+# as in the bug report. EXPLAIN output should still be pretty readable
+SET NAMES latin1;
+EXPLAIN EXTENDED SELECT 'abcdÁÂÃÄÅ', _latin1'abcdÁÂÃÄÅ', _utf8'abcdÁÂÃÄÅ' AS u;
+# Test normal utf8
+SET NAMES utf8;
+EXPLAIN EXTENDED SELECT 'abcdÁÂÃÄÅ', _latin1'abcdÁÂÃÄÅ', _utf8'abcdÁÂÃÄÅ';
 
 --echo #
 --echo # End of 5.5 tests

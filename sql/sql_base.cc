@@ -1026,7 +1026,7 @@ bool close_cached_tables(THD *thd, TABLE_LIST *tables,
          table_list= table_list->next_global)
     {
       /* A check that the table was locked for write is done by the caller. */
-      TABLE *table= find_table_for_mdl_upgrade(thd->open_tables, table_list->db,
+      TABLE *table= find_table_for_mdl_upgrade(thd, table_list->db,
                                                table_list->table_name, TRUE);
 
       /* May return NULL if this table has already been closed via an alias. */
@@ -3120,22 +3120,26 @@ TABLE *find_locked_table(TABLE *list, const char *db, const char *table_name)
    lock from the list of open tables, emit error if no such table
    found.
 
-   @param list       List of TABLE objects to be searched
+   @param thd        Thread context
    @param db         Database name.
    @param table_name Name of table.
    @param no_error   Don't emit error if no suitable TABLE
                      instance were found.
+
+   @note This function checks if the connection holds a global IX
+         metadata lock. If no such lock is found, it is not safe to
+         upgrade the lock and ER_TABLE_NOT_LOCKED_FOR_WRITE will be
+         reported.
 
    @return Pointer to TABLE instance with MDL_SHARED_NO_WRITE,
            MDL_SHARED_NO_READ_WRITE, or MDL_EXCLUSIVE metadata
            lock, NULL otherwise.
 */
 
-TABLE *find_table_for_mdl_upgrade(TABLE *list, const char *db,
-                                  const char *table_name,
-                                  bool no_error)
+TABLE *find_table_for_mdl_upgrade(THD *thd, const char *db,
+                                  const char *table_name, bool no_error)
 {
-  TABLE *tab= find_locked_table(list, db, table_name);
+  TABLE *tab= find_locked_table(thd->open_tables, db, table_name);
 
   if (!tab)
   {
@@ -3143,19 +3147,29 @@ TABLE *find_table_for_mdl_upgrade(TABLE *list, const char *db,
       my_error(ER_TABLE_NOT_LOCKED, MYF(0), table_name);
     return NULL;
   }
-  else
+
+  /*
+    It is not safe to upgrade the metadata lock without a global IX lock.
+    This can happen with FLUSH TABLES <list> WITH READ LOCK as we in these
+    cases don't take a global IX lock in order to be compatible with
+    global read lock.
+  */
+  if (!thd->mdl_context.is_lock_owner(MDL_key::GLOBAL, "", "",
+                                      MDL_INTENTION_EXCLUSIVE))
   {
-    while (tab->mdl_ticket != NULL &&
-           !tab->mdl_ticket->is_upgradable_or_exclusive() &&
-           (tab= find_locked_table(tab->next, db, table_name)))
-      continue;
-    if (!tab)
-    {
-      if (!no_error)
-        my_error(ER_TABLE_NOT_LOCKED_FOR_WRITE, MYF(0), table_name);
-      return 0;
-    }
+    if (!no_error)
+      my_error(ER_TABLE_NOT_LOCKED_FOR_WRITE, MYF(0), table_name);
+    return NULL;
   }
+
+  while (tab->mdl_ticket != NULL &&
+         !tab->mdl_ticket->is_upgradable_or_exclusive() &&
+         (tab= find_locked_table(tab->next, db, table_name)))
+    continue;
+
+  if (!tab && !no_error)
+    my_error(ER_TABLE_NOT_LOCKED_FOR_WRITE, MYF(0), table_name);
+
   return tab;
 }
 
@@ -4653,8 +4667,7 @@ open_tables_check_upgradable_mdl(THD *thd, TABLE_LIST *tables_start,
         Note that find_table_for_mdl_upgrade() will report an error if
         no suitable ticket is found.
       */
-      if (!find_table_for_mdl_upgrade(thd->open_tables, table->db,
-                                      table->table_name, FALSE))
+      if (!find_table_for_mdl_upgrade(thd, table->db, table->table_name, false))
         return TRUE;
     }
   }
@@ -4710,6 +4723,14 @@ bool open_tables(THD *thd, TABLE_LIST **start, uint *counter, uint flags,
   MEM_ROOT new_frm_mem;
   bool has_prelocking_list;
   DBUG_ENTER("open_tables");
+
+  /* Accessing data in XA_IDLE or XA_PREPARED is not allowed. */
+  enum xa_states xa_state= thd->transaction.xid_state.xa_state;
+  if (*start && (xa_state == XA_IDLE || xa_state == XA_PREPARED))
+  {
+    my_error(ER_XAER_RMFAIL, MYF(0), xa_state_names[xa_state]);
+    DBUG_RETURN(true);
+  }
 
   /*
     temporary mem_root for new .frm parsing.

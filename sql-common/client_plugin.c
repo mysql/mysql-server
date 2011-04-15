@@ -163,6 +163,7 @@ add_plugin(MYSQL *mysql, struct st_mysql_client_plugin *plugin, void *dlhandle,
 
   p->next= plugin_list[plugin->type];
   plugin_list[plugin->type]= p;
+  net_clear_error(&mysql->net);
 
   return plugin;
 

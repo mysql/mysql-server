@@ -71,7 +71,7 @@ SET @@collation_connection = @collation_connection_saved||
 -- Insert patterns that should always be suppressed
 --
 INSERT INTO global_suppressions VALUES
- ("'SELECT UNIX_TIMESTAMP\\(\\)' failed on master"),
+ (".SELECT UNIX_TIMESTAMP... failed on master"),
  ("Aborted connection"),
  ("Client requested master to start replication from impossible position"),
  ("Could not find first log file name in binary log"),
@@ -125,11 +125,9 @@ INSERT INTO global_suppressions VALUES
  ("Slave: The incident LOST_EVENTS occured on the master"),
  ("Slave: Unknown error.* 1105"),
  ("Slave: Can't drop database.* database doesn't exist"),
- ("Slave SQL:.*(Error_code: \[\[:digit:\]\]+|Query:.*)"),
  ("Sort aborted"),
  ("Time-out in NDB"),
  ("Warning:\s+One can only use the --user.*root"),
- ("Warning:\s+Setting lower_case_table_names=2"),
  ("Warning:\s+Table:.* on (delete|rename)"),
  ("You have an error in your SQL syntax"),
  ("deprecated"),
@@ -142,29 +140,12 @@ INSERT INTO global_suppressions VALUES
  ("slave SQL thread aborted"),
  ("Slave: .*Duplicate entry"),
 
- /*
-   Special case, made as specific as possible, for:
-   Bug #28436: Incorrect position in SHOW BINLOG EVENTS causes
-   server coredump
- */
-
- ("Error in Log_event::read_log_event\\\(\\\): 'Sanity check failed', data_len: 258, event_type: 49"),
-
  ("Statement may not be safe to log in statement format"),
-
- /* test case for Bug#bug29807 copies a stray frm into database */
- ("InnoDB: Error: table `test`.`bug29807` does not exist in the InnoDB internal"),
- ("Cannot find or open table test\/bug29807 from"),
 
  /* innodb foreign key tests that fail in ALTER or RENAME produce this */
  ("InnoDB: Error: in ALTER TABLE `test`.`t[123]`"),
  ("InnoDB: Error: in RENAME TABLE table `test`.`t1`"),
  ("InnoDB: Error: table `test`.`t[123]` does not exist in the InnoDB internal"),
-
- /* Test case for Bug#14233 produces the following warnings: */
- ("Stored routine 'test'.'bug14233_1': invalid value in column mysql.proc"),
- ("Stored routine 'test'.'bug14233_2': invalid value in column mysql.proc"),
- ("Stored routine 'test'.'bug14233_3': invalid value in column mysql.proc"),
 
  /*
    BUG#32080 - Excessive warnings on Solaris: setrlimit could not
@@ -172,23 +153,7 @@ INSERT INTO global_suppressions VALUES
   */
  ("setrlimit could not change the size of core files to 'infinity'"),
 
- /*
-   rpl_extrColmaster_*.test, the slave thread produces warnings
-   when it get updates to a table that has more columns on the
-   master
-  */
- ("Slave: Unknown column 'c7' in 't15' Error_code: 1054"),
- ("Slave: Can't DROP 'c7'.* 1091"),
- ("Slave: Key column 'c6'.* 1072"),
  ("The slave I.O thread stops because a fatal error is encountered when it try to get the value of SERVER_ID variable from master."),
- (".SELECT UNIX_TIMESTAMP... failed on master, do not trust column Seconds_Behind_Master of SHOW SLAVE STATUS"),
-
- /* Special case for Bug #26402 in show_check.test
-    - Question marks are not valid file name parts on Windows. Ignore
-      this error message.
-  */
- ("Can't find file: '.\\\\test\\\\\\?{8}.frm'"),
- ("Slave: Unknown table 't1' Error_code: 1051"),
 
  /* Added 2009-08-XX after fixing Bug #42408 */
 
@@ -216,14 +181,6 @@ INSERT INTO global_suppressions VALUES
  ("==[0-9]*== Warning: invalid file descriptor -1 in syscall write()"),
  ("==[0-9]*== Warning: invalid file descriptor -1 in syscall read()"),
 
- /*
-   Transient network failures that cause warnings on reconnect.
-   BUG#47743 and BUG#47983.
- */
- ("Slave I/O: Get master SERVER_ID failed with error:.*"),
- ("Slave I/O: Get master clock failed with error:.*"),
- ("Slave I/O: Get master COLLATION_SERVER failed with error:.*"),
- ("Slave I/O: Get master TIME_ZONE failed with error:.*"),
  /*
    BUG#42147 - Concurrent DML and LOCK TABLE ... READ for InnoDB 
    table cause warnings in errlog

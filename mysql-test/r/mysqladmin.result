@@ -10,3 +10,10 @@ mysqld is alive
 # Displaying the output :
 mysqld is alive
 mysqld is alive
+#
+# BUG#11766184 - 59234: cmdline clients crash --defaults-extra-file
+#                with no .cnf or .ini extension.
+#
+# Creating an empty file 'cnf_file'
+# Using --defaults-extra-file option with 'cnf_file'.
+mysqld is alive

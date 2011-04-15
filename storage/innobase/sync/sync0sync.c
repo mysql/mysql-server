@@ -43,6 +43,7 @@ Created 9/5/1995 Heikki Tuuri
 #ifdef UNIV_SYNC_DEBUG
 # include "srv0start.h" /* srv_is_being_started */
 #endif /* UNIV_SYNC_DEBUG */
+#include "ha_prototypes.h"
 
 /*
 	REASONS FOR IMPLEMENTING THE SPIN LOCK MUTEX
@@ -543,7 +544,8 @@ spin_loop:
 		"Thread %lu spin wait mutex at %p"
 		" cfile %s cline %lu rnds %lu\n",
 		(ulong) os_thread_pf(os_thread_get_curr_id()), (void*) mutex,
-		mutex->cfile_name, (ulong) mutex->cline, (ulong) i);
+		innobase_basename(mutex->cfile_name),
+		(ulong) mutex->cline, (ulong) i);
 #endif
 
 	mutex_spin_round_count += i;
@@ -620,7 +622,8 @@ spin_loop:
 	fprintf(stderr,
 		"Thread %lu OS wait mutex at %p cfile %s cline %lu rnds %lu\n",
 		(ulong) os_thread_pf(os_thread_get_curr_id()), (void*) mutex,
-		mutex->cfile_name, (ulong) mutex->cline, (ulong) i);
+		innobase_basename(mutex->cfile_name),
+		(ulong) mutex->cline, (ulong) i);
 #endif
 
 	mutex_os_wait_count++;
@@ -869,7 +872,8 @@ sync_print_warning(
 	if (mutex->magic_n == MUTEX_MAGIC_N) {
 		fprintf(stderr,
 			"Mutex created at %s %lu\n",
-			mutex->cfile_name, (ulong) mutex->cline);
+			innobase_basename(mutex->cfile_name),
+			(ulong) mutex->cline);
 
 		if (mutex_get_lock_word(mutex) != 0) {
 			ulint		line;

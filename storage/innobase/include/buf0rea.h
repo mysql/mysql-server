@@ -71,11 +71,10 @@ UNIV_INTERN
 ulint
 buf_read_ahead_linear(
 /*==================*/
-	ulint	space,	/*!< in: space id */
-	ulint	zip_size,/*!< in: compressed page size in bytes, or 0 */
-	ulint	offset, /*!< in: page number of a page; NOTE: the current thread
-			must want access to this page (see NOTE 3 above) */
-        mtr_t   *mtr); /*!< in: mtr to get ibuf_inside indicator */
+	ulint	space,		/*!< in: space id */
+	ulint	zip_size,	/*!< in: compressed page size in bytes, or 0 */
+	ulint	offset,		/*!< in: page number; see NOTE 3 above */
+	ibool	inside_ibuf);	/*!< in: TRUE if we are inside ibuf routine */
 /********************************************************************//**
 Issues read requests for pages which the ibuf module wants to read in, in
 order to contract the insert buffer tree. Technically, this function is like

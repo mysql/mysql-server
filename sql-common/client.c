@@ -1,4 +1,4 @@
-/* Copyright (C) 2000-2003 MySQL AB
+/* Copyright (c) 2000, 2011, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -1145,10 +1145,10 @@ enum option_id {
   OPT_ssl_key, OPT_ssl_cert, OPT_ssl_ca, OPT_ssl_capath, 
   OPT_character_sets_dir, OPT_default_character_set, OPT_interactive_timeout, 
   OPT_connect_timeout, OPT_local_infile, OPT_disable_local_infile, 
-  OPT_replication_probe, OPT_enable_reads_from_master, OPT_repl_parse_query,
   OPT_ssl_cipher, OPT_max_allowed_packet, OPT_protocol, OPT_shared_memory_base_name, 
   OPT_multi_results, OPT_multi_statements, OPT_multi_queries, OPT_secure_auth, 
   OPT_report_data_truncation, OPT_plugin_dir, OPT_default_auth, 
+  OPT_keep_this_one_last
 };
 
 static TYPELIB option_types={array_elements(default_options)-1,
@@ -1198,6 +1198,9 @@ void mysql_read_default_options(struct st_mysql_options *options,
   DBUG_ENTER("mysql_read_default_options");
   DBUG_PRINT("enter",("file: %s  group: %s",filename,group ? group :"NULL"));
 
+  compile_time_assert(OPT_keep_this_one_last ==
+                      array_elements(default_options));
+
   argc=1; argv=argv_buff; argv_buff[0]= (char*) "client";
   groups[0]= (char*) "client"; groups[1]= (char*) group; groups[2]=0;
 
@@ -1222,7 +1225,7 @@ void mysql_read_default_options(struct st_mysql_options *options,
 	/* Change all '_' in variable name to '-' */
 	for (end= *option ; *(end= strcend(end,'_')) ; )
 	  *end= '-';
-	switch (find_type(*option+2,&option_types,2)) {
+	switch (find_type(*option + 2, &option_types, FIND_TYPE_BASIC)) {
 	case OPT_port:
 	  if (opt_arg)
 	    options->port=atoi(opt_arg);
@@ -1338,8 +1341,8 @@ void mysql_read_default_options(struct st_mysql_options *options,
 	    options->max_allowed_packet= atoi(opt_arg);
 	  break;
         case OPT_protocol:
-          if ((options->protocol= find_type(opt_arg,
-					    &sql_protocol_typelib,0)) <= 0)
+          if ((options->protocol= find_type(opt_arg, &sql_protocol_typelib,
+                                            FIND_TYPE_BASIC)) <= 0)
           {
             fprintf(stderr, "Unknown option to protocol: %s\n", opt_arg);
             exit(1);

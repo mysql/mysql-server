@@ -265,6 +265,8 @@ STOP SLAVE;
 RESET SLAVE;
 RESET MASTER;
 START SLAVE;
+call mtr.add_suppression("Slave SQL.*Table definition on master and slave does not match: Column 0 ...e mismatch.* Error_code: 1535");
+call mtr.add_suppression("Slave SQL.*Column 0 of table .test.t1. cannot be converted from type.* Error_code: 1677");
 *** Cleanup  ***
 DROP TABLE IF EXISTS t1;
 include/rpl_end.inc

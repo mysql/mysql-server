@@ -190,21 +190,21 @@ functions).  The page number parameter was originally written as 0. @{ */
 /* @} */
 
 /***************************************************************//**
-Starts a mini-transaction and creates a mini-transaction handle
-and buffer in the memory buffer given by the caller.
-@return	mtr buffer which also acts as the mtr handle */
+Starts a mini-transaction. */
 UNIV_INLINE
-mtr_t*
+void
 mtr_start(
 /*======*/
-	mtr_t*	mtr);	/*!< in: memory buffer for the mtr buffer */
+	mtr_t*	mtr)	/*!< out: mini-transaction */
+	__attribute__((nonnull));
 /***************************************************************//**
 Commits a mini-transaction. */
 UNIV_INTERN
 void
 mtr_commit(
 /*=======*/
-	mtr_t*	mtr);	/*!< in: mini-transaction */
+	mtr_t*	mtr)	/*!< in/out: mini-transaction */
+	__attribute__((nonnull));
 /**********************************************************//**
 Sets and returns a savepoint in mtr.
 @return	savepoint */
@@ -378,8 +378,8 @@ struct mtr_struct{
 #endif
 	dyn_array_t	memo;	/*!< memo stack for locks etc. */
 	dyn_array_t	log;	/*!< mini-transaction log */
-        ibool           ibuf_inside;
-                                /* TRUE if inside ibuf changes */
+	ibool		inside_ibuf;
+				/*!< TRUE if inside ibuf changes */
 	ibool		modifications;
 				/* TRUE if the mtr made modifications to
 				buffer pool pages */

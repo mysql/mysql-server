@@ -17,7 +17,7 @@
 # Global constants, only to be changed between major releases.
 #
 
-SET(SHARED_LIB_MAJOR_VERSION "16")
+SET(SHARED_LIB_MAJOR_VERSION "18")
 SET(PROTOCOL_VERSION "10")
 SET(DOT_FRM_VERSION "6")
 

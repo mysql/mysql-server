@@ -1347,6 +1347,36 @@ Warning	1292	Truncated incorrect time value: ''
 Warning	1292	Truncated incorrect time value: ''
 Warning	1292	Truncated incorrect time value: ''
 DROP TABLE t1;
+#
+# Bug#11766112  59151:UNINITIALIZED VALUES IN EXTRACT_DATE_TIME WITH STR_TO_DATE(SPACE(..) ...
+#
+SELECT STR_TO_DATE(SPACE(2),'1');
+STR_TO_DATE(SPACE(2),'1')
+0000-00-00
+#
+# Bug#11765216  58154: UNINITIALIZED VARIABLE FORMAT IN STR_TO_DATE FUNCTION
+#
+SET GLOBAL SQL_MODE='';
+DO  STR_TO_DATE((''), FROM_DAYS(@@GLOBAL.SQL_MODE));
+SET GLOBAL SQL_MODE=DEFAULT;
+#
+# Bug#11766087  59125: VALGRIND UNINITIALISED VALUE WARNING IN ULL2DEC, LONGLONG2DECIMAL
+#
+SELECT FORMAT(YEAR(STR_TO_DATE('',GET_FORMAT(TIME,''))),1);
+FORMAT(YEAR(STR_TO_DATE('',GET_FORMAT(TIME,''))),1)
+NULL
+#
+# Bug#11766126  59166: ANOTHER DATETIME VALGRIND UNINITIALIZED WARNING
+#
+SELECT CAST((MONTH(FROM_UNIXTIME(@@GLOBAL.SQL_MODE))) AS BINARY(1025));
+CAST((MONTH(FROM_UNIXTIME(@@GLOBAL.SQL_MODE))) AS BINARY(1025))
+NULL
+#
+# Bug#11766124  59164: VALGRIND: UNINITIALIZED VALUE IN NUMBER_TO_DATETIME
+#
+SELECT ADDDATE(MONTH(FROM_UNIXTIME(NULL)),INTERVAL 1 HOUR);
+ADDDATE(MONTH(FROM_UNIXTIME(NULL)),INTERVAL 1 HOUR)
+NULL
 End of 5.1 tests
 #
 # Bug#57039: constant subtime expression returns incorrect result.
@@ -1376,3 +1406,15 @@ NULL	1	NULL
 SET storage_engine=NULL;
 ERROR 42000: Variable 'storage_engine' can't be set to the value of 'NULL'
 #
+# Bug #59686 crash in String::copy() with time data type
+#
+SELECT min(timestampadd(month, 1>'', from_days('%Z')));
+min(timestampadd(month, 1>'', from_days('%Z')))
+NULL
+Warnings:
+Warning	1292	Truncated incorrect INTEGER value: '%Z'
+create table t1(a time);
+insert into t1 values ('00:00:00'),('00:01:00');
+select 1 from t1 where 1 < some (select cast(a as datetime) from t1);
+1
+drop table t1;
