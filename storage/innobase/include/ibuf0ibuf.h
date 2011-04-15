@@ -234,7 +234,7 @@ ibuf_should_try(
 						a secondary index when we
 						decide */
 /******************************************************************//**
-Returns TRUE if the current MTR is performing an insert buffer
+Returns TRUE if the current OS thread is performing an insert buffer
 routine.
 
 For instance, a read-ahead of non-ibuf pages is forbidden by threads
