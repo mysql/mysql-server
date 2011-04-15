@@ -301,7 +301,7 @@ void thd_set_thread_stack(THD *thd, char *stack_start)
 
   @param thd                       THD object
 */
-void thd_lock_connection_data(THD *)
+void thd_lock_thread_count(THD *)
 {
   mysql_mutex_lock(&LOCK_thread_count);
 }
@@ -312,7 +312,7 @@ void thd_lock_connection_data(THD *)
 
   @param thd                       THD object
 */
-void thd_unlock_connection_data(THD *)
+void thd_unlock_thread_count(THD *)
 {
   mysql_cond_broadcast(&COND_thread_count);
   mysql_mutex_unlock(&LOCK_thread_count);
