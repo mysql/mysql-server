@@ -50,9 +50,9 @@ Last_IO_Errno	#
 Last_IO_Error	#
 Last_SQL_Errno	0
 Last_SQL_Error	
-Master_Bind	
 Replicate_Ignore_Server_Ids	
 Master_Server_Id	1
+Master_Bind	
 Slave Binlog contains all ops as log_slave_updates is on
 show variables like 'server_id';
 Variable_name	Value
