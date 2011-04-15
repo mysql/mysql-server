@@ -977,7 +977,19 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
     "0",
     "0",
     STR_VALUE(MAX_INT_RNIL) },
-  
+
+  {
+    CFG_DB_START_NO_NODEGROUP_TIMEOUT,
+    "StartNoNodegroupTimeout",
+    DB_TOKEN,
+    "Time to wait for nodes wo/ nodegroup before trying to start (0=forever)",
+    ConfigInfo::CI_USED,
+    0,
+    ConfigInfo::CI_INT,
+    "15000",
+    "0",
+    STR_VALUE(MAX_INT_RNIL) },
+
   {
     CFG_DB_HEARTBEAT_INTERVAL,
     "HeartbeatIntervalDbDb",
