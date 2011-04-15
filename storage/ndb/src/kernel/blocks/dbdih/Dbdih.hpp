@@ -951,6 +951,7 @@ private:
   void replication(Uint32 noOfReplicas,
                    NodeGroupRecordPtr NGPtr,
                    FragmentstorePtr regFragptr);
+  void sendDihRestartRef(Signal*);
   void selectMasterCandidateAndSend(Signal *);
   void setLcpActiveStatusEnd(Signal*);
   void setLcpActiveStatusStart(Signal *);
