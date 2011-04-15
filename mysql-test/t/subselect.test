@@ -3997,6 +3997,28 @@ DROP TABLE t1,t1s,t2s;
 --echo End of 5.1 tests
 
 --echo #
+--echo # Bug #11765713 58705:
+--echo # OPTIMIZER LET ENGINE DEPEND ON UNINITIALIZED VALUES
+--echo # CREATED BY OPT_SUM_QUERY
+--echo #
+
+CREATE TABLE t1(a INT NOT NULL, KEY (a));
+INSERT INTO t1 VALUES (0), (1);
+
+--error ER_SUBQUERY_NO_1_ROW
+SELECT 1 as foo FROM t1 WHERE a < SOME
+  (SELECT a FROM t1 WHERE a <=>
+    (SELECT a FROM t1)
+  );
+
+SELECT 1 as foo FROM t1 WHERE a < SOME
+  (SELECT a FROM t1 WHERE a <=>
+    (SELECT a FROM t1 where a is null)
+  ); 
+
+DROP TABLE t1;
+
+--echo #
 --echo # Bug #57704: Cleanup code dies with void TABLE::set_keyread(bool): 
 --echo #             Assertion `file' failed.
 --echo #
