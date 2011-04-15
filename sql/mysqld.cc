@@ -17,9 +17,6 @@
 #include "sql_priv.h"
 #include "unireg.h"
 #include <signal.h>
-#ifndef __WIN__
-#include <netdb.h>        // getservbyname, servent
-#endif
 #include "sql_parse.h"    // test_if_data_home_dir
 #include "sql_cache.h"    // query_cache, query_cache_*
 #include "sql_locale.h"   // MY_LOCALES, my_locales, my_locale_by_name
