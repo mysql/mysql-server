@@ -362,6 +362,7 @@ public:
                      Uint32 transId, Uint32 transKey, Uint32 flags);
 
 private:
+  int guess_master_node(SignalSender&);
 
   int versionNode(int nodeId, Uint32 &version,
                   Uint32 &mysql_version, const char **address);
@@ -376,9 +377,15 @@ private:
                    bool nostart,
                    bool initialStart);
 
+  int sendall_STOP_REQ(NodeBitmask &stoppedNodes,
+                       bool abort,
+                       bool stop,
+                       bool restart,
+                       bool nostart,
+                       bool initialStart);
+
   int sendSTOP_REQ(const Vector<NodeId> &node_ids,
-		   NdbNodeBitmask &stoppedNodes,
-		   Uint32 singleUserNodeId,
+		   NodeBitmask &stoppedNodes,
 		   bool abort,
 		   bool stop,
 		   bool restart,
