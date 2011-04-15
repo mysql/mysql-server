@@ -128,6 +128,19 @@ Ndb::~Ndb()
   if (m_sys_tab_0)
     getDictionary()->removeTableGlobal(*m_sys_tab_0, 0);
 
+  if (theImpl->m_ev_op != 0)
+  {
+    g_eventLogger->warning("Deleting Ndb-object with NdbEventOperation still"
+                           " active");
+    printf("this: %p NdbEventOperation(s): ", this);
+    for (NdbEventOperationImpl *op= theImpl->m_ev_op; op; op=op->m_next)
+    {
+      printf("%p ", op);
+    }
+    printf("\n");
+    fflush(stdout);
+  }
+
   assert(theImpl->m_ev_op == 0); // user should return NdbEventOperation's
   for (NdbEventOperationImpl *op= theImpl->m_ev_op; op; op=op->m_next)
   {
