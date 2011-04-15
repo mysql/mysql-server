@@ -325,7 +325,7 @@ dropped! So, there seems to be no problem. */
 /******************************************************************//**
 Sets the flag in the current mini-transaction record indicating we're
 inside an insert buffer routine. */
-UNIV_INTERN
+UNIV_INLINE
 void
 ibuf_enter(
 /*=======*/
