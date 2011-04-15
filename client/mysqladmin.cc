@@ -369,7 +369,8 @@ int main(int argc,char *argv[])
       /* Return 0 if all commands are PING */
       for (; argc > 0; argv++, argc--)
       {
-        if (find_type(argv[0], &command_typelib, 2) != ADMIN_PING)
+        if (find_type(argv[0], &command_typelib, FIND_TYPE_BASIC) !=
+            ADMIN_PING)
         {
           error= 1;
           break;
@@ -592,7 +593,7 @@ static int execute_commands(MYSQL *mysql,int argc, char **argv)
 
   for (; argc > 0 ; argv++,argc--)
   {
-    switch (find_type(argv[0],&command_typelib,2)) {
+    switch (find_type(argv[0],&command_typelib, FIND_TYPE_BASIC)) {
     case ADMIN_CREATE:
     {
       char buff[FN_REFLEN+20];
@@ -931,7 +932,7 @@ static int execute_commands(MYSQL *mysql,int argc, char **argv)
 
       if (typed_password[0])
       {
-        bool old= (find_type(argv[0], &command_typelib, 2) ==
+        bool old= (find_type(argv[0], &command_typelib, FIND_TYPE_BASIC) ==
                    ADMIN_OLD_PASSWORD);
 #ifdef __WIN__
         size_t pw_len= strlen(typed_password);

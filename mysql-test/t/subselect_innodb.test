@@ -238,3 +238,12 @@ call p1();
 call p1();
 drop procedure p1;
 drop tables t1,t2,t3;
+
+--echo #
+--echo # Bug#60085 crash in Item::save_in_field() with time data type
+--echo #
+
+CREATE TABLE t1(a date, b int, unique(b), unique(a), key(b)) engine=innodb;
+INSERT INTO t1 VALUES ('2011-05-13', 0);
+SELECT * FROM t1 WHERE b < (SELECT CAST(a as date) FROM t1 GROUP BY a); 
+DROP TABLE t1;

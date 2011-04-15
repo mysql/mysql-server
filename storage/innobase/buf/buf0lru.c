@@ -247,74 +247,78 @@ buf_LRU_drop_page_hash_for_tablespace(
 		sizeof(ulint) * BUF_LRU_DROP_SEARCH_HASH_SIZE);
 
 	buf_pool_mutex_enter(buf_pool);
+	num_entries = 0;
 
 scan_again:
-	num_entries = 0;
 	bpage = UT_LIST_GET_LAST(buf_pool->LRU);
 
 	while (bpage != NULL) {
-		mutex_t*	block_mutex = buf_page_get_mutex(bpage);
 		buf_page_t*	prev_bpage;
+		ibool		is_fixed;
 
-		mutex_enter(block_mutex);
 		prev_bpage = UT_LIST_GET_PREV(LRU, bpage);
 
 		ut_a(buf_page_in_file(bpage));
 
 		if (buf_page_get_state(bpage) != BUF_BLOCK_FILE_PAGE
 		    || bpage->space != id
-		    || bpage->buf_fix_count > 0
 		    || bpage->io_fix != BUF_IO_NONE) {
-			/* We leave the fixed pages as is in this scan.
-			To be dealt with later in the final scan. */
-			mutex_exit(block_mutex);
+			/* Compressed pages are never hashed.
+			Skip blocks of other tablespaces.
+			Skip I/O-fixed blocks (to be dealt with later). */
+next_page:
+			bpage = prev_bpage;
+			continue;
+		}
+
+		mutex_enter(&((buf_block_t*) bpage)->mutex);
+		is_fixed = bpage->buf_fix_count > 0
+			|| !((buf_block_t*) bpage)->is_hashed;
+		mutex_exit(&((buf_block_t*) bpage)->mutex);
+
+		if (is_fixed) {
 			goto next_page;
 		}
 
-		if (((buf_block_t*) bpage)->is_hashed) {
+		/* Store the page number so that we can drop the hash
+		index in a batch later. */
+		page_arr[num_entries] = bpage->offset;
+		ut_a(num_entries < BUF_LRU_DROP_SEARCH_HASH_SIZE);
+		++num_entries;
 
-			/* Store the offset(i.e.: page_no) in the array
-			so that we can drop hash index in a batch
-			later. */
-			page_arr[num_entries] = bpage->offset;
-			mutex_exit(block_mutex);
-			ut_a(num_entries < BUF_LRU_DROP_SEARCH_HASH_SIZE);
-			++num_entries;
-
-			if (num_entries < BUF_LRU_DROP_SEARCH_HASH_SIZE) {
-				goto next_page;
-			}
-
-			/* Array full. We release the buf_pool->mutex to
-			obey the latching order. */
-			buf_pool_mutex_exit(buf_pool);
-
-			buf_LRU_drop_page_hash_batch(
-				id, zip_size, page_arr, num_entries);
-
-			num_entries = 0;
-
-			buf_pool_mutex_enter(buf_pool);
-		} else {
-			mutex_exit(block_mutex);
+		if (num_entries < BUF_LRU_DROP_SEARCH_HASH_SIZE) {
+			goto next_page;
 		}
 
-next_page:
-		/* Note that we may have released the buf_pool mutex
-		above after reading the prev_bpage during processing
-		of a page_hash_batch (i.e.: when the array was full).
-		This means that prev_bpage can change in LRU list.
-		This is OK because this function is a 'best effort'
-		to drop as many search hash entries as possible and
-		it does not guarantee that ALL such entries will be
-		dropped. */
-		bpage = prev_bpage;
+		/* Array full. We release the buf_pool->mutex to obey
+		the latching order. */
+		buf_pool_mutex_exit(buf_pool);
+
+		buf_LRU_drop_page_hash_batch(
+			id, zip_size, page_arr, num_entries);
+
+		num_entries = 0;
+
+		buf_pool_mutex_enter(buf_pool);
+
+		/* Note that we released the buf_pool mutex above
+		after reading the prev_bpage during processing of a
+		page_hash_batch (i.e.: when the array was full).
+		Because prev_bpage could belong to a compressed-only
+		block, it may have been relocated, and thus the
+		pointer cannot be trusted. Because bpage is of type
+		buf_block_t, it is safe to dereference.
+
+		bpage can change in the LRU list. This is OK because
+		this function is a 'best effort' to drop as many
+		search hash entries as possible and it does not
+		guarantee that ALL such entries will be dropped. */
 
 		/* If, however, bpage has been removed from LRU list
 		to the free list then we should restart the scan.
 		bpage->state is protected by buf_pool mutex. */
-		if (bpage && !buf_page_in_file(bpage)) {
-			ut_a(num_entries == 0);
+		if (bpage
+		    && buf_page_get_state(bpage) != BUF_BLOCK_FILE_PAGE) {
 			goto scan_again;
 		}
 	}
@@ -1889,6 +1893,7 @@ buf_LRU_block_remove_hashed_page(
 			buf_pool, bpage->zip.data,
 			page_zip_get_size(&bpage->zip));
 
+		bpage->state = BUF_BLOCK_ZIP_FREE;
 		buf_buddy_free(buf_pool, bpage, sizeof(*bpage));
 		buf_pool_mutex_exit_allow(buf_pool);
 

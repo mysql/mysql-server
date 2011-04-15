@@ -28,8 +28,6 @@ use My::Platform;
 use base qw(Exporter);
 our @EXPORT= qw(my_find_bin my_find_dir my_find_file NOT_REQUIRED);
 
-our $vs_config_dir;
-
 my $bin_extension= ".exe" if IS_WINDOWS;
 
 # Helper function to be used for fourth parameter to find functions
@@ -158,7 +156,8 @@ sub my_find_paths {
   # User can select to look in a special build dir
   # which is a subdirectory of any of the paths
   my @extra_dirs;
-  my $build_dir= $vs_config_dir || $ENV{MTR_VS_CONFIG} || $ENV{MTR_BUILD_DIR};
+  my $build_dir= $::opt_config_dir || $ENV{MTR_VS_CONFIG}
+                                   || $ENV{MTR_BUILD_DIR};
   push(@extra_dirs, $build_dir) if defined $build_dir;
 
   if (defined $extension){

@@ -400,10 +400,14 @@ void test_per_thread_wait()
 
 void do_all_tests()
 {
+  PFS_atomic::init();
+
   test_no_instruments();
   test_no_instances();
   test_with_instances();
   test_per_thread_wait();
+
+  PFS_atomic::cleanup();
 }
 
 int main(int, char **)

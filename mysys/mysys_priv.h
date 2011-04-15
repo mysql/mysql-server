@@ -36,10 +36,6 @@ extern PSI_mutex_key key_my_file_info_mutex;
 extern PSI_mutex_key key_LOCK_localtime_r;
 #endif /* !defined(HAVE_LOCALTIME_R) || !defined(HAVE_GMTIME_R) */
 
-#ifndef HAVE_GETHOSTBYNAME_R
-extern PSI_mutex_key key_LOCK_gethostbyname_r;
-#endif /* HAVE_GETHOSTBYNAME_R */
-
 extern PSI_mutex_key key_BITMAP_mutex, key_IO_CACHE_append_buffer_lock,
   key_IO_CACHE_SHARE_mutex, key_KEY_CACHE_cache_lock, key_LOCK_alarm,
   key_my_thread_var_mutex, key_THR_LOCK_charset, key_THR_LOCK_heap,

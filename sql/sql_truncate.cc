@@ -1,4 +1,4 @@
-/* Copyright (c) 2010, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2010, 2011, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -327,7 +327,7 @@ bool Truncate_statement::lock_table(THD *thd, TABLE_LIST *table_ref,
   */
   if (thd->locked_tables_mode)
   {
-    if (!(table= find_table_for_mdl_upgrade(thd->open_tables, table_ref->db,
+    if (!(table= find_table_for_mdl_upgrade(thd, table_ref->db,
                                             table_ref->table_name, FALSE)))
       DBUG_RETURN(TRUE);
 

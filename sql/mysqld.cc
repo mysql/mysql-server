@@ -245,11 +245,7 @@ inline void setup_fpu()
 
 #define MYSQL_KILL_SIGNAL SIGTERM
 
-#ifdef HAVE_GLIBC2_STYLE_GETHOSTBYNAME_R
-#include <sys/types.h>
-#else
 #include <my_pthread.h>			// For thr_setconcurency()
-#endif
 
 #ifdef SOLARIS
 extern "C" int gethostname(char *name, int namelen);
@@ -324,6 +320,7 @@ static PSI_rwlock_key key_rwlock_openssl;
 
 /* the default log output is log tables */
 static bool lower_case_table_names_used= 0;
+static bool max_long_data_size_used= false;
 static bool volatile select_thread_in_use, signal_thread_in_use;
 /* See Bug#56666 and Bug#56760 */;
 volatile bool ready_to_exit;
@@ -479,6 +476,11 @@ ulong binlog_cache_use= 0, binlog_cache_disk_use= 0;
 ulong binlog_stmt_cache_use= 0, binlog_stmt_cache_disk_use= 0;
 MYSQL_PLUGIN_IMPORT ulong max_connections;
 ulong max_connect_errors;
+/*
+  Maximum length of parameter value which can be set through
+  mysql_send_long_data() call.
+*/
+ulong max_long_data_size;
 /**
   Limit of the total number of prepared statements in the server.
   Is necessary to protect the server against out-of-memory attacks.
@@ -3126,6 +3128,18 @@ static int init_common_variables()
   */
   global_system_variables.time_zone= my_tz_SYSTEM;
 
+#ifdef HAVE_PSI_INTERFACE
+  /*
+    Complete the mysql_bin_log initialization.
+    Instrumentation keys are known only after the performance schema initialization,
+    and can not be set in the MYSQL_BIN_LOG constructor (called before main()).
+  */
+  mysql_bin_log.set_psi_keys(key_BINLOG_LOCK_index,
+                             key_BINLOG_update_cond,
+                             key_file_binlog,
+                             key_file_binlog_index);
+#endif
+
   /*
     Init mutexes for the global MYSQL_BIN_LOG objects.
     As safe_mutex depends on what MY_INIT() does, we can't init the mutexes of
@@ -4645,10 +4659,15 @@ int mysqld_main(int argc, char **argv)
 #if defined(__WIN__) && !defined(EMBEDDED_LIBRARY)
 int mysql_service(void *p)
 {
+  if (my_thread_init())
+    return 1;
+  
   if (use_opt_args)
     win_main(opt_argc, opt_argv);
   else
     win_main(Service.my_argc, Service.my_argv);
+
+  my_thread_end();
   return 0;
 }
 
@@ -7152,6 +7171,10 @@ mysqld_get_one_option(int optid,
     if (argument == NULL) /* no argument */
       log_error_file_ptr= const_cast<char*>("");
     break;
+  case OPT_MAX_LONG_DATA_SIZE:
+    max_long_data_size_used= true;
+    WARN_DEPRECATED(NULL, 5, 6, "--max_long_data_size", "'--max_allowed_packet'");
+    break;
   }
   return 0;
 }
@@ -7264,6 +7287,14 @@ static int get_options(int *argc_ptr, char ***argv_ptr)
        opt_log_slow_slave_statements) &&
       !opt_slow_log)
     sql_print_warning("options --log-slow-admin-statements, --log-queries-not-using-indexes and --log-slow-slave-statements have no effect if --log_slow_queries is not set");
+  if (global_system_variables.net_buffer_length > 
+      global_system_variables.max_allowed_packet)
+  {
+    sql_print_warning("net_buffer_length (%lu) is set to be larger "
+                      "than max_allowed_packet (%lu). Please rectify.",
+                      global_system_variables.net_buffer_length, 
+                      global_system_variables.max_allowed_packet);
+  }
 
   if (log_error_file_ptr != disabled_my_option)
     opt_error_log= 1;
@@ -7377,6 +7408,13 @@ static int get_options(int *argc_ptr, char ***argv_ptr)
          OPTIMIZER_SWITCH_ENGINE_CONDITION_PUSHDOWN);
 
   opt_readonly= read_only;
+
+  /*
+    If max_long_data_size is not specified explicitly use
+    value of max_allowed_packet.
+  */
+  if (!max_long_data_size_used)
+    max_long_data_size= global_system_variables.max_allowed_packet;
 
   return 0;
 }
@@ -7710,6 +7748,7 @@ PSI_mutex_key key_BINLOG_LOCK_index, key_BINLOG_LOCK_prep_xids,
   key_structure_guard_mutex, key_TABLE_SHARE_LOCK_ha_data,
   key_LOCK_error_messages, key_LOG_INFO_lock, key_LOCK_thread_count,
   key_PARTITION_LOCK_auto_inc;
+PSI_mutex_key key_RELAYLOG_LOCK_index;
 
 static PSI_mutex_info all_server_mutexes[]=
 {
@@ -7726,6 +7765,7 @@ static PSI_mutex_info all_server_mutexes[]=
 
   { &key_BINLOG_LOCK_index, "MYSQL_BIN_LOG::LOCK_index", 0},
   { &key_BINLOG_LOCK_prep_xids, "MYSQL_BIN_LOG::LOCK_prep_xids", 0},
+  { &key_RELAYLOG_LOCK_index, "MYSQL_RELAY_LOG::LOCK_index", 0},
   { &key_delayed_insert_mutex, "Delayed_insert::mutex", 0},
   { &key_hash_filo_lock, "hash_filo::lock", 0},
   { &key_LOCK_active_mi, "LOCK_active_mi", PSI_FLAG_GLOBAL},
@@ -7793,6 +7833,7 @@ PSI_cond_key key_BINLOG_COND_prep_xids, key_BINLOG_update_cond,
   key_relay_log_info_start_cond, key_relay_log_info_stop_cond,
   key_TABLE_SHARE_cond, key_user_level_lock_cond,
   key_COND_thread_count, key_COND_thread_cache, key_COND_flush_thread_cache;
+PSI_cond_key key_RELAYLOG_update_cond;
 
 static PSI_cond_info all_server_conds[]=
 {
@@ -7806,6 +7847,7 @@ static PSI_cond_info all_server_conds[]=
 #endif /* HAVE_MMAP */
   { &key_BINLOG_COND_prep_xids, "MYSQL_BIN_LOG::COND_prep_xids", 0},
   { &key_BINLOG_update_cond, "MYSQL_BIN_LOG::update_cond", 0},
+  { &key_RELAYLOG_update_cond, "MYSQL_RELAY_LOG::update_cond", 0},
   { &key_COND_cache_status_changed, "Query_cache::COND_cache_status_changed", 0},
   { &key_COND_manager, "COND_manager", PSI_FLAG_GLOBAL},
   { &key_COND_rpl_status, "COND_rpl_status", PSI_FLAG_GLOBAL},
@@ -7871,6 +7913,7 @@ PSI_file_key key_file_binlog, key_file_binlog_index, key_file_casetest,
   key_file_pid, key_file_relay_log_info, key_file_send_file, key_file_tclog,
   key_file_trg, key_file_trn, key_file_init;
 PSI_file_key key_file_query_log, key_file_slow_log;
+PSI_file_key key_file_relaylog, key_file_relaylog_index;
 
 static PSI_file_info all_server_files[]=
 {
@@ -7879,6 +7922,8 @@ static PSI_file_info all_server_files[]=
 #endif /* HAVE_MMAP */
   { &key_file_binlog, "binlog", 0},
   { &key_file_binlog_index, "binlog_index", 0},
+  { &key_file_relaylog, "relaylog", 0},
+  { &key_file_relaylog_index, "relaylog_index", 0},
   { &key_file_casetest, "casetest", 0},
   { &key_file_dbopt, "dbopt", 0},
   { &key_file_des_key_file, "des_key_file", 0},
