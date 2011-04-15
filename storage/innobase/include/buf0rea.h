@@ -28,7 +28,6 @@ Created 11/5/1995 Heikki Tuuri
 
 #include "univ.i"
 #include "buf0types.h"
-#include "mtr0types.h"
 
 /********************************************************************//**
 High-level function which reads a page asynchronously from a file to the
