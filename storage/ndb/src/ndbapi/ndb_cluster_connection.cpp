@@ -427,6 +427,22 @@ Ndb_cluster_connection_impl(const char * connect_string,
 Ndb_cluster_connection_impl::~Ndb_cluster_connection_impl()
 {
   DBUG_ENTER("~Ndb_cluster_connection");
+
+  if (m_first_ndb_object != 0)
+  {
+    g_eventLogger->warning("Deleting Ndb_cluster_connection with Ndb-object"
+                           " not deleted");
+    Ndb * p = m_first_ndb_object;
+    printf("this: %p Ndb-object(s): ", (Ndb_cluster_connection*)this);
+    while (p)
+    {
+      printf("%p ", p);
+      p = p->theImpl->m_next_ndb_object;
+    }
+    printf("\n");
+    fflush(stdout);
+  }
+
   if (m_transporter_facade != 0)
   {
     m_transporter_facade->stop_instance();
