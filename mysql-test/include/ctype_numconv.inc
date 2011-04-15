@@ -1765,6 +1765,22 @@ SELECT
   HEX(DATE_SUB(DATE('2007-08-03'), INTERVAL 1 DAY)) AS field_date,
   HEX(DATE_SUB(CAST('2007-08-03 17:33:00' AS DATETIME), INTERVAL 1 MINUTE)) AS field_datetime;
  
+--echo #
+--echo # Bug#11926811 / Bug#60625 Illegal mix of collations
+--echo #
+SELECT @@collation_connection;
+DELIMITER //;
+CREATE PROCEDURE p1()
+BEGIN
+  DECLARE v_LastPaymentDate DATETIME DEFAULT NULL;
+  SELECT v_LastPaymentDate < NOW();
+  EXPLAIN EXTENDED SELECT v_LastPaymentDate < NOW();
+  SHOW WARNINGS;
+  EXPLAIN EXTENDED SELECT CONCAT(v_LastPaymentDate, NOW());
+END//
+DELIMITER ;//
+CALL p1;
+DROP PROCEDURE p1;
 
 --echo #
 --echo # Bug#52159 returning time type from function and empty left join causes debug assertion
