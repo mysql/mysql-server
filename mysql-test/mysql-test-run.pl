@@ -210,8 +210,8 @@ our $opt_clean_vardir= $ENV{'MTR_CLEAN_VARDIR'};
 
 our $opt_gcov;
 our $opt_gcov_exe= "gcov";
-our $opt_gcov_err= "mysql-test-gcov.msg";
-our $opt_gcov_msg= "mysql-test-gcov.err";
+our $opt_gcov_err= "mysql-test-gcov.err";
+our $opt_gcov_msg= "mysql-test-gcov.msg";
 
 our $opt_gprof;
 our %gprof_dirs;
@@ -507,7 +507,7 @@ sub main {
   mtr_print_line();
 
   if ( $opt_gcov ) {
-    gcov_collect($basedir, $opt_gcov_exe,
+    gcov_collect($bindir, $opt_gcov_exe,
 		 $opt_gcov_msg, $opt_gcov_err);
   }
 
@@ -1198,7 +1198,7 @@ sub command_line_setup {
 	chomp;
 	# remove comments (# foo) at the beginning of the line, or after a 
 	# blank at the end of the line
-	s/( +|^)#.*$//;
+	s/(\s+|^)#.*$//;
 	# If @ platform specifier given, use this entry only if it contains
 	# @<platform> or @!<xxx> where xxx != platform
 	if (/\@.*/)
@@ -1209,8 +1209,8 @@ sub command_line_setup {
 	  s/\@.*$//;
 	}
 	# remove whitespace
-	s/^ +//;              
-	s/ +$//;
+	s/^\s+//;
+	s/\s+$//;
 	# if nothing left, don't need to remember this line
 	if ( $_ eq "" ) {
 	  next;
