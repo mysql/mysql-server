@@ -1,7 +1,7 @@
 #!/usr/bin/perl
 # -*- cperl -*-
 
-# Copyright (c) 2004, 2010, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2004, 2011, Oracle and/or its affiliates. All rights reserved.
 #
 # This program is free software; you can redistribute it and/or
 # modify it under the terms of the GNU Library General Public
@@ -893,7 +893,7 @@ sub command_line_setup {
              'ssl|with-openssl'         => \$opt_ssl,
              'skip-ssl'                 => \$opt_skip_ssl,
              'compress'                 => \$opt_compress,
-             'vs-config'                => \$opt_vs_config,
+             'vs-config=s'              => \$opt_vs_config,
 
 	     # Max number of parallel threads to use
 	     'parallel=s'               => \$opt_parallel,
@@ -1123,7 +1123,7 @@ sub command_line_setup {
 	chomp;
 	# remove comments (# foo) at the beginning of the line, or after a 
 	# blank at the end of the line
-	s/( +|^)#.*$//;
+	s/(\s+|^)#.*$//;
 	# If @ platform specifier given, use this entry only if it contains
 	# @<platform> or @!<xxx> where xxx != platform
 	if (/\@.*/)
@@ -1134,8 +1134,8 @@ sub command_line_setup {
 	  s/\@.*$//;
 	}
 	# remove whitespace
-	s/^ +//;              
-	s/ +$//;
+	s/^\s+//;
+	s/\s+$//;
 	# if nothing left, don't need to remember this line
 	if ( $_ eq "" ) {
 	  next;
