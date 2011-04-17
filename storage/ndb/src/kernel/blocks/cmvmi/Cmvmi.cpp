@@ -2108,7 +2108,8 @@ void Cmvmi::execDBINFO_SCANREQ(Signal *signal)
     const NodeState& nodeState = getNodeState();
     const Uint32 start_level = nodeState.startLevel;
     const NDB_TICKS uptime = (NdbTick_CurrentMillisecond()/1000) - m_start_time;
-
+    Uint32 generation = m_ctx.m_config.get_config_generation(); 
+ 
     Ndbinfo::Row row(signal, req);
     row.write_uint32(getOwnNodeId()); // Node id
 
@@ -2116,6 +2117,7 @@ void Cmvmi::execDBINFO_SCANREQ(Signal *signal)
     row.write_uint32(start_level);
     row.write_uint32(start_level == NodeState::SL_STARTING ?
                      nodeState.starting.startPhase : 0);
+    row.write_uint32(generation);
     ndbinfo_send_row(signal, req, row, rl);
     break;
   }

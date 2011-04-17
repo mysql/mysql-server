@@ -3291,7 +3291,6 @@ Dbtup::read_lcp(const Uint32* inBuf, Uint32 inPos,
   dst[0] = req_struct->frag_page_id;
   dst[1] = req_struct->operPtrP->m_tuple_location.m_page_idx;
   ndbassert(req_struct->m_tuple_ptr->m_data != 0);
-  ndbassert(fixsz < 8192);
   memcpy(dst+2, req_struct->m_tuple_ptr->m_data, fixsz);
 
   if (varstart)
