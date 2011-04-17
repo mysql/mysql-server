@@ -664,7 +664,7 @@ trx_assign_rseg(
 	i = latest_rseg++;
         i %= max_undo_logs;
 
-	/* Note: The assumtion here is that there can't be any gaps in
+	/* Note: The assumption here is that there can't be any gaps in
 	the array. Once we implement more flexible rollback segment
 	management this may not hold. The assertion checks for that case. */
 
