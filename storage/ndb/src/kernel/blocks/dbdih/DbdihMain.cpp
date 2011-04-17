@@ -79,6 +79,7 @@
 #include <signaldata/DropNodegroupImpl.hpp>
 #include <signaldata/DihGetTabInfo.hpp>
 #include <SectionReader.hpp>
+#include <signaldata/DihRestart.hpp>
 
 #include <EventLogger.hpp>
 extern EventLogger * g_eventLogger;
@@ -1455,15 +1456,18 @@ void Dbdih::execTAB_COMMITREQ(Signal* signal)
   3.2.1.1    LOADING   O W N   B L O C K  R E F E R E N C E (ABSOLUTE PHASE 1)
   *****************************************************************************
   */
-void Dbdih::execDIH_RESTARTREQ(Signal* signal) 
+void Dbdih::execDIH_RESTARTREQ(Signal* signal)
 {
   jamEntry();
-  if (signal->theData[0])
+  const DihRestartReq* req = CAST_CONSTPTR(DihRestartReq,
+                                           signal->getDataPtr());
+  if (req->senderRef != 0)
   {
     jam();
-    cntrlblockref = signal->theData[0];
-    if(m_ctx.m_config.getInitialStart()){
-      sendSignal(cntrlblockref, GSN_DIH_RESTARTREF, signal, 1, JBB);
+    cntrlblockref = req->senderRef;
+    if(m_ctx.m_config.getInitialStart())
+    {
+      sendDihRestartRef(signal);
     } else {
       readGciFileLab(signal);
     }
@@ -1476,8 +1480,8 @@ void Dbdih::execDIH_RESTARTREQ(Signal* signal)
      */
     Uint32 i;
     NdbNodeBitmask mask;
-    mask.assign(NdbNodeBitmask::Size, signal->theData + 1);
-    Uint32 *node_gcis = signal->theData+1+NdbNodeBitmask::Size;
+    mask.assign(NdbNodeBitmask::Size, req->nodemask);
+    const Uint32 *node_gcis = req->node_gcis;
     Uint32 node_group_gcis[MAX_NDB_NODES+1];
     bzero(node_group_gcis, sizeof(node_group_gcis));
     for (i = 0; i<MAX_NDB_NODES; i++)
@@ -4696,10 +4700,53 @@ void Dbdih::closingGcpLab(Signal* signal, FileRecordPtr filePtr)
     return;
   } else {
     jam();
-    sendSignal(cntrlblockref, GSN_DIH_RESTARTREF, signal, 1, JBB);
+    sendDihRestartRef(signal);
     return;
   }//if
 }//Dbdih::closingGcpLab()
+
+void
+Dbdih::sendDihRestartRef(Signal* signal)
+{
+  jam();
+
+  /**
+   * We couldn't read P0.Sysfile...
+   *   so compute no_nodegroup_mask from configuration
+   */
+  NdbNodeBitmask no_nodegroup_mask;
+
+  ndb_mgm_configuration_iterator * iter =
+    m_ctx.m_config.getClusterConfigIterator();
+  for(ndb_mgm_first(iter); ndb_mgm_valid(iter); ndb_mgm_next(iter))
+  {
+    jam();
+    Uint32 nodeId;
+    Uint32 nodeType;
+
+    ndbrequire(!ndb_mgm_get_int_parameter(iter,CFG_NODE_ID, &nodeId));
+    ndbrequire(!ndb_mgm_get_int_parameter(iter,CFG_TYPE_OF_SECTION,
+                                          &nodeType));
+
+    if (nodeType == NodeInfo::DB)
+    {
+      jam();
+      Uint32 ng;
+      if (ndb_mgm_get_int_parameter(iter, CFG_DB_NODEGROUP, &ng) == 0)
+      {
+        jam();
+        if (ng == NDB_NO_NODEGROUP)
+        {
+          no_nodegroup_mask.set(nodeId);
+        }
+      }
+    }
+  }
+  DihRestartRef * ref = CAST_PTR(DihRestartRef, signal->getDataPtrSend());
+  no_nodegroup_mask.copyto(NdbNodeBitmask::Size, ref->no_nodegroup_mask);
+  sendSignal(cntrlblockref, GSN_DIH_RESTARTREF, signal,
+             DihRestartRef::SignalLength, JBB);
+}
 
 /* ------------------------------------------------------------------------- */
 /*       SELECT THE MASTER CANDIDATE TO BE USED IN SYSTEM RESTARTS.          */
@@ -4707,13 +4754,11 @@ void Dbdih::closingGcpLab(Signal* signal, FileRecordPtr filePtr)
 void Dbdih::selectMasterCandidateAndSend(Signal* signal)
 {
   setNodeGroups();
-  signal->theData[0] = getOwnNodeId();
-  signal->theData[1] = SYSFILE->lastCompletedGCI[getOwnNodeId()];
-  sendSignal(cntrlblockref, GSN_DIH_RESTARTCONF, signal, 2, JBB);
-  
+
   NodeRecordPtr nodePtr;
   Uint32 node_groups[MAX_NDB_NODES];
   memset(node_groups, 0, sizeof(node_groups));
+  NdbNodeBitmask no_nodegroup_mask;
   for (nodePtr.i = 1; nodePtr.i < MAX_NDB_NODES; nodePtr.i++) {
     jam();
     if (Sysfile::getNodeStatus(nodePtr.i, SYSFILE->nodeStatus) == Sysfile::NS_NotDefined)
@@ -4722,12 +4767,24 @@ void Dbdih::selectMasterCandidateAndSend(Signal* signal)
       continue;
     }
     const Uint32 ng = Sysfile::getNodeGroup(nodePtr.i, SYSFILE->nodeGroups);
-    if(ng != NO_NODE_GROUP_ID){
+    if(ng != NO_NODE_GROUP_ID)
+    {
       ndbrequire(ng < MAX_NDB_NODES);
       node_groups[ng]++;
     }
+    else
+    {
+      no_nodegroup_mask.set(nodePtr.i);
+    }
   }
-  
+
+  DihRestartConf * conf = CAST_PTR(DihRestartConf, signal->getDataPtrSend());
+  conf->unused = getOwnNodeId();
+  conf->latest_gci = SYSFILE->lastCompletedGCI[getOwnNodeId()];
+  no_nodegroup_mask.copyto(NdbNodeBitmask::Size, conf->no_nodegroup_mask);
+  sendSignal(cntrlblockref, GSN_DIH_RESTARTCONF, signal,
+             DihRestartConf::SignalLength, JBB);
+
   for (nodePtr.i = 0; nodePtr.i < MAX_NDB_NODES; nodePtr.i++) {
     jam();
     Uint32 count = node_groups[nodePtr.i];
@@ -4767,7 +4824,7 @@ void Dbdih::openingGcpErrorLab(Signal* signal, FileRecordPtr filePtr)
     /*   CANNOT CONTINUE THE RESTART IN THIS CASE. TELL NDBCNTR OF OUR       */
     /*   FAILURE.                                                            */
     /*---------------------------------------------------------------------- */
-    sendSignal(cntrlblockref, GSN_DIH_RESTARTREF, signal, 1, JBB);
+    sendDihRestartRef(signal);
     return;
   }//if
 }//Dbdih::openingGcpErrorLab()
@@ -4799,7 +4856,7 @@ void Dbdih::closingGcpCrashLab(Signal* signal, FileRecordPtr filePtr)
   /*     WE DISCOVERED A FAILURE WITH THE SECOND FILE AS WELL. THIS IS A     */
   /*     SERIOUS PROBLEM. REPORT FAILURE TO NDBCNTR.                         */
   /* ----------------------------------------------------------------------- */
-  sendSignal(cntrlblockref, GSN_DIH_RESTARTREF, signal, 1, JBB);
+  sendDihRestartRef(signal);
 }//Dbdih::closingGcpCrashLab()
 
 /*****************************************************************************/
