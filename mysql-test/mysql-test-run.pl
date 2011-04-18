@@ -274,7 +274,7 @@ my $opt_strace_client;
 
 our $opt_user = "root";
 
-my $opt_valgrind= 0;
+our $opt_valgrind= 0;
 my $opt_valgrind_mysqld= 0;
 my $opt_valgrind_mysqltest= 0;
 my @default_valgrind_args= ("--show-reachable=yes");
@@ -4747,13 +4747,6 @@ sub mysqld_start ($$) {
   unlink($mysqld->value('pid-file'));
 
   my $output= $mysqld->value('#log-error');
-  if ( $opt_valgrind and $opt_debug )
-  {
-    # When both --valgrind and --debug is selected, send
-    # all output to the trace file, making it possible to
-    # see the exact location where valgrind complains
-    $output= "$opt_vardir/log/".$mysqld->name().".trace";
-  }
   # Remember this log file for valgrind error report search
   $mysqld_logs{$output}= 1 if $opt_valgrind;
   # Remember data dir for gmon.out files if using gprof
