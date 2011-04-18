@@ -26,7 +26,7 @@ INCLUDE_DIRECTORIES(${CMAKE_CURRENT_SOURCE_DIR}
 
 ADD_DEFINITIONS(-DNO_DUMMY_DECL)
 ADD_LIBRARY(ndbgeneral STATIC
-            azio.c
+            ndbzio.c
             File.cpp
             md5_hash.cpp
             Properties.cpp
