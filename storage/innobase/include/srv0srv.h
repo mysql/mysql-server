@@ -48,6 +48,7 @@ Created 10/10/1995 Heikki Tuuri
 #include "os0sync.h"
 #include "que0types.h"
 #include "trx0types.h"
+#include "srv0conc.h"
 
 extern const char*	srv_main_thread_op_info;
 
@@ -195,11 +196,6 @@ extern ulint	srv_max_n_open_files;
 extern ulint	srv_max_dirty_pages_pct;
 
 extern ulint	srv_force_recovery;
-extern ulong	srv_thread_concurrency;
-
-extern ulint	srv_max_n_threads;
-
-extern lint	srv_conc_n_threads;
 
 extern ulint	srv_fast_shutdown;	/*!< If this is 1, do not do a
 					purge and index buffer merge.
@@ -553,41 +549,6 @@ UNIV_INTERN
 void
 srv_wake_master_thread(void);
 /*========================*/
-/*********************************************************************//**
-Puts an OS thread to wait if there are too many concurrent threads
-(>= srv_thread_concurrency) inside InnoDB. The threads wait in a FIFO queue. */
-UNIV_INTERN
-void
-srv_conc_enter_innodb(
-/*==================*/
-	trx_t*	trx);	/*!< in: transaction object associated with the
-			thread */
-/*********************************************************************//**
-This lets a thread enter InnoDB regardless of the number of threads inside
-InnoDB. This must be called when a thread ends a lock wait. */
-UNIV_INTERN
-void
-srv_conc_force_enter_innodb(
-/*========================*/
-	trx_t*	trx);	/*!< in: transaction object associated with the
-			thread */
-/*********************************************************************//**
-This must be called when a thread exits InnoDB in a lock wait or at the
-end of an SQL statement. */
-UNIV_INTERN
-void
-srv_conc_force_exit_innodb(
-/*=======================*/
-	trx_t*	trx);	/*!< in: transaction object associated with the
-			thread */
-/*********************************************************************//**
-This must be called when a thread exits InnoDB. */
-UNIV_INTERN
-void
-srv_conc_exit_innodb(
-/*=================*/
-	trx_t*	trx);	/*!< in: transaction object associated with the
-			thread */
 /*********************************************************************//**
 A thread which prints the info output by various InnoDB monitors.
 @return	a dummy parameter */
