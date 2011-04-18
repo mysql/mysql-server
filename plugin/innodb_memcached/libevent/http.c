@@ -88,6 +88,7 @@
 #include "evutil.h"
 #include "log.h"
 #include "http-internal.h"
+#include "event-internal.h"
 
 #ifdef WIN32
 #define snprintf _snprintf

@@ -60,6 +60,7 @@
 #include "evhttp.h"
 #include "evutil.h"
 #include "log.h"
+#include "event-internal.h"
 
 struct evrpc_base *
 evrpc_init(struct evhttp *http_server)

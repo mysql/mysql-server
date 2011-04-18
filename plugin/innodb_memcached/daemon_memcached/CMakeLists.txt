@@ -65,5 +65,5 @@ SET(MEMCACHED_SOURCES
 MYSQL_ADD_PLUGIN(libmemcached ${MEMCACHED_SOURCES}
 		MODULE_ONLY MODULE_OUTPUT_NAME "libmemcached")
 
-TARGET_LINK_LIBRARIES(libmemcached event)
+TARGET_LINK_LIBRARIES(libmemcached builtin_event)
 TARGET_LINK_LIBRARIES(libmemcached memcached_utilities)

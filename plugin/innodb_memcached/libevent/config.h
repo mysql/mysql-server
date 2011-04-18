@@ -164,9 +164,6 @@
 /* Define to 1 if you have the <sys/types.h> header file. */
 #define HAVE_SYS_TYPES_H 1
 
-/* Define if TAILQ_FOREACH is defined in <sys/queue.h> */
-#define HAVE_TAILQFOREACH 1
-
 /* Define if timeradd is defined in <sys/time.h> */
 #define HAVE_TIMERADD 1
 
