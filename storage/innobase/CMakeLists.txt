@@ -290,6 +290,7 @@ SET(INNOBASE_SOURCES
 	row/row0undo.c
 	row/row0upd.c
 	row/row0vers.c
+	srv/srv0conc.c
 	srv/srv0mon.c
 	srv/srv0srv.c
 	srv/srv0start.c
