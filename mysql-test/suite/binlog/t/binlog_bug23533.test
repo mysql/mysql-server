@@ -15,14 +15,18 @@ CREATE TABLE t1 (a INT NOT NULL AUTO_INCREMENT, b TEXT, PRIMARY KEY(a)) ENGINE=I
 let $i= 1000;
 while ($i)
 {
+  BEGIN;
   eval INSERT INTO t1 VALUES($i, REPEAT('x', 4096));
+  COMMIT;
   dec $i;
 }
 --enable_query_log
 SELECT COUNT(*) FROM t1;
 
 # Set small value for max_binlog_cache_size
+SET @saved_binlog_cache_size=@@binlog_cache_size;
 SET @saved_max_binlog_cache_size=@@max_binlog_cache_size;
+SET GLOBAL binlog_cache_size=4096;
 SET GLOBAL max_binlog_cache_size=4096;
 
 # Copied data from t1 into t2 large than max_binlog_cache_size
@@ -34,4 +38,5 @@ SHOW TABLES LIKE 't%';
 
 # 5.1 End of Test
 SET GLOBAL max_binlog_cache_size=@saved_max_binlog_cache_size;
+SET GLOBAL binlog_cache_size=@saved_binlog_cache_size;
 DROP TABLE t1;
