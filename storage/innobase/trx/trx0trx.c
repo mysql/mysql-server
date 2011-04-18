@@ -207,6 +207,52 @@ trx_free(
 /*=====*/
 	trx_t*	trx)	/*!< in, own: trx object */
 {
+	ut_a(trx->magic_n == TRX_MAGIC_N);
+	ut_ad(!trx->in_trx_list);
+
+	mutex_free(&trx->undo_mutex);
+
+	if (trx->undo_no_arr != NULL) {
+		trx_undo_arr_free(trx->undo_no_arr);
+	}
+
+	ut_a(trx->lock.wait_lock == NULL);
+	ut_a(trx->lock.wait_thr == NULL);
+
+	ut_a(!trx->has_search_latch);
+
+	ut_a(trx->dict_operation_lock_mode == 0);
+
+	if (trx->lock.lock_heap) {
+		mem_heap_free(trx->lock.lock_heap);
+	}
+
+	ut_a(UT_LIST_GET_LEN(trx->lock.trx_locks) == 0);
+
+	if (trx->global_read_view_heap) {
+		mem_heap_free(trx->global_read_view_heap);
+	}
+
+	ut_a(ib_vector_is_empty(trx->autoinc_locks));
+	/* We allocated a dedicated heap for the vector. */
+	ib_vector_free(trx->autoinc_locks);
+
+	/* We allocated a dedicated heap for the vector. */
+	ib_vector_free(trx->lock.table_locks);
+
+	mutex_free(&trx->mutex);
+
+	mem_free(trx);
+}
+
+/********************************************************************//**
+Frees a transaction object of a background operation of the master thread. */
+UNIV_INTERN
+void
+trx_free_for_background(
+/*====================*/
+	trx_t*	trx)	/*!< in, own: trx object */
+{
 	if (UNIV_UNLIKELY(trx->declared_to_be_inside_innodb)) {
 		ut_print_timestamp(stderr);
 		fputs("  InnoDB: Error: Freeing a trx which is declared"
@@ -235,60 +281,11 @@ trx_free(
 		putc('\n', stderr);
 	}
 
-	ut_a(trx->magic_n == TRX_MAGIC_N);
-
-	trx->magic_n = 11112222;
-
 	ut_a(trx->state == TRX_STATE_NOT_STARTED);
-
-	mutex_free(&trx->undo_mutex);
-
 	ut_a(trx->insert_undo == NULL);
 	ut_a(trx->update_undo == NULL);
-
-	if (trx->undo_no_arr != NULL) {
-		trx_undo_arr_free(trx->undo_no_arr);
-	}
-
-	ut_a(trx->lock.wait_lock == NULL);
-	ut_a(trx->lock.wait_thr == NULL);
-
-	ut_a(!trx->has_search_latch);
-
-	ut_a(trx->dict_operation_lock_mode == 0);
-
-	if (trx->lock.lock_heap) {
-		mem_heap_free(trx->lock.lock_heap);
-	}
-
-	ut_a(UT_LIST_GET_LEN(trx->lock.trx_locks) == 0);
-
-	if (trx->global_read_view_heap) {
-		mem_heap_free(trx->global_read_view_heap);
-	}
-
 	ut_a(trx->read_view == NULL);
 
-	ut_a(ib_vector_is_empty(trx->autoinc_locks));
-	/* We allocated a dedicated heap for the vector. */
-	ib_vector_free(trx->autoinc_locks);
-
-	/* We allocated a dedicated heap for the vector. */
-	ib_vector_free(trx->lock.table_locks);
-
-	mutex_free(&trx->mutex);
-
-	mem_free(trx);
-}
-
-/********************************************************************//**
-Frees a transaction object of a background operation of the master thread. */
-UNIV_INTERN
-void
-trx_free_for_background(
-/*====================*/
-	trx_t*	trx)	/*!< in, own: trx object */
-{
 	trx_free(trx);
 }
 
@@ -308,37 +305,10 @@ trx_free_prepared(
 	ut_a(trx->magic_n == TRX_MAGIC_N);
 
 	trx_undo_free_prepared(trx);
-
-	mutex_free(&trx->undo_mutex);
-
-	if (trx->undo_no_arr) {
-		trx_undo_arr_free(trx->undo_no_arr);
-	}
-
-	ut_a(trx->lock.wait_lock == NULL);
-	ut_a(trx->lock.wait_thr == NULL);
-
-	ut_a(!trx->has_search_latch);
-
-	ut_a(trx->dict_operation_lock_mode == 0);
-
-	if (trx->lock.lock_heap) {
-		mem_heap_free(trx->lock.lock_heap);
-	}
-
-	ut_a(UT_LIST_GET_LEN(trx->lock.trx_locks) == 0);
-
-	if (trx->global_read_view_heap) {
-		mem_heap_free(trx->global_read_view_heap);
-	}
-
-	ut_a(ib_vector_is_empty(trx->autoinc_locks));
-	ib_vector_free(trx->autoinc_locks);
-
+	ut_ad(trx->in_trx_list);
+	ut_d(trx->in_trx_list = FALSE);
 	UT_LIST_REMOVE(trx_list, trx_sys->trx_list, trx);
-
-	mutex_free(&trx->mutex);
-	mem_free(trx);
+	trx_free(trx);
 }
 
 /********************************************************************//**
