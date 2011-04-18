@@ -3177,6 +3177,9 @@ ConfigInfo::ConfigInfo()
           Uint32 default_value;
           require(values.get(param._default, &default_value));
           require(pinfo.put("Default", default_value));
+
+          /* Also store the default as string */
+          require(pinfo.put("DefaultString", param._default));
         }
         break;
       }
@@ -3290,7 +3293,7 @@ ConfigInfo::ConfigInfo()
       ndbout << "Edit file " << __FILE__ << "." << endl;
       require(false);
     }
-  }
+   }
 
 }
 
@@ -3376,8 +3379,29 @@ ConfigInfo::getDefault(const Properties * section, const char* fname) const {
 
 const char*
 ConfigInfo::getDefaultString(const Properties * section,
-                             const char* fname) const {
-  return getInfoString(section, fname, "Default");
+                             const char* fname) const
+{
+  switch (getType(section, fname))
+  {
+  case ConfigInfo::CI_BITMASK:
+  case ConfigInfo::CI_STRING:
+    return getInfoString(section, fname, "Default");
+
+  case ConfigInfo::CI_ENUM:
+  {
+    /*
+      Default value for enum are stored as int internally
+      but also stores the orignal string, use different
+      key to get at the default value as string
+     */
+    return getInfoString(section, fname, "DefaultString");
+  }
+
+  default:
+    require(false);
+  }
+
+  return NULL;
 }
 
 bool
