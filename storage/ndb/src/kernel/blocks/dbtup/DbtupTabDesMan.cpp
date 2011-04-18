@@ -257,7 +257,7 @@ void Dbtup::removeTdArea(Uint32 tabDesRef, Uint32 list)
   }//if
 }//Dbtup::removeTdArea()
 
-#ifdef VM_TRACE
+#if defined VM_TRACE || defined ERROR_INSERT
 void
 Dbtup::verifytabdes()
 {
