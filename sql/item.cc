@@ -999,11 +999,9 @@ bool Item::get_date(MYSQL_TIME *ltime,uint fuzzydate)
     int was_cut;
     if (number_to_datetime(value, ltime, fuzzydate, &was_cut) == LL(-1))
     {
-      char buff[22], *end;
-      end= longlong10_to_str(value, buff, -10);
+      Lazy_string_num str(value);
       make_truncated_value_warning(current_thd, MYSQL_ERROR::WARN_LEVEL_WARN,
-                                   buff, (int) (end-buff), MYSQL_TIMESTAMP_NONE,
-                                   NullS);
+                                   &str, MYSQL_TIMESTAMP_NONE, NullS);
       goto err;
     }
   }
@@ -7188,6 +7186,54 @@ longlong Item_cache_int::val_int()
   if (!value_cached && !cache_value())
     return 0;
   return value;
+}
+
+bool Item_cache_int::get_date(MYSQL_TIME *ltime, uint fuzzydate)
+{
+  if (!value_cached && !cache_value())
+    goto err;
+
+  if (cmp_type() == TIME_RESULT)
+  {
+    unpack_time(value, ltime);
+    ltime->time_type= mysql_type_to_time_type(field_type());
+  }
+  else
+  {
+    int was_cut;
+    if (number_to_datetime(value, ltime, fuzzydate, &was_cut) == -1LL)
+    {
+      Lazy_string_num str(value);
+      make_truncated_value_warning(current_thd, MYSQL_ERROR::WARN_LEVEL_WARN,
+                                   &str, MYSQL_TIMESTAMP_NONE, NullS);
+      goto err;
+    }
+  }
+  return 0;
+
+err:
+  bzero((char*) ltime,sizeof(*ltime));
+  return 1;
+}
+
+int Item_cache_int::save_in_field(Field *field, bool no_conversions)
+{
+  int error;
+  if (!value_cached && !cache_value())
+    return set_field_to_null_with_conversions(field, no_conversions);
+
+  field->set_notnull();
+  if (cmp_type() == TIME_RESULT)
+  {
+    MYSQL_TIME ltime;
+    unpack_time(value, &ltime);
+    ltime.time_type= mysql_type_to_time_type(field_type());
+    error= field->store_time(&ltime, ltime.time_type);
+  }
+  else
+    error= field->store(value, unsigned_flag);
+
+  return error ? error : field->table->in_use->is_error() ? 1 : 0;
 }
 
 bool Item_cache_real::cache_value()

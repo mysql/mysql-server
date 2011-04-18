@@ -3035,6 +3035,8 @@ public:
   my_decimal *val_decimal(my_decimal *);
   enum Item_result result_type() const { return INT_RESULT; }
   bool cache_value();
+  bool get_date(MYSQL_TIME *ltime, uint fuzzydate);
+  int save_in_field(Field *field, bool no_conversions);
   Item *clone_item()
   {
     Item_cache_int *item= new Item_cache_int(cached_field_type);

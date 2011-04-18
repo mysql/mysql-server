@@ -2257,6 +2257,19 @@ int my_time_compare(MYSQL_TIME *a, MYSQL_TIME *b);
 longlong get_datetime_value(THD *thd, Item ***item_arg, Item **cache_arg,
                             Item *warn_item, bool *is_null);
 
+static inline enum enum_mysql_timestamp_type
+mysql_type_to_time_type(enum enum_field_types mysql_type)
+{
+  switch(mysql_type) {
+  case MYSQL_TYPE_TIME: return MYSQL_TIMESTAMP_TIME;
+  case MYSQL_TYPE_TIMESTAMP:
+  case MYSQL_TYPE_DATETIME: return MYSQL_TIMESTAMP_DATETIME;
+  case MYSQL_TYPE_NEWDATE:
+  case MYSQL_TYPE_DATE: return MYSQL_TIMESTAMP_DATE;
+  default: return MYSQL_TIMESTAMP_ERROR;
+  }
+}
+
 int test_if_number(char *str,int *res,bool allow_wildcards);
 void change_byte(uchar *,uint,char,char);
 void init_read_record(READ_RECORD *info, THD *thd, TABLE *reg_form,

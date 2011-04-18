@@ -1659,3 +1659,9 @@ c_key	c_notkey
 3	3
 DROP TABLE t1;
 End of 5.1 tests
+create table t1 (f1 datetime, key (f1));
+insert into t1 values ('2000-03-09 15:56:59'),('2000-05-05 23:24:28'),('2000-06-13 13:12:06');
+select  min(f1)  from t1 where f1 >= '2006-05-25 07:00:20' and f1 between '2003-11-23 10:00:09' and '2010-01-01 01:01:01' and f1 > '2001-01-01 01:01:01';
+min(f1)
+NULL
+drop table t1;
