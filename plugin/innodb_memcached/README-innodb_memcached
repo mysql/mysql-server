@@ -1,6 +1,6 @@
 Following are simple steps to get everything started:
 
-1) Install prerequisite - libevent. libevent is required for memcached
+1) Build MySQL server. Please note libevent 1.4.3 is linked statically into daemon memcached.
 
 2) Start MySQL server. (make sure libmemcached.so and innodb_engine.so are copied to MySQL plugin directory).
 
@@ -24,7 +24,7 @@ VALUE a11 0 9
 END
 
 6) Run memcapable
-Memcapable is part of libmemcached package, it is available at "https://code.launchpad.net/~libmemcached-developers/libmemcached/trunk"
+Memcapable is part of libmemcached package, it is available at "https://code.launchpad.net/~libmemcached-developers/libmemcached/trunk". If you did not install libevent by yourself, you might need to set LD_LIBRARY_PATH to point libevent.so in plugin/libevent directory.
 
 jy@jy-laptop:~/work2/mysql-5.6-labs-innodb-memcached/bld/mysql-test$ memcapable -v
 ascii quit                              [pass]

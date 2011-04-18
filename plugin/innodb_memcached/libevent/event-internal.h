@@ -83,6 +83,7 @@ struct event_base {
 	*(listelm)->field.tqe_prev = (elm);				\
 	(listelm)->field.tqe_prev = &(elm)->field.tqe_next;		\
 } while (0)
+#define TAILQ_EMPTY(head)		((head)->tqh_first == NULL)
 #endif /* TAILQ_FOREACH */
 
 int _evsignal_set_handler(struct event_base *base, int evsignal,

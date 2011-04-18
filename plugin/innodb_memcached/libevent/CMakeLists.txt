@@ -18,7 +18,13 @@ ADD_DEFINITIONS(-DHAVE_CONFIG_H)
 INCLUDE_DIRECTORIES(${CMAKE_SOURCE_DIR}/plugin/innodb_memcached/libevent/compat/sys
 		    ${CMAKE_SOURCE_DIR}/plugin/innodb_memcached/libevent)
 
+SET(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} ${CMAKE_SHARED_LIBRARY_C_FLAGS} -I${CMAKE_SOURCE_DIR}/plugin/innodb_memcached/libevent")
+
 SET(LIBEVENT_CORE_SOURCES
+		event.h
+		event-internal.h
+		evutil.h
+		log.h
 		event.c
 		buffer.c
 		evbuffer.c
@@ -38,6 +44,12 @@ SET(LIBEVENT_EXTRA_SOURCES
 		strlcpy.c
 		strlcpy-internal.h
 		strlcpy-internal.h
-		strlcpy-internal.h)
+		strlcpy-internal.h
+		signal.c
+		poll.c
+		select.c
+		epoll.c
+		epoll_sub.c)
 
 ADD_LIBRARY(event SHARED ${LIBEVENT_CORE_SOURCES} ${LIBEVENT_EXTRA_SOURCES})
+ADD_LIBRARY(builtin_event STATIC ${LIBEVENT_CORE_SOURCES} ${LIBEVENT_EXTRA_SOURCES})
