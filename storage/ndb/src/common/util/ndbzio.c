@@ -1069,5 +1069,5 @@ int ndbz_file_size(ndbzio_stream *s, size_t *size)
     return -1;
 
   *size = stat_buf.st_size;
-  return 0; // OK
+  return 0; /* OK */
 }
