@@ -1307,7 +1307,7 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
     ConfigInfo::CI_USED,
     false,
     ConfigInfo::CI_ENUM,
-    0,
+    "Default", /* Default value */
     (const char*)arbit_method_typelib,
     0
   },
@@ -2183,12 +2183,13 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
     CFG_DEFAULT_OPERATION_REDO_PROBLEM_ACTION,
     "DefaultOperationRedoProblemAction",
     API_TOKEN,
-    "If Redo-log is having problem, should operation default (unless overridden on transaction/operation level) abort or be put on queue"
-    " in a row times, transactions will be aborted",
+    "If Redo-log is having problem, should operation default "
+    "(unless overridden on transaction/operation level) abort "
+    "or be put on queue",
     ConfigInfo::CI_USED,
     false,
     ConfigInfo::CI_ENUM,
-    0, /* default for ENUM doesnt seem to work... */
+    "abort", /* Default value */
     (const char*)default_operation_redo_problem_action_typelib,
     0
   },
@@ -3164,11 +3165,23 @@ ConfigInfo::ConfigInfo()
              entry->name != 0; entry++)
           values.put(entry->name, entry->value);
         require(pinfo.put("values", &values));
-        // fallthrough
+
+        if(param._default == MANDATORY)
+          pinfo.put("Mandatory", (Uint32)1);
+        else if(param._default)
+        {
+          /*
+            Map default value of enum from string to int since
+            enum is stored as int internally
+          */
+          Uint32 default_value;
+          require(values.get(param._default, &default_value));
+          require(pinfo.put("Default", default_value));
+        }
+        break;
       }
       case CI_STRING:
-        assert(param._type == CI_ENUM || // Allow fallthrough from enum
-               param._min == 0); // String can't have min value
+        assert(param._min == 0); // String can't have min value
         assert(param._max == 0); // String can't have max value
 
         if(param._default == MANDATORY)
@@ -3218,7 +3231,6 @@ ConfigInfo::ConfigInfo()
         {
 	  case CI_SECTION:
 	    break;
-	  case CI_ENUM:
 	  case CI_STRING:
           case CI_BITMASK:
 	    require(p->put(param._fname, param._default));
@@ -3237,6 +3249,20 @@ ConfigInfo::ConfigInfo()
 	      require(p->put64(param._fname, Uint64(default_uint64)));
 	      break;
 	    }
+          case CI_ENUM:
+          {
+            /*
+              Map default value of enum from string to int since
+              enum is stored as int internally
+            */
+            Uint32 default_value;
+            require(verify_enum(getInfo(param._section),
+                                param._fname, param._default,
+                                default_value));
+            require(p->put(param._fname, default_value));
+            break;
+          }
+
 	}
       }
       require(m_systemDefaults.put(param._section, p, true));
@@ -4155,6 +4181,7 @@ applyDefaultValues(InitConfigFileParser::Context & ctx,
       else
       {
         switch (ctx.m_info->getType(ctx.m_currentInfo, name)){
+        case ConfigInfo::CI_ENUM:
         case ConfigInfo::CI_INT:
         case ConfigInfo::CI_BOOL:{
           Uint32 val = 0;
@@ -4169,7 +4196,6 @@ applyDefaultValues(InitConfigFileParser::Context & ctx,
           break;
         }
         case ConfigInfo::CI_BITMASK:
-        case ConfigInfo::CI_ENUM:
         case ConfigInfo::CI_STRING:{
           const char * val;
           require(ctx.m_currentSection->get(name, &val));
