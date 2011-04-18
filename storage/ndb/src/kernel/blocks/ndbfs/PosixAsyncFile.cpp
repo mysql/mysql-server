@@ -46,29 +46,35 @@ PosixAsyncFile::PosixAsyncFile(SimulatedBlock& fs) :
   theFd(-1),
   use_gz(0)
 {
-  memset(&azf,0,sizeof(azf));
+  memset(&nzf,0,sizeof(nzf));
   init_mutex();
 }
 
 int PosixAsyncFile::init()
 {
-  // Create write buffer for bigger writes
-  azfBufferUnaligned= (Byte*)ndbd_malloc((AZ_BUFSIZE_READ+AZ_BUFSIZE_WRITE)
-                                         +NDB_O_DIRECT_WRITE_ALIGNMENT-1);
+  /*
+    Preallocate read and write buffers for ndbzio to workaround
+    default behaviour of alloc/free at open/close
+  */
+  const size_t read_size = ndbz_bufsize_read();
+  const size_t write_size = ndbz_bufsize_write();
 
-  azf.inbuf= (Byte*)(((UintPtr)azfBufferUnaligned
+  nzfBufferUnaligned= ndbd_malloc(read_size + write_size +
+                                  NDB_O_DIRECT_WRITE_ALIGNMENT-1);
+  nzf.inbuf= (Byte*)(((UintPtr)nzfBufferUnaligned
                       + NDB_O_DIRECT_WRITE_ALIGNMENT - 1) &
                      ~(UintPtr)(NDB_O_DIRECT_WRITE_ALIGNMENT - 1));
+  nzf.outbuf= nzf.inbuf + read_size;
 
-  azf.outbuf= azf.inbuf + AZ_BUFSIZE_READ;
-
-  az_mempool.size = az_mempool.mfree = az_inflate_mem_size()+az_deflate_mem_size();
+  /* Preallocate inflate/deflate buffers for ndbzio */
+  nz_mempool.size = nz_mempool.mfree =
+    ndbz_inflate_mem_size() + ndbz_deflate_mem_size();
 
   ndbout_c("NDBFS/AsyncFile: Allocating %u for In/Deflate buffer",
-           (unsigned int)az_mempool.size);
-  az_mempool.mem = (char*) ndbd_malloc(az_mempool.size);
+           (unsigned int)nz_mempool.size);
+  nz_mempool.mem = (char*) ndbd_malloc(nz_mempool.size);
 
-  azf.stream.opaque= &az_mempool;
+  nzf.stream.opaque= &nz_mempool;
 
   return 0;
 }
@@ -359,7 +365,7 @@ no_odirect:
 #endif
         int n;
 	if(use_gz)
-          n= azwrite(&azf,buf,size);
+          n= ndbzwrite(&nzf, buf, size);
         else
           n= write(theFd, buf, size);
 	if(n == -1 && errno == EINTR)
@@ -368,7 +374,7 @@ no_odirect:
 	}
 	if(n == -1 || n == 0)
 	{
-          ndbout_c("azwrite|write returned %d: errno: %d my_errno: %d",n,errno,my_errno);
+          ndbout_c("ndbzwrite|write returned %d: errno: %d my_errno: %d",n,errno,my_errno);
 	  break;
 	}
 	size -= n;
@@ -480,7 +486,7 @@ no_odirect:
   if(use_gz)
   {
     int err;
-    if((err= azdopen(&azf, theFd, new_flags)) < 1)
+    if((err= ndbzdopen(&nzf, theFd, new_flags)) < 1)
     {
       ndbout_c("Stewart's brain broke: %d %d %s",
                err, my_errno, theFileName.c_str());
@@ -509,7 +515,7 @@ int PosixAsyncFile::readBuffer(Request *req, char *buf,
 #endif
   if(use_gz)
   {
-    while((seek_val= azseek(&azf, offset, SEEK_SET)) == (off_t)-1
+    while((seek_val= ndbzseek(&nzf, offset, SEEK_SET)) == (off_t)-1
           && errno == EINTR) {};
     if(seek_val == (off_t)-1)
     {
@@ -524,14 +530,14 @@ int PosixAsyncFile::readBuffer(Request *req, char *buf,
 
 #if  ! defined(HAVE_PREAD)
     if(use_gz)
-      return_value = azread(&azf, buf, size, &error);
+      return_value = ndbzread(&nzf, buf, size, &error);
     else
       return_value = ::read(theFd, buf, size);
 #else // UNIX
     if(!use_gz)
       return_value = ::pread(theFd, buf, size, offset);
     else
-      return_value = azread(&azf, buf, size, &error);
+      return_value = ndbzread(&nzf, buf, size, &error);
 #endif
     if (return_value == -1 && errno == EINTR) {
       DEBUG(ndbout_c("EINTR in read"));
@@ -540,13 +546,13 @@ int PosixAsyncFile::readBuffer(Request *req, char *buf,
       if (return_value == -1)
         return errno;
     }
-    else if (return_value < 1 && azf.z_eof!=1)
+    else if (return_value < 1 && nzf.z_eof!=1)
     {
-      if(my_errno==0 && errno==0 && error==0 && azf.z_err==Z_STREAM_END)
+      if(my_errno==0 && errno==0 && error==0 && nzf.z_err==Z_STREAM_END)
         break;
       DEBUG(ndbout_c("ERROR DURING %sRead: %d off: %d from %s",(use_gz)?"gz":"",size,offset,theFileName.c_str()));
       ndbout_c("ERROR IN PosixAsyncFile::readBuffer %d %d %d %d",
-               my_errno, errno, azf.z_err, error);
+               my_errno, errno, nzf.z_err, error);
       if(use_gz)
         return my_errno;
       return errno;
@@ -629,12 +635,12 @@ int PosixAsyncFile::writeBuffer(const char *buf, size_t size, off_t offset)
 
 #if ! defined(HAVE_PWRITE)
     if(use_gz)
-      return_value= azwrite(&azf, buf, bytes_to_write);
+      return_value= ndbzwrite(&nzf, buf, bytes_to_write);
     else
       return_value = ::write(theFd, buf, bytes_to_write);
 #else // UNIX
     if(use_gz)
-      return_value= azwrite(&azf, buf, bytes_to_write);
+      return_value= ndbzwrite(&nzf, buf, bytes_to_write);
     else
       return_value = ::pwrite(theFd, buf, bytes_to_write, offset);
 #endif
@@ -643,7 +649,7 @@ int PosixAsyncFile::writeBuffer(const char *buf, size_t size, off_t offset)
       DEBUG(ndbout_c("EINTR in write"));
     } else if (return_value == -1 || return_value < 1){
       ndbout_c("ERROR IN PosixAsyncFile::writeBuffer %d %d %d",
-               my_errno, errno, azf.z_err);
+               my_errno, errno, nzf.z_err);
       if(use_gz)
         return my_errno;
       return errno;
@@ -678,17 +684,17 @@ void PosixAsyncFile::closeReq(Request *request)
   }
   int r;
   if(use_gz)
-    r= azclose(&azf);
+    r= ndbzclose(&nzf);
   else
     r= ::close(theFd);
   use_gz= 0;
   Byte *a,*b;
-  a= azf.inbuf;
-  b= azf.outbuf;
-  memset(&azf,0,sizeof(azf));
-  azf.inbuf= a;
-  azf.outbuf= b;
-  azf.stream.opaque = (void*)&az_mempool;
+  a= nzf.inbuf;
+  b= nzf.outbuf;
+  memset(&nzf,0,sizeof(nzf));
+  nzf.inbuf= a;
+  nzf.outbuf= b;
+  nzf.stream.opaque = (void*)&nz_mempool;
 
   if (-1 == r) {
 #ifndef DBUG_OFF
@@ -729,7 +735,7 @@ void PosixAsyncFile::appendReq(Request *request)
   while(size > 0){
     int n;
     if(use_gz)
-      n= azwrite(&azf,buf,size);
+      n= ndbzwrite(&nzf,buf,size);
     else
       n= write(theFd, buf, size);
     if(n == -1 && errno == EINTR){
@@ -823,15 +829,19 @@ loop:
 
 PosixAsyncFile::~PosixAsyncFile()
 {
-  if (azfBufferUnaligned)
-    ndbd_free(azfBufferUnaligned, (AZ_BUFSIZE_READ*AZ_BUFSIZE_WRITE)
-              +NDB_O_DIRECT_WRITE_ALIGNMENT-1);
+  /* Free the read and write buffer memory used by ndbzio */
+  if (nzfBufferUnaligned)
+    ndbd_free(nzfBufferUnaligned,
+              ndbz_bufsize_read() +
+              ndbz_bufsize_write() +
+              NDB_O_DIRECT_WRITE_ALIGNMENT-1);
+  nzfBufferUnaligned = NULL;
 
-  if(az_mempool.mem)
-    ndbd_free(az_mempool.mem,az_mempool.size);
+  /* Free the inflate/deflate buffers for ndbzio */
+  if(nz_mempool.mem)
+    ndbd_free(nz_mempool.mem, nz_mempool.size);
+  nz_mempool.mem = NULL;
 
-  az_mempool.mem = NULL;
-  azfBufferUnaligned = NULL;
   destroy_mutex();
 }
 
