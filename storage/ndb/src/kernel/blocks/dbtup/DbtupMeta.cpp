@@ -1809,7 +1809,7 @@ Dbtup::execDROP_TAB_REQ(Signal* signal)
 {
   jamEntry();
   if (ERROR_INSERTED(4013)) {
-#ifdef VM_TRACE
+#if defined VM_TRACE || defined ERROR_INSERT
     verifytabdes();
 #endif
   }
@@ -2565,7 +2565,7 @@ Dbtup::execDROP_FRAG_REQ(Signal* signal)
 {
   jamEntry();
   if (ERROR_INSERTED(4013)) {
-#ifdef VM_TRACE
+#if defined VM_TRACE || defined ERROR_INSERT
     verifytabdes();
 #endif
   }
