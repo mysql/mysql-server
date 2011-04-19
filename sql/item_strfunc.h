@@ -780,22 +780,6 @@ class Item_func_export_set: public Item_str_func
   const char *func_name() const { return "export_set"; }
 };
 
-class Item_func_inet_ntoa : public Item_str_func
-{
-public:
-  Item_func_inet_ntoa(Item *a) :Item_str_func(a)
-    {
-    }
-  String* val_str(String* str);
-  const char *func_name() const { return "inet_ntoa"; }
-  void fix_length_and_dec() 
-  { 
-    decimals= 0; 
-    fix_length_and_charset(3 * 8 + 7, default_charset()); 
-    maybe_null= 1;
-  }
-};
-
 class Item_func_quote :public Item_str_func
 {
   String tmp_value;
