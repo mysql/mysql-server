@@ -34,13 +34,14 @@ void
 Dbtup::tuxGetTupAddr(Uint32 fragPtrI,
                      Uint32 pageId,
                      Uint32 pageIndex,
-                     Uint32& tupAddr)
+                     Uint32& lkey1,
+                     Uint32& lkey2)
 {
   jamEntry();
   PagePtr pagePtr;
   c_page_pool.getPtr(pagePtr, pageId);
-  Uint32 fragPageId= pagePtr.p->frag_page_id;
-  tupAddr= (fragPageId << MAX_TUPLES_BITS) | pageIndex;
+  lkey1 = pagePtr.p->frag_page_id;
+  lkey2 = pageIndex;
 }
 
 int

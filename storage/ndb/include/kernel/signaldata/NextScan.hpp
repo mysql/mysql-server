@@ -49,13 +49,12 @@ class NextScanConf {
 public:
   // length is less if no keyinfo or no next result
   STATIC_CONST( SignalLength = 11 );
-  STATIC_CONST( SignalLengthNoKeyInfo = 7 );
+  STATIC_CONST( SignalLengthNoKeyInfo = 6 );
 private:
   Uint32 scanPtr;               // scan record in LQH
   Uint32 accOperationPtr;
   Uint32 fragId;
   Uint32 localKey[2];
-  Uint32 localKeyLength;
   Uint32 gci;
 };
 

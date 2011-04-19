@@ -776,7 +776,7 @@ private:
 
   // inlined utils
   DescEnt& getDescEnt(Uint32 descPage, Uint32 descOff);
-  Uint32 getTupAddr(const Frag& frag, TreeEnt ent);
+  void getTupAddr(const Frag& frag, TreeEnt ent, Uint32& lkey1, Uint32& lkey2);
   static unsigned min(unsigned x, unsigned y);
   static unsigned max(unsigned x, unsigned y);
 
@@ -1242,15 +1242,15 @@ Dbtux::getDescEnt(Uint32 descPage, Uint32 descOff)
   return *descEnt;
 }
 
-inline Uint32
-Dbtux::getTupAddr(const Frag& frag, TreeEnt ent)
+inline
+void
+Dbtux::getTupAddr(const Frag& frag, TreeEnt ent, Uint32& lkey1, Uint32& lkey2)
 {
   const Uint32 tableFragPtrI = frag.m_tupTableFragPtrI;
   const TupLoc tupLoc = ent.m_tupLoc;
-  Uint32 tupAddr = NullTupAddr;
-  c_tup->tuxGetTupAddr(tableFragPtrI, tupLoc.getPageId(), tupLoc.getPageOffset(), tupAddr);
+  c_tup->tuxGetTupAddr(tableFragPtrI, tupLoc.getPageId(),tupLoc.getPageOffset(),
+                       lkey1, lkey2);
   jamEntry();
-  return tupAddr;
 }
 
 inline unsigned
