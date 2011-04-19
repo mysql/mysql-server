@@ -2345,6 +2345,8 @@ srv_worker_thread(
 {
 	srv_slot_t*	slot;
 
+	ut_a(srv_force_recovery < SRV_FORCE_NO_BACKGROUND);
+
 #ifdef UNIV_DEBUG_THREAD_CREATION
 	fprintf(stderr, "Worker thread starts, id %lu\n",
 		os_thread_pf(os_thread_get_curr_id()));
@@ -2522,8 +2524,7 @@ srv_purge_coordinator_thread(
 		}
 
 		/* Check for shutdown and whether we should do purge at all. */
-		if (srv_force_recovery >= SRV_FORCE_NO_BACKGROUND
-		    || srv_shutdown_state != SRV_SHUTDOWN_NONE
+		if (srv_shutdown_state != SRV_SHUTDOWN_NONE
 		    || srv_fast_shutdown) {
 
 			break;
