@@ -56,7 +56,7 @@ CREATE  TABLE IF NOT EXISTS `config_options` (
 	`value` varchar(50)) ENGINE = InnoDB;
 	
 -- ------------------------------------------------------------------------
--- Follow is an example
+-- This is an example
 -- We create a InnoDB table `demo_test` is the `test` database
 -- and insert an entry into contrainers' table to tell InnoDB Memcache
 -- that we has such InnoDB table as back store:
@@ -65,10 +65,10 @@ CREATE  TABLE IF NOT EXISTS `config_options` (
 -- c3 -> flags
 -- c4 -> cas
 -- c5 -> exp time
--- primary -> Use Primary index for search
+-- PRIMARY -> use primary key to search
 -- ------------------------------------------------------------------------
 
-INSERT INTO containers VALUES ("example_1", "test", "demo_test",
+INSERT INTO containers VALUES ("aaa", "test", "demo_test",
 			       "c1", "c2",  "c3", "c4", "c5", "PRIMARY");
 
 INSERT INTO cache_policies VALUES("cache_policy", "innodb_only",
@@ -78,43 +78,9 @@ INSERT INTO config_options VALUES("separator", "|");
 
 USE test
 
-CREATE TABLE demo_test (c1 CHAR(64), c2 VARCHAR(1024),
-			c3 INT, c4 BIGINT UNSIGNED, C5 INT, PRIMARY KEY(c1))
+CREATE TABLE demo_test (c1 VARCHAR(32),
+			c2 VARCHAR(1024),
+			c3 INT, c4 BIGINT UNSIGNED, C5 INT, primary key(c1))
 ENGINE = INNODB;
 
-INSERT INTO demo_test VALUES ("AA", "HELLO, HELLO", 0, 0, 0);
-
--- ------------------------------------------------------------------------
--- Follow shows another example, in that case, there are more table columns
--- than actually being mapped. And we also specified a secondary index
--- for the query
--- c1 -> key
--- c2 -> value
--- c3 -> flags
--- c4 -> cas
--- c5 -> exp time
--- idx -> unique index on key
--- ------------------------------------------------------------------------
--- ------------------------------------------------------------------------
--- INSERT INTO containers VALUES ("aaa", "test", "demo_test",
---			       "c1", "c2, cx",  "c3", "c4", "c5", "idx");
---
--- INSERT INTO cache_policies VALUES("cache_policy", "innodb_only",
---				  "innodb_only", "innodb_only", "innodb_only");
---
--- INSERT INTO config_options VALUES("separator", "|");
---
--- USE test
---
--- CREATE TABLE demo_test (cx VARCHAR(10), cy INT, c1 VARCHAR(32),
---			cz INT, c2 VARCHAR(1024), ca INT, CB INT,
---			c3 INT, cu INT, c4 BIGINT UNSIGNED, C5 INT)
--- ENGINE = INNODB;
---
--- CREATE UNIQUE INDEX idx ON demo_test(c1);
---
--- INSERT INTO demo_test VALUES ("9", 3 , "AA", 2, "HELLO, HELLO",
---			      8, 8, 0, 1, 3, 0);
--- ------------------------------------------------------------------------
-
-
+INSERT INTO demo_test VALUES ("AA", "HELLO, HELLO", 8, 0, 0);
