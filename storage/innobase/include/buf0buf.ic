@@ -988,8 +988,6 @@ buf_page_hash_get_low(
 {
 	buf_page_t*	bpage;
 
-	ut_ad(buf_pool);
-
 #ifdef UNIV_SYNC_DEBUG
 	ulint		hash_fold;
 	rw_lock_t*	hash_lock;
