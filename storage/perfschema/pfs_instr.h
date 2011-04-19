@@ -32,7 +32,7 @@ struct PFS_socket_class;
 #ifdef __WIN__
 #include <winsock2.h>
 #else
-#include <netinet/in.h>
+#include <arpa/inet.h>
 #endif
 #include "pfs_lock.h"
 #include "pfs_stat.h"
