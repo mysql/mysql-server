@@ -29,7 +29,7 @@
 --source include/have_binlog_format_row.inc
 --source include/have_ndb.inc
 --source include/have_innodb.inc
---source include/ndb_master-slave.inc
+--source suite/rpl_ndb/ndb_master-slave.inc
 
 disable_query_log;
 call mtr.add_suppression("Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT");
@@ -260,3 +260,5 @@ UNINSTALL PLUGIN example;
 SET @@global.binlog_format = @old_binlog_format;
 SET @@session.binlog_format = @old_binlog_format;
 UNINSTALL PLUGIN example;
+
+--source include/rpl_end.inc
