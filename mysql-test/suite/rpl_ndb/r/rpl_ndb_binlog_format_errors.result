@@ -1,9 +1,5 @@
-stop slave;
-drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9;
-reset master;
-reset slave;
-drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9;
-start slave;
+include/master-slave.inc
+[connection master]
 ==== Initialize ====
 [on slave]
 SET @old_binlog_format= @@global.binlog_format;
@@ -56,10 +52,8 @@ a
 * Row injection and stmt-only table: in slave sql thread
 INSERT INTO t_slave_stmt VALUES (1);
 [on slave]
---source include/wait_for_slave_sql_error_and_skip.inc
-Last_SQL_Error = Error executing row event: 'Cannot execute statement: impossible to write to binary log since statement is in row format and at least one table uses a storage engine limited to statement-based logging.'
-SET GLOBAL SQL_SLAVE_SKIP_COUNTER=1;
-include/start_slave.inc
+include/wait_for_slave_sql_error_and_skip.inc [errno=1664]
+Last_SQL_Error = 'Error executing row event: 'Cannot execute statement: impossible to write to binary log since statement is in row format and at least one table uses a storage engine limited to statement-based logging.''
 SELECT * FROM t_slave_stmt /* should be empty */;
 a
 [on master]
@@ -153,10 +147,8 @@ SET @@session.binlog_format = MIXED;
 * Row injection and binlog_format=statement: in slave sql thread
 INSERT INTO t VALUES (COALESCE(1, UUID()));
 [on slave]
---source include/wait_for_slave_sql_error_and_skip.inc
-Last_SQL_Error = Error executing row event: 'Cannot execute statement: impossible to write to binary log since statement is in row format and BINLOG_FORMAT = STATEMENT.'
-SET GLOBAL SQL_SLAVE_SKIP_COUNTER=1;
-include/start_slave.inc
+include/wait_for_slave_sql_error_and_skip.inc [errno=1666]
+Last_SQL_Error = 'Error executing row event: 'Cannot execute statement: impossible to write to binary log since statement is in row format and BINLOG_FORMAT = STATEMENT.''
 SELECT * FROM t /* should be empty */;
 a
 [on master]
@@ -172,3 +164,4 @@ UNINSTALL PLUGIN example;
 SET @@global.binlog_format = @old_binlog_format;
 SET @@session.binlog_format = @old_binlog_format;
 UNINSTALL PLUGIN example;
+include/rpl_end.inc
