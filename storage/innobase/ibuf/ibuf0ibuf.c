@@ -1176,6 +1176,10 @@ ibuf_page_low(
 
 #ifdef UNIV_DEBUG
 	if (!x_latch) {
+# ifdef UNIV_SYNC_DEBUG
+		void*	latch;
+# endif /* UNIV_SYNC_DEBUG */
+
 		mtr_start(&local_mtr);
 
 		/* Get the bitmap page without a page latch, so that
@@ -1200,7 +1204,7 @@ ibuf_page_low(
 		be removed once it has been established that our assumptions
 		about this condition are correct. The bug was only a one-time
 		occurrence, unable to repeat since then. */
-		void* latch = sync_thread_levels_contains(SYNC_IBUF_BITMAP);
+		latch = sync_thread_levels_contains(SYNC_IBUF_BITMAP);
 		if (latch) {
 			fprintf(stderr, "Bug#58212 UNIV_SYNC_DEBUG"
 				" levels %p (%u,%u)\n",
