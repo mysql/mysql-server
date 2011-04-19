@@ -470,7 +470,7 @@ void TABLE_SHARE::destroy()
   }
 #endif /* WITH_PARTITION_STORAGE_ENGINE */
 
-#ifdef HAVE_PSI_INTERFACE
+#ifdef HAVE_PSI_TABLE_INTERFACE
   if (likely(PSI_server && m_psi))
     PSI_server->release_table_share(m_psi);
 #endif

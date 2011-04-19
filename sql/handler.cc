@@ -2080,7 +2080,7 @@ int ha_delete_table(THD *thd, handlerton *table_type, const char *path,
   }
   delete file;
 
-#ifdef HAVE_PSI_INTERFACE
+#ifdef HAVE_PSI_TABLE_INTERFACE
   if (likely((error == 0) && (PSI_server != NULL)))
     PSI_server->drop_table_share(db, strlen(db), alias, strlen(alias));
 #endif
@@ -2173,7 +2173,7 @@ int handler::ha_open(TABLE *table_arg, const char *name, int mode,
   {
     DBUG_ASSERT(m_psi == NULL);
     DBUG_ASSERT(table_share != NULL);
-#ifdef HAVE_PSI_INTERFACE
+#ifdef HAVE_PSI_TABLE_INTERFACE
     if (likely(PSI_server != NULL))
     {    
       PSI_table_share *share_psi= ha_table_share_psi(table_share);
@@ -2202,7 +2202,7 @@ int handler::ha_open(TABLE *table_arg, const char *name, int mode,
 
 int handler::ha_close(void)
 {
-#ifdef HAVE_PSI_INTERFACE
+#ifdef HAVE_PSI_TABLE_INTERFACE
   if (likely(PSI_server && m_psi))
   {
     PSI_server->close_table(m_psi);
@@ -3894,7 +3894,7 @@ int ha_create_table(THD *thd, const char *path,
   if (open_table_def(thd, &share, 0))
     goto err;
 
-#ifdef HAVE_PSI_INTERFACE
+#ifdef HAVE_PSI_TABLE_INTERFACE
   if (likely(PSI_server != NULL))
   {
     my_bool temp= (create_info->options & HA_LEX_CREATE_TMP_TABLE ? TRUE : FALSE);
@@ -3973,7 +3973,7 @@ int ha_create_table_from_engine(THD* thd, const char *db, const char *name)
     DBUG_RETURN(3);
   }
 
-#ifdef HAVE_PSI_INTERFACE
+#ifdef HAVE_PSI_TABLE_INTERFACE
   /*
     Table discovery is not instrumented.
     Once discovered, the table will be opened normally,
