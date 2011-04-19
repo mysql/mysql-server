@@ -26,6 +26,7 @@
 #include <nks/time.h>
 #elif defined(__WIN__)
 static ulonglong query_performance_frequency, query_performance_offset;
+#define OFFSET_TO_EPOC 116444736000000000LL
 #elif defined(HAVE_GETHRTIME)
 static ulonglong gethrtime_offset;
 #endif
@@ -81,6 +82,7 @@ my_hrtime_t my_hrtime()
 #if defined(__WIN__)
   ulonglong newtime;
   GetSystemTimeAsFileTime((FILETIME*)&newtime);
+  newtime -= OFFSET_TO_EPOC;
   hrtime.val= newtime/10;
 #elif defined(HAVE_GETHRTIME)
   struct timeval t;
@@ -117,7 +119,6 @@ void my_diff_and_hrtime(my_timediff_t *interval, my_hrtime_t *timestamp)
 void my_time_init()
 {
 #ifdef __WIN__
-#define OFFSET_TO_EPOC ((__int64) 134774 * 24 * 60 * 60 * 1000 * 1000 * 10)
   FILETIME ft;
   LARGE_INTEGER li, t_cnt;
   DBUG_ASSERT(sizeof(LARGE_INTEGER) == sizeof(query_performance_frequency));
