@@ -25,7 +25,6 @@
 #include <stdlib.h>
 #include <string.h>
 
-// TBD: check this
 #ifdef __WIN__
   #include <winsock2.h>
 #else
@@ -74,38 +73,7 @@ void pfs_print_error(const char *format, ...)
   fflush(stderr);
 }
 
-#ifdef __WIN__
-
-/** inet_ntop() does not exist in Windows. Defined here for convenience. */
-
-const char *inet_ntop(int af, const void *src, char *host, socklen_t hostlen)
-{
-  if (af == AF_INET)
-  {
-    struct sockaddr_in in;
-    memset(&in, 0, sizeof(in));
-    in.sin_family = AF_INET;
-    memcpy(&in.sin_addr, src, sizeof(struct in_addr));
-    /** Convert ip address into readable form. Do not do a reverse DNS lookup. */
-    getnameinfo((struct sockaddr *)&in, sizeof(struct sockaddr_in), host, hostlen, NULL, 0, NI_NUMERICHOST);
-    return host;
-  }
-  else if (af == AF_INET6)
-  {
-    struct sockaddr_in6 in;
-    memset(&in, 0, sizeof(in));
-    in.sin6_family = AF_INET6;
-    memcpy(&in.sin6_addr, src, sizeof(struct in_addr6));
-    /** Convert ip address into readable form. Do not do a reverse DNS lookup. */
-    getnameinfo((struct sockaddr *)&in, sizeof(struct sockaddr_in6), host, hostlen, NULL, 0, NI_NUMERICHOST);
-    return host;
-  }
-  return NULL;
-}
-
-#endif // __WIN32
-
-/** Convert raw ip address into readable format */ // TBD: review this
+/** Convert raw ip address into readable format. Do not do a reverse DNS lookup. */
 
 uint pfs_get_socket_address(char *host,
                             uint host_len,
@@ -127,20 +95,34 @@ uint pfs_get_socket_address(char *host,
       if (host_len < INET_ADDRSTRLEN+1)
         return 0;
       struct sockaddr_in *sa4= (struct sockaddr_in *)(src_addr);
+    #ifdef __WIN__
+      /* Older versions of Windows do not support inet_ntop() */
+      getnameinfo((struct sockaddr *)sa4, sizeof(struct sockaddr_in),
+                  host, host_len, NULL, 0, NI_NUMERICHOST);
+    #else
       inet_ntop(AF_INET, &(sa4->sin_addr), host, INET_ADDRSTRLEN);
+    #endif
       *port= ntohs(sa4->sin_port);
     }
     break;
 
+#ifdef HAVE_IPV6
     case AF_INET6:
     {
       if (host_len < INET6_ADDRSTRLEN+1)
         return 0;
       struct sockaddr_in6 *sa6= (struct sockaddr_in6 *)(src_addr);
+    #ifdef __WIN__
+      /* Older versions of Windows do not support inet_ntop() */
+      getnameinfo((struct sockaddr *)sa6, sizeof(struct sockaddr_in),
+                  host, host_len, NULL, 0, NI_NUMERICHOST);
+    #else
       inet_ntop(AF_INET6, &(sa6->sin6_addr), host, INET6_ADDRSTRLEN);
+    #endif
       *port= ntohs(sa6->sin6_port);
     }
     break;
+#endif
 
     default:
       break;

@@ -157,11 +157,8 @@ struct PFS_byte_stat : public PFS_single_stat
   /* Aggregate individual wait time, event count and byte count */
   inline void aggregate(ulonglong wait, ulonglong bytes)
   {
-    if (wait != 0)
-      aggregate_value(wait);
-
-    if (bytes != 0)
-      m_bytes+= bytes;
+    aggregate_value(wait);
+    m_bytes+= bytes;
   }
 
   /* Aggregate wait stats and event count */
@@ -180,9 +177,7 @@ struct PFS_byte_stat : public PFS_single_stat
   inline void aggregate_counted(ulonglong bytes)
   {
     PFS_single_stat::aggregate_counted();
-
-    if (bytes != 0)
-      m_bytes+= bytes;
+    m_bytes+= bytes;
   }
     
   PFS_byte_stat()

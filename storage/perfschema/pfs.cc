@@ -17,11 +17,6 @@
   @file storage/perfschema/pfs.cc
   The performance schema implementation of all instruments.
 */
-#ifdef __WIN__
-  #include <winsock2.h>
-#else
-  #include <arpa/inet.h>
-#endif
 #include "my_global.h"
 #include "thr_lock.h"
 #include "mysql/psi/psi.h"
@@ -2839,15 +2834,16 @@ get_thread_socket_locker_v1(PSI_socket_locker_state *state,
       wait->m_event_type= EVENT_TYPE_WAIT;
       wait->m_nesting_event_id= parent_event->m_event_id;
       wait->m_nesting_event_id= parent_event->m_event_type;
-      wait->m_thread=      pfs_thread;
-      wait->m_class=       klass;
-      wait->m_timer_start= 0;
-      wait->m_timer_end=   0;
+      wait->m_thread=       pfs_thread;
+      wait->m_class=        klass;
+      wait->m_timer_start=  0;
+      wait->m_timer_end=    0;
       wait->m_object_instance_addr= pfs_socket->m_identity;
-      wait->m_weak_socket= pfs_socket;
-      wait->m_event_id=    pfs_thread->m_event_id++;
-      wait->m_operation=   socket_operation_map[static_cast<int>(op)];
-      wait->m_wait_class=  WAIT_CLASS_SOCKET;
+      wait->m_weak_socket=  pfs_socket;
+      wait->m_weak_version= pfs_socket->get_version();
+      wait->m_event_id=     pfs_thread->m_event_id++;
+      wait->m_operation=    socket_operation_map[static_cast<int>(op)];
+      wait->m_wait_class=   WAIT_CLASS_SOCKET;
 
       pfs_thread->m_events_waits_count++;
     }

@@ -151,27 +151,6 @@ struct PFS_stat_row
     }
   }
 
-  /** Build a row with count values from a memory buffer. */
-  inline void set(const PFS_single_stat *stat)
-  {
-    m_count= stat->m_count;
-
-    if (m_count)
-    {
-      m_sum= stat->m_sum;
-      m_min= stat->m_min;
-      m_max= stat->m_max;
-      m_avg= (stat->m_sum / m_count);
-    }
-    else
-    {
-      m_sum= 0;
-      m_min= 0;
-      m_avg= 0;
-      m_max= 0;
-    }
-  }
-
   /** Set a table field from the row. */
   void set_field(uint index, Field *f)
   {
