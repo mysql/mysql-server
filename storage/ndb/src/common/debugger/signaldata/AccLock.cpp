@@ -70,7 +70,7 @@ printACC_LOCKREQ(FILE* output, const Uint32* theData, Uint32 len, Uint16 rbn)
     fprintf(output, " userPtr: 0x%x userRef: 0x%x\n", sig->userPtr, sig->userRef);
     fprintf(output, " table: id=%u", sig->tableId);
     fprintf(output, " fragment: id=%u ptr=0x%x\n", sig->fragId, sig->fragPtrI);
-    fprintf(output, " tuple: addr=0x%x hashValue=%x\n", sig->tupAddr, sig->hashValue);
+    fprintf(output, " tuple: addr=%u/%u hashValue=%x\n", sig->page_id, sig->page_idx, sig->hashValue);
     fprintf(output, " transid: %08x %08x\n", sig->transId1, sig->transId2);
   }
   return true;

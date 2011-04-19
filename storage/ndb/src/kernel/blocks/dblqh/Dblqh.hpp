@@ -2731,9 +2731,11 @@ public:
   Uint32 readPrimaryKeys(Uint32 opPtrI, Uint32 * dst, bool xfrm);
 private:
 
-  void acckeyconf_tupkeyreq(Signal*, TcConnectionrec*, Fragrecord*, Uint32, Uint32);
-  void acckeyconf_load_diskpage(Signal*,TcConnectionrecPtr,Fragrecord*,Uint32);
-  
+  void acckeyconf_tupkeyreq(Signal*, TcConnectionrec*, Fragrecord*,
+                            Uint32, Uint32, Uint32);
+  void acckeyconf_load_diskpage(Signal*,TcConnectionrecPtr,Fragrecord*,
+                                Uint32, Uint32);
+
   void handle_nr_copy(Signal*, Ptr<TcConnectionrec>);
   void exec_acckeyreq(Signal*, Ptr<TcConnectionrec>);
   int compare_key(const TcConnectionrec*, const Uint32 * ptr, Uint32 len);
@@ -3340,7 +3342,8 @@ Dblqh::accminupdate(Signal* signal, Uint32 opId, const Local_key* key)
   regTcPtr.i= opId;
   ptrCheckGuard(regTcPtr, ctcConnectrecFileSize, tcConnectionrec);
   signal->theData[0] = regTcPtr.p->accConnectrec;
-  signal->theData[1] = key->m_page_no << MAX_TUPLES_BITS | key->m_page_idx;
+  signal->theData[1] = key->m_page_no;
+  signal->theData[2] = key->m_page_idx;
   c_acc->execACCMINUPDATE(signal);
 
   if (ERROR_INSERTED(5714))
