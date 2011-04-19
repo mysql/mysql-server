@@ -877,7 +877,6 @@ void test_init_disabled()
   /* disabled S-A + enabled T-1: no instrumentation */
 
   socket_class_A->m_enabled= false;
-  socket_A1= psi->init_socket(socket_key_A, NULL);
   ok(socket_A1 == NULL, "not instrumented");
 
   /* enabled S-A + enabled T-1: instrumentation */
@@ -1120,6 +1119,9 @@ void test_locker_disabled()
   socket_A1= psi->init_socket(socket_key_A, NULL);
   ok(socket_A1 != NULL, "instrumented");
 
+  /* Socket lockers require a thread owner */
+  psi->set_socket_thread_owner(socket_A1);
+
   PSI_mutex_locker *mutex_locker;
   PSI_mutex_locker_state mutex_state;
   PSI_rwlock_locker *rwlock_locker;
@@ -1298,6 +1300,16 @@ void test_locker_disabled()
   psi->start_socket_wait(socket_locker, 10, __FILE__, __LINE__);
   psi->end_socket_wait(socket_locker, 10);
 
+  /* Pretend the socket does not have a thread owner */
+  /* ---------------------------------------------- */
+
+  socket_class_A->m_enabled= true;
+  socket_A1= psi->init_socket(socket_key_A, NULL);
+  ok(socket_A1 != NULL, "instrumented");
+  /* Socket thread owner has not been set */
+  socket_locker= psi->get_thread_socket_locker(&socket_state, socket_A1, PSI_SOCKET_SEND);
+  ok(socket_locker == NULL, "no locker (no thread owner)");
+  
   /* Pretend the running thread is not instrumented */
   /* ---------------------------------------------- */
 
@@ -1604,7 +1616,7 @@ void do_all_tests()
 
 int main(int, char **)
 {
-  plan(214);
+  plan(216);
   MY_INIT("pfs-t");
   do_all_tests();
   return 0;
