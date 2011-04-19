@@ -128,11 +128,8 @@ static void init_database_names_psi_keys(void)
   const char* category= "sql";
   int count;
 
-  if (PSI_server == NULL)
-    return;
-
   count= array_elements(all_database_names_rwlocks);
-  PSI_server->register_rwlock(category, all_database_names_rwlocks, count);
+  mysql_rwlock_register(category, all_database_names_rwlocks, count);
 }
 #endif
 

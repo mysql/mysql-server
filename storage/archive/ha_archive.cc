@@ -157,11 +157,8 @@ static void init_archive_psi_keys(void)
   const char* category= "archive";
   int count;
 
-  if (PSI_server == NULL)
-    return;
-
   count= array_elements(all_archive_mutexes);
-  PSI_server->register_mutex(category, all_archive_mutexes, count);
+  mysql_mutex_register(category, all_archive_mutexes, count);
 }
 
 #endif /* HAVE_PSI_INTERFACE */

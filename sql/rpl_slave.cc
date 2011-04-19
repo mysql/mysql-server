@@ -245,11 +245,8 @@ static void init_slave_psi_keys(void)
   const char* category= "sql";
   int count;
 
-  if (PSI_server == NULL)
-    return;
-
   count= array_elements(all_slave_threads);
-  PSI_server->register_thread(category, all_slave_threads, count);
+  mysql_thread_register(category, all_slave_threads, count);
 }
 #endif /* HAVE_PSI_INTERFACE */
 
