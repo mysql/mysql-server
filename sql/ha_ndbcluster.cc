@@ -13738,6 +13738,7 @@ HA_ALTER_FLAGS supported_alter_operations()
 
 int ha_ndbcluster::check_if_supported_alter(TABLE *altered_table,
                                             HA_CREATE_INFO *create_info,
+                                            Alter_info *alter_info,
                                             HA_ALTER_FLAGS *alter_flags,
                                             uint table_changes)
 {
@@ -13775,7 +13776,7 @@ int ha_ndbcluster::check_if_supported_alter(TABLE *altered_table,
       sql_partition.cc tries to compute what is going on
       and sets flags...that we clear
     */
-    if (part_info->use_default_no_partitions)
+    if (part_info->use_default_num_partitions)
     {
       alter_flags->clear_bit(HA_COALESCE_PARTITION);
       alter_flags->clear_bit(HA_ADD_PARTITION);
@@ -13860,7 +13861,7 @@ int ha_ndbcluster::check_if_supported_alter(TABLE *altered_table,
      }
      else if (alter_flags->is_set(HA_ADD_PARTITION))
      {
-       new_tab.setFragmentCount(part_info->no_parts);
+       new_tab.setFragmentCount(part_info->num_parts);
      }
 
      NDB_Modifiers table_modifiers(ndb_table_modifiers);
@@ -14190,7 +14191,7 @@ int ha_ndbcluster::alter_table_phase1(THD *thd,
     else if (alter_flags->is_set(HA_ADD_PARTITION))
     {
       partition_info *part_info= table->part_info;
-      new_tab->setFragmentCount(part_info->no_parts);
+      new_tab->setFragmentCount(part_info->num_parts);
     }
 
     int res= dict->prepareHashMap(*old_tab, *new_tab);

@@ -2302,7 +2302,7 @@ end:
         {
           sql_print_error("NDB %s: distributing %s timed out. Ignoring...",
                           type_str, ndb_schema_object->key);
-          DBUG_ASSERT(false);
+          // DBUG_ASSERT(false);
           break;
         }
         if (opt_ndb_extra_logging)
