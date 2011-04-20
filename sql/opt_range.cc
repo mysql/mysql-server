@@ -7338,6 +7338,7 @@ get_mm_parts(RANGE_OPT_PARAM *param, COND *cond_func, Field *field,
 	  DBUG_RETURN(0);			// OOM
       }
       sel_arg->part=(uchar) key_part->part;
+      sel_arg->max_part_no= sel_arg->part+1;
       tree->keys[key_part->key]=sel_add(tree->keys[key_part->key],sel_arg);
       tree->keys_map.set_bit(key_part->key);
     }
