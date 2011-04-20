@@ -16,5 +16,5 @@ SET storage_engine=ndb;
 --echo === NDB -> NDB ===
 --echo
 connection slave;
---source extra/rpl_tests/rpl_ndb_2multi_basic.test
+--source suite/rpl_ndb/t/rpl_ndb_2multi_basic.inc
 --source include/rpl_end.inc
