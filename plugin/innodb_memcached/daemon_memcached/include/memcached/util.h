@@ -10,8 +10,8 @@
  * returns true if conversion succeeded.
  */
 #include <memcached/visibility.h>
+#include <memcached/types.h>
 #include <stdint.h>
-#include <stdbool.h>
 
 #ifdef __cplusplus
 extern "C" {

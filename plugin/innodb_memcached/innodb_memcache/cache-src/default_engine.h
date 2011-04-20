@@ -11,7 +11,6 @@
 #include "config.h"
 
 #include <pthread.h>
-#include <stdbool.h>
 
 #include <memcached/engine.h>
 #include <memcached/util.h>

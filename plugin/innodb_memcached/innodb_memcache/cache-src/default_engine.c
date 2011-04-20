@@ -183,13 +183,14 @@ ENGINE_ERROR_CODE create_instance(uint64_t interface,
       .scrubber = {
          .lock = PTHREAD_MUTEX_INITIALIZER,
       },
+      /* FIXME: compilation issue on solaris x86 
       .info.engine_info = {
            .description = "Default engine v0.1",
            .num_features = 1,
            .features = {
                [0].feature = ENGINE_FEATURE_LRU
            }
-       }
+       } */
    };
 
    *engine = default_engine;
