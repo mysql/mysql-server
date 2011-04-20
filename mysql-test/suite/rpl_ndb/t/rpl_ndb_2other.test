@@ -35,7 +35,7 @@ CREATE TABLE mysql.ndb_apply_status
                    end_pos BIGINT UNSIGNED NOT NULL,
                    PRIMARY KEY USING HASH (server_id)) ENGINE=MYISAM;
 SET storage_engine=myisam;
---source extra/rpl_tests/rpl_ndb_2multi_basic.test
+--source suite/rpl_ndb/t/rpl_ndb_2multi_basic.inc
 
 --echo
 --echo === NDB -> INNODB ===
@@ -43,7 +43,7 @@ SET storage_engine=myisam;
 connection slave;
 alter table mysql.ndb_apply_status engine=innodb;
 SET storage_engine=innodb;
---source extra/rpl_tests/rpl_ndb_2multi_basic.test
+--source suite/rpl_ndb/t/rpl_ndb_2multi_basic.inc
 
 connection slave;
 drop table mysql.ndb_apply_status;
