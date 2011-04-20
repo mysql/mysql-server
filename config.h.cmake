@@ -309,7 +309,7 @@
 #cmakedefine DNS_USE_CPU_CLOCK_FOR_ID 1
 #cmakedefine HAVE_EPOLL 1
 #cmakedefine HAVE_EPOLL_CTL 1
-#cmakedefine HAVE_EVENT_PORTS 1
+/* #cmakedefine HAVE_EVENT_PORTS 1 */
 #cmakedefine HAVE_INET_NTOP 1
 #cmakedefine HAVE_KQUEUE 1
 #cmakedefine HAVE_WORKING_KQUEUE 1

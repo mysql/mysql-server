@@ -5,7 +5,12 @@
 #include <strings.h>
 #include <string.h>
 #include <ctype.h>
-#include <stdbool.h>
+
+#ifndef bool
+#define bool char
+#define false 0
+#define true 1
+#endif
 
 #include <memcached/config_parser.h>
 #include <memcached/util.h>

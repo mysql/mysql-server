@@ -2,7 +2,7 @@
 #ifndef MEMCACHED_EXTENSION_H
 #define MEMCACHED_EXTENSION_H
 
-#include <stdbool.h>
+#include <memcached/types.h>
 #include <memcached/server_api.h>
 
 #ifdef __cplusplus
