@@ -3389,10 +3389,6 @@ Dbacc::getElement(Signal* signal, OperationrecPtr& lockOwnerPtr)
           } else {
             jam();
             found = (localkey1 == Tkeydata[0] && localkey2 == Tkeydata[1]);
-            ndbout_c("%u = %u && %u = %u => %u",
-                     localkey1,Tkeydata[0],
-                     localkey2,Tkeydata[1],
-                     found);
           }
           if (found) 
 	  {
