@@ -87,60 +87,6 @@ struct PFS_single_stat
   }
 };
 
-/** Single statistic. */
-struct PFS_single_stat_test
-{
-  /** Count of values. */
-  ulonglong m_count;
-  /** Sum of values. */
-  ulonglong m_sum;
-  /** Minimum value. */
-  ulonglong m_min;
-  /** Maximum value. */
-  ulonglong m_max;
-
-  PFS_single_stat_test()
-  {
-    m_count= 0;
-    m_sum= 0;
-    m_min= ULONGLONG_MAX;
-    m_max= 0;
-  }
-
-  inline void reset(void)
-  {
-    m_count= 0;
-    m_sum= 0;
-    m_min= ULONGLONG_MAX;
-    m_max= 0;
-  }
-
-  inline void aggregate(const PFS_single_stat *stat)
-  {
-    m_count+= stat->m_count;
-    m_sum+= stat->m_sum;
-    if (unlikely(m_min > stat->m_min))
-      m_min= stat->m_min;
-    if (unlikely(m_max < stat->m_max))
-      m_max= stat->m_max;
-  }
-
-  inline void aggregate_counted(ulonglong count)
-  {
-    m_count+= count;
-  }
-
-  inline void aggregate_value(ulonglong value)
-  {
-    m_count++;
-    m_sum+= value;
-    if (unlikely(m_min > value))
-      m_min= value;
-    if (unlikely(m_max < value))
-      m_max= value;
-  }
-};
-
 /** Combined statistic. */
 struct PFS_byte_stat : public PFS_single_stat
 {
