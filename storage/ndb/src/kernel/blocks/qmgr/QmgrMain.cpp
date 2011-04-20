@@ -39,7 +39,7 @@
 #include <signaldata/EnableCom.hpp>
 #include <signaldata/RouteOrd.hpp>
 #include <signaldata/NodePing.hpp>
-
+#include <signaldata/DihRestart.hpp>
 #include <ndb_version.h>
 
 //#define DEBUG_QMGR_START
@@ -386,14 +386,15 @@ void Qmgr::startphase1(Signal* signal)
 {
   jamEntry();
 
-  
   NodeRecPtr nodePtr;
   nodePtr.i = getOwnNodeId();
   ptrAss(nodePtr, nodeRec);
   nodePtr.p->phase = ZSTARTING;
-  
-  signal->theData[0] = reference();
-  sendSignal(DBDIH_REF, GSN_DIH_RESTARTREQ, signal, 1, JBB);
+
+  DihRestartReq * req = CAST_PTR(DihRestartReq, signal->getDataPtrSend());
+  req->senderRef = reference();
+  sendSignal(DBDIH_REF, GSN_DIH_RESTARTREQ, signal,
+             DihRestartReq::SignalLength, JBB);
   return;
 }
 
@@ -402,7 +403,11 @@ Qmgr::execDIH_RESTARTREF(Signal*signal)
 {
   jamEntry();
 
+  const DihRestartRef * ref = CAST_CONSTPTR(DihRestartRef,
+                                            signal->getDataPtr());
   c_start.m_latest_gci = 0;
+  c_start.m_no_nodegroup_nodes.assign(NdbNodeBitmask::Size,
+                                      ref->no_nodegroup_mask);
   execCM_INFOCONF(signal);
 }
 
@@ -410,8 +415,13 @@ void
 Qmgr::execDIH_RESTARTCONF(Signal*signal)
 {
   jamEntry();
-  
-  c_start.m_latest_gci = signal->theData[1];
+
+  const DihRestartConf * conf = CAST_CONSTPTR(DihRestartConf,
+                                              signal->getDataPtr());
+
+  c_start.m_latest_gci = conf->latest_gci;
+  c_start.m_no_nodegroup_nodes.assign(NdbNodeBitmask::Size,
+                                      conf->no_nodegroup_mask);
   execCM_INFOCONF(signal);
 }
 
@@ -1446,6 +1456,12 @@ Qmgr::check_startup(Signal* signal)
   Uint64 now = NdbTick_CurrentMillisecond();
   Uint64 partial_timeout = c_start_election_time + c_restartPartialTimeout;
   Uint64 partitioned_timeout = partial_timeout + c_restartPartionedTimeout;
+  Uint64 no_nodegroup_timeout = c_start_election_time +
+    c_restartNoNodegroupTimeout;
+
+  const bool no_nodegroup_active =
+    (c_restartNoNodegroupTimeout != ~Uint32(0)) &&
+    (! c_start.m_no_nodegroup_nodes.isclear());
 
   /**
    * First see if we should wait more...
@@ -1465,16 +1481,7 @@ Qmgr::check_startup(Signal* signal)
   if ((c_start.m_latest_gci == 0) || 
       (c_start.m_start_type == (1 << NodeState::ST_INITIAL_START)))
   {
-    if (!tmp.equal(c_definedNodes))
-    {
-      jam();
-      signal->theData[1] = 1;
-      signal->theData[2] = ~0;
-      report_mask.assign(wait);
-      retVal = 0;
-      goto start_report;
-    }
-    else
+    if (tmp.equal(c_definedNodes))
     {
       jam();
       signal->theData[1] = 0x8000;
@@ -1483,7 +1490,51 @@ Qmgr::check_startup(Signal* signal)
       retVal = 1;
       goto start_report;
     }
+    else if (no_nodegroup_active)
+    {
+      if (now < no_nodegroup_timeout)
+      {
+        signal->theData[1] = 6;
+        signal->theData[2] = Uint32((no_nodegroup_timeout - now + 500) / 1000);
+        report_mask.assign(wait);
+        retVal = 0;
+        goto start_report;
+      }
+      tmp.bitOR(c_start.m_no_nodegroup_nodes);
+      if (tmp.equal(c_definedNodes))
+      {
+        signal->theData[1] = 0x8000;
+        report_mask.assign(c_definedNodes);
+        report_mask.bitANDC(c_start.m_starting_nodes);
+        retVal = 1;
+        goto start_report;
+      }
+      else
+      {
+        jam();
+        signal->theData[1] = 1;
+        signal->theData[2] = ~0;
+        report_mask.assign(wait);
+        retVal = 0;
+        goto start_report;
+      }
+    }
+    else
+    {
+      jam();
+      signal->theData[1] = 1;
+      signal->theData[2] = ~0;
+      report_mask.assign(wait);
+      retVal = 0;
+      goto start_report;
+    }
   }
+
+  if (now >= no_nodegroup_timeout)
+  {
+    tmp.bitOR(c_start.m_no_nodegroup_nodes);
+  }
+
   {
     const bool all = c_start.m_starting_nodes.equal(c_definedNodes);
     CheckNodeGroups* sd = (CheckNodeGroups*)&signal->theData[0];
@@ -1559,10 +1610,22 @@ Qmgr::check_startup(Signal* signal)
     if (now < partial_timeout)
     {
       jam();
+
       signal->theData[1] = c_restartPartialTimeout == (Uint32) ~0 ? 2 : 3;
       signal->theData[2] = Uint32((partial_timeout - now + 500) / 1000);
       report_mask.assign(wait);
       retVal = 0;
+
+      if (no_nodegroup_active && now < no_nodegroup_timeout)
+      {
+        signal->theData[1] = 7;
+        signal->theData[2] = Uint32((no_nodegroup_timeout - now + 500) / 1000);
+      }
+      else if (no_nodegroup_active && now >= no_nodegroup_timeout)
+      {
+        report_mask.bitANDC(c_start.m_no_nodegroup_nodes);
+      }
+
       goto start_report;
     }
   
@@ -1595,14 +1658,14 @@ check_log:
   {
     Uint32 save[4+4*NdbNodeBitmask::Size];
     memcpy(save, signal->theData, sizeof(save));
-    
-    signal->theData[0] = 0;
-    c_start.m_starting_nodes.copyto(NdbNodeBitmask::Size, signal->theData+1);
-    memcpy(signal->theData+1+NdbNodeBitmask::Size, c_start.m_node_gci,
-	   4*MAX_NDB_NODES);
-    EXECUTE_DIRECT(DBDIH, GSN_DIH_RESTARTREQ, signal, 
-		   1+NdbNodeBitmask::Size+MAX_NDB_NODES);
-    
+
+    DihRestartReq * req = CAST_PTR(DihRestartReq, signal->getDataPtrSend());
+    req->senderRef = 0;
+    c_start.m_starting_nodes.copyto(NdbNodeBitmask::Size, req->nodemask);
+    memcpy(req->node_gcis, c_start.m_node_gci, 4*MAX_NDB_NODES);
+    EXECUTE_DIRECT(DBDIH, GSN_DIH_RESTARTREQ, signal,
+		   DihRestartReq::CheckLength);
+
     incompleteng = signal->theData[0];
     memcpy(signal->theData, save, sizeof(save));
 
@@ -1650,8 +1713,9 @@ start_report:
     c_start.m_starting_nodes.copyto(sz, ptr); ptr += sz;
     c_start.m_skip_nodes.copyto(sz, ptr); ptr += sz;
     report_mask.copyto(sz, ptr); ptr+= sz;
-    sendSignal(CMVMI_REF, GSN_EVENT_REP, signal, 
-	       4+4*NdbNodeBitmask::Size, JBB);
+    c_start.m_no_nodegroup_nodes.copyto(sz, ptr); ptr += sz;
+    sendSignal(CMVMI_REF, GSN_EVENT_REP, signal,
+	       4+5*NdbNodeBitmask::Size, JBB);
   }
   return retVal;
   
@@ -2434,6 +2498,7 @@ void Qmgr::initData(Signal* signal)
   c_restartPartialTimeout = 30000;
   c_restartPartionedTimeout = 60000;
   c_restartFailureTimeout = ~0;
+  c_restartNoNodegroupTimeout = 15000;
   ndb_mgm_get_int_parameter(p, CFG_DB_HEARTBEAT_INTERVAL, &hbDBDB);
   ndb_mgm_get_int_parameter(p, CFG_DB_ARBIT_TIMEOUT, &arbitTimeout);
   ndb_mgm_get_int_parameter(p, CFG_DB_ARBIT_METHOD, &arbitMethod);
@@ -2441,24 +2506,31 @@ void Qmgr::initData(Signal* signal)
 			    &c_restartPartialTimeout);
   ndb_mgm_get_int_parameter(p, CFG_DB_START_PARTITION_TIMEOUT,
 			    &c_restartPartionedTimeout);
+  ndb_mgm_get_int_parameter(p, CFG_DB_START_NO_NODEGROUP_TIMEOUT,
+			    &c_restartNoNodegroupTimeout);
   ndb_mgm_get_int_parameter(p, CFG_DB_START_FAILURE_TIMEOUT,
 			    &c_restartFailureTimeout);
   ndb_mgm_get_int_parameter(p, CFG_DB_CONNECT_CHECK_DELAY,
                             &ccInterval);
- 
+
   if(c_restartPartialTimeout == 0)
   {
     c_restartPartialTimeout = ~0;
   }
-  
+
   if (c_restartPartionedTimeout ==0)
   {
     c_restartPartionedTimeout = ~0;
   }
-  
+
   if (c_restartFailureTimeout == 0)
   {
     c_restartFailureTimeout = ~0;
+  }
+
+  if (c_restartNoNodegroupTimeout == 0)
+  {
+    c_restartNoNodegroupTimeout = ~0;
   }
 
   setHbDelay(hbDBDB);

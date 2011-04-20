@@ -196,8 +196,6 @@ HugoCalculator::calcValue(int record,
   case NdbDictionary::Column::Unsigned:
   case NdbDictionary::Column::Bigint:
   case NdbDictionary::Column::Bigunsigned:
-  case NdbDictionary::Column::Float:
-  case NdbDictionary::Column::Double:
   case NdbDictionary::Column::Olddecimal:
   case NdbDictionary::Column::Olddecimalunsigned:
   case NdbDictionary::Column::Decimal:
@@ -225,6 +223,22 @@ HugoCalculator::calcValue(int record,
       memcpy(&copy, ((Uint32*)buf)+tmp, 4);
       copy &= ((1 << size) - 1);
       memcpy(((Uint32*)buf)+tmp, &copy, 4);
+    }
+    break;
+  case NdbDictionary::Column::Float:
+    {
+      float x = (float)myRand(&seed);
+      memcpy(buf+pos, &x, 4);
+      pos += 4;
+      len -= 4;
+    }
+    break;
+  case NdbDictionary::Column::Double:
+    {
+      double x = (double)myRand(&seed);
+      memcpy(buf+pos, &x, 8);
+      pos += 8;
+      len -= 8;
     }
     break;
   case NdbDictionary::Column::Varbinary:

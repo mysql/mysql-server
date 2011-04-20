@@ -50,6 +50,7 @@
 #include <AttributeHeader.hpp>
 #include <Configuration.hpp>
 #include <DebuggerNames.hpp>
+#include <signaldata/DihRestart.hpp>
 
 #include <NdbOut.hpp>
 #include <NdbTick.h>
@@ -659,9 +660,11 @@ void Ndbcntr::startPhase2Lab(Signal* signal)
 {
   c_start.m_lastGci = 0;
   c_start.m_lastGciNodeId = getOwnNodeId();
-  
-  signal->theData[0] = reference();
-  sendSignal(DBDIH_REF, GSN_DIH_RESTARTREQ, signal, 1, JBB);
+
+  DihRestartReq * req = CAST_PTR(DihRestartReq, signal->getDataPtrSend());
+  req->senderRef = reference();
+  sendSignal(DBDIH_REF, GSN_DIH_RESTARTREQ, signal,
+             DihRestartReq::SignalLength, JBB);
   return;
 }//Ndbcntr::startPhase2Lab()
 
@@ -671,8 +674,10 @@ void Ndbcntr::startPhase2Lab(Signal* signal)
 void Ndbcntr::execDIH_RESTARTCONF(Signal* signal) 
 {
   jamEntry();
-  //cmasterDihId = signal->theData[0];
-  c_start.m_lastGci = signal->theData[1];
+
+  const DihRestartConf * conf = CAST_CONSTPTR(DihRestartConf,
+                                              signal->getDataPtrSend());
+  c_start.m_lastGci = conf->latest_gci;
   ctypeOfStart = NodeState::ST_SYSTEM_RESTART;
   cdihStartType = ctypeOfStart;
   ph2ALab(signal);
