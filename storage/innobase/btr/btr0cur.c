@@ -1105,29 +1105,27 @@ btr_cur_ins_lock_and_undo(
 					     btr_cur_get_block(cursor),
 					     index, thr, mtr, inherit);
 
+	if (err != DB_SUCCESS
+	    || !dict_index_is_clust(index) || dict_index_is_ibuf(index)) {
+
+		return(err);
+	}
+
+	err = trx_undo_report_row_operation(flags, TRX_UNDO_INSERT_OP,
+					    thr, index, entry,
+					    NULL, 0, NULL,
+					    &roll_ptr);
 	if (err != DB_SUCCESS) {
 
 		return(err);
 	}
 
-	if (dict_index_is_clust(index) && !dict_index_is_ibuf(index)) {
+	/* Now we can fill in the roll ptr field in entry */
 
-		err = trx_undo_report_row_operation(flags, TRX_UNDO_INSERT_OP,
-						    thr, index, entry,
-						    NULL, 0, NULL,
-						    &roll_ptr);
-		if (err != DB_SUCCESS) {
+	if (!(flags & BTR_KEEP_SYS_FLAG)) {
 
-			return(err);
-		}
-
-		/* Now we can fill in the roll ptr field in entry */
-
-		if (!(flags & BTR_KEEP_SYS_FLAG)) {
-
-			row_upd_index_entry_sys_field(entry, index,
-						      DATA_ROLL_PTR, roll_ptr);
-		}
+		row_upd_index_entry_sys_field(entry, index,
+					      DATA_ROLL_PTR, roll_ptr);
 	}
 
 	return(DB_SUCCESS);
@@ -1920,8 +1918,8 @@ btr_cur_update_in_place(
 				    trx, roll_ptr, mtr);
 
 	if (was_delete_marked
-	    && !rec_get_deleted_flag(rec, page_is_comp(
-					     buf_block_get_frame(block)))) {
+	    && !rec_get_deleted_flag(
+		    rec, page_is_comp(buf_block_get_frame(block)))) {
 		/* The new updated record owns its possible externally
 		stored fields */
 
