@@ -64,8 +64,10 @@ bool close_cached_tables(THD *thd, TABLE_LIST *tables, bool have_lock,
   return close_cached_tables(thd, tables, wait_for_refresh, LONG_TIMEOUT);
 }
 
+#ifdef MCP_WL3749
 /* Online alter table not supported */
 #define NDB_WITHOUT_ONLINE_ALTER
+#endif
 
 /* Read before write removal not supported */
 #define NDB_WITHOUT_READ_BEFORE_WRITE_REMOVAL
@@ -79,12 +81,14 @@ bool close_cached_tables(THD *thd, TABLE_LIST *tables, bool have_lock,
 /* Global schema lock not available */
 #define NDB_NO_GLOBAL_SCHEMA_LOCK
 
+#ifdef MCP_WL3749
 /*
   The enum open_table_mode has been removed in 5.5.7 and 'open_table_from_share'
   now takes "bool is_create_table" instead of the enum type. Define OTM_OPEN
   to false since it's not a create table
 */
 #define OTM_OPEN false
+#endif
 
 #endif
 

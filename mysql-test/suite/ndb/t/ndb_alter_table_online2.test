@@ -14,7 +14,7 @@
 -- source include/not_embedded.inc
 # mysqlslap seems to be not_windows. remove this when removed from mysqlslap.test
 -- source include/not_windows.inc
--- source include/have_log_bin.inc
+# -- source include/have_log_bin.inc
 
 --disable_warnings
 DROP TABLE IF EXISTS t1;

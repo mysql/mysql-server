@@ -1330,6 +1330,7 @@ close_all_tables_for_name(THD *thd, TABLE_SHARE *share,
   const char *db= key;
   const char *table_name= db + share->db.length + 1;
 
+  DBUG_ENTER("close_all_tables_for_name");
   memcpy(key, share->table_cache_key.str, key_length);
 
   mysql_mutex_assert_not_owner(&LOCK_open);
@@ -1369,6 +1370,7 @@ close_all_tables_for_name(THD *thd, TABLE_SHARE *share,
     on the table to go away. Wake it up.
   */
   broadcast_refresh();
+  DBUG_VOID_RETURN;
 }
 
 
@@ -2165,7 +2167,12 @@ void close_temporary(TABLE *table, bool free_share, bool delete_table)
   free_io_cache(table);
   closefrm(table, 0);
   if (delete_table)
+#ifndef MCP_WL3749
+    rm_temporary_table(table_type, table->s->path.str,
+                       table->s->tmp_table == TMP_TABLE_FRM_FILE_ONLY);
+#else
     rm_temporary_table(table_type, table->s->path.str);
+#endif
   if (free_share)
   {
     free_table_share(table->s);
@@ -3007,7 +3014,11 @@ retry_share:
                                          HA_TRY_READ_ONLY),
                                  (READ_KEYINFO | COMPUTE_TYPES |
                                   EXTRA_RECORD),
+#ifndef MCP_WL3749
+                                 thd->open_options, table, OTM_OPEN);
+#else
                                  thd->open_options, table, FALSE);
+#endif
 
     if (error)
     {
@@ -3808,7 +3819,11 @@ static bool auto_repair_table(THD *thd, TABLE_LIST *table_list)
                                     HA_TRY_READ_ONLY),
                             READ_KEYINFO | COMPUTE_TYPES | EXTRA_RECORD,
                             ha_open_options | HA_OPEN_FOR_REPAIR,
+#ifndef MCP_WL3749
+                            entry, OTM_OPEN) || ! entry->file ||
+#else
                             entry, FALSE) || ! entry->file ||
+#endif
       (entry->file->is_crashed() && entry->file->ha_check_and_repair(thd)))
   {
     /* Give right error message */
@@ -5725,7 +5740,12 @@ void close_tables_for_reopen(THD *thd, TABLE_LIST **tables,
 
 TABLE *open_table_uncached(THD *thd, const char *path, const char *db,
                            const char *table_name,
+#ifndef MCP_WL3749
+                           bool add_to_temporary_tables_list,
+                           open_table_mode open_mode)
+#else
                            bool add_to_temporary_tables_list)
+#endif
 {
   TABLE *tmp_table;
   TABLE_SHARE *share;
@@ -5759,11 +5779,25 @@ TABLE *open_table_uncached(THD *thd, const char *path, const char *db,
 
   if (open_table_def(thd, share, 0) ||
       open_table_from_share(thd, share, table_name,
+#ifndef MCP_WL3749
+                            (open_mode == OTM_ALTER) ? 0 :
+                            (uint) (HA_OPEN_KEYFILE | HA_OPEN_RNDFILE |
+                                    HA_GET_INDEX),
+                            (open_mode == OTM_ALTER) ?
+                              (READ_KEYINFO | COMPUTE_TYPES | EXTRA_RECORD |
+                               OPEN_FRM_FILE_ONLY)
+                            : (READ_KEYINFO | COMPUTE_TYPES | EXTRA_RECORD),
+#else
                             (uint) (HA_OPEN_KEYFILE | HA_OPEN_RNDFILE |
                                     HA_GET_INDEX),
                             READ_KEYINFO | COMPUTE_TYPES | EXTRA_RECORD,
+#endif
                             ha_open_options,
+#ifndef MCP_WL3749
+                            tmp_table, open_mode))
+#else
                             tmp_table, FALSE))
+#endif
   {
     /* No need to lock share->mutex as this is not needed for tmp tables */
     free_table_share(share);
@@ -5772,8 +5806,14 @@ TABLE *open_table_uncached(THD *thd, const char *path, const char *db,
   }
 
   tmp_table->reginfo.lock_type= TL_WRITE;	 // Simulate locked
+#ifndef MCP_WL3749
+  share->tmp_table= (open_mode == OTM_ALTER) ? TMP_TABLE_FRM_FILE_ONLY :
+                    (tmp_table->file->has_transactions() ?
+                     TRANSACTIONAL_TMP_TABLE : NON_TRANSACTIONAL_TMP_TABLE);
+#else
   share->tmp_table= (tmp_table->file->has_transactions() ? 
                      TRANSACTIONAL_TMP_TABLE : NON_TRANSACTIONAL_TMP_TABLE);
+#endif
 
   if (add_to_temporary_tables_list)
   {
@@ -5792,20 +5832,28 @@ TABLE *open_table_uncached(THD *thd, const char *path, const char *db,
   DBUG_RETURN(tmp_table);
 }
 
-
+#ifndef MCP_WL3749
+bool rm_temporary_table(handlerton *base, char *path, bool frm_only)
+#else
 bool rm_temporary_table(handlerton *base, char *path)
+#endif
 {
   bool error=0;
   handler *file;
   char *ext;
   DBUG_ENTER("rm_temporary_table");
 
+  DBUG_PRINT("info", ("frm_only %u", frm_only));
   strmov(ext= strend(path), reg_ext);
   if (mysql_file_delete(key_file_frm, path, MYF(0)))
     error=1; /* purecov: inspected */
   *ext= 0;				// remove extension
   file= get_new_handler((TABLE_SHARE*) 0, current_thd->mem_root, base);
+#ifndef MCP_WL3749
+  if (!frm_only && file && file->ha_delete_table(path))
+#else
   if (file && file->ha_delete_table(path))
+#endif
   {
     error=1;
     sql_print_warning("Could not remove temporary table: '%s', error: %d",
