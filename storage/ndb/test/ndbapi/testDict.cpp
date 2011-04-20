@@ -31,6 +31,7 @@
 #include <NdbSqlUtil.hpp>
 #include <NdbEnv.h>
 #include <ndb_rand.h>
+#include <Bitmask.hpp>
 
 #define ERR_INSERT_MASTER_FAILURE1 6013
 #define ERR_INSERT_MASTER_FAILURE2 6014
@@ -294,31 +295,45 @@ int runCreateAndDropAtRandom(NDBT_Context* ctx, NDBT_Step* step)
   Ndb* pNdb = GETNDB(step);
   NdbDictionary::Dictionary* pDic = pNdb->getDictionary();
   int loops = ctx->getNumLoops();
-  int numTables = NDBT_Tables::getNumTables();
-  bool* tabList = new bool [ numTables ];
-  int tabCount;
+  int records = ctx->getNumRecords();
 
-  {
-    for (int num = 0; num < numTables; num++) {
-      (void)pDic->dropTable(NDBT_Tables::getTable(num)->getName());
-      tabList[num] = false;
-    }
-    tabCount = 0;
+  int numAllTables = NDBT_Tables::getNumTables();
+  struct TabList {
+    int exists; // -1 = skip, 0 = no, 1 = yes
+    const NdbDictionary::Table* pTab; // retrieved
+    TabList() { exists = -1; pTab = 0; }
+  };
+  TabList* tabList = new TabList [ numAllTables ];
+  int numTables = 0;
+  int num;
+  for (num = 0; num < numAllTables; num++) {
+    const NdbDictionary::Table* pTab = NDBT_Tables::getTable(num);
+    if (pTab->checkColumns(0, 0) & 2) // skip disk
+      continue;
+    tabList[num].exists = 0;
+    (void)pDic->dropTable(pTab->getName());
+    numTables++;
   }
+  int numExists = 0;
+
+  const bool createIndexes = ctx->getProperty("CreateIndexes");
+  const bool loadData = ctx->getProperty("LoadData");
 
   NdbRestarter restarter;
   int result = NDBT_OK;
   int bias = 1; // 0-less 1-more
   int i = 0;
   
-  while (i < loops) {
-    g_info << "loop " << i << " tabs " << tabCount << "/" << numTables << endl;
-    int num = myRandom48(numTables);
+  while (i < loops && result == NDBT_OK) {
+    num = myRandom48(numAllTables);
+    if (tabList[num].exists == -1)
+      continue;
+    g_info << "loop " << i << " tabs " << numExists << "/" << numTables << endl;
     const NdbDictionary::Table* pTab = NDBT_Tables::getTable(num);
     char tabName[200];
     strcpy(tabName, pTab->getName());
 
-    if (tabList[num] == false) {
+    if (tabList[num].exists == 0) {
       if (bias == 0 && myRandom48(100) < 80)
         continue;
       g_info << tabName << ": create" << endl;
@@ -331,17 +346,110 @@ int runCreateAndDropAtRandom(NDBT_Context* ctx, NDBT_Step* step)
       const NdbDictionary::Table* pTab2 = pDic->getTable(tabName);
       if (pTab2 == NULL) {
         const NdbError err = pDic->getNdbError();
-        g_err << tabName << ": verify create: " << err << endl;
+        g_err << tabName << ": verify create failed: " << err << endl;
         result = NDBT_FAILED;
         break;
       }
-      tabList[num] = true;
-      assert(tabCount < numTables);
-      tabCount++;
-      if (tabCount == numTables)
+      tabList[num].pTab = pTab2;
+      if (loadData) {
+        g_info << tabName << ": load data" << endl;
+        HugoTransactions hugoTrans(*pTab2);
+        if (hugoTrans.loadTable(pNdb, records) != 0) {
+          g_err << tabName << ": loadTable failed" << endl;
+          result = NDBT_FAILED;
+          break;
+        }
+      }
+      if (createIndexes) {
+        int icount = myRandom48(10);
+        int inum;
+        for (inum = 0; inum < icount; inum++) {
+          const int tcols = pTab2->getNoOfColumns();
+          assert(tcols != 0);
+          int icols = 1 + myRandom48(tcols);
+          if (icols > NDB_MAX_ATTRIBUTES_IN_INDEX)
+            icols = NDB_MAX_ATTRIBUTES_IN_INDEX;
+          char indName[200];
+          sprintf(indName, "%s_X%d", tabName, inum);
+          NdbDictionary::Index ind(indName);
+          ind.setTable(tabName);
+          ind.setType(NdbDictionary::Index::OrderedIndex);
+          ind.setLogging(false);
+          Bitmask<MAX_ATTRIBUTES_IN_TABLE> mask;
+          char ilist[200];
+          ilist[0] = 0;
+          int ic;
+          for (ic = 0; ic < icols; ic++) {
+            int tc = myRandom48(tcols);
+            const NdbDictionary::Column* c = pTab2->getColumn(tc);
+            assert(c != 0);
+            if (mask.get(tc) ||
+                c->getType() == NdbDictionary::Column::Blob ||
+                c->getType() == NdbDictionary::Column::Text ||
+                c->getType() == NdbDictionary::Column::Bit ||
+                c->getStorageType() == NdbDictionary::Column::StorageTypeDisk)
+              continue;
+            ind.addColumn(*c);
+            mask.set(tc);
+            sprintf(ilist + strlen(ilist), " %d", tc);
+          }
+          if (mask.isclear())
+            continue;
+          g_info << indName << ": columns:" << ilist << endl;
+          if (pDic->createIndex(ind) == 0) {
+            g_info << indName << ": created" << endl;
+          } else {
+            const NdbError err = pDic->getNdbError();
+            g_err << indName << ": create index failed: " << err << endl;
+            if (err.code != 826 && // Too many tables and attributes..
+                err.code != 903 && // Too many ordered indexes..
+                err.code != 904 && // Out of fragment records..
+                err.code != 905 && // Out of attribute records..
+                err.code != 707 && // No more table metadata records..
+                err.code != 708)   // No more attribute metadata records..
+            {
+              result = NDBT_FAILED;
+              break;
+            }
+          }
+        }
+      }
+      if (loadData) {
+        // first update a random table to flush global variables
+        int num3 = 0;
+        while (1) {
+          num3 = myRandom48(numAllTables);
+          if (num == num3 || tabList[num3].exists == 1)
+            break;
+        }
+        const NdbDictionary::Table* pTab3 = tabList[num3].pTab;
+        assert(pTab3 != 0);
+        char tabName3[200];
+        strcpy(tabName3, pTab3->getName());
+        HugoTransactions hugoTrans(*pTab3);
+        g_info << tabName3 << ": update data" << endl;
+        if (hugoTrans.pkUpdateRecords(pNdb, records) != 0) {
+          g_err << tabName3 << ": pkUpdateRecords failed" << endl;
+          result = NDBT_FAILED;
+          break;
+        }
+      }
+      if (loadData) {
+        HugoTransactions hugoTrans(*pTab2);
+        g_info << tabName << ": update data" << endl;
+        if (hugoTrans.pkUpdateRecords(pNdb, records) != 0) {
+          g_err << "pkUpdateRecords failed" << endl;
+          result = NDBT_FAILED;
+          break;
+        }
+      }
+      tabList[num].exists = 1;
+      assert(numExists < numTables);
+      numExists++;
+      if (numExists == numTables)
         bias = 0;
     }
-    else {
+    else if (tabList[num].exists == 1) {
       if (bias == 1 && myRandom48(100) < 80)
         continue;
       g_info << tabName << ": drop" << endl;
@@ -369,19 +477,19 @@ int runCreateAndDropAtRandom(NDBT_Context* ctx, NDBT_Step* step)
         result = NDBT_FAILED;
         break;
       }
-      tabList[num] = false;
-      assert(tabCount > 0);
-      tabCount--;
-      if (tabCount == 0)
+      tabList[num].exists = 0;
+      assert(numExists > 0);
+      numExists--;
+      if (numExists == 0)
         bias = 1;
     }
     i++;
   }
-  
-  for (Uint32 i = 0; i<(Uint32)numTables; i++)
-    if (tabList[i])
-      pDic->dropTable(NDBT_Tables::getTable(i)->getName());
-  
+
+  for (num = 0; num < numAllTables; num++)
+    if (tabList[num].exists == 0)
+      pDic->dropTable(NDBT_Tables::getTable(num)->getName());
+
   delete [] tabList;
   return result;
 }
@@ -8735,6 +8843,13 @@ TESTCASE("CreateAndDropAtRandom",
 	 "Try to create and drop table at random loop number of times\n"
          "Uses all available tables\n"
          "Uses error insert 4013 to make TUP verify table descriptor"){
+  INITIALIZER(runCreateAndDropAtRandom);
+}
+TESTCASE("CreateAndDropIndexes",
+	 "Like CreateAndDropAtRandom but also creates random ordered\n"
+         "indexes and loads data as a simple check of index operation"){
+  TC_PROPERTY("CreateIndexes", 1);
+  TC_PROPERTY("LoadData", 1);
   INITIALIZER(runCreateAndDropAtRandom);
 }
 TESTCASE("CreateAndDropWithData", 

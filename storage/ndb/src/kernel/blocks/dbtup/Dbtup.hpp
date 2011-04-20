@@ -2934,7 +2934,7 @@ private:
   void   removeTdArea(Uint32 tabDesRef, Uint32 list);
   void   insertTdArea(Uint32 tabDesRef, Uint32 list);
   void   itdaMergeTabDescr(Uint32& retRef, Uint32& retNo, bool normal);
-#ifdef VM_TRACE
+#if defined VM_TRACE || defined ERROR_INSERT
   void verifytabdes();
 #endif
 

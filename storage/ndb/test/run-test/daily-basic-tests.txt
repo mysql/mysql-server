@@ -715,6 +715,10 @@ args: -n CreateAndDropAtRandom -l 200 T1
 
 max-time: 1500
 cmd: testDict
+args: -n CreateAndDropIndexes -l 200 T1
+
+max-time: 1500
+cmd: testDict
 args: -n CreateAndDropWithData 
 
 max-time: 1500
