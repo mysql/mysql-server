@@ -166,11 +166,6 @@ ha_partition::ha_partition(handlerton *hton, TABLE_SHARE *share)
   :handler(hton, share)
 {
   DBUG_ENTER("ha_partition::ha_partition(table)");
-  m_part_info= NULL;
-  m_create_handler= FALSE;
-  m_is_sub_partitioned= 0;
-  m_is_clone_of= NULL;
-  m_clone_mem_root= NULL;
   init_handler_variables();
   DBUG_VOID_RETURN;
 }
@@ -192,21 +187,21 @@ ha_partition::ha_partition(handlerton *hton, partition_info *part_info)
 {
   DBUG_ENTER("ha_partition::ha_partition(part_info)");
   DBUG_ASSERT(part_info);
+  init_handler_variables();
   m_part_info= part_info;
   m_create_handler= TRUE;
   m_is_sub_partitioned= m_part_info->is_sub_partitioned();
-  init_handler_variables();
   DBUG_VOID_RETURN;
 }
 
 /**
   ha_partition constructor method used by ha_partition::clone()
 
-    @param hton               Handlerton (partition_hton)
-    @param share              Table share object
-    @param part_info_arg      partition_info to use
-    @param clone_arg          ha_partition to clone
-    @param clme_mem_root_arg  MEM_ROOT to use
+  @param hton               Handlerton (partition_hton)
+  @param share              Table share object
+  @param part_info_arg      partition_info to use
+  @param clone_arg          ha_partition to clone
+  @param clme_mem_root_arg  MEM_ROOT to use
 
   @return New partition handler
 */
@@ -218,14 +213,12 @@ ha_partition::ha_partition(handlerton *hton, TABLE_SHARE *share,
   :handler(hton, share)
 {
   DBUG_ENTER("ha_partition::ha_partition(clone)");
+  init_handler_variables();
   m_part_info= part_info_arg;
   m_create_handler= TRUE;
   m_is_sub_partitioned= m_part_info->is_sub_partitioned();
   m_is_clone_of= clone_arg;
   m_clone_mem_root= clone_mem_root_arg;
-  init_handler_variables();
-  m_tot_parts= clone_arg->m_tot_parts;
-  DBUG_ASSERT(m_tot_parts);
   DBUG_VOID_RETURN;
 }
 
@@ -286,6 +279,11 @@ void ha_partition::init_handler_variables()
     this allows blackhole to work properly
   */
   m_no_locks= 0;
+  m_part_info= NULL;
+  m_create_handler= FALSE;
+  m_is_sub_partitioned= 0;
+  m_is_clone_of= NULL;
+  m_clone_mem_root= NULL;
 
 #ifdef DONT_HAVE_TO_BE_INITALIZED
   m_start_key.flag= 0;
@@ -2099,18 +2097,16 @@ static uint name_add(char *dest, const char *first_name, const char *sec_name)
 }
 
 
-/*
+/**
   Create the special .par file
 
-  SYNOPSIS
-    create_handler_file()
-    name                      Full path of table name
+  @param name  Full path of table name
 
-  RETURN VALUE
-    >0                        Error code
-    0                         Success
+  @return Operation status
+    @retval FALSE  Error code
+    @retval TRUE   Success
 
-  DESCRIPTION
+  @note
     Method used to create handler file with names of partitions, their
     engine types and the number of partitions.
 */
@@ -2174,19 +2170,22 @@ bool ha_partition::create_handler_file(const char *name)
      Array of engine types        n * 4 bytes where
      n = (m_tot_parts + 3)/4
      Length of name part in bytes 4 bytes
+     (Names in filename format)
      Name part                    m * 4 bytes where
      m = ((length_name_part + 3)/4)*4
 
      All padding bytes are zeroed
   */
-  tot_partition_words= (tot_parts + 3) / 4;
-  tot_name_words= (tot_name_len + 3) / 4;
+  tot_partition_words= (tot_parts + PAR_WORD_SIZE - 1) / PAR_WORD_SIZE;
+  tot_name_words= (tot_name_len + PAR_WORD_SIZE - 1) / PAR_WORD_SIZE;
+  /* 4 static words (tot words, checksum, tot partitions, name length) */
   tot_len_words= 4 + tot_partition_words + tot_name_words;
-  tot_len_byte= 4 * tot_len_words;
+  tot_len_byte= PAR_WORD_SIZE * tot_len_words;
   if (!(file_buffer= (uchar *) my_malloc(tot_len_byte, MYF(MY_ZEROFILL))))
     DBUG_RETURN(TRUE);
-  engine_array= (file_buffer + 12);
-  name_buffer_ptr= (char*) (file_buffer + ((4 + tot_partition_words) * 4));
+  engine_array= (file_buffer + PAR_ENGINES_OFFSET);
+  name_buffer_ptr= (char*) (engine_array + tot_partition_words * PAR_WORD_SIZE
+                            + PAR_WORD_SIZE);
   part_it.rewind();
   for (i= 0; i < no_parts; i++)
   {
@@ -2224,13 +2223,15 @@ bool ha_partition::create_handler_file(const char *name)
   }
   chksum= 0;
   int4store(file_buffer, tot_len_words);
-  int4store(file_buffer + 8, tot_parts);
-  int4store(file_buffer + 12 + (tot_partition_words * 4), tot_name_len);
+  int4store(file_buffer + PAR_NUM_PARTS_OFFSET, tot_parts);
+  int4store(file_buffer + PAR_ENGINES_OFFSET +
+            (tot_partition_words * PAR_WORD_SIZE),
+            tot_name_len);
   for (i= 0; i < tot_len_words; i++)
-    chksum^= uint4korr(file_buffer + 4 * i);
-  int4store(file_buffer + 4, chksum);
+    chksum^= uint4korr(file_buffer + PAR_WORD_SIZE * i);
+  int4store(file_buffer + PAR_CHECKSUM_OFFSET, chksum);
   /*
-    Remove .frm extension and replace with .par
+    Add .par extension to the file name.
     Create and write and close file
     to be used at open, delete_table and rename_table
   */
@@ -2248,14 +2249,9 @@ bool ha_partition::create_handler_file(const char *name)
   DBUG_RETURN(result);
 }
 
-/*
+
+/**
   Clear handler variables and free some memory
-
-  SYNOPSIS
-    clear_handler_file()
-
-  RETURN VALUE 
-    NONE
 */
 
 void ha_partition::clear_handler_file()
@@ -2268,16 +2264,15 @@ void ha_partition::clear_handler_file()
   m_engine_array= NULL;
 }
 
-/*
+
+/**
   Create underlying handler objects
 
-  SYNOPSIS
-    create_handlers()
-    mem_root		Allocate memory through this
+  @para mem_root  Allocate memory through this
 
-  RETURN VALUE
-    TRUE                  Error
-    FALSE                 Success
+  @return Operation status
+    @retval TRUE   Error
+    @retval FALSE  Success
 */
 
 bool ha_partition::create_handlers(MEM_ROOT *mem_root)
@@ -2314,6 +2309,7 @@ bool ha_partition::create_handlers(MEM_ROOT *mem_root)
   }
   DBUG_RETURN(FALSE);
 }
+
 
 /*
   Create underlying handler objects from partition info
@@ -2386,108 +2382,164 @@ error_end:
 }
 
 
-/*
-  Get info about partition engines and their names from the .par file
+/**
+  Read the .par file to get the partitions engines and names
 
-  SYNOPSIS
-    get_from_handler_file()
-    name                        Full path of table name
-    mem_root			Allocate memory through this
+  @param name  Name of table file (without extention)
 
-  RETURN VALUE
-    TRUE                        Error
-    FALSE                       Success
+  @return Operation status
+    @retval true   Failure
+    @retval false  Success
 
-  DESCRIPTION
-    Open handler file to get partition names, engine types and number of
-    partitions.
+  @note On success, m_file_buffer is allocated and must be
+  freed by the caller. m_name_buffer_ptr and m_tot_parts is also set.
 */
 
-bool ha_partition::get_from_handler_file(const char *name, MEM_ROOT *mem_root,
-                                         bool clone)
+bool ha_partition::read_par_file(const char *name)
 {
-  char buff[FN_REFLEN], *address_tot_name_len;
+  char buff[FN_REFLEN], *tot_name_len_offset;
   File file;
-  char *file_buffer, *name_buffer_ptr;
-  handlerton **engine_array;
+  char *file_buffer;
   uint i, len_bytes, len_words, tot_partition_words, tot_name_words, chksum;
-  DBUG_ENTER("ha_partition::get_from_handler_file");
+  DBUG_ENTER("ha_partition::read_par_file");
   DBUG_PRINT("enter", ("table name: '%s'", name));
 
   if (m_file_buffer)
-    DBUG_RETURN(FALSE);
+    DBUG_RETURN(false);
   fn_format(buff, name, "", ha_par_ext, MY_APPEND_EXT);
 
   /* Following could be done with my_stat to read in whole file */
   if ((file= my_open(buff, O_RDONLY | O_SHARE, MYF(0))) < 0)
-    DBUG_RETURN(TRUE);
-  if (my_read(file, (uchar *) & buff[0], 8, MYF(MY_NABP)))
+    DBUG_RETURN(true);
+  if (my_read(file, (uchar *) & buff[0], PAR_WORD_SIZE, MYF(MY_NABP)))
     goto err1;
   len_words= uint4korr(buff);
-  len_bytes= 4 * len_words;
+  len_bytes= PAR_WORD_SIZE * len_words;
+  if (my_seek(file, 0, MY_SEEK_SET, MYF(0)) == MY_FILEPOS_ERROR)
+    goto err1;
   if (!(file_buffer= (char*) my_malloc(len_bytes, MYF(0))))
     goto err1;
-  VOID(my_seek(file, 0, MY_SEEK_SET, MYF(0)));
   if (my_read(file, (uchar *) file_buffer, len_bytes, MYF(MY_NABP)))
     goto err2;
 
   chksum= 0;
   for (i= 0; i < len_words; i++)
-    chksum ^= uint4korr((file_buffer) + 4 * i);
+    chksum ^= uint4korr((file_buffer) + PAR_WORD_SIZE * i);
   if (chksum)
     goto err2;
-  m_tot_parts= uint4korr((file_buffer) + 8);
+  m_tot_parts= uint4korr((file_buffer) + PAR_NUM_PARTS_OFFSET);
   DBUG_PRINT("info", ("No of parts = %u", m_tot_parts));
-  tot_partition_words= (m_tot_parts + 3) / 4;
-  if (!clone)
-  {
-    engine_array= (handlerton **) my_alloca(m_tot_parts * sizeof(handlerton*));
-    for (i= 0; i < m_tot_parts; i++)
-    {
-      engine_array[i]= ha_resolve_by_legacy_type(ha_thd(),
-                                                 (enum legacy_db_type)
-                                                 *(uchar *) ((file_buffer) +
-                                                             12 + i));
-      if (!engine_array[i])
-        goto err3;
-    }
-  }
-  address_tot_name_len= file_buffer + 12 + 4 * tot_partition_words;
-  tot_name_words= (uint4korr(address_tot_name_len) + 3) / 4;
+  tot_partition_words= (m_tot_parts + PAR_WORD_SIZE - 1) / PAR_WORD_SIZE;
+
+  tot_name_len_offset= file_buffer + PAR_ENGINES_OFFSET +
+                       PAR_WORD_SIZE * tot_partition_words;
+  tot_name_words= (uint4korr(tot_name_len_offset) + PAR_WORD_SIZE - 1) /
+                  PAR_WORD_SIZE;
+  /*
+    Verify the total length = tot size word, checksum word, num parts word +
+    engines array + name length word + name array.
+  */
   if (len_words != (tot_partition_words + tot_name_words + 4))
-    goto err3;
-  name_buffer_ptr= file_buffer + 16 + 4 * tot_partition_words;
+    goto err2;
   VOID(my_close(file, MYF(0)));
   m_file_buffer= file_buffer;          // Will be freed in clear_handler_file()
-  m_name_buffer_ptr= name_buffer_ptr;
-  
-  if (!clone)
-  {
-    if (!(m_engine_array= (plugin_ref*)
-                  my_malloc(m_tot_parts * sizeof(plugin_ref), MYF(MY_WME))))
-      goto err3;
+  m_name_buffer_ptr= tot_name_len_offset + PAR_WORD_SIZE;
 
-    for (i= 0; i < m_tot_parts; i++)
-      m_engine_array[i]= ha_lock_engine(NULL, engine_array[i]);
+  DBUG_RETURN(false);
 
-    my_afree((gptr) engine_array);
-  }
-    
-  if (!clone && !m_file && create_handlers(mem_root))
-  {
-    clear_handler_file();
-    DBUG_RETURN(TRUE);
-  }
-  DBUG_RETURN(FALSE);
-
-err3:
-  if (!clone)
-    my_afree((gptr) engine_array);
 err2:
   my_free(file_buffer, MYF(0));
 err1:
   VOID(my_close(file, MYF(0)));
-  DBUG_RETURN(TRUE);
+  DBUG_RETURN(true);
+}
+
+
+/**
+  Setup m_engine_array
+
+  @param mem_root  MEM_ROOT to use for allocating new handlers
+
+  @return Operation status
+    @retval false  Success
+    @retval true   Failure
+*/
+
+bool ha_partition::setup_engine_array(MEM_ROOT *mem_root)
+{
+  uint i;
+  uchar *buff;
+  handlerton **engine_array;
+
+  DBUG_ASSERT(!m_file);
+  DBUG_ENTER("ha_partition::setup_engine_array");
+  engine_array= (handlerton **) my_alloca(m_tot_parts * sizeof(handlerton*));
+  if (!engine_array)
+    DBUG_RETURN(true);
+
+  buff= (uchar *) (m_file_buffer + PAR_ENGINES_OFFSET);
+  for (i= 0; i < m_tot_parts; i++)
+  {
+    engine_array[i]= ha_resolve_by_legacy_type(ha_thd(),
+                                               (enum legacy_db_type)
+                                                 *(buff + i));
+    if (!engine_array[i])
+      goto err;
+  }
+  if (!(m_engine_array= (plugin_ref*)
+                my_malloc(m_tot_parts * sizeof(plugin_ref), MYF(MY_WME))))
+    goto err;
+
+  for (i= 0; i < m_tot_parts; i++)
+    m_engine_array[i]= ha_lock_engine(NULL, engine_array[i]);
+
+  my_afree((gptr) engine_array);
+    
+  if (create_handlers(mem_root))
+  {
+    clear_handler_file();
+    DBUG_RETURN(true);
+  }
+
+  DBUG_RETURN(false);
+
+err:
+  my_afree((gptr) engine_array);
+  DBUG_RETURN(true);
+}
+
+
+/**
+  Get info about partition engines and their names from the .par file
+
+  @param name      Full path of table name
+  @param mem_root  Allocate memory through this
+  @param is_clone  If it is a clone, don't create new handlers
+
+  @return Operation status
+    @retval true   Error
+    @retval false  Success
+
+  @note Open handler file to get partition names, engine types and number of
+  partitions.
+*/
+
+bool ha_partition::get_from_handler_file(const char *name, MEM_ROOT *mem_root,
+                                         bool is_clone)
+{
+  DBUG_ENTER("ha_partition::get_from_handler_file");
+  DBUG_PRINT("enter", ("table name: '%s'", name));
+
+  if (m_file_buffer)
+    DBUG_RETURN(false);
+
+  if (read_par_file(name))
+    DBUG_RETURN(true);
+
+  if (!is_clone && setup_engine_array(mem_root))
+    DBUG_RETURN(true);
+
+  DBUG_RETURN(false);
 }
 
 
@@ -2615,8 +2667,7 @@ int ha_partition::open(const char *name, int mode, uint test_if_locked)
     {
       create_partition_name(name_buff, name, name_buffer_ptr, NORMAL_PART_NAME,
                             FALSE);
-      if (!(m_file[i]= file[i]->clone((const char*) name_buff,
-                                      m_clone_mem_root)))
+      if (!(m_file[i]= file[i]->clone(name_buff, m_clone_mem_root)))
       {
         error= HA_ERR_INITIALIZATION;
         file= &m_file[i];
@@ -2632,8 +2683,7 @@ int ha_partition::open(const char *name, int mode, uint test_if_locked)
    {
       create_partition_name(name_buff, name, name_buffer_ptr, NORMAL_PART_NAME,
                             FALSE);
-      if ((error= (*file)->ha_open(table, (const char*) name_buff, mode,
-                                  test_if_locked)))
+      if ((error= (*file)->ha_open(table, name_buff, mode, test_if_locked)))
         goto err_handler;
       m_no_locks+= (*file)->lock_count();
       name_buffer_ptr+= strlen(name_buffer_ptr) + 1;
@@ -2645,8 +2695,7 @@ int ha_partition::open(const char *name, int mode, uint test_if_locked)
   check_table_flags= (((*file)->ha_table_flags() &
                        ~(PARTITION_DISABLED_TABLE_FLAGS)) |
                       (PARTITION_ENABLED_TABLE_FLAGS));
-  file++;
-  do
+  while (*(++file))
   {
     DBUG_ASSERT(ref_length >= (*file)->ref_length);
     set_if_bigger(ref_length, ((*file)->ref_length));
@@ -2663,7 +2712,7 @@ int ha_partition::open(const char *name, int mode, uint test_if_locked)
       file = &m_file[m_tot_parts - 1];
       goto err_handler;
     }
-  } while (*(++file));
+  }
   key_used_on_scan= m_file[0]->key_used_on_scan;
   implicit_emptied= m_file[0]->implicit_emptied;
   /*
@@ -2742,7 +2791,7 @@ err_alloc:
 /**
   Clone the open and locked partitioning handler.
 
-    @param  mem_root  MEM_ROOT to use.
+  @param  mem_root  MEM_ROOT to use.
 
   @return Pointer to the successfully created clone or NULL
 
@@ -2750,33 +2799,32 @@ err_alloc:
   This function creates a new ha_partition handler as a clone/copy. The
   original (this) must already be opened and locked. The clone will use
   the originals m_part_info.
-  It also allocates memory to ref + ref_dup.
+  It also allocates memory for ref + ref_dup.
   In ha_partition::open() it will clone its original handlers partitions
-  which will allocate then om the correct MEM_ROOT and also open them.
+  which will allocate then on the correct MEM_ROOT and also open them.
 */
 
 handler *ha_partition::clone(const char *name, MEM_ROOT *mem_root)
 {
   ha_partition *new_handler;
-  
+
   DBUG_ENTER("ha_partition::clone");
   new_handler= new (mem_root) ha_partition(ht, table_share, m_part_info,
                                            this, mem_root);
-  if (!new_handler)
-    DBUG_RETURN(NULL);
-
   /*
     Allocate new_handler->ref here because otherwise ha_open will allocate it
     on this->table->mem_root and we will not be able to reclaim that memory 
     when the clone handler object is destroyed.
   */
-  new_handler->ref= (uchar*) alloc_root(mem_root, ALIGN_SIZE(m_ref_length)*2);
-  if (!new_handler->ref)
-    DBUG_RETURN(NULL);
+  if (new_handler &&
+      !(new_handler->ref= (uchar*) alloc_root(mem_root,
+                                              ALIGN_SIZE(m_ref_length)*2)))
+    new_handler= NULL;
 
-  if (new_handler->ha_open(table, name,
+  if (new_handler &&
+      new_handler->ha_open(table, name,
                            table->db_stat, HA_OPEN_IGNORE_IF_LOCKED))
-    DBUG_RETURN(NULL);
+    new_handler= NULL;
 
   DBUG_RETURN((handler*) new_handler);
 }
