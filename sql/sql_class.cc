@@ -359,7 +359,7 @@ void thd_new_connection_setup(THD *thd, char *stack_start)
   thd->prior_thr_create_utime= thd->thr_create_utime= thd->start_utime=
     my_micro_time();
   threads.append(thd);
-  thd_unlock_connection_data(thd);
+  thd_unlock_thread_count(thd);
   DBUG_PRINT("info", ("init new connection. thd: 0x%lx fd: %d",
           (ulong)thd, thd->net.vio->sd));
   thd_set_thread_stack(thd, stack_start);
