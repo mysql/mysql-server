@@ -59,7 +59,9 @@
 #endif
 
 /* #define _POSIX_C_SOURCE 200507 */
+#ifndef _GNU_SOURCE
 #define _GNU_SOURCE
+#endif
 
 #ifdef DNS_USE_CPU_CLOCK_FOR_ID
 #ifdef DNS_USE_OPENSSL_FOR_ID
