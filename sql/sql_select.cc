@@ -16760,6 +16760,10 @@ create_sort_index(THD *thd, JOIN *join, ORDER *order,
   table=  tab->table;
   select= tab->select;
 
+  /* Currently ORDER BY ... LIMIT is not supported in subqueries. */
+  DBUG_ASSERT(join->group_list ||
+              !(join->unit->item && join->unit->item->is_in_predicate()));
+
   /*
     When there is SQL_BIG_RESULT do not sort using index for GROUP BY,
     and thus force sorting on disk unless a group min-max optimization

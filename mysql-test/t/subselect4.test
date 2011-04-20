@@ -1264,3 +1264,66 @@ set @@optimizer_switch=@save_optimizer_switch;
 
 drop table t1,t2,t3;
 drop view v1,v2;
+
+--echo #
+--echo # LP BUG#715069 Wrong result with GROUP BY inside subquery and materialization=off
+--echo #
+
+CREATE TABLE t0 ( f1 int(11), f2 int(11), f10 varchar(1), PRIMARY KEY (f1)) ;
+INSERT INTO t0 VALUES (8,8,'u'),(10,5,'o');
+
+CREATE TABLE t1 (f1a int, f2a int not null, f3a varchar(3) not null, PRIMARY KEY (f1a)) ;
+INSERT INTO t1 VALUES
+(8,8,'a1a'),
+(10,5,'b1b');
+
+CREATE TABLE t2 (f1b int, f2b int not null, f3b varchar(3) not null, PRIMARY KEY (f1b)) ;
+INSERT INTO t2 VALUES
+(10,5,'d1d');
+
+set @save_optimizer_switch=@@optimizer_switch;
+set @@optimizer_switch = 'materialization=off';
+
+EXPLAIN
+SELECT alias2.f1 , alias2.f2
+FROM t0 AS alias1
+RIGHT JOIN t0 AS alias2 ON alias2.f10
+WHERE ( alias2.f1 , alias2.f2 ) IN ( SELECT f2 , f1 FROM t0 GROUP BY f2 , f1 );
+
+SELECT alias2.f1 , alias2.f2
+FROM t0 AS alias1
+RIGHT JOIN t0 AS alias2 ON alias2.f10
+WHERE ( alias2.f1 , alias2.f2 ) IN ( SELECT f2 , f1 FROM t0 GROUP BY f2 , f1 );
+
+EXPLAIN
+SELECT * FROM t2 WHERE (f1b, f2b) IN (SELECT f1a, f2a FROM t1 GROUP BY f1a, f2a);
+SELECT * FROM t2 WHERE (f1b, f2b) IN (SELECT f1a, f2a FROM t1 GROUP BY f1a, f2a);
+
+EXPLAIN
+SELECT * FROM t2 WHERE (f1b) IN (SELECT f1a FROM t1 GROUP BY f1a, f2a);
+SELECT * FROM t2 WHERE (f1b) IN (SELECT f1a FROM t1 GROUP BY f1a, f2a);
+
+SET @@optimizer_switch = 'materialization=on';
+
+EXPLAIN
+SELECT alias2.f1 , alias2.f2
+FROM t0 AS alias1
+RIGHT JOIN t0 AS alias2 ON alias2.f10
+WHERE ( alias2.f1 , alias2.f2 ) IN ( SELECT f2 , f1 FROM t0 GROUP BY f2 , f1 );
+
+SELECT alias2.f1 , alias2.f2
+FROM t0 AS alias1
+RIGHT JOIN t0 AS alias2 ON alias2.f10
+WHERE ( alias2.f1 , alias2.f2 ) IN ( SELECT f2 , f1 FROM t0 GROUP BY f2 , f1 );
+
+EXPLAIN
+SELECT * FROM t2 WHERE (f1b, f2b) IN (SELECT f1a, f2a FROM t1 GROUP BY f1a, f2a);
+SELECT * FROM t2 WHERE (f1b, f2b) IN (SELECT f1a, f2a FROM t1 GROUP BY f1a, f2a);
+
+EXPLAIN
+SELECT * FROM t2 WHERE (f1b) IN (SELECT f1a FROM t1 GROUP BY f1a, f2a);
+SELECT * FROM t2 WHERE (f1b) IN (SELECT f1a FROM t1 GROUP BY f1a, f2a);
+
+set @@optimizer_switch=@save_optimizer_switch;
+
+drop table t0,t1,t2;

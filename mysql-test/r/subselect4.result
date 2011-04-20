@@ -735,7 +735,7 @@ WHERE ( t1.f10 ) IN ( SELECT f11 FROM t2 GROUP BY f11 ));
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	PRIMARY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE noticed after reading const tables
 2	SUBQUERY	t1	ALL	NULL	NULL	NULL	NULL	2	Using where
-3	SUBQUERY	t2	ALL	NULL	NULL	NULL	NULL	2	Using temporary; Using filesort
+3	SUBQUERY	t2	ALL	NULL	NULL	NULL	NULL	2	Using temporary
 SELECT * FROM t1
 WHERE f3 = (
 SELECT t1.f3 FROM t1
@@ -749,7 +749,7 @@ WHERE ( f10, f10 ) IN ( SELECT f11, f11 FROM t2 GROUP BY f11 ));
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	PRIMARY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE noticed after reading const tables
 2	SUBQUERY	t1	ALL	NULL	NULL	NULL	NULL	2	Using where
-3	SUBQUERY	t2	ALL	NULL	NULL	NULL	NULL	2	Using temporary; Using filesort
+3	SUBQUERY	t2	ALL	NULL	NULL	NULL	NULL	2	Using temporary
 SELECT * FROM t1
 WHERE f3 = (
 SELECT f3 FROM t1
@@ -1302,7 +1302,7 @@ GROUP BY SQ1_t1.f4));
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	PRIMARY	t1	system	NULL	NULL	NULL	NULL	1	
 2	SUBQUERY	t2	ALL	NULL	NULL	NULL	NULL	2	Using where
-3	SUBQUERY	SQ1_t1	index	NULL	f4	5	NULL	2	Using index; Using temporary; Using filesort
+3	SUBQUERY	SQ1_t1	index	NULL	f4	5	NULL	2	Using index; Using temporary
 3	SUBQUERY	SQ1_t3	index	NULL	f4	5	NULL	2	Using where; Using index; Using join buffer (flat, BNL join)
 drop table t1, t2, t3;
 #
@@ -1575,3 +1575,82 @@ SELECT ( 5 ) IN ( SELECT * FROM v2 );
 set @@optimizer_switch=@save_optimizer_switch;
 drop table t1,t2,t3;
 drop view v1,v2;
+#
+# LP BUG#715069 Wrong result with GROUP BY inside subquery and materialization=off
+#
+CREATE TABLE t0 ( f1 int(11), f2 int(11), f10 varchar(1), PRIMARY KEY (f1)) ;
+INSERT INTO t0 VALUES (8,8,'u'),(10,5,'o');
+CREATE TABLE t1 (f1a int, f2a int not null, f3a varchar(3) not null, PRIMARY KEY (f1a)) ;
+INSERT INTO t1 VALUES
+(8,8,'a1a'),
+(10,5,'b1b');
+CREATE TABLE t2 (f1b int, f2b int not null, f3b varchar(3) not null, PRIMARY KEY (f1b)) ;
+INSERT INTO t2 VALUES
+(10,5,'d1d');
+set @save_optimizer_switch=@@optimizer_switch;
+set @@optimizer_switch = 'materialization=off';
+EXPLAIN
+SELECT alias2.f1 , alias2.f2
+FROM t0 AS alias1
+RIGHT JOIN t0 AS alias2 ON alias2.f10
+WHERE ( alias2.f1 , alias2.f2 ) IN ( SELECT f2 , f1 FROM t0 GROUP BY f2 , f1 );
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	alias2	ALL	NULL	NULL	NULL	NULL	2	Using where
+1	PRIMARY	alias1	index	NULL	PRIMARY	4	NULL	2	Using where; Using index
+2	DEPENDENT SUBQUERY	t0	ALL	NULL	NULL	NULL	NULL	2	
+SELECT alias2.f1 , alias2.f2
+FROM t0 AS alias1
+RIGHT JOIN t0 AS alias2 ON alias2.f10
+WHERE ( alias2.f1 , alias2.f2 ) IN ( SELECT f2 , f1 FROM t0 GROUP BY f2 , f1 );
+f1	f2
+8	8
+EXPLAIN
+SELECT * FROM t2 WHERE (f1b, f2b) IN (SELECT f1a, f2a FROM t1 GROUP BY f1a, f2a);
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	t2	system	NULL	NULL	NULL	NULL	1	
+2	DEPENDENT SUBQUERY	t1	ALL	NULL	NULL	NULL	NULL	2	
+SELECT * FROM t2 WHERE (f1b, f2b) IN (SELECT f1a, f2a FROM t1 GROUP BY f1a, f2a);
+f1b	f2b	f3b
+10	5	d1d
+EXPLAIN
+SELECT * FROM t2 WHERE (f1b) IN (SELECT f1a FROM t1 GROUP BY f1a, f2a);
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	t2	system	NULL	NULL	NULL	NULL	1	
+2	DEPENDENT SUBQUERY	t1	ALL	NULL	NULL	NULL	NULL	2	
+SELECT * FROM t2 WHERE (f1b) IN (SELECT f1a FROM t1 GROUP BY f1a, f2a);
+f1b	f2b	f3b
+10	5	d1d
+SET @@optimizer_switch = 'materialization=on';
+EXPLAIN
+SELECT alias2.f1 , alias2.f2
+FROM t0 AS alias1
+RIGHT JOIN t0 AS alias2 ON alias2.f10
+WHERE ( alias2.f1 , alias2.f2 ) IN ( SELECT f2 , f1 FROM t0 GROUP BY f2 , f1 );
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	alias2	ALL	NULL	NULL	NULL	NULL	2	Using where
+1	PRIMARY	alias1	index	NULL	PRIMARY	4	NULL	2	Using where; Using index
+2	SUBQUERY	t0	ALL	NULL	NULL	NULL	NULL	2	
+SELECT alias2.f1 , alias2.f2
+FROM t0 AS alias1
+RIGHT JOIN t0 AS alias2 ON alias2.f10
+WHERE ( alias2.f1 , alias2.f2 ) IN ( SELECT f2 , f1 FROM t0 GROUP BY f2 , f1 );
+f1	f2
+8	8
+EXPLAIN
+SELECT * FROM t2 WHERE (f1b, f2b) IN (SELECT f1a, f2a FROM t1 GROUP BY f1a, f2a);
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	t2	system	NULL	NULL	NULL	NULL	1	
+2	DEPENDENT SUBQUERY	t1	ALL	NULL	NULL	NULL	NULL	2	
+SELECT * FROM t2 WHERE (f1b, f2b) IN (SELECT f1a, f2a FROM t1 GROUP BY f1a, f2a);
+f1b	f2b	f3b
+10	5	d1d
+EXPLAIN
+SELECT * FROM t2 WHERE (f1b) IN (SELECT f1a FROM t1 GROUP BY f1a, f2a);
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	t2	system	NULL	NULL	NULL	NULL	1	
+2	DEPENDENT SUBQUERY	t1	ALL	NULL	NULL	NULL	NULL	2	
+SELECT * FROM t2 WHERE (f1b) IN (SELECT f1a FROM t1 GROUP BY f1a, f2a);
+f1b	f2b	f3b
+10	5	d1d
+set @@optimizer_switch=@save_optimizer_switch;
+drop table t0,t1,t2;
