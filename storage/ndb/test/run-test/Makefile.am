@@ -27,7 +27,8 @@ test_DATA=daily-basic-tests.txt daily-devel-tests.txt release-bigmem-tests.txt 1
           conf-ndbmaster.cnf \
           conf-fimafeng08.cnf conf-dl145a.cnf test-tests.txt conf-test.cnf db.sql \
           conf-upgrade.cnf upgrade-tests.txt \
-	  conf-ndb07.cnf
+	  conf-ndb07.cnf \
+	  conf-blade08.cnf
 
 test_SCRIPTS=atrt-analyze-result.sh atrt-gather-result.sh atrt-setup.sh \
           atrt-clear-result.sh autotest-run.sh atrt-backtrace.sh
