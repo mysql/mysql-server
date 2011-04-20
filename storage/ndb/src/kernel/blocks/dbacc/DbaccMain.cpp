@@ -1008,6 +1008,10 @@ void Dbacc::initOpRec(Signal* signal)
   // bit to mark lock operation
   // undo log is not run via ACCKEYREQ
 
+  if (operationRecPtr.p->tupkeylen == 0)
+  {
+    ndbassert(signal->getLength() == 9);
+  }
 }//Dbacc::initOpRec()
 
 /* --------------------------------------------------------------------------------- */
