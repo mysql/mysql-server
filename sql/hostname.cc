@@ -1,4 +1,4 @@
-/* Copyright (C) 2000-2006 MySQL AB
+/* Copyright (c) 2000, 2011, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -183,7 +183,7 @@ char * ip_to_hostname(struct in_addr *in, uint *errors)
 			   &tmp_hostent,buff,sizeof(buff),&tmp_errno)))
   {
     DBUG_PRINT("error",("gethostbyaddr_r returned %d",tmp_errno));
-    return 0;
+    DBUG_RETURN(0);
   }
   if (!(check=my_gethostbyname_r(hp->h_name,&tmp_hostent2,buff2,sizeof(buff2),
 				 &tmp_errno)))
