@@ -5811,11 +5811,14 @@ int mysql_fast_or_online_alter_table(THD *thd,
   int error= 0;
   bool online= (table->file->ha_table_flags() & HA_ONLINE_ALTER ||
                 table->file->alter_table_flags(0))? true:false;
-  char *table_name= NULL;
-  char *db= NULL;
-  char *new_name= NULL;
-  char *new_db= NULL;
+  char table_name[FN_REFLEN + 1];
+  char db[FN_REFLEN + 1];
+  char new_name[FN_REFLEN + 1];
+  char new_db[FN_REFLEN + 1];
   TABLE *t_table;
+  Open_table_context ot_ctx(thd, MYSQL_OPEN_REOPEN);
+  TABLE tab;
+  TABLE_LIST tbl;
 
   DBUG_ENTER(" mysql_fast_or_online_alter_table");
   //VOID(pthread_mutex_lock(&LOCK_open));
@@ -5872,10 +5875,10 @@ int mysql_fast_or_online_alter_table(THD *thd,
   if (wait_while_table_is_used(thd, table, HA_EXTRA_PREPARE_FOR_RENAME))
     goto err;
 
-  table_name= altered_table->s->table_name.str;
-  db= altered_table->s->db.str;
-  new_name= table->s->table_name.str;
-  new_db= table->s->db.str;
+  strcpy(table_name, altered_table->s->table_name.str);
+  strcpy(db, altered_table->s->db.str);
+  strcpy(new_name, table->s->table_name.str);
+  strcpy(new_db, table->s->db.str);
   close_all_tables_for_name(thd, table->s, FALSE);
                             // new_name != table_name || new_db != db);
 /*
@@ -5916,14 +5919,15 @@ int mysql_fast_or_online_alter_table(THD *thd,
     goto err;
   if (online)
   {
-    Open_table_context ot_ctx(thd, MYSQL_OPEN_REOPEN);
-    TABLE_LIST tbl;
-
+    tbl.table= &tab;
     tbl.alias= new_name;
     tbl.table_name= new_name;
     tbl.table_name_length= strlen(new_name);
     tbl.db= new_db;
     tbl.db_length= strlen(new_db);
+    tbl.open_type= OT_TEMPORARY_OR_BASE;
+    tbl.i_s_requested_object= OPEN_TABLE_ONLY;
+    tbl.open_strategy= TABLE_LIST::OPEN_NORMAL;
     tbl.mdl_request.ticket= target_mdl_request->ticket;
     if (open_table(thd, &tbl, thd->mem_root, &ot_ctx))
     {
