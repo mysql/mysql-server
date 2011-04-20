@@ -5094,6 +5094,9 @@ lock_table_queue_validate(
 	     lock != NULL;
 	     lock = UT_LIST_GET_NEXT(un_member.tab_lock.locks, lock)) {
 
+		ulint		i;
+		ib_vector_t*	table_locks;
+
 		/* lock->trx->state cannot change from or to NOT_STARTED
 		while we are holding the trx_sys->lock. It may change
 		from ACTIVE to PREPARED, but it may not change to
@@ -5111,7 +5114,22 @@ lock_table_queue_validate(
 		}
 
 		ut_a(lock_trx_table_locks_find(lock->trx, lock));
-		count += ib_vector_size(lock->trx->lock.table_locks);
+
+		/* Skip the NULL entries and only count the locks that
+		transactions have on this table. */
+		table_locks = lock->trx->lock.table_locks;
+
+		for (i = 0; i < ib_vector_size(table_locks); ++i) {
+			const lock_t*	trx_lock;
+
+			trx_lock = ib_vector_get(table_locks, i);
+
+			if (trx_lock != NULL
+			    && trx_lock->un_member.tab_lock.table == table) {
+
+				++count;
+			}
+		}
 	}
 
 	ut_a(count == UT_LIST_GET_LEN(table->locks));
