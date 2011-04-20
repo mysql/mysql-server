@@ -3401,7 +3401,7 @@ Prepared_statement::execute_loop(String *expanded_query,
   int reprepare_attempt= 0;
 
   /* Check if we got an error when sending long data */
-  if (state == Query_arena::ERROR)
+  if (state == Query_arena::STMT_ERROR)
   {
     my_message(last_errno, last_error, MYF(0));
     return TRUE;
