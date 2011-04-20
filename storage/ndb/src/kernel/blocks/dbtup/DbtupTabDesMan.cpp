@@ -28,6 +28,9 @@
  * TABLE DESCRIPTOR MEMORY MANAGER
  *
  * Each table has a descriptor which is a contiguous array of words.
+ * Newer NDB versions also have additional "dynamic descriptors"
+ * which are allocated separately using the same method.
+ *
  * The descriptor is allocated from a global array using a buddy
  * algorithm.  Free lists exist for each power of 2 words.  Freeing
  * a piece first merges with free right and left neighbours and then
@@ -257,14 +260,15 @@ void Dbtup::removeTdArea(Uint32 tabDesRef, Uint32 list)
   }//if
 }//Dbtup::removeTdArea()
 
-#ifdef VM_TRACE
+#if defined VM_TRACE || defined ERROR_INSERT
 void
 Dbtup::verifytabdes()
 {
   struct WordType {
     short fl;   // free list 0-15
     short ti;   // table id
-    WordType() : fl(-1), ti(-1) {}
+    short td;   // table descriptor area 0 or >0 for dynamic
+    WordType() : fl(-1), ti(-1), td(-1) {}
   };
   WordType* wt = new WordType [cnoOfTabDescrRec];
   uint free_words = 0;
@@ -339,14 +343,16 @@ Dbtup::verifytabdes()
         for (uint j = 0; j < size; j++) {
           ndbrequire(wt[desc + j].ti == -1);
           wt[desc + j].ti = i;
+          wt[desc + j].td = 0;
         }
         used_words += size;
       }
+      for (uint k = 0; k < NO_DYNAMICS; k++)
       {
         Uint32 offset[3];
-        Uint32 MaskSize = (ptr.p->m_dyn_null_bits[MM] + 31) >> 5;
+        Uint32 MaskSize = (ptr.p->m_dyn_null_bits[k] + 31) >> 5;
         const Uint32 alloc = getDynTabDescrOffsets(MaskSize, offset);
-        const Uint32 desc = ptr.p->dynTabDescriptor[MM];
+        const Uint32 desc = ptr.p->dynTabDescriptor[k];
         Uint32 size = alloc;
         if (size % ZTD_FREE_SIZE != 0)
           size += ZTD_FREE_SIZE - size % ZTD_FREE_SIZE;
@@ -366,6 +372,7 @@ Dbtup::verifytabdes()
         for (uint j = 0; j < size; j++) {
           ndbrequire(wt[desc + j].ti == -1);
           wt[desc + j].ti = i;
+          wt[desc + j].td = 1 + k;
         }
         used_words += size;
       }
