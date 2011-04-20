@@ -325,9 +325,9 @@ Dbtup::setup_read(KeyReqStruct *req_struct,
 }
 
 int
-Dbtup::load_diskpage(Signal* signal, 
-		     Uint32 opRec, Uint32 fragPtrI, 
-		     Uint32 local_key, Uint32 flags)
+Dbtup::load_diskpage(Signal* signal,
+		     Uint32 opRec, Uint32 fragPtrI,
+		     Uint32 lkey1, Uint32 lkey2, Uint32 flags)
 {
   Ptr<Tablerec> tabptr;
   Ptr<Fragrecord> fragptr;
@@ -336,15 +336,15 @@ Dbtup::load_diskpage(Signal* signal,
   c_operation_pool.getPtr(operPtr, opRec);
   fragptr.i= fragPtrI;
   ptrCheckGuard(fragptr, cnoOfFragrec, fragrecord);
-  
+
   Operationrec *  regOperPtr= operPtr.p;
   Fragrecord * regFragPtr= fragptr.p;
-  
+
   tabptr.i = regFragPtr->fragTableId;
   ptrCheckGuard(tabptr, cnoOfTablerec, tablerec);
   Tablerec* regTabPtr = tabptr.p;
-  
-  if(local_key == ~(Uint32)0)
+
+  if (Local_key::ref(lkey1, lkey2) == ~(Uint32)0)
   {
     jam();
     regOperPtr->op_struct.m_wait_log_buffer= 1;
@@ -353,8 +353,8 @@ Dbtup::load_diskpage(Signal* signal,
   }
   
   jam();
-  Uint32 page_idx= local_key & MAX_TUPLES_PER_PAGE;
-  Uint32 frag_page_id= local_key >> MAX_TUPLES_BITS;
+  Uint32 page_idx= lkey2;
+  Uint32 frag_page_id= lkey1;
   regOperPtr->m_tuple_location.m_page_no= getRealpid(regFragPtr,
 						     frag_page_id);
   regOperPtr->m_tuple_location.m_page_idx= page_idx;
@@ -424,9 +424,9 @@ Dbtup::disk_page_load_callback(Signal* signal, Uint32 opRec, Uint32 page_id)
 }
 
 int
-Dbtup::load_diskpage_scan(Signal* signal, 
-			  Uint32 opRec, Uint32 fragPtrI, 
-			  Uint32 local_key, Uint32 flags)
+Dbtup::load_diskpage_scan(Signal* signal,
+			  Uint32 opRec, Uint32 fragPtrI,
+			  Uint32 lkey1, Uint32 lkey2, Uint32 flags)
 {
   Ptr<Tablerec> tabptr;
   Ptr<Fragrecord> fragptr;
@@ -435,17 +435,17 @@ Dbtup::load_diskpage_scan(Signal* signal,
   c_operation_pool.getPtr(operPtr, opRec);
   fragptr.i= fragPtrI;
   ptrCheckGuard(fragptr, cnoOfFragrec, fragrecord);
-  
+
   Operationrec *  regOperPtr= operPtr.p;
   Fragrecord * regFragPtr= fragptr.p;
-  
+
   tabptr.i = regFragPtr->fragTableId;
   ptrCheckGuard(tabptr, cnoOfTablerec, tablerec);
   Tablerec* regTabPtr = tabptr.p;
-  
+
   jam();
-  Uint32 page_idx= local_key & MAX_TUPLES_PER_PAGE;
-  Uint32 frag_page_id= local_key >> MAX_TUPLES_BITS;
+  Uint32 page_idx= lkey2;
+  Uint32 frag_page_id= lkey1;
   regOperPtr->m_tuple_location.m_page_no= getRealpid(regFragPtr,
 						     frag_page_id);
   regOperPtr->m_tuple_location.m_page_idx= page_idx;
@@ -627,8 +627,7 @@ void Dbtup::execTUPKEYREQ(Signal* signal)
                 req_struct.attrinfo_len,
                 attrInfoIVal);
    
-   Uint32 localkey = (pageid << MAX_TUPLES_BITS) + pageidx;
-   if (Roptype == ZINSERT && localkey == ~ (Uint32) 0)
+   if (Roptype == ZINSERT && Local_key::isInvalid(pageid, pageidx))
    {
      // No tuple allocatated yet
      goto do_insert;

@@ -1364,12 +1364,12 @@ typedef Ptr<HostBuffer> HostBufferPtr;
     STATIC_CONST( SZ32 = 1 );
 
     void copyout(Local_key* dst) const {
-      dst->m_page_no = m_ref >> MAX_TUPLES_BITS;
-      dst->m_page_idx = m_ref & MAX_TUPLES_PER_PAGE;
+      dst->m_page_no = Local_key::ref2page_id(m_ref);
+      dst->m_page_idx = Local_key::ref2page_idx(m_ref);
     }
 
     void assign(const Local_key* src) {
-      m_ref = (src->m_page_no << MAX_TUPLES_BITS) | src->m_page_idx;
+      m_ref = Local_key::ref(src->m_page_no, src->m_page_idx);
     }
 #else
     Uint32 m_page_no;
@@ -1671,7 +1671,8 @@ public:
   /*
    * TUX uses logical tuple address when talking to ACC and LQH.
    */
-  void tuxGetTupAddr(Uint32 fragPtrI, Uint32 pageId, Uint32 pageOffset, Uint32& tupAddr);
+  void tuxGetTupAddr(Uint32 fragPtrI, Uint32 pageId, Uint32 pageOffset,
+                     Uint32& lkey1, Uint32& lkey2);
 
   /*
    * TUX index in TUP has single Uint32 array attribute which stores an
@@ -1711,11 +1712,11 @@ public:
    */
   bool tuxQueryTh(Uint32 fragPtrI, Uint32 pageId, Uint32 pageIndex, Uint32 tupVersion, Uint32 transId1, Uint32 transId2, bool dirty, Uint32 savepointId);
 
-  int load_diskpage(Signal*, Uint32 opRec, Uint32 fragPtrI, 
-		    Uint32 local_key, Uint32 flags);
+  int load_diskpage(Signal*, Uint32 opRec, Uint32 fragPtrI,
+		    Uint32 lkey1, Uint32 lkey2, Uint32 flags);
 
-  int load_diskpage_scan(Signal*, Uint32 opRec, Uint32 fragPtrI, 
-			 Uint32 local_key, Uint32 flags);
+  int load_diskpage_scan(Signal*, Uint32 opRec, Uint32 fragPtrI,
+			 Uint32 lkey1, Uint32 lkey2, Uint32 flags);
 
   void start_restore_lcp(Uint32 tableId, Uint32 fragmentId);
   void complete_restore_lcp(Signal*, Uint32 ref, Uint32 data,
@@ -2933,7 +2934,7 @@ private:
   void   removeTdArea(Uint32 tabDesRef, Uint32 list);
   void   insertTdArea(Uint32 tabDesRef, Uint32 list);
   void   itdaMergeTabDescr(Uint32& retRef, Uint32& retNo, bool normal);
-#ifdef VM_TRACE
+#if defined VM_TRACE || defined ERROR_INSERT
   void verifytabdes();
 #endif
 

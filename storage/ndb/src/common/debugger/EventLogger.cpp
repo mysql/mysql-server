@@ -964,7 +964,13 @@ void getTextStartReport(QQQQ) {
     bstr0 = BaseString::getPrettyText(sz, theData + 4 + (0 * sz)), 
     bstr1 = BaseString::getPrettyText(sz, theData + 4 + (1 * sz)), 
     bstr2 = BaseString::getPrettyText(sz, theData + 4 + (2 * sz)), 
-    bstr3 = BaseString::getPrettyText(sz, theData + 4 + (3 * sz));
+    bstr3 = BaseString::getPrettyText(sz, theData + 4 + (3 * sz)),
+    bstr4 = BaseString::getPrettyText(sz, theData + 4 + (4 * sz));
+
+  if (len < 4 + 5 * sz)
+  {
+    bstr4.assign("<unknown>");
+  }
 
   switch(theData[1]){
   case 1: // Wait initial
@@ -1002,6 +1008,24 @@ void getTextStartReport(QQQQ) {
        "nodes [ all: %s connected: %s missing: %s no-wait: %s ]",
        time, bstr0.c_str(), bstr1.c_str(), bstr3.c_str(), bstr2.c_str());
     break;
+  case 6:
+    BaseString::snprintf
+      (m_text, m_text_len,
+       "Initial start, waiting %u for %s to connect, "
+       "nodes [ all: %s connected: %s missing: %s no-wait: %s no-nodegroup: %s ]",
+       time, bstr4.c_str(),
+       bstr0.c_str(), bstr1.c_str(), bstr3.c_str(), bstr2.c_str(),
+       bstr4.c_str());
+    break;
+  case 7: // Wait no-nodes/partial timeout
+    BaseString::snprintf
+      (m_text, m_text_len,
+       "Waiting %u sec for nodes %s to connect, "
+       "nodes [ all: %s connected: %s no-wait: %s no-nodegroup: %s ]",
+       time, bstr3.c_str(), bstr0.c_str(), bstr1.c_str(), bstr2.c_str(),
+       bstr4.c_str());
+    break;
+
   case 0x8000: // Do initial
     BaseString::snprintf
       (m_text, m_text_len,

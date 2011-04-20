@@ -127,6 +127,7 @@ public:
     NdbNodeBitmask m_skip_nodes;
     NdbNodeBitmask m_starting_nodes;
     NdbNodeBitmask m_starting_nodes_w_log;
+    NdbNodeBitmask m_no_nodegroup_nodes;
 
     Uint16 m_president_candidate;
     Uint32 m_president_candidate_gci;
@@ -508,6 +509,7 @@ private:
   Uint32 c_restartPartialTimeout;
   Uint32 c_restartPartionedTimeout;
   Uint32 c_restartFailureTimeout;
+  Uint32 c_restartNoNodegroupTimeout;
   Uint64 c_start_election_time;
 
   Uint16 creadyDistCom;

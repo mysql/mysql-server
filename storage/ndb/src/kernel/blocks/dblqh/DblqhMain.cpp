@@ -5808,9 +5808,9 @@ void Dblqh::execACCKEYCONF(Signal* signal)
   Uint32 ttcConnectrecFileSize = ctcConnectrecFileSize;
   Uint32 tcIndex = signal->theData[0];
   Uint32 localKey1 = signal->theData[3];
-  //Uint32 localKey2 = signal->theData[4];
-  Uint32 localKeyFlag = signal->theData[5];
+  Uint32 localKey2 = signal->theData[4];
   jamEntry();
+
   tcConnectptr.i = tcIndex;
   ptrCheckGuard(tcConnectptr, ttcConnectrecFileSize, regTcConnectionrec);
   TcConnectionrec * const regTcPtr = tcConnectptr.p;
@@ -5865,17 +5865,18 @@ void Dblqh::execACCKEYCONF(Signal* signal)
   regFragptr.i = regTcPtr->fragmentptr;
   c_fragment_pool.getPtr(regFragptr);
 
-  ndbrequire(localKeyFlag == 1);
   if(!regTcPtr->m_disk_table)
-    acckeyconf_tupkeyreq(signal, regTcPtr, regFragptr.p, localKey1, RNIL);
+    acckeyconf_tupkeyreq(signal, regTcPtr, regFragptr.p,
+                         localKey1, localKey2, RNIL);
   else
-    acckeyconf_load_diskpage(signal, tcConnectptr, regFragptr.p, localKey1);
+    acckeyconf_load_diskpage(signal, tcConnectptr, regFragptr.p,
+                             localKey1, localKey2);
 }
 
 void
 Dblqh::acckeyconf_tupkeyreq(Signal* signal, TcConnectionrec* regTcPtr,
-			    Fragrecord* regFragptrP, 
-			    Uint32 local_key,
+			    Fragrecord* regFragptrP,
+			    Uint32 lkey1, Uint32 lkey2,
 			    Uint32 disk_page)
 {
   Uint32 op = regTcPtr->operation;
@@ -5888,8 +5889,8 @@ Dblqh::acckeyconf_tupkeyreq(Signal* signal, TcConnectionrec* regTcPtr,
    * IS NEEDED SINCE TWO SCHEMA VERSIONS CAN BE ACTIVE SIMULTANEOUSLY ON A 
    * TABLE.
    * ----------------------------------------------------------------------- */
-  Uint32 page_idx = local_key & MAX_TUPLES_PER_PAGE;
-  Uint32 page_no = local_key >> MAX_TUPLES_BITS;
+  Uint32 page_idx = lkey2;
+  Uint32 page_no = lkey1;
   Uint32 Ttupreq = regTcPtr->dirtyOp;
   Ttupreq = Ttupreq + (regTcPtr->opSimple << 1);
   Ttupreq = Ttupreq + (op << 6);
@@ -5969,21 +5970,23 @@ Dblqh::acckeyconf_tupkeyreq(Signal* signal, TcConnectionrec* regTcPtr,
 
 void
 Dblqh::acckeyconf_load_diskpage(Signal* signal, TcConnectionrecPtr regTcPtr,
-				Fragrecord* regFragptrP, Uint32 local_key)
+				Fragrecord* regFragptrP,
+                                Uint32 lkey1, Uint32 lkey2)
 {
   int res;
   if((res= c_tup->load_diskpage(signal, 
 				regTcPtr.p->tupConnectrec,
-				regFragptrP->tupFragptr, 
-				local_key, 
+				regFragptrP->tupFragptr,
+				lkey1, lkey2,
 				regTcPtr.p->operation)) > 0)
   {
-    acckeyconf_tupkeyreq(signal, regTcPtr.p, regFragptrP, local_key, res);
+    acckeyconf_tupkeyreq(signal, regTcPtr.p, regFragptrP, lkey1, lkey2, res);
   }
   else if(res == 0)
   {
     regTcPtr.p->transactionState = TcConnectionrec::WAIT_TUP;
-    regTcPtr.p->m_row_id.assref(local_key);
+    regTcPtr.p->m_row_id.m_page_no = lkey1;
+    regTcPtr.p->m_row_id.m_page_idx = lkey2;
   }
   else 
   {
@@ -6011,8 +6014,9 @@ Dblqh::acckeyconf_load_diskpage_callback(Signal* signal,
     FragrecordPtr fragPtr;
     c_fragment_pool.getPtr(fragPtr, regTcPtr->fragmentptr);
     
-    acckeyconf_tupkeyreq(signal, regTcPtr, fragPtr.p, 
-			 regTcPtr->m_row_id.ref(),
+    acckeyconf_tupkeyreq(signal, regTcPtr, fragPtr.p,
+			 regTcPtr->m_row_id.m_page_no,
+			 regTcPtr->m_row_id.m_page_idx,
 			 disk_page);
   }
   else if (state != TcConnectionrec::WAIT_TUP)
@@ -9351,18 +9355,9 @@ void Dblqh::execNEXT_SCANCONF(Signal* signal)
   jamEntry();
   scanptr.i = nextScanConf->scanPtr;
   c_scanRecordPool.getPtr(scanptr);
-  if (likely(nextScanConf->localKeyLength == 1)) //XXX signal length ?
-  {
-    jam();
-    scanptr.p->m_row_id.assref(nextScanConf->localKey[0]);
-  }
-  else
-  {
-    jam();
-    scanptr.p->m_row_id.m_page_no = nextScanConf->localKey[0];
-    scanptr.p->m_row_id.m_page_idx = nextScanConf->localKey[1]; 
-  }
-  
+  scanptr.p->m_row_id.m_page_no = nextScanConf->localKey[0];
+  scanptr.p->m_row_id.m_page_idx = nextScanConf->localKey[1];
+
 #ifdef VM_TRACE
   if (signal->getLength() > 2 && nextScanConf->accOperationPtr != RNIL)
   {
@@ -10792,14 +10787,14 @@ Dblqh::next_scanconf_load_diskpage(Signal* signal,
 				   Fragrecord* fragPtrP)
 {
   jam();
-  
+
   int res;
-  Uint32 local_key = scanPtr.p->m_row_id.ref();
-  
-  if((res= c_tup->load_diskpage_scan(signal, 
+
+  if((res= c_tup->load_diskpage_scan(signal,
 				     regTcPtr.p->tupConnectrec,
-				     fragPtrP->tupFragptr, 
-				     local_key, 
+				     fragPtrP->tupFragptr,
+				     scanPtr.p->m_row_id.m_page_no,
+				     scanPtr.p->m_row_id.m_page_idx,
 				     0)) > 0)
   {
     next_scanconf_tupkeyreq(signal, scanptr, regTcPtr.p, fragPtrP, res);

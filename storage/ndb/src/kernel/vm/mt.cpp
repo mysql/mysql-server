@@ -401,7 +401,7 @@ struct thr_safe_pool
 
   T* m_free_list;
   Uint32 m_cnt;
-  thr_spin_lock<NDB_CL - (sizeof(T*) + sizeof(Uint32))> m_lock;
+  thr_spin_lock<NDB_CL - (sizeof(void*) + sizeof(Uint32))> m_lock;
 
   T* seize(Ndbd_mem_manager *mm, Uint32 rg) {
     T* ret = 0;
