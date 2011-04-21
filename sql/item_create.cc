@@ -30,6 +30,7 @@
 #include "set_var.h"
 #include "sp_head.h"
 #include "sp.h"
+#include "item_inetfunc.h"
 
 /*
 =============================================================================

@@ -847,3 +847,38 @@ eval $query;
 DROP TABLE t1, t2;
 
 --echo # End Bug#59833
+
+--echo #
+--echo # Bug#11852644 - CRASH IN ITEM_REF::SAVE_IN_FIELD ON SELECT DISTINCT
+--echo #
+
+CREATE TABLE t1 (
+  col_varchar_key varchar(1) DEFAULT NULL,
+  col_varchar_nokey varchar(1) DEFAULT NULL,
+  KEY col_varchar_key (col_varchar_key)) 
+;
+
+INSERT INTO t1 VALUES
+('v','v'),('r','r');
+
+CREATE TABLE t2 (
+  col_varchar_key varchar(1) DEFAULT NULL,
+  col_varchar_nokey varchar(1) DEFAULT NULL,
+  KEY col_varchar_key(col_varchar_key)) 
+;
+
+INSERT INTO t2 VALUES
+('r','r'),('c','c');
+
+CREATE VIEW v3 AS SELECT * FROM t2;
+
+SELECT DISTINCT alias2.col_varchar_key 
+FROM t1 AS alias1 JOIN v3 AS alias2 
+ON alias2.col_varchar_key = alias1.col_varchar_key
+HAVING col_varchar_key IN (SELECT col_varchar_nokey FROM t2)
+;
+
+DROP TABLE t1, t2;
+DROP VIEW v3;
+
+--echo # End Bug#11852644

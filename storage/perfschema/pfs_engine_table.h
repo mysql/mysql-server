@@ -46,6 +46,13 @@ public:
   int update_row(TABLE *table, const unsigned char *old_buf,
                  unsigned char *new_buf, Field **fields);
 
+  /**
+    Delete a row from this table.
+    @param table Table handle
+    @param buf the row buffer to delete
+    @param fields Table fields
+    @return 0 on success
+  */
   int delete_row(TABLE *table, const unsigned char *buf, Field **fields);
 
   /** Fetch the next row in this cursor. */
@@ -58,21 +65,71 @@ public:
 
   void get_position(void *ref);
   void set_position(const void *ref);
+  /** Reset the cursor position to the beginning of the table. */
   virtual void reset_position(void)= 0;
 
   /** Destructor. */
   virtual ~PFS_engine_table()
   {}
 
+  /**
+    Helper, assign a value to a ulong field.
+    @param f the field to set
+    @param value the value to assign
+  */
   static void set_field_ulong(Field *f, ulong value);
+  /**
+    Helper, assign a value to a ulonglong field.
+    @param f the field to set
+    @param value the value to assign
+  */
   static void set_field_ulonglong(Field *f, ulonglong value);
+  /**
+    Helper, assign a value to a char utf8 field.
+    @param f the field to set
+    @param str the string to assign
+    @param len the length of the string to assign
+  */
   static void set_field_char_utf8(Field *f, const char *str, uint len);
+  /**
+    Helper, assign a value to a varchar utf8 field.
+    @param f the field to set
+    @param str the string to assign
+    @param len the length of the string to assign
+  */
   static void set_field_varchar_utf8(Field *f, const char *str, uint len);
+  /**
+    Helper, assign a value to a longtext utf8 field.
+    @param f the field to set
+    @param str the string to assign
+    @param len the length of the string to assign
+  */
   static void set_field_longtext_utf8(Field *f, const char *str, uint len);
+  /**
+    Helper, assign a value to an enum field.
+    @param f the field to set
+    @param value the value to assign
+  */
   static void set_field_enum(Field *f, ulonglong value);
-
+  /**
+    Helper, read a value from an enum field.
+    @param f the field to read
+    @return the field value
+  */
   static ulonglong get_field_enum(Field *f);
+  /**
+    Helper, read a value from a char utf8 field.
+    @param f the field to read
+    @param[out] val the field value
+    @return the field value
+  */
   static String *get_field_char_utf8(Field *f, String *val);
+  /**
+    Helper, read a value from a varchar utf8 field.
+    @param f the field to read
+    @param[out] val the field value
+    @return the field value
+  */
   static String *get_field_varchar_utf8(Field *f, String *val);
 
 protected:
@@ -274,16 +331,29 @@ struct PFS_simple_index
   /** Current row index. */
   uint m_index;
 
+  /**
+    Constructor.
+    @param index the index initial value.
+  */
   PFS_simple_index(uint index)
     : m_index(index)
   {}
 
+  /**
+    Set this index at a given position.
+    @param other a position
+  */
   void set_at(const struct PFS_simple_index *other)
   { m_index= other->m_index; }
 
+  /**
+    Set this index after a given position.
+    @param other a position
+  */
   void set_after(const struct PFS_simple_index *other)
   { m_index= other->m_index + 1; }
 
+  /** Set this index to the next record. */
   void next(void)
   { m_index++; }
 };
@@ -296,16 +366,29 @@ struct PFS_double_index
   /** Current index within index_1. */
   uint m_index_2;
 
+  /**
+    Constructor.
+    @param index_1 the first index initial value.
+    @param index_2 the second index initial value.
+  */
   PFS_double_index(uint index_1, uint index_2)
     : m_index_1(index_1), m_index_2(index_2)
   {}
 
+  /**
+    Set this index at a given position.
+    @param other a position
+  */
   void set_at(const struct PFS_double_index *other)
   {
     m_index_1= other->m_index_1;
     m_index_2= other->m_index_2;
   }
 
+  /**
+    Set this index after a given position.
+    @param other a position
+  */
   void set_after(const struct PFS_double_index *other)
   {
     m_index_1= other->m_index_1;
@@ -323,10 +406,20 @@ struct PFS_triple_index
   /** Current index within index_2. */
   uint m_index_3;
 
+  /**
+    Constructor.
+    @param index_1 the first index initial value.
+    @param index_2 the second index initial value.
+    @param index_3 the third index initial value.
+  */
   PFS_triple_index(uint index_1, uint index_2, uint index_3)
     : m_index_1(index_1), m_index_2(index_2), m_index_3(index_3)
   {}
 
+  /**
+    Set this index at a given position.
+    @param other a position
+  */
   void set_at(const struct PFS_triple_index *other)
   {
     m_index_1= other->m_index_1;
@@ -334,6 +427,10 @@ struct PFS_triple_index
     m_index_3= other->m_index_3;
   }
 
+  /**
+    Set this index after a given position.
+    @param other a position
+  */
   void set_after(const struct PFS_triple_index *other)
   {
     m_index_1= other->m_index_1;

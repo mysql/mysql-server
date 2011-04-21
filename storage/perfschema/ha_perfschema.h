@@ -28,12 +28,18 @@
 */
 struct PFS_engine_table_share;
 class PFS_engine_table;
+/** Name of the performance schema engine. */
 extern const char *pfs_engine_name;
 
 /** A handler for a PERFORMANCE_SCHEMA table. */
 class ha_perfschema : public handler
 {
 public:
+  /**
+    Create a new performance schema table handle on a table.
+    @param hton storage engine handler singleton
+    @param share table share
+  */
   ha_perfschema(handlerton *hton, TABLE_SHARE *share);
 
   ~ha_perfschema();
@@ -97,26 +103,72 @@ public:
   double scan_time(void)
   { return 1.0; }
 
+  /**
+    Open a performance schema table.
+    @param name the table to open
+    @param mode unused
+    @param test_if_locked unused
+    @return 0 on success
+  */
   int open(const char *name, int mode, uint test_if_locked);
 
+  /**
+    Close a table handle.
+    @sa open.
+  */
   int close(void);
 
+  /**
+    Write a row.
+    @param buf the row to write
+    @return 0 on success
+  */
   int write_row(uchar *buf);
 
   void use_hidden_primary_key();
 
+  /**
+    Update a row.
+    @param old_data the row old values
+    @param new_data the row new values
+    @return 0 on success
+  */
   int update_row(const uchar *old_data, uchar *new_data);
 
+  /**
+    Delete a row.
+    @param buf the row to delete
+    @return 0 on success
+  */
   int delete_row(const uchar *buf);
 
   int rnd_init(bool scan);
 
+  /**
+    Scan end.
+    @sa rnd_init.
+  */
   int rnd_end(void);
 
+  /**
+    Iterator, fetch the next row.
+    @param[out] buf the row fetched.
+    @return 0 on success
+  */
   int rnd_next(uchar *buf);
 
+  /**
+    Iterator, fetch the row at a given position.
+    @param[out] buf the row fetched.
+    @param pos the row position
+    @return 0 on success
+  */
   int rnd_pos(uchar *buf, uchar *pos);
 
+  /**
+    Read the row current position.
+    @param record the current row
+  */
   void position(const uchar *record);
 
   int info(uint);

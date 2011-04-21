@@ -1893,7 +1893,7 @@ JOIN::optimize()
       If all items were resolved by opt_sum_query, there is no need to
       open any tables.
     */
-    if ((res=opt_sum_query(select_lex->leaf_tables, all_fields, conds)))
+    if ((res=opt_sum_query(thd, select_lex->leaf_tables, all_fields, conds)))
     {
       if (res == HA_ERR_KEY_NOT_FOUND)
       {
@@ -2936,7 +2936,11 @@ JOIN::exec()
         curr_join->best_positions[curr_join->const_tables].sj_strategy 
           != SJ_OPT_LOOSE_SCAN)
       disable_sorted_access(&curr_join->join_tab[curr_join->const_tables]);
-    if ((tmp_error= do_select(curr_join, (List<Item> *) 0, curr_tmp_table, 0)))
+
+    Procedure *save_proc= curr_join->procedure;
+    tmp_error= do_select(curr_join, (List<Item> *) 0, curr_tmp_table, 0);
+    curr_join->procedure= save_proc;
+    if (tmp_error)
     {
       error= tmp_error;
       DBUG_VOID_RETURN;
@@ -11253,10 +11257,7 @@ make_join_readinfo(JOIN *join, ulonglong options, uint no_jbuf_after)
     case JT_REF_OR_NULL:
     case JT_REF:
       if (tab->select)
-      {
-	delete tab->select->quick;
-	tab->select->quick=0;
-      }
+        tab->select->set_quick(NULL);
       delete tab->quick;
       tab->quick=0;
       /* fall through */
@@ -12014,13 +12015,6 @@ public:
   Item_func *cmp_func;
   COND_CMP(Item *a,Item_func *b) :and_level(a),cmp_func(b) {}
 };
-
-#ifdef HAVE_EXPLICIT_TEMPLATE_INSTANTIATION
-template class I_List<COND_CMP>;
-template class I_List_iterator<COND_CMP>;
-template class List<Item_func_match>;
-template class List_iterator<Item_func_match>;
-#endif
 
 
 /**
@@ -18428,8 +18422,7 @@ int read_first_record_seq(JOIN_TAB *tab)
 static int
 test_if_quick_select(JOIN_TAB *tab)
 {
-  delete tab->select->quick;
-  tab->select->quick=0;
+  tab->select->set_quick(NULL);
   return tab->select->test_quick_select(tab->join->thd, 
                                         tab->keys,
                                         0,          // empty table map
@@ -18636,10 +18629,14 @@ end_send(JOIN *join, JOIN_TAB *join_tab __attribute__((unused)),
     }
     if (join->having && join->having->val_int() == 0)
       DBUG_RETURN(NESTED_LOOP_OK);               // Didn't match having
-    error=0;
     if (join->procedure)
-      error=join->procedure->send_row(join->procedure_fields_list);
-    else if (join->do_send_rows)
+    {
+      if (join->procedure->send_row(join->procedure_fields_list))
+        DBUG_RETURN(NESTED_LOOP_ERROR);
+      DBUG_RETURN(NESTED_LOOP_OK);
+    }
+    error=0;
+    if (join->do_send_rows)
       error=join->result->send_data(*join->fields);
     if (error)
       DBUG_RETURN(NESTED_LOOP_ERROR); /* purecov: inspected */
@@ -20348,10 +20345,8 @@ skipped_filesort:
 use_filesort:
   // Restore original save_quick
   if (select && select->quick != save_quick)
-  {
-    delete select->quick;
-    select->quick= save_quick;
-  }
+    select->set_quick(save_quick);
+
   if (orig_select_cond_saved)
     tab->set_cond(orig_select_cond, __LINE__);
   DBUG_RETURN(0);

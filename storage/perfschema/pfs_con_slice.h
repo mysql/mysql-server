@@ -33,12 +33,32 @@ struct PFS_statement_stat;
   @{
 */
 
+/**
+  A connection slice, an arbitrary grouping of several connections.
+  This structure holds statistics for grouping of connections.
+*/
 struct PFS_connection_slice
 {
+  /**
+    Allocate memory for waits statistics.
+    @param sizing the number of wait classes.
+    @return wait statistics for this slice.
+  */
   static PFS_single_stat *alloc_waits_slice(uint sizing);
+  /**
+    Allocate memory for stages statistics.
+    @param sizing the number of stage classes.
+    @return stage statistics for this slice.
+  */
   static PFS_stage_stat *alloc_stages_slice(uint sizing);
+  /**
+    Allocate memory for statement statistics.
+    @param sizing the number of statement classes.
+    @return statement statistics for this slice.
+  */
   static PFS_statement_stat *alloc_statements_slice(uint sizing);
 
+  /** Reset all statistics. */
   inline void reset_stats()
   {
     reset_waits_stats();
@@ -46,8 +66,11 @@ struct PFS_connection_slice
     reset_statements_stats();
   }
 
+  /** Reset all wait statistics. */
   void reset_waits_stats();
+  /** Reset all stages statistics. */
   void reset_stages_stats();
+  /** Reset all statements statistics. */
   void reset_statements_stats();
 
   /**

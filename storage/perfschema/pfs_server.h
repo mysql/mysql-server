@@ -91,54 +91,134 @@
   #define PFS_STATEMENTS_STACK_SIZE 10
 #endif
 
-
 /** Performance schema global sizing parameters. */
 struct PFS_global_param
 {
+  /** True if the performance schema is enabled. */
   bool m_enabled;
+  /**
+    Maximum number of instrumented mutex classes.
+    @sa mutex_class_lost.
+  */
   ulong m_mutex_class_sizing;
+  /**
+    Maximum number of instrumented rwlock classes.
+    @sa rwlock_class_lost.
+  */
   ulong m_rwlock_class_sizing;
+  /**
+    Maximum number of instrumented cond classes.
+    @sa cond_class_lost.
+  */
   ulong m_cond_class_sizing;
+  /**
+    Maximum number of instrumented thread classes.
+    @sa thread_class_lost.
+  */
   ulong m_thread_class_sizing;
   /**
     Maximum number of instrumented table share.
     @sa table_share_lost.
   */
   ulong m_table_share_sizing;
+  /**
+    Maximum number of instrumented file classes.
+    @sa file_class_lost.
+  */
   ulong m_file_class_sizing;
+  /**
+    Maximum number of instrumented mutex instances.
+    @sa mutex_lost.
+  */
   ulong m_mutex_sizing;
+  /**
+    Maximum number of instrumented rwlock instances.
+    @sa rwlock_lost.
+  */
   ulong m_rwlock_sizing;
+  /**
+    Maximum number of instrumented cond instances.
+    @sa cond_lost.
+  */
   ulong m_cond_sizing;
+  /**
+    Maximum number of instrumented thread instances.
+    @sa thread_lost.
+  */
   ulong m_thread_sizing;
   /**
     Maximum number of instrumented table handles.
     @sa table_lost.
   */
   ulong m_table_sizing;
+  /**
+    Maximum number of instrumented file instances.
+    @sa file_lost.
+  */
   ulong m_file_sizing;
+  /**
+    Maximum number of instrumented file handles.
+    @sa file_handle_lost.
+  */
   ulong m_file_handle_sizing;
+  /** Maximum number of rows per thread in table EVENTS_WAITS_HISTORY. */
   ulong m_events_waits_history_sizing;
+  /** Maximum number of rows in table EVENTS_WAITS_HISTORY_LONG. */
   ulong m_events_waits_history_long_sizing;
+  /** Maximum number of rows in table SETUP_ACTORS. */
   ulong m_setup_actor_sizing;
-  /** Maximum number of setup object records. */
+  /** Maximum number of rows in table SETUP_OBJECTS. */
   ulong m_setup_object_sizing;
+  /**
+    Maximum number of instrumented stage classes.
+    @sa stage_class_lost.
+  */
   ulong m_stage_class_sizing;
+  /** Maximum number of rows per thread in table EVENTS_STAGES_HISTORY. */
   ulong m_events_stages_history_sizing;
+  /** Maximum number of rows in table EVENTS_STAGES_HISTORY_LONG. */
   ulong m_events_stages_history_long_sizing;
+  /**
+    Maximum number of instrumented statement classes.
+    @sa statement_class_lost.
+  */
   ulong m_statement_class_sizing;
+  /** Maximum number of rows per thread in table EVENTS_STATEMENT_HISTORY. */
   ulong m_events_statements_history_sizing;
+  /** Maximum number of rows in table EVENTS_STATEMENTS_HISTORY_LONG. */
   ulong m_events_statements_history_long_sizing;
 };
 
+/**
+  Performance schema sizing values for the server.
+  This global variable is set when parsing server startup options.
+*/
 extern PFS_global_param pfs_param;
 
+/**
+  Initialize the performance schema.
+  @param param Size parameters to use.
+  @return A boostrap handle, or NULL.
+*/
 struct PSI_bootstrap*
 initialize_performance_schema(const PFS_global_param *param);
 
+/**
+  Initialize the performance schema ACL.
+  ACL is strictly enforced when the server is running in normal mode,
+  to enforce that only legal operations are allowed.
+  When running in boostrap mode, ACL restrictions are relaxed,
+  to allow the boostrap scripts to DROP / CREATE performance schema tables.
+  @sa ACL_internal_schema_registry
+  @param bootstrap True if the server is starting in bootstrap mode.
+*/
 void initialize_performance_schema_acl(bool bootstrap);
 
 void check_performance_schema();
 
+/**
+  Shutdown the performance schema.
+*/
 void shutdown_performance_schema();
 
 #endif

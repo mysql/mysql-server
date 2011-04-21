@@ -17,7 +17,7 @@
 /**
   @file
 
-  socket_peercred authentication plugin.
+  auth_socket authentication plugin.
 
   Authentication is successful if the connection is done via a unix socket and
   the owner of the client process matches the user name that was used when

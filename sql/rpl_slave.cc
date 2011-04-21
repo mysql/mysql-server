@@ -141,8 +141,6 @@ failed read"
 };
 
 
-typedef enum { SLAVE_THD_IO, SLAVE_THD_SQL} SLAVE_THD_TYPE;
-
 static int process_io_rotate(Master_info* mi, Rotate_log_event* rev);
 static int process_io_create_file(Master_info* mi, Create_file_log_event* cev);
 static bool wait_for_relay_log_space(Relay_log_info* rli);
@@ -3534,7 +3532,7 @@ pthread_handler_t handle_slave_sql(void *arg)
 
   Relay_log_info* rli = ((Master_info*)arg)->rli;
   const char *errmsg;
-
+ 
   // needs to call my_thread_init(), otherwise we get a coredump in DBUG_ stuff
   my_thread_init();
   DBUG_ENTER("handle_slave_sql");
@@ -3595,6 +3593,20 @@ pthread_handler_t handle_slave_sql(void *arg)
     But the master timestamp is reset by RESET SLAVE & CHANGE MASTER.
   */
   rli->clear_error();
+
+  if (rli->update_is_transactional())
+  {
+    mysql_cond_broadcast(&rli->start_cond);
+    mysql_mutex_unlock(&rli->run_lock);
+    rli->report(ERROR_LEVEL, ER_SLAVE_FATAL_ERROR, 
+                "Error checking if the relay log repository is transactional.");
+    goto err;
+  }
+
+  if (!rli->is_transactional())
+    rli->report(WARNING_LEVEL, 0,
+    "If a crash happens this configuration does not guarantee that the relay "
+    "log info will be consistent");
 
   mysql_mutex_unlock(&rli->run_lock);
   mysql_cond_broadcast(&rli->start_cond);
@@ -5485,11 +5497,6 @@ bool rpl_master_erroneous_autoinc(THD *thd)
   }
   return FALSE;
 }
-
-#ifdef HAVE_EXPLICIT_TEMPLATE_INSTANTIATION
-template class I_List_iterator<i_string>;
-template class I_List_iterator<i_string_pair>;
-#endif
 
 /**
   a copy of active_mi->rli->slave_skip_counter, for showing in SHOW VARIABLES,
