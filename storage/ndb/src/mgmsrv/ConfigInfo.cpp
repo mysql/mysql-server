@@ -2189,7 +2189,11 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
     ConfigInfo::CI_USED,
     false,
     ConfigInfo::CI_ENUM,
+#if NDB_VERSION_D < NDB_MAKE_VERSION(7,2,0)
     "abort", /* Default value */
+#else
+    "queue", /* Default value */
+#endif
     (const char*)default_operation_redo_problem_action_typelib,
     0
   },

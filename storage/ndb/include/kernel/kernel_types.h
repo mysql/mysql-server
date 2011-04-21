@@ -61,12 +61,23 @@ struct Local_key
   bool isNull() const { return m_page_no == RNIL; }
   void setNull() { m_page_no= RNIL; m_file_no= m_page_idx= ~0;}
 
-  Uint32 ref() const { return (m_page_no << MAX_TUPLES_BITS) | m_page_idx ;}
+  Uint32 ref() const { return ref(m_page_no,m_page_idx) ;}
   
-  Local_key& assref (Uint32 ref) { 
-    m_page_no =ref >> MAX_TUPLES_BITS;
-    m_page_idx = ref & MAX_TUPLES_PER_PAGE;
+  Local_key& assref (Uint32 ref) {
+    m_page_no = ref2page_id(ref);
+    m_page_idx = ref2page_idx(ref);
     return *this;
+  }
+
+  static Uint32 ref(Uint32 lk1, Uint32 lk2) {
+    return (lk1 << MAX_TUPLES_BITS) | lk2;
+  }
+
+  static Uint32 ref2page_id(Uint32 ref) { return ref >> MAX_TUPLES_BITS; }
+  static Uint32 ref2page_idx(Uint32 ref) { return ref & MAX_TUPLES_PER_PAGE; }
+
+  static bool isInvalid(Uint32 lk1, Uint32 lk2) {
+    return ref(lk1, lk2) == ~Uint32(0);
   }
 };
 
