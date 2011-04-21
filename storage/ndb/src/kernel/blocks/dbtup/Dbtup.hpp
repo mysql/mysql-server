@@ -1661,6 +1661,22 @@ struct TupHeadInfo {
 };
 */
 
+  struct ChangeMask
+  {
+    Uint32 m_cols;
+    Uint32 m_mask[1];
+
+    const Uint32 * end_of_mask() const { return end_of_mask(m_cols); }
+    const Uint32 * end_of_mask(Uint32 cols) const {
+      return m_mask + ((cols + 31) >> 5);
+    }
+
+    Uint32 * end_of_mask() { return end_of_mask(m_cols); }
+    Uint32 * end_of_mask(Uint32 cols) {
+      return m_mask + ((cols + 31) >> 5);
+    }
+  };
+
 // updateAttributes module
   Uint32          terrorCode;
 
@@ -2493,10 +2509,10 @@ private:
   Uint32 get_fix_page_offset(Uint32 page_index, Uint32 tuple_size);
 
   Uint32 decr_tup_version(Uint32 tuple_version);
-  void update_change_mask_info(const Tablerec*, Uint32* dst, const Uint32*src);
-  void set_change_mask_info(const Tablerec*, Uint32* dst);
-  void clear_change_mask_info(const Tablerec*, Uint32* dst);
-  void copy_change_mask_info(const Tablerec*, Uint32* dst, const Uint32* src);
+  void update_change_mask_info(const Tablerec*, ChangeMask* dst, const Uint32*src);
+  void set_change_mask_info(const Tablerec*, ChangeMask* dst);
+  void clear_change_mask_info(const Tablerec*, ChangeMask* dst);
+  void copy_change_mask_info(const Tablerec*, ChangeMask* dst, const ChangeMask * src);
   void set_commit_change_mask_info(const Tablerec*,
                                    KeyReqStruct*,
                                    const Operationrec*);
@@ -3172,9 +3188,9 @@ private:
     bzero(dst, tabPtrP->total_rec_size);
 #endif
     Uint32 count = tabPtrP->m_no_of_attributes;
-    * dst = count;
-    dst += 1 + ((count + 31) >> 5);
-    return (Tuple_header*)dst;
+    ChangeMask * mask = (ChangeMask*)(dst);
+    mask->m_cols = count;
+    return (Tuple_header*)(mask->end_of_mask(count));
   }
 
   Uint32 * get_copy_tuple_raw(const Local_key* ptr) {
@@ -3182,19 +3198,24 @@ private:
   }
 
   Tuple_header * get_copy_tuple(Uint32 * rawptr) {
-    Uint32 masksz = ((* rawptr) + 31) >> 5;
-    return (Tuple_header*)(rawptr + 1 + masksz);
+    return (Tuple_header*)(get_change_mask_ptr(rawptr)->end_of_mask());
+  }
+
+  ChangeMask * get_change_mask_ptr(Uint32 * rawptr) {
+    return (ChangeMask*)(rawptr);
   }
 
   Tuple_header* get_copy_tuple(const Local_key* ptr){
     return get_copy_tuple(get_copy_tuple_raw(ptr));
   }
 
-  Uint32* get_change_mask_ptr(const Tablerec* tabP, Tuple_header* copy_tuple){
-    Uint32 * tmp = (Uint32*)copy_tuple;
-    tmp -= 1 + ((tabP->m_no_of_attributes + 31) >> 5);
-    assert(get_copy_tuple(tmp) == copy_tuple);
-    return tmp + 1;
+  ChangeMask* get_change_mask_ptr(const Tablerec* tabP,Tuple_header* copytuple){
+    Uint32 * raw = (Uint32*)copytuple;
+    Uint32 * tmp = raw - (1 + ((tabP->m_no_of_attributes + 31) >> 5));
+    ChangeMask* mask = (ChangeMask*)tmp;
+    assert(mask->end_of_mask() == raw);
+    assert(get_copy_tuple(tmp) == copytuple);
+    return mask;
   }
 
   /**
@@ -3510,52 +3531,56 @@ bool Dbtup::find_savepoint(OperationrecPtr& loopOpPtr, Uint32 savepointId)
 inline
 void
 Dbtup::update_change_mask_info(const Tablerec* tablePtrP,
-                               Uint32* dst,
+                               ChangeMask* dst,
                                const Uint32 * src)
 {
+  assert(dst->m_cols == tablePtrP->m_no_of_attributes);
+  Uint32 * ptr = dst->m_mask;
   Uint32 len = (tablePtrP->m_no_of_attributes + 31) >> 5;
   for (Uint32 i = 0; i<len; i++)
   {
-    * dst |= *src;
-    dst++;
+    * ptr |= *src;
+    ptr++;
     src++;
   }
 }
 
 inline
 void
-Dbtup::set_change_mask_info(const Tablerec* tablePtrP, Uint32* dst)
+Dbtup::set_change_mask_info(const Tablerec* tablePtrP, ChangeMask* dst)
 {
+  assert(dst->m_cols == tablePtrP->m_no_of_attributes);
   Uint32 len = (tablePtrP->m_no_of_attributes + 31) >> 5;
-  BitmaskImpl::set(len, dst);
+  BitmaskImpl::set(len, dst->m_mask);
 }
 
 inline
 void
-Dbtup::clear_change_mask_info(const Tablerec* tablePtrP, Uint32* dst)
+Dbtup::clear_change_mask_info(const Tablerec* tablePtrP, ChangeMask* dst)
 {
+  assert(dst->m_cols == tablePtrP->m_no_of_attributes);
   Uint32 len = (tablePtrP->m_no_of_attributes + 31) >> 5;
-  BitmaskImpl::clear(len, dst);
+  BitmaskImpl::clear(len, dst->m_mask);
 }
 
 inline
 void
 Dbtup::copy_change_mask_info(const Tablerec* tablePtrP,
-                             Uint32* dst, const Uint32* src)
+                             ChangeMask* dst, const ChangeMask* src)
 {
   Uint32 dst_cols = tablePtrP->m_no_of_attributes;
-  Uint32 src_cols = * src;
-  const Uint32 * src_ptr = src + 1;
+  assert(dst->m_cols == dst_cols);
+  Uint32 src_cols = src->m_cols;
 
   if (dst_cols == src_cols)
   {
-    memcpy(dst, src_ptr, 4 * ((dst_cols + 31) >> 5));
+    memcpy(dst->m_mask, src->m_mask, 4 * ((dst_cols + 31) >> 5));
   }
   else
   {
     ndbassert(dst_cols > src_cols); // drop column not supported
-    memcpy(dst, src_ptr, 4 * ((src_cols + 31) >> 5));
-    BitmaskImpl::setRange((dst_cols + 31) >> 5, dst,
+    memcpy(dst->m_mask, src->m_mask, 4 * ((src_cols + 31) >> 5));
+    BitmaskImpl::setRange((dst_cols + 31) >> 5, dst->m_mask,
                           src_cols,  (dst_cols - src_cols));
   }
 }
