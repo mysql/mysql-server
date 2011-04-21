@@ -653,43 +653,36 @@ ha_innobase::add_index(
 
 	update_thd();
 
-	heap = mem_heap_create(1024);
-
 	/* In case MySQL calls this in the middle of a SELECT query, release
 	possible adaptive hash latch to avoid deadlocks of threads. */
 	trx_search_latch_release_if_reserved(prebuilt->trx);
+
+	/* Check if the index name is reserved. */
+	if (innobase_index_name_is_reserved(user_thd, key_info, num_of_keys)) {
+		DBUG_RETURN(-1);
+	}
+
+	innodb_table = indexed_table
+		= dict_table_get(prebuilt->table->name, FALSE);
+
+	if (UNIV_UNLIKELY(!innodb_table)) {
+		DBUG_RETURN(HA_ERR_NO_SUCH_TABLE);
+	}
+
+	/* Check that index keys are sensible */
+	error = innobase_check_index_keys(key_info, num_of_keys, innodb_table);
+
+	if (UNIV_UNLIKELY(error)) {
+		DBUG_RETURN(error);
+	}
+
+	heap = mem_heap_create(1024);
 	trx_start_if_not_started(prebuilt->trx);
 
 	/* Create a background transaction for the operations on
 	the data dictionary tables. */
 	trx = innobase_trx_allocate(user_thd);
 	trx_start_if_not_started(trx);
-
-	innodb_table = indexed_table
-		= dict_table_get(prebuilt->table->name, FALSE);
-
-	if (UNIV_UNLIKELY(!innodb_table)) {
-		error = HA_ERR_NO_SUCH_TABLE;
-		goto err_exit;
-	}
-
-	/* Check if the index name is reserved. */
-	if (innobase_index_name_is_reserved(trx, key_info, num_of_keys)) {
-		error = -1;
-	} else {
-		/* Check that index keys are sensible */
-		error = innobase_check_index_keys(key_info, num_of_keys,
-						  innodb_table);
-	}
-
-	if (UNIV_UNLIKELY(error)) {
-err_exit:
-		mem_heap_free(heap);
-		trx_general_rollback_for_mysql(trx, NULL);
-		trx_free_for_mysql(trx);
-		trx_commit_for_mysql(prebuilt->trx);
-		DBUG_RETURN(error);
-	}
 
 	/* Create table containing all indexes to be built in this
 	alter table add index so that they are in the correct order
@@ -762,8 +755,12 @@ err_exit:
 
 			ut_d(dict_table_check_for_dup_indexes(innodb_table,
 							      FALSE));
+			mem_heap_free(heap);
+			trx_general_rollback_for_mysql(trx, NULL);
 			row_mysql_unlock_data_dictionary(trx);
-			goto err_exit;
+			trx_free_for_mysql(trx);
+			trx_commit_for_mysql(prebuilt->trx);
+			DBUG_RETURN(error);
 		}
 
 		trx->table_id = indexed_table->id;
