@@ -791,6 +791,13 @@ static int tokudb_release_savepoint(handlerton * hton, THD * thd, void *savepoin
     TOKUDB_DBUG_RETURN(error);
 }
 
+static int
+smart_dbt_callback_verify_frm (DBT const *key, DBT  const *row, void *context) {
+    DBT* stored_frm = (DBT *)context;
+    stored_frm->size = row->size;
+    stored_frm->data = row->data;
+    return 0;
+}
 static int tokudb_discover(handlerton *hton, THD* thd, const char *db, 
                         const char *name,
                         uchar **frmblob, 
@@ -800,7 +807,6 @@ static int tokudb_discover(handlerton *hton, THD* thd, const char *db,
     int error;
     DB* status_db = NULL;
     DB_TXN* txn = NULL;
-    // TODO: open status dictionary, read frmdata, and pass it back, and figure out how to free it
     char path[FN_REFLEN + 1];
     uchar* saved_frm_data = NULL;
     HA_METADATA_KEY curr_key = hatoku_frm_data;
@@ -815,13 +821,14 @@ static int tokudb_discover(handlerton *hton, THD* thd, const char *db,
 
     key.data = &curr_key;
     key.size = sizeof(curr_key);
-    value.flags = DB_DBT_MALLOC;
-    error = status_db->get(
+
+    error = status_db->getf_set(
         status_db, 
-        txn, 
+        txn,
+        0,
         &key, 
-        &value, 
-        0
+        smart_dbt_callback_verify_frm,
+        &value
         );
     if (error) {
         goto cleanup;
