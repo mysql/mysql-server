@@ -31,52 +31,8 @@ with this program; if not, write to the Free Software Foundation, Inc.,
 #include "innodb_api.h"
 #include "hash_item_util.h"
 
-
 /* Static and local to this file */
 const char * set_ops[] = { "","add","set","replace","append","prepend","cas" };
-
-/* InnoDB API callback functions */
-ib_cb_t* innodb_memcached_api[] = {
-	(ib_cb_t*) &ib_cb_open_table,
-	(ib_cb_t*) &ib_cb_read_row,
-	(ib_cb_t*) &ib_cb_insert_row,
-	(ib_cb_t*) &ib_cb_delete_row,
-	(ib_cb_t*) &ib_cb_update_row,
-	(ib_cb_t*) &ib_cb_moveto,
-	(ib_cb_t*) &ib_cb_cursor_first,
-	(ib_cb_t*) &ib_cb_cursor_last,
-	(ib_cb_t*) &ib_cb_cursor_set_match_mode,
-	(ib_cb_t*) &ib_cb_search_tuple_create,
-	(ib_cb_t*) &ib_cb_read_tuple_create,
-	(ib_cb_t*) &ib_cb_tuple_delete,
-	(ib_cb_t*) &ib_cb_tuple_copy,
-	(ib_cb_t*) &ib_cb_tuple_read_u32,
-	(ib_cb_t*) &ib_cb_tuple_write_u32,
-	(ib_cb_t*) &ib_cb_tuple_read_u64,
-	(ib_cb_t*) &ib_cb_tuple_write_u64,
-	(ib_cb_t*) &ib_cb_tuple_read_i32,
-	(ib_cb_t*) &ib_cb_tuple_write_i32,
-	(ib_cb_t*) &ib_cb_tuple_read_i64,
-	(ib_cb_t*) &ib_cb_tuple_write_i64,
-	(ib_cb_t*) &ib_cb_tuple_get_n_cols,
-	(ib_cb_t*) &ib_cb_col_set_value,
-	(ib_cb_t*) &ib_cb_col_get_value,
-	(ib_cb_t*) &ib_cb_col_get_meta,
-	(ib_cb_t*) &ib_cb_trx_begin,
-	(ib_cb_t*) &ib_cb_trx_commit,
-	(ib_cb_t*) &ib_cb_trx_rollback,
-	(ib_cb_t*) &ib_cb_trx_start,
-	(ib_cb_t*) &ib_cb_trx_release,
-	(ib_cb_t*) &ib_cb_trx_state,
-	(ib_cb_t*) &ib_cb_cursor_lock,
-	(ib_cb_t*) &ib_cb_cursor_close,
-	(ib_cb_t*) &ib_cb_cursor_new_trx,
-	(ib_cb_t*) &ib_cb_cursor_reset,
-	(ib_cb_t*) &ib_cb_open_table_by_name,
-	(ib_cb_t*) &ib_cb_col_get_name,
-	(ib_cb_t*) &ib_cb_table_truncate,
-	(ib_cb_t*) &ib_cb_cursor_open_index_using_name
-};
 
 static inline
 struct innodb_engine*
@@ -103,7 +59,6 @@ create_my_default_instance(
 	uint64_t,
 	GET_SERVER_API,
 	ENGINE_HANDLE **);
-
 
 /*********** FUNCTIONS IMPLEMENTING THE PUBLISHED API BEGIN HERE ********/
 
@@ -178,24 +133,6 @@ innodb_get_info(
 	ENGINE_HANDLE*	handle)
 {
 	return & innodb_handle(handle)->info.info;
-}
-
-static
-void
-register_innodb_cb(
-/*===============*/
-	char*	p)
-{
-	int	i;
-	int	array_size; 
-	ib_cb_t*func_ptr = (ib_cb_t*) p;
-
-	array_size = sizeof(innodb_memcached_api) / sizeof(ib_cb_t);
-
-	for (i = 0; i < array_size; i++) {
-		*innodb_memcached_api[i] = *(ib_cb_t*)func_ptr;
-		func_ptr++;
-	}
 }
 
 typedef struct eng_config_info {
@@ -284,27 +221,27 @@ innodb_conn_clean(
 			MCI_LIST_REMOVE(c_list, engine->conn_data, conn_data);
 
 			if (conn_data->c_idx_crsr) {
-				ib_cb_cursor_close(conn_data->c_idx_crsr);
+				innodb_cb_cursor_close(conn_data->c_idx_crsr);
 			}
 
 			if (conn_data->c_r_idx_crsr) {
-				ib_cb_cursor_close(conn_data->c_r_idx_crsr);
+				innodb_cb_cursor_close(conn_data->c_r_idx_crsr);
 			}
 
 			if (conn_data->c_crsr) {
-				ib_cb_cursor_close(conn_data->c_crsr);
+				innodb_cb_cursor_close(conn_data->c_crsr);
 			}
 
 			if (conn_data->c_r_crsr) {
-				ib_cb_cursor_close(conn_data->c_r_crsr);
+				innodb_cb_cursor_close(conn_data->c_r_crsr);
 			}
 
 			if (conn_data->c_r_trx) {
-				ib_cb_trx_commit(conn_data->c_r_trx);
+				innodb_cb_trx_commit(conn_data->c_r_trx);
 			}
 
 			if (conn_data->c_trx) {
-				ib_cb_trx_commit(conn_data->c_trx);
+				innodb_cb_trx_commit(conn_data->c_trx);
 			}
 
 			free(conn_data);
@@ -404,7 +341,7 @@ innodb_conn_init(
 	}
 
 	if (!conn_data->c_r_trx) {
-		conn_data->c_r_trx = ib_cb_trx_begin(IB_TRX_READ_UNCOMMITTED);
+		conn_data->c_r_trx = innodb_cb_trx_begin(IB_TRX_READ_UNCOMMITTED);
 
 		err = innodb_api_begin(engine,
 				       meta_info->m_item[META_DB].m_str,
@@ -414,7 +351,7 @@ innodb_conn_init(
 				       IB_LOCK_IS);
 
 		if (!is_select) {
-			conn_data->c_trx = ib_cb_trx_begin(
+			conn_data->c_trx = innodb_cb_trx_begin(
 				IB_TRX_READ_UNCOMMITTED);
 
 			err = innodb_api_begin(
@@ -432,7 +369,7 @@ innodb_conn_init(
 
 		if (!is_select) {
 			if (!crsr) {
-				conn_data->c_trx = ib_cb_trx_begin(
+				conn_data->c_trx = innodb_cb_trx_begin(
 					IB_TRX_READ_UNCOMMITTED);
 
 				err = innodb_api_begin(
@@ -443,37 +380,37 @@ innodb_conn_init(
 					&conn_data->c_crsr,
 					&conn_data->c_idx_crsr, lock_mode);
 			}  else if (!conn_data->c_trx) {
-				conn_data->c_trx = ib_cb_trx_begin(
+				conn_data->c_trx = innodb_cb_trx_begin(
 					IB_TRX_READ_UNCOMMITTED);
 
-				ib_cb_cursor_new_trx(crsr, conn_data->c_trx);
-				ib_cb_cursor_lock(crsr, lock_mode);
+				innodb_cb_cursor_new_trx(crsr, conn_data->c_trx);
+				innodb_cb_cursor_lock(crsr, lock_mode);
 
 				if (meta_index->m_use_idx == META_SECONDARY) {
 					idx_crsr = conn_data->c_idx_crsr;
 
-					ib_cb_cursor_new_trx(
+					innodb_cb_cursor_new_trx(
 						idx_crsr, conn_data->c_trx);
-					ib_cb_cursor_lock(idx_crsr, lock_mode);
+					innodb_cb_cursor_lock(idx_crsr, lock_mode);
 				}
 			}
 		} else {
 			if (!conn_data->c_r_trx) {
-				conn_data->c_r_trx = ib_cb_trx_begin(
+				conn_data->c_r_trx = innodb_cb_trx_begin(
 					IB_TRX_READ_UNCOMMITTED);
 
-				ib_cb_cursor_new_trx(conn_data->c_r_crsr,
+				innodb_cb_cursor_new_trx(conn_data->c_r_crsr,
 						     conn_data->c_r_trx);
 
-                                ib_cb_cursor_lock(conn_data->c_r_crsr,
+                                innodb_cb_cursor_lock(conn_data->c_r_crsr,
 						  lock_mode);
 
                                 if (meta_index->m_use_idx == META_SECONDARY) {
                                         idx_crsr = conn_data->c_r_idx_crsr;
 
-                                        ib_cb_cursor_new_trx(
+                                        innodb_cb_cursor_new_trx(
                                                 idx_crsr, conn_data->c_r_trx);
-                                        ib_cb_cursor_lock(idx_crsr, lock_mode);
+                                        innodb_cb_cursor_lock(idx_crsr, lock_mode);
                                 }
 			}
 		}
