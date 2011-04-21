@@ -103,6 +103,7 @@ typedef ulonglong HA_METADATA_KEY;
 #define hatoku_max_ai 2 //maximum auto increment value found so far
 #define hatoku_ai_create_value 3
 #define hatoku_key_name 4
+#define hatoku_frm_data 5
 
 typedef struct st_filter_key_part_info {
     uint offset;
@@ -329,10 +330,11 @@ private:
  
     int open_main_dictionary(const char* name, bool is_read_only, DB_TXN* txn);
     int open_secondary_dictionary(DB** ptr, KEY* key_info, const char* name, bool is_read_only, DB_TXN* txn);
-    int open_status_dictionary(DB** ptr, const char* name, DB_TXN* txn);
     int acquire_table_lock (DB_TXN* trans, TABLE_LOCK_TYPE lt);
     int estimate_num_rows(DB* db, u_int64_t* num_rows, DB_TXN* txn);
     bool has_auto_increment_flag(uint* index);
+    int write_frm_data(DB* db, DB_TXN* txn, const char* frm_name);
+    int verify_frm_data(const char* frm_name);
     int write_to_status(DB* db, HA_METADATA_KEY curr_key_data, void* data, uint size, DB_TXN* txn );
     int write_metadata(DB* db, void* key, uint key_size, void* data, uint data_size, DB_TXN* txn );
     int remove_metadata(DB* db, void* key_data, uint key_size, DB_TXN* transaction);
@@ -604,6 +606,9 @@ private:
     int __close(int mutex_is_locked);
     int read_last(uint keynr);
 };
+
+int open_status_dictionary(DB** ptr, const char* name, DB_TXN* txn);
+
 
 #if MYSQL_VERSION_ID >= 50506
 

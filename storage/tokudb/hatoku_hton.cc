@@ -173,6 +173,10 @@ static uint tokudb_alter_table_flags(uint flags);
 static int tokudb_rollback_to_savepoint(handlerton * hton, THD * thd, void *savepoint);
 static int tokudb_savepoint(handlerton * hton, THD * thd, void *savepoint);
 static int tokudb_release_savepoint(handlerton * hton, THD * thd, void *savepoint);
+static int tokudb_discover(handlerton *hton, THD* thd, const char *db, 
+                        const char *name,
+                        uchar **frmblob, 
+                        size_t *frmlen);
 handlerton *tokudb_hton;
 
 const char *ha_tokudb_ext = ".tokudb";
@@ -259,6 +263,8 @@ static int tokudb_init_func(void *p) {
     tokudb_hton->savepoint_rollback = tokudb_rollback_to_savepoint;
     tokudb_hton->savepoint_release = tokudb_release_savepoint;
 
+    tokudb_hton->discover = tokudb_discover;
+    
     tokudb_hton->commit = tokudb_commit;
     tokudb_hton->rollback = tokudb_rollback;
     tokudb_hton->panic = tokudb_end;
@@ -785,6 +791,57 @@ static int tokudb_release_savepoint(handlerton * hton, THD * thd, void *savepoin
     TOKUDB_DBUG_RETURN(error);
 }
 
+static int tokudb_discover(handlerton *hton, THD* thd, const char *db, 
+                        const char *name,
+                        uchar **frmblob, 
+                        size_t *frmlen)
+{
+    TOKUDB_DBUG_ENTER("tokudb_discover");
+    int error;
+    DB* status_db = NULL;
+    DB_TXN* txn = NULL;
+    // TODO: open status dictionary, read frmdata, and pass it back, and figure out how to free it
+    char path[FN_REFLEN + 1];
+    uchar* saved_frm_data = NULL;
+    HA_METADATA_KEY curr_key = hatoku_frm_data;
+    DBT key, value;
+
+    error = db_env->txn_begin(db_env, 0, &txn, 0);
+    if (error) { goto cleanup; }
+
+    build_table_filename(path, sizeof(path) - 1, db, name, "", 0);
+    error = open_status_dictionary(&status_db, path, txn);
+    if (error) { goto cleanup; }
+
+    key.data = &curr_key;
+    key.size = sizeof(curr_key);
+    value.flags = DB_DBT_MALLOC;
+    error = status_db->get(
+        status_db, 
+        txn, 
+        &key, 
+        &value, 
+        0
+        );
+    if (error) {
+        goto cleanup;
+    }
+
+    saved_frm_data = (uchar *)my_malloc(value.size, MYF(MY_WME));
+    memcpy(saved_frm_data, value.data, value.size);
+    *frmblob = saved_frm_data;
+    *frmlen = value.size;
+
+    error = 0;
+cleanup:
+    if (status_db) {
+        status_db->close(status_db,0);
+    }
+    if (txn) {
+        commit_txn(txn, 0);
+    }
+    TOKUDB_DBUG_RETURN(error);    
+}
 
 static int smart_dbt_do_nothing (DBT const *key, DBT  const *row, void *context) {
   return 0;
