@@ -4724,6 +4724,14 @@ bool open_tables(THD *thd, TABLE_LIST **start, uint *counter, uint flags,
   bool has_prelocking_list;
   DBUG_ENTER("open_tables");
 
+  /* Accessing data in XA_IDLE or XA_PREPARED is not allowed. */
+  enum xa_states xa_state= thd->transaction.xid_state.xa_state;
+  if (*start && (xa_state == XA_IDLE || xa_state == XA_PREPARED))
+  {
+    my_error(ER_XAER_RMFAIL, MYF(0), xa_state_names[xa_state]);
+    DBUG_RETURN(true);
+  }
+
   /*
     temporary mem_root for new .frm parsing.
     TODO: variables for size

@@ -1338,6 +1338,7 @@ Name	Engine	Version	Row_format	Rows	Avg_row_length	Data_length	Max_data_length	I
 DROP DATABASE `ä`;
 show columns from `#mysql50#????????`;
 Got one of the listed errors
+call mtr.add_suppression("Can.t find file: '.\\\\test\\\\\\?{8}.frm'");
 DROP TABLE IF EXISTS t1;
 DROP PROCEDURE IF EXISTS p1;
 CREATE TABLE t1(c1 INT);
