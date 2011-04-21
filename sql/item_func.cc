@@ -2407,10 +2407,7 @@ my_decimal *Item_func_round::decimal_op(my_decimal *decimal_value)
   if (!(null_value= (args[0]->null_value || args[1]->null_value ||
                      my_decimal_round(E_DEC_FATAL_ERROR, value, (int) dec,
                                       truncate, decimal_value) > 1))) 
-  {
-    decimal_value->frac= decimals;
     return decimal_value;
-  }
   return 0;
 }
 
@@ -2537,7 +2534,8 @@ void Item_func_min_max::fix_length_and_dec()
   }
   if (cmp_type == STRING_RESULT)
   {
-    agg_arg_charsets_for_comparison(collation, args, arg_count);
+    agg_arg_charsets_for_string_result_with_comparison(collation,
+                                                       args, arg_count);
     if (datetime_found)
     {
       thd= current_thd;

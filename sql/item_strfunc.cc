@@ -1168,7 +1168,7 @@ void Item_func_replace::fix_length_and_dec()
     char_length+= max_substrs * (uint) diff;
   }
 
-  if (agg_arg_charsets_for_comparison(collation, args, 3))
+  if (agg_arg_charsets_for_string_result_with_comparison(collation, args, 3))
     return;
   fix_char_length_ulonglong(char_length);
 }
@@ -1458,7 +1458,7 @@ void Item_func_substr::fix_length_and_dec()
 
 void Item_func_substr_index::fix_length_and_dec()
 { 
-  if (agg_arg_charsets_for_comparison(collation, args, 2))
+  if (agg_arg_charsets_for_string_result_with_comparison(collation, args, 2))
     return;
   fix_char_length(args[0]->max_char_length());
 }
@@ -1797,7 +1797,8 @@ void Item_func_trim::fix_length_and_dec()
   {
     // Handle character set for args[1] and args[0].
     // Note that we pass args[1] as the first item, and args[0] as the second.
-    if (agg_arg_charsets_for_comparison(collation, &args[1], 2, -1))
+    if (agg_arg_charsets_for_string_result_with_comparison(collation,
+                                                           &args[1], 2, -1))
       return;
   }
   fix_char_length(args[0]->max_char_length());

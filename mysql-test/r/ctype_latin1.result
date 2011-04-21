@@ -3226,6 +3226,32 @@ HEX(DATE_SUB(CAST('2007-08-03 17:33:00' AS DATETIME), INTERVAL 1 MINUTE)) AS fie
 field_str1	field1_str2	field_date	field_datetime
 323030372D30382D30322032333A35393A3030	323030372D30382D30332031373A33323A3030	323030372D30382D3032	323030372D30382D30332031373A33323A3030
 #
+# Bug#11926811 / Bug#60625 Illegal mix of collations
+#
+SELECT @@collation_connection;
+@@collation_connection
+latin1_swedish_ci
+CREATE PROCEDURE p1()
+BEGIN
+DECLARE v_LastPaymentDate DATETIME DEFAULT NULL;
+SELECT v_LastPaymentDate < NOW();
+EXPLAIN EXTENDED SELECT v_LastPaymentDate < NOW();
+SHOW WARNINGS;
+EXPLAIN EXTENDED SELECT CONCAT(v_LastPaymentDate, NOW());
+END//
+CALL p1;
+v_LastPaymentDate < NOW()
+NULL
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	No tables used
+Level	Code	Message
+Note	1003	select (v_LastPaymentDate@0 < now()) AS `v_LastPaymentDate < NOW()`
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	No tables used
+Warnings:
+Note	1003	select concat(v_LastPaymentDate@0,now()) AS `CONCAT(v_LastPaymentDate, NOW())`
+DROP PROCEDURE p1;
+#
 # Bug#52159 returning time type from function and empty left join causes debug assertion
 #
 CREATE FUNCTION f1() RETURNS TIME RETURN 1;
