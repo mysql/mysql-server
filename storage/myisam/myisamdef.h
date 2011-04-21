@@ -226,8 +226,9 @@ typedef struct st_mi_bit_buff {		/* Used for packing of record */
   uint error;
 } MI_BIT_BUFF;
 
-
+C_MODE_START
 typedef ICP_RESULT (*index_cond_func_t)(void *param);
+C_MODE_END
 
 struct st_myisam_info {
   MYISAM_SHARE *s;			/* Shared between open:s */

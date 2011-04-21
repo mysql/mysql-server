@@ -13,7 +13,6 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
-
 /*****************************************************************************
 **
 ** This file implements classes defined in sql_class.h
@@ -66,23 +65,6 @@ char internal_table_name[2]= "*";
 char empty_c_string[1]= {0};    /* used for not defined db */
 
 const char * const THD::DEFAULT_WHERE= "field list";
-
-
-/*****************************************************************************
-** Instansiate templates
-*****************************************************************************/
-
-#ifdef HAVE_EXPLICIT_TEMPLATE_INSTANTIATION
-/* Used templates */
-template class List<Key>;
-template class List_iterator<Key>;
-template class List<Key_part_spec>;
-template class List_iterator<Key_part_spec>;
-template class List<Alter_drop>;
-template class List_iterator<Alter_drop>;
-template class List<Alter_column>;
-template class List_iterator<Alter_column>;
-#endif
 
 /****************************************************************************
 ** User variables
@@ -527,7 +509,7 @@ THD::THD(bool enable_plugins)
    debug_sync_control(0),
 #endif /* defined(ENABLED_DEBUG_SYNC) */
    m_enable_plugins(enable_plugins),
-   main_warning_info(0)
+   main_warning_info(0, false)
 {
   ulong tmp;
 
@@ -586,7 +568,7 @@ THD::THD(bool enable_plugins)
   client_capabilities= 0;                       // minimalistic client
   ull=0;
   system_thread= NON_SYSTEM_THREAD;
-  cleanup_done= abort_on_warning= no_warnings_for_error= 0;
+  cleanup_done= abort_on_warning= 0;
   peer_port= 0;					// For SHOW PROCESSLIST
   transaction.m_pending_rows_event= 0;
   transaction.on= 1;
@@ -858,10 +840,6 @@ MYSQL_ERROR* THD::raise_condition(uint sql_errno,
   }
 
   query_cache_abort(&query_cache_tls);
-
-  /* FIXME: broken special case */
-  if (no_warnings_for_error && (level == MYSQL_ERROR::WARN_LEVEL_ERROR))
-    DBUG_RETURN(NULL);
 
   /* When simulating OOM, skip writing to error log to avoid mtr errors */
   DBUG_EXECUTE_IF("simulate_out_of_memory", DBUG_RETURN(NULL););

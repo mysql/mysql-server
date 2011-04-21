@@ -2203,6 +2203,10 @@ extern LEX_STRING SLOW_LOG_NAME;
 extern LEX_STRING INFORMATION_SCHEMA_NAME;
 extern LEX_STRING MYSQL_SCHEMA_NAME;
 
+/* replication's tables */
+extern LEX_STRING RLI_INFO_NAME;
+extern LEX_STRING MI_INFO_NAME;
+
 inline bool is_infoschema_db(const char *name, size_t len)
 {
   return (INFORMATION_SCHEMA_NAME.length == len &&

@@ -21,6 +21,12 @@
   Default setup (declarations).
 */
 
+/**
+  Configure the performance schema setup tables with default content.
+  The tables populated are:
+  - SETUP_ACTORS
+  - SETUP_OBJECTS
+*/
 void install_default_setup(PSI_bootstrap *boot);
 
 #endif

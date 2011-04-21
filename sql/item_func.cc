@@ -2420,10 +2420,7 @@ my_decimal *Item_func_round::decimal_op(my_decimal *decimal_value)
   if (!(null_value= (args[0]->null_value || args[1]->null_value ||
                      my_decimal_round(E_DEC_FATAL_ERROR, value, (int) dec,
                                       truncate, decimal_value) > 1))) 
-  {
-    decimal_value->frac= decimals;
     return decimal_value;
-  }
   return 0;
 }
 
@@ -2550,7 +2547,8 @@ void Item_func_min_max::fix_length_and_dec()
   }
   if (cmp_type == STRING_RESULT)
   {
-    agg_arg_charsets_for_comparison(collation, args, arg_count);
+    agg_arg_charsets_for_string_result_with_comparison(collation,
+                                                       args, arg_count);
     if (datetime_found)
     {
       thd= current_thd;
@@ -5707,61 +5705,6 @@ void Item_func_get_system_var::cleanup()
   cache_present= 0;
   var_type= orig_var_type;
   cached_strval.free();
-}
-
-
-longlong Item_func_inet_aton::val_int()
-{
-  DBUG_ASSERT(fixed == 1);
-  uint byte_result = 0;
-  ulonglong result = 0;			// We are ready for 64 bit addresses
-  const char *p,* end;
-  char c = '.'; // we mark c to indicate invalid IP in case length is 0
-  char buff[36];
-  int dot_count= 0;
-
-  String *s, tmp(buff, sizeof(buff), &my_charset_latin1);
-  if (!(s = args[0]->val_str_ascii(&tmp)))       // If null value
-    goto err;
-  null_value=0;
-
-  end= (p = s->ptr()) + s->length();
-  while (p < end)
-  {
-    c = *p++;
-    int digit = (int) (c - '0');
-    if (digit >= 0 && digit <= 9)
-    {
-      if ((byte_result = byte_result * 10 + digit) > 255)
-	goto err;				// Wrong address
-    }
-    else if (c == '.')
-    {
-      dot_count++;
-      result= (result << 8) + (ulonglong) byte_result;
-      byte_result = 0;
-    }
-    else
-      goto err;					// Invalid character
-  }
-  if (c != '.')					// IP number can't end on '.'
-  {
-    /*
-      Handle short-forms addresses according to standard. Examples:
-      127		-> 0.0.0.127
-      127.1		-> 127.0.0.1
-      127.2.1		-> 127.2.0.1
-    */
-    switch (dot_count) {
-    case 1: result<<= 8; /* Fall through */
-    case 2: result<<= 8; /* Fall through */
-    }
-    return (result << 8) + (ulonglong) byte_result;
-  }
-
-err:
-  null_value=1;
-  return 0;
 }
 
 

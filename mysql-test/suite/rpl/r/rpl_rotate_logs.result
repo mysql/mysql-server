@@ -1,5 +1,6 @@
 CALL mtr.add_suppression("Failed to open the existing info file");
 CALL mtr.add_suppression("Error while reading from master info file");
+CALL mtr.add_suppression("Failed to create a new info file");
 start slave;
 Got one of the listed errors
 start slave;

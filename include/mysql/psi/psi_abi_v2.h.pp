@@ -98,6 +98,14 @@ struct PSI_file_info_v2
 {
   int placeholder;
 };
+struct PSI_stage_info_v2
+{
+  int placeholder;
+};
+struct PSI_statement_info_v2
+{
+  int placeholder;
+};
 struct PSI_mutex_locker_state_v2
 {
   int placeholder;

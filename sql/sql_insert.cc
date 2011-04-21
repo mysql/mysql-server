@@ -4138,17 +4138,3 @@ void select_create::abort_result_set()
   }
   DBUG_VOID_RETURN;
 }
-
-
-/*****************************************************************************
-  Instansiate templates
-*****************************************************************************/
-
-#ifdef HAVE_EXPLICIT_TEMPLATE_INSTANTIATION
-template class List_iterator_fast<List_item>;
-#ifndef EMBEDDED_LIBRARY
-template class I_List<Delayed_insert>;
-template class I_List_iterator<Delayed_insert>;
-template class I_List<delayed_row>;
-#endif /* EMBEDDED_LIBRARY */
-#endif /* HAVE_EXPLICIT_TEMPLATE_INSTANTIATION */

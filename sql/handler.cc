@@ -5982,7 +5982,7 @@ int handler::ha_update_row(const uchar *old_data, uchar *new_data)
   mark_trx_read_write();
 
   MYSQL_START_TABLE_IO_WAIT(locker, &state, m_psi,
-                            PSI_TABLE_UPDATE_ROW, MAX_KEY, 0);
+                            PSI_TABLE_UPDATE_ROW, active_index, 0);
 
   error= update_row(old_data, new_data);
 
@@ -6007,7 +6007,7 @@ int handler::ha_delete_row(const uchar *buf)
   mark_trx_read_write();
 
   MYSQL_START_TABLE_IO_WAIT(locker, &state, m_psi,
-                            PSI_TABLE_DELETE_ROW, MAX_KEY, 0);
+                            PSI_TABLE_DELETE_ROW, active_index, 0);
 
   error= delete_row(buf);
 

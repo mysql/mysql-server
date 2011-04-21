@@ -1193,7 +1193,8 @@ enum enum_thread_type
   SYSTEM_THREAD_SLAVE_SQL= 4,
   SYSTEM_THREAD_NDBCLUSTER_BINLOG= 8,
   SYSTEM_THREAD_EVENT_SCHEDULER= 16,
-  SYSTEM_THREAD_EVENT_WORKER= 32
+  SYSTEM_THREAD_EVENT_WORKER= 32,
+  SYSTEM_THREAD_INFO_REPOSITORY= 64
 };
 
 inline char const *
@@ -1209,6 +1210,7 @@ show_system_thread(enum_thread_type thread)
     RETURN_NAME_AS_STRING(SYSTEM_THREAD_NDBCLUSTER_BINLOG);
     RETURN_NAME_AS_STRING(SYSTEM_THREAD_EVENT_SCHEDULER);
     RETURN_NAME_AS_STRING(SYSTEM_THREAD_EVENT_WORKER);
+    RETURN_NAME_AS_STRING(SYSTEM_THREAD_INFO_REPOSITORY);
   default:
     sprintf(buf, "<UNKNOWN SYSTEM THREAD: %d>", thread);
     return buf;
@@ -2178,7 +2180,6 @@ public:
   bool       enable_slow_log;   /* enable slow log for current statement */
   bool	     abort_on_warning;
   bool 	     got_warning;       /* Set on call to push_warning() */
-  bool	     no_warnings_for_error; /* no warnings on call to my_error() */
   /* set during loop of derived table processing */
   bool       derived_tables_processing;
   my_bool    tablespace_op;	/* This is TRUE in DISCARD/IMPORT TABLESPACE */
@@ -2972,6 +2973,7 @@ private:
 
   /** The current internal error handler for this thread, or NULL. */
   Internal_error_handler *m_internal_handler;
+
   /**
     The lex to hold the parsed tree of conventional (non-prepared) queries.
     Whereas for prepared and stored procedure statements we use an own lex

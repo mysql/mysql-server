@@ -18,13 +18,6 @@
 #include "rpl_slave.h"
 #include "rpl_info_factory.h"
 
-/*
-  We need to replace these definitions by an option that states the
-  engine one wants to use in the master info repository.
-*/
-#define master_info_engine NULL
-#define relay_log_info_engine NULL
-
 /**
   Creates both a Master info and a Relay log info repository whose types are
   defined as parameters.
@@ -42,7 +35,7 @@
 bool Rpl_info_factory::create(uint mi_option, Master_info **mi,
                               uint rli_option, Relay_log_info **rli)
 {
-  DBUG_ENTER("Rpl_info_factory::Rpl_info_factory");
+  DBUG_ENTER("Rpl_info_factory::create");
 
   if (!((*mi)= Rpl_info_factory::create_mi(mi_option)))
     DBUG_RETURN(TRUE);
@@ -80,12 +73,12 @@ bool Rpl_info_factory::create(uint mi_option, Master_info **mi,
 Master_info *Rpl_info_factory::create_mi(uint mi_option)
 {
   Master_info* mi= NULL;
-  Rpl_info_file*  mi_file= NULL;
-  Rpl_info_table*  mi_table= NULL;
+  Rpl_info_handler*  handler_src= NULL;
+  Rpl_info_handler*  handler_dest= NULL;
   const char *msg= "Failed to allocate memory for the master info "
                    "structure";
 
-  DBUG_ENTER("Rpl_info_factory::Rpl_info_factory");
+  DBUG_ENTER("Rpl_info_factory::create_mi");
 
   if (!(mi= new Master_info(
 #ifdef HAVE_PSI_INTERFACE
@@ -98,36 +91,17 @@ Master_info *Rpl_info_factory::create_mi(uint mi_option)
                            )))
     goto err;
 
-  /*
-    Now we instantiate all info repos and later decide which one to take,
-    but not without first checking if there is already existing data for
-    a repo different from the one that is being requested.
-  */
-  if (!(mi_file= new Rpl_info_file(mi->get_number_info_mi_fields(),
-                                   master_info_file)))
+  if(init_mi_repositories(mi, mi_option, &handler_src, &handler_dest, &msg))
     goto err;
 
-  if (!(mi_table= new Rpl_info_table(mi->get_number_info_mi_fields() + 1,
-                                     MI_FIELD_ID, MI_SCHEMA, MI_TABLE)))
-    goto err;
-
-  DBUG_ASSERT(mi_option == MI_REPOSITORY_FILE ||
-              mi_option == MI_REPOSITORY_TABLE);
-
-  if (decide_repository(mi, &mi_table, &mi_file,
-                        mi_option == MI_REPOSITORY_TABLE, &msg))
-    goto err;
-
-  if ((mi_option == MI_REPOSITORY_TABLE) &&
-       change_engine(static_cast<Rpl_info_table *>(mi_table),
-                     master_info_engine, &msg))
+  if (decide_repository(mi, mi_option, &handler_src, &handler_dest, &msg))
     goto err;
 
   DBUG_RETURN(mi);
 
 err:
-  if (mi_file) delete mi_file;
-  if (mi_table) delete mi_table;
+  delete handler_src;
+  delete handler_dest;
   if (mi)
   {
     /*
@@ -135,10 +109,48 @@ err:
       any reference to it.  
     */
     mi->set_rpl_info_handler(NULL);
-    delete (mi);
+    mi->set_rpl_info_type(INVALID_INFO_REPOSITORY);
+    delete mi;
   }
-  sql_print_error("%s", msg);
+  sql_print_error("Error creating master info: %s.", msg);
   DBUG_RETURN(NULL);
+}
+
+/**
+  Allows to change the master info repository after startup.
+
+  @param[in]  mi        Pointer to Master_info.
+  @param[in]  mi_option Type of the repository, e.g. FILE TABLE.
+  @param[out] msg       Error message if something goes wrong.
+
+  @retval FALSE No error
+  @retval TRUE  Failure
+*/
+bool Rpl_info_factory::change_mi_repository(Master_info *mi,
+                                            const uint mi_option,
+                                            const char **msg)
+{
+  DBUG_ENTER("Rpl_info_factory::change_mi_repository");
+
+  Rpl_info_handler*  handler_src= mi->get_rpl_info_handler();
+  Rpl_info_handler*  handler_dest= NULL;
+
+  if (mi->get_rpl_info_type()  == mi_option)
+    DBUG_RETURN(FALSE);
+
+  if (init_mi_repositories(mi, mi_option, NULL, &handler_dest, msg))
+    goto err;
+
+  if (change_repository(mi, mi_option, &handler_src, &handler_dest, msg))
+    goto err;
+
+  DBUG_RETURN(FALSE);
+
+err:
+  delete handler_dest;
+
+  sql_print_error("Error changing the type of master info's repository: %s.", *msg);
+  DBUG_RETURN(TRUE);
 }
 
 /**
@@ -160,8 +172,8 @@ err:
 Relay_log_info *Rpl_info_factory::create_rli(uint rli_option, bool is_slave_recovery)
 {
   Relay_log_info *rli= NULL;
-  Rpl_info_file* rli_file= NULL;
-  Rpl_info_table* rli_table= NULL;
+  Rpl_info_handler* handler_src= NULL;
+  Rpl_info_handler* handler_dest= NULL;
   const char *msg= "Failed to allocate memory for the relay log info "
                    "structure";
 
@@ -178,36 +190,17 @@ Relay_log_info *Rpl_info_factory::create_rli(uint rli_option, bool is_slave_reco
                                )))
     goto err;
 
-  /*
-    Now we instantiate all info repos and later decide which one to take,
-    but not without first checking if there is already existing data for
-    a repo different from the one that is being requested.
-  */
-  if (!(rli_file= new Rpl_info_file(rli->get_number_info_rli_fields(),
-                                    relay_log_info_file)))
+  if(init_rli_repositories(rli, rli_option, &handler_src, &handler_dest, &msg))
     goto err;
 
-  if (!(rli_table= new Rpl_info_table(rli->get_number_info_rli_fields() + 1,
-                                      RLI_FIELD_ID, RLI_SCHEMA, RLI_TABLE)))
-    goto err;
-
-  DBUG_ASSERT(rli_option == RLI_REPOSITORY_FILE ||
-              rli_option == RLI_REPOSITORY_TABLE);
-
-  if (decide_repository(rli, &rli_table, &rli_file,
-                        rli_option == RLI_REPOSITORY_TABLE, &msg))
-    goto err;
-
-  if ((rli_option == RLI_REPOSITORY_TABLE) &&
-      change_engine(static_cast<Rpl_info_table *>(rli_table),
-                    relay_log_info_engine, &msg))
+  if (decide_repository(rli, rli_option, &handler_src, &handler_dest, &msg))
     goto err;
 
   DBUG_RETURN(rli);
 
 err:
-  if (rli_file) delete rli_file;
-  if (rli_table) delete rli_table;
+  delete handler_src;
+  delete handler_dest;
   if (rli) 
   {
     /*
@@ -215,142 +208,345 @@ err:
       any reference to it.  
     */
     rli->set_rpl_info_handler(NULL);
-    delete (rli);
+    rli->set_rpl_info_type(INVALID_INFO_REPOSITORY);
+    delete rli;
   }
-  sql_print_error("%s", msg);
+  sql_print_error("Error creating relay log info: %s.", msg);
   DBUG_RETURN(NULL);
 }
 
 /**
-  Decides what repository will be used based on the following decision table:
+  Allows to change the relay log info repository after startup.
 
-  \code
-  |--------------+-----------------------+-----------------------|
-  | Exists \ Opt |         TABLE         |          FILE         |
-  |--------------+-----------------------+-----------------------|
-  | ~is_t,  is_f | Update T and delete F | Read F                |
-  |  is_t,  is_f | ERROR                 | ERROR                 |
-  | ~is_t, ~is_f | Fill in T             | Create and Fill in F  |
-  |  is_t, ~is_f | Read T                | Update F and delete T |
-  |--------------+-----------------------+-----------------------|
-  \endcode
-
-  <ul>
-    \li F     --> file
-
-    \li T     --> table
-
-    \li is_t  --> table with data
-
-    \li is_f  --> file with data
-
-    \li ~is_t --> no data in the table
-
-    \li ~is_f --> no file
-  </ul> 
-
-  @param[in] info     Either master info or relay log info.
-  @param[in] table    Table handler.
-  @param[in] file     File handler.
-  @param[in] is_table True if a table handler was requested.
-  @param[out] msg     Message specifying what went wrong, if there is any error.
+  @param[in]  mi        Pointer to Relay_log_info.
+  @param[in]  mi_option Type of the repository, e.g. FILE TABLE.
+  @param[out] msg       Error message if something goes wrong.
 
   @retval FALSE No error
   @retval TRUE  Failure
 */
-bool Rpl_info_factory::decide_repository(Rpl_info *info, Rpl_info_table **table,
-                                         Rpl_info_file **file, bool is_table,
+bool Rpl_info_factory::change_rli_repository(Relay_log_info *rli,
+                                             const uint rli_option,
+                                             const char **msg)
+{
+  DBUG_ENTER("Rpl_info_factory::change_rli_repository");
+
+  Rpl_info_handler*  handler_src= rli->get_rpl_info_handler();
+  Rpl_info_handler*  handler_dest= NULL;
+
+  if (rli->get_rpl_info_type()  == rli_option)
+    DBUG_RETURN(FALSE);
+
+  if (init_rli_repositories(rli, rli_option, NULL, &handler_dest, msg))
+    goto err;
+
+  if (change_repository(rli, rli_option, &handler_src, &handler_dest, msg))
+    goto err;
+
+  DBUG_RETURN(FALSE);
+
+err:
+  delete handler_dest;
+  handler_dest= NULL;
+
+  sql_print_error("Error changing the type of relay log info's repository: %s.", *msg);
+  DBUG_RETURN(TRUE);
+}
+
+/**
+  Decides during startup what repository will be used based on the following
+  decision table:
+
+  \code
+  |--------------+-----------------------+-----------------------|
+  | Exists \ Opt |         SOURCE        |      DESTINATION      |
+  |--------------+-----------------------+-----------------------|
+  | ~is_s, ~is_d |            -          | Create/Update D       |
+  | ~is_s,  is_d |            -          | Continue with D       |
+  |  is_s, ~is_d | Copy S into D         | Create/Update D       |
+  |  is_s,  is_d | Error                 | Error                 |
+  |--------------+-----------------------+-----------------------|
+  \endcode
+
+  @param[in]  info         Either master info or relay log info.
+  @param[in]  option       Identifies the type of the repository that will
+                           be used, i.e., destination repository.
+  @param[out] handler_src  Source repository from where information is
+                           copied into the destination repository.
+  @param[out] handler_dest Destination repository to where informaiton is
+                           copied.
+  @param[out] msg          Error message if something goes wrong.
+
+  @retval FALSE No error
+  @retval TRUE  Failure
+*/
+bool Rpl_info_factory::decide_repository(Rpl_info *info,
+                                         uint option,
+                                         Rpl_info_handler **handler_src,
+                                         Rpl_info_handler **handler_dest,
                                          const char **msg)
 {
 
   DBUG_ENTER("Rpl_info_factory::decide_repository");
  
   bool error= TRUE;
-  bool is_t= !((*table)->check_info());
-  bool is_f= !((*file)->check_info());
+  /*
+    check_info() returns FALSE if the repository exists. If a FILE, 
+    for example, this means that FALSE is returned if a file exists.
+    If a TABLE, for example, this means that FALSE is returned if
+    the table exists and is populated. Otherwise, TRUE is returned.
 
-  if (is_t && is_f)
+    The check_info() behavior is odd and we are going to fix this
+    in the future.
+
+    So,
+
+      . is_src  == TRUE, means that the source repository exists.
+      . is_dest == TRUE, means that the destination repository
+        exists.
+
+    /Alfranio
+  */
+  bool is_src= !((*handler_src)->check_info());
+  bool is_dest= !((*handler_dest)->check_info());
+
+  DBUG_ASSERT((*handler_dest) != NULL && (*handler_dest) != NULL);
+  if (is_src && is_dest)
   {
     *msg= "Multiple replication metadata repository instances "
           "found with data in them. Unable to decide which is "
-          "the correct one to choose.";
+          "the correct one to choose";
     DBUG_RETURN(error);
   }
 
-  if (is_table)
+  if (!is_dest && is_src)
   {
-    if (!is_t && is_f)
+    if ((*handler_src)->init_info() || (*handler_dest)->init_info())
     {
-      if ((*table)->init_info() || (*file)->init_info())
-      {
-        *msg= "Error transfering information from a file to a table.";
-        goto err;
-      }
-      /*
-        Transfer the information from the file to the table and delete the
-        file, i.e. Update the table (T) and delete the file (F).
-      */
-      if (info->copy_info(*file, *table) || (*file)->remove_info())
-      {
-        *msg= "Error transfering information from a file to a table.";
-        goto err;
-      }
+      *msg= "Error transfering information";
+      goto err;
     }
-    delete (*file);
-    info->set_rpl_info_handler(*table);
-    error= FALSE;
-    *file= NULL;
-  }
-  else
-  {
-    if (is_t && !is_f)
+    /*
+      Transfer the information from source to destination and delete the
+      source. Note this is not fault-tolerant and a crash before removing
+      source may cause the next restart to fail as is_src and is_dest may
+      be true. Moreover, any failure in removing the source may lead to
+      the same.
+
+      /Alfranio
+    */
+    if (info->copy_info(*handler_src, *handler_dest))
     {
-      if ((*table)->init_info() || (*file)->init_info())
-      {
-        *msg= "Error transfering information from a file to a table.";
-        goto err;
-      }
-      /*
-        Transfer the information from the table to the file and delete 
-        entries in the table, i.e. Update the file (F) and delete the
-        table (T).
-      */
-      if (info->copy_info(*table, *file) || (*table)->remove_info())
-      {
-        *msg= "Error transfering information from a table to a file.";
-        goto err;
-      } 
+      *msg= "Error transfering information";
+      goto err;
     }
-    delete (*table);
-    info->set_rpl_info_handler(*file);
-    error= FALSE;
-    *table= NULL;
+    (*handler_src)->end_info();
+    if ((*handler_src)->remove_info())
+    {
+      *msg= "Error removing old repository";
+      goto err;
+    }
   }
+
+  delete (*handler_src);
+  *handler_src= NULL;
+  info->set_rpl_info_handler(*handler_dest);
+  info->set_rpl_info_type(option);
+  error= FALSE;
 
 err:
   DBUG_RETURN(error); 
 }
 
 /**
-  Changes the engine in use by a handler.
-  
-  @param[in]  handler Reference to a handler.
-  @param[in]  engine  Type of the engine, e.g. Innodb, MyIsam.
-  @param[out] msg     Message specifying what went wrong, if there is any error.
+  Changes the type of the repository after startup based on the following
+  decision table:
+
+  \code
+  |--------------+-----------------------+-----------------------|
+  | Exists \ Opt |         SOURCE        |      DESTINATION      |
+  |--------------+-----------------------+-----------------------|
+  | ~is_s, ~is_d |            -          | Create/Update D       |
+  | ~is_s,  is_d |            -          | Continue with D       |
+  |  is_s, ~is_d | Copy S into D         | Create/Update D       |
+  |  is_s,  is_d | Copy S into D         | Continue with D       |
+  |--------------+-----------------------+-----------------------|
+  \endcode
+
+  @param[in]  info         Either master info or relay log info.
+  @param[in]  option       Identifies the type of the repository that will
+                           be used, i.e., destination repository.
+  @param[out] handler_src  Source repository from where information is
+                           copied into the destination repository.
+  @param[out] handler_dest Destination repository to where informaiton is
+                           copied.
+  @param[out] msg          Error message if something goes wrong.
 
   @retval FALSE No error
   @retval TRUE  Failure
 */
-bool Rpl_info_factory::change_engine(Rpl_info_table *table, const char *engine,
-                                     const char **msg)
+bool Rpl_info_factory::change_repository(Rpl_info *info,
+                                         uint option,
+                                         Rpl_info_handler **handler_src,
+                                         Rpl_info_handler **handler_dest,
+                                         const char **msg)
 {
-  DBUG_ENTER("Rpl_info_factory::decide_engine");
+  bool error= TRUE;
 
-  if (engine && table->change_engine(engine))
+  DBUG_ENTER("Rpl_info_factory::change_repository");
+
+  DBUG_ASSERT((*handler_dest) != NULL && (*handler_dest) != NULL);
+  if (!(*handler_src)->check_info())
   {
-    *msg= "Error changing the engine for a respository.";
-    DBUG_RETURN(TRUE);
+    if ((*handler_dest)->init_info())
+    {
+      *msg= "Error initializing new repository";
+      goto err;
+    }
+
+    /*
+      Transfer the information from source to destination and delete the
+      source. Note this is not fault-tolerant and a crash before removing
+      source may cause the next restart to fail as is_src and is_dest may
+      be true. Moreover, any failure in removing the source may lead to
+      the same.
+
+      /Alfranio
+    */
+    if (info->copy_info(*handler_src, *handler_dest))
+    {
+      *msg= "Error transfering information";
+      goto err;
+    }
+  }
+  (*handler_src)->end_info();
+  if ((*handler_src)->remove_info())
+  {
+    *msg= "Error removing old repository";
+    goto err;
   }
 
-  DBUG_RETURN(FALSE);
+  info->set_rpl_info_handler(NULL);
+  delete (*handler_src);
+  *handler_src= NULL;
+  info->set_rpl_info_handler(*handler_dest);
+  info->set_rpl_info_type(option);
+  error= FALSE;
+
+err:
+  DBUG_RETURN(error);
+}
+
+/**
+  Creates repositories that will be associated to the master info.
+
+  @param[in] mi            Pointer to the class Master info.
+  @param[in] rli_option    Identifies the type of the repository that will
+                           be used, i.e., destination repository.
+  @param[out] handler_src  Source repository from where information is
+                           copied into the destination repository.
+  @param[out] handler_dest Destination repository to where informaiton is
+                           copied.
+  @param[out] msg          Error message if something goes wrong.
+
+  @retval FALSE No error
+  @retval TRUE  Failure
+*/
+bool Rpl_info_factory::init_mi_repositories(Master_info *mi,
+                                            uint mi_option,
+                                            Rpl_info_handler **handler_src,
+                                            Rpl_info_handler **handler_dest,
+                                            const char **msg)
+{
+  bool error= TRUE;
+  *msg= "Failed to allocate memory for master info repositories";
+
+  DBUG_ENTER("Rpl_info_factory::init_mi_repositories");
+
+  DBUG_ASSERT(handler_dest != NULL);
+  switch (mi_option)
+  {
+    case INFO_REPOSITORY_FILE:
+      if (!(*handler_dest= new Rpl_info_file(mi->get_number_info_mi_fields(),
+                                             master_info_file)))
+        goto err;
+      if (handler_src &&
+          !(*handler_src= new Rpl_info_table(mi->get_number_info_mi_fields() + 1,
+                                             MI_FIELD_ID, MYSQL_SCHEMA_NAME.str, MI_INFO_NAME.str)))
+        goto err;
+    break;
+
+    case INFO_REPOSITORY_TABLE:
+      if (!(*handler_dest= new Rpl_info_table(mi->get_number_info_mi_fields() + 1,
+                                              MI_FIELD_ID, MYSQL_SCHEMA_NAME.str, MI_INFO_NAME.str)))
+        goto err;
+      if (handler_src &&
+          !(*handler_src= new Rpl_info_file(mi->get_number_info_mi_fields(),
+                                            master_info_file)))
+        goto err;
+    break;
+    default:
+      DBUG_ASSERT(0);
+  }
+  error= FALSE;
+
+err:
+  DBUG_RETURN(error);
+}
+
+/**
+  Creates repositories that will be associated to the relay log info.
+
+  @param[in] rli           Pointer to the class Relay_log_info.
+  @param[in] rli_option    Identifies the type of the repository that will
+                           be used, i.e., destination repository.
+  @param[out] handler_src  Source repository from where information is
+                           copied into the destination repository.
+  @param[out] handler_dest Destination repository to where informaiton is
+                           copied.
+  @param[out] msg          Error message if something goes wrong.
+
+  @retval FALSE No error
+  @retval TRUE  Failure
+*/
+bool Rpl_info_factory::init_rli_repositories(Relay_log_info *rli,
+                                             uint rli_option,
+                                             Rpl_info_handler **handler_src,
+                                             Rpl_info_handler **handler_dest,
+                                             const char **msg)
+{
+  bool error= TRUE;
+  *msg= "Failed to allocate memory for relay log info repositories";
+
+  DBUG_ENTER("Rpl_info_factory::init_rli_repositories");
+
+  DBUG_ASSERT(handler_dest != NULL);
+  switch (rli_option)
+  {
+    case INFO_REPOSITORY_FILE:
+      if (!(*handler_dest= new Rpl_info_file(rli->get_number_info_rli_fields(),
+                                             relay_log_info_file)))
+        goto err;
+      if (handler_src &&
+          !(*handler_src= new Rpl_info_table(rli->get_number_info_rli_fields() + 1,
+                                             RLI_FIELD_ID, MYSQL_SCHEMA_NAME.str, RLI_INFO_NAME.str)))
+        goto err;
+    break;
+
+    case INFO_REPOSITORY_TABLE:
+      if (!(*handler_dest= new Rpl_info_table(rli->get_number_info_rli_fields() + 1,
+                                              RLI_FIELD_ID, MYSQL_SCHEMA_NAME.str, RLI_INFO_NAME.str)))
+        goto err;
+      if (handler_src &&
+          !(*handler_src= new Rpl_info_file(rli->get_number_info_rli_fields(),
+                                            relay_log_info_file)))
+        goto err;
+    break;
+    default:
+      DBUG_ASSERT(0);
+  }
+  error= FALSE;
+
+err:
+  DBUG_RETURN(error);
 }
