@@ -612,16 +612,12 @@ Item_sum_hybrid::fix_fields(THD *thd, Item **ref)
 
   switch (hybrid_type= item->result_type()) {
   case INT_RESULT:
-    max_length= 20;
-    break;
   case DECIMAL_RESULT:
+  case STRING_RESULT:
     max_length= item->max_length;
     break;
   case REAL_RESULT:
     max_length= float_length(decimals);
-    break;
-  case STRING_RESULT:
-    max_length= item->max_length;
     break;
   case ROW_RESULT:
   default:

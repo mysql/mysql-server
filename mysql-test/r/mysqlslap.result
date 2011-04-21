@@ -225,3 +225,23 @@ DROP SCHEMA IF EXISTS `mysqlslap`;
 DROP PROCEDURE IF EXISTS p1;
 CREATE PROCEDURE p1() SELECT 1;
 DROP PROCEDURE p1;
+#
+# Bug #11765157 - 58090: mysqlslap drops schema specified in
+#                 create_schema if auto-generate-sql also set.
+#
+# 'bug58090' database should not be present.
+SHOW DATABASES;
+Database
+information_schema
+mtr
+mysql
+test
+# 'bug58090' database should be present.
+SHOW DATABASES;
+Database
+information_schema
+bug58090
+mtr
+mysql
+test
+DROP DATABASE bug58090;
