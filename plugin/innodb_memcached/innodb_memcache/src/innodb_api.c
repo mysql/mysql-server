@@ -24,12 +24,75 @@ with this program; if not, write to the Free Software Foundation, Inc.,
 #include <errno.h>
 #include "memcached/util.h"
 #include <sys/time.h>
+#include <innodb_cb_api.h>
 
 /** Tells whether to update all value columns or a specific value
 column */
 #define UPDATE_ALL_VAL_COL		-1
 
-/*********************************************************************
+/** InnoDB API callback functions */
+static ib_cb_t* innodb_memcached_api[] = {
+	(ib_cb_t*) &ib_cb_open_table,
+	(ib_cb_t*) &ib_cb_read_row,
+	(ib_cb_t*) &ib_cb_insert_row,
+	(ib_cb_t*) &ib_cb_delete_row,
+	(ib_cb_t*) &ib_cb_update_row,
+	(ib_cb_t*) &ib_cb_moveto,
+	(ib_cb_t*) &ib_cb_cursor_first,
+	(ib_cb_t*) &ib_cb_cursor_last,
+	(ib_cb_t*) &ib_cb_cursor_set_match_mode,
+	(ib_cb_t*) &ib_cb_search_tuple_create,
+	(ib_cb_t*) &ib_cb_read_tuple_create,
+	(ib_cb_t*) &ib_cb_tuple_delete,
+	(ib_cb_t*) &ib_cb_tuple_copy,
+	(ib_cb_t*) &ib_cb_tuple_read_u32,
+	(ib_cb_t*) &ib_cb_tuple_write_u32,
+	(ib_cb_t*) &ib_cb_tuple_read_u64,
+	(ib_cb_t*) &ib_cb_tuple_write_u64,
+	(ib_cb_t*) &ib_cb_tuple_read_i32,
+	(ib_cb_t*) &ib_cb_tuple_write_i32,
+	(ib_cb_t*) &ib_cb_tuple_read_i64,
+	(ib_cb_t*) &ib_cb_tuple_write_i64,
+	(ib_cb_t*) &ib_cb_tuple_get_n_cols,
+	(ib_cb_t*) &ib_cb_col_set_value,
+	(ib_cb_t*) &ib_cb_col_get_value,
+	(ib_cb_t*) &ib_cb_col_get_meta,
+	(ib_cb_t*) &ib_cb_trx_begin,
+	(ib_cb_t*) &ib_cb_trx_commit,
+	(ib_cb_t*) &ib_cb_trx_rollback,
+	(ib_cb_t*) &ib_cb_trx_start,
+	(ib_cb_t*) &ib_cb_trx_release,
+	(ib_cb_t*) &ib_cb_trx_state,
+	(ib_cb_t*) &ib_cb_cursor_lock,
+	(ib_cb_t*) &ib_cb_cursor_close,
+	(ib_cb_t*) &ib_cb_cursor_new_trx,
+	(ib_cb_t*) &ib_cb_cursor_reset,
+	(ib_cb_t*) &ib_cb_open_table_by_name,
+	(ib_cb_t*) &ib_cb_col_get_name,
+	(ib_cb_t*) &ib_cb_table_truncate,
+	(ib_cb_t*) &ib_cb_cursor_open_index_using_name
+};
+
+/*************************************************************//**
+Register InnoDB Callback functions */
+void
+register_innodb_cb(
+/*===============*/
+	char*	p)
+{
+	int	i;
+	int	array_size;
+	ib_cb_t*func_ptr = (ib_cb_t*) p;
+
+	array_size = sizeof(innodb_memcached_api) / sizeof(ib_cb_t);
+
+	for (i = 0; i < array_size; i++) {
+		*innodb_memcached_api[i] = *(ib_cb_t*)func_ptr;
+		func_ptr++;
+	}
+}
+
+/*************************************************************//**
 Open a table and return a cursor for the table. */
 ib_err_t
 innodb_api_begin(
@@ -1062,3 +1125,145 @@ innodb_api_cursor_reset(
 
 	return;
 }
+
+/*************************************************************//**
+Following are a set of InnoDB callback function wrappers for functions
+that will be used outside innodb_api.c */
+
+ib_err_t
+innodb_cb_cursor_close(
+/*===================*/
+	ib_crsr_t	ib_crsr)
+
+{
+	return(ib_cb_cursor_close(ib_crsr));
+}
+
+ib_err_t
+innodb_cb_trx_commit(
+/*=================*/
+	ib_trx_t	ib_trx)
+{
+	return(ib_cb_trx_commit(ib_trx));
+}
+
+ib_trx_t
+innodb_cb_trx_begin(
+/*================*/
+	ib_trx_level_t	ib_trx_level)
+{
+	return(ib_cb_trx_begin(ib_trx_level));
+}
+
+ib_err_t
+innodb_cb_cursor_new_trx(
+/*=====================*/
+	ib_crsr_t	ib_crsr,
+	ib_trx_t	ib_trx)
+{
+	return(ib_cb_cursor_new_trx(ib_crsr, ib_trx));
+}
+
+ib_err_t
+innodb_cb_cursor_lock(
+/*==================*/
+	ib_crsr_t	ib_crsr,
+	ib_lck_mode_t	ib_lck_mode)
+{
+
+	return(ib_cb_cursor_lock(ib_crsr, ib_lck_mode));
+}
+
+ib_tpl_t
+innodb_cb_read_tuple_create(
+/*========================*/
+	ib_crsr_t	ib_crsr)
+{
+	return(ib_cb_read_tuple_create(ib_crsr));
+}
+
+ib_err_t
+innodb_cb_cursor_first(
+/*===================*/
+	ib_crsr_t	ib_crsr)
+{
+	return(ib_cb_cursor_first(ib_crsr));
+}
+
+ib_err_t
+innodb_cb_read_row(
+/*===============*/
+	ib_crsr_t	ib_crsr,
+	ib_tpl_t	ib_tpl)
+{
+	return(ib_cb_read_row(ib_crsr, ib_tpl));
+}
+
+ib_ulint_t
+innodb_cb_col_get_meta(
+/*===================*/
+	ib_tpl_t	ib_tpl,
+	ib_ulint_t	i,
+	ib_col_meta_t*	ib_col_meta)
+{
+	return(ib_cb_col_get_meta(ib_tpl, i, ib_col_meta));
+}
+
+void
+innodb_cb_tuple_delete(
+/*===================*/
+	ib_tpl_t	ib_tpl)
+{
+	ib_cb_tuple_delete(ib_tpl);
+	return;
+}
+
+ib_ulint_t
+innodb_cb_tuple_get_n_cols(
+/*=======================*/
+	const ib_tpl_t	ib_tpl)
+{
+	return(ib_cb_tuple_get_n_cols(ib_tpl));
+}
+
+const void*
+innodb_cb_col_get_value(
+/*====================*/
+	ib_tpl_t	ib_tpl,
+	ib_ulint_t	i)
+{
+	return(ib_cb_col_get_value(ib_tpl, i));
+}
+
+ib_err_t
+innodb_cb_open_table(
+/*=================*/
+	const char*	name,
+	ib_trx_t	ib_trx,
+	ib_crsr_t*	ib_crsr)
+{
+	return(ib_cb_open_table(name, ib_trx, ib_crsr));
+}
+
+char*
+innodb_cb_col_get_name(
+/*===================*/
+	ib_crsr_t	ib_crsr,
+	ib_ulint_t	i)
+{
+	return(ib_cb_col_get_name(ib_crsr, i));
+}
+
+ib_err_t
+innodb_cb_cursor_open_index_using_name(
+/*===================================*/
+	ib_crsr_t	ib_open_crsr,
+	const char*	index_name,
+	ib_crsr_t*	ib_crsr,
+	int*		idx_type,
+	ib_id_t*	idx_id)
+{
+	return(ib_cb_cursor_open_index_using_name(ib_open_crsr, index_name,
+						  ib_crsr, idx_type, idx_id));
+}
+

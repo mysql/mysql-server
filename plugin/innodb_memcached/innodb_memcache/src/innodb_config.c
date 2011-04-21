@@ -145,7 +145,7 @@ innodb_read_cache_policy(
 	ib_ulint_t		data_len;
 	ib_col_meta_t		col_meta;
 
-	ib_trx = ib_cb_trx_begin(IB_TRX_READ_COMMITTED);
+	ib_trx = innodb_cb_trx_begin(IB_TRX_READ_COMMITTED);
 	err = innodb_api_begin(NULL, INNODB_META_DB,
 			       INNODB_CACHE_POLICIES, ib_trx,
 			       &crsr, &idx_crsr, IB_LOCK_IS);	
@@ -158,11 +158,11 @@ innodb_read_cache_policy(
 		goto func_exit;
 	}
 
-	tpl = ib_clust_read_tuple_create(crsr);
+	tpl = innodb_cb_read_tuple_create(crsr);
 
 	/* Currently, we support one table per memcached set up.
 	We could extend that later */
-	err = ib_cb_cursor_first(crsr);
+	err = innodb_cb_cursor_first(crsr);
 
 	if (err != DB_SUCCESS) {
 		fprintf(stderr, "  InnoDB_Memcached: fail to locate entry in"
@@ -172,9 +172,9 @@ innodb_read_cache_policy(
 		goto func_exit;
 	}
 
-	err = ib_cb_read_row(crsr, tpl);
+	err = innodb_cb_read_row(crsr, tpl);
 
-	n_cols = ib_cb_tuple_get_n_cols(tpl);
+	n_cols = innodb_cb_tuple_get_n_cols(tpl);
 
 	assert(n_cols >= CACHE_OPT_NUM_COLS);
 
@@ -188,12 +188,12 @@ innodb_read_cache_policy(
 			continue;
 		}
 
-		data_len = ib_cb_col_get_meta(tpl, i, &col_meta);
+		data_len = innodb_cb_col_get_meta(tpl, i, &col_meta);
 
 		if (data_len == IB_SQL_NULL) {
 			opt_val = META_INNODB;
 		} else {
-			opt_name = *(char*)ib_cb_col_get_value(tpl, i);
+			opt_name = *(char*)innodb_cb_col_get_value(tpl, i);
 
 			opt_val = (meta_cache_option_t) opt_name;
 		}
@@ -219,14 +219,14 @@ innodb_read_cache_policy(
 func_exit:
 
 	if (crsr) {
-		ib_cb_cursor_close(crsr);
+		innodb_cb_cursor_close(crsr);
 	}
 
 	if (tpl) {
-		ib_cb_tuple_delete(tpl);
+		innodb_cb_tuple_delete(tpl);
 	}
 
-	ib_cb_trx_commit(ib_trx);
+	innodb_cb_trx_commit(ib_trx);
 
 	return(err == DB_SUCCESS);
 }
@@ -251,7 +251,7 @@ innodb_read_config_option(
 	ib_ulint_t		data_len;
 	ib_col_meta_t		col_meta;
 
-	ib_trx = ib_cb_trx_begin(IB_TRX_READ_COMMITTED);
+	ib_trx = innodb_cb_trx_begin(IB_TRX_READ_COMMITTED);
 	err = innodb_api_begin(NULL, INNODB_META_DB,
 			       INNODB_CONFIG_OPTIONS, ib_trx,
 			       &crsr, &idx_crsr, IB_LOCK_IS);	
@@ -264,9 +264,9 @@ innodb_read_config_option(
 		goto func_exit;
 	}
 
-	tpl = ib_clust_read_tuple_create(crsr);
+	tpl = innodb_cb_read_tuple_create(crsr);
 
-	err = ib_cb_cursor_first(crsr);
+	err = innodb_cb_cursor_first(crsr);
 
 	if (err != DB_SUCCESS) {
 		fprintf(stderr, "  InnoDB_Memcached: fail to locate entry in"
@@ -276,26 +276,26 @@ innodb_read_config_option(
 		goto func_exit;
 	}
 
-	err = ib_cb_read_row(crsr, tpl);
+	err = innodb_cb_read_row(crsr, tpl);
 
-	n_cols = ib_cb_tuple_get_n_cols(tpl);
+	n_cols = innodb_cb_tuple_get_n_cols(tpl);
 
 	assert(n_cols >= CONFIG_NUM_COLS);
 
 	for (i = 0; i < CONFIG_NUM_COLS; ++i) {
 		char*	key;
 
-		data_len = ib_cb_col_get_meta(tpl, i, &col_meta);
+		data_len = innodb_cb_col_get_meta(tpl, i, &col_meta);
 
 		assert(data_len != IB_SQL_NULL);
 
 		if (i == CONFIG_KEY) {
-			key =(char*)ib_cb_col_get_value(tpl, i);
+			key =(char*)innodb_cb_col_get_value(tpl, i);
 		}
 
 		if (i == CONFIG_VALUE) {
 			item->m_separator = my_strdupl(
-				(char*)ib_cb_col_get_value(tpl, i), data_len);
+				(char*)innodb_cb_col_get_value(tpl, i), data_len);
 			item->m_sep_len = strlen(item->m_separator);
 		}
 	}
@@ -303,14 +303,14 @@ innodb_read_config_option(
 func_exit:
 
 	if (crsr) {
-		ib_cb_cursor_close(crsr);
+		innodb_cb_cursor_close(crsr);
 	}
 
 	if (tpl) {
-		ib_cb_tuple_delete(tpl);
+		innodb_cb_tuple_delete(tpl);
 	}
 
-	ib_cb_trx_commit(ib_trx);
+	innodb_cb_trx_commit(ib_trx);
 
 	return(err == DB_SUCCESS);
 }
@@ -336,7 +336,7 @@ innodb_config_container(
 
 	memset(item, 0, sizeof(*item));
 
-	ib_trx = ib_cb_trx_begin(IB_TRX_READ_COMMITTED);
+	ib_trx = innodb_cb_trx_begin(IB_TRX_READ_COMMITTED);
 	err = innodb_api_begin(NULL, INNODB_META_DB,
 			       INNODB_META_CONTAINER_TABLE, ib_trx,
 			       &crsr, &idx_crsr, IB_LOCK_IS);	
@@ -350,11 +350,11 @@ innodb_config_container(
 		goto func_exit;
 	}
 
-	tpl = ib_clust_read_tuple_create(crsr);
+	tpl = innodb_cb_read_tuple_create(crsr);
 
 	/* Currently, we support one table per memcached set up.
 	We could extend that later */
-	err = ib_cb_cursor_first(crsr);
+	err = innodb_cb_cursor_first(crsr);
 
 	if (err != DB_SUCCESS) {
 		fprintf(stderr, "  InnoDB_Memcached: fail to locate entry in"
@@ -364,22 +364,22 @@ innodb_config_container(
 		goto func_exit;
 	}
 
-	err = ib_cb_read_row(crsr, tpl);
+	err = innodb_cb_read_row(crsr, tpl);
 
-	n_cols = ib_cb_tuple_get_n_cols(tpl);
+	n_cols = innodb_cb_tuple_get_n_cols(tpl);
 
 	assert(n_cols >= META_CONTAINER_TO_GET);
 
 	for (i = 0; i < META_CONTAINER_TO_GET; ++i) {
 
-		data_len = ib_cb_col_get_meta(tpl, i, &col_meta);
+		data_len = innodb_cb_col_get_meta(tpl, i, &col_meta);
 
 		assert(data_len != IB_SQL_NULL);
 
 		item->m_item[i].m_len = data_len;
 
 		item->m_item[i].m_str = my_strdupl(
-			(char*)ib_cb_col_get_value(tpl, i), data_len);
+			(char*)innodb_cb_col_get_value(tpl, i), data_len);
 
 		if (i == META_VALUE) {
 			innodb_config_parse_value_col(
@@ -388,7 +388,7 @@ innodb_config_container(
 	}
 
 	/* Last column is about the unique index name on key column */
-	data_len = ib_cb_col_get_meta(tpl, i, &col_meta);
+	data_len = innodb_cb_col_get_meta(tpl, i, &col_meta);
 
 	if (data_len == IB_SQL_NULL) {
 		fprintf(stderr, "  InnoDB_Memcached: There must be a unique"
@@ -397,20 +397,20 @@ innodb_config_container(
 		goto func_exit;
 	}
 
-	item->m_index.m_name = my_strdupl((char*)ib_cb_col_get_value(tpl, i),
+	item->m_index.m_name = my_strdupl((char*)innodb_cb_col_get_value(tpl, i),
 					  data_len);
 
 func_exit:
 
 	if (crsr) {
-		ib_cb_cursor_close(crsr);
+		innodb_cb_cursor_close(crsr);
 	}
 
 	if (tpl) {
-		ib_cb_tuple_delete(tpl);
+		innodb_cb_tuple_delete(tpl);
 	}
 
-	ib_cb_trx_commit(ib_trx);
+	innodb_cb_trx_commit(ib_trx);
 
 	return(err == DB_SUCCESS);
 }
@@ -508,7 +508,7 @@ innodb_verify(
 	snprintf(table_name, sizeof(table_name), "%s/%s", dbname, name);
 #endif
 
-	err = ib_cb_open_table(table_name, NULL, &crsr);
+	err = innodb_cb_open_table(table_name, NULL, &crsr);
 
 	if (err != DB_SUCCESS) {
 		fprintf(stderr, "  InnoDB_Memcached: fail to open table"
@@ -517,16 +517,16 @@ innodb_verify(
 		goto func_exit;
 	}
 
-	tpl = ib_clust_read_tuple_create(crsr);
+	tpl = innodb_cb_read_tuple_create(crsr);
 
-	n_cols = ib_tuple_get_n_cols(tpl);
+	n_cols = innodb_cb_tuple_get_n_cols(tpl);
 
 	for (i = 0; i < n_cols; i++) {
 		ib_err_t	result = DB_SUCCESS;
 		meta_column_t*	cinfo = info->m_item;
 
-		name = ib_cb_col_get_name(crsr, i);
-		ib_cb_col_get_meta(tpl, i, &col_meta);
+		name = innodb_cb_col_get_name(crsr, i);
+		innodb_cb_col_get_meta(tpl, i, &col_meta);
 
 		result = innodb_config_value_col_verify(
 			name, info, &col_meta, i);
@@ -586,8 +586,9 @@ innodb_verify(
 		goto func_exit;
 	}
 
-	ib_cb_cursor_open_index_using_name(crsr, info->m_index.m_name,
-					   &idx_crsr, &index_type, &index_id);
+	innodb_cb_cursor_open_index_using_name(crsr, info->m_index.m_name,
+					       &idx_crsr, &index_type,
+					       &index_id);
 
 	if (index_type & IB_CLUSTERED) {
 		info->m_index.m_use_idx = META_CLUSTER;
@@ -602,16 +603,16 @@ innodb_verify(
 	}
 
 	if (idx_crsr) {
-		ib_cb_cursor_close(idx_crsr);
+		innodb_cb_cursor_close(idx_crsr);
 	}
 func_exit:
 
 	if (tpl) {
-		ib_cb_tuple_delete(tpl);
+		innodb_cb_tuple_delete(tpl);
 	}
 
 	if (crsr) {
-		ib_cb_cursor_close(crsr);
+		innodb_cb_cursor_close(crsr);
 	}
 
 	return(err == DB_SUCCESS);
