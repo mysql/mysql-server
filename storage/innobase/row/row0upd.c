@@ -2205,8 +2205,7 @@ exit_func:
 
 	if (node->cmpl_info & UPD_NODE_NO_ORD_CHANGE) {
 
-		err = row_upd_clust_rec(node, index, thr, mtr);
-		return(err);
+		return(row_upd_clust_rec(node, index, thr, mtr));
 	}
 
 	row_upd_store_row(node);

@@ -526,6 +526,10 @@ static monitor_info_t	innodb_counter_info[] =
 	 " updates on delete marked record with externally stored field",
 	 0, 0, MONITOR_N_UPD_EXIST_EXTERN},
 
+	{"purge_invoked", "purge",
+	 "Number of purge was invoked",
+	 0, 0, MONITOR_PURGE_INVOKED},
+
 	{"purge_undo_log_pages", "purge",
 	 "Number of undo log pages handled by the purge",
 	 0, 0, MONITOR_PURGE_N_PAGE_HANDLED},
