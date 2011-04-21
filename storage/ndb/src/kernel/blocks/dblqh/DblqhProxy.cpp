@@ -1238,6 +1238,13 @@ DblqhProxy::sendSTART_RECCONF(Signal* signal, Uint32 ssId)
 
   if (ss.m_error == 0) {
     jam();
+
+    /**
+     * There should be no disk-ops in flight here...check it
+     */
+    signal->theData[0] = 12003;
+    sendSignal(LGMAN_REF, GSN_DUMP_STATE_ORD, signal, 1, JBB);
+
     StartRecConf* conf = (StartRecConf*)signal->getDataPtrSend();
     conf->startingNodeId = getOwnNodeId();
     conf->senderData = ss.m_req.senderData;
