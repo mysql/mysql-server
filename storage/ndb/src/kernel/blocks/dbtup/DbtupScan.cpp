@@ -354,7 +354,8 @@ Dbtup::scanReply(Signal* signal, ScanOpPtr scanPtr)
       lockReq->fragId = frag.fragmentId;
       lockReq->fragPtrI = RNIL; // no cached frag ptr yet
       lockReq->hashValue = md5_hash((Uint64*)pkData, pkSize);
-      lockReq->tupAddr = key_mm.ref();
+      lockReq->page_id = key_mm.m_page_no;
+      lockReq->page_idx = key_mm.m_page_idx;
       lockReq->transId1 = scan.m_transId1;
       lockReq->transId2 = scan.m_transId2;
       EXECUTE_DIRECT(DBACC, GSN_ACC_LOCKREQ,
@@ -432,10 +433,9 @@ Dbtup::scanReply(Signal* signal, ScanOpPtr scanPtr)
     const ScanPos& pos = scan.m_scanPos;
     conf->accOperationPtr = accLockOp;
     conf->fragId = frag.fragmentId;
-    conf->localKey[0] = pos.m_key_mm.ref();
-    conf->localKey[1] = 0;
-    conf->localKeyLength = 1;
-    unsigned signalLength = 6;
+    conf->localKey[0] = pos.m_key_mm.m_page_no;
+    conf->localKey[1] = pos.m_key_mm.m_page_idx;
+    unsigned signalLength = 5;
     if (scan.m_bits & ScanOp::SCAN_LOCK) {
       sendSignal(scan.m_userRef, GSN_NEXT_SCANCONF,
           signal, signalLength, JBB);
@@ -478,17 +478,9 @@ Dbtup::execACCKEYCONF(Signal* signal)
 
   Uint32 localKey1 = signal->theData[3];
   Uint32 localKey2 = signal->theData[4];
-  Uint32 localKeyFlag = signal->theData[5];
   Local_key tmp;
-  if (localKeyFlag == 1)
-  {
-    tmp.assref(localKey1);
-  }
-  else
-  {
-    tmp.m_page_no = localKey1;
-    tmp.m_page_idx = localKey2;
-  }
+  tmp.m_page_no = localKey1;
+  tmp.m_page_idx = localKey2;
 
   c_scanOpPool.getPtr(scanPtr);
   ScanOp& scan = *scanPtr.p;
@@ -1107,12 +1099,11 @@ Dbtup::scanNext(Signal* signal, ScanOpPtr scanPtr)
 	conf->scanPtr = scan.m_userPtr;
 	conf->accOperationPtr = RNIL;
 	conf->fragId = frag.fragmentId;
-	conf->localKey[0] = pos.m_key_mm.ref();
-	conf->localKey[1] = 0;
-	conf->localKeyLength = 1;
+	conf->localKey[0] = pos.m_key_mm.m_page_no;
+	conf->localKey[1] = pos.m_key_mm.m_page_idx;
 	conf->gci = foundGCI;
 	Uint32 blockNo = refToMain(scan.m_userRef);
-	EXECUTE_DIRECT(blockNo, GSN_NEXT_SCANCONF, signal, 7);
+	EXECUTE_DIRECT(blockNo, GSN_NEXT_SCANCONF, signal, 6);
 	jamEntry();
 
 	// TUPKEYREQ handles savepoint stuff
@@ -1170,12 +1161,11 @@ Dbtup::handle_lcp_keep(Signal* signal,
   conf->scanPtr = scanPtrP->m_userPtr;
   conf->accOperationPtr = (Uint32)-1;
   conf->fragId = fragPtrP->fragmentId;
-  conf->localKey[0] = lcp_list;
-  conf->localKey[1] = 0;
-  conf->localKeyLength = 1;
+  conf->localKey[0] = Local_key::ref2page_id(lcp_list);
+  conf->localKey[1] = Local_key::ref2page_idx(lcp_list);
   conf->gci = 0;
   Uint32 blockNo = refToMain(scanPtrP->m_userRef);
-  EXECUTE_DIRECT(blockNo, GSN_NEXT_SCANCONF, signal, 7);
+  EXECUTE_DIRECT(blockNo, GSN_NEXT_SCANCONF, signal, 6);
   
   fragPtrP->m_lcp_keep_list = next;
   ptr->m_header_bits |= Tuple_header::FREED; // RESTORE free flag
