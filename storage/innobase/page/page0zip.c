@@ -46,7 +46,6 @@ Created June 2005 by Marko Makela
 #else /* !UNIV_HOTBACKUP */
 # define lock_move_reorganize_page(block, temp_block)	((void) 0)
 # define buf_LRU_stat_inc_unzip()			((void) 0)
-# define MONITOR_INC(x)					((void) 0)
 #endif /* !UNIV_HOTBACKUP */
 
 #ifndef UNIV_HOTBACKUP

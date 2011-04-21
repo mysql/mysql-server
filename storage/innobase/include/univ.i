@@ -132,7 +132,7 @@ Sun Studio */
 /* Following defines are to enable performance schema
 instrumentation in each of four InnoDB modules if
 HAVE_PSI_INTERFACE is defined. */
-#ifdef HAVE_PSI_INTERFACE
+#if defined HAVE_PSI_INTERFACE && !defined UNIV_HOTBACKUP
 # define UNIV_PFS_MUTEX
 # define UNIV_PFS_RWLOCK
 /* For I/O instrumentation, performance schema rely
