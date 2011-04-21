@@ -490,4 +490,26 @@ SELECT IS_NULLABLE, COLUMN_NAME FROM INFORMATION_SCHEMA.COLUMNS WHERE
   TABLE_SCHEMA='mysql'
 ORDER BY COLUMN_NAME;
 
+
+--echo #
+--echo # Bug #11936829: diff. between mysql.user (authentication_string) 
+--echo #   in fresh and upgraded 5.5.11
+--echo #
+
+SELECT IS_NULLABLE, COLUMN_NAME FROM INFORMATION_SCHEMA.COLUMNS
+  WHERE TABLE_SCHEMA= 'mysql' AND TABLE_NAME= 'user' AND
+    COLUMN_NAME IN ('plugin', 'authentication_string')
+  ORDER BY COLUMN_NAME;
+ALTER TABLE mysql.user MODIFY plugin char(64) DEFAULT '' NOT NULL;
+ALTER TABLE mysql.user MODIFY authentication_string TEXT NOT NULL;
+
+--echo Run mysql_upgrade on a 5.5.10 external authentication column layout
+--exec $MYSQL_UPGRADE --skip-verbose --force 2>&1
+
+SELECT IS_NULLABLE, COLUMN_NAME FROM INFORMATION_SCHEMA.COLUMNS
+  WHERE TABLE_SCHEMA= 'mysql' AND TABLE_NAME= 'user' AND
+    COLUMN_NAME IN ('plugin', 'authentication_string')
+  ORDER BY COLUMN_NAME;
+
+
 --echo End of 5.5 tests

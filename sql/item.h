@@ -53,6 +53,8 @@ char_to_byte_length_safe(uint32 char_length_arg, uint32 mbmaxlen_arg)
                                  (i.e. constant).
   MY_COLL_ALLOW_CONV           - allow any kind of conversion
                                  (combination of the above two)
+  MY_COLL_ALLOW_NUMERIC_CONV   - if all items were numbers, convert to
+                                 @@character_set_connection
   MY_COLL_DISALLOW_NONE        - don't allow return DERIVATION_NONE
                                  (e.g. when aggregating for comparison)
   MY_COLL_CMP_CONV             - combination of MY_COLL_ALLOW_CONV
@@ -62,6 +64,7 @@ char_to_byte_length_safe(uint32 char_length_arg, uint32 mbmaxlen_arg)
 #define MY_COLL_ALLOW_SUPERSET_CONV   1
 #define MY_COLL_ALLOW_COERCIBLE_CONV  2
 #define MY_COLL_DISALLOW_NONE         4
+#define MY_COLL_ALLOW_NUMERIC_CONV    8
 
 #define MY_COLL_ALLOW_CONV (MY_COLL_ALLOW_SUPERSET_CONV | MY_COLL_ALLOW_COERCIBLE_CONV)
 #define MY_COLL_CMP_CONV   (MY_COLL_ALLOW_CONV | MY_COLL_DISALLOW_NONE)
@@ -548,6 +551,10 @@ public:
    */
   Item *next;
   uint32 max_length;                    /* Maximum length, in bytes */
+  /*
+    TODO: convert name and name_length fields into String to keep them in sync
+    (see bug #11829681/60295 etc).
+  */
   uint name_length;                     /* Length of name */
   int8 marker;
   uint8 decimals;
@@ -1557,7 +1564,8 @@ agg_item_charsets_for_string_result(DTCollation &c, const char *name,
                                     int item_sep= 1)
 {
   uint flags= MY_COLL_ALLOW_SUPERSET_CONV |
-              MY_COLL_ALLOW_COERCIBLE_CONV;
+              MY_COLL_ALLOW_COERCIBLE_CONV |
+              MY_COLL_ALLOW_NUMERIC_CONV;
   return agg_item_charsets(c, name, items, nitems, flags, item_sep);
 }
 inline bool
@@ -1570,6 +1578,19 @@ agg_item_charsets_for_comparison(DTCollation &c, const char *name,
               MY_COLL_DISALLOW_NONE;
   return agg_item_charsets(c, name, items, nitems, flags, item_sep);
 }
+inline bool
+agg_item_charsets_for_string_result_with_comparison(DTCollation &c,
+                                                    const char *name,
+                                                    Item **items, uint nitems,
+                                                    int item_sep= 1)
+{
+  uint flags= MY_COLL_ALLOW_SUPERSET_CONV |
+              MY_COLL_ALLOW_COERCIBLE_CONV |
+              MY_COLL_ALLOW_NUMERIC_CONV |
+              MY_COLL_DISALLOW_NONE;
+  return agg_item_charsets(c, name, items, nitems, flags, item_sep);
+}
+
 
 class Item_num: public Item_basic_constant
 {
