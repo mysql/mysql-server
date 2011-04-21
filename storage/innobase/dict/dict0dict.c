@@ -5473,9 +5473,8 @@ dict_close(void)
 		rw_lock_free(&dict_table_stats_latches[i]);
 	}
 }
-#endif /* !UNIV_HOTBACKUP */
 
-#ifdef UNIV_DEBUG
+# ifdef UNIV_DEBUG
 /**********************************************************************//**
 Validate the dictionary table LRU list.
 @return TRUE if valid  */
@@ -5560,4 +5559,5 @@ dict_non_lru_find_table(
 
 	return(FALSE);
 }
-#endif /* UNIV_DEBUG */
+# endif /* UNIV_DEBUG */
+#endif /* !UNIV_HOTBACKUP */
