@@ -1321,8 +1321,7 @@ sync_thread_add_level(
 		ut_a(sync_thread_levels_contain(array, SYNC_RSEG));
 		break;
 	case SYNC_RSEG_HEADER_NEW:
-		ut_a(sync_thread_levels_contain(array, SYNC_LOCK_SYS)
-		     && sync_thread_levels_contain(array, SYNC_FSP_PAGE));
+		ut_a(sync_thread_levels_contain(array, SYNC_FSP_PAGE));
 		break;
 	case SYNC_TREE_NODE:
 		ut_a(sync_thread_levels_contain(array, SYNC_INDEX_TREE)
