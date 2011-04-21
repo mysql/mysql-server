@@ -5111,6 +5111,7 @@ dict_ind_init(void)
 	dict_ind_redundant->cached = dict_ind_compact->cached = TRUE;
 }
 
+#ifndef UNIV_HOTBACKUP
 /**********************************************************************//**
 Frees dict_ind_redundant and dict_ind_compact. */
 static
@@ -5131,7 +5132,6 @@ dict_ind_free(void)
 	dict_mem_table_free(table);
 }
 
-#ifndef UNIV_HOTBACKUP
 /**********************************************************************//**
 Get index by name
 @return	index, NULL if does not exist */

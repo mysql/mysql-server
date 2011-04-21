@@ -97,15 +97,12 @@ row_undo_ins_remove_clust_rec(
 
 	btr_cur = btr_pcur_get_btr_cur(&(node->pcur));
 
-	success = btr_cur_optimistic_delete(btr_cur, &mtr);
-
-	btr_pcur_commit_specify_mtr(&(node->pcur), &mtr);
-
-	if (success) {
-		trx_undo_rec_release(node->trx, node->undo_no);
-
-		return(DB_SUCCESS);
+	if (btr_cur_optimistic_delete(btr_cur, &mtr)) {
+		err = DB_SUCCESS;
+		goto func_exit;
 	}
+
+	btr_pcur_commit_specify_mtr(&node->pcur, &mtr);
 retry:
 	/* If did not succeed, try pessimistic descent to tree */
 	mtr_start(&mtr);
@@ -135,8 +132,8 @@ retry:
 		goto retry;
 	}
 
-	btr_pcur_commit_specify_mtr(&(node->pcur), &mtr);
-
+func_exit:
+	btr_pcur_commit_specify_mtr(&node->pcur, &mtr);
 	trx_undo_rec_release(node->trx, node->undo_no);
 
 	return(err);
