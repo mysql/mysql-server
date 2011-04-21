@@ -16887,7 +16887,7 @@ void Dblqh::execSTART_RECCONF(Signal* signal)
   default:
     ndbrequire(false);
   }
-  
+
   jam();
   csrExecUndoLogState = EULS_COMPLETED;
 
@@ -16946,7 +16946,16 @@ Dblqh::rebuildOrderedIndexes(Signal* signal, Uint32 tableId)
                            LogPartRecord::P_TAIL_PROBLEM, true);
       }
     }
-    
+
+    if (!isNdbMtLqh())
+    {
+      /**
+       * There should be no disk-ops in flight here...check it
+       */
+      signal->theData[0] = 12003;
+      sendSignal(LGMAN_REF, GSN_DUMP_STATE_ORD, signal, 1, JBB);
+    }
+
     StartRecConf * conf = (StartRecConf*)signal->getDataPtrSend();
     conf->startingNodeId = getOwnNodeId();
     conf->senderData = cstartRecReqData;
