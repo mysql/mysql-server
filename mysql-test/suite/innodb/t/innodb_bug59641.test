@@ -28,6 +28,8 @@ UPDATE t SET b=4*a WHERE a=32;
 XA END '789';
 XA PREPARE '789';
 
+CONNECT (con3,localhost,root,,);
+CONNECTION con3;
 # The server would issue this warning on restart.
 call mtr.add_suppression("Found 3 prepared XA transactions");
 
