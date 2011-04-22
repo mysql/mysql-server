@@ -163,6 +163,9 @@ VoidFs::execFSWRITEREQ(Signal* signal)
   const Uint32 userRef = req->userReference;
   const Uint32 userPointer = req->userPointer;
 
+  SectionHandle handle(this, signal);
+  releaseSections(handle);
+
   signal->theData[0] = userPointer;
   sendSignal(userRef, GSN_FSWRITECONF, signal, 1, JBB);
 }
@@ -175,6 +178,9 @@ VoidFs::execFSREADREQ(Signal* signal)
   const FsReadWriteReq * const req = (FsReadWriteReq *)signal->getDataPtr();
   const Uint32 userRef = req->userReference;
   const Uint32 userPointer = req->userPointer;
+
+  SectionHandle handle(this, signal);
+  releaseSections(handle);
 
   signal->theData[0] = userPointer;
   sendSignal(userRef, GSN_FSREADCONF, signal, 1, JBB);

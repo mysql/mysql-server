@@ -548,7 +548,19 @@ Ndbfs::execFSCLOSEREQ(Signal * signal)
 void 
 Ndbfs::readWriteRequest(int action, Signal * signal)
 {
-  const FsReadWriteReq * const fsRWReq = (FsReadWriteReq *)&signal->theData[0];
+  Uint32 theData[25 + 2 * 32];
+  memcpy(theData, signal->theData, 4 * signal->getLength());
+  SectionHandle handle(this, signal);
+  if (handle.m_cnt > 0)
+  {
+    SegmentedSectionPtr secPtr;
+    ndbrequire(handle.getSection(secPtr, 0));
+    ndbrequire(signal->getLength() + secPtr.sz < NDB_ARRAY_SIZE(theData));
+    copy(theData + signal->getLength(), secPtr);
+    releaseSections(handle);
+  }
+
+  const FsReadWriteReq * const fsRWReq = (FsReadWriteReq *)theData;
   Uint16 filePointer =  (Uint16)fsRWReq->filePointer;
   const UintR userPointer = fsRWReq->userPointer; 
   const BlockReference userRef = fsRWReq->userReference;
