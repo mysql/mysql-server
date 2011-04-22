@@ -1792,7 +1792,8 @@ err_exit:
 #endif /* 0 */
 	mem_heap_free(heap);
 
-	ut_ad(ignore_err != DICT_ERR_IGNORE_NONE || table->corrupted == FALSE);
+	ut_ad(!table || ignore_err != DICT_ERR_IGNORE_NONE
+	      || !table->corrupted);
 
 	return(table);
 }

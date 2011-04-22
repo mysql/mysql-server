@@ -504,7 +504,7 @@ rw_lock_s_unlock_func(
                 anyway. We do not wake other waiters, because they can't
                 exist without wait_ex waiter and wait_ex waiter goes first.*/
 		os_event_set(lock->wait_ex_event);
-		sync_array_object_signalled(sync_primary_wait_array);
+		sync_array_object_signalled();
 
 	}
 
@@ -578,7 +578,7 @@ rw_lock_x_unlock_func(
 		if (lock->waiters) {
 			rw_lock_reset_waiter_flag(lock);
 			os_event_set(lock->event);
-			sync_array_object_signalled(sync_primary_wait_array);
+			sync_array_object_signalled();
 		}
 	}
 
