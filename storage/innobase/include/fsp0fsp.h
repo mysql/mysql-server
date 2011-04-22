@@ -41,16 +41,6 @@ void
 fsp_init(void);
 /*==========*/
 /**********************************************************************//**
-Gets the current free limit of the system tablespace.  The free limit
-means the place of the first page which has never been put to the
-free list for allocation.  The space above that address is initialized
-to zero.  Sets also the global variable log_fsp_current_free_limit.
-@return	free limit in megabytes */
-UNIV_INTERN
-ulint
-fsp_header_get_free_limit(void);
-/*===========================*/
-/**********************************************************************//**
 Gets the size of the system tablespace from the tablespace header.  If
 we do not have an auto-extending data file, this should be equal to
 the size of the data files.  If there is an auto-extending data file,
