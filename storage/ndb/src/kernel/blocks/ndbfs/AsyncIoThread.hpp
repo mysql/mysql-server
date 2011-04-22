@@ -80,7 +80,7 @@ public:
 	char *buf;
 	size_t size;
 	off_t offset;
-      } pages[16];
+      } pages[32];
     } readWrite;
     struct {
       const char * buf;

@@ -824,16 +824,17 @@ Dbtup::set_commit_change_mask_info(const Tablerec* regTabPtr,
   else
   {
     Uint32 * dst = req_struct->changeMask.rep.data;
-    Uint32 * maskptr = get_copy_tuple_raw(&regOperPtr->m_copy_tuple_location);
-    Uint32 cols = * maskptr;
+    Uint32 * rawptr = get_copy_tuple_raw(&regOperPtr->m_copy_tuple_location);
+    ChangeMask * maskptr = get_change_mask_ptr(rawptr);
+    Uint32 cols = maskptr->m_cols;
     if (cols == regTabPtr->m_no_of_attributes)
     {
-      memcpy(dst, maskptr + 1, 4*masklen);
+      memcpy(dst, maskptr->m_mask, 4*masklen);
     }
     else
     {
       ndbassert(regTabPtr->m_no_of_attributes > cols); // no drop column
-      memcpy(dst, maskptr + 1, 4*((cols + 31) >> 5));
+      memcpy(dst, maskptr->m_mask, 4*((cols + 31) >> 5));
       req_struct->changeMask.setRange(cols,
                                       regTabPtr->m_no_of_attributes - cols);
     }
