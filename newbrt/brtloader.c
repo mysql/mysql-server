@@ -69,7 +69,7 @@ static size_t do_fwrite (const void *ptr, size_t size, size_t nmemb, FILE *strea
 // 1024 is the right size_factor for production.  
 // Different values for these sizes may be used for testing.
 static uint32_t size_factor = 1024;
-static uint32_t default_loader_nodesize = (1<<22);
+static uint32_t default_loader_nodesize = BRT_DEFAULT_NODE_SIZE;
 
 enum { EXTRACTOR_QUEUE_DEPTH = 2,
        FILE_BUFFER_SIZE  = 1<<24,
@@ -87,7 +87,7 @@ void
 toku_brtloader_set_size_factor(uint32_t factor) {
 // For test purposes only
     size_factor = factor;
-    default_loader_nodesize = (size_factor==1) ? (1<<15) : (1<<22);
+    default_loader_nodesize = (size_factor==1) ? (1<<15) : BRT_DEFAULT_NODE_SIZE;
 }
 
 uint64_t
