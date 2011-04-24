@@ -487,7 +487,7 @@ int runCreateAndDropAtRandom(NDBT_Context* ctx, NDBT_Step* step)
   }
 
   for (num = 0; num < numAllTables; num++)
-    if (tabList[num].exists == 0)
+    if (tabList[num].exists == 1)
       pDic->dropTable(NDBT_Tables::getTable(num)->getName());
 
   delete [] tabList;
