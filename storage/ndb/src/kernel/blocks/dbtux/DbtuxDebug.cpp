@@ -387,9 +387,6 @@ operator<<(NdbOut& out, const Dbtux::TreeHead& tree)
   out << " [prefSize " << dec << tree.m_prefSize << "]";
   out << " [minOccup " << dec << tree.m_minOccup << "]";
   out << " [maxOccup " << dec << tree.m_maxOccup << "]";
-  out << " [AccHead " << dec << tree.getSize(Dbtux::AccHead) << "]";
-  out << " [AccPref " << dec << tree.getSize(Dbtux::AccPref) << "]";
-  out << " [AccFull " << dec << tree.getSize(Dbtux::AccFull) << "]";
   out << " [root " << hex << tree.m_root << "]";
   out << "]";
   return out;
