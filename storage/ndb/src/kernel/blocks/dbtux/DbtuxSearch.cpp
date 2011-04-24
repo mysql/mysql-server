@@ -53,14 +53,14 @@ Dbtux::searchToAdd(TuxCtx& ctx, Frag& frag, ConstData searchKey, TreeEnt searchE
       thrjam(ctx.jamBuffer);
       // read and compare remaining attributes
       ndbrequire(start < numAttrs);
-      readKeyAttrs(ctx, frag, currNode.getMinMax(0), start, ctx.c_entryKey);
+      readKeyAttrs(ctx, frag, currNode.getEnt(0), start, ctx.c_entryKey);
       ret = cmpSearchKey(ctx, frag, start, searchKey, ctx.c_entryKey);
       ndbrequire(ret != NdbSqlUtil::CmpUnknown);
     }
     if (ret == 0) {
       thrjam(ctx.jamBuffer);
       // keys are equal, compare entry values
-      ret = searchEnt.cmp(currNode.getMinMax(0));
+      ret = searchEnt.cmp(currNode.getEnt(0));
     }
     if (ret < 0) {
       thrjam(ctx.jamBuffer);
@@ -185,14 +185,14 @@ Dbtux::searchToRemove(Frag& frag, ConstData searchKey, TreeEnt searchEnt, TreePo
       jam();
       // read and compare remaining attributes
       ndbrequire(start < numAttrs);
-      readKeyAttrs(c_ctx, frag, currNode.getMinMax(0), start, c_ctx.c_entryKey);
+      readKeyAttrs(c_ctx, frag, currNode.getEnt(0), start, c_ctx.c_entryKey);
       ret = cmpSearchKey(c_ctx, frag, start, searchKey, c_ctx.c_entryKey);
       ndbrequire(ret != NdbSqlUtil::CmpUnknown);
     }
     if (ret == 0) {
       jam();
       // keys are equal, compare entry values
-      ret = searchEnt.cmp(currNode.getMinMax(0));
+      ret = searchEnt.cmp(currNode.getEnt(0));
     }
     if (ret < 0) {
       jam();
@@ -281,7 +281,7 @@ Dbtux::searchToScanAscending(Frag& frag, ConstData boundInfo, unsigned boundCoun
     if (ret == NdbSqlUtil::CmpUnknown) {
       jam();
       // read and compare all attributes
-      readKeyAttrs(c_ctx, frag, currNode.getMinMax(0), 0, c_ctx.c_entryKey);
+      readKeyAttrs(c_ctx, frag, currNode.getEnt(0), 0, c_ctx.c_entryKey);
       ret = cmpScanBound(frag, 0, boundInfo, boundCount, c_ctx.c_entryKey);
       ndbrequire(ret != NdbSqlUtil::CmpUnknown);
     }
@@ -368,7 +368,7 @@ Dbtux::searchToScanDescending(Frag& frag, ConstData boundInfo, unsigned boundCou
     if (ret == NdbSqlUtil::CmpUnknown) {
       jam();
       // read and compare all attributes
-      readKeyAttrs(c_ctx, frag, currNode.getMinMax(0), 0, c_ctx.c_entryKey);
+      readKeyAttrs(c_ctx, frag, currNode.getEnt(0), 0, c_ctx.c_entryKey);
       ret = cmpScanBound(frag, 1, boundInfo, boundCount, c_ctx.c_entryKey);
       ndbrequire(ret != NdbSqlUtil::CmpUnknown);
     }

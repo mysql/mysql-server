@@ -550,7 +550,6 @@ private:
     // access other parts of the node
     Data getPref();
     TreeEnt getEnt(unsigned pos);
-    TreeEnt getMinMax(unsigned i);
     // for ndbrequire and ndbassert
     void progError(int line, int cause, const char* file);
   };
@@ -1175,14 +1174,6 @@ Dbtux::NodeHandle::getEnt(unsigned pos)
   const unsigned occup = m_node->m_occup;
   ndbrequire(pos < occup);
   return entList[(1 + pos) % occup];
-}
-
-inline Dbtux::TreeEnt
-Dbtux::NodeHandle::getMinMax(unsigned i)
-{
-  const unsigned occup = m_node->m_occup;
-  ndbrequire(i <= 1 && occup != 0);
-  return getEnt(i == 0 ? 0 : occup - 1);
 }
 
 // parameters for methods

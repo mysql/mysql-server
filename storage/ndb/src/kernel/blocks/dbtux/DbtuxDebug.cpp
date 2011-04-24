@@ -286,7 +286,7 @@ Dbtux::printNode(TuxCtx & ctx,
   { ConstData data1 = node.getPref();
     Uint32 data2[MaxPrefSize];
     memset(data2, DataFillByte, MaxPrefSize << 2);
-    readKeyAttrs(ctx, frag, node.getMinMax(0), 0, ctx.c_searchKey);
+    readKeyAttrs(ctx, frag, node.getEnt(0), 0, ctx.c_searchKey);
     copyAttrs(ctx, frag, ctx.c_searchKey, data2, tree.m_prefSize);
     for (unsigned n = 0; n < tree.m_prefSize; n++) {
       if (data1[n] != data2[n]) {
@@ -320,7 +320,8 @@ Dbtux::printNode(TuxCtx & ctx,
     if (node.getLink(i) == NullTupLoc)
       continue;
     const TreeEnt ent1 = cpar[i].m_minmax[1 - i];
-    const TreeEnt ent2 = node.getMinMax(i);
+    const unsigned pos = (i == 0 ? 0 : node.getOccup() - 1);
+    const TreeEnt ent2 = node.getEnt(pos);
     unsigned start = 0;
     readKeyAttrs(ctx, frag, ent1, start, ctx.c_searchKey);
     readKeyAttrs(ctx, frag, ent2, start, ctx.c_entryKey);
@@ -337,9 +338,10 @@ Dbtux::printNode(TuxCtx & ctx,
   par.m_depth = 1 + max(cpar[0].m_depth, cpar[1].m_depth);
   par.m_occup = node.getOccup();
   for (unsigned i = 0; i <= 1; i++) {
-    if (node.getLink(i) == NullTupLoc)
-      par.m_minmax[i] = node.getMinMax(i);
-    else
+    if (node.getLink(i) == NullTupLoc) {
+      const unsigned pos = (i == 0 ? 0 : node.getOccup() - 1);
+      par.m_minmax[i] = node.getEnt(pos);
+    } else
       par.m_minmax[i] = cpar[i].m_minmax[i];
   }
 }
