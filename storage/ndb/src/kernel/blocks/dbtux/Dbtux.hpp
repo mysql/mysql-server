@@ -583,6 +583,7 @@ private:
   void readTablePk(const Frag& frag, TreeEnt ent, Data pkData, unsigned& pkSize);
   void copyAttrs(TuxCtx&, const Frag& frag, ConstData data1, Data data2, unsigned maxlen2 = MaxAttrDataSize);
   void unpackBound(const ScanBound& bound, Data data);
+  void findFrag(const Index& index, Uint32 fragId, FragPtr& fragPtr);
 
   /*
    * DbtuxMeta.cpp
