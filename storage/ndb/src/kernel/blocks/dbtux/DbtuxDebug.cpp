@@ -527,9 +527,8 @@ operator<<(NdbOut& out, const Dbtux::NodeHandle& node)
   unsigned numpos = node.m_node->m_occup;
   data = (const Uint32*)node.m_node + Dbtux::NodeHeadSize + tree.m_prefSize;
   const Dbtux::TreeEnt* entList = (const Dbtux::TreeEnt*)data;
-  // print entries in logical order
-  for (unsigned pos = 1; pos <= numpos; pos++)
-    out << " " << entList[pos % numpos];
+  for (unsigned pos = 0; pos < numpos; pos++)
+    out << " " << entList[pos];
   out << "]";
   out << "]";
   return out;

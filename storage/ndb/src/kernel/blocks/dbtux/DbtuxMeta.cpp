@@ -313,21 +313,20 @@ Dbtux::execTUXFRAGREQ(Signal* signal)
     tree.m_nodeSize = MAX_TTREE_NODE_SIZE;
     tree.m_prefSize = MAX_TTREE_PREF_SIZE;
     const unsigned maxSlack = MAX_TTREE_NODE_SLACK;
-    // size up to and including first 2 entries
-    const unsigned pref = NodeHeadSize + tree.m_prefSize + 2 * TreeEntSize;
-    if (! (pref <= tree.m_nodeSize)) {
+    // size of header and min prefix
+    const unsigned fixedSize = NodeHeadSize + tree.m_prefSize;
+    if (! (fixedSize <= tree.m_nodeSize)) {
       jam();
       errorCode = (TuxFragRef::ErrorCode)TuxAddAttrRef::InvalidNodeSize;
       break;
     }
-    const unsigned slots = (tree.m_nodeSize - pref) / TreeEntSize;
-    // leave out work space entry
-    tree.m_maxOccup = 2 + slots - 1;
+    const unsigned slots = (tree.m_nodeSize - fixedSize) / TreeEntSize;
+    tree.m_maxOccup = slots;
     // min occupancy of interior node must be at least 2
     if (! (2 + maxSlack <= tree.m_maxOccup)) {
       jam();
-        errorCode = (TuxFragRef::ErrorCode)TuxAddAttrRef::InvalidNodeSize;
-        break;
+      errorCode = (TuxFragRef::ErrorCode)TuxAddAttrRef::InvalidNodeSize;
+      break;
     }
     tree.m_minOccup = tree.m_maxOccup - maxSlack;
     // root node does not exist (also set by ctor)
