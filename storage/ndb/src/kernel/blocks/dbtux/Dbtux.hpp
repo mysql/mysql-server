@@ -248,17 +248,6 @@ private:
   STATIC_CONST( NodeHeadSize = sizeof(TreeNode) >> 2 );
 
   /*
-   * Tree node "access size" was for an early version with signal
-   * interface to TUP.  It is now used only to compute sizes.
-   */
-  enum AccSize {
-    AccNone = 0,
-    AccHead = 1,                // part 1
-    AccPref = 2,                // parts 1-3
-    AccFull = 3                 // parts 1-5
-  };
-
-  /*
    * Tree header.  There is one in each fragment.  Contains tree
    * parameters and address of root node.
    */
@@ -273,7 +262,6 @@ private:
     TupLoc m_root;              // root node
     TreeHead();
     // methods
-    unsigned getSize(AccSize acc) const;
     Data getPref(TreeNode* node) const;
     TreeEnt* getEntList(TreeNode* node) const;
   };
@@ -928,22 +916,6 @@ Dbtux::TreeHead::TreeHead() :
   m_entryCount(0),
   m_root()
 {
-}
-
-inline unsigned
-Dbtux::TreeHead::getSize(AccSize acc) const
-{
-  switch (acc) {
-  case AccNone:
-    return 0;
-  case AccHead:
-    return NodeHeadSize;
-  case AccPref:
-    return NodeHeadSize + m_prefSize + 2 * TreeEntSize;
-  case AccFull:
-    return m_nodeSize;
-  }
-  return 0;
 }
 
 inline Dbtux::Data

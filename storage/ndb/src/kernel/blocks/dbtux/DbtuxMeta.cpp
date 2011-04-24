@@ -314,7 +314,7 @@ Dbtux::execTUXFRAGREQ(Signal* signal)
     tree.m_prefSize = MAX_TTREE_PREF_SIZE;
     const unsigned maxSlack = MAX_TTREE_NODE_SLACK;
     // size up to and including first 2 entries
-    const unsigned pref = tree.getSize(AccPref);
+    const unsigned pref = NodeHeadSize + tree.m_prefSize + 2 * TreeEntSize;
     if (! (pref <= tree.m_nodeSize)) {
       jam();
       errorCode = (TuxFragRef::ErrorCode)TuxAddAttrRef::InvalidNodeSize;
