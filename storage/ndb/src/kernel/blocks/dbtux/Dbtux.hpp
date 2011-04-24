@@ -219,16 +219,11 @@ private:
   static const TreeEnt NullTreeEnt;
 
   /*
-   * Tree node has 1) fixed part 2) a prefix of index key data for min
-   * entry 3) max and min entries 4) rest of entries 5) one extra entry
-   * used as work space.
+   * Tree node has 3 parts:
    *
-   * struct TreeNode            part 1, size 6 words
-   * min prefix                 part 2, size TreeHead::m_prefSize
-   * max entry                  part 3
-   * min entry                  part 3
-   * rest of entries            part 4
-   * work entry                 part 5
+   * 1) struct TreeNode - the header (6 words)
+   * 2) some key values for min entry - the min prefix
+   * 3) list of TreeEnt (each 2 words)
    *
    * There are 3 links to other nodes: left child, right child, parent.
    * Occupancy (number of entries) is at least 1 except temporarily when
@@ -1173,7 +1168,7 @@ Dbtux::NodeHandle::getEnt(unsigned pos)
   TreeEnt* entList = tree.getEntList(m_node);
   const unsigned occup = m_node->m_occup;
   ndbrequire(pos < occup);
-  return entList[(1 + pos) % occup];
+  return entList[pos];
 }
 
 // parameters for methods
