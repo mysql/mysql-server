@@ -229,7 +229,6 @@ Dbtux::searchToScanAscending(Frag& frag, ConstData boundInfo, unsigned boundCoun
   NodeHandle currNode(frag);
   currNode.m_loc = tree.m_root;
   NodeHandle glbNode(frag);     // potential g.l.b of final node
-  NodeHandle bottomNode(frag);
   while (true) {
     jam();
     selectNode(currNode, currNode.m_loc);
@@ -255,8 +254,7 @@ Dbtux::searchToScanAscending(Frag& frag, ConstData boundInfo, unsigned boundCoun
       }
       if (! glbNode.isNull()) {
         jam();
-        // move up to the g.l.b but remember the bottom node
-        bottomNode = currNode;
+        // move up to the g.l.b
         currNode = glbNode;
       } else {
         // start scanning this node
@@ -295,18 +293,10 @@ Dbtux::searchToScanAscending(Frag& frag, ConstData boundInfo, unsigned boundCoun
       return;
     }
   }
-  // bound is to right of this node
-  if (! bottomNode.isNull()) {
-    jam();
-    // start scanning the l.u.b
-    treePos.m_loc = bottomNode.m_loc;
-    treePos.m_pos = 0;
-    treePos.m_dir = 3;
-    return;
-  }
-  // start scanning upwards (pretend we came from right child)
+  // start scanning after node end i.e. proceed to right child
   treePos.m_loc = currNode.m_loc;
-  treePos.m_dir = 1;
+  treePos.m_pos = ZNIL;
+  treePos.m_dir = 5;
 }
 
 void
@@ -316,7 +306,6 @@ Dbtux::searchToScanDescending(Frag& frag, ConstData boundInfo, unsigned boundCou
   NodeHandle currNode(frag);
   currNode.m_loc = tree.m_root;
   NodeHandle glbNode(frag);     // potential g.l.b of final node
-  NodeHandle bottomNode(frag);
   while (true) {
     jam();
     selectNode(currNode, currNode.m_loc);
@@ -342,8 +331,7 @@ Dbtux::searchToScanDescending(Frag& frag, ConstData boundInfo, unsigned boundCou
       }
       if (! glbNode.isNull()) {
         jam();
-        // move up to the g.l.b but remember the bottom node
-        bottomNode = currNode;
+        // move up to the g.l.b
         currNode = glbNode;
       } else {
         // empty result set
