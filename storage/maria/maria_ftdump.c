@@ -259,18 +259,15 @@ get_one_option(int optid, const struct my_option *opt __attribute__((unused)),
   return 0;
 }
 
-#include <help_start.h>
 
 static void usage()
 {
   printf("Use: aria_ft_dump <table_name> <index_num>\n");
   my_print_help(my_long_options);
   my_print_variables(my_long_options);
-  NETWARE_SET_SCREEN_MODE(1);
   exit(1);
 }
 
-#include <help_end.h>
 
 static void complain(int val) /* Kinda assert :-)  */
 {
@@ -280,3 +277,6 @@ static void complain(int val) /* Kinda assert :-)  */
     exit(1);
   }
 }
+
+#include "ma_check_standalone.h"
+

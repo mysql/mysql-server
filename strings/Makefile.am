@@ -56,7 +56,7 @@ EXTRA_DIST =		ctype-big5.c ctype-cp932.c ctype-czech.c ctype-eucjpms.c ctype-euc
 			CHARSET_INFO.txt strmov_overlapp.c
 
 libmystrings_a_LIBADD=
-conf_to_src_SOURCES = conf_to_src.c xml.c ctype.c bcmp.c
+conf_to_src_SOURCES = conf_to_src.c xml.c ctype.c
 conf_to_src_LDADD=
 #force static linking of conf_to_src - essential when linking against
 #custom installation of libc

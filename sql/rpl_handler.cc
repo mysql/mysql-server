@@ -43,7 +43,7 @@ static pthread_key(Trans_binlog_info*, RPL_TRANS_BINLOG_INFO);
 int get_user_var_int(const char *name,
                      long long int *value, int *null_value)
 {
-  my_bool null_val;
+  bool null_val;
   user_var_entry *entry= 
     (user_var_entry*) my_hash_search(&current_thd->user_vars,
                                   (uchar*) name, strlen(name));
@@ -58,7 +58,7 @@ int get_user_var_int(const char *name,
 int get_user_var_real(const char *name,
                       double *value, int *null_value)
 {
-  my_bool null_val;
+  bool null_val;
   user_var_entry *entry= 
     (user_var_entry*) my_hash_search(&current_thd->user_vars,
                                   (uchar*) name, strlen(name));
@@ -74,7 +74,7 @@ int get_user_var_str(const char *name, char *value,
                      size_t len, unsigned int precision, int *null_value)
 {
   String str;
-  my_bool null_val;
+  bool null_val;
   user_var_entry *entry= 
     (user_var_entry*) my_hash_search(&current_thd->user_vars,
                                   (uchar*) name, strlen(name));
@@ -175,7 +175,7 @@ void delegates_destroy()
   for (; info; info= iter++)                                            \
   {                                                                     \
     plugin_ref plugin=                                                  \
-      my_plugin_lock(0, &info->plugin);                                 \
+      my_plugin_lock(0,  info->plugin);                                 \
     if (!plugin)                                                        \
     {                                                                   \
       /* plugin is not intialized or deleted, this is not an error */   \
@@ -336,7 +336,7 @@ int Binlog_transmit_delegate::reserve_header(THD *thd, ushort flags,
   for (; info; info= iter++)
   {
     plugin_ref plugin=
-      my_plugin_lock(thd, &info->plugin);
+      my_plugin_lock(thd, info->plugin);
     if (!plugin)
     {
       ret= 1;

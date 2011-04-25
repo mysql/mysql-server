@@ -203,12 +203,12 @@ static int walk_and_push(FT_SUPERDOC *from,
 static int FT_DOC_cmp(void *unused __attribute__((unused)),
                       FT_DOC *a, FT_DOC *b)
 {
-  return sgn(b->weight - a->weight);
+  return CMP_NUM(b->weight, a->weight);
 }
 
 
 FT_INFO *maria_ft_init_nlq_search(MARIA_HA *info, uint keynr, uchar *query,
-                                  size_t query_len, uint flags, uchar *record)
+                                  uint query_len, uint flags, uchar *record)
 {
   TREE	      wtree;
   ALL_IN_ONE  aio;
@@ -363,7 +363,7 @@ float maria_ft_nlq_find_relevance(FT_INFO *handler,
 
 void maria_ft_nlq_close_search(FT_INFO *handler)
 {
-  my_free(handler, MYF(0));
+  my_free(handler);
 }
 
 

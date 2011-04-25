@@ -73,7 +73,7 @@ int _ma_search(register MARIA_HA *info, MARIA_KEY *key, uint32 nextflag,
   {
     if (nextflag & SEARCH_SAVE_BUFF)
     {
-      bmove512(info->keyread_buff, page_buff, info->s->block_size);
+      memcpy(info->keyread_buff, page_buff, info->s->block_size);
 
       /* Save position for a possible read next / previous */
       info->int_keypos= info->keyread_buff + info->keypos_offset;

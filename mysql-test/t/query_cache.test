@@ -877,19 +877,6 @@ drop procedure f4;
 drop table t1;
 set GLOBAL query_cache_size=0;
 
-# Tests moved from main.variables due to needing query cache in server.
-set GLOBAL query_cache_size=100000;
---error ER_GLOBAL_VARIABLE
-set SESSION query_cache_size=10000;
-set global query_cache_limit=100;
-set global query_cache_size=100;
-set global query_cache_type=demand;
-
-set GLOBAL query_cache_type=default;
-set GLOBAL query_cache_limit=default;
-set GLOBAL query_cache_size=default;
-
-
 --echo End of 4.1 tests
 
 #

@@ -4,7 +4,6 @@
 #
 
 --source include/not_embedded.inc
---source include/have_innodb.inc
 
 let $innodb_lock_wait_timeout= query_get_value(SHOW VARIABLES LIKE 'innodb_lock_wait_timeout%', Value, 1);
 if (`SELECT $innodb_lock_wait_timeout < 10`)

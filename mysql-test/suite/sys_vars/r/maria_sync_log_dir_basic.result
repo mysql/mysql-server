@@ -1,0 +1,49 @@
+SET @start_global_value = @@global.maria_sync_log_dir;
+select @@global.maria_sync_log_dir, @@global.aria_sync_log_dir;
+@@global.maria_sync_log_dir	@@global.aria_sync_log_dir
+NEWFILE	NEWFILE
+select @@session.maria_sync_log_dir, @@session.aria_sync_log_dir;
+ERROR HY000: Variable 'maria_sync_log_dir' is a GLOBAL variable
+show global variables like '%aria_sync_log_dir';
+Variable_name	Value
+aria_sync_log_dir	NEWFILE
+maria_sync_log_dir	NEWFILE
+show session variables like '%aria_sync_log_dir';
+Variable_name	Value
+aria_sync_log_dir	NEWFILE
+maria_sync_log_dir	NEWFILE
+select * from information_schema.global_variables where variable_name like '%aria_sync_log_dir';
+VARIABLE_NAME	VARIABLE_VALUE
+ARIA_SYNC_LOG_DIR	NEWFILE
+MARIA_SYNC_LOG_DIR	NEWFILE
+select * from information_schema.session_variables where variable_name like '%aria_sync_log_dir';
+VARIABLE_NAME	VARIABLE_VALUE
+ARIA_SYNC_LOG_DIR	NEWFILE
+MARIA_SYNC_LOG_DIR	NEWFILE
+set global maria_sync_log_dir=1;
+select @@global.maria_sync_log_dir, @@global.aria_sync_log_dir;
+@@global.maria_sync_log_dir	@@global.aria_sync_log_dir
+NEWFILE	NEWFILE
+set session maria_sync_log_dir=1;
+ERROR HY000: Variable 'maria_sync_log_dir' is a GLOBAL variable and should be set with SET GLOBAL
+set global maria_sync_log_dir=never;
+select @@global.maria_sync_log_dir, @@global.aria_sync_log_dir;
+@@global.maria_sync_log_dir	@@global.aria_sync_log_dir
+NEVER	NEVER
+set global maria_sync_log_dir=newfile;
+select @@global.maria_sync_log_dir, @@global.aria_sync_log_dir;
+@@global.maria_sync_log_dir	@@global.aria_sync_log_dir
+NEWFILE	NEWFILE
+set global maria_sync_log_dir=always;
+select @@global.maria_sync_log_dir, @@global.aria_sync_log_dir;
+@@global.maria_sync_log_dir	@@global.aria_sync_log_dir
+ALWAYS	ALWAYS
+set global maria_sync_log_dir=1.1;
+ERROR 42000: Incorrect argument type to variable 'maria_sync_log_dir'
+set global maria_sync_log_dir=1e1;
+ERROR 42000: Incorrect argument type to variable 'maria_sync_log_dir'
+set global maria_sync_log_dir="foo";
+ERROR 42000: Variable 'maria_sync_log_dir' can't be set to the value of 'foo'
+set global maria_sync_log_dir=3;
+ERROR 42000: Variable 'maria_sync_log_dir' can't be set to the value of '3'
+SET @@global.maria_sync_log_dir = @start_global_value;

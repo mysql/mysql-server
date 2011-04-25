@@ -191,7 +191,7 @@ row_merge_build_indexes(
 					unless creating a PRIMARY KEY */
 	dict_index_t**	indexes,	/*!< in: indexes to be created */
 	ulint		n_indexes,	/*!< in: size of indexes[] */
-	TABLE*		table);		/*!< in/out: MySQL table, for
+	struct TABLE*	table);		/*!< in/out: MySQL table, for
 					reporting erroneous key value
 					if applicable */
 #endif /* row0merge.h */

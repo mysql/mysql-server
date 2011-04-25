@@ -185,7 +185,7 @@ int maria_update(register MARIA_HA *info, const uchar *oldrec, uchar *newrec)
     ma_update() must always pass !0 value as operation, since even if
     there is no index change there could be data change.
   */
-  VOID(_ma_writeinfo(info, WRITEINFO_UPDATE_KEYFILE));
+  _ma_writeinfo(info, WRITEINFO_UPDATE_KEYFILE);
   allow_break();				/* Allow SIGHUP & SIGINT */
   if (info->invalidator != 0)
   {
@@ -242,7 +242,7 @@ err:
 		 key_changed);
 
  err_end:
-  VOID(_ma_writeinfo(info,WRITEINFO_UPDATE_KEYFILE));
+  _ma_writeinfo(info, WRITEINFO_UPDATE_KEYFILE);
   allow_break();				/* Allow SIGHUP & SIGINT */
   if (save_errno == HA_ERR_KEY_NOT_FOUND)
   {

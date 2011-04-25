@@ -4207,7 +4207,7 @@ static char *get_actual_table_name(const char *old_table_name, MEM_ROOT *root)
     }
     mysql_free_result(table_res);
   }
-  DBUG_PRINT("exit", ("new_table_name: %s", val_or_null(name)));
+  DBUG_PRINT("exit", ("new_table_name: %s", name));
   DBUG_RETURN(name);
 }
 

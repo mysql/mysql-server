@@ -61,7 +61,7 @@ let $value = query_get_value(show variables like 'rpl_semi_sync_master_enabled',
 if (`select '$value' = 'No such row'`)
 {
     set sql_log_bin=0;
-    eval INSTALL PLUGIN rpl_semi_sync_master SONAME '$SEMISYNC_MASTER_PLUGIN';
+    eval INSTALL PLUGIN rpl_semi_sync_master SONAME '$SEMISYNC_MASTER_SO';
     set global rpl_semi_sync_master_timeout= 5000; /* 5s */
     set sql_log_bin=1;
 }
@@ -126,7 +126,7 @@ let $value= query_get_value(show variables like 'rpl_semi_sync_slave_enabled', V
 if (`select '$value' = 'No such row'`)
 {
     set sql_log_bin=0;
-    eval INSTALL PLUGIN rpl_semi_sync_slave SONAME '$SEMISYNC_SLAVE_PLUGIN';
+    eval INSTALL PLUGIN rpl_semi_sync_slave SONAME '$SEMISYNC_SLAVE_SO';
     set sql_log_bin=1;
 }
 enable_query_log;
@@ -566,8 +566,8 @@ SHOW STATUS LIKE 'Rpl_semi_sync_slave_status';
 
 connection master;
 set sql_log_bin=0;
-replace_result $SEMISYNC_MASTER_PLUGIN SEMISYNC_MASTER_PLUGIN;
-eval INSTALL PLUGIN rpl_semi_sync_master SONAME '$SEMISYNC_MASTER_PLUGIN';
+replace_result $SEMISYNC_MASTER_SO SEMISYNC_MASTER_SO;
+eval INSTALL PLUGIN rpl_semi_sync_master SONAME '$SEMISYNC_MASTER_SO';
 set global rpl_semi_sync_master_timeout= 5000; /* 5s */
 set sql_log_bin=1;
 set global rpl_semi_sync_master_enabled= 1;
@@ -585,8 +585,8 @@ SHOW STATUS LIKE 'Rpl_semi_sync_slave_status';
 source include/stop_slave.inc;
 
 echo [ reinstall semi-sync slave plugin and disable semi-sync ];
-replace_result $SEMISYNC_SLAVE_PLUGIN SEMISYNC_SLAVE_PLUGIN;
-eval INSTALL PLUGIN rpl_semi_sync_slave SONAME '$SEMISYNC_SLAVE_PLUGIN';
+replace_result $SEMISYNC_SLAVE_SO SEMISYNC_SLAVE_SO;
+eval INSTALL PLUGIN rpl_semi_sync_slave SONAME '$SEMISYNC_SLAVE_SO';
 set global rpl_semi_sync_slave_enabled= 0;
 SHOW VARIABLES LIKE 'rpl_semi_sync_slave_enabled';
 SHOW STATUS LIKE 'Rpl_semi_sync_slave_status';

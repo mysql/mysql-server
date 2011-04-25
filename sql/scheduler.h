@@ -63,17 +63,21 @@ enum scheduler_types
   SCHEDULER_TYPES_COUNT
 };
 
-scheduler_functions *one_thread_per_connection_scheduler(ulong *, uint *);
-scheduler_functions *one_thread_scheduler();
+void one_thread_per_connection_scheduler(scheduler_functions *func,
+    ulong *arg_max_connections, uint *arg_connection_count);
+void one_thread_scheduler(scheduler_functions *func);
 
 enum pool_command_op
 {
   NOT_IN_USE_OP= 0, NORMAL_OP= 1, CONNECT_OP, KILL_OP, DIE_OP
 };
 
-/*
- To be used for pool-of-threads (implemeneted differently on various OSs)
-*/
+#if defined(HAVE_LIBEVENT) && !defined(EMBEDDED_LIBRARY)
+
+#define HAVE_POOL_OF_THREADS 1
+
+struct event;
+ 
 class thd_scheduler
 {
 public:
@@ -89,7 +93,10 @@ public:
   */
   PSI_thread *m_psi;
 
-  void *data;                  /* scheduler-specific data structure */
+  bool logged_in;
+  struct event* io_event;
+  LIST list;
+  bool thread_attached;  /* Indicates if THD is attached to the OS thread */
 
 #  ifndef DBUG_OFF
   char dbug_explain[512];
@@ -98,6 +105,21 @@ public:
 
   thd_scheduler();
   ~thd_scheduler();
+  bool init(THD* parent_thd);
+  bool thread_attach();
+  void thread_detach();
 };
+
+void pool_of_threads_scheduler(scheduler_functions* func);
+#else
+
+#define pool_of_threads_scheduler(A) \
+  one_thread_per_connection_scheduler(A, &max_connections, \
+                                      &connection_count)
+
+class thd_scheduler
+{};
+
+#endif
 
 #endif

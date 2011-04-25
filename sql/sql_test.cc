@@ -253,7 +253,7 @@ void print_keyuse(KEYUSE *keyuse)
     fieldname= "FT_KEYPART";
   else
     fieldname= keyuse->table->key_info[keyuse->key].key_part[keyuse->keypart].field->field_name;
-  longlong2str(keyuse->used_tables, buf2, 16, 0); 
+  ll2str(keyuse->used_tables, buf2, 16, 0); 
   DBUG_LOCK_FILE;
   fprintf(DBUG_FILE, "KEYUSE: %s.%s=%s  optimize= %d used_tables=%s "
           "ref_table_rows= %lu keypart_map= %0lx\n",
@@ -399,11 +399,6 @@ void print_sjm(SJ_MATERIALIZATION_INFO *sjm)
 
 #endif
 
-C_MODE_START
-static int dl_compare(const void *p1, const void *p2);
-static int print_key_cache_status(const char *name, KEY_CACHE *key_cache);
-C_MODE_END
-
 typedef struct st_debug_lock
 {
   ulong thread_id;
@@ -413,6 +408,7 @@ typedef struct st_debug_lock
   enum thr_lock_type type;
 } TABLE_LOCK_INFO;
 
+C_MODE_START
 static int dl_compare(const void *p1, const void *p2)
 {
   TABLE_LOCK_INFO *a, *b;
@@ -430,6 +426,7 @@ static int dl_compare(const void *p1, const void *p2)
     return -1;
   return 1;
 }
+C_MODE_END
 
 
 static void push_locks_into_array(DYNAMIC_ARRAY *ar, THR_LOCK_DATA *data,
@@ -516,8 +513,9 @@ end:
   delete_dynamic(&saved_table_locks);
 }
 
-
-static int print_key_cache_status(const char *name, KEY_CACHE *key_cache)
+C_MODE_START
+static int print_key_cache_status(const char *name, KEY_CACHE *key_cache,
+                                  void *unused __attribute__((unused)))
 {
   char llbuff1[22];
   char llbuff2[22];
@@ -550,7 +548,7 @@ reads:          %10s\n\n",
            (ulong)key_cache->param_block_size,
 	   (ulong)key_cache->param_division_limit,
            (ulong)key_cache->param_age_threshold,
-           key_cache->param_partitions,
+           (ulong)key_cache->param_partitions,
 	   (ulong)stats.blocks_used,
            (ulong)stats.blocks_changed,
 	   llstr(stats.write_requests,llbuff1),
@@ -560,6 +558,7 @@ reads:          %10s\n\n",
   }
   return 0;
 }
+C_MODE_END
 
 
 void mysql_print_status()
@@ -579,7 +578,7 @@ void mysql_print_status()
 #endif
   /* Print key cache status */
   puts("\nKey caches:");
-  process_key_caches(print_key_cache_status);
+  process_key_caches(print_key_cache_status, 0);
   mysql_mutex_lock(&LOCK_status);
   printf("\nhandler status:\n\
 read_key:   %10lu\n\

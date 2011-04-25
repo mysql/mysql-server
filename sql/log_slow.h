@@ -19,11 +19,7 @@
 #define LOG_SLOW_VERBOSITY_INNODB         1 << 0
 #define LOG_SLOW_VERBOSITY_QUERY_PLAN     1 << 1
 
-/*
-  We init the used query plan with a bit that is alwyas set and all 'no' bits
-  to enable easy testing of what to log in sql_log.cc
-*/
-#define QPLAN_INIT            (QPLAN_ALWAYS_SET | QPLAN_QC_NO)
+#define QPLAN_INIT            QPLAN_QC_NO
 
 #define QPLAN_ADMIN           1 << 0
 #define QPLAN_FILESORT        1 << 1
@@ -36,7 +32,4 @@
 #define QPLAN_TMP_TABLE       1 << 8
 /* ... */
 #define QPLAN_MAX             ((ulong) 1) << 31 /* reserved as placeholder */
-#define QPLAN_ALWAYS_SET      QPLAN_MAX
-#define QPLAN_VISIBLE_MASK    (~(QPLAN_ALWAYS_SET))
-#warning simplify
 

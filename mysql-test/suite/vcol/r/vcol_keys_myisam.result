@@ -100,11 +100,11 @@ drop table t1;
 # TODO: FULLTEXT INDEX
 # SPATIAL INDEX
 # Error "All parts of a SPATIAL index must be NOT NULL"
-create table t1 (a int, b int as (a+1) persistent, spatial index (b));
+create table t1 (a int, b geometry as (a+1) persistent, spatial index (b));
 ERROR 42000: All parts of a SPATIAL index must be NOT NULL
 create table t1 (a int, b int as (a+1) persistent);
 alter table t1 add spatial index (b);
-ERROR 42000: All parts of a SPATIAL index must be NOT NULL
+ERROR 42000: A SPATIAL index may only contain a geometrical type column
 drop table t1;
 # FOREIGN KEY
 # Rejected FK options.

@@ -14,7 +14,6 @@
 #include <mysql_version.h>
 
 #if MYSQL_VERSION_ID>50100
-#include "mysql_priv.h"
 #include <mysql/plugin.h>
 #else
 #include "../mysql_priv.h"
@@ -29,6 +28,11 @@
 
 #include <mysys_err.h>
 #include <my_sys.h>
+
+#include <mysqld_error.h>
+
+#include <my_net.h>
+#include <mysql_com.h>
 
 #if MYSQL_VERSION_ID>=50120
 typedef uchar byte;

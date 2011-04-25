@@ -1726,7 +1726,7 @@ static int open_binary_frm(THD *thd, TABLE_SHARE *share, uchar *head,
   }
   if (parse_engine_table_options(thd, handler_file->partition_ht(), share))
     goto free_and_err;
-  my_free(buff, MYF(MY_ALLOW_ZERO_PTR));
+  my_free(buff);
 
   if (share->found_next_number_field)
   {
@@ -1790,7 +1790,7 @@ static int open_binary_frm(THD *thd, TABLE_SHARE *share, uchar *head,
   DBUG_RETURN (0);
 
  free_and_err:
-  my_free(buff, MYF(MY_ALLOW_ZERO_PTR));
+  my_free(buff);
  err:
   share->error= error;
   share->open_errno= my_errno;
@@ -1869,64 +1869,22 @@ bool fix_vcol_expr(THD *thd,
 {
   Virtual_column_info *vcol_info= vcol_field->vcol_info;
   Item* func_expr= vcol_info->expr_item;
-  uint dir_length, home_dir_length;
   bool result= TRUE;
   TABLE_LIST tables;
-  TABLE_LIST *save_table_list, *save_first_table, *save_last_table;
   int error;
-  Name_resolution_context *context;
   const char *save_where;
-  char* db_name;
-  char db_name_string[FN_REFLEN];
-  bool save_use_only_table_context;
   Field **ptr, *field;
   enum_mark_columns save_mark_used_columns= thd->mark_used_columns;
   DBUG_ASSERT(func_expr);
   DBUG_ENTER("fix_vcol_expr");
 
-  /*
-    Set-up the TABLE_LIST object to be a list with a single table
-    Set the object to zero to create NULL pointers and set alias
-    and real name to table name and get database name from file name.
-  */
-
-  bzero((void*)&tables, sizeof(TABLE_LIST));
-  tables.alias= tables.table_name= (char*) table->s->table_name.str;
-  tables.table= table;
-  tables.next_local= 0;
-  tables.next_name_resolution_table= 0;
-  strmov(db_name_string, table->s->normalized_path.str);
-  dir_length= dirname_length(db_name_string);
-  db_name_string[dir_length - 1]= 0;
-  home_dir_length= dirname_length(db_name_string);
-  db_name= &db_name_string[home_dir_length];
-  tables.db= db_name;
-
   thd->mark_used_columns= MARK_COLUMNS_NONE;
 
-  context= thd->lex->current_context();
-  table->map= 1; //To ensure correct calculation of const item
-  table->get_fields_in_item_tree= TRUE;
-  save_table_list= context->table_list;
-  save_first_table= context->first_name_resolution_table;
-  save_last_table= context->last_name_resolution_table;
-  context->table_list= &tables;
-  context->first_name_resolution_table= &tables;
-  context->last_name_resolution_table= NULL;
-  func_expr->walk(&Item::change_context_processor, 0, (uchar*) context);
   save_where= thd->where;
   thd->where= "virtual column function";
 
-  /* Save the context before fixing the fields*/
-  save_use_only_table_context= thd->lex->use_only_table_context;
-  thd->lex->use_only_table_context= TRUE;
   /* Fix fields referenced to by the virtual column function */
   error= func_expr->fix_fields(thd, (Item**)0);
-  /* Restore the original context*/
-  thd->lex->use_only_table_context= save_use_only_table_context;
-  context->table_list= save_table_list;
-  context->first_name_resolution_table= save_first_table;
-  context->last_name_resolution_table= save_last_table;
 
   if (unlikely(error))
   {
@@ -2030,6 +1988,8 @@ bool unpack_vcol_info_from_frm(THD *thd,
   Query_arena backup_arena;
   Query_arena *vcol_arena= 0;
   Parser_state parser_state;
+  LEX *old_lex= thd->lex;
+  LEX lex;
   DBUG_ENTER("unpack_vcol_info_from_frm");
   DBUG_ASSERT(vcol_expr);
 
@@ -2082,6 +2042,9 @@ bool unpack_vcol_info_from_frm(THD *thd,
   thd->set_n_backup_active_arena(vcol_arena, &backup_arena);
   thd->stmt_arena= vcol_arena;
 
+  if (init_lex_with_single_table(thd, table, &lex))
+    goto end;
+
   thd->lex->parse_vcol_expr= TRUE;
 
   /* 
@@ -2106,12 +2069,12 @@ bool unpack_vcol_info_from_frm(THD *thd,
 
 err:
   rc= TRUE;
-  thd->lex->parse_vcol_expr= FALSE;
   thd->free_items();
 end:
   thd->stmt_arena= backup_stmt_arena_ptr;
   if (vcol_arena)
     thd->restore_active_arena(vcol_arena, &backup_arena);
+  end_lex_with_single_table(thd, table, old_lex);
   thd->variables.character_set_client= old_character_set_client;
 
   DBUG_RETURN(rc);
@@ -2404,12 +2367,10 @@ partititon_err:
   /* Check virtual columns against table's storage engine. */
   if (share->vfields && 
         ((outparam->file && 
-          !outparam->file->check_if_supported_virtual_columns()) ||
-	 (!outparam->file && share->db_type() && 
-	   share->db_type()->db_type == DB_TYPE_CSV_DB))) // Workaround for CSV
+          !outparam->file->check_if_supported_virtual_columns())))
   {
     my_error(ER_UNSUPPORTED_ACTION_ON_VIRTUAL_COLUMN,
-             MYF(0), 
+             MYF(0), share->db_plugin ? plugin_name(share->db_plugin)->str :
              "Specified storage engine");
     error_reported= TRUE;
     goto err;
@@ -5409,7 +5370,7 @@ void TABLE::mark_columns_needed_for_insert()
      FALSE      otherwise
 */
 
-bool st_table::mark_virtual_col(Field *field)
+bool TABLE::mark_virtual_col(Field *field)
 {
   bool res;
   DBUG_ASSERT(field->vcol_info);
@@ -5451,7 +5412,7 @@ bool st_table::mark_virtual_col(Field *field)
     be added to read_set either.           
 */
 
-void st_table::mark_virtual_columns_for_write(bool insert_fl)
+void TABLE::mark_virtual_columns_for_write(bool insert_fl)
 {
   Field **vfield_ptr, *tmp_vfield;
   bool bitmap_updated= FALSE;
@@ -5675,10 +5636,10 @@ Item_subselect *TABLE_LIST::containing_subselect()
   DESCRIPTION
     The parser collects the index hints for each table in a "tagged list" 
     (TABLE_LIST::index_hints). Using the information in this tagged list
-    this function sets the members st_table::keys_in_use_for_query,
-    st_table::keys_in_use_for_group_by, st_table::keys_in_use_for_order_by,
-    st_table::force_index, st_table::force_index_order,
-    st_table::force_index_group and st_table::covering_keys.
+    this function sets the members TABLE::keys_in_use_for_query,
+    TABLE::keys_in_use_for_group_by, TABLE::keys_in_use_for_order_by,
+    TABLE::force_index, TABLE::force_index_order,
+    TABLE::force_index_group and TABLE::covering_keys.
 
     Current implementation of the runtime does not allow mixing FORCE INDEX
     and USE INDEX, so this is checked here. Then the FORCE INDEX list 

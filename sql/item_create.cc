@@ -1837,7 +1837,7 @@ protected:
 class Create_func_sha2 : public Create_func_arg2
 {
 public:
-  virtual Item* create(THD *thd, Item *arg1, Item *arg2);
+  virtual Item* create_2_arg(THD *thd, Item *arg1, Item *arg2);
 
   static Create_func_sha2 s_singleton;
 
@@ -2074,7 +2074,7 @@ protected:
 class Create_func_to_seconds : public Create_func_arg1
 {
 public:
-  virtual Item* create(THD *thd, Item *arg1);
+  virtual Item* create_1_arg(THD *thd, Item *arg1);
 
   static Create_func_to_seconds s_singleton;
 
@@ -4382,7 +4382,7 @@ Create_func_sha::create_1_arg(THD *thd, Item *arg1)
 Create_func_sha2 Create_func_sha2::s_singleton;
 
 Item*
-Create_func_sha2::create(THD *thd, Item *arg1, Item *arg2)
+Create_func_sha2::create_2_arg(THD *thd, Item *arg1, Item *arg2)
 {
   return new (thd->mem_root) Item_func_sha2(arg1, arg2);
 }
@@ -4570,7 +4570,7 @@ Create_func_to_days::create_1_arg(THD *thd, Item *arg1)
 Create_func_to_seconds Create_func_to_seconds::s_singleton;
 
 Item*
-Create_func_to_seconds::create(THD *thd, Item *arg1)
+Create_func_to_seconds::create_1_arg(THD *thd, Item *arg1)
 {
   return new (thd->mem_root) Item_func_to_seconds(arg1);
 }

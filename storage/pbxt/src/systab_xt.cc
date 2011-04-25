@@ -33,6 +33,8 @@
 #ifdef DRIZZLED
 #include <drizzled/server_includes.h>
 #include <drizzled/current_session.h>
+#else
+#include "field.h"
 #endif
 
 #include "ha_pbxt.h"

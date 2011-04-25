@@ -38,10 +38,6 @@ static int lex_one_token(void *arg, void *yythd);
 sys_var *trg_new_row_fake_var= (sys_var*) 0x01;
 
 /**
-  LEX_STRING constant for null-string to be used in parser and other places.
-*/
-const LEX_STRING null_lex_str= {NULL, 0};
-/**
   @note The order of the elements of this array must correspond to
   the order of elements in enum_binlog_stmt_unsafe.
 */
@@ -129,6 +125,86 @@ void lex_free(void)
 {					// Call this when daemon ends
   DBUG_ENTER("lex_free");
   DBUG_VOID_RETURN;
+}
+
+/**
+  Initialize lex object for use in fix_fields and parsing.
+
+  SYNOPSIS
+    init_lex_with_single_table()
+    @param thd                 The thread object
+    @param table               The table object
+  @return Operation status
+    @retval TRUE                An error occurred, memory allocation error
+    @retval FALSE               Ok
+
+  DESCRIPTION
+    This function is used to initialize a lex object on the
+    stack for use by fix_fields and for parsing. In order to
+    work properly it also needs to initialize the
+    Name_resolution_context object of the lexer.
+    Finally it needs to set a couple of variables to ensure
+    proper functioning of fix_fields.
+*/
+
+int
+init_lex_with_single_table(THD *thd, TABLE *table, LEX *lex)
+{
+  TABLE_LIST *table_list;
+  Table_ident *table_ident;
+  SELECT_LEX *select_lex= &lex->select_lex;
+  Name_resolution_context *context= &select_lex->context;
+  /*
+    We will call the parser to create a part_info struct based on the
+    partition string stored in the frm file.
+    We will use a local lex object for this purpose. However we also
+    need to set the Name_resolution_object for this lex object. We
+    do this by using add_table_to_list where we add the table that
+    we're working with to the Name_resolution_context.
+  */
+  thd->lex= lex;
+  lex_start(thd);
+  context->init();
+  if ((!(table_ident= new Table_ident(thd,
+                                      table->s->table_name,
+                                      table->s->db, TRUE))) ||
+      (!(table_list= select_lex->add_table_to_list(thd,
+                                                   table_ident,
+                                                   NULL,
+                                                   0))))
+    return TRUE;
+  context->resolve_in_table_list_only(table_list);
+  lex->use_only_table_context= TRUE;
+  select_lex->cur_pos_in_select_list= UNDEF_POS;
+  table->map= 1; //To ensure correct calculation of const item
+  table->get_fields_in_item_tree= TRUE;
+  table_list->table= table;
+  return FALSE;
+}
+
+/**
+  End use of local lex with single table
+
+  SYNOPSIS
+    end_lex_with_single_table()
+    @param thd               The thread object
+    @param table             The table object
+    @param old_lex           The real lex object connected to THD
+
+  DESCRIPTION
+    This function restores the real lex object after calling
+    init_lex_with_single_table and also restores some table
+    variables temporarily set.
+*/
+
+void
+end_lex_with_single_table(THD *thd, TABLE *table, LEX *old_lex)
+{
+  LEX *lex= thd->lex;
+  table->map= 0;
+  table->get_fields_in_item_tree= FALSE;
+  lex_end(lex);
+  thd->lex= old_lex;
 }
 
 

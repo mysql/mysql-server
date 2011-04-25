@@ -8,7 +8,7 @@ set global storage_engine=aria;
 set session storage_engine=aria;
 set global aria_page_checksum=0;
 let $default_log_file_size=`select @@global.aria_log_file_size`;
-set global aria_log_file_size=4294967295;
+set global aria_log_file_size=4294959104;
 
 # Initialise
 --disable_warnings

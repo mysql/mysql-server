@@ -42,9 +42,14 @@
 #include "transaction.h"
 #include "myisam.h"
 #include "probes_mysql.h"
+#include "sql_connect.h"
 
 #ifdef WITH_PARTITION_STORAGE_ENGINE
 #include "ha_partition.h"
+#endif
+
+#ifdef WITH_ARIA_STORAGE_ENGINE
+#include "../storage/maria/ha_maria.h"
 #endif
 
 /*
@@ -92,8 +97,6 @@ TYPELIB tx_isolation_typelib= {array_elements(tx_isolation_names)-1,"",
 
 static TYPELIB known_extensions= {0,"known_exts", NULL, NULL};
 uint known_extensions_id= 0;
-
-
 
 static plugin_ref ha_default_plugin(THD *thd)
 {
@@ -487,8 +490,6 @@ int ha_initialize_handlerton(st_plugin_int *plugin)
         if (idx == (int) DB_TYPE_DEFAULT)
         {
           sql_print_warning("Too many storage engines!");
-          my_free(hton, MYF(0));
-          plugin->data= 0;
 	  goto err_deinit;
         }
         if (hton->db_type != DB_TYPE_UNKNOWN)
@@ -1159,6 +1160,10 @@ int ha_commit_trans(THD *thd, bool all)
     DBUG_RETURN(2);
   }
 
+#ifdef WITH_ARIA_STORAGE_ENGINE
+    ha_maria::implicit_commit(thd, TRUE);
+#endif
+
   if (ha_info)
   {
     uint rw_ha_count;
@@ -1300,9 +1305,6 @@ int ha_commit_one_phase(THD *thd, bool all)
 #endif
     }
   }
-#ifdef WITH_ARIA_STORAGE_ENGINE
-    ha_maria::implicit_commit(thd, TRUE);
-#endif
   /* Free resources and perform other cleanup even for 'empty' transactions. */
   if (is_real_trans)
     thd->transaction.cleanup();
@@ -2890,7 +2892,6 @@ void handler::print_error(int error, myf errflag)
     }
   }
   my_error(textno, errflag, table_share->table_name.str, error);
-  DBUG_ASSERT(!fatal_error || !debug_assert_if_crashed_table);
   DBUG_VOID_RETURN;
 }
 
@@ -3643,10 +3644,10 @@ void handler::update_global_table_stats()
 
   DBUG_ASSERT(table->s && table->s->table_cache_key.str);
 
-  pthread_mutex_lock(&LOCK_global_table_stats);
+  mysql_mutex_lock(&LOCK_global_table_stats);
   /* Gets the global table stats, creating one if necessary. */
   if (!(table_stats= (TABLE_STATS*)
-        hash_search(&global_table_stats,
+        my_hash_search(&global_table_stats,
                     (uchar*) table->s->table_cache_key.str,
                     table->s->table_cache_key.length)))
   {
@@ -3666,7 +3667,7 @@ void handler::update_global_table_stats()
     if (my_hash_insert(&global_table_stats, (uchar*) table_stats))
     {
       /* Out of memory error is already given */
-      my_free(table_stats, 0);
+      my_free(table_stats);
       goto end;
     }
   }
@@ -3678,7 +3679,7 @@ void handler::update_global_table_stats()
                                           1));
   rows_read= rows_changed= 0;
 end:
-  pthread_mutex_unlock(&LOCK_global_table_stats);
+  mysql_mutex_unlock(&LOCK_global_table_stats);
 }
 
 
@@ -3709,9 +3710,9 @@ void handler::update_global_index_stats()
       if (!key_info->cache_name)
         continue;
       key_length= table->s->table_cache_key.length + key_info->name_length + 1;
-      pthread_mutex_lock(&LOCK_global_index_stats);
+      mysql_mutex_lock(&LOCK_global_index_stats);
       // Gets the global index stats, creating one if necessary.
-      if (!(index_stats= (INDEX_STATS*) hash_search(&global_index_stats,
+      if (!(index_stats= (INDEX_STATS*) my_hash_search(&global_index_stats,
                                                     key_info->cache_name,
                                                     key_length)))
       {
@@ -3724,7 +3725,7 @@ void handler::update_global_index_stats()
         index_stats->index_name_length= key_length;
         if (my_hash_insert(&global_index_stats, (uchar*) index_stats))
         {
-          my_free(index_stats, 0);
+          my_free(index_stats);
           goto end;
         }
       }
@@ -3732,7 +3733,7 @@ void handler::update_global_index_stats()
       index_stats->rows_read+= index_rows_read[index];
       index_rows_read[index]= 0;
 end:
-      pthread_mutex_unlock(&LOCK_global_index_stats);
+      mysql_mutex_unlock(&LOCK_global_index_stats);
     }
   }
 }
@@ -3897,7 +3898,8 @@ void st_ha_check_opt::init()
 /**
   Init a key cache if it has not been initied before.
 */
-int ha_init_key_cache(const char *name, KEY_CACHE *key_cache)
+int ha_init_key_cache(const char *name, KEY_CACHE *key_cache, void *unused
+                      __attribute__((unused)))
 {
   DBUG_ENTER("ha_init_key_cache");
 
@@ -3971,13 +3973,13 @@ int ha_repartition_key_cache(KEY_CACHE *key_cache)
 
   if (key_cache->key_cache_inited)
   {
-    pthread_mutex_lock(&LOCK_global_system_variables);
+    mysql_mutex_lock(&LOCK_global_system_variables);
     size_t tmp_buff_size= (size_t) key_cache->param_buff_size;
     long tmp_block_size= (long) key_cache->param_block_size;
     uint division_limit= key_cache->param_division_limit;
     uint age_threshold=  key_cache->param_age_threshold;
     uint partitions= key_cache->param_partitions;
-    pthread_mutex_unlock(&LOCK_global_system_variables);
+    mysql_mutex_unlock(&LOCK_global_system_variables);
     DBUG_RETURN(!repartition_key_cache(key_cache, tmp_block_size,
 				       tmp_buff_size,
 				       division_limit, age_threshold,
@@ -4087,8 +4089,7 @@ ha_find_files(THD *thd,const char *db,const char *path,
   int error= 0;
   DBUG_ENTER("ha_find_files");
   DBUG_PRINT("enter", ("db: '%s'  path: '%s'  wild: '%s'  dir: %d", 
-		       val_or_null(db), val_or_null(path),
-                       val_or_null(wild), dir));
+		       db, path, wild, dir));
   st_find_files_args args= {db, path, wild, dir, files};
 
   plugin_foreach(thd, find_files_handlerton,

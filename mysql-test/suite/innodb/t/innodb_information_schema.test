@@ -3,7 +3,6 @@
 # INFORMATION_SCHEMA.innodb_locks.lock_data
 #
 
--- source include/have_innodb.inc
 
 -- disable_query_log
 -- disable_result_log

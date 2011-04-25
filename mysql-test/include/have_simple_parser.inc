@@ -8,7 +8,6 @@ if (`SELECT @@have_dynamic_loading != 'YES'`) {
 #
 # Check if the variable MYPLUGLIB_SO is set
 #
---require r/have_simple_parser.require
-disable_query_log;
-eval select LENGTH('$MYPLUGLIB_SO') > 0 as 'have_simple_parser';
-enable_query_log;
+if (`SELECT LENGTH('$MYPLUGLIB_SO') = 0`) {
+  --skip simple parser is not built (no mypluglib.so)
+}

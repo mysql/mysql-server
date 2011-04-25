@@ -1,0 +1,23 @@
+select @@global.maria_force_start_after_recovery_failures, @@global.aria_force_start_after_recovery_failures;
+@@global.maria_force_start_after_recovery_failures	@@global.aria_force_start_after_recovery_failures
+0	0
+select @@session.maria_force_start_after_recovery_failures, @@session.aria_force_start_after_recovery_failures;
+ERROR HY000: Variable 'maria_force_start_after_recovery_failures' is a GLOBAL variable
+show global variables like '%aria_force_start_after_recovery_failures';
+Variable_name	Value
+aria_force_start_after_recovery_failures	0
+maria_force_start_after_recovery_failures	0
+show session variables like '%aria_force_start_after_recovery_failures';
+Variable_name	Value
+aria_force_start_after_recovery_failures	0
+maria_force_start_after_recovery_failures	0
+select * from information_schema.global_variables where variable_name='maria_force_start_after_recovery_failures';
+VARIABLE_NAME	VARIABLE_VALUE
+MARIA_FORCE_START_AFTER_RECOVERY_FAILURES	0
+select * from information_schema.session_variables where variable_name='maria_force_start_after_recovery_failures';
+VARIABLE_NAME	VARIABLE_VALUE
+MARIA_FORCE_START_AFTER_RECOVERY_FAILURES	0
+set global maria_force_start_after_recovery_failures=1;
+ERROR HY000: Variable 'maria_force_start_after_recovery_failures' is a read only variable
+set session maria_force_start_after_recovery_failures=1;
+ERROR HY000: Variable 'maria_force_start_after_recovery_failures' is a read only variable

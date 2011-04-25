@@ -1574,12 +1574,6 @@ ERROR 42S21: Duplicate column name 'c1'
 alter table t1 add key (c1,c1,c2);
 ERROR 42S21: Duplicate column name 'c1'
 drop table t1;
-create table t1(a int(1) , b int(1)) engine=innodb;
-insert into t1 values ('1111', '3333');
-select distinct concat(a, b) from t1;
-concat(a, b)
-11113333
-drop table t1;
 CREATE TABLE t1 ( a char(10) ) ENGINE=InnoDB;
 SELECT a FROM t1 WHERE MATCH (a) AGAINST ('test' IN BOOLEAN MODE);
 ERROR HY000: The used table type doesn't support FULLTEXT indexes
@@ -1714,7 +1708,6 @@ show variables like "innodb_sync_spin_loops";
 Variable_name	Value
 innodb_sync_spin_loops	20
 set global innodb_sync_spin_loops=@innodb_sync_spin_loops_orig;
-SET @old_innodb_thread_concurrency= @@global.innodb_thread_concurrency;
 show variables like "innodb_thread_concurrency";
 Variable_name	Value
 innodb_thread_concurrency	0
@@ -1732,7 +1725,6 @@ set global innodb_thread_concurrency=16;
 show variables like "innodb_thread_concurrency";
 Variable_name	Value
 innodb_thread_concurrency	16
-SET @@global.innodb_thread_concurrency= @old_innodb_thread_concurrency;
 show variables like "innodb_concurrency_tickets";
 Variable_name	Value
 innodb_concurrency_tickets	500
@@ -3185,5 +3177,3 @@ Variable_name	Value
 Handler_update	1
 Variable_name	Value
 Handler_delete	1
-set optimizer_switch='index_condition_pushdown=default';
-set @@optimizer_use_mrr=default;

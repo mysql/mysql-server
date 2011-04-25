@@ -59,7 +59,6 @@ bool mysql_delete(THD *thd, TABLE_LIST *table_list, COND *conds,
   bool          const_cond_result;
   ha_rows	deleted= 0;
   bool          reverse= FALSE;
-  bool          skip_record;
   ORDER *order= (ORDER *) ((order_list && order_list->elements) ?
                            order_list->first : NULL);
   uint usable_index= MAX_KEY;

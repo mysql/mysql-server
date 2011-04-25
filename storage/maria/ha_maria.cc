@@ -20,7 +20,6 @@
 #endif
 
 #define MYSQL_SERVER 1
-#include "mysql_priv.h"
 #include <mysql/plugin.h>
 #include <m_ctype.h>
 #include <my_dir.h>
@@ -38,6 +37,13 @@ C_MODE_START
 #include "ma_checkpoint.h"
 #include "ma_recovery.h"
 C_MODE_END
+
+//#include "sql_priv.h"
+#include "protocol.h"
+#include "sql_class.h"
+#include "key.h"
+#include "log.h"
+#include "sql_parse.h"
 
 /*
   Note that in future versions, only *transactional* Maria tables can
@@ -262,12 +268,12 @@ static MYSQL_SYSVAR_ENUM(sync_log_dir, sync_log_dir, PLUGIN_VAR_RQCMDARG,
        "\"always\").", NULL, NULL, TRANSLOG_SYNC_DIR_NEWFILE,
        &maria_sync_log_dir_typelib);
 
-#ifdef USE_MARIA_FOR_TMP_TABLES
-#define USE_MARIA_FOR_TMP_TABLES_VAL 1
+#ifdef USE_ARIA_FOR_TMP_TABLES
+#define USE_ARIA_FOR_TMP_TABLES_VAL 1
 #else
-#define USE_MARIA_FOR_TMP_TABLES_VAL 0
+#define USE_ARIA_FOR_TMP_TABLES_VAL 0
 #endif
-my_bool use_maria_for_temp_tables= USE_MARIA_FOR_TMP_TABLES_VAL;
+my_bool use_maria_for_temp_tables= USE_ARIA_FOR_TMP_TABLES_VAL;
 
 static MYSQL_SYSVAR_BOOL(used_for_temp_tables, 
        use_maria_for_temp_tables, PLUGIN_VAR_READONLY | PLUGIN_VAR_NOCMDOPT,
@@ -768,7 +774,7 @@ static int maria_create_trn_for_mysql(MARIA_HA *info)
     if (unlikely(!trn))
       DBUG_RETURN(HA_ERR_OUT_OF_MEM);
     THD_TRN= trn;
-    if (thd->options & (OPTION_NOT_AUTOCOMMIT | OPTION_BEGIN))
+    if (thd->variables.option_bits & (OPTION_NOT_AUTOCOMMIT | OPTION_BEGIN))
       trans_register_ha(thd, TRUE, maria_hton);
   }
   _ma_set_trn_for_table(info, trn);
@@ -972,7 +978,7 @@ int ha_maria::dump(THD * thd, int fd)
   }
 
 err:
-  my_free((uchar*) buf, MYF(0));
+  my_free(buf);
   return error;
 }
 #endif                                          /* HAVE_REPLICATION */
@@ -1015,11 +1021,11 @@ int ha_maria::open(const char *name, int mode, uint test_if_locked)
   file->s->chst_invalidator= query_cache_invalidate_by_MyISAM_filename_ref;
 
   if (test_if_locked & (HA_OPEN_IGNORE_IF_LOCKED | HA_OPEN_TMP_TABLE))
-    VOID(maria_extra(file, HA_EXTRA_NO_WAIT_LOCK, 0));
+    maria_extra(file, HA_EXTRA_NO_WAIT_LOCK, 0);
 
   info(HA_STATUS_NO_LOCK | HA_STATUS_VARIABLE | HA_STATUS_CONST);
   if (!(test_if_locked & HA_OPEN_WAIT_IF_LOCKED))
-    VOID(maria_extra(file, HA_EXTRA_WAIT_LOCK, 0));
+    maria_extra(file, HA_EXTRA_WAIT_LOCK, 0);
   if ((data_file_type= file->s->data_file_type) != STATIC_RECORD)
     int_table_flags |= HA_REC_NOT_IN_SEQ;
   if (!file->s->base.born_transactional)
@@ -1215,131 +1221,6 @@ int ha_maria::analyze(THD *thd, HA_CHECK_OPT * check_opt)
   return error ? HA_ADMIN_CORRUPT : HA_ADMIN_OK;
 }
 
-
-int ha_maria::restore(THD * thd, HA_CHECK_OPT *check_opt)
-{
-  HA_CHECK_OPT tmp_check_opt;
-  char *backup_dir= thd->lex->backup_dir;
-  char src_path[FN_REFLEN], dst_path[FN_REFLEN];
-  char table_name[FN_REFLEN];
-  int error;
-  const char *errmsg;
-  DBUG_ENTER("restore");
-
-  VOID(tablename_to_filename(table->s->table_name.str, table_name,
-                             sizeof(table_name)));
-
-  if (fn_format_relative_to_data_home(src_path, table_name, backup_dir,
-                                      MARIA_NAME_DEXT))
-    DBUG_RETURN(HA_ADMIN_INVALID);
-
-  strxmov(dst_path, table->s->normalized_path.str, MARIA_NAME_DEXT, NullS);
-  if (my_copy(src_path, dst_path, MYF(MY_WME)))
-  {
-    error= HA_ADMIN_FAILED;
-    errmsg= "Failed in my_copy (Error %d)";
-    goto err;
-  }
-
-  tmp_check_opt.init();
-  tmp_check_opt.flags |= T_VERY_SILENT | T_CALC_CHECKSUM | T_QUICK;
-  DBUG_RETURN(repair(thd, &tmp_check_opt));
-
-err:
-  {
-    /*
-      Don't allocate param on stack here as this may be huge and it's
-      also allocated by repair()
-    */
-    HA_CHECK *param;
-    if (!(param= (HA_CHECK*) my_malloc(sizeof(*param), MYF(MY_WME | MY_FAE))))
-      DBUG_RETURN(error);
-    maria_chk_init(param);
-    param->thd= thd;
-    param->op_name= "restore";
-    param->db_name= table->s->db.str;
-    param->table_name= table->s->table_name.str;
-    param->testflag= 0;
-    _ma_check_print_error(param, errmsg, my_errno);
-    my_free(param, MYF(0));
-    DBUG_RETURN(error);
-  }
-}
-
-
-int ha_maria::backup(THD * thd, HA_CHECK_OPT *check_opt)
-{
-  char *backup_dir= thd->lex->backup_dir;
-  char src_path[FN_REFLEN], dst_path[FN_REFLEN];
-  char table_name[FN_REFLEN];
-  int error;
-  const char *errmsg;
-  DBUG_ENTER("ha_maria::backup");
-
-  VOID(tablename_to_filename(table->s->table_name.str, table_name,
-                             sizeof(table_name)));
-
-  if (fn_format_relative_to_data_home(dst_path, table_name, backup_dir,
-                                      reg_ext))
-  {
-    errmsg= "Failed in fn_format() for .frm file (errno: %d)";
-    error= HA_ADMIN_INVALID;
-    goto err;
-  }
-
-  strxmov(src_path, table->s->normalized_path.str, reg_ext, NullS);
-  if (my_copy(src_path, dst_path,
-              MYF(MY_WME | MY_HOLD_ORIGINAL_MODES | MY_DONT_OVERWRITE_FILE)))
-  {
-    error= HA_ADMIN_FAILED;
-    errmsg= "Failed copying .frm file (errno: %d)";
-    goto err;
-  }
-
-  /* Change extension */
-  if (fn_format_relative_to_data_home(dst_path, table_name, backup_dir,
-                                      MARIA_NAME_DEXT))
-  {
-    errmsg= "Failed in fn_format() for .MYD file (errno: %d)";
-    error= HA_ADMIN_INVALID;
-    goto err;
-  }
-
-  strxmov(src_path, table->s->normalized_path.str, MARIA_NAME_DEXT, NullS);
-  if (_ma_flush_table_files(file, MARIA_FLUSH_DATA, FLUSH_FORCE_WRITE,
-                            FLUSH_KEEP))
-  {
-    error= HA_ADMIN_FAILED;
-    errmsg= "Failed in flush (Error %d)";
-    goto err;
-  }
-  if (my_copy(src_path, dst_path,
-              MYF(MY_WME | MY_HOLD_ORIGINAL_MODES | MY_DONT_OVERWRITE_FILE)))
-  {
-    errmsg= "Failed copying .MYD file (errno: %d)";
-    error= HA_ADMIN_FAILED;
-    goto err;
-  }
-  DBUG_RETURN(HA_ADMIN_OK);
-
-err:
-  {
-    HA_CHECK &param= *(HA_CHECK*) thd->alloc(sizeof(param));
-    if (!&param)
-      return HA_ADMIN_INTERNAL_ERROR;
-
-    maria_chk_init(&param);
-    param.thd= thd;
-    param.op_name= "backup";
-    param.db_name= table->s->db.str;
-    param.table_name= table->s->table_name.str;
-    param.testflag= 0;
-    _ma_check_print_error(&param, errmsg, my_errno);
-    DBUG_RETURN(error);
-  }
-}
-
-
 int ha_maria::repair(THD * thd, HA_CHECK_OPT *check_opt)
 {
   int error;
@@ -1497,7 +1378,7 @@ int ha_maria::repair(THD *thd, HA_CHECK *param, bool do_optimize)
   strmov(fixed_name, share->open_file_name.str);
 
   // Don't lock tables if we have used LOCK TABLE
-  if (!thd->locked_tables &&
+  if (!thd->locked_tables_mode &&
       maria_lock_database(file, table->s->tmp_table ? F_EXTRA_LCK : F_WRLCK))
   {
     _ma_check_print_error(param, ER(ER_CANT_LOCK), my_errno);
@@ -1600,7 +1481,7 @@ int ha_maria::repair(THD *thd, HA_CHECK *param, bool do_optimize)
                                      (local_testflag &
                                       T_STATISTICS ? UPDATE_STAT : 0));
     info(HA_STATUS_NO_LOCK | HA_STATUS_TIME | HA_STATUS_VARIABLE |
-         HA_STATUS_CONST, 0);
+         HA_STATUS_CONST);
     if (rows != file->state->records && !(param->testflag & T_VERY_SILENT))
     {
       char llbuff[22], llbuff2[22];
@@ -1620,7 +1501,7 @@ int ha_maria::repair(THD *thd, HA_CHECK *param, bool do_optimize)
   }
   pthread_mutex_unlock(&share->intern_lock);
   thd_proc_info(thd, old_proc_info);
-  if (!thd->locked_tables)
+  if (!thd->locked_tables_mode)
     maria_lock_database(file, F_UNLCK);
 
   /* Reset trn, that may have been set by repair */
@@ -2087,9 +1968,9 @@ bool ha_maria::check_and_repair(THD *thd)
     check_opt.flags |= T_QUICK;
 
   old_query= thd->query_string;
-  pthread_mutex_lock(&LOCK_thread_count);
+  mysql_mutex_lock(&LOCK_thread_count);
   thd->query_string= table->s->table_name;
-  pthread_mutex_unlock(&LOCK_thread_count);
+  mysql_mutex_unlock(&LOCK_thread_count);
 
   if (!(crashed= maria_is_crashed(file)))
   {
@@ -2107,9 +1988,9 @@ bool ha_maria::check_and_repair(THD *thd)
     if (repair(thd, &check_opt))
       error= 1;
   }
-  pthread_mutex_lock(&LOCK_thread_count);
+  mysql_mutex_lock(&LOCK_thread_count);
   thd->query_string= old_query;
-  pthread_mutex_unlock(&LOCK_thread_count);
+  mysql_mutex_unlock(&LOCK_thread_count);
   DBUG_RETURN(error);
 }
 
@@ -2333,11 +2214,6 @@ void ha_maria::position(const uchar *record)
 
 int ha_maria::info(uint flag)
 {
-  return info(flag, table->s->tmp_table == NO_TMP_TABLE);
-}
-
-int ha_maria::info(uint flag, my_bool lock_table_share)
-{
   MARIA_INFO maria_info;
   char name_buff[FN_REFLEN];
 
@@ -2364,8 +2240,6 @@ int ha_maria::info(uint flag, my_bool lock_table_share)
     stats.mrr_length_per_rec= maria_info.reflength + 8; // 8 = max(sizeof(void *))
 
     /* Update share */
-    if (lock_table_share)
-      pthread_mutex_lock(&share->mutex);
     share->keys_in_use.set_prefix(share->keys);
     share->keys_in_use.intersect_extended(maria_info.key_map);
     share->keys_for_keyread.intersect(share->keys_in_use);
@@ -2377,8 +2251,6 @@ int ha_maria::info(uint flag, my_bool lock_table_share)
       for (end= to+ share->key_parts ; to < end ; to++, from++)
         *to= (ulong) (*from + 0.5);
     }
-    if (lock_table_share)
-      pthread_mutex_unlock(&share->mutex);
 
     /*
        Set data_file_name and index_file_name to point at the symlink value
@@ -2472,8 +2344,8 @@ int ha_maria::delete_all_rows()
   (void) translog_log_debug_info(file->trn, LOGREC_DEBUG_INFO_QUERY,
                                  (uchar*) thd->query(), thd->query_length());
   if (file->s->now_transactional &&
-      ((table->in_use->options & (OPTION_NOT_AUTOCOMMIT | OPTION_BEGIN)) ||
-       table->in_use->locked_tables))
+      ((table->in_use->variables.option_bits & (OPTION_NOT_AUTOCOMMIT | OPTION_BEGIN)) ||
+       table->in_use->locked_tables_mode))
   {
     /*
       We are not in autocommit mode or user have done LOCK TABLES.
@@ -2602,7 +2474,7 @@ int ha_maria::external_lock(THD *thd, int lock_type)
             This is a bit excessive, ACID requires this only if there are some
             changes to commit (rollback shouldn't be tested).
           */
-          DBUG_ASSERT(!thd->main_da.is_sent ||
+          DBUG_ASSERT(!thd->stmt_da->is_sent ||
                       thd->killed == THD::KILL_CONNECTION);
           /* autocommit ? rollback a transaction */
 #ifdef MARIA_CANNOT_ROLLBACK
@@ -2610,7 +2482,7 @@ int ha_maria::external_lock(THD *thd, int lock_type)
             DBUG_RETURN(1);
           THD_TRN= 0;
 #else
-          if (!(thd->options & (OPTION_NOT_AUTOCOMMIT | OPTION_BEGIN)))
+          if (!(thd->variables.option_bits & (OPTION_NOT_AUTOCOMMIT | OPTION_BEGIN)))
           {
             trnman_rollback_trn(trn);
             DBUG_PRINT("info", ("THD_TRN set to 0x0"));
@@ -2693,23 +2565,19 @@ int ha_maria::implicit_commit(THD *thd, bool new_trn)
   int error= 0;
   TABLE *table;
   DBUG_ENTER("ha_maria::implicit_commit");
-  if (!new_trn && thd->locked_tables)
+  if (!maria_hton)
+    DBUG_RETURN(0);
+  if (!new_trn && (thd->locked_tables_mode == LTM_LOCK_TABLES ||
+                   thd->locked_tables_mode == LTM_PRELOCKED_UNDER_LOCK_TABLES))
   {
     /*
-      "we are under LOCK TABLES" <=> "we shouldn't commit".
-      As thd->locked_tables is true, we are either under LOCK TABLES, or in
-      prelocking; prelocking can be under LOCK TABLES, or not (and in this
-      latter case only we should commit).
+      No commit inside LOCK TABLES.
+
       Note that we come here only at the end of the top statement
       (dispatch_command()), we are never committing inside a sub-statement./
     */
-    enum prelocked_mode_type prelocked_mode= thd->prelocked_mode;
-    if ((prelocked_mode == NON_PRELOCKED) ||
-        (prelocked_mode == PRELOCKED_UNDER_LOCK_TABLES))
-    {
-      DBUG_PRINT("info", ("locked_tables, skipping"));
-      DBUG_RETURN(0);
-    }
+    DBUG_PRINT("info", ("locked_tables, skipping"));
+    DBUG_RETURN(0);
   }
   if ((trn= THD_TRN) != NULL)
   {
@@ -2780,10 +2648,10 @@ THR_LOCK_DATA **ha_maria::store_lock(THD *thd,
       that only does reading that are not SELECT.
     */
     if (lock_type <= TL_READ_HIGH_PRIORITY &&
-        !thd->current_stmt_binlog_row_based &&
+        !thd->is_current_stmt_binlog_format_row() &&
         (sql_command != SQLCOM_SELECT &&
          sql_command != SQLCOM_LOCK_TABLES) &&
-        (thd->options & OPTION_BIN_LOG) &&
+        (thd->variables.option_bits & OPTION_BIN_LOG) &&
         mysql_bin_log.is_open())
       lock_type= TL_READ_NO_INSERT;
     else if (lock_type == TL_WRITE_CONCURRENT_INSERT)
@@ -2953,7 +2821,7 @@ int ha_maria::create(const char *name, register TABLE *table_arg,
                  0, (MARIA_UNIQUEDEF *) 0,
                  &create_info, create_flags);
 
-  my_free((uchar*) recinfo, MYF(0));
+  my_free(recinfo);
   DBUG_RETURN(error);
 }
 
@@ -3111,7 +2979,7 @@ static int maria_commit(handlerton *hton __attribute__ ((unused)),
   trnman_set_flags(trn, trnman_get_flags(trn) & ~TRN_STATE_INFO_LOGGED);
 
   /* statement or transaction ? */
-  if ((thd->options & (OPTION_NOT_AUTOCOMMIT | OPTION_BEGIN)) && !all)
+  if ((thd->variables.option_bits & (OPTION_NOT_AUTOCOMMIT | OPTION_BEGIN)) && !all)
     DBUG_RETURN(0); // end of statement
   DBUG_PRINT("info", ("THD_TRN set to 0x0"));
   THD_TRN= 0;
@@ -3126,7 +2994,7 @@ static int maria_rollback(handlerton *hton __attribute__ ((unused)),
   DBUG_ENTER("maria_rollback");
   trnman_reset_locked_tables(trn, 0);
   /* statement or transaction ? */
-  if ((thd->options & (OPTION_NOT_AUTOCOMMIT | OPTION_BEGIN)) && !all)
+  if ((thd->variables.option_bits & (OPTION_NOT_AUTOCOMMIT | OPTION_BEGIN)) && !all)
   {
     trnman_rollback_statement(trn);
     DBUG_RETURN(0); // end of statement
@@ -3335,6 +3203,11 @@ static int ha_maria_init(void *p)
   int res;
   copy_variable_aliases();
   const char *log_dir= maria_data_root;
+
+#ifdef HAVE_PSI_INTERFACE
+  init_aria_psi_keys();
+#endif
+
   maria_hton= (handlerton *)p;
   maria_hton->state= SHOW_OPTION_YES;
   maria_hton->db_type= DB_TYPE_UNKNOWN;
@@ -3589,9 +3462,9 @@ static void update_log_file_size(MYSQL_THD thd,
 
 
 SHOW_VAR status_variables[]= {
-  {"pagecache_blocks_not_flushed", (char*) &maria_pagecache_var.global_blocks_changed, SHOW_LONG_NOFLUSH},
-  {"pagecache_blocks_unused",      (char*) &maria_pagecache_var.blocks_unused, SHOW_LONG_NOFLUSH},
-  {"pagecache_blocks_used",        (char*) &maria_pagecache_var.blocks_used, SHOW_LONG_NOFLUSH},
+  {"pagecache_blocks_not_flushed", (char*) &maria_pagecache_var.global_blocks_changed, SHOW_LONG},
+  {"pagecache_blocks_unused",      (char*) &maria_pagecache_var.blocks_unused, SHOW_LONG},
+  {"pagecache_blocks_used",        (char*) &maria_pagecache_var.blocks_used, SHOW_LONG},
   {"pagecache_read_requests",      (char*) &maria_pagecache_var.global_cache_r_requests, SHOW_LONGLONG},
   {"pagecache_reads",              (char*) &maria_pagecache_var.global_cache_read, SHOW_LONGLONG},
   {"pagecache_write_requests",     (char*) &maria_pagecache_var.global_cache_w_requests, SHOW_LONGLONG},

@@ -328,12 +328,6 @@ void mi_update_status(void* param)
 			    (long) info->s->state.state.data_file_length));
 #endif
     info->s->state.state= *info->state;
-#ifdef HAVE_QUERY_CACHE
-    DBUG_PRINT("info", ("invalidator... '%s' (status update)",
-                        info->filename));
-    DBUG_ASSERT(info->s->chst_invalidator != NULL);
-    (*info->s->chst_invalidator)((const char *)info->filename);
-#endif
   }
   info->state= &info->s->state.state;
   info->append_insert_at_end= 0;
@@ -365,11 +359,11 @@ static void mi_update_status_with_lock(MI_INFO *info)
   if (info->state == &info->save_state)
   {
     locked= 1;
-    pthread_mutex_lock(&info->s->lock.mutex);
+    mysql_mutex_lock(&info->s->lock.mutex);
   }
   mi_update_status(info);
   if (locked)
-    pthread_mutex_unlock(&info->s->lock.mutex);
+    mysql_mutex_unlock(&info->s->lock.mutex);
 }
 
 

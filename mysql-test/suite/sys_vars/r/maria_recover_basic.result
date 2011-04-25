@@ -1,0 +1,57 @@
+SET @start_global_value = @@global.maria_recover;
+select @@global.maria_recover, @@global.aria_recover;
+@@global.maria_recover	@@global.aria_recover
+NORMAL	NORMAL
+select @@session.maria_recover, @@session.aria_recover;
+ERROR HY000: Variable 'maria_recover' is a GLOBAL variable
+show global variables like '%aria_recover';
+Variable_name	Value
+aria_recover	NORMAL
+maria_recover	NORMAL
+show session variables like '%aria_recover';
+Variable_name	Value
+aria_recover	NORMAL
+maria_recover	NORMAL
+select * from information_schema.global_variables where variable_name like '%aria_recover';
+VARIABLE_NAME	VARIABLE_VALUE
+MARIA_RECOVER	NORMAL
+ARIA_RECOVER	NORMAL
+select * from information_schema.session_variables where variable_name like '%aria_recover';
+VARIABLE_NAME	VARIABLE_VALUE
+MARIA_RECOVER	NORMAL
+ARIA_RECOVER	NORMAL
+set global maria_recover=1;
+select @@global.maria_recover, @@global.aria_recover;
+@@global.maria_recover	@@global.aria_recover
+NORMAL	NORMAL
+set session maria_recover=1;
+ERROR HY000: Variable 'maria_recover' is a GLOBAL variable and should be set with SET GLOBAL
+set global maria_recover=normal;
+select @@global.maria_recover, @@global.aria_recover;
+@@global.maria_recover	@@global.aria_recover
+NORMAL	NORMAL
+set global maria_recover=backup;
+select @@global.maria_recover, @@global.aria_recover;
+@@global.maria_recover	@@global.aria_recover
+BACKUP	BACKUP
+set global maria_recover='force';
+select @@global.maria_recover, @@global.aria_recover;
+@@global.maria_recover	@@global.aria_recover
+FORCE	FORCE
+set global maria_recover=`quick`;
+select @@global.maria_recover, @@global.aria_recover;
+@@global.maria_recover	@@global.aria_recover
+QUICK	QUICK
+set global maria_recover=off;
+select @@global.maria_recover, @@global.aria_recover;
+@@global.maria_recover	@@global.aria_recover
+OFF	OFF
+set global maria_recover=1.1;
+ERROR 42000: Incorrect argument type to variable 'maria_recover'
+set global maria_recover=1e1;
+ERROR 42000: Incorrect argument type to variable 'maria_recover'
+set global maria_recover="foo";
+ERROR 42000: Variable 'maria_recover' can't be set to the value of 'foo'
+set global maria_recover=5;
+ERROR 42000: Variable 'maria_recover' can't be set to the value of '5'
+SET @@global.maria_recover = @start_global_value;

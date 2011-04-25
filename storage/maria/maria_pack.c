@@ -239,8 +239,8 @@ int main(int argc, char **argv)
   }
   if (ok && isamchk_neaded && !silent)
     puts("Remember to run aria_chk -rq on compressed tables");
-  VOID(fflush(stdout));
-  VOID(fflush(stderr));
+  fflush(stdout);
+  fflush(stderr);
   free_defaults(default_argv);
   maria_end();
   my_end(verbose ? MY_CHECK_ERROR | MY_GIVE_INFO : MY_CHECK_ERROR);
@@ -289,13 +289,10 @@ static struct my_option my_long_options[] =
   { 0, 0, 0, 0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0}
 };
 
-#include <help_start.h>
 
 static void print_version(void)
 {
-  VOID(printf("%s Ver 1.0 for %s on %s\n",
-              my_progname, SYSTEM_TYPE, MACHINE_TYPE));
-  NETWARE_SET_SCREEN_MODE(1);
+  printf("%s Ver 1.0 for %s on %s\n", my_progname, SYSTEM_TYPE, MACHINE_TYPE);
 }
 
 
@@ -312,13 +309,12 @@ static void usage(void)
   puts("You should give the .MAI file as the filename argument.");
   puts("To unpack a packed table, run aria_chk -u on the table");
 
-  VOID(printf("\nUsage: %s [OPTIONS] filename...\n", my_progname));
+  printf("\nUsage: %s [OPTIONS] filename...\n", my_progname);
   my_print_help(my_long_options);
   print_defaults("my", load_default_groups);
   my_print_variables(my_long_options);
 }
 
-#include <help_end.h>
 
 static my_bool
 get_one_option(int optid, const struct my_option *opt __attribute__((unused)),
@@ -410,7 +406,7 @@ static MARIA_HA *open_maria_file(char *name,int mode)
 			  (opt_wait ? HA_OPEN_WAIT_IF_LOCKED :
 			   HA_OPEN_ABORT_IF_LOCKED))))
   {
-    VOID(fprintf(stderr, "%s gave error %d on open\n", name, my_errno));
+    fprintf(stderr, "%s gave error %d on open\n", name, my_errno);
     DBUG_RETURN(0);
   }
   share=isam_file->s;
@@ -418,8 +414,8 @@ static MARIA_HA *open_maria_file(char *name,int mode)
   {
     if (!force_pack)
     {
-      VOID(fprintf(stderr, "%s is already compressed\n", name));
-      VOID(maria_close(isam_file));
+      fprintf(stderr, "%s is already compressed\n", name);
+      maria_close(isam_file);
       DBUG_RETURN(0);
     }
     if (verbose)
@@ -430,11 +426,11 @@ static MARIA_HA *open_maria_file(char *name,int mode)
       (share->state.state.records <= 1 ||
        share->state.state.data_file_length < 1024))
   {
-    VOID(fprintf(stderr, "%s is too small to compress\n", name));
-    VOID(maria_close(isam_file));
+    fprintf(stderr, "%s is too small to compress\n", name);
+    maria_close(isam_file);
     DBUG_RETURN(0);
   }
-  VOID(maria_lock_database(isam_file,F_WRLCK));
+  maria_lock_database(isam_file,F_WRLCK);
   maria_ignore_trids(isam_file);
   DBUG_RETURN(isam_file);
 }
@@ -477,12 +473,12 @@ static my_bool open_maria_files(PACK_MRG_INFO *mrg,char **names,uint count)
   return 0;
 
  diff_file:
-  VOID(fprintf(stderr, "%s: Tables '%s' and '%s' are not identical\n",
-               my_progname, names[j], names[j+1]));
+  fprintf(stderr, "%s: Tables '%s' and '%s' are not identical\n",
+               my_progname, names[j], names[j+1]);
  error:
   while (i--)
     maria_close(mrg->file[i]);
-  my_free(mrg->file, MYF(0));
+  my_free(mrg->file);
   return 1;
 }
 
@@ -510,11 +506,9 @@ static int compress(PACK_MRG_INFO *mrg,char *result_table)
 
   /* Create temporary or join file */
   if (backup)
-    VOID(fn_format(org_name,isam_file->s->open_file_name.str,
-                   "",MARIA_NAME_DEXT, 2));
+    fn_format(org_name,isam_file->s->open_file_name.str, "",MARIA_NAME_DEXT, 2);
   else
-    VOID(fn_format(org_name,isam_file->s->open_file_name.str,
-                   "",MARIA_NAME_DEXT, 2+4+16));
+    fn_format(org_name,isam_file->s->open_file_name.str, "",MARIA_NAME_DEXT, 2+4+16);
 
   if (init_pagecache(maria_pagecache, MARIA_MIN_PAGE_CACHE_SIZE, 0, 0,
                      maria_block_size, MY_WME) == 0)
@@ -529,7 +523,7 @@ static int compress(PACK_MRG_INFO *mrg,char *result_table)
     uint length;
     uchar *buff;
     strmov(org_name,result_table);		/* Fix error messages */
-    VOID(fn_format(new_name,result_table,"",MARIA_NAME_IEXT,2));
+    fn_format(new_name,result_table,"",MARIA_NAME_IEXT,2);
     if ((join_maria_file=my_create(new_name,0,tmpfile_createflag,MYF(MY_WME)))
 	< 0)
       goto err;
@@ -540,16 +534,16 @@ static int compress(PACK_MRG_INFO *mrg,char *result_table)
 	my_write(join_maria_file,buff,length,
 		 MYF(MY_WME | MY_NABP | MY_WAIT_IF_FULL)))
     {
-      my_free(buff,MYF(0));
+      my_free(buff);
       goto err;
     }
-    my_free(buff,MYF(0));
-    VOID(fn_format(new_name,result_table,"",MARIA_NAME_DEXT,2));
+    my_free(buff);
+    fn_format(new_name,result_table,"",MARIA_NAME_DEXT,2);
   }
   else if (!tmp_dir[0])
-    VOID(make_new_name(new_name,org_name));
+    make_new_name(new_name,org_name);
   else
-    VOID(fn_format(new_name,org_name,tmp_dir,DATA_TMP_EXT,1+2+4));
+    fn_format(new_name,org_name,tmp_dir,DATA_TMP_EXT,1+2+4);
   if (!test_only &&
       (new_file=my_create(new_name,0,tmpfile_createflag,MYF(MY_WME))) < 0)
     goto err;
@@ -565,22 +559,21 @@ static int compress(PACK_MRG_INFO *mrg,char *result_table)
                       (ulong) mrg->records));
   if (write_loop || verbose)
   {
-    VOID(printf("Compressing %s: (%lu records)\n",
-                result_table ? new_name : org_name, (ulong) mrg->records));
+    printf("Compressing %s: (%lu records)\n",
+                result_table ? new_name : org_name, (ulong) mrg->records);
   }
   trees=fields=share->base.fields;
   huff_counts=init_huff_count(isam_file,mrg->records);
-  QUICK_SAFEMALLOC;
 
   /*
     Read the whole data file(s) for statistics.
   */
   DBUG_PRINT("info", ("- Calculating statistics"));
   if (write_loop || verbose)
-    VOID(printf("- Calculating statistics\n"));
+    printf("- Calculating statistics\n");
   if (get_statistic(mrg,huff_counts))
     goto err;
-  NORMAL_SAFEMALLOC;
+
   old_length=0;
   for (i=0; i < mrg->count ; i++)
     old_length+= (mrg->file[i]->s->state.state.data_file_length -
@@ -627,7 +620,7 @@ static int compress(PACK_MRG_INFO *mrg,char *result_table)
   */
   file_buffer.pos_in_file=HEAD_LENGTH;
   if (! test_only)
-    VOID(my_seek(new_file,file_buffer.pos_in_file,MY_SEEK_SET,MYF(0)));
+    my_seek(new_file,file_buffer.pos_in_file,MY_SEEK_SET,MYF(0));
 
   /*
     Write field infos: field type, pack type, length bits, tree number.
@@ -653,7 +646,7 @@ static int compress(PACK_MRG_INFO *mrg,char *result_table)
   */
   DBUG_PRINT("info", ("- Compressing file"));
   if (write_loop || verbose)
-    VOID(printf("- Compressing file\n"));
+    printf("- Compressing file\n");
   error=compress_maria_file(mrg,huff_counts);
   new_length=file_buffer.pos_in_file;
   if (!error && !test_only)
@@ -680,9 +673,9 @@ static int compress(PACK_MRG_INFO *mrg,char *result_table)
                       mrg->min_pack_length, mrg->max_pack_length,
                       (ulong) (mrg->records ? (new_length/mrg->records) : 0)));
   if (verbose && mrg->records)
-    VOID(printf("Min record length: %6d   Max length: %6d   "
+    printf("Min record length: %6d   Max length: %6d   "
                 "Mean total length: %6ld\n", mrg->min_pack_length,
-                mrg->max_pack_length, (ulong) (new_length/mrg->records)));
+                mrg->max_pack_length, (ulong) (new_length/mrg->records));
 
   /* Close source and target file. */
   if (!test_only)
@@ -720,9 +713,9 @@ static int compress(PACK_MRG_INFO *mrg,char *result_table)
 	    error=my_rename(new_name,org_name,MYF(MY_WME));
 	  if (!error)
           {
-	    VOID(my_copystat(temp_name,org_name,MYF(MY_COPYTIME)));
+	    my_copystat(temp_name,org_name,MYF(MY_COPYTIME));
             if (tmp_dir[0])
-              VOID(my_delete(new_name,MYF(MY_WME)));
+              my_delete(new_name,MYF(MY_WME));
           }
 	}
       }
@@ -733,7 +726,7 @@ static int compress(PACK_MRG_INFO *mrg,char *result_table)
 	  error=my_copy(new_name,org_name,
 			MYF(MY_WME | MY_HOLD_ORIGINAL_MODES | MY_COPYTIME));
           if (!error)
-            VOID(my_delete(new_name,MYF(MY_WME)));
+            my_delete(new_name,MYF(MY_WME));
         }
 	else
 	  error=my_redel(org_name,new_name,MYF(MY_WME | MY_COPYTIME));
@@ -747,16 +740,16 @@ static int compress(PACK_MRG_INFO *mrg,char *result_table)
     error|=my_close(join_maria_file,MYF(MY_WME));
   if (error)
   {
-    VOID(fprintf(stderr, "Aborting: %s is not compressed\n", org_name));
-    VOID(my_delete(new_name,MYF(MY_WME)));
+    fprintf(stderr, "Aborting: %s is not compressed\n", org_name);
+    my_delete(new_name,MYF(MY_WME));
     DBUG_RETURN(-1);
   }
   if (write_loop || verbose)
   {
     if (old_length)
-      VOID(printf("%.4g%%     \n",
+      printf("%.4g%%     \n",
                   (((longlong) (old_length - new_length)) * 100.0 /
-                   (longlong) old_length)));
+                   (longlong) old_length));
     else
       puts("Empty file saved in compressed format");
   }
@@ -766,11 +759,11 @@ static int compress(PACK_MRG_INFO *mrg,char *result_table)
   end_pagecache(maria_pagecache, 1);
   free_counts_and_tree_and_queue(huff_trees,trees,huff_counts,fields);
   if (new_file >= 0)
-    VOID(my_close(new_file,MYF(0)));
+    my_close(new_file,MYF(0));
   if (join_maria_file >= 0)
-    VOID(my_close(join_maria_file,MYF(0)));
+    my_close(join_maria_file,MYF(0));
   mrg_close(mrg);
-  VOID(fprintf(stderr, "Aborted: %s is not compressed\n", org_name));
+  fprintf(stderr, "Aborted: %s is not compressed\n", org_name);
   DBUG_RETURN(-1);
 }
 
@@ -828,11 +821,11 @@ static void free_counts_and_tree_and_queue(HUFF_TREE *huff_trees, uint trees,
     for (i=0 ; i < trees ; i++)
     {
       if (huff_trees[i].element_buffer)
-	my_free(huff_trees[i].element_buffer,MYF(0));
+	my_free(huff_trees[i].element_buffer);
       if (huff_trees[i].code)
-	my_free(huff_trees[i].code,MYF(0));
+	my_free(huff_trees[i].code);
     }
-    my_free(huff_trees,MYF(0));
+    my_free(huff_trees);
   }
   if (huff_counts)
   {
@@ -840,11 +833,11 @@ static void free_counts_and_tree_and_queue(HUFF_TREE *huff_trees, uint trees,
     {
       if (huff_counts[i].tree_buff)
       {
-	my_free(huff_counts[i].tree_buff,MYF(0));
+	my_free(huff_counts[i].tree_buff);
 	delete_tree(&huff_counts[i].int_tree);
       }
     }
-    my_free(huff_counts, MYF(0));
+    my_free(huff_counts);
   }
   delete_queue(&queue);		/* This is safe to free */
   return;
@@ -940,7 +933,7 @@ static int get_statistic(PACK_MRG_INFO *mrg,HUFF_COUNTS *huff_counts)
 	       count->int_tree.elements_in_tree > 1))
 	  {
 	    delete_tree(&count->int_tree);
-	    my_free(count->tree_buff,MYF(0));
+	    my_free(count->tree_buff);
 	    count->tree_buff=0;
 	  }
 	  else
@@ -1019,7 +1012,7 @@ static int get_statistic(PACK_MRG_INFO *mrg,HUFF_COUNTS *huff_counts)
 	{
 	  uint field_length=count->field_length -portable_sizeof_char_ptr;
 	  ulong blob_length= _ma_calc_blob_length(field_length, start_pos);
-	  memcpy_fixed((char*) &pos,  start_pos+field_length,sizeof(char*));
+	  memcpy(&pos,  start_pos+field_length,sizeof(char*));
 	  end_pos=pos+blob_length;
 	  tot_blob_length+=blob_length;
 	  set_if_bigger(count->max_length,blob_length);
@@ -1078,13 +1071,13 @@ static int get_statistic(PACK_MRG_INFO *mrg,HUFF_COUNTS *huff_counts)
       record_count++;
       if (write_loop && record_count % WRITE_COUNT == 0)
       {
-	VOID(printf("%lu\r", (ulong) record_count));
-        VOID(fflush(stdout));
+	printf("%lu\r", (ulong) record_count);
+        fflush(stdout);
       }
     }
     else if (error != HA_ERR_RECORD_DELETED)
     {
-      VOID(fprintf(stderr, "Got error %d while reading rows\n", error));
+      fprintf(stderr, "Got error %d while reading rows\n", error);
       break;
     }
 
@@ -1092,8 +1085,8 @@ static int get_statistic(PACK_MRG_INFO *mrg,HUFF_COUNTS *huff_counts)
   }
   if (write_loop)
   {
-    VOID(printf("            \r"));
-    VOID(fflush(stdout));
+    printf("            \r");
+    fflush(stdout);
   }
 
   /*
@@ -1105,8 +1098,8 @@ static int get_statistic(PACK_MRG_INFO *mrg,HUFF_COUNTS *huff_counts)
   DBUG_PRINT("info", ("Found the following number of incidents "
                       "of the uchar codes:"));
   if (verbose >= 2)
-    VOID(printf("Found the following number of incidents "
-                "of the uchar codes:\n"));
+    printf("Found the following number of incidents "
+                "of the uchar codes:\n");
   for (count= huff_counts ; count < end_count; count++)
   {
     uint      idx;
@@ -1115,16 +1108,16 @@ static int get_statistic(PACK_MRG_INFO *mrg,HUFF_COUNTS *huff_counts)
 
     DBUG_PRINT("info", ("column: %3u", (uint) (count - huff_counts + 1)));
     if (verbose >= 2)
-      VOID(printf("column: %3u\n", (uint) (count - huff_counts + 1)));
+      printf("column: %3u\n", (uint) (count - huff_counts + 1));
     if (count->tree_buff)
     {
       DBUG_PRINT("info", ("number of distinct values: %u",
                           (uint) ((count->tree_pos - count->tree_buff) /
                                   count->field_length)));
       if (verbose >= 2)
-        VOID(printf("number of distinct values: %u\n",
+        printf("number of distinct values: %u\n",
                     (uint) ((count->tree_pos - count->tree_buff) /
-                            count->field_length)));
+                            count->field_length));
     }
     total_count= 0;
     for (idx= 0; idx < 256; idx++)
@@ -1135,16 +1128,16 @@ static int get_statistic(PACK_MRG_INFO *mrg,HUFF_COUNTS *huff_counts)
         DBUG_PRINT("info", ("counts[0x%02x]: %12s", idx,
                             llstr((longlong) count->counts[idx], llbuf)));
         if (verbose >= 2)
-          VOID(printf("counts[0x%02x]: %12s\n", idx,
-                      llstr((longlong) count->counts[idx], llbuf)));
+          printf("counts[0x%02x]: %12s\n", idx,
+                      llstr((longlong) count->counts[idx], llbuf));
       }
     }
     DBUG_PRINT("info", ("total:        %12s", llstr((longlong) total_count,
                                                     llbuf)));
     if ((verbose >= 2) && total_count)
     {
-      VOID(printf("total:        %12s\n",
-                  llstr((longlong) total_count, llbuf)));
+      printf("total:        %12s\n",
+                  llstr((longlong) total_count, llbuf));
     }
   }
 
@@ -1337,12 +1330,12 @@ static void check_counts(HUFF_COUNTS *huff_counts, uint trees,
       }
       else
       {
-	my_free(huff_counts->tree_buff,MYF(0));
+	my_free(huff_counts->tree_buff);
 	delete_tree(&huff_counts->int_tree);
 	huff_counts->tree_buff=0;
       }
       if (tree.element_buffer)
-	my_free(tree.element_buffer,MYF(0));
+	my_free(tree.element_buffer);
     }
     if (huff_counts->pack_type & PACK_TYPE_SPACE_FIELDS)
       space_fields++;
@@ -1361,7 +1354,7 @@ static void check_counts(HUFF_COUNTS *huff_counts, uint trees,
                       field_count[FIELD_INTERVALL],
                       field_count[FIELD_ZERO]));
   if (verbose)
-    VOID(printf("\nnormal:    %3d  empty-space:     %3d  "
+    printf("\nnormal:    %3d  empty-space:     %3d  "
                 "empty-zero:       %3d  empty-fill: %3d\n"
                 "pre-space: %3d  end-space:       %3d  "
                 "intervall-fields: %3d  zero:       %3d\n",
@@ -1370,7 +1363,7 @@ static void check_counts(HUFF_COUNTS *huff_counts, uint trees,
                 field_count[FIELD_SKIP_PRESPACE],
                 field_count[FIELD_SKIP_ENDSPACE],
                 field_count[FIELD_INTERVALL],
-                field_count[FIELD_ZERO]));
+                field_count[FIELD_ZERO]);
   DBUG_VOID_RETURN;
 }
 
@@ -1460,8 +1453,8 @@ static HUFF_TREE* make_huff_trees(HUFF_COUNTS *huff_counts, uint trees)
     if (make_huff_tree(huff_tree+tree,huff_counts+tree))
     {
       while (tree--)
-	my_free(huff_tree[tree].element_buffer,MYF(0));
-      my_free(huff_tree,MYF(0));
+	my_free(huff_tree[tree].element_buffer);
+      my_free(huff_tree);
       DBUG_RETURN(0);
     }
   }
@@ -1861,9 +1854,8 @@ static uint join_same_trees(HUFF_COUNTS *huff_counts, uint trees)
 	      i->tree->tree_pack_length+j->tree->tree_pack_length+
 	      ALLOWED_JOIN_DIFF)
 	  {
-	    memcpy_fixed((uchar*) i->counts,(uchar*) count.counts,
-			 sizeof(count.counts[0])*256);
-	    my_free((uchar*) j->tree->element_buffer,MYF(0));
+	    memcpy(i->counts,(uchar*) count.counts, sizeof(count.counts[0])*256);
+	    my_free(j->tree->element_buffer);
 	    j->tree->element_buffer=0;
 	    j->tree=i->tree;
 	    bmove((uchar*) i->counts,(uchar*) count.counts,
@@ -1878,7 +1870,7 @@ static uint join_same_trees(HUFF_COUNTS *huff_counts, uint trees)
   DBUG_PRINT("info", ("Original trees:  %d  After join: %d",
                       trees, tree_number));
   if (verbose)
-    VOID(printf("Original trees:  %d  After join: %d\n", trees, tree_number));
+    printf("Original trees:  %d  After join: %d\n", trees, tree_number);
   return tree_number;			/* Return trees left */
 }
 
@@ -2012,7 +2004,7 @@ static int write_header(PACK_MRG_INFO *mrg,uint head_length,uint trees,
   uchar *buff= (uchar*) file_buffer.pos;
 
   bzero(buff,HEAD_LENGTH);
-  memcpy_fixed(buff,maria_pack_file_magic,4);
+  memcpy(buff,maria_pack_file_magic,4);
   int4store(buff+4,head_length);
   int4store(buff+8, mrg->min_pack_length);
   int4store(buff+12,mrg->max_pack_length);
@@ -2024,7 +2016,7 @@ static int write_header(PACK_MRG_INFO *mrg,uint head_length,uint trees,
   buff[27]= (uchar) maria_get_pointer_length((ulonglong) filelength,2);
   if (test_only)
     return 0;
-  VOID(my_seek(file_buffer.file,0L,MY_SEEK_SET,MYF(0)));
+  my_seek(file_buffer.file,0L,MY_SEEK_SET,MYF(0));
   return my_write(file_buffer.file,(const uchar *) file_buffer.pos,HEAD_LENGTH,
 		  MYF(MY_WME | MY_NABP | MY_WAIT_IF_FULL)) != 0;
 }
@@ -2057,24 +2049,24 @@ static void write_field_info(HUFF_COUNTS *counts, uint fields, uint trees)
   DBUG_PRINT("info", (" "));
   if (verbose >= 2)
   {
-    VOID(printf("\n"));
-    VOID(printf("column types:\n"));
-    VOID(printf("FIELD_NORMAL          0\n"));
-    VOID(printf("FIELD_SKIP_ENDSPACE   1\n"));
-    VOID(printf("FIELD_SKIP_PRESPACE   2\n"));
-    VOID(printf("FIELD_SKIP_ZERO       3\n"));
-    VOID(printf("FIELD_BLOB            4\n"));
-    VOID(printf("FIELD_CONSTANT        5\n"));
-    VOID(printf("FIELD_INTERVALL       6\n"));
-    VOID(printf("FIELD_ZERO            7\n"));
-    VOID(printf("FIELD_VARCHAR         8\n"));
-    VOID(printf("FIELD_CHECK           9\n"));
-    VOID(printf("\n"));
-    VOID(printf("pack type as a set of flags:\n"));
-    VOID(printf("PACK_TYPE_SELECTED      1\n"));
-    VOID(printf("PACK_TYPE_SPACE_FIELDS  2\n"));
-    VOID(printf("PACK_TYPE_ZERO_FILL     4\n"));
-    VOID(printf("\n"));
+    printf("\n");
+    printf("column types:\n");
+    printf("FIELD_NORMAL          0\n");
+    printf("FIELD_SKIP_ENDSPACE   1\n");
+    printf("FIELD_SKIP_PRESPACE   2\n");
+    printf("FIELD_SKIP_ZERO       3\n");
+    printf("FIELD_BLOB            4\n");
+    printf("FIELD_CONSTANT        5\n");
+    printf("FIELD_INTERVALL       6\n");
+    printf("FIELD_ZERO            7\n");
+    printf("FIELD_VARCHAR         8\n");
+    printf("FIELD_CHECK           9\n");
+    printf("\n");
+    printf("pack type as a set of flags:\n");
+    printf("PACK_TYPE_SELECTED      1\n");
+    printf("PACK_TYPE_SPACE_FIELDS  2\n");
+    printf("PACK_TYPE_ZERO_FILL     4\n");
+    printf("\n");
   }
   for (i=0 ; i++ < fields ; counts++)
   {
@@ -2091,10 +2083,10 @@ static void write_field_info(HUFF_COUNTS *counts, uint fields, uint trees)
                         counts->max_zero_fill, counts->length_bits,
                         counts->tree->tree_number, counts->field_length));
     if (verbose >= 2)
-      VOID(printf("column: %3u  type: %2u  pack: %2u  zero: %4u  lbits: %2u  "
+      printf("column: %3u  type: %2u  pack: %2u  zero: %4u  lbits: %2u  "
                   "tree: %2u  length: %4u\n", i , counts->field_type,
                   counts->pack_type, counts->max_zero_fill, counts->length_bits,
-                  counts->tree->tree_number, counts->field_length));
+                  counts->tree->tree_number, counts->field_length);
   }
   flush_bits();
   return;
@@ -2129,7 +2121,7 @@ static my_off_t write_huff_tree(HUFF_TREE *huff_tree, uint trees)
 
   DBUG_PRINT("info", (" "));
   if (verbose >= 2)
-    VOID(printf("\n"));
+    printf("\n");
   tree_no= 0;
   intervall_length=0;
   for (elements=0; trees-- ; huff_tree++)
@@ -2140,7 +2132,7 @@ static my_off_t write_huff_tree(HUFF_TREE *huff_tree, uint trees)
     tree_no++;
     DBUG_PRINT("info", (" "));
     if (verbose >= 3)
-      VOID(printf("\n"));
+      printf("\n");
     /* Count the total number of elements (byte codes or column values). */
     elements+=huff_tree->elements;
     huff_tree->max_offset=2;
@@ -2159,8 +2151,8 @@ static my_off_t write_huff_tree(HUFF_TREE *huff_tree, uint trees)
     */
     if (huff_tree->max_offset >= IS_OFFSET)
     {				/* This should be impossible */
-      VOID(fprintf(stderr, "Tree offset got too big: %d, aborted\n",
-                   huff_tree->max_offset));
+      fprintf(stderr, "Tree offset got too big: %d, aborted\n",
+                   huff_tree->max_offset);
       my_afree(packed_tree);
       return 0;
     }
@@ -2199,19 +2191,19 @@ static my_off_t write_huff_tree(HUFF_TREE *huff_tree, uint trees)
                         "bufflen" : "min_chr", huff_tree->counts->tree_buff ?
                         int_length : huff_tree->min_chr, huff_tree->height));
     if (verbose >= 2)
-      VOID(printf("tree: %2u  elements: %4u  char_bits: %2u  offset_bits: %2u  "
+      printf("tree: %2u  elements: %4u  char_bits: %2u  offset_bits: %2u  "
                   "%s: %5u  codelen: %2u\n", tree_no, huff_tree->elements,
                   huff_tree->char_bits, huff_tree->offset_bits,
                   huff_tree->counts->tree_buff ? "bufflen" : "min_chr",
                   huff_tree->counts->tree_buff ? int_length :
-                  huff_tree->min_chr, huff_tree->height));
+                  huff_tree->min_chr, huff_tree->height);
 
     /* Check that the code tree length matches the element count. */
     length=(uint) (offset-packed_tree);
     if (length != huff_tree->elements*2-2)
     {
-      VOID(fprintf(stderr, "error: Huff-tree-length: %d != calc_length: %d\n",
-                   length, huff_tree->elements * 2 - 2));
+      fprintf(stderr, "error: Huff-tree-length: %d != calc_length: %d\n",
+                   length, huff_tree->elements * 2 - 2);
       errors++;
       break;
     }
@@ -2228,10 +2220,10 @@ static my_off_t write_huff_tree(HUFF_TREE *huff_tree, uint trees)
                           " -> " : "", (packed_tree[i] & IS_OFFSET) ?
                           packed_tree[i] - IS_OFFSET + i : packed_tree[i]));
       if (verbose >= 3)
-        VOID(printf("tree[0x%04x]: %s0x%04x\n",
+        printf("tree[0x%04x]: %s0x%04x\n",
                     i, (packed_tree[i] & IS_OFFSET) ? " -> " : "",
                     (packed_tree[i] & IS_OFFSET) ?
-                    packed_tree[i] - IS_OFFSET + i : packed_tree[i]));
+                    packed_tree[i] - IS_OFFSET + i : packed_tree[i]);
     }
     flush_bits();
 
@@ -2253,9 +2245,9 @@ static my_off_t write_huff_tree(HUFF_TREE *huff_tree, uint trees)
                           bindigits(huff_tree->code[i],
                                     huff_tree->code_len[i])));
       if (verbose >= 3)
-        VOID(printf("code[0x%04x]:      0x%s  bits: %2u  bin: %s\n", i,
+        printf("code[0x%04x]:      0x%s  bits: %2u  bin: %s\n", i,
                     hexdigits(huff_tree->code[i]), huff_tree->code_len[i],
-                    bindigits(huff_tree->code[i], huff_tree->code_len[i])));
+                    bindigits(huff_tree->code[i], huff_tree->code_len[i]));
 
       /* Check that the encode table decodes correctly. */
       code= 0;
@@ -2268,9 +2260,9 @@ static my_off_t write_huff_tree(HUFF_TREE *huff_tree, uint trees)
       {
         if (! len)
         {
-          VOID(fflush(stdout));
-          VOID(fprintf(stderr, "error: code 0x%s with %u bits not found\n",
-                       hexdigits(huff_tree->code[i]), huff_tree->code_len[i]));
+          fflush(stdout);
+          fprintf(stderr, "error: code 0x%s with %u bits not found\n",
+                       hexdigits(huff_tree->code[i]), huff_tree->code_len[i]);
           errors++;
           break;
         }
@@ -2279,18 +2271,17 @@ static my_off_t write_huff_tree(HUFF_TREE *huff_tree, uint trees)
         bits++;
         if (bits > 8 * sizeof(code))
         {
-          VOID(fflush(stdout));
-          VOID(fprintf(stderr, "error: Huffman code too long: %u/%u\n",
-                       bits, (uint) (8 * sizeof(code))));
+          fflush(stdout);
+          fprintf(stderr, "error: Huffman code too long: %u/%u\n",
+                       bits, (uint) (8 * sizeof(code)));
           errors++;
           break;
         }
         idx+= (uint) code & 1;
         if (idx >= length)
         {
-          VOID(fflush(stdout));
-          VOID(fprintf(stderr, "error: illegal tree offset: %u/%u\n",
-                       idx, length));
+          fflush(stdout);
+          fprintf(stderr, "error: illegal tree offset: %u/%u\n", idx, length);
           errors++;
           break;
         }
@@ -2305,9 +2296,9 @@ static my_off_t write_huff_tree(HUFF_TREE *huff_tree, uint trees)
       DBUG_EXECUTE_IF("forcechkerr4", packed_tree[idx]++;);
       if (packed_tree[idx] != i)
       {
-        VOID(fflush(stdout));
-        VOID(fprintf(stderr, "error: decoded value 0x%04x  should be: 0x%04x\n",
-                     packed_tree[idx], i));
+        fflush(stdout);
+        fprintf(stderr, "error: decoded value 0x%04x  should be: 0x%04x\n",
+                     packed_tree[idx], i);
         errors++;
         break;
       }
@@ -2324,19 +2315,19 @@ static my_off_t write_huff_tree(HUFF_TREE *huff_tree, uint trees)
         DBUG_PRINT("info", ("column_values[0x%04x]: 0x%02x",
                             i, (uchar) huff_tree->counts->tree_buff[i]));
         if (verbose >= 3)
-          VOID(printf("column_values[0x%04x]: 0x%02x\n",
-                      i, (uchar) huff_tree->counts->tree_buff[i]));
+          printf("column_values[0x%04x]: 0x%02x\n",
+                      i, (uchar) huff_tree->counts->tree_buff[i]);
       }
     }
     flush_bits();
   }
   DBUG_PRINT("info", (" "));
   if (verbose >= 2)
-    VOID(printf("\n"));
+    printf("\n");
   my_afree(packed_tree);
   if (errors)
   {
-    VOID(fprintf(stderr, "Error: Generated decode trees are corrupt. Stop.\n"));
+    fprintf(stderr, "Error: Generated decode trees are corrupt. Stop.\n");
     return 0;
   }
   return elements;
@@ -2680,8 +2671,7 @@ static int compress_maria_file(PACK_MRG_INFO *mrg, HUFF_COUNTS *huff_counts)
             DBUG_PRINT("fields", ("FIELD_BLOB %lu bytes, bits: %2u",
                                   blob_length, count->length_bits));
 	    write_bits(blob_length,count->length_bits);
-	    memcpy_fixed(&blob,end_pos-portable_sizeof_char_ptr,
-			 sizeof(char*));
+	    memcpy(&blob,end_pos-portable_sizeof_char_ptr, sizeof(char*));
 	    blob_end=blob+blob_length;
             /* Encode the blob bytes. */
 	    for ( ; blob < blob_end ; blob++)
@@ -2770,8 +2760,8 @@ static int compress_maria_file(PACK_MRG_INFO *mrg, HUFF_COUNTS *huff_counts)
       record_count++;
       if (write_loop && record_count % WRITE_COUNT == 0)
       {
-	VOID(printf("%lu\r", (ulong) record_count));
-        VOID(fflush(stdout));
+	printf("%lu\r", (ulong) record_count);
+        fflush(stdout);
       }
     }
     else if (error != HA_ERR_RECORD_DELETED)
@@ -2781,11 +2771,10 @@ static int compress_maria_file(PACK_MRG_INFO *mrg, HUFF_COUNTS *huff_counts)
     error=0;
   else
   {
-    VOID(fprintf(stderr, "%s: Got error %d reading records\n",
-                 my_progname, error));
+    fprintf(stderr, "%s: Got error %d reading records\n", my_progname, error);
   }
   if (verbose >= 2)
-    VOID(printf("wrote %s records.\n", llstr((longlong) record_count, llbuf)));
+    printf("wrote %s records.\n", llstr((longlong) record_count, llbuf));
 
   my_afree(record);
   mrg->ref_length=max_pack_length;
@@ -2880,7 +2869,7 @@ static int flush_buffer(ulong neaded_length)
 
 static void end_file_buffer(void)
 {
-  my_free(file_buffer.buffer, MYF(0));
+  my_free(file_buffer.buffer);
 }
 
 	/* output `bits` low bits of `value' */
@@ -2914,7 +2903,7 @@ static void write_bits(register ulonglong value, register uint bits)
     if (bits != 8 * sizeof(value))
       value&= (((ulonglong) 1) << bits) - 1;
     if (file_buffer.pos >= file_buffer.end)
-      VOID(flush_buffer(~ (ulong) 0));
+      flush_buffer(~ (ulong) 0);
     file_buffer.bits=(int) (BITS_SAVED - bits);
     file_buffer.bitbucket= value << (BITS_SAVED - bits);
   }
@@ -2937,7 +2926,7 @@ static void flush_bits(void)
     *file_buffer.pos++= (uchar) (bit_buffer >> bits);
   }
   if (file_buffer.pos >= file_buffer.end)
-    VOID(flush_buffer(~ (ulong) 0));
+    flush_buffer(~ (ulong) 0);
   file_buffer.bits= BITS_SAVED;
   file_buffer.bitbucket= 0;
 }
@@ -2993,7 +2982,7 @@ static int save_state(MARIA_HA *isam_file,PACK_MRG_INFO *mrg,
   share->changed=1;			/* Force write of header */
   share->state.open_count=0;
   share->global_changed=0;
-  VOID(my_chsize(share->kfile.file, share->base.keystart, 0, MYF(0)));
+  my_chsize(share->kfile.file, share->base.keystart, 0, MYF(0));
   if (share->base.keys)
     isamchk_neaded=1;
   DBUG_RETURN(_ma_state_info_write_sub(share->kfile.file,
@@ -3103,7 +3092,7 @@ static int mrg_close(PACK_MRG_INFO *mrg)
   for (i=0 ; i < mrg->count ; i++)
     error|=maria_close(mrg->file[i]);
   if (mrg->free_file)
-    my_free(mrg->file, MYF(0));
+    my_free(mrg->file);
   DBUG_RETURN(error);
 }
 
@@ -3166,7 +3155,7 @@ static void fakebigcodes(HUFF_COUNTS *huff_counts, HUFF_COUNTS *end_count)
     */
     if (huff_counts->tree_buff)
     {
-      my_free(huff_counts->tree_buff, MYF(0));
+      my_free(huff_counts->tree_buff);
       delete_tree(&huff_counts->int_tree);
       huff_counts->tree_buff= NULL;
       DBUG_PRINT("fakebigcodes", ("freed distinct column values"));
@@ -3232,3 +3221,6 @@ static int fakecmp(my_off_t **count1, my_off_t **count2)
           (**count1 > **count2) ? -1 : 0);
 }
 #endif
+
+#include "ma_check_standalone.h"
+

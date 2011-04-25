@@ -5,18 +5,20 @@
 #
 # on windows it's <basedir>/lib/plugin
 # on unix it's <basedir>/lib/mysql/plugin
+# unless mtr sets it to $MYSQL_TEST_DIR/var/plugins
 #
---replace_result $MYSQL_LIBDIR MYSQL_LIBDIR /mysql/ /
+let plugindir=$MYSQL_TEST_DIR/var;
+--replace_result $plugindir MYSQL_LIBDIR $MYSQL_LIBDIR MYSQL_LIBDIR /mysql/ /
 select @@global.plugin_dir;
 --error ER_INCORRECT_GLOBAL_LOCAL_VAR
 select @@session.plugin_dir;
---replace_result $MYSQL_LIBDIR MYSQL_LIBDIR /mysql/ /
+--replace_result $plugindir MYSQL_LIBDIR $MYSQL_LIBDIR MYSQL_LIBDIR /mysql/ /
 show global variables like 'plugin_dir';
---replace_result $MYSQL_LIBDIR MYSQL_LIBDIR /mysql/ /
+--replace_result $plugindir MYSQL_LIBDIR $MYSQL_LIBDIR MYSQL_LIBDIR /mysql/ /
 show session variables like 'plugin_dir';
---replace_result $MYSQL_LIBDIR MYSQL_LIBDIR /mysql/ /
+--replace_result $plugindir MYSQL_LIBDIR $MYSQL_LIBDIR MYSQL_LIBDIR /mysql/ /
 select * from information_schema.global_variables where variable_name='plugin_dir';
---replace_result $MYSQL_LIBDIR MYSQL_LIBDIR /mysql/ /
+--replace_result $plugindir MYSQL_LIBDIR $MYSQL_LIBDIR MYSQL_LIBDIR /mysql/ /
 select * from information_schema.session_variables where variable_name='plugin_dir';
 
 #

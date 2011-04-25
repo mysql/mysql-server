@@ -2491,7 +2491,7 @@ void kill_delayed_threads(void)
   while ((di= it++))
   {
     di->thd.killed= THD::KILL_CONNECTION;
-    pthread_mutex_lock(&di->thd.LOCK_thd_data);
+    mysql_mutex_lock(&di->thd.LOCK_thd_data);
     if (di->thd.mysys_var)
     {
       mysql_mutex_lock(&di->thd.mysys_var->mutex);
@@ -2509,7 +2509,7 @@ void kill_delayed_threads(void)
       }
       mysql_mutex_unlock(&di->thd.mysys_var->mutex);
     }
-    pthread_mutex_unlock(&di->thd.LOCK_thd_data);
+    mysql_mutex_unlock(&di->thd.LOCK_thd_data);
   }
   mysql_mutex_unlock(&LOCK_delayed_insert); // For unlink from list
 }

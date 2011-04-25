@@ -170,11 +170,11 @@ t1	CREATE TABLE `t1` (
   `b` double AS (format(cot(a),6)) VIRTUAL
 ) ENGINE=MyISAM DEFAULT CHARSET=latin1
 insert into t1 values (12,default);
-insert into t1 values (0,default);
+insert into t1 values (1,default);
 select * from t1;
 a	b
 12	-1.572673
-0	NULL
+1	0.642093
 drop table t1;
 set sql_warnings = 0;
 # CRC32()

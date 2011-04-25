@@ -54,7 +54,6 @@ enum SHOW_COMP_OPTION { SHOW_OPTION_YES, SHOW_OPTION_NO, SHOW_OPTION_DISABLED};
 
 typedef enum enum_mysql_show_type SHOW_TYPE;
 typedef struct st_mysql_show_var SHOW_VAR;
-typedef struct st_mysql_lex_string LEX_STRING;
 
 #define MYSQL_ANY_PLUGIN         -1
 
@@ -133,7 +132,7 @@ extern char *opt_plugin_load;
 extern char *opt_plugin_dir_ptr;
 extern char opt_plugin_dir[FN_REFLEN];
 extern const LEX_STRING plugin_type_names[];
-extern uint plugin_maturity;
+extern ulong plugin_maturity;
 extern TYPELIB plugin_maturity_values;
 extern const char *plugin_maturity_names[];
 
@@ -145,7 +144,7 @@ extern bool plugin_is_ready(const LEX_STRING *name, int type);
 #define my_plugin_lock_by_name_ci(A,B,C) plugin_lock_by_name(A,B,C)
 #define my_plugin_lock(A,B) plugin_lock(A,B)
 #define my_plugin_lock_ci(A,B) plugin_lock(A,B)
-extern plugin_ref plugin_lock(THD *thd, plugin_ref ptr CALLER_INFO_PROTO);
+extern plugin_ref plugin_lock(THD *thd, plugin_ref ptr);
 extern plugin_ref plugin_lock_by_name(THD *thd, const LEX_STRING *name,
                                       int type);
 extern void plugin_unlock(THD *thd, plugin_ref plugin);

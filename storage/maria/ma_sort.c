@@ -43,7 +43,7 @@
  Pointers of functions for store and read keys from temp file
 */
 
-extern void print_error _VARARGS((const char *fmt,...));
+extern void print_error(const char *fmt,...);
 
 /* Functions defined in this file */
 
@@ -166,7 +166,7 @@ int _ma_create_index_by_sort(MARIA_SORT_PARAM *info, my_bool no_messages,
       if (my_init_dynamic_array(&buffpek, sizeof(BUFFPEK), maxbuffer,
 			     maxbuffer/2))
       {
-	my_free(sort_keys,MYF(0));
+	my_free(sort_keys);
         sort_keys= 0;
       }
       else
@@ -252,7 +252,7 @@ int _ma_create_index_by_sort(MARIA_SORT_PARAM *info, my_bool no_messages,
   error =0;
 
 err:
-  my_free(sort_keys, MYF(MY_ALLOW_ZERO_PTR));
+  my_free(sort_keys);
   delete_dynamic(&buffpek);
   close_cached_file(&tempfile);
   close_cached_file(&tempfile_for_exceptions);
@@ -391,7 +391,7 @@ pthread_handler_t _ma_thr_find_all_keys(void *arg)
         if (my_init_dynamic_array(&sort_param->buffpek, sizeof(BUFFPEK),
                                   maxbuffer, maxbuffer/2))
         {
-          my_free(sort_keys, MYF(0));
+          my_free(sort_keys);
           sort_keys= (uchar **) NULL;            /* for err: label */
         }
         else
@@ -463,7 +463,7 @@ pthread_handler_t _ma_thr_find_all_keys(void *arg)
 err:
     DBUG_PRINT("error", ("got some error"));
     sort_param->sort_info->got_error= 1; /* no need to protect with a mutex */
-    my_free(sort_keys,MYF(MY_ALLOW_ZERO_PTR));
+    my_free(sort_keys);
     sort_param->sort_keys=0;
     delete_dynamic(& sort_param->buffpek);
     close_cached_file(&sort_param->tempfile);
@@ -516,7 +516,7 @@ int _ma_thr_write_keys(MARIA_SORT_PARAM *sort_param)
     if (!sinfo->sort_keys)
     {
       got_error=1;
-      my_free(sinfo->rec_buff, MYF(MY_ALLOW_ZERO_PTR));
+      my_free(sinfo->rec_buff);
       continue;
     }
     if (!got_error)
@@ -541,8 +541,8 @@ int _ma_thr_write_keys(MARIA_SORT_PARAM *sort_param)
                                sinfo->notnull : NULL,
                                (ulonglong) share->state.state.records);
     }
-    my_free(sinfo->sort_keys,MYF(0));
-    my_free(sinfo->rec_buff, MYF(MY_ALLOW_ZERO_PTR));
+    my_free(sinfo->sort_keys);
+    my_free(sinfo->rec_buff);
     sinfo->sort_keys=0;
   }
 
@@ -654,7 +654,7 @@ int _ma_thr_write_keys(MARIA_SORT_PARAM *sort_param)
       }
     }
   }
-  my_free(mergebuf,MYF(MY_ALLOW_ZERO_PTR));
+  my_free(mergebuf);
   DBUG_RETURN(got_error);
 }
 #endif /* THREAD */
@@ -908,7 +908,7 @@ static int write_merge_key(MARIA_SORT_PARAM *info __attribute__((unused)),
   If to_file == 0 then use info->key_write
 */
 
-static int NEAR_F
+static int
 merge_buffers(MARIA_SORT_PARAM *info, uint keys, IO_CACHE *from_file,
               IO_CACHE *to_file, uchar **sort_keys, BUFFPEK *lastbuff,
               BUFFPEK *Fb, BUFFPEK *Tb)
@@ -982,7 +982,7 @@ merge_buffers(MARIA_SORT_PARAM *info, uint keys, IO_CACHE *from_file,
           uchar *base= buffpek->base;
           uint max_keys=buffpek->max_keys;
 
-          VOID(queue_remove_top(&queue));
+          queue_remove_top(&queue);
 
           /* Put room used by buffer to use in other buffer */
           for (refpek= (BUFFPEK**) &queue_top(&queue);
@@ -1052,7 +1052,7 @@ err:
 
         /* Do a merge to output-file (save only positions) */
 
-static int NEAR_F
+static int
 merge_index(MARIA_SORT_PARAM *info, uint keys, uchar **sort_keys,
             BUFFPEK *buffpek, int maxbuffer, IO_CACHE *tempfile)
 {
@@ -1070,7 +1070,7 @@ static int flush_maria_ft_buf(MARIA_SORT_PARAM *info)
   if (info->sort_info->ft_buf)
   {
     err=_ma_sort_ft_buf_flush(info);
-    my_free(info->sort_info->ft_buf, MYF(0));
+    my_free(info->sort_info->ft_buf);
     info->sort_info->ft_buf=0;
   }
   return err;

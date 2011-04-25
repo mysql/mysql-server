@@ -29,7 +29,7 @@
 #define MEM_CHECK_ADDRESSABLE(a,len) VALGRIND_CHECK_MEM_IS_ADDRESSABLE(a,len)
 #define MEM_CHECK_DEFINED(a,len) VALGRIND_CHECK_MEM_IS_DEFINED(a,len)
 #else /* HAVE_VALGRIND */
-# define MEM_UNDEFINED(a,len) bfill(A, B, 0x8F)
+# define MEM_UNDEFINED(a,len) bfill(a, len, 0x8F)
 # define MEM_NOACCESS(a,len) ((void) 0)
 # define MEM_CHECK_ADDRESSABLE(a,len) ((void) 0)
 # define MEM_CHECK_DEFINED(a,len) ((void) 0)

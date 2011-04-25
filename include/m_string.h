@@ -207,13 +207,7 @@ extern ulonglong strtoull(const char *str, char **ptr, int base);
 }
 #endif
 
-/*
-  LEX_STRING -- a pair of a C-string and its length.
-  (it's part of the plugin API as a MYSQL_LEX_STRING)
-*/
-
 #include <mysql/plugin.h>
-typedef struct st_mysql_lex_string LEX_STRING;
 
 #define STRING_WITH_LEN(X) (X), ((size_t) (sizeof(X) - 1))
 #define USTRING_WITH_LEN(X) ((uchar*) X), ((size_t) (sizeof(X) - 1))

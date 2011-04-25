@@ -3,7 +3,7 @@ FLUSH TABLES;
 SELECT * FROM t1;
 ERROR 42000: Unknown storage engine 'partition'
 TRUNCATE TABLE t1;
-ERROR 42000: Unknown storage engine 'partition'
+ERROR 42S02: Table 'test.t1' doesn't exist
 ANALYZE TABLE t1;
 Table	Op	Msg_type	Msg_text
 test.t1	analyze	Error	Unknown storage engine 'partition'

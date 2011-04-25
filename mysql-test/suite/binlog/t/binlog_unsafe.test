@@ -135,8 +135,8 @@ BEGIN
 END|
 --DELIMITER ;
 
---replace_result $UDF_EXAMPLE_LIB UDF_EXAMPLE_LIB
---eval CREATE FUNCTION myfunc_int RETURNS INTEGER SONAME "$UDF_EXAMPLE_LIB"
+--replace_result $UDF_EXAMPLE_SO UDF_EXAMPLE_LIB
+--eval CREATE FUNCTION myfunc_int RETURNS INTEGER SONAME "$UDF_EXAMPLE_SO"
 
 # In each iteration of this loop, we select one method to make the
 # statement unsafe.

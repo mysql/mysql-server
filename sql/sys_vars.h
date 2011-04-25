@@ -693,7 +693,7 @@ static bool update_buffer_size(THD *thd, KEY_CACHE *key_cache,
   mysql_mutex_unlock(&LOCK_global_system_variables);
 
   if (!key_cache->key_cache_inited)
-    error= ha_init_key_cache(0, key_cache);
+    error= ha_init_key_cache(0, key_cache, 0);
   else
     error= ha_resize_key_cache(key_cache);
 
@@ -705,7 +705,7 @@ static bool update_buffer_size(THD *thd, KEY_CACHE *key_cache,
 
 static bool update_keycache(THD *thd, KEY_CACHE *key_cache,
                             ptrdiff_t offset, ulonglong new_value,
-                            (int)(*)(KEY_CACHE *) func)
+                            int (*func)(KEY_CACHE *))
 {
   bool error= false;
   DBUG_ASSERT(offset != offsetof(KEY_CACHE, param_buff_size));
@@ -987,7 +987,7 @@ public:
     global_var(ulonglong)= def_val;
     DBUG_ASSERT(typelib.count > 0);
     DBUG_ASSERT(typelib.count <= 64);
-    DBUG_ASSERT(def_val < MAX_SET(typelib.count));
+    DBUG_ASSERT(def_val <= MAX_SET(typelib.count));
     DBUG_ASSERT(size == sizeof(ulonglong));
   }
   bool do_check(THD *thd, set_var *var)
@@ -1130,7 +1130,7 @@ public:
     plugin_ref oldval= *valptr;
     if (oldval != newval)
     {
-      *valptr= my_plugin_lock(NULL, &newval);
+      *valptr= my_plugin_lock(NULL, newval);
       plugin_unlock(NULL, oldval);
     }
   }
@@ -1149,7 +1149,7 @@ public:
   void session_save_default(THD *thd, set_var *var)
   {
     plugin_ref plugin= global_var(plugin_ref);
-    var->save_result.plugin= my_plugin_lock(thd, &plugin);
+    var->save_result.plugin= my_plugin_lock(thd, plugin);
   }
   void global_save_default(THD *thd, set_var *var)
   {
@@ -1164,7 +1164,7 @@ public:
       plugin= my_plugin_lock_by_name(thd, &pname, plugin_type);
     DBUG_ASSERT(plugin);
 
-    var->save_result.plugin= my_plugin_lock(thd, &plugin);
+    var->save_result.plugin= my_plugin_lock(thd, plugin);
   }
   bool check_update_type(Item_result type)
   { return type != STRING_RESULT; }
@@ -1508,12 +1508,12 @@ public:
   { return false; }
   bool session_update(THD *thd, set_var *var)
   {
-    session_var(thd, void*)= var->save_result.ptr;
+    session_var(thd, const void*)= var->save_result.ptr;
     return false;
   }
   bool global_update(THD *thd, set_var *var)
   {
-    global_var(void*)= var->save_result.ptr;
+    global_var(const void*)= var->save_result.ptr;
     return false;
   }
   void session_save_default(THD *thd, set_var *var)

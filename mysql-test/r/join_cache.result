@@ -4114,6 +4114,9 @@ FROM t1 JOIN t2 ON t2.v
 ORDER BY t2.v;
 MAX(t1.i)
 NULL
+Warnings:
+Warning	1292	Truncated incorrect INTEGER value: 'x'
+Warning	1292	Truncated incorrect INTEGER value: 'y'
 
 EXPLAIN
 SELECT MAX(t1.i) 

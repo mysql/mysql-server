@@ -1,0 +1,42 @@
+# ulong session
+
+SET @start_global_value = @@global.join_cache_level;
+
+#
+# exists as global only
+#
+select @@global.join_cache_level;
+select @@session.join_cache_level;
+show global variables like 'join_cache_level';
+show session variables like 'join_cache_level';
+select * from information_schema.global_variables where variable_name='join_cache_level';
+select * from information_schema.session_variables where variable_name='join_cache_level';
+
+#
+# show that it's writable
+#
+set global join_cache_level=4;
+select @@global.join_cache_level;
+set session join_cache_level=4;
+select @@session.join_cache_level;
+
+#
+# incorrect types
+#
+--error ER_WRONG_TYPE_FOR_VAR
+set global join_cache_level=1.1;
+--error ER_WRONG_TYPE_FOR_VAR
+set session join_cache_level=1e1;
+--error ER_WRONG_TYPE_FOR_VAR
+set global join_cache_level="foo";
+
+#
+# min/max values, block size
+#
+set global join_cache_level=0;
+select @@global.join_cache_level;
+set session join_cache_level=cast(-1 as unsigned int);
+select @@session.join_cache_level;
+
+SET @@global.join_cache_level = @start_global_value;
+

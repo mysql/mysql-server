@@ -1044,7 +1044,7 @@ static TRANSLOG_FILE *get_current_logfile()
   DBUG_RETURN(file);
 }
 
-uchar	NEAR maria_trans_file_magic[]=
+uchar	maria_trans_file_magic[]=
 { (uchar) 254, (uchar) 254, (uchar) 11, '\001', 'M', 'A', 'R', 'I', 'A',
  'L', 'O', 'G' };
 #define LOG_HEADER_DATA_SIZE (sizeof(maria_trans_file_magic) + \
@@ -1461,7 +1461,7 @@ LSN translog_get_file_max_lsn_stored(uint32 file)
   {
     LOGHANDLER_FILE_INFO info;
     File fd;
-    LINT_INIT_STRUCT(info);
+
     fd= open_logfile_by_number_no_cache(file);
     if ((fd < 0) ||
         (translog_read_file_header(&info, fd) | my_close(fd, MYF(MY_WME))))
@@ -1514,9 +1514,9 @@ static my_bool translog_buffer_init(struct st_translog_buffer *buffer, int num)
   /* list of waiting buffer ready threads */
   buffer->waiting_flush= 0;
   /*
-    Buffers locked by fallowing mutex. As far as buffers create logical
+    Buffers locked by the following mutex. As far as buffers create logical
     circle (after last buffer goes first) it trigger false alarm of deadlock
-    detect system, so we remove check of deadlock for this buffers. In deed
+    detect system, so we remove check of deadlock for this buffers. Indeed
     all mutex locks concentrated around current buffer except flushing
     thread (but it is only one thread). One thread can't take more then
     2 buffer locks at once. So deadlock is impossible here.
@@ -1526,10 +1526,8 @@ static my_bool translog_buffer_init(struct st_translog_buffer *buffer, int num)
     only one of eight buffers from deadlock detection hardly can hide other
     possible problems which include this mutexes.
   */
-  if (my_pthread_mutex_init(&buffer->mutex, MY_MUTEX_INIT_FAST,
-                            "translog_buffer->mutex",
-                            (num == TRANSLOG_BUFFERS_NO - 2 ?
-                             MYF_NO_DEADLOCK_DETECTION : 0)) ||
+
+  if (pthread_mutex_init(&buffer->mutex, MY_MUTEX_INIT_FAST) ||
       pthread_cond_init(&buffer->prev_sent_to_disk_cond, 0))
     DBUG_RETURN(1);
   buffer->is_closing_buffer= 0;
@@ -1565,7 +1563,7 @@ static my_bool translog_close_log_file(TRANSLOG_FILE *file)
     translog_syncs++;
   }
   rc|= my_close(file->handler.file, MYF(MY_WME));
-  my_free(file, MYF(0));
+  my_free(file);
   return test(rc);
 }
 
@@ -3810,7 +3808,7 @@ my_bool translog_init_with_table(const char *directory,
               *dynamic_element(&log_descriptor.open_files, j,
                                TRANSLOG_FILE **);
             my_close(el->handler.file, MYF(MY_WME));
-            my_free(el, MYF(0));
+            my_free(el);
           }
           if (file)
           {
@@ -3970,7 +3968,6 @@ my_bool translog_init_with_table(const char *directory,
     if (!old_log_was_recovered && old_flags == flags)
     {
       LOGHANDLER_FILE_INFO info;
-      LINT_INIT_STRUCT(info);
 
       /*
         Accessing &log_descriptor.open_files without mutex is safe
@@ -4300,7 +4297,7 @@ void translog_destroy()
     my_close(log_descriptor.directory_fd, MYF(MY_WME));
   my_atomic_rwlock_destroy(&LOCK_id_to_share);
   if (id_to_share != NULL)
-    my_free((id_to_share + 1), MYF(MY_WME));
+    my_free(id_to_share + 1);
   DBUG_VOID_RETURN;
 }
 
@@ -6467,7 +6464,7 @@ void translog_free_record_header(TRANSLOG_HEADER_BUFFER *buff)
   DBUG_ENTER("translog_free_record_header");
   if (buff->groups_no != 0)
   {
-    my_free(buff->groups, MYF(0));
+    my_free(buff->groups);
     buff->groups_no= 0;
   }
   DBUG_VOID_RETURN;
@@ -6990,7 +6987,7 @@ translog_variable_length_header(uchar *page, translog_size_t page_offset,
   DBUG_RETURN(buffer_length);
 
 exit_and_free:
-  my_free(buff->groups, MYF(0));
+  my_free(buff->groups);
   buff->groups_no= 0; /* prevent try to use of buff->groups */
   DBUG_RETURN(rc);
 }
@@ -8914,9 +8911,8 @@ static struct my_option my_long_options[] =
 
 static void print_version(void)
 {
-  VOID(printf("%s Ver 1.0 for %s on %s\n",
-              my_progname_short, SYSTEM_TYPE, MACHINE_TYPE));
-  NETWARE_SET_SCREEN_MODE(1);
+  printf("%s Ver 1.0 for %s on %s\n",
+              my_progname_short, SYSTEM_TYPE, MACHINE_TYPE);
 }
 
 
@@ -8928,7 +8924,7 @@ static void usage(void)
   puts("and you are welcome to modify and redistribute it under the GPL license\n");
 
   puts("Dump content of aria log pages.");
-  VOID(printf("\nUsage: %s -f file OPTIONS\n", my_progname_short));
+  printf("\nUsage: %s -f file OPTIONS\n", my_progname_short);
   my_print_help(my_long_options);
   print_defaults("my", load_default_groups);
   my_print_variables(my_long_options);
@@ -8980,7 +8976,7 @@ static void dump_header_page(uchar *buff)
 {
   LOGHANDLER_FILE_INFO desc;
   char strbuff[21];
-  LINT_INIT_STRUCT(desc);
+
   translog_interpret_file_header(&desc, buff);
   printf("  This can be header page:\n"
          "    Timestamp: %s\n"
@@ -9313,4 +9309,7 @@ err:
   free_defaults(default_argv);
   exit(1);
 }
+
+#include "ma_check_standalone.h"
 #endif
+

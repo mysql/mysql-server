@@ -124,7 +124,7 @@ const int max_connections = 500;
 
 #ifndef DRIZZLED
 #if MYSQL_VERSION_ID >= 50404
-#define MYSQL_SUPPORTS_BACKUP
+//#define MYSQL_SUPPORTS_BACKUP
 #endif
 #endif
 

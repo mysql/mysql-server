@@ -2898,7 +2898,7 @@ String *Item_func_conv::val_str(String *str)
                                    from_base, &endptr, &err);
   }
 
-  ptr= longlong2str(dec, ans, to_base, 1);
+  ptr= longlong2str(dec, ans, to_base);
   if (str->copy(ans, (uint32) (ptr-ans), default_charset()))
     return &my_empty_string;
   return str;
@@ -3065,7 +3065,7 @@ String *Item_func_hex::val_str_ascii(String *str)
 
     if ((null_value= args[0]->null_value))
       return 0;
-    ptr= longlong2str(dec,ans,16,1);
+    ptr= longlong2str(dec,ans,16);
     if (str->copy(ans,(uint32) (ptr-ans), &my_charset_numeric))
       return &my_empty_string;			// End of memory
     return str;

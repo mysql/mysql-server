@@ -841,7 +841,7 @@ int maria_create(const char *name, enum data_file_type datafile_type,
   */
   if (_ma_test_if_reopen(filename))
   {
-    my_printf_error(0, "Aria table '%s' is in use "
+    my_printf_error(HA_ERR_TABLE_EXIST, "Aria table '%s' is in use "
                     "(most likely by a MERGE table). Try FLUSH TABLES.",
                     MYF(0), name + dirname_length(name));
     my_errno= HA_ERR_TABLE_EXIST;
@@ -966,11 +966,11 @@ int maria_create(const char *name, enum data_file_type datafile_type,
       column_array[col_order[i]->column_nr]= i;
       if (_ma_columndef_write(file, col_order[i]))
       {
-        my_free(col_order, MYF(0));
+        my_free(col_order);
         goto err;
       }
     }
-    my_free(col_order, MYF(0));
+    my_free(col_order);
   }
   else
   {
@@ -1086,7 +1086,7 @@ int maria_create(const char *name, enum data_file_type datafile_type,
     if (_ma_update_state_lsns_sub(&share, lsn, trnman_get_min_safe_trid(),
                                   FALSE, TRUE))
       goto err;
-    my_free(log_data, MYF(0));
+    my_free(log_data);
   }
 
   if (!(flags & HA_DONT_TOUCH_DATA))
@@ -1155,7 +1155,7 @@ int maria_create(const char *name, enum data_file_type datafile_type,
   }
   pthread_mutex_unlock(&THR_LOCK_maria);
   res= 0;
-  my_free((char*) rec_per_key_part,MYF(0));
+  my_free((char*) rec_per_key_part);
   errpos=0;
   if (my_close(file,MYF(0)))
     res= my_errno;
@@ -1168,7 +1168,7 @@ err_no_lock:
   save_errno=my_errno;
   switch (errpos) {
   case 3:
-    VOID(my_close(dfile,MYF(0)));
+    my_close(dfile, MYF(0));
     /* fall through */
   case 2:
   if (! (flags & HA_DONT_TOUCH_DATA))
@@ -1177,14 +1177,14 @@ err_no_lock:
 			   sync_dir);
     /* fall through */
   case 1:
-    VOID(my_close(file,MYF(0)));
+    my_close(file, MYF(0));
     if (! (flags & HA_DONT_TOUCH_DATA))
       my_delete_with_symlink(fn_format(filename,name,"",MARIA_NAME_IEXT,
                                        MY_UNPACK_FILENAME | MY_APPEND_EXT),
 			     sync_dir);
   }
-  my_free(log_data, MYF(MY_ALLOW_ZERO_PTR));
-  my_free((char*) rec_per_key_part, MYF(0));
+  my_free(log_data);
+  my_free(rec_per_key_part);
   DBUG_RETURN(my_errno=save_errno);		/* return the fatal errno */
 }
 

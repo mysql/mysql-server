@@ -137,10 +137,10 @@ typedef struct st_pagecache
   PAGECACHE_HASH_LINK *free_hash_list;/* list of free hash links             */
   PAGECACHE_BLOCK_LINK *free_block_list;/* list of free blocks               */
   PAGECACHE_BLOCK_LINK *block_root;/* memory for block links                 */
-  uchar HUGE_PTR *block_mem;     /* memory for block buffers                 */
+  uchar *block_mem;              /* memory for block buffers                 */
   PAGECACHE_BLOCK_LINK *used_last;/* ptr to the last block of the LRU chain  */
   PAGECACHE_BLOCK_LINK *used_ins;/* ptr to the insertion block in LRU chain  */
-  pthread_mutex_t cache_lock;    /* to lock access to the cache structure    */
+  mysql_mutex_t cache_lock;      /* to lock access to the cache structure    */
   WQUEUE resize_queue; /* threads waiting during resize operation  */
   WQUEUE waiting_for_hash_link;/* waiting for a free hash link     */
   WQUEUE waiting_for_block;   /* requests waiting for a free block */

@@ -28,6 +28,7 @@ mysql.time_zone_name                               OK
 mysql.time_zone_transition                         OK
 mysql.time_zone_transition_type                    OK
 mysql.user                                         OK
+performance_schema
 test
 Phase 3/3: Running 'mysql_fix_privilege_tables'...
 OK
@@ -63,6 +64,7 @@ mysql.time_zone_name                               OK
 mysql.time_zone_transition                         OK
 mysql.time_zone_transition_type                    OK
 mysql.user                                         OK
+performance_schema
 test
 Phase 3/3: Running 'mysql_fix_privilege_tables'...
 OK
@@ -98,6 +100,7 @@ mysql.time_zone_name                               OK
 mysql.time_zone_transition                         OK
 mysql.time_zone_transition_type                    OK
 mysql.user                                         OK
+performance_schema
 test
 Phase 3/3: Running 'mysql_fix_privilege_tables'...
 OK
@@ -136,6 +139,7 @@ mysql.time_zone_name                               OK
 mysql.time_zone_transition                         OK
 mysql.time_zone_transition_type                    OK
 mysql.user                                         OK
+performance_schema
 test
 Phase 3/3: Running 'mysql_fix_privilege_tables'...
 OK
@@ -177,6 +181,7 @@ mysql.time_zone_name                               OK
 mysql.time_zone_transition                         OK
 mysql.time_zone_transition_type                    OK
 mysql.user                                         OK
+performance_schema
 test
 Phase 3/3: Running 'mysql_fix_privilege_tables'...
 OK
@@ -221,6 +226,7 @@ mysql.time_zone_name                               OK
 mysql.time_zone_transition                         OK
 mysql.time_zone_transition_type                    OK
 mysql.user                                         OK
+performance_schema
 test
 Phase 3/3: Running 'mysql_fix_privilege_tables'...
 OK
@@ -231,3 +237,5 @@ GRANT ALL PRIVILEGES ON `roelt`.`test2` TO 'user3'@'%'
 DROP USER 'user3'@'%';
 End of 5.1 tests
 The --upgrade-system-tables option was used, databases won't be touched.
+Phase 3/3: Running 'mysql_fix_privilege_tables'...
+OK

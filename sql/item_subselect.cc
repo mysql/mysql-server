@@ -3800,7 +3800,7 @@ bitmap_init_memroot(MY_BITMAP *map, uint n_bits, MEM_ROOT *mem_root)
 bool subselect_hash_sj_engine::init_permanent(List<Item> *tmp_columns)
 {
   /* Options to create_tmp_table. */
-  ulonglong tmp_create_options= thd->options | TMP_TABLE_ALL_COLUMNS;
+  ulonglong tmp_create_options= thd->variables.option_bits | TMP_TABLE_ALL_COLUMNS;
                              /* | TMP_TABLE_FORCE_MYISAM; TIMOUR: force MYISAM */
 
   DBUG_ENTER("subselect_hash_sj_engine::init_permanent");
@@ -3918,7 +3918,9 @@ bool subselect_hash_sj_engine::make_semi_join_conds()
   if (!(tmp_table_ref= (TABLE_LIST*) thd->alloc(sizeof(TABLE_LIST))))
     DBUG_RETURN(TRUE);
 
-  tmp_table_ref->init_one_table("", "materialized subselect", TL_READ);
+  tmp_table_ref->init_one_table(STRING_WITH_LEN(""),
+                                STRING_WITH_LEN("materialized subselect"),
+                                NULL, TL_READ);
   tmp_table_ref->table= tmp_table;
 
   context= new Name_resolution_context;
@@ -4277,7 +4279,7 @@ Ordered_key::Ordered_key(uint keyid_arg, TABLE *tbl_arg, Item *search_key_arg,
 
 Ordered_key::~Ordered_key()
 {
-  my_free((char*) key_buff, MYF(0));
+  my_free(key_buff);
   bitmap_free(&null_key);
 }
 
@@ -4905,7 +4907,7 @@ subselect_rowid_merge_engine::~subselect_rowid_merge_engine()
   /* None of the resources below is allocated if there are no ordered keys. */
   if (keys_count)
   {
-    my_free((char*) row_num_to_rowid, MYF(0));
+    my_free(row_num_to_rowid);
     for (uint i= 0; i < keys_count; i++)
       delete merge_keys[i];
     delete_queue(&pq);

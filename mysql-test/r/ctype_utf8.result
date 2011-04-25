@@ -1,3 +1,4 @@
+SET TIME_ZONE='+03:00';
 drop table if exists t1,t2,t3,t4;
 drop database if exists mysqltest;
 drop table if exists t1,t2;
@@ -2090,6 +2091,7 @@ t2	CREATE TABLE `t2` (
 ) ENGINE=MyISAM DEFAULT CHARSET=latin1
 DROP TABLE t1, t2;
 SET NAMES utf8;
+SET TIME_ZONE = _latin1 '+03:00';
 #
 # Start of WL#2649 Number-to-string conversions
 #

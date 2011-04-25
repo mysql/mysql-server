@@ -28,7 +28,7 @@ typedef struct st_net {
   unsigned char reading_or_writing;
   char save_char;
   char net_skip_rest_factor;
-  my_bool unused;
+  my_bool unused1;
   my_bool compress;
   my_bool unused3;
   unsigned char *unused;

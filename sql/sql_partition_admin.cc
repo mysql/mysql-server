@@ -15,7 +15,6 @@
 
 #include "sql_parse.h"                      // check_one_table_access
 #include "sql_table.h"                      // mysql_alter_table, etc.
-#include "sql_lex.h"                        // Sql_statement
 #include "sql_truncate.h"                   // mysql_truncate_table,
                                             // Truncate_statement
 #include "sql_admin.h"                      // Analyze/Check/.._table_statement

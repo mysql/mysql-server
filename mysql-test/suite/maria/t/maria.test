@@ -14,7 +14,7 @@ set global storage_engine=aria;
 set session storage_engine=aria;
 set global aria_page_checksum=0;
 let $default_log_file_size=`select @@global.aria_log_file_size`;
-set global aria_log_file_size=4294967295;
+set global aria_log_file_size=4294959104;
 
 # Initialise
 --disable_warnings
@@ -551,6 +551,7 @@ commit;
 disconnect root;
 connection default;
 select straight_join * from t1,t2 force index (primary) where t1.a=t2.a;
+unlock tables;
 drop table t1,t2;
 set autocommit=1;
 #
@@ -569,6 +570,7 @@ disconnect con1;
 connection default;
 SELECT t1.c1 AS t1c1, t2.c1 AS t2c1 FROM t1, t2
   WHERE t1.c1 = t2.c1 HAVING t1c1 != t2c1;
+unlock tables;
 DROP TABLE t1,t2;
 
 #
@@ -1793,6 +1795,7 @@ lock table t1 write concurrent;
 # should be fixed with fully implemented versioning
 --error ER_CHECK_NOT_IMPLEMENTED
 delete from t1;
+unlock tables;
 drop table t1;
 
 #
@@ -1850,16 +1853,6 @@ insert into t1 values (1);
 --error ER_NO_PARTITION_FOR_GIVEN_VALUE
 alter table t1 partition by list (s1) (partition p1 values in (2));
 drop table t1;
-
-#
-# Bug #39226 Aria: crash with FLUSH TABLES WITH READ LOCK after LOCK TABLES
-
-create table t1 (c1 int);
-create table t2 (c1 int);
-lock table t1 read, t2 read;
-flush tables with read lock;
-unlock tables;
-drop table t1, t2;
 
 #
 # Bug #40311

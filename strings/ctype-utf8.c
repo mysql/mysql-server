@@ -1721,7 +1721,7 @@ MY_UNICASE_INFO *const my_unicase_turkish[256]=
 
 
 static inline void
-my_tosort_unicode(MY_UNICASE_INFO **uni_plane, my_wc_t *wc)
+my_tosort_unicode(MY_UNICASE_INFO * const* uni_plane, my_wc_t *wc)
 {
   int page= *wc >> 8;
   if (page < 256)
@@ -1754,7 +1754,7 @@ int my_wildcmp_unicode(CHARSET_INFO *cs,
   int result= -1;                             /* Not found, using wildcards */
   my_wc_t s_wc, w_wc;
   int scan;
-  int (*mb_wc)(struct charset_info_st *, my_wc_t *,
+  int (*mb_wc)(CHARSET_INFO *, my_wc_t *,
                const uchar *, const uchar *);
   mb_wc= cs->cset->mb_wc;
 
@@ -1905,14 +1905,13 @@ my_strnxfrm_unicode(CHARSET_INFO *cs,
                     uchar *dst, size_t dstlen,
                     const uchar *src, size_t srclen)
 {
-  my_wc_t wc;
+  my_wc_t UNINIT_VAR(wc);
   int res;
   uchar *de= dst + dstlen;
   uchar *de_beg= de - 1;
   const uchar *se = src + srclen;
-  MY_UNICASE_INFO **uni_plane= (cs->state & MY_CS_BINSORT) ?
-                                NULL : cs->caseinfo;
-  LINT_INIT(wc);
+  MY_UNICASE_INFO * const*uni_plane= (cs->state & MY_CS_BINSORT) ?
+                                      NULL : cs->caseinfo;
   DBUG_ASSERT(src);
   
   while (dst < de_beg)
@@ -4683,7 +4682,7 @@ my_wc_mb_utf8mb4_no_range(CHARSET_INFO *cs __attribute__((unused)),
 
 
 static inline void
-my_tolower_utf8mb4(MY_UNICASE_INFO **uni_plane, my_wc_t *wc)
+my_tolower_utf8mb4(MY_UNICASE_INFO * const* uni_plane, my_wc_t *wc)
 {
   int page= *wc >> 8;
   if (page < 256 && uni_plane[page])
@@ -4692,7 +4691,7 @@ my_tolower_utf8mb4(MY_UNICASE_INFO **uni_plane, my_wc_t *wc)
 
 
 static inline void
-my_toupper_utf8mb4(MY_UNICASE_INFO **uni_plane, my_wc_t *wc)
+my_toupper_utf8mb4(MY_UNICASE_INFO * const* uni_plane, my_wc_t *wc)
 {
   int page= *wc >> 8;
   if (page < 256 && uni_plane[page])
@@ -4707,7 +4706,7 @@ my_caseup_utf8mb4(CHARSET_INFO *cs, char *src, size_t srclen,
   my_wc_t wc;
   int srcres, dstres;
   char *srcend= src + srclen, *dstend= dst + dstlen, *dst0= dst;
-  MY_UNICASE_INFO **uni_plane= cs->caseinfo;
+  MY_UNICASE_INFO * const* uni_plane= cs->caseinfo;
   DBUG_ASSERT(src != dst || cs->caseup_multiply == 1);
 
   while ((src < srcend) &&
@@ -4739,7 +4738,7 @@ my_hash_sort_utf8mb4(CHARSET_INFO *cs, const uchar *s, size_t slen,
   my_wc_t wc;
   int res;
   const uchar *e= s + slen;
-  MY_UNICASE_INFO **uni_plane= cs->caseinfo;
+  MY_UNICASE_INFO * const* uni_plane= cs->caseinfo;
 
   /*
     Remove end space. We do this to be able to compare
@@ -4775,7 +4774,7 @@ my_caseup_str_utf8mb4(CHARSET_INFO *cs, char *src)
   my_wc_t wc;
   int srcres, dstres;
   char *dst= src, *dst0= src;
-  MY_UNICASE_INFO **uni_plane= cs->caseinfo;
+  MY_UNICASE_INFO * const* uni_plane= cs->caseinfo;
   DBUG_ASSERT(cs->caseup_multiply == 1);
 
   while (*src &&
@@ -4800,7 +4799,7 @@ my_casedn_utf8mb4(CHARSET_INFO *cs,
   my_wc_t wc;
   int srcres, dstres;
   char *srcend= src + srclen, *dstend= dst + dstlen, *dst0= dst;
-  MY_UNICASE_INFO **uni_plane= cs->caseinfo;
+  MY_UNICASE_INFO * const* uni_plane= cs->caseinfo;
   DBUG_ASSERT(src != dst || cs->casedn_multiply == 1);
 
   while ((src < srcend) &&
@@ -4823,7 +4822,7 @@ my_casedn_str_utf8mb4(CHARSET_INFO *cs, char *src)
   my_wc_t wc;
   int srcres, dstres;
   char *dst= src, *dst0= src;
-  MY_UNICASE_INFO **uni_plane= cs->caseinfo;
+  MY_UNICASE_INFO * const* uni_plane= cs->caseinfo;
   DBUG_ASSERT(cs->casedn_multiply == 1);
 
   while (*src &&
@@ -4865,7 +4864,7 @@ my_strnncoll_utf8mb4(CHARSET_INFO *cs,
   my_wc_t s_wc,t_wc;
   const uchar *se= s + slen;
   const uchar *te= t + tlen;
-  MY_UNICASE_INFO **uni_plane= cs->caseinfo;
+  MY_UNICASE_INFO * const* uni_plane= cs->caseinfo;
   LINT_INIT(s_wc);
   LINT_INIT(t_wc);
 
@@ -4932,7 +4931,7 @@ my_strnncollsp_utf8mb4(CHARSET_INFO *cs,
   int res;
   my_wc_t s_wc, t_wc;
   const uchar *se= s + slen, *te= t + tlen;
-  MY_UNICASE_INFO **uni_plane= cs->caseinfo;
+  MY_UNICASE_INFO * const* uni_plane= cs->caseinfo;
   LINT_INIT(s_wc);
   LINT_INIT(t_wc);
 
@@ -5016,7 +5015,7 @@ my_strnncollsp_utf8mb4(CHARSET_INFO *cs,
 static int
 my_strcasecmp_utf8mb4(CHARSET_INFO *cs, const char *s, const char *t)
 {
-  MY_UNICASE_INFO **uni_plane= cs->caseinfo;
+  MY_UNICASE_INFO * const* uni_plane= cs->caseinfo;
   while (s[0] && t[0])
   {
     my_wc_t s_wc,t_wc;
@@ -5183,7 +5182,7 @@ MY_CHARSET_HANDLER my_charset_utf8mb4_handler=
 
 
 
-CHARSET_INFO my_charset_utf8mb4_general_ci=
+struct charset_info_st my_charset_utf8mb4_general_ci=
 {
   45,0,0,              /* number       */
   MY_CS_COMPILED|MY_CS_PRIMARY|MY_CS_STRNXFRM|MY_CS_UNICODE|MY_CS_UNICODE_SUPPLEMENT,  /* state  */
@@ -5216,7 +5215,7 @@ CHARSET_INFO my_charset_utf8mb4_general_ci=
 };
 
 
-CHARSET_INFO my_charset_utf8mb4_bin=
+struct charset_info_st my_charset_utf8mb4_bin=
 {
   46,0,0,             /* number       */
   MY_CS_COMPILED|MY_CS_BINSORT|MY_CS_UNICODE|MY_CS_UNICODE_SUPPLEMENT, /* state  */

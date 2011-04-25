@@ -28,6 +28,7 @@ show status like '%Handler_read%';
 Variable_name	Value
 Handler_read_first	0
 Handler_read_key	7
+Handler_read_last	0
 Handler_read_next	0
 Handler_read_prev	0
 Handler_read_rnd	0
@@ -54,6 +55,7 @@ show status like '%Handler_read%';
 Variable_name	Value
 Handler_read_first	0
 Handler_read_key	0
+Handler_read_last	0
 Handler_read_next	0
 Handler_read_prev	0
 Handler_read_rnd	0
@@ -79,6 +81,7 @@ show status like '%Handler_read%';
 Variable_name	Value
 Handler_read_first	0
 Handler_read_key	7
+Handler_read_last	0
 Handler_read_next	0
 Handler_read_prev	0
 Handler_read_rnd	0
@@ -103,6 +106,7 @@ show status like '%Handler_read%';
 Variable_name	Value
 Handler_read_first	0
 Handler_read_key	0
+Handler_read_last	0
 Handler_read_next	0
 Handler_read_prev	0
 Handler_read_rnd	0
@@ -128,6 +132,7 @@ show status like '%Handler_read%';
 Variable_name	Value
 Handler_read_first	0
 Handler_read_key	7
+Handler_read_last	0
 Handler_read_next	0
 Handler_read_prev	0
 Handler_read_rnd	0
@@ -152,6 +157,7 @@ show status like '%Handler_read%';
 Variable_name	Value
 Handler_read_first	0
 Handler_read_key	0
+Handler_read_last	0
 Handler_read_next	0
 Handler_read_prev	0
 Handler_read_rnd	0
@@ -249,6 +255,7 @@ show status like '%Handler_read%';
 Variable_name	Value
 Handler_read_first	0
 Handler_read_key	7
+Handler_read_last	0
 Handler_read_next	0
 Handler_read_prev	0
 Handler_read_rnd	0
@@ -345,6 +352,7 @@ show status like '%Handler_read%';
 Variable_name	Value
 Handler_read_first	0
 Handler_read_key	0
+Handler_read_last	0
 Handler_read_next	0
 Handler_read_prev	0
 Handler_read_rnd	0
@@ -366,6 +374,7 @@ show status like '%Handler_read%';
 Variable_name	Value
 Handler_read_first	0
 Handler_read_key	17
+Handler_read_last	0
 Handler_read_next	0
 Handler_read_prev	0
 Handler_read_rnd	4
@@ -386,6 +395,7 @@ show status like '%Handler_read%';
 Variable_name	Value
 Handler_read_first	0
 Handler_read_key	10
+Handler_read_last	0
 Handler_read_next	0
 Handler_read_prev	0
 Handler_read_rnd	4
@@ -407,6 +417,7 @@ show status like '%Handler_read%';
 Variable_name	Value
 Handler_read_first	0
 Handler_read_key	17
+Handler_read_last	0
 Handler_read_next	0
 Handler_read_prev	0
 Handler_read_rnd	4
@@ -427,6 +438,7 @@ show status like '%Handler_read%';
 Variable_name	Value
 Handler_read_first	0
 Handler_read_key	10
+Handler_read_last	0
 Handler_read_next	0
 Handler_read_prev	0
 Handler_read_rnd	4
@@ -454,6 +466,7 @@ show status like '%Handler_read%';
 Variable_name	Value
 Handler_read_first	0
 Handler_read_key	7
+Handler_read_last	0
 Handler_read_next	0
 Handler_read_prev	0
 Handler_read_rnd	0
@@ -480,6 +493,7 @@ show status like '%Handler_read%';
 Variable_name	Value
 Handler_read_first	0
 Handler_read_key	0
+Handler_read_last	0
 Handler_read_next	0
 Handler_read_prev	0
 Handler_read_rnd	0
@@ -501,6 +515,7 @@ show status like '%Handler_read%';
 Variable_name	Value
 Handler_read_first	0
 Handler_read_key	7
+Handler_read_last	0
 Handler_read_next	0
 Handler_read_prev	0
 Handler_read_rnd	4
@@ -521,6 +536,7 @@ show status like '%Handler_read%';
 Variable_name	Value
 Handler_read_first	0
 Handler_read_key	0
+Handler_read_last	0
 Handler_read_next	0
 Handler_read_prev	0
 Handler_read_rnd	4
@@ -618,6 +634,7 @@ show status like '%Handler_read%';
 Variable_name	Value
 Handler_read_first	0
 Handler_read_key	70
+Handler_read_last	0
 Handler_read_next	0
 Handler_read_prev	0
 Handler_read_rnd	0
@@ -714,6 +731,7 @@ show status like '%Handler_read%';
 Variable_name	Value
 Handler_read_first	0
 Handler_read_key	0
+Handler_read_last	0
 Handler_read_next	0
 Handler_read_prev	0
 Handler_read_rnd	0
@@ -1337,6 +1355,7 @@ show status like '%Handler_read%';
 Variable_name	Value
 Handler_read_first	0
 Handler_read_key	11
+Handler_read_last	0
 Handler_read_next	0
 Handler_read_prev	0
 Handler_read_rnd	0
@@ -1365,6 +1384,7 @@ show status like '%Handler_read%';
 Variable_name	Value
 Handler_read_first	0
 Handler_read_key	32
+Handler_read_last	0
 Handler_read_next	0
 Handler_read_prev	0
 Handler_read_rnd	0
@@ -1396,6 +1416,7 @@ show status like '%Handler_read%';
 Variable_name	Value
 Handler_read_first	0
 Handler_read_key	0
+Handler_read_last	0
 Handler_read_next	0
 Handler_read_prev	0
 Handler_read_rnd	0
@@ -1424,6 +1445,7 @@ show status like '%Handler_read%';
 Variable_name	Value
 Handler_read_first	0
 Handler_read_key	13
+Handler_read_last	0
 Handler_read_next	0
 Handler_read_prev	0
 Handler_read_rnd	0
@@ -1613,6 +1635,7 @@ show status like '%Handler_read%';
 Variable_name	Value
 Handler_read_first	0
 Handler_read_key	15
+Handler_read_last	0
 Handler_read_next	0
 Handler_read_prev	0
 Handler_read_rnd	8
@@ -1637,6 +1660,7 @@ show status like '%Handler_read%';
 Variable_name	Value
 Handler_read_first	0
 Handler_read_key	21
+Handler_read_last	0
 Handler_read_next	0
 Handler_read_prev	0
 Handler_read_rnd	8
@@ -1662,6 +1686,7 @@ show status like '%Handler_read%';
 Variable_name	Value
 Handler_read_first	0
 Handler_read_key	15
+Handler_read_last	0
 Handler_read_next	0
 Handler_read_prev	0
 Handler_read_rnd	8
@@ -1686,6 +1711,7 @@ show status like '%Handler_read%';
 Variable_name	Value
 Handler_read_first	0
 Handler_read_key	22
+Handler_read_last	0
 Handler_read_next	0
 Handler_read_prev	0
 Handler_read_rnd	8
@@ -1726,6 +1752,7 @@ show status like '%Handler_read%';
 Variable_name	Value
 Handler_read_first	0
 Handler_read_key	15
+Handler_read_last	0
 Handler_read_next	0
 Handler_read_prev	0
 Handler_read_rnd	0
@@ -1762,6 +1789,7 @@ show status like '%Handler_read%';
 Variable_name	Value
 Handler_read_first	0
 Handler_read_key	0
+Handler_read_last	0
 Handler_read_next	0
 Handler_read_prev	0
 Handler_read_rnd	0
@@ -1797,6 +1825,7 @@ show status like '%Handler_read%';
 Variable_name	Value
 Handler_read_first	0
 Handler_read_key	15
+Handler_read_last	0
 Handler_read_next	0
 Handler_read_prev	0
 Handler_read_rnd	0
@@ -1832,6 +1861,7 @@ show status like '%Handler_read%';
 Variable_name	Value
 Handler_read_first	0
 Handler_read_key	18
+Handler_read_last	0
 Handler_read_next	0
 Handler_read_prev	0
 Handler_read_rnd	0
@@ -2521,6 +2551,71 @@ WHERE table1 .`col_varchar_key` )	field10
 1	NULL	u
 1	NULL	w
 1	NULL	y
+Warnings:
+Warning	1292	Truncated incorrect INTEGER value: 'r'
+Warning	1292	Truncated incorrect INTEGER value: 'r'
+Warning	1292	Truncated incorrect INTEGER value: 'r'
+Warning	1292	Truncated incorrect INTEGER value: 'r'
+Warning	1292	Truncated incorrect INTEGER value: 'r'
+Warning	1292	Truncated incorrect INTEGER value: 'r'
+Warning	1292	Truncated incorrect INTEGER value: 'r'
+Warning	1292	Truncated incorrect INTEGER value: 'r'
+Warning	1292	Truncated incorrect INTEGER value: 'r'
+Warning	1292	Truncated incorrect INTEGER value: 'r'
+Warning	1292	Truncated incorrect INTEGER value: 'r'
+Warning	1292	Truncated incorrect INTEGER value: 'r'
+Warning	1292	Truncated incorrect INTEGER value: 'r'
+Warning	1292	Truncated incorrect INTEGER value: 'r'
+Warning	1292	Truncated incorrect INTEGER value: 'r'
+Warning	1292	Truncated incorrect INTEGER value: 'r'
+Warning	1292	Truncated incorrect INTEGER value: 'r'
+Warning	1292	Truncated incorrect INTEGER value: 'r'
+Warning	1292	Truncated incorrect INTEGER value: 'r'
+Warning	1292	Truncated incorrect INTEGER value: 'r'
+Warning	1292	Truncated incorrect INTEGER value: 'r'
+Warning	1292	Truncated incorrect INTEGER value: 'r'
+Warning	1292	Truncated incorrect INTEGER value: 'r'
+Warning	1292	Truncated incorrect INTEGER value: 'r'
+Warning	1292	Truncated incorrect INTEGER value: 'r'
+Warning	1292	Truncated incorrect INTEGER value: 'r'
+Warning	1292	Truncated incorrect INTEGER value: 'r'
+Warning	1292	Truncated incorrect INTEGER value: 'r'
+Warning	1292	Truncated incorrect INTEGER value: 'r'
+Warning	1292	Truncated incorrect INTEGER value: 'r'
+Warning	1292	Truncated incorrect INTEGER value: 'r'
+Warning	1292	Truncated incorrect INTEGER value: 'r'
+Warning	1292	Truncated incorrect INTEGER value: 'r'
+Warning	1292	Truncated incorrect INTEGER value: 'r'
+Warning	1292	Truncated incorrect INTEGER value: 'r'
+Warning	1292	Truncated incorrect INTEGER value: 'r'
+Warning	1292	Truncated incorrect INTEGER value: 'r'
+Warning	1292	Truncated incorrect INTEGER value: 'r'
+Warning	1292	Truncated incorrect INTEGER value: 'r'
+Warning	1292	Truncated incorrect INTEGER value: 'r'
+Warning	1292	Truncated incorrect INTEGER value: 'r'
+Warning	1292	Truncated incorrect INTEGER value: 'r'
+Warning	1292	Truncated incorrect INTEGER value: 'r'
+Warning	1292	Truncated incorrect INTEGER value: 'r'
+Warning	1292	Truncated incorrect INTEGER value: 'r'
+Warning	1292	Truncated incorrect INTEGER value: 'r'
+Warning	1292	Truncated incorrect INTEGER value: 'r'
+Warning	1292	Truncated incorrect INTEGER value: 'r'
+Warning	1292	Truncated incorrect INTEGER value: 'r'
+Warning	1292	Truncated incorrect INTEGER value: 'r'
+Warning	1292	Truncated incorrect INTEGER value: 'r'
+Warning	1292	Truncated incorrect INTEGER value: 'r'
+Warning	1292	Truncated incorrect INTEGER value: 'r'
+Warning	1292	Truncated incorrect INTEGER value: 'r'
+Warning	1292	Truncated incorrect INTEGER value: 'r'
+Warning	1292	Truncated incorrect INTEGER value: 'r'
+Warning	1292	Truncated incorrect INTEGER value: 'r'
+Warning	1292	Truncated incorrect INTEGER value: 'r'
+Warning	1292	Truncated incorrect INTEGER value: 'r'
+Warning	1292	Truncated incorrect INTEGER value: 'r'
+Warning	1292	Truncated incorrect INTEGER value: 'r'
+Warning	1292	Truncated incorrect INTEGER value: 'r'
+Warning	1292	Truncated incorrect INTEGER value: 'r'
+Warning	1292	Truncated incorrect INTEGER value: 'r'
 SET @@optimizer_switch='subquery_cache=on';
 /* cache is on */ SELECT COUNT( DISTINCT table2 .`col_int_key` ) , (
 SELECT SUBQUERY2_t1 .`col_int_key`
@@ -2547,6 +2642,71 @@ WHERE table1 .`col_varchar_key` )	field10
 1	NULL	u
 1	NULL	w
 1	NULL	y
+Warnings:
+Warning	1292	Truncated incorrect INTEGER value: 'r'
+Warning	1292	Truncated incorrect INTEGER value: 'r'
+Warning	1292	Truncated incorrect INTEGER value: 'r'
+Warning	1292	Truncated incorrect INTEGER value: 'r'
+Warning	1292	Truncated incorrect INTEGER value: 'r'
+Warning	1292	Truncated incorrect INTEGER value: 'r'
+Warning	1292	Truncated incorrect INTEGER value: 'r'
+Warning	1292	Truncated incorrect INTEGER value: 'r'
+Warning	1292	Truncated incorrect INTEGER value: 'r'
+Warning	1292	Truncated incorrect INTEGER value: 'r'
+Warning	1292	Truncated incorrect INTEGER value: 'r'
+Warning	1292	Truncated incorrect INTEGER value: 'r'
+Warning	1292	Truncated incorrect INTEGER value: 'r'
+Warning	1292	Truncated incorrect INTEGER value: 'r'
+Warning	1292	Truncated incorrect INTEGER value: 'r'
+Warning	1292	Truncated incorrect INTEGER value: 'r'
+Warning	1292	Truncated incorrect INTEGER value: 'r'
+Warning	1292	Truncated incorrect INTEGER value: 'r'
+Warning	1292	Truncated incorrect INTEGER value: 'r'
+Warning	1292	Truncated incorrect INTEGER value: 'r'
+Warning	1292	Truncated incorrect INTEGER value: 'c'
+Warning	1292	Truncated incorrect INTEGER value: 'c'
+Warning	1292	Truncated incorrect INTEGER value: 'c'
+Warning	1292	Truncated incorrect INTEGER value: 'c'
+Warning	1292	Truncated incorrect INTEGER value: 'c'
+Warning	1292	Truncated incorrect INTEGER value: 'c'
+Warning	1292	Truncated incorrect INTEGER value: 'c'
+Warning	1292	Truncated incorrect INTEGER value: 'c'
+Warning	1292	Truncated incorrect INTEGER value: 'c'
+Warning	1292	Truncated incorrect INTEGER value: 'c'
+Warning	1292	Truncated incorrect INTEGER value: 'c'
+Warning	1292	Truncated incorrect INTEGER value: 'c'
+Warning	1292	Truncated incorrect INTEGER value: 'c'
+Warning	1292	Truncated incorrect INTEGER value: 'c'
+Warning	1292	Truncated incorrect INTEGER value: 'c'
+Warning	1292	Truncated incorrect INTEGER value: 'c'
+Warning	1292	Truncated incorrect INTEGER value: 'c'
+Warning	1292	Truncated incorrect INTEGER value: 'c'
+Warning	1292	Truncated incorrect INTEGER value: 'c'
+Warning	1292	Truncated incorrect INTEGER value: 'c'
+Warning	1292	Truncated incorrect INTEGER value: 'o'
+Warning	1292	Truncated incorrect INTEGER value: 'o'
+Warning	1292	Truncated incorrect INTEGER value: 'o'
+Warning	1292	Truncated incorrect INTEGER value: 'o'
+Warning	1292	Truncated incorrect INTEGER value: 'o'
+Warning	1292	Truncated incorrect INTEGER value: 'o'
+Warning	1292	Truncated incorrect INTEGER value: 'o'
+Warning	1292	Truncated incorrect INTEGER value: 'o'
+Warning	1292	Truncated incorrect INTEGER value: 'o'
+Warning	1292	Truncated incorrect INTEGER value: 'o'
+Warning	1292	Truncated incorrect INTEGER value: 'o'
+Warning	1292	Truncated incorrect INTEGER value: 'o'
+Warning	1292	Truncated incorrect INTEGER value: 'o'
+Warning	1292	Truncated incorrect INTEGER value: 'o'
+Warning	1292	Truncated incorrect INTEGER value: 'o'
+Warning	1292	Truncated incorrect INTEGER value: 'o'
+Warning	1292	Truncated incorrect INTEGER value: 'o'
+Warning	1292	Truncated incorrect INTEGER value: 'o'
+Warning	1292	Truncated incorrect INTEGER value: 'o'
+Warning	1292	Truncated incorrect INTEGER value: 'o'
+Warning	1292	Truncated incorrect INTEGER value: 'd'
+Warning	1292	Truncated incorrect INTEGER value: 'd'
+Warning	1292	Truncated incorrect INTEGER value: 'd'
+Warning	1292	Truncated incorrect INTEGER value: 'd'
 drop table t1,t2,t3,t4;
 set @@optimizer_switch= default;
 #launchpad BUG#609045
@@ -2970,6 +3130,8 @@ FROM t3 SUBQUERY2_t1 JOIN t2 ON SUBQUERY2_t1 .`col_int_key`
 WHERE table1 .`col_varchar_key` )	field10
 1	NULL	d
 1	NULL	f
+Warnings:
+Warning	1292	Truncated incorrect INTEGER value: 'f'
 SET @@optimizer_switch = 'subquery_cache=on';
 /* cache is on */ SELECT COUNT( DISTINCT table2 .`col_int_key` ) , (
 SELECT SUBQUERY2_t1 .`col_int_key`
@@ -2983,6 +3145,8 @@ FROM t3 SUBQUERY2_t1 JOIN t2 ON SUBQUERY2_t1 .`col_int_key`
 WHERE table1 .`col_varchar_key` )	field10
 1	NULL	d
 1	NULL	f
+Warnings:
+Warning	1292	Truncated incorrect INTEGER value: 'f'
 drop table t1,t2,t3,t4;
 set @@optimizer_switch= default;
 #launchpad BUG#611625
@@ -3270,6 +3434,71 @@ WHERE table3 .`col_varchar_key` IN (
 SELECT `col_varchar_key`
 FROM t2 ) AND table1 .`col_varchar_key` OR table1 .`pk` ;
 col_varchar_nokey
+Warnings:
+Warning	1292	Truncated incorrect DOUBLE value: 'w'
+Warning	1292	Truncated incorrect DOUBLE value: 'm'
+Warning	1292	Truncated incorrect DOUBLE value: 'm'
+Warning	1292	Truncated incorrect DOUBLE value: 'k'
+Warning	1292	Truncated incorrect DOUBLE value: 'r'
+Warning	1292	Truncated incorrect DOUBLE value: 't'
+Warning	1292	Truncated incorrect DOUBLE value: 'j'
+Warning	1292	Truncated incorrect DOUBLE value: 'u'
+Warning	1292	Truncated incorrect DOUBLE value: 'h'
+Warning	1292	Truncated incorrect DOUBLE value: 'o'
+Warning	1292	Truncated incorrect DOUBLE value: 'k'
+Warning	1292	Truncated incorrect DOUBLE value: 'e'
+Warning	1292	Truncated incorrect DOUBLE value: 'n'
+Warning	1292	Truncated incorrect DOUBLE value: 't'
+Warning	1292	Truncated incorrect DOUBLE value: 'c'
+Warning	1292	Truncated incorrect DOUBLE value: 'm'
+Warning	1292	Truncated incorrect DOUBLE value: 'y'
+Warning	1292	Truncated incorrect DOUBLE value: 'f'
+Warning	1292	Truncated incorrect DOUBLE value: 'd'
+Warning	1292	Truncated incorrect DOUBLE value: 'v'
+Warning	1292	Truncated incorrect DOUBLE value: 'r'
+Warning	1292	Truncated incorrect DOUBLE value: 'a'
+Warning	1292	Truncated incorrect DOUBLE value: 'm'
+Warning	1292	Truncated incorrect DOUBLE value: 'y'
+Warning	1292	Truncated incorrect DOUBLE value: 'j'
+Warning	1292	Truncated incorrect DOUBLE value: 'd'
+Warning	1292	Truncated incorrect DOUBLE value: 'z'
+Warning	1292	Truncated incorrect DOUBLE value: 'e'
+Warning	1292	Truncated incorrect DOUBLE value: 'h'
+Warning	1292	Truncated incorrect DOUBLE value: 'b'
+Warning	1292	Truncated incorrect DOUBLE value: 's'
+Warning	1292	Truncated incorrect DOUBLE value: 'e'
+Warning	1292	Truncated incorrect DOUBLE value: 'j'
+Warning	1292	Truncated incorrect DOUBLE value: 'e'
+Warning	1292	Truncated incorrect DOUBLE value: 'f'
+Warning	1292	Truncated incorrect DOUBLE value: 'v'
+Warning	1292	Truncated incorrect DOUBLE value: 'x'
+Warning	1292	Truncated incorrect DOUBLE value: 'm'
+Warning	1292	Truncated incorrect DOUBLE value: 'c'
+Warning	1292	Truncated incorrect DOUBLE value: 'w'
+Warning	1292	Truncated incorrect DOUBLE value: 'm'
+Warning	1292	Truncated incorrect DOUBLE value: 'm'
+Warning	1292	Truncated incorrect DOUBLE value: 'k'
+Warning	1292	Truncated incorrect DOUBLE value: 'r'
+Warning	1292	Truncated incorrect DOUBLE value: 't'
+Warning	1292	Truncated incorrect DOUBLE value: 'j'
+Warning	1292	Truncated incorrect DOUBLE value: 'u'
+Warning	1292	Truncated incorrect DOUBLE value: 'h'
+Warning	1292	Truncated incorrect DOUBLE value: 'o'
+Warning	1292	Truncated incorrect DOUBLE value: 'k'
+Warning	1292	Truncated incorrect DOUBLE value: 'e'
+Warning	1292	Truncated incorrect DOUBLE value: 'n'
+Warning	1292	Truncated incorrect DOUBLE value: 't'
+Warning	1292	Truncated incorrect DOUBLE value: 'c'
+Warning	1292	Truncated incorrect DOUBLE value: 'm'
+Warning	1292	Truncated incorrect DOUBLE value: 'y'
+Warning	1292	Truncated incorrect DOUBLE value: 'f'
+Warning	1292	Truncated incorrect DOUBLE value: 'd'
+Warning	1292	Truncated incorrect DOUBLE value: 'w'
+Warning	1292	Truncated incorrect DOUBLE value: 'm'
+Warning	1292	Truncated incorrect DOUBLE value: 'm'
+Warning	1292	Truncated incorrect DOUBLE value: 'k'
+Warning	1292	Truncated incorrect DOUBLE value: 'r'
+Warning	1292	Truncated incorrect DOUBLE value: 't'
 drop table t1,t2;
 set @@optimizer_switch= default;
 # LP BUG#615378 (incorrect NULL result returning in Item_cache)
@@ -3309,4 +3538,7 @@ WHERE ( table1 . `pk` < 5 ) OR ( table1 . `col_varchar_key` IS NOT NULL)
 GROUP BY field3
 HAVING (field3 <= 'h' AND field2 != 4) ;
 field2	field3
+Warnings:
+Warning	1292	Truncated incorrect INTEGER value: 'v'
+Warning	1292	Truncated incorrect INTEGER value: 'r'
 drop tables t1, t2, t3;

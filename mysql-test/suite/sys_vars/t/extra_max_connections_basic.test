@@ -1,0 +1,42 @@
+# ulong global
+
+SET @start_global_value = @@global.extra_max_connections;
+
+#
+# exists as global only
+#
+select @@global.extra_max_connections;
+--error ER_INCORRECT_GLOBAL_LOCAL_VAR
+select @@session.extra_max_connections;
+show global variables like 'extra_max_connections';
+show session variables like 'extra_max_connections';
+select * from information_schema.global_variables where variable_name='extra_max_connections';
+select * from information_schema.session_variables where variable_name='extra_max_connections';
+
+#
+# show that it's writable
+#
+set global extra_max_connections=1;
+select @@global.extra_max_connections;
+--error ER_GLOBAL_VARIABLE
+set session extra_max_connections=1;
+
+#
+# incorrect types
+#
+--error ER_WRONG_TYPE_FOR_VAR
+set global extra_max_connections=1.1;
+--error ER_WRONG_TYPE_FOR_VAR
+set global extra_max_connections=1e1;
+--error ER_WRONG_TYPE_FOR_VAR
+set global extra_max_connections="foo";
+
+#
+# min/max values
+#
+set global extra_max_connections=0;
+select @@global.extra_max_connections;
+set global extra_max_connections=cast(-1 as unsigned int);
+select @@global.extra_max_connections;
+
+SET @@global.extra_max_connections = @start_global_value;

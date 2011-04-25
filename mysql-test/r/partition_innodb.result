@@ -5,6 +5,8 @@ drop table if exists t1, t2;
 #
 SET @old_innodb_thread_concurrency:= @@innodb_thread_concurrency;
 SET GLOBAL innodb_thread_concurrency = 1;
+set global default_storage_engine='innodb';
+set session default_storage_engine='innodb';
 CREATE TABLE t1
 (user_num BIGINT,
 hours SMALLINT,
@@ -489,3 +491,4 @@ Warning	1265	Data truncated for column 'b' at row 1
 Error	1067	Invalid default value for 'b'
 SET SESSION sql_mode = @old_mode;
 DROP TABLE t1;
+set global default_storage_engine=default;

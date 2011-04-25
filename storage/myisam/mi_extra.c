@@ -258,7 +258,7 @@ int mi_extra(MI_INFO *info, enum ha_extra_function function, void *extra_arg)
     break;
   case HA_EXTRA_PREPARE_FOR_DROP:
     /* Signals about intent to delete this table */
-    share->deleting= TRUE;
+    //share->deleting= TRUE;
     share->global_changed= FALSE;     /* force writing changed flag */
     _mi_mark_file_changed(info);
     /* Fall trough */

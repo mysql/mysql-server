@@ -44,6 +44,9 @@
 #include "transaction.h"
 #include "lock.h"                               // MYSQL_LOCK_IGNORE_TIMEOUT
 #include "records.h"             // init_read_record, end_read_record
+#include "hostname.h"
+#include "sql_db.h"
+#include "sql_connect.h"
 #include <sql_common.h>
 #include <mysql/plugin_auth.h>
 
@@ -4608,14 +4611,14 @@ bool check_routine_level_acl(THD *thd, const char *db, const char *name,
 ulong get_table_grant(THD *thd, TABLE_LIST *table)
 {
   ulong privilege;
+  Security_context *sctx= thd->security_ctx;
+  const char *db = table->db ? table->db : thd->db;
   GRANT_TABLE *grant_table;
 
-  rw_rdlock(&LOCK_grant);
+  mysql_rwlock_rdlock(&LOCK_grant);
 #ifdef EMBEDDED_LIBRARY
   grant_table= NULL;
 #else
-  Security_context *sctx= thd->security_ctx;
-  const char *db = table->db ? table->db : thd->db;
   grant_table= table_hash_search(sctx->host, sctx->ip, db, sctx->priv_user,
 				 table->table_name, 0);
 #endif
@@ -7486,7 +7489,7 @@ static bool find_mpvio_user(MPVIO_EXT *mpvio, Security_context *sctx)
 {
   DBUG_ASSERT(mpvio->acl_user == 0);
 
-  pthread_mutex_lock(&acl_cache->lock);
+  mysql_mutex_lock(&acl_cache->lock);
   for (uint i=0 ; i < acl_users.elements ; i++)
   {
     ACL_USER *acl_user_tmp= dynamic_element(&acl_users,i,ACL_USER*);
@@ -7497,7 +7500,7 @@ static bool find_mpvio_user(MPVIO_EXT *mpvio, Security_context *sctx)
       break;
     }
   }
-  pthread_mutex_unlock(&acl_cache->lock);
+  mysql_mutex_unlock(&acl_cache->lock);
 
   if (!mpvio->acl_user)
   {
@@ -8366,10 +8369,10 @@ bool acl_authenticate(THD *thd, uint connect_errors, uint com_change_user_pkt_le
   if (command == COM_CONNECT &&
       !(thd->main_security_ctx.master_access & SUPER_ACL))
   {
-    pthread_mutex_lock(&LOCK_connection_count);
+    mysql_mutex_lock(&LOCK_connection_count);
     bool count_ok= (*thd->scheduler->connection_count <=
                     *thd->scheduler->max_connections);
-    VOID(pthread_mutex_unlock(&LOCK_connection_count));
+    mysql_mutex_unlock(&LOCK_connection_count);
     if (!count_ok)
     {                                         // too many connections
       my_error(ER_CON_COUNT_ERROR, MYF(0));
@@ -8403,7 +8406,7 @@ bool acl_authenticate(THD *thd, uint connect_errors, uint com_change_user_pkt_le
   thd->net.net_skip_rest_factor= 2;  // skip at most 2*max_packet_size
 
   if (res == CR_OK_HANDSHAKE_COMPLETE)
-    thd->main_da.disable_status();
+    thd->stmt_da->disable_status();
   else
     my_ok(thd);
 

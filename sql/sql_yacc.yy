@@ -12872,7 +12872,6 @@ keyword_sp:
         | SIMPLE_SYM               {}
         | SHARE_SYM                {}
         | SHUTDOWN                 {}
-        | SLOW_SYM                 {}
         | SNAPSHOT_SYM             {}
         | SOUNDS_SYM               {}
         | SOURCE_SYM               {}
@@ -13419,6 +13418,8 @@ table_lock:
             bool lock_for_write= (lock_type >= TL_WRITE_ALLOW_WRITE);
             if (!Select->add_table_to_list(YYTHD, $1, $2, 0, lock_type,
                                            (lock_for_write ?
+                                            lock_type == TL_WRITE_CONCURRENT_INSERT ?
+                                            MDL_SHARED_WRITE :
                                             MDL_SHARED_NO_READ_WRITE :
                                             MDL_SHARED_READ)))
               MYSQL_YYABORT;

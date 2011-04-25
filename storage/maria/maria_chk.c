@@ -27,7 +27,6 @@
 #ifdef HAVE_SYS_MMAN_H
 #include <sys/mman.h>
 #endif
-SET_STACK_SIZE(9000)			/* Minimum stack size for program */
 
 #ifndef USE_RAID
 #define my_raid_create(A,B,C,D,E,F,G) my_create(A,B,C,G)
@@ -150,8 +149,8 @@ int main(int argc, char **argv)
     int new_error=maria_chk(&check_param, *(argv++));
     if ((check_param.testflag & T_REP_ANY) != T_REP)
       check_param.testflag&= ~T_REP;
-    VOID(fflush(stdout));
-    VOID(fflush(stderr));
+    fflush(stdout);
+    fflush(stderr);
     if ((check_param.error_printed | check_param.warning_printed) &&
 	(check_param.testflag & T_FORCE_CREATE) &&
 	(!(check_param.testflag & (T_REP | T_REP_BY_SORT | T_SORT_RECORDS |
@@ -163,8 +162,8 @@ int main(int argc, char **argv)
       check_param.testflag&= ~T_EXTEND;			/* Not needed  */
       error|=maria_chk(&check_param, argv[-1]);
       check_param.testflag= old_testflag;
-      VOID(fflush(stdout));
-      VOID(fflush(stderr));
+      fflush(stdout);
+      fflush(stderr);
     }
     else
       error|=new_error;
@@ -172,7 +171,7 @@ int main(int argc, char **argv)
                  check_param.testflag & T_INFO))
     {
       puts("\n---------\n");
-      VOID(fflush(stdout));
+      fflush(stdout);
     }
   }
 end:
@@ -421,13 +420,10 @@ static struct my_option my_long_options[] =
 };
 
 
-#include <help_start.h>
-
 static void print_version(void)
 {
   printf("%s  Ver 1.0 for %s at %s\n", my_progname, SYSTEM_TYPE,
 	 MACHINE_TYPE);
-  NETWARE_SET_SCREEN_MODE(1);
 }
 
 
@@ -563,8 +559,6 @@ Recover (repair)/ options (When using '--recover' or '--safe-recover'):\n\
   print_defaults("my", load_default_groups);
   my_print_variables(my_long_options);
 }
-
-#include <help_end.h>
 
 const char *maria_stats_method_names[] = {"nulls_unequal", "nulls_equal",
                                            "nulls_ignored", NullS};
@@ -874,9 +868,8 @@ static void get_options(register int *argc,register char ***argv)
   if ((check_param.testflag & T_UNPACK) &&
       (check_param.testflag & (T_QUICK | T_SORT_RECORDS)))
   {
-    VOID(fprintf(stderr,
-		 "%s: --unpack can't be used with --quick or --sort-records\n",
-		 my_progname_short));
+    fprintf(stderr, "%s: --unpack can't be used with --quick or --sort-records\n",
+		 my_progname_short);
     exit(1);
   }
   if ((check_param.testflag & T_READONLY) &&
@@ -884,9 +877,8 @@ static void get_options(register int *argc,register char ***argv)
        (T_REP_ANY | T_STATISTICS | T_AUTO_INC |
 	T_SORT_RECORDS | T_SORT_INDEX | T_FORCE_CREATE)))
   {
-    VOID(fprintf(stderr,
-		 "%s: Can't use --readonly when repairing or sorting\n",
-		 my_progname_short));
+    fprintf(stderr, "%s: Can't use --readonly when repairing or sorting\n",
+		 my_progname_short);
     exit(1);
   }
 
@@ -1065,9 +1057,8 @@ static int maria_chk(HA_CHECK *param, char *filename)
       param->language= set_collation->number;
     if (maria_recreate_table(param, &info,filename))
     {
-      VOID(fprintf(stderr,
-		   "Aria table '%s' is not fixed because of errors\n",
-	      filename));
+      fprintf(stderr, "Aria table '%s' is not fixed because of errors\n",
+	      filename);
       return(-1);
     }
     recreate=1;
@@ -1209,7 +1200,7 @@ static int maria_chk(HA_CHECK *param, char *filename)
 #ifndef TO_BE_REMOVED
       if (param->out_flag & O_NEW_DATA)
       {			/* Change temp file to org file */
-        VOID(my_close(info->dfile.file, MYF(MY_WME))); /* Close new file */
+        my_close(info->dfile.file, MYF(MY_WME)); /* Close new file */
         error|=maria_change_to_newfile(filename,MARIA_NAME_DEXT,DATA_TMP_EXT,
                                        MYF(0));
         if (_ma_open_datafile(info,info->s, NullS, -1))
@@ -1286,20 +1277,20 @@ static int maria_chk(HA_CHECK *param, char *filename)
     if ((!rep_quick && !error) ||
         !(param->testflag & (T_FAST | T_FORCE_CREATE)))
     {
-      VOID(init_io_cache(&param->read_cache,datafile,
+      init_io_cache(&param->read_cache,datafile,
                          (uint) param->read_buffer_length,
                          READ_CACHE,
                          (param->start_check_pos ?
                           param->start_check_pos :
                           share->pack.header_length),
                          1,
-                         MYF(MY_WME)));
+                         MYF(MY_WME));
       maria_lock_memory(param);
       if ((info->s->data_file_type != STATIC_RECORD) ||
           (param->testflag & (T_EXTEND | T_MEDIUM)))
         error|=maria_chk_data_link(param, info,
                                    test(param->testflag & T_EXTEND));
-      VOID(end_io_cache(&param->read_cache));
+      end_io_cache(&param->read_cache);
     }
     if (!error)
     {
@@ -1368,31 +1359,31 @@ end2:
            llstr(param->max_found_trid, buff));
   }
 
-  VOID(fflush(stdout)); VOID(fflush(stderr));
+  fflush(stdout);
+  fflush(stderr);
 
   if (param->error_printed)
   {
     if (param->testflag & (T_REP_ANY | T_SORT_RECORDS | T_SORT_INDEX))
     {
-      VOID(fprintf(stderr,
-		   "Aria table '%s' is not fixed because of errors\n",
-		   filename));
+      fprintf(stderr, "Aria table '%s' is not fixed because of errors\n",
+		   filename);
       if (param->testflag & T_REP_ANY)
-	VOID(fprintf(stderr,
-		     "Try fixing it by using the --safe-recover (-o), the --force (-f) option or by not using the --quick (-q) flag\n"));
+	fprintf(stderr, "Try fixing it by using the --safe-recover (-o), "
+                "the --force (-f) option or by not using the --quick (-q) "
+                "flag\n");
     }
     else if (!(param->error_printed & 2) &&
 	     !(param->testflag & T_FORCE_CREATE))
-      VOID(fprintf(stderr,
-      "Aria table '%s' is corrupted\nFix it using switch \"-r\" or \"-o\"\n",
-	      filename));
+      fprintf(stderr, "Aria table '%s' is corrupted\nFix it using switch "
+              "\"-r\" or \"-o\"\n", filename);
   }
   else if (param->warning_printed &&
 	   ! (param->testflag & (T_REP_ANY | T_SORT_RECORDS | T_SORT_INDEX |
 			  T_FORCE_CREATE)))
-    VOID(fprintf(stderr, "Aria table '%s' is usable but should be fixed\n",
-		 filename));
-  VOID(fflush(stderr));
+    fprintf(stderr, "Aria table '%s' is usable but should be fixed\n",
+            filename);
+  fflush(stderr);
   DBUG_RETURN(error);
 } /* maria_chk */
 
@@ -1528,7 +1519,7 @@ static void descript(HA_CHECK *param, register MARIA_HA *info, char *name)
   printf("Recordlength:        %16d\n",(int) share->base.pack_reclength);
   if (! maria_is_all_keys_active(share->state.key_map, share->base.keys))
   {
-    longlong2str(share->state.key_map,buff,2,1);
+    longlong2str(share->state.key_map,buff,2);
     printf("Using only keys '%s' of %d possibly keys\n",
 	   buff, share->base.keys);
   }
@@ -1536,7 +1527,7 @@ static void descript(HA_CHECK *param, register MARIA_HA *info, char *name)
   printf("Key Start Len Index   Type");
   if (param->testflag & T_VERBOSE)
     printf("                     Rec/key         Root  Blocksize");
-  VOID(putchar('\n'));
+  putchar('\n');
 
   for (key=keyseg_nr=0, keyinfo= &share->keyinfo[0] ;
        key < share->base.keys;
@@ -1575,7 +1566,7 @@ static void descript(HA_CHECK *param, register MARIA_HA *info, char *name)
       printf("%9.0f %12s %10d",
 	     share->state.rec_per_key_part[keyseg_nr++],
 	     buff,keyinfo->block_length);
-    VOID(putchar('\n'));
+    putchar('\n');
     while ((++keyseg)->type != HA_KEYTYPE_END)
     {
       pos=buff;
@@ -1594,7 +1585,7 @@ static void descript(HA_CHECK *param, register MARIA_HA *info, char *name)
 	     (long) keyseg->start+1,keyseg->length,buff);
       if (param->testflag & T_VERBOSE)
 	printf("%11.0f", share->state.rec_per_key_part[keyseg_nr++]);
-      VOID(putchar('\n'));
+      putchar('\n');
     }
     keyseg++;
   }
@@ -1632,7 +1623,7 @@ static void descript(HA_CHECK *param, register MARIA_HA *info, char *name)
     printf("\nField Start Length Nullpos Nullbit Type");
     if (share->options & HA_OPTION_COMPRESS_RECORD)
       printf("                         Huff tree  Bits");
-    VOID(putchar('\n'));
+    putchar('\n');
 
     for (field=0 ; field < share->base.fields ; field++)
     {
@@ -1672,7 +1663,7 @@ static void descript(HA_CHECK *param, register MARIA_HA *info, char *name)
 		 (uint) (share->columndef[field].huff_tree-share->decode_trees)+1,
 		 share->columndef[field].huff_tree->quick_table_bits);
       }
-      VOID(putchar('\n'));
+      putchar('\n');
     }
     if (share->data_file_type == BLOCK_RECORD)
     {
@@ -1839,7 +1830,7 @@ static int maria_sort_records(HA_CHECK *param,
     goto err;
   }
 
-  VOID(my_close(info->dfile.file, MYF(MY_WME)));
+  my_close(info->dfile.file, MYF(MY_WME));
   param->out_flag|=O_NEW_DATA;			/* Data in new file */
   info->dfile.file= new_file;                   /* Use new datafile */
   _ma_set_data_pagecache_callbacks(&info->dfile, info->s);
@@ -1855,14 +1846,15 @@ static int maria_sort_records(HA_CHECK *param,
 
   if (param->testflag & T_WRITE_LOOP)
   {
-    VOID(fputs("          \r",stdout)); VOID(fflush(stdout));
+    fputs("          \r",stdout);
+    fflush(stdout);
   }
   got_error=0;
 
 err:
   if (got_error && new_file >= 0)
   {
-    VOID(end_io_cache(&info->rec_cache));
+    end_io_cache(&info->rec_cache);
     (void) my_close(new_file,MYF(MY_WME));
     (void) my_delete(param->temp_filename, MYF(MY_WME));
   }
@@ -1870,10 +1862,10 @@ err:
   {
     my_afree(temp_buff);
   }
-  my_free(sort_param.record,MYF(MY_ALLOW_ZERO_PTR));
+  my_free(sort_param.record);
   info->opt_flag&= ~(READ_CACHE_USED | WRITE_CACHE_USED);
-  VOID(end_io_cache(&info->rec_cache));
-  my_free(sort_info.buff,MYF(MY_ALLOW_ZERO_PTR));
+  end_io_cache(&info->rec_cache);
+  my_free(sort_info.buff);
   sort_info.buff=0;
   share->state.sortkey=sort_key;
   DBUG_RETURN(got_error);
@@ -1919,7 +1911,6 @@ static int sort_record_index(MARIA_SORT_PARAM *sort_param,
   endpos= ma_page->buff + used_length;
   for ( ;; )
   {
-    _sanity(__FILE__,__LINE__);
     if (nod_flag)
     {
       next_page= _ma_kpos(nod_flag, keypos);
@@ -1937,7 +1928,6 @@ static int sort_record_index(MARIA_SORT_PARAM *sort_param,
 			    new_file, update_index))
 	goto err;
     }
-    _sanity(__FILE__,__LINE__);
     if (keypos >= endpos ||
 	!(*keyinfo->get_key)(&tmp_key, page_flag, nod_flag, &keypos))
       break;

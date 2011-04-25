@@ -3,7 +3,6 @@
 # originally "innodb_file_format_check") with a user-Defined Variable.
 
 --source include/not_embedded.inc
---source include/have_innodb.inc
 
 # Save the value (Antelope) in 'innodb_file_format_max' to
 # 'old_innodb_file_format_max'

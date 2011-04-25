@@ -145,17 +145,18 @@ void free_key_cache(const char *name, KEY_CACHE *key_cache)
 }
 
 
-bool process_key_caches(process_key_cache_t func)
+bool process_key_caches(process_key_cache_t func, void *param)
 {
   I_List_iterator<NAMED_ILINK> it(key_caches);
   NAMED_ILINK *element;
+  int res= 0;
 
   while ((element= it++))
   {
     KEY_CACHE *key_cache= (KEY_CACHE *) element->data;
-    func(element->name, key_cache);
+    res |= func(element->name, key_cache, param);
   }
-  return 0;
+  return res != 0;
 }
 
 #ifdef HAVE_EXPLICIT_TEMPLATE_INSTANTIATION

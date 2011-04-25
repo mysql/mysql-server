@@ -40,40 +40,6 @@ static bool no_threads_end(THD *thd, bool put_in_cache)
   return 1;                                     // Abort handle_one_connection
 }
 
-static scheduler_functions one_thread_scheduler_functions=
-{
-  1,                                     // max_threads
-  NULL, NULL,
-  NULL,                                  // init
-  init_new_connection_handler_thread,    // init_new_connection_thread
-#ifndef EMBEDDED_LIBRARY
-  handle_connection_in_main_thread,      // add_connection
-#else
-  NULL,                                  // add_connection
-#endif // EMBEDDED_LIBRARY
-  NULL,                                  // thd_wait_begin
-  NULL,                                  // thd_wait_end
-  NULL,                                  // post_kill_notification
-  no_threads_end,                        // end_thread
-  NULL,                                  // end
-};
-
-#ifndef EMBEDDED_LIBRARY
-static scheduler_functions one_thread_per_connection_scheduler_functions=
-{
-  0,                                     // max_threads
-  NULL, NULL,
-  NULL,                                  // init
-  init_new_connection_handler_thread,    // init_new_connection_thread
-  create_thread_to_handle_connection,    // add_connection
-  NULL,                                  // thd_wait_begin
-  NULL,                                  // thd_wait_end
-  NULL,                                  // post_kill_notification
-  one_thread_per_connection_end,         // end_thread
-  NULL,                                  // end
-};
-#endif  // EMBEDDED_LIBRARY
-
 /** @internal
   Helper functions to allow mysys to call the thread scheduler when
   waiting for locks.
@@ -102,8 +68,7 @@ static void scheduler_wait_end(void) {
   mysqld.cc, so this init function will always be called.
  */
 static void scheduler_init() {
-  mysys_var->scheduler_before_lock_wait= &scheduler_wait_begin;
-  mysys_var->scheduler_after_lock_wait= &scheduler_wait_end;
+  thr_set_lock_wait_callback(scheduler_wait_begin, scheduler_wait_end);
 }
 
 /*
@@ -111,15 +76,17 @@ static void scheduler_init() {
 */
 
 #ifndef EMBEDDED_LIBRARY
-scheduler_functions *one_thread_per_connection_scheduler(
+void one_thread_per_connection_scheduler(scheduler_functions *func,
     ulong *arg_max_connections,
     uint *arg_connection_count)
 {
   scheduler_init();
-  one_thread_per_connection_scheduler_functions.max_threads= *arg_max_connections + 1;
-  one_thread_per_connection_scheduler_functions.max_connections= arg_max_connections;
-  one_thread_per_connection_scheduler_functions.connection_count= arg_connection_count;
-  return &one_thread_per_connection_scheduler_functions;
+  func->max_threads= *arg_max_connections + 1;
+  func->max_connections= arg_max_connections;
+  func->connection_count= arg_connection_count;
+  func->init_new_connection_thread= init_new_connection_handler_thread;
+  func->add_connection= create_thread_to_handle_connection;
+  func->end_thread= one_thread_per_connection_end;
 }
 #endif
 
@@ -127,16 +94,22 @@ scheduler_functions *one_thread_per_connection_scheduler(
   Initailize scheduler for --thread-handling=no-threads
 */
 
-scheduler_functions *one_thread_scheduler()
+void one_thread_scheduler(scheduler_functions *func)
 {
   scheduler_init();
-  return &one_thread_scheduler_functions;
+  func->max_threads= 1;
+  //max_connections= 1;
+  func->max_connections= &max_connections;
+  func->connection_count= &connection_count;
+#ifndef EMBEDDED_LIBRARY
+  func->init_new_connection_thread= init_new_connection_handler_thread;
+  func->add_connection= handle_connection_in_main_thread;
+#endif
+  func->end_thread= no_threads_end;
 }
 
 
-/*
-  Initialize scheduler for --thread-handling=one-thread-per-connection
-*/
+#ifdef HAVE_POOL_OF_THREADS
 
 /*
   thd_scheduler keeps the link between THD and events.
@@ -144,7 +117,7 @@ scheduler_functions *one_thread_scheduler()
 */
 
 thd_scheduler::thd_scheduler()
-  : m_psi(NULL), data(NULL)
+  : m_psi(NULL), logged_in(FALSE), io_event(NULL), thread_attached(FALSE)
 {
 #ifndef DBUG_OFF
   dbug_explain[0]= '\0';
@@ -155,7 +128,10 @@ thd_scheduler::thd_scheduler()
 
 thd_scheduler::~thd_scheduler()
 {
+  my_free(io_event);
 }
+
+#endif
 
 /*
   no pluggable schedulers in mariadb.
@@ -203,6 +179,4 @@ extern "C" int my_thread_scheduler_set(scheduler_functions *scheduler)
 extern "C" int my_thread_scheduler_reset()
 { return 1; }
 #endif
-
-#warning restore libevent
 

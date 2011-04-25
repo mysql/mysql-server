@@ -64,7 +64,7 @@ int maria_close(register MARIA_HA *info)
   flag= !--share->reopen;
   maria_open_list=list_delete(maria_open_list,&info->open_list);
 
-  my_free(info->rec_buff, MYF(MY_ALLOW_ZERO_PTR));
+  my_free(info->rec_buff);
   (*share->end)(info);
 
   if (flag)
@@ -119,9 +119,9 @@ int maria_close(register MARIA_HA *info)
     {
       int i,keys;
       keys = share->state.header.keys;
-      VOID(rwlock_destroy(&share->mmap_lock));
+      rwlock_destroy(&share->mmap_lock);
       for(i=0; i<keys; i++) {
-	VOID(rwlock_destroy(&share->keyinfo[i].root_lock));
+	rwlock_destroy(&share->keyinfo[i].root_lock);
       }
     }
 #endif
@@ -164,7 +164,7 @@ int maria_close(register MARIA_HA *info)
         history->create_rename_lsn= share->state.create_rename_lsn;
         history->state_history= share->state_history;
         if (my_hash_insert(&maria_stored_state, (uchar*) history))
-          my_free(history, MYF(0));
+          my_free(history);
       }
       /* Marker for concurrent checkpoint */
       share->state_history= 0;
@@ -178,14 +178,14 @@ int maria_close(register MARIA_HA *info)
     (void) pthread_mutex_destroy(&share->intern_lock);
     (void) pthread_mutex_destroy(&share->close_lock);
     (void) pthread_cond_destroy(&share->key_del_cond);
-    my_free((uchar *)share, MYF(0));
+    my_free(share);
     /*
       If share cannot be freed, it's because checkpoint has previously
       recorded to include this share in the checkpoint and so is soon going to
       look at some of its content (share->in_checkpoint/id/last_version).
     */
   }
-  my_free(info->ftparser_param, MYF(MY_ALLOW_ZERO_PTR));
+  my_free(info->ftparser_param);
   if (info->dfile.file >= 0)
   {
     /*
@@ -197,7 +197,7 @@ int maria_close(register MARIA_HA *info)
   }
 
   delete_dynamic(&info->pinned_pages);
-  my_free(info, MYF(0));
+  my_free(info);
 
   if (error)
   {

@@ -384,9 +384,9 @@ my_bool	STDCALL mysql_change_user(MYSQL *mysql, const char *user,
   if (rc == 0)
   {
     /* Free old connect information */
-    my_free(saved_user, MYF(MY_ALLOW_ZERO_PTR));
-    my_free(saved_passwd, MYF(MY_ALLOW_ZERO_PTR));
-    my_free(saved_db, MYF(MY_ALLOW_ZERO_PTR));
+    my_free(saved_user);
+    my_free(saved_passwd);
+    my_free(saved_db);
 
     /* alloc new connect information */
     mysql->user= my_strdup(mysql->user, MYF(MY_WME));
@@ -986,8 +986,8 @@ mysql_get_server_info(MYSQL *mysql)
 
 my_bool STDCALL mariadb_connection(MYSQL *mysql)
 {
-  return (strinstr(mysql->server_version, "MariaDB") != 0 ||
-          strinstr(mysql->server_version, "-maria-") != 0);
+  return (strstr(mysql->server_version, "MariaDB") ||
+          strstr(mysql->server_version, "-maria-"));
 }
 
 const char * STDCALL

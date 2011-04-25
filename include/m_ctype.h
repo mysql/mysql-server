@@ -54,7 +54,6 @@ extern "C" {
 #define MY_PUT_MB2(s, code)   { (s)[0]= code >> 8; (s)[1]= code & 0xFF; }
 #endif
 
-typedef const struct charset_info_st CHARSET_INFO;
 typedef const struct my_charset_handler_st MY_CHARSET_HANDLER;
 typedef const struct my_collation_handler_st MY_COLLATION_HANDLER;
 
@@ -285,13 +284,6 @@ struct my_charset_handler_st
 
 extern MY_CHARSET_HANDLER my_charset_8bit_handler;
 extern MY_CHARSET_HANDLER my_charset_ucs2_handler;
-
-
-/*
-  We define this CHARSET_INFO_DEFINED here to prevent a repeat of the
-  typedef in hash.c, which will cause a compiler error.
-*/
-#define CHARSET_INFO_DEFINED
 
 /* See strings/CHARSET_INFO.txt about information on this structure  */
 struct charset_info_st

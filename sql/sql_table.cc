@@ -4142,7 +4142,7 @@ bool mysql_create_table_no_lock(THD *thd,
 
   /* Give warnings for not supported table options */
   if (create_info->transactional && !file->ht->commit)
-    push_warning_printf(thd, MYSQL_ERROR::WARN_LEVEL_ERROR,
+    push_warning_printf(thd, MYSQL_ERROR::WARN_LEVEL_WARN,
                         ER_ILLEGAL_HA_CREATE_OPTION,
                         ER(ER_ILLEGAL_HA_CREATE_OPTION),
                         file->engine_name()->str,
@@ -5729,8 +5729,9 @@ bool mysql_alter_table(THD *thd,char *new_db, char *new_name,
   uint candidate_key_count= 0;
   bool no_pk;
   ulong explicit_used_fields= 0;
-  enum ha_extra_function extra_func= thd->locked_tables ? HA_EXTRA_NOT_USED
-                                                        : HA_EXTRA_FORCE_REOPEN;
+  enum ha_extra_function extra_func= thd->locked_tables_mode
+                                       ? HA_EXTRA_NOT_USED
+                                       : HA_EXTRA_FORCE_REOPEN;
   DBUG_ENTER("mysql_alter_table");
 
   /*
@@ -6509,8 +6510,7 @@ bool mysql_alter_table(THD *thd,char *new_db, char *new_name,
       /* Add the indexes. */
       if ((error= table->file->add_index(table, key_info, index_add_count)))
       {
-#warning fix the following
-#ifdef UNKNOWN_MONTY_ADDITION
+#ifdef MERGE_MONTY_ADDITION_THAT_BREAKS_5_5_TESTS
         /* Only report error if handler has not already reported an error */
         if (!thd->main_da.is_error())
 #endif
@@ -7199,10 +7199,8 @@ bool mysql_checksum_table(THD *thd, TABLE_LIST *tables,
     {
       /* Call ->checksum() if the table checksum matches 'old_mode' settings */
       if (!(check_opt->flags & T_EXTEND) &&
-          (((t->file->ha_table_flags() & HA_HAS_OLD_CHECKSUM) &&
-            thd->variables.old_mode) ||
-           ((t->file->ha_table_flags() & HA_HAS_NEW_CHECKSUM) &&
-            !thd->variables.old_mode)))
+          (((t->file->ha_table_flags() & HA_HAS_OLD_CHECKSUM) && old_mode) ||
+           ((t->file->ha_table_flags() & HA_HAS_NEW_CHECKSUM) && !old_mode)))
 	protocol->store((ulonglong)t->file->checksum());
       else if (check_opt->flags & T_QUICK)
 	protocol->store_null();
@@ -7252,8 +7250,7 @@ bool mysql_checksum_table(THD *thd, TABLE_LIST *tables,
 	    {
 	      Field *f= t->field[i];
 
-              if (! thd->variables.old_mode &&
-                  f->is_real_null(0))
+              if (! old_mode && f->is_real_null(0))
                 continue;
              /*
                BLOB and VARCHAR have pointers in their field, we must convert

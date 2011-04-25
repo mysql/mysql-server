@@ -5,7 +5,7 @@ source include/master-slave.inc;
 let $master_log_file= query_get_value(SHOW MASTER STATUS, File, 1);
 connection slave;
 stop slave;
-source include/wait_for_slave_to_stop.inc
+source include/wait_for_slave_to_stop.inc;
 connection master;
 # This will generate a master's binlog > 10 bytes
 create table t1 (a int);

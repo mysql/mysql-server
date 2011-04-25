@@ -1,0 +1,25 @@
+select @@global.maria_block_size, @@global.aria_block_size;
+@@global.maria_block_size	@@global.aria_block_size
+8192	8192
+select @@session.maria_block_size, @@session.aria_block_size;
+ERROR HY000: Variable 'maria_block_size' is a GLOBAL variable
+show global variables like '%aria_block_size';
+Variable_name	Value
+aria_block_size	8192
+maria_block_size	8192
+show session variables like '%aria_block_size';
+Variable_name	Value
+aria_block_size	8192
+maria_block_size	8192
+select * from information_schema.global_variables where variable_name like '%aria_block_size';
+VARIABLE_NAME	VARIABLE_VALUE
+ARIA_BLOCK_SIZE	8192
+MARIA_BLOCK_SIZE	8192
+select * from information_schema.session_variables where variable_name like '%aria_block_size';
+VARIABLE_NAME	VARIABLE_VALUE
+ARIA_BLOCK_SIZE	8192
+MARIA_BLOCK_SIZE	8192
+set global maria_block_size=1;
+ERROR HY000: Variable 'maria_block_size' is a read only variable
+set session maria_block_size=1;
+ERROR HY000: Variable 'maria_block_size' is a read only variable

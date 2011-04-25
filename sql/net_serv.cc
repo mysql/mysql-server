@@ -85,19 +85,14 @@ void sql_print_error(const char *format,...);
 */
 extern uint test_flags;
 extern ulong bytes_sent, bytes_received, net_big_packet_count;
-#ifndef MYSQL_INSTANCE_MANAGER
 #ifdef HAVE_QUERY_CACHE
 #define USE_QUERY_CACHE
 extern void query_cache_insert(const char *packet, ulong length,
                                unsigned pkt_nr);
 #endif // HAVE_QUERY_CACHE
 #define update_statistics(A) A
-#endif /* MYSQL_INSTANCE_MANGER */
-#endif /* defined(MYSQL_SERVER) && !defined(MYSQL_INSTANCE_MANAGER) */
-
-#if !defined(MYSQL_SERVER) || defined(MYSQL_INSTANCE_MANAGER)
+#else
 #define update_statistics(A)
-#define thd_increment_bytes_sent(N)
 #endif
 
 #define TEST_BLOCKING		8

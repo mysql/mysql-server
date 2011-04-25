@@ -1200,7 +1200,7 @@ my_bool maria_rtree_real_delete(MARIA_HA *info, MARIA_KEY *key,
         }
       }
       my_afree(page_buf);
-      my_free(ReinsertList.pages, MYF(0));
+      my_free(ReinsertList.pages);
     }
 
     /* check for redundant root (not leaf, 1 child) and eliminate */

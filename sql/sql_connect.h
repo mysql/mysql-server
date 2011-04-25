@@ -52,6 +52,14 @@ int get_or_create_user_conn(THD *thd, const char *user,
                             const char *host, USER_RESOURCES *mqh);
 int check_for_max_user_connections(THD *thd, USER_CONN *uc);
 
+extern HASH global_user_stats;
+extern HASH global_client_stats;
+extern HASH global_table_stats;
+extern HASH global_index_stats;
 
+extern mysql_mutex_t LOCK_global_user_client_stats;
+extern mysql_mutex_t LOCK_global_table_stats;
+extern mysql_mutex_t LOCK_global_index_stats;
+extern mysql_mutex_t LOCK_stats;
 
 #endif /* SQL_CONNECT_INCLUDED */

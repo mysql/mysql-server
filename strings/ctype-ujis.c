@@ -67172,7 +67172,7 @@ static size_t
 my_casefold_ujis(CHARSET_INFO *cs,
                  char *src, size_t srclen,
                  char *dst, size_t dstlen __attribute__((unused)),
-                 uchar *map,
+                 const uchar * const map,
                  size_t is_upper)
 {
   char *srcend= src + srclen, *dst0= dst;

@@ -39,8 +39,14 @@
 //extern "C" struct charset_info_st *session_charset(Session *session);
 extern pthread_key_t THR_Session;
 #else
-#include "mysql_priv.h"
 #include <mysql/plugin.h>
+#include "field.h"
+#include "sql_class.h"
+#include "sql_lex.h"
+#include "strfunc.h"
+#include "sql_table.h"
+#include "sql_base.h"
+#include "sql_show.h"
 #endif
 
 #ifdef HAVE_ISNAN
@@ -711,7 +717,7 @@ static void mx_set_length_and_data(Field *field, char *dest, xtWord4 len, char *
 			xtWord4 packlength = ((Field_blob *) field)->pack_length() - field->table->s->blob_ptr_size;
 
 			((Field_blob *) field)->store_length((byte *) from, packlength, len);
-			memcpy_fixed(((char *) from)+packlength, &data, sizeof(char*));
+			memcpy(((char *) from)+packlength, &data, sizeof(char*));
 
 			if (data)
 				mx_set_notnull_in_record(field, dest);

@@ -130,7 +130,7 @@ void wqueue_release_queue(WQUEUE *wqueue)
   do
   {
     thread= next;
-    pthread_cond_signal(&thread->suspend);
+    mysql_cond_signal(&thread->suspend);
     next= thread->next;
     thread->next= NULL;
   }
@@ -158,7 +158,7 @@ void wqueue_release_one_locktype_from_queue(WQUEUE *wqueue)
   if (first_type == MY_PTHREAD_LOCK_WRITE)
   {
     /* release first waiting for write lock */
-    pthread_cond_signal(&next->suspend);
+    mysql_cond_signal(&next->suspend);
     if (next == last)
       wqueue->last_thread= NULL;
     else
@@ -184,7 +184,7 @@ void wqueue_release_one_locktype_from_queue(WQUEUE *wqueue)
     else
     {
       /* release waiting for read lock */
-      pthread_cond_signal(&thread->suspend);
+      mysql_cond_signal(&thread->suspend);
       thread->next= NULL;
     }
   } while (thread != last);
@@ -204,7 +204,7 @@ void wqueue_release_one_locktype_from_queue(WQUEUE *wqueue)
 
 void wqueue_add_and_wait(WQUEUE *wqueue,
                          struct st_my_thread_var *thread,
-                         pthread_mutex_t *lock)
+                         mysql_mutex_t *lock)
 {
   DBUG_ENTER("wqueue_add_and_wait");
   DBUG_PRINT("enter",
@@ -215,7 +215,7 @@ void wqueue_add_and_wait(WQUEUE *wqueue,
   {
     DBUG_PRINT("info", ("wait... cond:  0x%lx  mutex:  0x%lx",
                         (ulong) &thread->suspend, (ulong) lock));
-    pthread_cond_wait(&thread->suspend, lock);
+    mysql_cond_wait(&thread->suspend, lock);
     DBUG_PRINT("info", ("wait done cond: 0x%lx  mutex: 0x%lx   next: 0x%lx",
                         (ulong) &thread->suspend, (ulong) lock,
                         (ulong) thread->next));

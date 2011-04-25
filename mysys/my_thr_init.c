@@ -391,10 +391,7 @@ void my_thread_end(void)
     mysql_cond_destroy(&tmp->suspend);
 #endif
     mysql_mutex_destroy(&tmp->mutex);
-    TRASH(tmp, sizeof(*tmp));
-    free(tmp);
 
-#warning why monty added pthread_setspecific(THR_KEY_mysys,0) here?
     /*
       Decrement counter for number of running threads. We are using this
       in my_thread_global_end() to wait until all threads have called
@@ -406,6 +403,9 @@ void my_thread_end(void)
     if (--THR_thread_count == 0)
       mysql_cond_signal(&THR_COND_threads);
     mysql_mutex_unlock(&THR_LOCK_threads);
+
+    TRASH(tmp, sizeof(*tmp));
+    free(tmp);
   }
   pthread_setspecific(THR_KEY_mysys,0);
 }

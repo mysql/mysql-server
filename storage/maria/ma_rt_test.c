@@ -684,6 +684,8 @@ static void usage()
   my_print_variables(my_long_options);
 }
 
+#include "ma_check_standalone.h"
+
 #else
 int main(int argc __attribute__((unused)),char *argv[] __attribute__((unused)))
 {

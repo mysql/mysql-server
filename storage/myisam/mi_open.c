@@ -648,7 +648,7 @@ MI_INFO *mi_open(const char *name, int mode, uint open_flags)
   mysql_mutex_unlock(&THR_LOCK_myisam);
 
   bzero(info.buff, share->base.max_key_block_length * 2);
-  my_free(rec_per_key_part, MYF(MY_ALLOW_ZERO_PTR));
+  my_free(rec_per_key_part);
 
   if (myisam_log_file >= 0)
   {
@@ -678,7 +678,7 @@ err:
   case 3:
     if (! lock_error)
       (void) my_lock(kfile, F_UNLCK, 0L, F_TO_EOF, MYF(MY_SEEK_NOT_DONE));
-    my_free(rec_per_key_part, MYF(MY_ALLOW_ZERO_PTR));
+    my_free(rec_per_key_part);
     /* fall through */
   case 2:
     my_afree(disk_cache);

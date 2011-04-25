@@ -157,7 +157,7 @@ int handle_options(int *argc, char ***argv,
   my_bool end_of_options= 0, must_be_var, set_maximum_value,
           option_is_loose;
   char **pos, **pos_end, *optend, *opt_str, key_name[FN_REFLEN];
-  const char *prev_found;
+  const char *UNINIT_VAR(prev_found);
   const struct my_option *optp;
   void *value;
   int error, i;
@@ -228,7 +228,6 @@ int handle_options(int *argc, char ***argv,
 	  Find first the right option. Return error in case of an ambiguous,
 	  or unknown option
 	*/
-        LINT_INIT(prev_found);
 	optp= longopts;
 	if (!(opt_found= findopt(opt_str, length, &optp, &prev_found)))
 	{
@@ -544,7 +543,8 @@ int handle_options(int *argc, char ***argv,
           (*argc)--; /* option handled (short), decrease argument count */
 	continue;
       }
-      if ((error= setval(optp, value, argument, set_maximum_value)))
+      if (((error= setval(optp, value, argument, set_maximum_value))) &&
+          !option_is_loose)
 	return error;
       if (get_one_option && get_one_option(optp->id, optp, argument))
         return EXIT_UNSPECIFIED_ERROR;
@@ -1009,6 +1009,7 @@ ulonglong getopt_ull_limit_value(ulonglong num, const struct my_option *optp,
     my_getopt_error_reporter(WARNING_LEVEL,
                              "option '%s': unsigned value %s adjusted to %s",
                              optp->name, ullstr(old, buf1), ullstr(num, buf2));
+
   return num;
 }
 

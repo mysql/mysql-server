@@ -79,7 +79,7 @@ create table mysqltest.t9 (a int not null auto_increment, b char(16) not null, p
 
 # Should fail becasue the file t9.MYI already exist in 'run'
 --replace_result $MYSQLTEST_VARDIR MYSQLTEST_VARDIR
---error 1,1,ER_UNKNOWN_ERROR
+--error 1,156
 eval create table mysqltest.t9 (a int not null auto_increment, b char(16) not null, primary key (a)) engine=myisam index directory="$MYSQLTEST_VARDIR/run";
 
 # Should fail becasue the file t9.MYD already exist in 'tmp'

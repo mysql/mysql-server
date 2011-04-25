@@ -41,7 +41,7 @@ static my_bool _ma_cmp_buffer(File file, const uchar *buff, my_off_t filepos,
 #undef my_alloca
 #undef my_afree
 #define my_alloca(A) my_malloc((A),MYF(0))
-#define my_afree(A) my_free((A),MYF(0))
+#define my_afree(A) my_free((A))
 #endif
 
 	/* Interface function from MARIA_HA */
@@ -109,8 +109,8 @@ void _ma_remap_file(MARIA_HA *info, my_off_t size)
 {
   if (info->s->file_map)
   {
-    VOID(my_munmap((char*) info->s->file_map,
-                   (size_t) info->s->mmaped_length + MEMMAP_EXTRA_MARGIN));
+    my_munmap((char*) info->s->file_map,
+                   (size_t) info->s->mmaped_length + MEMMAP_EXTRA_MARGIN);
     _ma_dynmap_file(info, size);
   }
 }
@@ -981,7 +981,7 @@ uint _ma_rec_pack(MARIA_HA *info, register uchar *to,
 	  char *temp_pos;
 	  size_t tmp_length=length-portable_sizeof_char_ptr;
 	  memcpy(to,from,tmp_length);
-	  memcpy_fixed(&temp_pos,from+tmp_length,sizeof(char*));
+	  memcpy(&temp_pos,from+tmp_length,sizeof(char*));
 	  memcpy(to+tmp_length,temp_pos,(size_t) blob->length);
 	  to+=tmp_length+blob->length;
 	}
@@ -1315,7 +1315,7 @@ ulong _ma_rec_unpack(register MARIA_HA *info, register uchar *to, uchar *from,
 	  goto err;
 	memcpy(to, from, (size_t) size_length);
 	from+=size_length;
-	memcpy_fixed(to+size_length,(uchar*) &from,sizeof(char*));
+	memcpy(to+size_length,(uchar*) &from,sizeof(char*));
 	from+=blob_length;
       }
       else
@@ -1576,7 +1576,7 @@ my_bool _ma_cmp_dynamic_unique(MARIA_HA *info, MARIA_UNIQUEDEF *def,
     error=_ma_unique_comp(def, record, old_record, def->null_are_equal) != 0;
   if (info->s->base.blobs)
   {
-    my_free(info->rec_buff, MYF(MY_ALLOW_ZERO_PTR));
+    my_free(info->rec_buff);
     info->rec_buff=      old_rec_buff;
     info->rec_buff_size= old_rec_buff_size;
   }
@@ -1920,7 +1920,7 @@ uint _ma_get_block_info(MARIA_BLOCK_INFO *info, File file, my_off_t filepos)
       pointer set to the end of the header after this function.
       my_pread() may leave the file pointer untouched.
     */
-    VOID(my_seek(file,filepos,MY_SEEK_SET,MYF(0)));
+    my_seek(file,filepos,MY_SEEK_SET,MYF(0));
     if (my_read(file, header, sizeof(info->header),MYF(0)) !=
 	sizeof(info->header))
       goto err;

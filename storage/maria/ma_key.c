@@ -269,7 +269,7 @@ MARIA_KEY *_ma_make_key(MARIA_HA *info, MARIA_KEY *int_key, uint keynr,
     {
       uint tmp_length= _ma_calc_blob_length(keyseg->bit_start,pos);
       uchar *blob_pos;
-      memcpy_fixed(&blob_pos, pos+keyseg->bit_start,sizeof(char*));
+      memcpy(&blob_pos, pos+keyseg->bit_start,sizeof(char*));
       set_if_smaller(length,tmp_length);
       FIX_LENGTH(cs, blob_pos, length, char_length);
       store_key_length_inc(key,char_length);

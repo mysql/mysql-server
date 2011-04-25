@@ -15,7 +15,10 @@
 #
 
 MYSQL_STORAGE_ENGINE(xtradb,  xtradb, [XtraDB Storage Engine],
-        [XtraDB - a drop-in replacement for InnoDB], [max,max-no-ndb])
+        [XtraDB - a drop-in replacement for InnoDB],
+        dnl[max,max-no-ndb]
+        )
+MYSQL_PLUGIN_DISABLED(xtradb)
 MYSQL_PLUGIN_DIRECTORY(xtradb, [storage/xtradb])
 MYSQL_PLUGIN_STATIC(xtradb,   [libxtradb.a])
 MYSQL_PLUGIN_DYNAMIC(xtradb,  [ha_xtradb.la])

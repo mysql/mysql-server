@@ -101,18 +101,17 @@ typedef struct st_ft_word {
   size_t len;
 } FT_WORD;
 
-int is_stopword(const uchar *word, size_t len);
+int is_stopword(const char *word, size_t len);
 
 uint _ft_make_key(MI_INFO *, uint , uchar *, FT_WORD *, my_off_t);
 
 uchar ft_get_word(CHARSET_INFO *, const uchar **, const uchar *, FT_WORD *,
                   MYSQL_FTPARSER_BOOLEAN_INFO *);
-uchar ft_simple_get_word(CHARSET_INFO *, const uchar **, const uchar *,
+uchar ft_simple_get_word(CHARSET_INFO *, uchar **, const uchar *,
                          FT_WORD *, my_bool);
 
 typedef struct _st_ft_seg_iterator {
-  uint        num;
-  mysql_ft_size_t len;
+  uint        num, len;
   HA_KEYSEG  *seg;
   const uchar *rec, *pos;
 } FT_SEG_ITERATOR;
@@ -122,16 +121,15 @@ void _mi_ft_segiterator_dummy_init(const uchar *, uint, FT_SEG_ITERATOR *);
 uint _mi_ft_segiterator(FT_SEG_ITERATOR *);
 
 void ft_parse_init(TREE *, CHARSET_INFO *);
-int ft_parse(TREE *, const uchar *, int, struct st_mysql_ftparser *parser,
+int ft_parse(TREE *, uchar *, int, struct st_mysql_ftparser *parser,
              MYSQL_FTPARSER_PARAM *, MEM_ROOT *);
 FT_WORD * ft_linearize(TREE *, MEM_ROOT *);
 FT_WORD * _mi_ft_parserecord(MI_INFO *, uint, const uchar *, MEM_ROOT *);
 uint _mi_ft_parse(TREE *, MI_INFO *, uint, const uchar *,
                   MYSQL_FTPARSER_PARAM *, MEM_ROOT *);
 
-FT_INFO *ft_init_nlq_search(MI_INFO *, uint, uchar *, mysql_ft_size_t, uint,
-                            uchar *);
-FT_INFO *ft_init_boolean_search(MI_INFO *, uint, uchar *, mysql_ft_size_t, CHARSET_INFO *);
+FT_INFO *ft_init_nlq_search(MI_INFO *, uint, uchar *, uint, uint, uchar *);
+FT_INFO *ft_init_boolean_search(MI_INFO *, uint, uchar *, uint, CHARSET_INFO *);
 
 extern const struct _ft_vft _ft_vft_nlq;
 int ft_nlq_read_next(FT_INFO *, char *);

@@ -2719,6 +2719,8 @@ extern void lex_init(void);
 extern void lex_free(void);
 extern void lex_start(THD *thd);
 extern void lex_end(LEX *lex);
+void end_lex_with_single_table(THD *thd, TABLE *table, LEX *old_lex);
+int init_lex_with_single_table(THD *thd, TABLE *table, LEX *lex);
 extern int MYSQLlex(void *arg, void *yythd);
 
 extern void trim_whitespace(CHARSET_INFO *cs, LEX_STRING *str);

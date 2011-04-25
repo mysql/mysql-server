@@ -6,7 +6,6 @@
 # be heavier than ones that had not.
 #
 
--- source include/have_innodb.inc
 
 SET storage_engine=InnoDB;
 

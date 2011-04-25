@@ -7,8 +7,6 @@
 # works with innodb_file_per_table.
 #
 
--- source include/have_innodb.inc
-
 SET storage_engine=InnoDB;
 
 # we care only that the following SQL commands do not crash the server

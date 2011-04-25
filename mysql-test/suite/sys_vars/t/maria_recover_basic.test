@@ -1,0 +1,51 @@
+# enum global
+--source include/have_maria.inc
+
+SET @start_global_value = @@global.maria_recover;
+
+#
+# exists as global only
+#
+select @@global.maria_recover, @@global.aria_recover;
+--error ER_INCORRECT_GLOBAL_LOCAL_VAR
+select @@session.maria_recover, @@session.aria_recover;
+show global variables like '%aria_recover';
+show session variables like '%aria_recover';
+select * from information_schema.global_variables where variable_name like '%aria_recover';
+select * from information_schema.session_variables where variable_name like '%aria_recover';
+
+#
+# show that it's writable
+#
+set global maria_recover=1;
+select @@global.maria_recover, @@global.aria_recover;
+--error ER_GLOBAL_VARIABLE
+set session maria_recover=1;
+
+#
+# all valid values
+#
+set global maria_recover=normal;
+select @@global.maria_recover, @@global.aria_recover;
+set global maria_recover=backup;
+select @@global.maria_recover, @@global.aria_recover;
+set global maria_recover='force';
+select @@global.maria_recover, @@global.aria_recover;
+set global maria_recover=`quick`;
+select @@global.maria_recover, @@global.aria_recover;
+set global maria_recover=off;
+select @@global.maria_recover, @@global.aria_recover;
+
+#
+# incorrect types/values
+#
+--error ER_WRONG_TYPE_FOR_VAR
+set global maria_recover=1.1;
+--error ER_WRONG_TYPE_FOR_VAR
+set global maria_recover=1e1;
+--error ER_WRONG_VALUE_FOR_VAR
+set global maria_recover="foo";
+--error ER_WRONG_VALUE_FOR_VAR
+set global maria_recover=5;
+
+SET @@global.maria_recover = @start_global_value;

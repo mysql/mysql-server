@@ -47,7 +47,7 @@ select * from t3 where b in (select a from t1);
 set @save_max_heap_table_size= @@max_heap_table_size;
 set max_heap_table_size=16384;
 set @save_join_buffer_size = @@join_buffer_size;
-set join_buffer_size= 8000;
+set join_buffer_size= 8192;
 
 drop table t3;
 create table t3 (
@@ -62,11 +62,7 @@ insert into t3 select
 from t0 A, t0 B where B.a <5;
 
 explain select * from t3 where b in (select a from t0);
-# Because of BUG#40154, run the next select w/o index condition pushdown:
-set @save_ecp= @@engine_condition_pushdown;
-set engine_condition_pushdown=0;
 select * from t3 where b in (select A.a+B.a from t0 A, t0 B where B.a<5);
-set engine_condition_pushdown=@save_ecp;
 
 set join_buffer_size= @save_join_buffer_size;
 set max_heap_table_size= @save_max_heap_table_size;
@@ -83,7 +79,7 @@ drop table t1, t2, t3;
 # Test join buffering
 #
 set @save_join_buffer_size = @@join_buffer_size;
-set join_buffer_size= 8000;
+set join_buffer_size= 8192;
 
 create table t1 (a int, filler1 binary(200), filler2 binary(200));
 insert into t1 select a, 'filler123456', 'filler123456' from t0;

@@ -676,7 +676,6 @@ struct TABLE_SHARE
   bool is_view;
   bool deleting;                        /* going to delete this table */
   bool can_cmp_whole_record;
-#warning look at can_cmp_whole_record
   ulong table_map_id;                   /* for row-based replication */
 
   /*
@@ -1456,7 +1455,7 @@ struct TABLE_LIST
     db_length= db_length_arg;
     table_name= (char*) table_name_arg;
     table_name_length= table_name_length_arg;
-    alias= (char*) alias_arg;
+    alias= (char*) (alias_arg ? alias_arg : table_name_arg);
     lock_type= lock_type_arg;
     mdl_request.init(MDL_key::TABLE, db, table_name,
                      (lock_type >= TL_WRITE_ALLOW_WRITE) ?

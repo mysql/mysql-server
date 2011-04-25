@@ -21,22 +21,22 @@ mkdir $MYSQLTEST_VARDIR/tmp/mysqld_option_err;
 
 --echo Test that unknown option is not silently ignored.
 --error 2
---exec $MYSQLD --skip-networking --datadir=$MYSQLTEST_VARDIR/tmp/mysqld_option_err --skip-grant-tables --nonexistentoption >$MYSQLTEST_VARDIR/tmp/mysqld_option_err/mysqltest.log 2>&1
+--exec $MYSQLD_BOOTSTRAP_CMD --skip-networking --datadir=$MYSQLTEST_VARDIR/tmp/mysqld_option_err --skip-grant-tables --nonexistentoption >$MYSQLTEST_VARDIR/tmp/mysqld_option_err/mysqltest.log 2>&1
 
 
 --echo Test bad binlog format.
 --error 1
---exec $MYSQLD --skip-networking --datadir=$MYSQLTEST_VARDIR/tmp/mysqld_option_err --skip-grant-tables --log-bin --binlog-format=badformat >>$MYSQLTEST_VARDIR/tmp/mysqld_option_err/mysqltest.log 2>&1
+--exec $MYSQLD_BOOTSTRAP_CMD --skip-networking --datadir=$MYSQLTEST_VARDIR/tmp/mysqld_option_err --skip-grant-tables --log-bin --binlog-format=badformat >>$MYSQLTEST_VARDIR/tmp/mysqld_option_err/mysqltest.log 2>&1
 
 
 --echo Test bad default storage engine.
 --error 1
---exec $MYSQLD --skip-networking --datadir=$MYSQLTEST_VARDIR/tmp/mysqld_option_err --skip-grant-tables --default-storage-engine=nonexistentengine >>$MYSQLTEST_VARDIR/tmp/mysqld_option_err/mysqltest.log 2>&1
+--exec $MYSQLD_BOOTSTRAP_CMD --skip-networking --datadir=$MYSQLTEST_VARDIR/tmp/mysqld_option_err --skip-grant-tables --default-storage-engine=nonexistentengine >>$MYSQLTEST_VARDIR/tmp/mysqld_option_err/mysqltest.log 2>&1
 
 
 --echo Test non-numeric value passed to number option.
 --error 1
---exec $MYSQLD --skip-networking --datadir=$MYSQLTEST_VARDIR/tmp/mysqld_option_err --skip-grant-tables  --min-examined-row-limit=notanumber >>$MYSQLTEST_VARDIR/tmp/mysqld_option_err/mysqltest.log 2>&1
+--exec $MYSQLD_BOOTSTRAP_CMD --skip-networking --datadir=$MYSQLTEST_VARDIR/tmp/mysqld_option_err --skip-grant-tables  --min-examined-row-limit=notanumber >>$MYSQLTEST_VARDIR/tmp/mysqld_option_err/mysqltest.log 2>&1
 
 
 # Test for MBug#423035: error in parsing enum value for plugin
@@ -44,16 +44,16 @@ mkdir $MYSQLTEST_VARDIR/tmp/mysqld_option_err;
 # See also Bug#32034.
 --echo Test that bad value for plugin enum option is rejected correctly.
 --error 7
---exec $MYSQLD --skip-networking --datadir=$MYSQLTEST_VARDIR/tmp/mysqld_option_err --skip-grant-tables --plugin-dir=$MYSQLTEST_VARDIR/plugins --plugin-load=example=ha_example.so --plugin-example-enum-var=noexist >>$MYSQLTEST_VARDIR/tmp/mysqld_option_err/mysqltest.log 2>&1
+--exec $MYSQLD_BOOTSTRAP_CMD --skip-networking --datadir=$MYSQLTEST_VARDIR/tmp/mysqld_option_err --skip-grant-tables --plugin-dir=$MYSQLTEST_VARDIR/plugins --plugin-load=example=ha_example.so --plugin-example-enum-var=noexist >>$MYSQLTEST_VARDIR/tmp/mysqld_option_err/mysqltest.log 2>&1
 
 #
 # Test that an wrong option with --help --verbose gives an error
 #
 
 --echo Test that --help --verbose works
---exec $MYSQLD --help --verbose >>$MYSQLTEST_VARDIR/tmp/mysqld_option_err/mysqltest.log 2>&1
+--exec $MYSQLD_BOOTSTRAP_CMD --help --verbose >>$MYSQLTEST_VARDIR/tmp/mysqld_option_err/mysqltest.log 2>&1
 --echo Test that --not-known-option --help --verbose gives error
 --error 2
---exec $MYSQLD --not-known-option --help --verbose >>$MYSQLTEST_VARDIR/tmp/mysqld_option_err/mysqltest.log 2>&1
+--exec $MYSQLD_BOOTSTRAP_CMD --not-known-option --help --verbose >>$MYSQLTEST_VARDIR/tmp/mysqld_option_err/mysqltest.log 2>&1
 
 --echo Done.

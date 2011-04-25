@@ -659,3 +659,5 @@ err:
 
   return(test(exit_status()));
 }
+
+#include "../ma_check_standalone.h"

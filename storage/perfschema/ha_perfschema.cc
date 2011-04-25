@@ -170,6 +170,24 @@ mysql_declare_plugin(perfschema)
 }
 mysql_declare_plugin_end;
 
+maria_declare_plugin(perfschema)
+{
+  MYSQL_STORAGE_ENGINE_PLUGIN,
+  &pfs_storage_engine,
+  pfs_engine_name,
+  "Marc Alff, Oracle",
+  "Performance Schema",
+  PLUGIN_LICENSE_GPL,
+  pfs_init_func,
+  pfs_done_func,
+  0x0001,
+  pfs_status_vars,
+  NULL,
+  "0.1",
+  MariaDB_PLUGIN_MATURITY_GAMMA /* because MySQL-5.5 is RC */
+}
+maria_declare_plugin_end;
+
 ha_perfschema::ha_perfschema(handlerton *hton, TABLE_SHARE *share)
   : handler(hton, share), m_table_share(NULL), m_table(NULL)
 {}

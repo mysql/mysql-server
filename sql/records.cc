@@ -30,7 +30,7 @@
 #include "filesort.h"            // filesort_free_buffers
 #include "opt_range.h"                          // SQL_SELECT
 #include "sql_class.h"                          // THD
-
+#include "sql_base.h"
 
 static int rr_quick(READ_RECORD *info);
 int rr_sequential(READ_RECORD *info);
@@ -387,7 +387,7 @@ static int rr_index_first(READ_RECORD *info)
 
 static int rr_index_last(READ_RECORD *info)
 {
-  int tmp= info->file->index_last(info->record);
+  int tmp= info->file->ha_index_last(info->record);
   info->read_record= rr_index_desc;
   if (tmp)
     tmp= rr_handle_error(info, tmp);
@@ -438,7 +438,7 @@ static int rr_index(READ_RECORD *info)
 
 static int rr_index_desc(READ_RECORD *info)
 {
-  int tmp= info->file->index_prev(info->record);
+  int tmp= info->file->ha_index_prev(info->record);
   if (tmp)
     tmp= rr_handle_error(info, tmp);
   return tmp;

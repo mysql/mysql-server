@@ -72,7 +72,7 @@ int mi_rprev(MI_INFO *info, uchar *buf, int inx)
     if (!error && res == 2) 
     {
       if (share->concurrent_insert)
-        rw_unlock(&share->key_root_lock[inx]);
+        mysql_rwlock_unlock(&share->key_root_lock[inx]);
       info->lastpos= HA_OFFSET_ERROR;
       DBUG_RETURN(my_errno= HA_ERR_END_OF_FILE);
     }

@@ -132,7 +132,7 @@ int maria_delete_all_rows(MARIA_HA *info)
       goto err;
   }
 
-  VOID(_ma_writeinfo(info,WRITEINFO_UPDATE_KEYFILE));
+  _ma_writeinfo(info, WRITEINFO_UPDATE_KEYFILE);
 #ifdef HAVE_MMAP
   /* Map again */
   if (share->file_map)
@@ -144,7 +144,7 @@ int maria_delete_all_rows(MARIA_HA *info)
 err:
   {
     int save_errno=my_errno;
-    VOID(_ma_writeinfo(info,WRITEINFO_UPDATE_KEYFILE));
+    _ma_writeinfo(info, WRITEINFO_UPDATE_KEYFILE);
     info->update|=HA_STATE_WRITTEN;	/* Buffer changed */
     allow_break();			/* Allow SIGHUP & SIGINT */
     DBUG_RETURN(my_errno=save_errno);

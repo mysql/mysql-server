@@ -37,7 +37,7 @@
 #ifdef DRIZZLED
 //#include <drizzled/common_includes.h>
 #else
-#include "mysql_priv.h"
+//#include "sql_priv.h"
 #endif
 #endif
 

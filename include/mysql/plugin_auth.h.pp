@@ -31,6 +31,27 @@ void *thd_memdup(void* thd, const void* str, unsigned int size);
 MYSQL_LEX_STRING *thd_make_lex_string(void* thd, MYSQL_LEX_STRING *lex_str,
                                       const char *str, unsigned int size,
                                       int allocate_lex_string);
+#include <mysql/service_thd_wait.h>
+typedef enum _thd_wait_type_e {
+  THD_WAIT_MUTEX= 1,
+  THD_WAIT_DISKIO= 2,
+  THD_WAIT_ROW_TABLE_LOCK= 3,
+  THD_WAIT_GLOBAL_LOCK= 4
+} thd_wait_type;
+extern struct thd_wait_service_st {
+  void (*thd_wait_begin_func)(void*, thd_wait_type);
+  void (*thd_wait_end_func)(void*);
+} *thd_wait_service;
+void thd_wait_begin(void* thd, thd_wait_type wait_type);
+void thd_wait_end(void* thd);
+#include <mysql/service_thread_scheduler.h>
+struct scheduler_functions;
+extern struct my_thread_scheduler_service {
+  int (*set)(struct scheduler_functions *scheduler);
+  int (*reset)();
+} *my_thread_scheduler_service;
+int my_thread_scheduler_set(struct scheduler_functions *scheduler);
+int my_thread_scheduler_reset();
 struct st_mysql_xid {
   long formatID;
   long gtrid_length;
@@ -90,6 +111,8 @@ struct st_maria_plugin
   const char *version_info;
   unsigned int maturity;
 };
+#include "plugin_ftparser.h"
+#include "plugin.h"
 enum enum_ftparser_mode
 {
   MYSQL_FTPARSER_SIMPLE_MODE= 0,
@@ -114,19 +137,18 @@ typedef struct st_mysql_ftparser_boolean_info
   char prev;
   char *quot;
 } MYSQL_FTPARSER_BOOLEAN_INFO;
-typedef int mysql_ft_size_t;
 typedef struct st_mysql_ftparser_param
 {
   int (*mysql_parse)(struct st_mysql_ftparser_param *,
-                     const unsigned char *doc, mysql_ft_size_t doc_len);
+                     const char *doc, int doc_len);
   int (*mysql_add_word)(struct st_mysql_ftparser_param *,
-                        const unsigned char *word, mysql_ft_size_t word_len,
+                        const char *word, int word_len,
                         MYSQL_FTPARSER_BOOLEAN_INFO *boolean_info);
   void *ftparser_state;
   void *mysql_ftparam;
   const struct charset_info_st *cs;
-  const unsigned char *doc;
-  mysql_ft_size_t length;
+  const char *doc;
+  int length;
   unsigned int flags;
   enum enum_ftparser_mode mode;
 } MYSQL_FTPARSER_PARAM;
@@ -137,11 +159,6 @@ struct st_mysql_ftparser
   int (*init)(MYSQL_FTPARSER_PARAM *param);
   int (*deinit)(MYSQL_FTPARSER_PARAM *param);
 };
-struct st_mysql_storage_engine
-{
-  int interface_version;
-};
-struct handlerton;
 struct st_mysql_daemon
 {
   int interface_version;
@@ -150,18 +167,28 @@ struct st_mysql_information_schema
 {
   int interface_version;
 };
+struct st_mysql_storage_engine
+{
+  int interface_version;
+};
+struct handlerton;
+ struct Mysql_replication {
+   int interface_version;
+ };
 struct st_mysql_value
 {
   int (*value_type)(struct st_mysql_value *);
   const char *(*val_str)(struct st_mysql_value *, char *buffer, int *length);
   int (*val_real)(struct st_mysql_value *, double *realbuf);
   int (*val_int)(struct st_mysql_value *, long long *intbuf);
+  int (*is_unsigned)(struct st_mysql_value *);
 };
 int thd_in_lock_tables(const void* thd);
 int thd_tablespace_op(const void* thd);
 long long thd_test_options(const void* thd, long long test_options);
 int thd_sql_command(const void* thd);
 void **thd_ha_data(const void* thd, const struct handlerton *hton);
+void thd_storage_lock_wait(void* thd, long long value);
 int thd_tx_isolation(const void* thd);
 char *thd_security_context(void* thd, char *buffer, unsigned int length,
                            unsigned int max_query_len);

@@ -290,7 +290,7 @@ err:
 
 end:
   for (i= 0; i < (sizeof(record_pieces)/sizeof(record_pieces[0])); i++)
-    my_free(record_pieces[i].str, MYF(MY_ALLOW_ZERO_PTR));
+    my_free(record_pieces[i].str);
   pthread_mutex_lock(&LOCK_checkpoint);
   checkpoint_in_progress= CHECKPOINT_NONE;
   checkpoints_total++;
@@ -428,8 +428,8 @@ void ma_checkpoint_end(void)
   if (checkpoint_control.inited)
   {
     ma_service_thread_control_end(&checkpoint_control);
-    my_free((uchar *)dfiles, MYF(MY_ALLOW_ZERO_PTR));
-    my_free((uchar *)kfiles, MYF(MY_ALLOW_ZERO_PTR));
+    my_free(dfiles);
+    my_free(kfiles);
     dfiles= kfiles= NULL;
   }
   DBUG_VOID_RETURN;
@@ -1067,7 +1067,7 @@ static int collect_tables(LEX_STRING *str, LSN checkpoint_start_log_horizon)
       pthread_mutex_destroy(&share->intern_lock);
       pthread_mutex_unlock(&share->close_lock);
       pthread_mutex_destroy(&share->close_lock);
-      my_free((uchar *)share, MYF(0));
+      my_free(share);
     }
     else
     {
@@ -1180,7 +1180,7 @@ err:
       {
         /* maria_close() left us to free the share */
         pthread_mutex_destroy(&share->intern_lock);
-        my_free((uchar *)share, MYF(0));
+        my_free(share);
       }
       else
       {
@@ -1190,7 +1190,7 @@ err:
     }
     pthread_mutex_unlock(&THR_LOCK_maria);
   }
-  my_free((uchar *)distinct_shares, MYF(MY_ALLOW_ZERO_PTR));
-  my_free((uchar *)state_copies, MYF(MY_ALLOW_ZERO_PTR));
+  my_free(distinct_shares);
+  my_free(state_copies);
   DBUG_RETURN(error);
 }

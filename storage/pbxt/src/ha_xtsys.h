@@ -34,7 +34,7 @@
 #include <drizzled/current_session.h>
 #include <drizzled/cursor.h>
 #else
-#include "mysql_priv.h"
+#include "handler.h"
 #endif
 
 #include "xt_defs.h"

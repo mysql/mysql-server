@@ -31,7 +31,6 @@
 #endif 
 
 class String;
-typedef struct charset_info_st CHARSET_INFO;
 typedef struct st_io_cache IO_CACHE;
 typedef struct st_mem_root MEM_ROOT;
 

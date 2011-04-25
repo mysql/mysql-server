@@ -209,7 +209,7 @@ public:
     plugin_ref plugin;                  ///< for Sys_var_plugin
     Time_zone *time_zone;               ///< for Sys_var_tz
     LEX_STRING string_value;            ///< for Sys_var_charptr and others
-    void *ptr;                          ///< for Sys_var_struct
+    const void *ptr;                    ///< for Sys_var_struct
   } save_result;
   LEX_STRING base; /**< for structured variables, like keycache_name.variable_name */
 

@@ -59,8 +59,10 @@ using drizzled::plugin::InfoSchemaTable;
 using drizzled::plugin::InfoSchemaMethods;
 
 #else
-#include "mysql_priv.h"
 #include <mysql/plugin.h>
+#include "sql_class.h"
+#include "sql_priv.h"
+#include "sql_lex.h"
 #endif
 
 #include "ha_pbxt.h"
@@ -1132,7 +1134,7 @@ static int pbxt_init(void *p)
 	 * library that some symbol was not found.
 	 */
 	void *dummy = my_malloc(100, MYF(0));
-	my_free((byte *) dummy, MYF(0));
+	my_free((byte *) dummy);
 
  	if (!pbxt_inited) {
 		XTThreadPtr self = NULL;
@@ -4049,27 +4051,7 @@ int ha_pbxt::info(uint flag)
 #define WHICH_MUTEX			mutex
 #endif
 
-#ifdef SAFE_MUTEX
-
-#if MYSQL_VERSION_ID < 50404
-#if MYSQL_VERSION_ID < 50123
-				safe_mutex_lock(&share->mutex,__FILE__,__LINE__);
-#else
-				safe_mutex_lock(&share->mutex,0,__FILE__,__LINE__);
-#endif
-#else
-				safe_mutex_lock(&share->WHICH_MUTEX,0,__FILE__,__LINE__);
-#endif
-
-#else // SAFE_MUTEX
-
-#ifdef MY_PTHREAD_FASTMUTEX
-				my_pthread_fastmutex_lock(&share->WHICH_MUTEX);
-#else
-				pthread_mutex_lock(&share->WHICH_MUTEX);
-#endif
-
-#endif // SAFE_MUTEX
+				mysql_mutex_lock(&share->WHICH_MUTEX);
 #ifdef DRIZZLED
 			set_prefix(share->keys_in_use, share->keys);
 			share->keys_for_keyread&= share->keys_in_use;
@@ -4092,15 +4074,7 @@ int ha_pbxt::info(uint flag)
 	 				table->key_info[i].rec_per_key[j] = (ulong) rec_per_key;
 			}
 			if (share->tmp_table == NO_TMP_TABLE)
-#ifdef SAFE_MUTEX
-				safe_mutex_unlock(&share->WHICH_MUTEX,__FILE__,__LINE__);
-#else
-#ifdef MY_PTHREAD_FASTMUTEX
-				pthread_mutex_unlock(&share->WHICH_MUTEX.mutex);
-#else
-				pthread_mutex_unlock(&share->WHICH_MUTEX);
-#endif
-#endif
+				mysql_mutex_unlock(&share->WHICH_MUTEX);
 	  		/*
 			 Set data_file_name and index_file_name to point at the symlink value
 			 if table is symlinked (Ie;  Real name is not same as generated name)
@@ -5953,7 +5927,7 @@ static void pbxt_record_cache_size_func(THD *XT_UNUSED(thd), struct st_mysql_sys
 	if (var->flags & PLUGIN_VAR_MEMALLOC)
 	{
 		*(char **)tgt= my_strdup(*(char **) save, MYF(0));
-		my_free(old, MYF(0));
+		my_free(old);
 	}
 	record_cache_size = ha_set_variable(&pbxt_record_cache_size, &vp_record_cache_size);
 	xt_tc_set_cache_size((size_t) record_cache_size);

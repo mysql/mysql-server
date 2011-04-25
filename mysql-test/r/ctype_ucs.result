@@ -1239,7 +1239,9 @@ WHERE t1.b <=> (SELECT a FROM t1 WHERE a < SOME(SELECT '1'));
 DROP VIEW v1;
 DROP TABLE t1;
 End of 5.0 tests
-Start of 5.1 tests
+#
+# Start of 5.1 tests
+#
 SET NAMES utf8;
 CREATE TABLE t1 (
 a varchar(10) CHARACTER SET ucs2 COLLATE ucs2_czech_ci,
@@ -1284,10 +1286,14 @@ hex(a)
 0064017E
 DROP TABLE t1;
 #
+# End of 5.1 tests
+#
+#
 # Start of 5.5 tests
 #
 SET NAMES latin1;
 SET collation_connection=ucs2_general_ci;
+SET TIME_ZONE = _latin1 '+03:00';
 #
 # Start of WL#2649 Number-to-string conversions
 #

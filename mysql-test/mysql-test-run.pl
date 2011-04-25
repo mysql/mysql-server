@@ -160,7 +160,7 @@ our $opt_vs_config = $ENV{'MTR_VS_CONFIG'};
 
 # If you add a new suite, please check TEST_DIRS in Makefile.am.
 #
-my $DEFAULT_SUITES= "main,sys_vars,binlog,federated,rpl,maria,parts,innodb,innodb_plugin,percona,ndb,vcol,oqgraph,sphinx,perfschema";
+my $DEFAULT_SUITES= "main,sys_vars,binlog,federated,rpl,maria,parts,innodb,percona,ndb,vcol,oqgraph,sphinx,perfschema";
 my $opt_suites;
 
 our $opt_verbose= 0;  # Verbose output, enable with --verbose
@@ -182,6 +182,7 @@ my $opt_ssl;
 my $opt_skip_ssl;
 my @opt_skip_test_list;
 our $opt_ssl_supported;
+our $have_ipv6;
 my $opt_ps_protocol;
 my $opt_sp_protocol;
 my $opt_cursor_protocol;
@@ -377,6 +378,7 @@ sub main {
   }
   check_ndbcluster_support(\%mysqld_variables);
   check_ssl_support(\%mysqld_variables);
+  check_ipv6_support();
   check_debug_support(\%mysqld_variables);
 
   executable_setup();
@@ -2428,7 +2430,8 @@ sub setup_vardir() {
     }
     else
     {
-      for (<../storage/*/.libs/*.so>,<../plugin/*/.libs/*.so>,<../sql/.libs/*.so>)
+      for (<../storage/*/.libs/*.so>,<../plugin/*/.libs/*.so>,<../sql/.libs/*.so>,
+           <../storage/*/*.so>,<../plugin/*/*.so>,<../sql/*.so>)
       {
         my $pname=basename($_);
         symlink rel2abs($_), "$plugindir/$pname";
@@ -2516,6 +2519,11 @@ sub check_ssl_support ($) {
   $opt_ssl_supported= 1;
 }
 
+sub check_ipv6_support {
+  use Socket;
+  $have_ipv6 = socket SOCK, PF_INET6, SOCK_STREAM, getprotobyname('tcp');
+  close SOCK;
+}
 
 sub check_debug_support ($) {
   my $mysqld_variables= shift;
@@ -4377,6 +4385,9 @@ sub extract_warning_lines ($) {
      qr|Table \./test/bug53592 has a primary key in InnoDB data dictionary, but not in MySQL|,
      qr|mysqld: Table '\./mtr/test_suppressions' is marked as crashed and should be repaired|,
      qr|InnoDB: Error: table 'test/bug39438'|,
+     qr|'user' entry '.*' ignored in --skip-name-resolve mode|,
+     qr|mysqld got signal 6|,
+     qr|Error while setting value 'pool-of-threads' to 'thread_handling'|,
     );
 
   my $matched_lines= [];
@@ -4868,8 +4879,8 @@ sub mysqld_arguments ($$$) {
 
   if (!using_extern() and $mysql_version_id >= 50106 && !$opt_user_args)
   {
-    # Turn on logging to file and tables
-    mtr_add_arg($args, "%s--log-output=table,file");
+    # Turn on logging to file
+    mtr_add_arg($args, "%s--log-output=file");
   }
 
   # Check if "extra_opt" contains --log-bin
@@ -5285,7 +5296,7 @@ sub start_servers($) {
   for (all_servers()) {
     next unless $_->{WAIT} and started($_);
     if ($_->{WAIT}->($_)) {
-      $tinfo->{comment}= "Failed to start ".$_->name();
+      $tinfo->{comment}= "Failed to start ".$_->name()."\n";
       return 1;
     }
   }

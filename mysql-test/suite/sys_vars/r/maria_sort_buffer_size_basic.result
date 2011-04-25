@@ -1,0 +1,48 @@
+SET @start_global_value = @@global.maria_sort_buffer_size;
+select @@global.maria_sort_buffer_size, @@global.aria_sort_buffer_size;
+@@global.maria_sort_buffer_size	@@global.aria_sort_buffer_size
+134217728	134217728
+select @@session.maria_sort_buffer_size, @@session.aria_sort_buffer_size;
+@@session.maria_sort_buffer_size	@@session.aria_sort_buffer_size
+134217728	134217728
+show global variables like '%aria_sort_buffer_size';
+Variable_name	Value
+aria_sort_buffer_size	134217728
+maria_sort_buffer_size	134217728
+show session variables like '%aria_sort_buffer_size';
+Variable_name	Value
+aria_sort_buffer_size	134217728
+maria_sort_buffer_size	134217728
+select * from information_schema.global_variables where variable_name like '%aria_sort_buffer_size';
+VARIABLE_NAME	VARIABLE_VALUE
+ARIA_SORT_BUFFER_SIZE	134217728
+MARIA_SORT_BUFFER_SIZE	134217728
+select * from information_schema.session_variables where variable_name like '%aria_sort_buffer_size';
+VARIABLE_NAME	VARIABLE_VALUE
+ARIA_SORT_BUFFER_SIZE	134217728
+MARIA_SORT_BUFFER_SIZE	134217728
+set global maria_sort_buffer_size=10;
+select @@global.maria_sort_buffer_size, @@global.aria_sort_buffer_size;
+@@global.maria_sort_buffer_size	@@global.aria_sort_buffer_size
+10	10
+set session maria_sort_buffer_size=10;
+select @@session.maria_sort_buffer_size, @@session.aria_sort_buffer_size;
+@@session.maria_sort_buffer_size	@@session.aria_sort_buffer_size
+10	10
+set global maria_sort_buffer_size=1.1;
+ERROR 42000: Incorrect argument type to variable 'maria_sort_buffer_size'
+set session maria_sort_buffer_size=1e1;
+ERROR 42000: Incorrect argument type to variable 'maria_sort_buffer_size'
+set global maria_sort_buffer_size="foo";
+ERROR 42000: Incorrect argument type to variable 'maria_sort_buffer_size'
+set global maria_sort_buffer_size=0;
+Warnings:
+Warning	1292	Truncated incorrect aria_sort_buffer_size value: '0'
+select @@global.maria_sort_buffer_size, @@global.aria_sort_buffer_size;
+@@global.maria_sort_buffer_size	@@global.aria_sort_buffer_size
+4	4
+set session maria_sort_buffer_size=cast(-1 as unsigned int);
+select @@session.maria_sort_buffer_size, @@session.aria_sort_buffer_size;
+@@session.maria_sort_buffer_size	@@session.aria_sort_buffer_size
+18446744073709551615	18446744073709551615
+SET @@global.maria_sort_buffer_size = @start_global_value;

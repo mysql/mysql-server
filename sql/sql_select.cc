@@ -49,19 +49,12 @@
 #include "filesort.h"            // filesort_free_buffers
 #include "sql_union.h"           // mysql_union
 #include "opt_subselect.h"
+#include "log_slow.h"
 
 #include <m_ctype.h>
 #include <my_bit.h>
 #include <hash.h>
 #include <ft_global.h>
-//#if defined(WITH_ARIA_STORAGE_ENGINE) && defined(USE_MARIA_FOR_TMP_TABLES)
-//#include "../storage/maria/ha_maria.h"
-//#define TMP_ENGINE_HTON maria_hton
-//#else
-//#define TMP_ENGINE_HTON myisam_hton
-//#endif
-
-#define PREV_BITS(type,A)	((type) (((type) 1 << (A)) -1))
 
 const char *join_type_str[]={ "UNKNOWN","system","const","eq_ref","ref",
 			      "MAYBE_REF","ALL","range","index","fulltext",
@@ -83,7 +76,6 @@ static bool update_ref_and_keys(THD *thd, DYNAMIC_ARRAY *keyuse,
 static int sort_keyuse(KEYUSE *a,KEYUSE *b);
 static bool create_ref_for_key(JOIN *join, JOIN_TAB *j, KEYUSE *org_keyuse,
 			       table_map used_tables);
-bool choose_plan(JOIN *join,table_map join_tables);
 
 void best_access_path(JOIN *join, JOIN_TAB *s, 
                              table_map remaining_tables, uint idx, 
@@ -149,30 +141,24 @@ static COND *optimize_cond(JOIN *join, COND *conds,
                            List<TABLE_LIST> *join_list,
                            Item::cond_result *cond_value, 
                            COND_EQUAL **cond_equal);
-static bool const_expression_in_where(COND *conds,Item *item, Item **comp_item);
+bool const_expression_in_where(COND *conds,Item *item, Item **comp_item);
 static bool create_internal_tmp_table_from_heap2(THD *, TABLE *,
                                      ENGINE_COLUMNDEF *, ENGINE_COLUMNDEF **, 
                                      int, bool, handlerton *, const char *);
 static int do_select(JOIN *join,List<Item> *fields,TABLE *tmp_table,
 		     Procedure *proc);
 
-static enum_nested_loop_state
-evaluate_join_record(JOIN *join, JOIN_TAB *join_tab,
-                     int error);
+static enum_nested_loop_state evaluate_join_record(JOIN *, JOIN_TAB *, int);
 static enum_nested_loop_state
 evaluate_null_complemented_join_record(JOIN *join, JOIN_TAB *join_tab);
 static enum_nested_loop_state
 end_send(JOIN *join, JOIN_TAB *join_tab, bool end_of_records);
-enum_nested_loop_state
-end_send_group(JOIN *join, JOIN_TAB *join_tab, bool end_of_records);
 static enum_nested_loop_state
 end_write(JOIN *join, JOIN_TAB *join_tab, bool end_of_records);
 static enum_nested_loop_state
 end_update(JOIN *join, JOIN_TAB *join_tab, bool end_of_records);
 static enum_nested_loop_state
 end_unique_update(JOIN *join, JOIN_TAB *join_tab, bool end_of_records);
-enum_nested_loop_state
-end_write_group(JOIN *join, JOIN_TAB *join_tab, bool end_of_records);
 
 static int test_if_group_changed(List<Cached_item> &list);
 static int join_read_const_table(JOIN_TAB *tab, POSITION *pos);
@@ -770,6 +756,7 @@ err:
 int
 JOIN::optimize()
 {
+  bool need_distinct= TRUE;
   ulonglong select_opts_for_readinfo;
   uint no_jbuf_after;
 
@@ -1083,6 +1070,9 @@ JOIN::optimize()
   {
     conds=new Item_int((longlong) 0,1);	// Always false
   }
+
+  /* Cache constant expressions in WHERE, HAVING, ON clauses. */
+  cache_const_exprs();
 
   if (make_join_select(this, select, conds))
   {
@@ -1437,7 +1427,6 @@ JOIN::optimize()
     single table queries, thus it is sufficient to test only the first
     join_tab element of the plan for its access method.
   */
-  bool need_distinct= TRUE;
   if (join_tab->is_using_loose_index_scan())
   {
     tmp_table_param.precomputed_group_by= TRUE;
@@ -2821,6 +2810,7 @@ make_join_statistics(JOIN *join, TABLE_LIST *tables_arg, COND *conds,
              if (bitmap_is_set(stat[j].dependent, i) &&
                  bitmap_is_set(stat[i].dependent, k))
                bitmap_set_bit(stat[j].dependent, k);
+           }
          }
        }  
     */
@@ -9253,8 +9243,7 @@ static COND *build_equal_items_for_cond(THD *thd, COND *cond,
     pointer to the transformed condition containing multiple equalities
 */
    
-static COND *build_equal_items(THD *thd, COND *cond,
-                               COND_EQUAL *inherited,
+static COND *build_equal_items(THD *thd, COND *cond, COND_EQUAL *inherited,
                                List<TABLE_LIST> *join_list,
                                COND_EQUAL **cond_equal_ref)
 {
@@ -12265,7 +12254,7 @@ bool open_tmp_table(TABLE *table)
 }
 
 
-#if defined(WITH_ARIA_STORAGE_ENGINE) && defined(USE_MARIA_FOR_TMP_TABLES)
+#if defined(WITH_ARIA_STORAGE_ENGINE) && defined(USE_ARIA_FOR_TMP_TABLES)
 
 /*
   Create internal (MyISAM or Maria) temporary table
@@ -19060,7 +19049,7 @@ static void print_join(THD *thd,
   */
   if ((*table)->sj_inner_tables)
   {
-    TABLE_LIST **end= table + tables->elements;
+    TABLE_LIST **end= table + non_const_tables;
     for (TABLE_LIST **t2= table; t2!=end; t2++)
     {
       if (!(*t2)->sj_inner_tables)

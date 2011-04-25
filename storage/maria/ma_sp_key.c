@@ -57,7 +57,7 @@ MARIA_KEY *_ma_sp_make_key(MARIA_HA *info, MARIA_KEY *ret_key, uint keynr,
   ret_key->data= key;
 
   dlen = _ma_calc_blob_length(keyseg->bit_start, pos);
-  memcpy_fixed(&dptr, pos + keyseg->bit_start, sizeof(char*));
+  memcpy(&dptr, pos + keyseg->bit_start, sizeof(char*));
   if (!dptr)
   {
     my_errno= HA_ERR_NULL_IN_SPATIAL;

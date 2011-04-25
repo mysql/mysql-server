@@ -1,3 +1,5 @@
+#ifndef HA_MARIA_INCLUDED
+#define HA_MARIA_INCLUDED
 /* Copyright (C) 2006,2004 MySQL AB & MySQL Finland AB & TCX DataKonsult AB
 
    This program is free software; you can redistribute it and/or modify
@@ -13,9 +15,6 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
 
-#ifndef HA_MARIA_INCLUDED
-#define HA_MARIA_INCLUDED
-
 #ifdef USE_PRAGMA_INTERFACE
 #pragma interface                               /* gcc class implementation */
 #endif
@@ -23,6 +22,8 @@
 /* class for the maria handler */
 
 #include <maria.h>
+#include "handler.h"
+#include "table.h"
 
 #define HA_RECOVER_NONE         0       /* No automatic recover */
 #define HA_RECOVER_DEFAULT      1       /* Automatic recover active */

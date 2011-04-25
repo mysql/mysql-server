@@ -1,6 +1,5 @@
 # Test Bug #54679 alter table causes compressed row_format to revert to compact
 
---source include/have_innodb.inc
 
 let $file_format=`select @@innodb_file_format`;
 let $file_format_max=`select @@innodb_file_format_max`;

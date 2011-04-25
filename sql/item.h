@@ -2829,9 +2829,8 @@ public:
   virtual Ref_Type ref_type() { return DIRECT_REF; }
 };
 
-class Expression_cache;
 class Item_cache;
-
+class Expression_cache;
 
 /**
   The objects of this class can store its values in an expression cache.
@@ -2879,12 +2878,7 @@ public:
   bool is_null();
   bool get_date(MYSQL_TIME *ltime, uint fuzzydate);
   bool get_time(MYSQL_TIME *ltime);
-  bool send(Protocol *protocol, String *buffer)
-  {
-    if (result_field)
-      return protocol->store(result_field);
-    return Item::send(protocol, buffer);
-  }
+  bool send(Protocol *protocol, String *buffer);
   void save_org_in_field(Field *field)
   {
     save_val(field);
@@ -3895,5 +3889,73 @@ extern void resolve_const_item(THD *thd, Item **ref, Item *cmp_item);
 extern int stored_field_cmp_to_item(THD *thd, Field *field, Item *item);
 
 extern const String my_null_string;
+
+/**
+  Interface for Item iterator
+*/
+
+class Item_iterator
+{
+public:
+  /**
+    Shall set this iterator to the position before the first item
+
+    @note
+    This method also may perform some other initialization actions like
+    allocation of certain resources.
+  */
+  virtual void open()= 0;
+  /**
+    Shall return the next Item (or NULL if there is no next item) and
+    move pointer to position after it.
+  */
+  virtual Item *next()= 0;
+  /**
+    Shall force iterator to free resources (if it holds them)
+
+    @note
+    One should not use the iterator without open() call after close()
+  */
+  virtual void close()= 0;
+
+  virtual ~Item_iterator() {}
+};
+
+
+/**
+  Item iterator over List_iterator_fast for Item references
+*/
+
+class Item_iterator_ref_list: public Item_iterator
+{
+  List_iterator<Item*> list;
+public:
+  Item_iterator_ref_list(List_iterator<Item*> &arg_list):
+    list(arg_list) {}
+  void open() { list.rewind(); }
+  Item *next() { return *(list++); }
+  void close() {}
+};
+
+
+/**
+  Item iterator over Item interface for rows
+*/
+
+class Item_iterator_row: public Item_iterator
+{
+  Item *base_item;
+  uint current;
+public:
+  Item_iterator_row(Item *base) : base_item(base), current(0) {}
+  void open() { current= 0; }
+  Item *next()
+  {
+    if (current >= base_item->cols())
+      return NULL;
+    return base_item->element_index(current++);
+  }
+  void close() {}
+};
 
 #endif /* SQL_ITEM_INCLUDED */

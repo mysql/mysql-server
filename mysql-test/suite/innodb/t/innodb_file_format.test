@@ -1,5 +1,4 @@
 -- source include/not_embedded.inc
--- source include/have_innodb.inc
 
 let $innodb_file_format_orig=`select @@innodb_file_format`;
 let $innodb_file_format_max_orig=`select @@innodb_file_format_max`;

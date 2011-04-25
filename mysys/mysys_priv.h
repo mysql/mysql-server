@@ -85,7 +85,6 @@ extern PSI_file_key key_file_charset, key_file_cnf;
 #endif
 
 void my_error_unregister_all(void);
-<<<<<<< TREE
 
 #ifdef _WIN32
 #include <sys/stat.h>

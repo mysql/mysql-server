@@ -93,16 +93,16 @@ static void get_options(int argc, char *argv[]);
 
 /* Used to ignore error messages from ma_control_file_open() */
 
-static int my_ignore_message(uint error __attribute__((unused)),
+static void my_ignore_message(uint error __attribute__((unused)),
                              const char *str __attribute__((unused)),
                              myf MyFlags __attribute__((unused)))
 {
   DBUG_ENTER("my_message_no_curses");
   DBUG_PRINT("enter",("message: %s",str));
-  DBUG_RETURN(0);
+  DBUG_VOID_RETURN;
 }
 
-int (*default_error_handler_hook)(uint my_err, const char *str,
+void (*default_error_handler_hook)(uint my_err, const char *str,
                                   myf MyFlags) = 0;
 
 
@@ -590,3 +590,5 @@ static void usage(void)
   my_print_help(my_long_options);
   my_print_variables(my_long_options);
 }
+
+#include "../ma_check_standalone.h"

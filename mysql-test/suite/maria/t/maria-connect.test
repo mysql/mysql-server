@@ -27,7 +27,7 @@ insert t1 values (1),(2),(3);
 --error ER_DUP_ENTRY
 insert t1 values (4),(2),(5);
 select * from t1;
-SHOW BINLOG EVENTS FROM 106;
+SHOW BINLOG EVENTS FROM 107;
 drop table t1;
 set binlog_format=default;
 

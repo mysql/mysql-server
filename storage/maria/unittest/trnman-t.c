@@ -99,7 +99,7 @@ void run_test(const char *test, pthread_handler handler, int n, int m)
     pthread_join(threads[i], 0);
   now= my_getsystime()-now;
   ok(litmus == 0, "Tested %s in %g secs (%d)", test, ((double)now)/1e7, litmus);
-  my_free((void*)threads, MYF(0));
+  my_free(threads);
 }
 
 #define ok_read_from(T1, T2, RES)                       \
@@ -173,3 +173,4 @@ int main(int argc __attribute__((unused)), char **argv)
   return exit_status();
 }
 
+#include "../ma_check_standalone.h"

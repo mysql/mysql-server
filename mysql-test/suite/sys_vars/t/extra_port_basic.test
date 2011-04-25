@@ -1,0 +1,21 @@
+# ulong readonly
+
+#
+# show the global and session values;
+#
+select @@global.extra_port;
+--error ER_INCORRECT_GLOBAL_LOCAL_VAR
+select @@session.extra_port;
+show global variables like 'extra_port';
+show session variables like 'extra_port';
+select * from information_schema.global_variables where variable_name='extra_port';
+select * from information_schema.session_variables where variable_name='extra_port';
+
+#
+# show that it's read-only
+#
+--error ER_INCORRECT_GLOBAL_LOCAL_VAR
+set global extra_port=1;
+--error ER_INCORRECT_GLOBAL_LOCAL_VAR
+set session extra_port=1;
+

@@ -31,7 +31,8 @@
 #include <drizzled/cursor.h>
 
 #else
-#include "mysql_priv.h"
+#include <thr_lock.h>
+#include <handler.h>
 #endif
 
 #include "xt_defs.h"

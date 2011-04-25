@@ -195,7 +195,7 @@ extern my_bool multi_key_cache_set(const uchar *key, uint length,
 extern void multi_key_cache_change(KEY_CACHE *old_data,
 				   KEY_CACHE *new_data);
 extern int reset_key_cache_counters(const char *name,
-                                    KEY_CACHE *key_cache);
+                                    KEY_CACHE *key_cache, void *);
 extern int repartition_key_cache(KEY_CACHE *keycache,
                                  uint key_cache_block_size,
 			         size_t use_mem, 

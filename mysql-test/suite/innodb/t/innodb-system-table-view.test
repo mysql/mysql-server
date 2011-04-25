@@ -2,7 +2,6 @@
 # that displays the InnoDB system table content through
 # information schema tables.
 
---source include/have_innodb.inc
 
 SELECT * FROM INFORMATION_SCHEMA.INNODB_SYS_TABLES;
 

@@ -70,6 +70,8 @@ CREATE TABLE pbms_reference (
 #include "discover_xt.h"
 #include "thread_xt.h"
 
+#include "thr_lock.h"
+
 struct XTSystemTableShare;
 struct XTDatabase;
 

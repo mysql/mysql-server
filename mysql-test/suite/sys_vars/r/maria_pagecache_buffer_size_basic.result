@@ -1,0 +1,25 @@
+select @@global.maria_pagecache_buffer_size, @@global.aria_pagecache_buffer_size;
+@@global.maria_pagecache_buffer_size	@@global.aria_pagecache_buffer_size
+134217728	134217728
+select @@session.maria_pagecache_buffer_size, @@session.aria_pagecache_buffer_size;
+ERROR HY000: Variable 'maria_pagecache_buffer_size' is a GLOBAL variable
+show global variables like '%aria_pagecache_buffer_size';
+Variable_name	Value
+aria_pagecache_buffer_size	134217728
+maria_pagecache_buffer_size	134217728
+show session variables like '%aria_pagecache_buffer_size';
+Variable_name	Value
+aria_pagecache_buffer_size	134217728
+maria_pagecache_buffer_size	134217728
+select * from information_schema.global_variables where variable_name like '%aria_pagecache_buffer_size';
+VARIABLE_NAME	VARIABLE_VALUE
+ARIA_PAGECACHE_BUFFER_SIZE	134217728
+MARIA_PAGECACHE_BUFFER_SIZE	134217728
+select * from information_schema.session_variables where variable_name like '%aria_pagecache_buffer_size';
+VARIABLE_NAME	VARIABLE_VALUE
+ARIA_PAGECACHE_BUFFER_SIZE	134217728
+MARIA_PAGECACHE_BUFFER_SIZE	134217728
+set global maria_pagecache_buffer_size=1;
+ERROR HY000: Variable 'maria_pagecache_buffer_size' is a read only variable
+set session maria_pagecache_buffer_size=1;
+ERROR HY000: Variable 'maria_pagecache_buffer_size' is a read only variable

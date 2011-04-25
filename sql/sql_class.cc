@@ -59,6 +59,7 @@
 #include "debug_sync.h"
 #include "sql_parse.h"                          // is_update_query
 #include "sql_callback.h"
+#include "sql_connect.h"
 
 /*
   The following is used to initialise Table_ident with a internal
@@ -236,7 +237,7 @@ bool Foreign_key::validate(List<Create_field> &table_fields)
     it.rewind();
     while ((sql_field= it++) &&
            my_strcasecmp(system_charset_info,
-                         column->field_name,
+                         column->field_name.str,
                          sql_field->field_name)) {}
     if (!sql_field)
     {
@@ -316,11 +317,13 @@ int thd_tablespace_op(const THD *thd)
 
 
 extern "C"
-const char *set_thd_proc_info(THD *thd, const char *info,
+const char *set_thd_proc_info(void *thd_arg, const char *info,
                               const char *calling_function,
                               const char *calling_file,
                               const unsigned int calling_line)
 {
+  THD *thd= (THD *) thd_arg;
+
   if (!thd)
     thd= current_thd;
 
@@ -1322,7 +1325,7 @@ void THD::awake(THD::killed_state state_to_set)
   {
     thr_alarm_kill(thread_id);
     if (!slave_thread)
-      MYSQL_CALLBACK(thread_scheduler, post_kill_notification, (this));
+      MYSQL_CALLBACK(scheduler, post_kill_notification, (this));
 #ifdef SIGNAL_WITH_VIO_CLOSE
     if (this != current_thd)
     {
@@ -1416,7 +1419,6 @@ bool THD::store_globals()
   */
   thr_lock_info_init(&lock_info);
 
-#warning add registration of mutex order if needed
   return 0;
 }
 
@@ -1429,9 +1431,9 @@ bool THD::store_globals()
 
 void THD::reset_globals()
 {
-  pthread_mutex_lock(&LOCK_thd_data);
+  mysql_mutex_lock(&LOCK_thd_data);
   mysys_var= 0;
-  pthread_mutex_unlock(&LOCK_thd_data);
+  mysql_mutex_unlock(&LOCK_thd_data);
 }
 
 /*
@@ -2558,7 +2560,6 @@ bool select_max_min_finder_subselect::send_data(List<Item> &items)
         op= &select_max_min_finder_subselect::cmp_decimal;
         break;
       case ROW_RESULT:
-      case IMPOSSIBLE_RESULT:
         // This case should never be choosen
 	DBUG_ASSERT(0);
 	op= 0;
@@ -3421,7 +3422,7 @@ extern "C" bool thd_sqlcom_can_generate_row_events(const MYSQL_THD thd)
   return sqlcom_can_generate_row_events(thd);
 }
 
-#ifndef EMBEDDED_LIBRARY
+#ifdef NOT_USED /* we'll do the correctly instead */
 extern "C" void thd_pool_wait_begin(MYSQL_THD thd, int wait_type);
 extern "C" void thd_pool_wait_end(MYSQL_THD thd);
 
@@ -3448,7 +3449,7 @@ extern "C" void thd_pool_wait_end(MYSQL_THD thd);
 */
 extern "C" void thd_wait_begin(MYSQL_THD thd, thd_wait_type wait_type)
 {
-  MYSQL_CALLBACK(thread_scheduler, thd_wait_begin, (thd, wait_type));
+  MYSQL_CALLBACK(thd->scheduler, thd_wait_begin, (thd, wait_type));
 }
 
 /**
@@ -3459,7 +3460,7 @@ extern "C" void thd_wait_begin(MYSQL_THD thd, thd_wait_type wait_type)
 */
 extern "C" void thd_wait_end(MYSQL_THD thd)
 {
-  MYSQL_CALLBACK(thread_scheduler, thd_wait_end, (thd));
+  MYSQL_CALLBACK(thd->scheduler, thd_wait_end, (thd));
 }
 #else
 extern "C" void thd_wait_begin(MYSQL_THD thd, thd_wait_type wait_type)

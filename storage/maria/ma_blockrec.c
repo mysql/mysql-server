@@ -541,10 +541,10 @@ err:
 void _ma_end_block_record(MARIA_HA *info)
 {
   DBUG_ENTER("_ma_end_block_record");
-  my_free(info->cur_row.empty_bits, MYF(MY_ALLOW_ZERO_PTR));
+  my_free(info->cur_row.empty_bits);
   delete_dynamic(&info->bitmap_blocks);
-  my_free(info->cur_row.extents, MYF(MY_ALLOW_ZERO_PTR));
-  my_free(info->blob_buff, MYF(MY_ALLOW_ZERO_PTR));
+  my_free(info->cur_row.extents);
+  my_free(info->blob_buff);
   /*
     The data file is closed, when needed, in ma_once_end_block_record().
     The following protects us from doing an extra, not allowed, close
@@ -2787,8 +2787,7 @@ static my_bool write_block_record(MARIA_HA *info,
       if (!*blob_lengths)                       /* Null or "" */
         continue;
       length= column->length - portable_sizeof_char_ptr;
-      memcpy_fixed((uchar*) &tmp_pos, record + column->offset + length,
-                   sizeof(char*));
+      memcpy(&tmp_pos, record + column->offset + length, sizeof(char*));
       memcpy(data, tmp_pos, *blob_lengths);
       data+= *blob_lengths;
       /*
@@ -2876,8 +2875,7 @@ static my_bool write_block_record(MARIA_HA *info,
         {
           uint length;
           length= column->length - portable_sizeof_char_ptr;
-          memcpy_fixed((uchar *) &blob_pos, record + column->offset + length,
-                       sizeof(char*));
+          memcpy(&blob_pos, record + column->offset + length, sizeof(char*));
           length= *blob_lengths % FULL_PAGE_SIZE(block_size);   /* tail size */
           if (length != *blob_lengths)
             blob_full_pages_exists= 1;
@@ -3235,8 +3233,7 @@ static my_bool write_block_record(MARIA_HA *info,
           blob_length-= (blob_length % FULL_PAGE_SIZE(block_size));
         if (blob_length)
         {
-          memcpy_fixed((uchar*) &log_array_pos->str,
-                       record + tmp_column->offset + length,
+          memcpy(&log_array_pos->str, record + tmp_column->offset + length,
                        sizeof(uchar*));
           log_array_pos->length= blob_length;
           log_entry_length+= blob_length;
@@ -3264,7 +3261,7 @@ static my_bool write_block_record(MARIA_HA *info,
                                  (uint) (log_array_pos - log_array),
                                  log_array, log_data, NULL);
     if (log_array != tmp_log_array)
-      my_free(log_array, MYF(0));
+      my_free(log_array);
     if (error)
       goto disk_err;
   }
@@ -3401,8 +3398,7 @@ static my_bool write_block_record(MARIA_HA *info,
     if (!*blob_lengths)                         /* Null or "" */
       continue;
     length= column->length - portable_sizeof_char_ptr;
-    memcpy_fixed((uchar*) &blob_pos, record + column->offset + length,
-                 sizeof(char*));
+    memcpy(&blob_pos, record + column->offset + length, sizeof(char*));
     /* remove tail part */
     blob_length= *blob_lengths;
     if (block[block->sub_blocks - 1].used & BLOCKUSED_TAIL)
@@ -4875,8 +4871,8 @@ int _ma_read_block_record2(MARIA_HA *info, uchar *record,
       }
 
       memcpy(field_pos, field_length_data, column_size_length);
-      memcpy_fixed(field_pos + column_size_length, (uchar *) &blob_buffer,
-                   sizeof(char*));
+      memcpy(field_pos + column_size_length, (uchar *) &blob_buffer,
+             sizeof(char*));
       field_length_data+= column_size_length;
 
       /*
@@ -5116,7 +5112,7 @@ my_bool _ma_cmp_block_unique(MARIA_HA *info, MARIA_UNIQUEDEF *def,
     error= _ma_unique_comp(def, record, old_record, def->null_are_equal);
   if (info->s->base.blobs)
   {
-    my_free(info->rec_buff, MYF(MY_ALLOW_ZERO_PTR));
+    my_free(info->rec_buff);
     info->rec_buff=      org_rec_buff;
     info->rec_buff_size= org_rec_buff_size;
   }
@@ -5180,11 +5176,11 @@ my_bool _ma_scan_init_block_record(MARIA_HA *info)
 void _ma_scan_end_block_record(MARIA_HA *info)
 {
   DBUG_ENTER("_ma_scan_end_block_record");
-  my_free(info->scan.bitmap_buff, MYF(MY_ALLOW_ZERO_PTR));
+  my_free(info->scan.bitmap_buff);
   info->scan.bitmap_buff= 0;
   if (info->scan_save)
   {
-    my_free(info->scan_save, MYF(0));
+    my_free(info->scan_save);
     info->scan_save= 0;
   }
   DBUG_VOID_RETURN;
@@ -5706,8 +5702,8 @@ static size_t fill_insert_undo_parts(MARIA_HA *info, const uchar *record,
     if (blob_length)
     {
       uchar *blob_pos;
-      memcpy_fixed(&blob_pos, record + column->offset + size_length,
-                   sizeof(blob_pos));
+      memcpy(&blob_pos, record + column->offset + size_length,
+             sizeof(blob_pos));
       log_parts->str= blob_pos;
       log_parts->length= blob_length;
       row_length+= log_parts->length;
@@ -5889,15 +5885,13 @@ static size_t fill_update_undo_parts(MARIA_HA *info, const uchar *oldrec,
     {
       uint size_length= column->length - portable_sizeof_char_ptr;
       old_column_length= _ma_calc_blob_length(size_length, old_column_pos);
-      memcpy_fixed((uchar*) &old_column_pos,
-                   oldrec + column->offset + size_length,
-                   sizeof(old_column_pos));
+      memcpy(&old_column_pos, oldrec + column->offset + size_length,
+             sizeof(old_column_pos));
       if (!new_column_is_empty)
       {
         new_column_length= _ma_calc_blob_length(size_length, new_column_pos);
-        memcpy_fixed((uchar*) &new_column_pos,
-                     newrec + column->offset + size_length,
-                     sizeof(old_column_pos));
+        memcpy(&new_column_pos, newrec + column->offset + size_length,
+               sizeof(old_column_pos));
       }
       break;
     }
@@ -7119,7 +7113,7 @@ my_bool _ma_apply_undo_row_delete(MARIA_HA *info, LSN undo_lsn,
                          &row_pos, undo_lsn, 0))
     goto err;
 
-  my_free(record, MYF(0));
+  my_free(record);
   DBUG_RETURN(0);
 
 err:
@@ -7127,7 +7121,7 @@ err:
   if (info->non_flushable_state)
     _ma_bitmap_flushable(info, -1);
   _ma_unpin_all_pages_and_finalize_row(info, LSN_IMPOSSIBLE);
-  my_free(record, MYF(0));
+  my_free(record);
   DBUG_RETURN(1);
 }
 
@@ -7265,7 +7259,7 @@ my_bool _ma_apply_undo_row_update(MARIA_HA *info, LSN undo_lsn,
     {
       uint size_length= column->length - portable_sizeof_char_ptr;
       _ma_store_blob_length(orig_field_pos, size_length, field_length);
-      memcpy_fixed(orig_field_pos + size_length, &header, sizeof(header));
+      memcpy(orig_field_pos + size_length, &header, sizeof(header));
       header+= field_length;
       break;
     }
@@ -7294,7 +7288,7 @@ my_bool _ma_apply_undo_row_update(MARIA_HA *info, LSN undo_lsn,
 
   error= 0;
 end:
-  my_free(current_record, MYF(0));
+  my_free(current_record);
   DBUG_RETURN(error);
 
 err:

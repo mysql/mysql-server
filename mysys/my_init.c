@@ -96,10 +96,10 @@ my_bool my_basic_init(void)
   if (my_progname)
     my_progname_short= my_progname + dirname_length(my_progname);
 
+#if defined(THREAD)
   /* Initalize our mutex handling */
   my_mutex_init();
 
-#if defined(THREAD)
   if (my_thread_global_init())
     return 1;
 #if defined(HAVE_PTHREAD_INIT)

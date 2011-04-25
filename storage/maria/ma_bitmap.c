@@ -271,7 +271,7 @@ my_bool _ma_bitmap_end(MARIA_SHARE *share)
   pthread_mutex_destroy(&share->bitmap.bitmap_lock);
   pthread_cond_destroy(&share->bitmap.bitmap_cond);
   delete_dynamic(&share->bitmap.pinned_pages);
-  my_free(share->bitmap.map, MYF(MY_ALLOW_ZERO_PTR));
+  my_free(share->bitmap.map);
   share->bitmap.map= 0;
   return res;
 }

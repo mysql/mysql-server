@@ -98,6 +98,7 @@
 #include "debug_sync.h"
 #include "probes_mysql.h"
 #include "set_var.h"
+#include "log_slow.h"
 
 #define FLAGSTR(V,F) ((V)&(F)?#F" ":"")
 
@@ -538,9 +539,9 @@ static void handle_bootstrap_impl(THD *thd)
       }
       buff= (char*) thd->net.buff;
       res= mysql_file_fgets(buff + length, thd->net.max_packet - length, file);
-      if (!res && !feof(file))
+      if (!res && !mysql_file_feof(file))
       {
-        net_end_statement(thd);
+        thd->protocol->end_statement();
         bootstrap_error= 1;
         break;
       }
@@ -1086,10 +1087,6 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
       char *beginning_of_next_stmt= (char*)
         parser_state.m_lip.found_semicolon;
 
-#ifdef WITH_ARIA_STORAGE_ENGINE
-      ha_maria::implicit_commit(thd, FALSE);
-#endif
-
       /*
         Multiple queries exits, execute them individually
       */
@@ -1182,7 +1179,7 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
       break;
     }
     packet= arg_end + 1;
-    mysql_reset_thd_for_next_command(thd);
+    mysql_reset_thd_for_next_command(thd, opt_userstat_running);
     lex_start(thd);
     /* Must be before we init the table list. */
     if (lower_case_table_names)
@@ -1247,6 +1244,7 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
       uint32 slave_server_id;
 
       status_var_increment(thd->status_var.com_other);
+
       thd->enable_slow_log= opt_log_slow_admin_statements;
       thd->query_plan_flags|= QPLAN_ADMIN;
       if (check_global_access(thd, REPL_SLAVE_ACL))
@@ -1346,9 +1344,7 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
   {
     STATUS_VAR *current_global_status_var;      // Big; Don't allocate on stack
     ulong uptime;
-#if defined(SAFEMALLOC) || !defined(EMBEDDED_LIBRARY)
     uint length;
-#endif
     ulonglong queries_per_second1000;
     char buff[250];
     uint buff_len= sizeof(buff);
@@ -1485,6 +1481,8 @@ void log_slow_statement(THD *thd)
 {
   DBUG_ENTER("log_slow_statement");
 
+  thd->update_all_stats();
+
   /*
     The following should never be true with our current code base,
     but better to keep this here so we don't accidently try to log a
@@ -1494,7 +1492,6 @@ void log_slow_statement(THD *thd)
     DBUG_VOID_RETURN;                           // Don't set time for sub stmt
 
   /* Follow the slow log filter configuration. */ 
-  DBUG_ASSERT(thd->variables.log_slow_filter != 0);
   if (!(thd->variables.log_slow_filter & thd->query_plan_flags))
     DBUG_VOID_RETURN; 
  
@@ -2638,7 +2635,6 @@ end_with_restore_list:
   }
 #endif /* HAVE_REPLICATION */
 
-#error set QPLAN_ADMIN somehow universally, not per statement
   case SQLCOM_RENAME_TABLE:
   {
     if (execute_rename_table(thd, first_table, all_tables))
@@ -4345,6 +4341,7 @@ create_sp_error:
   case SQLCOM_REPAIR:
   case SQLCOM_TRUNCATE:
   case SQLCOM_ALTER_TABLE:
+      thd->query_plan_flags|= QPLAN_ADMIN;
       DBUG_ASSERT(first_table == all_tables && first_table != 0);
     /* fall through */
   case SQLCOM_SIGNAL:
@@ -4876,6 +4873,7 @@ check_access(THD *thd, ulong want_access, const char *db, ulong *save_priv,
              (db ? db : (thd->db ?
                          thd->db :
                          "unknown")));
+  }
   DBUG_RETURN(TRUE);
 }
 

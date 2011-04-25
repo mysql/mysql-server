@@ -539,6 +539,11 @@ void Item_sum::update_used_tables ()
       args[i]->update_used_tables();
       used_tables_cache|= args[i]->used_tables();
     }
+
+    used_tables_cache&= PSEUDO_TABLE_BITS;
+
+    /* the aggregate function is aggregated into its local context */
+    used_tables_cache |=  (1 << aggr_sel->join->tables) - 1;
   }
 }
 
@@ -762,7 +767,7 @@ bool Aggregator_distinct::setup(THD *thd)
     if (!(table= create_tmp_table(thd, tmp_table_param, list, (ORDER*) 0, 1,
                                   0,
                                   (select_lex->options | thd->variables.option_bits),
-                                  HA_POS_ERROR, "")))
+                                  HA_POS_ERROR, const_cast<char*>(""))))
       return TRUE;
     table->file->extra(HA_EXTRA_NO_ROWS);		// Don't update rows
     table->no_rows=1;

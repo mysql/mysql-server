@@ -18,7 +18,7 @@
 #include <my_sys.h>
 #include <zlib.h>
 
-ha_checksum my_crc_dbug_check= 1;               /* Unlikely number */
+ulong my_crc_dbug_check= ~0;               /* Cannot happen */
 
 /*
   Calculate a long checksum for a memoryblock.
@@ -34,7 +34,7 @@ ha_checksum my_checksum(ha_checksum crc, const uchar *pos, size_t length)
 {
   crc= (ha_checksum) crc32((uint)crc, pos, (uint) length);
   DBUG_PRINT("info", ("crc: %lu", (ulong) crc));
-  if (crc == my_crc_dbug_check)
+  if ((ulong)crc == my_crc_dbug_check)
     my_debug_put_break_here();
   return crc;
 }

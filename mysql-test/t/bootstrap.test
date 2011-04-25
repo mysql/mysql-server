@@ -7,7 +7,7 @@ drop table if exists t1;
 
 # Add the datadir to the bootstrap command
 let $MYSQLD_DATADIR= `select @@datadir`;
-let $MYSQLD_BOOTSTRAP_CMD= $MYSQLD_BOOTSTRAP_CMD --datadir=$MYSQLD_DATADIR --default-storage-engine=MyISAM --skip-innodb;
+let $MYSQLD_BOOTSTRAP_CMD= $MYSQLD_BOOTSTRAP_CMD --datadir=$MYSQLD_DATADIR --default-storage-engine=MyISAM --loose-skip-innodb;
 #
 # Check that --bootstrap reads from stdin
 #

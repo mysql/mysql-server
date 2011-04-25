@@ -2258,7 +2258,7 @@ Key Start Len Index   Type
 DROP TABLE t1;
 create table t1 (n int not null, c char(1)) transactional=1;
 Warnings:
-Error	1478	Table storage engine 'MyISAM' does not support the create option 'TRANSACTIONAL=1'
+Warning	1478	Table storage engine 'MyISAM' does not support the create option 'TRANSACTIONAL=1'
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (

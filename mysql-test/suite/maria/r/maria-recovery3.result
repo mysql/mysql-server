@@ -1,4 +1,4 @@
-set global aria_log_file_size=4294967295;
+set global aria_log_file_size=4294959104;
 drop database if exists mysqltest;
 create database mysqltest;
 use mysqltest;

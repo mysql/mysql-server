@@ -12,7 +12,6 @@
 #pragma implementation				// gcc: Class implementation
 #endif
 
-#include "mysql_priv.h"
 #include "my_bit.h"
 #include "sql_select.h"
 

@@ -4,7 +4,7 @@
 # can't restart server in embedded
 --source include/not_embedded.inc
 
-set global aria_log_file_size=4294967295;
+set global aria_log_file_size=4294959104;
 
 --disable_warnings
 drop database if exists mysqltest;

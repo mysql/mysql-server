@@ -188,12 +188,12 @@ walk_right_n_up:
           cur->min_key_parts += 
             key_tree->next_key_part->store_min_key(seq->param->key[seq->keyno],
                                                    &cur->min_key,
-                                                   &cur->min_key_flag);
+                                                   &cur->min_key_flag, MAX_KEY);
         if (!key_tree->max_flag)
           cur->max_key_parts += 
             key_tree->next_key_part->store_max_key(seq->param->key[seq->keyno],
                                                    &cur->max_key,
-                                                   &cur->max_key_flag);
+                                                   &cur->max_key_flag, MAX_KEY);
         break;
       }
     }

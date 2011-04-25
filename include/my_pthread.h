@@ -480,8 +480,7 @@ typedef struct st_safe_mutex_info_t
 #endif /* SAFE_MUTEX_DETECT_DESTROY */
 
 int safe_mutex_init(safe_mutex_t *mp, const pthread_mutexattr_t *attr,
-                    const char *name, myf my_flags,
-                    const char *file, uint line);
+                    const char *name, const char *file, uint line);
 int safe_mutex_lock(safe_mutex_t *mp, myf my_flags, const char *file,
                     uint line);
 int safe_mutex_unlock(safe_mutex_t *mp,const char *file, uint line);
@@ -509,10 +508,8 @@ void safe_mutex_free_deadlock_data(safe_mutex_t *mp);
 #undef pthread_cond_wait
 #undef pthread_cond_timedwait
 #undef pthread_mutex_trylock
-#define my_pthread_mutex_init(A,B,C,D) safe_mutex_init((A),(B),(C),(D),__FILE__,__LINE__)
-#define pthread_mutex_init(A,B) safe_mutex_init((A),(B),#A,0,__FILE__,__LINE__)
-#define pthread_mutex_lock(A) safe_mutex_lock((A), 0, __FILE__, __LINE__)
-#define my_pthread_mutex_lock(A,B) safe_mutex_lock((A), (B), __FILE__, __LINE__)
+#define pthread_mutex_init(A,B) safe_mutex_init((A),(B),#A,__FILE__,__LINE__)
+#define pthread_mutex_lock(A) safe_mutex_lock((A),0,__FILE__, __LINE__)
 #define pthread_mutex_unlock(A) safe_mutex_unlock((A),__FILE__,__LINE__)
 #define pthread_mutex_destroy(A) safe_mutex_destroy((A),__FILE__,__LINE__)
 #define pthread_cond_wait(A,B) safe_cond_wait((A),(B),__FILE__,__LINE__)
@@ -527,7 +524,6 @@ void safe_mutex_free_deadlock_data(safe_mutex_t *mp);
                       ! pthread_equal(pthread_self(), (mp)->thread))
 #else
 #define my_pthread_mutex_init(A,B,C,D) pthread_mutex_init((A),(B))
-#define my_pthread_mutex_lock(A,B) pthread_mutex_lock(A)
 #define safe_mutex_assert_owner(mp)    do {} while(0)
 #define safe_mutex_assert_not_owner(mp) do {} while(0)
 #define safe_mutex_free_deadlock_data(mp) do {} while(0)
@@ -767,11 +763,9 @@ struct st_my_thread_var
   my_bool init;
   struct st_my_thread_var *next,**prev;
   void *opt_info;
-  //uint  lock_type; /* used by conditional release the queue */
+  uint  lock_type; /* used by conditional release the queue */
   void  *stack_ends_here;
   safe_mutex_t *mutex_in_use;
-  void (*scheduler_before_lock_wait)(void);
-  void (*scheduler_after_lock_wait)(void);
 #ifndef DBUG_OFF
   void *dbug;
   char name[THREAD_NAME_SIZE+1];

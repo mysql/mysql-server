@@ -880,6 +880,7 @@ typedef long long	my_ptrdiff_t;
 #define ALIGN_PTR(A, t) ((t*) MY_ALIGN((A), sizeof(double)))
 #define ADD_TO_PTR(ptr,size,type) (type) ((uchar*) (ptr)+size)
 #define PTR_BYTE_DIFF(A,B) (my_ptrdiff_t) ((uchar*) (A) - (uchar*) (B))
+#define PREV_BITS(type,A)	((type) (((type) 1 << (A)) -1))
 
 /*
   Custom version of standard offsetof() macro which can be used to get
@@ -1006,6 +1007,10 @@ typedef unsigned long my_off_t;
  */
 typedef ulonglong table_map;          /* Used for table bits in join */
 typedef ulong nesting_map;  /* Used for flags of nesting constructs */
+
+/* often used type names - opaque declarations */
+typedef const struct charset_info_st CHARSET_INFO;
+typedef struct st_mysql_lex_string LEX_STRING;
 
 #if defined(__WIN__)
 #define socket_errno	WSAGetLastError()
@@ -1443,6 +1448,8 @@ do { doubleget_union _tmp; \
 #define max(a, b)	((a) > (b) ? (a) : (b))
 #define min(a, b)	((a) < (b) ? (a) : (b))
 #endif  
+
+#define CMP_NUM(a,b)    (((a) < (b)) ? -1 : ((a) == (b)) ? 0 : 1)
 
 /*
   Only Linux is known to need an explicit sync of the directory to make sure a

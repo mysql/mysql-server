@@ -1,6 +1,5 @@
 #ifndef HANDLER_INCLUDED
 #define HANDLER_INCLUDED
-#error don't forget to merge mysql_priv.h!
 /* Copyright 2000-2008 MySQL AB, 2008-2009 Sun Microsystems, Inc.
 
    This program is free software; you can redistribute it and/or modify
@@ -577,10 +576,10 @@ enum enum_schema_tables
   SCH_PARAMETERS,
   SCH_PARTITIONS,
   SCH_PLUGINS,
-  SCH_PROCEDURES,
   SCH_PROCESSLIST,
   SCH_PROFILES,
   SCH_REFERENTIAL_CONSTRAINTS,
+  SCH_PROCEDURES,
   SCH_SCHEMATA,
   SCH_SCHEMA_PRIVILEGES,
   SCH_SESSION_STATUS,
@@ -2263,6 +2262,7 @@ public:
     @retval
       TRUE    if the engine supports virtual columns
   */
+
   virtual bool check_if_supported_virtual_columns(void) { return FALSE;}
 
 protected:
@@ -2567,7 +2567,7 @@ int ha_find_files(THD *thd,const char *db,const char *path,
 int ha_table_exists_in_engine(THD* thd, const char* db, const char* name);
 
 /* key cache */
-extern "C" int ha_init_key_cache(const char *name, KEY_CACHE *key_cache);
+extern "C" int ha_init_key_cache(const char *name, KEY_CACHE *key_cache, void *);
 int ha_resize_key_cache(KEY_CACHE *key_cache);
 int ha_change_key_cache_param(KEY_CACHE *key_cache);
 int ha_repartition_key_cache(KEY_CACHE *key_cache);

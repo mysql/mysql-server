@@ -36,7 +36,7 @@
 #include <mysys/thr_lock.h>
 #include <drizzled/dtcollation.h>
 #else
-#include "mysql_priv.h"
+//#include "mysql_priv.h"
 #endif
 
 #include "table_xt.h"

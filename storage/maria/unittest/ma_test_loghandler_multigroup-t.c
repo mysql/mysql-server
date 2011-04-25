@@ -178,7 +178,7 @@ static void usage(void)
   puts("and you are welcome to modify and redistribute it under the GPL license\n");
 
   puts("Unit test of maria engine");
-  VOID(printf("\nUsage: %s [OPTIONS]\n", my_progname_short));
+  printf("\nUsage: %s [OPTIONS]\n", my_progname_short);
   my_print_help(my_long_options);
   print_defaults("my", load_default_groups);
   my_print_variables(my_long_options);
@@ -744,3 +744,5 @@ err:
 
   return (test(exit_status()));
 }
+
+#include "../ma_check_standalone.h"

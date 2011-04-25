@@ -191,10 +191,7 @@ typedef struct st_mi_isam_share
                         const uchar *record, my_off_t pos);
     size_t (*file_read) (MI_INFO *, uchar *, size_t, my_off_t, myf);
     size_t (*file_write) (MI_INFO *, const uchar *, size_t, my_off_t, myf);
-  /* query cache invalidator for merged tables */
-  invalidator_by_filename invalidator;
-  /* query cache invalidator for changing state */
-  invalidator_by_filename chst_invalidator;
+  invalidator_by_filename invalidator;  /* query cache invalidator */
   ulong this_process;                   /* processid */
   ulong last_process;                   /* For table-change-check */
   ulong last_version;                   /* Version on start */

@@ -27,13 +27,14 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 */
 
 
-/*#define MYSQL_SERVER 1*/
-#include "mysql_priv.h"
+#define MYSQL_SERVER 1
+#include "sql_priv.h"
 #include <mysql/plugin.h>
 
 #include "ha_federatedx.h"
 
 #include "m_string.h"
+#include "sql_servers.h"
 
 #ifdef USE_PRAGMA_IMPLEMENTATION
 #pragma implementation                          // gcc: Class implementation
@@ -420,7 +421,7 @@ int federatedx_io_mysql::actual_query(const char *buffer, uint length)
   int error;
   DBUG_ENTER("federatedx_io_mysql::actual_query");
 
-  if (!mysql.master)
+  if (!mysql.net.vio)
   {
     if (!(mysql_init(&mysql)))
     DBUG_RETURN(-1);
@@ -463,7 +464,7 @@ my_ulonglong federatedx_io_mysql::affected_rows() const
 
 my_ulonglong federatedx_io_mysql::last_insert_id() const
 {
-  return mysql.last_used_con->insert_id;
+  return mysql.insert_id;
 }
 
 

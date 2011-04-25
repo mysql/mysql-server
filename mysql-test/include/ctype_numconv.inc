@@ -1,3 +1,5 @@
+SET TIME_ZONE = _latin1 '+03:00';
+
 --echo #
 --echo # Start of WL#2649 Number-to-string conversions
 --echo #

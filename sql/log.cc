@@ -38,6 +38,7 @@
 #include "rpl_filter.h"
 #include "rpl_rli.h"
 #include "sql_audit.h"
+#include "log_slow.h"
 
 #include <my_dir.h>
 #include <stdarg.h>
@@ -921,13 +922,6 @@ void Log_to_file_event_handler::flush()
     mysql_slow_log.reopen_file();
 }
 
-void Log_to_file_event_handler::flush_slow_log()
-{
-  /* reopen slow log file */
-  if (opt_slow_log)
-    mysql_slow_log.reopen_file();
-}
-
 /*
   Log error with all enabled log event handlers
 
@@ -1031,24 +1025,6 @@ bool LOGGER::flush_logs(THD *thd)
 
   /* reopen log files */
   file_log_handler->flush();
-
-  /* end of log flush */
-  logger.unlock();
-  return 0;
-}
-
-
-#error remove percona's flush log implementation
-bool LOGGER::flush_slow_log(THD *thd)
-{
-  /*
-    Now we lock logger, as nobody should be able to use logging routines while
-    log tables are closed
-  */
-  logger.lock_exclusive();
-
-  /* reopen log files */
-  file_log_handler->flush_slow_log();
 
   /* end of log flush */
   logger.unlock();
@@ -4748,11 +4724,11 @@ bool MYSQL_BIN_LOG::write(Log_event *event_info)
 #endif /* HAVE_REPLICATION */
 
     IO_CACHE *file= NULL;
-    my_org_b_tell= my_b_tell(file);
 
     if (event_info->use_direct_logging())
     {
       file= &log_file;
+      my_org_b_tell= my_b_tell(file);
       mysql_mutex_lock(&LOCK_log);
     }
     else
@@ -4842,9 +4818,6 @@ bool MYSQL_BIN_LOG::write(Log_event *event_info)
         DBUG_EVALUATE_IF("injecting_fault_writing", 1, 0))
       goto err;
 
-    status_var_add(thd->status_var.binlog_bytes_written,
-                   my_b_tell(file) - my_org_b_tell);
-
     error= 0;
 
 err:
@@ -4853,8 +4826,12 @@ err:
       if (!error)
       {
         bool synced;
+
         if ((error= flush_and_sync(&synced)))
           goto unlock;
+
+        status_var_add(thd->status_var.binlog_bytes_written,
+                       my_b_tell(file) - my_org_b_tell);
 
         if ((error= RUN_HOOK(binlog_storage, after_flush,
                  (thd, log_file_name, file->pos_in_file, synced))))
@@ -5966,7 +5943,7 @@ void TC_LOG_MMAP::get_active_from_pool()
   }
   while ((*best_p == 0 || best_free == 0) && overflow());
 
-  safe_mutex_assert_owner(&LOCK_active);
+  mysql_mutex_assert_owner(&LOCK_active);
   active=*best_p;
 
   if ((*best_p)->next)              // unlink the page from the pool

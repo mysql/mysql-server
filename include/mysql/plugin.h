@@ -591,7 +591,7 @@ char *thd_security_context(MYSQL_THD thd, char *buffer, unsigned int length,
 void thd_inc_row_count(MYSQL_THD thd);
 
 #define thd_proc_info(thd, msg)  set_thd_proc_info(thd, msg, __func__, __FILE__, __LINE__)
-const char *set_thd_proc_info(MYSQL_THD, const char * info, const char *func,
+const char *set_thd_proc_info(void *, const char * info, const char *func,
                               const char *file, const unsigned int line);
 
 /**

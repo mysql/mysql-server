@@ -44,18 +44,12 @@
                      // mysql_user_table_is_in_short_password_format
 #include "derror.h"  // read_texts
 #include "sql_base.h"                           // close_cached_tables
+#include <myisam.h>
+#include "log_slow.h"
 
 #ifdef WITH_PERFSCHEMA_STORAGE_ENGINE
 #include "../storage/perfschema/pfs_server.h"
 #endif /* WITH_PERFSCHEMA_STORAGE_ENGINE */
-
-/*
-  This forward declaration is needed because including sql_base.h
-  causes further includes.  [TODO] Eliminate this forward declaration
-  and include a file with the prototype instead.
-*/
-extern void close_thread_tables(THD *thd);
-#warning remove that
 
 /*
   The rule for this file: everything should be 'static'. When a sys_var
@@ -70,7 +64,6 @@ extern void close_thread_tables(THD *thd);
 #define PFS_TRAILING_PROPERTIES \
   NO_MUTEX_GUARD, NOT_IN_BINLOG, ON_CHECK(NULL), ON_UPDATE(NULL), \
   0, NULL, sys_var::PARSE_EARLY
-#warning move PARSE_EARLY where it belongs
 
 static Sys_var_mybool Sys_pfs_enabled(
        "performance_schema",
@@ -399,7 +392,7 @@ static bool check_charset(sys_var *self, THD *thd, set_var *var)
     else if (!(var->save_result.ptr= get_charset_by_csname(res->c_ptr(),
                                                            MY_CS_PRIMARY,
                                                            MYF(0))) &&
-             !(var->save_result.ptr= get_old_charset_by_name(res->c_ptr())))
+             !(var->save_result.ptr=get_old_charset_by_name(res->c_ptr())))
     {
       ErrConvString err(res);
       my_error(ER_UNKNOWN_CHARACTER_SET, MYF(0), err.ptr());
@@ -1685,7 +1678,7 @@ static Sys_var_ulong Sys_trans_prealloc_size(
 static const char *thread_handling_names[]=
 {
   "one-thread-per-connection", "no-threads",
-#if HAVE_POOL_OF_THREADS == 1
+#ifdef HAVE_POOL_OF_THREADS
   "pool-of-threads",
 #endif
   0
@@ -1693,9 +1686,9 @@ static const char *thread_handling_names[]=
 static Sys_var_enum Sys_thread_handling(
        "thread_handling",
        "Define threads usage for handling queries, one of "
-       "one-thread-per-connection, no-threads, "
-#if HAVE_POOL_OF_THREADS == 1
-       "pool-of-threads"
+       "one-thread-per-connection, no-threads"
+#ifdef HAVE_POOL_OF_THREADS
+       ", pool-of-threads"
 #endif
        , READ_ONLY GLOBAL_VAR(thread_handling), CMD_LINE(REQUIRED_ARG),
        thread_handling_names, DEFAULT(0));
@@ -2024,7 +2017,7 @@ static Sys_var_ulong Sys_thread_cache_size(
        GLOBAL_VAR(thread_cache_size), CMD_LINE(REQUIRED_ARG),
        VALID_RANGE(0, 16384), DEFAULT(0), BLOCK_SIZE(1));
 
-#if HAVE_POOL_OF_THREADS == 1
+#ifdef HAVE_POOL_OF_THREADS
 static Sys_var_ulong Sys_thread_pool_size(
        "thread_pool_size",
        "How many threads we should create to handle query requests in "
@@ -3125,13 +3118,13 @@ static Sys_var_tz Sys_time_zone(
        SESSION_VAR(time_zone), NO_CMD_LINE,
        DEFAULT(&default_tz), NO_MUTEX_GUARD, IN_BINLOG);
 
-const char *plugin_maturity_names[]=
+export const char *plugin_maturity_names[]=
 { "unknown", "experimental", "alpha", "beta", "gamma", "stable", 0 };
 static Sys_var_enum Sys_plugin_maturity(
        "plugin_maturity",
        "The lowest desirable plugin maturity. Plugins less mature than "
        "that will not be installed or loaded.",
-       READ_ONLY GLOBAL_VAR(server_maturity), CMD_LINE(REQUIRED_ARG),
+       READ_ONLY GLOBAL_VAR(plugin_maturity), CMD_LINE(REQUIRED_ARG),
        plugin_maturity_names, DEFAULT(MariaDB_PLUGIN_MATURITY_UNKNOWN));
 
 static Sys_var_ulong Sys_deadlock_search_depth_short(
@@ -3172,7 +3165,6 @@ static Sys_var_uint Sys_extra_port(
        "one-thread-per-connection manner. 0 means don't use another port",
        READ_ONLY GLOBAL_VAR(mysqld_extra_port), CMD_LINE(REQUIRED_ARG),
        VALID_RANGE(0, UINT_MAX32), DEFAULT(0), BLOCK_SIZE(1));
-#warning generalize that
 
 static Sys_var_ulong Sys_extra_max_connections(
        "extra_max_connections", "The number of connections on extra-port",
@@ -3207,8 +3199,8 @@ static Sys_var_set Sys_log_slow_filter(
        "slave, filesort, filesort_on_disk, full_join, full_scan, query_cache, "
        "query_cache_miss, tmp_table, tmp_table_on_disk",
        SESSION_VAR(log_slow_filter), CMD_LINE(REQUIRED_ARG),
-       log_slow_filter_names, DEFAULT(QPLAN_ALWAYS_SET));
-#warning fix log-slow-slave-statements and log-slow-admin-statements
+       log_slow_filter_names,
+       DEFAULT(MAX_SET(array_elements(log_slow_filter_names)-1)));
 
 static Sys_var_ulong Sys_log_slow_rate_limit(
        "log_slow_rate_limit",
@@ -3222,7 +3214,7 @@ static const char *log_slow_verbosity_names[]= { "innodb", "query_plan", 0 };
 static Sys_var_set Sys_log_slow_verbosity(
        "log_slow_verbosity",
        "log-slow-verbosity=[value[,value ...]] where value is one of "
-       "'innodb', 'query_plan'"
+       "'innodb', 'query_plan'",
        SESSION_VAR(log_slow_verbosity), CMD_LINE(REQUIRED_ARG),
        log_slow_verbosity_names, DEFAULT(LOG_SLOW_VERBOSITY_INIT));
 
@@ -3233,6 +3225,15 @@ static Sys_var_ulong Sys_join_cache_level(
        "for linked buffers",
        SESSION_VAR(join_cache_level), CMD_LINE(REQUIRED_ARG),
        VALID_RANGE(0, 8), DEFAULT(1), BLOCK_SIZE(1));
+
+static const char *optimizer_use_mrr_names[]= {"auto", "force", "disable", 0};
+static Sys_var_enum Sys_optimizer_use_mrr(
+       "optimizer_use_mrr", "Whether the server should use "
+       "multi-read-range optimization when resolving queries, "
+       "one of AUTO (as appropriate), FORCE (always where applicable), "
+       "DISABLE (never)",
+       SESSION_VAR(optimizer_use_mrr), CMD_LINE(REQUIRED_ARG),
+       optimizer_use_mrr_names, DEFAULT(1));
 
 static Sys_var_ulong Sys_mrr_buffer_size(
        "mrr_buffer_size",
@@ -3249,7 +3250,7 @@ static Sys_var_ulong Sys_rowid_merge_buff_size(
        "rowid_merge_buff_size",
        "The size of the buffers used [NOT] IN evaluation via partial matching",
        SESSION_VAR(rowid_merge_buff_size), CMD_LINE(REQUIRED_ARG),
-       VALID_RANGE(0, MAX_MEM_TABLE_SIZE/2), DEFAULT(8*1024*1024),
+       VALID_RANGE(0, ((ulonglong)~(intptr)0)/2), DEFAULT(8*1024*1024),
        BLOCK_SIZE(1));
 
 static Sys_var_mybool Sys_userstat(
@@ -3257,4 +3258,4 @@ static Sys_var_mybool Sys_userstat(
        "Enables statistics gathering for USER_STATISTICS, CLIENT_STATISTICS, "
        "INDEX_STATISTICS and TABLE_STATISTICS tables in the INFORMATION_SCHEMA",
        GLOBAL_VAR(opt_userstat_running),
-       CMD_LINE(OPT_ARG), DEFAULT(TRUE));
+       CMD_LINE(OPT_ARG), DEFAULT(FALSE));

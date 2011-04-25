@@ -541,7 +541,7 @@ void lockman_destroy(LOCKMAN *lm)
     if (el->hashnr & 1)
       lf_alloc_direct_free(&lm->alloc, el);
     else
-      my_free((void *)el, MYF(0));
+      my_free((void *)el);
     el= (LOCK *)next;
   }
   lf_alloc_destroy(&lm->alloc);
@@ -571,7 +571,7 @@ static void initialize_bucket(LOCKMAN *lm, LOCK * volatile *node,
   DBUG_ASSERT(res & (ALREADY_HAVE_THE_LOCK | RESOURCE_WAS_UNLOCKED));
   if (res & ALREADY_HAVE_THE_LOCK)
   {
-    my_free((void *)dummy, MYF(0));
+    my_free((void *)dummy);
     dummy= cur;
   }
   my_atomic_casptr((void **)node, (void **)(char*) &tmp, dummy);

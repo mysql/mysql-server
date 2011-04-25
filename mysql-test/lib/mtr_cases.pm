@@ -982,6 +982,17 @@ sub collect_one_test_case {
     }
   }
 
+  if ( $tinfo->{'need_ipv6'} )
+  {
+    # This is a test that needs ssl
+    if ( ! $::have_ipv6 ) {
+      # IPv6 is not supported, skip it
+      $tinfo->{'skip'}= 1;
+      $tinfo->{'comment'}= "No IPv6";
+      return $tinfo;
+    }
+  }
+
   # ----------------------------------------------------------------------
   # Find config file to use if not already selected in <testname>.opt file
   # ----------------------------------------------------------------------
@@ -1075,6 +1086,7 @@ my @tags=
  ["include/have_example_plugin.inc", "example_plugin_test", 1],
  ["include/have_oqgraph_engine.inc", "oqgraph_test", 1],
  ["include/have_ssl.inc", "need_ssl", 1],
+ ["include/check_ipv6.inc", "need_ipv6", 1],
 );
 
 

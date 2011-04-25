@@ -1,4 +1,4 @@
-#include "mysql_priv.h"
+#include "sql_parse.h"
 #include "sql_select.h"
 
 /****************************************************************************

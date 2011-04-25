@@ -82,14 +82,15 @@ master-bin.000005	#
 master-bin.000006	#
 master-bin.000007	#
 master-bin.000008	#
+master-bin.000009	#
 show master status;
 File	Position	Binlog_Do_DB	Binlog_Ignore_DB
-master-bin.000008	#	<Binlog_Do_DB>	<Binlog_Ignore_DB>
+master-bin.000009	#	<Binlog_Do_DB>	<Binlog_Ignore_DB>
 select * from t4;
 a
 testing temporary tables part 2
-Master_Log_File	master-bin.000008
-Relay_Master_Log_File	master-bin.000008
+Master_Log_File	master-bin.000009
+Relay_Master_Log_File	master-bin.000009
 Checking that both slave threads are running.
 lock tables t3 read;
 select count(*) from t3 where n >= 4;

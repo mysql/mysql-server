@@ -1,0 +1,43 @@
+# ulong global
+--source include/have_maria.inc
+
+SET @start_global_value = @@global.aria_pagecache_division_limit;
+
+#
+# exists as global only
+#
+select @@global.aria_pagecache_division_limit;
+--error ER_INCORRECT_GLOBAL_LOCAL_VAR
+select @@session.aria_pagecache_division_limit;
+show global variables like 'aria_pagecache_division_limit';
+show session variables like 'aria_pagecache_division_limit';
+select * from information_schema.global_variables where variable_name='aria_pagecache_division_limit';
+select * from information_schema.session_variables where variable_name='aria_pagecache_division_limit';
+
+#
+# show that it's writable
+#
+set global aria_pagecache_division_limit=20;
+select @@global.aria_pagecache_division_limit;
+--error ER_GLOBAL_VARIABLE
+set session aria_pagecache_division_limit=1;
+
+#
+# incorrect types
+#
+--error ER_WRONG_TYPE_FOR_VAR
+set global aria_pagecache_division_limit=1.1;
+--error ER_WRONG_TYPE_FOR_VAR
+set global aria_pagecache_division_limit=1e1;
+--error ER_WRONG_TYPE_FOR_VAR
+set global aria_pagecache_division_limit="foo";
+
+#
+# min/max values, block size
+#
+set global aria_pagecache_division_limit=0;
+select @@global.aria_pagecache_division_limit;
+set global aria_pagecache_division_limit=cast(-1 as unsigned int);
+select @@global.aria_pagecache_division_limit;
+
+SET @@global.aria_pagecache_division_limit = @start_global_value;

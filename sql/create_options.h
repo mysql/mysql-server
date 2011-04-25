@@ -22,7 +22,8 @@
 #ifndef SQL_CREATE_OPTIONS_INCLUDED
 #define SQL_CREATE_OPTIONS_INCLUDED
 
-#include "handler.h"
+#include "sql_class.h"
+//#include "handler.h"
 
 class engine_option_value: public Sql_alloc
 {

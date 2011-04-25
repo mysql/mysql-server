@@ -30,7 +30,6 @@ typedef struct st_ha_create_information HA_CREATE_INFO;
 typedef struct st_key KEY;
 typedef struct st_key_cache KEY_CACHE;
 typedef struct st_lock_param_type ALTER_PARTITION_PARAM_TYPE;
-typedef struct st_mysql_lex_string LEX_STRING;
 typedef struct st_order ORDER;
 class Alter_table_change_level;
 

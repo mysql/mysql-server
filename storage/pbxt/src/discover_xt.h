@@ -26,7 +26,8 @@
 #ifdef DRIZZLED
 #include <drizzled/common.h>
 #else
-#include "mysql_priv.h"
+//#include "mysql_priv.h"
+#include <mysql_com.h>
 #endif
 
 /*

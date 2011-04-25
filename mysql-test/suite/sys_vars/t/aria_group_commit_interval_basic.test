@@ -1,0 +1,43 @@
+# ulong global
+--source include/have_maria.inc
+
+SET @start_global_value = @@global.aria_group_commit_interval;
+
+#
+# exists as global only
+#
+select @@global.aria_group_commit_interval;
+--error ER_INCORRECT_GLOBAL_LOCAL_VAR
+select @@session.aria_group_commit_interval;
+show global variables like 'aria_group_commit_interval';
+show session variables like 'aria_group_commit_interval';
+select * from information_schema.global_variables where variable_name='aria_group_commit_interval';
+select * from information_schema.session_variables where variable_name='aria_group_commit_interval';
+
+#
+# show that it's writable
+#
+set global aria_group_commit_interval=1;
+select @@global.aria_group_commit_interval;
+--error ER_GLOBAL_VARIABLE
+set session aria_group_commit_interval=1;
+
+#
+# incorrect types
+#
+--error ER_WRONG_TYPE_FOR_VAR
+set global aria_group_commit_interval=1.1;
+--error ER_WRONG_TYPE_FOR_VAR
+set global aria_group_commit_interval=1e1;
+--error ER_WRONG_TYPE_FOR_VAR
+set global aria_group_commit_interval="foo";
+
+#
+# min/max values
+#
+set global aria_group_commit_interval=0;
+select @@global.aria_group_commit_interval;
+set global aria_group_commit_interval=cast(-1 as unsigned int);
+select @@global.aria_group_commit_interval;
+
+SET @@global.aria_group_commit_interval = @start_global_value;

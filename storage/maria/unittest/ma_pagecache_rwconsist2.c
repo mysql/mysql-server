@@ -166,7 +166,7 @@ static void *test_thread_reader(void *arg)
     pthread_mutex_lock(&LOCK_thread_count);
     ok(1, "reader%d: done", param);
     thread_count--;
-    VOID(pthread_cond_signal(&COND_thread_count)); /* Tell main we are ready */
+    pthread_cond_signal(&COND_thread_count); /* Tell main we are ready */
     pthread_mutex_unlock(&LOCK_thread_count);
     free((uchar*) arg);
     my_thread_end();
@@ -188,7 +188,7 @@ static void *test_thread_writer(void *arg)
     pthread_mutex_lock(&LOCK_thread_count);
     ok(1, "writer%d: done", param);
     thread_count--;
-    VOID(pthread_cond_signal(&COND_thread_count)); /* Tell main we are ready */
+    pthread_cond_signal(&COND_thread_count); /* Tell main we are ready */
     pthread_mutex_unlock(&LOCK_thread_count);
     free((uchar*) arg);
     my_thread_end();
@@ -268,7 +268,7 @@ int main(int argc __attribute__((unused)),
   }
 
 #ifdef HAVE_THR_SETCONCURRENCY
-  VOID(thr_setconcurrency(2));
+  thr_setconcurrency(2);
 #endif
 
   if ((pagen= init_pagecache(&pagecache, PCACHE_SIZE, 0, 0,
@@ -356,3 +356,5 @@ int main(int argc __attribute__((unused)),
   return exit_status();
   }
 }
+
+#include "../ma_check_standalone.h"

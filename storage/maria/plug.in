@@ -14,6 +14,6 @@ AC_ARG_WITH(aria-tmp-tables,
 
 if test "$with_aria_tmp_tables" = "yes"
 then
-  AC_DEFINE([USE_MARIA_FOR_TMP_TABLES], [1], [Aria is used for internal temporary tables])
+  AC_DEFINE([USE_ARIA_FOR_TMP_TABLES], [1], [Aria is used for internal temporary tables])
 fi
 ])

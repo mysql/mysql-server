@@ -221,7 +221,7 @@ static void load_env_plugins(MYSQL *mysql)
     plugs= s + 1;
   } while (s);
 
-  my_free(free_env, MYF(0));
+  my_free(free_env);
 }
 
 /********** extern functions to be used by libmysql *********************/

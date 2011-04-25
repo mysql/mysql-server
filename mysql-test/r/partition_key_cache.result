@@ -52,7 +52,7 @@ SELECT COUNT(b) FROM t1 WHERE b >= 0;
 COUNT(b)
 2048
 Zero key reads?
-No!
+Yes!
 INSERT t2 SELECT a,b,c FROM t1;
 reads vs requests
 reads == requests
@@ -63,7 +63,7 @@ SELECT COUNT(b) FROM t2 WHERE b >= 0;
 COUNT(b)
 2048
 Zero key reads?
-No!
+Yes!
 FLUSH TABLES;
 # Setting the default key cache to 1M
 SET GLOBAL key_buffer_size = 1024*1024;

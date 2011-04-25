@@ -1,0 +1,46 @@
+# enum session
+--source include/have_maria.inc
+
+SET @start_global_value = @@global.aria_stats_method;
+
+#
+# exists as global only
+#
+select @@global.aria_stats_method;
+select @@session.aria_stats_method;
+show global variables like 'aria_stats_method';
+show session variables like 'aria_stats_method';
+select * from information_schema.global_variables where variable_name='aria_stats_method';
+select * from information_schema.session_variables where variable_name='aria_stats_method';
+
+#
+# show that it's writable
+#
+set global aria_stats_method=1;
+select @@global.aria_stats_method;
+set session aria_stats_method=1;
+select @@session.aria_stats_method;
+
+#
+# all valid values
+#
+set session aria_stats_method=nulls_unequal;
+select @@session.aria_stats_method;
+set session aria_stats_method=nulls_equal;
+select @@session.aria_stats_method;
+set session aria_stats_method=nulls_ignored;
+select @@session.aria_stats_method;
+
+#
+# incorrect types/values
+#
+--error ER_WRONG_TYPE_FOR_VAR
+set session aria_stats_method=1.1;
+--error ER_WRONG_TYPE_FOR_VAR
+set session aria_stats_method=1e1;
+--error ER_WRONG_VALUE_FOR_VAR
+set session aria_stats_method="foo";
+--error ER_WRONG_VALUE_FOR_VAR
+set session aria_stats_method=3;
+
+SET @@global.aria_stats_method = @start_global_value;

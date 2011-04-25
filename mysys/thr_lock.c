@@ -117,26 +117,16 @@ static inline mysql_cond_t *get_cond(void)
   return &my_thread_var->suspend;
 }
 
+static inline int LOCK_CMP(THR_LOCK_DATA *a, THR_LOCK_DATA *b)
+{
+  if (a->lock != b->lock)
+    return a->lock < b->lock;
 
-/*
-  Priority for locks (decides in which order locks are locked)
-  We want all write locks to be first, followed by read locks.
-  Locks from MERGE tables has a little lower priority than other
-  locks, to allow one to release merge tables without having
-  to unlock and re-lock other locks.
-  The lower the number, the higher the priority for the lock.
-  Read locks should have 4, write locks should have 0.
-  UNLOCK is 8, to force these last in thr_merge_locks.
-  For MERGE tables we add 2 (THR_LOCK_MERGE_PRIV) to the lock priority.
-  THR_LOCK_LATE_PRIV (1) is used when one locks other tables to be merged
-  with existing locks. This way we prioritize the original locks over the
-  new locks.
-*/
+  if (a->type != b->type)
+    return a->type > b->type;
 
-static uint lock_priority[(uint)TL_WRITE_ONLY+1] =
-{ 8, 4, 4, 4, 4, 4, 0, 0, 0, 0, 0, 0, 0, 0};
-
-#define LOCK_CMP(A,B) ((uchar*) ((A)->lock) + lock_priority[(uint) (A)->type] + (A)->priority < (uchar*) ((B)->lock) + lock_priority[(uint) (B)->type] + (B)->priority)
+  return a->priority < b->priority;
+}
 
 
 /*

@@ -40,6 +40,7 @@
                                        // find_item_in_list,
                                        // RESOLVED_AGAINST_ALIAS, ...
 #include "log_event.h"                 // append_query_string
+#include "sql_expression_cache.h"
 
 const String my_null_string("NULL", 4, default_charset_info);
 
@@ -432,7 +433,7 @@ Item::Item():
   maybe_null=null_value=with_sum_func=unsigned_flag=0;
   decimals= 0; max_length= 0;
   with_subselect= 0;
-  cmp_context= IMPOSSIBLE_RESULT;
+  cmp_context= (Item_result)-1;
 
   /* Put item in free list so that we can free all items at end */
   THD *thd= current_thd;
@@ -6931,7 +6932,6 @@ Item_cache_wrapper::~Item_cache_wrapper()
   /* expr_value is Item so it will be destroyed from list of Items */
 }
 
-
 Item_cache_wrapper::Item_cache_wrapper(Item *item_arg)
 :orig_item(item_arg), expr_cache(NULL), expr_value(NULL)
 {
@@ -6979,6 +6979,12 @@ bool Item_cache_wrapper::fix_fields(THD *thd  __attribute__((unused)),
   return FALSE;
 }
 
+bool Item_cache_wrapper::send(Protocol *protocol, String *buffer)
+{
+  if (result_field)
+    return protocol->store(result_field);
+  return Item::send(protocol, buffer);
+}
 
 /**
   Clean the expression cache wrapper up before reusing it.
@@ -8201,7 +8207,7 @@ String *Item_cache_datetime::val_str(String *str)
     else if (!cache_value())
       return NULL;
   }
-  return &str_value;
+  return null_value ? NULL : &str_value;
 }
 
 

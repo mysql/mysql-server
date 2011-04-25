@@ -1407,7 +1407,9 @@ drop function if exists t1_max;
 drop function if exists t1_min;
 --enable_warnings
 
+--disable_warnings
 create table t1 (a int) engine=innodb;
+--enable_warnings
 insert into t1(a) values (0), (1);
 create function t1_max() returns int return (select max(a) from t1);
 create function t1_min() returns int return (select min(a) from t1);

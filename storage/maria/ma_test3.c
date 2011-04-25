@@ -15,7 +15,7 @@
 
 /* Test av locking */
 
-#if !(defined (__NETWARE_) || defined (_WIN32)) /*no fork() in Windows*/
+#ifndef _WIN32 /*no fork() in Windows*/
 
 #include "maria.h"
 #include <sys/types.h>
@@ -114,7 +114,7 @@ int main(int argc,char **argv)
       sleep(1);
       return 0;
     }
-    VOID(rnd(1));
+    rnd(1);
   }
 
   for (i=0 ; i < forks ; i++)
@@ -460,7 +460,7 @@ int test_update(MARIA_HA *file,int id,int lock_type)
 	}
       }
     }
-    memcpy_fixed(new_record.id,record.id,sizeof(record.id));
+    memcpy(new_record.id,record.id,sizeof(record.id));
     tmp=rnd(20000)+40000;
     int4store(new_record.nr,tmp);
     if (!maria_update(file,record.id,new_record.id))
@@ -488,14 +488,17 @@ int test_update(MARIA_HA *file,int id,int lock_type)
   return 0;
 }
 
-#else /* __NETWARE__ || __WIN__ */
+#include "ma_check_standalone.h"
+
+#else /* _WIN32 */
 
 #include <stdio.h>
 
 int main()
 {
-	fprintf(stderr,"this test has not been ported to Netware or Windows\n");
+	fprintf(stderr,"this test has not been ported to Windows\n");
 	return 0;
 }
 
-#endif /* __NETWARE__|| __WIN__ */
+#endif /* _WIN32 */
+

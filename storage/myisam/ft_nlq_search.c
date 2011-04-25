@@ -199,14 +199,12 @@ static int walk_and_push(FT_SUPERDOC *from,
 static int FT_DOC_cmp(void *unused __attribute__((unused)),
                       FT_DOC *a, FT_DOC *b)
 {
-  double c= b->weight - a->weight;
-  return ((c < 0) ? -1 : (c > 0) ? 1 : 0);
+  return CMP_NUM(b->weight, a->weight);
 }
 
 
 FT_INFO *ft_init_nlq_search(MI_INFO *info, uint keynr, uchar *query,
-			    mysql_ft_size_t query_len, uint flags,
-                            uchar *record)
+			    uint query_len, uint flags, uchar *record)
 {
   TREE	      wtree;
   ALL_IN_ONE  aio;

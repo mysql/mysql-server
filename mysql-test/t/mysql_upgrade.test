@@ -103,5 +103,5 @@ DROP USER 'user3'@'%';
 # Test the --upgrade-system-tables option
 #
 --replace_result $MYSQLTEST_VARDIR var
---exec $MYSQL_UPGRADE --skip-verbose --upgrade-system-tables
+--exec $MYSQL_UPGRADE --force --upgrade-system-tables
 

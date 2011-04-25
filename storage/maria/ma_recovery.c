@@ -55,7 +55,7 @@ static my_bool in_redo_phase;
 static my_bool trns_created;
 static ulong skipped_undo_phase;
 static ulonglong now; /**< for tracking execution time of phases */
-static int (*save_error_handler_hook)(uint, const char *,myf);
+static void (*save_error_handler_hook)(uint, const char *,myf);
 static uint recovery_warnings; /**< count of warnings */
 static uint recovery_found_crashed_tables;
 
@@ -163,7 +163,7 @@ static enum recovery_message_type
 
 /* Hook to ensure we get nicer output if we get an error */
 
-int maria_recover_error_handler_hook(uint error, const char *str,
+void maria_recover_error_handler_hook(uint error, const char *str,
                                      myf flags)
 {
   if (procent_printed)
@@ -172,7 +172,7 @@ int maria_recover_error_handler_hook(uint error, const char *str,
     fputc('\n', stderr);
     fflush(stderr);
   }
-  return (*save_error_handler_hook)(error, str, flags);
+  (*save_error_handler_hook)(error, str, flags);
 }
 
 /* Define this if you want gdb to break in some interesting situations */
@@ -467,15 +467,15 @@ err2:
   }
 end:
   error_handler_hook= save_error_handler_hook;
-  hash_free(&all_dirty_pages);
+  my_hash_free(&all_dirty_pages);
   bzero(&all_dirty_pages, sizeof(all_dirty_pages));
-  my_free(dirty_pages_pool, MYF(MY_ALLOW_ZERO_PTR));
+  my_free(dirty_pages_pool);
   dirty_pages_pool= NULL;
-  my_free(all_tables, MYF(MY_ALLOW_ZERO_PTR));
+  my_free(all_tables);
   all_tables= NULL;
-  my_free(all_active_trans, MYF(MY_ALLOW_ZERO_PTR));
+  my_free(all_active_trans);
   all_active_trans= NULL;
-  my_free(log_record_buffer.str, MYF(MY_ALLOW_ZERO_PTR));
+  my_free(log_record_buffer.str);
   log_record_buffer.str= NULL;
   log_record_buffer.length= 0;
   ma_checkpoint_end();
@@ -2737,13 +2737,13 @@ static uint end_of_redo_phase(my_bool prepare_for_undo_phase)
   char llbuf[22];
   LSN addr;
 
-  hash_free(&all_dirty_pages);
+  my_hash_free(&all_dirty_pages);
   /*
     hash_free() can be called multiple times probably, but be safe if that
     changes
   */
   bzero(&all_dirty_pages, sizeof(all_dirty_pages));
-  my_free(dirty_pages_pool, MYF(MY_ALLOW_ZERO_PTR));
+  my_free(dirty_pages_pool);
   dirty_pages_pool= NULL;
 
   llstr(max_long_trid, llbuf);
@@ -2822,7 +2822,7 @@ static uint end_of_redo_phase(my_bool prepare_for_undo_phase)
 #endif
   }
 
-  my_free(all_active_trans, MYF(MY_ALLOW_ZERO_PTR));
+  my_free(all_active_trans);
   all_active_trans= NULL;
 
   /*
@@ -3247,10 +3247,10 @@ static LSN parse_checkpoint_record(LSN lsn)
 
   ptr+= 8;
   tprint(tracef, "%lu dirty pages\n", (ulong) nb_dirty_pages);
-  if (hash_init(&all_dirty_pages, &my_charset_bin, (ulong)nb_dirty_pages,
-                offsetof(struct st_dirty_page, file_and_page_id),
-                sizeof(((struct st_dirty_page *)NULL)->file_and_page_id),
-                NULL, NULL, 0))
+  if (my_hash_init(&all_dirty_pages, &my_charset_bin, (ulong)nb_dirty_pages,
+                   offsetof(struct st_dirty_page, file_and_page_id),
+                   sizeof(((struct st_dirty_page *)NULL)->file_and_page_id),
+                   NULL, NULL, 0))
     return LSN_ERROR;
   dirty_pages_pool=
     (struct st_dirty_page *)my_malloc((size_t)nb_dirty_pages *

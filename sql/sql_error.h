@@ -101,7 +101,7 @@ public:
   void increment_warning()
   {
     if (m_status != DA_EMPTY)
-      m_total_warn_count++;
+      m_statement_warn_count++;
   }
 
   Diagnostics_area() { reset_diagnostics_area(); }

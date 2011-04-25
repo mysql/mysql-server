@@ -13,6 +13,16 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
 
+/* almost every standalone maria program will need it */
+void _mi_report_crashed(void *file __attribute__((unused)),
+                        const char *message __attribute__((unused)),
+                        const char *sfile __attribute__((unused)),
+                        uint sline __attribute__((unused)))
+{
+}
+
+/* only those that included myisamchk.h may need and can use the below */
+#ifdef _myisamchk_h
 /*
   All standalone programs which need to use functions from ma_check.c
   (like maria_repair()) must define their version of _ma_killed_ptr()
@@ -46,8 +56,8 @@ void _ma_check_print_info(HA_CHECK *param __attribute__((unused)),
   DBUG_PRINT("enter", ("format: %s", fmt));
 
   va_start(args,fmt);
-  VOID(vfprintf(stdout, fmt, args));
-  VOID(fputc('\n',stdout));
+  vfprintf(stdout, fmt, args);
+  fputc('\n',stdout);
   va_end(args);
   DBUG_VOID_RETURN;
 }
@@ -71,8 +81,8 @@ void _ma_check_print_warning(HA_CHECK *param, const char *fmt,...)
   param->warning_printed=1;
   va_start(args,fmt);
   fprintf(stderr,"%s: warning: ",my_progname_short);
-  VOID(vfprintf(stderr, fmt, args));
-  VOID(fputc('\n',stderr));
+  vfprintf(stderr, fmt, args);
+  fputc('\n',stderr);
   fflush(stderr);
   va_end(args);
   DBUG_VOID_RETURN;
@@ -96,9 +106,11 @@ void _ma_check_print_error(HA_CHECK *param, const char *fmt,...)
   param->error_printed|=1;
   va_start(args,fmt);
   fprintf(stderr,"%s: error: ",my_progname_short);
-  VOID(vfprintf(stderr, fmt, args));
-  VOID(fputc('\n',stderr));
+  vfprintf(stderr, fmt, args);
+  fputc('\n',stderr);
   fflush(stderr);
   va_end(args);
   DBUG_VOID_RETURN;
 }
+#endif
+

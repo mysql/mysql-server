@@ -107,3 +107,25 @@ static int always_valid(const char *filename __attribute__((unused)))
 }
 
 int (*maria_test_invalid_symlink)(const char *filename)= always_valid;
+
+#ifdef HAVE_PSI_INTERFACE
+PSI_mutex_key ma_key_mutex_PAGECACHE_cache_lock;
+
+static PSI_mutex_info all_mutexes[]=
+{
+  { &ma_key_mutex_PAGECACHE_cache_lock, "PAGECACHE::cache_lock", 0}
+};
+
+void init_aria_psi_keys()
+{
+  const char* category= "aria";
+  int count;
+
+  if (PSI_server == NULL)
+    return;
+
+  count= array_elements(all_mutexes);
+  PSI_server->register_mutex(category, all_mutexes, count);
+}
+#endif /* HAVE_PSI_INTERFACE */
+

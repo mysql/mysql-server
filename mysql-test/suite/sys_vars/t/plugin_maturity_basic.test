@@ -1,0 +1,21 @@
+# enum readonly
+
+#
+# show the global and session values;
+#
+select @@global.plugin_maturity;
+--error ER_INCORRECT_GLOBAL_LOCAL_VAR
+select @@session.plugin_maturity;
+show global variables like 'plugin_maturity';
+show session variables like 'plugin_maturity';
+select * from information_schema.global_variables where variable_name='plugin_maturity';
+select * from information_schema.session_variables where variable_name='plugin_maturity';
+
+#
+# show that it's read-only
+#
+--error ER_INCORRECT_GLOBAL_LOCAL_VAR
+set global plugin_maturity=1;
+--error ER_INCORRECT_GLOBAL_LOCAL_VAR
+set session plugin_maturity=1;
+

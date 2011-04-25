@@ -21,7 +21,7 @@
 
 extern "C"
 {
-  typedef int (*process_key_cache_t) (const char *, KEY_CACHE *);
+  typedef int (*process_key_cache_t) (const char *, KEY_CACHE *, void *);
 }
 
 class NAMED_ILINK;
@@ -40,6 +40,6 @@ KEY_CACHE *create_key_cache(const char *name, uint length);
 KEY_CACHE *get_key_cache(LEX_STRING *cache_name);
 KEY_CACHE *get_or_create_key_cache(const char *name, uint length);
 void free_key_cache(const char *name, KEY_CACHE *key_cache);
-bool process_key_caches(process_key_cache_t func);
+bool process_key_caches(process_key_cache_t func, void *param);
 
 #endif /* KEYCACHES_INCLUDED */

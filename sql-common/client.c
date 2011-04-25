@@ -1194,7 +1194,7 @@ static int add_init_command(struct st_mysql_options *options, const char *cmd)
 
 #define extension_set_string(OPTS, X, STR)                       \
     if ((OPTS)->extension)                                       \
-      my_free((OPTS)->extension->X, MYF(MY_ALLOW_ZERO_PTR));     \
+      my_free((OPTS)->extension->X);                             \
     else                                                         \
       (OPTS)->extension= (struct st_mysql_options_extention *)   \
         my_malloc(sizeof(struct st_mysql_options_extention),     \
@@ -1764,11 +1764,11 @@ mysql_ssl_set(MYSQL *mysql __attribute__((unused)) ,
 {
   DBUG_ENTER("mysql_ssl_set");
 #ifdef HAVE_OPENSSL
-  my_free(mysql->options.ssl_key, MYF(MY_ALLOW_ZERO_PTR));
-  my_free(mysql->options.ssl_cert, MYF(MY_ALLOW_ZERO_PTR));
-  my_free(mysql->options.ssl_ca, MYF(MY_ALLOW_ZERO_PTR));
-  my_free(mysql->options.ssl_capath, MYF(MY_ALLOW_ZERO_PTR));
-  my_free(mysql->options.ssl_cipher, MYF(MY_ALLOW_ZERO_PTR));
+  my_free(mysql->options.ssl_key);
+  my_free(mysql->options.ssl_cert);
+  my_free(mysql->options.ssl_ca);
+  my_free(mysql->options.ssl_capath);
+  my_free(mysql->options.ssl_cipher);
   mysql->options.ssl_key=    strdup_if_not_null(key);
   mysql->options.ssl_cert=   strdup_if_not_null(cert);
   mysql->options.ssl_ca=     strdup_if_not_null(ca);
@@ -2911,9 +2911,6 @@ CLI_MYSQL_REAL_CONNECT(MYSQL *mysql,const char *host, const char *user,
   char          *end, *host_info=0, *server_version_end, *pkt_end;
   char          *scramble_data;
   const char    *scramble_plugin;
-  my_socket	sock;
-  in_addr_t	ip_addr;
-  struct	sockaddr_in sock_addr;
   ulong		pkt_length;
   NET		*net= &mysql->net;
 #ifdef MYSQL_SERVER
@@ -3590,9 +3587,9 @@ static void mysql_close_free_options(MYSQL *mysql)
 #endif /* HAVE_SMEM */
   if (mysql->options.extension)
   {
-    my_free(mysql->options.extension->plugin_dir,MYF(MY_ALLOW_ZERO_PTR));
-    my_free(mysql->options.extension->default_auth,MYF(MY_ALLOW_ZERO_PTR));
-    my_free(mysql->options.extension,MYF(0));
+    my_free(mysql->options.extension->plugin_dir);
+    my_free(mysql->options.extension->default_auth);
+    my_free(mysql->options.extension);
   }
   bzero((char*) &mysql->options,sizeof(mysql->options));
   DBUG_VOID_RETURN;

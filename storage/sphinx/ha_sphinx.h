@@ -8,7 +8,7 @@
 
 
 #if MYSQL_VERSION_ID>50100
-#define TABLE_ARG	st_table_share
+#define TABLE_ARG	TABLE_SHARE
 #else
 #define TABLE_ARG	st_table
 #endif
@@ -18,6 +18,7 @@
 typedef uchar byte;
 #endif
 
+#include "handler.h"
 
 /// forward decls
 class THD;

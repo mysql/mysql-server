@@ -1,4 +1,4 @@
---source include/have_innodb.inc
+--source include/have_xtradb.inc
 --echo # Establish connection con1 (user=root)
 connect (con1,localhost,root,,);
 --echo # Establish connection con2 (user=root)

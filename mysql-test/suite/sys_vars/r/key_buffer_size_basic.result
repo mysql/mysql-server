@@ -3,7 +3,7 @@ SET @start_value = @@global.key_buffer_size;
 SET @@global.key_buffer_size = DEFAULT;
 SELECT @@global.key_buffer_size;
 @@global.key_buffer_size
-8388608
+134217728
 '#---------------------FN_DYNVARS_055_02-------------------------#'
 SET @@global.key_buffer_size = @start_value;
 SELECT @@global.key_buffer_size = @start_value;

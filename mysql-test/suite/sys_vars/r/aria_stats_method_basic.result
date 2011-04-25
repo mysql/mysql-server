@@ -1,0 +1,48 @@
+SET @start_global_value = @@global.aria_stats_method;
+select @@global.aria_stats_method;
+@@global.aria_stats_method
+nulls_unequal
+select @@session.aria_stats_method;
+@@session.aria_stats_method
+nulls_unequal
+show global variables like 'aria_stats_method';
+Variable_name	Value
+aria_stats_method	nulls_unequal
+show session variables like 'aria_stats_method';
+Variable_name	Value
+aria_stats_method	nulls_unequal
+select * from information_schema.global_variables where variable_name='aria_stats_method';
+VARIABLE_NAME	VARIABLE_VALUE
+ARIA_STATS_METHOD	nulls_unequal
+select * from information_schema.session_variables where variable_name='aria_stats_method';
+VARIABLE_NAME	VARIABLE_VALUE
+ARIA_STATS_METHOD	nulls_unequal
+set global aria_stats_method=1;
+select @@global.aria_stats_method;
+@@global.aria_stats_method
+nulls_equal
+set session aria_stats_method=1;
+select @@session.aria_stats_method;
+@@session.aria_stats_method
+nulls_equal
+set session aria_stats_method=nulls_unequal;
+select @@session.aria_stats_method;
+@@session.aria_stats_method
+nulls_unequal
+set session aria_stats_method=nulls_equal;
+select @@session.aria_stats_method;
+@@session.aria_stats_method
+nulls_equal
+set session aria_stats_method=nulls_ignored;
+select @@session.aria_stats_method;
+@@session.aria_stats_method
+nulls_ignored
+set session aria_stats_method=1.1;
+ERROR 42000: Incorrect argument type to variable 'aria_stats_method'
+set session aria_stats_method=1e1;
+ERROR 42000: Incorrect argument type to variable 'aria_stats_method'
+set session aria_stats_method="foo";
+ERROR 42000: Variable 'aria_stats_method' can't be set to the value of 'foo'
+set session aria_stats_method=3;
+ERROR 42000: Variable 'aria_stats_method' can't be set to the value of '3'
+SET @@global.aria_stats_method = @start_global_value;

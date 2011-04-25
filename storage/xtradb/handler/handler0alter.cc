@@ -21,8 +21,10 @@ Place, Suite 330, Boston, MA 02111-1307 USA
 Smart ALTER TABLE
 *******************************************************/
 
-#include <mysql_priv.h>
+#include <unireg.h>
 #include <mysqld_error.h>
+#include <sql_lex.h>                            // SQLCOM_CREATE_INDEX
+#include <mysql/innodb_priv.h>
 
 extern "C" {
 #include "log0log.h"

@@ -304,6 +304,7 @@ void my_hash_sort_simple(CHARSET_INFO *cs,
 			 ulong *nr1, ulong *nr2)
 {
   register const uchar *sort_order=cs->sort_order;
+  const uchar *end;
 
   /*
     Remove end space. We have to do this to be able to compare

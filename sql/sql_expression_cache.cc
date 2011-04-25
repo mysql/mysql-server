@@ -1,6 +1,7 @@
 
-#include "mysql_priv.h"
+#include "sql_base.h"
 #include "sql_select.h"
+#include "sql_expression_cache.h"
 
 /*
   Expression cache is used only for caching subqueries now, so its statistic
@@ -91,10 +92,9 @@ void Expression_cache_tmptable::init()
   if (!(cache_table= create_tmp_table(table_thd, &cache_table_param,
                                       items, (ORDER*) NULL,
                                       FALSE, FALSE,
-                                      ((table_thd->options |
+                                      ((table_thd->variables.option_bits |
                                         TMP_TABLE_ALL_COLUMNS) &
-                                       ~(OPTION_BIG_TABLES |
-                                         TMP_TABLE_FORCE_MYISAM)),
+                                        ~TMP_TABLE_FORCE_MYISAM),
                                       HA_POS_ERROR,
                                       (char *)"subquery-cache-table")))
   {
@@ -155,7 +155,10 @@ error:
 Expression_cache_tmptable::~Expression_cache_tmptable()
 {
   if (cache_table)
+  {
+    cache_table->file->ha_index_end();
     free_tmp_table(table_thd, cache_table);
+  }
 }
 
 
@@ -253,6 +256,7 @@ my_bool Expression_cache_tmptable::put_value(Item *value)
   DBUG_RETURN(FALSE);
 
 err:
+  cache_table->file->ha_index_end();
   free_tmp_table(table_thd, cache_table);
   cache_table= NULL;
   DBUG_RETURN(TRUE);

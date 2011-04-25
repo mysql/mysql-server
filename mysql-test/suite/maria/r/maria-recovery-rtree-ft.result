@@ -1,4 +1,4 @@
-set global aria_log_file_size=4294967295;
+set global aria_log_file_size=4294959104;
 drop database if exists mysqltest;
 create database mysqltest;
 use mysqltest;
@@ -10,14 +10,14 @@ name VARCHAR(32)
 ,SPATIAL key (line)
 ) transactional=1 row_format=page engine=aria;
 SHOW INDEX FROM t1;
-Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment
-t1	1	line	1	line	A	NULL	32	NULL		SPATIAL	
+Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment
+t1	1	line	1	line	A	NULL	32	NULL		SPATIAL		
 CREATE TABLE t2 (a VARCHAR(200), b TEXT, FULLTEXT (a,b)
 ) transactional=1 row_format=page engine=aria;
 SHOW INDEX FROM t2;
-Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment
-t2	1	a	1	a	NULL	NULL	NULL	NULL	YES	FULLTEXT	
-t2	1	a	2	b	NULL	NULL	NULL	NULL	YES	FULLTEXT	
+Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment
+t2	1	a	1	a	NULL	NULL	NULL	NULL	YES	FULLTEXT		
+t2	1	a	2	b	NULL	NULL	NULL	NULL	YES	FULLTEXT		
 * TEST of REDO: see if recovery can reconstruct if we give it an old table
 * copied t2 for feeding_recovery
 * copied t1 for feeding_recovery

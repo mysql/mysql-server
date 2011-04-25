@@ -1,15 +1,18 @@
 #
 # Bug#55672 mysql_upgrade dies with internal error 
 #
+Phase 1/3: Fixing table and database names
+Phase 2/3: Checking and upgrading tables
+Processing databases
+information_schema
+mtr
 mtr.global_suppressions                            OK
 mtr.test_suppressions                              OK
+mysql
 mysql.columns_priv                                 OK
 mysql.db                                           OK
 mysql.event                                        OK
 mysql.func                                         OK
-mysql.general_log
-Error    : You can't use locks with log tables.
-status   : OK
 mysql.help_category                                OK
 mysql.help_keyword                                 OK
 mysql.help_relation                                OK
@@ -20,9 +23,6 @@ mysql.plugin                                       OK
 mysql.proc                                         OK
 mysql.procs_priv                                   OK
 mysql.servers                                      OK
-mysql.slow_log
-Error    : You can't use locks with log tables.
-status   : OK
 mysql.tables_priv                                  OK
 mysql.time_zone                                    OK
 mysql.time_zone_leap_second                        OK
@@ -30,3 +30,7 @@ mysql.time_zone_name                               OK
 mysql.time_zone_transition                         OK
 mysql.time_zone_transition_type                    OK
 mysql.user                                         OK
+performance_schema
+test
+Phase 3/3: Running 'mysql_fix_privilege_tables'...
+OK

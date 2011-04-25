@@ -16,6 +16,9 @@ let $MYSQLD_DATADIR= `SELECT @@datadir`;
 SET @old_innodb_thread_concurrency:= @@innodb_thread_concurrency;
 SET GLOBAL innodb_thread_concurrency = 1;
 
+set global default_storage_engine='innodb';
+set session default_storage_engine='innodb';
+
 CREATE TABLE t1
 (user_num BIGINT,
  hours SMALLINT,
@@ -569,3 +572,6 @@ SET SESSION sql_mode = 'NO_ZERO_DATE';
 OPTIMIZE TABLE t1;
 SET SESSION sql_mode = @old_mode;
 DROP TABLE t1;
+
+set global default_storage_engine=default;
+

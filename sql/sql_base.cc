@@ -38,6 +38,7 @@
                          // mysql_handle_derived,
                          // mysql_derived_filling
 #include "sql_handler.h" // mysql_ha_flush
+#include "sql_test.h"
 #include "sql_partition.h"                      // ALTER_PARTITION_PARAM_TYPE
 #include "log_event.h"                          // Query_log_event
 #include "sql_select.h"
@@ -1360,8 +1361,10 @@ close_all_tables_for_name(THD *thd, TABLE_SHARE *share,
       mysql_lock_remove(thd, thd->lock, table);
 
       /* Inform handler that table will be dropped after close */
-      if (table->db_stat) /* Not true for partitioned tables. */
+#ifdef MERGE_FOR_MONTY_TO_FIX
+      if (remove_from_locked_tables && table->db_stat) /* Not true for partitioned tables. */
         table->file->extra(HA_EXTRA_PREPARE_FOR_DROP);
+#endif
       close_thread_table(thd, prev);
     }
     else
@@ -1403,6 +1406,11 @@ void close_thread_tables(THD *thd)
 {
   TABLE *table;
   DBUG_ENTER("close_thread_tables");
+
+#ifdef WITH_ARIA_STORAGE_ENGINE
+  if (!thd->in_sub_stmt)
+    ha_maria::implicit_commit(thd, FALSE);
+#endif
 
 #ifdef EXTRA_DEBUG
   DBUG_PRINT("tcache", ("open tables:"));
@@ -8786,7 +8794,6 @@ my_bool mysql_rm_tmp_tables(void)
 }
 
 
-
 /*****************************************************************************
 	unireg support functions
 *****************************************************************************/
@@ -8806,8 +8813,6 @@ void tdc_flush_unused_tables()
     free_cache_entry(unused_tables);
   mysql_mutex_unlock(&LOCK_open);
 }
-#error restore table->s->deleting
-#error restore changes from monty@askmonty.org-20101102152257-mwa7etvs9nxewjf2
 
 
 /**

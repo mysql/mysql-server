@@ -1,4 +1,3 @@
--- source include/have_innodb.inc
 
 let $file_format=`select @@innodb_file_format`;
 let $file_format_max=`select @@innodb_file_format_max`;

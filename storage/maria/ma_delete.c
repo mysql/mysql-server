@@ -117,7 +117,7 @@ int maria_delete(MARIA_HA *info,const uchar *record)
   info->state->changed=1;
 
   mi_sizestore(lastpos, info->cur_row.lastpos);
-  VOID(_ma_writeinfo(info,WRITEINFO_UPDATE_KEYFILE));
+  _ma_writeinfo(info, WRITEINFO_UPDATE_KEYFILE);
   allow_break();			/* Allow SIGHUP & SIGINT */
   if (info->invalidator != 0)
   {
@@ -140,7 +140,7 @@ err:
     maria_print_error(share, HA_ERR_CRASHED);
     maria_mark_crashed(info);		/* mark table crashed */
   }
-  VOID(_ma_writeinfo(info,WRITEINFO_UPDATE_KEYFILE));
+  _ma_writeinfo(info, WRITEINFO_UPDATE_KEYFILE);
   info->update|=HA_STATE_WRITTEN;	/* Buffer changed */
   allow_break();			/* Allow SIGHUP & SIGINT */
   if (save_errno == HA_ERR_KEY_NOT_FOUND)
@@ -169,8 +169,6 @@ my_bool _ma_ck_delete(MARIA_HA *info, MARIA_KEY *key)
   uchar key_buff[MARIA_MAX_KEY_BUFF], *save_key_data;
   MARIA_KEY org_key;
   DBUG_ENTER("_ma_ck_delete");
-
-  LINT_INIT_STRUCT(org_key);
 
   save_key_data= key->data;
   if (share->now_transactional)

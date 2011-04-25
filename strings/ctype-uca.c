@@ -10286,6 +10286,38 @@ struct charset_info_st my_charset_utf8mb4_sinhala_uca_ci=
     &my_collation_any_uca_handler
 };
 
+struct charset_info_st my_charset_utf8mb4_croatian_uca_ci=
+{
+    245,0,0,            /* number       */
+    MY_CS_UTF8MB4_UCA_FLAGS,/* state    */
+    MY_UTF8MB4,         /* csname      */
+    MY_UTF8MB4 "_croatian_ci",/* name  */
+    "",                 /* comment      */
+    croatian,           /* tailoring    */
+    ctype_utf8,         /* ctype        */
+    NULL,               /* to_lower     */
+    NULL,               /* to_upper     */
+    NULL,               /* sort_order   */
+    NULL,               /* contractions */
+    NULL,               /* sort_order_big*/
+    NULL,               /* tab_to_uni   */
+    NULL,               /* tab_from_uni */
+    my_unicase_default, /* caseinfo     */
+    NULL,               /* state_map    */
+    NULL,               /* ident_map    */
+    8,                  /* strxfrm_multiply */
+    1,                  /* caseup_multiply  */
+    1,                  /* casedn_multiply  */
+    1,                  /* mbminlen     */
+    4,                  /* mbmaxlen     */
+    9,                  /* min_sort_char */
+    0xFFFF,             /* max_sort_char */
+    ' ',                /* pad char      */
+    0,                  /* escape_with_backslash_is_dangerous */
+    &my_charset_utf8mb4_handler,
+    &my_collation_any_uca_handler
+};
+
 #endif /* HAVE_CHARSET_utf8mb4 */
 
 
@@ -10952,6 +10984,37 @@ struct charset_info_st my_charset_utf32_sinhala_uca_ci=
     &my_collation_utf32_uca_handler
 };
 
+struct charset_info_st my_charset_utf32_croatian_uca_ci=
+{
+    214,0,0,            /* number       */
+    MY_CS_UTF32_UCA_FLAGS /* state      */,
+    "utf32",            /* cs name      */
+    "utf32_croatian_ci", /* name        */
+    "",                 /* comment      */
+    croatian,           /* tailoring    */
+    NULL,               /* ctype        */
+    NULL,               /* to_lower     */
+    NULL,               /* to_upper     */
+    NULL,               /* sort_order   */
+    NULL,               /* contractions */
+    NULL,               /* sort_order_big*/
+    NULL,               /* tab_to_uni   */
+    NULL,               /* tab_from_uni */
+    my_unicase_default, /* caseinfo     */
+    NULL,               /* state_map    */
+    NULL,               /* ident_map    */
+    8,                  /* strxfrm_multiply */
+    1,                  /* caseup_multiply  */
+    1,                  /* casedn_multiply  */
+    4,                  /* mbminlen     */
+    4,                  /* mbmaxlen     */
+    9,                  /* min_sort_char */
+    0xFFFF,             /* max_sort_char */
+    ' ',                /* pad char      */
+    0,                  /* escape_with_backslash_is_dangerous */
+    &my_charset_utf32_handler,
+    &my_collation_utf32_uca_handler
+};
 #endif /* HAVE_CHARSET_utf32 */
 
 
@@ -11619,6 +11682,37 @@ struct charset_info_st my_charset_utf16_sinhala_uca_ci=
     &my_collation_utf16_uca_handler
 };
 
+struct charset_info_st my_charset_utf16_croatian_uca_ci=
+{
+    215,0,0,            /* number       */
+    MY_CS_UTF16_UCA_FLAGS /* state      */,
+    "utf16",            /* cs name      */
+    "utf16_croatian_ci", /* name        */
+    "",                 /* comment      */
+    croatian,           /* tailoring    */
+    NULL,               /* ctype        */
+    NULL,               /* to_lower     */
+    NULL,               /* to_upper     */
+    NULL,               /* sort_order   */
+    NULL,               /* contractions */
+    NULL,               /* sort_order_big*/
+    NULL,               /* tab_to_uni   */
+    NULL,               /* tab_from_uni */
+    my_unicase_default, /* caseinfo     */
+    NULL,               /* state_map    */
+    NULL,               /* ident_map    */
+    8,                  /* strxfrm_multiply */
+    1,                  /* caseup_multiply  */
+    1,                  /* casedn_multiply  */
+    2,                  /* mbminlen     */
+    4,                  /* mbmaxlen     */
+    9,                  /* min_sort_char */
+    0xFFFF,             /* max_sort_char */
+    ' ',                /* pad char      */
+    0,                  /* escape_with_backslash_is_dangerous */
+    &my_charset_utf16_handler,
+    &my_collation_utf16_uca_handler
+};
 #endif /* HAVE_CHARSET_utf16 */
 
 

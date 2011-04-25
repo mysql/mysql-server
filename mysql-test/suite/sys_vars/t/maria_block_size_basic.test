@@ -1,0 +1,24 @@
+# ulong readonly
+
+--source include/have_maria.inc
+#
+# show the global and session values;
+#
+select @@global.maria_block_size, @@global.aria_block_size;
+--error ER_INCORRECT_GLOBAL_LOCAL_VAR
+select @@session.maria_block_size, @@session.aria_block_size;
+show global variables like '%aria_block_size';
+show session variables like '%aria_block_size';
+--sorted_result
+select * from information_schema.global_variables where variable_name like '%aria_block_size';
+--sorted_result
+select * from information_schema.session_variables where variable_name like '%aria_block_size';
+
+#
+# show that it's read-only
+#
+--error ER_INCORRECT_GLOBAL_LOCAL_VAR
+set global maria_block_size=1;
+--error ER_INCORRECT_GLOBAL_LOCAL_VAR
+set session maria_block_size=1;
+

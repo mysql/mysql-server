@@ -6,16 +6,10 @@ if (`SELECT @@have_dynamic_loading != 'YES'`) {
 }
 
 #
-# Check if the variable SEMISYNC_MASTER_PLUGIN is set
+# Check if the variable SEMISYNC_MASTER_SO is set
 #
-if (`select LENGTH('$SEMISYNC_MASTER_PLUGIN') = 0`)
+if (`select LENGTH('$SEMISYNC_MASTER_SO') = 0`)
 {
   skip Need semisync plugins;
 }
 
-#
-# Check if --plugin-dir was setup for semisync
-#
-if (`SELECT CONCAT('--plugin-dir=', @@plugin_dir) != '$SEMISYNC_PLUGIN_OPT'`) {
-  --skip SEMISYNC plugin requires that --plugin-dir is set to the semisync plugin dir (either the .opt file does not contain \$SEMISYNC_PLUGIN_OPT or another plugin is in use)
-}

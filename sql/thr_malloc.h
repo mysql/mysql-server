@@ -18,7 +18,6 @@
 
 #include "my_global.h"                          // uint, size_t
 
-typedef struct charset_info_st CHARSET_INFO;
 typedef struct st_mem_root MEM_ROOT;
 
 void init_sql_alloc(MEM_ROOT *root, uint block_size, uint pre_alloc_size);

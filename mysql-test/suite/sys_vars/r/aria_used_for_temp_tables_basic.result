@@ -1,0 +1,21 @@
+select @@global.aria_used_for_temp_tables;
+@@global.aria_used_for_temp_tables
+1
+select @@session.aria_used_for_temp_tables;
+ERROR HY000: Variable 'aria_used_for_temp_tables' is a GLOBAL variable
+show global variables like 'aria_used_for_temp_tables';
+Variable_name	Value
+aria_used_for_temp_tables	ON
+show session variables like 'aria_used_for_temp_tables';
+Variable_name	Value
+aria_used_for_temp_tables	ON
+select * from information_schema.global_variables where variable_name='aria_used_for_temp_tables';
+VARIABLE_NAME	VARIABLE_VALUE
+ARIA_USED_FOR_TEMP_TABLES	ON
+select * from information_schema.session_variables where variable_name='aria_used_for_temp_tables';
+VARIABLE_NAME	VARIABLE_VALUE
+ARIA_USED_FOR_TEMP_TABLES	ON
+set global aria_used_for_temp_tables=1;
+ERROR HY000: Variable 'aria_used_for_temp_tables' is a read only variable
+set session aria_used_for_temp_tables=1;
+ERROR HY000: Variable 'aria_used_for_temp_tables' is a read only variable

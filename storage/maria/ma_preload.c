@@ -107,10 +107,10 @@ int maria_preload(MARIA_HA *info, ulonglong key_map, my_bool ignore_leaves)
                                LSN_IMPOSSIBLE, LSN_IMPOSSIBLE, FALSE, FALSE);
   }
 
-  my_free(buff, MYF(0));
+  my_free(buff);
   DBUG_RETURN(0);
 
 err:
-  my_free(buff, MYF(MY_ALLOW_ZERO_PTR));
+  my_free(buff);
   DBUG_RETURN(my_errno= errno);
 }

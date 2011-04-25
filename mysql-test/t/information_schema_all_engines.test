@@ -4,7 +4,7 @@
 
 --source include/not_embedded.inc
 --source include/have_pbxt.inc
---source include/have_innodb.inc
+--source include/have_xtradb.inc
 --source include/not_staging.inc
 
 use INFORMATION_SCHEMA;

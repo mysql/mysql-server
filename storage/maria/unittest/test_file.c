@@ -113,6 +113,6 @@ int test_file(PAGECACHE_FILE file, char *file_name,
   }
 
 err:
-  my_free(buffr, 0);
+  my_free(buffr);
   return res;
 }

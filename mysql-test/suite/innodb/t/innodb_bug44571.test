@@ -4,7 +4,6 @@
 # Please also refer to related fix in
 # http://bugs.mysql.com/47621
 #
--- source include/have_innodb.inc
 
 CREATE TABLE bug44571 (foo INT) ENGINE=InnoDB;
 ALTER TABLE bug44571 CHANGE foo bar INT;

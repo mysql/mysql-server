@@ -17,6 +17,7 @@
 #define _my_sys_h
 
 #include "my_global.h"                  /* C_MODE_START, C_MODE_END */
+#include "my_valgrind.h"
 
 C_MODE_START
 
@@ -102,7 +103,9 @@ extern int my_errno;  /* Last error in mysys */
 #define ME_COLOUR1	((1 << ME_HIGHBYTE))	/* Possibly error-colours */
 #define ME_COLOUR2	((2 << ME_HIGHBYTE))
 #define ME_COLOUR3	((3 << ME_HIGHBYTE))
-#define ME_FATALERROR   1024    /* Fatal statement error */
+#define ME_JUST_INFO    1024    /**< not error but just info */
+#define ME_JUST_WARNING 2048    /**< not error but just warning */
+#define ME_FATALERROR   4096    /* Fatal statement error */
 
 	/* Bits in last argument to fn_format */
 #define MY_REPLACE_DIR		1	/* replace dir in name with 'dir' */
@@ -191,7 +194,7 @@ extern void my_large_free(uchar *ptr);
 #endif /* HAVE_ALLOCA */
 
 #define my_safe_alloca(size, min_length) ((size <= min_length) ? my_alloca(size) : my_malloc(size,MYF(MY_FAE)))
-#define my_safe_afree(ptr, size, min_length) ((size <= min_length) ? (void)0 : my_free(ptr)
+#define my_safe_afree(ptr, size, min_length) ((size <= min_length) ? (void)0 : my_free(ptr))
 
 #ifndef errno				/* did we already get it? */
 #ifdef HAVE_ERRNO_AS_DEFINE
@@ -547,7 +550,7 @@ my_off_t my_b_safe_tell(IO_CACHE* info); /* picks the correct tell() */
 					  *(info)->current_pos)
 
 typedef uint32 ha_checksum;
-extern ha_checksum my_crc_dbug_check;
+extern ulong my_crc_dbug_check;
 
 /* Define the type of function to be passed to process_default_option_files */
 typedef int (*Process_option_func)(void *ctx, const char *group_name,
@@ -764,9 +767,6 @@ extern size_t my_b_gets(IO_CACHE *info, char *to, size_t max_length);
 extern my_off_t my_b_filelength(IO_CACHE *info);
 extern size_t my_b_printf(IO_CACHE *info, const char* fmt, ...);
 extern size_t my_b_vprintf(IO_CACHE *info, const char* fmt, va_list ap);
-extern int init_strvar_from_file(char *var, int max_size, IO_CACHE *f,
-                                 const char *default_val);
-extern int init_intvar_from_file(int* var, IO_CACHE* f, int default_val);
 extern my_bool open_cached_file(IO_CACHE *cache,const char *dir,
 				 const char *prefix, size_t cache_size,
 				 myf cache_myflags);

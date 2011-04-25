@@ -156,8 +156,8 @@ my_bool _ma_once_end_pack_row(MARIA_SHARE *share)
 {
   if (share->decode_trees)
   {
-    my_free(share->decode_trees,MYF(0));
-    my_free(share->decode_tables,MYF(0));
+    my_free(share->decode_trees);
+    my_free(share->decode_tables);
   }
   return 0;
 }
@@ -332,9 +332,9 @@ static my_bool _ma_read_pack_info(MARIA_SHARE *share, File file,
 err3:
   my_errno=HA_ERR_WRONG_IN_RECORD;
 err2:
-  my_free(share->decode_tables, MYF(0));
+  my_free(share->decode_tables);
 err1:
-  my_free(share->decode_trees, MYF(0));
+  my_free(share->decode_trees);
 err0:
   DBUG_RETURN(1);
 }
@@ -1097,8 +1097,7 @@ static void uf_blob(MARIA_COLUMNDEF *rec, MARIA_BIT_BUFF *bit_buff,
     decode_bytes(rec, bit_buff, bit_buff->blob_pos,
                  bit_buff->blob_pos + length);
     _ma_store_blob_length(to, pack_length, length);
-    memcpy_fixed((uchar*) to+pack_length,(uchar*) &bit_buff->blob_pos,
-		 sizeof(uchar*));
+    memcpy(to+pack_length, &bit_buff->blob_pos, sizeof(uchar*));
     bit_buff->blob_pos+=length;
   }
 }
@@ -1421,7 +1420,7 @@ uint _ma_pack_get_block_info(MARIA_HA *maria, MARIA_BIT_BUFF *bit_buff,
       We can't use my_pread() here because _ma_read_rnd_pack_record assumes
       position is ok
     */
-    VOID(my_seek(file,filepos,MY_SEEK_SET,MYF(0)));
+    my_seek(file,filepos,MY_SEEK_SET,MYF(0));
     if (my_read(file, header,ref_length,MYF(MY_NABP)))
       return BLOCK_FATAL_ERROR;
     DBUG_DUMP("header", header, ref_length);
@@ -1565,8 +1564,8 @@ my_bool _ma_memmap_file(MARIA_HA *info)
 
 void _ma_unmap_file(MARIA_HA *info)
 {
-  VOID(my_munmap((char*) info->s->file_map,
-                 (size_t) info->s->mmaped_length + MEMMAP_EXTRA_MARGIN));
+  my_munmap((char*) info->s->file_map,
+                 (size_t) info->s->mmaped_length + MEMMAP_EXTRA_MARGIN);
 }
 
 

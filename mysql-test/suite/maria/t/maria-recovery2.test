@@ -8,7 +8,7 @@
 call mtr.add_suppression("File '.*aria_log.000.*' not found \\(Errcode: 2\\)");
 call mtr.add_suppression("Table '.\/mysqltest\/t_corrupted1' is crashed, skipping it. Please repair it with aria_chk -r");
 
-set global aria_log_file_size=4294967295;
+set global aria_log_file_size=4294959104;
 let $MARIA_LOG=../../tmp;
 
 --disable_warnings

@@ -35,10 +35,10 @@
 static char mysql_path[FN_REFLEN];
 static char mysqlcheck_path[FN_REFLEN];
 
-static my_bool opt_force, debug_info_flag, debug_check_flag,
+static my_bool opt_force, opt_verbose, debug_info_flag, debug_check_flag,
                opt_systables_only;
-static my_bool opt_not_used;                    /* For compatiblity */
-static uint my_end_arg= 0, opt_verbose;
+static my_bool opt_not_used, opt_silent;
+static uint my_end_arg= 0;
 static char *opt_user= (char*)"root";
 
 static DYNAMIC_STRING ds_args;
@@ -58,6 +58,8 @@ static char **defaults_argv;
 static my_bool not_used; /* Can't use GET_BOOL without a value pointer */
 
 static my_bool opt_write_binlog;
+
+#define OPT_SILENT OPT_MAX_CLIENT_OPTION
 
 static struct my_option my_long_options[]=
 {
@@ -118,7 +120,7 @@ static struct my_option my_long_options[]=
    "Base name of shared memory.", 0,
    0, 0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
 #endif
-  {"silent", 's', "Print less information", &opt_silent,
+  {"silent", OPT_SILENT, "Print less information", &opt_silent,
    &opt_silent, 0, GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0},
   {"socket", 'S', "The socket file to use for connection.",
    0, 0, 0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
@@ -282,8 +284,11 @@ get_one_option(int optid, const struct my_option *opt,
     }
     add_option= 0;
     break;
-  case 's':
+  case OPT_SILENT:
     opt_verbose= 0;
+    add_option= 0;
+    break;
+  case 's':
     add_option= 0;
     break;
   case 'f': /* --force     */

@@ -19,7 +19,6 @@
   Engine defined options of tables/fields/keys in CREATE/ALTER TABLE.
 */
 
-#include "mysql_priv.h"
 #include "create_options.h"
 #include <my_getopt.h>
 

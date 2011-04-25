@@ -5627,7 +5627,6 @@ void User_var_log_event::pack_info(Protocol* protocol)
       }
       break;
     case ROW_RESULT:
-    case IMPOSSIBLE_RESULT:
     default:
       DBUG_ASSERT(0);
       return;
@@ -5743,7 +5742,6 @@ bool User_var_log_event::write(IO_CACHE* file)
       pos= (uchar*) val;
       break;
     case ROW_RESULT:
-    case IMPOSSIBLE_RESULT:
     default:
       DBUG_ASSERT(0);
       return 0;
@@ -5927,7 +5925,6 @@ int User_var_log_event::do_apply_event(Relay_log_info const *rli)
       it= new Item_string(val, val_len, charset);
       break;
     case ROW_RESULT:
-    case IMPOSSIBLE_RESULT:
     default:
       DBUG_ASSERT(0);
       return 0;
@@ -8432,7 +8429,7 @@ int Table_map_log_event::rewrite_db(const char* new_db, size_t new_len,
   memcpy((void*)m_tblnam, tblnam, m_tbllen + 1);
   memcpy(m_coltype, coltype, m_colcnt);
 
-  my_free(memory, MYF(MY_WME));
+  my_free(memory);
   DBUG_RETURN(0);
 }
 #endif /* MYSQL_CLIENT */
@@ -9926,3 +9923,4 @@ bool rpl_get_position_info(const char **log_file_name, ulonglong *log_pos,
   return TRUE;
 #endif
 }
+#endif

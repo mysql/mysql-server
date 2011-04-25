@@ -1,0 +1,43 @@
+SET @start_global_value = @@global.maria_page_checksum;
+select @@global.maria_page_checksum, @@global.aria_page_checksum;
+@@global.maria_page_checksum	@@global.aria_page_checksum
+1	1
+select @@session.maria_page_checksum, @@session.aria_page_checksum;
+ERROR HY000: Variable 'maria_page_checksum' is a GLOBAL variable
+show global variables like '%aria_page_checksum';
+Variable_name	Value
+aria_page_checksum	ON
+maria_page_checksum	ON
+show session variables like '%aria_page_checksum';
+Variable_name	Value
+aria_page_checksum	ON
+maria_page_checksum	ON
+select * from information_schema.global_variables where variable_name like '%aria_page_checksum';
+VARIABLE_NAME	VARIABLE_VALUE
+MARIA_PAGE_CHECKSUM	ON
+ARIA_PAGE_CHECKSUM	ON
+select * from information_schema.session_variables where variable_name like '%aria_page_checksum';
+VARIABLE_NAME	VARIABLE_VALUE
+MARIA_PAGE_CHECKSUM	ON
+ARIA_PAGE_CHECKSUM	ON
+set global maria_page_checksum=ON;
+select @@global.maria_page_checksum, @@global.aria_page_checksum;
+@@global.maria_page_checksum	@@global.aria_page_checksum
+1	1
+set global maria_page_checksum=OFF;
+select @@global.maria_page_checksum, @@global.aria_page_checksum;
+@@global.maria_page_checksum	@@global.aria_page_checksum
+0	0
+set global maria_page_checksum=1;
+select @@global.maria_page_checksum, @@global.aria_page_checksum;
+@@global.maria_page_checksum	@@global.aria_page_checksum
+1	1
+set session maria_page_checksum=1;
+ERROR HY000: Variable 'maria_page_checksum' is a GLOBAL variable and should be set with SET GLOBAL
+set global maria_page_checksum=1.1;
+ERROR 42000: Incorrect argument type to variable 'maria_page_checksum'
+set global maria_page_checksum=1e1;
+ERROR 42000: Incorrect argument type to variable 'maria_page_checksum'
+set global maria_page_checksum="foo";
+ERROR 42000: Variable 'maria_page_checksum' can't be set to the value of 'foo'
+SET @@global.maria_page_checksum = @start_global_value;

@@ -117,14 +117,14 @@ EXPLAIN
 SELECT * FROM t1 WHERE ( a, b ) NOT IN ( SELECT c, d FROM t2 );
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 x	PRIMARY	x	x	x	x	x	x	x	x
-x	DEPENDENT SUBQUERY	x	x	x	x	x	x	x	x
+x	SUBQUERY	x	x	x	x	x	x	x	x
 SELECT * FROM t1 WHERE ( a, b ) NOT IN ( SELECT c, d FROM t2 );
 a	b
 EXPLAIN
 SELECT * FROM t1 WHERE ( a, b ) NOT IN ( SELECT c, d FROM t2 ) IS NULL;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	2	Using where
-2	DEPENDENT SUBQUERY	t2	ALL	NULL	NULL	NULL	NULL	2	Using where
+2	SUBQUERY	t2	ALL	NULL	NULL	NULL	NULL	2	
 SELECT * FROM t1 WHERE ( a, b ) NOT IN ( SELECT c, d FROM t2 ) IS NULL;
 a	b
 1	NULL
@@ -147,28 +147,28 @@ EXPLAIN
 SELECT * FROM t1 WHERE ( a, b ) NOT IN ( SELECT e, f FROM t3 );
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 x	PRIMARY	x	x	x	x	x	x	x	x
-x	DEPENDENT SUBQUERY	x	x	x	x	x	x	x	x
+x	SUBQUERY	x	x	x	x	x	x	x	x
 SELECT * FROM t1 WHERE ( a, b ) NOT IN ( SELECT e, f FROM t3 );
 a	b
 EXPLAIN
 SELECT * FROM t2 WHERE ( c, d ) NOT IN ( SELECT a, b FROM t1 );
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 x	PRIMARY	x	x	x	x	x	x	x	x
-x	DEPENDENT SUBQUERY	x	x	x	x	x	x	x	x
+x	SUBQUERY	x	x	x	x	x	x	x	x
 SELECT * FROM t2 WHERE ( c, d ) NOT IN ( SELECT a, b FROM t1 );
 c	d
 EXPLAIN
 SELECT * FROM t3 WHERE ( e, f ) NOT IN ( SELECT c, d FROM t2 );
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 x	PRIMARY	x	x	x	x	x	x	x	x
-x	DEPENDENT SUBQUERY	x	x	x	x	x	x	x	x
+x	SUBQUERY	x	x	x	x	x	x	x	x
 SELECT * FROM t3 WHERE ( e, f ) NOT IN ( SELECT c, d FROM t2 );
 e	f
 EXPLAIN
 SELECT * FROM t2 WHERE ( c, d ) NOT IN ( SELECT e, f FROM t3 );
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 x	PRIMARY	x	x	x	x	x	x	x	x
-x	DEPENDENT SUBQUERY	x	x	x	x	x	x	x	x
+x	SUBQUERY	x	x	x	x	x	x	x	x
 SELECT * FROM t2 WHERE ( c, d ) NOT IN ( SELECT e, f FROM t3 );
 c	d
 SELECT * FROM t1 WHERE ( a, b ) NOT IN 
@@ -209,7 +209,7 @@ id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 2	DEPENDENT SUBQUERY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE noticed after reading const tables
 Warnings:
 Note	1276	Field or reference 'test.t1.c' of SELECT #2 was resolved in SELECT #1
-Note	1003	select <expr_cache><NULL>((select 1 from `test`.`t2` where 0)) AS `RESULT` from `test`.`t1`
+Note	1003	select <expr_cache><NULL>((select 1 from `test`.`t2` where 0)) AS `RESULT` from dual
 first equivalent variant
 SELECT (SELECT 1 FROM t2 WHERE d = IFNULL(c,NULL)) AS RESULT FROM t1 GROUP BY c ;
 RESULT
@@ -220,7 +220,7 @@ id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 2	DEPENDENT SUBQUERY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE noticed after reading const tables
 Warnings:
 Note	1276	Field or reference 'test.t1.c' of SELECT #2 was resolved in SELECT #1
-Note	1003	select <expr_cache><NULL>((select 1 from `test`.`t2` where 0)) AS `RESULT` from `test`.`t1` group by NULL
+Note	1003	select <expr_cache><NULL>((select 1 from `test`.`t2` where 0)) AS `RESULT` from dual group by NULL
 second equivalent variant
 SELECT (SELECT 1 FROM t2 WHERE d = c) AS RESULT FROM t1 GROUP BY c ;
 RESULT
@@ -231,7 +231,7 @@ id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 2	DEPENDENT SUBQUERY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE noticed after reading const tables
 Warnings:
 Note	1276	Field or reference 'test.t1.c' of SELECT #2 was resolved in SELECT #1
-Note	1003	select <expr_cache><NULL>((select 1 from `test`.`t2` where 0)) AS `RESULT` from `test`.`t1` group by NULL
+Note	1003	select <expr_cache><NULL>((select 1 from `test`.`t2` where 0)) AS `RESULT` from dual group by NULL
 DROP TABLE t1,t2;
 #
 # BUG#45928 "Differing query results depending on MRR and
@@ -252,6 +252,8 @@ set @old_optimizer_switch          = @@session.optimizer_switch,
 SET SESSION OPTIMIZER_SWITCH = 'materialization=off,semijoin=off,loosescan=off,firstmatch=off';
 SET SESSION optimizer_use_mrr = 'force';
 SET SESSION engine_condition_pushdown = 1;
+Warnings:
+Warning	1287	The syntax '@@engine_condition_pushdown' is deprecated and will be removed in MySQL 7.0. Please use '@@optimizer_switch' instead
 SELECT `time_nokey` G1  FROM t1  WHERE ( `varchar_nokey`  , `varchar_key`  )  IN ( 
 SELECT `varchar_nokey`  , `varchar_nokey`  )  AND `varchar_key`  >= 'c' HAVING G1  ORDER 
 BY `pk`   ;
@@ -259,6 +261,8 @@ G1
 set @@session.optimizer_switch          = @old_optimizer_switch,
 @@session.optimizer_use_mrr         = @old_optimizer_use_mrr,
 @@session.engine_condition_pushdown = @old_engine_condition_pushdown;
+Warnings:
+Warning	1287	The syntax '@@engine_condition_pushdown' is deprecated and will be removed in MySQL 7.0. Please use '@@optimizer_switch' instead
 DROP TABLE t1;
 #
 # BUG#45863 "Assertion failed: (fixed == 0), function fix_fields(),
@@ -469,6 +473,8 @@ SELECT @old_icp:=@@engine_condition_pushdown;
 @old_icp:=@@engine_condition_pushdown
 #
 SET SESSION engine_condition_pushdown = 'ON';
+Warnings:
+Warning	1287	The syntax '@@engine_condition_pushdown' is deprecated and will be removed in MySQL 7.0. Please use '@@optimizer_switch' instead
 
 SELECT pk
 FROM t2
@@ -482,7 +488,12 @@ pk
 9
 # Restore old value for Index condition pushdown
 SET SESSION engine_condition_pushdown=@old_icp;
+Warnings:
+Warning	1287	The syntax '@@engine_condition_pushdown' is deprecated and will be removed in MySQL 7.0. Please use '@@optimizer_switch' instead
 DROP TABLE t1,t2;
+#
+# End of 5.3 tests.
+#
 #
 # Bug#53236 Segfault in DTCollation::set(DTCollation&)
 #

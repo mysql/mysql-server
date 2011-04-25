@@ -135,11 +135,11 @@ MACRO(MYSQL_ADD_PLUGIN)
 
     IF(ARG_MANDATORY)
       SET (mysql_mandatory_plugins  
-        "${mysql_mandatory_plugins} builtin_${target}_plugin," 
+        "${mysql_mandatory_plugins} builtin_maria_${target}_plugin," 
       PARENT_SCOPE)
     ELSE()
       SET (mysql_optional_plugins  
-        "${mysql_optional_plugins} builtin_${target}_plugin,"
+        "${mysql_optional_plugins} builtin_maria_${target}_plugin,"
       PARENT_SCOPE)
     ENDIF()
   ELSEIF(NOT WITHOUT_${plugin} AND NOT ARG_STATIC_ONLY  AND NOT WITHOUT_DYNAMIC_PLUGINS)

@@ -25,7 +25,7 @@ int maria_is_changed(MARIA_HA *info)
   DBUG_ENTER("maria_is_changed");
   if (fast_ma_readinfo(info))
     DBUG_RETURN(-1);
-  VOID(_ma_writeinfo(info,0));
+  _ma_writeinfo(info, 0);
   result=(int) info->data_changed;
   info->data_changed=0;
   DBUG_PRINT("exit",("result: %d",result));

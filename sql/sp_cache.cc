@@ -123,7 +123,7 @@ void sp_cache_clear(sp_cache **cp)
 
 void sp_cache_end()
 {
-  pthread_mutex_destroy(&Cversion_lock);
+  mysql_mutex_destroy(&Cversion_lock);
 }
 
 

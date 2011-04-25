@@ -29,6 +29,7 @@ count(*)
 select * from t1;
 i
 2
+unlock tables;
 drop table t1,t2;
 create table t1(id int, s char(1), unique(s)) engine=aria;
 insert into t1 values(1,"a") on duplicate key update t1.id=t1.id+1;

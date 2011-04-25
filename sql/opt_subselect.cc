@@ -10,10 +10,9 @@
 #pragma implementation				// gcc: Class implementation
 #endif
 
-#include "mysql_priv.h"
 #include "sql_select.h"
 #include "opt_subselect.h"
-
+#include "sql_test.h"
 #include <my_bit.h>
 
 // Our own:
@@ -2240,7 +2239,7 @@ bool setup_sj_materialization(JOIN_TAB *tab)
                                      sjm->sjm_table_cols, (ORDER*) 0, 
                                      TRUE /* distinct */, 
                                      1, /*save_sum_fields*/
-                                     thd->options | TMP_TABLE_ALL_COLUMNS, 
+                                     thd->variables.option_bits | TMP_TABLE_ALL_COLUMNS, 
                                      HA_POS_ERROR /*rows_limit */, 
                                      (char*)"sj-materialize")))
     DBUG_RETURN(TRUE); /* purecov: inspected */
@@ -2800,7 +2799,7 @@ TABLE *create_duplicate_weedout_tmp_table(THD *thd,
   if (share->db_type() == TMP_ENGINE_HTON)
   {
     recinfo++;
-    if (create_internal_tmp_table(table, keyinfo, start_recinfo, &recinfo, 0))
+    if (create_internal_tmp_table(table, keyinfo, start_recinfo, &recinfo, 0, 0))
       goto err;
   }
   sjtbl->start_recinfo= start_recinfo;

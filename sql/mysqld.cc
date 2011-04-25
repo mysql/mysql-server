@@ -51,6 +51,7 @@
 #include "derror.h"       // init_errmessage
 #include "des_key_file.h" // load_des_key_file
 #include "sql_manager.h"  // stop_handle_manager, start_handle_manager
+#include "sql_expression_cache.h" // subquery_cache_miss, subquery_cache_hit
 
 #include <m_ctype.h>
 #include <my_dir.h>
@@ -291,7 +292,6 @@ static TYPELIB tc_heuristic_recover_typelib=
   tc_heuristic_recover_names, NULL
 };
 
-const int server_maturity= MariaDB_PLUGIN_MATURITY_UNKNOWN;
 const char *first_keyword= "first", *binary_keyword= "BINARY";
 const char *my_localhost= "localhost", *delayed_user= "DELAYED";
 
@@ -357,8 +357,6 @@ static I_List<THD> thread_cache;
 static bool binlog_format_used= false;
 LEX_STRING opt_init_connect, opt_init_slave;
 static mysql_cond_t COND_thread_cache, COND_flush_thread_cache;
-
-static ulong opt_my_crc_dbug_check;
 
 /* Global variables */
 
@@ -923,7 +921,7 @@ my_bool opt_use_ssl  = 0;
 char *opt_ssl_ca= NULL, *opt_ssl_capath= NULL, *opt_ssl_cert= NULL,
      *opt_ssl_cipher= NULL, *opt_ssl_key= NULL;
 
-scheduler_functions *thread_scheduler, *extra_thread_scheduler;
+scheduler_functions thread_scheduler, extra_thread_scheduler;
 
 #ifdef HAVE_OPENSSL
 #include <openssl/crypto.h>
@@ -979,9 +977,9 @@ pthread_handler_t handle_connections_shared_memory(void *arg);
 pthread_handler_t handle_slave(void *arg);
 static void clean_up(bool print_message);
 static int test_if_case_insensitive(const char *dir_name);
-static void register_mutex_order();
 
 #ifndef EMBEDDED_LIBRARY
+static void register_mutex_order();
 static void usage(void);
 static void start_signal_handler(void);
 static void close_server_sock();
@@ -1115,7 +1113,7 @@ static void close_connections(void)
       continue;
 
     tmp->killed= THD::KILL_CONNECTION;
-    thread_scheduler.post_kill_notification(tmp);
+    MYSQL_CALLBACK(&thread_scheduler, post_kill_notification, (tmp));
     mysql_mutex_lock(&tmp->LOCK_thd_data);
     if (tmp->mysys_var)
     {
@@ -1126,25 +1124,6 @@ static void close_connections(void)
         mysql_mutex_lock(tmp->mysys_var->current_mutex);
         mysql_cond_broadcast(tmp->mysys_var->current_cond);
         mysql_mutex_unlock(tmp->mysys_var->current_mutex);
-#error search for mysys_var->mutex / mysys_var->current_mutex lock order
-#error or/add safe_mutex_assert every time
-#if 0
-=======
-        uint i;
-        for (i=0; i < 2; i++)
-        {
-          int ret= pthread_mutex_trylock(tmp->mysys_var->current_mutex);
-          pthread_cond_broadcast(tmp->mysys_var->current_cond);
-          if (!ret)
-          {
-            /* Thread has surely got the signal, unlock and abort */
-            pthread_mutex_unlock(tmp->mysys_var->current_mutex);
-            break;
-          }
-          sleep(1);
-        }
->>>>>>> MERGE-SOURCE
-#endif
       }
       mysql_mutex_unlock(&tmp->mysys_var->mutex);
     }
@@ -1559,7 +1538,7 @@ void clean_up(bool print_message)
   if (print_message && my_default_lc_messages && server_start_time)
     sql_print_information(ER_DEFAULT(ER_SHUTDOWN_COMPLETE),my_progname);
   cleanup_errmsgs();
-  thread_scheduler.end();
+  MYSQL_CALLBACK(&thread_scheduler, end, ());
   mysql_library_end();
   finish_client_errs();
   (void) my_error_unregister(ER_ERROR_FIRST, ER_ERROR_LAST); // finish server errs
@@ -1654,7 +1633,6 @@ static void clean_up_mutexes()
   mysql_cond_destroy(&COND_server_started);
   DBUG_VOID_RETURN;
 }
-#endif /*EMBEDDED_LIBRARY*/
 
 
 /**
@@ -1666,8 +1644,8 @@ static void clean_up_mutexes()
 
 #ifdef SAFE_MUTEX
 #define always_in_that_order(A,B)               \
-  pthread_mutex_lock(A); pthread_mutex_lock(B); \
-  pthread_mutex_unlock(B); pthread_mutex_unlock(A)
+  mysql_mutex_lock(A); mysql_mutex_lock(B);     \
+  mysql_mutex_unlock(B); mysql_mutex_unlock(A)
 #else
 #define always_in_that_order(A,B)
 #endif
@@ -1682,6 +1660,7 @@ static void register_mutex_order()
 }
 #undef always_in_that_order
 
+#endif /*EMBEDDED_LIBRARY*/
 
 /****************************************************************************
 ** Init IP and UNIX socket
@@ -1862,14 +1841,18 @@ static my_socket activate_tcp_port(uint port)
   struct addrinfo *ai, *a;
   struct addrinfo hints;
   int error;
-  DBUG_PRINT("general",("IP Socket is %d",mysqld_port));
+  int	arg;
+  char port_buf[NI_MAXSERV];
+  my_socket ip_sock;
+  DBUG_ENTER("activate_tcp_port");
+  DBUG_PRINT("general",("IP Socket is %d",port));
 
   bzero(&hints, sizeof (hints));
   hints.ai_flags= AI_PASSIVE;
   hints.ai_socktype= SOCK_STREAM;
   hints.ai_family= AF_UNSPEC;
 
-  my_snprintf(port_buf, NI_MAXSERV, "%d", mysqld_port);
+  my_snprintf(port_buf, NI_MAXSERV, "%d", port);
   error= getaddrinfo(my_bind_addr_str, port_buf, &hints, &ai);
   if (error != 0)
   {
@@ -1926,13 +1909,15 @@ static my_socket activate_tcp_port(uint port)
     Retry at second: 1, 3, 7, 13, 22, 35, 52, 74, ...
     Limit the sequence by mysqld_port_timeout (set --port-open-timeout=#).
   */
+  int ret;
+  uint waited, retry, this_wait;
   for (waited= 0, retry= 1; ; retry++, waited+= this_wait)
   {
     if (((ret= bind(ip_sock, a->ai_addr, a->ai_addrlen)) >= 0 ) ||
         (socket_errno != SOCKET_EADDRINUSE) ||
         (waited >= mysqld_port_timeout))
       break;
-    sql_print_information("Retrying bind on TCP/IP port %u", mysqld_port);
+    sql_print_information("Retrying bind on TCP/IP port %u", port);
     this_wait= retry * retry / 3 + 1;
     sleep(this_wait);
   }
@@ -1941,7 +1926,7 @@ static my_socket activate_tcp_port(uint port)
   {
     DBUG_PRINT("error",("Got error: %d from bind",socket_errno));
     sql_perror("Can't start server: Bind on TCP/IP port");
-    sql_print_error("Do you already have another mysqld server running on port: %d ?",mysqld_port);
+    sql_print_error("Do you already have another mysqld server running on port: %d ?",port);
     unireg_abort(1);
   }
   if (listen(ip_sock,(int) back_log) < 0)
@@ -1959,11 +1944,10 @@ static void network_init(void)
 #ifdef HAVE_SYS_UN_H
   struct sockaddr_un	UNIXaddr;
 #endif
-  int	arg=1;
-  char port_buf[NI_MAXSERV];
+  int	arg;
   DBUG_ENTER("network_init");
 
-  if (MYSQL_CALLBACK(thread_scheduler, init, ()))
+  if (MYSQL_CALLBACK_ELSE(&thread_scheduler, init, (), 0))
     unireg_abort(1);			/* purecov: inspected */
 
   set_ports();
@@ -2047,10 +2031,11 @@ static void network_init(void)
     UNIXaddr.sun_family = AF_UNIX;
     strmov(UNIXaddr.sun_path, mysqld_unix_port);
     (void) unlink(mysqld_unix_port);
+    arg= 1;
     (void) setsockopt(unix_sock,SOL_SOCKET,SO_REUSEADDR,(char*)&arg,
 		      sizeof(arg));
     umask(0);
-    if (bind(unix_sock, my_reinterpret_cast(struct sockaddr *) (&UNIXaddr),
+    if (bind(unix_sock, reinterpret_cast<struct sockaddr *>(&UNIXaddr),
 	     sizeof(UNIXaddr)) < 0)
     {
       sql_perror("Can't start server : Bind on unix socket"); /* purecov: tested */
@@ -2522,7 +2507,7 @@ and this may fail.\n\n");
           (ulong) dflt_key_cache->key_cache_mem_size);
   fprintf(stderr, "read_buffer_size=%ld\n", (long) global_system_variables.read_buff_size);
   fprintf(stderr, "max_used_connections=%lu\n", max_used_connections);
-  fprintf(stderr, "max_threads=%u\n", thread_scheduler->max_threads +
+  fprintf(stderr, "max_threads=%u\n", thread_scheduler.max_threads +
           (uint) extra_max_connections);
   fprintf(stderr, "thread_count=%u\n", thread_count);
   fprintf(stderr, "It is possible that mysqld could use up to \n\
@@ -2530,7 +2515,7 @@ key_buffer_size + (read_buffer_size + sort_buffer_size)*max_threads = %lu K\n\
 bytes of memory\n", ((ulong) dflt_key_cache->key_cache_mem_size +
 		     (global_system_variables.read_buff_size +
 		      global_system_variables.sortbuff_size) *
-		     (thread_scheduler->max_threads + extra_max_connections) +
+		     (thread_scheduler.max_threads + extra_max_connections) +
                      (max_connections + extra_max_connections)* sizeof(THD)) / 1024);
   fprintf(stderr, "Hope that's ok; if not, decrease some variables in the equation.\n\n");
 
@@ -2631,7 +2616,6 @@ bugs.\n");
   }
 #endif
 
-end:
 #ifndef __WIN__
   /* Terminate */
   exit(1);
@@ -2781,7 +2765,7 @@ pthread_handler_t signal_hand(void *arg __attribute__((unused)))
     This should actually be '+ max_number_of_slaves' instead of +10,
     but the +10 should be quite safe.
   */
-  init_thr_alarm(thread_scheduler->max_threads + extra_max_connections +
+  init_thr_alarm(thread_scheduler.max_threads + extra_max_connections +
 		 global_system_variables.max_insert_delayed_threads + 10);
   if (test_flags & TEST_SIGINT)
   {
@@ -2938,23 +2922,7 @@ void my_message_sql(uint error, const char *str, myf MyFlags)
   DBUG_PRINT("error", ("error: %u  message: '%s'", error, str));
 
   DBUG_ASSERT(str != NULL);
-  /*
-    An error should have a valid error number (!= 0), so it can be caught
-    in stored procedures by SQL exception handlers.
-    Calling my_error() with error == 0 is a bug.
-    Remaining known places to fix:
-    - storage/myisam/mi_create.c, my_printf_error()
-    TODO:
-    DBUG_ASSERT(error != 0);
-  */
-#warning FIXME
-  if (error == 0)
-  {
-    /* At least, prevent new abuse ... */
-    DBUG_ASSERT(strncmp(str, "MyISAM table", 12) == 0 ||
-                strncmp(str, "Aria table", 11) == 0);
-    error= ER_UNKNOWN_ERROR;
-  }
+  DBUG_ASSERT(error != 0);
 
   mysql_audit_general(thd, MYSQL_AUDIT_GENERAL_ERROR, error, str);
   if (MyFlags & ME_JUST_INFO)
@@ -3312,7 +3280,7 @@ static int init_common_variables()
     (except in the embedded server, where the default continues to
     be MyISAM)
   */
-#ifdef EMBEDDED_LIBRARY
+#ifndef WITH_INNOBASE_STORAGE_ENGINE
   default_storage_engine= const_cast<char *>("MyISAM");
 #else
   default_storage_engine= const_cast<char *>("InnoDB");
@@ -3686,11 +3654,13 @@ static int init_thread_environment()
                    &LOCK_uuid_generator, MY_MUTEX_INIT_FAST);
   mysql_mutex_init(key_LOCK_connection_count,
                    &LOCK_connection_count, MY_MUTEX_INIT_FAST);
-  mysql_mutex_init(&LOCK_stats, MY_MUTEX_INIT_FAST);
-  mysql_mutex_init(&LOCK_global_user_client_stats,
-              MY_MUTEX_INIT_FAST);
-  mysql_mutex_init(&LOCK_global_table_stats, MY_MUTEX_INIT_FAST);
-  mysql_mutex_init(&LOCK_global_index_stats, MY_MUTEX_INIT_FAST);
+  mysql_mutex_init(key_LOCK_stats, &LOCK_stats, MY_MUTEX_INIT_FAST);
+  mysql_mutex_init(key_LOCK_global_user_client_stats,
+                   &LOCK_global_user_client_stats, MY_MUTEX_INIT_FAST);
+  mysql_mutex_init(key_LOCK_global_table_stats,
+                   &LOCK_global_table_stats, MY_MUTEX_INIT_FAST);
+  mysql_mutex_init(key_LOCK_global_index_stats,
+                   &LOCK_global_index_stats, MY_MUTEX_INIT_FAST);
 
 #ifdef HAVE_OPENSSL
   mysql_mutex_init(key_LOCK_des_key_file,
@@ -3738,7 +3708,6 @@ static int init_thread_environment()
     sql_print_error("Can't create thread-keys");
     return 1;
   }
-  register_mutex_order();
   return 0;
 }
 
@@ -3919,6 +3888,8 @@ static int init_server_components()
     }
   }
 
+  /* set up the hook before initializing plugins which may use it */
+  error_handler_hook= my_message_sql;
   proc_info_hook= set_thd_proc_info;
 
 #ifdef WITH_PERFSCHEMA_STORAGE_ENGINE
@@ -4030,7 +4001,7 @@ a file name for --log-bin-index option", opt_binlog_index_name);
   }
 
   /* call ha_init_key_cache() on all key caches to init them */
-  process_key_caches(&ha_init_key_cache);
+  process_key_caches(&ha_init_key_cache, 0);
 
   init_global_table_stats();
   init_global_index_stats();
@@ -4168,7 +4139,7 @@ a file name for --log-bin-index option", opt_binlog_index_name);
     global_system_variables.table_plugin= plugin;
     mysql_mutex_unlock(&LOCK_global_system_variables);
   }
-#if defined(WITH_ARIA_STORAGE_ENGINE) && defined(USE_MARIA_FOR_TMP_TABLES)
+#if defined(WITH_ARIA_STORAGE_ENGINE) && defined(USE_ARIA_FOR_TMP_TABLES)
   if (!ha_storage_engine_is_enabled(maria_hton) && !opt_bootstrap)
   {
     sql_print_error("Aria engine is not enabled or did not start. The Aria engine must be enabled to continue as mysqld was configured with --with-aria-tmp-tables");
@@ -4714,6 +4685,8 @@ int mysqld_main(int argc, char **argv)
       unireg_abort(1);
   }
 
+  register_mutex_order();
+
   create_shutdown_thread();
   start_handle_manager();
 
@@ -5232,16 +5205,13 @@ void handle_connections_sockets()
     socket_count++
 #else
   fd_set readFDs,clientFDs;
-  uint max_used_connection;
+  uint max_used_connection= (uint)
+    max(max(base_ip_sock, unix_sock), extra_ip_sock) + 1;
 #define setup_fds(X)    FD_SET(X,&clientFDs)
   FD_ZERO(&clientFDs);
 #endif
 
   DBUG_ENTER("handle_connections_sockets");
-
-  max_used_connection= (uint) (max(base_ip_sock, unix_sock));
-  max_used_connection= (uint) (max(extra_ip_sock, (int) max_used_connection));
-  max_used_connection++;
 
   if (base_ip_sock != INVALID_SOCKET)
   {
@@ -6733,8 +6703,8 @@ SHOW_VAR status_vars[]= {
     Expression cache used only for caching subqueries now, so its statistic
     variables we call subquery_cache*.
   */
-  {"Subquery_cache_hit",       (char*) &subquery_cache_hit, SHOW_LONG},
-  {"Subquery_cache_miss",      (char*) &subquery_cache_miss, SHOW_LONG},
+  {"Subquery_cache_hit",       (char*) &subquery_cache_hit,     SHOW_LONG},
+  {"Subquery_cache_miss",      (char*) &subquery_cache_miss,    SHOW_LONG},
   {"Table_locks_immediate",    (char*) &locks_immediate,        SHOW_LONG},
   {"Table_locks_waited",       (char*) &locks_waited,           SHOW_LONG},
 #ifdef HAVE_MMAP
@@ -6984,7 +6954,6 @@ static int mysql_init_variables(void)
   
   /* Variables that depends on compile options */
 #ifndef DBUG_OFF
-#warning test that --disable-debug --debug works
   default_dbug_option=IF_WIN("d:t:i:O,\\mysqld.trace",
 			     "d:t:i:o,/tmp/mysqld.trace");
   current_dbug_option= default_dbug_option;
@@ -7254,8 +7223,6 @@ mysqld_get_one_option(int optid,
     WARN_DEPRECATED(NULL, 7, 0, "--log-slow-queries", "'--slow-query-log'/'--slow-query-log-file'");
     opt_slow_log= 1;
     break;
-#endif
-    break;
   case (int) OPT_SAFE:
     opt_specialflag|= SPECIAL_SAFE_MODE | SPECIAL_NO_NEW_FUNC;
     delay_key_write_options= (uint) DELAY_KEY_WRITE_NONE;
@@ -7321,10 +7288,6 @@ mysqld_get_one_option(int optid,
     break;
   case OPT_LOWER_CASE_TABLE_NAMES:
     lower_case_table_names_used= 1;
-    break;
-  case OPT_TEST_IGNORE_WRONG_OPTIONS:
-    /* Used for testing options */
-    opt_ignore_wrong_options= 1;
     break;
 #if defined(ENABLED_DEBUG_SYNC)
   case OPT_DEBUG_SYNC_TIMEOUT:
@@ -7542,8 +7505,6 @@ static int get_options(int *argc_ptr, char ***argv_ptr)
   /* Set global MyISAM variables from delay_key_write_options */
   fix_delay_key_write(0, 0, OPT_GLOBAL);
 
-  global_system_variables.log_slow_filter=
-    fix_log_slow_filter(global_system_variables.log_slow_filter);
 #ifndef EMBEDDED_LIBRARY
   if (mysqld_chroot)
     set_root(mysqld_chroot);
@@ -7578,17 +7539,17 @@ static int get_options(int *argc_ptr, char ***argv_ptr)
     return 1;
 
 #ifdef EMBEDDED_LIBRARY
-  one_thread_scheduler(thread_scheduler);
-  one_thread_scheduler(extra_thread_scheduler);
+  one_thread_scheduler(&thread_scheduler);
+  one_thread_scheduler(&extra_thread_scheduler);
 #else
   if (thread_handling <= SCHEDULER_ONE_THREAD_PER_CONNECTION)
-    one_thread_per_connection_scheduler(thread_scheduler, &max_connections,
+    one_thread_per_connection_scheduler(&thread_scheduler, &max_connections,
                                         &connection_count);
   else if (thread_handling == SCHEDULER_NO_THREADS)
-    one_thread_scheduler(thread_scheduler);
+    one_thread_scheduler(&thread_scheduler);
   else
-    pool_of_threads_scheduler(thread_scheduler);  /* purecov: tested */
-  one_thread_per_connection_scheduler(extra_thread_scheduler,
+    pool_of_threads_scheduler(&thread_scheduler);  /* purecov: tested */
+  one_thread_per_connection_scheduler(&extra_thread_scheduler,
                                       &extra_max_connections,
                                       &extra_connection_count);
 #endif
@@ -7764,19 +7725,19 @@ static int fix_paths(void)
   {
     if (*opt_secure_file_priv == 0)
     {
-      /* For easy check later */
-      my_free(opt_secure_file_priv, MYF(0));
+      my_free(opt_secure_file_priv);
       opt_secure_file_priv= 0;
     }
     else
     {
-      char *secure_file_real_path;
+      if (strlen(opt_secure_file_priv) >= FN_REFLEN)
+        opt_secure_file_priv[FN_REFLEN-1]= '\0';
       if (my_realpath(buff, opt_secure_file_priv, 0))
       {
         sql_print_warning("Failed to normalize the argument for --secure-file-priv.");
         DBUG_RETURN(1);
       }
-      secure_file_real_path= (char *)my_malloc(FN_REFLEN, MYF(MY_FAE));
+      char *secure_file_real_path= (char *)my_malloc(FN_REFLEN, MYF(MY_FAE));
       convert_dirname(secure_file_real_path, buff, NullS);
       my_free(opt_secure_file_priv);
       opt_secure_file_priv= secure_file_real_path;
@@ -7867,7 +7828,7 @@ void refresh_status(THD *thd)
   reset_status_vars();
 
   /* Reset the counters of all key caches (default and named). */
-  process_key_caches(reset_key_cache_counters);
+  process_key_caches(reset_key_cache_counters, 0);
   flush_status_time= time((time_t*) 0);
   mysql_mutex_unlock(&LOCK_status);
 
@@ -7916,7 +7877,7 @@ PSI_mutex_key key_BINLOG_LOCK_index, key_BINLOG_LOCK_prep_xids,
   key_LOCK_connection_count, key_LOCK_crypt, key_LOCK_delayed_create,
   key_LOCK_delayed_insert, key_LOCK_delayed_status, key_LOCK_error_log,
   key_LOCK_gdl, key_LOCK_global_read_lock, key_LOCK_global_system_variables,
-  key_LOCK_manager,
+  key_LOCK_manager, 
   key_LOCK_prepared_stmt_count,
   key_LOCK_rpl_status, key_LOCK_server_started, key_LOCK_status,
   key_LOCK_system_variables_hash, key_LOCK_table_share, key_LOCK_thd_data,
@@ -7927,6 +7888,10 @@ PSI_mutex_key key_BINLOG_LOCK_index, key_BINLOG_LOCK_prep_xids,
   key_structure_guard_mutex, key_TABLE_SHARE_LOCK_ha_data,
   key_LOCK_error_messages, key_LOG_INFO_lock, key_LOCK_thread_count,
   key_PARTITION_LOCK_auto_inc;
+
+PSI_mutex_key key_LOCK_stats,
+  key_LOCK_global_user_client_stats, key_LOCK_global_table_stats,
+  key_LOCK_global_index_stats;
 
 static PSI_mutex_info all_server_mutexes[]=
 {
@@ -7962,6 +7927,10 @@ static PSI_mutex_info all_server_mutexes[]=
   { &key_LOCK_status, "LOCK_status", PSI_FLAG_GLOBAL},
   { &key_LOCK_system_variables_hash, "LOCK_system_variables_hash", PSI_FLAG_GLOBAL},
   { &key_LOCK_table_share, "LOCK_table_share", PSI_FLAG_GLOBAL},
+  { &key_LOCK_stats, "LOCK_stats", PSI_FLAG_GLOBAL},
+  { &key_LOCK_global_user_client_stats, "LOCK_global_user_client_stats", PSI_FLAG_GLOBAL},
+  { &key_LOCK_global_table_stats, "LOCK_global_table_stats", PSI_FLAG_GLOBAL},
+  { &key_LOCK_global_index_stats, "LOCK_global_index_stats", PSI_FLAG_GLOBAL},
   { &key_LOCK_thd_data, "THD::LOCK_thd_data", 0},
   { &key_LOCK_user_conn, "LOCK_user_conn", PSI_FLAG_GLOBAL},
   { &key_LOCK_uuid_generator, "LOCK_uuid_generator", PSI_FLAG_GLOBAL},

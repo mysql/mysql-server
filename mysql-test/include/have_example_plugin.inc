@@ -8,7 +8,6 @@ if (`SELECT @@have_dynamic_loading != 'YES'`) {
 #
 # Check if the variable HA_EXAMPLE_SO is set
 #
---require r/have_example_plugin.require
-disable_query_log;
-eval select LENGTH('$HA_EXAMPLE_SO') > 0 as 'have_example_plugin';
-enable_query_log;
+if (`SELECT LENGTH('$HA_EXAMPLE_SO') = 0`) {
+  --skip Need example plugin
+}

@@ -2,7 +2,6 @@
 # table after fast alter table added unique key". The fix is to make
 # sure index number lookup should go through "index translation table".
 
---source include/have_innodb.inc
 
 # Use FIC for index creation
 set old_alter_table=0;

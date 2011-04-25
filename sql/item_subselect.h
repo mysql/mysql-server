@@ -22,6 +22,8 @@
 #pragma interface			/* gcc class implementation */
 #endif
 
+#include <queues.h>
+
 class st_select_lex;
 class st_select_lex_unit;
 class JOIN;

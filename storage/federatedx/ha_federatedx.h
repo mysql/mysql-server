@@ -32,6 +32,15 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 */
 
 
+#ifdef USE_PRAGMA_INTERFACE
+#pragma interface			/* gcc class implementation */
+#endif
+
+//#include <mysql.h>
+#include <my_global.h>
+#include <thr_lock.h>
+#include "handler.h"
+
 class federatedx_io;
 
 /*
@@ -67,12 +76,6 @@ typedef struct st_fedrated_server {
   that are required to be implemented. handler.h has a full list of methods
   that you can implement.
 */
-
-#ifdef USE_PRAGMA_INTERFACE
-#pragma interface			/* gcc class implementation */
-#endif
-
-#include <mysql.h>
 
 /*
   handler::print_error has a case statement for error numbers.

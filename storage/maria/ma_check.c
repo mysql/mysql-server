@@ -1117,7 +1117,7 @@ static int check_keys_in_record(HA_CHECK *param, MARIA_HA *info, int extend,
   if (param->testflag & T_WRITE_LOOP && param->records % WRITE_COUNT == 0)
   {
     printf("%s\r", llstr(param->records, llbuff));
-    VOID(fflush(stdout));
+    fflush(stdout);
   }
 
   /* Check if keys match the record */
@@ -1471,9 +1471,9 @@ static int check_compressed_record(HA_CHECK *param, MARIA_HA *info, int extend,
 
     start_recpos= pos;
     param->splits++;
-    VOID(_ma_pack_get_block_info(info, &info->bit_buff, &block_info,
+    _ma_pack_get_block_info(info, &info->bit_buff, &block_info,
                                  &info->rec_buff, &info->rec_buff_size, -1,
-                                 start_recpos));
+                                 start_recpos);
     pos=block_info.filepos+block_info.rec_len;
     if (block_info.rec_len < (uint) share->min_pack_length ||
         block_info.rec_len > (uint) share->max_pack_length)
@@ -2054,7 +2054,8 @@ int maria_chk_data_link(HA_CHECK *param, MARIA_HA *info, my_bool extend)
 
   if (param->testflag & T_WRITE_LOOP)
   {
-    VOID(fputs("          \r",stdout)); VOID(fflush(stdout));
+    fputs("          \r",stdout);
+    fflush(stdout);
   }
   if (param->records != share->state.state.records)
   {
@@ -2185,11 +2186,11 @@ int maria_chk_data_link(HA_CHECK *param, MARIA_HA *info, my_bool extend)
              llstr(param->max_found_trid, llbuff));
     }
   }
-  my_free(record,MYF(0));
+  my_free(record);
   DBUG_RETURN (error);
 
 err:
-  my_free(record,MYF(0));
+  my_free(record);
   param->testflag|=T_RETRY_WITHOUT_QUICK;
   DBUG_RETURN(1);
 } /* maria_chk_data_link */
@@ -2678,7 +2679,7 @@ int maria_repair(HA_CHECK *param, register MARIA_HA *info,
 
   if (param->testflag & T_WRITE_LOOP)
   {
-    VOID(fputs("          \r",stdout)); VOID(fflush(stdout));
+    fputs("          \r",stdout); fflush(stdout);
   }
   if (my_chsize(share->kfile.file, share->state.state.key_file_length, 0, MYF(0)))
   {
@@ -2708,7 +2709,7 @@ int maria_repair(HA_CHECK *param, register MARIA_HA *info,
     }
   }
 
-  VOID(end_io_cache(&sort_info.new_info->rec_cache));
+  end_io_cache(&sort_info.new_info->rec_cache);
   info->opt_flag&= ~WRITE_CACHE_USED;
 
   /*
@@ -2779,8 +2780,8 @@ err:
     maria_scan_end(sort_info.info);
   _ma_reset_state(info);
 
-  VOID(end_io_cache(&param->read_cache));
-  VOID(end_io_cache(&sort_info.new_info->rec_cache));
+  end_io_cache(&param->read_cache);
+  end_io_cache(&sort_info.new_info->rec_cache);
   info->opt_flag&= ~(READ_CACHE_USED | WRITE_CACHE_USED);
   sort_info.new_info->opt_flag&= ~(READ_CACHE_USED | WRITE_CACHE_USED);
   /* this below could fail, shouldn't we detect error? */
@@ -2797,8 +2798,8 @@ err:
     }
     if (new_file >= 0)
     {
-      VOID(my_close(new_file,MYF(0)));
-      VOID(my_delete(param->temp_filename, MYF(MY_WME)));
+      my_close(new_file,MYF(0));
+      my_delete(param->temp_filename, MYF(MY_WME));
     }
     maria_mark_crashed_on_repair(info);
   }
@@ -2807,9 +2808,9 @@ err:
     _ma_reenable_logging_for_table(info, FALSE);
   restore_table_state_after_repair(info, &backup_share);
 
-  my_free(sort_param.rec_buff, MYF(MY_ALLOW_ZERO_PTR));
-  my_free(sort_param.record,MYF(MY_ALLOW_ZERO_PTR));
-  my_free(sort_info.buff,MYF(MY_ALLOW_ZERO_PTR));
+  my_free(sort_param.rec_buff);
+  my_free(sort_param.record);
+  my_free(sort_info.buff);
   if (!got_error && (param->testflag & T_UNPACK))
     restore_data_file_type(share);
   share->state.changed|= (STATE_NOT_OPTIMIZED_KEYS | STATE_NOT_SORTED_PAGES |
@@ -3054,10 +3055,10 @@ int maria_sort_index(HA_CHECK *param, register MARIA_HA *info, char *name)
   share->r_locks= share->w_locks= share->tot_locks= 0;
   (void) _ma_writeinfo(info,WRITEINFO_UPDATE_KEYFILE);
   pthread_mutex_lock(&share->intern_lock);
-  VOID(my_close(share->kfile.file, MYF(MY_WME)));
+  my_close(share->kfile.file, MYF(MY_WME));
   share->kfile.file = -1;
   pthread_mutex_unlock(&share->intern_lock);
-  VOID(my_close(new_file,MYF(MY_WME)));
+  my_close(new_file, MYF(MY_WME));
   if (maria_change_to_newfile(share->index_file_name.str, MARIA_NAME_IEXT,
                               INDEX_TMP_EXT, sync_dir) ||
       _ma_open_keyfile(share))
@@ -3090,9 +3091,9 @@ int maria_sort_index(HA_CHECK *param, register MARIA_HA *info, char *name)
   DBUG_RETURN(0);
 
 err:
-  VOID(my_close(new_file,MYF(MY_WME)));
+  my_close(new_file, MYF(MY_WME));
 err2:
-  VOID(my_delete(param->temp_filename,MYF(MY_WME)));
+  my_delete(param->temp_filename,MYF(MY_WME));
   DBUG_RETURN(-1);
 } /* maria_sort_index */
 
@@ -3525,7 +3526,7 @@ int maria_filecopy(HA_CHECK *param, File to,File from,my_off_t start,
     buff=tmp_buff; buff_length=IO_SIZE;
   }
 
-  VOID(my_seek(from,start,MY_SEEK_SET,MYF(0)));
+  my_seek(from, start, MY_SEEK_SET,MYF(0));
   while (length > buff_length)
   {
     if (my_read(from, buff, buff_length, MYF(MY_NABP)) ||
@@ -3537,11 +3538,11 @@ int maria_filecopy(HA_CHECK *param, File to,File from,my_off_t start,
       my_write(to,  buff, (size_t) length,param->myf_rw))
     goto err;
   if (buff != tmp_buff)
-    my_free(buff,MYF(0));
+    my_free(buff);
   DBUG_RETURN(0);
 err:
   if (buff != tmp_buff)
-    my_free(buff,MYF(0));
+    my_free(buff);
   _ma_check_print_error(param,"Can't copy %s to tempfile, error %d",
 		       type,my_errno);
   DBUG_RETURN(1);
@@ -3902,7 +3903,8 @@ int maria_repair_by_sort(HA_CHECK *param, register MARIA_HA *info,
 
   if (param->testflag & T_WRITE_LOOP)
   {
-    VOID(fputs("          \r",stdout)); VOID(fflush(stdout));
+    fputs("          \r",stdout);
+    fflush(stdout);
   }
 
   if (rep_quick && del+sort_info.dupp != share->state.state.del)
@@ -3961,8 +3963,8 @@ err:
     maria_scan_end(sort_info.info);
   _ma_reset_state(info);
 
-  VOID(end_io_cache(&sort_info.new_info->rec_cache));
-  VOID(end_io_cache(&param->read_cache));
+  end_io_cache(&sort_info.new_info->rec_cache);
+  end_io_cache(&param->read_cache);
   info->opt_flag&= ~(READ_CACHE_USED | WRITE_CACHE_USED);
   sort_info.new_info->opt_flag&= ~(READ_CACHE_USED | WRITE_CACHE_USED);
   if (got_error)
@@ -3977,8 +3979,8 @@ err:
     }
     if (new_file >= 0)
     {
-      VOID(my_close(new_file,MYF(0)));
-      VOID(my_delete(param->temp_filename, MYF(MY_WME)));
+      my_close(new_file, MYF(0));
+      my_delete(param->temp_filename, MYF(MY_WME));
     }
     maria_mark_crashed_on_repair(info);
   }
@@ -4011,11 +4013,11 @@ err:
     _ma_reenable_logging_for_table(info, FALSE);
   restore_table_state_after_repair(info, &backup_share);
 
-  my_free(sort_param.rec_buff, MYF(MY_ALLOW_ZERO_PTR));
-  my_free(sort_param.record,MYF(MY_ALLOW_ZERO_PTR));
-  my_free(sort_info.key_block, MYF(MY_ALLOW_ZERO_PTR));
-  my_free(sort_info.ft_buf, MYF(MY_ALLOW_ZERO_PTR));
-  my_free(sort_info.buff,MYF(MY_ALLOW_ZERO_PTR));
+  my_free(sort_param.rec_buff);
+  my_free(sort_param.record);
+  my_free(sort_info.key_block);
+  my_free(sort_info.ft_buf);
+  my_free(sort_info.buff);
   DBUG_RETURN(got_error);
 }
 
@@ -4480,8 +4482,8 @@ err:
     the share by remove_io_thread() or it was not yet started (if the
     error happend before creating the thread).
   */
-  VOID(end_io_cache(&sort_info.new_info->rec_cache));
-  VOID(end_io_cache(&param->read_cache));
+  end_io_cache(&sort_info.new_info->rec_cache);
+  end_io_cache(&param->read_cache);
   info->opt_flag&= ~(READ_CACHE_USED | WRITE_CACHE_USED);
   sort_info.new_info->opt_flag&= ~(READ_CACHE_USED | WRITE_CACHE_USED);
   /*
@@ -4491,7 +4493,7 @@ err:
     creating the threads).
   */
   if (!rep_quick)
-    VOID(end_io_cache(&new_data_cache));
+    end_io_cache(&new_data_cache);
   if (!got_error)
   {
     /* Replace the actual file with the temporary file */
@@ -4515,8 +4517,8 @@ err:
     (void)_ma_flush_table_files_before_swap(param, info);
     if (new_file >= 0)
     {
-      VOID(my_close(new_file,MYF(0)));
-      VOID(my_delete(param->temp_filename, MYF(MY_WME)));
+      my_close(new_file,MYF(0));
+      my_delete(param->temp_filename, MYF(MY_WME));
       if (info->dfile.file == new_file)
 	info->dfile.file= -1;
     }
@@ -4537,10 +4539,10 @@ err:
     _ma_reenable_logging_for_table(info, FALSE);
   restore_table_state_after_repair(info, &backup_share);
 
-  my_free(sort_info.ft_buf, MYF(MY_ALLOW_ZERO_PTR));
-  my_free(sort_info.key_block,MYF(MY_ALLOW_ZERO_PTR));
-  my_free(sort_param,MYF(MY_ALLOW_ZERO_PTR));
-  my_free(sort_info.buff,MYF(MY_ALLOW_ZERO_PTR));
+  my_free(sort_info.ft_buf);
+  my_free(sort_info.key_block);
+  my_free(sort_param);
+  my_free(sort_info.buff);
   if (!got_error && (param->testflag & T_UNPACK))
     restore_data_file_type(share);
   DBUG_RETURN(got_error);
@@ -5319,7 +5321,7 @@ int _ma_sort_write_record(MARIA_SORT_PARAM *sort_param)
     {
       char llbuff[22];
       printf("%s\r", llstr(share->state.state.records,llbuff));
-      VOID(fflush(stdout));
+      fflush(stdout);
     }
   }
   DBUG_RETURN(0);
@@ -5937,7 +5939,7 @@ int maria_recreate_table(HA_CHECK *param, MARIA_HA **org_info, char *filename)
   set_if_bigger(file_length,tmp_length);
   set_if_bigger(file_length,(ulonglong) share.base.max_data_file_length);
 
-  VOID(maria_close(*org_info));
+  maria_close(*org_info);
 
   bzero((char*) &create_info,sizeof(create_info));
   create_info.max_rows=max(max_records,share.base.records);
@@ -5993,7 +5995,7 @@ int maria_recreate_table(HA_CHECK *param, MARIA_HA **org_info, char *filename)
   }
   /* We are modifing */
   (*org_info)->s->options&= ~HA_OPTION_READ_ONLY_DATA;
-  VOID(_ma_readinfo(*org_info,F_WRLCK,0));
+  _ma_readinfo(*org_info,F_WRLCK,0);
   (*org_info)->s->state.state.records= info.state->records;
   if (share.state.create_time)
     (*org_info)->s->state.create_time=share.state.create_time;
@@ -6146,7 +6148,7 @@ void _ma_update_auto_increment_key(HA_CHECK *param, MARIA_HA *info,
     if (my_errno != HA_ERR_END_OF_FILE)
     {
       maria_extra(info,HA_EXTRA_NO_KEYREAD,0);
-      my_free((char*) record, MYF(0));
+      my_free(record);
       _ma_check_print_error(param,"%d when reading last record",my_errno);
       DBUG_VOID_RETURN;
     }
@@ -6163,7 +6165,7 @@ void _ma_update_auto_increment_key(HA_CHECK *param, MARIA_HA *info,
       set_if_bigger(share->state.auto_increment, param->auto_increment_value);
   }
   maria_extra(info,HA_EXTRA_NO_KEYREAD,0);
-  my_free((char*) record, MYF(0));
+  my_free(record);
   maria_update_state_info(param, info, UPDATE_AUTO_INC);
   DBUG_VOID_RETURN;
 }

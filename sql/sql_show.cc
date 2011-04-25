@@ -41,6 +41,7 @@
 #include "sp_pcontext.h"
 #include "set_var.h"
 #include "sql_trigger.h"
+#include "sql_connect.h"
 #include "authors.h"
 #include "contributors.h"
 #include "sql_partition.h"
@@ -52,6 +53,7 @@
 #include "lock.h"                           // MYSQL_OPEN_IGNORE_FLUSH
 #include "debug_sync.h"
 #include "datadict.h"   // dd_frm_type()
+#include "keycaches.h"
 
 #define STR_OR_NIL(S) ((S) ? (S) : "<nil>")
 
@@ -1110,7 +1112,7 @@ static bool get_field_default_value(THD *thd, Field *timestamp_field,
       if (field_type == MYSQL_TYPE_BIT)
       {
         longlong dec= field->val_int();
-        char *ptr= longlong2str(dec, tmp + 2, 2, 1);
+        char *ptr= longlong2str(dec, tmp + 2, 2);
         uint32 length= (uint32) (ptr - tmp);
         tmp[0]= 'b';
         tmp[1]= '\'';
@@ -2380,7 +2382,6 @@ static bool show_status_array(THD *thd, const char *wild,
           DBUG_ASSERT(0);
           break;
         }
-        pthread_mutex_unlock(&LOCK_global_system_variables);
         table->field[1]->store(pos, (uint32) (end - pos), charset);
         thd->count_cuted_fields= CHECK_FIELD_IGNORE;
         table->field[1]->set_notnull();
@@ -2400,7 +2401,7 @@ end:
   DBUG_RETURN(res);
 }
 
-#ifdef COMPLEAT_PATCH_NOT_ADDED_YET
+#ifdef COMPLETE_PATCH_NOT_ADDED_YET
 /*
   Aggregate values for mapped_user entries by their role.
 
@@ -2417,10 +2418,10 @@ end:
 static int aggregate_user_stats(HASH *all_user_stats, HASH *agg_user_stats)
 {
   DBUG_ENTER("aggregate_user_stats");
-  if (hash_init(agg_user_stats, system_charset_info,
+  if (my_hash_init(agg_user_stats, system_charset_info,
                 max(all_user_stats->records, 1),
-                0, 0, (hash_get_key)get_key_user_stats,
-                (hash_free_key)free_user_stats, 0))
+                0, 0, (my_hash_get_key)get_key_user_stats,
+                (my_hash_free_key)free_user_stats, 0))
   {
     sql_print_error("Malloc in aggregate_user_stats failed");
     DBUG_RETURN(1);
@@ -2428,11 +2429,11 @@ static int aggregate_user_stats(HASH *all_user_stats, HASH *agg_user_stats)
 
   for (uint i= 0; i < all_user_stats->records; i++)
   {
-    USER_STATS *user= (USER_STATS*)hash_element(all_user_stats, i);
+    USER_STATS *user= (USER_STATS*)my_hash_element(all_user_stats, i);
     USER_STATS *agg_user;
     uint name_length= strlen(user->priv_user);
 
-    if (!(agg_user= (USER_STATS*) hash_search(agg_user_stats,
+    if (!(agg_user= (USER_STATS*) my_hash_search(agg_user_stats,
                                               (uchar*)user->priv_user,
                                               name_length)))
     {
@@ -2511,7 +2512,7 @@ int send_user_stats(THD* thd, HASH *all_user_stats, TABLE *table)
   for (uint i= 0; i < all_user_stats->records; i++)
   {
     uint j= 0;
-    USER_STATS *user_stats= (USER_STATS*) hash_element(all_user_stats, i);
+    USER_STATS *user_stats= (USER_STATS*) my_hash_element(all_user_stats, i);
     
     table->field[j++]->store(user_stats->user, user_stats->user_name_length,
                              system_charset_info);
@@ -2574,9 +2575,9 @@ int fill_schema_user_stats(THD* thd, TABLE_LIST* tables, COND* cond)
     Pattern matching on the client IP is supported.
   */
 
-  pthread_mutex_lock(&LOCK_global_user_client_stats);
+  mysql_mutex_lock(&LOCK_global_user_client_stats);
   result= send_user_stats(thd, &global_user_stats, table) != 0;
-  pthread_mutex_unlock(&LOCK_global_user_client_stats);
+  mysql_mutex_unlock(&LOCK_global_user_client_stats);
 
   DBUG_PRINT("exit", ("result: %d", result));
   DBUG_RETURN(result);
@@ -2609,9 +2610,9 @@ int fill_schema_client_stats(THD* thd, TABLE_LIST* tables, COND* cond)
     Pattern matching on the client IP is supported.
   */
 
-  pthread_mutex_lock(&LOCK_global_user_client_stats);
+  mysql_mutex_lock(&LOCK_global_user_client_stats);
   result= send_user_stats(thd, &global_client_stats, table) != 0;
-  pthread_mutex_unlock(&LOCK_global_user_client_stats);
+  mysql_mutex_unlock(&LOCK_global_user_client_stats);
 
   DBUG_PRINT("exit", ("result: %d", result));
   DBUG_RETURN(result);
@@ -2625,12 +2626,12 @@ int fill_schema_table_stats(THD *thd, TABLE_LIST *tables, COND *cond)
   TABLE *table= tables->table;
   DBUG_ENTER("fill_schema_table_stats");
 
-  pthread_mutex_lock(&LOCK_global_table_stats);
+  mysql_mutex_lock(&LOCK_global_table_stats);
   for (uint i= 0; i < global_table_stats.records; i++)
   {
     char *end_of_schema;
     TABLE_STATS *table_stats= 
-      (TABLE_STATS*)hash_element(&global_table_stats, i);
+      (TABLE_STATS*)my_hash_element(&global_table_stats, i);
     TABLE_LIST tmp_table;
     size_t schema_length, table_name_length;
 
@@ -2642,9 +2643,8 @@ int fill_schema_table_stats(THD *thd, TABLE_LIST *tables, COND *cond)
     tmp_table.db=         table_stats->table;
     tmp_table.table_name= end_of_schema+1;
     tmp_table.grant.privilege= 0;
-    if (check_access(thd, SELECT_ACL | EXTRA_ACL, tmp_table.db,
-                     &tmp_table.grant.privilege, 0, 0,
-                     is_schema_db(tmp_table.db)) ||
+    if (check_access(thd, SELECT_ACL, tmp_table.db,
+                     &tmp_table.grant.privilege, NULL, 0, 1) ||
         check_grant(thd, SELECT_ACL, &tmp_table, 1, UINT_MAX,
                     1))
       continue;
@@ -2659,11 +2659,11 @@ int fill_schema_table_stats(THD *thd, TABLE_LIST *tables, COND *cond)
                            TRUE);
     if (schema_table_store_record(thd, table))
     {
-      VOID(pthread_mutex_unlock(&LOCK_global_table_stats));
+      mysql_mutex_unlock(&LOCK_global_table_stats);
       DBUG_RETURN(1);
     }
   }
-  pthread_mutex_unlock(&LOCK_global_table_stats);
+  mysql_mutex_unlock(&LOCK_global_table_stats);
   DBUG_RETURN(0);
 }
 
@@ -2675,11 +2675,11 @@ int fill_schema_index_stats(THD *thd, TABLE_LIST *tables, COND *cond)
   TABLE *table= tables->table;
   DBUG_ENTER("fill_schema_index_stats");
 
-  pthread_mutex_lock(&LOCK_global_index_stats);
+  mysql_mutex_lock(&LOCK_global_index_stats);
   for (uint i= 0; i < global_index_stats.records; i++)
   {
     INDEX_STATS *index_stats =
-      (INDEX_STATS*) hash_element(&global_index_stats, i);
+      (INDEX_STATS*) my_hash_element(&global_index_stats, i);
     TABLE_LIST tmp_table;
     char *index_name;
     size_t schema_name_length, table_name_length, index_name_length;
@@ -2688,9 +2688,8 @@ int fill_schema_index_stats(THD *thd, TABLE_LIST *tables, COND *cond)
     tmp_table.db=         index_stats->index;
     tmp_table.table_name= strend(index_stats->index)+1;
     tmp_table.grant.privilege= 0;
-    if (check_access(thd, SELECT_ACL | EXTRA_ACL, tmp_table.db,
-                      &tmp_table.grant.privilege, 0, 0,
-                      is_schema_db(tmp_table.db)) ||
+    if (check_access(thd, SELECT_ACL, tmp_table.db,
+                      &tmp_table.grant.privilege, NULL, 0, 1) ||
         check_grant(thd, SELECT_ACL, &tmp_table, 1, UINT_MAX, 1))
       continue;
 
@@ -2709,11 +2708,11 @@ int fill_schema_index_stats(THD *thd, TABLE_LIST *tables, COND *cond)
 
     if (schema_table_store_record(thd, table))
     { 
-      VOID(pthread_mutex_unlock(&LOCK_global_index_stats));
+      mysql_mutex_unlock(&LOCK_global_index_stats);
       DBUG_RETURN(1);
     }
   }
-  pthread_mutex_unlock(&LOCK_global_index_stats);
+  mysql_mutex_unlock(&LOCK_global_index_stats);
   DBUG_RETURN(0);
 }
 
@@ -4114,8 +4113,8 @@ int fill_schema_schemata(THD *thd, TABLE_LIST *tables, COND *cond)
   if (get_lookup_field_values(thd, cond, tables, &lookup_field_vals))
     DBUG_RETURN(0);
   DBUG_PRINT("INDEX VALUES",("db_name: %s  table_name: %s",
-                             val_or_null(lookup_field_vals.db_value.str),
-                             val_or_null(lookup_field_vals.table_value.str)));
+                             lookup_field_vals.db_value.str,
+                             lookup_field_vals.table_value.str));
   if (make_db_list(thd, &db_names, &lookup_field_vals,
                    &with_i_schema))
     DBUG_RETURN(1);
@@ -7256,41 +7255,42 @@ int store_key_cache_table_record(THD *thd, TABLE *table,
   DBUG_RETURN(err);
 }
 
+int run_fill_key_cache_tables(const char *name, KEY_CACHE *key_cache, void *p)
+{
+  DBUG_ENTER("run_fill_key_cache_tables");
+
+  if (!key_cache->key_cache_inited)
+    DBUG_RETURN(0);
+
+  TABLE *table= (TABLE *)p;
+  THD *thd= table->in_use;
+  uint partitions= key_cache->partitions;    
+  size_t namelen= strlen(name);
+  DBUG_ASSERT(partitions <= MAX_KEY_CACHE_PARTITIONS);
+
+  if (partitions)
+  {
+    for (uint i= 0; i < partitions; i++)
+    {
+      if (store_key_cache_table_record(thd, table, name, namelen,
+                                       key_cache, partitions, i+1))
+        DBUG_RETURN(1);
+    }
+  }
+
+  if (store_key_cache_table_record(thd, table, name, namelen,
+                                   key_cache, partitions, 0))
+    DBUG_RETURN(1);
+  DBUG_RETURN(0);
+}
 
 int fill_key_cache_tables(THD *thd, TABLE_LIST *tables, COND *cond)
 {
-  TABLE *table= tables->table;
-  I_List_iterator<NAMED_LIST> it(key_caches);
-  NAMED_LIST *element;
   DBUG_ENTER("fill_key_cache_tables");
 
-  while ((element= it++))
-  {
-    KEY_CACHE *key_cache= (KEY_CACHE *) element->data;
+  int res= process_key_caches(run_fill_key_cache_tables, tables->table);
 
-    if (!key_cache->key_cache_inited)
-      continue;
-
-    uint partitions= key_cache->partitions;    
-    DBUG_ASSERT(partitions <= MAX_KEY_CACHE_PARTITIONS);
-
-    if (partitions)
-    {
-      for (uint i= 0; i < partitions; i++)
-      {
-        if (store_key_cache_table_record(thd, table,
-                                         element->name, element->name_length, 
-                                         key_cache, partitions, i+1))
-	  DBUG_RETURN(1);
-      }
-    }
-
-    if (store_key_cache_table_record(thd, table, 
-                                     element->name, element->name_length,
-                                     key_cache, partitions, 0))
-      DBUG_RETURN(1);
-  }
-  DBUG_RETURN(0);
+  DBUG_RETURN(res);
 }
 
 

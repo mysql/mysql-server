@@ -1,0 +1,39 @@
+# bool global
+--source include/have_maria.inc
+
+SET @start_global_value = @@global.aria_page_checksum;
+
+#
+# exists as global only
+#
+select @@global.aria_page_checksum;
+--error ER_INCORRECT_GLOBAL_LOCAL_VAR
+select @@session.aria_page_checksum;
+show global variables like 'aria_page_checksum';
+show session variables like 'aria_page_checksum';
+select * from information_schema.global_variables where variable_name='aria_page_checksum';
+select * from information_schema.session_variables where variable_name='aria_page_checksum';
+
+#
+# show that it's writable
+#
+set global aria_page_checksum=ON;
+select @@global.aria_page_checksum;
+set global aria_page_checksum=OFF;
+select @@global.aria_page_checksum;
+set global aria_page_checksum=1;
+select @@global.aria_page_checksum;
+--error ER_GLOBAL_VARIABLE
+set session aria_page_checksum=1;
+
+#
+# incorrect types
+#
+--error ER_WRONG_TYPE_FOR_VAR
+set global aria_page_checksum=1.1;
+--error ER_WRONG_TYPE_FOR_VAR
+set global aria_page_checksum=1e1;
+--error ER_WRONG_VALUE_FOR_VAR
+set global aria_page_checksum="foo";
+
+SET @@global.aria_page_checksum = @start_global_value;

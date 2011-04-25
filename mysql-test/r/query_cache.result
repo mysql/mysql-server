@@ -1265,15 +1265,6 @@ drop procedure f3;
 drop procedure f4;
 drop table t1;
 set GLOBAL query_cache_size=0;
-set GLOBAL query_cache_size=100000;
-set SESSION query_cache_size=10000;
-ERROR HY000: Variable 'query_cache_size' is a GLOBAL variable and should be set with SET GLOBAL
-set global query_cache_limit=100;
-set global query_cache_size=100;
-set global query_cache_type=demand;
-set GLOBAL query_cache_type=default;
-set GLOBAL query_cache_limit=default;
-set GLOBAL query_cache_size=default;
 End of 4.1 tests
 SET GLOBAL query_cache_size=102400;
 create table t1(a int);

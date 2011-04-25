@@ -68,7 +68,7 @@ static MYSQL_SYSVAR_SET(recover_options, myisam_recover_options,
   PLUGIN_VAR_OPCMDARG|PLUGIN_VAR_READONLY,
   "Syntax: myisam-recover-options[=option[,option...]], where option can be "
   "DEFAULT, BACKUP, FORCE, QUICK, or OFF",
-  NULL, NULL, 0, &myisam_recover_typelib);
+  NULL, NULL, 1, &myisam_recover_typelib);
 
 static MYSQL_THDVAR_ULONG(repair_threads, PLUGIN_VAR_RQCMDARG,
   "If larger than 1, when repairing a MyISAM table all indexes will be "
@@ -705,8 +705,6 @@ int ha_myisam::open(const char *name, int mode, uint test_if_locked)
 
   if (!(file=mi_open(name, mode, test_if_locked | HA_OPEN_FROM_SQL_LAYER)))
     return (my_errno ? my_errno : -1);
-
-  file->s->chst_invalidator= query_cache_invalidate_by_MyISAM_filename_ref;
 
   if (!table->s->tmp_table) /* No need to perform a check for tmp table */
   {
@@ -1678,7 +1676,6 @@ int ha_myisam::index_last(uchar *buf)
   DBUG_ASSERT(inited==INDEX);
   int error=mi_rlast(file, buf, active_index);
   MYSQL_INDEX_READ_ROW_DONE(error);
-#warning move that to wrappers
   return error;
 }
 
@@ -2113,7 +2110,7 @@ static int myisam_init(void *p)
 #endif
 
   /* Set global variables based on startup options */
-  if (myisam_recover_options)
+  if (myisam_recover_options && myisam_recover_options != HA_RECOVER_OFF)
     ha_open_options|=HA_OPEN_ABORT_IF_CRASHED;
   else
     myisam_recover_options= HA_RECOVER_OFF;
@@ -2222,13 +2219,13 @@ maria_declare_plugin(myisam)
   &myisam_storage_engine,
   "MyISAM",
   "MySQL AB",
-  "Default engine as of MySQL 3.23 with great performance",
+  "MyISAM storage engine",
   PLUGIN_LICENSE_GPL,
   myisam_init, /* Plugin Init */
   NULL, /* Plugin Deinit */
   0x0100, /* 1.0 */
   NULL,                       /* status variables                */
-  NULL,                       /* system variables                */
+  myisam_sysvars,             /* system variables                */
   "1.0",                      /* string version */
   MariaDB_PLUGIN_MATURITY_STABLE /* maturity */
 }

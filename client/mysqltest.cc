@@ -103,7 +103,6 @@ static int opt_max_connect_retries;
 static int opt_result_format_version;
 static int opt_max_connections= DEFAULT_MAX_CONN;
 static my_bool opt_compress= 0, silent= 0, verbose= 0;
-static int opt_connect_timeout= -1;
 static my_bool debug_info_flag= 0, debug_check_flag= 0;
 static my_bool tty_password= 0;
 static my_bool opt_mark_progress= 0;
@@ -556,8 +555,7 @@ public:
   void open(const char* dir, const char* name, const char* ext)
   {
     DBUG_ENTER("LogFile::open");
-    DBUG_PRINT("enter", ("dir: '%s', name: '%s'",
-                         val_or_null(dir), val_or_null(name)));
+    DBUG_PRINT("enter", ("dir: '%s', name: '%s'", dir, name));
     if (!name)
     {
       m_file= stdout;
@@ -648,9 +646,8 @@ public:
         DBUG_VOID_RETURN;
       }
 
-      IF_DBUG(buf[bytes]= '\0';)
-      DBUG_PRINT("info", ("Read %lu bytes from file, buf: %s",
-                          (unsigned long)bytes, buf));
+      DBUG_PRINT("info", ("Read %zu bytes from file, buf: %.*s",
+                          bytes, (int)bytes, buf));
 
       char* show_from= buf + bytes;
       while(show_from > buf && lines > 0 )
@@ -5420,9 +5417,6 @@ void do_connect(struct st_command *command)
   if (opt_charsets_dir)
     mysql_options(&con_slot->mysql, MYSQL_SET_CHARSET_DIR,
                   opt_charsets_dir);
-  if (opt_connect_timeout >= 0)
-    mysql_options(&con_slot->mysql, MYSQL_OPT_CONNECT_TIMEOUT,
-                  &opt_connect_timeout);
 
 #if defined(HAVE_OPENSSL) && !defined(EMBEDDED_LIBRARY)
   if (opt_use_ssl || con_ssl)
@@ -6249,9 +6243,6 @@ static struct my_option my_long_options[] =
    GET_INT, REQUIRED_ARG, 0, 0, 10000, 0, 0, 0},
   {"test-file", 'x', "Read test from/in this file (default stdin).",
    0, 0, 0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
-  {"connect-timeout", OPT_MY_CONNECT_TIMEOUT, "Client connection timeout",
-   (uchar**) &opt_connect_timeout, (uchar**) &opt_connect_timeout, 0,
-   GET_INT, REQUIRED_ARG, -1, -1, 0, 0, 0, 0},
   {"timer-file", 'm', "File where the timing in microseconds is stored.",
    0, 0, 0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
   {"tmpdir", 't', "Temporary directory where sockets are put.",

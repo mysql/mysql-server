@@ -156,7 +156,7 @@ static size_t
 my_casefold_mb_varlen(CHARSET_INFO *cs,
                       char *src, size_t srclen,
                       char *dst, size_t dstlen __attribute__((unused)),
-                      uchar *map,
+                      const uchar *map,
                       size_t is_upper)
 {
   char *srcend= src + srclen, *dst0= dst;

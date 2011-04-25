@@ -88,7 +88,7 @@ AC_DEFUN([MYSQL_CHECK_LIBEVENT], [
     AC_SUBST(libevent_libs)
     AC_SUBST(libevent_includes)
     AC_SUBST(libevent_test_option)
-    AC_DEFINE([HAVE_LIBEVENT], [1], [If we want to use libevent and have connection pooling])
+    dnl AC_DEFINE([HAVE_LIBEVENT], [1], [If we want to use libevent and have connection pooling])
   fi
   AM_CONDITIONAL([HAVE_LIBEVENT], [ test "$with_libevent" != "disabled" ])
 ])

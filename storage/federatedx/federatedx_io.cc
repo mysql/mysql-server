@@ -28,7 +28,7 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 
 /*#define MYSQL_SERVER 1*/
-#include "mysql_priv.h"
+#include "sql_priv.h"
 #include <mysql/plugin.h>
 
 #include "ha_federatedx.h"

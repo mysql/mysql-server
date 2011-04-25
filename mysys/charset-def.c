@@ -141,6 +141,7 @@ extern struct charset_info_st my_charset_utf8mb4_persian_uca_ci;
 extern struct charset_info_st my_charset_utf8mb4_esperanto_uca_ci;
 extern struct charset_info_st my_charset_utf8mb4_hungarian_uca_ci;
 extern struct charset_info_st my_charset_utf8mb4_sinhala_uca_ci;
+extern struct charset_info_st my_charset_utf8mb4_croatian_uca_ci;
 #endif /* HAVE_CHARSET_utf8mb4 */
 
 #endif /* HAVE_UCA_COLLATIONS */

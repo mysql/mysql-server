@@ -25,6 +25,7 @@
 #include "my_time.h"                   /* enum_mysql_timestamp_type */
 #include "thr_lock.h"                  /* thr_lock_type */
 #include "my_base.h"                   /* ha_rows, ha_key_alg */
+#include <mysql_com.h>                  /* USERNAME_LENGTH */
 
 struct TABLE;
 class Field;

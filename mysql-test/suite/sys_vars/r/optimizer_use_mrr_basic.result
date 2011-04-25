@@ -1,0 +1,48 @@
+SET @start_global_value = @@global.optimizer_use_mrr;
+select @@global.optimizer_use_mrr;
+@@global.optimizer_use_mrr
+force
+select @@session.optimizer_use_mrr;
+@@session.optimizer_use_mrr
+force
+show global variables like 'optimizer_use_mrr';
+Variable_name	Value
+optimizer_use_mrr	force
+show session variables like 'optimizer_use_mrr';
+Variable_name	Value
+optimizer_use_mrr	force
+select * from information_schema.global_variables where variable_name='optimizer_use_mrr';
+VARIABLE_NAME	VARIABLE_VALUE
+OPTIMIZER_USE_MRR	force
+select * from information_schema.session_variables where variable_name='optimizer_use_mrr';
+VARIABLE_NAME	VARIABLE_VALUE
+OPTIMIZER_USE_MRR	force
+set global optimizer_use_mrr=1;
+select @@global.optimizer_use_mrr;
+@@global.optimizer_use_mrr
+force
+set session optimizer_use_mrr=1;
+select @@session.optimizer_use_mrr;
+@@session.optimizer_use_mrr
+force
+set session optimizer_use_mrr='auto';
+select @@session.optimizer_use_mrr;
+@@session.optimizer_use_mrr
+auto
+set session optimizer_use_mrr='force';
+select @@session.optimizer_use_mrr;
+@@session.optimizer_use_mrr
+force
+set session optimizer_use_mrr='disable';
+select @@session.optimizer_use_mrr;
+@@session.optimizer_use_mrr
+disable
+set session optimizer_use_mrr=1.1;
+ERROR 42000: Incorrect argument type to variable 'optimizer_use_mrr'
+set session optimizer_use_mrr=1e1;
+ERROR 42000: Incorrect argument type to variable 'optimizer_use_mrr'
+set session optimizer_use_mrr="foo";
+ERROR 42000: Variable 'optimizer_use_mrr' can't be set to the value of 'foo'
+set session optimizer_use_mrr=3;
+ERROR 42000: Variable 'optimizer_use_mrr' can't be set to the value of '3'
+SET @@global.optimizer_use_mrr = @start_global_value;

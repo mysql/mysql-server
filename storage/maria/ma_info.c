@@ -43,7 +43,7 @@ int maria_status(MARIA_HA *info, register MARIA_INFO *x, uint flag)
   if (!(flag & HA_STATUS_NO_LOCK))
   {
     pthread_mutex_lock(&share->intern_lock);
-    VOID(_ma_readinfo(info,F_RDLCK,0));
+    _ma_readinfo(info,F_RDLCK,0);
     fast_ma_writeinfo(info);
     pthread_mutex_unlock(&share->intern_lock);
   }

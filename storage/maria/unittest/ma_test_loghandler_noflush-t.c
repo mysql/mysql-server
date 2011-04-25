@@ -144,3 +144,5 @@ err:
 
   exit(rc);
 }
+
+#include "../ma_check_standalone.h"

@@ -1,0 +1,42 @@
+# ulong global
+
+SET @start_global_value = @@global.key_cache_segments;
+
+#
+# exists as global only
+#
+select @@global.key_cache_segments;
+--error ER_INCORRECT_GLOBAL_LOCAL_VAR
+select @@session.key_cache_segments;
+show global variables like 'key_cache_segments';
+show session variables like 'key_cache_segments';
+select * from information_schema.global_variables where variable_name='key_cache_segments';
+select * from information_schema.session_variables where variable_name='key_cache_segments';
+
+#
+# show that it's writable
+#
+set global key_cache_segments=1;
+select @@global.key_cache_segments;
+--error ER_GLOBAL_VARIABLE
+set session key_cache_segments=1;
+
+#
+# incorrect types
+#
+--error ER_WRONG_TYPE_FOR_VAR
+set global key_cache_segments=1.1;
+--error ER_WRONG_TYPE_FOR_VAR
+set global key_cache_segments=1e1;
+--error ER_WRONG_TYPE_FOR_VAR
+set global key_cache_segments="foo";
+
+#
+# min/max values
+#
+set global key_cache_segments=0;
+select @@global.key_cache_segments;
+set global key_cache_segments=cast(-1 as unsigned int);
+select @@global.key_cache_segments;
+
+SET @@global.key_cache_segments = @start_global_value;

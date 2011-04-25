@@ -777,7 +777,7 @@ static void print_result()
         we have to run upgrade on it. In this case we write a nicer message
         than "Please do "REPAIR TABLE""...
       */
-      if (!strcmp(row[2],"error") && strinstr(row[3],"REPAIR TABLE") != 0)
+      if (!strcmp(row[2],"error") && strstr(row[3],"REPAIR TABLE"))
         printf("%-50s %s", row[0], "Needs upgrade");
       else
         printf("%s\n%-9s: %s", row[0], row[2], row[3]);

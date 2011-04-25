@@ -31,7 +31,7 @@
 #include <stdlib.h>
 
 #ifndef DRIZZLED
-#include "mysql_priv.h"
+//#include "mysql_priv.h"
 #endif
 
 #include "ha_pbxt.h"

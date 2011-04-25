@@ -83,7 +83,7 @@ let $rows = 1;
 --echo # COT()
 let $cols = a double, b double as (format(cot(a),6));
 let $values1 = 12,default;
-let $values2 = 0,default;
+let $values2 = 1,default;
 let $rows = 2;
 --source suite/vcol/inc/vcol_supported_sql_funcs.inc
 

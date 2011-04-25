@@ -2,7 +2,6 @@
 # not result in column definition inconsistency between MySQL and
 # InnoDB
 
---source include/have_innodb.inc
 
 CREATE TABLE bug47621 (salesperson INT) ENGINE=InnoDB;
 

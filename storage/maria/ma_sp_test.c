@@ -335,7 +335,7 @@ static void print_record(uchar * record, my_off_t offs,const char * tail)
   len=sint4korr(pos);
   pos+=4;
   printf(" len=%d ",len);
-  memcpy_fixed(&ptr,pos,sizeof(char*));
+  memcpy(&ptr,pos,sizeof(char*));
   if (ptr)
     maria_rtree_PrintWKB((uchar*) ptr,SPDIMS);
   else
@@ -368,7 +368,7 @@ static void create_point(uchar *record,uint rownr)
    pos+=4;
 
    ptr=blob_key;
-   memcpy_fixed(pos,&ptr,sizeof(char*));
+   memcpy(pos,&ptr,sizeof(char*));
 }
 #endif
 
@@ -397,7 +397,7 @@ static void create_linestring(uchar *record,uint rownr)
    pos+=4;
 
    ptr=blob_key;
-   memcpy_fixed(pos,&ptr,sizeof(char*));
+   memcpy(pos,&ptr,sizeof(char*));
 }
 
 
@@ -559,6 +559,8 @@ static void maria_rtree_PrintWKB(uchar *wkb, uint n_dims)
     }
   }
 }
+
+#include "ma_check_standalone.h"
 
 #else
 int main(int argc __attribute__((unused)),char *argv[] __attribute__((unused)))

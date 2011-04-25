@@ -130,7 +130,7 @@ static my_bool acquire_plugins(THD *thd, plugin_ref plugin, void *arg)
   }
   
   /* lock the plugin and add it to the list */
-  plugin= my_plugin_lock(NULL, &plugin);
+  plugin= my_plugin_lock(NULL, plugin);
   insert_dynamic(&thd->audit_class_plugins, (uchar*) &plugin);
 
   return 0;

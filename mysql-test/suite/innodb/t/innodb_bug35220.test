@@ -3,8 +3,6 @@
 # http://bugs.mysql.com/35220
 #
 
--- source include/have_innodb.inc
-
 SET storage_engine=InnoDB;
 
 # we care only that the following SQL commands do not produce errors

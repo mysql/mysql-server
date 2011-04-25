@@ -217,14 +217,14 @@ void trnman_destroy()
     pool= pool->next;
     DBUG_ASSERT(trn->wt == NULL);
     pthread_mutex_destroy(&trn->state_lock);
-    my_free((void *)trn, MYF(0));
+    my_free(trn);
   }
   lf_hash_destroy(&trid_to_trn);
   DBUG_PRINT("info", ("pthread_mutex_destroy LOCK_trn_list"));
   pthread_mutex_destroy(&LOCK_trn_list);
   my_atomic_rwlock_destroy(&LOCK_short_trid_to_trn);
   my_atomic_rwlock_destroy(&LOCK_pool);
-  my_free((void *)(short_trid_to_active_trn+1), MYF(0));
+  my_free(short_trid_to_active_trn+1);
   short_trid_to_active_trn= NULL;
 
   DBUG_VOID_RETURN;

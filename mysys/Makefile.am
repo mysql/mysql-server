@@ -88,12 +88,12 @@ libmysys_a_DEPENDENCIES= @THREAD_LOBJECTS@
 # I hope this always does the right thing. Otherwise this is only test programs
 FLAGS=$(DEFS) $(INCLUDES) $(CPPFLAGS) $(CFLAGS) @NOINST_LDFLAGS@
 
-CLEANFILES =		test_bitmap$(EXEEXT) test_priority_queue$(EXEEXT) \
-			test_thr_alarm$(EXEEXT) test_thr_lock$(EXEEXT) \
-			test_vsnprintf$(EXEEXT) test_io_cache$(EXEEXT) \
-			test_dir$(EXEEXT) test_charset$(EXEEXT) \
-			testhash$(EXEEXT) test_gethwaddr$(EXEEXT) \
-			test_base64$(EXEEXT) test_thr_mutex$(EXEEXT)
+#CLEANFILES =		test_bitmap$(EXEEXT) test_priority_queue$(EXEEXT) \
+#			test_thr_alarm$(EXEEXT) test_thr_lock$(EXEEXT) \
+#			test_vsnprintf$(EXEEXT) test_io_cache$(EXEEXT) \
+#			test_dir$(EXEEXT) test_charset$(EXEEXT) \
+#			testhash$(EXEEXT) test_gethwaddr$(EXEEXT) \
+#			test_base64$(EXEEXT) test_thr_mutex$(EXEEXT)
 
 #
 # The CP .. RM stuff is to avoid problems with some compilers (like alpha ccc)

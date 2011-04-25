@@ -1,0 +1,44 @@
+SET @start_global_value = @@global.aria_sort_buffer_size;
+select @@global.aria_sort_buffer_size;
+@@global.aria_sort_buffer_size
+134217728
+select @@session.aria_sort_buffer_size;
+@@session.aria_sort_buffer_size
+134217728
+show global variables like 'aria_sort_buffer_size';
+Variable_name	Value
+aria_sort_buffer_size	134217728
+show session variables like 'aria_sort_buffer_size';
+Variable_name	Value
+aria_sort_buffer_size	134217728
+select * from information_schema.global_variables where variable_name='aria_sort_buffer_size';
+VARIABLE_NAME	VARIABLE_VALUE
+ARIA_SORT_BUFFER_SIZE	134217728
+select * from information_schema.session_variables where variable_name='aria_sort_buffer_size';
+VARIABLE_NAME	VARIABLE_VALUE
+ARIA_SORT_BUFFER_SIZE	134217728
+set global aria_sort_buffer_size=10;
+select @@global.aria_sort_buffer_size;
+@@global.aria_sort_buffer_size
+10
+set session aria_sort_buffer_size=10;
+select @@session.aria_sort_buffer_size;
+@@session.aria_sort_buffer_size
+10
+set global aria_sort_buffer_size=1.1;
+ERROR 42000: Incorrect argument type to variable 'aria_sort_buffer_size'
+set session aria_sort_buffer_size=1e1;
+ERROR 42000: Incorrect argument type to variable 'aria_sort_buffer_size'
+set global aria_sort_buffer_size="foo";
+ERROR 42000: Incorrect argument type to variable 'aria_sort_buffer_size'
+set global aria_sort_buffer_size=0;
+Warnings:
+Warning	1292	Truncated incorrect aria_sort_buffer_size value: '0'
+select @@global.aria_sort_buffer_size;
+@@global.aria_sort_buffer_size
+4
+set session aria_sort_buffer_size=cast(-1 as unsigned int);
+select @@session.aria_sort_buffer_size;
+@@session.aria_sort_buffer_size
+18446744073709551615
+SET @@global.aria_sort_buffer_size = @start_global_value;

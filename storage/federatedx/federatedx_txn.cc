@@ -26,19 +26,19 @@ THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
 OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 */
 
+#ifdef USE_PRAGMA_IMPLEMENTATION
+#pragma implementation                          // gcc: Class implementation
+#endif
 
-/*#define MYSQL_SERVER 1*/
-#include "mysql_priv.h"
+#define MYSQL_SERVER 1
+#include "sql_priv.h"
 #include <mysql/plugin.h>
 
 #include "ha_federatedx.h"
 
 #include "m_string.h"
-
-#ifdef USE_PRAGMA_IMPLEMENTATION
-#pragma implementation                          // gcc: Class implementation
-#endif
-
+#include "table.h"
+#include "sql_servers.h"
 
 federatedx_txn::federatedx_txn()
   : txn_list(0), savepoint_level(0), savepoint_stmt(0), savepoint_next(0)

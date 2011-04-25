@@ -78,5 +78,3 @@ IF(UNIX)
   TARGET_LINK_LIBRARIES(mysql_waitpid mysys)
 ENDIF()
 
-MESSAGE("TODO: Support libevent")
-

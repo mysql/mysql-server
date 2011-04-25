@@ -341,6 +341,7 @@ TODO list:
 #include "../storage/myisammrg/ha_myisammrg.h"
 #include "../storage/myisammrg/myrg_def.h"
 #include "probes_mysql.h"
+#include "log_slow.h"
 
 #ifdef EMBEDDED_LIBRARY
 #include "emb_qcache.h"
@@ -945,7 +946,6 @@ Query_cache::abort(Query_cache_tls *query_cache_tls)
 
   if (try_lock())
     DBUG_VOID_RETURN;
-  }
 
   /*
     While we were waiting another thread might have changed the status
@@ -997,7 +997,6 @@ void Query_cache::end_of_result(THD *thd)
 
   if (try_lock())
     DBUG_VOID_RETURN;
-  }
 
   query_block= query_cache_tls->first_query_block;
   if (query_block)

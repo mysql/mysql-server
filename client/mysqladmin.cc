@@ -663,7 +663,6 @@ static int execute_commands(MYSQL *mysql,int argc, char **argv)
 				 REFRESH_MASTER | REFRESH_TABLE_STATS |
                                  REFRESH_INDEX_STATS |
                                  REFRESH_USER_STATS |
-                                 REFRESH_SLOW_QUERY_LOG |
                                  REFRESH_CLIENT_STATS)))
       {
 	my_printf_error(0, "refresh failed; error: '%s'", error_flags,
@@ -869,7 +868,7 @@ static int execute_commands(MYSQL *mysql,int argc, char **argv)
     }
     case ADMIN_FLUSH_SLOW_LOG:
     {
-      if (mysql_query(mysql,"flush slow query logs"))
+      if (mysql_query(mysql,"flush slow logs"))
       {
 	my_printf_error(0, "flush failed; error: '%s'", error_flags,
 			mysql_error(mysql));

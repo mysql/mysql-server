@@ -40,7 +40,7 @@ show fields from mysql.slow_log;
 # Check flush command
 #
 
-flush slow query logs;
+flush slow logs;
 
 # Reset used variables
 

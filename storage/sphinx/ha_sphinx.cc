@@ -14,7 +14,6 @@
 #include <mysql_version.h>
 
 #if MYSQL_VERSION_ID>50100
-#include "mysql_priv.h"
 #include <mysql/plugin.h>
 #else
 #include "../mysql_priv.h"
@@ -22,6 +21,11 @@
 
 #include <mysys_err.h>
 #include <my_sys.h>
+#include "sql_array.h"
+#include "table.h"
+#include "field.h"
+#include "item.h"
+#include <mysqld_error.h>
 
 #ifndef __WIN__
 	// UNIX-specific
@@ -647,8 +651,8 @@ static int sphinx_init_func ( void * p )
 	if ( !sphinx_init )
 	{
 		sphinx_init = 1;
-		VOID ( pthread_mutex_init ( &sphinx_mutex, MY_MUTEX_INIT_FAST ) );
-		hash_init ( &sphinx_open_tables, system_charset_info, 32, 0, 0,
+		pthread_mutex_init ( &sphinx_mutex, MY_MUTEX_INIT_FAST );
+		my_hash_init ( &sphinx_open_tables, system_charset_info, 32, 0, 0,
 			sphinx_get_key, 0, 0 );
 
 		#if MYSQL_VERSION_ID > 50100
@@ -699,7 +703,7 @@ static int sphinx_done_func ( void * )
 		sphinx_init = 0;
 		if ( sphinx_open_tables.records )
 			error = 1;
-		hash_free ( &sphinx_open_tables );
+		my_hash_free ( &sphinx_open_tables );
 		pthread_mutex_destroy ( &sphinx_mutex );
 	}
 
@@ -1072,12 +1076,12 @@ static CSphSEShare * get_share ( const char * table_name, TABLE * table )
 	{
 		// check if we already have this share
 #if MYSQL_VERSION_ID>=50120
-		pShare = (CSphSEShare*) hash_search ( &sphinx_open_tables, (const uchar *) table_name, strlen(table_name) );
+		pShare = (CSphSEShare*) my_hash_search ( &sphinx_open_tables, (const uchar *) table_name, strlen(table_name) );
 #else
 #ifdef __WIN__
-		pShare = (CSphSEShare*) hash_search ( &sphinx_open_tables, (const byte *) table_name, strlen(table_name) );
+		pShare = (CSphSEShare*) my_hash_search ( &sphinx_open_tables, (const byte *) table_name, strlen(table_name) );
 #else
-		pShare = (CSphSEShare*) hash_search ( &sphinx_open_tables, table_name, strlen(table_name) );
+		pShare = (CSphSEShare*) my_hash_search ( &sphinx_open_tables, table_name, strlen(table_name) );
 #endif // win
 #endif // pre-5.1.20
 
@@ -1127,7 +1131,7 @@ static int free_share ( CSphSEShare * pShare )
 
 	if ( !--pShare->m_iUseCount )
 	{
-		hash_delete ( &sphinx_open_tables, (byte *)pShare );
+		my_hash_delete ( &sphinx_open_tables, (byte *)pShare );
 		SafeDelete ( pShare );
 	}
 
@@ -2004,26 +2008,31 @@ int ha_sphinx::ConnectToSearchd ( const char * sQueryHost, int iQueryPort )
 			memcpy ( &sin.sin_addr, &ip_addr, sizeof(ip_addr) );
 		} else
 		{
-			int tmp_errno;
-			struct hostent tmp_hostent, *hp;
-			char buff2 [ GETHOSTBYNAME_BUFF_SIZE ];
-			
-			hp = my_gethostbyname_r ( sHost, &tmp_hostent,
-				buff2, sizeof(buff2), &tmp_errno );
-			if ( !hp )
+                        int err_code;
+			struct addrinfo hints;
+			struct addrinfo *addr_info_list;
+
+			memset(&hints, 0, sizeof (struct addrinfo));
+			hints.ai_flags= AI_PASSIVE;
+			hints.ai_socktype= SOCK_STREAM;
+			hints.ai_family= AF_UNSPEC;
+                        
+                        err_code= getaddrinfo(sHost, NULL, &hints,
+                                              &addr_info_list);
+
+			if ( err_code )
 			{ 
-				my_gethostbyname_r_free();
-				
 				char sError[256];
 				my_snprintf ( sError, sizeof(sError), "failed to resolve searchd host (name=%s)", sHost );
 				
 				my_error ( ER_CONNECT_TO_FOREIGN_DATA_SOURCE, MYF(0), sError );
 				SPH_RET(-1);
 			}
-			
-			memcpy ( &sin.sin_addr, hp->h_addr,
-				Min ( sizeof(sin.sin_addr), (size_t)hp->h_length ) );
-			my_gethostbyname_r_free();
+
+			memcpy ( &sin.sin_addr, addr_info_list->ai_addr,
+				Min ( sizeof(sin.sin_addr), (size_t)addr_info_list->ai_addrlen ) );
+
+                        freeaddrinfo(addr_info_list);
 		}
 	} else
 	{

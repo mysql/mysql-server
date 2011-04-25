@@ -4392,7 +4392,6 @@ double user_var_entry::val_real(bool *null_value)
   case STRING_RESULT:
     return my_atof(value);                      // This is null terminated
   case ROW_RESULT:
-  case IMPOSSIBLE_RESULT:
     DBUG_ASSERT(0);				// Impossible
     break;
   }
@@ -4424,7 +4423,6 @@ longlong user_var_entry::val_int(bool *null_value) const
     return my_strtoll10(value, (char**) 0, &error);// String is null terminated
   }
   case ROW_RESULT:
-  case IMPOSSIBLE_RESULT:
     DBUG_ASSERT(0);				// Impossible
     break;
   }
@@ -4458,7 +4456,6 @@ String *user_var_entry::val_str(bool *null_value, String *str,
       str= 0;					// EOM error
     break;
   case ROW_RESULT:
-  case IMPOSSIBLE_RESULT:
     DBUG_ASSERT(0);				// Impossible
     break;
   }
@@ -4486,7 +4483,6 @@ my_decimal *user_var_entry::val_decimal(bool *null_value, my_decimal *val)
     str2my_decimal(E_DEC_FATAL_ERROR, value, length, collation.collation, val);
     break;
   case ROW_RESULT:
-  case IMPOSSIBLE_RESULT:
     DBUG_ASSERT(0);				// Impossible
     break;
   }

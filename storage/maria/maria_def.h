@@ -1188,11 +1188,11 @@ int _ma_flush_table_files(MARIA_HA *info, uint flush_data_or_index,
   See ma_check_standalone.h .
 */
 int _ma_killed_ptr(HA_CHECK *param);
-void _ma_check_print_error _VARARGS((HA_CHECK *param, const char *fmt, ...))
+void _ma_check_print_error(HA_CHECK *param, const char *fmt, ...)
   ATTRIBUTE_FORMAT(printf, 2, 3);
-void _ma_check_print_warning _VARARGS((HA_CHECK *param, const char *fmt, ...))
+void _ma_check_print_warning(HA_CHECK *param, const char *fmt, ...)
   ATTRIBUTE_FORMAT(printf, 2, 3);
-void _ma_check_print_info _VARARGS((HA_CHECK *param, const char *fmt, ...))
+void _ma_check_print_info(HA_CHECK *param, const char *fmt, ...)
   ATTRIBUTE_FORMAT(printf, 2, 3);
 my_bool write_log_record_for_repair(const HA_CHECK *param, MARIA_HA *info);
 C_MODE_END
@@ -1265,3 +1265,18 @@ extern PAGECACHE *maria_log_pagecache;
 extern void ma_set_index_cond_func(MARIA_HA *info, index_cond_func_t func,
                                    void *func_arg);
 int ma_check_index_cond(register MARIA_HA *info, uint keynr, uchar *record);
+
+#ifdef HAVE_PSI_INTERFACE
+extern PSI_mutex_key ma_key_mutex_PAGECACHE_cache_lock;
+
+//extern PSI_rwlock_key mi_key_rwlock_MYISAM_SHARE_key_root_lock;
+
+//extern PSI_cond_key mi_key_cond_MI_SORT_INFO_cond;
+
+//extern PSI_file_key mi_key_file_datatmp;
+
+//extern PSI_thread_key mi_key_thread_find_all_keys;
+
+void init_aria_psi_keys();
+#endif /* HAVE_PSI_INTERFACE */
+

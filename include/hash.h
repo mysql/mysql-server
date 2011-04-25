@@ -27,11 +27,6 @@
   typedef declarations, even when identical, the definition may not be
   repeated.
 */
-#ifndef CHARSET_INFO_DEFINED
-#define CHARSET_INFO_DEFINED
-typedef struct charset_info_st CHARSET_INFO;
-#endif  /* CHARSET_INFO_DEFINED */
-
 #ifdef	__cplusplus
 extern "C" {
 #endif

@@ -219,11 +219,11 @@ err:
   case 6:
     (*share->end)(&info);
     delete_dynamic(&info.pinned_pages);
-    my_free(m_info, MYF(0));
+    my_free(m_info);
     /* fall through */
   case 5:
     if (data_file < 0)
-      VOID(my_close(info.dfile.file, MYF(0)));
+      my_close(info.dfile.file, MYF(0));
     break;
   }
   my_errno=save_errno;
@@ -806,7 +806,7 @@ MARIA_HA *maria_open(const char *name, int mode, uint open_flags)
 					(keys ? MARIA_INDEX_BLOCK_MARGIN *
 					 share->block_size * keys : 0));
     share->block_size= share->base.block_size;
-    my_free(disk_cache, MYF(0));
+    my_free(disk_cache);
     _ma_setup_functions(share);
     if ((*share->once_init)(share, info.dfile.file))
       goto err;
@@ -815,7 +815,7 @@ MARIA_HA *maria_open(const char *name, int mode, uint open_flags)
       /* Setup initial state that is visible for all */
       MARIA_STATE_HISTORY_CLOSED *history;
       if ((history= (MARIA_STATE_HISTORY_CLOSED *)
-           hash_search(&maria_stored_state,
+           my_hash_search(&maria_stored_state,
                        (uchar*) &share->state.create_rename_lsn, 0)))
       {
         /*
@@ -825,7 +825,7 @@ MARIA_HA *maria_open(const char *name, int mode, uint open_flags)
         share->state_history=
           _ma_remove_not_visible_states(history->state_history, 0, 0);
         history->state_history= 0;
-        (void) hash_delete(&maria_stored_state, (uchar*) history);
+        (void) my_hash_delete(&maria_stored_state, (uchar*) history);
       }
       else
       {
@@ -845,8 +845,8 @@ MARIA_HA *maria_open(const char *name, int mode, uint open_flags)
     pthread_cond_init(&share->key_del_cond, 0);
     pthread_mutex_init(&share->close_lock, MY_MUTEX_INIT_FAST);
     for (i=0; i<keys; i++)
-      VOID(my_rwlock_init(&share->keyinfo[i].root_lock, NULL));
-    VOID(my_rwlock_init(&share->mmap_lock, NULL));
+      my_rwlock_init(&share->keyinfo[i].root_lock, NULL);
+    my_rwlock_init(&share->mmap_lock, NULL);
 
     share->row_is_visible= _ma_row_visible_always;
     share->lock.get_status= _ma_reset_update_flag;
@@ -950,19 +950,19 @@ err:
   switch (errpos) {
   case 5:
     if (data_file >= 0)
-      VOID(my_close(data_file, MYF(0)));
+      my_close(data_file, MYF(0));
     if (old_info)
       break;					/* Don't remove open table */
     (*share->once_end)(share);
     /* fall through */
   case 4:
-    my_free(share,MYF(0));
+    my_free(share);
     /* fall through */
   case 3:
-    my_free(disk_cache, MYF(0));
+    my_free(disk_cache);
     /* fall through */
   case 1:
-    VOID(my_close(kfile,MYF(0)));
+    my_close(kfile,MYF(0));
     /* fall through */
   case 0:
   default:
@@ -1283,7 +1283,7 @@ uint _ma_state_info_write_sub(File file, MARIA_STATE_INFO *state, uint pWrite)
   size_t res;
   DBUG_ENTER("_ma_state_info_write_sub");
 
-  memcpy_fixed(ptr,&state->header,sizeof(state->header));
+  memcpy(ptr,&state->header,sizeof(state->header));
   ptr+=sizeof(state->header);
 
   /* open_count must be first because of _ma_mark_file_changed ! */
@@ -1353,7 +1353,7 @@ uint _ma_state_info_write_sub(File file, MARIA_STATE_INFO *state, uint pWrite)
 static uchar *_ma_state_info_read(uchar *ptr, MARIA_STATE_INFO *state)
 {
   uint i,keys,key_parts;
-  memcpy_fixed(&state->header,ptr, sizeof(state->header));
+  memcpy(&state->header,ptr, sizeof(state->header));
   ptr+= sizeof(state->header);
   keys= (uint) state->header.keys;
   key_parts= mi_uint2korr(state->header.key_parts);

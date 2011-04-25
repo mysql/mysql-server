@@ -4,7 +4,7 @@ Aria	YES	Crash-safe tables with MyISAM heritage	YES	NO	NO
 set global storage_engine=aria;
 set session storage_engine=aria;
 set global aria_page_checksum=0;
-set global aria_log_file_size=4294967295;
+set global aria_log_file_size=4294959104;
 drop table if exists t1,t2;
 SET SQL_WARNINGS=1;
 create table t1 (a int not null, key `a` (a) key_block_size=512);
@@ -231,7 +231,6 @@ insert into t1 values (1,1,"aaa"),(1,2,null);
 checksum table t1;
 Table	Checksum
 test.t1	1112804611
-lock table t1 write;
 insert into t1 values (1,3,repeat('c',30000)),(4,4,repeat('a',30000));
 update t1 set v="row5" where b=4;
 delete from t1 where b=3;
@@ -312,7 +311,7 @@ aria_log_file_size	4294959104
 aria_log_purge_type	immediate
 aria_max_sort_file_size	9223372036853727232
 aria_pagecache_age_threshold	300
-aria_pagecache_buffer_size	134213632
+aria_pagecache_buffer_size	134217728
 aria_pagecache_division_limit	100
 aria_page_checksum	OFF
 aria_recover	NORMAL
@@ -395,7 +394,7 @@ t1	CREATE TABLE `t1` (
 drop table t1;
 set global aria_log_file_size=4294967296;
 Warnings:
-Warning	1292	Truncated incorrect log_file_size value: '4294967296'
+Warning	1292	Truncated incorrect aria_log_file_size value: '4294967296'
 create table t1 (a int not null);
 lock tables t1 write;
 insert into t1 values (1),(2);
@@ -513,7 +512,7 @@ drop table t1;
 create table t1 (n int not null, c char(1)) engine=aria transactional=1;
 alter table t1 engine=myisam;
 Warnings:
-Error	1478	Table storage engine 'MyISAM' does not support the create option 'TRANSACTIONAL=1'
+Warning	1478	Table storage engine 'MyISAM' does not support the create option 'TRANSACTIONAL=1'
 alter table t1 engine=aria;
 show create table t1;
 Table	Create Table
@@ -524,7 +523,7 @@ t1	CREATE TABLE `t1` (
 drop table t1;
 create table t1 (n int not null, c char(1)) engine=myisam transactional=1;
 Warnings:
-Error	1478	Table storage engine 'MyISAM' does not support the create option 'TRANSACTIONAL=1'
+Warning	1478	Table storage engine 'MyISAM' does not support the create option 'TRANSACTIONAL=1'
 alter table t1 engine=aria;
 show create table t1;
 Table	Create Table

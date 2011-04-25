@@ -1,0 +1,52 @@
+SET @start_global_value = @@global.maria_stats_method;
+select @@global.maria_stats_method, @@global.aria_stats_method;
+@@global.maria_stats_method	@@global.aria_stats_method
+nulls_unequal	nulls_unequal
+select @@session.maria_stats_method, @@session.aria_stats_method;
+@@session.maria_stats_method	@@session.aria_stats_method
+nulls_unequal	nulls_unequal
+show global variables like '%aria_stats_method';
+Variable_name	Value
+aria_stats_method	nulls_unequal
+maria_stats_method	nulls_unequal
+show session variables like '%aria_stats_method';
+Variable_name	Value
+aria_stats_method	nulls_unequal
+maria_stats_method	nulls_unequal
+select * from information_schema.global_variables where variable_name like '%aria_stats_method';
+VARIABLE_NAME	VARIABLE_VALUE
+MARIA_STATS_METHOD	nulls_unequal
+ARIA_STATS_METHOD	nulls_unequal
+select * from information_schema.session_variables where variable_name like '%aria_stats_method';
+VARIABLE_NAME	VARIABLE_VALUE
+MARIA_STATS_METHOD	nulls_unequal
+ARIA_STATS_METHOD	nulls_unequal
+set global maria_stats_method=1;
+select @@global.maria_stats_method, @@global.aria_stats_method;
+@@global.maria_stats_method	@@global.aria_stats_method
+nulls_equal	nulls_equal
+set session maria_stats_method=1;
+select @@session.maria_stats_method, @@session.aria_stats_method;
+@@session.maria_stats_method	@@session.aria_stats_method
+nulls_equal	nulls_equal
+set session maria_stats_method=nulls_unequal;
+select @@session.maria_stats_method, @@session.aria_stats_method;
+@@session.maria_stats_method	@@session.aria_stats_method
+nulls_unequal	nulls_unequal
+set session maria_stats_method=nulls_equal;
+select @@session.maria_stats_method, @@session.aria_stats_method;
+@@session.maria_stats_method	@@session.aria_stats_method
+nulls_equal	nulls_equal
+set session maria_stats_method=nulls_ignored;
+select @@session.maria_stats_method, @@session.aria_stats_method;
+@@session.maria_stats_method	@@session.aria_stats_method
+nulls_ignored	nulls_ignored
+set session maria_stats_method=1.1;
+ERROR 42000: Incorrect argument type to variable 'maria_stats_method'
+set session maria_stats_method=1e1;
+ERROR 42000: Incorrect argument type to variable 'maria_stats_method'
+set session maria_stats_method="foo";
+ERROR 42000: Variable 'maria_stats_method' can't be set to the value of 'foo'
+set session maria_stats_method=3;
+ERROR 42000: Variable 'maria_stats_method' can't be set to the value of '3'
+SET @@global.maria_stats_method = @start_global_value;

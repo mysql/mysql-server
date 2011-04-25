@@ -89,7 +89,7 @@ void *my_az_allocator(void *dummy __attribute__((unused)), unsigned int items,
 
 void my_az_free(void *dummy __attribute__((unused)), void *address)
 {
-  my_free(address, MYF(MY_ALLOW_ZERO_PTR));
+  my_free(address);
 }
 
 /*

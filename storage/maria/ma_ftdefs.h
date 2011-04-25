@@ -101,14 +101,14 @@ typedef struct st_maria_ft_word {
   double weight;
 } FT_WORD;
 
-int is_stopword(char *word, uint len);
+int is_stopword(const char *word, size_t len);
 
 MARIA_KEY *_ma_ft_make_key(MARIA_HA *, MARIA_KEY *, uint , uchar *, FT_WORD *,
                            my_off_t);
 
 uchar maria_ft_get_word(CHARSET_INFO *, const uchar **, const uchar *,
                         FT_WORD *, MYSQL_FTPARSER_BOOLEAN_INFO *);
-uchar maria_ft_simple_get_word(CHARSET_INFO *, const uchar **, const uchar *,
+uchar maria_ft_simple_get_word(CHARSET_INFO *, uchar **, const uchar *,
                                FT_WORD *, my_bool);
 
 typedef struct _st_maria_ft_seg_iterator {
@@ -122,16 +122,16 @@ void _ma_ft_segiterator_dummy_init(const uchar *, uint, FT_SEG_ITERATOR *);
 uint _ma_ft_segiterator(FT_SEG_ITERATOR *);
 
 void maria_ft_parse_init(TREE *, CHARSET_INFO *);
-int maria_ft_parse(TREE *, uchar *, size_t, struct st_mysql_ftparser *parser,
+int maria_ft_parse(TREE *, uchar *, int, struct st_mysql_ftparser *parser,
              MYSQL_FTPARSER_PARAM *, MEM_ROOT *);
 FT_WORD * maria_ft_linearize(TREE *, MEM_ROOT *);
 FT_WORD * _ma_ft_parserecord(MARIA_HA *, uint, const uchar *, MEM_ROOT *);
 uint _ma_ft_parse(TREE *, MARIA_HA *, uint, const uchar *,
                   MYSQL_FTPARSER_PARAM *, MEM_ROOT *);
 
-FT_INFO *maria_ft_init_nlq_search(MARIA_HA *, uint, uchar *, size_t, uint,
+FT_INFO *maria_ft_init_nlq_search(MARIA_HA *, uint, uchar *, uint, uint,
                                   uchar *);
-FT_INFO *maria_ft_init_boolean_search(MARIA_HA *, uint, uchar *, size_t,
+FT_INFO *maria_ft_init_boolean_search(MARIA_HA *, uint, uchar *, uint,
                                       CHARSET_INFO *);
 
 extern const struct _ft_vft _ma_ft_vft_nlq;

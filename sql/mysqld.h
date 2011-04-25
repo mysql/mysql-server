@@ -33,16 +33,6 @@ struct scheduler_functions;
 typedef struct st_mysql_const_lex_string LEX_CSTRING;
 typedef struct st_mysql_show_var SHOW_VAR;
 
-/*
-  This forward declaration is used from C files where the real
-  definition is included before.  Since C does not allow repeated
-  typedef declarations, even when identical, the definition may not be
-  repeated.
-*/
-#ifndef CHARSET_INFO_DEFINED
-typedef struct charset_info_st CHARSET_INFO;
-#endif  /* CHARSET_INFO_DEFINED */
-
 #if MAX_INDEXES <= 64
 typedef Bitmap<64>  key_map;          /* Used for finding keys */
 #else
@@ -239,6 +229,10 @@ extern PSI_mutex_key key_BINLOG_LOCK_index, key_BINLOG_LOCK_prep_xids,
   key_structure_guard_mutex, key_TABLE_SHARE_LOCK_ha_data,
   key_LOCK_error_messages, key_LOCK_thread_count, key_PARTITION_LOCK_auto_inc;
 
+extern PSI_mutex_key key_LOCK_stats,
+  key_LOCK_global_user_client_stats, key_LOCK_global_table_stats,
+  key_LOCK_global_index_stats;
+
 extern PSI_rwlock_key key_rwlock_LOCK_grant, key_rwlock_LOCK_logger,
   key_rwlock_LOCK_sys_init_connect, key_rwlock_LOCK_sys_init_slave,
   key_rwlock_LOCK_system_variables_hash, key_rwlock_query_cache_query_lock;
@@ -342,6 +336,7 @@ extern char *opt_ssl_ca, *opt_ssl_capath, *opt_ssl_cert, *opt_ssl_cipher,
 
 extern MYSQL_PLUGIN_IMPORT pthread_key(THD*, THR_THD);
 
+#ifdef MYSQL_SERVER
 /**
   only options that need special treatment in get_one_option() deserve
   to be listed below
@@ -394,7 +389,7 @@ enum options_mysqld
   OPT_ENGINE_CONDITION_PUSHDOWN,
   OPT_LOG_ERROR
 };
-
+#endif
 
 /**
   Query type constants.
@@ -509,20 +504,11 @@ inline THD *_current_thd(void)
 */
 extern handlerton *maria_hton;
 
-extern HASH global_user_stats;
-extern HASH global_client_stats;
-extern HASH global_table_stats;
-extern HASH global_index_stats;
-
-extern mysql_mutex_t LOCK_global_user_client_stats;
-extern mysql_mutex_t LOCK_global_table_stats;
-extern mysql_mutex_t LOCK_global_index_stats;
-extern mysql_mutex_t LOCK_stats;
-
 extern uint extra_connection_count;
-extern my_bool opt_userstat_running, debug_assert_if_crashed_table;
+extern my_bool opt_userstat_running;
 extern uint mysqld_extra_port;
 extern ulong extra_max_connections;
 extern ulonglong denied_connections;
 extern ulong thread_created;
+extern scheduler_functions thread_scheduler, extra_thread_scheduler;
 #endif /* MYSQLD_INCLUDED */

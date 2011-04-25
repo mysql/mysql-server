@@ -42,8 +42,8 @@ insert into t5 values (10);
 create view v1 (c) as
 SELECT table_name FROM information_schema.TABLES
 WHERE table_schema IN ('mysql', 'INFORMATION_SCHEMA', 'test', 'mysqltest') AND
-table_name not like 'ndb_%' AND table_name not like 'innodb_%';
-and table_name not like 'pbxt%'
+table_name not like 'ndb_%' AND table_name not like 'innodb_%' AND
+table_name not like 'pbxt_%' AND table_name not like 'xtradb_%';
 select * from v1;
 c
 CHARACTER_SETS
@@ -81,8 +81,6 @@ TRIGGERS
 USER_PRIVILEGES
 USER_STATISTICS
 VIEWS
-XTRADB_ADMIN_COMMAND
-XTRADB_ENHANCEMENTS
 columns_priv
 db
 event
@@ -827,8 +825,6 @@ TABLES	CREATE_TIME	datetime
 TABLES	UPDATE_TIME	datetime
 TABLES	CHECK_TIME	datetime
 TRIGGERS	CREATED	datetime
-INNODB_TRX	trx_started	datetime
-INNODB_TRX	trx_wait_started	datetime
 event	execute_at	datetime
 event	last_executed	datetime
 event	starts	datetime
@@ -870,8 +866,6 @@ COLUMNS	TABLE_NAME	select
 COLUMN_PRIVILEGES	TABLE_NAME	select
 FILES	TABLE_NAME	select
 INDEX_STATISTICS	TABLE_NAME	select
-INNODB_INDEX_STATS	table_name	select
-INNODB_TABLE_STATS	table_name	select
 KEY_COLUMN_USAGE	TABLE_NAME	select
 PARTITIONS	TABLE_NAME	select
 REFERENTIAL_CONSTRAINTS	TABLE_NAME	select
@@ -1256,12 +1250,12 @@ DROP PROCEDURE p1;
 DROP USER mysql_bug20230@localhost;
 SELECT MAX(table_name) FROM information_schema.tables WHERE table_schema IN ('mysql', 'INFORMATION_SCHEMA', 'test');
 MAX(table_name)
-XTRADB_ENHANCEMENTS
+VIEWS
 SELECT table_name from information_schema.tables
 WHERE table_name=(SELECT MAX(table_name)
 FROM information_schema.tables WHERE table_schema IN ('mysql', 'INFORMATION_SCHEMA', 'test'));
 table_name
-XTRADB_ENHANCEMENTS
+VIEWS
 DROP TABLE IF EXISTS bug23037;
 DROP FUNCTION IF EXISTS get_value;
 SELECT COLUMN_NAME, MD5(COLUMN_DEFAULT), LENGTH(COLUMN_DEFAULT) FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_NAME='bug23037';

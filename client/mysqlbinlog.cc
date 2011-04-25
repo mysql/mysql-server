@@ -28,6 +28,7 @@
 
 #define MYSQL_CLIENT
 #undef MYSQL_SERVER
+#define TABLE TABLE_CLIENT
 #include "client_priv.h"
 #include <my_time.h>
 /* That one is necessary for defines of OPTION_NO_FOREIGN_KEY_CHECKS etc */
@@ -1136,7 +1137,7 @@ static struct my_option my_long_options[] =
    0, 0},
   {"result-file", 'r', "Direct output to a given file.", 0, 0, 0, GET_STR,
    REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
-  {"server-id", OPT_SERVER_ID,
+  {"server-id", 0,
    "Extract only binlog entries created by the server having the given id.",
    &server_id, &server_id, 0, GET_ULONG,
    REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
@@ -2247,6 +2248,7 @@ void *sql_alloc(size_t size)
   the server
 */
 
+#undef TABLE
 #include "my_decimal.h"
 #include "decimal.c"
 #include "my_decimal.cc"

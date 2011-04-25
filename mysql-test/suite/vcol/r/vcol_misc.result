@@ -108,10 +108,10 @@ DROP TABLE t1,t2;
 CREATE TABLE t1 (p int, a double NOT NULL, v double AS (ROUND(a,p)) VIRTUAL);
 INSERT INTO t1 VALUES (0,1,0);
 Warnings:
-Warning	1647	The value specified for computed column 'v' in table 't1' ignored
+Warning	1703	The value specified for computed column 'v' in table 't1' ignored
 INSERT INTO t1 VALUES (NULL,0,0);
 Warnings:
-Warning	1647	The value specified for computed column 'v' in table 't1' ignored
+Warning	1703	The value specified for computed column 'v' in table 't1' ignored
 SELECT a, p, v, ROUND(a,p), ROUND(a,p+NULL) FROM t1;
 a	p	v	ROUND(a,p)	ROUND(a,p+NULL)
 1	0	1	1	NULL

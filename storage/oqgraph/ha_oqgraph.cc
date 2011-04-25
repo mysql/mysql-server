@@ -28,16 +28,18 @@
 #pragma implementation				// gcc: Class implementation
 #endif
 
-#define MYSQL_SERVER	// to have THD
-#include "mysql_priv.h"
-#if MYSQL_VERSION_ID >= 50100
-#include <mysql/plugin.h>
-#endif
-
 #ifdef HAVE_OQGRAPH
 
+#include <mysql_version.h>
 #include "ha_oqgraph.h"
 #include "graphcore.h"
+
+#define MYSQL_SERVER	// to have THD
+#include <mysql/plugin.h>
+#include "table.h"
+#include "field.h"
+#include "key.h"
+//#include "sql_class.h"
 
 #define OQGRAPH_STATS_UPDATE_THRESHOLD 10
 
@@ -91,7 +93,7 @@ statistic_increment(table->in_use->status_var.X, &LOCK_status)
 #define MOVE(X) move_field(X)
 #define RECORDS records
 #else
-#define STATISTIC_INCREMENT(X) ha_statistic_increment(&SSV::X)
+#define STATISTIC_INCREMENT(X) /* nothing */
 #define MOVE(X) move_field_offset(X)
 #define RECORDS stats.records
 #endif
@@ -131,7 +133,7 @@ static bool oqgraph_init()
 #endif
   if (pthread_mutex_init(&LOCK_oqgraph, MY_MUTEX_INIT_FAST))
     goto error;
-  if (hash_init(&oqgraph_open_tables, &my_charset_bin, 32, 0, 0,
+  if (my_hash_init(&oqgraph_open_tables, &my_charset_bin, 32, 0, 0,
                 get_key, 0, 0))
   {
     pthread_mutex_destroy(&LOCK_oqgraph);
@@ -155,7 +157,7 @@ error:
 #if MYSQL_VERSION_ID >= 50100
 static int oqgraph_fini(void *)
 {
-  hash_free(&oqgraph_open_tables);
+  my_hash_free(&oqgraph_open_tables);
   pthread_mutex_destroy(&LOCK_oqgraph);
   oqgraph_init_done= FALSE;
   return 0;
@@ -168,7 +170,7 @@ static OQGRAPH_INFO *get_share(const char *name, TABLE *table=0)
   uint length= strlen(name);
 
   safe_mutex_assert_owner(&LOCK_oqgraph);
-  if (!(share= (OQGRAPH_INFO*) hash_search(&oqgraph_open_tables,
+  if (!(share= (OQGRAPH_INFO*) my_hash_search(&oqgraph_open_tables,
                                            (byte*) name, length)))
   {
     if (!table ||
@@ -202,7 +204,7 @@ static int free_share(OQGRAPH_INFO *share, bool drop=0)
   if (drop)
   {
     share->dropped= true;
-    hash_delete(&oqgraph_open_tables, (byte*) share);
+    my_hash_delete(&oqgraph_open_tables, (byte*) share);
   }
   if (!--share->use_count)
   {
@@ -942,7 +944,7 @@ int ha_oqgraph::rename_table(const char * from, const char * to)
   if (OQGRAPH_INFO *share= get_share(from))
   {
     strmov(share->name, to);
-    hash_update(&oqgraph_open_tables, (byte*) share,
+    my_hash_update(&oqgraph_open_tables, (byte*) share,
                 (byte*) from, strlen(from));
   }
   pthread_mutex_unlock(&LOCK_oqgraph);
@@ -1020,7 +1022,7 @@ void ha_oqgraph::update_create_info(HA_CREATE_INFO *create_info)
 struct st_mysql_storage_engine oqgraph_storage_engine=
 { MYSQL_HANDLERTON_INTERFACE_VERSION };
 
-mysql_declare_plugin(oqgraph)
+maria_declare_plugin(oqgraph)
 {
   MYSQL_STORAGE_ENGINE_PLUGIN,
   &oqgraph_storage_engine,
@@ -1033,9 +1035,11 @@ mysql_declare_plugin(oqgraph)
   0x0200,                     /* Version: 2.0                    */
   NULL,                       /* status variables                */
   NULL,                       /* system variables                */
-  NULL                        /* config options                  */
+  "2.0",
+  MariaDB_PLUGIN_MATURITY_BETA
 }
-mysql_declare_plugin_end;
+maria_declare_plugin_end;
+
 #endif
 
 #endif

@@ -180,7 +180,7 @@ typedef struct st_my_ftb_param
 
 
 static int ftb_query_add_word(MYSQL_FTPARSER_PARAM *param,
-                              const uchar *word, mysql_ft_size_t word_len,
+                              const char *word, int word_len,
                               MYSQL_FTPARSER_BOOLEAN_INFO *info)
 {
   MY_FTB_PARAM *ftb_param= param->mysql_ftparam;
@@ -227,7 +227,7 @@ static int ftb_query_add_word(MYSQL_FTPARSER_PARAM *param,
       if (! ftb_param->up_quot) break;
       phrase_word= (FT_WORD *)alloc_root(&ftb_param->ftb->mem_root, sizeof(FT_WORD));
       tmp_element= (LIST *)alloc_root(&ftb_param->ftb->mem_root, sizeof(LIST));
-      phrase_word->pos= (uchar*) word;
+      phrase_word->pos= (uchar*)word;
       phrase_word->len= word_len;
       tmp_element->data= (void *)phrase_word;
       ftb_param->ftbe->phrase= list_add(ftb_param->ftbe->phrase, tmp_element);
@@ -253,7 +253,7 @@ static int ftb_query_add_word(MYSQL_FTPARSER_PARAM *param,
       if (info->yesno > 0) ftbe->up->ythresh++;
       ftb_param->ftbe= ftbe;
       ftb_param->depth++;
-      ftb_param->up_quot= (uchar*) info->quot;
+      ftb_param->up_quot= (uchar*)info->quot;
       break;
     case FT_TOKEN_RIGHT_PAREN:
       if (ftb_param->ftbe->document)
@@ -282,24 +282,24 @@ static int ftb_query_add_word(MYSQL_FTPARSER_PARAM *param,
 
 
 static int ftb_parse_query_internal(MYSQL_FTPARSER_PARAM *param,
-                                    const uchar *query, mysql_ft_size_t len)
+                                    const char *query, int len)
 {
   MY_FTB_PARAM *ftb_param= param->mysql_ftparam;
   MYSQL_FTPARSER_BOOLEAN_INFO info;
   CHARSET_INFO *cs= ftb_param->ftb->charset;
-  const uchar **start= &query;
-  const uchar *end= query + len;
+  const uchar **start= (const uchar**) &query;
+  uchar *end= (uchar*) query + len;
   FT_WORD w;
 
   info.prev= ' ';
   info.quot= 0;
   while (maria_ft_get_word(cs, start, end, &w, &info))
-    param->mysql_add_word(param, w.pos, w.len, &info);
+    param->mysql_add_word(param, (char*)w.pos, w.len, &info);
   return(0);
 }
 
 
-static int _ftb_parse_query(FTB *ftb, uchar *query, size_t len,
+static int _ftb_parse_query(FTB *ftb, uchar *query, uint len,
                             struct st_mysql_ftparser *parser)
 {
   MYSQL_FTPARSER_PARAM *param;
@@ -321,7 +321,7 @@ static int _ftb_parse_query(FTB *ftb, uchar *query, size_t len,
   param->mysql_add_word= ftb_query_add_word;
   param->mysql_ftparam= (void *)&ftb_param;
   param->cs= ftb->charset;
-  param->doc= query;
+  param->doc= (char*)query;
   param->length= len;
   param->flags= 0;
   param->mode= MYSQL_FTPARSER_FULL_BOOLEAN_INFO;
@@ -540,7 +540,7 @@ static void _ftb_init_index_search(FT_INFO *ftb)
 
 
 FT_INFO * maria_ft_init_boolean_search(MARIA_HA *info, uint keynr,
-                                       uchar *query, size_t query_len,
+                                       uchar *query, uint query_len,
                                        CHARSET_INFO *cs)
 {
   FTB       *ftb;
@@ -599,7 +599,7 @@ FT_INFO * maria_ft_init_boolean_search(MARIA_HA *info, uint keynr,
   return ftb;
 err:
   free_root(& ftb->mem_root, MYF(0));
-  my_free(ftb, MYF(0));
+  my_free(ftb);
   return 0;
 }
 
@@ -616,14 +616,14 @@ typedef struct st_my_ftb_phrase_param
 
 
 static int ftb_phrase_add_word(MYSQL_FTPARSER_PARAM *param,
-                               const uchar *word, mysql_ft_size_t word_len,
+                               const char *word, int word_len,
                                MYSQL_FTPARSER_BOOLEAN_INFO
                                *boolean_info __attribute__((unused)))
 {
   MY_FTB_PHRASE_PARAM *phrase_param= param->mysql_ftparam;
   FT_WORD *w= (FT_WORD *)phrase_param->document->data;
   LIST *phrase, *document;
-  w->pos= (uchar*) word;
+  w->pos= (uchar*)word;
   w->len= word_len;
   phrase_param->document= phrase_param->document->prev;
   if (phrase_param->phrase_length > phrase_param->document_length)
@@ -649,16 +649,15 @@ static int ftb_phrase_add_word(MYSQL_FTPARSER_PARAM *param,
 
 
 static int ftb_check_phrase_internal(MYSQL_FTPARSER_PARAM *param,
-                                     const uchar *document,
-                                     mysql_ft_size_t len)
+                                     const char *document, int len)
 {
   FT_WORD word;
   MY_FTB_PHRASE_PARAM *phrase_param= param->mysql_ftparam;
-  const uchar *docend= document + len;
-  while (maria_ft_simple_get_word(phrase_param->cs, &document,
+  const uchar *docend= (uchar*)document + len;
+  while (maria_ft_simple_get_word(phrase_param->cs, (uchar**)&document,
                                   docend, &word, FALSE))
   {
-    param->mysql_add_word(param, word.pos, word.len, 0);
+    param->mysql_add_word(param, (char*)word.pos, word.len, 0);
     if (phrase_param->match)
       break;
   }
@@ -681,7 +680,7 @@ static int ftb_check_phrase_internal(MYSQL_FTPARSER_PARAM *param,
     -1 is returned if error occurs.
 */
 
-static int _ftb_check_phrase(FTB *ftb, const uchar *document, size_t len,
+static int _ftb_check_phrase(FTB *ftb, const uchar *document, uint len,
                              FTB_EXPR *ftbe, struct st_mysql_ftparser *parser)
 {
   MY_FTB_PHRASE_PARAM ftb_param;
@@ -702,7 +701,7 @@ static int _ftb_check_phrase(FTB *ftb, const uchar *document, size_t len,
   param->mysql_add_word= ftb_phrase_add_word;
   param->mysql_ftparam= (void *)&ftb_param;
   param->cs= ftb->charset;
-  param->doc= document;
+  param->doc= (char *)document;
   param->length= len;
   param->flags= 0;
   param->mode= MYSQL_FTPARSER_WITH_STOPWORDS;
@@ -851,7 +850,7 @@ int maria_ft_boolean_read_next(FT_INFO *ftb, char *record)
       {
         info->update|= HA_STATE_AKTIV;          /* Record is read */
         if (ftb->with_scan &&
-            maria_ft_boolean_find_relevance(ftb, (uchar *) record, 0)==0)
+            maria_ft_boolean_find_relevance(ftb, (uchar*)record, 0)==0)
             continue; /* no match */
         my_errno=0;
         goto err;
@@ -875,7 +874,7 @@ typedef struct st_my_ftb_find_param
 
 
 static int ftb_find_relevance_add_word(MYSQL_FTPARSER_PARAM *param,
-                                       const uchar *word, mysql_ft_size_t len,
+                                       const char *word, int len,
                                        MYSQL_FTPARSER_BOOLEAN_INFO
                                        *boolean_info __attribute__((unused)))
 {
@@ -937,14 +936,14 @@ static int ftb_find_relevance_add_word(MYSQL_FTPARSER_PARAM *param,
 
 
 static int ftb_find_relevance_parse(MYSQL_FTPARSER_PARAM *param,
-                                    const uchar *doc, mysql_ft_size_t len)
+                                    const char *doc, int len)
 {
   MY_FTB_FIND_PARAM *ftb_param= param->mysql_ftparam;
   FT_INFO *ftb= ftb_param->ftb;
-  const uchar *end= doc + len;
+  uchar *end= (uchar*) doc + len;
   FT_WORD w;
-  while (maria_ft_simple_get_word(ftb->charset, &doc, end, &w, TRUE))
-    param->mysql_add_word(param, w.pos, w.len, 0);
+  while (maria_ft_simple_get_word(ftb->charset, (uchar**)&doc, end, &w, TRUE))
+    param->mysql_add_word(param, (char*)w.pos, w.len, 0);
   return(0);
 }
 
@@ -1001,7 +1000,7 @@ float maria_ft_boolean_find_relevance(FT_INFO *ftb, uchar *record, uint length)
   {
     if (!ftsi.pos)
       continue;
-    param->doc= ftsi.pos;
+    param->doc= (char *)ftsi.pos;
     param->length= ftsi.len;
     if (unlikely(parser->parse(param)))
       return 0;
@@ -1026,7 +1025,7 @@ void maria_ft_boolean_close_search(FT_INFO *ftb)
     delete_tree(& ftb->no_dupes);
   }
   free_root(& ftb->mem_root, MYF(0));
-  my_free(ftb, MYF(0));
+  my_free(ftb);
 }
 
 

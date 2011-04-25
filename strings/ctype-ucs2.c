@@ -1095,7 +1095,7 @@ my_uni_utf16(CHARSET_INFO *cs __attribute__((unused)),
 
 
 static inline void
-my_tolower_utf16(MY_UNICASE_INFO **uni_plane, my_wc_t *wc)
+my_tolower_utf16(MY_UNICASE_INFO * const* uni_plane, my_wc_t *wc)
 {
   int page= *wc >> 8;
   if (page < 256 && uni_plane[page])
@@ -1104,7 +1104,7 @@ my_tolower_utf16(MY_UNICASE_INFO **uni_plane, my_wc_t *wc)
 
 
 static inline void
-my_toupper_utf16(MY_UNICASE_INFO **uni_plane, my_wc_t *wc)
+my_toupper_utf16(MY_UNICASE_INFO * const* uni_plane, my_wc_t *wc)
 {
   int page= *wc >> 8;
   if (page < 256 && uni_plane[page])
@@ -1113,7 +1113,7 @@ my_toupper_utf16(MY_UNICASE_INFO **uni_plane, my_wc_t *wc)
 
 
 static inline void
-my_tosort_utf16(MY_UNICASE_INFO **uni_plane, my_wc_t *wc)
+my_tosort_utf16(MY_UNICASE_INFO * const* uni_plane, my_wc_t *wc)
 {
   int page= *wc >> 8;
   if (page < 256)
@@ -1727,7 +1727,7 @@ MY_CHARSET_HANDLER my_charset_utf16_handler=
 };
 
 
-CHARSET_INFO my_charset_utf16_general_ci=
+struct charset_info_st my_charset_utf16_general_ci=
 {
   54,0,0,              /* number       */
   MY_CS_COMPILED|MY_CS_PRIMARY|MY_CS_STRNXFRM|MY_CS_UNICODE|MY_CS_NONASCII,
@@ -1760,7 +1760,7 @@ CHARSET_INFO my_charset_utf16_general_ci=
 };
 
 
-CHARSET_INFO my_charset_utf16_bin=
+struct charset_info_st my_charset_utf16_bin=
 {
   55,0,0,              /* number       */
   MY_CS_COMPILED|MY_CS_BINSORT|MY_CS_UNICODE|MY_CS_NONASCII,
@@ -1824,7 +1824,7 @@ my_uni_utf32(CHARSET_INFO *cs __attribute__((unused)),
 
 
 static inline void
-my_tolower_utf32(MY_UNICASE_INFO **uni_plane, my_wc_t *wc)
+my_tolower_utf32(MY_UNICASE_INFO * const* uni_plane, my_wc_t *wc)
 {
   int page= *wc >> 8;
   if (page < 256 && uni_plane[page])
@@ -1833,7 +1833,7 @@ my_tolower_utf32(MY_UNICASE_INFO **uni_plane, my_wc_t *wc)
 
 
 static inline void
-my_toupper_utf32(MY_UNICASE_INFO **uni_plane, my_wc_t *wc)
+my_toupper_utf32(MY_UNICASE_INFO * const* uni_plane, my_wc_t *wc)
 {
   int page= *wc >> 8;
   if (page < 256 && uni_plane[page])
@@ -1842,7 +1842,7 @@ my_toupper_utf32(MY_UNICASE_INFO **uni_plane, my_wc_t *wc)
 
 
 static inline void
-my_tosort_utf32(MY_UNICASE_INFO **uni_plane, my_wc_t *wc)
+my_tosort_utf32(MY_UNICASE_INFO *const* uni_plane, my_wc_t *wc)
 {
   int page= *wc >> 8;
   if (page < 256)
@@ -2754,7 +2754,7 @@ MY_CHARSET_HANDLER my_charset_utf32_handler=
 };
 
 
-CHARSET_INFO my_charset_utf32_general_ci=
+struct charset_info_st my_charset_utf32_general_ci=
 {
   60,0,0,              /* number       */
   MY_CS_COMPILED|MY_CS_PRIMARY|MY_CS_STRNXFRM|MY_CS_UNICODE|MY_CS_NONASCII,
@@ -2787,7 +2787,7 @@ CHARSET_INFO my_charset_utf32_general_ci=
 };
 
 
-CHARSET_INFO my_charset_utf32_bin=
+struct charset_info_st my_charset_utf32_bin=
 {
   61,0,0,              /* number       */
   MY_CS_COMPILED|MY_CS_BINSORT|MY_CS_UNICODE|MY_CS_NONASCII,

@@ -1,0 +1,21 @@
+select @@global.plugin_maturity;
+@@global.plugin_maturity
+unknown
+select @@session.plugin_maturity;
+ERROR HY000: Variable 'plugin_maturity' is a GLOBAL variable
+show global variables like 'plugin_maturity';
+Variable_name	Value
+plugin_maturity	unknown
+show session variables like 'plugin_maturity';
+Variable_name	Value
+plugin_maturity	unknown
+select * from information_schema.global_variables where variable_name='plugin_maturity';
+VARIABLE_NAME	VARIABLE_VALUE
+PLUGIN_MATURITY	unknown
+select * from information_schema.session_variables where variable_name='plugin_maturity';
+VARIABLE_NAME	VARIABLE_VALUE
+PLUGIN_MATURITY	unknown
+set global plugin_maturity=1;
+ERROR HY000: Variable 'plugin_maturity' is a read only variable
+set session plugin_maturity=1;
+ERROR HY000: Variable 'plugin_maturity' is a read only variable

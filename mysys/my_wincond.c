@@ -18,7 +18,6 @@
 *****************************************************************************/
 #if defined(_WIN32)
 
-#warning #include <my_global.h>
 #undef SAFE_MUTEX			/* Avoid safe_mutex redefinitions */
 #include "mysys_priv.h"
 #include <m_string.h>

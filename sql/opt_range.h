@@ -832,8 +832,7 @@ public:
 class QUICK_SELECT_DESC: public QUICK_RANGE_SELECT
 {
 public:
-  QUICK_SELECT_DESC(QUICK_RANGE_SELECT *q, uint used_key_parts, 
-                    bool *create_err);
+  QUICK_SELECT_DESC(QUICK_RANGE_SELECT *q, uint used_key_parts);
   int get_next();
   bool reverse_sorted() { return 1; }
   int get_type() { return QS_TYPE_RANGE_DESC; }

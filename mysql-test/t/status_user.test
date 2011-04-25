@@ -1,7 +1,7 @@
 #
 # Testing of user status (the userstat variable).
-# Note that this test requires a fresh restart to not problems with
-# old status
+# Note that this test requires a fresh restart to not have problems with the
+# old status values
 
 -- source include/have_innodb.inc
 -- source include/have_log_bin.inc

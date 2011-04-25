@@ -13,6 +13,8 @@
 # along with this program; if not, write to the Free Software
 # Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 
+INCLUDE(CMakeDependentOption)
+
 SET(ARIA_SOURCES ma_init.c ma_open.c ma_extra.c ma_info.c ma_rkey.c 
             ma_rnext.c ma_rnext_same.c 
             ma_search.c ma_page.c ma_key_recover.c ma_key.c 
@@ -81,4 +83,7 @@ ENDIF()
 IF (MSVC)
   SET_TARGET_PROPERTIES(aria_chk aria_pack PROPERTIES LINK_FLAGS "setargv.obj")
 ENDIF()
+
+CMAKE_DEPENDENT_OPTION(USE_ARIA_FOR_TMP_TABLES "Use Aria for temporary tables" ON
+                       "WITH_ARIA_STORAGE_ENGINE" OFF)
 

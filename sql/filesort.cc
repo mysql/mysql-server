@@ -32,6 +32,8 @@
 #include "probes_mysql.h"
 #include "sql_test.h"                           // TEST_filesort
 #include "opt_range.h"                          // SQL_SELECT
+#include "log_slow.h"
+#include "sql_base.h"
 
 #ifndef THREAD
 #define SKIP_DBUG_IN_FILESORT

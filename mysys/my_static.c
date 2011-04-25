@@ -88,19 +88,6 @@ static const char *proc_info_dummy(void *a __attribute__((unused)),
 /* this is to be able to call set_thd_proc_info from the C code */
 const char *(*proc_info_hook)(void *, const char *, const char *, const char *,
                               const unsigned int)= proc_info_dummy;
-
-static const char *proc_info_dummy(void *a __attribute__((unused)),
-                                   const char *b __attribute__((unused)),
-                                   const char *c __attribute__((unused)),
-                                   const char *d __attribute__((unused)),
-                                   const unsigned int e __attribute__((unused)))
-{
-  return 0;
-}
-
-/* this is to be able to call set_thd_proc_info from the C code */
-const char *(*proc_info_hook)(void *, const char *, const char *, const char *,
-                              const unsigned int)= proc_info_dummy;
 #if defined(ENABLED_DEBUG_SYNC)
 /**
   Global pointer to be set if callback function is defined

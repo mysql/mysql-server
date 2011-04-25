@@ -20,7 +20,6 @@ ${CMAKE_SOURCE_DIR}/regex
 ${ZLIB_INCLUDE_DIR}
 ${SSL_INCLUDE_DIRS}
 ${CMAKE_BINARY_DIR}/sql
-${CMAKE_SOURCE_DIR}/extra/libevent 
 )
 
 SET(GEN_SOURCES
@@ -90,7 +89,7 @@ ADD_LIBRARY(sql STATIC ${SQL_SOURCE})
 ADD_DEPENDENCIES(sql GenServerSource)
 DTRACE_INSTRUMENT(sql)
 TARGET_LINK_LIBRARIES(sql ${MYSQLD_STATIC_PLUGIN_LIBS} 
-  mysys dbug strings vio regex libevent psapi.lib
+  mysys dbug strings vio regex
   ${LIBWRAP} ${LIBCRYPT} ${LIBDL}
   ${SSL_LIBRARIES})
 

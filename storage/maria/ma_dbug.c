@@ -36,12 +36,12 @@ void _ma_print_keydata(FILE *stream, register HA_KEYSEG *keyseg,
   const uchar *end;
   const uchar *key_end= key + length;
 
-  VOID(fputs("Key: \"",stream));
+  fputs("Key: \"",stream);
   flag=0;
   for (; keyseg->type && key < key_end ;keyseg++)
   {
     if (flag++)
-      VOID(putc('-',stream));
+      putc('-',stream);
     end= key+ keyseg->length;
     if (keyseg->flag & HA_NULL_PART)
     {
@@ -58,7 +58,7 @@ void _ma_print_keydata(FILE *stream, register HA_KEYSEG *keyseg,
     case HA_KEYTYPE_BINARY:
       if (!(keyseg->flag & HA_SPACE_PACK) && keyseg->length == 1)
       {						/* packed binary digit */
-	VOID(fprintf(stream,"%d",(uint) *key++));
+	fprintf(stream,"%d",(uint) *key++);
 	break;
       }
       /* fall through */
@@ -66,58 +66,58 @@ void _ma_print_keydata(FILE *stream, register HA_KEYSEG *keyseg,
     case HA_KEYTYPE_NUM:
       if (keyseg->flag & HA_SPACE_PACK)
       {
-	VOID(fprintf(stream,"%.*s",(int) *key,key+1));
+	fprintf(stream,"%.*s",(int) *key,key+1);
 	key+= (int) *key+1;
       }
       else
       {
-	VOID(fprintf(stream,"%.*s",(int) keyseg->length,key));
+	fprintf(stream,"%.*s",(int) keyseg->length,key);
 	key=end;
       }
       break;
     case HA_KEYTYPE_INT8:
-      VOID(fprintf(stream,"%d",(int) *((const signed char*) key)));
+      fprintf(stream,"%d",(int) *((const signed char*) key));
       key=end;
       break;
     case HA_KEYTYPE_SHORT_INT:
       s_1= mi_sint2korr(key);
-      VOID(fprintf(stream,"%d",(int) s_1));
+      fprintf(stream,"%d",(int) s_1);
       key=end;
       break;
     case HA_KEYTYPE_USHORT_INT:
       {
 	ushort u_1;
 	u_1= mi_uint2korr(key);
-	VOID(fprintf(stream,"%u",(uint) u_1));
+	fprintf(stream,"%u",(uint) u_1);
 	key=end;
 	break;
       }
     case HA_KEYTYPE_LONG_INT:
       l_1=mi_sint4korr(key);
-      VOID(fprintf(stream,"%ld",l_1));
+      fprintf(stream,"%ld",l_1);
       key=end;
       break;
     case HA_KEYTYPE_ULONG_INT:
       l_1=mi_uint4korr(key);
-      VOID(fprintf(stream,"%lu",(ulong) l_1));
+      fprintf(stream,"%lu",(ulong) l_1);
       key=end;
       break;
     case HA_KEYTYPE_INT24:
-      VOID(fprintf(stream,"%ld",(long) mi_sint3korr(key)));
+      fprintf(stream,"%ld",(long) mi_sint3korr(key));
       key=end;
       break;
     case HA_KEYTYPE_UINT24:
-      VOID(fprintf(stream,"%lu",(ulong) mi_uint3korr(key)));
+      fprintf(stream,"%lu",(ulong) mi_uint3korr(key));
       key=end;
       break;
     case HA_KEYTYPE_FLOAT:
       mi_float4get(f_1,key);
-      VOID(fprintf(stream,"%g",(double) f_1));
+      fprintf(stream,"%g",(double) f_1);
       key=end;
       break;
     case HA_KEYTYPE_DOUBLE:
       mi_float8get(d_1,key);
-      VOID(fprintf(stream,"%g",d_1));
+      fprintf(stream,"%g",d_1);
       key=end;
       break;
 #ifdef HAVE_LONG_LONG
@@ -125,7 +125,7 @@ void _ma_print_keydata(FILE *stream, register HA_KEYSEG *keyseg,
     {
       char buff[21];
       longlong10_to_str(mi_sint8korr(key),buff,-10);
-      VOID(fprintf(stream,"%s",buff));
+      fprintf(stream,"%s",buff);
       key=end;
       break;
     }
@@ -133,7 +133,7 @@ void _ma_print_keydata(FILE *stream, register HA_KEYSEG *keyseg,
     {
       char buff[21];
       longlong10_to_str(mi_sint8korr(key),buff,10);
-      VOID(fprintf(stream,"%s",buff));
+      fprintf(stream,"%s",buff);
       key=end;
       break;
     }
@@ -158,14 +158,14 @@ void _ma_print_keydata(FILE *stream, register HA_KEYSEG *keyseg,
 	The following command sometimes gives a warning from valgrind.
 	Not yet sure if the bug is in valgrind, glibc or mysqld
       */
-      VOID(fprintf(stream,"%.*s",(int) tmp_length,key));
+      fprintf(stream,"%.*s",(int) tmp_length,key);
       key+=tmp_length;
       break;
     }
     default: break;			/* This never happens */
     }
   }
-  VOID(fputs("\"\n",stream));
+  fputs("\"\n",stream);
   return;
 } /* print_key */
 

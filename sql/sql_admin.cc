@@ -40,8 +40,9 @@ static bool admin_recreate_table(THD *thd, TABLE_LIST *table_list)
   trans_rollback(thd);
   close_thread_tables(thd);
   thd->mdl_context.release_transactional_locks();
+  DEBUG_SYNC(thd, "ha_admin_try_alter");
   tmp_disable_binlog(thd); // binlogging is done by caller if wanted
-  result_code= mysql_recreate_table(thd, table);
+  result_code= mysql_recreate_table(thd, table_list);
   reenable_binlog(thd);
   /*
     mysql_recreate_table() can push OK or ERROR.
@@ -51,7 +52,7 @@ static bool admin_recreate_table(THD *thd, TABLE_LIST *table_list)
   */
   if (thd->stmt_da->is_ok())
     thd->stmt_da->reset_diagnostics_area();
-  table->table= NULL;
+  table_list->table= NULL;
   result_code= result_code ? HA_ADMIN_FAILED : HA_ADMIN_OK;
   DBUG_RETURN(result_code);
 }
@@ -665,14 +666,13 @@ send_result_message:
         reopen the table and do ha_innobase::analyze() on it.
         We have to end the row, so analyze could return more rows.
       */
-      if (protocol->write())
-        goto err;
-      DBUG_PRINT("info", ("HA_ADMIN_TRY_ALTER, trying analyze..."));
-      DEBUG_SYNC(thd, "ha_admin_try_alter");
       protocol->store(STRING_WITH_LEN("note"), system_charset_info);
       protocol->store(STRING_WITH_LEN(
           "Table does not support optimize, doing recreate + analyze instead"),
                       system_charset_info);
+      if (protocol->write())
+        goto err;
+      DBUG_PRINT("info", ("HA_ADMIN_TRY_ALTER, trying analyze..."));
       TABLE_LIST *save_next_local= table->next_local,
                  *save_next_global= table->next_global;
       table->next_local= table->next_global= 0;

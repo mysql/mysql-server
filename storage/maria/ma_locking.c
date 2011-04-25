@@ -163,7 +163,7 @@ int maria_lock_database(MARIA_HA *info, int lock_type)
 	}
       }
 #endif
-      VOID(_ma_test_if_changed(info));
+      _ma_test_if_changed(info);
       share->r_locks++;
       share->tot_locks++;
       info->lock_type=lock_type;
@@ -211,7 +211,7 @@ int maria_lock_database(MARIA_HA *info, int lock_type)
 	}
       }
 #endif /* defined(MARIA_EXTERNAL_LOCKING) */
-      VOID(_ma_test_if_changed(info));
+      _ma_test_if_changed(info);
 
       info->lock_type=lock_type;
       info->invalidator=share->invalidator;

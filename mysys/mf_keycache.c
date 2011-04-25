@@ -179,10 +179,10 @@ typedef struct st_simple_key_cache_cb
   HASH_LINK *free_hash_list;     /* list of free hash links                  */
   BLOCK_LINK *free_block_list;   /* list of free blocks                      */
   BLOCK_LINK *block_root;        /* memory for block links                   */
-  uchar HUGE_PTR *block_mem;     /* memory for block buffers                 */
+  uchar *block_mem;              /* memory for block buffers                 */
   BLOCK_LINK *used_last;         /* ptr to the last block of the LRU chain   */
   BLOCK_LINK *used_ins;          /* ptr to the insertion block in LRU chain  */
-  pthread_mutex_t cache_lock;    /* to lock access to the cache structure    */
+  mysql_mutex_t cache_lock;      /* to lock access to the cache structure    */
   KEYCACHE_WQUEUE resize_queue;  /* threads waiting during resize operation  */
   /*
     Waiting for a zero resize count. Using a queue for symmetry though
@@ -793,7 +793,7 @@ void finish_resize_simple_key_cache(SIMPLE_KEY_CACHE_CB *keycache,
   if (acquire_lock)
     keycache_pthread_mutex_lock(&keycache->cache_lock); 
   
-  safe_mutex_assert_owner(&keycache->cache_lock);
+  mysql_mutex_assert_owner(&keycache->cache_lock);
 			   
   /*
     Mark the resize finished. This allows other threads to start a
@@ -5195,7 +5195,7 @@ int init_partitioned_key_cache(PARTITIONED_KEY_CACHE_CB *keycache,
       end_simple_key_cache(partition, 1);
       if (!key_cache_inited)
       {
-        my_free(partition,  MYF(0));
+        my_free(partition);
         partition= 0;
       }
       if ((i == 0 && cnt < 0) || i > 0)
@@ -5214,7 +5214,7 @@ int init_partitioned_key_cache(PARTITIONED_KEY_CACHE_CB *keycache,
 	*/
         if (key_cache_inited)
 	{
-          my_free(partition,  MYF(0));
+          my_free(partition);
           partition= 0;
           if(key_cache_inited) 
             memmove(partition_ptr, partition_ptr+1, 
@@ -5423,8 +5423,8 @@ void end_partitioned_key_cache(PARTITIONED_KEY_CACHE_CB *keycache,
   if (cleanup)
   {
     for (i= 0; i < partitions; i++)
-      my_free((uchar*) keycache->partition_array[i], MYF(0));
-    my_free((uchar*) keycache->partition_array, MYF(0));
+      my_free(keycache->partition_array[i]);
+    my_free(keycache->partition_array);
     keycache->key_cache_inited= 0;
   }
   DBUG_VOID_RETURN;
@@ -6121,7 +6121,7 @@ void end_key_cache(KEY_CACHE *keycache, my_bool cleanup)
     {
       if (keycache->keycache_cb)
       {
-        my_free((uchar *) keycache->keycache_cb, MYF(0));
+        my_free(keycache->keycache_cb);
         keycache->keycache_cb= 0;
       }
       keycache->key_cache_inited= 0;
@@ -6363,7 +6363,8 @@ int flush_key_blocks(KEY_CACHE *keycache,
 */
 
 int reset_key_cache_counters(const char *name __attribute__((unused)),
-                             KEY_CACHE *keycache)
+                             KEY_CACHE *keycache,
+                             void *unused __attribute__((unused)))
 {
   if (keycache->key_cache_inited)
   {

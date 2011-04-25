@@ -230,7 +230,7 @@ my_bool thr_alarm(thr_alarm_t *alrm, uint sec, ALARM *alarm_data)
 
 abort:
   if (alarm_data->malloced)
-    my_free(alarm_data, MYF(0));
+    my_free(alarm_data);
   mysql_mutex_unlock(&LOCK_alarm);
   one_signal_hand_sigmask(SIG_SETMASK,&old_mask,NULL);
 abort_no_unlock:

@@ -1,0 +1,45 @@
+SET @start_global_value = @@global.aria_sync_log_dir;
+select @@global.aria_sync_log_dir;
+@@global.aria_sync_log_dir
+NEWFILE
+select @@session.aria_sync_log_dir;
+ERROR HY000: Variable 'aria_sync_log_dir' is a GLOBAL variable
+show global variables like 'aria_sync_log_dir';
+Variable_name	Value
+aria_sync_log_dir	NEWFILE
+show session variables like 'aria_sync_log_dir';
+Variable_name	Value
+aria_sync_log_dir	NEWFILE
+select * from information_schema.global_variables where variable_name='aria_sync_log_dir';
+VARIABLE_NAME	VARIABLE_VALUE
+ARIA_SYNC_LOG_DIR	NEWFILE
+select * from information_schema.session_variables where variable_name='aria_sync_log_dir';
+VARIABLE_NAME	VARIABLE_VALUE
+ARIA_SYNC_LOG_DIR	NEWFILE
+set global aria_sync_log_dir=1;
+select @@global.aria_sync_log_dir;
+@@global.aria_sync_log_dir
+NEWFILE
+set session aria_sync_log_dir=1;
+ERROR HY000: Variable 'aria_sync_log_dir' is a GLOBAL variable and should be set with SET GLOBAL
+set global aria_sync_log_dir=never;
+select @@global.aria_sync_log_dir;
+@@global.aria_sync_log_dir
+NEVER
+set global aria_sync_log_dir=newfile;
+select @@global.aria_sync_log_dir;
+@@global.aria_sync_log_dir
+NEWFILE
+set global aria_sync_log_dir=always;
+select @@global.aria_sync_log_dir;
+@@global.aria_sync_log_dir
+ALWAYS
+set global aria_sync_log_dir=1.1;
+ERROR 42000: Incorrect argument type to variable 'aria_sync_log_dir'
+set global aria_sync_log_dir=1e1;
+ERROR 42000: Incorrect argument type to variable 'aria_sync_log_dir'
+set global aria_sync_log_dir="foo";
+ERROR 42000: Variable 'aria_sync_log_dir' can't be set to the value of 'foo'
+set global aria_sync_log_dir=3;
+ERROR 42000: Variable 'aria_sync_log_dir' can't be set to the value of '3'
+SET @@global.aria_sync_log_dir = @start_global_value;

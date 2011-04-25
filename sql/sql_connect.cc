@@ -25,7 +25,6 @@
 #endif
 #include "sql_audit.h"
 #include "sql_connect.h"
-#include "my_global.h"
 #include "probes_mysql.h"
 #include "unireg.h"                    // REQUIRED: for other includes
 #include "sql_parse.h"                          // sql_command_flags,
@@ -396,7 +395,7 @@ extern "C" uchar *get_key_user_stats(USER_STATS *user_stats, size_t *length,
 
 void free_user_stats(USER_STATS* user_stats)
 {
-  my_free(user_stats, MYF(0));
+  my_free(user_stats);
 }
 
 void init_user_stats(USER_STATS *user_stats,
@@ -459,7 +458,7 @@ void init_user_stats(USER_STATS *user_stats,
 }
 
 
-#ifdef COMPLEAT_PATCH_NOT_ADDED_YET
+#ifdef COMPLETE_PATCH_NOT_ADDED_YET
 
 void add_user_stats(USER_STATS *user_stats,
                     uint total_connections,
@@ -513,9 +512,9 @@ void add_user_stats(USER_STATS *user_stats,
 
 void init_global_user_stats(void)
 {
-  if (hash_init(&global_user_stats, system_charset_info, max_connections,
-                0, 0, (hash_get_key) get_key_user_stats,
-                (hash_free_key)free_user_stats, 0))
+  if (my_hash_init(&global_user_stats, system_charset_info, max_connections,
+                0, 0, (my_hash_get_key) get_key_user_stats,
+                (my_hash_free_key)free_user_stats, 0))
   {
     sql_print_error("Initializing global_user_stats failed.");
     exit(1);
@@ -524,9 +523,9 @@ void init_global_user_stats(void)
 
 void init_global_client_stats(void)
 {
-  if (hash_init(&global_client_stats, system_charset_info, max_connections,
-                0, 0, (hash_get_key) get_key_user_stats,
-                (hash_free_key)free_user_stats, 0))
+  if (my_hash_init(&global_client_stats, system_charset_info, max_connections,
+                0, 0, (my_hash_get_key) get_key_user_stats,
+                (my_hash_free_key)free_user_stats, 0))
   {
     sql_print_error("Initializing global_client_stats failed.");
     exit(1);
@@ -542,14 +541,14 @@ extern "C" uchar *get_key_table_stats(TABLE_STATS *table_stats, size_t *length,
 
 extern "C" void free_table_stats(TABLE_STATS* table_stats)
 {
-  my_free(table_stats, MYF(0));
+  my_free(table_stats);
 }
 
 void init_global_table_stats(void)
 {
-  if (hash_init(&global_table_stats, system_charset_info, max_connections,
-                0, 0, (hash_get_key) get_key_table_stats,
-                (hash_free_key)free_table_stats, 0)) {
+  if (my_hash_init(&global_table_stats, system_charset_info, max_connections,
+                0, 0, (my_hash_get_key) get_key_table_stats,
+                (my_hash_free_key)free_table_stats, 0)) {
     sql_print_error("Initializing global_table_stats failed.");
     exit(1);
   }
@@ -564,14 +563,14 @@ extern "C" uchar *get_key_index_stats(INDEX_STATS *index_stats, size_t *length,
 
 extern "C" void free_index_stats(INDEX_STATS* index_stats)
 {
-  my_free(index_stats, MYF(0));
+  my_free(index_stats);
 }
 
 void init_global_index_stats(void)
 {
-  if (hash_init(&global_index_stats, system_charset_info, max_connections,
-                0, 0, (hash_get_key) get_key_index_stats,
-                (hash_free_key)free_index_stats, 0))
+  if (my_hash_init(&global_index_stats, system_charset_info, max_connections,
+                0, 0, (my_hash_get_key) get_key_index_stats,
+                (my_hash_free_key)free_index_stats, 0))
   {
     sql_print_error("Initializing global_index_stats failed.");
     exit(1);
@@ -581,22 +580,22 @@ void init_global_index_stats(void)
 
 void free_global_user_stats(void)
 {
-  hash_free(&global_user_stats);
+  my_hash_free(&global_user_stats);
 }
 
 void free_global_table_stats(void)
 {
-  hash_free(&global_table_stats);
+  my_hash_free(&global_table_stats);
 }
 
 void free_global_index_stats(void)
 {
-  hash_free(&global_index_stats);
+  my_hash_free(&global_index_stats);
 }
 
 void free_global_client_stats(void)
 {
-  hash_free(&global_client_stats);
+  my_hash_free(&global_client_stats);
 }
 
 /*
@@ -611,7 +610,7 @@ static bool increment_count_by_name(const char *name, size_t name_length,
 {
   USER_STATS *user_stats;
 
-  if (!(user_stats= (USER_STATS*) hash_search(users_or_clients, (uchar*) name,
+  if (!(user_stats= (USER_STATS*) my_hash_search(users_or_clients, (uchar*) name,
                                               name_length)))
   {
     /* First connection for this user or client */
@@ -635,7 +634,7 @@ static bool increment_count_by_name(const char *name, size_t name_length,
 
     if (my_hash_insert(users_or_clients, (uchar*)user_stats))
     {
-      my_free(user_stats, 0);
+      my_free(user_stats);
       return TRUE;                              // Out of memory
     }
   }
@@ -664,7 +663,7 @@ static bool increment_connection_count(THD* thd, bool use_lock)
     return FALSE;
 
   if (use_lock)
-    pthread_mutex_lock(&LOCK_global_user_client_stats);
+    mysql_mutex_lock(&LOCK_global_user_client_stats);
 
   if (increment_count_by_name(user_string, strlen(user_string), user_string,
                               &global_user_stats, thd))
@@ -681,7 +680,7 @@ static bool increment_connection_count(THD* thd, bool use_lock)
 
 end:
   if (use_lock)
-    pthread_mutex_unlock(&LOCK_global_user_client_stats);
+    mysql_mutex_unlock(&LOCK_global_user_client_stats);
   return return_value;
 }
 #endif
@@ -757,10 +756,10 @@ void update_global_user_stats(THD *thd, bool create_user, time_t now)
   client_string= get_client_host(thd);
   client_string_length= strlen(client_string);
 
-  pthread_mutex_lock(&LOCK_global_user_client_stats);
+  mysql_mutex_lock(&LOCK_global_user_client_stats);
 
   // Update by user name
-  if ((user_stats= (USER_STATS*) hash_search(&global_user_stats,
+  if ((user_stats= (USER_STATS*) my_hash_search(&global_user_stats,
                                              (uchar*) user_string,
                                              user_string_length)))
   {
@@ -778,7 +777,7 @@ void update_global_user_stats(THD *thd, bool create_user, time_t now)
   }
 
   /* Update by client IP */
-  if ((user_stats= (USER_STATS*)hash_search(&global_client_stats,
+  if ((user_stats= (USER_STATS*)my_hash_search(&global_client_stats,
                                             (uchar*) client_string,
                                             client_string_length)))
   {
@@ -798,7 +797,7 @@ void update_global_user_stats(THD *thd, bool create_user, time_t now)
   thd->select_commands= thd->update_commands= thd->other_commands= 0;
   thd->last_global_update_time= now;
 
-  pthread_mutex_unlock(&LOCK_global_user_client_stats);
+  mysql_mutex_unlock(&LOCK_global_user_client_stats);
 }
 
 
@@ -1005,7 +1004,7 @@ bool login_connection(THD *thd)
   /*  Updates global user connection stats. */
   if (increment_connection_count(thd, TRUE))
   {
-    net_send_error(thd, ER_OUTOFMEMORY);  // Out of memory
+    my_error(ER_OUTOFMEMORY, MYF(0), 2*sizeof(USER_STATS));
     DBUG_RETURN(1);
   }
 
@@ -1131,11 +1130,11 @@ void do_handle_one_connection(THD *thd_arg)
 
   thd->thr_create_utime= my_micro_time();
 
-  if (MYSQL_CALLBACK(thread_scheduler, init_new_connection_thread, ()))
+  if (MYSQL_CALLBACK_ELSE(&thread_scheduler, init_new_connection_thread, (), 0))
   {
     close_connection(thd, ER_OUT_OF_RESOURCES, 1);
     statistic_increment(aborted_connects,&LOCK_status);
-    MYSQL_CALLBACK(thd->thread_scheduler, end_thread, (thd, 0));
+    MYSQL_CALLBACK(thd->scheduler, end_thread, (thd, 0));
     return;
   }
 
@@ -1197,7 +1196,7 @@ end_thread:
     if (thd->userstat_running)
       update_global_user_stats(thd, create_user, time(NULL));
 
-    if (MYSQL_CALLBACK(thd->scheduler, end_thread, (thd, 1)))
+    if (MYSQL_CALLBACK_ELSE(thd->scheduler, end_thread, (thd, 1), 0))
       return;                                 // Probably no-threads
 
     /*

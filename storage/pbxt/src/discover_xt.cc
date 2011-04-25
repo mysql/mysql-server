@@ -24,9 +24,15 @@
 #include "xt_config.h"
 
 #ifndef DRIZZLED
-#include "mysql_priv.h"
-#include "item_create.h"
 #include <m_ctype.h>
+#include "item.h"
+#include "item_create.h"
+#include "sql_table.h"
+#include "sql_class.h"
+#include "strfunc.h"
+#include "sql_parse.h"
+#include "sql_base.h"
+#include "sql_partition.h" // mem_alloc_error()
 #else
 #include <drizzled/session.h>
 #include <drizzled/server_includes.h>
@@ -1402,7 +1408,7 @@ static bool mysql_create_table_no_lock(THD *thd,
   {
     if (create_info->options & HA_LEX_CREATE_IF_NOT_EXISTS)
     {
-      create_info->table_existed= 1;		// Mark that table existed
+      //create_info->table_existed= 1;		// Mark that table existed
       push_warning_printf(thd, MYSQL_ERROR::WARN_LEVEL_NOTE,
                           ER_TABLE_EXISTS_ERROR, ER(ER_TABLE_EXISTS_ERROR),
                           alias);
@@ -1474,7 +1480,7 @@ static bool mysql_create_table_no_lock(THD *thd,
   }
 
   thd_proc_info(thd, "creating table");
-  create_info->table_existed= 0;		// Mark that table is created
+  //create_info->table_existed= 0;		// Mark that table is created
 
   create_info->table_options=db_options;
 
@@ -1487,17 +1493,9 @@ static bool mysql_create_table_no_lock(THD *thd,
   if (create_info->options & HA_LEX_CREATE_TMP_TABLE)
   {
     /* Open table and put in temporary table list */
-#if MYSQL_VERSION_ID >= 50404
-    if (!(open_temporary_table(thd, path, db, table_name, 1, OTM_OPEN)))
-#else
     if (!(open_temporary_table(thd, path, db, table_name, 1)))
-#endif
     {
-#if MYSQL_VERSION_ID >= 50404
-      (void) rm_temporary_table(create_info->db_type, path, false);
-#else
       (void) rm_temporary_table(create_info->db_type, path);
-#endif
       goto unlock_and_end;
     }
     thd->thread_specific_used= TRUE;
@@ -1539,7 +1537,7 @@ warn:
   push_warning_printf(thd, MYSQL_ERROR::WARN_LEVEL_NOTE,
                       ER_TABLE_EXISTS_ERROR, ER(ER_TABLE_EXISTS_ERROR),
                       alias);
-  create_info->table_existed= 1;		// Mark that table existed
+  //create_info->table_existed= 1;		// Mark that table existed
   goto unlock_and_end;
 }
 
@@ -1617,10 +1615,6 @@ int xt_create_table_frm(handlerton *hton, THD* thd, const char *db, const char *
 #else
 		if (add_field_to_list(thd, &field_name, info->field_type, field_length_ptr, info->field_decimal_length,
 			info->field_flags,
-#if MYSQL_VERSION_ID >= 50404
-				HA_SM_DISK,
-				COLUMN_FORMAT_TYPE_FIXED,
-#endif
 		       NULL /*default_value*/, NULL /*on_update_value*/, &comment, NULL /*change*/, 
 		       NULL /*interval_list*/, info->field_charset, 0 /*uint_geom_type*/
 #if defined(MARIADB_BASE_VERSION) && MYSQL_VERSION_ID > 50200

@@ -84,7 +84,6 @@
   in pthread_mutex_lock
 */
 
-#undef SAFE_MUTEX
 #include <my_global.h>
 #undef SAFE_MUTEX
 #include <m_string.h>
@@ -374,7 +373,7 @@ static CODE_STATE *code_state(void)
   if (!init_done)
   {
     init_done=TRUE;
-    pthread_mutex_init(&THR_LOCK_dbug,MY_MUTEX_INIT_FAST);
+    pthread_mutex_init(&THR_LOCK_dbug, NULL);
     bzero(&init_settings, sizeof(init_settings));
     init_settings.out_file=stderr;
     init_settings.flags=OPEN_APPEND;
@@ -500,6 +499,7 @@ int DbugParse(CODE_STATE *cs, const char *control)
 
   if (control[0] == '-' && control[1] == '#')
     control+=2;
+
   rel= control[0] == '+' || control[0] == '-';
   if ((!rel || (!stack->out_file && !stack->next)))
   {
@@ -879,6 +879,7 @@ void _db_push_(const char *control)
     FixTraceFlags(old_fflags, cs);
 }
 
+
 /**
   Returns TRUE if session-local settings have been set.
 */
@@ -1233,7 +1234,6 @@ void _db_return_(uint _line_, struct _db_stack_frame_ *_stack_frame_)
     my_snprintf(buf, sizeof(buf), ERR_MISSING_RETURN, cs->func);
     DbugExit(buf);
   }
-
 #ifndef THREAD
   if (DoProfile(cs))
     (void) fprintf(cs->stack->prof_file, PROF_XFMT, Clock(), cs->func);

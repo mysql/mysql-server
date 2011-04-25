@@ -1379,7 +1379,7 @@ THR_LOCK_DATA **ha_myisammrg::store_lock(THD *thd,
     pointers to the children. Use of a mutex here and in
     myrg_attach_children() forces consistent data.
   */
-  pthread_mutex_lock(&this->file->mutex);
+  mysql_mutex_lock(&this->file->mutex);
 
   /*
     When MERGE table is open, but not yet attached, other threads
@@ -1396,7 +1396,7 @@ THR_LOCK_DATA **ha_myisammrg::store_lock(THD *thd,
     open_table->table->lock.priority|= THR_LOCK_MERGE_PRIV;
 
  end:
-  pthread_mutex_unlock(&this->file->mutex);
+  mysql_mutex_unlock(&this->file->mutex);
   return to;
 }
 

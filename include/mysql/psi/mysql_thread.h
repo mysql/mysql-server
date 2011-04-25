@@ -235,7 +235,7 @@ typedef struct st_mysql_cond mysql_cond_t;
 #ifdef HAVE_PSI_INTERFACE
   #ifdef SAFE_MUTEX
     #define mysql_mutex_init(K, M, A) \
-      inline_mysql_mutex_init(K, M, A, __FILE__, __LINE__)
+      inline_mysql_mutex_init(K, M, A, #M, __FILE__, __LINE__)
   #else
     #define mysql_mutex_init(K, M, A) \
       inline_mysql_mutex_init(K, M, A)
@@ -243,7 +243,7 @@ typedef struct st_mysql_cond mysql_cond_t;
 #else
   #ifdef SAFE_MUTEX
     #define mysql_mutex_init(K, M, A) \
-      inline_mysql_mutex_init(M, A, __FILE__, __LINE__)
+      inline_mysql_mutex_init(M, A, #M, __FILE__, __LINE__)
   #else
     #define mysql_mutex_init(K, M, A) \
       inline_mysql_mutex_init(M, A)
@@ -585,7 +585,7 @@ static inline int inline_mysql_mutex_init(
   mysql_mutex_t *that,
   const pthread_mutexattr_t *attr
 #ifdef SAFE_MUTEX
-  , const char *src_file, uint src_line
+  , const char *src_name, const char *src_file, uint src_line
 #endif
   )
 {
@@ -596,7 +596,7 @@ static inline int inline_mysql_mutex_init(
   that->m_psi= NULL;
 #endif
 #ifdef SAFE_MUTEX
-  return safe_mutex_init(&that->m_mutex, attr, src_file, src_line);
+  return safe_mutex_init(&that->m_mutex, attr, src_name, src_file, src_line);
 #else
   return pthread_mutex_init(&that->m_mutex, attr);
 #endif

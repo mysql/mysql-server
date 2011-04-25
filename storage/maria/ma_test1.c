@@ -226,7 +226,7 @@ static int run_test(const char *filename)
     {
       if (testflag)
         break;
-      VOID(maria_close(file));
+      maria_close(file);
       exit(0);
     }
     j=i%25 +1;
@@ -314,7 +314,7 @@ static int run_test(const char *filename)
     found=0;
     while ((error= maria_scan(file,read_record)) == 0)
     {
-      if (--update_count == 0) { VOID(maria_close(file)) ; exit(0) ; }
+      if (--update_count == 0) { maria_close(file); exit(0) ; }
       memcpy(record,read_record,rec_length);
       update_record(record);
       if (maria_update(file,read_record,record))
@@ -596,7 +596,7 @@ static void create_record(uchar *record,uint rownr)
     tmp=strlen((char*) blob_key);
     int4store(pos,tmp);
     ptr=blob_key;
-    memcpy_fixed(pos+4,&ptr,sizeof(char*));
+    memcpy(pos+4,&ptr,sizeof(char*));
     pos+=recinfo[0].length;
   }
   else if (recinfo[0].type == FIELD_VARCHAR)
@@ -624,7 +624,7 @@ static void create_record(uchar *record,uint rownr)
     tmp=strlen((char*) blob_record);
     int4store(pos,tmp);
     ptr=blob_record;
-    memcpy_fixed(pos+4,&ptr,sizeof(char*));
+    memcpy(pos+4,&ptr,sizeof(char*));
   }
   else if (recinfo[1].type == FIELD_VARCHAR)
   {
@@ -653,10 +653,10 @@ static void update_record(uchar *record)
     uchar *column,*ptr;
     int length;
     length=uint4korr(pos);			/* Long blob */
-    memcpy_fixed(&column,pos+4,sizeof(char*));
+    memcpy(&column,pos+4,sizeof(char*));
     memcpy(blob_key,column,length);		/* Move old key */
     ptr=blob_key;
-    memcpy_fixed(pos+4,&ptr,sizeof(char*));	/* Store pointer to new key */
+    memcpy(pos+4,&ptr,sizeof(char*));	/* Store pointer to new key */
     if (keyinfo[0].seg[0].type != HA_KEYTYPE_NUM)
       default_charset_info->cset->casedn(default_charset_info,
                                          (char*) blob_key, length,
@@ -686,13 +686,13 @@ static void update_record(uchar *record)
     uchar *column;
     int length;
     length=uint4korr(pos);
-    memcpy_fixed(&column,pos+4,sizeof(char*));
+    memcpy(&column,pos+4,sizeof(char*));
     memcpy(blob_record,column,length);
     bfill(blob_record+length,20,'.');	/* Make it larger */
     length+=20;
     int4store(pos,length);
     column=blob_record;
-    memcpy_fixed(pos+4,&column,sizeof(char*));
+    memcpy(pos+4,&column,sizeof(char*));
   }
   else if (recinfo[1].type == FIELD_VARCHAR)
   {
@@ -897,3 +897,6 @@ static void usage()
   my_print_help(my_long_options);
   my_print_variables(my_long_options);
 }
+
+#include "ma_check_standalone.h"
+

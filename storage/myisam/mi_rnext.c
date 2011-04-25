@@ -118,7 +118,7 @@ int mi_rnext(MI_INFO *info, uchar *buf, int inx)
     if (!error && res == ICP_OUT_OF_RANGE)
     {
       if (info->s->concurrent_insert)
-        rw_unlock(&info->s->key_root_lock[inx]);
+        mysql_rwlock_unlock(&info->s->key_root_lock[inx]);
       info->lastpos= HA_OFFSET_ERROR;
       DBUG_RETURN(my_errno= HA_ERR_END_OF_FILE);
     }

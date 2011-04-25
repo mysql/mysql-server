@@ -1,2 +1,2 @@
 --loose-innodb
---plugin-load=$HA_XTRADB_SO
+--plugin-load=$HA_INNODB_SO

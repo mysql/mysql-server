@@ -94,6 +94,7 @@ SELECT COUNT(*) FROM mysqltest1.t1;
 INSERT INTO mysqltest1.t1 SET f1= 2;
 CREATE TEMPORARY TABLE mysqltest1.tmp2(a INT);
 ROLLBACK;
+--replace_result MyISAM InnoDB
 SHOW CREATE TABLE mysqltest1.tmp2;
 --echo ######### Must return no rows here #########
 SELECT COUNT(*) FROM mysqltest1.t1;

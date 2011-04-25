@@ -97,6 +97,16 @@ The following options may be given as the first argument:
  --date-format=name  The DATE format (ignored)
  --datetime-format=name 
  The DATETIME format (ignored)
+ --deadlock-search-depth-long=# 
+ Long search depth for the two-step deadlock detection
+ --deadlock-search-depth-short=# 
+ Short search depth for the two-step deadlock detection
+ --deadlock-timeout-long=# 
+ Long timeout for the two-step deadlock detection (in
+ microseconds)
+ --deadlock-timeout-short=# 
+ Short timeout for the two-step deadlock detection (in
+ microseconds)
  --default-storage-engine=name 
  The default storage engine for new tables
  --default-time-zone=name 
@@ -141,6 +151,11 @@ The following options may be given as the first argument:
  With this option enabled you can run myisamchk to test
  (not repair) tables while the MySQL server is running.
  Disable with --skip-external-locking.
+ --extra-max-connections=# 
+ The number of connections on extra-port
+ --extra-port=#      Extra port number to use for tcp connections in a
+ one-thread-per-connection manner. 0 means don't use
+ another port
  --flush             Flush MyISAM tables to disk between SQL commands
  --flush-time=#      A dedicated thread is created to flush all tables at the
  given interval
@@ -180,6 +195,10 @@ The following options may be given as the first argument:
  interactive connection before closing it
  --join-buffer-size=# 
  The size of the buffer that is used for full joins
+ --join-cache-level=# 
+ Controls what join operations can be executed with join
+ buffers. Odd numbers are used for plain join buffers
+ while even numbers are used for linked buffers
  --keep-files-on-create 
  Don't overwrite stale .MYD and .MYI even if no directory
  is specified
@@ -197,6 +216,8 @@ The following options may be given as the first argument:
  The default size of key cache blocks
  --key-cache-division-limit=# 
  The minimum percentage of warm blocks in key cache
+ --key-cache-segments=# 
+ The number of segments in a key cache
  -L, --language=name Client error messages in given language. May be given as
  a full path. Deprecated. Use --lc-messages-dir instead.
  --large-pages       Enable support for large pages
@@ -243,15 +264,28 @@ The following options may be given as the first argument:
  --log-slow-admin-statements 
  Log slow OPTIMIZE, ANALYZE, ALTER and other
  administrative statements to the slow log if it is open.
+ --log-slow-filter=name 
+ Log only certain types of queries. Multiple flags can be
+ specified, separated by commas. Valid values are admin,
+ slave, filesort, filesort_on_disk, full_join, full_scan,
+ query_cache, query_cache_miss, tmp_table,
+ tmp_table_on_disk
  --log-slow-queries[=name] 
  Log slow queries to a table or log file. Defaults logging
  to table mysql.slow_log or hostname-slow.log if
  --log-output=file is used. Must be enabled to activate
  other slow log options. Deprecated option, use
  --slow-query-log/--slow-query-log-file instead.
+ --log-slow-rate-limit=# 
+ Write to slow log every #th slow query. Set to 1 to log
+ everything. Increase it to reduce the size of the slow or
+ the performance impact of slow logging
  --log-slow-slave-statements 
  Log slow statements executed by slave thread to the slow
  log if it is open.
+ --log-slow-verbosity=name 
+ log-slow-verbosity=[value[,value ...]] where value is one
+ of 'innodb', 'query_plan'
  --log-tc=name       Path to transaction coordinator log (used for
  transactions that affect more than one storage engine,
  when binary log is disabled).
@@ -327,8 +361,7 @@ The following options may be given as the first argument:
  --min-examined-row-limit=# 
  Don't write queries to slow log that examine fewer rows
  than that
- --multi-range-count=# 
- Number of key ranges to request at once
+ --mrr-buffer-size=# Size of buffer to use when using MRR with range access
  --myisam-block-size=# 
  Block size to be used for MyISAM index pages
  --myisam-data-pointer-size=# 
@@ -404,8 +437,15 @@ The following options may be given as the first argument:
  optimizer_switch=option=val[,option=val...], where option
  is one of {index_merge, index_merge_union,
  index_merge_sort_union, index_merge_intersection,
- engine_condition_pushdown} and val is one of {on, off,
- default}
+ engine_condition_pushdown, index_condition_pushdown,
+ firstmatch, loosescan, materialization, semijoin,
+ partial_match_rowid_merge, partial_match_table_scan,
+ subquery_cache}  and val is one of {on, off, default}
+ --optimizer-use-mrr=name 
+ Whether the server should use multi-read-range
+ optimization when resolving queries, one of AUTO (as
+ appropriate), FORCE (always where applicable), DISABLE
+ (never)
  --performance-schema 
  Enable the performance schema.
  --performance-schema-events-waits-history-long-size=# 
@@ -444,6 +484,9 @@ The following options may be given as the first argument:
  where each plugin is identified as name=library, where
  name is the plugin name and library is the plugin library
  in plugin_dir.
+ --plugin-maturity=name 
+ The lowest desirable plugin maturity. Plugins less mature
+ than that will not be installed or loaded.
  -P, --port=#        Port number to use for connection or 0 to default to,
  my.cnf, $MYSQL_TCP_PORT, /etc/services, built-in default
  (3306), whatever comes first
@@ -578,6 +621,9 @@ The following options may be given as the first argument:
  not sure, leave this option unset
  --report-user=name  The account user name of the slave to be reported to the
  master during slave registration
+ --rowid-merge-buff-size=# 
+ The size of the buffers used [NOT] IN evaluation via
+ partial matching
  --rpl-recovery-rank=# 
  Unused, will be removed
  --safe-mode         Skip some optimize stages (for testing).
@@ -593,13 +639,14 @@ The following options may be given as the first argument:
  --show-slave-auth-info 
  Show user and password in SHOW SLAVE HOSTS on this
  master.
+ --skip-bdb          Deprecated option; Exist only for compatiblity with old
+ my.cnf files
  --skip-grant-tables Start without grant tables. This gives all users FULL
  ACCESS to all tables.
  --skip-host-cache   Don't cache host names.
  --skip-name-resolve Don't resolve hostnames. All hostnames are IP's or
  'localhost'.
  --skip-networking   Don't allow connection with TCP/IP
- --skip-new          Don't use new, possibly wrong routines.
  --skip-show-database 
  Don't allow 'SHOW DATABASE' commands
  --skip-slave-start  If set, slave is not autostarted.
@@ -688,14 +735,14 @@ The following options may be given as the first argument:
  How many threads we should keep in a cache for reuse
  --thread-handling=name 
  Define threads usage for handling queries, one of
- one-thread-per-connection, no-threads, loaded-dynamically
+ one-thread-per-connection, no-threads
  --thread-stack=#    The stack size for each thread
  --time-format=name  The TIME format (ignored)
  --timed-mutexes     Specify whether to time mutexes (only InnoDB mutexes are
  currently supported)
  --tmp-table-size=#  If an internal in-memory temporary table exceeds this
  size, MySQL will automatically convert it to an on-disk
- MyISAM table
+ MyISAM or Aria table
  -t, --tmpdir=name   Path for temporary files. Several paths may be specified,
  separated by a colon (:), in this case they are used in a
  round-robin fashion
@@ -715,6 +762,9 @@ The following options may be given as the first argument:
  of the underlying table and the query uses a LIMIT clause
  (usually get from GUI tools)
  -u, --user=name     Run mysqld daemon as user.
+ --userstat          Enables statistics gathering for USER_STATISTICS,
+ CLIENT_STATISTICS, INDEX_STATISTICS and TABLE_STATISTICS
+ tables in the INFORMATION_SCHEMA
  -v, --verbose       Used with --help option for detailed help.
  -V, --version       Output version information and exit.
  --wait-timeout=#    The number of seconds the server waits for activity on a
@@ -746,7 +796,11 @@ connect-timeout 10
 console FALSE
 date-format %Y-%m-%d
 datetime-format %Y-%m-%d %H:%i:%s
-default-storage-engine InnoDB
+deadlock-search-depth-long 15
+deadlock-search-depth-short 4
+deadlock-timeout-long 50000000
+deadlock-timeout-short 10000
+default-storage-engine myisam
 default-time-zone (No default value)
 default-week-format 0
 delay-key-write ON
@@ -759,6 +813,8 @@ engine-condition-pushdown TRUE
 event-scheduler OFF
 expire-logs-days 0
 external-locking FALSE
+extra-max-connections 1
+extra-port 0
 flush FALSE
 flush-time 0
 ft-boolean-syntax + -><()~*:""&|
@@ -777,11 +833,13 @@ init-rpl-role MASTER
 init-slave 
 interactive-timeout 28800
 join-buffer-size 131072
+join-cache-level 1
 keep-files-on-create FALSE
-key-buffer-size 8388608
+key-buffer-size 134217728
 key-cache-age-threshold 300
 key-cache-block-size 1024
 key-cache-division-limit 100
+key-cache-segments 0
 language MYSQL_SHAREDIR/
 large-pages FALSE
 lc-messages en_US
@@ -799,7 +857,10 @@ log-queries-not-using-indexes FALSE
 log-short-format FALSE
 log-slave-updates FALSE
 log-slow-admin-statements FALSE
+log-slow-filter admin,filesort,filesort_on_disk,full_join,full_scan,query_cache,query_cache_miss,tmp_table,tmp_table_on_disk
+log-slow-rate-limit 1
 log-slow-slave-statements FALSE
+log-slow-verbosity 
 log-tc tc.log
 log-tc-size 24576
 log-warnings 1
@@ -829,12 +890,12 @@ max-user-connections 0
 max-write-lock-count 18446744073709551615
 memlock FALSE
 min-examined-row-limit 0
-multi-range-count 256
+mrr-buffer-size 262144
 myisam-block-size 1024
 myisam-data-pointer-size 6
 myisam-max-sort-file-size 9223372036853727232
 myisam-mmap-size 18446744073709551615
-myisam-recover-options OFF
+myisam-recover-options DEFAULT
 myisam-repair-threads 1
 myisam-sort-buffer-size 8388608
 myisam-stats-method nulls_unequal
@@ -850,7 +911,8 @@ old-passwords FALSE
 old-style-user-limits FALSE
 optimizer-prune-level 1
 optimizer-search-depth 62
-optimizer-switch index_merge=on,index_merge_union=on,index_merge_sort_union=on,index_merge_intersection=on,engine_condition_pushdown=on
+optimizer-switch index_merge=on,index_merge_union=on,index_merge_sort_union=on,index_merge_intersection=on,engine_condition_pushdown=on,index_condition_pushdown=on,firstmatch=on,loosescan=on,materialization=on,semijoin=on,partial_match_rowid_merge=on,partial_match_table_scan=on,subquery_cache=on,table_elimination=on
+optimizer-use-mrr force
 performance-schema FALSE
 performance-schema-events-waits-history-long-size 10000
 performance-schema-events-waits-history-size 10
@@ -868,6 +930,7 @@ performance-schema-max-table-instances 50000
 performance-schema-max-thread-classes 50
 performance-schema-max-thread-instances 1000
 plugin-load (No default value)
+plugin-maturity unknown
 port 3306
 port-open-timeout 0
 preload-buffer-size 32768
@@ -894,6 +957,7 @@ report-host (No default value)
 report-password (No default value)
 report-port 3306
 report-user (No default value)
+rowid-merge-buff-size 8388608
 rpl-recovery-rank 0
 safe-user-create FALSE
 secure-auth FALSE
@@ -919,7 +983,7 @@ sporadic-binlog-dump-fail FALSE
 sql-mode 
 symbolic-links FALSE
 sync-binlog 0
-sync-frm TRUE
+sync-frm FALSE
 sync-master-info 0
 sync-relay-log 0
 sync-relay-log-info 0
@@ -930,7 +994,7 @@ table-open-cache 400
 tc-heuristic-recover COMMIT
 thread-cache-size 0
 thread-handling one-thread-per-connection
-thread-stack 262144
+thread-stack 294912
 time-format %H:%i:%s
 timed-mutexes FALSE
 tmp-table-size 16777216
@@ -938,6 +1002,7 @@ transaction-alloc-block-size 8192
 transaction-isolation REPEATABLE-READ
 transaction-prealloc-size 4096
 updatable-views-with-limit YES
+userstat FALSE
 verbose TRUE
 wait-timeout 28800
 

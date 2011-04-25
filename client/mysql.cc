@@ -4327,7 +4327,7 @@ extern "C" char *mysql_authentication_dialog_ask(MYSQL *mysql, int type,
     s= get_tty_password("");
     strnmov(buf, s, buf_len);
     buf[buf_len-1]= 0;
-    my_free(s, MYF(0));
+    my_free(s);
   }
   else
   {

@@ -2,6 +2,8 @@
 # Testing of table locking
 #
 
+--source include/have_partition.inc
+
 # Save the initial number of concurrent sessions.
 --source include/count_sessions.inc
 

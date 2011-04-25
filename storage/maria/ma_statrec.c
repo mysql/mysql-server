@@ -284,7 +284,7 @@ int _ma_read_rnd_static_record(MARIA_HA *info, uchar *buf,
 		    info->s->base.pack_reclength - info->s->base.reclength);
   }
   if (locked)
-    VOID(_ma_writeinfo(info,0));		/* Unlock keyfile */
+    _ma_writeinfo(info,0);                      /* Unlock keyfile */
   if (!error)
   {
     if (!buf[0])

@@ -671,9 +671,9 @@ int simple_big_test()
     reset_file(&file1, file1_name);
 
 err:
-  my_free(buffw, 0);
-  my_free(buffr, 0);
-  my_free(desc, 0);
+  my_free(buffw);
+  my_free(buffr);
+  my_free(desc);
   DBUG_RETURN(res);
 }
 
@@ -711,7 +711,7 @@ static void *test_thread(void *arg)
   DBUG_PRINT("info", ("Thread %s ended\n", my_thread_name()));
   pthread_mutex_lock(&LOCK_thread_count);
   thread_count--;
-  VOID(pthread_cond_signal(&COND_thread_count)); /* Tell main we are ready */
+  pthread_cond_signal(&COND_thread_count); /* Tell main we are ready */
   pthread_mutex_unlock(&LOCK_thread_count);
   free((uchar*) arg);
   my_thread_end();
@@ -798,7 +798,7 @@ int main(int argc __attribute__((unused)),
   }
 
 #ifdef HAVE_THR_SETCONCURRENCY
-  VOID(thr_setconcurrency(2));
+  thr_setconcurrency(2);
 #endif
 
   if ((pagen= init_pagecache(&pagecache, PCACHE_SIZE, 0, 0,
@@ -851,3 +851,5 @@ int main(int argc __attribute__((unused)),
   }
   return exit_status();
 }
+
+#include "../ma_check_standalone.h"

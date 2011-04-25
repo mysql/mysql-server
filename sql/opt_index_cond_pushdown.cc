@@ -1,5 +1,5 @@
-#include "mysql_priv.h"
 #include "sql_select.h"
+#include "sql_test.h"
 
 /****************************************************************************
  * Index Condition Pushdown code starts

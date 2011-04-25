@@ -80,7 +80,7 @@ sqlsources = derror.cc field.cc field_conv.cc strfunc.cc filesort.cc \
 	rpl_injector.cc my_user.c partition_info.cc sql_alter.cc \
 	sql_servers.cc event_parse_data.cc sql_signal.cc \
 	rpl_handler.cc mdl.cc keycaches.cc sql_audit.cc \
-	sql_partition_admin.cc
+	sql_partition_admin.cc \
 	create_options.cc opt_table_elimination.cc \
 	multi_range_read.cc opt_index_cond_pushdown.cc \
 	sql_expression_cache.cc

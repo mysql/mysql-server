@@ -1,0 +1,47 @@
+# enum global
+--source include/have_maria.inc
+
+SET @start_global_value = @@global.aria_group_commit;
+
+#
+# exists as global only
+#
+select @@global.aria_group_commit;
+--error ER_INCORRECT_GLOBAL_LOCAL_VAR
+select @@session.aria_group_commit;
+show global variables like 'aria_group_commit';
+show session variables like 'aria_group_commit';
+select * from information_schema.global_variables where variable_name='aria_group_commit';
+select * from information_schema.session_variables where variable_name='aria_group_commit';
+
+#
+# show that it's writable
+#
+set global aria_group_commit=1;
+select @@global.aria_group_commit;
+--error ER_GLOBAL_VARIABLE
+set session aria_group_commit=1;
+
+#
+# all valid values
+#
+set global aria_group_commit=none;
+select @@global.aria_group_commit;
+set global aria_group_commit=hard;
+select @@global.aria_group_commit;
+set global aria_group_commit=soft;
+select @@global.aria_group_commit;
+
+#
+# incorrect types/values
+#
+--error ER_WRONG_TYPE_FOR_VAR
+set global aria_group_commit=1.1;
+--error ER_WRONG_TYPE_FOR_VAR
+set global aria_group_commit=1e1;
+--error ER_WRONG_VALUE_FOR_VAR
+set global aria_group_commit="foo";
+--error ER_WRONG_VALUE_FOR_VAR
+set global aria_group_commit=3;
+
+SET @@global.aria_group_commit = @start_global_value;

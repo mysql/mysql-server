@@ -232,13 +232,11 @@ static struct my_option my_long_options[] =
   { 0, 0, 0, 0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0}
 };
 
-#include <help_start.h>
 
 static void print_version(void)
 {
-  VOID(printf("%s Ver 1.3 for %s on %s\n",
-              my_progname_short, SYSTEM_TYPE, MACHINE_TYPE));
-  NETWARE_SET_SCREEN_MODE(1);
+  printf("%s Ver 1.3 for %s on %s\n",
+              my_progname_short, SYSTEM_TYPE, MACHINE_TYPE);
 }
 
 
@@ -257,14 +255,13 @@ static void usage(void)
        "files created during normal execution. This should be ok, except for\n"
        "test scripts that tries to compare files before and after recovery.");
 #endif
-  VOID(printf("\nUsage: %s OPTIONS\n", my_progname_short));
+  printf("\nUsage: %s OPTIONS\n", my_progname_short);
   puts("You need to use one of -d or -a");
   my_print_help(my_long_options);
   print_defaults("my", load_default_groups);
   my_print_variables(my_long_options);
 }
 
-#include <help_end.h>
 
 static my_bool
 get_one_option(int optid __attribute__((unused)),
@@ -306,3 +303,4 @@ static void get_options(int *argc,char ***argv)
     exit(1);
   maria_tmpdir= &maria_chk_tmpdir;
 }
+

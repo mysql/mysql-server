@@ -1276,7 +1276,7 @@ static void descript(HA_CHECK *param, register MI_INFO *info, char * name)
   printf("Recordlength:        %13d\n",(int) share->base.pack_reclength);
   if (! mi_is_all_keys_active(share->state.key_map, share->base.keys))
   {
-    longlong2str(share->state.key_map,buff,2,1);
+    longlong2str(share->state.key_map,buff,2);
     printf("Using only keys '%s' of %d possibly keys\n",
 	   buff, share->base.keys);
   }

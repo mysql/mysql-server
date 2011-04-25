@@ -170,7 +170,7 @@ MARIA_STATE_HISTORY
     {
       DBUG_PRINT("info", ("removing history->trid: %lu  next: %lu",
                           (ulong) history->trid, (ulong) last_trid));
-      my_free(history, MYF(0));
+      my_free(history);
       continue;
     }
     *parent= history;
@@ -184,7 +184,7 @@ MARIA_STATE_HISTORY
     /* There is only one state left. Delete this if it's visible for all */
     if (last_trid < trnman_get_min_trid())
     {
-      my_free(org_history, MYF(0));
+      my_free(org_history);
       org_history= 0;
     }
   }
@@ -248,7 +248,7 @@ void _ma_reset_state(MARIA_HA *info)
     for (history= history->next ; history ; history= next)
     {
       next= history->next;
-      my_free(history, MYF(0));
+      my_free(history);
     }
     share->state_history->next= 0;
     share->state_history->trid= 0;              /* Visibile for all */
@@ -346,11 +346,11 @@ void _ma_update_status_with_lock(MARIA_HA *info)
   if (info->state == &info->state_save)
   {
     locked= 1;
-    pthread_mutex_lock(&info->s->lock.mutex);
+    mysql_mutex_lock(&info->s->lock.mutex);
   }
   (*info->s->lock.update_status)(info);
   if (locked)
-    pthread_mutex_unlock(&info->s->lock.mutex);
+    mysql_mutex_unlock(&info->s->lock.mutex);
 }
 
 
@@ -477,7 +477,7 @@ my_bool _ma_trnman_end_trans_hook(TRN *trn, my_bool commit,
               /* purecov: begin inspected */
               error= 1;
               pthread_mutex_unlock(&share->intern_lock);
-              my_free(tables, MYF(0));
+              my_free(tables);
               continue;
               /* purecov: end */
             }
@@ -526,7 +526,7 @@ my_bool _ma_trnman_end_trans_hook(TRN *trn, my_bool commit,
       pthread_mutex_unlock(&share->intern_lock);
 #endif
     }
-    my_free(tables, MYF(0));
+    my_free(tables);
   }
   trn->used_tables= 0;
   DBUG_RETURN(error);
@@ -561,7 +561,7 @@ void _ma_remove_table_from_trnman(MARIA_SHARE *share, TRN *trn)
       *prev= tables->next;
       share->in_trans--;
       DBUG_PRINT("info", ("in_trans: %d", share->in_trans));
-      my_free(tables, MYF(0));
+      my_free(tables);
       break;
     }
     prev= &tables->next;
@@ -744,7 +744,7 @@ void _ma_reset_history(MARIA_SHARE *share)
   for (; history; history= next)
   {
     next= history->next;
-    my_free(history, MYF(0));
+    my_free(history);
   }
   DBUG_VOID_RETURN;
 }

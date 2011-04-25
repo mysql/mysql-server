@@ -1183,7 +1183,7 @@ QUICK_SELECT_I::QUICK_SELECT_I()
 QUICK_RANGE_SELECT::QUICK_RANGE_SELECT(THD *thd, TABLE *table, uint key_nr,
                                        bool no_alloc, MEM_ROOT *parent_alloc,
                                        bool *create_error)
-  :doing_key_read(0),/*error(0),*/free_file(0),/*in_range(0),*/cur_range(NULL),last_range(0),dont_free(0)
+  :doing_key_read(0),free_file(0),cur_range(NULL),last_range(0),dont_free(0)
 {
   my_bitmap_map *bitmap;
   DBUG_ENTER("QUICK_RANGE_SELECT::QUICK_RANGE_SELECT");
@@ -8090,11 +8090,6 @@ QUICK_RANGE_SELECT *get_quick_select_for_ref(THD *thd, TABLE *table,
                     (table->key_read ? HA_MRR_INDEX_ONLY : 0);
   if (thd->lex->sql_command != SQLCOM_SELECT)
     quick->mrr_flags |= HA_MRR_USE_DEFAULT_IMPL;
-#ifdef WITH_NDBCLUSTER_STORAGE_ENGINE
-  if (!ref->null_ref_key && !key_has_nulls(key_info, range->min_key,
-                                           ref->key_length))
-    quick->mrr_flags |= HA_MRR_NO_NULL_ENDPOINTS;
-#endif
 
   quick->mrr_buf_size= thd->variables.mrr_buff_size;
   if (table->file->multi_range_read_info(quick->index, 1, (uint)records,
@@ -8815,7 +8810,7 @@ int QUICK_SELECT_DESC::get_next()
 QUICK_SELECT_I *QUICK_RANGE_SELECT::make_reverse(uint used_key_parts_arg)
 {
   QUICK_SELECT_DESC *new_quick= new QUICK_SELECT_DESC(this, used_key_parts_arg);
-  if (new_quick == NULL || new_quick->error != 0)
+  if (new_quick == NULL)
   {
     delete new_quick;
     return NULL;
@@ -10869,14 +10864,14 @@ static int index_next_different (bool is_index_scan, handler *file,
 
     while (!key_cmp (key_part, group_prefix, group_prefix_len))
     {
-      result= file->index_next(record);
+      result= file->ha_index_next(record);
       if (result)
         return(result);
     }
     return result;
   }
   else
-    return file->index_read_map(record, group_prefix,
+    return file->ha_index_read_map(record, group_prefix,
                                 make_prev_keypart_map(group_key_parts),
                                 HA_READ_AFTER_KEY);
 }

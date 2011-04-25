@@ -294,7 +294,7 @@ int maria_write(MARIA_HA *info, uchar *record)
   info->state->changed= 1;
 
   info->cur_row.lastpos= filepos;
-  VOID(_ma_writeinfo(info, WRITEINFO_UPDATE_KEYFILE));
+  _ma_writeinfo(info, WRITEINFO_UPDATE_KEYFILE);
   if (info->invalidator != 0)
   {
     DBUG_PRINT("info", ("invalidator... '%s' (update)",
@@ -399,7 +399,7 @@ err2:
   if (!save_errno)
     save_errno= HA_ERR_INTERNAL_ERROR;          /* Should never happen */
   DBUG_PRINT("error", ("got error: %d", save_errno));
-  VOID(_ma_writeinfo(info,WRITEINFO_UPDATE_KEYFILE));
+  _ma_writeinfo(info,WRITEINFO_UPDATE_KEYFILE);
   allow_break();			/* Allow SIGHUP & SIGINT */
   DBUG_RETURN(my_errno=save_errno);
 } /* maria_write */
@@ -444,7 +444,7 @@ static my_bool _ma_ck_write_btree(MARIA_HA *info, MARIA_KEY *key)
     if (!error)
       error= _ma_ft_convert_to_ft2(info, key);
     delete_dynamic(info->ft1_to_ft2);
-    my_free(info->ft1_to_ft2, MYF(0));
+    my_free(info->ft1_to_ft2);
     info->ft1_to_ft2=0;
   }
   DBUG_RETURN(error);
@@ -469,7 +469,6 @@ static my_bool _ma_ck_write_btree_with_log(MARIA_HA *info, MARIA_KEY *key,
   MARIA_KEY org_key;
   DBUG_ENTER("_ma_ck_write_btree_with_log");
 
-  LINT_INIT_STRUCT(org_key);
   if (share->now_transactional)
   {
     /* Save original value as the key may change */
@@ -1789,7 +1788,7 @@ void maria_end_bulk_insert(MARIA_HA *info)
         delete_tree(&info->bulk_insert[i]);
       }
     }
-    my_free(info->bulk_insert, MYF(0));
+    my_free(info->bulk_insert);
     info->bulk_insert= 0;
   }
   DBUG_VOID_RETURN;

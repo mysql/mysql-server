@@ -18,7 +18,7 @@ connect (bug30887con2, localhost, root, ,test);
 
 connection bug30887con1;
 --echo Activate debug hook and attempt to retrieve the statement from the cache.
-set session debug='+d,wait_in_query_cache_insert';
+set session debug='+d,foobar,wait_in_query_cache_insert';
 --send select SQL_CACHE * from t1;
 
 connection default;
@@ -67,7 +67,7 @@ connect(con2,localhost,root,,test,,);
 
 connection con1;
 --echo # Switch to connection con1
-SET SESSION debug='+d,wait_after_query_cache_invalidate';
+SET SESSION debug='+d,foobar,wait_after_query_cache_invalidate';
 --echo # Send concurrent insert, will wait in the query cache table invalidate
 --send INSERT INTO t1 VALUES (4)
 
@@ -157,8 +157,8 @@ SELECT SQL_CACHE * FROM t1;
 --echo ** before the mutex lock in invalidate_table_internal.
 --echo ** This will allow new result sets to be written into the QC.
 --echo ** 
-SET SESSION debug='+d,wait_in_query_cache_invalidate1';
-SET SESSION debug='+d,wait_in_query_cache_invalidate2';
+SET SESSION debug='+d,foobar,wait_in_query_cache_invalidate1';
+SET SESSION debug='+d,foobar,wait_in_query_cache_invalidate2';
 --send DELETE FROM t1 WHERE a like '%a%';
 
 connection default;
@@ -173,14 +173,14 @@ connection thd2;
 --echo ** On THD2: Insert a result into the cache. This attempt will be blocked
 --echo ** because of a debug hook placed just before the mutex lock after which
 --echo ** the first part of the result set is written.
-SET SESSION debug='+d,wait_in_query_cache_insert';
+SET SESSION debug='+d,foobar,wait_in_query_cache_insert';
 --send SELECT SQL_CACHE * FROM t2 UNION SELECT * FROM t3
 
 connection thd3;
 --echo =================================== Connection thd3
 --echo ** On THD3: Insert another result into the cache and block on the same
 --echo ** debug hook.
-SET SESSION debug='+d,wait_in_query_cache_insert';
+SET SESSION debug='+d,foobar,wait_in_query_cache_insert';
 --send SELECT SQL_CACHE * FROM t4 UNION SELECT * FROM t5;
 
 connection default;

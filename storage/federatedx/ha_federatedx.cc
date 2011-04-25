@@ -307,25 +307,21 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 */
 
-
-#define MYSQL_SERVER 1
-#include "mysql_priv.h"
-#include <mysql/plugin.h>
-
 #ifdef USE_PRAGMA_IMPLEMENTATION
 #pragma implementation                          // gcc: Class implementation
 #endif
 
-#include "ha_federatedx.h"
-
-#include "m_string.h"
-
+#define MYSQL_SERVER 1
 #include <mysql/plugin.h>
+#include "ha_federatedx.h"
+#include "sql_servers.h"
+#include "sql_analyse.h"                        // append_escaped()
+#include "sql_show.h"                           // append_identifier()
 
 /* Variables for federatedx share methods */
-static HASH federatedx_open_tables;              // To track open tables
-static HASH federatedx_open_servers;             // To track open servers
-pthread_mutex_t federatedx_mutex;                // To init the hash
+static HASH federatedx_open_tables;             // To track open tables
+static HASH federatedx_open_servers;            // To track open servers
+pthread_mutex_t federatedx_mutex;               // To init the hash
 const char ident_quote_char= '`';               // Character for quoting
                                                 // identifiers
 const char value_quote_char= '\'';              // Character for quoting
@@ -404,15 +400,15 @@ int federatedx_db_init(void *p)
 
   if (pthread_mutex_init(&federatedx_mutex, MY_MUTEX_INIT_FAST))
     goto error;
-  if (!hash_init(&federatedx_open_tables, &my_charset_bin, 32, 0, 0,
-                 (hash_get_key) federatedx_share_get_key, 0, 0) &&
-      !hash_init(&federatedx_open_servers, &my_charset_bin, 32, 0, 0,
-                 (hash_get_key) federatedx_server_get_key, 0, 0))
+  if (!my_hash_init(&federatedx_open_tables, &my_charset_bin, 32, 0, 0,
+                 (my_hash_get_key) federatedx_share_get_key, 0, 0) &&
+      !my_hash_init(&federatedx_open_servers, &my_charset_bin, 32, 0, 0,
+                 (my_hash_get_key) federatedx_server_get_key, 0, 0))
   {
     DBUG_RETURN(FALSE);
   }
 
-  VOID(pthread_mutex_destroy(&federatedx_mutex));
+  pthread_mutex_destroy(&federatedx_mutex);
 error:
   DBUG_RETURN(TRUE);
 }
@@ -430,9 +426,9 @@ error:
 
 int federatedx_done(void *p)
 {
-  hash_free(&federatedx_open_tables);
-  hash_free(&federatedx_open_servers);
-  VOID(pthread_mutex_destroy(&federatedx_mutex));
+  my_hash_free(&federatedx_open_tables);
+  my_hash_free(&federatedx_open_servers);
+  pthread_mutex_destroy(&federatedx_mutex);
 
   return 0;
 }
@@ -1498,7 +1494,7 @@ static FEDERATEDX_SERVER *get_server(FEDERATEDX_SHARE *share, TABLE *table)
 
   fill_server(&mem_root, &tmp_server, share, table ? table->s->table_charset : 0);
 
-  if (!(server= (FEDERATEDX_SERVER *) hash_search(&federatedx_open_servers,
+  if (!(server= (FEDERATEDX_SERVER *) my_hash_search(&federatedx_open_servers,
                                                  tmp_server.key,
                                                  tmp_server.key_length)))
   {
@@ -1561,7 +1557,7 @@ static FEDERATEDX_SHARE *get_share(const char *table_name, TABLE *table)
     goto error;
 
   /* TODO: change tmp_share.scheme to LEX_STRING object */
-  if (!(share= (FEDERATEDX_SHARE *) hash_search(&federatedx_open_tables,
+  if (!(share= (FEDERATEDX_SHARE *) my_hash_search(&federatedx_open_tables,
                                                (uchar*) tmp_share.share_key,
                                                tmp_share.
                                                share_key_length)))
@@ -1620,7 +1616,7 @@ static int free_server(federatedx_txn *txn, FEDERATEDX_SERVER *server)
 
   pthread_mutex_lock(&federatedx_mutex);
   if ((destroy= !--server->use_count))
-    hash_delete(&federatedx_open_servers, (uchar*) server);
+    my_hash_delete(&federatedx_open_servers, (uchar*) server);
   pthread_mutex_unlock(&federatedx_mutex);
 
   if (destroy)
@@ -1659,7 +1655,7 @@ static int free_share(federatedx_txn *txn, FEDERATEDX_SHARE *share)
 
   pthread_mutex_lock(&federatedx_mutex);
   if ((destroy= !--share->use_count))
-    hash_delete(&federatedx_open_tables, (uchar*) share);
+    my_hash_delete(&federatedx_open_tables, (uchar*) share);
   pthread_mutex_unlock(&federatedx_mutex);
 
   if (destroy)
@@ -1965,7 +1961,6 @@ int ha_federatedx::write_row(uchar *buf)
 
   values_string.length(0);
   insert_field_value_string.length(0);
-  ha_statistic_increment(&SSV::ha_write_count);
   if (table->timestamp_field_type & TIMESTAMP_AUTO_SET_ON_INSERT)
     table->timestamp_field->set_time();
 
@@ -2572,7 +2567,6 @@ int ha_federatedx::index_read_idx_with_result_set(uchar *buf, uint index,
   *result= 0;                                   // In case of errors
   index_string.length(0);
   sql_query.length(0);
-  ha_statistic_increment(&SSV::ha_read_key_count);
 
   sql_query.append(share->select_query);
 
@@ -2708,7 +2702,6 @@ int ha_federatedx::read_range_next()
 int ha_federatedx::index_next(uchar *buf)
 {
   DBUG_ENTER("ha_federatedx::index_next");
-  ha_statistic_increment(&SSV::ha_read_next_count);
   DBUG_RETURN(read_next(buf, stored_result));
 }
 
@@ -2965,7 +2958,6 @@ int ha_federatedx::rnd_pos(uchar *buf, uchar *pos)
   int retval;
   FEDERATEDX_IO_RESULT *result= stored_result;
   DBUG_ENTER("ha_federatedx::rnd_pos");
-  ha_statistic_increment(&SSV::ha_read_rnd_count);
 
   /* We have to move this to 'ref' to get things aligned */
   bmove(ref, pos, ref_length);
@@ -3212,7 +3204,7 @@ int ha_federatedx::delete_all_rows()
                ident_quote_char);
 
   /* no need for savepoint in autocommit mode */
-  if (!(ha_thd()->options & (OPTION_NOT_AUTOCOMMIT | OPTION_BEGIN)))
+  if (!(ha_thd()->variables.option_bits & (OPTION_NOT_AUTOCOMMIT | OPTION_BEGIN)))
     txn->stmt_autocommit();
 
   /*

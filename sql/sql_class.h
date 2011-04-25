@@ -43,123 +43,6 @@
 
 
 class Reprepare_observer;
-
-
-/**
-  Interface for Item iterator
-*/
-
-class Item_iterator
-{
-public:
-  /**
-    Shall set this iterator to the position before the first item
-
-    @note
-    This method also may perform some other initialization actions like
-    allocation of certain resources.
-  */
-  virtual void open()= 0;
-  /**
-    Shall return the next Item (or NULL if there is no next item) and
-    move pointer to position after it.
-  */
-  virtual Item *next()= 0;
-  /**
-    Shall force iterator to free resources (if it holds them)
-
-    @note
-    One should not use the iterator without open() call after close()
-  */
-  virtual void close()= 0;
-
-  virtual ~Item_iterator() {}
-};
-
-
-/**
-  Item iterator over List_iterator_fast for Item references
-*/
-
-class Item_iterator_ref_list: public Item_iterator
-{
-  List_iterator<Item*> list;
-public:
-  Item_iterator_ref_list(List_iterator<Item*> &arg_list):
-    list(arg_list) {}
-  void open() { list.rewind(); }
-  Item *next() { return *(list++); }
-  void close() {}
-};
-
-
-/**
-  Item iterator over Item interface for rows
-*/
-
-class Item_iterator_row: public Item_iterator
-{
-  Item *base_item;
-  uint current;
-public:
-  Item_iterator_row(Item *base) : base_item(base), current(0) {}
-  void open() { current= 0; }
-  Item *next()
-  {
-    if (current >= base_item->cols())
-      return NULL;
-    return base_item->element_index(current++);
-  }
-  void close() {}
-};
-
-
-/**
-  An interface that is used to take an action when
-  the locking module notices that a table version has changed
-  since the last execution. "Table" here may refer to any kind of
-  table -- a base table, a temporary table, a view or an
-  information schema table.
-
-  When we open and lock tables for execution of a prepared
-  statement, we must verify that they did not change
-  since statement prepare. If some table did change, the statement
-  parse tree *may* be no longer valid, e.g. in case it contains
-  optimizations that depend on table metadata.
-
-  This class provides an interface (a method) that is
-  invoked when such a situation takes place.
-  The implementation of the method simply reports an error, but
-  the exact details depend on the nature of the SQL statement.
-
-  At most 1 instance of this class is active at a time, in which
-  case THD::m_reprepare_observer is not NULL.
-
-  @sa check_and_update_table_version() for details of the
-  version tracking algorithm 
-
-  @sa Open_tables_state::m_reprepare_observer for the life cycle
-  of metadata observers.
-*/
-
-class Reprepare_observer
-{
-public:
-  /**
-    Check if a change of metadata is OK. In future
-    the signature of this method may be extended to accept the old
-    and the new versions, but since currently the check is very
-    simple, we only need the THD to report an error.
-  */
-  bool report_error(THD *thd);
-  bool is_invalidated() const { return m_invalidated; }
-  void reset_reprepare_observer() { m_invalidated= FALSE; }
-  Reprepare_observer() {}                     /* Remove gcc warning */
-private:
-  bool m_invalidated;
-};
-
-
 class Relay_log_info;
 
 class Query_log_event;
@@ -353,9 +236,10 @@ public:
   {}
   Key(enum Keytype type_par, const char *name_arg, size_t name_len_arg,
       KEY_CREATE_INFO *key_info_arg, bool generated_arg,
-      List<Key_part_spec> &cols)
+      List<Key_part_spec> &cols,
+      engine_option_value *create_opt)
     :type(type_par), key_create_info(*key_info_arg), columns(cols),
-    generated(generated_arg)
+    option_list(create_opt), generated(generated_arg)
   {
     name.str= (char *)name_arg;
     name.length= name_len_arg;
@@ -3230,12 +3114,15 @@ public:
   int prepare2(void) { return 0; }
 };
 
+#include <myisam.h>
 
-#if defined(WITH_ARIA_STORAGE_ENGINE) && defined(USE_MARIA_FOR_TMP_TABLES)
+#ifdef WITH_ARIA_STORAGE_ENGINE
 #include <maria.h>
+#endif
+
+#ifdef USE_ARIA_FOR_TMP_TABLES
 #define ENGINE_COLUMNDEF MARIA_COLUMNDEF
 #else
-#include <myisam.h>
 #define ENGINE_COLUMNDEF MI_COLUMNDEF
 #endif
 
@@ -4064,17 +3951,18 @@ inline int handler::ha_read_first_row(uchar *buf, uint primary_key)
 
 #endif /* MYSQL_SERVER */
 
+#if 0
 /**
   The meat of thd_proc_info(THD*, char*), a macro that packs the last
   three calling-info parameters.
 */
 extern "C"
-const char *set_thd_proc_info(THD *thd, const char *info,
+const char *set_thd_proc_info(void *thd_arg, const char *info,
                               const char *calling_func,
                               const char *calling_file,
                               const unsigned int calling_line);
 
 #define thd_proc_info(thd, msg) \
   set_thd_proc_info(thd, msg, __func__, __FILE__, __LINE__)
-
+#endif
 #endif /* SQL_CLASS_INCLUDED */

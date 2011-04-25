@@ -47,14 +47,17 @@ Place, Suite 330, Boston, MA 02111-1307 USA
 #define MYSQL_SERVER
 #endif
 
-#include <mysql_priv.h>
-#ifdef MYSQL_SERVER
-#include <log_event.h>
-#endif /* MYSQL_SERVER */
+#include <sql_table.h>	// explain_filename, nz2, EXPLAIN_PARTITIONS_AS_COMMENT,
+			// EXPLAIN_FILENAME_MAX_EXTRA_LENGTH
 
+#include <sql_acl.h>	// PROCESS_ACL
+#include <slave.h>      // relay_log_info_file
+#include <log_event.h>  // rpl_get_position_info
 #include <m_ctype.h>
 #include <mysys_err.h>
 #include <mysql/plugin.h>
+#include <mysql/innodb_priv.h>
+//#include <mysql/psi/psi.h>
 
 /** @file ha_innodb.cc */
 
@@ -2282,8 +2285,7 @@ skip_relay:
 			"InnoDB: syntax error in innodb_data_file_path");
 mem_free_and_error:
 		srv_free_paths_and_sizes();
-		my_free(internal_innobase_data_file_path,
-						MYF(MY_ALLOW_ZERO_PTR));
+		my_free(internal_innobase_data_file_path);
 		goto error;
 	}
 
@@ -2607,8 +2609,7 @@ innobase_end(
 			err = 1;
 		}
 		srv_free_paths_and_sizes();
-		my_free(internal_innobase_data_file_path,
-						MYF(MY_ALLOW_ZERO_PTR));
+		my_free(internal_innobase_data_file_path);
 		pthread_mutex_destroy(&innobase_share_mutex);
 		pthread_mutex_destroy(&prepare_commit_mutex);
 		pthread_mutex_destroy(&commit_threads_m);
@@ -2995,7 +2996,7 @@ innobase_rollback_to_savepoint(
 
 	/* TODO: use provided savepoint data area to store savepoint data */
 
-	longlong2str((ulint)savepoint, name, 36, 1);
+	longlong2str((ulint)savepoint, name, 36);
 
 	error = (int) trx_rollback_to_savepoint_for_mysql(trx, name,
 						&mysql_binlog_cache_pos);
@@ -3026,7 +3027,7 @@ innobase_release_savepoint(
 
 	/* TODO: use provided savepoint data area to store savepoint data */
 
-	longlong2str((ulint)savepoint, name, 36, 1);
+	longlong2str((ulint)savepoint, name, 36);
 
 	error = (int) trx_release_savepoint_for_mysql(trx, name);
 
@@ -3073,7 +3074,7 @@ innobase_savepoint(
 
 	/* TODO: use provided savepoint data area to store savepoint data */
 	char name[64];
-	longlong2str((ulint)savepoint,name,36,1);
+	longlong2str((ulint)savepoint,name,36);
 
 	error = (int) trx_savepoint_for_mysql(trx, name, (ib_int64_t)0);
 
@@ -3575,7 +3576,7 @@ innobase_build_index_translation(
 func_exit:
 	if (!ret) {
 		/* Build translation table failed. */
-		my_free(index_mapping, MYF(MY_ALLOW_ZERO_PTR));
+		my_free(index_mapping);
 
 		share->idx_trans_tbl.array_size = 0;
 		share->idx_trans_tbl.index_count = 0;
@@ -3793,7 +3794,7 @@ retry:
 	
 	if (ib_table && ib_table->is_corrupt) {
 		free_share(share);
-		my_free(upd_buff, MYF(0));
+		my_free(upd_buff);
 
 		DBUG_RETURN(HA_ERR_CRASHED_ON_USAGE);
 	}
@@ -3833,7 +3834,7 @@ retry:
 				"how you can resolve the problem.\n",
 				norm_name);
 		free_share(share);
-		my_free(upd_buff, MYF(0));
+		my_free(upd_buff);
 		my_errno = ENOENT;
 
 		DBUG_RETURN(HA_ERR_NO_SUCH_TABLE);
@@ -3849,7 +3850,7 @@ retry:
 				"how you can resolve the problem.\n",
 				norm_name);
 		free_share(share);
-		my_free(upd_buff, MYF(0));
+		my_free(upd_buff);
 		my_errno = ENOENT;
 
 		dict_table_decrement_handle_count(ib_table, FALSE);
@@ -4042,7 +4043,7 @@ ha_innobase::close(void)
 
 	row_prebuilt_free(prebuilt, FALSE);
 
-	my_free(upd_buff, MYF(0));
+	my_free(upd_buff);
 	free_share(share);
 
 	/* Tell InnoDB server that there might be work for
@@ -5251,7 +5252,7 @@ calc_row_difference(
 	upd_t*		uvect,		/*!< in/out: update vector */
 	uchar*		old_row,	/*!< in: old row in MySQL format */
 	uchar*		new_row,	/*!< in: new row in MySQL format */
-	struct st_table* table,		/*!< in: table in MySQL data
+	TABLE*		table,		/*!< in: table in MySQL data
 					dictionary */
 	uchar*		upd_buff,	/*!< in: buffer to use */
 	ulint		buff_len,	/*!< in: buffer length */
@@ -6699,7 +6700,7 @@ create_index(
 
 	error = convert_error_code_to_mysql(error, flags, NULL);
 
-	my_free(field_lengths, MYF(0));
+	my_free(field_lengths);
 
 	DBUG_RETURN(error);
 }
@@ -7519,7 +7520,7 @@ innobase_drop_database(
 	trx = innobase_trx_allocate(thd);
 #endif
 	error = row_drop_database_for_mysql(namebuf, trx);
-	my_free(namebuf, MYF(0));
+	my_free(namebuf);
 
 	/* Flush the log to reduce probability that the .frm files and
 	the InnoDB data dictionary get out-of-sync if the user runs
@@ -7597,8 +7598,8 @@ innobase_rename_table(
 		log_buffer_flush_to_disk();
 	}
 
-	my_free(norm_to, MYF(0));
-	my_free(norm_from, MYF(0));
+	my_free(norm_to);
+	my_free(norm_from);
 
 	DBUG_RETURN(error);
 }
@@ -7765,7 +7766,7 @@ ha_innobase::records_in_range(
 	mem_heap_free(heap);
 
 func_exit:
-	my_free(key_val_buff2, MYF(0));
+	my_free(key_val_buff2);
 
 	prebuilt->trx->op_info = (char*)"";
 
@@ -8825,7 +8826,7 @@ ha_innobase::free_foreign_key_create_info(
 	char*	str)	/*!< in, own: create info string to free */
 {
 	if (str) {
-		my_free(str, MYF(0));
+		my_free(str);
 	}
 }
 
@@ -9053,19 +9054,20 @@ ha_innobase::external_lock(
 		ulong const tx_isolation = thd_tx_isolation(ha_thd());
 		if (tx_isolation <= ISO_READ_COMMITTED
                    && binlog_format == BINLOG_FORMAT_STMT
-#if MYSQL_VERSION_ID > 50140
                    && thd_binlog_filter_ok(thd)
-#endif /* MYSQL_VERSION_ID > 50140 */
+                   && thd_sqlcom_can_generate_row_events(thd)
 		   )
 		{
-			char buf[256];
-			my_snprintf(buf, sizeof(buf),
-				    "Transaction level '%s' in"
-				    " InnoDB is not safe for binlog mode '%s'",
-				    tx_isolation_names[tx_isolation],
-				    binlog_format_names[binlog_format]);
-			my_error(ER_BINLOG_LOGGING_IMPOSSIBLE, MYF(0), buf);
-			DBUG_RETURN(HA_ERR_LOGGING_IMPOSSIBLE);
+                        int skip = 0;
+                        /* used by test case */
+                        DBUG_EXECUTE_IF("no_innodb_binlog_errors", skip = 1;);
+                        if (!skip) {
+                                my_error(ER_BINLOG_STMT_MODE_AND_ROW_ENGINE, MYF(0),
+                                         " InnoDB is limited to row-logging when "
+                                         "transaction isolation level is "
+                                         "READ COMMITTED or READ UNCOMMITTED.");
+                                DBUG_RETURN(HA_ERR_LOGGING_IMPOSSIBLE);
+                        }
 		}
 	}
 
@@ -9404,7 +9406,7 @@ innodb_show_status(
 			STRING_WITH_LEN(""), str, flen)) {
 		result= TRUE;
 	}
-	my_free(str, MYF(0));
+	my_free(str);
 
 	DBUG_RETURN(FALSE);
 }
@@ -9673,10 +9675,9 @@ static void free_share(INNOBASE_SHARE* share)
 		thr_lock_delete(&share->lock);
 
 		/* Free any memory from index translation table */
-		my_free(share->idx_trans_tbl.index_mapping,
-			MYF(MY_ALLOW_ZERO_PTR));
+		my_free(share->idx_trans_tbl.index_mapping);
 
-		my_free(share, MYF(0));
+		my_free(share);
 
 		/* TODO: invoke HASH_MIGRATE if innobase_open_tables
 		shrinks too much */
@@ -11280,14 +11281,8 @@ static MYSQL_SYSVAR_ULONG(io_capacity, srv_io_capacity,
 static MYSQL_SYSVAR_ULONG(fast_shutdown, innobase_fast_shutdown,
   PLUGIN_VAR_OPCMDARG,
   "Speeds up the shutdown process of the InnoDB storage engine. Possible "
-  "values are 0, 1 (faster)"
-  /*
-    NetWare can't close unclosed files, can't automatically kill remaining
-    threads, etc, so on this OS we disable the crash-like InnoDB shutdown.
-  */
-  IF_NETWARE("", " or 2 (fastest - crash-like)")
-  ".",
-  NULL, NULL, 1, 0, IF_NETWARE(1,2), 0);
+  "values are 0, 1 (faster) or 2 (fastest - crash-like).",
+  NULL, NULL, 1, 0, 2, 0);
 
 static MYSQL_SYSVAR_BOOL(file_per_table, srv_file_per_table,
   PLUGIN_VAR_NOCMDARG,
@@ -11449,7 +11444,7 @@ static MYSQL_SYSVAR_ULONG(autoextend_increment, srv_auto_extend_increment,
 static MYSQL_SYSVAR_LONGLONG(buffer_pool_size, innobase_buffer_pool_size,
   PLUGIN_VAR_RQCMDARG | PLUGIN_VAR_READONLY,
   "The size of the memory buffer InnoDB uses to cache data and indexes of its tables.",
-  NULL, NULL, 128*1024*1024L, 32*1024*1024L, LONGLONG_MAX, 1024*1024L);
+  NULL, NULL, 128*1024*1024L, 5*1024*1024L, LONGLONG_MAX, 1024*1024L);
 
 static MYSQL_SYSVAR_UINT(buffer_pool_shm_key, srv_buffer_pool_shm_key,
   PLUGIN_VAR_RQCMDARG | PLUGIN_VAR_READONLY,

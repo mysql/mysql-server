@@ -1,3 +1,4 @@
+SET TIME_ZONE='+03:00';
 DROP TABLE IF EXISTS t1;
 #
 # Start of 5.5 tests

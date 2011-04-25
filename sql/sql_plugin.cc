@@ -35,8 +35,8 @@
 #define REPORT_TO_LOG  1
 #define REPORT_TO_USER 2
 
-extern struct st_mysql_plugin *mysql_optional_plugins[];
-extern struct st_mysql_plugin *mysql_mandatory_plugins[];
+extern struct st_maria_plugin *mysql_optional_plugins[];
+extern struct st_maria_plugin *mysql_mandatory_plugins[];
 
 /**
   @note The order of the enumeration is critical.
@@ -53,7 +53,7 @@ static TYPELIB global_plugin_typelib=
 char *opt_plugin_load= NULL;
 char *opt_plugin_dir_ptr;
 char opt_plugin_dir[FN_REFLEN];
-uint plugin_maturity;
+ulong plugin_maturity;
 
 /*
   not really needed now, this map will become essential when we add more
@@ -885,7 +885,7 @@ static plugin_ref intern_plugin_lock(LEX *lex, plugin_ref rc)
 }
 
 
-plugin_ref plugin_lock(THD *thd, plugin_ref *ptr)
+plugin_ref plugin_lock(THD *thd, plugin_ref ptr)
 {
   LEX *lex= thd ? thd->lex : 0;
   plugin_ref rc;
@@ -911,7 +911,7 @@ plugin_ref plugin_lock(THD *thd, plugin_ref *ptr)
     DBUG_RETURN(ptr);
 #endif
   mysql_mutex_lock(&LOCK_plugin);
-  rc= my_intern_plugin_lock_ci(lex, *ptr);
+  rc= my_intern_plugin_lock_ci(lex, ptr);
   mysql_mutex_unlock(&LOCK_plugin);
   DBUG_RETURN(rc);
 }

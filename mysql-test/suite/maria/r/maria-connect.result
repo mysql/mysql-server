@@ -14,10 +14,14 @@ a
 2
 3
 4
-SHOW BINLOG EVENTS FROM 106;
+SHOW BINLOG EVENTS FROM 107;
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
-master-bin.000001	106	Query	1	204	use `test`; CREATE TABLE t1 (a int primary key)
-master-bin.000001	204	Query	1	295	use `test`; insert t1 values (1),(2),(3)
-master-bin.000001	295	Query	1	386	use `test`; insert t1 values (4),(2),(5)
+master-bin.000001	107	Query	1	205	use `test`; CREATE TABLE t1 (a int primary key)
+master-bin.000001	205	Query	1	273	BEGIN
+master-bin.000001	273	Query	1	364	use `test`; insert t1 values (1),(2),(3)
+master-bin.000001	364	Query	1	433	COMMIT
+master-bin.000001	433	Query	1	501	BEGIN
+master-bin.000001	501	Query	1	592	use `test`; insert t1 values (4),(2),(5)
+master-bin.000001	592	Query	1	661	COMMIT
 drop table t1;
 set binlog_format=default;

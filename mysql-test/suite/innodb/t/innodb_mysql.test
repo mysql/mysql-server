@@ -2,12 +2,11 @@
 #
 # Last update:
 # 2006-07-26 ML test refactored (MySQL 5.1)
-#               main testing code t/innodb_mysql.test -> include/mix1.inc              
+#               main testing code t/innodb_mysql.test -> include/mix1.inc
 #
 
 # Slow test, don't run during staging part
 -- source include/not_staging.inc
--- source include/have_innodb.inc
 -- source include/have_query_cache.inc
 
 let $engine_type= InnoDB;

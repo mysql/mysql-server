@@ -887,7 +887,7 @@ int main(int argc, char *argv[])
       {
 	ulong blob_length,pos;
 	uchar *ptr;
-	memcpy_fixed(&ptr, read_record+blob_pos+4, sizeof(ptr));
+	memcpy(&ptr, read_record+blob_pos+4, sizeof(ptr));
         blob_length= uint4korr(read_record+blob_pos);
 	for (pos=0 ; pos < blob_length ; pos++)
 	{
@@ -1015,7 +1015,7 @@ reads:      %10lu\n",
            (ulong) maria_pagecache->global_cache_read);
   }
   maria_end();
-  my_free(blob_buffer, MYF(MY_ALLOW_ZERO_PTR));
+  my_free(blob_buffer);
   my_end(silent ? MY_CHECK_ERROR : MY_CHECK_ERROR | MY_GIVE_INFO);
   return(0);
 err:
@@ -1024,7 +1024,7 @@ err:
   {
     if (maria_commit(file))
       goto err;
-    VOID(maria_close(file));
+    maria_close(file);
   }
   maria_end();
   return(1);
@@ -1221,7 +1221,7 @@ static void put_blob_in_record(uchar *blob_pos, char **blob_buffer,
       for (i=0 ; i < length ; i++)
 	(*blob_buffer)[i]=(char) (length+i);
       int4store(blob_pos,length);
-      memcpy_fixed(blob_pos+4,(char*) blob_buffer,sizeof(char*));
+      memcpy(blob_pos+4, blob_buffer, sizeof(char*));
       *blob_length= length;
     }
     else
@@ -1244,3 +1244,6 @@ static void copy_key(MARIA_HA *info,uint inx,uchar *rec,uchar *key_buff)
   }
   return;
 }
+
+#include "ma_check_standalone.h"
+

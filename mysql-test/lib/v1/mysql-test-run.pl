@@ -2158,7 +2158,6 @@ sub environment_setup () {
   # ----------------------------------------------------
   $ENV{'MY_PERROR'}= mtr_native_path($exe_perror);
 
-#warning remove the below
   # ----------------------------------------------------
   # Add the path where mysqld will find udf_example.so
   # ----------------------------------------------------

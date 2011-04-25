@@ -28,12 +28,10 @@
 #pragma interface			/* gcc class implementation */
 #endif
 
+#include "handler.h"
 
 typedef struct oqgraph_info_st OQGRAPH_INFO;
-
-#if MYSQL_VERSION_ID >= 50120
 typedef uchar byte;
-#endif
 
 namespace open_query
 {
@@ -61,7 +59,7 @@ public:
   ulonglong table_flags() const;
 #else
   ha_oqgraph(TABLE *table);
-  ulong table_flags() const;
+  Table_flags table_flags() const;
 #endif
   ~ha_oqgraph() {}
   const char *table_type() const

@@ -19,9 +19,9 @@
 #include "my_global.h"                          /* uchar */
 #include "my_base.h"                            /* ha_rows */
 #include "my_sys.h"                             /* qsort2_cmp */
+#include "queues.h"
 
 typedef struct st_buffpek BUFFPEK;
-typedef struct st_queue QUEUE;
 typedef struct st_sort_field SORT_FIELD;
 
 class Field;

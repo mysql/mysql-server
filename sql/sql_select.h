@@ -16,9 +16,6 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
 
-
-#ifndef SQL_SELECT_INCLUDED
-#define SQL_SELECT_INCLUDED
 /**
   @file
 
@@ -37,8 +34,10 @@
 #include "opt_range.h"                /* SQL_SELECT, QUICK_SELECT_I */
 
 
-#if defined(WITH_ARIA_STORAGE_ENGINE) && defined(USE_MARIA_FOR_TMP_TABLES)
+#if defined(WITH_ARIA_STORAGE_ENGINE)
 #include "../storage/maria/ha_maria.h"
+#endif
+#if defined(USE_ARIA_FOR_TMP_TABLES)
 #define TMP_ENGINE_HTON maria_hton
 #else
 #define TMP_ENGINE_HTON myisam_hton
@@ -779,7 +778,7 @@ public:
   void reset_join(JOIN *j) { join= j; }
   void free()
   { 
-    x_free(buff);
+    my_free(buff);
     buff= 0;
   }   
   
@@ -2065,7 +2064,7 @@ void push_index_cond(JOIN_TAB *tab, uint keyno, bool other_tbls_ok);
 TABLE *create_tmp_table(THD *thd,TMP_TABLE_PARAM *param,List<Item> &fields,
 			ORDER *group, bool distinct, bool save_sum_fields,
 			ulonglong select_options, ha_rows rows_limit,
-			char* alias);
+			const char* alias);
 void free_tmp_table(THD *thd, TABLE *entry);
 bool create_internal_tmp_table_from_heap(THD *thd, TABLE *table,
                                          ENGINE_COLUMNDEF *start_recinfo,
@@ -2074,7 +2073,7 @@ bool create_internal_tmp_table_from_heap(THD *thd, TABLE *table,
 bool create_internal_tmp_table(TABLE *table, KEY *keyinfo, 
                                ENGINE_COLUMNDEF *start_recinfo,
                                ENGINE_COLUMNDEF **recinfo, 
-                               ulonglong options);
+                               ulonglong options, my_bool big_tables);
 bool open_tmp_table(TABLE *table);
 void setup_tmp_table_column_bitmaps(TABLE *table, uchar *bitmaps);
 

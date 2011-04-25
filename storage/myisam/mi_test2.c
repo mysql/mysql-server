@@ -775,7 +775,7 @@ int main(int argc, char *argv[])
       {
 	ulong blob_length,pos;
 	uchar *ptr;
-	memcpy_fixed(&ptr, read_record+blob_pos+4, sizeof(ptr));
+	memcpy(&ptr, read_record+blob_pos+4, sizeof(ptr));
         blob_length= uint4korr(read_record+blob_pos);
 	for (pos=0 ; pos < blob_length ; pos++)
 	{

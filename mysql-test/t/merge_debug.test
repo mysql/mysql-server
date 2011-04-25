@@ -26,7 +26,7 @@ INSERT INTO t2 VALUES (20);
 INSERT INTO t3 VALUES (30);
 
 LOCK TABLES t3 WRITE, t2 WRITE, t4 WRITE, crashed WRITE;
-SET GLOBAL debug="+d,*,myisam_pretend_crashed_table_on_open";
+SET GLOBAL debug="+d,myisam_pretend_crashed_table_on_open";
 --disable_warnings
 CREATE TRIGGER t1_ai AFTER INSERT ON crashed FOR EACH ROW INSERT INTO t2 VALUES(29);
 --enable_warnings

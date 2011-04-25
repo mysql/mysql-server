@@ -190,3 +190,5 @@ int main(int argc __attribute__((unused)), char *argv[])
     exit(1);
   exit(0);
 }
+
+#include "../ma_check_standalone.h"

@@ -412,6 +412,7 @@ End of 5.0 tests
 #
 # Start of 5.5 tests
 #
+SET TIME_ZONE = _latin1 '+03:00';
 #
 # Start of WL#2649 Number-to-string conversions
 #

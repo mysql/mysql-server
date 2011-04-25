@@ -164,8 +164,8 @@ public:
 
     */
     if (try_loosescan &&                                       // (1)
-        (handled_sj_equalities | bound_sj_equalities) ==         // (2)
-        PREV_BITS(ulonglong, s->emb_sj_nest->sj_in_exprs) &&     // (2)
+        (handled_sj_equalities | bound_sj_equalities) ==       // (2)
+        PREV_BITS(ulonglong, s->emb_sj_nest->sj_in_exprs) &&   // (2)
         (PREV_BITS(key_part_map, max_loose_keypart+1) &        // (3)
          (found_part | loose_scan_keyparts)) ==                // (3)
          (found_part | loose_scan_keyparts) &&                 // (3)
