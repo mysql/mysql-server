@@ -256,12 +256,6 @@ Dbtux::searchToScanAscending(Frag& frag, ConstData boundInfo, unsigned boundCoun
         jam();
         // move up to the g.l.b
         currNode = glbNode;
-      } else {
-        // start scanning this node
-        treePos.m_loc = currNode.m_loc;
-        treePos.m_pos = 0;
-        treePos.m_dir = 3;
-        return;
       }
     } else {
       // bound is at or right of this node
