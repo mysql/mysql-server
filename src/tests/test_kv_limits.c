@@ -11,11 +11,11 @@
 #include <db.h>
 
 
-u_int64_t lorange = 0;
-u_int64_t hirange = 1<<24;
+static u_int64_t lorange = 0;
+static u_int64_t hirange = 1<<24;
+static u_int32_t pagesize = 0;
 
-static void
-test_key_size_limit (void) {
+static void test_key_size_limit (void) {
     if (verbose > 1) printf("%s\n", __FUNCTION__);
 
     DB_TXN * const null_txn = 0;
@@ -26,7 +26,6 @@ test_key_size_limit (void) {
     CKERR(r);
     r=toku_os_mkdir(ENVDIR, S_IRWXU+S_IRWXG+S_IRWXO); assert(r==0);
 
-    /* create the dup database file */
     DB_ENV *env;
     r = db_env_create(&env, 0); assert(r == 0);
     r = env->open(env, ENVDIR, DB_CREATE+DB_PRIVATE+DB_INIT_MPOOL, 0); assert(r == 0);
@@ -34,6 +33,9 @@ test_key_size_limit (void) {
     DB *db;
     r = db_create(&db, env, 0);
     assert(r == 0);
+    if (pagesize) {
+        r = db->set_pagesize(db, pagesize); assert(r == 0);
+    }
     r = db->open(db, null_txn, fname, "main", DB_BTREE, DB_CREATE, 0666);
     assert(r == 0);
 
@@ -72,8 +74,7 @@ test_key_size_limit (void) {
     r = env->close(env, 0); assert(r == 0);
 }
 
-static void
-test_data_size_limit (void) {
+static void test_data_size_limit (void) {
     if (verbose > 1) printf("%s\n", __FUNCTION__);
 
     DB_TXN * const null_txn = 0;
@@ -84,7 +85,6 @@ test_data_size_limit (void) {
     CKERR(r);
     r=toku_os_mkdir(ENVDIR, S_IRWXU+S_IRWXG+S_IRWXO); assert(r==0);
 
-    /* create the dup database file */
     DB_ENV *env;
     r = db_env_create(&env, 0); assert(r == 0);
     r = env->open(env, ENVDIR, DB_CREATE+DB_PRIVATE+DB_INIT_MPOOL, 0); assert(r == 0);
@@ -92,6 +92,9 @@ test_data_size_limit (void) {
     DB *db;
     r = db_create(&db, env, 0);
     assert(r == 0);
+    if (pagesize) {
+        r = db->set_pagesize(db, pagesize); assert(r == 0);
+    }
     r = db->open(db, null_txn, fname, "main", DB_BTREE, DB_CREATE, 0666);
     assert(r == 0);
 
@@ -131,33 +134,44 @@ test_data_size_limit (void) {
 
 int
 test_main(int argc, char *const argv[]) {
-    int i;
-    for (i = 1; i < argc; i++) {
+    int do_key = 1;
+    int do_data = 1;
+    for (int i = 1; i < argc; i++) {
         const char *arg = argv[i];
         if (strcmp(arg, "-v") == 0) {
             verbose++;
             continue;
         }
-        if (strcmp(arg, "-lorange") == 0) {
-            if (i+1 >= argc)
-                return 1;
+        if (strcmp(arg, "-lorange") == 0 && i+1 < argc) {
             lorange = strtoull(argv[++i], 0, 10);
             if (lorange > ULLONG_MAX)
                 return 2;
             continue;
         }
-        if (strcmp(arg, "-hirange") == 0) {
-            if (i+1 >= argc) 
-                return 1;
+        if (strcmp(arg, "-hirange") == 0 && i+1 < argc) {
             hirange = strtoull(argv[++i], 0, 10);
             if (hirange > ULLONG_MAX)
                 return 2;
             continue;
         }
+        if (strcmp(arg, "-pagesize") == 0 && i+1 < argc) {
+            pagesize = atoi(argv[++i]);
+            continue;
+        }
+        if (strcmp(arg, "-nokey") == 0) {
+            do_key = 0;
+            continue;
+        }
+        if (strcmp(arg, "-nodata") == 0) {
+            do_data = 0;
+            continue;
+        }
     }
 
-    test_key_size_limit();
-    test_data_size_limit();
+    if (do_key)
+        test_key_size_limit();
+    if (do_data)
+        test_data_size_limit();
 
     return 0;
 }
