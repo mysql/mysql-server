@@ -1029,8 +1029,6 @@ brt_nonleaf_split (BRT t, BRTNODE node, BRTNODE *nodea, BRTNODE *nodeb, DBT *spl
     *nodea = node;
     *nodeb = B;
 
-    lazy_assert(toku_serialize_brtnode_size(node) <= node->nodesize);
-    lazy_assert(toku_serialize_brtnode_size(B) <= B->nodesize);
     return 0;
 }
 
