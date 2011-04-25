@@ -93,6 +93,70 @@ Dbtux::findNodeToUpdate(TuxCtx& ctx, Frag& frag, ConstData searchKey, TreeEnt se
 }
 
 /*
+ * Find position within the final node to add entry to.  Use binary
+ * search.  Return true if ok i.e. entry to add is not a duplicate.
+ */
+bool
+Dbtux::findPosToAdd(TuxCtx& ctx, Frag& frag, ConstData searchKey, TreeEnt searchEnt, NodeHandle& currNode, TreePos& treePos)
+{
+  int lo = -1;
+  int hi = (int)currNode.getOccup();
+  int ret;
+  while (hi - lo > 1) {
+    thrjam(ctx.jamBuffer);
+    // hi - lo > 1 implies lo < j < hi
+    int j = (hi + lo) / 2;
+    // read and compare attributes
+    unsigned start = 0;
+    readKeyAttrs(ctx, frag, currNode.getEnt(j), start, ctx.c_entryKey);
+    ret = cmpSearchKey(ctx, frag, start, searchKey, ctx.c_entryKey);
+    ndbrequire(ret != NdbSqlUtil::CmpUnknown);
+    if (ret == 0) {
+      thrjam(ctx.jamBuffer);
+      // keys are equal, compare entry values
+      ret = searchEnt.cmp(currNode.getEnt(j));
+    }
+    if (ret < 0) {
+      thrjam(ctx.jamBuffer);
+      hi = j;
+    } else if (ret > 0) {
+      thrjam(ctx.jamBuffer);
+      lo = j;
+    } else {
+      treePos.m_pos = j;
+      // entry found - error
+      return false;
+    }
+  }
+  ndbrequire(hi - lo == 1);
+  // return hi pos, see treeAdd() for next step
+  treePos.m_pos = hi;
+  return true;
+}
+
+/*
+ * Find position within the final node to remove entry from.  Use linear
+ * search.  Return true if ok i.e. the entry was found.
+ */
+bool
+Dbtux::findPosToRemove(TuxCtx& ctx, Frag& frag, ConstData searchKey, TreeEnt searchEnt, NodeHandle& currNode, TreePos& treePos)
+{
+  const unsigned occup = currNode.getOccup();
+  for (unsigned j = 0; j < occup; j++) {
+    thrjam(ctx.jamBuffer);
+    // compare only the entry
+    if (searchEnt.eq(currNode.getEnt(j))) {
+      thrjam(ctx.jamBuffer);
+      treePos.m_pos = j;
+      return true;
+    }
+  }
+  treePos.m_pos = occup;
+  // not found - failed
+  return false;
+}
+
+/*
  * Search for entry to add.
  */
 bool
@@ -107,40 +171,11 @@ Dbtux::searchToAdd(TuxCtx& ctx, Frag& frag, ConstData searchKey, TreeEnt searchE
     return true;
   }
   findNodeToUpdate(ctx, frag, searchKey, searchEnt, currNode);
-  // anticipate
   treePos.m_loc = currNode.m_loc;
-  // binary search
-  int lo = -1;
-  int hi = currNode.getOccup();
-  int ret;
-  while (1) {
+  if (! findPosToAdd(ctx, frag, searchKey, searchEnt, currNode, treePos)) {
     thrjam(ctx.jamBuffer);
-    // hi - lo > 1 implies lo < j < hi
-    int j = (hi + lo) / 2;
-
-    // read and compare attributes
-    unsigned start = 0;
-    readKeyAttrs(ctx, frag, currNode.getEnt(j), start, ctx.c_entryKey);
-    ret = cmpSearchKey(ctx, frag, start, searchKey, ctx.c_entryKey);
-    ndbrequire(ret != NdbSqlUtil::CmpUnknown);
-    if (ret == 0) {
-      thrjam(ctx.jamBuffer);
-      // keys are equal, compare entry values
-      ret = searchEnt.cmp(currNode.getEnt(j));
-    }
-    if (ret < 0)
-      hi = j;
-    else if (ret > 0)
-      lo = j;
-    else {
-      treePos.m_pos = j;
-      // entry found - error
-      return false;
-    }
-    if (hi - lo == 1)
-      break;
+    return false;
   }
-  treePos.m_pos = hi;
   return true;
 }
 
@@ -159,20 +194,12 @@ Dbtux::searchToRemove(TuxCtx& ctx, Frag& frag, ConstData searchKey, TreeEnt sear
     return false;
   }
   findNodeToUpdate(ctx, frag, searchKey, searchEnt, currNode);
-  // anticipate
   treePos.m_loc = currNode.m_loc;
-  for (unsigned j = 0, occup = currNode.getOccup(); j < occup; j++) {
+  if (! findPosToRemove(ctx, frag, searchKey, searchEnt, currNode, treePos)) {
     thrjam(ctx.jamBuffer);
-    // compare only the entry
-    if (searchEnt.eq(currNode.getEnt(j))) {
-      thrjam(ctx.jamBuffer);
-      treePos.m_pos = j;
-      return true;
-    }
+    return false;
   }
-  treePos.m_pos = currNode.getOccup();
-  // not found - failed
-  return false;
+  return true;
 }
 
 /*
