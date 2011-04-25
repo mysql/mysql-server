@@ -801,7 +801,6 @@ brtleaf_split (BRT t, BRTNODE node, BRTNODE *nodea, BRTNODE *nodeb, DBT *splitk)
         OMTVALUE *MALLOC_N(n_leafentries, leafentries);
         lazy_assert(leafentries);
         toku_omt_iterate(node->u.l.buffer, fill_buf, leafentries);
-        split_at = 0;
         {
             u_int32_t i;
             u_int64_t sumlesizes=0, sumsofar;
@@ -837,10 +836,15 @@ brtleaf_split (BRT t, BRTNODE node, BRTNODE *nodea, BRTNODE *nodeb, DBT *splitk)
                     }
                 }
             }
+            if (split_at == 0) 
+                split_at = 1;
 //TODO: #1125 REMOVE DEBUG
-            lazy_assert(             sumsofar <= toku_mempool_get_size(&B   ->u.l.buffer_mempool));
-            lazy_assert(sumlesizes - sumsofar <= toku_mempool_get_size(&node->u.l.buffer_mempool));
+            assert(             sumsofar <= toku_mempool_get_size(&B   ->u.l.buffer_mempool));
+            assert(sumlesizes - sumsofar <= toku_mempool_get_size(&node->u.l.buffer_mempool));
         }
+        
+        assert(0 < split_at && split_at < n_leafentries); // the split point must put rows on both the left and right sides!
+
         // Now we know where we are going to break it
         OMT old_omt = node->u.l.buffer;
         toku_omt_destroy(&B->u.l.buffer); // Destroy B's empty OMT, so I can rebuild it from an array

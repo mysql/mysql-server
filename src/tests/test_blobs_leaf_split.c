@@ -6,7 +6,8 @@ static void insert(DB *db, DB_TXN *txn, int k, int val_size) {
     int r;
 
     // generate the key
-    char key_buffer[8];
+    char key_buffer[8]; 
+    memset(key_buffer, 0, sizeof key_buffer);
     int newa = htonl(k);
     memcpy(key_buffer, &newa, sizeof newa);
 
@@ -23,9 +24,9 @@ static void insert(DB *db, DB_TXN *txn, int k, int val_size) {
 
 int test_main(int argc, char * const argv[]) {
 #if defined(TOKUDB)
-    char *db_env_dir = "blobs.leafsplit.env.tdb";
+    char *db_env_dir = "dir.blobs.leafsplit.env.tdb";
 #else
-    char *db_env_dir = "blobs.leafsplit.env.bdb";
+    char *db_env_dir = "dir.blobs.leafsplit.env.bdb";
 #endif
     int db_env_open_flags = DB_CREATE | DB_PRIVATE | DB_INIT_MPOOL | DB_INIT_TXN | DB_INIT_LOCK | DB_INIT_LOG;
     char *db_filename = "blobs.db";
