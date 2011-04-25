@@ -23,7 +23,7 @@ static void insert(DB *db, DB_TXN *txn, int k, int val_size) {
 
 int test_main(int argc, char * const argv[]) {
 #if defined(TOKUDB)
-    char *db_env_dir = "blobs.leafsplit.env.tokudb";
+    char *db_env_dir = "blobs.leafsplit.env.tdb";
 #else
     char *db_env_dir = "blobs.leafsplit.env.bdb";
 #endif
