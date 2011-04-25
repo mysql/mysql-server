@@ -262,6 +262,44 @@ Dbtux::findNodeToScan(Frag& frag, unsigned idir, ConstData boundInfo, unsigned b
 }
 
 /*
+ * Search across final node for position to start scan from.  Use binary
+ * search similar to findPosToAdd().
+ */
+void
+Dbtux::findPosToScan(Frag& frag, unsigned idir, ConstData boundInfo, unsigned boundCount, NodeHandle& currNode, Uint16* pos)
+{
+  const int jdir = 1 - 2 * int(idir);
+  int lo = -1;
+  int hi = (int)currNode.getOccup();
+  int ret;
+  while (hi - lo > 1) {
+    jam();
+    // hi - lo > 1 implies lo < j < hi
+    int j = (hi + lo) / 2;
+    int ret = (-1) * jdir;
+    if (boundCount != 0) {
+      // read and compare attributes
+      const TreeEnt currEnt = currNode.getEnt(j);
+      readKeyAttrs(c_ctx, frag, currEnt, 0, c_ctx.c_entryKey);
+      ret = cmpScanBound(frag, idir, boundInfo, boundCount, c_ctx.c_entryKey);
+    }
+    ndbrequire(ret != 0);
+    if (ret < 0) {
+      jam();
+      hi = j;
+    } else if (ret > 0) {
+      jam();
+      lo = j;
+    } else {
+      // ret == 0 never
+      ndbrequire(false);
+    }
+  }
+  // return hi pos, caller handles ascending vs descending
+  *pos = hi;
+}
+
+/*
  * Search for scan start position.
  *
  * Similar to searchToAdd.  The routines differ somewhat depending on
@@ -288,23 +326,17 @@ Dbtux::searchToScanAscending(Frag& frag, ConstData boundInfo, unsigned boundCoun
   NodeHandle currNode(frag);
   currNode.m_loc = tree.m_root;
   findNodeToScan(frag, 0, boundInfo, boundCount, currNode);
-  for (unsigned j = 0, occup = currNode.getOccup(); j < occup; j++) {
-    jam();
-    int ret;
-    // read and compare attributes
-    readKeyAttrs(c_ctx, frag, currNode.getEnt(j), 0, c_ctx.c_entryKey);
-    ret = cmpScanBound(frag, 0, boundInfo, boundCount, c_ctx.c_entryKey);
-    ndbrequire(ret != NdbSqlUtil::CmpUnknown);
-    if (ret < 0) {
-      // found first entry satisfying the bound
-      treePos.m_loc = currNode.m_loc;
-      treePos.m_pos = j;
-      treePos.m_dir = 3;
-      return;
-    }
-  }
-  // start scanning after node end i.e. proceed to right child
   treePos.m_loc = currNode.m_loc;
+  Uint16 pos;
+  findPosToScan(frag, 0, boundInfo, boundCount, currNode, &pos);
+  if (pos < currNode.getOccup()) {
+    jam();
+    treePos.m_pos = pos;
+    treePos.m_dir = 3;
+    return;
+  }
+  jam();
+  // start scan after node end i.e. proceed to right child
   treePos.m_pos = ZNIL;
   treePos.m_dir = 5;
 }
@@ -316,30 +348,17 @@ Dbtux::searchToScanDescending(Frag& frag, ConstData boundInfo, unsigned boundCou
   NodeHandle currNode(frag);
   currNode.m_loc = tree.m_root;
   findNodeToScan(frag, 1, boundInfo, boundCount, currNode);
-  for (unsigned j = 0, occup = currNode.getOccup(); j < occup; j++) {
-    jam();
-    int ret;
-    // read and compare attributes
-    readKeyAttrs(c_ctx, frag, currNode.getEnt(j), 0, c_ctx.c_entryKey);
-    ret = cmpScanBound(frag, 1, boundInfo, boundCount, c_ctx.c_entryKey);
-    ndbrequire(ret != NdbSqlUtil::CmpUnknown);
-    if (ret < 0) {
-      if (j > 0) {
-        // start scanning from previous entry
-        treePos.m_loc = currNode.m_loc;
-        treePos.m_pos = j - 1;
-        treePos.m_dir = 3;
-        return;
-      }
-      // start scanning upwards (pretend we came from left child)
-      treePos.m_loc = currNode.m_loc;
-      treePos.m_pos = 0;
-      treePos.m_dir = 0;
-      return;
-    }
-  }
-  // start scanning this node
   treePos.m_loc = currNode.m_loc;
-  treePos.m_pos = currNode.getOccup() - 1;
-  treePos.m_dir = 3;
+  Uint16 pos;
+  findPosToScan(frag, 1, boundInfo, boundCount, currNode, &pos);
+  if (pos > 0) {
+    jam();
+    // start scan from previous entry
+    treePos.m_pos = pos - 1;
+    treePos.m_dir = 3;
+    return;
+  }
+  jam();
+  treePos.m_pos = ZNIL;
+  treePos.m_dir = 0;
 }
