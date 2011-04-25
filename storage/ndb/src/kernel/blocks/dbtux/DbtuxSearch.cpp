@@ -301,64 +301,43 @@ Dbtux::findPosToScan(Frag& frag, unsigned idir, ConstData boundInfo, unsigned bo
 
 /*
  * Search for scan start position.
- *
- * Similar to searchToAdd.  The routines differ somewhat depending on
- * scan direction and are done by separate methods.
  */
 void
 Dbtux::searchToScan(Frag& frag, ConstData boundInfo, unsigned boundCount, bool descending, TreePos& treePos)
 {
   const TreeHead& tree = frag.m_tree;
-  if (tree.m_root != NullTupLoc) {
-    if (! descending)
-      searchToScanAscending(frag, boundInfo, boundCount, treePos);
-    else
-      searchToScanDescending(frag, boundInfo, boundCount, treePos);
-    return;
-  }
-  // empty tree
-}
-
-void
-Dbtux::searchToScanAscending(Frag& frag, ConstData boundInfo, unsigned boundCount, TreePos& treePos)
-{
-  const TreeHead& tree = frag.m_tree;
   NodeHandle currNode(frag);
   currNode.m_loc = tree.m_root;
-  findNodeToScan(frag, 0, boundInfo, boundCount, currNode);
-  treePos.m_loc = currNode.m_loc;
-  Uint16 pos;
-  findPosToScan(frag, 0, boundInfo, boundCount, currNode, &pos);
-  if (pos < currNode.getOccup()) {
+  if (unlikely(currNode.m_loc == NullTupLoc)) {
+    // empty tree
     jam();
-    treePos.m_pos = pos;
-    treePos.m_dir = 3;
     return;
   }
-  jam();
-  // start scan after node end i.e. proceed to right child
-  treePos.m_pos = ZNIL;
-  treePos.m_dir = 5;
-}
-
-void
-Dbtux::searchToScanDescending(Frag& frag, ConstData boundInfo, unsigned boundCount, TreePos& treePos)
-{
-  const TreeHead& tree = frag.m_tree;
-  NodeHandle currNode(frag);
-  currNode.m_loc = tree.m_root;
-  findNodeToScan(frag, 1, boundInfo, boundCount, currNode);
+  const unsigned idir = unsigned(descending);
+  findNodeToScan(frag, idir, boundInfo, boundCount, currNode);
   treePos.m_loc = currNode.m_loc;
   Uint16 pos;
-  findPosToScan(frag, 1, boundInfo, boundCount, currNode, &pos);
-  if (pos > 0) {
-    jam();
-    // start scan from previous entry
-    treePos.m_pos = pos - 1;
-    treePos.m_dir = 3;
-    return;
+  findPosToScan(frag, idir, boundInfo, boundCount, currNode, &pos);
+  const unsigned occup = currNode.getOccup();
+  if (idir == 0) {
+    if (pos < occup) {
+      jam();
+      treePos.m_pos = pos;
+      treePos.m_dir = 3;
+    } else {
+      // start scan after node end i.e. proceed to right child
+      treePos.m_pos = ZNIL;
+      treePos.m_dir = 5;
+    }
+  } else {
+    if (pos > 0) {
+      jam();
+      // start scan from previous entry
+      treePos.m_pos = pos - 1;
+      treePos.m_dir = 3;
+    } else {
+      treePos.m_pos = ZNIL;
+      treePos.m_dir = 0;
+    }
   }
-  jam();
-  treePos.m_pos = ZNIL;
-  treePos.m_dir = 0;
 }
