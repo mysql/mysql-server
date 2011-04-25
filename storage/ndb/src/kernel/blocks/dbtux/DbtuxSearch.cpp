@@ -37,11 +37,6 @@ Dbtux::searchToAdd(TuxCtx& ctx, Frag& frag, ConstData searchKey, TreeEnt searchE
     return true;
   }
   NodeHandle glbNode(frag);     // potential g.l.b of final node
-  /*
-   * In order to not (yet) change old behaviour, a position between
-   * 2 nodes returns the one at the bottom of the tree.
-   */
-  NodeHandle bottomNode(frag);
   while (true) {
     thrjam(ctx.jamBuffer);
     selectNode(currNode, currNode.m_loc);
@@ -73,8 +68,7 @@ Dbtux::searchToAdd(TuxCtx& ctx, Frag& frag, ConstData searchKey, TreeEnt searchE
       }
       if (! glbNode.isNull()) {
         thrjam(ctx.jamBuffer);
-        // move up to the g.l.b but remember the bottom node
-        bottomNode = currNode;
+        // move up to the g.l.b
         currNode = glbNode;
       }
     } else if (ret > 0) {
@@ -130,25 +124,7 @@ Dbtux::searchToAdd(TuxCtx& ctx, Frag& frag, ConstData searchKey, TreeEnt searchE
     if (hi - lo == 1)
       break;
   }
-  if (ret < 0) {
-    thrjam(ctx.jamBuffer);
-    treePos.m_pos = hi;
-    return true;
-  }
-  if ((uint) hi < currNode.getOccup()) {
-    thrjam(ctx.jamBuffer);
-    treePos.m_pos = hi;
-    return true;
-  }
-  if (bottomNode.isNull()) {
-    thrjam(ctx.jamBuffer);
-    treePos.m_pos = hi;
-    return true;
-  }
-  thrjam(ctx.jamBuffer);
-  // backwards compatible for now
-  treePos.m_loc = bottomNode.m_loc;
-  treePos.m_pos = 0;
+  treePos.m_pos = hi;
   return true;
 }
 
