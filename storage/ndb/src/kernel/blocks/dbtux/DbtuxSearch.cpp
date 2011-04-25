@@ -327,9 +327,6 @@ Dbtux::searchToScanDescending(Frag& frag, ConstData boundInfo, unsigned boundCou
         jam();
         // move up to the g.l.b
         currNode = glbNode;
-      } else {
-        // empty result set
-        return;
       }
     } else {
       // bound is at or right of this node
