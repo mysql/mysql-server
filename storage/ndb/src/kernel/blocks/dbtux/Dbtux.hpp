@@ -658,7 +658,7 @@ private:
    * DbtuxSearch.cpp
    */
   bool searchToAdd(TuxCtx&, Frag& frag, ConstData searchKey, TreeEnt searchEnt, TreePos& treePos);
-  bool searchToRemove(Frag& frag, ConstData searchKey, TreeEnt searchEnt, TreePos& treePos);
+  bool searchToRemove(TuxCtx&, Frag& frag, ConstData searchKey, TreeEnt searchEnt, TreePos& treePos);
   void searchToScan(Frag& frag, ConstData boundInfo, unsigned boundCount, bool descending, TreePos& treePos);
   void searchToScanAscending(Frag& frag, ConstData boundInfo, unsigned boundCount, TreePos& treePos);
   void searchToScanDescending(Frag& frag, ConstData boundInfo, unsigned boundCount, TreePos& treePos);

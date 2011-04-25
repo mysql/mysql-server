@@ -138,7 +138,7 @@ Dbtux::searchToAdd(TuxCtx& ctx, Frag& frag, ConstData searchKey, TreeEnt searchE
  * to it.
  */
 bool
-Dbtux::searchToRemove(Frag& frag, ConstData searchKey, TreeEnt searchEnt, TreePos& treePos)
+Dbtux::searchToRemove(TuxCtx& ctx, Frag& frag, ConstData searchKey, TreeEnt searchEnt, TreePos& treePos)
 {
   const TreeHead& tree = frag.m_tree;
   const unsigned numAttrs = frag.m_numAttrs;
@@ -146,49 +146,49 @@ Dbtux::searchToRemove(Frag& frag, ConstData searchKey, TreeEnt searchEnt, TreePo
   currNode.m_loc = tree.m_root;
   if (currNode.m_loc == NullTupLoc) {
     // empty tree - failed
-    jam();
+    thrjam(ctx.jamBuffer);
     return false;
   }
   NodeHandle glbNode(frag);     // potential g.l.b of final node
   while (true) {
-    jam();
+    thrjam(ctx.jamBuffer);
     selectNode(currNode, currNode.m_loc);
     int ret;
     // compare prefix
     unsigned start = 0;
-    ret = cmpSearchKey(c_ctx, frag, start, searchKey, currNode.getPref(), tree.m_prefSize);
+    ret = cmpSearchKey(ctx, frag, start, searchKey, currNode.getPref(), tree.m_prefSize);
     if (ret == NdbSqlUtil::CmpUnknown) {
-      jam();
+      thrjam(ctx.jamBuffer);
       // read and compare remaining attributes
       ndbrequire(start < numAttrs);
-      readKeyAttrs(c_ctx, frag, currNode.getEnt(0), start, c_ctx.c_entryKey);
-      ret = cmpSearchKey(c_ctx, frag, start, searchKey, c_ctx.c_entryKey);
+      readKeyAttrs(ctx, frag, currNode.getEnt(0), start, ctx.c_entryKey);
+      ret = cmpSearchKey(ctx, frag, start, searchKey, ctx.c_entryKey);
       ndbrequire(ret != NdbSqlUtil::CmpUnknown);
     }
     if (ret == 0) {
-      jam();
+      thrjam(ctx.jamBuffer);
       // keys are equal, compare entry values
       ret = searchEnt.cmp(currNode.getEnt(0));
     }
     if (ret < 0) {
-      jam();
+      thrjam(ctx.jamBuffer);
       const TupLoc loc = currNode.getLink(0);
       if (loc != NullTupLoc) {
-        jam();
+        thrjam(ctx.jamBuffer);
         // continue to left subtree
         currNode.m_loc = loc;
         continue;
       }
       if (! glbNode.isNull()) {
-        jam();
+        thrjam(ctx.jamBuffer);
         // move up to the g.l.b
         currNode = glbNode;
       }
     } else if (ret > 0) {
-      jam();
+      thrjam(ctx.jamBuffer);
       const TupLoc loc = currNode.getLink(1);
       if (loc != NullTupLoc) {
-        jam();
+        thrjam(ctx.jamBuffer);
         // save potential g.l.b
         glbNode = currNode;
         // continue to right subtree
@@ -196,7 +196,7 @@ Dbtux::searchToRemove(Frag& frag, ConstData searchKey, TreeEnt searchEnt, TreePo
         continue;
       }
     } else {
-      jam();
+      thrjam(ctx.jamBuffer);
       treePos.m_loc = currNode.m_loc;
       treePos.m_pos = 0;
       return true;
@@ -207,10 +207,10 @@ Dbtux::searchToRemove(Frag& frag, ConstData searchKey, TreeEnt searchEnt, TreePo
   treePos.m_loc = currNode.m_loc;
   // pos 0 was handled above
   for (unsigned j = 1, occup = currNode.getOccup(); j < occup; j++) {
-    jam();
+    thrjam(ctx.jamBuffer);
     // compare only the entry
     if (searchEnt.eq(currNode.getEnt(j))) {
-      jam();
+      thrjam(ctx.jamBuffer);
       treePos.m_pos = j;
       return true;
     }
