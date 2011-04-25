@@ -144,7 +144,7 @@ Dbtux::execTUX_MAINT_REQ(Signal* signal)
     break;
   case TuxMaintReq::OpRemove:
     jam();
-    ok = searchToRemove(frag, c_ctx.c_searchKey, ent, treePos);
+    ok = searchToRemove(c_ctx, frag, c_ctx.c_searchKey, ent, treePos);
 #ifdef VM_TRACE
     if (debugFlags & DebugMaint) {
       debugOut << treePos << (! ok ? " - error" : "") << endl;
