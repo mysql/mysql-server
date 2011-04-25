@@ -203,6 +203,65 @@ Dbtux::searchToRemove(TuxCtx& ctx, Frag& frag, ConstData searchKey, TreeEnt sear
 }
 
 /*
+ * Search down non-empty tree for node to start scan from.  Similar to
+ * findNodeToUpdate().  Direction is 0-ascending or 1-descending.
+ * Search within the found node is done by caller.
+ */
+void
+Dbtux::findNodeToScan(Frag& frag, unsigned idir, ConstData boundInfo, unsigned boundCount, NodeHandle& currNode)
+{
+  const TreeHead& tree = frag.m_tree;
+  NodeHandle glbNode(frag);     // potential g.l.b of final node
+  while (true) {
+    jam();
+    selectNode(currNode, currNode.m_loc);
+    int ret;
+    // compare prefix
+    ret = cmpScanBound(frag, idir, boundInfo, boundCount, currNode.getPref(), tree.m_prefSize);
+    if (ret == NdbSqlUtil::CmpUnknown) {
+      jam();
+      // read and compare all attributes
+      readKeyAttrs(c_ctx, frag, currNode.getEnt(0), 0, c_ctx.c_entryKey);
+      ret = cmpScanBound(frag, idir, boundInfo, boundCount, c_ctx.c_entryKey);
+      ndbrequire(ret != NdbSqlUtil::CmpUnknown);
+    }
+    if (ret < 0) {
+      // bound is left of this node
+      jam();
+      const TupLoc loc = currNode.getLink(0);
+      if (loc != NullTupLoc) {
+        jam();
+        // continue to left subtree
+        currNode.m_loc = loc;
+        continue;
+      }
+      if (! glbNode.isNull()) {
+        jam();
+        // move up to the g.l.b
+        currNode = glbNode;
+      }
+      break;
+    }
+    if (ret > 0) {
+      // bound is at or right of this node
+      jam();
+      const TupLoc loc = currNode.getLink(1);
+      if (loc != NullTupLoc) {
+        jam();
+        // save potential g.l.b
+        glbNode = currNode;
+        // continue to right subtree
+        currNode.m_loc = loc;
+        continue;
+      }
+      break;
+    }
+    // ret == 0 never
+    ndbrequire(false);
+  }
+}
+
+/*
  * Search for scan start position.
  *
  * Similar to searchToAdd.  The routines differ somewhat depending on
@@ -228,50 +287,7 @@ Dbtux::searchToScanAscending(Frag& frag, ConstData boundInfo, unsigned boundCoun
   const TreeHead& tree = frag.m_tree;
   NodeHandle currNode(frag);
   currNode.m_loc = tree.m_root;
-  NodeHandle glbNode(frag);     // potential g.l.b of final node
-  while (true) {
-    jam();
-    selectNode(currNode, currNode.m_loc);
-    int ret;
-    // compare prefix
-    ret = cmpScanBound(frag, 0, boundInfo, boundCount, currNode.getPref(), tree.m_prefSize);
-    if (ret == NdbSqlUtil::CmpUnknown) {
-      jam();
-      // read and compare all attributes
-      readKeyAttrs(c_ctx, frag, currNode.getEnt(0), 0, c_ctx.c_entryKey);
-      ret = cmpScanBound(frag, 0, boundInfo, boundCount, c_ctx.c_entryKey);
-      ndbrequire(ret != NdbSqlUtil::CmpUnknown);
-    }
-    if (ret < 0) {
-      // bound is left of this node
-      jam();
-      const TupLoc loc = currNode.getLink(0);
-      if (loc != NullTupLoc) {
-        jam();
-        // continue to left subtree
-        currNode.m_loc = loc;
-        continue;
-      }
-      if (! glbNode.isNull()) {
-        jam();
-        // move up to the g.l.b
-        currNode = glbNode;
-      }
-    } else {
-      // bound is at or right of this node
-      jam();
-      const TupLoc loc = currNode.getLink(1);
-      if (loc != NullTupLoc) {
-        jam();
-        // save potential g.l.b
-        glbNode = currNode;
-        // continue to right subtree
-        currNode.m_loc = loc;
-        continue;
-      }
-    }
-    break;
-  }
+  findNodeToScan(frag, 0, boundInfo, boundCount, currNode);
   for (unsigned j = 0, occup = currNode.getOccup(); j < occup; j++) {
     jam();
     int ret;
@@ -299,50 +315,7 @@ Dbtux::searchToScanDescending(Frag& frag, ConstData boundInfo, unsigned boundCou
   const TreeHead& tree = frag.m_tree;
   NodeHandle currNode(frag);
   currNode.m_loc = tree.m_root;
-  NodeHandle glbNode(frag);     // potential g.l.b of final node
-  while (true) {
-    jam();
-    selectNode(currNode, currNode.m_loc);
-    int ret;
-    // compare prefix
-    ret = cmpScanBound(frag, 1, boundInfo, boundCount, currNode.getPref(), tree.m_prefSize);
-    if (ret == NdbSqlUtil::CmpUnknown) {
-      jam();
-      // read and compare all attributes
-      readKeyAttrs(c_ctx, frag, currNode.getEnt(0), 0, c_ctx.c_entryKey);
-      ret = cmpScanBound(frag, 1, boundInfo, boundCount, c_ctx.c_entryKey);
-      ndbrequire(ret != NdbSqlUtil::CmpUnknown);
-    }
-    if (ret < 0) {
-      // bound is left of this node
-      jam();
-      const TupLoc loc = currNode.getLink(0);
-      if (loc != NullTupLoc) {
-        jam();
-        // continue to left subtree
-        currNode.m_loc = loc;
-        continue;
-      }
-      if (! glbNode.isNull()) {
-        jam();
-        // move up to the g.l.b
-        currNode = glbNode;
-      }
-    } else {
-      // bound is at or right of this node
-      jam();
-      const TupLoc loc = currNode.getLink(1);
-      if (loc != NullTupLoc) {
-        jam();
-        // save potential g.l.b
-        glbNode = currNode;
-        // continue to right subtree
-        currNode.m_loc = loc;
-        continue;
-      }
-    }
-    break;
-  }
+  findNodeToScan(frag, 1, boundInfo, boundCount, currNode);
   for (unsigned j = 0, occup = currNode.getOccup(); j < occup; j++) {
     jam();
     int ret;
