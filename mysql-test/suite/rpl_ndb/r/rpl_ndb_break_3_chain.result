@@ -1,31 +1,26 @@
-include/master-slave.inc
-[connection master]
+include/rpl_init.inc [topology=1->2->3]
+include/rpl_connect.inc [creating cluster1]
+include/rpl_connect.inc [creating cluster2]
+include/rpl_connect.inc [creating cluster3]
+[connection cluster1]
 show variables like 'server_id';
 Variable_name	Value
 server_id	1
-reset master;
 select @cluster1_server_id:=(variable_value+0) 
 from information_schema.global_variables 
 where variable_name like 'server_id';
 @cluster1_server_id:=(variable_value+0)
 1
+[connection cluster2]
 show variables like 'server_id';
 Variable_name	Value
 server_id	2
-stop slave;
-reset master;
-reset slave;
-start slave;
+[connection cluster3]
 show variables like 'server_id';
 Variable_name	Value
 server_id	3
-stop slave;
-Warnings:
-Note	1255	Slave already has been stopped
-reset master;
-reset slave;
-start slave;
 First show replication 1->2->3
+[connection cluster1]
 use test;
 create table t1(a int primary key, b varchar(50)) engine=ndb;
 insert into t1 values (1,'Summertime');
@@ -51,8 +46,10 @@ select * from test.t1;
 a	b
 1	Summertime
 Break Cluster3's link with Cluster2
-stop slave;
+[connection cluster3]
+include/stop_slave.inc
 Make further changes on Cluster1
+[connection cluster1]
 insert into test.t1 values (2, "The cotton is high");
 insert into test.t1 values (3, "Daddys rich");
 Show changes exist on Cluster2
@@ -62,6 +59,7 @@ a	b
 2	The cotton is high
 3	Daddys rich
 Check data on Cluster3
+[connection cluster3]
 select * from test.t1 order by a;
 a	b
 1	Summertime
@@ -70,12 +68,17 @@ select * from mysql.ndb_apply_status order by server_id;
 server_id	epoch	log_name	start_pos	end_pos
 1	#	#	#	#
 2	#	#	#	#
-start slave;
+include/rpl_change_topology.inc [new topology=1->2,1->3]
+include/start_slave.inc
+[connection cluster1]
 Now show that cluster 3 is successfully replicating from Cluster1
+[connection cluster3]
 select * from test.t1 order by a;
 a	b
 1	Summertime
 2	The cotton is high
 3	Daddys rich
 Clean up
+[connection cluster1]
 drop table test.t1;
+include/rpl_end.inc
