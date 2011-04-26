@@ -23,7 +23,7 @@ mysqld=,,
 [mysqld]
 open-files-limit=           1024
 local-infile
-default-character-set=      latin1
+character-set-server=      latin1
 connect-timeout=            60
 log-bin-trust-function-creators=1
 key_buffer_size=            1M
