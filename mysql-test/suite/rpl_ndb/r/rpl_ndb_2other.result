@@ -4,6 +4,7 @@ SET storage_engine=ndb;
 
 === NDB -> MYISAM ===
 
+[connection slave]
 set @old_slave_exec_mode= @@global.slave_exec_mode;
 set @@global.slave_exec_mode= 'IDEMPOTENT';
 CREATE TABLE mysql.ndb_apply_status
@@ -13,7 +14,9 @@ log_name VARCHAR(255) BINARY NOT NULL,
 start_pos BIGINT UNSIGNED NOT NULL,
 end_pos BIGINT UNSIGNED NOT NULL,
 PRIMARY KEY USING HASH (server_id)) ENGINE=MYISAM;
-SET storage_engine=myisam;
+SET @old_slave_storage_engine=@@global.storage_engine;
+SET @@global.storage_engine=myisam;
+include/start_slave.inc
 --- Doing pre test cleanup --- 
 DROP TABLE IF EXISTS t1;
 --- Create Table Section ---
@@ -404,11 +407,15 @@ TRUNCATE TABLE t1;
 TRUNCATE TABLE t1;
 --- Do Cleanup --
 DROP TABLE IF EXISTS t1;
+[connection slave]
+include/stop_slave.inc
 
 === NDB -> INNODB ===
 
+[connection slave]
 alter table mysql.ndb_apply_status engine=innodb;
-SET storage_engine=innodb;
+SET @@global.storage_engine=innodb;
+include/start_slave.inc
 --- Doing pre test cleanup --- 
 DROP TABLE IF EXISTS t1;
 --- Create Table Section ---
@@ -451,7 +458,7 @@ t1	CREATE TABLE `t1` (
   `y` year(4) DEFAULT NULL,
   `t` date DEFAULT NULL,
   PRIMARY KEY (`id`)
-) ENGINE=MyISAM DEFAULT CHARSET=latin1
+) ENGINE=InnoDB DEFAULT CHARSET=latin1
 STOP SLAVE;
 RESET SLAVE;
 RESET MASTER;
@@ -543,7 +550,7 @@ t1	CREATE TABLE `t1` (
   `total` bigint(20) unsigned DEFAULT NULL,
   `y` year(4) DEFAULT NULL,
   `t` date DEFAULT NULL
-) ENGINE=MyISAM DEFAULT CHARSET=latin1
+) ENGINE=InnoDB DEFAULT CHARSET=latin1
 STOP SLAVE;
 RESET SLAVE;
 RESET MASTER;
@@ -636,7 +643,7 @@ t1	CREATE TABLE `t1` (
   `u` int(11) DEFAULT NULL,
   `v` char(16) DEFAULT 'default',
   PRIMARY KEY (`id`,`total`)
-) ENGINE=MyISAM DEFAULT CHARSET=latin1
+) ENGINE=InnoDB DEFAULT CHARSET=latin1
 SELECT * 
 FROM t1
 ORDER BY id;
@@ -735,7 +742,7 @@ t1	CREATE TABLE `t1` (
   `f` float DEFAULT '0',
   `total` bigint(20) unsigned NOT NULL DEFAULT '0',
   PRIMARY KEY (`id`,`total`)
-) ENGINE=MyISAM DEFAULT CHARSET=latin1
+) ENGINE=InnoDB DEFAULT CHARSET=latin1
 STOP SLAVE;
 RESET SLAVE;
 RESET MASTER;
@@ -799,6 +806,9 @@ TRUNCATE TABLE t1;
 TRUNCATE TABLE t1;
 --- Do Cleanup --
 DROP TABLE IF EXISTS t1;
+[connection slave]
+include/stop_slave.inc
+[connection slave]
 drop table mysql.ndb_apply_status;
 set @@global.slave_exec_mode= @old_slave_exec_mode;
-include/rpl_end.inc
+SET @@global.storage_engine=@old_slave_storage_engine;

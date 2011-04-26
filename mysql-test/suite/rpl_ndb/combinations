@@ -1,0 +1,5 @@
+[row]
+binlog-format=row
+
+[mix]
+binlog-format=mixed
