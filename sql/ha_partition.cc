@@ -2587,7 +2587,7 @@ void ha_data_partition_destroy(void *ha_data)
 int ha_partition::open(const char *name, int mode, uint test_if_locked)
 {
   char *name_buffer_ptr;
-  int error;
+  int error= HA_ERR_INITIALIZATION;
   uint alloc_len;
   handler **file;
   char name_buff[FN_REFLEN];
@@ -2601,7 +2601,7 @@ int ha_partition::open(const char *name, int mode, uint test_if_locked)
   m_open_test_lock= test_if_locked;
   m_part_field_array= m_part_info->full_part_field_array;
   if (get_from_handler_file(name, &table->mem_root, test(m_is_clone_of)))
-    DBUG_RETURN(1);
+    DBUG_RETURN(error);
   name_buffer_ptr= m_name_buffer_ptr;
   m_start_key.length= 0;
   m_rec0= table->record[0];
@@ -2612,7 +2612,7 @@ int ha_partition::open(const char *name, int mode, uint test_if_locked)
   {
     if (!(m_ordered_rec_buffer= (uchar*)my_malloc(alloc_len, MYF(MY_WME))))
     {
-      DBUG_RETURN(1);
+      DBUG_RETURN(error);
     }
     {
       /*
@@ -2635,7 +2635,7 @@ int ha_partition::open(const char *name, int mode, uint test_if_locked)
 
   /* Initialize the bitmap we use to minimize ha_start_bulk_insert calls */
   if (bitmap_init(&m_bulk_insert_started, NULL, m_tot_parts + 1, FALSE))
-    DBUG_RETURN(1);
+    DBUG_RETURN(error);
   bitmap_clear_all(&m_bulk_insert_started);
   /* Initialize the bitmap we use to determine what partitions are used */
   if (!m_is_clone_of)
@@ -2644,7 +2644,7 @@ int ha_partition::open(const char *name, int mode, uint test_if_locked)
     if (bitmap_init(&(m_part_info->used_partitions), NULL, m_tot_parts, TRUE))
     {
       bitmap_free(&m_bulk_insert_started);
-      DBUG_RETURN(1);
+      DBUG_RETURN(error);
     }
     bitmap_set_all(&(m_part_info->used_partitions));
   }
