@@ -11228,7 +11228,7 @@ make_join_readinfo(JOIN *join, ulonglong options, uint no_jbuf_after)
     tab->cache_idx_cond= 0;
     tab->sorted= sorted;
     sorted= false;                              // only first must be sorted
-    table->status=STATUS_NO_RECORD;
+    table->status= STATUS_GARBAGE | STATUS_NOT_FOUND;
     pick_table_access_method (tab);
 
     if (tab->loosescan_match_tab)
@@ -18011,7 +18011,7 @@ join_read_const_table(JOIN_TAB *tab, POSITION *pos)
   TABLE *table=tab->table;
   table->const_table=1;
   table->null_row=0;
-  table->status=STATUS_NO_RECORD;
+  table->status= STATUS_GARBAGE | STATUS_NOT_FOUND;
   
   if (tab->type == JT_SYSTEM)
   {
@@ -18206,7 +18206,7 @@ join_read_key2(JOIN_TAB *tab, TABLE *table, TABLE_REF *table_ref)
     indices on NOT NULL columns (see create_ref_for_key()).
   */
   if (cmp_buffer_with_ref(tab->join->thd, table, table_ref) ||
-      (table->status & (STATUS_GARBAGE | STATUS_NO_PARENT | STATUS_NULL_ROW)))
+      (table->status & (STATUS_GARBAGE | STATUS_NULL_ROW)))
   {
     if (table_ref->key_err)
     {
