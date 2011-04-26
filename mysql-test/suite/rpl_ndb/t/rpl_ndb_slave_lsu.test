@@ -30,9 +30,6 @@
 ###############################################################################
 --echo *** Configuring connections ***
 
-connect (master,127.0.0.1,root,,test,$MASTER_MYPORT,);
-connect (slave,127.0.0.1,root,,test,$SLAVE_MYPORT,);
-
 connect (srv_master,127.0.0.1,root,,test,$MASTER_MYPORT,);
 connect (srv_master1,127.0.0.1,root,,test,$MASTER_MYPORT1,);
 connect (srv_master2,127.0.0.1,root,,test,$MASTER_MYPORT2,);
@@ -78,7 +75,7 @@ source suite/rpl_ndb/t/rpl_ndb_wait_schema_logging.inc;
 
 # Reset state of all Binlogging nodes
 --disable_query_log
-connection master;
+connection srv_master;
 --disable_warnings
 RESET MASTER;
 --enable_warnings
@@ -100,7 +97,7 @@ RESET MASTER;
 --enable_query_log
 
 --echo *** Configuring replication via Slave ***
-connection slave;
+connection srv_slave;
 --disable_warnings
 RESET SLAVE;
 --replace_result $MASTER_MYPORT MASTER_PORT
@@ -114,7 +111,7 @@ source include/wait_for_slave_to_start.inc;
 
 
 --echo *** Configuring replication via Slave1 ***
-connection slave;
+connection srv_slave;
 --disable_warnings
 STOP SLAVE;
 source include/wait_for_slave_to_stop.inc;
@@ -122,7 +119,7 @@ source include/wait_for_slave_to_stop.inc;
 
 # Reset state of all Binlogging nodes
 --disable_query_log
-connection master;
+connection srv_master;
 --disable_warnings
 RESET MASTER;
 --enable_warnings
@@ -165,7 +162,7 @@ source include/wait_for_slave_to_stop.inc;
 
 # Reset state of all Binlogging nodes
 --disable_query_log
-connection master;
+connection srv_master;
 --disable_warnings
 RESET MASTER;
 --enable_warnings
