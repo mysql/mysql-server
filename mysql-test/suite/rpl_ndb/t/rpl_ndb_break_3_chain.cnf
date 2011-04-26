@@ -40,18 +40,6 @@ ndb-extra-logging=99
 
 
 [mysqld.1.cluster2]
-# Connect mysqld in the second cluster as save to  first mysqld
-# Hardcode the host to 127.0.0.1 until running on more
-# than one host and it probably need to be masked anyway
-# master-host=                @mysqld.1.#host
-master-host=                  127.0.0.1
-master-port=                  @mysqld.1.cluster1.port
-master-password=              @mysqld.1.cluster1.#password
-master-user=                  @mysqld.1.cluster1.#user
-master-connect-retry=         1
-
-skip-slave-start
-
 log-bin=                      cluster2-bin
 relay-log=                    cluster2-relay-bin
 
