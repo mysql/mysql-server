@@ -307,6 +307,53 @@ row_undo_ins_parse_undo_rec(
 	}
 }
 
+/***************************************************************//**
+Removes secondary index records.
+@return	DB_SUCCESS or DB_OUT_OF_FILE_SPACE */
+static
+ulint
+row_undo_ins_remove_sec_rec(
+/*========================*/
+	undo_node_t*	node)	/*!< in/out: row undo node */
+{
+	ulint		err	= DB_SUCCESS;
+	mem_heap_t*	heap;
+
+	for (heap = mem_heap_create(1024);
+	     node->index != NULL;
+	     mem_heap_empty(heap),
+		     node->index = dict_table_get_next_index(node->index)) {
+		dtuple_t*	entry;
+
+		entry = row_build_index_entry(node->row, node->ext,
+					      node->index, heap);
+		if (UNIV_UNLIKELY(!entry)) {
+			/* The database must have crashed after
+			inserting a clustered index record but before
+			writing all the externally stored columns of
+			that record.  Because secondary index entries
+			are inserted after the clustered index record,
+			we may assume that the secondary index record
+			does not exist.  However, this situation may
+			only occur during the rollback of incomplete
+			transactions. */
+			ut_a(trx_is_recv(node->trx));
+		} else {
+			log_free_check();
+
+			err = row_undo_ins_remove_sec(node->index, entry);
+
+			if (UNIV_UNLIKELY(err != DB_SUCCESS)) {
+				goto func_exit;
+			}
+		}
+	}
+
+func_exit:
+	mem_heap_free(heap);
+	return(err);
+}
+
 /***********************************************************//**
 Undoes a fresh insert of a row to a table. A fresh insert means that
 the same clustered index unique key did not have any record, even delete
@@ -342,44 +389,17 @@ row_undo_ins(
 	node->index = dict_table_get_next_index(
 		dict_table_get_first_index(node->table));
 
-	while (node->index != NULL) {
-		dtuple_t*	entry;
+	err = row_undo_ins_remove_sec_rec(node);
 
-		entry = row_build_index_entry(node->row, node->ext,
-					      node->index, node->heap);
-		if (UNIV_UNLIKELY(!entry)) {
-			/* The database must have crashed after
-			inserting a clustered index record but before
-			writing all the externally stored columns of
-			that record.  Because secondary index entries
-			are inserted after the clustered index record,
-			we may assume that the secondary index record
-			does not exist.  However, this situation may
-			only occur during the rollback of incomplete
-			transactions. */
-			ut_a(trx_is_recv(node->trx));
-		} else {
-			log_free_check();
-
-			err = row_undo_ins_remove_sec(node->index, entry);
-
-			if (err != DB_SUCCESS) {
-
-				dict_table_close(node->table, dict_locked);
-
-				node->table = NULL;
-
-				return(err);
-			}
-		}
-
-		node->index = dict_table_get_next_index(node->index);
+	if (UNIV_UNLIKELY(err != DB_SUCCESS)) {
+		goto func_exit;
 	}
 
 	log_free_check();
 
 	err = row_undo_ins_remove_clust_rec(node);
 
+func_exit:
 	dict_table_close(node->table, dict_locked);
 
 	node->table = NULL;
