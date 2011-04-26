@@ -318,7 +318,7 @@ inline void setup_table_map(TABLE *table, TABLE_LIST *table_list, uint tablenr)
   table->used_fields= 0;
   table->const_table= 0;
   table->null_row= 0;
-  table->status= STATUS_NO_RECORD;
+  table->status= STATUS_GARBAGE | STATUS_NOT_FOUND;
   table->maybe_null= table_list->outer_join;
   TABLE_LIST *embedding= table_list->embedding;
   while (!table->maybe_null && embedding)

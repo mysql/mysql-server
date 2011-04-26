@@ -3168,10 +3168,17 @@ i_s_innodb_buffer_page_fill(
 			do not want to hold the InnoDB mutex while
 			filling the IS table */
 			if (index) {
+				const char*	name_ptr = index->name;
+
+				if (name_ptr[0] == TEMP_INDEX_PREFIX) {
+					name_ptr++;
+				}
+
+				index_name = mem_heap_strdup(heap, name_ptr);
+
 				table_name = mem_heap_strdup(heap,
 							     index->table_name);
 
-				index_name = mem_heap_strdup(heap, index->name);
 			}
 
 			mutex_exit(&dict_sys->mutex);
@@ -3851,10 +3858,16 @@ i_s_innodb_buf_page_lru_fill(
 			do not want to hold the InnoDB mutex while
 			filling the IS table */
 			if (index) {
+				const char*	name_ptr = index->name;
+
+				if (name_ptr[0] == TEMP_INDEX_PREFIX) {
+					name_ptr++;
+				}
+
+				index_name = mem_heap_strdup(heap, name_ptr);
+
 				table_name = mem_heap_strdup(heap,
 							     index->table_name);
-
-				index_name = mem_heap_strdup(heap, index->name);
 			}
 
 			mutex_exit(&dict_sys->mutex);
@@ -3947,7 +3960,7 @@ i_s_innodb_fill_buffer_lru(
 	buf_pool_t*		buf_pool,	/*!< in: buffer pool to scan */
 	const ulint		pool_id)	/*!< in: buffer pool id */
 {
-	int			status;
+	int			status = 0;
 	buf_page_info_t*	info_buffer;
 	ulint			lru_pos = 0;
 	const buf_page_t*	bpage;
@@ -3993,10 +4006,10 @@ i_s_innodb_fill_buffer_lru(
 exit:
 	buf_pool_mutex_exit(buf_pool);
 
-	status = i_s_innodb_buf_page_lru_fill(
-		thd, tables, info_buffer, lru_len);
-
 	if (info_buffer) {
+		status = i_s_innodb_buf_page_lru_fill(
+			thd, tables, info_buffer, lru_len);
+
 		my_free(info_buffer);
 	}
 
@@ -4713,14 +4726,19 @@ i_s_dict_fill_sys_indexes(
 	TABLE*		table_to_fill)	/*!< in/out: fill this table */
 {
 	Field**		fields;
+	const char*	name_ptr = index->name;
 
 	DBUG_ENTER("i_s_dict_fill_sys_indexes");
 
 	fields = table_to_fill->field;
 
-	OK(fields[SYS_INDEX_ID]->store(longlong(index->id), TRUE));
+	if (name_ptr[0] == TEMP_INDEX_PREFIX) {
+		name_ptr++;
+	}
 
-	OK(field_store_string(fields[SYS_INDEX_NAME], index->name));
+	OK(field_store_string(fields[SYS_INDEX_NAME], name_ptr));
+
+	OK(fields[SYS_INDEX_ID]->store(longlong(index->id), TRUE));
 
 	OK(fields[SYS_INDEX_TABLE_ID]->store(longlong(table_id), TRUE));
 

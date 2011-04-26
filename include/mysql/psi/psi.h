@@ -1794,6 +1794,20 @@ struct PSI_file_info_v2
 };
 
 /** Placeholder */
+struct PSI_stage_info_v2
+{
+  /** Placeholder */
+  int placeholder;
+};
+
+/** Placeholder */
+struct PSI_statement_info_v2
+{
+  /** Placeholder */
+  int placeholder;
+};
+
+/** Placeholder */
 struct PSI_mutex_locker_state_v2
 {
   /** Placeholder */
@@ -1917,6 +1931,31 @@ struct PSI_none
   int opaque;
 };
 typedef struct PSI_none PSI;
+
+/**
+  Stage instrument information.
+  @since PSI_VERSION_1
+  This structure is used to register an instrumented stage.
+*/
+struct PSI_stage_info_none
+{
+  /** Unused stage key. */
+  unsigned int m_key;
+  /** The name of the stage instrument. */
+  const char *m_name;
+  /** Unused stage flags. */
+  int m_flags;
+};
+
+/**
+  The stage instrumentation has to co exist with the legacy
+  THD::set_proc_info instrumentation.
+  To avoid duplication of the instrumentation in the server,
+  the common PSI_stage_info structure is used,
+  so we export it here, even when not building
+  with HAVE_PSI_INTERFACE.
+*/
+typedef struct PSI_stage_info_none PSI_stage_info;
 
 #endif /* HAVE_PSI_INTERFACE */
 

@@ -317,7 +317,6 @@ typedef struct st_join_table : public Sql_alloc
   
   table_map	dependent,key_dependent;
   uint		index;
-  uint		status;				///< Save status for cache
   uint		used_fields,used_fieldlength,used_blobs;
   uint          used_null_fields;
   uint          used_rowid_fields;
@@ -505,7 +504,6 @@ st_join_table::st_join_table()
     dependent(0),
     key_dependent(0),
     index(0),
-    status(0),
     used_fields(0),
     used_fieldlength(0),
     used_blobs(0),
@@ -1066,9 +1064,6 @@ protected:
   /* Prepare to search for records that match records from the join buffer */
   enum_nested_loop_state init_join_matching_records(RANGE_SEQ_IF *seq_funcs,
                                                     uint ranges);
-
-  /* Finish searching for records that match records from the join buffer */
-  enum_nested_loop_state end_join_matching_records(enum_nested_loop_state rc);
 
 public:
   
