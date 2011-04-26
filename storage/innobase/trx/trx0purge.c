@@ -291,6 +291,8 @@ trx_purge_add_update_undo_to_history(
 	rw_lock_x_unlock(&trx_sys->lock);
 #endif /* HAVE_ATOMIC_BUILTINS */
 
+	srv_wake_purge_thread_if_not_active();
+
 	/* Write the trx number to the undo log header */
 	mlog_write_ull(undo_header + TRX_UNDO_TRX_NO, trx->no, mtr);
 
@@ -1297,6 +1299,7 @@ run_synchronously:
 		trx_purge_truncate();
 	}
 
+	MONITOR_INC_VALUE(MONITOR_PURGE_INVOKED, 1);
 	MONITOR_INC_VALUE(MONITOR_PURGE_N_PAGE_HANDLED, n_pages_handled);
 
 	if (srv_print_thread_releases) {

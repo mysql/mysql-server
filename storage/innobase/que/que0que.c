@@ -1155,8 +1155,8 @@ que_run_threads_low(
 	do {
 		/* Check that there is enough space in the log to accommodate
 		possible log entries by this query step; if the operation can
-	       	touch more than about 4 pages, checks must be made also within
-	       	the query step! */
+		touch more than about 4 pages, checks must be made also within
+		the query step! */
 
 		log_free_check();
 
@@ -1175,7 +1175,7 @@ que_run_threads_low(
 			ut_a(next_thr == NULL);
 
 			/* This can change next_thr to a non-NULL value
-		       	if there was a lock wait that already completed. */
+			if there was a lock wait that already completed. */
 
 			que_thr_dec_refer_count(thr, &next_thr);
 
@@ -1216,9 +1216,6 @@ loop:
 		goto loop;
 
 	case QUE_THR_LOCK_WAIT:
-		/* The ..._mysql_... function works also for InnoDB's
-		internal threads. Let us wait that the lock wait ends. */
-
 		lock_wait_suspend_thread(thr);
 
 		trx_mutex_enter(thr_get_trx(thr));

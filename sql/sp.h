@@ -110,7 +110,7 @@ sp_cache_routine(THD *thd, int type, sp_name *name,
                  bool lookup_only, sp_head **sp);
 
 bool
-sp_exist_routines(THD *thd, TABLE_LIST *procs, bool any);
+sp_exist_routines(THD *thd, TABLE_LIST *procs, bool is_proc);
 
 bool
 sp_show_create_routine(THD *thd, int type, sp_name *name);
