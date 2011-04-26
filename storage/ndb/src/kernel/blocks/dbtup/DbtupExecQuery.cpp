@@ -984,7 +984,7 @@ int Dbtup::handleUpdateReq(Signal* signal,
 {
   Tuple_header *dst;
   Tuple_header *base= req_struct->m_tuple_ptr, *org;
-  Uint32 * change_mask_ptr;
+  ChangeMask * change_mask_ptr;
   if ((dst= alloc_copy_tuple(regTabPtr, &operPtrP->m_copy_tuple_location))== 0)
   {
     terrorCode= ZMEM_NOMEM_ERROR;
@@ -1007,7 +1007,7 @@ int Dbtup::handleUpdateReq(Signal* signal,
     org= get_copy_tuple(rawptr);
     copy_change_mask_info(regTabPtr,
                           change_mask_ptr,
-                          rawptr);
+                          get_change_mask_ptr(rawptr));
   }
 
   /**

@@ -8768,6 +8768,7 @@ Dbdih::add_fragment_to_table(Ptr<TabRecord> tabPtr,
   ndbrequire(cremainingfrags >= NO_OF_FRAGS_PER_CHUNK);
   cremainingfrags -= NO_OF_FRAGS_PER_CHUNK;
 
+  ndbrequire(chunks < NDB_ARRAY_SIZE(tabPtr.p->startFid));
   tabPtr.p->startFid[chunks] = fragPtr.i;
   for (Uint32 i = 0; i<NO_OF_FRAGS_PER_CHUNK; i++)
   {
@@ -9128,7 +9129,7 @@ Dbdih::getFragstore(TabRecord * tab,        //In parameter
   Uint32 chunkNo = fragNo >> LOG_NO_OF_FRAGS_PER_CHUNK;
   Uint32 chunkIndex = fragNo & (NO_OF_FRAGS_PER_CHUNK - 1);
   fragPtr.i = tab->startFid[chunkNo] + chunkIndex;
-  if (likely(chunkNo < MAX_NDB_NODES)) {
+  if (likely(chunkNo < NDB_ARRAY_SIZE(tab->startFid))) {
     ptrCheckGuard(fragPtr, TfragstoreFileSize, TfragStore);
     fragptr = fragPtr;
     return;
@@ -9144,6 +9145,7 @@ void Dbdih::allocFragments(Uint32 noOfFragments, TabRecordPtr tabPtr)
   for (Uint32 i = 0; i < noOfChunks; i++) {
     jam();
     Uint32 baseFrag = cfirstfragstore;
+    ndbrequire(i < NDB_ARRAY_SIZE(tabPtr.p->startFid));
     tabPtr.p->startFid[i] = baseFrag;
     fragPtr.i = baseFrag;
     ptrCheckGuard(fragPtr, cfragstoreFileSize, fragmentstore);
@@ -9164,6 +9166,7 @@ void Dbdih::releaseFragments(TabRecordPtr tabPtr)
   FragmentstorePtr fragPtr;
   for (Uint32 i = 0; i < tabPtr.p->noOfFragChunks; i++) {
     jam();
+    ndbrequire(i < NDB_ARRAY_SIZE(tabPtr.p->startFid));
     Uint32 baseFrag = tabPtr.p->startFid[i];
     fragPtr.i = baseFrag;
     ptrCheckGuard(fragPtr, cfragstoreFileSize, fragmentstore);
@@ -11042,7 +11045,7 @@ void Dbdih::readingTableLab(Signal* signal, FileRecordPtr filePtr)
   Uint32 noOfStoredPages = pagePtr.p->word[33];
   if (tabPtr.p->noPages < noOfStoredPages) {
     jam();
-    ndbrequire(noOfStoredPages <= 8);
+    ndbrequire(noOfStoredPages <= NDB_ARRAY_SIZE(tabPtr.p->pageRef));
     for (Uint32 i = tabPtr.p->noPages; i < noOfStoredPages; i++) {
       jam();
       allocpage(pagePtr);
@@ -11547,7 +11550,7 @@ void Dbdih::readingTableErrorLab(Signal* signal, FileRecordPtr filePtr)
   /* ---------------------------------------------------------------------- */
   /*    READING THIS FILE FAILED. CLOSE IT AFTER RELEASING ALL PAGES.       */
   /* ---------------------------------------------------------------------- */
-  ndbrequire(tabPtr.p->noPages <= 8);
+  ndbrequire(tabPtr.p->noPages <= NDB_ARRAY_SIZE(tabPtr.p->pageRef));
   for (Uint32 i = 0; i < tabPtr.p->noPages; i++) {
     jam();
     releasePage(tabPtr.p->pageRef[i]);
@@ -11596,7 +11599,7 @@ void Dbdih::execCOPY_TABREQ(Signal* signal)
     tabPtr.p->schemaVersion = schemaVersion;
     initTableFile(tabPtr);
   }//if
-  ndbrequire(tabPtr.p->noPages < 8);
+  ndbrequire(tabPtr.p->noPages < NDB_ARRAY_SIZE(tabPtr.p->pageRef));
   if (tabPtr.p->noOfWords == 0) {
     jam();
     allocpage(pagePtr);
@@ -11689,7 +11692,7 @@ void Dbdih::readPagesIntoTableLab(Signal* signal, Uint32 tableId)
 
 void Dbdih::readPagesIntoFragLab(Signal* signal, RWFragment* rf) 
 {
-  ndbrequire(rf->pageIndex < 8);
+  ndbrequire(rf->pageIndex < NDB_ARRAY_SIZE(rf->rwfTabPtr.p->pageRef));
   rf->rwfPageptr.i = rf->rwfTabPtr.p->pageRef[rf->pageIndex];
   ptrCheckGuard(rf->rwfPageptr, cpageFileSize, pageRecord);
   FragmentstorePtr fragPtr;
@@ -11799,7 +11802,7 @@ void Dbdih::packTableIntoPagesLab(Signal* signal, Uint32 tableId)
 /*****************************************************************************/
 void Dbdih::packFragIntoPagesLab(Signal* signal, RWFragment* wf) 
 {
-  ndbrequire(wf->pageIndex < 8);
+  ndbrequire(wf->pageIndex < NDB_ARRAY_SIZE(wf->rwfTabPtr.p->pageRef));
   wf->rwfPageptr.i = wf->rwfTabPtr.p->pageRef[wf->pageIndex];
   ptrCheckGuard(wf->rwfPageptr, cpageFileSize, pageRecord);
   FragmentstorePtr fragPtr;
@@ -12411,7 +12414,7 @@ void Dbdih::copyTableNode(Signal* signal,
       return;
     }//if
   }//if
-  ndbrequire(ctn->pageIndex < 8);
+  ndbrequire(ctn->pageIndex < NDB_ARRAY_SIZE(ctn->ctnTabPtr.p->pageRef));
   ctn->ctnPageptr.i = ctn->ctnTabPtr.p->pageRef[ctn->pageIndex];
   ptrCheckGuard(ctn->ctnPageptr, cpageFileSize, pageRecord);
   /**
@@ -12456,7 +12459,7 @@ void Dbdih::copyTableNode(Signal* signal,
         jam();
         ctn->wordIndex = 0;
         ctn->pageIndex++;
-        ndbrequire(ctn->pageIndex < 8);
+        ndbrequire(ctn->pageIndex < NDB_ARRAY_SIZE(ctn->ctnTabPtr.p->pageRef));
         ctn->ctnPageptr.i = ctn->ctnTabPtr.p->pageRef[ctn->pageIndex];
         ptrCheckGuard(ctn->ctnPageptr, cpageFileSize, pageRecord);
       }//if
@@ -15345,10 +15348,10 @@ void Dbdih::initTable(TabRecordPtr tabPtr)
   tabPtr.p->m_dropTab.tabUserRef = 0;
   tabPtr.p->m_dropTab.tabUserPtr = RNIL;
   Uint32 i;
-  for (i = 0; i < MAX_NDB_NODES; i++) {
+  for (i = 0; i < NDB_ARRAY_SIZE(tabPtr.p->startFid); i++) {
     tabPtr.p->startFid[i] = RNIL;
   }//for
-  for (i = 0; i < 8; i++) {
+  for (i = 0; i < NDB_ARRAY_SIZE(tabPtr.p->pageRef); i++) {
     tabPtr.p->pageRef[i] = RNIL;
   }//for
   tabPtr.p->tableType = DictTabInfo::UndefTableType;
@@ -16215,7 +16218,7 @@ Uint32 Dbdih::readPageWord(RWFragment* rf)
     jam();
     ndbrequire(rf->wordIndex == 2048);
     rf->pageIndex++;
-    ndbrequire(rf->pageIndex < 8);
+    ndbrequire(rf->pageIndex < NDB_ARRAY_SIZE(rf->rwfTabPtr.p->pageRef));
     rf->rwfPageptr.i = rf->rwfTabPtr.p->pageRef[rf->pageIndex];
     ptrCheckGuard(rf->rwfPageptr, cpageFileSize, pageRecord);
     rf->wordIndex = 32;
@@ -16304,11 +16307,16 @@ void Dbdih::readTabfile(Signal* signal, TabRecord* tab, FileRecordPtr filePtr)
   signal->theData[3] = ZLIST_OF_PAIRS;
   signal->theData[4] = ZVAR_NO_WORD;
   signal->theData[5] = tab->noPages;
-  for (Uint32 i = 0; i < tab->noPages; i++) {
-    signal->theData[6 + (2 * i)] = tab->pageRef[i];
-    signal->theData[7 + (2 * i)] = i;
-  }//for
-  sendSignal(NDBFS_REF, GSN_FSREADREQ, signal, 22, JBA);
+  Uint32 section[2 * NDB_ARRAY_SIZE(tab->pageRef)];
+  for (Uint32 i = 0; i < tab->noPages; i++)
+  {
+    section[(2 * i) + 0] = tab->pageRef[i];
+    section[(2 * i) + 1] = i;
+  }
+  LinearSectionPtr ptr[3];
+  ptr[0].p = section;
+  ptr[0].sz = 2 * tab->noPages;
+  sendSignal(NDBFS_REF, GSN_FSREADREQ, signal, 6, JBA, ptr, 1);
 }//Dbdih::readTabfile()
 
 void Dbdih::releasePage(Uint32 pageIndex)
@@ -16325,7 +16333,7 @@ void Dbdih::releaseTabPages(Uint32 tableId)
   TabRecordPtr tabPtr;
   tabPtr.i = tableId;
   ptrCheckGuard(tabPtr, ctabFileSize, tabRecord);
-  ndbrequire(tabPtr.p->noPages <= 8);
+  ndbrequire(tabPtr.p->noPages <= NDB_ARRAY_SIZE(tabPtr.p->pageRef));
   for (Uint32 i = 0; i < tabPtr.p->noPages; i++) {
     jam();
     releasePage(tabPtr.p->pageRef[i]);
@@ -17102,7 +17110,7 @@ void Dbdih::writePageWord(RWFragment* wf, Uint32 dataWord)
     allocpage(wf->rwfPageptr);
     wf->wordIndex = 32;
     wf->pageIndex++;
-    ndbrequire(wf->pageIndex < 8);
+    ndbrequire(wf->pageIndex < NDB_ARRAY_SIZE(wf->rwfTabPtr.p->pageRef));
     wf->rwfTabPtr.p->pageRef[wf->pageIndex] = wf->rwfPageptr.i;
     wf->rwfTabPtr.p->noPages++;
   }//if
@@ -17173,13 +17181,17 @@ void Dbdih::writeTabfile(Signal* signal, TabRecord* tab, FileRecordPtr filePtr)
   signal->theData[3] = ZLIST_OF_PAIRS_SYNCH;
   signal->theData[4] = ZVAR_NO_WORD;
   signal->theData[5] = tab->noPages;
-  for (Uint32 i = 0; i < tab->noPages; i++) {
-    jam();
-    signal->theData[6 + (2 * i)] = tab->pageRef[i];
-    signal->theData[7 + (2 * i)] = i;
-  }//for
-  Uint32 length = 6 + (2 * tab->noPages);
-  sendSignal(NDBFS_REF, GSN_FSWRITEREQ, signal, length, JBA);
+
+  Uint32 section[2 * NDB_ARRAY_SIZE(tab->pageRef)];
+  for (Uint32 i = 0; i < tab->noPages; i++)
+  {
+    section[(2 * i) + 0] = tab->pageRef[i];
+    section[(2 * i) + 1] = i;
+  }
+  LinearSectionPtr ptr[3];
+  ptr[0].p = section;
+  ptr[0].sz = 2 * tab->noPages;
+  sendSignal(NDBFS_REF, GSN_FSWRITEREQ, signal, 6, JBA, ptr, 1);
 }//Dbdih::writeTabfile()
 
 void Dbdih::execDEBUG_SIG(Signal* signal) 

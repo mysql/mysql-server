@@ -504,12 +504,12 @@ public:
     Method method;
     Storage tabStorage;
 
-    Uint32 pageRef[8];
+    Uint32 pageRef[32];
 //-----------------------------------------------------------------------------
 // Each entry in this array contains a reference to 16 fragment records in a
 // row. Thus finding the correct record is very quick provided the fragment id.
 //-----------------------------------------------------------------------------
-    Uint32 startFid[MAX_NDB_NODES];
+    Uint32 startFid[MAX_NDB_NODES * MAX_FRAG_PER_NODE / NO_OF_FRAGS_PER_CHUNK];
 
     Uint32 tabFile[2];
     Uint32 connectrec;                                    
