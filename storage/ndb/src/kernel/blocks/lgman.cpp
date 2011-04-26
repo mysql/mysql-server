@@ -420,6 +420,34 @@ Lgman::execDUMP_STATE_ORD(Signal* signal){
       m_logfile_group_list.next(ptr);
     }
   }
+  if (signal->theData[0] == 12003)
+  {
+    bool crash = false;
+    Ptr<Logfile_group> ptr;
+    for (m_logfile_group_list.first(ptr); !ptr.isNull();
+         m_logfile_group_list.next(ptr))
+    {
+      if (ptr.p->m_callback_buffer_words != 0)
+      {
+        crash = true;
+        break;
+      }
+    }
+
+    if (crash)
+    {
+      ndbout_c("Detected logfile-group with non zero m_callback_buffer_words");
+      signal->theData[0] = 12002;
+      execDUMP_STATE_ORD(signal);
+      ndbrequire(false);
+    }
+#ifdef VM_TRACE
+    else
+    {
+      ndbout_c("Check for non zero m_callback_buffer_words OK!");
+    }
+#endif
+  }
 }
 
 void
@@ -2401,7 +2429,6 @@ Logfile_client::add_entry(const Change* src, Uint32 cnt)
 	}
 	* (dst - 1) |= File_formats::Undofile::UNDO_NEXT_LSN << 16;
 	ptr.p->m_free_file_words += 2;
-        tot += 2; // for callback_buffer
 	m_lgman->validate_logfile_group(ptr);
       }
       else
@@ -2415,6 +2442,12 @@ Logfile_client::add_entry(const Change* src, Uint32 cnt)
 	  dst += src[i].len;
 	}
       }
+      /**
+       * for callback_buffer, always allocats 2 extra...
+       *   not knowing if LSN must be added or not
+       */
+      tot += 2;
+
       if (unlikely(! (tot <= callback_buffer)))
       {
         abort();
