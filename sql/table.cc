@@ -3376,7 +3376,7 @@ void TABLE::init(THD *thd, TABLE_LIST *tl)
   force_index= 0;
   force_index_order= 0;
   force_index_group= 0;
-  status= STATUS_NO_RECORD;
+  status= STATUS_GARBAGE | STATUS_NOT_FOUND;
   insert_values= 0;
   fulltext_searched= 0;
   file->ft_handler= 0;

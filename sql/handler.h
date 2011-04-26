@@ -1804,9 +1804,12 @@ public:
   }
   /**
      @brief
-     Positions an index cursor to the index specified in the handle. Fetches the
-     row if available. If the key value is null, begin at the first key of the
-     index.
+     Positions an index cursor to the index specified in the handle
+     ('active_index'). Fetches the row if available. If the key value is null,
+     begin at the first key of the index.
+     @returns 0 if success (found a record, and function has set table->status
+     to 0); non-zero if no record (function has set table->status to
+     STATUS_NOT_FOUND).
   */
   virtual int index_read_map(uchar * buf, const uchar * key,
                              key_part_map keypart_map,
@@ -1818,27 +1821,34 @@ public:
 protected:
   /**
      @brief
-     Positions an index cursor to the index specified in the handle. Fetches the
-     row if available. If the key value is null, begin at the first key of the
-     index.
+     Positions an index cursor to the index specified in argument. Fetches
+     the row if available. If the key value is null, begin at the first key of
+     the index.
+     @returns @see index_read_map().
   */
   virtual int index_read_idx_map(uchar * buf, uint index, const uchar * key,
                                  key_part_map keypart_map,
                                  enum ha_rkey_function find_flag);
+  /// @returns @see index_read_map().
   virtual int index_next(uchar * buf)
    { return  HA_ERR_WRONG_COMMAND; }
+  /// @returns @see index_read_map().
   virtual int index_prev(uchar * buf)
    { return  HA_ERR_WRONG_COMMAND; }
+  /// @returns @see index_read_map().
   virtual int index_first(uchar * buf)
    { return  HA_ERR_WRONG_COMMAND; }
+  /// @returns @see index_read_map().
   virtual int index_last(uchar * buf)
    { return  HA_ERR_WRONG_COMMAND; }
 public:
+  /// @returns @see index_read_map().
   virtual int index_next_same(uchar *buf, const uchar *key, uint keylen);
   /**
      @brief
      The following functions works like index_read, but it find the last
      row with the current key value or prefix.
+     @returns @see index_read_map().
   */
   virtual int index_read_last_map(uchar * buf, const uchar * key,
                                   key_part_map keypart_map)
@@ -1858,7 +1868,9 @@ public:
     { return NULL; }
   virtual int ft_read(uchar *buf) { return HA_ERR_WRONG_COMMAND; }
 protected:
+  /// @returns @see index_read_map().
   virtual int rnd_next(uchar *buf)=0;
+  /// @returns @see index_read_map().
   virtual int rnd_pos(uchar * buf, uchar *pos)=0;
 public:
   /**
