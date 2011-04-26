@@ -42,7 +42,7 @@ set new=on;
 set storage_engine=ndbcluster;
 --enable_query_log
 
---source extra/rpl_tests/rpl_ndb_2multi_eng.test
+--source suite/rpl_ndb/t/rpl_ndb_2multi_eng.inc
 
 --connection slave
 set @@global.slave_exec_mode= 'STRICT';
