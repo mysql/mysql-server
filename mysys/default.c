@@ -1068,7 +1068,11 @@ void my_print_default_files(const char *conf_file)
           end= convert_dirname(name, pos, NullS);
           if (name[0] == FN_HOMELIB)	/* Add . to filenames in home */
             *end++= '.';
-          strxmov(end, conf_file, *ext, " ", NullS);
+
+          if (my_defaults_extra_file == pos)
+            end[(strlen(end)-1)] = ' ';
+          else
+            strxmov(end, conf_file, *ext , " ",  NullS);
           fputs(name, stdout);
         }
       }
