@@ -735,14 +735,20 @@ row_purge_record_func(
 
 	node->index = dict_table_get_next_index(clust_index);
 
-	if (node->rec_type == TRX_UNDO_DEL_MARK_REC) {
+	switch (node->rec_type) {
+	case TRX_UNDO_DEL_MARK_REC:
 		row_purge_del_mark(node);
 		MONITOR_INC(MONITOR_N_DEL_ROW_PURGE);
-	} else if (updated_extern
-		   || node->rec_type == TRX_UNDO_UPD_EXIST_REC) {
-
+		break;
+	default:
+		if (!updated_extern) {
+			break;
+		}
+		/* fall through */
+	case TRX_UNDO_UPD_EXIST_REC:
 		row_purge_upd_exist_or_extern(thr, node, undo_rec);
 		MONITOR_INC(MONITOR_N_UPD_EXIST_EXTERN);
+		break;
 	}
 
 	if (node->found_clust) {
