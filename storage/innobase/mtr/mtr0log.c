@@ -538,7 +538,7 @@ mlog_parse_index(
 /*=============*/
 	byte*		ptr,	/*!< in: buffer */
 	const byte*	end_ptr,/*!< in: buffer end */
-	ibool		comp,	/*!< in: TRUE=compact record format */
+	ibool		comp,	/*!< in: TRUE=compact row format */
 	dict_index_t**	index)	/*!< out, own: dummy index */
 {
 	ulint		i, n, n_uniq;

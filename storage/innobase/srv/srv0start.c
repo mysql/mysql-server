@@ -534,7 +534,7 @@ srv_calc_low32(
 
 /*********************************************************************//**
 Calculates the high 32 bits when a file size which is given as a number
-database pages is converted to the number of bytes.
+of database pages is converted to the number of bytes.
 @return	high 32 bytes of file size when expressed in bytes */
 static
 ulint
@@ -1678,10 +1678,6 @@ innobase_start_or_create_for_mysql(void)
 
 		srv_startup_is_before_trx_rollback_phase = FALSE;
 
-		/* Initialize the fsp free limit global variable in the log
-		system */
-		fsp_header_get_free_limit();
-
 		recv_recovery_from_archive_finish();
 #endif /* UNIV_LOG_ARCHIVE */
 	} else {
@@ -1738,10 +1734,6 @@ innobase_start_or_create_for_mysql(void)
 		therefore requires that the trx_sys is inited. */
 
 		trx_purge_sys_create(srv_n_purge_threads, ib_bh);
-
-		/* Initialize the fsp free limit global variable in the log
-		system */
-		fsp_header_get_free_limit();
 
 		/* recv_recovery_from_checkpoint_finish needs trx lists which
 		are initialized in trx_sys_init_at_db_start(). */
@@ -1869,7 +1861,8 @@ innobase_start_or_create_for_mysql(void)
 
 	/* If the user has requested a separate purge thread then
 	start the purge thread. */
-	if (srv_n_purge_threads >= 1) {
+	if (srv_n_purge_threads >= 1
+	    && srv_force_recovery < SRV_FORCE_NO_BACKGROUND) {
 
 		os_thread_create(
 			&srv_purge_coordinator_thread, NULL,
@@ -1890,7 +1883,9 @@ innobase_start_or_create_for_mysql(void)
 
 	/* Wait for the purge coordinator and master thread to startup. */
 
-	while (srv_shutdown_state == SRV_SHUTDOWN_NONE) {
+	while (srv_shutdown_state == SRV_SHUTDOWN_NONE
+	       && srv_force_recovery < SRV_FORCE_NO_BACKGROUND) {
+
 		if (srv_thread_has_reserved_slot(SRV_MASTER) == ULINT_UNDEFINED
 		    || (srv_n_purge_threads > 0
 			&& srv_thread_has_reserved_slot(SRV_PURGE)
@@ -2144,17 +2139,6 @@ innobase_shutdown_for_mysql(void)
 	The step 1 is the real InnoDB shutdown. The remaining steps 2 - ...
 	just free data structures after the shutdown. */
 
-
-	if (srv_fast_shutdown == 2) {
-		ut_print_timestamp(stderr);
-		fprintf(stderr,
-			"  InnoDB: MySQL has requested a very fast shutdown"
-			" without flushing "
-			"the InnoDB buffer pool to data files."
-			" At the next mysqld startup "
-			"InnoDB will do a crash recovery!\n");
-	}
-
 	logs_empty_and_mark_files_at_shutdown();
 
 	if (srv_conc_n_threads != 0) {
@@ -2169,17 +2153,9 @@ innobase_shutdown_for_mysql(void)
 
 	srv_shutdown_state = SRV_SHUTDOWN_EXIT_THREADS;
 
-	/* In a 'very fast' shutdown, we do not need to wait for these threads
-	to die; all which counts is that we flushed the log; a 'very fast'
-	shutdown is essentially a crash. */
-
-	if (srv_fast_shutdown == 2) {
-		return(DB_SUCCESS);
-	}
-
 	/* All threads end up waiting for certain events. Put those events
-	to the signaled state. Then the threads will exit themselves in
-	os_thread_event_wait(). */
+	to the signaled state. Then the threads will exit themselves after
+	os_event_wait(). */
 
 	for (i = 0; i < 1000; i++) {
 		/* NOTE: IF YOU CREATE THREADS IN INNODB, YOU MUST EXIT THEM

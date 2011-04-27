@@ -389,6 +389,7 @@ extern PSI_stage_info stage_waiting_for_the_next_event_in_relay_log;
 extern PSI_stage_info stage_waiting_to_finalize_termination;
 extern PSI_stage_info stage_waiting_to_get_readlock;
 
+#ifdef HAVE_PSI_INTERFACE
 /**
   Statement instrumentation keys (sql).
   The last entry, at [SQLCOM_END], is for parsing errors.
@@ -403,6 +404,7 @@ extern PSI_statement_info com_statement_info[(uint) COM_END + 1];
 
 void init_sql_statement_info();
 void init_com_statement_info();
+#endif /* HAVE_PSI_INTERFACE */
 
 #ifndef __WIN__
 extern pthread_t signal_thread;
