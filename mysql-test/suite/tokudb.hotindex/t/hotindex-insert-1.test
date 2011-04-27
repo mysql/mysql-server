@@ -34,7 +34,7 @@ while ($b) {
 
 connection default;
 reap;
-select count(*) from s;
+select count(*) from s use index();
 select count(*) from s use index(i_a);
 disconnect conn1;
 
