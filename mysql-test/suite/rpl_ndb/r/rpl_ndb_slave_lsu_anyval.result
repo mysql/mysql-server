@@ -1,10 +1,16 @@
+include/rpl_init.inc [topology=none]
 *** Configuring connections ***
+include/rpl_connect.inc [creating srv_master]
+include/rpl_connect.inc [creating srv_master1]
+include/rpl_connect.inc [creating srv_master2]
+include/rpl_connect.inc [creating srv_slave]
+include/rpl_connect.inc [creating srv_slave1]
+include/rpl_connect.inc [creating srv_slave2]
 *** Waiting for each cluster to startup ***
 *** Configuring replication via Slave ***
-RESET SLAVE;
-CHANGE MASTER TO MASTER_HOST="127.0.0.1",MASTER_PORT=MASTER_PORT,MASTER_USER="root";;
-START SLAVE;
-include/wait_for_slave_to_start.inc
+[connection srv_slave]
+include/rpl_change_topology.inc [new topology=1->4]
+include/start_slave.inc
 *** Generating slave cluster originated binloggable changes ***
 CREATE TABLE bug_45756_slave_logged_1 (a int) engine = NDB;
 INSERT INTO bug_45756_slave_logged_1 VALUES (1);
@@ -396,13 +402,11 @@ server id 6    	Write_rows:
 server id 2147483521    	Write_rows:   flags: STMT_END_F
 server id 6    	Query	 	 	 
 server id 2147483521    	Query	 	 	 
+include/stop_slave.inc
 *** Configuring replication via Slave1 ***
-STOP SLAVE;
-include/wait_for_slave_to_stop.inc
-RESET SLAVE;
-CHANGE MASTER TO MASTER_HOST="127.0.0.1",MASTER_PORT=MASTER_PORT,MASTER_USER="root";
-START SLAVE;
-include/wait_for_slave_to_start.inc
+[connection srv_slave1]
+include/rpl_change_topology.inc [new topology=1->4,1->5]
+include/start_slave.inc
 *** Generating slave cluster originated binloggable changes ***
 CREATE TABLE bug_45756_slave_logged_1 (a int) engine = NDB;
 INSERT INTO bug_45756_slave_logged_1 VALUES (1);
@@ -794,13 +798,11 @@ server id 6    	Write_rows:
 server id 2147483521    	Write_rows:   flags: STMT_END_F
 server id 6    	Query	 	 	 
 server id 2147483521    	Query	 	 	 
+include/stop_slave.inc
 *** Configuring replication via Slave2 ***
-STOP SLAVE;
-include/wait_for_slave_to_stop.inc
-RESET SLAVE;
-CHANGE MASTER TO MASTER_HOST="127.0.0.1",MASTER_PORT=MASTER_PORT,MASTER_USER="root";;
-START SLAVE;
-include/wait_for_slave_to_start.inc
+[connection srv_slave2]
+include/rpl_change_topology.inc [new topology=1->4,1->5,1->6]
+include/start_slave.inc
 *** Generating slave cluster originated binloggable changes ***
 CREATE TABLE bug_45756_slave_logged_1 (a int) engine = NDB;
 INSERT INTO bug_45756_slave_logged_1 VALUES (1);
@@ -1192,14 +1194,5 @@ server id 6    	Write_rows:
 server id 2147483521    	Write_rows:   flags: STMT_END_F
 server id 6    	Query	 	 	 
 server id 1    	Query	 	 	 
-"cleanup srv_slave"
-RESET SLAVE;
-CHANGE MASTER TO MASTER_HOST="";
-"cleanup srv_slave1"
-RESET SLAVE;
-CHANGE MASTER TO MASTER_HOST="";
-"cleanup srv_slave2"
-STOP SLAVE;
-include/wait_for_slave_to_stop.inc
-RESET SLAVE;
-CHANGE MASTER TO MASTER_HOST="";
+include/stop_slave.inc
+include/rpl_change_topology.inc [new topology=none]
