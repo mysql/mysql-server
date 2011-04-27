@@ -5516,43 +5516,92 @@ Item *Item_bool_rowready_func2::negated_item()
   return 0;
 }
 
-Item_equal::Item_equal(Item_field *f1, Item_field *f2)
-  : Item_bool_func(), const_item(0), eval_item(0), cond_false(0),
-    compare_as_dates(FALSE)
-{
-  const_item_cache= 0;
-  fields.push_back(f1);
-  fields.push_back(f2);
-}
 
-Item_equal::Item_equal(Item *c, Item_field *f)
+/**
+  Construct a minimal multiple equality item
+
+  @param f1               the first equal item
+  @param f2               the second equal item
+  @param with_const_item  TRUE if the first item is constant
+
+  @details
+  The constructor builds a new item equal object for the equality f1=f2.
+  One of the equal items can be constant. If this is the case it is passed
+  always as the first parameter and the parameter with_const_item serves
+  as an indicator of this case.
+  Currently any non-constant parameter items must point to an item of the
+  of the type Item_field or Item_direct_view_ref(Item_field). 
+*/
+
+Item_equal::Item_equal(Item *f1, Item *f2, bool with_const_item)
   : Item_bool_func(), eval_item(0), cond_false(0)
 {
   const_item_cache= 0;
-  fields.push_back(f);
-  const_item= c;
-  compare_as_dates= f->is_datetime();
+  with_const= with_const_item;
+  compare_as_dates= with_const_item && f2->is_datetime();
+  equal_items.push_back(f1);
+  equal_items.push_back(f2);
 }
 
+
+/**
+  Copy constructor for a multiple equality
+  
+  @param item_equal   source item for the constructor
+
+  @details
+  The function creates a copy of an Item_equal object.
+  This constructor is used when an item belongs to a multiple equality
+  of an upper level (an upper AND/OR level or an upper level of a nested
+  outer join).
+*/
 
 Item_equal::Item_equal(Item_equal *item_equal)
   : Item_bool_func(), eval_item(0), cond_false(0)
 {
   const_item_cache= 0;
-  List_iterator_fast<Item_field> li(item_equal->fields);
-  Item_field *item;
+  List_iterator_fast<Item> li(item_equal->equal_items);
+  Item *item;
   while ((item= li++))
   {
-    fields.push_back(item);
+    equal_items.push_back(item);
   }
-  const_item= item_equal->const_item;
+  with_const= item_equal->with_const;
   compare_as_dates= item_equal->compare_as_dates;
   cond_false= item_equal->cond_false;
 }
 
 
-void Item_equal::compare_const(Item *c)
+/*
+  @brief
+  Add a constant item to the Item_equal object
+
+  @param[in]  c  the constant to add
+  @param[in]  f  item from the list equal_items the item c is equal to
+                 (this parameter is optional)
+
+  @details
+  The method adds the constant item c to the equal_items list. If the list
+  doesn't have any constant item yet the item c is just put in the front
+  the list. Otherwise the value of c is compared with the value of the
+  constant item from equal_items. If they are not equal cond_false is set
+  to TRUE. This serves as an indicator that this Item_equal is always FALSE.
+  The optional parameter f is used to adjust the flag compare_as_dates.
+*/
+
+void Item_equal::add_const(Item *c, Item *f)
 {
+  if (cond_false)
+    return;
+  if (!with_const)
+  {
+    with_const= TRUE;
+    if (f)
+      compare_as_dates= f->is_datetime();
+    equal_items.push_front(c);
+    return;
+  }
+  Item *const_item= get_const();
   if (compare_as_dates)
   {
     cmp.set_datetime_cmp_func(this, &c, &const_item);
@@ -5570,64 +5619,28 @@ void Item_equal::compare_const(Item *c)
 }
 
 
-void Item_equal::add(Item *c, Item_field *f)
-{
-  if (cond_false)
-    return;
-  if (!const_item)
-  {
-    DBUG_ASSERT(f);
-    const_item= c;
-    compare_as_dates= f->is_datetime();
-    return;
-  }
-  compare_const(c);
-}
-
-
-void Item_equal::add(Item *c)
-{
-  if (cond_false)
-    return;
-  if (!const_item)
-  {
-    const_item= c;
-    return;
-  }
-  compare_const(c);
-}
-
-void Item_equal::add(Item_field *f)
-{
-  fields.push_back(f);
-}
-
-uint Item_equal::members()
-{
-  return fields.elements;
-}
-
-
 /**
-  Check whether a field is referred in the multiple equality.
-
-  The function checks whether field is occurred in the Item_equal object .
+  @brief
+  Check whether a field is referred to in the multiple equality
 
   @param field   field whose occurrence is to be checked
 
+  @details
+  The function checks whether field is referred to by one of the
+  items from the equal_items list.
+
   @retval
-    1       if nultiple equality contains a reference to field
+    1       if multiple equality contains a reference to field
   @retval
     0       otherwise    
 */
 
 bool Item_equal::contains(Field *field)
 {
-  List_iterator_fast<Item_field> it(fields);
-  Item_field *item;
-  while ((item= it++))
+  Item_equal_fields_iterator it(*this);
+  while (it++)
   {
-    if (field->eq(item->field))
+    if (field->eq(it.get_curr_field()))
         return 1;
   }
   return 0;
@@ -5635,110 +5648,168 @@ bool Item_equal::contains(Field *field)
 
 
 /**
-  Join members of another Item_equal object.
+  @brief
+  Join members of another Item_equal object
   
-    The function actually merges two multiple equalities.
-    After this operation the Item_equal object additionally contains
-    the field items of another item of the type Item_equal.
-    If the optional constant items are not equal the cond_false flag is
-    set to 1.  
   @param item    multiple equality whose members are to be joined
+
+  @details
+  The function actually merges two multiple equalities. After this operation
+  the Item_equal object additionally contains the field items of another item of
+  the type Item_equal.
+  If the optional constant items are not equal the cond_false flag is set to TRUE.
+
+  @notes
+  The function is called for any equality f1=f2 such that f1 and f2 are items
+  of the type Item_field or Item_direct_view_ref(Item_field), and, f1->field is
+  referred to in the list this->equal_items, while the list item->equal_items
+  contains a reference to f2->field.  
 */
 
 void Item_equal::merge(Item_equal *item)
 {
-  fields.concat(&item->fields);
-  Item *c= item->const_item;
+  Item *c= item->get_const();
+  if (c)
+    item->equal_items.pop();
+  equal_items.concat(&item->equal_items);
   if (c)
   {
     /* 
-      The flag cond_false will be set to 1 after this, if 
+      The flag cond_false will be set to TRUE after this if 
       the multiple equality already contains a constant and its 
-      value is  not equal to the value of c.
+      value is not equal to the value of c.
     */
-    add(c);
+    add_const(c);
   }
   cond_false|= item->cond_false;
 } 
 
 
 /**
-  Order field items in multiple equality according to a sorting criteria.
+  @brief
+  Order equal items of the  multiple equality according to a sorting criteria
 
-  The function perform ordering of the field items in the Item_equal
-  object according to the criteria determined by the cmp callback parameter.
-  If cmp(item_field1,item_field2,arg)<0 than item_field1 must be
-  placed after item_fiel2.
+  @param compare      function to compare items from the equal_items list
+  @param arg          context extra parameter for the cmp function
 
-  The function sorts field items by the bubble sort algorithm.
+  @details
+  The function performs ordering of the items from the equal_items list
+  according to the criteria determined by the cmp callback parameter.
+  If cmp(item1,item2,arg)<0 than item1 must be placed after item2.
+
+  @notes
+  The function sorts equal items by the bubble sort algorithm.
   The list of field items is looked through and whenever two neighboring
   members follow in a wrong order they are swapped. This is performed
   again and again until we get all members in a right order.
-
-  @param compare      function to compare field item
-  @param arg          context extra parameter for the cmp function
 */
 
 void Item_equal::sort(Item_field_cmpfunc compare, void *arg)
 {
-  bubble_sort<Item_field>(&fields, compare, arg);
+  bubble_sort<Item>(&equal_items, compare, arg);
 }
 
 
 /**
-  Check appearance of new constant items in the multiple equality object.
+  @brief
+  Check appearance of new constant items in the multiple equality object
 
-  The function checks appearance of new constant items among
-  the members of multiple equalities. Each new constant item is
-  compared with the designated constant item if there is any in the
-  multiple equality. If there is none the first new constant item
-  becomes designated.
+  @details
+  The function checks appearance of new constant items among the members
+  of the equal_items list. Each new constant item is compared with
+  the constant item from the list if there is any. If there is none the first
+  new constant item is placed at the very beginning of the list and
+  with_const is set to TRUE. If it happens that the compared constant items
+  are unequal then the flag cond_false is set to TRUE.
+
+  @notes 
+  Currently this function is called only after substitution of constant tables.
 */
 
 void Item_equal::update_const()
 {
-  List_iterator<Item_field> it(fields);
-  Item *item;
-  while ((item= it++))
+  List_iterator<Item> it(equal_items);
+  if (with_const)
+    it++;
+  Item *item= it++;
+  while (item)
   {
     if (item->const_item())
     {
       it.remove();
-      add(item);
+      Item *next_item= it++;
+      add_const(item);
+      item= next_item;
     }
+    else
+      item= it++;
   }
 }
 
+
+/**
+  @brief
+  Fix fields in a completely built multiple equality
+
+  @param  thd     currently not used thread handle 
+  @param  ref     not used
+
+  @details
+  This function is called once the multiple equality has been built out of 
+  the WHERE/ON condition and no new members are expected to be added to the
+  equal_items list anymore.
+  As any implementation of the virtual fix_fields method the function
+  calculates the cached values of not_null_tables_cache, used_tables_cache,
+  const_item_cache and calls fix_length_and_dec().
+  Additionally the function sets a reference to the Item_equal object in
+  the non-constant items of the equal_items list unless such a reference has
+  been already set.
+
+  @notes 
+  Currently this function is called only in the function
+  build_equal_items_for_cond.
+  
+  @retval
+  FALSE   always
+*/
+
 bool Item_equal::fix_fields(THD *thd, Item **ref)
-{
-  List_iterator_fast<Item_field> li(fields);
-  Item_field *item;
+{ 
+  DBUG_ASSERT(fixed == 0);
+  Item_equal_fields_iterator it(*this);
+  Item *item;
   not_null_tables_cache= used_tables_cache= 0;
   const_item_cache= 0;
-  while ((item= li++))
+  while ((item= it++))
   {
     table_map tmp_table_map;
     used_tables_cache|= item->used_tables();
     tmp_table_map= item->not_null_tables();
     not_null_tables_cache|= tmp_table_map;
     if (item->maybe_null)
-      maybe_null=1;
-    item->item_equal= this;
+      maybe_null= 1;
+    if (!item->get_item_equal())
+      item->set_item_equal(this);
   }
   fix_length_and_dec();
   fixed= 1;
-  return 0;
+  return FALSE;
 }
+
+
+/**
+  Update the value of the used table attribute and other attributes
+ */
 
 void Item_equal::update_used_tables()
 {
-  List_iterator_fast<Item_field> li(fields);
-  Item *item;
   not_null_tables_cache= used_tables_cache= 0;
   if ((const_item_cache= cond_false))
     return;
+  Item_equal_fields_iterator it(*this);
+  Item *item;
   const_item_cache= 1;
-  while ((item=li++))
+  while ((item= it++))
   {
     item->update_used_tables();
     used_tables_cache|= item->used_tables();
@@ -5746,27 +5817,53 @@ void Item_equal::update_used_tables()
   }
 }
 
+
+
+/**
+  @brief
+  Evaluate multiple equality
+
+  @details
+  The function evaluate multiple equality to a boolean value.
+  The function ignores non-constant items from the equal_items list.
+  The function returns 1 if all constant items from the list are equal. 
+  It returns 0 if there are unequal constant items in the list or 
+  one of the constant items is evaluated to NULL. 
+  
+  @notes 
+  Currently this function can be called only at the optimization
+  stage after the constant table substitution, since all Item_equals
+  are eliminated before the execution stage.
+  
+  @retval
+     0     multiple equality is always FALSE or NULL
+     1     otherwise
+*/
+
 longlong Item_equal::val_int()
 {
-  Item_field *item_field;
   if (cond_false)
     return 0;
-  List_iterator_fast<Item_field> it(fields);
-  Item *item= const_item ? const_item : it++;
-  if ((null_value= item->is_null()))
-    return 0;
+  Item *item= get_const();
+  Item_equal_fields_iterator it(*this);
+  if (!item)
+    item= it++;
   eval_item->store_value(item);
-  while ((item_field= it++))
+  if ((null_value= item->null_value))
+    return 0;
+  while ((item= it++))
   {
+    Field *field= it.get_curr_field();
     /* Skip fields of non-const tables. They haven't been read yet */
-    if (item_field->field->table->const_table)
+    if (field->table->const_table)
     {
-      if ((null_value= item_field->is_null()) || eval_item->cmp(item_field))
+      if (eval_item->cmp(item) || (null_value= item->null_value))
         return 0;
     }
   }
   return 1;
 }
+
 
 void Item_equal::fix_length_and_dec()
 {
@@ -5775,10 +5872,11 @@ void Item_equal::fix_length_and_dec()
                                       item->collation.collation);
 }
 
+
 bool Item_equal::walk(Item_processor processor, bool walk_subquery, uchar *arg)
 {
-  List_iterator_fast<Item_field> it(fields);
   Item *item;
+  Item_equal_fields_iterator it(*this);
   while ((item= it++))
   {
     if (item->walk(processor, walk_subquery, arg))
@@ -5787,12 +5885,13 @@ bool Item_equal::walk(Item_processor processor, bool walk_subquery, uchar *arg)
   return Item_func::walk(processor, walk_subquery, arg);
 }
 
+
 Item *Item_equal::transform(Item_transformer transformer, uchar *arg)
 {
   DBUG_ASSERT(!current_thd->is_stmt_prepare());
 
-  List_iterator<Item_field> it(fields);
   Item *item;
+  Item_equal_fields_iterator it(*this);
   while ((item= it++))
   {
     Item *new_item= item->transform(transformer, arg);
@@ -5811,19 +5910,15 @@ Item *Item_equal::transform(Item_transformer transformer, uchar *arg)
   return Item_func::transform(transformer, arg);
 }
 
+
 void Item_equal::print(String *str, enum_query_type query_type)
 {
   str->append(func_name());
   str->append('(');
-  List_iterator_fast<Item_field> it(fields);
+  List_iterator_fast<Item> it(equal_items);
   Item *item;
-  if (const_item)
-    const_item->print(str, query_type);
-  else
-  {
-    item= it++;
-    item->print(str, query_type);
-  }
+  item= it++;
+  item->print(str, query_type);
   while ((item= it++))
   {
     str->append(',');
@@ -5831,6 +5926,14 @@ void Item_equal::print(String *str, enum_query_type query_type)
     item->print(str, query_type);
   }
   str->append(')');
+}
+
+
+CHARSET_INFO *Item_equal::compare_collation()
+{ 
+  Item_equal_fields_iterator it(*this);
+  Item *item= it++;
+  return item->collation.collation;
 }
 
 
@@ -5859,13 +5962,14 @@ void Item_equal::print(String *str, enum_query_type query_type)
   @retval 0 if no field found.
 */
 
-Item_field* Item_equal::get_first(Item_field *field)
+Item* Item_equal::get_first(Item *field_item)
 {
-  List_iterator<Item_field> it(fields);
-  Item_field *item;
+  Item_equal_fields_iterator it(*this);
+  Item *item;
   JOIN_TAB *field_tab;
-  if (!field)
-    return fields.head();
+  if (!field_item)
+    return (it++);
+  Field *field= ((Item_field *) (field_item->real_item()))->field;
 
   /*
     Of all equal fields, return the first one we can use. Normally, this is the
@@ -5887,9 +5991,9 @@ Item_field* Item_equal::get_first(Item_field *field)
     in presense of SJM nests.
   */
 
-  field_tab= field->field->table->reginfo.join_tab;
+  field_tab= field->table->reginfo.join_tab;
 
-  TABLE_LIST *emb_nest= field->field->table->pos_in_table_list->embedding;
+  TABLE_LIST *emb_nest= field->table->pos_in_table_list->embedding;
 
   if (emb_nest && emb_nest->sj_mat_info && emb_nest->sj_mat_info->is_used)
   {
@@ -5916,13 +6020,13 @@ Item_field* Item_equal::get_first(Item_field *field)
     /* Find an item to substitute for. */
     while ((item= it++))
     {
-      if (item->field->table->reginfo.join_tab >= first)
+      if (it.get_curr_field()->table->reginfo.join_tab >= first)
       {
         /*
           If we found given field then return NULL to avoid unnecessary
           substitution.
         */
-        return (item != field) ? item : NULL;
+        return (item != field_item) ? item : NULL;
       }
     }
   }
@@ -5946,7 +6050,8 @@ Item_field* Item_equal::get_first(Item_field *field)
     */
     while ((item= it++))
     {
-      TABLE_LIST *emb_nest= item->field->table->pos_in_table_list->embedding;
+      Item_field *fld_item= (Item_field *) (item->real_item());
+      TABLE_LIST *emb_nest= fld_item->field->table->pos_in_table_list->embedding;
       if (!emb_nest || !emb_nest->sj_mat_info || 
           !emb_nest->sj_mat_info->is_used)
       {
@@ -5954,7 +6059,7 @@ Item_field* Item_equal::get_first(Item_field *field)
       }
     }
 #endif
-    return fields.head();
+    return equal_items.head();
   }
   // Shouldn't get here.
   DBUG_ASSERT(0);

@@ -2383,13 +2383,13 @@ bool setup_sj_materialization(JOIN_TAB *tab)
 
       if (item_eq)
       {
-        List_iterator<Item_field> it(item_eq->fields);
-        Item_field *item;
+        List_iterator<Item> it(item_eq->equal_items);
+        Item *item;
         while ((item= it++))
         {
           if (!(item->used_tables() & ~emb_sj_nest->sj_inner_tables))
           {
-            copy_to= item->field;
+            copy_to= ((Item_field *) (item->real_item()))->field;
             break;
           }
         }

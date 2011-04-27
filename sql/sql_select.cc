@@ -3715,28 +3715,28 @@ add_key_field(JOIN *join,
 
 static void
 add_key_equal_fields(JOIN *join, KEY_FIELD **key_fields, uint and_level,
-                     Item_func *cond, Item_field *field_item,
+                     Item_func *cond, Item *field_item,
                      bool eq_func, Item **val,
                      uint num_values, table_map usable_tables,
                      SARGABLE_PARAM **sargables)
 {
-  Field *field= field_item->field;
+  Field *field= ((Item_field *) (field_item->real_item()))->field;
   add_key_field(join, key_fields, and_level, cond, field,
                 eq_func, val, num_values, usable_tables, sargables);
-  Item_equal *item_equal= field_item->item_equal;
+  Item_equal *item_equal= field_item->get_item_equal();
   if (item_equal)
   { 
     /*
       Add to the set of possible key values every substitution of
       the field for an equal field included into item_equal
     */
-    Item_equal_iterator it(*item_equal);
-    Item_field *item;
-    while ((item= it++))
+    Item_equal_fields_iterator it(*item_equal);
+    while (it++)
     {
-      if (!field->eq(item->field))
+      Field *equal_field= it.get_curr_field();
+      if (!field->eq(equal_field))
       {
-        add_key_field(join, key_fields, and_level, cond, item->field,
+        add_key_field(join, key_fields, and_level, cond, equal_field,
                       eq_func, val, num_values, usable_tables,
                       sargables);
       }
@@ -3933,8 +3933,7 @@ add_key_fields(JOIN *join, KEY_FIELD **key_fields, uint *and_level,
   case Item_func::OPTIMIZE_EQUAL:
     Item_equal *item_equal= (Item_equal *) cond;
     Item *const_item= item_equal->get_const();
-    Item_equal_iterator it(*item_equal);
-    Item_field *item;
+    Item_equal_fields_iterator it(*item_equal);
     if (const_item)
     {
       /*
@@ -3942,9 +3941,10 @@ add_key_fields(JOIN *join, KEY_FIELD **key_fields, uint *and_level,
         field1=const_item as a condition allowing an index access of the table
         with field1 by the keys value of field1.
       */   
-      while ((item= it++))
+      while (it++)
       {
-        add_key_field(join, key_fields, *and_level, cond_func, item->field,
+        Field *equal_field= it.get_curr_field();
+        add_key_field(join, key_fields, *and_level, cond_func, equal_field,
                       TRUE, &const_item, 1, usable_tables, sargables);
       }
     }
@@ -3956,17 +3956,18 @@ add_key_fields(JOIN *join, KEY_FIELD **key_fields, uint *and_level,
         field1=field2 as a condition allowing an index access of the table
         with field1 by the keys value of field2.
       */   
-      Item_equal_iterator fi(*item_equal);
-      while ((item= fi++))
+      Item_equal_fields_iterator fi(*item_equal);
+      while (fi++)
       {
-        Field *field= item->field;
+        Field *field= fi.get_curr_field();
+        Item *item;
         while ((item= it++))
         {
-          if (!field->eq(item->field))
+          Field *equal_field= it.get_curr_field();
+          if (!field->eq(equal_field))
           {
-            Item *tmp_item= item;
             add_key_field(join, key_fields, *and_level, cond_func, field,
-                          TRUE, &tmp_item, 1, usable_tables,
+                          TRUE, &item, 1, usable_tables,
                           sargables);
           }
         }
@@ -9195,6 +9196,8 @@ finish:
 static bool check_simple_equality(Item *left_item, Item *right_item,
                                   Item *item, COND_EQUAL *cond_equal)
 {
+  Item *orig_left_item= left_item;
+  Item *orig_right_item= right_item;
   if (left_item->type() == Item::REF_ITEM &&
       ((Item_ref*)left_item)->ref_type() == Item_ref::VIEW_REF)
   {
@@ -9261,7 +9264,7 @@ static bool check_simple_equality(Item *left_item, Item *right_item,
     { 
       /* left item was found in the current or one of the upper levels */
       if (! right_item_equal)
-        left_item_equal->add((Item_field *) right_item);
+        left_item_equal->add(orig_right_item);
       else
       {
         /* Merge two multiple equalities forming a new one */
@@ -9276,12 +9279,13 @@ static bool check_simple_equality(Item *left_item, Item *right_item,
     { 
       /* left item was not found neither the current nor in upper levels  */
       if (right_item_equal)
-        right_item_equal->add((Item_field *) left_item);
+        right_item_equal->add(orig_left_item);
       else 
       {
         /* None of the fields was found in multiple equalities */
-        Item_equal *item_equal= new Item_equal((Item_field *) left_item,
-                                               (Item_field *) right_item);
+        Item_equal *item_equal= new Item_equal(orig_left_item,
+                                               orig_right_item,
+                                               FALSE);
         cond_equal->current_level.push_back(item_equal);
       }
     }
@@ -9292,18 +9296,21 @@ static bool check_simple_equality(Item *left_item, Item *right_item,
     /* The predicate of the form field=const/const=field is processed */
     Item *const_item= 0;
     Item_field *field_item= 0;
+    Item *orig_field_item= 0;
     if (left_item->type() == Item::FIELD_ITEM &&
         !((Item_field*)left_item)->depended_from &&
         right_item->const_item())
     {
-      field_item= (Item_field*) left_item;
+      orig_field_item= left_item;
+      field_item= (Item_field *) left_item;
       const_item= right_item;
     }
     else if (right_item->type() == Item::FIELD_ITEM &&
              !((Item_field*)right_item)->depended_from &&
              left_item->const_item())
     {
-      field_item= (Item_field*) right_item;
+      orig_field_item= right_item;
+      field_item= (Item_field *) right_item;
       const_item= left_item;
     }
 
@@ -9318,7 +9325,7 @@ static bool check_simple_equality(Item *left_item, Item *right_item,
         if (!item)
         {
           Item_func_eq *eq_item;
-          if ((eq_item= new Item_func_eq(left_item, right_item)))
+          if ((eq_item= new Item_func_eq(orig_left_item, orig_right_item)))
             return FALSE;
           eq_item->set_cmp_func();
           eq_item->quick_fix_field();
@@ -9343,11 +9350,11 @@ static bool check_simple_equality(Item *left_item, Item *right_item,
           already contains a constant and its value is  not equal to
           the value of const_item.
         */
-        item_equal->add(const_item, field_item);
+        item_equal->add_const(const_item, orig_field_item);
       }
       else
       {
-        item_equal= new Item_equal(const_item, field_item);
+        item_equal= new Item_equal(const_item, orig_field_item, TRUE);
         cond_equal->current_level.push_back(item_equal);
       }
       return TRUE;
@@ -9592,7 +9599,7 @@ static COND *build_equal_items_for_cond(THD *thd, COND *cond,
         item_equal->fix_fields(thd, NULL);
         item_equal->update_used_tables();
         set_if_bigger(thd->lex->current_select->max_equal_elems,
-                      item_equal->members());  
+                      item_equal->n_field_items());  
       }
 
       ((Item_cond_and*)cond)->cond_equal= cond_equal;
@@ -9623,7 +9630,8 @@ static COND *build_equal_items_for_cond(THD *thd, COND *cond,
       args->concat((List<Item> *)&cond_equal.current_level);
     }
   }
-  else if (cond->type() == Item::FUNC_ITEM)
+  else if (cond->type() == Item::FUNC_ITEM ||
+           cond->real_item()->type() == Item::FIELD_ITEM)
   {
     List<Item> eq_list;
     /*
@@ -9645,10 +9653,10 @@ static COND *build_equal_items_for_cond(THD *thd, COND *cond,
       {
         if ((item_equal= cond_equal.current_level.pop()))
         {
-          item_equal->fix_length_and_dec();
+          item_equal->fix_fields(thd, NULL);
           item_equal->update_used_tables();
           set_if_bigger(thd->lex->current_select->max_equal_elems,
-                        item_equal->members());  
+                        item_equal->n_field_items());  
           return item_equal;
 	}
 
@@ -9669,7 +9677,7 @@ static COND *build_equal_items_for_cond(THD *thd, COND *cond,
           item_equal->fix_length_and_dec();
           item_equal->update_used_tables();
           set_if_bigger(thd->lex->current_select->max_equal_elems,
-                        item_equal->members());  
+                        item_equal->n_field_items());  
         }
         and_cond->cond_equal= cond_equal;
         args->concat((List<Item> *)&cond_equal.current_level);
@@ -9683,9 +9691,10 @@ static COND *build_equal_items_for_cond(THD *thd, COND *cond,
       as soon the field is not of a string type or the field reference is
       an argument of a comparison predicate. 
     */ 
-    uchar *is_subst_valid= (uchar *) 1;
+    uchar is_subst_valid= (uchar) 1;
+    uchar *is_subst_valid_ptr= &is_subst_valid;
     cond= cond->compile(&Item::subst_argument_checker,
-                        &is_subst_valid, 
+                        &is_subst_valid_ptr, 
                         &Item::equal_fields_propagator,
                         (uchar *) inherited);
     cond->update_used_tables();
@@ -9839,18 +9848,24 @@ static COND *build_equal_items(THD *thd, COND *cond,
     0  otherwise
 */
 
-static int compare_fields_by_table_order(Item_field *field1,
-                                         Item_field *field2,
+static int compare_fields_by_table_order(Item *field1,
+                                         Item *field2,
                                          void *table_join_idx)
 {
   int cmp= 0;
   bool outer_ref= 0;
-  if (field2->used_tables() & OUTER_REF_TABLE_BIT)
+  Item_field *f1= (Item_field *) (field1->real_item());
+  Item_field *f2= (Item_field *) (field2->real_item());
+  if (f1->const_item())
+    return 1;
+  if (f2->const_item())
+    return -1;
+  if (f2->used_tables() & OUTER_REF_TABLE_BIT)
   {  
     outer_ref= 1;
     cmp= -1;
   }
-  if (field1->used_tables() & OUTER_REF_TABLE_BIT)
+  if (f1->used_tables() & OUTER_REF_TABLE_BIT)
   {
     outer_ref= 1;
     cmp++;
@@ -9858,10 +9873,10 @@ static int compare_fields_by_table_order(Item_field *field1,
   if (outer_ref)
     return cmp;
   JOIN_TAB **idx= (JOIN_TAB **) table_join_idx;
-  cmp= idx[field2->field->table->tablenr]-idx[field1->field->table->tablenr];
+  cmp= idx[f2->field->table->tablenr]-idx[f1->field->table->tablenr];
   if (!cmp)
   {
-    JOIN_TAB *tab= idx[field1->field->table->tablenr];
+    JOIN_TAB *tab= idx[f1->field->table->tablenr];
     uint keyno= MAX_KEY;
     if (tab->ref.key_parts)
       keyno= tab->ref.key;
@@ -9869,9 +9884,9 @@ static int compare_fields_by_table_order(Item_field *field1,
        keyno = tab->select->quick->index;
     if (keyno != MAX_KEY)
     {
-      if (field2->field->part_of_key.is_set(keyno))
+      if (f2->field->part_of_key.is_set(keyno))
         cmp= -1;
-      if (field1->field->part_of_key.is_set(keyno))
+      if (f1->field->part_of_key.is_set(keyno))
         cmp++;
       if (!cmp)
       {
@@ -9879,12 +9894,12 @@ static int compare_fields_by_table_order(Item_field *field1,
         for (uint i= 0; i < key_info->key_parts; i++)
 	{
           Field *fld= key_info->key_part[i].field;
-          if (fld->eq(field2->field))
+          if (fld->eq(f2->field))
 	  {
 	    cmp= -1;
             break;
           }
-          if (fld->eq(field1->field))
+          if (fld->eq(f1->field))
 	  {
 	    cmp= 1;
             break;
@@ -9893,14 +9908,15 @@ static int compare_fields_by_table_order(Item_field *field1,
       }              
     }              
     else   
-      cmp= field2->field->field_index-field1->field->field_index;
+      cmp= f2->field->field_index-f1->field->field_index;
   }
   return cmp < 0 ? -1 : (cmp ? 1 : 0);
 }
 
 
-static TABLE_LIST* embedding_sjm(Item_field *item_field)
+static TABLE_LIST* embedding_sjm(Item *item)
 {
+  Item_field *item_field= (Item_field *) (item->real_item());
   TABLE_LIST *nest= item_field->field->table->pos_in_table_list->embedding;
   if (nest && nest->sj_mat_info && nest->sj_mat_info->is_used)
     return nest;
@@ -9973,7 +9989,7 @@ Item *eliminate_item_equal(COND *cond, COND_EQUAL *upper_levels,
   if (((Item *) item_equal)->const_item() && !item_equal->val_int())
     return new Item_int((longlong) 0,1); 
   Item *item_const= item_equal->get_const();
-  Item_equal_iterator it(*item_equal);
+  Item_equal_fields_iterator it(*item_equal);
   Item *head;
   DBUG_ASSERT(!cond || cond->type() == Item::COND_ITEM);
 
@@ -9989,27 +10005,26 @@ Item *eliminate_item_equal(COND *cond, COND_EQUAL *upper_levels,
   else
   {
     TABLE_LIST *emb_nest;
-    Item_field *item_field;
-    head= item_field= item_equal->get_first(NULL);
+    head= item_equal->get_first(NULL);
     it++;
-    if ((emb_nest= embedding_sjm(item_field)))
+    if ((emb_nest= embedding_sjm(head)))
     {
       current_sjm= emb_nest;
       current_sjm_head= head;
     }
   }
 
-  Item_field *item_field;
+  Item *field_item;
   /*
     For each other item, generate "item=head" equality (except the tables that 
     are within SJ-Materialization nests, for those "head" is defined
     differently)
   */
-  while ((item_field= it++))
+  while ((field_item= it++))
   {
-    Item_equal *upper= item_field->find_item_equal(upper_levels);
-    Item_field *item= item_field;
-    TABLE_LIST *field_sjm= embedding_sjm(item_field);
+    Item_equal *upper= field_item->find_item_equal(upper_levels);
+    Item *item= field_item;
+    TABLE_LIST *field_sjm= embedding_sjm(field_item);
     if (!field_sjm)
     { 
       current_sjm= NULL;
@@ -10026,8 +10041,8 @@ Item *eliminate_item_equal(COND *cond, COND_EQUAL *upper_levels,
         item= 0;
       else
       {
-        Item_equal_iterator li(*item_equal);
-        while ((item= li++) != item_field)
+        Item_equal_fields_iterator li(*item_equal);
+        while ((item= li++) != field_item)
         {
           if (item->find_item_equal(upper_levels) == upper)
             break;
@@ -10035,11 +10050,11 @@ Item *eliminate_item_equal(COND *cond, COND_EQUAL *upper_levels,
       }
     }
     
-    bool produce_equality= test(item == item_field);
+    bool produce_equality= test(item == field_item);
     if (!item_const && field_sjm && field_sjm != current_sjm)
     {
       /* Entering an SJM nest */
-      current_sjm_head= item_field;
+      current_sjm_head= field_item;
       if (!field_sjm->sj_mat_info->is_sj_scan)
         produce_equality= FALSE;
     }
@@ -10048,8 +10063,13 @@ Item *eliminate_item_equal(COND *cond, COND_EQUAL *upper_levels,
     {
       if (eq_item)
         eq_list.push_back(eq_item);
+
+      Item *head_item= current_sjm? current_sjm_head: head;
+      Item *head_real_item=  head_item->real_item();
+      if (head_real_item->type() == Item::FIELD_ITEM)
+        head_item= head_real_item;
       
-      eq_item= new Item_func_eq(item_field, current_sjm? current_sjm_head: head);
+      eq_item= new Item_func_eq(field_item->real_item(), head_item);
 
       if (!eq_item)
         return 0;
@@ -10234,11 +10254,10 @@ static void update_const_equal_items(COND *cond, JOIN_TAB *tab)
     if (!contained_const && item_equal->get_const())
     {
       /* Update keys for range analysis */
-      Item_equal_iterator it(*item_equal);
-      Item_field *item_field;
-      while ((item_field= it++))
+      Item_equal_fields_iterator it(*item_equal);
+      while (it++)
       {
-        Field *field= item_field->field;
+        Field *field= it.get_curr_field();
         JOIN_TAB *stat= field->table->reginfo.join_tab;
         key_map possible_keys= field->key_start;
         possible_keys.intersect(field->table->keys_in_use_for_query);

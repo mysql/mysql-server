@@ -487,6 +487,9 @@ typedef bool (Item::*Item_analyzer) (uchar **argp);
 typedef Item* (Item::*Item_transformer) (uchar *arg);
 typedef void (*Cond_traverser) (const Item *item, void *arg);
 
+class Item_equal;
+class COND_EQUAL;
+
 
 class Item {
   Item(const Item &);			/* Prevent use of these */
@@ -1179,6 +1182,9 @@ public:
 
   Item* set_expr_cache(THD *thd, List<Item*> &depends_on);
   virtual Item *get_cached_item() { return NULL; }
+  virtual Item_equal *get_item_equal() { return NULL; }
+  virtual void set_item_equal(Item_equal *item_eq) {};
+  virtual Item_equal *find_item_equal(COND_EQUAL *cond_equal) { return NULL; }
 };
 
 
@@ -1610,9 +1616,6 @@ public:
 };
 
 
-class Item_equal;
-class COND_EQUAL;
-
 class Item_field :public Item_ident
 {
 protected:
@@ -1707,6 +1710,8 @@ public:
   {
     return field->can_be_compared_as_longlong();
   }
+  Item_equal *get_item_equal() { return item_equal; }
+  void set_item_equal(Item_equal *item_eq) { item_equal= item_eq; }
   Item_equal *find_item_equal(COND_EQUAL *cond_equal);
   bool subst_argument_checker(uchar **arg);
   Item *equal_fields_propagator(uchar *arg);
@@ -2405,7 +2410,7 @@ public:
            const char *db_arg, const char *table_name_arg,
            const char *field_name_arg)
     :Item_ident(context_arg, db_arg, table_name_arg, field_name_arg),
-     result_field(0), ref(0) {}
+    result_field(0), ref(0) {}
   /*
     This constructor is used in two scenarios:
     A) *item = NULL
@@ -2720,17 +2725,19 @@ public:
 */
 class Item_direct_view_ref :public Item_direct_ref
 {
+  Item_equal *item_equal;
 public:
   Item_direct_view_ref(Name_resolution_context *context_arg, Item **item,
                   const char *table_name_arg,
                   const char *field_name_arg)
-    :Item_direct_ref(context_arg, item, table_name_arg, field_name_arg) {}
+    :Item_direct_ref(context_arg, item, table_name_arg, field_name_arg),
+     item_equal(0) {}
   /* Constructor need to process subselect with temporary tables (see Item) */
   Item_direct_view_ref(THD *thd, Item_direct_ref *item)
-    :Item_direct_ref(thd, item) {}
+    :Item_direct_ref(thd, item), item_equal(0) {}
   Item_direct_view_ref(TABLE_LIST *view_arg, Item **item,
                        const char *field_name_arg)
-    :Item_direct_ref(view_arg, item, field_name_arg)
+    :Item_direct_ref(view_arg, item, field_name_arg), item_equal(0)
   {}
 
   bool fix_fields(THD *, Item **);
@@ -2742,6 +2749,12 @@ public:
     return item;
   }
   virtual Ref_Type ref_type() { return VIEW_REF; }
+  Item_equal *get_item_equal() { return item_equal; }
+  void set_item_equal(Item_equal *item_eq) { item_equal= item_eq; }
+  Item_equal *find_item_equal(COND_EQUAL *cond_equal);
+  bool subst_argument_checker(uchar **arg);
+  Item *equal_fields_propagator(uchar *arg);
+  Item *replace_equal_field(uchar *arg);
 };
 
 
