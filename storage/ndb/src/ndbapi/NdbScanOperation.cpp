@@ -1771,9 +1771,9 @@ NdbScanOperation::nextResult(const char ** out_row_ptr,
     NdbRecAttr *getvalue_recattr= theReceiver.theFirstRecAttr;
     if (((UintPtr)tBlob | (UintPtr)getvalue_recattr) != 0)
     {
-      Uint32 idx= m_current_api_receiver;
+      const Uint32 idx= m_current_api_receiver;
       assert(idx < m_api_receivers_count);
-      const NdbReceiver *receiver= m_api_receivers[m_current_api_receiver];
+      const NdbReceiver *receiver= m_api_receivers[idx];
       Uint32 pos= 0;
 
       /* First take care of any getValue(). */
