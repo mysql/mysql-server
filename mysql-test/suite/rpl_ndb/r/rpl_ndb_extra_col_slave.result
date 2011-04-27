@@ -53,49 +53,8 @@ a	b	c
 3	4	QA TESTING
 *** Start Slave ***
 START SLAVE;
-include/wait_for_slave_sql_to_stop.inc
-SHOW SLAVE STATUS;
-Slave_IO_State	#
-Master_Host	127.0.0.1
-Master_User	root
-Master_Port	#
-Connect_Retry	1
-Master_Log_File	master-bin.000001
-Read_Master_Log_Pos	#
-Relay_Log_File	#
-Relay_Log_Pos	#
-Relay_Master_Log_File	master-bin.000001
-Slave_IO_Running	Yes
-Slave_SQL_Running	No
-Replicate_Do_DB	
-Replicate_Ignore_DB	
-Replicate_Do_Table	
-Replicate_Ignore_Table	#
-Replicate_Wild_Do_Table	
-Replicate_Wild_Ignore_Table	
-Last_Errno	1642
-Last_Error	Column 2 of table 'test.t2' cannot be converted from type 'char(10)' to type 'char(5)'
-Skip_Counter	0
-Exec_Master_Log_Pos	#
-Relay_Log_Space	#
-Until_Condition	None
-Until_Log_File	
-Until_Log_Pos	0
-Master_SSL_Allowed	No
-Master_SSL_CA_File	
-Master_SSL_CA_Path	
-Master_SSL_Cert	
-Master_SSL_Cipher	
-Master_SSL_Key	
-Seconds_Behind_Master	#
-Master_SSL_Verify_Server_Cert	No
-Last_IO_Errno	#
-Last_IO_Error	#
-Last_SQL_Errno	1642
-Last_SQL_Error	Column 2 of table 'test.t2' cannot be converted from type 'char(10)' to type 'char(5)'
-Master_Bind	
-Replicate_Ignore_Server_Ids	
-Master_Server_Id	1
+include/wait_for_slave_sql_error.inc [errno=1677]
+Last_SQL_Error = 'Column 2 of table 'test.t2' cannot be converted from type 'char(10)' to type 'char(5)''
 STOP SLAVE;
 RESET SLAVE;
 SELECT * FROM t2 ORDER BY a;
@@ -122,53 +81,10 @@ set @b1 = 'b1';
 set @b1 = concat(@b1,@b1);
 INSERT INTO t3 () VALUES(@b1,2,'Kyle, TEX'),(@b1,1,'JOE AUSTIN'),(@b1,4,'QA TESTING');
 ********************************************
-*** Expect slave to fail with Error 1522 ***
+*** Expect slave to fail with Error 1677 ***
 ********************************************
-include/wait_for_slave_sql_to_stop.inc
-SHOW SLAVE STATUS;
-Slave_IO_State	#
-Master_Host	127.0.0.1
-Master_User	root
-Master_Port	#
-Connect_Retry	1
-Master_Log_File	master-bin.000001
-Read_Master_Log_Pos	#
-Relay_Log_File	#
-Relay_Log_Pos	#
-Relay_Master_Log_File	master-bin.000001
-Slave_IO_Running	Yes
-Slave_SQL_Running	No
-Replicate_Do_DB	
-Replicate_Ignore_DB	
-Replicate_Do_Table	
-Replicate_Ignore_Table	#
-Replicate_Wild_Do_Table	
-Replicate_Wild_Ignore_Table	
-Last_Errno	1642
-Last_Error	Column 0 of table 'test.t3' cannot be converted from type 'tinyblob' to type 'int(11)'
-Skip_Counter	0
-Exec_Master_Log_Pos	#
-Relay_Log_Space	#
-Until_Condition	None
-Until_Log_File	
-Until_Log_Pos	0
-Master_SSL_Allowed	No
-Master_SSL_CA_File	
-Master_SSL_CA_Path	
-Master_SSL_Cert	
-Master_SSL_Cipher	
-Master_SSL_Key	
-Seconds_Behind_Master	#
-Master_SSL_Verify_Server_Cert	No
-Last_IO_Errno	#
-Last_IO_Error	#
-Last_SQL_Errno	1642
-Last_SQL_Error	Column 0 of table 'test.t3' cannot be converted from type 'tinyblob' to type 'int(11)'
-Master_Bind	
-Replicate_Ignore_Server_Ids	
-Master_Server_Id	1
-SET GLOBAL SQL_SLAVE_SKIP_COUNTER=2;
-START SLAVE;
+include/wait_for_slave_sql_error_and_skip.inc [errno=1677]
+Last_SQL_Error = 'Column 0 of table 'test.t3' cannot be converted from type 'tinyblob' to type 'int(11)''
 *** Drop t3  ***
 DROP TABLE t3;
 *** Create t4 on slave  ***
@@ -188,53 +104,10 @@ START SLAVE;
 INSERT INTO t4 () VALUES(100.22,2,'Kyle, TEX'),(200.26,1,'JOE AUSTIN'),
 (30000.22,4,'QA TESTING');
 ********************************************
-*** Expect slave to fail with Error 1522 ***
+*** Expect slave to fail with Error 1677 ***
 ********************************************
-include/wait_for_slave_sql_to_stop.inc
-SHOW SLAVE STATUS;
-Slave_IO_State	#
-Master_Host	127.0.0.1
-Master_User	root
-Master_Port	#
-Connect_Retry	1
-Master_Log_File	master-bin.000001
-Read_Master_Log_Pos	#
-Relay_Log_File	#
-Relay_Log_Pos	#
-Relay_Master_Log_File	master-bin.000001
-Slave_IO_Running	Yes
-Slave_SQL_Running	No
-Replicate_Do_DB	
-Replicate_Ignore_DB	
-Replicate_Do_Table	
-Replicate_Ignore_Table	#
-Replicate_Wild_Do_Table	
-Replicate_Wild_Ignore_Table	
-Last_Errno	1642
-Last_Error	Column 0 of table 'test.t4' cannot be converted from type 'decimal(8,2)' to type 'int(11)'
-Skip_Counter	0
-Exec_Master_Log_Pos	#
-Relay_Log_Space	#
-Until_Condition	None
-Until_Log_File	
-Until_Log_Pos	0
-Master_SSL_Allowed	No
-Master_SSL_CA_File	
-Master_SSL_CA_Path	
-Master_SSL_Cert	
-Master_SSL_Cipher	
-Master_SSL_Key	
-Seconds_Behind_Master	#
-Master_SSL_Verify_Server_Cert	No
-Last_IO_Errno	#
-Last_IO_Error	#
-Last_SQL_Errno	1642
-Last_SQL_Error	Column 0 of table 'test.t4' cannot be converted from type 'decimal(8,2)' to type 'int(11)'
-Master_Bind	
-Replicate_Ignore_Server_Ids	
-Master_Server_Id	1
-SET GLOBAL SQL_SLAVE_SKIP_COUNTER=2;
-START SLAVE;
+include/wait_for_slave_sql_error_and_skip.inc [errno=1677]
+Last_SQL_Error = 'Column 0 of table 'test.t4' cannot be converted from type 'decimal(8,2)' to type 'int(11)''
 *** Drop t4  ***
 DROP TABLE t4;
 *** Create t5 on slave  ***
@@ -254,53 +127,10 @@ START SLAVE;
 INSERT INTO t5 () VALUES(1,'Kyle',200.23,1,'b1b1',23.00098),
 (2,'JOE',300.01,0,'b2b2',1.0000009);
 ********************************************
-*** Expect slave to fail with Error 1522 ***
+*** Expect slave to fail with Error 1677 ***
 ********************************************
-include/wait_for_slave_sql_to_stop.inc
-SHOW SLAVE STATUS;
-Slave_IO_State	#
-Master_Host	127.0.0.1
-Master_User	root
-Master_Port	#
-Connect_Retry	1
-Master_Log_File	master-bin.000001
-Read_Master_Log_Pos	#
-Relay_Log_File	#
-Relay_Log_Pos	#
-Relay_Master_Log_File	master-bin.000001
-Slave_IO_Running	Yes
-Slave_SQL_Running	No
-Replicate_Do_DB	
-Replicate_Ignore_DB	
-Replicate_Do_Table	
-Replicate_Ignore_Table	#
-Replicate_Wild_Do_Table	
-Replicate_Wild_Ignore_Table	
-Last_Errno	1642
-Last_Error	Column 1 of table 'test.t5' cannot be converted from type 'varchar(6)' to type 'char(5)'
-Skip_Counter	0
-Exec_Master_Log_Pos	#
-Relay_Log_Space	#
-Until_Condition	None
-Until_Log_File	
-Until_Log_Pos	0
-Master_SSL_Allowed	No
-Master_SSL_CA_File	
-Master_SSL_CA_Path	
-Master_SSL_Cert	
-Master_SSL_Cipher	
-Master_SSL_Key	
-Seconds_Behind_Master	#
-Master_SSL_Verify_Server_Cert	No
-Last_IO_Errno	#
-Last_IO_Error	#
-Last_SQL_Errno	1642
-Last_SQL_Error	Column 1 of table 'test.t5' cannot be converted from type 'varchar(6)' to type 'char(5)'
-Master_Bind	
-Replicate_Ignore_Server_Ids	
-Master_Server_Id	1
-SET GLOBAL SQL_SLAVE_SKIP_COUNTER=2;
-START SLAVE;
+include/wait_for_slave_sql_error_and_skip.inc [errno=1677]
+Last_SQL_Error = 'Column 1 of table 'test.t5' cannot be converted from type 'varchar(6)' to type 'char(5)''
 *** Drop t5  ***
 DROP TABLE t5;
 *** Create t6 on slave  ***
@@ -319,56 +149,13 @@ START SLAVE;
 INSERT INTO t6 () VALUES(1,'Kyle',200.23,1),
 (2,'JOE',300.01,0);
 ********************************************
-*** Expect slave to fail with Error 1522 ***
+*** Expect slave to fail with Error 1677 ***
 ********************************************
-include/wait_for_slave_sql_to_stop.inc
-SHOW SLAVE STATUS;
-Slave_IO_State	#
-Master_Host	127.0.0.1
-Master_User	root
-Master_Port	#
-Connect_Retry	1
-Master_Log_File	master-bin.000001
-Read_Master_Log_Pos	#
-Relay_Log_File	#
-Relay_Log_Pos	#
-Relay_Master_Log_File	master-bin.000001
-Slave_IO_Running	Yes
-Slave_SQL_Running	No
-Replicate_Do_DB	
-Replicate_Ignore_DB	
-Replicate_Do_Table	
-Replicate_Ignore_Table	#
-Replicate_Wild_Do_Table	
-Replicate_Wild_Ignore_Table	
-Last_Errno	1642
-Last_Error	Column 1 of table 'test.t6' cannot be converted from type 'varchar(6)' to type 'char(5)'
-Skip_Counter	0
-Exec_Master_Log_Pos	#
-Relay_Log_Space	#
-Until_Condition	None
-Until_Log_File	
-Until_Log_Pos	0
-Master_SSL_Allowed	No
-Master_SSL_CA_File	
-Master_SSL_CA_Path	
-Master_SSL_Cert	
-Master_SSL_Cipher	
-Master_SSL_Key	
-Seconds_Behind_Master	#
-Master_SSL_Verify_Server_Cert	No
-Last_IO_Errno	#
-Last_IO_Error	#
-Last_SQL_Errno	1642
-Last_SQL_Error	Column 1 of table 'test.t6' cannot be converted from type 'varchar(6)' to type 'char(5)'
-Master_Bind	
-Replicate_Ignore_Server_Ids	
-Master_Server_Id	1
-SET GLOBAL SQL_SLAVE_SKIP_COUNTER=3;
+include/wait_for_slave_sql_error.inc [errno=1677]
+Last_SQL_Error = 'Column 1 of table 'test.t6' cannot be converted from type 'varchar(6)' to type 'char(5)''
 *** Drop t6  ***
+include/rpl_reset.inc
 DROP TABLE t6;
-DROP TABLE t6;
-START SLAVE;
 **** Diff Table Def End ****
 **** Extra Colums Start ****
 *** Create t7 on slave  ***
@@ -435,53 +222,10 @@ set @b1 = 'b1b1b1b1';
 set @b1 = concat(@b1,@b1);
 INSERT INTO t10 () VALUES(1,@b1,'Kyle'),(2,@b1,'JOE'),(3,@b1,'QA');
 ********************************************
-*** Expect slave to fail with Error 1522 ***
+*** Expect slave to fail with Error 1677 ***
 ********************************************
-include/wait_for_slave_sql_to_stop.inc
-SHOW SLAVE STATUS;
-Slave_IO_State	#
-Master_Host	127.0.0.1
-Master_User	root
-Master_Port	#
-Connect_Retry	1
-Master_Log_File	master-bin.000001
-Read_Master_Log_Pos	#
-Relay_Log_File	#
-Relay_Log_Pos	#
-Relay_Master_Log_File	master-bin.000001
-Slave_IO_Running	Yes
-Slave_SQL_Running	No
-Replicate_Do_DB	
-Replicate_Ignore_DB	
-Replicate_Do_Table	
-Replicate_Ignore_Table	#
-Replicate_Wild_Do_Table	
-Replicate_Wild_Ignore_Table	
-Last_Errno	1642
-Last_Error	Column 2 of table 'test.t10' cannot be converted from type 'char(5)' to type 'double'
-Skip_Counter	0
-Exec_Master_Log_Pos	#
-Relay_Log_Space	#
-Until_Condition	None
-Until_Log_File	
-Until_Log_Pos	0
-Master_SSL_Allowed	No
-Master_SSL_CA_File	
-Master_SSL_CA_Path	
-Master_SSL_Cert	
-Master_SSL_Cipher	
-Master_SSL_Key	
-Seconds_Behind_Master	#
-Master_SSL_Verify_Server_Cert	No
-Last_IO_Errno	#
-Last_IO_Error	#
-Last_SQL_Errno	1642
-Last_SQL_Error	Column 2 of table 'test.t10' cannot be converted from type 'char(5)' to type 'double'
-Master_Bind	
-Replicate_Ignore_Server_Ids	
-Master_Server_Id	1
-SET GLOBAL SQL_SLAVE_SKIP_COUNTER=2;
-START SLAVE;
+include/wait_for_slave_sql_error_and_skip.inc [errno=1677]
+Last_SQL_Error = 'Column 2 of table 'test.t10' cannot be converted from type 'char(5)' to type 'double''
 *** Drop t10  ***
 DROP TABLE t10;
 *** Create t11 on slave  ***
@@ -500,53 +244,10 @@ set @b1 = 'b1b1b1b1';
 set @b1 = concat(@b1,@b1);
 INSERT INTO t11 () VALUES(1,@b1,'Kyle'),(2,@b1,'JOE'),(3,@b1,'QA');
 ********************************************
-*** Expect slave to fail with Error 1522 ***
+*** Expect slave to fail with Error 1677 ***
 ********************************************
-include/wait_for_slave_sql_to_stop.inc
-SHOW SLAVE STATUS;
-Slave_IO_State	#
-Master_Host	127.0.0.1
-Master_User	root
-Master_Port	#
-Connect_Retry	1
-Master_Log_File	master-bin.000001
-Read_Master_Log_Pos	#
-Relay_Log_File	#
-Relay_Log_Pos	#
-Relay_Master_Log_File	master-bin.000001
-Slave_IO_Running	Yes
-Slave_SQL_Running	No
-Replicate_Do_DB	
-Replicate_Ignore_DB	
-Replicate_Do_Table	
-Replicate_Ignore_Table	#
-Replicate_Wild_Do_Table	
-Replicate_Wild_Ignore_Table	
-Last_Errno	1642
-Last_Error	Column 2 of table 'test.t11' cannot be converted from type 'varchar(254)' to type 'int(11)'
-Skip_Counter	0
-Exec_Master_Log_Pos	#
-Relay_Log_Space	#
-Until_Condition	None
-Until_Log_File	
-Until_Log_Pos	0
-Master_SSL_Allowed	No
-Master_SSL_CA_File	
-Master_SSL_CA_Path	
-Master_SSL_Cert	
-Master_SSL_Cipher	
-Master_SSL_Key	
-Seconds_Behind_Master	#
-Master_SSL_Verify_Server_Cert	No
-Last_IO_Errno	#
-Last_IO_Error	#
-Last_SQL_Errno	1642
-Last_SQL_Error	Column 2 of table 'test.t11' cannot be converted from type 'varchar(254)' to type 'int(11)'
-Master_Bind	
-Replicate_Ignore_Server_Ids	
-Master_Server_Id	1
-SET GLOBAL SQL_SLAVE_SKIP_COUNTER=2;
-START SLAVE;
+include/wait_for_slave_sql_error_and_skip.inc [errno=1677]
+Last_SQL_Error = 'Column 2 of table 'test.t11' cannot be converted from type 'varchar(254)' to type 'int(11)''
 *** Drop t11  ***
 DROP TABLE t11;
 *** Create t12 on slave  ***
@@ -757,51 +458,8 @@ ALTER TABLE t15 ADD COLUMN c6 INT AFTER c5;
 ********************************************
 *** Expect slave to fail with Error 1060 ***
 ********************************************
-include/wait_for_slave_sql_to_stop.inc
-SHOW SLAVE STATUS;
-Slave_IO_State	#
-Master_Host	127.0.0.1
-Master_User	root
-Master_Port	#
-Connect_Retry	1
-Master_Log_File	master-bin.000001
-Read_Master_Log_Pos	#
-Relay_Log_File	#
-Relay_Log_Pos	#
-Relay_Master_Log_File	master-bin.000001
-Slave_IO_Running	Yes
-Slave_SQL_Running	No
-Replicate_Do_DB	
-Replicate_Ignore_DB	
-Replicate_Do_Table	
-Replicate_Ignore_Table	#
-Replicate_Wild_Do_Table	
-Replicate_Wild_Ignore_Table	
-Last_Errno	1060
-Last_Error	Error 'Duplicate column name 'c6'' on query. Default database: 'test'. Query: 'ALTER TABLE t15 ADD COLUMN c6 INT AFTER c5'
-Skip_Counter	0
-Exec_Master_Log_Pos	#
-Relay_Log_Space	#
-Until_Condition	None
-Until_Log_File	
-Until_Log_Pos	0
-Master_SSL_Allowed	No
-Master_SSL_CA_File	
-Master_SSL_CA_Path	
-Master_SSL_Cert	
-Master_SSL_Cipher	
-Master_SSL_Key	
-Seconds_Behind_Master	#
-Master_SSL_Verify_Server_Cert	No
-Last_IO_Errno	#
-Last_IO_Error	#
-Last_SQL_Errno	1060
-Last_SQL_Error	Error 'Duplicate column name 'c6'' on query. Default database: 'test'. Query: 'ALTER TABLE t15 ADD COLUMN c6 INT AFTER c5'
-Master_Bind	
-Replicate_Ignore_Server_Ids	
-Master_Server_Id	1
-SET GLOBAL SQL_SLAVE_SKIP_COUNTER=1;
-START SLAVE;
+include/wait_for_slave_sql_error_and_skip.inc [errno=1060]
+Last_SQL_Error = 'Error 'Duplicate column name 'c6'' on query. Default database: 'test'. Query: 'ALTER TABLE t15 ADD COLUMN c6 INT AFTER c5''
 *** Try to insert in master ****
 INSERT INTO t15 () VALUES(5,2.00,'Replication Testing',@b1,'Buda',2);
 SELECT * FROM t15 ORDER BY c1;
@@ -899,53 +557,10 @@ START SLAVE;
 *** Master Data Insert ***
 INSERT INTO t17 () VALUES(9223372036854775807,2,'Kyle, TEX');
 ********************************************
-*** Expect slave to fail with Error 1522 ***
+*** Expect slave to fail with Error 1677 ***
 ********************************************
-include/wait_for_slave_sql_to_stop.inc
-SHOW SLAVE STATUS;
-Slave_IO_State	#
-Master_Host	127.0.0.1
-Master_User	root
-Master_Port	#
-Connect_Retry	1
-Master_Log_File	master-bin.000001
-Read_Master_Log_Pos	#
-Relay_Log_File	#
-Relay_Log_Pos	#
-Relay_Master_Log_File	master-bin.000001
-Slave_IO_Running	Yes
-Slave_SQL_Running	No
-Replicate_Do_DB	
-Replicate_Ignore_DB	
-Replicate_Do_Table	
-Replicate_Ignore_Table	#
-Replicate_Wild_Do_Table	
-Replicate_Wild_Ignore_Table	
-Last_Errno	1642
-Last_Error	Column 0 of table 'test.t17' cannot be converted from type 'bigint' to type 'smallint(6)'
-Skip_Counter	0
-Exec_Master_Log_Pos	#
-Relay_Log_Space	#
-Until_Condition	None
-Until_Log_File	
-Until_Log_Pos	0
-Master_SSL_Allowed	No
-Master_SSL_CA_File	
-Master_SSL_CA_Path	
-Master_SSL_Cert	
-Master_SSL_Cipher	
-Master_SSL_Key	
-Seconds_Behind_Master	#
-Master_SSL_Verify_Server_Cert	No
-Last_IO_Errno	#
-Last_IO_Error	#
-Last_SQL_Errno	1642
-Last_SQL_Error	Column 0 of table 'test.t17' cannot be converted from type 'bigint' to type 'smallint(6)'
-Master_Bind	
-Replicate_Ignore_Server_Ids	
-Master_Server_Id	1
-SET GLOBAL SQL_SLAVE_SKIP_COUNTER=2;
-START SLAVE;
+include/wait_for_slave_sql_error_and_skip.inc [errno=1677]
+Last_SQL_Error = 'Column 0 of table 'test.t17' cannot be converted from type 'bigint' to type 'smallint(6)''
 ** DROP table t17 ***
 DROP TABLE t17;
 include/rpl_end.inc
