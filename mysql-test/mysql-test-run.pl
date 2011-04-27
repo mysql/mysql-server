@@ -4554,12 +4554,6 @@ sub mysqld_arguments ($$$) {
   # Check if "extra_opt" contains skip-log-bin
   my $skip_binlog= grep(/^(--|--loose-)skip-log-bin/, @$extra_opts);
 
-  # Check if this specific mysqld is running without log-bin
-  if (not $mysqld->option("log-bin"))
-  {
-    $skip_binlog = 1;
-  }
-
   # Indicate to mysqld it will be debugged in debugger
   if ( $glob_debugger )
   {
