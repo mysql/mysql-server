@@ -41,11 +41,6 @@ static const TABLE_FIELD_TYPE field_types[]=
     { NULL, 0}
   },
   {
-    { C_STRING_WITH_LEN("OBJECT_NAME") },
-    { C_STRING_WITH_LEN("varchar(64)") },
-    { NULL, 0}
-  },
-  {
     { C_STRING_WITH_LEN("COUNT_STAR") },
     { C_STRING_WITH_LEN("bigint(20)") },
     { NULL, 0}
@@ -165,7 +160,7 @@ static const TABLE_FIELD_TYPE field_types[]=
 
 TABLE_FIELD_DEF
 table_socket_summary_by_instance::m_field_def=
-{ 25, field_types };
+{ 24, field_types };
 
 PFS_engine_table_share
 table_socket_summary_by_instance::m_share=
@@ -293,77 +288,74 @@ int table_socket_summary_by_instance::read_row_values(TABLE *table,
       case  1: /* OBJECT_INSTANCE */
         set_field_ulonglong(f, (ulonglong)m_row.m_identity);
         break;
-      case  2: /* OBJECT_NAME */
-        // TBD: Fix
-        break;
 
-      case  3:/* COUNT_STAR */
+      case  2:/* COUNT_STAR */
         set_field_ulonglong(f, m_row.m_io_stat.m_all.m_waits.m_count);
         break;
-      case  4:/* SUM_TIMER_WAIT */
+      case  3:/* SUM_TIMER_WAIT */
         set_field_ulonglong(f, m_row.m_io_stat.m_all.m_waits.m_sum);
         break;
-      case  5: /* MIN_TIMER_WAIT */
+      case  4: /* MIN_TIMER_WAIT */
         set_field_ulonglong(f, m_row.m_io_stat.m_all.m_waits.m_min);
         break;
-      case  6: /* AVG_TIMER_WAIT */
+      case  5: /* AVG_TIMER_WAIT */
         set_field_ulonglong(f, m_row.m_io_stat.m_all.m_waits.m_avg);
         break;
-      case  7: /* MAX_TIMER_WAIT */
+      case  6: /* MAX_TIMER_WAIT */
         set_field_ulonglong(f, m_row.m_io_stat.m_all.m_waits.m_max);
         break;
 
-      case  8: /* COUNT_READ */
+      case  7: /* COUNT_READ */
         set_field_ulonglong(f, m_row.m_io_stat.m_read.m_waits.m_count);
         break;
-      case  9: /* SUM_TIMER_READ */
+      case  8: /* SUM_TIMER_READ */
         set_field_ulonglong(f, m_row.m_io_stat.m_read.m_waits.m_sum);
         break;
-      case 10: /* MIN_TIMER_READ */
+      case  9: /* MIN_TIMER_READ */
         set_field_ulonglong(f, m_row.m_io_stat.m_read.m_waits.m_min);
         break;
-      case 11: /* AVG_TIMER_READ */
+      case 10: /* AVG_TIMER_READ */
         set_field_ulonglong(f, m_row.m_io_stat.m_read.m_waits.m_avg);
         break;
-      case 12: /* MAX_TIMER_READ */
+      case 11: /* MAX_TIMER_READ */
         set_field_ulonglong(f, m_row.m_io_stat.m_read.m_waits.m_max);
         break;
-      case 13: /* SUM_NUMBER_OF_BYTES_READ */
+      case 12: /* SUM_NUMBER_OF_BYTES_READ */
         set_field_ulonglong(f, m_row.m_io_stat.m_read.m_bytes);
         break;
 
-      case 14: /* COUNT_WRITE */
+      case 13: /* COUNT_WRITE */
         set_field_ulonglong(f, m_row.m_io_stat.m_write.m_waits.m_count);
         break;
-      case 15: /* SUM_TIMER_WRITE */
+      case 14: /* SUM_TIMER_WRITE */
         set_field_ulonglong(f, m_row.m_io_stat.m_write.m_waits.m_sum);
         break;
-      case 16: /* MIN_TIMER_WRITE */
+      case 15: /* MIN_TIMER_WRITE */
         set_field_ulonglong(f, m_row.m_io_stat.m_write.m_waits.m_min);
         break;
-      case 17: /* AVG_TIMER_WRITE */
+      case 16: /* AVG_TIMER_WRITE */
         set_field_ulonglong(f, m_row.m_io_stat.m_write.m_waits.m_avg);
         break;
-      case 18: /* MAX_TIMER_WRITE */
+      case 17: /* MAX_TIMER_WRITE */
         set_field_ulonglong(f, m_row.m_io_stat.m_write.m_waits.m_max);
         break;
-      case 19: /* SUM_NUMBER_OF_BYTES_WRITE */
+      case 18: /* SUM_NUMBER_OF_BYTES_WRITE */
         set_field_ulonglong(f, m_row.m_io_stat.m_write.m_bytes);
         break;
 
-      case 20: /* COUNT_MISC */
+      case 19: /* COUNT_MISC */
         set_field_ulonglong(f, m_row.m_io_stat.m_misc.m_waits.m_count);
         break;
-      case 21: /* SUM_TIMER_MISC */
+      case 20: /* SUM_TIMER_MISC */
         set_field_ulonglong(f, m_row.m_io_stat.m_misc.m_waits.m_sum);
         break;
-      case 22: /* MIN_TIMER_MISC */
+      case 21: /* MIN_TIMER_MISC */
         set_field_ulonglong(f, m_row.m_io_stat.m_misc.m_waits.m_min);
         break;
-      case 23: /* AVG_TIMER_MISC */
+      case 22: /* AVG_TIMER_MISC */
         set_field_ulonglong(f, m_row.m_io_stat.m_misc.m_waits.m_avg);
         break;
-      case 24: /* MAX_TIMER_MISC */
+      case 23: /* MAX_TIMER_MISC */
         set_field_ulonglong(f, m_row.m_io_stat.m_misc.m_waits.m_max);
         break;
       default:
