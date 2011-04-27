@@ -4637,8 +4637,16 @@ void Dblqh::execLQHKEYREQ(Signal* signal)
   /* Only node restart copy allowed to send no KeyInfo */
   if (unlikely(keyLenWithLQHReq == 0))
   {
-    if (! (LqhKeyReq::getNrCopyFlag(Treqinfo)) &&
-        refToMain(senderRef) != DBSPJ)
+    if (refToMain(senderRef) == DBSPJ)
+    {
+      jam();
+      ndbassert(! LqhKeyReq::getNrCopyFlag(Treqinfo));
+      terrorCode = ZNO_TUPLE_FOUND;
+      abortErrorLab(signal);
+      return;
+    }
+
+    if (! LqhKeyReq::getNrCopyFlag(Treqinfo))
     {
       LQHKEY_error(signal, 3);
       return;
