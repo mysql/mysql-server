@@ -396,6 +396,17 @@ SELECT * FROM City
   WHERE Country='CHN' AND Population > 1500000 AND Name LIKE 'C%';
 
 
+#
+# Bug #754521: wrong cost of index intersection leading
+#              to the choice of a suboptimal execution plan
+#
+
+--replace_column 9 #
+EXPLAIN 
+SELECT * FROM City, Country 
+ WHERE City.Name LIKE 'C%' AND City.Population > 1000000 AND
+       Country.Code=City.Country;
+
 DROP DATABASE world;
 
 use test;

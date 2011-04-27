@@ -3116,7 +3116,9 @@ int SQL_SELECT::test_quick_select(THD *thd, key_map keys_to_use,
                                                     best_read_time)))
         {
           best_trp= intersect_trp;
-          best_read_time= best_trp->read_cost;         
+          best_read_time= best_trp->read_cost; 
+          set_if_smaller(param.table->quick_condition_rows, 
+                         intersect_trp->records);
         }
       }
 
