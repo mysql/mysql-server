@@ -94,19 +94,10 @@ log-slave-updates
 
 
 [ENV]
-MASTER_MYPORT= @mysqld.1.1.port
-MASTER_MYPORT1= @mysqld.2.1.port
-MASTER_MYSOCK1= @mysqld.2.1.socket
-MASTER_MYPORT2= @mysqld.3.1.port
-MASTER_MYSOCK2= @mysqld.3.1.socket
-SLAVE_MYPORT= @mysqld.1.slave.port
-SLAVE_MYSOCK= @mysqld.1.slave.socket
-SLAVE_MYPORT1= @mysqld.2.slave.port
-SLAVE_MYSOCK1= @mysqld.2.slave.socket
-SLAVE_MYPORT2= @mysqld.3.slave.port
-SLAVE_MYSOCK2= @mysqld.3.slave.socket
+SERVER_MYPORT_1= @mysqld.1.1.port
+SERVER_MYPORT_2= @mysqld.2.1.port
+SERVER_MYPORT_3= @mysqld.3.1.port
+SERVER_MYPORT_4= @mysqld.1.slave.port
+SERVER_MYPORT_5= @mysqld.2.slave.port
+SERVER_MYPORT_6= @mysqld.3.slave.port
 
-
-NDB_CONNECTSTRING= @mysql_cluster.1.ndb_connectstring
-NDB_CONNECTSTRING_SLAVE= @mysql_cluster.slave.ndb_connectstring
-NDB_BACKUP_DIR= @cluster_config.ndbd.1.1.BackupDataDir
