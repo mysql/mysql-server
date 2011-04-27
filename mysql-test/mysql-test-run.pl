@@ -5707,6 +5707,7 @@ sub valgrind_exit_reports() {
                         @culprits);
             mtr_print_line();
             print ("$valgrind_rep\n");
+            $found_err= 1;
             $err_in_report= 0;
           }
           # Make ready to collect new report
