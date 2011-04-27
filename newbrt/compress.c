@@ -19,7 +19,7 @@ size_t toku_compress_bound (enum toku_compression_method a, size_t size)
 	return compressBound (size);
     }
     // fall through for bad enum (thus compiler can warn us if we didn't use all the enums
-    assert(0);
+    assert(0); return 0;
 }
 
 static const int zlib_compression_level = 5;
