@@ -204,3 +204,4 @@ show variables like 'log_slave_updates';
 let $BINLOG_FILENAME=slave-master-bin;
 --source suite/rpl_ndb/t/rpl_ndb_get_binlog_events.inc
 
+connection $which_slave;
