@@ -1,5 +1,6 @@
--- source include/have_ndb.inc
--- source suite/rpl_ndb/ndb_master-slave.inc
+--source include/have_ndb.inc
+--source include/have_binlog_format_row.inc
+--source suite/rpl_ndb/ndb_master-slave.inc
 let $engine_type=NDBCLUSTER;
 
 connection slave;
@@ -34,17 +35,8 @@ SET GLOBAL SLAVE_TYPE_CONVERSIONS='ALL_LOSSY';
 source extra/rpl_tests/type_conversions.test;
 
 connection slave;
---echo **** Result of conversions ****
-disable_query_log;
-SELECT RPAD(Source, 15, ' ') AS Source_Type,
-       RPAD(Target, 15, ' ') AS Target_Type,
-       RPAD(Flags, 25, ' ') AS All_Type_Conversion_Flags,
-       IF(Compare IS NULL AND Error IS NOT NULL, '<Correct error>',
-          IF(Compare, '<Correct value>',
-             CONCAT("'", On_Slave, "' != '", Expected, "'")))
-         AS Value_On_Slave
-  FROM type_conversions;
-enable_query_log;
+--source suite/rpl_ndb/t/check_conversions.inc
+
 DROP TABLE type_conversions;
 
 connection master;

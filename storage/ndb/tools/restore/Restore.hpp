@@ -24,7 +24,7 @@
 #include <NdbOut.hpp>
 #include "../src/kernel/blocks/backup/BackupFormat.hpp"
 #include <NdbApi.hpp>
-#include <util/azlib.h>
+#include <util/ndbzio.h>
 #include <util/UtilBuffer.hpp>
 
 #include <ndb_version.h>
@@ -311,7 +311,7 @@ class RestoreLogIterator;
 
 class BackupFile {
 protected:
-  azio_stream m_file;
+  ndbzio_stream m_file;
   char m_path[PATH_MAX];
   char m_fileName[PATH_MAX];
   bool m_hostByteOrder;

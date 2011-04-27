@@ -1008,6 +1008,10 @@ void Dbacc::initOpRec(Signal* signal)
   // bit to mark lock operation
   // undo log is not run via ACCKEYREQ
 
+  if (operationRecPtr.p->tupkeylen == 0)
+  {
+    ndbassert(signal->getLength() == 9);
+  }
 }//Dbacc::initOpRec()
 
 /* --------------------------------------------------------------------------------- */
@@ -1020,9 +1024,7 @@ void Dbacc::sendAcckeyconf(Signal* signal)
   signal->theData[2] = operationRecPtr.p->fid;
   signal->theData[3] = operationRecPtr.p->localdata[0];
   signal->theData[4] = operationRecPtr.p->localdata[1];
-  signal->theData[5] = fragrecptr.p->localkeylen;
 }//Dbacc::sendAcckeyconf()
-
 
 void 
 Dbacc::ACCKEY_error(Uint32 fromWhere)
@@ -1516,8 +1518,9 @@ Dbacc::accIsLockedLab(Signal* signal, OperationrecPtr lockOwnerPtr)
   } 
   else 
   {
-    if (!(lockOwnerPtr.p->m_op_bits & Operationrec::OP_ELEMENT_DISAPPEARED) &&
-	lockOwnerPtr.p->localdata[0] != ~(Uint32)0) 
+    if (! (lockOwnerPtr.p->m_op_bits & Operationrec::OP_ELEMENT_DISAPPEARED) &&
+	! Local_key::isInvalid(lockOwnerPtr.p->localdata[0],
+                               lockOwnerPtr.p->localdata[1]))
     {
       jam();
       /* ---------------------------------------------------------------
@@ -1591,7 +1594,9 @@ void Dbacc::insertelementLab(Signal* signal)
   tidrForward = ZTRUE;
   idrOperationRecPtr = operationRecPtr;
   clocalkey[0] = localKey;
+  clocalkey[1] = localKey;
   operationRecPtr.p->localdata[0] = localKey;
+  operationRecPtr.p->localdata[1] = localKey;
   /* ----------------------------------------------------------------------- */
   /* WE SET THE LOCAL KEY TO MINUS ONE TO INDICATE IT IS NOT YET VALID.      */
   /* ----------------------------------------------------------------------- */
@@ -2281,6 +2286,7 @@ void Dbacc::execACCMINUPDATE(Signal* signal)
   operationRecPtr.i = signal->theData[0];
   tlocalkey1 = signal->theData[1];
   tlocalkey2 = signal->theData[2];
+  Uint32 localref = Local_key::ref(tlocalkey1, tlocalkey2);
   ptrCheckGuard(operationRecPtr, coprecsize, operationrec);
   Uint32 opbits = operationRecPtr.p->m_op_bits;
   fragrecptr.i = operationRecPtr.p->fragptr;
@@ -2294,17 +2300,18 @@ void Dbacc::execACCMINUPDATE(Signal* signal)
     ptrCheckGuard(ulkPageidptr, cpagesize, page8);
     dbgWord32(ulkPageidptr, tulkLocalPtr, tlocalkey1);
     arrGuard(tulkLocalPtr, 2048);
-    ulkPageidptr.p->word32[tulkLocalPtr] = tlocalkey1;
     operationRecPtr.p->localdata[0] = tlocalkey1;
+    operationRecPtr.p->localdata[1] = tlocalkey2;
     if (likely(fragrecptr.p->localkeylen == 1))
     {
+      ulkPageidptr.p->word32[tulkLocalPtr] = localref;
       return;
-    } 
-    else if (fragrecptr.p->localkeylen == 2) 
+    }
+    else if (fragrecptr.p->localkeylen == 2)
     {
       jam();
+      ulkPageidptr.p->word32[tulkLocalPtr] = tlocalkey1;
       tulkLocalPtr = tulkLocalPtr + operationRecPtr.p->elementIsforward;
-      operationRecPtr.p->localdata[1] = tlocalkey2;
       dbgWord32(ulkPageidptr, tulkLocalPtr, tlocalkey2);
       arrGuard(tulkLocalPtr, 2048);
       ulkPageidptr.p->word32[tulkLocalPtr] = tlocalkey2;
@@ -2486,8 +2493,9 @@ void Dbacc::execACC_LOCKREQ(Signal* signal)
       signal->theData[5] = req->transId1;
       signal->theData[6] = req->transId2;
       // enter local key in place of PK
-      signal->theData[7] = req->tupAddr;
-      EXECUTE_DIRECT(DBACC, GSN_ACCKEYREQ, signal, 8);
+      signal->theData[7] = req->page_id;
+      signal->theData[8] = req->page_idx;
+      EXECUTE_DIRECT(DBACC, GSN_ACCKEYREQ, signal, 9);
       // translate the result
       if (signal->theData[0] < RNIL) {
         jam();
@@ -3195,7 +3203,8 @@ void Dbacc::getdirindex(Signal* signal)
 }//Dbacc::getdirindex()
 
 Uint32
-Dbacc::readTablePk(Uint32 localkey1, Uint32 eh, Ptr<Operationrec> opPtr)
+Dbacc::readTablePk(Uint32 localkey1, Uint32 localkey2,
+                   Uint32 eh, Ptr<Operationrec> opPtr)
 {
   int ret;
   Uint32 tableId = fragrecptr.p->myTableId;
@@ -3206,11 +3215,9 @@ Dbacc::readTablePk(Uint32 localkey1, Uint32 eh, Ptr<Operationrec> opPtr)
   memset(ckeys, 0x1f, (fragrecptr.p->keyLength * MAX_XFRM_MULTIPLY) << 2);
 #endif
   
-  if (likely(localkey1 != ~(Uint32)0))
+  if (likely(! Local_key::isInvalid(localkey1, localkey2)))
   {
-    Uint32 fragPageId = localkey1 >> MAX_TUPLES_BITS;
-    Uint32 pageIndex = localkey1 & ((1 << MAX_TUPLES_BITS ) - 1);
-    ret = c_tup->accReadPk(tableId, fragId, fragPageId, pageIndex, 
+    ret = c_tup->accReadPk(tableId, fragId, localkey1, localkey2,
 			   ckeys, true);
   }
   else
@@ -3276,6 +3283,7 @@ Dbacc::getElement(Signal* signal, OperationrecPtr& lockOwnerPtr)
   register Uint32 tgeRemLen;
   register Uint32 TelemLen = fragrecptr.p->elementLength;
   register Uint32* Tkeydata = (Uint32*)&signal->theData[7];
+  const Uint32 localkeylen = fragrecptr.p->localkeylen;
 
   getdirindex(signal);
   tgePageindex = tgdiPageindex;
@@ -3287,7 +3295,7 @@ Dbacc::getElement(Signal* signal, OperationrecPtr& lockOwnerPtr)
    */
   const bool searchLocalKey = operationRecPtr.p->tupkeylen == 0;
 
-  ndbrequire(TelemLen == ZELEM_HEAD_SIZE + fragrecptr.p->localkeylen);
+  ndbrequire(TelemLen == ZELEM_HEAD_SIZE + localkeylen);
   tgeNextptrtype = ZLEFT;
 
   const Uint32 tmp = fragrecptr.p->k + fragrecptr.p->lhfragbits;
@@ -3298,7 +3306,7 @@ Dbacc::getElement(Signal* signal, OperationrecPtr& lockOwnerPtr)
       jam();
       tgeContainerptr = tgeContainerptr + ZHEAD_SIZE;
       tgeElementptr = tgeContainerptr + ZCON_HEAD_SIZE;
-      tgeKeyptr = (tgeElementptr + ZELEM_HEAD_SIZE) + fragrecptr.p->localkeylen;
+      tgeKeyptr = (tgeElementptr + ZELEM_HEAD_SIZE) + localkeylen;
       tgeElemStep = TelemLen;
       tgeForward = 1;
       if (unlikely(tgeContainerptr >= 2048)) 
@@ -3316,7 +3324,7 @@ Dbacc::getElement(Signal* signal, OperationrecPtr& lockOwnerPtr)
       jam();
       tgeContainerptr = tgeContainerptr + ((ZHEAD_SIZE + ZBUF_SIZE) - ZCON_HEAD_SIZE);
       tgeElementptr = tgeContainerptr - 1;
-      tgeKeyptr = (tgeElementptr - ZELEM_HEAD_SIZE) - fragrecptr.p->localkeylen;
+      tgeKeyptr = (tgeElementptr - ZELEM_HEAD_SIZE) - localkeylen;
       tgeElemStep = 0 - TelemLen;
       tgeForward = (Uint32)-1;
       if (unlikely(tgeContainerptr >= 2048)) 
@@ -3360,22 +3368,31 @@ Dbacc::getElement(Signal* signal, OperationrecPtr& lockOwnerPtr)
 	  localkey2 = lockOwnerPtr.p->localdata[1];
         } else {
           jam();
+          Uint32 pos = tgeElementptr + tgeForward;
           hashValuePart = ElementHeader::getHashValuePart(tgeElementHeader);
-          localkey1 = gePageptr.p->word32[tgeElementptr + tgeForward];
-          localkey2 = 0;
+          localkey1 = gePageptr.p->word32[pos];
+          if (likely(localkeylen == 1))
+          {
+            localkey2 = Local_key::ref2page_idx(localkey1);
+            localkey1 = Local_key::ref2page_id(localkey1);
+          }
+          else
+          {
+            localkey2 = gePageptr.p->word32[pos + tgeForward];
+          }
         }
         if (hashValuePart == opHashValuePart) {
           jam();
           bool found;
           if (! searchLocalKey) 
 	  {
-            Uint32 len = readTablePk(localkey1, tgeElementHeader, 
+            Uint32 len = readTablePk(localkey1, localkey2, tgeElementHeader,
 				     lockOwnerPtr);
             found = (len == operationRecPtr.p->xfrmtupkeylen) &&
 	      (memcmp(Tkeydata, ckeys, len << 2) == 0);
           } else {
             jam();
-            found = (localkey1 == Tkeydata[0]);
+            found = (localkey1 == Tkeydata[0] && localkey2 == Tkeydata[1]);
           }
           if (found) 
 	  {
@@ -3460,21 +3477,20 @@ error:
 void
 Dbacc::report_dealloc(Signal* signal, const Operationrec* opPtrP)
 {
-  Uint32 localKey = opPtrP->localdata[0];
+  Uint32 localKey1 = opPtrP->localdata[0];
+  Uint32 localKey2 = opPtrP->localdata[1];
   Uint32 opbits = opPtrP->m_op_bits;
   Uint32 userptr= opPtrP->userptr;
   Uint32 scanInd = 
     ((opbits & Operationrec::OP_MASK) == ZSCAN_OP) || 
     (opbits & Operationrec::OP_LOCK_REQ);
   
-  if (localKey != ~(Uint32)0)
+  if (! Local_key::isInvalid(localKey1, localKey2))
   {
     signal->theData[0] = fragrecptr.p->myfid;
     signal->theData[1] = fragrecptr.p->myTableId;
-    Uint32 pageId = localKey >> MAX_TUPLES_BITS;
-    Uint32 pageIndex = localKey & ((1 << MAX_TUPLES_BITS) - 1);
-    signal->theData[2] = pageId;
-    signal->theData[3] = pageIndex;
+    signal->theData[2] = localKey1;
+    signal->theData[3] = localKey2;
     signal->theData[4] = userptr;
     signal->theData[5] = scanInd;
     EXECUTE_DIRECT(DBLQH, GSN_TUP_DEALLOCREQ, signal, 6);
@@ -4686,6 +4702,7 @@ Dbacc::release_lockowner(Signal* signal, OperationrecPtr opPtr, bool commit)
 	  jam();
 	  report_dealloc(signal, opPtr.p);
 	  newOwner.p->localdata[0] = ~(Uint32)0;
+	  newOwner.p->localdata[1] = ~(Uint32)0;
 	}
 	else
 	{
@@ -4734,6 +4751,7 @@ Dbacc::release_lockowner(Signal* signal, OperationrecPtr opPtr, bool commit)
     {
       report_dealloc(signal, opPtr.p);
       newOwner.p->localdata[0] = ~(Uint32)0;
+      newOwner.p->localdata[1] = ~(Uint32)0;
     }
     else
     {
@@ -6553,7 +6571,8 @@ void Dbacc::checkNextBucketLab(Signal* signal)
       ElementHeader::getOpPtrI(nsPageptr.p->word32[tnsElementptr]);
     ptrCheckGuard(queOperPtr, coprecsize, operationrec);
     if (queOperPtr.p->m_op_bits & Operationrec::OP_ELEMENT_DISAPPEARED ||
-	queOperPtr.p->localdata[0] == ~(Uint32)0) 
+	Local_key::isInvalid(queOperPtr.p->localdata[0],
+                             queOperPtr.p->localdata[1]))
     {
       jam();
       /* ------------------------------------------------------------------ */
@@ -6983,9 +7002,8 @@ bool Dbacc::getScanElement(Signal* signal)
 /* --------------------------------------------------------------------------------- */
 void Dbacc::initScanOpRec(Signal* signal) 
 {
-  Uint32 tisoTmp;
   Uint32 tisoLocalPtr;
-  Uint32 guard24;
+  Uint32 localkeylen = fragrecptr.p->localkeylen;
 
   scanPtr.p->scanOpsAllocated++;
 
@@ -7012,14 +7030,21 @@ void Dbacc::initScanOpRec(Signal* signal)
   operationRecPtr.p->elementPage = isoPageptr.i;
   operationRecPtr.p->m_op_bits = opbits;
   tisoLocalPtr = tisoElementptr + tisoIsforward;
-  guard24 = fragrecptr.p->localkeylen - 1;
-  for (tisoTmp = 0; tisoTmp <= guard24; tisoTmp++) {
-    arrGuard(tisoTmp, 2);
-    arrGuard(tisoLocalPtr, 2048);
-    operationRecPtr.p->localdata[tisoTmp] = isoPageptr.p->word32[tisoLocalPtr];
-    tisoLocalPtr = tisoLocalPtr + tisoIsforward;
-  }//for
+
   arrGuard(tisoLocalPtr, 2048);
+  Uint32 Tkey1 = isoPageptr.p->word32[tisoLocalPtr];
+  tisoLocalPtr = tisoLocalPtr + tisoIsforward;
+  if (localkeylen == 1)
+  {
+    operationRecPtr.p->localdata[0] = Local_key::ref2page_id(Tkey1);
+    operationRecPtr.p->localdata[1] = Local_key::ref2page_idx(Tkey1);
+  }
+  else
+  {
+    arrGuard(tisoLocalPtr, 2048);
+    operationRecPtr.p->localdata[0] = Tkey1;
+    operationRecPtr.p->localdata[1] = isoPageptr.p->word32[tisoLocalPtr];
+  }
   operationRecPtr.p->tupkeylen = fragrecptr.p->keyLength;
   operationRecPtr.p->xfrmtupkeylen = 0; // not used
 }//Dbacc::initScanOpRec()
@@ -7369,6 +7394,7 @@ bool Dbacc::searchScanContainer(Signal* signal)
 void Dbacc::sendNextScanConf(Signal* signal) 
 {
   Uint32 blockNo = refToMain(scanPtr.p->scanUserblockref);
+
   jam();
   /** ---------------------------------------------------------------------
    * LQH WILL NOT HAVE ANY USE OF THE TUPLE KEY LENGTH IN THIS CASE AND 
@@ -7379,8 +7405,7 @@ void Dbacc::sendNextScanConf(Signal* signal)
   signal->theData[2] = operationRecPtr.p->fid;
   signal->theData[3] = operationRecPtr.p->localdata[0];
   signal->theData[4] = operationRecPtr.p->localdata[1];
-  signal->theData[5] = fragrecptr.p->localkeylen;
-  EXECUTE_DIRECT(blockNo, GSN_NEXT_SCANCONF, signal, 6);
+  EXECUTE_DIRECT(blockNo, GSN_NEXT_SCANCONF, signal, 5);
   return;
 }//Dbacc::sendNextScanConf()
 

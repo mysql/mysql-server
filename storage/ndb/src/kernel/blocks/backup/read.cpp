@@ -24,26 +24,26 @@
 #include <AttributeHeader.hpp>
 #include <SimpleProperties.hpp>
 #include <ndb_version.h>
-#include <util/azlib.h>
+#include <util/ndbzio.h>
 
-bool readHeader(azio_stream*, BackupFormat::FileHeader *);
-bool readFragHeader(azio_stream*, BackupFormat::DataFile::FragmentHeader *);
-bool readFragFooter(azio_stream*, BackupFormat::DataFile::FragmentFooter *);
-Int32 readRecord(azio_stream*, Uint32 **);
+bool readHeader(ndbzio_stream*, BackupFormat::FileHeader *);
+bool readFragHeader(ndbzio_stream*, BackupFormat::DataFile::FragmentHeader *);
+bool readFragFooter(ndbzio_stream*, BackupFormat::DataFile::FragmentFooter *);
+Int32 readRecord(ndbzio_stream*, Uint32 **);
 
 NdbOut & operator<<(NdbOut&, const BackupFormat::FileHeader &); 
 NdbOut & operator<<(NdbOut&, const BackupFormat::DataFile::FragmentHeader &); 
 NdbOut & operator<<(NdbOut&, const BackupFormat::DataFile::FragmentFooter &); 
 
-bool readTableList(azio_stream*, BackupFormat::CtlFile::TableList **);
-bool readTableDesc(azio_stream*, BackupFormat::CtlFile::TableDescription **);
-bool readGCPEntry(azio_stream*, BackupFormat::CtlFile::GCPEntry **);
+bool readTableList(ndbzio_stream*, BackupFormat::CtlFile::TableList **);
+bool readTableDesc(ndbzio_stream*, BackupFormat::CtlFile::TableDescription **);
+bool readGCPEntry(ndbzio_stream*, BackupFormat::CtlFile::GCPEntry **);
 
 NdbOut & operator<<(NdbOut&, const BackupFormat::CtlFile::TableList &); 
 NdbOut & operator<<(NdbOut&, const BackupFormat::CtlFile::TableDescription &); 
 NdbOut & operator<<(NdbOut&, const BackupFormat::CtlFile::GCPEntry &); 
 
-Int32 readLogEntry(azio_stream*, Uint32**);
+Int32 readLogEntry(ndbzio_stream*, Uint32**);
 
 static Uint32 recNo;
 static Uint32 logEntryNo;
@@ -57,18 +57,18 @@ main(int argc, const char * argv[]){
     exit(1);
   }
 
-  azio_stream fo;
+  ndbzio_stream fo;
   bzero(&fo, sizeof(fo));
-  int r= azopen(&fo,argv[1], O_RDONLY);
-  
-  if(fo.file < 0)
+  int r= ndbzopen(&fo,argv[1], O_RDONLY);
+
+  if(r != 1)
   {
-    ndbout << "Failed to open" << argv[1] << endl;
-    ndbout_c("file: %d r: %d", fo.file, r);
+    ndbout_c("Failed to open file '%s', error: %d",
+             argv[1], r);
     exit(1);
   }
 
-  azio_stream* f = &fo;
+  ndbzio_stream* f = &fo;
 
   BackupFormat::FileHeader fileHeader;
   if(!readHeader(f, &fileHeader)){
@@ -215,7 +215,7 @@ main(int argc, const char * argv[]){
 	   << fileHeader.FileType << endl;
     break;
   }
-  azclose(f);
+  ndbzclose(f);
   return 0;
 }
 
@@ -226,10 +226,10 @@ static bool endian = false;
 static
 inline
 size_t
-aread(void * buf, size_t sz, size_t n, azio_stream* f)
+aread(void * buf, size_t sz, size_t n, ndbzio_stream* f)
 {
   int error = 0;
-  unsigned r = azread(f, buf, (sz * n), &error);
+  unsigned r = ndbzread(f, buf, (sz * n), &error);
   if (error || r != (sz * n))
   {
     printf("Failed to read!!");
@@ -239,7 +239,7 @@ aread(void * buf, size_t sz, size_t n, azio_stream* f)
 }
 
 bool 
-readHeader(azio_stream* f, BackupFormat::FileHeader * dst){
+readHeader(ndbzio_stream* f, BackupFormat::FileHeader * dst){
   if(aread(dst, 4, 3, f) != 3)
     RETURN_FALSE();
 
@@ -292,7 +292,7 @@ readHeader(azio_stream* f, BackupFormat::FileHeader * dst){
 }
 
 bool 
-readFragHeader(azio_stream* f, BackupFormat::DataFile::FragmentHeader * dst){
+readFragHeader(ndbzio_stream* f, BackupFormat::DataFile::FragmentHeader * dst){
   if(aread(dst, 1, sizeof(* dst), f) != sizeof(* dst))
     return false;
 
@@ -314,7 +314,7 @@ readFragHeader(azio_stream* f, BackupFormat::DataFile::FragmentHeader * dst){
 }
 
 bool 
-readFragFooter(azio_stream* f, BackupFormat::DataFile::FragmentFooter * dst){
+readFragFooter(ndbzio_stream* f, BackupFormat::DataFile::FragmentFooter * dst){
   if(aread(dst, 1, sizeof(* dst), f) != sizeof(* dst))
     RETURN_FALSE();
   
@@ -343,7 +343,7 @@ static union {
 } theData;
 
 Int32
-readRecord(azio_stream* f, Uint32 **dst){
+readRecord(ndbzio_stream* f, Uint32 **dst){
   Uint32 len;
   if(aread(&len, 1, 4, f) != 4)
     RETURN_FALSE();
@@ -367,7 +367,7 @@ readRecord(azio_stream* f, Uint32 **dst){
 }
 
 Int32
-readLogEntry(azio_stream* f, Uint32 **dst){
+readLogEntry(ndbzio_stream* f, Uint32 **dst){
   Uint32 len;
   if(aread(&len, 1, 4, f) != 4)
     RETURN_FALSE();
@@ -435,7 +435,7 @@ NdbOut & operator<<(NdbOut& ndbout,
 } 
 
 bool 
-readTableList(azio_stream* f, BackupFormat::CtlFile::TableList **ret){
+readTableList(ndbzio_stream* f, BackupFormat::CtlFile::TableList **ret){
   BackupFormat::CtlFile::TableList * dst = &theData.TableList;
   
   if(aread(dst, 4, 2, f) != 2)
@@ -461,7 +461,7 @@ readTableList(azio_stream* f, BackupFormat::CtlFile::TableList **ret){
 }
 
 bool 
-readTableDesc(azio_stream* f, BackupFormat::CtlFile::TableDescription **ret){
+readTableDesc(ndbzio_stream* f, BackupFormat::CtlFile::TableDescription **ret){
   BackupFormat::CtlFile::TableDescription * dst = &theData.TableDescription;
   
   if(aread(dst, 4, 3, f) != 3)
@@ -484,7 +484,7 @@ readTableDesc(azio_stream* f, BackupFormat::CtlFile::TableDescription **ret){
 }
 
 bool 
-readGCPEntry(azio_stream* f, BackupFormat::CtlFile::GCPEntry **ret){
+readGCPEntry(ndbzio_stream* f, BackupFormat::CtlFile::GCPEntry **ret){
   BackupFormat::CtlFile::GCPEntry * dst = &theData.GcpEntry;
   
   if(aread(dst, 4, 4, f) != 4)

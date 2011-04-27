@@ -47,12 +47,12 @@ public:
     Refused = 3,
     NoFreeOp = 4
   };
-  STATIC_CONST( LockSignalLength = 12 );
+  STATIC_CONST( LockSignalLength = 13 );
   STATIC_CONST( UndoSignalLength = 3 );
 private:
   Uint32 returnCode;
   Uint32 requestInfo;
-  Uint32 accOpPtr; 
+  Uint32 accOpPtr;
   // rest only if lock request
   Uint32 userPtr;
   Uint32 userRef;
@@ -60,7 +60,8 @@ private:
   Uint32 fragId;
   Uint32 fragPtrI;
   Uint32 hashValue;
-  Uint32 tupAddr;
+  Uint32 page_id;
+  Uint32 page_idx;
   Uint32 transId1;
   Uint32 transId2;
 };
