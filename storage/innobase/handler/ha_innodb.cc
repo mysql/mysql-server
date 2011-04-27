@@ -27,7 +27,9 @@ FOR A PARTICULAR PURPOSE. See the GNU General Public License for more details.
 
 You should have received a copy of the GNU General Public License along with
 this program; if not, write to the Free Software Foundation, Inc.,
-51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
+51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA
+
+*****************************************************************************/
 
 #include <sql_table.h>	// explain_filename, nz2, EXPLAIN_PARTITIONS_AS_COMMENT,
 			// EXPLAIN_FILENAME_MAX_EXTRA_LENGTH
@@ -1372,7 +1374,7 @@ innobase_get_stmt(
 }
 
 /**********************************************************************//**
-Get the current seting of the table_def_size global parameter. We do
+Get the current setting of the table_def_size global parameter. We do
 a dirty read because for one there is no synchronization object and
 secondly there is little harm in doing so even if we get a torn read.
 @return	value of table_def_size */
