@@ -7104,11 +7104,10 @@ static SEL_TREE *get_full_func_mm_tree(RANGE_OPT_PARAM *param,
   Item_equal *item_equal= field_item->item_equal;
   if (item_equal)
   {
-    Item_equal_iterator it(*item_equal);
-    Item_field *item;
-    while ((item= it++))
+    Item_equal_fields_iterator it(*item_equal);
+    while (it++)
     {
-      Field *f= item->field;
+      Field *f= it.get_curr_field();
       if (field->eq(f))
         continue;
       if (!((ref_tables | f->table->map) & param_comp))
@@ -7259,11 +7258,11 @@ static SEL_TREE *get_mm_tree(RANGE_OPT_PARAM *param,COND *cond)
     Item_equal *item_equal= (Item_equal *) cond;    
     if (!(value= item_equal->get_const()))
       DBUG_RETURN(0);
-    Item_equal_iterator it(*item_equal);
+    Item_equal_fields_iterator it(*item_equal);
     ref_tables= value->used_tables();
-    while ((field_item= it++))
+    while (it++)
     {
-      Field *field= field_item->field;
+      Field *field= it.get_curr_field();
       Item_result cmp_type= field->cmp_type();
       if (!((ref_tables | field->table->map) & param_comp))
       {

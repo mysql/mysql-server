@@ -26,7 +26,7 @@ class Arg_comparator;
 
 typedef int (Arg_comparator::*arg_cmp_func)();
 
-typedef int (*Item_field_cmpfunc)(Item_field *f1, Item_field *f2, void *arg); 
+typedef int (*Item_field_cmpfunc)(Item *f1, Item *f2, void *arg); 
 
 class Arg_comparator: public Sql_alloc
 {
@@ -1614,28 +1614,64 @@ public:
 
 class Item_equal: public Item_bool_func
 {
-  List<Item_field> fields; /* list of equal field items                    */
-  Item *const_item;        /* optional constant item equal to fields items */
+  /*
+    The list of equal items. Currently the list can contain:
+     - Item_fields items for references to table columns
+     - Item_direct_view_ref items for references to view columns
+     - one const item
+
+    If the list contains a constant item this item is always first in the list.
+    The list contains at least two elements.
+    Currently all Item_fields/Item_direct_view_ref items in the list should
+    refer to table columns with equavalent type definitions. In particular
+    if these are string columns they should have the same charset/collation.
+
+    Use objects of the companion class Item_equal_fields_iterator to iterate
+    over all items from the list of the Item_field/Item_direct_view_ref classes.
+  */ 
+  List<Item> equal_items; 
+  /* 
+     TRUE <-> one of the items is a const item.
+     Such item is always first in in the equal_items list
+  */
+  bool with_const;        
+  /* 
+    The field eval_item is used when this item is evaluated
+    with the method val_int()
+  */  
   cmp_item *eval_item;
-  Arg_comparator cmp;
+  /*
+    This initially is set to FALSE. It becomes TRUE when this item is evaluated
+    as being always false. If the flag is TRUE the contents of the list 
+    the equal_items should be ignored.
+  */
   bool cond_false;
+  /* 
+    compare_as_dates=TRUE <-> constants equal to fields from equal_items
+    must be compared as datetimes and not as strings.
+    compare_as_dates can be TRUE only if with_const=TRUE 
+  */
   bool compare_as_dates;
+  /* 
+    The comparator used to compare constants equal to fields from equal_items
+    as datetimes. The comparator is used only if compare_as_dates=TRUE
+  */
+  Arg_comparator cmp;
 public:
   inline Item_equal()
-    : Item_bool_func(), const_item(0), eval_item(0), cond_false(0)
+    : Item_bool_func(), with_const(FALSE), eval_item(0), cond_false(0)
   { const_item_cache=0 ;}
-  Item_equal(Item_field *f1, Item_field *f2);
-  Item_equal(Item *c, Item_field *f);
+  Item_equal(Item *f1, Item *f2, bool with_const_item);
   Item_equal(Item_equal *item_equal);
-  inline Item* get_const() { return const_item; }
-  void compare_const(Item *c);
-  void add(Item *c, Item_field *f);
-  void add(Item *c);
-  void add(Item_field *f);
-  uint members();
+  /* Currently the const item is always the first in the list of equal items */
+  inline Item* get_const() { return with_const ? equal_items.head() : NULL; }
+  void add_const(Item *c, Item *f = NULL);
+  /** Add a non-constant item to the multiple equality */
+  void add(Item *f) { equal_items.push_back(f); }
   bool contains(Field *field);
-  Item_field* get_first(Item_field *field);
-  uint n_fields() { return fields.elements; }
+  Item* get_first(Item *field);
+  /** Get number of field items / references to field items in this object */   
+  uint n_field_items() { return equal_items.elements-test(with_const); }
   void merge(Item_equal *item);
   void update_const();
   enum Functype functype() const { return MULT_EQUAL_FUNC; }
@@ -1643,15 +1679,14 @@ public:
   const char *func_name() const { return "multiple equal"; }
   optimize_type select_optimize() const { return OPTIMIZE_EQUAL; }
   void sort(Item_field_cmpfunc compare, void *arg);
-  friend class Item_equal_iterator;
   void fix_length_and_dec();
   bool fix_fields(THD *thd, Item **ref);
   void update_used_tables();
   bool walk(Item_processor processor, bool walk_subquery, uchar *arg);
   Item *transform(Item_transformer transformer, uchar *arg);
   virtual void print(String *str, enum_query_type query_type);
-  CHARSET_INFO *compare_collation() 
-  { return fields.head()->collation.collation; }
+  CHARSET_INFO *compare_collation();
+  friend class Item_equal_fields_iterator;
   friend Item *eliminate_item_equal(COND *cond, COND_EQUAL *upper_levels,
                            Item_equal *item_equal);
   friend bool setup_sj_materialization(struct st_join_table *tab);
@@ -1672,22 +1707,51 @@ public:
 };
 
 
-class Item_equal_iterator : public List_iterator_fast<Item_field>
+/* 
+  The class Item_equal_fields_iterator is used to iterate over references
+  to table/view columns from a list of equal items.
+*/ 
+
+class Item_equal_fields_iterator : public List_iterator_fast<Item>
 {
+  Item_equal *item_equal;
+  Item *curr_item;
 public:
-  inline Item_equal_iterator(Item_equal &item_equal) 
-    :List_iterator_fast<Item_field> (item_equal.fields)
-  {}
-  inline Item_field* operator++(int)
-  { 
-    Item_field *item= (*(List_iterator_fast<Item_field> *) this)++;
-    return  item;
+  Item_equal_fields_iterator(Item_equal &item_eq) 
+    :List_iterator_fast<Item> (item_eq.equal_items)
+  {
+    curr_item= NULL;
+    item_equal= &item_eq;
+    if (item_eq.with_const)
+    {
+      List_iterator_fast<Item> *list_it= this;
+      curr_item=  (*list_it)++;
+    }
   }
-  inline void rewind(void) 
+  Item* operator++(int)
   { 
-    List_iterator_fast<Item_field>::rewind();
+    List_iterator_fast<Item> *list_it= this;
+    curr_item= (*list_it)++;
+    return curr_item;
   }
+  Item ** ref()
+  {
+    return List_iterator_fast<Item>::ref();
+  }
+  void rewind(void) 
+  { 
+    List_iterator_fast<Item> *list_it= this;
+    list_it->rewind();
+    if (item_equal->with_const)
+      curr_item= (*list_it)++;
+  }  
+  Field *get_curr_field()
+  {
+    Item_field *item= (Item_field *) (curr_item->real_item());
+     return item->field;
+  }  
 };
+
 
 class Item_cond_and :public Item_cond
 {

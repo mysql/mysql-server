@@ -4669,13 +4669,14 @@ Item_equal *Item_field::find_item_equal(COND_EQUAL *cond_equal)
 
 
 /**
-  Check whether a field can be substituted by an equal item.
+  Check whether a field item can be substituted for an equal item
 
-  The function checks whether a substitution of the field
-  occurrence for an equal item is valid.
+  @details
+  The function checks whether a substitution of a field item for
+  an equal item is valid.
 
-  @param arg   *arg != NULL <-> the field is in the context where
-               substitution for an equal item is valid
+  @param arg   *arg != NULL && **arg <-> the field is in the context
+               where substitution for an equal item is valid
 
   @note
     The following statement is not always true:
@@ -4700,7 +4701,8 @@ Item_equal *Item_field::find_item_equal(COND_EQUAL *cond_equal)
 
 bool Item_field::subst_argument_checker(uchar **arg)
 {
-  return (result_type() != STRING_RESULT) || (*arg);
+  return (!(*arg) && (result_type() != STRING_RESULT)) ||
+          ((*arg) && (**arg));
 }
 
 
@@ -4737,6 +4739,7 @@ static void convert_zerofill_number_to_string(Item **item, Field_num *field)
   Set a pointer to the multiple equality the field reference belongs to
   (if any).
 
+  @details
   The function looks for a multiple equality containing the field item
   among those referenced by arg.
   In the case such equality exists the function does the following.
@@ -4813,6 +4816,7 @@ bool Item_field::set_no_const_sub(uchar *arg)
   Replace an Item_field for an equal Item_field that evaluated earlier
   (if any).
 
+  @details
   If this->item_equal points to some item and coincides with arg then
   the function returns a pointer to an item that is taken from
   the very beginning of the item_equal list which the Item_field
@@ -4827,7 +4831,7 @@ bool Item_field::set_no_const_sub(uchar *arg)
 
   @note
     This function is supposed to be called as a callback parameter in calls
-    of the thransformer method.
+    of the transformer method.
 
   @return
     - pointer to a replacement Item_field if there is a better equal item or
@@ -4847,7 +4851,9 @@ Item *Item_field::replace_equal_field(uchar *arg)
         return this;
       return const_item;
     }
-    Item_field *subst= item_equal->get_first(this);
+    Item_field *subst= (Item_field *)(item_equal->get_first(this));
+    if (subst)
+      subst= (Item_field *) (subst->real_item());
     if (subst && !field->eq(subst->field))
       return subst;
   }
@@ -6393,10 +6399,11 @@ Item* Item_ref::compile(Item_analyzer analyzer, uchar **arg_p,
 
   /* Compile the Item we are referencing. */
   DBUG_ASSERT((*ref) != NULL);
-  Item *new_item= (*ref)->compile(analyzer, arg_p, transformer, arg_t);
+  uchar *arg_v= *arg_p;
+  Item *new_item= (*ref)->compile(analyzer, &arg_v, transformer, arg_t);
   if (new_item && *ref != new_item)
     current_thd->change_item_tree(ref, new_item);
-  
+
   /* Transform this Item object. */
   return (this->*transformer)(arg_t);
 }
@@ -7245,6 +7252,130 @@ bool Item_direct_view_ref::eq(const Item *item, bool binary_cmp) const
   }
   return FALSE;
 }
+
+
+Item_equal *Item_direct_view_ref::find_item_equal(COND_EQUAL *cond_equal)
+{
+  Item* field_item= real_item();
+  if (field_item->type() != FIELD_ITEM)
+    return NULL;
+  return ((Item_field *) field_item)->find_item_equal(cond_equal);  
+}
+
+
+/**
+  Check whether a reference to field item can be substituted for an equal item
+
+  @details
+  The function checks whether a substitution of a reference to field item for
+  an equal item is valid.
+
+  @param arg   *arg != NULL && **arg <-> the reference is in the context
+               where substitution for an equal item is valid
+
+  @note
+    See also the note for Item_field::subst_argument_checker
+
+  @retval
+    TRUE   substitution is valid
+  @retval
+    FALSE  otherwise
+*/
+bool Item_direct_view_ref::subst_argument_checker(uchar **arg)
+{
+  bool res=  (!(*arg) && (result_type() != STRING_RESULT)) ||
+          ((*arg) && (**arg));
+  /* Block any substitution into the wrapped object */
+  if (*arg)
+    **arg= (uchar) 0;
+  return res; 
+}
+
+
+/**
+  Set a pointer to the multiple equality the view field reference belongs to
+  (if any).
+
+  @details
+  The function looks for a multiple equality containing this item of the type
+  Item_direct_view_ref among those referenced by arg.
+  In the case such equality exists the function does the following.
+  If the found multiple equality contains a constant, then the item
+  is substituted for this constant, otherwise the function sets a pointer
+  to the multiple equality in the item.
+
+  @param arg    reference to list of multiple equalities where
+                the item (this object) is to be looked for
+
+  @note
+    This function is supposed to be called as a callback parameter in calls
+    of the compile method.
+
+  @note 
+    The function calls Item_field::equal_fields_propagator for the field item
+    this->real_item() to do the job. Then it takes the pointer to equal_item
+    from this field item and assigns it to this->item_equal.
+
+  @return
+    - pointer to the replacing constant item, if the field item was substituted
+    - pointer to the field item, otherwise.
+*/
+
+Item *Item_direct_view_ref::equal_fields_propagator(uchar *arg)
+{
+  Item *field_item= real_item();
+  if (field_item->type() != FIELD_ITEM)
+    return this;
+  Item *item= field_item->equal_fields_propagator(arg);
+  set_item_equal(field_item->get_item_equal());
+  field_item->set_item_equal(NULL);
+  if (item != field_item)
+    return item;
+  return this;
+}
+
+
+/**
+  Replace an Item_direct_view_ref for an equal Item_field evaluated earlier
+  (if any).
+
+  @details
+  If this->item_equal points to some item and coincides with arg then
+  the function returns a pointer to a field item that is referred to by the 
+  first element of the item_equal list which the Item_direct_view_ref
+  object belongs to unless item_equal contains  a constant item. In this
+  case the function returns this constant item (if the substitution does
+   not require conversion).   
+  If the Item_direct_view_item object does not refer any Item_equal object
+  'this' is returned .
+
+  @param arg   NULL or points to so some item of the Item_equal type  
+
+  @note
+    This function is supposed to be called as a callback parameter in calls
+    of the transformer method.
+
+  @note 
+    The function calls Item_field::replace_equal_field for the field item
+    this->real_item() to do the job.
+
+  @return
+    - pointer to a replacement Item_field if there is a better equal item or
+      a pointer to a constant equal item;
+    - this - otherwise.
+*/
+
+Item *Item_direct_view_ref::replace_equal_field(uchar *arg)
+{
+  Item *field_item= real_item();
+  if (field_item->type() != FIELD_ITEM)
+    return this;
+  field_item->set_item_equal(item_equal);
+  Item *item= field_item->replace_equal_field(arg);
+  field_item->set_item_equal(0);
+  return item;
+}
+
 
 bool Item_default_value::eq(const Item *item, bool binary_cmp) const
 {

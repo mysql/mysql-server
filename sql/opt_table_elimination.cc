@@ -1208,15 +1208,16 @@ void build_eq_mods_for_cond(Dep_analysis_context *ctx,
     if (!(fvl= new List<Dep_value_field>))
       break; /* purecov: inspected */
 
-    Item_equal_iterator it(*item_equal);
-    Item_field *item;
+    Item_equal_fields_iterator it(*item_equal);
+    Item *item;
     Item *bound_item= item_equal->get_const();
     while ((item= it++))
     {
+      Field *equal_field= it.get_curr_field();
       if ((item->used_tables() & ctx->usable_tables))
       {
         Dep_value_field *field_val;
-        if ((field_val= ctx->get_field_value(item->field)))
+        if ((field_val= ctx->get_field_value(equal_field)))
           fvl->push_back(field_val);
       }
       else
