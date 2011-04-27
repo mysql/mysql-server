@@ -52,12 +52,8 @@ class NdbQuery;
 class NdbQueryOperation;
 class NdbQueryOperationTypeWrapper;
 class NdbQueryParamValue;
+class ndb_pushed_join;
 class ndb_query_def_list;
-
-namespace AQP{
-  class Join_plan;
-  class Table_access;
-};
 
 typedef enum ndb_index_type {
   UNDEFINED_INDEX = 0,
@@ -410,11 +406,11 @@ class Thd_ndb
 int ndbcluster_commit(handlerton *hton, THD *thd, bool all);
 class ha_ndbcluster: public handler
 {
+  friend class ndb_pushed_builder_ctx;
+
  public:
   ha_ndbcluster(handlerton *hton, TABLE_SHARE *table);
   ~ha_ndbcluster();
-
-  int get_pushability() const;
 
 #ifndef NDB_WITHOUT_READ_BEFORE_WRITE_REMOVAL
   void column_bitmaps_signal(uint sig_type);
@@ -593,8 +589,8 @@ static void set_tabname(const char *pathname, char *tabname);
  */
   void cond_pop();
 
-  int make_pushed_join(class ndb_pushed_builder_ctx& context,
-		       const AQP::Table_access* join_root);
+  bool maybe_pushable_join(const char*& reason) const;
+  int assign_pushed_join(const ndb_pushed_join* pushed_join);
 
   bool test_push_flag(enum ha_push_flag flag) const;
 
@@ -938,7 +934,7 @@ private:
   ha_rows m_autoincrement_prefetch;
 
   // Joins pushed to NDB.
-  const class ndb_pushed_join
+  const ndb_pushed_join
        *m_pushed_join_member;            // Pushed join def. I am member of
   int m_pushed_join_operation;           // Op. id. in above pushed join
   static const int PUSHED_ROOT= 0;       // Op. id. if I'm root
@@ -971,13 +967,6 @@ int ndbcluster_find_files(THD *thd,const char *db,const char *path,
 int ndbcluster_table_exists_in_engine(THD* thd,
                                       const char *db, const char *name);
 void ndbcluster_print_error(int error, const NdbOperation *error_op);
-
-/**
- * Calling THDVAR(thd, join_pushdown) from another source file would not work,
- * since MYSQL_THDVAR_BOOL is static to ha_ndbcluster.cc and cannot be made
- * extern in any clean way.
- */
-bool ndbcluster_join_pushdown_enabled(THD* thd);
 
 static const char ndbcluster_hton_name[]= "ndbcluster";
 static const int ndbcluster_hton_name_length=sizeof(ndbcluster_hton_name)-1;

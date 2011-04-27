@@ -477,8 +477,7 @@ from t1
  join t1 as t2 on t2.a = t1.a and t2.b = t1.b
  join t1 as t3 on t3.a = t2.c and t3.b = t1.c;
 
-# t4 is NOT pushable as t2 & t3 does not have 
-# a parent / grandparent relationship
+# t4 is pushable iff we force an artificial parental dependency between t2 & t3.
 explain extended
 select straight_join *
 from t1
@@ -526,10 +525,10 @@ from t1
 # may be made pushable by equality set replacement.
 #
 # BEWARE: mysqld optimizer may do its own replacement
-#    before ha_ndbcluster analyze the AQP. We therefore 
+#    before ha_ndbcluster_push analyze the AQP. We therefore 
 #    provide multiple similar testcases and hope that
 #    some of them will trigger the replacement code in 
-#    ha_ndbcluster :-o
+#    ha_ndbcluster_push :-o
 explain extended
 select straight_join *
 from t1
@@ -607,6 +606,58 @@ from t1
  join t1 as t2 on t2.a = t1.a and t2.b = t1.b
  join t1 as t3 on t3.a = t1.c and t3.b = t1.d
  join t1 as t4 on t4.a = t3.c and t4.b = t1.b;
+
+# Added more multidependency tests;
+#
+
+explain extended
+select straight_join *
+from t1
+ join t1 as t2  on t2.a = t1.a and t2.b = t1.b
+ join t1 as t2x on t2x.a = t2.c and t2x.b = t2.d
+ join t1 as t3x on t3x.a = t1.c and t3x.b = t1.d
+ join t1 as t4  on t4.a = t3x.c and t4.b = t2x.c;
+
+explain extended
+select straight_join *
+from t1
+ join t1 as t2  on t2.a = t1.a and t2.b = t1.b
+ join t1 as t2x on t2x.a = t2.c and t2x.b = t2.d
+ join t1 as t3  on t3.a = t1.c and t3.b = t1.d
+ join t1 as t3x on t3x.a = t3.c and t3x.b = t3.d
+ join t1 as t4  on t4.a = t3x.c and t4.b = t2x.c; 
+
+explain extended
+select straight_join *
+from t1
+ join t1 as t2  on t2.a = t1.a and t2.b = t1.b
+ join t1 as t3  on t3.a = t1.c and t3.b = t1.d
+ join t1 as t2x on t2x.a = t2.c and t2x.b = t2.d
+ join t1 as t3x on t3x.a = t3.c and t3x.b = t3.d
+ join t1 as t4  on t4.a = t3x.c and t4.b = t2x.c; 
+
+# 't3' is not referred as ancestor and should not be
+# included in the forced dependencies
+# (Depends directly on 't1' and can be bushy wrt. to
+#  the other tables)
+explain extended
+select straight_join *
+from t1
+ join t1 as t2  on t2.a = t1.a and t2.b = t1.b
+ join t1 as t2x on t2x.a = t2.c and t2x.b = t2.d
+ join t1 as t3  on t3.a = t1.c and t3.b = t1.d
+ join t1 as t3x on t3x.a = t1.c and t3x.b = t1.d
+ join t1 as t4  on t4.a = t3x.c and t4.b = t2x.c;
+
+# 't3' is still independent - see comment above.
+explain extended
+select straight_join *
+from t1
+ join t1 as t2  on t2.a = t1.a and t2.b = t1.b
+ join t1 as t2x on t2x.a = t2.c and t2x.b = t2.d
+ join t1 as t3  on t3.a = t1.c and t3.b = t1.b
+ join t1 as t3x on t3x.a = t1.c and t3x.b = t1.d
+ join t1 as t4  on t4.a = t3x.c and t4.b = t2x.c;
 
 
 # Test a combination of pushed table scan (x, y)
@@ -1459,18 +1510,22 @@ select *
 from t1
 join t1 as t2 on (t2.b = t1.b or t2.b = t1.a)
 join t1 as t3 on t3.a = t2.a
-join t1 as t4 on t4.a = t3.b
-;
+join t1 as t4 on t4.a = t3.b;
 
 set ndb_join_pushdown=true;
 
+explain extended
+select *
+from t1
+join t1 as t2 on (t2.b = t1.b or t2.b = t1.a)
+join t1 as t3 on t3.a = t2.a
+join t1 as t4 on t4.a = t3.b;
 --sorted_result
 select *
 from t1
 join t1 as t2 on (t2.b = t1.b or t2.b = t1.a)
 join t1 as t3 on t3.a = t2.a
-join t1 as t4 on t4.a = t3.b
-;
+join t1 as t4 on t4.a = t3.b;
 
 ## Test subquery execution where 'Full scan on null key' strategy requires
 ## table scan execution in addition to the key lookup which was prepared
