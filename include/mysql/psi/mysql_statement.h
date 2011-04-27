@@ -29,7 +29,19 @@
   @{
 */
 
-#ifdef HAVE_PSI_INTERFACE
+/**
+  @def mysql_statement_register(P1, P2, P3)
+  Statement registration.
+*/
+#ifdef HAVE_PSI_STATEMENT_INTERFACE
+#define mysql_statement_register(P1, P2, P3) \
+  inline_mysql_statement_register(P1, P2, P3)
+#else
+#define mysql_statement_register(P1, P2, P3) \
+  do {} while (0)
+#endif
+
+#ifdef HAVE_PSI_STATEMENT_INTERFACE
   #define MYSQL_START_STATEMENT(STATE, K, DB, DB_LEN) \
     inline_mysql_start_statement(STATE, K, DB, DB_LEN, __FILE__, __LINE__)
 #else
@@ -37,7 +49,7 @@
     NULL
 #endif
 
-#ifdef HAVE_PSI_INTERFACE
+#ifdef HAVE_PSI_STATEMENT_INTERFACE
   #define MYSQL_REFINE_STATEMENT(LOCKER, K) \
     inline_mysql_refine_statement(LOCKER, K)
 #else
@@ -45,7 +57,7 @@
     NULL
 #endif
 
-#ifdef HAVE_PSI_INTERFACE
+#ifdef HAVE_PSI_STATEMENT_INTERFACE
   #define MYSQL_SET_STATEMENT_TEXT(LOCKER, P1, P2) \
     inline_mysql_set_statement_text(LOCKER, P1, P2)
 #else
@@ -53,7 +65,7 @@
     do {} while (0)
 #endif
 
-#ifdef HAVE_PSI_INTERFACE
+#ifdef HAVE_PSI_STATEMENT_INTERFACE
   #define MYSQL_SET_STATEMENT_LOCK_TIME(LOCKER, P1) \
     inline_mysql_set_statement_lock_time(LOCKER, P1)
 #else
@@ -61,7 +73,7 @@
     do {} while (0)
 #endif
 
-#ifdef HAVE_PSI_INTERFACE
+#ifdef HAVE_PSI_STATEMENT_INTERFACE
   #define MYSQL_SET_STATEMENT_ROWS_SENT(LOCKER, P1) \
     inline_mysql_set_statement_rows_sent(LOCKER, P1)
 #else
@@ -69,7 +81,7 @@
     do {} while (0)
 #endif
 
-#ifdef HAVE_PSI_INTERFACE
+#ifdef HAVE_PSI_STATEMENT_INTERFACE
   #define MYSQL_SET_STATEMENT_ROWS_EXAMINED(LOCKER, P1) \
     inline_mysql_set_statement_rows_examined(LOCKER, P1)
 #else
@@ -77,7 +89,7 @@
     do {} while (0)
 #endif
 
-#ifdef HAVE_PSI_INTERFACE
+#ifdef HAVE_PSI_STATEMENT_INTERFACE
   #define MYSQL_END_STATEMENT(LOCKER, DA) \
     inline_mysql_end_statement(LOCKER, DA)
 #else
@@ -85,7 +97,14 @@
     do {} while (0)
 #endif
 
-#ifdef HAVE_PSI_INTERFACE
+#ifdef HAVE_PSI_STATEMENT_INTERFACE
+static inline void inline_mysql_statement_register(
+  const char *category, PSI_statement_info *info, int count)
+{
+  if (likely(PSI_server != NULL))
+    PSI_server->register_statement(category, info, count);
+}
+
 static inline struct PSI_statement_locker *
 inline_mysql_start_statement(PSI_statement_locker_state *state,
                              PSI_statement_key key,

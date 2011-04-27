@@ -543,22 +543,19 @@ void my_init_mysys_psi_keys()
   const char* category= "mysys";
   int count;
 
-  if (PSI_server == NULL)
-    return;
-
   count= sizeof(all_mysys_mutexes)/sizeof(all_mysys_mutexes[0]);
-  PSI_server->register_mutex(category, all_mysys_mutexes, count);
+  mysql_mutex_register(category, all_mysys_mutexes, count);
 
   count= sizeof(all_mysys_conds)/sizeof(all_mysys_conds[0]);
-  PSI_server->register_cond(category, all_mysys_conds, count);
+  mysql_cond_register(category, all_mysys_conds, count);
 
 #ifdef USE_ALARM_THREAD
   count= sizeof(all_mysys_threads)/sizeof(all_mysys_threads[0]);
-  PSI_server->register_thread(category, all_mysys_threads, count);
+  mysql_thread_register(category, all_mysys_threads, count);
 #endif /* USE_ALARM_THREAD */
 
   count= sizeof(all_mysys_files)/sizeof(all_mysys_files[0]);
-  PSI_server->register_file(category, all_mysys_files, count);
+  mysql_file_register(category, all_mysys_files, count);
 }
 #endif /* HAVE_PSI_INTERFACE */
 
