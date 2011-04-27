@@ -419,29 +419,6 @@ set @b1 = concat(@b1,@b1);
 INSERT INTO t8 () VALUES(1,@b1,'Kyle'),(2,@b1,'JOE'),(3,@b1,'QA');
 *** Drop t8  ***
 DROP TABLE t8;
-STOP SLAVE;
-RESET SLAVE;
-CREATE TABLE t9 (a INT PRIMARY KEY, b BLOB, c CHAR(5),
-d TIMESTAMP,
-e INT NOT NULL) ENGINE='NDB';
-*** Create t9 on Master ***
-CREATE TABLE t9 (a INT PRIMARY KEY, b BLOB, c CHAR(5)
-) ENGINE='NDB';
-RESET MASTER;
-*** Start Slave ***
-START SLAVE;
-*** Master Data Insert ***
-set @b1 = 'b1b1b1b1';
-set @b1 = concat(@b1,@b1);
-INSERT INTO t9 () VALUES(1,@b1,'Kyle'),(2,@b1,'JOE'),(3,@b1,'QA');
-include/wait_for_slave_sql_to_stop.inc
-Last_SQL_Errno=1032
-Last_SQL_Error
-Error 'Can't find record in 't9'' on query. Default database: ''. Query: 'COMMIT'
-STOP SLAVE;
-SET GLOBAL SQL_SLAVE_SKIP_COUNTER=2;
-START SLAVE;
-DROP TABLE t9;
 *** Create t10 on slave  ***
 STOP SLAVE;
 RESET SLAVE;
