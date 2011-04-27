@@ -1208,6 +1208,8 @@ private:
   // (Only one of theScanningOp/m_scanningQuery be non-NULL,
   //  which indirectly indicates the type)
   NdbQueryImpl* m_scanningQuery;
+
+  Uint32 m_tcRef;
 };
 
 #ifndef DOXYGEN_SHOULD_SKIP_INTERNAL
