@@ -19,59 +19,24 @@
 #pragma interface                       /* gcc class implementation */
 #endif
 
-#include <abstract_query_plan.h>
+#include "sql_bitmap.h"
 
-#define EXPLAIN_NO_PUSH(msgfmt, ...)                              \
-do                                                                \
-{                                                                 \
-  if (unlikely(current_thd->lex->describe & DESCRIBE_EXTENDED))   \
-  {                                                               \
-    ndbcluster_explain_no_push ((msgfmt), __VA_ARGS__);           \
-  }                                                               \
-}                                                                 \
-while(0)
+class NdbQueryBuilder;
+class NdbQueryOperand;
+class NdbQueryOperationDef;
+class NdbError;
+class ndb_pushed_builder_ctx;
 
-int ndbcluster_make_pushed_join(handlerton *hton, THD* thd,
-				AQP::Join_plan* plan);
-
-inline bool ndbcluster_is_lookup_operation(AQP::enum_access_type accessType)
-{
-  return accessType == AQP::AT_PRIMARY_KEY ||
-    accessType == AQP::AT_MULTI_PRIMARY_KEY ||
-    accessType == AQP::AT_UNIQUE_KEY;
-}
-
-void ndbcluster_explain_no_push(const char* msgfmt, ...);
+namespace AQP{
+  class Join_plan;
+  class Table_access;
+};
 
 void ndbcluster_build_key_map(const NdbDictionary::Table* table, 
 			      const NDB_INDEX_DATA& index,
 			      const KEY *key_def,
 			      uint ix_map[]);
 
-/**
- * This is a list of NdbQueryDef objects that have been created within a 
- * transaction. This list is kept to make sure that they are all released 
- * when the transaction ends.
- * An NdbQueryDef object is required to live longer than any NdbQuery object
- * instantiated from it. Since NdbQueryObjects may be kept until the 
- * transaction ends, this list is necessary.
- */
-class ndb_query_def_list
-{
-public:
-  ndb_query_def_list(const NdbQueryDef* def, const ndb_query_def_list* next):
-    m_def(def), m_next(next){}
-
-  const NdbQueryDef* get_def() const
-  { return m_def; }
-
-  const ndb_query_def_list* get_next() const
-  { return m_next; }
-
-private:
-  const NdbQueryDef* const m_def;
-  const ndb_query_def_list* const m_next;
-};
 
 /** 
  * This type is used in conjunction with AQP::Join_plan and represents a set 
@@ -87,152 +52,33 @@ public:
   explicit ndb_table_access_map()
    : table_bitmap(0)
   {}
-
-  explicit ndb_table_access_map(table_map bitmap)
+  explicit ndb_table_access_map(uint table_no)
    : table_bitmap(0)
-//{ set_map(table); } .. Bitmap<>::set_map() is expected to be available in the near future
-  {
-    for (uint i= 0; bitmap!=0; i++, bitmap>>=1)
-    {
-      if (bitmap & 1)
-        set_bit(i);
-    }
+  { set_bit(table_no);
   }
-
-  explicit ndb_table_access_map(const AQP::Table_access* const table)
-   : table_bitmap(0)
-  { set_bit(table->get_table()->tablenr); }
 
   void add(const ndb_table_access_map& table_map)
   { // Require const_cast as signature of class Bitmap::merge is not const correct
     merge(const_cast<ndb_table_access_map&>(table_map));
   }
-  void add(const AQP::Table_access* const table)
+  void add(uint table_no)
   {
-    ndb_table_access_map table_map(table);
-    add(table_map);
+    set_bit(table_no);
   }
 
   bool contain(const ndb_table_access_map& table_map) const
   {
     return table_map.is_subset(*this);
   }
-  bool contain_table(const AQP::Table_access* const table) const
+  bool contain(uint table_no) const
   {
-    ndb_table_access_map table_map(table);
-    return contain(table_map);
+    return is_set(table_no);
   }
+
+  uint first_table(uint start= 0) const;
+  uint last_table(uint start= MAX_TABLES) const;
+
 }; // class ndb_table_access_map
-
-
-/**
- * Contains the context and helper methods used during ::make_pushed_join().
- *
- * Interacts with the AQP which provides interface to the query prepared by
- * the mysqld optimizer.
- *
- * Execution plans built for pushed joins are stored inside this builder context.
- */
-class ndb_pushed_builder_ctx
-{
-public:
-
-  ndb_pushed_builder_ctx(AQP::Join_plan& plan)
-   : m_plan(plan), m_join_root(), m_join_scope(), m_const_scope()
-  { 
-    if (plan.get_access_count() > 1)
-      init_pushability();
-  }
-
-  /** Define root of pushable tree.*/
-  void set_root(const AQP::Table_access* join_root);
-
-  const AQP::Join_plan& plan() const
-  { return m_plan; }
-
-  const AQP::Table_access* join_root() const
-  { return m_join_root; }
-
-  const ndb_table_access_map& join_scope() const
-  { return m_join_scope; }
-
-  const ndb_table_access_map& const_scope() const
-  { return m_const_scope; }
-
-  const class NdbQueryOperationDef* 
-    get_query_operation(const AQP::Table_access* table) const
-  {
-    DBUG_ASSERT(m_join_scope.contain_table(table));
-    return m_tables[table->get_access_no()].op;
-  }
-
-  const AQP::Table_access* get_referred_table_access(
-                  const ndb_table_access_map& used_tables) const;
-
-  bool is_pushable_as_parent(
-                  const AQP::Table_access* table);
-
-  bool is_pushable_as_child(
-                  const AQP::Table_access* table,
-                  const Item* join_items[],
-                  const AQP::Table_access*& parent);
-
-  void add_pushed(const AQP::Table_access* table,
-                  const AQP::Table_access* parent,
-                  const NdbQueryOperationDef* query_op);
-
-  // Check if 'table' is child of some of the specified 'parents'
-  bool is_child_of(const AQP::Table_access* table,
-                   const ndb_table_access_map& parents) const
-  {
-    DBUG_ASSERT(m_join_scope.contain_table(table));
-    DBUG_ASSERT(parents.is_subset(m_join_scope));
-    return parents.is_overlapping(m_tables[table->get_access_no()].m_ancestors);
-  }
-
-  enum pushability
-  {
-    PUSHABLE_AS_PARENT= 0x01,
-    PUSHABLE_AS_CHILD= 0x02
-  } enum_pushability;
-
-private:
-  void init_pushability();
-
-  bool find_field_parents(const AQP::Table_access* table,
-                          const Item* key_item, 
-                          const KEY_PART_INFO* key_part_info,
-                          ndb_table_access_map& parents);
-private:
-  const AQP::Join_plan& m_plan;
-  const AQP::Table_access* m_join_root;
-
-  // Scope of tables covered by this pushed join
-  ndb_table_access_map m_join_scope;
-
-  // Scope of tables evaluated prior to 'm_join_root'
-  // These are effectively const or params wrt. the pushed join
-  ndb_table_access_map m_const_scope;
-
-  struct pushed_tables
-  {
-    pushed_tables() : 
-      m_maybe_pushable(0),
-      m_parent(MAX_TABLES), 
-      m_ancestors(), 
-      m_last_scan_descendant(MAX_TABLES), 
-      op(NULL) 
-    {}
-
-    int  m_maybe_pushable;
-    uint m_parent;
-    ndb_table_access_map m_ancestors;
-    uint m_last_scan_descendant;
-
-    const NdbQueryOperationDef* op;
-  } m_tables[MAX_TABLES];
-
-}; // class ndb_pushed_builder_ctx
 
 
 /** This class represents a prepared pushed (N-way) join operation.
@@ -245,10 +91,8 @@ private:
 class ndb_pushed_join
 {
 public:
-  explicit ndb_pushed_join(const AQP::Join_plan& plan, 
-			  const ndb_table_access_map& pushed_operations,
-			  uint field_refs, Field* const fields[],
-			  const NdbQueryDef* query_def);
+  explicit ndb_pushed_join(const ndb_pushed_builder_ctx& builder_ctx,
+                           const NdbQueryDef* query_def);
   
   /** Get the number of pushed table access operations.*/
   uint get_operation_count() const
@@ -324,4 +168,155 @@ private:
    */
   Field* m_referred_fields[MAX_REFERRED_FIELDS];
 }; // class ndb_pushed_join
+
+
+
+/**
+ * Contains the context and helper methods used during ::make_pushed_join().
+ *
+ * Interacts with the AQP which provides interface to the query prepared by
+ * the mysqld optimizer.
+ *
+ * Execution plans built for pushed joins are stored inside this builder context.
+ */
+class ndb_pushed_builder_ctx
+{
+  friend ndb_pushed_join::ndb_pushed_join(
+                           const ndb_pushed_builder_ctx& builder_ctx,
+                           const NdbQueryDef* query_def);
+
+public:
+  ndb_pushed_builder_ctx(const AQP::Join_plan& plan);
+  ~ndb_pushed_builder_ctx();
+
+  /**
+   * Build the pushed query identified with 'is_pushable_with_root()'.
+   * Returns:
+   *   = 0: A NdbQueryDef has successfully been prepared for execution.
+   *   > 0: Returned value is the error code.
+   *   < 0: There is a pending NdbError to be retrieved with getNdbError()
+   */
+  int make_pushed_join(const AQP::Table_access* join_root,
+                       const ndb_pushed_join* &pushed_join);
+
+  const NdbError& getNdbError() const;
+
+private:
+  /**
+   * Collect all tables which may be pushed together with 'root'.
+   * Returns 'true' if anything is pushable.
+   */
+  bool is_pushable_with_root(
+                  const AQP::Table_access* root);
+
+  bool is_pushable_as_child(
+                  const AQP::Table_access* table);
+
+  bool is_const_item_pushable(
+                  const Item* key_item, 
+                  const KEY_PART_INFO* key_part);
+
+  bool is_field_item_pushable(
+                  const AQP::Table_access* table,
+                  const Item* key_item, 
+                  const KEY_PART_INFO* key_part,
+                  ndb_table_access_map& parents);
+
+  int optimize_query_plan();
+
+  int build_query();
+
+  void collect_key_refs(
+                  const AQP::Table_access* table,
+                  const Item* key_refs[]) const;
+
+  int build_key(const AQP::Table_access* table,
+                const NdbQueryOperand* op_key[]);
+
+  uint get_table_no(const Item* key_item) const;
+
+private:
+  const AQP::Join_plan& m_plan;
+  const AQP::Table_access* m_join_root;
+
+  // Scope of tables covered by this pushed join
+  ndb_table_access_map m_join_scope;
+
+  // Scope of tables evaluated prior to 'm_join_root'
+  // These are effectively const or params wrt. the pushed join
+  ndb_table_access_map m_const_scope;
+
+  // Set of tables required to have strict sequential dependency
+  ndb_table_access_map m_forced_sequence;
+
+  uint m_fld_refs;
+  Field* m_referred_fields[ndb_pushed_join::MAX_REFERRED_FIELDS];
+
+  // Handle to the NdbQuery factory.
+  // Possibly reused if multiple NdbQuery's are pushed.
+  NdbQueryBuilder* m_builder;
+
+  enum pushability
+  {
+    PUSHABLE_AS_PARENT= 0x01,
+    PUSHABLE_AS_CHILD= 0x02
+  } enum_pushability;
+
+  struct pushed_tables
+  {
+    pushed_tables() : 
+      m_maybe_pushable(0),
+      m_common_parents(), 
+      m_extend_parents(), 
+      m_depend_parents(), 
+      m_parent(MAX_TABLES), 
+      m_ancestors(), 
+      m_op(NULL) 
+    {}
+
+    int m_maybe_pushable;  // OR'ed bits from 'enum_pushability'
+
+    /**
+     * We maintain two sets of parent candidates for each table: 
+     *  - 'common' are those parents for which ::collect_key_refs()
+     *     will find key_refs[] (possibly through the EQ-sets) such that all
+     *     linkedValues() refer fields from the same parent.
+     *  - 'extendeded' are those parents refered from some of the 
+     *     key_refs[], and having the rest of the key_refs[] available as
+     *     'grandparent refs'.
+     */
+    ndb_table_access_map m_common_parents;
+    ndb_table_access_map m_extend_parents;
+
+    /**
+     * (sub)Set of a parents which *must* be available as ancestors
+     * due to dependencies on these parents tables.
+     */
+    ndb_table_access_map m_depend_parents;
+
+    /**
+     * The actual parent is choosen among (m_common_parents | m_extend_parents)
+     * by ::optimize_query_plan()
+     */
+    uint m_parent;
+
+    /**
+     * All ancestors available throught the 'm_parent' chain
+     */
+    ndb_table_access_map m_ancestors;
+
+    const NdbQueryOperationDef* m_op;
+  } m_tables[MAX_TABLES];
+
+  /**
+   * There are two different table enumerations used:
+   */
+  struct table_remap
+  {
+    Uint16 to_external;  // m_remap[] is indexed with internal table_no
+    Uint16 to_internal;  // m_remap[] is indexed with external tablenr
+  } m_remap[MAX_TABLES];
+
+}; // class ndb_pushed_builder_ctx
+
 

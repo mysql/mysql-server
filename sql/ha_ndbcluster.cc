@@ -46,9 +46,9 @@
 #include "ha_ndbcluster_cond.h"
 #include "ha_ndbcluster_tables.h"
 #include "ha_ndbcluster_connection.h"
+#include "abstract_query_plan.h"
 
 #include <mysql/plugin.h>
-#include <abstract_query_plan.h>
 #include <ndb_version.h>
 
 #ifdef ndb_dynamite
@@ -440,380 +440,128 @@ struct st_ndb_status {
   long long api_client_stats[Ndb::NumClientStatistics];
 };
 
-bool ndbcluster_join_pushdown_enabled(THD* thd)
+/**
+ * This is a list of NdbQueryDef objects that have been created within a 
+ * transaction. This list is kept to make sure that they are all released 
+ * when the transaction ends.
+ * An NdbQueryDef object is required to live longer than any NdbQuery object
+ * instantiated from it. Since NdbQueryObjects may be kept until the 
+ * transaction ends, this list is necessary.
+ */
+class ndb_query_def_list
 {
-  return THDVAR(thd, join_pushdown);
-}
+public:
+  ndb_query_def_list(const NdbQueryDef* def, const ndb_query_def_list* next):
+    m_def(def), m_next(next){}
 
-int
-ha_ndbcluster::make_pushed_join(ndb_pushed_builder_ctx& context,
-                                const AQP::Table_access* join_root)
+  const NdbQueryDef* get_def() const
+  { return m_def; }
+
+  const ndb_query_def_list* get_next() const
+  { return m_next; }
+
+private:
+  const NdbQueryDef* const m_def;
+  const ndb_query_def_list* const m_next;
+};
+
+
+/**
+ * Try to find pushable subsets of a join plan.
+ * @param hton unused (maybe useful for other engines).
+ * @param thd Thread.
+ * @param plan The join plan to examine.
+ * @return Possible error code.
+ */
+static
+int ndbcluster_make_pushed_join(handlerton *hton,
+                                THD* thd,
+                                AQP::Join_plan* plan)
 {
-  DBUG_ENTER("make_pushed_join");
+  DBUG_ENTER("ndbcluster_make_pushed_join");
+  (void)ha_ndb_ext; // prevents compiler warning.
 
-  DBUG_ASSERT (context.is_pushable_as_parent(join_root));
-  context.set_root(join_root);
-  const AQP::Join_plan& plan= context.plan();
-
-  DBUG_PRINT("enter", ("Table %d as root is pushable", join_root->get_access_no()));
-  DBUG_EXECUTE("info", join_root->dbug_print(););
-
-  const AQP::enum_access_type access_type= join_root->get_access_type();
-
-  /**
-   * Past this point we know at least join_root to be join pushable 
-   * as parent operation. Search for tables to be appendable as child 
-   * operation.
-   * Parent operation is not defined before we have found the first 
-   * appendable child.
-   */
-  NdbQueryBuilder* const builder= NdbQueryBuilder::create();
-  if (unlikely (builder==NULL))
+  if (THDVAR(thd, join_pushdown))
   {
-    DBUG_RETURN(HA_ERR_OUT_OF_MEM);
-  }
+    ndb_pushed_builder_ctx pushed_builder(*plan);
 
-  uint push_cnt= 0;
-  uint fld_refs= 0;
-  Field* referred_fields[ndb_pushed_join::MAX_REFERRED_FIELDS];
-
-  for (uint join_cnt= join_root->get_access_no()+1; join_cnt<plan.get_access_count(); join_cnt++)
-  {
-    const Item* join_items[ndb_pushed_join::MAX_LINKED_KEYS+1];
-    const AQP::Table_access* join_parent;
-
-    const AQP::Table_access* const join_tab= plan.get_table_access(join_cnt);
-    const NdbQueryOperationDef* query_op= NULL;
-
-    if (!context.is_pushable_as_child(join_tab, join_items, join_parent))
+    for (uint i= 0; i < plan->get_access_count()-1; i++)
     {
-      DBUG_PRINT("info", ("Table %d not pushable as child", join_cnt));
-      continue;
-    }
-    /**
-     * If this is the first child in pushed join we need to define the 
-     * parent operation first.
-     */
-    if (push_cnt == 0)
-    {
-      NdbQueryOptions options;
-      if (m_cond)
+      const AQP::Table_access* const join_root= plan->get_table_access(i);
+      const ndb_pushed_join* pushed_join= NULL;
+
+      // Try to build a ndb_pushed_join starting from 'join_root'
+      int error= pushed_builder.make_pushed_join(join_root, pushed_join);
+      if (unlikely(error))
       {
-        NdbInterpretedCode code(m_table);
-        if (m_cond->generate_scan_filter(&code, NULL) != 0)
-          ERR_RETURN(code.getNdbError());
-
-        options.setInterpretedCode(code);
-      }
-
-      if (ndbcluster_is_lookup_operation(access_type))
-      {
-        const KEY* const key= 
-          &table->key_info[join_root->get_index_no()];
-        const NdbQueryOperand* root_key[ndb_pushed_join::MAX_KEY_PART+1]= {NULL};
-
-        for (uint i= 0; i < key->key_parts; i++)
+        if (error < 0)  // getNdbError() gives us the error code
         {
-          root_key[i]= builder->paramValue();
-          if (unlikely(!root_key[i]))
-          {
-            const NdbError error = builder->getNdbError();
-            builder->destroy();
-            ERR_RETURN(error);
-          }
+          ERR_SET(pushed_builder.getNdbError(),error);
         }
-        root_key[key->key_parts]= NULL;
-
-        // Primary key access assumed
-       if (access_type == AQP::AT_PRIMARY_KEY || 
-           access_type == AQP::AT_MULTI_PRIMARY_KEY)
-       {
-          DBUG_PRINT("info", ("Root operation is 'primary-key-lookup'"));
-          DBUG_ASSERT(join_root->get_index_no() == 
-                      static_cast<int>(table->s->primary_key));
-          query_op= builder->readTuple(m_table, root_key, &options);
-        }
-        else
-        {
-          DBUG_PRINT("info", ("Root operation is 'unique-index-lookup'"));
-          const NdbDictionary::Index* const index 
-            = m_index[join_root->get_index_no()].unique_index;
-          DBUG_ASSERT(index);
-          query_op= builder->readTuple(index, m_table, root_key, &options);
-        }
-      }
-      /**
-       *  AT_MULTI_MIXED may have 'ranges' which are pure single key lookups also.
-       *  In our current implementation these are converted into range access in the
-       *  pushed MRR implementation. However, the future plan is to build both 
-       *  RANGE and KEY pushable joins for these.
-       */
-      else if (access_type == AQP::AT_ORDERED_INDEX_SCAN  ||
-               access_type == AQP::AT_MULTI_MIXED)
-      {
-        DBUG_ASSERT(join_root->get_index_no() >= 0);
-        DBUG_ASSERT(m_index[join_root->get_index_no()].index != NULL);
-
-        DBUG_PRINT("info", ("Root operation is 'equal-range-lookup'"));
-        DBUG_PRINT("info", ("Creating scanIndex on index id:%d, name:%s",
-                            join_root->get_index_no(), 
-                            m_index[join_root->get_index_no()]
-                            .index->getName()));
-
-        // Bounds will be generated and supplied during execute
-        query_op= 
-          builder->scanIndex(m_index[join_root->get_index_no()].index, m_table, 0, &options);
-      }
-      else if (access_type == AQP::AT_TABLE_SCAN) 
-      {
-        DBUG_PRINT("info", ("Root operation is 'table scan'"));
-        query_op= builder->scanTable(m_table, &options);
-      }
-      else
-      {
-        DBUG_ASSERT(false);
+        join_root->get_table()->file->print_error(error, MYF(0));
+        DBUG_RETURN(error);
       }
 
-      if (unlikely(!query_op))
+      // Assign any produced pushed_join definitions to 
+      // the ha_ndbcluster instance representing its root.
+      if (pushed_join != NULL)
       {
-        const NdbError error = builder->getNdbError();
-        builder->destroy();
-        ERR_RETURN(error);
-      }
+        ha_ndbcluster* const handler=
+          static_cast<ha_ndbcluster*>(join_root->get_table()->file);
 
-      context.add_pushed(join_root, NULL, query_op);
-      push_cnt= 1;
-    } // End: 'define root'
-
-    DBUG_PRINT("info", ("Appending child, join_cnt:%d, key_parts:%d", push_cnt, 
-                        join_tab->get_no_of_key_fields()));
-
-    DBUG_ASSERT(join_tab->get_table()->file->ht == ht);
-    const ha_ndbcluster* const handler=
-      static_cast<ha_ndbcluster*>(join_tab->get_table()->file);
-
-    const KEY* const key= &handler->table->key_info[join_tab->get_index_no()];
-
-    const NdbQueryOperand* linked_key[ndb_pushed_join::MAX_LINKED_KEYS]= {NULL};
-    uint map[ndb_pushed_join::MAX_LINKED_KEYS+1];
-
-    const uint key_fields= join_tab->get_no_of_key_fields();
-    DBUG_ASSERT(key_fields > 0 && key_fields <= key->key_parts);
-
-    if (ndbcluster_is_lookup_operation(join_tab->get_access_type()))
-    {
-      ndbcluster_build_key_map(handler->m_table, 
-                               handler->m_index[join_tab->get_index_no()],
-                               key, map);
-    }
-    else
-    {
-      for (uint ix = 0; ix < key_fields; ix++)
-      {
-        map[ix]= ix;
-      }
-    }
-
-    DBUG_ASSERT (join_parent!=NULL);
-    bool need_explicit_parent= true;
-    const ndb_table_access_map parent_map(join_parent);
-    const KEY_PART_INFO *key_part= key->key_part;
-    for (uint i= 0; i < key_fields; i++, key_part++)
-    {
-      const Item* const item= join_items[i];
-      linked_key[map[i]]= NULL;
-      DBUG_ASSERT(item->const_item() == item->const_during_execution());
-      if (item->const_item())
-      {
-        /** 
-         * Propagate Items constant value to Field containing the value of this 
-         * key_part:
-         */
-        Field* const field= key_part->field;
-        const int error= 
-          const_cast<Item*>(item)->save_in_field_no_warnings(field, true);
+        error= handler->assign_pushed_join(pushed_join);
         if (unlikely(error))
         {
-          DBUG_PRINT("info", ("Failed to store constant Item into Field -> not"
-                              " pushable"));
-          builder->destroy();
-          DBUG_RETURN(0);
-        }
-        if (field->is_real_null())
-        {
-          DBUG_PRINT("info", ("NULL constValues in key -> not pushable"));
-          builder->destroy();
-          DBUG_RETURN(0);  // TODO, handle gracefull -> continue?
-        }
-        const uchar* const ptr= (field->real_type() == MYSQL_TYPE_VARCHAR)
-                ? field->ptr + ((Field_varstring*)field)->length_bytes
-                : field->ptr;
-
-        linked_key[map[i]]= builder->constValue(ptr, field->data_length());
-      }
-      else
-      {
-        DBUG_ASSERT(item->type() == Item::FIELD_ITEM);
-        const Item_field* const field_item= static_cast<const Item_field*>(item);
-        const ndb_table_access_map used_table(field_item->used_tables());
-
-        if (context.join_scope().contain(used_table))
-        {
-          const AQP::Table_access* referred_table;
-          if (likely(parent_map == used_table))
-          {
-            referred_table= join_parent;
-            need_explicit_parent= false;
-          }
-          else
-          {
-            referred_table= context.get_referred_table_access(used_table);
-          }
-
-          // Locate the parent operation for this 'join_items[]'.
-          // May refer any of the preceeding parent tables
-          const NdbQueryOperationDef* const parent_op= 
-            context.get_query_operation(referred_table);
-          DBUG_ASSERT(parent_op != NULL);
-
-          DBUG_ASSERT(field_item->type() == Item::FIELD_ITEM);
-          // TODO use field_index ??
-          linked_key[map[i]]= 
-            builder->linkedValue(parent_op, 
-                                 field_item->field_name);
-        }
-        else
-        {
-          DBUG_ASSERT(context.const_scope().contain(used_table));
-          // Outside scope of join plan, Handle as parameter as its value
-          // will be known when we are ready to execute this query.
-          if (unlikely(fld_refs >= ndb_pushed_join::MAX_REFERRED_FIELDS))
-          {
-            DBUG_PRINT("info", ("Too many Field refs ( >= MAX_REFERRED_FIELDS) "
-                                "encountered"));
-            builder->destroy();
-            DBUG_RETURN(0);  // TODO, handle gracefull -> continue?
-          }
-          referred_fields[fld_refs++]= field_item->field;
-          linked_key[map[i]]= builder->paramValue();
+          delete pushed_join;
+          handler->print_error(error, MYF(0));
+          DBUG_RETURN(error);
         }
       }
-      if (unlikely(!linked_key[map[i]]))
-      {
-        const NdbError error = builder->getNdbError();
-        builder->destroy();
-        ERR_RETURN(error);
-      }
-    } // for (uint i= 0; i < key->key_parts; i++, key_part++)
-
-    const NdbDictionary::Table* const table= handler->m_table;
- 
-    NdbQueryOptions options;
-    if (join_tab->get_join_type(join_parent) == AQP::JT_INNER_JOIN)
-    {
-      options.setMatchType(NdbQueryOptions::MatchNonNull);
     }
-    if (need_explicit_parent)
-    {
-      const NdbQueryOperationDef* parent_op= 
-        context.get_query_operation(join_parent);
-      DBUG_ASSERT(parent_op != NULL);
-      options.setParent(parent_op);
-    }
-    if (handler->m_cond)
-    {
-      NdbInterpretedCode code(table);
-      if (handler->m_cond->generate_scan_filter(&code, NULL) != 0)
-        ERR_RETURN(code.getNdbError());
-
-      options.setInterpretedCode(code);
-    }
-
-    if (join_tab->get_access_type() == AQP::AT_ORDERED_INDEX_SCAN)
-    {
-      const NdbQueryIndexBound bounds(linked_key);
-      query_op= builder->scanIndex(handler->m_index[join_tab->get_index_no()]
-                                   .index, table, &bounds, &options);
-    }
-    // Link on primary key or an unique index
-    else if (join_tab->get_access_type() == AQP::AT_PRIMARY_KEY)
-    {
-      query_op= builder->readTuple(table, linked_key, &options);
-    }
-    else
-    {
-      DBUG_ASSERT(join_tab->get_access_type() == AQP::AT_UNIQUE_KEY);
-      const NdbDictionary::Index* const index
-        = handler->m_index[join_tab->get_index_no()].unique_index;
-      DBUG_ASSERT(index != NULL);
-      query_op= builder->readTuple(index, table, linked_key, &options);
-    }
-
-    if (unlikely(!query_op))
-    {
-      const NdbError error = builder->getNdbError();
-      builder->destroy();
-      ERR_RETURN(error);
-    }
-
-    context.add_pushed(join_tab, join_parent, query_op);
-    push_cnt++;
-  } // for (uint join_cnt= 1; join_cnt<plan.get_access_count(); join_cnt++)
-
-  if (push_cnt < 2)
-  {
-    builder->destroy();
-    DBUG_RETURN(0);
   }
-
-  const NdbQueryDef* const query_def= builder->prepare();
-  if (unlikely(!query_def))
-  {
-    const NdbError error = builder->getNdbError();
-    builder->destroy();
-    ERR_RETURN(error);
-  }
+  DBUG_RETURN(0);
+} // ndbcluster_make_pushed_join
+  
+/**
+ * In case a pushed join having the table for this handler as its root
+ * has been produced. ::assign_pushed_join() is responsible for setting
+ * up this ha_ndbcluster instance such that the prepared NdbQuery 
+ * might be instantiated at execution time.
+ */
+int
+ha_ndbcluster::assign_pushed_join(const ndb_pushed_join* pushed_join)
+{
+  DBUG_ENTER("assign_pushed_join");
+  const NdbQueryDef* const query_def= &pushed_join->get_query_def();
 
   m_thd_ndb->m_pushed_queries_defined++;
   /* 
    * Append query definition to transaction specific list, so that it can be
    * released when the transaction ends.  
    */
-  const ndb_query_def_list* const list_item = 
+  const ndb_query_def_list* const list_item= 
     new ndb_query_def_list(query_def, m_thd_ndb->m_query_defs);
   if (unlikely(list_item == NULL))
   {
-    builder->destroy();
     DBUG_RETURN(HA_ERR_OUT_OF_MEM);
   }
   m_thd_ndb->m_query_defs = list_item;
-  
-  DBUG_PRINT("info", ("Created pushed join with %d child operations", 
-                      push_cnt-1));
-  m_pushed_join_member= new ndb_pushed_join(
-                                     context.plan(), 
-                                     context.join_scope(), 
-                                     fld_refs, 
-                                     referred_fields, 
-                                     query_def);
-  if (unlikely (m_pushed_join_member == NULL))
-  {
-    builder->destroy();
-    DBUG_RETURN(HA_ERR_OUT_OF_MEM);
-  }
 
-  for (uint i = 0; i < push_cnt; i++)
+  for (uint i = 0; i < pushed_join->get_operation_count(); i++)
   {
-    const TABLE* const tab= m_pushed_join_member->get_table(i);
+    const TABLE* const tab= pushed_join->get_table(i);
     DBUG_ASSERT(tab->file->ht == ht);
     ha_ndbcluster* child= static_cast<ha_ndbcluster*>(tab->file);
-    child->m_pushed_join_member= m_pushed_join_member;
+    child->m_pushed_join_member= pushed_join;
     child->m_pushed_join_operation= i;
   }
 
-  builder->destroy();
+  DBUG_PRINT("info", ("Assigned pushed join with %d child operations", 
+                      pushed_join->get_operation_count()-1));
+
   DBUG_RETURN(0);
-} // ha_ndbcluster::make_pushed_join()
+} // ha_ndbcluster::assign_pushed_join()
+
 
 /*
   Map from thr_lock_type to NdbOperation::LockMode
@@ -828,47 +576,47 @@ NdbOperation::LockMode get_ndb_lock_mode(enum thr_lock_type type)
   return NdbOperation::LM_CommittedRead;
 }
 
-//ndb_pushed_builder_ctx::enum_pushability
-int
-ha_ndbcluster::get_pushability() const
+/**
+ * First level of filtering tables which *maybe* may be part of
+ * a pushed query: Returning 'false' will eliminate this table
+ * from being a part of a pushed join.
+ * A 'reason' for rejecting this table is required if 'false'
+ * is returned.
+ */
+bool
+ha_ndbcluster::maybe_pushable_join(const char*& reason) const
 {
+  reason= "";
   if (uses_blob_value(table->read_set))
   {
-    EXPLAIN_NO_PUSH("Table '%s' not pushable, "
-                    "select list can't contain BLOB columns",
-                     table->alias);
-    return 0;
+    reason= "select list can't contain BLOB columns";
+    return false;
   }
   if (m_user_defined_partitioning)
   {
-    EXPLAIN_NO_PUSH("Table '%s' not pushable, "
-                    "has user defined partioning",
-                     table->alias);
-    return 0;
+    reason= "has user defined partioning";
+    return false;
   }
 
   // Pushed operations may not set locks.
   const NdbOperation::LockMode lockMode= get_ndb_lock_mode(m_lock.type);
   switch (lockMode)
   {
+  case NdbOperation::LM_CommittedRead:
+    return true;
+
   case NdbOperation::LM_Read:
   case NdbOperation::LM_Exclusive:
-    EXPLAIN_NO_PUSH("Table '%s' is not pushable, "
-                    "lock modes other than 'read committed' not implemented",
-                    table->alias);
-    return 0;
+    reason= "lock modes other than 'read committed' not implemented";
+    return false;
         
-  case NdbOperation::LM_CommittedRead:
-    break;
-      
   default: // Other lock modes not used by handler.
     assert(false);
-    return 0;
+    return false;
   }
 
-  return (ndb_pushed_builder_ctx::PUSHABLE_AS_CHILD | 
-          ndb_pushed_builder_ctx::PUSHABLE_AS_PARENT);
-} // ha_ndbcluster::get_pushability()
+  return true;
+} // ha_ndbcluster::is_pushable()
 
 
 /**
@@ -1054,7 +802,7 @@ ha_ndbcluster::create_pushed_join(NdbQueryParamValue* paramValues, uint paramOff
     const TABLE* const tab= m_pushed_join_member->get_table(i);
     ha_ndbcluster* handler= static_cast<ha_ndbcluster*>(tab->file);
 
-    DBUG_ASSERT(handler->m_pushed_join_operation==i);
+    DBUG_ASSERT(handler->m_pushed_join_operation==(int)i);
     NdbQueryOperation* const op= query->getQueryOperation(i);
     handler->m_pushed_operation= op;
 
