@@ -1199,6 +1199,11 @@ void Dbtc::execTCSEIZEREQ(Signal* signal)
   jamEntry();
   tapiPointer = signal->theData[0]; /* REQUEST SENDERS CONNECT RECORD POINTER*/
   tapiBlockref = signal->theData[1]; /* SENDERS BLOCK REFERENCE*/
+
+  if (signal->getLength() > 2)
+  {
+    ndbassert(instance() == signal->theData[2]);
+  }
   
   const NodeState::StartLevel sl = 
     (NodeState::StartLevel)getNodeState().startLevel;

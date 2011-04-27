@@ -3690,6 +3690,16 @@ void Dblqh::sendCompleteLqh(Signal* signal, BlockReference alqhBlockref)
 
 void Dblqh::sendCommittedTc(Signal* signal, BlockReference atcBlockref)
 {
+  if (refToInstance(atcBlockref))
+  {
+    jam();
+    signal->theData[0] = tcConnectptr.p->clientConnectrec;
+    signal->theData[1] = tcConnectptr.p->transid[0];
+    signal->theData[2] = tcConnectptr.p->transid[1];
+    sendSignal(atcBlockref, GSN_COMMITTED, signal, 3, JBB);
+    return;
+  }
+
   HostRecordPtr Thostptr;
   Thostptr.i = refToNode(atcBlockref);
   ptrCheckGuard(Thostptr, chostFileSize, hostRecord);
@@ -3726,6 +3736,16 @@ void Dblqh::sendCommittedTc(Signal* signal, BlockReference atcBlockref)
 
 void Dblqh::sendCompletedTc(Signal* signal, BlockReference atcBlockref)
 {
+  if (refToInstance(atcBlockref))
+  {
+    jam();
+    signal->theData[0] = tcConnectptr.p->clientConnectrec;
+    signal->theData[1] = tcConnectptr.p->transid[0];
+    signal->theData[2] = tcConnectptr.p->transid[1];
+    sendSignal(atcBlockref, GSN_COMPLETED, signal, 3, JBB);
+    return;
+  }
+
   HostRecordPtr Thostptr;
   Thostptr.i = refToNode(atcBlockref);
   ptrCheckGuard(Thostptr, chostFileSize, hostRecord);

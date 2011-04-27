@@ -1824,11 +1824,12 @@ private:
   void connected(Uint32 block_reference);
  
 
-  NdbTransaction*  startTransactionLocal(Uint32 aPrio, Uint32 aFragmentId); 
+  NdbTransaction*  startTransactionLocal(Uint32 aPrio, Uint32 aNode,
+                                         Uint32 instance);
 
 // Connect the connection object to the Database.
-  int NDB_connect(Uint32 tNode);
-  NdbTransaction* doConnect(Uint32 nodeId); 
+  int NDB_connect(Uint32 tNode, Uint32 instance);
+  NdbTransaction* doConnect(Uint32 nodeId, Uint32 instance);
   void    doDisconnect();	 
   
   NdbReceiver*	        getNdbScanRec();// Get a NdbScanReceiver from idle list
@@ -1906,7 +1907,7 @@ private:
    * Get a connected NdbTransaction to nodeId
    *   Returns NULL if none found
    */
-  NdbTransaction* getConnectedNdbTransaction(Uint32 nodeId);
+  NdbTransaction* getConnectedNdbTransaction(Uint32 nodeId, Uint32 instance);
 
   // Release and disconnect from DBTC a connection
   // and seize it to theConIdleList
