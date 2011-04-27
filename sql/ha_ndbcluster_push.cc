@@ -1075,9 +1075,6 @@ ndb_pushed_builder_ctx::build_key(const AQP::Table_access* table,
       }
     }
 
-    const uint parent_no= m_tables[tab_no].m_parent;
-    DBUG_ASSERT(parent_no!=MAX_TABLES);
-
     const Item* join_items[ndb_pushed_join::MAX_LINKED_KEYS+1];
     collect_key_refs(table,join_items);
 
@@ -1196,6 +1193,7 @@ ndb_pushed_builder_ctx::build_query()
     } 
     if (table != m_join_root)
     {
+      DBUG_ASSERT(m_tables[tab_no].m_parent!=MAX_TABLES);
       const uint parent_no= m_tables[tab_no].m_parent;
       const AQP::Table_access* parent= m_plan.get_table_access(parent_no);
 
