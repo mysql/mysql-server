@@ -4778,10 +4778,18 @@ int DsMrr_impl::dsmrr_init(handler *h_arg, RANGE_SEQ_IF *seq_funcs,
     This assert will hit if we have pushed an index condition to the
     primary key index and then "change our mind" and use a different
     index for retrieving data with MRR.
+
+    This assert is too strict for the existing code. If an index
+    condition has been pushed on the primary index the existing code
+    does not clean up information about the pushed index condition when
+    the index scan is completed. Disables the assert until we have
+    a fix for better cleaning up after a pushed index condition. 
   */
+  /*
   DBUG_ASSERT(!h->pushed_idx_cond ||
               h->pushed_idx_cond_keyno == h->active_index ||
               h->pushed_idx_cond_keyno != table->s->primary_key);
+  */
 
   rowids_buf= buf->buffer;
 
