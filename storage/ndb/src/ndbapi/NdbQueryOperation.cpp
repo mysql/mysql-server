@@ -2598,7 +2598,7 @@ NdbQueryImpl::doSend(int nodeId, bool lastFlag)
     assert (root.getMaxBatchRows() > 0);
 
     NdbApiSignal tSignal(&ndb);
-    tSignal.setSignal(GSN_SCAN_TABREQ, DBTC);
+    tSignal.setSignal(GSN_SCAN_TABREQ, refToBlock(m_scanTransaction->m_tcRef));
 
     ScanTabReq * const scanTabReq = CAST_PTR(ScanTabReq, tSignal.getDataPtrSend());
     Uint32 reqInfo = 0;
@@ -2699,7 +2699,7 @@ NdbQueryImpl::doSend(int nodeId, bool lastFlag)
   } else {  // Lookup query
 
     NdbApiSignal tSignal(&ndb);
-    tSignal.setSignal(GSN_TCKEYREQ, DBTC);
+    tSignal.setSignal(GSN_TCKEYREQ, refToBlock(m_transaction.m_tcRef));
 
     TcKeyReq * const tcKeyReq = CAST_PTR(TcKeyReq, tSignal.getDataPtrSend());
 
@@ -2844,7 +2844,7 @@ NdbQueryImpl::sendFetchMore(NdbRootFragment& emptyFrag, bool forceSend)
 
   Ndb& ndb = *getNdbTransaction().getNdb();
   NdbApiSignal tSignal(&ndb);
-  tSignal.setSignal(GSN_SCAN_NEXTREQ, DBTC);
+  tSignal.setSignal(GSN_SCAN_NEXTREQ, refToBlock(m_scanTransaction->m_tcRef));
   ScanNextReq * const scanNextReq = 
     CAST_PTR(ScanNextReq, tSignal.getDataPtrSend());
   
@@ -2985,7 +2985,7 @@ NdbQueryImpl::sendClose(int nodeId)
 
   Ndb& ndb = *m_transaction.getNdb();
   NdbApiSignal tSignal(&ndb);
-  tSignal.setSignal(GSN_SCAN_NEXTREQ, DBTC);
+  tSignal.setSignal(GSN_SCAN_NEXTREQ, refToBlock(m_scanTransaction->m_tcRef));
   ScanNextReq * const scanNextReq = CAST_PTR(ScanNextReq, tSignal.getDataPtrSend());
 
   assert (m_scanTransaction);

@@ -381,7 +381,7 @@ NdbOperation::insertKEYINFO(const char* aValue,
       setErrorCodeAbort(4000);
       return -1;
     }
-    if (tSignal->setSignal(m_keyInfoGSN, DBTC) == -1)
+    if (tSignal->setSignal(m_keyInfoGSN, refToBlock(theNdbCon->m_tcRef)) == -1)
     {
       setErrorCodeAbort(4001);
       return -1;
