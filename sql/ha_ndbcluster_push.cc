@@ -1032,8 +1032,7 @@ ndb_pushed_builder_ctx::build_key(const AQP::Table_access* table,
                                   const NdbQueryOperand *op_key[])
 {
   DBUG_ENTER("build_key");
-  const uint tab_no= table->get_access_no();
-  DBUG_ASSERT(m_join_scope.contain(tab_no));
+  DBUG_ASSERT(m_join_scope.contain(table->get_access_no()));
 
   const KEY* const key= &table->get_table()->key_info[table->get_index_no()];
   op_key[0]= NULL;
