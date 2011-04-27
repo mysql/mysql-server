@@ -306,7 +306,7 @@ thd_set_lock_wait_time(
 	ulint	value);	/*!< in: time waited for the lock */
 
 /**********************************************************************//**
-Get the current seting of the table_cache_size global parameter. We do
+Get the current setting of the table_cache_size global parameter. We do
 a dirty read because for one there is no synchronization object and
 secondly there is little harm in doing so even if we get a torn read.
 @return	SQL statement string */

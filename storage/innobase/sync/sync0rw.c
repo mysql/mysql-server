@@ -583,14 +583,14 @@ rw_lock_x_lock_low(
 #ifdef UNIV_SYNC_DEBUG
 				    pass,
 #endif
-                                    file_name, line);
+				    file_name, line);
 
 	} else {
 		/* Decrement failed: relock or failed lock */
 		if (!pass && lock->recursive
 		    && os_thread_eq(lock->writer_thread, curr_thread)) {
 			/* Relock */
-                        lock->lock_word -= X_LOCK_DECR;
+			lock->lock_word -= X_LOCK_DECR;
 		} else {
 			/* Another thread locked before us */
 			return(FALSE);
