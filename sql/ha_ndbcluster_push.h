@@ -24,8 +24,8 @@
 class NdbQueryBuilder;
 class NdbQueryOperand;
 class NdbQueryOperationDef;
-class NdbError;
 class ndb_pushed_builder_ctx;
+struct NdbError;
 
 namespace AQP{
   class Join_plan;
