@@ -1,0 +1,19 @@
+set storage_engine='tokudb';
+# Establish connection conn1 (user = root)
+drop table if exists s;
+create table s (a int auto_increment, b int, c int, primary key (a));
+# populate table s
+# done inserting elements
+set tokudb_create_index_online=1;
+create index i_a on s(c);
+set tokudb_write_lock_wait=1;
+set tokudb_read_lock_wait=1;
+# starting insert while create index is happening
+# done with insert
+select count(*) from s use index(primary);
+count(*)
+100000
+select count(*) from s use index(i_a);
+count(*)
+100000
+drop table s;
