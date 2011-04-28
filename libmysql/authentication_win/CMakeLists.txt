@@ -18,7 +18,9 @@
 #
 
 ADD_DEFINITIONS(-DSECURITY_WIN32)
-ADD_DEFINITIONS(-DDEBUG_ERRROR_LOG)	# no error logging in production builds
+ADD_DEFINITIONS(-DDEBUG_ERRROR_LOG)  # no error logging in production builds
+ADD_DEFINITIONS(-DWINAUTH_USE_DBUG_LIB)      # it is OK to use dbug library in statically
+                                             # linked plugin
 
 SET(HEADERS common.h handshake.h)
 SET(PLUGIN_SOURCES plugin_client.cc handshake_client.cc log_client.cc common.cc handshake.cc)

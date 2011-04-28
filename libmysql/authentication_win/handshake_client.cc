@@ -33,21 +33,27 @@ class Handshake_client: public Handshake
   /// Buffer for storing service name obtained from server.
   SEC_WCHAR   m_service_name_buf[MAX_SERVICE_NAME_LENGTH];
 
+  Connection &m_con;
+
 public:
 
-  Handshake_client(const char *target, size_t len);
+  Handshake_client(Connection &con, const char *target, size_t len);
   ~Handshake_client();
 
   Blob  first_packet();
   Blob  process_data(const Blob&);
+
+  Blob read_packet();
+  int write_packet(Blob &data);
 };
 
 
 /**
   Create authentication handshake context for client.
 
-  @param target    name of the target service with which we will authenticate
-                   (can be NULL if not used)
+  @param con     connection for communication with the peer 
+  @param target  name of the target service with which we will authenticate
+                 (can be NULL if not used)
 
   Some security packages (like Kerberos) require providing explicit name
   of the service with which a client wants to authenticate. The server-side
@@ -55,8 +61,9 @@ public:
   (see @c win_auth_handshake_{server,client}() functions).
 */
 
-Handshake_client::Handshake_client(const char *target, size_t len)
-: Handshake(SSP_NAME, CLIENT), m_service_name(NULL)
+Handshake_client::Handshake_client(Connection &con, 
+                                   const char *target, size_t len)
+: Handshake(SSP_NAME, CLIENT), m_service_name(NULL), m_con(con)
 {
   if (!target || 0 == len)
     return;
@@ -88,43 +95,97 @@ Handshake_client::~Handshake_client()
 }
 
 
-/**
-  Generate first packet to be sent to the server during packet exchange.
-
-  This first packet should contain some data. In case of error a null blob
-  is returned and @c error() gives non-zero error code.
-
-  @return Data to be sent in the first packet or null blob in case of error.
-*/
-
-Blob Handshake_client::first_packet()
+Blob Handshake_client::read_packet()
 {
-  SECURITY_STATUS ret;
-
-  m_output.free();
-
-  ret= InitializeSecurityContextW(
-         &m_cred,
-         NULL,                                 // partial context
-         m_service_name,                       // service name
-         ASC_REQ_ALLOCATE_MEMORY,              // requested attributes
-         0,                                    // reserved
-         SECURITY_NETWORK_DREP,                // data representation
-         NULL,                                 // input data
-         0,                                    // reserved
-         &m_sctx,                              // context
-         &m_output,                            // output data
-         &m_atts,                              // attributes
-         &m_expire);                           // expire date
-
-  if (process_result(ret))
-  {
-    DBUG_PRINT("error",
-               ("InitializeSecurityContext() failed with error %X", ret));
+  /*
+    We do a fake read in the first round because first
+    packet from the server containing UPN must be read
+    before the handshake context is created and the packet
+    processing loop starts. We return an empty blob here
+    and process_data() function will ignore it.
+  */
+  if (m_round == 1)
     return Blob();
+
+  // Otherwise we read packet from the connection.
+
+  Blob packet= m_con.read();
+  m_error= m_con.error();
+  if (!m_error && packet.is_null())
+    m_error= true;  // (no specific error code assigned)
+
+  if (m_error)
+    return Blob();
+
+  DBUG_PRINT("dump", ("Got the following bytes"));
+  DBUG_DUMP("dump", packet.ptr(), packet.len());
+  return packet;
+}
+
+
+
+int Handshake_client::write_packet(Blob &data)
+{
+  /*
+   Length of the first data payload send by client authentication plugin is
+   limited to 255 bytes (because it is wrapped inside client authentication
+   packet and is length-encoded with 1 byte for the length).
+
+   If the data payload is longer than 254 bytes, then it is sent in two parts:
+   first part of length 255 will be embedded in the authentication packet, 
+   second part will be sent in the following packet. Byte 255 of the first 
+   part contains information about the total length of the payload. It is a
+   number of blocks of size 512 bytes which is sufficient to store the
+   combined packets.
+
+   Server's logic for reading first client's payload is as follows
+   (see Handshake_server::read_packet()):
+   1. Read data from the authentication packet, if it is shorter than 255 bytes 
+      then that is all data sent by client.
+   2. If there is 255 bytes of data in the authentication packet, read another
+      packet and append it to the data, skipping byte 255 of the first packet
+      which can be used to allocate buffer of appropriate size.
+  */
+
+  size_t len2= 0;   // length of the second part of first data payload
+  byte saved_byte;  // for saving byte 255 in which data length is stored
+
+  if (m_round == 1 && data.len() > 254)
+  {
+    len2= data.len() - 254;
+    DBUG_PRINT("info", ("Splitting first packet of length %lu"
+                        ", %lu bytes will be sent in a second part", 
+                        data.len(), len2));
+    /* 
+      Store in byte 255 the number of 512b blocks that are needed to
+      keep all the data.
+    */
+    unsigned block_count= data.len()/512 + ((data.len() % 512) ? 1 : 0);
+    DBUG_ASSERT(block_count < (unsigned)0x100);
+    saved_byte= data[254];
+    data[254] = block_count;
+
+    data.trim(255);
   }
 
-  return m_output.as_blob();
+  DBUG_PRINT("dump", ("Sending the following data"));
+  DBUG_DUMP("dump", data.ptr(), data.len());
+  int ret= m_con.write(data);
+
+  if (ret)
+    return ret;
+
+  // Write second part if it is present.
+  if (len2)
+  {
+    data[254]= saved_byte;
+    Blob data2(data.ptr() + 254, len2);
+    DBUG_PRINT("info", ("Sending second part of data"));
+    DBUG_DUMP("info", data2.ptr(), data2.len());
+    ret= m_con.write(data2);
+  }
+
+  return ret;
 }
 
 
@@ -139,12 +200,66 @@ Blob Handshake_client::first_packet()
   empty blob is returned and @c is_complete() is @c true. In case of error
   an empty blob is returned and @c error() gives non-zero error code.
 
+  When invoked for the first time (in the first round of the handshake)
+  there is no data from the server (data blob is null) and the intial
+  packet is generated without an input.
+
   @return Data to be sent to the server next or null blob if no more data
   needs to be exchanged or in case of error.
 */
 
 Blob Handshake_client::process_data(const Blob &data)
 {
+#if !defined(DBUG_OFF) && defined(WINAUTH_USE_DBUG_LIB)
+  /*
+    Code for testing the logic for sending the first client payload.
+
+    A fake data of length given by environment variable TEST_PACKET_LENGTH
+    (or default 255 bytes) is sent to the server. First 2 bytes of the
+    payload contain its total length (LSB first). The length of test data
+    is limited to 2048 bytes.
+
+    Upon receiving test data, server will check that data is correct and
+    refuse connection. If server detects data errors it will crash on 
+    assertion.
+
+    This code is executed if debug flag "winauth_first_packet_test" is
+    set, e.g. using client option:
+
+     --debug="d,winauth_first_packet_test"
+
+     The same debug flag must be enabled in the server, e.g. using 
+     statement:
+
+     SET GLOBAL debug= '+d,winauth_first_packet_test'; 
+  */
+
+  static byte test_buf[2048];
+
+  if (m_round == 1 
+      && DBUG_EVALUATE_IF("winauth_first_packet_test", true, false))
+  {
+    const char *env= getenv("TEST_PACKET_LENGTH");
+    size_t len= env ? atoi(env) : 0;
+    if (!len)
+      len= 255;
+    if (len > sizeof(test_buf))
+      len= sizeof(test_buf);
+
+    // Store data length in first 2 bytes.
+    byte *ptr= test_buf;
+    *ptr++= len & 0xFF;
+    *ptr++= len >> 8;
+
+    // Fill remaining bytes with known values.
+    for (byte b= 0; ptr < test_buf + len; ++ptr, ++b)
+      *ptr= b;
+
+    return Blob(test_buf, len);
+  };
+
+#endif
+
   Security_buffer  input(data);
   SECURITY_STATUS  ret;
 
@@ -152,12 +267,12 @@ Blob Handshake_client::process_data(const Blob &data)
 
   ret= InitializeSecurityContextW(
          &m_cred,
-         &m_sctx,                              // partial context
+         m_round == 1 ? NULL : &m_sctx,        // partial context
          m_service_name,                       // service name
          ASC_REQ_ALLOCATE_MEMORY,              // requested attributes
          0,                                    // reserved
          SECURITY_NETWORK_DREP,                // data representation
-         &input,                               // input data
+         m_round == 1 ? NULL : &input,         // input data
          0,                                    // reserved
          &m_sctx,                              // context
          &m_output,                            // output data
@@ -198,6 +313,8 @@ Blob Handshake_client::process_data(const Blob &data)
 
 int win_auth_handshake_client(MYSQL_PLUGIN_VIO *vio, MYSQL *mysql)
 {
+  DBUG_ENTER("win_auth_handshake_client");
+
   /*
     Check if we should enable logging.
   */
@@ -224,62 +341,38 @@ int win_auth_handshake_client(MYSQL_PLUGIN_VIO *vio, MYSQL *mysql)
 
   // Read initial packet from server containing service name.
 
-  int ret;
   Blob service_name= con.read();
 
   if (con.error() || service_name.is_null())
   {
     ERROR_LOG(ERROR, ("Error reading initial packet"));
-    return CR_ERROR;
+    DBUG_RETURN(CR_ERROR);
   }
   DBUG_PRINT("info", ("Got initial packet of length %d", service_name.len()));
 
-  // Create authentication handsake context using the given service name.
+  // Create authentication handshake context using the given service name.
 
-  Handshake_client hndshk(service_name[0] ? (char *)service_name.ptr() : NULL,
+  Handshake_client hndshk(con,
+                          service_name[0] ? (char *)service_name.ptr() : NULL,
                           service_name.len());
   if (hndshk.error())
   {
     ERROR_LOG(ERROR, ("Could not create authentication handshake context"));
-    return CR_ERROR;
-  }
-
-  /*
-    The following packet exchange always starts with a packet sent by
-    the client. Send this first packet now.
-  */
-
-  {
-    Blob packet= hndshk.first_packet();
-    if (hndshk.error() || packet.is_null())
-    {
-      ERROR_LOG(ERROR, ("Could not generate first packet"));
-      return CR_ERROR;
-    }
-    DBUG_PRINT("info", ("Sending first packet of length %d", packet.len()));
-
-    ret= con.write(packet);
-    if (ret)
-    {
-      ERROR_LOG(ERROR, ("Error writing first packet"));
-      return CR_ERROR;
-    }
-    DBUG_PRINT("info", ("First packet sent"));
+    DBUG_RETURN(CR_ERROR);
   }
 
   DBUG_ASSERT(!hndshk.error());
 
   /*
-    If handshake is not yet complete and client expects a reply, 
-    read and process packets from server until handshake is complete. 
+    Read and process packets from server until handshake is complete.
+    Note that the first read from server is dummy 
+    (see Handshake_client::read_packet()) as we already have read the 
+    first packet to establish service name.
   */
-  if (!hndshk.is_complete())
-  {
-    if (hndshk.packet_processing_loop(con))
-      return CR_ERROR;
-  }
+  if (hndshk.packet_processing_loop())
+    DBUG_RETURN(CR_ERROR);
 
   DBUG_ASSERT(!hndshk.error() && hndshk.is_complete());
 
-  return CR_OK;
+  DBUG_RETURN(CR_OK);
 }
