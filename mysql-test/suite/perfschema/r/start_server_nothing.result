@@ -131,7 +131,7 @@ thread_instrumentation	YES
 select * from performance_schema.setup_timers;
 NAME	TIMER_NAME
 wait	CYCLE
-stage	CYCLE
+stage	NANOSECOND
 statement	NANOSECOND
 select * from performance_schema.cond_instances;
 NAME	OBJECT_INSTANCE_BEGIN
