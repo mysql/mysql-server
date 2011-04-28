@@ -629,21 +629,15 @@ innobase_add_index_cleanup(
 /*=======================*/
 	row_prebuilt_t*	prebuilt,		/*!< in/out: prebuilt */
 	trx_t*		trx,			/*!< in/out: transaction */
-	dict_table_t*	table,			/*!< in/out: table on which
+	dict_table_t*	table)			/*!< in/out: table on which
 						the indexes were going to be
 						created */
-	mem_heap_t*	heap)			/*!< in/own: heap that was
-						going to be used for the index
-						creation */
 {
-	mem_heap_free(heap);
-
 	trx_rollback_to_savepoint(trx, NULL);
 
 	ut_a(trx != prebuilt->trx);
 
 	trx_free_for_mysql(trx);
-	trx = NULL;
 
 	trx_commit_for_mysql(prebuilt->trx);
 
@@ -653,9 +647,9 @@ innobase_add_index_cleanup(
 
 		dict_mutex_enter_for_mysql();
 
-		/* Note: This check exludes the system tables. However, we
+		/* Note: This check excludes the system tables. However, we
 		should be safe because users cannot add indexes to system
-	        tables. */
+		tables. */
 
 		if (UT_LIST_GET_LEN(table->foreign_list) == 0
 		    && UT_LIST_GET_LEN(table->referenced_list) == 0
@@ -706,42 +700,38 @@ ha_innobase::add_index(
 
 	update_thd();
 
-	heap = mem_heap_create(1024);
-
 	/* In case MySQL calls this in the middle of a SELECT query, release
 	possible adaptive hash latch to avoid deadlocks of threads. */
 	trx_search_latch_release_if_reserved(prebuilt->trx);
-	trx_start_if_not_started_xa(prebuilt->trx);
 
-	/* Create a background transaction for the operations on
-	the data dictionary tables. */
-	trx = innobase_trx_allocate(user_thd);
-	trx_start_if_not_started_xa(trx);
+	/* Check if the index name is reserved. */
+	if (innobase_index_name_is_reserved(user_thd, key_info, num_of_keys)) {
+		DBUG_RETURN(-1);
+	}
 
 	indexed_table = dict_table_open_on_name(prebuilt->table->name, FALSE);
 
 	innodb_table = indexed_table;
 
 	if (UNIV_UNLIKELY(!innodb_table)) {
-		innobase_add_index_cleanup(prebuilt, trx, NULL, heap);
-
 		DBUG_RETURN(HA_ERR_NO_SUCH_TABLE);
 	}
 
-	/* Check if the index name is reserved. */
-	if (innobase_index_name_is_reserved(trx, key_info, num_of_keys)) {
-		error = -1;
-	} else {
-		/* Check that index keys are sensible */
-		error = innobase_check_index_keys(key_info, num_of_keys,
-						  innodb_table);
-	}
+	/* Check that index keys are sensible */
+	error = innobase_check_index_keys(key_info, num_of_keys, innodb_table);
 
 	if (UNIV_UNLIKELY(error)) {
-		innobase_add_index_cleanup(prebuilt, trx, innodb_table, heap);
-
+		dict_table_close(innodb_table, FALSE);
 		DBUG_RETURN(error);
 	}
+
+	heap = mem_heap_create(1024);
+	trx_start_if_not_started(prebuilt->trx);
+
+	/* Create a background transaction for the operations on
+	the data dictionary tables. */
+	trx = innobase_trx_allocate(user_thd);
+	trx_start_if_not_started(trx);
 
 	/* We don't want this table to be evicted from the cache while we
 	are building an index on it. Another issue is that while we are
@@ -830,9 +820,10 @@ ha_innobase::add_index(
 			ut_d(dict_table_check_for_dup_indexes(innodb_table,
 							      FALSE));
 			row_mysql_unlock_data_dictionary(trx);
+			mem_heap_free(heap);
 
 			innobase_add_index_cleanup(
-				prebuilt, trx, innodb_table, heap);
+				prebuilt, trx, innodb_table);
 
 			DBUG_RETURN(error);
 		}
@@ -929,11 +920,11 @@ error_handling:
 		error = row_merge_rename_tables(innodb_table, indexed_table,
 						tmp_name, trx);
 
+		dict_table_close(innodb_table, dict_locked);
+		ut_a(innodb_table->n_ref_count == 1);
+
 		if (error != DB_SUCCESS) {
 
-			dict_table_close(innodb_table, dict_locked);
-
-			ut_a(innodb_table->n_ref_count == 1);
 			ut_a(indexed_table->n_ref_count == 0);
 
 			row_merge_drop_table(trx, indexed_table);
@@ -952,10 +943,6 @@ error_handling:
 		}
 
 		trx_commit_for_mysql(prebuilt->trx);
-
-		dict_table_close(innodb_table, dict_locked);
-
-		ut_a(innodb_table->n_ref_count == 1);
 
 		row_prebuilt_free(prebuilt, TRUE);
 

@@ -115,11 +115,8 @@ static void init_udf_psi_keys(void)
   const char* category= "sql";
   int count;
 
-  if (PSI_server == NULL)
-    return;
-
   count= array_elements(all_udf_rwlocks);
-  PSI_server->register_rwlock(category, all_udf_rwlocks, count);
+  mysql_rwlock_register(category, all_udf_rwlocks, count);
 }
 #endif
 

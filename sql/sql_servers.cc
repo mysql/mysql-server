@@ -108,11 +108,8 @@ static void init_servers_cache_psi_keys(void)
   const char* category= "sql";
   int count;
 
-  if (PSI_server == NULL)
-    return;
-
   count= array_elements(all_servers_cache_rwlocks);
-  PSI_server->register_rwlock(category, all_servers_cache_rwlocks, count);
+  mysql_rwlock_register(category, all_servers_cache_rwlocks, count);
 }
 #endif /* HAVE_PSI_INTERFACE */
 

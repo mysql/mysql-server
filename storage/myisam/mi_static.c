@@ -118,23 +118,20 @@ void init_myisam_psi_keys()
   const char* category= "myisam";
   int count;
 
-  if (PSI_server == NULL)
-    return;
-
   count= array_elements(all_myisam_mutexes);
-  PSI_server->register_mutex(category, all_myisam_mutexes, count);
+  mysql_mutex_register(category, all_myisam_mutexes, count);
 
   count= array_elements(all_myisam_rwlocks);
-  PSI_server->register_rwlock(category, all_myisam_rwlocks, count);
+  mysql_rwlock_register(category, all_myisam_rwlocks, count);
 
   count= array_elements(all_myisam_conds);
-  PSI_server->register_cond(category, all_myisam_conds, count);
+  mysql_cond_register(category, all_myisam_conds, count);
 
   count= array_elements(all_myisam_files);
-  PSI_server->register_file(category, all_myisam_files, count);
+  mysql_file_register(category, all_myisam_files, count);
 
   count= array_elements(all_myisam_threads);
-  PSI_server->register_thread(category, all_myisam_threads, count);
+  mysql_thread_register(category, all_myisam_threads, count);
 }
 #endif /* HAVE_PSI_INTERFACE */
 

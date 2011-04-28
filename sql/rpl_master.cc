@@ -75,14 +75,10 @@ static PSI_mutex_info all_slave_list_mutexes[]=
 
 static void init_all_slave_list_mutexes(void)
 {
-  const char* category= "sql";
   int count;
 
-  if (PSI_server == NULL)
-    return;
-
   count= array_elements(all_slave_list_mutexes);
-  PSI_server->register_mutex(category, all_slave_list_mutexes, count);
+  mysql_mutex_register("sql", all_slave_list_mutexes, count);
 }
 #endif /* HAVE_PSI_INTERFACE */
 
