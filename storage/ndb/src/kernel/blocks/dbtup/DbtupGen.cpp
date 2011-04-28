@@ -128,6 +128,8 @@ Dbtup::Dbtup(Block_context& ctx, Uint32 instanceNumber)
   addRecSignal(GSN_DROP_FRAG_REQ, &Dbtup::execDROP_FRAG_REQ);
   addRecSignal(GSN_SUB_GCP_COMPLETE_REP, &Dbtup::execSUB_GCP_COMPLETE_REP);
 
+  addRecSignal(GSN_FIRE_TRIG_REQ, &Dbtup::execFIRE_TRIG_REQ);
+
   fragoperrec = 0;
   fragrecord = 0;
   alterTabOperRec = 0;

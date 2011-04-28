@@ -82,6 +82,7 @@ ndb_blob_write_batch_bytes	#
 ndb_cache_check_time	#
 ndb_cluster_connection_pool	#
 ndb_connectstring	#
+ndb_deferred_constraints	#
 ndb_distribution	#
 ndb_extra_logging	#
 ndb_force_send	#

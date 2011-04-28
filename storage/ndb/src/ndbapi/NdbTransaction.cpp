@@ -84,7 +84,8 @@ NdbTransaction::NdbTransaction( Ndb* aNdb ) :
   pendingBlobReadBytes(0),
   pendingBlobWriteBytes(0),
   m_theFirstLockHandle(NULL),
-  m_theLastLockHandle(NULL)
+  m_theLastLockHandle(NULL),
+  m_tcRef(numberToRef(DBTC, 0))
 {
   theListState = NotInList;
   theError.code = 0;
@@ -960,7 +961,7 @@ NdbTransaction::sendTC_HBREP()		// Send a TC_HBREP signal;
     return -1;
   }
 
-  if (tSignal->setSignal(GSN_TC_HBREP, DBTC) == -1) {
+  if (tSignal->setSignal(GSN_TC_HBREP, refToBlock(m_tcRef)) == -1) {
     return -1;
   }
 
@@ -1112,7 +1113,7 @@ NdbTransaction::sendROLLBACK()      // Send a TCROLLBACKREQ signal;
 
     tTransId1 = (Uint32) theTransactionId;
     tTransId2 = (Uint32) (theTransactionId >> 32);
-    tSignal.setSignal(GSN_TCROLLBACKREQ, DBTC);
+    tSignal.setSignal(GSN_TCROLLBACKREQ, refToBlock(m_tcRef));
     tSignal.setData(theTCConPtr, 1);
     tSignal.setData(tTransId1, 2);
     tSignal.setData(tTransId2, 3);
@@ -1165,7 +1166,7 @@ NdbTransaction::sendCOMMIT()    // Send a TC_COMMITREQ signal;
 
   tTransId1 = (Uint32) theTransactionId;
   tTransId2 = (Uint32) (theTransactionId >> 32);
-  tSignal.setSignal(GSN_TC_COMMITREQ, DBTC);
+  tSignal.setSignal(GSN_TC_COMMITREQ, refToBlock(m_tcRef));
   tSignal.setData(theTCConPtr, 1);
   tSignal.setData(tTransId1, 2);
   tSignal.setData(tTransId2, 3);
@@ -1835,6 +1836,17 @@ NdbTransaction::receiveTCSEIZECONF(const NdbApiSignal* aSignal)
   } else
   {
     theTCConPtr = (Uint32)aSignal->readData(2);
+    if (aSignal->getLength() >= 3)
+    {
+      m_tcRef = aSignal->readData(3);
+    }
+    else
+    {
+      m_tcRef = numberToRef(DBTC, theDBnode);
+    }
+
+    assert(m_tcRef == aSignal->theSendersBlockRef);
+
     theStatus = Connected;
   }
   return 0;

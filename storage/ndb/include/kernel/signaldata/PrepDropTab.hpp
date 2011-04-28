@@ -34,6 +34,7 @@ class PrepDropTabReq {
   friend class Dblqh;
   friend class DblqhProxy;
   friend class Dbdih;
+  friend class DbtcProxy;
 
   friend bool printPREP_DROP_TAB_REQ(FILE *, const Uint32 *, Uint32, Uint16);
 public:
@@ -54,6 +55,7 @@ class PrepDropTabConf {
   friend class Dblqh;
   friend class DblqhProxy;
   friend class Dbdih;
+  friend class DbtcProxy;
 
   /**
    * Receiver(s)
@@ -78,6 +80,7 @@ class PrepDropTabRef {
   friend class Dblqh;
   friend class DblqhProxy;
   friend class Dbdih;
+  friend class DbtcProxy;
 
   /**
    * Receiver(s)

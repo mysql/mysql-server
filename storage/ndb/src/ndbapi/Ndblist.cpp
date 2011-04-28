@@ -481,7 +481,7 @@ Ndb::releaseConnectToNdb(NdbTransaction* a_con)
 
   Uint32 node_id = a_con->getConnectedNodeId();
   Uint32 conn_seq = a_con->theNodeSequence;
-  tSignal.setSignal(GSN_TCRELEASEREQ, DBTC);
+  tSignal.setSignal(GSN_TCRELEASEREQ, refToBlock(a_con->m_tcRef));
   tSignal.setData((tConPtr = a_con->getTC_ConnectPtr()), 1);
   tSignal.setData(theMyRef, 2);
   tSignal.setData(a_con->ptr2int(), 3); 

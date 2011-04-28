@@ -960,7 +960,10 @@ ArrayPool<TupTriggerData> c_triggerPool;
       subscriptionDeleteTriggers(triggerPool),
       subscriptionUpdateTriggers(triggerPool),
       constraintUpdateTriggers(triggerPool),
-      tuxCustomTriggers(triggerPool)
+      tuxCustomTriggers(triggerPool),
+      deferredInsertTriggers(triggerPool),
+      deferredDeleteTriggers(triggerPool),
+      deferredUpdateTriggers(triggerPool)
       {}
     
     Bitmask<MAXNROFATTRIBUTESINWORDS> notNullAttributeMask;
@@ -1090,7 +1093,10 @@ ArrayPool<TupTriggerData> c_triggerPool;
     DLList<TupTriggerData> subscriptionDeleteTriggers;
     DLList<TupTriggerData> subscriptionUpdateTriggers;
     DLList<TupTriggerData> constraintUpdateTriggers;
-    
+    DLList<TupTriggerData> deferredInsertTriggers;
+    DLList<TupTriggerData> deferredUpdateTriggers;
+    DLList<TupTriggerData> deferredDeleteTriggers;
+
     // List of ordered indexes
     DLList<TupTriggerData> tuxCustomTriggers;
     
@@ -1505,19 +1511,31 @@ typedef Ptr<HostBuffer> HostBufferPtr;
     STATIC_CONST( SZ32 = 1 );
   };
 
+  enum When
+  {
+    KRS_PREPARE = 0,
+    KRS_COMMIT = 1,
+    KRS_PRE_COMMIT0 = 2, // There can be multiple pre commit phases...
+    KRS_PRE_COMMIT1 = 3
+  };
+
 struct KeyReqStruct {
 
-  KeyReqStruct(EmulatedJamBuffer * _jamBuffer) {
+  KeyReqStruct(EmulatedJamBuffer * _jamBuffer, When when = KRS_PREPARE) {
 #if defined VM_TRACE || defined ERROR_INSERT
     memset(this, 0xf3, sizeof(* this));
 #endif
     jamBuffer = _jamBuffer;
+    m_when = when;
+    m_deferred_constraints = true;
   }
-  KeyReqStruct(Dbtup* tup) {
+  KeyReqStruct(Dbtup* tup, When when = KRS_PREPARE) {
 #if defined VM_TRACE || defined ERROR_INSERT
     memset(this, 0xf3, sizeof(* this));
 #endif
     jamBuffer = tup->jamBuffer();
+    m_when = when;
+    m_deferred_constraints = true;
   }
   
 /**
@@ -1564,6 +1582,7 @@ struct KeyReqStruct {
   /* Flag: is tuple in expanded or in shrunken/stored format? */
   bool is_expanded;
   bool m_is_lcp;
+  enum When m_when;
 
   struct Var_data {
     /*
@@ -1611,6 +1630,7 @@ struct KeyReqStruct {
   bool            last_row;
   bool            m_use_rowid;
   Uint8           m_reorg;
+  bool            m_deferred_constraints;
 
   Signal*         signal;
   Uint32 no_fired_triggers;
@@ -1998,6 +2018,12 @@ private:
 //------------------------------------------------------------------
 //------------------------------------------------------------------
   void execDROP_TRIG_IMPL_REQ(Signal* signal);
+
+  /**
+   * Deferred triggers execute when execFIRE_TRIG_REQ
+   *   is called
+   */
+  void execFIRE_TRIG_REQ(Signal* signal);
 
 // *****************************************************************
 // Setting up the environment for reads, inserts, updates and deletes.
@@ -2584,11 +2610,11 @@ private:
                                     Tablerec* tablePtr,
                                     bool disk);
 
-#if 0
-  void checkDeferredTriggers(Signal* signal, 
+  void checkDeferredTriggers(KeyReqStruct *req_struct,
                              Operationrec* regOperPtr,
-                             Tablerec* regTablePtr);
-#endif
+                             Tablerec* regTablePtr,
+                             bool disk);
+
   void checkDetachedTriggers(KeyReqStruct *req_struct,
                              Operationrec* regOperPtr,
                              Tablerec* regTablePtr,
@@ -2599,9 +2625,19 @@ private:
                              Operationrec* regOperPtr,
                              bool disk);
 
+  void checkDeferredTriggersDuringPrepare(KeyReqStruct *req_struct,
+                                          DLList<TupTriggerData>& triggerList,
+                                          Operationrec* const regOperPtr,
+                                          bool disk);
   void fireDeferredTriggers(KeyReqStruct *req_struct,
                             DLList<TupTriggerData>& triggerList,
-                            Operationrec* regOperPtr);
+                            Operationrec* const regOperPtr,
+                            bool disk);
+
+  void fireDeferredConstraints(KeyReqStruct *req_struct,
+                               DLList<TupTriggerData>& triggerList,
+                               Operationrec* const regOperPtr,
+                               bool disk);
 
   void fireDetachedTriggers(KeyReqStruct *req_struct,
                             DLList<TupTriggerData>& triggerList,
