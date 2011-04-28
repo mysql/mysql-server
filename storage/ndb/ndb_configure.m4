@@ -178,6 +178,7 @@ AC_DEFUN([MYSQL_CHECK_JAVA], [
   dnl try to add extra include path
   case "$host_os" in
   bsdi*)    JNI_SUBDIRS="bsdos";;
+  freebsd*) JNI_SUBDIRS="freebsd";;
   linux*)   JNI_SUBDIRS="linux genunix";;
   osf*)     JNI_SUBDIRS="alpha";;
   solaris*) JNI_SUBDIRS="solaris";;
