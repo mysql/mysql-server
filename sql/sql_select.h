@@ -1668,13 +1668,12 @@ public:
   */
   bool     sort_and_group; 
   bool     first_record,full_join, no_field_update;
-  bool	   group;          /**< If query contains GROUP BY clause */
-  bool	   do_send_rows;
-  table_map const_table_map,found_const_table_map;
-  /*
-     Bitmap of all inner tables from outer joins
-  */
-  table_map outer_join;
+  bool     group;            ///< If query contains GROUP BY clause
+  bool     do_send_rows;
+  table_map all_table_map;   ///< Set of tables contained in query
+  table_map const_table_map; ///< Set of tables found to be const
+  table_map found_const_table_map; ///< Tables that are const and non-empty
+  table_map outer_join;      ///< Bitmap of all inner tables from outer joins
   /* Number of records produced after join + group operation */
   ha_rows  send_records;
   ha_rows found_records,examined_rows,row_limit;
@@ -1695,20 +1694,15 @@ public:
 
 /******* Join optimization state members start *******/
   /*
-    pointer - we're doing optimization for a semi-join materialization nest.
-    NULL    - otherwise
+    If non-NULL, we are optimizing a materialized semi-join nest.
+    If NULL, we are optimizing a complete join plan.
+    This member is used only within the class Optimize_table_order, and
+    within class Loose_scan_opt (called from best_access_path()).
   */
   TABLE_LIST *emb_sjm_nest;
   
   /* Current join optimization state */
-  POSITION *positions;
-  
-  /*
-    Bitmap of nested joins embedding the position at the end of the current 
-    partial join (valid only during join optimizer run).
-  */
-  nested_join_map cur_embedding_map;
-  
+  POSITION *positions;  
   /*
     Bitmap of inner tables of semi-join nests that have a proper subset of
     their tables in the current join prefix. That is, of those semi-join
