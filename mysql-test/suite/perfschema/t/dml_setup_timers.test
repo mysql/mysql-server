@@ -55,3 +55,14 @@ UNLOCK TABLES;
 LOCK TABLES performance_schema.setup_timers WRITE;
 UNLOCK TABLES;
 
+# Cleanup, restore the default values
+
+update performance_schema.setup_timers
+ set timer_name='CYCLE' where name="wait";
+update performance_schema.setup_timers
+ set timer_name='NANOSECOND' where name="stage";
+update performance_schema.setup_timers
+ set timer_name='NANOSECOND' where name="statement";
+
+select * from performance_schema.setup_timers;
+
