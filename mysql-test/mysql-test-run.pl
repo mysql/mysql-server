@@ -2412,17 +2412,9 @@ sub setup_vardir() {
     mkpath("$data_dir/test");
   }
 
-  # Make a link std_data_ln in var/ that points to std_data
-  if ( ! $glob_win32 )
-  {
-    symlink("$glob_mysql_test_dir/std_data", "$opt_vardir/std_data_ln");
-  }
-  else
-  {
-    # on windows, copy all files from std_data into var/std_data_ln
-    mkpath("$opt_vardir/std_data_ln");
-    mtr_copy_dir("$glob_mysql_test_dir/std_data", "$opt_vardir/std_data_ln");
-  }
+  # copy all files from std_data into var/std_data_ln
+  mkpath("$opt_vardir/std_data_ln");
+  mtr_copy_dir("$glob_mysql_test_dir/std_data", "$opt_vardir/std_data_ln");
 
   # Remove old log files
   foreach my $name (glob("r/*.progress r/*.log r/*.warnings"))
