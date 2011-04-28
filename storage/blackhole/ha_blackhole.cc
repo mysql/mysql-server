@@ -389,11 +389,8 @@ void init_blackhole_psi_keys()
   const char* category= "blackhole";
   int count;
 
-  if (PSI_server == NULL)
-    return;
-
   count= array_elements(all_blackhole_mutexes);
-  PSI_server->register_mutex(category, all_blackhole_mutexes, count);
+  mysql_mutex_register(category, all_blackhole_mutexes, count);
 }
 #endif
 

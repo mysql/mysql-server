@@ -11,8 +11,8 @@ ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
 FOR A PARTICULAR PURPOSE. See the GNU General Public License for more details.
 
 You should have received a copy of the GNU General Public License along with
-this program; if not, write to the Free Software Foundation, Inc., 59 Temple
-Place, Suite 330, Boston, MA 02111-1307 USA
+this program; if not, write to the Free Software Foundation, Inc.,
+51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA
 
 *****************************************************************************/
 
@@ -3346,7 +3346,7 @@ fil_load_single_table_tablespace(
 		return;
 	}
 #endif
-	/* Read the first page of the tablespace if the size big enough */
+	/* Read the first page of the tablespace if the size is big enough */
 
 	buf2 = ut_malloc(2 * UNIV_PAGE_SIZE);
 	/* Align the memory for file i/o if we might have O_DIRECT set */
@@ -4524,8 +4524,8 @@ fil_aio_wait(
 		ret = os_aio_linux_handle(segment, &fil_node,
 					  &message, &type);
 #else
-		ret = 0; /* Eliminate compiler warning */
 		ut_error;
+		ret = 0; /* Eliminate compiler warning */
 #endif
 	} else {
 		srv_set_io_thread_op_info(segment, "simulated aio handle");
@@ -4535,6 +4535,10 @@ fil_aio_wait(
 	}
 
 	ut_a(ret);
+	if (UNIV_UNLIKELY(fil_node == NULL)) {
+		ut_ad(srv_shutdown_state == SRV_SHUTDOWN_EXIT_THREADS);
+		return;
+	}
 
 	srv_set_io_thread_op_info(segment, "complete io for fil node");
 

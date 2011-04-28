@@ -1676,6 +1676,7 @@ FLUSH PRIVILEGES;
 CREATE DATABASE mysqltest1;
 CREATE PROCEDURE mysqltest1.test() SQL SECURITY DEFINER
   SELECT 1;
+CREATE FUNCTION mysqltest1.test() RETURNS INT RETURN 1;
 --error ER_NO_SUCH_TABLE
 GRANT EXECUTE ON FUNCTION mysqltest1.test TO mysqltest_1@localhost;
 GRANT ALL PRIVILEGES ON test.* TO mysqltest_1@localhost;
@@ -2187,3 +2188,27 @@ DROP USER mysqltest_u1@localhost;
 --echo
 --echo # End of Bug#38347.
 --echo
+
+
+--echo #
+--echo # BUG#11759114 - '51401: GRANT TREATS NONEXISTENT FUNCTIONS/PRIVILEGES
+--echo #                 DIFFERENTLY'.
+--echo #
+--disable_warnings
+drop database if exists mysqltest_db1;
+--enable_warnings
+create database mysqltest_db1;
+create user mysqltest_u1;
+--echo # Both GRANT statements below should fail with the same error.
+--error ER_SP_DOES_NOT_EXIST
+grant execute on function mysqltest_db1.f1 to mysqltest_u1;
+--error ER_SP_DOES_NOT_EXIST
+grant execute on procedure mysqltest_db1.p1 to mysqltest_u1;
+--echo # Let us show that GRANT behaviour for routines is consistent
+--echo # with GRANT behaviour for tables. Attempt to grant privilege
+--echo # on non-existent table also results in an error.
+--error ER_NO_SUCH_TABLE
+grant select on mysqltest_db1.t1 to mysqltest_u1;
+show grants for mysqltest_u1;
+drop database mysqltest_db1;
+drop user mysqltest_u1;

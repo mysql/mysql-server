@@ -205,10 +205,10 @@ wait/io/table/sql/handler	8	TABLE	test	t1
 wait/io/table/sql/handler	17	TABLE	test	t3
 execute dump_index_io;
 object_type	object_schema	object_name	index_name	count_star	count_read	count_write	count_fetch	count_insert	count_update	count_delete
-TABLE	test	t1	NULL	7	4	3	4	1	2	0
+TABLE	test	t1	NULL	6	4	2	4	1	1	0
 TABLE	test	t1	index_b	0	0	0	0	0	0	0
 TABLE	test	t1	index_cb	0	0	0	0	0	0	0
-TABLE	test	t1	PRIMARY	1	1	0	1	0	0	0
+TABLE	test	t1	PRIMARY	2	1	1	1	0	1	0
 TABLE	test	t2	NULL	0	0	0	0	0	0	0
 TABLE	test	t2	index_b	0	0	0	0	0	0	0
 TABLE	test	t2	index_cb	0	0	0	0	0	0	0
@@ -250,10 +250,10 @@ wait/io/table/sql/handler	8	TABLE	test	t1
 wait/io/table/sql/handler	17	TABLE	test	t3
 execute dump_index_io;
 object_type	object_schema	object_name	index_name	count_star	count_read	count_write	count_fetch	count_insert	count_update	count_delete
-TABLE	test	t1	NULL	7	4	3	4	1	2	0
+TABLE	test	t1	NULL	6	4	2	4	1	1	0
 TABLE	test	t1	index_b	0	0	0	0	0	0	0
 TABLE	test	t1	index_cb	0	0	0	0	0	0	0
-TABLE	test	t1	PRIMARY	1	1	0	1	0	0	0
+TABLE	test	t1	PRIMARY	2	1	1	1	0	1	0
 TABLE	test	t2	NULL	0	0	0	0	0	0	0
 TABLE	test	t2	index_b	0	0	0	0	0	0	0
 TABLE	test	t2	index_cb	0	0	0	0	0	0	0
@@ -333,10 +333,10 @@ wait/io/table/sql/handler	20	TABLE	test	t1
 wait/io/table/sql/handler	44	TABLE	test	t3
 execute dump_index_io;
 object_type	object_schema	object_name	index_name	count_star	count_read	count_write	count_fetch	count_insert	count_update	count_delete
-TABLE	test	t1	NULL	17	10	7	10	2	5	0
+TABLE	test	t1	NULL	15	10	5	10	2	3	0
 TABLE	test	t1	index_b	1	1	0	1	0	0	0
 TABLE	test	t1	index_cb	0	0	0	0	0	0	0
-TABLE	test	t1	PRIMARY	2	2	0	2	0	0	0
+TABLE	test	t1	PRIMARY	4	2	2	2	0	2	0
 TABLE	test	t2	NULL	0	0	0	0	0	0	0
 TABLE	test	t2	index_b	0	0	0	0	0	0	0
 TABLE	test	t2	index_cb	0	0	0	0	0	0	0
@@ -380,10 +380,10 @@ wait/io/table/sql/handler	20	TABLE	test	t1
 wait/io/table/sql/handler	44	TABLE	test	t3
 execute dump_index_io;
 object_type	object_schema	object_name	index_name	count_star	count_read	count_write	count_fetch	count_insert	count_update	count_delete
-TABLE	test	t1	NULL	17	10	7	10	2	5	0
+TABLE	test	t1	NULL	15	10	5	10	2	3	0
 TABLE	test	t1	index_b	1	1	0	1	0	0	0
 TABLE	test	t1	index_cb	0	0	0	0	0	0	0
-TABLE	test	t1	PRIMARY	2	2	0	2	0	0	0
+TABLE	test	t1	PRIMARY	4	2	2	2	0	2	0
 TABLE	test	t2	NULL	0	0	0	0	0	0	0
 TABLE	test	t2	index_b	0	0	0	0	0	0	0
 TABLE	test	t2	index_cb	0	0	0	0	0	0	0
@@ -472,10 +472,10 @@ wait/io/table/sql/handler	35	TABLE	test	t1
 wait/io/table/sql/handler	81	TABLE	test	t3
 execute dump_index_io;
 object_type	object_schema	object_name	index_name	count_star	count_read	count_write	count_fetch	count_insert	count_update	count_delete
-TABLE	test	t1	NULL	30	18	12	18	3	9	0
+TABLE	test	t1	NULL	27	18	9	18	3	6	0
 TABLE	test	t1	index_b	2	2	0	2	0	0	0
 TABLE	test	t1	index_cb	0	0	0	0	0	0	0
-TABLE	test	t1	PRIMARY	3	3	0	3	0	0	0
+TABLE	test	t1	PRIMARY	6	3	3	3	0	3	0
 TABLE	test	t2	NULL	0	0	0	0	0	0	0
 TABLE	test	t2	index_b	0	0	0	0	0	0	0
 TABLE	test	t2	index_cb	0	0	0	0	0	0	0
@@ -521,10 +521,10 @@ wait/io/table/sql/handler	35	TABLE	test	t1
 wait/io/table/sql/handler	81	TABLE	test	t3
 execute dump_index_io;
 object_type	object_schema	object_name	index_name	count_star	count_read	count_write	count_fetch	count_insert	count_update	count_delete
-TABLE	test	t1	NULL	30	18	12	18	3	9	0
+TABLE	test	t1	NULL	27	18	9	18	3	6	0
 TABLE	test	t1	index_b	2	2	0	2	0	0	0
 TABLE	test	t1	index_cb	0	0	0	0	0	0	0
-TABLE	test	t1	PRIMARY	3	3	0	3	0	0	0
+TABLE	test	t1	PRIMARY	6	3	3	3	0	3	0
 TABLE	test	t2	NULL	0	0	0	0	0	0	0
 TABLE	test	t2	index_b	0	0	0	0	0	0	0
 TABLE	test	t2	index_cb	0	0	0	0	0	0	0
@@ -622,10 +622,10 @@ wait/io/table/sql/handler	53	TABLE	test	t1
 wait/io/table/sql/handler	128	TABLE	test	t3
 execute dump_index_io;
 object_type	object_schema	object_name	index_name	count_star	count_read	count_write	count_fetch	count_insert	count_update	count_delete
-TABLE	test	t1	NULL	46	28	18	28	4	14	0
+TABLE	test	t1	NULL	42	28	14	28	4	10	0
 TABLE	test	t1	index_b	3	3	0	3	0	0	0
 TABLE	test	t1	index_cb	0	0	0	0	0	0	0
-TABLE	test	t1	PRIMARY	4	4	0	4	0	0	0
+TABLE	test	t1	PRIMARY	8	4	4	4	0	4	0
 TABLE	test	t2	NULL	0	0	0	0	0	0	0
 TABLE	test	t2	index_b	0	0	0	0	0	0	0
 TABLE	test	t2	index_cb	0	0	0	0	0	0	0
@@ -675,10 +675,10 @@ wait/io/table/sql/handler	53	TABLE	test	t1
 wait/io/table/sql/handler	128	TABLE	test	t3
 execute dump_index_io;
 object_type	object_schema	object_name	index_name	count_star	count_read	count_write	count_fetch	count_insert	count_update	count_delete
-TABLE	test	t1	NULL	46	28	18	28	4	14	0
+TABLE	test	t1	NULL	42	28	14	28	4	10	0
 TABLE	test	t1	index_b	3	3	0	3	0	0	0
 TABLE	test	t1	index_cb	0	0	0	0	0	0	0
-TABLE	test	t1	PRIMARY	4	4	0	4	0	0	0
+TABLE	test	t1	PRIMARY	8	4	4	4	0	4	0
 TABLE	test	t2	NULL	0	0	0	0	0	0	0
 TABLE	test	t2	index_b	0	0	0	0	0	0	0
 TABLE	test	t2	index_cb	0	0	0	0	0	0	0
@@ -725,10 +725,10 @@ wait/io/table/sql/handler	53	TABLE	test	t1
 wait/io/table/sql/handler	128	TABLE	test	t3
 execute dump_index_io;
 object_type	object_schema	object_name	index_name	count_star	count_read	count_write	count_fetch	count_insert	count_update	count_delete
-TABLE	test	t1	NULL	46	28	18	28	4	14	0
+TABLE	test	t1	NULL	42	28	14	28	4	10	0
 TABLE	test	t1	index_b	3	3	0	3	0	0	0
 TABLE	test	t1	index_cb	0	0	0	0	0	0	0
-TABLE	test	t1	PRIMARY	4	4	0	4	0	0	0
+TABLE	test	t1	PRIMARY	8	4	4	4	0	4	0
 TABLE	test	t2	NULL	0	0	0	0	0	0	0
 TABLE	test	t2	index_b	0	0	0	0	0	0	0
 TABLE	test	t2	index_cb	0	0	0	0	0	0	0
@@ -776,10 +776,10 @@ wait/io/table/sql/handler	53	TABLE	test	t1
 wait/io/table/sql/handler	128	TABLE	test	t3
 execute dump_index_io;
 object_type	object_schema	object_name	index_name	count_star	count_read	count_write	count_fetch	count_insert	count_update	count_delete
-TABLE	test	t1	NULL	46	28	18	28	4	14	0
+TABLE	test	t1	NULL	42	28	14	28	4	10	0
 TABLE	test	t1	index_b	3	3	0	3	0	0	0
 TABLE	test	t1	index_cb	0	0	0	0	0	0	0
-TABLE	test	t1	PRIMARY	4	4	0	4	0	0	0
+TABLE	test	t1	PRIMARY	8	4	4	4	0	4	0
 TABLE	test	t2	NULL	0	0	0	0	0	0	0
 TABLE	test	t2	index_b	0	0	0	0	0	0	0
 TABLE	test	t2	index_cb	0	0	0	0	0	0	0
@@ -823,10 +823,10 @@ wait/io/table/sql/handler	53	TABLE	test	t1
 wait/io/table/sql/handler	128	TABLE	test	t3
 execute dump_index_io;
 object_type	object_schema	object_name	index_name	count_star	count_read	count_write	count_fetch	count_insert	count_update	count_delete
-TABLE	test	t1	NULL	46	28	18	28	4	14	0
+TABLE	test	t1	NULL	42	28	14	28	4	10	0
 TABLE	test	t1	index_b	3	3	0	3	0	0	0
 TABLE	test	t1	index_cb	0	0	0	0	0	0	0
-TABLE	test	t1	PRIMARY	4	4	0	4	0	0	0
+TABLE	test	t1	PRIMARY	8	4	4	4	0	4	0
 TABLE	test	t2	NULL	0	0	0	0	0	0	0
 TABLE	test	t2	index_b	0	0	0	0	0	0	0
 TABLE	test	t2	index_cb	0	0	0	0	0	0	0
@@ -868,10 +868,10 @@ wait/io/table/sql/handler	53	TABLE	test	t1
 wait/io/table/sql/handler	128	TABLE	test	t3
 execute dump_index_io;
 object_type	object_schema	object_name	index_name	count_star	count_read	count_write	count_fetch	count_insert	count_update	count_delete
-TABLE	test	t1	NULL	46	28	18	28	4	14	0
+TABLE	test	t1	NULL	42	28	14	28	4	10	0
 TABLE	test	t1	index_b	3	3	0	3	0	0	0
 TABLE	test	t1	index_cb	0	0	0	0	0	0	0
-TABLE	test	t1	PRIMARY	4	4	0	4	0	0	0
+TABLE	test	t1	PRIMARY	8	4	4	4	0	4	0
 TABLE	test	t2	NULL	0	0	0	0	0	0	0
 TABLE	test	t2	index_b	0	0	0	0	0	0	0
 TABLE	test	t2	index_cb	0	0	0	0	0	0	0
@@ -911,10 +911,10 @@ wait/io/table/sql/handler	53	TABLE	test	t1
 wait/io/table/sql/handler	128	TABLE	test	t3
 execute dump_index_io;
 object_type	object_schema	object_name	index_name	count_star	count_read	count_write	count_fetch	count_insert	count_update	count_delete
-TABLE	test	t1	NULL	46	28	18	28	4	14	0
+TABLE	test	t1	NULL	42	28	14	28	4	10	0
 TABLE	test	t1	index_b	3	3	0	3	0	0	0
 TABLE	test	t1	index_cb	0	0	0	0	0	0	0
-TABLE	test	t1	PRIMARY	4	4	0	4	0	0	0
+TABLE	test	t1	PRIMARY	8	4	4	4	0	4	0
 TABLE	test	t2	NULL	0	0	0	0	0	0	0
 TABLE	test	t2	index_b	0	0	0	0	0	0	0
 TABLE	test	t2	index_cb	0	0	0	0	0	0	0
@@ -952,10 +952,10 @@ wait/io/table/sql/handler	53	TABLE	test	t1
 wait/io/table/sql/handler	128	TABLE	test	t3
 execute dump_index_io;
 object_type	object_schema	object_name	index_name	count_star	count_read	count_write	count_fetch	count_insert	count_update	count_delete
-TABLE	test	t1	NULL	46	28	18	28	4	14	0
+TABLE	test	t1	NULL	42	28	14	28	4	10	0
 TABLE	test	t1	index_b	3	3	0	3	0	0	0
 TABLE	test	t1	index_cb	0	0	0	0	0	0	0
-TABLE	test	t1	PRIMARY	4	4	0	4	0	0	0
+TABLE	test	t1	PRIMARY	8	4	4	4	0	4	0
 TABLE	test	t2	NULL	0	0	0	0	0	0	0
 TABLE	test	t2	index_b	0	0	0	0	0	0	0
 TABLE	test	t2	index_cb	0	0	0	0	0	0	0
@@ -994,10 +994,10 @@ wait/io/table/sql/handler	53	TABLE	test	t1
 wait/io/table/sql/handler	128	TABLE	test	t3
 execute dump_index_io;
 object_type	object_schema	object_name	index_name	count_star	count_read	count_write	count_fetch	count_insert	count_update	count_delete
-TABLE	test	t1	NULL	46	28	18	28	4	14	0
+TABLE	test	t1	NULL	42	28	14	28	4	10	0
 TABLE	test	t1	index_b	3	3	0	3	0	0	0
 TABLE	test	t1	index_cb	0	0	0	0	0	0	0
-TABLE	test	t1	PRIMARY	4	4	0	4	0	0	0
+TABLE	test	t1	PRIMARY	8	4	4	4	0	4	0
 TABLE	test	t2	NULL	0	0	0	0	0	0	0
 TABLE	test	t2	index_b	0	0	0	0	0	0	0
 TABLE	test	t2	index_cb	0	0	0	0	0	0	0

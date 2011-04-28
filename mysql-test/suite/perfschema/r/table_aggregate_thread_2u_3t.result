@@ -202,10 +202,10 @@ execute dump_history;
 event_name	count(event_name)	object_type	object_schema	object_name
 execute dump_index_io;
 object_type	object_schema	object_name	index_name	count_star	count_read	count_write	count_fetch	count_insert	count_update	count_delete
-TABLE	test	t1	NULL	7	4	3	4	1	2	0
+TABLE	test	t1	NULL	6	4	2	4	1	1	0
 TABLE	test	t1	index_b	0	0	0	0	0	0	0
 TABLE	test	t1	index_cb	0	0	0	0	0	0	0
-TABLE	test	t1	PRIMARY	1	1	0	1	0	0	0
+TABLE	test	t1	PRIMARY	2	1	1	1	0	1	0
 TABLE	test	t2	NULL	10	6	4	6	2	2	0
 TABLE	test	t2	index_b	1	1	0	1	0	0	0
 TABLE	test	t2	index_cb	0	0	0	0	0	0	0
@@ -245,10 +245,10 @@ execute dump_history;
 event_name	count(event_name)	object_type	object_schema	object_name
 execute dump_index_io;
 object_type	object_schema	object_name	index_name	count_star	count_read	count_write	count_fetch	count_insert	count_update	count_delete
-TABLE	test	t1	NULL	7	4	3	4	1	2	0
+TABLE	test	t1	NULL	6	4	2	4	1	1	0
 TABLE	test	t1	index_b	0	0	0	0	0	0	0
 TABLE	test	t1	index_cb	0	0	0	0	0	0	0
-TABLE	test	t1	PRIMARY	1	1	0	1	0	0	0
+TABLE	test	t1	PRIMARY	2	1	1	1	0	1	0
 TABLE	test	t2	NULL	10	6	4	6	2	2	0
 TABLE	test	t2	index_b	1	1	0	1	0	0	0
 TABLE	test	t2	index_cb	0	0	0	0	0	0	0
@@ -326,10 +326,10 @@ execute dump_history;
 event_name	count(event_name)	object_type	object_schema	object_name
 execute dump_index_io;
 object_type	object_schema	object_name	index_name	count_star	count_read	count_write	count_fetch	count_insert	count_update	count_delete
-TABLE	test	t1	NULL	7	4	3	4	1	2	0
+TABLE	test	t1	NULL	6	4	2	4	1	1	0
 TABLE	test	t1	index_b	0	0	0	0	0	0	0
 TABLE	test	t1	index_cb	0	0	0	0	0	0	0
-TABLE	test	t1	PRIMARY	1	1	0	1	0	0	0
+TABLE	test	t1	PRIMARY	2	1	1	1	0	1	0
 TABLE	test	t2	NULL	10	6	4	6	2	2	0
 TABLE	test	t2	index_b	1	1	0	1	0	0	0
 TABLE	test	t2	index_cb	0	0	0	0	0	0	0
@@ -371,10 +371,10 @@ execute dump_history;
 event_name	count(event_name)	object_type	object_schema	object_name
 execute dump_index_io;
 object_type	object_schema	object_name	index_name	count_star	count_read	count_write	count_fetch	count_insert	count_update	count_delete
-TABLE	test	t1	NULL	7	4	3	4	1	2	0
+TABLE	test	t1	NULL	6	4	2	4	1	1	0
 TABLE	test	t1	index_b	0	0	0	0	0	0	0
 TABLE	test	t1	index_cb	0	0	0	0	0	0	0
-TABLE	test	t1	PRIMARY	1	1	0	1	0	0	0
+TABLE	test	t1	PRIMARY	2	1	1	1	0	1	0
 TABLE	test	t2	NULL	10	6	4	6	2	2	0
 TABLE	test	t2	index_b	1	1	0	1	0	0	0
 TABLE	test	t2	index_cb	0	0	0	0	0	0	0
@@ -461,10 +461,10 @@ execute dump_history;
 event_name	count(event_name)	object_type	object_schema	object_name
 execute dump_index_io;
 object_type	object_schema	object_name	index_name	count_star	count_read	count_write	count_fetch	count_insert	count_update	count_delete
-TABLE	test	t1	NULL	20	12	8	12	2	6	0
+TABLE	test	t1	NULL	18	12	6	12	2	4	0
 TABLE	test	t1	index_b	1	1	0	1	0	0	0
 TABLE	test	t1	index_cb	0	0	0	0	0	0	0
-TABLE	test	t1	PRIMARY	2	2	0	2	0	0	0
+TABLE	test	t1	PRIMARY	4	2	2	2	0	2	0
 TABLE	test	t2	NULL	32	20	12	20	4	8	0
 TABLE	test	t2	index_b	2	2	0	2	0	0	0
 TABLE	test	t2	index_cb	0	0	0	0	0	0	0
@@ -508,10 +508,10 @@ execute dump_history;
 event_name	count(event_name)	object_type	object_schema	object_name
 execute dump_index_io;
 object_type	object_schema	object_name	index_name	count_star	count_read	count_write	count_fetch	count_insert	count_update	count_delete
-TABLE	test	t1	NULL	20	12	8	12	2	6	0
+TABLE	test	t1	NULL	18	12	6	12	2	4	0
 TABLE	test	t1	index_b	1	1	0	1	0	0	0
 TABLE	test	t1	index_cb	0	0	0	0	0	0	0
-TABLE	test	t1	PRIMARY	2	2	0	2	0	0	0
+TABLE	test	t1	PRIMARY	4	2	2	2	0	2	0
 TABLE	test	t2	NULL	32	20	12	20	4	8	0
 TABLE	test	t2	index_b	2	2	0	2	0	0	0
 TABLE	test	t2	index_cb	0	0	0	0	0	0	0
@@ -607,10 +607,10 @@ execute dump_history;
 event_name	count(event_name)	object_type	object_schema	object_name
 execute dump_index_io;
 object_type	object_schema	object_name	index_name	count_star	count_read	count_write	count_fetch	count_insert	count_update	count_delete
-TABLE	test	t1	NULL	20	12	8	12	2	6	0
+TABLE	test	t1	NULL	18	12	6	12	2	4	0
 TABLE	test	t1	index_b	1	1	0	1	0	0	0
 TABLE	test	t1	index_cb	0	0	0	0	0	0	0
-TABLE	test	t1	PRIMARY	2	2	0	2	0	0	0
+TABLE	test	t1	PRIMARY	4	2	2	2	0	2	0
 TABLE	test	t2	NULL	32	20	12	20	4	8	0
 TABLE	test	t2	index_b	2	2	0	2	0	0	0
 TABLE	test	t2	index_cb	0	0	0	0	0	0	0
@@ -658,10 +658,10 @@ execute dump_history;
 event_name	count(event_name)	object_type	object_schema	object_name
 execute dump_index_io;
 object_type	object_schema	object_name	index_name	count_star	count_read	count_write	count_fetch	count_insert	count_update	count_delete
-TABLE	test	t1	NULL	20	12	8	12	2	6	0
+TABLE	test	t1	NULL	18	12	6	12	2	4	0
 TABLE	test	t1	index_b	1	1	0	1	0	0	0
 TABLE	test	t1	index_cb	0	0	0	0	0	0	0
-TABLE	test	t1	PRIMARY	2	2	0	2	0	0	0
+TABLE	test	t1	PRIMARY	4	2	2	2	0	2	0
 TABLE	test	t2	NULL	32	20	12	20	4	8	0
 TABLE	test	t2	index_b	2	2	0	2	0	0	0
 TABLE	test	t2	index_cb	0	0	0	0	0	0	0
@@ -706,10 +706,10 @@ execute dump_history;
 event_name	count(event_name)	object_type	object_schema	object_name
 execute dump_index_io;
 object_type	object_schema	object_name	index_name	count_star	count_read	count_write	count_fetch	count_insert	count_update	count_delete
-TABLE	test	t1	NULL	20	12	8	12	2	6	0
+TABLE	test	t1	NULL	18	12	6	12	2	4	0
 TABLE	test	t1	index_b	1	1	0	1	0	0	0
 TABLE	test	t1	index_cb	0	0	0	0	0	0	0
-TABLE	test	t1	PRIMARY	2	2	0	2	0	0	0
+TABLE	test	t1	PRIMARY	4	2	2	2	0	2	0
 TABLE	test	t2	NULL	32	20	12	20	4	8	0
 TABLE	test	t2	index_b	2	2	0	2	0	0	0
 TABLE	test	t2	index_cb	0	0	0	0	0	0	0
@@ -755,10 +755,10 @@ execute dump_history;
 event_name	count(event_name)	object_type	object_schema	object_name
 execute dump_index_io;
 object_type	object_schema	object_name	index_name	count_star	count_read	count_write	count_fetch	count_insert	count_update	count_delete
-TABLE	test	t1	NULL	20	12	8	12	2	6	0
+TABLE	test	t1	NULL	18	12	6	12	2	4	0
 TABLE	test	t1	index_b	1	1	0	1	0	0	0
 TABLE	test	t1	index_cb	0	0	0	0	0	0	0
-TABLE	test	t1	PRIMARY	2	2	0	2	0	0	0
+TABLE	test	t1	PRIMARY	4	2	2	2	0	2	0
 TABLE	test	t2	NULL	32	20	12	20	4	8	0
 TABLE	test	t2	index_b	2	2	0	2	0	0	0
 TABLE	test	t2	index_cb	0	0	0	0	0	0	0
@@ -800,10 +800,10 @@ execute dump_history;
 event_name	count(event_name)	object_type	object_schema	object_name
 execute dump_index_io;
 object_type	object_schema	object_name	index_name	count_star	count_read	count_write	count_fetch	count_insert	count_update	count_delete
-TABLE	test	t1	NULL	20	12	8	12	2	6	0
+TABLE	test	t1	NULL	18	12	6	12	2	4	0
 TABLE	test	t1	index_b	1	1	0	1	0	0	0
 TABLE	test	t1	index_cb	0	0	0	0	0	0	0
-TABLE	test	t1	PRIMARY	2	2	0	2	0	0	0
+TABLE	test	t1	PRIMARY	4	2	2	2	0	2	0
 TABLE	test	t2	NULL	32	20	12	20	4	8	0
 TABLE	test	t2	index_b	2	2	0	2	0	0	0
 TABLE	test	t2	index_cb	0	0	0	0	0	0	0
@@ -843,10 +843,10 @@ execute dump_history;
 event_name	count(event_name)	object_type	object_schema	object_name
 execute dump_index_io;
 object_type	object_schema	object_name	index_name	count_star	count_read	count_write	count_fetch	count_insert	count_update	count_delete
-TABLE	test	t1	NULL	20	12	8	12	2	6	0
+TABLE	test	t1	NULL	18	12	6	12	2	4	0
 TABLE	test	t1	index_b	1	1	0	1	0	0	0
 TABLE	test	t1	index_cb	0	0	0	0	0	0	0
-TABLE	test	t1	PRIMARY	2	2	0	2	0	0	0
+TABLE	test	t1	PRIMARY	4	2	2	2	0	2	0
 TABLE	test	t2	NULL	32	20	12	20	4	8	0
 TABLE	test	t2	index_b	2	2	0	2	0	0	0
 TABLE	test	t2	index_cb	0	0	0	0	0	0	0
@@ -884,10 +884,10 @@ execute dump_history;
 event_name	count(event_name)	object_type	object_schema	object_name
 execute dump_index_io;
 object_type	object_schema	object_name	index_name	count_star	count_read	count_write	count_fetch	count_insert	count_update	count_delete
-TABLE	test	t1	NULL	20	12	8	12	2	6	0
+TABLE	test	t1	NULL	18	12	6	12	2	4	0
 TABLE	test	t1	index_b	1	1	0	1	0	0	0
 TABLE	test	t1	index_cb	0	0	0	0	0	0	0
-TABLE	test	t1	PRIMARY	2	2	0	2	0	0	0
+TABLE	test	t1	PRIMARY	4	2	2	2	0	2	0
 TABLE	test	t2	NULL	32	20	12	20	4	8	0
 TABLE	test	t2	index_b	2	2	0	2	0	0	0
 TABLE	test	t2	index_cb	0	0	0	0	0	0	0
@@ -923,10 +923,10 @@ execute dump_history;
 event_name	count(event_name)	object_type	object_schema	object_name
 execute dump_index_io;
 object_type	object_schema	object_name	index_name	count_star	count_read	count_write	count_fetch	count_insert	count_update	count_delete
-TABLE	test	t1	NULL	20	12	8	12	2	6	0
+TABLE	test	t1	NULL	18	12	6	12	2	4	0
 TABLE	test	t1	index_b	1	1	0	1	0	0	0
 TABLE	test	t1	index_cb	0	0	0	0	0	0	0
-TABLE	test	t1	PRIMARY	2	2	0	2	0	0	0
+TABLE	test	t1	PRIMARY	4	2	2	2	0	2	0
 TABLE	test	t2	NULL	32	20	12	20	4	8	0
 TABLE	test	t2	index_b	2	2	0	2	0	0	0
 TABLE	test	t2	index_cb	0	0	0	0	0	0	0
@@ -963,10 +963,10 @@ execute dump_history;
 event_name	count(event_name)	object_type	object_schema	object_name
 execute dump_index_io;
 object_type	object_schema	object_name	index_name	count_star	count_read	count_write	count_fetch	count_insert	count_update	count_delete
-TABLE	test	t1	NULL	20	12	8	12	2	6	0
+TABLE	test	t1	NULL	18	12	6	12	2	4	0
 TABLE	test	t1	index_b	1	1	0	1	0	0	0
 TABLE	test	t1	index_cb	0	0	0	0	0	0	0
-TABLE	test	t1	PRIMARY	2	2	0	2	0	0	0
+TABLE	test	t1	PRIMARY	4	2	2	2	0	2	0
 TABLE	test	t2	NULL	32	20	12	20	4	8	0
 TABLE	test	t2	index_b	2	2	0	2	0	0	0
 TABLE	test	t2	index_cb	0	0	0	0	0	0	0

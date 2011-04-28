@@ -7532,20 +7532,17 @@ void init_ndbcluster_psi_keys()
   const char* category= "ndbcluster";
   int count;
 
-  if (PSI_server == NULL)
-    return;
-
   count= array_elements(all_ndbcluster_mutexes);
-  PSI_server->register_mutex(category, all_ndbcluster_mutexes, count);
+  mysql_mutex_register(category, all_ndbcluster_mutexes, count);
 
   count= array_elements(all_ndbcluster_conds);
-  PSI_server->register_cond(category, all_ndbcluster_conds, count);
+  mysql_cond_register(category, all_ndbcluster_conds, count);
 
   count= array_elements(all_ndbcluster_threads);
-  PSI_server->register_thread(category, all_ndbcluster_threads, count);
+  mysql_thread_register(category, all_ndbcluster_threads, count);
 
   count= array_elements(all_ndbcluster_files);
-  PSI_server->register_file(category, all_ndbcluster_files, count);
+  mysql_file_register(category, all_ndbcluster_files, count);
 }
 #endif /* HAVE_PSI_INTERFACE */
 

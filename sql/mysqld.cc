@@ -17,9 +17,6 @@
 #include "sql_priv.h"
 #include "unireg.h"
 #include <signal.h>
-#ifndef __WIN__
-#include <netdb.h>        // getservbyname, servent
-#endif
 #include "sql_parse.h"    // test_if_data_home_dir
 #include "sql_cache.h"    // query_cache, query_cache_*
 #include "sql_locale.h"   // MY_LOCALES, my_locales, my_locale_by_name
@@ -244,11 +241,7 @@ inline void setup_fpu()
 
 #define MYSQL_KILL_SIGNAL SIGTERM
 
-#ifdef HAVE_GLIBC2_STYLE_GETHOSTBYNAME_R
-#include <sys/types.h>
-#else
 #include <my_pthread.h>			// For thr_setconcurency()
-#endif
 
 #ifdef SOLARIS
 extern "C" int gethostname(char *name, int namelen);
@@ -323,7 +316,6 @@ static PSI_rwlock_key key_rwlock_openssl;
 
 /* the default log output is log tables */
 static bool lower_case_table_names_used= 0;
-static bool max_long_data_size_used= false;
 static bool volatile select_thread_in_use, signal_thread_in_use;
 /* See Bug#56666 and Bug#56760 */;
 volatile bool ready_to_exit;
@@ -482,11 +474,6 @@ ulong specialflag=0;
 ulong binlog_cache_use= 0, binlog_cache_disk_use= 0;
 ulong binlog_stmt_cache_use= 0, binlog_stmt_cache_disk_use= 0;
 ulong max_connections, max_connect_errors;
-/*
-  Maximum length of parameter value which can be set through
-  mysql_send_long_data() call.
-*/
-ulong max_long_data_size;
 /**
   Limit of the total number of prepared statements in the server.
   Is necessary to protect the server against out-of-memory attacks.
@@ -2086,7 +2073,7 @@ static bool cache_thread()
     DBUG_PRINT("info", ("Adding thread to cache"));
     cached_thread_count++;
 
-#ifdef HAVE_PSI_INTERFACE
+#ifdef HAVE_PSI_THREAD_INTERFACE
     /*
       Delete the instrumentation for the job that just completed,
       before parking this pthread in the cache (blocked on COND_thread_cache).
@@ -2108,7 +2095,7 @@ static bool cache_thread()
       thd->thread_stack= (char*) &thd;          // For store_globals
       (void) thd->store_globals();
 
-#ifdef HAVE_PSI_INTERFACE
+#ifdef HAVE_PSI_THREAD_INTERFACE
       /*
         Create new instrumentation for the new THD job,
         and attach it to this running pthread.
@@ -2747,7 +2734,7 @@ pthread_handler_t signal_hand(void *arg __attribute__((unused)))
       if (!abort_loop)
       {
 	abort_loop=1;				// mark abort for threads
-#ifdef HAVE_PSI_INTERFACE
+#ifdef HAVE_PSI_THREAD_INTERFACE
         /* Delete the instrumentation for the signal thread */
         if (likely(PSI_server != NULL))
           PSI_server->delete_current_thread();
@@ -4952,7 +4939,7 @@ int mysqld_main(int argc, char **argv)
 #endif
 #endif /* __WIN__ */
 
-#ifdef HAVE_PSI_INTERFACE
+#ifdef HAVE_PSI_THREAD_INTERFACE
   /*
     Disable the main thread instrumentation,
     to avoid recording events during the shutdown.
@@ -7592,10 +7579,6 @@ mysqld_get_one_option(int optid,
     if (argument == NULL) /* no argument */
       log_error_file_ptr= const_cast<char*>("");
     break;
-  case OPT_MAX_LONG_DATA_SIZE:
-    max_long_data_size_used= true;
-    WARN_DEPRECATED(NULL, "--max_long_data_size", "'--max_allowed_packet'");
-    break;
   }
   return 0;
 }
@@ -7829,13 +7812,6 @@ static int get_options(int *argc_ptr, char ***argv_ptr)
          OPTIMIZER_SWITCH_ENGINE_CONDITION_PUSHDOWN);
 
   opt_readonly= read_only;
-
-  /*
-    If max_long_data_size is not specified explicitly use
-    value of max_allowed_packet.
-  */
-  if (!max_long_data_size_used)
-    max_long_data_size= global_system_variables.max_allowed_packet;
 
   return 0;
 }
@@ -8537,35 +8513,34 @@ void init_server_psi_keys(void)
   const char* category= "sql";
   int count;
 
-  if (PSI_server == NULL)
-    return;
-
   count= array_elements(all_server_mutexes);
-  PSI_server->register_mutex(category, all_server_mutexes, count);
+  mysql_mutex_register(category, all_server_mutexes, count);
 
   count= array_elements(all_server_rwlocks);
-  PSI_server->register_rwlock(category, all_server_rwlocks, count);
+  mysql_rwlock_register(category, all_server_rwlocks, count);
 
   count= array_elements(all_server_conds);
-  PSI_server->register_cond(category, all_server_conds, count);
+  mysql_cond_register(category, all_server_conds, count);
 
   count= array_elements(all_server_threads);
-  PSI_server->register_thread(category, all_server_threads, count);
+  mysql_thread_register(category, all_server_threads, count);
 
   count= array_elements(all_server_files);
-  PSI_server->register_file(category, all_server_files, count);
+  mysql_file_register(category, all_server_files, count);
 
   count= array_elements(all_server_stages);
-  PSI_server->register_stage(category, all_server_stages, count);
+  mysql_stage_register(category, all_server_stages, count);
 
+#ifdef HAVE_PSI_STATEMENT_INTERFACE
   init_sql_statement_info();
   count= array_elements(sql_statement_info);
-  PSI_server->register_statement(category, sql_statement_info, count);
+  mysql_statement_register(category, sql_statement_info, count);
 
   category= "com";
   init_com_statement_info();
   count= array_elements(com_statement_info);
-  PSI_server->register_statement(category, com_statement_info, count);
+  mysql_statement_register(category, com_statement_info, count);
+#endif
 }
 
 #endif /* HAVE_PSI_INTERFACE */

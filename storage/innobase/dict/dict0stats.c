@@ -44,7 +44,7 @@ Created Jan 06, 2010 Vasil Dimov
 #include "row0sel.h" /* sel_node_struct */
 #include "row0types.h" /* sel_node_t */
 #include "trx0trx.h" /* trx_create() */
-#include "trx0roll.h" /* trx_rollback_for_mysql() */
+#include "trx0roll.h" /* trx_rollback_to_savepoint() */
 #include "usr0types.h" /* sess_t */
 #include "ut0rnd.h" /* ut_rnd_interval() */
 
@@ -1659,7 +1659,10 @@ dict_stats_save(
 
 end_rollback:
 
-	trx_rollback_for_mysql(trx);
+	trx->op_info = "rollback of internal transaction on stats tables";
+	trx_rollback_to_savepoint(trx, NULL);
+	trx->op_info = "";
+	ut_a(trx->error_state == DB_SUCCESS);
 
 end_free:
 
