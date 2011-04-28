@@ -2094,7 +2094,7 @@ extern bool opt_ignore_builtin_innodb;
 extern my_bool opt_character_set_client_handshake;
 extern bool volatile abort_loop, shutdown_in_progress;
 extern bool in_bootstrap;
-extern uint volatile thread_count, thread_running, global_read_lock;
+extern uint volatile thread_count, thread_running, global_read_lock, global_disable_checkpoint;
 extern ulong thread_created;
 extern uint thread_handling;
 extern uint connection_count, extra_connection_count;
@@ -2257,6 +2257,7 @@ bool wait_if_global_read_lock(THD *thd, bool abort_on_refresh,
                               bool is_not_commit);
 void start_waiting_global_read_lock(THD *thd);
 bool make_global_read_lock_block_commit(THD *thd);
+void disable_checkpoints(THD *thd);
 bool set_protect_against_global_read_lock(void);
 void unset_protect_against_global_read_lock(void);
 void broadcast_refresh(void);

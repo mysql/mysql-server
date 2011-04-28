@@ -598,6 +598,23 @@ void ha_drop_database(char* path)
 }
 
 
+static my_bool checkpoint_state_handlerton(THD *unused1, plugin_ref plugin,
+                                           void *disable)
+{
+  handlerton *hton= plugin_data(plugin, handlerton *);
+  if (hton->state == SHOW_OPTION_YES && hton->checkpoint_state)
+    hton->checkpoint_state(hton, (int) *(bool*) disable);
+  return FALSE;
+}
+
+
+void ha_checkpoint_state(bool disable)
+{
+  plugin_foreach(NULL, checkpoint_state_handlerton, MYSQL_STORAGE_ENGINE_PLUGIN, &disable);
+}
+
+
+
 static my_bool closecon_handlerton(THD *thd, plugin_ref plugin,
                                    void *unused)
 {

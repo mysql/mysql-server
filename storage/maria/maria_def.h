@@ -820,7 +820,7 @@ extern uint maria_quick_table_bits;
 extern char *maria_data_root;
 extern uchar maria_zero_string[];
 extern my_bool maria_inited, maria_in_ha_maria, maria_recovery_changed_data;
-extern my_bool maria_recovery_verbose;
+extern my_bool maria_recovery_verbose, maria_checkpoint_disabled;
 extern my_bool maria_assert_if_crashed_table;
 extern HASH maria_stored_state;
 extern int (*maria_create_trn_hook)(MARIA_HA *);

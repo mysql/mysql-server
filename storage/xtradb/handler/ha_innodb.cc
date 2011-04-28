@@ -496,6 +496,17 @@ bool innobase_show_status(handlerton *hton, THD* thd,
                           stat_print_fn* stat_print,
                           enum ha_stat_type stat_type);
 
+/* Enable / disable checkpoints */
+static int innobase_checkpoint_state(handlerton *hton, bool disable)
+{
+  if (disable)
+    (void) log_disable_checkpoint();
+  else
+     log_enable_checkpoint();
+  return 0;
+}
+
+
 /*****************************************************************//**
 Commits a transaction in an InnoDB database. */
 static
@@ -2065,6 +2076,7 @@ innobase_init(
         innobase_hton->recover=innobase_xa_recover;
         innobase_hton->commit_by_xid=innobase_commit_by_xid;
         innobase_hton->rollback_by_xid=innobase_rollback_by_xid;
+        innobase_hton->checkpoint_state= innobase_checkpoint_state;
         innobase_hton->create_cursor_read_view=innobase_create_cursor_view;
         innobase_hton->set_cursor_read_view=innobase_set_cursor_view;
         innobase_hton->close_cursor_read_view=innobase_close_cursor_view;

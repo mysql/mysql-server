@@ -758,6 +758,7 @@ bool my_yyoverflow(short **a, YYSTYPE **b, ulong *yystacksize);
 %token  CHANGED
 %token  CHARSET
 %token  CHAR_SYM                      /* SQL-2003-R */
+%token  CHECKPOINT_SYM
 %token  CHECKSUM_SYM
 %token  CHECK_SYM                     /* SQL-2003-R */
 %token  CIPHER_SYM
@@ -1336,6 +1337,7 @@ bool my_yyoverflow(short **a, YYSTYPE **b, ulong *yystacksize);
         opt_natural_language_mode opt_query_expansion
         opt_ev_status opt_ev_on_completion ev_on_completion opt_ev_comment
         ev_alter_on_schedule_completion opt_ev_rename_to opt_ev_sql_stmt
+        optional_flush_tables_arguments
 
 %type <ulong_num>
         ulong_num real_ulong_num merge_insert_types
@@ -10784,8 +10786,8 @@ flush_option:
           table_or_tables
           { Lex->type|= REFRESH_TABLES; }
           opt_table_list {}
-        | TABLES WITH READ_SYM LOCK_SYM
-          { Lex->type|= REFRESH_TABLES | REFRESH_READ_LOCK; }
+        | TABLES WITH READ_SYM LOCK_SYM optional_flush_tables_arguments
+          { Lex->type|= REFRESH_TABLES | REFRESH_READ_LOCK | $5; }
         | QUERY_SYM CACHE_SYM
           { Lex->type|= REFRESH_QUERY_CACHE_FREE; }
         | HOSTS_SYM
@@ -10820,6 +10822,10 @@ opt_table_list:
           /* empty */  {}
         | table_list {}
         ;
+
+optional_flush_tables_arguments:
+          /* empty */        {$$= 0;}
+        | AND_SYM DISABLE_SYM CHECKPOINT_SYM {$$= REFRESH_CHECKPOINT; } 
 
 reset:
           RESET_SYM
@@ -11859,6 +11865,7 @@ keyword:
         | CACHE_SYM             {}
         | CHARSET               {}
         | CHECKSUM_SYM          {}
+        | CHECKPOINT_SYM        {}
         | CLOSE_SYM             {}
         | COMMENT_SYM           {}
         | COMMIT_SYM            {}

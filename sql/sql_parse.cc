@@ -7058,6 +7058,8 @@ bool reload_acl_and_cache(THD *thd, ulong options, TABLE_LIST *tables,
         unlock_global_read_lock(thd);
         return 1;
       }
+      if (options & REFRESH_CHECKPOINT)
+        disable_checkpoints(thd);
     }
     else
     {

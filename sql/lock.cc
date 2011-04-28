@@ -1449,7 +1449,7 @@ static void print_lock_error(int error, const char *table)
 
 ****************************************************************************/
 
-volatile uint global_read_lock=0;
+volatile uint global_read_lock=0, global_disable_checkpoint= 0;
 volatile uint global_read_lock_blocks_commit=0;
 static volatile uint protect_against_global_read_lock=0;
 static volatile uint waiting_for_read_lock=0;
@@ -1508,6 +1508,14 @@ void unlock_global_read_lock(THD *thd)
   tmp= --global_read_lock;
   if (thd->global_read_lock == MADE_GLOBAL_READ_LOCK_BLOCK_COMMIT)
     --global_read_lock_blocks_commit;
+  if (thd->global_disable_checkpoint)
+  {
+    thd->global_disable_checkpoint= 0;
+    if (!--global_disable_checkpoint)
+    {
+      ha_checkpoint_state(0);                   // Enable checkpoints
+    }
+  }
   pthread_mutex_unlock(&LOCK_global_read_lock);
   /* Send the signal outside the mutex to avoid a context switch */
   if (!tmp)
@@ -1626,6 +1634,24 @@ bool make_global_read_lock_block_commit(THD *thd)
     thd->global_read_lock= MADE_GLOBAL_READ_LOCK_BLOCK_COMMIT;
   thd->exit_cond(old_message); // this unlocks LOCK_global_read_lock
   DBUG_RETURN(error);
+}
+
+
+/**
+   Disable checkpoints for all handlers
+   This is released in unlock_global_read_lock()
+*/
+
+void disable_checkpoints(THD *thd)
+{
+  pthread_mutex_lock(&LOCK_global_read_lock);
+  if (!thd->global_disable_checkpoint)
+  {
+    thd->global_disable_checkpoint= 1;
+    if (!global_disable_checkpoint++)
+      ha_checkpoint_state(1);                   // Disable checkpoints
+  }
+  pthread_mutex_unlock(&LOCK_global_read_lock);
 }
 
 

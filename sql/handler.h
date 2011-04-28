@@ -865,6 +865,19 @@ struct handlerton
    int  (*recover)(handlerton *hton, XID *xid_list, uint len);
    int  (*commit_by_xid)(handlerton *hton, XID *xid);
    int  (*rollback_by_xid)(handlerton *hton, XID *xid);
+  /*
+    "Disable or enable checkpointing internal to the storage engine. This is
+    used for FLUSH TABLES WITH READ LOCK AND DISABLE CHECKPOINT to ensure that
+    the engine will never start any recovery from a time between
+    FLUSH TABLES ... ; UNLOCK TABLES.
+
+    While checkpointing is disabled, the engine should pause any background
+    write activity (such as tablespace checkpointing) that require consistency
+    between different files (such as transaction log and tablespace files) for
+    crash recovery to succeed. The idea is to use this to make safe
+    multi-volume LVM snapshot backups.
+  */
+   int  (*checkpoint_state)(handlerton *hton, bool disabled);
    void *(*create_cursor_read_view)(handlerton *hton, THD *thd);
    void (*set_cursor_read_view)(handlerton *hton, THD *thd, void *read_view);
    void (*close_cursor_read_view)(handlerton *hton, THD *thd, void *read_view);
@@ -2629,6 +2642,7 @@ int ha_panic(enum ha_panic_function flag);
 void ha_close_connection(THD* thd);
 bool ha_flush_logs(handlerton *db_type);
 void ha_drop_database(char* path);
+void ha_checkpoint_state(bool disable);
 int ha_create_table(THD *thd, const char *path,
                     const char *db, const char *table_name,
                     HA_CREATE_INFO *create_info,

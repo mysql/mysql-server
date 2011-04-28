@@ -3232,7 +3232,7 @@ retry_flush_batch:
 
 	/* Make a new checkpoint about once in 10 seconds */
 
-	log_checkpoint(TRUE, FALSE);
+	log_checkpoint(TRUE, FALSE, TRUE);
 
 	srv_main_thread_op_info = "reserving kernel mutex";
 
@@ -3353,7 +3353,7 @@ flush_loop:
 
 	srv_main_thread_op_info = "making checkpoint";
 
-	log_checkpoint(TRUE, FALSE);
+	log_checkpoint(TRUE, FALSE, TRUE);
 
 	if (buf_get_modified_ratio_pct() > srv_max_buf_pool_modified_pct) {
 

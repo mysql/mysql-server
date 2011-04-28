@@ -249,12 +249,15 @@ log_checkpoint(
 /*===========*/
 	ibool	sync,		/*!< in: TRUE if synchronous operation is
 				desired */
-	ibool	write_always);	/*!< in: the function normally checks if the
+	ibool	write_always,	/*!< in: the function normally checks if the
 				the new checkpoint would have a greater
 				lsn than the previous one: if not, then no
 				physical write is done; by setting this
 				parameter TRUE, a physical write will always be
 				made to log files */
+        ibool   safe_to_ignore);/*!< in: TRUE if checkpoint can be ignored in
+                                  the case checkpoint's are disabled */
+
 /****************************************************************//**
 Makes a checkpoint at a given lsn or later. */
 UNIV_INTERN
@@ -271,6 +274,18 @@ log_make_checkpoint_at(
 					by setting this parameter TRUE, a
 					physical write will always be made to
 					log files */
+/****************************************************************//**
+Disable checkpoints. This is used when doing a volume snapshot
+to ensure that we don't get checkpoint between snapshoting two
+different volumes */
+UNIV_INTERN
+ibool log_disable_checkpoint();
+
+/****************************************************************//**
+Enable checkpoints that was disabled with log_disable_checkpoint() */
+UNIV_INTERN
+void log_enable_checkpoint();
+
 /****************************************************************//**
 Makes a checkpoint at the latest lsn and writes it to first page of each
 data file in the database, so that we know that the file spaces contain

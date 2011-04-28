@@ -6,7 +6,7 @@ insert into t2 values(3);
 select * from t1;
 n
 3
-flush tables with read lock;
+flush tables with read lock and disable checkpoint;
 drop table t2;
 ERROR HY000: Can't execute the query because you have a conflicting read lock
 drop table t2;

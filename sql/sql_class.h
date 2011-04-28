@@ -1920,7 +1920,7 @@ public:
   ulong      query_plan_fsort_passes; 
   pthread_t  real_id;                           /* For debugging */
   my_thread_id  thread_id;
-  uint	     tmp_table, global_read_lock;
+  uint	     tmp_table, global_read_lock, global_disable_checkpoint;
   uint	     server_status,open_options;
   enum enum_thread_type system_thread;
   uint       select_number;             //number of select (used for EXPLAIN)

@@ -3167,6 +3167,14 @@ bool maria_flush_logs(handlerton *hton)
 }
 
 
+int maria_checkpoint_state(handlerton *hton, bool disabled)
+{
+  maria_checkpoint_disabled= (my_bool) disabled;
+  return 0;
+}
+
+
+
 #define SHOW_MSG_LEN (FN_REFLEN + 20)
 /**
   @brief show status handler
@@ -3355,6 +3363,7 @@ static int ha_maria_init(void *p)
   maria_hton->panic= maria_hton_panic;
   maria_hton->commit= maria_commit;
   maria_hton->rollback= maria_rollback;
+  maria_hton->checkpoint_state= maria_checkpoint_state;
 #ifdef MARIA_CANNOT_ROLLBACK
   maria_hton->commit= 0;
 #endif

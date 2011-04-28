@@ -576,6 +576,12 @@ pthread_handler_t ma_checkpoint_background(void *arg)
     switch (sleeps % interval)
     {
     case 0:
+      /* If checkpoints are disabled, wait 1 second and try again */
+      if (maria_checkpoint_disabled)
+      {
+        sleep_time= 1;
+        break;
+      }
       /*
         With background flushing evenly distributed over the time
         between two checkpoints, we should have only little flushing to do
@@ -590,6 +596,7 @@ pthread_handler_t ma_checkpoint_background(void *arg)
         want to checkpoint every minute, hence the positive
         checkpoint_min_activity.
       */
+
       if (((translog_get_horizon() - log_horizon_at_last_checkpoint) +
            (maria_pagecache->global_cache_write -
             pagecache_flushes_at_last_checkpoint) *
