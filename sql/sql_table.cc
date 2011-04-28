@@ -5741,8 +5741,8 @@ is_index_maintenance_unique (TABLE *table, Alter_info *alter_info)
     that need to be dropped and/or (re-)created.
 
   RETURN VALUES
-    TRUE   error
-    FALSE  success
+    TRUE   The tables are not compatible; We have to do a full alter table
+    FALSE  The tables are compatible; We only have to modify the .frm
 */
 
 static
@@ -5882,6 +5882,9 @@ compare_tables(TABLE *table,
     DBUG_ASSERT(i < table->s->fields);
     create_info->fileds_option_struct[i]= tmp_new_field->option_struct;
 
+    /* reset common markers of how field changed */
+    field->flags&= ~(FIELD_IS_RENAMED | FIELD_IN_ADD_INDEX);
+
     /* Make sure we have at least the default charset in use. */
     if (!new_field->charset)
       new_field->charset= create_info->default_table_charset;
@@ -5916,7 +5919,6 @@ compare_tables(TABLE *table,
         create_info->table_options|= HA_OPTION_PACK_RECORD;
 
     /* Check if field was renamed */
-    field->flags&= ~FIELD_IS_RENAMED;
     if (my_strcasecmp(system_charset_info,
 		      field->field_name,
 		      tmp_new_field->field_name))
@@ -5929,8 +5931,6 @@ compare_tables(TABLE *table,
                           new_field->field_name));
       DBUG_RETURN(0);
     }
-    // Clear indexed marker
-    field->flags&= ~FIELD_IN_ADD_INDEX;
     changes|= tmp;
   }
 
@@ -6244,7 +6244,7 @@ mysql_prepare_alter_table(THD *thd, TABLE *table,
   for (f_ptr=table->field ; (field= *f_ptr) ; f_ptr++)
   {
     Alter_drop *drop;
-    if (field->type() == MYSQL_TYPE_STRING)
+    if (field->type() == MYSQL_TYPE_VARCHAR)
       create_info->varchar= TRUE;
     /* Check if field should be dropped */
     drop_it.rewind();
@@ -6570,6 +6570,7 @@ err:
       order_num        How many ORDER BY fields has been specified.
       order            List of fields to ORDER BY.
       ignore           Whether we have ALTER IGNORE TABLE
+      require_online   Give an error if we can't do operation online
 
   DESCRIPTION
     This is a veery long function and is everything but the kitchen sink :)
@@ -6600,7 +6601,8 @@ bool mysql_alter_table(THD *thd,char *new_db, char *new_name,
                        HA_CREATE_INFO *create_info,
                        TABLE_LIST *table_list,
                        Alter_info *alter_info,
-                       uint order_num, ORDER *order, bool ignore)
+                       uint order_num, ORDER *order, bool ignore,
+                       bool require_online)
 {
   TABLE *table, *new_table= 0, *name_lock= 0;
   int error= 0;
@@ -7400,10 +7402,23 @@ view_err:
     */
   }
 
+  /* Check if we can do the ALTER TABLE as online */
+  if (require_online)
+  {
+    if (index_add_count || index_drop_count ||
+        (new_table &&
+         !(new_table->file->ha_table_flags() & HA_NO_COPY_ON_ALTER)))
+    {
+      my_error(ER_CANT_DO_ONLINE, MYF(0), "ALTER");
+      goto close_table_and_return_error;
+    }
+  }
+
   /* Copy the data if necessary. */
   thd->count_cuted_fields= CHECK_FIELD_WARN;	// calc cuted fields
   thd->cuted_fields=0L;
   copied=deleted=0;
+
   /*
     We do not copy data for MERGE tables. Only the children have data.
     MERGE tables have HA_NO_COPY_ON_ALTER set.
@@ -7435,6 +7450,8 @@ view_err:
       error= 1;
   }
   thd->count_cuted_fields= CHECK_FIELD_IGNORE;
+  if (error)
+    goto close_table_and_return_error;
 
   /* If we did not need to copy, we might still need to add/drop indexes. */
   if (! new_table)
@@ -7528,11 +7545,11 @@ view_err:
   }
   /*end of if (! new_table) for add/drop index*/
 
+  DBUG_ASSERT(error == 0);
+
   if (table->s->tmp_table != NO_TMP_TABLE)
   {
     /* We changed a temporary table */
-    if (error)
-      goto err1;
     /* Close lock if this is a transactional table */
     if (thd->lock)
     {
@@ -7567,12 +7584,6 @@ view_err:
   }
   DEBUG_SYNC(thd, "alter_table_before_rename_result_table");
   VOID(pthread_mutex_lock(&LOCK_open));
-  if (error)
-  {
-    VOID(quick_rm_table(new_db_type, new_db, tmp_name, FN_IS_TMP));
-    VOID(pthread_mutex_unlock(&LOCK_open));
-    goto err;
-  }
 
   /*
     Data is copied. Now we:
@@ -7744,6 +7755,16 @@ end_temporary:
   my_ok(thd, copied + deleted, 0L, tmp_name);
   thd->some_tables_deleted=0;
   DBUG_RETURN(FALSE);
+
+close_table_and_return_error:
+  if (new_table && table->s->tmp_table == NO_TMP_TABLE)
+  {
+    /* This is not a temporary table, so close it the normal way */
+    new_table->s->deleting= TRUE;
+    intern_close_table(new_table);
+    my_free(new_table,MYF(0));
+    new_table= 0;               // This forces call to quick_rm_table() below
+  }
 
 err1:
   if (new_table)
@@ -8098,7 +8119,7 @@ bool mysql_recreate_table(THD *thd, TABLE_LIST *table_list)
   alter_info.flags= (ALTER_CHANGE_COLUMN | ALTER_RECREATE);
   DBUG_RETURN(mysql_alter_table(thd, NullS, NullS, &create_info,
                                 table_list, &alter_info, 0,
-                                (ORDER *) 0, 0));
+                                (ORDER *) 0, 0, 0));
 }
 
 

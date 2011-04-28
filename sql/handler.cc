@@ -3532,6 +3532,9 @@ handler::ha_delete_table(const char *name)
   Drop table in the engine: public interface.
 
   @sa handler::drop_table()
+
+  The difference between this and delete_table() is that the table is open in
+  drop_table().
 */
 
 void

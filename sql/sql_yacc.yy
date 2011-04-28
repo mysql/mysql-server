@@ -1042,6 +1042,7 @@ bool my_yyoverflow(short **a, YYSTYPE **b, ulong *yystacksize);
 %token  ON                            /* SQL-2003-R */
 %token  ONE_SHOT_SYM
 %token  ONE_SYM
+%token  ONLINE_SYM
 %token  OPEN_SYM                      /* SQL-2003-R */
 %token  OPTIMIZE
 %token  OPTIONS_SYM
@@ -5865,7 +5866,7 @@ string_list:
 */
 
 alter:
-          ALTER opt_ignore TABLE_SYM table_ident
+          ALTER alter_options TABLE_SYM table_ident
           {
             THD *thd= YYTHD;
             LEX *lex= thd->lex;
@@ -6431,6 +6432,25 @@ opt_ignore:
           /* empty */ { Lex->ignore= 0;}
         | IGNORE_SYM { Lex->ignore= 1;}
         ;
+
+alter_options:
+        { Lex->ignore= Lex->online= 0;} alter_options_part2
+	;
+	
+alter_options_part2:
+          /* empty */ 
+        | alter_option_list
+        ;
+
+alter_option_list:
+        alter_option_list alter_option
+        | alter_option
+        ;
+
+alter_option:
+	  IGNORE_SYM { Lex->ignore= 1;}
+        | ONLINE_SYM { Lex->online= 1;}
+
 
 opt_restrict:
           /* empty */ { Lex->drop_mode= DROP_DEFAULT; }
@@ -12077,6 +12097,7 @@ keyword_sp:
         | OLD_PASSWORD             {}
         | ONE_SHOT_SYM             {}
         | ONE_SYM                  {}
+        | ONLINE_SYM               {}
         | PACK_KEYS_SYM            {}
         | PAGE_SYM                 {}
         | PARTIAL                  {}

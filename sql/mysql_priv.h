@@ -1312,7 +1312,8 @@ bool mysql_alter_table(THD *thd, char *new_db, char *new_name,
                        HA_CREATE_INFO *create_info,
                        TABLE_LIST *table_list,
                        Alter_info *alter_info,
-                       uint order_num, ORDER *order, bool ignore);
+                       uint order_num, ORDER *order, bool ignore,
+                       bool require_online);
 bool mysql_recreate_table(THD *thd, TABLE_LIST *table_list);
 bool mysql_create_like_table(THD *thd, TABLE_LIST *table,
                              TABLE_LIST *src_table,

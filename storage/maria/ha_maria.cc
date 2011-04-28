@@ -1961,15 +1961,26 @@ void ha_maria::start_bulk_insert(ha_rows rows)
 {
   DBUG_ENTER("ha_maria::start_bulk_insert");
   THD *thd= table->in_use;
-  ulong size= min(thd->variables.read_buff_size,
-                  (ulong) (table->s->avg_row_length * rows));
   MARIA_SHARE *share= file->s;
-  DBUG_PRINT("info", ("start_bulk_insert: rows %lu size %lu",
-                      (ulong) rows, size));
+  DBUG_PRINT("info", ("start_bulk_insert: rows %lu", (ulong) rows));
 
   /* don't enable row cache if too few rows */
   if (!rows || (rows > MARIA_MIN_ROWS_TO_USE_WRITE_CACHE))
+  {
+    size_t size= thd->variables.read_buff_size;
+    if (rows)
+    {
+      if (file->state->records)
+      {
+        MARIA_INFO maria_info;
+        maria_status(file, &maria_info, HA_STATUS_NO_LOCK |HA_STATUS_VARIABLE);
+        set_if_smaller(size, maria_info.mean_reclength * rows);
+      }
+      else if (table->s->avg_row_length)
+        set_if_smaller(size, (size_t) (table->s->avg_row_length * rows));
+    }
     maria_extra(file, HA_EXTRA_WRITE_CACHE, (void*) &size);
+  }
 
   can_enable_indexes= (maria_is_all_keys_active(share->state.key_map,
                                                 share->base.keys));

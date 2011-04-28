@@ -2801,7 +2801,7 @@ end_with_restore_list:
 
     res= mysql_alter_table(thd, first_table->db, first_table->table_name,
                            &create_info, first_table, &alter_info,
-                           0, (ORDER*) 0, 0);
+                           0, (ORDER*) 0, 0, 0);
     break;
   }
 #ifdef HAVE_REPLICATION
@@ -2918,7 +2918,7 @@ end_with_restore_list:
                              &alter_info,
                              select_lex->order_list.elements,
                              (ORDER *) select_lex->order_list.first,
-                             lex->ignore);
+                             lex->ignore, lex->online);
       break;
     }
   case SQLCOM_RENAME_TABLE:
