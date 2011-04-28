@@ -1430,7 +1430,7 @@ bool get_interval_value(Item *args,interval_type int_type,
   else
   {
     String *res;
-    if (!(res=args->val_str(str_value)))
+    if (!(res= args->val_str_ascii(str_value)))
       return (1);
 
     /* record negative intervalls in interval->neg */
