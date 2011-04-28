@@ -67,6 +67,7 @@ ADD_LIBRARY(ndbblocks STATIC
     dbtux/DbtuxProxy.cpp
     backup/BackupProxy.cpp
     RestoreProxy.cpp
+    dbtc/DbtcProxy.cpp
     dbinfo/Dbinfo.cpp
     dblqh/DblqhCommon.cpp
     PgmanProxy.cpp

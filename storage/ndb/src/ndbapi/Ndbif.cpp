@@ -1437,7 +1437,7 @@ NdbTransaction::sendTC_COMMIT_ACK(NdbImpl * impl,
 	   refToNode(aTCRef));
 #endif  
   aSignal->theTrace                = TestOrd::TraceAPI;
-  aSignal->theReceiversBlockNumber = DBTC;
+  aSignal->theReceiversBlockNumber = refToBlock(aTCRef);
   aSignal->theVerId_signalNumber   = GSN_TC_COMMIT_ACK;
   aSignal->theLength               = 2;
 

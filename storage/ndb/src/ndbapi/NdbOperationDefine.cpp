@@ -951,7 +951,7 @@ NdbOperation::insertATTRINFO( Uint32 aData )
     tAI_LenInCurrAI = 3;
     tSignal = tNdb->getSignal();
     if (tSignal != NULL) {
-      tSignal->setSignal(m_attrInfoGSN, DBTC);
+      tSignal->setSignal(m_attrInfoGSN, refToBlock(theNdbCon->m_tcRef));
       tAttrPtr = &tSignal->getDataPtrSend()[3];
       if (tFirstAttrinfo == NULL) {
         tSignal->next(NULL);
@@ -1008,7 +1008,7 @@ NdbOperation::insertATTRINFOloop(register const Uint32* aDataPtr,
       tAI_LenInCurrAI = 3;
       tSignal = tNdb->getSignal();
       if (tSignal != NULL) {
-        tSignal->setSignal(m_attrInfoGSN, DBTC);
+        tSignal->setSignal(m_attrInfoGSN, refToBlock(theNdbCon->m_tcRef));
         tAttrPtr = &tSignal->getDataPtrSend()[3];
         if (tFirstAttrinfo == NULL) {
           tSignal->next(NULL);
@@ -1402,6 +1402,11 @@ NdbOperation::handleOperationOptions (const OperationType type,
   if (opts->optionsPresent & OperationOptions::OO_NOT_QUEUABLE)
   {
     op->m_flags &= ~Uint8(OF_QUEUEABLE);
+  }
+
+  if (opts->optionsPresent & OperationOptions::OO_DEFERRED_CONSTAINTS)
+  {
+    op->m_flags |= OF_DEFERRED_CONSTRAINTS;
   }
 
   return 0;

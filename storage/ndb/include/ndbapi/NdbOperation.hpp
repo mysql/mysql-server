@@ -1040,7 +1040,8 @@ public:
                  OO_CUSTOMDATA   = 0x40,
                  OO_LOCKHANDLE   = 0x80,
                  OO_QUEUABLE     = 0x100,
-                 OO_NOT_QUEUABLE = 0x200
+                 OO_NOT_QUEUABLE = 0x200,
+                 OO_DEFERRED_CONSTAINTS = 0x400
     };
 
     /* An operation-specific abort option.
@@ -1439,7 +1440,8 @@ protected:
       word set by setAnyValue().
     */
     OF_USE_ANY_VALUE = 0x2,
-    OF_QUEUEABLE = 0x4
+    OF_QUEUEABLE = 0x4,
+    OF_DEFERRED_CONSTRAINTS = 0x8
   };
   Uint8  m_flags;
 
