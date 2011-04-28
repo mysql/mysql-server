@@ -1120,7 +1120,7 @@ static inline int inline_mysql_cond_broadcast(
 }
 
 static inline void inline_mysql_thread_register(
-#ifdef HAVE_PSI_THREAD__INTERFACE
+#ifdef HAVE_PSI_THREAD_INTERFACE
   const char *category,
   PSI_thread_info *info,
   int count
