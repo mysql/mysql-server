@@ -1261,7 +1261,7 @@ void Item_func_replace::fix_length_and_dec()
     char_length+= max_substrs * (uint) diff;
   }
 
-  if (agg_arg_charsets_for_comparison(collation, args, 3))
+  if (agg_arg_charsets_for_string_result_with_comparison(collation, args, 3))
     return;
   fix_char_length_ulonglong(char_length);
 }
@@ -1551,7 +1551,7 @@ void Item_func_substr::fix_length_and_dec()
 
 void Item_func_substr_index::fix_length_and_dec()
 { 
-  if (agg_arg_charsets_for_comparison(collation, args, 2))
+  if (agg_arg_charsets_for_string_result_with_comparison(collation, args, 2))
     return;
   fix_char_length(args[0]->max_char_length());
 }
@@ -1890,7 +1890,8 @@ void Item_func_trim::fix_length_and_dec()
   {
     // Handle character set for args[1] and args[0].
     // Note that we pass args[1] as the first item, and args[0] as the second.
-    if (agg_arg_charsets_for_comparison(collation, &args[1], 2, -1))
+    if (agg_arg_charsets_for_string_result_with_comparison(collation,
+                                                           &args[1], 2, -1))
       return;
   }
   fix_char_length(args[0]->max_char_length());
@@ -3510,48 +3511,6 @@ void Item_func_export_set::fix_length_and_dec()
                                          args + 1, min(4, arg_count) - 1))
     return;
   fix_char_length(length * 64 + sep_length * 63);
-}
-
-String* Item_func_inet_ntoa::val_str(String* str)
-{
-  DBUG_ASSERT(fixed == 1);
-  uchar buf[8], *p;
-  ulonglong n = (ulonglong) args[0]->val_int();
-  char num[4];
-
-  /*
-    We do not know if args[0] is NULL until we have called
-    some val function on it if args[0] is not a constant!
-
-    Also return null if n > 255.255.255.255
-  */
-  if ((null_value= (args[0]->null_value || n > (ulonglong) LL(4294967295))))
-    return 0;					// Null value
-
-  str->set_charset(collation.collation);
-  str->length(0);
-  int4store(buf,n);
-
-  /* Now we can assume little endian. */
-
-  num[3]='.';
-  for (p=buf+4 ; p-- > buf ; )
-  {
-    uint c = *p;
-    uint n1,n2;					// Try to avoid divisions
-    n1= c / 100;				// 100 digits
-    c-= n1*100;
-    n2= c / 10;					// 10 digits
-    c-=n2*10;					// last digit
-    num[0]=(char) n1+'0';
-    num[1]=(char) n2+'0';
-    num[2]=(char) c+'0';
-    uint length= (n1 ? 4 : n2 ? 3 : 2);         // Remove pre-zero
-    uint dot_length= (p <= buf) ? 1 : 0;
-    (void) str->append(num + 4 - length, length - dot_length,
-                       &my_charset_latin1);
-  }
-  return str;
 }
 
 

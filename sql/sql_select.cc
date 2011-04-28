@@ -1974,7 +1974,7 @@ JOIN::optimize()
       If all items were resolved by opt_sum_query, there is no need to
       open any tables.
     */
-    if ((res=opt_sum_query(select_lex->leaf_tables, all_fields, conds)))
+    if ((res=opt_sum_query(thd, select_lex->leaf_tables, all_fields, conds)))
     {
       if (res == HA_ERR_KEY_NOT_FOUND)
       {
@@ -3016,7 +3016,11 @@ JOIN::exec()
         curr_join->best_positions[curr_join->const_tables].sj_strategy 
           != SJ_OPT_LOOSE_SCAN)
       disable_sorted_access(&curr_join->join_tab[curr_join->const_tables]);
-    if ((tmp_error= do_select(curr_join, (List<Item> *) 0, curr_tmp_table, 0)))
+
+    Procedure *save_proc= curr_join->procedure;
+    tmp_error= do_select(curr_join, (List<Item> *) 0, curr_tmp_table, 0);
+    curr_join->procedure= save_proc;
+    if (tmp_error)
     {
       error= tmp_error;
       DBUG_VOID_RETURN;
@@ -3304,7 +3308,7 @@ JOIN::exec()
 
       Item* sort_table_cond= make_cond_for_table(curr_join->tmp_having,
 						 used_tables,
-						 used_tables, 0);
+						 (table_map) 0, 0);
       if (sort_table_cond)
       {
 	if (!curr_table->select)
@@ -11295,7 +11299,7 @@ make_join_readinfo(JOIN *join, ulonglong options, uint no_jbuf_after)
     tab->cache_idx_cond= 0;
     tab->sorted= sorted;
     sorted= false;                              // only first must be sorted
-    table->status=STATUS_NO_RECORD;
+    table->status= STATUS_GARBAGE | STATUS_NOT_FOUND;
     pick_table_access_method (tab);
 
     if (tab->loosescan_match_tab)
@@ -11324,10 +11328,7 @@ make_join_readinfo(JOIN *join, ulonglong options, uint no_jbuf_after)
     case JT_REF_OR_NULL:
     case JT_REF:
       if (tab->select)
-      {
-	delete tab->select->quick;
-	tab->select->quick=0;
-      }
+        tab->select->set_quick(NULL);
       delete tab->quick;
       tab->quick=0;
       /* fall through */
@@ -18076,7 +18077,7 @@ join_read_const_table(JOIN_TAB *tab, POSITION *pos)
   TABLE *table=tab->table;
   table->const_table=1;
   table->null_row=0;
-  table->status=STATUS_NO_RECORD;
+  table->status= STATUS_GARBAGE | STATUS_NOT_FOUND;
   
   if (tab->type == JT_SYSTEM)
   {
@@ -18271,7 +18272,7 @@ join_read_key2(JOIN_TAB *tab, TABLE *table, TABLE_REF *table_ref)
     indices on NOT NULL columns (see create_ref_for_key()).
   */
   if (cmp_buffer_with_ref(tab->join->thd, table, table_ref) ||
-      (table->status & (STATUS_GARBAGE | STATUS_NO_PARENT | STATUS_NULL_ROW)))
+      (table->status & (STATUS_GARBAGE | STATUS_NULL_ROW)))
   {
     if (table_ref->key_err)
     {
@@ -18487,8 +18488,7 @@ int read_first_record_seq(JOIN_TAB *tab)
 static int
 test_if_quick_select(JOIN_TAB *tab)
 {
-  delete tab->select->quick;
-  tab->select->quick=0;
+  tab->select->set_quick(NULL);
   return tab->select->test_quick_select(tab->join->thd, 
                                         tab->keys,
                                         0,          // empty table map
@@ -18695,10 +18695,14 @@ end_send(JOIN *join, JOIN_TAB *join_tab __attribute__((unused)),
     }
     if (join->having && join->having->val_int() == 0)
       DBUG_RETURN(NESTED_LOOP_OK);               // Didn't match having
-    error=0;
     if (join->procedure)
-      error=join->procedure->send_row(join->procedure_fields_list);
-    else if (join->do_send_rows)
+    {
+      if (join->procedure->send_row(join->procedure_fields_list))
+        DBUG_RETURN(NESTED_LOOP_ERROR);
+      DBUG_RETURN(NESTED_LOOP_OK);
+    }
+    error=0;
+    if (join->do_send_rows)
       error=join->result->send_data(*join->fields);
     if (error)
       DBUG_RETURN(NESTED_LOOP_ERROR); /* purecov: inspected */
@@ -19210,6 +19214,42 @@ static bool test_if_ref(Item *root_cond,
   return 0;					// keep test
 }
 
+/**
+   Extract a condition that can be checked after reading given table
+
+   @param cond       Condition to analyze
+   @param tables     Tables for which "current field values" are available
+   @param used_table Table that we're extracting the condition for (may
+                     also include PSEUDO_TABLE_BITS, and may be zero)
+   @param exclude_expensive_cond  Do not push expensive conditions
+
+   @retval <>NULL Generated condition
+   @retval =NULL  Already checked, OR error
+
+   @details
+     Extract the condition that can be checked after reading the table
+     specified in 'used_table', given that current-field values for tables
+     specified in 'tables' bitmap are available.
+     If 'used_table' is 0
+     - extract conditions for all tables in 'tables'.
+     - extract conditions are unrelated to any tables
+       in the same query block/level(i.e. conditions
+       which have used_tables == 0).
+
+     The function assumes that
+     - Constant parts of the condition has already been checked.
+     - Condition that could be checked for tables in 'tables' has already
+     been checked.
+
+     The function takes into account that some parts of the condition are
+     guaranteed to be true by employed 'ref' access methods (the code that
+     does this is located at the end, search down for "EQ_FUNC").
+
+   @note
+     Make sure to keep the implementations of make_cond_for_table() and
+     make_cond_after_sjm() synchronized.
+     make_cond_for_info_schema() uses similar algorithm as well.
+*/ 
 
 /**
    Destructively replaces a sub-condition inside a condition tree. The
@@ -20407,10 +20447,8 @@ skipped_filesort:
 use_filesort:
   // Restore original save_quick
   if (select && select->quick != save_quick)
-  {
-    delete select->quick;
-    select->quick= save_quick;
-  }
+    select->set_quick(save_quick);
+
   if (orig_select_cond_saved)
     tab->set_cond(orig_select_cond, __LINE__);
   DBUG_RETURN(0);

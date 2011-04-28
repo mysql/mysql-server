@@ -945,17 +945,14 @@ static void init_events_psi_keys(void)
   const char* category= "sql";
   int count;
 
-  if (PSI_server == NULL)
-    return;
-
   count= array_elements(all_events_mutexes);
-  PSI_server->register_mutex(category, all_events_mutexes, count);
+  mysql_mutex_register(category, all_events_mutexes, count);
 
   count= array_elements(all_events_conds);
-  PSI_server->register_cond(category, all_events_conds, count);
+  mysql_cond_register(category, all_events_conds, count);
 
   count= array_elements(all_events_threads);
-  PSI_server->register_thread(category, all_events_threads, count);
+  mysql_thread_register(category, all_events_threads, count);
 }
 #endif /* HAVE_PSI_INTERFACE */
 

@@ -49,7 +49,7 @@ enum hash_table_sync_t {
 					this hash_table. */
 	HASH_TABLE_SYNC_MUTEX,		/*!< Use mutexes to control
 					access to this hash_table. */
-	HASH_TABLE_SYNC_RW_LOCK,	/*!< Use rw_locks to control
+	HASH_TABLE_SYNC_RW_LOCK		/*!< Use rw_locks to control
 					access to this hash_table. */
 };
 
