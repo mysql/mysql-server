@@ -424,6 +424,8 @@ Dblqh::Dblqh(Block_context& ctx, Uint32 instanceNumber):
                &Dblqh::execFSWRITEREQ);
   addRecSignal(GSN_DBINFO_SCANREQ, &Dblqh::execDBINFO_SCANREQ);
 
+  addRecSignal(GSN_FIRE_TRIG_REQ, &Dblqh::execFIRE_TRIG_REQ);
+
   initData();
 
 #ifdef VM_TRACE

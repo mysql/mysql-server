@@ -337,9 +337,11 @@ extern const GlobalSignalNumber NO_OF_SIGNAL_NAMES;
 /* 233 unused */
 /* 234 unused */
 #define GSN_DISCONNECT_REP              235
-/* 236 unused */
-/* 237 unused */
-/* 238 unused */
+
+#define GSN_FIRE_TRIG_REQ               236
+#define GSN_FIRE_TRIG_REF               237
+#define GSN_FIRE_TRIG_CONF              238
+
 #define GSN_DIVERIFYCONF                239
 #define GSN_DIVERIFYREF                 240
 #define GSN_DIVERIFYREQ                 241

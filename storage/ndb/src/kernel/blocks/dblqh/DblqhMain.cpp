@@ -74,6 +74,7 @@
 #include <signaldata/FsReadWriteReq.hpp>
 #include <signaldata/DbinfoScan.hpp>
 #include <signaldata/SystemError.hpp>
+#include <signaldata/FireTrigOrd.hpp>
 #include <NdbEnv.h>
 
 #include "../suma/Suma.hpp"
@@ -3196,6 +3197,7 @@ void Dblqh::execPACKED_SIGNAL(Signal* signal)
 
   jamEntry();
   Tlength = signal->length();
+  Uint32 TsenderRef = signal->getSendersBlockRef();
   Uint32 TcommitLen = 5;
   Uint32 Tgci_lo_mask = ~(Uint32)0;
 
@@ -3244,8 +3246,7 @@ void Dblqh::execPACKED_SIGNAL(Signal* signal)
       break;
     case ZLQHKEYCONF: {
       jam();
-      LqhKeyConf * const lqhKeyConf = (LqhKeyConf *)signal->getDataPtr();
-
+      LqhKeyConf * lqhKeyConf = CAST_PTR(LqhKeyConf, signal->theData);
       sig0 = TpackedData[Tstep + 0] & 0x0FFFFFFF;
       sig1 = TpackedData[Tstep + 1];
       sig2 = TpackedData[Tstep + 2];
@@ -3273,6 +3274,22 @@ void Dblqh::execPACKED_SIGNAL(Signal* signal)
       signal->header.theLength = 2;
       execREMOVE_MARKER_ORD(signal);
       Tstep += 3;
+      break;
+    case ZFIRE_TRIG_REQ:
+      jam();
+      ndbassert(FireTrigReq::SignalLength == 4);
+      sig0 = TpackedData[Tstep + 0] & 0x0FFFFFFF;
+      sig1 = TpackedData[Tstep + 1];
+      sig2 = TpackedData[Tstep + 2];
+      sig3 = TpackedData[Tstep + 3];
+      signal->theData[0] = sig0;
+      signal->theData[1] = sig1;
+      signal->theData[2] = sig2;
+      signal->theData[3] = sig3;
+      signal->header.theLength = FireTrigReq::SignalLength;
+      signal->header.theSendersBlockRef = TsenderRef;
+      execFIRE_TRIG_REQ(signal);
+      Tstep += FireTrigReq::SignalLength;
       break;
     default:
       ndbrequire(false);
@@ -4565,6 +4582,13 @@ void Dblqh::execLQHKEYREQ(Signal* signal)
     regTcPtr->m_corrFactorLo = lqhKeyReq->variableData[nextPos + 0];
     regTcPtr->m_corrFactorHi = lqhKeyReq->variableData[nextPos + 1];
     nextPos += 2;
+  }
+
+  Uint32 Tdeferred = LqhKeyReq::getDeferredConstraints(Treqinfo);
+  if (isLongReq && Tdeferred)
+  {
+    regTcPtr->m_flags |= TcConnectionrec::OP_DEFERRED_CONSTRAINTS;
+    regTcPtr->m_fire_trig_pass = 0;
   }
 
   UintR TitcKeyLen = 0;
@@ -5921,6 +5945,7 @@ Dblqh::acckeyconf_tupkeyreq(Signal* signal, TcConnectionrec* regTcPtr,
   Uint32 page_idx = lkey2;
   Uint32 page_no = lkey1;
   Uint32 Ttupreq = regTcPtr->dirtyOp;
+  Uint32 flags = regTcPtr->m_flags;
   Ttupreq = Ttupreq + (regTcPtr->opSimple << 1);
   Ttupreq = Ttupreq + (op << 6);
   Ttupreq = Ttupreq + (regTcPtr->opExec << 10);
@@ -5983,6 +6008,8 @@ Dblqh::acckeyconf_tupkeyreq(Signal* signal, TcConnectionrec* regTcPtr,
   regTcPtr->m_row_id.m_page_idx = page_idx;
   
   tupKeyReq->attrInfoIVal= RNIL;
+  tupKeyReq->deferred_constraints =
+    (flags & TcConnectionrec::OP_DEFERRED_CONSTRAINTS) != 0;
 
   /* Pass AttrInfo section if available in the TupKeyReq signal
    * We are still responsible for releasing it, TUP is just
@@ -7318,6 +7345,151 @@ void Dblqh::errorReport(Signal* signal, int place)
   systemErrorLab(signal, __LINE__);
   return;
 }//Dblqh::errorReport()
+
+void
+Dblqh::execFIRE_TRIG_REQ(Signal* signal)
+{
+  Uint32 tcOprec = signal->theData[0];
+  Uint32 transid1 = signal->theData[1];
+  Uint32 transid2 = signal->theData[2];
+  Uint32 pass = signal->theData[3];
+  Uint32 senderRef = signal->getSendersBlockRef();
+
+  jamEntry();
+
+  if (ERROR_INSERTED_CLEAR(5064))
+  {
+    // throw away...should cause timeout in TC
+    return;
+  }
+
+  CRASH_INSERTION(5072);
+
+  Uint32 err;
+  if (findTransaction(transid1, transid2, tcOprec, 0) == ZOK &&
+      !ERROR_INSERTED_CLEAR(5065) &&
+      !ERROR_INSERTED(5070) &&
+      !ERROR_INSERTED(5071))
+  {
+    TcConnectionrec * const regTcPtr = tcConnectptr.p;
+
+    if (unlikely(regTcPtr->transactionState != TcConnectionrec::PREPARED ||
+                 ERROR_INSERTED_CLEAR(5067)))
+    {
+      err = FireTrigRef::FTR_IncorrectState;
+      goto do_err;
+    }
+
+    /**
+     *
+     */
+    signal->theData[0] = regTcPtr->tupConnectrec;
+    signal->theData[1] = regTcPtr->tcBlockref;
+    signal->theData[2] = regTcPtr->tcOprec;
+    signal->theData[3] = transid1;
+    signal->theData[4] = transid2;
+    signal->theData[5] = pass;
+    Uint32 tup = refToMain(regTcPtr->tcTupBlockref);
+    EXECUTE_DIRECT(tup, GSN_FIRE_TRIG_REQ, signal, 6);
+
+    err = signal->theData[0];
+    Uint32 cnt = signal->theData[1];
+
+    if (ERROR_INSERTED_CLEAR(5066))
+    {
+      err = 5066;
+    }
+
+    if (ERROR_INSERTED_CLEAR(5068))
+      tcOprec++;
+    if (ERROR_INSERTED_CLEAR(5069))
+      transid1++;
+
+    if (err == 0)
+    {
+      jam();
+      Uint32 Tdata[FireTrigConf::SignalLength];
+      FireTrigConf * conf = CAST_PTR(FireTrigConf, Tdata);
+      conf->tcOpRec = tcOprec;
+      conf->transId[0] = transid1;
+      conf->transId[1] = transid2;
+      conf->noFiredTriggers = cnt;
+      sendFireTrigConfTc(signal, regTcPtr->tcBlockref, Tdata);
+      return;
+    }
+  }
+  else
+  {
+    jam();
+    err = FireTrigRef::FTR_UnknownOperation;
+  }
+
+do_err:
+  if (ERROR_INSERTED_CLEAR(5070))
+    tcOprec++;
+
+  if (ERROR_INSERTED_CLEAR(5071))
+    transid1++;
+
+  FireTrigRef * ref = CAST_PTR(FireTrigRef, signal->getDataPtrSend());
+  ref->tcOpRec = tcOprec;
+  ref->transId[0] = transid1;
+  ref->transId[1] = transid2;
+  ref->errCode = err;
+  sendSignal(senderRef, GSN_FIRE_TRIG_REF,
+             signal, FireTrigRef::SignalLength, JBB);
+
+  return;
+}
+
+void
+Dblqh::sendFireTrigConfTc(Signal* signal,
+                          BlockReference atcBlockref,
+                          Uint32 Tdata[])
+{
+  HostRecordPtr Thostptr;
+  Uint32 len = FireTrigConf::SignalLength;
+
+  Thostptr.i = refToNode(atcBlockref);
+  ptrCheckGuard(Thostptr, chostFileSize, hostRecord);
+
+  if (Thostptr.p->noOfPackedWordsTc > (25 - len))
+  {
+    jam();
+    sendPackedSignalTc(signal, Thostptr.p);
+  }
+  else
+  {
+    jam();
+    updatePackedList(signal, Thostptr.p, Thostptr.i);
+  }
+
+  ndbassert(FireTrigConf::SignalLength == 4);
+  Uint32 * dst = &Thostptr.p->packedWordsTc[Thostptr.p->noOfPackedWordsTc];
+  Thostptr.p->noOfPackedWordsTc += len;
+  dst[0] = Tdata[0] | (ZFIRE_TRIG_CONF << 28);
+  dst[1] = Tdata[1];
+  dst[2] = Tdata[2];
+  dst[3] = Tdata[3];
+}
+
+bool
+Dblqh::check_fire_trig_pass(Uint32 opId, Uint32 pass)
+{
+  /**
+   * Check that trigger only fires once per pass
+   *   (per primary key)
+   */
+  TcConnectionrecPtr regTcPtr;
+  regTcPtr.i= opId;
+  ptrCheckGuard(regTcPtr, ctcConnectrecFileSize, tcConnectionrec);
+  if (regTcPtr.p->m_fire_trig_pass <= pass)
+  {
+    regTcPtr.p->m_fire_trig_pass = pass + 1;
+    return true;
+  }
+  return false;
+}
 
 /* ************************************************************************>>
  *  COMMIT: Start commit request from TC. This signal is originally sent as a
