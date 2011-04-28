@@ -472,6 +472,7 @@ NdbOperation::prepareSend(Uint32 aTC_ConnectPtr,
   Uint8 tInterpretIndicator = theInterpretIndicator;
   Uint8 tNoDisk = (m_flags & OF_NO_DISK) != 0;
   Uint8 tQueable = (m_flags & OF_QUEUEABLE) != 0;
+  Uint8 tDeferred = (m_flags & OF_DEFERRED_CONSTRAINTS) != 0;
 
   /**
    * A dirty read, can not abort the transaction
@@ -490,6 +491,7 @@ NdbOperation::prepareSend(Uint32 aTC_ConnectPtr,
   tcKeyReq->setInterpretedFlag(tReqInfo, tInterpretIndicator);
   tcKeyReq->setNoDiskFlag(tReqInfo, tNoDisk);
   tcKeyReq->setQueueOnRedoProblemFlag(tReqInfo, tQueable);
+  tcKeyReq->setDeferredConstraints(tReqInfo, tDeferred);
 
   OperationType tOperationType = theOperationType;
   Uint8 abortOption = (ao == DefaultAbortOption) ? (Uint8) m_abortOption : (Uint8) ao;
@@ -1417,11 +1419,17 @@ NdbOperation::prepareSendNdbRecord(AbortOption ao)
   m_abortOption= theSimpleIndicator && theOperationType==ReadRequest ?
     (Uint8) AO_IgnoreError : (Uint8) abortOption;
 
+  Uint8 tQueable = (m_flags & OF_QUEUEABLE) != 0;
+  Uint8 tDeferred = (m_flags & OF_DEFERRED_CONSTRAINTS) != 0;
+
   TcKeyReq::setAbortOption(tcKeyReq->requestInfo, m_abortOption);
   TcKeyReq::setCommitFlag(tcKeyReq->requestInfo, theCommitIndicator);
   TcKeyReq::setStartFlag(tcKeyReq->requestInfo, theStartIndicator);
   TcKeyReq::setSimpleFlag(tcKeyReq->requestInfo, theSimpleIndicator);
   TcKeyReq::setDirtyFlag(tcKeyReq->requestInfo, theDirtyIndicator);
+
+  TcKeyReq::setQueueOnRedoProblemFlag(tcKeyReq->requestInfo, tQueable);
+  TcKeyReq::setDeferredConstraints(tcKeyReq->requestInfo, tDeferred);
 
   theStatus= WaitResponse;
   theReceiver.prepareSend();

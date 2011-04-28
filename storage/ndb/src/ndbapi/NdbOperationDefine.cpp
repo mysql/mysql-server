@@ -1404,5 +1404,10 @@ NdbOperation::handleOperationOptions (const OperationType type,
     op->m_flags &= ~Uint8(OF_QUEUEABLE);
   }
 
+  if (opts->optionsPresent & OperationOptions::OO_DEFERRED_CONSTAINTS)
+  {
+    op->m_flags |= OF_DEFERRED_CONSTRAINTS;
+  }
+
   return 0;
 }
