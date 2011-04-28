@@ -649,7 +649,7 @@ innobase_add_index_cleanup(
 
 		/* Note: This check excludes the system tables. However, we
 		should be safe because users cannot add indexes to system
-	        tables. */
+		tables. */
 
 		if (UT_LIST_GET_LEN(table->foreign_list) == 0
 		    && UT_LIST_GET_LEN(table->referenced_list) == 0

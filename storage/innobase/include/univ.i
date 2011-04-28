@@ -25,8 +25,8 @@ ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
 FOR A PARTICULAR PURPOSE. See the GNU General Public License for more details.
 
 You should have received a copy of the GNU General Public License along with
-this program; if not, write to the Free Software Foundation, Inc., 59 Temple
-Place, Suite 330, Boston, MA 02111-1307 USA
+this program; if not, write to the Free Software Foundation, Inc.,
+51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA
 
 *****************************************************************************/
 
@@ -132,7 +132,7 @@ Sun Studio */
 /* Following defines are to enable performance schema
 instrumentation in each of four InnoDB modules if
 HAVE_PSI_INTERFACE is defined. */
-#ifdef HAVE_PSI_INTERFACE
+#if defined HAVE_PSI_INTERFACE && !defined UNIV_HOTBACKUP
 # define UNIV_PFS_MUTEX
 # define UNIV_PFS_RWLOCK
 /* For I/O instrumentation, performance schema rely
@@ -311,7 +311,7 @@ definitions: */
 
 /* The following alignment is used in memory allocations in memory heap
 management to ensure correct alignment for doubles etc. */
-#define UNIV_MEM_ALIGNMENT      8
+#define UNIV_MEM_ALIGNMENT	8
 
 /* The following alignment is used in aligning lints etc. */
 #define UNIV_WORD_ALIGNMENT	UNIV_WORD_SIZE
