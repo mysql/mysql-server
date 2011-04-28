@@ -100,7 +100,7 @@ public:
   Handshake(const char *ssp, side_t side);
   virtual ~Handshake();
 
-  int Handshake::packet_processing_loop(Connection &con);
+  int Handshake::packet_processing_loop();
 
   bool virtual is_complete() const
   {
@@ -125,6 +125,13 @@ protected:
 
   /// Stores attributes of the created security context.
   ULONG  m_atts;
+
+  /**
+    Round of the handshake (starting from round 1). One round
+    consist of reading packet from the other side, processing it and
+    optionally sending a reply (see @c packet_processing_loop()).
+  */
+  unsigned int m_round;
 
   /// If non-zero, stores error code of the last failed operation.
   int  m_error;
@@ -152,7 +159,13 @@ protected:
     @return A blob with data to be sent to the other end or null blob if
     no more data needs to be exchanged.
   */
-  virtual Blob process_data(const Blob &data)= 0;
+  virtual Blob process_data(const Blob &data) =0;
+
+  /// Read packet from the other end.
+  virtual Blob read_packet()  =0;
+
+  /// Write packet to the other end.
+  virtual int  write_packet(Blob &data) =0;
 
 #ifndef DBUG_OFF
 

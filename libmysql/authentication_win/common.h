@@ -41,41 +41,6 @@ struct error_log_level
   typedef enum {INFO, WARNING, ERROR}  type;
 };
 
-#undef  DBUG_ASSERT
-#ifndef DBUG_OFF
-#define DBUG_ASSERT(X)  assert(X)
-#else
-#define DBUG_ASSERT(X)  do {} while (0)
-#endif
-
-extern "C" int opt_auth_win_client_log;
-
-/*
-  Note1: Double level of indirection in definition of DBUG_PRINT allows to
-  temporary redefine or disable DBUG_PRINT macro and then easily return to
-  the original definition (in terms of DBUG_PRINT_DO).
-
-  Note2: DBUG_PRINT() can use printf-like format string like this:
-
-    DBUG_PRINT(Keyword, ("format string", args));
-
-  The implementation should handle it correctly. Currently it is passed 
-  to fprintf() (see debug_msg() function).
-*/
-
-#ifndef DBUG_OFF
-#define DBUG_PRINT_DO(Keyword, Msg) \
-  do { \
-    if (2 > opt_auth_win_client_log) break; \
-    fprintf(stderr, "winauth: %s: ", Keyword); \
-    debug_msg Msg; \
-  } while (0)
-#else
-#define DBUG_PRINT_DO(K, M)  do {} while (0)
-#endif
-
-#undef  DBUG_PRINT
-#define DBUG_PRINT(Keyword, Msg)  DBUG_PRINT_DO(Keyword, Msg)
 
 /*
   If DEBUG_ERROR_LOG is defined then error logging happens only
@@ -83,23 +48,22 @@ extern "C" int opt_auth_win_client_log;
   error_log_print() even in production code. Note that in client
   plugin, error_log_print() will print nothing if opt_auth_win_clinet_log
   is 0.
+
+  Note: Macro ERROR_LOG() can use printf-like format string like this:
+
+    ERROR_LOG(Level, ("format string", args));
+
+  The implementation should handle it correctly. Currently it is passed 
+  to fprintf() (see error_log_vprint() function).
 */
+
+extern "C" int opt_auth_win_client_log;
+
 #if defined(DEBUG_ERROR_LOG) && defined(DBUG_OFF)
 #define ERROR_LOG(Level, Msg)     do {} while (0)
 #else
 #define ERROR_LOG(Level, Msg)     error_log_print< error_log_level::Level > Msg
 #endif
-
-inline
-void debug_msg(const char *fmt, ...)
-{
-  va_list args;
-  va_start(args, fmt);
-  vfprintf(stderr, fmt, args);
-  fputc('\n', stderr);
-  fflush(stderr);
-  va_end(args);
-}
 
 
 void error_log_vprint(error_log_level::type level,
@@ -116,6 +80,70 @@ void error_log_print(const char *fmt, ...)
 
 typedef char Error_message_buf[1024];
 const char* get_last_error_message(Error_message_buf);
+
+
+/*
+  Internal implementation of debug message printing which does not use
+  dbug library. This is invoked via macro:
+
+    DBUG_PRINT_DO(Keyword, ("format string", args));
+
+  This is supposed to be used as an implementation of DBUG_PRINT() macro,
+  unless the dbug library implementation is used or debug messages are disabled.
+*/
+
+#ifndef DBUG_OFF
+
+#define DBUG_PRINT_DO(Keyword, Msg) \
+  do { \
+    if (2 > opt_auth_win_client_log) break; \
+    fprintf(stderr, "winauth: %s: ", Keyword); \
+    debug_msg Msg; \
+  } while (0)
+
+inline
+void debug_msg(const char *fmt, ...)
+{
+  va_list args;
+  va_start(args, fmt);
+  vfprintf(stderr, fmt, args);
+  fputc('\n', stderr);
+  fflush(stderr);
+  va_end(args);
+}
+
+#else
+#define DBUG_PRINT_DO(K, M)  do {} while (0)
+#endif
+
+
+#ifndef WINAUTH_USE_DBUG_LIB
+
+#undef  DBUG_PRINT
+#define DBUG_PRINT(Keyword, Msg)  DBUG_PRINT_DO(Keyword, Msg)
+
+/*
+  Redefine few more debug macros to make sure that no symbols from
+  dbug library are used.
+*/
+
+#undef DBUG_ENTER
+#define DBUG_ENTER(X)  do {} while (0)
+
+#undef DBUG_RETURN
+#define DBUG_RETURN(X) return (X)
+
+#undef DBUG_ASSERT
+#ifndef DBUG_OFF
+#define DBUG_ASSERT(X) assert (X)
+#else
+#define DBUG_ASSERT(X) do {} while (0)
+#endif
+
+#undef DBUG_DUMP
+#define DBUG_DUMP(A,B,C) do {} while (0)
+
+#endif
 
 
 /** Blob class *************************************************************/
@@ -158,14 +186,20 @@ public:
     return m_len;
   }
 
-  byte operator[](unsigned pos) const
+  byte& operator[](unsigned pos) const
   {
-    return pos < len() ? m_ptr[pos] : 0x00;
+    static byte out_of_range= 0;  // alas, no exceptions...
+    return pos < len() ? m_ptr[pos] : out_of_range;
   }
 
   bool is_null() const
   {
     return m_ptr == NULL;
+  }
+
+  void trim(size_t l)
+  {
+    m_len= l;
   }
 };
 
