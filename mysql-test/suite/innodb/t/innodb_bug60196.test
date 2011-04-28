@@ -85,3 +85,73 @@ DROP TABLE Bug_60196;
 DROP TABLE Bug_60196_FK1;
 DROP TABLE Bug_60196_FK2;
 
+
+# Bug#60309/12356829
+# MYSQL 5.5.9 FOR MAC OSX HAS BUG WITH FOREIGN KEY CONSTRAINTS
+# This testcase is different from that for Bug#60196 in that the
+# referenced table contains a secondary key.  When the engine is
+# restarted, the referenced table is opened by the purge thread,
+# which does not notice that lower_case_table_names == 2.
+
+#
+# Create test data.
+#
+CREATE TABLE Bug_60309_FK (
+  ID INT PRIMARY KEY,
+  ID2 INT,
+   KEY K2(ID2)
+) ENGINE=InnoDB;
+CREATE TABLE Bug_60309 (
+  ID INT PRIMARY KEY,
+  FK_ID INT,
+  KEY (FK_ID),
+  CONSTRAINT FK FOREIGN KEY (FK_ID) REFERENCES Bug_60309_FK (ID)
+) ENGINE=InnoDB;
+
+INSERT INTO Bug_60309_FK (ID, ID2) VALUES (1, 1), (2, 2), (3, 3);
+INSERT INTO Bug_60309 VALUES (1, 1);
+--error ER_NO_REFERENCED_ROW_2
+INSERT INTO Bug_60309 VALUES (2, 99);
+
+SELECT * FROM Bug_60309_FK;
+SELECT * FROM Bug_60309;
+
+--echo # Stop server
+
+# Write file to make mysql-test-run.pl wait for the server to stop
+-- exec echo "wait" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
+
+# Send a shutdown request to the server
+-- shutdown_server 10
+
+# Call script that will poll the server waiting for it to disapear
+-- source include/wait_until_disconnected.inc
+
+--echo # Restart server.
+
+# Write file to make mysql-test-run.pl start up the server again
+--exec echo "restart" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
+
+# Turn on reconnect
+--enable_reconnect
+
+# Call script that will poll the server waiting for it to be back online again
+--source include/wait_until_connected_again.inc
+
+# Turn off reconnect again
+--disable_reconnect
+
+--echo #
+--echo # Try to insert more to the example table with foreign keys.
+--echo # Bug60309 causes the foreign key file not to be found after
+--echo # the resstart above.
+--echo #
+SELECT * FROM Bug_60309;
+INSERT INTO Bug_60309 VALUES (2, 2);
+INSERT INTO Bug_60309 VALUES (3, 3);
+SELECT * FROM Bug_60309;
+
+--echo
+--echo # Clean up.
+DROP TABLE Bug_60309;
+DROP TABLE Bug_60309_FK;

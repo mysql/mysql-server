@@ -11,8 +11,8 @@ ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
 FOR A PARTICULAR PURPOSE. See the GNU General Public License for more details.
 
 You should have received a copy of the GNU General Public License along with
-this program; if not, write to the Free Software Foundation, Inc., 59 Temple
-Place, Suite 330, Boston, MA 02111-1307 USA
+this program; if not, write to the Free Software Foundation, Inc.,
+51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA
 
 *****************************************************************************/
 
@@ -232,7 +232,9 @@ dict_mem_foreign_create(void);
 
 /**********************************************************************//**
 Sets the foreign_table_name_lookup pointer based on the value of
-srv_lower_case_table_names. */
+lower_case_table_names.  If that is 0 or 1, foreign_table_name_lookup
+will point to foreign_table_name.  If 2, then another string is
+allocated from the heap and set to lower case. */
 UNIV_INTERN
 void
 dict_mem_foreign_table_name_lookup_set(
@@ -241,8 +243,10 @@ dict_mem_foreign_table_name_lookup_set(
 	ibool		do_alloc);	/*!< in: is an alloc needed */
 
 /**********************************************************************//**
-Sets the reference_table_name_lookup pointer based on the value of
-srv_lower_case_table_names. */
+Sets the referenced_table_name_lookup pointer based on the value of
+lower_case_table_names.  If that is 0 or 1, referenced_table_name_lookup
+will point to referenced_table_name.  If 2, then another string is
+allocated from the heap and set to lower case. */
 UNIV_INTERN
 void
 dict_mem_referenced_table_name_lookup_set(
