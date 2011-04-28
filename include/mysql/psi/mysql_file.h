@@ -512,7 +512,7 @@ static inline void inline_mysql_file_register(
   int count
 #else
   const char *category __attribute__ ((unused)),
-  PSI_file_info *info __attribute__ ((unused)),
+  void *info __attribute__ ((unused)),
   int count __attribute__ ((unused))
 #endif
 )
