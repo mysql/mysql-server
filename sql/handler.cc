@@ -2080,7 +2080,7 @@ int ha_delete_table(THD *thd, handlerton *table_type, const char *path,
   }
   delete file;
 
-#ifdef HAVE_PSI_INTERFACE
+#ifdef HAVE_PSI_TABLE_INTERFACE
   if (likely((error == 0) && (PSI_server != NULL)))
     PSI_server->drop_table_share(db, strlen(db), alias, strlen(alias));
 #endif
@@ -2091,22 +2091,29 @@ int ha_delete_table(THD *thd, handlerton *table_type, const char *path,
 /****************************************************************************
 ** General handler functions
 ****************************************************************************/
-handler *handler::clone(MEM_ROOT *mem_root)
+handler *handler::clone(const char *name, MEM_ROOT *mem_root)
 {
-  handler *new_handler= get_new_handler(table->s, mem_root, table->s->db_type());
+  handler *new_handler= get_new_handler(table->s, mem_root, ht);
   /*
     Allocate handler->ref here because otherwise ha_open will allocate it
     on this->table->mem_root and we will not be able to reclaim that memory 
     when the clone handler object is destroyed.
   */
-  if (!(new_handler->ref= (uchar*) alloc_root(mem_root, ALIGN_SIZE(ref_length)*2)))
-    return NULL;
-  if (new_handler && !new_handler->ha_open(table,
-                                           table->s->normalized_path.str,
-                                           table->db_stat,
-                                           HA_OPEN_IGNORE_IF_LOCKED))
-    return new_handler;
-  return NULL;
+  if (new_handler &&
+     !(new_handler->ref= (uchar*) alloc_root(mem_root,
+                                             ALIGN_SIZE(ref_length)*2)))
+    new_handler= NULL;
+  /*
+    TODO: Implement a more efficient way to have more than one index open for
+    the same table instance. The ha_open call is not cachable for clone.
+  */
+  if (new_handler && new_handler->ha_open(table,
+                                          name,
+                                          table->db_stat,
+                                          HA_OPEN_IGNORE_IF_LOCKED))
+    new_handler= NULL;
+
+  return new_handler;
 }
 
 
@@ -2173,7 +2180,7 @@ int handler::ha_open(TABLE *table_arg, const char *name, int mode,
   {
     DBUG_ASSERT(m_psi == NULL);
     DBUG_ASSERT(table_share != NULL);
-#ifdef HAVE_PSI_INTERFACE
+#ifdef HAVE_PSI_TABLE_INTERFACE
     if (likely(PSI_server != NULL))
     {    
       PSI_table_share *share_psi= ha_table_share_psi(table_share);
@@ -2202,7 +2209,7 @@ int handler::ha_open(TABLE *table_arg, const char *name, int mode,
 
 int handler::ha_close(void)
 {
-#ifdef HAVE_PSI_INTERFACE
+#ifdef HAVE_PSI_TABLE_INTERFACE
   if (likely(PSI_server && m_psi))
   {
     PSI_server->close_table(m_psi);
@@ -3894,7 +3901,7 @@ int ha_create_table(THD *thd, const char *path,
   if (open_table_def(thd, &share, 0))
     goto err;
 
-#ifdef HAVE_PSI_INTERFACE
+#ifdef HAVE_PSI_TABLE_INTERFACE
   if (likely(PSI_server != NULL))
   {
     my_bool temp= (create_info->options & HA_LEX_CREATE_TMP_TABLE ? TRUE : FALSE);
@@ -3973,7 +3980,7 @@ int ha_create_table_from_engine(THD* thd, const char *db, const char *name)
     DBUG_RETURN(3);
   }
 
-#ifdef HAVE_PSI_INTERFACE
+#ifdef HAVE_PSI_TABLE_INTERFACE
   /*
     Table discovery is not instrumented.
     Once discovered, the table will be opened normally,
@@ -4818,7 +4825,7 @@ int DsMrr_impl::dsmrr_init(handler *h_arg, RANGE_SEQ_IF *seq_funcs,
     DBUG_ASSERT(h->active_index != MAX_KEY);
     uint mrr_keyno= h->active_index;
 
-    if (!(new_h2= h->clone(thd->mem_root)) || 
+    if (!(new_h2= h->clone(h->table->s->normalized_path.str, thd->mem_root)) ||
         new_h2->ha_external_lock(thd, h->m_lock_type))
     {
       delete new_h2;

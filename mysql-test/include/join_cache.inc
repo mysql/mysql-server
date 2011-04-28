@@ -1577,3 +1577,74 @@ eval explain $query;
 eval $query;
 
 drop table t1,t2;
+
+--echo
+--echo # Bug#11766522 "59651: ASSERTION `TABLE_REF->HAS_RECORD' FAILED
+--echo # WITH JOIN_CACHE_LEVEL=3"
+--echo
+
+CREATE TABLE t1 (
+  b varchar(20)
+)  ;
+INSERT INTO t1 VALUES ('1'),('1');
+
+CREATE TABLE t4 (
+  col253 text
+)  ;
+INSERT INTO t4 VALUES (''),('pf');
+
+CREATE TABLE t6 (
+  col282 timestamp
+)  ;
+INSERT INTO t6 VALUES ('2010-11-07 01:04:45'),('2010-12-13 01:36:32');
+
+CREATE TABLE t7 (
+  col319 timestamp NOT NULL,
+  UNIQUE KEY idx263 (col319)
+)  ;
+# zero rows would do, if there was no const-table optimization
+insert into t7 values("2000-01-01"),("2000-01-02");
+
+CREATE TABLE t3 (
+  col582 char(230) CHARACTER SET utf8 DEFAULT NULL
+)  ;
+# one single row would do, if there was no const-table optimization
+INSERT INTO t3 VALUES ('cymej'),('spb');
+
+CREATE TABLE t5 (
+  col712 time
+)  ;
+# zero rows would do, if there was no const-table optimization
+insert into t5 values(0),(0);
+
+CREATE TABLE t8 (
+  col804 char(169),
+  col805 varchar(51)
+)  ;
+INSERT INTO t8 VALUES ('tmqcb','pwk');
+
+CREATE TABLE t2 (
+  col841 varchar(10)
+)  ;
+# one single row would do, if there was no const-table optimization
+INSERT INTO t2 VALUES (''),('');
+
+# Small buffer, to trigger "full buffer" in both caches of t8 and t6.
+# Setting to 1 will actually set to the smallest allowed value,
+# with a "rounding" warning message.
+set join_buffer_size=1;
+select @@join_buffer_size;
+
+--disable_warnings
+select count(*) from
+(t1 join t2 join t3)
+left join t4 on 1
+left join t5 on 1 like t4.col253
+left join t6 on t5.col712 is null
+left join t7 on t1.b <=>t7.col319
+left join t8 on t3.col582 <=  1;
+--enable_warnings
+
+drop table t1,t2,t3,t4,t5,t6,t7,t8;
+
+set @@join_buffer_size=default;

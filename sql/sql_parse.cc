@@ -911,7 +911,7 @@ static my_bool deny_updates_if_read_only_option(THD *thd,
 bool dispatch_command(enum enum_server_command command, THD *thd,
 		      char* packet, uint packet_length)
 {
-#ifdef HAVE_PSI_INTERFACE
+#ifdef HAVE_PSI_STATEMENT_INTERFACE
   PSI_statement_locker_state state;
 #endif
 

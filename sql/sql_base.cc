@@ -116,11 +116,8 @@ static void init_tdc_psi_keys(void)
   const char *category= "sql";
   int count;
 
-  if (PSI_server == NULL)
-    return;
-
   count= array_elements(all_tdc_mutexes);
-  PSI_server->register_mutex(category, all_tdc_mutexes, count);
+  mysql_mutex_register(category, all_tdc_mutexes, count);
 }
 #endif /* HAVE_PSI_INTERFACE */
 
@@ -549,7 +546,7 @@ TABLE_SHARE *get_table_share(THD *thd, TABLE_LIST *table_list, char *key,
   }
   share->ref_count++;				// Mark in use
 
-#ifdef HAVE_PSI_INTERFACE
+#ifdef HAVE_PSI_TABLE_INTERFACE
   if (likely(PSI_server != NULL))
     share->m_psi= PSI_server->get_table_share(false, share);
 #endif
@@ -5896,7 +5893,7 @@ TABLE *open_table_uncached(THD *thd, const char *path, const char *db,
     DBUG_RETURN(0);
   }
 
-#ifdef HAVE_PSI_INTERFACE
+#ifdef HAVE_PSI_TABLE_INTERFACE
   if (likely(PSI_server != NULL))
     share->m_psi= PSI_server->get_table_share(true, share);
 #endif

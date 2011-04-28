@@ -453,14 +453,11 @@ static void init_debug_sync_psi_keys(void)
   const char* category= "sql";
   int count;
 
-  if (PSI_server == NULL)
-    return;
-
   count= array_elements(all_debug_sync_mutexes);
-  PSI_server->register_mutex(category, all_debug_sync_mutexes, count);
+  mysql_mutex_register(category, all_debug_sync_mutexes, count);
 
   count= array_elements(all_debug_sync_conds);
-  PSI_server->register_cond(category, all_debug_sync_conds, count);
+  mysql_cond_register(category, all_debug_sync_conds, count);
 }
 #endif /* HAVE_PSI_INTERFACE */
 

@@ -2681,35 +2681,35 @@ innobase_change_buffering_inited_ok:
 
 		count = array_elements(all_pthread_mutexes);
 
- 		PSI_server->register_mutex(
+ 		mysql_mutex_register(
 			"innodb", all_pthread_mutexes, count);
 
 # ifdef UNIV_PFS_MUTEX
 		count = array_elements(all_innodb_mutexes);
-		PSI_server->register_mutex("innodb",
+		mysql_mutex_register("innodb",
 					   all_innodb_mutexes, count);
 # endif /* UNIV_PFS_MUTEX */
 
 # ifdef UNIV_PFS_RWLOCK
 		count = array_elements(all_innodb_rwlocks);
-		PSI_server->register_rwlock("innodb",
+		mysql_rwlock_register("innodb",
 					    all_innodb_rwlocks, count);
 # endif /* UNIV_PFS_MUTEX */
 
 # ifdef UNIV_PFS_THREAD
 		count = array_elements(all_innodb_threads);
-		PSI_server->register_thread("innodb",
+		mysql_thread_register("innodb",
 					    all_innodb_threads, count);
 # endif /* UNIV_PFS_THREAD */
 
 # ifdef UNIV_PFS_IO
 		count = array_elements(all_innodb_files);
-		PSI_server->register_file("innodb",
+		mysql_file_register("innodb",
 					  all_innodb_files, count);
 # endif /* UNIV_PFS_IO */
 
 		count = array_elements(all_innodb_conds);
-		PSI_server->register_cond("innodb",
+		mysql_cond_register("innodb",
 					  all_innodb_conds, count);
 	}
 #endif /* HAVE_PSI_INTERFACE */
