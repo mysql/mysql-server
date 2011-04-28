@@ -1309,28 +1309,3 @@ run_synchronously:
 
 	return(n_pages_handled);
 }
-
-/******************************************************************//**
-Prints information of the purge system to stderr. */
-UNIV_INTERN
-void
-trx_purge_sys_print(void)
-/*=====================*/
-{
-	fprintf(stderr, "InnoDB: Purge system view:\n");
-	read_view_print(purge_sys->view);
-
-	fprintf(stderr, "InnoDB: Purge trx n:o " TRX_ID_FMT
-		", undo n:o " TRX_ID_FMT "\n",
-		(ullint) purge_sys->limit.trx_no,
-		(ullint) purge_sys->limit.undo_no);
-	fprintf(stderr,
-		"InnoDB: Purge next stored %lu, page_no %lu, offset %lu,\n"
-		"InnoDB: Purge hdr_page_no %lu, hdr_offset %lu\n",
-		(ulong) purge_sys->next_stored,
-		(ulong) purge_sys->page_no,
-		(ulong) purge_sys->offset,
-		(ulong) purge_sys->hdr_page_no,
-		(ulong) purge_sys->hdr_offset);
-}
-
