@@ -90,17 +90,19 @@ Handshake::~Handshake()
 
   @note In case of error, appropriate error message is logged.
 */
-int Handshake::packet_processing_loop(Connection &con)
+int Handshake::packet_processing_loop()
 {
-  unsigned round= 1;
+  m_round= 0;
 
   do {
+    ++m_round;
     // Read packet send by the peer
+
     DBUG_PRINT("info", ("Waiting for packet"));
-    Blob packet= con.read();
-    if (con.error() || packet.is_null())
+    Blob packet= read_packet();
+    if (error())
     {
-      ERROR_LOG(ERROR, ("Error reading packet in round %d", round));
+      ERROR_LOG(ERROR, ("Error reading packet in round %d", m_round));
       return 1;
     }
     DBUG_PRINT("info", ("Got packet of length %d", packet.len()));
@@ -113,7 +115,7 @@ int Handshake::packet_processing_loop(Connection &con)
 
     if (error())
     {
-      ERROR_LOG(ERROR, ("Error processing packet in round %d", round));
+      ERROR_LOG(ERROR, ("Error processing packet in round %d", m_round));
       return 1;
     }
 
@@ -124,14 +126,13 @@ int Handshake::packet_processing_loop(Connection &con)
 
     if (!new_data.is_null())
     {
-      ++round;
-      DBUG_PRINT("info", ("Round %d started", round));
+      DBUG_PRINT("info", ("Round %d started", m_round));
 
       DBUG_PRINT("info", ("Sending packet of length %d", new_data.len()));
-      int ret= con.write(new_data);
+      int ret= write_packet(new_data);
       if (ret)
       {
-        ERROR_LOG(ERROR, ("Error writing packet in round %d", round));
+        ERROR_LOG(ERROR, ("Error writing packet in round %d", m_round));
         return 1;
       }
       DBUG_PRINT("info", ("Data sent"));
@@ -139,7 +140,7 @@ int Handshake::packet_processing_loop(Connection &con)
     else if (!is_complete())
     {
       ERROR_LOG(ERROR, ("No data to send in round %d"
-                        " but handshake is not complete", round));
+                        " but handshake is not complete", m_round));
       return 1;
     }
 
@@ -148,16 +149,16 @@ int Handshake::packet_processing_loop(Connection &con)
       too many rounds.
     */
 
-    if (round > MAX_HANDSHAKE_ROUNDS)
+    if (m_round > MAX_HANDSHAKE_ROUNDS)
     {
       ERROR_LOG(ERROR, ("Authentication handshake could not be completed"
-                        " after %d rounds", round));
+                        " after %d rounds", m_round));
       return 1;
     }
 
   } while(!is_complete());
 
-  ERROR_LOG(INFO, ("Handshake completed after %d rounds", round));
+  ERROR_LOG(INFO, ("Handshake completed after %d rounds", m_round));
   return 0;
 }
 
