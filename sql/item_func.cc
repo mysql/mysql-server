@@ -3658,14 +3658,10 @@ static PSI_mutex_info all_user_mutexes[]=
 
 static void init_user_lock_psi_keys(void)
 {
-  const char* category= "sql";
   int count;
 
-  if (PSI_server == NULL)
-    return;
-
   count= array_elements(all_user_mutexes);
-  PSI_server->register_mutex(category, all_user_mutexes, count);
+  mysql_mutex_register("sql", all_user_mutexes, count);
 }
 #endif
 

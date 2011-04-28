@@ -9464,8 +9464,8 @@ acl_authenticate(THD *thd, uint connect_errors, uint com_change_user_pkt_len)
   thd->net.skip_big_packet= TRUE;
 #endif
 
-#ifdef HAVE_PSI_INTERFACE
-  if (PSI_server)
+#ifdef HAVE_PSI_THREAD_INTERFACE
+  if (likely(PSI_server != NULL))
   {
     PSI_server->set_thread_user_host(thd->main_security_ctx.user,
                                      strlen(thd->main_security_ctx.user),
