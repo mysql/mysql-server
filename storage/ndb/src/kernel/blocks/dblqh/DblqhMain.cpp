@@ -7447,6 +7447,15 @@ Dblqh::sendFireTrigConfTc(Signal* signal,
                           BlockReference atcBlockref,
                           Uint32 Tdata[])
 {
+  if (refToInstance(atcBlockref) != 0)
+  {
+    jam();
+    memcpy(signal->theData, Tdata, 4 * FireTrigConf::SignalLength);
+    sendSignal(atcBlockref, GSN_FIRE_TRIG_CONF,
+               signal, FireTrigConf::SignalLength, JBB);
+    return;
+  }
+
   HostRecordPtr Thostptr;
   Uint32 len = FireTrigConf::SignalLength;
 
