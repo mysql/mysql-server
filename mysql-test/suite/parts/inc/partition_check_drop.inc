@@ -37,7 +37,7 @@ if ($do_file_tests)
   eval SET @aux = load_file('$ls_file');
 
   # clean up
-  remove_file $ls_file;
+  --remove_file $ls_file
 }
 if (!$do_file_tests)
 {

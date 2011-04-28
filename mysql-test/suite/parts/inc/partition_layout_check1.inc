@@ -45,6 +45,9 @@ if ($do_file_tests)
     --list_files_append_file $ls_file $MYSQLTEST_VARDIR/mysql-test-idx-dir t1*
   }
   eval SET @aux = load_file('$ls_file');
+
+  # clean up
+  --remove_file $ls_file
 }
 if (!$do_file_tests)
 {

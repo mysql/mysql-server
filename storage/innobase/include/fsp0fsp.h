@@ -11,8 +11,8 @@ ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
 FOR A PARTICULAR PURPOSE. See the GNU General Public License for more details.
 
 You should have received a copy of the GNU General Public License along with
-this program; if not, write to the Free Software Foundation, Inc., 59 Temple
-Place, Suite 330, Boston, MA 02111-1307 USA
+this program; if not, write to the Free Software Foundation, Inc.,
+51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA
 
 *****************************************************************************/
 
@@ -40,16 +40,6 @@ UNIV_INTERN
 void
 fsp_init(void);
 /*==========*/
-/**********************************************************************//**
-Gets the current free limit of the system tablespace.  The free limit
-means the place of the first page which has never been put to the
-free list for allocation.  The space above that address is initialized
-to zero.  Sets also the global variable log_fsp_current_free_limit.
-@return	free limit in megabytes */
-UNIV_INTERN
-ulint
-fsp_header_get_free_limit(void);
-/*===========================*/
 /**********************************************************************//**
 Gets the size of the system tablespace from the tablespace header.  If
 we do not have an auto-extending data file, this should be equal to

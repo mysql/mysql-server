@@ -34,9 +34,11 @@ Created 5/20/1997 Heikki Tuuri
 
 # ifdef UNIV_PFS_MUTEX
 UNIV_INTERN mysql_pfs_key_t	hash_table_mutex_key;
-UNIV_INTERN mysql_pfs_key_t	hash_table_rw_lock_key;
 # endif /* UNIV_PFS_MUTEX */
 
+# ifdef UNIV_PFS_RWLOCK
+UNIV_INTERN mysql_pfs_key_t	hash_table_rw_lock_key;
+# endif /* UNIV_PFS_RWLOCK */
 /************************************************************//**
 Reserves the mutex for a fold value in a hash table. */
 UNIV_INTERN

@@ -69,17 +69,6 @@ extern	ibool	log_debug_writes;
 /** Maximum number of log groups in log_group_struct::checkpoint_buf */
 #define LOG_MAX_N_GROUPS	32
 
-#ifndef UNIV_HOTBACKUP
-/****************************************************************//**
-Sets the global variable log_fsp_current_free_limit. Also makes a checkpoint,
-so that we know that the limit has been written to a log checkpoint field
-on disk. */
-UNIV_INTERN
-void
-log_fsp_current_free_limit_set_and_checkpoint(
-/*==========================================*/
-	ulint	limit);	/*!< in: limit to set */
-#endif /* !UNIV_HOTBACKUP */
 /*******************************************************************//**
 Calculates where in log files we find a specified lsn.
 @return	log file number */
@@ -638,23 +627,38 @@ extern log_t*	log_sys;
 							+ LOG_MAX_N_GROUPS * 8)
 #define LOG_CHECKPOINT_CHECKSUM_1	LOG_CHECKPOINT_ARRAY_END
 #define LOG_CHECKPOINT_CHECKSUM_2	(4 + LOG_CHECKPOINT_ARRAY_END)
+#if 0
 #define LOG_CHECKPOINT_FSP_FREE_LIMIT	(8 + LOG_CHECKPOINT_ARRAY_END)
-					/* current fsp free limit in
+					/*!< Not used (0);
+					This used to contain the
+					current fsp free limit in
 					tablespace 0, in units of one
-					megabyte; this information is only used
-					by ibbackup to decide if it can
-					truncate unused ends of
-					non-auto-extending data files in space
-					0 */
+					megabyte.
+
+					This information might have been used
+					since ibbackup version 0.35 but
+					before 1.41 to decide if unused ends of
+					non-auto-extending data files
+					in space 0 can be truncated.
+
+					This information was made obsolete
+					by ibbackup --compress. */
 #define LOG_CHECKPOINT_FSP_MAGIC_N	(12 + LOG_CHECKPOINT_ARRAY_END)
-					/* this magic number tells if the
+					/*!< Not used (0);
+					This magic number tells if the
 					checkpoint contains the above field:
 					the field was added to
-					InnoDB-3.23.50 */
+					InnoDB-3.23.50 and
+					removed from MySQL 5.6 */
+#define LOG_CHECKPOINT_FSP_MAGIC_N_VAL	1441231243
+					/*!< if LOG_CHECKPOINT_FSP_MAGIC_N
+					contains this value, then
+					LOG_CHECKPOINT_FSP_FREE_LIMIT
+					is valid */
+#endif
 #define LOG_CHECKPOINT_OFFSET_HIGH32	(16 + LOG_CHECKPOINT_ARRAY_END)
 #define LOG_CHECKPOINT_SIZE		(20 + LOG_CHECKPOINT_ARRAY_END)
 
-#define LOG_CHECKPOINT_FSP_MAGIC_N_VAL	1441231243
 
 /* Offsets of a log file header */
 #define LOG_GROUP_ID		0	/* log group number */
@@ -761,7 +765,6 @@ struct log_struct{
 					buffer */
 #ifndef UNIV_HOTBACKUP
 	mutex_t		mutex;		/*!< mutex protecting the log */
-#endif /* !UNIV_HOTBACKUP */
 
 	mutex_t		log_flush_order_mutex;/*!< mutex to serialize access to
 					the flush list when we are putting
@@ -771,6 +774,7 @@ struct log_struct{
 					mtr_commit and still ensure that
 					insertions in the flush_list happen
 					in the LSN order. */
+#endif /* !UNIV_HOTBACKUP */
 	byte*		buf_ptr;	/* unaligned log buffer */
 	byte*		buf;		/*!< log buffer */
 	ulint		buf_size;	/*!< log buffer size in bytes */

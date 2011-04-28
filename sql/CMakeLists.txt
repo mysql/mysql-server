@@ -64,6 +64,7 @@ SET(SQL_SHARED_SOURCES
   item_sum.cc
   item_timefunc.cc 
   item_xmlfunc.cc 
+  item_inetfunc.cc
   key.cc
   keycaches.cc
   lock.cc

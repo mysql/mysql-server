@@ -11,8 +11,8 @@ ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
 FOR A PARTICULAR PURPOSE. See the GNU General Public License for more details.
 
 You should have received a copy of the GNU General Public License along with
-this program; if not, write to the Free Software Foundation, Inc., 59 Temple
-Place, Suite 330, Boston, MA 02111-1307 USA
+this program; if not, write to the Free Software Foundation, Inc.,
+51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA
 
 *****************************************************************************/
 
@@ -1792,7 +1792,8 @@ err_exit:
 #endif /* 0 */
 	mem_heap_free(heap);
 
-	ut_ad(ignore_err != DICT_ERR_IGNORE_NONE || table->corrupted == FALSE);
+	ut_ad(!table || ignore_err != DICT_ERR_IGNORE_NONE
+	      || !table->corrupted);
 
 	return(table);
 }
@@ -2259,7 +2260,7 @@ loop:
 	may not be the same case, but the previous comparison showed that they
 	match with no-case.  */
 
-	if ((srv_lower_case_table_names != 2)
+	if ((innobase_get_lower_case_table_names() != 2)
 	    && (0 != ut_memcmp(field, table_name, len))) {
 		goto next_rec;
 	}

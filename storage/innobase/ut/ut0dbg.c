@@ -25,7 +25,9 @@ Created 1/30/1994 Heikki Tuuri
 
 #include "univ.i"
 #include "ut0dbg.h"
-#include "ha_prototypes.h"
+#ifndef UNIV_HOTBACKUP
+# include "ha_prototypes.h"
+#endif /* !UNIV_HOTBACKUP */
 
 #if defined(__GNUC__) && (__GNUC__ > 2)
 #else
@@ -56,7 +58,7 @@ ut_dbg_assertion_failed(
 	ut_print_timestamp(stderr);
 #ifdef UNIV_HOTBACKUP
 	fprintf(stderr, "  InnoDB: Assertion failure in file %s line %lu\n",
-		innobase_basename(file), line);
+		file, line);
 #else /* UNIV_HOTBACKUP */
 	fprintf(stderr,
 		"  InnoDB: Assertion failure in thread %lu"
