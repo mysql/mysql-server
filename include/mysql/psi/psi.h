@@ -206,6 +206,16 @@ struct PSI_bootstrap
 #endif
 
 /**
+  @def DISABLE_PSI_SOCKET
+  Compiling option to disable the statement instrumentation.
+  @sa DISABLE_PSI_MUTEX
+*/
+
+#ifndef DISABLE_PSI_SOCKET
+#define HAVE_PSI_SOCKET_INTERFACE
+#endif
+
+/**
   @def PSI_VERSION_1
   Performance Schema Interface number for version 1.
   This version is supported.
