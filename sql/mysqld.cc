@@ -8560,6 +8560,9 @@ void init_server_psi_keys(void)
   count= array_elements(com_statement_info);
   mysql_statement_register(category, com_statement_info, count);
 #endif
+
+  count= array_elements(all_server_sockets);
+  mysql_socket_register(category, all_server_sockets, count);
 }
 
 #endif /* HAVE_PSI_INTERFACE */
