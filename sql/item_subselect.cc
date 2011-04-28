@@ -2061,6 +2061,24 @@ bool Item_in_subselect::inject_in_to_exists_cond(JOIN *join_arg)
 
   if (where_item)
   {
+    List<Item> *and_args= NULL;
+    /*
+      If the top-level Item of the WHERE clause is an AND, detach the multiple
+      equality list that was attached to the end of the AND argument list by
+      build_equal_items_for_cond(). The multiple equalities must be detached
+      because fix_fields merges lower level AND arguments into the upper AND.
+      As a result, the arguments from lower-level ANDs are concatenated after
+      the multiple equalities. When the multiple equality list is treated as
+      such, it turns out that it contains non-Item_equal object which is wrong.
+    */
+    if (join_arg->conds && join_arg->conds->type() == Item::COND_ITEM &&
+        ((Item_cond*) join_arg->conds)->functype() == Item_func::COND_AND_FUNC)
+    {
+      and_args= ((Item_cond*) join_arg->conds)->argument_list();
+      if (join_arg->cond_equal)
+        and_args->disjoin((List<Item> *) &join_arg->cond_equal->current_level);
+    }
+
     where_item= and_items(join_arg->conds, where_item);
     if (!where_item->fixed && where_item->fix_fields(thd, 0))
       DBUG_RETURN(true);
@@ -2068,6 +2086,14 @@ bool Item_in_subselect::inject_in_to_exists_cond(JOIN *join_arg)
     thd->change_item_tree(&select_lex->where, where_item);
     select_lex->where->top_level_item();
     join_arg->conds= select_lex->where;
+
+    /* Attach back the list of multiple equalities to the new top-level AND. */
+    if (and_args && join_arg->cond_equal)
+    {
+      /* The argument list of the top-level AND may change after fix fields. */
+      and_args= ((Item_cond*) join_arg->conds)->argument_list();
+      and_args->concat((List<Item> *) &join_arg->cond_equal->current_level);
+    }
   }
 
   if (having_item)
