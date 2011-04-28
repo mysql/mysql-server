@@ -1264,6 +1264,8 @@ bool init_errmessage(void);
 
 bool fn_format_relative_to_data_home(my_string to, const char *name,
 				     const char *dir, const char *extension);
+bool is_secure_file_path(char *path);
+
 File open_binlog(IO_CACHE *log, const char *log_file_name,
                  const char **errmsg);
 

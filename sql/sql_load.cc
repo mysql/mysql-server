@@ -287,36 +287,36 @@ int mysql_load(THD *thd,sql_exchange *ex,TABLE_LIST *table_list,
     {
       (void) fn_format(name, ex->file_name, mysql_real_data_home, "",
 		       MY_RELATIVE_PATH | MY_UNPACK_FILENAME);
-#if !defined(__WIN__) && !defined(OS2) && ! defined(__NETWARE__)
-      MY_STAT stat_info;
-      if (!my_stat(name,&stat_info,MYF(MY_WME)))
-	DBUG_RETURN(TRUE);
-
-      // if we are not in slave thread, the file must be:
-      if (!thd->slave_thread &&
-	  !((stat_info.st_mode & S_IROTH) == S_IROTH &&  // readable by others
-#ifndef __EMX__
-	    (stat_info.st_mode & S_IFLNK) != S_IFLNK && // and not a symlink
-#endif
-	    ((stat_info.st_mode & S_IFREG) == S_IFREG ||
-	     (stat_info.st_mode & S_IFIFO) == S_IFIFO)))
-      {
-	my_error(ER_TEXTFILE_NOT_READABLE, MYF(0), name);
-	DBUG_RETURN(TRUE);
-      }
-      if ((stat_info.st_mode & S_IFIFO) == S_IFIFO)
-	is_fifo = 1;
-#endif
-
-      if (opt_secure_file_priv &&
-          strncmp(opt_secure_file_priv, name, strlen(opt_secure_file_priv)))
-      {
-        /* Read only allowed from within dir specified by secure_file_priv */
-        my_error(ER_OPTION_PREVENTS_STATEMENT, MYF(0), "--secure-file-priv");
-        DBUG_RETURN(TRUE);
-      }
-
     }
+
+    if (!is_secure_file_path(name))
+    {
+      /* Read only allowed from within dir specified by secure_file_priv */
+      my_error(ER_OPTION_PREVENTS_STATEMENT, MYF(0), "--secure-file-priv");
+      DBUG_RETURN(TRUE);
+    }
+
+#if !defined(__WIN__) && !defined(OS2) && ! defined(__NETWARE__)
+    MY_STAT stat_info;
+    if (!my_stat(name, &stat_info, MYF(MY_WME)))
+      DBUG_RETURN(TRUE);
+
+    // if we are not in slave thread, the file must be:
+    if (!thd->slave_thread &&
+        !((stat_info.st_mode & S_IROTH) == S_IROTH &&  // readable by others
+#ifndef __EMX__
+          (stat_info.st_mode & S_IFLNK) != S_IFLNK &&  // and not a symlink
+#endif
+          ((stat_info.st_mode & S_IFREG) == S_IFREG || // and a regular file
+           (stat_info.st_mode & S_IFIFO) == S_IFIFO))) // or FIFO
+    {
+      my_error(ER_TEXTFILE_NOT_READABLE, MYF(0), name);
+      DBUG_RETURN(TRUE);
+    }
+    if ((stat_info.st_mode & S_IFIFO) == S_IFIFO)
+      is_fifo= 1;
+#endif
+
     if ((file=my_open(name,O_RDONLY,MYF(MY_WME))) < 0)
       DBUG_RETURN(TRUE);
   }
