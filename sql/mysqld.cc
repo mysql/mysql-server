@@ -1464,6 +1464,7 @@ static void wait_for_signal_thread_to_end()
 #endif
 }
 
+#endif /*EMBEDDED_LIBRARY*/
 
 static void clean_up_mutexes()
 {
@@ -1486,7 +1487,9 @@ static void clean_up_mutexes()
   (void) pthread_mutex_destroy(&LOCK_bytes_received);
   (void) pthread_mutex_destroy(&LOCK_user_conn);
   (void) pthread_mutex_destroy(&LOCK_connection_count);
+#ifndef EMBEDDED_LIBRARY
   Events::destroy_mutexes();
+#endif
 #ifdef HAVE_OPENSSL
   (void) pthread_mutex_destroy(&LOCK_des_key_file);
 #ifndef HAVE_YASSL
@@ -1517,8 +1520,6 @@ static void clean_up_mutexes()
   (void) pthread_cond_destroy(&COND_manager);
   DBUG_VOID_RETURN;
 }
-
-#endif /*EMBEDDED_LIBRARY*/
 
 
 /**
@@ -8037,6 +8038,7 @@ static void usage(void)
   puts("\
 Copyright (C) 2000-2008 MySQL AB, by Monty and others.\n\
 Copyright (C) 2008 Sun Microsystems, Inc.\n\
+Copyright (C) 2009-2011 Monty Program Ab.\n\
 This software comes with ABSOLUTELY NO WARRANTY. This is free software,\n\
 and you are welcome to modify and redistribute it under the GPL license\n\n\
 Starts the MySQL database server.\n");
