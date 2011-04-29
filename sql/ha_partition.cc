@@ -4099,12 +4099,6 @@ void ha_partition::position(const uchar *record)
   if (pad_length)
     memset((ref + PARTITION_BYTES_IN_POS + file->ref_length), 0, pad_length);
 
-#ifdef SUPPORTING_PARTITION_OVER_DIFFERENT_ENGINES
-#ifdef HAVE_purify
-  bzero(ref + PARTITION_BYTES_IN_POS + ref_length,
-        max_ref_length-ref_length);
-#endif /* HAVE_purify */
-#endif
   DBUG_VOID_RETURN;
 }
 
