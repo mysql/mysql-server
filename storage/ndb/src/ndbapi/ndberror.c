@@ -494,7 +494,7 @@ ErrorBundle ErrorCodes[] = {
 
   { 1300, DMEC, IE, "Undefined error" },
   { 1301, DMEC, IE, "Backup issued to not master (reissue command to master)" },
-  { 1302, DMEC, IE, "Out of backup record" },
+  { 1302, DMEC, AE, "A backup is already running" },
   { 1303, DMEC, IS, "Out of resources" },
   { 1304, DMEC, IE, "Sequence failure" },
   { 1305, DMEC, IE, "Backup definition not implemented" },
