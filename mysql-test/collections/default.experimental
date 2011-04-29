@@ -2,8 +2,7 @@
 # in alphabetical order. This also helps with merge conflict resolution.
 
 binlog.binlog_multi_engine               # joro : NDB tests marked as experimental as agreed with bochklin
-binlog.binlog_bug23533			 # WL#5867: skozlov: test case moved from unused bugs suite
-binlog.binlog_bug36391			 # WL#5867: skozlov: test case moved from unused bugs suite
+binlog.binlog_bug23533			 # skozlov: BUG#12371924
 
 
 funcs_1.charset_collation_1              # depends on compile-time decisions
@@ -26,9 +25,7 @@ ndb.*                                    # joro : NDB tests marked as experiment
 
 rpl.rpl_innodb_bug28430   @solaris       # Bug#46029
 rpl.rpl_row_sp011         @solaris       # Joro : Bug #45445
-rpl.rpl_stop_slave        @freebsd       # Sven : BUG#12345981
-rpl.rpl_bug37426			 # WL#5867: skozlov: test case moved from unused bugs suite
-
+rpl.rpl_stop_slave                       # Sven : BUG#12345981
 
 rpl_ndb.*                                # joro : NDB tests marked as experimental as agreed with bochklin
 rpl_ndb.rpl_ndb_log                      # Bug#38998
