@@ -274,12 +274,13 @@ my $opt_strace_client;
 
 our $opt_user = "root";
 
-my $opt_valgrind= 0;
+our $opt_valgrind= 0;
 my $opt_valgrind_mysqld= 0;
 my $opt_valgrind_mysqltest= 0;
 my @default_valgrind_args= ("--show-reachable=yes");
 my @valgrind_args;
 my $opt_valgrind_path;
+my $valgrind_reports= 0;
 my $opt_callgrind;
 my %mysqld_logs;
 my $opt_debug_sync_timeout= 300; # Default timeout for WAIT_FOR actions.
@@ -504,6 +505,25 @@ sub main {
 
   push @$completed, run_ctest() if $opt_ctest;
 
+  if ($opt_valgrind) {
+    # Create minimalistic "test" for the reporting
+    my $tinfo = My::Test->new
+      (
+       name           => 'valgrind_report',
+      );
+    # Set dummy worker id to align report with normal tests
+    $tinfo->{worker} = 0 if $opt_parallel > 1;
+    if ($valgrind_reports) {
+      $tinfo->{result}= 'MTR_RES_FAILED';
+      $tinfo->{comment}= "Valgrind reported failures at shutdown, see above";
+      $tinfo->{failures}= 1;
+    } else {
+      $tinfo->{result}= 'MTR_RES_PASSED';
+    }
+    mtr_report_test($tinfo);
+    push @$completed, $tinfo;
+  }
+
   mtr_print_line();
 
   if ( $opt_gcov ) {
@@ -704,6 +724,9 @@ sub run_test_server ($$$) {
 	elsif ($line =~ /^SPENT/) {
 	  add_total_times($line);
 	}
+	elsif ($line eq 'VALGREP' && $opt_valgrind) {
+	  $valgrind_reports= 1;
+	}
 	else {
 	  mtr_error("Unknown response: '$line' from client");
 	}
@@ -889,6 +912,7 @@ sub run_worker ($) {
       my $valgrind_reports= 0;
       if ($opt_valgrind_mysqld) {
         $valgrind_reports= valgrind_exit_reports();
+	print $server "VALGREP\n" if $valgrind_reports;
       }
       if ( $opt_gprof ) {
 	gprof_collect (find_mysqld($basedir), keys %gprof_dirs);
@@ -4747,13 +4771,6 @@ sub mysqld_start ($$) {
   unlink($mysqld->value('pid-file'));
 
   my $output= $mysqld->value('#log-error');
-  if ( $opt_valgrind and $opt_debug )
-  {
-    # When both --valgrind and --debug is selected, send
-    # all output to the trace file, making it possible to
-    # see the exact location where valgrind complains
-    $output= "$opt_vardir/log/".$mysqld->name().".trace";
-  }
   # Remember this log file for valgrind error report search
   $mysqld_logs{$output}= 1 if $opt_valgrind;
   # Remember data dir for gmon.out files if using gprof
@@ -5660,6 +5677,7 @@ sub valgrind_exit_reports() {
                         @culprits);
             mtr_print_line();
             print ("$valgrind_rep\n");
+            $found_err= 1;
             $err_in_report= 0;
           }
           # Make ready to collect new report
