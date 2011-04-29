@@ -45,3 +45,6 @@ connection slave;
 connection master;
   DROP TABLE t;
 sync_slave_with_master;
+
+STOP SLAVE;
+--source include/wait_for_slave_to_stop.inc

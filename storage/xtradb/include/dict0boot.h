@@ -146,6 +146,7 @@ clustered index */
 #define DICT_SYS_INDEXES_NAME_FIELD	 4
 
 #define DICT_SYS_STATS_DIFF_VALS_FIELD	 4
+#define DICT_SYS_STATS_NON_NULL_VALS_FIELD	5
 
 /* When a row id which is zero modulo this number (which must be a power of
 two) is assigned, the field DICT_HDR_ROW_ID on the dictionary header page is
