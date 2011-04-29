@@ -23,6 +23,7 @@ DROP TABLE t1;
 --eval $create_statement
 --eval $insert_statement
 --echo # State before failure
+--replace_result #p# #P# #sp# #SP#
 --list_files $DATADIR/test
 SHOW CREATE TABLE t1;
 --sorted_result
@@ -32,6 +33,7 @@ LOCK TABLE t1 WRITE;
 --eval $fail_statement
 --enable_abort_on_error
 --echo # State after failure
+--replace_result #p# #P# #sp# #SP#
 --list_files $DATADIR/test
 SHOW CREATE TABLE t1;
 --sorted_result
