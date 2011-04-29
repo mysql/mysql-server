@@ -100,13 +100,6 @@ trx_purge(
 					submit to task queue. */
 	ulint	limit);			/*!< in: the maximum number of
 					records to purge in one batch */
-/******************************************************************//**
-Prints information of the purge system to stderr. */
-UNIV_INTERN
-void
-trx_purge_sys_print(void);
-/*======================*/
-
 /** This is the purge pointer/iterator. We need both the undo no and the
 transaction no up to which purge has parsed and applied the records. */
 typedef struct purge_iter_struct {
