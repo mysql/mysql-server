@@ -3403,15 +3403,19 @@ int ha_partition::update_row(const uchar *old_data, uchar *new_data)
 
 exit:
   /*
-    if updating an auto_increment column, update
+    If updating an auto_increment column, update
     table_share->ha_data->next_auto_inc_val if needed.
     (not to be used if auto_increment on secondary field in a multi-column
     index)
     mysql_update does not set table->next_number_field, so we use
     table->found_next_number_field instead.
+    Also checking that the field is marked in the write set.
   */
-  if (table->found_next_number_field && new_data == table->record[0] &&
-      !table->s->next_number_keypart)
+  if (table->found_next_number_field &&
+      new_data == table->record[0] &&
+      !table->s->next_number_keypart &&
+      bitmap_is_set(table->write_set,
+                    table->found_next_number_field->field_index))
   {
     HA_DATA_PARTITION *ha_data= (HA_DATA_PARTITION*) table_share->ha_data;
     if (!ha_data->auto_inc_initialized)
@@ -3974,6 +3978,7 @@ void ha_partition::position(const uchar *record)
 void ha_partition::column_bitmaps_signal()
 {
     handler::column_bitmaps_signal();
+    /* Must read all partition fields to make position() call possible */
     bitmap_union(table->read_set, &m_part_info->full_part_field_set);
 }
  
