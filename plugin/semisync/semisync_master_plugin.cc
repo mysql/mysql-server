@@ -359,14 +359,11 @@ static void init_semisync_psi_keys(void)
   const char* category= "semisync";
   int count;
 
-  if (PSI_server == NULL)
-    return;
-
   count= array_elements(all_semisync_mutexes);
-  PSI_server->register_mutex(category, all_semisync_mutexes, count);
+  mysql_mutex_register(category, all_semisync_mutexes, count);
 
   count= array_elements(all_semisync_conds);
-  PSI_server->register_cond(category, all_semisync_conds, count);
+  mysql_cond_register(category, all_semisync_conds, count);
 }
 #endif /* HAVE_PSI_INTERFACE */
 

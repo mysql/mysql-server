@@ -260,8 +260,8 @@ const char *set_thd_proc_info(void *thd_arg, const char *info,
   thd->profiling.status_change(info, calling_function, basename, calling_line);
 #endif
   thd->proc_info= info;
-#ifdef HAVE_PSI_INTERFACE
-  if (PSI_server)
+#ifdef HAVE_PSI_THREAD_INTERFACE
+  if (likely(PSI_server != NULL))
     PSI_server->set_thread_state(info);
 #endif
   return old_info;
@@ -3540,8 +3540,8 @@ void THD::inc_examined_row_count(ha_rows count)
 void THD::inc_status_created_tmp_disk_tables()
 {
   status_var_increment(status_var.created_tmp_disk_tables);
-#ifdef HAVE_PSI_INTERFACE
-  if (PSI_server && m_statement_psi)
+#ifdef HAVE_PSI_STATEMENT_INTERFACE
+  if (likely(PSI_server && m_statement_psi))
     PSI_server->inc_statement_created_tmp_disk_tables(m_statement_psi, 1);
 #endif
 }
@@ -3549,8 +3549,8 @@ void THD::inc_status_created_tmp_disk_tables()
 void THD::inc_status_created_tmp_tables()
 {
   status_var_increment(status_var.created_tmp_tables);
-#ifdef HAVE_PSI_INTERFACE
-  if (PSI_server && m_statement_psi)
+#ifdef HAVE_PSI_STATEMENT_INTERFACE
+  if (likely(PSI_server && m_statement_psi))
     PSI_server->inc_statement_created_tmp_tables(m_statement_psi, 1);
 #endif
 }
@@ -3558,8 +3558,8 @@ void THD::inc_status_created_tmp_tables()
 void THD::inc_status_select_full_join()
 {
   status_var_increment(status_var.select_full_join_count);
-#ifdef HAVE_PSI_INTERFACE
-  if (PSI_server && m_statement_psi)
+#ifdef HAVE_PSI_STATEMENT_INTERFACE
+  if (likely(PSI_server && m_statement_psi))
     PSI_server->inc_statement_select_full_join(m_statement_psi, 1);
 #endif
 }
@@ -3567,8 +3567,8 @@ void THD::inc_status_select_full_join()
 void THD::inc_status_select_full_range_join()
 {
   status_var_increment(status_var.select_full_range_join_count);
-#ifdef HAVE_PSI_INTERFACE
-  if (PSI_server && m_statement_psi)
+#ifdef HAVE_PSI_STATEMENT_INTERFACE
+  if (likely(PSI_server && m_statement_psi))
     PSI_server->inc_statement_select_full_range_join(m_statement_psi, 1);
 #endif
 }
@@ -3576,8 +3576,8 @@ void THD::inc_status_select_full_range_join()
 void THD::inc_status_select_range()
 {
   status_var_increment(status_var.select_range_count);
-#ifdef HAVE_PSI_INTERFACE
-  if (PSI_server && m_statement_psi)
+#ifdef HAVE_PSI_STATEMENT_INTERFACE
+  if (likely(PSI_server && m_statement_psi))
     PSI_server->inc_statement_select_range(m_statement_psi, 1);
 #endif
 }
@@ -3585,8 +3585,8 @@ void THD::inc_status_select_range()
 void THD::inc_status_select_range_check()
 {
   status_var_increment(status_var.select_range_check_count);
-#ifdef HAVE_PSI_INTERFACE
-  if (PSI_server && m_statement_psi)
+#ifdef HAVE_PSI_STATEMENT_INTERFACE
+  if (likely(PSI_server && m_statement_psi))
     PSI_server->inc_statement_select_range_check(m_statement_psi, 1);
 #endif
 }
@@ -3594,8 +3594,8 @@ void THD::inc_status_select_range_check()
 void THD::inc_status_select_scan()
 {
   status_var_increment(status_var.select_scan_count);
-#ifdef HAVE_PSI_INTERFACE
-  if (PSI_server && m_statement_psi)
+#ifdef HAVE_PSI_STATEMENT_INTERFACE
+  if (likely(PSI_server && m_statement_psi))
     PSI_server->inc_statement_select_scan(m_statement_psi, 1);
 #endif
 }
@@ -3603,8 +3603,8 @@ void THD::inc_status_select_scan()
 void THD::inc_status_sort_merge_passes()
 {
   status_var_increment(status_var.filesort_merge_passes);
-#ifdef HAVE_PSI_INTERFACE
-  if (PSI_server && m_statement_psi)
+#ifdef HAVE_PSI_STATEMENT_INTERFACE
+  if (likely(PSI_server && m_statement_psi))
     PSI_server->inc_statement_sort_merge_passes(m_statement_psi, 1);
 #endif
 }
@@ -3612,8 +3612,8 @@ void THD::inc_status_sort_merge_passes()
 void THD::inc_status_sort_range()
 {
   status_var_increment(status_var.filesort_range_count);
-#ifdef HAVE_PSI_INTERFACE
-  if (PSI_server && m_statement_psi)
+#ifdef HAVE_PSI_STATEMENT_INTERFACE
+  if (likely(PSI_server && m_statement_psi))
     PSI_server->inc_statement_sort_range(m_statement_psi, 1);
 #endif
 }
@@ -3621,8 +3621,8 @@ void THD::inc_status_sort_range()
 void THD::inc_status_sort_rows(ha_rows count)
 {
   statistic_add(status_var.filesort_rows, count, &LOCK_status);
-#ifdef HAVE_PSI_INTERFACE
-  if (PSI_server && m_statement_psi)
+#ifdef HAVE_PSI_STATEMENT_INTERFACE
+  if (likely(PSI_server && m_statement_psi))
     PSI_server->inc_statement_sort_rows(m_statement_psi, count);
 #endif
 }
@@ -3630,8 +3630,8 @@ void THD::inc_status_sort_rows(ha_rows count)
 void THD::inc_status_sort_scan()
 {
   status_var_increment(status_var.filesort_scan_count);
-#ifdef HAVE_PSI_INTERFACE
-  if (PSI_server && m_statement_psi)
+#ifdef HAVE_PSI_STATEMENT_INTERFACE
+  if (likely(PSI_server && m_statement_psi))
     PSI_server->inc_statement_sort_scan(m_statement_psi, 1);
 #endif
 }
@@ -3639,8 +3639,8 @@ void THD::inc_status_sort_scan()
 void THD::set_status_no_index_used()
 {
   server_status|= SERVER_QUERY_NO_INDEX_USED;
-#ifdef HAVE_PSI_INTERFACE
-  if (PSI_server && m_statement_psi)
+#ifdef HAVE_PSI_STATEMENT_INTERFACE
+  if (likely(PSI_server && m_statement_psi))
     PSI_server->set_statement_no_index_used(m_statement_psi);
 #endif
 }
@@ -3648,8 +3648,8 @@ void THD::set_status_no_index_used()
 void THD::set_status_no_good_index_used()
 {
   server_status|= SERVER_QUERY_NO_GOOD_INDEX_USED;
-#ifdef HAVE_PSI_INTERFACE
-  if (PSI_server && m_statement_psi)
+#ifdef HAVE_PSI_STATEMENT_INTERFACE
+  if (likely(PSI_server && m_statement_psi))
     PSI_server->set_statement_no_good_index_used(m_statement_psi);
 #endif
 }
@@ -3657,8 +3657,8 @@ void THD::set_status_no_good_index_used()
 void THD::set_command(enum enum_server_command command)
 {
   m_command= command;
-#ifdef HAVE_PSI_INTERFACE
-  if (PSI_server)
+#ifdef HAVE_PSI_THREAD_INTERFACE
+  if (likely(PSI_server != NULL))
     PSI_server->set_thread_command(m_command);
 #endif
 }
@@ -3672,8 +3672,8 @@ void THD::set_query(const CSET_STRING &string_arg)
   set_query_inner(string_arg);
   mysql_mutex_unlock(&LOCK_thd_data);
 
-#ifdef HAVE_PSI_INTERFACE
-  if (PSI_server)
+#ifdef HAVE_PSI_THREAD_INTERFACE
+  if (likely(PSI_server != NULL))
     PSI_server->set_thread_info(query(), query_length());
 #endif
 }
@@ -3808,11 +3808,8 @@ static void init_xid_psi_keys(void)
   const char* category= "sql";
   int count;
 
-  if (PSI_server == NULL)
-    return;
-
   count= array_elements(all_xid_mutexes);
-  PSI_server->register_mutex(category, all_xid_mutexes, count);
+  mysql_mutex_register(category, all_xid_mutexes, count);
 }
 #endif /* HAVE_PSI_INTERFACE */
 
@@ -3860,6 +3857,7 @@ bool xid_cache_insert(XID *xid, enum xa_states xa_state)
     xs->xa_state=xa_state;
     xs->xid.set(xid);
     xs->in_thd=0;
+    xs->rm_error=0;
     res=my_hash_insert(&xid_cache, (uchar*)xs);
   }
   mysql_mutex_unlock(&LOCK_xid_cache);

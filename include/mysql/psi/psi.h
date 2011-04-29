@@ -116,6 +116,90 @@ struct PSI_bootstrap
 #ifdef HAVE_PSI_INTERFACE
 
 /**
+  @def DISABLE_PSI_MUTEX
+  Compiling option to disable the mutex instrumentation.
+  This option is mostly intended to be used during development,
+  when doing special builds with only a subset of the performance schema instrumentation,
+  for code analysis / profiling / performance tuning of a specific instrumentation alone.
+  For this reason, DISABLE_PSI_MUTEX is not advertised in the cmake general options.
+  To disable mutexes, add -DDISABLE_PSI_MUTEX to CFLAGS.
+  @sa DISABLE_PSI_RWLOCK
+  @sa DISABLE_PSI_COND
+  @sa DISABLE_PSI_FILE
+  @sa DISABLE_PSI_TABLE
+  @sa DISABLE_PSI_STAGE
+  @sa DISABLE_PSI_STATEMENT
+*/
+
+#ifndef DISABLE_PSI_MUTEX
+#define HAVE_PSI_MUTEX_INTERFACE
+#endif
+
+/**
+  @def DISABLE_PSI_RWLOCK
+  Compiling option to disable the rwlock instrumentation.
+  @sa DISABLE_PSI_MUTEX
+*/
+
+#ifndef DISABLE_PSI_RWLOCK
+#define HAVE_PSI_RWLOCK_INTERFACE
+#endif
+
+/**
+  @def DISABLE_PSI_COND
+  Compiling option to disable the cond instrumentation.
+  @sa DISABLE_PSI_MUTEX
+*/
+
+#ifndef DISABLE_PSI_COND
+#define HAVE_PSI_COND_INTERFACE
+#endif
+
+/**
+  @def DISABLE_PSI_FILE
+  Compiling option to disable the file instrumentation.
+  @sa DISABLE_PSI_MUTEX
+*/
+
+#ifndef DISABLE_PSI_FILE
+#define HAVE_PSI_FILE_INTERFACE
+#endif
+
+/* No flag to disable the thread instrumentation. */
+
+#define HAVE_PSI_THREAD_INTERFACE
+
+/**
+  @def DISABLE_PSI_TABLE
+  Compiling option to disable the table instrumentation.
+  @sa DISABLE_PSI_MUTEX
+*/
+
+#ifndef DISABLE_PSI_TABLE
+#define HAVE_PSI_TABLE_INTERFACE
+#endif
+
+/**
+  @def DISABLE_PSI_STAGE
+  Compiling option to disable the stage instrumentation.
+  @sa DISABLE_PSI_MUTEX
+*/
+
+#ifndef DISABLE_PSI_STAGE
+#define HAVE_PSI_STAGE_INTERFACE
+#endif
+
+/**
+  @def DISABLE_PSI_STATEMENT
+  Compiling option to disable the statement instrumentation.
+  @sa DISABLE_PSI_MUTEX
+*/
+
+#ifndef DISABLE_PSI_STATEMENT
+#define HAVE_PSI_STATEMENT_INTERFACE
+#endif
+
+/**
   @def PSI_VERSION_1
   Performance Schema Interface number for version 1.
   This version is supported.
@@ -1710,6 +1794,20 @@ struct PSI_file_info_v2
 };
 
 /** Placeholder */
+struct PSI_stage_info_v2
+{
+  /** Placeholder */
+  int placeholder;
+};
+
+/** Placeholder */
+struct PSI_statement_info_v2
+{
+  /** Placeholder */
+  int placeholder;
+};
+
+/** Placeholder */
 struct PSI_mutex_locker_state_v2
 {
   /** Placeholder */
@@ -1833,6 +1931,31 @@ struct PSI_none
   int opaque;
 };
 typedef struct PSI_none PSI;
+
+/**
+  Stage instrument information.
+  @since PSI_VERSION_1
+  This structure is used to register an instrumented stage.
+*/
+struct PSI_stage_info_none
+{
+  /** Unused stage key. */
+  unsigned int m_key;
+  /** The name of the stage instrument. */
+  const char *m_name;
+  /** Unused stage flags. */
+  int m_flags;
+};
+
+/**
+  The stage instrumentation has to co exist with the legacy
+  THD::set_proc_info instrumentation.
+  To avoid duplication of the instrumentation in the server,
+  the common PSI_stage_info structure is used,
+  so we export it here, even when not building
+  with HAVE_PSI_INTERFACE.
+*/
+typedef struct PSI_stage_info_none PSI_stage_info;
 
 #endif /* HAVE_PSI_INTERFACE */
 

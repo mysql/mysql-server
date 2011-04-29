@@ -426,7 +426,8 @@ static bool convert_constant_item(THD *thd, Item_field *field_item,
     */
     bool save_field_value= (field_item->depended_from &&
                             (field_item->const_item() ||
-                             !(field->table->status & STATUS_NO_RECORD)));
+                             !(field->table->status &
+                               (STATUS_GARBAGE | STATUS_NOT_FOUND))));
     if (save_field_value)
       orig_field_val= field->val_int();
     if (!(*item)->is_null() && !(*item)->save_in_field(field, 1))

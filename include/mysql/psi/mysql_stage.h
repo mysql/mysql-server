@@ -29,7 +29,19 @@
   @{
 */
 
-#ifdef HAVE_PSI_INTERFACE
+/**
+  @def mysql_stage_register(P1, P2, P3)
+  Stage registration.
+*/
+#ifdef HAVE_PSI_STAGE_INTERFACE
+#define mysql_stage_register(P1, P2, P3) \
+  inline_mysql_stage_register(P1, P2, P3)
+#else
+#define mysql_stage_register(P1, P2, P3) \
+  do {} while (0)
+#endif
+
+#ifdef HAVE_PSI_STAGE_INTERFACE
   #define MYSQL_SET_STAGE(K, F, L) \
     inline_mysql_set_stage(K, F, L)
 #else
@@ -37,7 +49,16 @@
     do {} while (0)
 #endif
 
-#ifdef HAVE_PSI_INTERFACE
+#ifdef HAVE_PSI_STAGE_INTERFACE
+static inline void inline_mysql_stage_register(
+  const char *category, PSI_stage_info **info, int count)
+{
+  if (likely(PSI_server != NULL))
+    PSI_server->register_stage(category, info, count);
+}
+#endif
+
+#ifdef HAVE_PSI_STAGE_INTERFACE
 static inline void
 inline_mysql_set_stage(PSI_stage_key key,
                        const char *src_file, int src_line)

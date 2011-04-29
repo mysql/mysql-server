@@ -37,6 +37,7 @@ Created 3/26/1996 Heikki Tuuri
 #include "trx0rseg.h"
 #include "trx0undo.h"
 #include "srv0srv.h"
+#include "srv0start.h"
 #include "trx0purge.h"
 #include "log0log.h"
 #include "log0recv.h"
@@ -131,11 +132,14 @@ static const ulint	FILE_FORMAT_NAME_N
 /* Key to register the mutex with performance schema */
 UNIV_INTERN mysql_pfs_key_t	trx_doublewrite_mutex_key;
 UNIV_INTERN mysql_pfs_key_t	file_format_max_mutex_key;
-/* Key to register the trx_sys->lock with performance schema */
-UNIV_INTERN mysql_pfs_key_t	trx_sys_rw_lock_key;
 /* Key to register the trx_sys->read_view_mutex with performance schema */
 UNIV_INTERN mysql_pfs_key_t	read_view_mutex_key;
 #endif /* UNIV_PFS_MUTEX */
+
+#ifdef UNIV_PFS_RWLOCK
+/* Key to register the trx_sys->lock with performance schema */
+UNIV_INTERN mysql_pfs_key_t	trx_sys_rw_lock_key;
+#endif /* UNIV_PFS_RWLOCK */
 
 #ifndef UNIV_HOTBACKUP
 /** This is used to track the maximum file format id known to InnoDB. It's
@@ -1425,23 +1429,6 @@ trx_sys_print_mysql_binlog_offset_from_page(
 	}
 }
 
-
-/* THESE ARE COPIED FROM NON-HOTBACKUP PART OF THE INNODB SOURCE TREE
-   (This code duplicaton should be fixed at some point!)
-*/
-
-#define	TRX_SYS_SPACE	0	/* the SYSTEM tablespace */
-/* The offset of the file format tag on the trx system header page */
-#define TRX_SYS_FILE_FORMAT_TAG		(UNIV_PAGE_SIZE - 16)
-/* We use these random constants to reduce the probability of reading
-garbage (from previous versions) that maps to an actual format id. We
-use these as bit masks at the time of  reading and writing from/to disk. */
-#define TRX_SYS_FILE_FORMAT_TAG_MAGIC_N_LOW	3645922177UL
-#define TRX_SYS_FILE_FORMAT_TAG_MAGIC_N_HIGH	2745987765UL
-
-/* END OF COPIED DEFINITIONS */
-
-
 /*****************************************************************//**
 Reads the file format id from the first system table space file.
 Even if the call succeeds and returns TRUE, the returned format id
@@ -1634,9 +1621,11 @@ trx_sys_close(void)
 /*===============*/
 {
 	ulint		i;
+	trx_t*		trx;
 	read_view_t*	view;
 
 	ut_ad(trx_sys != NULL);
+	ut_ad(srv_shutdown_state == SRV_SHUTDOWN_EXIT_THREADS);
 
 	/* Check that all read views are closed except read view owned
 	by a purge. */
@@ -1671,6 +1660,14 @@ trx_sys_close(void)
 	trx_doublewrite = NULL;
 
 	rw_lock_x_lock(&trx_sys->lock);
+
+	/* Only prepared transactions may be left in the system. Free them. */
+	ut_a(UT_LIST_GET_LEN(trx_sys->trx_list) == trx_sys->n_prepared_trx);
+
+	while ((trx = UT_LIST_GET_FIRST(trx_sys->trx_list)) != NULL) {
+		trx_free_prepared(trx);
+	}
+
 	mutex_free(&trx_sys->read_view_mutex);
 
 	/* There can't be any active transactions. */
@@ -1710,10 +1707,9 @@ trx_sys_close(void)
 
 	trx_sys = NULL;
 }
-#endif /* !UNIV_HOTBACKUP */
 
 /*********************************************************************
-Check if there are any active transactions.
+Check if there are any active (non-prepared) transactions.
 @return total number of active transactions or 0 if none */
 UNIV_INTERN
 ulint
@@ -1725,7 +1721,9 @@ trx_sys_any_active_transactions(void)
 	rw_lock_s_lock(&trx_sys->lock);
 
 	total_trx = UT_LIST_GET_LEN(trx_sys->trx_list)
-	       	  + trx_n_mysql_transactions;
+		+ trx_sys->n_mysql_trx;
+	ut_a(total_trx >= trx_sys->n_prepared_trx);
+	total_trx -= trx_sys->n_prepared_trx;
 
 	rw_lock_s_unlock(&trx_sys->lock);
 
@@ -1759,3 +1757,4 @@ trx_sys_validate_trx_list(void)
 	return(TRUE);
 }
 #endif /* UNIV_DEBUG */
+#endif /* !UNIV_HOTBACKUP */

@@ -290,11 +290,8 @@ static void init_audit_psi_keys(void)
   const char* category= "sql";
   int count;
 
-  if (PSI_server == NULL)
-    return;
-
   count= array_elements(all_audit_mutexes);
-  PSI_server->register_mutex(category, all_audit_mutexes, count);
+  mysql_mutex_register(category, all_audit_mutexes, count);
 }
 #endif /* HAVE_PSI_INTERFACE */
 

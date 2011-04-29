@@ -48,14 +48,11 @@ void init_myisammrg_psi_keys()
   const char* category= "myisammrg";
   int count;
 
-  if (PSI_server == NULL)
-    return;
-
   count= array_elements(all_myisammrg_mutexes);
-  PSI_server->register_mutex(category, all_myisammrg_mutexes, count);
+  mysql_mutex_register(category, all_myisammrg_mutexes, count);
 
   count= array_elements(all_myisammrg_files);
-  PSI_server->register_file(category, all_myisammrg_files, count);
+  mysql_file_register(category, all_myisammrg_files, count);
 }
 #endif /* HAVE_PSI_INTERFACE */
 

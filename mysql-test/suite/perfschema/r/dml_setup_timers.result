@@ -1,7 +1,7 @@
 select * from performance_schema.setup_timers;
 NAME	TIMER_NAME
 wait	CYCLE
-stage	CYCLE
+stage	NANOSECOND
 statement	NANOSECOND
 select * from performance_schema.setup_timers
 where name='Wait';
@@ -11,7 +11,6 @@ select * from performance_schema.setup_timers
 where timer_name='CYCLE';
 NAME	TIMER_NAME
 wait	CYCLE
-stage	CYCLE
 insert into performance_schema.setup_timers
 set name='FOO', timer_name='CYCLE';
 ERROR 42000: INSERT command denied to user 'root'@'localhost' for table 'setup_timers'
@@ -36,3 +35,14 @@ LOCK TABLES performance_schema.setup_timers READ;
 UNLOCK TABLES;
 LOCK TABLES performance_schema.setup_timers WRITE;
 UNLOCK TABLES;
+update performance_schema.setup_timers
+set timer_name='CYCLE' where name="wait";
+update performance_schema.setup_timers
+set timer_name='NANOSECOND' where name="stage";
+update performance_schema.setup_timers
+set timer_name='NANOSECOND' where name="statement";
+select * from performance_schema.setup_timers;
+NAME	TIMER_NAME
+wait	CYCLE
+stage	NANOSECOND
+statement	NANOSECOND

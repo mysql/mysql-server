@@ -2073,7 +2073,7 @@ static bool cache_thread()
     DBUG_PRINT("info", ("Adding thread to cache"));
     cached_thread_count++;
 
-#ifdef HAVE_PSI_INTERFACE
+#ifdef HAVE_PSI_THREAD_INTERFACE
     /*
       Delete the instrumentation for the job that just completed,
       before parking this pthread in the cache (blocked on COND_thread_cache).
@@ -2095,7 +2095,7 @@ static bool cache_thread()
       thd->thread_stack= (char*) &thd;          // For store_globals
       (void) thd->store_globals();
 
-#ifdef HAVE_PSI_INTERFACE
+#ifdef HAVE_PSI_THREAD_INTERFACE
       /*
         Create new instrumentation for the new THD job,
         and attach it to this running pthread.
@@ -2734,7 +2734,7 @@ pthread_handler_t signal_hand(void *arg __attribute__((unused)))
       if (!abort_loop)
       {
 	abort_loop=1;				// mark abort for threads
-#ifdef HAVE_PSI_INTERFACE
+#ifdef HAVE_PSI_THREAD_INTERFACE
         /* Delete the instrumentation for the signal thread */
         if (likely(PSI_server != NULL))
           PSI_server->delete_current_thread();
@@ -4939,7 +4939,7 @@ int mysqld_main(int argc, char **argv)
 #endif
 #endif /* __WIN__ */
 
-#ifdef HAVE_PSI_INTERFACE
+#ifdef HAVE_PSI_THREAD_INTERFACE
   /*
     Disable the main thread instrumentation,
     to avoid recording events during the shutdown.
@@ -8126,7 +8126,9 @@ PSI_mutex_key key_BINLOG_LOCK_index, key_BINLOG_LOCK_prep_xids,
   key_LOCK_system_variables_hash, key_LOCK_table_share, key_LOCK_thd_data,
   key_LOCK_user_conn, key_LOCK_uuid_generator, key_LOG_LOCK_log,
   key_master_info_data_lock, key_master_info_run_lock,
+  key_master_info_sleep_lock,
   key_mutex_slave_reporting_capability_err_lock, key_relay_log_info_data_lock,
+  key_relay_log_info_sleep_lock,
   key_relay_log_info_log_space_lock, key_relay_log_info_run_lock,
   key_structure_guard_mutex, key_TABLE_SHARE_LOCK_ha_data,
   key_LOCK_error_messages, key_LOG_INFO_lock, key_LOCK_thread_count,
@@ -8172,8 +8174,10 @@ static PSI_mutex_info all_server_mutexes[]=
   { &key_LOG_LOCK_log, "LOG::LOCK_log", 0},
   { &key_master_info_data_lock, "Master_info::data_lock", 0},
   { &key_master_info_run_lock, "Master_info::run_lock", 0},
+  { &key_master_info_sleep_lock, "Master_info::sleep_lock", 0},
   { &key_mutex_slave_reporting_capability_err_lock, "Slave_reporting_capability::err_lock", 0},
   { &key_relay_log_info_data_lock, "Relay_log_info::data_lock", 0},
+  { &key_relay_log_info_sleep_lock, "Relay_log_info::sleep_lock", 0},
   { &key_relay_log_info_log_space_lock, "Relay_log_info::log_space_lock", 0},
   { &key_relay_log_info_run_lock, "Relay_log_info::run_lock", 0},
   { &key_structure_guard_mutex, "Query_cache::structure_guard_mutex", 0},
@@ -8211,8 +8215,10 @@ PSI_cond_key key_BINLOG_COND_prep_xids, key_BINLOG_update_cond,
   key_delayed_insert_cond, key_delayed_insert_cond_client,
   key_item_func_sleep_cond, key_master_info_data_cond,
   key_master_info_start_cond, key_master_info_stop_cond,
+  key_master_info_sleep_cond,
   key_relay_log_info_data_cond, key_relay_log_info_log_space_cond,
   key_relay_log_info_start_cond, key_relay_log_info_stop_cond,
+  key_relay_log_info_sleep_cond,
   key_TABLE_SHARE_cond, key_user_level_lock_cond,
   key_COND_thread_count, key_COND_thread_cache, key_COND_flush_thread_cache;
 PSI_cond_key key_RELAYLOG_update_cond;
@@ -8239,10 +8245,12 @@ static PSI_cond_info all_server_conds[]=
   { &key_master_info_data_cond, "Master_info::data_cond", 0},
   { &key_master_info_start_cond, "Master_info::start_cond", 0},
   { &key_master_info_stop_cond, "Master_info::stop_cond", 0},
+  { &key_master_info_sleep_cond, "Master_info::sleep_cond", 0},
   { &key_relay_log_info_data_cond, "Relay_log_info::data_cond", 0},
   { &key_relay_log_info_log_space_cond, "Relay_log_info::log_space_cond", 0},
   { &key_relay_log_info_start_cond, "Relay_log_info::start_cond", 0},
   { &key_relay_log_info_stop_cond, "Relay_log_info::stop_cond", 0},
+  { &key_relay_log_info_sleep_cond, "Relay_log_info::sleep_cond", 0},
   { &key_TABLE_SHARE_cond, "TABLE_SHARE::cond", 0},
   { &key_user_level_lock_cond, "User_level_lock::cond", 0},
   { &key_COND_thread_count, "COND_thread_count", PSI_FLAG_GLOBAL},
@@ -8513,35 +8521,34 @@ void init_server_psi_keys(void)
   const char* category= "sql";
   int count;
 
-  if (PSI_server == NULL)
-    return;
-
   count= array_elements(all_server_mutexes);
-  PSI_server->register_mutex(category, all_server_mutexes, count);
+  mysql_mutex_register(category, all_server_mutexes, count);
 
   count= array_elements(all_server_rwlocks);
-  PSI_server->register_rwlock(category, all_server_rwlocks, count);
+  mysql_rwlock_register(category, all_server_rwlocks, count);
 
   count= array_elements(all_server_conds);
-  PSI_server->register_cond(category, all_server_conds, count);
+  mysql_cond_register(category, all_server_conds, count);
 
   count= array_elements(all_server_threads);
-  PSI_server->register_thread(category, all_server_threads, count);
+  mysql_thread_register(category, all_server_threads, count);
 
   count= array_elements(all_server_files);
-  PSI_server->register_file(category, all_server_files, count);
+  mysql_file_register(category, all_server_files, count);
 
   count= array_elements(all_server_stages);
-  PSI_server->register_stage(category, all_server_stages, count);
+  mysql_stage_register(category, all_server_stages, count);
 
+#ifdef HAVE_PSI_STATEMENT_INTERFACE
   init_sql_statement_info();
   count= array_elements(sql_statement_info);
-  PSI_server->register_statement(category, sql_statement_info, count);
+  mysql_statement_register(category, sql_statement_info, count);
 
   category= "com";
   init_com_statement_info();
   count= array_elements(com_statement_info);
-  PSI_server->register_statement(category, com_statement_info, count);
+  mysql_statement_register(category, com_statement_info, count);
+#endif
 }
 
 #endif /* HAVE_PSI_INTERFACE */

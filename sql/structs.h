@@ -231,14 +231,21 @@ typedef struct  user_conn {
 #define REG_SKIP_DUP		256
 
 	/* Bits in form->status */
-#define STATUS_NO_RECORD	(1+2)	/* Record isn't usably */
-#define STATUS_GARBAGE		1
-#define STATUS_NOT_FOUND	2	/* No record in database when needed */
-#define STATUS_NO_PARENT	4	/* Parent record wasn't found */
-#define STATUS_NOT_READ		8	/* Record isn't read */
-#define STATUS_UPDATED		16	/* Record is updated by formula */
-#define STATUS_NULL_ROW		32	/* table->null_row is set */
-#define STATUS_DELETED		64
+#define STATUS_GARBAGE          1
+/**
+   Means we were searching for a row and didn't find it. This is used by
+   storage engines (@see handler::index_read_map()) and the Server layer.
+*/
+#define STATUS_NOT_FOUND        2
+/// Reserved for use by multi-table update. Means the row has been updated.
+#define STATUS_UPDATED          16
+/**
+   Means that table->null_row is set. This is an artificial NULL-filled row
+   (one example: in outer join, if no match has been found in inner table).
+*/
+#define STATUS_NULL_ROW         32
+/// Reserved for use by multi-table delete. Means the row has been deleted.
+#define STATUS_DELETED          64
 
 /*
   Such interval is "discrete": it is the set of

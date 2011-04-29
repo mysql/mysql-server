@@ -40,19 +40,17 @@ Reads the checkpoint info needed in hot backup.
 @return	TRUE if success */
 UNIV_INTERN
 ibool
-recv_read_cp_info_for_backup(
-/*=========================*/
+recv_read_checkpoint_info_for_backup(
+/*=================================*/
 	const byte*	hdr,	/*!< in: buffer containing the log group
 				header */
 	lsn_t*		lsn,	/*!< out: checkpoint lsn */
 	lsn_t*		offset,	/*!< out: checkpoint offset in the log group */
-	ulint*		fsp_limit,/*!< out: fsp limit of space 0,
-				1000000000 if the database is running
-				with < version 3.23.50 of InnoDB */
-	ib_uint64_t*	cp_no,	/*!< out: checkpoint number */
-	lsn_t*		first_header_lsn);
+	lsn_t*		cp_no,	/*!< out: checkpoint number */
+	lsn_t*		first_header_lsn)
 				/*!< out: lsn of of the start of the
 				first log file */
+	__attribute__((nonnull));
 /*******************************************************************//**
 Scans the log segment and n_bytes_scanned is set to the length of valid
 log scanned. */
