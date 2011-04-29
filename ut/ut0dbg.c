@@ -79,7 +79,7 @@ ut_dbg_assertion_failed(
 	      " or crashes, even\n"
 	      "InnoDB: immediately after the mysqld startup, there may be\n"
 	      "InnoDB: corruption in the InnoDB tablespace. Please refer to\n"
-	      "InnoDB: " REFMAN "forcing-recovery.html\n"
+	      "InnoDB: " REFMAN "forcing-innodb-recovery.html\n"
 	      "InnoDB: about forcing recovery.\n", stderr);
 #if defined(UNIV_SYNC_DEBUG) || !defined(UT_DBG_USE_ABORT)
 	ut_dbg_stop_threads = TRUE;

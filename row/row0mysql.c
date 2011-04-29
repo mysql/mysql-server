@@ -51,6 +51,7 @@ Created 9/17/2000 Heikki Tuuri
 #include "btr0sea.h"
 #include "fil0fil.h"
 #include "ibuf0ibuf.h"
+#include "ha_prototypes.h"
 
 /** Provide optional 4.x backwards compatibility for 5.0 and above */
 UNIV_INTERN ibool	row_rollback_on_timeout	= FALSE;
@@ -573,7 +574,7 @@ handle_new_error:
 		      "InnoDB: If the mysqld server crashes"
 		      " after the startup or when\n"
 		      "InnoDB: you dump the tables, look at\n"
-		      "InnoDB: " REFMAN "forcing-recovery.html"
+		      "InnoDB: " REFMAN "forcing-innodb-recovery.html"
 		      " for help.\n", stderr);
 		break;
 	case DB_FOREIGN_EXCEED_MAX_CASCADE:
@@ -2092,6 +2093,32 @@ row_insert_stats_for_mysql(
 	trx->op_info = "";
 
 	return((int) err);
+}
+
+/*********************************************************************//**
+*/
+UNIV_INTERN
+int
+row_delete_stats_for_mysql(
+/*=============================*/
+	dict_index_t*	index,
+	trx_t*		trx)
+{
+	pars_info_t*	info	= pars_info_create();
+
+	trx->op_info = "delete rows from SYS_STATS";
+
+	trx_start_if_not_started(trx);
+	trx->error_state = DB_SUCCESS;
+
+	pars_info_add_dulint_literal(info, "indexid", index->id);
+
+	return((int) que_eval_sql(info,
+				  "PROCEDURE DELETE_STATISTICS_PROC () IS\n"
+				  "BEGIN\n"
+				  "DELETE FROM SYS_STATS WHERE INDEX_ID = :indexid;\n"
+				  "END;\n"
+				  , TRUE, trx));
 }
 
 /*********************************************************************//**

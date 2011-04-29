@@ -1239,8 +1239,16 @@ fill_innodb_trx_from_cache(
 			   row->trx_mysql_thread_id));
 
 		/* trx_query */
-		OK(field_store_string(fields[IDX_TRX_QUERY],
-				      row->trx_query));
+		if (row->trx_query) {
+			/* store will do appropriate character set
+			conversion check */
+			fields[IDX_TRX_QUERY]->store(
+				row->trx_query, strlen(row->trx_query),
+				row->trx_query_cs);
+			fields[IDX_TRX_QUERY]->set_notnull();
+		} else {
+			fields[IDX_TRX_QUERY]->set_null();
+		}
 
 		OK(schema_table_store_record(thd, table));
 	}
@@ -1443,16 +1451,7 @@ fill_innodb_locks_from_cache(
 	for (i = 0; i < rows_num; i++) {
 
 		i_s_locks_row_t*	row;
-
-		/* note that the decoded database or table name is
-		never expected to be longer than NAME_LEN;
-		NAME_LEN for database name
-		2 for surrounding quotes around database name
-		NAME_LEN for table name
-		2 for surrounding quotes around table name
-		1 for the separating dot (.)
-		9 for the #mysql50# prefix */
-		char			buf[2 * NAME_LEN + 14];
+		char			buf[MAX_FULL_NAME_LEN + 1];
 		const char*		bufend;
 
 		char			lock_trx_id[TRX_ID_MAX_LEN + 1];
@@ -3281,6 +3280,14 @@ static ST_FIELD_INFO	i_s_innodb_sys_stats_info[] =
 	 STRUCT_FLD(old_name,		""),
 	 STRUCT_FLD(open_method,	SKIP_OPEN_TABLE)},
 
+	{STRUCT_FLD(field_name,		"NON_NULL_VALS"),
+	 STRUCT_FLD(field_length,	MY_INT64_NUM_DECIMAL_DIGITS),
+	 STRUCT_FLD(field_type,		MYSQL_TYPE_LONGLONG),
+	 STRUCT_FLD(value,		0),
+	 STRUCT_FLD(field_flags,	MY_I_S_UNSIGNED | MY_I_S_MAYBE_NULL),
+	 STRUCT_FLD(old_name,		""),
+	 STRUCT_FLD(open_method,	SKIP_OPEN_TABLE)},
+
 	END_OF_ST_FIELD_INFO
 };
 
@@ -3549,6 +3556,9 @@ copy_sys_stats_rec(
 {
 	int	status;
 	int	field;
+	ulint	n_fields;
+
+	n_fields = rec_get_n_fields_old(rec);
 
 	/* INDEX_ID */
 	field = dict_index_get_nth_col_pos(index, 0);
@@ -3567,6 +3577,16 @@ copy_sys_stats_rec(
 	status = copy_id_field(table, 2, rec, field);
 	if (status) {
 		return status;
+	}
+	/* NON_NULL_VALS */
+	if (n_fields < 6) {
+		table->field[3]->set_null();
+	} else {
+		field = dict_index_get_nth_col_pos(index, 3);
+		status = copy_id_field(table, 3, rec, field);
+		if (status) {
+			return status;
+		}
 	}
 
 	return 0;

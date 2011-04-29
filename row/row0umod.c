@@ -173,40 +173,26 @@ row_undo_mod_remove_clust_low(
 	mtr_t*		mtr,	/*!< in: mtr */
 	ulint		mode)	/*!< in: BTR_MODIFY_LEAF or BTR_MODIFY_TREE */
 {
-	btr_pcur_t*	pcur;
 	btr_cur_t*	btr_cur;
 	ulint		err;
-	ibool		success;
 
 	ut_ad(node->rec_type == TRX_UNDO_UPD_DEL_REC);
-	pcur = &(node->pcur);
-	btr_cur = btr_pcur_get_btr_cur(pcur);
 
-	success = btr_pcur_restore_position(mode, pcur, mtr);
+	/* Find out if the record has been purged already
+	or if we can remove it. */
 
-	if (!success) {
+	if (!btr_pcur_restore_position(mode, &node->pcur, mtr)
+	    || row_vers_must_preserve_del_marked(node->new_trx_id, mtr)) {
 
 		return(DB_SUCCESS);
 	}
 
-	/* Find out if we can remove the whole clustered index record */
-
-	if (node->rec_type == TRX_UNDO_UPD_DEL_REC
-	    && !row_vers_must_preserve_del_marked(node->new_trx_id, mtr)) {
-
-		/* Ok, we can remove */
-	} else {
-		return(DB_SUCCESS);
-	}
+	btr_cur = btr_pcur_get_btr_cur(&node->pcur);
 
 	if (mode == BTR_MODIFY_LEAF) {
-		success = btr_cur_optimistic_delete(btr_cur, mtr);
-
-		if (success) {
-			err = DB_SUCCESS;
-		} else {
-			err = DB_FAIL;
-		}
+		err = btr_cur_optimistic_delete(btr_cur, mtr)
+			? DB_SUCCESS
+			: DB_FAIL;
 	} else {
 		ut_ad(mode == BTR_MODIFY_TREE);
 
@@ -668,19 +654,19 @@ row_undo_mod_upd_exist_sec(
 	while (node->index != NULL) {
 		index = node->index;
 
-		if (row_upd_changes_ord_field_binary(node->row, node->index,
-						     node->update)) {
+		if (row_upd_changes_ord_field_binary(node->index, node->update,
+						     thr,
+						     node->row, node->ext)) {
 
 			/* Build the newest version of the index entry */
 			entry = row_build_index_entry(node->row, node->ext,
 						      index, heap);
 			if (UNIV_UNLIKELY(!entry)) {
 				/* The server must have crashed in
-				row_upd_clust_rec_by_insert(), in
-				row_ins_index_entry_low() before
-				btr_store_big_rec_extern_fields()
-				has written the externally stored columns
-				(BLOBs) of the new clustered index entry. */
+				row_upd_clust_rec_by_insert() before
+				the updated externally stored columns (BLOBs)
+				of the new clustered index entry were
+				written. */
 
 				/* The table must be in DYNAMIC or COMPRESSED
 				format.  REDUNDANT and COMPACT formats

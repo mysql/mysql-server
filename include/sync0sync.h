@@ -73,14 +73,14 @@ necessary only if the memory block containing it is freed. */
 #ifdef UNIV_DEBUG
 # ifdef UNIV_SYNC_DEBUG
 #  define mutex_create(M, level)					\
-	mutex_create_func((M), #M, (level), __FILE__, __LINE__)
+	mutex_create_func((M), (level), __FILE__, __LINE__, #M)
 # else
 #  define mutex_create(M, level)					\
-	mutex_create_func((M), #M, __FILE__, __LINE__)
+	mutex_create_func((M), __FILE__, __LINE__, #M)
 # endif
 #else
 # define mutex_create(M, level)					\
-	mutex_create_func((M), #M, NULL, 0)
+	mutex_create_func((M), #M)
 #endif
 
 /******************************************************************//**
@@ -93,14 +93,14 @@ void
 mutex_create_func(
 /*==============*/
 	mutex_t*	mutex,		/*!< in: pointer to memory */
-	const char*	cmutex_name,	/*!< in: mutex name */
 #ifdef UNIV_DEBUG
 # ifdef UNIV_SYNC_DEBUG
 	ulint		level,		/*!< in: level */
 # endif /* UNIV_SYNC_DEBUG */
-#endif /* UNIV_DEBUG */
 	const char*	cfile_name,	/*!< in: file name where created */
-	ulint		cline);		/*!< in: file line where created */
+	ulint		cline,		/*!< in: file line where created */
+#endif /* UNIV_DEBUG */
+	const char*	cmutex_name);	/*!< in: mutex name */
 
 #undef mutex_free			/* Fix for MacOS X */
 
@@ -496,6 +496,7 @@ or row lock! */
 #define	SYNC_BUF_POOL		150
 #define SYNC_BUF_FLUSH_LIST	149
 #define SYNC_DOUBLEWRITE	140
+#define	SYNC_OUTER_ANY_LATCH	136
 #define	SYNC_ANY_LATCH		135
 #define SYNC_THR_LOCAL		133
 #define	SYNC_MEM_HASH		131

@@ -346,7 +346,7 @@ buf_buddy_alloc_low(
 	if (have_page_hash_mutex) {
 		rw_lock_x_unlock(&page_hash_latch);
 	}
-	block = buf_LRU_get_free_block(0);
+	block = buf_LRU_get_free_block();
 	*lru = TRUE;
 	//buf_pool_mutex_enter();
 	mutex_enter(&LRU_list_mutex);
@@ -475,6 +475,7 @@ buf_buddy_relocate(
 	if (size >= PAGE_ZIP_MIN_SIZE) {
 		/* This is a compressed page. */
 		mutex_t*	mutex;
+		ulint		space, page_no;
 
 		if (!have_page_hash_mutex) {
 			mutex_exit(&zip_free_mutex);
@@ -490,9 +491,9 @@ buf_buddy_relocate(
 		pool), so there is nothing wrong about this.  The
 		mach_read_from_4() calls here will only trigger bogus
 		Valgrind memcheck warnings in UNIV_DEBUG_VALGRIND builds. */
-		ulint		space	= mach_read_from_4(
+		space	= mach_read_from_4(
 			(const byte*) src + FIL_PAGE_ARCH_LOG_NO_OR_SPACE_ID);
-		ulint		page_no	= mach_read_from_4(
+		page_no	= mach_read_from_4(
 			(const byte*) src + FIL_PAGE_OFFSET);
 		/* Suppress Valgrind warnings about conditional jump
 		on uninitialized value. */

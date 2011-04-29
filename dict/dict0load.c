@@ -40,6 +40,7 @@ Created 4/24/1996 Heikki Tuuri
 #include "rem0cmp.h"
 #include "srv0start.h"
 #include "srv0srv.h"
+#include "trx0sys.h"
 
 /****************************************************************//**
 Compare the name of an index column.

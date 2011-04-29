@@ -1,0 +1,13 @@
+--source include/have_innodb.inc
+--disable_warnings
+DROP TABLE IF EXISTS t1; 
+--enable_warnings
+SET @userstat_running_old= @@userstat_running;
+SET GLOBAL userstat_running=ON;
+CREATE TABLE t1 ( id int(10), PRIMARY KEY (id)) ENGINE=InnoDB;
+INSERT INTO t1 VALUES (1),(2),(3),(4),(5),(6),(7),(8),(9),(10);
+SELECT COUNT(*) FROM t1; 
+SELECT ROWS_READ FROM information_schema.table_statistics WHERE TABLE_NAME='t1';
+SELECT ROWS_READ FROM information_schema.index_statistics WHERE TABLE_NAME='t1';
+SET GLOBAL userstat_running= @userstat_running_old;
+DROP TABLE t1;

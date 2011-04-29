@@ -675,7 +675,7 @@ btr_page_get_father_node_ptr_func(
 		      " to fix the\n"
 		      "InnoDB: corruption. If the crash happens at "
 		      "the database startup, see\n"
-		      "InnoDB: " REFMAN "forcing-recovery.html about\n"
+		      "InnoDB: " REFMAN "forcing-innodb-recovery.html about\n"
 		      "InnoDB: forcing recovery. "
 		      "Then dump + drop + reimport.\n", stderr);
 
@@ -1009,7 +1009,7 @@ btr_page_reorganize_low(
 	log_mode = mtr_set_log_mode(mtr, MTR_LOG_NONE);
 
 #ifndef UNIV_HOTBACKUP
-	temp_block = buf_block_alloc(0);
+	temp_block = buf_block_alloc();
 #else /* !UNIV_HOTBACKUP */
 	ut_ad(block == back_block1);
 	temp_block = back_block2;

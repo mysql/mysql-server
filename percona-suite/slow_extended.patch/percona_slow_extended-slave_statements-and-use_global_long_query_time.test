@@ -111,3 +111,6 @@ DROP TABLE t;
 
 sync_slave_with_master;
 connection slave;
+
+STOP SLAVE;
+-- source include/wait_for_slave_to_stop.inc

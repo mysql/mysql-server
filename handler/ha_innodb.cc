@@ -204,6 +204,25 @@ static char*	internal_innobase_data_file_path	= NULL;
 
 static char*	innodb_version_str = (char*) INNODB_VERSION_STR;
 
+/** Possible values for system variable "innodb_stats_method". The values
+are defined the same as its corresponding MyISAM system variable
+"myisam_stats_method"(see "myisam_stats_method_names"), for better usability */
+static const char* innodb_stats_method_names[] = {
+	"nulls_equal",
+	"nulls_unequal",
+	"nulls_ignored",
+	NullS
+};
+
+/** Used to define an enumerate type of the system variable innodb_stats_method.
+This is the same as "myisam_stats_method_typelib" */
+static TYPELIB innodb_stats_method_typelib = {
+	array_elements(innodb_stats_method_names) - 1,
+	"innodb_stats_method_typelib",
+	innodb_stats_method_names,
+	NULL
+};
+
 /* The following counter is used to convey information to InnoDB
 about server activity: in selects it is not sensible to call
 srv_active_wake_master_thread after each fetch or search, we only do
@@ -5862,6 +5881,11 @@ ha_innobase::index_read(
 	case DB_SUCCESS:
 		error = 0;
 		table->status = 0;
+#ifdef EXTENDED_FOR_USERSTAT
+		rows_read++;
+		if (active_index < MAX_KEY)
+			index_rows_read[active_index]++;
+#endif
 		break;
 	case DB_RECORD_NOT_FOUND:
 		error = HA_ERR_KEY_NOT_FOUND;
@@ -6085,7 +6109,7 @@ ha_innobase::general_fetch(
 		table->status = 0;
 #ifdef EXTENDED_FOR_USERSTAT
 		rows_read++;
-		if (active_index >= 0 && active_index < MAX_KEY)
+		if (active_index < MAX_KEY)
 			index_rows_read[active_index]++;
 #endif
 		break;
@@ -6421,6 +6445,16 @@ create_table_def(
 		DBUG_RETURN(HA_ERR_GENERIC);
 	}
 
+	/* MySQL does the name length check. But we do additional check
+	on the name length here */
+	if (strlen(table_name) > MAX_FULL_NAME_LEN) {
+		push_warning_printf(
+			(THD*) trx->mysql_thd, MYSQL_ERROR::WARN_LEVEL_WARN,
+			ER_TABLE_NAME,
+			"InnoDB: Table Name or Database Name is too long");
+		DBUG_RETURN(ER_TABLE_NAME);
+	}
+
 	n_cols = form->s->fields;
 
 	/* We pass 0 as the space id, and determine at a lower level the space
@@ -6705,10 +6739,11 @@ create_clustered_index_when_no_primary(
 /*****************************************************************//**
 Return a display name for the row format
 @return row format name */
-
-const char *get_row_format_name(
-/*============================*/
-enum row_type row_format)		/*!< in: Row Format */
+UNIV_INTERN
+const char*
+get_row_format_name(
+/*================*/
+	enum row_type	row_format)		/*!< in: Row Format */
 {
 	switch (row_format) {
 	case ROW_TYPE_COMPACT:
@@ -6723,11 +6758,37 @@ enum row_type row_format)		/*!< in: Row Format */
 		return("DEFAULT");
 	case ROW_TYPE_FIXED:
 		return("FIXED");
-	default:
+	case ROW_TYPE_PAGE:
+	case ROW_TYPE_NOT_USED:
 		break;
 	}
 	return("NOT USED");
 }
+
+/** If file-per-table is missing, issue warning and set ret false */
+#define CHECK_ERROR_ROW_TYPE_NEEDS_FILE_PER_TABLE		\
+	if (!srv_file_per_table) {				\
+		push_warning_printf(				\
+			thd, MYSQL_ERROR::WARN_LEVEL_WARN,	\
+			ER_ILLEGAL_HA_CREATE_OPTION,		\
+			"InnoDB: ROW_FORMAT=%s requires"	\
+			" innodb_file_per_table.",		\
+			get_row_format_name(row_format));	\
+		ret = FALSE;					\
+	}
+
+/** If file-format is Antelope, issue warning and set ret false */
+#define CHECK_ERROR_ROW_TYPE_NEEDS_GT_ANTELOPE			\
+	if (srv_file_format < DICT_TF_FORMAT_ZIP) {		\
+		push_warning_printf(				\
+			thd, MYSQL_ERROR::WARN_LEVEL_WARN,	\
+			ER_ILLEGAL_HA_CREATE_OPTION,		\
+			"InnoDB: ROW_FORMAT=%s requires"	\
+			" innodb_file_format > Antelope.",	\
+			get_row_format_name(row_format));	\
+		ret = FALSE;					\
+	}
+
 
 /*****************************************************************//**
 Validates the create options. We may build on this function
@@ -6746,30 +6807,13 @@ create_options_are_valid(
 {
 	ibool	kbs_specified	= FALSE;
 	ibool	ret		= TRUE;
-	enum row_type	row_type	= form->s->row_type;
+	enum row_type	row_format	= form->s->row_type;
 
 	ut_ad(thd != NULL);
 
 	/* If innodb_strict_mode is not set don't do any validation. */
 	if (!(THDVAR(thd, strict_mode))) {
 		return(TRUE);
-	}
-
-	/* Check for a valid Innodb ROW_FORMAT specifier. For example,
-	ROW_TYPE_FIXED can be sent to Innodb */
-	switch (row_type) {
-	case ROW_TYPE_COMPACT:
-	case ROW_TYPE_COMPRESSED:
-	case ROW_TYPE_DYNAMIC:
-	case ROW_TYPE_REDUNDANT:
-	case ROW_TYPE_DEFAULT:
-		break;
-	default:
-		push_warning(
-			thd, MYSQL_ERROR::WARN_LEVEL_WARN,
-			ER_ILLEGAL_HA_CREATE_OPTION,
-			"InnoDB: invalid ROW_FORMAT specifier.");
-		ret = FALSE;
 	}
 
 	ut_ad(form != NULL);
@@ -6784,7 +6828,23 @@ create_options_are_valid(
 		case 4:
 		case 8:
 		case 16:
-			/* Valid value. */
+			/* Valid KEY_BLOCK_SIZE, check its dependencies. */
+			if (!srv_file_per_table) {
+				push_warning(
+					thd, MYSQL_ERROR::WARN_LEVEL_WARN,
+					ER_ILLEGAL_HA_CREATE_OPTION,
+					"InnoDB: KEY_BLOCK_SIZE requires"
+					" innodb_file_per_table.");
+				ret = FALSE;
+			}
+			if (srv_file_format < DICT_TF_FORMAT_ZIP) {
+				push_warning(
+					thd, MYSQL_ERROR::WARN_LEVEL_WARN,
+					ER_ILLEGAL_HA_CREATE_OPTION,
+					"InnoDB: KEY_BLOCK_SIZE requires"
+					" innodb_file_format > Antelope.");
+					ret = FALSE;
+			}
 			break;
 		default:
 			push_warning_printf(
@@ -6794,72 +6854,43 @@ create_options_are_valid(
 				" Valid values are [1, 2, 4, 8, 16]",
 				create_info->key_block_size);
 			ret = FALSE;
+			break;
 		}
 	}
 	
-	/* If KEY_BLOCK_SIZE was specified, check for its
-	dependencies. */
-	if (kbs_specified && !srv_file_per_table) {
-		push_warning(
-			thd, MYSQL_ERROR::WARN_LEVEL_WARN,
-			ER_ILLEGAL_HA_CREATE_OPTION,
-			"InnoDB: KEY_BLOCK_SIZE"
-			" requires innodb_file_per_table.");
-		ret = FALSE;
-	}
-
-	if (kbs_specified && srv_file_format < DICT_TF_FORMAT_ZIP) {
-		push_warning(
-			thd, MYSQL_ERROR::WARN_LEVEL_WARN,
-			ER_ILLEGAL_HA_CREATE_OPTION,
-			"InnoDB: KEY_BLOCK_SIZE requires"
-			" innodb_file_format > Antelope.");
-		ret = FALSE;
-	}
-
-	switch (row_type) {
+	/* Check for a valid Innodb ROW_FORMAT specifier and
+	other incompatibilities. */
+	switch (row_format) {
 	case ROW_TYPE_COMPRESSED:
-	case ROW_TYPE_DYNAMIC:
-		/* These two ROW_FORMATs require srv_file_per_table
-		and srv_file_format > Antelope */
-		if (!srv_file_per_table) {
-			push_warning_printf(
-				thd, MYSQL_ERROR::WARN_LEVEL_WARN,
-				ER_ILLEGAL_HA_CREATE_OPTION,
-				"InnoDB: ROW_FORMAT=%s"
-				" requires innodb_file_per_table.",
-				get_row_format_name(row_type));
-				ret = FALSE;
-		}
-
-		if (srv_file_format < DICT_TF_FORMAT_ZIP) {
-			push_warning_printf(
-				thd, MYSQL_ERROR::WARN_LEVEL_WARN,
-				ER_ILLEGAL_HA_CREATE_OPTION,
-				"InnoDB: ROW_FORMAT=%s requires"
-				" innodb_file_format > Antelope.",
-				get_row_format_name(row_type));
-				ret = FALSE;
-		}
-	default:
+		CHECK_ERROR_ROW_TYPE_NEEDS_FILE_PER_TABLE;
+		CHECK_ERROR_ROW_TYPE_NEEDS_GT_ANTELOPE;
 		break;
-	}
-
-	switch (row_type) {
-	case ROW_TYPE_REDUNDANT:
-	case ROW_TYPE_COMPACT:
 	case ROW_TYPE_DYNAMIC:
-		/* KEY_BLOCK_SIZE is only allowed with Compressed or Default */
+		CHECK_ERROR_ROW_TYPE_NEEDS_FILE_PER_TABLE;
+		CHECK_ERROR_ROW_TYPE_NEEDS_GT_ANTELOPE;
+		/* fall through since dynamic also shuns KBS */
+	case ROW_TYPE_COMPACT:
+	case ROW_TYPE_REDUNDANT:
 		if (kbs_specified) {
 			push_warning_printf(
 				thd, MYSQL_ERROR::WARN_LEVEL_WARN,
 				ER_ILLEGAL_HA_CREATE_OPTION,
 				"InnoDB: cannot specify ROW_FORMAT = %s"
 				" with KEY_BLOCK_SIZE.",
-				get_row_format_name(row_type));
-				ret = FALSE;
+				get_row_format_name(row_format));
+			ret = FALSE;
 		}
-	default:
+		break;
+	case ROW_TYPE_DEFAULT:
+		break;
+	case ROW_TYPE_FIXED:
+	case ROW_TYPE_PAGE:
+	case ROW_TYPE_NOT_USED:
+		push_warning(
+			thd, MYSQL_ERROR::WARN_LEVEL_WARN,
+			ER_ILLEGAL_HA_CREATE_OPTION,		\
+			"InnoDB: invalid ROW_FORMAT specifier.");
+		ret = FALSE;
 		break;
 	}
 
@@ -6910,7 +6941,7 @@ ha_innobase::create(
 	const ulint	file_format = srv_file_format;
 	const char*	stmt;
 	size_t		stmt_len;
-	enum row_type	row_type;
+	enum row_type	row_format;
 
 	DBUG_ENTER("ha_innobase::create");
 
@@ -7010,8 +7041,8 @@ ha_innobase::create(
 			push_warning(
 				thd, MYSQL_ERROR::WARN_LEVEL_WARN,
 				ER_ILLEGAL_HA_CREATE_OPTION,
-				"InnoDB: KEY_BLOCK_SIZE"
-				" requires innodb_file_per_table.");
+				"InnoDB: KEY_BLOCK_SIZE requires"
+				" innodb_file_per_table.");
 			flags = 0;
 		}
 
@@ -7028,20 +7059,19 @@ ha_innobase::create(
 			push_warning_printf(
 				thd, MYSQL_ERROR::WARN_LEVEL_WARN,
 				ER_ILLEGAL_HA_CREATE_OPTION,
-				"InnoDB: ignoring"
-				" KEY_BLOCK_SIZE=%lu.",
+				"InnoDB: ignoring KEY_BLOCK_SIZE=%lu.",
 				create_info->key_block_size);
 		}
 	}
 
-	row_type = form->s->row_type;
+	row_format = form->s->row_type;
 
 	if (flags) {
 		/* if ROW_FORMAT is set to default,
 		automatically change it to COMPRESSED.*/
-		if (row_type == ROW_TYPE_DEFAULT) {
-			row_type = ROW_TYPE_COMPRESSED;
-		} else if (row_type != ROW_TYPE_COMPRESSED) {
+		if (row_format == ROW_TYPE_DEFAULT) {
+			row_format = ROW_TYPE_COMPRESSED;
+		} else if (row_format != ROW_TYPE_COMPRESSED) {
 			/* ROW_FORMAT other than COMPRESSED
 			ignores KEY_BLOCK_SIZE.  It does not
 			make sense to reject conflicting
@@ -7058,7 +7088,7 @@ ha_innobase::create(
 		}
 	} else {
 		/* flags == 0 means no KEY_BLOCK_SIZE.*/
-		if (row_type == ROW_TYPE_COMPRESSED) {
+		if (row_format == ROW_TYPE_COMPRESSED) {
 			/* ROW_FORMAT=COMPRESSED without
 			KEY_BLOCK_SIZE implies half the
 			maximum KEY_BLOCK_SIZE. */
@@ -7073,7 +7103,7 @@ ha_innobase::create(
 		}
 	}
 
-	switch (row_type) {
+	switch (row_format) {
 	case ROW_TYPE_REDUNDANT:
 		break;
 	case ROW_TYPE_COMPRESSED:
@@ -7084,25 +7114,25 @@ ha_innobase::create(
 				ER_ILLEGAL_HA_CREATE_OPTION,
 				"InnoDB: ROW_FORMAT=%s requires"
 				" innodb_file_per_table.",
-				get_row_format_name(row_type));
+				get_row_format_name(row_format));
 		} else if (file_format < DICT_TF_FORMAT_ZIP) {
 			push_warning_printf(
 				thd, MYSQL_ERROR::WARN_LEVEL_WARN,
 				ER_ILLEGAL_HA_CREATE_OPTION,
 				"InnoDB: ROW_FORMAT=%s requires"
 				" innodb_file_format > Antelope.",
-				get_row_format_name(row_type));
+				get_row_format_name(row_format));
 		} else {
 			flags |= DICT_TF_COMPACT
-				| (DICT_TF_FORMAT_ZIP
-				   << DICT_TF_FORMAT_SHIFT);
+			         | (DICT_TF_FORMAT_ZIP
+			            << DICT_TF_FORMAT_SHIFT);
 			break;
 		}
 
 		/* fall through */
 	case ROW_TYPE_NOT_USED:
 	case ROW_TYPE_FIXED:
-	default:
+	case ROW_TYPE_PAGE:
 		push_warning(
 			thd, MYSQL_ERROR::WARN_LEVEL_WARN,
 			ER_ILLEGAL_HA_CREATE_OPTION,
@@ -7220,22 +7250,24 @@ ha_innobase::create(
 	setup at this stage and so we use thd. */
 
 	/* We need to copy the AUTOINC value from the old table if
-	this is an ALTER TABLE or CREATE INDEX because CREATE INDEX
-	does a table copy too. */
+	this is an ALTER|OPTIMIZE TABLE or CREATE INDEX because CREATE INDEX
+	does a table copy too. If query was one of :
+
+		CREATE TABLE ...AUTO_INCREMENT = x; or
+		ALTER TABLE...AUTO_INCREMENT = x;   or
+		OPTIMIZE TABLE t; or
+		CREATE INDEX x on t(...);
+
+	Find out a table definition from the dictionary and get
+	the current value of the auto increment field. Set a new
+	value to the auto increment field if the value is greater
+	than the maximum value in the column. */
 
 	if (((create_info->used_fields & HA_CREATE_USED_AUTO)
 	    || thd_sql_command(thd) == SQLCOM_ALTER_TABLE
+	    || thd_sql_command(thd) == SQLCOM_OPTIMIZE
 	    || thd_sql_command(thd) == SQLCOM_CREATE_INDEX)
 	    && create_info->auto_increment_value > 0) {
-
-		/* Query was one of :
-		CREATE TABLE ...AUTO_INCREMENT = x; or
-		ALTER TABLE...AUTO_INCREMENT = x;   or
-		CREATE INDEX x on t(...);
-		Find out a table definition from the dictionary and get
-		the current value of the auto increment field. Set a new
-		value to the auto increment field if the value is greater
-		than the maximum value in the column. */
 
 		auto_inc_value = create_info->auto_increment_value;
 
@@ -7947,6 +7979,65 @@ innobase_get_mysql_key_number_for_index(
 
         return(0);
 }
+
+/*********************************************************************//**
+Calculate Record Per Key value. Need to exclude the NULL value if
+innodb_stats_method is set to "nulls_ignored"
+@return estimated record per key value */
+static
+ha_rows
+innodb_rec_per_key(
+/*===============*/
+	dict_index_t*	index,		/*!< in: dict_index_t structure */
+	ulint		i,		/*!< in: the column we are
+					calculating rec per key */
+	ha_rows		records)	/*!< in: estimated total records */
+{
+	ha_rows		rec_per_key;
+
+	ut_ad(i < dict_index_get_n_unique(index));
+
+	/* Note the stat_n_diff_key_vals[] stores the diff value with
+	n-prefix indexing, so it is always stat_n_diff_key_vals[i + 1] */
+	if (index->stat_n_diff_key_vals[i + 1] == 0) {
+
+		rec_per_key = records;
+	} else if (srv_innodb_stats_method == SRV_STATS_NULLS_IGNORED) {
+		ib_int64_t	num_null;
+
+		/* Number of rows with NULL value in this
+		field */
+		num_null = records - index->stat_n_non_null_key_vals[i];
+
+		/* In theory, index->stat_n_non_null_key_vals[i]
+		should always be less than the number of records.
+		Since this is statistics value, the value could
+		have slight discrepancy. But we will make sure
+		the number of null values is not a negative number. */
+		num_null = (num_null < 0) ? 0 : num_null;
+
+		/* If the number of NULL values is the same as or
+		large than that of the distinct values, we could
+		consider that the table consists mostly of NULL value. 
+		Set rec_per_key to 1. */
+		if (index->stat_n_diff_key_vals[i + 1] <= num_null) {
+			rec_per_key = 1;
+		} else {
+			/* Need to exclude rows with NULL values from
+			rec_per_key calculation */
+			rec_per_key = (ha_rows)(
+				(records - num_null)
+				/ (index->stat_n_diff_key_vals[i + 1]
+				   - num_null));
+		}
+	} else {
+		rec_per_key = (ha_rows)
+			 (records / index->stat_n_diff_key_vals[i + 1]);
+	}
+
+	return(rec_per_key);
+}
+
 /*********************************************************************//**
 Returns statistics information of the table to the MySQL interpreter,
 in various fields of the handle object. */
@@ -8005,6 +8096,10 @@ ha_innobase::info_low(
 				for (index = dict_table_get_first_index(ib_table);
 				     index != NULL;
 				     index = dict_table_get_next_index(index)) {
+					if (dict_is_older_statistics(index)) {
+						row_delete_stats_for_mysql(index, prebuilt->trx);
+						innobase_commit_low(prebuilt->trx);
+					}
 					row_insert_stats_for_mysql(index, prebuilt->trx);
 					innobase_commit_low(prebuilt->trx);
 				}
@@ -8197,13 +8292,8 @@ ha_innobase::info_low(
 					break;
 				}
 
-				if (index->stat_n_diff_key_vals[j + 1] == 0) {
-
-					rec_per_key = stats.records;
-				} else {
-					rec_per_key = (ha_rows)(stats.records /
-					 index->stat_n_diff_key_vals[j + 1]);
-				}
+				rec_per_key = innodb_rec_per_key(
+					index, j, stats.records);
 
 				/* Since MySQL seems to favor table scans
 				too much over index searches, we pretend
@@ -11341,25 +11431,6 @@ static MYSQL_SYSVAR_ULONGLONG(stats_sample_pages, srv_stats_sample_pages,
   "The number of index pages to sample when calculating statistics (default 8)",
   NULL, NULL, 8, 1, ~0ULL, 0);
 
-const char *innobase_stats_method_names[]=
-{
-  "nulls_equal",
-  "nulls_unequal",
-  "nulls_ignored",
-  NullS
-};
-TYPELIB innobase_stats_method_typelib=
-{
-  array_elements(innobase_stats_method_names) - 1, "innobase_stats_method_typelib",
-  innobase_stats_method_names, NULL
-};
-static MYSQL_SYSVAR_ENUM(stats_method, srv_stats_method,
-  PLUGIN_VAR_RQCMDARG,
-  "Specifies how InnoDB index statistics collection code should threat NULLs. "
-  "Possible values of name are same to for 'myisam_stats_method'. "
-  "This is startup parameter.",
-  NULL, NULL, 0, &innobase_stats_method_typelib);
-
 static MYSQL_SYSVAR_ULONG(stats_auto_update, srv_stats_auto_update,
   PLUGIN_VAR_RQCMDARG,
   "Enable/Disable InnoDB's auto update statistics of indexes. "
@@ -11548,6 +11619,13 @@ static MYSQL_SYSVAR_STR(change_buffering, innobase_change_buffering,
   innodb_change_buffering_validate,
   innodb_change_buffering_update, "inserts"); 
 
+static MYSQL_SYSVAR_ENUM(stats_method, srv_innodb_stats_method,
+   PLUGIN_VAR_RQCMDARG,
+  "Specifies how InnoDB index statistics collection code should "
+  "treat NULLs. Possible values are NULLS_EQUAL (default), "
+  "NULLS_UNEQUAL and NULLS_IGNORED",
+   NULL, NULL, SRV_STATS_NULLS_EQUAL, &innodb_stats_method_typelib);
+
 #if defined UNIV_DEBUG || defined UNIV_IBUF_DEBUG
 static MYSQL_SYSVAR_UINT(change_buffering_debug, ibuf_debug,
   PLUGIN_VAR_RQCMDARG,
@@ -11686,6 +11764,12 @@ static	MYSQL_SYSVAR_ULONG(pass_corrupt_table, srv_pass_corrupt_table,
   "except for the deletion.",
   NULL, NULL, 0, 0, 1, 0);
 
+static MYSQL_SYSVAR_ULONG(lazy_drop_table, srv_lazy_drop_table,
+  PLUGIN_VAR_RQCMDARG,
+  "At deleting tablespace, only miminum needed processes at the time are done. "
+  "e.g. for http://bugs.mysql.com/51325",
+  NULL, NULL, 0, 0, 1, 0);
+
 static struct st_mysql_sys_var* innobase_system_variables[]= {
   MYSQL_SYSVAR(page_size),
   MYSQL_SYSVAR(log_block_size),
@@ -11735,12 +11819,12 @@ static struct st_mysql_sys_var* innobase_system_variables[]= {
   MYSQL_SYSVAR(overwrite_relay_log_info),
   MYSQL_SYSVAR(rollback_on_timeout),
   MYSQL_SYSVAR(stats_on_metadata),
-  MYSQL_SYSVAR(stats_method),
   MYSQL_SYSVAR(stats_auto_update),
   MYSQL_SYSVAR(stats_update_need_lock),
   MYSQL_SYSVAR(use_sys_stats_table),
   MYSQL_SYSVAR(stats_sample_pages),
   MYSQL_SYSVAR(adaptive_hash_index),
+  MYSQL_SYSVAR(stats_method),
   MYSQL_SYSVAR(replication_delay),
   MYSQL_SYSVAR(status_file),
   MYSQL_SYSVAR(strict_mode),
@@ -11777,6 +11861,7 @@ static struct st_mysql_sys_var* innobase_system_variables[]= {
   MYSQL_SYSVAR(auto_lru_dump),
   MYSQL_SYSVAR(use_purge_thread),
   MYSQL_SYSVAR(pass_corrupt_table),
+  MYSQL_SYSVAR(lazy_drop_table),
   NULL
 };
 

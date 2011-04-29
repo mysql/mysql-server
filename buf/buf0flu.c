@@ -367,7 +367,7 @@ buf_flush_ready_for_replace(
 
 	if (UNIV_LIKELY(bpage->in_LRU_list && buf_page_in_file(bpage))) {
 
-		return(bpage->oldest_modification == 0
+		return((bpage->oldest_modification == 0 || bpage->space_was_being_deleted)
 		       && buf_page_get_io_fix(bpage) == BUF_IO_NONE
 		       && bpage->buf_fix_count == 0);
 	}
@@ -405,6 +405,13 @@ buf_flush_ready_for_flush(
 	if (buf_page_in_file(bpage) && bpage->oldest_modification != 0
 	    && buf_page_get_io_fix(bpage) == BUF_IO_NONE) {
 		ut_ad(bpage->in_flush_list);
+
+		if (bpage->space_was_being_deleted) {
+			/* should be removed from flush_list here */
+			/* because buf_flush_try_neighbors() cannot flush without fil_space_get_size(space) */
+			buf_flush_remove(bpage);
+			return(FALSE);
+		}
 
 		if (flush_type != BUF_FLUSH_LRU) {
 

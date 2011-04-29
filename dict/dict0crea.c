@@ -529,7 +529,7 @@ dict_create_sys_stats_tuple(
 
 	sys_stats = dict_sys->sys_stats;
 
-	entry = dtuple_create(heap, 3 + DATA_N_SYS_COLS);
+	entry = dtuple_create(heap, 4 + DATA_N_SYS_COLS);
 
 	dict_table_copy_types(entry, sys_stats);
 
@@ -545,6 +545,11 @@ dict_create_sys_stats_tuple(
 	dfield_set_data(dfield, ptr, 4);
 	/* 4: DIFF_VALS ----------------------*/
 	dfield = dtuple_get_nth_field(entry, 2/*DIFF_VALS*/);
+	ptr = mem_heap_alloc(heap, 8);
+	mach_write_to_8(ptr, ut_dulint_zero); /* initial value is 0 */
+	dfield_set_data(dfield, ptr, 8);
+	/* 5: NON_NULL_VALS ------------------*/
+	dfield = dtuple_get_nth_field(entry, 3/*NON_NULL_VALS*/);
 	ptr = mem_heap_alloc(heap, 8);
 	mach_write_to_8(ptr, ut_dulint_zero); /* initial value is 0 */
 	dfield_set_data(dfield, ptr, 8);
