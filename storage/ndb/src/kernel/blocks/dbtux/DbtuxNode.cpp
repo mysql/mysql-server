@@ -102,7 +102,7 @@ Dbtux::insertNode(NodeHandle& node)
   TreeHead& tree = frag.m_tree;
   memset(node.getPref(), DataFillByte, tree.m_prefSize << 2);
   TreeEnt* entList = tree.getEntList(node.m_node);
-  memset(entList, NodeFillByte, (tree.m_maxOccup + 1) * (TreeEntSize << 2));
+  memset(entList, NodeFillByte, tree.m_maxOccup * (TreeEntSize << 2));
 #endif
 }
 
@@ -156,7 +156,7 @@ Dbtux::setNodePref(TuxCtx & ctx, NodeHandle& node)
 {
   const Frag& frag = node.m_frag;
   const TreeHead& tree = frag.m_tree;
-  readKeyAttrs(ctx, frag, node.getMinMax(0), 0, ctx.c_entryKey);
+  readKeyAttrs(ctx, frag, node.getEnt(0), 0, ctx.c_entryKey);
   copyAttrs(ctx, frag, ctx.c_entryKey, node.getPref(), tree.m_prefSize);
 }
 
@@ -185,14 +185,11 @@ Dbtux::nodePushUp(TuxCtx & ctx, NodeHandle& node, unsigned pos, const TreeEnt& e
     nodePushUpScans(node, pos);
   // fix node
   TreeEnt* const entList = tree.getEntList(node.m_node);
-  entList[occup] = entList[0];
-  TreeEnt* const tmpList = entList + 1;
   for (unsigned i = occup; i > pos; i--) {
     thrjam(ctx.jamBuffer);
-    tmpList[i] = tmpList[i - 1];
+    entList[i] = entList[i - 1];
   }
-  tmpList[pos] = ent;
-  entList[0] = entList[occup + 1];
+  entList[pos] = ent;
   node.setOccup(occup + 1);
   // add new scans
   if (scanList != RNIL)
@@ -258,14 +255,11 @@ Dbtux::nodePopDown(TuxCtx& ctx, NodeHandle& node, unsigned pos, TreeEnt& ent, Ui
   }
   // fix node
   TreeEnt* const entList = tree.getEntList(node.m_node);
-  entList[occup] = entList[0];
-  TreeEnt* const tmpList = entList + 1;
-  ent = tmpList[pos];
+  ent = entList[pos];
   for (unsigned i = pos; i < occup - 1; i++) {
     thrjam(ctx.jamBuffer);
-    tmpList[i] = tmpList[i + 1];
+    entList[i] = entList[i + 1];
   }
-  entList[0] = entList[occup - 1];
   node.setOccup(occup - 1);
   // fix prefix
   if (occup != 1 && pos == 0)
@@ -326,16 +320,13 @@ Dbtux::nodePushDown(TuxCtx& ctx, NodeHandle& node, unsigned pos, TreeEnt& ent, U
   }
   // fix node
   TreeEnt* const entList = tree.getEntList(node.m_node);
-  entList[occup] = entList[0];
-  TreeEnt* const tmpList = entList + 1;
-  TreeEnt oldMin = tmpList[0];
+  TreeEnt oldMin = entList[0];
   for (unsigned i = 0; i < pos; i++) {
     thrjam(ctx.jamBuffer);
-    tmpList[i] = tmpList[i + 1];
+    entList[i] = entList[i + 1];
   }
-  tmpList[pos] = ent;
+  entList[pos] = ent;
   ent = oldMin;
-  entList[0] = entList[occup];
   // fix prefix
   if (true)
     setNodePref(ctx, node);
@@ -396,16 +387,13 @@ Dbtux::nodePopUp(TuxCtx& ctx, NodeHandle& node, unsigned pos, TreeEnt& ent, Uint
   }
   // fix node
   TreeEnt* const entList = tree.getEntList(node.m_node);
-  entList[occup] = entList[0];
-  TreeEnt* const tmpList = entList + 1;
   TreeEnt newMin = ent;
-  ent = tmpList[pos];
+  ent = entList[pos];
   for (unsigned i = pos; i > 0; i--) {
     thrjam(ctx.jamBuffer);
-    tmpList[i] = tmpList[i - 1];
+    entList[i] = entList[i - 1];
   }
-  tmpList[0] = newMin;
-  entList[0] = entList[occup];
+  entList[0] = newMin;
   // add scans
   if (scanList != RNIL)
     addScanList(node, 0, scanList);

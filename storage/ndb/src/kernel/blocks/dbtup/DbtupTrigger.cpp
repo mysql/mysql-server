@@ -32,6 +32,7 @@
 #include <signaldata/DropTrigImpl.hpp>
 #include <signaldata/TuxMaint.hpp>
 #include <signaldata/AlterIndxImpl.hpp>
+#include "../dblqh/Dblqh.hpp"
 
 /* **************************************************************** */
 /* ---------------------------------------------------------------- */
@@ -523,6 +524,93 @@ Dbtup::dropTrigger(Tablerec* table, const DropTrigImplReq* req, BlockNumber rece
   return 0;
 }//Dbtup::dropTrigger()
 
+void
+Dbtup::execFIRE_TRIG_REQ(Signal* signal)
+{
+  jam();
+  Uint32 opPtrI = signal->theData[0];
+  Uint32 pass = signal->theData[5];
+
+  FragrecordPtr regFragPtr;
+  OperationrecPtr regOperPtr;
+  TablerecPtr regTabPtr;
+  KeyReqStruct req_struct(this, (When)(KRS_PRE_COMMIT0 + pass));
+
+  regOperPtr.i = opPtrI;
+
+  jamEntry();
+
+  c_operation_pool.getPtr(regOperPtr);
+
+  regFragPtr.i = regOperPtr.p->fragmentPtr;
+  Uint32 no_of_fragrec = cnoOfFragrec;
+  ptrCheckGuard(regFragPtr, no_of_fragrec, fragrecord);
+
+  TransState trans_state = get_trans_state(regOperPtr.p);
+  ndbrequire(trans_state == TRANS_STARTED);
+
+  Uint32 no_of_tablerec = cnoOfTablerec;
+  regTabPtr.i = regFragPtr.p->fragTableId;
+  ptrCheckGuard(regTabPtr, no_of_tablerec, tablerec);
+
+  req_struct.signal = signal;
+  req_struct.TC_ref = signal->theData[1];
+  req_struct.TC_index = signal->theData[2];
+  req_struct.trans_id1 = signal->theData[3];
+  req_struct.trans_id2 = signal->theData[4];
+
+  PagePtr page;
+  Tuple_header* tuple_ptr = (Tuple_header*)
+    get_ptr(&page, &regOperPtr.p->m_tuple_location, regTabPtr.p);
+  req_struct.m_tuple_ptr = tuple_ptr;
+
+  OperationrecPtr lastOperPtr;
+  lastOperPtr.i = tuple_ptr->m_operation_ptr_i;
+  c_operation_pool.getPtr(lastOperPtr);
+
+  /**
+   * Deferred triggers should fire only once per primary key (per pass)
+   *   regardless of no of DML on that primary key
+   *
+   * We keep track of this on *last* operation (which btw, implies that
+   *   a trigger can't update "own" tuple...i.e first op would be better...)
+   *
+   */
+  if (!c_lqh->check_fire_trig_pass(lastOperPtr.p->userpointer, pass))
+  {
+    jam();
+    signal->theData[0] = 0;
+    signal->theData[1] = 0;
+    return;
+  }
+
+  /**
+   * This is deferred triggers...
+   *   which is basically the same as detached,
+   *     i.e before value is <before transaction>
+   *     and after values is <after transaction>
+   *   with the difference that they execute (fire) while
+   *   still having a transaction context...
+   *   i.e can abort transactions, modify transaction
+   */
+  req_struct.no_fired_triggers = 0;
+
+  /**
+   * See DbtupCommit re "Setting the op-list has this effect"
+   */
+  Uint32 save[2] = { lastOperPtr.p->nextActiveOp, lastOperPtr.p->prevActiveOp };
+  lastOperPtr.p->nextActiveOp = RNIL;
+  lastOperPtr.p->prevActiveOp = RNIL;
+
+  checkDeferredTriggers(&req_struct, lastOperPtr.p, regTabPtr.p, false);
+
+  lastOperPtr.p->nextActiveOp = save[0];
+  lastOperPtr.p->prevActiveOp = save[1];
+
+  signal->theData[0] = 0;
+  signal->theData[1] = req_struct.no_fired_triggers;
+}
+
 /* ---------------------------------------------------------------- */
 /* -------------- checkImmediateTriggersAfterOp ------------------ */
 /*                                                                  */
@@ -542,13 +630,24 @@ Dbtup::checkImmediateTriggersAfterInsert(KeyReqStruct *req_struct,
     return;
   }
 
-  if ((regOperPtr->op_struct.primary_replica) &&
-      (!(regTablePtr->afterInsertTriggers.isEmpty()))) {
-    jam();
-    fireImmediateTriggers(req_struct,
-                          regTablePtr->afterInsertTriggers,
-                          regOperPtr,
-                          disk);
+  if (regOperPtr->op_struct.primary_replica)
+  {
+    if (! regTablePtr->afterInsertTriggers.isEmpty())
+    {
+      jam();
+      fireImmediateTriggers(req_struct,
+                            regTablePtr->afterInsertTriggers,
+                            regOperPtr,
+                            disk);
+    }
+
+    if (! regTablePtr->deferredInsertTriggers.isEmpty())
+    {
+      checkDeferredTriggersDuringPrepare(req_struct,
+                                         regTablePtr->deferredInsertTriggers,
+                                         regOperPtr,
+                                         disk);
+    }
   }
 }
 
@@ -562,21 +661,34 @@ Dbtup::checkImmediateTriggersAfterUpdate(KeyReqStruct *req_struct,
     return;
   }
 
-  if ((regOperPtr->op_struct.primary_replica) &&
-      (!(regTablePtr->afterUpdateTriggers.isEmpty()))) {
-    jam();
-    fireImmediateTriggers(req_struct,
-                          regTablePtr->afterUpdateTriggers,
-                          regOperPtr,
-                          disk);
-  }
-  if ((regOperPtr->op_struct.primary_replica) &&
-      (!(regTablePtr->constraintUpdateTriggers.isEmpty()))) {
-    jam();
-    fireImmediateTriggers(req_struct,
-                          regTablePtr->constraintUpdateTriggers,
-                          regOperPtr,
-                          disk);
+  if (regOperPtr->op_struct.primary_replica)
+  {
+    if (! regTablePtr->afterUpdateTriggers.isEmpty())
+    {
+      jam();
+      fireImmediateTriggers(req_struct,
+                            regTablePtr->afterUpdateTriggers,
+                            regOperPtr,
+                            disk);
+    }
+
+    if (! regTablePtr->constraintUpdateTriggers.isEmpty())
+    {
+      jam();
+      fireImmediateTriggers(req_struct,
+                            regTablePtr->constraintUpdateTriggers,
+                            regOperPtr,
+                            disk);
+    }
+
+    if (! regTablePtr->deferredUpdateTriggers.isEmpty())
+    {
+      jam();
+      checkDeferredTriggersDuringPrepare(req_struct,
+                                         regTablePtr->deferredUpdateTriggers,
+                                         regOperPtr,
+                                         disk);
+    }
   }
 }
 
@@ -590,17 +702,48 @@ Dbtup::checkImmediateTriggersAfterDelete(KeyReqStruct *req_struct,
     return;
   }
 
-  if ((regOperPtr->op_struct.primary_replica) &&
-      (!(regTablePtr->afterDeleteTriggers.isEmpty()))) {
-    jam();
-    executeTriggers(req_struct,
-                    regTablePtr->afterDeleteTriggers,
-                    regOperPtr,
-                    disk);
+  if (regOperPtr->op_struct.primary_replica)
+  {
+    if (! regTablePtr->afterDeleteTriggers.isEmpty())
+    {
+      fireImmediateTriggers(req_struct,
+                            regTablePtr->afterDeleteTriggers,
+                            regOperPtr,
+                            disk);
+    }
+
+    if (! regTablePtr->deferredDeleteTriggers.isEmpty())
+    {
+      checkDeferredTriggersDuringPrepare(req_struct,
+                                         regTablePtr->deferredDeleteTriggers,
+                                         regOperPtr,
+                                         disk);
+    }
   }
 }
 
-#if 0
+void
+Dbtup::checkDeferredTriggersDuringPrepare(KeyReqStruct *req_struct,
+                                          DLList<TupTriggerData>& triggerList,
+                                          Operationrec* const regOperPtr,
+                                          bool disk)
+{
+  jam();
+  TriggerPtr trigPtr;
+  triggerList.first(trigPtr);
+  while (trigPtr.i != RNIL)
+  {
+    jam();
+    if (trigPtr.p->monitorAllAttributes ||
+        trigPtr.p->attributeMask.overlaps(req_struct->changeMask))
+    {
+      jam();
+      NoOfFiredTriggers::setDeferredBit(req_struct->no_fired_triggers);
+      return;
+    }
+  }
+}
+
 /* ---------------------------------------------------------------- */
 /* --------------------- checkDeferredTriggers -------------------- */
 /*                                                                  */
@@ -610,14 +753,95 @@ Dbtup::checkImmediateTriggersAfterDelete(KeyReqStruct *req_struct,
 /* Executes deferred triggers by sending FIRETRIGORD                */
 /*                                                                  */
 /* ---------------------------------------------------------------- */
-void Dbtup::checkDeferredTriggers(Signal* signal, 
-                                  Operationrec* const regOperPtr,
-                                  Tablerec* const regTablePtr)
+void Dbtup::checkDeferredTriggers(KeyReqStruct *req_struct,
+                                  Operationrec* regOperPtr,
+                                  Tablerec* regTablePtr,
+                                  bool disk)
 {
   jam();
-  // NYI
+  Uint32 save_type = regOperPtr->op_struct.op_type;
+  Tuple_header *save_ptr = req_struct->m_tuple_ptr;
+  DLList<TupTriggerData> * deferred_list = 0;
+  DLList<TupTriggerData> * constraint_list = 0;
+
+  switch (save_type) {
+  case ZUPDATE:
+  case ZINSERT:
+    req_struct->m_tuple_ptr =get_copy_tuple(&regOperPtr->m_copy_tuple_location);
+    break;
+  }
+
+  /**
+   * Set correct operation type and fix change mask
+   * Note ALLOC is set in "orig" tuple
+   */
+  if (save_ptr->m_header_bits & Tuple_header::ALLOC) {
+    if (save_type == ZDELETE) {
+      // insert + delete = nothing
+      jam();
+      return;
+      goto end;
+    }
+    regOperPtr->op_struct.op_type = ZINSERT;
+  }
+  else if (save_type == ZINSERT) {
+    /**
+     * Tuple was not created but last op is INSERT.
+     * This is possible only on DELETE + INSERT
+     */
+    regOperPtr->op_struct.op_type = ZUPDATE;
+  }
+
+  switch(regOperPtr->op_struct.op_type) {
+  case(ZINSERT):
+    jam();
+    deferred_list = &regTablePtr->deferredInsertTriggers;
+    constraint_list = &regTablePtr->afterInsertTriggers;
+    break;
+  case(ZDELETE):
+    jam();
+    deferred_list = &regTablePtr->deferredDeleteTriggers;
+    constraint_list = &regTablePtr->afterDeleteTriggers;
+    break;
+  case(ZUPDATE):
+    jam();
+    deferred_list = &regTablePtr->deferredUpdateTriggers;
+    constraint_list = &regTablePtr->afterUpdateTriggers;
+    break;
+  default:
+    ndbrequire(false);
+    break;
+  }
+
+  if (req_struct->m_deferred_constraints == false)
+  {
+    constraint_list = 0;
+  }
+
+  if (deferred_list->isEmpty() &&
+      (constraint_list == 0 || constraint_list->isEmpty()))
+  {
+    goto end;
+  }
+
+  /**
+   * Compute change-mask
+   */
+  set_commit_change_mask_info(regTablePtr, req_struct, regOperPtr);
+  if (!deferred_list->isEmpty())
+  {
+    fireDeferredTriggers(req_struct, * deferred_list, regOperPtr, disk);
+  }
+
+  if (constraint_list && !constraint_list->isEmpty())
+  {
+    fireDeferredConstraints(req_struct, * constraint_list, regOperPtr, disk);
+  }
+
+end:
+  regOperPtr->op_struct.op_type = save_type;
+  req_struct->m_tuple_ptr = save_ptr;
 }//Dbtup::checkDeferredTriggers()
-#endif
 
 /* ---------------------------------------------------------------- */
 /* --------------------- checkDetachedTriggers -------------------- */
@@ -716,11 +940,50 @@ end:
   req_struct->m_tuple_ptr = save_ptr;
 }
 
+static
+bool
+is_constraint(const Dbtup::TupTriggerData * trigPtr)
+{
+  return trigPtr->triggerType == TriggerType::SECONDARY_INDEX;
+}
+
 void 
 Dbtup::fireImmediateTriggers(KeyReqStruct *req_struct,
                              DLList<TupTriggerData>& triggerList, 
                              Operationrec* const regOperPtr,
                              bool disk)
+{
+  TriggerPtr trigPtr;
+  triggerList.first(trigPtr);
+  while (trigPtr.i != RNIL) {
+    jam();
+    if (trigPtr.p->monitorAllAttributes ||
+        trigPtr.p->attributeMask.overlaps(req_struct->changeMask)) {
+      jam();
+
+      if (req_struct->m_when == KRS_PREPARE &&
+          req_struct->m_deferred_constraints &&
+          is_constraint(trigPtr.p))
+      {
+        NoOfFiredTriggers::setDeferredBit(req_struct->no_fired_triggers);
+      }
+      else
+      {
+        executeTrigger(req_struct,
+                       trigPtr.p,
+                       regOperPtr,
+                       disk);
+      }
+    }
+    triggerList.next(trigPtr);
+  }//while
+}//Dbtup::fireImmediateTriggers()
+
+void
+Dbtup::fireDeferredConstraints(KeyReqStruct *req_struct,
+                               DLList<TupTriggerData>& triggerList,
+                               Operationrec* const regOperPtr,
+                               bool disk)
 {
   TriggerPtr trigPtr;
   triggerList.first(trigPtr);
@@ -736,14 +999,13 @@ Dbtup::fireImmediateTriggers(KeyReqStruct *req_struct,
     }//if
     triggerList.next(trigPtr);
   }//while
-}//Dbtup::fireImmediateTriggers()
+}//Dbtup::fireDeferredTriggers()
 
-#if 0
-void 
-Dbtup::fireDeferredTriggers(Signal* signal,
-                            KeyReqStruct *req_struct,
-                            DLList<TupTriggerData>& triggerList, 
-                            Operationrec* const regOperPtr)
+void
+Dbtup::fireDeferredTriggers(KeyReqStruct *req_struct,
+                            DLList<TupTriggerData>& triggerList,
+                            Operationrec* const regOperPtr,
+                            bool disk)
 {
   TriggerPtr trigPtr;
   triggerList.first(trigPtr);
@@ -753,13 +1015,13 @@ Dbtup::fireDeferredTriggers(Signal* signal,
         trigPtr.p->attributeMask.overlaps(req_struct->changeMask)) {
       jam();
       executeTrigger(req_struct,
-                     trigPtr,
-                     regOperPtr);
+                     trigPtr.p,
+                     regOperPtr,
+                     disk);
     }//if
     triggerList.next(trigPtr);
   }//while
 }//Dbtup::fireDeferredTriggers()
-#endif
 
 void 
 Dbtup::fireDetachedTriggers(KeyReqStruct *req_struct,
@@ -1062,6 +1324,44 @@ out:
     terrorCode = ZREAD_ONLY_CONSTRAINT_VIOLATION;
     // XXX should return status and abort the rest
     return;
+  }
+
+  if (triggerType == TriggerType::SECONDARY_INDEX &&
+      req_struct->m_when != KRS_PREPARE)
+  {
+    ndbrequire(req_struct->m_deferred_constraints);
+    if (req_struct->m_when == KRS_PRE_COMMIT0)
+    {
+      switch(regOperPtr->op_struct.op_type){
+      case ZINSERT:
+        NoOfFiredTriggers::setDeferredBit(req_struct->no_fired_triggers);
+        return;
+        break;
+      case ZUPDATE:
+        NoOfFiredTriggers::setDeferredBit(req_struct->no_fired_triggers);
+        noAfterWords = 0;
+        break;
+      case ZDELETE:
+        break;
+      default:
+        ndbrequire(false);
+      }
+    }
+    else
+    {
+      ndbrequire(req_struct->m_when == KRS_PRE_COMMIT1);
+      switch(regOperPtr->op_struct.op_type){
+      case ZINSERT:
+        break;
+      case ZUPDATE:
+        noBeforeWords = 0;
+        break;
+      case ZDELETE:
+        return;
+      default:
+        ndbrequire(false);
+      }
+    }
   }
 
   req_struct->no_fired_triggers++;

@@ -39,15 +39,7 @@ Dbtux::execACC_SCANREQ(Signal* signal)
     c_indexPool.getPtr(indexPtr, req->tableId);
     // get the fragment
     FragPtr fragPtr;
-    fragPtr.i = RNIL;
-    for (unsigned i = 0; i < indexPtr.p->m_numFrags; i++) {
-      jam();
-      if (indexPtr.p->m_fragId[i] == req->fragmentNo) {
-        jam();
-        c_fragPool.getPtr(fragPtr, indexPtr.p->m_fragPtrI[i]);
-        break;
-      }
-    }
+    findFrag(*indexPtr.p, req->fragmentNo, fragPtr);
     ndbrequire(fragPtr.i != RNIL);
     Frag& frag = *fragPtr.p;
     // check for index not Online (i.e. Dropping)
@@ -858,8 +850,9 @@ Dbtux::scanFind(ScanOpPtr scanPtr)
  * 0 - up from left child (scan this node next)
  * 1 - up from right child (proceed to parent)
  * 2 - up from root (the scan ends)
- * 3 - left to right within node (at end proceed to right child)
+ * 3 - left to right within node (at end set state 5)
  * 4 - down from parent (proceed to left child)
+ * 5 - at node end proceed to right child (state becomes 4)
  *
  * If an entry was found, scan direction is 3.  Therefore tree
  * re-organizations need not worry about scan direction.
@@ -926,6 +919,19 @@ Dbtux::scanNext(ScanOpPtr scanPtr, bool fromMaintReq)
       // pretend we came from left child
       pos.m_dir = idir;
     }
+    if (pos.m_dir == 5) {
+      // at node end proceed to right child
+      jam();
+      TupLoc loc = node.getLink(1 - idir);
+      if (loc != NullTupLoc) {
+        jam();
+        pos.m_loc = loc;
+        pos.m_dir = 4;  // down from parent as usual
+        continue;
+      }
+      // pretend we came from right child
+      pos.m_dir = 1 - idir;
+    }
     const unsigned occup = node.getOccup();
     if (occup == 0) {
       jam();
@@ -957,15 +963,8 @@ Dbtux::scanNext(ScanOpPtr scanPtr, bool fromMaintReq)
         break;
       }
       // after node proceed to right child
-      TupLoc loc = node.getLink(1 - idir);
-      if (loc != NullTupLoc) {
-        jam();
-        pos.m_loc = loc;
-        pos.m_dir = 4;
-        continue;
-      }
-      // pretend we came from right child
-      pos.m_dir = 1 - idir;
+      pos.m_dir = 5;
+      continue;
     }
     if (pos.m_dir == 1 - idir) {
       // coming up from right child proceed to parent

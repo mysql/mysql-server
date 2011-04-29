@@ -250,25 +250,33 @@ static MYSQL_THDVAR_UINT(
   0                                  /* block */
 );
 
+static MYSQL_THDVAR_UINT(
+  deferred_constraints,              /* name */
+  PLUGIN_VAR_RQCMDARG,
+  "Specified that constraints should be checked deferred (when supported)",
+  NULL,                              /* check func */
+  NULL,                              /* update func */
+  0,                                 /* default */
+  0,                                 /* min */
+  1,                                 /* max */
+  0                                  /* block */
+);
+
 #if NDB_VERSION_D < NDB_MAKE_VERSION(7,2,0)
-static MYSQL_THDVAR_BOOL(
-  join_pushdown,                     /* name */
-  PLUGIN_VAR_OPCMDARG,
-  "Enable pushing down of join to datanodes",
-  NULL,                              /* check func. */
-  NULL,                              /* update func. */
-  FALSE                              /* default */
-);
+#define DEFAULT_NDB_JOIN_PUSHDOWN FALSE
 #else
+#define DEFAULT_NDB_JOIN_PUSHDOWN TRUE
+#endif
+
 static MYSQL_THDVAR_BOOL(
   join_pushdown,                     /* name */
   PLUGIN_VAR_OPCMDARG,
   "Enable pushing down of join to datanodes",
   NULL,                              /* check func. */
   NULL,                              /* update func. */
-  TRUE                               /* default */
+  DEFAULT_NDB_JOIN_PUSHDOWN          /* default */
 );
-#endif
+
 /*
   Default value for max number of transactions createable against NDB from
   the handler. Should really be 2 but there is a transaction to much allocated
@@ -5033,6 +5041,12 @@ int ha_ndbcluster::ndb_write_row(uchar *record,
     options.extraSetValues= sets;
     options.numExtraSetValues= num_sets;
   }
+  if (thd->slave_thread || THDVAR(thd, deferred_constraints))
+  {
+    options.optionsPresent |=
+      NdbOperation::OperationOptions::OO_DEFERRED_CONSTAINTS;
+  }
+
   if (options.optionsPresent != 0)
     poptions=&options;
 
@@ -5783,6 +5797,12 @@ int ha_ndbcluster::ndb_update_row(const uchar *old_data, uchar *new_data,
   
   bool need_flush= add_row_check_if_batch_full(thd_ndb);
 
+  if (thd->slave_thread || THDVAR(thd, deferred_constraints))
+  {
+    options.optionsPresent |=
+      NdbOperation::OperationOptions::OO_DEFERRED_CONSTAINTS;
+  }
+
   if (cursor)
   {
     /*
@@ -6007,6 +6027,12 @@ int ha_ndbcluster::ndb_delete_row(const uchar *record,
   */
   uint delete_size= 12 + (m_bytes_per_write >> 2);
   bool need_flush= add_row_check_if_batch_full_size(thd_ndb, delete_size);
+
+  if (thd->slave_thread || THDVAR(thd, deferred_constraints))
+  {
+    options.optionsPresent |=
+      NdbOperation::OperationOptions::OO_DEFERRED_CONSTAINTS;
+  }
 
   if (cursor)
   {
@@ -16766,8 +16792,8 @@ static struct st_mysql_sys_var* system_variables[]= {
   MYSQL_SYSVAR(nodeid),
   MYSQL_SYSVAR(blob_read_batch_bytes),
   MYSQL_SYSVAR(blob_write_batch_bytes),
+  MYSQL_SYSVAR(deferred_constraints),
   MYSQL_SYSVAR(join_pushdown),
-
   NULL
 };
 

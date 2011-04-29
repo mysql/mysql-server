@@ -1583,8 +1583,6 @@ Dbspj::nodeFail(Signal* signal, Ptr<Request> requestPtr,
 {
   Uint32 cnt = 0;
   Uint32 iter = 0;
-  Uint32 outstanding = requestPtr.p->m_outstanding;
-  Uint32 aborting = requestPtr.p->m_state & Request::RS_ABORTING;
 
   {
     Ptr<TreeNode> nodePtr;
@@ -1623,12 +1621,6 @@ Dbspj::nodeFail(Signal* signal, Ptr<Request> requestPtr,
   {
     jam();
     abort(signal, requestPtr, DbspjErr::NodeFailure);
-
-    if (aborting && outstanding && requestPtr.p->m_outstanding == 0)
-    {
-      jam();
-      checkBatchComplete(signal, requestPtr, 0);
-    }
   }
 
   return cnt + iter;
@@ -4731,20 +4723,16 @@ Dbspj::scanIndex_parent_row(Signal* signal,
         break;
       }
 
-      if (fragPtr.p->m_ref == 0)
-      {
-        jam();
-        fragPtr.p->m_ref = tmp.receiverRef;
-      }
-      else
-      {
-        /**
-         * TODO: not 100% sure if this is correct with reorg ongoing...
-         *       but scanning "old" should regardless be safe as we still have
-         *       scanCookie
-         */
-        ndbassert(fragPtr.p->m_ref == tmp.receiverRef);
-      }
+      /**
+       * NOTE: We can get different receiverRef's here
+       *       for different keys. E.g during node-recovery where
+       *       primary-fragment is switched.
+       *
+       *       Use latest that we receive
+       *
+       * TODO: Also double check table-reorg
+       */
+      fragPtr.p->m_ref = tmp.receiverRef;
     }
     else
     {
