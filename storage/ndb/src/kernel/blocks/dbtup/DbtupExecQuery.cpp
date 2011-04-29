@@ -597,9 +597,11 @@ void Dbtup::execTUPKEYREQ(Signal* signal)
 
    sig1 = tupKeyReq->m_row_id_page_no;
    sig2 = tupKeyReq->m_row_id_page_idx;
+   sig3 = tupKeyReq->deferred_constraints;
 
    req_struct.m_row_id.m_page_no = sig1;
    req_struct.m_row_id.m_page_idx = sig2;
+   req_struct.m_deferred_constraints = sig3;
 
    /* Get AttrInfo section if this is a long TUPKEYREQ */
    Uint32 attrInfoIVal= tupKeyReq->attrInfoIVal;

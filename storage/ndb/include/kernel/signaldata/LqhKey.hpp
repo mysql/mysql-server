@@ -19,6 +19,7 @@
 #define LQH_KEY_H
 
 #include "SignalData.hpp"
+#include <trigger_definitions.h>
 
 class LqhKeyReq {
   /**
@@ -166,6 +167,12 @@ private:
    */
   static UintR getCorrFactorFlag(const UintR & requestInfo);
   static void setCorrFactorFlag(UintR & requestInfo, UintR val);
+
+  /**
+   * Include corr factor
+   */
+  static UintR getDeferredConstraints(const UintR & requestInfo);
+  static void setDeferredConstraints(UintR & requestInfo, UintR val);
 };
 
 /**
@@ -195,6 +202,7 @@ private:
  * q = Queue on redo problem  - 1  Bit (14)
  * A = CorrFactor flag        - 1  Bit (24)
  * P = Do normal protocol even if dirty-read - 1 Bit (25)
+ * D = Deferred constraints   - 1  Bit (26)
 
  * Short LQHKEYREQ :
  *             1111111111222222222233
@@ -205,7 +213,7 @@ private:
  * Long LQHKEYREQ :
  *             1111111111222222222233
  *   01234567890123456789012345678901
- *             llgnqpdisooorrAP cumxz
+ *             llgnqpdisooorrAPDcumxz
  *
  */
 
@@ -235,6 +243,7 @@ private:
 #define RI_QUEUE_REDO_SHIFT  (14)
 #define RI_CORR_FACTOR_VALUE (24)
 #define RI_NORMAL_DIRTY      (25)
+#define RI_DEFERRED_CONSTAINTS (26)
 
 /**
  * Scan Info
@@ -625,6 +634,19 @@ LqhKeyReq::getCorrFactorFlag(const UintR & requestInfo){
 }
 
 inline
+void
+LqhKeyReq::setDeferredConstraints(UintR & requestInfo, UintR val){
+  ASSERT_BOOL(val, "LqhKeyReq::setDeferredConstraints");
+  requestInfo |= (val << RI_DEFERRED_CONSTAINTS);
+}
+
+inline
+UintR
+LqhKeyReq::getDeferredConstraints(const UintR & requestInfo){
+  return (requestInfo >> RI_DEFERRED_CONSTAINTS) & 1;
+}
+
+inline
 Uint32
 table_version_major_lqhkeyreq(Uint32 x)
 {
@@ -688,7 +710,17 @@ private:
   };
   Uint32 transId1;
   Uint32 transId2;
-  Uint32 noFiredTriggers;
+  Uint32 noFiredTriggers; // bit 31 defered trigger
+
+  static Uint32 getFiredCount(Uint32 v) {
+    return NoOfFiredTriggers::getFiredCount(v);
+  }
+  static Uint32 getDeferredBit(Uint32 v) {
+    return NoOfFiredTriggers::getDeferredBit(v);
+  }
+  static void setDeferredBit(Uint32 & v) {
+    NoOfFiredTriggers::setDeferredBit(v);
+  }
 };
 
 class LqhKeyRef {

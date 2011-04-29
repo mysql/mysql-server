@@ -580,7 +580,7 @@ void Dbtup::execTUP_COMMITREQ(Signal* signal)
   FragrecordPtr regFragPtr;
   OperationrecPtr regOperPtr;
   TablerecPtr regTabPtr;
-  KeyReqStruct req_struct(this);
+  KeyReqStruct req_struct(this, KRS_COMMIT);
   TransState trans_state;
   Uint32 no_of_fragrec, no_of_tablerec;
 
