@@ -2420,10 +2420,7 @@ my_decimal *Item_func_round::decimal_op(my_decimal *decimal_value)
   if (!(null_value= (args[0]->null_value || args[1]->null_value ||
                      my_decimal_round(E_DEC_FATAL_ERROR, value, (int) dec,
                                       truncate, decimal_value) > 1))) 
-  {
-    decimal_value->frac= decimals;
     return decimal_value;
-  }
   return 0;
 }
 
@@ -3661,14 +3658,10 @@ static PSI_mutex_info all_user_mutexes[]=
 
 static void init_user_lock_psi_keys(void)
 {
-  const char* category= "sql";
   int count;
 
-  if (PSI_server == NULL)
-    return;
-
   count= array_elements(all_user_mutexes);
-  PSI_server->register_mutex(category, all_user_mutexes, count);
+  mysql_mutex_register("sql", all_user_mutexes, count);
 }
 #endif
 

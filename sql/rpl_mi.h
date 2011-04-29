@@ -144,9 +144,11 @@ private:
 #ifdef HAVE_PSI_INTERFACE
               PSI_mutex_key *param_key_info_run_lock,
               PSI_mutex_key *param_key_info_data_lock,
+              PSI_mutex_key *param_key_info_sleep_lock,
               PSI_mutex_key *param_key_info_data_cond,
               PSI_mutex_key *param_key_info_start_cond,
-              PSI_mutex_key *param_key_info_stop_cond
+              PSI_mutex_key *param_key_info_stop_cond,
+              PSI_mutex_key *param_key_info_sleep_cond
 #endif
              );
   Master_info(const Master_info& info);

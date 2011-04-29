@@ -68,8 +68,6 @@ bool use_slave_mask = 0;
 MY_BITMAP slave_error_mask;
 char slave_skip_error_names[SHOW_VAR_FUNC_BUFF_SIZE];
 
-typedef bool (*CHECK_KILLED_FUNC)(THD*,void*);
-
 char* slave_load_tmpdir = 0;
 Master_info *active_mi= 0;
 my_bool replicate_same_server_id;
@@ -153,8 +151,6 @@ static int safe_reconnect(THD* thd, MYSQL* mysql, Master_info* mi,
                           bool suppress_warnings);
 static int connect_to_master(THD* thd, MYSQL* mysql, Master_info* mi,
                              bool reconnect, bool suppress_warnings);
-static int safe_sleep(THD* thd, int sec, CHECK_KILLED_FUNC thread_killed,
-                      void* thread_killed_arg);
 static int get_master_version_and_clock(MYSQL* mysql, Master_info* mi);
 static int get_master_uuid(MYSQL *mysql, Master_info *mi);
 int io_thread_init_commands(MYSQL *mysql, Master_info *mi);
@@ -245,11 +241,8 @@ static void init_slave_psi_keys(void)
   const char* category= "sql";
   int count;
 
-  if (PSI_server == NULL)
-    return;
-
   count= array_elements(all_slave_threads);
-  PSI_server->register_thread(category, all_slave_threads, count);
+  mysql_thread_register(category, all_slave_threads, count);
 }
 #endif /* HAVE_PSI_INTERFACE */
 
@@ -2360,53 +2353,42 @@ static int init_slave_thread(THD* thd, SLAVE_THD_TYPE thd_type)
 
 
 /**
-  Sleep for the given amount of time. If the sleep is interrupted,
-  continue sleeping unless the THD has been killed.
+  Sleep for a given amount of time or until killed.
 
-  @param thd The THD object passed as first parameter to
-  (*thread_killed).
+  @param thd        Thread context of the current thread.
+  @param seconds    The number of seconds to sleep.
+  @param func       Function object to check if the thread has been killed.
+  @param info       The Rpl_info object associated with this sleep.
 
-  @param sec The number of seconds to sleep.
-
-  @param thread_killed Pointer to function that checks if the thread
-  has been killed or not.
-
-  @param thread_killed_arg Pointer passed as second parameter to
-  (*thread_killed).
-
-  @retval 0 If we slept the given number of seconds and THD was not
-  killed.
-
-  @retval 1 If sleep was interrupted and THD killed.
+  @retval True if the thread has been killed, false otherwise.
 */
-static int safe_sleep(THD* thd, int sec, CHECK_KILLED_FUNC thread_killed,
-                      void* thread_killed_arg)
+template <typename killed_func, typename rpl_info>
+static inline bool slave_sleep(THD *thd, time_t seconds,
+                               killed_func func, rpl_info info)
 {
-  int nap_time;
-  thr_alarm_t alarmed;
-  DBUG_ENTER("safe_sleep");
+  bool ret;
+  struct timespec abstime;
+  const char *old_proc_info;
+  mysql_mutex_t *lock= &info->sleep_lock;
+  mysql_cond_t *cond= &info->sleep_cond;
 
-  thr_alarm_init(&alarmed);
-  time_t start_time= my_time(0);
-  time_t end_time= start_time+sec;
+  /* Absolute system time at which the sleep time expires. */
+  set_timespec(abstime, seconds);
 
-  while ((nap_time= (int) (end_time - start_time)) > 0)
+  mysql_mutex_lock(lock);
+  old_proc_info= thd->enter_cond(cond, lock, thd->proc_info);
+
+  while (! (ret= func(thd, info)))
   {
-    ALARM alarm_buff;
-    /*
-      The only reason we are asking for alarm is so that
-      we will be woken up in case of murder, so if we do not get killed,
-      set the alarm so it goes off after we wake up naturally
-    */
-    thr_alarm(&alarmed, 2 * nap_time, &alarm_buff);
-    sleep(nap_time);
-    thr_end_alarm(&alarmed);
-
-    if ((*thread_killed)(thd,thread_killed_arg))
-      DBUG_RETURN(1);
-    start_time= my_time(0);
+    int error= mysql_cond_timedwait(cond, lock, &abstime);
+    if (error == ETIMEDOUT || error == ETIME)
+      break;
   }
-  DBUG_RETURN(0);
+
+  /* Implicitly unlocks the mutex. */
+  thd->exit_cond(old_proc_info);
+
+  return ret;
 }
 
 
@@ -2572,8 +2554,7 @@ static int sql_delay_event(Log_event *ev, THD *thd, Relay_log_info *rli)
                           nap_time));
       rli->start_sql_delay(sql_delay_end);
       mysql_mutex_unlock(&rli->data_lock);
-      DBUG_RETURN(safe_sleep(thd, nap_time,
-                             (CHECK_KILLED_FUNC)sql_slave_killed, (void*)rli));
+      DBUG_RETURN(slave_sleep(thd, nap_time, sql_slave_killed, rli));
     }
   }
 
@@ -2941,8 +2922,8 @@ static int exec_relay_log_event(THD* thd, Relay_log_info* rli)
             exec_res= 0;
             rli->cleanup_context(thd, 1);
             /* chance for concurrent connection to get more locks */
-            safe_sleep(thd, min(rli->trans_retries, MAX_SLAVE_RETRY_PAUSE),
-                       (CHECK_KILLED_FUNC)sql_slave_killed, (void*)rli);
+            slave_sleep(thd, min(rli->trans_retries, MAX_SLAVE_RETRY_PAUSE),
+                        sql_slave_killed, rli);
             mysql_mutex_lock(&rli->data_lock); // because of SHOW STATUS
             rli->trans_retries++;
             rli->retried_trans++;
@@ -3042,8 +3023,7 @@ static int try_to_reconnect(THD *thd, MYSQL *mysql, Master_info *mi,
   {
     if (*retry_count > mi->retry_count)
       return 1;                             // Don't retry forever
-    safe_sleep(thd, mi->connect_retry, (CHECK_KILLED_FUNC) io_slave_killed,
-               (void *) mi);
+    slave_sleep(thd, mi->connect_retry, io_slave_killed, mi);
   }
   if (check_io_slave_killed(thd, mi, messages[SLAVE_RECON_MSG_KILLED_WAITING]))
     return 1;
@@ -4765,8 +4745,7 @@ static int connect_to_master(THD* thd, MYSQL* mysql, Master_info* mi,
       slave_was_killed=1;
       break;
     }
-    safe_sleep(thd,mi->connect_retry,(CHECK_KILLED_FUNC)io_slave_killed,
-               (void*)mi);
+    slave_sleep(thd, mi->connect_retry, io_slave_killed, mi);
   }
 
   if (!slave_was_killed)

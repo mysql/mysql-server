@@ -58,10 +58,9 @@ lock_wait_table_print(void)
 	for (i = 0; i < OS_THREAD_MAX_N; i++, ++slot) {
 
 		fprintf(stderr,
-			"Slot %lu: thread id %lu, type %lu,"
+			"Slot %lu: thread type %lu,"
 			" in use %lu, susp %lu, timeout %lu, time %lu\n",
 			(ulong) i,
-			(ulong) os_thread_pf(slot->id),
 			(ulong) slot->type,
 			(ulong) slot->in_use,
 			(ulong) slot->suspended,
@@ -155,8 +154,6 @@ lock_wait_table_reserve_slot(
 			slot->in_use = TRUE;
 			slot->thr = thr;
 			slot->thr->slot = slot;
-			slot->id = os_thread_get_curr_id();
-			slot->handle = os_thread_get_curr();
 
 			if (slot->event == NULL) {
 				slot->event = os_event_create(NULL);
@@ -212,7 +209,7 @@ lock_wait_suspend_thread(
 	double		wait_time;
 	trx_t*		trx;
 	ulint		had_dict_lock;
-	ibool		was_declared_inside_innodb	= FALSE;
+	ibool		was_declared_inside_innodb;
 	ib_int64_t	start_time			= 0;
 	ib_int64_t	finish_time;
 	ulint		sec;
@@ -273,17 +270,6 @@ lock_wait_suspend_thread(
 	lock_wait_mutex_exit();
 	trx_mutex_exit(trx);
 
-	if (trx->declared_to_be_inside_innodb) {
-
-		was_declared_inside_innodb = TRUE;
-
-		/* We must declare this OS thread to exit InnoDB, since a
-		possible other thread holding a lock which this thread waits
-		for must be allowed to enter, sooner or later */
-
-		srv_conc_force_exit_innodb(trx);
-	}
-
 	had_dict_lock = trx->dict_operation_lock_mode;
 
 	switch (had_dict_lock) {
@@ -307,22 +293,31 @@ lock_wait_suspend_thread(
 
 	/* Suspend this thread and wait for the event. */
 
-	ut_ad(!trx_mutex_own(trx));
+	was_declared_inside_innodb = trx->declared_to_be_inside_innodb;
+
+	if (was_declared_inside_innodb) {
+		/* We must declare this OS thread to exit InnoDB, since a
+		possible other thread holding a lock which this thread waits
+		for must be allowed to enter, sooner or later */
+
+		srv_conc_force_exit_innodb(trx);
+	}
+
 	os_event_wait(slot->event);
 
 	/* After resuming, reacquire the data dictionary latch if
 	necessary. */
-
-	if (had_dict_lock) {
-
-		row_mysql_freeze_data_dictionary(trx);
-	}
 
 	if (was_declared_inside_innodb) {
 
 		/* Return back inside InnoDB */
 
 		srv_conc_force_enter_innodb(trx);
+	}
+
+	if (had_dict_lock) {
+
+		row_mysql_freeze_data_dictionary(trx);
 	}
 
 	wait_time = ut_difftime(ut_time(), slot->suspend_time);

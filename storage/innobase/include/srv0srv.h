@@ -48,6 +48,7 @@ Created 10/10/1995 Heikki Tuuri
 #include "os0sync.h"
 #include "que0types.h"
 #include "trx0types.h"
+#include "srv0conc.h"
 
 extern const char*	srv_main_thread_op_info;
 
@@ -71,9 +72,6 @@ extern os_event_t	srv_error_event;
 at a time */
 #define SRV_AUTO_EXTEND_INCREMENT	\
 	(srv_auto_extend_increment * ((1024 * 1024) / UNIV_PAGE_SIZE))
-
-/* This is set to the MySQL server value for this variable. */
-extern uint	srv_lower_case_table_names;
 
 /* Mutex for locking srv_monitor_file */
 extern mutex_t	srv_monitor_file_mutex;
@@ -115,7 +113,6 @@ extern ulint	srv_max_file_format_at_startup;
 /** Place locks to records only i.e. do not use next-key locking except
 on duplicate key checking and foreign key checking */
 extern ibool	srv_locks_unsafe_for_binlog;
-#endif /* !UNIV_HOTBACKUP */
 
 /* If this flag is TRUE, then we will use the native aio of the
 OS (provided we compiled Innobase with it in), otherwise we will
@@ -125,6 +122,7 @@ extern my_bool	srv_use_native_aio;
 #ifdef __WIN__
 extern ibool	srv_use_native_conditions;
 #endif
+#endif /* !UNIV_HOTBACKUP */
 extern ulint	srv_n_data_files;
 extern char**	srv_data_file_names;
 extern ulint*	srv_data_file_sizes;
@@ -195,11 +193,6 @@ extern ulint	srv_max_n_open_files;
 extern ulint	srv_max_dirty_pages_pct;
 
 extern ulint	srv_force_recovery;
-extern ulong	srv_thread_concurrency;
-
-extern ulint	srv_max_n_threads;
-
-extern lint	srv_conc_n_threads;
 
 extern ulint	srv_fast_shutdown;	/*!< If this is 1, do not do a
 					purge and index buffer merge.
@@ -303,6 +296,9 @@ extern ulong srv_purge_batch_size;
 
 /* the number of rollback segments to use */
 extern ulong srv_rollback_segments;
+
+/* the number of sync wait arrays */
+extern ulong srv_sync_array_size;
 
 /* variable that counts amount of data read in total (in bytes) */
 extern ulint srv_data_read;
@@ -519,6 +515,16 @@ srv_master_thread(
 	void*	arg);	/*!< in: a dummy parameter required by
 			os_thread_create */
 /*******************************************************************//**
+Tells the purge thread that there has been activity in the database
+and wakes up the purge thread if it is suspended (not sleeping).  Note
+that there is a small chance that the purge thread stays suspended
+(we do not protect our operation with the srv_sys_t:mutex, for
+performance reasons). */
+UNIV_INTERN
+void
+srv_wake_purge_thread_if_not_active(void);
+/*=====================================*/
+/*******************************************************************//**
 Wakes up the purge thread if it's not already awake. */
 UNIV_INTERN
 void
@@ -540,41 +546,6 @@ UNIV_INTERN
 void
 srv_wake_master_thread(void);
 /*========================*/
-/*********************************************************************//**
-Puts an OS thread to wait if there are too many concurrent threads
-(>= srv_thread_concurrency) inside InnoDB. The threads wait in a FIFO queue. */
-UNIV_INTERN
-void
-srv_conc_enter_innodb(
-/*==================*/
-	trx_t*	trx);	/*!< in: transaction object associated with the
-			thread */
-/*********************************************************************//**
-This lets a thread enter InnoDB regardless of the number of threads inside
-InnoDB. This must be called when a thread ends a lock wait. */
-UNIV_INTERN
-void
-srv_conc_force_enter_innodb(
-/*========================*/
-	trx_t*	trx);	/*!< in: transaction object associated with the
-			thread */
-/*********************************************************************//**
-This must be called when a thread exits InnoDB in a lock wait or at the
-end of an SQL statement. */
-UNIV_INTERN
-void
-srv_conc_force_exit_innodb(
-/*=======================*/
-	trx_t*	trx);	/*!< in: transaction object associated with the
-			thread */
-/*********************************************************************//**
-This must be called when a thread exits InnoDB. */
-UNIV_INTERN
-void
-srv_conc_exit_innodb(
-/*=================*/
-	trx_t*	trx);	/*!< in: transaction object associated with the
-			thread */
 /*********************************************************************//**
 A thread which prints the info output by various InnoDB monitors.
 @return	a dummy parameter */
@@ -638,16 +609,6 @@ UNIV_INTERN
 void
 srv_inc_activity_count(void);
 /*=========================*/
-
-/*********************************************************************//**
-Asynchronous purge thread.
-@return	a dummy parameter */
-UNIV_INTERN
-os_thread_ret_t
-srv_purge_thread(
-/*=============*/
-	void*	arg __attribute__((unused)));	/*!< in: a dummy parameter
-						required by os_thread_create */
 
 /**********************************************************************//**
 Enqueues a task to server task queue and releases a worker thread, if there
@@ -784,8 +745,6 @@ struct export_var_struct{
 
 /** Thread slot in the thread table.  */
 struct srv_slot_struct{
-	os_thread_id_t	id;			/*!< thread id */
-	os_thread_t	handle;			/*!< thread handle */
 	enum srv_thread_type
 			type;			/*!< thread type: user,
 						utility etc. */
