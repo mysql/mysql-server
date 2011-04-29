@@ -28,17 +28,38 @@
 ###############################################################################
 #                           Configuring Environment
 ###############################################################################
+
+# setup _no_ replication to start with, but with all 6 servers included
+--let $rpl_topology= none
+--let $rpl_server_count= 6
+--let $rpl_skip_reset_master_and_slave=1
+--source include/rpl_init.inc
+--let $rpl_skip_reset_master_and_slave=0
+
 --echo *** Configuring connections ***
+--let $rpl_connection_name= srv_master
+--let $rpl_server_number= 1
+--source include/rpl_connect.inc
 
-connect (master,127.0.0.1,root,,test,$MASTER_MYPORT,);
-connect (slave,127.0.0.1,root,,test,$SLAVE_MYPORT,);
+--let $rpl_connection_name= srv_master1
+--let $rpl_server_number= 2
+--source include/rpl_connect.inc
 
-connect (srv_master,127.0.0.1,root,,test,$MASTER_MYPORT,);
-connect (srv_master1,127.0.0.1,root,,test,$MASTER_MYPORT1,);
-connect (srv_master2,127.0.0.1,root,,test,$MASTER_MYPORT2,);
-connect (srv_slave,127.0.0.1,root,,test,$SLAVE_MYPORT,);
-connect (srv_slave1,127.0.0.1,root,,test,$SLAVE_MYPORT1,);
-connect (srv_slave2,127.0.0.1,root,,test,$SLAVE_MYPORT2,);
+--let $rpl_connection_name= srv_master2
+--let $rpl_server_number= 3
+--source include/rpl_connect.inc
+
+--let $rpl_connection_name= srv_slave
+--let $rpl_server_number= 4
+--source include/rpl_connect.inc
+
+--let $rpl_connection_name= srv_slave1
+--let $rpl_server_number= 5
+--source include/rpl_connect.inc
+
+--let $rpl_connection_name= srv_slave2
+--let $rpl_server_number= 6
+--source include/rpl_connect.inc
 
 --echo *** Waiting for each cluster to startup ***
 
@@ -78,7 +99,7 @@ source suite/rpl_ndb/t/rpl_ndb_wait_schema_logging.inc;
 
 # Reset state of all Binlogging nodes
 --disable_query_log
-connection master;
+connection srv_master;
 --disable_warnings
 RESET MASTER;
 --enable_warnings
@@ -99,30 +120,26 @@ RESET MASTER;
 --enable_warnings
 --enable_query_log
 
---echo *** Configuring replication via Slave ***
-connection slave;
---disable_warnings
-RESET SLAVE;
---replace_result $MASTER_MYPORT MASTER_PORT
---eval CHANGE MASTER TO MASTER_HOST="127.0.0.1",MASTER_PORT=$MASTER_MYPORT,MASTER_USER="root";
-START SLAVE;
-source include/wait_for_slave_to_start.inc;
---enable_warnings
 
+
+--echo *** Configuring replication via Slave ***
+--let $rpl_connection_name= srv_slave
+--source include/rpl_connection.inc
+
+--let $rpl_topology= 1->4
+--source include/rpl_change_topology.inc
+
+--source include/start_slave.inc
+
+# Run the test script
 --let $which_slave=srv_slave
 --source suite/rpl_ndb/t/rpl_ndb_multi_binlog_update.inc
 
-
---echo *** Configuring replication via Slave1 ***
-connection slave;
---disable_warnings
-STOP SLAVE;
-source include/wait_for_slave_to_stop.inc;
---enable_warnings
+--source include/stop_slave.inc
 
 # Reset state of all Binlogging nodes
 --disable_query_log
-connection master;
+connection srv_master;
 --disable_warnings
 RESET MASTER;
 --enable_warnings
@@ -143,29 +160,26 @@ RESET MASTER;
 --enable_warnings
 --enable_query_log
 
-connection srv_slave1;
---disable_warnings
-RESET SLAVE;
---replace_result $MASTER_MYPORT MASTER_PORT
---eval CHANGE MASTER TO MASTER_HOST="127.0.0.1",MASTER_PORT=$MASTER_MYPORT,MASTER_USER="root"
-START SLAVE;
-source include/wait_for_slave_to_start.inc;
---enable_warnings
 
+
+--echo *** Configuring replication via Slave1 ***
+--let $rpl_connection_name= srv_slave1
+--source include/rpl_connection.inc
+
+--let $rpl_topology= 1->4,1->5
+--source include/rpl_change_topology.inc
+
+--source include/start_slave.inc
+
+# Run the test script
 --let $which_slave=srv_slave1
 --source suite/rpl_ndb/t/rpl_ndb_multi_binlog_update.inc
 
-
---echo *** Configuring replication via Slave2 ***
-connection srv_slave1;
---disable_warnings
-STOP SLAVE;
-source include/wait_for_slave_to_stop.inc;
---enable_warnings
+--source include/stop_slave.inc
 
 # Reset state of all Binlogging nodes
 --disable_query_log
-connection master;
+connection srv_master;
 --disable_warnings
 RESET MASTER;
 --enable_warnings
@@ -186,40 +200,26 @@ RESET MASTER;
 --enable_warnings
 --enable_query_log
 
-connection srv_slave2;
---disable_warnings
-RESET SLAVE;
---replace_result $MASTER_MYPORT MASTER_PORT
---eval CHANGE MASTER TO MASTER_HOST="127.0.0.1",MASTER_PORT=$MASTER_MYPORT,MASTER_USER="root";
-START SLAVE;
-source include/wait_for_slave_to_start.inc;
---enable_warnings
 
+
+--echo *** Configuring replication via Slave2 ***
+--let $rpl_connection_name= srv_slave2
+--source include/rpl_connection.inc
+
+--let $rpl_topology= 1->4,1->5,1->6
+--source include/rpl_change_topology.inc
+
+--source include/start_slave.inc
+
+# Run the test script
 --let $which_slave=srv_slave2
 --source suite/rpl_ndb/t/rpl_ndb_multi_binlog_update.inc
 
-##
-#
-# cleanup everything so that "check-testcase" doesn't fail
-# NOTE that if I didn't add the CHANGE MASTER TO MASTER_HOST="";
-# slave seems to still keep some config...
-# i.e that RESET SLAVE doesnt really "take-effect"
-#
-# probably needs investigation
-#
---connection srv_slave
---echo "cleanup srv_slave"
-RESET SLAVE;
-CHANGE MASTER TO MASTER_HOST="";
+--source include/stop_slave.inc
 
---connection srv_slave1
---echo "cleanup srv_slave1"
-RESET SLAVE;
-CHANGE MASTER TO MASTER_HOST="";
 
---connection srv_slave2
---echo "cleanup srv_slave2"
-STOP SLAVE;
-source include/wait_for_slave_to_stop.inc;
-RESET SLAVE;
-CHANGE MASTER TO MASTER_HOST="";
+
+# Cleanup and reset replication settings to how
+# they where when test started
+--let $rpl_topology= none
+--source include/rpl_change_topology.inc
