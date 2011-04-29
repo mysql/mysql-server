@@ -80,16 +80,19 @@ Master_info::Master_info(
 #ifdef HAVE_PSI_INTERFACE
                          PSI_mutex_key *param_key_info_run_lock,
                          PSI_mutex_key *param_key_info_data_lock,
+                         PSI_mutex_key *param_key_info_sleep_lock,
                          PSI_mutex_key *param_key_info_data_cond,
                          PSI_mutex_key *param_key_info_start_cond,
-                         PSI_mutex_key *param_key_info_stop_cond
+                         PSI_mutex_key *param_key_info_stop_cond,
+                         PSI_mutex_key *param_key_info_sleep_cond
 #endif
                         )
    :Rpl_info("I/O"
 #ifdef HAVE_PSI_INTERFACE
              ,param_key_info_run_lock, param_key_info_data_lock,
+             param_key_info_sleep_lock,
              param_key_info_data_cond, param_key_info_start_cond,
-             param_key_info_stop_cond
+             param_key_info_stop_cond, param_key_info_sleep_cond
 #endif
             ),
    ssl(0), ssl_verify_server_cert(0),
