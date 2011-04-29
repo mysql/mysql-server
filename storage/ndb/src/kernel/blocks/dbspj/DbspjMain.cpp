@@ -1583,8 +1583,6 @@ Dbspj::nodeFail(Signal* signal, Ptr<Request> requestPtr,
 {
   Uint32 cnt = 0;
   Uint32 iter = 0;
-  Uint32 outstanding = requestPtr.p->m_outstanding;
-  Uint32 aborting = requestPtr.p->m_state & Request::RS_ABORTING;
 
   {
     Ptr<TreeNode> nodePtr;
@@ -1623,12 +1621,6 @@ Dbspj::nodeFail(Signal* signal, Ptr<Request> requestPtr,
   {
     jam();
     abort(signal, requestPtr, DbspjErr::NodeFailure);
-
-    if (aborting && outstanding && requestPtr.p->m_outstanding == 0)
-    {
-      jam();
-      checkBatchComplete(signal, requestPtr, 0);
-    }
   }
 
   return cnt + iter;
