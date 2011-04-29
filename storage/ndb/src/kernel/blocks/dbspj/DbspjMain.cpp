@@ -4723,20 +4723,16 @@ Dbspj::scanIndex_parent_row(Signal* signal,
         break;
       }
 
-      if (fragPtr.p->m_ref == 0)
-      {
-        jam();
-        fragPtr.p->m_ref = tmp.receiverRef;
-      }
-      else
-      {
-        /**
-         * TODO: not 100% sure if this is correct with reorg ongoing...
-         *       but scanning "old" should regardless be safe as we still have
-         *       scanCookie
-         */
-        ndbassert(fragPtr.p->m_ref == tmp.receiverRef);
-      }
+      /**
+       * NOTE: We can get different receiverRef's here
+       *       for different keys. E.g during node-recovery where
+       *       primary-fragment is switched.
+       *
+       *       Use latest that we receive
+       *
+       * TODO: Also double check table-reorg
+       */
+      fragPtr.p->m_ref = tmp.receiverRef;
     }
     else
     {
