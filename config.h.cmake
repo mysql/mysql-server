@@ -125,6 +125,7 @@
 #cmakedefine FIONREAD_IN_SYS_IOCTL 1
 #cmakedefine GWINSZ_IN_SYS_IOCTL 1
 #cmakedefine TIOCSTAT_IN_SYS_IOCTL 1
+#cmakedefine FIONREAD_IN_SYS_FILIO 1
 
 /* Functions we may want to use. */
 #cmakedefine HAVE_AIOWAIT 1
