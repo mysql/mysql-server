@@ -460,10 +460,6 @@ trx_rollback_active(
 		(ulong) rows_to_undo, unit);
 	mutex_exit(&kernel_mutex);
 
-	trx->mysql_thread_id = os_thread_get_curr_id();
-
-	trx->mysql_process_no = os_proc_get_number();
-
 	if (trx_get_dict_operation(trx) != TRX_DICT_OP_NONE) {
 		row_mysql_lock_data_dictionary(trx);
 		dictionary_locked = TRUE;
