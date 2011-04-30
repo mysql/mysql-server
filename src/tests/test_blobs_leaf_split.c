@@ -17,7 +17,7 @@ static void insert(DB *db, DB_TXN *txn, int k, int val_size) {
     
     DBT key = { .data = key_buffer, .size = sizeof key_buffer };
     DBT value = { .data = val_buffer, .size = val_size };
-    r = db->put(db, txn, &key, &value, 0); assert(r == 0);
+    r = db->put(db, txn, &key, &value, 0); assert_zero(r);
 
     toku_free(val_buffer);
 }
@@ -64,43 +64,43 @@ int test_main(int argc, char * const argv[]) {
     int r;
     char rm_cmd[strlen(db_env_dir) + strlen("rm -rf ") + 1];
     snprintf(rm_cmd, sizeof(rm_cmd), "rm -rf %s", db_env_dir);
-    r = system(rm_cmd); assert(r == 0);
+    r = system(rm_cmd); assert_zero(r);
 
-    r = toku_os_mkdir(db_env_dir, S_IRWXU | S_IRGRP | S_IXGRP | S_IROTH | S_IXOTH); assert(r == 0);
+    r = toku_os_mkdir(db_env_dir, S_IRWXU | S_IRGRP | S_IXGRP | S_IROTH | S_IXOTH); assert_zero(r);
 
     // create and open the env
     DB_ENV *db_env = NULL;
-    r = db_env_create(&db_env, 0); assert(r == 0);
+    r = db_env_create(&db_env, 0); assert_zero(r);
     if (cachesize) {
         const u_int64_t gig = 1 << 30;
-        r = db_env->set_cachesize(db_env, cachesize / gig, cachesize % gig, 1); assert(r == 0);
+        r = db_env->set_cachesize(db_env, cachesize / gig, cachesize % gig, 1); assert_zero(r);
     }
     if (!do_txn)
         db_env_open_flags &= ~(DB_INIT_TXN | DB_INIT_LOG);
-    r = db_env->open(db_env, db_env_dir, db_env_open_flags, S_IRUSR | S_IWUSR | S_IRGRP | S_IROTH); assert(r == 0);
+    r = db_env->open(db_env, db_env_dir, db_env_open_flags, S_IRUSR | S_IWUSR | S_IRGRP | S_IROTH); assert_zero(r);
 
     // create the db
     DB *db = NULL;
-    r = db_create(&db, db_env, 0); assert(r == 0);
+    r = db_create(&db, db_env, 0); assert_zero(r);
     DB_TXN *create_txn = NULL;
     if (do_txn) {
-        r = db_env->txn_begin(db_env, NULL, &create_txn, 0); assert(r == 0);
+        r = db_env->txn_begin(db_env, NULL, &create_txn, 0); assert_zero(r);
     }
     if (pagesize) {
-        r = db->set_pagesize(db, pagesize); assert(r == 0);
+        r = db->set_pagesize(db, pagesize); assert_zero(r);
     }
-    r = db->open(db, create_txn, db_filename, NULL, DB_BTREE, DB_CREATE, S_IRUSR | S_IWUSR | S_IRGRP | S_IROTH); assert(r == 0);
+    r = db->open(db, create_txn, db_filename, NULL, DB_BTREE, DB_CREATE, S_IRUSR | S_IWUSR | S_IRGRP | S_IROTH); assert_zero(r);
 
     insert(db, create_txn, 1, 8000000);
     insert(db, create_txn, 2, 1);
 
     if (do_txn) {
-        r = create_txn->commit(create_txn, 0); assert(r == 0);
+        r = create_txn->commit(create_txn, 0); assert_zero(r);
     }
 
     // shutdown
-    r = db->close(db, 0); assert(r == 0); db = NULL;
-    r = db_env->close(db_env, 0); assert(r == 0); db_env = NULL;
+    r = db->close(db, 0); assert_zero(r); db = NULL;
+    r = db_env->close(db_env, 0); assert_zero(r); db_env = NULL;
 
     return 0;
 }
