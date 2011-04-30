@@ -999,6 +999,13 @@ ID	Name	Country	Population
 1898	Chengdu	CHN	3361500
 1900	Changchun	CHN	2812000
 1910	Changsha	CHN	1809800
+EXPLAIN 
+SELECT * FROM City, Country 
+WHERE City.Name LIKE 'C%' AND City.Population > 1000000 AND
+Country.Code=City.Country;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	City	index_merge	Population,Name,CountryID,CountryName	Population,Name	4,35	NULL	#	Using sort_intersect(Population,Name); Using where
+1	SIMPLE	Country	eq_ref	PRIMARY	PRIMARY	3	world.City.Country	#	
 DROP DATABASE world;
 use test;
 CREATE TABLE t1 (
