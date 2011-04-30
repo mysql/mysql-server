@@ -174,6 +174,10 @@
 #cmakedefine gmtime_r @gmtime_r@
 #cmakedefine HAVE_INITGROUPS 1
 #cmakedefine HAVE_ISSETUGID 1
+#cmakedefine HAVE_GETUID 1
+#cmakedefine HAVE_GETEUID 1
+#cmakedefine HAVE_GETGID 1
+#cmakedefine HAVE_GETEGID 1
 #cmakedefine HAVE_ISNAN 1
 #cmakedefine HAVE_ISINF 1
 #cmakedefine HAVE_LARGE_PAGE_OPTION 1
