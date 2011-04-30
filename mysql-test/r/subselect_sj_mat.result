@@ -284,14 +284,13 @@ where (a1, a2) in (select b1, b2 from t2 where b1 >  '0') and
 (a1, a2) in (select c1, c2 from t3
 where (c1, c2) in (select b1, b2 from t2i where b2 > '0'));
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	3	100.00	
-1	PRIMARY	<subquery2>	eq_ref	distinct_key	distinct_key	18	func,func	1	100.00	
+1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	3	100.00	Using where; Start temporary
+1	PRIMARY	t2	ALL	NULL	NULL	NULL	NULL	5	100.00	Using where; End temporary; Using join buffer (flat, BNL join)
 1	PRIMARY	<subquery3>	eq_ref	distinct_key	distinct_key	18	func,func	1	100.00	
-2	SUBQUERY	t2	ALL	NULL	NULL	NULL	NULL	5	100.00	Using where
 3	SUBQUERY	t3	ALL	NULL	NULL	NULL	NULL	4	100.00	Using where
 3	SUBQUERY	t2i	index	it2i1,it2i2,it2i3	it2i3	18	NULL	5	80.00	Using where; Using index; Using join buffer (flat, BNL join)
 Warnings:
-Note	1003	select `test`.`t1`.`a1` AS `a1`,`test`.`t1`.`a2` AS `a2` from `test`.`t1` semi join (`test`.`t2`) semi join (`test`.`t2i` join `test`.`t3`) where ((`test`.`t2i`.`b2` = `test`.`t3`.`c2`) and (`test`.`t2i`.`b1` = `test`.`t3`.`c1`) and (`test`.`t2`.`b1` > '0') and (`test`.`t3`.`c2` > '0'))
+Note	1003	select `test`.`t1`.`a1` AS `a1`,`test`.`t1`.`a2` AS `a2` from `test`.`t1` semi join (`test`.`t2`) semi join (`test`.`t2i` join `test`.`t3`) where ((`test`.`t2`.`b2` = `test`.`t1`.`a2`) and (`test`.`t2i`.`b2` = `test`.`t3`.`c2`) and (`test`.`t2`.`b1` = `test`.`t1`.`a1`) and (`test`.`t2i`.`b1` = `test`.`t3`.`c1`) and (`test`.`t1`.`a1` > '0') and (`test`.`t3`.`c2` > '0'))
 select * from t1
 where (a1, a2) in (select b1, b2 from t2 where b1 >  '0') and
 (a1, a2) in (select c1, c2 from t3
@@ -306,11 +305,11 @@ where (a1, a2) in (select b1, b2 from t2i where b1 >  '0') and
 where (c1, c2) in (select b1, b2 from t2i where b2 > '0'));
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	PRIMARY	t1i	index	it1i1,it1i2,it1i3	#	#	#	3	100.00	#
-1	PRIMARY	<subquery2>	eq_ref	distinct_key	#	#	#	1	100.00	#
 1	PRIMARY	<subquery3>	eq_ref	distinct_key	#	#	#	1	100.00	#
-2	SUBQUERY	t2i	index	it2i1,it2i2,it2i3	#	#	#	5	100.00	#
+1	PRIMARY	<subquery2>	eq_ref	distinct_key	#	#	#	1	100.00	#
 3	SUBQUERY	t2i	index	it2i1,it2i2,it2i3	#	#	#	5	100.00	#
 3	SUBQUERY	t3i	index	it3i1,it3i2,it3i3	#	#	#	4	75.00	#
+2	SUBQUERY	t2i	index	it2i1,it2i2,it2i3	#	#	#	5	100.00	#
 Warnings:
 Note	1003	select `test`.`t1i`.`a1` AS `a1`,`test`.`t1i`.`a2` AS `a2` from `test`.`t1i` semi join (`test`.`t2i`) semi join (`test`.`t2i` join `test`.`t3i`) where ((`test`.`t3i`.`c2` = `test`.`t2i`.`b2`) and (`test`.`t3i`.`c1` = `test`.`t2i`.`b1`) and (`test`.`t2i`.`b1` > '0') and (`test`.`t2i`.`b2` > '0'))
 select * from t1i
@@ -328,16 +327,15 @@ b2 in (select c2 from t3 where c2 LIKE '%03')) and
 (a1, a2) in (select c1, c2 from t3
 where (c1, c2) in (select b1, b2 from t2i where b2 > '0'));
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	3	100.00	
-1	PRIMARY	<subquery2>	eq_ref	distinct_key	distinct_key	18	func,func	1	100.00	
+1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	3	100.00	Start temporary
+1	PRIMARY	t2	ALL	NULL	NULL	NULL	NULL	5	100.00	Using where; End temporary; Using join buffer (flat, BNL join)
 1	PRIMARY	<subquery5>	eq_ref	distinct_key	distinct_key	18	func,func	1	100.00	
-2	SUBQUERY	t2	ALL	NULL	NULL	NULL	NULL	5	100.00	Using where
 5	SUBQUERY	t3	ALL	NULL	NULL	NULL	NULL	4	100.00	Using where
 5	SUBQUERY	t2i	index	it2i1,it2i2,it2i3	it2i3	18	NULL	5	80.00	Using where; Using index; Using join buffer (flat, BNL join)
 4	SUBQUERY	t3	ALL	NULL	NULL	NULL	NULL	4	100.00	Using where
 3	SUBQUERY	t3	ALL	NULL	NULL	NULL	NULL	4	100.00	Using where
 Warnings:
-Note	1003	select `test`.`t1`.`a1` AS `a1`,`test`.`t1`.`a2` AS `a2` from `test`.`t1` semi join (`test`.`t2`) semi join (`test`.`t2i` join `test`.`t3`) where ((`test`.`t2i`.`b2` = `test`.`t3`.`c2`) and (`test`.`t2i`.`b1` = `test`.`t3`.`c1`) and (<expr_cache><`test`.`t2`.`b2`>(<in_optimizer>(`test`.`t2`.`b2`,`test`.`t2`.`b2` in ( <materialize> (select `test`.`t3`.`c2` from `test`.`t3` where (`test`.`t3`.`c2` like '%02') ), <primary_index_lookup>(`test`.`t2`.`b2` in <temporary table> on distinct_key where ((`test`.`t2`.`b2` = `<subquery3>`.`c2`)))))) or <expr_cache><`test`.`t2`.`b2`>(<in_optimizer>(`test`.`t2`.`b2`,`test`.`t2`.`b2` in ( <materialize> (select `test`.`t3`.`c2` from `test`.`t3` where (`test`.`t3`.`c2` like '%03') ), <primary_index_lookup>(`test`.`t2`.`b2` in <temporary table> on distinct_key where ((`test`.`t2`.`b2` = `<subquery4>`.`c2`))))))) and (`test`.`t3`.`c2` > '0'))
+Note	1003	select `test`.`t1`.`a1` AS `a1`,`test`.`t1`.`a2` AS `a2` from `test`.`t1` semi join (`test`.`t2`) semi join (`test`.`t2i` join `test`.`t3`) where ((`test`.`t2`.`b2` = `test`.`t1`.`a2`) and (`test`.`t2i`.`b2` = `test`.`t3`.`c2`) and (`test`.`t2`.`b1` = `test`.`t1`.`a1`) and (`test`.`t2i`.`b1` = `test`.`t3`.`c1`) and (<expr_cache><`test`.`t2`.`b2`>(<in_optimizer>(`test`.`t2`.`b2`,`test`.`t2`.`b2` in ( <materialize> (select `test`.`t3`.`c2` from `test`.`t3` where (`test`.`t3`.`c2` like '%02') ), <primary_index_lookup>(`test`.`t2`.`b2` in <temporary table> on distinct_key where ((`test`.`t2`.`b2` = `<subquery3>`.`c2`)))))) or <expr_cache><`test`.`t2`.`b2`>(<in_optimizer>(`test`.`t2`.`b2`,`test`.`t2`.`b2` in ( <materialize> (select `test`.`t3`.`c2` from `test`.`t3` where (`test`.`t3`.`c2` like '%03') ), <primary_index_lookup>(`test`.`t2`.`b2` in <temporary table> on distinct_key where ((`test`.`t2`.`b2` = `<subquery4>`.`c2`))))))) and (`test`.`t3`.`c2` > '0'))
 select * from t1
 where (a1, a2) in (select b1, b2 from t2
 where b2 in (select c2 from t3 where c2 LIKE '%02') or
@@ -395,11 +393,11 @@ id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 4	SUBQUERY	t3	ALL	NULL	#	#	#	4	100.00	#
 3	SUBQUERY	t3	ALL	NULL	#	#	#	4	100.00	#
 7	UNION	t1i	index	it1i1,it1i2,it1i3	#	#	#	3	100.00	#
-7	UNION	<subquery8>	eq_ref	distinct_key	#	#	#	1	100.00	#
 7	UNION	<subquery9>	eq_ref	distinct_key	#	#	#	1	100.00	#
-8	SUBQUERY	t2i	index	it2i1,it2i2,it2i3	#	#	#	5	100.00	#
+7	UNION	<subquery8>	eq_ref	distinct_key	#	#	#	1	100.00	#
 9	SUBQUERY	t2i	index	it2i1,it2i2,it2i3	#	#	#	5	100.00	#
 9	SUBQUERY	t3i	index	it3i1,it3i2,it3i3	#	#	#	4	75.00	#
+8	SUBQUERY	t2i	index	it2i1,it2i2,it2i3	#	#	#	5	100.00	#
 NULL	UNION RESULT	<union1,7>	ALL	NULL	#	#	#	NULL	NULL	#
 Warnings:
 Note	1003	(select `test`.`t1`.`a1` AS `a1`,`test`.`t1`.`a2` AS `a2` from  <materialize> (select `test`.`t2`.`b1`,`test`.`t2`.`b2` from `test`.`t2` where (<expr_cache><`test`.`t2`.`b2`>(<in_optimizer>(`test`.`t2`.`b2`,`test`.`t2`.`b2` in ( <materialize> (select `test`.`t3`.`c2` from `test`.`t3` where (`test`.`t3`.`c2` like '%02') ), <primary_index_lookup>(`test`.`t2`.`b2` in <temporary table> on distinct_key where ((`test`.`t2`.`b2` = `<subquery3>`.`c2`)))))) or <expr_cache><`test`.`t2`.`b2`>(<in_optimizer>(`test`.`t2`.`b2`,`test`.`t2`.`b2` in ( <materialize> (select `test`.`t3`.`c2` from `test`.`t3` where (`test`.`t3`.`c2` like '%03') ), <primary_index_lookup>(`test`.`t2`.`b2` in <temporary table> on distinct_key where ((`test`.`t2`.`b2` = `<subquery4>`.`c2`))))))) group by `test`.`t2`.`b1`,`test`.`t2`.`b2`) semi join (`test`.`t2i` join `test`.`t3`) join `test`.`t1` where ((`test`.`t3`.`c2` = `<subquery2>`.`b2`) and (`test`.`t1`.`a2` = `<subquery2>`.`b2`) and (`test`.`t2i`.`b2` = `<subquery2>`.`b2`) and (`test`.`t3`.`c1` = `<subquery2>`.`b1`) and (`test`.`t1`.`a1` = `<subquery2>`.`b1`) and (`test`.`t2i`.`b1` = `<subquery2>`.`b1`) and (`<subquery2>`.`b2` > '0'))) union (select `test`.`t1i`.`a1` AS `a1`,`test`.`t1i`.`a2` AS `a2` from `test`.`t1i` semi join (`test`.`t2i`) semi join (`test`.`t2i` join `test`.`t3i`) where ((`test`.`t3i`.`c2` = `test`.`t2i`.`b2`) and (`test`.`t3i`.`c1` = `test`.`t2i`.`b1`) and (`test`.`t2i`.`b1` > '0') and (`test`.`t2i`.`b2` > '0')))
@@ -1263,7 +1261,7 @@ EXPLAIN SELECT pk FROM t1 WHERE (a) IN (SELECT a FROM t2 WHERE pk > 0);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	2	
 1	PRIMARY	<subquery2>	eq_ref	distinct_key	distinct_key	5	func	1	
-2	SUBQUERY	t2	range	PRIMARY	PRIMARY	4	NULL	2	Using index condition; Using MRR
+2	SUBQUERY	t2	range	PRIMARY	PRIMARY	4	NULL	2	Using index condition; Rowid-ordered scan
 SELECT pk FROM t1 WHERE (a) IN (SELECT a FROM t2 WHERE pk > 0);
 pk
 2
