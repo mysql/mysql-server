@@ -1,4 +1,5 @@
-# test that deletes work when hot indexing is on
+# test that deletes work when hot indexing is on with replace into optimization
+# test is checking #3406
 
 set storage_engine='tokudb';
 
