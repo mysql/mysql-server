@@ -381,14 +381,14 @@ Sensitive_cursor::open(JOIN *join_arg)
 
   /* Prepare JOIN for reading rows. */
   join->tmp_table= 0;
-  join->join_tab[join->tables-1].next_select= setup_end_select_func(join);
+  join->join_tab[join->top_join_tab_count - 1].next_select= setup_end_select_func(join);
   join->send_records= 0;
   join->fetch_limit= join->unit->offset_limit_cnt;
 
   /* Disable JOIN CACHE as it is not working with cursors yet */
-  for (JOIN_TAB *tab= join_tab;
-       tab != join->join_tab + join->tables - 1;
-       tab++)
+  for (JOIN_TAB *tab= first_linear_tab(join, WITHOUT_CONST_TABLES); 
+       tab != join->join_tab + join->top_join_tab_count - 1;
+       tab= next_linear_tab(join, tab, WITH_BUSH_ROOTS))
   {
     if (tab->next_select == sub_select_cache)
       tab->next_select= sub_select;

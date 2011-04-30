@@ -55,7 +55,7 @@ id	data	data
 2	female	no
 select t1.id from t1 union select t2.id from t2;
 Catalog	Database	Table	Table_alias	Column	Column_alias	Type	Length	Max length	Is_null	Flags	Decimals	Charsetnr
-def				id	id	1	4	1	Y	32768	0	63
+def				id	id	1	4	1	Y	49152	0	63
 id
 1
 2
@@ -66,7 +66,7 @@ insert into t1 values (2,'two');
 set @arg00=1 ;
 select @arg00 FROM t1 where a=1 union distinct select 1 FROM t1 where a=1;
 Catalog	Database	Table	Table_alias	Column	Column_alias	Type	Length	Max length	Is_null	Flags	Decimals	Charsetnr
-def				@arg00	@arg00	8	20	1	Y	32768	0	63
+def				@arg00	@arg00	8	20	1	Y	49152	0	63
 @arg00
 1
 select * from (select @arg00) aaa;
@@ -76,7 +76,7 @@ def			aaa	@arg00	@arg00	8	20	1	Y	32768	0	63
 1
 select 1 union select 1;
 Catalog	Database	Table	Table_alias	Column	Column_alias	Type	Length	Max length	Is_null	Flags	Decimals	Charsetnr
-def				1	1	8	20	1	N	32769	0	63
+def				1	1	8	20	1	N	49153	0	63
 1
 1
 select * from (select 1 union select 1) aaa;

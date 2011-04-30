@@ -6615,14 +6615,15 @@ int make_schema_select(THD *thd, SELECT_LEX *sel,
 bool get_schema_tables_result(JOIN *join,
                               enum enum_schema_table_state executed_place)
 {
-  JOIN_TAB *tmp_join_tab= join->join_tab+join->tables;
   THD *thd= join->thd;
   LEX *lex= thd->lex;
   bool result= 0;
   DBUG_ENTER("get_schema_tables_result");
 
   thd->no_warnings_for_error= 1;
-  for (JOIN_TAB *tab= join->join_tab; tab < tmp_join_tab; tab++)
+  for (JOIN_TAB *tab= first_linear_tab(join, WITH_CONST_TABLES); 
+       tab; 
+       tab= next_linear_tab(join, tab, WITHOUT_BUSH_ROOTS))
   {
     if (!tab->table || !tab->table->pos_in_table_list)
       break;
