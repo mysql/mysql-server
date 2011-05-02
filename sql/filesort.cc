@@ -1226,7 +1226,7 @@ bool check_if_pq_applicable(Sort_param *param,
                                        row_length);
       /*
         PQ has cost:
-        (insert + qsort) * log(queue size) / TIME_FOR_COMPARE_ROWID +
+        (insert + qsort) * log(queue size) * ROWID_COMPARE_COST +
         cost of file lookup afterwards.
         The lookup cost is a bit pessimistic: we take scan_time and assume
         that on average we find the row after scanning half of the file.
@@ -1235,7 +1235,7 @@ bool check_if_pq_applicable(Sort_param *param,
       */
       const double pq_cpu_cost= 
         (PQ_slowness * num_rows + param->max_keys_per_buffer) *
-        log((double) param->max_keys_per_buffer) / TIME_FOR_COMPARE_ROWID;
+        log((double) param->max_keys_per_buffer) * ROWID_COMPARE_COST;
       const double pq_io_cost=
         param->max_rows * table->file->scan_time() / 2.0;
       const double pq_cost= pq_cpu_cost + pq_io_cost;
