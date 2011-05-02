@@ -125,6 +125,7 @@
 #cmakedefine FIONREAD_IN_SYS_IOCTL 1
 #cmakedefine GWINSZ_IN_SYS_IOCTL 1
 #cmakedefine TIOCSTAT_IN_SYS_IOCTL 1
+#cmakedefine FIONREAD_IN_SYS_FILIO 1
 
 /* Functions we may want to use. */
 #cmakedefine HAVE_AIOWAIT 1
@@ -173,6 +174,10 @@
 #cmakedefine gmtime_r @gmtime_r@
 #cmakedefine HAVE_INITGROUPS 1
 #cmakedefine HAVE_ISSETUGID 1
+#cmakedefine HAVE_GETUID 1
+#cmakedefine HAVE_GETEUID 1
+#cmakedefine HAVE_GETGID 1
+#cmakedefine HAVE_GETEGID 1
 #cmakedefine HAVE_ISNAN 1
 #cmakedefine HAVE_ISINF 1
 #cmakedefine HAVE_LARGE_PAGE_OPTION 1
