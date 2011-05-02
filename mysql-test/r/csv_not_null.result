@@ -19,12 +19,15 @@ INSERT INTO t1 VALUES();
 SELECT * FROM t1;
 a	b	c	d	e	f
 0				foo	0000-00-00
+INSERT INTO t1 VALUES(default,default,default,default,default,default);
 SELECT * FROM t1;
 a	b	c	d	e	f
+0				foo	0000-00-00
 0				foo	0000-00-00
 INSERT INTO t1 VALUES(0,'abc','def','ghi','bar','1999-12-31');
 SELECT * FROM t1;
 a	b	c	d	e	f
+0				foo	0000-00-00
 0				foo	0000-00-00
 0	abc	def	ghi	bar	1999-12-31
 # === insert failures ===

@@ -44,6 +44,7 @@ master-bin.000001	#	Query	#	#	use `test`; INSERT INTO t4 VALUES ( NAME_CONST('in
 master-bin.000001	#	Query	#	#	use `test`; DROP PROCEDURE bug18293
 master-bin.000001	#	Query	#	#	use `test`; DROP TABLE t4
 End of 5.0 tests
+call mtr.add_suppression("Error in Log_event::read_log_event\\\(\\\): 'Sanity check failed', data_len: 258, event_type: 49");
 SHOW BINLOG EVENTS FROM 365;
 ERROR HY000: Error when executing command SHOW BINLOG EVENTS: Wrong offset or I/O error
 Bug#44352 UPPER/LOWER function doesn't work correctly on cp932 and sjis environment.

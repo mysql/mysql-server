@@ -1428,6 +1428,7 @@ set session max_sort_length= 2180;
 select * from t1 order by b;
 ERROR HY001: Out of sort memory; increase server sort buffer size
 drop table t1;
+call mtr.add_suppression("Out of sort memory; increase server sort buffer size");
 #
 # Bug #39844: Query Crash Mysql Server 5.0.67
 #
@@ -1638,4 +1639,29 @@ id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	t1	index	NULL	a	8	NULL	10	Using index; Using temporary; Using filesort
 1	SIMPLE	t2	eq_ref	PRIMARY	PRIMARY	4	test.t1.b	1	Using where
 DROP TABLE t1, t2;
+#
+# Bug #59110: Memory leak of QUICK_SELECT_I allocated memory 
+#  and
+# Bug #59308: Incorrect result for 
+SELECT DISTINCT <col>... ORDER BY <col> DESC 
+
+# Use Valgrind to detect #59110!
+#
+CREATE TABLE t1 (a INT,KEY (a));
+INSERT INTO t1 VALUES (1),(2),(3),(4),(5),(6),(7),(8),(9),(10);
+EXPLAIN SELECT DISTINCT a,1 FROM t1 WHERE a <> 1 ORDER BY a DESC;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	index	a	a	5	NULL	10	Using where; Using index; Using filesort
+SELECT DISTINCT a,1 FROM t1 WHERE a <> 1 ORDER BY a DESC;
+a	1
+10	1
+9	1
+8	1
+7	1
+6	1
+5	1
+4	1
+3	1
+2	1
+DROP TABLE t1;
 End of 5.1 tests

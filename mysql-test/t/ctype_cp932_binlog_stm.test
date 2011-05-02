@@ -33,6 +33,8 @@ delimiter ;|
 # Note: 364 is a magic position (found experimentally, depends on 
 # the log's contents) that caused the server crash.
 
+call mtr.add_suppression("Error in Log_event::read_log_event\\\(\\\): 'Sanity check failed', data_len: 258, event_type: 49");
+
 --error 1220
 SHOW BINLOG EVENTS FROM 365;
 

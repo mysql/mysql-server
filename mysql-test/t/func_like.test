@@ -126,5 +126,10 @@ INSERT INTO t2 VALUES (1), (2), (3);
 SELECT 1 FROM t2 JOIN t1 ON 1 LIKE a GROUP BY a;
 DROP TABLE t1, t2;
 
+--echo #
+--echo # Bug#59149 valgrind warnings with "like .. escape .." function
+--echo #
+--error ER_WRONG_ARGUMENTS
+SELECT '' LIKE '1' ESCAPE COUNT(1);
 
 --echo End of 5.1 tests

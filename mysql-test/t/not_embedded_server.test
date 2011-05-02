@@ -42,4 +42,14 @@ select 1;
 
 SHOW VARIABLES like 'slave_skip_errors';
 
+--echo #
+--echo # Bug#58026: massive recursion and crash in regular expression handling
+--echo #
+
+--disable_result_log
+--error ER_STACK_OVERRUN_NEED_MORE
+SELECT '1' RLIKE RPAD('1', 10000, '(');
+--enable_result_log
+
+
 # End of 5.1 tests

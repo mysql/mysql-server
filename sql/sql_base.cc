@@ -2807,10 +2807,9 @@ TABLE *open_table(THD *thd, TABLE_LIST *table_list, MEM_ROOT *mem_root,
                  ("Found table '%s.%s' with different refresh version",
                   table_list->db, table_list->table_name));
 
-      /* Ignore FLUSH, but not name locks! */
+      /* Ignore FLUSH and pending name locks, but not acquired name locks! */
       if (flags & MYSQL_LOCK_IGNORE_FLUSH && !table->open_placeholder)
       {
-        DBUG_ASSERT(table->db_stat);
         /* Force close at once after usage */
         thd->version= table->s->version;
         continue;

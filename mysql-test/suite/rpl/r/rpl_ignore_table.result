@@ -115,6 +115,7 @@ show grants for mysqltest4@localhost;
 Grants for mysqltest4@localhost
 GRANT USAGE ON *.* TO 'mysqltest4'@'localhost' IDENTIFIED BY PASSWORD '*196BDEDE2AE4F84CA44C47D54D78478C7E2BD7B7'
 set global slave_exec_mode='IDEMPOTENT';
+call mtr.add_suppression("Slave SQL.*Could not execute Delete_rows event on table mysql.* Error_code: 1032");
 drop table t1, mysqltest2.t2;
 drop table t4;
 drop database mysqltest2;

@@ -154,6 +154,8 @@ static bool sys_update_slow_log_path(THD *thd, set_var * var);
 static void sys_default_slow_log_path(THD *thd, enum_var_type type);
 static void fix_sys_log_slow_filter(THD *thd, enum_var_type);
 static uchar *get_myisam_mmap_size(THD *thd);
+static int check_max_allowed_packet(THD *thd,  set_var *var);
+static int check_net_buffer_length(THD *thd,  set_var *var);
 
 /*
   Variable definition list
@@ -390,7 +392,8 @@ static sys_var_const    sys_lower_case_table_names(&vars,
                                                    (uchar*)
                                                    &lower_case_table_names);
 static sys_var_thd_ulong_session_readonly sys_max_allowed_packet(&vars, "max_allowed_packet",
-					       &SV::max_allowed_packet);
+					       &SV::max_allowed_packet,
+                                               check_max_allowed_packet);
 static sys_var_ulonglong_ptr sys_max_binlog_cache_size(&vars, "max_binlog_cache_size",
                                                        &max_binlog_cache_size);
 static sys_var_long_ptr	sys_max_binlog_size(&vars, "max_binlog_size",
@@ -424,6 +427,12 @@ static sys_var_thd_ulong	sys_max_seeks_for_key(&vars, "max_seeks_for_key",
 					      &SV::max_seeks_for_key);
 static sys_var_thd_ulong   sys_max_length_for_sort_data(&vars, "max_length_for_sort_data",
                                                  &SV::max_length_for_sort_data);
+static sys_var_const    sys_max_long_data_size(&vars,
+                                               "max_long_data_size",
+                                               OPT_GLOBAL, SHOW_LONG,
+                                               (uchar*)
+                                               &max_long_data_size);
+
 #ifndef TO_BE_DELETED	/* Alias for max_join_size */
 static sys_var_thd_ha_rows	sys_sql_max_join_size(&vars, "sql_max_join_size",
 					      &SV::max_join_size,
@@ -474,7 +483,8 @@ static sys_var_const            sys_named_pipe(&vars, "named_pipe",
 /* purecov: end */
 #endif
 static sys_var_thd_ulong_session_readonly sys_net_buffer_length(&vars, "net_buffer_length",
-					      &SV::net_buffer_length);
+					      &SV::net_buffer_length,
+                                              check_net_buffer_length);
 static sys_var_thd_ulong	sys_net_read_timeout(&vars, "net_read_timeout",
 					     &SV::net_read_timeout,
 					     0, fix_net_read_timeout);
@@ -1888,7 +1898,7 @@ bool sys_var::check_set(THD *thd, set_var *var, TYPELIB *enum_names)
     }
 
     var->save_result.ulong_value= ((ulong)
-				   find_set(enum_names, res->ptr(),
+				   find_set(enum_names, res->c_ptr_safe(),
 					    res->length(),
                                             NULL,
                                             &error, &error_len,
@@ -2299,7 +2309,7 @@ bool sys_var_character_set_client::check(THD *thd, set_var *var)
   if (sys_var_character_set_sv::check(thd, var))
     return 1;
   /* Currently, UCS-2 cannot be used as a client character set */
-  if (var->save_result.charset->mbminlen > 1)
+  if (!is_supported_parser_charset(var->save_result.charset))
   {
     my_error(ER_WRONG_VALUE_FOR_VAR, MYF(0), name, 
              var->save_result.charset->csname);
@@ -2803,14 +2813,14 @@ int set_var_collation_client::update(THD *thd)
 
 bool sys_var_timestamp::check(THD *thd, set_var *var)
 {
-  time_t val;
+  longlong val;
   var->save_result.ulonglong_value= var->value->val_int();
-  val= (time_t) var->save_result.ulonglong_value;
-  if (val < (time_t) MY_TIME_T_MIN || val > (time_t) MY_TIME_T_MAX)
+  val= (longlong) var->save_result.ulonglong_value;
+  if (val != 0 &&          // this is how you set the default value
+      (val < TIMESTAMP_MIN_VALUE || val > TIMESTAMP_MAX_VALUE))
   {
-    my_message(ER_UNKNOWN_ERROR, 
-               "This version of MySQL doesn't support dates later than 2038",
-               MYF(0));
+    char buf[64];
+    my_error(ER_WRONG_VALUE_FOR_VAR, MYF(0), "timestamp", llstr(val, buf));
     return TRUE;
   }
   return FALSE;
@@ -3045,7 +3055,7 @@ bool sys_var_thd_lc_time_names::check(THD *thd, set_var *var)
       my_error(ER_WRONG_VALUE_FOR_VAR, MYF(0), name, "NULL");
       return 1;
     }
-    const char *locale_str= res->c_ptr();
+    const char *locale_str= res->c_ptr_safe();
     if (!(locale_match= my_locale_by_name(locale_str)))
     {
       my_printf_error(ER_UNKNOWN_ERROR,
@@ -4387,6 +4397,36 @@ uchar *sys_var_event_scheduler::value_ptr(THD *thd, enum_var_type type,
   return (uchar *) Events::get_opt_event_scheduler_str();
 }
 #endif
+
+
+int 
+check_max_allowed_packet(THD *thd,  set_var *var)
+{
+  longlong val= var->value->val_int();
+  if (val < (longlong) global_system_variables.net_buffer_length)
+  {
+    push_warning(thd, MYSQL_ERROR::WARN_LEVEL_WARN, 
+                        ER_UNKNOWN_ERROR, 
+                        "The value of 'max_allowed_packet' should be no less than "
+                        "the value of 'net_buffer_length'");
+  }
+  return 0;
+}
+
+
+int 
+check_net_buffer_length(THD *thd,  set_var *var)
+{
+  longlong val= var->value->val_int();
+  if (val > (longlong) global_system_variables.max_allowed_packet)
+  {
+    push_warning(thd, MYSQL_ERROR::WARN_LEVEL_WARN, 
+                        ER_UNKNOWN_ERROR, 
+                        "The value of 'max_allowed_packet' should be no less than "
+                        "the value of 'net_buffer_length'");
+  }
+  return 0;
+}
 
 /****************************************************************************
   Used templates

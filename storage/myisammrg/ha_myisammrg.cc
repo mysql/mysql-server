@@ -459,8 +459,7 @@ int ha_myisammrg::open(const char *name, int mode __attribute__((unused)),
       problem because all locking is handled by the original MERGE table
       from which this is cloned of.
     */
-    if (!(file= myrg_open(table->s->normalized_path.str, table->db_stat, 
-                                       HA_OPEN_IGNORE_IF_LOCKED)))
+    if (!(file= myrg_open(name, table->db_stat, HA_OPEN_IGNORE_IF_LOCKED)))
     {
       DBUG_PRINT("error", ("my_errno %d", my_errno));
       DBUG_RETURN(my_errno ? my_errno : -1); 
@@ -484,7 +483,7 @@ int ha_myisammrg::open(const char *name, int mode __attribute__((unused)),
 
    @return A cloned handler instance.
  */
-handler *ha_myisammrg::clone(MEM_ROOT *mem_root)
+handler *ha_myisammrg::clone(const char *name, MEM_ROOT *mem_root)
 {
   MYRG_TABLE    *u_table,*newu_table;
   ha_myisammrg *new_handler= 
@@ -505,8 +504,8 @@ handler *ha_myisammrg::clone(MEM_ROOT *mem_root)
     return NULL;
   }
 
-  if (new_handler->ha_open(table, table->s->normalized_path.str, table->db_stat,
-                            HA_OPEN_IGNORE_IF_LOCKED))
+  if (new_handler->ha_open(table, name, table->db_stat,
+                           HA_OPEN_IGNORE_IF_LOCKED))
   {
     delete new_handler;
     return NULL;

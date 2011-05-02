@@ -912,7 +912,7 @@ int Arg_comparator::set_cmp_func(Item_result_field *owner_arg,
         cache_converted_constant can't be used here because it can't
         correctly convert a DATETIME value from string to int representation.
       */
-      Item_cache_int *cache= new Item_cache_int();
+      Item_cache_int *cache= new Item_cache_int(MYSQL_TYPE_DATETIME);
       /* Mark the cache as non-const to prevent re-caching. */
       cache->set_used_tables(1);
       if (!(*a)->is_datetime())
@@ -4008,13 +4008,11 @@ void Item_func_in::fix_length_and_dec()
       uint j=0;
       for (uint i=1 ; i < arg_count ; i++)
       {
-	if (!args[i]->null_value)			// Skip NULL values
-        {
-          array->set(j,args[i]);
-	  j++;
-        }
-	else
-	  have_null= 1;
+        array->set(j,args[i]);
+        if (!args[i]->null_value)                      // Skip NULL values
+          j++;
+        else
+          have_null= 1;
       }
       if ((array->used_count= j))
 	array->sort();
