@@ -1732,6 +1732,12 @@ undo_size_ok:
 			new_index->heap,
 			(1 + dict_index_get_n_unique(new_index))
 			* sizeof(ib_int64_t));
+
+		new_index->stat_n_non_null_key_vals = mem_heap_zalloc(
+			new_index->heap,
+			(1 + dict_index_get_n_unique(new_index))
+			* sizeof(*new_index->stat_n_non_null_key_vals));
+
 		/* Give some sensible values to stat_n_... in case we do
 		not calculate statistics quickly enough */
 
@@ -4331,15 +4337,18 @@ dict_reload_statistics(
 	ulint		key_cols;
 	ulint		n_cols;
 	const rec_t*	rec;
+	ulint		n_fields;
 	const byte*	field;
 	ulint		len;
 	ib_int64_t*	stat_n_diff_key_vals_tmp;
+	ib_int64_t*	stat_n_non_null_key_vals_tmp;
 	byte*		buf;
 	ulint		i;
 	mtr_t		mtr;
 
 	n_cols = dict_index_get_n_unique(index);
 	stat_n_diff_key_vals_tmp = mem_heap_zalloc(heap, (n_cols + 1) * sizeof(ib_int64_t));
+	stat_n_non_null_key_vals_tmp = mem_heap_zalloc(heap, (n_cols + 1) * sizeof(ib_int64_t));
 
 	sys_stats = dict_sys->sys_stats;
 	sys_index = UT_LIST_GET_FIRST(sys_stats->indexes);
@@ -4375,8 +4384,12 @@ dict_reload_statistics(
 		}
 
 		if (rec_get_deleted_flag(rec, 0)) {
+			/* don't count */
+			i--;
 			goto next_rec;
 		}
+
+		n_fields = rec_get_n_fields_old(rec);
 
 		field = rec_get_nth_field_old(rec, 1, &len);
 		ut_a(len == 4);
@@ -4389,6 +4402,21 @@ dict_reload_statistics(
 		ut_a(len == 8);
 
 		stat_n_diff_key_vals_tmp[i] = ut_conv_dulint_to_longlong(mach_read_from_8(field));
+
+		if (n_fields > DICT_SYS_STATS_NON_NULL_VALS_FIELD) {
+			field = rec_get_nth_field_old(rec, DICT_SYS_STATS_NON_NULL_VALS_FIELD, &len);
+			ut_a(len == 8);
+
+			stat_n_non_null_key_vals_tmp[i] = ut_conv_dulint_to_longlong(mach_read_from_8(field));
+		} else {
+			/* not enough fields: should be older */
+			fprintf(stderr, "InnoDB: Notice: stats for %s/%s (%lu/%lu)"
+					" in SYS_STATS seems older format. "
+					"Please execute ANALYZE TABLE for it.\n",
+					index->table_name, index->name, i, n_cols);
+
+			stat_n_non_null_key_vals_tmp[i] = ((ib_int64_t)(-1));
+		}
 next_rec:
 		btr_pcur_move_to_next_user_rec(&pcur, &mtr);
 	}
@@ -4398,6 +4426,12 @@ next_rec:
 
 	for (i = 0; i <= n_cols; i++) {
 		index->stat_n_diff_key_vals[i] = stat_n_diff_key_vals_tmp[i];
+		if (stat_n_non_null_key_vals_tmp[i] == ((ib_int64_t)(-1))) {
+			/* approximate value */
+			index->stat_n_non_null_key_vals[i] = stat_n_diff_key_vals_tmp[n_cols];
+		} else {
+			index->stat_n_non_null_key_vals[i] = stat_n_non_null_key_vals_tmp[i];
+		}
 	}
 }
 /*===========================================*/
@@ -4442,18 +4476,22 @@ dict_store_statistics(
 	ulint		n_cols;
 	ulint		rests;
 	const rec_t*	rec;
+	ulint		n_fields;
 	const byte*	field;
 	ulint		len;
 	ib_int64_t*	stat_n_diff_key_vals_tmp;
+	ib_int64_t*	stat_n_non_null_key_vals_tmp;
 	byte*		buf;
 	ulint		i;
 	mtr_t		mtr;
 
 	n_cols = dict_index_get_n_unique(index);
 	stat_n_diff_key_vals_tmp = mem_heap_zalloc(heap, (n_cols + 1) * sizeof(ib_int64_t));
+	stat_n_non_null_key_vals_tmp = mem_heap_zalloc(heap, (n_cols + 1) * sizeof(ib_int64_t));
 
 	for (i = 0; i <= n_cols; i++) {
 		stat_n_diff_key_vals_tmp[i] = index->stat_n_diff_key_vals[i];
+		stat_n_non_null_key_vals_tmp[i] = index->stat_n_non_null_key_vals[i];
 	}
 
 	sys_stats = dict_sys->sys_stats;
@@ -4481,12 +4519,24 @@ dict_store_statistics(
 		    || ut_dulint_cmp(mach_read_from_8(rec_get_nth_field_old(rec, 0, &len)),
 				     index->id)) {
 			/* not found */
-			btr_pcur_close(&pcur);
-			mtr_commit(&mtr);
+
+
 			break;
 		}
 
 		if (rec_get_deleted_flag(rec, 0)) {
+			/* don't count */
+			i--;
+			goto next_rec;
+		}
+
+		n_fields = rec_get_n_fields_old(rec);
+
+		if (n_fields <= DICT_SYS_STATS_NON_NULL_VALS_FIELD) {
+			/* not update for the older smaller format */
+			fprintf(stderr, "InnoDB: Notice: stats for %s/%s (%lu/%lu)"
+					" in SYS_STATS seems older format. Please ANALYZE TABLE it.\n",
+					index->table_name, index->name, i, n_cols);
 			goto next_rec;
 		}
 
@@ -4501,6 +4551,14 @@ dict_store_statistics(
 		mlog_write_dulint((byte*)field,
 				ut_dulint_create((ulint) (stat_n_diff_key_vals_tmp[key_cols] >> 32),
 						(ulint) stat_n_diff_key_vals_tmp[key_cols] & 0xFFFFFFFF),
+				&mtr);
+
+		field = rec_get_nth_field_old(rec, DICT_SYS_STATS_NON_NULL_VALS_FIELD, &len);
+		ut_a(len == 8);
+
+		mlog_write_dulint((byte*)field,
+				ut_dulint_create((ulint) (stat_n_non_null_key_vals_tmp[key_cols] >> 32),
+						(ulint) stat_n_non_null_key_vals_tmp[key_cols] & 0xFFFFFFFF),
 				&mtr);
 
 		rests--;
@@ -4635,6 +4693,10 @@ dict_update_statistics(
 			for (i = dict_index_get_n_unique(index); i; ) {
 				index->stat_n_diff_key_vals[i--] = 1;
 			}
+
+			memset(index->stat_n_non_null_key_vals, 0,
+			       (1 + dict_index_get_n_unique(index))
+                               * sizeof(*index->stat_n_non_null_key_vals));
 		}
 
 		index = dict_table_get_next_index(index);
@@ -4660,6 +4722,78 @@ end:
 	table->stat_modified_counter = 0;
 
 	dict_table_stats_unlock(table, RW_X_LATCH);
+}
+
+/*********************************************************************//**
+*/
+UNIV_INTERN
+ibool
+dict_is_older_statistics(
+/*=====================*/
+	dict_index_t*	index)
+{
+	mem_heap_t*	heap;
+	dict_table_t*	sys_stats;
+	dict_index_t*	sys_index;
+	btr_pcur_t	pcur;
+	dtuple_t*	tuple;
+	dfield_t*	dfield;
+	const rec_t*	rec;
+	ulint		n_fields;
+	ulint		len;
+	byte*		buf;
+	mtr_t		mtr;
+
+	heap = mem_heap_create(100);
+
+	sys_stats = dict_sys->sys_stats;
+	sys_index = UT_LIST_GET_FIRST(sys_stats->indexes);
+	ut_a(!dict_table_is_comp(sys_stats));
+
+	tuple = dtuple_create(heap, 1);
+	dfield = dtuple_get_nth_field(tuple, 0);
+
+	buf = mem_heap_alloc(heap, 8);
+	mach_write_to_8(buf, index->id);
+
+	dfield_set_data(dfield, buf, 8);
+	dict_index_copy_types(tuple, sys_index, 1);
+
+	mtr_start(&mtr);
+
+	btr_pcur_open_on_user_rec(sys_index, tuple, PAGE_CUR_GE,
+				  BTR_SEARCH_LEAF, &pcur, &mtr);
+
+next_rec:
+	rec = btr_pcur_get_rec(&pcur);
+
+	if (!btr_pcur_is_on_user_rec(&pcur)
+	    || ut_dulint_cmp(mach_read_from_8(rec_get_nth_field_old(rec, 0, &len)),
+			     index->id)) {
+		/* not found */
+		btr_pcur_close(&pcur);
+		mtr_commit(&mtr);
+		mem_heap_free(heap);
+		/* no statistics == not older statistics */
+		return(FALSE);
+	}
+
+	if (rec_get_deleted_flag(rec, 0)) {
+		btr_pcur_move_to_next_user_rec(&pcur, &mtr);
+		goto next_rec;
+	}
+
+	n_fields = rec_get_n_fields_old(rec);
+
+	btr_pcur_close(&pcur);
+	mtr_commit(&mtr);
+	mem_heap_free(heap);
+
+	if (n_fields > DICT_SYS_STATS_NON_NULL_VALS_FIELD) {
+		return(FALSE);
+	} else {
+		return(TRUE);
+	}
 }
 
 /**********************************************************************//**

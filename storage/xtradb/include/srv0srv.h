@@ -177,6 +177,11 @@ capacity. PCT_IO(5) -> returns the number of IO operations that
 is 5% of the max where max is srv_io_capacity.  */
 #define PCT_IO(p) ((ulong) (srv_io_capacity * ((double) p / 100.0)))
 
+/* The "innodb_stats_method" setting, decides how InnoDB is going
+to treat NULL value when collecting statistics. It is not defined
+as enum type because the configure option takes unsigned integer type. */
+extern ulong	srv_innodb_stats_method;
+
 #ifdef UNIV_LOG_ARCHIVE
 extern ibool	srv_log_archive_on;
 extern ibool	srv_archive_recovery;
@@ -208,10 +213,6 @@ extern ulint	srv_fast_shutdown;	 /* If this is 1, do not do a
 extern ibool	srv_innodb_status;
 
 extern unsigned long long	srv_stats_sample_pages;
-extern ulong	srv_stats_method;
-#define SRV_STATS_METHOD_NULLS_EQUAL     0
-#define SRV_STATS_METHOD_NULLS_NOT_EQUAL 1
-#define SRV_STATS_METHOD_IGNORE_NULLS    2
 extern ulong	srv_stats_auto_update;
 extern ulint	srv_stats_update_need_lock;
 extern ibool	srv_use_sys_stats_table;
@@ -242,6 +243,8 @@ extern ulint	srv_pass_corrupt_table;
 
 extern ulong	srv_extra_rsegments;
 extern ulong	srv_dict_size_limit;
+
+extern ulint	srv_lazy_drop_table;
 /*-------------------------------------------*/
 
 extern ulint	srv_n_rows_inserted;
@@ -412,6 +415,19 @@ enum {
 	SRV_FORCE_NO_LOG_REDO = 6	/*!< do not do the log roll-forward
 					in connection with recovery */
 };
+
+/* Alternatives for srv_innodb_stats_method, which could be changed by
+setting innodb_stats_method */
+enum srv_stats_method_name_enum {
+	SRV_STATS_NULLS_EQUAL,		/* All NULL values are treated as
+					equal. This is the default setting
+					for innodb_stats_method */
+	SRV_STATS_NULLS_UNEQUAL,	/* All NULL values are treated as
+					NOT equal. */
+	SRV_STATS_NULLS_IGNORED		/* NULL values are ignored */
+};
+
+typedef enum srv_stats_method_name_enum		srv_stats_method_name_t;
 
 #ifndef UNIV_HOTBACKUP
 /** Types of threads existing in the system. */

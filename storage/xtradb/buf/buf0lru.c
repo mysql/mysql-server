@@ -530,6 +530,30 @@ next_page_no_mutex:
 	}
 }
 
+/******************************************************************//**
+*/
+UNIV_INTERN
+void
+buf_LRU_mark_space_was_deleted(
+/*===========================*/
+	ulint	id)	/*!< in: space id */
+{
+	buf_page_t*	bpage;
+
+	mutex_enter(&LRU_list_mutex);
+
+	bpage = UT_LIST_GET_FIRST(buf_pool->LRU);
+
+	while (bpage != NULL) {
+		if (buf_page_get_space(bpage) == id) {
+			bpage->space_was_being_deleted = TRUE;
+		}
+		bpage = UT_LIST_GET_NEXT(LRU, bpage);
+	}
+
+	mutex_exit(&LRU_list_mutex);
+}
+
 /********************************************************************//**
 Insert a compressed block into buf_pool->zip_clean in the LRU order. */
 UNIV_INTERN
@@ -618,7 +642,7 @@ restart:
 		ut_ad(block->in_unzip_LRU_list);
 		ut_ad(block->page.in_LRU_list);
 
-		freed = buf_LRU_free_block(&block->page, FALSE, NULL, have_LRU_mutex);
+		freed = buf_LRU_free_block(&block->page, FALSE, have_LRU_mutex);
 		mutex_exit(&block->mutex);
 
 		switch (freed) {
@@ -690,7 +714,7 @@ restart:
 		ut_ad(bpage->in_LRU_list);
 
 		accessed = buf_page_is_accessed(bpage);
-		freed = buf_LRU_free_block(bpage, TRUE, NULL, have_LRU_mutex);
+		freed = buf_LRU_free_block(bpage, TRUE, have_LRU_mutex);
 		mutex_exit(block_mutex);
 
 		switch (freed) {
@@ -876,10 +900,8 @@ LRU list to the free list.
 @return	the free control block, in state BUF_BLOCK_READY_FOR_USE */
 UNIV_INTERN
 buf_block_t*
-buf_LRU_get_free_block(
-/*===================*/
-	ulint	zip_size)	/*!< in: compressed page size in bytes,
-				or 0 if uncompressed tablespace */
+buf_LRU_get_free_block(void)
+/*========================*/
 {
 	buf_block_t*	block		= NULL;
 	ibool		freed;
@@ -955,28 +977,10 @@ loop:
 
 	/* If there is a block in the free list, take it */
 	block = buf_LRU_get_free_only();
+	//buf_pool_mutex_exit();
+
 	if (block) {
-
-#ifdef UNIV_DEBUG
-		block->page.zip.m_start =
-#endif /* UNIV_DEBUG */
-			block->page.zip.m_end =
-			block->page.zip.m_nonempty =
-			block->page.zip.n_blobs = 0;
-
-		if (UNIV_UNLIKELY(zip_size)) {
-			ibool	lru;
-			page_zip_set_size(&block->page.zip, zip_size);
-			mutex_enter(&LRU_list_mutex);
-			block->page.zip.data = buf_buddy_alloc(zip_size, &lru, FALSE);
-			mutex_exit(&LRU_list_mutex);
-			UNIV_MEM_DESC(block->page.zip.data, zip_size, block);
-		} else {
-			page_zip_set_size(&block->page.zip, 0);
-			block->page.zip.data = NULL;
-		}
-
-		//buf_pool_mutex_exit();
+		memset(&block->page.zip, 0, sizeof block->page.zip);
 
 		if (started_monitor) {
 			srv_print_innodb_monitor = mon_value_was;
@@ -987,8 +991,6 @@ loop:
 
 	/* If no block was in the free list, search from the end of the LRU
 	list and try to free a block there */
-
-	//buf_pool_mutex_exit();
 
 	freed = buf_LRU_search_and_free_block(n_iterations);
 
@@ -1471,10 +1473,6 @@ buf_LRU_free_block(
 	buf_page_t*	bpage,	/*!< in: block to be freed */
 	ibool		zip,	/*!< in: TRUE if should remove also the
 				compressed page of an uncompressed page */
-	ibool*		buf_pool_mutex_released,
-				/*!< in: pointer to a variable that will
-				be assigned TRUE if buf_pool_mutex
-				was temporarily released, or NULL */
 	ibool		have_LRU_mutex)
 {
 	buf_page_t*	b = NULL;
@@ -1496,6 +1494,10 @@ buf_LRU_free_block(
 
 		/* Do not free buffer-fixed or I/O-fixed blocks. */
 		return(BUF_LRU_NOT_FREED);
+	}
+
+	if (bpage->space_was_being_deleted && bpage->oldest_modification != 0) {
+		buf_flush_remove(bpage);
 	}
 
 #ifdef UNIV_IBUF_COUNT_DEBUG
@@ -1683,10 +1685,6 @@ not_freed:
 			buf_pool_mutex and block_mutex. */
 			b->buf_fix_count++;
 			b->io_fix = BUF_IO_READ;
-		}
-
-		if (buf_pool_mutex_released) {
-			*buf_pool_mutex_released = TRUE;
 		}
 
 		//buf_pool_mutex_exit();
@@ -2369,8 +2367,7 @@ buf_LRU_file_restore(void)
 			continue;
 		}
 
-		if (fil_area_is_exist(space_id, zip_size, page_no, 0,
-				      zip_size ? zip_size : UNIV_PAGE_SIZE)) {
+		if (fil_is_exist(space_id, page_no)) {
 
 			tablespace_version = fil_space_get_version(space_id);
 

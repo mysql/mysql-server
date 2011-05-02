@@ -465,16 +465,20 @@ dict_boot(void)
 	ut_a(error == DB_SUCCESS);
 
 	/*-------------------------*/
-	table = dict_mem_table_create("SYS_STATS", DICT_HDR_SPACE, 3, 0);
+	table = dict_mem_table_create("SYS_STATS", DICT_HDR_SPACE, 4, 0);
 	table->n_mysql_handles_opened = 1; /* for pin */
 
 	dict_mem_table_add_col(table, heap, "INDEX_ID", DATA_BINARY, 0, 0);
 	dict_mem_table_add_col(table, heap, "KEY_COLS", DATA_INT, 0, 4);
 	dict_mem_table_add_col(table, heap, "DIFF_VALS", DATA_BINARY, 0, 0);
+	dict_mem_table_add_col(table, heap, "NON_NULL_VALS", DATA_BINARY, 0, 0);
 
 	/* The '+ 2' below comes from the fields DB_TRX_ID, DB_ROLL_PTR */
 #if DICT_SYS_STATS_DIFF_VALS_FIELD != 2 + 2
 #error "DICT_SYS_STATS_DIFF_VALS_FIELD != 2 + 2"
+#endif
+#if DICT_SYS_STATS_NON_NULL_VALS_FIELD != 3 + 2
+#error "DICT_SYS_STATS_NON_NULL_VALS_FIELD != 3 + 2"
 #endif
 
 	table->id = DICT_STATS_ID;

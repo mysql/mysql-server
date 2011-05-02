@@ -84,6 +84,13 @@ void
 buf_LRU_invalidate_tablespace(
 /*==========================*/
 	ulint	id);	/*!< in: space id */
+/******************************************************************//**
+*/
+UNIV_INTERN
+void
+buf_LRU_mark_space_was_deleted(
+/*===========================*/
+	ulint	id);	/*!< in: space id */
 /********************************************************************//**
 Insert a compressed block into buf_pool->zip_clean in the LRU order. */
 UNIV_INTERN
@@ -112,11 +119,8 @@ buf_LRU_free_block(
 	buf_page_t*	bpage,	/*!< in: block to be freed */
 	ibool		zip,	/*!< in: TRUE if should remove also the
 				compressed page of an uncompressed page */
-	ibool*		buf_pool_mutex_released,
-				/*!< in: pointer to a variable that will
-				be assigned TRUE if buf_pool_mutex
-				was temporarily released, or NULL */
-	ibool		have_LRU_mutex);
+	ibool		have_LRU_mutex)
+	__attribute__((nonnull));
 /******************************************************************//**
 Try to free a replaceable block.
 @return	TRUE if found and freed */
@@ -147,10 +151,9 @@ LRU list to the free list.
 @return	the free control block, in state BUF_BLOCK_READY_FOR_USE */
 UNIV_INTERN
 buf_block_t*
-buf_LRU_get_free_block(
-/*===================*/
-	ulint	zip_size);	/*!< in: compressed page size in bytes,
-				or 0 if uncompressed tablespace */
+buf_LRU_get_free_block(void)
+/*========================*/
+	__attribute__((warn_unused_result));
 
 /******************************************************************//**
 Puts a block back to the free list. */
