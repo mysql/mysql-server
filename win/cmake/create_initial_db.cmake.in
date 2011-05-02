@@ -57,6 +57,7 @@ SET(BOOTSTRAP_COMMAND
   --language=${CMAKE_CURRENT_BINARY_DIR}/share/english
   --basedir=.
   --datadir=.
+  --tmpdir=${CMAKE_CURRENT_BINARY_DIR}
   --default-storage-engine=MyISAM
   --loose-skip-innodb
   --loose-skip-pbxt
