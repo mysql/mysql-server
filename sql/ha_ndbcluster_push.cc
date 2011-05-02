@@ -644,6 +644,36 @@ ndb_pushed_builder_ctx::is_pushable_as_child(
     }
   } // scan operation
 
+  /**
+   * In order to allow multiple parents refs to be made grandparent referrences,
+   * none of the grandparents should be outer joins.
+   */
+  ndb_table_access_map grandparents(depend_parents);
+  grandparents.clear_bit(root_no);
+  uint ancestor_no= root_no+1;
+  while (!grandparents.is_clear_all())
+  {
+    if (grandparents.contain(ancestor_no))
+    {
+      grandparents.clear_bit(ancestor_no);
+      if (grandparents.is_clear_all())
+        break;  // done
+
+      const AQP::Table_access* const ancestor= 
+        m_plan.get_table_access(ancestor_no);
+
+      if (ancestor->get_join_type(m_join_root) == AQP::JT_OUTER_JOIN)
+      {
+        EXPLAIN_NO_PUSH("Can't push table '%s' as child of '%s', "
+                        "dependencies on outer joined grandparents not implemented", 
+                         table->get_table()->alias,
+                         m_join_root->get_table()->alias);
+        DBUG_RETURN(false);
+      }
+    }
+    ancestor_no++;
+  }
+
   DBUG_ASSERT(m_join_scope.contain(common_parents));
   DBUG_ASSERT(m_join_scope.contain(extend_parents));
   DBUG_ASSERT(extend_parents.is_clear_all() ||
@@ -865,8 +895,7 @@ ndb_pushed_builder_ctx::optimize_query_plan()
      */
     if (!table.m_depend_parents.is_clear_all())
     {
-      ndb_table_access_map const &dependency
-        = table.m_depend_parents;
+      ndb_table_access_map const &dependency= table.m_depend_parents;
       DBUG_ASSERT(!dependency.contain(tab_no)); // Circular dependency!
 
       uint depends_on_parent= dependency.last_table(tab_no-1);
@@ -876,6 +905,8 @@ ndb_pushed_builder_ctx::optimize_query_plan()
       if (table.m_extend_parents.is_overlapping(dependency_mask))
       {
         table.m_extend_parents.subtract(dependency_mask);
+        DBUG_ASSERT(table.m_extend_parents.contain(depends_on_parent) ||
+                    m_plan.get_table_access(depends_on_parent)->get_join_type(m_join_root) == AQP::JT_INNER_JOIN);
         table.m_extend_parents.add(depends_on_parent);
       }
       if (table.m_common_parents.is_overlapping(dependency_mask))
@@ -886,7 +917,7 @@ ndb_pushed_builder_ctx::optimize_query_plan()
 
     /**
      * Select set to choose parent from, prefer a 'common'
-     * parent of available.
+     * parent if available.
      */
     uint parent_no;
     ndb_table_access_map const &parents=
@@ -1204,7 +1235,7 @@ ndb_pushed_builder_ctx::build_query()
       if (table->get_join_type(parent) == AQP::JT_INNER_JOIN)
       {
         options.setMatchType(NdbQueryOptions::MatchNonNull);
-      } 
+      }
     }
 
     const NdbQueryOperationDef* query_op= NULL;
