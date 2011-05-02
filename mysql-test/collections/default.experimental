@@ -17,6 +17,7 @@ main.wait_timeout @solaris               # Bug#51244 2010-04-26 alik wait_timeou
 
 rpl.rpl_heartbeat_basic                  # BUG#12403008 2011-04-27 sven fails sporadically
 rpl.rpl_innodb_bug28430                  # Bug#46029
+rpl.rpl_show_slave_hosts                 # BUG#12416700 2011-05-02 sven fails sporadically
 
 sys_vars.max_sp_recursion_depth_func @solaris # Bug#47791 2010-01-20 alik Several test cases fail on Solaris with error Thread stack overrun
 sys_vars.plugin_dir_basic                     # Bug#52223 2010-11-24 alik Test "plugin_dir_basic" does not support RPM build (test) directory structure
