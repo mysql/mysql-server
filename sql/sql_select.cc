@@ -20318,8 +20318,11 @@ test_if_skip_sort_order(JOIN_TAB *tab,ORDER *order,ha_rows select_limit,
 
     if (best_key >= 0)
     {
-      if (table->quick_keys.is_set(best_key) && best_key != ref_key)
+      if (table->quick_keys.is_set(best_key) &&
+          !tab->quick_order_tested.is_set(best_key) &&
+          best_key != ref_key)
       {
+        tab->quick_order_tested.set_bit(best_key);
         key_map map;           // Force the creation of quick select
         map.set_bit(best_key); // only best_key.
         select->quick= 0;
