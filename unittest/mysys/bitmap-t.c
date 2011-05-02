@@ -430,7 +430,7 @@ my_bool test_intersect(MY_BITMAP *map, uint bitsize)
 {
   uint bitsize2 = 1 + get_rand_bit(MAX_TESTED_BITMAP_SIZE - 1);
   MY_BITMAP map2;
-  uint32 map2buf[bitsize2];
+  uint32 map2buf[MAX_TESTED_BITMAP_SIZE];
   uint i, test_bit1, test_bit2, test_bit3;
   if (bitmap_init(&map2, map2buf, bitsize2, FALSE))
   {

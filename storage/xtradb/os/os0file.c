@@ -3817,7 +3817,8 @@ try_again:
 							       slot->pos,
 							       &dummy_mess1,
 							       &dummy_mess2,
-							       &dummy_type);
+							       &dummy_type,
+							       &space_id);
 
 				return(retval);
 			}
