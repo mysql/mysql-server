@@ -3942,7 +3942,9 @@ CREATE PROCEDURE sp1()
 alter:BEGIN
 SELECT @x;
 END//
-ERROR 0A000: ALTER VIEW is not allowed in stored procedures
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near ':BEGIN
+SELECT @x;
+END' at line 2
 DROP PROCEDURE IF EXISTS sp1;
 CREATE PROCEDURE sp1()
 analyze:BEGIN

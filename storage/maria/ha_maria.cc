@@ -1967,7 +1967,7 @@ void ha_maria::start_bulk_insert(ha_rows rows)
   /* don't enable row cache if too few rows */
   if (!rows || (rows > MARIA_MIN_ROWS_TO_USE_WRITE_CACHE))
   {
-    size_t size= thd->variables.read_buff_size;
+    ulonglong size= thd->variables.read_buff_size, tmp;
     if (rows)
     {
       if (file->state->records)
@@ -1979,7 +1979,8 @@ void ha_maria::start_bulk_insert(ha_rows rows)
       else if (table->s->avg_row_length)
         set_if_smaller(size, (size_t) (table->s->avg_row_length * rows));
     }
-    maria_extra(file, HA_EXTRA_WRITE_CACHE, (void*) &size);
+    tmp= (ulong) size;                          // Safe becasue of limits
+    maria_extra(file, HA_EXTRA_WRITE_CACHE, (void*) &tmp);
   }
 
   can_enable_indexes= (maria_is_all_keys_active(share->state.key_map,

@@ -3082,7 +3082,7 @@ DROP PROCEDURE IF EXISTS sp1;
 --enable_warnings
 
 delimiter //;
---error ER_SP_BADSTATEMENT
+--error ER_PARSE_ERROR
 CREATE PROCEDURE sp1()
   alter:BEGIN
     SELECT @x;
