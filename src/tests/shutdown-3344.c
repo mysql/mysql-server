@@ -39,24 +39,24 @@ insert_row(DB_ENV *env UU(), DB_TXN *txn, DB *db, uint64_t rowi) {
     DBT value = { .data = val_buffer, .size = sizeof val_buffer };
     //uint32_t put_flags = DB_YESOVERWRITE | (txn ? (DB_PRELOCKED_FILE_READ | DB_PRELOCKED_WRITE) : 0);
     uint32_t put_flags = DB_YESOVERWRITE;
-    r = db->put(db, txn, &key, &value, put_flags); assert(r == 0);
+    r = db->put(db, txn, &key, &value, put_flags); assert_zero(r);
 }
 
 static void
 populate(DB_ENV *env, DB_TXN *txn, DB *db, uint64_t nrows) {
     int r;
     struct timeval tstart;
-    r = gettimeofday(&tstart, NULL); assert(r == 0);
+    r = gettimeofday(&tstart, NULL); assert_zero(r);
     struct timeval tlast = tstart;
 
     for (uint64_t rowi = 0; rowi < nrows; rowi++) {
         insert_row(env, txn, db, rowi); 
 
         // maybe report performance
-        uint64_t rows_per_report = 1000;
+        uint64_t rows_per_report = 100000;
         if (((rowi + 1) % rows_per_report) == 0) {
             struct timeval tnow;
-            r = gettimeofday(&tnow, NULL); assert(r == 0);
+            r = gettimeofday(&tnow, NULL); assert_zero(r);
             float last_time = tdiff(&tnow, &tlast);
             float total_time = tdiff(&tnow, &tstart);
             if (verbose) {
@@ -71,72 +71,67 @@ static void
 run_test(DB_ENV *env, int ndbs, int do_txn, uint32_t pagesize, uint64_t nrows) {
     int r;
 
-    DB_TXN *txn0 = NULL;
-    if (do_txn) {
-        r = env->txn_begin(env, NULL, &txn0, 0); assert(r == 0);
-    }
-
     DB *dbs[ndbs];
-    int i = 0;
-    {
+    for (int i = 0; i < ndbs; i++) {
         DB *db = NULL;
-        if (verbose) fprintf(stderr, "creating %d\n", i);
-        r = db_create(&db, env, 0); assert(r == 0);
-        if (pagesize) {
-            r = db->set_pagesize(db, pagesize); assert(r == 0);
+        if (verbose) {
+            time_t now = time(0); fprintf(stderr, "%.24s creating %d\n", ctime(&now), i);
         }
-        char db_filename[32]; sprintf(db_filename, "test%d", i);
-        r = db->open(db, txn0, db_filename, NULL, DB_BTREE, DB_CREATE, S_IRUSR | S_IWUSR | S_IRGRP | S_IROTH); assert(r == 0);
-        if (do_txn) {
-            r = db->pre_acquire_table_lock(db, txn0); assert(r == 0);
-        }
-        dbs[i] = db;
-    }
-
-    for (i = 1; i < ndbs; i++) {
-        DB *db = NULL;
-        if (verbose) fprintf(stderr, "creating %d\n", i);
-        r = db_create(&db, env, 0); assert(r == 0);
+        r = db_create(&db, env, 0); assert_zero(r);
         if (pagesize) {
-            r = db->set_pagesize(db, pagesize); assert(r == 0);
+            r = db->set_pagesize(db, pagesize); assert_zero(r);
         }
         DB_TXN *txn1 = NULL;
         if (do_txn) {
-            r = env->txn_begin(env, NULL, &txn1, 0); assert(r == 0);
+            r = env->txn_begin(env, NULL, &txn1, 0); assert_zero(r);
         }
         char db_filename[32]; sprintf(db_filename, "test%d", i);
-        r = db->open(db, txn1, db_filename, NULL, DB_BTREE, DB_CREATE, S_IRUSR | S_IWUSR | S_IRGRP | S_IROTH); assert(r == 0);
+        r = db->open(db, txn1, db_filename, NULL, DB_BTREE, DB_CREATE, S_IRUSR | S_IWUSR | S_IRGRP | S_IROTH); assert_zero(r);
         if (do_txn) {
-            r = txn1->commit(txn1, 0); assert(r == 0);
+            r = txn1->commit(txn1, 0); assert_zero(r);
         }
         dbs[i] = db;
     }
 
-    if (verbose) fprintf(stderr, "populating\n");
-    populate(env, txn0, dbs[0], nrows);
+        if (verbose) {
+            time_t now = time(0); fprintf(stderr, "%.24s populating\n", ctime(&now));
+        }
 
-    for (i = 1; i < ndbs; i++) {
-        DB *db = dbs[i];
-        if (verbose) fprintf(stderr, "closing %d\n", i);
-        r = db->close(db, 0); assert(r == 0);
+    DB_TXN *txn0 = NULL;
+    if (do_txn) {
+        r = env->txn_begin(env, NULL, &txn0, 0); assert_zero(r);
     }
 
-    if (verbose) fprintf(stderr, "closing %d\n", 0);
-    r = dbs[0]->close(dbs[0], 0); assert(r == 0);
+    populate(env, txn0, dbs[ndbs-1], nrows);
+
     if (do_txn) {
-        if (verbose) fprintf(stderr, "abort txn0\n");
-        r = txn0->abort(txn0); assert(r == 0);
+        if (verbose) {
+            time_t now = time(0); fprintf(stderr, "%.24s commit txn0\n", ctime(&now));
+        }
+        r = txn0->commit(txn0, 0); assert_zero(r);
+    }
+
+    for (int i = 0; i < ndbs; i++) {
+        DB *db = dbs[i];
+        if (verbose) {
+            time_t now = time(0); fprintf(stderr, "%.24s closing %d\n", ctime(&now), i);
+        }
+        r = db->close(db, 0); assert_zero(r);
+    }
+
+    if (verbose) {
+        time_t now = time(0); fprintf(stderr, "%.24s done\n", ctime(&now));
     }
 }
 
 int 
 test_main(int argc, char * const argv[]) {
     char *env_dir = "dir.shutdown.ca";
-    int ndbs = 1;
+    int ndbs = 500;
     int do_txn = 1;
-    u_int32_t pagesize = 4096;
+    u_int32_t pagesize = 1024;
     u_int64_t cachesize = 1000000000;
-    u_int64_t nrows = 500000;
+    u_int64_t nrows = 50000;
 
     for (int i = 1; i < argc ; i++) {
         char * const arg = argv[i];
@@ -176,24 +171,24 @@ test_main(int argc, char * const argv[]) {
     char rm_cmd[strlen(env_dir) + strlen("rm -rf ") + 1];
     snprintf(rm_cmd, sizeof(rm_cmd), "rm -rf %s", env_dir);
     int r;
-    r = system(rm_cmd); assert(r == 0);
-    r = toku_os_mkdir(env_dir, S_IRWXU | S_IRGRP | S_IXGRP | S_IROTH | S_IXOTH); assert(r == 0);
+    r = system(rm_cmd); assert_zero(r);
+    r = toku_os_mkdir(env_dir, S_IRWXU | S_IRGRP | S_IXGRP | S_IROTH | S_IXOTH); assert_zero(r);
 
     DB_ENV *env = NULL;
-    r = db_env_create(&env, 0); assert(r == 0);
+    r = db_env_create(&env, 0); assert_zero(r);
     if (cachesize) {
         const u_int64_t gig = 1 << 30;
-        r = env->set_cachesize(env, cachesize / gig, cachesize % gig, 1); assert(r == 0);
+        r = env->set_cachesize(env, cachesize / gig, cachesize % gig, 1); assert_zero(r);
     }
     int env_open_flags = DB_CREATE | DB_PRIVATE | DB_INIT_MPOOL | DB_INIT_TXN | DB_INIT_LOCK | DB_INIT_LOG;
     if (!do_txn)
         env_open_flags &= ~(DB_INIT_TXN | DB_INIT_LOG);
-    r = env->open(env, env_dir, env_open_flags, S_IRUSR | S_IWUSR | S_IRGRP | S_IROTH); assert(r == 0);
+    r = env->open(env, env_dir, env_open_flags, S_IRUSR | S_IWUSR | S_IRGRP | S_IROTH); assert_zero(r);
 
     run_test(env, ndbs, do_txn, pagesize, nrows);
 
     if (verbose) fprintf(stderr, "closing env\n");
-    r = env->close(env, 0); assert(r == 0);
+    r = env->close(env, 0); assert_zero(r);
 
     return 0;
 }
