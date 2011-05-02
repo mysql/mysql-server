@@ -167,7 +167,7 @@ namespace AQP
     }
 
     const TABLE_LIST* const child_embedding= 
-      get_join_tab()->table->pos_in_table_list->embedding;;
+      get_join_tab()->table->pos_in_table_list->embedding;
 
     if (child_embedding == NULL)
     {
