@@ -1400,6 +1400,12 @@ trx_undo_get_undo_rec(
 	return(DB_SUCCESS);
 }
 
+#ifdef UNIV_DEBUG
+#define ATTRIB_USED_ONLY_IN_DEBUG
+#else /* UNIV_DEBUG */
+#define ATTRIB_USED_ONLY_IN_DEBUG	__attribute__((unused))
+#endif /* UNIV_DEBUG */
+
 /*******************************************************************//**
 Build a previous version of a clustered index record. This function checks
 that the caller has a latch on the index page of the clustered index record
@@ -1411,9 +1417,10 @@ UNIV_INTERN
 ulint
 trx_undo_prev_version_build(
 /*========================*/
-	const rec_t*	index_rec,/*!< in: clustered index record in the
+	const rec_t*	index_rec ATTRIB_USED_ONLY_IN_DEBUG,
+				/*!< in: clustered index record in the
 				index tree */
-	mtr_t*		index_mtr __attribute__((unused)),
+	mtr_t*		index_mtr ATTRIB_USED_ONLY_IN_DEBUG,
 				/*!< in: mtr which contains the latch to
 				index_rec page and purge_view */
 	const rec_t*	rec,	/*!< in: version of a clustered index record */
