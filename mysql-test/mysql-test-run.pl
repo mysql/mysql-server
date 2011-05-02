@@ -2220,7 +2220,12 @@ sub environment_setup {
   $ENV{'DEFAULT_MASTER_PORT'}= $mysqld_variables{'port'};
   $ENV{'MYSQL_TMP_DIR'}=      $opt_tmpdir;
   $ENV{'MYSQLTEST_VARDIR'}=   $opt_vardir;
+  # Used for guessing default plugin dir, we can't really know for sure
   $ENV{'MYSQL_LIBDIR'}=       "$basedir/lib";
+  # Override if this does not exist, but lib64 does (best effort)
+  if (! -d "$basedir/lib" && -d "$basedir/lib64") {
+    $ENV{'MYSQL_LIBDIR'}=     "$basedir/lib64";
+  }
   $ENV{'MYSQL_BINDIR'}=       "$bindir";
   $ENV{'MYSQL_SHAREDIR'}=     $path_language;
   $ENV{'MYSQL_CHARSETSDIR'}=  $path_charsetsdir;
@@ -4116,6 +4121,9 @@ sub extract_warning_lines ($$) {
     );
   my $skip_valgrind= 0;
 
+  my $last_pat= "";
+  my $num_rep= 0;
+
   foreach my $line ( @lines )
   {
     if ($opt_valgrind_mysqld) {
@@ -4130,11 +4138,29 @@ sub extract_warning_lines ($$) {
     {
       if ( $line =~ /$pat/ )
       {
-	print $Fwarn $line;
+	# Remove initial timestamp and look for consecutive identical lines
+	my $line_pat= $line;
+	$line_pat =~ s/^[0-9: ]*//;
+	if ($line_pat eq $last_pat) {
+	  $num_rep++;
+	} else {
+	  # Previous line had been repeated, report that first
+	  if ($num_rep) {
+	    print $Fwarn ".... repeated $num_rep times: $last_pat";
+	    $num_rep= 0;
+	  }
+	  $last_pat= $line_pat;
+	  print $Fwarn $line;
+	}
 	last;
       }
     }
   }
+  # Catch the case of last warning being repeated
+  if ($num_rep) {
+    print $Fwarn ".... repeated $num_rep times: $last_pat";
+  }
+
   $Fwarn = undef; # Close file
 
 }
