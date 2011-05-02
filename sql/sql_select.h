@@ -302,6 +302,15 @@ public:
   key_map	checked_keys;			/**< Keys checked */
   key_map	needed_reg;
   key_map       keys;                           /**< all keys with can be used */
+  /**
+    Used to avoid repeated range analysis for the same key in
+    test_if_skip_sort_order(). This would otherwise happen if the best
+    range access plan found for a key is turned down.
+    quick_order_tested is cleared every time the select condition for
+    this JOIN_TAB changes since a new condition may give another plan
+    and cost from range analysis.
+   */
+  key_map       quick_order_tested;
 
   /* Either #rows in the table or 1 for const table.  */
   ha_rows	records;
@@ -448,6 +457,7 @@ public:
                ("JOIN_TAB::m_condition changes %p -> %p at line %u tab %p",
                 m_condition, to, line, this));
     m_condition= to;
+    quick_order_tested.clear_all();
   }
 
   Item *set_jt_and_sel_condition(Item *new_cond, uint line)
@@ -505,6 +515,7 @@ st_join_table::st_join_table()
     checked_keys(),
     needed_reg(),
     keys(),
+    quick_order_tested(),
 
     records(0),
     found_records(0),
