@@ -1075,9 +1075,10 @@ READ_INFO::READ_INFO(File file_par, uint tot_length, CHARSET_INFO *cs,
 		     String &field_term, String &line_start, String &line_term,
 		     String &enclosed_par, int escape, bool get_it_from_net,
 		     bool is_fifo)
-  :file(file_par),escape_char(escape)
+  :file(file_par), buff_length(tot_length), escape_char(escape),
+   found_end_of_line(false), eof(false), need_end_io_cache(false),
+   error(false), line_cuted(false), found_null(false), read_charset(cs)
 {
-  read_charset= cs;
   field_term_ptr=(char*) field_term.ptr();
   field_term_length= field_term.length();
   line_term_ptr=(char*) line_term.ptr();
@@ -1104,8 +1105,6 @@ READ_INFO::READ_INFO(File file_par, uint tot_length, CHARSET_INFO *cs,
     (uchar) enclosed_par[0] : INT_MAX;
   field_term_char= field_term_length ? (uchar) field_term_ptr[0] : INT_MAX;
   line_term_char= line_term_length ? (uchar) line_term_ptr[0] : INT_MAX;
-  error=eof=found_end_of_line=found_null=line_cuted=0;
-  buff_length=tot_length;
 
 
   /* Set of a stack for unget if long terminators */
@@ -1151,7 +1150,7 @@ READ_INFO::READ_INFO(File file_par, uint tot_length, CHARSET_INFO *cs,
 
 READ_INFO::~READ_INFO()
 {
-  if (!error && need_end_io_cache)
+  if (need_end_io_cache)
     ::end_io_cache(&cache);
 
   my_free(buffer, MYF(MY_ALLOW_ZERO_PTR));

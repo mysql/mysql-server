@@ -1963,7 +1963,7 @@ AC_CHECK_HEADER(vis.h,
     [AC_DEFINE([HAVE_VIS_H], [1],[Found vis.h and the strvis() function])])])
 
 AC_CHECK_FUNCS(strlcat strlcpy)
-AC_CHECK_FUNCS(issetugid)
+AC_CHECK_FUNCS(issetugid getuid geteuid getgid getegid)
 AC_CHECK_FUNCS(fgetln)
 AC_CHECK_FUNCS(getline flockfile)
 
