@@ -1,0 +1,24 @@
+#
+# Bug#59410 read uncommitted: unlock row could not find a 3 mode lock on the record
+#
+-- source include/have_innodb.inc
+
+# only interested that the following do not produce something like
+# InnoDB: Error: unlock row could not find a 2 mode lock on the record
+# in the error log
+
+create table `bug59410_1`(`a` int)engine=innodb;
+insert into `bug59410_1` values (1),(2),(3);
+select 1 from `bug59410_1` where `a` <> any (
+select 1 from `bug59410_1` where `a` <> 1 for update)
+for update;
+drop table bug59410_1;
+
+create table bug59410_2(`a` char(1),`b` int)engine=innodb;
+insert into bug59410_2 values('0',0);
+set transaction isolation level read uncommitted;
+start transaction;
+set @a=(select b from bug59410_2 where
+(select 1 from bug59410_2 where a group by @a=b)
+group by @a:=b);
+drop table bug59410_2;
