@@ -7452,12 +7452,12 @@ best_access_path(JOIN      *join,
         loose_scan_opt.check_ref_access_part2(key, start_key, records, tmp);
 
       } /* not ft_key */
-      if (tmp < best_time - records/(double) TIME_FOR_COMPARE ||
+      if (tmp < best_time - records * ROW_EVALUATE_COST ||
           (quick_matches_more_parts && 
            quick_records < best_quick_records))
       {
         best_quick_records = quick_records;
-        best_time= tmp + records/(double) TIME_FOR_COMPARE;
+        best_time= tmp + records * ROW_EVALUATE_COST;
         best= tmp;
         best_records= records;
         best_key= start_key;
@@ -7542,7 +7542,7 @@ best_access_path(JOIN      *join,
       */
       tmp= record_count *
         (s->quick->read_time +
-         (s->found_records - rnd_records)/(double) TIME_FOR_COMPARE);
+         (s->found_records - rnd_records) * ROW_EVALUATE_COST);
 
       loose_scan_opt.check_range_access(join, idx, s->quick);
     }
@@ -7562,8 +7562,7 @@ best_access_path(JOIN      *join,
           - skip rows which does not satisfy join condition
         */
         tmp= record_count *
-          (tmp +
-           (s->records - rnd_records)/(double) TIME_FOR_COMPARE);
+             (tmp + (s->records - rnd_records) * ROW_EVALUATE_COST);
       }
       else
       {
@@ -7582,18 +7581,18 @@ best_access_path(JOIN      *join,
            we read the table (see flush_cached_records for details). Here we
            take into account cost to read and skip these records.
         */
-        tmp+= (s->records - rnd_records)/(double) TIME_FOR_COMPARE;
+        tmp+= (s->records - rnd_records) * ROW_EVALUATE_COST;
       }
     }
 
     /*
       We estimate the cost of evaluating WHERE clause for found records
-      as record_count * rnd_records / TIME_FOR_COMPARE. This cost plus
+      as record_count * rnd_records * ROW_EVALUATE_COST. This cost plus
       tmp give us total cost of using TABLE SCAN
     */
     if (best == DBL_MAX ||
-        (tmp  + record_count/(double) TIME_FOR_COMPARE*rnd_records <
-         best + record_count/(double) TIME_FOR_COMPARE*records))
+        (tmp  + (record_count * ROW_EVALUATE_COST * rnd_records) <
+         best + (record_count * ROW_EVALUATE_COST * records)))
     {
       /*
         If the table has a range (s->quick is set) make_join_select()
@@ -7914,7 +7913,7 @@ void Optimize_table_order::optimize_straight_join(table_map join_tables)
     /* compute the cost of the new plan extended with 's' */
     record_count*= join->positions[idx].records_read;
     read_time+=    join->positions[idx].read_time
-                   + record_count / (double) TIME_FOR_COMPARE;
+                   + record_count * ROW_EVALUATE_COST;
     advance_sj_state(join_tables, s, idx, &record_count, &read_time,
                      &loose_scan_pos);
 
@@ -8168,7 +8167,7 @@ bool Optimize_table_order::greedy_search(table_map remaining_tables)
     /* compute the cost of the new plan extended with 'best_table' */
     record_count*= join->positions[idx].records_read;
     read_time+=    join->positions[idx].read_time
-                   + record_count / (double) TIME_FOR_COMPARE;
+                   + record_count * ROW_EVALUATE_COST;
 
     remaining_tables&= ~(best_table->table->map);
     --size_remain;
@@ -8214,7 +8213,7 @@ void get_partial_join_cost(JOIN *join, uint n_tables, double *read_time_arg,
     {
       record_count *= join->best_positions[i].records_read;
       read_time += join->best_positions[i].read_time
-                   + record_count / (double) TIME_FOR_COMPARE;
+                   + record_count * ROW_EVALUATE_COST;
     }
   }
   *read_time_arg= read_time;
@@ -8393,7 +8392,7 @@ bool Optimize_table_order::best_extension_by_limited_search(
       current_record_count= record_count * position->records_read;
       current_read_time=    read_time
                             + position->read_time
-                            + current_record_count / (double) TIME_FOR_COMPARE;
+                            + current_record_count * ROW_EVALUATE_COST;
 
       if (has_sj)
       {
