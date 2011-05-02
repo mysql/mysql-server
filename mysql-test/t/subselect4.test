@@ -318,7 +318,7 @@ INSERT INTO t3 VALUES  ('E4','P5',80);
 
 SET @old_optimizer_switch = @@session.optimizer_switch;
 SET @old_join_cache_level = @@session.join_cache_level;
-SET SESSION optimizer_switch = 'firstmatch=on,loosescan=on,materialization=on,semijoin=on';
+SET SESSION optimizer_switch = 'firstmatch=on,loosescan=on,materialization=on,in_to_exists=off,semijoin=on';
 SET SESSION join_cache_level = 1;
 
 CREATE UNIQUE INDEX t1_IDX ON t1(EMPNUM);
@@ -528,7 +528,7 @@ INSERT INTO t3 VALUES  ('E4','P5',80);
 
 SET @old_optimizer_switch = @@session.optimizer_switch;
 SET @old_join_cache_level = @@session.join_cache_level;
-SET SESSION optimizer_switch = 'firstmatch=on,loosescan=on,materialization=on,semijoin=on';
+SET SESSION optimizer_switch = 'firstmatch=on,loosescan=on,materialization=on,in_to_exists=off,semijoin=on';
 SET SESSION join_cache_level = 1;
 
 CREATE UNIQUE INDEX t1_IDX ON t1(EMPNUM);
@@ -661,7 +661,7 @@ CREATE TABLE t2 (f11 varchar(1)) ;
 INSERT INTO t2 VALUES ('f'),('d');
 
 SET @old_optimizer_switch = @@session.optimizer_switch;
-SET SESSION optimizer_switch = 'materialization=on';
+SET SESSION optimizer_switch = 'materialization=on,in_to_exists=off,';
 
 EXPLAIN
 SELECT * FROM t1
@@ -695,7 +695,7 @@ CREATE TABLE t2 (f3 int, f4 int not null, PRIMARY KEY (f3));
 
 set @save_optimizer_switch=@@optimizer_switch;
 
-SET @@optimizer_switch = 'materialization=on,semijoin=off';
+SET @@optimizer_switch = 'materialization=on,in_to_exists=off,semijoin=off';
 
 EXPLAIN
 SELECT * FROM t1 WHERE (2, 0) NOT IN (SELECT f3, min(f4) FROM t2);
@@ -746,7 +746,7 @@ SELECT * FROM t1 WHERE (2, 0) NOT IN (SELECT min(f3)+f3, min(f4)+f3+max(f4) FROM
 SELECT * FROM t1 WHERE (2, 0) NOT IN (SELECT min(f3)+f3, min(f4)+f3+max(f4) FROM t2);
 
 
-SET @@optimizer_switch = 'materialization=off,semijoin=off';
+SET @@optimizer_switch = 'materialization=off,in_to_exists=on,semijoin=off';
 
 
 EXPLAIN
@@ -803,7 +803,7 @@ INSERT INTO t1 VALUES (3, 4);
 INSERT INTO t2 VALUES (5, 6);
 INSERT INTO t2 VALUES (7, 8);
 
-SET @@optimizer_switch = 'materialization=on,semijoin=off';
+SET @@optimizer_switch = 'materialization=on,in_to_exists=off,semijoin=off';
 
 EXPLAIN
 SELECT * FROM t1 WHERE (2, 0) NOT IN (SELECT f3, min(f4) FROM t2 WHERE f3 > 10);
@@ -853,7 +853,7 @@ EXPLAIN
 SELECT * FROM t1 WHERE (2, 0) NOT IN (SELECT min(f3)+f3, min(f4)+f3+max(f4) FROM t2 WHERE f3 > 10);
 SELECT * FROM t1 WHERE (2, 0) NOT IN (SELECT min(f3)+f3, min(f4)+f3+max(f4) FROM t2 WHERE f3 > 10);
 
-SET @@optimizer_switch = 'materialization=off,semijoin=off';
+SET @@optimizer_switch = 'materialization=off,in_to_exists=on,semijoin=off';
 
 EXPLAIN
 SELECT * FROM t1 WHERE (2, 0) NOT IN (SELECT f3, min(f4) FROM t2 WHERE f3 > 10);
@@ -934,7 +934,7 @@ INSERT INTO t2 VALUES (1,7,'p');
 
 set @save_optimizer_switch=@@optimizer_switch;
 
-set @@optimizer_switch='materialization=off,semijoin=off';
+set @@optimizer_switch='materialization=off,in_to_exists=on,semijoin=off';
 
 EXPLAIN
 SELECT t1.f3, MAX(t1.f2)
@@ -945,7 +945,7 @@ SELECT t1.f3, MAX(t1.f2)
 FROM t1, t2
 WHERE (t2.pk = t1.pk) AND t2.pk IN (SELECT f2 FROM t1);
 
-set @@optimizer_switch='materialization=on,semijoin=off';
+set @@optimizer_switch='materialization=on,in_to_exists=off,semijoin=off';
 
 EXPLAIN
 SELECT t1.f3, MAX(t1.f2)
@@ -962,4 +962,411 @@ WHERE (t2.pk = t1.pk) AND t2.pk IN (SELECT f2 FROM t1);
 
 set @@optimizer_switch=@save_optimizer_switch;
 
+drop table t1, t2;
+
+--echo #
+--echo # LP BUG#641203 Query returns rows where no result is expected (impossible WHERE)
+--echo #
+
+CREATE TABLE t1 (c1 varchar(1) DEFAULT NULL);
+CREATE TABLE t2 (c1 varchar(1) DEFAULT NULL);
+INSERT INTO t2 VALUES ('k'), ('d');
+CREATE TABLE t3 (c1 varchar(1) DEFAULT NULL);
+INSERT INTO t3 VALUES ('a'), ('b'), ('c');
+CREATE TABLE t4 (c1 varchar(1) primary key);
+INSERT INTO t4 VALUES ('k'), ('d');
+
+EXPLAIN
+SELECT * FROM t1 RIGHT JOIN t2 ON t1.c1 WHERE 's' IN (SELECT c1 FROM t2);
+SELECT * FROM t1 RIGHT JOIN t2 ON t1.c1 WHERE 's' IN (SELECT c1 FROM t2);
+EXPLAIN
+SELECT * FROM t2 LEFT JOIN t1 ON t1.c1 WHERE 's' IN (SELECT c1 FROM t2);
+SELECT * FROM t2 LEFT JOIN t1 ON t1.c1 WHERE 's' IN (SELECT c1 FROM t2);
+EXPLAIN
+SELECT * FROM (t2 LEFT JOIN t1 ON t1.c1) LEFT JOIN t3 on t3.c1 WHERE 's' IN (SELECT c1 FROM t2);
+SELECT * FROM (t2 LEFT JOIN t1 ON t1.c1) LEFT JOIN t3 on t3.c1 WHERE 's' IN (SELECT c1 FROM t2);
+EXPLAIN
+SELECT * FROM t4 LEFT JOIN t2 ON t4.c1 WHERE 's' IN (SELECT c1 FROM t2);
+SELECT * FROM t4 LEFT JOIN t2 ON t4.c1 WHERE 's' IN (SELECT c1 FROM t2);
+drop table t1, t2, t3, t4;
+
+--echo #
+--echo # LP BUG#675981 Assertion `cache != __null' failed in sub_select_cache()
+--echo #               on EXPLAIN
+--echo #
+
+CREATE TABLE t1 (f1 int,f2 int) ;
+INSERT IGNORE INTO t1 VALUES ('2','5'),('2',NULL);
+
+CREATE TABLE t2 (f1 int, f5 int) ;
+INSERT IGNORE INTO t2 VALUES (1,0);
+
+CREATE TABLE t3 (f4 int) ;
+INSERT IGNORE INTO t3 VALUES (0),(0);
+
+set @@optimizer_switch='in_to_exists=on,materialization=off,semijoin=off';
+EXPLAIN
+SELECT * FROM t2
+WHERE f1 IN (SELECT t1.f2 FROM t1 JOIN t3 ON t3.f4);
+
+drop table t1, t2, t3;
+
+--echo #
+--echo # LP BUG#680005 Second assertion `cache != __null' failed in
+--echo #                sub_select_cache() on EXPLAIN
+--echo #
+
+CREATE TABLE t1 (f1 int,f2 int,f4 int,f6 int,KEY (f4)) ;
+INSERT IGNORE INTO t1 VALUES
+('1','5','1','0'),('2','1','1','0'),('2','2','2','0'),('0',NULL,'0','0'),
+('2','1','2','0'),('2','0','0','0'),('2','2','2','0'),('2','8','2','0'),
+('2','7','2','0'),('2','5','2','0'),('2',NULL,'1','0');
+
+CREATE TABLE t2 (f3 int) ;
+INSERT IGNORE INTO t2 VALUES ('7');
+
+CREATE TABLE t3 (f3 int) ;
+INSERT IGNORE INTO t3 VALUES ('2');
+
+EXPLAIN
+SELECT t1.f4
+FROM t2 JOIN t1 ON t1.f6
+WHERE
+( t1.f2 ) IN (SELECT SUBQUERY2_t1.f3
+              FROM t3 AS SUBQUERY2_t1
+                   JOIN
+                   (t1 AS SUBQUERY2_t2
+                      JOIN
+                    t1 AS SUBQUERY2_t3 ON SUBQUERY2_t3.f1)
+                   ON SUBQUERY2_t3.f2)
+GROUP BY t1.f4 ORDER BY t1.f1 LIMIT 10;
+
+drop table t1, t2, t3;
+
+--echo #
+--echo # LP BUG#680038 bool close_thread_table(THD*, TABLE**):
+--echo #               Assertion `table->key_read == 0' failed in EXPLAIN
+--echo #
+
+CREATE TABLE t1 (f1 int,f3 int,f4 int) ;
+INSERT IGNORE INTO t1 VALUES (NULL,1,0);
+
+CREATE TABLE t2 (f2 int,f4 int,f5 int) ;
+INSERT IGNORE INTO t2 VALUES (8,0,0),(5,0,0);
+
+CREATE TABLE t3 (f4 int,KEY (f4)) ;
+INSERT IGNORE INTO t3 VALUES (0),(0);
+
+set @@optimizer_switch='semijoin=off';
+
+EXPLAIN
+SELECT * FROM t1 WHERE
+(SELECT f2 FROM t2
+ WHERE f4 <= ALL
+       (SELECT SQ1_t1.f4
+        FROM t3 AS SQ1_t1 JOIN t3 AS SQ1_t3 ON SQ1_t3.f4
+        GROUP BY SQ1_t1.f4));
+
+drop table t1, t2, t3;
+
+--echo #
+--echo # BUG#52317: Assertion failing in Field_varstring::store() 
+--echo # 	    at field.cc:6833
+--echo #
+
+CREATE TABLE t1 (i INTEGER);
+INSERT INTO t1 VALUES (1);
+CREATE TABLE t2 (i INTEGER, KEY k(i));
+INSERT INTO t2 VALUES (1), (2);
+
+EXPLAIN  
+SELECT i FROM t1 WHERE (1) NOT IN (SELECT i FROM t2);
+
+DROP TABLE t2;
+DROP TABLE t1;
+
+--echo #
+--echo # LP BUG#680846: Crash in clear_tables() with subqueries
+--echo #
+
+CREATE TABLE t1 (f3 int) ;
+INSERT IGNORE INTO t1 VALUES (0),(0);
+
+CREATE TABLE t2 (f1 int,f3 int,f4 varchar(32)) ;
+INSERT IGNORE INTO t2 VALUES (1,0,'f');
+
+EXPLAIN
+SELECT COUNT(t2.f3),
+       (SELECT COUNT(f3) FROM t1 WHERE t2.f1) AS f9
+FROM t2 JOIN t1 ON t1.f3
+WHERE ('v') IN (SELECT f4 FROM t2)
+GROUP BY f9;
+
+SELECT COUNT(t2.f3),
+       (SELECT COUNT(f3) FROM t1 WHERE t2.f1) AS f9
+FROM t2 JOIN t1 ON t1.f3
+WHERE ('v') IN (SELECT f4 FROM t2)
+GROUP BY f9;
+
+EXPLAIN
+SELECT COUNT(t2.f3),
+       (SELECT COUNT(f3) FROM t1 WHERE t2.f1) AS f9
+FROM t2 JOIN t1 ON t1.f3
+WHERE ('v') IN (SELECT f4 FROM t2)
+ORDER BY f9;
+
+SELECT COUNT(t2.f3),
+       (SELECT COUNT(f3) FROM t1 WHERE t2.f1) AS f9
+FROM t2 JOIN t1 ON t1.f3
+WHERE ('v') IN (SELECT f4 FROM t2)
+ORDER BY f9;
+
+# these queries are like the ones above, but without the ON clause,
+# resulting in a different crash (failed assert)
+EXPLAIN
+SELECT COUNT(t2.f3),
+       (SELECT t2.f1 FROM t1 limit 1) AS f9
+FROM t2 JOIN t1
+WHERE ('v') IN (SELECT f4 FROM t2)
+GROUP BY f9;
+
+SELECT COUNT(t2.f3),
+       (SELECT t2.f1 FROM t1 limit 1) AS f9
+FROM t2 JOIN t1
+WHERE ('v') IN (SELECT f4 FROM t2)
+GROUP BY f9;
+
+EXPLAIN
+SELECT COUNT(t2.f3),
+       (SELECT t2.f1 FROM t1 limit 1) AS f9
+FROM t2 JOIN t1
+WHERE ('v') IN (SELECT f4 FROM t2)
+ORDER BY f9;
+
+SELECT COUNT(t2.f3),
+       (SELECT t2.f1 FROM t1 limit 1) AS f9
+FROM t2 JOIN t1
+WHERE ('v') IN (SELECT f4 FROM t2)
+ORDER BY f9;
+
+drop table t1,t2;
+
+--echo #
+--echo # LP BUG#682683 Crash in create_tmp_table called from
+--echo #               JOIN::init_execution
+--echo #
+
+CREATE TABLE t2 (f1 int) ;
+INSERT INTO t2 VALUES (1),(2);
+
+CREATE TABLE t1 (f1 int) ;
+
+EXPLAIN
+SELECT (SELECT f1 FROM t1) AS field1 FROM t2 GROUP BY field1;
+SELECT (SELECT f1 FROM t1) AS field1 FROM t2 GROUP BY field1;
+EXPLAIN
+SELECT (SELECT f1 FROM t1) AS field1 FROM t2 ORDER BY field1;
+SELECT (SELECT f1 FROM t1) AS field1 FROM t2 ORDER BY field1;
+
+INSERT INTO t1 VALUES (1),(2);
+
+EXPLAIN
+SELECT (SELECT f1 FROM t1) AS field1 FROM t2 GROUP BY field1;
+--error ER_SUBQUERY_NO_1_ROW
+SELECT (SELECT f1 FROM t1) AS field1 FROM t2 GROUP BY field1;
+EXPLAIN
+SELECT (SELECT f1 FROM t1) AS field1 FROM t2 ORDER BY field1;
+--error ER_SUBQUERY_NO_1_ROW
+SELECT (SELECT f1 FROM t1) AS field1 FROM t2 ORDER BY field1;
+
+drop table t1,t2;
+
+--echo #
+--echo # LP BUG#680943 Assertion `!table || (!table->read_set ||
+--echo # bitmap_is_set(table->read_set, field_index))' failed with subquery
+--echo #
+
+CREATE TABLE t1 (f1 int,f3 int) ;
+INSERT IGNORE INTO t1 VALUES ('6','0'),('4','0');
+
+CREATE TABLE t2 (f1 int,f2 int,f3 int) ;
+INSERT IGNORE INTO t2 VALUES ('6','0','0'),('2','0','0');
+
+SELECT f2
+FROM (SELECT * FROM t2) AS alias1
+WHERE (SELECT SQ2_t2.f1
+       FROM t1 JOIN t1 AS SQ2_t2 ON SQ2_t2.f3
+       WHERE SQ2_t2.f3 AND alias1.f1)
+ORDER BY f3 ;
+
+drop table t1,t2;
+
+--echo #
+--echo # LP BUG#715062: Wrong result with VIEW + UNION + subquery in maria-5.3-mwl89
+--echo #
+
+create table t1 (f1 int);
+create table t2 (f2 int);
+create table t3 (f3 int);
+insert into t1 values (2);
+insert into t2 values (2);
+insert into t3 values (7);
+
+CREATE VIEW v1 AS SELECT 2 UNION SELECT 2 ;
+CREATE VIEW v2 AS SELECT * from t1 UNION SELECT * from t2 ;
+
+set @save_optimizer_switch=@@optimizer_switch;
+SET @@optimizer_switch = 'in_to_exists=off,semijoin=off,materialization=on';
+
+EXPLAIN
+SELECT 'bug' FROM DUAL WHERE ( 5 ) IN ( SELECT * FROM v1 );
+SELECT 'bug' FROM DUAL WHERE ( 5 ) IN ( SELECT * FROM v1 );
+
+EXPLAIN
+SELECT ( 5 ) IN ( SELECT * FROM v1 );
+SELECT ( 5 ) IN ( SELECT * FROM v1 );
+
+EXPLAIN
+SELECT 'bug' FROM DUAL WHERE ( 5 ) IN (SELECT * FROM v2);
+SELECT 'bug' FROM DUAL WHERE ( 5 ) IN (SELECT * FROM v2);
+
+EXPLAIN
+SELECT 'bug' FROM t3 WHERE ( 5 ) IN (SELECT * FROM v2);
+SELECT 'bug' FROM t3 WHERE ( 5 ) IN (SELECT * FROM v2);
+
+EXPLAIN
+SELECT ( 5 ) IN ( SELECT * FROM v2 );
+SELECT ( 5 ) IN ( SELECT * FROM v2 );
+
+SET @@optimizer_switch = 'in_to_exists=on,semijoin=off,materialization=off';
+
+EXPLAIN
+SELECT 'bug' FROM DUAL WHERE ( 5 ) IN ( SELECT * FROM v1 );
+SELECT 'bug' FROM DUAL WHERE ( 5 ) IN ( SELECT * FROM v1 );
+
+EXPLAIN
+SELECT ( 5 ) IN ( SELECT * FROM v1 );
+SELECT ( 5 ) IN ( SELECT * FROM v1 );
+
+EXPLAIN
+SELECT 'bug' FROM DUAL WHERE ( 5 ) IN (SELECT * FROM v2);
+SELECT 'bug' FROM DUAL WHERE ( 5 ) IN (SELECT * FROM v2);
+
+EXPLAIN
+SELECT 'bug' FROM t3 WHERE ( 5 ) IN (SELECT * FROM v2);
+SELECT 'bug' FROM t3 WHERE ( 5 ) IN (SELECT * FROM v2);
+
+EXPLAIN
+SELECT ( 5 ) IN ( SELECT * FROM v2 );
+SELECT ( 5 ) IN ( SELECT * FROM v2 );
+
+set @@optimizer_switch=@save_optimizer_switch;
+
+drop table t1,t2,t3;
+drop view v1,v2;
+
+--echo #
+--echo # LP BUG#715069 Wrong result with GROUP BY inside subquery and materialization=off
+--echo #
+
+CREATE TABLE t0 ( f1 int(11), f2 int(11), f10 varchar(1), PRIMARY KEY (f1)) ;
+INSERT INTO t0 VALUES (8,8,'u'),(10,5,'o');
+
+CREATE TABLE t1 (f1a int, f2a int not null, f3a varchar(3) not null, PRIMARY KEY (f1a)) ;
+INSERT INTO t1 VALUES
+(8,8,'a1a'),
+(10,5,'b1b');
+
+CREATE TABLE t2 (f1b int, f2b int not null, f3b varchar(3) not null, PRIMARY KEY (f1b)) ;
+INSERT INTO t2 VALUES
+(10,5,'d1d');
+
+set @save_optimizer_switch=@@optimizer_switch;
+set @@optimizer_switch = 'materialization=off';
+
+EXPLAIN
+SELECT alias2.f1 , alias2.f2
+FROM t0 AS alias1
+RIGHT JOIN t0 AS alias2 ON alias2.f10
+WHERE ( alias2.f1 , alias2.f2 ) IN ( SELECT f2 , f1 FROM t0 GROUP BY f2 , f1 );
+
+SELECT alias2.f1 , alias2.f2
+FROM t0 AS alias1
+RIGHT JOIN t0 AS alias2 ON alias2.f10
+WHERE ( alias2.f1 , alias2.f2 ) IN ( SELECT f2 , f1 FROM t0 GROUP BY f2 , f1 );
+
+EXPLAIN
+SELECT * FROM t2 WHERE (f1b, f2b) IN (SELECT f1a, f2a FROM t1 GROUP BY f1a, f2a);
+SELECT * FROM t2 WHERE (f1b, f2b) IN (SELECT f1a, f2a FROM t1 GROUP BY f1a, f2a);
+
+EXPLAIN
+SELECT * FROM t2 WHERE (f1b) IN (SELECT f1a FROM t1 GROUP BY f1a, f2a);
+SELECT * FROM t2 WHERE (f1b) IN (SELECT f1a FROM t1 GROUP BY f1a, f2a);
+
+SET @@optimizer_switch = 'materialization=on';
+
+EXPLAIN
+SELECT alias2.f1 , alias2.f2
+FROM t0 AS alias1
+RIGHT JOIN t0 AS alias2 ON alias2.f10
+WHERE ( alias2.f1 , alias2.f2 ) IN ( SELECT f2 , f1 FROM t0 GROUP BY f2 , f1 );
+
+SELECT alias2.f1 , alias2.f2
+FROM t0 AS alias1
+RIGHT JOIN t0 AS alias2 ON alias2.f10
+WHERE ( alias2.f1 , alias2.f2 ) IN ( SELECT f2 , f1 FROM t0 GROUP BY f2 , f1 );
+
+EXPLAIN
+SELECT * FROM t2 WHERE (f1b, f2b) IN (SELECT f1a, f2a FROM t1 GROUP BY f1a, f2a);
+SELECT * FROM t2 WHERE (f1b, f2b) IN (SELECT f1a, f2a FROM t1 GROUP BY f1a, f2a);
+
+EXPLAIN
+SELECT * FROM t2 WHERE (f1b) IN (SELECT f1a FROM t1 GROUP BY f1a, f2a);
+SELECT * FROM t2 WHERE (f1b) IN (SELECT f1a FROM t1 GROUP BY f1a, f2a);
+
+set @@optimizer_switch=@save_optimizer_switch;
+
+drop table t0,t1,t2;
+
+--echo #                                                                                                                                                     
+--echo # LP BUG#718593 Crash in substitute_for_best_equal_field -> eliminate_item_equal -> 
+--echo # Item_field::find_item_equal -> Item_equal::contains
+--echo #                                                                                                                                                     
+
+set @save_optimizer_switch=@@optimizer_switch;
+SET @@optimizer_switch = 'semijoin=off';
+
+CREATE TABLE t1 ( f3 int(11), f10 varchar(1), f11 varchar(1)) ;
+INSERT IGNORE INTO t1 VALUES (6,'f','f'),(2,'d','d');
+
+CREATE TABLE t2 ( f12 int(11), f13 int(11)) ;
+insert into t2 values (1,2), (3,4);
+
+EXPLAIN
+SELECT * FROM t2
+WHERE ( f12 ) IN (
+        SELECT alias2.f3
+        FROM t1 AS alias1 JOIN t1 AS alias2 ON alias2.f10 = alias1.f11
+        WHERE alias1.f11 OR alias1.f3 = 50 AND alias1.f10
+);
+SELECT * FROM t2
+WHERE ( f12 ) IN (
+        SELECT alias2.f3
+        FROM t1 AS alias1 JOIN t1 AS alias2 ON alias2.f10 = alias1.f11
+        WHERE alias1.f11 OR alias1.f3 = 50 AND alias1.f10
+);
+
+EXPLAIN
+SELECT * FROM t2
+WHERE ( f12 ) IN (
+        SELECT alias2.f3
+        FROM t1 AS alias1, t1 AS alias2
+        WHERE (alias2.f10 = alias1.f11) AND (alias1.f11 OR alias1.f3 = 50 AND alias1.f10));
+SELECT * FROM t2
+WHERE ( f12 ) IN (
+        SELECT alias2.f3
+        FROM t1 AS alias1, t1 AS alias2
+        WHERE (alias2.f10 = alias1.f11) AND (alias1.f11 OR alias1.f3 = 50 AND alias1.f10));
+
+set @@optimizer_switch=@save_optimizer_switch;
 drop table t1, t2;

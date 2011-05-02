@@ -6251,4 +6251,5 @@ ER_BAD_OPTION_VALUE
         eng "Incorrect value '%-.64s' for option '%-.64s'"
 ER_CANT_DO_ONLINE
         eng "Can't execute the given '%s' command as online"
-
+ER_ILLEGAL_SUBQUERY_OPTIMIZER_SWITCHES
+        eng "At least one of the 'in_to_exists' or 'materialization' optimizer_switch flags must be 'on'."

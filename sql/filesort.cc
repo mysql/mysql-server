@@ -612,10 +612,34 @@ static ha_rows find_all_keys(SORTPARAM *param, SQL_SELECT *select,
       }
       DBUG_RETURN(HA_POS_ERROR);		/* purecov: inspected */
     }
+
+    bool write_record= false;
     if (error == 0)
+    {
       param->examined_rows++;
-   
-    if (error == 0 && (!select || select->skip_record(thd) > 0))
+      if (select && select->cond)
+      {
+        /*
+          If the condition 'select->cond' contains a subquery, restore the
+          original read/write sets of the table 'sort_form' because when
+          SQL_SELECT::skip_record evaluates this condition. it may include a
+          correlated subquery predicate, such that some field in the subquery
+          refers to 'sort_form'.
+        */
+        if (select->cond->with_subselect)
+          sort_form->column_bitmaps_set(save_read_set, save_write_set,
+                                        save_vcol_set);
+        write_record= (select->skip_record(thd) > 0);
+        if (select->cond->with_subselect)
+          sort_form->column_bitmaps_set(&sort_form->tmp_set,
+                                        &sort_form->tmp_set,
+                                        &sort_form->tmp_set);
+      }
+      else
+        write_record= true;
+    }
+
+    if (write_record)
     {
       if (idx == param->keys)
       {
@@ -628,7 +652,7 @@ static ha_rows find_all_keys(SORTPARAM *param, SQL_SELECT *select,
     }
     else
       file->unlock_row();
-      
+
     /* It does not make sense to read more keys in case of a fatal error */
     if (thd->is_error())
       break;
