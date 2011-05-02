@@ -498,14 +498,49 @@ row_upd_rec_in_place(
 	n_fields = upd_get_n_fields(update);
 
 	for (i = 0; i < n_fields; i++) {
+#ifdef UNIV_BLOB_DEBUG
+		btr_blob_dbg_t	b;
+		const byte*	field_ref	= NULL;
+#endif /* UNIV_BLOB_DEBUG */
+
 		upd_field = upd_get_nth_field(update, i);
 		new_val = &(upd_field->new_val);
 		ut_ad(!dfield_is_ext(new_val) ==
 		      !rec_offs_nth_extern(offsets, upd_field->field_no));
+#ifdef UNIV_BLOB_DEBUG
+		if (dfield_is_ext(new_val)) {
+			ulint	len;
+			field_ref = rec_get_nth_field(rec, offsets, i, &len);
+			ut_a(len != UNIV_SQL_NULL);
+			ut_a(len >= BTR_EXTERN_FIELD_REF_SIZE);
+			field_ref += len - BTR_EXTERN_FIELD_REF_SIZE;
+
+			b.ref_page_no = page_get_page_no(page_align(rec));
+			b.ref_heap_no = page_rec_get_heap_no(rec);
+			b.ref_field_no = i;
+			b.blob_page_no = mach_read_from_4(
+				field_ref + BTR_EXTERN_PAGE_NO);
+			ut_a(b.ref_field_no >= index->n_uniq);
+			btr_blob_dbg_rbt_delete(index, &b, "upd_in_place");
+		}
+#endif /* UNIV_BLOB_DEBUG */
 
 		rec_set_nth_field(rec, offsets, upd_field->field_no,
 				  dfield_get_data(new_val),
 				  dfield_get_len(new_val));
+
+#ifdef UNIV_BLOB_DEBUG
+		if (dfield_is_ext(new_val)) {
+			b.blob_page_no = mach_read_from_4(
+				field_ref + BTR_EXTERN_PAGE_NO);
+			b.always_owner = b.owner = !(field_ref[BTR_EXTERN_LEN]
+						     & BTR_EXTERN_OWNER_FLAG);
+			b.del = rec_get_deleted_flag(
+				rec, rec_offs_comp(offsets));
+
+			btr_blob_dbg_rbt_insert(index, &b, "upd_in_place");
+		}
+#endif /* UNIV_BLOB_DEBUG */
 	}
 
 	if (UNIV_LIKELY_NULL(page_zip)) {
@@ -1192,25 +1227,31 @@ NOTE: we compare the fields as binary strings!
 @return TRUE if update vector changes an ordering field in the index record */
 UNIV_INTERN
 ibool
-row_upd_changes_ord_field_binary(
-/*=============================*/
+row_upd_changes_ord_field_binary_func(
+/*==================================*/
+	dict_index_t*	index,	/*!< in: index of the record */
+	const upd_t*	update,	/*!< in: update vector for the row; NOTE: the
+				field numbers in this MUST be clustered index
+				positions! */
+#ifdef UNIV_DEBUG
+	const que_thr_t*thr,	/*!< in: query thread */
+#endif /* UNIV_DEBUG */
 	const dtuple_t*	row,	/*!< in: old value of row, or NULL if the
 				row and the data values in update are not
 				known when this function is called, e.g., at
 				compile time */
-	const row_ext_t*ext,	/*!< NULL, or prefixes of the externally
+	const row_ext_t*ext)	/*!< NULL, or prefixes of the externally
 				stored columns in the old row */
-	dict_index_t*	index,	/*!< in: index of the record */
-	const upd_t*	update)	/*!< in: update vector for the row; NOTE: the
-				field numbers in this MUST be clustered index
-				positions! */
 {
 	ulint			n_unique;
 	ulint			i;
 	const dict_index_t*	clust_index;
 
-	ut_ad(update);
 	ut_ad(index);
+	ut_ad(update);
+	ut_ad(thr);
+	ut_ad(thr->graph);
+	ut_ad(thr->graph->trx);
 
 	n_unique = dict_index_get_n_unique(index);
 
@@ -1252,6 +1293,10 @@ row_upd_changes_ord_field_binary(
 		    || dfield_is_null(dfield)) {
 			/* do nothing special */
 		} else if (UNIV_LIKELY_NULL(ext)) {
+			/* Silence a compiler warning without
+			silencing a Valgrind error. */
+			dfield_len = 0;
+			UNIV_MEM_INVALID(&dfield_len, sizeof dfield_len);
 			/* See if the column is stored externally. */
 			buf = row_ext_lookup(ext, col_no, &dfield_len);
 
@@ -1259,9 +1304,14 @@ row_upd_changes_ord_field_binary(
 
 			if (UNIV_LIKELY_NULL(buf)) {
 				if (UNIV_UNLIKELY(buf == field_ref_zero)) {
-					/* This should never happen, but
-					we try to fail safe here. */
-					ut_ad(0);
+					/* The externally stored field
+					was not written yet. This
+					record should only be seen by
+					recv_recovery_rollback_active(),
+					when the server had crashed before
+					storing the field. */
+					ut_ad(thr->graph->trx->is_recovered);
+					ut_ad(trx_is_recv(thr->graph->trx));
 					return(TRUE);
 				}
 
@@ -1608,8 +1658,8 @@ row_upd_sec_step(
 	ut_ad(!dict_index_is_clust(node->index));
 
 	if (node->state == UPD_NODE_UPDATE_ALL_SEC
-	    || row_upd_changes_ord_field_binary(node->row, node->ext,
-						node->index, node->update)) {
+	    || row_upd_changes_ord_field_binary(node->index, node->update,
+						thr, node->row, node->ext)) {
 		return(row_upd_sec_index_entry(node, thr));
 	}
 
@@ -1937,7 +1987,7 @@ row_upd_clust_rec(
 			index, btr_cur_get_block(btr_cur), rec,
 			rec_get_offsets(rec, index, offsets_,
 					ULINT_UNDEFINED, &heap),
-			big_rec, mtr);
+			mtr, TRUE, big_rec);
 		mtr_commit(mtr);
 	}
 
@@ -2136,8 +2186,8 @@ exit_func:
 
 	row_upd_store_row(node);
 
-	if (row_upd_changes_ord_field_binary(node->row, node->ext, index,
-					     node->update)) {
+	if (row_upd_changes_ord_field_binary(index, node->update, thr,
+					     node->row, node->ext)) {
 
 		/* Update causes an ordering field (ordering fields within
 		the B-tree) of the clustered index record to change: perform

@@ -10,6 +10,7 @@
 *.core
 *.d
 *.da
+*.dir
 *.dll
 *.exe
 *.exp
@@ -31,6 +32,7 @@
 *.pdb
 *.reject
 *.res
+*.rule
 *.sbr
 *.so
 *.so.*
@@ -41,15 +43,21 @@
 *.dsp
 *.Po
 *.Plo
-*.dir/
+*.vcxproj
+*.vcxproj.filters
+*/*.dir/*
+*.dir
+Debug
+MySql.sdf
+Win32
 */*_pure_*warnings
 */.deps
 */.libs/*
 */.pure
-debug/
-MinSizeRel/
-Release/
-RelWithDebInfo/
+*/debug/*
+*/minsizerel/*
+*/release/*
+RelWithDebInfo
 *~
 .*.swp
 ./CMakeCache.txt
@@ -429,6 +437,7 @@ include/mysql_h.ic
 include/mysql_version.h
 include/mysqld_ername.h
 include/mysqld_error.h
+include/mysqld_error.h.rule
 include/openssl
 include/readline
 include/readline/*.h
@@ -1154,7 +1163,9 @@ scripts/mysql_find_rows
 scripts/mysql_fix_extensions
 scripts/mysql_fix_privilege_tables
 scripts/mysql_fix_privilege_tables.sql
+scripts/mysql_fix_privilege_tables.sql.rule
 scripts/mysql_fix_privilege_tables_sql.c
+scripts/mysql_fix_privilege_tables_sql.c.rule
 scripts/mysql_install_db
 scripts/mysql_secure_installation
 scripts/mysql_setpermission
@@ -1239,6 +1250,7 @@ sql/handlerton.cc
 sql/html
 sql/latex
 sql/lex_hash.h
+sql/lex_hash.h.rule
 sql/link_sources
 sql/max/*
 sql/message.h
@@ -1290,6 +1302,7 @@ sql/sql_builtin.cc
 sql/sql_select.cc.orig
 sql/sql_yacc.cc
 sql/sql_yacc.h
+sql/sql_yacc.h.rule
 sql/sql_yacc.output
 sql/sql_yacc.yy.orig
 sql/test_time

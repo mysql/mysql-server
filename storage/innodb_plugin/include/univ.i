@@ -46,7 +46,7 @@ Created 1/20/1994 Heikki Tuuri
 
 #define INNODB_VERSION_MAJOR	1
 #define INNODB_VERSION_MINOR	0
-#define INNODB_VERSION_BUGFIX	15
+#define INNODB_VERSION_BUGFIX	16
 
 /* The following is the InnoDB version as shown in
 SELECT plugin_version FROM information_schema.plugins;
@@ -177,14 +177,15 @@ command. Not tested on Windows. */
 						debugging without UNIV_DEBUG */
 #define UNIV_BUF_DEBUG				/* Enable buffer pool
 						debugging without UNIV_DEBUG */
+#define UNIV_BLOB_LIGHT_DEBUG			/* Enable off-page column
+						debugging without UNIV_DEBUG */
 #define UNIV_DEBUG				/* Enable ut_ad() assertions
 						and disable UNIV_INLINE */
 #define UNIV_DEBUG_LOCK_VALIDATE		/* Enable
 						ut_ad(lock_rec_validate_page())
 						assertions. */
-#define UNIV_DEBUG_FILE_ACCESSES		/* Debug .ibd file access
-						(field file_page_was_freed
-						in buf_page_t) */
+#define UNIV_DEBUG_FILE_ACCESSES		/* Enable freed block access
+						debugging without UNIV_DEBUG */
 #define UNIV_LRU_DEBUG				/* debug the buffer pool LRU */
 #define UNIV_HASH_DEBUG				/* debug HASH_ macros */
 #define UNIV_LIST_DEBUG				/* debug UT_LIST_ macros */
@@ -193,6 +194,8 @@ this will break redo log file compatibility, but it may be useful when
 debugging redo log application problems. */
 #define UNIV_MEM_DEBUG				/* detect memory leaks etc */
 #define UNIV_IBUF_DEBUG				/* debug the insert buffer */
+#define UNIV_BLOB_DEBUG				/* track BLOB ownership;
+assumes that no BLOBs survive server restart */
 #define UNIV_IBUF_COUNT_DEBUG			/* debug the insert buffer;
 this limits the database to IBUF_COUNT_N_SPACES and IBUF_COUNT_N_PAGES,
 and the insert buffer must be empty when the database is started */
@@ -424,7 +427,7 @@ it is read or written. */
 /* Use sun_prefetch when compile with Sun Studio */
 # define UNIV_EXPECT(expr,value) (expr)
 # define UNIV_LIKELY_NULL(expr) (expr)
-# define UNIV_PREFETCH_R(addr) sun_prefetch_read_many(addr)
+# define UNIV_PREFETCH_R(addr) sun_prefetch_read_many((void*) addr)
 # define UNIV_PREFETCH_RW(addr) sun_prefetch_write_many(addr)
 #else
 /* Dummy versions of the macros */

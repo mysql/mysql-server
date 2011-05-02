@@ -21,6 +21,7 @@
 #include "trnman_public.h"
 #include "ma_checkpoint.h"
 #include <hash.h>
+#include <my_handler.h>
 
 void history_state_free(MARIA_STATE_HISTORY_CLOSED *closed_history)
 {

@@ -32,8 +32,8 @@ SET(MYSYS_SOURCES  array.c charset-def.c charset.c checksum.c default.c default_
 				mf_tempfile.c mf_unixpath.c mf_wcomp.c mf_wfile.c mulalloc.c my_access.c
 				my_aes.c my_alarm.c my_alloc.c my_append.c my_bit.c my_bitmap.c my_chmod.c my_chsize.c
 				my_clock.c my_compress.c my_conio.c my_copy.c my_crc32.c my_create.c my_delete.c
-				my_div.c my_error.c my_file.c my_fopen.c my_fstream.c my_gethostbyname.c 
-				my_gethwaddr.c my_getopt.c my_getsystime.c my_getwd.c my_handler.c my_init.c
+				my_div.c my_error.c my_file.c my_fopen.c my_fstream.c 
+				my_gethwaddr.c my_getopt.c my_getsystime.c my_getwd.c my_compare.c my_init.c
 				my_lib.c my_lock.c my_lockmem.c my_malloc.c my_messnc.c
 				my_mkdir.c my_mmap.c my_net.c my_once.c my_open.c my_pread.c my_pthread.c 
 				my_quick.c my_read.c my_realloc.c my_redel.c my_rename.c my_seek.c my_sleep.c

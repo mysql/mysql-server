@@ -584,8 +584,23 @@ void reset_mqh(LEX_USER *lu, bool get_them= 0)
 }
 
 
-void thd_init_client_charset(THD *thd, uint cs_number)
+/**
+  Set thread character set variables from the given ID
+
+  @param  thd         thread handle
+  @param  cs_number   character set and collation ID
+
+  @retval  0  OK; character_set_client, collation_connection and
+              character_set_results are set to the new value,
+              or to the default global values.
+
+  @retval  1  error, e.g. the given ID is not supported by parser.
+              Corresponding SQL error is sent.
+*/
+
+bool thd_init_client_charset(THD *thd, uint cs_number)
 {
+  CHARSET_INFO *cs;
   /*
    Use server character set and collation if
    - opt_character_set_client_handshake is not set
@@ -594,10 +609,10 @@ void thd_init_client_charset(THD *thd, uint cs_number)
    - client character set doesn't exists in server
   */
   if (!opt_character_set_client_handshake ||
-      !(thd->variables.character_set_client= get_charset(cs_number, MYF(0))) ||
+      !(cs= get_charset(cs_number, MYF(0))) ||
       !my_strcasecmp(&my_charset_latin1,
                      global_system_variables.character_set_client->name,
-                     thd->variables.character_set_client->name))
+                     cs->name))
   {
     thd->variables.character_set_client=
       global_system_variables.character_set_client;
@@ -608,10 +623,18 @@ void thd_init_client_charset(THD *thd, uint cs_number)
   }
   else
   {
+    if (!is_supported_parser_charset(cs))
+    {
+      /* Disallow non-supported parser character sets: UCS2, UTF16, UTF32 */
+      my_error(ER_WRONG_VALUE_FOR_VAR, MYF(0), "character_set_client",
+               cs->csname);
+      return true;
+    }
     thd->variables.character_set_results=
       thd->variables.collation_connection= 
-      thd->variables.character_set_client;
+      thd->variables.character_set_client= cs;
   }
+  return false;
 }
 
 
@@ -784,7 +807,8 @@ static int check_connection(THD *thd)
     thd->client_capabilities|= ((ulong) uint2korr(net->read_pos+2)) << 16;
     thd->max_client_packet_length= uint4korr(net->read_pos+4);
     DBUG_PRINT("info", ("client_character_set: %d", (uint) net->read_pos[8]));
-    thd_init_client_charset(thd, (uint) net->read_pos[8]);
+    if (thd_init_client_charset(thd, (uint) net->read_pos[8]))
+      return 1;
     thd->update_charset();
     end= (char*) net->read_pos+32;
   }

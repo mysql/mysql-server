@@ -416,6 +416,9 @@ int main(int argc,char *argv[])
 
       if (interval)                             /* --sleep=interval given */
       {
+        if (opt_count_iterations && --nr_iterations == 0)
+          break;
+
         /*
           If connection was dropped (unintentionally, or due to SHUTDOWN),
           re-establish it if --wait ("retry-connect") was given and user

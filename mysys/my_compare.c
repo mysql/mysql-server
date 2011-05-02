@@ -1,26 +1,23 @@
 /* Copyright (C) 2002-2006 MySQL AB
-   
-   This library is free software; you can redistribute it and/or
-   modify it under the terms of the GNU Library General Public
-   License as published by the Free Software Foundation; version 2
-   of the License.
-   
-   This library is distributed in the hope that it will be useful,
+   Copyright (C) 2009-2011 Monty Program Ab
+   Copyright (c) 2011 Oracle and/or its affiliates. All rights reserved.
+
+   This program is free software; you can redistribute it and/or modify
+   it under the terms of the GNU General Public License as published by
+   the Free Software Foundation; version 2 of the License.
+
+   This program is distributed in the hope that it will be useful,
    but WITHOUT ANY WARRANTY; without even the implied warranty of
-   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
-   Library General Public License for more details.
+   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+   GNU General Public License for more details.
 
-   You should have received a copy of the GNU Library General Public
-   License along with this library; if not, write to the Free
-   Software Foundation, Inc., 59 Temple Place - Suite 330, Boston,
-   MA 02111-1307, USA */
+   You should have received a copy of the GNU General Public License
+   along with this program; if not, write to the Free Software
+   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
 
-#include <my_global.h>
-#include <m_ctype.h>
+#include "mysys_priv.h"
 #include <my_base.h>
-#include <my_handler.h>
-#include <my_sys.h>
-#include "my_handler_errors.h"
+#include "my_compare.h"
 
 int ha_compare_text(CHARSET_INFO *charset_info, const uchar *a, uint a_length,
 		    const uchar *b, uint b_length, my_bool part_key,
@@ -653,6 +650,8 @@ HA_KEYSEG *ha_find_null(HA_KEYSEG *keyseg, const uchar *a)
     This is safe to call multiple times as my_error_register()
     will ignore calls to register already registered error numbers.
 */
+
+#include "my_handler_errors.h"
 
 void my_handler_error_register(void)
 {

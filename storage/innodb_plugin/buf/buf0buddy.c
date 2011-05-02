@@ -327,7 +327,7 @@ buf_buddy_alloc_low(
 
 	/* Try replacing an uncompressed page in the buffer pool. */
 	buf_pool_mutex_exit();
-	block = buf_LRU_get_free_block(0);
+	block = buf_LRU_get_free_block();
 	*lru = TRUE;
 	buf_pool_mutex_enter();
 

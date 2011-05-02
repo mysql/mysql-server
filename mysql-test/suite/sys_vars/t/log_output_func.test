@@ -115,6 +115,7 @@ file_exists $MYSQLTEST_VARDIR/run/mytest.log ;
 connection default;
 SET @@global.general_log= 'OFF';
 #SET @@global.general_log_file= @start_general_log_file;
+--replace_result $start_general_log_file start_general_log_file
 eval SET @@global.general_log_file= '$start_general_log_file';
 SET @@global.log_output= @start_value;
 SET @@global.general_log= @start_general_log;

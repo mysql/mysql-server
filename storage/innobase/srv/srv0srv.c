@@ -218,6 +218,11 @@ ulong	srv_max_buf_pool_modified_pct	= 90;
 /* variable counts amount of data read in total (in bytes) */
 ulint srv_data_read = 0;
 
+/* Internal setting for "innodb_stats_method". Decides how InnoDB treats
+NULL value when collecting statistics. By default, it is set to
+SRV_STATS_NULLS_EQUAL(0), ie. all NULL value are treated equal */
+ulong srv_innodb_stats_method = SRV_STATS_NULLS_EQUAL;
+
 /* here we count the amount of data written in total (in bytes) */
 ulint srv_data_written = 0;
 
@@ -2175,9 +2180,15 @@ srv_error_monitor_thread(
 			os_thread_create */
 {
 	/* number of successive fatal timeouts observed */
-	ulint	fatal_cnt	= 0;
-	dulint	old_lsn;
-	dulint	new_lsn;
+	ulint		fatal_cnt	= 0;
+	dulint		old_lsn;
+	dulint		new_lsn;
+	/* longest waiting thread for a semaphore */
+	os_thread_id_t	waiter		= os_thread_get_curr_id();
+	os_thread_id_t	old_waiter	= waiter;
+	/* the semaphore that is being waited for */
+	const void*	sema		= NULL;
+	const void*	old_sema	= NULL;
 
 	old_lsn = srv_start_lsn;
 
@@ -2219,10 +2230,11 @@ loop:
 	/* In case mutex_exit is not a memory barrier, it is
 	theoretically possible some threads are left waiting though
 	the semaphore is already released. Wake up those threads: */
-	
+
 	sync_arr_wake_threads_if_sema_free();
 
-	if (sync_array_print_long_waits()) {
+	if (sync_array_print_long_waits(&waiter, &sema)
+	    && sema == old_sema && os_thread_eq(waiter, old_waiter)) {
 		fatal_cnt++;
 		if (fatal_cnt > 10) {
 
@@ -2237,6 +2249,8 @@ loop:
 		}
 	} else {
 		fatal_cnt = 0;
+		old_waiter = waiter;
+		old_sema = sema;
 	}
 
 	/* Flush stderr so that a database user gets the output
