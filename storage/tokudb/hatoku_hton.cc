@@ -795,7 +795,9 @@ static int
 smart_dbt_callback_verify_frm (DBT const *key, DBT  const *row, void *context) {
     DBT* stored_frm = (DBT *)context;
     stored_frm->size = row->size;
-    stored_frm->data = row->data;
+    stored_frm->data = (uchar *)my_malloc(row->size, MYF(MY_WME));
+    assert(stored_frm->data);
+    memcpy(stored_frm->data, row->data, row->size);
     return 0;
 }
 static int tokudb_discover(handlerton *hton, THD* thd, const char *db, 
@@ -808,10 +810,11 @@ static int tokudb_discover(handlerton *hton, THD* thd, const char *db,
     DB* status_db = NULL;
     DB_TXN* txn = NULL;
     char path[FN_REFLEN + 1];
-    uchar* saved_frm_data = NULL;
     HA_METADATA_KEY curr_key = hatoku_frm_data;
-    DBT key, value;
-
+    DBT key, value;    
+    bzero(&key, sizeof(key));
+    bzero(&value, sizeof(&value));
+    
     error = db_env->txn_begin(db_env, 0, &txn, 0);
     if (error) { goto cleanup; }
 
@@ -834,9 +837,7 @@ static int tokudb_discover(handlerton *hton, THD* thd, const char *db,
         goto cleanup;
     }
 
-    saved_frm_data = (uchar *)my_malloc(value.size, MYF(MY_WME));
-    memcpy(saved_frm_data, value.data, value.size);
-    *frmblob = saved_frm_data;
+    *frmblob = (uchar *)value.data;
     *frmlen = value.size;
 
     error = 0;

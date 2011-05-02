@@ -2051,7 +2051,9 @@ static int
 smart_dbt_callback_verify_frm (DBT const *key, DBT  const *row, void *context) {
     DBT* stored_frm = (DBT *)context;
     stored_frm->size = row->size;
-    stored_frm->data = row->data;
+    stored_frm->data = (uchar *)my_malloc(row->size, MYF(MY_WME));
+    assert(stored_frm->data);
+    memcpy(stored_frm->data, row->data, row->size);
     return 0;
 }
 
@@ -2109,6 +2111,7 @@ cleanup:
         commit_txn(txn, 0);
     }
     my_free(mysql_frm_data, MYF(MY_ALLOW_ZERO_PTR));
+    my_free(stored_frm.data, MYF(MY_ALLOW_ZERO_PTR));
     TOKUDB_DBUG_RETURN(error);
 }
 
