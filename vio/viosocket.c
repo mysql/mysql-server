@@ -622,7 +622,7 @@ static my_bool socket_peek_read(Vio *vio, uint *bytes)
     return TRUE;
   *bytes= len;
   return FALSE;
-#elif FIONREAD_IN_SYS_IOCTL
+#elif defined(FIONREAD_IN_SYS_IOCTL) || defined(FIONREAD_IN_SYS_FILIO)
   int len;
   if (ioctl(sd, FIONREAD, &len) < 0)
     return TRUE;
