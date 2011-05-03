@@ -1403,6 +1403,7 @@ PFS_socket* create_socket(PFS_socket_class *klass, const void *identity)
           pfs->m_idle= false;
           pfs->m_socket_stat.reset();
           pfs->m_lock.dirty_to_allocated();
+          pfs->m_thread_owner= NULL;
           if (klass->is_singleton())
             klass->m_singleton= pfs;
           return pfs;
@@ -1435,11 +1436,14 @@ void destroy_socket(PFS_socket *pfs)
 
   /* Aggregate to SOCKET_SUMMARY_BY_INSTANCE and BY_EVENT_NAME */
   klass->m_socket_stat.m_io_stat.aggregate(&pfs->m_socket_stat.m_io_stat);
-  pfs->m_socket_stat.m_io_stat.reset();
+  pfs->m_socket_stat.reset();
 
   if (klass->is_singleton())
     klass->m_singleton= NULL;
 
+  pfs->m_thread_owner= NULL;
+  pfs->m_fd= 0;
+  pfs->m_addr_len= 0;
   pfs->m_lock.allocated_to_free();
 }
 

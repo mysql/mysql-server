@@ -232,12 +232,8 @@ void PFS_instance_iterator::visit_socket_instances(PFS_socket_class *klass,
     PFS_socket *pfs= sanitize_socket(klass->m_singleton);
     if (likely(pfs != NULL))
     {
-      if (likely(pfs->m_lock.is_populated())
-          && pfs->m_thread_owner != NULL)
-      {
-        if (pfs->m_thread_owner == thread)
-          visitor->visit_socket(pfs);
-      }
+      if (unlikely(pfs->m_thread_owner == thread))
+        visitor->visit_socket(pfs);
     }
   }
   else
@@ -248,11 +244,10 @@ void PFS_instance_iterator::visit_socket_instances(PFS_socket_class *klass,
 
     for ( ; pfs < pfs_last; pfs++)
     {
-      if (pfs->m_class == klass && pfs->m_lock.is_populated()
-           && pfs->m_thread_owner != NULL)
+      if (unlikely((pfs->m_class == klass) &&
+                   (pfs->m_thread_owner == thread)))
       {
-        if (pfs->m_thread_owner == thread)
-          visitor->visit_socket(pfs);
+        visitor->visit_socket(pfs);
       }
     }
   }
