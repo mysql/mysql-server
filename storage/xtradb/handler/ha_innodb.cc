@@ -11794,7 +11794,7 @@ static	MYSQL_SYSVAR_ULINT(pass_corrupt_table, srv_pass_corrupt_table,
   "except for the deletion.",
   NULL, NULL, 0, 0, 1, 0);
 
-static MYSQL_SYSVAR_ULONG(lazy_drop_table, srv_lazy_drop_table,
+static MYSQL_SYSVAR_ULINT(lazy_drop_table, srv_lazy_drop_table,
   PLUGIN_VAR_RQCMDARG,
   "At deleting tablespace, only miminum needed processes at the time are done. "
   "e.g. for http://bugs.mysql.com/51325",
