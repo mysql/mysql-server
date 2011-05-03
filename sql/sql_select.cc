@@ -11579,7 +11579,7 @@ bool JOIN_TAB::and_with_jt_and_sel_condition(Item *add_cond, uint line)
 */
 bool JOIN_TAB::and_with_condition(Item *add_cond, uint line)
 {
-  Item *old_cond= m_condition;
+  Item *old_cond __attribute__((unused))= m_condition;
   if (and_conditions(&m_condition, add_cond))
     return true;
   DBUG_PRINT("info", ("JOIN_TAB::m_condition extended. Change %p -> %p "
