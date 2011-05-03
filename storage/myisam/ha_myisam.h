@@ -21,7 +21,6 @@
 /* class for the the myisam handler */
 
 #include <myisam.h>
-#include <myisamchk.h>
 #include <ft_global.h>
 
 #define HA_RECOVER_NONE		0	/* No automatic recover */
@@ -46,7 +45,7 @@ class ha_myisam: public handler
  public:
   ha_myisam(handlerton *hton, TABLE_SHARE *table_arg);
   ~ha_myisam() {}
-  handler *clone(MEM_ROOT *mem_root);
+  handler *clone(const char *name, MEM_ROOT *mem_root);
   const char *table_type() const { return "MyISAM"; }
   const char *index_type(uint key_number);
   const char **bas_ext() const;

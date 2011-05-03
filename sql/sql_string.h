@@ -120,6 +120,9 @@ public:
   inline const char *ptr() const { return Ptr; }
   inline char *c_ptr()
   {
+    DBUG_ASSERT(!alloced || !Ptr || !Alloced_length || 
+                (Alloced_length >= (str_length + 1)));
+
     if (!Ptr || Ptr[str_length])		/* Should be safe */
       (void) realloc(str_length);
     return Ptr;
@@ -148,6 +151,16 @@ public:
       Alloced_length=str.Alloced_length-offset;
     str_charset=str.str_charset;
   }
+
+
+  /**
+     Points the internal buffer to the supplied one. The old buffer is freed.
+     @param str Pointer to the new buffer.
+     @param arg_length Length of the new buffer in characters, excluding any 
+            null character.
+     @param cs Character set to use for interpreting string data.
+     @note The new buffer will not be null terminated.
+  */
   inline void set(char *str,uint32 arg_length, CHARSET_INFO *cs)
   {
     free();

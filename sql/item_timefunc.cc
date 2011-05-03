@@ -294,8 +294,8 @@ static bool extract_date_time(DATE_TIME_FORMAT *format,
   for (; ptr != end && val != val_end; ptr++)
   {
     /* Skip pre-space between each argument */
-    while (val != val_end && my_isspace(cs, *val))
-      val++;
+    if ((val+= cs->cset->scan(cs, val, val_end, MY_SEQ_SPACES)) >= val_end)
+      break;
 
     if (*ptr == '%' && ptr+1 != end)
     {
@@ -649,7 +649,7 @@ bool make_date_time(DATE_TIME_FORMAT *format, MYSQL_TIME *l_time,
                     system_charset_info);
         break;
       case 'W':
-        if (type == MYSQL_TIMESTAMP_TIME)
+        if (type == MYSQL_TIMESTAMP_TIME || !(l_time->month || l_time->year))
           return 1;
         weekday= calc_weekday(calc_daynr(l_time->year,l_time->month,
                               l_time->day),0);
@@ -658,7 +658,7 @@ bool make_date_time(DATE_TIME_FORMAT *format, MYSQL_TIME *l_time,
                     system_charset_info);
         break;
       case 'a':
-        if (type == MYSQL_TIMESTAMP_TIME)
+        if (type == MYSQL_TIMESTAMP_TIME || !(l_time->month || l_time->year))
           return 1;
         weekday=calc_weekday(calc_daynr(l_time->year,l_time->month,
                              l_time->day),0);
@@ -823,7 +823,7 @@ bool make_date_time(DATE_TIME_FORMAT *format, MYSQL_TIME *l_time,
       }
       break;
       case 'w':
-	if (type == MYSQL_TIMESTAMP_TIME)
+	if (type == MYSQL_TIMESTAMP_TIME || !(l_time->month || l_time->year))
 	  return 1;
 	weekday=calc_weekday(calc_daynr(l_time->year,l_time->month,
 					l_time->day),1);
@@ -3300,6 +3300,7 @@ void Item_func_str_to_date::fix_length_and_dec()
 {
   maybe_null= 1;
   decimals=0;
+  cached_format_type= DATE_TIME;
   cached_field_type= MYSQL_TYPE_DATETIME;
   max_length= MAX_DATETIME_FULL_WIDTH*MY_CHARSET_BIN_MB_MAXLEN;
   cached_timestamp_type= MYSQL_TIMESTAMP_NONE;

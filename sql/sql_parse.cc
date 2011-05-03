@@ -1128,7 +1128,7 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
     uint save_db_length= thd->db_length;
     char *save_db= thd->db;
     USER_CONN *save_user_connect= thd->user_connect;
-  Security_context save_security_ctx= *thd->security_ctx;
+    Security_context save_security_ctx= *thd->security_ctx;
     CHARSET_INFO *save_character_set_client=
       thd->variables.character_set_client;
     CHARSET_INFO *save_collation_connection=
@@ -1136,8 +1136,12 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
     CHARSET_INFO *save_character_set_results=
       thd->variables.character_set_results;
 
+    /* Ensure we don't free security_ctx->user in case we have to revert */
+    thd->security_ctx->user= 0;
+
     if (acl_authenticate(thd, 0, packet_length))
     {
+      /* Free user if allocated by acl_authenticate */
       x_free(thd->security_ctx->user);
       *thd->security_ctx= save_security_ctx;
       thd->user_connect= save_user_connect;

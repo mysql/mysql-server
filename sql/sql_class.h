@@ -2097,7 +2097,7 @@ public:
   /*TODO: this will be obsolete when we have support for 64 bit my_time_t */
   inline bool	is_valid_time() 
   { 
-    return (start_time < (time_t) MY_TIME_T_MAX); 
+    return (IS_TIME_T_VALID_FOR_TIMESTAMP(start_time));
   }
   void set_time_after_lock()  { utime_after_lock= my_micro_time(); }
   ulonglong current_utime()  { return my_micro_time(); }

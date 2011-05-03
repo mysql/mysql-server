@@ -46,6 +46,7 @@ SET GLOBAL SQL_SLAVE_SKIP_COUNTER = 1;
 include/start_slave.inc
 INSERT INTO t1 VALUES(6,'C',2);
 INSERT INTO t1(b,c) VALUES('B',2);
+call mtr.add_suppression("Slave SQL.*Duplicate entry .6. for key .PRIMARY.* Error_code: 1062");
 include/wait_for_slave_sql_error.inc [errno=1062]
 INSERT INTO t1(b,c) VALUES('A',2);
 INSERT INTO t1(b,c) VALUES('D',2);
@@ -121,11 +122,11 @@ Master D	12	D
 * Remove wrong event from C and restore B->C->D *
 include/stop_slave.inc
 DELETE FROM t1 WHERE a = 6;
-START SLAVE;
+include/start_slave.inc
 RESET MASTER;
 RESET SLAVE;
 include/rpl_change_topology.inc [new topology=1->2->3->4->1]
-START SLAVE;
+include/start_slave.inc
 include/rpl_sync.inc
 
 * Check data inserted before restoring schema A->B->C->D->A *

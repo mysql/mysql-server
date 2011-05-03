@@ -375,6 +375,8 @@ FD	FD	FD	D18D	FD
 FE	FE	FE	D18E	FE	
 FF	FF	FF	D18F	FF	
 DROP TABLE t1;
+set global LC_TIME_NAMES=convert((-8388608) using cp1251);
+ERROR HY000: Unknown locale: '-8388608'
 #
 # End of 5.1 tests
 #

@@ -5,6 +5,7 @@
 # Slave needs to be started with --innodb to store table in InnoDB.
 # Same test for MyISAM (which had no bug).
 
+--connection master
 eval CREATE TABLE t1 (
  a int unsigned not null auto_increment primary key,
  b int unsigned,
@@ -32,38 +33,49 @@ INSERT INTO t2 VALUES (5, 4);
 INSERT INTO t2 VALUES (6, 6);
 
 INSERT IGNORE INTO t1 SELECT NULL, t2.b FROM t2 ORDER BY t2.a;
+--let $assert_cond= COUNT(*) = 6 FROM t1
+--let $assert_text= Count of elements in t1 should be 6.
+--source include/assert.inc
 
-# Compare results
+# Compare master and slave
+--sync_slave_with_master
+--let $diff_tables= master:test.t1 , slave:test.t1
+--source include/diff_tables.inc
 
-SELECT * FROM t1 ORDER BY a;
+# BUG#59338 Inconsistency in binlog for statements that don't change any rows STATEMENT SBR
+# An insert ignore that does not update anything must be written to the binary log in SBR
+# and MIXED modes. We check this property by counting occurrences in t1 before and after
+# the insert and comparing the binlog positions. The count should be the same in both points
+# and the statement should be in the binary log.
+--connection master
+--let $binlog_file= query_get_value("SHOW MASTER STATUS", File, 1)
+--let $binlog_start= query_get_value("SHOW MASTER STATUS", Position, 1)
+--let $statement_file=INSERT IGNORE INTO t1 SELECT NULL, t2.b FROM t2 ORDER BY t2.a
+--eval $statement_file
 
-sync_slave_with_master;
-SELECT * FROM t1 ORDER BY a;
+--let $assert_cond= COUNT(*) = 6 FROM t1
+--let $assert_text= Count of elements in t1 should be 6.
+--source include/assert.inc
 
-# Now do the same for MyISAM
+if (`SELECT @@BINLOG_FORMAT = 'ROW'`)
+{
+  --let $binlog_position_cmp= =
+  --let $assert_cond= [SHOW MASTER STATUS, Position, 1] $binlog_position_cmp $binlog_start
+  --let $assert_text= In SBR or MIXED modes, the event in the binlog should be the same that was executed. In RBR mode, binlog position should stay unchanged.
+}
+if (`SELECT @@BINLOG_FORMAT != 'ROW' && UPPER('$engine_type') = UPPER('Innodb')`)
+{
+  --let $assert_cond= \'[\'SHOW BINLOG EVENTS IN "$binlog_file" FROM $binlog_start LIMIT 2, 1\', Info, 1]\' LIKE \'%$statement_file\'
+  --let $assert_text= In SBR or MIXED modes, the event in the binlog should be the same that was executed. In RBR mode, binlog position should stay unchanged.
+}
+if (`SELECT @@BINLOG_FORMAT != 'ROW' && UPPER('$engine_type') = UPPER('MyIsam')`)
+{
+  --let $assert_cond= \'[\'SHOW BINLOG EVENTS IN "$binlog_file" FROM $binlog_start LIMIT 1, 1\', Info, 1]\' LIKE \'%$statement_file\'
+  --let $assert_text= In SBR or MIXED modes, the event in the binlog should be the same that was executed. In RBR mode, binlog position should stay unchanged.
+}
+--source include/assert.inc
 
-connection master;
-drop table t1;
-eval CREATE TABLE t1 (
- a int unsigned not null auto_increment primary key,
- b int unsigned,
- unique (b)
-) ENGINE=$engine_type2;
-
-INSERT INTO t1 VALUES (1, 1);
-INSERT INTO t1 VALUES (2, 2);
-INSERT INTO t1 VALUES (3, 3);
-INSERT INTO t1 VALUES (4, 4);
-
-INSERT IGNORE INTO t1 SELECT NULL, t2.b FROM t2 ORDER BY t2.a;
-
-SELECT * FROM t1 ORDER BY a;
-
-sync_slave_with_master;
-SELECT * FROM t1 ORDER BY a;
-
-connection master;
+# Clean up
+--connection master
 drop table t1, t2;
-sync_slave_with_master;
-
-# End of 4.1 tests
+--sync_slave_with_master

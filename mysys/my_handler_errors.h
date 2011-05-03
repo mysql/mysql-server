@@ -1,4 +1,3 @@
-
 /*
   Errors a handler can give you
 */
@@ -66,4 +65,3 @@ static const char *handler_error_messages[]=
   "Too many active concurrent transactions",
   "Row is not visible by the current transaction"
 };
-

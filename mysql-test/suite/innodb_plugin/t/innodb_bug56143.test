@@ -8,6 +8,11 @@
 -- disable_query_log
 -- disable_result_log
 
+if ($VALGRIND_TEST)
+{
+  call mtr.add_suppression("InnoDB: Warning: a long semaphore wait:");
+}
+
 SET foreign_key_checks=0;
 
 DROP TABLE IF EXISTS bug56143_1;

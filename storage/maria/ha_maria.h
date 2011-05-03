@@ -45,7 +45,7 @@ class ha_maria :public handler
 public:
   ha_maria(handlerton *hton, TABLE_SHARE * table_arg);
   ~ha_maria() {}
-  handler *clone(MEM_ROOT *mem_root);
+  handler *clone(const char *name, MEM_ROOT *mem_root);
   const char *table_type() const
   { return "Aria"; }
   const char *index_type(uint key_number);

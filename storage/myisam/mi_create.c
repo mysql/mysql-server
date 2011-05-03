@@ -848,8 +848,8 @@ int mi_create(const char *name,uint keys,MI_KEYDEF *keydefs,
 
 err:
   pthread_mutex_unlock(&THR_LOCK_myisam);
-err_no_lock:
 
+err_no_lock:
   save_errno=my_errno;
   switch (errpos) {
   case 3:

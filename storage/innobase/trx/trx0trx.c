@@ -2041,14 +2041,15 @@ which is in the prepared state */
 trx_t*
 trx_get_trx_by_xid(
 /*===============*/
-			/* out: trx or NULL */
-	XID*	xid)	/* in: X/Open XA transaction identification */
+				/* out: trx or NULL;
+				on match, the trx->xid will be invalidated */
+	const XID*	xid)	/* in: X/Open XA transaction identifier */
 {
 	trx_t*	trx;
 
 	if (xid == NULL) {
 
-		return (NULL);
+		return(NULL);
 	}
 
 	mutex_enter(&kernel_mutex);
@@ -2061,10 +2062,16 @@ trx_get_trx_by_xid(
 		of gtrid_lenght+bqual_length bytes should be
 		the same */
 
-		if (xid->gtrid_length == trx->xid.gtrid_length
+		if (trx->conc_state == TRX_PREPARED
+		    && xid->gtrid_length == trx->xid.gtrid_length
 		    && xid->bqual_length == trx->xid.bqual_length
 		    && memcmp(xid->data, trx->xid.data,
 			      xid->gtrid_length + xid->bqual_length) == 0) {
+
+			/* Invalidate the XID, so that subsequent calls
+			will not find it. */
+			memset(&trx->xid, 0, sizeof(trx->xid));
+			trx->xid.formatID = -1;
 			break;
 		}
 
@@ -2073,14 +2080,5 @@ trx_get_trx_by_xid(
 
 	mutex_exit(&kernel_mutex);
 
-	if (trx) {
-		if (trx->conc_state != TRX_PREPARED) {
-
-			return(NULL);
-		}
-
-		return(trx);
-	} else {
-		return(NULL);
-	}
+	return(trx);
 }

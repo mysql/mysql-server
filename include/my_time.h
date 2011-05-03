@@ -52,6 +52,19 @@ typedef long my_time_t;
 /* two-digit years < this are 20..; >= this are 19.. */
 #define YY_PART_YEAR	   70
 
+/*
+  check for valid times only if the range of time_t is greater than
+  the range of my_time_t
+*/
+#if SIZEOF_TIME_T > 4 || defined(TIME_T_UNSIGNED)
+# define IS_TIME_T_VALID_FOR_TIMESTAMP(x) \
+    ((x) <= TIMESTAMP_MAX_VALUE && \
+     (x) >= TIMESTAMP_MIN_VALUE)
+#else
+# define IS_TIME_T_VALID_FOR_TIMESTAMP(x) \
+    ((x) >= TIMESTAMP_MIN_VALUE)
+#endif
+
 /* Flags to str_to_datetime */
 #define TIME_FUZZY_DATE		1
 #define TIME_DATETIME_ONLY	2

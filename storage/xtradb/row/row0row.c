@@ -347,6 +347,14 @@ row_rec_to_index_entry_low(
 
 	rec_len = rec_offs_n_fields(offsets);
 
+	if (srv_use_sys_stats_table
+	    && index == UT_LIST_GET_FIRST(dict_sys->sys_stats->indexes)) {
+		if (rec_len < dict_index_get_n_fields(index)) {
+			/* the new record should be extended */
+			rec_len = dict_index_get_n_fields(index);
+		}
+	}
+
 	entry = dtuple_create(heap, rec_len);
 
 	dtuple_set_n_fields_cmp(entry,
@@ -358,6 +366,14 @@ row_rec_to_index_entry_low(
 	for (i = 0; i < rec_len; i++) {
 
 		dfield = dtuple_get_nth_field(entry, i);
+
+		if (srv_use_sys_stats_table
+		    && index == UT_LIST_GET_FIRST(dict_sys->sys_stats->indexes)
+		    && i >= rec_offs_n_fields(offsets)) {
+			dfield_set_null(dfield);
+			continue;
+		}
+
 		field = rec_get_nth_field(rec, offsets, i, &len);
 
 		dfield_set_data(dfield, field, len);

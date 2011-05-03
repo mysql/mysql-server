@@ -1043,7 +1043,11 @@ void reset_mqh(LEX_USER *lu, bool get_them);
 bool check_mqh(THD *thd, uint check_command);
 void time_out_user_resource_limits(THD *thd, USER_CONN *uc);
 void decrease_user_connections(USER_CONN *uc);
-void thd_init_client_charset(THD *thd, uint cs_number);
+bool thd_init_client_charset(THD *thd, uint cs_number);
+inline bool is_supported_parser_charset(CHARSET_INFO *cs)
+{
+  return test(cs->mbminlen == 1);
+}
 bool setup_connection_thread_globals(THD *thd);
 bool login_connection(THD *thd);
 void end_connection(THD *thd);
@@ -2010,6 +2014,7 @@ extern my_bool relay_log_purge, opt_innodb_safe_binlog, opt_innodb;
 extern uint test_flags,select_errors,ha_open_options;
 extern uint protocol_version, mysqld_port, mysqld_extra_port, dropping_tables;
 extern uint delay_key_write_options;
+extern ulong max_long_data_size;
 #endif /* MYSQL_SERVER */
 #if defined MYSQL_SERVER || defined INNODB_COMPATIBILITY_HOOKS
 extern MYSQL_PLUGIN_IMPORT uint lower_case_table_names;

@@ -23,7 +23,6 @@
 #pragma interface			/* gcc class implementation */
 #endif
 
-#include <my_handler.h>
 #include <ft_global.h>
 #include <keycache.h>
 
@@ -1306,7 +1305,7 @@ public:
     DBUG_ASSERT(locked == FALSE);
     /* TODO: DBUG_ASSERT(inited == NONE); */
   }
-  virtual handler *clone(MEM_ROOT *mem_root);
+  virtual handler *clone(const char *name, MEM_ROOT *mem_root);
   /** This is called after create to allow us to set up cached variables */
   void init()
   {

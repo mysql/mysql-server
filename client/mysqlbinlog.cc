@@ -756,10 +756,18 @@ Exit_status process_event(PRINT_EVENT_INFO *print_event_info, Log_event *ev,
       */
       start_datetime= 0;
       offset= 0; // print everything and protect against cycling rec_count
+      /*
+        Skip events according to the --server-id flag.  However, don't
+        skip format_description or rotate events, because they they
+        are really "global" events that are relevant for the entire
+        binlog, even if they have a server_id.  Also, we have to read
+        the format_description event so that we can parse subsequent
+        events.
+      */
+      if (ev_type != ROTATE_EVENT &&
+          server_id && (server_id != ev->server_id))
+        goto end;
     }
-    if (server_id && (server_id != ev->server_id))
-      /* skip just this event, continue processing the log. */
-      goto end;
     if (((my_time_t)(ev->when) >= stop_datetime)
         || (pos >= stop_position_mot))
     {

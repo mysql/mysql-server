@@ -29,9 +29,9 @@
   integers like '18446744073709551615'.  The end result is that the
   high bit is simply dropped. (probably bug in gcc optimizations)
   Handling the conversion in a sub function seems to work.
+
+  It doesn't work to make this function inline.
 */
-
-
 
 double my_ulonglong2double(unsigned long long nr)
 {

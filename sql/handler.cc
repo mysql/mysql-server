@@ -2038,11 +2038,10 @@ int ha_delete_table(THD *thd, handlerton *table_type, const char *path,
 /****************************************************************************
 ** General handler functions
 ****************************************************************************/
-handler *handler::clone(MEM_ROOT *mem_root)
+handler *handler::clone(const char *name, MEM_ROOT *mem_root)
 {
-  handler *new_handler= get_new_handler(table->s, mem_root, table->s->db_type());
-
-  if (!new_handler)
+  handler *new_handler= get_new_handler(table->s, mem_root, ht);
+  if (! new_handler)
     return NULL;
 
   /*
@@ -2050,16 +2049,26 @@ handler *handler::clone(MEM_ROOT *mem_root)
     on this->table->mem_root and we will not be able to reclaim that memory 
     when the clone handler object is destroyed.
   */
-  if (!(new_handler->ref= (uchar*) alloc_root(mem_root, ALIGN_SIZE(ref_length)*2)))
+
+  if (!(new_handler->ref= (uchar*) alloc_root(mem_root,
+                                              ALIGN_SIZE(ref_length)*2)))
     return NULL;
-  if (new_handler->ha_open(table,
-                           table->s->normalized_path.str,
-                           table->db_stat,
+
+  /*
+    TODO: Implement a more efficient way to have more than one index open for
+    the same table instance. The ha_open call is not cachable for clone.
+
+    This is not critical as the engines already have the table open
+    and should be able to use the original instance of the table.
+  */
+  if (new_handler->ha_open(table, name, table->db_stat,
                            HA_OPEN_IGNORE_IF_LOCKED))
     return NULL;
+
   new_handler->cloned= 1;                      // Marker for debugging
   return new_handler;
 }
+
 
 double handler::keyread_time(uint index, uint ranges, ha_rows rows)
 {

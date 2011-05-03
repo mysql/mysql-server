@@ -242,6 +242,7 @@ the ib_logfiles form a 'space' and it is handled here */
 struct fil_system_struct {
 #ifndef UNIV_HOTBACKUP
 	mutex_t		mutex;		/*!< The mutex protecting the cache */
+	mutex_t		file_extend_mutex;
 #endif /* !UNIV_HOTBACKUP */
 	hash_table_t*	spaces;		/*!< The hash table of spaces in the
 					system; they are hashed on the space
@@ -690,7 +691,7 @@ fil_node_open_file(
 		ut_a(space->purpose != FIL_LOG);
 		ut_a(!trx_sys_sys_space(space->id));
 
-		if (size_bytes < FIL_IBD_FILE_INITIAL_SIZE * UNIV_PAGE_SIZE) {
+		if (size_bytes < FIL_IBD_FILE_INITIAL_SIZE * (lint)UNIV_PAGE_SIZE) {
 			fprintf(stderr,
 				"InnoDB: Error: the size of single-table"
 				" tablespace file %s\n"
@@ -816,7 +817,7 @@ fil_node_close_file(
 	ut_ad(node && system);
 	ut_ad(mutex_own(&(system->mutex)));
 	ut_a(node->open);
-	ut_a(node->n_pending == 0);
+	ut_a(node->n_pending == 0 || srv_lazy_drop_table);
 	ut_a(node->n_pending_flushes == 0);
 	ut_a(node->modification_counter == node->flush_counter);
 
@@ -1028,7 +1029,7 @@ fil_node_free(
 	ut_ad(node && system && space);
 	ut_ad(mutex_own(&(system->mutex)));
 	ut_a(node->magic_n == FIL_NODE_MAGIC_N);
-	ut_a(node->n_pending == 0);
+	ut_a(node->n_pending == 0 || srv_lazy_drop_table);
 
 	if (node->open) {
 		/* We fool the assertion in fil_node_close_file() to think
@@ -1549,6 +1550,7 @@ fil_init(
 	fil_system = mem_zalloc(sizeof(fil_system_t));
 
 	mutex_create(&fil_system->mutex, SYNC_ANY_LATCH);
+	mutex_create(&fil_system->file_extend_mutex, SYNC_OUTER_ANY_LATCH);
 
 	fil_system->spaces = hash_create(hash_size);
 	fil_system->name_hash = hash_create(hash_size);
@@ -2295,7 +2297,11 @@ try_again:
 	completely and permanently. The flag is_being_deleted also prevents
 	fil_flush() from being applied to this tablespace. */
 
+	if (srv_lazy_drop_table) {
+		buf_LRU_mark_space_was_deleted(id);
+	} else {
 	buf_LRU_invalidate_tablespace(id);
+	}
 #endif
 	/* printf("Deleting tablespace %s id %lu\n", space->name, id); */
 
@@ -3095,8 +3101,8 @@ fil_open_single_table_tablespace(
 	space_id = fsp_header_get_space_id(page);
 	space_flags = fsp_header_get_flags(page);
 
-	if (srv_expand_import
-	    && (space_id != id || space_flags != (flags & ~(~0 << DICT_TF_BITS)))) {
+	if (srv_expand_import) {
+
 		ibool		file_is_corrupt = FALSE;
 		byte*		buf3;
 		byte*		descr_page;
@@ -3167,8 +3173,10 @@ fil_open_single_table_tablespace(
 
 		if (size_bytes < free_limit_bytes) {
 			free_limit_bytes = size_bytes;
-			fprintf(stderr, "InnoDB: free limit of %s is larger than its real size.\n", filepath);
-			file_is_corrupt = TRUE;
+			if (size_bytes >= (ib_int64_t) (FSP_EXTENT_SIZE * UNIV_PAGE_SIZE)) {
+				fprintf(stderr, "InnoDB: free limit of %s is larger than its real size.\n", filepath);
+				file_is_corrupt = TRUE;
+			}
 		}
 
 		/* get cruster index information */
@@ -3314,7 +3322,7 @@ skip_info:
 						file_is_corrupt = TRUE;
 						descr_is_corrupt = TRUE;
 					} else {
-						ut_a(fil_page_get_type(page) == FIL_PAGE_TYPE_XDES);
+
 						descr_is_corrupt = FALSE;
 					}
 
@@ -3778,7 +3786,7 @@ fil_load_single_table_tablespace(
 
 	size = (((ib_uint64_t)size_high) << 32) + (ib_uint64_t)size_low;
 #ifndef UNIV_HOTBACKUP
-	if (size < FIL_IBD_FILE_INITIAL_SIZE * UNIV_PAGE_SIZE) {
+	if (size < FIL_IBD_FILE_INITIAL_SIZE * (lint)UNIV_PAGE_SIZE) {
 		fprintf(stderr,
 			"InnoDB: Error: the size of single-table tablespace"
 			" file %s\n"
@@ -3798,7 +3806,7 @@ fil_load_single_table_tablespace(
 	/* Align the memory for file i/o if we might have O_DIRECT set */
 	page = ut_align(buf2, UNIV_PAGE_SIZE);
 
-	if (size >= FIL_IBD_FILE_INITIAL_SIZE * UNIV_PAGE_SIZE) {
+	if (size >= FIL_IBD_FILE_INITIAL_SIZE * (lint)UNIV_PAGE_SIZE) {
 		success = os_file_read(file, page, 0, 0, UNIV_PAGE_SIZE);
 
 		/* We have to read the tablespace id from the file */
@@ -4348,6 +4356,10 @@ fil_extend_space_to_desired_size(
 	ulint		page_size;
 	ibool		success		= TRUE;
 
+	/* file_extend_mutex is for http://bugs.mysql.com/56433 */
+	/* to protect from the other fil_extend_space_to_desired_size() */
+	/* during temprary releasing &fil_system->mutex */
+	mutex_enter(&fil_system->file_extend_mutex);
 	fil_mutex_enter_and_prepare_for_io(space_id);
 
 	space = fil_space_get_by_id(space_id);
@@ -4359,6 +4371,7 @@ fil_extend_space_to_desired_size(
 		*actual_size = space->size;
 
 		mutex_exit(&fil_system->mutex);
+		mutex_exit(&fil_system->file_extend_mutex);
 
 		return(TRUE);
 	}
@@ -4391,6 +4404,8 @@ fil_extend_space_to_desired_size(
 		offset_low  = ((start_page_no - file_start_page_no)
 			       % (4096 * ((1024 * 1024) / page_size)))
 			* page_size;
+
+		mutex_exit(&fil_system->mutex);
 #ifdef UNIV_HOTBACKUP
 		success = os_file_write(node->name, node->handle, buf,
 					offset_low, offset_high,
@@ -4400,8 +4415,10 @@ fil_extend_space_to_desired_size(
 				 node->name, node->handle, buf,
 				 offset_low, offset_high,
 				 page_size * n_pages,
-				 NULL, NULL, NULL);
+				 NULL, NULL, space_id, NULL);
 #endif
+		mutex_enter(&fil_system->mutex);
+
 		if (success) {
 			node->size += n_pages;
 			space->size += n_pages;
@@ -4447,6 +4464,7 @@ fil_extend_space_to_desired_size(
 	printf("Extended %s to %lu, actual size %lu pages\n", space->name,
 	size_after_extend, *actual_size); */
 	mutex_exit(&fil_system->mutex);
+	mutex_exit(&fil_system->file_extend_mutex);
 
 	fil_flush(space_id);
 
@@ -4811,6 +4829,22 @@ _fil_io(
 		srv_data_written+= len;
 	}
 
+	/* if the table space was already deleted, space might not exist already. */
+	if (message
+	    && space_id < SRV_LOG_SPACE_FIRST_ID
+	    && ((buf_page_t*)message)->space_was_being_deleted) {
+
+		if (mode == OS_AIO_NORMAL) {
+			buf_page_io_complete(message, trx);
+			return(DB_SUCCESS); /*fake*/
+		}
+		if (type == OS_FILE_READ) {
+			return(DB_TABLESPACE_DELETED);
+		} else {
+			return(DB_SUCCESS); /*fake*/
+		}
+	}
+
 	/* Reserve the fil_system mutex and make sure that we can open at
 	least one file while holding it, if the file is not already open */
 
@@ -4940,9 +4974,23 @@ _fil_io(
 #else
 	/* Queue the aio request */
 	ret = os_aio(type, mode | wake_later, node->name, node->handle, buf,
-		     offset_low, offset_high, len, node, message, trx);
+		     offset_low, offset_high, len, node, message, space_id, trx);
 #endif
 	} /**/
+
+	/* if the table space was already deleted, space might not exist already. */
+	if (message
+	    && space_id < SRV_LOG_SPACE_FIRST_ID
+	    && ((buf_page_t*)message)->space_was_being_deleted) {
+
+		if (mode == OS_AIO_SYNC) {
+			if (type == OS_FILE_READ) {
+				return(DB_TABLESPACE_DELETED);
+			} else {
+				return(DB_SUCCESS); /*fake*/
+			}
+		}
+	}
 
 	ut_a(ret);
 
@@ -4966,21 +5014,10 @@ _fil_io(
 Confirm whether the parameters are valid or not */
 UNIV_INTERN
 ibool
-fil_area_is_exist(
+fil_is_exist(
 /*==============*/
 	ulint	space_id,	/*!< in: space id */
-	ulint	zip_size __attribute__((unused)),
-				/*!< in: compressed page size in bytes;
-				0 for uncompressed pages */
-	ulint	block_offset,	/*!< in: offset in number of blocks */
-	ulint	byte_offset __attribute__((unused)),
-				/*!< in: remainder of offset in bytes; in
-				aio this must be divisible by the OS block
-				size */
-	ulint	len __attribute__((unused)))
-				/*!< in: how many bytes to read or write; this
-				must not cross a file boundary; in aio this
-				must be a block size multiple */
+	ulint	block_offset)	/*!< in: offset in number of blocks */
 {
 	fil_space_t*	space;
 	fil_node_t*	node;
@@ -5054,6 +5091,7 @@ fil_aio_wait(
 	fil_node_t*	fil_node;
 	void*		message;
 	ulint		type;
+	ulint		space_id = 0;
 
 	ut_ad(fil_validate());
 
@@ -5061,7 +5099,7 @@ fil_aio_wait(
 		srv_set_io_thread_op_info(segment, "native aio handle");
 #ifdef WIN_ASYNC_IO
 		ret = os_aio_windows_handle(segment, 0, &fil_node,
-					    &message, &type);
+					    &message, &type, &space_id);
 #else
 		ret = 0; /* Eliminate compiler warning */
 		ut_error;
@@ -5070,7 +5108,22 @@ fil_aio_wait(
 		srv_set_io_thread_op_info(segment, "simulated aio handle");
 
 		ret = os_aio_simulated_handle(segment, &fil_node,
-					      &message, &type);
+					      &message, &type, &space_id);
+	}
+
+	/* if the table space was already deleted, fil_node might not exist already. */
+	if (message
+	    && space_id < SRV_LOG_SPACE_FIRST_ID
+	    && ((buf_page_t*)message)->space_was_being_deleted) {
+
+		/* intended not to be uncompress read page */
+		ut_a(buf_page_get_io_fix(message) == BUF_IO_WRITE
+		     || !buf_page_get_zip_size(message)
+		     || buf_page_get_state(message) != BUF_BLOCK_FILE_PAGE);
+
+		srv_set_io_thread_op_info(segment, "complete io for buf page");
+		buf_page_io_complete(message, NULL);
+		return;
 	}
 
 	ut_a(ret);

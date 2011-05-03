@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1995, 2009, Innobase Oy. All Rights Reserved.
+Copyright (c) 1995, 2011, Oracle and/or its affiliates. All Rights Reserved.
 Copyright (c) 2008, Google Inc.
 
 Portions of this file contain modifications contributed and copyrighted by
@@ -231,10 +231,10 @@ rw_lock_create_func(
 # ifdef UNIV_SYNC_DEBUG
 	ulint		level,		/*!< in: level */
 # endif /* UNIV_SYNC_DEBUG */
-#endif /* UNIV_DEBUG */
-	const char*	cmutex_name, 	/*!< in: mutex name */
 	const char*	cfile_name,	/*!< in: file name where created */
-	ulint		cline)		/*!< in: file line where created */
+	ulint		cline,		/*!< in: file line where created */
+#endif /* UNIV_DEBUG */
+	const char*	cmutex_name) 	/*!< in: mutex name */
 {
 	/* If this is the very first time a synchronization object is
 	created, then the following call initializes the sync system. */
@@ -247,11 +247,12 @@ rw_lock_create_func(
 
 	lock->mutex.cmutex_name = cmutex_name;
 	ut_d(lock->mutex.mutex_type = 1);
+#else /* INNODB_RW_LOCKS_USE_ATOMICS */
+# ifdef UNIV_DEBUG
+	UT_NOT_USED(cfile_name);
+	UT_NOT_USED(cline);
+# endif
 #endif /* INNODB_RW_LOCKS_USE_ATOMICS */
-#if defined(INNODB_RW_LOCKS_USE_ATOMICS) || !defined(UNIV_DEBUG)
-	(void) cfile_name;
-	(void) cline;
-#endif
 
 	lock->lock_word = X_LOCK_DECR;
 	lock->waiters = 0;
@@ -923,7 +924,7 @@ rw_lock_list_print_info(
 
 			info = UT_LIST_GET_FIRST(lock->debug_list);
 			while (info != NULL) {
-				rw_lock_debug_print(info);
+				rw_lock_debug_print(file, info);
 				info = UT_LIST_GET_NEXT(list, info);
 			}
 		}
@@ -971,7 +972,7 @@ rw_lock_print(
 
 		info = UT_LIST_GET_FIRST(lock->debug_list);
 		while (info != NULL) {
-			rw_lock_debug_print(info);
+			rw_lock_debug_print(stderr, info);
 			info = UT_LIST_GET_NEXT(list, info);
 		}
 	}
@@ -983,28 +984,29 @@ UNIV_INTERN
 void
 rw_lock_debug_print(
 /*================*/
+	FILE*			f,	/*!< in: output stream */
 	rw_lock_debug_t*	info)	/*!< in: debug struct */
 {
 	ulint	rwt;
 
 	rwt	  = info->lock_type;
 
-	fprintf(stderr, "Locked: thread %lu file %s line %lu  ",
+	fprintf(f, "Locked: thread %lu file %s line %lu  ",
 		(ulong) os_thread_pf(info->thread_id), info->file_name,
 		(ulong) info->line);
 	if (rwt == RW_LOCK_SHARED) {
-		fputs("S-LOCK", stderr);
+		fputs("S-LOCK", f);
 	} else if (rwt == RW_LOCK_EX) {
-		fputs("X-LOCK", stderr);
+		fputs("X-LOCK", f);
 	} else if (rwt == RW_LOCK_WAIT_EX) {
-		fputs("WAIT X-LOCK", stderr);
+		fputs("WAIT X-LOCK", f);
 	} else {
 		ut_error;
 	}
 	if (info->pass != 0) {
-		fprintf(stderr, " pass value %lu", (ulong) info->pass);
+		fprintf(f, " pass value %lu", (ulong) info->pass);
 	}
-	putc('\n', stderr);
+	putc('\n', f);
 }
 
 /***************************************************************//**

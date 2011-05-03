@@ -413,6 +413,12 @@ drop table t1;
 --echo
 --exec $MYSQL --skip-column-names --vertical test -e "select 1 as a"
 
+#
+# Bug#57450: mysql client enter in an infinite loop if the standard input is a directory
+#
+--error 1
+--exec $MYSQL < .
+
 --echo
 
 --echo #

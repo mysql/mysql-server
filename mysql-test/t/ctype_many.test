@@ -211,3 +211,19 @@ SELECT min(comment),count(*) FROM t1 GROUP BY ucs2_f;
 DROP TABLE t1;
 
 # End of 4.1 tests
+
+
+--echo #
+--echo # Start of 5.1 tests
+--echo #
+
+--echo #
+--echo # Bug#58371 Assertion failed: !s.uses_buffer_owned_by(this) with format string function
+--echo #
+
+SET NAMES latin1;
+DO CONVERT(CAST(SUBSTRING_INDEX(FORMAT(1,'1111'), FORMAT('','Zpq'),1) 
+                AS BINARY(0)) USING utf8);
+--echo #
+--echo # End of 5.1 tests
+--echo #

@@ -31,6 +31,7 @@ extern "C" {
 #include "keycache.h"
 #endif
 #include "my_handler.h"
+#include "my_compare.h"
 #include <myisamchk.h>
 #include <mysql/plugin.h>
 

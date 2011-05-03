@@ -238,14 +238,14 @@ void
 mutex_create_func(
 /*==============*/
 	mutex_t*	mutex,		/*!< in: pointer to memory */
-	const char*	cmutex_name,	/*!< in: mutex name */
 #ifdef UNIV_DEBUG
 # ifdef UNIV_SYNC_DEBUG
 	ulint		level,		/*!< in: level */
 # endif /* UNIV_SYNC_DEBUG */
-#endif /* UNIV_DEBUG */
 	const char*	cfile_name,	/*!< in: file name where created */
-	ulint		cline)		/*!< in: file line where created */
+	ulint		cline,		/*!< in: file line where created */
+#endif /* UNIV_DEBUG */
+	const char*	cmutex_name)	/*!< in: mutex name */
 {
 #if defined(HAVE_ATOMIC_BUILTINS)
 	mutex_reset_lock_word(mutex);
@@ -266,9 +266,6 @@ mutex_create_func(
 #ifdef UNIV_DEBUG
 	mutex->cfile_name = cfile_name;
 	mutex->cline = cline;
-#else
-        (void) cfile_name;
-        (void) cline;
 #endif /* UNIV_DEBUG */
 	mutex->count_os_wait = 0;
 	mutex->cmutex_name=	  cmutex_name;
@@ -1164,6 +1161,7 @@ sync_thread_add_level(
 	case SYNC_LOG:
 	case SYNC_THR_LOCAL:
 	case SYNC_ANY_LATCH:
+	case SYNC_OUTER_ANY_LATCH:
 	case SYNC_TRX_SYS_HEADER:
 	case SYNC_FILE_FORMAT_TAG:
 	case SYNC_DOUBLEWRITE:

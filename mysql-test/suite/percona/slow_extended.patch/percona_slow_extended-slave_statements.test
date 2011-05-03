@@ -163,3 +163,6 @@ let $binlog_position = query_get_value(SHOW MASTER STATUS,Position,1);
 -- echo # Sync slave(8) thread
 connection slave;
 let $sync_result = `SELECT MASTER_POS_WAIT('$binlog_file',$binlog_position)`;
+
+STOP SLAVE;
+-- source include/wait_for_slave_to_stop.inc
