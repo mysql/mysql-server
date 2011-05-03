@@ -85,7 +85,8 @@ typedef struct st_tokudb_share {
     bool rec_has_buff[MAX_KEY + 1];
 } TOKUDB_SHARE;
 
-#define HA_TOKU_VERSION 3
+#define HA_TOKU_ORIG_VERSION 4
+#define HA_TOKU_VERSION 4
 //
 // no capabilities yet
 //
@@ -99,12 +100,13 @@ typedef struct st_tokudb_share {
 //
 
 typedef ulonglong HA_METADATA_KEY;
-#define hatoku_version 0
+#define hatoku_old_version 0
 #define hatoku_capabilities 1
 #define hatoku_max_ai 2 //maximum auto increment value found so far
 #define hatoku_ai_create_value 3
 #define hatoku_key_name 4
 #define hatoku_frm_data 5
+#define hatoku_new_version 6
 
 typedef struct st_filter_key_part_info {
     uint offset;

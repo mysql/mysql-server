@@ -1613,7 +1613,7 @@ int ha_tokudb::initialize_share(
     if (error) {
         goto exit;
     }
-    if (share->version < HA_TOKU_VERSION) {
+    if (share->version != HA_TOKU_VERSION) {
         error = ENOSYS;
         goto exit;
     }
@@ -2964,7 +2964,7 @@ int ha_tokudb::get_status() {
     //
     value.ulen = sizeof(share->version);
     value.data = &share->version;
-    curr_key = hatoku_version;
+    curr_key = hatoku_new_version;
     error = share->status_block->get(
         share->status_block, 
         txn, 
@@ -2973,7 +2973,39 @@ int ha_tokudb::get_status() {
         0
         );
     if (error == DB_NOTFOUND) {
-        share->version = 0;
+        //
+        // hack to keep handle the issues of going back and forth
+        // between 5.0.3 to 5.0.4
+        // the problem with going back and forth
+        // is with storing the frm file, 5.0.4 stores it, 5.0.3 does not
+        // so, if a user goes back and forth and alters the schema
+        // the frm stored can get out of sync with the schema of the table
+        // This can cause issues.
+        // To take care of this, we are doing this versioning work here.
+        // We change the key that stores the version. 
+        // In 5.0.3, it is hatoku_old_version, in 5.0.4 it is hatoku_new_version
+        // When we encounter a table that does not have hatoku_new_version
+        // set, we give it the right one, and overwrite the old one with zero.
+        // This ensures that 5.0.3 cannot open the table. Once it has been opened by 5.0.4
+        //
+        uint dummy_version = 0;
+        share->version = HA_TOKU_ORIG_VERSION;
+        error = write_to_status(
+            share->status_block, 
+            hatoku_new_version,
+            &share->version,
+            sizeof(share->version), 
+            txn
+            );
+        if (error) { goto cleanup; }
+        error = write_to_status(
+            share->status_block, 
+            hatoku_old_version,
+            &dummy_version,
+            sizeof(dummy_version), 
+            txn
+            );
+        if (error) { goto cleanup; }
     }
     else if (error || value.size != sizeof(share->version)) {
         if (error == 0) {
@@ -6166,7 +6198,7 @@ int ha_tokudb::create(const char *name, TABLE * form, HA_CREATE_INFO * create_in
     version = HA_TOKU_VERSION;
     capabilities = HA_TOKU_CAP;
     
-    error = write_to_status(status_block, hatoku_version,&version,sizeof(version), txn);
+    error = write_to_status(status_block, hatoku_new_version,&version,sizeof(version), txn);
     if (error) { goto cleanup; }
 
     error = write_to_status(status_block, hatoku_capabilities,&capabilities,sizeof(capabilities), txn);
