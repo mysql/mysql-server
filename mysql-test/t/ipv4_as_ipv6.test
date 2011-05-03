@@ -16,31 +16,37 @@ echo =============Test of '127.0.0.1' (IPv4) ===========================;
 let $IPv6= 127.0.0.1;
 --source include/ipv6_clients.inc
 --source include/ipv6.inc
+--source include/ipv6_func.inc
 
 echo =============Test of '0:0:0:0:0:FFFF:127.0.0.1' ===================;
 let $IPv6= 0:0:0:0:0:FFFF:127.0.0.1;
 --source include/ipv6_clients.inc
 --source include/ipv6.inc
+--source include/ipv6_func.inc
 
 echo =============Test of '0000:0000:0000:0000:0000:FFFF:127.0.0.1' ====;
 let $IPv6= 0000:0000:0000:0000:0000:FFFF:127.0.0.1;
 --source include/ipv6_clients.inc
 --source include/ipv6.inc
+--source include/ipv6_func.inc
 
 echo =============Test of '0:0000:0000:0:0000:FFFF:127.0.0.1' ====;
 let $IPv6= 0:0000:0000:0:0000:FFFF:127.0.0.1;
 --source include/ipv6_clients.inc
 --source include/ipv6.inc
+--source include/ipv6_func.inc
 
 echo =============Test of '0::0000:FFFF:127.0.0.1' ====;
 let $IPv6= 0::0000:FFFF:127.0.0.1;
 --source include/ipv6_clients.inc
 --source include/ipv6.inc
+--source include/ipv6_func.inc
 
 echo =============Test of '0:0:0:0:0:FFFF:127.0.0.1/96' ================;
 let $IPv6= 0:0:0:0:0:FFFF:127.0.0.1/96;
 #--source include/ipv6_clients.inc
 #--source include/ipv6.inc
+--source include/ipv6_func.inc
 
 echo =============Test of '::FFFF:127.0.0.1' ===========================;
 let $IPv6= ::FFFF:127.0.0.1;
@@ -51,6 +57,7 @@ echo =============Test of '::FFFF:127.0.0.1/96' ========================;
 let $IPv6= ::FFFF:127.0.0.1/96;
 #--source include/ipv6_clients.inc
 #--source include/ipv6.inc
+--source include/ipv6_func.inc
 
 echo =============Test of '::1' ========================;
 let $IPv6= ::1;
