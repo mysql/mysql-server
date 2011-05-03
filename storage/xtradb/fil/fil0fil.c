@@ -691,7 +691,7 @@ fil_node_open_file(
 		ut_a(space->purpose != FIL_LOG);
 		ut_a(!trx_sys_sys_space(space->id));
 
-		if (size_bytes < FIL_IBD_FILE_INITIAL_SIZE * (lint)UNIV_PAGE_SIZE) {
+		if (size_bytes < (ib_uint64_t) (FIL_IBD_FILE_INITIAL_SIZE * (lint)UNIV_PAGE_SIZE)) {
 			fprintf(stderr,
 				"InnoDB: Error: the size of single-table"
 				" tablespace file %s\n"
@@ -3806,7 +3806,7 @@ fil_load_single_table_tablespace(
 	/* Align the memory for file i/o if we might have O_DIRECT set */
 	page = ut_align(buf2, UNIV_PAGE_SIZE);
 
-	if (size >= FIL_IBD_FILE_INITIAL_SIZE * (lint)UNIV_PAGE_SIZE) {
+	if (size >= (ib_uint64_t) (FIL_IBD_FILE_INITIAL_SIZE * (lint)UNIV_PAGE_SIZE)) {
 		success = os_file_read(file, page, 0, 0, UNIV_PAGE_SIZE);
 
 		/* We have to read the tablespace id from the file */
