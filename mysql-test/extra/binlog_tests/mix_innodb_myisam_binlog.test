@@ -311,6 +311,7 @@ select get_lock("a",10);
 begin;
 insert into t1 values(8);
 insert into t2 select * from t1;
+
 disconnect con3;
 
 connection con4;

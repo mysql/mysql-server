@@ -560,6 +560,8 @@ my_bool opt_noacl;
 my_bool sp_automatic_privileges= 1;
 
 ulong opt_binlog_rows_event_max_size;
+my_bool opt_master_verify_checksum= 0;
+my_bool opt_slave_sql_verify_checksum= 1;
 const char *binlog_format_names[]= {"MIXED", "STATEMENT", "ROW", NullS};
 TYPELIB binlog_format_typelib=
   { array_elements(binlog_format_names) - 1, "",
@@ -4612,6 +4614,7 @@ int main(int argc, char **argv)
 
 #ifndef DBUG_OFF
   test_lc_time_sz();
+  srand(time(NULL)); 
 #endif
 
   /*
@@ -6026,7 +6029,9 @@ enum options_mysqld
   OPT_SLOW_QUERY_LOG_FILE,
   OPT_IGNORE_BUILTIN_INNODB,
   OPT_BINLOG_DIRECT_NON_TRANS_UPDATE,
-  OPT_DEFAULT_CHARACTER_SET_OLD
+  OPT_DEFAULT_CHARACTER_SET_OLD,
+  OPT_MASTER_VERIFY_CHECKSUM,
+  OPT_SLAVE_SQL_VERIFY_CHECKSUM
 };
 
 
@@ -6859,6 +6864,19 @@ thread is in the relay logs.",
    "not stop for operations that are idempotent. In STRICT mode, replication "
    "will stop on any unexpected difference between the master and the slave.",
    &slave_exec_mode_str, &slave_exec_mode_str, 0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
+  {"master-verify-checksum", OPT_MASTER_VERIFY_CHECKSUM,
+   "Force checksum verification of logged events in binary log before "
+   "sending them to slaves or printing them in output of SHOW BINLOG EVENTS. "
+   "Disabled by default.",
+   &opt_master_verify_checksum, &opt_master_verify_checksum,
+   0, GET_BOOL, OPT_ARG, 0, 0, 0, 0, 0, 0},
+  {"slave-sql-verify-checksum", OPT_SLAVE_SQL_VERIFY_CHECKSUM,
+   "Force checksum verification of replication events after reading them "
+   "from relay log. Note: Events are always checksum-verified by slave on "
+   "receiving them from the network before writing them to the relay "
+   "log. Enabled by default.",
+   &opt_slave_sql_verify_checksum, &opt_slave_sql_verify_checksum,
+   0, GET_BOOL, OPT_ARG, 1, 0, 0, 0, 0, 0},
 #endif
   {"slow-query-log", OPT_SLOW_LOG,
    "Enable/disable slow query log.", &opt_slow_log,
