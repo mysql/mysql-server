@@ -31,9 +31,9 @@ static char *intern_read_line(LINE_BUFFER *buffer, ulong *out_length);
 LINE_BUFFER *batch_readline_init(ulong max_size,FILE *file)
 {
   LINE_BUFFER *line_buff;
-  MY_STAT input_file_stat;
 
 #ifndef __WIN__
+  MY_STAT input_file_stat;
   if (my_fstat(fileno(file), &input_file_stat, MYF(MY_WME)) ||
       MY_S_ISDIR(input_file_stat.st_mode) ||
       MY_S_ISBLK(input_file_stat.st_mode))
