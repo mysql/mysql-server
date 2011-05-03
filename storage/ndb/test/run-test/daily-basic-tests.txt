@@ -20,7 +20,7 @@ max-time: 900
 cmd: testIndex
 args: -n DeferredMixedLoad T1 T6 T13
 
-max-time: 900
+max-time: 1800
 cmd: testIndex
 args: -n DeferredMixedLoadError T1 T6 T13
 
