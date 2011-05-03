@@ -27,7 +27,9 @@ FOR A PARTICULAR PURPOSE. See the GNU General Public License for more details.
 
 You should have received a copy of the GNU General Public License along with
 this program; if not, write to the Free Software Foundation, Inc.,
-51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
+51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA
+
+*****************************************************************************/
 
 #include <sql_table.h>	// explain_filename, nz2, EXPLAIN_PARTITIONS_AS_COMMENT,
 			// EXPLAIN_FILENAME_MAX_EXTRA_LENGTH
@@ -1372,7 +1374,7 @@ innobase_get_stmt(
 }
 
 /**********************************************************************//**
-Get the current seting of the table_def_size global parameter. We do
+Get the current setting of the table_def_size global parameter. We do
 a dirty read because for one there is no synchronization object and
 secondly there is little harm in doing so even if we get a torn read.
 @return	value of table_def_size */
@@ -1382,6 +1384,20 @@ innobase_get_table_cache_size(void)
 /*===============================*/
 {
 	return(table_def_size);
+}
+
+/**********************************************************************//**
+Get the current setting of the lower_case_table_names global parameter from
+mysqld.cc. We do a dirty read because for one there is no synchronization
+object and secondly there is little harm in doing so even if we get a torn
+read.
+@return	value of lower_case_table_names */
+extern "C" UNIV_INTERN
+ulint
+innobase_get_lower_case_table_names(void)
+/*=====================================*/
+{
+	return(lower_case_table_names);
 }
 
 #if defined (__WIN__) && defined (MYSQL_DYNAMIC_PLUGIN)
@@ -3898,7 +3914,6 @@ ha_innobase::open(
 	UT_NOT_USED(test_if_locked);
 
 	thd = ha_thd();
-	srv_lower_case_table_names = lower_case_table_names;
 
 	/* Under some cases MySQL seems to call this function while
 	holding btr_search_latch. This breaks the latching order as
@@ -6799,8 +6814,6 @@ err_col:
 			col_len);
 	}
 
-	srv_lower_case_table_names = lower_case_table_names;
-
 	error = row_create_table_for_mysql(table, trx);
 
 	if (error == DB_DUPLICATE_KEY) {
@@ -7673,8 +7686,6 @@ ha_innobase::delete_table(
 
 	/* Drop the table in InnoDB */
 
-	srv_lower_case_table_names = lower_case_table_names;
-
 	error = row_drop_table_for_mysql(norm_name, trx,
 					 thd_sql_command(thd)
 					 == SQLCOM_DROP_DB);
@@ -7799,8 +7810,6 @@ innobase_rename_table(
 	if (lock_and_commit) {
 		row_mysql_lock_data_dictionary(trx);
 	}
-
-	srv_lower_case_table_names = lower_case_table_names;
 
 	error = row_rename_table_for_mysql(
 		norm_from, norm_to, trx, lock_and_commit);

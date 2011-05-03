@@ -23,6 +23,7 @@ Database monitor counter interfaces
 Created 12/9/2009 Jimmy Yang
 *******************************************************/
 
+#ifndef UNIV_HOTBACKUP
 #include "os0file.h"
 #include "mach0data.h"
 #include "srv0mon.h"
@@ -1520,4 +1521,4 @@ srv_mon_default_on(void)
 		}
 	}
 }
-
+#endif /* !UNIV_HOTBACKUP */

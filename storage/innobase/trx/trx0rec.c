@@ -1400,21 +1400,27 @@ trx_undo_get_undo_rec(
 	return(DB_SUCCESS);
 }
 
+#ifdef UNIV_DEBUG
+#define ATTRIB_USED_ONLY_IN_DEBUG
+#else /* UNIV_DEBUG */
+#define ATTRIB_USED_ONLY_IN_DEBUG	__attribute__((unused))
+#endif /* UNIV_DEBUG */
+
 /*******************************************************************//**
 Build a previous version of a clustered index record. This function checks
 that the caller has a latch on the index page of the clustered index record
 and an s-latch on the purge_view. This guarantees that the stack of versions
 is locked all the way down to the purge_view.
 @return DB_SUCCESS, or DB_MISSING_HISTORY if the previous version is
-earlier than purge_view, which means that it may have been removed,
-DB_ERROR if corrupted record */
+earlier than purge_view, which means that it may have been removed */
 UNIV_INTERN
 ulint
 trx_undo_prev_version_build(
 /*========================*/
-	const rec_t*	index_rec,/*!< in: clustered index record in the
+	const rec_t*	index_rec ATTRIB_USED_ONLY_IN_DEBUG,
+				/*!< in: clustered index record in the
 				index tree */
-	mtr_t*		index_mtr __attribute__((unused)),
+	mtr_t*		index_mtr ATTRIB_USED_ONLY_IN_DEBUG,
 				/*!< in: mtr which contains the latch to
 				index_rec page and purge_view */
 	const rec_t*	rec,	/*!< in: version of a clustered index record */
@@ -1451,20 +1457,7 @@ trx_undo_prev_version_build(
 	      || mtr_memo_contains_page(index_mtr, index_rec,
 					MTR_MEMO_PAGE_X_FIX));
 	ut_ad(rec_offs_validate(rec, index, offsets));
-
-	if (!dict_index_is_clust(index)) {
-		fprintf(stderr, "InnoDB: Error: trying to access"
-			" update undo rec for non-clustered index %s\n"
-			"InnoDB: Submit a detailed bug report to"
-			" http://bugs.mysql.com\n"
-			"InnoDB: index record ", index->name);
-		rec_print(stderr, index_rec, index);
-		fputs("\n"
-		      "InnoDB: record version ", stderr);
-		rec_print_new(stderr, rec, offsets);
-		putc('\n', stderr);
-		return(DB_ERROR);
-	}
+	ut_a(dict_index_is_clust(index));
 
 	roll_ptr = row_get_rec_roll_ptr(rec, index, offsets);
 	old_roll_ptr = roll_ptr;
@@ -1484,7 +1477,9 @@ trx_undo_prev_version_build(
 
 	if (UNIV_UNLIKELY(err != DB_SUCCESS)) {
 		/* The undo record may already have been purged.
-		This should never happen in InnoDB. */
+		This should never happen for user transactions, but
+		it can happen in purge. */
+		ut_ad(err == DB_MISSING_HISTORY);
 
 		return(err);
 	}
@@ -1522,54 +1517,8 @@ trx_undo_prev_version_build(
 	ptr = trx_undo_update_rec_get_update(ptr, index, type, trx_id,
 					     roll_ptr, info_bits,
 					     NULL, heap, &update);
-
-	if (UNIV_UNLIKELY(table_id != index->table->id)) {
-		ptr = NULL;
-
-		fprintf(stderr,
-			"InnoDB: Error: trying to access update undo rec"
-			" for table %s\n"
-			"InnoDB: but the table id in the"
-			" undo record is wrong\n"
-			"InnoDB: Submit a detailed bug report"
-			" to http://bugs.mysql.com\n"
-			"InnoDB: Run also CHECK TABLE %s\n",
-			index->table_name, index->table_name);
-	}
-
-	if (ptr == NULL) {
-		/* The record was corrupted, return an error; these printfs
-		should catch an elusive bug in row_vers_old_has_index_entry */
-
-		fprintf(stderr,
-			"InnoDB: table %s, index %s, n_uniq %lu\n"
-			"InnoDB: undo rec address %p, type %lu cmpl_info %lu\n"
-			"InnoDB: undo rec table id %llu,"
-			" index table id %llu\n"
-			"InnoDB: dump of 150 bytes in undo rec: ",
-			index->table_name, index->name,
-			(ulong) dict_index_get_n_unique(index),
-			undo_rec, (ulong) type, (ulong) cmpl_info,
-			(ullint) table_id,
-			(ullint) index->table->id);
-		ut_print_buf(stderr, undo_rec, 150);
-		fputs("\n"
-		      "InnoDB: index record ", stderr);
-		rec_print(stderr, index_rec, index);
-		fputs("\n"
-		      "InnoDB: record version ", stderr);
-		rec_print_new(stderr, rec, offsets);
-		fprintf(stderr, "\n"
-			"InnoDB: Record trx id " TRX_ID_FMT
-			", update rec trx id " TRX_ID_FMT "\n"
-			"InnoDB: Roll ptr in rec " TRX_ID_FMT
-			", in update rec" TRX_ID_FMT "\n",
-			(ullint) rec_trx_id, (ullint) trx_id,
-			(ullint) old_roll_ptr, (ullint) roll_ptr);
-
-		trx_purge_sys_print();
-		return(DB_ERROR);
-	}
+	ut_a(table_id == index->table->id);
+	ut_a(ptr);
 
 	if (row_upd_changes_field_size_or_external(index, offsets, update)) {
 		ulint	n_ext;

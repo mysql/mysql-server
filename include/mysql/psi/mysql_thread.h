@@ -582,7 +582,7 @@ static inline void inline_mysql_mutex_register(
   int count
 #else
   const char *category __attribute__ ((unused)),
-  PSI_mutex_info *info __attribute__ ((unused)),
+  void *info __attribute__ ((unused)),
   int count __attribute__ ((unused))
 #endif
 )
@@ -725,7 +725,7 @@ static inline void inline_mysql_rwlock_register(
   int count
 #else
   const char *category __attribute__ ((unused)),
-  PSI_rwlock_info *info __attribute__ ((unused)),
+  void *info __attribute__ ((unused)),
   int count __attribute__ ((unused))
 #endif
 )
@@ -998,7 +998,7 @@ static inline void inline_mysql_cond_register(
   int count
 #else
   const char *category __attribute__ ((unused)),
-  PSI_cond_info *info __attribute__ ((unused)),
+  void *info __attribute__ ((unused)),
   int count __attribute__ ((unused))
 #endif
 )
@@ -1120,13 +1120,13 @@ static inline int inline_mysql_cond_broadcast(
 }
 
 static inline void inline_mysql_thread_register(
-#ifdef HAVE_PSI_THREAD__INTERFACE
+#ifdef HAVE_PSI_THREAD_INTERFACE
   const char *category,
   PSI_thread_info *info,
   int count
 #else
   const char *category __attribute__ ((unused)),
-  PSI_thread_info *info __attribute__ ((unused)),
+  void *info __attribute__ ((unused)),
   int count __attribute__ ((unused))
 #endif
 )
