@@ -12,13 +12,15 @@ STOP SLAVE;
 insert into t1 values (1,1);
 insert into t1 values (2,2);
 --connection master
+begin;
 insert into t1 values (1,2);
 insert into t1 values (2,1);
---sleep 1
+commit;
 delete from t1;
---sleep 1
+begin;
 insert into t1 values (1,1);
 insert into t1 values (2,2);
+commit;
 
 --connection slave
 start slave;
