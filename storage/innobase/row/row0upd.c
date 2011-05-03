@@ -2280,51 +2280,51 @@ row_upd(
 		}
 	}
 
-	if (node->state == UPD_NODE_UPDATE_CLUSTERED
-	    || node->state == UPD_NODE_INSERT_CLUSTERED
-	    || node->state == UPD_NODE_INSERT_BLOB) {
-
+	switch (node->state) {
+	case UPD_NODE_UPDATE_CLUSTERED:
+	case UPD_NODE_INSERT_CLUSTERED:
+	case UPD_NODE_INSERT_BLOB:
 		log_free_check();
 		err = row_upd_clust_step(node, thr);
 
 		if (err != DB_SUCCESS) {
 
-			goto function_exit;
+			return(err);
 		}
 	}
 
-	if (!node->is_delete && (node->cmpl_info & UPD_NODE_NO_ORD_CHANGE)) {
+	if (node->index == NULL
+	    || (!node->is_delete
+		&& (node->cmpl_info & UPD_NODE_NO_ORD_CHANGE))) {
 
-		goto function_exit;
+		return(DB_SUCCESS);
 	}
 
-	while (node->index != NULL) {
-
+	do {
 		log_free_check();
 		err = row_upd_sec_step(node, thr);
 
 		if (err != DB_SUCCESS) {
 
-			goto function_exit;
+			return(err);
 		}
 
 		node->index = dict_table_get_next_index(node->index);
+	} while (node->index != NULL);
+
+	ut_ad(err == DB_SUCCESS);
+
+	/* Do some cleanup */
+
+	if (node->row != NULL) {
+		node->row = NULL;
+		node->ext = NULL;
+		node->upd_row = NULL;
+		node->upd_ext = NULL;
+		mem_heap_empty(node->heap);
 	}
 
-function_exit:
-	if (err == DB_SUCCESS) {
-		/* Do some cleanup */
-
-		if (node->row != NULL) {
-			node->row = NULL;
-			node->ext = NULL;
-			node->upd_row = NULL;
-			node->upd_ext = NULL;
-			mem_heap_empty(node->heap);
-		}
-
-		node->state = UPD_NODE_UPDATE_CLUSTERED;
-	}
+	node->state = UPD_NODE_UPDATE_CLUSTERED;
 
 	return(err);
 }

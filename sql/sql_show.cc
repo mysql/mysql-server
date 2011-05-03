@@ -6771,7 +6771,7 @@ static bool do_fill_table(THD *thd,
   thd->warning_info= &wi;
 
   bool res= table_list->schema_table->fill_table(
-    thd, table_list, join_table->select_cond);
+    thd, table_list, join_table->condition());
 
   thd->warning_info= wi_saved;
 

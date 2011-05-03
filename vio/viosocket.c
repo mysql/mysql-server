@@ -22,6 +22,10 @@
 
 #include "vio_priv.h"
 
+#ifdef FIONREAD_IN_SYS_FILIO
+# include <sys/filio.h>
+#endif
+
 int vio_errno(Vio *vio __attribute__((unused)))
 {
   return socket_errno;		/* On Win32 this mapped to WSAGetLastError() */
@@ -616,7 +620,7 @@ static my_bool socket_poll_read(my_socket sd, uint timeout)
 static my_bool socket_peek_read(Vio *vio, uint *bytes)
 {
   my_socket sd= mysql_socket_getfd(vio->mysql_socket);
- #ifdef __WIN__
+#if defined(_WIN32)
   int len;
   if (ioctlsocket(sd, FIONREAD, &len))
     return TRUE;

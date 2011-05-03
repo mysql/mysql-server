@@ -5083,7 +5083,6 @@ lock_table_queue_validate(
 	dict_table_t*	table)	/*!< in: table */
 {
 	lock_t*		lock;
-	ulint		count = 0;
 
 	ut_ad(lock_mutex_own());
 #ifdef UNIV_SYNC_DEBUG
@@ -5093,9 +5092,6 @@ lock_table_queue_validate(
 	for (lock = UT_LIST_GET_FIRST(table->locks);
 	     lock != NULL;
 	     lock = UT_LIST_GET_NEXT(un_member.tab_lock.locks, lock)) {
-
-		ulint		i;
-		ib_vector_t*	table_locks;
 
 		/* lock->trx->state cannot change from or to NOT_STARTED
 		while we are holding the trx_sys->lock. It may change
@@ -5114,25 +5110,7 @@ lock_table_queue_validate(
 		}
 
 		ut_a(lock_trx_table_locks_find(lock->trx, lock));
-
-		/* Skip the NULL entries and only count the locks that
-		transactions have on this table. */
-		table_locks = lock->trx->lock.table_locks;
-
-		for (i = 0; i < ib_vector_size(table_locks); ++i) {
-			const lock_t*	trx_lock;
-
-			trx_lock = ib_vector_get(table_locks, i);
-
-			if (trx_lock != NULL
-			    && trx_lock->un_member.tab_lock.table == table) {
-
-				++count;
-			}
-		}
 	}
-
-	ut_a(count == UT_LIST_GET_LEN(table->locks));
 
 	return(TRUE);
 }

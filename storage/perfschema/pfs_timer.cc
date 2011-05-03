@@ -24,7 +24,7 @@
 
 enum_timer_name idle_timer= TIMER_NAME_MICROSEC;
 enum_timer_name wait_timer= TIMER_NAME_CYCLE;
-enum_timer_name stage_timer= TIMER_NAME_CYCLE;
+enum_timer_name stage_timer= TIMER_NAME_NANOSEC;
 enum_timer_name statement_timer= TIMER_NAME_NANOSEC;
 MY_TIMER_INFO pfs_timer_info;
 
