@@ -317,16 +317,22 @@ private:
 
   typedef NdbPack::DataC KeyDataC;
   typedef NdbPack::Data KeyData;
+  typedef NdbPack::BoundC KeyBoundC;
+  typedef NdbPack::Bound KeyBound;
 
   // range scan
- 
+
   /*
-   * Scan bounds are stored in linked list of segments.
+   * ScanBound instances are members of ScanOp.  Bound data is stored in
+   * a separate segmented buffer pool.
    */
-  typedef DataBuffer<ScanBoundSegmentSize> ScanBound;
-  typedef DataBuffer<ScanBoundSegmentSize>::ConstDataBufferIterator ScanBoundIterator;
-  typedef DataBuffer<ScanBoundSegmentSize>::DataBufferPool ScanBoundPool;
-  ScanBoundPool c_scanBoundPool;
+  struct ScanBound {
+    DataBuffer<ScanBoundSegmentSize>::Head m_head;
+    Uint16 m_cnt;       // number of attributes
+    Int16 m_side;
+    ScanBound();
+  };
+  DataBuffer<ScanBoundSegmentSize>::DataBufferPool c_scanBoundPool;
 
   // ScanLock
   struct ScanLock {
@@ -395,10 +401,7 @@ private:
     Uint8 m_readCommitted;      // no locking
     Uint8 m_lockMode;
     Uint8 m_descending;
-    ScanBound m_boundMin;
-    ScanBound m_boundMax;
-    ScanBound* m_bound[2];      // pointers to above 2
-    Uint16 m_boundCnt[2];       // number of bounds in each
+    ScanBound m_scanBound[2];
     TreePos m_scanPos;          // position
     TreeEnt m_scanEnt;          // latest entry found
     Uint32 m_nodeScan;          // next scan at node (single-linked)
@@ -407,7 +410,7 @@ private:
     Uint32 nextList;
     };
     Uint32 prevList;
-    ScanOp(ScanBoundPool& scanBoundPool);
+    ScanOp();
   };
   typedef Ptr<ScanOp> ScanOpPtr;
   ArrayPool<ScanOp> c_scanOpPool;
@@ -549,7 +552,7 @@ private:
   void readKeyAttrs(TuxCtx&, const Frag& frag, TreeEnt ent, KeyData& keyData, Uint32 count);
   void readTablePk(const Frag& frag, TreeEnt ent, Data pkData, unsigned& pkSize);
   void copyAttrs(TuxCtx&, const Frag& frag, ConstData data1, Data data2, unsigned maxlen2 = MaxAttrDataSize);
-  void unpackBound(const ScanBound& bound, Data data);
+  void unpackBound(TuxCtx&, const ScanBound& bound, KeyBoundC& searchBound);
   void findFrag(const Index& index, Uint32 fragId, FragPtr& fragPtr);
 
   /*
@@ -647,9 +650,9 @@ private:
   bool findPosToRemove(TuxCtx&, Frag& frag, const KeyDataC& searchKey, TreeEnt searchEnt, NodeHandle& currNode, TreePos& treePos);
   bool searchToAdd(TuxCtx&, Frag& frag, const KeyDataC& searchKey, TreeEnt searchEnt, TreePos& treePos);
   bool searchToRemove(TuxCtx&, Frag& frag, const KeyDataC& searchKey, TreeEnt searchEnt, TreePos& treePos);
-  void findNodeToScan(Frag& frag, unsigned dir, ConstData boundInfo, unsigned boundCount, NodeHandle& currNode);
-  void findPosToScan(Frag& frag, unsigned idir, ConstData boundInfo, unsigned boundCount, NodeHandle& currNode, Uint16* pos);
-  void searchToScan(Frag& frag, ConstData boundInfo, unsigned boundCount, bool descending, TreePos& treePos);
+  void findNodeToScan(Frag& frag, unsigned dir, const KeyBoundC& searchBound, NodeHandle& currNode);
+  void findPosToScan(Frag& frag, unsigned idir, const KeyBoundC& searchBound, NodeHandle& currNode, Uint16* pos);
+  void searchToScan(Frag& frag, unsigned idir, const KeyBoundC& searchBound, TreePos& treePos);
 
   /*
    * DbtuxCmp.cpp
@@ -657,6 +660,7 @@ private:
   int cmpSearchKey(TuxCtx&, const Frag& frag, unsigned& start, ConstData searchKey, ConstData entryData, unsigned maxlen = MaxAttrDataSize);
   int cmpSearchKey(const KeyDataC& searchKey, const KeyDataC& entryKey, Uint32 cnt);
   int cmpScanBound(const Frag& frag, unsigned dir, ConstData boundInfo, unsigned boundCount, ConstData entryData, unsigned maxlen = MaxAttrDataSize);
+  int cmpSearchBound(const KeyBoundC& searchBound, const KeyDataC& entryKey, Uint32 cnt);
 
   /*
    * DbtuxStat.cpp
@@ -947,10 +951,20 @@ Dbtux::DescPage::DescPage() :
   }
 }
 
+// Dbtux::ScanBound
+
+inline
+Dbtux::ScanBound::ScanBound() :
+  m_head(),
+  m_cnt(0),
+  m_side(0)
+{
+}
+
 // Dbtux::ScanOp
 
 inline
-Dbtux::ScanOp::ScanOp(ScanBoundPool& scanBoundPool) :
+Dbtux::ScanOp::ScanOp() :
   m_state(Undef),
   m_lockwait(false),
   m_errorCode(0),
@@ -967,16 +981,11 @@ Dbtux::ScanOp::ScanOp(ScanBoundPool& scanBoundPool) :
   m_readCommitted(0),
   m_lockMode(0),
   m_descending(0),
-  m_boundMin(scanBoundPool),
-  m_boundMax(scanBoundPool),
+  m_scanBound(),
   m_scanPos(),
   m_scanEnt(),
   m_nodeScan(RNIL)
 {
-  m_bound[0] = &m_boundMin;
-  m_bound[1] = &m_boundMax;
-  m_boundCnt[0] = 0;
-  m_boundCnt[1] = 0;
 }
 
 // Dbtux::Index
@@ -1274,6 +1283,24 @@ Dbtux::cmpSearchKey(const KeyDataC& searchKey, const KeyDataC& entryKey, Uint32 
     char tmp[MaxAttrDataSize << 2];
     debugOut << "cmpSearchKey: ret:" << ret;
     debugOut << " search:" << searchKey.print(tmp, sizeof(tmp));
+    debugOut << " entry:" << entryKey.print(tmp, sizeof(tmp));
+    debugOut << endl;
+  }
+#endif
+  return ret;
+}
+
+inline int
+Dbtux::cmpSearchBound(const KeyBoundC& searchBound, const KeyDataC& entryKey, Uint32 cnt)
+{
+  // compare cnt attributes from each
+  Uint32 num_eq;
+  int ret = searchBound.cmp(entryKey, cnt, num_eq);
+#ifdef VM_TRACE
+  if (debugFlags & DebugScan) {
+    char tmp[MaxAttrDataSize << 2];
+    debugOut << "cmpSearchBound: res:" << ret;
+    debugOut << " search:" << searchBound.print(tmp, sizeof(tmp));
     debugOut << " entry:" << entryKey.print(tmp, sizeof(tmp));
     debugOut << endl;
   }
