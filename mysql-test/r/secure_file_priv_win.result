@@ -1,6 +1,6 @@
 CREATE TABLE t1 (c1 longtext);
 INSERT INTO t1 values ('a');
-SELECT * FROM t1 INTO OUTFILE 'd:/mysql/work/test-5.0-security/mysql-test/var/tmp/B11764517.tmp';
+SELECT * FROM t1 INTO OUTFILE 'MYSQL_TMP_DIR/B11764517.tmp';
 show global variables like 'secure_file_priv';
 Variable_name	Value
 secure_file_priv	MYSQL_TMP_DIR/
