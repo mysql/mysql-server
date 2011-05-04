@@ -319,7 +319,7 @@ Dbtux::execTUXFRAGREQ(Signal* signal)
     new (&tree) TreeHead();
     // make these configurable later
     tree.m_nodeSize = MAX_TTREE_NODE_SIZE;
-    tree.m_prefSize = MAX_TTREE_PREF_SIZE;
+    tree.m_prefSize = 0; // wl4163_todo temp disable prefix
     const unsigned maxSlack = MAX_TTREE_NODE_SLACK;
     // size of header and min prefix
     const unsigned fixedSize = NodeHeadSize + tree.m_prefSize;

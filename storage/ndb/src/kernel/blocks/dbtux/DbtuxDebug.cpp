@@ -283,6 +283,7 @@ Dbtux::printNode(TuxCtx & ctx,
   }
 #endif
   // check inline prefix
+#if wl4163_todo // temp disable prefix
   { ConstData data1 = node.getPref();
     Uint32 data2[MaxPrefSize];
     memset(data2, DataFillByte, MaxPrefSize << 2);
@@ -299,6 +300,7 @@ Dbtux::printNode(TuxCtx & ctx,
       }
     }
   }
+#endif
   // check ordering within node
   for (unsigned j = 1; j < node.getOccup(); j++) {
     const TreeEnt ent1 = node.getEnt(j - 1);

@@ -35,17 +35,15 @@ void
 Dbtux::findNodeToUpdate(TuxCtx& ctx, Frag& frag, ConstData searchKey, TreeEnt searchEnt, NodeHandle& currNode)
 {
   const Index& index = *c_indexPool.getPtr(frag.m_indexId);
-  const TreeHead& tree = frag.m_tree;
   const Uint32 numAttrs = index.m_numAttrs;
   NodeHandle glbNode(frag);     // potential g.l.b of final node
   while (true) {
     thrjam(ctx.jamBuffer);
     selectNode(currNode, currNode.m_loc);
     int ret;
-    // compare prefix
     unsigned start = 0;
-    ret = cmpSearchKey(ctx, frag, start, searchKey, currNode.getPref(), tree.m_prefSize);
-    if (ret == NdbSqlUtil::CmpUnknown) {
+    // wl4163_todo temp disable prefix
+    if (true) {
       thrjam(ctx.jamBuffer);
       // read and compare remaining attributes
       ndbrequire(start < numAttrs);
@@ -211,15 +209,13 @@ Dbtux::searchToRemove(TuxCtx& ctx, Frag& frag, ConstData searchKey, TreeEnt sear
 void
 Dbtux::findNodeToScan(Frag& frag, unsigned idir, ConstData boundInfo, unsigned boundCount, NodeHandle& currNode)
 {
-  const TreeHead& tree = frag.m_tree;
   NodeHandle glbNode(frag);     // potential g.l.b of final node
   while (true) {
     jam();
     selectNode(currNode, currNode.m_loc);
     int ret;
-    // compare prefix
-    ret = cmpScanBound(frag, idir, boundInfo, boundCount, currNode.getPref(), tree.m_prefSize);
-    if (ret == NdbSqlUtil::CmpUnknown) {
+    // wl4163_todo temp disable prefix
+    if (true) {
       jam();
       // read and compare all attributes
       readKeyAttrs(c_ctx, frag, currNode.getEnt(0), 0, c_ctx.c_entryKey);

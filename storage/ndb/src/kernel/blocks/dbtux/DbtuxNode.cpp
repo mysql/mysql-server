@@ -156,8 +156,10 @@ Dbtux::setNodePref(TuxCtx & ctx, NodeHandle& node)
 {
   const Frag& frag = node.m_frag;
   const TreeHead& tree = frag.m_tree;
+#if wl4163_todo // temp disable prefix
   readKeyAttrs(ctx, frag, node.getEnt(0), 0, ctx.c_entryKey);
   copyAttrs(ctx, frag, ctx.c_entryKey, node.getPref(), tree.m_prefSize);
+#endif
 }
 
 // node operations
