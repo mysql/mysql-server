@@ -6,6 +6,10 @@ call mtr.add_suppression("@003f.frm' \\(errno: 22\\)");
 # Binlog is required
 --source include/have_log_bin.inc
 
+# utf8 is required
+let collation=utf8_unicode_ci;
+--source include/have_collation.inc
+
 # Save the initial number of concurrent sessions
 --source include/count_sessions.inc
 

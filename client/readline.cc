@@ -56,6 +56,7 @@ char *batch_readline(LINE_BUFFER *line_buff)
 {
   char *pos;
   ulong out_length;
+  LINT_INIT(out_length);
 
   if (!(pos=intern_read_line(line_buff, &out_length)))
     return 0;
