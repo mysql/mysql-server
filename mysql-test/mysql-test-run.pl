@@ -210,8 +210,8 @@ our $opt_clean_vardir= $ENV{'MTR_CLEAN_VARDIR'};
 
 our $opt_gcov;
 our $opt_gcov_exe= "gcov";
-our $opt_gcov_err= "mysql-test-gcov.msg";
-our $opt_gcov_msg= "mysql-test-gcov.err";
+our $opt_gcov_err= "mysql-test-gcov.err";
+our $opt_gcov_msg= "mysql-test-gcov.msg";
 
 our $opt_gprof;
 our %gprof_dirs;
@@ -274,12 +274,13 @@ my $opt_strace_client;
 
 our $opt_user = "root";
 
-my $opt_valgrind= 0;
+our $opt_valgrind= 0;
 my $opt_valgrind_mysqld= 0;
 my $opt_valgrind_mysqltest= 0;
 my @default_valgrind_args= ("--show-reachable=yes");
 my @valgrind_args;
 my $opt_valgrind_path;
+my $valgrind_reports= 0;
 my $opt_callgrind;
 my %mysqld_logs;
 my $opt_debug_sync_timeout= 300; # Default timeout for WAIT_FOR actions.
@@ -504,10 +505,29 @@ sub main {
 
   push @$completed, run_ctest() if $opt_ctest;
 
+  if ($opt_valgrind) {
+    # Create minimalistic "test" for the reporting
+    my $tinfo = My::Test->new
+      (
+       name           => 'valgrind_report',
+      );
+    # Set dummy worker id to align report with normal tests
+    $tinfo->{worker} = 0 if $opt_parallel > 1;
+    if ($valgrind_reports) {
+      $tinfo->{result}= 'MTR_RES_FAILED';
+      $tinfo->{comment}= "Valgrind reported failures at shutdown, see above";
+      $tinfo->{failures}= 1;
+    } else {
+      $tinfo->{result}= 'MTR_RES_PASSED';
+    }
+    mtr_report_test($tinfo);
+    push @$completed, $tinfo;
+  }
+
   mtr_print_line();
 
   if ( $opt_gcov ) {
-    gcov_collect($basedir, $opt_gcov_exe,
+    gcov_collect($bindir, $opt_gcov_exe,
 		 $opt_gcov_msg, $opt_gcov_err);
   }
 
@@ -704,6 +724,9 @@ sub run_test_server ($$$) {
 	elsif ($line =~ /^SPENT/) {
 	  add_total_times($line);
 	}
+	elsif ($line eq 'VALGREP' && $opt_valgrind) {
+	  $valgrind_reports= 1;
+	}
 	else {
 	  mtr_error("Unknown response: '$line' from client");
 	}
@@ -889,6 +912,7 @@ sub run_worker ($) {
       my $valgrind_reports= 0;
       if ($opt_valgrind_mysqld) {
         $valgrind_reports= valgrind_exit_reports();
+	print $server "VALGREP\n" if $valgrind_reports;
       }
       if ( $opt_gprof ) {
 	gprof_collect (find_mysqld($basedir), keys %gprof_dirs);
@@ -1198,7 +1222,7 @@ sub command_line_setup {
 	chomp;
 	# remove comments (# foo) at the beginning of the line, or after a 
 	# blank at the end of the line
-	s/( +|^)#.*$//;
+	s/(\s+|^)#.*$//;
 	# If @ platform specifier given, use this entry only if it contains
 	# @<platform> or @!<xxx> where xxx != platform
 	if (/\@.*/)
@@ -1209,8 +1233,8 @@ sub command_line_setup {
 	  s/\@.*$//;
 	}
 	# remove whitespace
-	s/^ +//;              
-	s/ +$//;
+	s/^\s+//;
+	s/\s+$//;
 	# if nothing left, don't need to remember this line
 	if ( $_ eq "" ) {
 	  next;
@@ -2196,7 +2220,12 @@ sub environment_setup {
   $ENV{'DEFAULT_MASTER_PORT'}= $mysqld_variables{'port'};
   $ENV{'MYSQL_TMP_DIR'}=      $opt_tmpdir;
   $ENV{'MYSQLTEST_VARDIR'}=   $opt_vardir;
+  # Used for guessing default plugin dir, we can't really know for sure
   $ENV{'MYSQL_LIBDIR'}=       "$basedir/lib";
+  # Override if this does not exist, but lib64 does (best effort)
+  if (! -d "$basedir/lib" && -d "$basedir/lib64") {
+    $ENV{'MYSQL_LIBDIR'}=     "$basedir/lib64";
+  }
   $ENV{'MYSQL_BINDIR'}=       "$bindir";
   $ENV{'MYSQL_SHAREDIR'}=     $path_language;
   $ENV{'MYSQL_CHARSETSDIR'}=  $path_charsetsdir;
@@ -4092,6 +4121,9 @@ sub extract_warning_lines ($$) {
     );
   my $skip_valgrind= 0;
 
+  my $last_pat= "";
+  my $num_rep= 0;
+
   foreach my $line ( @lines )
   {
     if ($opt_valgrind_mysqld) {
@@ -4106,11 +4138,29 @@ sub extract_warning_lines ($$) {
     {
       if ( $line =~ /$pat/ )
       {
-	print $Fwarn $line;
+	# Remove initial timestamp and look for consecutive identical lines
+	my $line_pat= $line;
+	$line_pat =~ s/^[0-9: ]*//;
+	if ($line_pat eq $last_pat) {
+	  $num_rep++;
+	} else {
+	  # Previous line had been repeated, report that first
+	  if ($num_rep) {
+	    print $Fwarn ".... repeated $num_rep times: $last_pat";
+	    $num_rep= 0;
+	  }
+	  $last_pat= $line_pat;
+	  print $Fwarn $line;
+	}
 	last;
       }
     }
   }
+  # Catch the case of last warning being repeated
+  if ($num_rep) {
+    print $Fwarn ".... repeated $num_rep times: $last_pat";
+  }
+
   $Fwarn = undef; # Close file
 
 }
@@ -4747,13 +4797,6 @@ sub mysqld_start ($$) {
   unlink($mysqld->value('pid-file'));
 
   my $output= $mysqld->value('#log-error');
-  if ( $opt_valgrind and $opt_debug )
-  {
-    # When both --valgrind and --debug is selected, send
-    # all output to the trace file, making it possible to
-    # see the exact location where valgrind complains
-    $output= "$opt_vardir/log/".$mysqld->name().".trace";
-  }
   # Remember this log file for valgrind error report search
   $mysqld_logs{$output}= 1 if $opt_valgrind;
   # Remember data dir for gmon.out files if using gprof
@@ -5660,6 +5703,7 @@ sub valgrind_exit_reports() {
                         @culprits);
             mtr_print_line();
             print ("$valgrind_rep\n");
+            $found_err= 1;
             $err_in_report= 0;
           }
           # Make ready to collect new report
