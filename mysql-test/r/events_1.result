@@ -1,3 +1,4 @@
+call mtr.add_suppression("Column count of mysql.event is wrong. Expected .*, found .*\. The table is probably corrupted");
 drop database if exists events_test;
 drop database if exists db_x;
 drop database if exists mysqltest_db2;
@@ -259,33 +260,36 @@ events_test	intact_check	root@localhost	SYSTEM	RECURRING	NULL	10	#	#	NULL	ENABLE
 Try to alter mysql.event: the server should fail to load
 event information after mysql.event was tampered with.
 
-First, let's add a column to the end and make sure everything
-works as before
+First, let's add a column to the end and check the error is emitted.
 
 ALTER TABLE mysql.event ADD dummy INT;
 SHOW EVENTS;
-Db	Name	Definer	Time zone	Type	Execute at	Interval value	Interval field	Starts	Ends	Status	Originator	character_set_client	collation_connection	Database Collation
-events_test	intact_check	root@localhost	SYSTEM	RECURRING	NULL	10	#	#	NULL	ENABLED	1	latin1	latin1_swedish_ci	latin1_swedish_ci
+ERROR HY000: Failed to open mysql.event
 SELECT event_name FROM INFORMATION_SCHEMA.events;
-event_name
-intact_check
+ERROR HY000: Failed to open mysql.event
 SHOW CREATE EVENT intact_check;
-Event	sql_mode	time_zone	Create Event	character_set_client	collation_connection	Database Collation
-intact_check		SYSTEM	CREATE EVENT `intact_check` ON SCHEDULE EVERY 10 HOUR STARTS '#' ON COMPLETION NOT PRESERVE ENABLE DO SELECT "nothing"	latin1	latin1_swedish_ci	latin1_swedish_ci
+ERROR HY000: Failed to open mysql.event
 DROP EVENT no_such_event;
-ERROR HY000: Unknown event 'no_such_event'
+ERROR HY000: Failed to open mysql.event
 CREATE EVENT intact_check_1 ON SCHEDULE EVERY 5 HOUR DO SELECT 5;
+ERROR HY000: Failed to open mysql.event
 ALTER EVENT intact_check_1 ON SCHEDULE EVERY 8 HOUR DO SELECT 8;
+ERROR HY000: Failed to open mysql.event
 ALTER EVENT intact_check_1 RENAME TO intact_check_2;
+ERROR HY000: Failed to open mysql.event
 DROP EVENT intact_check_1;
-ERROR HY000: Unknown event 'intact_check_1'
+ERROR HY000: Failed to open mysql.event
 DROP EVENT intact_check_2;
+ERROR HY000: Failed to open mysql.event
 DROP EVENT intact_check;
+ERROR HY000: Failed to open mysql.event
 DROP DATABASE IF EXISTS mysqltest_no_such_database;
 Warnings:
 Note	1008	Can't drop database 'mysqltest_no_such_database'; database doesn't exist
 CREATE DATABASE mysqltest_db2;
 DROP DATABASE mysqltest_db2;
+Warnings:
+Error	1545	Failed to open mysql.event
 SELECT @@event_scheduler;
 @@event_scheduler
 OFF
@@ -294,6 +298,7 @@ Variable_name	Value
 event_scheduler	OFF
 SET GLOBAL event_scheduler=OFF;
 ALTER TABLE mysql.event DROP dummy;
+DROP EVENT intact_check;
 CREATE EVENT intact_check ON SCHEDULE EVERY 10 HOUR DO SELECT "nothing";
 
 Now let's add a column to the first position: the server
@@ -301,30 +306,32 @@ expects to see event schema name there
 
 ALTER TABLE mysql.event ADD dummy INT FIRST;
 SHOW EVENTS;
-ERROR HY000: Cannot load from mysql.event. The table is probably corrupted
+ERROR HY000: Failed to open mysql.event
 SELECT event_name FROM INFORMATION_SCHEMA.events;
-ERROR HY000: Cannot load from mysql.event. The table is probably corrupted
+ERROR HY000: Failed to open mysql.event
 SHOW CREATE EVENT intact_check;
-ERROR HY000: Unknown event 'intact_check'
+ERROR HY000: Failed to open mysql.event
 DROP EVENT no_such_event;
-ERROR HY000: Unknown event 'no_such_event'
+ERROR HY000: Failed to open mysql.event
 CREATE EVENT intact_check_1 ON SCHEDULE EVERY 5 HOUR DO SELECT 5;
-ERROR HY000: Failed to store event name. Error code 2 from storage engine.
+ERROR HY000: Failed to open mysql.event
 ALTER EVENT intact_check_1 ON SCHEDULE EVERY 8 HOUR DO SELECT 8;
-ERROR HY000: Unknown event 'intact_check_1'
+ERROR HY000: Failed to open mysql.event
 ALTER EVENT intact_check_1 RENAME TO intact_check_2;
-ERROR HY000: Unknown event 'intact_check_1'
+ERROR HY000: Failed to open mysql.event
 DROP EVENT intact_check_1;
-ERROR HY000: Unknown event 'intact_check_1'
+ERROR HY000: Failed to open mysql.event
 DROP EVENT intact_check_2;
-ERROR HY000: Unknown event 'intact_check_2'
+ERROR HY000: Failed to open mysql.event
 DROP EVENT intact_check;
-ERROR HY000: Unknown event 'intact_check'
+ERROR HY000: Failed to open mysql.event
 DROP DATABASE IF EXISTS mysqltest_no_such_database;
 Warnings:
 Note	1008	Can't drop database 'mysqltest_no_such_database'; database doesn't exist
 CREATE DATABASE mysqltest_db2;
 DROP DATABASE mysqltest_db2;
+Warnings:
+Error	1545	Failed to open mysql.event
 SELECT @@event_scheduler;
 @@event_scheduler
 OFF
@@ -345,29 +352,32 @@ Drop some columns and try more checks.
 
 ALTER TABLE mysql.event DROP comment, DROP starts;
 SHOW EVENTS;
-ERROR HY000: Cannot load from mysql.event. The table is probably corrupted
+ERROR HY000: Failed to open mysql.event
 SELECT event_name FROM INFORMATION_SCHEMA.EVENTS;
-ERROR HY000: Cannot load from mysql.event. The table is probably corrupted
+ERROR HY000: Failed to open mysql.event
 SHOW CREATE EVENT intact_check;
-ERROR HY000: Cannot load from mysql.event. The table is probably corrupted
+ERROR HY000: Failed to open mysql.event
 DROP EVENT no_such_event;
-ERROR HY000: Unknown event 'no_such_event'
+ERROR HY000: Failed to open mysql.event
 CREATE EVENT intact_check_1 ON SCHEDULE EVERY 5 HOUR DO SELECT 5;
-ERROR HY000: Column count of mysql.event is wrong. Expected 22, found 20. The table is probably corrupted
+ERROR HY000: Failed to open mysql.event
 ALTER EVENT intact_check_1 ON SCHEDULE EVERY 8 HOUR DO SELECT 8;
-ERROR HY000: Unknown event 'intact_check_1'
+ERROR HY000: Failed to open mysql.event
 ALTER EVENT intact_check_1 RENAME TO intact_check_2;
-ERROR HY000: Unknown event 'intact_check_1'
+ERROR HY000: Failed to open mysql.event
 DROP EVENT intact_check_1;
-ERROR HY000: Unknown event 'intact_check_1'
+ERROR HY000: Failed to open mysql.event
 DROP EVENT intact_check_2;
-ERROR HY000: Unknown event 'intact_check_2'
+ERROR HY000: Failed to open mysql.event
 DROP EVENT intact_check;
+ERROR HY000: Failed to open mysql.event
 DROP DATABASE IF EXISTS mysqltest_no_such_database;
 Warnings:
 Note	1008	Can't drop database 'mysqltest_no_such_database'; database doesn't exist
 CREATE DATABASE mysqltest_db2;
 DROP DATABASE mysqltest_db2;
+Warnings:
+Error	1545	Failed to open mysql.event
 SELECT @@event_scheduler;
 @@event_scheduler
 OFF
@@ -425,4 +435,42 @@ CREATE TABLE mysql.event like event_like;
 DROP TABLE event_like;
 SHOW EVENTS;
 Db	Name	Definer	Time zone	Type	Execute at	Interval value	Interval field	Starts	Ends	Status	Originator	character_set_client	collation_connection	Database Collation
+
+#
+# Bug#12394306: the sever may crash if mysql.event is corrupted
+#
+
+CREATE EVENT ev1 ON SCHEDULE EVERY 5 HOUR DO SELECT 5;
+ALTER EVENT ev1 ON SCHEDULE EVERY 8 HOUR DO SELECT 8;
+
+CREATE TABLE event_original LIKE mysql.event;
+INSERT INTO event_original SELECT * FROM mysql.event;
+
+ALTER TABLE mysql.event MODIFY modified CHAR(1);
+Warnings:
+Warning	1265	Data truncated for column 'modified' at row 1
+
+SHOW EVENTS;
+ERROR HY000: Failed to open mysql.event
+
+SELECT event_name, created, last_altered FROM information_schema.events;
+ERROR HY000: Failed to open mysql.event
+
+CREATE EVENT ev2 ON SCHEDULE EVERY 5 HOUR DO SELECT 5;
+ERROR HY000: Failed to open mysql.event
+
+ALTER EVENT ev1 ON SCHEDULE EVERY 9 HOUR DO SELECT 9;
+ERROR HY000: Failed to open mysql.event
+
+DROP TABLE mysql.event;
+RENAME TABLE event_original TO mysql.event;
+
+DROP EVENT ev1;
+
+SHOW EVENTS;
+Db	Name	Definer	Time zone	Type	Execute at	Interval value	Interval field	Starts	Ends	Status	Originator	character_set_client	collation_connection	Database Collation
+
+# 
+# End of tests
+#
 drop database events_test;
