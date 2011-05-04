@@ -397,8 +397,8 @@ int mysql_load(THD *thd,sql_exchange *ex,TABLE_LIST *table_list,
 
 #if !defined(__WIN__) && ! defined(__NETWARE__)
     MY_STAT stat_info;
-    if (!my_stat(name,&stat_info,MYF(MY_WME)))
-	    DBUG_RETURN(TRUE);
+    if (!my_stat(name, &stat_info, MYF(MY_WME)))
+      DBUG_RETURN(TRUE);
 
     // if we are not in slave thread, the file must be:
     if (!thd->slave_thread &&
@@ -406,11 +406,11 @@ int mysql_load(THD *thd,sql_exchange *ex,TABLE_LIST *table_list,
           ((stat_info.st_mode & S_IFREG) == S_IFREG ||  // regular file
            (stat_info.st_mode & S_IFIFO) == S_IFIFO)))  // named pipe
     {
-	    my_error(ER_TEXTFILE_NOT_READABLE, MYF(0), name);
-	    DBUG_RETURN(TRUE);
+      my_error(ER_TEXTFILE_NOT_READABLE, MYF(0), name);
+      DBUG_RETURN(TRUE);
     }
     if ((stat_info.st_mode & S_IFIFO) == S_IFIFO)
-            is_fifo = 1;
+      is_fifo= 1;
 #endif
     if ((file= mysql_file_open(key_file_load,
                                name, O_RDONLY, MYF(MY_WME))) < 0)
