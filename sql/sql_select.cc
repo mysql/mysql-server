@@ -7192,7 +7192,8 @@ make_join_select(JOIN *join,SQL_SELECT *select,COND *cond)
 
         COND *outer_ref_cond= make_cond_for_table(cond, 
                                                   OUTER_REF_TABLE_BIT,
-                                                  (table_map) 0, FALSE, FALSE);
+                                                  OUTER_REF_TABLE_BIT,
+                                                  FALSE, FALSE);
         if (outer_ref_cond)
 	{
           add_cond_and_fix(&outer_ref_cond, join->outer_ref_cond);
