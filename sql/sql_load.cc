@@ -348,21 +348,21 @@ int mysql_load(THD *thd,sql_exchange *ex,TABLE_LIST *table_list,
 
 #if !defined(__WIN__) && ! defined(__NETWARE__)
     MY_STAT stat_info;
-    if (!my_stat(name,&stat_info,MYF(MY_WME)))
-	    DBUG_RETURN(TRUE);
+    if (!my_stat(name, &stat_info, MYF(MY_WME)))
+      DBUG_RETURN(TRUE);
 
     // if we are not in slave thread, the file must be:
     if (!thd->slave_thread &&
-	      !((stat_info.st_mode & S_IROTH) == S_IROTH &&  // readable by others
-	        (stat_info.st_mode & S_IFLNK) != S_IFLNK && // and not a symlink
-	        ((stat_info.st_mode & S_IFREG) == S_IFREG ||
-	         (stat_info.st_mode & S_IFIFO) == S_IFIFO)))
+        !((stat_info.st_mode & S_IROTH) == S_IROTH &&  // readable by others
+          (stat_info.st_mode & S_IFLNK) != S_IFLNK &&  // and not a symlink
+          ((stat_info.st_mode & S_IFREG) == S_IFREG || // and a regular file
+           (stat_info.st_mode & S_IFIFO) == S_IFIFO))) // or FIFO
     {
-	    my_error(ER_TEXTFILE_NOT_READABLE, MYF(0), name);
-	    DBUG_RETURN(TRUE);
+      my_error(ER_TEXTFILE_NOT_READABLE, MYF(0), name);
+      DBUG_RETURN(TRUE);
     }
     if ((stat_info.st_mode & S_IFIFO) == S_IFIFO)
-	    is_fifo = 1;
+      is_fifo= 1;
 #endif
 
     if ((file=my_open(name,O_RDONLY,MYF(MY_WME))) < 0)
