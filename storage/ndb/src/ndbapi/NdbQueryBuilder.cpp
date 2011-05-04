@@ -1816,11 +1816,9 @@ NdbQueryIndexScanOperationDefImpl::checkPrunable(
           const int res=
             (*recAttr.compare_function)(recAttr.charset_info,
                                         keyPart1.ptr, keyPart1.len,
-                                        highKeyPart.ptr, highKeyPart.len, 
-                                        true);
+                                        highKeyPart.ptr, highKeyPart.len);
           if (res!=0)
           {  // Not equal
-            assert(res != NdbSqlUtil::CmpUnknown);
             return 0;
           }
         } // if (keyPos == keyEnd ||

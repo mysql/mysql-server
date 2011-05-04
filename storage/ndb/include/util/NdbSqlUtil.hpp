@@ -37,23 +37,18 @@ typedef struct charset_info_st CHARSET_INFO;
 class NdbSqlUtil {
 public:
   /**
-   * Compare attribute values.  Returns -1, 0, +1 for less, equal,
-   * greater, respectively.  Parameters are pointers to values and their
-   * lengths in bytes.  The lengths can differ.
+   * Compare attribute values.  Returns negative, zero, positive for
+   * less, equal, greater.  We trust DBTUP to validate all data and
+   * mysql upgrade to not invalidate them.  Bad values (such as NaN)
+   * causing undefined results crash here always (require, not assert)
+   * since they are likely to cause a more obscure crash in DBTUX.
+   * wl4163_todo: API probably should not crash.
    *
-   * First value is a full value but second value can be partial.  If
-   * the partial value is not enough to determine the result, CmpUnknown
-   * will be returned.  A shorter second value is not necessarily
-   * partial.  Partial values are allowed only for types where prefix
-   * comparison is possible (basically, binary strings).
-   *
-   * First parameter is a pointer to type specific extra info.  Char
-   * types receive CHARSET_INFO in it.
-   *
-   * If a value cannot be parsed, it compares like NULL i.e. less than
-   * any valid value.
+   * Parameters are pointers to values (no alignment requirements) and
+   * their lengths in bytes.  First parameter is a pointer to type
+   * specific extra info.  Char types receive CHARSET_INFO in it.
    */
-  typedef int Cmp(const void* info, const void* p1, unsigned n1, const void* p2, unsigned n2, bool full);
+  typedef int Cmp(const void* info, const void* p1, uint n1, const void* p2, uint n2);
 
   /**
    * Prototype for "like" comparison.  Defined for string types.  First
@@ -72,13 +67,6 @@ public:
    * If cmpZero, compare data AND Mask to zero.
    */
   typedef int AndMask(const void* data, unsigned dataLen, const void* mask, unsigned maskLen, bool cmpZero); 
-
-  enum CmpResult {
-    CmpLess = -1,
-    CmpEqual = 0,
-    CmpGreater = 1,
-    CmpUnknown = 2      // insufficient partial data
-  };
 
   struct Type {
     enum Enum {

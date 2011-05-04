@@ -310,7 +310,7 @@ NdbPack::Iter::cmp(const Iter& r2, const Uint8* buf1, const Uint8* buf2) const
       const Uint8* p1 = &buf1[r1.m_itemPos];
       const Uint8* p2 = &buf2[r2.m_itemPos];
       CHARSET_INFO* cs = all_charsets[type.m_csNumber];
-      res = (*sqlType.m_cmp)(cs, p1, n1, p2, n2, true);
+      res = (*sqlType.m_cmp)(cs, p1, n1, p2, n2);
     }
     else
     {

@@ -125,7 +125,7 @@ NdbIndexStat::stat_verify()
       const Uint32* entrykey1 = (const Uint32*)&e1 + EntrySize;
       const Uint32* entrykey2 = (const Uint32*)&e2 + EntrySize;
       int ret = stat_cmpkey(a, entrykey1, e1.m_keylen, entrykey2, e2.m_keylen);
-      assert(ret == -1);
+      assert(ret < 0);
     }
   }
 }
@@ -164,7 +164,7 @@ NdbIndexStat::stat_cmpkey(const Area& a, const Uint32* key1, Uint32 keylen1, con
         if (! ah1.isNULL()) {
           if (! ah2.isNULL()) {
             const NdbSqlUtil::Type& sqlType = NdbSqlUtil::getType(c->m_type);
-            ret = (*sqlType.m_cmp)(c->m_cs, &key1[i1], n, &key2[i2], n, true);
+            ret = (*sqlType.m_cmp)(c->m_cs, &key1[i1], n, &key2[i2], n);
             if (ret != 0)
               break;
           } else {
