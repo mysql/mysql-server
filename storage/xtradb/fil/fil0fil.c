@@ -3786,7 +3786,7 @@ fil_load_single_table_tablespace(
 
 	size = (((ib_uint64_t)size_high) << 32) + (ib_uint64_t)size_low;
 #ifndef UNIV_HOTBACKUP
-	if (size < FIL_IBD_FILE_INITIAL_SIZE * (lint)UNIV_PAGE_SIZE) {
+	if (size < (ib_uint64_t) (FIL_IBD_FILE_INITIAL_SIZE * (lint)UNIV_PAGE_SIZE)) {
 		fprintf(stderr,
 			"InnoDB: Error: the size of single-table tablespace"
 			" file %s\n"
