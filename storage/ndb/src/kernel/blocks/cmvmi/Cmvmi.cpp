@@ -1043,7 +1043,14 @@ void Cmvmi::execCONNECT_REP(Signal *signal){
    * Inform QMGR that client has connected
    */
   signal->theData[0] = hostId;
-  sendSignal(QMGR_REF, GSN_CONNECT_REP, signal, 1, JBA);
+  if (ERROR_INSERTED(9005))
+  {
+    sendSignalWithDelay(QMGR_REF, GSN_CONNECT_REP, signal, 50, 1);
+  }
+  else
+  {
+    sendSignal(QMGR_REF, GSN_CONNECT_REP, signal, 1, JBA);
+  }
 
   /* Automatically subscribe events for MGM nodes.
    */
