@@ -36,15 +36,22 @@ Dbtux::findNodeToUpdate(TuxCtx& ctx, Frag& frag, const KeyDataC& searchKey, Tree
 {
   const Index& index = *c_indexPool.getPtr(frag.m_indexId);
   const Uint32 numAttrs = index.m_numAttrs;
+  const Uint32 prefAttrs = index.m_prefAttrs;
+  const Uint32 prefBytes = index.m_prefBytes;
   KeyData entryKey(index.m_keySpec, false, 0);
   entryKey.set_buf(ctx.c_entryKey, MaxAttrDataSize << 2);
+  KeyDataC prefKey(index.m_keySpec, false);
   NodeHandle glbNode(frag);     // potential g.l.b of final node
   while (true) {
     thrjam(ctx.jamBuffer);
     selectNode(currNode, currNode.m_loc);
-    int ret;
-    // wl4163_todo temp disable prefix
-    if (true) {
+    prefKey.set_buf(currNode.getPref(), prefBytes, prefAttrs);
+    int ret = 0;
+    if (prefAttrs > 0) {
+      thrjam(ctx.jamBuffer);
+      ret = cmpSearchKey(searchKey, prefKey, prefAttrs);
+    }
+    if (ret == 0 && prefAttrs < numAttrs) {
       thrjam(ctx.jamBuffer);
       // read and compare all attributes
       readKeyAttrs(ctx, frag, currNode.getEnt(0), entryKey, numAttrs);
