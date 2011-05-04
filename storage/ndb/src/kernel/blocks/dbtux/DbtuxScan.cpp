@@ -448,7 +448,7 @@ Dbtux::execACC_CHECK_SCAN(Signal* signal)
     scanFind(scanPtr);
   }
   // for reading tuple key in Found or Locked state
-  Data pkData = c_ctx.c_dataBuffer;
+  Uint32* pkData = c_ctx.c_dataBuffer;
   unsigned pkSize = 0; // indicates not yet done
   if (scan.m_state == ScanOp::Found) {
     // found an entry to return
