@@ -177,6 +177,7 @@ public:
                                Uint32 dataByteSize);
 
 private:
+  friend class NdbPack;
   /**
    * List of all types.  Must match Type::Enum.
    */
