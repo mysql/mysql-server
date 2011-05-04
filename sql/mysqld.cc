@@ -7489,11 +7489,14 @@ fn_format_relative_to_data_home(char * to, const char *name,
 bool is_secure_file_path(char *path)
 {
   char buff1[FN_REFLEN], buff2[FN_REFLEN];
+  size_t opt_secure_file_priv_len;
   /*
     All paths are secure if opt_secure_file_path is 0
   */
   if (!opt_secure_file_priv)
     return TRUE;
+
+  opt_secure_file_priv_len= strlen(opt_secure_file_priv);
 
   if (strlen(path) >= FN_REFLEN)
     return FALSE;
@@ -7512,10 +7515,23 @@ bool is_secure_file_path(char *path)
       return FALSE;
   }
   convert_dirname(buff2, buff1, NullS);
-  if (strncmp(opt_secure_file_priv, buff2, strlen(opt_secure_file_priv)))
-    return FALSE;
+  if (!lower_case_file_system)
+  {
+    if (strncmp(opt_secure_file_priv, buff2, opt_secure_file_priv_len))
+      return FALSE;
+  }
+  else
+  {
+    if (files_charset_info->coll->strnncoll(files_charset_info,
+                                            (uchar *) buff2, strlen(buff2),
+                                            (uchar *) opt_secure_file_priv,
+                                            opt_secure_file_priv_len,
+                                            TRUE))
+      return FALSE;
+  }
   return TRUE;
 }
+
 
 static int fix_paths(void)
 {
