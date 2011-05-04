@@ -14,7 +14,7 @@ LET $MYSQL_TMP_DIR_LCASE= `SELECT lower('$MYSQL_TMP_DIR')`;
 
 #create the file
 --replace_result $MYSQL_TMP_DIR MYSQL_TMP_DIR
-eval SELECT * FROM t1 INTO OUTFILE '$MYSQL_TMP_DIR_LCASE/B11764517.tmp';
+eval SELECT * FROM t1 INTO OUTFILE '$MYSQL_TMP_DIR/B11764517.tmp';
 
 --replace_result $MYSQL_TMP_DIR MYSQL_TMP_DIR
 show global variables like 'secure_file_priv';
