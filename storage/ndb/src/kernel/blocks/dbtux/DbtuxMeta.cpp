@@ -182,17 +182,8 @@ Dbtux::execTUX_ADD_ATTRREQ(Signal* signal)
       debugOut << "attr " << attrId << " " << keyType << endl;
     }
 #endif
-    // check that type is valid and has a binary comparison method
-    // XXX remove when XFRM is gone
-    const NdbSqlUtil::Type& type = NdbSqlUtil::getTypeBinary(typeId);
-    if (type.m_typeId == NdbSqlUtil::Type::Undefined ||
-        type.m_cmp == 0) {
-      jam();
-      errorCode = TuxAddAttrRef::InvalidAttributeType;
-      break;
-    }
     if (csNumber != 0) {
-      uint err;
+      unsigned err;
       CHARSET_INFO *cs = all_charsets[csNumber];
       ndbrequire(cs != 0);
       if ((err = NdbSqlUtil::check_column_for_ordered_index(typeId, cs))) {
