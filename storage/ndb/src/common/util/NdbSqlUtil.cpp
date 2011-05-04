@@ -17,6 +17,7 @@
 
 #include <NdbSqlUtil.hpp>
 #include <ndb_version.h>
+#include <math.h>
 
 // temporary defs to allow to split patch into pieces
 #define full true
@@ -233,205 +234,165 @@ NdbSqlUtil::getType(Uint32 typeId)
 int
 NdbSqlUtil::cmpTinyint(const void* info, const void* p1, unsigned n1, const void* p2, unsigned n2)
 {
-  if (n2 >= sizeof(Int8)) {
-    Int8 v1, v2;
-    memcpy(&v1, p1, sizeof(Int8));
-    memcpy(&v2, p2, sizeof(Int8));
-    if (v1 < v2)
-      return -1;
-    if (v1 > v2)
-      return +1;
-    return 0;
-  }
-  assert(! full);
-  return CmpUnknown;
+  assert(info == 0 && n1 == 1 && n2 == 1);
+  Int8 v1, v2;
+  memcpy(&v1, p1, 1);
+  memcpy(&v2, p2, 1);
+  int w1 = (int)v1;
+  int w2 = (int)v2;
+  return w1 - w2;
 }
 
 int
 NdbSqlUtil::cmpTinyunsigned(const void* info, const void* p1, unsigned n1, const void* p2, unsigned n2)
 {
-  if (n2 >= sizeof(Uint8)) {
-    Uint8 v1, v2;
-    memcpy(&v1, p1, sizeof(Uint8));
-    memcpy(&v2, p2, sizeof(Uint8));
-    if (v1 < v2)
-      return -1;
-    if (v1 > v2)
-      return +1;
-    return 0;
-  }
-  assert(! full);
-  return CmpUnknown;
+  assert(info == 0 && n1 == 1 && n2 == 1);
+  Uint8 v1, v2;
+  memcpy(&v1, p1, 1);
+  memcpy(&v2, p2, 1);
+  int w1 = (int)v1;
+  int w2 = (int)v2;
+  return w1 - w2;
 }
 
 int
 NdbSqlUtil::cmpSmallint(const void* info, const void* p1, unsigned n1, const void* p2, unsigned n2)
 {
-  if (n2 >= sizeof(Int16)) {
-    Int16 v1, v2;
-    memcpy(&v1, p1, sizeof(Int16));
-    memcpy(&v2, p2, sizeof(Int16));
-    if (v1 < v2)
-      return -1;
-    if (v1 > v2)
-      return +1;
-    return 0;
-  }
-  assert(! full);
-  return CmpUnknown;
+  assert(info == 0 && n1 == 2 && n2 == 2);
+  Int16 v1, v2;
+  memcpy(&v1, p1, 2);
+  memcpy(&v2, p2, 2);
+  int w1 = (int)v1;
+  int w2 = (int)v2;
+  return w1 - w2;
 }
 
 int
 NdbSqlUtil::cmpSmallunsigned(const void* info, const void* p1, unsigned n1, const void* p2, unsigned n2)
 {
-  if (n2 >= sizeof(Uint16)) {
-    Uint16 v1, v2;
-    memcpy(&v1, p1, sizeof(Uint16));
-    memcpy(&v2, p2, sizeof(Uint16));
-    if (v1 < v2)
-      return -1;
-    if (v1 > v2)
-      return +1;
-    return 0;
-  }
-  assert(! full);
-  return CmpUnknown;
+  assert(info == 0 && n1 == 2 && n2 == 2);
+  Uint16 v1, v2;
+  memcpy(&v1, p1, 2);
+  memcpy(&v2, p2, 2);
+  int w1 = (int)v1;
+  int w2 = (int)v2;
+  return w1 - w2;
 }
 
 int
 NdbSqlUtil::cmpMediumint(const void* info, const void* p1, unsigned n1, const void* p2, unsigned n2)
 {
-  if (n2 >= 3) {
-    Int32 v1, v2;
-    v1 = sint3korr((const uchar*)p1);
-    v2 = sint3korr((const uchar*)p2);
-    if (v1 < v2)
-      return -1;
-    if (v1 > v2)
-      return +1;
-    return 0;
-  }
-  assert(! full);
-  return CmpUnknown;
+  assert(info == 0 && n1 == 3 && n2 == 3);
+  uchar b1[4];
+  uchar b2[4];
+  memcpy(b1, p1, 3);
+  b1[3] = 0;
+  memcpy(b2, p2, 3);
+  b2[3] = 0;
+  int w1 = (int)sint3korr(b1);
+  int w2 = (int)sint3korr(b2);
+  return w1 - w2;
 }
 
 int
 NdbSqlUtil::cmpMediumunsigned(const void* info, const void* p1, unsigned n1, const void* p2, unsigned n2)
 {
-  if (n2 >= 3) {
-    Uint32 v1, v2;
-    v1 = uint3korr((const uchar*)p1);
-    v2 = uint3korr((const uchar*)p2);
-    if (v1 < v2)
-      return -1;
-    if (v1 > v2)
-      return +1;
-    return 0;
-  }
-  assert(! full);
-  return CmpUnknown;
+  assert(info == 0 && n1 == 3 && n2 == 3);
+  uchar b1[4];
+  uchar b2[4];
+  memcpy(b1, p1, 3);
+  b1[3] = 0;
+  memcpy(b2, p2, 3);
+  b2[3] = 0;
+  int w1 = (int)uint3korr(b1);
+  int w2 = (int)uint3korr(b2);
+  return w1 - w2;
 }
 
 int
 NdbSqlUtil::cmpInt(const void* info, const void* p1, unsigned n1, const void* p2, unsigned n2)
 {
-  if (n2 >= sizeof(Int32)) {
-    Int32 v1, v2;
-    memcpy(&v1, p1, sizeof(Int32));
-    memcpy(&v2, p2, sizeof(Int32));
-    if (v1 < v2)
-      return -1;
-    if (v1 > v2)
-      return +1;
-    return 0;
-  }
-  assert(! full);
-  return CmpUnknown;
+  assert(info == 0 && n1 == 4 && n2 == 4);
+  Int32 v1, v2;
+  memcpy(&v1, p1, 4);
+  memcpy(&v2, p2, 4);
+  if (v1 < v2)
+    return -1;
+  if (v1 > v2)
+    return +1;
+  return 0;
 }
 
 int
 NdbSqlUtil::cmpUnsigned(const void* info, const void* p1, unsigned n1, const void* p2, unsigned n2)
 {
-  if (n2 >= sizeof(Uint32)) {
-    Uint32 v1, v2;
-    memcpy(&v1, p1, sizeof(Uint32));
-    memcpy(&v2, p2, sizeof(Uint32));
-    if (v1 < v2)
-      return -1;
-    if (v1 > v2)
-      return +1;
-    return 0;
-  }
-  assert(! full);
-  return CmpUnknown;
+  assert(info == 0 && n1 == 4 && n2 == 4);
+  Uint32 v1, v2;
+  memcpy(&v1, p1, 4);
+  memcpy(&v2, p2, 4);
+  if (v1 < v2)
+    return -1;
+  if (v1 > v2)
+    return +1;
+  return 0;
 }
 
 int
 NdbSqlUtil::cmpBigint(const void* info, const void* p1, unsigned n1, const void* p2, unsigned n2)
 {
-  if (n2 >= sizeof(Int64)) {
-    Int64 v1, v2;
-    memcpy(&v1, p1, sizeof(Int64));
-    memcpy(&v2, p2, sizeof(Int64));
-    if (v1 < v2)
-      return -1;
-    if (v1 > v2)
-      return +1;
-    return 0;
-  }
-  assert(! full);
-  return CmpUnknown;
+  assert(info == 0 && n1 == 8 && n2 == 8);
+  Int64 v1, v2;
+  memcpy(&v1, p1, 8);
+  memcpy(&v2, p2, 8);
+  if (v1 < v2)
+    return -1;
+  if (v1 > v2)
+    return +1;
+  return 0;
 }
 
 int
 NdbSqlUtil::cmpBigunsigned(const void* info, const void* p1, unsigned n1, const void* p2, unsigned n2)
 {
-  if (n2 >= sizeof(Uint64)) {
-    Uint64 v1, v2;
-    memcpy(&v1, p1, sizeof(Uint64));
-    memcpy(&v2, p2, sizeof(Uint64));
-    if (v1 < v2)
-      return -1;
-    if (v1 > v2)
-      return +1;
-    return 0;
-  }
-  assert(! full);
-  return CmpUnknown;
+  assert(info == 0 && n1 == 8 && n2 == 8);
+  Uint64 v1, v2;
+  memcpy(&v1, p1, 8);
+  memcpy(&v2, p2, 8);
+  if (v1 < v2)
+    return -1;
+  if (v1 > v2)
+    return +1;
+  return 0;
 }
 
 int
 NdbSqlUtil::cmpFloat(const void* info, const void* p1, unsigned n1, const void* p2, unsigned n2)
 {
-  if (n2 >= sizeof(float)) {
-    float v1, v2;
-    memcpy(&v1, p1, sizeof(float));
-    memcpy(&v2, p2, sizeof(float));
-    if (v1 < v2)
-      return -1;
-    if (v1 > v2)
-      return +1;
-    return 0;
-  }
-  assert(! full);
-  return CmpUnknown;
+  assert(info == 0 && n1 == 4 && n2 == 4);
+  float v1, v2;
+  memcpy(&v1, p1, 4);
+  memcpy(&v2, p2, 4);
+  require(!isnan(v1) && !isnan(v2));
+  if (v1 < v2)
+    return -1;
+  if (v1 > v2)
+    return +1;
+  return 0;
 }
 
 int
 NdbSqlUtil::cmpDouble(const void* info, const void* p1, unsigned n1, const void* p2, unsigned n2)
 {
-  if (n2 >= sizeof(double)) {
-    double v1, v2;
-    memcpy(&v1, p1, sizeof(double));
-    memcpy(&v2, p2, sizeof(double));
-    if (v1 < v2)
-      return -1;
-    if (v1 > v2)
-      return +1;
-    return 0;
-  }
-  assert(! full);
-  return CmpUnknown;
+  assert(info == 0 && n1 == 8 && n2 == 8);
+  double v1, v2;
+  memcpy(&v1, p1, 8);
+  memcpy(&v2, p2, 8);
+  require(!isnan(v1) && !isnan(v2));
+  if (v1 < v2)
+    return -1;
+  if (v1 > v2)
+    return +1;
+  return 0;
 }
 
 int
