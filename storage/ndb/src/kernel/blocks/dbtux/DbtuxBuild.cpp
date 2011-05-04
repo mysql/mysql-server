@@ -48,12 +48,6 @@ Dbtux::mt_buildIndexFragment_wrapper(void * obj)
     tux_ctx->jamBuffer = (EmulatedJamBuffer*)ptr;
     tux_ctx->jamBuffer->theEmulatedJamIndex = 0;
     ptr += (sizeof(EmulatedJamBuffer) + 3) / 4;
-    tux_ctx->c_keyAttrs = ptr;
-    ptr += MaxIndexAttributes;
-    while (UintPtr(ptr) & 7)
-      ptr++;
-    tux_ctx->c_sqlCmp = (NdbSqlUtil::Cmp**)ptr;
-    ptr += (sizeof(void*) *  MaxIndexAttributes) / sizeof(Uint32);
     tux_ctx->c_searchKey = ptr;
     ptr += MaxAttrDataSize;
     tux_ctx->c_entryKey = ptr;

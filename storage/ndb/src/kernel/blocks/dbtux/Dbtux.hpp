@@ -121,19 +121,8 @@ private:
   // sizes are in words (Uint32)
   STATIC_CONST( MaxIndexFragments = MAX_FRAG_PER_NODE );
   STATIC_CONST( MaxIndexAttributes = MAX_ATTRIBUTES_IN_INDEX );
-  /*
-   * Allow space for per-attribute overhead (at least bound type and
-   * attribute header) and key data xfrm-ed.  execTUX_BOUND_INFO unpacks
-   * all in same buffer so double the size.  The xfrm should disappear
-   * in 7.x wl#4163.
-   */
-  STATIC_CONST( MaxAttrDataSize =
-      (
-        4 * MAX_ATTRIBUTES_IN_INDEX +
-        MAX_KEY_SIZE_IN_WORDS * MAX_XFRM_MULTIPLY
-      ) * 2
-  );
-
+  STATIC_CONST( MaxAttrDataSize = 2 * MAX_ATTRIBUTES_IN_INDEX + MAX_KEY_SIZE_IN_WORDS );
+  STATIC_CONST( MaxXfrmDataSize = MaxAttrDataSize * MAX_XFRM_MULTIPLY);
 public:
   STATIC_CONST( DescPageSize = 512 );
 private:
@@ -146,18 +135,6 @@ private:
 
   // forward declarations
   struct TuxCtx;
-
-  // Pointer to array of Uint32 represents attribute data and bounds
-
-  typedef Uint32 *Data;
-  inline AttributeHeader& ah(Data data) {
-    return *reinterpret_cast<AttributeHeader*>(data);
-  }
-
-  typedef const Uint32* ConstData;
-  inline const AttributeHeader& ah(ConstData data) {
-    return *reinterpret_cast<const AttributeHeader*>(data);
-  }
 
   // AttributeHeader size is assumed to be 1 word
   STATIC_CONST( AttributeHeaderSize = 1 );
@@ -259,7 +236,7 @@ private:
     TupLoc m_root;              // root node
     TreeHead();
     // methods
-    Data getPref(TreeNode* node) const;
+    Uint32* getPref(TreeNode* node) const;
     TreeEnt* getEntList(TreeNode* node) const;
   };
 
@@ -532,7 +509,7 @@ private:
     void setBalance(int b);
     void setNodeScan(Uint32 scanPtrI);
     // access other parts of the node
-    Data getPref();
+    Uint32* getPref();
     TreeEnt getEnt(unsigned pos);
     // for ndbrequire and ndbassert
     void progError(int line, int cause, const char* file);
@@ -549,11 +526,8 @@ private:
   void execNODE_STATE_REP(Signal* signal);
 
   // utils
-  void setKeyAttrs(TuxCtx&, const Frag& frag);
-  void readKeyAttrs(TuxCtx&, const Frag& frag, TreeEnt ent, unsigned start, Data keyData);
   void readKeyAttrs(TuxCtx&, const Frag& frag, TreeEnt ent, KeyData& keyData, Uint32 count);
-  void readTablePk(const Frag& frag, TreeEnt ent, Data pkData, unsigned& pkSize);
-  void copyAttrs(TuxCtx&, const Frag& frag, ConstData data1, Data data2, unsigned maxlen2 = MaxAttrDataSize);
+  void readTablePk(const Frag& frag, TreeEnt ent, Uint32* pkData, unsigned& pkSize);
   void unpackBound(TuxCtx&, const ScanBound& bound, KeyBoundC& searchBound);
   void findFrag(const Index& index, Uint32 fragId, FragPtr& fragPtr);
 
@@ -659,9 +633,7 @@ private:
   /*
    * DbtuxCmp.cpp
    */
-  int cmpSearchKey(TuxCtx&, const Frag& frag, unsigned& start, ConstData searchKey, ConstData entryData, unsigned maxlen = MaxAttrDataSize);
   int cmpSearchKey(const KeyDataC& searchKey, const KeyDataC& entryKey, Uint32 cnt);
-  int cmpScanBound(const Frag& frag, unsigned dir, ConstData boundInfo, unsigned boundCount, ConstData entryData, unsigned maxlen = MaxAttrDataSize);
   int cmpSearchBound(const KeyBoundC& searchBound, const KeyDataC& entryKey, Uint32 cnt);
 
   /*
@@ -730,24 +702,14 @@ private:
   {
     EmulatedJamBuffer * jamBuffer;
 
-    // index key attr ids with sizes in AttributeHeader format
-    Data c_keyAttrs;
+    // buffer for scan bound and search key data
+    Uint32* c_searchKey;
 
-    // pointers to index key comparison functions
-    NdbSqlUtil::Cmp** c_sqlCmp;
+    // buffer for current entry key data
+    Uint32* c_entryKey;
 
-    /*
-     * Other buffers used during the operation.
-     */
-
-    // buffer for search key data with headers
-    Data c_searchKey;
-
-    // buffer for current entry key data with headers
-    Data c_entryKey;
-
-    // buffer for scan bounds and keyinfo and conversions
-    Data c_dataBuffer;
+    // buffer for xfrm-ed PK and for temporary use
+    Uint32* c_dataBuffer;
   };
 
   struct TuxCtx c_ctx; // Global Tux context, for everything build MT-index build
@@ -913,7 +875,7 @@ Dbtux::TreeHead::TreeHead() :
 {
 }
 
-inline Dbtux::Data
+inline Uint32*
 Dbtux::TreeHead::getPref(TreeNode* node) const
 {
   Uint32* ptr = (Uint32*)node + NodeHeadSize;
@@ -1159,7 +1121,7 @@ Dbtux::NodeHandle::setNodeScan(Uint32 scanPtrI)
   m_node->m_nodeScan = scanPtrI;
 }
 
-inline Dbtux::Data
+inline Uint32*
 Dbtux::NodeHandle::getPref()
 {
   TreeHead& tree = m_frag.m_tree;
