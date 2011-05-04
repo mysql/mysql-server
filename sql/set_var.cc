@@ -1,4 +1,4 @@
-/* Copyright (c) 2002, 2010, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2002, 2011, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -10,12 +10,8 @@
    GNU General Public License for more details.
 
    You should have received a copy of the GNU General Public License
-   along with this program; if not, write to the Free Software Foundation,
-   51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA */
-
-#ifdef USE_PRAGMA_IMPLEMENTATION
-#pragma implementation
-#endif
+   along with this program; if not, write to the Free Software
+   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
 /* variable declarations are in sys_vars.cc now !!! */
 
@@ -348,7 +344,7 @@ bool throw_bounds_warning(THD *thd, const char *name, bool fixed, double v)
   return false;
 }
 
-CHARSET_INFO *sys_var::charset(THD *thd)
+const CHARSET_INFO *sys_var::charset(THD *thd)
 {
   return is_os_charset ? thd->variables.character_set_filesystem :
     system_charset_info;
@@ -375,7 +371,7 @@ static my_old_conv old_conv[]=
   {     NULL                    ,       NULL            }
 };
 
-CHARSET_INFO *get_old_charset_by_name(const char *name)
+const CHARSET_INFO *get_old_charset_by_name(const char *name)
 {
   my_old_conv *conv;
 

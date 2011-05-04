@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1996, 2010, Innobase Oy. All Rights Reserved.
+Copyright (c) 1996, 2011, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -1629,7 +1629,7 @@ pars_create_table(
 	/* As the InnoDB SQL parser is for internal use only,
 	for creating some system tables, this function will only
 	create tables in the old (not compact) record format. */
-	table = dict_mem_table_create(table_sym->name, 0, n_cols, 0);
+	table = dict_mem_table_create(table_sym->name, 0, n_cols, 0, 0);
 
 #ifdef UNIV_DEBUG
 	if (not_fit_in_memory != NULL) {

@@ -434,13 +434,13 @@ buf_buddy_relocate(
 
 	/* We look inside the allocated objects returned by
 	buf_buddy_alloc() and assume that anything of
-	PAGE_ZIP_MIN_SIZE or larger is a compressed page that contains
+	UNIV_ZIP_SIZE_MIN or larger is a compressed page that contains
 	a valid space_id and page_no in the page header.  Should the
 	fields be invalid, we will be unable to relocate the block.
 	We also assume that anything that fits sizeof(buf_page_t)
 	actually is a properly initialized buf_page_t object. */
 
-	if (size >= PAGE_ZIP_MIN_SIZE) {
+	if (size >= UNIV_ZIP_SIZE_MIN) {
 		/* This is a compressed page. */
 		mutex_t*	mutex;
 
@@ -659,7 +659,7 @@ buddy_nonfree:
 	/* Free the block to the buddy list. */
 	bpage = buf;
 #ifdef UNIV_DEBUG
-	if (i < buf_buddy_get_slot(PAGE_ZIP_MIN_SIZE)) {
+	if (i < buf_buddy_get_slot(UNIV_ZIP_SIZE_MIN)) {
 		/* This area has most likely been allocated for at
 		least one compressed-only block descriptor.  Check
 		that there are no live objects in the area.  This is

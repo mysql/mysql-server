@@ -14,10 +14,6 @@
    Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
 
 
-#ifdef USE_PRAGMA_IMPLEMENTATION
-#pragma implementation				// gcc: Class implementation
-#endif
-
 #define MYSQL_SERVER 1
 #include "sql_priv.h"
 #include "probes_mysql.h"
@@ -157,11 +153,11 @@ int ha_heap::close(void)
   DESCRIPTION
     Do same as default implementation but use file->s->name instead of 
     table->s->path. This is needed by Windows where the clone() call sees
-    '/'-delimited path in table->s->path, while ha_peap::open() was called 
+    '/'-delimited path in table->s->path, while ha_heap::open() was called 
     with '\'-delimited path.
 */
 
-handler *ha_heap::clone(MEM_ROOT *mem_root)
+handler *ha_heap::clone(const char *name, MEM_ROOT *mem_root)
 {
   handler *new_handler= get_new_handler(table->s, mem_root, table->s->db_type());
   if (new_handler && !new_handler->ha_open(table, file->s->name, table->db_stat,

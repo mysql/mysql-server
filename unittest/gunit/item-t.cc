@@ -24,6 +24,59 @@
 
 namespace {
 
+/*
+  A mock error handler for error_handler_hook.
+*/
+uint expected_error= 0;
+extern "C" void test_error_handler_hook(uint err, const char *str, myf MyFlags)
+{
+  EXPECT_EQ(expected_error, err) << str;
+}
+
+
+/**
+   A mock error handler which registers itself with the THD in the CTOR,
+   and unregisters in the DTOR. The function handle_condition() will
+   verify that it is called with the expected error number.
+   The DTOR will verify that handle_condition() has actually been called.
+*/
+class Mock_error_handler : public Internal_error_handler
+{
+public:
+  Mock_error_handler(THD *thd, uint expected_error)
+    : m_thd(thd),
+      m_expected_error(expected_error),
+      m_handle_called(0)
+  {
+    thd->push_internal_handler(this);
+  }
+
+  virtual ~Mock_error_handler()
+  {
+    // Strange Visual Studio bug: have to store 'this' in local variable.
+    Internal_error_handler *me= this;
+    EXPECT_EQ(me, m_thd->pop_internal_handler());
+    EXPECT_GE(m_handle_called, 0);
+  }
+
+  virtual bool handle_condition(THD *thd,
+                                uint sql_errno,
+                                const char* sqlstate,
+                                MYSQL_ERROR::enum_warning_level level,
+                                const char* msg,
+                                MYSQL_ERROR ** cond_hdl)
+  {
+    EXPECT_EQ(sql_errno, m_expected_error);
+    ++m_handle_called;
+    return true;
+  }
+private:
+  THD *m_thd;
+  uint m_expected_error;
+  int  m_handle_called;
+};
+
+
 class ItemTest : public ::testing::Test
 {
 protected:
@@ -39,9 +92,11 @@ protected:
     char *argv[] = { my_name, 0 };
     set_remaining_args(1, argv);
     init_common_variables();
+    my_init_signals();
     randominit(&sql_rand, 0, 0);
     xid_cache_init();
     delegates_init();
+    error_handler_hook= test_error_handler_hook;
   }
 
   static void TearDownTestCase()
@@ -54,10 +109,12 @@ protected:
 
   virtual void SetUp()
   {
+    expected_error= 0;
     m_thd= new THD(false);
     THD *stack_thd= m_thd;
     m_thd->thread_stack= (char*) &stack_thd;
     m_thd->store_globals();
+    lex_start(m_thd);
   }
 
   virtual void TearDown()
@@ -66,7 +123,7 @@ protected:
     delete m_thd;
   }
 
-  THD      *m_thd;
+  THD *m_thd;
 };
 
 
@@ -186,6 +243,38 @@ TEST_F(ItemTest, ItemFuncDesDecrypt)
   EXPECT_EQ(length, item_one->max_length);
   EXPECT_EQ(length, item_two->max_length);
   EXPECT_LE(item_decrypt->max_length, length);
+}
+
+
+TEST_F(ItemTest, ItemFuncIntDivOverflow)
+{
+  const char dividend_str[]=
+    "99999999999999999999999999999999999999999"
+    "99999999999999999999999999999999999999999";
+  const char divisor_str[]= "0.5";
+  Item_float *dividend= new Item_float(dividend_str, sizeof(dividend_str));
+  Item_float *divisor= new Item_float(divisor_str, sizeof(divisor_str));
+  Item_func_int_div* quotient= new Item_func_int_div(dividend, divisor);
+
+  Mock_error_handler error_handler(m_thd, ER_TRUNCATED_WRONG_VALUE);
+  EXPECT_FALSE(quotient->fix_fields(m_thd, NULL));
+  expected_error= ER_DATA_OUT_OF_RANGE;
+  quotient->val_int();
+}
+
+
+TEST_F(ItemTest, ItemFuncIntDivUnderflow)
+{
+  // Bug #11792200 - DIVIDING LARGE NUMBERS CAUSES STACK CORRUPTIONS
+  const char dividend_str[]= "1.175494351E-37";
+  const char divisor_str[]= "1.7976931348623157E+308";
+  Item_float *dividend= new Item_float(dividend_str, sizeof(dividend_str));
+  Item_float *divisor= new Item_float(divisor_str, sizeof(divisor_str));
+  Item_func_int_div* quotient= new Item_func_int_div(dividend, divisor);
+
+  Mock_error_handler error_handler(m_thd, ER_TRUNCATED_WRONG_VALUE);
+  EXPECT_FALSE(quotient->fix_fields(m_thd, NULL));
+  EXPECT_EQ(0, quotient->val_int());
 }
 
 

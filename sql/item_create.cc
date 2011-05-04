@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2010 Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2011, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -10,8 +10,8 @@
    GNU General Public License for more details.
 
    You should have received a copy of the GNU General Public License
-   along with this program; if not, write to the Free Software Foundation,
-   51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA */
+   along with this program; if not, write to the Free Software
+   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
 /**
   @file
@@ -30,6 +30,7 @@
 #include "set_var.h"
 #include "sp_head.h"
 #include "sp.h"
+#include "item_inetfunc.h"
 
 /*
 =============================================================================
@@ -4780,7 +4781,7 @@ Create_func_space::create(THD *thd, Item *arg1)
     The parsed item tree should not depend on
     <code>thd->variables.collation_connection</code>.
   */
-  CHARSET_INFO *cs= thd->variables.collation_connection;
+  const CHARSET_INFO *cs= thd->variables.collation_connection;
   Item *sp;
 
   if (cs->mbminlen > 1)
@@ -5559,7 +5560,7 @@ find_qualified_function_builder(THD *thd)
 Item *
 create_func_cast(THD *thd, Item *a, Cast_target cast_type,
                  const char *c_len, const char *c_dec,
-                 CHARSET_INFO *cs)
+                 const CHARSET_INFO *cs)
 {
   Item *UNINIT_VAR(res);
 
@@ -5638,7 +5639,8 @@ create_func_cast(THD *thd, Item *a, Cast_target cast_type,
   case ITEM_CAST_CHAR:
   {
     int len= -1;
-    CHARSET_INFO *real_cs= (cs ? cs : thd->variables.collation_connection);
+    const CHARSET_INFO *real_cs=
+      (cs ? cs : thd->variables.collation_connection);
     if (c_len)
     {
       ulong decoded_size;

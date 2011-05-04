@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2010, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2011, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -10,8 +10,8 @@
    GNU General Public License for more details.
 
    You should have received a copy of the GNU General Public License
-   along with this program; if not, write to the Free Software Foundation,
-   51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA */
+   along with this program; if not, write to the Free Software
+   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
 /**
   @addtogroup Replication
@@ -27,10 +27,6 @@
 
 #ifndef _log_event_h
 #define _log_event_h
-
-#if defined(USE_PRAGMA_INTERFACE) && defined(MYSQL_SERVER)
-#pragma interface			/* gcc class implementation */
-#endif
 
 #include <my_bitmap.h>
 #include "rpl_constants.h"
@@ -508,6 +504,16 @@ struct sql_ex_info
    found an unknown event in the relay log.
 */
 #define LOG_EVENT_IGNORABLE_F 0x80
+
+/**
+   @def LOG_EVENT_NO_FILTER_F
+
+   Events with this flag are not filtered (e.g. on the current
+   database) and are always written to the binary log regardless of
+   filters.
+*/
+#define LOG_EVENT_NO_FILTER_F 0x100
+
 
 /**
   @def OPTIONS_WRITTEN_TO_BIN_LOG
@@ -1130,6 +1136,7 @@ public:
   bool is_artificial_event() const { return flags & LOG_EVENT_ARTIFICIAL_F; }
   bool is_relay_log_event() const { return flags & LOG_EVENT_RELAY_LOG_F; }
   bool is_ignorable_event() const { return flags & LOG_EVENT_IGNORABLE_F; }
+  bool is_no_filter_event() const { return flags & LOG_EVENT_NO_FILTER_F; }
   inline bool use_trans_cache() const
   { 
     return (cache_type == Log_event::EVENT_TRANSACTIONAL_CACHE);
@@ -3999,7 +4006,7 @@ class Incident_log_event : public Log_event {
 public:
 #ifdef MYSQL_SERVER
   Incident_log_event(THD *thd_arg, Incident incident)
-    : Log_event(thd_arg, 0, FALSE), m_incident(incident)
+    : Log_event(thd_arg, LOG_EVENT_NO_FILTER_F, FALSE), m_incident(incident)
   {
     DBUG_ENTER("Incident_log_event::Incident_log_event");
     DBUG_PRINT("enter", ("m_incident: %d", m_incident));
@@ -4010,7 +4017,7 @@ public:
   }
 
   Incident_log_event(THD *thd_arg, Incident incident, LEX_STRING const msg)
-    : Log_event(thd_arg, 0, FALSE), m_incident(incident)
+    : Log_event(thd_arg, LOG_EVENT_NO_FILTER_F, FALSE), m_incident(incident)
   {
     DBUG_ENTER("Incident_log_event::Incident_log_event");
     DBUG_PRINT("enter", ("m_incident: %d", m_incident));
@@ -4200,7 +4207,7 @@ private:
 };
 #endif
 
-int append_query_string(CHARSET_INFO *csinfo,
+int append_query_string(const CHARSET_INFO *csinfo,
                         String const *from, String *to);
 bool sqlcom_can_generate_row_events(const THD *thd);
 void handle_rows_query_log_event(Log_event *ev, Relay_log_info *rli);

@@ -523,12 +523,13 @@ bool Sql_cmd_alter_table_exchange_partition::
 
   part_table= table_list->table;
   swap_table= swap_table_list->table;
-  table_hton= swap_table->file->ht;
 
   if (check_exchange_partition(swap_table, part_table))
     DBUG_RETURN(TRUE);
 
-  thd_proc_info(thd, "verifying table");
+  table_hton= swap_table->file->ht;
+
+  THD_STAGE_INFO(thd, stage_verifying_table);
 
   /* Will append the partition name later in part_info->get_part_elem() */
   part_file_name_len= build_table_filename(part_file_name,

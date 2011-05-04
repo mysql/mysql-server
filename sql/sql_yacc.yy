@@ -11,8 +11,7 @@
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
-   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, 
-   MA 02110-1301  USA */
+   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
 /* sql_yacc.yy */
 
@@ -758,7 +757,7 @@ static bool add_create_index (LEX *lex, Key::Keytype type,
   enum enum_tx_isolation tx_isolation;
   enum Cast_target cast_type;
   enum Item_udftype udf_type;
-  CHARSET_INFO *charset;
+  const CHARSET_INFO *charset;
   thr_lock_type lock_type;
   interval_type interval, interval_time_st;
   timestamp_type date_time_type;
@@ -11761,8 +11760,8 @@ text_literal:
           {
             LEX_STRING tmp;
             THD *thd= YYTHD;
-            CHARSET_INFO *cs_con= thd->variables.collation_connection;
-            CHARSET_INFO *cs_cli= thd->variables.character_set_client;
+            const CHARSET_INFO *cs_con= thd->variables.collation_connection;
+            const CHARSET_INFO *cs_cli= thd->variables.character_set_client;
             uint repertoire= thd->lex->text_string_is_7bit &&
                              my_charset_is_ascii_based(cs_cli) ?
                              MY_REPERTOIRE_ASCII : MY_REPERTOIRE_UNICODE30;
@@ -11814,7 +11813,7 @@ text_literal:
                  If the string has been pure ASCII so far,
                  check the new part.
               */
-              CHARSET_INFO *cs= YYTHD->variables.collation_connection;
+              const CHARSET_INFO *cs= YYTHD->variables.collation_connection;
               item->collation.repertoire|= my_string_repertoire(cs,
                                                                 $2.str,
                                                                 $2.length);
@@ -12362,7 +12361,7 @@ IDENT_sys:
 
             if (thd->charset_is_system_charset)
             {
-              CHARSET_INFO *cs= system_charset_info;
+              const CHARSET_INFO *cs= system_charset_info;
               int dummy_error;
               uint wlen= cs->cset->well_formed_len(cs, $1.str,
                                                    $1.str+$1.length,
@@ -13090,7 +13089,7 @@ option_value:
           {
             THD *thd= YYTHD;
             LEX *lex= thd->lex;
-            CHARSET_INFO *cs2;
+            const CHARSET_INFO *cs2;
             cs2= $2 ? $2: global_system_variables.character_set_client;
             set_var_collation_client *var;
             var= new set_var_collation_client(cs2,
@@ -13118,8 +13117,8 @@ option_value:
         | NAMES_SYM charset_name_or_default opt_collate
           {
             LEX *lex= Lex;
-            CHARSET_INFO *cs2;
-            CHARSET_INFO *cs3;
+            const CHARSET_INFO *cs2;
+            const CHARSET_INFO *cs3;
             cs2= $2 ? $2 : global_system_variables.character_set_client;
             cs3= $3 ? $3 : cs2;
             if (!my_charset_same(cs2, cs3))

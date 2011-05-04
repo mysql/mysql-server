@@ -1,4 +1,4 @@
-/* Copyright (C) 2005 MySQL AB
+/* Copyright (c) 2005, 2011, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -11,7 +11,7 @@
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
-   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
+   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
 #ifndef _my_plugin_ftparser_h
 #define _my_plugin_ftparser_h
@@ -183,7 +183,7 @@ typedef struct st_mysql_ftparser_param
                         MYSQL_FTPARSER_BOOLEAN_INFO *boolean_info);
   void *ftparser_state;
   void *mysql_ftparam;
-  struct charset_info_st *cs;
+  const struct charset_info_st *cs;
   char *doc;
   int length;
   int flags;

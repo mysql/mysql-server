@@ -18,10 +18,6 @@
 
 /* Definitions for parameters to do with handler-routines */
 
-#ifdef USE_PRAGMA_INTERFACE
-#pragma interface			/* gcc class implementation */
-#endif
-
 #include "sql_const.h"
 #include "mysqld.h"                             /* server_id */
 #include "sql_plugin.h"        /* plugin_ref, st_plugin_int, plugin */
@@ -30,7 +26,7 @@
 #include "structs.h"                            /* SHOW_COMP_OPTION */
 
 #include <my_global.h>
-#include <my_handler.h>
+#include <my_compare.h>
 #include <ft_global.h>
 #include <keycache.h>
 
@@ -998,7 +994,7 @@ enum enum_ha_unused { HA_CHOICE_UNDEF, HA_CHOICE_NO, HA_CHOICE_YES };
 
 typedef struct st_ha_create_information
 {
-  CHARSET_INFO *table_charset, *default_table_charset;
+  const CHARSET_INFO *table_charset, *default_table_charset;
   LEX_STRING connect_string;
   const char *password, *tablespace;
   LEX_STRING comment;
@@ -1534,7 +1530,7 @@ public:
     DBUG_ASSERT(m_lock_type == F_UNLCK);
     DBUG_ASSERT(inited == NONE);
   }
-  virtual handler *clone(MEM_ROOT *mem_root);
+  virtual handler *clone(const char *name, MEM_ROOT *mem_root);
   /** This is called after create to allow us to set up cached variables */
   void init()
   {
@@ -1808,9 +1804,12 @@ public:
   }
   /**
      @brief
-     Positions an index cursor to the index specified in the handle. Fetches the
-     row if available. If the key value is null, begin at the first key of the
-     index.
+     Positions an index cursor to the index specified in the handle
+     ('active_index'). Fetches the row if available. If the key value is null,
+     begin at the first key of the index.
+     @returns 0 if success (found a record, and function has set table->status
+     to 0); non-zero if no record (function has set table->status to
+     STATUS_NOT_FOUND).
   */
   virtual int index_read_map(uchar * buf, const uchar * key,
                              key_part_map keypart_map,
@@ -1822,27 +1821,34 @@ public:
 protected:
   /**
      @brief
-     Positions an index cursor to the index specified in the handle. Fetches the
-     row if available. If the key value is null, begin at the first key of the
-     index.
+     Positions an index cursor to the index specified in argument. Fetches
+     the row if available. If the key value is null, begin at the first key of
+     the index.
+     @returns @see index_read_map().
   */
   virtual int index_read_idx_map(uchar * buf, uint index, const uchar * key,
                                  key_part_map keypart_map,
                                  enum ha_rkey_function find_flag);
+  /// @returns @see index_read_map().
   virtual int index_next(uchar * buf)
    { return  HA_ERR_WRONG_COMMAND; }
+  /// @returns @see index_read_map().
   virtual int index_prev(uchar * buf)
    { return  HA_ERR_WRONG_COMMAND; }
+  /// @returns @see index_read_map().
   virtual int index_first(uchar * buf)
    { return  HA_ERR_WRONG_COMMAND; }
+  /// @returns @see index_read_map().
   virtual int index_last(uchar * buf)
    { return  HA_ERR_WRONG_COMMAND; }
 public:
+  /// @returns @see index_read_map().
   virtual int index_next_same(uchar *buf, const uchar *key, uint keylen);
   /**
      @brief
      The following functions works like index_read, but it find the last
      row with the current key value or prefix.
+     @returns @see index_read_map().
   */
   virtual int index_read_last_map(uchar * buf, const uchar * key,
                                   key_part_map keypart_map)
@@ -1862,7 +1868,9 @@ public:
     { return NULL; }
   virtual int ft_read(uchar *buf) { return HA_ERR_WRONG_COMMAND; }
 protected:
+  /// @returns @see index_read_map().
   virtual int rnd_next(uchar *buf)=0;
+  /// @returns @see index_read_map().
   virtual int rnd_pos(uchar * buf, uchar *pos)=0;
 public:
   /**
@@ -1977,8 +1985,6 @@ public:
   { return FALSE; }
   virtual char* get_foreign_key_create_info()
   { return(NULL);}  /* gets foreign key create string from InnoDB */
-  virtual char* get_tablespace_name(THD *thd, char *name, uint name_len)
-  { return(NULL);}  /* gets tablespace name from handler */
   /** used in ALTER TABLE; 1 if changing storage engine is allowed */
   virtual bool can_switch_engines() { return 1; }
   /**

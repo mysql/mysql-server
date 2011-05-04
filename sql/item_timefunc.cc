@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2010, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2011, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -10,8 +10,8 @@
    GNU General Public License for more details.
 
    You should have received a copy of the GNU General Public License
-   along with this program; if not, write to the Free Software Foundation,
-   51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA */
+   along with this program; if not, write to the Free Software
+   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
 
 /**
@@ -23,10 +23,6 @@
   @todo
     Move month and days to language files
 */
-
-#ifdef USE_PRAGMA_IMPLEMENTATION
-#pragma implementation				// gcc: Class implementation
-#endif
 
 #include "sql_priv.h"
 /*
@@ -78,7 +74,7 @@ static bool make_datetime(date_time_format_types format, MYSQL_TIME *ltime,
 			  String *str)
 {
   char *buff;
-  CHARSET_INFO *cs= &my_charset_numeric;
+  const CHARSET_INFO *cs= &my_charset_numeric;
   uint length= MAX_DATE_STRING_REP_LENGTH;
 
   if (str->alloc(length))
@@ -306,7 +302,7 @@ static bool extract_date_time(DATE_TIME_FORMAT *format,
   const char *val_end= val + length;
   const char *ptr= format->format.str;
   const char *end= ptr + format->format.length;
-  CHARSET_INFO *cs= &my_charset_bin;
+  const CHARSET_INFO *cs= &my_charset_bin;
   DBUG_ENTER("extract_date_time");
 
   if (!sub_pattern_end)
@@ -315,8 +311,8 @@ static bool extract_date_time(DATE_TIME_FORMAT *format,
   for (; ptr != end && val != val_end; ptr++)
   {
     /* Skip pre-space between each argument */
-    while (val != val_end && my_isspace(cs, *val))
-      val++;
+    if ((val+= cs->cset->scan(cs, val, val_end, MY_SEQ_SPACES)) >= val_end)
+      break;
 
     if (*ptr == '%' && ptr+1 != end)
     {
@@ -669,7 +665,7 @@ bool make_date_time(DATE_TIME_FORMAT *format, MYSQL_TIME *l_time,
                     system_charset_info);
         break;
       case 'W':
-        if (type == MYSQL_TIMESTAMP_TIME)
+        if (type == MYSQL_TIMESTAMP_TIME || !(l_time->month || l_time->year))
           return 1;
         weekday= calc_weekday(calc_daynr(l_time->year,l_time->month,
                               l_time->day),0);
@@ -678,7 +674,7 @@ bool make_date_time(DATE_TIME_FORMAT *format, MYSQL_TIME *l_time,
                     system_charset_info);
         break;
       case 'a':
-        if (type == MYSQL_TIMESTAMP_TIME)
+        if (type == MYSQL_TIMESTAMP_TIME || !(l_time->month || l_time->year))
           return 1;
         weekday=calc_weekday(calc_daynr(l_time->year,l_time->month,
                              l_time->day),0);
@@ -837,7 +833,7 @@ bool make_date_time(DATE_TIME_FORMAT *format, MYSQL_TIME *l_time,
       }
       break;
       case 'w':
-	if (type == MYSQL_TIMESTAMP_TIME)
+	if (type == MYSQL_TIMESTAMP_TIME || !(l_time->month || l_time->year))
 	  return 1;
 	weekday=calc_weekday(calc_daynr(l_time->year,l_time->month,
 					l_time->day),1);
@@ -874,7 +870,8 @@ bool make_date_time(DATE_TIME_FORMAT *format, MYSQL_TIME *l_time,
                          For example, '1.1' -> '1.100000'
 */
 
-static bool get_interval_info(const char *str,uint length,CHARSET_INFO *cs,
+static bool get_interval_info(const char *str, uint length,
+                              const CHARSET_INFO *cs,
                               uint count, ulonglong *values,
                               bool transform_msec)
 {
@@ -1119,7 +1116,7 @@ longlong Item_func_month::val_int()
 void Item_func_monthname::fix_length_and_dec()
 {
   THD* thd= current_thd;
-  CHARSET_INFO *cs= thd->variables.collation_connection;
+  const CHARSET_INFO *cs= thd->variables.collation_connection;
   uint32 repertoire= my_charset_repertoire(cs);
   locale= thd->variables.lc_time_names;  
   collation.set(cs, DERIVATION_COERCIBLE, repertoire);
@@ -1269,7 +1266,7 @@ longlong Item_func_weekday::val_int()
 void Item_func_dayname::fix_length_and_dec()
 {
   THD* thd= current_thd;
-  CHARSET_INFO *cs= thd->variables.collation_connection;
+  const CHARSET_INFO *cs= thd->variables.collation_connection;
   uint32 repertoire= my_charset_repertoire(cs);
   locale= thd->variables.lc_time_names;  
   collation.set(cs, DERIVATION_COERCIBLE, repertoire);
@@ -1413,7 +1410,7 @@ bool get_interval_value(Item *args,interval_type int_type,
   longlong UNINIT_VAR(value);
   const char *UNINIT_VAR(str);
   size_t UNINIT_VAR(length);
-  CHARSET_INFO *cs=str_value->charset();
+  const CHARSET_INFO *cs=str_value->charset();
 
   bzero((char*) interval,sizeof(*interval));
   if ((int) int_type <= INTERVAL_MICROSECOND)
@@ -1876,7 +1873,7 @@ void Item_func_date_format::fix_length_and_dec()
   Item *arg1= args[1]->this_item();
 
   decimals=0;
-  CHARSET_INFO *cs= thd->variables.collation_connection;
+  const CHARSET_INFO *cs= thd->variables.collation_connection;
   uint32 repertoire= arg1->collation.repertoire;
   if (!thd->variables.lc_time_names->is_ascii)
     repertoire|= MY_REPERTOIRE_EXTENDED;
@@ -2523,6 +2520,19 @@ String *Item_char_typecast::val_str(String *str)
   DBUG_ASSERT(fixed == 1);
   String *res;
   uint32 length;
+
+  if (cast_length >= 0 &&
+      ((unsigned) cast_length) > current_thd->variables.max_allowed_packet)
+  {
+    push_warning_printf(current_thd, MYSQL_ERROR::WARN_LEVEL_WARN,
+			ER_WARN_ALLOWED_PACKET_OVERFLOWED,
+			ER(ER_WARN_ALLOWED_PACKET_OVERFLOWED),
+			cast_cs == &my_charset_bin ?
+                        "cast_as_binary" : func_name(),
+                        current_thd->variables.max_allowed_packet);
+    null_value= 1;
+    return 0;
+  }
 
   if (!charset_conversion)
   {
@@ -3405,6 +3415,7 @@ void Item_func_str_to_date::fix_length_and_dec()
 {
   maybe_null= 1;
   decimals=0;
+  cached_format_type= DATE_TIME;
   cached_field_type= MYSQL_TYPE_DATETIME;
   max_length= MAX_DATETIME_FULL_WIDTH*MY_CHARSET_BIN_MB_MAXLEN;
   cached_timestamp_type= MYSQL_TIMESTAMP_NONE;

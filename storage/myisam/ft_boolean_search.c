@@ -1,4 +1,4 @@
-/* Copyright (C) 2001-2005 MySQL AB
+/* Copyright (c) 2001, 2011, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -11,7 +11,7 @@
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
-   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
+   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
 /* Written by Sergei A. Golubchik, who has a shared copyright to this code */
 
@@ -133,7 +133,7 @@ typedef struct st_ft_info
 {
   struct _ft_vft *please;
   MI_INFO   *info;
-  CHARSET_INFO *charset;
+  const CHARSET_INFO *charset;
   FTB_EXPR  *root;
   FTB_WORD **list;
   FTB_WORD  *last_word;
@@ -288,7 +288,7 @@ static int ftb_parse_query_internal(MYSQL_FTPARSER_PARAM *param,
 {
   MY_FTB_PARAM *ftb_param= param->mysql_ftparam;
   MYSQL_FTPARSER_BOOLEAN_INFO info;
-  CHARSET_INFO *cs= ftb_param->ftb->charset;
+  const CHARSET_INFO *cs= ftb_param->ftb->charset;
   uchar **start= (uchar**) &query;
   uchar *end= (uchar*) query + len;
   FT_WORD w;
@@ -331,7 +331,7 @@ static int _ftb_parse_query(FTB *ftb, uchar *query, uint len,
 }
 
 
-static int _ftb_no_dupes_cmp(void* not_used __attribute__((unused)),
+static int _ftb_no_dupes_cmp(const void* not_used __attribute__((unused)),
                              const void *a,const void *b)
 {
   return CMP_NUM((*((my_off_t*)a)), (*((my_off_t*)b)));
@@ -552,7 +552,7 @@ static void _ftb_init_index_search(FT_INFO *ftb)
 
 
 FT_INFO * ft_init_boolean_search(MI_INFO *info, uint keynr, uchar *query,
-                                 uint query_len, CHARSET_INFO *cs)
+                                 uint query_len, const CHARSET_INFO *cs)
 {
   FTB       *ftb;
   FTB_EXPR  *ftbe;
@@ -619,7 +619,7 @@ typedef struct st_my_ftb_phrase_param
 {
   LIST *phrase;
   LIST *document;
-  CHARSET_INFO *cs;
+  const CHARSET_INFO *cs;
   uint phrase_length;
   uint document_length;
   uint match;

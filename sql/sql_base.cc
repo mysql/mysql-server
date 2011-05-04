@@ -13,7 +13,6 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
-
 /* Basic functions needed by many modules */
 
 #include "sql_base.h"                           // setup_table_map
@@ -117,11 +116,8 @@ static void init_tdc_psi_keys(void)
   const char *category= "sql";
   int count;
 
-  if (PSI_server == NULL)
-    return;
-
   count= array_elements(all_tdc_mutexes);
-  PSI_server->register_mutex(category, all_tdc_mutexes, count);
+  mysql_mutex_register(category, all_tdc_mutexes, count);
 }
 #endif /* HAVE_PSI_INTERFACE */
 
@@ -585,7 +581,7 @@ TABLE_SHARE *get_table_share(THD *thd, TABLE_LIST *table_list,
   }
   share->ref_count++;				// Mark in use
 
-#ifdef HAVE_PSI_INTERFACE
+#ifdef HAVE_PSI_TABLE_INTERFACE
   if (likely(PSI_server != NULL))
     share->m_psi= PSI_server->get_table_share(false, share);
 #endif
@@ -1722,7 +1718,7 @@ bool close_temporary_tables(THD *thd)
         close_temporary(table, 1, 1);
       }
       thd->clear_error();
-      CHARSET_INFO *cs_save= thd->variables.character_set_client;
+      const CHARSET_INFO *cs_save= thd->variables.character_set_client;
       thd->variables.character_set_client= system_charset_info;
       thd->thread_specific_used= TRUE;
       Query_log_event qinfo(thd, s_query.ptr(),
@@ -4827,6 +4823,14 @@ bool open_tables(THD *thd, TABLE_LIST **start, uint *counter, uint flags,
   bool has_prelocking_list;
   DBUG_ENTER("open_tables");
 
+  /* Accessing data in XA_IDLE or XA_PREPARED is not allowed. */
+  enum xa_states xa_state= thd->transaction.xid_state.xa_state;
+  if (*start && (xa_state == XA_IDLE || xa_state == XA_PREPARED))
+  {
+    my_error(ER_XAER_RMFAIL, MYF(0), xa_state_names[xa_state]);
+    DBUG_RETURN(true);
+  }
+
   /*
     temporary mem_root for new .frm parsing.
     TODO: variables for size
@@ -4850,7 +4854,7 @@ restart:
   table_to_open= start;
   sroutine_to_open= (Sroutine_hash_entry**) &thd->lex->sroutines_list.first;
   *counter= 0;
-  thd_proc_info(thd, "Opening tables");
+  THD_STAGE_INFO(thd, stage_opening_tables);
 
   /*
     If we are executing LOCK TABLES statement or a DDL statement
@@ -5064,7 +5068,6 @@ restart:
 #endif
 
 err:
-  thd_proc_info(thd, 0);
   free_root(&new_frm_mem, MYF(0));              // Free pre-alloced block
 
   if (error && *table_to_open)
@@ -5437,7 +5440,7 @@ TABLE *open_ltable(THD *thd, TABLE_LIST *table_list, thr_lock_type lock_type,
   /* should not be used in a prelocked_mode context, see NOTE above */
   DBUG_ASSERT(thd->locked_tables_mode < LTM_PRELOCKED);
 
-  thd_proc_info(thd, "Opening table");
+  THD_STAGE_INFO(thd, stage_opening_tables);
   thd->current_tablenr= 0;
   /* open_ltable can be used only for BASIC TABLEs */
   table_list->required_type= FRMTYPE_TABLE;
@@ -5506,7 +5509,6 @@ end:
       trans_rollback_stmt(thd);
     close_thread_tables(thd);
   }
-  thd_proc_info(thd, 0);
   DBUG_RETURN(table);
 }
 
@@ -5956,7 +5958,7 @@ TABLE *open_table_uncached(THD *thd, const char *path, const char *db,
     DBUG_RETURN(0);
   }
 
-#ifdef HAVE_PSI_INTERFACE
+#ifdef HAVE_PSI_TABLE_INTERFACE
   if (likely(PSI_server != NULL))
     share->m_psi= PSI_server->get_table_share(true, share);
 #endif
@@ -7858,9 +7860,10 @@ static bool setup_natural_join_row_types(THD *thd,
                                          List<TABLE_LIST> *from_clause,
                                          Name_resolution_context *context)
 {
+  DBUG_ENTER("setup_natural_join_row_types");
   thd->where= "from clause";
   if (from_clause->elements == 0)
-    return FALSE; /* We come here in the case of UNIONs. */
+    DBUG_RETURN(false); /* We come here in the case of UNIONs. */
 
   List_iterator_fast<TABLE_LIST> table_ref_it(*from_clause);
   TABLE_LIST *table_ref; /* Current table reference. */
@@ -7868,10 +7871,6 @@ static bool setup_natural_join_row_types(THD *thd,
   TABLE_LIST *left_neighbor;
   /* Table reference to the right of the current. */
   TABLE_LIST *right_neighbor= NULL;
-  bool save_first_natural_join_processing=
-    context->select_lex->first_natural_join_processing;
-
-  context->select_lex->first_natural_join_processing= FALSE;
 
   /* Note that tables in the list are in reversed order */
   for (left_neighbor= table_ref_it++; left_neighbor ; )
@@ -7883,12 +7882,11 @@ static bool setup_natural_join_row_types(THD *thd,
       1) for stored procedures,
       2) for multitable update after lock failure and table reopening.
     */
-    if (save_first_natural_join_processing)
+    if (context->select_lex->first_natural_join_processing)
     {
-      context->select_lex->first_natural_join_processing= FALSE;
       if (store_top_level_join_columns(thd, table_ref,
                                        left_neighbor, right_neighbor))
-        return TRUE;
+        DBUG_RETURN(true);
       if (left_neighbor)
       {
         TABLE_LIST *first_leaf_on_the_right;
@@ -7908,8 +7906,9 @@ static bool setup_natural_join_row_types(THD *thd,
   DBUG_ASSERT(right_neighbor);
   context->first_name_resolution_table=
     right_neighbor->first_leaf_for_name_resolution();
+  context->select_lex->first_natural_join_processing= false;
 
-  return FALSE;
+  DBUG_RETURN (false);
 }
 
 
@@ -9063,7 +9062,7 @@ int init_ftfuncs(THD *thd, SELECT_LEX *select_lex, bool no_order)
     List_iterator<Item_func_match> li(*(select_lex->ftfunc_list));
     Item_func_match *ifm;
     DBUG_PRINT("info",("Performing FULLTEXT search"));
-    thd_proc_info(thd, "FULLTEXT initialization");
+    THD_STAGE_INFO(thd, stage_fulltext_initialization);
 
     while ((ifm=li++))
       ifm->init_search(no_order);

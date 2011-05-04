@@ -59,7 +59,7 @@ my_win_is_console(FILE *file)
   @rerval           Pointer to mbbuf, or NULL on I/0 error.
 */
 char *
-my_win_console_readline(CHARSET_INFO *cs, char *mbbuf, size_t mbbufsize)
+my_win_console_readline(const CHARSET_INFO *cs, char *mbbuf, size_t mbbufsize)
 {
   uint dummy_errors;
   static wchar_t u16buf[MAX_CONSOLE_LINE_SIZE + 1], *pos;
@@ -109,10 +109,10 @@ my_win_console_readline(CHARSET_INFO *cs, char *mbbuf, size_t mbbufsize)
   @param to_chars     Number of characters available in "to"
 */
 static size_t
-my_mbstou16s(CHARSET_INFO *cs, const uchar * from, size_t from_length,
+my_mbstou16s(const CHARSET_INFO *cs, const uchar * from, size_t from_length,
              wchar_t *to, size_t to_chars)
 {
-  CHARSET_INFO *to_cs= &my_charset_utf16le_bin;
+  const CHARSET_INFO *to_cs= &my_charset_utf16le_bin;
   const uchar *from_end= from + from_length;
   wchar_t *to_orig= to, *to_end= to + to_chars;
   my_charset_conv_mb_wc mb_wc= cs->cset->mb_wc;
@@ -179,7 +179,7 @@ outp:
   @param datalen  Length of input string in bytes
 */
 void
-my_win_console_write(CHARSET_INFO *cs, const char *data, size_t datalen)
+my_win_console_write(const CHARSET_INFO *cs, const char *data, size_t datalen)
 {
   static wchar_t u16buf[MAX_CONSOLE_LINE_SIZE + 1];
   size_t nchars= my_mbstou16s(cs, (const uchar *) data, datalen,
@@ -200,7 +200,7 @@ my_win_console_write(CHARSET_INFO *cs, const char *data, size_t datalen)
   @param c   Character (single byte)
 */
 void
-my_win_console_putc(CHARSET_INFO *cs, int c)
+my_win_console_putc(const CHARSET_INFO *cs, int c)
 {
   char ch= (char) c;
   my_win_console_write(cs, &ch, 1);
@@ -214,7 +214,7 @@ my_win_console_putc(CHARSET_INFO *cs, int c)
   @param data  String to print
 */
 void
-my_win_console_fputs(CHARSET_INFO *cs, const char *data)
+my_win_console_fputs(const CHARSET_INFO *cs, const char *data)
 {
   my_win_console_write(cs, data, strlen(data));
 }
@@ -224,7 +224,7 @@ my_win_console_fputs(CHARSET_INFO *cs, const char *data)
   Handle formatted output on the Windows console.
 */
 void
-my_win_console_vfprintf(CHARSET_INFO *cs, const char *fmt, va_list args)
+my_win_console_vfprintf(const CHARSET_INFO *cs, const char *fmt, va_list args)
 {
   static char buff[MAX_CONSOLE_LINE_SIZE + 1];
   size_t len= vsnprintf(buff, sizeof(buff) - 1, fmt, args);
@@ -244,7 +244,7 @@ my_win_console_vfprintf(CHARSET_INFO *cs, const char *fmt, va_list args)
   @param[OUT] argv    Write pointer to allocated parameters here.
 */
 int
-my_win_translate_command_line_args(CHARSET_INFO *cs, int *argc, char ***argv)
+my_win_translate_command_line_args(const CHARSET_INFO *cs, int *argc, char ***argv)
 {
   int i, ac;
   char **av;

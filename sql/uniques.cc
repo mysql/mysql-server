@@ -1,4 +1,4 @@
-/* Copyright (c) 2001, 2010, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2001, 2011, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -10,8 +10,8 @@
    GNU General Public License for more details.
 
    You should have received a copy of the GNU General Public License
-   along with this program; if not, write to the Free Software Foundation,
-   51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA */
+   along with this program; if not, write to the Free Software
+   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
 /*
   Function to handle quick removal of duplicates
@@ -418,7 +418,7 @@ C_MODE_END
 static bool merge_walk(uchar *merge_buffer, ulong merge_buffer_size,
                        uint key_length, BUFFPEK *begin, BUFFPEK *end,
                        tree_walk_action walk_action, void *walk_action_arg,
-                       qsort_cmp2 compare, void *compare_arg,
+                       qsort_cmp2 compare, const void *compare_arg,
                        IO_CACHE *file)
 {
   BUFFPEK_COMPARE_CONTEXT compare_context = { compare, compare_arg };

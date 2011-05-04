@@ -13,15 +13,11 @@
    GNU General Public License for more details.
 
    You should have received a copy of the GNU General Public License
-   along with this program; if not, write to the Free Software Foundation,
-   51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA */
+   along with this program; if not, write to the Free Software
+   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
 
 /* compare and test functions */
-
-#ifdef USE_PRAGMA_INTERFACE
-#pragma interface			/* gcc class implementation */
-#endif
 
 #include "thr_malloc.h"                         /* sql_calloc */
 #include "item_func.h"             /* Item_int_func, Item_bool_func */
@@ -387,7 +383,8 @@ public:
 
   bool is_null() { return test(args[0]->is_null() || args[1]->is_null()); }
   bool is_bool_func() { return 1; }
-  CHARSET_INFO *compare_collation() { return cmp.cmp_collation.collation; }
+  const CHARSET_INFO *compare_collation()
+  { return cmp.cmp_collation.collation; }
   uint decimal_precision() const { return 1; }
   void top_level_item() { abort_on_null= TRUE; }
   void cleanup()
@@ -675,7 +672,7 @@ public:
   void fix_length_and_dec();
   virtual void print(String *str, enum_query_type query_type);
   bool is_bool_func() { return 1; }
-  CHARSET_INFO *compare_collation() { return cmp_collation.collation; }
+  const CHARSET_INFO *compare_collation() { return cmp_collation.collation; }
   uint decimal_precision() const { return 1; }
 };
 
@@ -821,12 +818,12 @@ public:
   char *base;
   uint size;
   qsort2_cmp compare;
-  CHARSET_INFO *collation;
+  const CHARSET_INFO *collation;
   uint count;
   uint used_count;
   in_vector() {}
   in_vector(uint elements,uint element_length,qsort2_cmp cmp_func, 
-  	    CHARSET_INFO *cmp_coll)
+  	    const CHARSET_INFO *cmp_coll)
     :base((char*) sql_calloc(elements*element_length)),
      size(element_length), compare(cmp_func), collation(cmp_coll),
      count(elements), used_count(elements) {}
@@ -872,7 +869,7 @@ class in_string :public in_vector
   char buff[STRING_BUFFER_USUAL_SIZE];
   String tmp;
 public:
-  in_string(uint elements,qsort2_cmp cmp_func, CHARSET_INFO *cs);
+  in_string(uint elements,qsort2_cmp cmp_func, const CHARSET_INFO *cs);
   ~in_string();
   void set(uint pos,Item *item);
   uchar *get_value(Item *item);
@@ -999,14 +996,14 @@ public:
 class cmp_item :public Sql_alloc
 {
 public:
-  CHARSET_INFO *cmp_charset;
+  const CHARSET_INFO *cmp_charset;
   cmp_item() { cmp_charset= &my_charset_bin; }
   virtual ~cmp_item() {}
   virtual void store_value(Item *item)= 0;
   virtual int cmp(Item *item)= 0;
   // for optimized IN with row
   virtual int compare(cmp_item *item)= 0;
-  static cmp_item* get_comparator(Item_result type, CHARSET_INFO *cs);
+  static cmp_item* get_comparator(Item_result type, const CHARSET_INFO *cs);
   virtual cmp_item *make_same()= 0;
   virtual void store_value_by_template(cmp_item *tmpl, Item *item)
   {
@@ -1020,8 +1017,8 @@ protected:
   String *value_res;
 public:
   cmp_item_string () {}
-  cmp_item_string (CHARSET_INFO *cs) { cmp_charset= cs; }
-  void set_charset(CHARSET_INFO *cs) { cmp_charset= cs; }
+  cmp_item_string (const CHARSET_INFO *cs) { cmp_charset= cs; }
+  void set_charset(const CHARSET_INFO *cs) { cmp_charset= cs; }
   friend class cmp_item_sort_string;
   friend class cmp_item_sort_string_in_static;
 };
@@ -1034,7 +1031,7 @@ protected:
 public:
   cmp_item_sort_string():
     cmp_item_string() {}
-  cmp_item_sort_string(CHARSET_INFO *cs):
+  cmp_item_sort_string(const CHARSET_INFO *cs):
     cmp_item_string(cs),
     value(value_buff, sizeof(value_buff), cs) {}
   void store_value(Item *item)
@@ -1055,7 +1052,7 @@ public:
     return sortcmp(value_res, l_cmp->value_res, cmp_charset);
   } 
   cmp_item *make_same();
-  void set_charset(CHARSET_INFO *cs)
+  void set_charset(const CHARSET_INFO *cs)
   {
     cmp_charset= cs;
     value.set_quick(value_buff, sizeof(value_buff), cs);
@@ -1151,7 +1148,7 @@ class cmp_item_sort_string_in_static :public cmp_item_string
  protected:
   String value;
 public:
-  cmp_item_sort_string_in_static(CHARSET_INFO *cs):
+  cmp_item_sort_string_in_static(const CHARSET_INFO *cs):
     cmp_item_string(cs) {}
   void store_value(Item *item)
   {
@@ -1236,7 +1233,7 @@ public:
   const char *func_name() const { return "case"; }
   virtual void print(String *str, enum_query_type query_type);
   Item *find_item(String *str);
-  CHARSET_INFO *compare_collation() { return cmp_collation.collation; }
+  const CHARSET_INFO *compare_collation() { return cmp_collation.collation; }
   void cleanup();
   void agg_str_lengths(Item *arg);
   void agg_num_lengths(Item *arg);
@@ -1306,7 +1303,7 @@ public:
   const char *func_name() const { return " IN "; }
   bool nulls_in_row();
   bool is_bool_func() { return 1; }
-  CHARSET_INFO *compare_collation() { return cmp_collation.collation; }
+  const CHARSET_INFO *compare_collation() { return cmp_collation.collation; }
 };
 
 class cmp_item_row :public cmp_item
@@ -1377,7 +1374,8 @@ public:
   table_map not_null_tables() const { return 0; }
   optimize_type select_optimize() const { return OPTIMIZE_NULL; }
   Item *neg_transformer(THD *thd);
-  CHARSET_INFO *compare_collation() { return args[0]->collation.collation; }
+  const CHARSET_INFO *compare_collation()
+  { return args[0]->collation.collation; }
 };
 
 /* Functions used by HAVING for rewriting IN subquery */
@@ -1424,7 +1422,8 @@ public:
   { return abort_on_null ? not_null_tables_cache : 0; }
   Item *neg_transformer(THD *thd);
   virtual void print(String *str, enum_query_type query_type);
-  CHARSET_INFO *compare_collation() { return args[0]->collation.collation; }
+  const CHARSET_INFO *compare_collation()
+  { return args[0]->collation.collation; }
   void top_level_item() { abort_on_null=1; }
 };
 
@@ -1474,7 +1473,7 @@ class Item_func_regex :public Item_bool_func
   bool regex_is_const;
   String prev_regexp;
   DTCollation cmp_collation;
-  CHARSET_INFO *regex_lib_charset;
+  const CHARSET_INFO *regex_lib_charset;
   int regex_lib_flags;
   String conv;
   int regcomp(bool send_error);
@@ -1491,7 +1490,7 @@ public:
     print_op(str, query_type);
   }
 
-  CHARSET_INFO *compare_collation() { return cmp_collation.collation; }
+  const CHARSET_INFO *compare_collation() { return cmp_collation.collation; }
 };
 
 
@@ -1674,7 +1673,7 @@ public:
   bool walk(Item_processor processor, bool walk_subquery, uchar *arg);
   Item *transform(Item_transformer transformer, uchar *arg);
   virtual void print(String *str, enum_query_type query_type);
-  CHARSET_INFO *compare_collation() 
+  const CHARSET_INFO *compare_collation() 
   { return fields.head()->collation.collation; }
   friend bool setup_sj_materialization(struct st_join_table *tab);
 }; 

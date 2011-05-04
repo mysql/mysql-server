@@ -565,18 +565,17 @@ row_undo_mod_upd_del_sec(
 	que_thr_t*	thr)	/*!< in: query thread */
 {
 	mem_heap_t*	heap;
-	dtuple_t*	entry;
-	dict_index_t*	index;
 	ulint		err	= DB_SUCCESS;
 
 	ut_ad(node->rec_type == TRX_UNDO_UPD_DEL_REC);
-	heap = mem_heap_create(1024);
 
-	while (node->index != NULL) {
-		index = node->index;
-
-		entry = row_build_index_entry(node->row, node->ext,
-					      index, heap);
+	for (heap = mem_heap_create(1024);
+	     node->index != NULL;
+	     mem_heap_empty(heap),
+		     node->index = dict_table_get_next_index(node->index)) {
+		dict_index_t*	index	= node->index;
+		dtuple_t*	entry	= row_build_index_entry(
+			node->row, node->ext, index, heap);
 		if (UNIV_UNLIKELY(!entry)) {
 			/* The database must have crashed after
 			inserting a clustered index record but before
@@ -592,15 +591,11 @@ row_undo_mod_upd_del_sec(
 			err = row_undo_mod_del_mark_or_remove_sec(
 				node, thr, index, entry);
 
-			if (err != DB_SUCCESS) {
+			if (UNIV_UNLIKELY(err != DB_SUCCESS)) {
 
 				break;
 			}
 		}
-
-		mem_heap_empty(heap);
-
-		node->index = dict_table_get_next_index(node->index);
 	}
 
 	mem_heap_free(heap);
@@ -619,18 +614,17 @@ row_undo_mod_del_mark_sec(
 	que_thr_t*	thr)	/*!< in: query thread */
 {
 	mem_heap_t*	heap;
-	dtuple_t*	entry;
-	dict_index_t*	index;
-	ulint		err;
+	ulint		err	= DB_SUCCESS;
 
-	heap = mem_heap_create(1024);
-
-	while (node->index != NULL) {
-		index = node->index;
-
-		entry = row_build_index_entry(node->row, node->ext,
-					      index, heap);
+	for (heap = mem_heap_create(1024);
+	     node->index != NULL;
+	     mem_heap_empty(heap),
+		     node->index = dict_table_get_next_index(node->index)) {
+		dict_index_t*	index	= node->index;
+		dtuple_t*	entry	= row_build_index_entry(
+			node->row, node->ext, index, heap);
 		ut_a(entry);
+
 		err = row_undo_mod_del_unmark_sec_and_undo_update(
 			BTR_MODIFY_LEAF, thr, index, entry);
 		if (err == DB_FAIL) {
@@ -638,19 +632,15 @@ row_undo_mod_del_mark_sec(
 				BTR_MODIFY_TREE, thr, index, entry);
 		}
 
-		if (err != DB_SUCCESS) {
+		if (UNIV_UNLIKELY(err != DB_SUCCESS)) {
 
-			mem_heap_free(heap);
-
-			return(err);
+			break;
 		}
-
-		node->index = dict_table_get_next_index(node->index);
 	}
 
 	mem_heap_free(heap);
 
-	return(DB_SUCCESS);
+	return(err);
 }
 
 /***********************************************************//**
@@ -664,109 +654,101 @@ row_undo_mod_upd_exist_sec(
 	que_thr_t*	thr)	/*!< in: query thread */
 {
 	mem_heap_t*	heap;
-	dtuple_t*	entry;
-	dict_index_t*	index;
-	ulint		err;
+	ulint		err	= DB_SUCCESS;
 
-	if (node->cmpl_info & UPD_NODE_NO_ORD_CHANGE) {
+	if (node->index == NULL
+	    || (node->cmpl_info & UPD_NODE_NO_ORD_CHANGE)) {
 		/* No change in secondary indexes */
 
-		return(DB_SUCCESS);
+		return(err);
 	}
 
-	heap = mem_heap_create(1024);
+	for (heap = mem_heap_create(1024); node->index != NULL;
+	     mem_heap_empty(heap),
+		     node->index = dict_table_get_next_index(node->index)) {
+		dict_index_t*	index	= node->index;
+		dtuple_t*	entry;
 
-	while (node->index != NULL) {
-		index = node->index;
+		if (!row_upd_changes_ord_field_binary(index, node->update, thr,
+						      node->row, node->ext)) {
+			continue;
+		}
 
-		if (row_upd_changes_ord_field_binary(node->index, node->update,
-						     thr,
-						     node->row, node->ext)) {
+		/* Build the newest version of the index entry */
+		entry = row_build_index_entry(node->row, node->ext,
+					      index, heap);
+		if (UNIV_UNLIKELY(!entry)) {
+			/* The server must have crashed in
+			row_upd_clust_rec_by_insert() before
+			the updated externally stored columns (BLOBs)
+			of the new clustered index entry were written. */
 
-			/* Build the newest version of the index entry */
-			entry = row_build_index_entry(node->row, node->ext,
-						      index, heap);
-			if (UNIV_UNLIKELY(!entry)) {
-				/* The server must have crashed in
-				row_upd_clust_rec_by_insert() before
-				the updated externally stored columns (BLOBs)
-				of the new clustered index entry were
-				written. */
+			/* The table must be in DYNAMIC or COMPRESSED
+			format.  REDUNDANT and COMPACT formats
+			store a local 768-byte prefix of each
+			externally stored column. */
+			ut_a(dict_table_get_format(index->table)
+			     >= UNIV_FORMAT_B);
 
-				/* The table must be in DYNAMIC or COMPRESSED
-				format.  REDUNDANT and COMPACT formats
-				store a local 768-byte prefix of each
-				externally stored column. */
-				ut_a(dict_table_get_format(index->table)
-				     >= DICT_TF_FORMAT_ZIP);
+			/* This is only legitimate when
+			rolling back an incomplete transaction
+			after crash recovery. */
+			ut_a(thr_get_trx(thr)->is_recovered);
 
-				/* This is only legitimate when
-				rolling back an incomplete transaction
-				after crash recovery. */
-				ut_a(thr_get_trx(thr)->is_recovered);
+			/* The server must have crashed before
+			completing the insert of the new
+			clustered index entry and before
+			inserting to the secondary indexes.
+			Because node->row was not yet written
+			to this index, we can ignore it.  But
+			we must restore node->undo_row. */
+		} else {
+			/* NOTE that if we updated the fields of a
+			delete-marked secondary index record so that
+			alphabetically they stayed the same, e.g.,
+			'abc' -> 'aBc', we cannot return to the
+			original values because we do not know them.
+			But this should not cause problems because
+			in row0sel.c, in queries we always retrieve
+			the clustered index record or an earlier
+			version of it, if the secondary index record
+			through which we do the search is
+			delete-marked. */
 
-				/* The server must have crashed before
-				completing the insert of the new
-				clustered index entry and before
-				inserting to the secondary indexes.
-				Because node->row was not yet written
-				to this index, we can ignore it.  But
-				we must restore node->undo_row. */
-			} else {
-				/* NOTE that if we updated the fields of a
-				delete-marked secondary index record so that
-				alphabetically they stayed the same, e.g.,
-				'abc' -> 'aBc', we cannot return to the
-				original values because we do not know them.
-				But this should not cause problems because
-				in row0sel.c, in queries we always retrieve
-				the clustered index record or an earlier
-				version of it, if the secondary index record
-				through which we do the search is
-				delete-marked. */
-
-				err = row_undo_mod_del_mark_or_remove_sec(
-					node, thr, index, entry);
-				if (err != DB_SUCCESS) {
-					mem_heap_free(heap);
-
-					return(err);
-				}
-
-				mem_heap_empty(heap);
-			}
-
-			/* We may have to update the delete mark in the
-			secondary index record of the previous version of
-			the row. We also need to update the fields of
-			the secondary index record if we updated its fields
-			but alphabetically they stayed the same, e.g.,
-			'abc' -> 'aBc'. */
-			entry = row_build_index_entry(node->undo_row,
-						      node->undo_ext,
-						      index, heap);
-			ut_a(entry);
-
-			err = row_undo_mod_del_unmark_sec_and_undo_update(
-				BTR_MODIFY_LEAF, thr, index, entry);
-			if (err == DB_FAIL) {
-				err = row_undo_mod_del_unmark_sec_and_undo_update(
-					BTR_MODIFY_TREE, thr, index, entry);
-			}
-
+			err = row_undo_mod_del_mark_or_remove_sec(
+				node, thr, index, entry);
 			if (err != DB_SUCCESS) {
-				mem_heap_free(heap);
-
-				return(err);
+				break;
 			}
 		}
 
-		node->index = dict_table_get_next_index(node->index);
+		mem_heap_empty(heap);
+		/* We may have to update the delete mark in the
+		secondary index record of the previous version of
+		the row. We also need to update the fields of
+		the secondary index record if we updated its fields
+		but alphabetically they stayed the same, e.g.,
+		'abc' -> 'aBc'. */
+		entry = row_build_index_entry(node->undo_row,
+					      node->undo_ext,
+					      index, heap);
+		ut_a(entry);
+
+		err = row_undo_mod_del_unmark_sec_and_undo_update(
+			BTR_MODIFY_LEAF, thr, index, entry);
+		if (err == DB_FAIL) {
+			err = row_undo_mod_del_unmark_sec_and_undo_update(
+				BTR_MODIFY_TREE, thr, index, entry);
+		}
+
+		if (UNIV_UNLIKELY(err != DB_SUCCESS)) {
+			break;
+		}
 	}
 
 	mem_heap_free(heap);
 
-	return(DB_SUCCESS);
+	return(err);
 }
 
 /***********************************************************//**
@@ -872,16 +854,19 @@ row_undo_mod(
 	node->index = dict_table_get_next_index(
 		dict_table_get_first_index(node->table));
 
-	if (node->rec_type == TRX_UNDO_UPD_EXIST_REC) {
-
+	switch (node->rec_type) {
+	case TRX_UNDO_UPD_EXIST_REC:
 		err = row_undo_mod_upd_exist_sec(node, thr);
-
-	} else if (node->rec_type == TRX_UNDO_DEL_MARK_REC) {
-
+		break;
+	case TRX_UNDO_DEL_MARK_REC:
 		err = row_undo_mod_del_mark_sec(node, thr);
-	} else {
-		ut_ad(node->rec_type == TRX_UNDO_UPD_DEL_REC);
+		break;
+	case TRX_UNDO_UPD_DEL_REC:
 		err = row_undo_mod_upd_del_sec(node, thr);
+		break;
+	default:
+		ut_error;
+		err = DB_ERROR;
 	}
 
 	if (err == DB_SUCCESS) {

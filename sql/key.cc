@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2010, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2011, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -10,8 +10,8 @@
    GNU General Public License for more details.
 
    You should have received a copy of the GNU General Public License
-   along with this program; if not, write to the Free Software Foundation,
-   51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA */
+   along with this program; if not, write to the Free Software
+   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
 
 /* Functions to handle keys and fields in forms */
@@ -136,7 +136,7 @@ void key_copy(uchar *to_key, uchar *from_record, KEY *key_info,
     {
       length= min(key_length, key_part->length);
       Field *field= key_part->field;
-      CHARSET_INFO *cs= field->charset();
+      const CHARSET_INFO *cs= field->charset();
       uint bytes= field->get_key_image(to_key, length, Field::itRAW);
       if (bytes < length)
         cs->cset->fill(cs, (char*) to_key + bytes, length - bytes, ' ');
@@ -315,7 +315,7 @@ bool key_cmp_if_same(TABLE *table,const uchar *key,uint idx,uint key_length)
     if (!(key_part->key_type & (FIELDFLAG_NUMBER+FIELDFLAG_BINARY+
                                 FIELDFLAG_PACK)))
     {
-      CHARSET_INFO *cs= key_part->field->charset();
+      const CHARSET_INFO *cs= key_part->field->charset();
       uint char_length= key_part->length / cs->mbmaxlen;
       const uchar *pos= table->record[0] + key_part->offset;
       if (length > char_length)
@@ -375,7 +375,7 @@ void key_unpack(String *to,TABLE *table,uint idx)
     }
     if ((field=key_part->field))
     {
-      CHARSET_INFO *cs= field->charset();
+      const CHARSET_INFO *cs= field->charset();
       field->val_str(&tmp);
       /*
         For BINARY(N) strip trailing zeroes to make

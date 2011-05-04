@@ -426,6 +426,14 @@ The following options may be given as the first argument:
  mrr_cost_based} and val is one of {on, off, default}
  --performance-schema 
  Enable the performance schema.
+ --performance-schema-events-stages-history-long-size=# 
+ Number of rows in EVENTS_STAGES_HISTORY_LONG.
+ --performance-schema-events-stages-history-size=# 
+ Number of rows per thread in EVENTS_STAGES_HISTORY.
+ --performance-schema-events-statements-history-long-size=# 
+ Number of rows in EVENTS_STATEMENTS_HISTORY_LONG.
+ --performance-schema-events-statements-history-size=# 
+ Number of rows per thread in EVENTS_STATEMENTS_HISTORY.
  --performance-schema-events-waits-history-long-size=# 
  Number of rows in EVENTS_WAITS_HISTORY_LONG.
  --performance-schema-events-waits-history-size=# 
@@ -448,6 +456,10 @@ The following options may be given as the first argument:
  Maximum number of rwlock instruments.
  --performance-schema-max-rwlock-instances=# 
  Maximum number of instrumented RWLOCK objects.
+ --performance-schema-max-stage-classes=# 
+ Maximum number of stage instruments.
+ --performance-schema-max-statement-classes=# 
+ Maximum number of statement instruments.
  --performance-schema-max-table-handles=# 
  Maximum number of opened instrumented tables.
  --performance-schema-max-table-instances=# 
@@ -884,6 +896,10 @@ optimizer-prune-level 1
 optimizer-search-depth 62
 optimizer-switch index_merge=on,index_merge_union=on,index_merge_sort_union=on,index_merge_intersection=on,engine_condition_pushdown=on,index_condition_pushdown=on,mrr=on,mrr_cost_based=on
 performance-schema FALSE
+performance-schema-events-stages-history-long-size 10000
+performance-schema-events-stages-history-size 10
+performance-schema-events-statements-history-long-size 10000
+performance-schema-events-statements-history-size 10
 performance-schema-events-waits-history-long-size 10000
 performance-schema-events-waits-history-size 10
 performance-schema-max-cond-classes 80
@@ -895,6 +911,8 @@ performance-schema-max-mutex-classes 200
 performance-schema-max-mutex-instances 1000000
 performance-schema-max-rwlock-classes 30
 performance-schema-max-rwlock-instances 1000000
+performance-schema-max-stage-classes 100
+performance-schema-max-statement-classes 165
 performance-schema-max-table-handles 10000
 performance-schema-max-table-instances 1000
 performance-schema-max-thread-classes 50

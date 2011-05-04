@@ -13,10 +13,6 @@
   along with this program; if not, write to the Free Software
   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
 
-#ifdef USE_PRAGMA_IMPLEMENTATION
-#pragma implementation        // gcc: Class implementation
-#endif
-
 #include "sql_priv.h"
 #include "probes_mysql.h"
 #include "sql_class.h"                          // SSV
@@ -161,11 +157,8 @@ static void init_archive_psi_keys(void)
   const char* category= "archive";
   int count;
 
-  if (PSI_server == NULL)
-    return;
-
   count= array_elements(all_archive_mutexes);
-  PSI_server->register_mutex(category, all_archive_mutexes, count);
+  mysql_mutex_register(category, all_archive_mutexes, count);
 }
 
 #endif /* HAVE_PSI_INTERFACE */
@@ -1181,7 +1174,7 @@ int ha_archive::unpack_row(azio_stream *file_to_read, uchar *record)
   ptr+= table->s->null_bytes;
   for (Field **field=table->field ; *field ; field++)
   {
-    if (!((*field)->is_null()))
+    if (!((*field)->is_null_in_record(record)))
     {
       ptr= (*field)->unpack(record + (*field)->offset(table->record[0]), ptr);
     }

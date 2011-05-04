@@ -1401,3 +1401,16 @@ CREATE TEMPORARY TABLE t1 (i int) ENGINE=MyISAM;
 ALTER TABLE t1 DISCARD TABLESPACE;
 ERROR HY000: Table storage engine for 't1' doesn't have this option
 DROP TABLE t1;
+#
+# Bug#11938039 RE-EXECUTION OF FRM-ONLY ALTER TABLE WITH RENAME
+#              CLAUSE FAILS OR ABORTS SERVER.
+#
+drop table if exists t1;
+create table t1 (a int);
+prepare stmt1 from 'alter table t1 alter column a set default 1, rename to t2';
+execute stmt1;
+rename table t2 to t1;
+# The below statement should succeed and not emit error or abort server.
+execute stmt1;
+deallocate prepare stmt1;
+drop table t2;

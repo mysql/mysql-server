@@ -23,6 +23,8 @@
 #include "my_rdtsc.h"
 
 enum_timer_name wait_timer= TIMER_NAME_CYCLE;
+enum_timer_name stage_timer= TIMER_NAME_NANOSEC;
+enum_timer_name statement_timer= TIMER_NAME_NANOSEC;
 MY_TIMER_INFO pfs_timer_info;
 
 static ulonglong cycle_v0;
@@ -114,6 +116,26 @@ void init_timers(void)
 
   to_pico_data[TIMER_NAME_TICK].m_v0= tick_v0;
   to_pico_data[TIMER_NAME_TICK].m_factor= tick_to_pico;
+}
+
+ulonglong get_timer_raw_value(enum_timer_name timer_name)
+{
+  switch (timer_name)
+  {
+  case TIMER_NAME_CYCLE:
+    return my_timer_cycles();
+  case TIMER_NAME_NANOSEC:
+    return my_timer_nanoseconds();
+  case TIMER_NAME_MICROSEC:
+    return my_timer_microseconds();
+  case TIMER_NAME_MILLISEC:
+    return my_timer_milliseconds();
+  case TIMER_NAME_TICK:
+    return my_timer_ticks();
+  default:
+    DBUG_ASSERT(false);
+  }
+  return 0;
 }
 
 ulonglong get_timer_raw_value_and_function(enum_timer_name timer_name, timer_fct_t *fct)

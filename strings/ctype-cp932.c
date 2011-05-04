@@ -11,7 +11,7 @@
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
-   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
+   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
 /* This file is for cp932 charaset (Windows Japanese),
    and created based on ctype-sjis.c file  */
@@ -182,13 +182,14 @@ static uchar sort_order_cp932[]=
                        (0x80<=(c) && (c)<=0xfc))
 
 
-static uint ismbchar_cp932(CHARSET_INFO *cs __attribute__((unused)),
+static uint ismbchar_cp932(const CHARSET_INFO *cs __attribute__((unused)),
 			 const char* p, const char *e)
 {
   return (iscp932head((uchar) *p) && (e-p)>1 && iscp932tail((uchar)p[1]) ? 2: 0);
 }
 
-static uint mbcharlen_cp932(CHARSET_INFO *cs __attribute__((unused)),uint c)
+static uint mbcharlen_cp932(const CHARSET_INFO *cs __attribute__((unused)),
+                            uint c)
 {
   return (iscp932head((uchar) c) ? 2 : 1);
 }
@@ -1709,7 +1710,7 @@ MY_UNICASE_INFO my_caseinfo_cp932=
   my_caseinfo_pages_cp932
 };
 
-static int my_strnncoll_cp932_internal(CHARSET_INFO *cs,
+static int my_strnncoll_cp932_internal(const CHARSET_INFO *cs,
 				      const uchar **a_res, size_t a_length,
 				      const uchar **b_res, size_t b_length)
 {
@@ -1741,7 +1742,7 @@ static int my_strnncoll_cp932_internal(CHARSET_INFO *cs,
 }
 
 
-static int my_strnncoll_cp932(CHARSET_INFO *cs __attribute__((unused)),
+static int my_strnncoll_cp932(const CHARSET_INFO *cs __attribute__((unused)),
 			      const uchar *a, size_t a_length, 
 			      const uchar *b, size_t b_length,
                               my_bool b_is_prefix)
@@ -1753,7 +1754,8 @@ static int my_strnncoll_cp932(CHARSET_INFO *cs __attribute__((unused)),
 }
 
 
-static int my_strnncollsp_cp932(CHARSET_INFO *cs __attribute__((unused)),
+static int my_strnncollsp_cp932(const CHARSET_INFO *cs
+                                __attribute__((unused)),
                                 const uchar *a, size_t a_length, 
                                 const uchar *b, size_t b_length,
                                 my_bool diff_if_only_endspace_difference
@@ -34599,7 +34601,7 @@ static uint16 unicode_to_cp932[65536]=
 */
 
 static int
-my_mb_wc_cp932(CHARSET_INFO *cs  __attribute__((unused)),
+my_mb_wc_cp932(const CHARSET_INFO *cs  __attribute__((unused)),
 	       my_wc_t *pwc, const uchar *s, const uchar *e){
   int hi;
 
@@ -34643,7 +34645,7 @@ my_mb_wc_cp932(CHARSET_INFO *cs  __attribute__((unused)),
   @retval   MY_CS_ILUNI    If the Unicode character does not exist in CP932
 */
 static int
-my_wc_mb_cp932(CHARSET_INFO *cs __attribute__((unused)),
+my_wc_mb_cp932(const CHARSET_INFO *cs __attribute__((unused)),
 	       my_wc_t wc, uchar *s, uchar *e)
 {
   int code;
@@ -34683,7 +34685,7 @@ my_wc_mb_cp932(CHARSET_INFO *cs __attribute__((unused)),
 
 
 static
-size_t my_numcells_cp932(CHARSET_INFO *cs __attribute__((unused)),
+size_t my_numcells_cp932(const CHARSET_INFO *cs __attribute__((unused)),
                       const char *str, const char *str_end)
 {
   size_t clen= 0;
@@ -34717,7 +34719,8 @@ size_t my_numcells_cp932(CHARSET_INFO *cs __attribute__((unused)),
 */
 
 static
-size_t my_well_formed_len_cp932(CHARSET_INFO *cs __attribute__((unused)),
+size_t my_well_formed_len_cp932(const CHARSET_INFO *cs
+                                __attribute__((unused)),
                                 const char *b, const char *e,
                                 size_t pos, int *error)
 {

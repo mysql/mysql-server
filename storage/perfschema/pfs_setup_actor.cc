@@ -32,11 +32,19 @@
   @{
 */
 
+/** Size of the setup_actor instances array. @sa setup_actor_array */
 ulong setup_actor_max;
+
+/**
+  Setup_actor instances array.
+  @sa setup_actor_max
+*/
 
 PFS_setup_actor *setup_actor_array= NULL;
 
+/** Hash table for setup_actor records. */
 static LF_HASH setup_actor_hash;
+/** True if @c setup_actor_hash is initialized. */
 static bool setup_actor_hash_inited= false;
 
 /**

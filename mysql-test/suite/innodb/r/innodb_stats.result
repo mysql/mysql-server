@@ -33,6 +33,25 @@ stat_name	size
 stat_value	1
 sample_size	NULL
 stat_description	Number of pages in the index
+INSERT INTO test_innodb_stats SELECT * FROM test_innodb_stats;
+SELECT * FROM information_schema.statistics
+WHERE table_name = 'test_innodb_stats';
+TABLE_CATALOG	def
+TABLE_SCHEMA	test
+TABLE_NAME	test_innodb_stats
+NON_UNIQUE	1
+INDEX_SCHEMA	test
+INDEX_NAME	a_key
+SEQ_IN_INDEX	1
+COLUMN_NAME	a
+COLLATION	A
+CARDINALITY	0
+SUB_PART	NULL
+PACKED	NULL
+NULLABLE	YES
+INDEX_TYPE	BTREE
+COMMENT	
+INDEX_COMMENT	
 DELETE FROM test_innodb_stats;
 INSERT INTO test_innodb_stats (a) VALUES (1);
 ANALYZE TABLE test_innodb_stats;
@@ -66,6 +85,25 @@ stat_name	size
 stat_value	1
 sample_size	NULL
 stat_description	Number of pages in the index
+INSERT INTO test_innodb_stats SELECT * FROM test_innodb_stats;
+SELECT * FROM information_schema.statistics
+WHERE table_name = 'test_innodb_stats';
+TABLE_CATALOG	def
+TABLE_SCHEMA	test
+TABLE_NAME	test_innodb_stats
+NON_UNIQUE	1
+INDEX_SCHEMA	test
+INDEX_NAME	a_key
+SEQ_IN_INDEX	1
+COLUMN_NAME	a
+COLLATION	A
+CARDINALITY	1
+SUB_PART	NULL
+PACKED	NULL
+NULLABLE	YES
+INDEX_TYPE	BTREE
+COMMENT	
+INDEX_COMMENT	
 DELETE FROM test_innodb_stats;
 INSERT INTO test_innodb_stats (a) VALUES (1), (1);
 ANALYZE TABLE test_innodb_stats;
@@ -99,6 +137,25 @@ stat_name	size
 stat_value	1
 sample_size	NULL
 stat_description	Number of pages in the index
+INSERT INTO test_innodb_stats SELECT * FROM test_innodb_stats;
+SELECT * FROM information_schema.statistics
+WHERE table_name = 'test_innodb_stats';
+TABLE_CATALOG	def
+TABLE_SCHEMA	test
+TABLE_NAME	test_innodb_stats
+NON_UNIQUE	1
+INDEX_SCHEMA	test
+INDEX_NAME	a_key
+SEQ_IN_INDEX	1
+COLUMN_NAME	a
+COLLATION	A
+CARDINALITY	2
+SUB_PART	NULL
+PACKED	NULL
+NULLABLE	YES
+INDEX_TYPE	BTREE
+COMMENT	
+INDEX_COMMENT	
 DELETE FROM test_innodb_stats;
 INSERT INTO test_innodb_stats (a) VALUES (1), (1), (1);
 ANALYZE TABLE test_innodb_stats;
@@ -132,6 +189,25 @@ stat_name	size
 stat_value	1
 sample_size	NULL
 stat_description	Number of pages in the index
+INSERT INTO test_innodb_stats SELECT * FROM test_innodb_stats;
+SELECT * FROM information_schema.statistics
+WHERE table_name = 'test_innodb_stats';
+TABLE_CATALOG	def
+TABLE_SCHEMA	test
+TABLE_NAME	test_innodb_stats
+NON_UNIQUE	1
+INDEX_SCHEMA	test
+INDEX_NAME	a_key
+SEQ_IN_INDEX	1
+COLUMN_NAME	a
+COLLATION	A
+CARDINALITY	3
+SUB_PART	NULL
+PACKED	NULL
+NULLABLE	YES
+INDEX_TYPE	BTREE
+COMMENT	
+INDEX_COMMENT	
 DELETE FROM test_innodb_stats;
 INSERT INTO test_innodb_stats (a) VALUES (1), (1), (1), (1), (1), (1), (1), (1), (1), (1);
 ANALYZE TABLE test_innodb_stats;
@@ -165,6 +241,25 @@ stat_name	size
 stat_value	1
 sample_size	NULL
 stat_description	Number of pages in the index
+INSERT INTO test_innodb_stats SELECT * FROM test_innodb_stats;
+SELECT * FROM information_schema.statistics
+WHERE table_name = 'test_innodb_stats';
+TABLE_CATALOG	def
+TABLE_SCHEMA	test
+TABLE_NAME	test_innodb_stats
+NON_UNIQUE	1
+INDEX_SCHEMA	test
+INDEX_NAME	a_key
+SEQ_IN_INDEX	1
+COLUMN_NAME	a
+COLLATION	A
+CARDINALITY	2
+SUB_PART	NULL
+PACKED	NULL
+NULLABLE	YES
+INDEX_TYPE	BTREE
+COMMENT	
+INDEX_COMMENT	
 DELETE FROM test_innodb_stats;
 INSERT INTO test_innodb_stats (a) VALUES (1), (2);
 ANALYZE TABLE test_innodb_stats;
@@ -198,6 +293,25 @@ stat_name	size
 stat_value	1
 sample_size	NULL
 stat_description	Number of pages in the index
+INSERT INTO test_innodb_stats SELECT * FROM test_innodb_stats;
+SELECT * FROM information_schema.statistics
+WHERE table_name = 'test_innodb_stats';
+TABLE_CATALOG	def
+TABLE_SCHEMA	test
+TABLE_NAME	test_innodb_stats
+NON_UNIQUE	1
+INDEX_SCHEMA	test
+INDEX_NAME	a_key
+SEQ_IN_INDEX	1
+COLUMN_NAME	a
+COLLATION	A
+CARDINALITY	2
+SUB_PART	NULL
+PACKED	NULL
+NULLABLE	YES
+INDEX_TYPE	BTREE
+COMMENT	
+INDEX_COMMENT	
 DELETE FROM test_innodb_stats;
 INSERT INTO test_innodb_stats (a) VALUES (1), (1), (2);
 ANALYZE TABLE test_innodb_stats;
@@ -231,6 +345,25 @@ stat_name	size
 stat_value	1
 sample_size	NULL
 stat_description	Number of pages in the index
+INSERT INTO test_innodb_stats SELECT * FROM test_innodb_stats;
+SELECT * FROM information_schema.statistics
+WHERE table_name = 'test_innodb_stats';
+TABLE_CATALOG	def
+TABLE_SCHEMA	test
+TABLE_NAME	test_innodb_stats
+NON_UNIQUE	1
+INDEX_SCHEMA	test
+INDEX_NAME	a_key
+SEQ_IN_INDEX	1
+COLUMN_NAME	a
+COLLATION	A
+CARDINALITY	3
+SUB_PART	NULL
+PACKED	NULL
+NULLABLE	YES
+INDEX_TYPE	BTREE
+COMMENT	
+INDEX_COMMENT	
 DELETE FROM test_innodb_stats;
 INSERT INTO test_innodb_stats (a) VALUES (1), (2), (3);
 ANALYZE TABLE test_innodb_stats;
@@ -264,6 +397,25 @@ stat_name	size
 stat_value	1
 sample_size	NULL
 stat_description	Number of pages in the index
+INSERT INTO test_innodb_stats SELECT * FROM test_innodb_stats;
+SELECT * FROM information_schema.statistics
+WHERE table_name = 'test_innodb_stats';
+TABLE_CATALOG	def
+TABLE_SCHEMA	test
+TABLE_NAME	test_innodb_stats
+NON_UNIQUE	1
+INDEX_SCHEMA	test
+INDEX_NAME	a_key
+SEQ_IN_INDEX	1
+COLUMN_NAME	a
+COLLATION	A
+CARDINALITY	3
+SUB_PART	NULL
+PACKED	NULL
+NULLABLE	YES
+INDEX_TYPE	BTREE
+COMMENT	
+INDEX_COMMENT	
 DELETE FROM test_innodb_stats;
 INSERT INTO test_innodb_stats (a) VALUES (1), (1), (2), (3), (3);
 ANALYZE TABLE test_innodb_stats;
@@ -297,6 +449,25 @@ stat_name	size
 stat_value	1
 sample_size	NULL
 stat_description	Number of pages in the index
+INSERT INTO test_innodb_stats SELECT * FROM test_innodb_stats;
+SELECT * FROM information_schema.statistics
+WHERE table_name = 'test_innodb_stats';
+TABLE_CATALOG	def
+TABLE_SCHEMA	test
+TABLE_NAME	test_innodb_stats
+NON_UNIQUE	1
+INDEX_SCHEMA	test
+INDEX_NAME	a_key
+SEQ_IN_INDEX	1
+COLUMN_NAME	a
+COLLATION	A
+CARDINALITY	5
+SUB_PART	NULL
+PACKED	NULL
+NULLABLE	YES
+INDEX_TYPE	BTREE
+COMMENT	
+INDEX_COMMENT	
 DELETE FROM test_innodb_stats;
 INSERT INTO test_innodb_stats (a) VALUES (1), (2), (3), (4), (5), (1), (2), (3), (4), (5);
 ANALYZE TABLE test_innodb_stats;
@@ -330,3 +501,22 @@ stat_name	size
 stat_value	1
 sample_size	NULL
 stat_description	Number of pages in the index
+INSERT INTO test_innodb_stats SELECT * FROM test_innodb_stats;
+SELECT * FROM information_schema.statistics
+WHERE table_name = 'test_innodb_stats';
+TABLE_CATALOG	def
+TABLE_SCHEMA	test
+TABLE_NAME	test_innodb_stats
+NON_UNIQUE	1
+INDEX_SCHEMA	test
+INDEX_NAME	a_key
+SEQ_IN_INDEX	1
+COLUMN_NAME	a
+COLLATION	A
+CARDINALITY	10
+SUB_PART	NULL
+PACKED	NULL
+NULLABLE	YES
+INDEX_TYPE	BTREE
+COMMENT	
+INDEX_COMMENT	

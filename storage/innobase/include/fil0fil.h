@@ -33,6 +33,7 @@ Created 10/25/1995 Heikki Tuuri
 #ifndef UNIV_HOTBACKUP
 #include "sync0rw.h"
 #include "ibuf0types.h"
+#include "log0log.h"
 #endif /* !UNIV_HOTBACKUP */
 
 /** When mysqld is run, the default directory "." is the mysqld datadir,
@@ -324,9 +325,8 @@ UNIV_INTERN
 ulint
 fil_write_flushed_lsn_to_data_files(
 /*================================*/
-	ib_uint64_t	lsn,		/*!< in: lsn to write */
-	ulint		arch_log_no);	/*!< in: latest archived log
-					file number */
+	lsn_t	lsn,		/*!< in: lsn to write */
+	ulint	arch_log_no);	/*!< in: latest archived log file number */
 /*******************************************************************//**
 Reads the flushed lsn and arch no fields from a data file at database
 startup. */
@@ -342,8 +342,8 @@ fil_read_flushed_lsn_and_arch_log_no(
 	ulint*		min_arch_log_no,	/*!< in/out: */
 	ulint*		max_arch_log_no,	/*!< in/out: */
 #endif /* UNIV_LOG_ARCHIVE */
-	ib_uint64_t*	min_flushed_lsn,	/*!< in/out: */
-	ib_uint64_t*	max_flushed_lsn);	/*!< in/out: */
+	lsn_t*		min_flushed_lsn,	/*!< in/out: */
+	lsn_t*		max_flushed_lsn);	/*!< in/out: */
 /*******************************************************************//**
 Increments the count of pending insert buffer page merges, if space is not
 being deleted.
@@ -495,7 +495,7 @@ fil_reset_too_high_lsns(
 /*====================*/
 	const char*	name,		/*!< in: table name in the
 					databasename/tablename format */
-	ib_uint64_t	current_lsn);	/*!< in: reset lsn's if the lsn stamped
+	lsn_t		current_lsn);	/*!< in: reset lsn's if the lsn stamped
 					to FIL_PAGE_FILE_FLUSH_LSN in the
 					first page is too high */
 #endif /* !UNIV_HOTBACKUP */

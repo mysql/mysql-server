@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2010, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2011, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -10,8 +10,8 @@
    GNU General Public License for more details.
 
    You should have received a copy of the GNU General Public License
-   along with this program; if not, write to the Free Software Foundation,
-   51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA */
+   along with this program; if not, write to the Free Software
+   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
 
 /**
@@ -24,10 +24,6 @@
     Some string functions don't always put and end-null on a String.
     (This shouldn't be needed)
 */
-
-#ifdef USE_PRAGMA_IMPLEMENTATION
-#pragma implementation				// gcc: Class implementation
-#endif
 
 /* May include caustic 3rd-party defs. Use early, so it can override nothing. */
 #include "sha2.h"
@@ -1265,7 +1261,7 @@ void Item_func_replace::fix_length_and_dec()
     char_length+= max_substrs * (uint) diff;
   }
 
-  if (agg_arg_charsets_for_comparison(collation, args, 3))
+  if (agg_arg_charsets_for_string_result_with_comparison(collation, args, 3))
     return;
   fix_char_length_ulonglong(char_length);
 }
@@ -1555,7 +1551,7 @@ void Item_func_substr::fix_length_and_dec()
 
 void Item_func_substr_index::fix_length_and_dec()
 { 
-  if (agg_arg_charsets_for_comparison(collation, args, 2))
+  if (agg_arg_charsets_for_string_result_with_comparison(collation, args, 2))
     return;
   fix_char_length(args[0]->max_char_length());
 }
@@ -1894,7 +1890,8 @@ void Item_func_trim::fix_length_and_dec()
   {
     // Handle character set for args[1] and args[0].
     // Note that we pass args[1] as the first item, and args[0] as the second.
-    if (agg_arg_charsets_for_comparison(collation, &args[1], 2, -1))
+    if (agg_arg_charsets_for_string_result_with_comparison(collation,
+                                                           &args[1], 2, -1))
       return;
   }
   fix_char_length(args[0]->max_char_length());
@@ -2075,7 +2072,7 @@ void Item_func_decode::crypto_transform(String *res)
 }
 
 
-Item *Item_func_sysconst::safe_charset_converter(CHARSET_INFO *tocs)
+Item *Item_func_sysconst::safe_charset_converter(const CHARSET_INFO *tocs)
 {
   Item_string *conv;
   uint conv_errors;
@@ -2128,7 +2125,7 @@ bool Item_func_user::init(const char *user, const char *host)
   // For system threads (e.g. replication SQL thread) user may be empty
   if (user)
   {
-    CHARSET_INFO *cs= str_value.charset();
+    const CHARSET_INFO *cs= str_value.charset();
     size_t res_length= (strlen(user)+strlen(host)+2) * cs->mbmaxlen;
 
     if (str_value.alloc((uint) res_length))
@@ -2224,7 +2221,7 @@ String *Item_func_soundex::val_str(String *str)
   DBUG_ASSERT(fixed == 1);
   String *res  =args[0]->val_str(str);
   char last_ch,ch;
-  CHARSET_INFO *cs= collation.collation;
+  const CHARSET_INFO *cs= collation.collation;
   my_wc_t wc;
   uint nchars;
   int rc;
@@ -3160,7 +3157,7 @@ String *Item_func_charset::val_str(String *str)
   DBUG_ASSERT(fixed == 1);
   uint dummy_errors;
 
-  CHARSET_INFO *cs= args[0]->charset_for_protocol(); 
+  const CHARSET_INFO *cs= args[0]->charset_for_protocol(); 
   null_value= 0;
   str->copy(cs->csname, (uint) strlen(cs->csname),
 	    &my_charset_latin1, collation.collation, &dummy_errors);
@@ -3171,7 +3168,7 @@ String *Item_func_collation::val_str(String *str)
 {
   DBUG_ASSERT(fixed == 1);
   uint dummy_errors;
-  CHARSET_INFO *cs= args[0]->charset_for_protocol(); 
+  const CHARSET_INFO *cs= args[0]->charset_for_protocol(); 
 
   null_value= 0;
   str->copy(cs->name, (uint) strlen(cs->name),
@@ -3182,7 +3179,7 @@ String *Item_func_collation::val_str(String *str)
 
 void Item_func_weight_string::fix_length_and_dec()
 {
-  CHARSET_INFO *cs= args[0]->collation.collation;
+  const CHARSET_INFO *cs= args[0]->collation.collation;
   collation.set(&my_charset_bin, args[0]->collation.derivation);
   flags= my_strxfrm_flag_normalize(flags, cs->levels_for_order);
   /* 
@@ -3200,7 +3197,7 @@ void Item_func_weight_string::fix_length_and_dec()
 String *Item_func_weight_string::val_str(String *str)
 {
   String *res;
-  CHARSET_INFO *cs= args[0]->collation.collation;
+  const CHARSET_INFO *cs= args[0]->collation.collation;
   uint tmp_length, frm_length;
   DBUG_ASSERT(fixed == 1);
 
@@ -3216,6 +3213,15 @@ String *Item_func_weight_string::val_str(String *str)
   tmp_length= result_length ? result_length :
               cs->coll->strnxfrmlen(cs, cs->mbmaxlen *
                                     max(res->length(), nweights));
+
+  if(tmp_length > current_thd->variables.max_allowed_packet)
+  {
+    push_warning_printf(current_thd, MYSQL_ERROR::WARN_LEVEL_WARN,
+                        ER_WARN_ALLOWED_PACKET_OVERFLOWED,
+                        ER(ER_WARN_ALLOWED_PACKET_OVERFLOWED), func_name(),
+                        current_thd->variables.max_allowed_packet);
+    goto nl;
+  }
 
   if (tmp_value.alloc(tmp_length))
     goto nl;
@@ -3329,7 +3335,7 @@ String *Item_func_like_range::val_str(String *str)
   longlong nbytes= args[1]->val_int();
   String *res= args[0]->val_str(str);
   size_t min_len, max_len;
-  CHARSET_INFO *cs= collation.collation;
+  const CHARSET_INFO *cs= collation.collation;
 
   if (!res || args[0]->null_value || args[1]->null_value ||
       nbytes < 0 || nbytes > MAX_BLOB_WIDTH ||
@@ -3507,48 +3513,6 @@ void Item_func_export_set::fix_length_and_dec()
   fix_char_length(length * 64 + sep_length * 63);
 }
 
-String* Item_func_inet_ntoa::val_str(String* str)
-{
-  DBUG_ASSERT(fixed == 1);
-  uchar buf[8], *p;
-  ulonglong n = (ulonglong) args[0]->val_int();
-  char num[4];
-
-  /*
-    We do not know if args[0] is NULL until we have called
-    some val function on it if args[0] is not a constant!
-
-    Also return null if n > 255.255.255.255
-  */
-  if ((null_value= (args[0]->null_value || n > (ulonglong) LL(4294967295))))
-    return 0;					// Null value
-
-  str->set_charset(collation.collation);
-  str->length(0);
-  int4store(buf,n);
-
-  /* Now we can assume little endian. */
-
-  num[3]='.';
-  for (p=buf+4 ; p-- > buf ; )
-  {
-    uint c = *p;
-    uint n1,n2;					// Try to avoid divisions
-    n1= c / 100;				// 100 digits
-    c-= n1*100;
-    n2= c / 10;					// 10 digits
-    c-=n2*10;					// last digit
-    num[0]=(char) n1+'0';
-    num[1]=(char) n2+'0';
-    num[2]=(char) c+'0';
-    uint length= (n1 ? 4 : n2 ? 3 : 2);         // Remove pre-zero
-    uint dot_length= (p <= buf) ? 1 : 0;
-    (void) str->append(num + 4 - length, length - dot_length,
-                       &my_charset_latin1);
-  }
-  return str;
-}
-
 
 #define get_esc_bit(mask, num) (1 & (*((mask) + ((num) >> 3))) >> ((num) & 7))
 
@@ -3617,7 +3581,7 @@ String *Item_func_quote::val_str(String *str)
 
   if (collation.collation->mbmaxlen > 1)
   {
-    CHARSET_INFO *cs= collation.collation;
+    const CHARSET_INFO *cs= collation.collation;
     int mblen;
     uchar *to_end;
     to= (char*) tmp_value.ptr();

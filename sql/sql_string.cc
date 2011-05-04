@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2010, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2011, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -10,14 +10,10 @@
    GNU General Public License for more details.
 
    You should have received a copy of the GNU General Public License
-   along with this program; if not, write to the Free Software Foundation,
-   51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA */
+   along with this program; if not, write to the Free Software
+   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
 /* This file is originally from the mysql distribution. Coded by monty */
-
-#ifdef USE_PRAGMA_IMPLEMENTATION
-#pragma implementation				// gcc: Class implementation
-#endif
 
 #include <my_global.h>
 #include <my_sys.h>
@@ -110,7 +106,7 @@ bool String::realloc(uint32 alloc_length)
   return FALSE;
 }
 
-bool String::set_int(longlong num, bool unsigned_flag, CHARSET_INFO *cs)
+bool String::set_int(longlong num, bool unsigned_flag, const CHARSET_INFO *cs)
 {
   uint l=20*cs->mbmaxlen+1;
   int base= unsigned_flag ? 10 : -10;
@@ -122,7 +118,7 @@ bool String::set_int(longlong num, bool unsigned_flag, CHARSET_INFO *cs)
   return FALSE;
 }
 
-bool String::set_real(double num,uint decimals, CHARSET_INFO *cs)
+bool String::set_real(double num,uint decimals, const CHARSET_INFO *cs)
 {
   char buff[FLOATING_POINT_BUFFER];
   uint dummy_errors;
@@ -172,7 +168,8 @@ bool String::copy(const String &str)
   return FALSE;
 }
 
-bool String::copy(const char *str,uint32 arg_length, CHARSET_INFO *cs)
+bool String::copy(const char *str,uint32 arg_length,
+                  const CHARSET_INFO *cs)
 {
   if (alloc(arg_length))
     return TRUE;
@@ -207,8 +204,8 @@ bool String::copy(const char *str,uint32 arg_length, CHARSET_INFO *cs)
 */
 
 bool String::needs_conversion(uint32 arg_length,
-			      CHARSET_INFO *from_cs,
-			      CHARSET_INFO *to_cs,
+			      const CHARSET_INFO *from_cs,
+			      const CHARSET_INFO *to_cs,
 			      uint32 *offset)
 {
   *offset= 0;
@@ -249,7 +246,7 @@ bool String::needs_conversion(uint32 arg_length,
 */
 
 bool String::copy_aligned(const char *str,uint32 arg_length, uint32 offset,
-			  CHARSET_INFO *cs)
+			  const CHARSET_INFO *cs)
 {
   /* How many bytes are in incomplete character */
   offset= cs->mbminlen - offset; /* How many zeros we should prepend */
@@ -275,7 +272,7 @@ bool String::copy_aligned(const char *str,uint32 arg_length, uint32 offset,
 
 
 bool String::set_or_copy_aligned(const char *str,uint32 arg_length,
-				 CHARSET_INFO *cs)
+				 const CHARSET_INFO *cs)
 {
   /* How many bytes are in incomplete character */
   uint32 offset= (arg_length % cs->mbminlen); 
@@ -300,7 +297,7 @@ bool String::set_or_copy_aligned(const char *str,uint32 arg_length,
 */
 
 bool String::copy(const char *str, uint32 arg_length,
-		  CHARSET_INFO *from_cs, CHARSET_INFO *to_cs, uint *errors)
+		  const CHARSET_INFO *from_cs, const CHARSET_INFO *to_cs, uint *errors)
 {
   uint32 offset;
 
@@ -452,7 +449,7 @@ bool String::append_ulonglong(ulonglong val)
   with character set recoding
 */
 
-bool String::append(const char *s,uint32 arg_length, CHARSET_INFO *cs)
+bool String::append(const char *s,uint32 arg_length, const CHARSET_INFO *cs)
 {
   uint32 offset;
   
@@ -694,7 +691,7 @@ void String::qs_append(uint i)
 */
 
 
-int sortcmp(const String *s,const String *t, CHARSET_INFO *cs)
+int sortcmp(const String *s,const String *t, const CHARSET_INFO *cs)
 {
  return cs->coll->strnncollsp(cs,
                               (uchar *) s->ptr(),s->length(),
@@ -771,7 +768,7 @@ String *copy_if_not_alloced(String *to,String *from,uint32 from_length)
 */
 
 size_t
-my_copy_with_hex_escaping(CHARSET_INFO *cs,
+my_copy_with_hex_escaping(const CHARSET_INFO *cs,
                           char *dst, size_t dstlen,
                           const char *src, size_t srclen)
 {
@@ -840,9 +837,9 @@ my_copy_with_hex_escaping(CHARSET_INFO *cs,
 
 
 uint32
-well_formed_copy_nchars(CHARSET_INFO *to_cs,
+well_formed_copy_nchars(const CHARSET_INFO *to_cs,
                         char *to, uint to_length,
-                        CHARSET_INFO *from_cs,
+                        const CHARSET_INFO *from_cs,
                         const char *from, uint from_length,
                         uint nchars,
                         const char **well_formed_error_pos,
@@ -1036,7 +1033,7 @@ void String::swap(String &s)
   swap_variables(uint32, str_length, s.str_length);
   swap_variables(uint32, Alloced_length, s.Alloced_length);
   swap_variables(bool, alloced, s.alloced);
-  swap_variables(CHARSET_INFO*, str_charset, s.str_charset);
+  swap_variables(const CHARSET_INFO *, str_charset, s.str_charset);
 }
 
 
@@ -1062,7 +1059,7 @@ void String::swap(String &s)
 
 uint convert_to_printable(char *to, size_t to_len,
                           const char *from, size_t from_len,
-                          CHARSET_INFO *from_cs, size_t nbytes /*= 0*/)
+                          const CHARSET_INFO *from_cs, size_t nbytes /*= 0*/)
 {
   /* needs at least 8 bytes for '\xXX...' and zero byte */
   DBUG_ASSERT(to_len >= 8);

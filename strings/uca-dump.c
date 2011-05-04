@@ -19,12 +19,15 @@
 
 typedef unsigned char uchar;
 typedef unsigned short uint16;
+typedef unsigned int uint;
 
 #define MY_UCA_MAXWEIGHT_TO_PARSE 64
 #define MY_UCA_MAXWEIGHT_TO_DUMP  8
 #define MY_UCA_MAXLEVEL           4
 #define MY_UCA_VERSION_SIZE       32
+#define MY_UCA_MAX_CONTRACTION    6
 
+#define MY_UCA_NCONTRACTIONS   1024
 #define MY_UCA_MAXCHAR  (0x10FFFF+1)
 #define MY_UCA_NCHARS	256
 #define MY_UCA_CMASK	255
@@ -38,10 +41,20 @@ typedef struct uca_item_st
 } MY_UCA_ITEM;
 
 
+typedef struct uca_contraction_st
+{
+  uint ch[MY_UCA_MAX_CONTRACTION];
+  MY_UCA_ITEM item;
+} MY_UCA_CONTRACTION;
+
 typedef struct uca_info_st
 {
   char version[MY_UCA_VERSION_SIZE];
   MY_UCA_ITEM item[MY_UCA_MAXCHAR];
+  size_t ncontractions;
+  MY_UCA_CONTRACTION contraction[MY_UCA_NCONTRACTIONS];
+  int optimize_contractions;
+  int debug;
 } MY_UCA;
 
 
@@ -59,7 +72,7 @@ static int load_uca_file(MY_UCA *uca,
   {
     char *comment;
     char *weight;
-    char *s;
+    char *s, *ch[MY_UCA_MAX_CONTRACTION];
     size_t codenum, i, code;
     MY_UCA_ITEM *item= NULL;
     
@@ -83,7 +96,6 @@ static int load_uca_file(MY_UCA *uca,
       out_of_range_chars++;
       continue;
     }
-    item= &uca->item[code];
     
     
     if ((comment= strchr(str,'#')))
@@ -110,20 +122,48 @@ static int load_uca_file(MY_UCA *uca,
       continue;
     }
     
-    codenum= 0;
-    s= strtok(str, " \t");
-    while (s)
+    for (codenum= 0, s= strtok(str, " \t"); s;
+         codenum++, s= strtok(NULL, " \t"))
     {
-      s= strtok(NULL, " \t");
-      codenum++;
+      if (codenum == MY_UCA_MAX_CONTRACTION)
+      {
+        fprintf(stderr, "Contraction length is too long (%d) line #%d",
+                codenum, lineno);
+        exit(1);
+      }
+      ch[codenum]= s;
+      ch[codenum + 1]= 0;
     }
     
     if (codenum > 1)
     {
+      MY_UCA_CONTRACTION *c= &uca->contraction[uca->ncontractions++];
+      size_t i;
       /* Multi-character weight (contraction) - not supported yet. */
-      continue;
+            
+      if (uca->ncontractions >= MY_UCA_NCONTRACTIONS)
+      {
+        fprintf(stderr,
+                "Too many contractions (%d) at line #%d\n"
+                "Rebuild with a bigger MY_UCA_MAXCONTRACTIONS value\n",
+                uca->ncontractions, lineno);
+        exit(1);
+      }
+      /* Copy codepoints of the contraction parts */
+      for (i= 0; i < MY_UCA_MAX_CONTRACTION; i++)
+      {
+        c->ch[i]= (i < codenum) ? (uint) strtol(ch[i], NULL, 16) : 0;
+      }
+
+      if (uca->debug)
+        fprintf(stderr, "Contraction: %04X-%04X-%04X\n",
+                          c->ch[0], c->ch[1], c->ch[2]);
+      item= &c->item;
     }
-    
+    else
+    {
+      item= &uca->item[code];
+    }    
     
     /*
       Split weight string into separate weights
@@ -173,7 +213,8 @@ static int load_uca_file(MY_UCA *uca,
         }
         else
         {
-          fprintf(stderr, "Too many weights: %d\n", i);
+          fprintf(stderr, "Too many weights (%d) at line %d\n", i, lineno);
+          exit(1);
         }
         s= endptr;
         level++;
@@ -277,8 +318,8 @@ get_page_statistics(MY_UCA *uca, size_t page, size_t level,
 }
 
 
-static const char *pname[]= {"", "l2", "l3", "l4"};
-
+static const char *pname[]= {"", "_s", "_t", "_q"};
+static const char *lname[]= {"primary", "secondary", "tertiary", "quaternary"};
 
 static char *
 prefix_name(MY_UCA *uca)
@@ -309,6 +350,50 @@ page_name(MY_UCA *uca, size_t page, size_t level)
 }
 
 
+/*
+  "weight" must be [MY_UCA_MAXWEIGHT_TO_DUMP+1] elements long
+*/
+static size_t
+normalize_weight(MY_UCA_ITEM *item, size_t level,
+                 uint16 *weight, size_t weight_elements)
+{
+  size_t num, i;
+  
+  bzero(weight, weight_elements * sizeof(*weight));
+
+  /*
+    Copy non-zero weights only. For example:
+    
+    [.17A6.0020.0004.00DF][.0000.015F.0004.00DF][.17A6.0020.001F.00DF]
+    
+    makes [17A6][0000][17A6] on the primary level
+    
+    pack it to [17A6][17A7]
+  */
+  
+  for (num= 0, i= 0; i < item->num && i < MY_UCA_MAXWEIGHT_TO_DUMP; i++)
+  {
+    if (item->weight[level][i])
+    {
+      weight[num]= item->weight[level][i];
+#ifdef INVERT_TERTIARY_WEIGHTS
+      if (level == 2)
+      {
+        /* 
+          Invert tertiary weights to sort upper case letters
+          before their lower case counterparts.
+        */
+        if (weight[num] >= 0x20)
+          fprintf(stderr, "Tertiary weight is too big: %02X\n", weight[num]);
+        weight[num]= (uint) (0x20) - weight[num];
+      }
+#endif
+      num++;
+    }
+  }
+  return num;
+}
+
 
 static void
 print_one_page(MY_UCA *uca, size_t level,
@@ -336,37 +421,19 @@ print_one_page(MY_UCA *uca, size_t level,
   /* Print the page */
   for (offs=0; offs < MY_UCA_NCHARS; offs++)
   {
-    uint16 weight[9];
+    uint16 weight[MY_UCA_MAXWEIGHT_TO_DUMP + 1];
     size_t num, i, code= page * MY_UCA_NCHARS + offs;
     MY_UCA_ITEM *item= &uca->item[code];
-    
-    bzero(weight, sizeof(weight));
-    
-    /* Copy non-zero weights */
-    for (num= 0, i= 0; i < item->num && i < MY_UCA_MAXWEIGHT_TO_DUMP; i++)
-    {
-      if (item->weight[level][i])
-      {
-        weight[num]= item->weight[level][i];
-        num++;
-      }
-    }
-    
+
+    normalize_weight(item, level, weight, sizeof(weight)/sizeof(weight[0]));
+
     /* Print weights */
     for (i= 0; i < maxnum; i++)
     {
-      /* 
-        Invert weights for secondary level to
-        sort upper case letters before their
-        lower case counter part.
-      */
       int tmp= weight[i];
-      if (level == 2 && tmp)
-        tmp= (int) (0x20 - weight[i]);
 
       printf("0x%04X", tmp);
-      
-      
+
       if (tmp > 0xFFFF || tmp < 0)
       {
         fprintf(stderr,
@@ -374,8 +441,7 @@ print_one_page(MY_UCA *uca, size_t level,
                 code, level, tmp);
         exit(1);
       }
-      
-      
+
       if ((offs + 1 != MY_UCA_NCHARS) || (i + 1 != maxnum))
         printf(",");
       else
@@ -398,15 +464,199 @@ print_one_page(MY_UCA *uca, size_t level,
 }
 
 
+/*
+  Compare two weight strings.
+  Return 1 if weight string differ
+  Return 0 if weigh string are equal
+*/
+static int
+weight_cmp(uint16 *w1, uint16 *w2, size_t len)
+{
+  size_t i;
+  for (i= 0; i < len; i++)
+  {
+    if (w1[i] != w2[i])
+      return 1;
+  }
+  return 0;
+}
+
+
+static void
+print_contraction(MY_UCA *uca, MY_UCA_CONTRACTION *c, size_t level)
+{
+  size_t ch;
+  uint16 weight[MY_UCA_MAXWEIGHT_TO_DUMP + 1];
+  int optimize= 0;
+
+  if (c)
+  {
+    normalize_weight(&c->item, level,
+                     weight, sizeof(weight)/sizeof(weight[0]));
+
+    if (uca->optimize_contractions)
+    {
+      /*
+        Some contraction can be optimized away on certain levels.
+        For example, in Unicode-6.0:
+
+        0E40 0E01 ; [.2395.0020.0002.0E01][.23CF.0020.001F.0E40] # <THAI CHARACTER SARA E, THAI CHARACTER KO KAI>
+
+        Its part weights are:
+
+        0E40  ; [.23CF.0020.0002.0E40] # THAI CHARACTER SARA E
+        0E01  ; [.2395.0020.0002.0E01] # THAI CHARACTER KO KAI
+
+        On the secondary level weights for the contraction
+        and for the two characters in a sequence are: 0020-0020.
+
+        So "0E40 0E01" can be optimized away of the secondary level.
+
+        This optimization is OFF by default, as it's better to optimize
+        this at collation initialization time rather than at dump time,
+        to preserve all available DUCET data.
+
+        Also, this does not seem to ever happen on the primary level,
+        so this optimization will not bring any serious performance
+        improvement.
+      */
+      size_t i;
+      uint16 sweight[MY_UCA_MAXWEIGHT_TO_DUMP*MY_UCA_MAX_CONTRACTION + 1], *sw;
+
+      /* Concatenate weight arrays for the contraction parts */
+      for (sw= sweight, i= 0; c->ch[i]; i++)
+      {
+        MY_UCA_ITEM *item= &uca->item[c->ch[i]];
+        sw+= normalize_weight(item, level, sw, MY_UCA_MAXWEIGHT_TO_DUMP);
+      }
+    
+      if (sw - sweight < MY_UCA_MAXWEIGHT_TO_DUMP &&
+          !weight_cmp(sweight, weight, MY_UCA_MAXWEIGHT_TO_DUMP))
+      {
+        if (uca->debug)
+          fprintf(stderr, "Equal[%d]: %04X [%04X-%04X-%04X] == {%04X,%04X,%04X} [%04X-%04X-%04X]\n",
+                  level,
+                  c->ch[0], sweight[0], sweight[1], sweight[2],
+                  c->ch[0], c->ch[1], c->ch[2],
+                  weight[0], weight[1], weight[2]);
+        optimize= 1;
+      }
+    }
+  }
+
+  printf("%s{", optimize ? "/* " : "");
+  for (ch= 0; ch < MY_UCA_MAX_CONTRACTION; ch++)
+  {
+    uint codepoint= c ? c->ch[ch] : 0; /* Real character or terminator line */
+    printf("%s", ch > 0 ? "," : "");
+    if (codepoint)
+      printf("0x%04X", codepoint);
+    else
+      printf("0");
+  }
+  printf("},");
+  printf("{");
+  for (ch= 0; ch < MY_UCA_MAXWEIGHT_TO_DUMP; ch++)
+  {
+    uint w= c ? weight[ch] : 0; /* Real chr or terminator */
+    printf("%s", ch > 0 ? "," : "");
+    if (w)
+      printf("0x%04X", w);
+    else
+      printf("0");
+  }
+  printf("}");
+  printf(",0");
+  printf("},%s\n", optimize ? " */" : "");
+}
+
+
+static void
+print_contractions(MY_UCA *uca, size_t level)
+{
+  size_t i;
+
+  printf("\n\n");
+  printf("/* Contractions, %s level */\n", lname[level]);
+  printf("MY_CONTRACTION %s_default_contraction%s[]= {\n",
+    prefix_name(uca), pname[level]);
+  for (i= 0; i < uca->ncontractions; i++)
+  {
+    MY_UCA_CONTRACTION *c= &uca->contraction[i];
+    print_contraction(uca, c, level);
+  }
+  print_contraction(uca, NULL, level);
+  printf("};\n");
+}
+
+
+static int contractions= 0;
+static int nlevels= 1;
+
+static void
+usage(FILE *file, int rc)
+{
+  fprintf(file, "Usage:\n");
+  fprintf(file, "uca-dump [options...] < /path/to/allkeys.txt\n");
+  fprintf(file, "\n");
+  fprintf(file, "Options:\n");
+  fprintf(file, "--levels=NUM                 How many levels to dump, 1-4, default 1.\n");
+  fprintf(file, "--contractions=NUM           Whether to dump comtractions, 0-1, default 0.\n");
+  fprintf(file, "--optimize-contractions=NUM  Whether to optimize contractions, 0-1, default 0.\n");
+  fprintf(file, "--debug=NUM                  Print debug information, 0-1, default 0.\n");
+  fprintf(file, "\n\n");
+  exit(rc);
+}
+
+
+static int
+get_int_option(const char *str, const char *name, int *num)
+{
+  size_t namelen= strlen(name);
+  if (!strncmp(str, name, namelen))
+  {
+    *num= atoi(str + namelen);
+    if (*num == 0 && str[namelen] !='0')
+    {
+      fprintf(stderr, "\nBad numeric option value: %s\n\n", str);
+      usage(stderr, 1);
+    }
+    return 1;
+  }
+  return 0;
+}
+
+
+static void
+process_options(int ac, char **av, MY_UCA *uca)
+{
+  size_t i;
+  for (i= 1; i < ac ; i++)
+  {
+    /*printf("[%d]=%s\n", i, av[i]);*/
+    if (!get_int_option(av[i], "--levels=", &nlevels) &&
+        !get_int_option(av[i], "--contractions=", &contractions) &&
+        !get_int_option(av[i], "--debug=", &uca->debug) &&
+        !get_int_option(av[i], "--optimize-contractions=", &uca->optimize_contractions))
+    {
+      fprintf(stderr, "\nUnknown option: %s\n\n", av[i]);
+      usage(stderr, 1);
+    }
+  }
+}
+
+
 int
-main(int ac __attribute__((unused)), char **av __attribute__((unused)))
+main(int ac, char **av)
 {
   static MY_UCA uca;
   size_t level, maxchar= MY_UCA_MAXCHAR;
   static int pageloaded[MY_UCA_NPAGES];
-  size_t nlevels= 1;
-  
+
   bzero(&uca, sizeof(uca));
+  
+  process_options(ac, av, &uca);
+  
   bzero(pageloaded, sizeof(pageloaded));
   
   load_uca_file(&uca, maxchar, pageloaded);
@@ -491,6 +741,10 @@ main(int ac __attribute__((unused)), char **av __attribute__((unused)))
         printf("%s%s%s", page_name(&uca, page, level), comma, nline);
     }
     printf("};\n");
+
+    /* Print contractions */
+    if (contractions)
+      print_contractions(&uca, level);
   }
 
   

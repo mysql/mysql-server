@@ -21,10 +21,6 @@
   This file defines all spatial functions
 */
 
-#ifdef USE_PRAGMA_IMPLEMENTATION
-#pragma implementation				// gcc: Class implementation
-#endif
-
 #include "sql_priv.h"
 /*
   It is necessary to include set_var.h instead of item.h because there

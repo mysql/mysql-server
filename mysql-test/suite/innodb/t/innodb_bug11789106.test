@@ -1,0 +1,17 @@
+# Test for bug #11789106: FAILING ASSERTION: templ->mbmaxlen > templ->mbminlen
+# templ->mysql_col_len == len
+
+-- source include/have_innodb.inc
+
+create table table_11789106(`a` point,`b` int,`c` char(2),
+			   primary key (`a`(1),`c`(1)), key (`b`))
+character set latin2 engine=innodb;
+
+insert into table_11789106 values (geomfromtext('point(1 1)'),'','');
+
+# This will trigger the assertion failure in
+# row_sel_field_store_in_mysql_format_func()
+select `a` from table_11789106 where `b` < '1' for update;
+
+drop table table_11789106;
+

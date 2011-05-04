@@ -10,8 +10,8 @@
    GNU General Public License for more details.
 
    You should have received a copy of the GNU General Public License
-   along with this program; if not, write to the Free Software Foundation,
-   51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA */
+   along with this program; if not, write to the Free Software
+   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
 
 /**
@@ -36,10 +36,6 @@
 #include "filesort_utils.h"
 #include "sql_select.h"
 #include "debug_sync.h"
-
-#ifdef HAVE_EXPLICIT_TEMPLATE_INSTANTIATION
-template class Bounded_queue<uchar, uchar>;
-#endif
 
 	/* functions defined in this file */
 
@@ -205,9 +201,9 @@ ha_rows filesort(THD *thd, TABLE *table, SORT_FIELD *sortorder, uint s_length,
       goto err;
 
   if (select && select->quick)
-    status_var_increment(thd->status_var.filesort_range_count);
+    thd->inc_status_sort_range();
   else
-    status_var_increment(thd->status_var.filesort_scan_count);
+    thd->inc_status_sort_scan();
 
   // If number of rows is not known, use as much of sort buffer as possible. 
   num_rows= table->file->estimate_rows_upper_bound();
@@ -378,8 +374,7 @@ ha_rows filesort(THD *thd, TABLE *table, SORT_FIELD *sortorder, uint s_length,
     }
   }
   else
-    statistic_add(thd->status_var.filesort_rows,
-                  (ulong) num_rows, &LOCK_status);
+    thd->inc_status_sort_rows(num_rows);
   *examined_rows= param.examined_rows;
 #ifdef SKIP_DBUG_IN_FILESORT
   DBUG_POP();			/* Ok to DBUG */
@@ -856,7 +851,7 @@ static void make_sortkey(register Sort_param *param,
       switch (sort_field->result_type) {
       case STRING_RESULT:
       {
-        CHARSET_INFO *cs=item->collation.collation;
+        const CHARSET_INFO *cs=item->collation.collation;
         char fill_char= ((cs->state & MY_CS_BINSORT) ? (char) 0 : ' ');
         int diff;
         uint sort_field_length;
@@ -1425,7 +1420,7 @@ int merge_buffers(Sort_param *param, IO_CACHE *from_file,
   THD::killed_state not_killable;
   DBUG_ENTER("merge_buffers");
 
-  status_var_increment(current_thd->status_var.filesort_merge_passes);
+  current_thd->inc_status_sort_merge_passes();
   if (param->not_killable)
   {
     killed= &not_killable;
@@ -1661,7 +1656,7 @@ sortlength(THD *thd, SORT_FIELD *sortorder, uint s_length,
            bool *multi_byte_charset)
 {
   reg2 uint length;
-  CHARSET_INFO *cs;
+  const CHARSET_INFO *cs;
   *multi_byte_charset= 0;
 
   length=0;

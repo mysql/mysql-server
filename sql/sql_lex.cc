@@ -10,9 +10,8 @@
    GNU General Public License for more details.
 
    You should have received a copy of the GNU General Public License
-   along with this program; if not, write to the Free Software 
-   Foundation, Inc.,  51 Franklin Street, Fifth Floor, Boston, 
-   MA 02110-1301 USA */
+   along with this program; if not, write to the Free Software
+   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
 
 /* A lexical scanner on a temporary buffer with a yacc interface */
@@ -312,7 +311,7 @@ void Lex_input_stream::body_utf8_append(const char *ptr)
 
 void Lex_input_stream::body_utf8_append_literal(THD *thd,
                                                 const LEX_STRING *txt,
-                                                CHARSET_INFO *txt_cs,
+                                                const CHARSET_INFO *txt_cs,
                                                 const char *end_ptr)
 {
   if (!m_cpp_utf8_processed_ptr)
@@ -584,7 +583,7 @@ static char *get_text(Lex_input_stream *lip, int pre_skip, int post_skip)
 {
   reg1 uchar c,sep;
   uint found_escape=0;
-  CHARSET_INFO *cs= lip->m_thd->charset();
+  const CHARSET_INFO *cs= lip->m_thd->charset();
 
   lip->tok_bitmap= 0;
   sep= lip->yyGetLast();                        // String should end with this
@@ -917,7 +916,7 @@ int lex_one_token(void *arg, void *yythd)
   Lex_input_stream *lip= & thd->m_parser_state->m_lip;
   LEX *lex= thd->lex;
   YYSTYPE *yylval=(YYSTYPE*) arg;
-  CHARSET_INFO *cs= thd->charset();
+  const CHARSET_INFO *cs= thd->charset();
   uchar *state_map= cs->state_map;
   uchar *ident_map= cs->ident_map;
 
@@ -1670,7 +1669,7 @@ Alter_info::Alter_info(const Alter_info &rhs, MEM_ROOT *mem_root)
 }
 
 
-void trim_whitespace(CHARSET_INFO *cs, LEX_STRING *str)
+void trim_whitespace(const CHARSET_INFO *cs, LEX_STRING *str)
 {
   /*
     TODO:
@@ -2197,7 +2196,7 @@ void st_select_lex::print_order(String *str,
     }
     else
       (*order->item)->print(str, query_type);
-    if (!order->asc)
+    if (order->direction == ORDER::ORDER_DESC)
       str->append(STRING_WITH_LEN(" desc"));
     if (order->next)
       str->append(',');

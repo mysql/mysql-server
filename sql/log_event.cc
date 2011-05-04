@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2010, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2011, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -10,8 +10,8 @@
    GNU General Public License for more details.
 
    You should have received a copy of the GNU General Public License
-   along with this program; if not, write to the Free Software Foundation,
-   51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA */
+   along with this program; if not, write to the Free Software
+   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
 
 #ifdef MYSQL_CLIENT
@@ -19,10 +19,6 @@
 #include "sql_priv.h"
 
 #else
-
-#ifdef USE_PRAGMA_IMPLEMENTATION
-#pragma implementation				// gcc: Class implementation
-#endif
 
 #include "sql_priv.h"
 #include "unireg.h"
@@ -583,7 +579,7 @@ char *str_to_hex(char *to, const char *from, uint len)
 */
 
 int
-append_query_string(CHARSET_INFO *csinfo,
+append_query_string(const CHARSET_INFO *csinfo,
                     String const *from, String *to)
 {
   char *beg, *ptr;
@@ -6824,7 +6820,6 @@ err:
     end_io_cache(&file);
   if (fd >= 0)
     mysql_file_close(fd, MYF(0));
-  thd_proc_info(thd, 0);
   return error != 0;
 }
 #endif /* defined(HAVE_REPLICATION) && !defined(MYSQL_CLIENT) */
@@ -6995,7 +6990,6 @@ int Append_block_log_event::do_apply_event(Relay_log_info const *rli)
 err:
   if (fd >= 0)
     mysql_file_close(fd, MYF(0));
-  thd_proc_info(thd, 0);
   DBUG_RETURN(error);
 }
 #endif
@@ -9432,39 +9426,52 @@ static bool record_compare(TABLE *table, MY_BITMAP *cols)
     }
   }
 
-  if (table->s->blob_fields + table->s->varchar_fields == 0 &&
+  /**
+    Compare full record only if:
+    - there are no blob fields (otherwise we would also need 
+      to compare blobs contents as well);
+    - there are no varchar fields (otherwise we would also need
+      to compare varchar contents as well);
+    - there are no null fields, otherwise NULLed fields 
+      contents (i.e., the don't care bytes) may show arbitrary 
+      values, depending on how each engine handles internally.
+    - if all the bitmap is set (both are full rows)
+    */
+  if ((table->s->blob_fields + 
+       table->s->varchar_fields +
+       table->s->null_fields) == 0 &&
       bitmap_is_set_all(cols))
   {
     result= cmp_record(table,record[1]);
-    goto record_compare_exit;
   }
-
-  /* Compare null bits */
-  if (bitmap_is_set_all(cols) &&
-      memcmp(table->null_flags,
-	     table->null_flags+table->s->rec_buff_length,
-	     table->s->null_bytes))
+  else
   {
-    result= TRUE;				// Diff in NULL value
-    goto record_compare_exit;
-  }
-
-  /* Compare updated fields */
-  for (Field **ptr=table->field ; 
-       *ptr && ((*ptr)->field_index < cols->n_bits);
-       ptr++)
-  {
-    if (bitmap_is_set(cols, (*ptr)->field_index))
+    /* 
+      Fallback to field-by-field comparison:
+      1. start by checking if the field is signaled:
+      2. if it is, first compare the null bit if the field is nullable
+      3. then compare the contents of the field, if it is not 
+         set to null
+     */
+    for (Field **ptr=table->field ; 
+         *ptr && ((*ptr)->field_index < cols->n_bits) && !result;
+         ptr++)
     {
-      if ((*ptr)->cmp_binary_offset(table->s->rec_buff_length))
+      Field *field= *ptr;
+
+      if (bitmap_is_set(cols, field->field_index))
       {
-        result= TRUE;
-        goto record_compare_exit;
+        /* compare null bit */
+        if (field->is_null() != field->is_null_in_record(table->record[1]))
+          result= TRUE;
+
+        /* compare content, only if fields are not set to NULL */
+        else if (!field->is_null())
+          result= field->cmp_binary_offset(table->s->rec_buff_length);
       }
     }
   }
 
-record_compare_exit:
   /*
     Restore the saved bytes.
 
@@ -10410,6 +10417,13 @@ int
 Incident_log_event::do_apply_event(Relay_log_info const *rli)
 {
   DBUG_ENTER("Incident_log_event::do_apply_event");
+
+  if (ignored_error_code(ER_SLAVE_INCIDENT))
+  {
+    DBUG_PRINT("info", ("Ignoring Incident"));
+    DBUG_RETURN(0);
+  }
+   
   rli->report(ERROR_LEVEL, ER_SLAVE_INCIDENT,
               ER(ER_SLAVE_INCIDENT),
               description(),

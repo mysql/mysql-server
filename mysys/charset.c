@@ -1,4 +1,4 @@
-/* Copyright (C) 2000 MySQL AB, 2008-2009 Sun Microsystems, Inc
+/* Copyright (c) 2000, 2011, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -11,7 +11,7 @@
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
-   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
+   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
 #include "mysys_priv.h"
 #include "mysys_err.h"
@@ -31,7 +31,7 @@
     - Setting server default character set
 */
 
-my_bool my_charset_same(CHARSET_INFO *cs1, CHARSET_INFO *cs2)
+my_bool my_charset_same(const CHARSET_INFO *cs1, const CHARSET_INFO *cs2)
 {
   return ((cs1 == cs2) || !strcmp(cs1->csname,cs2->csname));
 }
@@ -770,8 +770,8 @@ get_charset_by_csname(const char *cs_name, uint cs_flags, myf flags)
 */
 
 my_bool resolve_charset(const char *cs_name,
-                        CHARSET_INFO *default_cs,
-                        CHARSET_INFO **cs)
+                        const CHARSET_INFO *default_cs,
+                        const CHARSET_INFO **cs)
 {
   *cs= get_charset_by_csname(cs_name, MY_CS_PRIMARY, MYF(0));
 
@@ -802,8 +802,8 @@ my_bool resolve_charset(const char *cs_name,
 */
 
 my_bool resolve_collation(const char *cl_name,
-                          CHARSET_INFO *default_cl,
-                          CHARSET_INFO **cl)
+                          const CHARSET_INFO *default_cl,
+                          const CHARSET_INFO **cl)
 {
   *cl= get_charset_by_name(cl_name, MYF(0));
 
@@ -842,7 +842,7 @@ my_bool resolve_collation(const char *cl_name,
     #           The length of the escaped string
 */
 
-size_t escape_string_for_mysql(CHARSET_INFO *charset_info,
+size_t escape_string_for_mysql(const CHARSET_INFO *charset_info,
                                char *to, size_t to_length,
                                const char *from, size_t length)
 {
@@ -950,8 +950,11 @@ CHARSET_INFO *fs_character_set()
       As we're now interested in cp932 only,
       let's just detect it using strcmp().
     */
-    fs_cset_cache= !strcmp(buf, "cp932") ?
-                   &my_charset_cp932_japanese_ci : &my_charset_bin;
+    fs_cset_cache= 
+                #ifdef HAVE_CHARSET_cp932
+                        !strcmp(buf, "cp932") ? &my_charset_cp932_japanese_ci : 
+                #endif
+                        &my_charset_bin;
   }
   return fs_cset_cache;
 }

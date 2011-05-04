@@ -1,4 +1,4 @@
-/* Copyright (C) 2000 MySQL AB
+/* Copyright (c) 2000, 2011, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -21,6 +21,10 @@
 */
 
 #include "vio_priv.h"
+
+#ifdef FIONREAD_IN_SYS_FILIO
+# include <sys/filio.h>
+#endif
 
 int vio_errno(Vio *vio __attribute__((unused)))
 {
@@ -583,13 +587,13 @@ static my_bool socket_poll_read(my_socket sd, uint timeout)
 
 static my_bool socket_peek_read(Vio *vio, uint *bytes)
 {
-#ifdef __WIN__
+#if defined(_WIN32)
   int len;
   if (ioctlsocket(vio->sd, FIONREAD, &len))
     return TRUE;
   *bytes= len;
   return FALSE;
-#elif FIONREAD_IN_SYS_IOCTL
+#elif defined(FIONREAD_IN_SYS_IOCTL) || defined(FIONREAD_IN_SYS_FILIO)
   int len;
   if (ioctl(vio->sd, FIONREAD, &len) < 0)
     return TRUE;
@@ -1056,6 +1060,34 @@ ssize_t vio_pending(Vio *vio)
 #endif
 
   return 0;
+}
+
+
+/**
+  Checks if the error code, returned by vio_getnameinfo(), means it was the
+  "No-name" error.
+
+  Windows-specific note: getnameinfo() returns WSANO_DATA instead of
+  EAI_NODATA or EAI_NONAME when no reverse mapping is available at the host
+  (i.e. Windows can't get hostname by IP-address). This error should be
+  treated as EAI_NONAME.
+
+  @return if the error code is actually EAI_NONAME.
+  @retval true if the error code is EAI_NONAME.
+  @retval false otherwise.
+*/
+
+my_bool vio_is_no_name_error(int err_code)
+{
+#ifdef _WIN32
+
+  return err_code == WSANO_DATA || err_code == EAI_NONAME;
+
+#else
+
+  return err_code == EAI_NONAME;
+
+#endif
 }
 
 

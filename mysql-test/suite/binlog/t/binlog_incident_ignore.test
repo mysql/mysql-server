@@ -1,0 +1,4 @@
+# The purpose of this test is to verify that incident log events
+# ignore database level binlog filters 
+
+--source suite/binlog/t/binlog_incident.test

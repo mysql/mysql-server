@@ -14,10 +14,6 @@
    Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
 
 
-#ifdef USE_PRAGMA_INTERFACE
-#pragma interface			/* gcc class implementation */
-#endif
-
 /* class for the the myisam merge handler */
 
 #include <myisammrg.h>
@@ -110,7 +106,7 @@ public:
   int add_children_list(void);
   int attach_children(void);
   int detach_children(void);
-  virtual handler *clone(MEM_ROOT *mem_root);
+  virtual handler *clone(const char *name, MEM_ROOT *mem_root);
   int close(void);
   int write_row(uchar * buf);
   int update_row(const uchar * old_data, uchar * new_data);

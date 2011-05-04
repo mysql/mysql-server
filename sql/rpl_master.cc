@@ -75,14 +75,10 @@ static PSI_mutex_info all_slave_list_mutexes[]=
 
 static void init_all_slave_list_mutexes(void)
 {
-  const char* category= "sql";
   int count;
 
-  if (PSI_server == NULL)
-    return;
-
   count= array_elements(all_slave_list_mutexes);
-  PSI_server->register_mutex(category, all_slave_list_mutexes, count);
+  mysql_mutex_register("sql", all_slave_list_mutexes, count);
 }
 #endif /* HAVE_PSI_INTERFACE */
 
@@ -1160,7 +1156,7 @@ impossible position";
 
 	if (read_packet)
         {
-          thd_proc_info(thd, "Sending binlog event to slave");
+          THD_STAGE_INFO(thd, stage_sending_binlog_event_to_slave);
           pos = my_b_tell(&log);
           if (RUN_HOOK(binlog_transmit, before_send_event,
                        (thd, flags, packet, log_file_name, pos)))
@@ -1203,7 +1199,7 @@ impossible position";
       bool loop_breaker = 0;
       /* need this to break out of the for loop from switch */
 
-      thd_proc_info(thd, "Finished reading one binlog; switching to next binlog");
+      THD_STAGE_INFO(thd, stage_finished_reading_one_binlog_switching_to_next_binlog);
       switch (mysql_bin_log.find_next_log(&linfo, 1)) {
       case 0:
 	break;
@@ -1258,7 +1254,7 @@ end:
 
   RUN_HOOK(binlog_transmit, transmit_stop, (thd, flags));
   my_eof(thd);
-  thd_proc_info(thd, "Waiting to finalize termination");
+  THD_STAGE_INFO(thd, stage_waiting_to_finalize_termination);
   mysql_mutex_lock(&LOCK_thread_count);
   thd->current_linfo = 0;
   mysql_mutex_unlock(&LOCK_thread_count);
@@ -1266,7 +1262,7 @@ end:
   DBUG_VOID_RETURN;
 
 err:
-  thd_proc_info(thd, "Waiting to finalize termination");
+  THD_STAGE_INFO(thd, stage_waiting_to_finalize_termination);
   end_io_cache(&log);
   RUN_HOOK(binlog_transmit, transmit_stop, (thd, flags));
   /*

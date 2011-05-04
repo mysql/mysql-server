@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2010, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2011, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -10,8 +10,8 @@
    GNU General Public License for more details.
 
    You should have received a copy of the GNU General Public License
-   along with this program; if not, write to the Free Software Foundation,
-   51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA */
+   along with this program; if not, write to the Free Software
+   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
 #ifndef SQL_ERROR_H
 #define SQL_ERROR_H
@@ -322,10 +322,13 @@ class Warning_info
 {
   /** A memory root to allocate warnings and errors */
   MEM_ROOT           m_warn_root;
+
   /** List of warnings of all severities (levels). */
   List <MYSQL_ERROR> m_warn_list;
+
   /** A break down of the number of warnings per severity (level). */
   uint	             m_warn_count[(uint) MYSQL_ERROR::WARN_LEVEL_END];
+
   /**
     The number of warnings of the current statement. Warning_info
     life cycle differs from statement life cycle -- it may span
@@ -333,20 +336,25 @@ class Warning_info
     m_statement_warn_count 0, whereas m_warn_list is not empty.
   */
   uint	             m_statement_warn_count;
+
   /*
     Row counter, to print in errors and warnings. Not increased in
     create_sort_index(); may differ from examined_row_count.
   */
   ulong              m_current_row_for_warning;
-  /** Used to optionally clear warnings only once per statement.  */
+
+  /** Used to optionally clear warnings only once per statement. */
   ulonglong          m_warn_id;
+
+  /** Indicates if push_warning() allows unlimited number of warnings. */
+  bool               m_allow_unlimited_warnings;
 
 private:
   Warning_info(const Warning_info &rhs); /* Not implemented */
   Warning_info& operator=(const Warning_info &rhs); /* Not implemented */
 public:
 
-  Warning_info(ulonglong warn_id_arg);
+  Warning_info(ulonglong warn_id_arg, bool allow_unlimited_warnings);
   ~Warning_info();
 
   /**
@@ -383,19 +391,13 @@ public:
   void append_warnings(THD *thd, List<MYSQL_ERROR> *src)
   {
     MYSQL_ERROR *err;
-    MYSQL_ERROR *copy;
     List_iterator_fast<MYSQL_ERROR> it(*src);
     /*
       Don't use ::push_warning() to avoid invocation of condition
       handlers or escalation of warnings to errors.
     */
     while ((err= it++))
-    {
-      copy= Warning_info::push_warning(thd, err->get_sql_errno(), err->get_sqlstate(),
-                                       err->get_level(), err->get_message_text());
-      if (copy)
-        copy->copy_opt_attributes(err);
-    }
+      Warning_info::push_warning(thd, err);
   }
 
   /**
@@ -461,6 +463,9 @@ public:
                             MYSQL_ERROR::enum_warning_level level,
                             const char* msg);
 
+  /** Add a new condition to the current list. */
+  MYSQL_ERROR *push_warning(THD *thd, const MYSQL_ERROR *sql_condition);
+
   /**
     Set the read only status for this statement area.
     This is a privileged operation, reserved for the implementation of
@@ -490,7 +495,7 @@ private:
 };
 
 extern char *err_conv(char *buff, uint to_length, const char *from,
-                      uint from_length, CHARSET_INFO *from_cs);
+                      uint from_length, const CHARSET_INFO *from_cs);
 
 class ErrConvString
 {
@@ -503,13 +508,13 @@ public:
                     str->length(), str->charset());
   }
 
-  ErrConvString(const char *str, CHARSET_INFO* cs)
+  ErrConvString(const char *str, const CHARSET_INFO* cs)
   {
     (void) err_conv(err_buffer, sizeof(err_buffer),
                     str, strlen(str), cs);
   }
 
-  ErrConvString(const char *str, uint length, CHARSET_INFO* cs)
+  ErrConvString(const char *str, uint length, const CHARSET_INFO* cs)
   {
     (void) err_conv(err_buffer, sizeof(err_buffer),
                     str, length, cs);
@@ -525,9 +530,10 @@ void push_warning(THD *thd, MYSQL_ERROR::enum_warning_level level,
 void push_warning_printf(THD *thd, MYSQL_ERROR::enum_warning_level level,
 			 uint code, const char *format, ...);
 bool mysqld_show_warnings(THD *thd, ulong levels_to_show);
-uint32 convert_error_message(char *to, uint32 to_length, CHARSET_INFO *to_cs,
+uint32 convert_error_message(char *to, uint32 to_length,
+                             const CHARSET_INFO *to_cs,
                              const char *from, uint32 from_length,
-                             CHARSET_INFO *from_cs, uint *errors);
+                             const CHARSET_INFO *from_cs, uint *errors);
 
 extern const LEX_STRING warning_level_names[];
 

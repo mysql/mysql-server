@@ -93,6 +93,7 @@
 #include "debug_sync.h"
 #include "probes_mysql.h"
 #include "set_var.h"
+#include "mysql/psi/mysql_statement.h"
 #include "sql_bootstrap.h"
 
 #define FLAGSTR(V,F) ((V)&(F)?#F" ":"")
@@ -565,7 +566,7 @@ void execute_init_command(THD *thd, LEX_STRING *init_command,
   thd->profiling.set_query_source(buf, len);
 #endif
 
-  thd_proc_info(thd, "Execution of init_command");
+  THD_STAGE_INFO(thd, stage_execution_of_init_command);
   save_client_capabilities= thd->client_capabilities;
   thd->client_capabilities|= CLIENT_MULTI_QUERIES;
   /*
@@ -604,7 +605,6 @@ static void handle_bootstrap_impl(THD *thd)
   thd->thread_stack= (char*) &thd;
 #endif /* EMBEDDED_LIBRARY */
 
-  thd_proc_info(thd, 0);
   thd->security_ctx->user= (char*) my_strdup("boot", MYF(MY_WME));
   thd->security_ctx->priv_user[0]= thd->security_ctx->priv_host[0]=0;
   /*
@@ -868,6 +868,7 @@ bool do_command(THD *thd)
   my_net_set_read_timeout(net, thd->variables.net_read_timeout);
 
   DBUG_ASSERT(packet_length);
+
   return_value= dispatch_command(command, thd, packet+1, (uint) (packet_length-1));
 
 out:
@@ -967,17 +968,29 @@ static my_bool deny_updates_if_read_only_option(THD *thd,
 bool dispatch_command(enum enum_server_command command, THD *thd,
 		      char* packet, uint packet_length)
 {
+#ifdef HAVE_PSI_STATEMENT_INTERFACE
+  PSI_statement_locker_state state;
+#endif
+
   NET *net= &thd->net;
   bool error= 0;
   DBUG_ENTER("dispatch_command");
   DBUG_PRINT("info",("packet: '%*.s'; command: %d", packet_length, packet, command));
 
+  /* SHOW PROFILE instrumentation, begin */
 #if defined(ENABLED_PROFILING)
   thd->profiling.start_new_query();
 #endif
+
+  /* DTRACE instrumentation, begin */
   MYSQL_COMMAND_START(thd->thread_id, command,
                       &thd->security_ctx->priv_user[0],
                       (char *) thd->security_ctx->host_or_ip);
+
+  /* Performance Schema Interface instrumentation, begin */
+  thd->m_statement_psi= MYSQL_START_STATEMENT(& state, com_statement_info[command].m_key,
+                                              thd->db, thd->db_length);
+  THD_STAGE_INFO(thd, stage_init);
   
   thd->set_command(command);
   /*
@@ -1049,11 +1062,11 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
     char *save_db= thd->db;
     USER_CONN *save_user_connect= thd->user_connect;
     Security_context save_security_ctx= *thd->security_ctx;
-    CHARSET_INFO *save_character_set_client=
+    const CHARSET_INFO *save_character_set_client=
       thd->variables.character_set_client;
-    CHARSET_INFO *save_collation_connection=
+    const CHARSET_INFO *save_collation_connection=
       thd->variables.collation_connection;
-    CHARSET_INFO *save_character_set_results=
+    const CHARSET_INFO *save_character_set_results=
       thd->variables.character_set_results;
 
     rc= acl_authenticate(thd, 0, packet_length);
@@ -1120,13 +1133,16 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
                       &thd->security_ctx->priv_user[0],
                       (char *) thd->security_ctx->host_or_ip);
     char *packet_end= thd->query() + thd->query_length();
-    /* 'b' stands for 'buffer' parameter', special for 'my_snprintf' */
 
     general_log_write(thd, command, thd->query(), thd->query_length());
     DBUG_PRINT("query",("%-.4096s",thd->query()));
+
 #if defined(ENABLED_PROFILING)
     thd->profiling.set_query_source(thd->query(), thd->query_length());
 #endif
+
+    MYSQL_SET_STATEMENT_TEXT(thd->m_statement_psi, thd->query(), thd->query_length());
+
     Parser_state parser_state;
     if (parser_state.init(thd, thd->query(), thd->query_length()))
       break;
@@ -1156,21 +1172,38 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
         length--;
       }
 
+/* PSI end */
+      MYSQL_END_STATEMENT(thd->m_statement_psi, thd->stmt_da);
+
+/* DTRACE end */
       if (MYSQL_QUERY_DONE_ENABLED())
       {
         MYSQL_QUERY_DONE(thd->is_error());
       }
 
+/* SHOW PROFILE end */
 #if defined(ENABLED_PROFILING)
       thd->profiling.finish_current_query();
+#endif
+
+/* SHOW PROFILE begin */
+#if defined(ENABLED_PROFILING)
       thd->profiling.start_new_query("continuing");
       thd->profiling.set_query_source(beginning_of_next_stmt, length);
 #endif
 
+/* DTRACE begin */
       MYSQL_QUERY_START(beginning_of_next_stmt, thd->thread_id,
                         (char *) (thd->db ? thd->db : ""),
                         &thd->security_ctx->priv_user[0],
                         (char *) thd->security_ctx->host_or_ip);
+
+/* PSI begin */
+      thd->m_statement_psi= MYSQL_START_STATEMENT(& state,
+                                                  com_statement_info[command].m_key,
+                                                  thd->db, thd->db_length);
+      THD_STAGE_INFO(thd, stage_init);
+      MYSQL_SET_STATEMENT_TEXT(thd->m_statement_psi, beginning_of_next_stmt, length);
 
       thd->set_query_and_id(beginning_of_next_stmt, length,
                             thd->charset(), next_query_id());
@@ -1506,17 +1539,18 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
 
   log_slow_statement(thd);
 
-  thd_proc_info(thd, "cleaning up");
+  THD_STAGE_INFO(thd, stage_cleaning_up);
   thd->reset_query();
   thd->set_command(COM_SLEEP);
   dec_thread_running();
-  thd_proc_info(thd, 0);
   thd->packet.shrink(thd->variables.net_buffer_length);	// Reclaim some memory
   free_root(thd->mem_root,MYF(MY_KEEP_PREALLOC));
 
-#if defined(ENABLED_PROFILING)
-  thd->profiling.finish_current_query();
-#endif
+  /* Performance Schema Interface instrumentation, end */
+  MYSQL_END_STATEMENT(thd->m_statement_psi, thd->stmt_da);
+  thd->m_statement_psi= NULL;
+
+  /* DTRACE instrumentation, end */
   if (MYSQL_QUERY_DONE_ENABLED() || MYSQL_COMMAND_DONE_ENABLED())
   {
     int res __attribute__((unused));
@@ -1527,6 +1561,12 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
     }
     MYSQL_COMMAND_DONE(res);
   }
+
+  /* SHOW PROFILE instrumentation, end */
+#if defined(ENABLED_PROFILING)
+  thd->profiling.finish_current_query();
+#endif
+
   DBUG_RETURN(error);
 }
 
@@ -1556,9 +1596,9 @@ void log_slow_statement(THD *thd)
            (SERVER_QUERY_NO_INDEX_USED | SERVER_QUERY_NO_GOOD_INDEX_USED)) &&
           opt_log_queries_not_using_indexes &&
            !(sql_command_flags[thd->lex->sql_command] & CF_STATUS_COMMAND))) &&
-        thd->examined_row_count >= thd->variables.min_examined_row_limit)
+        thd->get_examined_row_count() >= thd->variables.min_examined_row_limit)
     {
-      thd_proc_info(thd, "logging slow query");
+      THD_STAGE_INFO(thd, stage_logging_slow_query);
       thd->status_var.long_query_count++;
       slow_log_print(thd, thd->query(), thd->query_length(), 
                      end_utime_of_query);
@@ -1887,6 +1927,7 @@ mysql_execute_command(THD *thd)
   bool have_table_map_for_update= FALSE;
 #endif
   DBUG_ENTER("mysql_execute_command");
+
 #ifdef WITH_PARTITION_STORAGE_ENGINE
   thd->work_part_info= 0;
 #endif
@@ -3035,7 +3076,7 @@ end_with_restore_list:
     if (add_item_to_list(thd, new Item_null()))
       goto error;
 
-    thd_proc_info(thd, "init");
+    THD_STAGE_INFO(thd, stage_init);
     if ((res= open_and_lock_tables(thd, all_tables, TRUE, 0)))
       break;
 
@@ -4428,7 +4469,7 @@ create_sp_error:
     my_ok(thd);
     break;
   }
-  thd_proc_info(thd, "query end");
+  THD_STAGE_INFO(thd, stage_query_end);
 
   /*
     Binlog-related cleanup:
@@ -4480,9 +4521,8 @@ finish:
 
   lex->unit.cleanup();
   /* Free tables */
-  thd_proc_info(thd, "closing tables");
+  THD_STAGE_INFO(thd, stage_closing_tables);
   close_thread_tables(thd);
-  thd_proc_info(thd, 0);
 
 #ifndef DBUG_OFF
   if (lex->sql_command != SQLCOM_SET_OPTION && ! thd->in_sub_stmt)
@@ -4521,7 +4561,6 @@ finish:
 
   DBUG_RETURN(res || thd->is_error());
 }
-
 
 static bool execute_sqlcom_select(THD *thd, TABLE_LIST *all_tables)
 {
@@ -4740,7 +4779,7 @@ check_access(THD *thd, ulong want_access, const char *db, ulong *save_priv,
     dummy= 0;
   }
 
-  thd_proc_info(thd, "checking permissions");
+  THD_STAGE_INFO(thd, stage_checking_permissions);
   if ((!db || !db[0]) && !thd->db && !dont_check_global_grants)
   {
     DBUG_PRINT("error",("No database"));
@@ -5377,7 +5416,7 @@ void THD::reset_for_next_command()
   thd->stmt_da->reset_diagnostics_area();
   thd->warning_info->reset_for_next_command();
   thd->rand_used= 0;
-  thd->sent_row_count= thd->examined_row_count= 0;
+  thd->m_sent_row_count= thd->m_examined_row_count= 0;
   thd->thd_marker.emb_on_expr_nest= NULL;
 
   thd->reset_current_stmt_binlog_format_row();
@@ -5594,6 +5633,9 @@ void mysql_parse(THD *thd, char *rawbuf, uint length,
 
     if (!err)
     {
+      thd->m_statement_psi= MYSQL_REFINE_STATEMENT(thd->m_statement_psi,
+                                                   sql_statement_info[thd->lex->sql_command].m_key);
+
 #ifndef NO_EMBEDDED_ACCESS_CHECKS
       if (mqh_used && thd->user_connect &&
 	  check_mqh(thd, lex->sql_command))
@@ -5642,16 +5684,26 @@ void mysql_parse(THD *thd, char *rawbuf, uint length,
     }
     else
     {
+      /* Instrument this broken statement as "statement/sql/error" */
+      thd->m_statement_psi= MYSQL_REFINE_STATEMENT(thd->m_statement_psi,
+                                                   sql_statement_info[SQLCOM_END].m_key);
+
       DBUG_ASSERT(thd->is_error());
       DBUG_PRINT("info",("Command aborted. Fatal_error: %d",
 			 thd->is_fatal_error));
 
       query_cache_abort(&thd->query_cache_tls);
     }
-    thd_proc_info(thd, "freeing items");
+    THD_STAGE_INFO(thd, stage_freeing_items);
     thd->end_statement();
     thd->cleanup_after_query();
     DBUG_ASSERT(thd->change_list.is_empty());
+  }
+  else
+  {
+    /* Only SELECT are cached in the query cache. */
+    thd->m_statement_psi= MYSQL_REFINE_STATEMENT(thd->m_statement_psi,
+                                                 sql_statement_info[SQLCOM_SELECT].m_key);
   }
 
   DBUG_VOID_RETURN;
@@ -5706,7 +5758,7 @@ bool add_field_to_list(THD *thd, LEX_STRING *field_name, enum_field_types type,
 		       Item *default_value, Item *on_update_value,
                        LEX_STRING *comment,
 		       char *change,
-                       List<String> *interval_list, CHARSET_INFO *cs,
+                       List<String> *interval_list, const CHARSET_INFO *cs,
 		       uint uint_geom_type)
 {
   register Create_field *new_field;
@@ -5827,7 +5879,7 @@ bool add_to_list(THD *thd, SQL_I_List<ORDER> &list, Item *item,bool asc)
     DBUG_RETURN(1);
   order->item_ptr= item;
   order->item= &order->item_ptr;
-  order->asc = asc;
+  order->direction= (asc ? ORDER::ORDER_ASC : ORDER::ORDER_DESC);
   order->free_me=0;
   order->used=0;
   order->counter_used= 0;
@@ -7337,7 +7389,7 @@ bool check_string_byte_length(LEX_STRING *str, const char *err_msg,
 
 
 bool check_string_char_length(LEX_STRING *str, const char *err_msg,
-                              uint max_char_length, CHARSET_INFO *cs,
+                              uint max_char_length, const CHARSET_INFO *cs,
                               bool no_error)
 {
   int well_formed_error;
@@ -7479,10 +7531,20 @@ bool parse_sql(THD *thd,
 
   bool mysql_parse_status= MYSQLparse(thd) != 0;
 
-  /* Check that if MYSQLparse() failed, thd->is_error() is set. */
+  /*
+    Check that if MYSQLparse() failed either thd->is_error() is set, or an
+    internal error handler is set.
+
+    The assert will not catch a situation where parsing fails without an
+    error reported if an error handler exists. The problem is that the
+    error handler might have intercepted the error, so thd->is_error() is
+    not set. However, there is no way to be 100% sure here (the error
+    handler might be for other errors than parsing one).
+  */
 
   DBUG_ASSERT(!mysql_parse_status ||
-              (mysql_parse_status && thd->is_error()));
+              (mysql_parse_status && thd->is_error()) ||
+              (mysql_parse_status && thd->get_internal_handler()));
 
   /* Reset parser state. */
 
@@ -7523,8 +7585,8 @@ bool parse_sql(THD *thd,
 */
 
 
-CHARSET_INFO*
-merge_charset_and_collation(CHARSET_INFO *cs, CHARSET_INFO *cl)
+const CHARSET_INFO*
+merge_charset_and_collation(const CHARSET_INFO *cs, const CHARSET_INFO *cl)
 {
   if (cl)
   {

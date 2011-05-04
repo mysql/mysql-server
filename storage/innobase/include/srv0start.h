@@ -27,6 +27,7 @@ Created 10/10/1995 Heikki Tuuri
 #define srv0start_h
 
 #include "univ.i"
+#include "log0log.h"
 #include "ut0byte.h"
 
 /*********************************************************************//**
@@ -87,9 +88,9 @@ int
 innobase_shutdown_for_mysql(void);
 /*=============================*/
 /** Log sequence number at shutdown */
-extern	ib_uint64_t	srv_shutdown_lsn;
+extern	lsn_t	srv_shutdown_lsn;
 /** Log sequence number immediately after startup */
-extern	ib_uint64_t	srv_start_lsn;
+extern	lsn_t	srv_start_lsn;
 
 #ifdef HAVE_DARWIN_THREADS
 /** TRUE if the F_FULLFSYNC option is available */

@@ -31,6 +31,7 @@ Created 3/26/1996 Heikki Tuuri
 #include "dict0types.h"
 #ifndef UNIV_HOTBACKUP
 #include "lock0types.h"
+#include "log0log.h"
 #include "usr0types.h"
 #include "que0types.h"
 #include "mem0mem.h"
@@ -40,10 +41,6 @@ Created 3/26/1996 Heikki Tuuri
 
 /** Dummy session used currently in MySQL interface */
 extern sess_t*	trx_dummy_sess;
-
-/** Number of transactions currently allocated for MySQL: protected by
-trx_sys->lock */
-extern ulint	trx_n_mysql_transactions;
 
 /********************************************************************//**
 Releases the search latch if trx has reserved it. */
@@ -92,18 +89,26 @@ trx_t*
 trx_allocate_for_background(void);
 /*=============================*/
 /********************************************************************//**
-Frees a transaction object for MySQL. */
-UNIV_INTERN
-void
-trx_free_for_mysql(
-/*===============*/
-	trx_t*	trx);	/*!< in, own: trx object */
-/********************************************************************//**
 Frees a transaction object of a background operation of the master thread. */
 UNIV_INTERN
 void
 trx_free_for_background(
 /*====================*/
+	trx_t*	trx);	/*!< in, own: trx object */
+/********************************************************************//**
+At shutdown, frees a transaction object that is in the PREPARED state. */
+UNIV_INTERN
+void
+trx_free_prepared(
+/*==============*/
+	trx_t*	trx)	/*!< in, own: trx object */
+	UNIV_COLD __attribute__((nonnull));
+/********************************************************************//**
+Frees a transaction object for MySQL. */
+UNIV_INTERN
+void
+trx_free_for_mysql(
+/*===============*/
 	trx_t*	trx);	/*!< in, own: trx object */
 /****************************************************************//**
 Creates trx objects for transactions and initializes the trx list of
@@ -448,9 +453,9 @@ struct trx_lock_struct {
 					hold lock_sys->mutex, except when
 					they are holding trx->mutex and
 					wait_lock==NULL */
-	ulint		deadlock_mark;	/*!< a mark field used in deadlock
-					checking algorithm. This is only
-					covered by the lock_sys->mutex. */
+	ib_uint64_t	deadlock_mark;	/*!< A mark field that is initialized
+					to and checked against lock_mark_counter
+				       	by lock_deadlock_recursive(). */
 	ibool		was_chosen_as_deadlock_victim;
 					/*!< when the transaction decides to
 				       	wait for a lock, it sets this to FALSE;
@@ -478,6 +483,9 @@ struct trx_lock_struct {
 					insertions are protected by trx->mutex
 					and lock_sys->mutex; removals are
 					protected by lock_sys->mutex */
+
+	ib_vector_t*	table_locks;	/*!< All table locks requested by this
+					transaction, including AUTOINC locks */
 };
 
 #define TRX_MAGIC_N	91118598
@@ -544,7 +552,7 @@ struct trx_struct{
 					and ACTIVE->PREPARED->COMMITTED
 					are possible when trx->in_trx_list.
 					The transition ACTIVE->PREPARED is
-					not protected by any mutex.
+					protected by trx_sys->lock.
 					The transitions ACTIVE->COMMITTED
 					and PREPARED->COMMITTED are protected
 					by lock_sys->mutex and trx->mutex.
@@ -660,7 +668,7 @@ struct trx_struct{
 	XID		xid;		/*!< X/Open XA transaction
 					identification to identify a
 					transaction branch */
-	ib_uint64_t	commit_lsn;	/*!< lsn at the time of the commit */
+	lsn_t		commit_lsn;	/*!< lsn at the time of the commit */
 	table_id_t	table_id;	/*!< Table to drop iff dict_operation
 					is TRUE, or 0. */
 	/*------------------------------*/
@@ -671,14 +679,10 @@ struct trx_struct{
 					contains a pointer to the latest file
 					name; this is NULL if binlog is not
 					used */
-	ib_int64_t	mysql_log_offset;/*!< if MySQL binlog is used, this
-					 field contains the end offset of the
-					 binlog entry */
-	os_thread_id_t	mysql_thread_id;/*!< id of the MySQL thread associated
-					with this transaction object */
-	ulint		mysql_process_no;/*!< since in Linux, 'top' reports
-					process id's and not thread id's, we
-					store the process number too */
+	ib_int64_t	mysql_log_offset;
+					/*!< if MySQL binlog is used, this
+					field contains the end offset of the
+					binlog entry */
 	/*------------------------------*/
 	ulint		n_mysql_tables_in_use; /*!< number of Innobase tables
 					used in the processing of the current

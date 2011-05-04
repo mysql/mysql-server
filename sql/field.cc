@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2010, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2011, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -10,8 +10,8 @@
    GNU General Public License for more details.
 
    You should have received a copy of the GNU General Public License
-   along with this program; if not, write to the Free Software Foundation,
-   51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA */
+   along with this program; if not, write to the Free Software
+   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
 
 /**
@@ -20,10 +20,6 @@
   @brief
   This file implements classes defined in field.h
 */
-
-#ifdef USE_PRAGMA_IMPLEMENTATION
-#pragma implementation				// gcc: Class implementation
-#endif
 
 #include "sql_priv.h"
 #include "sql_select.h"
@@ -44,15 +40,9 @@
 // Maximum allowed exponent value for converting string to decimal
 #define MAX_EXPONENT 1024
 
-/*****************************************************************************
-  Instansiate templates and static variables
-*****************************************************************************/
-
-#ifdef HAVE_EXPLICIT_TEMPLATE_INSTANTIATION
-template class List<Create_field>;
-template class List_iterator<Create_field>;
-#endif
-
+/**
+  Static variables
+*/
 uchar Field_null::null[1]={1};
 const char field_separator=',';
 
@@ -996,7 +986,8 @@ static Item_result field_types_result_type [FIELDTYPE_NUM]=
 */
 
 static bool
-test_if_important_data(CHARSET_INFO *cs, const char *str, const char *strend)
+test_if_important_data(const CHARSET_INFO *cs, const char *str,
+                       const char *strend)
 {
   if (cs != &my_charset_bin)
     str+= cs->cset->scan(cs, str, strend, MY_SEQ_SPACES);
@@ -1057,7 +1048,8 @@ Item_result Field::result_merge_type(enum_field_types field_type)
   @param row_num     (for *_FOR_FIELD) row number
  */
 static void push_numerical_conversion_warning(THD* thd, const char* str, 
-                                              uint length, CHARSET_INFO* cs,
+                                              uint length,
+                                              const CHARSET_INFO* cs,
                                               const char* typestr, int error,
                                               const char* field_name="UNKNOWN",
                                               ulong row_num=0)
@@ -1160,7 +1152,7 @@ void Field_num::prepend_zeros(String *value)
     2   error: garbage at the end of string.
 */
 
-int Field_num::check_int(CHARSET_INFO *cs, const char *str, int length, 
+int Field_num::check_int(const CHARSET_INFO *cs, const char *str, int length, 
                          const char *int_end, int error)
 {
   /* Test if we get an empty string or wrong integer */
@@ -1207,7 +1199,7 @@ int Field_num::check_int(CHARSET_INFO *cs, const char *str, int length,
     1   error
 */
 
-bool Field_num::get_int(CHARSET_INFO *cs, const char *from, uint len,
+bool Field_num::get_int(const CHARSET_INFO *cs, const char *from, uint len,
                         longlong *rnd, ulonglong unsigned_max, 
                         longlong signed_min, longlong signed_max)
 {
@@ -1286,7 +1278,7 @@ int Field::warn_if_overflow(int op_result)
 String *Field::val_int_as_str(String *val_buffer, my_bool unsigned_val)
 {
   ASSERT_COLUMN_MARKED_FOR_READ;
-  CHARSET_INFO *cs= &my_charset_bin;
+  const CHARSET_INFO *cs= &my_charset_bin;
   uint length;
   longlong value= val_int();
 
@@ -1328,7 +1320,7 @@ void Field::hash(ulong *nr, ulong *nr2)
   else
   {
     uint len= pack_length();
-    CHARSET_INFO *cs= sort_charset();
+    const CHARSET_INFO *cs= sort_charset();
     cs->coll->hash_sort(cs, ptr, len, nr, nr2);
   }
 }
@@ -1411,7 +1403,7 @@ bool Field::compatible_field_size(uint field_metadata,
 }
 
 
-int Field::store(const char *to, uint length, CHARSET_INFO *cs,
+int Field::store(const char *to, uint length, const CHARSET_INFO *cs,
                  enum_check_fields check_level)
 {
   int res;
@@ -1673,7 +1665,8 @@ my_decimal* Field_num::val_decimal(my_decimal *decimal_value)
 
 Field_str::Field_str(uchar *ptr_arg,uint32 len_arg, uchar *null_ptr_arg,
                      uchar null_bit_arg, utype unireg_check_arg,
-                     const char *field_name_arg, CHARSET_INFO *charset_arg)
+                     const char *field_name_arg,
+                     const CHARSET_INFO *charset_arg)
   :Field(ptr_arg, len_arg, null_ptr_arg, null_bit_arg,
          unireg_check_arg, field_name_arg)
 {
@@ -1906,7 +1899,8 @@ void Field_decimal::overflow(bool negative)
 }
 
 
-int Field_decimal::store(const char *from_arg, uint len, CHARSET_INFO *cs)
+int Field_decimal::store(const char *from_arg, uint len,
+                         const CHARSET_INFO *cs)
 {
   ASSERT_COLUMN_MARKED_FOR_WRITE;
   char buff[STRING_BUFFER_USUAL_SIZE];
@@ -2451,7 +2445,7 @@ void Field_decimal::sort_string(uchar *to,uint length)
 
 void Field_decimal::sql_type(String &res) const
 {
-  CHARSET_INFO *cs=res.charset();
+  const CHARSET_INFO *cs=res.charset();
   uint tmp=field_length;
   if (!unsigned_flag)
     tmp--;
@@ -2636,7 +2630,7 @@ bool Field_new_decimal::store_value(const my_decimal *decimal_value)
 
 
 int Field_new_decimal::store(const char *from, uint length,
-                             CHARSET_INFO *charset_arg)
+                             const CHARSET_INFO *charset_arg)
 {
   ASSERT_COLUMN_MARKED_FOR_WRITE;
   int err;
@@ -2818,7 +2812,7 @@ void Field_new_decimal::sort_string(uchar *buff,
 
 void Field_new_decimal::sql_type(String &str) const
 {
-  CHARSET_INFO *cs= str.charset();
+  const CHARSET_INFO *cs= str.charset();
   str.length(cs->cset->snprintf(cs, (char*) str.ptr(), str.alloced_length(),
                                 "decimal(%d,%d)", precision, (int)dec));
   add_zerofill_and_unsigned(str);
@@ -2962,7 +2956,7 @@ Field_new_decimal::unpack(uchar* to,
 ** tiny int
 ****************************************************************************/
 
-int Field_tiny::store(const char *from,uint len,CHARSET_INFO *cs)
+int Field_tiny::store(const char *from,uint len, const CHARSET_INFO *cs)
 {
   ASSERT_COLUMN_MARKED_FOR_WRITE;
   int error;
@@ -3084,7 +3078,7 @@ String *Field_tiny::val_str(String *val_buffer,
 			    String *val_ptr __attribute__((unused)))
 {
   ASSERT_COLUMN_MARKED_FOR_READ;
-  CHARSET_INFO *cs= &my_charset_numeric;
+  const CHARSET_INFO *cs= &my_charset_numeric;
   uint length;
   uint mlength=max(field_length+1,5*cs->mbmaxlen);
   val_buffer->alloc(mlength);
@@ -3128,7 +3122,7 @@ void Field_tiny::sort_string(uchar *to,uint length __attribute__((unused)))
 
 void Field_tiny::sql_type(String &res) const
 {
-  CHARSET_INFO *cs=res.charset();
+  const CHARSET_INFO *cs=res.charset();
   res.length(cs->cset->snprintf(cs,(char*) res.ptr(),res.alloced_length(),
 			  "tinyint(%d)",(int) field_length));
   add_zerofill_and_unsigned(res);
@@ -3138,7 +3132,7 @@ void Field_tiny::sql_type(String &res) const
  Field type short int (2 byte)
 ****************************************************************************/
 
-int Field_short::store(const char *from,uint len,CHARSET_INFO *cs)
+int Field_short::store(const char *from,uint len, const CHARSET_INFO *cs)
 {
   ASSERT_COLUMN_MARKED_FOR_WRITE;
   int store_tmp;
@@ -3297,7 +3291,7 @@ String *Field_short::val_str(String *val_buffer,
 			     String *val_ptr __attribute__((unused)))
 {
   ASSERT_COLUMN_MARKED_FOR_READ;
-  CHARSET_INFO *cs= &my_charset_numeric;
+  const CHARSET_INFO *cs= &my_charset_numeric;
   uint length;
   uint mlength=max(field_length+1,7*cs->mbmaxlen);
   val_buffer->alloc(mlength);
@@ -3375,7 +3369,7 @@ void Field_short::sort_string(uchar *to,uint length __attribute__((unused)))
 
 void Field_short::sql_type(String &res) const
 {
-  CHARSET_INFO *cs=res.charset();
+  const CHARSET_INFO *cs=res.charset();
   res.length(cs->cset->snprintf(cs,(char*) res.ptr(),res.alloced_length(),
 			  "smallint(%d)",(int) field_length));
   add_zerofill_and_unsigned(res);
@@ -3386,7 +3380,7 @@ void Field_short::sql_type(String &res) const
   Field type medium int (3 byte)
 ****************************************************************************/
 
-int Field_medium::store(const char *from,uint len,CHARSET_INFO *cs)
+int Field_medium::store(const char *from,uint len, const CHARSET_INFO *cs)
 {
   ASSERT_COLUMN_MARKED_FOR_WRITE;
   int store_tmp;
@@ -3515,7 +3509,7 @@ String *Field_medium::val_str(String *val_buffer,
 			      String *val_ptr __attribute__((unused)))
 {
   ASSERT_COLUMN_MARKED_FOR_READ;
-  CHARSET_INFO *cs= &my_charset_numeric;
+  const CHARSET_INFO *cs= &my_charset_numeric;
   uint length;
   uint mlength=max(field_length+1,10*cs->mbmaxlen);
   val_buffer->alloc(mlength);
@@ -3567,7 +3561,7 @@ void Field_medium::sort_string(uchar *to,uint length __attribute__((unused)))
 
 void Field_medium::sql_type(String &res) const
 {
-  CHARSET_INFO *cs=res.charset();
+  const CHARSET_INFO *cs=res.charset();
   res.length(cs->cset->snprintf(cs,(char*) res.ptr(),res.alloced_length(), 
 			  "mediumint(%d)",(int) field_length));
   add_zerofill_and_unsigned(res);
@@ -3577,7 +3571,7 @@ void Field_medium::sql_type(String &res) const
 ** long int
 ****************************************************************************/
 
-int Field_long::store(const char *from,uint len,CHARSET_INFO *cs)
+int Field_long::store(const char *from,uint len, const CHARSET_INFO *cs)
 {
   ASSERT_COLUMN_MARKED_FOR_WRITE;
   long store_tmp;
@@ -3735,7 +3729,7 @@ String *Field_long::val_str(String *val_buffer,
 			    String *val_ptr __attribute__((unused)))
 {
   ASSERT_COLUMN_MARKED_FOR_READ;
-  CHARSET_INFO *cs= &my_charset_numeric;
+  const CHARSET_INFO *cs= &my_charset_numeric;
   uint length;
   uint mlength=max(field_length+1,12*cs->mbmaxlen);
   val_buffer->alloc(mlength);
@@ -3815,7 +3809,7 @@ void Field_long::sort_string(uchar *to,uint length __attribute__((unused)))
 
 void Field_long::sql_type(String &res) const
 {
-  CHARSET_INFO *cs=res.charset();
+  const CHARSET_INFO *cs=res.charset();
   res.length(cs->cset->snprintf(cs,(char*) res.ptr(),res.alloced_length(),
 			  "int(%d)",(int) field_length));
   add_zerofill_and_unsigned(res);
@@ -3825,7 +3819,7 @@ void Field_long::sql_type(String &res) const
  Field type longlong int (8 bytes)
 ****************************************************************************/
 
-int Field_longlong::store(const char *from,uint len,CHARSET_INFO *cs)
+int Field_longlong::store(const char *from,uint len, const CHARSET_INFO *cs)
 {
   ASSERT_COLUMN_MARKED_FOR_WRITE;
   int error= 0;
@@ -3977,7 +3971,7 @@ longlong Field_longlong::val_int(void)
 String *Field_longlong::val_str(String *val_buffer,
 				String *val_ptr __attribute__((unused)))
 {
-  CHARSET_INFO *cs= &my_charset_numeric;
+  const CHARSET_INFO *cs= &my_charset_numeric;
   uint length;
   uint mlength=max(field_length+1,22*cs->mbmaxlen);
   val_buffer->alloc(mlength);
@@ -4065,7 +4059,7 @@ void Field_longlong::sort_string(uchar *to,uint length __attribute__((unused)))
 
 void Field_longlong::sql_type(String &res) const
 {
-  CHARSET_INFO *cs=res.charset();
+  const CHARSET_INFO *cs=res.charset();
   res.length(cs->cset->snprintf(cs,(char*) res.ptr(),res.alloced_length(),
 			  "bigint(%d)",(int) field_length));
   add_zerofill_and_unsigned(res);
@@ -4117,7 +4111,7 @@ Field_real::unpack(uchar *to, const uchar *from,
   single precision float
 ****************************************************************************/
 
-int Field_float::store(const char *from,uint len,CHARSET_INFO *cs)
+int Field_float::store(const char *from,uint len, const CHARSET_INFO *cs)
 {
   int error;
   char *end;
@@ -4327,7 +4321,7 @@ void Field_float::sql_type(String &res) const
   }
   else
   {
-    CHARSET_INFO *cs= res.charset();
+    const CHARSET_INFO *cs= res.charset();
     res.length(cs->cset->snprintf(cs,(char*) res.ptr(),res.alloced_length(),
 			    "float(%d,%d)",(int) field_length,dec));
   }
@@ -4339,7 +4333,7 @@ void Field_float::sql_type(String &res) const
   double precision floating point numbers
 ****************************************************************************/
 
-int Field_double::store(const char *from,uint len,CHARSET_INFO *cs)
+int Field_double::store(const char *from,uint len, const CHARSET_INFO *cs)
 {
   int error;
   char *end;
@@ -4611,7 +4605,7 @@ int Field_double::do_save_field_metadata(uchar *metadata_ptr)
 
 void Field_double::sql_type(String &res) const
 {
-  CHARSET_INFO *cs=res.charset();
+  const CHARSET_INFO *cs=res.charset();
   if (dec == NOT_FIXED_DEC)
   {
     res.set_ascii(STRING_WITH_LEN("double"));
@@ -4674,7 +4668,7 @@ Field_timestamp::Field_timestamp(uchar *ptr_arg, uint32 len_arg,
 				 enum utype unireg_check_arg,
 				 const char *field_name_arg,
 				 TABLE_SHARE *share,
-				 CHARSET_INFO *cs)
+				 const CHARSET_INFO *cs)
   :Field_str(ptr_arg, MAX_DATETIME_WIDTH, null_ptr_arg, null_bit_arg,
 	     unireg_check_arg, field_name_arg, cs)
 {
@@ -4693,7 +4687,7 @@ Field_timestamp::Field_timestamp(uchar *ptr_arg, uint32 len_arg,
 
 Field_timestamp::Field_timestamp(bool maybe_null_arg,
                                  const char *field_name_arg,
-                                 CHARSET_INFO *cs)
+                                 const CHARSET_INFO *cs)
   :Field_str((uchar*) 0, MAX_DATETIME_WIDTH,
              maybe_null_arg ? (uchar*) "": 0, 0,
 	     NONE, field_name_arg, cs)
@@ -4740,7 +4734,7 @@ timestamp_auto_set_type Field_timestamp::get_auto_set_type() const
 }
 
 
-int Field_timestamp::store(const char *from,uint len,CHARSET_INFO *cs)
+int Field_timestamp::store(const char *from,uint len,const CHARSET_INFO *cs)
 {
   ASSERT_COLUMN_MARKED_FOR_WRITE;
   MYSQL_TIME l_time;
@@ -5051,7 +5045,7 @@ void Field_timestamp::set_time()
 ** Stored as a 3 byte unsigned int
 ****************************************************************************/
 
-int Field_time::store(const char *from,uint len,CHARSET_INFO *cs)
+int Field_time::store(const char *from,uint len,const CHARSET_INFO *cs)
 {
   MYSQL_TIME ltime;
   long tmp;
@@ -5300,7 +5294,7 @@ void Field_time::sql_type(String &res) const
 ** Can handle 2 byte or 4 byte years!
 ****************************************************************************/
 
-int Field_year::store(const char *from, uint len,CHARSET_INFO *cs)
+int Field_year::store(const char *from, uint len,const CHARSET_INFO *cs)
 {
   ASSERT_COLUMN_MARKED_FOR_WRITE;
   char *end;
@@ -5386,6 +5380,7 @@ double Field_year::val_real(void)
 longlong Field_year::val_int(void)
 {
   ASSERT_COLUMN_MARKED_FOR_READ;
+  DBUG_ASSERT(field_length == 2 || field_length == 4);
   int tmp= (int) ptr[0];
   if (field_length != 4)
     tmp%=100;					// Return last 2 char
@@ -5398,6 +5393,7 @@ longlong Field_year::val_int(void)
 String *Field_year::val_str(String *val_buffer,
 			    String *val_ptr __attribute__((unused)))
 {
+  DBUG_ASSERT(field_length < 5);
   val_buffer->alloc(5);
   val_buffer->length(field_length);
   char *to=(char*) val_buffer->ptr();
@@ -5409,7 +5405,7 @@ String *Field_year::val_str(String *val_buffer,
 
 void Field_year::sql_type(String &res) const
 {
-  CHARSET_INFO *cs=res.charset();
+  const CHARSET_INFO *cs=res.charset();
   res.length(cs->cset->snprintf(cs,(char*)res.ptr(),res.alloced_length(),
 			  "year(%d)",(int) field_length));
 }
@@ -5422,7 +5418,7 @@ void Field_year::sql_type(String &res) const
 ** Stored as a 4 byte unsigned int
 ****************************************************************************/
 
-int Field_date::store(const char *from, uint len,CHARSET_INFO *cs)
+int Field_date::store(const char *from, uint len,const CHARSET_INFO *cs)
 {
   ASSERT_COLUMN_MARKED_FOR_WRITE;
   MYSQL_TIME l_time;
@@ -5657,7 +5653,7 @@ void Field_date::sql_type(String &res) const
        store function.
 */
 
-int Field_newdate::store(const char *from,uint len,CHARSET_INFO *cs)
+int Field_newdate::store(const char *from,uint len,const CHARSET_INFO *cs)
 {
   ASSERT_COLUMN_MARKED_FOR_WRITE;
   long tmp;
@@ -5891,7 +5887,7 @@ void Field_newdate::sql_type(String &res) const
 ** Stored as a 8 byte unsigned int. Should sometimes be change to a 6 byte int.
 ****************************************************************************/
 
-int Field_datetime::store(const char *from,uint len,CHARSET_INFO *cs)
+int Field_datetime::store(const char *from,uint len,const CHARSET_INFO *cs)
 {
   ASSERT_COLUMN_MARKED_FOR_WRITE;
   MYSQL_TIME time_tmp;
@@ -6217,7 +6213,7 @@ check_string_copy_error(Field_str *field,
                         const char *well_formed_error_pos,
                         const char *cannot_convert_error_pos,
                         const char *end,
-                        CHARSET_INFO *cs)
+                        const CHARSET_INFO *cs)
 {
   const char *pos;
   char tmp[32];
@@ -6285,7 +6281,7 @@ Field_longstr::report_if_important_data(const char *pstr, const char *end,
 
 	/* Copy a string and fill with space */
 
-int Field_string::store(const char *from,uint length,CHARSET_INFO *cs)
+int Field_string::store(const char *from,uint length,const CHARSET_INFO *cs)
 {
   ASSERT_COLUMN_MARKED_FOR_WRITE;
   uint copy_length;
@@ -6370,7 +6366,7 @@ int Field_string::store(longlong nr, bool unsigned_val)
 {
   char buff[64];
   int  l;
-  CHARSET_INFO *cs=charset();
+  const CHARSET_INFO *cs=charset();
   l= (cs->cset->longlong10_to_str)(cs,buff,sizeof(buff),
                                    unsigned_val ? 10 : -10, nr);
   return Field_string::store(buff,(uint)l,cs);
@@ -6396,7 +6392,7 @@ double Field_string::val_real(void)
   ASSERT_COLUMN_MARKED_FOR_READ;
   int error;
   char *end;
-  CHARSET_INFO *cs= charset();
+  const CHARSET_INFO *cs= charset();
   double result;
   
   result=  my_strntod(cs,(char*) ptr,field_length,&end,&error);
@@ -6420,7 +6416,7 @@ longlong Field_string::val_int(void)
   ASSERT_COLUMN_MARKED_FOR_READ;
   int error;
   char *end;
-  CHARSET_INFO *cs= charset();
+  const CHARSET_INFO *cs= charset();
   longlong result;
 
   result= my_strntoll(cs, (char*) ptr,field_length,10,&end,&error);
@@ -6548,7 +6544,7 @@ void Field_string::sort_string(uchar *to,uint length)
 void Field_string::sql_type(String &res) const
 {
   THD *thd= table->in_use;
-  CHARSET_INFO *cs=res.charset();
+  const CHARSET_INFO *cs=res.charset();
   ulong length;
 
   length= cs->cset->snprintf(cs,(char*) res.ptr(),
@@ -6793,7 +6789,8 @@ int Field_varstring::do_save_field_metadata(uchar *metadata_ptr)
   return 2;
 }
 
-int Field_varstring::store(const char *from,uint length,CHARSET_INFO *cs)
+int Field_varstring::store(const char *from,uint length,
+                           const CHARSET_INFO *cs)
 {
   ASSERT_COLUMN_MARKED_FOR_WRITE;
   uint copy_length;
@@ -6843,7 +6840,7 @@ double Field_varstring::val_real(void)
   int error;
   char *end;
   double result;
-  CHARSET_INFO* cs= charset();
+  const CHARSET_INFO* cs= charset();
   
   uint length= length_bytes == 1 ? (uint) *ptr : uint2korr(ptr);
   result= my_strntod(cs, (char*)ptr+length_bytes, length, &end, &error);
@@ -6865,7 +6862,7 @@ longlong Field_varstring::val_int(void)
   ASSERT_COLUMN_MARKED_FOR_READ;
   int error;
   char *end;
-  CHARSET_INFO *cs= charset();
+  const CHARSET_INFO *cs= charset();
   
   uint length= length_bytes == 1 ? (uint) *ptr : uint2korr(ptr);
   longlong result= my_strntoll(cs, (char*) ptr+length_bytes, length, 10,
@@ -6895,7 +6892,7 @@ String *Field_varstring::val_str(String *val_buffer __attribute__((unused)),
 my_decimal *Field_varstring::val_decimal(my_decimal *decimal_value)
 {
   ASSERT_COLUMN_MARKED_FOR_READ;
-  CHARSET_INFO *cs= charset();
+  const CHARSET_INFO *cs= charset();
   uint length= length_bytes == 1 ? (uint) *ptr : uint2korr(ptr);
   int error= str2my_decimal(E_DEC_FATAL_ERROR, (char*) ptr+length_bytes, length,
                  cs, decimal_value);
@@ -7018,7 +7015,7 @@ enum ha_base_keytype Field_varstring::key_type() const
 void Field_varstring::sql_type(String &res) const
 {
   THD *thd= table->in_use;
-  CHARSET_INFO *cs=res.charset();
+  const CHARSET_INFO *cs=res.charset();
   ulong length;
 
   length= cs->cset->snprintf(cs,(char*) res.ptr(),
@@ -7227,7 +7224,7 @@ void Field_varstring::hash(ulong *nr, ulong *nr2)
   else
   {
     uint len=  length_bytes == 1 ? (uint) *ptr : uint2korr(ptr);
-    CHARSET_INFO *cs= charset();
+    const CHARSET_INFO *cs= charset();
     cs->coll->hash_sort(cs, ptr + length_bytes, len, nr, nr2);
   }
 }
@@ -7242,7 +7239,7 @@ void Field_varstring::hash(ulong *nr, ulong *nr2)
 Field_blob::Field_blob(uchar *ptr_arg, uchar *null_ptr_arg, uchar null_bit_arg,
 		       enum utype unireg_check_arg, const char *field_name_arg,
                        TABLE_SHARE *share, uint blob_pack_length,
-		       CHARSET_INFO *cs)
+		       const CHARSET_INFO *cs)
   :Field_longstr(ptr_arg, BLOB_PACK_LENGTH_TO_MAX_LENGH(blob_pack_length),
                  null_ptr_arg, null_bit_arg, unireg_check_arg, field_name_arg,
                  cs),
@@ -7355,7 +7352,7 @@ void Field_blob::put_length(uchar *pos, uint32 length)
 }
 
 
-int Field_blob::store(const char *from,uint length,CHARSET_INFO *cs)
+int Field_blob::store(const char *from,uint length,const CHARSET_INFO *cs)
 {
   ASSERT_COLUMN_MARKED_FOR_WRITE;
   uint copy_length, new_length;
@@ -7442,7 +7439,7 @@ oom_error:
 
 int Field_blob::store(double nr)
 {
-  CHARSET_INFO *cs=charset();
+  const CHARSET_INFO *cs=charset();
   value.set_real(nr, NOT_FIXED_DEC, cs);
   return Field_blob::store(value.ptr(),(uint) value.length(), cs);
 }
@@ -7450,7 +7447,7 @@ int Field_blob::store(double nr)
 
 int Field_blob::store(longlong nr, bool unsigned_val)
 {
-  CHARSET_INFO *cs=charset();
+  const CHARSET_INFO *cs=charset();
   value.set_int(nr, unsigned_val, cs);
   return Field_blob::store(value.ptr(), (uint) value.length(), cs);
 }
@@ -7462,7 +7459,7 @@ double Field_blob::val_real(void)
   int not_used;
   char *end_not_used, *blob;
   uint32 length;
-  CHARSET_INFO *cs;
+  const CHARSET_INFO *cs;
 
   memcpy(&blob, ptr+packlength, sizeof(char*));
   if (!blob)
@@ -7630,7 +7627,7 @@ int Field_blob::key_cmp(const uchar *key_ptr, uint max_key_length)
   uchar *blob1;
   uint blob_length=get_length(ptr);
   memcpy(&blob1, ptr+packlength, sizeof(char*));
-  CHARSET_INFO *cs= charset();
+  const CHARSET_INFO *cs= charset();
   uint local_char_length= max_key_length / cs->mbmaxlen;
   local_char_length= my_charpos(cs, blob1, blob1+blob_length,
                                 local_char_length);
@@ -7836,7 +7833,7 @@ uint Field_blob::is_equal(Create_field *new_field)
 
 void Field_geom::sql_type(String &res) const
 {
-  CHARSET_INFO *cs= &my_charset_latin1;
+  const CHARSET_INFO *cs= &my_charset_latin1;
   switch (geom_type)
   {
     case GEOM_POINT:
@@ -7890,7 +7887,7 @@ int Field_geom::store_decimal(const my_decimal *)
 }
 
 
-int Field_geom::store(const char *from, uint length, CHARSET_INFO *cs)
+int Field_geom::store(const char *from, uint length, const CHARSET_INFO *cs)
 {
   if (!length)
     bzero(ptr, Field_blob::pack_length());
@@ -7986,7 +7983,7 @@ void Field_enum::store_type(ulonglong value)
     (if there isn't a empty value in the enum)
 */
 
-int Field_enum::store(const char *from,uint length,CHARSET_INFO *cs)
+int Field_enum::store(const char *from,uint length,const CHARSET_INFO *cs)
 {
   ASSERT_COLUMN_MARKED_FOR_WRITE;
   int err= 0;
@@ -8204,7 +8201,7 @@ Field *Field_enum::new_field(MEM_ROOT *root, TABLE *new_table,
 */
 
 
-int Field_set::store(const char *from,uint length,CHARSET_INFO *cs)
+int Field_set::store(const char *from,uint length,const CHARSET_INFO *cs)
 {
   ASSERT_COLUMN_MARKED_FOR_WRITE;
   bool got_warning= 0;
@@ -8337,7 +8334,8 @@ bool Field::eq_def(Field *field)
   @return TRUE if the type names of t1 match those of t2. FALSE otherwise.
 */
 
-static bool compare_type_names(CHARSET_INFO *charset, TYPELIB *t1, TYPELIB *t2)
+static bool compare_type_names(const CHARSET_INFO *charset,
+                               TYPELIB *t1, TYPELIB *t2)
 {
   for (uint i= 0; i < t1->count; i++)
     if (my_strnncoll(charset,
@@ -8552,7 +8550,7 @@ void Field_bit::hash(ulong *nr, ulong *nr2)
   }
   else
   {
-    CHARSET_INFO *cs= &my_charset_bin;
+    const CHARSET_INFO *cs= &my_charset_bin;
     longlong value= Field_bit::val_int();
     uchar tmp[8];
     mi_int8store(tmp,value);
@@ -8615,7 +8613,7 @@ uint Field_bit::is_equal(Create_field *new_field)
 }
 
                        
-int Field_bit::store(const char *from, uint length, CHARSET_INFO *cs)
+int Field_bit::store(const char *from, uint length, const CHARSET_INFO *cs)
 {
   ASSERT_COLUMN_MARKED_FOR_WRITE;
   int delta;
@@ -8907,7 +8905,7 @@ Field_bit::compatible_field_size(uint field_metadata,
 
 void Field_bit::sql_type(String &res) const
 {
-  CHARSET_INFO *cs= res.charset();
+  const CHARSET_INFO *cs= res.charset();
   ulong length= cs->cset->snprintf(cs, (char*) res.ptr(), res.alloced_length(),
                                    "bit(%d)", (int) field_length);
   res.length((uint) length);
@@ -9053,7 +9051,8 @@ Field_bit_as_char::Field_bit_as_char(uchar *ptr_arg, uint32 len_arg,
 }
 
 
-int Field_bit_as_char::store(const char *from, uint length, CHARSET_INFO *cs)
+int Field_bit_as_char::store(const char *from, uint length,
+                             const CHARSET_INFO *cs)
 {
   ASSERT_COLUMN_MARKED_FOR_WRITE;
   int delta;
@@ -9082,7 +9081,7 @@ int Field_bit_as_char::store(const char *from, uint length, CHARSET_INFO *cs)
 
 void Field_bit_as_char::sql_type(String &res) const
 {
-  CHARSET_INFO *cs= res.charset();
+  const CHARSET_INFO *cs= res.charset();
   ulong length= cs->cset->snprintf(cs, (char*) res.ptr(), res.alloced_length(),
                                    "bit(%d)", (int) field_length);
   res.length((uint) length);
@@ -9280,7 +9279,7 @@ bool Create_field::init(THD *thd, char *fld_name, enum_field_types fld_type,
                         uint fld_type_modifier, Item *fld_default_value,
                         Item *fld_on_update_value, LEX_STRING *fld_comment,
                         char *fld_change, List<String> *fld_interval_list,
-                        CHARSET_INFO *fld_charset, uint fld_geom_type)
+                        const CHARSET_INFO *fld_charset, uint fld_geom_type)
 {
   uint sign_len, allowed_type_modifier= 0;
   ulong max_field_charlength= MAX_FIELD_CHARLENGTH;
@@ -9715,7 +9714,7 @@ Field *make_field(TABLE_SHARE *share, uchar *ptr, uint32 field_length,
 		  uchar *null_pos, uchar null_bit,
 		  uint pack_flag,
 		  enum_field_types field_type,
-		  CHARSET_INFO *field_charset,
+		  const CHARSET_INFO *field_charset,
 		  Field::geometry_type geom_type,
 		  Field::utype unireg_check,
 		  TYPELIB *interval,

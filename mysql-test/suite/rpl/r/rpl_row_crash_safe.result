@@ -10,6 +10,7 @@ call mtr.add_suppression(".*int __cxa_pure_virtual().*");
 ###################################################################################
 SET @verbose= 'Y';
 SET @commands= 'configure';
+include/stop_slave.inc
 SHOW CREATE TABLE mysql.slave_relay_log_info;
 Table	Create Table
 slave_relay_log_info	CREATE TABLE `slave_relay_log_info` (
@@ -35,6 +36,7 @@ slave_relay_log_info	CREATE TABLE `slave_relay_log_info` (
   `Sql_delay` int(11) NOT NULL,
   PRIMARY KEY (`Master_id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8 COMMENT='Relay Log Information'
+include/start_slave.inc
 SET SQL_LOG_BIN=0;
 CREATE TABLE nt_1 (trans_id INT, stmt_id INT, info VARCHAR(64), PRIMARY KEY(trans_id, stmt_id)) ENGINE = MyISAM;
 CREATE TABLE nt_2 (trans_id INT, stmt_id INT, info VARCHAR(64), PRIMARY KEY(trans_id, stmt_id)) ENGINE = MyISAM;

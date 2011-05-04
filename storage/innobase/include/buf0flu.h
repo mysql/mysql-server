@@ -28,10 +28,10 @@ Created 11/5/1995 Heikki Tuuri
 
 #include "univ.i"
 #include "ut0byte.h"
+#include "log0log.h"
 #ifndef UNIV_HOTBACKUP
 #include "mtr0types.h"
 #include "buf0types.h"
-#include "log0log.h"
 
 /** Flag indicating if the page_cleaner is in active state. */
 extern ibool buf_page_cleaner_is_active;
@@ -82,10 +82,10 @@ UNIV_INTERN
 void
 buf_flush_init_for_writing(
 /*=======================*/
-	byte*		page,		/*!< in/out: page */
-	void*		page_zip_,	/*!< in/out: compressed page, or NULL */
-	ib_uint64_t	newest_lsn);	/*!< in: newest modification lsn
-					to the page */
+	byte*	page,		/*!< in/out: page */
+	void*	page_zip_,	/*!< in/out: compressed page, or NULL */
+	lsn_t	newest_lsn);	/*!< in: newest modification lsn
+				to the page */
 #ifndef UNIV_HOTBACKUP
 # if defined UNIV_DEBUG || defined UNIV_IBUF_DEBUG
 /********************************************************************//**
@@ -130,7 +130,7 @@ buf_flush_list(
 	ulint		min_n,		/*!< in: wished minimum mumber of blocks
 					flushed (it is not guaranteed that the
 					actual number is that big, though) */
-	ib_uint64_t	lsn_limit);	/*!< in the case BUF_FLUSH_LIST all
+	lsn_t		lsn_limit);	/*!< in the case BUF_FLUSH_LIST all
 					blocks whose oldest_modification is
 					smaller than this should be flushed
 					(if their number does not exceed
@@ -172,9 +172,9 @@ void
 buf_flush_recv_note_modification(
 /*=============================*/
 	buf_block_t*	block,		/*!< in: block which is modified */
-	ib_uint64_t	start_lsn,	/*!< in: start lsn of the first mtr in a
+	lsn_t		start_lsn,	/*!< in: start lsn of the first mtr in a
 					set of mtr's */
-	ib_uint64_t	end_lsn);	/*!< in: end lsn of the last mtr in the
+	lsn_t		end_lsn);	/*!< in: end lsn of the last mtr in the
 					set of mtr's */
 /********************************************************************//**
 Returns TRUE if the file page block is immediately suitable for replacement,
@@ -198,8 +198,8 @@ how much redo the workload is generating and at what rate. */
 
 struct buf_flush_stat_struct
 {
-	ib_uint64_t	redo;		/**< amount of redo generated. */
-	ulint		n_flushed;	/**< number of pages flushed. */
+	lsn_t	redo;		/**< amount of redo generated. */
+	ulint	n_flushed;	/**< number of pages flushed. */
 };
 
 /** Statistics for selecting flush rate of dirty pages. */

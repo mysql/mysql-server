@@ -1,7 +1,7 @@
 #ifndef SQL_AUDIT_INCLUDED
 #define SQL_AUDIT_INCLUDED
 
-/* Copyright (c) 2007, 2010, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2007, 2011, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -13,8 +13,8 @@
    GNU General Public License for more details.
 
    You should have received a copy of the GNU General Public License
-   along with this program; if not, write to the Free Software Foundation,
-   51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA */
+   along with this program; if not, write to the Free Software
+   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
 
 #include <my_global.h>
@@ -75,8 +75,8 @@ void mysql_audit_general_log(THD *thd, time_t time,
 #ifndef EMBEDDED_LIBRARY
   if (mysql_global_audit_mask[0] & MYSQL_AUDIT_GENERAL_CLASSMASK)
   {
-    CHARSET_INFO *clientcs= thd ? thd->variables.character_set_client
-                                : global_system_variables.character_set_client;
+    const CHARSET_INFO *clientcs= thd ? thd->variables.character_set_client
+      : global_system_variables.character_set_client;
 
     mysql_audit_notify(thd, MYSQL_AUDIT_GENERAL_CLASS, MYSQL_AUDIT_GENERAL_LOG,
                        0, time, user, userlen, cmd, cmdlen,

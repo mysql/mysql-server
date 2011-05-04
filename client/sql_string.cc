@@ -1,4 +1,4 @@
-/* Copyright (C) 2000 MySQL AB
+/* Copyright (c) 2000, 2011, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -11,13 +11,9 @@
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
-   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
+   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
 /* This file is originally from the mysql distribution. Coded by monty */
-
-#ifdef USE_PRAGMA_IMPLEMENTATION
-#pragma implementation				// gcc: Class implementation
-#endif
 
 #include <my_global.h>
 #include <my_sys.h>
@@ -88,7 +84,7 @@ bool String::realloc(uint32 alloc_length)
   return FALSE;
 }
 
-bool String::set(longlong num, CHARSET_INFO *cs)
+bool String::set(longlong num, const CHARSET_INFO *cs)
 {
   uint l=20*cs->mbmaxlen+1;
 
@@ -99,7 +95,7 @@ bool String::set(longlong num, CHARSET_INFO *cs)
   return FALSE;
 }
 
-bool String::set(ulonglong num, CHARSET_INFO *cs)
+bool String::set(ulonglong num, const CHARSET_INFO *cs)
 {
   uint l=20*cs->mbmaxlen+1;
 
@@ -110,7 +106,7 @@ bool String::set(ulonglong num, CHARSET_INFO *cs)
   return FALSE;
 }
 
-bool String::set(double num,uint decimals, CHARSET_INFO *cs)
+bool String::set(double num,uint decimals, const CHARSET_INFO *cs)
 {
   char buff[FLOATING_POINT_BUFFER];
   uint dummy_errors;
@@ -149,7 +145,7 @@ bool String::copy(const String &str)
   return FALSE;
 }
 
-bool String::copy(const char *str,uint32 arg_length, CHARSET_INFO *cs)
+bool String::copy(const char *str,uint32 arg_length, const CHARSET_INFO *cs)
 {
   if (alloc(arg_length))
     return TRUE;
@@ -184,8 +180,8 @@ bool String::copy(const char *str,uint32 arg_length, CHARSET_INFO *cs)
 */
 
 bool String::needs_conversion(uint32 arg_length,
-			      CHARSET_INFO *from_cs,
-			      CHARSET_INFO *to_cs,
+			      const CHARSET_INFO *from_cs,
+			      const CHARSET_INFO *to_cs,
 			      uint32 *offset)
 {
   *offset= 0;
@@ -226,7 +222,7 @@ bool String::needs_conversion(uint32 arg_length,
 */
 
 bool String::copy_aligned(const char *str,uint32 arg_length, uint32 offset,
-			  CHARSET_INFO *cs)
+			  const CHARSET_INFO *cs)
 {
   /* How many bytes are in incomplete character */
   offset= cs->mbmaxlen - offset; /* How many zeros we should prepend */
@@ -252,7 +248,7 @@ bool String::copy_aligned(const char *str,uint32 arg_length, uint32 offset,
 
 
 bool String::set_or_copy_aligned(const char *str,uint32 arg_length,
-				 CHARSET_INFO *cs)
+				 const CHARSET_INFO *cs)
 {
   /* How many bytes are in incomplete character */
   uint32 offset= (arg_length % cs->mbminlen); 
@@ -268,7 +264,7 @@ bool String::set_or_copy_aligned(const char *str,uint32 arg_length,
 	/* Copy with charset convertion */
 
 bool String::copy(const char *str, uint32 arg_length,
-		  CHARSET_INFO *from_cs, CHARSET_INFO *to_cs, uint *errors)
+		  const CHARSET_INFO *from_cs, const CHARSET_INFO *to_cs, uint *errors)
 {
   uint32 offset;
   if (!needs_conversion(arg_length, from_cs, to_cs, &offset))
@@ -407,7 +403,7 @@ bool String::append(const char *s)
   with character set recoding
 */
 
-bool String::append(const char *s,uint32 arg_length, CHARSET_INFO *cs)
+bool String::append(const char *s,uint32 arg_length, const CHARSET_INFO *cs)
 {
   uint32 dummy_offset;
   
@@ -651,7 +647,7 @@ void String::qs_append(uint i)
 */
 
 
-int sortcmp(const String *s,const String *t, CHARSET_INFO *cs)
+int sortcmp(const String *s,const String *t, const CHARSET_INFO *cs)
 {
  return cs->coll->strnncollsp(cs,
                               (unsigned char *) s->ptr(),s->length(),
@@ -756,5 +752,5 @@ void String::swap(String &s)
   swap_variables(uint32, str_length, s.str_length);
   swap_variables(uint32, Alloced_length, s.Alloced_length);
   swap_variables(bool, alloced, s.alloced);
-  swap_variables(CHARSET_INFO*, str_charset, s.str_charset);
+  swap_variables(const CHARSET_INFO*, str_charset, s.str_charset);
 }
