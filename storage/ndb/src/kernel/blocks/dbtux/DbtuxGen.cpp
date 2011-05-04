@@ -39,7 +39,7 @@ Dbtux::Dbtux(Block_context& ctx, Uint32 instanceNumber) :
       (sizeof(TreeEnt) & 0x3) == 0 &&
       (sizeof(TreeNode) & 0x3) == 0 &&
       (sizeof(DescHead) & 0x3) == 0 &&
-      (sizeof(DescAttr) & 0x3) == 0
+      (sizeof(KeyType) & 0x3) == 0
   );
   /*
    * DbtuxGen.cpp
@@ -201,7 +201,7 @@ Dbtux::execREAD_CONFIG_REQ(Signal* signal)
   ndbrequire(!ndb_mgm_get_int_parameter(p, CFG_TUX_SCAN_OP, &nScanOp));
   ndbrequire(!ndb_mgm_get_int_parameter(p, CFG_DB_BATCH_SIZE, &nScanBatch));
 
-  const Uint32 nDescPage = (nIndex * DescHeadSize + nAttribute * DescAttrSize + DescPageSize - 1) / DescPageSize;
+  const Uint32 nDescPage = (nIndex * DescHeadSize + nAttribute * KeyTypeSize + nAttribute * AttributeHeaderSize + DescPageSize - 1) / DescPageSize;
   const Uint32 nScanBoundWords = nScanOp * ScanBoundSegmentSize * 4;
   const Uint32 nScanLock = nScanOp * nScanBatch;
   
@@ -250,21 +250,19 @@ void
 Dbtux::setKeyAttrs(TuxCtx& ctx, const Frag& frag)
 {
   const Index& index = *c_indexPool.getPtr(frag.m_indexId);
-  Data keyAttrs = ctx.c_keyAttrs;
-  NdbSqlUtil::Cmp** sqlCmp = ctx.c_sqlCmp; // global
-  const unsigned numAttrs = index.m_numAttrs;
-  const DescEnt& descEnt = getDescEnt(index.m_descPage, index.m_descOff);
-  for (unsigned i = 0; i < numAttrs; i++) {
+  const DescHead& descHead = getDescHead(index);
+  const KeyType* keyTypes = getKeyTypes(descHead);
+  const AttributeHeader* keyAttrs = getKeyAttrs(descHead);
+  const Uint32 numAttrs = index.m_numAttrs;
+  Uint32 i;
+  for (i = 0; i < numAttrs; i++) {
     thrjam(ctx.jamBuffer);
-    const DescAttr& descAttr = descEnt.m_descAttr[i];
-    Uint32 size = AttributeDescriptor::getSizeInWords(descAttr.m_attrDesc);
-    // set attr id and fixed size
-    ah(keyAttrs) = AttributeHeader(descAttr.m_primaryAttrId, size);
-    keyAttrs += 1;
+    ctx.c_keyAttrs[i] = keyAttrs[i].m_value;
     // set comparison method pointer
-    const NdbSqlUtil::Type& sqlType = NdbSqlUtil::getTypeBinary(descAttr.m_typeId);
+    const NdbSqlUtil::Type& sqlType =
+      NdbSqlUtil::getTypeBinary(keyTypes[i].get_type_id());
     ndbrequire(sqlType.m_cmp != 0);
-    *(sqlCmp++) = sqlType.m_cmp;
+    ctx.c_sqlCmp[i] = sqlType.m_cmp;
   }
 }
 

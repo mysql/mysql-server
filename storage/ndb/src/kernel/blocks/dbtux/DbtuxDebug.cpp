@@ -406,17 +406,6 @@ operator<<(NdbOut& out, const Dbtux::TreePos& pos)
 }
 
 NdbOut&
-operator<<(NdbOut& out, const Dbtux::DescAttr& descAttr)
-{
-  out << "[DescAttr " << hex << &descAttr;
-  out << " [attrDesc " << hex << descAttr.m_attrDesc;
-  out << " [primaryAttrId " << dec << descAttr.m_primaryAttrId << "]";
-  out << " [typeId " << dec << descAttr.m_typeId << "]";
-  out << "]";
-  return out;
-}
-
-NdbOut&
 operator<<(NdbOut& out, const Dbtux::ScanOp& scan)
 {
   Dbtux* tux = (Dbtux*)globalData.getBlock(DBTUX);

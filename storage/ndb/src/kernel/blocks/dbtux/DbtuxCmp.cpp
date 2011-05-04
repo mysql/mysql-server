@@ -34,7 +34,9 @@ Dbtux::cmpSearchKey(TuxCtx& ctx,
 {
   const Index& index = *c_indexPool.getPtr(frag.m_indexId);
   const unsigned numAttrs = index.m_numAttrs;
-  const DescEnt& descEnt = getDescEnt(index.m_descPage, index.m_descOff);
+  const DescHead& descHead = getDescHead(index);
+  const KeyType* keyTypes = getKeyTypes(descHead);
+  const AttributeHeader* keyAttrs = getKeyAttrs(descHead);
   // skip to right position in search key only
   for (unsigned i = 0; i < start; i++) {
     thrjam(ctx.jamBuffer);
@@ -54,9 +56,10 @@ Dbtux::cmpSearchKey(TuxCtx& ctx,
       if (! ah(entryData).isNULL()) {
         thrjam(ctx.jamBuffer);
         // verify attribute id
-        const DescAttr& descAttr = descEnt.m_descAttr[start];
-        ndbrequire(ah(searchKey).getAttributeId() == descAttr.m_primaryAttrId);
-        ndbrequire(ah(entryData).getAttributeId() == descAttr.m_primaryAttrId);
+        const KeyType& keyType = keyTypes[start];
+        Uint32 primaryAttrId = keyAttrs[start].getAttributeId();
+        ndbrequire(ah(searchKey).getAttributeId() == primaryAttrId);
+        ndbrequire(ah(entryData).getAttributeId() == primaryAttrId);
         // sizes
         const unsigned bytes1 = ah(searchKey).getByteSize();
         const unsigned bytes2 = min(ah(entryData).getByteSize(), len2 << 2);
@@ -120,7 +123,9 @@ int
 Dbtux::cmpScanBound(const Frag& frag, unsigned idir, ConstData boundInfo, unsigned boundCount, ConstData entryData, unsigned maxlen)
 {
   const Index& index = *c_indexPool.getPtr(frag.m_indexId);
-  const DescEnt& descEnt = getDescEnt(index.m_descPage, index.m_descOff);
+  const DescHead& descHead = getDescHead(index);
+  const KeyType* keyTypes = getKeyTypes(descHead);
+  const AttributeHeader* keyAttrs = getKeyAttrs(descHead);
   // direction 0-lower 1-upper
   ndbrequire(idir <= 1);
   // number of words of data left
@@ -142,8 +147,9 @@ Dbtux::cmpScanBound(const Frag& frag, unsigned idir, ConstData boundInfo, unsign
         // verify attribute id
         const Uint32 attrId = ah(boundInfo).getAttributeId();
         ndbrequire(attrId < index.m_numAttrs);
-        const DescAttr& descAttr = descEnt.m_descAttr[attrId];
-        ndbrequire(ah(entryData).getAttributeId() == descAttr.m_primaryAttrId);
+        const KeyType& keyType = keyTypes[attrId];
+        Uint32 primaryAttrId = keyAttrs[attrId].getAttributeId();
+        ndbrequire(ah(entryData).getAttributeId() == primaryAttrId);
         // sizes
         const unsigned bytes1 = ah(boundInfo).getByteSize();
         const unsigned bytes2 = min(ah(entryData).getByteSize(), len2 << 2);
