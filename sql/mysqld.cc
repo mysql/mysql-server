@@ -417,7 +417,7 @@ my_bool opt_super_large_pages= 0;
 my_bool opt_myisam_use_mmap= 0;
 uint   opt_large_page_size= 0;
 #if defined(ENABLED_DEBUG_SYNC)
-uint    opt_debug_sync_timeout= 0;
+MYSQL_PLUGIN_IMPORT uint    opt_debug_sync_timeout= 0;
 #endif /* defined(ENABLED_DEBUG_SYNC) */
 my_bool opt_old_style_user_limits= 0, trust_function_creators= 0;
 /*
@@ -446,7 +446,7 @@ uint lower_case_table_names;
 ulong tc_heuristic_recover= 0;
 uint volatile thread_count;
 int32 thread_running;
-ulong thread_created;
+MYSQL_PLUGIN_IMPORT ulong thread_created;
 ulong back_log, connect_timeout, concurrency, server_id;
 ulong table_cache_size, table_def_size;
 ulong what_to_log;
@@ -473,7 +473,8 @@ ulong delayed_insert_errors,flush_time;
 ulong specialflag=0;
 ulong binlog_cache_use= 0, binlog_cache_disk_use= 0;
 ulong binlog_stmt_cache_use= 0, binlog_stmt_cache_disk_use= 0;
-ulong max_connections, max_connect_errors;
+MYSQL_PLUGIN_IMPORT ulong max_connections;
+ulong max_connect_errors;
 /**
   Limit of the total number of prepared statements in the server.
   Is necessary to protect the server against out-of-memory attacks.
@@ -577,7 +578,7 @@ Le_creator le_creator;
 MYSQL_FILE *bootstrap_file;
 int bootstrap_error;
 
-I_List<THD> threads;
+MYSQL_PLUGIN_IMPORT I_List<THD> threads;
 Rpl_filter* rpl_filter;
 Rpl_filter* binlog_filter;
 
@@ -626,9 +627,9 @@ mysql_mutex_t LOCK_des_key_file;
 #endif
 mysql_rwlock_t LOCK_grant, LOCK_sys_init_connect, LOCK_sys_init_slave;
 mysql_rwlock_t LOCK_system_variables_hash;
-mysql_cond_t COND_thread_count;
+MYSQL_PLUGIN_IMPORT mysql_cond_t COND_thread_count;
 pthread_t signal_thread;
-pthread_attr_t connection_attrib;
+MYSQL_PLUGIN_IMPORT pthread_attr_t connection_attrib;
 mysql_mutex_t LOCK_server_started;
 mysql_cond_t COND_server_started;
 
@@ -5250,6 +5251,14 @@ static bool read_init_file(char *file_name)
 }
 
 
+/**
+  Increment number of created threads
+*/
+void inc_thread_created(void)
+{
+  thread_created++;
+}
+
 #ifndef EMBEDDED_LIBRARY
 
 /*
@@ -8260,7 +8269,9 @@ static PSI_cond_info all_server_conds[]=
 
 PSI_thread_key key_thread_bootstrap, key_thread_delayed_insert,
   key_thread_handle_manager, key_thread_main,
-  key_thread_one_connection, key_thread_signal_hand;
+  key_thread_signal_hand;
+
+MYSQL_PLUGIN_IMPORT PSI_thread_key key_thread_one_connection;
 
 static PSI_thread_info all_server_threads[]=
 {
