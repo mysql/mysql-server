@@ -78,6 +78,7 @@ SET (SQL_SOURCE
                rpl_rli.cc rpl_mi.cc sql_servers.cc
                sql_connect.cc scheduler.cc 
                sql_profile.cc event_parse_data.cc opt_table_elimination.cc
+               gcalc_slicescan.cc gcalc_tools.cc
                multi_range_read.cc
                opt_subselect.cc
                opt_index_cond_pushdown.cc

@@ -56,6 +56,7 @@ noinst_HEADERS =	item.h item_func.h item_sum.h item_cmpfunc.h \
 			sql_map.h sql_string.h unireg.h \
 			sql_error.h field.h handler.h mysqld_suffix.h \
 			sql_profile.h \
+			gcalc_slicescan.h gcalc_tools.h \
 			ha_ndbcluster.h ha_ndbcluster_cond.h \
 			ha_ndbcluster_binlog.h ha_ndbcluster_tables.h \
 			ha_partition.h rpl_constants.h \
@@ -101,6 +102,7 @@ mysqld_SOURCES =	sql_lex.cc sql_handler.cc sql_partition.cc \
                         sql_join_cache.cc \
 			sql_base.cc table.cc sql_select.cc sql_insert.cc \
 			sql_profile.cc \
+			gcalc_slicescan.cc gcalc_tools.cc \
 			sql_prepare.cc sql_error.cc sql_locale.cc \
 			sql_update.cc sql_delete.cc uniques.cc sql_do.cc \
 			procedure.cc sql_test.cc \

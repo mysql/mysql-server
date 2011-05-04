@@ -62,6 +62,7 @@ sqlsources = derror.cc field.cc field_conv.cc strfunc.cc filesort.cc \
 	opt_sum.cc procedure.cc records.cc sql_acl.cc \
 	sql_load.cc discover.cc sql_locale.cc \
 	sql_profile.cc \
+	gcalc_slicescan.cc gcalc_tools.cc \
 	sql_analyse.cc sql_base.cc sql_cache.cc sql_class.cc \
 	sql_crypt.cc sql_db.cc sql_delete.cc sql_error.cc sql_insert.cc \
         sql_join_cache.cc \
