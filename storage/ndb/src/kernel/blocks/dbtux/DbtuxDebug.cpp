@@ -439,17 +439,16 @@ operator<<(NdbOut& out, const Dbtux::ScanOp& scan)
   out << " [pos " << scan.m_scanPos << "]";
   out << " [ent " << scan.m_scanEnt << "]";
   for (unsigned i = 0; i <= 1; i++) {
-    out << " [bound " << dec << i;
-    Dbtux::ScanBound& bound = *scan.m_bound[i];
-    Dbtux::ScanBoundIterator iter;
-    bound.first(iter);
-    for (unsigned j = 0; j < bound.getSize(); j++) {
-      out << " " << hex << *iter.data;
-      bound.next(iter);
-    }
+    const Dbtux::ScanBound scanBound = scan.m_scanBound[i];
+    const Dbtux::Index& index = *tux->c_indexPool.getPtr(scan.m_indexId);
+    Dbtux::KeyDataC keyBoundData(index.m_keySpec, true);
+    Dbtux::KeyBoundC keyBound(keyBoundData);
+    tux->unpackBound(tux->c_ctx, scanBound, keyBound);
+    char tmp[Dbtux::MaxAttrDataSize << 2];
+    out << " [scanBound " << dec << i;
+    out << " " << keyBound.print(tmp, sizeof(tmp));
     out << "]";
   }
-  out << "]";
   return out;
 }
 

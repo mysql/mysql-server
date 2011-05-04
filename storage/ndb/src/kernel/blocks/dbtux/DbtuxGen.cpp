@@ -398,16 +398,26 @@ Dbtux::copyAttrs(TuxCtx& ctx, const Frag& frag, ConstData data1, Data data2, uns
 }
 
 void
-Dbtux::unpackBound(const ScanBound& bound, Data dest)
+Dbtux::unpackBound(TuxCtx& ctx, const ScanBound& scanBound, KeyBoundC& searchBound)
 {
-  ScanBoundIterator iter;
-  bound.first(iter);
-  const unsigned n = bound.getSize();
-  unsigned j;
-  for (j = 0; j < n; j++) {
-    dest[j] = *iter.data;
-    bound.next(iter);
+  // there is no const version of LocalDataBuffer
+  DataBuffer<ScanBoundSegmentSize>::Head head = scanBound.m_head;
+  LocalDataBuffer<ScanBoundSegmentSize> b(c_scanBoundPool, head);
+  DataBuffer<ScanBoundSegmentSize>::ConstDataBufferIterator iter;
+  // always use searchKey buffer
+  Uint32* const outputBuffer = ctx.c_searchKey;
+  b.first(iter);
+  const Uint32 n = b.getSize();
+  ndbrequire(n <= MaxAttrDataSize);
+  for (Uint32 i = 0; i < n; i++) {
+    outputBuffer[i] = *iter.data;
+    b.next(iter);
   }
+  // set bound to the unpacked data buffer
+  KeyDataC& searchBoundData = searchBound.get_data();
+  searchBoundData.set_buf(outputBuffer, MaxAttrDataSize << 2, scanBound.m_cnt);
+  int ret = searchBound.finalize(scanBound.m_side);
+  ndbrequire(ret == 0);
 }
 
 void

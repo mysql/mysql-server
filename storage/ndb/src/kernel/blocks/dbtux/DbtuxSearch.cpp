@@ -206,20 +206,25 @@ Dbtux::searchToRemove(TuxCtx& ctx, Frag& frag, const KeyDataC& searchKey, TreeEn
  * Search within the found node is done by caller.
  */
 void
-Dbtux::findNodeToScan(Frag& frag, unsigned idir, ConstData boundInfo, unsigned boundCount, NodeHandle& currNode)
+Dbtux::findNodeToScan(Frag& frag, unsigned idir, const KeyBoundC& searchBound, NodeHandle& currNode)
 {
+  const int jdir = 1 - 2 * int(idir);
+  const Index& index = *c_indexPool.getPtr(frag.m_indexId);
+  const Uint32 numAttrs = searchBound.get_data().get_cnt();
+  KeyData entryKey(index.m_keySpec, false, 0);
+  entryKey.set_buf(c_ctx.c_entryKey, MaxAttrDataSize << 2);
   NodeHandle glbNode(frag);     // potential g.l.b of final node
   while (true) {
     jam();
     selectNode(currNode, currNode.m_loc);
-    int ret;
     // wl4163_todo temp disable prefix
-    if (true) {
+    int ret = (-1) * jdir;
+    if (numAttrs > 0) {
       jam();
       // read and compare all attributes
-      readKeyAttrs(c_ctx, frag, currNode.getEnt(0), 0, c_ctx.c_entryKey);
-      ret = cmpScanBound(frag, idir, boundInfo, boundCount, c_ctx.c_entryKey);
-      ndbrequire(ret != NdbSqlUtil::CmpUnknown);
+      readKeyAttrs(c_ctx, frag, currNode.getEnt(0), entryKey, numAttrs);
+      ret = cmpSearchBound(searchBound, entryKey, numAttrs);
+      ndbrequire(ret != 0);
     }
     if (ret < 0) {
       // bound is left of this node
@@ -262,23 +267,26 @@ Dbtux::findNodeToScan(Frag& frag, unsigned idir, ConstData boundInfo, unsigned b
  * search similar to findPosToAdd().
  */
 void
-Dbtux::findPosToScan(Frag& frag, unsigned idir, ConstData boundInfo, unsigned boundCount, NodeHandle& currNode, Uint16* pos)
+Dbtux::findPosToScan(Frag& frag, unsigned idir, const KeyBoundC& searchBound, NodeHandle& currNode, Uint16* pos)
 {
   const int jdir = 1 - 2 * int(idir);
+  const Index& index = *c_indexPool.getPtr(frag.m_indexId);
+  const Uint32 numAttrs = searchBound.get_data().get_cnt();
   int lo = -1;
   int hi = (int)currNode.getOccup();
+  KeyData entryKey(index.m_keySpec, false, 0);
+  entryKey.set_buf(c_ctx.c_entryKey, MaxAttrDataSize << 2);
   while (hi - lo > 1) {
     jam();
     // hi - lo > 1 implies lo < j < hi
     int j = (hi + lo) / 2;
     int ret = (-1) * jdir;
-    if (boundCount != 0) {
-      // read and compare attributes
-      const TreeEnt currEnt = currNode.getEnt(j);
-      readKeyAttrs(c_ctx, frag, currEnt, 0, c_ctx.c_entryKey);
-      ret = cmpScanBound(frag, idir, boundInfo, boundCount, c_ctx.c_entryKey);
+    if (numAttrs != 0) {
+      // read and compare all attributes
+      readKeyAttrs(c_ctx, frag, currNode.getEnt(j), entryKey, numAttrs);
+      ret = cmpSearchBound(searchBound, entryKey, numAttrs);
+      ndbrequire(ret != 0);
     }
-    ndbrequire(ret != 0);
     if (ret < 0) {
       jam();
       hi = j;
@@ -298,7 +306,7 @@ Dbtux::findPosToScan(Frag& frag, unsigned idir, ConstData boundInfo, unsigned bo
  * Search for scan start position.
  */
 void
-Dbtux::searchToScan(Frag& frag, ConstData boundInfo, unsigned boundCount, bool descending, TreePos& treePos)
+Dbtux::searchToScan(Frag& frag, unsigned idir, const KeyBoundC& searchBound, TreePos& treePos)
 {
   const TreeHead& tree = frag.m_tree;
   NodeHandle currNode(frag);
@@ -308,11 +316,10 @@ Dbtux::searchToScan(Frag& frag, ConstData boundInfo, unsigned boundCount, bool d
     jam();
     return;
   }
-  const unsigned idir = unsigned(descending);
-  findNodeToScan(frag, idir, boundInfo, boundCount, currNode);
+  findNodeToScan(frag, idir, searchBound, currNode);
   treePos.m_loc = currNode.m_loc;
   Uint16 pos;
-  findPosToScan(frag, idir, boundInfo, boundCount, currNode, &pos);
+  findPosToScan(frag, idir, searchBound, currNode, &pos);
   const unsigned occup = currNode.getOccup();
   if (idir == 0) {
     if (pos < occup) {
