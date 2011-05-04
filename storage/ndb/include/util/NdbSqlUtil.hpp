@@ -140,11 +140,6 @@ public:
                              const uchar *src, size_t srclen);
 
   /**
-   * Compare decimal numbers.
-   */
-  static int cmp_olddecimal(const uchar* s1, const uchar* s2, unsigned n);
-
-  /**
    * Convert attribute data to/from network byte order
    * This method converts the passed data of the passed type
    * between host and network byte order.
