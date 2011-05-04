@@ -30,6 +30,9 @@
 // big brother
 #include <dbtup/Dbtup.hpp>
 
+// packed index keys and bounds
+#include <NdbPack.hpp>
+
 // signal classes
 #include <signaldata/DictTabInfo.hpp>
 #include <signaldata/TuxContinueB.hpp>
@@ -132,7 +135,7 @@ private:
   );
 
 public:
-  STATIC_CONST( DescPageSize = 256 );
+  STATIC_CONST( DescPageSize = 512 );
 private:
   STATIC_CONST( MaxTreeNodeSize = MAX_TTREE_NODE_SIZE );
   STATIC_CONST( MaxPrefSize = MAX_TTREE_PREF_SIZE );
@@ -143,7 +146,6 @@ private:
 
   // forward declarations
   struct TuxCtx;
-  struct DescEnt;
 
   // Pointer to array of Uint32 represents attribute data and bounds
 
@@ -281,7 +283,10 @@ private:
 
   /*
    * Descriptor page.  The "hot" metadata for an index is stored as
-   * a contiguous array of words on some page.
+   * contiguous array of words on some page.  It has 3 parts:
+   * 1) DescHead
+   * 2) array of NdbPack::Type used by NdbPack::Spec of index key
+   * 3) array of attr headers for reading index key values from TUP
    */
   struct DescPage;
   friend struct DescPage;
@@ -298,38 +303,17 @@ private:
   ArrayPool<DescPage> c_descPagePool;
   Uint32 c_descPageList;
 
-  /*
-   * Header for index metadata.  Size must be multiple of word size.
-   */
   struct DescHead {
-    unsigned m_indexId : 24;
-    unsigned pad1 : 8;
+    Uint32 m_indexId;
+    Uint16 m_numAttrs;
+    Uint16 m_magic;
+    enum { Magic = 0xDE5C };
   };
   STATIC_CONST( DescHeadSize = sizeof(DescHead) >> 2 );
 
-  /*
-   * Attribute metadata.  Size must be multiple of word size.
-   *
-   * Prefix comparison of char data must use strxfrm and binary
-   * comparison.  The charset is currently unused.
-   */
-  struct DescAttr {
-    Uint32 m_attrDesc;          // standard AttributeDescriptor
-    Uint16 m_primaryAttrId;
-    unsigned m_typeId : 6;
-    unsigned m_charset : 10;
-  };
-  STATIC_CONST( DescAttrSize = sizeof(DescAttr) >> 2 );
-
-  /*
-   * Complete metadata for one index. The array of attributes has
-   * variable size.
-   */
-  friend struct DescEnt;
-  struct DescEnt {
-    DescHead m_descHead;
-    DescAttr m_descAttr[1];     // variable size data
-  };
+  typedef NdbPack::Type KeyType;
+  typedef NdbPack::Spec KeySpec;
+  STATIC_CONST( KeyTypeSize = sizeof(KeyType) >> 2 );
 
   // range scan
  
@@ -451,6 +435,7 @@ private:
     Uint32 m_descPage;          // descriptor page
     Uint16 m_descOff;           // offset within the page
     Uint16 m_numAttrs;
+    KeySpec m_keySpec;
     union {
     bool m_storeNullKey;
     Uint32 nextPool;
@@ -698,7 +683,7 @@ private:
   friend class NdbOut& operator<<(NdbOut&, const TreeNode&);
   friend class NdbOut& operator<<(NdbOut&, const TreeHead&);
   friend class NdbOut& operator<<(NdbOut&, const TreePos&);
-  friend class NdbOut& operator<<(NdbOut&, const DescAttr&);
+  friend class NdbOut& operator<<(NdbOut&, const KeyType&);
   friend class NdbOut& operator<<(NdbOut&, const ScanOp&);
   friend class NdbOut& operator<<(NdbOut&, const Index&);
   friend class NdbOut& operator<<(NdbOut&, const Frag&);
@@ -757,7 +742,13 @@ private:
   Data c_dataBuffer;
 
   // inlined utils
-  DescEnt& getDescEnt(Uint32 descPage, Uint32 descOff);
+  Uint32 getDescSize(const Index& index);
+  DescHead& getDescHead(const Index& index);
+  KeyType* getKeyTypes(DescHead& descHead);
+  const KeyType* getKeyTypes(const DescHead& descHead);
+  AttributeHeader* getKeyAttrs(DescHead& descHead);
+  const AttributeHeader* getKeyAttrs(const DescHead& descHead);
+  //
   void getTupAddr(const Frag& frag, TreeEnt ent, Uint32& lkey1, Uint32& lkey2);
   static unsigned min(unsigned x, unsigned y);
   static unsigned max(unsigned x, unsigned y);
@@ -994,6 +985,7 @@ Dbtux::Index::Index() :
   m_descPage(RNIL),
   m_descOff(0),
   m_numAttrs(0),
+  m_keySpec(),
   m_storeNullKey(false)
 {
   for (unsigned i = 0; i < MaxIndexFragments; i++) {
@@ -1185,15 +1177,60 @@ Dbtux::PrintPar::PrintPar() :
 
 // utils
 
-inline Dbtux::DescEnt&
-Dbtux::getDescEnt(Uint32 descPage, Uint32 descOff)
+inline Uint32
+Dbtux::getDescSize(const Index& index)
+{
+  return
+    DescHeadSize +
+    index.m_numAttrs * KeyTypeSize +
+    index.m_numAttrs * AttributeHeaderSize;
+}
+
+inline Dbtux::DescHead&
+Dbtux::getDescHead(const Index& index)
 {
   DescPagePtr pagePtr;
-  pagePtr.i = descPage;
+  pagePtr.i = index.m_descPage;
   c_descPagePool.getPtr(pagePtr);
-  ndbrequire(descOff < DescPageSize);
-  DescEnt* descEnt = (DescEnt*)&pagePtr.p->m_data[descOff];
-  return *descEnt;
+  ndbrequire(index.m_descOff < DescPageSize);
+  Uint32* ptr = &pagePtr.p->m_data[index.m_descOff];
+  DescHead* descHead = reinterpret_cast<DescHead*>(ptr);
+  ndbrequire(descHead->m_magic == DescHead::Magic);
+  return *descHead;
+}
+
+inline Dbtux::KeyType*
+Dbtux::getKeyTypes(DescHead& descHead)
+{
+  Uint32* ptr = reinterpret_cast<Uint32*>(&descHead);
+  ptr += DescHeadSize;
+  return reinterpret_cast<KeyType*>(ptr);
+}
+
+inline const Dbtux::KeyType*
+Dbtux::getKeyTypes(const DescHead& descHead)
+{
+  const Uint32* ptr = reinterpret_cast<const Uint32*>(&descHead);
+  ptr += DescHeadSize;
+  return reinterpret_cast<const KeyType*>(ptr);
+}
+
+inline AttributeHeader*
+Dbtux::getKeyAttrs(DescHead& descHead)
+{
+  Uint32* ptr = reinterpret_cast<Uint32*>(&descHead);
+  ptr += DescHeadSize;
+  ptr += descHead.m_numAttrs * KeyTypeSize;
+  return reinterpret_cast<AttributeHeader*>(ptr);
+}
+
+inline const AttributeHeader*
+Dbtux::getKeyAttrs(const DescHead& descHead)
+{
+  const Uint32* ptr = reinterpret_cast<const Uint32*>(&descHead);
+  ptr += DescHeadSize;
+  ptr += descHead.m_numAttrs * KeyTypeSize;
+  return reinterpret_cast<const AttributeHeader*>(ptr);
 }
 
 inline

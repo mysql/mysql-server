@@ -147,7 +147,8 @@ Dbtux::execTUX_BOUND_INFO(Signal* signal)
   const TuxBoundInfo* const req = (const TuxBoundInfo*)sig;
   ScanOp& scan = *c_scanOpPool.getPtr(req->tuxScanPtrI);
   const Index& index = *c_indexPool.getPtr(scan.m_indexId);
-  const DescEnt& descEnt = getDescEnt(index.m_descPage, index.m_descOff);
+  const DescHead& descHead = getDescHead(index);
+  const KeyType* keyTypes = getKeyTypes(descHead);
   // collect normalized lower and upper bounds
   struct BoundInfo {
     int type2;     // with EQ -> LE/GE
@@ -186,9 +187,9 @@ Dbtux::execTUX_BOUND_INFO(Signal* signal)
     if (! ah->isNULL()) {
       jam();
       const uchar* srcPtr = (const uchar*)&data[offset + 2];
-      const DescAttr& descAttr = descEnt.m_descAttr[attrId];
-      Uint32 typeId = descAttr.m_typeId;
-      Uint32 maxBytes = AttributeDescriptor::getSizeInBytes(descAttr.m_attrDesc);
+      const KeyType& keyType = keyTypes[attrId];
+      Uint32 typeId = keyType.get_type_id();
+      Uint32 maxBytes = keyType.get_byte_size();
       Uint32 lb, len;
       bool ok = NdbSqlUtil::get_var_length(typeId, srcPtr, maxBytes, lb, len);
       if (! ok) {
@@ -206,13 +207,13 @@ Dbtux::execTUX_BOUND_INFO(Signal* signal)
         return;
       }
       uchar* dstPtr = (uchar*)&xfrmData[dstPos + 2];
-      if (descAttr.m_charset == 0) {
+      if (keyType.get_cs_number() == 0) {
         memcpy(dstPtr, srcPtr, srcWords << 2);
         dstBytes = srcBytes;
         dstWords = srcWords;
       } else {
         jam();
-        CHARSET_INFO* cs = all_charsets[descAttr.m_charset];
+        CHARSET_INFO* cs = all_charsets[keyType.get_cs_number()];
         Uint32 xmul = cs->strxfrm_multiply;
         if (xmul == 0)
           xmul = 1;

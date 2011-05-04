@@ -157,31 +157,45 @@ Dbtux::execTUX_ADD_ATTRREQ(Signal* signal)
         indexPtr.p->m_state == Index::Defining &&
         attrId < indexPtr.p->m_numAttrs &&
         attrId == req->attrId);
-    // define the attribute
-    DescEnt& descEnt = getDescEnt(indexPtr.p->m_descPage, indexPtr.p->m_descOff);
-    DescAttr& descAttr = descEnt.m_descAttr[attrId];
-    descAttr.m_attrDesc = req->attrDescriptor;
-    descAttr.m_primaryAttrId = req->primaryAttrId;
-    descAttr.m_typeId = AttributeDescriptor::getType(req->attrDescriptor);
-    descAttr.m_charset = (req->extTypeInfo >> 16);
+    const Uint32 ad = req->attrDescriptor;
+    const Uint32 typeId = AttributeDescriptor::getType(ad);
+    const Uint32 sizeInBytes = AttributeDescriptor::getSizeInBytes(ad);
+    const Uint32 nullable = AttributeDescriptor::getNullable(ad);
+    const Uint32 csNumber = req->extTypeInfo >> 16;
+    const Uint32 primaryAttrId = req->primaryAttrId;
+
+    DescHead& descHead = getDescHead(*indexPtr.p);
+    // add type to spec
+    KeySpec& keySpec = indexPtr.p->m_keySpec;
+    KeyType keyType(typeId, sizeInBytes, nullable, csNumber);
+    if (keySpec.add(keyType) == -1) {
+      jam();
+      errorCode = TuxAddAttrRef::InvalidAttributeType;
+      break;
+    }
+    // add primary attr to read keys array
+    AttributeHeader* keyAttrs = getKeyAttrs(descHead);
+    AttributeHeader& keyAttr = keyAttrs[attrId];
+    new (&keyAttr) AttributeHeader(primaryAttrId, sizeInBytes);
 #ifdef VM_TRACE
     if (debugFlags & DebugMeta) {
-      debugOut << "attr " << attrId << " " << descAttr << endl;
+      debugOut << "attr " << attrId << " " << keyType << endl;
     }
 #endif
     // check that type is valid and has a binary comparison method
-    const NdbSqlUtil::Type& type = NdbSqlUtil::getTypeBinary(descAttr.m_typeId);
+    // XXX remove when XFRM is gone
+    const NdbSqlUtil::Type& type = NdbSqlUtil::getTypeBinary(typeId);
     if (type.m_typeId == NdbSqlUtil::Type::Undefined ||
         type.m_cmp == 0) {
       jam();
       errorCode = TuxAddAttrRef::InvalidAttributeType;
       break;
     }
-    if (descAttr.m_charset != 0) {
+    if (csNumber != 0) {
       uint err;
-      CHARSET_INFO *cs = all_charsets[descAttr.m_charset];
+      CHARSET_INFO *cs = all_charsets[csNumber];
       ndbrequire(cs != 0);
-      if ((err = NdbSqlUtil::check_column_for_ordered_index(descAttr.m_typeId, cs))) {
+      if ((err = NdbSqlUtil::check_column_for_ordered_index(typeId, cs))) {
         jam();
         errorCode = (TuxAddAttrRef::ErrorCode) err;
         break;
@@ -536,7 +550,7 @@ bool
 Dbtux::allocDescEnt(IndexPtr indexPtr)
 {
   jam();
-  const unsigned size = DescHeadSize + indexPtr.p->m_numAttrs * DescAttrSize;
+  const Uint32 size = getDescSize(*indexPtr.p);
   DescPagePtr pagePtr;
   pagePtr.i = c_descPageList;
   while (pagePtr.i != RNIL) {
@@ -564,9 +578,13 @@ Dbtux::allocDescEnt(IndexPtr indexPtr)
   indexPtr.p->m_descPage = pagePtr.i;
   indexPtr.p->m_descOff = DescPageSize - pagePtr.p->m_numFree;
   pagePtr.p->m_numFree -= size;
-  DescEnt& descEnt = getDescEnt(indexPtr.p->m_descPage, indexPtr.p->m_descOff);
-  descEnt.m_descHead.m_indexId = indexPtr.i;
-  descEnt.m_descHead.pad1 = 0;
+  DescHead& descHead = *(DescHead*)&pagePtr.p->m_data[indexPtr.p->m_descOff];
+  descHead.m_indexId = indexPtr.i;
+  descHead.m_numAttrs = indexPtr.p->m_numAttrs;
+  descHead.m_magic = DescHead::Magic;
+  KeySpec& keySpec = indexPtr.p->m_keySpec;
+  KeyType* keyTypes = getKeyTypes(descHead);
+  keySpec.set_buf(keyTypes, indexPtr.p->m_numAttrs);
   return true;
 }
 
@@ -576,21 +594,22 @@ Dbtux::freeDescEnt(IndexPtr indexPtr)
   DescPagePtr pagePtr;
   c_descPagePool.getPtr(pagePtr, indexPtr.p->m_descPage);
   Uint32* const data = pagePtr.p->m_data;
-  const unsigned size = DescHeadSize + indexPtr.p->m_numAttrs * DescAttrSize;
-  unsigned off = indexPtr.p->m_descOff;
+  const Uint32 size = getDescSize(*indexPtr.p);
+  Uint32 off = indexPtr.p->m_descOff;
   // move the gap to the free area at the top
   while (off + size < DescPageSize - pagePtr.p->m_numFree) {
     jam();
     // next entry to move over the gap
-    DescEnt& descEnt2 = *(DescEnt*)&data[off + size];
-    Uint32 indexId2 = descEnt2.m_descHead.m_indexId;
+    DescHead& descHead2 = *(DescHead*)&data[off + size];
+    Uint32 indexId2 = descHead2.m_indexId;
     Index& index2 = *c_indexPool.getPtr(indexId2);
-    unsigned size2 = DescHeadSize + index2.m_numAttrs * DescAttrSize;
+    Uint32 size2 = getDescSize(index2);
     ndbrequire(
         index2.m_descPage == pagePtr.i &&
-        index2.m_descOff == off + size);
+        index2.m_descOff == off + size &&
+        index2.m_numAttrs == descHead2.m_numAttrs);
     // move the entry (overlapping copy if size < size2)
-    unsigned i;
+    Uint32 i;
     for (i = 0; i < size2; i++) {
       jam();
       data[off + i] = data[off + size + i];
@@ -598,6 +617,13 @@ Dbtux::freeDescEnt(IndexPtr indexPtr)
     off += size2;
     // adjust page offset in index
     index2.m_descOff -= size;
+    {
+      // move KeySpec pointer
+      DescHead& descHead2 = getDescHead(index2);
+      KeyType* keyType2 = getKeyTypes(descHead2);
+      index2.m_keySpec.set_buf(keyType2);
+      ndbrequire(index2.m_keySpec.validate() == 0);
+     }
   }
   ndbrequire(off + size == DescPageSize - pagePtr.p->m_numFree);
   pagePtr.p->m_numFree += size;
