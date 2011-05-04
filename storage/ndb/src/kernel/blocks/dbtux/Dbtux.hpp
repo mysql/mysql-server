@@ -441,6 +441,8 @@ private:
     Uint32 m_descPage;          // descriptor page
     Uint16 m_descOff;           // offset within the page
     Uint16 m_numAttrs;
+    Uint16 m_prefAttrs;         // attributes in min prefix
+    Uint16 m_prefBytes;         // max bytes in min prefix
     KeySpec m_keySpec;
     union {
     bool m_storeNullKey;
@@ -999,6 +1001,8 @@ Dbtux::Index::Index() :
   m_descPage(RNIL),
   m_descOff(0),
   m_numAttrs(0),
+  m_prefAttrs(0),
+  m_prefBytes(0),
   m_keySpec(),
   m_storeNullKey(false)
 {
