@@ -396,13 +396,16 @@ NdbSqlUtil::cmpDouble(const void* info, const void* p1, unsigned n1, const void*
 }
 
 int
-NdbSqlUtil::cmp_olddecimal(const uchar* s1, const uchar* s2, unsigned n)
+NdbSqlUtil::cmpOlddecimal(const void* info, const void* p1, unsigned n1, const void* p2, unsigned n2)
 {
+  assert(info == 0 && n1 == n2);
+  const uchar* v1 = (const uchar*)p1;
+  const uchar* v2 = (const uchar*)p2;
   int sgn = +1;
   unsigned i = 0;
-  while (i < n) {
-    int c1 = s1[i];
-    int c2 = s2[i];
+  while (i < n1) {
+    int c1 = v1[i];
+    int c2 = v2[i];
     if (c1 == c2) {
       if (c1 == '-')
         sgn = -1;
@@ -421,55 +424,21 @@ NdbSqlUtil::cmp_olddecimal(const uchar* s1, const uchar* s2, unsigned n)
 }
 
 int
-NdbSqlUtil::cmpOlddecimal(const void* info, const void* p1, unsigned n1, const void* p2, unsigned n2)
-{
-  if (full) {
-    assert(n1 == n2);
-    const uchar* v1 = (const uchar*)p1;
-    const uchar* v2 = (const uchar*)p2;
-    return cmp_olddecimal(v1, v2, n1);
-  }
-  return CmpUnknown;
-}
-
-int
 NdbSqlUtil::cmpOlddecimalunsigned(const void* info, const void* p1, unsigned n1, const void* p2, unsigned n2)
 {
-  if (full) {
-    assert(n1 == n2);
-    const uchar* v1 = (const uchar*)p1;
-    const uchar* v2 = (const uchar*)p2;
-    return cmp_olddecimal(v1, v2, n1);
-  }
-  return CmpUnknown;
+  return cmpOlddecimal(info, p1, n1, p2, n2);
 }
 
 int
 NdbSqlUtil::cmpDecimal(const void* info, const void* p1, unsigned n1, const void* p2, unsigned n2)
 {
-  const uchar* v1 = (const uchar*)p1;
-  const uchar* v2 = (const uchar*)p2;
-  // compare as binary strings
-  unsigned n = (n1 <= n2 ? n1 : n2);
-  int k = memcmp(v1, v2, n);
-  if (k == 0) {
-    k = (full ? n1 : n) - n2;
-  }
-  return k < 0 ? -1 : k > 0 ? +1 : full ? 0 : CmpUnknown;
+  return cmpBinary(info, p1, n1, p2, n2);
 }
 
 int
 NdbSqlUtil::cmpDecimalunsigned(const void* info, const void* p1, unsigned n1, const void* p2, unsigned n2)
 {
-  const uchar* v1 = (const uchar*)p1;
-  const uchar* v2 = (const uchar*)p2;
-  // compare as binary strings
-  unsigned n = (n1 <= n2 ? n1 : n2);
-  int k = memcmp(v1, v2, n);
-  if (k == 0) {
-    k = (full ? n1 : n) - n2;
-  }
-  return k < 0 ? -1 : k > 0 ? +1 : full ? 0 : CmpUnknown;
+  return cmpBinary(info, p1, n1, p2, n2);
 }
 
 int
