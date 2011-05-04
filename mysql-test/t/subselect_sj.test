@@ -311,7 +311,7 @@ FROM t0
 WHERE varchar_nokey  IN (  
   SELECT t1 .varchar_key  from t1
 );
-
+--disable_parsing # wrong duplicate results - LP BUG#702374
 SELECT t0.int_key  
 FROM t0
 WHERE t0.varchar_nokey  IN (  
@@ -325,7 +325,7 @@ WHERE t0.varchar_nokey  IN (
   SELECT t1_1 .varchar_key  
   FROM t1 AS t1_1  JOIN t1 AS t1_2 ON t1_1 .int_key  
 );
-
+--enable_parsing
 DROP TABLE t0, t1, t2;
 
 --echo # End of bug#46550

@@ -1364,7 +1364,7 @@ explain select a1,a2,b,min(c),max(c) from t1
 where exists ( select * from t2 where t2.c > 'b1' )
 group by a1,a2,b;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	PRIMARY	t1	range	NULL	idx_t1_1	147	NULL	129	Using index for group-by
+1	PRIMARY	t1	range	NULL	idx_t1_1	147	NULL	129	Using where; Using index for group-by
 2	SUBQUERY	t2	index	NULL	idx_t2_1	163	NULL	164	Using where; Using index
 explain select a1,a2,b,min(c),max(c) from t1 where (a1 >= 'c' or a2 < 'b') and (b > 'a') group by a1,a2,b;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
@@ -2247,17 +2247,17 @@ EXPLAIN SELECT 1 FROM t1 AS t1_outer WHERE EXISTS
 (SELECT max(b) FROM t1 GROUP BY a HAVING a < 2);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	PRIMARY	t1_outer	index	NULL	a	10	NULL	15	Using index
-2	SUBQUERY	t1	index	NULL	a	10	NULL	15	Using index
+2	SUBQUERY	t1	index	NULL	a	10	NULL	1	Using index
 EXPLAIN SELECT 1 FROM t1 AS t1_outer WHERE 
 (SELECT max(b) FROM t1 GROUP BY a HAVING a < 2) > 12;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	PRIMARY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE
+1	PRIMARY	t1_outer	index	NULL	a	10	NULL	15	Using index
 2	SUBQUERY	t1	index	NULL	a	10	NULL	15	Using index
 EXPLAIN SELECT 1 FROM t1 AS t1_outer WHERE 
 a IN (SELECT max(b) FROM t1 GROUP BY a HAVING a < 2);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	PRIMARY	t1_outer	index	NULL	a	10	NULL	15	Using where; Using index
-2	SUBQUERY	t1	index	NULL	a	10	NULL	15	Using index
+2	DEPENDENT SUBQUERY	t1	index	NULL	a	10	NULL	1	Using index
 EXPLAIN SELECT 1 FROM t1 AS t1_outer GROUP BY a HAVING 
 a > (SELECT max(b) FROM t1 GROUP BY a HAVING a < 2);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
