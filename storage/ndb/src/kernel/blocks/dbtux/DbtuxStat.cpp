@@ -61,10 +61,10 @@ Dbtux::statRecordsInRange(ScanOpPtr scanPtr, Uint32* out)
     bound.first(iter);
     for (unsigned j = 0; j < bound.getSize(); j++) {
       jam();
-      c_dataBuffer[j] = *iter.data;
+      c_ctx.c_dataBuffer[j] = *iter.data;
       bound.next(iter);
     }
-    searchToScan(frag, c_dataBuffer, scan.m_boundCnt[idir], true, pos2);
+    searchToScan(frag, c_ctx.c_dataBuffer, scan.m_boundCnt[idir], true, pos2);
     // committed read (same timeslice) and range not empty
     ndbrequire(pos2.m_loc != NullTupLoc);
   }

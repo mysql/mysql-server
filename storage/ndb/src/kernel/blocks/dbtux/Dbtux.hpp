@@ -315,6 +315,9 @@ private:
   typedef NdbPack::Spec KeySpec;
   STATIC_CONST( KeyTypeSize = sizeof(KeyType) >> 2 );
 
+  typedef NdbPack::DataC KeyDataC;
+  typedef NdbPack::Data KeyData;
+
   // range scan
  
   /*
@@ -543,6 +546,7 @@ private:
   // utils
   void setKeyAttrs(TuxCtx&, const Frag& frag);
   void readKeyAttrs(TuxCtx&, const Frag& frag, TreeEnt ent, unsigned start, Data keyData);
+  void readKeyAttrs(TuxCtx&, const Frag& frag, TreeEnt ent, KeyData& keyData, Uint32 count);
   void readTablePk(const Frag& frag, TreeEnt ent, Data pkData, unsigned& pkSize);
   void copyAttrs(TuxCtx&, const Frag& frag, ConstData data1, Data data2, unsigned maxlen2 = MaxAttrDataSize);
   void unpackBound(const ScanBound& bound, Data data);
@@ -638,11 +642,11 @@ private:
   /*
    * DbtuxSearch.cpp
    */
-  void findNodeToUpdate(TuxCtx&, Frag& frag, ConstData searchKey, TreeEnt searchEnt, NodeHandle& currNode);
-  bool findPosToAdd(TuxCtx&, Frag& frag, ConstData searchKey, TreeEnt searchEnt, NodeHandle& currNode, TreePos& treePos);
-  bool findPosToRemove(TuxCtx&, Frag& frag, ConstData searchKey, TreeEnt searchEnt, NodeHandle& currNode, TreePos& treePos);
-  bool searchToAdd(TuxCtx&, Frag& frag, ConstData searchKey, TreeEnt searchEnt, TreePos& treePos);
-  bool searchToRemove(TuxCtx&, Frag& frag, ConstData searchKey, TreeEnt searchEnt, TreePos& treePos);
+  void findNodeToUpdate(TuxCtx&, Frag& frag, const KeyDataC& searchKey, TreeEnt searchEnt, NodeHandle& currNode);
+  bool findPosToAdd(TuxCtx&, Frag& frag, const KeyDataC& searchKey, TreeEnt searchEnt, NodeHandle& currNode, TreePos& treePos);
+  bool findPosToRemove(TuxCtx&, Frag& frag, const KeyDataC& searchKey, TreeEnt searchEnt, NodeHandle& currNode, TreePos& treePos);
+  bool searchToAdd(TuxCtx&, Frag& frag, const KeyDataC& searchKey, TreeEnt searchEnt, TreePos& treePos);
+  bool searchToRemove(TuxCtx&, Frag& frag, const KeyDataC& searchKey, TreeEnt searchEnt, TreePos& treePos);
   void findNodeToScan(Frag& frag, unsigned dir, ConstData boundInfo, unsigned boundCount, NodeHandle& currNode);
   void findPosToScan(Frag& frag, unsigned idir, ConstData boundInfo, unsigned boundCount, NodeHandle& currNode, Uint16* pos);
   void searchToScan(Frag& frag, ConstData boundInfo, unsigned boundCount, bool descending, TreePos& treePos);
@@ -651,6 +655,7 @@ private:
    * DbtuxCmp.cpp
    */
   int cmpSearchKey(TuxCtx&, const Frag& frag, unsigned& start, ConstData searchKey, ConstData entryData, unsigned maxlen = MaxAttrDataSize);
+  int cmpSearchKey(const KeyDataC& searchKey, const KeyDataC& entryKey, Uint32 cnt);
   int cmpScanBound(const Frag& frag, unsigned dir, ConstData boundInfo, unsigned boundCount, ConstData entryData, unsigned maxlen = MaxAttrDataSize);
 
   /*
@@ -734,12 +739,12 @@ private:
 
     // buffer for current entry key data with headers
     Data c_entryKey;
+
+    // buffer for scan bounds and keyinfo and conversions
+    Data c_dataBuffer;
   };
 
   struct TuxCtx c_ctx; // Global Tux context, for everything build MT-index build
-
-  // buffer for scan bounds and keyinfo (primary key)
-  Data c_dataBuffer;
 
   // inlined utils
   Uint32 getDescSize(const Index& index);
@@ -1254,6 +1259,26 @@ inline unsigned
 Dbtux::max(unsigned x, unsigned y)
 {
   return x > y ? x : y;
+}
+
+// DbtuxCmp.cpp
+
+inline int
+Dbtux::cmpSearchKey(const KeyDataC& searchKey, const KeyDataC& entryKey, Uint32 cnt)
+{
+  // compare cnt attributes from each
+  Uint32 num_eq;
+  int ret = searchKey.cmp(entryKey, cnt, num_eq);
+#ifdef VM_TRACE
+  if (debugFlags & DebugMaint) {
+    char tmp[MaxAttrDataSize << 2];
+    debugOut << "cmpSearchKey: ret:" << ret;
+    debugOut << " search:" << searchKey.print(tmp, sizeof(tmp));
+    debugOut << " entry:" << entryKey.print(tmp, sizeof(tmp));
+    debugOut << endl;
+  }
+#endif
+  return ret;
 }
 
 #endif

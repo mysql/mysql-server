@@ -234,7 +234,7 @@ Dbtux::execREAD_CONFIG_REQ(Signal* signal)
   c_ctx.c_searchKey = (Uint32*)allocRecord("c_searchKey", sizeof(Uint32), MaxAttrDataSize);
   c_ctx.c_entryKey = (Uint32*)allocRecord("c_entryKey", sizeof(Uint32), MaxAttrDataSize);
 
-  c_dataBuffer = (Uint32*)allocRecord("c_dataBuffer", sizeof(Uint64), (MaxAttrDataSize + 1) >> 1);
+  c_ctx.c_dataBuffer = (Uint32*)allocRecord("c_dataBuffer", sizeof(Uint64), (MaxAttrDataSize + 1) >> 1);
 
   // ack
   ReadConfigConf * conf = (ReadConfigConf*)signal->getDataPtrSend();
@@ -280,7 +280,7 @@ Dbtux::readKeyAttrs(TuxCtx& ctx, const Frag& frag, TreeEnt ent, unsigned start, 
   keyAttrs += start;
   int ret = c_tup->tuxReadAttrs(ctx.jamBuffer,
                                 tableFragPtrI, tupLoc.getPageId(), tupLoc.getPageOffset(),
-                                tupVersion, keyAttrs, numAttrs, keyData);
+                                tupVersion, keyAttrs, numAttrs, keyData, true);
   thrjamEntry(ctx.jamBuffer);
   // TODO handle error
   ndbrequire(ret > 0);
@@ -302,6 +302,49 @@ Dbtux::readKeyAttrs(TuxCtx& ctx, const Frag& frag, TreeEnt ent, unsigned start, 
       totalSize += 1 + dataSize;
     }
     ndbassert((int)totalSize == ret);
+  }
+#endif
+}
+
+void
+Dbtux::readKeyAttrs(TuxCtx& ctx, const Frag& frag, TreeEnt ent, KeyData& keyData, Uint32 count)
+{
+  const Index& index = *c_indexPool.getPtr(frag.m_indexId);
+  const DescHead& descHead = getDescHead(index);
+  const AttributeHeader* keyAttrs = getKeyAttrs(descHead);
+  Uint32* const outputBuffer = ctx.c_dataBuffer;
+
+#ifdef VM_TRACE
+  ndbrequire(&keyData.get_spec() == &index.m_keySpec);
+  ndbrequire(keyData.get_spec().validate() == 0);
+  ndbrequire(count <= index.m_numAttrs);
+#endif
+
+  const TupLoc tupLoc = ent.m_tupLoc;
+  const Uint32 pageId = tupLoc.getPageId();
+  const Uint32 pageOffset = tupLoc.getPageOffset();
+  const Uint32 tupVersion = ent.m_tupVersion;
+  const Uint32 tableFragPtrI = frag.m_tupTableFragPtrI;
+  const Uint32* keyAttrs32 = (const Uint32*)&keyAttrs[0];
+
+  int ret;
+  ret = c_tup->tuxReadAttrs(ctx.jamBuffer, tableFragPtrI, tupLoc.getPageId(), tupLoc.getPageOffset(), tupVersion, keyAttrs32, count, outputBuffer, false);
+  jamEntry();
+  ndbrequire(ret > 0);
+  keyData.reset();
+  Uint32 len;
+  ret = keyData.add_poai(outputBuffer, count, &len);
+  ndbrequire(ret == 0);
+  ret = keyData.finalize();
+  ndbrequire(ret == 0);
+
+#ifdef VM_TRACE
+  if (debugFlags & (DebugMaint | DebugScan)) {
+    char tmp[MaxAttrDataSize << 2];
+    debugOut << "readKeyAttrs: ";
+    debugOut << " ent:" << ent << " count:" << count;
+    debugOut << " data:" << keyData.print(tmp, sizeof(tmp));
+    debugOut << endl;
   }
 #endif
 }
