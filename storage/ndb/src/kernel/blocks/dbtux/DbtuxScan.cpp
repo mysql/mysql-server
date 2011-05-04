@@ -158,7 +158,7 @@ Dbtux::execTUX_BOUND_INFO(Signal* signal)
   BoundInfo boundInfo[2][MaxIndexAttributes];
   const unsigned dstSize = MaxAttrDataSize;
   // use some static buffer (they are only used within a timeslice)
-  Uint32* const xfrmData = c_dataBuffer;
+  Uint32* const xfrmData = c_ctx.c_dataBuffer;
   Uint32 dstPos = 0;
   // largest attrId seen plus one
   Uint32 maxAttrId[2] = { 0, 0 };
@@ -479,7 +479,7 @@ Dbtux::execACC_CHECK_SCAN(Signal* signal)
     scanFind(scanPtr);
   }
   // for reading tuple key in Found or Locked state
-  Data pkData = c_dataBuffer;
+  Data pkData = c_ctx.c_dataBuffer;
   unsigned pkSize = 0; // indicates not yet done
   if (scan.m_state == ScanOp::Found) {
     // found an entry to return
@@ -767,9 +767,9 @@ Dbtux::scanFirst(ScanOpPtr scanPtr)
   setKeyAttrs(c_ctx, frag);
   // scan direction 0, 1
   const unsigned idir = scan.m_descending;
-  unpackBound(*scan.m_bound[idir], c_dataBuffer);
+  unpackBound(*scan.m_bound[idir], c_ctx.c_dataBuffer);
   TreePos treePos;
-  searchToScan(frag, c_dataBuffer, scan.m_boundCnt[idir], scan.m_descending, treePos);
+  searchToScan(frag, c_ctx.c_dataBuffer, scan.m_boundCnt[idir], scan.m_descending, treePos);
   if (treePos.m_loc != NullTupLoc) {
     scan.m_scanPos = treePos;
     // link the scan to node found
@@ -1033,10 +1033,10 @@ Dbtux::scanCheck(ScanOpPtr scanPtr, TreeEnt ent)
   Frag& frag = *c_fragPool.getPtr(scan.m_fragPtrI);
   const unsigned idir = scan.m_descending;
   const int jdir = 1 - 2 * (int)idir;
-  unpackBound(*scan.m_bound[1 - idir], c_dataBuffer);
+  unpackBound(*scan.m_bound[1 - idir], c_ctx.c_dataBuffer);
   unsigned boundCnt = scan.m_boundCnt[1 - idir];
   readKeyAttrs(c_ctx, frag, ent, 0, c_ctx.c_entryKey);
-  int ret = cmpScanBound(frag, 1 - idir, c_dataBuffer, boundCnt, c_ctx.c_entryKey);
+  int ret = cmpScanBound(frag, 1 - idir, c_ctx.c_dataBuffer, boundCnt, c_ctx.c_entryKey);
   ndbrequire(ret != NdbSqlUtil::CmpUnknown);
   if (jdir * ret > 0)
     return true;

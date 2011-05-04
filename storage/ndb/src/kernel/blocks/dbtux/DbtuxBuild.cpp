@@ -58,6 +58,8 @@ Dbtux::mt_buildIndexFragment_wrapper(void * obj)
     ptr += MaxAttrDataSize;
     tux_ctx->c_entryKey = ptr;
     ptr += MaxAttrDataSize;
+    tux_ctx->c_dataBuffer = ptr;
+    ptr += MaxAttrDataSize;
     if (!(UintPtr(ptr) - UintPtr(req->mem_buffer) <= req->buffer_size))
       abort();
   }
@@ -88,8 +90,6 @@ Dbtux::mt_buildIndexFragment(mt_BuildIndxCtx* req)
   Frag& frag = *fragPtr.p;
 
   TuxCtx & ctx = * (TuxCtx*)req->tux_ctx_ptr;
-  // set up index keys for this operation
-  setKeyAttrs(ctx, frag);
 
   Local_key pos;
   Uint32 fragPtrI;
@@ -108,31 +108,19 @@ Dbtux::mt_buildIndexFragment(mt_BuildIndxCtx* req)
     ent.m_tupLoc = TupLoc(pos.m_page_no, pos.m_page_idx);
     ent.m_tupVersion = pos.m_file_no; // used for version
 
-    // read search key
-    readKeyAttrs(ctx, frag, ent, 0, ctx.c_searchKey);
-    if (! indexPtr.p->m_storeNullKey)
-    {
-      // check if all keys are null
-      const unsigned numAttrs = indexPtr.p->m_numAttrs;
-      bool allNull = true;
-      for (unsigned i = 0; i < numAttrs; i++)
-      {
-        if (ctx.c_searchKey[i] != 0)
-        {
-          jam();
-          allNull = false;
-          break;
-        }
-      }
-      if (allNull)
-      {
-        jam();
-        continue;
-      }
+    // set up and read search key
+    KeyData searchKey(indexPtr.p->m_keySpec, false, 0);
+    searchKey.set_buf(ctx.c_searchKey, MaxAttrDataSize << 2);
+    readKeyAttrs(ctx, frag, ent, searchKey, indexPtr.p->m_numAttrs);
+
+    if (unlikely(! indexPtr.p->m_storeNullKey) &&
+        searchKey.get_null_cnt() == indexPtr.p->m_numAttrs) {
+      jam();
+      continue;
     }
 
     TreePos treePos;
-    bool ok = searchToAdd(ctx, frag, ctx.c_searchKey, ent, treePos);
+    bool ok = searchToAdd(ctx, frag, searchKey, ent, treePos);
     ndbrequire(ok);
 
     /*

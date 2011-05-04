@@ -183,6 +183,7 @@ Dbtux::execDUMP_STATE_ORD(Signal* signal)
 void
 Dbtux::printTree(Signal* signal, Frag& frag, NdbOut& out)
 {
+  setKeyAttrs(c_ctx, frag); // wl4163_todo temp use old methods
   TreeHead& tree = frag.m_tree;
   PrintPar par;
   strcpy(par.m_path, ".");
