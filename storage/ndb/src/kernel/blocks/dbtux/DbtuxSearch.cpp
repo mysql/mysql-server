@@ -218,20 +218,33 @@ Dbtux::findNodeToScan(Frag& frag, unsigned idir, const KeyBoundC& searchBound, N
   const int jdir = 1 - 2 * int(idir);
   const Index& index = *c_indexPool.getPtr(frag.m_indexId);
   const Uint32 numAttrs = searchBound.get_data().get_cnt();
+  const Uint32 prefAttrs = min(index.m_prefAttrs, numAttrs);
+  const Uint32 prefBytes = index.m_prefBytes;
   KeyData entryKey(index.m_keySpec, false, 0);
   entryKey.set_buf(c_ctx.c_entryKey, MaxAttrDataSize << 2);
+  KeyDataC prefKey(index.m_keySpec, false);
   NodeHandle glbNode(frag);     // potential g.l.b of final node
   while (true) {
     jam();
     selectNode(currNode, currNode.m_loc);
-    // wl4163_todo temp disable prefix
-    int ret = (-1) * jdir;
+    prefKey.set_buf(currNode.getPref(), prefBytes, prefAttrs);
+    int ret = 0;
     if (numAttrs > 0) {
+      if (prefAttrs > 0) {
+        jam();
+        // compare node prefix - result 0 implies bound is longer
+        ret = cmpSearchBound(searchBound, prefKey, prefAttrs);
+      }
+      if (ret == 0) {
+        jam();
+        // read and compare all attributes
+        readKeyAttrs(c_ctx, frag, currNode.getEnt(0), entryKey, numAttrs);
+        ret = cmpSearchBound(searchBound, entryKey, numAttrs);
+        ndbrequire(ret != 0);
+      }
+    } else {
       jam();
-      // read and compare all attributes
-      readKeyAttrs(c_ctx, frag, currNode.getEnt(0), entryKey, numAttrs);
-      ret = cmpSearchBound(searchBound, entryKey, numAttrs);
-      ndbrequire(ret != 0);
+      ret = (-1) * jdir;
     }
     if (ret < 0) {
       // bound is left of this node
