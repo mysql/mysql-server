@@ -999,6 +999,7 @@ public:
 	      COND *conds, uint og_num, ORDER *order, ORDER *group,
 	      Item *having, ORDER *proc_param, SELECT_LEX *select,
 	      SELECT_LEX_UNIT *unit);
+  bool prepare_stage2();
   int optimize();
   int reinit();
   int init_execution();

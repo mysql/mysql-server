@@ -736,11 +736,28 @@ JOIN::prepare(Item ***rref_pointer_array,
   if (!procedure && result && result->prepare(fields_list, unit_arg))
     goto err;					/* purecov: inspected */
 
+  unit= unit_arg;
+  if (prepare_stage2())
+    goto err;
+
+  DBUG_RETURN(0); // All OK
+
+err:
+  delete procedure;                /* purecov: inspected */
+  procedure= 0;
+  DBUG_RETURN(-1);                /* purecov: inspected */
+}
+
+
+bool JOIN::prepare_stage2()
+{
+  bool res= TRUE;
+  DBUG_ENTER("JOIN::prepare_stage2");
+
   /* Init join struct */
   count_field_types(select_lex, &tmp_table_param, all_fields, 0);
   ref_pointer_array_size= all_fields.elements*sizeof(Item*);
   this->group= group_list != 0;
-  unit= unit_arg;
 
   if (tmp_table_param.sum_func_count && !group_list)
     implicit_grouping= TRUE;
@@ -757,12 +774,9 @@ JOIN::prepare(Item ***rref_pointer_array,
   if (alloc_func_list())
     goto err;
 
-  DBUG_RETURN(0); // All OK
-
+  res= FALSE;
 err:
-  delete procedure;				/* purecov: inspected */
-  procedure= 0;
-  DBUG_RETURN(-1);				/* purecov: inspected */
+  DBUG_RETURN(res);				/* purecov: inspected */
 }
 
 
@@ -795,7 +809,8 @@ JOIN::optimize()
   set_allowed_join_cache_types();
 
   /* dump_TABLE_LIST_graph(select_lex, select_lex->leaf_tables); */
-  if (convert_join_subqueries_to_semijoins(this))
+  if (convert_max_min_subquery(this) ||
+      convert_join_subqueries_to_semijoins(this))
     DBUG_RETURN(1); /* purecov: inspected */
   /* dump_TABLE_LIST_graph(select_lex, select_lex->leaf_tables); */
 
@@ -8599,6 +8614,10 @@ bool error_if_full_join(JOIN *join)
 
 void JOIN_TAB::cleanup()
 {
+  DBUG_ENTER("JOIN_TAB::cleanup");
+  DBUG_PRINT("enter", ("table %s.%s",
+                       (table ? table->s->db.str : "?"),
+                       (table ? table->s->table_name.str : "?")));
   delete select;
   select= 0;
   delete quick;
@@ -8620,6 +8639,7 @@ void JOIN_TAB::cleanup()
     table->reginfo.join_tab= 0;
   }
   end_read_record(&read_record);
+  DBUG_VOID_RETURN;
 }
 
 
@@ -8740,7 +8760,8 @@ void JOIN::join_free()
     Optimization: if not EXPLAIN and we are done with the JOIN,
     free all tables.
   */
-  bool full= (!select_lex->uncacheable && !thd->lex->describe);
+  bool full= (!(select_lex->uncacheable) &&
+              !thd->lex->describe);
   bool can_unlock= full;
   DBUG_ENTER("JOIN::join_free");
 
@@ -8804,6 +8825,7 @@ void JOIN::join_free()
 void JOIN::cleanup(bool full)
 {
   DBUG_ENTER("JOIN::cleanup");
+  DBUG_PRINT("enter", ("full %u", (uint) full));
 
   if (table)
   {
@@ -8829,7 +8851,11 @@ void JOIN::cleanup(bool full)
       for (tab= join_tab, end= tab+tables; tab != end; tab++)
       {
 	if (tab->table)
+        {
+          DBUG_PRINT("info", ("close index: %s.%s", tab->table->s->db.str,
+                              tab->table->s->table_name.str));
           tab->table->file->ha_index_or_rnd_end();
+        }
       }
     }
   }
@@ -20304,6 +20330,7 @@ void st_select_lex::print(THD *thd, String *str, enum_query_type query_type)
   change select_result object of JOIN.
 
   @param res		new select_result object
+  @param temp           temporary assignment
 
   @retval
     FALSE   OK

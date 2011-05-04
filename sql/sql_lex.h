@@ -417,7 +417,8 @@ public:
 
   /*
     result of this query can't be cached, bit field, can be :
-      UNCACHEABLE_DEPENDENT
+      UNCACHEABLE_DEPENDENT_GENERATED
+      UNCACHEABLE_DEPENDENT_INJECTED
       UNCACHEABLE_RAND
       UNCACHEABLE_SIDEEFFECT
       UNCACHEABLE_EXPLAIN
