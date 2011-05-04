@@ -18,13 +18,13 @@
 
 #include "ObjectMap.hpp"
 
-NdbObjectIdMap::NdbObjectIdMap(NdbMutex* mutex, Uint32 sz, Uint32 eSz)
+NdbObjectIdMap::NdbObjectIdMap(Uint32 sz, Uint32 eSz):
+  m_expandSize(eSz),
+  m_size(0),
+  m_firstFree(InvalidId),
+  m_lastFree(InvalidId),
+  m_map(0)
 {
-  m_size = 0;
-  m_firstFree = InvalidId;
-  m_map = 0;
-  m_mutex = mutex;
-  m_expandSize = eSz;
   expand(sz);
 #ifdef DEBUG_OBJECTMAP
   ndbout_c("NdbObjectIdMap:::NdbObjectIdMap(%u)", sz);
@@ -33,12 +33,14 @@ NdbObjectIdMap::NdbObjectIdMap(NdbMutex* mutex, Uint32 sz, Uint32 eSz)
 
 NdbObjectIdMap::~NdbObjectIdMap()
 {
+  assert(checkConsistency());
   free(m_map);
+  m_map = NULL;
 }
 
 int NdbObjectIdMap::expand(Uint32 incSize)
 {
-  NdbMutex_Lock(m_mutex);
+  assert(checkConsistency());
   Uint32 newSize = m_size + incSize;
   MapEntry * tmp = (MapEntry*)realloc(m_map, newSize * sizeof(MapEntry));
 
@@ -46,20 +48,45 @@ int NdbObjectIdMap::expand(Uint32 incSize)
   {
     m_map = tmp;
     
-    for(Uint32 i = m_size; i < newSize; i++){
-      m_map[i].m_next = 2 * (i + 1) + 1;
+    for(Uint32 i = m_size; i < newSize-1; i++)
+    {
+      m_map[i].setNext(i+1);
     }
-    m_firstFree = (2 * m_size) + 1;
-    m_map[newSize-1].m_next = Uint32(InvalidId);
+    m_firstFree = m_size;
+    m_lastFree = newSize - 1;
+    m_map[newSize-1].setNext(InvalidId);
     m_size = newSize;
+    assert(checkConsistency());
   }
   else
   {
-    NdbMutex_Unlock(m_mutex);
     g_eventLogger->error("NdbObjectIdMap::expand: realloc(%u*%lu) failed",
                          newSize, sizeof(MapEntry));
     return -1;
   }
-  NdbMutex_Unlock(m_mutex);
   return 0;
+}
+
+bool NdbObjectIdMap::checkConsistency()
+{
+  if (m_firstFree == InvalidId)
+  {
+    for (Uint32 i = 0; i<m_size; i++)
+    {
+      if (m_map[i].isFree())
+      {
+        assert(false);
+        return false;
+      }
+    }
+    return true;
+  }
+
+  Uint32 i = m_firstFree;
+  while (m_map[i].getNext() != InvalidId)
+  {
+    i = m_map[i].getNext();
+  }
+  assert(i == m_lastFree);
+  return i == m_lastFree;
 }

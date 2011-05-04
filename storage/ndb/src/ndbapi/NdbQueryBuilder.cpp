@@ -2060,14 +2060,6 @@ int NdbQueryOperationDefImpl::markScanAncestors()
   NdbQueryOperationDefImpl* operation = getParentOperation();
   while (operation != NULL)
   {
-    if (operation->m_hasScanDescendant)
-    {
-      /* Remove this line if you want to allow bushy scans. Result sets will
-       * probably be wrong, but 'explain' output etc. may be useful for
-       * debugging.
-       */
-      return QRY_MULTIPLE_SCAN_BRANCHES;
-    }
     operation->m_hasScanDescendant = true;
     if (operation->isScanOperation())
     {
@@ -2829,7 +2821,8 @@ NdbQueryScanOperationDefImpl::serialize(Uint32Buffer& serializedDef,
     }
     node->tableId = tableOrIndex.getObjectId();
     node->tableVersion = tableOrIndex.getObjectVersion();
-    node->requestInfo = requestInfo;
+    // Need NI_REPEAT_SCAN_RESULT if there are star-joined scans 
+    node->requestInfo = requestInfo | DABits::NI_REPEAT_SCAN_RESULT;
     QueryNode::setOpLen(node->len, QueryNode::QN_SCAN_INDEX, length);
   }
 
