@@ -73,7 +73,10 @@ public:
     while (info && info->observer != observer)
       info= iter++;
     if (info)
+    {
       iter.remove();
+      delete info;
+    }
     else
       ret= TRUE;
     unlock();
