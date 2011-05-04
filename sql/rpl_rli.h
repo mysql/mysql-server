@@ -28,6 +28,7 @@
 
 struct RPL_TABLE_LIST;
 class Master_info;
+class Rpl_info_factory;
 extern uint sql_slave_skip_counter;
 
 /*******************************************************************************
@@ -104,6 +105,8 @@ tables along with the --relay-log-recovery.
 *******************************************************************************/
 class Relay_log_info : public Rpl_info
 {
+  friend class Rpl_info_factory;
+
 public:
   /**
      Flags for the state of the replication.
@@ -327,17 +330,6 @@ public:
    */ 
   char slave_patternload_file[FN_REFLEN]; 
   size_t slave_patternload_file_size;  
-
-  Relay_log_info(bool is_slave_recovery
-#ifdef HAVE_PSI_INTERFACE
-                 ,PSI_mutex_key *param_key_info_run_lock,
-                 PSI_mutex_key *param_key_info_data_lock,
-                 PSI_mutex_key *param_key_info_data_cond,
-                 PSI_mutex_key *param_key_info_start_cond,
-                 PSI_mutex_key *param_key_info_stop_cond
-#endif
-                );
-  virtual ~Relay_log_info();
 
   /**
     Invalidates cached until_log_name and group_relay_log_name comparison
@@ -585,8 +577,9 @@ public:
   void set_sql_delay(time_t _sql_delay) { sql_delay= _sql_delay; }
   time_t get_sql_delay_end() { return sql_delay_end; }
 
-private:
+  virtual ~Relay_log_info();
 
+private:
   /**
     Delay slave SQL thread by this amount, compared to master (in
     seconds). This is set with CHANGE MASTER TO MASTER_DELAY=X.
@@ -610,6 +603,7 @@ private:
   */
   time_t sql_delay_end;
 
+  uint32 m_flags;
   /*
     Before the MASTER_DELAY parameter was added (WL#344), relay_log.info
     had 4 lines. Now it has 5 lines.
@@ -619,10 +613,20 @@ private:
   bool read_info(Rpl_info_handler *from);
   bool write_info(Rpl_info_handler *to, bool force);
 
-  Relay_log_info& operator=(const Relay_log_info& info);
+  Relay_log_info(bool is_slave_recovery
+#ifdef HAVE_PSI_INTERFACE
+                 ,PSI_mutex_key *param_key_info_run_lock,
+                 PSI_mutex_key *param_key_info_data_lock,
+                 PSI_mutex_key *param_key_info_sleep_lock,
+                 PSI_mutex_key *param_key_info_data_cond,
+                 PSI_mutex_key *param_key_info_start_cond,
+                 PSI_mutex_key *param_key_info_stop_cond,
+                 PSI_mutex_key *param_key_info_sleep_cond
+#endif
+                );
   Relay_log_info(const Relay_log_info& info);
 
-  uint32 m_flags;
+  Relay_log_info& operator=(const Relay_log_info& info);
 };
 
 bool mysql_show_relaylog_events(THD* thd);

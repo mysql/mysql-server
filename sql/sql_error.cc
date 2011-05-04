@@ -1,4 +1,4 @@
-/* Copyright (c) 1995, 2010, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 1995, 2011, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -10,8 +10,8 @@
    GNU General Public License for more details.
 
    You should have received a copy of the GNU General Public License
-   along with this program; if not, write to the Free Software Foundation,
-   51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA */
+   along with this program; if not, write to the Free Software
+   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
 /**********************************************************************
 This file contains the implementation of error and warnings related
@@ -457,10 +457,11 @@ Diagnostics_area::disable_status()
   m_status= DA_DISABLED;
 }
 
-Warning_info::Warning_info(ulonglong warn_id_arg)
+Warning_info::Warning_info(ulonglong warn_id_arg, bool allow_unlimited_warnings)
   :m_statement_warn_count(0),
   m_current_row_for_warning(1),
   m_warn_id(warn_id_arg),
+  m_allow_unlimited_warnings(allow_unlimited_warnings),
   m_read_only(FALSE)
 {
   /* Initialize sub structures */
@@ -542,7 +543,8 @@ MYSQL_ERROR *Warning_info::push_warning(THD *thd,
 
   if (! m_read_only)
   {
-    if (m_warn_list.elements < thd->variables.max_error_count)
+    if (m_allow_unlimited_warnings ||
+        m_warn_list.elements < thd->variables.max_error_count)
     {
       cond= new (& m_warn_root) MYSQL_ERROR(& m_warn_root);
       if (cond)
@@ -556,6 +558,20 @@ MYSQL_ERROR *Warning_info::push_warning(THD *thd,
 
   m_statement_warn_count++;
   return cond;
+}
+
+MYSQL_ERROR *Warning_info::push_warning(THD *thd, const MYSQL_ERROR *sql_condition)
+{
+  MYSQL_ERROR *new_condition= push_warning(thd,
+                                           sql_condition->get_sql_errno(),
+                                           sql_condition->get_sqlstate(),
+                                           sql_condition->get_level(),
+                                           sql_condition->get_message_text());
+
+  if (new_condition)
+    new_condition->copy_opt_attributes(sql_condition);
+
+  return new_condition;
 }
 
 /*
@@ -712,7 +728,7 @@ bool mysqld_show_warnings(THD *thd, ulong levels_to_show)
 */
 
 char *err_conv(char *buff, uint to_length, const char *from,
-               uint from_length, CHARSET_INFO *from_cs)
+               uint from_length, const CHARSET_INFO *from_cs)
 {
   char *to= buff;
   const char *from_start= from;
@@ -779,9 +795,10 @@ char *err_conv(char *buff, uint to_length, const char *from,
    length of converted string
 */
 
-uint32 convert_error_message(char *to, uint32 to_length, CHARSET_INFO *to_cs,
+uint32 convert_error_message(char *to, uint32 to_length,
+                             const CHARSET_INFO *to_cs,
                              const char *from, uint32 from_length,
-                             CHARSET_INFO *from_cs, uint *errors)
+                             const CHARSET_INFO *from_cs, uint *errors)
 {
   int         cnvres;
   my_wc_t     wc;

@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2011 Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2011, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -10,8 +10,8 @@
    GNU General Public License for more details.
 
    You should have received a copy of the GNU General Public License
-   along with this program; if not, write to the Free Software Foundation,
-   51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA */
+   along with this program; if not, write to the Free Software
+   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
 /**
   @file
@@ -19,10 +19,6 @@
   Low level functions for storing data to be send to the MySQL client.
   The actual communction is handled by the net_xxx functions in net_serv.cc
 */
-
-#ifdef USE_PRAGMA_IMPLEMENTATION
-#pragma implementation				// gcc: Class implementation
-#endif
 
 #include "sql_priv.h"
 #include "unireg.h"                    // REQUIRED: for other includes
@@ -78,7 +74,8 @@ bool Protocol_binary::net_store_data(const uchar *from, size_t length)
 
 #ifndef EMBEDDED_LIBRARY
 bool Protocol::net_store_data(const uchar *from, size_t length,
-                              CHARSET_INFO *from_cs, CHARSET_INFO *to_cs)
+                              const CHARSET_INFO *from_cs,
+                              const CHARSET_INFO *to_cs)
 {
   uint dummy_errors;
   /* Calculate maxumum possible result length */
@@ -679,7 +676,7 @@ bool Protocol::send_result_set_metadata(List<Item> *list, uint flags)
   String tmp((char*) buff,sizeof(buff),&my_charset_bin);
   Protocol_text prot(thd);
   String *local_packet= prot.storage_packet();
-  CHARSET_INFO *thd_charset= thd->variables.character_set_results;
+  const CHARSET_INFO *thd_charset= thd->variables.character_set_results;
   DBUG_ENTER("send_result_set_metadata");
 
   if (flags & SEND_NUM_ROWS)
@@ -698,7 +695,7 @@ bool Protocol::send_result_set_metadata(List<Item> *list, uint flags)
   while ((item=it++))
   {
     char *pos;
-    CHARSET_INFO *cs= system_charset_info;
+    const CHARSET_INFO *cs= system_charset_info;
     Send_field field;
     item->make_field(&field);
 
@@ -881,7 +878,7 @@ bool Protocol::send_result_set_row(List<Item> *row_items)
     1		error
 */
 
-bool Protocol::store(const char *from, CHARSET_INFO *cs)
+bool Protocol::store(const char *from, const CHARSET_INFO *cs)
 {
   if (!from)
     return store_null();
@@ -948,7 +945,8 @@ bool Protocol_text::store_null()
 */
 
 bool Protocol::store_string_aux(const char *from, size_t length,
-                                CHARSET_INFO *fromcs, CHARSET_INFO *tocs)
+                                const CHARSET_INFO *fromcs,
+                                const CHARSET_INFO *tocs)
 {
   /* 'tocs' is set 0 when client issues SET character_set_results=NULL */
   if (tocs && !my_charset_same(fromcs, tocs) &&
@@ -964,7 +962,8 @@ bool Protocol::store_string_aux(const char *from, size_t length,
 
 
 bool Protocol_text::store(const char *from, size_t length,
-                          CHARSET_INFO *fromcs, CHARSET_INFO *tocs)
+                          const CHARSET_INFO *fromcs,
+                          const CHARSET_INFO *tocs)
 {
 #ifndef DBUG_OFF
   DBUG_ASSERT(field_types == 0 ||
@@ -980,9 +979,9 @@ bool Protocol_text::store(const char *from, size_t length,
 
 
 bool Protocol_text::store(const char *from, size_t length,
-                          CHARSET_INFO *fromcs)
+                          const CHARSET_INFO *fromcs)
 {
-  CHARSET_INFO *tocs= this->thd->variables.character_set_results;
+  const CHARSET_INFO *tocs= this->thd->variables.character_set_results;
 #ifndef DBUG_OFF
   DBUG_PRINT("info", ("Protocol_text::store field %u (%u): %.*s", field_pos,
                       field_count, (int) length, (length == 0 ? "" : from)));
@@ -1104,7 +1103,7 @@ bool Protocol_text::store(Field *field)
 #endif
   char buff[MAX_FIELD_WIDTH];
   String str(buff,sizeof(buff), &my_charset_bin);
-  CHARSET_INFO *tocs= this->thd->variables.character_set_results;
+  const CHARSET_INFO *tocs= this->thd->variables.character_set_results;
 #ifndef DBUG_OFF
   TABLE *table= field->table;
   my_bitmap_map *old_map= 0;
@@ -1271,15 +1270,16 @@ void Protocol_binary::prepare_for_resend()
 
 
 bool Protocol_binary::store(const char *from, size_t length,
-                            CHARSET_INFO *fromcs)
+                            const CHARSET_INFO *fromcs)
 {
-  CHARSET_INFO *tocs= thd->variables.character_set_results;
+  const CHARSET_INFO *tocs= thd->variables.character_set_results;
   field_pos++;
   return store_string_aux(from, length, fromcs, tocs);
 }
 
 bool Protocol_binary::store(const char *from, size_t length,
-                            CHARSET_INFO *fromcs, CHARSET_INFO *tocs)
+                            const CHARSET_INFO *fromcs,
+                            const CHARSET_INFO *tocs)
 {
   field_pos++;
   return store_string_aux(from, length, fromcs, tocs);

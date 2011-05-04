@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2010, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2011, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -10,8 +10,8 @@
    GNU General Public License for more details.
 
    You should have received a copy of the GNU General Public License
-   along with this program; if not, write to the Free Software Foundation,
-   51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA */
+   along with this program; if not, write to the Free Software
+   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
 
 /*
@@ -2402,8 +2402,10 @@ static int replace_user_table(THD *thd, TABLE *table, const LEX_USER &combo,
       {
         table->field[next_field]->store(combo.plugin.str, combo.plugin.length,
                                         system_charset_info);
+        table->field[next_field]->set_notnull();
         table->field[next_field + 1]->store(combo.auth.str, combo.auth.length,
                                             system_charset_info);
+        table->field[next_field + 1]->set_notnull();
       }
       else
       {
@@ -6017,18 +6019,15 @@ static int handle_grant_table(TABLE_LIST *tables, uint table_no, bool drop,
 }
 
 
-/*
+/**
   Handle an in-memory privilege structure.
 
-  SYNOPSIS
-    handle_grant_struct()
-    struct_no                   The number of the structure to handle (0..3).
-    drop                        If user_from is to be dropped.
-    user_from                   The the user to be searched/dropped/renamed.
-    user_to                     The new name for the user if to be renamed,
-                                NULL otherwise.
+  @param struct_no  The number of the structure to handle (0..5).
+  @param drop       If user_from is to be dropped.
+  @param user_from  The the user to be searched/dropped/renamed.
+  @param user_to    The new name for the user if to be renamed, NULL otherwise.
 
-  DESCRIPTION
+  @note
     Scan through all elements in an in-memory grant structure and apply
     the requested operation.
     Delete from grant structure if drop is true.
@@ -6038,12 +6037,13 @@ static int handle_grant_table(TABLE_LIST *tables, uint table_no, bool drop,
     0 acl_users
     1 acl_dbs
     2 column_priv_hash
-    3 procs_priv_hash
+    3 proc_priv_hash
+    4 func_priv_hash
+    5 acl_proxy_users
 
-  RETURN
-    > 0         At least one element matched.
-    0           OK, but no element matched.
-    -1		Wrong arguments to function
+  @retval > 0  At least one element matched.
+  @retval 0    OK, but no element matched.
+  @retval -1   Wrong arguments to function.
 */
 
 static int handle_grant_struct(uint struct_no, bool drop,
@@ -6058,6 +6058,7 @@ static int handle_grant_struct(uint struct_no, bool drop,
   ACL_DB *acl_db= NULL;
   ACL_PROXY_USER *acl_proxy_user= NULL;
   GRANT_NAME *grant_name= NULL;
+  HASH *grant_name_hash= NULL;
   DBUG_ENTER("handle_grant_struct");
   DBUG_PRINT("info",("scan struct: %u  search: '%s'@'%s'",
                      struct_no, user_from->user.str, user_from->host.str));
@@ -6077,9 +6078,15 @@ static int handle_grant_struct(uint struct_no, bool drop,
     break;
   case 2:
     elements= column_priv_hash.records;
+    grant_name_hash= &column_priv_hash;
     break;
   case 3:
     elements= proc_priv_hash.records;
+    grant_name_hash= &proc_priv_hash;
+    break;
+  case 4:
+    elements= func_priv_hash.records;
+    grant_name_hash= &func_priv_hash;
     break;
   case 5:
     elements= acl_proxy_users.elements;
@@ -6112,21 +6119,19 @@ static int handle_grant_struct(uint struct_no, bool drop,
       break;
 
     case 2:
-      grant_name= (GRANT_NAME*) my_hash_element(&column_priv_hash, idx);
+    case 3:
+    case 4:
+      grant_name= (GRANT_NAME*) my_hash_element(grant_name_hash, idx);
       user= grant_name->user;
       host= grant_name->host.hostname;
       break;
 
-    case 3:
-      grant_name= (GRANT_NAME*) my_hash_element(&proc_priv_hash, idx);
-      user= grant_name->user;
-      host= grant_name->host.hostname;
-      break;
     case 5:
       acl_proxy_user= dynamic_element(&acl_proxy_users, idx, ACL_PROXY_USER*);
       user= acl_proxy_user->get_user();
       host= acl_proxy_user->get_host();
       break;
+
     default:
       MY_ASSERT_UNREACHABLE();
     }
@@ -6156,11 +6161,9 @@ static int handle_grant_struct(uint struct_no, bool drop,
         break;
 
       case 2:
-        my_hash_delete(&column_priv_hash, (uchar*) grant_name);
-	break;
-
       case 3:
-        my_hash_delete(&proc_priv_hash, (uchar*) grant_name);
+      case 4:
+        my_hash_delete(grant_name_hash, (uchar*) grant_name);
 	break;
 
       case 5:
@@ -6169,6 +6172,19 @@ static int handle_grant_struct(uint struct_no, bool drop,
 
       }
       elements--;
+      /*
+        - If we are iterating through an array then we just have moved all
+          elements after the current element one position closer to its head.
+          This means that we have to take another look at the element at
+          current position as it is a new element from the array's tail.
+        - If we are iterating through a hash the current element was replaced
+          with one of elements from the tail. So we also have to take a look
+          at the new element in current position.
+          Note that in our HASH implementation hash_delete() won't move any
+          elements with position after current one to position before the
+          current (i.e. from the tail to the head), so it is safe to continue
+          iteration without re-starting.
+      */
       idx--;
     }
     else if ( user_to )
@@ -6186,22 +6202,41 @@ static int handle_grant_struct(uint struct_no, bool drop,
 
       case 2:
       case 3:
-        /* 
-          Update the grant structure with the new user name and
-          host name
-        */
-        grant_name->set_user_details(user_to->host.str, grant_name->db,
-                                     user_to->user.str, grant_name->tname,
-                                     TRUE);
+      case 4:
+        {
+          /*
+            Save old hash key and its length to be able properly update
+            element position in hash.
+          */
+          char *old_key= grant_name->hash_key;
+          size_t old_key_length= grant_name->key_length;
 
-        /*
-          Since username is part of the hash key, when the user name
-          is renamed, the hash key is changed. Update the hash to
-          ensure that the position matches the new hash key value
-        */
-        my_hash_update(&column_priv_hash, (uchar*) grant_name,
-                       (uchar*) grant_name->hash_key, grant_name->key_length);
-	break;
+          /*
+            Update the grant structure with the new user name and host name.
+          */
+          grant_name->set_user_details(user_to->host.str, grant_name->db,
+                                       user_to->user.str, grant_name->tname,
+                                       TRUE);
+
+          /*
+            Since username is part of the hash key, when the user name
+            is renamed, the hash key is changed. Update the hash to
+            ensure that the position matches the new hash key value
+          */
+          my_hash_update(grant_name_hash, (uchar*) grant_name, (uchar*) old_key,
+                         old_key_length);
+          /*
+            hash_update() operation could have moved element from the tail
+            of the hash to the current position. So we need to take a look
+            at the element in current position once again.
+            Thanks to the fact that hash_update() for our HASH implementation
+            won't move any elements from the tail of the hash to the positions
+            before the current one (a.k.a. head) it is safe to continue
+            iteration without restarting.
+          */
+          idx--;
+          break;
+        }
 
       case 5:
         acl_proxy_user->set_user (&mem, user_to->user.str);
@@ -6293,7 +6328,7 @@ static int handle_grant_data(TABLE_LIST *tables, bool drop,
     }
   }
 
-  /* Handle procedures table. */
+  /* Handle stored routines table. */
   if ((found= handle_grant_table(tables, 4, drop, user_from, user_to)) < 0)
   {
     /* Handle of table failed, don't touch in-memory array. */
@@ -6303,6 +6338,15 @@ static int handle_grant_data(TABLE_LIST *tables, bool drop,
   {
     /* Handle procs array. */
     if (((handle_grant_struct(3, drop, user_from, user_to) && ! result) ||
+         found) && ! result)
+    {
+      result= 1; /* At least one record/element found. */
+      /* If search is requested, we do not need to search further. */
+      if (! drop && ! user_to)
+        goto end;
+    }
+    /* Handle funcs array. */
+    if (((handle_grant_struct(4, drop, user_from, user_to) && ! result) ||
          found) && ! result)
     {
       result= 1; /* At least one record/element found. */
@@ -6368,25 +6412,47 @@ static int handle_grant_data(TABLE_LIST *tables, bool drop,
   @param str     A String to store the user list.
   @param user    A LEX_USER which will be appended into user list.
   @param comma   If TRUE, append a ',' before the the user.
-  @param passwd  If TRUE, append ' IDENTIFIED BY PASSWORD ...' after the user,
-                 if the given user has password.
+  @param ident   If TRUE, append ' IDENTIFIED BY/WITH...' after the user,
+                 if the given user has credentials set with 'IDENTIFIED BY/WITH'
  */
 static void append_user(String *str, LEX_USER *user, bool comma= TRUE,
-                        bool passwd= FALSE)
+                        bool ident= FALSE)
 {
+  String from_user(user->user.str, user->user.length, system_charset_info);
+  String from_plugin(user->plugin.str, user->plugin.length, system_charset_info);
+  String from_auth(user->auth.str, user->auth.length, system_charset_info);
+  String from_host(user->host.str, user->host.length, system_charset_info);
+
   if (comma)
     str->append(',');
-  str->append('\'');
-  str->append(user->user.str);
-  str->append(STRING_WITH_LEN("'@'"));
-  str->append(user->host.str);
-  str->append('\'');
+  append_query_string(system_charset_info, &from_user, str);
+  str->append(STRING_WITH_LEN("@"));
+  append_query_string(system_charset_info, &from_host, str);
 
-  if (passwd && user->password.str)
+  if (ident)
   {
-    str->append(STRING_WITH_LEN(" IDENTIFIED BY PASSWORD '"));
-    str->append(user->password.str, user->password.length);
-    str->append('\'');
+    if (user->plugin.str && (user->plugin.length > 0))
+    {
+      /** 
+          The plugin identifier is allowed to be specified,
+          both with and without quote marks. We log it with
+          quotes always.
+        */
+      str->append(STRING_WITH_LEN(" IDENTIFIED WITH "));
+      append_query_string(system_charset_info, &from_plugin, str);
+
+      if (user->auth.str && (user->auth.length > 0))
+      {
+        str->append(STRING_WITH_LEN(" AS "));
+        append_query_string(system_charset_info, &from_auth, str);
+      }
+    }
+    else if (user->password.str)
+    {
+      str->append(STRING_WITH_LEN(" IDENTIFIED BY PASSWORD '"));
+      str->append(user->password.str, user->password.length);
+      str->append('\'');
+    }
   }
 }
 
@@ -6461,12 +6527,14 @@ bool mysql_create_user(THD *thd, List <LEX_USER> &list)
       continue;
     }
 
-    some_users_created= TRUE;
     if (replace_user_table(thd, tables[0].table, *user_name, 0, 0, 1, 0))
     {
       append_user(&wrong_users, user_name, wrong_users.length() > 0);
       result= TRUE;
+      continue;
     }
+
+    some_users_created= TRUE;
   }
 
   mysql_mutex_unlock(&acl_cache->lock);
@@ -7136,17 +7204,6 @@ bool sp_grant_privileges(THD *thd, const char *sp_db, const char *sp_name,
   DBUG_RETURN(result);
 }
 
-
-/*****************************************************************************
-  Instantiate used templates
-*****************************************************************************/
-
-#ifdef HAVE_EXPLICIT_TEMPLATE_INSTANTIATION
-template class List_iterator<LEX_COLUMN>;
-template class List_iterator<LEX_USER>;
-template class List<LEX_COLUMN>;
-template class List<LEX_USER>;
-#endif
 
 /**
   Validate if a user can proxy as another user
@@ -7873,7 +7930,7 @@ public:
     return thd->is_error();
   }
 
-  CHARSET_INFO *charset() { return thd->charset(); }
+  const CHARSET_INFO *charset() { return thd->charset(); }
 };
 
 
@@ -8423,6 +8480,94 @@ static bool parse_com_change_user_packet(MPVIO_EXT *mpvio, uint packet_length)
   DBUG_RETURN (0);
 }
 
+#ifndef EMBEDDED_LIBRARY
+/**
+  Get a null character terminated string from a user-supplied buffer.
+
+  @param buffer[in, out]    Pointer to the buffer to be scanned.
+  @param max_bytes_available[in, out]  Limit the bytes to scan.
+  @param string_length[out] The number of characters scanned not including
+                            the null character.
+
+  @remark The string_length does not include the terminating null character.
+          However, after the call, the buffer is increased by string_length+1
+          bytes, beyond the null character if there still available bytes to
+          scan.
+
+  @return pointer to beginning of the string scanned.
+    @retval NULL The buffer content is malformed
+*/
+
+static
+char *get_null_terminated_string(char **buffer,
+                                 size_t *max_bytes_available,
+                                 size_t *string_length)
+{
+  char *str= (char *)memchr(*buffer, '\0', *max_bytes_available);
+
+  if (str == NULL)
+    return NULL;
+
+  *string_length= (size_t)(str - *buffer);
+  *max_bytes_available-= *string_length + 1;
+  str= *buffer;
+  *buffer += *string_length + 1;  
+
+  return str;
+}
+
+/**
+  Get a length encoded string from a user-supplied buffer.
+
+  @param buffer[in, out] The buffer to scan; updates position after scan.
+  @param max_bytes_available[in, out] Limit the number of bytes to scan
+  @param string_length[out] Number of characters scanned
+  
+  @remark In case the length is zero, then the total size of the string is
+    considered to be 1 byte; the size byte.
+
+  @return pointer to first byte after the header in buffer.
+    @retval NULL The buffer content is malformed
+*/
+
+static
+char *get_length_encoded_string(char **buffer,
+                                size_t *max_bytes_available,
+                                size_t *string_length)
+{
+  if (*max_bytes_available == 0)
+    return NULL;
+
+  /* Do double cast to prevent overflow from signed / unsigned conversion */
+  size_t str_len= (size_t)(unsigned char)**buffer;
+
+  /*
+    If the length encoded string has the length 0
+    the total size of the string is only one byte long (the size byte)
+  */
+  if (str_len == 0)
+  {
+    ++*buffer;
+    *string_length= 0;
+    /*
+      Return a pointer to the 0 character so the return value will be
+      an empty string.
+    */
+    return *buffer-1;
+  }
+
+  if (str_len >= *max_bytes_available)
+    return NULL;
+
+  char *str= *buffer+1;
+  *string_length= str_len;
+  *max_bytes_available-= *string_length + 1;
+  *buffer+= *string_length + 1;
+  return str;
+}
+#endif
+
+
 /* the packet format is described in send_client_reply_packet() */
 static ulong parse_client_handshake_packet(MPVIO_EXT *mpvio,
                                            uchar **buff, ulong pkt_len)
@@ -8487,50 +8632,76 @@ static ulong parse_client_handshake_packet(MPVIO_EXT *mpvio,
   }
 #endif
 
-  if (end >= (char*) net->read_pos + pkt_len + 2)
+  if (end > (char *)net->read_pos + pkt_len)
     return packet_error;
 
   if ((mpvio->client_capabilities & CLIENT_TRANSACTIONS) &&
       opt_using_transactions)
     net->return_status= mpvio->server_status;
+ 
+  /*
+    In order to safely scan a head for '\0' string terminators
+    we must keep track of how many bytes remain in the allocated
+    buffer or we might read past the end of the buffer.
+  */
+  size_t bytes_remaining_in_packet= pkt_len - (end - (char *)net->read_pos);
 
-  char *user= end;
-  char *passwd= strend(user) + 1;
-  uint user_len= passwd - user - 1, db_len;
-  char *db= passwd;
-  char db_buff[NAME_LEN + 1];           // buffer to store db in utf8
-  char user_buff[USERNAME_LENGTH + 1];	// buffer to store user in utf8
-  uint dummy_errors;
+  size_t user_len;
+  char *user= get_null_terminated_string(&end, &bytes_remaining_in_packet,
+                                         &user_len);
+  if (user == NULL)
+    return packet_error;
 
   /*
-    Old clients send null-terminated string as password; new clients send
+    Old clients send a null-terminated string as password; new clients send
     the size (1 byte) + string (not null-terminated). Hence in case of empty
     password both send '\0'.
-
-    This strlen() can't be easily deleted without changing protocol.
-
-    Cast *passwd to an unsigned char, so that it doesn't extend the sign for
-    *passwd > 127 and become 2**32-127+ after casting to uint.
   */
-  uint passwd_len= mpvio->client_capabilities & CLIENT_SECURE_CONNECTION ?
-                   (uchar) (*passwd++) : strlen(passwd);
-  
-  if (mpvio->client_capabilities & CLIENT_CONNECT_WITH_DB)
+  size_t passwd_len= 0;
+  char *passwd= NULL;
+
+  if (mpvio->client_capabilities & CLIENT_SECURE_CONNECTION)
   {
-    db= db + passwd_len + 1;
-    /* strlen() can't be easily deleted without changing protocol */
-    db_len= strlen(db);
+    /*
+      4.1+ password. First byte is password length.
+    */
+    passwd= get_length_encoded_string(&end, &bytes_remaining_in_packet,
+                                      &passwd_len);
   }
   else
   {
-    db= 0;
-    db_len= 0;
+    /*
+      Old passwords are zero terminated strings.
+    */
+    passwd= get_null_terminated_string(&end, &bytes_remaining_in_packet,
+                                       &passwd_len);
   }
 
-  if (passwd + passwd_len + db_len > (char *) net->read_pos + pkt_len)
+  if (passwd == NULL)
     return packet_error;
 
-  char *client_plugin= passwd + passwd_len + (db ? db_len + 1 : 0);
+  size_t db_len= 0;
+  char *db= NULL;
+
+  if (mpvio->client_capabilities & CLIENT_CONNECT_WITH_DB)
+  {
+    db= get_null_terminated_string(&end, &bytes_remaining_in_packet,
+                                   &db_len);
+    if (db == NULL)
+      return packet_error;
+  }
+
+  size_t client_plugin_len= 0;
+  char *client_plugin= get_null_terminated_string(&end,
+                                                  &bytes_remaining_in_packet,
+                                                  &client_plugin_len);
+  if (client_plugin == NULL)
+    client_plugin= &empty_c_string[0];
+ 
+  char db_buff[NAME_LEN + 1];           // buffer to store db in utf8
+  char user_buff[USERNAME_LENGTH + 1];	// buffer to store user in utf8
+  uint dummy_errors;
+  
 
   /* Since 4.1 all database names are stored in utf8 */
   if (db)
@@ -8576,18 +8747,18 @@ static ulong parse_client_handshake_packet(MPVIO_EXT *mpvio,
   if (find_mpvio_user(mpvio))
     return packet_error;
 
-  if (mpvio->client_capabilities & CLIENT_PLUGIN_AUTH)
+  if (!(mpvio->client_capabilities & CLIENT_PLUGIN_AUTH))
   {
-    if ((client_plugin + strlen(client_plugin)) > 
-          (char *) net->read_pos + pkt_len)
-      return packet_error;
-  }
-  else
-  {
+    /*
+      An old client is connecting
+    */
     if (mpvio->client_capabilities & CLIENT_SECURE_CONNECTION)
       client_plugin= native_password_plugin_name.str;
     else
     {
+      /*
+        A really old client is connecting
+      */
       client_plugin= old_password_plugin_name.str;
       /*
         For a passwordless accounts we use native_password_plugin.
@@ -9307,8 +9478,8 @@ acl_authenticate(THD *thd, uint connect_errors, uint com_change_user_pkt_len)
   thd->net.skip_big_packet= TRUE;
 #endif
 
-#ifdef HAVE_PSI_INTERFACE
-  if (PSI_server)
+#ifdef HAVE_PSI_THREAD_INTERFACE
+  if (likely(PSI_server != NULL))
   {
     PSI_server->set_thread_user_host(thd->main_security_ctx.user,
                                      strlen(thd->main_security_ctx.user),

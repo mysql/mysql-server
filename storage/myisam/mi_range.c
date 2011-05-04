@@ -1,4 +1,5 @@
-/* Copyright (C) 2000-2004, 2006 MySQL AB, 2008-2009 Sun Microsystems, Inc
+/* Copyright (c) 2000, 2011, Oracle and/or its affiliates. All rights reserved.
+
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -139,8 +140,8 @@ static ha_rows _mi_record_pos(MI_INFO *info, const uchar *key,
     key_len=USE_WHOLE_KEY;
 
   /*
-    my_handler.c:ha_compare_text() has a flag 'skip_end_space'.
-    This is set in my_handler.c:ha_key_cmp() in dependence on the
+    my_compare.c:ha_compare_text() has a flag 'skip_end_space'.
+    This is set in my_compare.c:ha_key_cmp() in dependence on the
     compare flags 'nextflag' and the column type.
 
     TEXT columns are of type HA_KEYTYPE_VARTEXT. In this case the

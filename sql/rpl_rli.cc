@@ -49,16 +49,19 @@ Relay_log_info::Relay_log_info(bool is_slave_recovery
 #ifdef HAVE_PSI_INTERFACE
                                ,PSI_mutex_key *param_key_info_run_lock,
                                PSI_mutex_key *param_key_info_data_lock,
+                               PSI_mutex_key *param_key_info_sleep_lock,
                                PSI_mutex_key *param_key_info_data_cond,
                                PSI_mutex_key *param_key_info_start_cond,
-                               PSI_mutex_key *param_key_info_stop_cond
+                               PSI_mutex_key *param_key_info_stop_cond,
+                               PSI_mutex_key *param_key_info_sleep_cond
 #endif
                               )
    :Rpl_info("SQL"
 #ifdef HAVE_PSI_INTERFACE
              ,param_key_info_run_lock, param_key_info_data_lock,
+             param_key_info_sleep_lock,
              param_key_info_data_cond, param_key_info_start_cond,
-             param_key_info_stop_cond
+             param_key_info_stop_cond, param_key_info_sleep_cond
 #endif
             ),
    replicate_same_server_id(::replicate_same_server_id),
@@ -76,6 +79,13 @@ Relay_log_info::Relay_log_info(bool is_slave_recovery
    m_flags(0)
 {
   DBUG_ENTER("Relay_log_info::Relay_log_info");
+
+#ifdef HAVE_PSI_INTERFACE
+  relay_log.set_psi_keys(key_RELAYLOG_LOCK_index,
+                         key_RELAYLOG_update_cond,
+                         key_file_relaylog,
+                         key_file_relaylog_index);
+#endif
 
   group_relay_log_name[0]= event_relay_log_name[0]=
     group_master_log_name[0]= 0;
@@ -104,10 +114,10 @@ static inline int add_relay_log(Relay_log_info* rli,LOG_INFO* linfo)
 {
   MY_STAT s;
   DBUG_ENTER("add_relay_log");
-  if (!mysql_file_stat(key_file_binlog,
+  if (!mysql_file_stat(key_file_relaylog,
                        linfo->log_file_name, &s, MYF(0)))
   {
-    sql_print_error("log %s listed in the index, but failed to stat",
+    sql_print_error("log %s listed in the index, but failed to stat.",
                     linfo->log_file_name);
     DBUG_RETURN(1);
   }
@@ -126,7 +136,7 @@ int Relay_log_info::count_relay_log_space()
   log_space_total= 0;
   if (relay_log.find_log_pos(&flinfo, NullS, 1))
   {
-    sql_print_error("Could not find first log while counting relay log space");
+    sql_print_error("Could not find first log while counting relay log space.");
     DBUG_RETURN(1);
   }
   do
@@ -1095,7 +1105,7 @@ int Relay_log_info::init_info()
   if (fn_format(pattern, PREFIX_SQL_LOAD, pattern, "",
                 MY_SAFE_PATH | MY_RETURN_REAL_PATH) == NullS)
   {
-    sql_print_error("Unable to use slave's temporary directory %s",
+    sql_print_error("Unable to use slave's temporary directory '%s'.",
                     slave_load_tmpdir);
     DBUG_RETURN(1);
   }
@@ -1123,7 +1133,7 @@ int Relay_log_info::init_info()
         opt_relay_logname[strlen(opt_relay_logname) - 1] == FN_LIBCHAR)
     {
       sql_print_error("Path '%s' is a directory name, please specify \
-a file name for --relay-log option", opt_relay_logname);
+a file name for --relay-log option.", opt_relay_logname);
       DBUG_RETURN(1);
     }
 
@@ -1134,7 +1144,7 @@ a file name for --relay-log option", opt_relay_logname);
         == FN_LIBCHAR)
     {
       sql_print_error("Path '%s' is a directory name, please specify \
-a file name for --relay-log-index option", opt_relaylog_index_name);
+a file name for --relay-log-index option.", opt_relaylog_index_name);
       DBUG_RETURN(1);
     }
 
@@ -1172,7 +1182,7 @@ a file name for --relay-log-index option", opt_relaylog_index_name);
                        (max_relay_log_size ? max_relay_log_size :
                         max_binlog_size), 1, TRUE))
     {
-      sql_print_error("Failed in open_log() called from Relay_log_info::init_info()");
+      sql_print_error("Failed in open_log() called from Relay_log_info::init_info().");
       DBUG_RETURN(1);
     }
   }
@@ -1223,7 +1233,7 @@ a file name for --relay-log-index option", opt_relaylog_index_name);
                            &msg, 0))
     {
       char llbuf[22];
-      sql_print_error("Failed to open the relay log '%s' (relay_log_pos %s)",
+      sql_print_error("Failed to open the relay log '%s' (relay_log_pos %s).",
                       group_relay_log_name,
                       llstr(group_relay_log_pos, llbuf));
       error= 1;
@@ -1261,7 +1271,7 @@ a file name for --relay-log-index option", opt_relaylog_index_name);
   DBUG_RETURN(error);
 
 err:
-  sql_print_error("%s", msg);
+  sql_print_error("%s.", msg);
   relay_log.close(LOG_CLOSE_INDEX | LOG_CLOSE_STOP_EVENT);
   DBUG_RETURN(error);
 }
@@ -1384,7 +1394,7 @@ int Relay_log_info::flush_info(bool force)
   DBUG_RETURN(0);
 
 err:
-  sql_print_error("Error writing relay log configuration");
+  sql_print_error("Error writing relay log configuration.");
   DBUG_RETURN(1);
 }
 

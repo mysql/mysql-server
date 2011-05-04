@@ -111,6 +111,12 @@ int table_setup_instruments::rnd_next(void)
     case pos_setup_instruments::VIEW_TABLE:
       instr_class= find_table_class(m_pos.m_index_2);
       break;
+    case pos_setup_instruments::VIEW_STAGE:
+      instr_class= find_stage_class(m_pos.m_index_2);
+      break;
+    case pos_setup_instruments::VIEW_STATEMENT:
+      instr_class= find_statement_class(m_pos.m_index_2);
+      break;
     }
     if (instr_class)
     {
@@ -148,6 +154,12 @@ int table_setup_instruments::rnd_pos(const void *pos)
     break;
   case pos_setup_instruments::VIEW_TABLE:
     instr_class= find_table_class(m_pos.m_index_2);
+    break;
+  case pos_setup_instruments::VIEW_STAGE:
+    instr_class= find_stage_class(m_pos.m_index_2);
+    break;
+  case pos_setup_instruments::VIEW_STATEMENT:
+    instr_class= find_statement_class(m_pos.m_index_2);
     break;
   }
   if (instr_class)

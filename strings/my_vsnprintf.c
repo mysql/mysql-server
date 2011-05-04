@@ -11,7 +11,7 @@
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
-   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
+   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
 #include <my_global.h>
 #include <m_string.h>
@@ -141,7 +141,7 @@ static const char *check_longlong(const char *fmt, uint *have_longlong)
     position in buffer which points on the end of escaped string
 */
 
-static char *backtick_string(CHARSET_INFO *cs, char *to, char *end,
+static char *backtick_string(const CHARSET_INFO *cs, char *to, char *end,
                              char *par, size_t par_len, char quote_char)
 {
   uint char_len;
@@ -184,7 +184,7 @@ err:
   Prints string argument
 */
 
-static char *process_str_arg(CHARSET_INFO *cs, char *to, char *end,
+static char *process_str_arg(const CHARSET_INFO *cs, char *to, char *end,
                              size_t width, char *par, uint print_type)
 {
   int well_formed_error;
@@ -316,7 +316,7 @@ static char *process_int_arg(char *to, char *end, size_t length,
     end of buffer where processed string is placed
 */
 
-static char *process_args(CHARSET_INFO *cs, char *to, char *end,
+static char *process_args(const CHARSET_INFO *cs, char *to, char *end,
                           const char* fmt, size_t arg_index, va_list ap)
 {
   ARGS_INFO args_arr[MAX_ARGS];
@@ -534,7 +534,7 @@ start:
     length of result string
 */
 
-size_t my_vsnprintf_ex(CHARSET_INFO *cs, char *to, size_t n,
+size_t my_vsnprintf_ex(const CHARSET_INFO *cs, char *to, size_t n,
                        const char* fmt, va_list ap)
 {
   char *start=to, *end=to+n-1;

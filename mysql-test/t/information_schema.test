@@ -18,6 +18,11 @@ DROP VIEW IF EXISTS v1;
 --enable_warnings
 
 
+--echo #
+--echo # Bug#11763174 INFORMATION_SCHEMA.PARAMETERS.NUMERIC_PRECISION SHOULD BE BIGINT 
+--echo #
+select table_name, data_type, column_type from information_schema.columns  where column_name = 'numeric_precision' and table_schema = 'information_schema';
+
 show variables where variable_name like "skip_show_database";
 grant select, update, execute on test.* to mysqltest_2@localhost;
 grant select, update on test.* to mysqltest_1@localhost;

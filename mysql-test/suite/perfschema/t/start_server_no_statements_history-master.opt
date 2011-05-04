@@ -1,0 +1,2 @@
+--loose-enable-performance-schema
+--loose-performance_schema_events_statements_history_size=0

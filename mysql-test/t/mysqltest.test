@@ -1072,22 +1072,11 @@ echo $d;
 
 
 # ----------------------------------------------------------------------------
-# Test system
+# Test system (which is now deprecated)
 # ----------------------------------------------------------------------------
-#system ls > /dev/null;
-system echo "hej" > /dev/null;
-#--system ls > /dev/null
---system echo "hej" > /dev/null;
 
 --error 1
---exec echo "system;" | $MYSQL_TEST 2>&1
---error 1
---exec echo "system $NONEXISTSINFVAREABLI;" | $MYSQL_TEST 2>&1
-
---disable_abort_on_error
-system NonExistsinfComamdn 2> /dev/null;
---enable_abort_on_error
-
+--exec echo "system something;" | $MYSQL_TEST 2>&1
 
 # ----------------------------------------------------------------------------
 # Test delimiter

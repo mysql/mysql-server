@@ -716,7 +716,7 @@ bool mysql_insert(THD *thd,TABLE_LIST *table_list,
   }
   lock_type= table_list->lock_type;
 
-  thd_proc_info(thd, "init");
+  THD_STAGE_INFO(thd, stage_init);
   thd->used_tables=0;
   values= its++;
   value_count= values->elements;
@@ -801,7 +801,7 @@ bool mysql_insert(THD *thd,TABLE_LIST *table_list,
 #endif
 
   error=0;
-  thd_proc_info(thd, "update");
+  THD_STAGE_INFO(thd, stage_update);
   if (duplic == DUP_REPLACE &&
       (!table->triggers || !table->triggers->has_delete_triggers()))
     table->file->extra(HA_EXTRA_WRITE_CAN_REPLACE);
@@ -1046,7 +1046,7 @@ bool mysql_insert(THD *thd,TABLE_LIST *table_list,
     DBUG_ASSERT(transactional_table || !changed || 
                 thd->transaction.stmt.modified_non_trans_table);
   }
-  thd_proc_info(thd, "end");
+  THD_STAGE_INFO(thd, stage_end);
   /*
     We'll report to the client this id:
     - if the table contains an autoincrement column and we successfully
@@ -1995,7 +1995,7 @@ I_List<Delayed_insert> delayed_threads;
 static
 Delayed_insert *find_handler(THD *thd, TABLE_LIST *table_list)
 {
-  thd_proc_info(thd, "waiting for delay_list");
+  THD_STAGE_INFO(thd, stage_waiting_for_delay_list);
   mysql_mutex_lock(&LOCK_delayed_insert);       // Protect master list
   I_List_iterator<Delayed_insert> it(delayed_threads);
   Delayed_insert *di;
@@ -2077,7 +2077,7 @@ bool delayed_get_table(THD *thd, MDL_request *grl_protection_request,
     */
     if (delayed_insert_threads >= thd->variables.max_insert_delayed_threads)
       DBUG_RETURN(0);
-    thd_proc_info(thd, "Creating delayed handler");
+    THD_STAGE_INFO(thd, stage_creating_delayed_handler);
     mysql_mutex_lock(&LOCK_delayed_create);
     /*
       The first search above was done without LOCK_delayed_create.
@@ -2133,14 +2133,14 @@ bool delayed_get_table(THD *thd, MDL_request *grl_protection_request,
         handler thread has been properly initialized before exiting. Otherwise
         we risk doing clone_ticket() on a ticket that is no longer valid.
       */
-      thd_proc_info(thd, "waiting for handler open");
+      THD_STAGE_INFO(thd, stage_waiting_for_handler_open);
       while (!di->handler_thread_initialized ||
              (!di->thd.killed && !di->table && !thd->killed))
       {
         mysql_cond_wait(&di->cond_client, &di->mutex);
       }
       mysql_mutex_unlock(&di->mutex);
-      thd_proc_info(thd, "got old table");
+      THD_STAGE_INFO(thd, stage_got_old_table);
       if (thd->killed)
       {
         di->unlock();
@@ -2221,13 +2221,13 @@ TABLE *Delayed_insert::get_local_table(THD* client_thd)
   tables_in_use++;
   if (!thd.lock)				// Table is not locked
   {
-    thd_proc_info(client_thd, "waiting for handler lock");
+    THD_STAGE_INFO(client_thd, stage_waiting_for_handler_lock);
     mysql_cond_signal(&cond);			// Tell handler to lock table
     while (!thd.killed && !thd.lock && ! client_thd->killed)
     {
       mysql_cond_wait(&cond_client, &mutex);
     }
-    thd_proc_info(client_thd, "got handler lock");
+    THD_STAGE_INFO(client_thd, stage_got_handler_lock);
     if (client_thd->killed)
       goto error;
     if (thd.killed)
@@ -2261,7 +2261,7 @@ TABLE *Delayed_insert::get_local_table(THD* client_thd)
     bytes. Since the table copy is used for creating one record only,
     the other record buffers and alignment are unnecessary.
   */
-  thd_proc_info(client_thd, "allocating local table");
+  THD_STAGE_INFO(client_thd, stage_allocating_local_table);
   copy= (TABLE*) client_thd->alloc(sizeof(*copy)+
 				   (share->fields+1)*sizeof(Field**)+
 				   share->reclength +
@@ -2347,11 +2347,11 @@ int write_delayed(THD *thd, TABLE *table, enum_duplicates duplic,
   DBUG_PRINT("enter", ("query = '%s' length %lu", query.str,
                        (ulong) query.length));
 
-  thd_proc_info(thd, "waiting for handler insert");
+  THD_STAGE_INFO(thd, stage_waiting_for_handler_insert);
   mysql_mutex_lock(&di->mutex);
   while (di->stacked_inserts >= delayed_queue_size && !thd->killed)
     mysql_cond_wait(&di->cond_client, &di->mutex);
-  thd_proc_info(thd, "storing row into queue");
+  THD_STAGE_INFO(thd, stage_storing_row_into_queue);
 
   if (thd->killed)
     goto err;
@@ -2715,7 +2715,7 @@ pthread_handler_t handle_delayed_insert(void *arg)
         /* Information for pthread_kill */
         di->thd.mysys_var->current_mutex= &di->mutex;
         di->thd.mysys_var->current_cond= &di->cond;
-        thd_proc_info(&(di->thd), "Waiting for INSERT");
+        THD_STAGE_INFO(&(di->thd), stage_waiting_for_insert);
 
         DBUG_PRINT("info",("Waiting for someone to insert rows"));
         while (!thd->killed && !di->status)
@@ -2746,7 +2746,6 @@ pthread_handler_t handle_delayed_insert(void *arg)
         mysql_mutex_unlock(&di->thd.mysys_var->mutex);
         mysql_mutex_lock(&di->mutex);
       }
-      thd_proc_info(&(di->thd), 0);
 
       if (di->tables_in_use && ! thd->lock && !thd->killed)
       {
@@ -2871,7 +2870,7 @@ bool Delayed_insert::handle_inserts(void)
 
   table->next_number_field=table->found_next_number_field;
 
-  thd_proc_info(&thd, "upgrading lock");
+  THD_STAGE_INFO(&thd, stage_upgrading_lock);
   if (thr_upgrade_write_delay_lock(*thd.lock->locks, delayed_lock,
                                    thd.variables.lock_wait_timeout))
   {
@@ -2885,7 +2884,7 @@ bool Delayed_insert::handle_inserts(void)
     goto err;
   }
 
-  thd_proc_info(&thd, "insert");
+  THD_STAGE_INFO(&thd, stage_insert);
   max_rows= delayed_insert_limit;
   if (thd.killed || table->s->has_old_version())
   {
@@ -3047,7 +3046,7 @@ bool Delayed_insert::handle_inserts(void)
       {
 	if (tables_in_use)
           mysql_cond_broadcast(&cond_client);   // If waiting clients
-	thd_proc_info(&thd, "reschedule");
+	THD_STAGE_INFO(&thd, stage_reschedule);
         mysql_mutex_unlock(&mutex);
 	if ((error=table->file->extra(HA_EXTRA_NO_CACHE)))
 	{
@@ -3069,13 +3068,12 @@ bool Delayed_insert::handle_inserts(void)
 	if (!using_bin_log)
 	  table->file->extra(HA_EXTRA_WRITE_CACHE);
         mysql_mutex_lock(&mutex);
-	thd_proc_info(&thd, "insert");
+	THD_STAGE_INFO(&thd, stage_insert);
       }
       if (tables_in_use)
         mysql_cond_broadcast(&cond_client);     // If waiting clients
     }
   }
-  thd_proc_info(&thd, 0);
   mysql_mutex_unlock(&mutex);
 
   /*
@@ -4141,17 +4139,3 @@ void select_create::abort_result_set()
   }
   DBUG_VOID_RETURN;
 }
-
-
-/*****************************************************************************
-  Instansiate templates
-*****************************************************************************/
-
-#ifdef HAVE_EXPLICIT_TEMPLATE_INSTANTIATION
-template class List_iterator_fast<List_item>;
-#ifndef EMBEDDED_LIBRARY
-template class I_List<Delayed_insert>;
-template class I_List_iterator<Delayed_insert>;
-template class I_List<delayed_row>;
-#endif /* EMBEDDED_LIBRARY */
-#endif /* HAVE_EXPLICIT_TEMPLATE_INSTANTIATION */

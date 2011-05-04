@@ -44,7 +44,7 @@ Created Jan 06, 2010 Vasil Dimov
 #include "row0sel.h" /* sel_node_struct */
 #include "row0types.h" /* sel_node_t */
 #include "trx0trx.h" /* trx_create() */
-#include "trx0roll.h" /* trx_rollback_for_mysql() */
+#include "trx0roll.h" /* trx_rollback_to_savepoint() */
 #include "usr0types.h" /* sess_t */
 #include "ut0rnd.h" /* ut_rnd_interval() */
 
@@ -238,11 +238,11 @@ dict_stats_persistent_storage_check(
 {
 	/* definition for the table TABLE_STATS_NAME */
 	dict_col_meta_t	table_stats_columns[] = {
-		{"database_name", DATA_VARCHAR,
-			DATA_NOT_NULL, 512},
+		{"database_name", DATA_VARMYSQL,
+			DATA_NOT_NULL, 192 /* NAME_LEN from mysql_com.h */},
 
-		{"table_name", DATA_VARCHAR,
-			DATA_NOT_NULL, 512},
+		{"table_name", DATA_VARMYSQL,
+			DATA_NOT_NULL, 192 /* NAME_LEN from mysql_com.h */},
 
 		{"stats_timestamp", DATA_INT,
 			DATA_NOT_NULL | DATA_UNSIGNED, 4},
@@ -264,20 +264,20 @@ dict_stats_persistent_storage_check(
 
 	/* definition for the table INDEX_STATS_NAME */
 	dict_col_meta_t	index_stats_columns[] = {
-		{"database_name", DATA_VARCHAR,
-			DATA_NOT_NULL, 512},
+		{"database_name", DATA_VARMYSQL,
+			DATA_NOT_NULL, 192 /* NAME_LEN from mysql_com.h */},
 
-		{"table_name", DATA_VARCHAR,
-			DATA_NOT_NULL, 512},
+		{"table_name", DATA_VARMYSQL,
+			DATA_NOT_NULL, 192 /* NAME_LEN from mysql_com.h */},
 
-		{"index_name", DATA_VARCHAR,
-			DATA_NOT_NULL, 512},
+		{"index_name", DATA_VARMYSQL,
+			DATA_NOT_NULL, 192 /* NAME_LEN from mysql_com.h */},
 
 		{"stat_timestamp", DATA_INT,
 			DATA_NOT_NULL | DATA_UNSIGNED, 4},
 
-		{"stat_name", DATA_VARCHAR,
-			DATA_NOT_NULL, 64},
+		{"stat_name", DATA_VARMYSQL,
+			DATA_NOT_NULL, 64*3},
 
 		{"stat_value", DATA_INT,
 			DATA_NOT_NULL | DATA_UNSIGNED, 8},
@@ -285,8 +285,8 @@ dict_stats_persistent_storage_check(
 		{"sample_size", DATA_INT,
 			DATA_UNSIGNED, 8},
 
-		{"stat_description", DATA_VARCHAR,
-			DATA_NOT_NULL, 1024}
+		{"stat_description", DATA_VARMYSQL,
+			DATA_NOT_NULL, 1024*3}
 	};
 	dict_table_schema_t	index_stats_schema = {
 		INDEX_STATS_NAME,
@@ -1659,7 +1659,10 @@ dict_stats_save(
 
 end_rollback:
 
-	trx_rollback_for_mysql(trx);
+	trx->op_info = "rollback of internal transaction on stats tables";
+	trx_rollback_to_savepoint(trx, NULL);
+	trx->op_info = "";
+	ut_a(trx->error_state == DB_SUCCESS);
 
 end_free:
 
@@ -1798,7 +1801,7 @@ dict_stats_fetch_index_stats_step(
 		switch (i) {
 		case 0: /* innodb.index_stats.index_name */
 
-			ut_a(dtype_get_mtype(type) == DATA_VARCHAR);
+			ut_a(dtype_get_mtype(type) == DATA_VARMYSQL);
 
 			/* search for index in table's indexes whose name
 			matches data; the fetched index name is in data,
@@ -1829,7 +1832,7 @@ dict_stats_fetch_index_stats_step(
 
 		case 1: /* innodb.index_stats.stat_name */
 
-			ut_a(dtype_get_mtype(type) == DATA_VARCHAR);
+			ut_a(dtype_get_mtype(type) == DATA_VARMYSQL);
 
 			ut_a(index != NULL);
 

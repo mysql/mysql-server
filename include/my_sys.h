@@ -11,7 +11,7 @@
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
-   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
+   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
 #ifndef _my_sys_h
 #define _my_sys_h
@@ -705,7 +705,7 @@ extern void radixsort_for_str_ptr(uchar* base[], uint number_of_elements,
 extern qsort_t my_qsort(void *base_ptr, size_t total_elems, size_t size,
                         qsort_cmp cmp);
 extern qsort_t my_qsort2(void *base_ptr, size_t total_elems, size_t size,
-                         qsort2_cmp cmp, void *cmp_argument);
+                         qsort2_cmp cmp, const void *cmp_argument);
 extern qsort2_cmp get_ptr_compare(size_t);
 void my_store_ptr(uchar *buff, size_t pack_length, my_off_t pos);
 my_off_t my_get_ptr(uchar *ptr, size_t pack_length);
@@ -908,17 +908,18 @@ extern CHARSET_INFO *my_charset_get_by_name(MY_CHARSET_LOADER *loader,
                                             const char *name,
                                             uint cs_flags, myf my_flags);
 extern my_bool resolve_charset(const char *cs_name,
-                               CHARSET_INFO *default_cs,
-                               CHARSET_INFO **cs);
+                               const CHARSET_INFO *default_cs,
+                               const CHARSET_INFO **cs);
 extern my_bool resolve_collation(const char *cl_name,
-                                 CHARSET_INFO *default_cl,
-                                 CHARSET_INFO **cl);
+                                 const CHARSET_INFO *default_cl,
+                                 const CHARSET_INFO **cl);
 extern void free_charsets(void);
 extern char *get_charsets_dir(char *buf);
-extern my_bool my_charset_same(CHARSET_INFO *cs1, CHARSET_INFO *cs2);
+extern my_bool my_charset_same(const CHARSET_INFO *cs1,
+                               const CHARSET_INFO *cs2);
 extern my_bool init_compiled_charsets(myf flags);
 extern void add_compiled_collation(CHARSET_INFO *cs);
-extern size_t escape_string_for_mysql(CHARSET_INFO *charset_info,
+extern size_t escape_string_for_mysql(const CHARSET_INFO *charset_info,
                                       char *to, size_t to_length,
                                       const char *from, size_t length);
 #ifdef __WIN__
@@ -946,12 +947,12 @@ void my_security_attr_free(SECURITY_ATTRIBUTES *sa);
 
 /* implemented in my_conio.c */
 my_bool my_win_is_console(FILE *file);
-char *my_win_console_readline(CHARSET_INFO *cs, char *mbbuf, size_t mbbufsize);
-void my_win_console_write(CHARSET_INFO *cs, const char *data, size_t datalen);
-void my_win_console_fputs(CHARSET_INFO *cs, const char *data);
-void my_win_console_putc(CHARSET_INFO *cs, int c);
-void my_win_console_vfprintf(CHARSET_INFO *cs, const char *fmt, va_list args);
-int my_win_translate_command_line_args(CHARSET_INFO *cs, int *ac, char ***av);
+char *my_win_console_readline(const CHARSET_INFO *cs, char *mbbuf, size_t mbbufsize);
+void my_win_console_write(const CHARSET_INFO *cs, const char *data, size_t datalen);
+void my_win_console_fputs(const CHARSET_INFO *cs, const char *data);
+void my_win_console_putc(const CHARSET_INFO *cs, int c);
+void my_win_console_vfprintf(const CHARSET_INFO *cs, const char *fmt, va_list args);
+int my_win_translate_command_line_args(const CHARSET_INFO *cs, int *ac, char ***av);
 #endif /* __WIN__ */
 
 #include <mysql/psi/psi.h>

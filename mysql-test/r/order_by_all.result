@@ -1430,6 +1430,7 @@ CALL mtr.add_suppression("Out of sort memory");
 select * from t1 order by b;
 ERROR HY001: Out of sort memory, consider increasing server sort buffer size
 drop table t1;
+call mtr.add_suppression("Out of sort memory; increase server sort buffer size");
 #
 # Bug #39844: Query Crash Mysql Server 5.0.67
 #
@@ -2536,7 +2537,7 @@ CREATE TABLE t1 (a INT,KEY (a));
 INSERT INTO t1 VALUES (1),(2),(3),(4),(5),(6),(7),(8),(9),(10);
 EXPLAIN SELECT DISTINCT a,1 FROM t1 WHERE a <> 1 ORDER BY a DESC;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	index	a	a	5	NULL	10	Using where; Using index; Using filesort
+1	SIMPLE	t1	index	a	a	5	NULL	10	Using where; Using index
 SELECT DISTINCT a,1 FROM t1 WHERE a <> 1 ORDER BY a DESC;
 a	1
 10	1

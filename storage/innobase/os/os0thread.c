@@ -220,21 +220,6 @@ os_thread_exit(
 }
 
 /*****************************************************************//**
-Returns handle to the current thread.
-@return	current thread handle */
-UNIV_INTERN
-os_thread_t
-os_thread_get_curr(void)
-/*====================*/
-{
-#ifdef __WIN__
-	return(GetCurrentThread());
-#else
-	return(pthread_self());
-#endif
-}
-
-/*****************************************************************//**
 Advises the os to give up remainder of the thread's time slice. */
 UNIV_INTERN
 void
@@ -274,81 +259,3 @@ os_thread_sleep(
 	select(0, NULL, NULL, NULL, &t);
 #endif
 }
-
-#ifndef UNIV_HOTBACKUP
-/******************************************************************//**
-Sets a thread priority. */
-UNIV_INTERN
-void
-os_thread_set_priority(
-/*===================*/
-	os_thread_t	handle,	/*!< in: OS handle to the thread */
-	ulint		pri)	/*!< in: priority */
-{
-#ifdef __WIN__
-	int	os_pri;
-
-	if (pri == OS_THREAD_PRIORITY_BACKGROUND) {
-		os_pri = THREAD_PRIORITY_BELOW_NORMAL;
-	} else if (pri == OS_THREAD_PRIORITY_NORMAL) {
-		os_pri = THREAD_PRIORITY_NORMAL;
-	} else if (pri == OS_THREAD_PRIORITY_ABOVE_NORMAL) {
-		os_pri = THREAD_PRIORITY_HIGHEST;
-	} else {
-		ut_error;
-	}
-
-	ut_a(SetThreadPriority(handle, os_pri));
-#else
-	UT_NOT_USED(handle);
-	UT_NOT_USED(pri);
-#endif
-}
-
-/******************************************************************//**
-Gets a thread priority.
-@return	priority */
-UNIV_INTERN
-ulint
-os_thread_get_priority(
-/*===================*/
-	os_thread_t	handle __attribute__((unused)))
-				/*!< in: OS handle to the thread */
-{
-#ifdef __WIN__
-	int	os_pri;
-	ulint	pri;
-
-	os_pri = GetThreadPriority(handle);
-
-	if (os_pri == THREAD_PRIORITY_BELOW_NORMAL) {
-		pri = OS_THREAD_PRIORITY_BACKGROUND;
-	} else if (os_pri == THREAD_PRIORITY_NORMAL) {
-		pri = OS_THREAD_PRIORITY_NORMAL;
-	} else if (os_pri == THREAD_PRIORITY_HIGHEST) {
-		pri = OS_THREAD_PRIORITY_ABOVE_NORMAL;
-	} else {
-		ut_error;
-	}
-
-	return(pri);
-#else
-	return(0);
-#endif
-}
-
-/******************************************************************//**
-Gets the last operating system error code for the calling thread.
-@return	last error on Windows, 0 otherwise */
-UNIV_INTERN
-ulint
-os_thread_get_last_error(void)
-/*==========================*/
-{
-#ifdef __WIN__
-	return(GetLastError());
-#else
-	return(0);
-#endif
-}
-#endif /* !UNIV_HOTBACKUP */

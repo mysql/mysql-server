@@ -5398,6 +5398,42 @@ deallocate prepare s;
 DROP TABLE ot1, ot2, ot3, it1;
 # End of the test for bug#57623.
 #
+# Bug#11766739: Crash in tmp_table_param::init() with semijoin=on
+#
+CREATE TABLE t1 (f1 INTEGER) ENGINE=MyISAM;
+CREATE TABLE t2 (f1 INTEGER, f2 INTEGER) ENGINE=MyISAM;
+INSERT INTO t1 VALUES (1);
+INSERT INTO t2 VALUES (1,1), (2,1);
+EXPLAIN SELECT * FROM t2
+WHERE f2 IN (SELECT t1.f1
+FROM t1 LEFT OUTER JOIN (t2 AS b1 JOIN t2 AS b2 ON TRUE) ON TRUE);
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	t1	system	NULL	NULL	NULL	NULL	1	
+1	PRIMARY	t2	ALL	NULL	NULL	NULL	NULL	2	Using where
+1	PRIMARY	b1	ALL	NULL	NULL	NULL	NULL	2	Using where
+1	PRIMARY	b2	ALL	NULL	NULL	NULL	NULL	2	FirstMatch(t2)
+SELECT * FROM t2
+WHERE f2 IN (SELECT t1.f1
+FROM t1 LEFT OUTER JOIN (t2 AS b1 JOIN t2 AS b2 ON TRUE) ON TRUE);
+f1	f2
+1	1
+2	1
+DROP TABLE t1, t2;
+# End of the test for bug#11766739.
+#
+# Bug#11766642: crash in Item_field::register_field_in_read_map with view
+#
+CREATE TABLE t1(a INT);
+CREATE VIEW v1 AS SELECT a FROM t1;
+INSERT INTO t1 VALUES (0),(1),(2);
+SELECT a FROM t1 WHERE a IN 
+(SELECT a XOR a FROM v1)
+ORDER BY a;
+a
+0
+DROP TABLE t1;
+DROP VIEW v1;
+#
 # Bug#51457 Firstmatch semijoin strategy gives wrong results for
 #           certain query plans
 #

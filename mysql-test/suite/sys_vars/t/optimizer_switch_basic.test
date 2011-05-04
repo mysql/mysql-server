@@ -46,5 +46,13 @@ set session optimizer_switch="index_merge";
 --error ER_WRONG_VALUE_FOR_VAR
 set session optimizer_switch="foobar";
 
+--echo #
+--echo # Bug#59894 set optimizer_switch to e or d causes invalid
+--echo # memory writes/valgrind warnings
+--echo
+set global optimizer_switch = 'd'; # means default
+--error ER_WRONG_VALUE_FOR_VAR
+set global optimizer_switch = 'e';
+
 SET @@global.optimizer_switch = @start_global_value;
 SELECT @@global.optimizer_switch;

@@ -1,4 +1,4 @@
-/* Copyright (c) 2006, 2010, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2006, 2011, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -11,7 +11,7 @@
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
-   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA */
+   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
 #ifndef SQL_PARSE_INCLUDED
 #define SQL_PARSE_INCLUDED
@@ -73,9 +73,10 @@ LEX_USER *get_current_user(THD *thd, LEX_USER *user);
 bool check_string_byte_length(LEX_STRING *str, const char *err_msg,
                               uint max_byte_length);
 bool check_string_char_length(LEX_STRING *str, const char *err_msg,
-                              uint max_char_length, CHARSET_INFO *cs,
+                              uint max_char_length, const CHARSET_INFO *cs,
                               bool no_error);
-CHARSET_INFO* merge_charset_and_collation(CHARSET_INFO *cs, CHARSET_INFO *cl);
+const CHARSET_INFO* merge_charset_and_collation(const CHARSET_INFO *cs,
+                                                const CHARSET_INFO *cl);
 bool check_host_name(LEX_STRING *str);
 bool check_identifier_name(LEX_STRING *str, uint max_char_length,
                            uint err_code, const char *param_for_err_msg);
@@ -113,7 +114,7 @@ bool add_field_to_list(THD *thd, LEX_STRING *field_name, enum enum_field_types t
 		       Item *default_value, Item *on_update_value,
 		       LEX_STRING *comment,
 		       char *change, List<String> *interval_list,
-		       CHARSET_INFO *cs,
+		       const CHARSET_INFO *cs,
 		       uint uint_geom_type);
 bool add_to_list(THD *thd, SQL_I_List<ORDER> &list, Item *group, bool asc);
 void add_join_on(TABLE_LIST *b,Item *expr);
@@ -199,9 +200,9 @@ check_table_access(THD *thd, ulong requirements,TABLE_LIST *tables,
 
 bool check_global_access(THD *thd, ulong want_access);
 
-inline bool is_supported_parser_charset(CHARSET_INFO *cs)
+inline bool is_supported_parser_charset(const CHARSET_INFO *cs)
 {
-  return test(cs->mbminlen == 1);
+  return (cs->mbminlen == 1);
 }
 
 

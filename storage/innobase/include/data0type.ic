@@ -473,9 +473,11 @@ dtype_sql_name(
 		ut_snprintf(name, name_sz, "BINARY(%u)", len);
 		break;
 	case DATA_CHAR:
+	case DATA_MYSQL:
 		ut_snprintf(name, name_sz, "CHAR(%u)", len);
 		break;
 	case DATA_VARCHAR:
+	case DATA_VARMYSQL:
 		ut_snprintf(name, name_sz, "VARCHAR(%u)", len);
 		break;
 	case DATA_BINARY:

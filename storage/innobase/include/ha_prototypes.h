@@ -185,6 +185,15 @@ innobase_wildcasecmp(
 	const char*	b);	/*!< in: wildcard string to compare */
 
 /******************************************************************//**
+Strip dir name from a full path name and return only its file name.
+@return file name or "null" if no file name */
+UNIV_INTERN
+const char*
+innobase_basename(
+/*==============*/
+	const char*	path_name);	/*!< in: full path name */
+
+/******************************************************************//**
 Returns true if the thread is executing a SELECT statement.
 @return	true if thd is executing SELECT */
 
@@ -297,7 +306,7 @@ thd_set_lock_wait_time(
 	ulint	value);	/*!< in: time waited for the lock */
 
 /**********************************************************************//**
-Get the current seting of the table_cache_size global parameter. We do
+Get the current setting of the table_cache_size global parameter. We do
 a dirty read because for one there is no synchronization object and
 secondly there is little harm in doing so even if we get a torn read.
 @return	SQL statement string */
@@ -305,4 +314,15 @@ UNIV_INTERN
 ulint
 innobase_get_table_cache_size(void);
 /*===============================*/
+
+/**********************************************************************//**
+Get the current setting of the lower_case_table_names global parameter from
+mysqld.cc. We do a dirty read because for one there is no synchronization
+object and secondly there is little harm in doing so even if we get a torn
+read.
+@return	value of lower_case_table_names */
+UNIV_INTERN
+ulint
+innobase_get_lower_case_table_names(void);
+/*=====================================*/
 #endif

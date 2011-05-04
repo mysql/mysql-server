@@ -11,9 +11,8 @@
    Library General Public License for more details.
    
    You should have received a copy of the GNU Library General Public
-   License along with this library; if not, write to the Free
-   Software Foundation, Inc., 59 Temple Place - Suite 330, Boston,
-   MA 02111-1307, USA */
+   License along with this library; if not, write to the Free Software
+   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
 /* 
    UCA (Unicode Collation Algorithm) support. 
@@ -19458,7 +19457,7 @@ typedef struct my_uca_scanner_st
   uint16 implicit[2];
   int page;
   int code;
-  CHARSET_INFO *cs;
+  const CHARSET_INFO *cs;
 } my_uca_scanner;
 
 /*
@@ -19467,7 +19466,7 @@ typedef struct my_uca_scanner_st
 */
 typedef struct my_uca_scanner_handler_st 
 {
-  void (*init)(my_uca_scanner *scanner, CHARSET_INFO *cs, 
+  void (*init)(my_uca_scanner *scanner, const CHARSET_INFO *cs, 
                const uchar *str, size_t length);
   int (*next)(my_uca_scanner *scanner);
 } my_uca_scanner_handler;
@@ -19892,8 +19891,8 @@ my_uca_scanner_next_implicit(my_uca_scanner *scanner)
   The same two functions for any character set
 */
 static void
-my_uca_scanner_init_any(my_uca_scanner *scanner,
-                        CHARSET_INFO *cs, const uchar *str, size_t length)
+my_uca_scanner_init_any(my_uca_scanner *scanner, const CHARSET_INFO *cs,
+                        const uchar *str, size_t length)
 {
   /* Note, no needs to initialize scanner->wbeg */
   scanner->sbeg= str;
@@ -20028,7 +20027,7 @@ static my_uca_scanner_handler my_any_uca_scanner_handler=
     positive number - means the first string is bigger
 */
 
-static int my_strnncoll_uca(CHARSET_INFO *cs, 
+static int my_strnncoll_uca(const CHARSET_INFO *cs, 
                             my_uca_scanner_handler *scanner_handler,
 			    const uchar *s, size_t slen,
                             const uchar *t, size_t tlen,
@@ -20053,7 +20052,7 @@ static int my_strnncoll_uca(CHARSET_INFO *cs,
 
 
 static inline int
-my_space_weight(CHARSET_INFO *cs)
+my_space_weight(const CHARSET_INFO *cs)
 {
   return cs->uca->weights[0][0x20 * cs->uca->lengths[0]];
 }
@@ -20131,7 +20130,7 @@ my_char_weight_addr(MY_UCA_INFO *uca, uint wc)
     positive number - means the first string is bigger
 */
 
-static int my_strnncollsp_uca(CHARSET_INFO *cs, 
+static int my_strnncollsp_uca(const CHARSET_INFO *cs, 
                               my_uca_scanner_handler *scanner_handler,
                               const uchar *s, size_t slen,
                               const uchar *t, size_t tlen,
@@ -20209,7 +20208,7 @@ static int my_strnncollsp_uca(CHARSET_INFO *cs,
     N/A
 */
 
-static void my_hash_sort_uca(CHARSET_INFO *cs,
+static void my_hash_sort_uca(const CHARSET_INFO *cs,
                              my_uca_scanner_handler *scanner_handler,
 			     const uchar *s, size_t slen,
 			     ulong *n1, ulong *n2)
@@ -20263,7 +20262,7 @@ static void my_hash_sort_uca(CHARSET_INFO *cs,
 
 
 static size_t
-my_strnxfrm_uca(CHARSET_INFO *cs, 
+my_strnxfrm_uca(const CHARSET_INFO *cs, 
                 my_uca_scanner_handler *scanner_handler,
                 uchar *dst, size_t dstlen, uint nweights,
                 const uchar *src, size_t srclen, uint flags)
@@ -20316,7 +20315,7 @@ my_strnxfrm_uca(CHARSET_INFO *cs,
   little-endian and big-endian machines.
 */
 
-static int my_uca_charcmp(CHARSET_INFO *cs, my_wc_t wc1, my_wc_t wc2)
+static int my_uca_charcmp(const CHARSET_INFO *cs, my_wc_t wc1, my_wc_t wc2)
 {
   size_t length1, length2;
   uint16 *weight1= my_char_weight_addr(cs->uca, wc1);
@@ -20353,7 +20352,7 @@ static int my_uca_charcmp(CHARSET_INFO *cs, my_wc_t wc1, my_wc_t wc2)
 */
 
 static
-int my_wildcmp_uca(CHARSET_INFO *cs,
+int my_wildcmp_uca(const CHARSET_INFO *cs,
 		   const char *str,const char *str_end,
 		   const char *wildstr,const char *wildend,
 		   int escape, int w_one, int w_many)
@@ -20361,7 +20360,7 @@ int my_wildcmp_uca(CHARSET_INFO *cs,
   int result= -1;			/* Not found, using wildcards */
   my_wc_t s_wc, w_wc;
   int scan;
-  int (*mb_wc)(struct charset_info_st *, my_wc_t *,
+  int (*mb_wc)(const struct charset_info_st *, my_wc_t *,
                const uchar *, const uchar *);
   mb_wc= cs->cset->mb_wc;
   
@@ -22021,7 +22020,7 @@ my_coll_init_uca(CHARSET_INFO *cs, MY_CHARSET_LOADER *loader)
   return create_tailoring(cs, loader);
 }
 
-static int my_strnncoll_any_uca(CHARSET_INFO *cs,
+static int my_strnncoll_any_uca(const CHARSET_INFO *cs,
                                 const uchar *s, size_t slen,
                                 const uchar *t, size_t tlen,
                                 my_bool t_is_prefix)
@@ -22030,7 +22029,7 @@ static int my_strnncoll_any_uca(CHARSET_INFO *cs,
                           s, slen, t, tlen, t_is_prefix);
 }
 
-static int my_strnncollsp_any_uca(CHARSET_INFO *cs,
+static int my_strnncollsp_any_uca(const CHARSET_INFO *cs,
                                   const uchar *s, size_t slen,
                                   const uchar *t, size_t tlen,
                                   my_bool diff_if_only_endspace_difference)
@@ -22040,14 +22039,14 @@ static int my_strnncollsp_any_uca(CHARSET_INFO *cs,
                             diff_if_only_endspace_difference);
 }   
 
-static void my_hash_sort_any_uca(CHARSET_INFO *cs,
+static void my_hash_sort_any_uca(const CHARSET_INFO *cs,
                                  const uchar *s, size_t slen,
                                  ulong *n1, ulong *n2)
 {
   my_hash_sort_uca(cs, &my_any_uca_scanner_handler, s, slen, n1, n2); 
 }
 
-static size_t my_strnxfrm_any_uca(CHARSET_INFO *cs, 
+static size_t my_strnxfrm_any_uca(const CHARSET_INFO *cs, 
                                   uchar *dst, size_t dstlen, uint nweights,
                                   const uchar *src, size_t srclen, uint flags)
 {
@@ -22060,7 +22059,7 @@ static size_t my_strnxfrm_any_uca(CHARSET_INFO *cs,
 /*
   UCS2 optimized CHARSET_INFO compatible wrappers.
 */
-static int my_strnncoll_ucs2_uca(CHARSET_INFO *cs,
+static int my_strnncoll_ucs2_uca(const CHARSET_INFO *cs,
                                  const uchar *s, size_t slen,
                                  const uchar *t, size_t tlen,
                                  my_bool t_is_prefix)
@@ -22069,7 +22068,7 @@ static int my_strnncoll_ucs2_uca(CHARSET_INFO *cs,
                           s, slen, t, tlen, t_is_prefix);
 }
 
-static int my_strnncollsp_ucs2_uca(CHARSET_INFO *cs,
+static int my_strnncollsp_ucs2_uca(const CHARSET_INFO *cs,
                                    const uchar *s, size_t slen,
                                    const uchar *t, size_t tlen,
                                    my_bool diff_if_only_endspace_difference)
@@ -22079,14 +22078,14 @@ static int my_strnncollsp_ucs2_uca(CHARSET_INFO *cs,
                             diff_if_only_endspace_difference);
 }   
 
-static void my_hash_sort_ucs2_uca(CHARSET_INFO *cs,
+static void my_hash_sort_ucs2_uca(const CHARSET_INFO *cs,
                                   const uchar *s, size_t slen,
                                   ulong *n1, ulong *n2)
 {
   my_hash_sort_uca(cs, &my_any_uca_scanner_handler, s, slen, n1, n2); 
 }
 
-static size_t my_strnxfrm_ucs2_uca(CHARSET_INFO *cs, 
+static size_t my_strnxfrm_ucs2_uca(const CHARSET_INFO *cs, 
                                    uchar *dst, size_t dstlen, uint nweights,
                                    const uchar *src, size_t srclen, uint flags)
 {

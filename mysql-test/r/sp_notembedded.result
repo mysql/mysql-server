@@ -249,8 +249,6 @@ max_updates, max_connections, max_user_connections)
 VALUES('%', 'mysqltest_1', password(''), 'Y', 'Y', 'Y', 'Y', 'Y', 'Y', 'N', 'N', 'N',
 'N', 'N', 'N', 'Y', 'Y', 'N', 'N', 'Y', 'Y', 'N', 'N', 'N', 'N', 'N', 'Y', 'Y', 'N', '',
 '', '', '', '0', '0', '0', '0');
-Warnings:
-Warning	1364	Field 'authentication_string' doesn't have a default value
 FLUSH PRIVILEGES;
 CREATE PROCEDURE p1(i INT) BEGIN END;
 DROP PROCEDURE p1;

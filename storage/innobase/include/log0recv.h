@@ -40,19 +40,17 @@ Reads the checkpoint info needed in hot backup.
 @return	TRUE if success */
 UNIV_INTERN
 ibool
-recv_read_cp_info_for_backup(
-/*=========================*/
+recv_read_checkpoint_info_for_backup(
+/*=================================*/
 	const byte*	hdr,	/*!< in: buffer containing the log group
 				header */
-	ib_uint64_t*	lsn,	/*!< out: checkpoint lsn */
-	ulint*		offset,	/*!< out: checkpoint offset in the log group */
-	ulint*		fsp_limit,/*!< out: fsp limit of space 0,
-				1000000000 if the database is running
-				with < version 3.23.50 of InnoDB */
-	ib_uint64_t*	cp_no,	/*!< out: checkpoint number */
-	ib_uint64_t*	first_header_lsn);
+	lsn_t*		lsn,	/*!< out: checkpoint lsn */
+	lsn_t*		offset,	/*!< out: checkpoint offset in the log group */
+	lsn_t*		cp_no,	/*!< out: checkpoint number */
+	lsn_t*		first_header_lsn)
 				/*!< out: lsn of of the start of the
 				first log file */
+	__attribute__((nonnull));
 /*******************************************************************//**
 Scans the log segment and n_bytes_scanned is set to the length of valid
 log scanned. */
@@ -62,7 +60,7 @@ recv_scan_log_seg_for_backup(
 /*=========================*/
 	byte*		buf,		/*!< in: buffer containing log data */
 	ulint		buf_len,	/*!< in: data length in that buffer */
-	ib_uint64_t*	scanned_lsn,	/*!< in/out: lsn of buffer start,
+	lsn_t*		scanned_lsn,	/*!< in/out: lsn of buffer start,
 					we return scanned lsn */
 	ulint*		scanned_checkpoint_no,
 					/*!< in/out: 4 lowest bytes of the
@@ -136,12 +134,12 @@ recv_recovery_from_checkpoint_start_func(
 #ifdef UNIV_LOG_ARCHIVE
 	ulint		type,		/*!< in: LOG_CHECKPOINT or
 					LOG_ARCHIVE */
-	ib_uint64_t	limit_lsn,	/*!< in: recover up to this lsn
+	lsn_t		limit_lsn,	/*!< in: recover up to this lsn
 					if possible */
 #endif /* UNIV_LOG_ARCHIVE */
-	ib_uint64_t	min_flushed_lsn,/*!< in: min flushed lsn from
+	lsn_t		min_flushed_lsn,/*!< in: min flushed lsn from
 					data files */
-	ib_uint64_t	max_flushed_lsn);/*!< in: max flushed lsn from
+	lsn_t		max_flushed_lsn);/*!< in: max flushed lsn from
 					 data files */
 #ifdef UNIV_LOG_ARCHIVE
 /** Wrapper for recv_recovery_from_checkpoint_start_func().
@@ -202,11 +200,11 @@ recv_scan_log_recs(
 	const byte*	buf,		/*!< in: buffer containing a log
 					segment or garbage */
 	ulint		len,		/*!< in: buffer length */
-	ib_uint64_t	start_lsn,	/*!< in: buffer start lsn */
-	ib_uint64_t*	contiguous_lsn,	/*!< in/out: it is known that all log
+	lsn_t		start_lsn,	/*!< in: buffer start lsn */
+	lsn_t*		contiguous_lsn,	/*!< in/out: it is known that all log
 					groups contain contiguous log data up
 					to this lsn */
-	ib_uint64_t*	group_scanned_lsn);/*!< out: scanning succeeded up to
+	lsn_t*		group_scanned_lsn);/*!< out: scanning succeeded up to
 					this lsn */
 /******************************************************//**
 Resets the logs. The contents of log files will be lost! */
@@ -214,7 +212,7 @@ UNIV_INTERN
 void
 recv_reset_logs(
 /*============*/
-	ib_uint64_t	lsn,		/*!< in: reset to this lsn
+	lsn_t		lsn,		/*!< in: reset to this lsn
 					rounded up to be divisible by
 					OS_FILE_LOG_BLOCK_SIZE, after
 					which we add
@@ -235,8 +233,8 @@ recv_reset_log_files_for_backup(
 /*============================*/
 	const char*	log_dir,	/*!< in: log file directory path */
 	ulint		n_log_files,	/*!< in: number of log files */
-	ulint		log_file_size,	/*!< in: log file size */
-	ib_uint64_t	lsn);		/*!< in: new start lsn, must be
+	lsn_t		log_file_size,	/*!< in: log file size */
+	lsn_t		lsn);		/*!< in: new start lsn, must be
 					divisible by OS_FILE_LOG_BLOCK_SIZE */
 #endif /* UNIV_HOTBACKUP */
 /********************************************************//**
@@ -302,9 +300,9 @@ UNIV_INTERN
 ulint
 recv_recovery_from_archive_start(
 /*=============================*/
-	ib_uint64_t	min_flushed_lsn,/*!< in: min flushed lsn field from the
+	lsn_t		min_flushed_lsn,/*!< in: min flushed lsn field from the
 					data files */
-	ib_uint64_t	limit_lsn,	/*!< in: recover up to this lsn if
+	lsn_t		limit_lsn,	/*!< in: recover up to this lsn if
 					possible */
 	ulint		first_log_no);	/*!< in: number of the first archived
 					log file to use in the recovery; the
@@ -337,11 +335,11 @@ struct recv_struct{
 	ulint		len;	/*!< log record body length in bytes */
 	recv_data_t*	data;	/*!< chain of blocks containing the log record
 				body */
-	ib_uint64_t	start_lsn;/*!< start lsn of the log segment written by
+	lsn_t		start_lsn;/*!< start lsn of the log segment written by
 				the mtr which generated this log record: NOTE
 				that this is not necessarily the start lsn of
 				this log record */
-	ib_uint64_t	end_lsn;/*!< end lsn of the log segment written by
+	lsn_t		end_lsn;/*!< end lsn of the log segment written by
 				the mtr which generated this log record: NOTE
 				that this is not necessarily the end lsn of
 				this log record */
@@ -392,7 +390,7 @@ struct recv_sys_struct{
 	ibool		apply_batch_on;
 				/*!< this is TRUE when a log rec application
 				batch is running */
-	ib_uint64_t	lsn;	/*!< log sequence number */
+	lsn_t		lsn;	/*!< log sequence number */
 	ulint		last_log_buf_size;
 				/*!< size of the log buffer when the database
 				last time wrote to the log */
@@ -404,12 +402,12 @@ struct recv_sys_struct{
 				preceding buffer */
 	byte*		buf;	/*!< buffer for parsing log records */
 	ulint		len;	/*!< amount of data in buf */
-	ib_uint64_t	parse_start_lsn;
+	lsn_t		parse_start_lsn;
 				/*!< this is the lsn from which we were able to
 				start parsing log records and adding them to
 				the hash table; zero if a suitable
 				start point not found yet */
-	ib_uint64_t	scanned_lsn;
+	lsn_t		scanned_lsn;
 				/*!< the log data has been scanned up to this
 				lsn */
 	ulint		scanned_checkpoint_no;
@@ -418,10 +416,10 @@ struct recv_sys_struct{
 	ulint		recovered_offset;
 				/*!< start offset of non-parsed log records in
 				buf */
-	ib_uint64_t	recovered_lsn;
+	lsn_t		recovered_lsn;
 				/*!< the log records have been parsed up to
 				this lsn */
-	ib_uint64_t	limit_lsn;/*!< recovery should be made at most
+	lsn_t		limit_lsn;/*!< recovery should be made at most
 				up to this lsn */
 	ibool		found_corrupt_log;
 				/*!< this is set to TRUE if we during log

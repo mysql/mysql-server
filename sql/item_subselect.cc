@@ -24,10 +24,6 @@
     methods (sql_select.h/sql_select.cc)
 */
 
-#ifdef USE_PRAGMA_IMPLEMENTATION
-#pragma implementation				// gcc: Class implementation
-#endif
-
 #include "sql_priv.h"
 /*
   It is necessary to include set_var.h instead of item.h because there
@@ -38,6 +34,7 @@
 #include "set_var.h"
 #include "sql_select.h"
 #include "sql_parse.h"                          // check_stack_overrun
+#include "debug_sync.h"
 
 inline Item * and_items(Item* cond, Item *item)
 {
@@ -120,7 +117,10 @@ void Item_subselect::cleanup()
   if (old_engine)
   {
     if (engine)
+    {
       engine->cleanup();
+      delete engine;
+    }
     engine= old_engine;
     old_engine= 0;
   }
@@ -279,30 +279,31 @@ bool Item_subselect::walk(Item_processor processor, bool walk_subquery,
 
 bool Item_subselect::exec()
 {
-  int res;
+  DBUG_ENTER("Item_subselect::exec");
 
   /*
     Do not execute subselect in case of a fatal error
     or if the query has been killed.
   */
   if (thd->is_error() || thd->killed)
-    return 1;
+    DBUG_RETURN(true);
 
   DBUG_ASSERT(!thd->lex->context_analysis_only);
   /*
     Simulate a failure in sub-query execution. Used to test e.g.
     out of memory or query being killed conditions.
   */
-  DBUG_EXECUTE_IF("subselect_exec_fail", return 1;);
+  DBUG_EXECUTE_IF("subselect_exec_fail", DBUG_RETURN(true););
 
-  res= engine->exec();
+  bool res= engine->exec();
 
   if (engine_changed)
   {
     engine_changed= 0;
-    return exec();
+    res= exec();
+    DBUG_RETURN(res);
   }
-  return (res);
+  DBUG_RETURN(res);
 }
 
 
@@ -1886,17 +1887,12 @@ void Item_in_subselect::fix_after_pullout(st_select_lex *parent_select,
 
 
 /**
-  Try to create an engine to compute the subselect via materialization,
-  and if this fails, revert to execution via the IN=>EXISTS transformation.
+  Create an engine to compute the subquery via materialization.
 
   @details
     The purpose of this method is to hide the implementation details
     of this Item's execution. The method creates a new engine for
     materialized execution, and initializes the engine.
-
-    The initialization of the new engine is divided in two parts - a permanent
-    one that lives across prepared statements, and one that is repeated for each
-    execution.
 
   @returns
     @retval TRUE  memory allocation error occurred, or was not able to create
@@ -1906,43 +1902,29 @@ void Item_in_subselect::fix_after_pullout(st_select_lex *parent_select,
 
 bool Item_in_subselect::setup_engine()
 {
-  subselect_hash_sj_engine *hash_engine;
   DBUG_ENTER("Item_in_subselect::setup_engine");
 
-  if (engine->engine_type() == subselect_engine::SINGLE_SELECT_ENGINE)
-  {
-    /* Create/initialize objects in permanent memory. */
-    Query_arena *arena= thd->stmt_arena;
-    Query_arena backup;
-    if (arena->is_conventional())
-      arena= 0;
-    else
-      thd->set_n_backup_active_arena(arena, &backup);
+  /* The decision whether to materialize is already taken. */
+  DBUG_ASSERT(exec_method == Item_exists_subselect::EXEC_MATERIALIZATION);
 
-    subselect_single_select_engine *old_engine= 
-      static_cast<subselect_single_select_engine*>(engine);
-    if (!(hash_engine= new subselect_hash_sj_engine(thd, this,
-                                                    old_engine)) ||
-        hash_engine->init_permanent(unit->get_unit_column_types()))
-    {
-      /*
-        For some reason we cannot use materialization for this IN predicate.
-        Delete all materialization-related objects, and return error.
-      */
-      delete hash_engine;
-      if (arena)
-        thd->restore_active_arena(arena, &backup);
-      DBUG_RETURN(TRUE);
-    }
-    engine= hash_engine;
+  DBUG_ASSERT(engine->engine_type() == subselect_engine::SINGLE_SELECT_ENGINE);
 
-    if (arena)
-      thd->restore_active_arena(arena, &backup);
-  }
-  else
+  old_engine= engine;
+
+  if (!(engine= new subselect_hash_sj_engine(thd, this,
+                  static_cast<subselect_single_select_engine*>(old_engine))))
+    DBUG_RETURN(true);
+  if (((subselect_hash_sj_engine *) engine)
+        ->setup(unit->get_unit_column_types()))
   {
-    DBUG_ASSERT(engine->engine_type() == subselect_engine::HASH_SJ_ENGINE);
-    hash_engine= static_cast<subselect_hash_sj_engine*>(engine);
+    /*
+      For some reason we cannot use materialization for this IN predicate.
+      Delete all materialization-related objects, and return error.
+    */
+    delete engine;
+    engine= old_engine;
+    old_engine= NULL;
+    DBUG_RETURN(true);
   }
 
   /*
@@ -1955,10 +1937,7 @@ bool Item_in_subselect::setup_engine()
   */
   unit->global_parameters->select_limit= NULL;
 
-  /* Initializations done in runtime memory, repeated for each execution. */
-  const bool res= hash_engine->init_runtime();
-
-  DBUG_RETURN(res);
+  DBUG_RETURN(false);
 }
 
 
@@ -2096,7 +2075,6 @@ void subselect_single_select_engine::cleanup()
 void subselect_union_engine::cleanup()
 {
   DBUG_ENTER("subselect_union_engine::cleanup");
-  unit->reinit_exec_mechanism();
   result->cleanup();
   DBUG_VOID_RETURN;
 }
@@ -2123,20 +2101,10 @@ bool subselect_union_engine::is_executed() const
     FALSE - Otherwise
 */
 
-bool subselect_union_engine::no_rows()
+bool subselect_union_engine::no_rows() const
 {
   /* Check if we got any rows when reading UNION result from temp. table: */
   return test(!unit->fake_select_lex->join->send_records);
-}
-
-
-void subselect_uniquesubquery_engine::cleanup()
-{
-  DBUG_ENTER("subselect_uniquesubquery_engine::cleanup");
-  /* Tell handler we don't need the index anymore */
-  if (tab->table->file->inited)
-    tab->table->file->ha_index_end();
-  DBUG_VOID_RETURN;
 }
 
 
@@ -2176,7 +2144,7 @@ subselect_union_engine::subselect_union_engine(st_select_lex_unit *u,
   @retval 1  if error
 */
 
-int subselect_single_select_engine::prepare()
+bool subselect_single_select_engine::prepare()
 {
   if (prepared)
     return 0;
@@ -2203,12 +2171,14 @@ int subselect_single_select_engine::prepare()
   return 0;
 }
 
-int subselect_union_engine::prepare()
+
+bool subselect_union_engine::prepare()
 {
   return unit->prepare(thd, result, SELECT_NO_UNLOCK);
 }
 
-int subselect_uniquesubquery_engine::prepare()
+
+bool subselect_uniquesubquery_engine::prepare()
 {
   /* Should never be called. */
   DBUG_ASSERT(FALSE);
@@ -2231,7 +2201,7 @@ int subselect_uniquesubquery_engine::prepare()
     FALSE - Otherwise
 */
 
-bool subselect_single_select_engine::no_rows()
+bool subselect_single_select_engine::no_rows() const
 { 
   return !item->assigned();
 }
@@ -2301,7 +2271,7 @@ int rr_sequential(READ_RECORD *info);
 int join_read_always_key_or_null(JOIN_TAB *tab);
 int join_read_next_same_or_null(READ_RECORD *info);
 
-int subselect_single_select_engine::exec()
+bool subselect_single_select_engine::exec()
 {
   DBUG_ENTER("subselect_single_select_engine::exec");
   int rc= 0;
@@ -2334,11 +2304,7 @@ int subselect_single_select_engine::exec()
       select_lex->uncacheable != UNCACHEABLE_EXPLAIN
       && executed)
   {
-    if (join->reinit())
-    {
-      rc= 1;
-      goto exit;
-    }
+    join->reset();
     item->reset();
     item->assigned((executed= 0));
   }
@@ -2404,10 +2370,10 @@ exit:
   DBUG_RETURN(rc);
 }
 
-int subselect_union_engine::exec()
+bool subselect_union_engine::exec()
 {
   char const *save_where= thd->where;
-  int res= unit->exec();
+  const bool res= unit->exec();
   thd->where= save_where;
   return res;
 }
@@ -2431,7 +2397,7 @@ int subselect_union_engine::exec()
     TRUE  - Error
 */
 
-int subselect_uniquesubquery_engine::scan_table()
+bool subselect_uniquesubquery_engine::scan_table()
 {
   int error;
   TABLE *table= tab->table;
@@ -2596,7 +2562,7 @@ bool subselect_uniquesubquery_engine::copy_ref_key()
     TRUE  - an error occured while scanning
 */
 
-int subselect_uniquesubquery_engine::exec()
+bool subselect_uniquesubquery_engine::exec()
 {
   DBUG_ENTER("subselect_uniquesubquery_engine::exec");
   int error;
@@ -2699,7 +2665,7 @@ int subselect_uniquesubquery_engine::exec()
     1
 */
 
-int subselect_indexsubquery_engine::exec()
+bool subselect_indexsubquery_engine::exec()
 {
   DBUG_ENTER("subselect_indexsubquery_engine::exec");
   int error;
@@ -2786,26 +2752,26 @@ int subselect_indexsubquery_engine::exec()
 }
 
 
-uint subselect_single_select_engine::cols()
+uint subselect_single_select_engine::cols() const
 {
   return select_lex->item_list.elements;
 }
 
 
-uint subselect_union_engine::cols()
+uint subselect_union_engine::cols() const
 {
   DBUG_ASSERT(unit->is_prepared());  // should be called after fix_fields()
   return unit->types.elements;
 }
 
 
-uint8 subselect_single_select_engine::uncacheable()
+uint8 subselect_single_select_engine::uncacheable() const
 {
   return select_lex->uncacheable;
 }
 
 
-uint8 subselect_union_engine::uncacheable()
+uint8 subselect_union_engine::uncacheable() const
 {
   return unit->uncacheable;
 }
@@ -2892,13 +2858,13 @@ subselect_single_select_engine::save_join_if_explain()
   return FALSE;
 }
 
-table_map subselect_single_select_engine::upper_select_const_tables()
+table_map subselect_single_select_engine::upper_select_const_tables() const
 {
   return calc_const_tables(select_lex->outer_select()->leaf_tables);
 }
 
 
-table_map subselect_union_engine::upper_select_const_tables()
+table_map subselect_union_engine::upper_select_const_tables() const
 {
   return calc_const_tables(unit->outer_select()->leaf_tables);
 }
@@ -3066,7 +3032,7 @@ bool subselect_uniquesubquery_engine::change_result(Item_subselect *si,
   @retval
     FALSE there are some tables in subquery
 */
-bool subselect_single_select_engine::no_tables()
+bool subselect_single_select_engine::no_tables() const
 {
   return(select_lex->table_list.elements == 0);
 }
@@ -3082,7 +3048,7 @@ bool subselect_single_select_engine::no_tables()
     FALSE  can guarantee that the subquery never return NULL
     TRUE   otherwise
 */
-bool subselect_single_select_engine::may_be_null()
+bool subselect_single_select_engine::may_be_null() const
 {
   return ((no_tables() && !join->conds && !join->having) ? maybe_null : 1);
 }
@@ -3096,7 +3062,7 @@ bool subselect_single_select_engine::may_be_null()
   @retval
     FALSE there are some tables in subquery
 */
-bool subselect_union_engine::no_tables()
+bool subselect_union_engine::no_tables() const
 {
   for (SELECT_LEX *sl= unit->first_select(); sl; sl= sl->next_select())
   {
@@ -3116,7 +3082,7 @@ bool subselect_union_engine::no_tables()
     FALSE there are some tables in subquery
 */
 
-bool subselect_uniquesubquery_engine::no_tables()
+bool subselect_uniquesubquery_engine::no_tables() const
 {
   /* returning value is correct, but this method should never be called */
   return 0;
@@ -3129,8 +3095,7 @@ bool subselect_uniquesubquery_engine::no_tables()
 
 
 /**
-  Create all structures needed for IN execution that can live between PS
-  reexecution.
+  Create all structures needed for subquery execution using hash semijoin.
 
   @detail
   - Create a temporary table to store the result of the IN subquery. The
@@ -3148,7 +3113,7 @@ bool subselect_uniquesubquery_engine::no_tables()
   @retval FALSE otherwise
 */
 
-bool subselect_hash_sj_engine::init_permanent(List<Item> *tmp_columns)
+bool subselect_hash_sj_engine::setup(List<Item> *tmp_columns)
 {
   /* The result sink where we will materialize the subquery result. */
   select_union  *tmp_result_sink;
@@ -3158,7 +3123,7 @@ bool subselect_hash_sj_engine::init_permanent(List<Item> *tmp_columns)
   uint          tmp_key_parts; /* Number of keyparts in tmp_key. */
   Item_in_subselect *item_in= (Item_in_subselect *) item;
 
-  DBUG_ENTER("subselect_hash_sj_engine::init_permanent");
+  DBUG_ENTER("subselect_hash_sj_engine::setup");
 
   /* 1. Create/initialize materialization related objects. */
 
@@ -3204,8 +3169,8 @@ bool subselect_hash_sj_engine::init_permanent(List<Item> *tmp_columns)
     Make sure there is only one index on the temp table, and it doesn't have
     the extra key part created when s->uniques > 0.
   */
-  DBUG_ASSERT(tmp_table->s->keys == 1 && tmp_columns->elements == tmp_key_parts);
-
+  DBUG_ASSERT(tmp_table->s->keys == 1 &&
+              tmp_columns->elements == tmp_key_parts);
 
   /* 2. Create/initialize execution related objects. */
 
@@ -3300,43 +3265,24 @@ bool subselect_hash_sj_engine::init_permanent(List<Item> *tmp_columns)
   if (cond->fix_fields(thd, &cond))
     DBUG_RETURN(TRUE);
 
-  DBUG_RETURN(FALSE);
-}
-
-
-/**
-  Initialize members of the engine that need to be re-initilized at each
-  execution.
-
-  @retval TRUE  if a memory allocation error occurred
-  @retval FALSE if success
-*/
-
-bool subselect_hash_sj_engine::init_runtime()
-{
   /*
     Create and optimize the JOIN that will be used to materialize
     the subquery if not yet created.
   */
   materialize_engine->prepare();
-  /*
-    Repeat name resolution for 'cond' since cond is not part of any
-    clause of the query, and it is not 'fixed' during JOIN::prepare.
-  */
-  if (cond && !cond->fixed && cond->fix_fields(thd, &cond))
-    return TRUE;
   /* Let our engine reuse this query plan for materialization. */
-  materialize_join= materialize_engine->join;
-  materialize_join->change_result(result);
-  return FALSE;
+  materialize_engine->join->change_result(result);
+
+  DBUG_RETURN(FALSE);
 }
 
 
 subselect_hash_sj_engine::~subselect_hash_sj_engine()
 {
+  /* Assure that cleanup has been called for this engine. */
+  DBUG_ASSERT(!tab);
+
   delete result;
-  if (tab)
-    free_tmp_table(thd, tab->table);
 }
 
 
@@ -3349,10 +3295,16 @@ subselect_hash_sj_engine::~subselect_hash_sj_engine()
 
 void subselect_hash_sj_engine::cleanup()
 {
-  is_materialized= FALSE;
+  DBUG_ENTER("subselect_hash_sj_engine::cleanup");
+  is_materialized= false;
   result->cleanup(); /* Resets the temp table as well. */
+  DEBUG_SYNC(thd, "before_index_end_in_subselect");
+  if (tab->table->file->inited)
+    tab->table->file->ha_index_end();  // Close the scan over the index
+  free_tmp_table(thd, tab->table);
+  tab= NULL;
   materialize_engine->cleanup();
-  subselect_uniquesubquery_engine::cleanup();
+  DBUG_VOID_RETURN;
 }
 
 
@@ -3367,7 +3319,7 @@ void subselect_hash_sj_engine::cleanup()
   @retval FALSE otherwise
 */
 
-int subselect_hash_sj_engine::exec()
+bool subselect_hash_sj_engine::exec()
 {
   Item_in_subselect *item_in= (Item_in_subselect *) item;
 
@@ -3379,17 +3331,17 @@ int subselect_hash_sj_engine::exec()
   */
   if (!is_materialized)
   {
-    int res= 0;
+    bool res= false;
     SELECT_LEX *save_select= thd->lex->current_select;
     thd->lex->current_select= materialize_engine->select_lex;
-    if ((res= materialize_join->optimize()))
+    if ((res= materialize_engine->join->optimize()))
       goto err; /* purecov: inspected */
 
     if (materialize_engine->save_join_if_explain())
       goto err;
 
-    materialize_join->exec();
-    if ((res= test(materialize_join->error || thd->is_fatal_error)))
+    materialize_engine->join->exec();
+    if ((res= test(materialize_engine->join->error || thd->is_fatal_error)))
       goto err;
 
     /*

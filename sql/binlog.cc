@@ -1,4 +1,4 @@
-/* Copyright (c) 2009, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2009, 2011, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -1602,11 +1602,9 @@ void MYSQL_BIN_LOG::init(bool no_auto_events_arg, ulong max_size_arg)
 
 void MYSQL_BIN_LOG::init_pthread_objects()
 {
-  DBUG_ASSERT(inited == 0);
-  inited= 1;
-  mysql_mutex_init(key_LOG_LOCK_log, &LOCK_log, MY_MUTEX_INIT_SLOW);
-  mysql_mutex_init(key_BINLOG_LOCK_index, &LOCK_index, MY_MUTEX_INIT_SLOW);
-  mysql_cond_init(key_BINLOG_update_cond, &update_cond, 0);
+  MYSQL_LOG::init_pthread_objects();
+  mysql_mutex_init(m_key_LOCK_index, &LOCK_index, MY_MUTEX_INIT_SLOW);
+  mysql_cond_init(m_key_update_cond, &update_cond, 0);
 }
 
 
@@ -1650,7 +1648,7 @@ bool MYSQL_BIN_LOG::open_index_file(const char *index_file_name_arg,
     return TRUE;
   }
 
-  if ((index_file_nr= mysql_file_open(key_file_binlog_index,
+  if ((index_file_nr= mysql_file_open(m_key_file_log_index,
                                       index_file_name,
                                       O_RDWR | O_CREAT | O_BINARY,
                                       MYF(MY_WME))) < 0 ||
@@ -1766,7 +1764,7 @@ bool MYSQL_BIN_LOG::open(const char *log_name,
   /* open the main log file */
   if (MYSQL_LOG::open(
 #ifdef HAVE_PSI_INTERFACE
-                      key_file_binlog,
+                      m_key_file_log,
 #endif
                       log_name, log_type_arg, new_name, io_cache_type_arg))
   {
@@ -2909,7 +2907,7 @@ int MYSQL_BIN_LOG::purge_index_entry(THD *thd, ulonglong *decrease_log_space,
     /* Get rid of the trailing '\n' */
     log_info.log_file_name[length-1]= 0;
 
-    if (!mysql_file_stat(key_file_binlog, log_info.log_file_name, &s, MYF(0)))
+    if (!mysql_file_stat(m_key_file_log, log_info.log_file_name, &s, MYF(0)))
     {
       if (my_errno == ENOENT) 
       {
@@ -3084,7 +3082,7 @@ int MYSQL_BIN_LOG::purge_logs_before_date(time_t purge_time)
 	 !is_active(log_info.log_file_name) &&
          !log_in_use(log_info.log_file_name))
   {
-    if (!mysql_file_stat(key_file_binlog,
+    if (!mysql_file_stat(m_key_file_log,
                          log_info.log_file_name, &stat_area, MYF(0)))
     {
       if (my_errno == ENOENT) 
@@ -3605,7 +3603,8 @@ bool MYSQL_BIN_LOG::write(Log_event *event_info)
     if ((thd && !(thd->variables.option_bits & OPTION_BIN_LOG)) ||
 	(thd->lex->sql_command != SQLCOM_ROLLBACK_TO_SAVEPOINT &&
          thd->lex->sql_command != SQLCOM_SAVEPOINT &&
-         !binlog_filter->db_ok(local_db)))
+         (!event_info->is_no_filter_event() && 
+          !binlog_filter->db_ok(local_db))))
       DBUG_RETURN(0);
 #endif /* HAVE_REPLICATION */
 
@@ -5379,24 +5378,6 @@ THD::binlog_prepare_pending_rows_event(TABLE* table, uint32 serv_id,
   }
   DBUG_RETURN(pending);        /* This is the current pending event */
 }
-
-#ifdef HAVE_EXPLICIT_TEMPLATE_INSTANTIATION
-/*
-  Instantiate the versions we need, we have -fno-implicit-template as
-  compiling option.
-*/
-template Rows_log_event*
-THD::binlog_prepare_pending_rows_event(TABLE*, uint32, size_t, bool,
-				       Write_rows_log_event*);
-
-template Rows_log_event*
-THD::binlog_prepare_pending_rows_event(TABLE*, uint32, size_t, bool,
-				       Delete_rows_log_event *);
-
-template Rows_log_event* 
-THD::binlog_prepare_pending_rows_event(TABLE*, uint32, size_t, bool,
-				       Update_rows_log_event *);
-#endif
 
 /* Declare in unnamed namespace. */
 CPP_UNNAMED_NS_START

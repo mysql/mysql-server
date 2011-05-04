@@ -14,6 +14,7 @@
 #################################################
 
 call mtr.add_suppression("Slave: Unknown table 'test.t6' Error_code: 1051");
+call mtr.add_suppression("Slave SQL.*Column [0-9] of table .test.t[0-9]*. cannot be converted from type.* Error_code: 1677");
 
 --echo **** Diff Table Def Start ****
 
@@ -395,7 +396,7 @@ sync_slave_with_master;
 # Error reaction is up to sql_mode of the slave sql (bug#38173)
 #--echo *** Create t9 on slave  ***
 # Please, check BUG#47741 to see why you are not testing NDB.
-if ($engine_type != NDB)
+if (`SELECT UPPER(LEFT($engine_type, 3)) != 'NDB'`)
 {
   STOP SLAVE;
   RESET SLAVE;
@@ -439,12 +440,13 @@ if ($engine_type != NDB)
   #--let $slave_skip_counter= 2
   #--let $show_slave_sql_error= 1
   #--source include/wait_for_slave_sql_error_and_skip.inc
-}
 
-#--echo *** Drop t9  ***
-connection master;
-DROP TABLE t9;
-sync_slave_with_master;
+  #--echo *** Drop t9  ***
+  connection master;
+  DROP TABLE t9;
+  sync_slave_with_master;
+
+}
 
 ############################################
 # More columns in slave at middle of table #
@@ -768,6 +770,10 @@ RESET MASTER;
 --echo *** Start Slave ***
 connection slave;
 START SLAVE;
+
+call mtr.add_suppression("Error .Unknown table .t6.. on query.* Error_code: 1051");
+call mtr.add_suppression("Error .Duplicate column name .c6.. on query.* Error_code: 1060");
+call mtr.add_suppression("Table definition on master and slave does not match: Column . ...e mismatch.* Error_code: 1535");
 
 --echo *** Master Data Insert ***
 connection master;

@@ -103,10 +103,6 @@
            subject and may omit some details.
 */
 
-#ifdef USE_PRAGMA_IMPLEMENTATION
-#pragma implementation				// gcc: Class implementation
-#endif
-
 #include "sql_priv.h"
 #include "key.h"        // is_key_used, key_copy, key_cmp, key_restore
 #include "sql_parse.h"                          // check_stack_overrun
@@ -746,6 +742,12 @@ public:
   bool is_ror_scan;
   /* Number of ranges in the last checked tree->key */
   uint n_ranges;
+
+  /* 
+     The sort order the range access method must be able
+     to provide. Three-value logic: asc/desc/don't care
+  */
+  ORDER::enum_order order_direction;
 };
 
 class TABLE_READ_PLAN;
@@ -1152,8 +1154,7 @@ SQL_SELECT::SQL_SELECT() :quick(0),cond(0),icp_cond(0),free_cond(0)
 
 void SQL_SELECT::cleanup()
 {
-  delete quick;
-  quick= 0;
+  set_quick(NULL);
   if (free_cond)
   {
     free_cond=0;
@@ -1179,7 +1180,9 @@ QUICK_SELECT_I::QUICK_SELECT_I()
 QUICK_RANGE_SELECT::QUICK_RANGE_SELECT(THD *thd, TABLE *table, uint key_nr,
                                        bool no_alloc, MEM_ROOT *parent_alloc,
                                        bool *create_error)
-  :free_file(0),cur_range(NULL),last_range(0),dont_free(0)
+  :free_file(0), cur_range(NULL), last_range(0),
+   mrr_flags(0), mrr_buf_size(0), mrr_buf_desc(NULL),
+   dont_free(0)
 {
   my_bitmap_map *bitmap;
   DBUG_ENTER("QUICK_RANGE_SELECT::QUICK_RANGE_SELECT");
@@ -1192,7 +1195,6 @@ QUICK_RANGE_SELECT::QUICK_RANGE_SELECT(THD *thd, TABLE *table, uint key_nr,
 
   /* 'thd' is not accessible in QUICK_RANGE_SELECT::reset(). */
   mrr_buf_size= thd->variables.read_rnd_buff_size;
-  mrr_buf_desc= NULL;
 
   if (!no_alloc && !parent_alloc)
   {
@@ -1220,17 +1222,12 @@ QUICK_RANGE_SELECT::QUICK_RANGE_SELECT(THD *thd, TABLE *table, uint key_nr,
 }
 
 
-void QUICK_RANGE_SELECT::need_sorted_output()
+void QUICK_RANGE_SELECT::need_sorted_output(bool sort)
 {
-  if (!(mrr_flags & HA_MRR_SORTED))
-  {
-    /*
-      Native implementation can't produce sorted output. We'll have to
-      switch to default
-    */
-    mrr_flags |= HA_MRR_USE_DEFAULT_IMPL; 
-  }
-  mrr_flags |= HA_MRR_SORTED;
+  if (sort)
+    mrr_flags |= HA_MRR_SORTED;
+  else
+    mrr_flags &= ~HA_MRR_SORTED;
 }
 
 
@@ -1423,7 +1420,7 @@ int QUICK_RANGE_SELECT::init_ror_merged_scan(bool reuse_handler)
   }
 
   thd= head->in_use;
-  if (!(file= head->file->clone(thd->mem_root)))
+  if (!(file= head->file->clone(head->s->normalized_path.str, thd->mem_root)))
   {
     /* 
       Manually set the error flag. Note: there seems to be quite a few
@@ -2150,6 +2147,8 @@ static int fill_used_fields_bitmap(PARAM *param)
       limit             Query limit
       force_quick_range Prefer to use range (instead of full table scan) even
                         if it is more expensive.
+      interesting_order The sort order the range access method must be able
+                        to provide. Three-value logic: asc/desc/don't care
 
   NOTES
     Updates the following in the select parameter:
@@ -2205,9 +2204,9 @@ static int fill_used_fields_bitmap(PARAM *param)
 */
 
 int SQL_SELECT::test_quick_select(THD *thd, key_map keys_to_use,
-				  table_map prev_tables,
-				  ha_rows limit, bool force_quick_range, 
-                                  bool ordered_output)
+                                  table_map prev_tables,
+                                  ha_rows limit, bool force_quick_range, 
+                                  const ORDER::enum_order interesting_order)
 {
   uint idx;
   double scan_time;
@@ -2216,8 +2215,7 @@ int SQL_SELECT::test_quick_select(THD *thd, key_map keys_to_use,
 		      (ulong) keys_to_use.to_ulonglong(), (ulong) prev_tables,
 		      (ulong) const_tables));
   DBUG_PRINT("info", ("records: %lu", (ulong) head->file->stats.records));
-  delete quick;
-  quick=0;
+  set_quick(NULL);
   needed_reg.clear_all();
   quick_keys.clear_all();
   if (keys_to_use.is_clear_all())
@@ -2268,7 +2266,8 @@ int SQL_SELECT::test_quick_select(THD *thd, key_map keys_to_use,
     param.imerge_cost_buff_size= 0;
     param.using_real_indexes= TRUE;
     param.remove_jump_scans= TRUE;
-    param.force_default_mrr= ordered_output;
+    param.force_default_mrr= (interesting_order != ORDER::ORDER_NOT_RELEVANT);
+    param.order_direction= interesting_order;
 
     thd->no_errors=1;				// Don't warn about NULL
     init_sql_alloc(&alloc, thd->variables.range_alloc_block_size, 0);
@@ -2394,10 +2393,12 @@ int SQL_SELECT::test_quick_select(THD *thd, key_map keys_to_use,
         /*
           Simultaneous key scans and row deletes on several handler
           objects are not allowed so don't use ROR-intersection for
-          table deletes.
+          table deletes. Also, ROR-intersection cannot return rows in
+          descending order
         */
         if ((thd->lex->sql_command != SQLCOM_DELETE) && 
-             thd->optimizer_switch_flag(OPTIMIZER_SWITCH_INDEX_MERGE))
+            thd->optimizer_switch_flag(OPTIMIZER_SWITCH_INDEX_MERGE) &&
+            interesting_order != ORDER::ORDER_DESC)
         {
           /*
             Get best non-covering ROR-intersection plan and prepare data for
@@ -2421,7 +2422,9 @@ int SQL_SELECT::test_quick_select(THD *thd, key_map keys_to_use,
       }
       else
       {
-        if (thd->optimizer_switch_flag(OPTIMIZER_SWITCH_INDEX_MERGE))
+        // Cannot return rows in descending order.
+        if (thd->optimizer_switch_flag(OPTIMIZER_SWITCH_INDEX_MERGE) &&
+            interesting_order != ORDER::ORDER_DESC)
         {
           /* Try creating index_merge/ROR-union scan. */
           SEL_IMERGE *imerge;
@@ -2453,10 +2456,7 @@ int SQL_SELECT::test_quick_select(THD *thd, key_map keys_to_use,
     {
       records= best_trp->records;
       if (!(quick= best_trp->make_quick(&param, TRUE)) || quick->init())
-      {
-        delete quick;
-        quick= NULL;
-      }
+        set_quick(NULL);
     }
 
   free_mem:
@@ -4582,6 +4582,9 @@ TRP_ROR_INTERSECT *get_best_ror_intersect(const PARAM *param, SEL_TREE *tree,
 
   if ((tree->n_ror_scans < 2) || !param->table->file->stats.records ||
       !param->thd->optimizer_switch_flag(OPTIMIZER_SWITCH_INDEX_MERGE_INTERSECT))
+    DBUG_RETURN(NULL);
+
+  if (param->order_direction == ORDER::ORDER_DESC)
     DBUG_RETURN(NULL);
 
   /*
@@ -8714,7 +8717,8 @@ int QUICK_RANGE_SELECT::reset()
   {
     if (in_ror_merged_scan)
       head->column_bitmaps_set_no_signal(&column_bitmap, &column_bitmap);
-    if ((error= file->ha_index_init(index,1)))
+    const bool sorted= (mrr_flags & HA_MRR_SORTED);
+    if ((error= file->ha_index_init(index, sorted)))
         DBUG_RETURN(error);
   }
 
@@ -8989,10 +8993,11 @@ int QUICK_RANGE_SELECT::get_next_prefix(uint prefix_length,
     last_range->make_min_endpoint(&start_key, prefix_length, keypart_map);
     last_range->make_max_endpoint(&end_key, prefix_length, keypart_map);
 
+    const bool sorted= (mrr_flags & HA_MRR_SORTED);
     result= file->read_range_first(last_range->min_keypart_map ? &start_key : 0,
 				   last_range->max_keypart_map ? &end_key : 0,
                                    test(last_range->flag & EQ_RANGE),
-				   TRUE);
+				   sorted);
     if (last_range->flag == (UNIQUE_RANGE | EQ_RANGE))
       last_range= 0;			// Stop searching
 
@@ -9104,6 +9109,7 @@ QUICK_SELECT_DESC::QUICK_SELECT_DESC(QUICK_RANGE_SELECT *q,
   */
   mrr_buf_desc= NULL;
   mrr_flags |= HA_MRR_USE_DEFAULT_IMPL;
+  mrr_flags |= HA_MRR_SORTED; // 'sorted' as internals use index_last/_prev
   mrr_buf_size= 0;
 
 
@@ -9658,6 +9664,9 @@ get_best_group_min_max(PARAM *param, SEL_TREE *tree, double read_time)
     DBUG_RETURN(NULL);
   if (table->s->keys == 0)        /* There are no indexes to use. */
     DBUG_RETURN(NULL);
+  /* Cannot do reverse ordering */
+  if (param->order_direction == ORDER::ORDER_DESC)
+    DBUG_RETURN(NULL);
 
   /* Check (SA1,SA4) and store the only MIN/MAX argument - the C attribute.*/
   if (join->make_sum_func_list(join->all_fields, join->fields_list, 1))
@@ -10136,11 +10145,11 @@ check_group_min_max_predicates(Item *cond, Item_field *min_max_arg_item,
 
   /* Test if cond references only group-by or non-group fields. */
   Item_func *pred= (Item_func*) cond;
-  Item **arguments= pred->arguments();
   Item *cur_arg;
   DBUG_PRINT("info", ("Analyzing: %s", pred->func_name()));
   for (uint arg_idx= 0; arg_idx < pred->argument_count (); arg_idx++)
   {
+    Item **arguments= pred->arguments();
     cur_arg= arguments[arg_idx]->real_item();
     DBUG_PRINT("info", ("cur_arg: %s", cur_arg->full_name()));
     if (cur_arg->type() == Item::FIELD_ITEM)
@@ -10584,12 +10593,20 @@ TRP_GROUP_MIN_MAX::make_quick(PARAM *param, bool retrieve_full_rows,
     if (quick_prefix_records == HA_POS_ERROR)
       quick->quick_prefix_select= NULL; /* Can't construct a quick select. */
     else
+    {
       /* Make a QUICK_RANGE_SELECT to be used for group prefix retrieval. */
       quick->quick_prefix_select= get_quick_select(param, param_idx,
                                                    index_tree,
-                                                   HA_MRR_USE_DEFAULT_IMPL, 0,
+                                                   HA_MRR_USE_DEFAULT_IMPL |
+                                                   HA_MRR_SORTED,
+                                                   0,
                                                    &quick->alloc);
-
+      if (!quick->quick_prefix_select)
+      {
+        delete quick;
+        DBUG_RETURN(NULL);
+      }
+    }
     /*
       Extract the SEL_ARG subtree that contains only ranges for the MIN/MAX
       attribute, and create an array of QUICK_RANGES to be used by the
@@ -10985,7 +11002,11 @@ int QUICK_GROUP_MIN_MAX_SELECT::reset(void)
   DBUG_ENTER("QUICK_GROUP_MIN_MAX_SELECT::reset");
 
   head->set_keyread(TRUE); /* We need only the key attributes */
-  if ((result= file->ha_index_init(index,1)))
+  /*
+    Request ordered index access as usage of ::index_last(), 
+    ::index_first() within QUICK_GROUP_MIN_MAX_SELECT depends on it.
+  */
+  if ((result= file->ha_index_init(index, true)))
     DBUG_RETURN(result);
   if (quick_prefix_select && quick_prefix_select->reset())
     DBUG_RETURN(1);
@@ -11937,12 +11958,3 @@ void QUICK_GROUP_MIN_MAX_SELECT::dbug_dump(int indent, bool verbose)
 
 
 #endif /* !DBUG_OFF */
-
-/*****************************************************************************
-** Instantiate templates 
-*****************************************************************************/
-
-#ifdef HAVE_EXPLICIT_TEMPLATE_INSTANTIATION
-template class List<QUICK_RANGE>;
-template class List_iterator<QUICK_RANGE>;
-#endif

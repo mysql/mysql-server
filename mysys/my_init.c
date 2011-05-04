@@ -467,14 +467,10 @@ PSI_mutex_key key_my_file_info_mutex;
 PSI_mutex_key key_LOCK_localtime_r;
 #endif /* !defined(HAVE_LOCALTIME_R) || !defined(HAVE_GMTIME_R) */
 
-#ifndef HAVE_GETHOSTBYNAME_R
-PSI_mutex_key key_LOCK_gethostbyname_r;
-#endif /* HAVE_GETHOSTBYNAME_R */
-
 PSI_mutex_key key_BITMAP_mutex, key_IO_CACHE_append_buffer_lock,
   key_IO_CACHE_SHARE_mutex, key_KEY_CACHE_cache_lock, key_LOCK_alarm,
   key_my_thread_var_mutex, key_THR_LOCK_charset, key_THR_LOCK_heap,
-  key_THR_LOCK_isam, key_THR_LOCK_lock, key_THR_LOCK_malloc,
+  key_THR_LOCK_lock, key_THR_LOCK_malloc,
   key_THR_LOCK_mutex, key_THR_LOCK_myisam, key_THR_LOCK_net,
   key_THR_LOCK_open, key_THR_LOCK_threads,
   key_TMPDIR_mutex, key_THR_LOCK_myisam_mmap;
@@ -487,9 +483,6 @@ static PSI_mutex_info all_mysys_mutexes[]=
 #if !defined(HAVE_LOCALTIME_R) || !defined(HAVE_GMTIME_R)
   { &key_LOCK_localtime_r, "LOCK_localtime_r", PSI_FLAG_GLOBAL},
 #endif /* !defined(HAVE_LOCALTIME_R) || !defined(HAVE_GMTIME_R) */
-#ifndef HAVE_GETHOSTBYNAME_R
-  { &key_LOCK_gethostbyname_r, "LOCK_gethostbyname_r", PSI_FLAG_GLOBAL},
-#endif /* HAVE_GETHOSTBYNAME_R */
   { &key_BITMAP_mutex, "BITMAP::mutex", 0},
   { &key_IO_CACHE_append_buffer_lock, "IO_CACHE::append_buffer_lock", 0},
   { &key_IO_CACHE_SHARE_mutex, "IO_CACHE::SHARE_mutex", 0},
@@ -498,7 +491,6 @@ static PSI_mutex_info all_mysys_mutexes[]=
   { &key_my_thread_var_mutex, "my_thread_var::mutex", 0},
   { &key_THR_LOCK_charset, "THR_LOCK_charset", PSI_FLAG_GLOBAL},
   { &key_THR_LOCK_heap, "THR_LOCK_heap", PSI_FLAG_GLOBAL},
-  { &key_THR_LOCK_isam, "THR_LOCK_isam", PSI_FLAG_GLOBAL},
   { &key_THR_LOCK_lock, "THR_LOCK_lock", PSI_FLAG_GLOBAL},
   { &key_THR_LOCK_malloc, "THR_LOCK_malloc", PSI_FLAG_GLOBAL},
   { &key_THR_LOCK_mutex, "THR_LOCK::mutex", 0},
@@ -551,22 +543,19 @@ void my_init_mysys_psi_keys()
   const char* category= "mysys";
   int count;
 
-  if (PSI_server == NULL)
-    return;
-
   count= sizeof(all_mysys_mutexes)/sizeof(all_mysys_mutexes[0]);
-  PSI_server->register_mutex(category, all_mysys_mutexes, count);
+  mysql_mutex_register(category, all_mysys_mutexes, count);
 
   count= sizeof(all_mysys_conds)/sizeof(all_mysys_conds[0]);
-  PSI_server->register_cond(category, all_mysys_conds, count);
+  mysql_cond_register(category, all_mysys_conds, count);
 
 #ifdef USE_ALARM_THREAD
   count= sizeof(all_mysys_threads)/sizeof(all_mysys_threads[0]);
-  PSI_server->register_thread(category, all_mysys_threads, count);
+  mysql_thread_register(category, all_mysys_threads, count);
 #endif /* USE_ALARM_THREAD */
 
   count= sizeof(all_mysys_files)/sizeof(all_mysys_files[0]);
-  PSI_server->register_file(category, all_mysys_files, count);
+  mysql_file_register(category, all_mysys_files, count);
 }
 #endif /* HAVE_PSI_INTERFACE */
 

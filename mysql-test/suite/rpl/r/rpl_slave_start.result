@@ -6,6 +6,7 @@ include/master-slave.inc
 [connection master]
 [on slave]
 CALL mtr.add_suppression("Slave: Table 't1' already exists Error_code: 1050");
+CALL mtr.add_suppression("Slave SQL: Error .Table .t1. already exists. on query.* Error_code: 1050");
 # The statement makes SQL thread to fail.
 CREATE TABLE t1(c1 INT);
 [on master]

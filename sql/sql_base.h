@@ -146,16 +146,12 @@ bool open_new_frm(THD *thd, TABLE_SHARE *share, const char *alias,
                   uint ha_open_flags, TABLE *outparam, TABLE_LIST *table_desc,
                   MEM_ROOT *mem_root);
 
-TABLE *open_temporary_table(THD *thd, const char *path, const char *db,
-			    const char *table_name, bool link_in_list);
 bool get_key_map_from_key_list(key_map *map, TABLE *table,
                                List<String> *index_list);
 TABLE *open_table_uncached(THD *thd, const char *path, const char *db,
 			   const char *table_name,
                            bool add_to_temporary_tables_list);
 TABLE *find_locked_table(TABLE *list, const char *db, const char *table_name);
-TABLE *find_write_locked_table(TABLE *list, const char *db,
-                               const char *table_name);
 thr_lock_type read_lock_type_for_table(THD *thd,
                                        Query_tables_list *prelocking_ctx,
                                        TABLE_LIST *table_list);
@@ -253,7 +249,6 @@ TABLE *open_n_lock_single_table(THD *thd, TABLE_LIST *table_l,
                                 Prelocking_strategy *prelocking_strategy);
 bool open_normal_and_derived_tables(THD *thd, TABLE_LIST *tables, uint flags);
 bool lock_tables(THD *thd, TABLE_LIST *tables, uint counter, uint flags);
-int decide_logging_format(THD *thd, TABLE_LIST *tables);
 void free_io_cache(TABLE *entry);
 void intern_close_table(TABLE *entry);
 bool close_thread_table(THD *thd, TABLE **table_ptr);
@@ -322,7 +317,7 @@ inline void setup_table_map(TABLE *table, TABLE_LIST *table_list, uint tablenr)
   table->used_fields= 0;
   table->const_table= 0;
   table->null_row= 0;
-  table->status= STATUS_NO_RECORD;
+  table->status= STATUS_GARBAGE | STATUS_NOT_FOUND;
   table->maybe_null= table_list->outer_join;
   TABLE_LIST *embedding= table_list->embedding;
   while (!table->maybe_null && embedding)

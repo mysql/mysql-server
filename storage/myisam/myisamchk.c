@@ -1,4 +1,4 @@
-/* Copyright (C) 2000-2003 MySQL AB
+/* Copyright (c) 2000, 2011, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -673,7 +673,8 @@ get_one_option(int optid,
     int method;
     enum_mi_stats_method UNINIT_VAR(method_conv);
     myisam_stats_method_str= argument;
-    if ((method=find_type(argument, &myisam_stats_method_typelib, 2)) <= 0)
+    if ((method= find_type(argument, &myisam_stats_method_typelib,
+                           FIND_TYPE_BASIC)) <= 0)
     {
       fprintf(stderr, "Invalid value of stats_method: %s.\n", argument);
       exit(1);

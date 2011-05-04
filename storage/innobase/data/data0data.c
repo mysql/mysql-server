@@ -583,7 +583,7 @@ dtuple_convert_big_rec(
 		return(NULL);
 	}
 
-	if (dict_table_get_format(index->table) < DICT_TF_FORMAT_ZIP) {
+	if (dict_table_get_format(index->table) < UNIV_FORMAT_B) {
 		/* up to MySQL 5.1: store a 768-byte prefix locally */
 		local_len = BTR_EXTERN_FIELD_REF_SIZE + DICT_MAX_INDEX_COL_LEN;
 	} else {

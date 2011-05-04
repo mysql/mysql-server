@@ -1,6 +1,8 @@
 select * from performance_schema.setup_timers;
 NAME	TIMER_NAME
 wait	CYCLE
+stage	NANOSECOND
+statement	NANOSECOND
 select * from performance_schema.setup_timers
 where name='Wait';
 NAME	TIMER_NAME
@@ -20,6 +22,8 @@ set timer_name='MILLISECOND';
 select * from performance_schema.setup_timers;
 NAME	TIMER_NAME
 wait	MILLISECOND
+stage	MILLISECOND
+statement	MILLISECOND
 update performance_schema.setup_timers
 set timer_name='CYCLE';
 delete from performance_schema.setup_timers;
@@ -31,3 +35,14 @@ LOCK TABLES performance_schema.setup_timers READ;
 UNLOCK TABLES;
 LOCK TABLES performance_schema.setup_timers WRITE;
 UNLOCK TABLES;
+update performance_schema.setup_timers
+set timer_name='CYCLE' where name="wait";
+update performance_schema.setup_timers
+set timer_name='NANOSECOND' where name="stage";
+update performance_schema.setup_timers
+set timer_name='NANOSECOND' where name="statement";
+select * from performance_schema.setup_timers;
+NAME	TIMER_NAME
+wait	CYCLE
+stage	NANOSECOND
+statement	NANOSECOND

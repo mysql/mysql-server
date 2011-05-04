@@ -13,15 +13,11 @@
    GNU General Public License for more details.
 
    You should have received a copy of the GNU General Public License
-   along with this program; if not, write to the Free Software Foundation,
-   51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA */
+   along with this program; if not, write to the Free Software
+   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
 
 /* Function items used by mysql */
-
-#ifdef USE_PRAGMA_INTERFACE
-#pragma interface			/* gcc class implementation */
-#endif
 
 class MY_LOCALE;
 
@@ -144,8 +140,11 @@ public:
   { DBUG_ASSERT(fixed == 1); return (double) Item_func_month::val_int(); }
   String *val_str(String *str) 
   {
-    str->set(val_int(), collation.collation);
-    return null_value ? 0 : str;
+    longlong nr= val_int();
+    if (null_value)
+      return 0;
+    str->set(nr, collation.collation);
+    return str;
   }
   const char *func_name() const { return "month"; }
   enum Item_result result_type () const { return INT_RESULT; }
@@ -472,7 +471,8 @@ public:
   Item_date_func(Item *a,Item *b) :Item_str_func(a,b) {}
   Item_date_func(Item *a,Item *b, Item *c) :Item_str_func(a,b,c) {}
   enum_field_types field_type() const { return MYSQL_TYPE_DATETIME; }
-  CHARSET_INFO *charset_for_protocol(void) const { return &my_charset_bin; }
+  const CHARSET_INFO *charset_for_protocol(void) const
+  { return &my_charset_bin; }
   Field *tmp_table_field(TABLE *table)
   {
     return tmp_table_field_from_field_type(table, 0);
@@ -790,7 +790,7 @@ public:
   const char *func_name() const { return "date_add_interval"; }
   void fix_length_and_dec();
   enum_field_types field_type() const { return cached_field_type; }
-  CHARSET_INFO *charset_for_protocol(void) const
+  const CHARSET_INFO *charset_for_protocol(void) const
   {
     /*
       DATE_ADD() can return DATE, DATETIME or VARCHAR depending on arguments.
@@ -895,11 +895,11 @@ public:
 class Item_char_typecast :public Item_typecast
 {
   int cast_length;
-  CHARSET_INFO *cast_cs, *from_cs;
+  const CHARSET_INFO *cast_cs, *from_cs;
   bool charset_conversion;
   String tmp_value;
 public:
-  Item_char_typecast(Item *a, int length_arg, CHARSET_INFO *cs_arg)
+  Item_char_typecast(Item *a, int length_arg, const CHARSET_INFO *cs_arg)
     :Item_typecast(a), cast_length(length_arg), cast_cs(cs_arg) {}
   enum Functype functype() const { return CHAR_TYPECAST_FUNC; }
   bool eq(const Item *item, bool binary_cmp) const;

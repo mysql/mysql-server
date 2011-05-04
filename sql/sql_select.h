@@ -1,7 +1,7 @@
 #ifndef SQL_SELECT_INCLUDED
 #define SQL_SELECT_INCLUDED
 
-/* Copyright (c) 2000, 2010, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2011, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -13,8 +13,8 @@
    GNU General Public License for more details.
 
    You should have received a copy of the GNU General Public License
-   along with this program; if not, write to the Free Software Foundation,
-   51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA */
+   along with this program; if not, write to the Free Software
+   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
 
 /**
@@ -23,10 +23,6 @@
   @brief
   classes to use when handling where clause
 */
-
-#ifdef USE_PRAGMA_INTERFACE
-#pragma interface			/* gcc class implementation */
-#endif
 
 #include "procedure.h"
 #include <myisam.h>
@@ -120,7 +116,12 @@ typedef struct st_table_ref : public Sql_alloc
     This array is used by subquery code. The subquery code may inject
     triggered conditions, i.e. conditions that can be 'switched off'. A ref 
     access created from such condition is not valid when at least one of the 
-    underlying conditions is switched off (see subquery code for more details)
+    underlying conditions is switched off (see subquery code for more details).
+    If a table in a subquery has this it means that the table access 
+    will switch from ref access to table scan when the outer query 
+    produces a NULL value to be checked for in the subquery. This will
+    be used by NOT IN subqueries and IN subqueries for which 
+    is_top_level_item() returns false.
   */
   bool          **cond_guards;
   /**
@@ -179,6 +180,26 @@ typedef struct st_table_ref : public Sql_alloc
     return FALSE;
   }
 
+
+  /**
+    Check if there are triggered/guarded conditions that might be
+    'switched off' by the subquery code when executing 'Full scan on
+    NULL key' subqueries.
+
+    @return true if there are guarded conditions, false otherwise
+  */
+
+  bool has_guarded_conds() const
+  {
+    DBUG_ASSERT(key_parts == 0 || cond_guards != NULL);
+
+    for (uint i = 0; i < key_parts; i++)
+    {
+      if (cond_guards[i])
+        return true;
+    }
+    return false;
+  }
 } TABLE_REF;
 
 
@@ -237,7 +258,9 @@ typedef struct st_join_table : public Sql_alloc
   TABLE		*table;
   Key_use	*keyuse;			/**< pointer to first used key */
   SQL_SELECT	*select;
-  Item		*select_cond;
+private:
+  Item          *m_condition;   /**< condition for this join_tab               */
+public:
   QUICK_SELECT_I *quick;
   Item	       **on_expr_ref;   /**< pointer to the associated on expression   */
   COND_EQUAL    *cond_equal;    /**< multiple equalities for the on expression */
@@ -248,13 +271,13 @@ typedef struct st_join_table : public Sql_alloc
   st_join_table *first_upper;  /**< first inner table for embedding outer join */
   st_join_table *first_unmatched; /**< used for optimization purposes only     */
   /* 
-    The value of select_cond before we've attempted to do Index Condition
+    The value of m_condition before we've attempted to do Index Condition
     Pushdown. We may need to restore everything back if we first choose one
     index but then reconsider (see test_if_skip_sort_order() for such
     scenarios).
     NULL means no index condition pushdown was performed.
   */
-  Item          *pre_idx_push_select_cond;
+  Item          *pre_idx_push_cond;
   
   /* Special content for EXPLAIN 'Extra' column or NULL if none */
   const char	*info;
@@ -279,6 +302,15 @@ typedef struct st_join_table : public Sql_alloc
   key_map	checked_keys;			/**< Keys checked */
   key_map	needed_reg;
   key_map       keys;                           /**< all keys with can be used */
+  /**
+    Used to avoid repeated range analysis for the same key in
+    test_if_skip_sort_order(). This would otherwise happen if the best
+    range access plan found for a key is turned down.
+    quick_order_tested is cleared every time the select condition for
+    this JOIN_TAB changes since a new condition may give another plan
+    and cost from range analysis.
+   */
+  key_map       quick_order_tested;
 
   /* Either #rows in the table or 1 for const table.  */
   ha_rows	records;
@@ -296,7 +328,6 @@ typedef struct st_join_table : public Sql_alloc
   
   table_map	dependent,key_dependent;
   uint		index;
-  uint		status;				///< Save status for cache
   uint		used_fields,used_fieldlength,used_blobs;
   uint          used_null_fields;
   uint          used_rowid_fields;
@@ -416,30 +447,52 @@ typedef struct st_join_table : public Sql_alloc
   {
     return first_inner && first_inner == this;
   }
-  void set_select_cond(Item *to, uint line)
+  Item *condition()
   {
-    DBUG_PRINT("info", ("select_cond changes %p -> %p at line %u tab %p",
-                        select_cond, to, line, this));
-    select_cond= to;
+    return m_condition;
   }
-  Item *set_cond(Item *new_cond, uint line)
+  void set_condition(Item *to, uint line)
   {
-    Item *tmp_select_cond= select_cond;
-    set_select_cond(new_cond, line);
+    DBUG_PRINT("info", 
+               ("JOIN_TAB::m_condition changes %p -> %p at line %u tab %p",
+                m_condition, to, line, this));
+    m_condition= to;
+    quick_order_tested.clear_all();
+  }
+
+  Item *set_jt_and_sel_condition(Item *new_cond, uint line)
+  {
+    Item *tmp_cond= m_condition;
+    set_condition(new_cond, line);
     if (select)
       select->cond= new_cond;
-    return tmp_select_cond;
+    return tmp_cond;
   }
   uint get_sj_strategy() const;
-} JOIN_TAB;
 
+  bool and_with_condition(Item *tmp_cond, uint line);
+  bool and_with_jt_and_sel_condition(Item *tmp_cond, uint line);
+
+  /**
+    Check if there are triggered/guarded conditions that might be
+    'switched off' by the subquery code when executing 'Full scan on
+    NULL key' subqueries.
+
+    @return true if there are guarded conditions, false otherwise
+  */
+
+  bool has_guarded_conds() const
+  {
+    return ref.has_guarded_conds();
+  }
+} JOIN_TAB;
 
 inline
 st_join_table::st_join_table()
   : table(NULL),
     keyuse(NULL),
     select(NULL),
-    select_cond(NULL),
+    m_condition(NULL),
     quick(NULL),
     on_expr_ref(NULL),
     cond_equal(NULL),
@@ -449,7 +502,7 @@ st_join_table::st_join_table()
     last_inner(NULL),
     first_upper(NULL),
     first_unmatched(NULL),
-    pre_idx_push_select_cond(NULL),
+    pre_idx_push_cond(NULL),
     info(NULL),
     packed_info(0),
     read_first_record(NULL),
@@ -462,6 +515,7 @@ st_join_table::st_join_table()
     checked_keys(),
     needed_reg(),
     keys(),
+    quick_order_tested(),
 
     records(0),
     found_records(0),
@@ -470,7 +524,6 @@ st_join_table::st_join_table()
     dependent(0),
     key_dependent(0),
     index(0),
-    status(0),
     used_fields(0),
     used_fieldlength(0),
     used_blobs(0),
@@ -1031,9 +1084,6 @@ protected:
   /* Prepare to search for records that match records from the join buffer */
   enum_nested_loop_state init_join_matching_records(RANGE_SEQ_IF *seq_funcs,
                                                     uint ranges);
-
-  /* Finish searching for records that match records from the join buffer */
-  enum_nested_loop_state end_join_matching_records(enum_nested_loop_state rc);
 
 public:
   
@@ -1638,13 +1688,12 @@ public:
   */
   bool     sort_and_group; 
   bool     first_record,full_join, no_field_update;
-  bool	   group;          /**< If query contains GROUP BY clause */
-  bool	   do_send_rows;
-  table_map const_table_map,found_const_table_map;
-  /*
-     Bitmap of all inner tables from outer joins
-  */
-  table_map outer_join;
+  bool     group;            ///< If query contains GROUP BY clause
+  bool     do_send_rows;
+  table_map all_table_map;   ///< Set of tables contained in query
+  table_map const_table_map; ///< Set of tables found to be const
+  table_map found_const_table_map; ///< Tables that are const and non-empty
+  table_map outer_join;      ///< Bitmap of all inner tables from outer joins
   /* Number of records produced after join + group operation */
   ha_rows  send_records;
   ha_rows found_records,examined_rows,row_limit;
@@ -1665,20 +1714,15 @@ public:
 
 /******* Join optimization state members start *******/
   /*
-    pointer - we're doing optimization for a semi-join materialization nest.
-    NULL    - otherwise
+    If non-NULL, we are optimizing a materialized semi-join nest.
+    If NULL, we are optimizing a complete join plan.
+    This member is used only within the class Optimize_table_order, and
+    within class Loose_scan_opt (called from best_access_path()).
   */
   TABLE_LIST *emb_sjm_nest;
   
   /* Current join optimization state */
-  POSITION *positions;
-  
-  /*
-    Bitmap of nested joins embedding the position at the end of the current 
-    partial join (valid only during join optimizer run).
-  */
-  nested_join_map cur_embedding_map;
-  
+  POSITION *positions;  
   /*
     Bitmap of inner tables of semi-join nests that have a proper subset of
     their tables in the current join prefix. That is, of those semi-join
@@ -1918,9 +1962,9 @@ public:
 	      Item *having, ORDER *proc_param, SELECT_LEX *select,
 	      SELECT_LEX_UNIT *unit);
   int optimize();
-  int reinit();
+  void reset();
   void exec();
-  int destroy();
+  bool destroy();
   void restore_tmp();
   bool alloc_func_list();
   bool flatten_subqueries();
@@ -2027,10 +2071,11 @@ bool is_indexed_agg_distinct(JOIN *join, List<Item_field> *out_args);
 
 /* functions from opt_sum.cc */
 bool simple_pred(Item_func *func_item, Item **args, bool *inv_order);
-int opt_sum_query(TABLE_LIST *tables, List<Item> &all_fields,Item *conds);
+int opt_sum_query(THD* thd,
+                  TABLE_LIST *tables, List<Item> &all_fields, Item *conds);
 
 /* from sql_delete.cc, used by opt_range.cc */
-extern "C" int refpos_order_cmp(void* arg, const void *a,const void *b);
+extern "C" int refpos_order_cmp(const void* arg, const void *a,const void *b);
 
 /** class to copying an field/item to a key struct */
 

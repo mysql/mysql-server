@@ -378,10 +378,6 @@
 #include "sql_analyse.h"         // append_escaped
 #include <mysql/plugin.h>
 
-#ifdef USE_PRAGMA_IMPLEMENTATION
-#pragma implementation                          // gcc: Class implementation
-#endif
-
 #include "ha_federated.h"
 #include "probes_mysql.h"
 
@@ -445,11 +441,8 @@ static void init_federated_psi_keys(void)
   const char* category= "federated";
   int count;
 
-  if (PSI_server == NULL)
-    return;
-
   count= array_elements(all_federated_mutexes);
-  PSI_server->register_mutex(category, all_federated_mutexes, count);
+  mysql_mutex_register(category, all_federated_mutexes, count);
 }
 #endif /* HAVE_PSI_INTERFACE */
 
