@@ -5740,18 +5740,19 @@ void Item_equal::update_const()
   List_iterator<Item> it(equal_items);
   if (with_const)
     it++;
-  Item *item= it++;
-  while (item)
+  Item *item;
+  while ((item= it++))
   {
     if (item->const_item())
     {
-      it.remove();
-      Item *next_item= it++;
-      add_const(item);
-      item= next_item;
-    }
-    else
-      item= it++;
+      if (item == equal_items.head())
+        with_const= TRUE;
+      else
+      {
+        it.remove();
+        add_const(item);
+      }
+    } 
   }
 }
 

@@ -4211,3 +4211,17 @@ SELECT t2.f23 FROM
 DROP TABLE t1,t2,t3,t4,t5,t6,t7;
 
 --echo End of 5.1 tests
+
+--echo #
+--echo # BUG#776274: substitution of a single row table
+--echo #                    
+
+CREATE TABLE t1 (a int NOT NULL , b int);
+INSERT INTO t1 VALUES (2,2);
+
+SELECT * FROM t1 WHERE a = b;
+EXPLAIN
+SELECT * FROM t1 WHERE a = b;
+
+DROP TABLE t1;
+
