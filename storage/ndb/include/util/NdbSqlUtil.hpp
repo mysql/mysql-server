@@ -126,13 +126,6 @@ public:
   static const Type& getType(Uint32 typeId);
 
   /**
-   * Get the normalized type used in hashing and key comparisons.
-   * Maps all string types to Binary.  This includes Var* strings
-   * because strxfrm result is padded to fixed (maximum) length.
-   */
-  static const Type& getTypeBinary(Uint32 typeId);
-
-  /**
    * Check character set.
    */
   static uint check_column_for_pk(Uint32 typeId, const void* info);
