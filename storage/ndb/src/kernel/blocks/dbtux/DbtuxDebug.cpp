@@ -468,6 +468,8 @@ operator<<(NdbOut& out, const Dbtux::Index& index)
   out << " [descPage " << hex << index.m_descPage << "]";
   out << " [descOff " << dec << index.m_descOff << "]";
   out << " [numAttrs " << dec << index.m_numAttrs << "]";
+  out << " [prefAttrs " << dec << index.m_prefAttrs << "]";
+  out << " [prefBytes " << dec << index.m_prefBytes << "]";
   out << "]";
   return out;
 }

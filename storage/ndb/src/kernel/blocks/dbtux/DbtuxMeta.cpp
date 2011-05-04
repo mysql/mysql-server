@@ -210,6 +210,30 @@ Dbtux::execTUX_ADD_ATTRREQ(Signal* signal)
       break;
     }
     if (lastAttr) {
+      // compute min prefix
+      const KeySpec& keySpec = indexPtr.p->m_keySpec;
+      unsigned attrs = 0;
+      unsigned bytes = keySpec.get_nullmask_len(false);
+      unsigned maxAttrs = indexPtr.p->m_numAttrs;
+#ifdef VM_TRACE
+      {
+        const char* p = NdbEnv_GetEnv("MAX_TTREE_PREF_ATTRS", (char*)0, 0);
+        if (p != 0 && p[0] != 0 && maxAttrs > atoi(p))
+          maxAttrs = atoi(p);
+      }
+#endif
+      while (attrs < maxAttrs) {
+        const KeyType& keyType = keySpec.get_type(attrs);
+        const unsigned newbytes = bytes + keyType.get_byte_size();
+        if (newbytes > (MAX_TTREE_PREF_SIZE << 2))
+          break;
+        attrs++;
+        bytes = newbytes;
+      }
+      if (attrs == 0)
+        bytes = 0;
+      indexPtr.p->m_prefAttrs = attrs;
+      indexPtr.p->m_prefBytes = bytes;
       // fragment is defined
 #ifdef VM_TRACE
       if (debugFlags & DebugMeta) {
@@ -319,7 +343,7 @@ Dbtux::execTUXFRAGREQ(Signal* signal)
     new (&tree) TreeHead();
     // make these configurable later
     tree.m_nodeSize = MAX_TTREE_NODE_SIZE;
-    tree.m_prefSize = 0; // wl4163_todo temp disable prefix
+    tree.m_prefSize = (indexPtr.p->m_prefBytes + 3) / 4;
     const unsigned maxSlack = MAX_TTREE_NODE_SLACK;
     // size of header and min prefix
     const unsigned fixedSize = NodeHeadSize + tree.m_prefSize;
