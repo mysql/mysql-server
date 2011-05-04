@@ -1,4 +1,5 @@
-# ticket 895 is a query optimization problem with the primary key
+# ticket 3486 is a bug where we crash on an update because the buffer we allocate
+# is not resized
 
 --source include/have_tokudb.inc
 SET STORAGE_ENGINE = 'tokudb';
@@ -11,6 +12,7 @@ set session tokudb_disable_slow_alter=ON;
 
 create table foo (a blob, clustering key (a(3)))engine=TokuDB;
 insert into foo values("");
+# not really necessary to alter table, we could have just udpated a
 alter table foo add column b blob;
 update foo set b="bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb";
 select * from foo;
