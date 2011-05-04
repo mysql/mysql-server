@@ -99,6 +99,17 @@ struct DABits
      */
     NI_LINKED_DISK    = 0x100,
 
+    /**
+     * If REPEAT_SCAN_RESULT is set, multiple star-joined (or bushy, or X)
+     * scan results are handled by repeating the other scans result 
+     * when we advance to the next batch chunk for the current 'active'
+     * result set.
+     * This removes the requirement for the API client to being able 
+     * buffer an (possible huge) amount of scan result relating to 
+     * the same parent scan.
+     */
+    NI_REPEAT_SCAN_RESULT = 0x200,
+
     NI_END = 0
   };
 
