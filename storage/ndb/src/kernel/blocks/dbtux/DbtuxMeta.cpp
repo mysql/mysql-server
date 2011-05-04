@@ -278,8 +278,6 @@ Dbtux::execTUXFRAGREQ(Signal* signal)
     fragPtr.p->m_tableId = req->primaryTableId;
     fragPtr.p->m_indexId = req->tableId;
     fragPtr.p->m_fragId = req->fragId;
-    fragPtr.p->m_numAttrs = indexPtr.p->m_numAttrs;
-    fragPtr.p->m_storeNullKey = true;  // not yet configurable
     fragPtr.p->m_tupIndexFragPtrI = req->tupIndexFragPtrI;
     fragPtr.p->m_tupTableFragPtrI = req->tupTableFragPtrI;
     fragPtr.p->m_accTableFragPtrI = req->accTableFragPtrI;
@@ -288,10 +286,6 @@ Dbtux::execTUXFRAGREQ(Signal* signal)
     indexPtr.p->m_fragId[indexPtr.p->m_numFrags] = req->fragId;
     indexPtr.p->m_fragPtrI[indexPtr.p->m_numFrags] = fragPtr.i;
     indexPtr.p->m_numFrags++;
-
-    // copy metadata address to each fragment
-    fragPtr.p->m_descPage = indexPtr.p->m_descPage;
-    fragPtr.p->m_descOff = indexPtr.p->m_descOff;
 #ifdef VM_TRACE
     if (debugFlags & DebugMeta) {
       debugOut << "Add frag " << fragPtr.i << " " << *fragPtr.p << endl;
@@ -602,16 +596,8 @@ Dbtux::freeDescEnt(IndexPtr indexPtr)
       data[off + i] = data[off + size + i];
     }
     off += size2;
-    // adjust page offset in index and all fragments
+    // adjust page offset in index
     index2.m_descOff -= size;
-    for (i = 0; i < index2.m_numFrags; i++) {
-      jam();
-      Frag& frag2 = *c_fragPool.getPtr(index2.m_fragPtrI[i]);
-      frag2.m_descOff -= size;
-      ndbrequire(
-          frag2.m_descPage == index2.m_descPage &&
-          frag2.m_descOff == index2.m_descOff);
-    }
   }
   ndbrequire(off + size == DescPageSize - pagePtr.p->m_numFree);
   pagePtr.p->m_numFree += size;

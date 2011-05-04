@@ -249,10 +249,11 @@ Dbtux::execREAD_CONFIG_REQ(Signal* signal)
 void
 Dbtux::setKeyAttrs(TuxCtx& ctx, const Frag& frag)
 {
+  const Index& index = *c_indexPool.getPtr(frag.m_indexId);
   Data keyAttrs = ctx.c_keyAttrs;
   NdbSqlUtil::Cmp** sqlCmp = ctx.c_sqlCmp; // global
-  const unsigned numAttrs = frag.m_numAttrs;
-  const DescEnt& descEnt = getDescEnt(frag.m_descPage, frag.m_descOff);
+  const unsigned numAttrs = index.m_numAttrs;
+  const DescEnt& descEnt = getDescEnt(index.m_descPage, index.m_descOff);
   for (unsigned i = 0; i < numAttrs; i++) {
     thrjam(ctx.jamBuffer);
     const DescAttr& descAttr = descEnt.m_descAttr[i];
@@ -270,12 +271,13 @@ Dbtux::setKeyAttrs(TuxCtx& ctx, const Frag& frag)
 void
 Dbtux::readKeyAttrs(TuxCtx& ctx, const Frag& frag, TreeEnt ent, unsigned start, Data keyData)
 {
+  const Index& index = *c_indexPool.getPtr(frag.m_indexId);
   ConstData keyAttrs = ctx.c_keyAttrs;
   const Uint32 tableFragPtrI = frag.m_tupTableFragPtrI;
   const TupLoc tupLoc = ent.m_tupLoc;
   const Uint32 tupVersion = ent.m_tupVersion;
-  ndbrequire(start < frag.m_numAttrs);
-  const Uint32 numAttrs = frag.m_numAttrs - start;
+  ndbrequire(start < index.m_numAttrs);
+  const Uint32 numAttrs = index.m_numAttrs - start;
   // skip to start position in keyAttrs only
   keyAttrs += start;
   int ret = c_tup->tuxReadAttrs(ctx.jamBuffer,
@@ -289,7 +291,7 @@ Dbtux::readKeyAttrs(TuxCtx& ctx, const Frag& frag, TreeEnt ent, unsigned start, 
     debugOut << "readKeyAttrs:" << endl;
     ConstData data = keyData;
     Uint32 totalSize = 0;
-    for (Uint32 i = start; i < frag.m_numAttrs; i++) {
+    for (Uint32 i = start; i < index.m_numAttrs; i++) {
       Uint32 attrId = ah(data).getAttributeId();
       Uint32 dataSize = ah(data).getDataSize();
       debugOut << i << " attrId=" << attrId << " size=" << dataSize;
@@ -325,7 +327,8 @@ Dbtux::readTablePk(const Frag& frag, TreeEnt ent, Data pkData, unsigned& pkSize)
 void
 Dbtux::copyAttrs(TuxCtx& ctx, const Frag& frag, ConstData data1, Data data2, unsigned maxlen2)
 {
-  unsigned n = frag.m_numAttrs;
+  const Index& index = *c_indexPool.getPtr(frag.m_indexId);
+  unsigned n = index.m_numAttrs;
   unsigned len2 = maxlen2;
   while (n != 0) {
     thrjam(ctx.jamBuffer);

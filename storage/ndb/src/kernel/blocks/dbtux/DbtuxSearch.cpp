@@ -34,8 +34,9 @@
 void
 Dbtux::findNodeToUpdate(TuxCtx& ctx, Frag& frag, ConstData searchKey, TreeEnt searchEnt, NodeHandle& currNode)
 {
+  const Index& index = *c_indexPool.getPtr(frag.m_indexId);
   const TreeHead& tree = frag.m_tree;
-  const Uint32 numAttrs = frag.m_numAttrs;
+  const Uint32 numAttrs = index.m_numAttrs;
   NodeHandle glbNode(frag);     // potential g.l.b of final node
   while (true) {
     thrjam(ctx.jamBuffer);

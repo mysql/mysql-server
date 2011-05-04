@@ -488,9 +488,6 @@ operator<<(NdbOut& out, const Dbtux::Frag& frag)
   out << " [tableId " << dec << frag.m_tableId << "]";
   out << " [indexId " << dec << frag.m_indexId << "]";
   out << " [fragId " << dec << frag.m_fragId << "]";
-  out << " [descPage " << hex << frag.m_descPage << "]";
-  out << " [descOff " << dec << frag.m_descOff << "]";
-  out << " [numAttrs " << dec << frag.m_numAttrs << "]";
   out << " [tree " << frag.m_tree << "]";
   out << "]";
   return out;
