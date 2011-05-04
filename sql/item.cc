@@ -4080,14 +4080,14 @@ mark_non_agg_field:
       aggregated or not.
     */
     if (!thd->lex->in_sum_func)
-      cached_table->select_lex->full_group_by_flag|= NON_AGG_FIELD_USED;
+      cached_table->select_lex->set_non_agg_field_used(true);
     else
     {
       if (outer_fixed)
         thd->lex->in_sum_func->outer_fields.push_back(this);
       else if (thd->lex->in_sum_func->nest_level !=
           thd->lex->current_select->nest_level)
-        cached_table->select_lex->full_group_by_flag|= NON_AGG_FIELD_USED;
+        cached_table->select_lex->set_non_agg_field_used(true);
     }
   }
   return FALSE;
