@@ -74,9 +74,9 @@ Dbtux::execTUX_MAINT_REQ(Signal* signal)
   ent.m_tupVersion = req->tupVersion;
   // read search key
   readKeyAttrs(c_ctx, frag, ent, 0, c_ctx.c_searchKey);
-  if (! frag.m_storeNullKey) {
+  if (! indexPtr.p->m_storeNullKey) {
     // check if all keys are null
-    const unsigned numAttrs = frag.m_numAttrs;
+    const unsigned numAttrs = indexPtr.p->m_numAttrs;
     bool allNull = true;
     for (unsigned i = 0; i < numAttrs; i++) {
       if (c_ctx.c_searchKey[i] != 0) {

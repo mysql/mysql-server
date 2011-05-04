@@ -110,10 +110,10 @@ Dbtux::mt_buildIndexFragment(mt_BuildIndxCtx* req)
 
     // read search key
     readKeyAttrs(ctx, frag, ent, 0, ctx.c_searchKey);
-    if (! frag.m_storeNullKey)
+    if (! indexPtr.p->m_storeNullKey)
     {
       // check if all keys are null
-      const unsigned numAttrs = frag.m_numAttrs;
+      const unsigned numAttrs = indexPtr.p->m_numAttrs;
       bool allNull = true;
       for (unsigned i = 0; i < numAttrs; i++)
       {

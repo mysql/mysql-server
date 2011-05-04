@@ -32,8 +32,9 @@ int
 Dbtux::cmpSearchKey(TuxCtx& ctx,
                     const Frag& frag, unsigned& start, ConstData searchKey, ConstData entryData, unsigned maxlen)
 {
-  const unsigned numAttrs = frag.m_numAttrs;
-  const DescEnt& descEnt = getDescEnt(frag.m_descPage, frag.m_descOff);
+  const Index& index = *c_indexPool.getPtr(frag.m_indexId);
+  const unsigned numAttrs = index.m_numAttrs;
+  const DescEnt& descEnt = getDescEnt(index.m_descPage, index.m_descOff);
   // skip to right position in search key only
   for (unsigned i = 0; i < start; i++) {
     thrjam(ctx.jamBuffer);
@@ -118,7 +119,8 @@ Dbtux::cmpSearchKey(TuxCtx& ctx,
 int
 Dbtux::cmpScanBound(const Frag& frag, unsigned idir, ConstData boundInfo, unsigned boundCount, ConstData entryData, unsigned maxlen)
 {
-  const DescEnt& descEnt = getDescEnt(frag.m_descPage, frag.m_descOff);
+  const Index& index = *c_indexPool.getPtr(frag.m_indexId);
+  const DescEnt& descEnt = getDescEnt(index.m_descPage, index.m_descOff);
   // direction 0-lower 1-upper
   ndbrequire(idir <= 1);
   // number of words of data left
@@ -138,9 +140,9 @@ Dbtux::cmpScanBound(const Frag& frag, unsigned idir, ConstData boundInfo, unsign
       if (! ah(entryData).isNULL()) {
         jam();
         // verify attribute id
-        const Uint32 index = ah(boundInfo).getAttributeId();
-        ndbrequire(index < frag.m_numAttrs);
-        const DescAttr& descAttr = descEnt.m_descAttr[index];
+        const Uint32 attrId = ah(boundInfo).getAttributeId();
+        ndbrequire(attrId < index.m_numAttrs);
+        const DescAttr& descAttr = descEnt.m_descAttr[attrId];
         ndbrequire(ah(entryData).getAttributeId() == descAttr.m_primaryAttrId);
         // sizes
         const unsigned bytes1 = ah(boundInfo).getByteSize();
@@ -148,7 +150,7 @@ Dbtux::cmpScanBound(const Frag& frag, unsigned idir, ConstData boundInfo, unsign
         const unsigned size2 = min(ah(entryData).getDataSize(), len2);
         len2 -= size2;
         // compare
-        NdbSqlUtil::Cmp* const cmp = c_ctx.c_sqlCmp[index];
+        NdbSqlUtil::Cmp* const cmp = c_ctx.c_sqlCmp[attrId];
         const Uint32* const p1 = &boundInfo[AttributeHeaderSize];
         const Uint32* const p2 = &entryData[AttributeHeaderSize];
         const bool full = (maxlen == MaxAttrDataSize);
