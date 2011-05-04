@@ -579,39 +579,12 @@ ndb_pushed_builder_ctx::is_pushable_as_child(
   if (!ndbcluster_is_lookup_operation(table->get_access_type()))
   {
     /**
-     * Currently we do not support 'bushy' (or star joined) scans): 
-     * If there are preceding scan operations, add a (artificial) dependency
-     * to this (scan-)table which makes it non-bushy!
-     * Terminate search at first scan ancester, as the presence if this
-     * scan guarante that the tree is non scan-bushy above.
-     *
-     *  NOTE: This will also force the cross product between rows from these
-     *        artificial parent to be materialized in the SPJ block - Which adds
-     *        extra (huge) communication overhead.
-     *        As a longer term solution bushy scans should be nativily
-     *        supported by SPJ.
-     */
-    const AQP::Table_access* scan_ancestor= NULL;
-    for (uint ancestor_no= tab_no-1; ancestor_no >= root_no; ancestor_no--)
-    {
-      if (!m_join_scope.contain(ancestor_no))
-        continue;
-
-      scan_ancestor= m_plan.get_table_access(ancestor_no);
-      if (!ndbcluster_is_lookup_operation(scan_ancestor->get_access_type()))
-      {
-        depend_parents.add(ancestor_no);
-        break; // As adding this scanop was prev. allowed: Above ancestor can't be scan bushy
-      }
-    }
-    DBUG_ASSERT(scan_ancestor != NULL);
-
-    /**
      * Outer joining scan-scan is not supported, due to the following problem:
      * Consider the query:
      *
      * select * from t1 left join t2 
-     *   where t1.attr=t2.ordered_index and predicate(t1.row, t2. row);
+     *   on t1.attr=t2.ordered_index
+     *   where predicate(t1.row, t2. row);
      *
      * Where 'predicate' cannot be pushed to the ndb. The ndb api may then
      * return:
@@ -632,14 +605,12 @@ ndb_pushed_builder_ctx::is_pushable_as_child(
      * (Outer joining with scan may be indirect through lookup operations 
      * inbetween)
      */
-    if (scan_ancestor && 
-       table->get_join_type(scan_ancestor) == AQP::JT_OUTER_JOIN)
+    if (table->get_join_type(m_join_root) == AQP::JT_OUTER_JOIN)
     {
       EXPLAIN_NO_PUSH("Can't push table '%s' as child of '%s', "
-                      "outer join with scan-ancestor '%s' not implemented",
+                      "outer join of scan-child not implemented",
                        table->get_table()->alias,
-                       m_join_root->get_table()->alias,
-                       scan_ancestor->get_table()->alias);
+                       m_join_root->get_table()->alias);
       DBUG_RETURN(false);
     }
   } // scan operation
