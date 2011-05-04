@@ -475,83 +475,66 @@ NdbSqlUtil::cmpDecimalunsigned(const void* info, const void* p1, unsigned n1, co
 int
 NdbSqlUtil::cmpChar(const void* info, const void* p1, unsigned n1, const void* p2, unsigned n2)
 {
-  // collation does not work on prefix for some charsets
-  assert(full);
+  // allow different lengths
+  assert(info != 0);
   const uchar* v1 = (const uchar*)p1;
   const uchar* v2 = (const uchar*)p2;
-  // not const in MySQL
-  CHARSET_INFO* cs = (CHARSET_INFO*)(info);
+  CHARSET_INFO* cs = (CHARSET_INFO*)info;
   // compare with space padding
   int k = (*cs->coll->strnncollsp)(cs, v1, n1, v2, n2, false);
-  return k < 0 ? -1 : k > 0 ? +1 : 0;
+  return k;
 }
 
 int
 NdbSqlUtil::cmpVarchar(const void* info, const void* p1, unsigned n1, const void* p2, unsigned n2)
 {
-  const unsigned lb = 1;
-  // collation does not work on prefix for some charsets
-  assert(full && n1 >= lb && n2 >= lb);
+  assert(info != 0);
+  const uint lb = 1;
   const uchar* v1 = (const uchar*)p1;
   const uchar* v2 = (const uchar*)p2;
-  unsigned m1 = *v1;
-  unsigned m2 = *v2;
-  if (m1 <= n1 - lb && m2 <= n2 - lb) {
-    CHARSET_INFO* cs = (CHARSET_INFO*)(info);
-    // compare with space padding
-    int k = (*cs->coll->strnncollsp)(cs, v1 + lb, m1, v2 + lb, m2, false);
-    return k < 0 ? -1 : k > 0 ? +1 : 0;
-  }
-  // treat bad data as NULL
-  if (m1 > n1 - lb && m2 <= n2 - lb)
-    return -1;
-  if (m1 <= n1 - lb && m2 > n2 - lb)
-    return +1;
-  return 0;
+  uint m1 = v1[0];
+  uint m2 = v2[0];
+  require(lb + m1 <= n1 && lb + m2 <= n2);
+  CHARSET_INFO* cs = (CHARSET_INFO*)info;
+  // compare with space padding
+  int k = (*cs->coll->strnncollsp)(cs, v1 + lb, m1, v2 + lb, m2, false);
+  return k;
 }
 
 int
 NdbSqlUtil::cmpBinary(const void* info, const void* p1, unsigned n1, const void* p2, unsigned n2)
 {
+  // allow different lengths
+  assert(info == 0);
   const uchar* v1 = (const uchar*)p1;
   const uchar* v2 = (const uchar*)p2;
-  // compare as binary strings
-  unsigned n = (n1 <= n2 ? n1 : n2);
-  int k = memcmp(v1, v2, n);
-  if (k == 0) {
-    k = (full ? n1 : n) - n2;
+  int k = 0;
+  if (n1 < n2) {
+    k = memcmp(v1, v2, n1);
+    if (k == 0)
+      k = -1;
+  } else if (n1 > n2) {
+    k = memcmp(v1, v2, n2);
+    if (k == 0)
+      k = +1;
+  } else {
+    k = memcmp(v1, v2, n1);
   }
-  return k < 0 ? -1 : k > 0 ? +1 : full ? 0 : CmpUnknown;
+  return k;
 }
 
 int
 NdbSqlUtil::cmpVarbinary(const void* info, const void* p1, unsigned n1, const void* p2, unsigned n2)
 {
-  const unsigned lb = 1;
-  if (n2 >= lb) {
-    assert(n1 >= lb);
-    const uchar* v1 = (const uchar*)p1;
-    const uchar* v2 = (const uchar*)p2;
-    unsigned m1 = *v1;
-    unsigned m2 = *v2;
-    if (m1 <= n1 - lb && m2 <= n2 - lb) {
-      // compare as binary strings
-      unsigned m = (m1 <= m2 ? m1 : m2);
-      int k = memcmp(v1 + lb, v2 + lb, m);
-      if (k == 0) {
-        k = (full ? m1 : m) - m2;
-      }
-      return k < 0 ? -1 : k > 0 ? +1 : full ? 0 : CmpUnknown;
-    }
-    // treat bad data as NULL
-    if (m1 > n1 - lb && m2 <= n2 - lb)
-      return -1;
-    if (m1 <= n1 - lb && m2 > n2 - lb)
-      return +1;
-    return 0;
-  }
-  assert(! full);
-  return CmpUnknown;
+  assert(info == 0);
+  const uint lb = 1;
+  const uchar* v1 = (const uchar*)p1;
+  const uchar* v2 = (const uchar*)p2;
+  uint m1 = v1[0];
+  uint m2 = v2[0];
+  require(lb + m1 <= n1 && lb + m2 <= n2);
+  int k = cmpBinary(info, v1 + lb, m1, v2 + lb, m2);
+  return k;
 }
 
 int
@@ -731,55 +714,31 @@ NdbSqlUtil::cmpTime(const void* info, const void* p1, unsigned n1, const void* p
 int
 NdbSqlUtil::cmpLongvarchar(const void* info, const void* p1, unsigned n1, const void* p2, unsigned n2)
 {
-  const unsigned lb = 2;
-  // collation does not work on prefix for some charsets
-  assert(full && n1 >= lb && n2 >= lb);
+  assert(info != 0);
+  const uint lb = 2;
   const uchar* v1 = (const uchar*)p1;
   const uchar* v2 = (const uchar*)p2;
-  unsigned m1 = uint2korr(v1);
-  unsigned m2 = uint2korr(v2);
-  if (m1 <= n1 - lb && m2 <= n2 - lb) {
-    CHARSET_INFO* cs = (CHARSET_INFO*)(info);
-    // compare with space padding
-    int k = (*cs->coll->strnncollsp)(cs, v1 + lb, m1, v2 + lb, m2, false);
-    return k < 0 ? -1 : k > 0 ? +1 : 0;
-  }
-  // treat bad data as NULL
-  if (m1 > n1 - lb && m2 <= n2 - lb)
-    return -1;
-  if (m1 <= n1 - lb && m2 > n2 - lb)
-    return +1;
-  return 0;
+  uint m1 = v1[0] | (v1[1] << 8);
+  uint m2 = v2[0] | (v2[1] << 8);
+  require(lb + m1 <= n1 && lb + m2 <= n2);
+  CHARSET_INFO* cs = (CHARSET_INFO*)info;
+  // compare with space padding
+  int k = (*cs->coll->strnncollsp)(cs, v1 + lb, m1, v2 + lb, m2, false);
+  return k;
 }
 
 int
 NdbSqlUtil::cmpLongvarbinary(const void* info, const void* p1, unsigned n1, const void* p2, unsigned n2)
 {
-  const unsigned lb = 2;
-  if (n2 >= lb) {
-    assert(n1 >= lb);
-    const uchar* v1 = (const uchar*)p1;
-    const uchar* v2 = (const uchar*)p2;
-    unsigned m1 = uint2korr(v1);
-    unsigned m2 = uint2korr(v2);
-    if (m1 <= n1 - lb && m2 <= n2 - lb) {
-      // compare as binary strings
-      unsigned m = (m1 <= m2 ? m1 : m2);
-      int k = memcmp(v1 + lb, v2 + lb, m);
-      if (k == 0) {
-        k = (full ? m1 : m) - m2;
-      }
-      return k < 0 ? -1 : k > 0 ? +1 : full ? 0 : CmpUnknown;
-    }
-    // treat bad data as NULL
-    if (m1 > n1 - lb && m2 <= n2 - lb)
-      return -1;
-    if (m1 <= n1 - lb && m2 > n2 - lb)
-      return +1;
-    return 0;
-  }
-  assert(! full);
-  return CmpUnknown;
+  assert(info == 0);
+  const uint lb = 2;
+  const uchar* v1 = (const uchar*)p1;
+  const uchar* v2 = (const uchar*)p2;
+  uint m1 = v1[0] | (v1[1] << 8);
+  uint m2 = v2[0] | (v2[1] << 8);
+  require(lb + m1 <= n1 && lb + m2 <= n2);
+  int k = cmpBinary(info, v1 + lb, m1, v2 + lb, m2);
+  return k;
 }
 
 int
