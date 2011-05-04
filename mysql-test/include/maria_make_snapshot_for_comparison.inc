@@ -8,6 +8,7 @@
 # cover tables mysqltest.$mms_tname1,...$mms_tnameN
 
 connection admin;
+--source include/wait_until_connected_again.inc
 
 let $mms_table_to_use=$mms_tables;
 let $mms_purpose=comparison;
