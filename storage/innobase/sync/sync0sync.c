@@ -189,12 +189,12 @@ UNIV_INTERN sync_array_t*	sync_primary_wait_array;
 /** This variable is set to TRUE when sync_init is called */
 UNIV_INTERN ibool	sync_initialized	= FALSE;
 
+#ifdef UNIV_SYNC_DEBUG
 /** An acquired mutex or rw-lock and its level in the latching order */
 typedef struct sync_level_struct	sync_level_t;
 /** Mutexes or rw-locks held by a thread */
 typedef struct sync_thread_struct	sync_thread_t;
 
-#ifdef UNIV_SYNC_DEBUG
 /** The latch levels currently owned by threads are stored in this data
 structure; the size of this array is OS_THREAD_MAX_N */
 
@@ -221,7 +221,6 @@ UNIV_INTERN mysql_pfs_key_t	mutex_list_mutex_key;
 #ifdef UNIV_SYNC_DEBUG
 /** Latching order checks start when this is set TRUE */
 UNIV_INTERN ibool	sync_order_checks_on	= FALSE;
-#endif /* UNIV_SYNC_DEBUG */
 
 /** Number of slots reserved for each OS thread in the sync level array */
 static const ulint SYNC_THREAD_N_LEVELS = 10000;
@@ -258,6 +257,7 @@ struct sync_level_struct{
 					the ordinal value of the next free
 					element */
 };
+#endif /* UNIV_SYNC_DEBUG */
 
 /******************************************************************//**
 Creates, or rather, initializes a mutex object in a specified memory
@@ -1020,9 +1020,7 @@ void*
 sync_thread_levels_nonempty_gen(
 /*============================*/
 	ibool	dict_mutex_allowed)	/*!< in: TRUE if dictionary mutex is
-					allowed to be owned by the thread,
-					also purge_is_running mutex is
-					allowed */
+					allowed to be owned by the thread */
 {
 	ulint		i;
 	sync_arr_t*	arr;
@@ -1069,14 +1067,61 @@ sync_thread_levels_nonempty_gen(
 }
 
 /******************************************************************//**
-Checks that the level array for the current thread is empty.
-@return	TRUE if empty */
+Checks if the level array for the current thread is empty,
+except for the btr_search_latch.
+@return	a latch, or NULL if empty except the exceptions specified below */
 UNIV_INTERN
-ibool
-sync_thread_levels_empty(void)
-/*==========================*/
+void*
+sync_thread_levels_nonempty_trx(
+/*============================*/
+	ibool	has_search_latch)
+				/*!< in: TRUE if and only if the thread
+				is supposed to hold btr_search_latch */
 {
-	return(sync_thread_levels_empty_gen(FALSE));
+	ulint		i;
+	sync_arr_t*	arr;
+	sync_thread_t*	thread_slot;
+
+	if (!sync_order_checks_on) {
+
+		return(NULL);
+	}
+
+	ut_a(!has_search_latch
+	     || sync_thread_levels_contains(SYNC_SEARCH_SYS));
+
+	mutex_enter(&sync_thread_mutex);
+
+	thread_slot = sync_thread_level_arrays_find_slot();
+
+	if (thread_slot == NULL) {
+
+		mutex_exit(&sync_thread_mutex);
+
+		return(NULL);
+	}
+
+	arr = thread_slot->levels;
+
+	for (i = 0; i < arr->n_elems; ++i) {
+		const sync_level_t*	slot;
+
+		slot = &arr->elems[i];
+
+		if (slot->latch != NULL
+		    && (!has_search_latch
+			|| slot->level != SYNC_SEARCH_SYS)) {
+
+			mutex_exit(&sync_thread_mutex);
+			ut_error;
+
+			return(slot->latch);
+		}
+	}
+
+	mutex_exit(&sync_thread_mutex);
+
+	return(NULL);
 }
 
 /******************************************************************//**
