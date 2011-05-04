@@ -18,6 +18,10 @@
 #include <NdbSqlUtil.hpp>
 #include <ndb_version.h>
 
+// temporary defs to allow to split patch into pieces
+#define full true
+#define CmpUnknown (abort(), 0)
+
 /*
  * Data types.  The entries must be in the numerical order.
  */
@@ -227,7 +231,7 @@ NdbSqlUtil::getType(Uint32 typeId)
  */
 
 int
-NdbSqlUtil::cmpTinyint(const void* info, const void* p1, unsigned n1, const void* p2, unsigned n2, bool full)
+NdbSqlUtil::cmpTinyint(const void* info, const void* p1, unsigned n1, const void* p2, unsigned n2)
 {
   if (n2 >= sizeof(Int8)) {
     Int8 v1, v2;
@@ -244,7 +248,7 @@ NdbSqlUtil::cmpTinyint(const void* info, const void* p1, unsigned n1, const void
 }
 
 int
-NdbSqlUtil::cmpTinyunsigned(const void* info, const void* p1, unsigned n1, const void* p2, unsigned n2, bool full)
+NdbSqlUtil::cmpTinyunsigned(const void* info, const void* p1, unsigned n1, const void* p2, unsigned n2)
 {
   if (n2 >= sizeof(Uint8)) {
     Uint8 v1, v2;
@@ -261,7 +265,7 @@ NdbSqlUtil::cmpTinyunsigned(const void* info, const void* p1, unsigned n1, const
 }
 
 int
-NdbSqlUtil::cmpSmallint(const void* info, const void* p1, unsigned n1, const void* p2, unsigned n2, bool full)
+NdbSqlUtil::cmpSmallint(const void* info, const void* p1, unsigned n1, const void* p2, unsigned n2)
 {
   if (n2 >= sizeof(Int16)) {
     Int16 v1, v2;
@@ -278,7 +282,7 @@ NdbSqlUtil::cmpSmallint(const void* info, const void* p1, unsigned n1, const voi
 }
 
 int
-NdbSqlUtil::cmpSmallunsigned(const void* info, const void* p1, unsigned n1, const void* p2, unsigned n2, bool full)
+NdbSqlUtil::cmpSmallunsigned(const void* info, const void* p1, unsigned n1, const void* p2, unsigned n2)
 {
   if (n2 >= sizeof(Uint16)) {
     Uint16 v1, v2;
@@ -295,7 +299,7 @@ NdbSqlUtil::cmpSmallunsigned(const void* info, const void* p1, unsigned n1, cons
 }
 
 int
-NdbSqlUtil::cmpMediumint(const void* info, const void* p1, unsigned n1, const void* p2, unsigned n2, bool full)
+NdbSqlUtil::cmpMediumint(const void* info, const void* p1, unsigned n1, const void* p2, unsigned n2)
 {
   if (n2 >= 3) {
     Int32 v1, v2;
@@ -312,7 +316,7 @@ NdbSqlUtil::cmpMediumint(const void* info, const void* p1, unsigned n1, const vo
 }
 
 int
-NdbSqlUtil::cmpMediumunsigned(const void* info, const void* p1, unsigned n1, const void* p2, unsigned n2, bool full)
+NdbSqlUtil::cmpMediumunsigned(const void* info, const void* p1, unsigned n1, const void* p2, unsigned n2)
 {
   if (n2 >= 3) {
     Uint32 v1, v2;
@@ -329,7 +333,7 @@ NdbSqlUtil::cmpMediumunsigned(const void* info, const void* p1, unsigned n1, con
 }
 
 int
-NdbSqlUtil::cmpInt(const void* info, const void* p1, unsigned n1, const void* p2, unsigned n2, bool full)
+NdbSqlUtil::cmpInt(const void* info, const void* p1, unsigned n1, const void* p2, unsigned n2)
 {
   if (n2 >= sizeof(Int32)) {
     Int32 v1, v2;
@@ -346,7 +350,7 @@ NdbSqlUtil::cmpInt(const void* info, const void* p1, unsigned n1, const void* p2
 }
 
 int
-NdbSqlUtil::cmpUnsigned(const void* info, const void* p1, unsigned n1, const void* p2, unsigned n2, bool full)
+NdbSqlUtil::cmpUnsigned(const void* info, const void* p1, unsigned n1, const void* p2, unsigned n2)
 {
   if (n2 >= sizeof(Uint32)) {
     Uint32 v1, v2;
@@ -363,7 +367,7 @@ NdbSqlUtil::cmpUnsigned(const void* info, const void* p1, unsigned n1, const voi
 }
 
 int
-NdbSqlUtil::cmpBigint(const void* info, const void* p1, unsigned n1, const void* p2, unsigned n2, bool full)
+NdbSqlUtil::cmpBigint(const void* info, const void* p1, unsigned n1, const void* p2, unsigned n2)
 {
   if (n2 >= sizeof(Int64)) {
     Int64 v1, v2;
@@ -380,7 +384,7 @@ NdbSqlUtil::cmpBigint(const void* info, const void* p1, unsigned n1, const void*
 }
 
 int
-NdbSqlUtil::cmpBigunsigned(const void* info, const void* p1, unsigned n1, const void* p2, unsigned n2, bool full)
+NdbSqlUtil::cmpBigunsigned(const void* info, const void* p1, unsigned n1, const void* p2, unsigned n2)
 {
   if (n2 >= sizeof(Uint64)) {
     Uint64 v1, v2;
@@ -397,7 +401,7 @@ NdbSqlUtil::cmpBigunsigned(const void* info, const void* p1, unsigned n1, const 
 }
 
 int
-NdbSqlUtil::cmpFloat(const void* info, const void* p1, unsigned n1, const void* p2, unsigned n2, bool full)
+NdbSqlUtil::cmpFloat(const void* info, const void* p1, unsigned n1, const void* p2, unsigned n2)
 {
   if (n2 >= sizeof(float)) {
     float v1, v2;
@@ -414,7 +418,7 @@ NdbSqlUtil::cmpFloat(const void* info, const void* p1, unsigned n1, const void* 
 }
 
 int
-NdbSqlUtil::cmpDouble(const void* info, const void* p1, unsigned n1, const void* p2, unsigned n2, bool full)
+NdbSqlUtil::cmpDouble(const void* info, const void* p1, unsigned n1, const void* p2, unsigned n2)
 {
   if (n2 >= sizeof(double)) {
     double v1, v2;
@@ -456,7 +460,7 @@ NdbSqlUtil::cmp_olddecimal(const uchar* s1, const uchar* s2, unsigned n)
 }
 
 int
-NdbSqlUtil::cmpOlddecimal(const void* info, const void* p1, unsigned n1, const void* p2, unsigned n2, bool full)
+NdbSqlUtil::cmpOlddecimal(const void* info, const void* p1, unsigned n1, const void* p2, unsigned n2)
 {
   if (full) {
     assert(n1 == n2);
@@ -468,7 +472,7 @@ NdbSqlUtil::cmpOlddecimal(const void* info, const void* p1, unsigned n1, const v
 }
 
 int
-NdbSqlUtil::cmpOlddecimalunsigned(const void* info, const void* p1, unsigned n1, const void* p2, unsigned n2, bool full)
+NdbSqlUtil::cmpOlddecimalunsigned(const void* info, const void* p1, unsigned n1, const void* p2, unsigned n2)
 {
   if (full) {
     assert(n1 == n2);
@@ -480,7 +484,7 @@ NdbSqlUtil::cmpOlddecimalunsigned(const void* info, const void* p1, unsigned n1,
 }
 
 int
-NdbSqlUtil::cmpDecimal(const void* info, const void* p1, unsigned n1, const void* p2, unsigned n2, bool full)
+NdbSqlUtil::cmpDecimal(const void* info, const void* p1, unsigned n1, const void* p2, unsigned n2)
 {
   const uchar* v1 = (const uchar*)p1;
   const uchar* v2 = (const uchar*)p2;
@@ -494,7 +498,7 @@ NdbSqlUtil::cmpDecimal(const void* info, const void* p1, unsigned n1, const void
 }
 
 int
-NdbSqlUtil::cmpDecimalunsigned(const void* info, const void* p1, unsigned n1, const void* p2, unsigned n2, bool full)
+NdbSqlUtil::cmpDecimalunsigned(const void* info, const void* p1, unsigned n1, const void* p2, unsigned n2)
 {
   const uchar* v1 = (const uchar*)p1;
   const uchar* v2 = (const uchar*)p2;
@@ -508,7 +512,7 @@ NdbSqlUtil::cmpDecimalunsigned(const void* info, const void* p1, unsigned n1, co
 }
 
 int
-NdbSqlUtil::cmpChar(const void* info, const void* p1, unsigned n1, const void* p2, unsigned n2, bool full)
+NdbSqlUtil::cmpChar(const void* info, const void* p1, unsigned n1, const void* p2, unsigned n2)
 {
   // collation does not work on prefix for some charsets
   assert(full);
@@ -522,7 +526,7 @@ NdbSqlUtil::cmpChar(const void* info, const void* p1, unsigned n1, const void* p
 }
 
 int
-NdbSqlUtil::cmpVarchar(const void* info, const void* p1, unsigned n1, const void* p2, unsigned n2, bool full)
+NdbSqlUtil::cmpVarchar(const void* info, const void* p1, unsigned n1, const void* p2, unsigned n2)
 {
   const unsigned lb = 1;
   // collation does not work on prefix for some charsets
@@ -546,7 +550,7 @@ NdbSqlUtil::cmpVarchar(const void* info, const void* p1, unsigned n1, const void
 }
 
 int
-NdbSqlUtil::cmpBinary(const void* info, const void* p1, unsigned n1, const void* p2, unsigned n2, bool full)
+NdbSqlUtil::cmpBinary(const void* info, const void* p1, unsigned n1, const void* p2, unsigned n2)
 {
   const uchar* v1 = (const uchar*)p1;
   const uchar* v2 = (const uchar*)p2;
@@ -560,7 +564,7 @@ NdbSqlUtil::cmpBinary(const void* info, const void* p1, unsigned n1, const void*
 }
 
 int
-NdbSqlUtil::cmpVarbinary(const void* info, const void* p1, unsigned n1, const void* p2, unsigned n2, bool full)
+NdbSqlUtil::cmpVarbinary(const void* info, const void* p1, unsigned n1, const void* p2, unsigned n2)
 {
   const unsigned lb = 1;
   if (n2 >= lb) {
@@ -590,7 +594,7 @@ NdbSqlUtil::cmpVarbinary(const void* info, const void* p1, unsigned n1, const vo
 }
 
 int
-NdbSqlUtil::cmpDatetime(const void* info, const void* p1, unsigned n1, const void* p2, unsigned n2, bool full)
+NdbSqlUtil::cmpDatetime(const void* info, const void* p1, unsigned n1, const void* p2, unsigned n2)
 {
   if (n2 >= sizeof(Int64)) {
     Int64 v1, v2;
@@ -607,7 +611,7 @@ NdbSqlUtil::cmpDatetime(const void* info, const void* p1, unsigned n1, const voi
 }
 
 int
-NdbSqlUtil::cmpDate(const void* info, const void* p1, unsigned n1, const void* p2, unsigned n2, bool full)
+NdbSqlUtil::cmpDate(const void* info, const void* p1, unsigned n1, const void* p2, unsigned n2)
 {
 #ifdef ndb_date_is_4_byte_native_int
   if (n2 >= sizeof(Int32)) {
@@ -674,7 +678,7 @@ NdbSqlUtil::cmpDate(const void* info, const void* p1, unsigned n1, const void* p
 
 // not supported
 int
-NdbSqlUtil::cmpBlob(const void* info, const void* p1, unsigned n1, const void* p2, unsigned n2, bool full)
+NdbSqlUtil::cmpBlob(const void* info, const void* p1, unsigned n1, const void* p2, unsigned n2)
 {
   assert(false);
   return 0;
@@ -682,14 +686,14 @@ NdbSqlUtil::cmpBlob(const void* info, const void* p1, unsigned n1, const void* p
 
 // not supported
 int
-NdbSqlUtil::cmpText(const void* info, const void* p1, unsigned n1, const void* p2, unsigned n2, bool full)
+NdbSqlUtil::cmpText(const void* info, const void* p1, unsigned n1, const void* p2, unsigned n2)
 {
   assert(false);
   return 0;
 }
 
 int
-NdbSqlUtil::cmpBit(const void* info, const void* p1, unsigned n1, const void* p2, unsigned n2, bool full)
+NdbSqlUtil::cmpBit(const void* info, const void* p1, unsigned n1, const void* p2, unsigned n2)
 { 
   /* Bitfields are stored as 32-bit words
    * This means that a byte-by-byte comparison will not work on all platforms
@@ -712,7 +716,7 @@ NdbSqlUtil::cmpBit(const void* info, const void* p1, unsigned n1, const void* p2
     memcpy(copyP1, p1, words << 2);
     memcpy(copyP2, p2, words << 2);
 
-    return cmpBit(info, copyP1, bytes, copyP2, bytes, full);
+    return cmpBit(info, copyP1, bytes, copyP2, bytes);
   }
 
   const Uint32* wp1= (const Uint32*) p1;
@@ -743,7 +747,7 @@ NdbSqlUtil::cmpBit(const void* info, const void* p1, unsigned n1, const void* p2
 
 
 int
-NdbSqlUtil::cmpTime(const void* info, const void* p1, unsigned n1, const void* p2, unsigned n2, bool full)
+NdbSqlUtil::cmpTime(const void* info, const void* p1, unsigned n1, const void* p2, unsigned n2)
 {
   if (n2 >= 3) {
     const uchar* v1 = (const uchar*)p1;
@@ -764,7 +768,7 @@ NdbSqlUtil::cmpTime(const void* info, const void* p1, unsigned n1, const void* p
 // not yet
 
 int
-NdbSqlUtil::cmpLongvarchar(const void* info, const void* p1, unsigned n1, const void* p2, unsigned n2, bool full)
+NdbSqlUtil::cmpLongvarchar(const void* info, const void* p1, unsigned n1, const void* p2, unsigned n2)
 {
   const unsigned lb = 2;
   // collation does not work on prefix for some charsets
@@ -788,7 +792,7 @@ NdbSqlUtil::cmpLongvarchar(const void* info, const void* p1, unsigned n1, const 
 }
 
 int
-NdbSqlUtil::cmpLongvarbinary(const void* info, const void* p1, unsigned n1, const void* p2, unsigned n2, bool full)
+NdbSqlUtil::cmpLongvarbinary(const void* info, const void* p1, unsigned n1, const void* p2, unsigned n2)
 {
   const unsigned lb = 2;
   if (n2 >= lb) {
@@ -818,7 +822,7 @@ NdbSqlUtil::cmpLongvarbinary(const void* info, const void* p1, unsigned n1, cons
 }
 
 int
-NdbSqlUtil::cmpYear(const void* info, const void* p1, unsigned n1, const void* p2, unsigned n2, bool full)
+NdbSqlUtil::cmpYear(const void* info, const void* p1, unsigned n1, const void* p2, unsigned n2)
 {
   if (n2 >= sizeof(Uint8)) {
     Uint8 v1, v2;
@@ -835,7 +839,7 @@ NdbSqlUtil::cmpYear(const void* info, const void* p1, unsigned n1, const void* p
 }
 
 int
-NdbSqlUtil::cmpTimestamp(const void* info, const void* p1, unsigned n1, const void* p2, unsigned n2, bool full)
+NdbSqlUtil::cmpTimestamp(const void* info, const void* p1, unsigned n1, const void* p2, unsigned n2)
 {
   if (n2 >= sizeof(Uint32)) {
     Uint32 v1, v2;
