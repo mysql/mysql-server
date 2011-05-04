@@ -140,7 +140,7 @@ struct my_aligned_storage
 
 #endif /* __cplusplus */
 
-# if defined(MY_ALIGNED)
+# ifndef MY_ALIGNED
 /*
   Make sure MY_ALIGNED can be used also on platforms where we don't
   have a way of aligning data structures.
