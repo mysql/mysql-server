@@ -2737,7 +2737,8 @@ explain extended select straight_join * from
 
 #############
 # Test bushy-scans:
-# These should be serialized through an artificial dependency between the bushy scan childs.
+# These should be allowed to be executed in 'parallel', depending on
+# only the root operation
 #
 explain extended select straight_join count(*) from t1 as x1 
   join t1 as x2 on x2.b = x1.a
@@ -2750,6 +2751,29 @@ set ndb_join_pushdown=on;
 select straight_join count(*) from t1 as x1 
   join t1 as x2 on x2.b = x1.a
   join t1 as x3 on x3.b = x1.b;
+
+# A really bushy scan - would take almost forever to execute if
+# we had to force the child scan to be non-bushy (serialized by
+# adding artificial parent dependencies)
+# 
+explain extended select straight_join count(*) from t1 as x1 
+  join t1 as x2 on x2.b = x1.a
+  join t1 as x3 on x3.b = x1.a
+  join t1 as x4 on x4.b = x1.a
+  join t1 as x5 on x5.b = x1.a
+  join t1 as x6 on x6.b = x1.a
+  join t1 as x7 on x7.b = x1.a
+where x3.a < x2.pk and x4.a < x3.pk; 
+
+select straight_join count(*) from t1 as x1 
+  join t1 as x2 on x2.b = x1.a
+  join t1 as x3 on x3.b = x1.a
+  join t1 as x4 on x4.b = x1.a
+  join t1 as x5 on x5.b = x1.a
+  join t1 as x6 on x6.b = x1.a
+  join t1 as x7 on x7.b = x1.a
+where x3.a < x2.pk and x4.a < x3.pk; 
+
 
 #############
 # If we have an outer join, we can't create an artificial dep. 'through' the outer join.
@@ -2786,12 +2810,9 @@ select straight_join count(*) from t1 as x1
 
 ##############
 # If we have a bushy lookup, with scandescendants depending on these lookups,
-# we dont serialize the scan by insertion of artificial dependencies.
+# the query is 'scan-bushy' through these lookups.
 #
-# (Actually we could have serialized these also by forcing an artificial dependency
-#  between the referred lookup parent, and one of the other scan child. However, we
-#  don't believe this to be an efficient way of executing the pushed query, and would
-#  instead break these queries up into several smaller queries) 
+# Bushy execution is expected for these scans (x2 & x4) wrt. root (x1)
 #
 explain extended
 select straight_join count(*) from t1 as x1
