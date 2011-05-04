@@ -56,7 +56,8 @@ ADD_EXECUTABLE(mysqlbinlog mysqlbinlog.cc
 			   ../mysys/my_bit.c
 			   ../mysys/my_bitmap.c
 			   ../mysys/my_vle.c
-			   ../mysys/base64.c)
+			   ../mysys/base64.c
+			   ../mysys/checksum.c)
 TARGET_LINK_LIBRARIES(mysqlbinlog mysqlclient_notls wsock32)
 
 ADD_EXECUTABLE(mysqladmin mysqladmin.cc)
