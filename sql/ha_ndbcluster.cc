@@ -4795,7 +4795,7 @@ ha_ndbcluster::get_hidden_fields_scan(NdbScanOperation::ScanOptions *options,
 
 inline void
 ha_ndbcluster::eventSetAnyValue(THD *thd, 
-                                NdbOperation::OperationOptions *options)
+                                NdbOperation::OperationOptions *options) const
 {
   options->anyValue= 0;
   if (unlikely(m_slow_path))

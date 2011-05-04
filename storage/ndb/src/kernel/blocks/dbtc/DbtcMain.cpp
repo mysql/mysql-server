@@ -8407,7 +8407,7 @@ void Dbtc::execNODE_FAILREP(Signal* signal)
     Uint32 ok = 1;
     for(Uint32 n = c_alive_nodes.find_first();
         n != c_alive_nodes.NotFound;
-        n = c_alive_nodes.find_next(n))
+        n = c_alive_nodes.find_next(n+1))
     {
       if (!ndbd_deferred_unique_constraints(getNodeInfo(n).m_version))
       {

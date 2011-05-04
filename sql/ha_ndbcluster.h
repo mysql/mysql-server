@@ -781,7 +781,8 @@ private:
                                NdbOperation::GetValueSpec gets[2]);
   void get_hidden_fields_scan(NdbScanOperation::ScanOptions *options,
                               NdbOperation::GetValueSpec gets[2]);
-  void eventSetAnyValue(THD *thd, NdbOperation::OperationOptions *options);
+  void eventSetAnyValue(THD *thd,
+                        NdbOperation::OperationOptions *options) const;
   bool check_index_fields_in_write_set(uint keyno);
 
   const NdbOperation *pk_unique_index_read_key(uint idx, 
