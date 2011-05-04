@@ -3032,11 +3032,18 @@ fill_schema_show_cols_or_idxs(THD *thd, TABLE_LIST *tables,
     SQLCOM_SHOW_FIELDS is used because it satisfies 'only_view_structure()' 
   */
   lex->sql_command= SQLCOM_SHOW_FIELDS;
-  res= open_normal_and_derived_tables(thd, show_table_list,
-                                      (MYSQL_OPEN_IGNORE_FLUSH |
-                                       MYSQL_OPEN_FORCE_SHARED_HIGH_PRIO_MDL |
-                                       (can_deadlock ?
-                                        MYSQL_OPEN_FAIL_ON_MDL_CONFLICT : 0)));
+
+  res= open_temporary_tables(thd, show_table_list);
+
+  if (!res)
+  {
+    res= open_normal_and_derived_tables(thd, show_table_list,
+                                        (MYSQL_OPEN_IGNORE_FLUSH |
+                                         MYSQL_OPEN_FORCE_SHARED_HIGH_PRIO_MDL |
+                                         (can_deadlock ?
+                                          MYSQL_OPEN_FAIL_ON_MDL_CONFLICT : 0)));
+  }
+
   lex->sql_command= save_sql_command;
 
   DEBUG_SYNC(thd, "after_open_table_ignore_flush");
@@ -3268,7 +3275,7 @@ static int fill_schema_table_from_frm(THD *thd, TABLE_LIST *tables,
   uint res= 0;
   int not_used;
   my_hash_value_type hash_value;
-  char key[MAX_DBKEY_LENGTH];
+  const char *key;
   uint key_length;
   char db_name_buff[NAME_LEN + 1], table_name_buff[NAME_LEN + 1];
 
@@ -3341,7 +3348,7 @@ static int fill_schema_table_from_frm(THD *thd, TABLE_LIST *tables,
     goto end;
   }
 
-  key_length= create_table_def_key(thd, key, &table_list, 0);
+  key_length= get_table_def_key(&table_list, &key);
   hash_value= my_calc_hash(&table_def_cache, (uchar*) key, key_length);
   mysql_mutex_lock(&LOCK_open);
   share= get_table_share(thd, &table_list, key,
@@ -7940,7 +7947,7 @@ bool show_create_trigger(THD *thd, const sp_name *trg_name)
   /*
     Open the table by name in order to load Table_triggers_list object.
   */
-  if (open_tables(thd, &lst, &num_tables, MYSQL_OPEN_SKIP_TEMPORARY |
+  if (open_tables(thd, &lst, &num_tables,
                   MYSQL_OPEN_FORCE_SHARED_HIGH_PRIO_MDL))
   {
     my_error(ER_TRG_CANT_OPEN_TABLE, MYF(0),
