@@ -18467,7 +18467,8 @@ static void test_bug58036()
   if (!opt_silent)
     printf("Got mysql_real_connect() error (expected): %s (%d)\n",
            mysql_error(conn), mysql_errno(conn));  
-  DIE_UNLESS(mysql_errno(conn) == ER_WRONG_VALUE_FOR_VAR);
+  DIE_UNLESS(mysql_errno(conn) == ER_WRONG_VALUE_FOR_VAR ||
+             mysql_errno(conn)== CR_CANT_READ_CHARSET);
   mysql_close(conn);
 
 
