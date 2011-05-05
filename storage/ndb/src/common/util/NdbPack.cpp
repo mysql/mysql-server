@@ -1329,8 +1329,8 @@ Tdata::create()
       case NDB_TYPE_CHAR:
         {
           require(type.get_byte_size() >= 1);
-          uint max_len = type.get_byte_size();
-          uint len = getrandom(max_len + 1, 1);
+          int max_len = type.get_byte_size();
+          int len = getrandom(max_len + 1, 1);
           for (j = 0; j < len; j++)
           {
             xptr[j] = 'a' + getrandom(3);
@@ -1347,8 +1347,8 @@ Tdata::create()
       case NDB_TYPE_VARCHAR:
         {
           require(type.get_byte_size() >= 1);
-          uint max_len = type.get_byte_size() - 1;
-          uint len = getrandom(max_len, 2);
+          int max_len = type.get_byte_size() - 1;
+          int len = getrandom(max_len, 2);
           require(len < 256);
           xptr[0] = len;
           for (j = 0; j < len; j++)
@@ -1363,8 +1363,8 @@ Tdata::create()
       case NDB_TYPE_LONGVARCHAR:
         {
           require(type.get_byte_size() >= 2);
-          uint max_len = type.get_byte_size() - 2;
-          uint len = getrandom(max_len, 3);
+          int max_len = type.get_byte_size() - 2;
+          int len = getrandom(max_len, 3);
           require(len < 256 * 256);
           xptr[0] = (len & 0xFF);
           xptr[1] = (len >> 8);
@@ -1426,7 +1426,7 @@ Tdata::add()
         int xoff = m_xoff[i];
         const Uint8* xptr = &m_xbuf[xoff];
         chk2(m_data.add(xptr, &xlen) == 0, m_data);
-        chk1(xlen == m_xlen[i]);
+        chk1((int)xlen == m_xlen[i]);
       } else {
         chk2(m_data.add_null(&xlen) == 0, m_data);
         chk1(xlen == 0);
@@ -1434,7 +1434,7 @@ Tdata::add()
       i++;
     }
     chk2(m_data.validate() == 0, m_data);
-    chk1(m_data.get_null_cnt() == m_xnulls);
+    chk1((int)m_data.get_null_cnt() == m_xnulls);
     j++;
   }
 }
@@ -1444,7 +1444,7 @@ Tdata::finalize()
 {
   chk2(m_data.finalize() == 0, m_data);
   ll3("create: " << m_data);
-  chk1(m_data.get_full_len() == m_packLen);
+  chk1((int)m_data.get_full_len() == m_packLen);
   {
     const Uint8* p = (const Uint8*)m_data.get_full_buf();
     chk1(p[0] + (p[1] << 8) == m_packLen - 2);
@@ -1599,7 +1599,7 @@ Tbound::finalize()
   int side = getrandompct(50) ? -1 : +1;
   chk2(m_bound.finalize(side) == 0, m_bound);
   chk2(m_bound.validate() == 0, m_bound);
-  chk1(m_tdata.m_data.get_full_len() == m_tdata.m_packLen);
+  chk1((int)m_tdata.m_data.get_full_len() == m_tdata.m_packLen);
 }
 
 int
@@ -1849,7 +1849,7 @@ testcopy(const Tdata& tdata)
   ll3("testcopy: " << tdata);
   const Tspec& tspec = tdata.m_tspec;
   const NdbPack::Data& data = tdata.m_data;
-  int n = getrandom(tdata.m_cnt + 1);
+  uint n = getrandom(tdata.m_cnt + 1);
   do {
     ll3("testcopy: cnt:" << tdata.m_cnt << " n:" << n);
     NdbPack::DataC data_old(tspec.m_spec, false);
@@ -1899,7 +1899,7 @@ testconvert(const Tdata& tdata)
   Uint8 buf_new[Tspec::MaxBuf];
   data_new.set_buf(buf_new, sizeof(buf_new));
   chk2(data_new.copy(data) == 0, data_new);
-  require(tdata.m_cnt == data.get_cnt());
+  require(tdata.m_cnt == (int)data.get_cnt());
   require(data.get_cnt() == data_new.get_cnt());
   const Uint32 cnt = tdata.m_cnt;
   Uint32 num_eq;
@@ -1951,7 +1951,7 @@ testcmp(const Tbound& tbound, const Tdatalist& tdatalist, int* kb)
   int i;
   for (i = 0; i < tdatalist.m_cnt; i++) {
     const Tdata& tdata = *tdatalist.m_tdata[i];
-    require(tbound.m_tdata.m_cnt == tbound.m_bound.get_data().get_cnt());
+    require(tbound.m_tdata.m_cnt == (int)tbound.m_bound.get_data().get_cnt());
     const Uint32 cnt = tbound.m_tdata.m_cnt;
     Uint32 num_eq1 = ~(Uint32)0;
     // reverse result for key vs bound
@@ -2039,7 +2039,8 @@ testmain()
       srandom(i);
     testrun();
   }
-  ndbout << "ok" << endl;
+  // do not print "ok" in TAPTEST
+  ndbout << "passed" << endl;
   return 0;
 }
 
