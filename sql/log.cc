@@ -7016,7 +7016,7 @@ static void
 binlog_checksum_update(MYSQL_THD thd, struct st_mysql_sys_var *var,
                        void *var_ptr, const void *save)
 {
-  ulong value=  *((ulong *)var_ptr);
+  ulong value=  *((ulong *)save);
 
   pthread_mutex_lock(mysql_bin_log.get_log_lock());
   if(mysql_bin_log.is_open())

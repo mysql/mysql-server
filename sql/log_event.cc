@@ -89,7 +89,7 @@ const ulong checksum_version_product_mysql=
   (checksum_version_split_mysql[0] * 256 +
    checksum_version_split_mysql[1]) * 256 +
   checksum_version_split_mysql[2];
-const uchar checksum_version_split_mariadb[3]= {5, 2, 5};
+const uchar checksum_version_split_mariadb[3]= {5, 3, 0};
 const ulong checksum_version_product_mariadb=
   (checksum_version_split_mariadb[0] * 256 +
    checksum_version_split_mariadb[1]) * 256 +
