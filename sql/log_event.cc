@@ -6087,10 +6087,10 @@ void User_var_log_event::pack_info(Protocol* protocol)
       break;
     case DECIMAL_RESULT:
     {
-      if (!(buf= (char*) my_malloc(val_offset + DECIMAL_MAX_STR_LENGTH,
+      if (!(buf= (char*) my_malloc(val_offset + DECIMAL_MAX_STR_LENGTH + 1,
                                    MYF(MY_WME))))
         return;
-      String str(buf+val_offset, DECIMAL_MAX_STR_LENGTH, &my_charset_bin);
+      String str(buf+val_offset, DECIMAL_MAX_STR_LENGTH + 1, &my_charset_bin);
       my_decimal dec;
       binary2my_decimal(E_DEC_FATAL_ERROR, (uchar*) (val+2), &dec, val[0],
                         val[1]);
