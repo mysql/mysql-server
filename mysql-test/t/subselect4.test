@@ -1390,3 +1390,25 @@ SELECT * FROM t1 WHERE a1 IN (SELECT b1 FROM t2 WHERE b1 = b2);
 
 set @@optimizer_switch=@save_optimizer_switch;
 drop table t1, t2;
+
+--echo #                                                                                                                                                     
+--echo # LP BUG#772309 join_tab_cmp_straight(): Assertion `!jt2->emb_sj_nest' failed in maria-5.3-mwl89 with semijoin
+--echo #                                                                                                                                                     
+
+CREATE TABLE t1 ( f2 int) ;
+INSERT INTO t1 VALUES (0),(0);
+
+CREATE TABLE t2 ( f1 int NOT NULL ) ;
+INSERT INTO t2 VALUES (0),(0);
+
+CREATE TABLE t3 ( f1 int NOT NULL , f2 int) ;
+INSERT INTO t3 VALUES (0,0), (0,0);
+
+EXPLAIN SELECT STRAIGHT_JOIN (
+        SELECT f2 FROM t1 WHERE ( f2 ) IN ( SELECT t3.f2 FROM t3 JOIN t2 ON t2.f1 = 1 )
+);
+SELECT STRAIGHT_JOIN (
+        SELECT f2 FROM t1 WHERE ( f2 ) IN ( SELECT t3.f2 FROM t3 JOIN t2 ON t2.f1 = 1 )
+);
+
+drop table t1, t2, t3;

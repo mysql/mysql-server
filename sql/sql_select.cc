@@ -19898,7 +19898,10 @@ bool mysql_explain_union(THD *thd, SELECT_LEX_UNIT *unit, select_result *result)
   SELECT_LEX *first= unit->first_select();
 
   for (SELECT_LEX *sl= first; sl; sl= sl->next_select())
+  {
     sl->set_explain_type();
+    sl->options|= SELECT_DESCRIBE;
+  }
 
   if (unit->is_union())
   {

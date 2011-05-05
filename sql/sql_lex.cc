@@ -3136,8 +3136,9 @@ bool st_select_lex::optimize_unflattened_subqueries()
         if (un->outer_select()->options & SELECT_DESCRIBE)
         {
           /* Optimize the subquery in the context of EXPLAIN. */
-          set_explain_type();
-          inner_join->select_options= options;
+          sl->set_explain_type();
+          sl->options|= SELECT_DESCRIBE;
+          inner_join->select_options|= SELECT_DESCRIBE;
         }
         res= inner_join->optimize();
         inner_join->select_options= save_options;
