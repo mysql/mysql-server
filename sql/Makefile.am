@@ -85,7 +85,8 @@ noinst_HEADERS =	item.h item_func.h item_sum.h item_cmpfunc.h \
                         multi_range_read.h sql_handler.h \
                         sql_join_cache.h \
 			create_options.h \
-			sql_expression_cache.h
+			sql_expression_cache.h \
+			gcalc_slicescan.h gcalc_tools.h plistsort.c
 
 mysqld_SOURCES =	sql_lex.cc sql_handler.cc sql_partition.cc \
 			item.cc item_sum.cc item_buff.cc item_func.cc \
