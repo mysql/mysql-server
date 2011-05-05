@@ -857,13 +857,9 @@ NdbQueryBuilder::readTuple(const NdbDictionary::Table* table,    // Primary key 
                                        ident,
                                        m_impl.m_operations.size(),
                                        error);
-  returnErrIf(op==0, Err_MemoryAlloc);
-  if (unlikely(error != 0))
-  {
-    m_impl.setErrorCode(error);
-    delete op;
-    return NULL;
-  }
+
+  returnErrIf(m_impl.takeOwnership(op)!=0, Err_MemoryAlloc);
+  returnErrIf(error!=0, error); // C'tor returned error, bailout
 
   Uint32 keyindex = 0;
   for (i=0; i<colcount; ++i)
@@ -873,11 +869,7 @@ NdbQueryBuilder::readTuple(const NdbDictionary::Table* table,    // Primary key 
     {
       assert (keyindex==col->m_keyInfoPos);
       int error = op->m_keys[col->m_keyInfoPos]->bindOperand(*col,*op);
-      if (unlikely(error))
-      { m_impl.setErrorCode(error);
-        delete op;
-        return NULL;
-      }
+      returnErrIf(error!=0, error);
 
       keyindex++;
       if (keyindex >= static_cast<Uint32>(keyfields))
@@ -885,17 +877,7 @@ NdbQueryBuilder::readTuple(const NdbDictionary::Table* table,    // Primary key 
     }
   }
   
-  if (likely(m_impl.m_operations.push_back(op) == 0))
-  {
-    return &op->m_interface;
-  }
-  else
-  {
-    assert(errno == ENOMEM);
-    delete op;
-    m_impl.setErrorCode(Err_MemoryAlloc);
-    return NULL;
-  }
+  return &op->m_interface;
 }
 
 
@@ -944,13 +926,9 @@ NdbQueryBuilder::readTuple(const NdbDictionary::Index* index,    // Unique key l
                                        ident,
                                        m_impl.m_operations.size(),
                                        error);
-  returnErrIf(op==0, Err_MemoryAlloc);
-  if (unlikely(error != 0))
-  {
-    m_impl.setErrorCode(error);
-    delete op;
-    return NULL;
-  }
+
+  returnErrIf(m_impl.takeOwnership(op)!=0, Err_MemoryAlloc);
+  returnErrIf(error!=0, error); // C'tor returned error, bailout
 
   // Bind to Column and check type compatibility
   for (i=0; i<inxfields; ++i)
@@ -959,24 +937,10 @@ NdbQueryBuilder::readTuple(const NdbDictionary::Index* index,    // Unique key l
     assert (col.getColumnNo() == i);
 
     error = keys[i]->getImpl().bindOperand(col,*op);
-    if (unlikely(error))
-    { m_impl.setErrorCode(error);
-      delete op;
-      return NULL;
-    }
+    returnErrIf(error!=0, error);
   }
 
-  if (likely(m_impl.m_operations.push_back(op) == 0))
-  {
-    return &op->m_interface;
-  }
-  else
-  {
-    assert(errno == ENOMEM);
-    delete op;
-    m_impl.setErrorCode(Err_MemoryAlloc);
-    return NULL;
-  }
+  return &op->m_interface;
 }
 
 
@@ -996,21 +960,9 @@ NdbQueryBuilder::scanTable(const NdbDictionary::Table* table,
                                           ident,
                                           m_impl.m_operations.size(),
                                           error);
-  returnErrIf(op==0, Err_MemoryAlloc);
-  if (unlikely(error != 0))
-  {
-    m_impl.setErrorCode(error);
-    delete op;
-    return NULL;
-  }
 
-  if (unlikely(m_impl.m_operations.push_back(op) != 0))
-  {
-    assert(errno == ENOMEM);
-    delete op;
-    m_impl.setErrorCode(Err_MemoryAlloc);
-    return NULL;
-  }
+  returnErrIf(m_impl.takeOwnership(op)!=0, Err_MemoryAlloc);
+  returnErrIf(error!=0, error); // C'tor returned error, bailout
 
   error = op->markScanAncestors();
   returnErrIf(error!=0, error);
@@ -1053,20 +1005,13 @@ NdbQueryBuilder::scanIndex(const NdbDictionary::Index* index,
                                           ident,
                                           m_impl.m_operations.size(),
                                           error);
-  returnErrIf(op==0, Err_MemoryAlloc);
-  if (unlikely(error != 0))
-  {
-    m_impl.setErrorCode(error);
-    delete op;
-    return NULL;
-  }
 
-  if (unlikely(op->m_bound.lowKeys  > indexImpl.getNoOfColumns() ||
-               op->m_bound.highKeys > indexImpl.getNoOfColumns()))
-  { m_impl.setErrorCode(QRY_TOO_MANY_KEY_VALUES);
-    delete op;
-    return NULL;
-  }
+  returnErrIf(m_impl.takeOwnership(op)!=0, Err_MemoryAlloc);
+  returnErrIf(error!=0, error); // C'tor returned error, bailout
+
+  returnErrIf(op->m_bound.lowKeys  > indexImpl.getNoOfColumns() ||
+              op->m_bound.highKeys > indexImpl.getNoOfColumns(),
+              QRY_TOO_MANY_KEY_VALUES);
 
   // Bind lowKeys, and if applicable, highKeys to the column being refered
   Uint32 i;
@@ -1078,11 +1023,7 @@ NdbQueryBuilder::scanIndex(const NdbDictionary::Index* index,
        ? op->m_bound.low[i]->bindOperand(col,*op) || op->m_bound.high[i]->bindOperand(col,*op)
        : op->m_bound.low[i]->bindOperand(col,*op);
 
-    if (unlikely(error))
-    { m_impl.setErrorCode(error);
-      delete op;
-      return NULL;
-    }
+    returnErrIf(error!=0, error);
   }
 
   // Bind any remaining highKeys past '#lowKeys'
@@ -1090,31 +1031,13 @@ NdbQueryBuilder::scanIndex(const NdbDictionary::Index* index,
   {
     const NdbColumnImpl& col = NdbColumnImpl::getImpl(*indexImpl.getColumn(i));
     error = op->m_bound.high[i]->bindOperand(col,*op);
-    if (unlikely(error))
-    { m_impl.setErrorCode(error);
-      delete op;
-      return NULL;
-    }
+    returnErrIf(error!=0, error);
   }
 
   error = op->markScanAncestors();
-  if (unlikely(error))
-  { m_impl.setErrorCode(error);
-    delete op;
-    return NULL;
-  }
+  returnErrIf(error!=0, error);
 
-  if (likely(m_impl.m_operations.push_back(op) == 0))
-  {
-    return &op->m_interface;
-  }
-  else
-  {
-    assert(errno == ENOMEM);
-    delete op;
-    m_impl.setErrorCode(Err_MemoryAlloc);
-    return NULL;
-  }
+  return &op->m_interface;
 }
 
 const NdbQueryDef*
@@ -1220,27 +1143,43 @@ NdbQueryBuilderImpl::prepare()
   return def;
 }
 
+inline int 
+NdbQueryBuilderImpl::takeOwnership(NdbQueryOperandImpl* operand)
+{
+  if (unlikely(operand == NULL))
+  {
+    return Err_MemoryAlloc;
+  }
+  else if (unlikely(m_operands.push_back(operand) != 0))
+  {
+    assert(errno == ENOMEM);
+    delete operand;
+    return Err_MemoryAlloc;
+  }
+  return 0;
+}
+
+inline int 
+NdbQueryBuilderImpl::takeOwnership(NdbQueryOperationDefImpl* operation)
+{
+  if (unlikely(operation == NULL))
+  {
+    return Err_MemoryAlloc;
+  }
+  else if (unlikely(m_operations.push_back(operation) != 0))
+  {
+    assert(errno == ENOMEM);
+    delete operation;
+    return Err_MemoryAlloc;
+  }
+  return 0;
+}
 
 NdbQueryOperand* 
 NdbQueryBuilderImpl::addOperand(NdbQueryOperandImpl* operand)
 {
-  if (unlikely(operand == NULL))
-  {
-    setErrorCode(Err_MemoryAlloc);
-    return NULL;
-  }
-
-  if (likely(m_operands.push_back(operand) == 0))
-  {
-    return &operand->getInterface();
-  }
-  else
-  {
-    assert(errno == ENOMEM);
-    delete operand;
-    setErrorCode(Err_MemoryAlloc);
-    return NULL;
-  }
+  returnErrIf(takeOwnership(operand)!=0, Err_MemoryAlloc);
+  return &operand->getInterface();
 }
 
 ///////////////////////////////////
