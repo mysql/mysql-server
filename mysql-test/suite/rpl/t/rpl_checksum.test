@@ -40,13 +40,16 @@ connection master;
 
 source include/show_binary_logs.inc;
 set @@global.binlog_checksum = NONE;
+select @@global.binlog_checksum;
 --echo  *** must be rotations seen ***
 source include/show_binary_logs.inc;
 
 set @@global.binlog_checksum = default;
+select @@global.binlog_checksum;
 
 # testing lack of side-effects in non-effective update of binlog_checksum:
 set @@global.binlog_checksum = CRC32;
+select @@global.binlog_checksum;
 set @@global.binlog_checksum = CRC32; 
 
 set @@global.master_verify_checksum = 0;
