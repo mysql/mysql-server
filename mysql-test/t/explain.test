@@ -265,3 +265,19 @@ DEALLOCATE PREPARE stmt;
 DROP TABLE t1;
 
 --echo End of 5.1 tests.
+
+--echo #
+--echo # Bug#776295: EXPLAIN EXTENDED with always false multiple equality
+--echo #             in the WHERE condition of a derived table
+--echo #
+
+CREATE TABLE t1 (a int) ;
+
+CREATE TABLE t2 (a int) ;
+INSERT INTO t2 VALUES (8);
+
+EXPLAIN EXTENDED
+SELECT * FROM ( SELECT t1.a FROM t1,t2 WHERE t2.a = t1.a ) AS t;
+
+DROP TABLE t1,t2;
+

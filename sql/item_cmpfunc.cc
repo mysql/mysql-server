@@ -5923,6 +5923,11 @@ Item *Item_equal::transform(Item_transformer transformer, uchar *arg)
 
 void Item_equal::print(String *str, enum_query_type query_type)
 {
+  if (cond_false)
+  {
+    str->append('0');
+    return;
+  }
   str->append(func_name());
   str->append('(');
   List_iterator_fast<Item> it(equal_items);
