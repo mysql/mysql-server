@@ -962,9 +962,6 @@ NdbQueryBuilder::scanTable(const NdbDictionary::Table* table,
   returnErrIf(m_impl.takeOwnership(op)!=0, Err_MemoryAlloc);
   returnErrIf(error!=0, error); // C'tor returned error, bailout
 
-  error = op->markScanAncestors();
-  returnErrIf(error!=0, error);
-
   return &op->m_interface;
 }
 
@@ -1031,9 +1028,6 @@ NdbQueryBuilder::scanIndex(const NdbDictionary::Index* index,
     error = op->m_bound.high[i]->bindOperand(col,*op);
     returnErrIf(error!=0, error);
   }
-
-  error = op->markScanAncestors();
-  returnErrIf(error!=0, error);
 
   return &op->m_interface;
 }
@@ -1837,7 +1831,6 @@ NdbQueryOperationDefImpl::NdbQueryOperationDefImpl (
                                      int& error)
   :m_isPrepared(false), 
    m_diskInChildProjection(false), 
-   m_hasScanDescendant(false),
    m_table(table), 
    m_ident(ident), 
    m_ix(ix), m_id(ix),
@@ -1986,25 +1979,6 @@ int NdbQueryOperationDefImpl::addParamRef(const NdbParamOperandImpl* param)
   {
     assert(errno == ENOMEM);
     return Err_MemoryAlloc;
-  }
-  return 0;
-}
-
-
-int NdbQueryOperationDefImpl::markScanAncestors()
-{
-  // Verify that parent links have been established.
-  assert(m_ix == 0 || m_parent != NULL);
-  assert(isScanOperation());
-  NdbQueryOperationDefImpl* operation = getParentOperation();
-  while (operation != NULL)
-  {
-    operation->m_hasScanDescendant = true;
-    if (operation->isScanOperation())
-    {
-      break;
-    }
-    operation = operation->getParentOperation();
   }
   return 0;
 }
