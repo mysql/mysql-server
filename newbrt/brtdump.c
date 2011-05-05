@@ -10,22 +10,9 @@ static void
 format_time(const uint64_t time_int, char *buf) {
     time_t timer = (time_t) time_int;
     ctime_r(&timer, buf);
-    size_t len = strlen(buf);
-    assert(len < 26);
-    char end;
-
-    assert(len>=1);
-    end = buf[len-1];
-    while (end == '\n' || end == '\r') {
-        buf[len-1] = '\0';
-        len--;
-        assert(len>=1);
-        end = buf[len-1];
-    }
+    assert(buf[24] == '\n');
+    buf[24] = 0;
 }
-
-
-
 
 static int dump_data = 1;
 
@@ -365,7 +352,7 @@ set_file(int f, u_int64_t offset, unsigned char newc) {
     toku_os_pwrite(f, &newc, sizeof newc, offset);
 }
 
-static void
+static int
 readline (char *line, int maxline) {
     int i = 0;
     int c;
@@ -373,6 +360,7 @@ readline (char *line, int maxline) {
         line[i++] = (char)c;
     }
     line[i++] = 0;
+    return c == EOF ? EOF : i;
 }
 
 static int
@@ -387,7 +375,7 @@ split_fields (char *line, char *fields[], int maxfields) {
 
 static int
 usage(const char *arg0) {
-    printf("Usage: %s [--nodata] [--interactive] brtfilename\n", arg0);
+    printf("Usage: %s [--nodata] [--interactive] [--rootnode] brtfilename\n", arg0);
     return 1;
 }
 
@@ -427,14 +415,18 @@ getuint64(const char *f) {
 
 int 
 main (int argc, const char *const argv[]) {
-    const char *arg0 = argv[0];
     int interactive = 0;
+    int rootnode = 0;
+
+    const char *arg0 = argv[0];
     argc--; argv++;
     while (argc>0) {
 	if (strcmp(argv[0], "--nodata") == 0) {
 	    dump_data = 0;
         } else if (strcmp(argv[0], "--interactive") == 0 || strcmp(argv[0], "--i") == 0) {
             interactive = 1;
+        } else if (strcmp(argv[0], "--rootnode") == 0) {
+            rootnode = 1;
         } else if (strcmp(argv[0], "--help") == 0) {
             return usage(arg0);
 	} else 
@@ -459,8 +451,8 @@ main (int argc, const char *const argv[]) {
             printf("brtdump>"); fflush(stdout);
 	    enum { maxline = 64};
             char line[maxline+1];
-            readline(line, maxline);
-            if (strcmp(line, "") == 0) 
+            r = readline(line, maxline);
+            if (r == EOF)
                 break;
             const int maxfields = 4;
             char *fields[maxfields];
@@ -502,6 +494,8 @@ main (int argc, const char *const argv[]) {
                 break;
             }
         }
+    } else if (rootnode) {
+        dump_node(f, h->root, h);
     } else {
 	printf("Block translation:");
 
