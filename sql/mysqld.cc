@@ -7974,9 +7974,23 @@ static void fix_paths(void)
    */
   if (opt_secure_file_priv)
   {
-    convert_dirname(buff, opt_secure_file_priv, NullS);
-    my_free(opt_secure_file_priv, MYF(0));
-    opt_secure_file_priv= my_strdup(buff, MYF(MY_FAE));
+    if (*opt_secure_file_priv == 0)
+    {    
+      opt_secure_file_priv= 0;
+    }      
+    else 
+    {    
+      if (strlen(opt_secure_file_priv) >= FN_REFLEN)
+        opt_secure_file_priv[FN_REFLEN-1]= '\0';
+      if (my_realpath(buff, opt_secure_file_priv, 0))
+      {    
+        sql_print_warning("Failed to normalize the argument for --secure-file-priv.");
+        exit(1);
+      }      
+      char *secure_file_real_path= (char *)my_malloc(FN_REFLEN, MYF(MY_FAE));
+      convert_dirname(secure_file_real_path, buff, NullS);      my_free(opt_secure_file_priv, MYF(0));
+      opt_secure_file_priv= secure_file_real_path;
+    }
   }
 }
 
