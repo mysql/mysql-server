@@ -10071,7 +10071,7 @@ int find_set(REP_SETS *sets,REP_SET *find)
       return i;
     }
   }
-  return i;				/* return new postion */
+  return i;				/* return new position */
 }
 
 /* find if there is a found_set with same table_offset & found_offset
@@ -10091,7 +10091,7 @@ int find_found(FOUND_SET *found_set,uint table_offset, int found_offset)
   found_set[i].table_offset=table_offset;
   found_set[i].found_offset=found_offset;
   found_sets++;
-  return -i-2;				/* return new postion */
+  return -i-2;				/* return new position */
 }
 
 /* Return 1 if regexp starts with \b or ends with \b*/
