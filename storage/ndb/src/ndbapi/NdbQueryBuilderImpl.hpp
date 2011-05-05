@@ -388,15 +388,6 @@ public:
   // Return 'true' is query type is a multi-row scan
   virtual bool isScanOperation() const = 0;
 
-  /** Return true if this operation or any of its descendants is a scan.*/
-  bool hasScanDescendant() const
-  { return m_hasScanDescendant; }
-
-  /** Mark lookup ancestors of this operation as having a scan decendant.
-   * @return Possible error code.
-   */
-  int markScanAncestors();
-
   virtual const NdbQueryOperationDef& getInterface() const = 0; 
 
   /** Make a serialized representation of this operation, corresponding to
@@ -466,9 +457,6 @@ protected:
    * disk columns.
    */
   bool m_diskInChildProjection;
-
-  /** True if this operation or any of its descendants is a scan.*/
-  bool m_hasScanDescendant;
 
 private:
   bool isChildOf(const NdbQueryOperationDefImpl* parentOp) const;
