@@ -1764,6 +1764,17 @@ bool Item_in_optimizer::fix_fields(THD *thd, Item **ref)
   with_sum_func= with_sum_func || args[1]->with_sum_func;
   used_tables_cache|= args[1]->used_tables();
   not_null_tables_cache|= args[1]->not_null_tables();
+
+  if (!sub->is_top_level_item())
+  {
+    /*
+      This is a NOT IN subquery predicate (or equivalent). Null values passed
+      from outer tables and used in the left-hand expression of the predicate
+      must be considered in the evaluation, hence filter out these tables
+      from the set of null-rejecting tables.
+    */
+    not_null_tables_cache&= ~args[0]->not_null_tables();
+  }
   const_item_cache&= args[1]->const_item();
   fixed= 1;
   return FALSE;
@@ -1790,6 +1801,7 @@ void Item_in_optimizer::fix_after_pullout(st_select_lex *parent_select,
   not_null_tables_cache|= args[1]->not_null_tables();
   const_item_cache&= args[1]->const_item();
 }
+
 
 /**
    The implementation of optimized \<outer expression\> [NOT] IN \<subquery\>
