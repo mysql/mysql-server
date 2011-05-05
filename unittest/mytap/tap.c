@@ -1,4 +1,5 @@
-/* Copyright (c) 2006, 2010, Oracle and/or its affiliates. All rights reserved. 
+/* Copyright (c) 2006, 2010, Oracle and/or its affiliates.
+   Copyright (c) 2011, Monty Program Ab
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -26,6 +27,10 @@
 #include <stdio.h>
 #include <string.h>
 #include <signal.h>
+
+static ulong start_timer(void);
+static void end_timer(ulong start_time,char *buff);
+static void nice_time(double sec,char *buff,my_bool part_second);
 
 /*
   Visual Studio 2003 does not know vsnprintf but knows _vsnprintf.
@@ -185,12 +190,15 @@ static signal_entry install_signal[]= {
 };
 
 int skip_big_tests= 1;
+ulong start_time;
 
 void
 plan(int count)
 {
   char *config= getenv("MYTAP_CONFIG");
   size_t i;
+
+  start_time= start_timer();
 
   if (config)
     skip_big_tests= strcmp(config, "big");
@@ -289,6 +297,7 @@ skip(int how_many, char const *fmt, ...)
   }
 }
 
+
 void
 todo_start(char const *message, ...)
 {
@@ -304,7 +313,10 @@ todo_end()
   *g_test.todo = '\0';
 }
 
-int exit_status() {
+int exit_status()
+{
+  char buff[60];
+
   /*
     If there were no plan, we write one last instead.
   */
@@ -323,9 +335,77 @@ int exit_status() {
     diag("Failed %d tests!", g_test.failed);
     return EXIT_FAILURE;
   }
+  end_timer(start_time, buff);
+  printf("Test took %s\n", buff);
+  fflush(stdout);
 
   return EXIT_SUCCESS;
 }
+
+#if defined(__WIN__) || defined(__NETWARE__)
+#include <time.h>
+#else
+#include <sys/times.h>
+#ifdef _SC_CLK_TCK				// For mit-pthreads
+#undef CLOCKS_PER_SEC
+#define CLOCKS_PER_SEC (sysconf(_SC_CLK_TCK))
+#endif
+#endif
+
+static ulong start_timer(void)
+{
+#if defined(__WIN__) || defined(__NETWARE__)
+ return clock();
+#else
+  struct tms tms_tmp;
+  return times(&tms_tmp);
+#endif
+}
+
+
+/** 
+  Write as many as 52+1 bytes to buff, in the form of a legible
+  duration of time.
+
+  len("4294967296 days, 23 hours, 59 minutes, 60.00 seconds")  ->  52
+*/
+
+static void nice_time(double sec,char *buff, my_bool part_second)
+{
+  ulong tmp;
+  if (sec >= 3600.0*24)
+  {
+    tmp=(ulong) floor(sec/(3600.0*24));
+    sec-=3600.0*24*tmp;
+    buff+= my_sprintf(buff, (buff, "%ld %s", tmp,
+                             tmp > 1 ? " days " : " day "));
+  }
+  if (sec >= 3600.0)
+  {
+    tmp=(ulong) floor(sec/3600.0);
+    sec-=3600.0*tmp;
+    buff+= my_sprintf(buff, (buff, "%ld %s", tmp, 
+                             tmp > 1 ? " hours " : " hour "));
+  }
+  if (sec >= 60.0)
+  {
+    tmp=(ulong) floor(sec/60.0);
+    sec-=60.0*tmp;
+    buff+= my_sprintf(buff, (buff, "%ld min ", tmp));
+  }
+  if (part_second)
+    sprintf(buff,"%.2f sec",sec);
+  else
+    sprintf(buff,"%d sec",(int) sec);
+}
+
+
+static void end_timer(ulong start_time,char *buff)
+{
+  nice_time((double) (start_timer() - start_time) /
+	    CLOCKS_PER_SEC,buff,1);
+}
+
 
 /**
    @mainpage Testing C and C++ using MyTAP

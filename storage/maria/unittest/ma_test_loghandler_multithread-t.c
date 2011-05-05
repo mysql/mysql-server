@@ -271,6 +271,8 @@ int main(int argc __attribute__((unused)),
 
   plan(WRITERS + FLUSHERS +
        ITERATIONS * WRITERS * 3 + FLUSH_ITERATIONS * FLUSHERS );
+  /* We don't need to do physical syncs in this test */
+  my_disable_sync= 1;
 
   bzero(&pagecache, sizeof(pagecache));
   maria_data_root= (char *)".";

@@ -14,7 +14,7 @@
 # along with this program; if not, write to the Free Software
 # Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 
-use Test::Harness;
+use TAP::Harness;
 use File::Find;
 use Getopt::Long;
 
@@ -37,10 +37,11 @@ unit - Run unit tests in directory
 =cut
 
 my $big= $ENV{'MYTAP_CONFIG'} eq 'big';
+my $verbose= 0;
 
 my $result = GetOptions (
   "big!"        => \$big,
-  "verbose!"    => \$Test::Harness::verbose,
+  "verbose!"    => \$verbose,
 );
 
 $ENV{'MYTAP_CONFIG'} = $big ? 'big' : '';
@@ -102,8 +103,14 @@ sub run_cmd (@) {
     if (@files > 0) {
         # Removing the first './' from the file names
         foreach (@files) { s!^\./!! }
-        $ENV{'HARNESS_PERL_SWITCHES'} .= ' -e "exec @ARGV"';
-        runtests @files;
+
+        my %args = (
+                    verbosity => $verbose,
+                    timer => 1,
+                    exec => [ "/bin/sh", "-c" ],
+                   );
+        my $harness= TAP::Harness->new( \%args );
+        $harness->runtests(@files);
     }
 }
 
