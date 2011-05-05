@@ -473,6 +473,7 @@ setup_objects	CREATE TABLE `setup_objects` (
   `OBJECT_TYPE` enum('TABLE') NOT NULL DEFAULT 'TABLE',
   `OBJECT_SCHEMA` varchar(64) DEFAULT '%',
   `OBJECT_NAME` varchar(64) NOT NULL DEFAULT '%',
+  `ENABLED` enum('YES','NO') NOT NULL DEFAULT 'YES',
   `TIMED` enum('YES','NO') NOT NULL DEFAULT 'YES'
 ) ENGINE=PERFORMANCE_SCHEMA DEFAULT CHARSET=utf8
 show create table setup_timers;

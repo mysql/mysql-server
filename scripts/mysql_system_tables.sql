@@ -498,6 +498,7 @@ SET @cmd="CREATE TABLE performance_schema.setup_objects("
   "OBJECT_TYPE ENUM ('TABLE') not null default 'TABLE',"
   "OBJECT_SCHEMA VARCHAR(64) default '%',"
   "OBJECT_NAME VARCHAR(64) not null default '%',"
+  "ENABLED ENUM ('YES', 'NO') not null default 'YES',"
   "TIMED ENUM ('YES', 'NO') not null default 'YES'"
   ")ENGINE=PERFORMANCE_SCHEMA;";
 

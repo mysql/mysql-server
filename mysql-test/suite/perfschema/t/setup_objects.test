@@ -1,4 +1,4 @@
-# Copyright (c) 2010, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2011, Oracle and/or its affiliates. All rights reserved.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -25,19 +25,34 @@ create table test.setup_objects as select * from performance_schema.setup_object
 truncate table performance_schema.setup_objects;
 
 insert into performance_schema.setup_objects
-  values ('TABLE', 'db1', 't1', 'YES');
+  values ('TABLE', 'db1', 't1', 'YES', 'YES');
 
 insert into performance_schema.setup_objects
-  values ('TABLE', 'db1', 't2', 'NO');
+  values ('TABLE', 'db1', 't2', 'YES', 'NO');
 
 insert into performance_schema.setup_objects
-  values ('TABLE', 'db1', '%', 'YES');
+  values ('TABLE', 'db1', '%', 'YES', 'YES');
 
 insert into performance_schema.setup_objects
-  values ('TABLE', 'db2', 't1', 'YES');
+  values ('TABLE', 'db2', 't1', 'YES', 'YES');
 
 insert into performance_schema.setup_objects
-  values ('TABLE', 'db2', 't2', 'NO');
+  values ('TABLE', 'db2', 't2', 'YES', 'NO');
+
+insert into performance_schema.setup_objects
+  values ('TABLE', 'db3', 't1', 'YES', 'YES');
+
+insert into performance_schema.setup_objects
+  values ('TABLE', 'db3', 't2', 'NO', 'NO');
+
+insert into performance_schema.setup_objects
+  values ('TABLE', 'db3', '%', 'NO', 'YES');
+
+insert into performance_schema.setup_objects
+  values ('TABLE', 'db4', 't1', 'NO', 'YES');
+
+insert into performance_schema.setup_objects
+  values ('TABLE', 'db4', '%', 'YES', 'NO');
 
 select * from performance_schema.setup_objects
   order by OBJECT_TYPE, OBJECT_SCHEMA, OBJECT_NAME;
@@ -46,11 +61,15 @@ select * from performance_schema.setup_objects
 drop database if exists db1;
 drop database if exists db2;
 drop database if exists db3;
+drop database if exists db4;
+drop database if exists db5;
 --enable_warnings
 
 create database db1;
 create database db2;
 create database db3;
+create database db4;
+create database db5;
 
 create table db1.t1(a int);
 create table db1.t2(a int);
@@ -65,6 +84,18 @@ create table db2.t4(a int);
 create table db2.t5(a int);
 
 create table db3.t1(a int);
+create table db3.t2(a int);
+create table db3.t3(a int);
+create table db3.t4(a int);
+create table db3.t5(a int);
+
+create table db4.t1(a int);
+create table db4.t2(a int);
+create table db4.t3(a int);
+create table db4.t4(a int);
+create table db4.t5(a int);
+
+create table db5.t1(a int);
 
 select * from db1.t1;
 select * from db1.t2;
@@ -79,8 +110,20 @@ select * from db2.t4;
 select * from db2.t5;
 
 select * from db3.t1;
+select * from db3.t2;
+select * from db3.t3;
+select * from db3.t4;
+select * from db3.t5;
 
-create table db3.t2(a int);
+select * from db4.t1;
+select * from db4.t2;
+select * from db4.t3;
+select * from db4.t4;
+select * from db4.t5;
+
+select * from db5.t1;
+
+create table db5.t2(a int);
 select * from db3.t2;
 
 # Verify what is instrumented
@@ -100,7 +143,7 @@ select distinct OBJECT_TYPE, OBJECT_NAME, OBJECT_SCHEMA
 update performance_schema.setup_objects
   set timed='YES' where OBJECT_SCHEMA = '%';
 
-create table db3.t3(a int);
+create table db5.t3(a int);
 select * from db3.t3;
 
 truncate table performance_schema.setup_objects;
@@ -110,6 +153,8 @@ select count(*) from performance_schema.setup_objects;
 drop database db1;
 drop database db2;
 drop database db3;
+drop database db4;
+drop database db5;
 
 # Restore the setup
 truncate table performance_schema.setup_objects;
