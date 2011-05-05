@@ -106,7 +106,7 @@ int my_decimal2string(uint mask, const my_decimal *d,
     required size of the buffer.
   */
   int length= (fixed_prec
-               ? (fixed_prec + ((fixed_prec == fixed_dec) ? 1 : 0) + 1)
+               ? (fixed_prec + ((fixed_prec == fixed_dec) ? 1 : 0) + 1 + 1)
                : my_decimal_string_length(d));
   int result;
   if (str->alloc(length))
