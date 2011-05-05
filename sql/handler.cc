@@ -4784,19 +4784,19 @@ int DsMrr_impl::dsmrr_init(handler *h_arg, RANGE_SEQ_IF *seq_funcs,
   /* 
     This assert will hit if we have pushed an index condition to the
     primary key index and then "change our mind" and use a different
-    index for retrieving data with MRR.
-
-    This assert is too strict for the existing code. If an index
-    condition has been pushed on the primary index the existing code
-    does not clean up information about the pushed index condition when
-    the index scan is completed. Disables the assert until we have
-    a fix for better cleaning up after a pushed index condition. 
+    index for retrieving data with MRR. One of the following criteria
+    must be true:
+      1. We have not pushed an index conditon on this handler.
+      2. We have pushed an index condition and this is on the currently used
+         index.
+      3. We have pushed an index condition but this is not for the primary key.
+      4. We have pushed an index condition and this has been transferred to 
+         the clone (h2) of the handler object.
   */
-  /*
   DBUG_ASSERT(!h->pushed_idx_cond ||
               h->pushed_idx_cond_keyno == h->active_index ||
-              h->pushed_idx_cond_keyno != table->s->primary_key);
-  */
+              h->pushed_idx_cond_keyno != table->s->primary_key ||
+              (h2 && h->pushed_idx_cond_keyno == h2->active_index));
 
   rowids_buf= buf->buffer;
 
@@ -4869,7 +4869,26 @@ int DsMrr_impl::dsmrr_init(handler *h_arg, RANGE_SEQ_IF *seq_funcs,
     /*
       We get here when the access alternates betwen MRR scan(s) and non-MRR
       scans.
+    */
 
+    /* 
+      Verify consistency between the two handler objects:
+      1. The main handler should either use the primary key or not have an
+         active index at this point since the clone handler (h2) is used for
+         reading the index.
+      2. The index used for ICP should be the same for the two handlers or
+         it should not be set on the clone handler (h2).
+      3. The ICP function should be the same for the two handlers or it should
+         not be set for the clone handler (h2).
+    */
+    DBUG_ASSERT(h->active_index == table->s->primary_key ||
+                h->active_index == MAX_KEY);
+    DBUG_ASSERT(h->pushed_idx_cond_keyno == h2->pushed_idx_cond_keyno || 
+                h2->pushed_idx_cond_keyno == MAX_KEY);
+    DBUG_ASSERT(h->pushed_idx_cond == h2->pushed_idx_cond || 
+                h2->pushed_idx_cond == NULL);
+
+    /*
       Calling h->index_end() will invoke dsmrr_close() for this object,
       which will delete h2. We need to keep it, so save put it away and dont
       let it be deleted:
