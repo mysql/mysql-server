@@ -15,12 +15,12 @@ SHOW CREATE TABLE mysql.slave_relay_log_info;
 Table	Create Table
 slave_relay_log_info	CREATE TABLE `slave_relay_log_info` (
   `Master_id` int(10) unsigned NOT NULL,
-  `Number_of_lines` int(10) unsigned NOT NULL,
-  `Relay_log_name` text CHARACTER SET utf8 COLLATE utf8_bin NOT NULL,
-  `Relay_log_pos` bigint(20) unsigned NOT NULL,
-  `Master_log_name` text CHARACTER SET utf8 COLLATE utf8_bin NOT NULL,
-  `Master_log_pos` bigint(20) unsigned NOT NULL,
-  `Sql_delay` int(11) NOT NULL,
+  `Number_of_lines` int(10) unsigned NOT NULL COMMENT 'Number of lines in the file or rows in the table.',
+  `Relay_log_name` text CHARACTER SET utf8 COLLATE utf8_bin NOT NULL COMMENT 'The name of the current relay log file.',
+  `Relay_log_pos` bigint(20) unsigned NOT NULL COMMENT 'The current position within the relay log file; events up to this position have been executed on the slave database.',
+  `Master_log_name` text CHARACTER SET utf8 COLLATE utf8_bin NOT NULL COMMENT 'The name of the master binary log file from which the events in the relay log file were read.',
+  `Master_log_pos` bigint(20) unsigned NOT NULL COMMENT 'The equivalent position within the masters binary log file of events that have already been executed.',
+  `Sql_delay` int(11) NOT NULL COMMENT 'The number of seconds that the slave must lag the master.',
   PRIMARY KEY (`Master_id`)
 ) ENGINE=MyISAM DEFAULT CHARSET=utf8 COMMENT='Relay Log Information'
 ALTER TABLE mysql.slave_relay_log_info ENGINE= Innodb;
@@ -28,12 +28,12 @@ SHOW CREATE TABLE mysql.slave_relay_log_info;
 Table	Create Table
 slave_relay_log_info	CREATE TABLE `slave_relay_log_info` (
   `Master_id` int(10) unsigned NOT NULL,
-  `Number_of_lines` int(10) unsigned NOT NULL,
-  `Relay_log_name` text CHARACTER SET utf8 COLLATE utf8_bin NOT NULL,
-  `Relay_log_pos` bigint(20) unsigned NOT NULL,
-  `Master_log_name` text CHARACTER SET utf8 COLLATE utf8_bin NOT NULL,
-  `Master_log_pos` bigint(20) unsigned NOT NULL,
-  `Sql_delay` int(11) NOT NULL,
+  `Number_of_lines` int(10) unsigned NOT NULL COMMENT 'Number of lines in the file or rows in the table.',
+  `Relay_log_name` text CHARACTER SET utf8 COLLATE utf8_bin NOT NULL COMMENT 'The name of the current relay log file.',
+  `Relay_log_pos` bigint(20) unsigned NOT NULL COMMENT 'The current position within the relay log file; events up to this position have been executed on the slave database.',
+  `Master_log_name` text CHARACTER SET utf8 COLLATE utf8_bin NOT NULL COMMENT 'The name of the master binary log file from which the events in the relay log file were read.',
+  `Master_log_pos` bigint(20) unsigned NOT NULL COMMENT 'The equivalent position within the masters binary log file of events that have already been executed.',
+  `Sql_delay` int(11) NOT NULL COMMENT 'The number of seconds that the slave must lag the master.',
   PRIMARY KEY (`Master_id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8 COMMENT='Relay Log Information'
 include/start_slave.inc
