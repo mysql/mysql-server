@@ -873,10 +873,6 @@ sub command_line_setup () {
 	last;
       }
     }
-
-    # point vardir to the mem location
-    $opt_vardir= $opt_mem;
-    undef $opt_mem;
   }
 
   # --------------------------------------------------------------------------
