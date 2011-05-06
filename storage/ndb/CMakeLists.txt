@@ -155,14 +155,14 @@ IF(EXISTS ${CMAKE_SOURCE_DIR}/storage/mysql_storage_engine.cmake)
 ELSE()
   # New plugin support, cross-platform
   
-  # NDB is MANDATORY plugin in MySQL Cluster i.e it's always built
-  SET(is_mandatory_plugin "")
+  # NDB is DEFAULT plugin in MySQL Cluster
+  SET(is_default_plugin "")
   IF(MYSQL_CLUSTER_VERSION)
-    SET(is_mandatory_plugin "MANDATORY")
+    SET(is_default_plugin "DEFAULT")
   ENDIF()
 
   MYSQL_ADD_PLUGIN(ndbcluster ${NDBCLUSTER_SOURCES} STORAGE_ENGINE
-    ${is_mandatory_plugin} STATIC_ONLY RECOMPILE_FOR_EMBEDDED
+    ${is_default_plugin} STATIC_ONLY RECOMPILE_FOR_EMBEDDED
     LINK_LIBRARIES ndbclient)
 
   IF (NOT MCP_BUG58158)
