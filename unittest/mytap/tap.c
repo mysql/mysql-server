@@ -190,7 +190,7 @@ static signal_entry install_signal[]= {
 };
 
 int skip_big_tests= 1;
-ulong start_time;
+ulong start_time= 0;
 
 void
 plan(int count)
@@ -335,9 +335,12 @@ int exit_status()
     diag("Failed %d tests!", g_test.failed);
     return EXIT_FAILURE;
   }
-  end_timer(start_time, buff);
-  printf("Test took %s\n", buff);
-  fflush(stdout);
+  if (start_time)
+  {
+    end_timer(start_time, buff);
+    printf("Test took %s\n", buff);
+    fflush(stdout);
+  }
 
   return EXIT_SUCCESS;
 }
