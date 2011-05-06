@@ -581,7 +581,7 @@ void Item::rename(char *new_name)
 
 Item* Item::transform(Item_transformer transformer, uchar *arg)
 {
-  DBUG_ASSERT(!current_thd->is_stmt_prepare());
+  DBUG_ASSERT(!current_thd->stmt_arena->is_stmt_prepare());
 
   return (this->*transformer)(arg);
 }
@@ -1845,7 +1845,7 @@ bool agg_item_set_converter(DTCollation &coll, const char *fname,
       been created in prepare. In this case register the change for
       rollback.
     */
-    if (thd->is_stmt_prepare())
+    if (thd->stmt_arena->is_stmt_prepare())
       *arg= conv;
     else
       thd->change_item_tree(arg, conv);
@@ -6965,7 +6965,7 @@ int Item_default_value::save_in_field(Field *field_arg, bool no_conversions)
 
 Item *Item_default_value::transform(Item_transformer transformer, uchar *args)
 {
-  DBUG_ASSERT(!current_thd->is_stmt_prepare());
+  DBUG_ASSERT(!current_thd->stmt_arena->is_stmt_prepare());
 
   /*
     If the value of arg is NULL, then this object represents a constant,
