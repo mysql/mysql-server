@@ -27,6 +27,7 @@
 #include <SLList.hpp>
 #include <ArenaPool.hpp>
 #include <DataBuffer2.hpp>
+#include <Bitmask.hpp>
 #include <signaldata/DbspjErr.hpp>
 #include "../dbtup/tuppage.hpp"
 
@@ -104,6 +105,7 @@ public:
   typedef LocalDataBuffer2<14, LocalArenaPoolImpl> Local_dependency_map;
   typedef DataBuffer2<14, LocalArenaPoolImpl> PatternStore;
   typedef LocalDataBuffer2<14, LocalArenaPoolImpl> Local_pattern_store;
+  typedef Bitmask<(NDB_SPJ_MAX_TREE_NODES+31)/32> TreeNodeBitMask;
 
   struct RowRef
   {
@@ -296,6 +298,8 @@ public:
     Signal* m_start_signal; // Argument to first node in tree
     SegmentedSectionPtr m_keyPtr;
 
+    TreeNodeBitMask m_scans; // TreeNodes doing scans
+
     // Used for resolving dependencies
     Ptr<TreeNode> m_node_list[NDB_SPJ_MAX_TREE_NODES];
   };
@@ -415,6 +419,18 @@ public:
     void (Dbspj::*m_parent_batch_complete)(Signal*,Ptr<Request>,Ptr<TreeNode>);
 
     /**
+     * This function is called on the *child* by the *parent* when this
+     *   child should prepare to resend results related to parents current batch
+     */
+    void (Dbspj::*m_parent_batch_repeat)(Signal*,Ptr<Request>,Ptr<TreeNode>);
+
+    /**
+     * This function is called on the *child* by the *parent* when
+     *   child should release buffers related to parents current batch
+     */
+    void (Dbspj::*m_parent_batch_cleanup)(Ptr<Request>,Ptr<TreeNode>);
+
+    /**
      * This function is called when getting a SCAN_NEXTREQ
      */
     void (Dbspj::*m_execSCAN_NEXTREQ)(Signal*, Ptr<Request>,Ptr<TreeNode>);
@@ -441,7 +457,7 @@ public:
      *  should only do local cleanup(s)
      */
     void (Dbspj::*m_cleanup)(Ptr<Request>, Ptr<TreeNode>);
-  };
+  };  //struct OpInfo
 
   struct LookupData
   {
@@ -520,6 +536,7 @@ public:
     Uint16 m_frags_outstanding;
     Uint32 m_rows_received;  // #execTRANSID_AI
     Uint32 m_rows_expecting; // Sum(ScanFragConf)
+    Uint32 m_batch_chunks;   // #SCAN_FRAGREQ + #SCAN_NEXTREQ to retrieve batch
     Uint32 m_scanCookie;
     Uint32 m_fragCount;
     ScanFragHandle_list::HeadPOD m_fragments; // ScanFrag states
@@ -547,7 +564,8 @@ public:
 
     TreeNode()
     : m_magic(MAGIC), m_state(TN_END),
-      m_parentPtrI(RNIL), m_requestPtrI(0)
+      m_parentPtrI(RNIL), m_requestPtrI(0),
+      m_ancestors()
     {
     }
 
@@ -555,6 +573,7 @@ public:
     : m_magic(MAGIC),
       m_info(0), m_bits(T_LEAF), m_state(TN_BUILDING),
       m_parentPtrI(RNIL), m_requestPtrI(request),
+      m_ancestors(),
       nextList(RNIL), prevList(RNIL)
     {
 //    m_send.m_ref = 0;
@@ -658,7 +677,7 @@ public:
       T_REPORT_BATCH_COMPLETE  = 0x200,
 
       /**
-       * Do I need to know when parent batch is cimpleted
+       * Do I need to know when parent batch is completed
        */
       T_NEED_REPORT_BATCH_COMPLETED = 0x400,
 
@@ -677,6 +696,11 @@ public:
        */
       T_SCAN_PARALLEL = 0x2000,
 
+      /**
+       * Possible requesting resultset for this index scan to be repeated
+       */
+      T_SCAN_REPEATABLE = 0x4000,
+
       // End marker...
       T_END = 0
     };
@@ -689,6 +713,7 @@ public:
     Uint32 m_batch_size;
     Uint32 m_parentPtrI;
     const Uint32 m_requestPtrI;
+    TreeNodeBitMask m_ancestors;
     Dependency_map::Head m_dependent_nodes;
     PatternStore::Head m_keyPattern;
     PatternStore::Head m_attrParamPattern;
@@ -725,7 +750,7 @@ public:
       Uint32 nextPool;
     };
     Uint32 prevList;
-  };
+  };  //struct TreeNode
 
   static const Ptr<TreeNode> NullTreeNodePtr;
 
@@ -745,12 +770,13 @@ public:
   {
     enum RequestBits
     {
-      RT_SCAN = 0x1            // unbounded result set, scan interface
-      ,RT_ROW_BUFFERS = 0x2    // Do any of the node use row-buffering
-      ,RT_MULTI_SCAN  = 0x4    // Is there several scans in request
-      ,RT_VAR_ALLOC   = 0x8    // Is var-allocation used for row-buffer
-      ,RT_NEED_PREPARE = 0x10  // Does any node need m_prepare hook
-      ,RT_NEED_COMPLETE = 0x20 // Does any node need m_complete hook
+      RT_SCAN                = 0x1  // unbounded result set, scan interface
+      ,RT_ROW_BUFFERS        = 0x2  // Do any of the node use row-buffering
+      ,RT_MULTI_SCAN         = 0x4  // Is there several scans in request
+      ,RT_VAR_ALLOC          = 0x8  // Is var-allocation used for row-buffer
+      ,RT_NEED_PREPARE       = 0x10 // Does any node need m_prepare hook
+      ,RT_NEED_COMPLETE      = 0x20 // Does any node need m_complete hook
+      ,RT_REPEAT_SCAN_RESULT = 0x40 // Repeat bushy scan result when required
     };
 
     enum RequestState
@@ -765,7 +791,7 @@ public:
 
       RS_ABORTED    = 0x2008, // Aborted and waiting for SCAN_NEXTREQ
       RS_END = 0
-    };
+    };  //struct Request
 
     Request() {}
     Request(const ArenaHead & arena) : m_arena(arena) {}
@@ -781,7 +807,8 @@ public:
     TreeNode_list::Head m_nodes;
     TreeNodeCursor_list::Head m_cursor_nodes;
     Uint32 m_cnt_active;       // No of "running" nodes
-    Bitmask<1> m_active_nodes; // Nodes which will return more data
+    TreeNodeBitMask
+           m_active_nodes;     // Nodes which will return more data in NEXTREQ
     Uint32 m_rows;             // Rows accumulated in current batch
     Uint32 m_outstanding;      // Outstanding signals, when 0, batch is done
     Uint16 m_lookup_node_data[MAX_NDB_NODES];
@@ -976,6 +1003,7 @@ private:
   void start(Signal*, Ptr<Request>);
   void checkBatchComplete(Signal*, Ptr<Request>, Uint32 cnt);
   void batchComplete(Signal*, Ptr<Request>);
+  void prepareNextBatch(Signal*, Ptr<Request>);
   void sendConf(Signal*, Ptr<Request>, bool is_complete);
   void complete(Signal*, Ptr<Request>);
   void cleanup(Ptr<Request>);
@@ -988,12 +1016,11 @@ private:
   void releaseRequestBuffers(Ptr<Request> requestPtr, bool reset);
   void releaseNodeRows(Ptr<Request> requestPtr, Ptr<TreeNode>);
   void releaseRow(Ptr<Request>, RowRef ref);
-  Uint32 releaseScanBuffers(Ptr<Request> requestPtr, Ptr<TreeNode>);
-  void registerCursor(Ptr<Request>, Ptr<TreeNode>);
+  void registerActiveCursor(Ptr<Request>, Ptr<TreeNode>);
   void nodeFail_checkRequests(Signal*);
 
+  void cleanupChildBranch(Ptr<Request>, Ptr<TreeNode>);
   void cleanup_common(Ptr<Request>, Ptr<TreeNode>);
-  void mark_active(Ptr<Request>, Ptr<TreeNode>, bool value);
 
   /**
    * Row buffering
@@ -1141,12 +1168,16 @@ private:
   Uint32 scanIndex_findFrag(Local_ScanFragHandle_list &, Ptr<ScanFragHandle>&,
                             Uint32 fragId);
   void scanIndex_parent_batch_complete(Signal*, Ptr<Request>, Ptr<TreeNode>);
+  void scanIndex_parent_batch_repeat(Signal*, Ptr<Request>, Ptr<TreeNode>);
   void scanIndex_execSCAN_NEXTREQ(Signal*, Ptr<Request>,Ptr<TreeNode>);
   void scanIndex_complete(Signal*, Ptr<Request>, Ptr<TreeNode>);
   void scanIndex_abort(Signal*, Ptr<Request>, Ptr<TreeNode>);
   Uint32 scanIndex_execNODE_FAILREP(Signal*signal, Ptr<Request>, Ptr<TreeNode>,
                                   NdbNodeBitmask);
+  void scanIndex_parent_batch_cleanup(Ptr<Request>, Ptr<TreeNode>);
   void scanIndex_cleanup(Ptr<Request>, Ptr<TreeNode>);
+
+  void scanIndex_release_rangekeys(Ptr<Request>, Ptr<TreeNode>);
 
   /**
    * Page manager

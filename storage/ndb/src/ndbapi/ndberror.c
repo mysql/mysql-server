@@ -797,8 +797,6 @@ ErrorBundle ErrorCodes[] = {
     "Parameter value has an incompatible datatype" },
   { QRY_CHAR_PARAMETER_TRUNCATED, DMEC, AE, 
     "Character Parameter was right truncated" },
-  { QRY_MULTIPLE_SCAN_BRANCHES, DMEC, AE, 
-    "Query has scans that are not descendants/ancestors of each other." },
   { QRY_MULTIPLE_SCAN_SORTED, DMEC, AE, 
     "Query with multiple scans may not be sorted." },
   { QRY_SEQUENTIAL_SCAN_SORTED, DMEC, AE, 

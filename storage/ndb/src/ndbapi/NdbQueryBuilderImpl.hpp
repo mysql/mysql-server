@@ -42,9 +42,8 @@
 #define QRY_SCAN_ORDER_ALREADY_SET 4821
 #define QRY_PARAMETER_HAS_WRONG_TYPE 4822
 #define QRY_CHAR_PARAMETER_TRUNCATED 4823
-#define QRY_MULTIPLE_SCAN_BRANCHES 4824
-#define QRY_MULTIPLE_SCAN_SORTED 4825
-#define QRY_BATCH_SIZE_TOO_SMALL 4826
+#define QRY_MULTIPLE_SCAN_SORTED 4824
+#define QRY_BATCH_SIZE_TOO_SMALL 4825
 
 #ifdef __cplusplus
 #include <Vector.hpp>
@@ -389,15 +388,6 @@ public:
   // Return 'true' is query type is a multi-row scan
   virtual bool isScanOperation() const = 0;
 
-  /** Return true if this operation or any of its descendants is a scan.*/
-  bool hasScanDescendant() const
-  { return m_hasScanDescendant; }
-
-  /** Mark lookup ancestors of this operation as having a scan decendant.
-   * @return Possible error code.
-   */
-  int markScanAncestors();
-
   virtual const NdbQueryOperationDef& getInterface() const = 0; 
 
   /** Make a serialized representation of this operation, corresponding to
@@ -467,9 +457,6 @@ protected:
    * disk columns.
    */
   bool m_diskInChildProjection;
-
-  /** True if this operation or any of its descendants is a scan.*/
-  bool m_hasScanDescendant;
 
 private:
   bool isChildOf(const NdbQueryOperationDefImpl* parentOp) const;
@@ -663,6 +650,17 @@ private:
    * @return Operand interface (or NULL if there was an error.)
    */
   NdbQueryOperand* addOperand(NdbQueryOperandImpl* operand);
+
+  /**
+   * Take ownership of specified object: From now on it is the
+   * responsibility of this NdbQueryBuilderImpl to manage the
+   * lifetime of the object. If takeOwnership() fails, the 
+   * specified object is deleted before it returns.
+   * @param[in] operand to take ownership for (may be NULL).
+   * @return 0 if ok, else there has been an 'Err_MemoryAlloc'
+   */
+  int takeOwnership(NdbQueryOperandImpl*);
+  int takeOwnership(NdbQueryOperationDefImpl*);
 
   bool contains(const NdbQueryOperationDefImpl*);
 
