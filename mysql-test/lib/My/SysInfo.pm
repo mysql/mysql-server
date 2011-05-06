@@ -168,6 +168,28 @@ sub num_cpus {
 }
 
 
+# Return the number of cores found
+#  - if there is a "core_id" attribute in the
+#    cpuinfo, use it to filter out only the count of
+#    cores, else return count of cpus 
+sub num_cores {
+  my ($self)= @_;
+  
+  my $cores = 0;
+  my %seen = (); # Hash with the core id's already seen 
+  foreach my $cpu (@{$self->{cpus}}) {
+    my $core_id = $cpu->{core_id};
+    
+    next if (defined $core_id and $seen{$core_id}++);
+ 
+    # Unknown core id or not seen this core before, count it
+    $cores++;
+  }
+  return $cores or
+    confess "INTERNAL ERROR: No cores!";
+}
+
+
 # Return the smallest bogomips value amongst the processors
 sub min_bogomips {
   my ($self)= @_;
