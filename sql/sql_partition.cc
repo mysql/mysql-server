@@ -3979,7 +3979,7 @@ void get_partition_set(const TABLE *table, uchar *buf, const uint index,
   part_spec->start_part= 0;
   part_spec->end_part= num_parts - 1;
   if ((index < MAX_KEY) && 
-       key_spec->flag == (uint)HA_READ_KEY_EXACT &&
+       key_spec && key_spec->flag == (uint)HA_READ_KEY_EXACT &&
        part_info->some_fields_in_PF.is_set(index))
   {
     key_info= table->key_info+index;
