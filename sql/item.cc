@@ -1781,14 +1781,17 @@ bool agg_item_set_converter(DTCollation &coll, const char *fname,
   }
 
   THD *thd= current_thd;
-  Query_arena *arena, backup;
   bool res= FALSE;
   uint i;
+
   /*
     In case we're in statement prepare, create conversion item
     in its memory: it will be reused on each execute.
   */
-  arena= thd->activate_stmt_arena_if_needed(&backup);
+  Query_arena backup;
+  Query_arena *arena= thd->stmt_arena->is_stmt_prepare() ?
+                      thd->activate_stmt_arena_if_needed(&backup) :
+                      NULL;
 
   for (i= 0, arg= args; i < nargs; i++, arg+= item_sep)
   {
