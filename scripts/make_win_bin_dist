@@ -181,6 +181,7 @@ cp Docs/INSTALL-BINARY    $DESTDIR/Docs/
 cp Docs/manual.chm        $DESTDIR/Docs/ || /bin/true
 cp ChangeLog              $DESTDIR/Docs/ || /bin/true
 cp support-files/my-*.ini $DESTDIR/
+cp README                 $DESTDIR/
 
 if [ -f COPYING ] ; then
   cp COPYING $DESTDIR/
