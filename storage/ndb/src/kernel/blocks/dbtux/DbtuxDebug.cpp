@@ -286,7 +286,7 @@ Dbtux::printNode(TuxCtx & ctx,
   { ConstData data1 = node.getPref();
     Uint32 data2[MaxPrefSize];
     memset(data2, DataFillByte, MaxPrefSize << 2);
-    readKeyAttrs(ctx, frag, node.getMinMax(0), 0, ctx.c_searchKey);
+    readKeyAttrs(ctx, frag, node.getEnt(0), 0, ctx.c_searchKey);
     copyAttrs(ctx, frag, ctx.c_searchKey, data2, tree.m_prefSize);
     for (unsigned n = 0; n < tree.m_prefSize; n++) {
       if (data1[n] != data2[n]) {
@@ -320,7 +320,8 @@ Dbtux::printNode(TuxCtx & ctx,
     if (node.getLink(i) == NullTupLoc)
       continue;
     const TreeEnt ent1 = cpar[i].m_minmax[1 - i];
-    const TreeEnt ent2 = node.getMinMax(i);
+    const unsigned pos = (i == 0 ? 0 : node.getOccup() - 1);
+    const TreeEnt ent2 = node.getEnt(pos);
     unsigned start = 0;
     readKeyAttrs(ctx, frag, ent1, start, ctx.c_searchKey);
     readKeyAttrs(ctx, frag, ent2, start, ctx.c_entryKey);
@@ -337,9 +338,10 @@ Dbtux::printNode(TuxCtx & ctx,
   par.m_depth = 1 + max(cpar[0].m_depth, cpar[1].m_depth);
   par.m_occup = node.getOccup();
   for (unsigned i = 0; i <= 1; i++) {
-    if (node.getLink(i) == NullTupLoc)
-      par.m_minmax[i] = node.getMinMax(i);
-    else
+    if (node.getLink(i) == NullTupLoc) {
+      const unsigned pos = (i == 0 ? 0 : node.getOccup() - 1);
+      par.m_minmax[i] = node.getEnt(pos);
+    } else
       par.m_minmax[i] = cpar[i].m_minmax[i];
   }
 }
@@ -387,9 +389,6 @@ operator<<(NdbOut& out, const Dbtux::TreeHead& tree)
   out << " [prefSize " << dec << tree.m_prefSize << "]";
   out << " [minOccup " << dec << tree.m_minOccup << "]";
   out << " [maxOccup " << dec << tree.m_maxOccup << "]";
-  out << " [AccHead " << dec << tree.getSize(Dbtux::AccHead) << "]";
-  out << " [AccPref " << dec << tree.getSize(Dbtux::AccPref) << "]";
-  out << " [AccFull " << dec << tree.getSize(Dbtux::AccFull) << "]";
   out << " [root " << hex << tree.m_root << "]";
   out << "]";
   return out;
@@ -528,9 +527,8 @@ operator<<(NdbOut& out, const Dbtux::NodeHandle& node)
   unsigned numpos = node.m_node->m_occup;
   data = (const Uint32*)node.m_node + Dbtux::NodeHeadSize + tree.m_prefSize;
   const Dbtux::TreeEnt* entList = (const Dbtux::TreeEnt*)data;
-  // print entries in logical order
-  for (unsigned pos = 1; pos <= numpos; pos++)
-    out << " " << entList[pos % numpos];
+  for (unsigned pos = 0; pos < numpos; pos++)
+    out << " " << entList[pos];
   out << "]";
   out << "]";
   return out;

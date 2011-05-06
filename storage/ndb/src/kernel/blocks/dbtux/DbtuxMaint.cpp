@@ -63,15 +63,7 @@ Dbtux::execTUX_MAINT_REQ(Signal* signal)
   const Uint32 fragId = req->fragId;
   // get the fragment
   FragPtr fragPtr;
-  fragPtr.i = RNIL;
-  for (unsigned i = 0; i < indexPtr.p->m_numFrags; i++) {
-    jam();
-    if (indexPtr.p->m_fragId[i] == fragId) {
-      jam();
-      c_fragPool.getPtr(fragPtr, indexPtr.p->m_fragPtrI[i]);
-      break;
-    }
-  }
+  findFrag(*indexPtr.p, fragId, fragPtr);
   ndbrequire(fragPtr.i != RNIL);
   Frag& frag = *fragPtr.p;
   // set up index keys for this operation
@@ -152,7 +144,7 @@ Dbtux::execTUX_MAINT_REQ(Signal* signal)
     break;
   case TuxMaintReq::OpRemove:
     jam();
-    ok = searchToRemove(frag, c_ctx.c_searchKey, ent, treePos);
+    ok = searchToRemove(c_ctx, frag, c_ctx.c_searchKey, ent, treePos);
 #ifdef VM_TRACE
     if (debugFlags & DebugMaint) {
       debugOut << treePos << (! ok ? " - error" : "") << endl;

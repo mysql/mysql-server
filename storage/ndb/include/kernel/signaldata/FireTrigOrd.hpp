@@ -225,5 +225,47 @@ void FireTrigOrd::setAnyValue(Uint32 any_value)
   m_any_value = any_value;
 }
 
+struct FireTrigReq
+{
+  STATIC_CONST( SignalLength = 4 );
+
+  Uint32 tcOpRec;
+  Uint32 transId[2];
+  Uint32 pass;
+};
+
+struct FireTrigRef
+{
+  STATIC_CONST( SignalLength = 4 );
+
+  Uint32 tcOpRec;
+  Uint32 transId[2];
+  Uint32 errCode;
+
+  enum ErrorCode
+  {
+    FTR_UnknownOperation = 1235
+    ,FTR_IncorrectState = 1236
+  };
+};
+
+struct FireTrigConf
+{
+  STATIC_CONST( SignalLength = 4 );
+
+  Uint32 tcOpRec;
+  Uint32 transId[2];
+  Uint32 noFiredTriggers; // bit 31 defered trigger
+
+  static Uint32 getFiredCount(Uint32 v) {
+    return NoOfFiredTriggers::getFiredCount(v);
+  }
+  static Uint32 getDeferredBit(Uint32 v) {
+    return NoOfFiredTriggers::getDeferredBit(v);
+  }
+  static void setDeferredBit(Uint32 & v) {
+    NoOfFiredTriggers::setDeferredBit(v);
+  }
+};
 
 #endif

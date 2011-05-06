@@ -17,6 +17,41 @@
 SET(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH}
     ${CMAKE_SOURCE_DIR}/cmake
     ${CMAKE_SOURCE_DIR}/storage/ndb/cmake)
+    
+# Check if this is MySQL Cluster build i.e the MySQL Server
+# version string ends in -ndb-Y.Y.Y[-status]    
+MACRO(NDB_CHECK_MYSQL_CLUSTER version_string)
+
+  IF(${version_string} MATCHES "(.*)-ndb-(.*)")
+    SET(mysql_version ${CMAKE_MATCH_1})
+    SET(cluster_version ${CMAKE_MATCH_2})
+    
+    MESSAGE(STATUS  "This is MySQL Cluster ${cluster_version}")
+    
+    # Sanity check that the mysql_version matches precalcuated
+    # values from higher level scripts  
+    IF(NOT ${mysql_version} EQUAL "${MYSQL_NO_DASH_VERSION}")
+      MESSAGE(FATAL_ERROR "Sanity check of version_string failed!")
+    ENDIF()
+
+    # Split the cluster_version further into Y.Y.Y subcomponents
+    IF(${cluster_version} MATCHES "([0-9]+)\\.([0-9]+)\\.([0-9]+)")
+      SET(MYSQL_CLUSTER_VERSION_MAJOR ${CMAKE_MATCH_1} CACHE INTERNAL
+        "MySQL Cluster Major version calculated from MySQL version" FORCE)
+      SET(MYSQL_CLUSTER_VERSION_MINOR ${CMAKE_MATCH_2} CACHE INTERNAL
+        "MySQL Cluster Minor version calculated from MySQL version" FORCE)
+      SET(MYSQL_CLUSTER_VERSION_BUILD ${CMAKE_MATCH_3} CACHE INTERNAL
+        "MySQL Cluster Build version calculated from MySQL version" FORCE)
+    ENDIF()
+
+    # Finally set MYSQL_CLUSTER_VERSION to be used as an indicator
+    # that this is a MySQL Cluster build, yay!
+    SET(MYSQL_CLUSTER_VERSION ${cluster_version} CACHE INTERNAL
+      "This is MySQL Cluster" FORCE)
+
+  ENDIF()
+ENDMACRO()
+
 
 # Temporarily remove -Werror from compiler flags until
 # storage/ndb/ can be built with it
@@ -37,6 +72,9 @@ IF(SOURCE_SUBLIBS)
   # NDBCLUSTER_SOURCES and NDBCLUSTER_LIBS, don't configure
   # again
 ELSE()
+
+  NDB_CHECK_MYSQL_CLUSTER(${VERSION})
+
   INCLUDE(${CMAKE_CURRENT_SOURCE_DIR}/ndb_configure.cmake)
 
   INCLUDE_DIRECTORIES(
@@ -122,8 +160,16 @@ IF(EXISTS ${CMAKE_SOURCE_DIR}/storage/mysql_storage_engine.cmake)
   MYSQL_STORAGE_ENGINE(NDBCLUSTER)
 ELSE()
   # New plugin support, cross-platform
+  
+  # NDB is DEFAULT plugin in MySQL Cluster
+  SET(is_default_plugin "")
+  IF(MYSQL_CLUSTER_VERSION)
+    SET(is_default_plugin "DEFAULT")
+  ENDIF()
+
   MYSQL_ADD_PLUGIN(ndbcluster ${NDBCLUSTER_SOURCES} STORAGE_ENGINE
-    DEFAULT STATIC_ONLY RECOMPILE_FOR_EMBEDDED LINK_LIBRARIES ndbclient)
+    ${is_default_plugin} STATIC_ONLY RECOMPILE_FOR_EMBEDDED
+    LINK_LIBRARIES ndbclient)
 
   IF (NOT MCP_BUG58158)
     IF(WITH_EMBEDDED_SERVER)

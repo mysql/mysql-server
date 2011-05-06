@@ -97,6 +97,24 @@ printPACKED_SIGNAL(FILE * output, const Uint32 * theData, Uint32 len, Uint16 rec
       fprintf(output,"\n");
       break;
     }
+    case ZFIRE_TRIG_REQ: {
+      Uint32 signalLength = 3;
+
+      fprintf(output, "--------------- Signal ----------------\n");
+      fprintf(output, "r.bn: %u \"%s\", length: %u \"FIRE_TRIG_REQ\"\n",
+	      receiverBlockNo, getBlockName(receiverBlockNo,""), signalLength);
+      i += signalLength;
+      break;
+    }
+    case ZFIRE_TRIG_CONF: {
+      Uint32 signalLength = 4;
+
+      fprintf(output, "--------------- Signal ----------------\n");
+      fprintf(output, "r.bn: %u \"%s\", length: %u \"FIRE_TRIG_CONF\"\n",
+	      receiverBlockNo, getBlockName(receiverBlockNo,""), signalLength);
+      i += signalLength;
+      break;
+    }
     default:
       fprintf(output, "Unknown signal type\n");
       i = len; // terminate printing

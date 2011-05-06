@@ -42,6 +42,9 @@
 #include <signaldata/DihRestart.hpp>
 #include <ndb_version.h>
 
+#include <EventLogger.hpp>
+extern EventLogger * g_eventLogger;
+
 //#define DEBUG_QMGR_START
 #ifdef DEBUG_QMGR_START
 #include <DebuggerNames.hpp>
@@ -744,6 +747,27 @@ void Qmgr::execCM_REGREQ(Signal* signal)
   Uint32 gci = 1;
   Uint32 start_type = ~0;
   NdbNodeBitmask skip_nodes;
+
+  if (!c_connectedNodes.get(cmRegReq->nodeId))
+  {
+    jam();
+
+    /**
+     * With ndbmtd, there is a race condition such that
+     *   CM_REGREQ can arrive prior to CONNECT_REP
+     *   since CONNECT_REP is sent from CMVMI
+     *
+     * In such cases, ignore the CM_REGREQ which is safe
+     *   as it will anyway be resent by starting node
+     */
+    g_eventLogger->info("discarding CM_REGREQ from %u "
+                        "as we're not yet connected (isNdbMt: %u)",
+                        cmRegReq->nodeId,
+                        (unsigned)isNdbMt());
+
+    ndbrequire(isNdbMt());
+    return;
+  }
 
   if (signal->getLength() == CmRegReq::SignalLength)
   {
@@ -2351,8 +2375,6 @@ void Qmgr::execCM_ACKADD(Signal* signal)
  * WE HAVE BEEN INCLUDED INTO THE CLUSTER. IT IS NOW TIME TO CALCULATE WHICH 
  * ARE OUR LEFT AND RIGHT NEIGHBOURS FOR THE HEARTBEAT PROTOCOL. 
  *--------------------------------------------------------------------------*/
-#include <EventLogger.hpp>
-extern EventLogger * g_eventLogger;
 void Qmgr::findNeighbours(Signal* signal, Uint32 from) 
 {
   UintR toldLeftNeighbour;
