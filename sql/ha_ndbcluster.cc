@@ -237,6 +237,18 @@ static MYSQL_THDVAR_UINT(
   0                                  /* block */
 );
 
+static MYSQL_THDVAR_UINT(
+  deferred_constraints,              /* name */
+  PLUGIN_VAR_RQCMDARG,
+  "Specified that constraints should be checked deferred (when supported)",
+  NULL,                              /* check func */
+  NULL,                              /* update func */
+  0,                                 /* default */
+  0,                                 /* min */
+  1,                                 /* max */
+  0                                  /* block */
+);
+
 static int ndbcluster_end(handlerton *hton, ha_panic_function flag);
 static bool ndbcluster_show_status(handlerton *hton, THD*,
                                    stat_print_fn *,
@@ -3824,7 +3836,7 @@ ha_ndbcluster::get_hidden_fields_scan(NdbScanOperation::ScanOptions *options,
 
 inline void
 ha_ndbcluster::eventSetAnyValue(THD *thd, 
-                                NdbOperation::OperationOptions *options)
+                                NdbOperation::OperationOptions *options) const
 {
   options->anyValue= 0;
   if (unlikely(m_slow_path))
@@ -4070,6 +4082,12 @@ int ha_ndbcluster::ndb_write_row(uchar *record,
     options.extraSetValues= sets;
     options.numExtraSetValues= num_sets;
   }
+  if (thd->slave_thread || THDVAR(thd, deferred_constraints))
+  {
+    options.optionsPresent |=
+      NdbOperation::OperationOptions::OO_DEFERRED_CONSTAINTS;
+  }
+
   if (options.optionsPresent != 0)
     poptions=&options;
 
@@ -4820,6 +4838,12 @@ int ha_ndbcluster::ndb_update_row(const uchar *old_data, uchar *new_data,
   
   bool need_flush= add_row_check_if_batch_full(thd_ndb);
 
+  if (thd->slave_thread || THDVAR(thd, deferred_constraints))
+  {
+    options.optionsPresent |=
+      NdbOperation::OperationOptions::OO_DEFERRED_CONSTAINTS;
+  }
+
   if (cursor)
   {
     /*
@@ -5044,6 +5068,12 @@ int ha_ndbcluster::ndb_delete_row(const uchar *record,
   */
   uint delete_size= 12 + (m_bytes_per_write >> 2);
   bool need_flush= add_row_check_if_batch_full_size(thd_ndb, delete_size);
+
+  if (thd->slave_thread || THDVAR(thd, deferred_constraints))
+  {
+    options.optionsPresent |=
+      NdbOperation::OperationOptions::OO_DEFERRED_CONSTAINTS;
+  }
 
   if (cursor)
   {
@@ -15412,7 +15442,7 @@ static struct st_mysql_sys_var* system_variables[]= {
   MYSQL_SYSVAR(nodeid),
   MYSQL_SYSVAR(blob_read_batch_bytes),
   MYSQL_SYSVAR(blob_write_batch_bytes),
-
+  MYSQL_SYSVAR(deferred_constraints),
   NULL
 };
 

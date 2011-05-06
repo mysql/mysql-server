@@ -973,19 +973,6 @@ Dbspj::build(Build_context& ctx,
       jam();
       requestPtr.p->m_bits |= Request::RT_VAR_ALLOC;
     }
-
-    {
-      /**
-       * If multi scan, then cursors are determined when one batch is complete
-       *   hence clear list here...
-       * But if it's single scan...the list will already contain the
-       *   only scan in the tree
-       */
-      Local_TreeNodeCursor_list list(m_treenode_pool,
-                                     requestPtr.p->m_cursor_nodes);
-      ndbassert(list.noOfElements() > 1);
-      list.remove();
-    }
   }
 
   return 0;
@@ -1119,6 +1106,8 @@ Dbspj::batchComplete(Signal* signal, Ptr<Request> requestPtr)
     {
       ndbassert(is_complete);
     }
+
+    prepareNextBatch(signal, requestPtr);
     sendConf(signal, requestPtr, is_complete);
   }
   else if (is_complete && need_complete_phase)
@@ -1156,6 +1145,132 @@ Dbspj::batchComplete(Signal* signal, Ptr<Request> requestPtr)
      */
     releaseRequestBuffers(requestPtr, true);
   }
+}
+
+/**
+ * Locate next TreeNode(s) to retrieve more rows from.
+ *
+ *   Calcule set of 'm_active_nodes' we will receive from in NEXTREQ.
+ *   Add these TreeNodes to the cursor list to be iterated.
+ */
+void
+Dbspj::prepareNextBatch(Signal* signal, Ptr<Request> requestPtr)
+{
+  requestPtr.p->m_cursor_nodes.init();
+  requestPtr.p->m_active_nodes.clear();
+
+  if (requestPtr.p->m_cnt_active == 0)
+  {
+    jam();
+    return;
+  }
+
+  if (requestPtr.p->m_bits & Request::RT_REPEAT_SCAN_RESULT)
+  {
+    /**
+     * If REPEAT_SCAN_RESULT we handle byshy scans by return more *new* rows
+     * from only one of the active child scans. If there are multiple 
+     * bushy scans not being able to return their current result set in 
+     * a single batch, result sets from the other child scans are repeated
+     * until all rows has been returned to the API client.
+     *
+     * Hence, the cross joined results from the bushy scans are partly
+     * produced within the SPJ block on a 'batchsize granularity', 
+     * and partly is the responsibility of the API-client by iterating
+     * the result rows within the current result batches.
+     * (Opposed to non-REPEAT_SCAN_RESULT, the client only have to care about 
+     *  the current batched rows - no buffering is required)
+     */
+    jam();
+    Ptr<TreeNode> nodePtr;
+    Local_TreeNode_list list(m_treenode_pool, requestPtr.p->m_nodes);
+
+    /**
+     * Locate last 'TN_ACTIVE' TreeNode which is the only one choosen 
+     * to return more *new* rows.
+     */
+    for (list.last(nodePtr); !nodePtr.isNull(); list.prev(nodePtr))
+    {
+      if (nodePtr.p->m_state == TreeNode::TN_ACTIVE)
+      {
+        jam();
+        DEBUG("Will fetch more from 'active' m_node_no: " << nodePtr.p->m_node_no);
+        /**
+         * A later NEXTREQ will request a *new* batch of rows from this TreeNode.
+         */
+        registerActiveCursor(requestPtr, nodePtr);
+        break;
+      }
+    }
+
+    /**
+     *  Restart/repeat other (index scan) child batches which:
+     *    - Being 'after' nodePtr located above.
+     *    - Not being an ancestor of (depends on) any 'active' TreeNode.
+     *      (As these scans are started when rows from these parent nodes
+     *      arrives.)
+     */
+    if (!nodePtr.isNull())
+    {
+      jam();
+      DEBUG("Calculate 'active', w/ cursor on m_node_no: " << nodePtr.p->m_node_no);
+
+      /* Restart any partial index-scans after this 'TN_ACTIVE' TreeNode */
+      for (list.next(nodePtr); !nodePtr.isNull(); list.next(nodePtr))
+      {
+        jam();
+        if (!nodePtr.p->m_ancestors.overlaps (requestPtr.p->m_active_nodes))
+        {
+          jam();
+          ndbrequire(nodePtr.p->m_state != TreeNode::TN_ACTIVE);
+          ndbrequire(nodePtr.p->m_info != 0);
+          if (nodePtr.p->m_info->m_parent_batch_repeat != 0)
+          {
+            jam();
+            (this->*(nodePtr.p->m_info->m_parent_batch_repeat))(signal,
+                                                                requestPtr,
+                                                                nodePtr);
+          }
+        }
+      }
+    } // if (!nodePtr.isNull()
+  }
+  else  // not 'RT_REPEAT_SCAN_RESULT'
+  {
+    /**
+     * If not REPEAT_SCAN_RESULT multiple active TreeNodes may return their 
+     * remaining result simultaneously. In case of byshy-scans, these
+     * concurrent result streams are cross joins of each other
+     * in SQL terms. In order to produce the cross joined result, it is
+     * the responsibility of the API-client to buffer these streams and
+     * iterate them to produce the cross join.
+     */
+    jam();
+    Ptr<TreeNode> nodePtr;
+    Local_TreeNode_list list(m_treenode_pool, requestPtr.p->m_nodes);
+    TreeNodeBitMask ancestors_of_active;
+
+    for (list.last(nodePtr); !nodePtr.isNull(); list.prev(nodePtr))
+    {
+      /**
+       * If we are active (i.e not consumed all rows originating
+       *   from parent rows) and we are not in the set of parents 
+       *   for any active child:
+       *
+       * Then, this is a position that execSCAN_NEXTREQ should continue
+       */
+      if (nodePtr.p->m_state == TreeNode::TN_ACTIVE &&
+         !ancestors_of_active.get (nodePtr.p->m_node_no))
+      {
+        jam();
+        DEBUG("Add 'active' m_node_no: " << nodePtr.p->m_node_no);
+        registerActiveCursor(requestPtr, nodePtr);
+        ancestors_of_active.bitOR(nodePtr.p->m_ancestors);
+      }
+    }
+  } // if (RT_REPEAT_SCAN_RESULT)
+
+  DEBUG("Calculated 'm_active_nodes': " << requestPtr.p->m_active_nodes.rep.data[0]);
 }
 
 void
@@ -1283,51 +1398,52 @@ void
 Dbspj::releaseScanBuffers(Ptr<Request> requestPtr)
 {
   Ptr<TreeNode> treeNodePtr;
+  Local_TreeNode_list list(m_treenode_pool, requestPtr.p->m_nodes);
+  TreeNodeBitMask ancestors_of_active;
+
+  for (list.last(treeNodePtr); !treeNodePtr.isNull(); list.prev(treeNodePtr))
   {
-    Local_TreeNode_list list(m_treenode_pool, requestPtr.p->m_nodes);
-    list.first(treeNodePtr);
+    /**
+     * If there are no active children,
+     *   then we can cleanup in our sub-branch
+     */
+    if (!ancestors_of_active.get(treeNodePtr.p->m_node_no))
+    {
+      if (treeNodePtr.p->m_bits & TreeNode::T_ROW_BUFFER)
+      {
+        jam();
+        releaseNodeRows(requestPtr, treeNodePtr);
+      }
+      
+      if (treeNodePtr.p->m_state == TreeNode::TN_ACTIVE)
+      {
+        jam();
+        cleanupChildBranch(requestPtr, treeNodePtr);
+      }
+    }
+
+    /**
+      * Build Bitmask of all nodes having TN_ACTIVE childs
+      */
+    if (treeNodePtr.p->m_state == TreeNode::TN_ACTIVE)
+    {
+      ancestors_of_active.bitOR(treeNodePtr.p->m_ancestors);
+    }
   }
-
-  /**
-   * This is calling recursive function...buh!
-   *   but i can't figure out how to do it someother way...
-   */
-
-  /**
-   * This recursive function will register nodes to be notified
-   *   about SCAN_NEXTREQ.
-   *
-   * Clear it first, so that nodes won't end up in it several times...
-   */
-  requestPtr.p->m_cursor_nodes.init();
-
   /**
    * Needs to be atleast 1 active otherwise we should have
    *   taken the cleanup "path" in batchComplete
    */
-  ndbrequire(releaseScanBuffers(requestPtr, treeNodePtr) > 0);
+  ndbrequire(requestPtr.p->m_cnt_active >= 1);
 }
 
 void
-Dbspj::mark_active(Ptr<Request> requestPtr,
-                   Ptr<TreeNode> treeNodePtr,
-                   bool value)
+Dbspj::registerActiveCursor(Ptr<Request> requestPtr, Ptr<TreeNode> treeNodePtr)
 {
   Uint32 bit = treeNodePtr.p->m_node_no;
-  if (value)
-  {
-    ndbassert(requestPtr.p->m_active_nodes.get(bit) == false);
-  }
-  else
-  {
-    ndbassert(requestPtr.p->m_active_nodes.get(bit) == true);
-  }
-  requestPtr.p->m_active_nodes.set(bit, value);
-}
+  ndbrequire(!requestPtr.p->m_active_nodes.get(bit));
+  requestPtr.p->m_active_nodes.set(bit);
 
-void
-Dbspj::registerCursor(Ptr<Request> requestPtr, Ptr<TreeNode> treeNodePtr)
-{
   Local_TreeNodeCursor_list list(m_treenode_pool, requestPtr.p->m_cursor_nodes);
 #ifdef VM_TRACE
   {
@@ -1341,12 +1457,9 @@ Dbspj::registerCursor(Ptr<Request> requestPtr, Ptr<TreeNode> treeNodePtr)
   list.add(treeNodePtr);
 }
 
-Uint32
-Dbspj::releaseScanBuffers(Ptr<Request> requestPtr,
-                          Ptr<TreeNode> treeNodePtr)
+void
+Dbspj::cleanupChildBranch(Ptr<Request> requestPtr, Ptr<TreeNode> treeNodePtr)
 {
-  Uint32 active_child = 0;
-
   LocalArenaPoolImpl pool(requestPtr.p->m_arena, m_dependency_map_pool);
   Local_dependency_map list(pool, treeNodePtr.p->m_dependent_nodes);
   Dependency_map::ConstDataBufferIterator it;
@@ -1354,40 +1467,15 @@ Dbspj::releaseScanBuffers(Ptr<Request> requestPtr,
   {
     jam();
     Ptr<TreeNode> childPtr;
-    m_treenode_pool.getPtr(childPtr, * it.data);
-    active_child += releaseScanBuffers(requestPtr, childPtr);
-  }
-
-  const bool active = treeNodePtr.p->m_state == TreeNode::TN_ACTIVE;
-  if (active_child == 0)
-  {
-    jam();
-
-    /**
-     * If there is no active children,
-     *   then we can release our own (optionally) buffered rows
-     */
-    if (treeNodePtr.p->m_bits & TreeNode::T_ROW_BUFFER)
+    m_treenode_pool.getPtr(childPtr, *it.data);
+    if (childPtr.p->m_info->m_parent_batch_cleanup != 0)
     {
       jam();
-      releaseNodeRows(requestPtr, treeNodePtr);
+      (this->*(childPtr.p->m_info->m_parent_batch_cleanup))(requestPtr,
+                                                            childPtr);
     }
-
-    /**
-     * If we have no active children,
-     *   and we ourself is active (i.e not consumed all rows originating
-     *   from parent rows)
-     *
-     * Then, this is a position that execSCAN_NEXTREQ should continue
-     */
-    if (active)
-    {
-      jam();
-      registerCursor(requestPtr, treeNodePtr);
-    }
+    cleanupChildBranch(requestPtr,childPtr);
   }
-
-  return active_child + (active ? 1 : 0);
 }
 
 void
@@ -1583,8 +1671,6 @@ Dbspj::nodeFail(Signal* signal, Ptr<Request> requestPtr,
 {
   Uint32 cnt = 0;
   Uint32 iter = 0;
-  Uint32 outstanding = requestPtr.p->m_outstanding;
-  Uint32 aborting = requestPtr.p->m_state & Request::RS_ABORTING;
 
   {
     Ptr<TreeNode> nodePtr;
@@ -1623,12 +1709,6 @@ Dbspj::nodeFail(Signal* signal, Ptr<Request> requestPtr,
   {
     jam();
     abort(signal, requestPtr, DbspjErr::NodeFailure);
-
-    if (aborting && outstanding && requestPtr.p->m_outstanding == 0)
-    {
-      jam();
-      checkBatchComplete(signal, requestPtr, 0);
-    }
   }
 
   return cnt + iter;
@@ -1680,7 +1760,7 @@ Dbspj::complete(Signal* signal, Ptr<Request> requestPtr)
 void
 Dbspj::cleanup(Ptr<Request> requestPtr)
 {
-  ndbrequire(requestPtr.p->m_active_nodes.isclear());
+  ndbrequire(requestPtr.p->m_cnt_active == 0);
   {
     Ptr<TreeNode> nodePtr;
     Local_TreeNode_list list(m_treenode_pool, requestPtr.p->m_nodes);
@@ -1957,16 +2037,46 @@ Dbspj::execSCAN_NEXTREQ(Signal* signal)
     Ptr<TreeNode> treeNodePtr;
     Local_TreeNodeCursor_list list(m_treenode_pool,
                                    requestPtr.p->m_cursor_nodes);
+    Uint32 cnt_active = 0;
+
     for (list.first(treeNodePtr); !treeNodePtr.isNull(); list.next(treeNodePtr))
     {
-      jam();
-      ndbrequire(treeNodePtr.p->m_state == TreeNode::TN_ACTIVE);
-      ndbrequire(treeNodePtr.p->m_info != 0 &&
-                 treeNodePtr.p->m_info->m_execSCAN_NEXTREQ != 0);
-      (this->*(treeNodePtr.p->m_info->m_execSCAN_NEXTREQ))(signal,
-                                                           requestPtr,
-                                                           treeNodePtr);
+      if (treeNodePtr.p->m_state == TreeNode::TN_ACTIVE)
+      {
+        jam();
+        DEBUG("SCAN_NEXTREQ on TreeNode: " << treeNodePtr.i
+           << ",  m_node_no: " << treeNodePtr.p->m_node_no
+           << ", w/ m_parentPtrI: " << treeNodePtr.p->m_parentPtrI);
+
+        ndbrequire(treeNodePtr.p->m_info != 0 &&
+                   treeNodePtr.p->m_info->m_execSCAN_NEXTREQ != 0);
+        (this->*(treeNodePtr.p->m_info->m_execSCAN_NEXTREQ))(signal,
+                                                             requestPtr,
+                                                             treeNodePtr);
+        cnt_active++;
+      }
+      else
+      {
+        /**
+         * Restart any other scans not being 'TN_ACTIVE'
+         * (Only effective if 'RT_REPEAT_SCAN_RESULT')
+         */
+        jam();
+        ndbrequire(requestPtr.p->m_bits & Request::RT_REPEAT_SCAN_RESULT);
+        DEBUG("  Restart TreeNode: " << treeNodePtr.i
+           << ",  m_node_no: " << treeNodePtr.p->m_node_no
+           << ", w/ m_parentPtrI: " << treeNodePtr.p->m_parentPtrI);
+
+        ndbrequire(treeNodePtr.p->m_info != 0 &&
+                   treeNodePtr.p->m_info->m_parent_batch_complete !=0 );
+        (this->*(treeNodePtr.p->m_info->m_parent_batch_complete))(signal,
+                                                                  requestPtr,
+                                                                  treeNodePtr);
+      }
     }
+    /* Expected only a single ACTIVE TreeNode among the cursors */
+    ndbrequire(cnt_active == 1 ||
+               !(requestPtr.p->m_bits & Request::RT_REPEAT_SCAN_RESULT));
   }
 }
 
@@ -2567,6 +2677,8 @@ Dbspj::g_LookupOpInfo =
   0, // execSCAN_FRAGCONF
   &Dbspj::lookup_parent_row,
   &Dbspj::lookup_parent_batch_complete,
+  0, // Dbspj::lookup_parent_batch_repeat,
+  0, // Dbspj::lookup_parent_batch_cleanup,
   0, // Dbspj::lookup_execSCAN_NEXTREQ
   0, // Dbspj::lookup_complete
   &Dbspj::lookup_abort,
@@ -3621,6 +3733,8 @@ Dbspj::g_ScanFragOpInfo =
   &Dbspj::scanFrag_execSCAN_FRAGCONF,
   0, // parent row
   0, // parent batch complete
+  0, // parent batch repeat
+  0, // Dbspj::scanFrag_parent_batch_cleanup,
   &Dbspj::scanFrag_execSCAN_NEXTREQ,
   0, // Dbspj::scanFrag_complete
   &Dbspj::scanFrag_abort,
@@ -3724,13 +3838,7 @@ Dbspj::scanFrag_build(Build_context& ctx,
     }
 
     ctx.m_scan_cnt++;
-    /**
-     * In the scenario with only 1 scan in tree,
-     *   register cursor here, so we don't need to search for in after build
-     * If m_scan_cnt > 1,
-     *   then this list will simply be cleared after build
-     */
-    registerCursor(requestPtr, treeNodePtr);
+    ctx.m_scans.set(treeNodePtr.p->m_node_no);
 
     if (ctx.m_start_signal)
     {
@@ -3841,7 +3949,6 @@ Dbspj::scanFrag_send(Signal* signal,
 
   requestPtr.p->m_outstanding++;
   requestPtr.p->m_cnt_active++;
-  mark_active(requestPtr, treeNodePtr, true);
   treeNodePtr.p->m_state = TreeNode::TN_ACTIVE;
   Ptr<ScanFragHandle> scanFragHandlePtr;
   m_scanfraghandle_pool.getPtr(scanFragHandlePtr, treeNodePtr.p->
@@ -3974,7 +4081,6 @@ Dbspj::scanFrag_execSCAN_FRAGREF(Signal* signal,
   ndbrequire(requestPtr.p->m_outstanding);
   requestPtr.p->m_outstanding--;
   treeNodePtr.p->m_state = TreeNode::TN_INACTIVE;
-  mark_active(requestPtr, treeNodePtr, false);
 
   abort(signal, requestPtr, errCode);
 }
@@ -4022,7 +4128,6 @@ Dbspj::scanFrag_execSCAN_FRAGCONF(Signal* signal,
     ndbrequire(requestPtr.p->m_cnt_active);
     requestPtr.p->m_cnt_active--;
     treeNodePtr.p->m_state = TreeNode::TN_INACTIVE;
-    mark_active(requestPtr, treeNodePtr, false);
     scanFragHandlePtr.p->m_state = ScanFragHandle::SFH_COMPLETE;
   }
   else
@@ -4178,6 +4283,8 @@ Dbspj::g_ScanIndexOpInfo =
   &Dbspj::scanIndex_execSCAN_FRAGCONF,
   &Dbspj::scanIndex_parent_row,
   &Dbspj::scanIndex_parent_batch_complete,
+  &Dbspj::scanIndex_parent_batch_repeat,
+  &Dbspj::scanIndex_parent_batch_cleanup,
   &Dbspj::scanIndex_execSCAN_NEXTREQ,
   &Dbspj::scanIndex_complete,
   &Dbspj::scanIndex_abort,
@@ -4290,14 +4397,23 @@ Dbspj::scanIndex_build(Build_context& ctx,
       nodePtr.i = nodePtr.p->m_parentPtrI;
     }
 
-    ctx.m_scan_cnt++;
     /**
-     * In the scenario with only 1 scan in tree,
-     *   register cursor here, so we don't need to search for in after build
-     * If m_scan_cnt > 1,
-     *   then this list will simply be cleared after build
+     * If there exists other scan TreeNodes not being among 
+     * my ancestors, results from this scanIndex may be repeated 
+     * as part of an X-scan.
+     *
+     * NOTE: The scan nodes being along the left deep ancestor chain
+     *       are not 'repeatable' as they are driving the
+     *       repeated X-scan and are thus not repeated themself.
      */
-    registerCursor(requestPtr, treeNodePtr);
+    if (requestPtr.p->m_bits & Request::RT_REPEAT_SCAN_RESULT &&
+       !treeNodePtr.p->m_ancestors.contains(ctx.m_scans))
+    {
+      nodePtr.p->m_bits |= TreeNode::T_SCAN_REPEATABLE;
+    }
+
+    ctx.m_scan_cnt++;
+    ctx.m_scans.set(treeNodePtr.p->m_node_no);
 
     return 0;
   } while (0);
@@ -4325,6 +4441,7 @@ Dbspj::parseScanIndex(Build_context& ctx,
     data.m_fragments.init();
     data.m_frags_outstanding = 0;
     data.m_frags_not_complete = 0;
+    data.m_batch_chunks = 0;
 
     err = parseDA(ctx, requestPtr, treeNodePtr,
                   tree, treeBits, param, paramBits);
@@ -4731,20 +4848,16 @@ Dbspj::scanIndex_parent_row(Signal* signal,
         break;
       }
 
-      if (fragPtr.p->m_ref == 0)
-      {
-        jam();
-        fragPtr.p->m_ref = tmp.receiverRef;
-      }
-      else
-      {
-        /**
-         * TODO: not 100% sure if this is correct with reorg ongoing...
-         *       but scanning "old" should regardless be safe as we still have
-         *       scanCookie
-         */
-        ndbassert(fragPtr.p->m_ref == tmp.receiverRef);
-      }
+      /**
+       * NOTE: We can get different receiverRef's here
+       *       for different keys. E.g during node-recovery where
+       *       primary-fragment is switched.
+       *
+       *       Use latest that we receive
+       *
+       * TODO: Also double check table-reorg
+       */
+      fragPtr.p->m_ref = tmp.receiverRef;
     }
     else
     {
@@ -4872,6 +4985,32 @@ Dbspj::scanIndex_parent_batch_complete(Signal* signal,
 }
 
 void
+Dbspj::scanIndex_parent_batch_repeat(Signal* signal,
+                                      Ptr<Request> requestPtr,
+                                      Ptr<TreeNode> treeNodePtr)
+{
+  jam();
+  ScanIndexData& data = treeNodePtr.p->m_scanindex_data;
+
+  DEBUG("scanIndex_parent_batch_repeat(), m_node_no: " << treeNodePtr.p->m_node_no
+        << ", m_batch_chunks: " << data.m_batch_chunks);
+
+  /**
+   * Register index-scans to be restarted if we didn't get all
+   * previously fetched parent related child rows in a single batch.
+   */
+  if (data.m_batch_chunks > 1)
+  {
+    jam();
+    DEBUG("Register TreeNode for restart, m_node_no: " << treeNodePtr.p->m_node_no);
+    ndbrequire(treeNodePtr.p->m_state != TreeNode::TN_ACTIVE);
+    registerActiveCursor(requestPtr, treeNodePtr);
+    data.m_frags_not_complete = 1;
+    data.m_batch_chunks = 0;
+  }
+}
+
+void
 Dbspj::scanIndex_send(Signal* signal,
                       Ptr<Request> requestPtr,
                       Ptr<TreeNode> treeNodePtr)
@@ -4896,12 +5035,24 @@ Dbspj::scanIndex_send(Signal* signal,
   }
 
   /**
-   * keys,
-   * - sliced out to each ScanFragHandle => release = true
-   * - all kept on first ScanFragHandle => release = false
+   * if (m_bits & prunemask):
+   * - Range keys sliced out to each ScanFragHandle
+   * - Else, range keys kept on first (and only) ScanFragHandle
    */
   Uint32 prunemask = TreeNode::T_PRUNE_PATTERN | TreeNode::T_CONST_PRUNE;
-  bool release = (treeNodePtr.p->m_bits & prunemask) != 0;
+
+  /**
+   * Don't release keyInfo if it may be sent multiple times, eiter:
+   *   - Not pruned -> same keyInfo goes to all datanodes.
+   *   - Result handling is REPEAT_SCAN_RESULT and same batch may be 
+   *     repeated multiple times due to incomplete bushy X-scans.
+   *     (by ::scanIndex_parent_batch_repeat())
+   *
+   * When not released, ::scanIndex_parent_batch_cleanup() will 
+   * eventually release them when preparing arrival of a new parent batch.
+   */
+  const bool release = ((treeNodePtr.p->m_bits & prunemask) != 0 &&
+                        (treeNodePtr.p->m_bits & TreeNode::T_SCAN_REPEATABLE) == 0);
 
   ScanFragReq* req = reinterpret_cast<ScanFragReq*>(signal->getDataPtrSend());
   memcpy(req, org, sizeof(data.m_scanFragReq));
@@ -4913,18 +5064,16 @@ Dbspj::scanIndex_send(Signal* signal,
   Ptr<ScanFragHandle> fragPtr;
   Local_ScanFragHandle_list list(m_scanfraghandle_pool, data.m_fragments);
 
-  Uint32 keyInfoPtrI;
-  if (release == false)
+  Uint32 keyInfoPtrI = RNIL;
+  list.first(fragPtr);
+  if ((treeNodePtr.p->m_bits & prunemask) == 0)
   {
     jam();
-    list.first(fragPtr);
     keyInfoPtrI = fragPtr.p->m_rangePtrI;
     ndbrequire(keyInfoPtrI != RNIL);
-    fragPtr.p->m_rangePtrI = RNIL;
   }
 
   Uint32 batchRange = 0;
-  list.first(fragPtr);
   for (Uint32 i = 0; i < cnt && !fragPtr.isNull(); list.next(fragPtr))
   {
     jam();
@@ -4940,7 +5089,7 @@ Dbspj::scanIndex_send(Signal* signal,
     req->senderData = fragPtr.i;
     req->fragmentNoKeyLen = fragPtr.p->m_fragId;
 
-    if (release)
+    if ((treeNodePtr.p->m_bits & prunemask))
     {
       jam();
       keyInfoPtrI = fragPtr.p->m_rangePtrI;
@@ -4950,8 +5099,9 @@ Dbspj::scanIndex_send(Signal* signal,
         fragPtr.p->m_state = ScanFragHandle::SFH_COMPLETE;
         continue;
       }
-      fragPtr.p->m_rangePtrI = RNIL;
-
+    }
+    if (release)
+    {
       /**
        * If we'll use sendSignal() and we need to send the attrInfo several
        *   times, we need to copy them
@@ -4960,7 +5110,6 @@ Dbspj::scanIndex_send(Signal* signal,
       ndbrequire(dupSection(tmp, attrInfoPtrI)); // TODO handle error
       attrInfoPtrI = tmp;
     }
-    fragPtr.p->reset_ranges();
 
     req->variableData[0] = batchRange;
     getSection(handle.m_ptr[0], attrInfoPtrI);
@@ -4994,6 +5143,8 @@ Dbspj::scanIndex_send(Signal* signal,
       jam();
       sendSignal(ref, GSN_SCAN_FRAGREQ, signal,
                  NDB_ARRAY_SIZE(data.m_scanFragReq), JBB, &handle);
+      fragPtr.p->m_rangePtrI = RNIL;
+      fragPtr.p->reset_ranges();
     }
     else
     {
@@ -5009,14 +5160,6 @@ Dbspj::scanIndex_send(Signal* signal,
     batchRange += bs_rows;
   }
 
-  if (release == false)
-  {
-    jam();
-    // only supported for now...
-    ndbrequire(treeNodePtr.p->m_bits & TreeNode::T_SCAN_PARALLEL);
-    releaseSection(keyInfoPtrI);
-  }
-
   if (treeNodePtr.p->m_bits & TreeNode::T_SCAN_PARALLEL)
   {
     ndbrequire(data.m_frags_outstanding == data.m_frags_not_complete);
@@ -5026,9 +5169,9 @@ Dbspj::scanIndex_send(Signal* signal,
     ndbrequire(data.m_frags_outstanding == 1);
   }
 
+  data.m_batch_chunks = 1;
   requestPtr.p->m_cnt_active++;
   requestPtr.p->m_outstanding++;
-  mark_active(requestPtr, treeNodePtr, true);
   treeNodePtr.p->m_state = TreeNode::TN_ACTIVE;
 }
 
@@ -5129,7 +5272,6 @@ Dbspj::scanIndex_execSCAN_FRAGCONF(Signal* signal,
       ndbrequire(requestPtr.p->m_cnt_active);
       requestPtr.p->m_cnt_active--;
       treeNodePtr.p->m_state = TreeNode::TN_INACTIVE;
-      mark_active(requestPtr, treeNodePtr, false);
     }
   }
 
@@ -5192,7 +5334,6 @@ Dbspj::scanIndex_execSCAN_FRAGREF(Signal* signal,
     ndbrequire(requestPtr.p->m_cnt_active);
     requestPtr.p->m_cnt_active--;
     treeNodePtr.p->m_state = TreeNode::TN_INACTIVE;
-    mark_active(requestPtr, treeNodePtr, false);
   }
 
   if (data.m_frags_outstanding == 0)
@@ -5277,6 +5418,8 @@ Dbspj::scanIndex_execSCAN_NEXTREQ(Signal* signal,
    *   so require that we did actually send something
    */
   ndbrequire(data.m_frags_outstanding > 0);
+  ndbrequire(data.m_batch_chunks > 0);
+  data.m_batch_chunks++;
 
   requestPtr.p->m_outstanding++;
   ndbassert(treeNodePtr.p->m_state == TreeNode::TN_ACTIVE);
@@ -5464,26 +5607,25 @@ Dbspj::scanIndex_execNODE_FAILREP(Signal* signal,
     ndbrequire(requestPtr.p->m_cnt_active);
     requestPtr.p->m_cnt_active--;
     treeNodePtr.p->m_state = TreeNode::TN_INACTIVE;
-    mark_active(requestPtr, treeNodePtr, false);
   }
 
   return sum;
 }
 
 void
-Dbspj::scanIndex_cleanup(Ptr<Request> requestPtr,
-                         Ptr<TreeNode> treeNodePtr)
+Dbspj::scanIndex_release_rangekeys(Ptr<Request> requestPtr,
+                                   Ptr<TreeNode> treeNodePtr)
 {
+  jam();
+  DEBUG("scanIndex_release_rangekeys(), m_node_no: " << treeNodePtr.p->m_node_no);
+
   ScanIndexData& data = treeNodePtr.p->m_scanindex_data;
   Local_ScanFragHandle_list list(m_scanfraghandle_pool, data.m_fragments);
-  if (requestPtr.p->m_state & Request::RS_ABORTING)
+  Ptr<ScanFragHandle> fragPtr;
+
+  if (treeNodePtr.p->m_bits & TreeNode::T_PRUNE_PATTERN)
   {
-    /**
-     * If we're aborting...there can be keys attached...that has not
-     *   (and will not) be sent...release them to avoid memleak
-     */
     jam();
-    Ptr<ScanFragHandle> fragPtr;
     for (list.first(fragPtr); !fragPtr.isNull(); list.next(fragPtr))
     {
       if (fragPtr.p->m_rangePtrI != RNIL)
@@ -5491,20 +5633,52 @@ Dbspj::scanIndex_cleanup(Ptr<Request> requestPtr,
         releaseSection(fragPtr.p->m_rangePtrI);
         fragPtr.p->m_rangePtrI = RNIL;
       }
+      fragPtr.p->reset_ranges();
     }
   }
   else
   {
-#ifdef VM_TRACE
-    Ptr<ScanFragHandle> fragPtr;
-    for (list.first(fragPtr); !fragPtr.isNull(); list.next(fragPtr))
+    jam();
+    list.first(fragPtr);
+    if (fragPtr.p->m_rangePtrI != RNIL)
     {
-      ndbrequire(fragPtr.p->m_rangePtrI == RNIL);
+      releaseSection(fragPtr.p->m_rangePtrI);
+      fragPtr.p->m_rangePtrI = RNIL;
     }
-#endif
+    fragPtr.p->reset_ranges();
   }
-  list.remove();
+}
 
+/**
+ * Parent batch has completed, and will not refetch (X-joined) results
+ * from its childs. Release & reset range keys which are unsent or we
+ * have kept for possible resubmits.
+ */
+void
+Dbspj::scanIndex_parent_batch_cleanup(Ptr<Request> requestPtr,
+                                      Ptr<TreeNode> treeNodePtr)
+{
+  DEBUG("scanIndex_parent_batch_cleanup");
+  scanIndex_release_rangekeys(requestPtr,treeNodePtr);
+}
+
+void
+Dbspj::scanIndex_cleanup(Ptr<Request> requestPtr,
+                         Ptr<TreeNode> treeNodePtr)
+{
+  ScanIndexData& data = treeNodePtr.p->m_scanindex_data;
+  DEBUG("scanIndex_cleanup");
+
+  /**
+   * Range keys has been collected wherever there are uncompleted
+   * parent batches...release them to avoid memleak.
+   */
+  scanIndex_release_rangekeys(requestPtr,treeNodePtr);
+
+  {
+    Local_ScanFragHandle_list list(m_scanfraghandle_pool, data.m_fragments);
+    list.remove();
+  }
   if (treeNodePtr.p->m_bits & TreeNode::T_PRUNE_PATTERN)
   {
     jam();
@@ -6097,7 +6271,7 @@ Dbspj::expandS(Uint32 & _dst, Local_pattern_store& pattern,
     case QueryPattern::P_PARENT:
       jam();
       // P_PARENT is a prefix to another pattern token
-      // that permits code to access rows from earlier than imediate parent.
+      // that permits code to access rows from earlier than immediate parent.
       // val is no of levels to move up the tree
       err = appendFromParent(dst, pattern, it, val, row, hasNull);
       break;
@@ -6162,7 +6336,7 @@ Dbspj::expandL(Uint32 & _dst, Local_pattern_store& pattern,
     case QueryPattern::P_PARENT:
       jam();
       // P_PARENT is a prefix to another pattern token
-      // that permits code to access rows from earlier than imediate parent
+      // that permits code to access rows from earlier than immediate parent
       // val is no of levels to move up the tree
       err = appendFromParent(dst, pattern, it, val, row, hasNull);
       break;
@@ -6372,6 +6546,13 @@ Dbspj::parseDA(Build_context& ctx,
 
   do
   {
+    if (treeBits & DABits::NI_REPEAT_SCAN_RESULT)
+    {
+      jam();
+      DEBUG("use REPEAT_SCAN_RESULT when returning results");
+      requestPtr.p->m_bits |= Request::RT_REPEAT_SCAN_RESULT;
+    } // DABits::NI_HAS_PARENT
+
     if (treeBits & DABits::NI_HAS_PARENT)
     {
       jam();
@@ -6417,6 +6598,10 @@ Dbspj::parseDA(Build_context& ctx,
         }
         parentPtr.p->m_bits &= ~(Uint32)TreeNode::T_LEAF;
         treeNodePtr.p->m_parentPtrI = parentPtr.i;
+
+        // Build Bitmask of all ancestors to treeNode
+        treeNodePtr.p->m_ancestors = parentPtr.p->m_ancestors;
+        treeNodePtr.p->m_ancestors.set(parentPtr.p->m_node_no);
       }
 
       if (unlikely(err != 0))

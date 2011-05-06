@@ -366,4 +366,20 @@ Dbtux::unpackBound(const ScanBound& bound, Data dest)
   }
 }
 
+void
+Dbtux::findFrag(const Index& index, Uint32 fragId, FragPtr& fragPtr)
+{
+  const Uint32 numFrags = index.m_numFrags;
+  for (Uint32 i = 0; i < numFrags; i++) {
+    jam();
+    if (index.m_fragId[i] == fragId) {
+      jam();
+      fragPtr.i = index.m_fragPtrI[i];
+      c_fragPool.getPtr(fragPtr);
+      return;
+    }
+  }
+  fragPtr.i = RNIL;
+}
+
 BLOCK_FUNCTIONS(Dbtux)
