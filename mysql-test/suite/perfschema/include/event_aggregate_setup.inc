@@ -23,6 +23,9 @@
 #
 # In the thread dimension:
 # - events_waits_summary_by_thread_by_event_name
+# - events_waits_summary_by_account_by_event_name
+# - events_waits_summary_by_user_by_event_name
+# - events_waits_summary_by_host_by_event_name
 #
 # Globally:
 # - events_waits_summary_global_by_event_name
@@ -40,6 +43,24 @@
 # --source ../include/event_aggregate_cleanup.inc
 # and a t/event_aggregate_xxx-master.opt file
 #
+# Naming conventions for t/event_aggregate_xxx.test are as follows:
+# t/event_aggregate_<account><user><host>
+#
+# <account> corresponds to different sizing settings for 
+# the variable performance-schema-max-user-hosts
+# - (blank): max-user-host sufficient to represent all records
+# - no_uh: max-user-host set to 0
+#
+# <user> corresponds to different sizing settings for 
+# the variable performance-schema-max-users
+# - (blank): max-user sufficient to represent all records
+# - no_u: max-user set to 0
+#
+# <host> corresponds to different sizing settings for 
+# the variable performance-schema-max-hosts
+# - (blank): max-host sufficient to represent all records
+# - no_h: max-host set to 0
+
 # ========================================
 # HELPER include/event_aggregate_setup.inc
 # ========================================
@@ -63,6 +84,11 @@ grant ALL on *.* to user3@localhost;
 grant ALL on *.* to user4@localhost;
 
 flush privileges;
+
+# Purge old users, hosts, user/host from previous tests
+truncate table performance_schema.accounts;
+truncate table performance_schema.users;
+truncate table performance_schema.hosts;
 
 # Save the setup
 
@@ -101,6 +127,9 @@ update performance_schema.setup_instruments set enabled='YES', timed='YES'
 flush tables;
 flush status;
 truncate performance_schema.events_waits_summary_by_thread_by_event_name;
+truncate performance_schema.events_waits_summary_by_account_by_event_name;
+truncate performance_schema.events_waits_summary_by_user_by_event_name;
+truncate performance_schema.events_waits_summary_by_host_by_event_name;
 truncate performance_schema.events_waits_summary_global_by_event_name;
 truncate performance_schema.events_waits_history_long;
 
@@ -115,6 +144,36 @@ prepare dump_thread from
   (select thread_id from performance_schema.threads
    where processlist_user like \'user%\')
   order by thread_id, event_name;";
+
+prepare dump_user from
+  "select user, event_name, count_star
+  from performance_schema.events_waits_summary_by_user_by_event_name
+  where user like \'user%\'
+  and event_name in ('wait/synch/mutex/sql/LOCK_connection_count',
+                     'wait/synch/mutex/sql/LOCK_user_locks',
+                     'wait/synch/rwlock/sql/LOCK_grant',
+                     'wait/io/file/sql/query_log')
+  order by user, event_name;";
+
+prepare dump_account from
+  "select user, host, event_name, count_star
+  from performance_schema.events_waits_summary_by_account_by_event_name
+  where user like \'user%\'
+  and event_name in ('wait/synch/mutex/sql/LOCK_connection_count',
+                     'wait/synch/mutex/sql/LOCK_user_locks',
+                     'wait/synch/rwlock/sql/LOCK_grant',
+                     'wait/io/file/sql/query_log')
+  order by user, host, event_name;";
+
+prepare dump_host from
+  "select host, event_name, count_star
+  from performance_schema.events_waits_summary_by_host_by_event_name
+  where host=\'localhost\'
+  and event_name in ('wait/synch/mutex/sql/LOCK_connection_count',
+                     'wait/synch/mutex/sql/LOCK_user_locks',
+                     'wait/synch/rwlock/sql/LOCK_grant',
+                     'wait/io/file/sql/query_log')
+  order by host, event_name;";
 
 prepare dump_global from
   "select event_name, count_star
@@ -133,5 +192,14 @@ prepare dump_history from
                        'wait/synch/rwlock/sql/LOCK_grant',
                        'wait/io/file/sql/query_log')
   group by event_name order by event_name;";
+
+prepare dump_users from
+  "select * from performance_schema.users where user is not null order by user;";
+
+prepare dump_hosts from
+  "select * from performance_schema.hosts where host is not null order by host;";
+
+prepare dump_accounts from
+  "select * from performance_schema.accounts where (user is not null) and (host is not null) order by user, host;";
 
 --enable_query_log

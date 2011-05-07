@@ -7,26 +7,37 @@ performance_schema	CREATE DATABASE `performance_schema` /*!40100 DEFAULT CHARACT
 use performance_schema;
 show tables;
 Tables_in_performance_schema
+accounts
 cond_instances
 events_stages_current
 events_stages_history
 events_stages_history_long
+events_stages_summary_by_account_by_event_name
+events_stages_summary_by_host_by_event_name
 events_stages_summary_by_thread_by_event_name
+events_stages_summary_by_user_by_event_name
 events_stages_summary_global_by_event_name
 events_statements_current
 events_statements_history
 events_statements_history_long
+events_statements_summary_by_account_by_event_name
+events_statements_summary_by_host_by_event_name
 events_statements_summary_by_thread_by_event_name
+events_statements_summary_by_user_by_event_name
 events_statements_summary_global_by_event_name
 events_waits_current
 events_waits_history
 events_waits_history_long
+events_waits_summary_by_account_by_event_name
+events_waits_summary_by_host_by_event_name
 events_waits_summary_by_instance
 events_waits_summary_by_thread_by_event_name
+events_waits_summary_by_user_by_event_name
 events_waits_summary_global_by_event_name
 file_instances
 file_summary_by_event_name
 file_summary_by_instance
+hosts
 mutex_instances
 objects_summary_global_by_type
 performance_timers
@@ -40,6 +51,15 @@ table_io_waits_summary_by_index_usage
 table_io_waits_summary_by_table
 table_lock_waits_summary_by_table
 threads
+users
+show create table accounts;
+Table	Create Table
+accounts	CREATE TABLE `accounts` (
+  `USER` char(16) CHARACTER SET utf8 COLLATE utf8_bin DEFAULT NULL,
+  `HOST` char(60) CHARACTER SET utf8 COLLATE utf8_bin DEFAULT NULL,
+  `CURRENT_CONNECTIONS` bigint(20) NOT NULL,
+  `TOTAL_CONNECTIONS` bigint(20) NOT NULL
+) ENGINE=PERFORMANCE_SCHEMA DEFAULT CHARSET=utf8
 show create table cond_instances;
 Table	Create Table
 cond_instances	CREATE TABLE `cond_instances` (
@@ -85,10 +105,44 @@ events_stages_history_long	CREATE TABLE `events_stages_history_long` (
   `NESTING_EVENT_ID` bigint(20) unsigned DEFAULT NULL,
   `NESTING_EVENT_TYPE` enum('STATEMENT','STAGE','WAIT') DEFAULT NULL
 ) ENGINE=PERFORMANCE_SCHEMA DEFAULT CHARSET=utf8
+show create table events_stages_summary_by_host_by_event_name;
+Table	Create Table
+events_stages_summary_by_host_by_event_name	CREATE TABLE `events_stages_summary_by_host_by_event_name` (
+  `HOST` char(60) CHARACTER SET utf8 COLLATE utf8_bin DEFAULT NULL,
+  `EVENT_NAME` varchar(128) NOT NULL,
+  `COUNT_STAR` bigint(20) unsigned NOT NULL,
+  `SUM_TIMER_WAIT` bigint(20) unsigned NOT NULL,
+  `MIN_TIMER_WAIT` bigint(20) unsigned NOT NULL,
+  `AVG_TIMER_WAIT` bigint(20) unsigned NOT NULL,
+  `MAX_TIMER_WAIT` bigint(20) unsigned NOT NULL
+) ENGINE=PERFORMANCE_SCHEMA DEFAULT CHARSET=utf8
 show create table events_stages_summary_by_thread_by_event_name;
 Table	Create Table
 events_stages_summary_by_thread_by_event_name	CREATE TABLE `events_stages_summary_by_thread_by_event_name` (
   `THREAD_ID` int(11) NOT NULL,
+  `EVENT_NAME` varchar(128) NOT NULL,
+  `COUNT_STAR` bigint(20) unsigned NOT NULL,
+  `SUM_TIMER_WAIT` bigint(20) unsigned NOT NULL,
+  `MIN_TIMER_WAIT` bigint(20) unsigned NOT NULL,
+  `AVG_TIMER_WAIT` bigint(20) unsigned NOT NULL,
+  `MAX_TIMER_WAIT` bigint(20) unsigned NOT NULL
+) ENGINE=PERFORMANCE_SCHEMA DEFAULT CHARSET=utf8
+show create table events_stages_summary_by_user_by_event_name;
+Table	Create Table
+events_stages_summary_by_user_by_event_name	CREATE TABLE `events_stages_summary_by_user_by_event_name` (
+  `USER` char(16) CHARACTER SET utf8 COLLATE utf8_bin DEFAULT NULL,
+  `EVENT_NAME` varchar(128) NOT NULL,
+  `COUNT_STAR` bigint(20) unsigned NOT NULL,
+  `SUM_TIMER_WAIT` bigint(20) unsigned NOT NULL,
+  `MIN_TIMER_WAIT` bigint(20) unsigned NOT NULL,
+  `AVG_TIMER_WAIT` bigint(20) unsigned NOT NULL,
+  `MAX_TIMER_WAIT` bigint(20) unsigned NOT NULL
+) ENGINE=PERFORMANCE_SCHEMA DEFAULT CHARSET=utf8
+show create table events_stages_summary_by_account_by_event_name;
+Table	Create Table
+events_stages_summary_by_account_by_event_name	CREATE TABLE `events_stages_summary_by_account_by_event_name` (
+  `USER` char(16) CHARACTER SET utf8 COLLATE utf8_bin DEFAULT NULL,
+  `HOST` char(60) CHARACTER SET utf8 COLLATE utf8_bin DEFAULT NULL,
   `EVENT_NAME` varchar(128) NOT NULL,
   `COUNT_STAR` bigint(20) unsigned NOT NULL,
   `SUM_TIMER_WAIT` bigint(20) unsigned NOT NULL,
@@ -229,10 +283,101 @@ events_statements_history_long	CREATE TABLE `events_statements_history_long` (
   `NESTING_EVENT_ID` bigint(20) unsigned DEFAULT NULL,
   `NESTING_EVENT_TYPE` enum('STATEMENT','STAGE','WAIT') DEFAULT NULL
 ) ENGINE=PERFORMANCE_SCHEMA DEFAULT CHARSET=utf8
+show create table events_statements_summary_by_host_by_event_name;
+Table	Create Table
+events_statements_summary_by_host_by_event_name	CREATE TABLE `events_statements_summary_by_host_by_event_name` (
+  `HOST` char(60) CHARACTER SET utf8 COLLATE utf8_bin DEFAULT NULL,
+  `EVENT_NAME` varchar(128) NOT NULL,
+  `COUNT_STAR` bigint(20) unsigned NOT NULL,
+  `SUM_TIMER_WAIT` bigint(20) unsigned NOT NULL,
+  `MIN_TIMER_WAIT` bigint(20) unsigned NOT NULL,
+  `AVG_TIMER_WAIT` bigint(20) unsigned NOT NULL,
+  `MAX_TIMER_WAIT` bigint(20) unsigned NOT NULL,
+  `SUM_LOCK_TIME` bigint(20) unsigned NOT NULL,
+  `SUM_ERRORS` bigint(20) unsigned NOT NULL,
+  `SUM_WARNINGS` bigint(20) unsigned NOT NULL,
+  `SUM_ROWS_AFFECTED` bigint(20) unsigned NOT NULL,
+  `SUM_ROWS_SENT` bigint(20) unsigned NOT NULL,
+  `SUM_ROWS_EXAMINED` bigint(20) unsigned NOT NULL,
+  `SUM_CREATED_TMP_DISK_TABLES` bigint(20) unsigned NOT NULL,
+  `SUM_CREATED_TMP_TABLES` bigint(20) unsigned NOT NULL,
+  `SUM_SELECT_FULL_JOIN` bigint(20) unsigned NOT NULL,
+  `SUM_SELECT_FULL_RANGE_JOIN` bigint(20) unsigned NOT NULL,
+  `SUM_SELECT_RANGE` bigint(20) unsigned NOT NULL,
+  `SUM_SELECT_RANGE_CHECK` bigint(20) unsigned NOT NULL,
+  `SUM_SELECT_SCAN` bigint(20) unsigned NOT NULL,
+  `SUM_SORT_MERGE_PASSES` bigint(20) unsigned NOT NULL,
+  `SUM_SORT_RANGE` bigint(20) unsigned NOT NULL,
+  `SUM_SORT_ROWS` bigint(20) unsigned NOT NULL,
+  `SUM_SORT_SCAN` bigint(20) unsigned NOT NULL,
+  `SUM_NO_INDEX_USED` bigint(20) unsigned NOT NULL,
+  `SUM_NO_GOOD_INDEX_USED` bigint(20) unsigned NOT NULL
+) ENGINE=PERFORMANCE_SCHEMA DEFAULT CHARSET=utf8
 show create table events_statements_summary_by_thread_by_event_name;
 Table	Create Table
 events_statements_summary_by_thread_by_event_name	CREATE TABLE `events_statements_summary_by_thread_by_event_name` (
   `THREAD_ID` int(11) NOT NULL,
+  `EVENT_NAME` varchar(128) NOT NULL,
+  `COUNT_STAR` bigint(20) unsigned NOT NULL,
+  `SUM_TIMER_WAIT` bigint(20) unsigned NOT NULL,
+  `MIN_TIMER_WAIT` bigint(20) unsigned NOT NULL,
+  `AVG_TIMER_WAIT` bigint(20) unsigned NOT NULL,
+  `MAX_TIMER_WAIT` bigint(20) unsigned NOT NULL,
+  `SUM_LOCK_TIME` bigint(20) unsigned NOT NULL,
+  `SUM_ERRORS` bigint(20) unsigned NOT NULL,
+  `SUM_WARNINGS` bigint(20) unsigned NOT NULL,
+  `SUM_ROWS_AFFECTED` bigint(20) unsigned NOT NULL,
+  `SUM_ROWS_SENT` bigint(20) unsigned NOT NULL,
+  `SUM_ROWS_EXAMINED` bigint(20) unsigned NOT NULL,
+  `SUM_CREATED_TMP_DISK_TABLES` bigint(20) unsigned NOT NULL,
+  `SUM_CREATED_TMP_TABLES` bigint(20) unsigned NOT NULL,
+  `SUM_SELECT_FULL_JOIN` bigint(20) unsigned NOT NULL,
+  `SUM_SELECT_FULL_RANGE_JOIN` bigint(20) unsigned NOT NULL,
+  `SUM_SELECT_RANGE` bigint(20) unsigned NOT NULL,
+  `SUM_SELECT_RANGE_CHECK` bigint(20) unsigned NOT NULL,
+  `SUM_SELECT_SCAN` bigint(20) unsigned NOT NULL,
+  `SUM_SORT_MERGE_PASSES` bigint(20) unsigned NOT NULL,
+  `SUM_SORT_RANGE` bigint(20) unsigned NOT NULL,
+  `SUM_SORT_ROWS` bigint(20) unsigned NOT NULL,
+  `SUM_SORT_SCAN` bigint(20) unsigned NOT NULL,
+  `SUM_NO_INDEX_USED` bigint(20) unsigned NOT NULL,
+  `SUM_NO_GOOD_INDEX_USED` bigint(20) unsigned NOT NULL
+) ENGINE=PERFORMANCE_SCHEMA DEFAULT CHARSET=utf8
+show create table events_statements_summary_by_user_by_event_name;
+Table	Create Table
+events_statements_summary_by_user_by_event_name	CREATE TABLE `events_statements_summary_by_user_by_event_name` (
+  `USER` char(16) CHARACTER SET utf8 COLLATE utf8_bin DEFAULT NULL,
+  `EVENT_NAME` varchar(128) NOT NULL,
+  `COUNT_STAR` bigint(20) unsigned NOT NULL,
+  `SUM_TIMER_WAIT` bigint(20) unsigned NOT NULL,
+  `MIN_TIMER_WAIT` bigint(20) unsigned NOT NULL,
+  `AVG_TIMER_WAIT` bigint(20) unsigned NOT NULL,
+  `MAX_TIMER_WAIT` bigint(20) unsigned NOT NULL,
+  `SUM_LOCK_TIME` bigint(20) unsigned NOT NULL,
+  `SUM_ERRORS` bigint(20) unsigned NOT NULL,
+  `SUM_WARNINGS` bigint(20) unsigned NOT NULL,
+  `SUM_ROWS_AFFECTED` bigint(20) unsigned NOT NULL,
+  `SUM_ROWS_SENT` bigint(20) unsigned NOT NULL,
+  `SUM_ROWS_EXAMINED` bigint(20) unsigned NOT NULL,
+  `SUM_CREATED_TMP_DISK_TABLES` bigint(20) unsigned NOT NULL,
+  `SUM_CREATED_TMP_TABLES` bigint(20) unsigned NOT NULL,
+  `SUM_SELECT_FULL_JOIN` bigint(20) unsigned NOT NULL,
+  `SUM_SELECT_FULL_RANGE_JOIN` bigint(20) unsigned NOT NULL,
+  `SUM_SELECT_RANGE` bigint(20) unsigned NOT NULL,
+  `SUM_SELECT_RANGE_CHECK` bigint(20) unsigned NOT NULL,
+  `SUM_SELECT_SCAN` bigint(20) unsigned NOT NULL,
+  `SUM_SORT_MERGE_PASSES` bigint(20) unsigned NOT NULL,
+  `SUM_SORT_RANGE` bigint(20) unsigned NOT NULL,
+  `SUM_SORT_ROWS` bigint(20) unsigned NOT NULL,
+  `SUM_SORT_SCAN` bigint(20) unsigned NOT NULL,
+  `SUM_NO_INDEX_USED` bigint(20) unsigned NOT NULL,
+  `SUM_NO_GOOD_INDEX_USED` bigint(20) unsigned NOT NULL
+) ENGINE=PERFORMANCE_SCHEMA DEFAULT CHARSET=utf8
+show create table events_statements_summary_by_account_by_event_name;
+Table	Create Table
+events_statements_summary_by_account_by_event_name	CREATE TABLE `events_statements_summary_by_account_by_event_name` (
+  `USER` char(16) CHARACTER SET utf8 COLLATE utf8_bin DEFAULT NULL,
+  `HOST` char(60) CHARACTER SET utf8 COLLATE utf8_bin DEFAULT NULL,
   `EVENT_NAME` varchar(128) NOT NULL,
   `COUNT_STAR` bigint(20) unsigned NOT NULL,
   `SUM_TIMER_WAIT` bigint(20) unsigned NOT NULL,
@@ -354,6 +499,17 @@ events_waits_history_long	CREATE TABLE `events_waits_history_long` (
   `NUMBER_OF_BYTES` bigint(20) unsigned DEFAULT NULL,
   `FLAGS` int(10) unsigned DEFAULT NULL
 ) ENGINE=PERFORMANCE_SCHEMA DEFAULT CHARSET=utf8
+show create table events_waits_summary_by_host_by_event_name;
+Table	Create Table
+events_waits_summary_by_host_by_event_name	CREATE TABLE `events_waits_summary_by_host_by_event_name` (
+  `HOST` char(60) CHARACTER SET utf8 COLLATE utf8_bin DEFAULT NULL,
+  `EVENT_NAME` varchar(128) NOT NULL,
+  `COUNT_STAR` bigint(20) unsigned NOT NULL,
+  `SUM_TIMER_WAIT` bigint(20) unsigned NOT NULL,
+  `MIN_TIMER_WAIT` bigint(20) unsigned NOT NULL,
+  `AVG_TIMER_WAIT` bigint(20) unsigned NOT NULL,
+  `MAX_TIMER_WAIT` bigint(20) unsigned NOT NULL
+) ENGINE=PERFORMANCE_SCHEMA DEFAULT CHARSET=utf8
 show create table events_waits_summary_by_instance;
 Table	Create Table
 events_waits_summary_by_instance	CREATE TABLE `events_waits_summary_by_instance` (
@@ -369,6 +525,29 @@ show create table events_waits_summary_by_thread_by_event_name;
 Table	Create Table
 events_waits_summary_by_thread_by_event_name	CREATE TABLE `events_waits_summary_by_thread_by_event_name` (
   `THREAD_ID` int(11) NOT NULL,
+  `EVENT_NAME` varchar(128) NOT NULL,
+  `COUNT_STAR` bigint(20) unsigned NOT NULL,
+  `SUM_TIMER_WAIT` bigint(20) unsigned NOT NULL,
+  `MIN_TIMER_WAIT` bigint(20) unsigned NOT NULL,
+  `AVG_TIMER_WAIT` bigint(20) unsigned NOT NULL,
+  `MAX_TIMER_WAIT` bigint(20) unsigned NOT NULL
+) ENGINE=PERFORMANCE_SCHEMA DEFAULT CHARSET=utf8
+show create table events_waits_summary_by_user_by_event_name;
+Table	Create Table
+events_waits_summary_by_user_by_event_name	CREATE TABLE `events_waits_summary_by_user_by_event_name` (
+  `USER` char(16) CHARACTER SET utf8 COLLATE utf8_bin DEFAULT NULL,
+  `EVENT_NAME` varchar(128) NOT NULL,
+  `COUNT_STAR` bigint(20) unsigned NOT NULL,
+  `SUM_TIMER_WAIT` bigint(20) unsigned NOT NULL,
+  `MIN_TIMER_WAIT` bigint(20) unsigned NOT NULL,
+  `AVG_TIMER_WAIT` bigint(20) unsigned NOT NULL,
+  `MAX_TIMER_WAIT` bigint(20) unsigned NOT NULL
+) ENGINE=PERFORMANCE_SCHEMA DEFAULT CHARSET=utf8
+show create table events_waits_summary_by_account_by_event_name;
+Table	Create Table
+events_waits_summary_by_account_by_event_name	CREATE TABLE `events_waits_summary_by_account_by_event_name` (
+  `USER` char(16) CHARACTER SET utf8 COLLATE utf8_bin DEFAULT NULL,
+  `HOST` char(60) CHARACTER SET utf8 COLLATE utf8_bin DEFAULT NULL,
   `EVENT_NAME` varchar(128) NOT NULL,
   `COUNT_STAR` bigint(20) unsigned NOT NULL,
   `SUM_TIMER_WAIT` bigint(20) unsigned NOT NULL,
@@ -411,6 +590,13 @@ file_summary_by_instance	CREATE TABLE `file_summary_by_instance` (
   `COUNT_WRITE` bigint(20) unsigned NOT NULL,
   `SUM_NUMBER_OF_BYTES_READ` bigint(20) unsigned NOT NULL,
   `SUM_NUMBER_OF_BYTES_WRITE` bigint(20) unsigned NOT NULL
+) ENGINE=PERFORMANCE_SCHEMA DEFAULT CHARSET=utf8
+show create table hosts;
+Table	Create Table
+hosts	CREATE TABLE `hosts` (
+  `HOST` char(60) CHARACTER SET utf8 COLLATE utf8_bin DEFAULT NULL,
+  `CURRENT_CONNECTIONS` bigint(20) NOT NULL,
+  `TOTAL_CONNECTIONS` bigint(20) NOT NULL
 ) ENGINE=PERFORMANCE_SCHEMA DEFAULT CHARSET=utf8
 show create table mutex_instances;
 Table	Create Table
@@ -660,4 +846,11 @@ threads	CREATE TABLE `threads` (
   `PARENT_THREAD_ID` int(11) DEFAULT NULL,
   `ROLE` varchar(64) DEFAULT NULL,
   `INSTRUMENTED` enum('YES','NO') NOT NULL
+) ENGINE=PERFORMANCE_SCHEMA DEFAULT CHARSET=utf8
+show create table users;
+Table	Create Table
+users	CREATE TABLE `users` (
+  `USER` char(16) CHARACTER SET utf8 COLLATE utf8_bin DEFAULT NULL,
+  `CURRENT_CONNECTIONS` bigint(20) NOT NULL,
+  `TOTAL_CONNECTIONS` bigint(20) NOT NULL
 ) ENGINE=PERFORMANCE_SCHEMA DEFAULT CHARSET=utf8

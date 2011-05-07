@@ -16,12 +16,14 @@ insert into test.marker set a = 1;
 show variables like "performance_schema%";
 Variable_name	Value
 performance_schema	ON
+performance_schema_accounts_size	100
 performance_schema_events_stages_history_long_size	1000
 performance_schema_events_stages_history_size	10
 performance_schema_events_statements_history_long_size	1000
 performance_schema_events_statements_history_size	10
 performance_schema_events_waits_history_long_size	10000
 performance_schema_events_waits_history_size	10
+performance_schema_hosts_size	100
 performance_schema_max_cond_classes	80
 performance_schema_max_cond_instances	1000
 performance_schema_max_file_classes	50
@@ -39,13 +41,16 @@ performance_schema_max_thread_classes	50
 performance_schema_max_thread_instances	200
 performance_schema_setup_actors_size	100
 performance_schema_setup_objects_size	100
+performance_schema_users_size	100
 show status like "performance_schema%";
 Variable_name	Value
+Performance_schema_accounts_lost	0
 Performance_schema_cond_classes_lost	0
 Performance_schema_cond_instances_lost	0
 Performance_schema_file_classes_lost	0
 Performance_schema_file_handles_lost	0
 Performance_schema_file_instances_lost	0
+Performance_schema_hosts_lost	0
 Performance_schema_locker_lost	0
 Performance_schema_mutex_classes_lost	0
 Performance_schema_mutex_instances_lost	0
@@ -57,6 +62,7 @@ Performance_schema_table_handles_lost	0
 Performance_schema_table_instances_lost	0
 Performance_schema_thread_classes_lost	0
 Performance_schema_thread_instances_lost	0
+Performance_schema_users_lost	0
 update performance_schema.setup_consumers set enabled='NO';
 select event_name,
 left(source, locate(":", source)) as short_source,
@@ -89,11 +95,13 @@ wait/io/table/sql/handler	handler.cc:	TABLE	test	marker	insert	NULL
 wait/io/table/sql/handler	handler.cc:	TABLE	test	marker	insert	NULL
 show status like 'performance_schema_%';
 Variable_name	Value
+Performance_schema_accounts_lost	0
 Performance_schema_cond_classes_lost	0
 Performance_schema_cond_instances_lost	0
 Performance_schema_file_classes_lost	0
 Performance_schema_file_handles_lost	0
 Performance_schema_file_instances_lost	0
+Performance_schema_hosts_lost	0
 Performance_schema_locker_lost	0
 Performance_schema_mutex_classes_lost	0
 Performance_schema_mutex_instances_lost	0
@@ -105,6 +113,7 @@ Performance_schema_table_handles_lost	0
 Performance_schema_table_instances_lost	0
 Performance_schema_thread_classes_lost	0
 Performance_schema_thread_instances_lost	0
+Performance_schema_users_lost	0
 truncate performance_schema.events_waits_history_long;
 flush status;
 update performance_schema.setup_consumers set enabled='NO';

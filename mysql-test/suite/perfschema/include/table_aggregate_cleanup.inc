@@ -31,12 +31,19 @@ drop user user4@localhost;
 flush privileges;
 
 drop prepare dump_thread;
+drop prepare dump_account;
+drop prepare dump_user;
+drop prepare dump_host;
 drop prepare dump_global;
 drop prepare dump_history;
 drop prepare dump_index_io;
 drop prepare dump_table_io;
 drop prepare dump_table_lock;
 drop prepare dump_objects_summary;
+
+truncate table performance_schema.accounts;
+truncate table performance_schema.users;
+truncate table performance_schema.hosts;
 
 truncate table performance_schema.setup_actors;
 insert into performance_schema.setup_actors

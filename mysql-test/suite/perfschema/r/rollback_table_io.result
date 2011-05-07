@@ -54,11 +54,13 @@ wait/io/table/sql/handler	handler.cc:	TABLE	test	t1	insert	NULL
 wait/io/table/sql/handler	handler.cc:	TABLE	test	marker	insert	NULL
 show status like 'performance_schema_%';
 Variable_name	Value
+Performance_schema_accounts_lost	0
 Performance_schema_cond_classes_lost	0
 Performance_schema_cond_instances_lost	0
 Performance_schema_file_classes_lost	0
 Performance_schema_file_handles_lost	0
 Performance_schema_file_instances_lost	0
+Performance_schema_hosts_lost	0
 Performance_schema_locker_lost	0
 Performance_schema_mutex_classes_lost	0
 Performance_schema_mutex_instances_lost	0
@@ -70,6 +72,7 @@ Performance_schema_table_handles_lost	0
 Performance_schema_table_instances_lost	0
 Performance_schema_thread_classes_lost	0
 Performance_schema_thread_instances_lost	0
+Performance_schema_users_lost	0
 truncate performance_schema.events_waits_history_long;
 flush status;
 drop table test.t1;

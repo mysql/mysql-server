@@ -29,6 +29,9 @@
 #
 # In the thread dimension:
 # - events_waits_summary_by_thread_by_event_name
+# - events_waits_summary_by_account_by_event_name
+# - events_waits_summary_by_user_by_event_name
+# - events_waits_summary_by_host_by_event_name
 #
 # Globally:
 # - events_waits_summary_global_by_event_name
@@ -87,6 +90,11 @@ grant ALL on *.* to user3@localhost;
 grant ALL on *.* to user4@localhost;
 
 flush privileges;
+
+# Purge old users, hosts, user/host from previous tests
+truncate table performance_schema.accounts;
+truncate table performance_schema.users;
+truncate table performance_schema.hosts;
 
 # Save the setup
 
@@ -161,6 +169,30 @@ prepare dump_thread from
   (select thread_id from performance_schema.threads
    where processlist_user in (\'user1\', \'user2\', \'user3\', \'user4\'))
   order by thread_id, event_name;";
+
+prepare dump_user from
+  "select user, event_name, count_star
+  from performance_schema.events_waits_summary_by_user_by_event_name
+  where user like \'user%\' and event_name in
+  (\'wait/io/table/sql/handler\',
+   \'wait/lock/table/sql/handler\')
+  order by user, event_name;";
+
+prepare dump_account from
+  "select user, host, event_name, count_star
+  from performance_schema.events_waits_summary_by_account_by_event_name
+  where user like \'user%\' and event_name in
+  (\'wait/io/table/sql/handler\',
+   \'wait/lock/table/sql/handler\')
+  order by user, host, event_name;";
+
+prepare dump_host from
+  "select host, event_name, count_star
+  from performance_schema.events_waits_summary_by_host_by_event_name
+  where host=\'localhost\'  and event_name in
+  (\'wait/io/table/sql/handler\',
+   \'wait/lock/table/sql/handler\')
+  order by host, event_name;";
 
 prepare dump_global from
   "select event_name, count_star
