@@ -750,6 +750,8 @@ void do_handle_one_connection(THD *thd_arg)
     NET *net= &thd->net;
     bool rc;
 
+    mysql_socket_set_thread_owner(net->vio->mysql_socket);
+
     lex_start(thd);
     rc= login_connection(thd);
     MYSQL_AUDIT_NOTIFY_CONNECTION_CONNECT(thd);
@@ -760,8 +762,6 @@ void do_handle_one_connection(THD *thd_arg)
                            (char *) thd->security_ctx->host_or_ip);
 
     prepare_new_connection_state(thd);
-
-    mysql_socket_set_thread_owner(net->vio->mysql_socket);
 
     while (!net->error && net->vio != 0 &&
            !(thd->killed == THD::KILL_CONNECTION))

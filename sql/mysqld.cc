@@ -1816,6 +1816,8 @@ static void network_init(void)
       unireg_abort(1);				/* purecov: tested */
     }
 
+    mysql_socket_set_thread_owner(ip_sock);
+
 #ifndef __WIN__
     /*
       We should not use SO_REUSEADDR on windows as this would enable a
@@ -1946,6 +1948,7 @@ static void network_init(void)
       sql_perror("Can't start server : UNIX Socket "); /* purecov: inspected */
       unireg_abort(1);				/* purecov: inspected */
     }
+    mysql_socket_set_thread_owner(unix_sock);
     bzero((char*) &UNIXaddr, sizeof(UNIXaddr));
     UNIXaddr.sun_family = AF_UNIX;
     strmov(UNIXaddr.sun_path, mysqld_unix_port);
@@ -5441,6 +5444,7 @@ void handle_connections_sockets()
 
   if (mysql_socket_getfd(ip_sock) != INVALID_SOCKET)
   {
+    mysql_socket_set_thread_owner(ip_sock);
 #ifdef HAVE_POLL
     fds[socket_count].fd= mysql_socket_getfd(ip_sock);
     fds[socket_count].events= POLLIN;
@@ -5453,6 +5457,7 @@ void handle_connections_sockets()
 #endif
   }
 #ifdef HAVE_SYS_UN_H
+  mysql_socket_set_thread_owner(unix_sock);
 #ifdef HAVE_POLL
   fds[socket_count].fd= mysql_socket_getfd(unix_sock);
   fds[socket_count].events= POLLIN;

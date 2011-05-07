@@ -4725,14 +4725,6 @@ static void set_socket_info_v1(PSI_socket *socket,
   DBUG_ASSERT(socket);
   PFS_socket *pfs= reinterpret_cast<PFS_socket*>(socket);
 
-  /** Set socket thread owner */
-  PFS_thread *thread= my_pthread_getspecific_ptr(PFS_thread*, THR_PFS);
-
-  if (thread)
-    pfs->m_thread_owner= thread;
-  else
-    pfs->m_thread_owner= NULL;
-  
   /** Set socket descriptor */
   if (fd != NULL)
     pfs->m_fd= *fd;
