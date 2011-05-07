@@ -3416,6 +3416,7 @@ static int init_common_variables(const char *conf_file_name, int argc,
 				 char **argv, const char **groups)
 {
   char buff[FN_REFLEN], *s;
+  const char *basename;
   umask(((~my_umask) & 0666));
   my_decimal_set_zero(&decimal_zero); // set decimal_zero constant;
   tzset();			// Set tzname
@@ -3473,16 +3474,16 @@ static int init_common_variables(const char *conf_file_name, int argc,
       Get hostname of computer (used by 'show variables') and as default
       basename for the pid file if --log-basename is not given.
     */
-    const char *basename= glob_hostname;
-    if (gethostname(glob_hostname,sizeof(glob_hostname)) < 0)
-    {
-      strmake(glob_hostname, STRING_WITH_LEN("localhost"));
-      sql_print_warning("gethostname failed, using '%s' as hostname",
+    strmake(glob_hostname, STRING_WITH_LEN("localhost"));
+    sql_print_warning("gethostname failed, using '%s' as hostname",
                         glob_hostname);
-      basename= "mysql";
-    }
-    strmake(pidfile_name, basename, sizeof(pidfile_name)-5);
+    basename= "mysql";
   }
+  else
+  {
+    basename= glob_hostname;
+  }
+  strmake(pidfile_name, basename, sizeof(pidfile_name)-5);
   strmov(fn_ext(pidfile_name),".pid");		// Add proper extension
 
   /*
