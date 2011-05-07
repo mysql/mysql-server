@@ -662,6 +662,16 @@ Backup::execDUMP_STATE_ORD(Signal* signal)
     c_defaults.m_compressed_lcp= signal->theData[1];
     infoEvent("Compressed LCP: %d", c_defaults.m_compressed_lcp);
   }
+
+  if (signal->theData[0] == DumpStateOrd::BackupErrorInsert)
+  {
+    if (signal->getLength() == 1)
+      ndbout_c("BACKUP: setting error %u", signal->theData[1]);
+    else
+      ndbout_c("BACKUP: setting error %u, %u",
+               signal->theData[1], signal->theData[2]);
+    SET_ERROR_INSERT_VALUE2(signal->theData[1], signal->theData[2]);
+  }
 }
 
 void Backup::execDBINFO_SCANREQ(Signal *signal)
@@ -4578,6 +4588,13 @@ Backup::checkScan(Signal* signal, BackupFilePtr filePtr)
       sendSignal(ptr.p->masterRef, GSN_ABORT_BACKUP_ORD, signal, 
 		 AbortBackupOrd::SignalLength, JBB);
     }
+#ifdef ERROR_INSERT
+    else if (ERROR_INSERTED(10042) && filePtr.p->tableId ==c_error_insert_extra)
+    {
+      sendSignalWithDelay(lqhRef, GSN_SCAN_NEXTREQ, signal,
+			  10, ScanFragNextReq::SignalLength);
+    }
+#endif
     else
     {
       sendSignal(lqhRef, GSN_SCAN_NEXTREQ, signal, 
