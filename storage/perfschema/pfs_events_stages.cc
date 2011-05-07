@@ -184,12 +184,12 @@ void reset_events_stages_by_thread()
   }
 }
 
-/** Reset table EVENTS_STAGES_SUMMARY_BY_USER_HOST_BY_EVENT_NAME data. */
-void reset_events_stages_by_user_host()
+/** Reset table EVENTS_STAGES_SUMMARY_BY_ACCOUNT_BY_EVENT_NAME data. */
+void reset_events_stages_by_account()
 {
 #ifdef LATER
-  PFS_user_host *pfs= user_host_array;
-  PFS_user_host *pfs_last= user_host_array + user_host_max;
+  PFS_account *pfs= account_array;
+  PFS_account *pfs_last= account_array + account_max;
 
   for ( ; pfs < pfs_last; pfs++)
   {

@@ -390,6 +390,13 @@ extern ulong statement_class_max;
 extern ulong statement_class_lost;
 extern ulong table_share_max;
 extern ulong table_share_lost;
+
+/* Exposing the data directly, for iterators. */
+
+extern PFS_mutex_class *mutex_class_array;
+extern PFS_rwlock_class *rwlock_class_array;
+extern PFS_cond_class *cond_class_array;
+extern PFS_file_class *file_class_array;
 extern PFS_table_share *table_share_array;
 
 void reset_file_class_io();

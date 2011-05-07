@@ -114,10 +114,12 @@ void cleanup_setup_object_hash(void)
 
 static LF_PINS* get_setup_object_hash_pins(PFS_thread *thread)
 {
-  if (! setup_object_hash_inited)
-    return NULL;
   if (unlikely(thread->m_setup_object_hash_pins == NULL))
+  {
+    if (! setup_object_hash_inited)
+      return NULL;
     thread->m_setup_object_hash_pins= lf_hash_get_pins(&setup_object_hash);
+  }
   return thread->m_setup_object_hash_pins;
 }
 

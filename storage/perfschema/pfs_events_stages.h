@@ -24,7 +24,7 @@
 #include "pfs_events.h"
 
 struct PFS_thread;
-struct PFS_user_host;
+struct PFS_account;
 struct PFS_user;
 struct PFS_host;
 
@@ -53,11 +53,11 @@ void reset_events_stages_current();
 void reset_events_stages_history();
 void reset_events_stages_history_long();
 void reset_events_stages_by_thread();
-void reset_events_stages_by_user_host();
+void reset_events_stages_by_account();
 void reset_events_stages_by_user();
 void reset_events_stages_by_host();
 void reset_events_stages_global();
-void aggregate_user_host_stages(PFS_user_host *user_host);
+void aggregate_account_stages(PFS_account *account);
 void aggregate_user_stages(PFS_user *user);
 void aggregate_host_stages(PFS_host *host);
 

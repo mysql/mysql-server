@@ -1,4 +1,4 @@
-/* Copyright (c) 2008, 2010, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2008, 2011, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -18,6 +18,8 @@
   Performance schema tables (implementation).
 */
 
+#include "my_global.h"
+#include "my_pthread.h"
 #include "pfs_engine_table.h"
 
 #include "table_events_waits.h"
@@ -35,17 +37,31 @@
 #include "table_file_instances.h"
 #include "table_file_summary.h"
 #include "table_threads.h"
+
+#include "table_ews_by_host_by_event_name.h"
+#include "table_ews_by_user_by_event_name.h"
+#include "table_ews_by_account_by_event_name.h"
 #include "table_tiws_by_index_usage.h"
 #include "table_tiws_by_table.h"
 #include "table_tlws_by_table.h"
 
 #include "table_events_stages.h"
 #include "table_esgs_by_thread_by_event_name.h"
+#include "table_esgs_by_host_by_event_name.h"
+#include "table_esgs_by_user_by_event_name.h"
+#include "table_esgs_by_account_by_event_name.h"
 #include "table_esgs_global_by_event_name.h"
 
 #include "table_events_statements.h"
 #include "table_esms_by_thread_by_event_name.h"
+#include "table_esms_by_host_by_event_name.h"
+#include "table_esms_by_user_by_event_name.h"
+#include "table_esms_by_account_by_event_name.h"
 #include "table_esms_global_by_event_name.h"
+
+#include "table_users.h"
+#include "table_accounts.h"
+#include "table_hosts.h"
 
 /* For show status */
 #include "pfs_column_values.h"
@@ -66,10 +82,13 @@ static PFS_engine_table_share *all_shares[]=
 {
   &table_cond_instances::m_share,
   &table_events_waits_current::m_share,
-  &table_events_waits_history_long::m_share,
   &table_events_waits_history::m_share,
+  &table_events_waits_history_long::m_share,
+  &table_ews_by_host_by_event_name::m_share,
   &table_events_waits_summary_by_instance::m_share,
   &table_ews_by_thread_by_event_name::m_share,
+  &table_ews_by_user_by_event_name::m_share,
+  &table_ews_by_account_by_event_name::m_share,
   &table_ews_global_by_event_name::m_share,
   &table_file_instances::m_share,
   &table_file_summary_by_event_name::m_share,
@@ -83,23 +102,32 @@ static PFS_engine_table_share *all_shares[]=
   &table_setup_instruments::m_share,
   &table_setup_objects::m_share,
   &table_setup_timers::m_share,
-  &table_threads::m_share,
   &table_tiws_by_index_usage::m_share,
   &table_tiws_by_table::m_share,
   &table_tlws_by_table::m_share,
+  &table_threads::m_share,
 
   &table_events_stages_current::m_share,
   &table_events_stages_history::m_share,
   &table_events_stages_history_long::m_share,
   &table_esgs_by_thread_by_event_name::m_share,
+  &table_esgs_by_account_by_event_name::m_share,
+  &table_esgs_by_user_by_event_name::m_share,
+  &table_esgs_by_host_by_event_name::m_share,
   &table_esgs_global_by_event_name::m_share,
 
   &table_events_statements_current::m_share,
   &table_events_statements_history::m_share,
   &table_events_statements_history_long::m_share,
   &table_esms_by_thread_by_event_name::m_share,
+  &table_esms_by_account_by_event_name::m_share,
+  &table_esms_by_user_by_event_name::m_share,
+  &table_esms_by_host_by_event_name::m_share,
   &table_esms_global_by_event_name::m_share,
 
+  &table_users::m_share,
+  &table_accounts::m_share,
+  &table_hosts::m_share,
   NULL
 };
 
@@ -114,7 +142,7 @@ void PFS_engine_table_share::check_all_tables(THD *thd)
   DBUG_EXECUTE_IF("tampered_perfschema_table1",
                   {
                     /* Hack SETUP_INSTRUMENT, incompatible change. */
-                    all_shares[16]->m_field_def->count++;
+                    all_shares[24]->m_field_def->count++;
                   });
 
   for (current= &all_shares[0]; (*current) != NULL; current++)
@@ -926,146 +954,302 @@ bool pfs_show_status(handlerton *hton, THD *thd,
       total_memory+= size;
       break;
     case 59:
+      name= "(pfs_account).row_size";
+      size= sizeof(PFS_account);
+      break;
+    case 60:
+      name= "(pfs_account).row_count";
+      size= account_max;
+      break;
+    case 61:
+      name= "(pfs_account).memory";
+      size= account_max * sizeof(PFS_account);
+      total_memory+= size;
+      break;
+    case 62:
+      name= "events_waits_summary_by_account_by_event_name.row_size";
+      size= sizeof(PFS_single_stat);
+      break;
+    case 63:
+      name= "events_waits_summary_by_account_by_event_name.row_count";
+      size= account_max * wait_class_max;
+      break;
+    case 64:
+      name= "events_waits_summary_by_account_by_event_name.memory";
+      size= account_max * wait_class_max * sizeof(PFS_single_stat);
+      total_memory+= size;
+      break;
+    case 65:
+      name= "events_waits_summary_by_user_by_event_name.row_size";
+      size= sizeof(PFS_single_stat);
+      break;
+    case 66:
+      name= "events_waits_summary_by_user_by_event_name.row_count";
+      size= user_max * wait_class_max;
+      break;
+    case 67:
+      name= "events_waits_summary_by_user_by_event_name.memory";
+      size= user_max * wait_class_max * sizeof(PFS_single_stat);
+      total_memory+= size;
+      break;
+    case 68:
+      name= "events_waits_summary_by_host_by_event_name.row_size";
+      size= sizeof(PFS_single_stat);
+      break;
+    case 69:
+      name= "events_waits_summary_by_host_by_event_name.row_count";
+      size= host_max * wait_class_max;
+      break;
+    case 70:
+      name= "events_waits_summary_by_host_by_event_name.memory";
+      size= host_max * wait_class_max * sizeof(PFS_single_stat);
+      total_memory+= size;
+      break;
+    case 71:
+      name= "(pfs_user).row_size";
+      size= sizeof(PFS_user);
+      break;
+    case 72:
+      name= "(pfs_user).row_count";
+      size= user_max;
+      break;
+    case 73:
+      name= "(pfs_user).memory";
+      size= user_max * sizeof(PFS_user);
+      total_memory+= size;
+      break;
+    case 74:
+      name= "(pfs_host).row_size";
+      size= sizeof(PFS_host);
+      break;
+    case 75:
+      name= "(pfs_host).row_count";
+      size= host_max;
+      break;
+    case 76:
+      name= "(pfs_host).memory";
+      size= host_max * sizeof(PFS_host);
+      total_memory+= size;
+      break;
+    case 77:
       name= "(pfs_stage_class).row_size";
       size= sizeof(PFS_stage_class);
       break;
-    case 60:
+    case 78:
       name= "(pfs_stage_class).row_count";
       size= stage_class_max;
       break;
-    case 61:
+    case 79:
       name= "(pfs_stage_class).memory";
       size= stage_class_max * sizeof(PFS_stage_class);
       total_memory+= size;
       break;
-    case 62:
+    case 80:
       name= "events_stages_history.row_size";
       size= sizeof(PFS_events_stages);
       break;
-    case 63:
+    case 81:
       name= "events_stages_history.row_count";
       size= events_stages_history_per_thread * thread_max;
       break;
-    case 64:
+    case 82:
       name= "events_stages_history.memory";
       size= events_stages_history_per_thread * thread_max
         * sizeof(PFS_events_stages);
       total_memory+= size;
       break;
-    case 65:
+    case 83:
       name= "events_stages_history_long.row_size";
       size= sizeof(PFS_events_stages);
       break;
-    case 66:
+    case 84:
       name= "events_stages_history_long.row_count";
       size= events_stages_history_long_size;
       break;
-    case 67:
+    case 85:
       name= "events_stages_history_long.memory";
       size= events_stages_history_long_size * sizeof(PFS_events_stages);
       total_memory+= size;
       break;
-    case 68:
+    case 86:
       name= "events_stages_summary_by_thread_by_event_name.row_size";
       size= sizeof(PFS_stage_stat);
       break;
-    case 69:
+    case 87:
       name= "events_stages_summary_by_thread_by_event_name.row_count";
       size= thread_max * stage_class_max;
       break;
-    case 70:
+    case 88:
       name= "events_stages_summary_by_thread_by_event_name.memory";
       size= thread_max * stage_class_max * sizeof(PFS_stage_stat);
       total_memory+= size;
       break;
-    case 71:
+    case 89:
       name= "events_stages_summary_global_by_event_name.row_size";
       size= sizeof(PFS_stage_stat);
       break;
-    case 72:
+    case 90:
       name= "events_stages_summary_global_by_event_name.row_count";
       size= stage_class_max;
       break;
-    case 73:
+    case 91:
       name= "events_stages_summary_global_by_event_name.memory";
       size= stage_class_max * sizeof(PFS_stage_stat);
       total_memory+= size;
       break;
-    case 74:
+    case 92:
+      name= "events_stages_summary_by_account_by_event_name.row_size";
+      size= sizeof(PFS_stage_stat);
+      break;
+    case 93:
+      name= "events_stages_summary_by_account_by_event_name.row_count";
+      size= account_max * stage_class_max;
+      break;
+    case 94:
+      name= "events_stages_summary_by_account_by_event_name.memory";
+      size= account_max * stage_class_max * sizeof(PFS_stage_stat);
+      total_memory+= size;
+      break;
+    case 95:
+      name= "events_stages_summary_by_user_by_event_name.row_size";
+      size= sizeof(PFS_stage_stat);
+      break;
+    case 96:
+      name= "events_stages_summary_by_user_by_event_name.row_count";
+      size= user_max * stage_class_max;
+      break;
+    case 97:
+      name= "events_stages_summary_by_user_by_event_name.memory";
+      size= user_max * stage_class_max * sizeof(PFS_stage_stat);
+      total_memory+= size;
+      break;
+    case 98:
+      name= "events_stages_summary_by_host_by_event_name.row_size";
+      size= sizeof(PFS_stage_stat);
+      break;
+    case 99:
+      name= "events_stages_summary_by_host_by_event_name.row_count";
+      size= host_max * stage_class_max;
+      break;
+    case 100:
+      name= "events_stages_summary_by_host_by_event_name.memory";
+      size= host_max * stage_class_max * sizeof(PFS_stage_stat);
+      total_memory+= size;
+      break;
+    case 101:
       name= "(pfs_statement_class).row_size";
       size= sizeof(PFS_statement_class);
       break;
-    case 75:
+    case 102:
       name= "(pfs_statement_class).row_count";
       size= statement_class_max;
       break;
-    case 76:
+    case 103:
       name= "(pfs_statement_class).memory";
       size= statement_class_max * sizeof(PFS_statement_class);
       total_memory+= size;
       break;
-    case 77:
+    case 104:
       name= "events_statements_history.row_size";
       size= sizeof(PFS_events_statements);
       break;
-    case 78:
+    case 105:
       name= "events_statements_history.row_count";
       size= events_statements_history_per_thread * thread_max;
       break;
-    case 79:
+    case 106:
       name= "events_statements_history.memory";
       size= events_statements_history_per_thread * thread_max
         * sizeof(PFS_events_statements);
       total_memory+= size;
       break;
-    case 80:
+    case 107:
       name= "events_statements_history_long.row_size";
       size= sizeof(PFS_events_statements);
       break;
-    case 81:
+    case 108:
       name= "events_statements_history_long.row_count";
       size= events_statements_history_long_size;
       break;
-    case 82:
+    case 109:
       name= "events_statements_history_long.memory";
       size= events_statements_history_long_size * sizeof(PFS_events_statements);
       total_memory+= size;
       break;
-    case 83:
+    case 110:
       name= "events_statements_summary_by_thread_by_event_name.row_size";
       size= sizeof(PFS_statement_stat);
       break;
-    case 84:
+    case 111:
       name= "events_statements_summary_by_thread_by_event_name.row_count";
       size= thread_max * statement_class_max;
       break;
-    case 85:
+    case 112:
       name= "events_statements_summary_by_thread_by_event_name.memory";
       size= thread_max * statement_class_max * sizeof(PFS_statement_stat);
       total_memory+= size;
       break;
-    case 86:
+    case 113:
       name= "events_statements_summary_global_by_event_name.row_size";
       size= sizeof(PFS_statement_stat);
       break;
-    case 87:
+    case 114:
       name= "events_statements_summary_global_by_event_name.row_count";
       size= statement_class_max;
       break;
-    case 88:
+    case 115:
       name= "events_statements_summary_global_by_event_name.memory";
       size= statement_class_max * sizeof(PFS_statement_stat);
       total_memory+= size;
       break;
-    case 89:
+    case 116:
+      name= "events_statements_summary_by_account_by_event_name.row_size";
+      size= sizeof(PFS_statement_stat);
+      break;
+    case 117:
+      name= "events_statements_summary_by_account_by_event_name.row_count";
+      size= account_max * statement_class_max;
+      break;
+    case 118:
+      name= "events_statements_summary_by_account_by_event_name.memory";
+      size= account_max * statement_class_max * sizeof(PFS_statement_stat);
+      total_memory+= size;
+      break;
+    case 119:
+      name= "events_statements_summary_by_user_by_event_name.row_size";
+      size= sizeof(PFS_statement_stat);
+      break;
+    case 120:
+      name= "events_statements_summary_by_user_by_event_name.row_count";
+      size= user_max * statement_class_max;
+      break;
+    case 121:
+      name= "events_statements_summary_by_user_by_event_name.memory";
+      size= user_max * statement_class_max * sizeof(PFS_statement_stat);
+      total_memory+= size;
+      break;
+    case 122:
+      name= "events_statements_summary_by_host_by_event_name.row_size";
+      size= sizeof(PFS_statement_stat);
+      break;
+    case 123:
+      name= "events_statements_summary_by_host_by_event_name.row_count";
+      size= host_max * statement_class_max;
+      break;
+    case 124:
+      name= "events_statements_summary_by_host_by_event_name.memory";
+      size= host_max * statement_class_max * sizeof(PFS_statement_stat);
+      total_memory+= size;
+      break;
+    case 125:
       name= "events_statements_current.row_size";
       size= sizeof(PFS_events_statements);
       break;
-    case 90:
+    case 126:
       name= "events_statements_current.row_count";
       size= thread_max * statement_stack_max;
       break;
-    case 91:
+    case 127:
       name= "events_statements_current.memory";
       size= thread_max * statement_stack_max * sizeof(PFS_events_statements);
       total_memory+= size;
@@ -1074,7 +1258,7 @@ bool pfs_show_status(handlerton *hton, THD *thd,
       This case must be last,
       for aggregation in total_memory.
     */
-    case 92:
+    case 128:
       name= "performance_schema.memory";
       size= total_memory;
       /* This will fail if something is not advertised here */

@@ -21,11 +21,15 @@
 #include "my_global.h"
 #include "thr_lock.h"
 #include "mysql/psi/psi.h"
+#include "mysql/psi/mysql_thread.h"
 #include "my_pthread.h"
 #include "sql_const.h"
 #include "pfs.h"
 #include "pfs_instr_class.h"
 #include "pfs_instr.h"
+#include "pfs_host.h"
+#include "pfs_user.h"
+#include "pfs_account.h"
 #include "pfs_global.h"
 #include "pfs_column_values.h"
 #include "pfs_timer.h"
@@ -35,6 +39,7 @@
 #include "pfs_setup_actor.h"
 #include "pfs_setup_object.h"
 #include "sql_error.h"
+#include "sp_head.h"
 
 /**
   @page PAGE_PERFORMANCE_SCHEMA The Performance Schema main page
@@ -715,7 +720,7 @@ static inline int mysql_mutex_lock(...)
         |
         | [3]
         |
-     3a |-> pfs_user_host(U, H).event_name(M) =====>> [D], [E], [F]
+     3a |-> pfs_account(U, H).event_name(M) =====>> [D], [E], [F]
         |    |
         |    | [4]
         |    |
@@ -748,8 +753,8 @@ static inline int mysql_mutex_lock(...)
   Not implemented:
   - [3] thread disconnect
   - [4] user host disconnect
-  - [D] EVENTS_WAITS_SUMMARY_BY_USER_HOST_BY_EVENT_NAME,
-        table_ews_by_user_host_by_event_name::make_row()
+  - [D] EVENTS_WAITS_SUMMARY_BY_ACCOUNT_BY_EVENT_NAME,
+        table_ews_by_account_by_event_name::make_row()
   - [E] EVENTS_WAITS_SUMMARY_BY_USER_BY_EVENT_NAME,
         table_ews_by_user_by_event_name::make_row()
   - [F] EVENTS_WAITS_SUMMARY_BY_HOST_BY_EVENT_NAME,
@@ -898,7 +903,7 @@ static inline int mysql_mutex_lock(...)
    |    |
    |    | [2]
    |    |
-   |  a |-> pfs_user_host(U, H).event_name(S) =====>> [B], [C], [D], [E]
+   |  a |-> pfs_account(U, H).event_name(S) =====>> [B], [C], [D], [E]
    |    |    |
    |    |    | [3]
    |    |    |
@@ -924,8 +929,8 @@ static inline int mysql_mutex_lock(...)
   - [2a, 2b, 2c] @c delete_thread_v1() to aggregate to user/host buffers
   - [3] user disconnect
   - [4] host disconnect
-  - [B] EVENTS_STAGES_SUMMARY_BY_USER_HOST_BY_EVENT_NAME,
-        @c table_esgs_by_user_host_by_event_name::make_row()
+  - [B] EVENTS_STAGES_SUMMARY_BY_ACCOUNT_BY_EVENT_NAME,
+        @c table_esgs_by_account_by_event_name::make_row()
   - [C] EVENTS_STAGES_SUMMARY_BY_USER_BY_EVENT_NAME,
         @c table_esgs_by_user_by_event_name::make_row()
   - [D] EVENTS_STAGES_SUMMARY_BY_HOST_BY_EVENT_NAME,
@@ -942,7 +947,7 @@ static inline int mysql_mutex_lock(...)
    |    |
    |    | [2]
    |    |
-   |  a |-> pfs_user_host(U, H).event_name(S) =====>> [B], [C], [D], [E]
+   |  a |-> pfs_account(U, H).event_name(S) =====>> [B], [C], [D], [E]
    |    |    |
    |    |    | [3]
    |    |    |
@@ -968,8 +973,8 @@ static inline int mysql_mutex_lock(...)
   - [2a, 2b, 2c] @c delete_thread_v1() to aggregate to user/host buffers
   - [3] user disconnect
   - [4] host disconnect
-  - [B] EVENTS_STATEMENTS_SUMMARY_BY_USER_HOST_BY_EVENT_NAME,
-        @c table_esms_by_user_host_by_event_name::make_row()
+  - [B] EVENTS_STATEMENTS_SUMMARY_BY_ACCOUNT_BY_EVENT_NAME,
+        @c table_esms_by_account_by_event_name::make_row()
   - [C] EVENTS_STATEMENTS_SUMMARY_BY_USER_BY_EVENT_NAME,
         @c table_esms_by_user_by_event_name::make_row()
   - [D] EVENTS_STATEMENTS_SUMMARY_BY_HOST_BY_EVENT_NAME,
@@ -1542,6 +1547,8 @@ void* pfs_spawn_thread(void *arg)
     {
       PFS_thread *parent= typed_arg->m_parent_thread;
 
+      clear_thread_account(pfs);
+
       pfs->m_parent_thread_internal_id= parent->m_thread_internal_id;
 
       memcpy(pfs->m_username, parent->m_username, sizeof(pfs->m_username));
@@ -1549,6 +1556,8 @@ void* pfs_spawn_thread(void *arg)
 
       memcpy(pfs->m_hostname, parent->m_hostname, sizeof(pfs->m_hostname));
       pfs->m_hostname_length= parent->m_hostname_length;
+
+      set_thread_account(pfs);
     }
   }
   else
@@ -1660,9 +1669,13 @@ static void set_thread_user_v1(const char *user, int user_len)
 
   pfs->m_lock.allocated_to_dirty();
 
+  clear_thread_account(pfs);
+
   if (user_len > 0)
     memcpy(pfs->m_username, user, user_len);
   pfs->m_username_length= user_len;
+
+  set_thread_account(pfs);
 
   bool enabled= true;
   if (flag_thread_instrumentation)
@@ -1689,9 +1702,9 @@ static void set_thread_user_v1(const char *user, int user_len)
 
 /**
   Implementation of the thread instrumentation interface.
-  @sa PSI_v1::set_thread_user_host.
+  @sa PSI_v1::set_thread_account.
 */
-static void set_thread_user_host_v1(const char *user, int user_len,
+static void set_thread_account_v1(const char *user, int user_len,
                                     const char *host, int host_len)
 {
   PFS_thread *pfs= my_pthread_getspecific_ptr(PFS_thread*, THR_PFS);
@@ -1708,6 +1721,8 @@ static void set_thread_user_host_v1(const char *user, int user_len,
 
   pfs->m_lock.allocated_to_dirty();
 
+  clear_thread_account(pfs);
+
   if (host_len > 0)
     memcpy(pfs->m_hostname, host, host_len);
   pfs->m_hostname_length= host_len;
@@ -1715,6 +1730,8 @@ static void set_thread_user_host_v1(const char *user, int user_len,
   if (user_len > 0)
     memcpy(pfs->m_username, user, user_len);
   pfs->m_username_length= user_len;
+
+  set_thread_account(pfs);
 
   bool enabled= true;
   if (flag_thread_instrumentation)
@@ -3597,7 +3614,6 @@ static void end_file_wait_v1(PSI_file_locker *locker,
   }
 }
 
-
 static void start_stage_v1(PSI_stage_key key, const char *src_file, int src_line)
 {
   ulonglong timer_value= 0;
@@ -4220,6 +4236,7 @@ static void end_statement_v1(PSI_statement_locker *locker, void *stmt_da)
       break;
   }
 }
+
 /**
   Implementation of the instrumentation interface.
   @sa PSI_v1.
@@ -4250,7 +4267,7 @@ PSI_v1 PFS_v1=
   set_thread_id_v1,
   get_thread_v1,
   set_thread_user_v1,
-  set_thread_user_host_v1,
+  set_thread_account_v1,
   set_thread_db_v1,
   set_thread_command_v1,
   set_thread_start_time_v1,

@@ -44,6 +44,9 @@ struct PFS_thread_class;
 */
 
 struct PFS_thread;
+struct PFS_host;
+struct PFS_user;
+struct PFS_account;
 
 /** Base structure for wait instruments. */
 struct PFS_instr
@@ -288,6 +291,12 @@ struct PFS_thread : PFS_connection_slice
   LF_PINS *m_setup_actor_hash_pins;
   /** Pins for setup_object_hash. */
   LF_PINS *m_setup_object_hash_pins;
+  /** Pins for host_hash. */
+  LF_PINS *m_host_hash_pins;
+  /** Pins for user_hash. */
+  LF_PINS *m_user_hash_pins;
+  /** Pins for account_hash. */
+  LF_PINS *m_account_hash_pins;
   /** Event ID counter */
   ulonglong m_event_id;
   /** Thread instrumentation flag. */
@@ -395,6 +404,10 @@ struct PFS_thread : PFS_connection_slice
   /** Size of @c m_events_statements_stack. */
   uint m_events_statements_count;
   PFS_events_statements *m_statement_stack;
+
+  PFS_host *m_host;
+  PFS_user *m_user;
+  PFS_account *m_account;
 };
 
 extern PFS_single_stat *global_instr_class_waits_array;
@@ -484,6 +497,8 @@ void aggregate_thread(PFS_thread *thread);
 void aggregate_thread_waits(PFS_thread *thread);
 void aggregate_thread_stages(PFS_thread *thread);
 void aggregate_thread_statements(PFS_thread *thread);
+void clear_thread_account(PFS_thread *thread);
+void set_thread_account(PFS_thread *thread);
 
 /** @} */
 #endif

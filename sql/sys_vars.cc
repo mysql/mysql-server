@@ -216,6 +216,30 @@ static Sys_var_ulong Sys_pfs_setup_objects_size(
        DEFAULT(PFS_MAX_SETUP_OBJECT),
        BLOCK_SIZE(1), PFS_TRAILING_PROPERTIES);
 
+static Sys_var_ulong Sys_pfs_accounts_size(
+       "performance_schema_accounts_size",
+       "Maximum number of instrumented user@host accounts.",
+       READ_ONLY GLOBAL_VAR(pfs_param.m_account_sizing),
+       CMD_LINE(REQUIRED_ARG), VALID_RANGE(0, 1024*1024),
+       DEFAULT(PFS_MAX_ACCOUNT),
+       BLOCK_SIZE(1), PFS_TRAILING_PROPERTIES);
+
+static Sys_var_ulong Sys_pfs_hosts_size(
+       "performance_schema_hosts_size",
+       "Maximum number of instrumented hosts.",
+       READ_ONLY GLOBAL_VAR(pfs_param.m_host_sizing),
+       CMD_LINE(REQUIRED_ARG), VALID_RANGE(0, 1024*1024),
+       DEFAULT(PFS_MAX_HOST),
+       BLOCK_SIZE(1), PFS_TRAILING_PROPERTIES);
+
+static Sys_var_ulong Sys_pfs_users_size(
+       "performance_schema_users_size",
+       "Maximum number of instrumented users.",
+       READ_ONLY GLOBAL_VAR(pfs_param.m_user_sizing),
+       CMD_LINE(REQUIRED_ARG), VALID_RANGE(0, 1024*1024),
+       DEFAULT(PFS_MAX_USER),
+       BLOCK_SIZE(1), PFS_TRAILING_PROPERTIES);
+
 static Sys_var_ulong Sys_pfs_max_stage_classes(
        "performance_schema_max_stage_classes",
        "Maximum number of stage instruments.",
