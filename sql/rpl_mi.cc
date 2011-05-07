@@ -24,7 +24,8 @@
 
 Master_info::Master_info()
   :Slave_reporting_capability("I/O"),
-   ssl(0), ssl_verify_server_cert(0), fd(-1), io_thd(0), inited(0),
+   ssl(0), ssl_verify_server_cert(0), fd(-1), io_thd(0),
+   checksum_alg_before_fd(BINLOG_CHECKSUM_ALG_UNDEF), inited(0),
    abort_slave(0),slave_running(0),
    slave_run_id(0)
 {

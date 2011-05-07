@@ -143,7 +143,8 @@ SET(LIBMYSQLD_SOURCES  libmysqld.c emb_qcache.cc lib_sql.cc
            ../sql/multi_range_read.cc
            ../sql/opt_index_cond_pushdown.cc
            ../sql/opt_subselect.cc
-           ../sql/create_options.cc
+           ../sql/create_options.cc ../sql/rpl_utility.cc
+           ../sql/rpl_reporting.cc
            ../sql/sql_expression_cache.cc
            ${GEN_SOURCES}
            ${LIB_SOURCES})
