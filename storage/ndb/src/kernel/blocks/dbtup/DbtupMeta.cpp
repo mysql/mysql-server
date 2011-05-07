@@ -703,7 +703,8 @@ void Dbtup::execTUPFRAGREQ(Signal* signal)
   regFragPtr.p->m_tablespace_id= tablespace_id;
   regFragPtr.p->m_undo_complete= false;
   regFragPtr.p->m_lcp_scan_op = RNIL;
-  regFragPtr.p->m_lcp_keep_list = RNIL;
+  regFragPtr.p->m_lcp_keep_list_head.setNull();
+  regFragPtr.p->m_lcp_keep_list_tail.setNull();
   regFragPtr.p->noOfPages = 0;
   regFragPtr.p->noOfVarPages = 0;
   regFragPtr.p->m_max_page_no = 0;
@@ -1572,6 +1573,8 @@ Dbtup::computeTableMetaData(Tablerec *regTabPtr)
 
   /* Room for changemask */
   total_rec_size += 1 + ((regTabPtr->m_no_of_attributes + 31) >> 5);
+
+  total_rec_size += COPY_TUPLE_HEADER32;
 
   regTabPtr->total_rec_size= total_rec_size;
 

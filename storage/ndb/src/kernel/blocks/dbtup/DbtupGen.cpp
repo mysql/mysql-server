@@ -670,7 +670,6 @@ void Dbtup::initializeDefaultValuesFrag()
   DefaultValuesFragment.p->fragStatus = Fragrecord::FS_ONLINE;
   DefaultValuesFragment.p->m_undo_complete= false;
   DefaultValuesFragment.p->m_lcp_scan_op = RNIL;
-  DefaultValuesFragment.p->m_lcp_keep_list = RNIL;
   DefaultValuesFragment.p->noOfPages = 0;
   DefaultValuesFragment.p->noOfVarPages = 0;
   DefaultValuesFragment.p->m_max_page_no = 0;
