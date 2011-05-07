@@ -21,8 +21,14 @@
 
 echo "================== Step 1 ==================";
 execute dump_thread;
+execute dump_account;
+execute dump_user;
+execute dump_host;
 execute dump_global;
 execute dump_history;
+execute dump_accounts;
+execute dump_users;
+execute dump_hosts;
 
 # Notes about this test
 #
@@ -44,8 +50,14 @@ echo "================== con1 connected ==================";
 
 echo "================== Step 2 ==================";
 execute dump_thread;
+execute dump_account;
+execute dump_user;
+execute dump_host;
 execute dump_global;
 execute dump_history;
+execute dump_accounts;
+execute dump_users;
+execute dump_hosts;
 
 --connection con1
 
@@ -59,8 +71,14 @@ echo "================== con1 marker ==================";
 
 echo "================== Step 3 ==================";
 execute dump_thread;
+execute dump_account;
+execute dump_user;
+execute dump_host;
 execute dump_global;
 execute dump_history;
+execute dump_accounts;
+execute dump_users;
+execute dump_hosts;
 
 # Debugging helpers
 # select * from performance_schema.events_waits_history_long;
@@ -74,8 +92,14 @@ echo "================== con2 connected ==================";
 
 echo "================== Step 4 ==================";
 execute dump_thread;
+execute dump_account;
+execute dump_user;
+execute dump_host;
 execute dump_global;
 execute dump_history;
+execute dump_accounts;
+execute dump_users;
+execute dump_hosts;
 
 --connection con2
 
@@ -89,8 +113,14 @@ echo "================== con2 marker ==================";
 
 echo "================== Step 5 ==================";
 execute dump_thread;
+execute dump_account;
+execute dump_user;
+execute dump_host;
 execute dump_global;
 execute dump_history;
+execute dump_accounts;
+execute dump_users;
+execute dump_hosts;
 
 connect (con3, localhost, user3, , );
 
@@ -100,8 +130,14 @@ echo "================== con3 connected ==================";
 
 echo "================== Step 6 ==================";
 execute dump_thread;
+execute dump_account;
+execute dump_user;
+execute dump_host;
 execute dump_global;
 execute dump_history;
+execute dump_accounts;
+execute dump_users;
+execute dump_hosts;
 
 --connection con3
 
@@ -115,8 +151,14 @@ echo "================== con3 marker ==================";
 
 echo "================== Step 7 ==================";
 execute dump_thread;
+execute dump_account;
+execute dump_user;
+execute dump_host;
 execute dump_global;
 execute dump_history;
+execute dump_accounts;
+execute dump_users;
+execute dump_hosts;
 
 connect (con4, localhost, user4, , );
 
@@ -126,8 +168,14 @@ echo "================== con4 connected ==================";
 
 echo "================== Step 8 ==================";
 execute dump_thread;
+execute dump_account;
+execute dump_user;
+execute dump_host;
 execute dump_global;
 execute dump_history;
+execute dump_accounts;
+execute dump_users;
+execute dump_hosts;
 
 --connection con4
 
@@ -141,8 +189,14 @@ echo "================== con4 marker ==================";
 
 echo "================== Step 9 ==================";
 execute dump_thread;
+execute dump_account;
+execute dump_user;
+execute dump_host;
 execute dump_global;
 execute dump_history;
+execute dump_accounts;
+execute dump_users;
+execute dump_hosts;
 
 --disconnect con1
 
@@ -156,8 +210,14 @@ echo "================== con1 disconnected ==================";
 
 echo "================== Step 10 ==================";
 execute dump_thread;
+execute dump_account;
+execute dump_user;
+execute dump_host;
 execute dump_global;
 execute dump_history;
+execute dump_accounts;
+execute dump_users;
+execute dump_hosts;
 
 --disconnect con2
 
@@ -171,8 +231,14 @@ echo "================== con2 disconnected ==================";
 
 echo "================== Step 11 ==================";
 execute dump_thread;
+execute dump_account;
+execute dump_user;
+execute dump_host;
 execute dump_global;
 execute dump_history;
+execute dump_accounts;
+execute dump_users;
+execute dump_hosts;
 
 --disconnect con3
 
@@ -186,8 +252,14 @@ echo "================== con3 disconnected ==================";
 
 echo "================== Step 12 ==================";
 execute dump_thread;
+execute dump_account;
+execute dump_user;
+execute dump_host;
 execute dump_global;
 execute dump_history;
+execute dump_accounts;
+execute dump_users;
+execute dump_hosts;
 
 --disconnect con4
 
@@ -201,8 +273,14 @@ echo "================== con4 disconnected ==================";
 
 echo "================== Step 13 ==================";
 execute dump_thread;
+execute dump_account;
+execute dump_user;
+execute dump_host;
 execute dump_global;
 execute dump_history;
+execute dump_accounts;
+execute dump_users;
+execute dump_hosts;
 
 --connection default
 
@@ -212,8 +290,59 @@ echo "================== BY_THREAD truncated ==================";
 
 echo "================== Step 14 ==================";
 execute dump_thread;
+execute dump_account;
+execute dump_user;
+execute dump_host;
 execute dump_global;
 execute dump_history;
+execute dump_accounts;
+execute dump_users;
+execute dump_hosts;
+
+truncate performance_schema.events_waits_summary_by_account_by_event_name;
+
+echo "================== BY_USER_HOST truncated ==================";
+
+echo "================== Step 15 ==================";
+execute dump_thread;
+execute dump_account;
+execute dump_user;
+execute dump_host;
+execute dump_global;
+execute dump_history;
+execute dump_accounts;
+execute dump_users;
+execute dump_hosts;
+
+truncate performance_schema.events_waits_summary_by_user_by_event_name;
+
+echo "================== BY_USER truncated ==================";
+
+echo "================== Step 16 ==================";
+execute dump_thread;
+execute dump_account;
+execute dump_user;
+execute dump_host;
+execute dump_global;
+execute dump_history;
+execute dump_accounts;
+execute dump_users;
+execute dump_hosts;
+
+truncate performance_schema.events_waits_summary_by_host_by_event_name;
+
+echo "================== BY_HOST truncated ==================";
+
+echo "================== Step 17 ==================";
+execute dump_thread;
+execute dump_account;
+execute dump_user;
+execute dump_host;
+execute dump_global;
+execute dump_history;
+execute dump_accounts;
+execute dump_users;
+execute dump_hosts;
 
 truncate performance_schema.events_waits_summary_global_by_event_name;
 
@@ -221,6 +350,12 @@ echo "================== GLOBAL truncated ==================";
 
 echo "================== Step 18 ==================";
 execute dump_thread;
+execute dump_account;
+execute dump_user;
+execute dump_host;
 execute dump_global;
 execute dump_history;
+execute dump_accounts;
+execute dump_users;
+execute dump_hosts;
 

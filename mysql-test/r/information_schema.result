@@ -1304,7 +1304,8 @@ t2
 drop table t1,t2;
 select 1 as f1 from information_schema.tables  where "CHARACTER_SETS"=
 (select cast(table_name as char)  from information_schema.tables
-order by table_name limit 1) limit 1;
+where table_schema != 'performance_schema'
+ order by table_name limit 1) limit 1;
 f1
 1
 select t.table_name, group_concat(t.table_schema, '.', t.table_name),

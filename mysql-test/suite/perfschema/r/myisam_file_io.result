@@ -43,11 +43,13 @@ wait/io/file/myisam/dfile	mi_dynrec.c:	write	20	no_index_tab.MYD
 wait/io/file/myisam/kfile	mi_open.c:	write	124	no_index_tab.MYI
 show status like 'performance_schema_%';
 Variable_name	Value
+Performance_schema_accounts_lost	0
 Performance_schema_cond_classes_lost	0
 Performance_schema_cond_instances_lost	0
 Performance_schema_file_classes_lost	0
 Performance_schema_file_handles_lost	0
 Performance_schema_file_instances_lost	0
+Performance_schema_hosts_lost	0
 Performance_schema_locker_lost	0
 Performance_schema_mutex_classes_lost	0
 Performance_schema_mutex_instances_lost	0
@@ -59,5 +61,6 @@ Performance_schema_table_handles_lost	0
 Performance_schema_table_instances_lost	0
 Performance_schema_thread_classes_lost	0
 Performance_schema_thread_instances_lost	0
+Performance_schema_users_lost	0
 update performance_schema.setup_instruments set enabled='YES';
 drop table test.no_index_tab;

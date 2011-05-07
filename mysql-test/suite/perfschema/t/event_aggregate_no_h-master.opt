@@ -1,0 +1,3 @@
+--general_log
+--log-output=FILE
+--loose-performance_schema_hosts_size=0
