@@ -1,4 +1,4 @@
-/* Copyright (c) 2008, 2010, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2008, 2011, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -122,51 +122,9 @@ PFS_engine_table* table_threads::create()
 }
 
 table_threads::table_threads()
-  : PFS_engine_table(& m_share, & m_pos),
-  m_row_exists(false), m_pos(0), m_next_pos(0)
+  : cursor_by_thread(& m_share),
+  m_row_exists(false)
 {}
-
-void table_threads::reset_position(void)
-{
-  m_pos.m_index= 0;
-  m_next_pos.m_index= 0;
-}
-
-int table_threads::rnd_next()
-{
-  PFS_thread *pfs;
-
-  for (m_pos.set_at(&m_next_pos);
-       m_pos.m_index < thread_max;
-       m_pos.next())
-  {
-    pfs= &thread_array[m_pos.m_index];
-    if (pfs->m_lock.is_populated())
-    {
-      make_row(pfs);
-      m_next_pos.set_after(&m_pos);
-      return 0;
-    }
-  }
-
-  return HA_ERR_END_OF_FILE;
-}
-
-int table_threads::rnd_pos(const void *pos)
-{
-  PFS_thread *pfs;
-
-  set_position(pos);
-  DBUG_ASSERT(m_pos.m_index < thread_max);
-  pfs= &thread_array[m_pos.m_index];
-  if (pfs->m_lock.is_populated())
-  {
-    make_row(pfs);
-    return 0;
-  }
-
-  return HA_ERR_RECORD_DELETED;
-}
 
 void table_threads::make_row(PFS_thread *pfs)
 {

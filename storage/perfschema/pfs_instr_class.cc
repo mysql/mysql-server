@@ -92,9 +92,9 @@ ulong table_share_max= 0;
 /** Number of table share lost. @sa table_share_array */
 ulong table_share_lost= 0;
 
-static PFS_mutex_class *mutex_class_array= NULL;
-static PFS_rwlock_class *rwlock_class_array= NULL;
-static PFS_cond_class *cond_class_array= NULL;
+PFS_mutex_class *mutex_class_array= NULL;
+PFS_rwlock_class *rwlock_class_array= NULL;
+PFS_cond_class *cond_class_array= NULL;
 
 /**
   Current number or elements in thread_class_array.
@@ -139,7 +139,7 @@ C_MODE_END
 static volatile uint32 file_class_dirty_count= 0;
 static volatile uint32 file_class_allocated_count= 0;
 
-static PFS_file_class *file_class_array= NULL;
+PFS_file_class *file_class_array= NULL;
 
 static volatile uint32 stage_class_dirty_count= 0;
 static volatile uint32 stage_class_allocated_count= 0;

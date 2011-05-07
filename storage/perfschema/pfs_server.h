@@ -72,6 +72,15 @@
 #ifndef PFS_MAX_SETUP_OBJECT
   #define PFS_MAX_SETUP_OBJECT 100
 #endif
+#ifndef PFS_MAX_HOST
+  #define PFS_MAX_HOST 100
+#endif
+#ifndef PFS_MAX_USER
+  #define PFS_MAX_USER 100
+#endif
+#ifndef PFS_MAX_ACCOUNT
+  #define PFS_MAX_ACCOUNT 100
+#endif
 #ifndef PFS_MAX_STAGE_CLASS
   #define PFS_MAX_STAGE_CLASS 100
 #endif
@@ -169,6 +178,12 @@ struct PFS_global_param
   ulong m_setup_actor_sizing;
   /** Maximum number of rows in table SETUP_OBJECTS. */
   ulong m_setup_object_sizing;
+  /** Maximum number of rows in table HOSTS. */
+  ulong m_host_sizing;
+  /** Maximum number of rows in table USERS. */
+  ulong m_user_sizing;
+  /** Maximum number of rows in table ACCOUNTS. */
+  ulong m_account_sizing;
   /**
     Maximum number of instrumented stage classes.
     @sa stage_class_lost.

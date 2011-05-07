@@ -428,6 +428,28 @@ struct PFS_table_stat
   }
 };
 
+struct PFS_connection_stat
+{
+  PFS_connection_stat()
+  : m_current_connections(0),
+    m_total_connections(0)
+  {}
+
+  ulonglong m_current_connections;
+  ulonglong m_total_connections;
+
+  inline void aggregate_active(ulonglong active)
+  {
+    m_current_connections+= active;
+    m_total_connections+= active;
+  }
+
+  inline void aggregate_disconnected(ulonglong disconnected)
+  {
+    m_total_connections+= disconnected;
+  }
+};
+
 /** @} */
 #endif
 

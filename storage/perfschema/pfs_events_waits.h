@@ -33,6 +33,9 @@ struct PFS_file;
 struct PFS_thread;
 struct PFS_instr_class;
 struct PFS_table_share;
+struct PFS_account;
+struct PFS_user;
+struct PFS_host;
 
 /** Class of a wait event. */
 enum events_waits_class
@@ -110,7 +113,13 @@ void reset_events_waits_current();
 void reset_events_waits_history();
 void reset_events_waits_history_long();
 void reset_events_waits_by_thread();
+void reset_events_waits_by_account();
+void reset_events_waits_by_user();
+void reset_events_waits_by_host();
 void reset_events_waits_global();
+void aggregate_account_waits(PFS_account *account);
+void aggregate_user_waits(PFS_user *user);
+void aggregate_host_waits(PFS_host *host);
 
 void reset_table_waits_by_table();
 void reset_table_io_waits_by_table();

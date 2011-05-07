@@ -293,6 +293,64 @@ EXECUTE stmt;
 DROP PREPARE stmt;
 
 --
+-- TABLE EVENTS_WAITS_SUMMARY_BY_HOST_BY_EVENT_NAME
+--
+
+SET @cmd="CREATE TABLE performance_schema.events_waits_summary_by_host_by_event_name("
+  "HOST CHAR(60) collate utf8_bin default null,"
+  "EVENT_NAME VARCHAR(128) not null,"
+  "COUNT_STAR BIGINT unsigned not null,"
+  "SUM_TIMER_WAIT BIGINT unsigned not null,"
+  "MIN_TIMER_WAIT BIGINT unsigned not null,"
+  "AVG_TIMER_WAIT BIGINT unsigned not null,"
+  "MAX_TIMER_WAIT BIGINT unsigned not null"
+  ")ENGINE=PERFORMANCE_SCHEMA;";
+
+SET @str = IF(@have_pfs = 1, @cmd, 'SET @dummy = 0');
+PREPARE stmt FROM @str;
+EXECUTE stmt;
+DROP PREPARE stmt;
+
+--
+-- TABLE EVENTS_WAITS_SUMMARY_BY_USER_BY_EVENT_NAME
+--
+
+SET @cmd="CREATE TABLE performance_schema.events_waits_summary_by_user_by_event_name("
+  "USER CHAR(16) collate utf8_bin default null,"
+  "EVENT_NAME VARCHAR(128) not null,"
+  "COUNT_STAR BIGINT unsigned not null,"
+  "SUM_TIMER_WAIT BIGINT unsigned not null,"
+  "MIN_TIMER_WAIT BIGINT unsigned not null,"
+  "AVG_TIMER_WAIT BIGINT unsigned not null,"
+  "MAX_TIMER_WAIT BIGINT unsigned not null"
+  ")ENGINE=PERFORMANCE_SCHEMA;";
+
+SET @str = IF(@have_pfs = 1, @cmd, 'SET @dummy = 0');
+PREPARE stmt FROM @str;
+EXECUTE stmt;
+DROP PREPARE stmt;
+
+--
+-- TABLE EVENTS_WAITS_SUMMARY_BY_ACCOUNT_BY_EVENT_NAME
+--
+
+SET @cmd="CREATE TABLE performance_schema.events_waits_summary_by_account_by_event_name("
+  "USER CHAR(16) collate utf8_bin default null,"
+  "HOST CHAR(60) collate utf8_bin default null,"
+  "EVENT_NAME VARCHAR(128) not null,"
+  "COUNT_STAR BIGINT unsigned not null,"
+  "SUM_TIMER_WAIT BIGINT unsigned not null,"
+  "MIN_TIMER_WAIT BIGINT unsigned not null,"
+  "AVG_TIMER_WAIT BIGINT unsigned not null,"
+  "MAX_TIMER_WAIT BIGINT unsigned not null"
+  ")ENGINE=PERFORMANCE_SCHEMA;";
+
+SET @str = IF(@have_pfs = 1, @cmd, 'SET @dummy = 0');
+PREPARE stmt FROM @str;
+EXECUTE stmt;
+DROP PREPARE stmt;
+
+--
 -- TABLE EVENTS_WAITS_SUMMARY_BY_THREAD_BY_EVENT_NAME
 --
 
@@ -815,6 +873,64 @@ EXECUTE stmt;
 DROP PREPARE stmt;
 
 --
+-- TABLE EVENTS_STAGES_SUMMARY_BY_HOST_BY_EVENT_NAME
+--
+
+SET @cmd="CREATE TABLE performance_schema.events_stages_summary_by_host_by_event_name("
+  "HOST CHAR(60) collate utf8_bin default null,"
+  "EVENT_NAME VARCHAR(128) not null,"
+  "COUNT_STAR BIGINT unsigned not null,"
+  "SUM_TIMER_WAIT BIGINT unsigned not null,"
+  "MIN_TIMER_WAIT BIGINT unsigned not null,"
+  "AVG_TIMER_WAIT BIGINT unsigned not null,"
+  "MAX_TIMER_WAIT BIGINT unsigned not null"
+  ")ENGINE=PERFORMANCE_SCHEMA;";
+
+SET @str = IF(@have_pfs = 1, @cmd, 'SET @dummy = 0');
+PREPARE stmt FROM @str;
+EXECUTE stmt;
+DROP PREPARE stmt;
+
+--
+-- TABLE EVENTS_STAGES_SUMMARY_BY_USER_BY_EVENT_NAME
+--
+
+SET @cmd="CREATE TABLE performance_schema.events_stages_summary_by_user_by_event_name("
+  "USER CHAR(16) collate utf8_bin default null,"
+  "EVENT_NAME VARCHAR(128) not null,"
+  "COUNT_STAR BIGINT unsigned not null,"
+  "SUM_TIMER_WAIT BIGINT unsigned not null,"
+  "MIN_TIMER_WAIT BIGINT unsigned not null,"
+  "AVG_TIMER_WAIT BIGINT unsigned not null,"
+  "MAX_TIMER_WAIT BIGINT unsigned not null"
+  ")ENGINE=PERFORMANCE_SCHEMA;";
+
+SET @str = IF(@have_pfs = 1, @cmd, 'SET @dummy = 0');
+PREPARE stmt FROM @str;
+EXECUTE stmt;
+DROP PREPARE stmt;
+
+--
+-- TABLE EVENTS_STAGES_SUMMARY_BY_ACCOUNT_BY_EVENT_NAME
+--
+
+SET @cmd="CREATE TABLE performance_schema.events_stages_summary_by_account_by_event_name("
+  "USER CHAR(16) collate utf8_bin default null,"
+  "HOST CHAR(60) collate utf8_bin default null,"
+  "EVENT_NAME VARCHAR(128) not null,"
+  "COUNT_STAR BIGINT unsigned not null,"
+  "SUM_TIMER_WAIT BIGINT unsigned not null,"
+  "MIN_TIMER_WAIT BIGINT unsigned not null,"
+  "AVG_TIMER_WAIT BIGINT unsigned not null,"
+  "MAX_TIMER_WAIT BIGINT unsigned not null"
+  ")ENGINE=PERFORMANCE_SCHEMA;";
+
+SET @str = IF(@have_pfs = 1, @cmd, 'SET @dummy = 0');
+PREPARE stmt FROM @str;
+EXECUTE stmt;
+DROP PREPARE stmt;
+
+--
 -- TABLE EVENTS_STAGES_SUMMARY_GLOBAL_BY_EVENT_NAME
 --
 
@@ -1018,6 +1134,121 @@ EXECUTE stmt;
 DROP PREPARE stmt;
 
 --
+-- TABLE EVENTS_STATEMENTS_SUMMARY_BY_HOST_BY_EVENT_NAME
+--
+
+SET @cmd="CREATE TABLE performance_schema.events_statements_summary_by_host_by_event_name("
+  "HOST CHAR(60) collate utf8_bin default null,"
+  "EVENT_NAME VARCHAR(128) not null,"
+  "COUNT_STAR BIGINT unsigned not null,"
+  "SUM_TIMER_WAIT BIGINT unsigned not null,"
+  "MIN_TIMER_WAIT BIGINT unsigned not null,"
+  "AVG_TIMER_WAIT BIGINT unsigned not null,"
+  "MAX_TIMER_WAIT BIGINT unsigned not null,"
+  "SUM_LOCK_TIME BIGINT unsigned not null,"
+  "SUM_ERRORS BIGINT unsigned not null,"
+  "SUM_WARNINGS BIGINT unsigned not null,"
+  "SUM_ROWS_AFFECTED BIGINT unsigned not null,"
+  "SUM_ROWS_SENT BIGINT unsigned not null,"
+  "SUM_ROWS_EXAMINED BIGINT unsigned not null,"
+  "SUM_CREATED_TMP_DISK_TABLES BIGINT unsigned not null,"
+  "SUM_CREATED_TMP_TABLES BIGINT unsigned not null,"
+  "SUM_SELECT_FULL_JOIN BIGINT unsigned not null,"
+  "SUM_SELECT_FULL_RANGE_JOIN BIGINT unsigned not null,"
+  "SUM_SELECT_RANGE BIGINT unsigned not null,"
+  "SUM_SELECT_RANGE_CHECK BIGINT unsigned not null,"
+  "SUM_SELECT_SCAN BIGINT unsigned not null,"
+  "SUM_SORT_MERGE_PASSES BIGINT unsigned not null,"
+  "SUM_SORT_RANGE BIGINT unsigned not null,"
+  "SUM_SORT_ROWS BIGINT unsigned not null,"
+  "SUM_SORT_SCAN BIGINT unsigned not null,"
+  "SUM_NO_INDEX_USED BIGINT unsigned not null,"
+  "SUM_NO_GOOD_INDEX_USED BIGINT unsigned not null"
+  ")ENGINE=PERFORMANCE_SCHEMA;";
+
+SET @str = IF(@have_pfs = 1, @cmd, 'SET @dummy = 0');
+PREPARE stmt FROM @str;
+EXECUTE stmt;
+DROP PREPARE stmt;
+
+--
+-- TABLE EVENTS_STATEMENTS_SUMMARY_BY_USER_BY_EVENT_NAME
+--
+
+SET @cmd="CREATE TABLE performance_schema.events_statements_summary_by_user_by_event_name("
+  "USER CHAR(16) collate utf8_bin default null,"
+  "EVENT_NAME VARCHAR(128) not null,"
+  "COUNT_STAR BIGINT unsigned not null,"
+  "SUM_TIMER_WAIT BIGINT unsigned not null,"
+  "MIN_TIMER_WAIT BIGINT unsigned not null,"
+  "AVG_TIMER_WAIT BIGINT unsigned not null,"
+  "MAX_TIMER_WAIT BIGINT unsigned not null,"
+  "SUM_LOCK_TIME BIGINT unsigned not null,"
+  "SUM_ERRORS BIGINT unsigned not null,"
+  "SUM_WARNINGS BIGINT unsigned not null,"
+  "SUM_ROWS_AFFECTED BIGINT unsigned not null,"
+  "SUM_ROWS_SENT BIGINT unsigned not null,"
+  "SUM_ROWS_EXAMINED BIGINT unsigned not null,"
+  "SUM_CREATED_TMP_DISK_TABLES BIGINT unsigned not null,"
+  "SUM_CREATED_TMP_TABLES BIGINT unsigned not null,"
+  "SUM_SELECT_FULL_JOIN BIGINT unsigned not null,"
+  "SUM_SELECT_FULL_RANGE_JOIN BIGINT unsigned not null,"
+  "SUM_SELECT_RANGE BIGINT unsigned not null,"
+  "SUM_SELECT_RANGE_CHECK BIGINT unsigned not null,"
+  "SUM_SELECT_SCAN BIGINT unsigned not null,"
+  "SUM_SORT_MERGE_PASSES BIGINT unsigned not null,"
+  "SUM_SORT_RANGE BIGINT unsigned not null,"
+  "SUM_SORT_ROWS BIGINT unsigned not null,"
+  "SUM_SORT_SCAN BIGINT unsigned not null,"
+  "SUM_NO_INDEX_USED BIGINT unsigned not null,"
+  "SUM_NO_GOOD_INDEX_USED BIGINT unsigned not null"
+  ")ENGINE=PERFORMANCE_SCHEMA;";
+
+SET @str = IF(@have_pfs = 1, @cmd, 'SET @dummy = 0');
+PREPARE stmt FROM @str;
+EXECUTE stmt;
+DROP PREPARE stmt;
+
+--
+-- TABLE EVENTS_STATEMENTS_SUMMARY_BY_ACCOUNT_BY_EVENT_NAME
+--
+
+SET @cmd="CREATE TABLE performance_schema.events_statements_summary_by_account_by_event_name("
+  "USER CHAR(16) collate utf8_bin default null,"
+  "HOST CHAR(60) collate utf8_bin default null,"
+  "EVENT_NAME VARCHAR(128) not null,"
+  "COUNT_STAR BIGINT unsigned not null,"
+  "SUM_TIMER_WAIT BIGINT unsigned not null,"
+  "MIN_TIMER_WAIT BIGINT unsigned not null,"
+  "AVG_TIMER_WAIT BIGINT unsigned not null,"
+  "MAX_TIMER_WAIT BIGINT unsigned not null,"
+  "SUM_LOCK_TIME BIGINT unsigned not null,"
+  "SUM_ERRORS BIGINT unsigned not null,"
+  "SUM_WARNINGS BIGINT unsigned not null,"
+  "SUM_ROWS_AFFECTED BIGINT unsigned not null,"
+  "SUM_ROWS_SENT BIGINT unsigned not null,"
+  "SUM_ROWS_EXAMINED BIGINT unsigned not null,"
+  "SUM_CREATED_TMP_DISK_TABLES BIGINT unsigned not null,"
+  "SUM_CREATED_TMP_TABLES BIGINT unsigned not null,"
+  "SUM_SELECT_FULL_JOIN BIGINT unsigned not null,"
+  "SUM_SELECT_FULL_RANGE_JOIN BIGINT unsigned not null,"
+  "SUM_SELECT_RANGE BIGINT unsigned not null,"
+  "SUM_SELECT_RANGE_CHECK BIGINT unsigned not null,"
+  "SUM_SELECT_SCAN BIGINT unsigned not null,"
+  "SUM_SORT_MERGE_PASSES BIGINT unsigned not null,"
+  "SUM_SORT_RANGE BIGINT unsigned not null,"
+  "SUM_SORT_ROWS BIGINT unsigned not null,"
+  "SUM_SORT_SCAN BIGINT unsigned not null,"
+  "SUM_NO_INDEX_USED BIGINT unsigned not null,"
+  "SUM_NO_GOOD_INDEX_USED BIGINT unsigned not null"
+  ")ENGINE=PERFORMANCE_SCHEMA;";
+
+SET @str = IF(@have_pfs = 1, @cmd, 'SET @dummy = 0');
+PREPARE stmt FROM @str;
+EXECUTE stmt;
+DROP PREPARE stmt;
+
+--
 -- TABLE EVENTS_STATEMENTS_SUMMARY_GLOBAL_BY_EVENT_NAME
 --
 
@@ -1047,6 +1278,52 @@ SET @cmd="CREATE TABLE performance_schema.events_statements_summary_global_by_ev
   "SUM_SORT_SCAN BIGINT unsigned not null,"
   "SUM_NO_INDEX_USED BIGINT unsigned not null,"
   "SUM_NO_GOOD_INDEX_USED BIGINT unsigned not null"
+  ")ENGINE=PERFORMANCE_SCHEMA;";
+
+SET @str = IF(@have_pfs = 1, @cmd, 'SET @dummy = 0');
+PREPARE stmt FROM @str;
+EXECUTE stmt;
+DROP PREPARE stmt;
+
+--
+-- TABLE HOSTS
+--
+
+SET @cmd="CREATE TABLE performance_schema.hosts("
+  "HOST CHAR(60) collate utf8_bin default null,"
+  "CURRENT_CONNECTIONS bigint not null,"
+  "TOTAL_CONNECTIONS bigint not null"
+  ")ENGINE=PERFORMANCE_SCHEMA;";
+
+SET @str = IF(@have_pfs = 1, @cmd, 'SET @dummy = 0');
+PREPARE stmt FROM @str;
+EXECUTE stmt;
+DROP PREPARE stmt;
+
+--
+-- TABLE USERS
+--
+
+SET @cmd="CREATE TABLE performance_schema.users("
+  "USER CHAR(16) collate utf8_bin default null,"
+  "CURRENT_CONNECTIONS bigint not null,"
+  "TOTAL_CONNECTIONS bigint not null"
+  ")ENGINE=PERFORMANCE_SCHEMA;";
+
+SET @str = IF(@have_pfs = 1, @cmd, 'SET @dummy = 0');
+PREPARE stmt FROM @str;
+EXECUTE stmt;
+DROP PREPARE stmt;
+
+--
+-- TABLE ACCOUNTS
+--
+
+SET @cmd="CREATE TABLE performance_schema.accounts("
+  "USER CHAR(16) collate utf8_bin default null,"
+  "HOST CHAR(60) collate utf8_bin default null,"
+  "CURRENT_CONNECTIONS bigint not null,"
+  "TOTAL_CONNECTIONS bigint not null"
   ")ENGINE=PERFORMANCE_SCHEMA;";
 
 SET @str = IF(@have_pfs = 1, @cmd, 'SET @dummy = 0');
