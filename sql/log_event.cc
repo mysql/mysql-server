@@ -955,18 +955,17 @@ my_bool Log_event::need_checksum()
 {
   DBUG_ENTER("Log_event::need_checksum");
   my_bool ret;
-  extern ulong binlog_checksum_options;
   /* 
      few callers of Log_event::write 
      (incl FD::write, FD constructing code on the slave side, Rotate relay log
      and Stop event) 
      provides their checksum alg preference through Log_event::checksum_alg.
   */
-  ret= (checksum_alg != BINLOG_CHECKSUM_ALG_UNDEF) ?
-    (checksum_alg != BINLOG_CHECKSUM_ALG_OFF) :
-    ((binlog_checksum_options != BINLOG_CHECKSUM_ALG_OFF) &&
-     (cache_type == Log_event::EVENT_NO_CACHE))? binlog_checksum_options :
-    FALSE;
+  ret= ((checksum_alg != BINLOG_CHECKSUM_ALG_UNDEF) ?
+        (checksum_alg != BINLOG_CHECKSUM_ALG_OFF) :
+        ((binlog_checksum_options != BINLOG_CHECKSUM_ALG_OFF) &&
+         (cache_type == Log_event::EVENT_NO_CACHE)) ?
+        test(binlog_checksum_options) : FALSE);
 
   /*
     FD calls the methods before data_written has been calculated.
@@ -980,7 +979,7 @@ my_bool Log_event::need_checksum()
 
   if (checksum_alg == BINLOG_CHECKSUM_ALG_UNDEF)
     checksum_alg= ret ? // calculated value stored
-      binlog_checksum_options : (uint8) BINLOG_CHECKSUM_ALG_OFF;
+      (uint8) binlog_checksum_options : (uint8) BINLOG_CHECKSUM_ALG_OFF;
 
   DBUG_ASSERT(!ret || 
               ((checksum_alg == binlog_checksum_options ||

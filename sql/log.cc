@@ -2815,9 +2815,9 @@ bool MYSQL_BIN_LOG::open(const char *log_name,
          relay_log_checksum_alg :
          /* otherwise use slave's local preference of RL events verification */
          (opt_slave_sql_verify_checksum == 0) ?
-         (uint8) BINLOG_CHECKSUM_ALG_OFF : binlog_checksum_options):
+         (uint8) BINLOG_CHECKSUM_ALG_OFF : (uint8) binlog_checksum_options):
         /* binlog */
-        binlog_checksum_options;
+        (uint8) binlog_checksum_options;
       DBUG_ASSERT(s.checksum_alg != BINLOG_CHECKSUM_ALG_UNDEF);
       if (!s.is_valid())
         goto err;
@@ -5699,7 +5699,7 @@ void MYSQL_BIN_LOG::close(uint exiting)
       Stop_log_event s;
       // the checksumming rule for relay-log case is similar to Rotate
         s.checksum_alg= is_relay_log ?
-          relay_log_checksum_alg : binlog_checksum_options;
+          (uint8) relay_log_checksum_alg : (uint8) binlog_checksum_options;
       DBUG_ASSERT(!is_relay_log ||
                   relay_log_checksum_alg != BINLOG_CHECKSUM_ALG_UNDEF);
       s.pre_55_writing_direct();
