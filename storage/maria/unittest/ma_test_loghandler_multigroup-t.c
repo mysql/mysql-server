@@ -247,6 +247,8 @@ int main(int argc __attribute__((unused)), char *argv[])
   load_defaults("my", load_default_groups, &argc, &argv);
   default_argv= argv;
   get_options(&argc, &argv);
+  /* We don't need to do physical syncs in this test */
+  my_disable_sync= 1;
 
   if (maria_log_remove())
     exit(1);

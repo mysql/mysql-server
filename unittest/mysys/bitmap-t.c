@@ -526,8 +526,14 @@ int main()
   int const max_size = MAX_TESTED_BITMAP_SIZE;
   MY_INIT("bitmap-t");
 
-  plan(max_size - min_size);
-  for (i= min_size; i < max_size; i++)
+  plan((max_size - min_size)/7+1);
+
+  /*
+    It's ok to do steps in 7, as i module 64 will go trough all values 1..63.
+    Any errors in the code should manifest as we are working with integers
+    of size 16, 32, or 64 bits...
+  */
+  for (i= min_size; i < max_size; i+=7)
     ok(do_test(i) == 0, "bitmap size %d", i);
   return exit_status();
 }

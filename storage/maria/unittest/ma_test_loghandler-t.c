@@ -173,6 +173,8 @@ int main(int argc __attribute__((unused)), char *argv[])
   maria_data_root= (char *)".";
   if (maria_log_remove())
     exit(1);
+  /* We don't need to do physical syncs in this test */
+  my_disable_sync= 1;
 
   for (i= 0; i < (LONG_BUFFER_SIZE + LSN_STORE_SIZE * 2 + 2); i+= 2)
   {
