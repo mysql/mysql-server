@@ -3,6 +3,7 @@
 # I/O thread left (some old bug fixed in 4.0.17)
 
 source include/master-slave.inc;
+call mtr.add_suppression("Slave I/O: The slave I/O thread stops because a fatal error is encountered when it tried to SET @master_binlog_checksum");
 
 connection master;
 # Make SQL slave thread advance a bit

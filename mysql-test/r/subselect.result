@@ -5068,3 +5068,22 @@ pk	i
 12	5
 15	0
 DROP table t1,t2;
+#
+# Bug#751350: crash with pushed condition for outer references when
+#             there should be none of such conditions
+#
+CREATE TABLE t1 (a int, b int) ;
+INSERT INTO t1 VALUES (0,0),(0,0);
+EXPLAIN
+SELECT b FROM t1
+WHERE ('0') IN ( SELECT a  FROM t1 GROUP BY a )
+GROUP BY b;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	2	Using temporary; Using filesort
+2	DEPENDENT SUBQUERY	t1	ALL	NULL	NULL	NULL	NULL	2	Using temporary; Using filesort
+SELECT b FROM t1
+WHERE ('0') IN ( SELECT a  FROM t1 GROUP BY a )
+GROUP BY b;
+b
+0
+DROP TABLE t1;

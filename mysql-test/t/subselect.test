@@ -4333,3 +4333,22 @@ EXPLAIN SELECT * FROM t1 WHERE pk IN (SELECT it.pk FROM t2 JOIN t2 AS it ON 1);
 SELECT * FROM t1 WHERE pk IN (SELECT it.pk FROM t2 JOIN t2 AS it ON 1);
 
 DROP table t1,t2;
+
+--echo #
+--echo # Bug#751350: crash with pushed condition for outer references when
+--echo #             there should be none of such conditions
+--echo #
+
+CREATE TABLE t1 (a int, b int) ;
+INSERT INTO t1 VALUES (0,0),(0,0);
+
+EXPLAIN
+SELECT b FROM t1
+  WHERE ('0') IN ( SELECT a  FROM t1 GROUP BY a )
+    GROUP BY b;
+
+SELECT b FROM t1
+  WHERE ('0') IN ( SELECT a  FROM t1 GROUP BY a )
+    GROUP BY b;
+
+DROP TABLE t1;

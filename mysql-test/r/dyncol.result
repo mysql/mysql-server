@@ -41,7 +41,7 @@ select hex(COLUMN_CREATE(1, 99999999999999999999999999999 AS unsigned int));
 hex(COLUMN_CREATE(1, 99999999999999999999999999999 AS unsigned int))
 000100010001FFFFFFFFFFFFFF7F
 Warnings:
-Error	1655	Got overflow when converting '99999999999999999999999999999' to INT. Value truncated.
+Error	1657	Got overflow when converting '99999999999999999999999999999' to INT. Value truncated.
 select hex(COLUMN_CREATE(1, NULL AS int));
 hex(COLUMN_CREATE(1, NULL AS int))
 000000
@@ -67,7 +67,7 @@ select hex(COLUMN_CREATE(1, 99999999999999999999999999999 AS int));
 hex(COLUMN_CREATE(1, 99999999999999999999999999999 AS int))
 000100010000FEFFFFFFFFFFFFFF
 Warnings:
-Error	1655	Got overflow when converting '99999999999999999999999999999' to INT. Value truncated.
+Error	1657	Got overflow when converting '99999999999999999999999999999' to INT. Value truncated.
 select hex(COLUMN_CREATE(1, NULL AS double));
 hex(COLUMN_CREATE(1, NULL AS double))
 000000
@@ -211,7 +211,7 @@ select column_get(column_create(1, 99999999999999999999999999999 AS decimal), 1 
 column_get(column_create(1, 99999999999999999999999999999 AS decimal), 1 as unsigned int)
 18446744073709551615
 Warnings:
-Error	1655	Got overflow when converting '99999999999999999999999999999' to UNSIGNED INT. Value truncated.
+Error	1657	Got overflow when converting '99999999999999999999999999999' to UNSIGNED INT. Value truncated.
 select column_get(column_create(1, 999.9999999999999999 AS decimal), 1 as unsigned int);
 column_get(column_create(1, 999.9999999999999999 AS decimal), 1 as unsigned int)
 1000
@@ -219,12 +219,12 @@ select column_get(column_create(1, -1 AS decimal), 1 as unsigned int);
 column_get(column_create(1, -1 AS decimal), 1 as unsigned int)
 0
 Warnings:
-Error	1655	Got overflow when converting '-1' to UNSIGNED INT. Value truncated.
+Error	1657	Got overflow when converting '-1' to UNSIGNED INT. Value truncated.
 select column_get(column_create(1, 99999999999999999999999999999 AS double), 1 as unsigned int);
 column_get(column_create(1, 99999999999999999999999999999 AS double), 1 as unsigned int)
 18446744073709551615
 Warnings:
-Warning	1655	Got overflow when converting '1e+29' to UNSIGNED INT. Value truncated.
+Warning	1657	Got overflow when converting '1e+29' to UNSIGNED INT. Value truncated.
 select column_get(column_create(1, 999.9 AS double), 1 as unsigned int);
 column_get(column_create(1, 999.9 AS double), 1 as unsigned int)
 1000
@@ -232,12 +232,12 @@ select column_get(column_create(1, -1 AS double), 1 as unsigned int);
 column_get(column_create(1, -1 AS double), 1 as unsigned int)
 0
 Warnings:
-Warning	1655	Got overflow when converting '-1' to UNSIGNED INT. Value truncated.
+Warning	1657	Got overflow when converting '-1' to UNSIGNED INT. Value truncated.
 select column_get(column_create(1, "1212III" AS char), 1 as unsigned int);
 column_get(column_create(1, "1212III" AS char), 1 as unsigned int)
 1212
 Warnings:
-Warning	1657	Encountered illegal value '1212III' when converting to UNSIGNED INT
+Warning	1659	Encountered illegal value '1212III' when converting to UNSIGNED INT
 #
 # column get int
 #
@@ -296,12 +296,12 @@ select column_get(column_create(1, 99999999999999999999999999999 AS decimal), 1 
 column_get(column_create(1, 99999999999999999999999999999 AS decimal), 1 as int)
 9223372036854775807
 Warnings:
-Error	1655	Got overflow when converting '99999999999999999999999999999' to INT. Value truncated.
+Error	1657	Got overflow when converting '99999999999999999999999999999' to INT. Value truncated.
 select column_get(column_create(1, -99999999999999999999999999999 AS decimal), 1 as int);
 column_get(column_create(1, -99999999999999999999999999999 AS decimal), 1 as int)
 -9223372036854775808
 Warnings:
-Error	1655	Got overflow when converting '-99999999999999999999999999999' to INT. Value truncated.
+Error	1657	Got overflow when converting '-99999999999999999999999999999' to INT. Value truncated.
 select column_get(column_create(1, 999.9999999999999999 AS decimal), 1 as int);
 column_get(column_create(1, 999.9999999999999999 AS decimal), 1 as int)
 1000
@@ -312,17 +312,17 @@ select column_get(column_create(1, -99999999999999999999999999999 AS double), 1 
 column_get(column_create(1, -99999999999999999999999999999 AS double), 1 as int)
 -9223372036854775808
 Warnings:
-Warning	1655	Got overflow when converting '-1e+29' to INT. Value truncated.
+Warning	1657	Got overflow when converting '-1e+29' to INT. Value truncated.
 select column_get(column_create(1, "-1212III" AS char), 1 as int);
 column_get(column_create(1, "-1212III" AS char), 1 as int)
 -1212
 Warnings:
-Warning	1657	Encountered illegal value '-1212III' when converting to INT
+Warning	1659	Encountered illegal value '-1212III' when converting to INT
 select column_get(column_create(1, "1212III" AS char), 1 as int);
 column_get(column_create(1, "1212III" AS char), 1 as int)
 1212
 Warnings:
-Warning	1657	Encountered illegal value '1212III' when converting to INT
+Warning	1659	Encountered illegal value '1212III' when converting to INT
 #
 #column get char
 #
@@ -433,12 +433,12 @@ select column_get(column_create(1, "1223.5aa" AS char), 1 as double);
 column_get(column_create(1, "1223.5aa" AS char), 1 as double)
 1223.5
 Warnings:
-Warning	1657	Encountered illegal value '1223.5aa' when converting to DOUBLE
+Warning	1659	Encountered illegal value '1223.5aa' when converting to DOUBLE
 select column_get(column_create(1, "aa" AS char), 1 as double);
 column_get(column_create(1, "aa" AS char), 1 as double)
 0
 Warnings:
-Warning	1657	Encountered illegal value 'aa' when converting to DOUBLE
+Warning	1659	Encountered illegal value 'aa' when converting to DOUBLE
 select column_get(column_create(1, "1223.5555" AS double), 1 as double(5,2));
 column_get(column_create(1, "1223.5555" AS double), 1 as double(5,2))
 999.99
@@ -502,12 +502,12 @@ select column_get(column_create(1, "1223.5aa" AS char), 1 as decimal(32,10));
 column_get(column_create(1, "1223.5aa" AS char), 1 as decimal(32,10))
 1223.5000000000
 Warnings:
-Warning	1657	Encountered illegal value '1223.5aa' when converting to DECIMAL
+Warning	1659	Encountered illegal value '1223.5aa' when converting to DECIMAL
 select column_get(column_create(1, "aa" AS char), 1 as decimal(32,10));
 column_get(column_create(1, "aa" AS char), 1 as decimal(32,10))
 0.0000000000
 Warnings:
-Warning	1657	Encountered illegal value 'aa' when converting to DECIMAL
+Warning	1659	Encountered illegal value 'aa' when converting to DECIMAL
 select column_get(column_create(1, 18446744073709551615 AS unsigned int), 1 as decimal);
 column_get(column_create(1, 18446744073709551615 AS unsigned int), 1 as decimal)
 9999999999
@@ -640,17 +640,17 @@ select column_get(column_create(1, 18446744073709551615 AS unsigned int), 1 as d
 column_get(column_create(1, 18446744073709551615 AS unsigned int), 1 as datetime)
 NULL
 Warnings:
-Warning	1657	Encountered illegal value '18446744073709551615' when converting to DATE or DATETIME
+Warning	1659	Encountered illegal value '18446744073709551615' when converting to DATE or DATETIME
 select column_get(column_create(1, 9223372036854775807 AS int), 1 as datetime);
 column_get(column_create(1, 9223372036854775807 AS int), 1 as datetime)
 NULL
 Warnings:
-Warning	1657	Encountered illegal value '9223372036854775807' when converting to DATE or DATETIME
+Warning	1659	Encountered illegal value '9223372036854775807' when converting to DATE or DATETIME
 select column_get(column_create(1, -9223372036854775808 AS int), 1 as datetime);
 column_get(column_create(1, -9223372036854775808 AS int), 1 as datetime)
 NULL
 Warnings:
-Warning	1657	Encountered illegal value '-9223372036854775808' when converting to DATE or DATETIME
+Warning	1659	Encountered illegal value '-9223372036854775808' when converting to DATE or DATETIME
 select column_get(column_create(1, 99999999999999999999999999999 AS decimal(32,10)), 1 as datetime);
 column_get(column_create(1, 99999999999999999999999999999 AS decimal(32,10)), 1 as datetime)
 NULL
@@ -770,17 +770,17 @@ select column_get(column_create(1, 18446744073709551615 AS unsigned int), 1 as d
 column_get(column_create(1, 18446744073709551615 AS unsigned int), 1 as date)
 NULL
 Warnings:
-Warning	1657	Encountered illegal value '18446744073709551615' when converting to DATE or DATETIME
+Warning	1659	Encountered illegal value '18446744073709551615' when converting to DATE or DATETIME
 select column_get(column_create(1, 9223372036854775807 AS int), 1 as date);
 column_get(column_create(1, 9223372036854775807 AS int), 1 as date)
 NULL
 Warnings:
-Warning	1657	Encountered illegal value '9223372036854775807' when converting to DATE or DATETIME
+Warning	1659	Encountered illegal value '9223372036854775807' when converting to DATE or DATETIME
 select column_get(column_create(1, -9223372036854775808 AS int), 1 as date);
 column_get(column_create(1, -9223372036854775808 AS int), 1 as date)
 NULL
 Warnings:
-Warning	1657	Encountered illegal value '-9223372036854775808' when converting to DATE or DATETIME
+Warning	1659	Encountered illegal value '-9223372036854775808' when converting to DATE or DATETIME
 select column_get(column_create(1, 99999999999999999999999999999 AS decimal(32,10)), 1 as date);
 column_get(column_create(1, 99999999999999999999999999999 AS decimal(32,10)), 1 as date)
 NULL

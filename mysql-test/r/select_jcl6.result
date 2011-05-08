@@ -5025,6 +5025,19 @@ WHERE t7.f71>0;
 f23
 DROP TABLE t1,t2,t3,t4,t5,t6,t7;
 End of 5.1 tests
+#
+# BUG#776274: substitution of a single row table
+#                    
+CREATE TABLE t1 (a int NOT NULL , b int);
+INSERT INTO t1 VALUES (2,2);
+SELECT * FROM t1 WHERE a = b;
+a	b
+2	2
+EXPLAIN
+SELECT * FROM t1 WHERE a = b;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	system	NULL	NULL	NULL	NULL	1	
+DROP TABLE t1;
 set join_cache_level=default;
 show variables like 'join_cache_level';
 Variable_name	Value

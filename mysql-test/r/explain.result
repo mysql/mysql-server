@@ -298,3 +298,18 @@ id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 DEALLOCATE PREPARE stmt;
 DROP TABLE t1;
 End of 5.1 tests.
+#
+# Bug#776295: EXPLAIN EXTENDED with always false multiple equality
+#             in the WHERE condition of a derived table
+#
+CREATE TABLE t1 (a int) ;
+CREATE TABLE t2 (a int) ;
+INSERT INTO t2 VALUES (8);
+EXPLAIN EXTENDED
+SELECT * FROM ( SELECT t1.a FROM t1,t2 WHERE t2.a = t1.a ) AS t;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	PRIMARY	<derived2>	system	NULL	NULL	NULL	NULL	0	0.00	const row not found
+2	DERIVED	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	no matching row in const table
+Warnings:
+Note	1003	select NULL AS `a` from (select NULL AS `a` from `test`.`t1` join `test`.`t2` where 0) `t`
+DROP TABLE t1,t2;

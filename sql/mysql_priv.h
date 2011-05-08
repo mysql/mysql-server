@@ -2057,6 +2057,8 @@ extern ulong binlog_cache_size, open_files_limit;
 extern ulonglong max_binlog_cache_size;
 extern ulong max_binlog_size, max_relay_log_size;
 extern ulong opt_binlog_rows_event_max_size;
+extern my_bool opt_master_verify_checksum;
+extern my_bool opt_slave_sql_verify_checksum;
 extern ulong rpl_recovery_rank, thread_cache_size, thread_pool_size;
 extern ulong back_log;
 #endif /* MYSQL_SERVER */
@@ -2066,6 +2068,7 @@ extern ulong MYSQL_PLUGIN_IMPORT specialflag;
 #ifdef MYSQL_SERVER
 extern ulong current_pid;
 extern ulong expire_logs_days, sync_binlog_period, sync_binlog_counter;
+extern ulong binlog_checksum_options;
 extern ulong opt_tc_log_size, tc_log_max_pages_used, tc_log_page_size;
 extern ulong tc_log_page_waits;
 extern my_bool relay_log_purge, opt_innodb_safe_binlog, opt_innodb;

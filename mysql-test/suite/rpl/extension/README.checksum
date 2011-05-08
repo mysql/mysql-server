@@ -1,0 +1,23 @@
+Binlog checksum testing
+=======================
+
+1. How it works.
+The script copies a <suite> to directory <suite>_checksum, 
+collects test case names for t/ directory (except tests from
+disabled def), randomly choose 90% of tests and add them 
+to disabled.def.
+It means that mtr will run only 10% of random tests from each 
+suite.
+At end the script run mtr:
+./mysql-test-run.pl --suite=aaa_checksum,bbb_checksum \
+    --mysqld=--binlog-checksum=CRC32 arg1 ... argN
+
+aaa,bbb 	- suite names from --suite option
+arg1,argN	- other command-line arguments of checksum.pl
+
+2. The options:
+
+--suite=suite1,suite2.  Mandatory option. The list of suites for 
+    binlog checksum testing.
+
+--percent=N, where N is 1..99. Percent of running tests. 
