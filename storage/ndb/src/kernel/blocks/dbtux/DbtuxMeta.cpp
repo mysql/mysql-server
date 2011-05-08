@@ -209,7 +209,7 @@ Dbtux::execTUX_ADD_ATTRREQ(Signal* signal)
 #ifdef VM_TRACE
       {
         const char* p = NdbEnv_GetEnv("MAX_TTREE_PREF_ATTRS", (char*)0, 0);
-        if (p != 0 && p[0] != 0 && maxAttrs > atoi(p))
+        if (p != 0 && p[0] != 0 && maxAttrs > (unsigned)atoi(p))
           maxAttrs = atoi(p);
       }
 #endif
