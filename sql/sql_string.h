@@ -176,6 +176,18 @@ public:
   { return set_int((longlong)num, true, cs); }
   bool set_real(double num,uint decimals, CHARSET_INFO *cs);
 
+  /* Move handling of buffer from some other object to String */
+  void reassociate(char *ptr, uint32 length, uint32 alloced_length,
+                   CHARSET_INFO *cs)
+  { 
+    free();
+    Ptr= ptr;
+    str_length= length;
+    Alloced_length= alloced_length;
+    str_charset= cs;
+    alloced= ptr != 0;
+  }
+
   /*
     PMG 2004.11.12
     This is a method that works the same as perl's "chop". It simply

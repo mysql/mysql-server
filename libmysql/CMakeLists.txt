@@ -68,6 +68,7 @@ SET(CLIENT_SOURCES   ../mysys/array.c ../strings/bchange.c ../strings/bmove.c
                      ../strings/ctype-simple.c ../strings/ctype-sjis.c ../strings/ctype-tis620.c 
                      ../strings/ctype-uca.c ../strings/ctype-ucs2.c ../strings/ctype-ujis.c 
                      ../strings/ctype-utf8.c ../strings/ctype-win1250ch.c ../strings/ctype.c 
+                     ../strings/decimal.c
                      ../mysys/default.c errmsg.c ../mysys/errors.c ../mysys/my_sync.c
                      ../mysys/hash.c ../mysys/my_sleep.c ../mysys/default_modify.c
                      get_password.c ../strings/int2str.c ../strings/is_prefix.c 
@@ -85,6 +86,7 @@ SET(CLIENT_SOURCES   ../mysys/array.c ../strings/bchange.c ../strings/bmove.c
                      ../mysys/my_open.c ../mysys/my_pread.c  ../mysys/my_pthread.c ../mysys/my_read.c 
                      ../mysys/my_realloc.c ../mysys/my_rename.c ../mysys/my_seek.c  
                      ../mysys/my_static.c ../strings/my_strtoll10.c ../mysys/my_symlink.c 
+                     ../mysys/ma_dyncol.c
                      ../mysys/my_symlink2.c ../mysys/my_thr_init.c  ../sql-common/my_time.c 
                      ../strings/my_vsnprintf.c ../mysys/my_wincond.c ../mysys/my_winthread.c 
                      ../mysys/my_write.c ../sql/net_serv.cc ../sql-common/pack.c ../sql/password.c 

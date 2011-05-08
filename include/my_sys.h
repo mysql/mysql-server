@@ -863,6 +863,8 @@ extern my_bool dynstr_set(DYNAMIC_STRING *str, const char *init_str);
 extern my_bool dynstr_realloc(DYNAMIC_STRING *str, size_t additional_size);
 extern my_bool dynstr_trunc(DYNAMIC_STRING *str, size_t n);
 extern void dynstr_free(DYNAMIC_STRING *str);
+extern void dynstr_reassociate(DYNAMIC_STRING *str, char **res, size_t *length,
+                               size_t *alloc_length);
 #ifdef HAVE_MLOCK
 extern void *my_malloc_lock(size_t length,myf flags);
 extern void my_free_lock(void *ptr,myf flags);

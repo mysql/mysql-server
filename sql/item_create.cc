@@ -27,6 +27,50 @@
 
 /*
 =============================================================================
+  HELPER FUNCTIONS
+=============================================================================
+*/
+
+/*
+  Get precision and scale for a declaration
+ 
+  return
+    0  ok
+    1  error
+*/
+
+bool get_length_and_scale(ulonglong length, ulonglong decimals,
+                          ulong *out_length, uint *out_decimals,
+                          uint max_precision, uint max_scale,
+                          const char *name)
+{
+  if (length > (ulonglong) max_precision)
+  {
+    my_error(ER_TOO_BIG_PRECISION, MYF(0), (int) length, name,
+             max_precision);
+    return 1;
+  }
+  if (decimals > (ulonglong) max_scale)
+  {
+    my_error(ER_TOO_BIG_SCALE, MYF(0), (int) decimals, name,
+             DECIMAL_MAX_SCALE);
+    return 1;
+  }
+
+  *out_length=  (ulong) length;
+  *out_decimals=  (uint) decimals;
+  my_decimal_trim(out_length, out_decimals);
+  
+  if (*out_length < *out_decimals)
+  {
+    my_error(ER_M_BIGGER_THAN_D, MYF(0), "");
+    return 1;
+  }
+  return 0;
+}
+
+/*
+=============================================================================
   LOCAL DECLARATIONS
 =============================================================================
 */
@@ -5054,6 +5098,17 @@ create_func_cast(THD *thd, Item *a, Cast_target cast_type,
                  CHARSET_INFO *cs)
 {
   Item *UNINIT_VAR(res);
+  ulonglong length= 0, decimals= 0;
+  int error;
+  
+  /*
+    We don't have to check for error here as sql_yacc.yy has guaranteed
+    that the values are in range of ulonglong
+  */
+  if (c_len)
+    length= (ulonglong) my_strtoll10(c_len, NULL, &error);
+  if (c_dec)
+    decimals= (ulonglong) my_strtoll10(c_dec, NULL, &error);
 
   switch (cast_type) {
   case ITEM_CAST_BINARY:
@@ -5076,55 +5131,31 @@ create_func_cast(THD *thd, Item *a, Cast_target cast_type,
     break;
   case ITEM_CAST_DECIMAL:
   {
-    ulong len= 0;
-    uint dec= 0;
-
-    if (c_len)
-    {
-      ulong decoded_size;
-      errno= 0;
-      decoded_size= strtoul(c_len, NULL, 10);
-      if (errno != 0)
-      {
-        my_error(ER_TOO_BIG_PRECISION, MYF(0), c_len, a->name,
-                 DECIMAL_MAX_PRECISION);
-        return NULL;
-      }
-      len= decoded_size;
-    }
-
-    if (c_dec)
-    {
-      ulong decoded_size;
-      errno= 0;
-      decoded_size= strtoul(c_dec, NULL, 10);
-      if ((errno != 0) || (decoded_size > UINT_MAX))
-      {
-        my_error(ER_TOO_BIG_SCALE, MYF(0), c_dec, a->name,
-                 DECIMAL_MAX_SCALE);
-        return NULL;
-      }
-      dec= decoded_size;
-    }
-    my_decimal_trim(&len, &dec);
-    if (len < dec)
-    {
-      my_error(ER_M_BIGGER_THAN_D, MYF(0), "");
-      return 0;
-    }
-    if (len > DECIMAL_MAX_PRECISION)
-    {
-      my_error(ER_TOO_BIG_PRECISION, MYF(0), len, a->name,
-               DECIMAL_MAX_PRECISION);
-      return 0;
-    }
-    if (dec > DECIMAL_MAX_SCALE)
-    {
-      my_error(ER_TOO_BIG_SCALE, MYF(0), dec, a->name,
-               DECIMAL_MAX_SCALE);
-      return 0;
-    }
+    ulong len;
+    uint dec;
+    if (get_length_and_scale(length, decimals, &len, &dec,
+                             DECIMAL_MAX_PRECISION, DECIMAL_MAX_SCALE,
+                             a->name))
+      return NULL;
     res= new (thd->mem_root) Item_decimal_typecast(a, len, dec);
+    break;
+  }
+  case ITEM_CAST_DOUBLE:
+  {
+    ulong len;
+    uint dec;
+
+    if (!c_len)
+    {
+      length=   DBL_DIG+7;
+      decimals= NOT_FIXED_DEC;
+    }
+    else if (get_length_and_scale(length, decimals, &len, &dec,
+                                  DECIMAL_MAX_PRECISION, NOT_FIXED_DEC-1,
+                                  a->name))
+      return NULL;
+    res= new (thd->mem_root) Item_double_typecast(a, (uint) length,
+                                                  (uint) decimals);
     break;
   }
   case ITEM_CAST_CHAR:
@@ -5133,15 +5164,13 @@ create_func_cast(THD *thd, Item *a, Cast_target cast_type,
     CHARSET_INFO *real_cs= (cs ? cs : thd->variables.collation_connection);
     if (c_len)
     {
-      ulong decoded_size;
-      errno= 0;
-      decoded_size= strtoul(c_len, NULL, 10);
-      if ((errno != 0) || (decoded_size > MAX_FIELD_BLOBLENGTH))
+      if (length > MAX_FIELD_BLOBLENGTH)
       {
-        my_error(ER_TOO_BIG_DISPLAYWIDTH, MYF(0), "cast as char", MAX_FIELD_BLOBLENGTH);
+        my_error(ER_TOO_BIG_DISPLAYWIDTH, MYF(0), "cast as char",
+                 MAX_FIELD_BLOBLENGTH);
         return NULL;
       }
-      len= (int) decoded_size;
+      len= (int) length;
     }
     res= new (thd->mem_root) Item_char_typecast(a, len, real_cs);
     break;
@@ -5154,4 +5183,96 @@ create_func_cast(THD *thd, Item *a, Cast_target cast_type,
   }
   }
   return res;
+}
+
+
+static List<Item> *create_func_dyncol_prepare(THD *thd,
+                                              DYNCALL_CREATE_DEF **dfs,
+                                              List<DYNCALL_CREATE_DEF> &list)
+{
+  DYNCALL_CREATE_DEF *def;
+  List_iterator_fast<DYNCALL_CREATE_DEF> li(list);
+  List<Item> *args= new (thd->mem_root) List<Item>;
+
+  *dfs= (DYNCALL_CREATE_DEF *)alloc_root(thd->mem_root,
+                                         sizeof(DYNCALL_CREATE_DEF) *
+                                         list.elements);
+
+  if (!args || !*dfs)
+    return NULL;
+
+  for (uint i= 0; (def= li++) ;)
+  {
+    dfs[0][i++]= *def;
+    args->push_back(def->num);
+    args->push_back(def->value);
+  }
+  return args;
+}
+
+Item *create_func_dyncol_create(THD *thd, List<DYNCALL_CREATE_DEF> &list)
+{
+  List<Item> *args;
+  DYNCALL_CREATE_DEF *dfs;
+  if (!(args= create_func_dyncol_prepare(thd, &dfs, list)))
+    return NULL;
+
+  return new (thd->mem_root) Item_func_dyncol_create(*args, dfs);
+}
+
+
+Item *create_func_dyncol_add(THD *thd, Item *str,
+                             List<DYNCALL_CREATE_DEF> &list)
+{
+  List<Item> *args;
+  DYNCALL_CREATE_DEF *dfs;
+
+  if (!(args= create_func_dyncol_prepare(thd, &dfs, list)))
+    return NULL;
+
+  args->push_back(str);
+
+  return new (thd->mem_root) Item_func_dyncol_add(*args, dfs);
+}
+
+
+
+Item *create_func_dyncol_delete(THD *thd, Item *str, List<Item> &nums)
+{
+  DYNCALL_CREATE_DEF *dfs;
+  Item *num;
+  List_iterator_fast<Item> it(nums);
+  List<Item> *args= new (thd->mem_root) List<Item>;
+
+  dfs= (DYNCALL_CREATE_DEF *)alloc_root(thd->mem_root,
+                                        sizeof(DYNCALL_CREATE_DEF) *
+                                        nums.elements);
+  if (!args || !dfs)
+    return NULL;
+
+  for (uint i= 0; (num= it++); i++)
+  {
+    dfs[i].num= num;
+    dfs[i].value= new Item_null();
+    dfs[i].type= DYN_COL_INT;
+    args->push_back(dfs[i].num);
+    args->push_back(dfs[i].value);
+  }
+
+  args->push_back(str);
+
+  return new (thd->mem_root) Item_func_dyncol_add(*args, dfs);
+}
+
+
+Item *create_func_dyncol_get(THD *thd,  Item *str, Item *num,
+                             Cast_target cast_type,
+                             const char *c_len, const char *c_dec,
+                             CHARSET_INFO *cs)
+{
+  Item *res;
+
+  if (!(res= new (thd->mem_root) Item_dyncol_get(str, num)))
+    return res;                                 // Return NULL
+  return create_func_cast(thd, res, cast_type, c_len, c_dec, cs);
 }

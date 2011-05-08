@@ -1014,6 +1014,7 @@ SELECT MAKETIME(CAST(-1 AS UNSIGNED), 0, 0);
 MAKETIME(CAST(-1 AS UNSIGNED), 0, 0)
 838:59:59
 Warnings:
+Warning	1105	Cast to unsigned converted negative integer to it's positive complement
 Warning	1292	Truncated incorrect time value: '18446744073709551615:00:00'
 SELECT EXTRACT(HOUR FROM '100000:02:03');
 EXTRACT(HOUR FROM '100000:02:03')
@@ -1033,6 +1034,7 @@ SELECT SEC_TO_TIME(CAST(-1 AS UNSIGNED));
 SEC_TO_TIME(CAST(-1 AS UNSIGNED))
 838:59:59
 Warnings:
+Warning	1105	Cast to unsigned converted negative integer to it's positive complement
 Warning	1292	Truncated incorrect time value: '18446744073709551615'
 SET NAMES latin1;
 SET character_set_results = NULL;

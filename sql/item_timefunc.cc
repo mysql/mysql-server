@@ -1952,7 +1952,10 @@ String *Item_func_date_format::val_str(String *str)
   {
     String *res;
     if (!(res=args[0]->val_str(str)) ||
-	(str_to_time_with_warn(res->ptr(), res->length(), &l_time)))
+	(str_to_time_with_warn(res->ptr(), res->length(), &l_time,
+                               current_thd->variables.sql_mode &
+                               (MODE_NO_ZERO_DATE | MODE_NO_ZERO_IN_DATE |
+                                MODE_INVALID_DATES))))
       goto null_date;
 
     l_time.year=l_time.month=l_time.day=0;
@@ -2322,7 +2325,11 @@ longlong Item_extract::val_int()
     char buf[40];
     String value(buf, sizeof(buf), &my_charset_bin);;
     String *res= args[0]->val_str(&value);
-    if (!res || str_to_time_with_warn(res->ptr(), res->length(), &ltime))
+    if (!res ||
+        str_to_time_with_warn(res->ptr(), res->length(), &ltime,
+                              current_thd->variables.sql_mode &
+                              (MODE_NO_ZERO_DATE | MODE_NO_ZERO_IN_DATE |
+                               MODE_INVALID_DATES)))
     {
       null_value=1;
       return 0;
@@ -2461,10 +2468,15 @@ String *Item_char_typecast::val_str(String *str)
   }
   else
   {
-    // Convert character set if differ
+    /*
+      Convert character set if differ
+      from_cs is 0 in the case where the result set may vary between calls,
+      for example with dynamic columns.
+    */
     uint dummy_errors;
     if (!(res= args[0]->val_str(str)) ||
-        tmp_value.copy(res->ptr(), res->length(), from_cs,
+        tmp_value.copy(res->ptr(), res->length(),
+                       from_cs ? from_cs  : res->charset(),
                        cast_cs, &dummy_errors))
     {
       null_value= 1;
@@ -2542,15 +2554,19 @@ void Item_char_typecast::fix_length_and_dec()
        and thus avoid unnecessary character set conversion.
      - If the argument is not a number, then from_cs is set to
        the argument's charset.
+     - If argument has a dynamic collation (can change from call to call)
+       we set from_cs to 0 as a marker that we have to take the collation
+       from the result string.
 
        Note (TODO): we could use repertoire technique here.
   */
-  from_cs= (args[0]->result_type() == INT_RESULT || 
-            args[0]->result_type() == DECIMAL_RESULT ||
-            args[0]->result_type() == REAL_RESULT) ?
-           (cast_cs->mbminlen == 1 ? cast_cs : &my_charset_latin1) :
-           args[0]->collation.collation;
-  charset_conversion= (cast_cs->mbmaxlen > 1) ||
+  from_cs= ((args[0]->result_type() == INT_RESULT || 
+             args[0]->result_type() == DECIMAL_RESULT ||
+             args[0]->result_type() == REAL_RESULT) ?
+            (cast_cs->mbminlen == 1 ? cast_cs : &my_charset_latin1) :
+            args[0]->dynamic_result() ? 0 :
+            args[0]->collation.collation);
+  charset_conversion= !from_cs || (cast_cs->mbmaxlen > 1) ||
                       (!my_charset_same(from_cs, cast_cs) &&
                        from_cs != &my_charset_bin &&
                        cast_cs != &my_charset_bin);
@@ -2604,6 +2620,11 @@ bool Item_time_typecast::get_time(MYSQL_TIME *ltime)
   return res;
 }
 
+bool Item_time_typecast::get_date(MYSQL_TIME *ltime, uint fuzzy_date)
+{
+  return get_time(ltime);
+}
+
 
 longlong Item_time_typecast::val_int()
 {
@@ -2621,7 +2642,7 @@ String *Item_time_typecast::val_str(String *str)
   DBUG_ASSERT(fixed == 1);
   MYSQL_TIME ltime;
 
-  if (!get_arg0_time(&ltime) &&
+  if (!get_time(&ltime) &&
       !make_datetime(ltime.second_part ? TIME_MICROSECOND : TIME_ONLY,
 		     &ltime, str))
     return str;

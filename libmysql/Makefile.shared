@@ -48,7 +48,7 @@ mystringsobjects =	strmov.lo strxmov.lo strxnmov.lo strnmov.lo \
 			ctype-ucs2.lo ctype-gb2312.lo ctype-gbk.lo \
 			ctype-sjis.lo ctype-tis620.lo ctype-ujis.lo \
 			ctype-uca.lo xml.lo my_strtoll10.lo str_alloc.lo \
-                        strmov_overlapp.lo
+                        strmov_overlapp.lo decimal.lo
 
 mystringsextra= 	strto.c
 mystringsheaders=	strings_def.h
@@ -65,7 +65,7 @@ mysysobjects1 =		my_init.lo my_static.lo my_malloc.lo my_realloc.lo \
 			my_symlink.lo my_fstream.lo mf_arr_appstr.lo \
 			mf_loadpath.lo my_pthread.lo my_thr_init.lo \
 			thr_mutex.lo mulalloc.lo string.lo \
-                        default.lo default_modify.lo \
+                        default.lo default_modify.lo ma_dyncol.lo \
 			my_compress.lo array.lo my_once.lo list.lo my_net.lo \
                         charset.lo charset-def.lo hash.lo mf_iocache.lo \
                         mf_iocache2.lo my_seek.lo my_sleep.lo \

@@ -825,7 +825,7 @@ Error	1365	Division by 0
 Error	1365	Division by 0
 Error	1365	Division by 0
 INSERT INTO Sow6_2f VALUES ('a59b');
-ERROR HY000: Incorrect decimal value: 'a59b' for column 'col1' at row 1
+ERROR 22007: Incorrect decimal value: 'a59b' for column 'col1' at row 1
 drop table Sow6_2f;
 select 10.3330000000000/12.34500000;
 10.3330000000000/12.34500000
@@ -838,12 +838,12 @@ select 9999999999999999999999999999999999999999999999999999999999999999999999999
 x
 99999999999999999999999999999999999999999999999999999999999999999
 Warnings:
-Error	1292	Truncated incorrect DECIMAL value: ''
+Error	1655	Got overflow when converting '' to DECIMAL. Value truncated.
 select 9999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999 + 1 as x;
 x
 100000000000000000000000000000000000000000000000000000000000000000
 Warnings:
-Error	1292	Truncated incorrect DECIMAL value: ''
+Error	1655	Got overflow when converting '' to DECIMAL. Value truncated.
 select 0.190287977636363637 + 0.040372670 * 0 -  0;
 0.190287977636363637 + 0.040372670 * 0 -  0
 0.190287977636363637
@@ -1368,15 +1368,15 @@ create table t1 (c1 decimal(64));
 insert into t1 values(
 89000000000000000000000000000000000000000000000000000000000000000000000000000000000000000);
 Warnings:
-Error	1292	Truncated incorrect DECIMAL value: ''
+Error	1655	Got overflow when converting '' to DECIMAL. Value truncated.
 Warning	1264	Out of range value for column 'c1' at row 1
 insert into t1 values(
 99999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999 *
 99999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999);
 Warnings:
-Error	1292	Truncated incorrect DECIMAL value: ''
-Error	1292	Truncated incorrect DECIMAL value: ''
-Error	1292	Truncated incorrect DECIMAL value: ''
+Error	1655	Got overflow when converting '' to DECIMAL. Value truncated.
+Error	1655	Got overflow when converting '' to DECIMAL. Value truncated.
+Error	1655	Got overflow when converting '' to DECIMAL. Value truncated.
 Warning	1264	Out of range value for column 'c1' at row 1
 insert into t1 values(1e100);
 Warnings:
@@ -1447,4 +1447,4 @@ select cast(19999999999999999999 as unsigned);
 cast(19999999999999999999 as unsigned)
 18446744073709551615
 Warnings:
-Error	1292	Truncated incorrect DECIMAL value: ''
+Error	1655	Got overflow when converting '19999999999999999999' to UNSIGNED INT. Value truncated.

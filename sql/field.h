@@ -33,6 +33,9 @@ class Relay_log_info;
 
 struct st_cache_field;
 int field_conv(Field *to,Field *from);
+int truncate_double(double *nr, uint field_length, uint dec,
+                    bool unsigned_flag, double max_value);
+longlong double_to_longlong(double nr, bool unsigned_flag, bool *error);
 
 inline uint get_enum_pack_length(int elements)
 {
@@ -808,7 +811,6 @@ public:
     {}
   int store_decimal(const my_decimal *);
   my_decimal *val_decimal(my_decimal *);
-  int truncate(double *nr, double max_length);
   uint32 max_display_length() { return field_length; }
   uint size_of() const { return sizeof(*this); }
   virtual const uchar *unpack(uchar* to, const uchar *from,

@@ -9406,6 +9406,40 @@ void close_performance_schema_table(THD *thd, Open_tables_state *backup)
   thd->restore_backup_open_tables_state(backup);
 }
 
+
+/**
+  Check result of dynamic column function and issue error if it is needed
+
+  @param rc              The result code of dynamic column function
+
+  @return the result code which was get as an argument\
+*/
+
+int dynamic_column_error_message(enum_dyncol_func_result rc)
+{
+  switch (rc) {
+  case ER_DYNCOL_YES:
+  case ER_DYNCOL_OK:
+    break; // it is not an error
+  case ER_DYNCOL_FORMAT:
+    my_error(ER_DYN_COL_WRONG_FORMAT, MYF(0));
+    break;
+  case ER_DYNCOL_LIMIT:
+    my_error(ER_DYN_COL_IMPLEMENTATION_LIMIT, MYF(0));
+    break;
+  case ER_DYNCOL_RESOURCE:
+    my_error(ER_OUT_OF_RESOURCES, MYF(0));
+    break;
+  case ER_DYNCOL_DATA:
+    my_error(ER_DYN_COL_DATA, MYF(0));
+    break;
+  case ER_DYNCOL_UNKNOWN_CHARSET:
+    my_error(ER_DYN_COL_WRONG_CHARSET, MYF(0));
+    break;
+  }
+  return rc;
+}
+
 /**
   @} (end of group Data_Dictionary)
 */

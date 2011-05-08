@@ -1412,6 +1412,7 @@ find_field_in_table(THD *thd, TABLE *table, const char *name, uint length,
 Field *
 find_field_in_table_sef(TABLE *table, const char *name);
 int update_virtual_fields(THD *thd, TABLE *table, bool ignore_stored= FALSE);
+int dynamic_column_error_message(enum_dyncol_func_result rc);
 
 #endif /* MYSQL_SERVER */
 
@@ -2322,16 +2323,22 @@ ulong convert_month_to_period(ulong month);
 void get_date_from_daynr(long daynr,uint *year, uint *month,
 			 uint *day);
 my_time_t TIME_to_timestamp(THD *thd, const MYSQL_TIME *t, my_bool *not_exist);
-bool str_to_time_with_warn(const char *str,uint length,MYSQL_TIME *l_time);
+bool str_to_time_with_warn(const char *str,uint length,MYSQL_TIME *l_time,
+                           ulong fuzzydate);
 timestamp_type str_to_datetime_with_warn(const char *str, uint length,
-                                         MYSQL_TIME *l_time, uint flags);
+                                         MYSQL_TIME *l_time, ulong flags);
 void localtime_to_TIME(MYSQL_TIME *to, struct tm *from);
 void calc_time_from_sec(MYSQL_TIME *to, long seconds, long microseconds);
 
-void make_truncated_value_warning(THD *thd, MYSQL_ERROR::enum_warning_level level,
+void make_truncated_value_warning(THD *thd,
+                                  MYSQL_ERROR::enum_warning_level level,
                                   const char *str_val,
 				  uint str_length, timestamp_type time_type,
                                   const char *field_name);
+bool double_to_datetime_with_warn(double value, MYSQL_TIME *ltime,
+                                  ulong fuzzy_date);
+bool decimal_to_datetime_with_warn(decimal_t *value, MYSQL_TIME *ltime,
+                                   ulong fuzzy_date);
 
 bool date_add_interval(MYSQL_TIME *ltime, interval_type int_type, INTERVAL interval);
 bool calc_time_diff(MYSQL_TIME *l_time1, MYSQL_TIME *l_time2, int l_sign,

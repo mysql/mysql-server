@@ -989,14 +989,26 @@ longlong Item_func_signed::val_int()
     null_value= args[0]->null_value; 
     return value;
   }
+  else if (args[0]->dynamic_result())
+  {
+    /* We come here when argument has an unknown type */
+    args[0]->unsigned_flag= 0;   // Mark that we want to have a signed value
+    value= args[0]->val_int();
+    null_value= args[0]->null_value; 
+    if (!null_value && args[0]->unsigned_flag && value < 0)
+      goto err;                                 // Warn about overflow
+    return value;
+  }
 
   value= val_int_from_str(&error);
   if (value < 0 && error == 0)
-  {
-    push_warning(current_thd, MYSQL_ERROR::WARN_LEVEL_WARN, ER_UNKNOWN_ERROR,
-                 "Cast to signed converted positive out-of-range integer to "
-                 "it's negative complement");
-  }
+    goto err;
+  return value;
+
+err:
+  push_warning(current_thd, MYSQL_ERROR::WARN_LEVEL_WARN, ER_UNKNOWN_ERROR,
+               "Cast to signed converted positive out-of-range integer to "
+               "it's negative complement");
   return value;
 }
 
@@ -1024,19 +1036,36 @@ longlong Item_func_unsigned::val_int()
       value= 0;
     return value;
   }
+  else if (args[0]->dynamic_result())
+  {
+    /* We come here when argument has an unknown type */
+    args[0]->unsigned_flag= 1;   // Mark that we want to have an unsigned value
+    value= args[0]->val_int();
+    null_value= args[0]->null_value; 
+    if (!null_value && args[0]->unsigned_flag == 0 && value < 0)
+      goto err;                                 // Warn about overflow
+    return value;
+  }
   else if (args[0]->cast_to_int_type() != STRING_RESULT ||
            args[0]->result_as_longlong())
   {
     value= args[0]->val_int();
     null_value= args[0]->null_value; 
+    if (!null_value && args[0]->unsigned_flag == 0 && value < 0)
+      goto err;                                 // Warn about overflow
     return value;
   }
 
   value= val_int_from_str(&error);
   if (error < 0)
-    push_warning(current_thd, MYSQL_ERROR::WARN_LEVEL_WARN, ER_UNKNOWN_ERROR,
-                 "Cast to unsigned converted negative integer to it's "
-                 "positive complement");
+    goto err;
+
+  return value;
+
+err:
+  push_warning(current_thd, MYSQL_ERROR::WARN_LEVEL_WARN, ER_UNKNOWN_ERROR,
+               "Cast to unsigned converted negative integer to it's "
+               "positive complement");
   return value;
 }
 
@@ -1133,6 +1162,51 @@ void Item_decimal_typecast::print(String *str, enum_query_type query_type)
   str->append(')');
 }
 
+
+double Item_double_typecast::val_real()
+{
+  int error;
+  double tmp= args[0]->val_real();
+  if ((null_value= args[0]->null_value))
+    return 0.0;
+
+  if ((error= truncate_double(&tmp, max_length, decimals, 0, DBL_MAX)))
+  {
+    push_warning_printf(current_thd,
+                        MYSQL_ERROR::WARN_LEVEL_WARN,
+                        ER_WARN_DATA_OUT_OF_RANGE,
+                        ER(ER_WARN_DATA_OUT_OF_RANGE),
+                        name, 1);
+    if (error < 0)
+    {
+      null_value= 1;                            // Illegal value
+      tmp= 0.0;
+    }
+  }
+  return tmp;
+}
+
+
+void Item_double_typecast::print(String *str, enum_query_type query_type)
+{
+  char len_buf[20*3 + 1];
+  char *end;
+
+  str->append(STRING_WITH_LEN("cast("));
+  args[0]->print(str, query_type);
+  str->append(STRING_WITH_LEN(" as double"));
+  if (decimals != NOT_FIXED_DEC)
+  {
+    str->append('(');
+    end= int10_to_str(max_length, len_buf,10);
+    str->append(len_buf, (uint32) (end - len_buf));
+    str->append(',');
+    end= int10_to_str(decimals, len_buf,10);
+    str->append(len_buf, (uint32) (end - len_buf));
+    str->append(')');
+  }
+  str->append(')');
+}
 
 double Item_func_plus::real_op()
 {

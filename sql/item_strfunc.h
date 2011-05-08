@@ -871,3 +871,71 @@ public:
   }
 };
 
+
+class Item_func_dyncol_create: public Item_str_func
+{
+protected:
+  DYNCALL_CREATE_DEF *defs;
+  DYNAMIC_COLUMN_VALUE *vals;
+  uint *nums;
+  void prepare_arguments();
+  void cleanup_arguments();
+  void print_arguments(String *str, enum_query_type query_type);
+public:
+  Item_func_dyncol_create(List<Item> &args, DYNCALL_CREATE_DEF *dfs);
+  bool fix_fields(THD *thd, Item **ref);
+  void fix_length_and_dec();
+  const char *func_name() const{ return "column_create"; }
+  String *val_str(String *);
+  virtual void print(String *str, enum_query_type query_type);
+};
+
+
+class Item_func_dyncol_add: public Item_func_dyncol_create
+{
+public:
+  Item_func_dyncol_add(List<Item> &args, DYNCALL_CREATE_DEF *dfs)
+    :Item_func_dyncol_create(args, dfs)
+  {}
+  const char *func_name() const{ return "column_add"; }
+  String *val_str(String *);
+  virtual void print(String *str, enum_query_type query_type);
+};
+
+
+/*
+  The following functions is always called from an Item_cast function
+*/
+
+class Item_dyncol_get: public Item_str_func
+{
+public:
+  Item_dyncol_get(Item *str, Item *num)
+    :Item_str_func(str, num)
+  {
+    max_length= MAX_FIELD_BLOBLENGTH;
+  }
+  void fix_length_and_dec()
+  { maybe_null= 1; }
+  /* Mark that collation can change between calls */
+  bool dynamic_result() { return 1; }
+
+  const char *func_name() const { return "column_get"; }
+  String *val_str(String *);
+  longlong val_int();
+  double val_real();
+  my_decimal *val_decimal(my_decimal *);
+  bool get_dyn_value(DYNAMIC_COLUMN_VALUE *val, String *tmp);
+  bool get_date(MYSQL_TIME *ltime,uint fuzzydate);
+  void print(String *str, enum_query_type query_type);
+};
+
+
+class Item_func_dyncol_list: public Item_str_func
+{
+public:
+  Item_func_dyncol_list(Item *str) :Item_str_func(str) {};
+  void fix_length_and_dec() { maybe_null= 1; max_length= MAX_BLOB_WIDTH; };
+  const char *func_name() const{ return "column_list"; }
+  String *val_str(String *);
+};

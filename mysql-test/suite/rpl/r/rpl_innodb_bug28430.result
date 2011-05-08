@@ -90,13 +90,19 @@ DELETE FROM test.byrange_tbl WHERE id = del_count;
 SET del_count = del_count - 2;
 END WHILE;
 END|
+begin;
 CALL test.proc_norm();
+commit;
 SELECT count(*) as "Master regular" FROM test.regular_tbl;
 Master regular	500
+begin;
 CALL test.proc_bykey();
+commit;
 SELECT count(*) as "Master bykey" FROM test.bykey_tbl;
 Master bykey	500
+begin;
 CALL test.proc_byrange();
+commit;
 SELECT count(*) as "Master byrange" FROM test.byrange_tbl;
 Master byrange	500
 show create table test.byrange_tbl;

@@ -937,6 +937,7 @@ class Item_time_typecast :public Item_typecast_maybe_null
 public:
   Item_time_typecast(Item *a) :Item_typecast_maybe_null(a) {}
   const char *func_name() const { return "cast_as_time"; }
+  bool get_date(MYSQL_TIME *ltime, uint fuzzy_date);
   String *val_str(String *str);
   bool get_time(MYSQL_TIME *ltime);
   const char *cast_type() const { return "time"; }

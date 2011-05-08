@@ -1,9 +1,13 @@
 select CAST(1-2 AS UNSIGNED);
 CAST(1-2 AS UNSIGNED)
 18446744073709551615
+Warnings:
+Warning	1105	Cast to unsigned converted negative integer to it's positive complement
 select CAST(CAST(1-2 AS UNSIGNED) AS SIGNED INTEGER);
 CAST(CAST(1-2 AS UNSIGNED) AS SIGNED INTEGER)
 -1
+Warnings:
+Warning	1105	Cast to unsigned converted negative integer to it's positive complement
 select CAST('10 ' as unsigned integer);
 CAST('10 ' as unsigned integer)
 10
@@ -12,9 +16,15 @@ Warning	1292	Truncated incorrect INTEGER value: '10 '
 select cast(-5 as unsigned) | 1, cast(-5 as unsigned) & -1;
 cast(-5 as unsigned) | 1	cast(-5 as unsigned) & -1
 18446744073709551611	18446744073709551611
+Warnings:
+Warning	1105	Cast to unsigned converted negative integer to it's positive complement
+Warning	1105	Cast to unsigned converted negative integer to it's positive complement
 select cast(-5 as unsigned) -1, cast(-5 as unsigned) + 1;
 cast(-5 as unsigned) -1	cast(-5 as unsigned) + 1
 18446744073709551610	18446744073709551612
+Warnings:
+Warning	1105	Cast to unsigned converted negative integer to it's positive complement
+Warning	1105	Cast to unsigned converted negative integer to it's positive complement
 select ~5, cast(~5 as signed);
 ~5	cast(~5 as signed)
 18446744073709551610	-6

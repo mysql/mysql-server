@@ -164,5 +164,15 @@ Item *
 create_func_cast(THD *thd, Item *a, Cast_target cast_type,
                  const char *len, const char *dec,
                  CHARSET_INFO *cs);
+
+Item *create_func_dyncol_create(THD *thd, List<DYNCALL_CREATE_DEF> &list);
+Item *create_func_dyncol_add(THD *thd, Item *str,
+                             List<DYNCALL_CREATE_DEF> &list);
+Item *create_func_dyncol_delete(THD *thd, Item *str, List<Item> &nums);
+Item *create_func_dyncol_get(THD *thd, Item *num, Item *str,
+                             Cast_target cast_type,
+                             const char *c_len, const char *c_dec,
+                             CHARSET_INFO *cs);
+
 #endif
 

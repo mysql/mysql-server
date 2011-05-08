@@ -324,7 +324,7 @@ select CAST(a AS DECIMAL(13,5)) FROM (SELECT '' as a) t;
 CAST(a AS DECIMAL(13,5))
 0.00000
 Warnings:
-Error	1366	Incorrect decimal value: '' for column '' at row 0
+Error	1657	Encountered illegal value '' when converting to DECIMAL
 Warning	1292	Truncated incorrect DECIMAL value: ''
 create table t1 (a integer unsigned);
 insert into t1 values (1),(-1),(0),(-2);

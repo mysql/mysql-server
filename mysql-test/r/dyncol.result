@@ -1,0 +1,1187 @@
+#
+# column create
+#
+select hex(COLUMN_CREATE(1, NULL AS char character set utf8));
+hex(COLUMN_CREATE(1, NULL AS char character set utf8))
+000000
+select hex(COLUMN_CREATE(1, "afaf" AS char character set utf8));
+hex(COLUMN_CREATE(1, "afaf" AS char character set utf8))
+0001000100030861666166
+select hex(COLUMN_CREATE(1, 1212 AS char character set utf8));
+hex(COLUMN_CREATE(1, 1212 AS char character set utf8))
+0001000100033F31323132
+select hex(COLUMN_CREATE(1, 12.12 AS char character set utf8));
+hex(COLUMN_CREATE(1, 12.12 AS char character set utf8))
+0001000100033F31322E3132
+select hex(COLUMN_CREATE(1, 99999999999999999999999999999 AS char character set utf8));
+hex(COLUMN_CREATE(1, 99999999999999999999999999999 AS char character set utf8))
+0001000100033F3939393939393939393939393939393939393939393939393939393939
+select hex(COLUMN_CREATE(1, NULL AS unsigned int));
+hex(COLUMN_CREATE(1, NULL AS unsigned int))
+000000
+select hex(COLUMN_CREATE(1, 1212 AS unsigned int));
+hex(COLUMN_CREATE(1, 1212 AS unsigned int))
+000100010001BC04
+select hex(COLUMN_CREATE(1, 7 AS unsigned int));
+hex(COLUMN_CREATE(1, 7 AS unsigned int))
+00010001000107
+select hex(COLUMN_CREATE(1, 8 AS unsigned int));
+hex(COLUMN_CREATE(1, 8 AS unsigned int))
+00010001000108
+select hex(COLUMN_CREATE(1, 127 AS unsigned int));
+hex(COLUMN_CREATE(1, 127 AS unsigned int))
+0001000100017F
+select hex(COLUMN_CREATE(1, 128 AS unsigned int));
+hex(COLUMN_CREATE(1, 128 AS unsigned int))
+00010001000180
+select hex(COLUMN_CREATE(1, 12.12 AS unsigned int));
+hex(COLUMN_CREATE(1, 12.12 AS unsigned int))
+0001000100010C
+select hex(COLUMN_CREATE(1, 99999999999999999999999999999 AS unsigned int));
+hex(COLUMN_CREATE(1, 99999999999999999999999999999 AS unsigned int))
+000100010001FFFFFFFFFFFFFF7F
+Warnings:
+Error	1655	Got overflow when converting '99999999999999999999999999999' to INT. Value truncated.
+select hex(COLUMN_CREATE(1, NULL AS int));
+hex(COLUMN_CREATE(1, NULL AS int))
+000000
+select hex(COLUMN_CREATE(1, 1212 AS int));
+hex(COLUMN_CREATE(1, 1212 AS int))
+0001000100007809
+select hex(COLUMN_CREATE(1, 7 AS int));
+hex(COLUMN_CREATE(1, 7 AS int))
+0001000100000E
+select hex(COLUMN_CREATE(1, 8 AS int));
+hex(COLUMN_CREATE(1, 8 AS int))
+00010001000010
+select hex(COLUMN_CREATE(1, 127 AS int));
+hex(COLUMN_CREATE(1, 127 AS int))
+000100010000FE
+select hex(COLUMN_CREATE(1, 128 AS int));
+hex(COLUMN_CREATE(1, 128 AS int))
+0001000100000001
+select hex(COLUMN_CREATE(1, 12.12 AS int));
+hex(COLUMN_CREATE(1, 12.12 AS int))
+00010001000018
+select hex(COLUMN_CREATE(1, 99999999999999999999999999999 AS int));
+hex(COLUMN_CREATE(1, 99999999999999999999999999999 AS int))
+000100010000FEFFFFFFFFFFFFFF
+Warnings:
+Error	1655	Got overflow when converting '99999999999999999999999999999' to INT. Value truncated.
+select hex(COLUMN_CREATE(1, NULL AS double));
+hex(COLUMN_CREATE(1, NULL AS double))
+000000
+select hex(COLUMN_CREATE(1, 1212 AS double));
+hex(COLUMN_CREATE(1, 1212 AS double))
+0001000100020000000000F09240
+select hex(COLUMN_CREATE(1, 12.12 AS double));
+hex(COLUMN_CREATE(1, 12.12 AS double))
+0001000100023D0AD7A3703D2840
+select hex(COLUMN_CREATE(1, 99999999999999999999999999999 AS double));
+hex(COLUMN_CREATE(1, 99999999999999999999999999999 AS double))
+00010001000221D7E6FAE031F445
+select hex(COLUMN_CREATE(1, NULL AS decimal));
+hex(COLUMN_CREATE(1, NULL AS decimal))
+000000
+select hex(COLUMN_CREATE(1, 1212 AS decimal));
+hex(COLUMN_CREATE(1, 1212 AS decimal))
+0001000100040900800004BC
+select hex(COLUMN_CREATE(1, 7 AS decimal));
+hex(COLUMN_CREATE(1, 7 AS decimal))
+000100010004090080000007
+select hex(COLUMN_CREATE(1, 8 AS decimal));
+hex(COLUMN_CREATE(1, 8 AS decimal))
+000100010004090080000008
+select hex(COLUMN_CREATE(1, 127 AS decimal));
+hex(COLUMN_CREATE(1, 127 AS decimal))
+00010001000409008000007F
+select hex(COLUMN_CREATE(1, 128 AS decimal));
+hex(COLUMN_CREATE(1, 128 AS decimal))
+000100010004090080000080
+select hex(COLUMN_CREATE(1, 12.12 AS decimal));
+hex(COLUMN_CREATE(1, 12.12 AS decimal))
+00010001000402028C0C
+select hex(COLUMN_CREATE(1, 99999999999999999999999999999 AS decimal));
+hex(COLUMN_CREATE(1, 99999999999999999999999999999 AS decimal))
+0001000100041D00E33B9AC9FF3B9AC9FF3B9AC9FF
+select hex(COLUMN_CREATE(1, NULL AS date));
+hex(COLUMN_CREATE(1, NULL AS date))
+000000
+select hex(COLUMN_CREATE(1, "2011-04-05" AS date));
+hex(COLUMN_CREATE(1, "2011-04-05" AS date))
+00010001000685B60F
+select hex(COLUMN_CREATE(1, NULL AS time));
+hex(COLUMN_CREATE(1, NULL AS time))
+000000
+select hex(COLUMN_CREATE(1, "0:45:49.000001" AS time));
+hex(COLUMN_CREATE(1, "0:45:49.000001" AS time))
+000100010007010010B70000
+select hex(COLUMN_CREATE(1, NULL AS datetime));
+hex(COLUMN_CREATE(1, NULL AS datetime))
+000000
+select hex(COLUMN_CREATE(1, "2011-04-05 0:45:49.000001" AS datetime));
+hex(COLUMN_CREATE(1, "2011-04-05 0:45:49.000001" AS datetime))
+00010001000585B60F010010B70000
+select hex(COLUMN_CREATE(1, "afaf" AS char character set utf8,
+2, 1212 AS unsigned int,
+3, 1212 AS int,
+4, 12.12 AS double,
+4+1, 12.12 AS decimal,
+6, "2011-04-05" AS date,
+7, "- 0:45:49.000001" AS time,
+8, "2011-04-05 0:45:49.000001" AS datetime));
+hex(COLUMN_CREATE(1, "afaf" AS char character set utf8,
+2, 1212 AS unsigned int,
+3, 1212 AS int,
+4, 12.12 AS double,
+4+1, 12.12 AS decimal,
+6, "2011-04-05" AS date,
+7, "- 0:45:49.000001" AS time,
+8, "2011-04-05 0:45:49.000001" AS datetime))
+01080001000300020029000300380004004A0005008C000600AE000700C7000800F5000861666166BC0478093D0AD7A3703D284002028C0C85B60F010010B7000485B60F010010B70000
+explain extended
+select hex(COLUMN_CREATE(1, "afaf" AS char character set utf8,
+2, 1212 AS unsigned int,
+3, 1212 AS int,
+4, 12.12 AS double,
+4+1, 12.12 AS decimal,
+6, "2011-04-05" AS date,
+7, "- 0:45:49.000001" AS time,
+8, "2011-04-05 0:45:49.000001" AS datetime));
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	No tables used
+Warnings:
+Note	1003	select hex(column_create(1,'afaf' AS char charset utf8 ,2,1212 AS unsigned int,3,1212 AS int,4,12.12 AS double,(4 + 1),12.12 AS decimal,6,'2011-04-05' AS date,7,'- 0:45:49.000001' AS time,8,'2011-04-05 0:45:49.000001' AS datetime)) AS `hex(COLUMN_CREATE(1, "afaf" AS char character set utf8,
+2, 1212 AS unsigned int,
+3, 1212 AS int,
+4, 12.12 AS double,
+4+1, 12.12 AS decimal,
+6, "2011-04-05" AS date,
+7, "- 0:45:49.000001" AS time,
+8, "2011-04-05 0:45:49.000001" AS datetime))`
+#
+# column get uint
+#
+select column_get(column_create(1, 1212 AS unsigned int), 1 as unsigned int);
+column_get(column_create(1, 1212 AS unsigned int), 1 as unsigned int)
+1212
+explain extended
+select column_get(column_create(1, 1212 AS unsigned int), 1 as unsigned int);
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	No tables used
+Warnings:
+Note	1003	select cast(column_get(column_create(1,1212 AS unsigned int),1) as unsigned) AS `column_get(column_create(1, 1212 AS unsigned int), 1 as unsigned int)`
+explain extended
+select column_get(column_create(1, 1212 AS unsigned int), 1 as unsigned);
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	No tables used
+Warnings:
+Note	1003	select cast(column_get(column_create(1,1212 AS unsigned int),1) as unsigned) AS `column_get(column_create(1, 1212 AS unsigned int), 1 as unsigned)`
+select column_get(column_create(1, 1212 AS decimal), 1 as unsigned int);
+column_get(column_create(1, 1212 AS decimal), 1 as unsigned int)
+1212
+select column_get(column_create(1, 1212 AS double), 1 as unsigned int);
+column_get(column_create(1, 1212 AS double), 1 as unsigned int)
+1212
+select column_get(column_create(1, 1212 AS int), 1 as unsigned int);
+column_get(column_create(1, 1212 AS int), 1 as unsigned int)
+1212
+select column_get(column_create(1, "1212" AS char), 1 as unsigned int);
+column_get(column_create(1, "1212" AS char), 1 as unsigned int)
+1212
+select column_get(column_create(1, "2011-04-05" AS date), 1 as unsigned int);
+column_get(column_create(1, "2011-04-05" AS date), 1 as unsigned int)
+20110405
+select column_get(column_create(1, "8:46:06.23434" AS time), 1 as unsigned int);
+column_get(column_create(1, "8:46:06.23434" AS time), 1 as unsigned int)
+84606
+select column_get(column_create(1, "2011-04-05 8:46:06.23434" AS datetime), 1 as unsigned int);
+column_get(column_create(1, "2011-04-05 8:46:06.23434" AS datetime), 1 as unsigned int)
+20110405084606
+select column_get(column_create(1, NULL AS unsigned int), 1 as unsigned int);
+column_get(column_create(1, NULL AS unsigned int), 1 as unsigned int)
+NULL
+# column geint truncation & warnings
+select column_get(column_create(1, -1212 AS int), 1 as unsigned int);
+column_get(column_create(1, -1212 AS int), 1 as unsigned int)
+18446744073709550404
+Warnings:
+Warning	1105	Cast to unsigned converted negative integer to it's positive complement
+select column_get(column_create(1, 99999999999999999999999999999 AS decimal), 1 as unsigned int);
+column_get(column_create(1, 99999999999999999999999999999 AS decimal), 1 as unsigned int)
+18446744073709551615
+Warnings:
+Error	1655	Got overflow when converting '99999999999999999999999999999' to UNSIGNED INT. Value truncated.
+select column_get(column_create(1, 999.9999999999999999 AS decimal), 1 as unsigned int);
+column_get(column_create(1, 999.9999999999999999 AS decimal), 1 as unsigned int)
+1000
+select column_get(column_create(1, -1 AS decimal), 1 as unsigned int);
+column_get(column_create(1, -1 AS decimal), 1 as unsigned int)
+0
+Warnings:
+Error	1655	Got overflow when converting '-1' to UNSIGNED INT. Value truncated.
+select column_get(column_create(1, 99999999999999999999999999999 AS double), 1 as unsigned int);
+column_get(column_create(1, 99999999999999999999999999999 AS double), 1 as unsigned int)
+18446744073709551615
+Warnings:
+Warning	1655	Got overflow when converting '1e+29' to UNSIGNED INT. Value truncated.
+select column_get(column_create(1, 999.9 AS double), 1 as unsigned int);
+column_get(column_create(1, 999.9 AS double), 1 as unsigned int)
+1000
+select column_get(column_create(1, -1 AS double), 1 as unsigned int);
+column_get(column_create(1, -1 AS double), 1 as unsigned int)
+0
+Warnings:
+Warning	1655	Got overflow when converting '-1' to UNSIGNED INT. Value truncated.
+select column_get(column_create(1, "1212III" AS char), 1 as unsigned int);
+column_get(column_create(1, "1212III" AS char), 1 as unsigned int)
+1212
+Warnings:
+Warning	1657	Encountered illegal value '1212III' when converting to UNSIGNED INT
+#
+# column get int
+#
+select column_get(column_create(1, 1212 AS int), 1 as int);
+column_get(column_create(1, 1212 AS int), 1 as int)
+1212
+explain extended
+select column_get(column_create(1, 1212 AS int), 1 as int);
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	No tables used
+Warnings:
+Note	1003	select cast(column_get(column_create(1,1212 AS int),1) as signed) AS `column_get(column_create(1, 1212 AS int), 1 as int)`
+explain extended
+select column_get(column_create(1, 1212 AS int), 1 as signed int);
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	No tables used
+Warnings:
+Note	1003	select cast(column_get(column_create(1,1212 AS int),1) as signed) AS `column_get(column_create(1, 1212 AS int), 1 as signed int)`
+select column_get(column_create(1, -1212 AS int), 1 as int);
+column_get(column_create(1, -1212 AS int), 1 as int)
+-1212
+select column_get(column_create(1, 1212 AS decimal), 1 as int);
+column_get(column_create(1, 1212 AS decimal), 1 as int)
+1212
+select column_get(column_create(1, 1212 AS double), 1 as int);
+column_get(column_create(1, 1212 AS double), 1 as int)
+1212
+select column_get(column_create(1, 1212 AS unsigned int), 1 as int);
+column_get(column_create(1, 1212 AS unsigned int), 1 as int)
+1212
+select column_get(column_create(1, "1212" AS char), 1 as int);
+column_get(column_create(1, "1212" AS char), 1 as int)
+1212
+select column_get(column_create(1, "-1212" AS char), 1 as int);
+column_get(column_create(1, "-1212" AS char), 1 as int)
+-1212
+select column_get(column_create(1, "2011-04-05" AS date), 1 as int);
+column_get(column_create(1, "2011-04-05" AS date), 1 as int)
+20110405
+select column_get(column_create(1, "8:46:06.23434" AS time), 1 as int);
+column_get(column_create(1, "8:46:06.23434" AS time), 1 as int)
+84606
+select column_get(column_create(1, "2011-04-05 8:46:06.23434" AS datetime), 1 as int);
+column_get(column_create(1, "2011-04-05 8:46:06.23434" AS datetime), 1 as int)
+20110405084606
+select column_get(column_create(1, NULL AS int), 1 as int);
+column_get(column_create(1, NULL AS int), 1 as int)
+NULL
+#column gett truncation & warnings
+select column_get(column_create(1, 18446744073709551615 AS unsigned int), 1 as int);
+column_get(column_create(1, 18446744073709551615 AS unsigned int), 1 as int)
+-1
+Warnings:
+Warning	1105	Cast to signed converted positive out-of-range integer to it's negative complement
+select column_get(column_create(1, 99999999999999999999999999999 AS decimal), 1 as int);
+column_get(column_create(1, 99999999999999999999999999999 AS decimal), 1 as int)
+9223372036854775807
+Warnings:
+Error	1655	Got overflow when converting '99999999999999999999999999999' to INT. Value truncated.
+select column_get(column_create(1, -99999999999999999999999999999 AS decimal), 1 as int);
+column_get(column_create(1, -99999999999999999999999999999 AS decimal), 1 as int)
+-9223372036854775808
+Warnings:
+Error	1655	Got overflow when converting '-99999999999999999999999999999' to INT. Value truncated.
+select column_get(column_create(1, 999.9999999999999999 AS decimal), 1 as int);
+column_get(column_create(1, 999.9999999999999999 AS decimal), 1 as int)
+1000
+select column_get(column_create(1, 999.9 AS double), 1 as int);
+column_get(column_create(1, 999.9 AS double), 1 as int)
+1000
+select column_get(column_create(1, -99999999999999999999999999999 AS double), 1 as int);
+column_get(column_create(1, -99999999999999999999999999999 AS double), 1 as int)
+-9223372036854775808
+Warnings:
+Warning	1655	Got overflow when converting '-1e+29' to INT. Value truncated.
+select column_get(column_create(1, "-1212III" AS char), 1 as int);
+column_get(column_create(1, "-1212III" AS char), 1 as int)
+-1212
+Warnings:
+Warning	1657	Encountered illegal value '-1212III' when converting to INT
+select column_get(column_create(1, "1212III" AS char), 1 as int);
+column_get(column_create(1, "1212III" AS char), 1 as int)
+1212
+Warnings:
+Warning	1657	Encountered illegal value '1212III' when converting to INT
+#
+#column get char
+#
+select column_get(column_create(1, "1212" AS char charset utf8), 1 as char charset utf8);
+column_get(column_create(1, "1212" AS char charset utf8), 1 as char charset utf8)
+1212
+explain extended
+select column_get(column_create(1, "1212" AS char charset utf8), 1 as char charset utf8);
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	No tables used
+Warnings:
+Note	1003	select cast(column_get(column_create(1,'1212' AS char charset utf8 ),1) as char charset utf8) AS `column_get(column_create(1, "1212" AS char charset utf8), 1 as char charset utf8)`
+select column_get(column_create(1, 1212 AS unsigned int), 1 as char charset utf8);
+column_get(column_create(1, 1212 AS unsigned int), 1 as char charset utf8)
+1212
+select column_get(column_create(1, 18446744073709551615 AS unsigned int), 1 as char charset utf8);
+column_get(column_create(1, 18446744073709551615 AS unsigned int), 1 as char charset utf8)
+18446744073709551615
+select column_get(column_create(1, 1212 AS int), 1 as char charset utf8);
+column_get(column_create(1, 1212 AS int), 1 as char charset utf8)
+1212
+select column_get(column_create(1, -1212 AS int), 1 as char charset utf8);
+column_get(column_create(1, -1212 AS int), 1 as char charset utf8)
+-1212
+select column_get(column_create(1, 9223372036854775807 AS int), 1 as char charset utf8);
+column_get(column_create(1, 9223372036854775807 AS int), 1 as char charset utf8)
+9223372036854775807
+select column_get(column_create(1, -9223372036854775808 AS int), 1 as char charset utf8);
+column_get(column_create(1, -9223372036854775808 AS int), 1 as char charset utf8)
+-9223372036854775808
+select column_get(column_create(1, 1212.12 AS decimal), 1 as char charset utf8);
+column_get(column_create(1, 1212.12 AS decimal), 1 as char charset utf8)
+1212.12
+select column_get(column_create(1, 1212.12 AS double), 1 as char charset utf8);
+column_get(column_create(1, 1212.12 AS double), 1 as char charset utf8)
+1212.12
+select column_get(column_create(1, "2011-04-05" AS date), 1 as char charset utf8);
+column_get(column_create(1, "2011-04-05" AS date), 1 as char charset utf8)
+2011-04-05
+select column_get(column_create(1, "8:46:06.23434" AS time), 1 as char charset utf8);
+column_get(column_create(1, "8:46:06.23434" AS time), 1 as char charset utf8)
+08:46:06.234340
+select column_get(column_create(1, "2011-04-05 8:46:06.23434" AS datetime), 1 as char charset utf8);
+column_get(column_create(1, "2011-04-05 8:46:06.23434" AS datetime), 1 as char charset utf8)
+2011-04-05 08:46:06.234340
+select column_get(column_create(1, NULL AS char charset utf8), 1 as char charset utf8);
+column_get(column_create(1, NULL AS char charset utf8), 1 as char charset utf8)
+NULL
+select column_get(column_create(1, "1212" AS char charset utf8), 1 as char charset binary);
+column_get(column_create(1, "1212" AS char charset utf8), 1 as char charset binary)
+1212
+explain extended
+select column_get(column_create(1, "1212" AS char charset utf8), 1 as char charset binary);
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	No tables used
+Warnings:
+Note	1003	select cast(column_get(column_create(1,'1212' AS char charset utf8 ),1) as char charset binary) AS `column_get(column_create(1, "1212" AS char charset utf8), 1 as char charset binary)`
+#
+# column get real
+#
+select column_get(column_create(1, 1212.12 AS double), 1 as double);
+column_get(column_create(1, 1212.12 AS double), 1 as double)
+1212.12
+explain extended
+select column_get(column_create(1, 1212.12 AS double), 1 as double);
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	No tables used
+Warnings:
+Note	1003	select cast(column_get(column_create(1,1212.12 AS double),1) as double) AS `column_get(column_create(1, 1212.12 AS double), 1 as double)`
+explain extended
+select column_get(column_create(1, 1212.12 AS double), 1 as double(6,2));
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	No tables used
+Warnings:
+Note	1003	select cast(column_get(column_create(1,1212.12 AS double),1) as double(6,2)) AS `column_get(column_create(1, 1212.12 AS double), 1 as double(6,2))`
+select column_get(column_create(1, 18446744073709551615 AS unsigned int), 1 as double);
+column_get(column_create(1, 18446744073709551615 AS unsigned int), 1 as double)
+1.84467440737096e+19
+select column_get(column_create(1, 9223372036854775807 AS int), 1 as double);
+column_get(column_create(1, 9223372036854775807 AS int), 1 as double)
+9.22337203685478e+18
+select column_get(column_create(1, -9223372036854775808 AS int), 1 as double);
+column_get(column_create(1, -9223372036854775808 AS int), 1 as double)
+-9.22337203685478e+18
+select column_get(column_create(1, 99999999999999999999999999999 AS decimal), 1 as double);
+column_get(column_create(1, 99999999999999999999999999999 AS decimal), 1 as double)
+1e+29
+select column_get(column_create(1, -99999999999999999999999999999 AS decimal), 1 as double);
+column_get(column_create(1, -99999999999999999999999999999 AS decimal), 1 as double)
+-1e+29
+select column_get(column_create(1, "2011-04-05" AS date), 1 as double);
+column_get(column_create(1, "2011-04-05" AS date), 1 as double)
+20110405
+select column_get(column_create(1, "8:46:06.23434" AS time), 1 as double);
+column_get(column_create(1, "8:46:06.23434" AS time), 1 as double)
+84606.23434
+select column_get(column_create(1, "2011-04-05 8:46:06.23434" AS datetime), 1 as double);
+column_get(column_create(1, "2011-04-05 8:46:06.23434" AS datetime), 1 as double)
+20110405084606.2
+select column_get(column_create(1, "2011-04-05 8:46:06.23434" AS datetime), 1 as double(20,6));
+column_get(column_create(1, "2011-04-05 8:46:06.23434" AS datetime), 1 as double(20,6))
+20110405084606.234375
+select column_get(column_create(1, NULL AS double), 1 as double);
+column_get(column_create(1, NULL AS double), 1 as double)
+NULL
+# column get real truncation & warnings
+select column_get(column_create(1, "1223.5aa" AS char), 1 as double);
+column_get(column_create(1, "1223.5aa" AS char), 1 as double)
+1223.5
+Warnings:
+Warning	1657	Encountered illegal value '1223.5aa' when converting to DOUBLE
+select column_get(column_create(1, "aa" AS char), 1 as double);
+column_get(column_create(1, "aa" AS char), 1 as double)
+0
+Warnings:
+Warning	1657	Encountered illegal value 'aa' when converting to DOUBLE
+select column_get(column_create(1, "1223.5555" AS double), 1 as double(5,2));
+column_get(column_create(1, "1223.5555" AS double), 1 as double(5,2))
+999.99
+Warnings:
+Warning	1264	Out of range value for column 'column_get(column_create(1, "1223.5555" AS double), 1 as double(5,2))' at row 1
+select column_get(column_create(1, "1223.5555" AS double), 1 as double(3,2));
+column_get(column_create(1, "1223.5555" AS double), 1 as double(3,2))
+9.99
+Warnings:
+Warning	1264	Out of range value for column 'column_get(column_create(1, "1223.5555" AS double), 1 as double(3,2))' at row 1
+#
+# column get decimal
+#
+select column_get(column_create(1, 1212.12 AS double), 1 as decimal);
+column_get(column_create(1, 1212.12 AS double), 1 as decimal)
+1212
+select column_get(column_create(1, 1212.12 AS double), 1 as decimal(6,2));
+column_get(column_create(1, 1212.12 AS double), 1 as decimal(6,2))
+1212.12
+explain extended
+select column_get(column_create(1, 1212.12 AS double), 1 as decimal);
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	No tables used
+Warnings:
+Note	1003	select cast(column_get(column_create(1,1212.12 AS double),1) as decimal(10,0)) AS `column_get(column_create(1, 1212.12 AS double), 1 as decimal)`
+explain extended
+select column_get(column_create(1, 1212.12 AS double), 1 as decimal(6,2));
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	No tables used
+Warnings:
+Note	1003	select cast(column_get(column_create(1,1212.12 AS double),1) as decimal(6,2)) AS `column_get(column_create(1, 1212.12 AS double), 1 as decimal(6,2))`
+select column_get(column_create(1, 18446744073709551615 AS unsigned int), 1 as decimal(20,0));
+column_get(column_create(1, 18446744073709551615 AS unsigned int), 1 as decimal(20,0))
+18446744073709551615
+select column_get(column_create(1, 9223372036854775807 AS int), 1 as decimal(32,0));
+column_get(column_create(1, 9223372036854775807 AS int), 1 as decimal(32,0))
+9223372036854775807
+select column_get(column_create(1, -9223372036854775808 AS int), 1 as decimal(32,0));
+column_get(column_create(1, -9223372036854775808 AS int), 1 as decimal(32,0))
+-9223372036854775808
+select column_get(column_create(1, -99999999999999999999999999999 AS decimal), 1 as decimal(40,10));
+column_get(column_create(1, -99999999999999999999999999999 AS decimal), 1 as decimal(40,10))
+-99999999999999999999999999999.0000000000
+select column_get(column_create(1, "2011-04-05" AS date), 1 as decimal(32,6));
+column_get(column_create(1, "2011-04-05" AS date), 1 as decimal(32,6))
+20110405.000000
+select column_get(column_create(1, "8:46:06.23434" AS time), 1 as decimal(32,6));
+column_get(column_create(1, "8:46:06.23434" AS time), 1 as decimal(32,6))
+84606.234340
+select column_get(column_create(1, "2011-04-05 8:46:06.23434" AS datetime), 1 as decimal(32,6));
+column_get(column_create(1, "2011-04-05 8:46:06.23434" AS datetime), 1 as decimal(32,6))
+20110405084606.230000
+select column_get(column_create(1, NULL as decimal), 1 as decimal(32,10));
+column_get(column_create(1, NULL as decimal), 1 as decimal(32,10))
+NULL
+select column_get(column_create(1, "1223.5555" as decimal(10,5)), 1 as decimal(6,2));
+column_get(column_create(1, "1223.5555" as decimal(10,5)), 1 as decimal(6,2))
+1223.56
+# column get decimal truncation & warnings
+select column_get(column_create(1, "1223.5aa" AS char), 1 as decimal(32,10));
+column_get(column_create(1, "1223.5aa" AS char), 1 as decimal(32,10))
+1223.5000000000
+Warnings:
+Warning	1657	Encountered illegal value '1223.5aa' when converting to DECIMAL
+select column_get(column_create(1, "aa" AS char), 1 as decimal(32,10));
+column_get(column_create(1, "aa" AS char), 1 as decimal(32,10))
+0.0000000000
+Warnings:
+Warning	1657	Encountered illegal value 'aa' when converting to DECIMAL
+select column_get(column_create(1, 18446744073709551615 AS unsigned int), 1 as decimal);
+column_get(column_create(1, 18446744073709551615 AS unsigned int), 1 as decimal)
+9999999999
+Warnings:
+Error	1264	Out of range value for column 'column_get(column_create(1, 18446744073709551615 AS unsigned int), 1 as decimal)' at row 1
+select column_get(column_create(1, 9223372036854775807 AS int), 1 as decimal);
+column_get(column_create(1, 9223372036854775807 AS int), 1 as decimal)
+9999999999
+Warnings:
+Error	1264	Out of range value for column 'column_get(column_create(1, 9223372036854775807 AS int), 1 as decimal)' at row 1
+select column_get(column_create(1, -9223372036854775808 AS int), 1 as decimal);
+column_get(column_create(1, -9223372036854775808 AS int), 1 as decimal)
+-9999999999
+Warnings:
+Error	1264	Out of range value for column 'column_get(column_create(1, -9223372036854775808 AS int), 1 as decimal)' at row 1
+select column_get(column_create(1, 99999999999999999999999999999 AS decimal(32,10)), 1 as decimal);
+column_get(column_create(1, 99999999999999999999999999999 AS decimal(32,10)), 1 as decimal)
+9999999999
+Warnings:
+Error	1264	Out of range value for column 'column_get(column_create(1, 99999999999999999999999999999 AS decimal(32,10)), 1 as decimal)' at row 1
+select column_get(column_create(1, "2011-04-05 8:46:06.23434" AS datetime), 1 as decimal);
+column_get(column_create(1, "2011-04-05 8:46:06.23434" AS datetime), 1 as decimal)
+9999999999
+Warnings:
+Error	1264	Out of range value for column 'column_get(column_create(1, "2011-04-05 8:46:06.23434" AS datetime), 1 as decimal)' at row 1
+select column_get(column_create(1, "1223.5555" as double), 1 as decimal(5,2));
+column_get(column_create(1, "1223.5555" as double), 1 as decimal(5,2))
+999.99
+Warnings:
+Error	1264	Out of range value for column 'column_get(column_create(1, "1223.5555" as double), 1 as decimal(5,2))' at row 1
+select column_get(column_create(1, "-1223.5555" as double), 1 as decimal(5,2));
+column_get(column_create(1, "-1223.5555" as double), 1 as decimal(5,2))
+-999.99
+Warnings:
+Error	1264	Out of range value for column 'column_get(column_create(1, "-1223.5555" as double), 1 as decimal(5,2))' at row 1
+select column_get(column_create(1, "1223.5555" AS double), 1 as decimal(3,2));
+column_get(column_create(1, "1223.5555" AS double), 1 as decimal(3,2))
+9.99
+Warnings:
+Error	1264	Out of range value for column 'column_get(column_create(1, "1223.5555" AS double), 1 as decimal(3,2))' at row 1
+select column_get(column_create(1, "1223.5555" AS decimal(10,5)), 1 as decimal(3,2));
+column_get(column_create(1, "1223.5555" AS decimal(10,5)), 1 as decimal(3,2))
+9.99
+Warnings:
+Error	1264	Out of range value for column 'column_get(column_create(1, "1223.5555" AS decimal(10,5)), 1 as decimal(3,2))' at row 1
+#
+# column get datetime
+#
+select column_get(column_create(1, 20010203101112.121314 as double), 1 as datetime);
+column_get(column_create(1, 20010203101112.121314 as double), 1 as datetime)
+2001-02-03 10:11:12.125000
+select column_get(column_create(1, 20010203101112.121314 as decimal), 1 as datetime);
+column_get(column_create(1, 20010203101112.121314 as decimal), 1 as datetime)
+2001-02-03 10:11:12.121314
+select column_get(column_create(1, 20010203101112 as unsigned int), 1 as datetime);
+column_get(column_create(1, 20010203101112 as unsigned int), 1 as datetime)
+2001-02-03 10:11:12
+select column_get(column_create(1, 20010203101112 as int), 1 as datetime);
+column_get(column_create(1, 20010203101112 as int), 1 as datetime)
+2001-02-03 10:11:12
+select column_get(column_create(1, "20010203101112" as char), 1 as datetime);
+column_get(column_create(1, "20010203101112" as char), 1 as datetime)
+2001-02-03 10:11:12
+select column_get(column_create(1, "2001-02-03 10:11:12" as char), 1 as datetime);
+column_get(column_create(1, "2001-02-03 10:11:12" as char), 1 as datetime)
+2001-02-03 10:11:12
+select column_get(column_create(1, "2001-02-03 10:11:12.121314" as char), 1 as datetime);
+column_get(column_create(1, "2001-02-03 10:11:12.121314" as char), 1 as datetime)
+2001-02-03 10:11:12.121314
+select column_get(column_create(1, "2001-02-03 10:11:12.121314"), 1 as datetime);
+column_get(column_create(1, "2001-02-03 10:11:12.121314"), 1 as datetime)
+2001-02-03 10:11:12.121314
+select column_get(column_create(1, "2011-04-05 8:46:06.23434" AS datetime), 1 as datetime);
+column_get(column_create(1, "2011-04-05 8:46:06.23434" AS datetime), 1 as datetime)
+2011-04-05 08:46:06.234340
+select column_get(column_create(1, "2011-00-00 8:46:06.23434" AS CHAR), 1 as datetime);
+column_get(column_create(1, "2011-00-00 8:46:06.23434" AS CHAR), 1 as datetime)
+2011-00-00 08:46:06.234340
+select column_get(column_create(1, "2011-00-01 8:46:06.23434" AS CHAR), 1 as datetime);
+column_get(column_create(1, "2011-00-01 8:46:06.23434" AS CHAR), 1 as datetime)
+2011-00-01 08:46:06.234340
+select column_get(column_create(1, 20010203 as unsigned int), 1 as datetime);
+column_get(column_create(1, 20010203 as unsigned int), 1 as datetime)
+2001-02-03 00:00:00
+select column_get(column_create(1, 20010203 as int), 1 as datetime);
+column_get(column_create(1, 20010203 as int), 1 as datetime)
+2001-02-03 00:00:00
+select column_get(column_create(1, 20010203), 1 as datetime);
+column_get(column_create(1, 20010203), 1 as datetime)
+2001-02-03 00:00:00
+select column_get(column_create(1, 20010203.0), 1 as datetime);
+column_get(column_create(1, 20010203.0), 1 as datetime)
+2001-02-03 00:00:00
+select column_get(column_create(1, 20010203.0 as double), 1 as datetime);
+column_get(column_create(1, 20010203.0 as double), 1 as datetime)
+2001-02-03 00:00:00
+select column_get(column_create(1, "2001-02-03"), 1 as datetime);
+column_get(column_create(1, "2001-02-03"), 1 as datetime)
+2001-02-03 00:00:00
+select column_get(column_create(1, "20010203"), 1 as datetime);
+column_get(column_create(1, "20010203"), 1 as datetime)
+2001-02-03 00:00:00
+select column_get(column_create(1, 0), 1 as datetime);
+column_get(column_create(1, 0), 1 as datetime)
+0000-00-00 00:00:00
+select column_get(column_create(1, "2001021"), 1 as datetime);
+column_get(column_create(1, "2001021"), 1 as datetime)
+2020-01-02 01:00:00
+select column_get(column_create(1, "8:46:06.23434" AS time), 1 as datetime);
+column_get(column_create(1, "8:46:06.23434" AS time), 1 as datetime)
+0000-00-00 08:46:06.234340
+set @@sql_mode="allow_invalid_dates";
+select column_get(column_create(1, "2011-02-30 18:46:06.23434" AS CHAR), 1 as datetime);
+column_get(column_create(1, "2011-02-30 18:46:06.23434" AS CHAR), 1 as datetime)
+2011-02-30 18:46:06.234340
+select column_get(column_create(1, "0000-00-000" AS CHAR), 1 as datetime);
+column_get(column_create(1, "0000-00-000" AS CHAR), 1 as datetime)
+0000-00-00 00:00:00
+select column_get(column_create(1, "2001-00-02" AS CHAR), 1 as datetime);
+column_get(column_create(1, "2001-00-02" AS CHAR), 1 as datetime)
+2001-00-02 00:00:00
+set @@sql_mode="";
+# column get datetime truncation & warnings
+select column_get(column_create(1, "1223.5aa" AS char), 1 as datetime);
+column_get(column_create(1, "1223.5aa" AS char), 1 as datetime)
+NULL
+Warnings:
+Warning	1292	Incorrect datetime value: '1223.5aa'
+select column_get(column_create(1, 18446744073709551615 AS unsigned int), 1 as datetime);
+column_get(column_create(1, 18446744073709551615 AS unsigned int), 1 as datetime)
+NULL
+Warnings:
+Warning	1657	Encountered illegal value '18446744073709551615' when converting to DATE or DATETIME
+select column_get(column_create(1, 9223372036854775807 AS int), 1 as datetime);
+column_get(column_create(1, 9223372036854775807 AS int), 1 as datetime)
+NULL
+Warnings:
+Warning	1657	Encountered illegal value '9223372036854775807' when converting to DATE or DATETIME
+select column_get(column_create(1, -9223372036854775808 AS int), 1 as datetime);
+column_get(column_create(1, -9223372036854775808 AS int), 1 as datetime)
+NULL
+Warnings:
+Warning	1657	Encountered illegal value '-9223372036854775808' when converting to DATE or DATETIME
+select column_get(column_create(1, 99999999999999999999999999999 AS decimal(32,10)), 1 as datetime);
+column_get(column_create(1, 99999999999999999999999999999 AS decimal(32,10)), 1 as datetime)
+NULL
+Warnings:
+Warning	1292	Incorrect datetime value: '99999999999999999999999999999'
+select column_get(column_create(1, 99999999999999999999999999999 AS double), 1 as datetime);
+column_get(column_create(1, 99999999999999999999999999999 AS double), 1 as datetime)
+NULL
+Warnings:
+Warning	1292	Truncated incorrect datetime value: '9.99999999999999914332e+28    '
+select column_get(column_create(1, "2011-02-32 8:46:06.23434" AS CHAR), 1 as datetime);
+column_get(column_create(1, "2011-02-32 8:46:06.23434" AS CHAR), 1 as datetime)
+NULL
+Warnings:
+Warning	1292	Incorrect datetime value: '2011-02-32 8:46:06.23434'
+select column_get(column_create(1, "2011-13-01 8:46:06.23434" AS CHAR), 1 as datetime);
+column_get(column_create(1, "2011-13-01 8:46:06.23434" AS CHAR), 1 as datetime)
+NULL
+Warnings:
+Warning	1292	Incorrect datetime value: '2011-13-01 8:46:06.23434'
+select column_get(column_create(1, "2011-02-30 8:46:06.23434" AS CHAR), 1 as datetime);
+column_get(column_create(1, "2011-02-30 8:46:06.23434" AS CHAR), 1 as datetime)
+NULL
+Warnings:
+Warning	1292	Incorrect datetime value: '2011-02-30 8:46:06.23434'
+select column_get(column_create(1, "20010231"), 1 as datetime);
+column_get(column_create(1, "20010231"), 1 as datetime)
+NULL
+Warnings:
+Warning	1292	Incorrect datetime value: '20010231'
+select column_get(column_create(1, "0" AS CHAR), 1 as datetime);
+column_get(column_create(1, "0" AS CHAR), 1 as datetime)
+NULL
+Warnings:
+Warning	1292	Incorrect datetime value: '0'
+#
+# column get date
+#
+select column_get(column_create(1, 20010203101112.121314 as double), 1 as date);
+column_get(column_create(1, 20010203101112.121314 as double), 1 as date)
+2001-02-03
+select column_get(column_create(1, 20010203101112.121314 as decimal), 1 as date);
+column_get(column_create(1, 20010203101112.121314 as decimal), 1 as date)
+2001-02-03
+select column_get(column_create(1, 20010203101112 as unsigned int), 1 as date);
+column_get(column_create(1, 20010203101112 as unsigned int), 1 as date)
+2001-02-03
+select column_get(column_create(1, 20010203101112 as int), 1 as date);
+column_get(column_create(1, 20010203101112 as int), 1 as date)
+2001-02-03
+select column_get(column_create(1, "20010203101112" as char), 1 as date);
+column_get(column_create(1, "20010203101112" as char), 1 as date)
+2001-02-03
+select column_get(column_create(1, "2001-02-03 10:11:12" as char), 1 as date);
+column_get(column_create(1, "2001-02-03 10:11:12" as char), 1 as date)
+2001-02-03
+select column_get(column_create(1, "2001-02-03 10:11:12.121314" as char), 1 as date);
+column_get(column_create(1, "2001-02-03 10:11:12.121314" as char), 1 as date)
+2001-02-03
+select column_get(column_create(1, "2001-02-03 10:11:12.121314"), 1 as date);
+column_get(column_create(1, "2001-02-03 10:11:12.121314"), 1 as date)
+2001-02-03
+select column_get(column_create(1, "2011-04-05 8:46:06.23434" AS datetime), 1 as date);
+column_get(column_create(1, "2011-04-05 8:46:06.23434" AS datetime), 1 as date)
+2011-04-05
+select column_get(column_create(1, "2011-00-00 8:46:06.23434" AS CHAR), 1 as date);
+column_get(column_create(1, "2011-00-00 8:46:06.23434" AS CHAR), 1 as date)
+2011-00-00
+select column_get(column_create(1, "2011-00-01 8:46:06.23434" AS CHAR), 1 as date);
+column_get(column_create(1, "2011-00-01 8:46:06.23434" AS CHAR), 1 as date)
+2011-00-01
+select column_get(column_create(1, 20010203 as unsigned int), 1 as date);
+column_get(column_create(1, 20010203 as unsigned int), 1 as date)
+2001-02-03
+select column_get(column_create(1, 20010203 as int), 1 as date);
+column_get(column_create(1, 20010203 as int), 1 as date)
+2001-02-03
+select column_get(column_create(1, 20010203), 1 as date);
+column_get(column_create(1, 20010203), 1 as date)
+2001-02-03
+select column_get(column_create(1, 20010203.0), 1 as date);
+column_get(column_create(1, 20010203.0), 1 as date)
+2001-02-03
+select column_get(column_create(1, 20010203.0 as double), 1 as date);
+column_get(column_create(1, 20010203.0 as double), 1 as date)
+2001-02-03
+select column_get(column_create(1, "2001-02-03"), 1 as date);
+column_get(column_create(1, "2001-02-03"), 1 as date)
+2001-02-03
+select column_get(column_create(1, "20010203"), 1 as date);
+column_get(column_create(1, "20010203"), 1 as date)
+2001-02-03
+select column_get(column_create(1, 0), 1 as date);
+column_get(column_create(1, 0), 1 as date)
+0000-00-00
+select column_get(column_create(1, "2001021"), 1 as date);
+column_get(column_create(1, "2001021"), 1 as date)
+2020-01-02
+set @@sql_mode="allow_invalid_dates";
+select column_get(column_create(1, "2011-02-30 18:46:06.23434" AS CHAR), 1 as date);
+column_get(column_create(1, "2011-02-30 18:46:06.23434" AS CHAR), 1 as date)
+2011-02-30
+select column_get(column_create(1, "0000-00-000" AS CHAR), 1 as date);
+column_get(column_create(1, "0000-00-000" AS CHAR), 1 as date)
+0000-00-00
+select column_get(column_create(1, "2001-00-02" AS CHAR), 1 as date);
+column_get(column_create(1, "2001-00-02" AS CHAR), 1 as date)
+2001-00-02
+set @@sql_mode="";
+# column get date truncation & warnings
+select column_get(column_create(1, "1223.5aa" AS char), 1 as date);
+column_get(column_create(1, "1223.5aa" AS char), 1 as date)
+NULL
+Warnings:
+Warning	1292	Incorrect datetime value: '1223.5aa'
+select column_get(column_create(1, 18446744073709551615 AS unsigned int), 1 as date);
+column_get(column_create(1, 18446744073709551615 AS unsigned int), 1 as date)
+NULL
+Warnings:
+Warning	1657	Encountered illegal value '18446744073709551615' when converting to DATE or DATETIME
+select column_get(column_create(1, 9223372036854775807 AS int), 1 as date);
+column_get(column_create(1, 9223372036854775807 AS int), 1 as date)
+NULL
+Warnings:
+Warning	1657	Encountered illegal value '9223372036854775807' when converting to DATE or DATETIME
+select column_get(column_create(1, -9223372036854775808 AS int), 1 as date);
+column_get(column_create(1, -9223372036854775808 AS int), 1 as date)
+NULL
+Warnings:
+Warning	1657	Encountered illegal value '-9223372036854775808' when converting to DATE or DATETIME
+select column_get(column_create(1, 99999999999999999999999999999 AS decimal(32,10)), 1 as date);
+column_get(column_create(1, 99999999999999999999999999999 AS decimal(32,10)), 1 as date)
+NULL
+Warnings:
+Warning	1292	Incorrect datetime value: '99999999999999999999999999999'
+select column_get(column_create(1, 99999999999999999999999999999 AS double), 1 as date);
+column_get(column_create(1, 99999999999999999999999999999 AS double), 1 as date)
+NULL
+Warnings:
+Warning	1292	Truncated incorrect datetime value: '9.99999999999999914332e+28    '
+select column_get(column_create(1, "2011-02-32 8:46:06.23434" AS CHAR), 1 as date);
+column_get(column_create(1, "2011-02-32 8:46:06.23434" AS CHAR), 1 as date)
+NULL
+Warnings:
+Warning	1292	Incorrect datetime value: '2011-02-32 8:46:06.23434'
+select column_get(column_create(1, "2011-13-01 8:46:06.23434" AS CHAR), 1 as date);
+column_get(column_create(1, "2011-13-01 8:46:06.23434" AS CHAR), 1 as date)
+NULL
+Warnings:
+Warning	1292	Incorrect datetime value: '2011-13-01 8:46:06.23434'
+select column_get(column_create(1, "2011-02-30 8:46:06.23434" AS CHAR), 1 as date);
+column_get(column_create(1, "2011-02-30 8:46:06.23434" AS CHAR), 1 as date)
+NULL
+Warnings:
+Warning	1292	Incorrect datetime value: '2011-02-30 8:46:06.23434'
+select column_get(column_create(1, "20010231"), 1 as date);
+column_get(column_create(1, "20010231"), 1 as date)
+NULL
+Warnings:
+Warning	1292	Incorrect datetime value: '20010231'
+select column_get(column_create(1, "0" AS CHAR), 1 as date);
+column_get(column_create(1, "0" AS CHAR), 1 as date)
+NULL
+Warnings:
+Warning	1292	Incorrect datetime value: '0'
+#
+# column get time
+#
+select column_get(column_create(1, 20010203101112.121314 as double), 1 as time);
+column_get(column_create(1, 20010203101112.121314 as double), 1 as time)
+10:11:12.100000
+select column_get(column_create(1, 20010203101112.121314 as decimal), 1 as time);
+column_get(column_create(1, 20010203101112.121314 as decimal), 1 as time)
+10:11:12.121314
+select column_get(column_create(1, 20010203101112 as unsigned int), 1 as time);
+column_get(column_create(1, 20010203101112 as unsigned int), 1 as time)
+10:11:12
+select column_get(column_create(1, 20010203101112 as int), 1 as time);
+column_get(column_create(1, 20010203101112 as int), 1 as time)
+10:11:12
+select column_get(column_create(1, "20010203101112" as char), 1 as time);
+column_get(column_create(1, "20010203101112" as char), 1 as time)
+10:11:12
+select column_get(column_create(1, "2001-02-03 10:11:12" as char), 1 as time);
+column_get(column_create(1, "2001-02-03 10:11:12" as char), 1 as time)
+10:11:12
+select column_get(column_create(1, "2001-02-03 10:11:12.121314" as char), 1 as time);
+column_get(column_create(1, "2001-02-03 10:11:12.121314" as char), 1 as time)
+10:11:12.121314
+select column_get(column_create(1, "2001-02-03 10:11:12.121314"), 1 as time);
+column_get(column_create(1, "2001-02-03 10:11:12.121314"), 1 as time)
+10:11:12.121314
+select column_get(column_create(1, "2011-04-05 8:46:06.23434" AS datetime), 1 as time);
+column_get(column_create(1, "2011-04-05 8:46:06.23434" AS datetime), 1 as time)
+08:46:06.234340
+select column_get(column_create(1, "2011-00-00 8:46:06.23434" AS CHAR), 1 as time);
+column_get(column_create(1, "2011-00-00 8:46:06.23434" AS CHAR), 1 as time)
+08:46:06.234340
+select column_get(column_create(1, "2011-00-01 8:46:06.23434" AS CHAR), 1 as time);
+column_get(column_create(1, "2011-00-01 8:46:06.23434" AS CHAR), 1 as time)
+08:46:06.234340
+select column_get(column_create(1, "830:46:06.23434" AS CHAR), 1 as time);
+column_get(column_create(1, "830:46:06.23434" AS CHAR), 1 as time)
+830:46:06.234340
+select cast("-830:46:06.23434" AS time);
+cast("-830:46:06.23434" AS time)
+-830:46:06.234340
+select 1,cast("-830:46:06.23434" AS time);
+1	cast("-830:46:06.23434" AS time)
+1	-830:46:06.234340
+select hex(column_create(1, "-830:46:06.23434" AS CHAR));
+hex(column_create(1, "-830:46:06.23434" AS CHAR))
+000100010003082D3833303A34363A30362E3233343334
+select column_get(column_create(1, "-830:46:06.23434" AS CHAR), 1 as time);
+column_get(column_create(1, "-830:46:06.23434" AS CHAR), 1 as time)
+-830:46:06.234340
+select column_get(column_create(1, "0" AS CHAR), 1 as time);
+column_get(column_create(1, "0" AS CHAR), 1 as time)
+00:00:00
+select column_get(column_create(1, "6" AS CHAR), 1 as time);
+column_get(column_create(1, "6" AS CHAR), 1 as time)
+00:00:06
+select column_get(column_create(1, "1:6" AS CHAR), 1 as time);
+column_get(column_create(1, "1:6" AS CHAR), 1 as time)
+01:06:00
+select column_get(column_create(1, "2:1:6" AS CHAR), 1 as time);
+column_get(column_create(1, "2:1:6" AS CHAR), 1 as time)
+02:01:06
+select column_get(column_create(1, 0), 1 as time);
+column_get(column_create(1, 0), 1 as time)
+00:00:00
+select column_get(column_create(1, "2001021"), 1 as time);
+column_get(column_create(1, "2001021"), 1 as time)
+200:10:21
+set @@sql_mode="allow_invalid_dates";
+select column_get(column_create(1, "2011-02-30 18:46:06.23434" AS CHAR), 1 as time);
+column_get(column_create(1, "2011-02-30 18:46:06.23434" AS CHAR), 1 as time)
+18:46:06.234340
+set @@sql_mode="";
+# column get date truncation & warnings
+select column_get(column_create(1, "1223.5aa" AS char), 1 as time);
+column_get(column_create(1, "1223.5aa" AS char), 1 as time)
+00:12:23.500000
+Warnings:
+Warning	1292	Truncated incorrect time value: '1223.5aa'
+select column_get(column_create(1, 18446744073709551615 AS unsigned int), 1 as time);
+column_get(column_create(1, 18446744073709551615 AS unsigned int), 1 as time)
+NULL
+Warnings:
+Warning	1292	Truncated incorrect time value: '18446744073709551615'
+select column_get(column_create(1, 9223372036854775807 AS int), 1 as time);
+column_get(column_create(1, 9223372036854775807 AS int), 1 as time)
+NULL
+Warnings:
+Warning	1292	Truncated incorrect time value: '9223372036854775807'
+select column_get(column_create(1, -9223372036854775808 AS int), 1 as time);
+column_get(column_create(1, -9223372036854775808 AS int), 1 as time)
+NULL
+Warnings:
+Warning	1292	Truncated incorrect time value: '-9223372036854775808'
+select column_get(column_create(1, 99999999999999999999999999999 AS decimal(32,10)), 1 as time);
+column_get(column_create(1, 99999999999999999999999999999 AS decimal(32,10)), 1 as time)
+NULL
+Warnings:
+Warning	1292	Truncated incorrect time value: '99999999999999999999999999999'
+select column_get(column_create(1, 99999999999999999999999999999 AS double), 1 as time);
+column_get(column_create(1, 99999999999999999999999999999 AS double), 1 as time)
+NULL
+Warnings:
+Warning	1292	Truncated incorrect time value: '1e+29'
+select column_get(column_create(1, "2011-02-32 8:46:06.23434" AS CHAR), 1 as time);
+column_get(column_create(1, "2011-02-32 8:46:06.23434" AS CHAR), 1 as time)
+NULL
+Warnings:
+Warning	1292	Truncated incorrect time value: '2011-02-32 8:46:06.23434'
+select column_get(column_create(1, "2011-13-01 8:46:06.23434" AS CHAR), 1 as time);
+column_get(column_create(1, "2011-13-01 8:46:06.23434" AS CHAR), 1 as time)
+NULL
+Warnings:
+Warning	1292	Truncated incorrect time value: '2011-13-01 8:46:06.23434'
+select column_get(column_create(1, "2011-02-30 8:46:06.23434" AS CHAR), 1 as time);
+column_get(column_create(1, "2011-02-30 8:46:06.23434" AS CHAR), 1 as time)
+NULL
+Warnings:
+Warning	1292	Truncated incorrect time value: '2011-02-30 8:46:06.23434'
+select column_get(column_create(1, "2001-02-03"), 1 as time);
+column_get(column_create(1, "2001-02-03"), 1 as time)
+00:20:01
+Warnings:
+Warning	1292	Truncated incorrect time value: '2001-02-03'
+select column_get(column_create(1, "20010203"), 1 as time);
+column_get(column_create(1, "20010203"), 1 as time)
+838:59:59
+Warnings:
+Warning	1292	Truncated incorrect time value: '20010203'
+# column add
+select hex(column_add(column_create(1, 1212 as integer), 2, 1212 as integer));
+hex(column_add(column_create(1, 1212 as integer), 2, 1212 as integer))
+00020001000002001078097809
+select hex(column_add(column_create(1, 1212 as integer), 1, 1212 as integer));
+hex(column_add(column_create(1, 1212 as integer), 1, 1212 as integer))
+0001000100007809
+select hex(column_add(column_create(1, 1212 as integer), 1, NULL as integer));
+hex(column_add(column_create(1, 1212 as integer), 1, NULL as integer))
+000000
+select hex(column_add(column_create(1, 1212 as integer), 2, NULL as integer));
+hex(column_add(column_create(1, 1212 as integer), 2, NULL as integer))
+0001000100007809
+select hex(column_add(column_create(1, 1212 as integer), 2, 1212 as integer, 1, 11 as integer));
+hex(column_add(column_create(1, 1212 as integer), 2, 1212 as integer, 1, 11 as integer))
+000200010000020008167809
+select column_get(column_add(column_create(1, 1212 as integer), 2, 1212 as integer, 1, 11 as integer), 1 as integer);
+column_get(column_add(column_create(1, 1212 as integer), 2, 1212 as integer, 1, 11 as integer), 1 as integer)
+11
+select column_get(column_add(column_create(1, 1212 as integer), 2, 1212 as integer, 1, 11 as integer), 2 as integer);
+column_get(column_add(column_create(1, 1212 as integer), 2, 1212 as integer, 1, 11 as integer), 2 as integer)
+1212
+select hex(column_add(column_create(1, 1212 as integer), 1, 1212 as integer, 2, 11 as integer));
+hex(column_add(column_create(1, 1212 as integer), 1, 1212 as integer, 2, 11 as integer))
+000200010000020010780916
+select hex(column_add(column_create(1, NULL as integer), 1, 1212 as integer, 2, 11 as integer));
+hex(column_add(column_create(1, NULL as integer), 1, 1212 as integer, 2, 11 as integer))
+000200010000020010780916
+select hex(column_add(column_create(1, 1212 as integer, 2, 1212 as integer), 1, 11 as integer));
+hex(column_add(column_create(1, 1212 as integer, 2, 1212 as integer), 1, 11 as integer))
+000200010000020008167809
+select hex(column_add(column_create(1, 1), 1, null));
+hex(column_add(column_create(1, 1), 1, null))
+000000
+select column_list(column_add(column_create(1, 1), 1, null));
+column_list(column_add(column_create(1, 1), 1, null))
+
+select column_list(column_add(column_create(1, 1), 1, ""));
+column_list(column_add(column_create(1, 1), 1, ""))
+1
+select hex(column_add("", 1, 1));
+hex(column_add("", 1, 1))
+00010001000002
+# column delete
+select hex(column_delete(column_create(1, 1212 as integer, 2, 1212 as integer), 1));
+hex(column_delete(column_create(1, 1212 as integer, 2, 1212 as integer), 1))
+0001000200007809
+select hex(column_delete(column_create(1, 1 as integer, 2, 2 as integer, 3, 3 as integer), 2));
+hex(column_delete(column_create(1, 1 as integer, 2, 2 as integer, 3, 3 as integer), 2))
+0002000100000300080206
+select hex(column_delete(column_create(1, 1 as integer, 2, 2 as integer, 3, 3 as integer), 3));
+hex(column_delete(column_create(1, 1 as integer, 2, 2 as integer, 3, 3 as integer), 3))
+0002000100000200080204
+select hex(column_delete(column_create(1, 1 as integer, 2, 2 as integer, 3, 3 as integer), 4));
+hex(column_delete(column_create(1, 1 as integer, 2, 2 as integer, 3, 3 as integer), 4))
+000300010000020008030010020406
+select hex(column_delete(column_create(1, 1 as integer, 2, 2 as integer, 3, 3 as integer), 2, 1));
+hex(column_delete(column_create(1, 1 as integer, 2, 2 as integer, 3, 3 as integer), 2, 1))
+00010003000006
+select hex(column_delete(column_create(1, 1 as integer, 2, 2 as integer, 3, 3 as integer), 2, 3));
+hex(column_delete(column_create(1, 1 as integer, 2, 2 as integer, 3, 3 as integer), 2, 3))
+00010001000002
+select hex(column_delete(column_create(1, 1 as integer, 2, 2 as integer, 3, 3 as integer), 1, 2, 3));
+hex(column_delete(column_create(1, 1 as integer, 2, 2 as integer, 3, 3 as integer), 1, 2, 3))
+000000
+select hex(column_delete(column_create(1, 1 as integer, 2, 2 as integer, 3, 3 as integer), 1, 2, 3, 10));
+hex(column_delete(column_create(1, 1 as integer, 2, 2 as integer, 3, 3 as integer), 1, 2, 3, 10))
+000000
+select hex(column_delete(column_create(1, 1), 1));
+hex(column_delete(column_create(1, 1), 1))
+000000
+select hex(column_delete("", 1));
+hex(column_delete("", 1))
+
+# column exists
+select column_exists(column_create(1, 1212 as integer, 2, 1212 as integer), 1);
+column_exists(column_create(1, 1212 as integer, 2, 1212 as integer), 1)
+1
+select column_exists(column_create(1, 1212 as integer, 2, 1212 as integer), 4);
+column_exists(column_create(1, 1212 as integer, 2, 1212 as integer), 4)
+0
+# column list
+select column_list(column_create(1, 1212 as integer, 2, 1212 as integer));
+column_list(column_create(1, 1212 as integer, 2, 1212 as integer))
+1,2
+select column_list(column_create(1, 1212 as integer));
+column_list(column_create(1, 1212 as integer))
+1
+select column_list(column_create(1, NULL as integer));
+column_list(column_create(1, NULL as integer))
+
+#
+# check error handling
+#
+select HEX(COLUMN_CREATE(1, 5, 1, 5));
+ERROR 22007: Illegal value used as argument of dynamic column function
+select HEX(COLUMN_CREATE("", 1, 5, 1, 5));
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '))' at line 1
+select COLUMN_LIST("a");
+ERROR HY000: Encountered illegal format of dynamic column string
+select column_delete("a", 1);
+ERROR HY000: Encountered illegal format of dynamic column string
+select hex(column_delete("", 1));
+hex(column_delete("", 1))
+
+select hex(column_delete("", -1));
+ERROR 22007: Illegal value used as argument of dynamic column function
+select hex(column_create(-1, 1));
+ERROR 22007: Illegal value used as argument of dynamic column function
+select hex(column_create(65536, 1));
+ERROR 22007: Illegal value used as argument of dynamic column function
+select hex(column_add("", -1, 1));
+ERROR 22007: Illegal value used as argument of dynamic column function
+select hex(column_add("", 65536, 1));
+ERROR 22007: Illegal value used as argument of dynamic column function
+select hex(column_get("", -1 as int));
+hex(column_get("", -1 as int))
+NULL
+#
+# Test with table
+#
+create table t1 (id int primary key, str mediumblob);
+insert into t1 values (1, ''), (2, ''), (3, ''), (4, ''), (5, null);
+select id, str, column_get(str, 1 as int) from t1;
+id	str	column_get(str, 1 as int)
+1		NULL
+2		NULL
+3		NULL
+4		NULL
+5	NULL	NULL
+update t1 set str=column_create(1, id, 2, "a") where id < 3;
+update t1 set str=column_add(str, 1, id, 2, "b") where id >= 4;
+select id, column_get(str, 1 as int),  column_get(str, 2 as char) from t1 where column_exists(str,1) or column_exists(str,2);
+id	column_get(str, 1 as int)	column_get(str, 2 as char)
+1	1	a
+2	2	a
+4	4	b
+update t1 set str=column_create(1, id, 10, "test") where id = 5;
+insert into t1 values (6, column_create(10, "test2"));
+update t1 set str=column_add(str, 2, 'c', 1, column_get(str, 1 as int) + 1, 3, 100) where id > 2;
+select id, length(str), column_get(str, 1 as int),  column_get(str, 2 as char), column_get(str, 3 as int) from t1;
+id	length(str)	column_get(str, 1 as int)	column_get(str, 2 as char)	column_get(str, 3 as int)
+1	12	1	a	NULL
+2	12	2	a	NULL
+3	12	NULL	c	100
+4	16	5	c	100
+5	24	6	c	100
+6	21	NULL	c	100
+select column_get(str, 2 as char), sum(column_get(str, 1 as int)) from t1 group by column_get(str, 2 as char);
+column_get(str, 2 as char)	sum(column_get(str, 1 as int))
+a	3
+c	11
+select column_get(str, 2 as char), sum(column_get(str, 1 as int)) from t1 where column_exists(str, 2) <> 0 group by 1;
+column_get(str, 2 as char)	sum(column_get(str, 1 as int))
+a	3
+c	11
+select sum(column_get(str, 1 as int)) from t1 group by column_get(str, 2 as char) order by sum(column_get(str, 1 as int)) desc;
+sum(column_get(str, 1 as int))
+11
+3
+select sum(column_get(str, 1 as int)) from t1 group by column_get(str, 2 as char) having sum(column_get(str, 1 as int)) > 2;
+sum(column_get(str, 1 as int))
+3
+11
+select sum(column_get(str, 1 as int)) from t1 where column_get(str, 3 as int) > 50 group by column_get(str, 2 as char);
+sum(column_get(str, 1 as int))
+11
+select id, column_list(str) from t1 where id= 5;
+id	column_list(str)
+5	1,2,3,10
+update t1 set str=column_delete(str, 3, 4, 2) where id= 5;
+select id, length(str), column_list(str), column_get(str, 1 as int),  column_get(str, 2 as char), column_get(str, 3 as int) from t1;
+id	length(str)	column_list(str)	column_get(str, 1 as int)	column_get(str, 2 as char)	column_get(str, 3 as int)
+1	12	1,2	1	a	NULL
+2	12	1,2	2	a	NULL
+3	12	2,3	NULL	c	100
+4	16	1,2,3	5	c	100
+5	15	1,10	6	NULL	NULL
+6	21	2,3,10	NULL	c	100
+update t1 set str=column_add(str, 4, 45 as char, 2, 'c') where id= 5;
+select id, length(str), column_list(str), column_get(str, 1 as int),  column_get(str, 2 as char), column_get(str, 3 as int) from t1 where id = 5;
+id	length(str)	column_list(str)	column_get(str, 1 as int)	column_get(str, 2 as char)	column_get(str, 3 as int)
+5	26	1,2,4,10	6	c	NULL
+select id, length(str), column_list(str), column_exists(str, 4) from t1;
+id	length(str)	column_list(str)	column_exists(str, 4)
+1	12	1,2	0
+2	12	1,2	0
+3	12	2,3	0
+4	16	1,2,3	0
+5	26	1,2,4,10	1
+6	21	2,3,10	0
+select sum(column_get(str, 1 as int)), column_list(str) from t1 group by 2;
+sum(column_get(str, 1 as int))	column_list(str)
+3	1,2
+5	1,2,3
+6	1,2,4,10
+NULL	2,3
+NULL	2,3,10
+select id, hex(str) from t1;
+id	hex(str)
+1	00020001000002000B020861
+2	00020001000002000B040861
+3	0002000200030300100863C8
+4	00030001000002000B0300180A0863C8
+5	00040001000002000B04001B0A00330C08633F34350874657374
+6	0003000200030300100A001B0863C8087465737432
+update t1 set str=column_add(str, 4, repeat("a", 100000)) where id=5;
+select id from t1 where column_get(str,4 as char(100000)) = repeat("a", 100000);
+id
+5
+select id from t1 where column_get(str,4 as char(100)) = repeat("a", 100);
+id
+5
+Warnings:
+Warning	1292	Truncated incorrect CHAR(100) value: 'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa'
+update t1 set str=column_add(str, 4, repeat("b", 10000)) where id=5;
+select id from t1 where column_get(str,4 as char(100000)) = repeat("b", 10000);
+id
+5
+update t1 set str=column_add(str, 4, repeat("c", 100)) where id=5;
+select id from t1 where column_get(str,4 as char(100000)) = repeat("c", 100);
+id
+5
+update t1 set str=column_add(str, 4, repeat("d", 10000)) where id=5;
+select id from t1 where column_get(str,4 as char(100000)) = repeat("d", 10000);
+id
+5
+update t1 set str=column_add(str, 4, repeat("e", 10), 5, repeat("f", 100000)) where id=5;
+select id from t1 where column_get(str,5 as char(100000)) = repeat("f", 100000);
+id
+5
+select id, column_list(str), length(str) from t1 where id=5;
+id	column_list(str)	length(str)
+5	1,2,4,5,10	100048
+update t1 set str=column_delete(str, 5) where id=5;
+select id, column_list(str), length(str) from t1 where id=5;
+id	column_list(str)	length(str)
+5	1,2,4,10	34
+drop table t1;

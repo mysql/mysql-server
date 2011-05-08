@@ -7999,7 +7999,8 @@ static int do_auth_once(THD *thd, LEX_STRING *auth_plugin_name,
   @retval 1  error
 */
 
-bool acl_authenticate(THD *thd, uint connect_errors, uint com_change_user_pkt_len)
+bool acl_authenticate(THD *thd, uint connect_errors,
+                      uint com_change_user_pkt_len)
 {
   int res= CR_OK;
   MPVIO_EXT mpvio;
