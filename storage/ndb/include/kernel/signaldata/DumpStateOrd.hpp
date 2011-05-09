@@ -170,6 +170,7 @@ public:
     DumpBackup = 13000,
     DumpBackupSetCompressed = 13001,
     DumpBackupSetCompressedLCP = 13002,
+    BackupErrorInsert = 13003,
 
     DumpDbinfo = 14000,
     DbinfoListTables = 14001,
