@@ -601,6 +601,26 @@ bool make_in_exists_conversion(THD *thd, JOIN *join, Item_in_subselect *item)
 }
 
 
+bool check_for_outer_joins(List<TABLE_LIST> *join_list)
+{
+  TABLE_LIST *table;
+  NESTED_JOIN *nested_join;
+  List_iterator<TABLE_LIST> li(*join_list);
+  while ((table= li++))
+  {
+    if ((nested_join= table->nested_join))
+    {
+      if (check_for_outer_joins(&nested_join->join_list))
+        return TRUE;
+    }
+    
+    if (table->outer_join)
+      return TRUE;
+  }
+  return FALSE;
+}
+
+
 /*
   Convert semi-join subquery predicates into semi-join join nests
 
@@ -685,6 +705,7 @@ bool convert_join_subqueries_to_semijoins(JOIN *join)
   
   // Temporary measure: disable semi-joins when they are together with outer
   // joins.
+  /*
   for (TABLE_LIST *tbl= join->select_lex->leaf_tables; tbl; tbl=tbl->next_leaf)
   {
     TABLE_LIST *embedding= tbl->embedding;
@@ -695,6 +716,12 @@ bool convert_join_subqueries_to_semijoins(JOIN *join)
       arena= thd->activate_stmt_arena_if_needed(&backup);
       goto skip_conversion;
     }
+  }*/
+  if (check_for_outer_joins(join->join_list))
+  {
+    in_subq= join->sj_subselects.front();
+    arena= thd->activate_stmt_arena_if_needed(&backup);
+    goto skip_conversion;
   }
 
   //dump_TABLE_LIST_struct(select_lex, select_lex->leaf_tables);

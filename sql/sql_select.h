@@ -701,7 +701,8 @@ public:
   /* Tables removed by table elimination. Set to 0 before the elimination. */
   table_map eliminated_tables;
   /*
-     Bitmap of all inner tables from outer joins
+     Bitmap of all inner tables from outer joins (set at start of
+     make_join_statistics)
   */
   table_map outer_join;
   ha_rows  send_records,found_records,examined_rows,row_limit, select_limit;
