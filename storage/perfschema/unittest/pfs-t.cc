@@ -80,6 +80,7 @@ void test_bootstrap()
 
   diag("test_bootstrap");
 
+  memset(& param, 0xFF, sizeof(param));
   param.m_enabled= true;
   param.m_mutex_class_sizing= 0;
   param.m_rwlock_class_sizing= 0;
@@ -98,6 +99,9 @@ void test_bootstrap()
   param.m_events_waits_history_long_sizing= 0;
   param.m_setup_actor_sizing= 0;
   param.m_setup_object_sizing= 0;
+  param.m_user_sizing= 0;
+  param.m_account_sizing= 0;
+  param.m_host_sizing= 0;
   param.m_stage_class_sizing= 0;
   param.m_events_stages_history_sizing= 0;
   param.m_events_stages_history_long_sizing= 0;
@@ -130,6 +134,7 @@ PSI * load_perfschema()
   PSI_bootstrap *boot;
   PFS_global_param param;
 
+  memset(& param, 0xFF, sizeof(param));
   param.m_enabled= true;
   param.m_mutex_class_sizing= 10;
   param.m_rwlock_class_sizing= 10;
@@ -148,6 +153,9 @@ PSI * load_perfschema()
   param.m_events_waits_history_long_sizing= 10;
   param.m_setup_actor_sizing= 0;
   param.m_setup_object_sizing= 0;
+  param.m_user_sizing= 0;
+  param.m_account_sizing= 0;
+  param.m_host_sizing= 0;
   param.m_stage_class_sizing= 0;
   param.m_events_stages_history_sizing= 0;
   param.m_events_stages_history_long_sizing= 0;
@@ -1276,6 +1284,7 @@ void test_event_name_index()
 
   diag("test_event_name_index");
 
+  memset(& param, 0xFF, sizeof(param));
   param.m_enabled= true;
 
   /* Per mutex info waits should be at [0..9] */
@@ -1290,6 +1299,9 @@ void test_event_name_index()
   param.m_table_share_sizing= 160;
 
   param.m_thread_class_sizing= 0;
+  param.m_user_sizing= 0;
+  param.m_account_sizing= 0;
+  param.m_host_sizing= 0;
   param.m_stage_class_sizing= 0;
   param.m_events_stages_history_sizing= 0;
   param.m_events_stages_history_long_sizing= 0;
