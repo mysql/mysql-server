@@ -4119,9 +4119,12 @@ double get_fanout_with_deps(JOIN *join, table_map tset)
   for (JOIN_TAB *tab= first_top_level_tab(join, WITHOUT_CONST_TABLES); tab;
        tab= next_top_level_tab(join, tab))
   {
-    fanout *= (tab->records_read && !tab->emb_sj_nest) ? 
-                 rows2double(tab->records_read) : 1;
-  }
+    if ((tab->table->map & checked_deps) && !tab->emb_sj_nest && 
+        tab->records_read != 0)
+    {
+      fanout *= rows2double(tab->records_read);
+    }
+  } 
   return fanout;
 }
 
@@ -4208,7 +4211,7 @@ void check_out_index_stats(JOIN *join)
 #endif
 
 
-double get_post_group_estimate(JOIN* join)
+double get_post_group_estimate(JOIN* join, double join_op_rows)
 {
   table_map tables_in_group_list= table_map(0);
 
@@ -4217,8 +4220,10 @@ double get_post_group_estimate(JOIN* join)
   {
     Item *item= order->item[0];
     if (item->used_tables() & RAND_TABLE_BIT)
-      return HA_POS_ERROR; // TODO: change to join-output-estimate
-
+    {
+      /* Each join output record will be in its own group */
+      return join_op_rows;
+    }
     tables_in_group_list|= item->used_tables();
   }
   tables_in_group_list &= ~PSEUDO_TABLE_BITS;
@@ -4291,7 +4296,7 @@ int subselect_hash_sj_engine::optimize(double *out_rows, double *cost)
   if (join->group_list)
   {
     DBUG_PRINT("info",("Materialized join has grouping, trying to estimate"));
-    double output_rows= get_post_group_estimate(materialize_join);
+    double output_rows= get_post_group_estimate(materialize_join, *out_rows);
     DBUG_PRINT("info",("Got value of %g", output_rows));
     *out_rows= output_rows;
   }
