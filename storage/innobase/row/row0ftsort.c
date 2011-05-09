@@ -66,13 +66,14 @@ row_merge_create_fts_sort_index(
 	dict_index_t*   new_index;
 	dict_field_t*   field;
 
-	new_index = dict_mem_index_create(index->table->name, "tmp_idx",
+	new_index = dict_mem_index_create(index->table->name, "tmp_fts_idx",
 					  0, DICT_FTS, 3);
 
 	new_index->id = index->id;
 	new_index->table = (dict_table_t*)table;
 	new_index->n_uniq = FTS_NUM_FIELDS_SORT;
 	new_index->n_def = FTS_NUM_FIELDS_SORT;
+	new_index->cached = TRUE;
 
 	/* The first field is on the Tokenized Word */
 	field = dict_index_get_nth_field(new_index, 0);

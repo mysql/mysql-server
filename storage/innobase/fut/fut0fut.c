@@ -39,6 +39,7 @@ Completed by Sunny Bains and Jimmy Yang
 #include "fts0vlc.ic"
 #include "dict0priv.h"
 #include "dict0stats.h"
+#include "btr0pcur.h"
 
 #ifdef UNIV_NONINL
 #include "fut0fut.ic"
@@ -2144,6 +2145,11 @@ fts_add_doc_id(
 		cache->get_docs = fts_get_docs_create(cache);
 	}
 
+	if (!(ftt->table->fts->fts_status & ADDED_TABLE_SYNCED)) {
+		fts_init_index(ftt->table);
+		ftt->table->fts->fts_status |= ADDED_TABLE_SYNCED;
+	}
+
 	/* Get the document, parse them and add to FTS ADD table
 	and FTS cache */
 	for (i = 0; i < ib_vector_size(cache->get_docs); ++i) {
@@ -2621,16 +2627,23 @@ fts_fetch_doc_by_id(
 {
 	mtr_t		mtr;
 	dict_index_t*   clust_index;
-	const rec_t*    clust_rec;
 	dict_table_t*	table = get_doc->index_cache->index->table;
 	dict_index_t*	index = get_doc->index_cache->index;
 	dtuple_t*	tuple; 
 	doc_id_t        temp_doc_id;
 	dfield_t*       dfield;
-	mem_heap_t*	heap = get_doc->index_cache->index->heap;
 	btr_pcur_t	pcur;
+	dict_index_t*	fts_id_index;
+	ibool		is_id_cluster;
+	mem_heap_t*	heap;
+
+	heap = mem_heap_create(512);
 	
 	clust_index = dict_table_get_first_index(table);
+	fts_id_index = dict_table_get_index_on_name(
+				table, FTS_DOC_ID_INDEX_NAME);
+
+	is_id_cluster = (clust_index == fts_id_index);
 
 	mtr_start(&mtr);
 
@@ -2644,7 +2657,7 @@ fts_fetch_doc_by_id(
 	mach_write_to_8((byte*) &temp_doc_id, doc_id);
 	dfield_set_data(dfield, &temp_doc_id, 8);
 
-	btr_pcur_open_with_no_init(clust_index, tuple, PAGE_CUR_LE,
+	btr_pcur_open_with_no_init(fts_id_index, tuple, PAGE_CUR_LE,
 				   BTR_SEARCH_LEAF,
 			  	   &pcur, 0, &mtr);
 
@@ -2660,13 +2673,38 @@ fts_fetch_doc_by_id(
 		const dict_col_t*	col;
 		ulint			clust_pos;
 		ulint			i;
+		const rec_t*		clust_rec;
+		const rec_t*		rec;
 
-		clust_rec = btr_pcur_get_rec(&pcur);
+		rec = btr_pcur_get_rec(&pcur);
 
 		/* This row should not be deleted */
 		if (rec_get_deleted_flag(
-			clust_rec, dict_table_is_comp(table))) {
-				 ut_error;
+			rec, dict_table_is_comp(table))) {
+			 ut_error;
+		}
+
+		if (is_id_cluster) {
+			clust_rec = rec;
+		} else {
+			dtuple_t*	clust_ref;
+			ulint		n_fields;
+			btr_pcur_t	clust_pcur;
+
+			n_fields = dict_index_get_n_unique(clust_index);
+
+			clust_ref = dtuple_create(heap, n_fields);
+			dict_index_copy_types(clust_ref, clust_index, n_fields);
+
+			row_build_row_ref_in_tuple(
+				clust_ref, rec, fts_id_index, NULL, NULL);
+
+			btr_pcur_open_with_no_init(
+				clust_index, clust_ref, PAGE_CUR_LE,
+				BTR_SEARCH_LEAF, &clust_pcur, 0, &mtr);
+
+			clust_rec = btr_pcur_get_rec(&clust_pcur);
+						   
 		}
 
 		offsets = rec_get_offsets(clust_rec, clust_index,
@@ -2702,6 +2740,7 @@ fts_fetch_doc_by_id(
 
 	mtr_commit(&mtr);
 
+	mem_heap_free(heap);
 	return(TRUE);
 }
 
