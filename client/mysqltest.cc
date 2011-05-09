@@ -601,6 +601,10 @@ public:
       DBUG_VOID_RETURN;
     DBUG_ASSERT(ds->str);
 
+#ifdef EXTRA_DEBUG
+    DBUG_PRINT("QQ", ("str: %*s", (int) ds->length, ds->str));
+#endif
+
     if (fwrite(ds->str, 1, ds->length, m_file) != ds->length)
       die("Failed to write %lu bytes to '%s', errno: %d",
           (unsigned long)ds->length, m_file_name, errno);
@@ -1288,6 +1292,7 @@ void die(const char *fmt, ...)
   DBUG_ENTER("die");
   DBUG_PRINT("enter", ("start_lineno: %d", start_lineno));
 
+  fflush(stdout);
   /* Print the error message */
   fprintf(stderr, "mysqltest: ");
   if (cur_file && cur_file != file_stack)
@@ -1374,6 +1379,7 @@ void verbose_msg(const char *fmt, ...)
   if (!verbose)
     DBUG_VOID_RETURN;
 
+  fflush(stdout);
   va_start(args, fmt);
   fprintf(stderr, "mysqltest: ");
   if (cur_file && cur_file != file_stack)
@@ -1384,6 +1390,7 @@ void verbose_msg(const char *fmt, ...)
   vfprintf(stderr, fmt, args);
   fprintf(stderr, "\n");
   va_end(args);
+  fflush(stderr);
 
   DBUG_VOID_RETURN;
 }
@@ -1468,6 +1475,8 @@ static int run_command(char* cmd,
   char buf[512]= {0};
   FILE *res_file;
   int error;
+  DBUG_ENTER("run_command");
+  DBUG_PRINT("enter", ("cmd: %s", cmd));
 
   if (!(res_file= popen(cmd, "r")))
     die("popen(\"%s\", \"r\") failed", cmd);
@@ -1488,7 +1497,7 @@ static int run_command(char* cmd,
   }
 
   error= pclose(res_file);
-  return WEXITSTATUS(error);
+  DBUG_RETURN(WEXITSTATUS(error));
 }
 
 
@@ -7544,6 +7553,15 @@ void run_query(struct st_connection *cn, struct st_command *command, int flags)
     dynstr_append_mem(ds, delimiter, delimiter_length);
     dynstr_append_mem(ds, "\n", 1);
   }
+
+  /*
+    Write the command to the result file before we execute the query
+    This is needed to be able to analyse the log if something goes
+    wrong
+  */
+  log_file.write(&ds_res);
+  log_file.flush();
+  dynstr_set(&ds_res, 0);
 
   if (view_protocol_enabled &&
       complete_query &&

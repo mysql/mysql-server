@@ -734,12 +734,14 @@ Event_queue::cond_wait(THD *thd, struct timespec *abstime, const char* msg,
 
   thd->enter_cond(&COND_queue_state, &LOCK_event_queue, msg);
 
-  DBUG_PRINT("info", ("pthread_cond_%swait", abstime? "timed":""));
-  if (!abstime)
-    pthread_cond_wait(&COND_queue_state, &LOCK_event_queue);
-  else
-    pthread_cond_timedwait(&COND_queue_state, &LOCK_event_queue, abstime);
-
+  if (!thd->killed)
+  {
+    DBUG_PRINT("info", ("pthread_cond_%swait", abstime ? "timed" : ""));
+    if (!abstime)
+      pthread_cond_wait(&COND_queue_state, &LOCK_event_queue);
+    else
+      pthread_cond_timedwait(&COND_queue_state, &LOCK_event_queue, abstime);
+  }
   mutex_last_locked_in_func= func;
   mutex_last_locked_at_line= line;
   mutex_queue_data_locked= TRUE;
