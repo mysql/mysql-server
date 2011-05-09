@@ -825,21 +825,16 @@ void get_delayed_table_estimates(TABLE *table,
                                  double *startup_cost)
 {
   Item_in_subselect *item= table->pos_in_table_list->jtbm_subselect;
-  item->optimize();
+  double rows;
+  double read_time;
+
+  item->optimize(&rows, &read_time);
 
   DBUG_ASSERT(item->engine->engine_type() ==
               subselect_engine::HASH_SJ_ENGINE);
 
   subselect_hash_sj_engine *hash_sj_engine=
     ((subselect_hash_sj_engine*)item->engine);
-  JOIN *join= hash_sj_engine->materialize_join;
-
-  double rows;
-  double read_time;
-
-  /* Calculate #rows and cost of join execution */
-  get_partial_join_cost(join, join->table_count - join->const_tables, 
-                        &read_time, &rows);
 
   *out_rows= (ha_rows)rows;
   *startup_cost= read_time;

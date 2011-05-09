@@ -475,10 +475,10 @@ bool Item_subselect::exec()
   return (res);
 }
 
-int Item_subselect::optimize()
+int Item_subselect::optimize(double *out_rows, double *cost)
 {
   int res;
-  res= engine->optimize();
+  res= engine->optimize(out_rows, cost);
   return res;
 }
 
@@ -4085,16 +4085,218 @@ void subselect_hash_sj_engine::cleanup()
   result->cleanup(); /* Resets the temp table as well. */
 }
 
+JOIN_TAB *first_top_level_tab(JOIN *join, enum enum_with_const_tables with_const);
+JOIN_TAB *next_top_level_tab(JOIN *join, JOIN_TAB *tab);
 
-int subselect_hash_sj_engine::optimize()
+/*
+  Get fanout produced by tables specified in the table_map
+*/
+
+double get_fanout_with_deps(JOIN *join, table_map tset)
+{
+  /* First, recursively get all tables we depend on */
+  table_map deps_to_check= tset;
+  table_map checked_deps= 0;
+  table_map further_deps;
+  do
+  {
+    further_deps= 0;
+    Table_map_iterator tm_it(deps_to_check);
+    int tableno;
+    while ((tableno = tm_it.next_bit()) != Table_map_iterator::BITMAP_END)
+    {
+      /* get tableno's dependency tables that are not in needed_set */
+      further_deps |= join->map2table[tableno]->ref.depend_map & ~checked_deps;
+    }
+
+    checked_deps |= deps_to_check;
+    deps_to_check= further_deps;
+  } while (further_deps != 0);
+
+  
+  /* Now, walk the join order and calculate the fanout */
+  double fanout= 1;
+  for (JOIN_TAB *tab= first_top_level_tab(join, WITHOUT_CONST_TABLES); tab;
+       tab= next_top_level_tab(join, tab))
+  {
+    fanout *= (tab->records_read && !tab->emb_sj_nest) ? 
+                 rows2double(tab->records_read) : 1;
+  }
+  return fanout;
+}
+
+
+#if 0
+void check_out_index_stats(JOIN *join)
+{
+  ORDER *order;
+  uint n_order_items;
+
+  /*
+    First, collect the keys that we can use in each table.
+    We can use a key if 
+    - all tables refer to it.
+  */
+  key_map key_start_use[MAX_TABLES];
+  key_map key_infix_use[MAX_TABLES];
+  table_map key_used=0;
+  table_map non_key_used= 0;
+  
+  bzero(&key_start_use, sizeof(key_start_use)); //psergey-todo: safe initialization!
+  bzero(&key_infix_use, sizeof(key_infix_use));
+  
+  for (order= join->group_list; order; order= order->next)
+  {
+    Item *item= order->item[0];
+
+    if (item->real_type() == Item::FIELD_ITEM)
+    {
+      if (item->used_tables() & OUTER_REF_TABLE_BIT)
+        continue; /* outside references are like constants for us */
+
+      Field *field= ((Item_field*)item->real_item())->field;
+      uint table_no= field->table->tablenr;
+      if (!(non_key_used && table_map(1) << table_no) && 
+          !field->part_of_key.is_clear_all())
+      {
+        key_map infix_map= field->part_of_key;
+        infix_map.subtract(field->key_start);
+        key_start_use[table_no].merge(field->key_start);
+        key_infix_use[table_no].merge(infix_map);
+        key_used |= table_no;
+      }
+      continue;
+    }
+    /* 
+      Note: the below will cause clauses like GROUP BY YEAR(date) not to be
+      handled. 
+    */
+    non_key_used |= item->used_tables();
+  }
+  
+  Table_map_iterator tm_it(key_used & ~non_key_used);
+  int tableno;
+  while ((tableno = tm_it.next_bit()) != Table_map_iterator::BITMAP_END)
+  {
+    key_map::iterator key_it(key_start_use);
+    int keyno;
+    while ((keyno = tm_it.next_bit()) != key_map::iterator::BITMAP_END)
+    {
+      for (order= join->group_list; order; order= order->next)
+      {
+        Item *item= order->item[0];
+        if (item->used_tables() & (table_map(1) << tableno))
+        {
+          DBUG_ASSERT(item->real_type() == Item::FIELD_ITEM);
+        }
+      }
+      /*
+      if (continuation)
+      {
+        walk through list and find which key parts are occupied;
+        // note that the above can't be made any faster.
+      }
+      else
+        use rec_per_key[0];
+      
+      find out the cardinality.
+      check if cardinality decreases if we use it;
+      */
+    }
+  }
+}
+#endif
+
+
+double get_post_group_estimate(JOIN* join)
+{
+  table_map tables_in_group_list= table_map(0);
+
+  /* Find out which tables are used in GROUP BY list */
+  for (ORDER *order= join->group_list; order; order= order->next)
+  {
+    Item *item= order->item[0];
+    if (item->used_tables() & RAND_TABLE_BIT)
+      return HA_POS_ERROR; // TODO: change to join-output-estimate
+
+    tables_in_group_list|= item->used_tables();
+  }
+  tables_in_group_list &= ~PSEUDO_TABLE_BITS;
+
+  /*
+    Use join fanouts to calculate the max. number of records in the group-list
+  */
+  double fanout_rows[MAX_KEY];
+  bzero(&fanout_rows, sizeof(fanout_rows));
+  double out_rows;
+  
+  out_rows= get_fanout_with_deps(join, tables_in_group_list);
+  
+  /* 
+    Also generate max. number of records for each of the tables mentioned 
+    in the group-list. We'll use that a baseline number that we'll try to 
+    reduce by using
+     - #table-records 
+     - index statistics.
+  */
+  Table_map_iterator tm_it(tables_in_group_list);
+  int tableno;
+  while ((tableno = tm_it.next_bit()) != Table_map_iterator::BITMAP_END)
+  {
+    fanout_rows[tableno]= get_fanout_with_deps(join, table_map(1) << tableno);
+  }
+  
+  /*
+    Try to bring down estimates using index statistics.
+  */
+  //check_out_index_stats(join);
+  return out_rows;
+}
+
+
+int subselect_hash_sj_engine::optimize(double *out_rows, double *cost)
 {
   int res;
+  DBUG_ENTER("subselect_hash_sj_engine::optimize");
   SELECT_LEX *save_select= thd->lex->current_select;
-  thd->lex->current_select= materialize_join->select_lex;
-  res= materialize_join->optimize();
-  thd->lex->current_select= save_select;
+  JOIN *join= materialize_join;
 
-  return res;
+  thd->lex->current_select= join->select_lex;
+  res= join->optimize();
+
+  /* Calculate #rows and cost of join execution */
+  get_partial_join_cost(join, join->table_count - join->const_tables, 
+                        cost, out_rows);
+
+  /*
+    Adjust join output cardinality. There can be these cases:
+    - Have no GROUP BY and no aggregate funcs: we won't get into this 
+      function because such join will be processed as a merged semi-join 
+      (TODO: does it really mean we don't need to handle such cases here at 
+       all? put ASSERT)
+    - Have no GROUP BY but have aggregate funcs: output is 1 record.
+    - Have GROUP BY and have (or not) aggregate funcs:  need to adjust output 
+      cardinality.
+  */
+  thd->lex->current_select= save_select;
+  if (!join->group_list && !join->group_optimized_away &&
+      join->tmp_table_param.sum_func_count)
+  {
+    DBUG_PRINT("info",("Materialized join will have only 1 row (has "
+                       "aggregates but not GROUP BY"));
+    *out_rows= 1;
+  }
+  
+  /* Now with grouping */
+  if (join->group_list)
+  {
+    DBUG_PRINT("info",("Materialized join has grouping, trying to estimate"));
+    double output_rows= get_post_group_estimate(materialize_join);
+    DBUG_PRINT("info",("Got value of %g", output_rows));
+    *out_rows= output_rows;
+  }
+
+  DBUG_RETURN(res);
 }
 
 /**

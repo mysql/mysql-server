@@ -66,7 +66,8 @@ typedef struct st_order {
   bool   counter_used;                  /* parameter was counter of columns */
   Field  *field;			/* If tmp-table group */
   char	 *buff;				/* If tmp-table group */
-  table_map used, depend_map;
+  table_map used; /* NOTE: the below is only set to 0 but is still used by eq_ref_table */
+  table_map depend_map;
 } ORDER;
 
 /**

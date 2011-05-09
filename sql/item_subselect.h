@@ -147,7 +147,7 @@ public:
   bool mark_as_dependent(THD *thd, st_select_lex *select, Item *item);
   void fix_after_pullout(st_select_lex *new_parent, Item **ref);
   void recalc_used_tables(st_select_lex *new_parent, bool after_pullout);
-  virtual int optimize();
+  virtual int optimize(double *out_rows, double *cost);
   virtual bool exec();
   virtual void fix_length_and_dec();
   table_map used_tables() const;
@@ -534,7 +534,7 @@ public:
   THD * get_thd() { return thd; }
   virtual int prepare()= 0;
   virtual void fix_length_and_dec(Item_cache** row)= 0;
-  virtual int optimize() { DBUG_ASSERT(0); return 0; }
+  virtual int optimize(double *out_rows, double *cost) { DBUG_ASSERT(0); return 0; }
   /*
     Execute the engine
 
@@ -804,7 +804,7 @@ public:
   bool init_runtime();
   void cleanup();
   int prepare() { return 0; } /* Override virtual function in base class. */
-  int optimize();
+  int optimize(double *out_rows, double *cost);
   int exec();
   virtual void print(String *str, enum_query_type query_type);
   uint cols()

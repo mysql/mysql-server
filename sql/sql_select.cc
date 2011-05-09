@@ -6489,7 +6489,7 @@ JOIN_TAB *first_top_level_tab(JOIN *join, enum enum_with_const_tables with_const
 JOIN_TAB *next_top_level_tab(JOIN *join, JOIN_TAB *tab)
 {
   tab= next_breadth_first_tab(join, tab);
-  if (tab->bush_root_tab)
+  if (tab && tab->bush_root_tab)
     tab= NULL;
   return tab;
 }
@@ -9262,6 +9262,8 @@ void JOIN::cleanup(bool full)
   SELECT * FROM t1,t2 WHERE t1.a=t2.a AND t1.b=t2.b ORDER BY t1.a,t2.c
   SELECT * FROM t1,t2 WHERE t1.a=t2.a ORDER BY t2.b,t1.a
   @endcode
+
+  TODO: this function checks ORDER::used, which can only have a value of 0.
 */
 
 static bool
