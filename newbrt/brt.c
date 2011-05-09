@@ -5252,7 +5252,7 @@ static void toku_brt_keyrange_internal (BRT brt, CACHEKEY nodename, u_int32_t fu
         for (i=0; i<node->u.n.n_children; i++) {
             int prevcomp = (i==0) ? -1 : compares[i-1];
             int nextcomp = (i+1 >= n_keys) ? 1 : compares[i];
-            int subest = BNC_SUBTREE_ESTIMATES(node, i).ndata;
+            u_int64_t subest = BNC_SUBTREE_ESTIMATES(node, i).ndata;
             if (nextcomp < 0) {
                 // We're definitely looking too far to the left
                 *less += subest;
