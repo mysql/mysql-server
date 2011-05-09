@@ -109,6 +109,7 @@ ROLLBACK;
 
 --source include/rpl_connection_master.inc
 SET DEBUG_SYNC= 'now SIGNAL signal.continue';
+SET DEBUG_SYNC= 'now WAIT_FOR signal.continued';
 SET DEBUG_SYNC= 'RESET';
 
 --source include/rpl_connection_slave.inc
