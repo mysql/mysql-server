@@ -23,10 +23,103 @@
 class THD;
 struct TABLE_LIST;
 
-bool mysql_ha_open(THD *thd, TABLE_LIST *tables, bool reopen);
-bool mysql_ha_close(THD *thd, TABLE_LIST *tables);
-bool mysql_ha_read(THD *, TABLE_LIST *,enum enum_ha_read_modes,char *,
-                   List<Item> *,enum ha_rkey_function,Item *,ha_rows,ha_rows);
+/**
+  Sql_cmd_handler_open represents HANDLER OPEN statement.
+
+  @note Some information about this statement, for example, table to be
+        opened is still kept in LEX class.
+*/
+
+class Sql_cmd_handler_open : public Sql_cmd
+{
+public:
+  Sql_cmd_handler_open()
+  {}
+
+  virtual ~Sql_cmd_handler_open()
+  {}
+
+  virtual enum_sql_command sql_command_code() const
+  {
+    return SQLCOM_HA_OPEN;
+  }
+
+  virtual bool execute(THD *thd);
+};
+
+
+/**
+  Sql_cmd_handler_read represents HANDLER READ statement.
+
+  @note Some information about this statement, for example, table
+        list element which identifies HANDLER to be read from,
+        WHERE and LIMIT clauses is still kept in LEX class.
+*/
+
+class Sql_cmd_handler_read : public Sql_cmd
+{
+public:
+  Sql_cmd_handler_read(enum_ha_read_modes read_mode,
+                       const char *key_name,
+                       List<Item> *key_expr,
+                       ha_rkey_function rkey_mode)
+    : m_read_mode(read_mode), m_key_name(key_name), m_key_expr(key_expr),
+      m_rkey_mode(rkey_mode)
+  {}
+
+  virtual ~Sql_cmd_handler_read()
+  {}
+
+  virtual enum_sql_command sql_command_code() const
+  {
+    return SQLCOM_HA_READ;
+  }
+
+  virtual bool execute(THD *thd);
+
+private:
+  /** Read mode for HANDLER READ: FIRST, NEXT, LAST, ... */
+  enum enum_ha_read_modes m_read_mode;
+
+  /**
+    Name of key to be used for reading,
+    NULL in cases when natural row-order is to be used.
+  */
+  const char *m_key_name;
+
+  /** Key values to be satisfied. */
+  List<Item> *m_key_expr;
+
+  /** Type of condition for key values to be satisfied. */
+  enum ha_rkey_function m_rkey_mode;
+};
+
+
+/**
+  Sql_cmd_handler_close represents HANDLER CLOSE statement.
+
+  @note Table list element which identifies HANDLER to be closed
+        still resides in LEX class.
+*/
+
+class Sql_cmd_handler_close : public Sql_cmd
+{
+public:
+  Sql_cmd_handler_close()
+  {}
+
+  virtual ~Sql_cmd_handler_close()
+  {}
+
+  virtual enum_sql_command sql_command_code() const
+  {
+    return SQLCOM_HA_CLOSE;
+  }
+
+  virtual bool execute(THD *thd);
+};
+
+
 void mysql_ha_flush(THD *thd);
 void mysql_ha_flush_tables(THD *thd, TABLE_LIST *all_tables);
 void mysql_ha_rm_tables(THD *thd, TABLE_LIST *tables);
