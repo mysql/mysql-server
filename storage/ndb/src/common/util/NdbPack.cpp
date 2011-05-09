@@ -684,8 +684,8 @@ NdbPack::Print::print(const char* fmt, ...)
   va_start(ap, fmt);
   if (m_bufsz > m_sz)
   {
-    vsnprintf(&m_buf[m_sz], m_bufsz - m_sz, fmt, ap);
-    m_sz += strlen(&m_buf[m_sz]);
+    BaseString::vsnprintf(&m_buf[m_sz], m_bufsz - m_sz, fmt, ap);
+    m_sz += (Uint32)strlen(&m_buf[m_sz]);
   }
   va_end(ap);
 }
