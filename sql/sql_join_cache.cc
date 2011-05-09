@@ -33,6 +33,7 @@
 
 #define NO_MORE_RECORDS_IN_BUFFER  (uint)(-1)
 
+static void save_or_restore_used_tabs(JOIN_TAB *join_tab, bool save);
 
 /*****************************************************************************
  *  Join cache module
@@ -139,52 +140,6 @@ uint add_table_data_fields_to_join_cache(JOIN_TAB *tab,
 }
 
 /* 
-  Get the next table whose records are stored in the join buffer of this cache
-
-  SYNOPSIS
-    get_next_table()
-      tab     the table for which the next table is to be returned
-
-  DESCRIPTION
-    For a given table whose records are stored in this cache the function
-    returns the next such table if there is any.
-    The function takes into account that the tables whose records are
-    are stored in the same cache now can interleave with tables from
-    materialized semijoin subqueries.
-
-  TODO
-    This function should be modified/simplified after the new code for
-     materialized semijoins is merged.
-
-  RETURN
-    The next join table whose records are stored in the buffer of this cache
-    if such table exists, 0 - otherwise
-*/
-
-JOIN_TAB *JOIN_CACHE::get_next_table(JOIN_TAB *tab)
-{
-  
-  if (++tab == join_tab)
-    return NULL;
-  if (join_tab->first_sjm_sibling)
-    return tab;
-  uint i= tab-join->join_tab;
-  /*
-  Temporary measure before MWL#90 refactorings are there: if 'tab' is at upper
-  level (i.e. it's not inside an SJM nest), still include into the join buffer
-  the tables from within SJM nest.  We might need the subquery's select list
-  columns, because SJ-Materialization-Scan upacks data to those. 
-
-  while (sj_is_materialize_strategy(join->best_positions[i].sj_strategy) &&
-         i < join->tables)
-    i+= join->best_positions[i].n_sj_tables;
-
-  */
-  return join->join_tab+i < join_tab ? join->join_tab+i : NULL; 
-}
-
-
-/* 
   Determine different counters of fields associated with a record in the cache  
 
   SYNOPSIS
@@ -203,12 +158,55 @@ JOIN_TAB *JOIN_CACHE::get_next_table(JOIN_TAB *tab)
 
 void JOIN_CACHE::calc_record_fields()
 {
-  JOIN_TAB *tab = prev_cache ? prev_cache->join_tab :
-                                (join_tab->first_sjm_sibling ?
-			         join_tab->first_sjm_sibling :
-			         join->join_tab+join->const_tables);
-  tables= join_tab-tab;
+  JOIN_TAB *tab;
 
+  if (prev_cache)
+    tab= prev_cache->join_tab;
+  else
+  {
+    if (join_tab->bush_root_tab)
+    {
+      /* 
+        --ot1--SJM1--------------ot2--...
+                |
+                |
+                +-it1--...--itN
+                        ^____________ this->join_tab is somewhere here, 
+                                      inside an sjm nest.
+
+        The join buffer should store the values of it1.*, it2.*, ..
+        It should not store values of ot1.*.
+      */
+      tab= join_tab->bush_root_tab->bush_children->start;
+    }
+    else
+    {
+      /*
+        -ot1--ot2--SJM1--SJM2--------------ot3--...--otN
+                    |     |                      ^   
+                    |     +-it21--...--it2N      |
+                    |                            \-- we're somewhere here,
+                    +-it11--...--it1N                at the top level
+        
+        The join buffer should store the values of 
+
+          ot1.*, ot2.*, it1{i}, it2{j}.*, ot3.*, ...
+        
+        that is, we should start from the first non-const top-level table. 
+
+        We will need to store columns of SJ-inner tables (it_X_Y.*), but we're
+        not interested in storing the columns of materialization tables
+        themselves. Beause of that, if the first non-const top-level table is a
+        materialized table, we move to its bush_children:
+      */
+      tab= join->join_tab + join->const_tables;
+      if (tab->bush_children)
+        tab= tab->bush_children->start;
+    }
+  }
+  DBUG_ASSERT(!tab->bush_children);
+
+  start_tab= tab;
   fields= 0;
   blobs= 0;
   flag_fields= 0;
@@ -216,7 +214,11 @@ void JOIN_CACHE::calc_record_fields()
   data_field_ptr_count= 0;
   referenced_fields= 0;
 
-  for ( ; tab ; tab= get_next_table(tab))
+  /*
+    The following loop will get inside SJM nests, because data may be unpacked
+    to sjm-inner tables.
+  */
+  for (; tab != join_tab ; tab= next_linear_tab(join, tab, WITHOUT_BUSH_ROOTS))
   {	    
     tab->calc_used_field_length(FALSE);
     flag_fields+= test(tab->used_null_fields || tab->used_uneven_bit_fields);
@@ -245,7 +247,8 @@ void JOIN_CACHE::calc_record_fields()
     that occur in the ref expressions and marks these fields in the bitmap
     tab->table->tmp_set. The function counts the number of them stored
     in this cache and the total number of them stored in the previous caches
-    and saves the results of the counting in 'local_key_arg_fields' and               'external_key_arg_fields' respectively.
+    and saves the results of the counting in 'local_key_arg_fields' and
+    'external_key_arg_fields' respectively.
 
   NOTES
     The function does not do anything if no key is used to join the records
@@ -269,8 +272,8 @@ void JOIN_CACHE::collect_info_on_key_args()
   cache= this;
   do
   {
-    for (tab= cache->join_tab-cache->tables; tab ;
-         tab= cache->get_next_table(tab))
+    for (tab= cache->start_tab; tab != cache->join_tab;
+         tab= next_linear_tab(join, tab, WITHOUT_BUSH_ROOTS))
     { 
       uint key_args;
       bitmap_clear_all(&tab->table->tmp_set);
@@ -386,7 +389,8 @@ void JOIN_CACHE::create_flag_fields()
 	                                  &copy);
 
   /* Create fields for all null bitmaps and null row flags that are needed */
-  for (tab= join_tab-tables; tab; tab= get_next_table(tab))
+  for (tab= start_tab; tab != join_tab; 
+       tab= next_linear_tab(join, tab, WITHOUT_BUSH_ROOTS))
   {
     TABLE *table= tab->table;
 
@@ -473,8 +477,8 @@ void JOIN_CACHE::create_key_arg_fields()
   while (ext_key_arg_cnt)
   {
     cache= cache->prev_cache;
-    for (tab= cache->join_tab-cache->tables; tab;
-         tab= cache->get_next_table(tab))
+    for (tab= cache->start_tab; tab != cache->join_tab; 
+         tab= next_linear_tab(join, tab, WITHOUT_BUSH_ROOTS))
     { 
       CACHE_FIELD *copy_end;
       MY_BITMAP *key_read_set= &tab->table->tmp_set;
@@ -524,7 +528,8 @@ void JOIN_CACHE::create_key_arg_fields()
   
   /* Now create local fields that are used to build ref for this key access */
   copy= field_descr+flag_fields;
-  for (tab= join_tab-tables; tab; tab= get_next_table(tab))
+  for (tab= start_tab; tab != join_tab; 
+       tab= next_linear_tab(join, tab, WITHOUT_BUSH_ROOTS))
   {
     length+= add_table_data_fields_to_join_cache(tab, &tab->table->tmp_set,
                                                  &data_field_count, &copy,
@@ -573,14 +578,15 @@ void JOIN_CACHE::create_key_arg_fields()
     none 
 */
 
-void JOIN_CACHE:: create_remaining_fields()
+void JOIN_CACHE::create_remaining_fields()
 {
   JOIN_TAB *tab;
   bool all_read_fields= !is_key_access();
   CACHE_FIELD *copy= field_descr+flag_fields+data_field_count;
   CACHE_FIELD **copy_ptr= blob_ptr+data_field_ptr_count;
 
-  for (tab= join_tab-tables; tab; tab= get_next_table(tab))
+  for (tab= start_tab; tab != join_tab; 
+       tab= next_linear_tab(join, tab, WITHOUT_BUSH_ROOTS))
   {
     MY_BITMAP *rem_field_set;
     TABLE *table= tab->table;
@@ -737,8 +743,11 @@ ulong JOIN_CACHE::get_min_join_buffer_size()
   if (!min_buff_size)
   {
     size_t len= 0;
-    for (JOIN_TAB *tab= join_tab-tables; tab < join_tab; tab++)
+    for (JOIN_TAB *tab= start_tab; tab != join_tab; 
+         tab= next_linear_tab(join, tab, WITHOUT_BUSH_ROOTS))
+    {
       len+= tab->get_max_used_fieldlength();
+    }
     len+= get_record_max_affix_length() + get_max_key_addon_space_per_record();  
     size_t min_sz= len*min_records;
     size_t add_sz= 0;
@@ -790,8 +799,11 @@ ulong JOIN_CACHE::get_max_join_buffer_size(bool optimize_buff_size)
     size_t max_sz;
     size_t min_sz= get_min_join_buffer_size(); 
     size_t len= 0;
-    for (JOIN_TAB *tab= join_tab-tables; tab < join_tab; tab++)
+    for (JOIN_TAB *tab= start_tab; tab != join_tab;
+         tab= next_linear_tab(join, tab, WITHOUT_BUSH_ROOTS))
+    {
       len+= tab->get_used_fieldlength();
+    }
     len+= get_record_max_affix_length();
     avg_record_length= len;
     len+= get_max_key_addon_space_per_record() + avg_aux_buffer_incr;
@@ -865,7 +877,9 @@ int JOIN_CACHE::alloc_buffer()
   set_if_bigger(max_records, 10);
   min_buff_size= get_min_join_buffer_size();
   buff_size= get_max_join_buffer_size(optimize_buff_size);
-  for (tab= join->join_tab+join->const_tables; tab <= join_tab; tab++)
+
+  for (tab= start_tab; tab!= join_tab; 
+       tab= next_linear_tab(join, tab, WITHOUT_BUSH_ROOTS))
   {
     cache= tab->cache;
     if (cache)
@@ -2154,10 +2168,19 @@ enum_nested_loop_state JOIN_CACHE::join_matching_records(bool skip_last)
     join_tab->select->quick= 0;
   }
 
-  /* Prepare to retrieve all records of the joined table */
-  if ((error= join_tab_scan->open())) 
-    goto finish; /* psergey-note: if this returns error, we will assert in net_send_statement() */
+  if ((rc= join_tab_execution_startup(join_tab)) < 0)
+    goto finish2;
 
+  /* Prepare to retrieve all records of the joined table */
+  if ((error= join_tab_scan->open()))
+  { 
+    /* 
+      TODO: if we get here, we will assert in net_send_statement(). Add test
+      coverage and fix.
+    */
+    goto finish;
+  }
+  
   while (!(error= join_tab_scan->next()))   
   {
     if (join->thd->killed)
@@ -2199,6 +2222,7 @@ enum_nested_loop_state JOIN_CACHE::join_matching_records(bool skip_last)
 finish: 
   if (error)                 
     rc= error < 0 ? NESTED_LOOP_NO_MORE_ROWS: NESTED_LOOP_ERROR;
+finish2:    
   join_tab_scan->close();
   return rc;
 }
@@ -3219,12 +3243,7 @@ uint JOIN_CACHE_HASHED::get_next_key(uchar ** key)
 
 int JOIN_TAB_SCAN::open()
 {
-  JOIN_TAB *bound= join_tab-cache->tables;
-  for (JOIN_TAB *tab= join_tab-1; tab != bound && !tab->cache; tab--)
-  {
-    tab->status= tab->table->status;
-    tab->table->status= 0;
-  }
+  save_or_restore_used_tabs(join_tab, FALSE);
   is_first_record= TRUE;
   return join_init_read_record(join_tab);
 }
@@ -3279,6 +3298,49 @@ int JOIN_TAB_SCAN::next()
 }
 
 
+/*
+  Walk back in join order from join_tab until we encounter a join tab with
+  tab->cache!=NULL, and save/restore tab->table->status along the way.
+
+  @param save TRUE   save 
+              FALSE  restore
+*/
+
+static void save_or_restore_used_tabs(JOIN_TAB *join_tab, bool save)
+{
+  JOIN_TAB *first= join_tab->bush_root_tab?
+                     join_tab->bush_root_tab->bush_children->start :
+                     join_tab->join->join_tab + join_tab->join->const_tables;
+
+  for (JOIN_TAB *tab= join_tab-1; tab != first && !tab->cache; tab--)
+  {
+    if (tab->bush_children)
+    {
+      for (JOIN_TAB *child= tab->bush_children->start;
+           child != tab->bush_children->end;
+           child++)
+      {
+        if (save)
+          child->table->status= child->status;
+        else
+        {
+          tab->status= tab->table->status;
+          tab->table->status= 0;
+        }
+      }
+    }
+
+    if (save)
+      tab->table->status= tab->status;
+    else
+    {
+      tab->status= tab->table->status;
+      tab->table->status= 0;
+    }
+  }
+}
+
+
 /* 
   Perform finalizing actions for a scan over the table records
 
@@ -3295,9 +3357,7 @@ int JOIN_TAB_SCAN::next()
 
 void JOIN_TAB_SCAN::close()
 {
-  JOIN_TAB *bound= join_tab-cache->tables;
-  for (JOIN_TAB *tab= join_tab-1; tab != bound && !tab->cache; tab--)
-    tab->table->status= tab->status;
+  save_or_restore_used_tabs(join_tab, TRUE);
 }
 
 
@@ -3697,12 +3757,7 @@ int JOIN_TAB_SCAN_MRR::open()
   /* Dynamic range access is never used with BKA */
   DBUG_ASSERT(join_tab->use_quick != 2);
 
-  JOIN_TAB *bound= join_tab-cache->tables;
-  for (JOIN_TAB *tab= join_tab-1; tab != bound && !tab->cache; tab--)
-  {
-    tab->status= tab->table->status;
-    tab->table->status= 0;
-  }
+  save_or_restore_used_tabs(join_tab, FALSE);
 
   init_mrr_buff();
 

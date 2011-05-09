@@ -363,7 +363,6 @@ Sensitive_cursor::open(JOIN *join_arg)
   join= join_arg;
   THD *thd= join->thd;
   /* First non-constant table */
-  JOIN_TAB *join_tab= join->join_tab + join->const_tables;
   DBUG_ENTER("Sensitive_cursor::open");
 
   join->change_result(result);
@@ -381,26 +380,29 @@ Sensitive_cursor::open(JOIN *join_arg)
 
   /* Prepare JOIN for reading rows. */
   join->tmp_table= 0;
-  join->join_tab[join->tables-1].next_select= setup_end_select_func(join);
+  join->join_tab[join->top_join_tab_count - 1].next_select= setup_end_select_func(join);
   join->send_records= 0;
   join->fetch_limit= join->unit->offset_limit_cnt;
 
   /* Disable JOIN CACHE as it is not working with cursors yet */
-  for (JOIN_TAB *tab= join_tab;
-       tab != join->join_tab + join->tables - 1;
-       tab++)
+  for (JOIN_TAB *tab= first_linear_tab(join, WITHOUT_CONST_TABLES); 
+       tab != join->join_tab + join->top_join_tab_count - 1;
+       tab= next_linear_tab(join, tab, WITH_BUSH_ROOTS))
   {
     if (tab->next_select == sub_select_cache)
       tab->next_select= sub_select;
   }
 
-  DBUG_ASSERT(join_tab->table->reginfo.not_exists_optimize == 0);
-  DBUG_ASSERT(join_tab->not_used_in_distinct == 0);
+#ifndef DBUG_OFF
+  JOIN_TAB *first_tab= first_linear_tab(join, WITHOUT_CONST_TABLES);
+  DBUG_ASSERT(first_tab->table->reginfo.not_exists_optimize == 0);
+  DBUG_ASSERT(first_tab->not_used_in_distinct == 0);
   /*
     null_row is set only if row not found and it's outer join: should never
     happen for the first table in join_tab list
   */
-  DBUG_ASSERT(join_tab->table->null_row == 0);
+  DBUG_ASSERT(first_tab->table->null_row == 0);
+#endif
   DBUG_RETURN(0);
 }
 
