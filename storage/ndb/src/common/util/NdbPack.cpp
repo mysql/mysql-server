@@ -1133,13 +1133,13 @@ NdbPack::Bound::validate() const
 
 #define xmin(a, b) ((a) < (b) ? (a) : (b))
 
-#include <random.h>
+#include <ndb_rand.h>
 
 static uint // random 0..n-1
 getrandom(uint n)
 {
   if (n != 0) {
-    uint k = random();
+    uint k = ndb_rand();
     return k % n;
   }
   return 0;
@@ -2029,14 +2029,14 @@ testmain()
     if (seed < 0)
       seed = getpid();
     ll0("random seed: " << seed);
-    srandom(seed);
+    ndb_srand(seed);
   }
   loops = 100;
   int i;
   for (i = 0; loops == 0 || i < loops; i++) {
     ll0("loop:" << i << "/" << loops);
     if (seed == 0)
-      srandom(i);
+      ndb_srand(i);
     testrun();
   }
   // do not print "ok" in TAPTEST
