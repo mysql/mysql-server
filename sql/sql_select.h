@@ -258,7 +258,9 @@ typedef struct st_join_table : public Sql_alloc
   TABLE		*table;
   Key_use	*keyuse;			/**< pointer to first used key */
   SQL_SELECT	*select;
-  Item		*select_cond;
+private:
+  Item          *m_condition;   /**< condition for this join_tab               */
+public:
   QUICK_SELECT_I *quick;
   Item	       **on_expr_ref;   /**< pointer to the associated on expression   */
   COND_EQUAL    *cond_equal;    /**< multiple equalities for the on expression */
@@ -269,13 +271,13 @@ typedef struct st_join_table : public Sql_alloc
   st_join_table *first_upper;  /**< first inner table for embedding outer join */
   st_join_table *first_unmatched; /**< used for optimization purposes only     */
   /* 
-    The value of select_cond before we've attempted to do Index Condition
+    The value of m_condition before we've attempted to do Index Condition
     Pushdown. We may need to restore everything back if we first choose one
     index but then reconsider (see test_if_skip_sort_order() for such
     scenarios).
     NULL means no index condition pushdown was performed.
   */
-  Item          *pre_idx_push_select_cond;
+  Item          *pre_idx_push_cond;
   
   /* Special content for EXPLAIN 'Extra' column or NULL if none */
   const char	*info;
@@ -300,6 +302,15 @@ typedef struct st_join_table : public Sql_alloc
   key_map	checked_keys;			/**< Keys checked */
   key_map	needed_reg;
   key_map       keys;                           /**< all keys with can be used */
+  /**
+    Used to avoid repeated range analysis for the same key in
+    test_if_skip_sort_order(). This would otherwise happen if the best
+    range access plan found for a key is turned down.
+    quick_order_tested is cleared every time the select condition for
+    this JOIN_TAB changes since a new condition may give another plan
+    and cost from range analysis.
+   */
+  key_map       quick_order_tested;
 
   /* Either #rows in the table or 1 for const table.  */
   ha_rows	records;
@@ -436,22 +447,31 @@ typedef struct st_join_table : public Sql_alloc
   {
     return first_inner && first_inner == this;
   }
-  void set_select_cond(Item *to, uint line)
+  Item *condition()
   {
-    DBUG_PRINT("info", ("select_cond changes %p -> %p at line %u tab %p",
-                        select_cond, to, line, this));
-    select_cond= to;
+    return m_condition;
   }
-  Item *set_cond(Item *new_cond, uint line)
+  void set_condition(Item *to, uint line)
   {
-    Item *tmp_select_cond= select_cond;
-    set_select_cond(new_cond, line);
+    DBUG_PRINT("info", 
+               ("JOIN_TAB::m_condition changes %p -> %p at line %u tab %p",
+                m_condition, to, line, this));
+    m_condition= to;
+    quick_order_tested.clear_all();
+  }
+
+  Item *set_jt_and_sel_condition(Item *new_cond, uint line)
+  {
+    Item *tmp_cond= m_condition;
+    set_condition(new_cond, line);
     if (select)
       select->cond= new_cond;
-    return tmp_select_cond;
+    return tmp_cond;
   }
   uint get_sj_strategy() const;
 
+  bool and_with_condition(Item *tmp_cond, uint line);
+  bool and_with_jt_and_sel_condition(Item *tmp_cond, uint line);
 
   /**
     Check if there are triggered/guarded conditions that might be
@@ -467,13 +487,12 @@ typedef struct st_join_table : public Sql_alloc
   }
 } JOIN_TAB;
 
-
 inline
 st_join_table::st_join_table()
   : table(NULL),
     keyuse(NULL),
     select(NULL),
-    select_cond(NULL),
+    m_condition(NULL),
     quick(NULL),
     on_expr_ref(NULL),
     cond_equal(NULL),
@@ -483,7 +502,7 @@ st_join_table::st_join_table()
     last_inner(NULL),
     first_upper(NULL),
     first_unmatched(NULL),
-    pre_idx_push_select_cond(NULL),
+    pre_idx_push_cond(NULL),
     info(NULL),
     packed_info(0),
     read_first_record(NULL),
@@ -496,6 +515,7 @@ st_join_table::st_join_table()
     checked_keys(),
     needed_reg(),
     keys(),
+    quick_order_tested(),
 
     records(0),
     found_records(0),
