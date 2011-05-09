@@ -3363,7 +3363,7 @@ retry:
 		goto funct_exit;
 	}
 
-	if (table->fts && (!fts_bg_thread_exited)) {
+	if (table->fts && table->fts->add_wq && (!fts_bg_thread_exited)) {
 		fts_t*          fts = table->fts;
 
 		/* It is possible that background 'Add' thread fts_add_thread()

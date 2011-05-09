@@ -222,7 +222,7 @@ static const char* fts_create_index_sql = {
 	"   doc_count INT UNSIGNED NOT NULL,\n"
 	"   ilist BLOB NOT NULL\n"
 	") COMPACT;\n"
-	"CREATE UNIQUE CLUSTERED INDEX IND "
+	"CREATE UNIQUE CLUSTERED INDEX FTS_INDEX_TABLE_IND "
 		"ON %s(word, first_doc_id);\n"
 };
 
@@ -716,13 +716,13 @@ fts_cache_clear(
 
 			if (index_cache->ins_graph[j] != NULL) {
 
-				que_graph_free(index_cache->ins_graph[j]);
+				fts_que_graph_free(index_cache->ins_graph[j]);
 				index_cache->ins_graph[j] = NULL;
 			}
 
 			if (index_cache->sel_graph[j] != NULL) {
 
-				que_graph_free(index_cache->sel_graph[j]);
+				fts_que_graph_free(index_cache->sel_graph[j]);
 				index_cache->sel_graph[j] = NULL;
 			}
 		}
@@ -1294,7 +1294,7 @@ fts_create_common_tables(
 
 	error = fts_eval_sql(trx, graph);
 
-	que_graph_free(graph);
+	fts_que_graph_free(graph);
 
 	if (error != DB_SUCCESS) {
 
@@ -1308,7 +1308,7 @@ fts_create_common_tables(
 
 	error = fts_eval_sql( trx, graph);
 
-	que_graph_free(graph);
+	fts_que_graph_free(graph);
 
 	if (error != DB_SUCCESS || skip_doc_id_index) {
 
@@ -1328,7 +1328,7 @@ fts_create_common_tables(
 			FTS_DOC_ID_INDEX_NAME, name, FTS_DOC_ID_COL_NAME));
 
 	error = fts_eval_sql(trx, graph);
-	que_graph_free(graph);
+	fts_que_graph_free(graph);
 
 func_exit:
 	if (error != DB_SUCCESS) {
@@ -1382,7 +1382,7 @@ fts_create_index_tables_low(
 	mem_free(sql);
 
 	error = fts_eval_sql(trx, graph);
-	que_graph_free(graph);
+	fts_que_graph_free(graph);
 
 	for (i = 0; fts_index_selector[i].ch && error == DB_SUCCESS; ++i) {
 
@@ -1395,7 +1395,7 @@ fts_create_index_tables_low(
 			&fts_table, NULL, fts_create_index_sql);
 
 		error = fts_eval_sql(trx, graph);
-		que_graph_free(graph);
+		fts_que_graph_free(graph);
 	}
 
 	if (error == DB_SUCCESS) {
@@ -1982,8 +1982,7 @@ retry:
 	*doc_id = 0;
 	error = fts_eval_sql(trx, graph);
 
-	que_graph_free(graph);
-
+	fts_que_graph_free(graph);
 
 	// FIXME: We need to retry deadlock errors
 	if (error != DB_SUCCESS) {
@@ -2072,7 +2071,7 @@ fts_update_last_doc_id(
 
 	error = fts_eval_sql(trx, graph);
 
-	que_graph_free(graph);
+	fts_que_graph_free(graph);
 
 	if (local_trx) {
 		if (error == DB_SUCCESS) {
@@ -2272,7 +2271,7 @@ fts_delete(
 
 	error = fts_eval_sql(trx, graph);
 
-	que_graph_free(graph);
+	fts_que_graph_free(graph);
 
 	n_rows_updated = trx->undo_no -undo_no;
 
@@ -2322,7 +2321,7 @@ fts_delete(
 
 		error = fts_eval_sql(trx, graph);
 
-		que_graph_free(graph);
+		fts_que_graph_free(graph);
 	} else {
 		pars_info_free(info);
 	}
@@ -2721,7 +2720,7 @@ fts_fetch_doc_by_id(
 			doc_len += len;
 		}
 
-		doc->text.utf8 = ib_heap_malloc(doc->self_heap, doc_len + 1);
+		doc->text.utf8 = ib_heap_malloc(doc->self_heap, doc_len + num_field);
 		doc_len = 0;
 
 		for (i = 0; i < num_field; i++) {
@@ -2731,7 +2730,11 @@ fts_fetch_doc_by_id(
 			data = rec_get_nth_field(clust_rec, offsets,
 						 clust_pos, &len);
 			memcpy(doc->text.utf8 + doc_len, data, len);
+
 			doc_len += len;
+
+			doc->text.utf8[doc_len] = ' ';
+			doc_len++;
 		}
 
 		doc->text.len = doc_len;
@@ -2942,9 +2945,7 @@ fts_sync_delete_from_added(
 
 	error = fts_eval_sql(sync->trx, graph);
 
-	mutex_enter(&dict_sys->mutex);
-	que_graph_free(graph);
-	mutex_exit(&dict_sys->mutex);
+	fts_que_graph_free(graph);
 
 	return(error);
 }
@@ -2999,7 +3000,7 @@ fts_sync_add_deleted_cache(
 		error = fts_eval_sql(sync->trx, graph);
 	}
 
-	que_graph_free(graph);
+	fts_que_graph_free(graph);
 
 	return(error);
 }
@@ -3220,7 +3221,7 @@ fts_sync_write_doc_stats(
 	}
 
 	if (graph != NULL) {
-		que_graph_free(graph);
+		fts_que_graph_free(graph);
 	}
 
 	return(error);
@@ -3861,7 +3862,7 @@ fts_get_docs_clear(
 
 			ut_a(get_doc->index_cache);
 
-			que_graph_free(get_doc->get_document_graph);
+			fts_que_graph_free(get_doc->get_document_graph);
 			get_doc->get_document_graph = NULL;
 		}
 	}
@@ -3934,9 +3935,7 @@ fts_pending_read_doc_ids(
 		}
 	}
 
-	mutex_enter(&dict_sys->mutex);
-	que_graph_free(graph);
-	mutex_exit(&dict_sys->mutex);
+	fts_que_graph_free(graph);
 
 	trx_free_for_background(trx);
 
@@ -4235,9 +4234,7 @@ fts_get_rows_count(
 		}
 	}
 
-	mutex_enter(&dict_sys->mutex);
-	que_graph_free(graph);
-	mutex_exit(&dict_sys->mutex);
+	fts_que_graph_free(graph);
 
 	trx_free_for_background(trx);
 
@@ -4543,9 +4540,7 @@ fts_savepoint_free(
 
 		/* The default savepoint name must be NULL. */
 		if (ftt->docs_added_graph) {
-			mutex_enter(&dict_sys->mutex);
-			que_graph_free(ftt->docs_added_graph);
-			mutex_exit(&dict_sys->mutex);
+			fts_que_graph_free(ftt->docs_added_graph);
 		}
 
 		/* NOTE: We are responsible for free'ing the node */

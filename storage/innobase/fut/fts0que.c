@@ -879,7 +879,7 @@ fts_query_difference(
 		query->error = fts_index_fetch_nodes(
 			trx, &graph, &query->fts_index_table, token, &fetch);
 
-		que_graph_free(graph);
+		fts_que_graph_free(graph);
 	}
 
 	/* The size can't increase. */
@@ -989,7 +989,7 @@ fts_query_intersect(
 		query->error = fts_index_fetch_nodes(
 			trx, &graph, &query->fts_index_table, token, &fetch);
 
-		que_graph_free(graph);
+		fts_que_graph_free(graph);
 
 		if (query->error == DB_SUCCESS) {
 			if (query->oper == FTS_EXIST) {
@@ -1074,9 +1074,7 @@ fts_query_union(
 	query->error = fts_index_fetch_nodes(
 		trx, &graph, &query->fts_index_table, token, &fetch);
 
-	mutex_enter(&dict_sys->mutex);
-	que_graph_free(graph);
-	mutex_exit(&dict_sys->mutex);
+	fts_que_graph_free(graph);
 
 	if (query->error == DB_SUCCESS) {
 
@@ -1684,7 +1682,7 @@ fts_query_total_docs_containing_term(
 		}
 	}
 
-	que_graph_free(graph);
+	fts_que_graph_free(graph);
 
 	return(error);
 }
@@ -1765,7 +1763,7 @@ fts_query_terms_in_document(
 		}
 	}
 
-	que_graph_free(graph);
+	fts_que_graph_free(graph);
 
 	return(error);
 }
@@ -1868,7 +1866,7 @@ fts_query_filter_documents(
 
 	for (i = 0; i < fts_get_n_selectors(); ++i) {
 		if (graph[i]) {
-			que_graph_free(graph[i]);
+			fts_que_graph_free(graph[i]);
 		}
 	}
 
@@ -1989,7 +1987,7 @@ fts_query_search_phrase(
 
 	/* Free the prepared statement. */
 	if (get_doc.get_document_graph) {
-		que_graph_free(get_doc.get_document_graph);
+		fts_que_graph_free(get_doc.get_document_graph);
 		get_doc.get_document_graph = NULL;
 	}
 
@@ -2121,7 +2119,7 @@ fts_query_phrase_search(
 				trx, &graph, &query->fts_index_table,
 				token, &fetch);
 
-			que_graph_free(graph);
+			fts_que_graph_free(graph);
 			graph = NULL;
 
 			if (query->flags & FTS_PHRASE) {
@@ -2900,7 +2898,7 @@ fts_query_free(
 {
 
 	if (query->read_nodes_graph) {
-		que_graph_free(query->read_nodes_graph);
+		fts_que_graph_free(query->read_nodes_graph);
 	}
 
 	if (query->root) {

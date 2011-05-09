@@ -31,6 +31,7 @@ Created 5/30/1994 Heikki Tuuri
 
 #include "mtr0mtr.h"
 #include "mtr0log.h"
+#include "fts0fts.h"
 
 /*			PHYSICAL RECORD (OLD STYLE)
 			===========================
@@ -1181,7 +1182,9 @@ rec_convert_dtuple_to_rec_comp(
 			*lens-- = (byte) len;
 		} else {
 			ut_ad(len <= dtype_get_len(type)
-			      || dtype_get_mtype(type) == DATA_BLOB);
+			      || dtype_get_mtype(type) == DATA_BLOB
+			      || !strcmp(index->name,
+					 FTS_INDEX_TABLE_IND_NAME));
 			if (len < 128
 			    || (dtype_get_len(type) < 256
 				&& dtype_get_mtype(type) != DATA_BLOB)) {

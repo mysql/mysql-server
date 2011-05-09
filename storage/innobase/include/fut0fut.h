@@ -54,6 +54,13 @@ extern ulint		fts_max_cache_size;
 
 extern char*		fts_internal_tbl_name;
 
+#define	fts_que_graph_free(graph)			\
+do {							\
+	mutex_enter(&dict_sys->mutex);			\
+	que_graph_free(graph);				\
+	mutex_exit(&dict_sys->mutex);			\
+} while (0)
+
 /********************************************************************//**
 Gets a pointer to a file address and latches the page.
 @return pointer to a byte in a frame; the file page in the frame is
