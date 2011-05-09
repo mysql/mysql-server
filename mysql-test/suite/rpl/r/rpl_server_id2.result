@@ -22,7 +22,7 @@ change master to master_port=MASTER_PORT;
 start slave until master_log_file='master-bin.000001', master_log_pos=UNTIL_POS;
 include/wait_for_slave_io_to_start.inc
 include/wait_for_slave_sql_to_stop.inc
-*** checking until postion execution: must be only t1 in the list ***
+*** checking until position execution: must be only t1 in the list ***
 show tables;
 Tables_in_test
 t1
