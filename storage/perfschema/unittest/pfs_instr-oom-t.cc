@@ -24,6 +24,8 @@
 #include "stub_pfs_global.h"
 #include "stub_server_misc.h"
 
+#include <string.h> /* memset */
+
 void test_oom()
 {
   int rc;
@@ -31,6 +33,7 @@ void test_oom()
 
   stub_alloc_always_fails= true;
 
+  memset(& param, 0xFF, sizeof(param));
   param.m_enabled= true;
   param.m_mutex_class_sizing= 10;
   param.m_rwlock_class_sizing= 0;
@@ -49,6 +52,9 @@ void test_oom()
   param.m_events_waits_history_long_sizing= 0;
   param.m_setup_actor_sizing= 0;
   param.m_setup_object_sizing= 0;
+  param.m_host_sizing= 0;
+  param.m_user_sizing= 0;
+  param.m_account_sizing= 0;
   param.m_stage_class_sizing= 0;
   param.m_events_stages_history_sizing= 0;
   param.m_events_stages_history_long_sizing= 0;
@@ -78,6 +84,9 @@ void test_oom()
   param.m_events_waits_history_long_sizing= 0;
   param.m_setup_actor_sizing= 0;
   param.m_setup_object_sizing= 0;
+  param.m_host_sizing= 0;
+  param.m_user_sizing= 0;
+  param.m_account_sizing= 0;
   param.m_stage_class_sizing= 0;
   param.m_events_stages_history_sizing= 0;
   param.m_events_stages_history_long_sizing= 0;
@@ -107,6 +116,9 @@ void test_oom()
   param.m_events_waits_history_long_sizing= 0;
   param.m_setup_actor_sizing= 0;
   param.m_setup_object_sizing= 0;
+  param.m_host_sizing= 0;
+  param.m_user_sizing= 0;
+  param.m_account_sizing= 0;
   param.m_stage_class_sizing= 0;
   param.m_events_stages_history_sizing= 0;
   param.m_events_stages_history_long_sizing= 0;
@@ -136,6 +148,9 @@ void test_oom()
   param.m_events_waits_history_long_sizing= 0;
   param.m_setup_actor_sizing= 0;
   param.m_setup_object_sizing= 0;
+  param.m_host_sizing= 0;
+  param.m_user_sizing= 0;
+  param.m_account_sizing= 0;
   param.m_stage_class_sizing= 0;
   param.m_events_stages_history_sizing= 0;
   param.m_events_stages_history_long_sizing= 0;
@@ -165,6 +180,9 @@ void test_oom()
   param.m_events_waits_history_long_sizing= 0;
   param.m_setup_actor_sizing= 0;
   param.m_setup_object_sizing= 0;
+  param.m_host_sizing= 0;
+  param.m_user_sizing= 0;
+  param.m_account_sizing= 0;
   param.m_stage_class_sizing= 0;
   param.m_events_stages_history_sizing= 0;
   param.m_events_stages_history_long_sizing= 0;
@@ -194,6 +212,9 @@ void test_oom()
   param.m_events_waits_history_long_sizing= 0;
   param.m_setup_actor_sizing= 0;
   param.m_setup_object_sizing= 0;
+  param.m_host_sizing= 0;
+  param.m_user_sizing= 0;
+  param.m_account_sizing= 0;
   param.m_stage_class_sizing= 0;
   param.m_events_stages_history_sizing= 0;
   param.m_events_stages_history_long_sizing= 0;
@@ -225,6 +246,9 @@ void test_oom()
   param.m_events_waits_history_long_sizing= 0;
   param.m_setup_actor_sizing= 0;
   param.m_setup_object_sizing= 0;
+  param.m_host_sizing= 0;
+  param.m_user_sizing= 0;
+  param.m_account_sizing= 0;
   param.m_stage_class_sizing= 0;
   param.m_events_stages_history_sizing= 0;
   param.m_events_stages_history_long_sizing= 0;
@@ -255,6 +279,9 @@ void test_oom()
   param.m_events_waits_history_long_sizing= 0;
   param.m_setup_actor_sizing= 0;
   param.m_setup_object_sizing= 0;
+  param.m_host_sizing= 0;
+  param.m_user_sizing= 0;
+  param.m_account_sizing= 0;
   param.m_stage_class_sizing= 0;
   param.m_events_stages_history_sizing= 0;
   param.m_events_stages_history_long_sizing= 0;
