@@ -53,6 +53,20 @@ MACRO(NDB_CHECK_MYSQL_CLUSTER version_string)
 ENDMACRO()
 
 
+# Temporarily remove -Werror from compiler flags until
+# storage/ndb/ can be built with it
+STRING(REPLACE "-Werror" "" CMAKE_C_FLAGS ${CMAKE_C_FLAGS})
+STRING(REPLACE "-Werror" "" CMAKE_CXX_FLAGS ${CMAKE_CXX_FLAGS})
+
+IF (MYSQL_VERSION_ID LESS 50500)
+  # Use same compiler defines as MySQL Server for debug compile
+  MESSAGE(STATUS "Setting same debug compile defines")
+  SET(CMAKE_CXX_FLAGS_DEBUG
+      "${CMAKE_CXX_FLAGS_DEBUG} -DSAFEMALLOC -DSAFE_MUTEX")
+  SET(CMAKE_C_FLAGS_DEBUG
+      "${CMAKE_C_FLAGS_DEBUG} -DSAFEMALLOC -DSAFE_MUTEX")
+ENDIF()
+
 IF(SOURCE_SUBLIBS)
   # Sourced by libmysqld/CMakeLists.txt in 5.1 only to get
   # NDBCLUSTER_SOURCES and NDBCLUSTER_LIBS, don't configure
