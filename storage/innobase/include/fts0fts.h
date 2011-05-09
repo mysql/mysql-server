@@ -66,6 +66,8 @@ those defined in mysql file ft_global.h */
 #define FTS_PROXIMITY	8
 #define FTS_PHRASE	16
 
+#define FTS_INDEX_TABLE_IND_NAME	"FTS_INDEX_TABLE_IND"
+
 /* FTS rank type, which will be between 0 .. 1 inclusive */
 typedef float fts_rank_t;
 
