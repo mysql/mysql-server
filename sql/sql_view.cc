@@ -209,13 +209,14 @@ static void make_valid_column_names(List<Item> &item_list)
 static bool
 fill_defined_view_parts (THD *thd, TABLE_LIST *view)
 {
-  char key[MAX_DBKEY_LENGTH];
+  const char *key;
   uint key_length;
   LEX *lex= thd->lex;
   TABLE_LIST decoy;
 
   memcpy (&decoy, view, sizeof (TABLE_LIST));
-  key_length= create_table_def_key(thd, key, view, 0);
+
+  key_length= get_table_def_key(view, &key);
 
   if (tdc_open_view(thd, &decoy, decoy.alias, key, key_length,
                     thd->mem_root, OPEN_VIEW_NO_PARSE))
@@ -1654,8 +1655,7 @@ bool mysql_drop_view(THD *thd, TABLE_LIST *views, enum_drop_mode drop_mode)
     DBUG_RETURN(TRUE);
   }
 
-  if (lock_table_names(thd, views, 0, thd->variables.lock_wait_timeout,
-                       MYSQL_OPEN_SKIP_TEMPORARY))
+  if (lock_table_names(thd, views, 0, thd->variables.lock_wait_timeout, 0))
     DBUG_RETURN(TRUE);
 
   for (view= views; view; view= view->next_local)

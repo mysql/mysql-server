@@ -580,7 +580,7 @@ void Item::rename(char *new_name)
 
 Item* Item::transform(Item_transformer transformer, uchar *arg)
 {
-  DBUG_ASSERT(!current_thd->is_stmt_prepare());
+  DBUG_ASSERT(!current_thd->stmt_arena->is_stmt_prepare());
 
   return (this->*transformer)(arg);
 }
@@ -1800,14 +1800,17 @@ bool agg_item_set_converter(DTCollation &coll, const char *fname,
   }
 
   THD *thd= current_thd;
-  Query_arena *arena, backup;
   bool res= FALSE;
   uint i;
+
   /*
     In case we're in statement prepare, create conversion item
     in its memory: it will be reused on each execute.
   */
-  arena= thd->activate_stmt_arena_if_needed(&backup);
+  Query_arena backup;
+  Query_arena *arena= thd->stmt_arena->is_stmt_prepare() ?
+                      thd->activate_stmt_arena_if_needed(&backup) :
+                      NULL;
 
   for (i= 0, arg= args; i < nargs; i++, arg+= item_sep)
   {
@@ -1864,7 +1867,7 @@ bool agg_item_set_converter(DTCollation &coll, const char *fname,
       been created in prepare. In this case register the change for
       rollback.
     */
-    if (thd->is_stmt_prepare())
+    if (thd->stmt_arena->is_stmt_prepare())
       *arg= conv;
     else
       thd->change_item_tree(arg, conv);
@@ -7098,7 +7101,7 @@ int Item_default_value::save_in_field(Field *field_arg, bool no_conversions)
 
 Item *Item_default_value::transform(Item_transformer transformer, uchar *args)
 {
-  DBUG_ASSERT(!current_thd->is_stmt_prepare());
+  DBUG_ASSERT(!current_thd->stmt_arena->is_stmt_prepare());
 
   /*
     If the value of arg is NULL, then this object represents a constant,

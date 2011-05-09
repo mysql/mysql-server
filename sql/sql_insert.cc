@@ -3793,18 +3793,19 @@ static TABLE *create_table_from_items(THD *thd, HA_CREATE_INFO *create_info,
       }
       else
       {
-        Open_table_context ot_ctx(thd, MYSQL_OPEN_TEMPORARY_ONLY);
-        if (open_table(thd, create_table, thd->mem_root, &ot_ctx))
+        if (open_temporary_table(thd, create_table))
         {
           /*
             This shouldn't happen as creation of temporary table should make
-            it preparable for open. But let us do close_temporary_table() here
-            just in case.
+            it preparable for open. Anyway we can't drop temporary table if
+            we are unable to fint it.
           */
-          drop_temporary_table(thd, create_table, NULL);
+          DBUG_ASSERT(0);
         }
         else
+        {
           table= create_table->table;
+        }
       }
     }
     if (!table)                                   // open failed
