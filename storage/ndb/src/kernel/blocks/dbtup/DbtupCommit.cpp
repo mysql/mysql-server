@@ -51,15 +51,8 @@ void Dbtup::execTUP_DEALLOCREQ(Signal* signal)
     PagePtr pagePtr;
     Tuple_header* ptr= (Tuple_header*)get_ptr(&pagePtr, &tmp, regTabPtr.p);
 
-    ndbassert(ptr->m_header_bits & Tuple_header::FREE);
+    ndbassert(ptr->m_header_bits & Tuple_header::FREED);
 
-    if (ptr->m_header_bits & Tuple_header::LCP_KEEP)
-    {
-      ndbassert(! (ptr->m_header_bits & Tuple_header::FREED));
-      ptr->m_header_bits |= Tuple_header::FREED;
-      return;
-    }
-    
     if (regTabPtr.p->m_attributes[MM].m_no_of_varsize +
         regTabPtr.p->m_attributes[MM].m_no_of_dynamic)
     {
@@ -157,12 +150,12 @@ Dbtup::dealloc_tuple(Signal* signal,
 		     Uint32 gci,
 		     Page* page,
 		     Tuple_header* ptr, 
+                     KeyReqStruct * req_struct,
 		     Operationrec* regOperPtr, 
 		     Fragrecord* regFragPtr, 
 		     Tablerec* regTabPtr)
 {
   Uint32 lcpScan_ptr_i= regFragPtr->m_lcp_scan_op;
-  Uint32 lcp_keep_list = regFragPtr->m_lcp_keep_list;
 
   Uint32 bits = ptr->m_header_bits;
   Uint32 extra_bits = Tuple_header::FREED;
@@ -189,9 +182,15 @@ Dbtup::dealloc_tuple(Signal* signal,
     if (!is_rowid_lcp_scanned(rowid, *scanOp.p))
     {
       jam();
-      extra_bits = Tuple_header::LCP_KEEP; // Note REMOVE FREE
-      ptr->m_operation_ptr_i = lcp_keep_list;
-      regFragPtr->m_lcp_keep_list = rowid.ref();
+
+      /**
+       * We're committing a delete, on a row that should
+       *   be part of LCP. Copy original row into copy-tuple
+       *   and add this copy-tuple to lcp-keep-list
+       *
+       */
+      handle_lcp_keep_commit(&rowid,
+                             req_struct, regOperPtr, regFragPtr, regTabPtr);
     }
   }
   
@@ -202,6 +201,69 @@ Dbtup::dealloc_tuple(Signal* signal,
     jam();
     * ptr->get_mm_gci(regTabPtr) = gci;
   }
+}
+
+void
+Dbtup::handle_lcp_keep_commit(const Local_key* rowid,
+                              KeyReqStruct * req_struct,
+                              Operationrec * opPtrP,
+                              Fragrecord * regFragPtr,
+                              Tablerec * regTabPtr)
+{
+  bool disk = false;
+  Uint32 sizes[4];
+  Uint32 * copytuple = get_copy_tuple_raw(&opPtrP->m_copy_tuple_location);
+  Tuple_header * dst = get_copy_tuple(copytuple);
+  Tuple_header * org = req_struct->m_tuple_ptr;
+  if (regTabPtr->need_expand(disk))
+  {
+    setup_fixed_part(req_struct, opPtrP, regTabPtr);
+    req_struct->m_tuple_ptr = dst;
+    expand_tuple(req_struct, sizes, org, regTabPtr, disk);
+    shrink_tuple(req_struct, sizes+2, regTabPtr, disk);
+  }
+  else
+  {
+    memcpy(dst, org, 4*regTabPtr->m_offsets[MM].m_fix_header_size);
+  }
+  dst->m_header_bits |= Tuple_header::COPY_TUPLE;
+
+  /**
+   * Store original row-id in copytuple[0,1]
+   * Store next-ptr in copytuple[1,2] (set to RNIL/RNIL)
+   *
+   */
+  assert(sizeof(Local_key) == 8);
+  memcpy(copytuple+0, rowid, sizeof(Local_key));
+
+  Local_key nil;
+  nil.setNull();
+  memcpy(copytuple+2, &nil, sizeof(nil));
+
+  /**
+   * Link it to list
+   */
+  if (regFragPtr->m_lcp_keep_list_tail.isNull())
+  {
+    jam();
+    regFragPtr->m_lcp_keep_list_head = opPtrP->m_copy_tuple_location;
+  }
+  else
+  {
+    jam();
+    Uint32 * tail = get_copy_tuple_raw(&regFragPtr->m_lcp_keep_list_tail);
+    Local_key nextptr;
+    memcpy(&nextptr, tail+2, sizeof(Local_key));
+    ndbassert(nextptr.isNull());
+    nextptr = opPtrP->m_copy_tuple_location;
+    memcpy(tail+2, &nextptr, sizeof(Local_key));
+  }
+  regFragPtr->m_lcp_keep_list_tail = opPtrP->m_copy_tuple_location;
+
+  /**
+   * And finally clear m_copy_tuple_location so that it won't be freed
+   */
+  opPtrP->m_copy_tuple_location.setNull();
 }
 
 #if 0
@@ -786,7 +848,7 @@ skip_disk:
 	ndbassert(tuple_ptr->m_header_bits & Tuple_header::DISK_PART);
       }
       dealloc_tuple(signal, gci_hi, page.p, tuple_ptr,
-		    regOperPtr.p, regFragPtr.p, regTabPtr.p); 
+		    &req_struct, regOperPtr.p, regFragPtr.p, regTabPtr.p);
     }
   } 
 
