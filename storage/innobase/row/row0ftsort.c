@@ -594,7 +594,8 @@ void
 row_fts_start_parallel_merge(
 /*=========================*/
 	fts_psort_info_t*	merge_info,	/*!< in: parallel sort info */
-	fts_psort_info_t*	psort_info)	/*!< in: parallel merge info */
+	fts_psort_info_t*	psort_info __attribute__((unused)))
+						/*!< in: parallel merge info */
 {
 	int		i = 0;
 	os_thread_id_t	thd_id;
@@ -619,7 +620,8 @@ row_merge_write_fts_word(
 	que_t**		ins_graph,	/*!< in: Insert query graphs */
 	fts_tokenizer_word_t* word,	/*!< in: sorted and tokenized
 					word */
-	fts_node_t*	fts_node,	/*!< in: fts node for FTS
+	fts_node_t*	fts_node __attribute__((unused)),
+					/*!< in: fts node for FTS
 					INDEX table */
 	fts_table_t*	fts_table)	/*!< in: fts aux table instance */
 {
@@ -782,7 +784,8 @@ row_fts_sel_tree_propagate(
 /*=======================*/
 	int		propogated,	/*<! in: tree node propagated */
 	int*		sel_tree,	/*<! in: selection tree */
-	ulint		level,		/*<! in: selection tree level */
+	ulint		level __attribute__((unused)),
+					/*<! in: selection tree level */
 	const mrec_t**	mrec,		/*<! in: sort record */
 	ulint**		offsets,	/*<! in: record offsets */
 	dict_index_t*	index)		/*<! in/out: FTS index */
@@ -947,7 +950,8 @@ row_fts_merge_insert(
 	trx_t*			trx,	/*!< in: transaction */
 	dict_index_t*		index,	/*!< in: index */
 	dict_table_t*		table,	/*!< in: new table */
-	ulint			zip_size,/*!< in: compressed page size of
+	ulint			zip_size __attribute__((unused)),
+					/*!< in: compressed page size of
 					 the old table, or 0 if uncompressed */
 	fts_psort_info_t*	psort_info, /*!< parallel sort info */
 	ulint			id)	/* !< in: which auxiliary table's data
@@ -1051,7 +1055,7 @@ row_fts_merge_insert(
 	for (;;) {
 		dtuple_t*	dtuple;
 		ulint		n_ext;
-		ulint		min_rec = 0;
+		int		min_rec = 0;
 
 
 		if (FTS_PARALLEL_DEGREE <= 2) {

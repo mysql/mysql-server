@@ -2132,9 +2132,10 @@ static
 void
 fts_add_doc_id(
 /*===========*/
-	fts_trx_table_t*ftt,			/* in: FTS trx table */
-	doc_id_t	doc_id,			/* in: doc id */
-	ib_vector_t*	fts_indexes)		/* in: affected fts indexes */
+	fts_trx_table_t*ftt,		/* in: FTS trx table */
+	doc_id_t	doc_id,		/* in: doc id */
+	ib_vector_t*	fts_indexes __attribute__((unused)))
+					/* in: affected fts indexes */
 {
 	fts_cache_t*    	cache = ftt->table->fts->cache;
 	ulint			i;
