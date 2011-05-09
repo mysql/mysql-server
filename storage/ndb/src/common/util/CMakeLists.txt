@@ -86,5 +86,5 @@ TARGET_LINK_LIBRARIES(ndb_version-t ndbgeneral)
 ADD_EXECUTABLE(NdbPack-t NdbPack.cpp)
 SET_TARGET_PROPERTIES(NdbPack-t
                       PROPERTIES COMPILE_FLAGS "-DTEST_NDB_PACK")
-TARGET_LINK_LIBRARIES(NdbPack-t ndbgeneral)
+TARGET_LINK_LIBRARIES(NdbPack-t ndbgeneral ndbportlib)
 
