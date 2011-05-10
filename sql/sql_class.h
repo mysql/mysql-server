@@ -2727,7 +2727,12 @@ public:
 class select_result_interceptor: public select_result
 {
 public:
-  select_result_interceptor() {}              /* Remove gcc warning */
+  select_result_interceptor()
+  {
+    DBUG_ENTER("select_result_interceptor::select_result_interceptor");
+    DBUG_PRINT("enter", ("this 0x%lx", (ulong) this));
+    DBUG_VOID_RETURN;
+  }              /* Remove gcc warning */
   uint field_count(List<Item> &fields) const { return 0; }
   bool send_fields(List<Item> &fields, uint flag) { return FALSE; }
 };

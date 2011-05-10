@@ -93,8 +93,19 @@ int check_and_do_in_subquery_rewrites(JOIN *join)
       (subselect= parent_unit->item))                                    // (2)
   {
     Item_in_subselect *in_subs= NULL;
-    if (subselect->substype() == Item_subselect::IN_SUBS)
-      in_subs= (Item_in_subselect*)subselect;
+    Item_allany_subselect *allany_subs= NULL;
+    switch (subselect->substype()) {
+    case Item_subselect::IN_SUBS:
+      in_subs= (Item_in_subselect *)subselect;
+      break;
+    case Item_subselect::ALL_SUBS:
+    case Item_subselect::ANY_SUBS:
+      allany_subs= (Item_allany_subselect *)subselect;
+      break;
+    default:
+      break;
+    }
+
 
     /* Resolve expressions and perform semantic analysis for IN query */
     if (in_subs != NULL)
@@ -257,12 +268,18 @@ int check_and_do_in_subquery_rewrites(JOIN *join)
         }
       }
 
+      /* Check if max/min optimization applicable */
+      if (allany_subs)
+        allany_subs->in_strategy|= (allany_subs->is_maxmin_applicable(join) ?
+                                    SUBS_MAXMIN :
+                                    SUBS_IN_TO_EXISTS);
+
       /*
         Transform each subquery predicate according to its overloaded
         transformer.
       */
       if (subselect->select_transformer(join))
-        DBUG_RETURN(-11);
+        DBUG_RETURN(-1);
     }
   }
   DBUG_RETURN(0);
@@ -366,6 +383,21 @@ bool subquery_types_allow_materialization(Item_in_subselect *in_subs)
   in_subs->sjm_scan_allowed= all_are_fields;
   DBUG_PRINT("info",("subquery_types_allow_materialization: ok, allowed"));
   DBUG_RETURN(TRUE);
+}
+
+
+/**
+  Apply max min optimization of all/any subselect
+*/
+
+bool convert_max_min_subquery(JOIN *join)
+{
+  DBUG_ENTER("convert_max_min_subquery");
+  Item_subselect *subselect= join->unit->item;
+  if (!subselect || (subselect->substype() != Item_subselect::ALL_SUBS &&
+                     subselect->substype() != Item_subselect::ANY_SUBS))
+    DBUG_RETURN(0);
+  DBUG_RETURN(((Item_allany_subselect *) subselect)->transform_allany(join));
 }
 
 
@@ -3843,8 +3875,8 @@ bool JOIN::choose_subquery_plan(table_map join_tables)
       restore_query_plan(&save_qep);
 
     /* TODO: should we set/unset this flag for both select_lex and its unit? */
-    in_subs->unit->uncacheable&= ~UNCACHEABLE_DEPENDENT;
-    select_lex->uncacheable&= ~UNCACHEABLE_DEPENDENT;
+    in_subs->unit->uncacheable&= ~UNCACHEABLE_DEPENDENT_INJECTED;
+    select_lex->uncacheable&= ~UNCACHEABLE_DEPENDENT_INJECTED;
 
     /*
       Reset the "LIMIT 1" set in Item_exists_subselect::fix_length_and_dec.
@@ -3884,6 +3916,9 @@ bool JOIN::choose_subquery_plan(table_map join_tables)
 
     if (in_subs->inject_in_to_exists_cond(this))
       return TRUE;
+    in_subs->unit->uncacheable|= UNCACHEABLE_DEPENDENT_INJECTED;
+    select_lex->uncacheable|= UNCACHEABLE_DEPENDENT_INJECTED;
+    select_limit= 1;
   }
   else
     DBUG_ASSERT(FALSE);
