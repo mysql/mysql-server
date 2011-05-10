@@ -53,6 +53,9 @@
 /** Size of the SOURCE columns. */
 #define COL_SOURCE_SIZE 64
 
+/** Size of the Digest columns. */
+#define COL_DIGEST_SIZE 64
+
 /**
   Enum values for the TIMER_NAME columns.
   This enum is found in the following tables:

@@ -32,6 +32,7 @@ pfs_column_types.h
 pfs_column_values.h
 pfs_con_slice.h
 pfs_defaults.h
+pfs_digest.h
 pfs_engine_table.h
 pfs_events.h
 pfs_events_stages.h
@@ -50,6 +51,7 @@ pfs_visitor.h
 table_all_instr.h
 table_esgs_by_thread_by_event_name.h
 table_esgs_global_by_event_name.h
+table_esms_by_digest.h
 table_esms_by_thread_by_event_name.h
 table_esms_global_by_event_name.h
 table_events_stages.h
@@ -80,6 +82,7 @@ pfs_check.cc
 pfs_column_values.cc
 pfs_con_slice.cc
 pfs_defaults.cc
+pfs_digest.cc
 pfs_engine_table.cc
 pfs_events_stages.cc
 pfs_events_statements.cc
@@ -95,6 +98,7 @@ pfs_visitor.cc
 table_all_instr.cc
 table_esgs_by_thread_by_event_name.cc
 table_esgs_global_by_event_name.cc
+table_esms_by_digest.cc
 table_esms_by_thread_by_event_name.cc
 table_esms_global_by_event_name.cc
 table_events_stages.cc

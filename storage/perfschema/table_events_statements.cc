@@ -216,12 +216,17 @@ static const TABLE_FIELD_TYPE field_types[]=
     { C_STRING_WITH_LEN("NESTING_EVENT_TYPE") },
     { C_STRING_WITH_LEN("enum(\'STATEMENT\',\'STAGE\',\'WAIT\'") },
     { NULL, 0}
+  },
+  {
+    { C_STRING_WITH_LEN("DIGEST") },
+    { C_STRING_WITH_LEN("varchar(64)") },
+    { NULL, 0}
   }
 };
 
 TABLE_FIELD_DEF
 table_events_statements_current::m_field_def=
-{37 , field_types };
+{38 , field_types };
 
 PFS_engine_table_share
 table_events_statements_current::m_share=
@@ -350,6 +355,9 @@ void table_events_statements_common::make_row(PFS_events_statements *statement)
   m_row.m_sort_scan= statement->m_sort_scan;
   m_row.m_no_index_used= statement->m_no_index_used;
   m_row.m_no_good_index_used= statement->m_no_good_index_used;
+
+  /* TBD. Following */
+  strcpy(m_row.m_digest, "Mayank");
 
   m_row_exists= true;
   return;
@@ -518,6 +526,9 @@ int table_events_statements_common::read_row_values(TABLE *table,
           set_field_enum(f, m_row.m_nesting_event_type);
         else
           f->set_null();
+        break;
+      case 37: /* DIGEST */
+        /* TBD */
         break;
       default:
         DBUG_ASSERT(false);
