@@ -512,6 +512,7 @@ typedef struct st_mysql_bind
   my_bool is_null_value;
   void *extension;
 } MYSQL_BIND;
+struct st_mysql_stmt_extension;
 typedef struct st_mysql_stmt
 {
   MEM_ROOT mem_root;
@@ -541,7 +542,7 @@ typedef struct st_mysql_stmt
   unsigned char bind_result_done;
   my_bool unbuffered_fetch_cancelled;
   my_bool update_max_length;
-  void *extension;
+  struct st_mysql_stmt_extension *extension;
 } MYSQL_STMT;
 enum enum_stmt_attr_type
 {

@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2010, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2011, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -655,15 +655,10 @@ public:
   virtual ~Query_arena() {};
 
   inline bool is_stmt_prepare() const { return state == INITIALIZED; }
-  inline bool is_first_sp_execute() const
-  { return state == INITIALIZED_FOR_SP; }
   inline bool is_stmt_prepare_or_first_sp_execute() const
   { return (int)state < (int)PREPARED; }
   inline bool is_stmt_prepare_or_first_stmt_execute() const
   { return (int)state <= (int)PREPARED; }
-  inline bool is_first_stmt_execute() const { return state == PREPARED; }
-  inline bool is_stmt_execute() const
-  { return state == PREPARED || state == EXECUTED; }
   inline bool is_conventional() const
   { return state == CONVENTIONAL_EXECUTION; }
 
@@ -1434,6 +1429,19 @@ extern "C" void my_message_sql(uint error, const char *str, myf MyFlags);
 class THD :public Statement,
            public Open_tables_state
 {
+private:
+  inline bool is_stmt_prepare() const
+  { DBUG_ASSERT(0); return Statement::is_stmt_prepare(); }
+
+  inline bool is_stmt_prepare_or_first_sp_execute() const
+  { DBUG_ASSERT(0); return Statement::is_stmt_prepare_or_first_sp_execute(); }
+
+  inline bool is_stmt_prepare_or_first_stmt_execute() const
+  { DBUG_ASSERT(0); return Statement::is_stmt_prepare_or_first_stmt_execute(); }
+
+  inline bool is_conventional() const
+  { DBUG_ASSERT(0); return Statement::is_conventional(); }
+
 public:
   MDL_context mdl_context;
 
@@ -2089,7 +2097,6 @@ public:
   bool       enable_slow_log;   /* enable slow log for current statement */
   bool	     abort_on_warning;
   bool 	     got_warning;       /* Set on call to push_warning() */
-  bool	     no_warnings_for_error; /* no warnings on call to my_error() */
   /* set during loop of derived table processing */
   bool       derived_tables_processing;
   my_bool    tablespace_op;	/* This is TRUE in DISCARD/IMPORT TABLESPACE */
@@ -2807,6 +2814,7 @@ private:
 
   /** The current internal error handler for this thread, or NULL. */
   Internal_error_handler *m_internal_handler;
+
   /**
     The lex to hold the parsed tree of conventional (non-prepared) queries.
     Whereas for prepared and stored procedure statements we use an own lex
