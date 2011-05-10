@@ -341,8 +341,6 @@ public class QueryDomainTypeImpl<T> implements QueryDomainType<T> {
                     index.operationSetBounds(context, op);
                     // set additional filter conditions
                     where.filterCmpValue(context, op);
-                    // execute the scan operation
-                    session.executeNoCommit();
                     // delete results of the scan; don't abort if no row found
                     result = session.deletePersistentAll(op, false);
                     break;
@@ -358,8 +356,6 @@ public class QueryDomainTypeImpl<T> implements QueryDomainType<T> {
                     if (where != null) {
                         where.filterCmpValue(context, op);
                     }
-                    // execute the scan operation
-                    session.executeNoCommit();
                     // delete results of the scan; don't abort if no row found
                     result = session.deletePersistentAll(op, false);
                     break;
