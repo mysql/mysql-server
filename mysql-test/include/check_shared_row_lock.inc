@@ -33,7 +33,8 @@ connection default;
 # least it acquires S-locks on some of rows.
 let $wait_condition=
   select count(*) = 1 from information_schema.processlist
-  where state in ("Sending data","statistics", "preparing") and
+  where state in ("Sending data","statistics", "preparing", "updating",
+                  "executing", "Searching rows for update") and
         info = "$wait_statement";
 --source include/wait_condition.inc
 

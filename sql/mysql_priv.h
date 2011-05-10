@@ -570,26 +570,32 @@ protected:
 #define OPTIMIZER_SWITCH_FIRSTMATCH 64
 #define OPTIMIZER_SWITCH_LOOSE_SCAN 128
 #define OPTIMIZER_SWITCH_MATERIALIZATION 256
-#define OPTIMIZER_SWITCH_SEMIJOIN 512
-#define OPTIMIZER_SWITCH_PARTIAL_MATCH_ROWID_MERGE 1024
-#define OPTIMIZER_SWITCH_PARTIAL_MATCH_TABLE_SCAN (1<<11)
-#define OPTIMIZER_SWITCH_SUBQUERY_CACHE (1<<12)
-#define OPTIMIZER_SWITCH_MRR_SORT_KEYS (1<<13)
-#define OPTIMIZER_SWITCH_OUTER_JOIN_WITH_CACHE (1<<14)
-#define OPTIMIZER_SWITCH_SEMIJOIN_WITH_CACHE (1<<15)
-#define OPTIMIZER_SWITCH_JOIN_CACHE_INCREMENTAL (1<<16)
-#define OPTIMIZER_SWITCH_JOIN_CACHE_HASHED (1<<17)
-#define OPTIMIZER_SWITCH_JOIN_CACHE_BKA (1<<18)
-#define OPTIMIZER_SWITCH_OPTIMIZE_JOIN_BUFFER_SIZE (1<<19)
+#define OPTIMIZER_SWITCH_IN_TO_EXISTS 512
+#define OPTIMIZER_SWITCH_SEMIJOIN 1024
+#define OPTIMIZER_SWITCH_PARTIAL_MATCH_ROWID_MERGE  (1<<11)
+#define OPTIMIZER_SWITCH_PARTIAL_MATCH_TABLE_SCAN (1<<12)
+#define OPTIMIZER_SWITCH_SUBQUERY_CACHE (1<<13)
+#define OPTIMIZER_SWITCH_MRR_SORT_KEYS (1<<14)
+#define OPTIMIZER_SWITCH_OUTER_JOIN_WITH_CACHE (1<<15)
+#define OPTIMIZER_SWITCH_SEMIJOIN_WITH_CACHE (1<<16)
+#define OPTIMIZER_SWITCH_JOIN_CACHE_INCREMENTAL (1<<17)
+#define OPTIMIZER_SWITCH_JOIN_CACHE_HASHED (1<<18)
+#define OPTIMIZER_SWITCH_JOIN_CACHE_BKA (1<<19)
+#define OPTIMIZER_SWITCH_OPTIMIZE_JOIN_BUFFER_SIZE (1<<20)
 #ifdef DBUG_OFF
-#  define OPTIMIZER_SWITCH_LAST (1<<20)
-#else
-#  define OPTIMIZER_SWITCH_TABLE_ELIMINATION (1<<20)
 #  define OPTIMIZER_SWITCH_LAST (1<<21)
+#else
+#  define OPTIMIZER_SWITCH_TABLE_ELIMINATION (1<<21)
+#  define OPTIMIZER_SWITCH_LAST (1<<22)
 #endif
 
 #ifdef DBUG_OFF 
 /* The following must be kept in sync with optimizer_switch_str in mysqld.cc */
+/*
+TODO: Materialization is off by default to mimic 5.1/5.2 behavior.
+Once cost based choice between materialization and in-to-exists should be
+enabled by default, add OPTIMIZER_SWITCH_MATERIALIZATION
+*/
 #  define OPTIMIZER_SWITCH_DEFAULT (OPTIMIZER_SWITCH_INDEX_MERGE | \
                                     OPTIMIZER_SWITCH_INDEX_MERGE_UNION | \
                                     OPTIMIZER_SWITCH_INDEX_MERGE_SORT_UNION | \
@@ -597,7 +603,7 @@ protected:
                                     OPTIMIZER_SWITCH_INDEX_COND_PUSHDOWN | \
                                     OPTIMIZER_SWITCH_FIRSTMATCH | \
                                     OPTIMIZER_SWITCH_LOOSE_SCAN | \
-                                    OPTIMIZER_SWITCH_MATERIALIZATION | \
+                                    OPTIMIZER_SWITCH_IN_TO_EXISTS | \
                                     OPTIMIZER_SWITCH_SEMIJOIN | \
                                     OPTIMIZER_SWITCH_PARTIAL_MATCH_ROWID_MERGE|\
                                     OPTIMIZER_SWITCH_PARTIAL_MATCH_TABLE_SCAN|\
@@ -617,7 +623,7 @@ protected:
                                     OPTIMIZER_SWITCH_TABLE_ELIMINATION | \
                                     OPTIMIZER_SWITCH_FIRSTMATCH | \
                                     OPTIMIZER_SWITCH_LOOSE_SCAN | \
-                                    OPTIMIZER_SWITCH_MATERIALIZATION | \
+                                    OPTIMIZER_SWITCH_IN_TO_EXISTS | \
                                     OPTIMIZER_SWITCH_SEMIJOIN | \
                                     OPTIMIZER_SWITCH_PARTIAL_MATCH_ROWID_MERGE|\
                                     OPTIMIZER_SWITCH_PARTIAL_MATCH_TABLE_SCAN|\
@@ -1630,6 +1636,7 @@ inline bool setup_fields_with_no_wrap(THD *thd, Item **ref_pointer_array,
 }
 int setup_conds(THD *thd, TABLE_LIST *tables, TABLE_LIST *leaves,
 		COND **conds);
+void wrap_ident(THD *thd, Item **conds);
 int setup_ftfuncs(SELECT_LEX* select);
 int init_ftfuncs(THD *thd, SELECT_LEX* select, bool no_order);
 void wait_for_condition(THD *thd, pthread_mutex_t *mutex,

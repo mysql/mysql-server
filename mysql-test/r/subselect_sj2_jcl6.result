@@ -39,9 +39,8 @@ a	b
 9	5
 explain select * from t2 where b in (select a from t1);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	PRIMARY	subselect2	ALL	unique_key	NULL	NULL	NULL	3	
-1	PRIMARY	t2	ref	b	b	5	test.t1.a	2	Using join buffer (flat, BKA join); Key-ordered Rowid-ordered scan
-2	SUBQUERY	t1	ALL	NULL	NULL	NULL	NULL	3	Using where
+1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	3	Using where; Start temporary
+1	PRIMARY	t2	ref	b	b	5	test.t1.a	2	End temporary; Using join buffer (flat, BKA join); Key-ordered Rowid-ordered scan
 select * from t2 where b in (select a from t1);
 a	b
 1	1
@@ -58,9 +57,8 @@ primary key(pk1, pk2, pk3)
 insert into t3 select a,a, a,a,a from t0;
 explain select * from t3 where b in (select a from t1);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	PRIMARY	t3	ALL	b	NULL	NULL	NULL	10	
-1	PRIMARY	subselect2	eq_ref	unique_key	unique_key	5	func	1	
-2	SUBQUERY	t1	ALL	NULL	NULL	NULL	NULL	3	
+1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	3	Using where; Start temporary
+1	PRIMARY	t3	ref	b	b	5	test.t1.a	1	End temporary; Using join buffer (flat, BKA join); Key-ordered Rowid-ordered scan
 select * from t3 where b in (select a from t1);
 a	b	pk1	pk2	pk3
 1	1	1	1	1
@@ -82,9 +80,8 @@ A.a + 10*B.a, A.a + 10*B.a, A.a + 10*B.a, A.a + 10*B.a
 from t0 A, t0 B where B.a <5;
 explain select * from t3 where b in (select a from t0);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	PRIMARY	subselect2	ALL	unique_key	NULL	NULL	NULL	10	
-1	PRIMARY	t3	ref	b	b	5	test.t0.a	1	Using join buffer (flat, BKA join); Key-ordered Rowid-ordered scan
-2	SUBQUERY	t0	ALL	NULL	NULL	NULL	NULL	10	Using where
+1	PRIMARY	t0	ALL	NULL	NULL	NULL	NULL	10	Using where; Start temporary
+1	PRIMARY	t3	ref	b	b	5	test.t0.a	1	End temporary; Using join buffer (flat, BKA join); Key-ordered Rowid-ordered scan
 set @save_ecp= @@engine_condition_pushdown;
 set engine_condition_pushdown=0;
 select * from t3 where b in (select A.a+B.a from t0 A, t0 B where B.a<5);
@@ -108,9 +105,8 @@ set join_buffer_size= @save_join_buffer_size;
 set max_heap_table_size= @save_max_heap_table_size;
 explain select * from t1 where a in (select b from t2);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	3	
-1	PRIMARY	subselect2	eq_ref	unique_key	unique_key	5	func	1	
-2	SUBQUERY	t2	index	b	b	5	NULL	10	Using index
+1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	3	Using where
+1	PRIMARY	t2	ref	b	b	5	test.t1.a	2	Using index; FirstMatch(t1)
 select * from t1;
 a	b
 1	1
@@ -137,9 +133,8 @@ explain select
 a, mid(filler1, 1,10), length(filler1)=length(filler2) as Z 
 from t1 ot where a in (select a from t2 it);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	PRIMARY	subselect2	ALL	unique_key	NULL	NULL	NULL	22	
-1	PRIMARY	ot	hash_ALL	NULL	#hash#$hj	5	test.it.a	32	Using where; Using join buffer (flat, BNLH join)
-2	SUBQUERY	it	ALL	NULL	NULL	NULL	NULL	22	Using where
+1	PRIMARY	it	ALL	NULL	NULL	NULL	NULL	22	Using where; Start temporary
+1	PRIMARY	ot	hash_ALL	NULL	#hash#$hj	5	test.it.a	32	Using where; End temporary; Using join buffer (flat, BNLH join)
 select 
 a, mid(filler1, 1,10), length(filler1)=length(filler2) as Z 
 from t1 ot where a in (select a from t2 it);
@@ -171,8 +166,7 @@ a, mid(filler1, 1,10), length(filler1)=length(filler2)
 from t2 ot where a in (select a from t1 it);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	PRIMARY	ot	ALL	NULL	NULL	NULL	NULL	22	
-1	PRIMARY	subselect2	eq_ref	unique_key	unique_key	5	func	1	
-2	SUBQUERY	it	ALL	NULL	NULL	NULL	NULL	32	
+1	PRIMARY	it	ALL	NULL	NULL	NULL	NULL	32	Using where; FirstMatch(ot); Using join buffer (flat, BNL join)
 select 
 a, mid(filler1, 1,10), length(filler1)=length(filler2) 
 from t2 ot where a in (select a from t1 it);
@@ -196,8 +190,8 @@ a	mid(filler1, 1,10)	length(filler1)=length(filler2)
 16	filler1234	1
 17	filler1234	1
 18	filler1234	1
-19	filler1234	1
 3	duplicate 	1
+19	filler1234	1
 19	duplicate 	1
 insert into t1 select a+20, 'filler123456', 'filler123456' from t0;
 insert into t1 select a+20, 'filler123456', 'filler123456' from t0;
@@ -205,9 +199,8 @@ explain select
 a, mid(filler1, 1,10), length(filler1)=length(filler2) as Z 
 from t1 ot where a in (select a from t2 it);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	PRIMARY	subselect2	ALL	unique_key	NULL	NULL	NULL	22	
-1	PRIMARY	ot	hash_ALL	NULL	#hash#$hj	5	test.it.a	52	Using where; Using join buffer (flat, BNLH join)
-2	SUBQUERY	it	ALL	NULL	NULL	NULL	NULL	22	Using where
+1	PRIMARY	it	ALL	NULL	NULL	NULL	NULL	22	Using where; Start temporary
+1	PRIMARY	ot	hash_ALL	NULL	#hash#$hj	5	test.it.a	52	Using where; End temporary; Using join buffer (flat, BNLH join)
 select 
 a, mid(filler1, 1,10), length(filler1)=length(filler2) as Z 
 from t1 ot where a in (select a from t2 it);
@@ -239,8 +232,7 @@ a, mid(filler1, 1,10), length(filler1)=length(filler2)
 from t2 ot where a in (select a from t1 it);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	PRIMARY	ot	ALL	NULL	NULL	NULL	NULL	22	
-1	PRIMARY	subselect2	eq_ref	unique_key	unique_key	5	func	1	
-2	SUBQUERY	it	ALL	NULL	NULL	NULL	NULL	52	
+1	PRIMARY	it	ALL	NULL	NULL	NULL	NULL	52	Using where; FirstMatch(ot); Using join buffer (flat, BNL join)
 select 
 a, mid(filler1, 1,10), length(filler1)=length(filler2) 
 from t2 ot where a in (select a from t1 it);
@@ -264,8 +256,8 @@ a	mid(filler1, 1,10)	length(filler1)=length(filler2)
 16	filler1234	1
 17	filler1234	1
 18	filler1234	1
-19	filler1234	1
 3	duplicate 	1
+19	filler1234	1
 19	duplicate 	1
 drop table t1, t2;
 create table t1 (a int, b int, key(a));
@@ -356,8 +348,7 @@ WHERE t1.Code IN (
 SELECT t2.CountryCode FROM t2 WHERE Population > 5000000);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	PRIMARY	t1	ALL	PRIMARY	NULL	NULL	NULL	31	
-1	PRIMARY	subselect2	eq_ref	unique_key	unique_key	3	func	1	
-2	SUBQUERY	t2	ALL	CountryCode	NULL	NULL	NULL	545	Using where
+1	PRIMARY	t2	ref	CountryCode	CountryCode	3	test.t1.Code	18	Using where; FirstMatch(t1); Using join buffer (flat, BKA join); Key-ordered Rowid-ordered scan
 SELECT Name FROM t1 
 WHERE t1.Code IN (
 SELECT t2.CountryCode FROM t2 WHERE Population > 5000000);
@@ -701,9 +692,8 @@ alter table t3 add primary key(id), add key(a);
 The following must use loose index scan over t3, key a:
 explain select count(a) from t2 where a in ( SELECT  a FROM t3);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	PRIMARY	t2	index	a	a	5	NULL	1000	Using index
-1	PRIMARY	subselect2	eq_ref	unique_key	unique_key	5	func	1	
-2	SUBQUERY	t3	index	a	a	5	NULL	30000	Using index
+1	PRIMARY	t2	index	a	a	5	NULL	1000	Using where; Using index
+1	PRIMARY	t3	ref	a	a	5	test.t2.a	30	Using index; FirstMatch(t2)
 select count(a) from t2 where a in ( SELECT  a FROM t3);
 count(a)
 1000
