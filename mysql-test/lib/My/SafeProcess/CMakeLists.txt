@@ -1,3 +1,4 @@
+# Copyright (C) 2008 MySQL AB
 # Copyright (c) 2006, 2010, Oracle and/or its affiliates. All rights reserved.
 # 
 # This program is free software; you can redistribute it and/or modify

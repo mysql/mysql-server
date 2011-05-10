@@ -69,7 +69,7 @@ if ($found_garbage)
    --remove_files_wildcard $MYSQLD_DATADIR/test t1*
    if ($with_directories)
    {
-      --remove_files_wildcard $MYSQLD_DATADIR/test/tmp t1*
+      --remove_files_wildcard $MYSQLTEST_VARDIR/tmp t1*
    }
 }
 --enable_query_log

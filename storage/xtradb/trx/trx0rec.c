@@ -665,14 +665,27 @@ trx_undo_page_report_modify(
 	/* Save to the undo log the old values of the columns to be updated. */
 
 	if (update) {
+		ulint	extended = 0;
+
 		if (trx_undo_left(undo_page, ptr) < 5) {
 
 			return(0);
 		}
 
-		ptr += mach_write_compressed(ptr, upd_get_n_fields(update));
+		if (srv_use_sys_stats_table
+		    && index == UT_LIST_GET_FIRST(dict_sys->sys_stats->indexes)) {
+			for (i = 0; i < upd_get_n_fields(update); i++) {
+				ulint	pos = upd_get_nth_field(update, i)->field_no;
 
-		for (i = 0; i < upd_get_n_fields(update); i++) {
+				if (pos >= rec_offs_n_fields(offsets)) {
+					extended++;
+				}
+			}
+		}
+
+		ptr += mach_write_compressed(ptr, upd_get_n_fields(update) - extended);
+
+		for (i = 0; i < upd_get_n_fields(update) - extended; i++) {
 
 			ulint	pos = upd_get_nth_field(update, i)->field_no;
 

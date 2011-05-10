@@ -998,7 +998,9 @@ int DsMrr_impl::setup_two_handlers()
       DBUG_RETURN(1);
 
     /* Create a separate handler object to do rnd_pos() calls. */
-    if (!(new_h2= primary_file->clone(thd->mem_root)) || 
+    if (!(new_h2= primary_file->clone(primary_file->get_table()->s->
+                                      normalized_path.str,
+                                      thd->mem_root)) || 
         new_h2->ha_external_lock(thd, F_RDLCK))
     {
       delete new_h2;

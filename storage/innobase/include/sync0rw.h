@@ -1,7 +1,7 @@
 /******************************************************
 The read-write lock (for threads, not for database transactions)
 
-(c) 1995 Innobase Oy
+Copyright (c) 1995, 2011, Oracle and/or its affiliates. All Rights Reserved.
 
 Created 9/11/1995 Heikki Tuuri
 *******************************************************/
@@ -409,6 +409,7 @@ Prints info of a debug struct. */
 void
 rw_lock_debug_print(
 /*================*/
+	FILE*			f,	/* in: output stream */
 	rw_lock_debug_t*	info);	/* in: debug struct */
 #endif /* UNIV_SYNC_DEBUG */
 

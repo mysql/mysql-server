@@ -226,6 +226,7 @@ NULL	information_schema	INNODB_SYS_INDEXES	TYPE	5	0	NO	bigint	NULL	NULL	20	0	NUL
 NULL	information_schema	INNODB_SYS_STATS	DIFF_VALS	3	0	NO	bigint	NULL	NULL	20	0	NULL	NULL	bigint(21) unsigned			select	
 NULL	information_schema	INNODB_SYS_STATS	INDEX_ID	1	0	NO	bigint	NULL	NULL	20	0	NULL	NULL	bigint(21) unsigned			select	
 NULL	information_schema	INNODB_SYS_STATS	KEY_COLS	2	0	NO	bigint	NULL	NULL	20	0	NULL	NULL	bigint(21) unsigned			select	
+NULL	information_schema	INNODB_SYS_STATS	NON_NULL_VALS	4	NULL	YES	bigint	NULL	NULL	20	0	NULL	NULL	bigint(21) unsigned			select	
 NULL	information_schema	INNODB_SYS_TABLES	CLUSTER_NAME	8		NO	varchar	192	576	NULL	NULL	utf8	utf8_general_ci	varchar(192)			select	
 NULL	information_schema	INNODB_SYS_TABLES	ID	3	0	NO	bigint	NULL	NULL	20	0	NULL	NULL	bigint(21) unsigned			select	
 NULL	information_schema	INNODB_SYS_TABLES	MIX_ID	6	0	NO	bigint	NULL	NULL	20	0	NULL	NULL	bigint(21) unsigned			select	
@@ -770,6 +771,7 @@ NULL	information_schema	INNODB_SYS_INDEXES	PAGE_NO	bigint	NULL	NULL	NULL	NULL	bi
 NULL	information_schema	INNODB_SYS_STATS	INDEX_ID	bigint	NULL	NULL	NULL	NULL	bigint(21) unsigned
 NULL	information_schema	INNODB_SYS_STATS	KEY_COLS	bigint	NULL	NULL	NULL	NULL	bigint(21) unsigned
 NULL	information_schema	INNODB_SYS_STATS	DIFF_VALS	bigint	NULL	NULL	NULL	NULL	bigint(21) unsigned
+NULL	information_schema	INNODB_SYS_STATS	NON_NULL_VALS	bigint	NULL	NULL	NULL	NULL	bigint(21) unsigned
 3.0000	information_schema	INNODB_SYS_TABLES	SCHEMA	varchar	192	576	utf8	utf8_general_ci	varchar(192)
 3.0000	information_schema	INNODB_SYS_TABLES	NAME	varchar	192	576	utf8	utf8_general_ci	varchar(192)
 NULL	information_schema	INNODB_SYS_TABLES	ID	bigint	NULL	NULL	NULL	NULL	bigint(21) unsigned

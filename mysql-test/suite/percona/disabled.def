@@ -20,3 +20,4 @@ percona_server_variables:             Feature not merged into MariaDB
 percona_slow_query_log-log_slow_verbosity:    InnoDB filtering information not fully merged into MariaDB
 
 percona_innodb_buffer_pool_shm:       Requires big shmmax not default on many systems
+userstat_bug602047:		      Feature not merged into MariaDB

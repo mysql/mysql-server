@@ -1665,7 +1665,7 @@ SQL_SELECT *make_select(TABLE *head, table_map const_tables,
   select->read_tables=read_tables;
   select->const_tables=const_tables;
   select->head=head;
-  select->cond=conds;
+  select->cond= select->original_cond= conds;
 
   if (head->sort.io_cache)
   {
@@ -1959,7 +1959,7 @@ int QUICK_RANGE_SELECT::init_ror_merged_scan(bool reuse_handler)
   }
 
   thd= head->in_use;
-  if (!(file= head->file->clone(thd->mem_root)))
+  if (!(file= head->file->clone(head->s->normalized_path.str, thd->mem_root)))
   {
     /* 
       Manually set the error flag. Note: there seems to be quite a few

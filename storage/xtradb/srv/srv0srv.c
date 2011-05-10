@@ -269,6 +269,11 @@ UNIV_INTERN ulong	srv_max_buf_pool_modified_pct	= 75;
 /* variable counts amount of data read in total (in bytes) */
 UNIV_INTERN ulint srv_data_read = 0;
 
+/* Internal setting for "innodb_stats_method". Decides how InnoDB treats
+NULL value when collecting statistics. By default, it is set to
+SRV_STATS_NULLS_EQUAL(0), ie. all NULL value are treated equal */
+ulong srv_innodb_stats_method = SRV_STATS_NULLS_EQUAL;
+
 /* here we count the amount of data written in total (in bytes) */
 UNIV_INTERN ulint srv_data_written = 0;
 
@@ -388,7 +393,6 @@ UNIV_INTERN ibool	srv_innodb_status	= FALSE;
 /* When estimating number of different key values in an index, sample
 this many index pages */
 UNIV_INTERN unsigned long long	srv_stats_sample_pages = 8;
-UNIV_INTERN ulong	srv_stats_method = 0;
 UNIV_INTERN ulong	srv_stats_auto_update = 1;
 UNIV_INTERN ulint	srv_stats_update_need_lock = 1;
 UNIV_INTERN ibool	srv_use_sys_stats_table = FALSE;
@@ -419,6 +423,8 @@ UNIV_INTERN ulint	srv_pass_corrupt_table = 0; /* 0:disable 1:enable */
 
 UNIV_INTERN ulong	srv_extra_rsegments = 0; /* extra rseg for users */
 UNIV_INTERN ulong	srv_dict_size_limit = 0;
+
+UNIV_INTERN ulint	srv_lazy_drop_table = 0;
 /*-------------------------------------------*/
 UNIV_INTERN ulong	srv_n_spin_wait_rounds	= 30;
 UNIV_INTERN ulong	srv_n_free_tickets_to_enter = 500;
@@ -2712,7 +2718,8 @@ srv_master_thread(
 		unsigned	space:32;
 		unsigned	offset:32;
 		ib_uint64_t	oldest_modification;
-	} prev_flush_info;
+	};
+	struct t_prev_flush_info_struct prev_flush_info = {0,0,0,0};
 
 	ib_uint64_t	lsn_old;
 
@@ -2770,6 +2777,8 @@ loop:
 
 	for (i = 0; i < 10; i++) {
 		ulint	cur_time = ut_time_ms();
+
+		n_pages_flushed = 0; /* initialize */
 
 		n_ios_old = log_sys->n_log_ios + buf_pool->stat.n_pages_read
 			+ buf_pool->stat.n_pages_written;
@@ -3036,7 +3045,8 @@ retry_flush_batch:
 
 			if (prev_adaptive_checkpoint == 3) {
 				lint	n_flush;
-				lint	blocks_sum, new_blocks_sum, flushed_blocks_sum;
+				lint	blocks_sum;
+				ulint	new_blocks_sum, flushed_blocks_sum;
 
 				blocks_sum = new_blocks_sum = flushed_blocks_sum = 0;
 

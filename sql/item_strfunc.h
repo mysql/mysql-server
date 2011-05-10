@@ -22,6 +22,23 @@
 
 class Item_str_func :public Item_func
 {
+protected:
+  /**
+     Sets the result value of the function an empty string, using the current
+     character set. No memory is allocated.
+     @retval A pointer to the str_value member.
+   */
+  String *make_empty_result()
+  {
+    /*
+      Reset string length to an empty string. We don't use str_value.set() as
+      we don't want to free and potentially have to reallocate the buffer
+      for each call.
+    */
+    str_value.length(0);
+    str_value.set_charset(collation.collation);
+    return &str_value; 
+  }
 public:
   Item_str_func() :Item_func() { decimals=NOT_FIXED_DEC; }
   Item_str_func(Item *a) :Item_func(a) {decimals=NOT_FIXED_DEC; }
@@ -707,15 +724,17 @@ public:
   String *val_str(String *);
   void fix_length_and_dec()
   {
-    ulonglong max_result_length= (ulonglong) args[0]->max_length * 2 + 2;
-    max_length= (uint32) min(max_result_length, MAX_BLOB_WIDTH);
     collation.set(args[0]->collation);
+    ulonglong max_result_length= (ulonglong) args[0]->max_length * 2 +
+                                  2 * collation.collation->mbmaxlen;
+    max_length= (uint32) min(max_result_length, MAX_BLOB_WIDTH);
   }
 };
 
 class Item_func_conv_charset :public Item_str_func
 {
   bool use_cached_value;
+  String tmp_value;
 public:
   bool safe;
   CHARSET_INFO *conv_charset; // keep it public

@@ -1,7 +1,7 @@
 /******************************************************
 The read-write lock (for thread synchronization)
 
-(c) 1995 Innobase Oy
+Copyright (c) 1995, 2011, Oracle and/or its affiliates. All Rights Reserved.
 
 Created 9/11/1995 Heikki Tuuri
 *******************************************************/
@@ -830,7 +830,7 @@ rw_lock_list_print_info(
 
 			info = UT_LIST_GET_FIRST(lock->debug_list);
 			while (info != NULL) {
-				rw_lock_debug_print(info);
+				rw_lock_debug_print(file, info);
 				info = UT_LIST_GET_NEXT(list, info);
 			}
 		}
@@ -870,7 +870,7 @@ rw_lock_print(
 
 		info = UT_LIST_GET_FIRST(lock->debug_list);
 		while (info != NULL) {
-			rw_lock_debug_print(info);
+			rw_lock_debug_print(stderr, info);
 			info = UT_LIST_GET_NEXT(list, info);
 		}
 	}
@@ -882,28 +882,29 @@ Prints info of a debug struct. */
 void
 rw_lock_debug_print(
 /*================*/
+	FILE*			f,	/* in: output stream */
 	rw_lock_debug_t*	info)	/* in: debug struct */
 {
 	ulint	rwt;
 
 	rwt	  = info->lock_type;
 
-	fprintf(stderr, "Locked: thread %lu file %s line %lu  ",
+	fprintf(f, "Locked: thread %lu file %s line %lu  ",
 		(ulong) os_thread_pf(info->thread_id), info->file_name,
 		(ulong) info->line);
 	if (rwt == RW_LOCK_SHARED) {
-		fputs("S-LOCK", stderr);
+		fputs("S-LOCK", f);
 	} else if (rwt == RW_LOCK_EX) {
-		fputs("X-LOCK", stderr);
+		fputs("X-LOCK", f);
 	} else if (rwt == RW_LOCK_WAIT_EX) {
-		fputs("WAIT X-LOCK", stderr);
+		fputs("WAIT X-LOCK", f);
 	} else {
 		ut_error;
 	}
 	if (info->pass != 0) {
-		fprintf(stderr, " pass value %lu", (ulong) info->pass);
+		fprintf(f, " pass value %lu", (ulong) info->pass);
 	}
-	putc('\n', stderr);
+	putc('\n', f);
 }
 
 /*******************************************************************

@@ -539,6 +539,11 @@ public:
    */
   Item *next;
   uint32 max_length;
+  /*
+    TODO: convert name and name_length fields into LEX_STRING to keep them in
+    sync (see bug #11829681/60295 etc). Then also remove some strlen(name)
+    calls.
+  */
   uint name_length;                     /* Length of name */
   int8 marker;
   uint8 decimals;

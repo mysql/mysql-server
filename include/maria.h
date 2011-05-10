@@ -26,6 +26,7 @@ extern "C" {
 #include <m_ctype.h>
 #include "../storage/maria/ma_pagecache.h"
 #include "my_handler.h"
+#include "my_compare.h"
 #include "ft_global.h"
 #include <myisamchk.h>
 #include <mysql/plugin.h>

@@ -49,7 +49,7 @@ int select_union::prepare(List<Item> &list, SELECT_LEX_UNIT *u)
 }
 
 
-bool select_union::send_data(List<Item> &values)
+int select_union::send_data(List<Item> &values)
 {
   if (unit->offset_limit_cnt)
   {						// using limit offset,count
@@ -62,6 +62,14 @@ bool select_union::send_data(List<Item> &values)
 
   if ((write_err= table->file->ha_write_row(table->record[0])))
   {
+    if (write_err == HA_ERR_FOUND_DUPP_KEY)
+    {
+      /*
+        Inform upper level that we found a duplicate key, that should not
+        be counted as part of limit
+      */
+      return -1;
+    }
     /* create_internal_tmp_table_from_heap will generate error if needed */
     if (table->file->is_fatal_error(write_err, HA_CHECK_DUP) &&
         create_internal_tmp_table_from_heap(thd, table,

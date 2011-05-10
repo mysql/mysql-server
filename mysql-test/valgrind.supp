@@ -1,3 +1,21 @@
+# Copyright (c) 2005, 2010, Oracle and/or its affiliates.
+# Copyright (c) 2009-2011, Monty Program Ab
+#
+# This program is free software; you can redistribute it and/or
+# modify it under the terms of the GNU Library General Public
+# License as published by the Free Software Foundation; version 2
+# of the License.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
+# Library General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with this program; if not, write to the Free Software
+# Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
+
+#
 # Suppress some common (not fatal) errors in system libraries found by valgrind
 #
 
@@ -1114,4 +1132,51 @@
    buf_buddy_relocate peeking (space,page) in potentially free blocks
    Memcheck:Addr1
    fun:buf_buddy_relocate
+}
+
+{
+   Bug 59874 Valgrind warning in InnoDB compression code
+   Memcheck:Cond
+   fun:*
+   fun:*
+   fun:deflate
+   fun:btr_store_big_rec_extern_fields_func
+   fun:row_ins_index_entry_low
+   fun:row_ins_index_entry
+   fun:row_ins_index_entry_step
+   fun:row_ins
+   fun:row_ins_step
+   fun:row_insert_for_mysql
+}
+
+{
+   In page0zip.c we have already checked that the memory is initialized before calling deflate()
+   Memcheck:Cond
+   fun:*
+   fun:*
+   fun:deflate
+   fun:page_zip_compress
+   fun:page_cur_insert_rec_zip_reorg
+   fun:page_cur_insert_rec_zip
+   fun:page_cur_tuple_insert
+   fun:btr_cur_optimistic_insert
+   fun:row_ins_index_entry_low
+   fun:row_ins_index_entry
+   fun:row_ins_index_entry_step
+   fun:row_ins
+   fun:row_ins_step
+   fun:row_insert_for_mysql
+}
+
+{
+   Bug 59875 Valgrind warning in buf0buddy.c
+   Memcheck:Addr1
+   fun:mach_read_from_4
+   fun:buf_buddy_relocate
+   fun:buf_buddy_free_low
+   fun:buf_buddy_free
+   fun:buf_LRU_block_remove_hashed_page
+   fun:buf_LRU_invalidate_tablespace
+   fun:fil_delete_tablespace
+   fun:row_drop_table_for_mysql
 }

@@ -26,8 +26,8 @@ let $old_net_buffer_length= `SELECT @@global.net_buffer_length`;
 SET @@global.max_allowed_packet=1024;
 SET @@global.net_buffer_length=1024;
 
+sync_slave_with_master;
 # Restart slave for setting to take effect
-connection slave;
 source include/stop_slave.inc;
 source include/start_slave.inc;
 

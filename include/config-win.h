@@ -201,6 +201,11 @@ typedef SSIZE_T ssize_t;
 #define SIZEOF_LONG		4
 #define SIZEOF_LONG_LONG	8
 #define SIZEOF_OFF_T		8
+/*
+  The size of time_t depends on the compiler.
+  But it's 8 for all the supported VC versions.
+*/
+#define SIZEOF_TIME_T		8
 #ifdef _WIN64
 #define SIZEOF_CHARP		8
 #else

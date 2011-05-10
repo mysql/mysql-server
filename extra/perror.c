@@ -32,7 +32,6 @@ static my_bool verbose, print_all_codes;
 
 #include "../include/my_base.h"
 #include "../mysys/my_handler_errors.h"
-#include "../include/my_handler.h"
 
 #ifdef WITH_NDBCLUSTER_STORAGE_ENGINE
 static my_bool ndb_code;
@@ -183,6 +182,36 @@ static const char *get_ha_error_msg(int code)
       return ha_err_ptr->msg;
   return NullS;
 }
+
+
+/*
+  Register handler error messages for usage with my_error()
+
+  NOTES
+    This is safe to call multiple times as my_error_register()
+    will ignore calls to register already registered error numbers.
+*/
+void my_handler_error_register(void)
+{
+  /*
+    If you got compilation error here about compile_time_assert array, check
+    that every HA_ERR_xxx constant has a corresponding error message in
+    handler_error_messages[] list (check mysys/ma_handler_errors.h and
+    include/my_base.h).
+  */
+  compile_time_assert(HA_ERR_FIRST + array_elements(handler_error_messages) ==
+                      HA_ERR_LAST + 1);
+  my_error_register(handler_error_messages, HA_ERR_FIRST,
+                    HA_ERR_FIRST+ array_elements(handler_error_messages)-1);
+}
+
+
+void my_handler_error_unregister(void)
+{
+  my_error_unregister(HA_ERR_FIRST,
+                      HA_ERR_FIRST+ array_elements(handler_error_messages)-1);
+}
+
 
 
 #if defined(__WIN__)

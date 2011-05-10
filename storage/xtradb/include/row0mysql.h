@@ -384,6 +384,14 @@ row_insert_stats_for_mysql(
 	dict_index_t*	index,
 	trx_t*		trx);
 /*********************************************************************//**
+*/
+UNIV_INTERN
+int
+row_delete_stats_for_mysql(
+/*=======================*/
+	dict_index_t*	index,
+	trx_t*		trx);
+/*********************************************************************//**
 Scans a table create SQL string and adds to the data dictionary
 the foreign key constraints declared in the string. This function
 should be called after the indexes for a table have been created.

@@ -1,4 +1,6 @@
 /* Copyright (C) 2000 MySQL AB
+   Copyright (c) 2000, 2011, Oracle and/or its affiliates.
+   Copyright (C) 2009- 2011 Monty Program Ab
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -105,6 +107,7 @@ static inline void bitmap_lock(MY_BITMAP *map __attribute__((unused)))
     pthread_mutex_lock(map->mutex);
 #endif
 }
+
 
 static inline void bitmap_unlock(MY_BITMAP *map __attribute__((unused)))
 {
@@ -285,37 +288,51 @@ void bitmap_set_prefix(MY_BITMAP *map, uint prefix_size)
 
 my_bool bitmap_is_prefix(const MY_BITMAP *map, uint prefix_size)
 {
-  uint prefix_mask= last_byte_mask(prefix_size);
-  uchar *m= (uchar*) map->bitmap;
-  uchar *end_prefix= m+(prefix_size-1)/8;
-  uchar *end;
-  DBUG_ASSERT(m && prefix_size <= map->n_bits);
+  uint prefix_bits= prefix_size % 32;
+  my_bitmap_map *word_ptr= map->bitmap, last_word;
+  my_bitmap_map *end_prefix= word_ptr + prefix_size / 32;
+  DBUG_ASSERT(word_ptr && prefix_size <= map->n_bits);
 
-  /* Empty prefix is always true */
-  if (!prefix_size)
-    return 1;
+  /* 1: Words that should be filled with 1 */
+  for (; word_ptr < end_prefix; word_ptr++)
+    if (*word_ptr != 0xFFFFFFFF)
+      return FALSE;
 
-  while (m < end_prefix)
-    if (*m++ != 0xff)
-      return 0;
+  last_word= *map->last_word_ptr & ~map->last_word_mask;
 
-  end= ((uchar*) map->bitmap) + no_bytes_in_map(map) - 1;
-  if (m == end)
-    return ((*m & last_byte_mask(map->n_bits)) == prefix_mask);
+  /* 2: Word which contains the end of the prefix (if any) */
+  if (prefix_bits)
+  {
+    if (word_ptr == map->last_word_ptr)
+      return uint4korr((uchar*)&last_word) == (uint32)((1 << prefix_bits) - 1);
+    if (uint4korr((uchar*)word_ptr) != (uint32)((1 << prefix_bits) - 1))
+      return FALSE;
+    word_ptr++;
+  }
 
-  if (*m != prefix_mask)
-    return 0;
+  /* 3: Words that should be filled with 0 */
+  for (; word_ptr < map->last_word_ptr; word_ptr++)
+    if (*word_ptr != 0)
+      return FALSE;
 
-  while (++m < end)
-    if (*m != 0)
-      return 0;
-  return ((*m & last_byte_mask(map->n_bits)) == 0);
+  /*
+    We can end up here in two situations:
+    1) We went through the whole bitmap in step 1. This will happen if the
+       whole bitmap is filled with 1 and prefix_size is a multiple of 32
+       (i.e. the prefix does not end in the middle of a word).
+       In this case word_ptr will be larger than map->last_word_ptr.
+    2) We have gone through steps 1-3 and just need to check that also
+       the last word is 0.
+  */
+  return word_ptr > map->last_word_ptr || last_word == 0;
 }
+
 
 my_bool bitmap_is_set_all(const MY_BITMAP *map)
 {
   my_bitmap_map *data_ptr= map->bitmap;
   my_bitmap_map *end= map->last_word_ptr;
+
   for (; data_ptr < end; data_ptr++)
     if (*data_ptr != 0xFFFFFFFF)
       return FALSE;
@@ -326,8 +343,8 @@ my_bool bitmap_is_set_all(const MY_BITMAP *map)
 my_bool bitmap_is_clear_all(const MY_BITMAP *map)
 {
   my_bitmap_map *data_ptr= map->bitmap;
-  my_bitmap_map *end;
-  end= map->last_word_ptr;
+  my_bitmap_map *end= map->last_word_ptr;
+
   for (; data_ptr < end; data_ptr++)
     if (*data_ptr)
       return FALSE;
@@ -491,25 +508,28 @@ void bitmap_invert(MY_BITMAP *map)
 
 
 uint bitmap_bits_set(const MY_BITMAP *map)
-{  
-  uchar *m= (uchar*)map->bitmap;
-  uchar *end= m + no_bytes_in_map(map) - 1;
+{
+  my_bitmap_map *data_ptr= map->bitmap;
+  my_bitmap_map *end= map->last_word_ptr;
   uint res= 0;
-
   DBUG_ASSERT(map->bitmap);
-  while (m < end)
-    res+= my_count_bits_ushort(*m++);
-  return res + my_count_bits_ushort(*m & last_byte_mask(map->n_bits));
+
+  for (; data_ptr < end; data_ptr++)
+    res+= my_count_bits_uint32(*data_ptr);
+
+  /*Reset last bits to zero*/
+  res+= my_count_bits_uint32(*map->last_word_ptr & ~map->last_word_mask);
+  return res;
 }
 
 
 void bitmap_copy(MY_BITMAP *map, const MY_BITMAP *map2)
 {
   my_bitmap_map *to= map->bitmap, *from= map2->bitmap, *end;
-
   DBUG_ASSERT(map->bitmap && map2->bitmap &&
               map->n_bits==map2->n_bits);
   end= map->last_word_ptr;
+
   while (to <= end)
     *to++ = *from++;
 }
@@ -789,376 +809,4 @@ void bitmap_lock_flip_bit(MY_BITMAP *map, uint bitmap_bit)
   bitmap_flip_bit(map, bitmap_bit);
   bitmap_unlock(map);
 }
-#endif
-#ifdef MAIN
-
-uint get_rand_bit(uint bitsize)
-{
-  return (rand() % bitsize);
-}
-
-my_bool test_set_get_clear_bit(MY_BITMAP *map, uint bitsize)
-{
-  uint i, test_bit;
-  uint no_loops= bitsize > 128 ? 128 : bitsize;
-  for (i=0; i < no_loops; i++)
-  {
-    test_bit= get_rand_bit(bitsize);
-    bitmap_set_bit(map, test_bit);
-    if (!bitmap_is_set(map, test_bit))
-      goto error1;
-    bitmap_clear_bit(map, test_bit);
-    if (bitmap_is_set(map, test_bit))
-      goto error2;
-  }
-  return FALSE;
-error1:
-  printf("Error in set bit, bit %u, bitsize = %u", test_bit, bitsize);
-  return TRUE;
-error2:
-  printf("Error in clear bit, bit %u, bitsize = %u", test_bit, bitsize);
-  return TRUE;
-}
-
-my_bool test_flip_bit(MY_BITMAP *map, uint bitsize)
-{
-  uint i, test_bit;
-  uint no_loops= bitsize > 128 ? 128 : bitsize;
-  for (i=0; i < no_loops; i++)
-  {
-    test_bit= get_rand_bit(bitsize);
-    bitmap_flip_bit(map, test_bit);
-    if (!bitmap_is_set(map, test_bit))
-      goto error1;
-    bitmap_flip_bit(map, test_bit);
-    if (bitmap_is_set(map, test_bit))
-      goto error2;
-  }
-  return FALSE;
-error1:
-  printf("Error in flip bit 1, bit %u, bitsize = %u", test_bit, bitsize);
-  return TRUE;
-error2:
-  printf("Error in flip bit 2, bit %u, bitsize = %u", test_bit, bitsize);
-  return TRUE;
-}
-
-my_bool test_operators(MY_BITMAP *map __attribute__((unused)),
-                    uint bitsize __attribute__((unused)))
-{
-  return FALSE;
-}
-
-my_bool test_get_all_bits(MY_BITMAP *map, uint bitsize)
-{
-  uint i;
-  bitmap_set_all(map);
-  if (!bitmap_is_set_all(map))
-    goto error1;
-  if (!bitmap_is_prefix(map, bitsize))
-    goto error5;
-  bitmap_clear_all(map);
-  if (!bitmap_is_clear_all(map))
-    goto error2;
-  if (!bitmap_is_prefix(map, 0))
-    goto error6;
-  for (i=0; i<bitsize;i++)
-    bitmap_set_bit(map, i);
-  if (!bitmap_is_set_all(map))
-    goto error3;
-  for (i=0; i<bitsize;i++)
-    bitmap_clear_bit(map, i);
-  if (!bitmap_is_clear_all(map))
-    goto error4;
-  return FALSE;
-error1:
-  printf("Error in set_all, bitsize = %u", bitsize);
-  return TRUE;
-error2:
-  printf("Error in clear_all, bitsize = %u", bitsize);
-  return TRUE;
-error3:
-  printf("Error in bitmap_is_set_all, bitsize = %u", bitsize);
-  return TRUE;
-error4:
-  printf("Error in bitmap_is_clear_all, bitsize = %u", bitsize);
-  return TRUE;
-error5:
-  printf("Error in set_all through set_prefix, bitsize = %u", bitsize);
-  return TRUE;
-error6:
-  printf("Error in clear_all through set_prefix, bitsize = %u", bitsize);
-  return TRUE;
-}
-
-my_bool test_compare_operators(MY_BITMAP *map, uint bitsize)
-{
-  uint i, j, test_bit1, test_bit2, test_bit3,test_bit4;
-  uint no_loops= bitsize > 128 ? 128 : bitsize;
-  MY_BITMAP map2_obj, map3_obj;
-  MY_BITMAP *map2= &map2_obj, *map3= &map3_obj;
-  my_bitmap_map map2buf[1024];
-  my_bitmap_map map3buf[1024];
-  bitmap_init(&map2_obj, map2buf, bitsize, FALSE);
-  bitmap_init(&map3_obj, map3buf, bitsize, FALSE);
-  bitmap_clear_all(map2);
-  bitmap_clear_all(map3);
-  for (i=0; i < no_loops; i++)
-  {
-    test_bit1=get_rand_bit(bitsize);
-    bitmap_set_prefix(map, test_bit1);
-    test_bit2=get_rand_bit(bitsize);
-    bitmap_set_prefix(map2, test_bit2);
-    bitmap_intersect(map, map2);
-    test_bit3= test_bit2 < test_bit1 ? test_bit2 : test_bit1;
-    bitmap_set_prefix(map3, test_bit3);
-    if (!bitmap_cmp(map, map3))
-      goto error1;
-    bitmap_clear_all(map);
-    bitmap_clear_all(map2);
-    bitmap_clear_all(map3);
-    test_bit1=get_rand_bit(bitsize);
-    test_bit2=get_rand_bit(bitsize);
-    test_bit3=get_rand_bit(bitsize);
-    bitmap_set_prefix(map, test_bit1);
-    bitmap_set_prefix(map2, test_bit2);
-    test_bit3= test_bit2 > test_bit1 ? test_bit2 : test_bit1;
-    bitmap_set_prefix(map3, test_bit3);
-    bitmap_union(map, map2);
-    if (!bitmap_cmp(map, map3))
-      goto error2;
-    bitmap_clear_all(map);
-    bitmap_clear_all(map2);
-    bitmap_clear_all(map3);
-    test_bit1=get_rand_bit(bitsize);
-    test_bit2=get_rand_bit(bitsize);
-    test_bit3=get_rand_bit(bitsize);
-    bitmap_set_prefix(map, test_bit1);
-    bitmap_set_prefix(map2, test_bit2);
-    bitmap_xor(map, map2);
-    test_bit3= test_bit2 > test_bit1 ? test_bit2 : test_bit1;
-    test_bit4= test_bit2 < test_bit1 ? test_bit2 : test_bit1;
-    bitmap_set_prefix(map3, test_bit3);
-    for (j=0; j < test_bit4; j++)
-      bitmap_clear_bit(map3, j);
-    if (!bitmap_cmp(map, map3))
-      goto error3;
-    bitmap_clear_all(map);
-    bitmap_clear_all(map2);
-    bitmap_clear_all(map3);
-    test_bit1=get_rand_bit(bitsize);
-    test_bit2=get_rand_bit(bitsize);
-    test_bit3=get_rand_bit(bitsize);
-    bitmap_set_prefix(map, test_bit1);
-    bitmap_set_prefix(map2, test_bit2);
-    bitmap_subtract(map, map2);
-    if (test_bit2 < test_bit1)
-    {
-      bitmap_set_prefix(map3, test_bit1);
-      for (j=0; j < test_bit2; j++)
-        bitmap_clear_bit(map3, j);
-    }
-    if (!bitmap_cmp(map, map3))
-      goto error4;
-    bitmap_clear_all(map);
-    bitmap_clear_all(map2);
-    bitmap_clear_all(map3);
-    test_bit1=get_rand_bit(bitsize);
-    bitmap_set_prefix(map, test_bit1);
-    bitmap_invert(map);
-    bitmap_set_all(map3);
-    for (j=0; j < test_bit1; j++)
-      bitmap_clear_bit(map3, j);
-    if (!bitmap_cmp(map, map3))
-      goto error5;
-    bitmap_clear_all(map);
-    bitmap_clear_all(map3);
-  }
-  return FALSE;
-error1:
-  printf("intersect error  bitsize=%u,size1=%u,size2=%u", bitsize,
-  test_bit1,test_bit2);
-  return TRUE;
-error2:
-  printf("union error  bitsize=%u,size1=%u,size2=%u", bitsize,
-  test_bit1,test_bit2);
-  return TRUE;
-error3:
-  printf("xor error  bitsize=%u,size1=%u,size2=%u", bitsize,
-  test_bit1,test_bit2);
-  return TRUE;
-error4:
-  printf("subtract error  bitsize=%u,size1=%u,size2=%u", bitsize,
-  test_bit1,test_bit2);
-  return TRUE;
-error5:
-  printf("invert error  bitsize=%u,size=%u", bitsize,
-  test_bit1);
-  return TRUE;
-}
-
-my_bool test_count_bits_set(MY_BITMAP *map, uint bitsize)
-{
-  uint i, bit_count=0, test_bit;
-  uint no_loops= bitsize > 128 ? 128 : bitsize;
-  for (i=0; i < no_loops; i++)
-  {
-    test_bit=get_rand_bit(bitsize);
-    if (!bitmap_is_set(map, test_bit))
-    {
-      bitmap_set_bit(map, test_bit);
-      bit_count++;
-    }
-  }
-  if (bit_count==0 && bitsize > 0)
-    goto error1;
-  if (bitmap_bits_set(map) != bit_count)
-    goto error2;
-  return FALSE;
-error1:
-  printf("No bits set  bitsize = %u", bitsize);
-  return TRUE;
-error2:
-  printf("Wrong count of bits set, bitsize = %u", bitsize);
-  return TRUE;
-}
-
-my_bool test_get_first_bit(MY_BITMAP *map, uint bitsize)
-{
-  uint i, test_bit;
-  uint no_loops= bitsize > 128 ? 128 : bitsize;
-  for (i=0; i < no_loops; i++)
-  {
-    test_bit=get_rand_bit(bitsize);
-    bitmap_set_bit(map, test_bit);
-    if (bitmap_get_first_set(map) != test_bit)
-      goto error1;
-    bitmap_set_all(map);
-    bitmap_clear_bit(map, test_bit);
-    if (bitmap_get_first(map) != test_bit)
-      goto error2;
-    bitmap_clear_all(map);
-  }
-  return FALSE;
-error1:
-  printf("get_first_set error bitsize=%u,prefix_size=%u",bitsize,test_bit);
-  return TRUE;
-error2:
-  printf("get_first error bitsize= %u, prefix_size= %u",bitsize,test_bit);
-  return TRUE;
-}
-
-my_bool test_get_next_bit(MY_BITMAP *map, uint bitsize)
-{
-  uint i, j, test_bit;
-  uint no_loops= bitsize > 128 ? 128 : bitsize;
-  for (i=0; i < no_loops; i++)
-  {
-    test_bit=get_rand_bit(bitsize);
-    for (j=0; j < test_bit; j++)
-      bitmap_set_next(map);
-    if (!bitmap_is_prefix(map, test_bit))
-      goto error1;
-    bitmap_clear_all(map);
-  }
-  return FALSE;
-error1:
-  printf("get_next error  bitsize= %u, prefix_size= %u", bitsize,test_bit);
-  return TRUE;
-}
-
-my_bool test_prefix(MY_BITMAP *map, uint bitsize)
-{
-  uint i, j, test_bit;
-  uint no_loops= bitsize > 128 ? 128 : bitsize;
-  for (i=0; i < no_loops; i++)
-  {
-    test_bit=get_rand_bit(bitsize);
-    bitmap_set_prefix(map, test_bit);
-    if (!bitmap_is_prefix(map, test_bit))
-      goto error1;
-    bitmap_clear_all(map);
-    for (j=0; j < test_bit; j++)
-      bitmap_set_bit(map, j);
-    if (!bitmap_is_prefix(map, test_bit))
-      goto error2;
-    bitmap_set_all(map);
-    for (j=bitsize - 1; ~(j-test_bit); j--)
-      bitmap_clear_bit(map, j);
-    if (!bitmap_is_prefix(map, test_bit))
-      goto error3;
-    bitmap_clear_all(map);
-  }
-  return FALSE;
-error1:
-  printf("prefix1 error  bitsize = %u, prefix_size = %u", bitsize,test_bit);
-  return TRUE;
-error2:
-  printf("prefix2 error  bitsize = %u, prefix_size = %u", bitsize,test_bit);
-  return TRUE;
-error3:
-  printf("prefix3 error  bitsize = %u, prefix_size = %u", bitsize,test_bit);
-  return TRUE;
-}
-
-
-my_bool do_test(uint bitsize)
-{
-  MY_BITMAP map;
-  my_bitmap_map buf[1024];
-  if (bitmap_init(&map, buf, bitsize, FALSE))
-  {
-    printf("init error for bitsize %d", bitsize);
-    goto error;
-  }
-  if (test_set_get_clear_bit(&map,bitsize))
-    goto error;
-  bitmap_clear_all(&map);
-  if (test_flip_bit(&map,bitsize))
-    goto error;
-  bitmap_clear_all(&map);
-  if (test_operators(&map,bitsize))
-    goto error;
-  bitmap_clear_all(&map);
-  if (test_get_all_bits(&map, bitsize))
-    goto error;
-  bitmap_clear_all(&map);
-  if (test_compare_operators(&map,bitsize))
-    goto error;
-  bitmap_clear_all(&map);
-  if (test_count_bits_set(&map,bitsize))
-    goto error;
-  bitmap_clear_all(&map);
-  if (test_get_first_bit(&map,bitsize))
-    goto error;
-  bitmap_clear_all(&map);
-  if (test_get_next_bit(&map,bitsize))
-    goto error;
-  if (test_prefix(&map,bitsize))
-    goto error;
-  return FALSE;
-error:
-  printf("\n");
-  return TRUE;
-}
-
-int main()
-{
-  int i;
-  for (i= 1; i < 4096; i++)
-  {
-    printf("Start test for bitsize=%u\n",i);
-    if (do_test(i))
-      return -1;
-  }
-  printf("OK\n");
-  return 0;
-}
-
-/*
-  In directory mysys:
-  make test_bitmap
-  will build the bitmap tests and ./test_bitmap will execute it
-*/
-
-#endif
+#endif /* NOT_USED */

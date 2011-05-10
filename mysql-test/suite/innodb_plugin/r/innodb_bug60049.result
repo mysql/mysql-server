@@ -1,0 +1,8 @@
+CREATE TABLE t(a INT)ENGINE=InnoDB;
+RENAME TABLE t TO u;
+DROP TABLE u;
+SELECT @@innodb_fast_shutdown;
+@@innodb_fast_shutdown
+0
+Last record of ID_IND root page (9):
+1808000018050074000000000000000c5359535f464f524549474e5f434f4c53

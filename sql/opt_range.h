@@ -883,6 +883,11 @@ class SQL_SELECT :public Sql_alloc {
  public:
   QUICK_SELECT_I *quick;	// If quick-select used
   COND		*cond;		// where condition
+  /*
+    Original WHERE condition (before anything was removed as part of index 
+    condition pushdown.
+  */
+  COND          *original_cond;
 
   /*
     When using Index Condition Pushdown: condition that we've had before

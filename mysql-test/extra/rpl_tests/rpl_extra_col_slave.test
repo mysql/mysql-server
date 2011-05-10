@@ -766,6 +766,10 @@ RESET MASTER;
 connection slave;
 START SLAVE;
 
+call mtr.add_suppression("Slave SQL.*Error .Unknown table .t6.. on query.* Error_code: 1051");
+call mtr.add_suppression("Slave SQL.*Error .Duplicate column name .c6.. on query.* Error_code: 1060");
+call mtr.add_suppression("Slave SQL.*Table definition on master and slave does not match: Column . ...e mismatch.* Error_code: 1535");
+
 --echo *** Master Data Insert ***
 connection master;
 set @b1 = 'b1b1b1b1';
