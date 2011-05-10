@@ -2,6 +2,8 @@
 # in alphabetical order. This also helps with merge conflict resolution.
 
 binlog.binlog_multi_engine               # joro : NDB tests marked as experimental as agreed with bochklin
+binlog.binlog_bug23533			 # skozlov: BUG#12371924
+
 
 funcs_1.charset_collation_1              # depends on compile-time decisions
 funcs_1.is_cml_ndb                       # joro : NDB tests marked as experimental as agreed with bochklin
@@ -22,7 +24,8 @@ main.outfile_loaddata @solaris           # joro : Bug #46895
 ndb.*                                    # joro : NDB tests marked as experimental as agreed with bochklin
 
 rpl.rpl_innodb_bug28430   @solaris       # Bug#46029
-rpl.rpl_row_sp011         @solaris       # Joro : Bug #54138
+rpl.rpl_row_sp011         @solaris       # Joro : Bug #45445
+rpl.rpl_stop_slave                       # Sven : BUG#12345981
 
 rpl_ndb.*                                # joro : NDB tests marked as experimental as agreed with bochklin
 rpl_ndb.rpl_ndb_log                      # Bug#38998

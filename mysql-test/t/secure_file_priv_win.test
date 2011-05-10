@@ -1,0 +1,79 @@
+#
+# Bug58747 breaks secure_file_priv+not secure yet+still accesses other folders
+#
+
+# we do the windows specific relative directory testing
+
+--source include/windows.inc
+
+CREATE TABLE t1 (c1 longtext);
+INSERT INTO t1 values ('a');
+
+LET $MYSQL_TMP_DIR_UCASE= `SELECT upper('$MYSQL_TMP_DIR')`;
+LET $MYSQL_TMP_DIR_LCASE= `SELECT lower('$MYSQL_TMP_DIR')`;
+
+#create the file
+--replace_result $MYSQL_TMP_DIR MYSQL_TMP_DIR
+eval SELECT * FROM t1 INTO OUTFILE '$MYSQL_TMP_DIR/B11764517.tmp';
+
+--replace_result $MYSQL_TMP_DIR MYSQL_TMP_DIR
+show global variables like 'secure_file_priv';
+
+--replace_result $MYSQL_TMP_DIR MYSQL_TMP_DIR
+eval SELECT load_file('$MYSQL_TMP_DIR\\\\B11764517.tmp') AS x;
+
+--replace_result $MYSQL_TMP_DIR MYSQL_TMP_DIR
+eval SELECT load_file('$MYSQL_TMP_DIR/B11764517.tmp') AS x;
+
+--replace_result $MYSQL_TMP_DIR_UCASE MYSQL_TMP_DIR_UCASE
+eval SELECT load_file('$MYSQL_TMP_DIR_UCASE/B11764517.tmp') AS x;
+
+--replace_result $MYSQL_TMP_DIR_LCASE MYSQL_TMP_DIR_LCASE
+eval SELECT load_file('$MYSQL_TMP_DIR_LCASE/B11764517.tmp') AS x;
+
+--replace_result $MYSQL_TMP_DIR MYSQL_TMP_DIR
+eval SELECT load_file('$MYSQL_TMP_DIR\\\\..a..\\\\..\\\\..\\\\B11764517.tmp') AS x;
+
+--replace_result $MYSQL_TMP_DIR MYSQL_TMP_DIR
+eval LOAD DATA INFILE '$MYSQL_TMP_DIR\\\\B11764517.tmp' INTO TABLE t1;
+
+--replace_result $MYSQL_TMP_DIR MYSQL_TMP_DIR
+eval LOAD DATA INFILE '$MYSQL_TMP_DIR/B11764517.tmp' INTO TABLE t1;
+
+--replace_result $MYSQL_TMP_DIR_UCASE MYSQL_TMP_DIR_UCASE
+eval LOAD DATA INFILE '$MYSQL_TMP_DIR_UCASE/B11764517.tmp' INTO TABLE t1;
+
+--replace_result $MYSQL_TMP_DIR_LCASE MYSQL_TMP_DIR_LCASE
+eval LOAD DATA INFILE '$MYSQL_TMP_DIR_LCASE/B11764517.tmp' INTO TABLE t1;
+
+--replace_result $MYSQL_TMP_DIR MYSQL_TMP_DIR
+--error ER_OPTION_PREVENTS_STATEMENT
+eval LOAD DATA INFILE "$MYSQL_TMP_DIR\\\\..a..\\\\..\\\\..\\\\B11764517.tmp" into table t1;
+
+--replace_result $MYSQL_TMP_DIR MYSQL_TMP_DIR
+--error ER_OPTION_PREVENTS_STATEMENT
+eval SELECT * FROM t1 INTO OUTFILE '$MYSQL_TMP_DIR\\\\..a..\\\\..\\\\..\\\\B11764517-2.tmp';
+
+--replace_result $MYSQL_TMP_DIR MYSQL_TMP_DIR
+eval SELECT * FROM t1 INTO OUTFILE '$MYSQL_TMP_DIR\\\\B11764517-2.tmp';
+
+--replace_result $MYSQL_TMP_DIR MYSQL_TMP_DIR
+eval SELECT * FROM t1 INTO OUTFILE '$MYSQL_TMP_DIR/B11764517-3.tmp';
+
+--replace_result $MYSQL_TMP_DIR_UCASE MYSQL_TMP_DIR_UCASE
+eval SELECT * FROM t1 INTO OUTFILE '$MYSQL_TMP_DIR_UCASE/B11764517-4.tmp';
+
+--replace_result $MYSQL_TMP_DIR_LCASE MYSQL_TMP_DIR_LCASE
+eval SELECT * FROM t1 INTO OUTFILE '$MYSQL_TMP_DIR_LCASE/B11764517-5.tmp';
+
+--error 0,1
+--remove_file $MYSQL_TMP_DIR/B11764517.tmp;
+--error 0,1
+--remove_file $MYSQL_TMP_DIR/B11764517-2.tmp;
+--error 0,1
+--remove_file $MYSQL_TMP_DIR/B11764517-3.tmp;
+--error 0,1
+--remove_file $MYSQL_TMP_DIR/B11764517-4.tmp;
+--error 0,1
+--remove_file $MYSQL_TMP_DIR/B11764517-5.tmp;
+DROP TABLE t1;
