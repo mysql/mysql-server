@@ -1294,7 +1294,7 @@ fts_create_common_tables(
 
 	error = fts_eval_sql(trx, graph);
 
-	fts_que_graph_free(graph);
+	que_graph_free(graph);
 
 	if (error != DB_SUCCESS) {
 
@@ -1308,7 +1308,7 @@ fts_create_common_tables(
 
 	error = fts_eval_sql( trx, graph);
 
-	fts_que_graph_free(graph);
+	que_graph_free(graph);
 
 	if (error != DB_SUCCESS || skip_doc_id_index) {
 
@@ -1328,7 +1328,7 @@ fts_create_common_tables(
 			FTS_DOC_ID_INDEX_NAME, name, FTS_DOC_ID_COL_NAME));
 
 	error = fts_eval_sql(trx, graph);
-	fts_que_graph_free(graph);
+	que_graph_free(graph);
 
 func_exit:
 	if (error != DB_SUCCESS) {
@@ -1382,7 +1382,7 @@ fts_create_index_tables_low(
 	mem_free(sql);
 
 	error = fts_eval_sql(trx, graph);
-	fts_que_graph_free(graph);
+	que_graph_free(graph);
 
 	for (i = 0; fts_index_selector[i].ch && error == DB_SUCCESS; ++i) {
 
@@ -1395,7 +1395,7 @@ fts_create_index_tables_low(
 			&fts_table, NULL, fts_create_index_sql);
 
 		error = fts_eval_sql(trx, graph);
-		fts_que_graph_free(graph);
+		que_graph_free(graph);
 	}
 
 	if (error == DB_SUCCESS) {
@@ -1982,7 +1982,7 @@ retry:
 	*doc_id = 0;
 	error = fts_eval_sql(trx, graph);
 
-	fts_que_graph_free(graph);
+	que_graph_free(graph);
 
 	// FIXME: We need to retry deadlock errors
 	if (error != DB_SUCCESS) {
@@ -2071,7 +2071,7 @@ fts_update_last_doc_id(
 
 	error = fts_eval_sql(trx, graph);
 
-	fts_que_graph_free(graph);
+	que_graph_free(graph);
 
 	if (local_trx) {
 		if (error == DB_SUCCESS) {
