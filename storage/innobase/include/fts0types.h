@@ -268,6 +268,20 @@ fts_utf8_string_cmp(
 	const void*	p2);			/* in: node */
 
 /********************************************************************
+Compare two UTF-8 strings, and return match (0) if
+passed in "key" value equals or is the prefix of the "node" value. */
+UNIV_INLINE
+int
+fts_utf8_string_cmp_prefix(
+/*=======================*/
+						/* out:
+						< 0 if n1 < n2,
+						0 if n1 == n2,
+						> 0 if n1 > n2 */
+	const void*	p1,			/* in: key */
+	const void*	p2);			/* in: node */
+
+/********************************************************************
 Compare two fts_trx_row_t instances doc_ids. */
 UNIV_INLINE
 int
