@@ -1368,7 +1368,7 @@ int QUICK_RANGE_SELECT::init_ror_merged_scan(bool reuse_handler)
   }
 
   thd= head->in_use;
-  if (!(file= head->file->clone(thd->mem_root)))
+  if (!(file= head->file->clone(head->s->normalized_path.str, thd->mem_root)))
   {
     /* 
       Manually set the error flag. Note: there seems to be quite a few

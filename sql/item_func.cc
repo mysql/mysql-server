@@ -293,7 +293,7 @@ void Item_func::traverse_cond(Cond_traverser traverser,
 
 Item *Item_func::transform(Item_transformer transformer, uchar *argument)
 {
-  DBUG_ASSERT(!current_thd->is_stmt_prepare());
+  DBUG_ASSERT(!current_thd->stmt_arena->is_stmt_prepare());
 
   if (arg_count)
   {
@@ -2407,10 +2407,7 @@ my_decimal *Item_func_round::decimal_op(my_decimal *decimal_value)
   if (!(null_value= (args[0]->null_value || args[1]->null_value ||
                      my_decimal_round(E_DEC_FATAL_ERROR, value, (int) dec,
                                       truncate, decimal_value) > 1))) 
-  {
-    decimal_value->frac= decimals;
     return decimal_value;
-  }
   return 0;
 }
 
