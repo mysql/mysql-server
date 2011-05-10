@@ -26,7 +26,6 @@ import java.util.List;
 import java.util.jar.JarEntry;
 import java.util.jar.JarInputStream;
 import junit.framework.Test;
-import junit.framework.TestCase;
 import junit.framework.TestResult;
 import junit.framework.TestSuite;
 
@@ -49,7 +48,7 @@ public class AllTests {
         return fileName.endsWith("Test.class");
     }
 
-    private static boolean isSlowTestAnnotationPresent(Class candidate) {
+    private static boolean isSlowTestAnnotationPresent(Class<?> candidate) {
         for (Annotation annotation: candidate.getAnnotations()) {
             if (annotation.toString().contains("SlowTest")) {
                 return true;
@@ -58,7 +57,7 @@ public class AllTests {
         return false;
     } 
 
-    private static boolean isIgnoreAnnotationPresent(Class candidate) {
+    private static boolean isIgnoreAnnotationPresent(Class<?> candidate) {
         for (Annotation annotation: candidate.getAnnotations()) {
             if (annotation.toString().contains("Ignore")) {
                 return true;
@@ -67,22 +66,22 @@ public class AllTests {
         return false;
     } 
 
-    private static boolean isTestClass(Class klass) {
+    private static boolean isTestClass(Class<?> klass) {
         return klass.getName().endsWith("Test")
             && !klass.getName().contains("Abstract")
             && Test.class.isAssignableFrom(klass);
     }
 
-    private static boolean isSlowTest(Class klass) {
-	return isSlowTestAnnotationPresent(klass);
+    private static boolean isSlowTest(Class<?> klass) {
+        return isSlowTestAnnotationPresent(klass);
     }
 
-    private static boolean isTestDisabled(Class klass) {
-	return isIgnoreAnnotationPresent(klass);
+    private static boolean isTestDisabled(Class<?> klass) {
+        return isIgnoreAnnotationPresent(klass);
     }
 
-    private static List<Class> getClasses(File jarFile) throws IOException, ClassNotFoundException {
-        List<Class> classes = new ArrayList<Class>();
+    private static List<Class<?>> getClasses(File jarFile) throws IOException, ClassNotFoundException {
+        List<Class<?>> classes = new ArrayList<Class<?>>();
 
         JarInputStream jarStream = new JarInputStream(new FileInputStream(jarFile));
         try {
@@ -94,7 +93,7 @@ public class AllTests {
                         String className = fileName.replaceAll("/", "\\.");
                         className = className.substring(0, className.length() - ".class".length());
                         // System.out.println("Found possible test class: '" + className + "'");
-                        Class testClass = Class.forName(className);
+                        Class<?> testClass = Class.forName(className);
                         classes.add(testClass);
                     }
                 } finally {
@@ -109,6 +108,7 @@ public class AllTests {
         return classes;
     }
 
+    @SuppressWarnings("unchecked") // addTestSuite requires non-template Class argument
     public static Test suite() throws IllegalAccessException, IOException, ClassNotFoundException {
         TestSuite suite = new TestSuite("Cluster/J");
 
@@ -116,14 +116,14 @@ public class AllTests {
             throw new IOException("Jar file to look for not given");
         }
 
-        List<Class> classes = getClasses(new File(jarFile));
-        for (Class klass : classes) {
-	    if (isTestClass(klass) && !isTestDisabled(klass)) {
-		if ((isSlowTest(klass) && onlyRunSlowTests)
-		    || (!isSlowTest(klass) && !onlyRunSlowTests)) {
-		    suite.addTestSuite(klass);
-		}
-	    }
+        List<Class<?>> classes = getClasses(new File(jarFile));
+        for (Class<?> klass : classes) {
+            if (isTestClass(klass) && !isTestDisabled(klass)) {
+                if ((isSlowTest(klass) && onlyRunSlowTests)
+                        || (!isSlowTest(klass) && !onlyRunSlowTests)) {
+                    suite.addTestSuite((Class)klass);
+                }
+            }
         }
         return suite;
     }
@@ -139,11 +139,11 @@ public class AllTests {
     public static void main(String[] args) throws Exception {
         if (args.length > 0 && args.length <= 2) {
             jarFile = args[0];
-	    if (args.length > 1) {
-		if (args[1].equalsIgnoreCase("--only-run-slow-tests")) {
-		    onlyRunSlowTests = true;
-		}
-	    }
+            if (args.length > 1) {
+                if (args[1].equalsIgnoreCase("--only-run-slow-tests")) {
+                    onlyRunSlowTests = true;
+                }
+            }
             System.out.println("Running all tests in '" + jarFile + "'");
             TestSuite suite = (TestSuite) suite();
             System.out.println("Found '" + suite.testCount() + "' test classes in jar file.");
