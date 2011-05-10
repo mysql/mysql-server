@@ -745,6 +745,15 @@ CREATE TABLE t2 AS SELECT CONCAT(s1) FROM t1;
 SHOW CREATE TABLE t2;
 DROP TABLE t1, t2;
 
+--echo #
+--echo # Bug#11753363 (Bug#44793) Character sets: case clause, ucs2 or utf32, failure
+--echo #
+SELECT CASE _latin1'a' WHEN _utf16'a' THEN 'A' END;
+SELECT CASE _utf16'a' WHEN _latin1'a' THEN 'A' END;
+CREATE TABLE t1 (s1 CHAR(5) CHARACTER SET utf16);
+INSERT INTO t1 VALUES ('a');
+SELECT CASE s1 WHEN 'a' THEN 'b' ELSE 'c' END FROM t1;
+DROP TABLE t1;
 
 #
 ## TODO: add tests for all engines

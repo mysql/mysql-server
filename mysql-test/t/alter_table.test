@@ -1144,3 +1144,18 @@ INSERT INTO t1 VALUES (1, 1), (2, 2);
 ALTER TABLE t1 CHANGE a id INT;
 --disable_info
 DROP TABLE t1;
+
+
+--echo #
+--echo # Bug#11754461 CANNOT ALTER TABLE WHEN KEY PREFIX TOO LONG
+--echo #
+
+--disable_warnings
+DROP DATABASE IF EXISTS db1;
+--enable_warnings
+
+CREATE DATABASE db1 CHARACTER SET utf8;
+CREATE TABLE db1.t1 (bar TINYTEXT, KEY (bar(100)));
+ALTER TABLE db1.t1 ADD baz INT;
+
+DROP DATABASE db1;

@@ -125,7 +125,6 @@ INSERT INTO global_suppressions VALUES
  ("Slave: The incident LOST_EVENTS occured on the master"),
  ("Slave: Unknown error.* 1105"),
  ("Slave: Can't drop database.* database doesn't exist"),
- ("Slave SQL:.*(Error_code: \[\[:digit:\]\]+|Query:.*)"),
  ("Sort aborted"),
  ("Time-out in NDB"),
  ("Warning:\s+One can only use the --user.*root"),

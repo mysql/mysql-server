@@ -866,7 +866,7 @@ longlong Item_func_numhybrid::val_int()
       return 0;
 
     char *end= (char*) res->ptr() + res->length();
-    CHARSET_INFO *cs= str_value.charset();
+    CHARSET_INFO *cs= res->charset();
     return (*(cs->cset->strtoll10))(cs, res->ptr(), &end, &err_not_used);
   }
   default:
@@ -3003,6 +3003,8 @@ void Item_func_find_in_set::fix_length_and_dec()
       String *find=args[0]->val_str(&value);
       if (find)
       {
+        // find is not NULL pointer so args[0] is not a null-value
+        DBUG_ASSERT(!args[0]->null_value);
 	enum_value= find_type(((Field_enum*) field)->typelib,find->ptr(),
 			      find->length(), 0);
 	enum_bit=0;
@@ -3021,11 +3023,22 @@ longlong Item_func_find_in_set::val_int()
   DBUG_ASSERT(fixed == 1);
   if (enum_value)
   {
-    ulonglong tmp=(ulonglong) args[1]->val_int();
-    if (!(null_value=args[1]->null_value || args[0]->null_value))
+    // enum_value is set iff args[0]->const_item() in fix_length_and_dec().
+    DBUG_ASSERT(args[0]->const_item());
+
+    ulonglong tmp= (ulonglong) args[1]->val_int();
+    null_value= args[1]->null_value;
+    /* 
+      No need to check args[0]->null_value since enum_value is set iff
+      args[0] is a non-null const item. Note: no DBUG_ASSERT on
+      args[0]->null_value here because args[0] may have been replaced
+      by an Item_cache on which val_int() has not been called. See
+      BUG#11766317
+    */
+    if (!null_value)
     {
       if (tmp & enum_bit)
-	return enum_value;
+        return enum_value;
     }
     return 0L;
   }

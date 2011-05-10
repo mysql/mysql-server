@@ -947,6 +947,8 @@ echo "====="                                     >> $STATUS_HISTORY
 %doc %{license_files_server}
 %endif
 %doc %{src_dir}/Docs/ChangeLog
+%doc %{src_dir}/Docs/INFO_SRC*
+%doc release/Docs/INFO_BIN*
 %doc release/support-files/my-*.cnf
 
 %doc %attr(644, root, root) %{_infodir}/mysql.info*
@@ -1124,13 +1126,16 @@ echo "====="                                     >> $STATUS_HISTORY
 # merging BK trees)
 ##############################################################################
 %changelog
-
 * Thu Feb 09 2011 Joerg Bruehe <joerg.bruehe@oracle.com>
 
 - Fix bug#56581: If an installation deviates from the default file locations
   ("datadir" and "pid-file"), the mechanism to detect a running server (on upgrade)
   should still work, and use these locations.
   The problem was that the fix for bug#27072 did not check for local settings.
+  
+* Mon Jan 31 2011 Joerg Bruehe <joerg.bruehe@oracle.com>
+
+- Install the new "manifest" files: "INFO_SRC" and "INFO_BIN".
 
 * Tue Nov 23 2010 Jonathan Perkin <jonathan.perkin@oracle.com>
 

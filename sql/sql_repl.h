@@ -43,8 +43,6 @@ int start_slave(THD* thd, Master_info* mi, bool net_report);
 int stop_slave(THD* thd, Master_info* mi, bool net_report);
 bool change_master(THD* thd, Master_info* mi);
 bool mysql_show_binlog_events(THD* thd);
-int cmp_master_pos(const char* log_file_name1, ulonglong log_pos1,
-		   const char* log_file_name2, ulonglong log_pos2);
 int reset_slave(THD *thd, Master_info* mi);
 int reset_master(THD* thd);
 bool purge_master_logs(THD* thd, const char* to_log);

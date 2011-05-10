@@ -5,6 +5,7 @@ include/rpl_init.inc [topology=1->2->3->4->1]
 CREATE TABLE t1 (a INT NOT NULL AUTO_INCREMENT, b VARCHAR(100), c INT NOT NULL, PRIMARY KEY(a)) ENGINE=MyISAM;
 CREATE TABLE t2 (a INT NOT NULL AUTO_INCREMENT, b VARCHAR(100), c INT NOT NULL, PRIMARY KEY(a)) ENGINE=InnoDB;
 include/rpl_sync.inc
+call mtr.add_suppression("Slave SQL.*Request to stop slave SQL Thread received while applying a group that has non-transactional changes; waiting for completion of the group");
 
 *** Testing schema A->B->C->D->A ***
 
@@ -46,6 +47,7 @@ SET GLOBAL SQL_SLAVE_SKIP_COUNTER = 1;
 include/start_slave.inc
 INSERT INTO t1 VALUES(6,'C',2);
 INSERT INTO t1(b,c) VALUES('B',2);
+call mtr.add_suppression("Slave SQL.*Duplicate entry .6. for key .PRIMARY.* Error_code: 1062");
 include/wait_for_slave_sql_error.inc [errno=1062]
 INSERT INTO t1(b,c) VALUES('A',2);
 INSERT INTO t1(b,c) VALUES('D',2);

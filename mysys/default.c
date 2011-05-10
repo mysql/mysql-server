@@ -140,7 +140,7 @@ static int search_default_file_with_ext(Process_option_func func,
   - Unix:        /etc/
   - Unix:        /etc/mysql/
   - Unix:        --sysconfdir=<path> (compile-time option)
-  - ALL:         getenv(DEFAULT_HOME_ENV)
+  - ALL:         getenv("MYSQL_HOME")
   - ALL:         --defaults-extra-file=<path> (run-time option)
   - Unix:        ~/
 
@@ -1232,7 +1232,7 @@ static const char **init_default_directories(MEM_ROOT *alloc)
 
 #endif
 
-  if ((env= getenv(STRINGIFY_ARG(DEFAULT_HOME_ENV))))
+  if ((env= getenv("MYSQL_HOME")))
     errors += add_directory(alloc, env, dirs);
 
   /* Placeholder for --defaults-extra-file=<path> */

@@ -1540,6 +1540,9 @@ ERROR HY000: Cannot drop default keycache
 SET @@global.key_cache_block_size=0;
 Warnings:
 Warning	1292	Truncated incorrect key_cache_block_size value: '0'
+select @@max_long_data_size;
+@@max_long_data_size
+1048576
 SET @@global.max_binlog_cache_size=DEFAULT;
 SET @@global.max_join_size=DEFAULT;
 SET @@global.key_buffer_size=@kbs;

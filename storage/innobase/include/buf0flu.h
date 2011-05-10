@@ -138,7 +138,18 @@ UNIV_INTERN
 void
 buf_flush_wait_batch_end(
 /*=====================*/
-	buf_pool_t*	buf_pool,	/*!< buffer pool instance */
+	buf_pool_t*	buf_pool,	/*!< in: buffer pool instance */
+	enum buf_flush	type);		/*!< in: BUF_FLUSH_LRU
+					or BUF_FLUSH_LIST */
+/******************************************************************//**
+Waits until a flush batch of the given type ends. This is called by
+a thread that only wants to wait for a flush to end but doesn't do
+any flushing itself. */
+UNIV_INTERN
+void
+buf_flush_wait_batch_end_wait_only(
+/*===============================*/
+	buf_pool_t*	buf_pool,	/*!< in: buffer pool instance */
 	enum buf_flush	type);		/*!< in: BUF_FLUSH_LRU
 					or BUF_FLUSH_LIST */
 /********************************************************************//**

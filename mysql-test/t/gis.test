@@ -757,6 +757,17 @@ insert into t1 values (geomfromtext("point(1 0)"));
 select * from (select polygon(t1.a) as p from t1 order by t1.a) d;
 drop table t1;
 
+
+--echo #
+--echo # Test for bug #59888 "debug assertion when attempt to create spatial index
+--echo #                      on char > 31 bytes".
+--echo #
+create table t1(a char(32) not null) engine=myisam;
+--error ER_SPATIAL_MUST_HAVE_GEOM_COL
+create spatial index i on t1 (a);
+drop table t1;
+
+
 --echo End of 5.1 tests
 
 #

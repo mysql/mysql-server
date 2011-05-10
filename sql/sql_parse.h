@@ -197,4 +197,10 @@ check_table_access(THD *thd, ulong requirements,TABLE_LIST *tables,
 
 bool check_global_access(THD *thd, ulong want_access);
 
+inline bool is_supported_parser_charset(CHARSET_INFO *cs)
+{
+  return test(cs->mbminlen == 1);
+}
+
+
 #endif /* SQL_PARSE_INCLUDED */

@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1996, 2010, Innobase Oy. All Rights Reserved.
+Copyright (c) 1996, 2011, Innobase Oy. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -42,6 +42,7 @@ Created 3/26/1996 Heikki Tuuri
 #include "btr0sea.h"
 #include "os0proc.h"
 #include "trx0xa.h"
+#include "trx0purge.h"
 #include "ha_prototypes.h"
 
 /** Dummy session used currently in MySQL interface */
@@ -604,36 +605,26 @@ trx_lists_init_at_db_start(void)
 
 /******************************************************************//**
 Assigns a rollback segment to a transaction in a round-robin fashion.
-Skips the SYSTEM rollback segment if another is available.
-@return	assigned rollback segment id */
+@return	assigned rollback segment instance */
 UNIV_INLINE
-ulint
-trx_assign_rseg(void)
-/*=================*/
+trx_rseg_t*
+trx_assign_rseg(
+/*============*/
+	ulint	max_undo_logs)	/*!< in: maximum number of UNDO logs to use */
 {
-	trx_rseg_t*	rseg	= trx_sys->latest_rseg;
+	trx_rseg_t*	rseg = trx_sys->latest_rseg;
 
 	ut_ad(mutex_own(&kernel_mutex));
-loop:
-	/* Get next rseg in a round-robin fashion */
 
 	rseg = UT_LIST_GET_NEXT(rseg_list, rseg);
 
-	if (rseg == NULL) {
+	if (rseg == NULL || rseg->id == max_undo_logs - 1) {
 		rseg = UT_LIST_GET_FIRST(trx_sys->rseg_list);
-	}
-
-	/* If it is the SYSTEM rollback segment, and there exist others, skip
-	it */
-
-	if ((rseg->id == TRX_SYS_SYSTEM_RSEG_ID)
-	    && (UT_LIST_GET_LEN(trx_sys->rseg_list) > 1)) {
-		goto loop;
 	}
 
 	trx_sys->latest_rseg = rseg;
 
-	return(rseg->id);
+	return(rseg);
 }
 
 /****************************************************************//**
@@ -663,12 +654,9 @@ trx_start_low(
 
 	ut_ad(trx->conc_state != TRX_ACTIVE);
 
-	if (rseg_id == ULINT_UNDEFINED) {
+	ut_a(rseg_id == ULINT_UNDEFINED);
 
-		rseg_id = trx_assign_rseg();
-	}
-
-	rseg = trx_sys_get_nth_rseg(trx_sys, rseg_id);
+	rseg = trx_assign_rseg(srv_rollback_segments);
 
 	trx->id = trx_sys_get_new_trx_id();
 
@@ -719,6 +707,152 @@ trx_start(
 }
 
 /****************************************************************//**
+Set the transaction serialisation number. */
+static
+void
+trx_serialisation_number_get(
+/*=========================*/
+	trx_t*		trx)	/*!< in: transaction */
+{
+	trx_rseg_t*	rseg;
+
+	rseg = trx->rseg;
+
+	ut_ad(mutex_own(&rseg->mutex));
+
+	mutex_enter(&kernel_mutex);
+
+	trx->no = trx_sys_get_new_trx_id();
+
+	/* If the rollack segment is not empty then the
+	new trx_t::no can't be less than any trx_t::no
+	already in the rollback segment. User threads only
+	produce events when a rollback segment is empty. */
+
+	if (rseg->last_page_no == FIL_NULL) {
+		void*		ptr;
+		rseg_queue_t	rseg_queue;
+
+		rseg_queue.rseg = rseg;
+		rseg_queue.trx_no = trx->no;
+
+		mutex_enter(&purge_sys->bh_mutex);
+
+		/* This is to reduce the pressure on the kernel mutex,
+		though in reality it should make very little (read no)
+		difference because this code path is only taken when the
+		rbs is empty. */
+
+		mutex_exit(&kernel_mutex);
+
+		ptr = ib_bh_push(purge_sys->ib_bh, &rseg_queue);
+		ut_a(ptr);
+
+		mutex_exit(&purge_sys->bh_mutex);
+	} else {
+		mutex_exit(&kernel_mutex);
+	}
+}
+
+/****************************************************************//**
+Assign the transaction its history serialisation number and write the
+update UNDO log record to the assigned rollback segment.
+@return the LSN of the UNDO log write. */
+static
+ib_uint64_t
+trx_write_serialisation_history(
+/*============================*/
+	trx_t*		trx)	/*!< in: transaction */
+{
+	mtr_t		mtr;
+	trx_rseg_t*	rseg;
+
+	ut_ad(!mutex_own(&kernel_mutex));
+
+	rseg = trx->rseg;
+
+	mtr_start(&mtr);
+
+	/* Change the undo log segment states from TRX_UNDO_ACTIVE
+	to some other state: these modifications to the file data
+	structure define the transaction as committed in the file
+	based domain, at the serialization point of the log sequence
+	number lsn obtained below. */
+
+	if (trx->update_undo != NULL) {
+		page_t*		undo_hdr_page;
+		trx_undo_t*	undo = trx->update_undo;
+
+		/* We have to hold the rseg mutex because update
+		log headers have to be put to the history list in the
+		(serialisation) order of the UNDO trx number. This is
+		required for the purge in-memory data structures too. */
+
+		mutex_enter(&rseg->mutex);
+
+		/* Assign the transaction serialisation number and also
+		update the purge min binary heap if this is the first
+		UNDO log being written to the assigned rollback segment. */
+
+		trx_serialisation_number_get(trx);
+
+		/* It is not necessary to obtain trx->undo_mutex here
+		because only a single OS thread is allowed to do the
+		transaction commit for this transaction. */
+
+		undo_hdr_page = trx_undo_set_state_at_finish(undo, &mtr);
+
+		trx_undo_update_cleanup(trx, undo_hdr_page, &mtr);
+	} else {
+		mutex_enter(&rseg->mutex);
+	}
+
+	if (trx->insert_undo != NULL) {
+		trx_undo_set_state_at_finish(trx->insert_undo, &mtr);
+	}
+
+	mutex_exit(&rseg->mutex);
+
+	/* Update the latest MySQL binlog name and offset info
+	in trx sys header if MySQL binlogging is on or the database
+	server is a MySQL replication slave */
+
+	if (trx->mysql_log_file_name
+	    && trx->mysql_log_file_name[0] != '\0') {
+
+		trx_sys_update_mysql_binlog_offset(
+			trx->mysql_log_file_name,
+			trx->mysql_log_offset,
+			TRX_SYS_MYSQL_LOG_INFO, &mtr);
+
+		trx->mysql_log_file_name = NULL;
+	}
+
+	/* The following call commits the mini-transaction, making the
+	whole transaction committed in the file-based world, at this
+	log sequence number. The transaction becomes 'durable' when
+	we write the log to disk, but in the logical sense the commit
+	in the file-based data structures (undo logs etc.) happens
+	here.
+
+	NOTE that transaction numbers, which are assigned only to
+	transactions with an update undo log, do not necessarily come
+	in exactly the same order as commit lsn's, if the transactions
+	have different rollback segments. To get exactly the same
+	order we should hold the kernel mutex up to this point,
+	adding to the contention of the kernel mutex. However, if
+	a transaction T2 is able to see modifications made by
+	a transaction T1, T2 will always get a bigger transaction
+	number and a bigger commit lsn than T1. */
+
+	/*--------------*/
+	mtr_commit(&mtr);
+	/*--------------*/
+
+	return(mtr.end_lsn);
+}
+
+/****************************************************************//**
 Commits a transaction. */
 UNIV_INTERN
 void
@@ -726,100 +860,26 @@ trx_commit_off_kernel(
 /*==================*/
 	trx_t*	trx)	/*!< in: transaction */
 {
-	page_t*		update_hdr_page;
-	ib_uint64_t	lsn		= 0;
-	trx_rseg_t*	rseg;
-	trx_undo_t*	undo;
-	mtr_t		mtr;
+	ib_uint64_t	lsn;
 
 	ut_ad(mutex_own(&kernel_mutex));
 
 	trx->must_flush_log_later = FALSE;
 
-	rseg = trx->rseg;
+	/* If the transaction made any updates then we need to write the
+	UNDO logs for the updates to the assigned rollback segment. */
 
 	if (trx->insert_undo != NULL || trx->update_undo != NULL) {
-
 		mutex_exit(&kernel_mutex);
 
-		mtr_start(&mtr);
-
-		/* Change the undo log segment states from TRX_UNDO_ACTIVE
-		to some other state: these modifications to the file data
-		structure define the transaction as committed in the file
-		based world, at the serialization point of the log sequence
-		number lsn obtained below. */
-
-		mutex_enter(&(rseg->mutex));
-
-		if (trx->insert_undo != NULL) {
-			trx_undo_set_state_at_finish(trx->insert_undo, &mtr);
-		}
-
-		undo = trx->update_undo;
-
-		if (undo) {
-			mutex_enter(&kernel_mutex);
-			trx->no = trx_sys_get_new_trx_no();
-			mutex_exit(&kernel_mutex);
-
-			/* It is not necessary to obtain trx->undo_mutex here
-			because only a single OS thread is allowed to do the
-			transaction commit for this transaction. */
-
-			update_hdr_page = trx_undo_set_state_at_finish(
-				undo, &mtr);
-
-			/* We have to do the cleanup for the update log while
-			holding the rseg mutex because update log headers
-			have to be put to the history list in the order of
-			the trx number. */
-
-			trx_undo_update_cleanup(trx, update_hdr_page, &mtr);
-		}
-
-		mutex_exit(&(rseg->mutex));
-
-		/* Update the latest MySQL binlog name and offset info
-		in trx sys header if MySQL binlogging is on or the database
-		server is a MySQL replication slave */
-
-		if (trx->mysql_log_file_name
-		    && trx->mysql_log_file_name[0] != '\0') {
-			trx_sys_update_mysql_binlog_offset(
-				trx->mysql_log_file_name,
-				trx->mysql_log_offset,
-				TRX_SYS_MYSQL_LOG_INFO, &mtr);
-			trx->mysql_log_file_name = NULL;
-		}
-
-		/* The following call commits the mini-transaction, making the
-		whole transaction committed in the file-based world, at this
-		log sequence number. The transaction becomes 'durable' when
-		we write the log to disk, but in the logical sense the commit
-		in the file-based data structures (undo logs etc.) happens
-		here.
-
-		NOTE that transaction numbers, which are assigned only to
-		transactions with an update undo log, do not necessarily come
-		in exactly the same order as commit lsn's, if the transactions
-		have different rollback segments. To get exactly the same
-		order we should hold the kernel mutex up to this point,
-		adding to the contention of the kernel mutex. However, if
-		a transaction T2 is able to see modifications made by
-		a transaction T1, T2 will always get a bigger transaction
-		number and a bigger commit lsn than T1. */
-
-		/*--------------*/
-		mtr_commit(&mtr);
-		/*--------------*/
-		lsn = mtr.end_lsn;
+		lsn = trx_write_serialisation_history(trx);
 
 		mutex_enter(&kernel_mutex);
+	} else {
+		lsn = 0;
 	}
 
-	ut_ad(trx->conc_state == TRX_ACTIVE
-	      || trx->conc_state == TRX_PREPARED);
+	ut_ad(trx->conc_state == TRX_ACTIVE || trx->conc_state == TRX_PREPARED);
 	ut_ad(mutex_own(&kernel_mutex));
 
 	/* The following assignment makes the transaction committed in memory

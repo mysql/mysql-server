@@ -54,6 +54,13 @@ Relay_log_info::Relay_log_info(bool is_slave_recovery)
 {
   DBUG_ENTER("Relay_log_info::Relay_log_info");
 
+#ifdef HAVE_PSI_INTERFACE
+  relay_log.set_psi_keys(key_RELAYLOG_LOCK_index,
+                         key_RELAYLOG_update_cond,
+                         key_file_relaylog,
+                         key_file_relaylog_index);
+#endif
+
   group_relay_log_name[0]= event_relay_log_name[0]=
     group_master_log_name[0]= 0;
   until_log_name[0]= ign_master_log_name_end[0]= 0;
@@ -356,7 +363,7 @@ static inline int add_relay_log(Relay_log_info* rli,LOG_INFO* linfo)
 {
   MY_STAT s;
   DBUG_ENTER("add_relay_log");
-  if (!mysql_file_stat(key_file_binlog,
+  if (!mysql_file_stat(key_file_relaylog,
                        linfo->log_file_name, &s, MYF(0)))
   {
     sql_print_error("log %s listed in the index, but failed to stat",

@@ -451,3 +451,18 @@ unlock tables;
 handler t1 close;
 # Cleanup.
 drop tables t1, t2;
+#
+# Bug#57649 FLUSH TABLES under FLUSH TABLES <list> WITH READ LOCK leads
+#           to assert failure.
+#
+DROP TABLE IF EXISTS t1;
+CREATE TABLE t1 (a INT);
+FLUSH TABLES t1 WITH READ LOCK;
+FLUSH TABLES;
+ERROR HY000: Table 't1' was locked with a READ lock and can't be updated
+CREATE TRIGGER t1_bi BEFORE INSERT ON t1 FOR EACH ROW SET @a= 1;
+ERROR HY000: Table 't1' was locked with a READ lock and can't be updated
+ALTER TABLE t1 COMMENT 'test';
+ERROR HY000: Table 't1' was locked with a READ lock and can't be updated
+UNLOCK TABLES;
+DROP TABLE t1;

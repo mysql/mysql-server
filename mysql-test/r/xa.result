@@ -142,3 +142,27 @@ XA PREPARE 'x';
 XA PREPARE 'x';
 ERROR XAE07: XAER_RMFAIL: The command cannot be executed when global transaction is in the  PREPARED state
 XA ROLLBACK 'x';
+#
+# Bug#59986 Assert in Diagnostics_area::set_ok_status() for XA COMMIT
+#
+DROP TABLE IF EXISTS t1;
+CREATE TABLE t1(a INT, b INT, PRIMARY KEY(a)) engine=InnoDB;
+INSERT INTO t1 VALUES (1, 1), (2, 2);
+# Connection con1
+XA START 'a';
+UPDATE t1 SET b= 3 WHERE a=1;
+# Connection default
+XA START 'b';
+UPDATE t1 SET b=4 WHERE a=2;
+# Sending:
+UPDATE t1 SET b=5 WHERE a=1;
+# Connection con1
+UPDATE t1 SET b=6 WHERE a=2;
+ERROR 40001: Deadlock found when trying to get lock; try restarting transaction
+XA COMMIT 'a';
+ERROR XA102: XA_RBDEADLOCK: Transaction branch was rolled back: deadlock was detected
+# Connection default
+# Reaping: UPDATE t1 SET b=5 WHERE a=1
+XA END 'b';
+XA ROLLBACK 'b';
+DROP TABLE t1;
