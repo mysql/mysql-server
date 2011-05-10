@@ -1,4 +1,4 @@
-/* Copyright (C) 2000-2008 MySQL AB, 2008-2009 Sun Microsystems, Inc.
+/* Copyright (c) 2000, 2011, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -11,8 +11,7 @@
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
-   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
-
+   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307 USA */
 
 /*****************************************************************************
 **
@@ -522,7 +521,7 @@ THD::THD()
 #if defined(ENABLED_DEBUG_SYNC)
    debug_sync_control(0),
 #endif /* defined(ENABLED_DEBUG_SYNC) */
-   main_warning_info(0)
+   main_warning_info(0, false)
 {
   ulong tmp;
 
@@ -581,7 +580,7 @@ THD::THD()
   client_capabilities= 0;                       // minimalistic client
   ull=0;
   system_thread= NON_SYSTEM_THREAD;
-  cleanup_done= abort_on_warning= no_warnings_for_error= 0;
+  cleanup_done= abort_on_warning= 0;
   peer_port= 0;					// For SHOW PROCESSLIST
   transaction.m_pending_rows_event= 0;
   transaction.on= 1;
@@ -853,10 +852,6 @@ MYSQL_ERROR* THD::raise_condition(uint sql_errno,
   }
 
   query_cache_abort(&query_cache_tls);
-
-  /* FIXME: broken special case */
-  if (no_warnings_for_error && (level == MYSQL_ERROR::WARN_LEVEL_ERROR))
-    DBUG_RETURN(NULL);
 
   /* When simulating OOM, skip writing to error log to avoid mtr errors */
   DBUG_EXECUTE_IF("simulate_out_of_memory", DBUG_RETURN(NULL););
@@ -3675,6 +3670,7 @@ bool xid_cache_insert(XID *xid, enum xa_states xa_state)
     xs->xa_state=xa_state;
     xs->xid.set(xid);
     xs->in_thd=0;
+    xs->rm_error=0;
     res=my_hash_insert(&xid_cache, (uchar*)xs);
   }
   mysql_mutex_unlock(&LOCK_xid_cache);

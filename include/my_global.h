@@ -301,9 +301,6 @@ C_MODE_END
 #undef HAVE_PWRITE
 #endif
 
-#ifdef UNDEF_HAVE_GETHOSTBYNAME_R		/* For OSF4.x */
-#undef HAVE_GETHOSTBYNAME_R
-#endif
 #ifdef UNDEF_HAVE_INITGROUPS			/* For AIX 4.3 */
 #undef HAVE_INITGROUPS
 #endif

@@ -50,6 +50,9 @@ UNIV_INTERN sess_t*		trx_dummy_sess = NULL;
 /** Number of transactions currently allocated for MySQL: protected by
 the kernel mutex */
 UNIV_INTERN ulint	trx_n_mysql_transactions = 0;
+/** Number of transactions currently in the XA PREPARED state: protected by
+the kernel mutex */
+UNIV_INTERN ulint	trx_n_prepared = 0;
 
 #ifdef UNIV_PFS_MUTEX
 /* Key to register the mutex with performance schema */
@@ -214,10 +217,6 @@ trx_allocate_for_mysql(void)
 
 	mutex_exit(&kernel_mutex);
 
-	trx->mysql_thread_id = os_thread_get_curr_id();
-
-	trx->mysql_process_no = os_proc_get_number();
-
 	return(trx);
 }
 
@@ -337,6 +336,60 @@ trx_free(
 	ut_a(ib_vector_is_empty(trx->autoinc_locks));
 	/* We allocated a dedicated heap for the vector. */
 	ib_vector_free(trx->autoinc_locks);
+
+	mem_free(trx);
+}
+
+/********************************************************************//**
+At shutdown, frees a transaction object that is in the PREPARED state. */
+UNIV_INTERN
+void
+trx_free_prepared(
+/*==============*/
+	trx_t*	trx)	/*!< in, own: trx object */
+{
+	ut_ad(mutex_own(&kernel_mutex));
+	ut_a(trx->conc_state == TRX_PREPARED);
+	ut_a(trx->magic_n == TRX_MAGIC_N);
+
+	/* Prepared transactions are sort of active; they allow
+	ROLLBACK and COMMIT operations. Because the system does not
+	contain any other transactions than prepared transactions at
+	the shutdown stage and because a transaction cannot become
+	PREPARED while holding locks, it is safe to release the locks
+	held by PREPARED transactions here at shutdown.*/
+	lock_release_off_kernel(trx);
+
+	trx_undo_free_prepared(trx);
+
+	mutex_free(&trx->undo_mutex);
+
+	if (trx->undo_no_arr) {
+		trx_undo_arr_free(trx->undo_no_arr);
+	}
+
+	ut_a(UT_LIST_GET_LEN(trx->signals) == 0);
+	ut_a(UT_LIST_GET_LEN(trx->reply_signals) == 0);
+
+	ut_a(trx->wait_lock == NULL);
+	ut_a(UT_LIST_GET_LEN(trx->wait_thrs) == 0);
+
+	ut_a(!trx->has_search_latch);
+
+	ut_a(trx->dict_operation_lock_mode == 0);
+
+	if (trx->lock_heap) {
+		mem_heap_free(trx->lock_heap);
+	}
+
+	if (trx->global_read_view_heap) {
+		mem_heap_free(trx->global_read_view_heap);
+	}
+
+	ut_a(ib_vector_is_empty(trx->autoinc_locks));
+	ib_vector_free(trx->autoinc_locks);
+
+	UT_LIST_REMOVE(trx_list, trx_sys->trx_list, trx);
 
 	mem_free(trx);
 }
@@ -471,6 +524,7 @@ trx_lists_init_at_db_start(void)
 					if (srv_force_recovery == 0) {
 
 						trx->conc_state = TRX_PREPARED;
+						trx_n_prepared++;
 					} else {
 						fprintf(stderr,
 							"InnoDB: Since"
@@ -547,6 +601,7 @@ trx_lists_init_at_db_start(void)
 
 							trx->conc_state
 								= TRX_PREPARED;
+							trx_n_prepared++;
 						} else {
 							fprintf(stderr,
 								"InnoDB: Since"
@@ -880,6 +935,11 @@ trx_commit_off_kernel(
 
 	ut_ad(trx->conc_state == TRX_ACTIVE || trx->conc_state == TRX_PREPARED);
 	ut_ad(mutex_own(&kernel_mutex));
+
+	if (UNIV_UNLIKELY(trx->conc_state == TRX_PREPARED)) {
+		ut_a(trx_n_prepared > 0);
+		trx_n_prepared--;
+	}
 
 	/* The following assignment makes the transaction committed in memory
 	and makes its changes to data visible to other transactions.
@@ -1729,12 +1789,6 @@ trx_print(
 		fprintf(f, " state %lu", (ulong) trx->conc_state);
 	}
 
-#ifdef UNIV_LINUX
-	fprintf(f, ", process no %lu", trx->mysql_process_no);
-#endif
-	fprintf(f, ", OS thread id %lu",
-		(ulong) os_thread_pf(trx->mysql_thread_id));
-
 	if (*trx->op_info) {
 		putc(' ', f);
 		fputs(trx->op_info, f);
@@ -1911,6 +1965,7 @@ trx_prepare_off_kernel(
 
 	/*--------------------------------------*/
 	trx->conc_state = TRX_PREPARED;
+	trx_n_prepared++;
 	/*--------------------------------------*/
 
 	if (lsn) {
@@ -2087,7 +2142,8 @@ trx_get_trx_by_xid(
 		of gtrid_length+bqual_length bytes should be
 		the same */
 
-		if (trx->conc_state == TRX_PREPARED
+		if (trx->is_recovered
+		    && trx->conc_state == TRX_PREPARED
 		    && xid->gtrid_length == trx->xid.gtrid_length
 		    && xid->bqual_length == trx->xid.bqual_length
 		    && memcmp(xid->data, trx->xid.data,

@@ -1199,6 +1199,20 @@ innobase_get_stmt(
 	return(stmt->str);
 }
 
+/**********************************************************************//**
+Get the current setting of the lower_case_table_names global parameter from
+mysqld.cc. We do a dirty read because for one there is no synchronization
+object and secondly there is little harm in doing so even if we get a torn
+read.
+@return	value of lower_case_table_names */
+extern "C" UNIV_INTERN
+ulint
+innobase_get_lower_case_table_names(void)
+/*=====================================*/
+{
+	return(lower_case_table_names);
+}
+
 #if defined (__WIN__) && defined (MYSQL_DYNAMIC_PLUGIN)
 extern MYSQL_PLUGIN_IMPORT MY_TMPDIR mysql_tmpdir_list;
 /*******************************************************************//**
@@ -3671,7 +3685,6 @@ ha_innobase::open(
 	UT_NOT_USED(test_if_locked);
 
 	thd = ha_thd();
-	srv_lower_case_table_names = lower_case_table_names;
 
 	/* Under some cases MySQL seems to call this function while
 	holding btr_search_latch. This breaks the latching order as
@@ -6242,10 +6255,6 @@ create_table_def(
 	DBUG_PRINT("enter", ("table_name: %s", table_name));
 
 	ut_a(trx->mysql_thd != NULL);
-	if (IS_MAGIC_TABLE_AND_USER_DENIED_ACCESS(table_name,
-						  (THD*) trx->mysql_thd)) {
-		DBUG_RETURN(HA_ERR_GENERIC);
-	}
 
 	/* MySQL does the name length check. But we do additional check
 	on the name length here */
@@ -6782,29 +6791,9 @@ ha_innobase::create(
 		DBUG_RETURN(HA_ERR_TO_BIG_ROW);
 	}
 
-	/* Get the transaction associated with the current thd, or create one
-	if not yet created */
-
-	parent_trx = check_trx_exists(thd);
-
-	/* In case MySQL calls this in the middle of a SELECT query, release
-	possible adaptive hash latch to avoid deadlocks of threads */
-
-	trx_search_latch_release_if_reserved(parent_trx);
-
-	trx = innobase_trx_allocate(thd);
-
-	srv_lower_case_table_names = lower_case_table_names;
-
 	strcpy(name2, name);
 
 	normalize_table_name(norm_name, name2);
-
-	/* Latch the InnoDB data dictionary exclusively so that no deadlocks
-	or lock waits can happen in it during a table create operation.
-	Drop table etc. do this latching in row0mysql.c. */
-
-	row_mysql_lock_data_dictionary(trx);
 
 	/* Create the table definition in InnoDB */
 
@@ -6812,8 +6801,7 @@ ha_innobase::create(
 
 	/* Validate create options if innodb_strict_mode is set. */
 	if (!create_options_are_valid(thd, form, create_info)) {
-		error = ER_ILLEGAL_HA_CREATE_OPTION;
-		goto cleanup;
+		DBUG_RETURN(ER_ILLEGAL_HA_CREATE_OPTION);
 	}
 
 	if (create_info->key_block_size) {
@@ -6955,15 +6943,36 @@ ha_innobase::create(
 
 	/* Check for name conflicts (with reserved name) for
 	any user indices to be created. */
-	if (innobase_index_name_is_reserved(trx, form->key_info,
+	if (innobase_index_name_is_reserved(thd, form->key_info,
 					    form->s->keys)) {
-		error = -1;
-		goto cleanup;
+		DBUG_RETURN(-1);
+	}
+
+	if (IS_MAGIC_TABLE_AND_USER_DENIED_ACCESS(norm_name, thd)) {
+		DBUG_RETURN(HA_ERR_GENERIC);
 	}
 
 	if (create_info->options & HA_LEX_CREATE_TMP_TABLE) {
 		flags |= DICT_TF2_TEMPORARY << DICT_TF2_SHIFT;
 	}
+
+	/* Get the transaction associated with the current thd, or create one
+	if not yet created */
+
+	parent_trx = check_trx_exists(thd);
+
+	/* In case MySQL calls this in the middle of a SELECT query, release
+	possible adaptive hash latch to avoid deadlocks of threads */
+
+	trx_search_latch_release_if_reserved(parent_trx);
+
+	trx = innobase_trx_allocate(thd);
+
+	/* Latch the InnoDB data dictionary exclusively so that no deadlocks
+	or lock waits can happen in it during a table create operation.
+	Drop table etc. do this latching in row0mysql.c. */
+
+	row_mysql_lock_data_dictionary(trx);
 
 	error = create_table_def(trx, form, norm_name,
 		create_info->options & HA_LEX_CREATE_TMP_TABLE ? name2 : NULL,
@@ -7219,8 +7228,6 @@ ha_innobase::delete_table(
 
 	trx = innobase_trx_allocate(thd);
 
-	srv_lower_case_table_names = lower_case_table_names;
-
 	name_len = strlen(name);
 
 	ut_a(name_len < 1000);
@@ -7341,8 +7348,6 @@ innobase_rename_table(
 	int	error;
 	char*	norm_to;
 	char*	norm_from;
-
-	srv_lower_case_table_names = lower_case_table_names;
 
 	// Magic number 64 arbitrary
 	norm_to = (char*) my_malloc(strlen(to) + 64, MYF(0));
@@ -10263,7 +10268,7 @@ innobase_commit_by_xid(
 
 	if (trx) {
 		innobase_commit_low(trx);
-
+		trx_free_for_background(trx);
 		return(XA_OK);
 	} else {
 		return(XAER_NOTA);
@@ -10289,7 +10294,9 @@ innobase_rollback_by_xid(
 	trx = trx_get_trx_by_xid(xid);
 
 	if (trx) {
-		return(innobase_rollback_trx(trx));
+		int	ret = innobase_rollback_trx(trx);
+		trx_free_for_background(trx);
+		return(ret);
 	} else {
 		return(XAER_NOTA);
 	}
@@ -10922,19 +10929,19 @@ static int show_innodb_vars(THD *thd, SHOW_VAR *var, char *buff)
   return 0;
 }
 
-/***********************************************************************
+/*********************************************************************//**
 This function checks each index name for a table against reserved
-system default primary index name 'GEN_CLUST_INDEX'. If a name matches,
-this function pushes an warning message to the client, and returns true. */
+system default primary index name 'GEN_CLUST_INDEX'. If a name
+matches, this function pushes an warning message to the client,
+and returns true.
+@return true if the index name matches the reserved name */
 extern "C" UNIV_INTERN
 bool
 innobase_index_name_is_reserved(
 /*============================*/
-					/* out: true if an index name
-					matches the reserved name */
-	const trx_t*	trx,		/* in: InnoDB transaction handle */
-	const KEY*	key_info,	/* in: Indexes to be created */
-	ulint		num_of_keys)	/* in: Number of indexes to
+	THD*		thd,		/*!< in/out: MySQL connection */
+	const KEY*	key_info,	/*!< in: Indexes to be created */
+	ulint		num_of_keys)	/*!< in: Number of indexes to
 					be created. */
 {
 	const KEY*	key;
@@ -10946,7 +10953,7 @@ innobase_index_name_is_reserved(
 		if (innobase_strcasecmp(key->name,
 					innobase_index_reserve_name) == 0) {
 			/* Push warning to mysql */
-			push_warning_printf((THD*) trx->mysql_thd,
+			push_warning_printf(thd,
 					    MYSQL_ERROR::WARN_LEVEL_WARN,
 					    ER_WRONG_NAME_FOR_INDEX,
 					    "Cannot Create Index with name "
