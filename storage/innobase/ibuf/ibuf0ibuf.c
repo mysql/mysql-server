@@ -11,8 +11,8 @@ ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
 FOR A PARTICULAR PURPOSE. See the GNU General Public License for more details.
 
 You should have received a copy of the GNU General Public License along with
-this program; if not, write to the Free Software Foundation, Inc., 59 Temple
-Place, Suite 330, Boston, MA 02111-1307 USA
+this program; if not, write to the Free Software Foundation, Inc.,
+51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA
 
 *****************************************************************************/
 
@@ -1195,18 +1195,7 @@ ibuf_page_low(
 				ibuf_bitmap_page_no_calc(zip_size, page_no),
 				RW_NO_LATCH, NULL, BUF_GET_NO_LATCH,
 				file, line, &local_mtr));
-# ifdef UNIV_SYNC_DEBUG
-		/* This is for tracking Bug #58212. This check and message can
-		be removed once it has been established that our assumptions
-		about this condition are correct. The bug was only a one-time
-		occurrence, unable to repeat since then. */
-		void* latch = sync_thread_levels_contains(SYNC_IBUF_BITMAP);
-		if (latch) {
-			fprintf(stderr, "Bug#58212 UNIV_SYNC_DEBUG"
-				" levels %p (%u,%u)\n",
-				latch, (unsigned) space, (unsigned) page_no);
-		}
-# endif /* UNIV_SYNC_DEBUG */
+
 		ret = ibuf_bitmap_page_get_bits_low(
 			bitmap_page, page_no, zip_size,
 			MTR_MEMO_BUF_FIX, &local_mtr, IBUF_BITMAP_IBUF);

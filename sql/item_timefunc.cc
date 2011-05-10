@@ -665,7 +665,7 @@ bool make_date_time(DATE_TIME_FORMAT *format, MYSQL_TIME *l_time,
                     system_charset_info);
         break;
       case 'W':
-        if (type == MYSQL_TIMESTAMP_TIME)
+        if (type == MYSQL_TIMESTAMP_TIME || !(l_time->month || l_time->year))
           return 1;
         weekday= calc_weekday(calc_daynr(l_time->year,l_time->month,
                               l_time->day),0);
@@ -674,7 +674,7 @@ bool make_date_time(DATE_TIME_FORMAT *format, MYSQL_TIME *l_time,
                     system_charset_info);
         break;
       case 'a':
-        if (type == MYSQL_TIMESTAMP_TIME)
+        if (type == MYSQL_TIMESTAMP_TIME || !(l_time->month || l_time->year))
           return 1;
         weekday=calc_weekday(calc_daynr(l_time->year,l_time->month,
                              l_time->day),0);
@@ -833,7 +833,7 @@ bool make_date_time(DATE_TIME_FORMAT *format, MYSQL_TIME *l_time,
       }
       break;
       case 'w':
-	if (type == MYSQL_TIMESTAMP_TIME)
+	if (type == MYSQL_TIMESTAMP_TIME || !(l_time->month || l_time->year))
 	  return 1;
 	weekday=calc_weekday(calc_daynr(l_time->year,l_time->month,
 					l_time->day),1);

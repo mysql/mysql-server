@@ -75,11 +75,8 @@ static void init_sp_cache_psi_keys(void)
   const char* category= "sql";
   int count;
 
-  if (PSI_server == NULL)
-    return;
-
   count= array_elements(all_sp_cache_mutexes);
-  PSI_server->register_mutex(category, all_sp_cache_mutexes, count);
+  mysql_mutex_register(category, all_sp_cache_mutexes, count);
 }
 #endif
 

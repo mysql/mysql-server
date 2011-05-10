@@ -322,10 +322,13 @@ class Warning_info
 {
   /** A memory root to allocate warnings and errors */
   MEM_ROOT           m_warn_root;
+
   /** List of warnings of all severities (levels). */
   List <MYSQL_ERROR> m_warn_list;
+
   /** A break down of the number of warnings per severity (level). */
   uint	             m_warn_count[(uint) MYSQL_ERROR::WARN_LEVEL_END];
+
   /**
     The number of warnings of the current statement. Warning_info
     life cycle differs from statement life cycle -- it may span
@@ -333,20 +336,25 @@ class Warning_info
     m_statement_warn_count 0, whereas m_warn_list is not empty.
   */
   uint	             m_statement_warn_count;
+
   /*
     Row counter, to print in errors and warnings. Not increased in
     create_sort_index(); may differ from examined_row_count.
   */
   ulong              m_current_row_for_warning;
-  /** Used to optionally clear warnings only once per statement.  */
+
+  /** Used to optionally clear warnings only once per statement. */
   ulonglong          m_warn_id;
+
+  /** Indicates if push_warning() allows unlimited number of warnings. */
+  bool               m_allow_unlimited_warnings;
 
 private:
   Warning_info(const Warning_info &rhs); /* Not implemented */
   Warning_info& operator=(const Warning_info &rhs); /* Not implemented */
 public:
 
-  Warning_info(ulonglong warn_id_arg);
+  Warning_info(ulonglong warn_id_arg, bool allow_unlimited_warnings);
   ~Warning_info();
 
   /**
@@ -383,19 +391,13 @@ public:
   void append_warnings(THD *thd, List<MYSQL_ERROR> *src)
   {
     MYSQL_ERROR *err;
-    MYSQL_ERROR *copy;
     List_iterator_fast<MYSQL_ERROR> it(*src);
     /*
       Don't use ::push_warning() to avoid invocation of condition
       handlers or escalation of warnings to errors.
     */
     while ((err= it++))
-    {
-      copy= Warning_info::push_warning(thd, err->get_sql_errno(), err->get_sqlstate(),
-                                       err->get_level(), err->get_message_text());
-      if (copy)
-        copy->copy_opt_attributes(err);
-    }
+      Warning_info::push_warning(thd, err);
   }
 
   /**
@@ -460,6 +462,9 @@ public:
                             uint sql_errno, const char* sqlstate,
                             MYSQL_ERROR::enum_warning_level level,
                             const char* msg);
+
+  /** Add a new condition to the current list. */
+  MYSQL_ERROR *push_warning(THD *thd, const MYSQL_ERROR *sql_condition);
 
   /**
     Set the read only status for this statement area.

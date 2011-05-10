@@ -762,17 +762,14 @@ Reads the checkpoint info needed in hot backup.
 @return	TRUE if success */
 UNIV_INTERN
 ibool
-recv_read_cp_info_for_backup(
-/*=========================*/
+recv_read_checkpoint_info_for_backup(
+/*=================================*/
 	const byte*	hdr,	/*!< in: buffer containing the log group
 				header */
 	lsn_t*		lsn,	/*!< out: checkpoint lsn */
 	lsn_t*		offset,	/*!< out: checkpoint offset in the log group */
-	ulint*		fsp_limit,/*!< out: fsp limit of space 0,
-				1000000000 if the database is running
-				with < version 3.23.50 of InnoDB */
-	ib_uint64_t*	cp_no,	/*!< out: checkpoint number */
-	ib_uint64_t*	first_header_lsn)
+	lsn_t*		cp_no,	/*!< out: checkpoint number */
+	lsn_t*		first_header_lsn)
 				/*!< out: lsn of of the start of the
 				first log file */
 {
@@ -804,25 +801,8 @@ recv_read_cp_info_for_backup(
 	*lsn = mach_read_from_8(cp_buf + LOG_CHECKPOINT_LSN);
 	*offset = mach_read_from_4(
 		cp_buf + LOG_CHECKPOINT_OFFSET_LOW32);
-	*offset |= mach_read_from_4(
-		cp_buf + LOG_CHECKPOINT_OFFSET_HIGH32) << 32;
-
-	/* If the user is running a pre-3.23.50 version of InnoDB, its
-	checkpoint data does not contain the fsp limit info */
-	if (mach_read_from_4(cp_buf + LOG_CHECKPOINT_FSP_MAGIC_N)
-	    == LOG_CHECKPOINT_FSP_MAGIC_N_VAL) {
-
-		*fsp_limit = mach_read_from_4(
-			cp_buf + LOG_CHECKPOINT_FSP_FREE_LIMIT);
-
-		if (*fsp_limit == 0) {
-			*fsp_limit = 1000000000;
-		}
-	} else {
-		*fsp_limit = 1000000000;
-	}
-
-	/*	fprintf(stderr, "fsp limit %lu MB\n", *fsp_limit); */
+	*offset |= ((lsn_t) mach_read_from_4(
+			    cp_buf + LOG_CHECKPOINT_OFFSET_HIGH32)) << 32;
 
 	*cp_no = mach_read_from_8(cp_buf + LOG_CHECKPOINT_NO);
 
@@ -1954,7 +1934,7 @@ recv_apply_log_recs_for_backup(void)
 			if (!success) {
 				fprintf(stderr,
 					"InnoDB: Fatal error: cannot extend"
-					" tablespace %lu to hold %lu pages\n",
+					" tablespace %u to hold %u pages\n",
 					recv_addr->space, recv_addr->page_no);
 
 				exit(1);

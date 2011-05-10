@@ -23,6 +23,7 @@ Database monitor counter interfaces
 Created 12/9/2009 Jimmy Yang
 *******************************************************/
 
+#ifndef UNIV_HOTBACKUP
 #include "os0file.h"
 #include "mach0data.h"
 #include "srv0mon.h"
@@ -525,6 +526,10 @@ static monitor_info_t	innodb_counter_info[] =
 	 "Number of purges on updates of existing records and "
 	 " updates on delete marked record with externally stored field",
 	 0, 0, MONITOR_N_UPD_EXIST_EXTERN},
+
+	{"purge_invoked", "purge",
+	 "Number of purge was invoked",
+	 0, 0, MONITOR_PURGE_INVOKED},
 
 	{"purge_undo_log_pages", "purge",
 	 "Number of undo log pages handled by the purge",
@@ -1516,4 +1521,4 @@ srv_mon_default_on(void)
 		}
 	}
 }
-
+#endif /* !UNIV_HOTBACKUP */

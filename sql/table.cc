@@ -310,7 +310,7 @@ TABLE_CATEGORY get_table_category(const LEX_STRING *db, const LEX_STRING *name)
     #  Share
 */
 
-TABLE_SHARE *alloc_table_share(TABLE_LIST *table_list, char *key,
+TABLE_SHARE *alloc_table_share(TABLE_LIST *table_list, const char *key,
                                uint key_length)
 {
   MEM_ROOT mem_root;
@@ -470,7 +470,7 @@ void TABLE_SHARE::destroy()
   }
 #endif /* WITH_PARTITION_STORAGE_ENGINE */
 
-#ifdef HAVE_PSI_INTERFACE
+#ifdef HAVE_PSI_TABLE_INTERFACE
   if (likely(PSI_server && m_psi))
     PSI_server->release_table_share(m_psi);
 #endif
@@ -3376,7 +3376,7 @@ void TABLE::init(THD *thd, TABLE_LIST *tl)
   force_index= 0;
   force_index_order= 0;
   force_index_group= 0;
-  status= STATUS_NO_RECORD;
+  status= STATUS_GARBAGE | STATUS_NOT_FOUND;
   insert_values= 0;
   fulltext_searched= 0;
   file->ft_handler= 0;
