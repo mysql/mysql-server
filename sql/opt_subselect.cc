@@ -1671,6 +1671,8 @@ bool optimize_semijoin_nests(JOIN *join, table_map all_table_map)
                 "oe IN (SELECT t.key ...)" it is trivial. 
               - Functional dependencies between the tables in the semi-join
                 nest (the payoff is probably less here?)
+          
+          See also get_post_group_estimate().
         */
         {
           for (uint i=0 ; i < join->const_tables + sjm->tables ; i++)
@@ -3537,7 +3539,6 @@ int do_sj_dups_weedout(THD *thd, SJ_TMP_TABLE *sjtbl)
     FALSE  OK 
     TRUE   Out of memory error
 */
-JOIN_TAB *first_linear_tab(JOIN *join, enum enum_with_const_tables const_tbls);
 
 int setup_semijoin_dups_elimination(JOIN *join, ulonglong options, 
                                     uint no_jbuf_after)

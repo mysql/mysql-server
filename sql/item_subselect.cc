@@ -4085,8 +4085,6 @@ void subselect_hash_sj_engine::cleanup()
   result->cleanup(); /* Resets the temp table as well. */
 }
 
-JOIN_TAB *first_top_level_tab(JOIN *join, enum enum_with_const_tables with_const);
-JOIN_TAB *next_top_level_tab(JOIN *join, JOIN_TAB *tab);
 
 /*
   Get fanout produced by tables specified in the table_map
@@ -4215,6 +4213,24 @@ void check_out_index_stats(JOIN *join)
 #endif
 
 
+/*
+  Get an estimate of how many records will be produced after the GROUP BY
+  operation.
+
+  @param join           Join we're operating on 
+  @param join_op_rows   How many records will be produced by the join
+                        operations (this is what join optimizer produces)
+  
+  @seealso
+     See also optimize_semijoin_nests(), grep for "Adjust output cardinality 
+     estimates".  Very similar code there that is not joined with this one
+     because we operate on different data structs and too much effort is
+     needed to abstract them out.
+
+  @return
+     Number of records we expect to get after the GROUP BY operation
+*/
+
 double get_post_group_estimate(JOIN* join, double join_op_rows)
 {
   table_map tables_in_group_list= table_map(0);
@@ -4240,7 +4256,9 @@ double get_post_group_estimate(JOIN* join, double join_op_rows)
   double out_rows;
   
   out_rows= get_fanout_with_deps(join, tables_in_group_list);
-  
+
+#if 0
+  /* The following will be needed when making use of index stats: */
   /* 
     Also generate max. number of records for each of the tables mentioned 
     in the group-list. We'll use that a baseline number that we'll try to 
@@ -4259,9 +4277,23 @@ double get_post_group_estimate(JOIN* join, double join_op_rows)
     Try to bring down estimates using index statistics.
   */
   //check_out_index_stats(join);
+#endif
+
   return out_rows;
 }
 
+
+/*
+  Optimize the underlying subselect's join
+
+  @param out_rows   OUT   How many records we expect to get in the 
+                          materialized table
+  @param cost       OUT   Cost to materialize the subquery
+
+  @return 
+    0  OK
+    1  Fatal error
+*/
 
 int subselect_hash_sj_engine::optimize(double *out_rows, double *cost)
 {
@@ -4271,7 +4303,8 @@ int subselect_hash_sj_engine::optimize(double *out_rows, double *cost)
   JOIN *join= materialize_join;
 
   thd->lex->current_select= join->select_lex;
-  res= join->optimize();
+  if ((res= join->optimize()))
+    DBUG_RETURN(res);
 
   /* Calculate #rows and cost of join execution */
   get_partial_join_cost(join, join->table_count - join->const_tables, 
@@ -4291,15 +4324,15 @@ int subselect_hash_sj_engine::optimize(double *out_rows, double *cost)
   if (!join->group_list && !join->group_optimized_away &&
       join->tmp_table_param.sum_func_count)
   {
-    DBUG_PRINT("info",("Materialized join will have only 1 row (has "
-                       "aggregates but not GROUP BY"));
+    DBUG_PRINT("info",("Materialized join will have only 1 row (it has "
+                       "aggregates but no GROUP BY"));
     *out_rows= 1;
   }
   
   /* Now with grouping */
   if (join->group_list)
   {
-    DBUG_PRINT("info",("Materialized join has grouping, trying to estimate"));
+    DBUG_PRINT("info",("Materialized join has grouping, trying to estimate it"));
     double output_rows= get_post_group_estimate(materialize_join, *out_rows);
     DBUG_PRINT("info",("Got value of %g", output_rows));
     *out_rows= output_rows;
@@ -4307,6 +4340,7 @@ int subselect_hash_sj_engine::optimize(double *out_rows, double *cost)
 
   DBUG_RETURN(res);
 }
+
 
 /**
   Execute a subquery IN predicate via materialization.
