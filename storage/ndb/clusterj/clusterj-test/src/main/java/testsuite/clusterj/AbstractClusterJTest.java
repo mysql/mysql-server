@@ -40,6 +40,7 @@ import java.sql.SQLException;
 import java.sql.Statement;
 
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.Comparator;
@@ -182,6 +183,28 @@ public abstract class AbstractClusterJTest extends TestCase {
                     "Expected: " + ((expected==null)?"null":expected.toString())
                     + " actual: " + ((actual==null)?"null":actual.toString()) + NL);
         }
+    }
+
+    protected void errorIfNotEqual(String message, int[] expected, int[] actual) {
+        if (expected == null && actual == null) {
+            return;
+        }
+        int i;
+        if (expected.length == actual.length) {
+            for (i = 0; i < expected.length; ++i) {
+                if (expected[i] != actual[i]) {
+                    break;
+                }
+            }
+            if (i == expected.length) {
+                return;
+            }
+        }
+        initializeErrorMessages();
+        errorMessages.append(message + NL);
+        errorMessages.append(
+                "Expected: " + ((expected==null)?"null":Arrays.toString(expected))
+                + " actual: " + ((actual==null)?"null":Arrays.toString(actual)) + NL);
     }
 
     protected void errorIfEqual(String message, Object expected, Object actual) {

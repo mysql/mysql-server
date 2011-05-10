@@ -59,8 +59,11 @@ abstract public class AbstractQueryTest extends AbstractClusterJModelTest {
     /** The QueryHolder for this test */
     protected QueryHolder holder;
 
+    private boolean autotransaction;
+
     @Override
     public void localSetUp() {
+        setAutotransaction(false);
         createSessionFactory();
         session = sessionFactory.getSession();
         tx = session.currentTransaction();
@@ -78,6 +81,10 @@ abstract public class AbstractQueryTest extends AbstractClusterJModelTest {
         tx.commit();
         if (getCleanupAfterTest())
             addTearDownClasses(instanceType);
+    }
+
+    protected void setAutotransaction(boolean b) {
+        autotransaction = b;
     }
 
     protected boolean getCleanupAfterTest() {
@@ -334,7 +341,9 @@ abstract public class AbstractQueryTest extends AbstractClusterJModelTest {
 
     public void deleteEqualQuery(String propertyName, String expectedIndex,
             Object parameterValue, int expected) {
-        tx.begin();
+        if (!autotransaction) {
+            tx.begin();
+        }
         QueryHolder holder = new QueryHolder(instanceType, propertyName, expectedIndex);
         // specify the where clause
         holder.dobj.where(holder.equal);
@@ -344,7 +353,9 @@ abstract public class AbstractQueryTest extends AbstractClusterJModelTest {
         holder.setParameterEqual(parameterValue);
         // get the results
         holder.checkDeletePersistentAll(propertyName + " delete equal", expected);
-        tx.commit();
+        if (!autotransaction) {
+            tx.commit();
+        }
     }
 
     public void equalOrEqualQuery(String propertyName, Object parameterValue1,
@@ -564,8 +575,9 @@ abstract public class AbstractQueryTest extends AbstractClusterJModelTest {
     public void deleteGreaterThanAndLessThanQuery(String propertyName, String expectedIndex,
             Object parameterLowerValue, Object parameterUpperValue,
             int expected) {
-
-        tx.begin();
+        if (!autotransaction) {
+            tx.begin();
+        }
         QueryHolder holder = new QueryHolder(instanceType, propertyName, expectedIndex);
         // set the where clause into the query
         holder.dobj.where(holder.greaterThanAndLessThan);
@@ -576,7 +588,9 @@ abstract public class AbstractQueryTest extends AbstractClusterJModelTest {
         holder.setParameterLower(parameterLowerValue);
         // get the results
         holder.checkDeletePersistentAll(propertyName + " delete lessThanAndGreaterThan", expected);
-        tx.commit();
+        if (!autotransaction) {
+            tx.commit();
+        }
     }
 
     public void greaterEqualAndLessThanQuery(String propertyName, String expectedIndex,

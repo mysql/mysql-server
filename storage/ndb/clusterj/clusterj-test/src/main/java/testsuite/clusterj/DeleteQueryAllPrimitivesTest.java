@@ -116,4 +116,52 @@ create table allprimitives (
         failOnError();
     }
 
+    public void testDeleteEqualByPrimaryKeyAutotransaction() {
+        setAutotransaction(true);
+        deleteEqualQuery("id", "PRIMARY", 8, 1);
+        deleteEqualQuery("id", "PRIMARY", 8, 0);
+        equalQuery("id", "PRIMARY", 8);
+        failOnError();
+    }
+
+    public void testDeleteEqualByUniqueKeyAutotransaction() {
+        setAutotransaction(true);
+        deleteEqualQuery("int_not_null_hash", "idx_int_not_null_hash", 8, 1);
+        deleteEqualQuery("int_not_null_hash", "idx_int_not_null_hash", 8, 0);
+        equalQuery("int_not_null_hash", "idx_int_not_null_hash", 8);
+        failOnError();
+    }
+
+    public void testDeleteEqualByBtreeIndexAutotransaction() {
+        setAutotransaction(true);
+        deleteEqualQuery("int_not_null_btree", "idx_int_not_null_btree", 8, 1);
+        deleteEqualQuery("int_not_null_btree", "idx_int_not_null_btree", 8, 0);
+        equalQuery("int_not_null_btree", "idx_int_not_null_btree", 8);
+        failOnError();
+    }
+
+    public void testDeleteEqualByTableScanAutotransaction() {
+        setAutotransaction(true);
+        deleteEqualQuery("int_not_null_none", "none", 8, 1);
+        deleteEqualQuery("int_not_null_none", "none", 8, 0);
+        equalQuery("int_not_null_none", "none", 8);
+        failOnError();
+    }
+
+    public void testDeleteRangeByBtreeIndexAutotransaction() {
+        setAutotransaction(true);
+        deleteGreaterThanAndLessThanQuery("int_not_null_btree", "idx_int_not_null_btree", 4, 7, 2);
+        deleteGreaterThanAndLessThanQuery("int_not_null_btree", "idx_int_not_null_btree", 4, 7, 0);
+        betweenQuery("int_not_null_btree", "idx_int_not_null_btree", 3, 8, 3, 4, 7, 8);
+        failOnError();
+    }
+
+    public void testDeleteRangeByTableScanAutotransaction() {
+        setAutotransaction(true);
+        deleteGreaterThanAndLessThanQuery("int_not_null_none", "none", 4, 7, 2);
+        deleteGreaterThanAndLessThanQuery("int_not_null_none", "none", 4, 7, 0);
+        betweenQuery("int_not_null_btree", "idx_int_not_null_btree", 3, 8, 3, 4, 7, 8);
+        failOnError();
+    }
+
 }

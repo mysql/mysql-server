@@ -292,78 +292,93 @@ public class QueryDomainTypeImpl<T> implements QueryDomainType<T> {
         int result = 0;
         int errorCode = 0;
         Index storeIndex;
+        session.startAutoTransaction();
 
-        switch (scanType) {
+        try {
+            switch (scanType) {
 
-            case PRIMARY_KEY: {
-                // perform a delete by primary key operation
-                Operation op = session.getDeleteOperation(domainTypeHandler.getStoreTable());
-                // set key values into the operation
-                index.operationSetKeys(context, op);
-                // execute the delete operation
-                session.executeNoCommit(false, true);
-                errorCode = op.errorCode();
-                // a non-zero result means the row was not deleted
-                result = (errorCode == 0?1:0);
-                break;
-            }
-
-            case UNIQUE_KEY: {
-                storeIndex = index.getStoreIndex();
-                if (logger.isDetailEnabled()) logger.detail("Using delete by unique key  " + index.getIndexName());
-                // perform a delete by unique key operation
-                IndexOperation op = session.getUniqueIndexDeleteOperation(storeIndex, domainTypeHandler.getStoreTable());
-                // set the keys of the indexName into the operation
-                where.operationEqual(context, op);
-                // execute the delete operation
-                session.executeNoCommit(false, true);
-                errorCode = op.errorCode();
-                // a non-zero result means the row was not deleted
-                result = (errorCode == 0?1:0);
-                break;
-            }
-
-            case INDEX_SCAN: {
-                storeIndex = index.getStoreIndex();
-                if (logger.isDetailEnabled()) logger.detail("Using delete by index scan with index " + index.getIndexName());
-                // perform an index scan operation
-                IndexScanOperation op = session.getIndexScanDeleteOperation(storeIndex, domainTypeHandler.getStoreTable());
-                // set the expected columns into the operation
-                domainTypeHandler.operationGetValues(op);
-                // set the bounds into the operation
-                index.operationSetBounds(context, op);
-                // set additional filter conditions
-                where.filterCmpValue(context, op);
-                // execute the scan operation
-                session.executeNoCommit();
-                // delete results of the scan; don't abort if no row found
-                result = session.deletePersistentAll(op, false);
-                break;
-            }
-
-            case TABLE_SCAN: {
-                if (logger.isDetailEnabled()) logger.detail("Using delete by table scan");
-                // perform a table scan operation
-                ScanOperation op = session.getTableScanDeleteOperation(domainTypeHandler.getStoreTable());
-                // set the expected columns into the operation
-                domainTypeHandler.operationGetValues(op);
-                // set the bounds into the operation
-                if (where != null) {
-                    where.filterCmpValue(context, op);
+                case PRIMARY_KEY: {
+                    // perform a delete by primary key operation
+                    if (logger.isDetailEnabled()) logger.detail("Using delete by primary key.");
+                    Operation op = session.getDeleteOperation(domainTypeHandler.getStoreTable());
+                    // set key values into the operation
+                    index.operationSetKeys(context, op);
+                    // execute the delete operation
+                    session.executeNoCommit(false, true);
+                    errorCode = op.errorCode();
+                    // a non-zero result means the row was not deleted
+                    result = (errorCode == 0?1:0);
+                    break;
                 }
-                // execute the scan operation
-                session.executeNoCommit();
-                // delete results of the scan; don't abort if no row found
-                result = session.deletePersistentAll(op, false);
-                break;
-            }
 
-            default:
-                throw new ClusterJFatalInternalException(
-                        local.message("ERR_Illegal_Scan_Type", scanType));
-        }
-        context.deleteFilters();
-        return result;
+                case UNIQUE_KEY: {
+                    storeIndex = index.getStoreIndex();
+                    if (logger.isDetailEnabled()) logger.detail(
+                            "Using delete by unique key  " + index.getIndexName());
+                    // perform a delete by unique key operation
+                    IndexOperation op = session.getUniqueIndexDeleteOperation(storeIndex,
+                            domainTypeHandler.getStoreTable());
+                    // set the keys of the indexName into the operation
+                    where.operationEqual(context, op);
+                    // execute the delete operation
+                    session.executeNoCommit(false, true);
+                    errorCode = op.errorCode();
+                    // a non-zero result means the row was not deleted
+                    result = (errorCode == 0?1:0);
+                    break;
+                }
+
+                case INDEX_SCAN: {
+                    storeIndex = index.getStoreIndex();
+                    if (logger.isDetailEnabled()) logger.detail(
+                            "Using delete by index scan with index " + index.getIndexName());
+                    // perform an index scan operation
+                    IndexScanOperation op = session.getIndexScanDeleteOperation(storeIndex,
+                            domainTypeHandler.getStoreTable());
+                    // set the expected columns into the operation
+                    domainTypeHandler.operationGetValues(op);
+                    // set the bounds into the operation
+                    index.operationSetBounds(context, op);
+                    // set additional filter conditions
+                    where.filterCmpValue(context, op);
+                    // execute the scan operation
+                    session.executeNoCommit();
+                    // delete results of the scan; don't abort if no row found
+                    result = session.deletePersistentAll(op, false);
+                    break;
+                }
+
+                case TABLE_SCAN: {
+                    if (logger.isDetailEnabled()) logger.detail("Using delete by table scan");
+                    // perform a table scan operation
+                    ScanOperation op = session.getTableScanDeleteOperation(domainTypeHandler.getStoreTable());
+                    // set the expected columns into the operation
+                    domainTypeHandler.operationGetValues(op);
+                    // set the bounds into the operation
+                    if (where != null) {
+                        where.filterCmpValue(context, op);
+                    }
+                    // execute the scan operation
+                    session.executeNoCommit();
+                    // delete results of the scan; don't abort if no row found
+                    result = session.deletePersistentAll(op, false);
+                    break;
+                }
+
+                default:
+                    throw new ClusterJFatalInternalException(
+                            local.message("ERR_Illegal_Scan_Type", scanType));
+            }
+            context.deleteFilters();
+            session.endAutoTransaction();
+            return result;
+        } catch (ClusterJException e) {
+            session.failAutoTransaction();
+            throw e;
+        } catch (Exception e) {
+            session.failAutoTransaction();
+            throw new ClusterJException(local.message("ERR_Exception_On_Query"), e);
+        } 
     }
 
     protected CandidateIndexImpl[] createCandidateIndexes() {
