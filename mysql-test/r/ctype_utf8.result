@@ -4969,5 +4969,20 @@ GROUP BY INSERT('', t2.a, t1.a, (@@global.max_binlog_size));
 ERROR 23000: Duplicate entry '107374182410737418241' for key 'group_key'
 DROP TABLE t1;
 #
+# Bug#11764503 (Bug#57341) Query in EXPLAIN EXTENDED shows wrong characters
+#
+SET NAMES latin1;
+EXPLAIN EXTENDED SELECT 'abcdÁÂÃÄÅ', _latin1'abcdÁÂÃÄÅ', _utf8'abcdÁÂÃÄÅ' AS u;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	No tables used
+Warnings:
+Note	1003	select 'abcdÁÂÃÄÅ' AS `abcdÁÂÃÄÅ`,_latin1'abcd\xC3\x81\xC3\x82\xC3\x83\xC3\x84\xC3\x85' AS `abcdÁÂÃÄÅ`,_utf8'abcd\xC3\x81\xC3\x82\xC3\x83\xC3\x84\xC3\x85' AS `u`
+SET NAMES utf8;
+EXPLAIN EXTENDED SELECT 'abcdÁÂÃÄÅ', _latin1'abcdÁÂÃÄÅ', _utf8'abcdÁÂÃÄÅ';
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	No tables used
+Warnings:
+Note	1003	select 'abcdÁÂÃÄÅ' AS `abcdÁÂÃÄÅ`,_latin1'abcd\xC3\x81\xC3\x82\xC3\x83\xC3\x84\xC3\x85' AS `abcdÃÃ‚ÃƒÃ„Ã…`,_utf8'abcd\xC3\x81\xC3\x82\xC3\x83\xC3\x84\xC3\x85' AS `abcdÁÂÃÄÅ`
+#
 # End of 5.5 tests
 #

@@ -1152,5 +1152,20 @@ d
 f
 DROP TABLE t1;
 #
+# Bug#11753363 (Bug#44793) Character sets: case clause, ucs2 or utf32, failure
+#
+SELECT CASE _latin1'a' WHEN _utf32'a' THEN 'A' END;
+CASE _latin1'a' WHEN _utf32'a' THEN 'A' END
+A
+SELECT CASE _utf32'a' WHEN _latin1'a' THEN 'A' END;
+CASE _utf32'a' WHEN _latin1'a' THEN 'A' END
+A
+CREATE TABLE t1 (s1 CHAR(5) CHARACTER SET utf32);
+INSERT INTO t1 VALUES ('a');
+SELECT CASE s1 WHEN 'a' THEN 'b' ELSE 'c' END FROM t1;
+CASE s1 WHEN 'a' THEN 'b' ELSE 'c' END
+b
+DROP TABLE t1;
+#
 # End of 5.5 tests
 #

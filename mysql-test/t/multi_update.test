@@ -683,4 +683,24 @@ UPDATE (SELECT 1 FROM t1 WHERE f1 = (SELECT f1() FROM t1)) x, t1 SET f1 = 1;
 DROP FUNCTION f1;
 DROP TABLE t1;
 
+--echo #
+--echo # BUG#57373: Multi update+InnoDB reports ER_KEY_NOT_FOUND if a
+--echo #            table is updated twice
+--echo #
+
+# Results differ between storage engines.
+# See multi_update_innodb.test for the InnoDB variant of this test
+CREATE TABLE t1(
+  pk INT,
+  a INT,
+  PRIMARY KEY (pk)
+) ENGINE=MyISAM;
+
+INSERT INTO t1 VALUES (0,0);
+UPDATE t1 AS A, t1 AS B SET A.pk = 1, B.a = 2;
+--echo
+--echo # Should be (1,2)
+SELECT * FROM t1;
+DROP TABLE t1;
+
 --echo end of tests

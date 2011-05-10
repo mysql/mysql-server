@@ -128,7 +128,7 @@ max_updates	0
 max_connections	0
 max_user_connections	0
 plugin	
-authentication_string	
+authentication_string	NULL
 Host	localhost
 User	testuser2
 Password	
@@ -170,7 +170,7 @@ max_updates	0
 max_connections	0
 max_user_connections	0
 plugin	
-authentication_string	
+authentication_string	NULL
 Host	localhost
 User	testuser3
 Password	
@@ -212,7 +212,7 @@ max_updates	0
 max_connections	0
 max_user_connections	0
 plugin	
-authentication_string	
+authentication_string	NULL
 #
 # Add GRANT OPTION db_datadict.* to testuser1;
 GRANT UPDATE ON db_datadict.* TO 'testuser1'@'localhost' WITH GRANT OPTION;
@@ -278,7 +278,7 @@ max_updates	0
 max_connections	0
 max_user_connections	0
 plugin	
-authentication_string	
+authentication_string	NULL
 Host	localhost
 User	testuser2
 Password	
@@ -320,7 +320,7 @@ max_updates	0
 max_connections	0
 max_user_connections	0
 plugin	
-authentication_string	
+authentication_string	NULL
 Host	localhost
 User	testuser3
 Password	
@@ -362,7 +362,7 @@ max_updates	0
 max_connections	0
 max_user_connections	0
 plugin	
-authentication_string	
+authentication_string	NULL
 # Establish connection testuser1 (user=testuser1)
 SELECT * FROM information_schema.user_privileges
 WHERE grantee LIKE '''testuser%'''
@@ -414,7 +414,7 @@ max_updates	0
 max_connections	0
 max_user_connections	0
 plugin	
-authentication_string	
+authentication_string	NULL
 Host	localhost
 User	testuser2
 Password	
@@ -456,7 +456,7 @@ max_updates	0
 max_connections	0
 max_user_connections	0
 plugin	
-authentication_string	
+authentication_string	NULL
 Host	localhost
 User	testuser3
 Password	
@@ -498,7 +498,7 @@ max_updates	0
 max_connections	0
 max_user_connections	0
 plugin	
-authentication_string	
+authentication_string	NULL
 SHOW GRANTS;
 Grants for testuser1@localhost
 GRANT USAGE ON *.* TO 'testuser1'@'localhost'
@@ -572,7 +572,7 @@ max_updates	0
 max_connections	0
 max_user_connections	0
 plugin	
-authentication_string	
+authentication_string	NULL
 Host	localhost
 User	testuser2
 Password	
@@ -614,7 +614,7 @@ max_updates	0
 max_connections	0
 max_user_connections	0
 plugin	
-authentication_string	
+authentication_string	NULL
 Host	localhost
 User	testuser3
 Password	
@@ -656,7 +656,7 @@ max_updates	0
 max_connections	0
 max_user_connections	0
 plugin	
-authentication_string	
+authentication_string	NULL
 GRANT SELECT ON *.* TO 'testuser1'@'localhost' WITH GRANT OPTION;
 #
 # Here <SELECT YES> is shown correctly for testuser1;
@@ -722,7 +722,7 @@ max_updates	0
 max_connections	0
 max_user_connections	0
 plugin	
-authentication_string	
+authentication_string	NULL
 Host	localhost
 User	testuser2
 Password	
@@ -764,7 +764,7 @@ max_updates	0
 max_connections	0
 max_user_connections	0
 plugin	
-authentication_string	
+authentication_string	NULL
 Host	localhost
 User	testuser3
 Password	
@@ -806,7 +806,7 @@ max_updates	0
 max_connections	0
 max_user_connections	0
 plugin	
-authentication_string	
+authentication_string	NULL
 # Switch to connection testuser1
 SELECT * FROM information_schema.user_privileges
 WHERE grantee LIKE '''testuser%'''
@@ -858,7 +858,7 @@ max_updates	0
 max_connections	0
 max_user_connections	0
 plugin	
-authentication_string	
+authentication_string	NULL
 Host	localhost
 User	testuser2
 Password	
@@ -900,7 +900,7 @@ max_updates	0
 max_connections	0
 max_user_connections	0
 plugin	
-authentication_string	
+authentication_string	NULL
 Host	localhost
 User	testuser3
 Password	
@@ -942,7 +942,7 @@ max_updates	0
 max_connections	0
 max_user_connections	0
 plugin	
-authentication_string	
+authentication_string	NULL
 SHOW GRANTS;
 Grants for testuser1@localhost
 GRANT SELECT ON *.* TO 'testuser1'@'localhost' WITH GRANT OPTION
@@ -1046,7 +1046,7 @@ max_updates	0
 max_connections	0
 max_user_connections	0
 plugin	
-authentication_string	
+authentication_string	NULL
 Host	localhost
 User	testuser2
 Password	
@@ -1088,7 +1088,7 @@ max_updates	0
 max_connections	0
 max_user_connections	0
 plugin	
-authentication_string	
+authentication_string	NULL
 Host	localhost
 User	testuser3
 Password	
@@ -1130,7 +1130,7 @@ max_updates	0
 max_connections	0
 max_user_connections	0
 plugin	
-authentication_string	
+authentication_string	NULL
 # Switch to connection testuser1
 SELECT * FROM information_schema.user_privileges
 WHERE grantee LIKE '''testuser%'''
@@ -1229,7 +1229,7 @@ max_updates	0
 max_connections	0
 max_user_connections	0
 plugin	
-authentication_string	
+authentication_string	NULL
 Host	localhost
 User	testuser2
 Password	
@@ -1271,7 +1271,7 @@ max_updates	0
 max_connections	0
 max_user_connections	0
 plugin	
-authentication_string	
+authentication_string	NULL
 Host	localhost
 User	testuser3
 Password	
@@ -1313,7 +1313,7 @@ max_updates	0
 max_connections	0
 max_user_connections	0
 plugin	
-authentication_string	
+authentication_string	NULL
 # Switch to connection testuser1
 SELECT * FROM information_schema.user_privileges
 WHERE grantee LIKE '''testuser%'''
@@ -1365,7 +1365,7 @@ max_updates	0
 max_connections	0
 max_user_connections	0
 plugin	
-authentication_string	
+authentication_string	NULL
 Host	localhost
 User	testuser2
 Password	
@@ -1407,7 +1407,7 @@ max_updates	0
 max_connections	0
 max_user_connections	0
 plugin	
-authentication_string	
+authentication_string	NULL
 Host	localhost
 User	testuser3
 Password	
@@ -1449,7 +1449,7 @@ max_updates	0
 max_connections	0
 max_user_connections	0
 plugin	
-authentication_string	
+authentication_string	NULL
 SHOW GRANTS;
 Grants for testuser1@localhost
 GRANT USAGE ON *.* TO 'testuser1'@'localhost'
@@ -1508,7 +1508,7 @@ max_updates	0
 max_connections	0
 max_user_connections	0
 plugin	
-authentication_string	
+authentication_string	NULL
 Host	localhost
 User	testuser2
 Password	
@@ -1550,7 +1550,7 @@ max_updates	0
 max_connections	0
 max_user_connections	0
 plugin	
-authentication_string	
+authentication_string	NULL
 Host	localhost
 User	testuser3
 Password	
@@ -1592,7 +1592,7 @@ max_updates	0
 max_connections	0
 max_user_connections	0
 plugin	
-authentication_string	
+authentication_string	NULL
 SHOW GRANTS;
 Grants for testuser1@localhost
 GRANT USAGE ON *.* TO 'testuser1'@'localhost'
@@ -1666,7 +1666,7 @@ max_updates	0
 max_connections	0
 max_user_connections	0
 plugin	
-authentication_string	
+authentication_string	NULL
 Host	localhost
 User	testuser2
 Password	
@@ -1708,7 +1708,7 @@ max_updates	0
 max_connections	0
 max_user_connections	0
 plugin	
-authentication_string	
+authentication_string	NULL
 Host	localhost
 User	testuser3
 Password	
@@ -1750,7 +1750,7 @@ max_updates	0
 max_connections	0
 max_user_connections	0
 plugin	
-authentication_string	
+authentication_string	NULL
 # Switch to connection testuser1
 SELECT * FROM information_schema.user_privileges
 WHERE grantee LIKE '''testuser%'''

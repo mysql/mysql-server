@@ -847,12 +847,9 @@ bool mysql_rm_db(THD *thd,char *db,bool if_exists, bool silent)
   }
 
   thd->push_internal_handler(&err_handler);
-  if (thd->killed ||
-      (tables && mysql_rm_table_no_locks(thd, tables, true, false, true, true)))
-  {
-    tables= NULL;
-  }
-  else
+  if (!thd->killed &&
+      !(tables &&
+        mysql_rm_table_no_locks(thd, tables, true, false, true, true)))
   {
     /*
       We temporarily disable the binary log while dropping the objects
@@ -937,7 +934,7 @@ update_binlog:
     thd->server_status|= SERVER_STATUS_DB_DROPPED;
     my_ok(thd, deleted_tables);
   }
-  else if (mysql_bin_log.is_open())
+  else if (mysql_bin_log.is_open() && !silent)
   {
     char *query, *query_pos, *query_end, *query_data_start;
     TABLE_LIST *tbl;
@@ -952,6 +949,16 @@ update_binlog:
     for (tbl= tables; tbl; tbl= tbl->next_local)
     {
       uint tbl_name_len;
+      bool exists;
+
+      // Only write drop table to the binlog for tables that no longer exist.
+      if (check_if_table_exists(thd, tbl, &exists))
+      {
+        error= true;
+        goto exit;
+      }
+      if (exists)
+        continue;
 
       /* 3 for the quotes and the comma*/
       tbl_name_len= strlen(tbl->table_name) + 3;

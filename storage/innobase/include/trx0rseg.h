@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1996, 2010, Innobase Oy. All Rights Reserved.
+Copyright (c) 1996, 2011, Innobase Oy. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -113,7 +113,9 @@ void
 trx_rseg_list_and_array_init(
 /*=========================*/
 	trx_sysf_t*	sys_header,	/*!< in: trx system header */
+	ib_bh_t*	ib_bh,		/*!< in: rseg queue */
 	mtr_t*		mtr);		/*!< in: mtr */
+
 /***************************************************************************
 Free's an instance of the rollback segment in memory. */
 UNIV_INTERN
@@ -179,6 +181,14 @@ struct trx_rseg_struct{
 					/* the list of the rollback segment
 					memory objects */
 };
+
+/** For prioritising the rollback segments for purge. */
+struct rseg_queue_struct {
+	trx_id_t	trx_no;		/*!< trx_rseg_t::last_trx_no */
+	trx_rseg_t*	rseg;		/*!< Rollback segment */
+};
+
+typedef struct rseg_queue_struct rseg_queue_t;
 
 /* Undo log segment slot in a rollback segment header */
 /*-------------------------------------------------------------*/

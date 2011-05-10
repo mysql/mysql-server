@@ -369,16 +369,4 @@ trx_sys_get_new_trx_id(void)
 	return(id);
 }
 
-/*****************************************************************//**
-Allocates a new transaction number.
-@return	new, allocated trx number */
-UNIV_INLINE
-trx_id_t
-trx_sys_get_new_trx_no(void)
-/*========================*/
-{
-	ut_ad(mutex_own(&kernel_mutex));
-
-	return(trx_sys_get_new_trx_id());
-}
 #endif /* !UNIV_HOTBACKUP */

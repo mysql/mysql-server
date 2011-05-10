@@ -1,0 +1,9 @@
+#
+# BUG#11760210 - SSL_CIPHER_LIST NOT SET OR RETURNED FOR "SHOW STATUS LIKE 'SSL_CIPHER_LIST'"
+#
+SHOW STATUS LIKE 'Ssl_cipher';
+Variable_name	Value
+Ssl_cipher	AES128-SHA
+SHOW STATUS LIKE 'Ssl_cipher_list';
+Variable_name	Value
+Ssl_cipher_list	AES128-SHA

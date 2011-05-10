@@ -656,3 +656,11 @@ Warning	1366	Incorrect decimal value: '' for column '' at row -1
 SELECT 1 div null;
 1 div null
 NULL
+#
+# Bug #11792200 - DIVIDING LARGE NUMBERS CAUSES STACK CORRUPTIONS
+#
+select (1.175494351E-37 div 1.7976931348623157E+308);
+(1.175494351E-37 div 1.7976931348623157E+308)
+0
+Warnings:
+Warning	1292	Truncated incorrect DECIMAL value: ''

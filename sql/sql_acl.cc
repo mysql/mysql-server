@@ -2402,8 +2402,10 @@ static int replace_user_table(THD *thd, TABLE *table, const LEX_USER &combo,
       {
         table->field[next_field]->store(combo.plugin.str, combo.plugin.length,
                                         system_charset_info);
+        table->field[next_field]->set_notnull();
         table->field[next_field + 1]->store(combo.auth.str, combo.auth.length,
                                             system_charset_info);
+        table->field[next_field + 1]->set_notnull();
       }
       else
       {
@@ -7841,7 +7843,8 @@ public:
   Thd_charset_adapter(THD *thd_arg) : thd (thd_arg) {} 
   bool init_client_charset(uint cs_number)
   {
-    thd_init_client_charset(thd, cs_number);
+    if (thd_init_client_charset(thd, cs_number))
+      return true;
     thd->update_charset();
     return thd->is_error();
   }
@@ -8971,9 +8974,8 @@ server_mpvio_initialize(THD *thd, MPVIO_EXT *mpvio, uint connect_errors,
   mpvio->auth_info.host_or_ip= thd->security_ctx->host_or_ip;
   mpvio->auth_info.host_or_ip_length= 
     (unsigned int) strlen(thd->security_ctx->host_or_ip);
-  mpvio->auth_info.user_name= thd->security_ctx->user;
-  mpvio->auth_info.user_name_length= thd->security_ctx->user ? 
-    (unsigned int) strlen(thd->security_ctx->user) : 0;
+  mpvio->auth_info.user_name= NULL;
+  mpvio->auth_info.user_name_length= 0;
   mpvio->connect_errors= connect_errors;
   mpvio->status= MPVIO_EXT::FAILURE;
 

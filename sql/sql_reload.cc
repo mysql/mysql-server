@@ -1,4 +1,4 @@
-/* Copyright (c) 2010, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2010, 2011, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -220,12 +220,26 @@ bool reload_acl_and_cache(THD *thd, unsigned long options,
         if (tables)
         {
           for (TABLE_LIST *t= tables; t; t= t->next_local)
-            if (!find_table_for_mdl_upgrade(thd->open_tables, t->db,
-                                            t->table_name, FALSE))
+            if (!find_table_for_mdl_upgrade(thd, t->db, t->table_name, false))
               return 1;
         }
         else
         {
+          /*
+            It is not safe to upgrade the metadata lock without GLOBAL IX lock.
+            This can happen with FLUSH TABLES <list> WITH READ LOCK as we in these
+            cases don't take a GLOBAL IX lock in order to be compatible with
+            global read lock.
+          */
+          if (thd->open_tables &&
+              !thd->mdl_context.is_lock_owner(MDL_key::GLOBAL, "", "",
+                                              MDL_INTENTION_EXCLUSIVE))
+          {
+            my_error(ER_TABLE_NOT_LOCKED_FOR_WRITE, MYF(0),
+                     thd->open_tables->s->table_name.str);
+            return true;
+          }
+
           for (TABLE *tab= thd->open_tables; tab; tab= tab->next)
           {
             if (! tab->mdl_ticket->is_upgradable_or_exclusive())

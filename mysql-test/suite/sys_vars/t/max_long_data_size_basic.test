@@ -1,0 +1,17 @@
+select @@global.max_long_data_size=20;
+--error ER_INCORRECT_GLOBAL_LOCAL_VAR
+select @@session.max_long_data_size;
+
+# Show that value of the variable matches the value in the GLOBAL I_S table
+SELECT @@global.max_long_data_size = VARIABLE_VALUE
+FROM INFORMATION_SCHEMA.GLOBAL_VARIABLES
+WHERE VARIABLE_NAME='max_long_data_size';
+
+#
+# show that it's read-only
+#
+--error ER_INCORRECT_GLOBAL_LOCAL_VAR
+set global max_long_data_size=1;
+--error ER_INCORRECT_GLOBAL_LOCAL_VAR
+set session max_long_data_size=1;
+

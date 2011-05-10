@@ -1,0 +1,125 @@
+/***************************************************************************//**
+Copyright (c) 2011, Oracle Corpn. All Rights Reserved.
+
+This program is free software; you can redistribute it and/or modify it under
+the terms of the GNU General Public License as published by the Free Software
+Foundation; version 2 of the License.
+
+This program is distributed in the hope that it will be useful, but WITHOUT
+ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
+FOR A PARTICULAR PURPOSE. See the GNU General Public License for more details.
+
+You should have received a copy of the GNU General Public License along with
+this program; if not, write to the Free Software Foundation, Inc., 59 Temple
+Place, Suite 330, Boston, MA 02111-1307 USA
+
+*****************************************************************************/
+
+/******************************************************************//**
+@file include/ut0bh.ic
+Binary min-heap implementation.
+
+Created 2011-01-15 by Sunny Bains
+*******************************************************/
+
+#include "ut0bh.h"
+#include "ut0mem.h"	/* For ut_memcpy() */
+
+/**********************************************************************//**
+Get the number of elements in the binary heap.
+@return number of elements */
+UNIV_INLINE
+ulint
+ib_bh_size(
+/*=======*/
+	const ib_bh_t*	ib_bh)			/*!< in: instance */
+{
+	return(ib_bh->n_elems);
+}
+
+/**********************************************************************//**
+Test if binary heap is empty.
+@return TRUE if empty. */
+UNIV_INLINE
+ibool
+ib_bh_is_empty(
+/*===========*/
+	const ib_bh_t*	ib_bh)			/*!< in: instance */
+{
+	return(ib_bh_size(ib_bh) == 0);
+}
+
+/**********************************************************************//**
+Test if binary heap is full.
+@return TRUE if full. */
+UNIV_INLINE
+ibool
+ib_bh_is_full(
+/*===========*/
+	const ib_bh_t*	ib_bh)			/*!< in: instance */
+{
+	return(ib_bh_size(ib_bh) >= ib_bh->max_elems);
+}
+
+/**********************************************************************//**
+Get a pointer to the element.
+@return pointer to element */
+UNIV_INLINE
+void*
+ib_bh_get(
+/*=======*/
+	ib_bh_t*	ib_bh,			/*!< in: instance */
+	ulint		i)			/*!< in: index */
+{
+	byte*		ptr = (byte*) (ib_bh + 1);
+
+	ut_a(i < ib_bh_size(ib_bh));
+
+	return(ptr + (ib_bh->sizeof_elem * i));
+}
+
+/**********************************************************************//**
+Copy an element to the binary heap.
+@return pointer to copied element */
+UNIV_INLINE
+void*
+ib_bh_set(
+/*======*/
+	ib_bh_t*	ib_bh,			/*!< in/out: instance */
+	ulint		i,			/*!< in: index */
+	const void*	elem)			/*!< in: element to add */
+{
+	void*		ptr = ib_bh_get(ib_bh, i);
+
+	ut_memcpy(ptr, elem, ib_bh->sizeof_elem);
+
+	return(ptr);
+}
+
+/**********************************************************************//**
+Return the first element from the binary heap.
+@return pointer to first element or NULL if empty. */
+UNIV_INLINE
+void*
+ib_bh_first(
+/*========*/
+	ib_bh_t*	ib_bh)			/*!< in: instance */
+{
+	return(ib_bh_is_empty(ib_bh) ? NULL : ib_bh_get(ib_bh, 0));
+}
+
+/**********************************************************************//**
+Return the last element from the binary heap.
+@return pointer to last element or NULL if empty. */
+UNIV_INLINE
+void*
+ib_bh_last(
+/*========*/
+	ib_bh_t*	ib_bh)			/*!< in/out: instance */
+{
+	return(ib_bh_is_empty(ib_bh)
+		? NULL
+		: ib_bh_get(ib_bh, ib_bh_size(ib_bh) - 1));
+}
+
+

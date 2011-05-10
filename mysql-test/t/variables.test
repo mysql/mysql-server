@@ -1281,6 +1281,11 @@ SET @@global.max_join_size=0;
 SET @@global.key_buffer_size=0;
 SET @@global.key_cache_block_size=0;
 
+#
+# Bug#56976: added new start-up parameter
+#
+select @@max_long_data_size;
+
 # cleanup
 SET @@global.max_binlog_cache_size=DEFAULT;
 SET @@global.max_join_size=DEFAULT;

@@ -97,6 +97,7 @@ if (`SELECT @@global.binlog_format != 'ROW' OR @@global.slave_exec_mode = 'STRIC
   --disable_query_log
   --eval SELECT "$err" as 'Last_SQL_Error (expected "duplicate key" error)'
   --enable_query_log
+  call mtr.add_suppression("Slave SQL.*Duplicate entry .1. for key .PRIMARY.* Error_code: 1062");
 
   SELECT * FROM t1;
 
@@ -142,6 +143,7 @@ connection slave;
 # replication continues.
 if (`SELECT @@global.binlog_format = 'ROW' AND @@global.slave_exec_mode = 'STRICT'`) {
   --echo ---- Wait until slave stops with an error ----
+  call mtr.add_suppression("Slave SQL.*Can.t find record in .t1., Error_code: 1032");
   let $slave_sql_errno= 1032; # ER_KEY_NOT_FOUND
   source include/wait_for_slave_sql_error.inc;
 

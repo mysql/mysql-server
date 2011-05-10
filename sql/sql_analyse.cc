@@ -242,7 +242,7 @@ bool test_if_number(NUM_INFO *info, const char *str, uint str_len)
       if (str == end)
       {
 	info->is_float = 1;             // we can't use variable decimals here
-	return 1;
+	DBUG_RETURN(1);
       }
       DBUG_RETURN(0);
     }

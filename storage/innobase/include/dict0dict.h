@@ -441,6 +441,18 @@ function.
 @return	table, NULL if not found */
 UNIV_INLINE
 dict_table_t*
+dict_table_get_low_ignore_err(
+/*===========================*/
+	const char*	table_name,	/*!< in: table name */
+	dict_err_ignore_t
+			ignore_err);	/*!< in: error to be ignored when
+					loading a table definition */
+/**********************************************************************//**
+Gets a table; loads it to the dictionary cache if necessary. A low-level
+function.
+@return	table, NULL if not found */
+UNIV_INLINE
+dict_table_t*
 dict_table_get_low(
 /*===============*/
 	const char*	table_name);	/*!< in: table name */

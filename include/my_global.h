@@ -1476,7 +1476,6 @@ static inline double rint(double x)
 
 #undef HAVE_OPENSSL
 #undef HAVE_SMEM				/* No shared memory */
-#undef HAVE_NDBCLUSTER_DB /* No NDB cluster */
 
 #endif /* EMBEDDED_LIBRARY */
 
