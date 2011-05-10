@@ -5781,7 +5781,10 @@ bool Item::send(Protocol *protocol, String *buffer)
   {
     String *res;
     if ((res=val_str(buffer)))
+    {
+      DBUG_ASSERT(!null_value);
       result= protocol->store(res->ptr(),res->length(),res->charset());
+    }
     else
     {
       DBUG_ASSERT(null_value);

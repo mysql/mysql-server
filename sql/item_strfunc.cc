@@ -3511,7 +3511,7 @@ void Item_func_dyncol_create::prepare_arguments()
       case MYSQL_TYPE_INT24:
       case MYSQL_TYPE_YEAR:
       case MYSQL_TYPE_BIT:
-        type= DYN_COL_INT;
+        type= args[valpos]->unsigned_flag ? DYN_COL_UINT : DYN_COL_INT;
         break;
       case MYSQL_TYPE_FLOAT:
       case MYSQL_TYPE_DOUBLE:
@@ -3653,6 +3653,7 @@ String *Item_func_dyncol_create::val_str(String *str)
     str_value.reassociate(ptr, (uint32) length, (uint32) alloc_length,
                           &my_charset_bin);
     res= &str_value;
+    null_value= FALSE;
   }
 
   /* cleanup */
@@ -3756,6 +3757,7 @@ String *Item_func_dyncol_add::val_str(String *str)
     dynamic_column_reassociate(&col, &ptr, &length, &alloc_length);
     str->reassociate(ptr, (uint32) length, (uint32) alloc_length,
                      &my_charset_bin);
+    null_value= FALSE;
   }
 
   /* cleanup */
@@ -3780,6 +3782,14 @@ void Item_func_dyncol_add::print(String *str,
   print_arguments(str, query_type);
   str->append(')');
 }
+
+
+/**
+  Get value for a column stored in a dynamic column
+
+  @notes
+  This function ensures that null_value is set correctly
+*/
 
 bool Item_dyncol_get::get_dyn_value(DYNAMIC_COLUMN_VALUE *val, String *tmp)
 {
@@ -4104,7 +4114,7 @@ bool Item_dyncol_get::get_date(MYSQL_TIME *ltime, uint fuzzy_date)
   bool signed_value= 0;
 
   if (get_dyn_value(&val, &tmp))
-    return 0;
+    return 1;                                   // Error
 
   switch (val.type) {
   case DYN_COL_NULL:
@@ -4208,6 +4218,7 @@ String *Item_func_dyncol_list::val_str(String *str)
       str->qs_append(',');
   }
 
+  null_value= FALSE;
   delete_dynamic(&arr);
   return str;
 

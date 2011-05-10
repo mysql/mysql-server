@@ -37,6 +37,12 @@ hex(COLUMN_CREATE(1, 128 AS unsigned int))
 select hex(COLUMN_CREATE(1, 12.12 AS unsigned int));
 hex(COLUMN_CREATE(1, 12.12 AS unsigned int))
 0001000100010C
+select hex(COLUMN_CREATE(1, ~0));
+hex(COLUMN_CREATE(1, ~0))
+000100010001FFFFFFFFFFFFFFFF
+select hex(COLUMN_CREATE(1, -1));
+hex(COLUMN_CREATE(1, -1))
+00010001000001
 select hex(COLUMN_CREATE(1, 99999999999999999999999999999 AS unsigned int));
 hex(COLUMN_CREATE(1, 99999999999999999999999999999 AS unsigned int))
 000100010001FFFFFFFFFFFFFF7F
@@ -323,6 +329,22 @@ column_get(column_create(1, "1212III" AS char), 1 as int)
 1212
 Warnings:
 Warning	1659	Encountered illegal value '1212III' when converting to INT
+select column_get(COLUMN_CREATE(1, ~0), 1 as signed);
+column_get(COLUMN_CREATE(1, ~0), 1 as signed)
+-1
+Warnings:
+Warning	1105	Cast to signed converted positive out-of-range integer to it's negative complement
+select column_get(COLUMN_CREATE(1, ~0), 1 as unsigned);
+column_get(COLUMN_CREATE(1, ~0), 1 as unsigned)
+18446744073709551615
+select column_get(COLUMN_CREATE(1, -1), 1 as signed);
+column_get(COLUMN_CREATE(1, -1), 1 as signed)
+-1
+select column_get(COLUMN_CREATE(1, -1), 1 as unsigned);
+column_get(COLUMN_CREATE(1, -1), 1 as unsigned)
+18446744073709551615
+Warnings:
+Warning	1105	Cast to unsigned converted negative integer to it's positive complement
 #
 #column get char
 #
@@ -1185,3 +1207,24 @@ select id, column_list(str), length(str) from t1 where id=5;
 id	column_list(str)	length(str)
 5	1,2,4,10	34
 drop table t1;
+#
+# LP#778905: Assertion `value->year <= 9999' failed in
+# dynamic_column_date_store
+#
+SELECT COLUMN_GET( 'a' , 2 AS DATE );
+ERROR HY000: Encountered illegal format of dynamic column string
+SELECT COLUMN_CREATE( 1 , COLUMN_GET( 'a' , 2 AS DATE ) );
+ERROR HY000: Encountered illegal format of dynamic column string
+#
+# LP#778912: Assertion `field_pos < field_count' failed in
+# Protocol_text::store in maria-5.3-mwl34
+#
+CREATE TABLE t1 ( f1 blob );
+INSERT INTO t1 VALUES (NULL);
+INSERT INTO t1 SET f1 = COLUMN_CREATE( 2 , 'cde' );
+SELECT HEX(COLUMN_ADD(f1, 1, 'abc')), COLUMN_LIST(f1) FROM t1;
+HEX(COLUMN_ADD(f1, 1, 'abc'))	COLUMN_LIST(f1)
+NULL	NULL
+0002000100030200230861626308636465	2
+SELECT COLUMN_ADD(f1, 1, 'abc'), COLUMN_LIST(f1) FROM t1;
+DROP TABLE t1;

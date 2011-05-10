@@ -17,6 +17,8 @@ select hex(COLUMN_CREATE(1, 8 AS unsigned int));
 select hex(COLUMN_CREATE(1, 127 AS unsigned int));
 select hex(COLUMN_CREATE(1, 128 AS unsigned int));
 select hex(COLUMN_CREATE(1, 12.12 AS unsigned int));
+select hex(COLUMN_CREATE(1, ~0));
+select hex(COLUMN_CREATE(1, -1));
 select hex(COLUMN_CREATE(1, 99999999999999999999999999999 AS unsigned int));
 select hex(COLUMN_CREATE(1, NULL AS int));
 select hex(COLUMN_CREATE(1, 1212 AS int));
@@ -116,6 +118,10 @@ select column_get(column_create(1, 999.9 AS double), 1 as int);
 select column_get(column_create(1, -99999999999999999999999999999 AS double), 1 as int);
 select column_get(column_create(1, "-1212III" AS char), 1 as int);
 select column_get(column_create(1, "1212III" AS char), 1 as int);
+select column_get(COLUMN_CREATE(1, ~0), 1 as signed);
+select column_get(COLUMN_CREATE(1, ~0), 1 as unsigned);
+select column_get(COLUMN_CREATE(1, -1), 1 as signed);
+select column_get(COLUMN_CREATE(1, -1), 1 as unsigned);
 
 --echo #
 --echo #column get char
@@ -460,3 +466,29 @@ update t1 set str=column_delete(str, 5) where id=5;
 select id, column_list(str), length(str) from t1 where id=5;
 
 drop table t1;
+
+--echo #
+--echo # LP#778905: Assertion `value->year <= 9999' failed in
+--echo # dynamic_column_date_store
+--echo #
+
+--error ER_DYN_COL_WRONG_FORMAT
+SELECT COLUMN_GET( 'a' , 2 AS DATE );
+--error ER_DYN_COL_WRONG_FORMAT
+SELECT COLUMN_CREATE( 1 , COLUMN_GET( 'a' , 2 AS DATE ) );
+
+--echo #
+--echo # LP#778912: Assertion `field_pos < field_count' failed in
+--echo # Protocol_text::store in maria-5.3-mwl34
+--echo #
+
+CREATE TABLE t1 ( f1 blob );
+INSERT INTO t1 VALUES (NULL);
+INSERT INTO t1 SET f1 = COLUMN_CREATE( 2 , 'cde' );
+SELECT HEX(COLUMN_ADD(f1, 1, 'abc')), COLUMN_LIST(f1) FROM t1;
+
+# Don't print strange characters on screen
+--disable_result_log
+SELECT COLUMN_ADD(f1, 1, 'abc'), COLUMN_LIST(f1) FROM t1;
+--enable_result_log
+DROP TABLE t1;

@@ -913,7 +913,7 @@ public:
   Item_dyncol_get(Item *str, Item *num)
     :Item_str_func(str, num)
   {
-    max_length= MAX_FIELD_BLOBLENGTH;
+    max_length= MAX_DYNAMIC_COLUMN_LENGTH;
   }
   void fix_length_and_dec()
   { maybe_null= 1; }

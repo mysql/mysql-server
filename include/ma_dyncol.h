@@ -33,6 +33,12 @@
 #include <my_decimal_limits.h>
 #include <mysql_time.h>
 
+/*
+  Max length for data in a dynamic colums. This comes from how the
+  how the offset are stored.
+*/
+#define MAX_DYNAMIC_COLUMN_LENGTH 0X1FFFFFFFL
+
 /* NO and OK is the same used just to show semantics */
 #define ER_DYNCOL_NO ER_DYNCOL_OK
 
