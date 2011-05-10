@@ -7066,10 +7066,10 @@ best_access_path(JOIN      *join,
                  POSITION *pos,
                  POSITION *loose_scan_pos)
 {
-  THD *thd= join->thd;
+  THD *const thd= join->thd;
   Key_use *best_key=        NULL;
   uint best_max_key_part=   0;
-  my_bool found_constraint= 0;
+  bool found_constraint=    false;
   double best=              DBL_MAX;
   double best_time=         DBL_MAX;
   double records=           DBL_MAX;
@@ -7082,7 +7082,7 @@ best_access_path(JOIN      *join,
   double best_quick_records= DBL_MAX;
   table_map best_ref_depends_map= 0;
   double tmp;
-  bool best_uses_jbuf= FALSE;
+  bool best_uses_jbuf= false;
 
   Loose_scan_opt loose_scan_opt;
   DBUG_ENTER("best_access_path");
@@ -7095,28 +7095,27 @@ best_access_path(JOIN      *join,
   */
   if (unlikely(s->keyuse != NULL))
   {                                            /* Use key if possible */
-    TABLE *table= s->table;
-    Key_use *keyuse;
+    TABLE *const table= s->table;
     double best_records= DBL_MAX;
-    uint max_key_part=0;
 
     /* Test how we can use keys */
     ha_rows rec=
       s->records/MATCHING_ROWS_IN_OTHER_TABLE;  // Assumed records/key
-    for (keyuse=s->keyuse ; keyuse->table == table ;)
+    for (Key_use *keyuse=s->keyuse; keyuse->table == table; )
     {
       key_part_map found_part= 0;
       table_map found_ref= 0;
-      uint key= keyuse->key;
-      KEY *keyinfo= table->key_info+key;
-      bool ft_key=  (keyuse->keypart == FT_KEYPART);
+      const uint key= keyuse->key;
+      uint max_key_part= 0;
+      KEY *const keyinfo= table->key_info+key;
+      const bool ft_key= (keyuse->keypart == FT_KEYPART);
       /* Bitmap of keyparts where the ref access is over 'keypart=const': */
       key_part_map const_part= 0;
       /* The or-null keypart in ref-or-null access: */
       key_part_map ref_or_null_part= 0;
 
       /* Calculate how many key segments of the current key we can use */
-      Key_use *start_key= keyuse;
+      Key_use *const start_key= keyuse;
 
       loose_scan_opt.next_ref_key();
       DBUG_PRINT("info", ("Considering ref access on key %s",
@@ -7130,7 +7129,7 @@ best_access_path(JOIN      *join,
       
       do /* For each keypart */
       {
-        uint keypart= keyuse->keypart;
+        const uint keypart= keyuse->keypart;
         table_map best_part_found_ref= 0;
         double best_prev_record_reads= DBL_MAX;
         
@@ -10667,19 +10666,17 @@ void revise_cache_usage(JOIN_TAB *join_tab)
 }
 
 
-/* 
+/**
   Check whether a join buffer can be used to join the specified table   
 
-  SYNOPSIS
-    check_join_cache_usage()
-      tab                 joined table to check join buffer usage for
-      join                join for which the check is performed
-      options             options of the join
-      no_jbuf_after       don't use join buffering after table with this number
-      icp_other_tables_ok OUT TRUE if condition pushdown supports
-                          other tables presence
+  @param tab             joined table to check join buffer usage for
+  @param join            join for which the check is performed
+  @param options         options of the join
+  @param no_jbuf_after   don't use join buffering after table with this number
+  @param icp_other_tables_ok[out] TRUE if condition pushdown supports
+                                  other tables presence
 
-  DESCRIPTION
+  @details
     The function finds out whether the table 'tab' can be joined using a join
     buffer. This check is performed after the best execution plan for 'join'
     has been chosen. If the function decides that a join buffer can be employed
@@ -10715,7 +10712,7 @@ void revise_cache_usage(JOIN_TAB *join_tab)
     failure to do this results in an invocation of the function that destructs
     the created object.
  
-  NOTES
+  @note
     An inner table of a nested outer join or a nested semi-join can be currently
     joined only when a linked cache object is employed. In these cases setting
     join cache level to an odd number results in denial of usage of any join
@@ -10727,7 +10724,7 @@ void revise_cache_usage(JOIN_TAB *join_tab)
     an index. For these engines setting the value of join_cache_level to 5 or 6
     results in that no join buffer is used to join the table. 
    
-  TODO
+  @todo
     Support BKA inside SJ-Materialization nests. When doing this, we'll need
     to only store sj-inner tables in the join buffer.
 #if 0
@@ -10751,7 +10748,7 @@ void revise_cache_usage(JOIN_TAB *join_tab)
         }
 #endif
 
-  RETURN
+  @return
     Bitmap describing the chosen cache's properties:
     1) the algorithm (JOIN_CACHE::ALG_NONE, JOIN_CACHE::ALG_BNL,
     JOIN_CACHE::ALG_BKA, JOIN_CACHE::ALG_BKA_UNIQUE)
@@ -11247,33 +11244,28 @@ bool setup_sj_materialization(JOIN_TAB *tab)
 }
 
 
-/*
+/**
   Plan refinement stage: do various setup things for the executor
 
-  SYNOPSIS
-    make_join_readinfo()
-      join           Join being processed
-      options        Join's options (checking for SELECT_DESCRIBE, 
-                     SELECT_NO_JOIN_CACHE)
-      no_jbuf_after  Don't use join buffering after table with this number.
+  @param join          Join being processed
+  @param options       Join's options (checking for SELECT_DESCRIBE, 
+                       SELECT_NO_JOIN_CACHE)
+  @param no_jbuf_after Don't use join buffering after table with this number.
 
-  DESCRIPTION
+  @return false if successful, true if error (Out of memory)
+
+  @details
     Plan refinement stage: do various set ups for the executioner
       - setup join buffering use
       - push index conditions
       - increment relevant counters
       - etc
-
-  RETURN 
-    FALSE - OK
-    TRUE  - Out of memory
 */
 
 static bool
 make_join_readinfo(JOIN *join, ulonglong options, uint no_jbuf_after)
 {
-  uint i, jcl;
-  bool statistics= test(!(join->select_options & SELECT_DESCRIBE));
+  const bool statistics= test(!(join->select_options & SELECT_DESCRIBE));
   uint first_sjm_table= MAX_TABLES;
   uint last_sjm_table= MAX_TABLES;
 
@@ -11285,11 +11277,12 @@ make_join_readinfo(JOIN *join, ulonglong options, uint no_jbuf_after)
   if (setup_semijoin_dups_elimination(join, options, no_jbuf_after))
     DBUG_RETURN(TRUE); /* purecov: inspected */
 
-  for (i=join->const_tables ; i < join->tables ; i++)
+  for (uint i= join->const_tables; i < join->tables; i++)
   {
-    JOIN_TAB *tab=join->join_tab+i;
-    TABLE *table=tab->table;
+    JOIN_TAB *const tab= join->join_tab+i;
+    TABLE    *const table= tab->table;
     bool icp_other_tables_ok;
+    uint jcl;
     tab->read_record.table= table;
     tab->read_record.file=table->file;
     tab->read_record.unlock_row= rr_unlock_row;
@@ -11440,12 +11433,12 @@ make_join_readinfo(JOIN *join, ulonglong options, uint no_jbuf_after)
     If a join buffer is used to join a table the ordering by an index
     for the first non-constant table cannot be employed anymore.
   */
-  for (i=join->const_tables ; i < join->tables ; i++)
+  for (uint i= join->const_tables; i < join->tables; i++)
   {
-    JOIN_TAB *tab=join->join_tab+i;
+    JOIN_TAB *const tab=join->join_tab + i;
     if (tab->use_join_cache)
     {
-      JOIN_TAB *sort_by_tab= join->get_sort_by_join_tab();
+      JOIN_TAB *const sort_by_tab= join->get_sort_by_join_tab();
       if (sort_by_tab)
       {
         join->need_tmp= 1;
