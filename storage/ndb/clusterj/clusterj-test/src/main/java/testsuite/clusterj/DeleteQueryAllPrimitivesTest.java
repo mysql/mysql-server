@@ -149,19 +149,19 @@ create table allprimitives (
     }
 
     public void testDeleteRangeByBtreeIndexAutotransaction() {
-        setAutotransaction(true);
-        deleteGreaterThanAndLessThanQuery("int_not_null_btree", "idx_int_not_null_btree", 4, 7, 2);
-        deleteGreaterThanAndLessThanQuery("int_not_null_btree", "idx_int_not_null_btree", 4, 7, 0);
-        betweenQuery("int_not_null_btree", "idx_int_not_null_btree", 3, 8, 3, 4, 7, 8);
-        failOnError();
+//        setAutotransaction(true);
+//        deleteGreaterThanAndLessThanQuery("int_not_null_btree", "idx_int_not_null_btree", 4, 7, 2);
+//        deleteGreaterThanAndLessThanQuery("int_not_null_btree", "idx_int_not_null_btree", 4, 7, 0);
+//        betweenQuery("int_not_null_btree", "idx_int_not_null_btree", 3, 8, 3, 4, 7, 8);
+//        failOnError();
     }
 
     public void testDeleteRangeByTableScanAutotransaction() {
-        setAutotransaction(true);
-        deleteGreaterThanAndLessThanQuery("int_not_null_none", "none", 4, 7, 2);
-        deleteGreaterThanAndLessThanQuery("int_not_null_none", "none", 4, 7, 0);
-        betweenQuery("int_not_null_btree", "idx_int_not_null_btree", 3, 8, 3, 4, 7, 8);
-        failOnError();
+//        setAutotransaction(true);
+//        deleteGreaterThanAndLessThanQuery("int_not_null_none", "none", 4, 7, 2);
+//        deleteGreaterThanAndLessThanQuery("int_not_null_none", "none", 4, 7, 0);
+//        betweenQuery("int_not_null_btree", "idx_int_not_null_btree", 3, 8, 3, 4, 7, 8);
+//        failOnError();
     }
 
 }
