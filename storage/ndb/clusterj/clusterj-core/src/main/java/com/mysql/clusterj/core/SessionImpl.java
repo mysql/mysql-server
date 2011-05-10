@@ -511,16 +511,11 @@ public class SessionImpl implements SessionSPI, CacheManager, StoreManager {
      */
     public int deletePersistentAll(DomainTypeHandler<?> domainTypeHandler) {
         startAutoTransaction();
-        // cannot use early autocommit optimization here
-        clusterTransaction.setAutocommit(false);
         Table storeTable = domainTypeHandler.getStoreTable();
         ScanOperation op = null;
         int count = 0;
         try {
             op = clusterTransaction.getTableScanOperationLockModeExclusiveScanFlagKeyInfo(storeTable);
-//                    Operation.LockMode.LM_Exclusive,
-//                    ScanOperation.ScanFlag.KEY_INFO, 0,0);
-            clusterTransaction.executeNoCommit(true, true);
             count = deletePersistentAll(op, true);
         } catch (ClusterJException ex) {
             failAutoTransaction();
@@ -542,6 +537,10 @@ public class SessionImpl implements SessionSPI, CacheManager, StoreManager {
         int count = 0;
         boolean done = false;
         boolean fetch = true;
+        // cannot use early autocommit optimization here
+        clusterTransaction.setAutocommit(false);
+        // execute the operation
+        clusterTransaction.executeNoCommit(true, true);
         while (!done ) {
             int result = op.nextResult(fetch);
             switch (result) {

@@ -408,6 +408,9 @@ class ClusterTransactionImpl implements ClusterTransaction {
             return;
         } else {
             NdbErrorConst ndbError = ndbTransaction.getNdbError();
+            if (ndbError.code() == 0) {
+                return;
+            }
             String detail = db.getNdbErrorDetail(ndbError);
             Utility.throwError(returnCode, ndbError, detail);
         }
