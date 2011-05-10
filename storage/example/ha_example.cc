@@ -115,13 +115,14 @@ pthread_mutex_t example_mutex;
 
 
 /**
-  structure for CREATE TABLE options (table options)
+  Structure for CREATE TABLE options (table options).
+  It needs to be called ha_table_option_struct.
 
-  These can be specified in the CREATE TABLE:
-  CREATE TABLE ( ... ) {...here...}
+  The option values can be specified in the CREATE TABLE at the end:
+  CREATE TABLE ( ... ) *here*
 */
 
-struct example_table_options_struct
+struct ha_table_option_struct
 {
   const char *strparam;
   ulonglong ullparam;
@@ -131,19 +132,26 @@ struct example_table_options_struct
 
 
 /**
-  structure for CREATE TABLE options (field options)
+  Structure for CREATE TABLE options (field options).
+  It needs to be called ha_field_option_struct.
 
-  These can be specified in the CREATE TABLE per field:
-  CREATE TABLE ( field ... {...here...}, ... )
+  The option values can be specified in the CREATE TABLE per field:
+  CREATE TABLE ( field ... *here*, ... )
 */
 
-struct example_field_options_struct
+struct ha_field_option_struct
 {
-  const char *compex_param_to_parse_it_in_engine;
+  const char *complex_param_to_parse_it_in_engine;
 };
 
-/* HA_TOPTION_* macros expect the structure called ha_table_option_struct */
-#define ha_table_option_struct example_table_options_struct
+/*
+  no example here, but index options can be declared similarly
+  using the ha_index_option_struct structure.
+
+  Their values can be specified in the CREATE TABLE per index:
+  CREATE TABLE ( field ..., .., INDEX .... *here*, ... )
+*/
+
 ha_create_table_option example_table_option_list[]=
 {
   /*
@@ -169,8 +177,6 @@ ha_create_table_option example_table_option_list[]=
   HA_TOPTION_END
 };
 
-/* HA_FOPTION_* macros expect the structure called ha_field_option_struct */
-#define ha_field_option_struct example_field_options_struct
 ha_create_table_option example_field_option_list[]=
 {
   /*
@@ -178,7 +184,7 @@ ha_create_table_option example_field_option_list[]=
     or boolean - for example a list - it needs to specify the option
     as a string and parse it internally.
   */
-  HA_FOPTION_STRING("COMPLEX", compex_param_to_parse_it_in_engine),
+  HA_FOPTION_STRING("COMPLEX", complex_param_to_parse_it_in_engine),
   HA_FOPTION_END
 };
 
@@ -368,8 +374,7 @@ int ha_example::open(const char *name, int mode, uint test_if_locked)
   thr_lock_data_init(&share->lock,&lock,NULL);
 
 #ifndef DBUG_OFF
-  example_table_options_struct *options=
-    (example_table_options_struct *)table->s->option_struct;
+  ha_table_option_struct *options= table->s->option_struct;
 
   DBUG_ASSERT(options);
   DBUG_PRINT("info", ("strparam: '%-.64s'  ullparam: %llu  enumparam: %u  "\
@@ -899,8 +904,7 @@ int ha_example::create(const char *name, TABLE *table_arg,
                        HA_CREATE_INFO *create_info)
 {
 #ifndef DBUG_OFF
-  example_table_options_struct *options=
-    (example_table_options_struct *)table_arg->s->option_struct;
+  ha_table_option_struct *options= table_arg->s->option_struct;
   DBUG_ENTER("ha_example::create");
   /*
     This example shows how to support custom engine specific table and field
@@ -913,13 +917,12 @@ int ha_example::create(const char *name, TABLE *table_arg,
                       options->ullparam, options->enumparam, options->boolparam));
   for (Field **field= table_arg->s->field; *field; field++)
   {
-    example_field_options_struct *field_options=
-      (example_field_options_struct *)(*field)->option_struct;
+    ha_field_option_struct *field_options= (*field)->option_struct;
     DBUG_ASSERT(field_options);
     DBUG_PRINT("info", ("field: %s  complex: '%-.64s'",
                          (*field)->field_name,
-                         (field_options->compex_param_to_parse_it_in_engine ?
-                          field_options->compex_param_to_parse_it_in_engine :
+                         (field_options->complex_param_to_parse_it_in_engine ?
+                          field_options->complex_param_to_parse_it_in_engine :
                           "<NULL>")));
   }
 #endif
@@ -941,21 +944,21 @@ int ha_example::create(const char *name, TABLE *table_arg,
 bool ha_example::check_if_incompatible_data(HA_CREATE_INFO *info,
                                             uint table_changes)
 {
-  example_table_options_struct *param_old, *param_new;
+  ha_table_option_struct *param_old, *param_new;
   uint i;
   DBUG_ENTER("ha_example::check_if_incompatible_data");
   /*
     This example shows how custom engine specific table and field
     options can be accessed from this function to be compared.
   */
-  param_new= (example_table_options_struct *)info->option_struct;
+  param_new= info->option_struct;
   DBUG_PRINT("info", ("new strparam: '%-.64s'  ullparam: %llu  enumparam: %u  "
                       "boolparam: %u",
                       (param_new->strparam ? param_new->strparam : "<NULL>"),
                       param_new->ullparam, param_new->enumparam,
                       param_new->boolparam));
 
-  param_old= (example_table_options_struct *)table->s->option_struct;
+  param_old= table->s->option_struct;
   DBUG_PRINT("info", ("old strparam: '%-.64s'  ullparam: %llu  enumparam: %u  "
                       "boolparam: %u",
                       (param_old->strparam ? param_old->strparam : "<NULL>"),
@@ -974,19 +977,19 @@ bool ha_example::check_if_incompatible_data(HA_CREATE_INFO *info,
 
   for (i= 0; i < table->s->fields; i++)
   {
-    example_field_options_struct *f_old, *f_new;
-    f_old= (example_field_options_struct *)table->s->field[i]->option_struct;
+    ha_field_option_struct *f_old, *f_new;
+    f_old= table->s->field[i]->option_struct;
     DBUG_ASSERT(f_old);
     DBUG_PRINT("info", ("old field: %u old complex: '%-.64s'", i,
-                         (f_old->compex_param_to_parse_it_in_engine ?
-                          f_old->compex_param_to_parse_it_in_engine :
+                         (f_old->complex_param_to_parse_it_in_engine ?
+                          f_old->complex_param_to_parse_it_in_engine :
                           "<NULL>")));
-    if (info->fileds_option_struct[i])
+    if (info->fields_option_struct[i])
     {
-      f_new= (example_field_options_struct *)info->fileds_option_struct[i];
+      f_new= info->fields_option_struct[i];
       DBUG_PRINT("info", ("old field: %u  new complex: '%-.64s'", i,
-                          (f_new->compex_param_to_parse_it_in_engine ?
-                           f_new->compex_param_to_parse_it_in_engine :
+                          (f_new->complex_param_to_parse_it_in_engine ?
+                           f_new->complex_param_to_parse_it_in_engine :
                            "<NULL>")));
     }
     else

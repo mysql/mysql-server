@@ -5855,10 +5855,10 @@ compare_tables(TABLE *table,
     DBUG_RETURN(0);
   }
 
-  if ((create_info->fileds_option_struct=
-       (void**)thd->calloc(sizeof(void*) * table->s->fields)) == NULL ||
-      (create_info->indexes_option_struct=
-       (void**)thd->calloc(sizeof(void*) * table->s->keys)) == NULL)
+  if ((create_info->fields_option_struct= (ha_field_option_struct**)
+         thd->calloc(sizeof(void*) * table->s->fields)) == NULL ||
+      (create_info->indexes_option_struct= (ha_index_option_struct**)
+         thd->calloc(sizeof(void*) * table->s->keys)) == NULL)
     DBUG_RETURN(1);
 
   /*
@@ -5879,7 +5879,7 @@ compare_tables(TABLE *table,
        tmp_new_field= tmp_new_field_it++)
   {
     DBUG_ASSERT(i < table->s->fields);
-    create_info->fileds_option_struct[i]= tmp_new_field->option_struct;
+    create_info->fields_option_struct[i]= tmp_new_field->option_struct;
 
     /* Make sure we have at least the default charset in use. */
     if (!new_field->charset)

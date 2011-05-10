@@ -69,6 +69,7 @@ typedef struct st_key_part_info {	/* Info about a key part */
 } KEY_PART_INFO ;
 
 class engine_option_value;
+struct ha_index_option_struct;
 
 typedef struct st_key {
   uint	key_length;			/* Tot length of key */
@@ -104,7 +105,7 @@ typedef struct st_key {
   struct st_table *table;
   /** reference to the list of options or NULL */
   engine_option_value *option_list;
-  void *option_struct;                  /* structure with parsed options */
+  ha_index_option_struct *option_struct;                  /* structure with parsed options */
 } KEY;
 
 
