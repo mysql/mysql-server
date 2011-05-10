@@ -74,3 +74,24 @@ drop table t1,t2,t3,t4;
 
 drop table t0;
 
+--echo #
+--echo # BUG#780359: Crash with get_fanout_with_deps in maria-5.3-mwl90
+--echo #
+CREATE TABLE t1 (f1 int);
+INSERT INTO t1 VALUES (2),(2);
+
+CREATE TABLE t2 (f3 int);
+INSERT INTO t2 VALUES (2),(2);
+
+SELECT *
+FROM t1
+WHERE ( f1 ) IN (
+        SELECT t2.f3
+        FROM t2
+        WHERE t2.f3 = 97
+        AND t2.f3 = 50
+        GROUP BY 1
+);
+
+DROP TABLE t1, t2;
+

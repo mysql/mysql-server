@@ -4094,6 +4094,10 @@ JOIN_TAB *next_top_level_tab(JOIN *join, JOIN_TAB *tab);
 
 double get_fanout_with_deps(JOIN *join, table_map tset)
 {
+  /* Handle the case of "Impossible WHERE" */
+  if (join->table_count == 0)
+    return 0.0;
+
   /* First, recursively get all tables we depend on */
   table_map deps_to_check= tset;
   table_map checked_deps= 0;
