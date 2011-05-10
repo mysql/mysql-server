@@ -1,5 +1,5 @@
 #
-# Test of different EXPLAIN's
+# Test of different EXPLAINs
 
 --disable_warnings
 drop table if exists t1;
@@ -157,11 +157,12 @@ CREATE TABLE t1 (f1 INT);
 SELECT @@session.sql_mode INTO @old_sql_mode;
 SET SESSION sql_mode='ONLY_FULL_GROUP_BY';
 
-# EXPLAIN EXTENDED (with subselect). used to crash. should give NOTICE.
---error ER_MIX_OF_GROUP_FUNC_AND_FIELDS
+# EXPLAIN EXTENDED (with subselect). used to crash.
+# This is actually a valid query for this sql_mode,
+# but it was transformed in such a way that it failed, see
+# Bug#12329653 - EXPLAIN, UNION, PREPARED STATEMENT, CRASH, SQL_FULL_GROUP_BY
 EXPLAIN EXTENDED SELECT 1 FROM t1
                           WHERE f1 > ALL( SELECT t.f1 FROM t1,t1 AS t );
-SHOW WARNINGS;
 
 SET SESSION sql_mode=@old_sql_mode;
 
