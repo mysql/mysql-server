@@ -272,6 +272,14 @@ static Sys_var_ulong Sys_pfs_events_statements_history_size(
        DEFAULT(PFS_STATEMENTS_HISTORY_SIZE),
        BLOCK_SIZE(1), PFS_TRAILING_PROPERTIES);
 
+static Sys_var_ulong Sys_pfs_digest_size(
+       "performance_schema_digests_size",
+       "TBD.",
+       READ_ONLY GLOBAL_VAR(pfs_param.m_digest_sizing),
+       CMD_LINE(REQUIRED_ARG), VALID_RANGE(0, 200),
+       DEFAULT(PFS_DIGEST_SIZE),
+       BLOCK_SIZE(1), PFS_TRAILING_PROPERTIES);
+
 #endif /* WITH_PERFSCHEMA_STORAGE_ENGINE */
 
 static Sys_var_ulong Sys_auto_increment_increment(

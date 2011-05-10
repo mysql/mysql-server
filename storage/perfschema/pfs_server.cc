@@ -33,6 +33,7 @@
 #include "pfs_setup_actor.h"
 #include "pfs_setup_object.h"
 #include "pfs_defaults.h"
+#include "pfs_digest.h"
 
 PFS_global_param pfs_param;
 
@@ -85,7 +86,8 @@ initialize_performance_schema(const PFS_global_param *param)
       init_setup_actor(param) ||
       init_setup_actor_hash() ||
       init_setup_object(param) ||
-      init_setup_object_hash())
+      init_setup_object_hash() ||
+      init_digest(param->m_digest_sizing))
   {
     /*
       The performance schema initialization failed.
@@ -137,6 +139,7 @@ static void cleanup_performance_schema(void)
   cleanup_setup_actor_hash();
   cleanup_setup_object();
   cleanup_setup_object_hash();
+  cleanup_digest();
   PFS_atomic::cleanup();
 }
 

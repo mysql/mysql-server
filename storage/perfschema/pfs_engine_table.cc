@@ -46,6 +46,7 @@
 #include "table_events_statements.h"
 #include "table_esms_by_thread_by_event_name.h"
 #include "table_esms_global_by_event_name.h"
+#include "table_esms_by_digest.h"
 
 /* For show status */
 #include "pfs_column_values.h"
@@ -99,6 +100,7 @@ static PFS_engine_table_share *all_shares[]=
   &table_events_statements_history_long::m_share,
   &table_esms_by_thread_by_event_name::m_share,
   &table_esms_global_by_event_name::m_share,
+  &table_esms_by_digest::m_share,
 
   NULL
 };
