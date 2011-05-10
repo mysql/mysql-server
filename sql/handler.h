@@ -3,18 +3,20 @@
 
 /* Copyright (c) 2000, 2011, Oracle and/or its affiliates. All rights reserved.
 
-   This program is free software; you can redistribute it and/or modify
-   it under the terms of the GNU General Public License as published by
-   the Free Software Foundation; version 2 of the License.
+   This program is free software; you can redistribute it and/or
+   modify it under the terms of the GNU General Public License
+   as published by the Free Software Foundation; version 2 of
+   the License.
 
    This program is distributed in the hope that it will be useful,
    but WITHOUT ANY WARRANTY; without even the implied warranty of
-   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
    GNU General Public License for more details.
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
-   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
+   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA
+   02110-1301  USA */
 
 /* Definitions for parameters to do with handler-routines */
 
@@ -57,7 +59,7 @@
   a table with rnd_next()
   - We will see all rows (including deleted ones)
   - Row positions are 'table->s->db_record_offset' apart
-  If this flag is not set, filesort will do a postion() call for each matched
+  If this flag is not set, filesort will do a position() call for each matched
   row to be able to find the row later.
 */
 #define HA_REC_NOT_IN_SEQ      (1 << 3)
@@ -1530,7 +1532,7 @@ public:
     DBUG_ASSERT(m_lock_type == F_UNLCK);
     DBUG_ASSERT(inited == NONE);
   }
-  virtual handler *clone(MEM_ROOT *mem_root);
+  virtual handler *clone(const char *name, MEM_ROOT *mem_root);
   /** This is called after create to allow us to set up cached variables */
   void init()
   {
@@ -1804,9 +1806,12 @@ public:
   }
   /**
      @brief
-     Positions an index cursor to the index specified in the handle. Fetches the
-     row if available. If the key value is null, begin at the first key of the
-     index.
+     Positions an index cursor to the index specified in the handle
+     ('active_index'). Fetches the row if available. If the key value is null,
+     begin at the first key of the index.
+     @returns 0 if success (found a record, and function has set table->status
+     to 0); non-zero if no record (function has set table->status to
+     STATUS_NOT_FOUND).
   */
   virtual int index_read_map(uchar * buf, const uchar * key,
                              key_part_map keypart_map,
@@ -1818,27 +1823,34 @@ public:
 protected:
   /**
      @brief
-     Positions an index cursor to the index specified in the handle. Fetches the
-     row if available. If the key value is null, begin at the first key of the
-     index.
+     Positions an index cursor to the index specified in argument. Fetches
+     the row if available. If the key value is null, begin at the first key of
+     the index.
+     @returns @see index_read_map().
   */
   virtual int index_read_idx_map(uchar * buf, uint index, const uchar * key,
                                  key_part_map keypart_map,
                                  enum ha_rkey_function find_flag);
+  /// @returns @see index_read_map().
   virtual int index_next(uchar * buf)
    { return  HA_ERR_WRONG_COMMAND; }
+  /// @returns @see index_read_map().
   virtual int index_prev(uchar * buf)
    { return  HA_ERR_WRONG_COMMAND; }
+  /// @returns @see index_read_map().
   virtual int index_first(uchar * buf)
    { return  HA_ERR_WRONG_COMMAND; }
+  /// @returns @see index_read_map().
   virtual int index_last(uchar * buf)
    { return  HA_ERR_WRONG_COMMAND; }
 public:
+  /// @returns @see index_read_map().
   virtual int index_next_same(uchar *buf, const uchar *key, uint keylen);
   /**
      @brief
      The following functions works like index_read, but it find the last
      row with the current key value or prefix.
+     @returns @see index_read_map().
   */
   virtual int index_read_last_map(uchar * buf, const uchar * key,
                                   key_part_map keypart_map)
@@ -1858,7 +1870,9 @@ public:
     { return NULL; }
   virtual int ft_read(uchar *buf) { return HA_ERR_WRONG_COMMAND; }
 protected:
+  /// @returns @see index_read_map().
   virtual int rnd_next(uchar *buf)=0;
+  /// @returns @see index_read_map().
   virtual int rnd_pos(uchar * buf, uchar *pos)=0;
 public:
   /**

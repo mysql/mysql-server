@@ -79,7 +79,7 @@ void set_remaining_args(int argc, char **argv);
 int init_common_variables();
 void my_init_signals();
 
-extern MYSQL_PLUGIN_IMPORT CHARSET_INFO *system_charset_info;
+extern "C" MYSQL_PLUGIN_IMPORT CHARSET_INFO *system_charset_info;
 extern MYSQL_PLUGIN_IMPORT CHARSET_INFO *files_charset_info ;
 extern MYSQL_PLUGIN_IMPORT CHARSET_INFO *national_charset_info;
 extern MYSQL_PLUGIN_IMPORT CHARSET_INFO *table_alias_charset;
@@ -197,7 +197,8 @@ extern my_bool opt_slave_sql_verify_checksum;
 extern ulong thread_cache_size;
 extern ulong back_log;
 extern char language[FN_REFLEN];
-extern ulong server_id, concurrency;
+extern "C" MYSQL_PLUGIN_IMPORT ulong server_id;
+extern ulong concurrency;
 extern time_t server_start_time, flush_status_time;
 extern char *opt_mysql_tmpdir, mysql_charsets_dir[];
 extern int mysql_unpacked_real_data_home_len;
@@ -218,8 +219,8 @@ extern handlerton *heap_hton;
 extern const char *load_default_groups[];
 extern struct my_option my_long_options[];
 extern int mysqld_server_started;
-extern int orig_argc;
-extern char **orig_argv;
+extern "C" MYSQL_PLUGIN_IMPORT int orig_argc;
+extern "C" MYSQL_PLUGIN_IMPORT char **orig_argv;
 extern pthread_attr_t connection_attrib;
 extern MYSQL_FILE *bootstrap_file;
 extern my_bool old_mode;
@@ -253,7 +254,9 @@ extern PSI_mutex_key key_BINLOG_LOCK_index, key_BINLOG_LOCK_prep_xids,
   key_LOCK_table_share, key_LOCK_thd_data,
   key_LOCK_user_conn, key_LOCK_uuid_generator, key_LOG_LOCK_log,
   key_master_info_data_lock, key_master_info_run_lock,
+  key_master_info_sleep_lock,
   key_mutex_slave_reporting_capability_err_lock, key_relay_log_info_data_lock,
+  key_relay_log_info_sleep_lock,
   key_relay_log_info_log_space_lock, key_relay_log_info_run_lock,
   key_structure_guard_mutex, key_TABLE_SHARE_LOCK_ha_data,
   key_LOCK_error_messages, key_LOCK_thread_count, key_PARTITION_LOCK_auto_inc;
@@ -273,8 +276,10 @@ extern PSI_cond_key key_BINLOG_COND_prep_xids, key_BINLOG_update_cond,
   key_delayed_insert_cond, key_delayed_insert_cond_client,
   key_item_func_sleep_cond, key_master_info_data_cond,
   key_master_info_start_cond, key_master_info_stop_cond,
+  key_master_info_sleep_cond,
   key_relay_log_info_data_cond, key_relay_log_info_log_space_cond,
   key_relay_log_info_start_cond, key_relay_log_info_stop_cond,
+  key_relay_log_info_sleep_cond,
   key_TABLE_SHARE_cond, key_user_level_lock_cond,
   key_COND_thread_count, key_COND_thread_cache, key_COND_flush_thread_cache;
 extern PSI_cond_key key_RELAYLOG_update_cond;
@@ -388,6 +393,7 @@ extern PSI_stage_info stage_waiting_for_the_next_event_in_relay_log;
 extern PSI_stage_info stage_waiting_to_finalize_termination;
 extern PSI_stage_info stage_waiting_to_get_readlock;
 
+#ifdef HAVE_PSI_INTERFACE
 /**
   Statement instrumentation keys (sql).
   The last entry, at [SQLCOM_END], is for parsing errors.
@@ -402,6 +408,7 @@ extern PSI_statement_info com_statement_info[(uint) COM_END + 1];
 
 void init_sql_statement_info();
 void init_com_statement_info();
+#endif /* HAVE_PSI_INTERFACE */
 
 #ifndef __WIN__
 extern pthread_t signal_thread;
@@ -428,7 +435,7 @@ extern uint mysql_real_data_home_len;
 extern const char *mysql_real_data_home_ptr;
 extern ulong thread_handling;
 extern MYSQL_PLUGIN_IMPORT char  *mysql_data_home;
-extern char server_version[SERVER_VERSION_LENGTH];
+extern "C" MYSQL_PLUGIN_IMPORT char server_version[SERVER_VERSION_LENGTH];
 extern MYSQL_PLUGIN_IMPORT char mysql_real_data_home[];
 extern char mysql_unpacked_real_data_home[];
 extern MYSQL_PLUGIN_IMPORT struct system_variables global_system_variables;

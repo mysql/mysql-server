@@ -1214,7 +1214,8 @@ sp_head::execute(THD *thd, bool merge_da_on_success)
   String old_packet;
   Reprepare_observer *save_reprepare_observer= thd->m_reprepare_observer;
   Object_creation_ctx *saved_creation_ctx;
-  Warning_info *saved_warning_info, warning_info(thd->warning_info->warn_id());
+  Warning_info *saved_warning_info;
+  Warning_info warning_info(thd->warning_info->warn_id(), false);
 
   /*
     Just reporting a stack overrun error
@@ -3038,8 +3039,9 @@ int sp_instr::exec_open_and_lock_tables(THD *thd, TABLE_LIST *tables)
     Check whenever we have access to tables for this statement
     and open and lock them before executing instructions core function.
   */
-  if (check_table_access(thd, SELECT_ACL, tables, FALSE, UINT_MAX, FALSE)
-      || open_and_lock_tables(thd, tables, TRUE, 0))
+  if (open_temporary_tables(thd, tables) ||
+      check_table_access(thd, SELECT_ACL, tables, FALSE, UINT_MAX, FALSE) ||
+      open_and_lock_tables(thd, tables, TRUE, 0))
     result= -1;
   else
     result= 0;

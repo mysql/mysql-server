@@ -105,6 +105,7 @@ When one supplies long data for a placeholder:
 #include "sp_head.h"
 #include "sp.h"
 #include "sp_cache.h"
+#include "sql_handler.h"  // mysql_ha_rm_tables
 #include "probes_mysql.h"
 #ifdef EMBEDDED_LIBRARY
 /* include MYSQL_BIND headers */
@@ -1456,13 +1457,7 @@ static int mysql_test_select(Prepared_statement *stmt,
 
   lex->select_lex.context.resolve_in_select_list= TRUE;
 
-  ulong privilege= lex->exchange ? SELECT_ACL | FILE_ACL : SELECT_ACL;
-  if (tables)
-  {
-    if (check_table_access(thd, privilege, tables, FALSE, UINT_MAX, FALSE))
-      goto error;
-  }
-  else if (check_access(thd, privilege, any_db, NULL, NULL, 0, 0))
+  if (select_precheck(thd, lex, tables, lex->select_lex.table_list.first))
     goto error;
 
   if (!lex->result && !(lex->result= new (stmt->mem_root) select_send))
@@ -1963,6 +1958,19 @@ static bool check_prepared_statement(Prepared_statement *stmt)
   /* Reset warning count for each query that uses tables */
   if (tables)
     thd->warning_info->opt_clear_warning_info(thd->query_id);
+
+  if (sql_command_flags[sql_command] & CF_HA_CLOSE)
+    mysql_ha_rm_tables(thd, tables);
+
+  /*
+    Open temporary tables that are known now. Temporary tables added by
+    prelocking will be opened afterwards (during open_tables()).
+  */
+  if (sql_command_flags[sql_command] & CF_PREOPEN_TMP_TABLES)
+  {
+    if (open_temporary_tables(thd, tables))
+      goto error;
+  }
 
   switch (sql_command) {
   case SQLCOM_REPLACE:
@@ -2843,7 +2851,8 @@ void mysql_stmt_get_longdata(THD *thd, char *packet, ulong packet_length)
   param= stmt->param_array[param_number];
 
   Diagnostics_area new_stmt_da, *save_stmt_da= thd->stmt_da;
-  Warning_info new_warnning_info(thd->query_id), *save_warinig_info= thd->warning_info;
+  Warning_info new_warnning_info(thd->query_id, false);
+  Warning_info *save_warinig_info= thd->warning_info;
 
   thd->stmt_da= &new_stmt_da;
   thd->warning_info= &new_warnning_info;
@@ -3909,7 +3918,7 @@ Ed_result_set::Ed_result_set(List<Ed_row> *rows_arg,
 */
 
 Ed_connection::Ed_connection(THD *thd)
-  :m_warning_info(thd->query_id),
+  :m_warning_info(thd->query_id, false),
   m_thd(thd),
   m_rsets(0),
   m_current_rset(0)

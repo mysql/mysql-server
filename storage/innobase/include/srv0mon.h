@@ -28,6 +28,7 @@ Created 12/15/2009	Jimmy Yang
 #define srv0mon_h
 
 #include "univ.i"
+#ifndef UNIV_HOTBACKUP
 
 
 /** Possible status values for "mon_status" in "struct monitor_value" */
@@ -250,6 +251,7 @@ enum monitor_id_value {
 	MONITOR_MODULE_PURGE,
 	MONITOR_N_DEL_ROW_PURGE,
 	MONITOR_N_UPD_EXIST_EXTERN,
+	MONITOR_PURGE_INVOKED,
 	MONITOR_PURGE_N_PAGE_HANDLED,
 	MONITOR_DML_PURGE_DELAY,
 
@@ -753,5 +755,9 @@ srv_mon_default_on(void);
 #ifndef UNIV_NONINL
 #include "srv0mon.ic"
 #endif
+#else /* !UNIV_HOTBACKUP */
+# define MONITOR_INC(x)		((void) 0)
+# define MONITOR_DEC(x)		((void) 0)
+#endif /* !UNIV_HOTBACKUP */
 
 #endif

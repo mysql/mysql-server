@@ -27,6 +27,7 @@ Created 11/5/1995 Heikki Tuuri
 #define buf0lru_h
 
 #include "univ.i"
+#ifndef UNIV_HOTBACKUP
 #include "ut0byte.h"
 #include "buf0types.h"
 
@@ -292,5 +293,7 @@ Increments the page_zip_decompress() counter in buf_LRU_stat_cur. */
 #ifndef UNIV_NONINL
 #include "buf0lru.ic"
 #endif
+
+#endif /* !UNIV_HOTBACKUP */
 
 #endif
