@@ -48,10 +48,11 @@ IF(MSVC)
 		SET_SOURCE_FILES_PROPERTIES(mem/mem0mem.c mem/mem0pool.c
 			PROPERTIES COMPILE_FLAGS -Od)
 	ENDIF()
-	# Avoid "unreferenced label" warning in generated file 
-	SET_SOURCE_FILES_PROPERTIES(pars/pars0grm.c
+	# Avoid "unreferenced label" warning in generated file
+	GET_FILENAME_COMPONENT(_SRC_DIR ${CMAKE_CURRENT_LIST_FILE} PATH)
+	SET_SOURCE_FILES_PROPERTIES(${_SRC_DIR}/pars/pars0grm.c
 		PROPERTIES COMPILE_FLAGS "/wd4102")
-	SET_SOURCE_FILES_PROPERTIES(pars/lexyy.c
+	SET_SOURCE_FILES_PROPERTIES(${_SRC_DIR}/pars/lexyy.c
 		PROPERTIES COMPILE_FLAGS "/wd4003")
 ENDIF()
 
