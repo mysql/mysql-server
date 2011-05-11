@@ -165,6 +165,12 @@ Note	1003	select hex(column_create(1,'afaf' AS char charset utf8 ,2,1212 AS unsi
 6, "2011-04-05" AS date,
 7, "- 0:45:49.000001" AS time,
 8, "2011-04-05 0:45:49.000001" AS datetime))`
+select hex(column_create(1, 0.0 AS decimal));
+hex(column_create(1, 0.0 AS decimal))
+000100010004
+select hex(column_create(1, 1.0 AS decimal));
+hex(column_create(1, 1.0 AS decimal))
+00010001000401018100
 #
 # column get uint
 #
@@ -575,6 +581,9 @@ column_get(column_create(1, "1223.5555" AS decimal(10,5)), 1 as decimal(3,2))
 9.99
 Warnings:
 Error	1264	Out of range value for column 'column_get(column_create(1, "1223.5555" AS decimal(10,5)), 1 as decimal(3,2))' at row 1
+select column_get(column_create(1, 0.0 AS decimal,2, 0.0 as decimal), 1 as decimal);
+column_get(column_create(1, 0.0 AS decimal,2, 0.0 as decimal), 1 as decimal)
+0
 #
 # column get datetime
 #
@@ -1234,3 +1243,23 @@ DROP TABLE t1;
 set @a=0x0102000200030004000F0D086B74697A6A7176746F6B687563726A746E7A746A666163726C6F7A6B62636B6B756B666779666977617369796F67756C726D62677A72756E63626D78636D7077706A6F736C6D636464696770786B6371637A6A6A6463737A6A676879716462637178646C666E6B6C726A637677696E7271746C616D646368687A6C707869786D666F666261797470616A63797673737A796D74747475666B717573687A79696E7276706F796A6E767361796A6F6D646F6378677A667074746363736A796D67746C786F697873686464616265616A7A6F7168707A6B776B6376737A6B72666C6F666C69636163686F6B666D627166786A71616F;
 select column_add(@a, 3, "a");
 ERROR HY000: Encountered illegal format of dynamic column string
+#
+# LP#781233 mysqld: decimal.c:1459: decimal_bin_size: 
+# Assertion `scale >= 0 && precision > 0 && scale <= precision' ...
+#
+set @a=0x00020008000009000C2C010080;
+select COLUMN_GET(@a, 9 AS DECIMAL);
+COLUMN_GET(@a, 9 AS DECIMAL)
+0
+select hex(COLUMN_CREATE(0, COLUMN_GET(@a, 9 AS DECIMAL)));
+hex(COLUMN_CREATE(0, COLUMN_GET(@a, 9 AS DECIMAL)))
+000100000004
+select hex(COLUMN_CREATE(0, COLUMN_GET(@a, 9 AS DECIMAL(19,0))));
+hex(COLUMN_CREATE(0, COLUMN_GET(@a, 9 AS DECIMAL(19,0))))
+000100000004
+select hex(COLUMN_CREATE(0, COLUMN_GET(COLUMN_CREATE(0, 0.0 as decimal), 0 as decimal)));
+hex(COLUMN_CREATE(0, COLUMN_GET(COLUMN_CREATE(0, 0.0 as decimal), 0 as decimal)))
+000100000004
+select hex(COLUMN_CREATE(0, 0.0 as decimal));
+hex(COLUMN_CREATE(0, 0.0 as decimal))
+000100000004

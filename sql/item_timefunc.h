@@ -946,6 +946,12 @@ public:
   {
     return tmp_table_field_from_field_type(table, 0);
   }
+  void fix_length_and_dec()
+  {
+    collation.set(&my_charset_bin);
+    max_length= 17;
+    maybe_null= 1;
+  }
   bool result_as_longlong() { return TRUE; }
   longlong val_int();
   double val_real() { return val_real_from_decimal(); }

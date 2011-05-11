@@ -171,7 +171,7 @@ str_to_datetime(const char *str, uint length, MYSQL_TIME *l_time,
   my_bool found_delimitier= 0, found_space= 0;
   uint frac_pos, frac_len;
   DBUG_ENTER("str_to_datetime");
-  DBUG_PRINT("ENTER",("str: %.*s",length,str));
+  DBUG_PRINT("enter",("str: %.*s",length,str));
 
   LINT_INIT(field_length);
 

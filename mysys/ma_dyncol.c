@@ -312,7 +312,9 @@ dynamic_column_sint_read(DYNAMIC_COLUMN_VALUE *store_it_here,
 
   @param value          The value for which we are calculating length
 
-  @return number of bytes
+  @return
+  Error:  (size_t) ~0
+  ok      number of bytes
 */
 
 static size_t
@@ -331,11 +333,32 @@ dynamic_column_value_len(DYNAMIC_COLUMN_VALUE *value)
     return (dynamic_column_var_uint_bytes(value->charset->number) +
             value->string_value.length);
   case DYN_COL_DECIMAL:
+  {
+    int precision= value->decimal_value.intg + value->decimal_value.frac;
+    int scale= value->decimal_value.frac;
+
+    if (precision == 0 || decimal_is_zero(&value->decimal_value))
+    {
+      /* This is here to simplify dynamic_column_decimal_store() */
+      value->decimal_value.intg= value->decimal_value.frac= 0;
+      return 0;
+    }
+    /*
+      Check if legal decimal;  This is needed to not get an assert in
+      decimal_bin_size(). However this should be impossible as all
+      decimals entered here should be valid and we have the special check
+      above to handle the unlikely but possible case that decimal_value.intg
+      and decimal.frac is 0.
+    */
+    if (scale < 0 || precision <= 0)
+    {
+      DBUG_ASSERT(0);                           /* Impossible */
+      return (size_t) ~0;
+    }
     return (dynamic_column_var_uint_bytes(value->decimal_value.intg) +
             dynamic_column_var_uint_bytes(value->decimal_value.frac) +
-            decimal_bin_size(value->decimal_value.intg +
-                             value->decimal_value.frac,
-                             value->decimal_value.frac));
+            decimal_bin_size(precision, scale));
+  }
   case DYN_COL_DATETIME:
     /* date+time in bits: 14 + 4 + 5 + 10 + 6 + 6 + 20 + 1 66bits ~= 9 bytes */
     return 9;
@@ -455,7 +478,14 @@ static enum enum_dyncol_func_result
 dynamic_column_decimal_store(DYNAMIC_COLUMN *str,
                              decimal_t *value)
 {
-  uint bin_size= decimal_bin_size(value->intg + value->frac, value->frac);
+  uint bin_size;
+  int precision= value->intg + value->frac;
+  
+  /* Store decimal zero as empty string */
+  if (precision == 0)
+    return ER_DYNCOL_OK;
+
+  bin_size= decimal_bin_size(precision, value->frac);
   if (dynstr_realloc(str, bin_size + 20))
     return ER_DYNCOL_RESOURCE;
 
@@ -464,8 +494,7 @@ dynamic_column_decimal_store(DYNAMIC_COLUMN *str,
   (void) dynamic_column_var_uint_store(str, value->frac);
 
   decimal2bin(value, (uchar *) str->str + str->length,
-              value->intg + value->frac,
-              value->frac);
+              precision, value->frac);
   str->length+= bin_size;
   return ER_DYNCOL_OK;
 }
@@ -502,20 +531,29 @@ dynamic_column_decimal_read(DYNAMIC_COLUMN_VALUE *store_it_here,
                             uchar *data, size_t length)
 {
   size_t intg_len, frac_len;
-  int intg, frac;
+  int intg, frac, precision, scale;
 
   dynamic_column_prepare_decimal(store_it_here);
+  /* Decimals 0.0 is stored as a zero length string */
+  if (length == 0)
+    return ER_DYNCOL_OK;                        /* value contains zero */
+
   intg= (int)dynamic_column_var_uint_get(data, length, &intg_len);
   data+= intg_len;
   frac= (int)dynamic_column_var_uint_get(data, length - intg_len, &frac_len);
   data+= frac_len;
 
   /* Check the size of data is correct */
-  if (decimal_bin_size(intg + frac, frac) !=
+  precision= intg + frac;
+  scale=     frac;
+  if (scale < 0 || precision <= 0 || scale > precision ||
+      (length - intg_len - frac_len) >
+      (size_t) (DECIMAL_BUFF_LENGTH*sizeof(decimal_digit_t)) ||
+      decimal_bin_size(intg + frac, frac) !=
       (int) (length - intg_len - frac_len))
     return ER_DYNCOL_FORMAT;
 
-  if (bin2decimal(data, &store_it_here->decimal_value, intg + frac, frac) !=
+  if (bin2decimal(data, &store_it_here->decimal_value, precision, scale) !=
       E_DEC_OK)
     return ER_DYNCOL_FORMAT;
   return ER_DYNCOL_OK;
@@ -1113,8 +1151,11 @@ dynamic_column_create_many_internal(DYNAMIC_COLUMN *str,
   {
     if (values[i].type != DYN_COL_NULL)
     {
+      size_t tmp;
       not_null_column_count++;
-      data_size+= dynamic_column_value_len(values + i);
+      data_size+= (tmp=dynamic_column_value_len(values + i));
+      if (tmp == (size_t) ~0)
+        return ER_DYNCOL_DATA;
     }
   }
 
@@ -1822,7 +1863,12 @@ dynamic_column_update_many(DYNAMIC_COLUMN *str,
 
         plan[i].act= PLAN_REPLACE;
         /* get data delta in bytes */
-        plan[i].length= dynamic_column_value_len(plan[i].val);
+        if ((plan[i].length= dynamic_column_value_len(plan[i].val)) ==
+            (size_t) ~0)
+        {
+          rc= ER_DYNCOL_DATA;
+          goto end;
+        }
         data_delta+= plan[i].length - entry_data_size;
       }
     }
@@ -1841,7 +1887,12 @@ dynamic_column_update_many(DYNAMIC_COLUMN *str,
         plan[i].act= PLAN_ADD;
         header_delta++;                         /* One more row in header */
         /* get data delta in bytes */
-        plan[i].length= dynamic_column_value_len(plan[i].val);
+        if ((plan[i].length= dynamic_column_value_len(plan[i].val)) ==
+            (size_t) ~0)
+        {
+          rc= ER_DYNCOL_DATA;
+          goto end;
+        }
         data_delta+= plan[i].length;
       }
     }
