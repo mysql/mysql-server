@@ -72,12 +72,12 @@ CHECK(const char* address, int expected_res, bool is_numeric= false)
     none.s_addr = INADDR_NONE;
     if (memcmp(&addr, &none, sizeof(none)) != 0)
     {
-      fprintf(stderr, "> didn't reurn INADDR_NONE after failure, "
+      fprintf(stderr, "> didn't return INADDR_NONE after failure, "
              "got: '%s', expected; '%s'\n",
              inet_ntoa(addr), inet_ntoa(none));
       abort();
     }
-    fprintf(stderr, "> got INADDR_NONE\n");
+    fprintf(stderr, "> ok\n");
     return;
   }
 
