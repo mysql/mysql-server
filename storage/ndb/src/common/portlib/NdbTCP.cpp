@@ -52,7 +52,7 @@ CHECK(const char* address, int expected_res, bool is_numeric= false)
 {
   struct in_addr addr;
 
-  fprintf(stderr, "Checking '%s'\n", address);
+  fprintf(stderr, "Testing '%s'\n", address);
 
   int res= Ndb_getInAddr(&addr, address);
 
@@ -143,6 +143,7 @@ socket_library_end()
 static bool
 can_resolve_hostname(const char* name)
 {
+  fprintf(stderr, "Checking if '%s' can be used for testing\n", name);
   struct addrinfo hints;
   memset(&hints, 0, sizeof(hints));
   hints.ai_family = AF_INET; // Only IPv4 address
@@ -157,10 +158,11 @@ can_resolve_hostname(const char* name)
     fprintf(stderr, "> '%s' -> error: %d '%s'\n",
              name, err, gai_strerror(err));
 
-    if (err == EAI_NODATA)
+    if (err == EAI_NODATA ||
+	err == EAI_NONAME)
     {
-      // No address associated with hostname, OK anyway
-      fprintf(stderr, ">  EAI_NODATA -> continuing anyway\n");
+      // An OK error 
+      fprintf(stderr, ">  skipping tests with this name...\n");
       return false;
     }
 
