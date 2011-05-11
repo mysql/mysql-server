@@ -5086,4 +5086,24 @@ GROUP BY b;
 b
 0
 DROP TABLE t1;
+#
+# BUG#779885: Crash in eliminate_item_equal with materialization=on in maria-5.3
+#
+CREATE TABLE t1 ( f1 int );
+INSERT INTO t1 VALUES (19), (20);
+CREATE TABLE t2 ( f10 varchar(32) );
+INSERT INTO t2 VALUES ('c'),('d');
+CREATE TABLE t3 ( f10 varchar(32) );
+INSERT INTO t3 VALUES ('a'),('b');
+SELECT *
+FROM t1
+WHERE
+( 't' ) IN (
+SELECT t3.f10
+FROM t3
+JOIN t2
+ON t2.f10 = t3.f10
+);
+f1
+DROP TABLE t1,t2,t3;
 set optimizer_switch=default;
