@@ -60,7 +60,6 @@ NdbReceiver::init(ReceiverType type, bool useRec, void* owner)
     m_record.m_row_buffer= NULL;
     m_record.m_row_offset= 0;
     m_record.m_read_range_no= false;
-    m_record.m_column_count= 0;
   }
   theFirstRecAttr = NULL;
   theCurrentRecAttr = NULL;
@@ -216,8 +215,7 @@ NdbReceiver::calculate_batch_size(Uint32 key_size,
 void
 NdbReceiver::do_setup_ndbrecord(const NdbRecord *ndb_record, Uint32 batch_size,
                                 Uint32 key_size, Uint32 read_range_no,
-                                Uint32 rowsize, char *row_buffer,
-                                Uint32 column_count)
+                                Uint32 rowsize, char *row_buffer)
 {
   m_using_ndb_record= true;
   m_record.m_ndb_record= ndb_record;
@@ -225,7 +223,6 @@ NdbReceiver::do_setup_ndbrecord(const NdbRecord *ndb_record, Uint32 batch_size,
   m_record.m_row_buffer= row_buffer;
   m_record.m_row_offset= rowsize;
   m_record.m_read_range_no= read_range_no;
-  m_record.m_column_count= column_count;
 }
 
 //static
@@ -259,26 +256,6 @@ NdbReceiver::ndbrecord_rowsize(const NdbRecord *ndb_record,
   /* Ensure 4-byte alignment. */
   rowsize= (rowsize+3) & 0xfffffffc;
   return rowsize;
-}
-
-NdbRecAttr*
-NdbReceiver::copyout(NdbReceiver & dstRec){
-  assert(!m_using_ndb_record);
-  NdbRecAttr *src = m_rows[m_current_row++];
-  NdbRecAttr *dst = dstRec.theFirstRecAttr;
-  NdbRecAttr *start = src;
-  Uint32 tmp = m_recattr.m_hidden_count;
-  while(tmp--)
-    src = src->next();
-  
-  while(dst){
-    Uint32 len = src->get_size_in_bytes();
-    dst->receive_data((Uint32*)src->aRef(), len);
-    src = src->next();
-    dst = dst->next();
-  }
-
-  return start;
 }
 
 /**
