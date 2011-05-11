@@ -912,6 +912,7 @@ static void type_and_offset_read(DYNAMIC_COLUMN_TYPE *type,
                                  uchar *place, size_t offset_size)
 {
   ulong val;
+  LINT_INIT(val);
 
   place+= COLUMN_NUMBER_SIZE;                 /* skip column number */
   switch (offset_size) {
@@ -1618,6 +1619,7 @@ find_place(uint num, uchar *header, size_t entry_size,
 {
   uint mid, start, end, val;
   int flag;
+  LINT_INIT(flag);                              /* 100 % safe */
 
   start= 0;
   end= column_count -1;
@@ -1968,6 +1970,13 @@ dynamic_column_update_many(DYNAMIC_COLUMN *str,
           type_and_offset_read(&tp, &offs, read, offset_size);
           if (k == start)
             first_offset= offs;
+          else if (offs < first_offset)
+          {
+            dynamic_column_column_free(&tmp);
+            rc= ER_DYNCOL_FORMAT;
+            goto end;
+          }
+
           offs+= plan[i].ddelta;
           int2store(write, nm);
           /* write rest of data at write + COLUMN_NUMBER_SIZE */
@@ -1984,7 +1993,8 @@ dynamic_column_update_many(DYNAMIC_COLUMN *str,
           get_length_interval(header_base + start * entry_size,
                               header_base + end * entry_size,
                               header_end, offset_size, max_offset);
-        if ((long) data_size < 0)
+        if ((long) data_size < 0 ||
+            data_size > max_offset - first_offset)
         {
           dynamic_column_column_free(&tmp);
           rc= ER_DYNCOL_FORMAT;

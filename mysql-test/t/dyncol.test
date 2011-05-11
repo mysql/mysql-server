@@ -86,6 +86,7 @@ select column_get(column_create(1, -1212 AS int), 1 as unsigned int);
 select column_get(column_create(1, 99999999999999999999999999999 AS decimal), 1 as unsigned int);
 select column_get(column_create(1, 999.9999999999999999 AS decimal), 1 as unsigned int);
 select column_get(column_create(1, -1 AS decimal), 1 as unsigned int);
+--replace_result 1e+029 1e+29
 select column_get(column_create(1, 99999999999999999999999999999 AS double), 1 as unsigned int);
 select column_get(column_create(1, 999.9 AS double), 1 as unsigned int);
 select column_get(column_create(1, -1 AS double), 1 as unsigned int);
@@ -115,6 +116,7 @@ select column_get(column_create(1, 99999999999999999999999999999 AS decimal), 1 
 select column_get(column_create(1, -99999999999999999999999999999 AS decimal), 1 as int);
 select column_get(column_create(1, 999.9999999999999999 AS decimal), 1 as int);
 select column_get(column_create(1, 999.9 AS double), 1 as int);
+--replace_result 1e+029 1e+29
 select column_get(column_create(1, -99999999999999999999999999999 AS double), 1 as int);
 select column_get(column_create(1, "-1212III" AS char), 1 as int);
 select column_get(column_create(1, "1212III" AS char), 1 as int);
@@ -161,7 +163,8 @@ select column_get(column_create(1, -99999999999999999999999999999 AS decimal), 1
 select column_get(column_create(1, "2011-04-05" AS date), 1 as double);
 select column_get(column_create(1, "8:46:06.23434" AS time), 1 as double);
 select column_get(column_create(1, "2011-04-05 8:46:06.23434" AS datetime), 1 as double);
-select column_get(column_create(1, "2011-04-05 8:46:06.23434" AS datetime), 1 as double(20,6));
+# The replace result is needed for windows.
+select round(column_get(column_create(1, "2011-04-05 8:46:06.23434" AS datetime), 1 as double(20,6)),3);
 select column_get(column_create(1, NULL AS double), 1 as double);
 
 -- echo # column get real truncation & warnings
@@ -241,6 +244,7 @@ select column_get(column_create(1, 18446744073709551615 AS unsigned int), 1 as d
 select column_get(column_create(1, 9223372036854775807 AS int), 1 as datetime);
 select column_get(column_create(1, -9223372036854775808 AS int), 1 as datetime); 
 select column_get(column_create(1, 99999999999999999999999999999 AS decimal(32,10)), 1 as datetime);
+--replace_result 1e+028 1e+28
 select column_get(column_create(1, 99999999999999999999999999999 AS double), 1 as datetime);
 select column_get(column_create(1, "2011-02-32 8:46:06.23434" AS CHAR), 1 as datetime);
 select column_get(column_create(1, "2011-13-01 8:46:06.23434" AS CHAR), 1 as datetime);
@@ -286,6 +290,7 @@ select column_get(column_create(1, 18446744073709551615 AS unsigned int), 1 as d
 select column_get(column_create(1, 9223372036854775807 AS int), 1 as date);
 select column_get(column_create(1, -9223372036854775808 AS int), 1 as date); 
 select column_get(column_create(1, 99999999999999999999999999999 AS decimal(32,10)), 1 as date);
+--replace_result 1e+028 1e+28
 select column_get(column_create(1, 99999999999999999999999999999 AS double), 1 as date);
 select column_get(column_create(1, "2011-02-32 8:46:06.23434" AS CHAR), 1 as date);
 select column_get(column_create(1, "2011-13-01 8:46:06.23434" AS CHAR), 1 as date);
@@ -330,6 +335,7 @@ select column_get(column_create(1, 18446744073709551615 AS unsigned int), 1 as t
 select column_get(column_create(1, 9223372036854775807 AS int), 1 as time);
 select column_get(column_create(1, -9223372036854775808 AS int), 1 as time); 
 select column_get(column_create(1, 99999999999999999999999999999 AS decimal(32,10)), 1 as time);
+--replace_result 1e+028 1e+28
 select column_get(column_create(1, 99999999999999999999999999999 AS double), 1 as time);
 select column_get(column_create(1, "2011-02-32 8:46:06.23434" AS CHAR), 1 as time);
 select column_get(column_create(1, "2011-13-01 8:46:06.23434" AS CHAR), 1 as time);
@@ -492,3 +498,11 @@ SELECT HEX(COLUMN_ADD(f1, 1, 'abc')), COLUMN_LIST(f1) FROM t1;
 SELECT COLUMN_ADD(f1, 1, 'abc'), COLUMN_LIST(f1) FROM t1;
 --enable_result_log
 DROP TABLE t1;
+
+--echo #
+--echo # Some dynamic strings that caused crashes in the past
+--echo #
+
+set @a=0x0102000200030004000F0D086B74697A6A7176746F6B687563726A746E7A746A666163726C6F7A6B62636B6B756B666779666977617369796F67756C726D62677A72756E63626D78636D7077706A6F736C6D636464696770786B6371637A6A6A6463737A6A676879716462637178646C666E6B6C726A637677696E7271746C616D646368687A6C707869786D666F666261797470616A63797673737A796D74747475666B717573687A79696E7276706F796A6E767361796A6F6D646F6378677A667074746363736A796D67746C786F697873686464616265616A7A6F7168707A6B776B6376737A6B72666C6F666C69636163686F6B666D627166786A71616F;
+--error ER_DYN_COL_WRONG_FORMAT
+select column_add(@a, 3, "a");

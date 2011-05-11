@@ -761,6 +761,7 @@ bool key_buf_cmp(KEY *key_info, uint used_key_parts,
     LINT_INIT(cs);
     LINT_INIT(length1);
     LINT_INIT(length2);
+    LINT_INIT(pack_length);
 
     key1+= key_part->length;
     key2+= key_part->length;
