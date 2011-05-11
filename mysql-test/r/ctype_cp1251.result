@@ -2438,7 +2438,7 @@ create table t2 as select concat(a) from t1;
 show create table t2;
 Table	Create Table
 t2	CREATE TABLE `t2` (
-  `concat(a)` varchar(2) CHARACTER SET cp1251 DEFAULT NULL
+  `concat(a)` varchar(4) CHARACTER SET cp1251 DEFAULT NULL
 ) ENGINE=MyISAM DEFAULT CHARSET=latin1
 drop table t1, t2;
 create table t1 (a year);
@@ -2747,7 +2747,7 @@ insert into t1 values (1);
 create view v1(a) as select concat(a) from t1;
 show columns from v1;
 Field	Type	Null	Key	Default	Extra
-a	varchar(2)	YES		NULL	
+a	varchar(4)	YES		NULL	
 select hex(a) from v1;
 hex(a)
 3031
