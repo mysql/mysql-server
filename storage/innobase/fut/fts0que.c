@@ -231,6 +231,7 @@ fts_query_filter_doc_ids(
 	void*		data,		/* in: doc id ilist */
 	ulint		len);		/* in: doc id ilist size */
 
+#if 0
 /********************************************************************
 Find a doc_id in a word's ilist. */
 static
@@ -243,6 +244,7 @@ fts_query_find_doc_id(
 					update the frequency if found. */
 	void*		data,		/* in: doc id ilist */
 	ulint		len);		/* in: doc id ilist size */
+#endif
 /*************************************************************//**
 This function implements a simple "blind" query expansion search:
 words in documents found in the first search pass will be used as
@@ -257,14 +259,15 @@ fts_expand_query(
 	fts_query_t*	query);		/*!< in: query result, to be freed
 					by the client */
 /*************************************************************//**
-This function find documents that contain all words in a proximity
-search and verify the words are close to each other enough to qualify
-the search distance. This is used for proximity search.
+This function finds documents that contain all words in a
+phrase or proximity search. And if proximity search, verify
+the words are close to each other enough, as in specified distance.
+This function is called for phrase and proximity search.
 @return TRUE if documents are found, FALSE if otherwise */
 static
-ulint
-fts_check_proximity(
-/*================*/
+ibool
+fts_check_phrase_proximity(
+/*=======================*/
 	fts_query_t*	query,		/*!< in:  query instance */
 	ib_vector_t*	tokens);	/*!< in: Tokens contain words */
 /*************************************************************//**
@@ -1022,7 +1025,8 @@ ulint
 fts_cache_find_wildcard(
 /*====================*/
 	fts_query_t*		query,		/* !< in: query instance */
-	const fts_index_cache_t*index_cache)	/* !< in: cache to search */
+	const fts_index_cache_t*index_cache,	/* !< in: cache to search */
+	const fts_string_t*	token)		/*!< in: token to search */
 {
 	ib_rbt_bound_t		parent;
 	const ib_vector_t*	nodes = NULL;
@@ -1030,10 +1034,13 @@ fts_cache_find_wildcard(
 	byte			term[FTS_MAX_UTF8_WORD_LEN];
 	ulint			num_word = 0;
 
-	ut_strcpy((char*) term, (char*) query->cur_node->term.ptr);
+	srch_text.len = (token->utf8[token->len - 1] == '%')
+			? token->len - 1
+			: token->len;
 
+	strncpy((char*) term, (char*) token->utf8, srch_text.len);
+	term[token->len] = '\0';
 	srch_text.utf8 = term;
-	srch_text.len = strlen((char*)term);
 
 	/* Lookup the word in the rb tree */
 	if (rbt_search_cmp(index_cache->words, &parent, &srch_text,
@@ -1083,35 +1090,19 @@ fts_cache_find_wildcard(
 	return(num_word);
 }
 
-/********************************************************************
-Set union. */
+/*****************************************************************//**
+Query index cache.
+@return DB_SUCCESS if all went well */
 static
 ulint
-fts_query_union(
+fts_query_cache(
 /*============*/
-					/* out: DB_SUCCESS if all went well */
-	fts_query_t*		query,	/* in: query instance */
-	const fts_string_t*	token)	/* in: token to search */
+	fts_query_t*		query,	/*!< in/out: query instance */
+	const fts_string_t*	token)	/*!< in: token to search */
 {
-	ulint			i;
-	const ib_vector_t*	nodes;
-	fts_fetch_t		fetch;
 	const fts_index_cache_t*index_cache;
-	ulint			n_doc_ids = 0;
-	trx_t*			trx = query->trx;
 	dict_table_t*		table = query->index->table;
 	fts_cache_t*		cache = table->fts->cache;
-	que_t*			graph = NULL;
-
-	ut_a(query->oper == FTS_NONE || query->oper == FTS_DECR_RATING ||
-	     query->oper == FTS_NEGATE || query->oper == FTS_INCR_RATING);
-
-	fprintf(stderr, "UNION: Searching: '%.*s'\n",
-		(int) token->len, token->utf8);
-
-	if (query->doc_ids) {
-		n_doc_ids = rbt_size(query->doc_ids);
-	}
 
 	/* Search the cache for a matching word first. */
 	rw_lock_x_lock(&cache->lock);
@@ -1124,8 +1115,11 @@ fts_query_union(
 
 	if (query->cur_node->term.wildcard) {
 		/* Wildcard search the index cache */
-		fts_cache_find_wildcard(query, index_cache);
+		fts_cache_find_wildcard(query, index_cache, token);
 	} else {
+		const ib_vector_t*      nodes;
+		ulint			i;
+
 		nodes = fts_cache_find_word(index_cache, token);
 
 		for (i = 0; nodes && i < ib_vector_size(nodes); ++i) {
@@ -1138,6 +1132,35 @@ fts_query_union(
 	}
 
 	rw_lock_x_unlock(&cache->lock);
+
+	return(DB_SUCCESS);
+}
+/********************************************************************
+Set union. */
+static
+ulint
+fts_query_union(
+/*============*/
+					/* out: DB_SUCCESS if all went well */
+	fts_query_t*		query,	/* in: query instance */
+	const fts_string_t*	token)	/* in: token to search */
+{
+	fts_fetch_t		fetch;
+	ulint			n_doc_ids = 0;
+	trx_t*			trx = query->trx;
+	que_t*			graph = NULL;
+
+	ut_a(query->oper == FTS_NONE || query->oper == FTS_DECR_RATING ||
+	     query->oper == FTS_NEGATE || query->oper == FTS_INCR_RATING);
+
+	fprintf(stderr, "UNION: Searching: '%.*s'\n",
+		(int) token->len, token->utf8);
+
+	if (query->doc_ids) {
+		n_doc_ids = rbt_size(query->doc_ids);
+	}
+
+	fts_query_cache(query, token);
 
 	/* Setup the callback args for filtering and
 	consolidating the ilist. */
@@ -1489,6 +1512,7 @@ fts_query_fetch_document(
 	return(phrase->found);
 }
 
+#if 0
 /********************************************************************
 Callback function to check whether a record was found or not. */
 static
@@ -1648,7 +1672,7 @@ fts_query_find_term(
 
 	return(error);
 }
-#if 0
+
 /********************************************************************
 Callback aggregator for int columns. */
 static
@@ -1843,6 +1867,7 @@ fts_query_terms_in_document(
 }
 #endif
 
+#if 0
 /********************************************************************
 Filter out the documents that don't contain all the words in the
 matched vector. */
@@ -1948,6 +1973,7 @@ fts_query_filter_documents(
 
 	return(error);
 }
+#endif
 
 /********************************************************************
 Retrieve the document and match the phrase tokens. */
@@ -2101,6 +2127,8 @@ fts_query_phrase_search(
 
 	if (query->distance != ULINT_UNDEFINED && query->distance > 0) {
 		query->flags = FTS_PROXIMITY;
+	} else {
+		query->flags = FTS_PHRASE;
 	}
 
 	/* Split the phrase into tokens. */
@@ -2153,7 +2181,8 @@ fts_query_phrase_search(
 
 			heap_alloc = ib_heap_allocator_create(heap);
 
-			if (!(query->flags & FTS_PROXIMITY)) {
+			if (!(query->flags & FTS_PROXIMITY)
+			    && !(query->flags & FTS_PHRASE)) {
 				query->matched = ib_vector_create(
 					heap_alloc, sizeof(fts_match_t),
 					64);
@@ -2185,9 +2214,12 @@ fts_query_phrase_search(
 			/* Search for the first word from the phrase. */
 			token = ib_vector_get(tokens, i);
 
-			if (query->flags & FTS_PROXIMITY) {
+			if (query->flags & FTS_PROXIMITY
+			    || query->flags & FTS_PHRASE) {
 				query->matched = query->match_array[i];
 			}
+
+			fts_query_cache(query, token);
 
 			fts_index_fetch_nodes(
 				trx, &graph, &query->fts_index_table,
@@ -2196,7 +2228,8 @@ fts_query_phrase_search(
 			fts_que_graph_free(graph);
 			graph = NULL;
 
-			if (query->flags & FTS_PHRASE) {
+			if (!(query->flags & FTS_PHRASE)
+			    && !(query->flags & FTS_PROXIMITY)) {
 				break;
 			}
 		}
@@ -2204,8 +2237,10 @@ fts_query_phrase_search(
 		/* If we are doing proximity search, verify the distance
 		between all words, and check they are in specified distance. */
 		if (query->flags & FTS_PROXIMITY) {
-			fts_check_proximity(query, tokens);
+			fts_check_phrase_proximity(query, tokens);
 		} else {
+			ibool	matched;
+
 			/* Phrase Search case:
 			We filter out the doc ids that don't contain
 			all the tokens in the phrase. It's cheaper to
@@ -2213,11 +2248,12 @@ fts_query_phrase_search(
 			and then doing a search through the text. Isolated
 			testing shows this also helps in mitigating disruption
 			of the buffer cache. */
-			query->error = fts_query_filter_documents(
-				query, tokens);
+			matched = fts_check_phrase_proximity(query, tokens);
+			query->matched = query->match_array[0];
 
 			/* Read the actual text in and search for the phrase. */
-			if (query->error == DB_SUCCESS) {
+			if (matched) {
+				query->error = DB_SUCCESS;
 				query->error = fts_query_search_phrase(
 					query, tokens);
 			}
@@ -2446,6 +2482,7 @@ fts_ast_visit_sub_exp(
 	return(error);
 }
 
+#if 0
 /********************************************************************
 Check if the doc id exists in the ilist. */
 static
@@ -2515,6 +2552,7 @@ fts_query_find_doc_id(
 
 	return(select->found);
 }
+#endif
 
 /********************************************************************
 Read and filter nodes. */
@@ -3390,14 +3428,15 @@ fts_expand_query(
 	return(error);
 }
 /*************************************************************//**
-This function finds documents that contain all words in a proximity
-search and verify the words are close to each other enough, as in
-specified distance. This function is called for proximity search.
+This function finds documents that contain all words in a
+phrase or proximity search. And if proximity search, verify
+the words are close to each other enough, as in specified distance.
+This function is called for phrase and proximity search.
 @return TRUE if documents are found, FALSE if otherwise */
 static
-ulint
-fts_check_proximity(
-/*================*/
+ibool
+fts_check_phrase_proximity(
+/*=======================*/
 	fts_query_t*	query,		/*!< in:  query instance */
 	ib_vector_t*	tokens)		/*!< in: Tokens contain words */
 {
@@ -3432,6 +3471,11 @@ fts_check_proximity(
 			}
 
 			if (match[j]->doc_id > match[0]->doc_id) {
+				/* no match */
+				if (query->flags & FTS_PHRASE) {
+					match[0]->doc_id = 0;
+				}
+
 				break;
 			}
 
@@ -3446,8 +3490,10 @@ fts_check_proximity(
 		verify whether the words in the doc are close
 		to each other, and with in distance specified
 		in the proximity search */
-		if (fts_proximity_check_position(match, num_token,
-						 query->distance)) {
+		if (query->flags & FTS_PHRASE) {
+			matched = TRUE;
+		} else if (fts_proximity_check_position(
+			match, num_token, query->distance)) {
 			/* If so, mark we find a matching doc */
 			fts_query_process_doc_id(query, match[0]->doc_id, 0);
 
