@@ -390,14 +390,15 @@ bool subquery_types_allow_materialization(Item_in_subselect *in_subs)
   Apply max min optimization of all/any subselect
 */
 
-bool convert_max_min_subquery(JOIN *join)
+bool JOIN::transform_max_min_subquery()
 {
-  DBUG_ENTER("convert_max_min_subquery");
-  Item_subselect *subselect= join->unit->item;
+  DBUG_ENTER("JOIN::transform_max_min_subquery");
+  Item_subselect *subselect= unit->item;
   if (!subselect || (subselect->substype() != Item_subselect::ALL_SUBS &&
                      subselect->substype() != Item_subselect::ANY_SUBS))
     DBUG_RETURN(0);
-  DBUG_RETURN(((Item_allany_subselect *) subselect)->transform_allany(join));
+  DBUG_RETURN(((Item_allany_subselect *) subselect)->
+              transform_into_max_min(this));
 }
 
 
@@ -3874,7 +3875,6 @@ bool JOIN::choose_subquery_plan(table_map join_tables)
     if (reopt_result == REOPT_NEW_PLAN)
       restore_query_plan(&save_qep);
 
-    /* TODO: should we set/unset this flag for both select_lex and its unit? */
     in_subs->unit->uncacheable&= ~UNCACHEABLE_DEPENDENT_INJECTED;
     select_lex->uncacheable&= ~UNCACHEABLE_DEPENDENT_INJECTED;
 
@@ -3916,6 +3916,10 @@ bool JOIN::choose_subquery_plan(table_map join_tables)
 
     if (in_subs->inject_in_to_exists_cond(this))
       return TRUE;
+    /*
+      It is IN->EXISTS transformation so we should mark subquery as
+      dependent
+    */
     in_subs->unit->uncacheable|= UNCACHEABLE_DEPENDENT_INJECTED;
     select_lex->uncacheable|= UNCACHEABLE_DEPENDENT_INJECTED;
     select_limit= 1;

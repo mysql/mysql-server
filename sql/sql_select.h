@@ -1080,6 +1080,8 @@ public:
   bool choose_subquery_plan(table_map join_tables);
   void get_partial_join_cost(uint n_tables,
                              double *read_time_arg, double *record_count_arg);
+  /* defined in opt_subselect.cc */
+  bool transform_max_min_subquery();
 
 private:
   /**

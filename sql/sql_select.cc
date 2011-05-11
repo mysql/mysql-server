@@ -749,6 +749,14 @@ err:
 }
 
 
+/**
+  Second phase of prepare where we collect some statistic.
+
+  @details
+  We made this part separate to be able recalculate some statistic after
+  transforming subquery on optimization phase.
+*/
+
 bool JOIN::prepare_stage2()
 {
   bool res= TRUE;
@@ -809,7 +817,7 @@ JOIN::optimize()
   set_allowed_join_cache_types();
 
   /* dump_TABLE_LIST_graph(select_lex, select_lex->leaf_tables); */
-  if (convert_max_min_subquery(this) ||
+  if (transform_max_min_subquery() ||
       convert_join_subqueries_to_semijoins(this))
     DBUG_RETURN(1); /* purecov: inspected */
   /* dump_TABLE_LIST_graph(select_lex, select_lex->leaf_tables); */
@@ -20333,7 +20341,6 @@ void st_select_lex::print(THD *thd, String *str, enum_query_type query_type)
   change select_result object of JOIN.
 
   @param res		new select_result object
-  @param temp           temporary assignment
 
   @retval
     FALSE   OK

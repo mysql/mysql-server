@@ -33,7 +33,7 @@ class Cached_item;
 class Item_subselect :public Item_result_field
 {
   bool value_assigned;   /* value already assigned to subselect */
-  bool borrowed_engine;  /* the engine was taken from other Item_subselect */
+  bool own_engine;  /* the engine was not taken from other Item_subselect */
 protected:
   /* thread handler, will be assigned in fix_fields only */
   THD *thd;
@@ -318,6 +318,8 @@ class Item_exists_subselect :public Item_subselect
 protected:
   bool value; /* value of this item (boolean: exists/not-exists) */
 
+  void init_length_and_dec();
+
 public:
   Item_exists_subselect(st_select_lex *select_lex);
   Item_exists_subselect(): Item_subselect() {}
@@ -529,7 +531,7 @@ public:
   void create_comp_func(bool invert) { func= func_creator(invert); }
   virtual void print(String *str, enum_query_type query_type);
   bool is_maxmin_applicable(JOIN *join);
-  bool transform_allany(JOIN *join);
+  bool transform_into_max_min(JOIN *join);
 };
 
 

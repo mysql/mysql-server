@@ -33,7 +33,8 @@
 
 
 Item_subselect::Item_subselect():
-  Item_result_field(), value_assigned(0),  thd(0), substitution(0),
+  Item_result_field(), value_assigned(0), own_engine(TRUE),
+  thd(0), substitution(0),
   expr_cache(0), engine(0), old_engine(0), used_tables_cache(0),
   have_to_be_excluded(0), const_item_cache(1), inside_first_fix_fields(0),
   done_first_fix_fields(FALSE), forced_const(FALSE), eliminated(FALSE),
@@ -73,11 +74,9 @@ void Item_subselect::init(st_select_lex *select_lex,
       => we do not copy old_engine here
     */
     engine= unit->item->engine;
-    borrowed_engine= TRUE;
+    own_engine= FALSE;
     parsing_place= unit->item->parsing_place;
-    //unit->item->engine= 0;
     thd->change_item_tree((Item**)&unit->item, this);
-    //unit->item= this;
     engine->change_result(this, result, TRUE);
   }
   else
@@ -165,7 +164,7 @@ Item_subselect::~Item_subselect()
 {
   DBUG_ENTER("Item_subselect::~Item_subselect");
   DBUG_PRINT("enter", ("this: 0x%lx", (ulong) this));
-  if (!borrowed_engine)
+  if (own_engine)
     delete engine;
   else
     engine->cleanup();
@@ -1130,24 +1129,41 @@ Item_allany_subselect::Item_allany_subselect(Item * left_exp,
 }
 
 
-void Item_exists_subselect::fix_length_and_dec()
+/**
+  Initialize length and decimals for EXISTS  and inherited (IN/ALL/ANY)
+  subqueries
+*/
+
+void Item_exists_subselect::init_length_and_dec()
 {
-  DBUG_ENTER("Item_exists_subselect::fix_length_and_dec");
   decimals= 0;
   max_length= 1;
   max_columns= engine->cols();
-  /* We need only 1 row to determine existence */
+}
+
+
+void Item_exists_subselect::fix_length_and_dec()
+{
+  DBUG_ENTER("Item_exists_subselect::fix_length_and_dec");
+  init_length_and_dec();
+  /*
+    We need only 1 row to determine existence (i.e. any EXISTS that is not
+    an IN always requires LIMIT 1)
+  */
   unit->global_parameters->select_limit= new Item_int((int32) 1);
   DBUG_PRINT("info", ("Set limit to 1"));
   DBUG_VOID_RETURN;
 }
 
+
 void Item_in_subselect::fix_length_and_dec()
 {
   DBUG_ENTER("Item_in_subselect::fix_length_and_dec");
-  decimals= 0;
-  max_length= 1;
-  max_columns= engine->cols();
+  init_length_and_dec();
+  /*
+    Unlike Item_exists_subselect, LIMIT 1 is set later for
+    Item_in_subselect, depending on the chosen strategy.
+  */
   DBUG_VOID_RETURN;
 }
 
@@ -1368,29 +1384,19 @@ my_decimal *Item_in_subselect::val_decimal(my_decimal *decimal_value)
 
 
 /**
-  Rewrite a single-column IN/ALL/ANY subselect.
+  Prepare a single-column IN/ALL/ANY subselect for rewriting.
 
   @param join  Join object of the subquery (i.e. 'child' join).
 
   @details
-  Rewrite a single-column subquery using rule-based approach. Given the subquery
 
-     oe $cmp$ (SELECT ie FROM ... WHERE subq_where ... HAVING subq_having)
+  Prepare a single-column subquery to be rewritten. Given the subquery.
 
-  First, try to convert the subquery to a scalar-result subquery in one of
-  the forms:
-    
-     - oe $cmp$ (SELECT MAX(...) )  // handled by Item_singlerow_subselect
-     - oe $cmp$ <max>(SELECT ...)   // handled by Item_maxmin_subselect
+  If the subquery has no tables it will be turned to an expression between
+  left part and SELECT list.
 
-  If that fails, check if the subquery is a single select without tables,
-  and substitute the subquery predicate with "oe $cmp$ ie".
-   
-  If that fails, the subquery predicate is wrapped into an Item_in_optimizer.
-  Later the query optimization phase chooses whether the subquery under the
-  Item_in_optimizer will be further transformed into an equivalent correlated
-  EXISTS by injecting additional predicates, or will be executed via subquery
-  materialization in its unmodified form.
+  In other cases the subquery will be wrapped with  Item_in_optimizer which
+  allow later to turn it to EXISTS or MAX/MIN.
 
   @retval false  The subquery was transformed
   @retval true   Error
@@ -1476,26 +1482,40 @@ Item_in_subselect::single_value_transformer(JOIN *join)
   DBUG_RETURN(false);
 }
 
-bool Item_allany_subselect::transform_allany(JOIN *join)
+
+/**
+  Apply transformation max/min  transwormation to ALL/ANY subquery if it is
+  possible.
+
+  @param join  Join object of the subquery (i.e. 'child' join).
+
+  @details
+
+  If this is an ALL/ANY single-value subselect, try to rewrite it with
+  a MIN/MAX subselect. We can do that if a possible NULL result of the
+  subselect can be ignored.
+  E.g. SELECT * FROM t1 WHERE b > ANY (SELECT a FROM t2) can be rewritten
+  with SELECT * FROM t1 WHERE b > (SELECT MAX(a) FROM t2).
+  We can't check that this optimization is safe if it's not a top-level
+  item of the WHERE clause (e.g. because the WHERE clause can contain IS
+  NULL/IS NOT NULL functions). If so, we rewrite ALL/ANY with NOT EXISTS
+  later in this method.
+
+  @retval false  The subquery was transformed
+  @retval true   Error
+*/
+
+bool Item_allany_subselect::transform_into_max_min(JOIN *join)
 {
-  DBUG_ENTER("Item_allany_subselect::transform_allany");
+  DBUG_ENTER("Item_allany_subselect::transform_into_max_min");
   if (!(in_strategy & SUBS_MAXMIN))
-    DBUG_RETURN(0);
+    DBUG_RETURN(false);
   Item **place= optimizer->arguments() + 1;
   THD *thd= join->thd;
   SELECT_LEX *select_lex= join->select_lex;
   Item *subs;
 
   /*
-    If this is an ALL/ANY single-value subselect, try to rewrite it with
-    a MIN/MAX subselect. We can do that if a possible NULL result of the
-    subselect can be ignored.
-    E.g. SELECT * FROM t1 WHERE b > ANY (SELECT a FROM t2) can be rewritten
-    with SELECT * FROM t1 WHERE b > (SELECT MAX(a) FROM t2).
-    We can't check that this optimization is safe if it's not a top-level
-    item of the WHERE clause (e.g. because the WHERE clause can contain IS
-    NULL/IS NOT NULL functions). If so, we rewrite ALL/ANY with NOT EXISTS
-    later in this method.
   */
   DBUG_ASSERT(!substitution);
 
@@ -1560,12 +1580,15 @@ bool Item_allany_subselect::transform_allany(JOIN *join)
   subs= func->create(left_expr, subs);
   thd->change_item_tree(place, subs);
   if (subs->fix_fields(thd, &subs))
-    DBUG_RETURN(1);
+    DBUG_RETURN(true);
   DBUG_ASSERT(subs == (*place)); // There was no substitutions
 
   select_lex->master_unit()->uncacheable&= ~UNCACHEABLE_DEPENDENT_INJECTED;
   select_lex->uncacheable&= ~UNCACHEABLE_DEPENDENT_INJECTED;
-  /* remove other strategies if there was (just to be safe) */
+  /*
+    Remove other strategies if there was (we already changed the query and
+    can't apply other strategy).
+  */
   in_strategy= SUBS_MAXMIN;
 
   DBUG_RETURN(false);
@@ -2063,10 +2086,6 @@ bool Item_in_subselect::create_in_to_exists_cond(JOIN *join_arg)
     If the dependency is removed, the call can be moved to a later phase.
   */
   init_cond_guards();
-  /*
-    The IN=>EXISTS transformation makes non-correlated subqueries correlated.
-  */
-  join_arg->select_lex->uncacheable|= UNCACHEABLE_DEPENDENT_INJECTED;
   if (left_expr->cols() == 1)
     res= create_single_in_to_exists_cond(join_arg,
                                          &(join_arg->in_to_exists_where),
@@ -2076,6 +2095,10 @@ bool Item_in_subselect::create_in_to_exists_cond(JOIN *join_arg)
                                       &(join_arg->in_to_exists_where),
                                       &(join_arg->in_to_exists_having));
 
+  /*
+    The IN=>EXISTS transformation makes non-correlated subqueries correlated.
+  */
+  join_arg->select_lex->uncacheable|= UNCACHEABLE_DEPENDENT_INJECTED;
   /*
     The uncacheable property controls a number of actions, e.g. whether to
     save/restore (via init_save_join_tab/restore_tmp) the original JOIN for
@@ -3515,6 +3538,7 @@ void subselect_indexsubquery_engine::print(String *str,
 
   @param si		new subselect Item
   @param res		new select_result object
+  @param temp           temporary assignment
 
   @retval
     FALSE OK
@@ -3529,7 +3553,14 @@ subselect_single_select_engine::change_result(Item_subselect *si,
 {
   item= si;
   if (temp)
+  {
+    /*
+      Here we reuse change_item_tree to roll back assignment.  It has
+      nothing special about Item* pointer so it is safe conversion. We do
+      not change the interface to be compatible with MySQL.
+    */
     thd->change_item_tree((Item**) &result, (Item*)res);
+  }
   else
     result= res;
   return select_lex->join->change_result(result);
