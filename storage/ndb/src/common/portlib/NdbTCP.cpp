@@ -95,7 +95,7 @@ CHECK(const char* address, int expected_res, bool is_numeric= false)
     if (memcmp(&addr, &addr2, sizeof(struct in_addr)) != 0)
     {
       fprintf(stderr, "> numeric address '%s' didn't map to same value as "
-             "inet_addr: '%s'", inet_ntoa(addr2));
+              "inet_addr: '%s'", address, inet_ntoa(addr2));
       abort();
     }
     fprintf(stderr, "> ok\n");
