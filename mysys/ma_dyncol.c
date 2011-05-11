@@ -905,6 +905,7 @@ static void type_and_offset_read(DYNAMIC_COLUMN_TYPE *type,
                                  uchar *place, size_t offset_size)
 {
   ulong val;
+  LINT_INIT(val);
 
   place+= COLUMN_NUMBER_SIZE;                 /* skip column number */
   switch (offset_size) {
@@ -1611,6 +1612,7 @@ find_place(uint num, uchar *header, size_t entry_size,
 {
   uint mid, start, end, val;
   int flag;
+  LINT_INIT(flag);                              /* 100 % safe */
 
   start= 0;
   end= column_count -1;

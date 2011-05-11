@@ -67,7 +67,6 @@ vi\.c : unused parameter
 common\.c : unused parameter
 term\.c : .*
 
-
 #
 # Ignore some warnings in libevent, which is not maintained by us.
 #
@@ -146,6 +145,7 @@ table_xt\.cc : variable.*might be clobbered by.*longjmp
 
 #
 # Yassl
+#
 include/runtime.hpp: .*pure_error.*
 .*/extra/yassl/.*taocrypt/.*: comparison with string literal
 .*/extra/yassl/taocrypt/src/blowfish\.cpp: array subscript is above array bounds
@@ -157,6 +157,12 @@ mySTL/algorithm\.hpp: is used uninitialized in this function
 # Groff warnings on OpenSUSE.
 #
 .*/dbug/.*(groff|<standard input>) : .*
+
+#
+# Warnings on OpenSolaris
+#
+.*/my_config\.h : _FILE_OFFSET_BITS
+/usr/include/sys/feature_tests.h : this is the location of the previous definition
 
 #
 # Unexplanable (?) stuff

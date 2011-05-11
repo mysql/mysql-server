@@ -444,9 +444,9 @@ column_get(column_create(1, "8:46:06.23434" AS time), 1 as double)
 select column_get(column_create(1, "2011-04-05 8:46:06.23434" AS datetime), 1 as double);
 column_get(column_create(1, "2011-04-05 8:46:06.23434" AS datetime), 1 as double)
 20110405084606.2
-select column_get(column_create(1, "2011-04-05 8:46:06.23434" AS datetime), 1 as double(20,6));
-column_get(column_create(1, "2011-04-05 8:46:06.23434" AS datetime), 1 as double(20,6))
-20110405084606.234375
+select round(column_get(column_create(1, "2011-04-05 8:46:06.23434" AS datetime), 1 as double(20,6)),3);
+round(column_get(column_create(1, "2011-04-05 8:46:06.23434" AS datetime), 1 as double(20,6)),3)
+20110405084606.234
 select column_get(column_create(1, NULL AS double), 1 as double);
 column_get(column_create(1, NULL AS double), 1 as double)
 NULL
