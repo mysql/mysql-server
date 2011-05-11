@@ -140,16 +140,51 @@ socket_library_end()
 #endif
 }
 
+static bool
+can_resolve_hostname(const char* name)
+{
+  struct addrinfo hints;
+  memset(&hints, 0, sizeof(hints));
+  hints.ai_family = AF_INET; // Only IPv4 address
+  hints.ai_socktype = SOCK_STREAM;
+  hints.ai_protocol = IPPROTO_TCP;
+
+  struct addrinfo* ai_list;
+  int err = getaddrinfo(name, NULL, &hints, &ai_list);
+
+  if (err)
+  {
+    fprintf(stderr, "> '%s' -> error: %d '%s'\n",
+             name, err, gai_strerror(err));
+
+    if (err == EAI_NODATA)
+    {
+      // No address associated with hostname, OK anyway
+      fprintf(stderr, ">  EAI_NODATA -> continuing anyway\n");
+      return false;
+    }
+
+    // Another unhandled error
+    abort();
+  }
+
+  freeaddrinfo(ai_list);
+
+  return true;
+}
+
 
 TAPTEST(NdbGetInAddr)
 {
   socket_library_init();
 
-  CHECK("localhost", 0);
+  if (can_resolve_hostname("localhost"))
+    CHECK("localhost", 0);
   CHECK("127.0.0.1", 0, true);
 
   char hostname_buf[256];
-  if (gethostname(hostname_buf, sizeof(hostname_buf)) == 0)
+  if (gethostname(hostname_buf, sizeof(hostname_buf)) == 0 &&
+      can_resolve_hostname(hostname_buf))
   {
     // Check this machines hostname
     CHECK(hostname_buf, 0);
