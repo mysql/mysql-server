@@ -678,15 +678,30 @@ enabled by default, add OPTIMIZER_SWITCH_MATERIALIZATION
 */
 #define CONTEXT_ANALYSIS_ONLY_DERIVED 4
 
-// uncachable cause
-#define UNCACHEABLE_DEPENDENT   1
-#define UNCACHEABLE_RAND        2
-#define UNCACHEABLE_SIDEEFFECT	4
-/// forcing to save JOIN for explain
-#define UNCACHEABLE_EXPLAIN     8
+/*
+  Uncachable causes:
+
+This subquery has fields from outer query (put by user)
+*/
+#define UNCACHEABLE_DEPENDENT_GENERATED 1
+/* This subquery contains functions with random result */
+#define UNCACHEABLE_RAND                2
+/* This subquery contains functions with side effect */
+#define UNCACHEABLE_SIDEEFFECT	        4
+/* Forcing to save JOIN tables for explain */
+#define UNCACHEABLE_EXPLAIN             8
 /* For uncorrelated SELECT in an UNION with some correlated SELECTs */
-#define UNCACHEABLE_UNITED     16
-#define UNCACHEABLE_CHECKOPTION 32
+#define UNCACHEABLE_UNITED              16
+#define UNCACHEABLE_CHECKOPTION         32
+/*
+  This subquery has fields from outer query injected during
+  transformation process
+*/
+#define UNCACHEABLE_DEPENDENT_INJECTED  64
+
+/* This subquery has fields from outer query (any nature) */
+#define UNCACHEABLE_DEPENDENT (UNCACHEABLE_DEPENDENT_GENERATED | \
+                               UNCACHEABLE_DEPENDENT_INJECTED)
 
 /* Used to check GROUP BY list in the MODE_ONLY_FULL_GROUP_BY mode */
 #define UNDEF_POS (-1)

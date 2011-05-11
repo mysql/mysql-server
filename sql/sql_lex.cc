@@ -1942,18 +1942,19 @@ bool st_select_lex::mark_as_dependent(THD *thd, st_select_lex *last, Item *depen
   SELECT_LEX *s= this;
   do
   {
-    if (!(s->uncacheable & UNCACHEABLE_DEPENDENT))
+    if (!(s->uncacheable & UNCACHEABLE_DEPENDENT_GENERATED))
     {
       // Select is dependent of outer select
       s->uncacheable= (s->uncacheable & ~UNCACHEABLE_UNITED) |
-                       UNCACHEABLE_DEPENDENT;
+                       UNCACHEABLE_DEPENDENT_GENERATED;
       SELECT_LEX_UNIT *munit= s->master_unit();
       munit->uncacheable= (munit->uncacheable & ~UNCACHEABLE_UNITED) |
-                       UNCACHEABLE_DEPENDENT;
+                       UNCACHEABLE_DEPENDENT_GENERATED;
       for (SELECT_LEX *sl= munit->first_select(); sl ; sl= sl->next_select())
       {
         if (sl != s &&
-            !(sl->uncacheable & (UNCACHEABLE_DEPENDENT | UNCACHEABLE_UNITED)))
+            !(sl->uncacheable & (UNCACHEABLE_DEPENDENT_GENERATED |
+                                 UNCACHEABLE_UNITED)))
           sl->uncacheable|= UNCACHEABLE_UNITED;
       }
     }
@@ -2178,17 +2179,6 @@ void st_select_lex::print_limit(THD *thd,
         subs_type == Item_subselect::IN_SUBS ||
         subs_type == Item_subselect::ALL_SUBS)
     {
-      DBUG_ASSERT(!item->fixed ||
-                  /*
-                    If not using materialization both:
-                    select_limit == 1, and there should be no offset_limit.
-                  */
-                  (((subs_type == Item_subselect::IN_SUBS) &&
-                    ((Item_in_subselect*)item)->in_strategy &
-                    SUBS_MATERIALIZATION) ?
-                   TRUE :
-                   (select_limit->val_int() == 1LL) &&
-                   offset_limit == 0));
       return;
     }
   }

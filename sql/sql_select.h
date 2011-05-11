@@ -999,6 +999,7 @@ public:
 	      COND *conds, uint og_num, ORDER *order, ORDER *group,
 	      Item *having, ORDER *proc_param, SELECT_LEX *select,
 	      SELECT_LEX_UNIT *unit);
+  bool prepare_stage2();
   int optimize();
   int reinit();
   int init_execution();
@@ -1079,6 +1080,8 @@ public:
   bool choose_subquery_plan(table_map join_tables);
   void get_partial_join_cost(uint n_tables,
                              double *read_time_arg, double *record_count_arg);
+  /* defined in opt_subselect.cc */
+  bool transform_max_min_subquery();
 
 private:
   /**

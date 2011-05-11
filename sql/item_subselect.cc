@@ -33,12 +33,15 @@
 
 
 Item_subselect::Item_subselect():
-  Item_result_field(), value_assigned(0), thd(0), substitution(0),
+  Item_result_field(), value_assigned(0), own_engine(TRUE),
+  thd(0), substitution(0),
   expr_cache(0), engine(0), old_engine(0), used_tables_cache(0),
   have_to_be_excluded(0), const_item_cache(1), inside_first_fix_fields(0),
   done_first_fix_fields(FALSE), forced_const(FALSE), eliminated(FALSE),
   engine_changed(0), changed(0), is_correlated(FALSE)
 {
+  DBUG_ENTER("Item_subselect::Item_subselect");
+  DBUG_PRINT("enter", ("this: 0x%lx", (ulong) this));
   with_subselect= 1;
   reset();
   /*
@@ -46,6 +49,7 @@ Item_subselect::Item_subselect():
     (i.e. some rows will be found returned)
   */
   null_value= TRUE;
+  DBUG_VOID_RETURN;
 }
 
 
@@ -58,7 +62,8 @@ void Item_subselect::init(st_select_lex *select_lex,
   */
 
   DBUG_ENTER("Item_subselect::init");
-  DBUG_PRINT("enter", ("select_lex: 0x%lx", (long) select_lex));
+  DBUG_PRINT("enter", ("select_lex: 0x%lx  this: 0x%lx",
+                       (ulong) select_lex, (ulong) this));
   unit= select_lex->master_unit();
   thd= unit->thd;
 
@@ -69,10 +74,10 @@ void Item_subselect::init(st_select_lex *select_lex,
       => we do not copy old_engine here
     */
     engine= unit->item->engine;
+    own_engine= FALSE;
     parsing_place= unit->item->parsing_place;
-    unit->item->engine= 0;
-    unit->item= this;
-    engine->change_result(this, result);
+    thd->change_item_tree((Item**)&unit->item, this);
+    engine->change_result(this, result, TRUE);
   }
   else
   {
@@ -97,6 +102,7 @@ void Item_subselect::init(st_select_lex *select_lex,
     /* The subquery is an expression cache candidate */
     upper->expr_cache_may_be_used[upper->parsing_place]= TRUE;
   }
+  DBUG_PRINT("info", ("engine: 0x%lx", (ulong)engine));
   DBUG_VOID_RETURN;
 }
 
@@ -156,8 +162,14 @@ void Item_in_subselect::cleanup()
 
 Item_subselect::~Item_subselect()
 {
-  delete engine;
+  DBUG_ENTER("Item_subselect::~Item_subselect");
+  DBUG_PRINT("enter", ("this: 0x%lx", (ulong) this));
+  if (own_engine)
+    delete engine;
+  else
+    engine->cleanup();
   engine= NULL;
+  DBUG_VOID_RETURN;
 }
 
 bool
@@ -1117,13 +1129,42 @@ Item_allany_subselect::Item_allany_subselect(Item * left_exp,
 }
 
 
+/**
+  Initialize length and decimals for EXISTS  and inherited (IN/ALL/ANY)
+  subqueries
+*/
+
+void Item_exists_subselect::init_length_and_dec()
+{
+  decimals= 0;
+  max_length= 1;
+  max_columns= engine->cols();
+}
+
+
 void Item_exists_subselect::fix_length_and_dec()
 {
-   decimals= 0;
-   max_length= 1;
-   max_columns= engine->cols();
-  /* We need only 1 row to determine existence */
+  DBUG_ENTER("Item_exists_subselect::fix_length_and_dec");
+  init_length_and_dec();
+  /*
+    We need only 1 row to determine existence (i.e. any EXISTS that is not
+    an IN always requires LIMIT 1)
+  */
   unit->global_parameters->select_limit= new Item_int((int32) 1);
+  DBUG_PRINT("info", ("Set limit to 1"));
+  DBUG_VOID_RETURN;
+}
+
+
+void Item_in_subselect::fix_length_and_dec()
+{
+  DBUG_ENTER("Item_in_subselect::fix_length_and_dec");
+  init_length_and_dec();
+  /*
+    Unlike Item_exists_subselect, LIMIT 1 is set later for
+    Item_in_subselect, depending on the chosen strategy.
+  */
+  DBUG_VOID_RETURN;
 }
 
 
@@ -1343,29 +1384,19 @@ my_decimal *Item_in_subselect::val_decimal(my_decimal *decimal_value)
 
 
 /**
-  Rewrite a single-column IN/ALL/ANY subselect.
+  Prepare a single-column IN/ALL/ANY subselect for rewriting.
 
   @param join  Join object of the subquery (i.e. 'child' join).
 
   @details
-  Rewrite a single-column subquery using rule-based approach. Given the subquery
 
-     oe $cmp$ (SELECT ie FROM ... WHERE subq_where ... HAVING subq_having)
+  Prepare a single-column subquery to be rewritten. Given the subquery.
 
-  First, try to convert the subquery to a scalar-result subquery in one of
-  the forms:
-    
-     - oe $cmp$ (SELECT MAX(...) )  // handled by Item_singlerow_subselect
-     - oe $cmp$ <max>(SELECT ...)   // handled by Item_maxmin_subselect
+  If the subquery has no tables it will be turned to an expression between
+  left part and SELECT list.
 
-  If that fails, check if the subquery is a single select without tables,
-  and substitute the subquery predicate with "oe $cmp$ ie".
-   
-  If that fails, the subquery predicate is wrapped into an Item_in_optimizer.
-  Later the query optimization phase chooses whether the subquery under the
-  Item_in_optimizer will be further transformed into an equivalent correlated
-  EXISTS by injecting additional predicates, or will be executed via subquery
-  materialization in its unmodified form.
+  In other cases the subquery will be wrapped with  Item_in_optimizer which
+  allow later to turn it to EXISTS or MAX/MIN.
 
   @retval false  The subquery was transformed
   @retval true   Error
@@ -1386,88 +1417,6 @@ Item_in_subselect::single_value_transformer(JOIN *join)
   {
     my_error(ER_OPERAND_COLUMNS, MYF(0), 1);
     DBUG_RETURN(true);
-  }
-
-  /*
-    If this is an ALL/ANY single-value subselect, try to rewrite it with
-    a MIN/MAX subselect. We can do that if a possible NULL result of the
-    subselect can be ignored.
-    E.g. SELECT * FROM t1 WHERE b > ANY (SELECT a FROM t2) can be rewritten
-    with SELECT * FROM t1 WHERE b > (SELECT MAX(a) FROM t2).
-    We can't check that this optimization is safe if it's not a top-level
-    item of the WHERE clause (e.g. because the WHERE clause can contain IS
-    NULL/IS NOT NULL functions). If so, we rewrite ALL/ANY with NOT EXISTS
-    later in this method.
-  */
-  if ((abort_on_null || (upper_item && upper_item->top_level())) &&
-      !select_lex->master_unit()->uncacheable && !func->eqne_op())
-  {
-    if (substitution)
-    {
-      /* It is second (third, ...) SELECT of UNION => All is done */
-      DBUG_RETURN(false);
-    }
-
-    Item *subs;
-    if (!select_lex->group_list.elements &&
-        !select_lex->having &&
-	!select_lex->with_sum_func &&
-	!(select_lex->next_select()) &&
-        select_lex->table_list.elements)
-    {
-      Item_sum_hybrid *item;
-      nesting_map save_allow_sum_func;
-      if (func->l_op())
-      {
-	/*
-	  (ALL && (> || =>)) || (ANY && (< || =<))
-	  for ALL condition is inverted
-	*/
-	item= new Item_sum_max(*select_lex->ref_pointer_array);
-      }
-      else
-      {
-	/*
-	  (ALL && (< || =<)) || (ANY && (> || =>))
-	  for ALL condition is inverted
-	*/
-	item= new Item_sum_min(*select_lex->ref_pointer_array);
-      }
-      if (upper_item)
-        upper_item->set_sum_test(item);
-      *select_lex->ref_pointer_array= item;
-      {
-	List_iterator<Item> it(select_lex->item_list);
-	it++;
-	it.replace(item);
-      }
-
-      save_allow_sum_func= thd->lex->allow_sum_func;
-      thd->lex->allow_sum_func|= 1 << thd->lex->current_select->nest_level;
-      /*
-	Item_sum_(max|min) can't substitute other item => we can use 0 as
-        reference, also Item_sum_(max|min) can't be fixed after creation, so
-        we do not check item->fixed
-      */
-      if (item->fix_fields(thd, 0))
-	DBUG_RETURN(true);
-      thd->lex->allow_sum_func= save_allow_sum_func; 
-      /* we added aggregate function => we have to change statistic */
-      count_field_types(select_lex, &join->tmp_table_param, join->all_fields, 
-                        0);
-
-      subs= new Item_singlerow_subselect(select_lex);
-    }
-    else
-    {
-      Item_maxmin_subselect *item;
-      subs= item= new Item_maxmin_subselect(thd, this, select_lex, func->l_op());
-      if (upper_item)
-        upper_item->set_sub_test(item);
-    }
-    /* fix fields is already called for  left expression */
-    substitution= func->create(left_expr, subs);
-    DBUG_RETURN(false);
   }
 
   Item* join_having= join->having ? join->having : join->tmp_having;
@@ -1503,7 +1452,6 @@ Item_in_subselect::single_value_transformer(JOIN *join)
   if (!substitution)
   {
     /* We're invoked for the 1st (or the only) SELECT in the subquery UNION */
-    SELECT_LEX_UNIT *master_unit= select_lex->master_unit();
     substitution= optimizer;
 
     SELECT_LEX *current= thd->lex->current_select;
@@ -1529,16 +1477,119 @@ Item_in_subselect::single_value_transformer(JOIN *join)
 			      (char *)"<no matter>",
 			      (char *)in_left_expr_name);
 
-    /*
-      The uncacheable property controls a number of actions, e.g. whether to
-      save/restore (via init_save_join_tab/restore_tmp) the original JOIN for
-      plans with a temp table where the original JOIN was overriden by
-      make_simple_join. The UNCACHEABLE_EXPLAIN is ignored by EXPLAIN, thus
-      non-correlated subqueries will not appear as such to EXPLAIN.
-    */
-    master_unit->uncacheable|= UNCACHEABLE_EXPLAIN;
-    select_lex->uncacheable|= UNCACHEABLE_EXPLAIN;
   }
+
+  DBUG_RETURN(false);
+}
+
+
+/**
+  Apply transformation max/min  transwormation to ALL/ANY subquery if it is
+  possible.
+
+  @param join  Join object of the subquery (i.e. 'child' join).
+
+  @details
+
+  If this is an ALL/ANY single-value subselect, try to rewrite it with
+  a MIN/MAX subselect. We can do that if a possible NULL result of the
+  subselect can be ignored.
+  E.g. SELECT * FROM t1 WHERE b > ANY (SELECT a FROM t2) can be rewritten
+  with SELECT * FROM t1 WHERE b > (SELECT MAX(a) FROM t2).
+  We can't check that this optimization is safe if it's not a top-level
+  item of the WHERE clause (e.g. because the WHERE clause can contain IS
+  NULL/IS NOT NULL functions). If so, we rewrite ALL/ANY with NOT EXISTS
+  later in this method.
+
+  @retval false  The subquery was transformed
+  @retval true   Error
+*/
+
+bool Item_allany_subselect::transform_into_max_min(JOIN *join)
+{
+  DBUG_ENTER("Item_allany_subselect::transform_into_max_min");
+  if (!(in_strategy & SUBS_MAXMIN))
+    DBUG_RETURN(false);
+  Item **place= optimizer->arguments() + 1;
+  THD *thd= join->thd;
+  SELECT_LEX *select_lex= join->select_lex;
+  Item *subs;
+
+  /*
+  */
+  DBUG_ASSERT(!substitution);
+
+  if (!select_lex->group_list.elements &&
+      !select_lex->having &&
+      !select_lex->with_sum_func &&
+      !(select_lex->next_select()) &&
+      select_lex->table_list.elements)
+  {
+    Item_sum_hybrid *item;
+    nesting_map save_allow_sum_func;
+    if (func->l_op())
+    {
+      /*
+        (ALL && (> || =>)) || (ANY && (< || =<))
+        for ALL condition is inverted
+      */
+      item= new Item_sum_max(*select_lex->ref_pointer_array);
+    }
+    else
+    {
+      /*
+        (ALL && (< || =<)) || (ANY && (> || =>))
+        for ALL condition is inverted
+      */
+      item= new Item_sum_min(*select_lex->ref_pointer_array);
+    }
+    if (upper_item)
+      upper_item->set_sum_test(item);
+    thd->change_item_tree(select_lex->ref_pointer_array, item);
+    {
+      List_iterator<Item> it(select_lex->item_list);
+      it++;
+      thd->change_item_tree(it.ref(), item);
+    }
+
+    save_allow_sum_func= thd->lex->allow_sum_func;
+    thd->lex->allow_sum_func|= 1 << thd->lex->current_select->nest_level;
+    /*
+      Item_sum_(max|min) can't substitute other item => we can use 0 as
+      reference, also Item_sum_(max|min) can't be fixed after creation, so
+      we do not check item->fixed
+    */
+    if (item->fix_fields(thd, 0))
+      DBUG_RETURN(true);
+    thd->lex->allow_sum_func= save_allow_sum_func; 
+    /* we added aggregate function => we have to change statistic */
+    count_field_types(select_lex, &join->tmp_table_param, join->all_fields, 
+                      0);
+    if (join->prepare_stage2())
+      DBUG_RETURN(true);
+    subs= new Item_singlerow_subselect(select_lex);
+  }
+  else
+  {
+    Item_maxmin_subselect *item;
+    subs= item= new Item_maxmin_subselect(thd, this, select_lex, func->l_op());
+    if (upper_item)
+      upper_item->set_sub_test(item);
+  }
+  /* fix fields is already called for  left expression */
+  subs= func->create(left_expr, subs);
+  thd->change_item_tree(place, subs);
+  if (subs->fix_fields(thd, &subs))
+    DBUG_RETURN(true);
+  DBUG_ASSERT(subs == (*place)); // There was no substitutions
+
+  select_lex->master_unit()->uncacheable&= ~UNCACHEABLE_DEPENDENT_INJECTED;
+  select_lex->uncacheable&= ~UNCACHEABLE_DEPENDENT_INJECTED;
+  /*
+    Remove other strategies if there was (we already changed the query and
+    can't apply other strategy).
+  */
+  in_strategy= SUBS_MAXMIN;
 
   DBUG_RETURN(false);
 }
@@ -1554,6 +1605,16 @@ bool Item_in_subselect::fix_having(Item *having, SELECT_LEX *select_lex)
     select_lex->having_fix_field= 0;
   }
   return fix_res;
+}
+
+bool Item_allany_subselect::is_maxmin_applicable(JOIN *join)
+{
+  /*
+    Check if max/min optimization applicable: It is top item of
+    WHERE condition.
+  */
+  return (abort_on_null || (upper_item && upper_item->top_level())) &&
+      !join->select_lex->master_unit()->uncacheable && !func->eqne_op();
 }
 
 
@@ -2025,10 +2086,6 @@ bool Item_in_subselect::create_in_to_exists_cond(JOIN *join_arg)
     If the dependency is removed, the call can be moved to a later phase.
   */
   init_cond_guards();
-  /*
-    The IN=>EXISTS transformation makes non-correlated subqueries correlated.
-  */
-  join_arg->select_lex->uncacheable|= UNCACHEABLE_DEPENDENT;
   if (left_expr->cols() == 1)
     res= create_single_in_to_exists_cond(join_arg,
                                          &(join_arg->in_to_exists_where),
@@ -2037,6 +2094,20 @@ bool Item_in_subselect::create_in_to_exists_cond(JOIN *join_arg)
     res= create_row_in_to_exists_cond(join_arg,
                                       &(join_arg->in_to_exists_where),
                                       &(join_arg->in_to_exists_having));
+
+  /*
+    The IN=>EXISTS transformation makes non-correlated subqueries correlated.
+  */
+  join_arg->select_lex->uncacheable|= UNCACHEABLE_DEPENDENT_INJECTED;
+  /*
+    The uncacheable property controls a number of actions, e.g. whether to
+    save/restore (via init_save_join_tab/restore_tmp) the original JOIN for
+    plans with a temp table where the original JOIN was overriden by
+    make_simple_join. The UNCACHEABLE_EXPLAIN is ignored by EXPLAIN, thus
+    non-correlated subqueries will not appear as such to EXPLAIN.
+  */
+  join_arg->select_lex->master_unit()->uncacheable|= UNCACHEABLE_EXPLAIN;
+  join_arg->select_lex->uncacheable|= UNCACHEABLE_EXPLAIN;
   return (res);
 }
 
@@ -2107,6 +2178,9 @@ bool Item_in_subselect::inject_in_to_exists_cond(JOIN *join_arg)
     select_lex->having->top_level_item();
     join_arg->having= select_lex->having;
   }
+  join_arg->thd->change_item_tree(&unit->global_parameters->select_limit,
+                                  new Item_int((int32) 1));
+  unit->select_limit_cnt= 1;
 
   DBUG_RETURN(false);
 }
@@ -2407,7 +2481,8 @@ bool
 Item_allany_subselect::select_transformer(JOIN *join)
 {
   DBUG_ENTER("Item_allany_subselect::select_transformer");
-  in_strategy= SUBS_IN_TO_EXISTS;
+  DBUG_ASSERT((in_strategy & ~(SUBS_MAXMIN | SUBS_IN_TO_EXISTS)) == 0);
+  in_strategy|= SUBS_IN_TO_EXISTS;
   if (upper_item)
     upper_item->show= 1;
   DBUG_RETURN(select_in_like_transformer(join));
@@ -2458,6 +2533,7 @@ void subselect_single_select_engine::cleanup()
   prepared= executed= 0;
   join= 0;
   result->cleanup();
+  select_lex->uncacheable&= ~UNCACHEABLE_DEPENDENT_INJECTED;
   DBUG_VOID_RETURN;
 }
 
@@ -2467,6 +2543,9 @@ void subselect_union_engine::cleanup()
   DBUG_ENTER("subselect_union_engine::cleanup");
   unit->reinit_exec_mechanism();
   result->cleanup();
+  unit->uncacheable&= ~UNCACHEABLE_DEPENDENT_INJECTED;
+  for (SELECT_LEX *sl= unit->first_select(); sl; sl= sl->next_select())
+    sl->uncacheable&= ~UNCACHEABLE_DEPENDENT_INJECTED;
   DBUG_VOID_RETURN;
 }
 
@@ -3459,6 +3538,7 @@ void subselect_indexsubquery_engine::print(String *str,
 
   @param si		new subselect Item
   @param res		new select_result object
+  @param temp           temporary assignment
 
   @retval
     FALSE OK
@@ -3466,11 +3546,23 @@ void subselect_indexsubquery_engine::print(String *str,
     TRUE  error
 */
 
-bool subselect_single_select_engine::change_result(Item_subselect *si,
-                                                 select_result_interceptor *res)
+bool
+subselect_single_select_engine::change_result(Item_subselect *si,
+                                              select_result_interceptor *res,
+                                              bool temp)
 {
   item= si;
-  result= res;
+  if (temp)
+  {
+    /*
+      Here we reuse change_item_tree to roll back assignment.  It has
+      nothing special about Item* pointer so it is safe conversion. We do
+      not change the interface to be compatible with MySQL.
+    */
+    thd->change_item_tree((Item**) &result, (Item*)res);
+  }
+  else
+    result= res;
   return select_lex->join->change_result(result);
 }
 
@@ -3488,11 +3580,15 @@ bool subselect_single_select_engine::change_result(Item_subselect *si,
 */
 
 bool subselect_union_engine::change_result(Item_subselect *si,
-                                           select_result_interceptor *res)
+                                           select_result_interceptor *res,
+                                           bool temp)
 {
   item= si;
   int rc= unit->change_result(res, result);
-  result= res;
+  if (temp)
+    thd->change_item_tree((Item**) &result, (Item*)res);
+  else
+    result= res;
   return rc;
 }
 
@@ -3509,8 +3605,11 @@ bool subselect_union_engine::change_result(Item_subselect *si,
     TRUE  error
 */
 
-bool subselect_uniquesubquery_engine::change_result(Item_subselect *si,
-                                                    select_result_interceptor *res)
+bool
+subselect_uniquesubquery_engine::change_result(Item_subselect *si,
+                                               select_result_interceptor *res,
+                                               bool temp
+                                               __attribute__((unused)))
 {
   DBUG_ASSERT(0);
   return TRUE;
@@ -4301,7 +4400,8 @@ bool subselect_hash_sj_engine::no_tables()
 }
 
 bool subselect_hash_sj_engine::change_result(Item_subselect *si,
-                                             select_result_interceptor *res)
+                                             select_result_interceptor *res,
+                                             bool temp __attribute__((unused)))
 {
   DBUG_ASSERT(FALSE);
   return TRUE;

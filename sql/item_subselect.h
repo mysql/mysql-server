@@ -32,7 +32,8 @@ class Cached_item;
 
 class Item_subselect :public Item_result_field
 {
-  bool value_assigned; 		/* value already assigned to subselect */
+  bool value_assigned;   /* value already assigned to subselect */
+  bool own_engine;  /* the engine was not taken from other Item_subselect */
 protected:
   /* thread handler, will be assigned in fix_fields only */
   THD *thd;
@@ -317,6 +318,8 @@ class Item_exists_subselect :public Item_subselect
 protected:
   bool value; /* value of this item (boolean: exists/not-exists) */
 
+  void init_length_and_dec();
+
 public:
   Item_exists_subselect(st_select_lex *select_lex);
   Item_exists_subselect(): Item_subselect() {}
@@ -356,6 +359,9 @@ public:
 /* Partial matching substrategies of MATERIALIZATION. */
 #define SUBS_PARTIAL_MATCH_ROWID_MERGE 8
 #define SUBS_PARTIAL_MATCH_TABLE_SCAN 16
+/* ALL/ANY will be transformed with max/min optimization */
+#define SUBS_MAXMIN 32
+
 
 /**
   Representation of IN subquery predicates of the form
@@ -486,6 +492,7 @@ public:
   bool test_limit(st_select_lex_unit *unit);
   virtual void print(String *str, enum_query_type query_type);
   bool fix_fields(THD *thd, Item **ref);
+  void fix_length_and_dec();
   void fix_after_pullout(st_select_lex *new_parent, Item **ref);
   void update_used_tables();
   bool setup_mat_engine();
@@ -523,6 +530,8 @@ public:
   bool select_transformer(JOIN *join);
   void create_comp_func(bool invert) { func= func_creator(invert); }
   virtual void print(String *str, enum_query_type query_type);
+  bool is_maxmin_applicable(JOIN *join);
+  bool transform_into_max_min(JOIN *join);
 };
 
 
@@ -594,7 +603,8 @@ public:
   static table_map calc_const_tables(TABLE_LIST *);
   virtual void print(String *str, enum_query_type query_type)= 0;
   virtual bool change_result(Item_subselect *si,
-                             select_result_interceptor *result)= 0;
+                             select_result_interceptor *result,
+                             bool temp= FALSE)= 0;
   virtual bool no_tables()= 0;
   virtual bool is_executed() const { return FALSE; }
   /* Check if subquery produced any rows during last query execution */
@@ -626,7 +636,9 @@ public:
   void exclude();
   table_map upper_select_const_tables();
   virtual void print (String *str, enum_query_type query_type);
-  bool change_result(Item_subselect *si, select_result_interceptor *result);
+  bool change_result(Item_subselect *si,
+                     select_result_interceptor *result,
+                     bool temp);
   bool no_tables();
   bool may_be_null();
   bool is_executed() const { return executed; }
@@ -655,7 +667,9 @@ public:
   void exclude();
   table_map upper_select_const_tables();
   virtual void print (String *str, enum_query_type query_type);
-  bool change_result(Item_subselect *si, select_result_interceptor *result);
+  bool change_result(Item_subselect *si,
+                     select_result_interceptor *result,
+                     bool temp= FALSE);
   bool no_tables();
   bool is_executed() const;
   bool no_rows();
@@ -707,11 +721,13 @@ public:
   void fix_length_and_dec(Item_cache** row);
   int exec();
   uint cols() { return 1; }
-  uint8 uncacheable() { return UNCACHEABLE_DEPENDENT; }
+  uint8 uncacheable() { return UNCACHEABLE_DEPENDENT_INJECTED; }
   void exclude();
   table_map upper_select_const_tables() { return 0; }
   virtual void print (String *str, enum_query_type query_type);
-  bool change_result(Item_subselect *si, select_result_interceptor *result);
+  bool change_result(Item_subselect *si,
+                     select_result_interceptor *result,
+                     bool temp= FALSE);
   bool no_tables();
   int index_lookup(); /* TIMOUR: this method needs refactoring. */
   int scan_table();
@@ -879,7 +895,9 @@ public:
   void fix_length_and_dec(Item_cache** row);//=>base class
   void exclude(); //=>base class
   //=>base class
-  bool change_result(Item_subselect *si, select_result_interceptor *result);
+  bool change_result(Item_subselect *si,
+                     select_result_interceptor *result,
+                     bool temp= FALSE);
   bool no_tables();//=>base class
 };
 
@@ -1106,7 +1124,9 @@ public:
   uint8 uncacheable() { return UNCACHEABLE_DEPENDENT; }
   void exclude() {}
   table_map upper_select_const_tables() { return 0; }
-  bool change_result(Item_subselect*, select_result_interceptor*)
+  bool change_result(Item_subselect*,
+                     select_result_interceptor*,
+                     bool temp= FALSE)
   { DBUG_ASSERT(FALSE); return false; }
   bool no_tables() { return false; }
   bool no_rows()
