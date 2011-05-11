@@ -118,7 +118,7 @@ private:
   */
   void do_setup_ndbrecord(const NdbRecord *ndb_record, Uint32 batch_size,
                           Uint32 key_size, Uint32 read_range_no,
-                          Uint32 rowsize, char *buf, Uint32 column_count);
+                          Uint32 rowsize, char *buf);
 
   static
   Uint32 ndbrecord_rowsize(const NdbRecord *ndb_record,
@@ -137,33 +137,27 @@ private:
     new NdbRecord style operation.
   */
   bool m_using_ndb_record;
-  union {
-    /* members used for NdbRecAttr operation. */
-    struct {
-      Uint32 m_hidden_count;
-    } m_recattr;
 
-    /* members used for NdbRecord operation. */
-    struct {
-      Uint32 m_column_count;
-      const NdbRecord *m_ndb_record;
-      char *m_row;
-      /* Block of memory used to receive all rows in a batch during scan. */
-      char *m_row_buffer;
-      /*
-        Offsets between two rows in m_row_buffer.
-        This can be different from m_ndb_record->m_row_size, as we sometimes
-        store extra information after each row (range_no and keyinfo).
-        For non-scan operations, this is set to zero.
-      */
-      Uint32 m_row_offset;
-      /*
-        m_read_range_no is true if we are storing the range_no at the end of
-        each row during scans.
-      */
-      bool m_read_range_no;
-    } m_record;
-  };
+  /* members used for NdbRecord operation. */
+  struct {
+    const NdbRecord *m_ndb_record;
+    char *m_row;
+    /* Block of memory used to receive all rows in a batch during scan. */
+    char *m_row_buffer;
+    /*
+      Offsets between two rows in m_row_buffer.
+      This can be different from m_ndb_record->m_row_size, as we sometimes
+      store extra information after each row (range_no and keyinfo).
+      For non-scan operations, this is set to zero.
+    */
+    Uint32 m_row_offset;
+    /*
+      m_read_range_no is true if we are storing the range_no at the end of
+      each row during scans.
+    */
+    bool m_read_range_no;
+  } m_record;
+
   class NdbRecAttr* theFirstRecAttr;
   class NdbRecAttr* theCurrentRecAttr;
 
@@ -212,7 +206,6 @@ private:
 
   bool hasResults() const { return m_result_rows > 0; }
   bool nextResult() const { return m_current_row < m_result_rows; }
-  NdbRecAttr* copyout(NdbReceiver&);
   Uint32 receive_packed_recattr(NdbRecAttr**, Uint32 bmlen, 
                                 const Uint32* aDataPtr, Uint32 aLength);
   Uint32 receive_packed_ndbrecord(Uint32 bmlen,
