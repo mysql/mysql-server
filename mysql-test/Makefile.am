@@ -75,19 +75,19 @@ EXTRA_DIST =	README \
 # List of directories containing test + result files and the
 # related test data files that should be copied
 TEST_DIRS = t r include std_data std_data/parts collections \
-	suite/ndb/std_data/ndb_backup50 \
-	suite/ndb/std_data/ndb_backup51 \
-	suite/ndb/std_data/ndb_backup51_data_be \
-	suite/ndb/std_data/ndb_backup51_data_le \
-	suite/ndb/std_data/ndb_backup51_dd \
-	suite/ndb/std_data/ndb_backup_packed \
-	suite/ndb/std_data/ndb_backup51_d2_be \
-	suite/ndb/std_data/ndb_backup51_d2_le \
-	suite/ndb/std_data/ndb_backup51_undolog_be \
-	suite/ndb/std_data/ndb_backup51_undolog_le \
-	suite/ndb/std_data/ndb_backup_hashmap \
-	suite/ndb/std_data/ndb_backup_before_native_default \
-	suite/ndb/std_data/ndb_backup_bug54613 \
+	suite/ndb/backups/50 \
+	suite/ndb/backups/51 \
+	suite/ndb/backups/51_data_be \
+	suite/ndb/backups/51_data_le \
+	suite/ndb/backups/51_dd \
+	suite/ndb/backups/packed \
+	suite/ndb/backups/51_d2_be \
+	suite/ndb/backups/51_d2_le \
+	suite/ndb/backups/51_undolog_be \
+	suite/ndb/backups/51_undolog_le \
+	suite/ndb/backups/hashmap \
+	suite/ndb/backups/before_native_default \
+	suite/ndb/backups/bug54613 \
 	std_data/funcs_1 \
 	extra/binlog_tests/ extra/rpl_tests \
 	suite/binlog suite/binlog/t suite/binlog/r suite/binlog/std_data \
@@ -105,7 +105,7 @@ TEST_DIRS = t r include std_data std_data/parts collections \
 	suite/rpl suite/rpl/data suite/rpl/include suite/rpl/r \
 	suite/rpl/t \
 	suite/stress/include suite/stress/t suite/stress/r \
-	suite/ndb suite/ndb/t suite/ndb/r suite/ndb/include suite/ndb/std_data \
+	suite/ndb suite/ndb/t suite/ndb/r suite/ndb/include suite/ndb/data \
 	suite/ndb_big \
 	suite/ndb_binlog suite/ndb_binlog/t suite/ndb_binlog/r \
 	suite/ndb_team suite/ndb_team/t suite/ndb_team/r \

@@ -395,8 +395,6 @@ NdbScanOperation::generatePackedReadAIs(const NdbRecord *result_record,
     columnCount++;
   }
 
-  theReceiver.m_record.m_column_count= columnCount;
-
   int result= 0;
 
   /* Are there any columns to read via NdbRecord? 
@@ -2335,8 +2333,7 @@ int NdbScanOperation::prepareSendScan(Uint32 aTC_ConnectPtr,
   {
     m_receivers[i]->do_setup_ndbrecord(m_attribute_record, batch_size,
                                        key_size, m_read_range_no,
-                                       rowsize, buf,
-                                       theReceiver.m_record.m_column_count);
+                                       rowsize, buf);
     buf+= bufsize;
   }
 

@@ -4068,8 +4068,7 @@ NdbQueryOperationImpl::prepareReceiver()
                           0 /*key_size*/, 
                           0 /*read_range_no*/, 
                           getRowSize(),
-                          rowBuf,
-                          0);
+                          rowBuf);
     m_resultStreams[i]->getReceiver().prepareSend();
   }
   // So that we can test for for buffer overrun.

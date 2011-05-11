@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2010, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2011, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -17,43 +17,159 @@
 
 
 #include <ndb_global.h>
-#include <my_net.h>
 #include <NdbTCP.h>
 
-
-
 extern "C"
-int 
+int
 Ndb_getInAddr(struct in_addr * dst, const char *address)
 {
+  struct addrinfo hints;
+  memset(&hints, 0, sizeof(hints));
+  hints.ai_family = AF_INET; // Only IPv4 address
+  hints.ai_socktype = SOCK_STREAM;
+  hints.ai_protocol = IPPROTO_TCP;
+
+  struct addrinfo* ai_list;
+  if (getaddrinfo(address, NULL, &hints, &ai_list) != 0)
   {
-    int tmp_errno;
-    struct hostent tmp_hostent, *hp;
-    char buff[GETHOSTBYNAME_BUFF_SIZE];
-    hp = my_gethostbyname_r(address,&tmp_hostent,buff,sizeof(buff),
-			    &tmp_errno);
-    if (hp)
-    {
-      memcpy(dst, hp->h_addr, min(sizeof(*dst), (size_t) hp->h_length));
-      my_gethostbyname_r_free();
-      return 0;
-    }
-    my_gethostbyname_r_free();
+    dst->s_addr = INADDR_NONE;
+    return -1;
   }
-  /* Try it as aaa.bbb.ccc.ddd. */
-  dst->s_addr = inet_addr(address);
-  if (dst->s_addr != 
-#ifdef INADDR_NONE
-      INADDR_NONE
-#else
-      -1
-#endif
-      )
-  {
-    return 0;
-  }
-  return -1;
+
+  /* Return sin_addr for the first address returned */
+  struct sockaddr_in* sin = (struct sockaddr_in*)ai_list->ai_addr;
+  memcpy(dst, &sin->sin_addr, sizeof(struct in_addr));
+
+  freeaddrinfo(ai_list);
+  return 0;
 }
+
+#ifdef TEST_NDBGETINADDR
+#include <NdbTap.hpp>
+
+static void
+CHECK(const char* address, int expected_res, bool is_numeric= false)
+{
+  struct in_addr addr;
+
+  fprintf(stderr, "Checking '%s'\n", address);
+
+  int res= Ndb_getInAddr(&addr, address);
+
+  if (res != expected_res)
+  {
+    fprintf(stderr, "> unexpected result: %d, expected: %d\n",
+            res, expected_res);
+    abort();
+  }
+
+  if (res != 0)
+  {
+    fprintf(stderr, "> returned -1, checking INADDR_NONE\n");
+
+    // Should return INADDR_NONE when when lookup fails
+    struct in_addr none;
+    none.s_addr = INADDR_NONE;
+    if (memcmp(&addr, &none, sizeof(none)) != 0)
+    {
+      fprintf(stderr, "> didn't reurn INADDR_NONE after failure, "
+             "got: '%s', expected; '%s'\n",
+             inet_ntoa(addr), inet_ntoa(none));
+      abort();
+    }
+    fprintf(stderr, "> got INADDR_NONE\n");
+    return;
+  }
+
+  fprintf(stderr, "> '%s' -> '%s'\n", address, inet_ntoa(addr));
+
+  if (is_numeric)
+  {
+    // Check that numeric address always map back to itself
+    // ie. compare to value returned by 'inet_aton'
+    fprintf(stderr, "> Checking numeric address against inet_addr\n");
+    struct in_addr addr2;
+    addr2.s_addr = inet_addr(address);
+    fprintf(stderr, "> inet_addr(%s) -> '%s'\n", address, inet_ntoa(addr2));
+
+    if (memcmp(&addr, &addr2, sizeof(struct in_addr)) != 0)
+    {
+      fprintf(stderr, "> numeric address '%s' didn't map to same value as "
+             "inet_addr: '%s'", inet_ntoa(addr2));
+      abort();
+    }
+    fprintf(stderr, "> ok\n");
+  }
+}
+
+
+/*
+  socket_library_init
+   - Normally done by ndb_init(), but to avoid
+     having to link with "everything", implement it locally
+*/
+
+static void
+socket_library_init(void)
+{
+#ifdef _WIN32
+  WORD requested_version = MAKEWORD( 2, 0 );
+  WSADATA wsa_data;
+  if (WSAStartup( requested_version, &wsa_data ))
+  {
+    fprintf(stderr, "failed to init Winsock\n");
+    abort();
+  }
+
+  // Confirm that the requested version of the library was loaded
+  if (wsa_data.wVersion != requested_version)
+  {
+    (void)WSACleanup();
+    fprintf(stderr, "Wrong version of Winsock loaded\n");
+    abort();
+  }
+#endif
+}
+
+
+static void
+socket_library_end()
+{
+#ifdef _WIN32
+  (void)WSACleanup();
+#endif
+}
+
+
+TAPTEST(NdbGetInAddr)
+{
+  socket_library_init();
+
+  CHECK("localhost", 0);
+  CHECK("127.0.0.1", 0, true);
+
+  char hostname_buf[256];
+  if (gethostname(hostname_buf, sizeof(hostname_buf)) == 0)
+  {
+    // Check this machines hostname
+    CHECK(hostname_buf, 0);
+
+    struct in_addr addr;
+    Ndb_getInAddr(&addr, hostname_buf);
+    // Convert hostname to dotted decimal string ip and check
+    CHECK(inet_ntoa(addr), 0, true);
+  }
+  CHECK("unknown_?host", -1); // Does not exist
+  CHECK("3ffe:1900:4545:3:200:f8ff:fe21:67cf", -1); // No IPv6
+  CHECK("fe80:0:0:0:200:f8ff:fe21:67cf", -1);
+  CHECK("fe80::200:f8ff:fe21:67cf", -1);
+  CHECK("::1", -1); // the loopback, but still No IPv6
+
+  socket_library_end();
+
+  return 1; // OK
+}
+#endif
 
 
 static inline
