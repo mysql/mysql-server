@@ -26,7 +26,7 @@
    SUCH DAMAGE.
 */
 
-#include <mysys_priv.h>
+#include "mysys_priv.h"
 #include <m_string.h>
 #include <ma_dyncol.h>
 
@@ -429,7 +429,7 @@ dynamic_column_string_read(DYNAMIC_COLUMN_VALUE *store_it_here,
                            uchar *data, size_t length)
 {
   size_t len;
-  uint charset_nr= dynamic_column_var_uint_get(data, length, &len);
+  uint charset_nr= (uint)dynamic_column_var_uint_get(data, length, &len);
   if (len == 0)                                /* Wrong packed number */
     return ER_DYNCOL_FORMAT;
   store_it_here->charset= get_charset(charset_nr, MYF(MY_WME));
@@ -502,12 +502,12 @@ dynamic_column_decimal_read(DYNAMIC_COLUMN_VALUE *store_it_here,
                             uchar *data, size_t length)
 {
   size_t intg_len, frac_len;
-  uint intg, frac;
+  int intg, frac;
 
   dynamic_column_prepare_decimal(store_it_here);
-  intg= dynamic_column_var_uint_get(data, length, &intg_len);
+  intg= (int)dynamic_column_var_uint_get(data, length, &intg_len);
   data+= intg_len;
-  frac= dynamic_column_var_uint_get(data, length - intg_len, &frac_len);
+  frac= (int)dynamic_column_var_uint_get(data, length - intg_len, &frac_len);
   data+= frac_len;
 
   /* Check the size of data is correct */
@@ -602,8 +602,13 @@ dynamic_column_time_store(DYNAMIC_COLUMN *str, MYSQL_TIME *value)
   if (value->time_type == MYSQL_TIMESTAMP_NONE ||
       value->time_type == MYSQL_TIMESTAMP_ERROR ||
       value->time_type == MYSQL_TIMESTAMP_DATE)
-    value->neg= value->second_part= value->hour=
-      value->minute= value->second= 0;
+  {
+    value->neg= 0;
+    value->second_part= 0;
+    value->hour= 0;
+    value->minute= 0;
+    value->second= 0;
+  }
   DBUG_ASSERT(value->hour <= 838);
   DBUG_ASSERT(value->minute <= 59);
   DBUG_ASSERT(value->second <= 59);
@@ -615,7 +620,7 @@ dynamic_column_time_store(DYNAMIC_COLUMN *str, MYSQL_TIME *value)
   */
   buf[0]= (value->second_part & 0xff);
   buf[1]= ((value->second_part & 0xff00) >> 8);
-  buf[2]= (((value->second & 0xf) << 4) |
+  buf[2]= (uchar)(((value->second & 0xf) << 4) |
            ((value->second_part & 0xf0000) >> 16));
   buf[3]= ((value->minute << 2) | ((value->second & 0x30) >> 4));
   buf[4]= (value->hour & 0xff);
@@ -740,9 +745,11 @@ static enum enum_dyncol_func_result
 dynamic_column_date_read(DYNAMIC_COLUMN_VALUE *store_it_here,
                          uchar *data, size_t length)
 {
-  store_it_here->time_value.neg= store_it_here->time_value.second_part=
-    store_it_here->time_value.hour= store_it_here->time_value.minute=
-    store_it_here->time_value.second= 0;
+  store_it_here->time_value.neg= 0;
+  store_it_here->time_value.second_part= 0;
+  store_it_here->time_value.hour= 0;
+  store_it_here->time_value.minute= 0;
+  store_it_here->time_value.second= 0;
   store_it_here->time_value.time_type= MYSQL_TIMESTAMP_DATE;
   return dynamic_column_date_read_internal(store_it_here, data, length);
 }
