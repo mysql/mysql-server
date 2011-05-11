@@ -3611,6 +3611,58 @@ static inline int write_create_table_bin_log(THD *thd,
 }
 
 
+/**
+  Check that there is no frm file for given table
+
+  @param old_path        path to the old frm file
+  @param path            path to the frm file in new encoding
+  @param db              database name
+  @param table_name      table name
+  @param alias           table name for error message (for new encoding)
+  @param issue_error     should we issue error messages
+
+  @retval FALSE there is no frm file
+  @retval TRUE  there is frm file
+*/
+
+bool check_table_file_presence(char *old_path,
+                               char *path,
+                               const char *db,
+                               const char *table_name,
+                               const char *alias,
+                               bool issue_error)
+{
+  if (!access(path,F_OK))
+  {
+    if (issue_error)
+      my_error(ER_TABLE_EXISTS_ERROR,MYF(0),alias);
+    return TRUE;
+  }
+  {
+    /*
+      Check if file of the table in 5.0 file name encoding exists.
+
+      Except case when it is the same table.
+    */
+    char tbl50[FN_REFLEN];
+    strxmov(tbl50, mysql_data_home, "/", db, "/", table_name, NullS);
+    if (!access(fn_format(tbl50, tbl50, "", reg_ext,
+                          MY_UNPACK_FILENAME), F_OK) &&
+        (old_path == NULL ||
+         strcmp(old_path, tbl50) != 0))
+    {
+      if (issue_error)
+      {
+        strxmov(tbl50, MYSQL50_TABLE_NAME_PREFIX, table_name, NullS);
+        my_error(ER_TABLE_EXISTS_ERROR, MYF(0), tbl50);
+      }
+      return TRUE;
+    }
+  }
+  return FALSE;
+}
+
+
 /*
   Create a table
 
@@ -3892,11 +3944,12 @@ bool mysql_create_table_no_lock(THD *thd,
   VOID(pthread_mutex_lock(&LOCK_open));
   if (!internal_tmp_table && !(create_info->options & HA_LEX_CREATE_TMP_TABLE))
   {
-    if (!access(path,F_OK))
+    if (check_table_file_presence(NULL, path, db, table_name, table_name,
+                                  !(create_info->options &
+                                    HA_LEX_CREATE_IF_NOT_EXISTS)))
     {
       if (create_info->options & HA_LEX_CREATE_IF_NOT_EXISTS)
         goto warn;
-      my_error(ER_TABLE_EXISTS_ERROR,MYF(0),table_name);
       goto unlock_and_end;
     }
     /*
@@ -6512,6 +6565,7 @@ bool mysql_alter_table(THD *thd,char *new_db, char *new_name,
   TABLE *table, *new_table= 0, *name_lock= 0;
   int error= 0;
   char tmp_name[80],old_name[32],new_name_buff[FN_REFLEN + 1];
+  char old_name_buff[FN_REFLEN + 1];
   char new_alias_buff[FN_REFLEN], *table_name, *db, *new_alias, *alias;
   char index_file[FN_REFLEN], data_file[FN_REFLEN];
   char path[FN_REFLEN + 1];
@@ -6741,10 +6795,12 @@ view_err:
 
         build_table_filename(new_name_buff, sizeof(new_name_buff) - 1,
                              new_db, new_name_buff, reg_ext, 0);
-        if (!access(new_name_buff, F_OK))
+        build_table_filename(old_name_buff, sizeof(old_name_buff) - 1,
+                             db, table_name, reg_ext, 0);
+        if (check_table_file_presence(old_name_buff, new_name_buff, new_db,
+                                      new_name, new_alias, TRUE))
 	{
 	  /* Table will be closed in do_command() */
-	  my_error(ER_TABLE_EXISTS_ERROR, MYF(0), new_alias);
           goto err;
 	}
       }
