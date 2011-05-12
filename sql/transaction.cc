@@ -134,8 +134,8 @@ bool trans_begin(THD *thd, uint flags)
     res= test(ha_commit_trans(thd, TRUE));
   }
 
-  thd->variables.option_bits&= ~(OPTION_BEGIN | OPTION_KEEP_LOG);
-  thd->transaction.all.modified_non_trans_table= FALSE;
+  thd->variables.option_bits&= ~OPTION_BEGIN;
+  thd->transaction.all.reset_unsafe_rollback_flags();
 
   if (res)
     DBUG_RETURN(TRUE);
@@ -183,8 +183,8 @@ bool trans_commit(THD *thd)
     RUN_HOOK(transaction, after_rollback, (thd, FALSE));
   else
     RUN_HOOK(transaction, after_commit, (thd, FALSE));
-  thd->variables.option_bits&= ~(OPTION_BEGIN | OPTION_KEEP_LOG);
-  thd->transaction.all.modified_non_trans_table= FALSE;
+  thd->variables.option_bits&= ~OPTION_BEGIN;
+  thd->transaction.all.reset_unsafe_rollback_flags();
   thd->lex->start_transaction_opt= 0;
 
   DBUG_RETURN(test(res));
@@ -220,8 +220,8 @@ bool trans_commit_implicit(THD *thd)
     res= test(ha_commit_trans(thd, TRUE));
   }
 
-  thd->variables.option_bits&= ~(OPTION_BEGIN | OPTION_KEEP_LOG);
-  thd->transaction.all.modified_non_trans_table= FALSE;
+  thd->variables.option_bits&= ~OPTION_BEGIN;
+  thd->transaction.all.reset_unsafe_rollback_flags();
 
   /*
     Upon implicit commit, reset the current transaction
@@ -255,8 +255,8 @@ bool trans_rollback(THD *thd)
   thd->server_status&= ~SERVER_STATUS_IN_TRANS;
   res= ha_rollback_trans(thd, TRUE);
   RUN_HOOK(transaction, after_rollback, (thd, FALSE));
-  thd->variables.option_bits&= ~(OPTION_BEGIN | OPTION_KEEP_LOG);
-  thd->transaction.all.modified_non_trans_table= FALSE;
+  thd->variables.option_bits&= ~OPTION_BEGIN;
+  thd->transaction.all.reset_unsafe_rollback_flags();
   thd->lex->start_transaction_opt= 0;
 
   DBUG_RETURN(test(res));
@@ -289,6 +289,8 @@ bool trans_commit_stmt(THD *thd)
     savepoint when statement has succeeded.
   */
   DBUG_ASSERT(! thd->in_sub_stmt);
+
+  thd->transaction.merge_unsafe_rollback_flags();
 
   if (thd->transaction.stmt.ha_list)
   {
@@ -331,6 +333,8 @@ bool trans_rollback_stmt(THD *thd)
     savepoint when statement has succeeded.
   */
   DBUG_ASSERT(! thd->in_sub_stmt);
+
+  thd->transaction.merge_unsafe_rollback_flags();
 
   if (thd->transaction.stmt.ha_list)
   {
@@ -474,12 +478,8 @@ bool trans_rollback_to_savepoint(THD *thd, LEX_STRING name)
 
   if (ha_rollback_to_savepoint(thd, sv))
     res= TRUE;
-  else if (((thd->variables.option_bits & OPTION_KEEP_LOG) ||
-            thd->transaction.all.modified_non_trans_table) &&
-           !thd->slave_thread)
-    push_warning(thd, MYSQL_ERROR::WARN_LEVEL_WARN,
-                 ER_WARNING_NOT_COMPLETE_ROLLBACK,
-                 ER(ER_WARNING_NOT_COMPLETE_ROLLBACK));
+  else if (thd->transaction.all.cannot_safely_rollback() && !thd->slave_thread)
+    thd->transaction.push_unsafe_rollback_warnings(thd);
 
   thd->transaction.savepoints= sv;
 
@@ -716,8 +716,8 @@ bool trans_xa_commit(THD *thd)
     DBUG_RETURN(TRUE);
   }
 
-  thd->variables.option_bits&= ~(OPTION_BEGIN | OPTION_KEEP_LOG);
-  thd->transaction.all.modified_non_trans_table= FALSE;
+  thd->variables.option_bits&= ~OPTION_BEGIN;
+  thd->transaction.all.reset_unsafe_rollback_flags();
   thd->server_status&= ~SERVER_STATUS_IN_TRANS;
   xid_cache_delete(&thd->transaction.xid_state);
   thd->transaction.xid_state.xa_state= XA_NOTR;
@@ -763,8 +763,8 @@ bool trans_xa_rollback(THD *thd)
 
   res= xa_trans_force_rollback(thd);
 
-  thd->variables.option_bits&= ~(OPTION_BEGIN | OPTION_KEEP_LOG);
-  thd->transaction.all.modified_non_trans_table= FALSE;
+  thd->variables.option_bits&= ~OPTION_BEGIN;
+  thd->transaction.all.reset_unsafe_rollback_flags();
   thd->server_status&= ~SERVER_STATUS_IN_TRANS;
   xid_cache_delete(&thd->transaction.xid_state);
   thd->transaction.xid_state.xa_state= XA_NOTR;

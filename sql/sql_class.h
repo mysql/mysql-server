@@ -900,6 +900,208 @@ private:
   Statement *last_found_statement;
 };
 
+class Ha_trx_info;
+
+struct THD_TRANS
+{
+  /* true is not all entries in the ht[] support 2pc */
+  bool        no_2pc;
+  /* storage engines that registered in this transaction */
+  Ha_trx_info *ha_list;
+
+private:
+  /* 
+    The purpose of this member variable (i.e. flag) is to keep track of
+    statements which cannot be rolled back safely(completely).
+    For example,
+
+    * statements that modified non-transactional tables. The value
+    MODIFIED_NON_TRANS_TABLE is set within mysql_insert, mysql_update,
+    mysql_delete, etc if a non-transactional table is modified.
+
+    * 'DROP TEMPORARY TABLE' and 'CREATE TEMPORARY TABLE' statements.
+    The former sets the value CREATED_TEMP_TABLE is set and the latter
+    the value DROPPED_TEMP_TABLE.
+    
+    The tracked statements are modified in scope of:
+
+    * transaction, when the variable is a member of THD::transaction.all
+    
+    * top-level statement or sub-statement, when the variable is a
+    member of THD::transaction.stmt
+
+    This member has the following life cycle:
+
+    * stmt.m_unsafe_rollback_flags is used to keep track of top-level statements
+    which cannot be rolled back safely. At the end of the statement, the value
+    of stmt.m_unsafe_rollback_flags is merged with all.m_unsafe_rollback_flags
+    and gets reset.
+    
+    * all.cannot_safely_rollback is reset at the end of transaction
+
+    * Since we do not have a dedicated context for execution of a sub-statement,
+    to keep track of non-transactional changes in a sub-statement, we re-use
+    stmt.m_unsafe_rollback_flags. At entrance into a sub-statement, a copy of
+    the value of stmt.m_unsafe_rollback_flags (containing the changes of the
+    outer statement) is saved on stack.  Then stmt.m_unsafe_rollback_flags is
+    reset to 0 and the substatement is executed. Then the new value is merged
+    with the saved value.
+  */
+
+  unsigned int m_unsafe_rollback_flags;
+  /*
+    Define the type of statemens which cannot be rolled back safely.
+    Each type occupies one bit in m_unsafe_rollback_flags.
+  */
+  static unsigned int const MODIFIED_NON_TRANS_TABLE= 0x01;
+  static unsigned int const CREATED_TEMP_TABLE= 0x02;
+  static unsigned int const DROPPED_TEMP_TABLE= 0x04;
+
+public:
+  bool cannot_safely_rollback() const
+  {
+    return m_unsafe_rollback_flags > 0;
+  }
+  unsigned int get_unsafe_rollback_flags() const
+  {
+    return m_unsafe_rollback_flags;
+  }
+  void set_unsafe_rollback_flags(unsigned int flags)
+  {
+    m_unsafe_rollback_flags= flags;
+  }
+  void add_unsafe_rollback_flags(unsigned int flags)
+  {
+    m_unsafe_rollback_flags|= flags;
+  }
+  void reset_unsafe_rollback_flags()
+  {
+    m_unsafe_rollback_flags= 0;
+  }
+  void mark_modified_non_trans_table()
+  {
+    m_unsafe_rollback_flags|= MODIFIED_NON_TRANS_TABLE;
+  }
+  bool has_modified_non_trans_table() const
+  {
+    return m_unsafe_rollback_flags & MODIFIED_NON_TRANS_TABLE;
+  }
+  void mark_created_temp_table()
+  {
+    m_unsafe_rollback_flags|= CREATED_TEMP_TABLE;
+  }
+  bool has_created_temp_table() const
+  {
+    return m_unsafe_rollback_flags & CREATED_TEMP_TABLE;
+  }
+  void mark_dropped_temp_table()
+  {
+    m_unsafe_rollback_flags|= DROPPED_TEMP_TABLE;
+  }
+  bool has_dropped_temp_table() const
+  {
+    return m_unsafe_rollback_flags & DROPPED_TEMP_TABLE;
+  }
+
+  void reset() { no_2pc= FALSE; reset_unsafe_rollback_flags(); }
+  bool is_empty() const { return ha_list == NULL; }
+};
+
+/**
+  Either statement transaction or normal transaction - related
+  thread-specific storage engine data.
+
+  If a storage engine participates in a statement/transaction,
+  an instance of this class is present in
+  thd->transaction.{stmt|all}.ha_list. The addition to
+  {stmt|all}.ha_list is made by trans_register_ha().
+
+  When it's time to commit or rollback, each element of ha_list
+  is used to access storage engine's prepare()/commit()/rollback()
+  methods, and also to evaluate if a full two phase commit is
+  necessary.
+
+  @sa General description of transaction handling in handler.cc.
+*/
+
+class Ha_trx_info
+{
+public:
+  /** Register this storage engine in the given transaction context. */
+  void register_ha(THD_TRANS *trans, handlerton *ht_arg)
+  {
+    DBUG_ASSERT(m_flags == 0);
+    DBUG_ASSERT(m_ht == NULL);
+    DBUG_ASSERT(m_next == NULL);
+
+    m_ht= ht_arg;
+    m_flags= (int) TRX_READ_ONLY; /* Assume read-only at start. */
+
+    m_next= trans->ha_list;
+    trans->ha_list= this;
+  }
+
+  /** Clear, prepare for reuse. */
+  void reset()
+  {
+    m_next= NULL;
+    m_ht= NULL;
+    m_flags= 0;
+  }
+
+  Ha_trx_info() { reset(); }
+
+  void set_trx_read_write()
+  {
+    DBUG_ASSERT(is_started());
+    m_flags|= (int) TRX_READ_WRITE;
+  }
+  bool is_trx_read_write() const
+  {
+    DBUG_ASSERT(is_started());
+    return m_flags & (int) TRX_READ_WRITE;
+  }
+  bool is_started() const { return m_ht != NULL; }
+  /** Mark this transaction read-write if the argument is read-write. */
+  void coalesce_trx_with(const Ha_trx_info *stmt_trx)
+  {
+    /*
+      Must be called only after the transaction has been started.
+      Can be called many times, e.g. when we have many
+      read-write statements in a transaction.
+    */
+    DBUG_ASSERT(is_started());
+    if (stmt_trx->is_trx_read_write())
+      set_trx_read_write();
+  }
+  Ha_trx_info *next() const
+  {
+    DBUG_ASSERT(is_started());
+    return m_next;
+  }
+  handlerton *ht() const
+  {
+    DBUG_ASSERT(is_started());
+    return m_ht;
+  }
+private:
+  enum { TRX_READ_ONLY= 0, TRX_READ_WRITE= 1 };
+  /** Auxiliary, used for ha_list management */
+  Ha_trx_info *m_next;
+  /**
+    Although a given Ha_trx_info instance is currently always used
+    for the same storage engine, 'ht' is not-NULL only when the
+    corresponding storage is a part of a transaction.
+  */
+  handlerton *m_ht;
+  /**
+    Transaction flags related to this engine.
+    Not-null only if this instance is a part of transaction.
+    May assume a combination of enum values above.
+  */
+  uchar       m_flags;
+};
+
 struct st_savepoint {
   struct st_savepoint *prev;
   char                *name;
@@ -1460,7 +1662,6 @@ private:
   MDL_ticket *m_mdl_blocks_commits_lock;
 };
 
-
 extern "C" void my_message_sql(uint error, const char *str, myf MyFlags);
 
 /**
@@ -1778,6 +1979,32 @@ public:
       bzero((char*)this, sizeof(*this));
       xid_state.xid.null();
       init_sql_alloc(&mem_root, ALLOC_ROOT_MIN_BLOCK_SIZE, 0);
+    }
+    void push_unsafe_rollback_warnings(THD *thd)
+    {
+      if (all.has_modified_non_trans_table())
+        push_warning(thd, MYSQL_ERROR::WARN_LEVEL_WARN,
+                     ER_WARNING_NOT_COMPLETE_ROLLBACK,
+                     ER(ER_WARNING_NOT_COMPLETE_ROLLBACK));
+
+      if (all.has_created_temp_table())
+        push_warning(thd, MYSQL_ERROR::WARN_LEVEL_WARN,
+                     ER_WARNING_NOT_COMPLETE_ROLLBACK_WITH_CREATED_TEMP_TABLE,
+                     ER(ER_WARNING_NOT_COMPLETE_ROLLBACK_WITH_CREATED_TEMP_TABLE));
+
+      if (all.has_dropped_temp_table())
+        push_warning(thd, MYSQL_ERROR::WARN_LEVEL_WARN,
+                     ER_WARNING_NOT_COMPLETE_ROLLBACK_WITH_DROPPED_TEMP_TABLE,
+                     ER(ER_WARNING_NOT_COMPLETE_ROLLBACK_WITH_DROPPED_TEMP_TABLE));
+    }
+    void merge_unsafe_rollback_flags()
+    {
+      /*
+        Merge stmt.unsafe_rollback_flags to all.unsafe_rollback_flags. If
+        the statement cannot be rolled back safely, the transaction including
+        this statement definitely cannot rolled back safely.
+      */
+      all.add_unsafe_rollback_flags(stmt.get_unsafe_rollback_flags());
     }
   } transaction;
   Global_read_lock global_read_lock;
@@ -2661,7 +2888,7 @@ public:
   inline bool really_abort_on_warning()
   {
     return (abort_on_warning &&
-            (!transaction.stmt.modified_non_trans_table ||
+            (!transaction.stmt.cannot_safely_rollback() ||
              (variables.sql_mode & MODE_STRICT_ALL_TABLES)));
   }
   void set_status_var_init();
@@ -3246,7 +3473,6 @@ class select_insert :public select_result_interceptor {
   virtual int prepare2(void);
   bool send_data(List<Item> &items);
   virtual void store_values(List<Item> &values);
-  virtual bool can_rollback_data() { return 0; }
   void send_error(uint errcode,const char *err);
   bool send_eof();
   virtual void abort_result_set();
@@ -3286,7 +3512,6 @@ public:
   void send_error(uint errcode,const char *err);
   bool send_eof();
   virtual void abort_result_set();
-  virtual bool can_rollback_data() { return 1; }
 
   // Needed for access from local class MY_HOOKS in prepare(), since thd is proteted.
   const THD *get_thd(void) { return thd; }
