@@ -114,7 +114,7 @@ static const char *reconnect_messages[SLAVE_RECON_ACT_MAX][SLAVE_RECON_MSG_MAX]=
 registration on master",
     "Reconnecting after a failed registration on master",
     "failed registering on master, reconnecting to try again, \
-log '%s' at postion %s",
+log '%s' at position %s",
     "COM_REGISTER_SLAVE",
     "Slave I/O thread killed during or after reconnect"
   },
@@ -122,7 +122,7 @@ log '%s' at postion %s",
     "Waiting to reconnect after a failed binlog dump request",
     "Slave I/O thread killed while retrying master dump",
     "Reconnecting after a failed binlog dump request",
-    "failed dump request, reconnecting to try again, log '%s' at postion %s",
+    "failed dump request, reconnecting to try again, log '%s' at position %s",
     "COM_BINLOG_DUMP",
     "Slave I/O thread killed during or after reconnect"
   },
@@ -131,7 +131,7 @@ log '%s' at postion %s",
     "Slave I/O thread killed while waiting to reconnect after a failed read",
     "Reconnecting after a failed master event read",
     "Slave I/O thread: Failed reading log event, reconnecting to retry, \
-log '%s' at postion %s",
+log '%s' at position %s",
     "",
     "Slave I/O thread killed during or after a reconnect done to recover from \
 failed read"
@@ -1008,17 +1008,7 @@ static bool sql_slave_killed(THD* thd, Relay_log_info* rli)
   DBUG_ASSERT(rli->slave_running == 1);// tracking buffer overrun
   if (abort_loop || thd->killed || rli->abort_slave)
   {
-    /*
-      The transaction should always be binlogged if OPTION_KEEP_LOG is set
-      (it implies that something can not be rolled back). And such case
-      should be regarded similarly as modifing a non-transactional table
-      because retrying of the transaction will lead to an error or inconsistency
-      as well.
-      Example: OPTION_KEEP_LOG is set if a temporary table is created or dropped.
-    */
-    if ((thd->transaction.all.modified_non_trans_table ||
-         (thd->variables.option_bits & OPTION_KEEP_LOG))
-        && rli->is_in_group())
+    if (thd->transaction.all.cannot_safely_rollback() && rli->is_in_group())
     {
       char msg_stopped[]=
         "... Slave SQL Thread stopped with incomplete event group "
@@ -2848,7 +2838,7 @@ static int exec_relay_log_event(THD* thd, Relay_log_info* rli)
                           ((ev->get_type_code() == QUERY_EVENT) &&
                            strcmp("COMMIT", ((Query_log_event *) ev)->query) == 0))
                       {
-                        DBUG_ASSERT(thd->transaction.all.modified_non_trans_table);
+                        DBUG_ASSERT(thd->transaction.all.cannot_safely_rollback());
                         rli->abort_slave= 1;
                         mysql_mutex_unlock(&rli->data_lock);
                         delete ev;
@@ -2887,7 +2877,8 @@ static int exec_relay_log_event(THD* thd, Relay_log_info* rli)
     if (slave_trans_retries)
     {
       int UNINIT_VAR(temp_err);
-      if (exec_res && (temp_err= rli->has_temporary_error(thd)))
+      if (exec_res && (temp_err= rli->has_temporary_error(thd)) &&
+          !thd->transaction.all.cannot_safely_rollback())
       {
         const char *errmsg;
         /*

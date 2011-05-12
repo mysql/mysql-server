@@ -372,8 +372,8 @@ sp_eval_expr(THD *thd, Field *result_field, Item **expr_item_ptr)
   Item *expr_item;
   enum_check_fields save_count_cuted_fields= thd->count_cuted_fields;
   bool save_abort_on_warning= thd->abort_on_warning;
-  bool save_stmt_modified_non_trans_table= 
-    thd->transaction.stmt.modified_non_trans_table;
+  unsigned int stmt_unsafe_rollback_flags=
+    thd->transaction.stmt.get_unsafe_rollback_flags();
 
   DBUG_ENTER("sp_eval_expr");
 
@@ -394,7 +394,7 @@ sp_eval_expr(THD *thd, Field *result_field, Item **expr_item_ptr)
   thd->abort_on_warning=
     thd->variables.sql_mode &
     (MODE_STRICT_TRANS_TABLES | MODE_STRICT_ALL_TABLES);
-  thd->transaction.stmt.modified_non_trans_table= FALSE;
+  thd->transaction.stmt.reset_unsafe_rollback_flags();
 
   /* Save the value in the field. Convert the value if needed. */
 
@@ -402,7 +402,7 @@ sp_eval_expr(THD *thd, Field *result_field, Item **expr_item_ptr)
 
   thd->count_cuted_fields= save_count_cuted_fields;
   thd->abort_on_warning= save_abort_on_warning;
-  thd->transaction.stmt.modified_non_trans_table= save_stmt_modified_non_trans_table;
+  thd->transaction.stmt.set_unsafe_rollback_flags(stmt_unsafe_rollback_flags);
 
   if (!thd->is_error())
     DBUG_RETURN(FALSE);
@@ -2914,8 +2914,9 @@ sp_lex_keeper::reset_lex_and_exec_core(THD *thd, uint *nextp,
     It's reset further in the common code part.
     It's merged with the saved parent's value at the exit of this func.
   */
-  bool parent_modified_non_trans_table= thd->transaction.stmt.modified_non_trans_table;
-  thd->transaction.stmt.modified_non_trans_table= FALSE;
+  unsigned int parent_unsafe_rollback_flags=
+    thd->transaction.stmt.get_unsafe_rollback_flags();
+  thd->transaction.stmt.reset_unsafe_rollback_flags();
   DBUG_ASSERT(!thd->derived_tables);
   DBUG_ASSERT(thd->change_list.is_empty());
   /*
@@ -3012,7 +3013,7 @@ sp_lex_keeper::reset_lex_and_exec_core(THD *thd, uint *nextp,
     Merge here with the saved parent's values
     what is needed from the substatement gained
   */
-  thd->transaction.stmt.modified_non_trans_table |= parent_modified_non_trans_table;
+  thd->transaction.stmt.add_unsafe_rollback_flags(parent_unsafe_rollback_flags);
   /*
     Unlike for PS we should not call Item's destructors for newly created
     items after execution of each instruction in stored routine. This is
@@ -3038,8 +3039,9 @@ int sp_instr::exec_open_and_lock_tables(THD *thd, TABLE_LIST *tables)
     Check whenever we have access to tables for this statement
     and open and lock them before executing instructions core function.
   */
-  if (check_table_access(thd, SELECT_ACL, tables, FALSE, UINT_MAX, FALSE)
-      || open_and_lock_tables(thd, tables, TRUE, 0))
+  if (open_temporary_tables(thd, tables) ||
+      check_table_access(thd, SELECT_ACL, tables, FALSE, UINT_MAX, FALSE) ||
+      open_and_lock_tables(thd, tables, TRUE, 0))
     result= -1;
   else
     result= 0;
