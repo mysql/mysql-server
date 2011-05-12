@@ -185,13 +185,17 @@ public:
   int validate(NdbError& error);
 
   Uint32 m_primaryTableId;
-  BaseString m_internalName;
-  BaseString m_externalName;
-  BaseString m_mysqlName;
+  BaseString m_internalName; // db/schema/table
+  BaseString m_externalName; //           table
+  BaseString m_mysqlName;    //        db/table
   UtilBuffer m_frm; 
   Vector<Uint32> m_fd;
   Vector<Int32> m_range;
   NdbDictionary::Object::FragmentType m_fragmentType;
+
+  int getDbName(char * buf, size_t len) const;
+  int getSchemaName(char * buf, size_t len) const;
+  void setDbSchema(const char * db, const char * schema);
 
   /**
    * 
@@ -617,7 +621,7 @@ public:
   int createTable(class Ndb & ndb, NdbTableImpl &);
   bool supportedAlterTable(const NdbTableImpl &,
 			   NdbTableImpl &);
-  int alterTable(class Ndb & ndb, const NdbTableImpl &, NdbTableImpl &);
+  int alterTable(class Ndb & ndb, const NdbTableImpl &, NdbTableImpl&, Uint32&);
   void syncInternalName(Ndb & ndb, NdbTableImpl &impl);
   int compChangeMask(const NdbTableImpl &old_impl,
                      const NdbTableImpl &impl,
@@ -828,6 +832,7 @@ public:
   int dropTable(const char * name);
   int dropTable(NdbTableImpl &);
   int dropBlobTables(NdbTableImpl &);
+  int renameBlobTables(const NdbTableImpl &old_impl, const NdbTableImpl &impl);
   int invalidateObject(NdbTableImpl &);
   int removeCachedObject(NdbTableImpl &);
 
