@@ -1228,6 +1228,11 @@ bool mysql_handle_derived(LEX *lex, bool (*processor)(THD *thd,
                                                       TABLE_LIST *table));
 bool mysql_derived_prepare(THD *thd, LEX *lex, TABLE_LIST *t);
 bool mysql_derived_filling(THD *thd, LEX *lex, TABLE_LIST *t);
+bool check_table_file_presence(char *old_path, char *path,
+                               const char *db,
+                               const char *table_name,
+                               const char *alias,
+                               bool issue_error);
 Field *create_tmp_field(THD *thd, TABLE *table,Item *item, Item::Type type,
 			Item ***copy_func, Field **from_field,
                         Field **def_field,

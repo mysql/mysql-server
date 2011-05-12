@@ -3794,9 +3794,15 @@ int get_all_tables(THD *thd, TABLE_LIST *tables, COND *cond)
   it.rewind(); /* To get access to new elements in basis list */
   while ((db_name= it++))
   {
-    /* db_name can be changed in make_table_list() func */
-    LEX_STRING orig_db_name= *db_name;
+    LEX_STRING orig_db_name;
 
+    /*
+      db_name can be changed in make_table_list() func.
+      We need copy of db_name because it can change case.
+    */
+    if (!thd->make_lex_string(&orig_db_name, db_name->str,
+                              db_name->length, FALSE))
+      goto err;
 #ifndef NO_EMBEDDED_ACCESS_CHECKS
     if (!(check_access(thd,SELECT_ACL, db_name->str, 
                        &thd->col_access, 0, 1, with_i_schema) ||
