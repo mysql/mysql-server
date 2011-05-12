@@ -4626,7 +4626,7 @@ DELIMITER ;
 /*!50003 SET collation_connection  = @saved_col_connection */ ;
 ALTER DATABASE `test-database` CHARACTER SET utf8 COLLATE utf8_unicode_ci ;
 DROP DATABASE `test-database`;
-USE `test`;
+USE test;
 #
 # End of 5.1 tests
 #

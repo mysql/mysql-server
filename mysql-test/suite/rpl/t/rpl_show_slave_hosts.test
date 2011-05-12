@@ -23,14 +23,13 @@ connection master;
 let $show_statement= SHOW SLAVE HOSTS;
 let $field= Server_id;
 # 3 is server_id of slave2.
-let $connection= ='3';
+let $condition= ='3';
 source include/wait_show_condition.inc;
 --replace_result $SLAVE_MYPORT SLAVE_PORT $DEFAULT_MASTER_PORT DEFAULT_PORT
 SHOW SLAVE HOSTS;
 
 connection slave2;
-STOP SLAVE IO_THREAD;
-source include/wait_for_slave_io_to_stop.inc;
+--source include/stop_slave_io.inc
 
 connection master;
 let $show_statement= SHOW SLAVE HOSTS;
