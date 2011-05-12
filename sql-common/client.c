@@ -2314,11 +2314,18 @@ static auth_plugin_t clear_password_client_plugin=
   clear_password_auth_client
 };
 
+#ifdef AUTHENTICATION_WIN
+extern auth_plugin_t win_auth_client_plugin;
+#endif
+
 struct st_mysql_client_plugin *mysql_client_builtins[]=
 {
   (struct st_mysql_client_plugin *)&native_password_client_plugin,
   (struct st_mysql_client_plugin *)&old_password_client_plugin,
   (struct st_mysql_client_plugin *)&clear_password_client_plugin,
+#ifdef AUTHENTICATION_WIN
+  (struct st_mysql_client_plugin *)&win_auth_client_plugin,
+#endif
   0
 };
 
