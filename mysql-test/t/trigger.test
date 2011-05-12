@@ -2583,4 +2583,32 @@ select trigger_name from information_schema.triggers
 drop temporary table t1;
 drop table t1;
 
---echo End of 6.0 tests.
+
+--echo
+--echo #
+--echo # Bug #12362125: SP INOUT HANDLING IS BROKEN FOR TEXT TYPE.
+--echo #
+
+--disable_warnings
+DROP TABLE IF EXISTS t1;
+--enable_warnings
+
+CREATE TABLE t1(c TEXT);
+
+delimiter |;
+CREATE TRIGGER t1_bi BEFORE INSERT ON t1 FOR EACH ROW
+BEGIN
+  DECLARE v TEXT;
+  SET v = 'aaa';
+  SET NEW.c = v;
+END|
+delimiter ;|
+
+INSERT INTO t1 VALUES('qazwsxedc');
+
+SELECT c FROM t1;
+
+DROP TABLE t1;
+
+--echo
+--echo End of 5.5 tests.

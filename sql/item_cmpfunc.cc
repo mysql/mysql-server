@@ -4345,7 +4345,7 @@ bool Item_cond::walk(Item_processor processor, bool walk_subquery, uchar *arg)
 
 Item *Item_cond::transform(Item_transformer transformer, uchar *arg)
 {
-  DBUG_ASSERT(!current_thd->is_stmt_prepare());
+  DBUG_ASSERT(!current_thd->stmt_arena->is_stmt_prepare());
 
   List_iterator<Item> li(list);
   Item *item;
@@ -5718,7 +5718,7 @@ bool Item_equal::walk(Item_processor processor, bool walk_subquery, uchar *arg)
 
 Item *Item_equal::transform(Item_transformer transformer, uchar *arg)
 {
-  DBUG_ASSERT(!current_thd->is_stmt_prepare());
+  DBUG_ASSERT(!current_thd->stmt_arena->is_stmt_prepare());
 
   List_iterator<Item_field> it(fields);
   Item *item;

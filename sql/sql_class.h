@@ -655,15 +655,10 @@ public:
   virtual ~Query_arena() {};
 
   inline bool is_stmt_prepare() const { return state == STMT_INITIALIZED; }
-  inline bool is_first_sp_execute() const
-  { return state == STMT_INITIALIZED_FOR_SP; }
   inline bool is_stmt_prepare_or_first_sp_execute() const
   { return (int)state < (int)STMT_PREPARED; }
   inline bool is_stmt_prepare_or_first_stmt_execute() const
   { return (int)state <= (int)STMT_PREPARED; }
-  inline bool is_first_stmt_execute() const { return state == STMT_PREPARED; }
-  inline bool is_stmt_execute() const
-  { return state == STMT_PREPARED || state == STMT_EXECUTED; }
   inline bool is_conventional() const
   { return state == STMT_CONVENTIONAL_EXECUTION; }
 
@@ -1434,6 +1429,19 @@ extern "C" void my_message_sql(uint error, const char *str, myf MyFlags);
 class THD :public Statement,
            public Open_tables_state
 {
+private:
+  inline bool is_stmt_prepare() const
+  { DBUG_ASSERT(0); return Statement::is_stmt_prepare(); }
+
+  inline bool is_stmt_prepare_or_first_sp_execute() const
+  { DBUG_ASSERT(0); return Statement::is_stmt_prepare_or_first_sp_execute(); }
+
+  inline bool is_stmt_prepare_or_first_stmt_execute() const
+  { DBUG_ASSERT(0); return Statement::is_stmt_prepare_or_first_stmt_execute(); }
+
+  inline bool is_conventional() const
+  { DBUG_ASSERT(0); return Statement::is_conventional(); }
+
 public:
   MDL_context mdl_context;
 
