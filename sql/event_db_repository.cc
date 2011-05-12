@@ -433,7 +433,7 @@ Event_db_repository::index_read_for_db_for_i_s(THD *thd, TABLE *schema_table,
   key_copy(key_buf, event_table->record[0], key_info, key_len);
   if (!(ret= event_table->file->index_read_map(event_table->record[0], key_buf,
                                                (key_part_map)1,
-                                               HA_READ_PREFIX)))
+                                               HA_READ_KEY_EXACT)))
   {
     DBUG_PRINT("info",("Found rows. Let's retrieve them. ret=%d", ret));
     do
@@ -534,6 +534,13 @@ Event_db_repository::fill_schema_events(THD *thd, TABLE_LIST *i_s_table,
   if (open_system_tables_for_read(thd, &event_table, &open_tables_backup))
     DBUG_RETURN(TRUE);
 
+  if (table_intact.check(event_table.table, &event_table_def))
+  {
+    close_system_tables(thd, &open_tables_backup);
+    my_error(ER_EVENT_OPEN_TABLE_FAILED, MYF(0));
+    DBUG_RETURN(TRUE);
+  }
+
   /*
     1. SELECT I_S => use table scan. I_S.EVENTS does not guarantee order
                      thus we won't order it. OTOH, SHOW EVENTS will be
@@ -591,6 +598,14 @@ Event_db_repository::open_event_table(THD *thd, enum thr_lock_type lock_type,
 
   *table= tables.table;
   tables.table->use_all_columns();
+
+  if (table_intact.check(*table, &event_table_def))
+  {
+    close_thread_tables(thd);
+    my_error(ER_EVENT_OPEN_TABLE_FAILED, MYF(0));
+    DBUG_RETURN(TRUE);
+  }
+
   DBUG_RETURN(FALSE);
 }
 
@@ -1035,6 +1050,13 @@ Event_db_repository::load_named_event(THD *thd, LEX_STRING dbname,
   */
   if (!(ret= open_system_tables_for_read(thd, &event_table, &open_tables_backup)))
   {
+    if (table_intact.check(event_table.table, &event_table_def))
+    {
+      close_system_tables(thd, &open_tables_backup);
+      my_error(ER_EVENT_OPEN_TABLE_FAILED, MYF(0));
+      DBUG_RETURN(TRUE);
+    }
+
     if ((ret= find_named_event(dbname, name, event_table.table)))
       my_error(ER_EVENT_DOES_NOT_EXIST, MYF(0), name.str);
     else if ((ret= etn->load_from_row(thd, event_table.table)))

@@ -125,6 +125,7 @@
 #cmakedefine FIONREAD_IN_SYS_IOCTL 1
 #cmakedefine GWINSZ_IN_SYS_IOCTL 1
 #cmakedefine TIOCSTAT_IN_SYS_IOCTL 1
+#cmakedefine FIONREAD_IN_SYS_FILIO 1
 
 /* Functions we may want to use. */
 #cmakedefine HAVE_AIOWAIT 1
@@ -157,7 +158,6 @@
 #cmakedefine HAVE_GETADDRINFO 1
 #cmakedefine HAVE_GETCWD 1
 #cmakedefine HAVE_GETHOSTBYADDR_R 1
-#cmakedefine HAVE_GETHOSTBYNAME_R 1
 #cmakedefine HAVE_GETHRTIME 1
 #cmakedefine HAVE_GETLINE 1
 #cmakedefine HAVE_GETNAMEINFO 1
@@ -174,6 +174,10 @@
 #cmakedefine gmtime_r @gmtime_r@
 #cmakedefine HAVE_INITGROUPS 1
 #cmakedefine HAVE_ISSETUGID 1
+#cmakedefine HAVE_GETUID 1
+#cmakedefine HAVE_GETEUID 1
+#cmakedefine HAVE_GETGID 1
+#cmakedefine HAVE_GETEGID 1
 #cmakedefine HAVE_ISNAN 1
 #cmakedefine HAVE_ISINF 1
 #cmakedefine HAVE_LARGE_PAGE_OPTION 1
@@ -448,8 +452,6 @@
 
 
 #cmakedefine HAVE_SOLARIS_STYLE_GETHOST 1
-#cmakedefine HAVE_GETHOSTBYNAME_R_GLIBC2_STYLE 1
-#cmakedefine HAVE_GETHOSTBYNAME_R_RETURN_INT 1
 
 #cmakedefine MY_ATOMIC_MODE_DUMMY 1
 #cmakedefine MY_ATOMIC_MODE_RWLOCKS 1
@@ -513,6 +515,7 @@
 #cmakedefine EXTRA_DEBUG 1
 #cmakedefine BACKUP_TEST 1
 #cmakedefine CYBOZU 1
+#cmakedefine USE_SYMDIR 1
 
 /* Character sets and collations */
 #cmakedefine MYSQL_DEFAULT_CHARSET_NAME "@MYSQL_DEFAULT_CHARSET_NAME@"

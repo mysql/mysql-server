@@ -85,7 +85,6 @@ Created 2/16/1996 Heikki Tuuri
 # include "row0row.h"
 # include "row0mysql.h"
 # include "btr0pcur.h"
-# include "thr0loc.h"
 # include "os0sync.h" /* for INNODB_RW_LOCKS_USE_ATOMICS */
 # include "zlib.h" /* for ZLIB_VERSION */
 
@@ -2098,17 +2097,6 @@ innobase_shutdown_for_mysql(void)
 	The step 1 is the real InnoDB shutdown. The remaining steps 2 - ...
 	just free data structures after the shutdown. */
 
-
-	if (srv_fast_shutdown == 2) {
-		ut_print_timestamp(stderr);
-		fprintf(stderr,
-			"  InnoDB: MySQL has requested a very fast shutdown"
-			" without flushing "
-			"the InnoDB buffer pool to data files."
-			" At the next mysqld startup "
-			"InnoDB will do a crash recovery!\n");
-	}
-
 	logs_empty_and_mark_files_at_shutdown();
 
 	if (srv_conc_n_threads != 0) {
@@ -2123,17 +2111,9 @@ innobase_shutdown_for_mysql(void)
 
 	srv_shutdown_state = SRV_SHUTDOWN_EXIT_THREADS;
 
-	/* In a 'very fast' shutdown, we do not need to wait for these threads
-	to die; all which counts is that we flushed the log; a 'very fast'
-	shutdown is essentially a crash. */
-
-	if (srv_fast_shutdown == 2) {
-		return(DB_SUCCESS);
-	}
-
 	/* All threads end up waiting for certain events. Put those events
-	to the signaled state. Then the threads will exit themselves in
-	os_thread_event_wait(). */
+	to the signaled state. Then the threads will exit themselves after
+	os_event_wait(). */
 
 	for (i = 0; i < 1000; i++) {
 		/* NOTE: IF YOU CREATE THREADS IN INNODB, YOU MUST EXIT THEM
@@ -2210,7 +2190,6 @@ innobase_shutdown_for_mysql(void)
 	ibuf_close();
 	log_shutdown();
 	lock_sys_close();
-	thr_local_close();
 	trx_sys_file_format_close();
 	trx_sys_close();
 

@@ -1,4 +1,4 @@
-/* Copyright (C) 2000 MySQL AB
+/* Copyright (c) 2000, 2011, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -73,38 +73,6 @@ C_MODE_START
 #define in_addr_t uint32
 #endif
 
-/*
-  Handling of gethostbyname_r()
-*/
-
-#if !defined(HAVE_GETHOSTBYNAME_R)
-struct hostent *my_gethostbyname_r(const char *name,
-				   struct hostent *result, char *buffer,
-				   int buflen, int *h_errnop);
-void my_gethostbyname_r_free();
-#elif defined(HAVE_PTHREAD_ATTR_CREATE) || defined(_AIX) || defined(HAVE_GETHOSTBYNAME_R_GLIBC2_STYLE)
-struct hostent *my_gethostbyname_r(const char *name,
-				   struct hostent *result, char *buffer,
-				   int buflen, int *h_errnop);
-#define my_gethostbyname_r_free()
-#if !defined(HAVE_GETHOSTBYNAME_R_GLIBC2_STYLE) && !defined(HPUX10)
-#define GETHOSTBYNAME_BUFF_SIZE sizeof(struct hostent_data)
-#endif /* !defined(HAVE_GETHOSTBYNAME_R_GLIBC2_STYLE) */
-
-#elif defined(HAVE_GETHOSTBYNAME_R_RETURN_INT)
-#define GETHOSTBYNAME_BUFF_SIZE sizeof(struct hostent_data)
-struct hostent *my_gethostbyname_r(const char *name,
-				   struct hostent *result, char *buffer,
-				   int buflen, int *h_errnop);
-#define my_gethostbyname_r_free()
-#else
-#define my_gethostbyname_r(A,B,C,D,E) gethostbyname_r((A),(B),(C),(D),(E))
-#define my_gethostbyname_r_free()
-#endif /* !defined(HAVE_GETHOSTBYNAME_R) */
-
-#ifndef GETHOSTBYNAME_BUFF_SIZE
-#define GETHOSTBYNAME_BUFF_SIZE 2048
-#endif
 
 C_MODE_END
 #endif
