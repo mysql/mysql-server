@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2010 Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2011 Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -11587,7 +11587,23 @@ field_or_var:
 
 opt_load_data_set_spec:
           /* empty */ {}
-        | SET insert_update_list {}
+        | SET load_data_set_list {}
+        ;
+
+load_data_set_list:
+          load_data_set_list ',' load_data_set_elem
+        | load_data_set_elem
+        ;
+
+load_data_set_elem:
+          simple_ident_nospvar equal remember_name expr_or_default remember_end
+          {
+            LEX *lex= Lex;
+            if (lex->update_list.push_back($1) || 
+                lex->value_list.push_back($4))
+                MYSQL_YYABORT;
+            $4->set_name($3, (uint) ($5 - $3), YYTHD->charset());
+          }
         ;
 
 /* Common definitions */
