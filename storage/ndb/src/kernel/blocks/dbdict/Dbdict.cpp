@@ -8028,7 +8028,21 @@ Dbdict::alterTable_parse(Signal* signal, bool master,
 
     // the new temporary table record seized from pool
     newTablePtr = parseRecord.tablePtr;
+    alterTabPtr.p->m_newTable_realObjectId = newTablePtr.p->tableId;
     newTablePtr.p->tableId = impl_req->tableId; // set correct table id...(not the temporary)
+  }
+
+
+  {
+    /**
+     * Mark SchemaObject as in-use so that it's won't be found by other op
+     *   choose a state that will be automatically cleaned incase we crash
+     */
+    SchemaFile::TableEntry * objEntry =
+      objEntry = getTableEntry(alterTabPtr.p->m_newTable_realObjectId);
+    objEntry->m_tableType = DictTabInfo::SchemaTransaction;
+    objEntry->m_tableState = SchemaFile::SF_STARTED;
+    objEntry->m_transId = trans_ptr.p->m_transId + 1;
   }
 
   // set the new version now
@@ -9469,6 +9483,15 @@ Dbdict::alterTable_fromCommitComplete(Signal* signal,
 	       JBB, ptr, 1);
   }
 
+  {
+    // Remark object as free
+    SchemaFile::TableEntry * objEntry =
+      objEntry = getTableEntry(alterTabPtr.p->m_newTable_realObjectId);
+    objEntry->m_tableType = DictTabInfo::SchemaTransaction;
+    objEntry->m_tableState = SchemaFile::SF_UNUSED;
+    objEntry->m_transId = 0;
+  }
+
   releaseTableObject(alterTabPtr.p->m_newTablePtr.i, false);
   sendTransConf(signal, op_ptr);
 }
@@ -9551,6 +9574,16 @@ Dbdict::alterTable_abortParse(Signal* signal, SchemaOpPtr op_ptr)
   if (!newTablePtr.isNull()) {
     jam();
     // release the temporary work table
+
+    {
+      // Remark object as free
+      SchemaFile::TableEntry * objEntry =
+        objEntry = getTableEntry(alterTabPtr.p->m_newTable_realObjectId);
+      objEntry->m_tableType = DictTabInfo::SchemaTransaction;
+      objEntry->m_tableState = SchemaFile::SF_UNUSED;
+      objEntry->m_transId = 0;
+    }
+
     releaseTableObject(newTablePtr.i, false);
     newTablePtr.setNull();
   }

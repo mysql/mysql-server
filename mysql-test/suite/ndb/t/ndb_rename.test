@@ -30,6 +30,17 @@ alter table t2 rename ndbtest.t2;
 SELECT * FROM ndbtest.t2 WHERE attr1 = 1;
 
 drop table ndbtest.t2;
+
+create table t1 (
+  pk1 INT NOT NULL PRIMARY KEY,
+  b blob
+) engine = ndbcluster;
+
+alter table t1 rename ndbtest.t1;
+alter table ndbtest.t1 rename test.t1;
+
+drop table test.t1;
+
 drop database ndbtest;
 
 # End of 4.1 tests
