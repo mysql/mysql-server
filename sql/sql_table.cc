@@ -3645,9 +3645,19 @@ bool check_table_file_presence(char *old_path,
       Except case when it is the same table.
     */
     char tbl50[FN_REFLEN];
+#ifdef _WIN32
+    if (check_if_legal_tablename(table_name) != 0)
+    {
+      /*
+       Check for reserved device names for which access() returns 0
+       (CON, AUX etc).
+      */
+      return FALSE;
+    }
+#endif
     strxmov(tbl50, mysql_data_home, "/", db, "/", table_name, NullS);
-    if (!access(fn_format(tbl50, tbl50, "", reg_ext,
-                          MY_UNPACK_FILENAME), F_OK) &&
+    fn_format(tbl50, tbl50, "", reg_ext, MY_UNPACK_FILENAME);
+    if (!access(tbl50, F_OK) &&
         (old_path == NULL ||
          strcmp(old_path, tbl50) != 0))
     {
