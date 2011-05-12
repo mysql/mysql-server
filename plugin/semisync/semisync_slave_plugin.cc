@@ -53,7 +53,6 @@ int repl_semi_slave_request_dump(Binlog_relay_IO_param *param,
   if (mysql_real_query(mysql, query, strlen(query)) ||
       !(res= mysql_store_result(mysql)))
   {
-    mysql_free_result(mysql_store_result(mysql));
     sql_print_error("Execution failed on master: %s", query);
     return 1;
   }
@@ -65,8 +64,10 @@ int repl_semi_slave_request_dump(Binlog_relay_IO_param *param,
     sql_print_warning("Master server does not support semi-sync, "
                       "fallback to asynchronous replication");
     rpl_semi_sync_slave_status= 0;
+    mysql_free_result(res);
     return 0;
   }
+  mysql_free_result(res);
 
   /*
     Tell master dump thread that we want to do semi-sync
@@ -76,7 +77,6 @@ int repl_semi_slave_request_dump(Binlog_relay_IO_param *param,
   if (mysql_real_query(mysql, query, strlen(query)))
   {
     sql_print_error("Set 'rpl_semi_sync_slave=1' on master failed");
-    mysql_free_result(mysql_store_result(mysql));
     return 1;
   }
   mysql_free_result(mysql_store_result(mysql));

@@ -1,4 +1,4 @@
-/* Copyright (c) 2002, 2010, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2002, 2011, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -2842,7 +2842,8 @@ void mysql_stmt_get_longdata(THD *thd, char *packet, ulong packet_length)
   param= stmt->param_array[param_number];
 
   Diagnostics_area new_stmt_da, *save_stmt_da= thd->stmt_da;
-  Warning_info new_warnning_info(thd->query_id), *save_warinig_info= thd->warning_info;
+  Warning_info new_warnning_info(thd->query_id, false);
+  Warning_info *save_warinig_info= thd->warning_info;
 
   thd->stmt_da= &new_stmt_da;
   thd->warning_info= &new_warnning_info;
@@ -3900,7 +3901,7 @@ Ed_result_set::Ed_result_set(List<Ed_row> *rows_arg,
 */
 
 Ed_connection::Ed_connection(THD *thd)
-  :m_warning_info(thd->query_id),
+  :m_warning_info(thd->query_id, false),
   m_thd(thd),
   m_rsets(0),
   m_current_rset(0)

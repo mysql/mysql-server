@@ -113,7 +113,7 @@ static const char *reconnect_messages[SLAVE_RECON_ACT_MAX][SLAVE_RECON_MSG_MAX]=
 registration on master",
     "Reconnecting after a failed registration on master",
     "failed registering on master, reconnecting to try again, \
-log '%s' at postion %s",
+log '%s' at position %s",
     "COM_REGISTER_SLAVE",
     "Slave I/O thread killed during or after reconnect"
   },
@@ -121,7 +121,7 @@ log '%s' at postion %s",
     "Waiting to reconnect after a failed binlog dump request",
     "Slave I/O thread killed while retrying master dump",
     "Reconnecting after a failed binlog dump request",
-    "failed dump request, reconnecting to try again, log '%s' at postion %s",
+    "failed dump request, reconnecting to try again, log '%s' at position %s",
     "COM_BINLOG_DUMP",
     "Slave I/O thread killed during or after reconnect"
   },
@@ -130,7 +130,7 @@ log '%s' at postion %s",
     "Slave I/O thread killed while waiting to reconnect after a failed read",
     "Reconnecting after a failed master event read",
     "Slave I/O thread: Failed reading log event, reconnecting to retry, \
-log '%s' at postion %s",
+log '%s' at position %s",
     "",
     "Slave I/O thread killed during or after a reconnect done to recover from \
 failed read"
@@ -903,18 +903,18 @@ static bool sql_slave_killed(THD* thd, Relay_log_info* rli)
         && rli->is_in_group())
     {
       char msg_stopped[]=
-        "... The slave SQL is stopped, leaving the current group "
-        "of events unfinished with a non-transaction table changed. "
-        "If the group consists solely of Row-based events, you can try "
-        "restarting the slave with --slave-exec-mode=IDEMPOTENT, which "
+        "... Slave SQL Thread stopped with incomplete event group "
+        "having non-transactional changes. "
+        "If the group consists solely of row-based events, you can try "
+        "to restart the slave with --slave-exec-mode=IDEMPOTENT, which "
         "ignores duplicate key, key not found, and similar errors (see "
         "documentation for details).";
 
       if (rli->abort_slave)
       {
-        DBUG_PRINT("info", ("Slave SQL thread is being stopped in the middle of"
-                            " a group having updated a non-trans table, giving"
-                            " it some grace period"));
+        DBUG_PRINT("info", ("Request to stop slave SQL Thread received while "
+                            "applying a group that has non-transactional "
+                            "changes; waiting for completion of the group ... "));
 
         /*
           Slave sql thread shutdown in face of unfinished group modified 
@@ -938,9 +938,9 @@ static bool sql_slave_killed(THD* thd, Relay_log_info* rli)
         if (ret == 0)
         {
           rli->report(WARNING_LEVEL, 0,
-                      "slave SQL thread is being stopped in the middle "
-                      "of applying of a group having updated a non-transaction "
-                      "table; waiting for the group completion ... ");
+                      "Request to stop slave SQL Thread received while "
+                      "applying a group that has non-transactional "
+                      "changes; waiting for completion of the group ... ");
         }
         else
         {
