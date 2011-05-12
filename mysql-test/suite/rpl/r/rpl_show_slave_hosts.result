@@ -8,8 +8,7 @@ SHOW SLAVE HOSTS;
 Server_id	Host	Port	Master_id
 3	slave2	DEFAULT_PORT	1
 2		SLAVE_PORT	1
-STOP SLAVE IO_THREAD;
-include/wait_for_slave_io_to_stop.inc
+include/stop_slave_io.inc
 SHOW SLAVE HOSTS;
 Server_id	Host	Port	Master_id
 2		SLAVE_PORT	1

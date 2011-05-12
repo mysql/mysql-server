@@ -581,7 +581,7 @@ void Item::rename(char *new_name)
 
 Item* Item::transform(Item_transformer transformer, uchar *arg)
 {
-  DBUG_ASSERT(!current_thd->is_stmt_prepare());
+  DBUG_ASSERT(!current_thd->stmt_arena->is_stmt_prepare());
 
   return (this->*transformer)(arg);
 }
@@ -1781,14 +1781,17 @@ bool agg_item_set_converter(DTCollation &coll, const char *fname,
   }
 
   THD *thd= current_thd;
-  Query_arena *arena, backup;
   bool res= FALSE;
   uint i;
+
   /*
     In case we're in statement prepare, create conversion item
     in its memory: it will be reused on each execute.
   */
-  arena= thd->activate_stmt_arena_if_needed(&backup);
+  Query_arena backup;
+  Query_arena *arena= thd->stmt_arena->is_stmt_prepare() ?
+                      thd->activate_stmt_arena_if_needed(&backup) :
+                      NULL;
 
   for (i= 0, arg= args; i < nargs; i++, arg+= item_sep)
   {
@@ -1845,7 +1848,7 @@ bool agg_item_set_converter(DTCollation &coll, const char *fname,
       been created in prepare. In this case register the change for
       rollback.
     */
-    if (thd->is_stmt_prepare())
+    if (thd->stmt_arena->is_stmt_prepare())
       *arg= conv;
     else
       thd->change_item_tree(arg, conv);
@@ -2008,6 +2011,61 @@ Item_field::Item_field(THD *thd, Item_field *item)
   collation.set(DERIVATION_IMPLICIT);
 }
 
+
+/**
+  Calculate the max column length not taking into account the
+  limitations over integer types.
+
+  When storing data into fields the server currently just ignores the
+  limits specified on integer types, e.g. 1234 can safely be stored in
+  an int(2) and will not cause an error.
+  Thus when creating temporary tables and doing transformations
+  we must adjust the maximum field length to reflect this fact.
+  We take the un-restricted maximum length and adjust it similarly to
+  how the declared length is adjusted wrt unsignedness etc.
+  TODO: this all needs to go when we disable storing 1234 in int(2).
+
+  @param field_par   Original field the use to calculate the lengths
+  @param max_length  Item's calculated explicit max length
+  @return            The adjusted max length
+*/
+
+inline static uint32
+adjust_max_effective_column_length(Field *field_par, uint32 max_length)
+{
+  uint32 new_max_length= field_par->max_display_length();
+  uint32 sign_length= (field_par->flags & UNSIGNED_FLAG) ? 0 : 1;
+
+  switch (field_par->type())
+  {
+  case MYSQL_TYPE_INT24:
+    /*
+      Compensate for MAX_MEDIUMINT_WIDTH being 1 too long (8)
+      compared to the actual number of digits that can fit into
+      the column.
+    */
+    new_max_length+= 1;
+    /* fall through */
+  case MYSQL_TYPE_LONG:
+  case MYSQL_TYPE_TINY:
+  case MYSQL_TYPE_SHORT:
+
+    /* Take out the sign and add a conditional sign */
+    new_max_length= new_max_length - 1 + sign_length;
+    break;
+
+  /* BINGINT is always 20 no matter the sign */
+  case MYSQL_TYPE_LONGLONG:
+  /* make gcc happy */
+  default:
+    break;
+  }
+
+  /* Adjust only if the actual precision based one is bigger than specified */
+  return new_max_length > max_length ? new_max_length : max_length;
+}
+
+
 void Item_field::set_field(Field *field_par)
 {
   field=result_field=field_par;			// for easy coding with fields
@@ -2021,6 +2079,9 @@ void Item_field::set_field(Field *field_par)
   collation.set(field_par->charset(), field_par->derivation(),
                 field_par->repertoire());
   fix_char_length(field_par->char_length());
+
+  max_length= adjust_max_effective_column_length(field_par, max_length);
+
   fixed= 1;
   if (field->table->s->tmp_table == SYSTEM_TMP_TABLE)
     any_privileges= 0;
@@ -6965,7 +7026,7 @@ int Item_default_value::save_in_field(Field *field_arg, bool no_conversions)
 
 Item *Item_default_value::transform(Item_transformer transformer, uchar *args)
 {
-  DBUG_ASSERT(!current_thd->is_stmt_prepare());
+  DBUG_ASSERT(!current_thd->stmt_arena->is_stmt_prepare());
 
   /*
     If the value of arg is NULL, then this object represents a constant,
@@ -7131,8 +7192,26 @@ bool Item_trigger_field::set_value(THD *thd, sp_rcontext * /*ctx*/, Item **it)
 {
   Item *item= sp_prepare_func_item(thd, it);
 
-  return (!item || (!fixed && fix_fields(thd, 0)) ||
-          (item->save_in_field(field, 0) < 0));
+  if (!item)
+    return true;
+
+  if (!fixed)
+  {
+    if (fix_fields(thd, NULL))
+      return true;
+  }
+
+  // NOTE: field->table->copy_blobs should be false here, but let's
+  // remember the value at runtime to avoid subtle bugs.
+  bool copy_blobs_saved= field->table->copy_blobs;
+
+  field->table->copy_blobs= true;
+
+  int err_code= item->save_in_field(field, 0);
+
+  field->table->copy_blobs= copy_blobs_saved;
+
+  return err_code < 0;
 }
 
 
