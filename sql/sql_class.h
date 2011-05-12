@@ -700,7 +700,6 @@ public:
   { return (int)state < (int)STMT_PREPARED; }
   inline bool is_stmt_prepare_or_first_stmt_execute() const
   { return (int)state <= (int)STMT_PREPARED; }
-  { return (int)state <= (int)PREPARED; }
   inline bool is_conventional() const
   { return state == STMT_CONVENTIONAL_EXECUTION; }
 
