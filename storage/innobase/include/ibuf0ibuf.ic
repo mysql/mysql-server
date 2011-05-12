@@ -37,6 +37,30 @@ buffer inserts to this page.  If there is this much of free space, the
 corresponding bits are set in the ibuf bitmap. */
 #define IBUF_PAGE_SIZE_PER_FREE_SPACE	32
 
+/***************************************************************//**
+Starts an insert buffer mini-transaction. */
+UNIV_INLINE
+void
+ibuf_mtr_start(
+/*===========*/
+	mtr_t*	mtr)	/*!< out: mini-transaction */
+{
+	mtr_start(mtr);
+	mtr->inside_ibuf = TRUE;
+}
+/***************************************************************//**
+Commits an insert buffer mini-transaction. */
+UNIV_INLINE
+void
+ibuf_mtr_commit(
+/*============*/
+	mtr_t*	mtr)	/*!< in/out: mini-transaction */
+{
+	ut_ad(mtr->inside_ibuf);
+	ut_d(mtr->inside_ibuf = FALSE);
+	mtr_commit(mtr);
+}
+
 /** Insert buffer struct */
 struct ibuf_struct{
 	ulint		size;		/*!< current size of the ibuf index
@@ -118,6 +142,22 @@ ibuf_should_try(
 	}
 
 	return(FALSE);
+}
+
+/******************************************************************//**
+Returns TRUE if the current OS thread is performing an insert buffer
+routine.
+
+For instance, a read-ahead of non-ibuf pages is forbidden by threads
+that are executing an insert buffer routine.
+@return TRUE if inside an insert buffer routine */
+UNIV_INLINE
+ibool
+ibuf_inside(
+/*========*/
+	const mtr_t*	mtr)	/*!< in: mini-transaction */
+{
+	return(mtr->inside_ibuf);
 }
 
 /***********************************************************************//**

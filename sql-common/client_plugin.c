@@ -163,6 +163,7 @@ add_plugin(MYSQL *mysql, struct st_mysql_client_plugin *plugin, void *dlhandle,
 
   p->next= plugin_list[plugin->type];
   plugin_list[plugin->type]= p;
+  net_clear_error(&mysql->net);
 
   return plugin;
 
@@ -459,7 +460,7 @@ mysql_client_find_plugin(MYSQL *mysql, const char *name, int type)
 
 
 /* see <mysql/client_plugin.h> for a full description */
-int STDCALL mysql_plugin_options(struct st_mysql_client_plugin *plugin,
+int mysql_plugin_options(struct st_mysql_client_plugin *plugin,
                                  const char *option,
                                  const void *value)
 {

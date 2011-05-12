@@ -1,5 +1,6 @@
 # Test that must have symlink. eg. using DATA/INDEX DIR
 # (DATA/INDEX DIR requires symlinks)
+# This test is only useful for MyISAM, since no other engine supports DATA DIR
 -- source include/have_partition.inc
 -- source include/have_symlink.inc
 # remove the not_windows line after fixing bug#33687
@@ -33,13 +34,14 @@ DROP DATABASE IF EXISTS mysqltest2;
   CREATE USER mysqltest_1@localhost;
   CREATE DATABASE mysqltest2;
   USE mysqltest2;
-  CREATE TABLE t1 (a INT);
+  CREATE TABLE t1 (a INT) ENGINE = MyISAM;
   INSERT INTO t1 VALUES (0);
 connect(con1,localhost,mysqltest_1,,);
 -- echo # user mysqltest_1:
   USE test;
   -- replace_result $MYSQLTEST_VARDIR MYSQLTEST_VARDIR
   eval CREATE TABLE t1 (a INT)
+   ENGINE = MyISAM
    PARTITION BY LIST (a) (
     PARTITION p0 VALUES IN (0)
      DATA DIRECTORY '$MYSQLTEST_VARDIR/tmp'
@@ -82,6 +84,7 @@ connection default;
   USE mysqltest2;
   -- replace_result $MYSQLTEST_VARDIR MYSQLTEST_VARDIR
   eval CREATE TABLE t1 (a INT)
+   ENGINE = MyISAM
    PARTITION BY LIST (a) (
     PARTITION p0 VALUES IN (0)
      DATA DIRECTORY '$MYSQLTEST_VARDIR/tmp'
@@ -96,6 +99,7 @@ connection con1;
   -- replace_result $MYSQLTEST_VARDIR MYSQLTEST_VARDIR
   -- error 1,1
   eval CREATE TABLE t1 (a INT)
+   ENGINE = MyISAM
    PARTITION BY LIST (a) (
     PARTITION p0 VALUES IN (0)
      DATA DIRECTORY '$MYSQLTEST_VARDIR/tmp'
@@ -107,6 +111,7 @@ connection con1;
   -- replace_result $MYSQLTEST_VARDIR MYSQLTEST_VARDIR
   -- error 1,1
   eval CREATE TABLE t1 (a INT)
+   ENGINE = MyISAM
    PARTITION BY LIST (a) (
     PARTITION p0 VALUES IN (0)
      DATA DIRECTORY '$MYSQLTEST_VARDIR/tmp'
@@ -128,6 +133,7 @@ connection default;
 
 --replace_result $MYSQLTEST_VARDIR MYSQLTEST_VARDIR 
 eval create table t2 (i int )
+ENGINE = MyISAM
 partition by range (i)
 (
     partition p01 values less than (1000)
@@ -139,6 +145,7 @@ set @org_mode=@@sql_mode;
 set @@sql_mode='NO_DIR_IN_CREATE';
 select @@sql_mode;
 create table t1 (i int )
+ENGINE = MyISAM
 partition by range (i)
 (
     partition p01 values less than (1000)
@@ -157,6 +164,7 @@ set @@sql_mode=@org_mode;
 # Added ER_WRONG_TABLE_NAME and reported bug#39045
 -- error ER_WRONG_ARGUMENTS, ER_WRONG_TABLE_NAME
 create table t1 (a int)
+ENGINE = MyISAM
 partition by key (a)
 (partition p0 DATA DIRECTORY 'part-data' INDEX DIRECTORY 'part-data');
 
@@ -167,6 +175,7 @@ partition by key (a)
 # Added ER_WRONG_TABLE_NAME and reported bug#39045
 --error ER_WRONG_ARGUMENTS, ER_WRONG_TABLE_NAME
 create table t1 (a int)
+ENGINE = MyISAM
 partition by key (a)
 (partition p0,
  partition p1 DATA DIRECTORY 'part-data' INDEX DIRECTORY 'part-data');

@@ -236,10 +236,10 @@ UNIV_INTERN
 ulint
 buf_read_ahead_linear(
 /*==================*/
-	ulint	space,	/*!< in: space id */
-	ulint	zip_size,/*!< in: compressed page size in bytes, or 0 */
-	ulint	offset)	/*!< in: page number of a page; NOTE: the current thread
-			must want access to this page (see NOTE 3 above) */
+	ulint	space,		/*!< in: space id */
+	ulint	zip_size,	/*!< in: compressed page size in bytes, or 0 */
+	ulint	offset,		/*!< in: page number; see NOTE 3 above */
+	ibool	inside_ibuf)	/*!< in: TRUE if we are inside ibuf routine */
 {
 	buf_pool_t*	buf_pool = buf_pool_get(space, offset);
 	ib_int64_t	tablespace_version;
@@ -429,11 +429,9 @@ buf_read_ahead_linear(
 
 	/* If we got this far, read-ahead can be sensible: do it */
 
-	if (ibuf_inside()) {
-		ibuf_mode = BUF_READ_IBUF_PAGES_ONLY;
-	} else {
-		ibuf_mode = BUF_READ_ANY_PAGE;
-	}
+	ibuf_mode = inside_ibuf
+		? BUF_READ_IBUF_PAGES_ONLY | OS_AIO_SIMULATED_WAKE_LATER
+		: BUF_READ_ANY_PAGE | OS_AIO_SIMULATED_WAKE_LATER;
 
 	count = 0;
 
@@ -450,7 +448,7 @@ buf_read_ahead_linear(
 		if (!ibuf_bitmap_page(zip_size, i)) {
 			count += buf_read_page_low(
 				&err, FALSE,
-				ibuf_mode | OS_AIO_SIMULATED_WAKE_LATER,
+				ibuf_mode,
 				space, zip_size, FALSE, tablespace_version, i);
 			if (err == DB_TABLESPACE_DELETED) {
 				ut_print_timestamp(stderr);
@@ -520,7 +518,6 @@ buf_read_ibuf_merge_pages(
 {
 	ulint	i;
 
-	ut_ad(!ibuf_inside());
 #ifdef UNIV_IBUF_DEBUG
 	ut_a(n_stored < UNIV_PAGE_SIZE);
 #endif
