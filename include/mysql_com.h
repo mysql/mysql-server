@@ -114,6 +114,10 @@ enum enum_server_command
 #define FIELD_IN_PART_FUNC_FLAG (1 << 19)/* Field part of partition func */
 #define FIELD_IN_ADD_INDEX (1<< 20)	/* Intern: Field used in ADD INDEX */
 #define FIELD_IS_RENAMED (1<< 21)       /* Intern: Field is being renamed */
+#define FIELD_FLAGS_STORAGE_MEDIA 22    /* Field storage media, bit 22-23,
+                                           reserved by MySQL Cluster */
+#define FIELD_FLAGS_COLUMN_FORMAT 24    /* Field column format, bit 24-25,
+                                           reserved by MySQL Cluster */
 
 #define REFRESH_GRANT		1	/* Refresh grant tables */
 #define REFRESH_LOG		2	/* Start on new log file */

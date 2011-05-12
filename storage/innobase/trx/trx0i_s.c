@@ -518,7 +518,7 @@ fill_trx_row(
 		query[stmt_len] = '\0';
 
 		row->trx_query = ha_storage_put_memlim(
-			cache->storage, stmt, stmt_len + 1,
+			cache->storage, query, stmt_len + 1,
 			MAX_ALLOWED_FOR_STORAGE(cache));
 
 		row->trx_query_cs = innobase_get_charset(trx->mysql_thd);

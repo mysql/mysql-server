@@ -68,4 +68,8 @@ static const char *handler_error_messages[]=
   "Too many active concurrent transactions"
 };
 
+extern void my_handler_error_register(void);
+extern void my_handler_error_unregister(void);
+
+
 #endif /* MYSYS_MY_HANDLER_ERRORS_INCLUDED */

@@ -245,11 +245,7 @@ inline void setup_fpu()
 
 #define MYSQL_KILL_SIGNAL SIGTERM
 
-#ifdef HAVE_GLIBC2_STYLE_GETHOSTBYNAME_R
-#include <sys/types.h>
-#else
 #include <my_pthread.h>			// For thr_setconcurency()
-#endif
 
 #ifdef SOLARIS
 extern "C" int gethostname(char *name, int namelen);
@@ -7282,6 +7278,14 @@ static int get_options(int *argc_ptr, char ***argv_ptr)
        opt_log_slow_slave_statements) &&
       !opt_slow_log)
     sql_print_warning("options --log-slow-admin-statements, --log-queries-not-using-indexes and --log-slow-slave-statements have no effect if --log_slow_queries is not set");
+  if (global_system_variables.net_buffer_length > 
+      global_system_variables.max_allowed_packet)
+  {
+    sql_print_warning("net_buffer_length (%lu) is set to be larger "
+                      "than max_allowed_packet (%lu). Please rectify.",
+                      global_system_variables.net_buffer_length, 
+                      global_system_variables.max_allowed_packet);
+  }
 
   if (log_error_file_ptr != disabled_my_option)
     opt_error_log= 1;
