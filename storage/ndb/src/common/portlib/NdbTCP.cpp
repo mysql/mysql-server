@@ -19,6 +19,13 @@
 #include <ndb_global.h>
 #include <NdbTCP.h>
 
+
+/* On some operating systems (e.g. Solaris) INADDR_NONE is not defined */
+#ifndef INADDR_NONE
+#define INADDR_NONE -1                          /* Error value from inet_addr */
+#endif
+
+
 extern "C"
 int
 Ndb_getInAddr(struct in_addr * dst, const char *address)
