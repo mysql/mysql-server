@@ -935,7 +935,8 @@ Exit_status process_event(PRINT_EVENT_INFO *print_event_info, Log_event *ev,
         row events.
       */
       if (!print_event_info->printed_fd_event && !short_form &&
-          ev_type != TABLE_MAP_EVENT && ev_type != ROWS_QUERY_LOG_EVENT)
+          ev_type != TABLE_MAP_EVENT && ev_type != ROWS_QUERY_LOG_EVENT &&
+          opt_base64_output_mode != BASE64_OUTPUT_DECODE_ROWS)
       {
         const char* type_str= ev->get_type_str();
         if (opt_base64_output_mode == BASE64_OUTPUT_NEVER)
