@@ -381,7 +381,7 @@ public class Utility {
             switch (storeColumn.getType()) {
                 case Bit:
                     // bit fields are stored in two int32 fields
-                    result |= (value >> 32);
+                    result |= (value >>> 32);
                     result |= (value << 32);
                     return result;
                 case Bigint:
