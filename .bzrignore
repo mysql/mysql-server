@@ -3129,3 +3129,6 @@ libmysqld/examples/mysql_embedded
 sql/.empty
 mysys/thr_lock
 VERSION.dep
+info_macros.cmake
+Docs/INFO_BIN
+Docs/INFO_SRC
