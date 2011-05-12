@@ -157,6 +157,9 @@ public abstract class AbstractClusterJModelTest extends AbstractClusterJTest {
         createSessionFactory();
         session = sessionFactory.getSession();
         setAutoCommit(connection, false);
+        if (getModelClass() != null) {
+            addTearDownClasses(getModelClass());
+        }
     }
 
     /** Reset the local system default time zone to the time zone used
@@ -435,7 +438,7 @@ public abstract class AbstractClusterJModelTest extends AbstractClusterJTest {
     }
 
     protected void verifyQueryResults(String where, List<Object[]> results, int... objectIds) {
-        errorIfNotEqual(where, objectIds.length, results.size());
+        errorIfNotEqual(where + " mismatch in number of results.", objectIds.length, results.size());
         for (Object[] result: results) {
             int id = (Integer)result[0];
             if (Arrays.binarySearch(objectIds, id) < 0) {
