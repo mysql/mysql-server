@@ -34,6 +34,7 @@
 # There is a significant probablitity that this tests fails with testcase
 # timeout if the testing box is not powerful enough.
 #
+SET @def_var= @@session.transaction_prealloc_size;
 
 --disable_warnings
 SET SESSION transaction_prealloc_size=1024*1024*1024*1;
@@ -52,4 +53,6 @@ SET SESSION transaction_prealloc_size=1024*1024*1024*5;
 --replace_column 1 <Id> 3 <Host> 6 <Time>
 SHOW PROCESSLIST;
 --enable_warnings
+
+SET @@session.transaction_prealloc_size= @def_var;
 

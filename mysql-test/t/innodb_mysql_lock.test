@@ -311,6 +311,27 @@ DROP TABLE t1;
 disconnect con1;
 
 
+--echo #
+--echo # Bug#11747690 33650: MYSQL_ALTER_TABLE() UNNECESSARILY DOES
+--echo #              FULL TABLE COPY 
+--echo #
+
+--disable_warnings
+DROP TABLE IF EXISTS t1;
+--enable_warnings
+
+CREATE TABLE t1(a INT, b VARCHAR(255), PRIMARY KEY(a,b))
+  engine=innodb default charset=utf8;
+INSERT INTO t1 VALUES (1, 'a'), (2, 'b');
+
+# Check that 0 rows are affected
+--enable_info
+CREATE INDEX t1ba ON t1(b,a);
+--disable_info
+
+DROP TABLE t1;
+
+
 # Check that all connections opened by test cases in this file are really
 # gone so execution of other tests won't be affected by their presence.
 --source include/wait_until_count_sessions.inc
