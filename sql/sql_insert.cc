@@ -1948,7 +1948,7 @@ public:
     mysql_cond_destroy(&cond);
     mysql_cond_destroy(&cond_client);
     thd.unlink();				// Must be unlinked under lock
-    my_free(thd.query());
+    my_free(table_list.table_name);
     thd.security_ctx->user= thd.security_ctx->host=0;
     thread_count--;
     delayed_insert_threads--;
@@ -2090,20 +2090,19 @@ bool delayed_get_table(THD *thd, MDL_request *grl_protection_request,
       mysql_mutex_lock(&LOCK_thread_count);
       thread_count++;
       mysql_mutex_unlock(&LOCK_thread_count);
+      di->table_list= *table_list;			// Needed to open table
+      /* Replace volatile strings with local copies */
       di->thd.set_db(table_list->db, (uint) strlen(table_list->db));
-      di->thd.set_query(my_strdup(table_list->table_name,
-                                  MYF(MY_WME | ME_FATALERROR)),
-                        0, system_charset_info);
+      di->table_list.alias= di->table_list.table_name=
+        my_strdup(table_list->table_name, MYF(MY_WME | ME_FATALERROR));
+      di->table_list.db= di->thd.db;
+      di->thd.set_query(di->table_list.table_name, 0, system_charset_info);
       if (di->thd.db == NULL || di->thd.query() == NULL)
       {
         /* The error is reported */
 	delete di;
         goto end_create;
       }
-      di->table_list= *table_list;			// Needed to open table
-      /* Replace volatile strings with local copies */
-      di->table_list.alias= di->table_list.table_name= di->thd.query();
-      di->table_list.db= di->thd.db;
       /* We need the tickets so that they can be cloned in handle_delayed_insert */
       di->grl_protection.init(MDL_key::GLOBAL, "", "",
                               MDL_INTENTION_EXCLUSIVE, MDL_STATEMENT);
