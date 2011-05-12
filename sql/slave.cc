@@ -97,7 +97,7 @@ static const char *reconnect_messages[SLAVE_RECON_ACT_MAX][SLAVE_RECON_MSG_MAX]=
 registration on master",
     "Reconnecting after a failed registration on master",
     "failed registering on master, reconnecting to try again, \
-log '%s' at postion %s",
+log '%s' at position %s",
     "COM_REGISTER_SLAVE",
     "Slave I/O thread killed during or after reconnect"
   },
@@ -105,7 +105,7 @@ log '%s' at postion %s",
     "Waiting to reconnect after a failed binlog dump request",
     "Slave I/O thread killed while retrying master dump",
     "Reconnecting after a failed binlog dump request",
-    "failed dump request, reconnecting to try again, log '%s' at postion %s",
+    "failed dump request, reconnecting to try again, log '%s' at position %s",
     "COM_BINLOG_DUMP",
     "Slave I/O thread killed during or after reconnect"
   },
@@ -114,7 +114,7 @@ log '%s' at postion %s",
     "Slave I/O thread killed while waiting to reconnect after a failed read",
     "Reconnecting after a failed master event read",
     "Slave I/O thread: Failed reading log event, reconnecting to retry, \
-log '%s' at postion %s",
+log '%s' at position %s",
     "",
     "Slave I/O thread killed during or after a reconnect done to recover from \
 failed read"

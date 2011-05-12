@@ -4627,27 +4627,45 @@ btr_copy_blob_prefix(
 
 /*******************************************************************//**
 Copies the prefix of a compressed BLOB.  The clustered index record
-that points to this BLOB must be protected by a lock or a page latch. */
+that points to this BLOB must be protected by a lock or a page latch.
+@return	number of bytes written to buf */
 static
-void
+ulint
 btr_copy_zblob_prefix(
 /*==================*/
-	z_stream*	d_stream,/*!< in/out: the decompressing stream */
+	byte*		buf,	/*!< out: the externally stored part of
+				the field, or a prefix of it */
+	ulint		len,	/*!< in: length of buf, in bytes */
 	ulint		zip_size,/*!< in: compressed BLOB page size */
 	ulint		space_id,/*!< in: space id of the BLOB pages */
 	ulint		page_no,/*!< in: page number of the first BLOB page */
 	ulint		offset)	/*!< in: offset on the first BLOB page */
 {
-	ulint	page_type = FIL_PAGE_TYPE_ZBLOB;
+	ulint		page_type = FIL_PAGE_TYPE_ZBLOB;
+	mem_heap_t*	heap;
+	int		err;
+	z_stream	d_stream;
+
+	d_stream.next_out = buf;
+	d_stream.avail_out = len;
+	d_stream.next_in = Z_NULL;
+	d_stream.avail_in = 0;
+
+	/* Zlib inflate needs 32 kilobytes for the default
+	window size, plus a few kilobytes for small objects. */
+	heap = mem_heap_create(40000);
+	page_zip_set_alloc(&d_stream, heap);
 
 	ut_ad(ut_is_2pow(zip_size));
 	ut_ad(zip_size >= PAGE_ZIP_MIN_SIZE);
 	ut_ad(zip_size <= UNIV_PAGE_SIZE);
 	ut_ad(space_id);
 
+	err = inflateInit(&d_stream);
+	ut_a(err == Z_OK);
+
 	for (;;) {
 		buf_page_t*	bpage;
-		int		err;
 		ulint		next_page_no;
 
 		/* There is no latch on bpage directly.  Instead,
@@ -4663,7 +4681,7 @@ btr_copy_zblob_prefix(
 				" compressed BLOB"
 				" page %lu space %lu\n",
 				(ulong) page_no, (ulong) space_id);
-			return;
+			goto func_exit;
 		}
 
 		if (UNIV_UNLIKELY
@@ -4689,13 +4707,13 @@ btr_copy_zblob_prefix(
 			offset += 4;
 		}
 
-		d_stream->next_in = bpage->zip.data + offset;
-		d_stream->avail_in = zip_size - offset;
+		d_stream.next_in = bpage->zip.data + offset;
+		d_stream.avail_in = zip_size - offset;
 
-		err = inflate(d_stream, Z_NO_FLUSH);
+		err = inflate(&d_stream, Z_NO_FLUSH);
 		switch (err) {
 		case Z_OK:
-			if (!d_stream->avail_out) {
+			if (!d_stream.avail_out) {
 				goto end_of_blob;
 			}
 			break;
@@ -4712,13 +4730,13 @@ inflate_error:
 				" compressed BLOB"
 				" page %lu space %lu returned %d (%s)\n",
 				(ulong) page_no, (ulong) space_id,
-				err, d_stream->msg);
+				err, d_stream.msg);
 		case Z_BUF_ERROR:
 			goto end_of_blob;
 		}
 
 		if (next_page_no == FIL_NULL) {
-			if (!d_stream->avail_in) {
+			if (!d_stream.avail_in) {
 				ut_print_timestamp(stderr);
 				fprintf(stderr,
 					"  InnoDB: unexpected end of"
@@ -4727,7 +4745,7 @@ inflate_error:
 					(ulong) page_no,
 					(ulong) space_id);
 			} else {
-				err = inflate(d_stream, Z_FINISH);
+				err = inflate(&d_stream, Z_FINISH);
 				switch (err) {
 				case Z_STREAM_END:
 				case Z_BUF_ERROR:
@@ -4739,7 +4757,7 @@ inflate_error:
 
 end_of_blob:
 			buf_page_release_zip(bpage);
-			return;
+			goto func_exit;
 		}
 
 		buf_page_release_zip(bpage);
@@ -4751,6 +4769,12 @@ end_of_blob:
 		offset = FIL_PAGE_NEXT;
 		page_type = FIL_PAGE_TYPE_ZBLOB2;
 	}
+
+func_exit:
+	inflateEnd(&d_stream);
+	mem_heap_free(heap);
+	UNIV_MEM_ASSERT_RW(buf, d_stream.total_out);
+	return(d_stream.total_out);
 }
 
 /*******************************************************************//**
@@ -4776,28 +4800,8 @@ btr_copy_externally_stored_field_prefix_low(
 	}
 
 	if (UNIV_UNLIKELY(zip_size)) {
-		int		err;
-		z_stream	d_stream;
-		mem_heap_t*	heap;
-
-		/* Zlib inflate needs 32 kilobytes for the default
-		window size, plus a few kilobytes for small objects. */
-		heap = mem_heap_create(40000);
-		page_zip_set_alloc(&d_stream, heap);
-
-		err = inflateInit(&d_stream);
-		ut_a(err == Z_OK);
-
-		d_stream.next_out = buf;
-		d_stream.avail_out = len;
-		d_stream.avail_in = 0;
-
-		btr_copy_zblob_prefix(&d_stream, zip_size,
-				      space_id, page_no, offset);
-		inflateEnd(&d_stream);
-		mem_heap_free(heap);
-		UNIV_MEM_ASSERT_RW(buf, d_stream.total_out);
-		return(d_stream.total_out);
+		return(btr_copy_zblob_prefix(buf, len, zip_size,
+					     space_id, page_no, offset));
 	} else {
 		return(btr_copy_blob_prefix(buf, len, space_id,
 					    page_no, offset));

@@ -926,8 +926,12 @@ bool Item::get_date(MYSQL_TIME *ltime,uint fuzzydate)
   }
   else
   {
-    longlong value= val_int();
     int was_cut;
+    longlong value= val_int();
+
+    if (null_value)
+      goto err;
+
     if (number_to_datetime(value, ltime, fuzzydate, &was_cut) == LL(-1))
     {
       char buff[22], *end;
@@ -6117,7 +6121,7 @@ void Item_ref::print(String *str, enum_query_type query_type)
     {
       THD *thd= current_thd;
       append_identifier(thd, str, (*ref)->real_item()->name,
-                        (*ref)->real_item()->name_length);
+                        strlen((*ref)->real_item()->name));
     }
     else
       (*ref)->print(str, query_type);
@@ -7105,7 +7109,7 @@ String *Item_cache_int::val_str(String *str)
   DBUG_ASSERT(fixed == 1);
   if (!value_cached && !cache_value())
     return NULL;
-  str->set(value, default_charset());
+  str->set_int(value, unsigned_flag, default_charset());
   return str;
 }
 

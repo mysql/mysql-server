@@ -106,8 +106,11 @@ public:
   { DBUG_ASSERT(fixed == 1); return (double) Item_func_month::val_int(); }
   String *val_str(String *str) 
   {
-    str->set(val_int(), &my_charset_bin);
-    return null_value ? 0 : str;
+    longlong nr= val_int();
+    if (null_value)
+      return 0;
+    str->set(nr, &my_charset_bin);
+    return str;
   }
   const char *func_name() const { return "month"; }
   enum Item_result result_type () const { return INT_RESULT; }
