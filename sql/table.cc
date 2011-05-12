@@ -310,7 +310,7 @@ TABLE_CATEGORY get_table_category(const LEX_STRING *db, const LEX_STRING *name)
     #  Share
 */
 
-TABLE_SHARE *alloc_table_share(TABLE_LIST *table_list, char *key,
+TABLE_SHARE *alloc_table_share(TABLE_LIST *table_list, const char *key,
                                uint key_length)
 {
   MEM_ROOT mem_root;

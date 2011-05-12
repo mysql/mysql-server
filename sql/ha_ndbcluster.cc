@@ -4603,10 +4603,19 @@ void ha_ndbcluster::transaction_checks(THD *thd)
 {
   if (thd->lex->sql_command == SQLCOM_LOAD)
   {
-    m_transaction_on= FALSE;
     /* Would be simpler if has_transactions() didn't always say "yes" */
-    thd->transaction.all.modified_non_trans_table=
-      thd->transaction.stmt.modified_non_trans_table= TRUE;
+    m_transaction_on= FALSE;
+    /*
+      In the future, after integrating the ndb code-base into trunk,
+      make sure that it is necessary to mark that the transaction
+      has updated a non-transactional table and one cannot simply
+      rely on the fact that the statement's flag is propagated to
+      the transaction upon committing the statement.
+
+      \Alfranio
+    */
+    thd->transaction.all.mark_modified_non_trans_table();
+    thd->transaction.stmt.mark_modified_non_trans_table();
   }
   else if (!thd->transaction.on)
     m_transaction_on= FALSE;

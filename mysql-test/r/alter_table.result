@@ -1391,6 +1391,16 @@ CREATE DATABASE db1 CHARACTER SET utf8;
 CREATE TABLE db1.t1 (bar TINYTEXT, KEY (bar(100)));
 ALTER TABLE db1.t1 ADD baz INT;
 DROP DATABASE db1;
+# Additional coverage for refactoring which is made as part
+# of fix for bug #27480 "Extend CREATE TEMPORARY TABLES privilege
+# to allow temp table operations".
+#
+# At some point the below test case failed on assertion.
+DROP TABLE IF EXISTS t1;
+CREATE TEMPORARY TABLE t1 (i int) ENGINE=MyISAM;
+ALTER TABLE t1 DISCARD TABLESPACE;
+ERROR HY000: Table storage engine for 't1' doesn't have this option
+DROP TABLE t1;
 #
 # Bug#11938039 RE-EXECUTION OF FRM-ONLY ALTER TABLE WITH RENAME
 #              CLAUSE FAILS OR ABORTS SERVER.
