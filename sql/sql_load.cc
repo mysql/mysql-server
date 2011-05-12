@@ -743,8 +743,7 @@ static bool write_execute_load_query_log_event(THD *thd, sql_exchange* ex,
       pfields.append("`");
       pfields.append(item->name);
       pfields.append("`");
-      pfields.append("=");
-      val->print(&pfields, QT_ORDINARY);
+      pfields.append(val->name);
     }
   }
 

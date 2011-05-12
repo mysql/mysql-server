@@ -708,11 +708,10 @@ let $cleanup_stmt1= create table t2_base(j int);
 --source include/check_ftwrl_incompatible.inc
 
 --echo # 13.1.b) DROP TABLES which affects only temporary tables
---echo #         in theory can be compatible with FTWRL.
---echo #         In practice it is not yet.
+--echo #         is compatible with FTWRL.
 let $statement= drop table t2_temp;
-let $cleanup_stmt1= create temporary table t2_temp(j int);
---source include/check_ftwrl_incompatible.inc
+let $cleanup_stmt= create temporary table t2_temp(j int);
+--source include/check_ftwrl_compatible.inc
 
 --echo #
 --echo # 13.1.c) DROP TEMPORARY TABLES should be compatible with FTWRL.
