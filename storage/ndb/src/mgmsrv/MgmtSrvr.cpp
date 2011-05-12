@@ -1345,7 +1345,7 @@ int MgmtSrvr::sendSTOP_REQ(const Vector<NodeId> &node_ids,
     ndb_nodes_to_stop.copyto(NdbNodeBitmask::Size, stopReq->nodes);
     StopReq::setStopNodes(stopReq->requestInfo, 1);
   }
-  else
+  else if (ndb_nodes_to_stop.count() == 1)
   {
     Uint32 nodeId = ndb_nodes_to_stop.find(0);
     if (okToSendTo(nodeId, true) == 0)
