@@ -4573,8 +4573,11 @@ int MYSQL_BIN_LOG::unlog(ulong cookie, my_xid xid)
 {
   DBUG_ENTER("MYSQL_BIN_LOG::unlog");
   mysql_mutex_lock(&LOCK_prep_xids);
-  DBUG_ASSERT(prepared_xids > 0);
-  if (--prepared_xids == 0) {
+  // prepared_xids can be 0 if the transaction had ignorable errors.
+  DBUG_ASSERT(prepared_xids >= 0);
+  if (prepared_xids > 0)
+    prepared_xids--;
+  if (prepared_xids == 0) {
     DBUG_PRINT("info", ("prepared_xids=%lu", prepared_xids));
     mysql_cond_signal(&COND_prep_xids);
   }
