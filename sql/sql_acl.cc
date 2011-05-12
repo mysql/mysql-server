@@ -2402,8 +2402,10 @@ static int replace_user_table(THD *thd, TABLE *table, const LEX_USER &combo,
       {
         table->field[next_field]->store(combo.plugin.str, combo.plugin.length,
                                         system_charset_info);
+        table->field[next_field]->set_notnull();
         table->field[next_field + 1]->store(combo.auth.str, combo.auth.length,
                                             system_charset_info);
+        table->field[next_field + 1]->set_notnull();
       }
       else
       {
@@ -8397,6 +8399,94 @@ static bool parse_com_change_user_packet(MPVIO_EXT *mpvio, uint packet_length)
   DBUG_RETURN (0);
 }
 
+#ifndef EMBEDDED_LIBRARY
+/**
+  Get a null character terminated string from a user-supplied buffer.
+
+  @param buffer[in, out]    Pointer to the buffer to be scanned.
+  @param max_bytes_available[in, out]  Limit the bytes to scan.
+  @param string_length[out] The number of characters scanned not including
+                            the null character.
+
+  @remark The string_length does not include the terminating null character.
+          However, after the call, the buffer is increased by string_length+1
+          bytes, beyond the null character if there still available bytes to
+          scan.
+
+  @return pointer to beginning of the string scanned.
+    @retval NULL The buffer content is malformed
+*/
+
+static
+char *get_null_terminated_string(char **buffer,
+                                 size_t *max_bytes_available,
+                                 size_t *string_length)
+{
+  char *str= (char *)memchr(*buffer, '\0', *max_bytes_available);
+
+  if (str == NULL)
+    return NULL;
+
+  *string_length= (size_t)(str - *buffer);
+  *max_bytes_available-= *string_length + 1;
+  str= *buffer;
+  *buffer += *string_length + 1;  
+
+  return str;
+}
+
+/**
+  Get a length encoded string from a user-supplied buffer.
+
+  @param buffer[in, out] The buffer to scan; updates position after scan.
+  @param max_bytes_available[in, out] Limit the number of bytes to scan
+  @param string_length[out] Number of characters scanned
+  
+  @remark In case the length is zero, then the total size of the string is
+    considered to be 1 byte; the size byte.
+
+  @return pointer to first byte after the header in buffer.
+    @retval NULL The buffer content is malformed
+*/
+
+static
+char *get_length_encoded_string(char **buffer,
+                                size_t *max_bytes_available,
+                                size_t *string_length)
+{
+  if (*max_bytes_available == 0)
+    return NULL;
+
+  /* Do double cast to prevent overflow from signed / unsigned conversion */
+  size_t str_len= (size_t)(unsigned char)**buffer;
+
+  /*
+    If the length encoded string has the length 0
+    the total size of the string is only one byte long (the size byte)
+  */
+  if (str_len == 0)
+  {
+    ++*buffer;
+    *string_length= 0;
+    /*
+      Return a pointer to the 0 character so the return value will be
+      an empty string.
+    */
+    return *buffer-1;
+  }
+
+  if (str_len >= *max_bytes_available)
+    return NULL;
+
+  char *str= *buffer+1;
+  *string_length= str_len;
+  *max_bytes_available-= *string_length + 1;
+  *buffer+= *string_length + 1;
+  return str;
+}
+#endif
+
+
 /* the packet format is described in send_client_reply_packet() */
 static ulong parse_client_handshake_packet(MPVIO_EXT *mpvio,
                                            uchar **buff, ulong pkt_len)
@@ -8461,50 +8551,76 @@ static ulong parse_client_handshake_packet(MPVIO_EXT *mpvio,
   }
 #endif
 
-  if (end >= (char*) net->read_pos + pkt_len + 2)
+  if (end > (char *)net->read_pos + pkt_len)
     return packet_error;
 
   if ((mpvio->client_capabilities & CLIENT_TRANSACTIONS) &&
       opt_using_transactions)
     net->return_status= mpvio->server_status;
+ 
+  /*
+    In order to safely scan a head for '\0' string terminators
+    we must keep track of how many bytes remain in the allocated
+    buffer or we might read past the end of the buffer.
+  */
+  size_t bytes_remaining_in_packet= pkt_len - (end - (char *)net->read_pos);
 
-  char *user= end;
-  char *passwd= strend(user) + 1;
-  uint user_len= passwd - user - 1, db_len;
-  char *db= passwd;
-  char db_buff[NAME_LEN + 1];           // buffer to store db in utf8
-  char user_buff[USERNAME_LENGTH + 1];	// buffer to store user in utf8
-  uint dummy_errors;
+  size_t user_len;
+  char *user= get_null_terminated_string(&end, &bytes_remaining_in_packet,
+                                         &user_len);
+  if (user == NULL)
+    return packet_error;
 
   /*
-    Old clients send null-terminated string as password; new clients send
+    Old clients send a null-terminated string as password; new clients send
     the size (1 byte) + string (not null-terminated). Hence in case of empty
     password both send '\0'.
-
-    This strlen() can't be easily deleted without changing protocol.
-
-    Cast *passwd to an unsigned char, so that it doesn't extend the sign for
-    *passwd > 127 and become 2**32-127+ after casting to uint.
   */
-  uint passwd_len= mpvio->client_capabilities & CLIENT_SECURE_CONNECTION ?
-                   (uchar) (*passwd++) : strlen(passwd);
-  
-  if (mpvio->client_capabilities & CLIENT_CONNECT_WITH_DB)
+  size_t passwd_len= 0;
+  char *passwd= NULL;
+
+  if (mpvio->client_capabilities & CLIENT_SECURE_CONNECTION)
   {
-    db= db + passwd_len + 1;
-    /* strlen() can't be easily deleted without changing protocol */
-    db_len= strlen(db);
+    /*
+      4.1+ password. First byte is password length.
+    */
+    passwd= get_length_encoded_string(&end, &bytes_remaining_in_packet,
+                                      &passwd_len);
   }
   else
   {
-    db= 0;
-    db_len= 0;
+    /*
+      Old passwords are zero terminated strings.
+    */
+    passwd= get_null_terminated_string(&end, &bytes_remaining_in_packet,
+                                       &passwd_len);
   }
 
-  if (passwd + passwd_len + db_len > (char *) net->read_pos + pkt_len)
+  if (passwd == NULL)
     return packet_error;
 
-  char *client_plugin= passwd + passwd_len + (db ? db_len + 1 : 0);
+  size_t db_len= 0;
+  char *db= NULL;
+
+  if (mpvio->client_capabilities & CLIENT_CONNECT_WITH_DB)
+  {
+    db= get_null_terminated_string(&end, &bytes_remaining_in_packet,
+                                   &db_len);
+    if (db == NULL)
+      return packet_error;
+  }
+
+  size_t client_plugin_len= 0;
+  char *client_plugin= get_null_terminated_string(&end,
+                                                  &bytes_remaining_in_packet,
+                                                  &client_plugin_len);
+  if (client_plugin == NULL)
+    client_plugin= &empty_c_string[0];
+ 
+  char db_buff[NAME_LEN + 1];           // buffer to store db in utf8
+  char user_buff[USERNAME_LENGTH + 1];	// buffer to store user in utf8
+  uint dummy_errors;
+  
 
   /* Since 4.1 all database names are stored in utf8 */
   if (db)
@@ -8550,18 +8666,18 @@ static ulong parse_client_handshake_packet(MPVIO_EXT *mpvio,
   if (find_mpvio_user(mpvio))
     return packet_error;
 
-  if (mpvio->client_capabilities & CLIENT_PLUGIN_AUTH)
+  if (!(mpvio->client_capabilities & CLIENT_PLUGIN_AUTH))
   {
-    if ((client_plugin + strlen(client_plugin)) > 
-          (char *) net->read_pos + pkt_len)
-      return packet_error;
-  }
-  else
-  {
+    /*
+      An old client is connecting
+    */
     if (mpvio->client_capabilities & CLIENT_SECURE_CONNECTION)
       client_plugin= native_password_plugin_name.str;
     else
     {
+      /*
+        A really old client is connecting
+      */
       client_plugin= old_password_plugin_name.str;
       /*
         For a passwordless accounts we use native_password_plugin.

@@ -241,7 +241,6 @@ SET(INNOBASE_SOURCES	btr/btr0btr.c btr/btr0cur.c btr/btr0pcur.c btr/btr0sea.c
 			row/row0sel.c row/row0uins.c row/row0umod.c row/row0undo.c row/row0upd.c row/row0vers.c
 			srv/srv0srv.c srv/srv0start.c
 			sync/sync0arr.c sync/sync0rw.c sync/sync0sync.c
-			thr/thr0loc.c
 			trx/trx0i_s.c trx/trx0purge.c trx/trx0rec.c trx/trx0roll.c trx/trx0rseg.c
 			trx/trx0sys.c trx/trx0trx.c trx/trx0undo.c
 			usr/usr0sess.c

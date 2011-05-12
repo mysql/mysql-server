@@ -180,7 +180,6 @@ ERROR 42000: Mixing of GROUP columns (MIN(),MAX(),COUNT(),...) with no GROUP col
 SHOW WARNINGS;
 Level	Code	Message
 Error	1140	Mixing of GROUP columns (MIN(),MAX(),COUNT(),...) with no GROUP columns is illegal if there is no GROUP BY clause
-Note	1003	select 1 AS `1` from `test`.`t1` where <not>(<exists>(...))
 SET SESSION sql_mode=@old_sql_mode;
 DROP TABLE t1;
 End of 5.0 tests.
@@ -318,3 +317,17 @@ id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 DEALLOCATE PREPARE stmt;
 DROP TABLE t1;
 End of 5.1 tests.
+#
+# Bug#11829785 EXPLAIN EXTENDED CRASH WITH RIGHT OUTER JOIN, SUBQUERIES
+#
+CREATE TABLE t1(a INT);
+INSERT INTO t1 VALUES (0), (0);
+PREPARE s FROM 
+'EXPLAIN EXTENDED
+SELECT SUBSTRING(1, (SELECT 1 FROM t1 a1 RIGHT OUTER JOIN t1 ON 0)) AS d
+FROM t1 WHERE 0 > ANY (SELECT @a FROM t1)';
+EXECUTE s;
+ERROR 21000: Subquery returns more than 1 row
+DEALLOCATE PREPARE s;
+DROP TABLE t1;
+#

@@ -1,0 +1,250 @@
+DROP TABLE IF EXISTS t1, t2;
+#
+# Bug#50036: Inconsistent errors when using TIMESTAMP
+#            columns/expressions
+# Added test with existing TIMESTAMP partitioning (when it was allowed).
+CREATE TABLE t1 (a TIMESTAMP)
+ENGINE = MyISAM
+PARTITION BY HASH (UNIX_TIMESTAMP(a));
+INSERT INTO t1 VALUES ('2000-01-02 03:04:05');
+SELECT * FROM t1;
+a
+2000-01-02 03:04:05
+FLUSH TABLES;
+# replacing t1.frm with TO_DAYS(a) which was allowed earlier.
+# Disable warnings, since the result would differ when running with
+# --ps-protocol (only for the 'SELECT * FROM t1' statement).
+SELECT * FROM t1;
+a
+2000-01-02 03:04:05
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `a` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+) ENGINE=<curr_engine> DEFAULT CHARSET=latin1
+/*!50100 PARTITION BY HASH (TO_DAYS(a)) */
+INSERT INTO t1 VALUES ('2001-02-03 04:05:06');
+SELECT * FROM t1;
+a
+2000-01-02 03:04:05
+2001-02-03 04:05:06
+ALTER TABLE t1 ADD PARTITION PARTITIONS 2;
+Warnings:
+Warning	1486	Constant, random or timezone-dependent expressions in (sub)partitioning function are not allowed
+ALTER TABLE t1
+PARTITION BY RANGE (TO_DAYS(a))
+(PARTITION p0 VALUES LESS THAN (10000),
+PARTITION p1 VALUES LESS THAN (MAXVALUE));
+ERROR HY000: Constant, random or timezone-dependent expressions in (sub)partitioning function are not allowed
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `a` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+) ENGINE=MyISAM DEFAULT CHARSET=latin1
+/*!50100 PARTITION BY HASH (TO_DAYS(a))
+PARTITIONS 3 */
+CREATE TABLE t2 LIKE t1;
+SHOW CREATE TABLE t2;
+Table	Create Table
+t2	CREATE TABLE `t2` (
+  `a` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+) ENGINE=MyISAM DEFAULT CHARSET=latin1
+/*!50100 PARTITION BY HASH (TO_DAYS(a))
+PARTITIONS 3 */
+Warnings:
+Warning	1486	Constant, random or timezone-dependent expressions in (sub)partitioning function are not allowed
+DROP TABLE t2;
+CREATE TABLE t2 SELECT * FROM t1;
+DROP TABLE t2;
+ALTER TABLE t1 PARTITION BY HASH (UNIX_TIMESTAMP(a));
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `a` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+) ENGINE=MyISAM DEFAULT CHARSET=latin1
+/*!50100 PARTITION BY HASH (UNIX_TIMESTAMP(a)) */
+ALTER TABLE t1 ADD PARTITION PARTITIONS 2;
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `a` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+) ENGINE=MyISAM DEFAULT CHARSET=latin1
+/*!50100 PARTITION BY HASH (UNIX_TIMESTAMP(a))
+PARTITIONS 3 */
+SELECT * FROM t1;
+a
+2000-01-02 03:04:05
+2001-02-03 04:05:06
+DROP TABLE t1;
+#
+# Bug#31931: Mix of handlers error message
+#
+CREATE TABLE t1 (a INT)
+PARTITION BY HASH (a)
+( PARTITION p0 ENGINE=MyISAM,
+PARTITION p1);
+ERROR HY000: The mix of handlers in the partitions is not allowed in this version of MySQL
+CREATE TABLE t1 (a INT)
+PARTITION BY LIST (a)
+SUBPARTITION BY HASH (a)
+( PARTITION p0 VALUES IN (0)
+( SUBPARTITION s0, SUBPARTITION s1 ENGINE=MyISAM, SUBPARTITION s2),
+PARTITION p1 VALUES IN (1)
+( SUBPARTITION s3 ENGINE=MyISAM, SUBPARTITION s4, SUBPARTITION s5 ENGINE=MyISAM));
+ERROR HY000: The mix of handlers in the partitions is not allowed in this version of MySQL
+#
+# Bug#49161: Out of memory; restart server and try again (needed 2 bytes)
+#
+CREATE TABLE t1 (a INT)
+ENGINE = MyISAM
+PARTITION BY HASH (a);
+FLUSH TABLES;
+CHECK TABLE t1;
+Table	Op	Msg_type	Msg_text
+test.t1	check	Error	Failed to read from the .par file
+test.t1	check	Error	Incorrect information in file: './test/t1.frm'
+test.t1	check	error	Corrupt
+SELECT * FROM t1;
+ERROR HY000: Failed to read from the .par file
+# Note that it is currently impossible to drop a partitioned table
+# without the .par file
+DROP TABLE t1;
+ERROR 42S02: Unknown table 't1'
+#
+# Bug#50392: insert_id is not reset for partitioned tables
+#            auto_increment on duplicate entry
+CREATE TABLE t1 (a INT AUTO_INCREMENT PRIMARY KEY)
+ENGINE = MyISAM;
+SET INSERT_ID= 13;
+INSERT INTO t1 VALUES (NULL);
+SET INSERT_ID= 12;
+# For transactional engines, 12 will not be inserted, since the failing
+# statement is rolled back.
+INSERT INTO t1 VALUES (NULL), (NULL), (NULL);
+ERROR 23000: Duplicate entry '13' for key 'PRIMARY'
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `a` int(11) NOT NULL AUTO_INCREMENT,
+  PRIMARY KEY (`a`)
+) ENGINE=MyISAM AUTO_INCREMENT=14 DEFAULT CHARSET=latin1
+INSERT INTO t1 VALUES (NULL);
+# NOTE: 12 exists only in non transactional engines!
+SELECT * FROM t1;
+a
+12
+13
+14
+DROP TABLE t1;
+CREATE TABLE t1 (a INT AUTO_INCREMENT PRIMARY KEY)
+ENGINE = MyISAM
+PARTITION BY KEY(a);
+SET INSERT_ID= 13;
+INSERT INTO t1 VALUES (NULL);
+SET INSERT_ID= 12;
+INSERT INTO t1 VALUES (NULL), (NULL), (NULL);
+ERROR 23000: Duplicate entry '13' for key 'PRIMARY'
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `a` int(11) NOT NULL AUTO_INCREMENT,
+  PRIMARY KEY (`a`)
+) ENGINE=MyISAM AUTO_INCREMENT=14 DEFAULT CHARSET=latin1
+/*!50100 PARTITION BY KEY (a) */
+INSERT INTO t1 VALUES (NULL);
+SELECT * FROM t1;
+a
+12
+13
+14
+DROP TABLE t1;
+# Bug#30102 test
+CREATE TABLE t1 (a INT)
+ENGINE = MyISAM
+PARTITION BY RANGE (a)
+(PARTITION p0 VALUES LESS THAN (6),
+PARTITION `p1....................` VALUES LESS THAN (9),
+PARTITION p2 VALUES LESS THAN MAXVALUE);
+# List of files in database `test`, all original t1-files here
+t1#P#p0.MYD
+t1#P#p0.MYI
+t1#P#p1@002e@002e@002e@002e@002e@002e@002e@002e@002e@002e@002e@002e@002e@002e@002e@002e@002e@002e@002e@002e.MYD
+t1#P#p1@002e@002e@002e@002e@002e@002e@002e@002e@002e@002e@002e@002e@002e@002e@002e@002e@002e@002e@002e@002e.MYI
+t1#P#p2.MYD
+t1#P#p2.MYI
+t1.frm
+t1.par
+INSERT INTO t1 VALUES (1), (2), (3), (4), (5), (6), (7), (8), (9), (10);
+# Renaming to a file name where the first partition is 250 chars
+# and the second partition is 350 chars
+RENAME TABLE t1 TO `t2_new..............................................end`;
+Got one of the listed errors
+# List of files in database `test`, should not be any t2-files here
+# List of files in database `test`, should be all t1-files here
+t1#P#p0.MYD
+t1#P#p0.MYI
+t1#P#p1@002e@002e@002e@002e@002e@002e@002e@002e@002e@002e@002e@002e@002e@002e@002e@002e@002e@002e@002e@002e.MYD
+t1#P#p1@002e@002e@002e@002e@002e@002e@002e@002e@002e@002e@002e@002e@002e@002e@002e@002e@002e@002e@002e@002e.MYI
+t1#P#p2.MYD
+t1#P#p2.MYI
+t1.frm
+t1.par
+SELECT * FROM t1;
+a
+1
+10
+2
+3
+4
+5
+6
+7
+8
+9
+# List of files in database `test`, should be all t1-files here
+t1#P#p0.MYD
+t1#P#p0.MYI
+t1#P#p1@002e@002e@002e@002e@002e@002e@002e@002e@002e@002e@002e@002e@002e@002e@002e@002e@002e@002e@002e@002e.MYD
+t1#P#p1@002e@002e@002e@002e@002e@002e@002e@002e@002e@002e@002e@002e@002e@002e@002e@002e@002e@002e@002e@002e.MYI
+t1#P#p2.MYD
+t1#P#p2.MYI
+t1.frm
+t1.par
+# Renaming to a file name where the first partition is 156 chars
+# and the second partition is 256 chars
+RENAME TABLE t1 TO `t2_............................_end`;
+Got one of the listed errors
+# List of files in database `test`, should not be any t2-files here
+# List of files in database `test`, should be all t1-files here
+t1#P#p0.MYD
+t1#P#p0.MYI
+t1#P#p1@002e@002e@002e@002e@002e@002e@002e@002e@002e@002e@002e@002e@002e@002e@002e@002e@002e@002e@002e@002e.MYD
+t1#P#p1@002e@002e@002e@002e@002e@002e@002e@002e@002e@002e@002e@002e@002e@002e@002e@002e@002e@002e@002e@002e.MYI
+t1#P#p2.MYD
+t1#P#p2.MYI
+t1.frm
+t1.par
+SELECT * FROM t1;
+a
+1
+10
+2
+3
+4
+5
+6
+7
+8
+9
+DROP TABLE t1;
+# Should not be any files left here
+# End of bug#30102 test.
+# Test of post-push fix for bug#11766249/59316
+CREATE TABLE t1 (a INT, b VARCHAR(255), PRIMARY KEY (a))
+ENGINE = MyISAM
+PARTITION BY RANGE (a)
+(PARTITION p0 VALUES LESS THAN (0) MAX_ROWS=100,
+PARTITION p1 VALUES LESS THAN (100) MAX_ROWS=100,
+PARTITION pMax VALUES LESS THAN MAXVALUE);
+INSERT INTO t1 VALUES (1, "Partition p1, first row");
+DROP TABLE t1;
