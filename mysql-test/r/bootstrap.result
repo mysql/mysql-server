@@ -6,3 +6,15 @@ set @my_max_allowed_packet= @@max_allowed_packet;
 set global max_allowed_packet=100*@@max_allowed_packet;
 set global max_allowed_packet=@my_max_allowed_packet;
 drop table t1;
+End of 5.1 tests
+#
+# Bug #11766306: 59393: HAVE_INNODB=YES WHEN MYSQLD 
+#  STARTED WITH --SKIP-INNODB
+#
+SHOW VARIABLES LIKE 'have_innodb';
+Variable_name	Value
+have_innodb	DISABLED
+SELECT SUPPORT FROM INFORMATION_SCHEMA.ENGINES WHERE engine='innodb';
+SUPPORT
+NO
+End of 5.5 tests

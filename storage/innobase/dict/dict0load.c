@@ -2258,10 +2258,12 @@ loop:
 	/* Since table names in SYS_FOREIGN are stored in a case-insensitive
 	order, we have to check that the table name matches also in a binary
 	string comparison. On Unix, MySQL allows table names that only differ
-	in character case. */
+	in character case.  If lower_case_table_names=2 then what is stored
+	may not be the same case, but the previous comparison showed that they
+	match with no-case.  */
 
-	if (0 != ut_memcmp(field, table_name, len)) {
-
+	if ((innobase_get_lower_case_table_names() != 2)
+	    && (0 != ut_memcmp(field, table_name, len))) {
 		goto next_rec;
 	}
 

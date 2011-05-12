@@ -4724,6 +4724,14 @@ bool open_tables(THD *thd, TABLE_LIST **start, uint *counter, uint flags,
   bool has_prelocking_list;
   DBUG_ENTER("open_tables");
 
+  /* Accessing data in XA_IDLE or XA_PREPARED is not allowed. */
+  enum xa_states xa_state= thd->transaction.xid_state.xa_state;
+  if (*start && (xa_state == XA_IDLE || xa_state == XA_PREPARED))
+  {
+    my_error(ER_XAER_RMFAIL, MYF(0), xa_state_names[xa_state]);
+    DBUG_RETURN(true);
+  }
+
   /*
     temporary mem_root for new .frm parsing.
     TODO: variables for size
@@ -7594,9 +7602,10 @@ static bool setup_natural_join_row_types(THD *thd,
                                          List<TABLE_LIST> *from_clause,
                                          Name_resolution_context *context)
 {
+  DBUG_ENTER("setup_natural_join_row_types");
   thd->where= "from clause";
   if (from_clause->elements == 0)
-    return FALSE; /* We come here in the case of UNIONs. */
+    DBUG_RETURN(false); /* We come here in the case of UNIONs. */
 
   List_iterator_fast<TABLE_LIST> table_ref_it(*from_clause);
   TABLE_LIST *table_ref; /* Current table reference. */
@@ -7604,10 +7613,6 @@ static bool setup_natural_join_row_types(THD *thd,
   TABLE_LIST *left_neighbor;
   /* Table reference to the right of the current. */
   TABLE_LIST *right_neighbor= NULL;
-  bool save_first_natural_join_processing=
-    context->select_lex->first_natural_join_processing;
-
-  context->select_lex->first_natural_join_processing= FALSE;
 
   /* Note that tables in the list are in reversed order */
   for (left_neighbor= table_ref_it++; left_neighbor ; )
@@ -7619,12 +7624,11 @@ static bool setup_natural_join_row_types(THD *thd,
       1) for stored procedures,
       2) for multitable update after lock failure and table reopening.
     */
-    if (save_first_natural_join_processing)
+    if (context->select_lex->first_natural_join_processing)
     {
-      context->select_lex->first_natural_join_processing= FALSE;
       if (store_top_level_join_columns(thd, table_ref,
                                        left_neighbor, right_neighbor))
-        return TRUE;
+        DBUG_RETURN(true);
       if (left_neighbor)
       {
         TABLE_LIST *first_leaf_on_the_right;
@@ -7644,8 +7648,9 @@ static bool setup_natural_join_row_types(THD *thd,
   DBUG_ASSERT(right_neighbor);
   context->first_name_resolution_table=
     right_neighbor->first_leaf_for_name_resolution();
+  context->select_lex->first_natural_join_processing= false;
 
-  return FALSE;
+  DBUG_RETURN (false);
 }
 
 

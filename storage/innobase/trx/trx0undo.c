@@ -36,6 +36,7 @@ Created 3/26/1996 Heikki Tuuri
 #include "trx0rseg.h"
 #include "trx0trx.h"
 #include "srv0srv.h"
+#include "srv0start.h"
 #include "trx0rec.h"
 #include "trx0purge.h"
 
@@ -1974,5 +1975,32 @@ trx_undo_insert_cleanup(
 	}
 
 	mutex_exit(&(rseg->mutex));
+}
+
+/********************************************************************//**
+At shutdown, frees the undo logs of a PREPARED transaction. */
+UNIV_INTERN
+void
+trx_undo_free_prepared(
+/*===================*/
+	trx_t*	trx)	/*!< in/out: PREPARED transaction */
+{
+	mutex_enter(&trx->rseg->mutex);
+
+	ut_ad(srv_shutdown_state == SRV_SHUTDOWN_EXIT_THREADS);
+
+	if (trx->update_undo) {
+		ut_a(trx->update_undo->state == TRX_UNDO_PREPARED);
+		UT_LIST_REMOVE(undo_list, trx->rseg->update_undo_list,
+			       trx->update_undo);
+		trx_undo_mem_free(trx->update_undo);
+	}
+	if (trx->insert_undo) {
+		ut_a(trx->insert_undo->state == TRX_UNDO_PREPARED);
+		UT_LIST_REMOVE(undo_list, trx->rseg->insert_undo_list,
+			       trx->insert_undo);
+		trx_undo_mem_free(trx->insert_undo);
+	}
+	mutex_exit(&trx->rseg->mutex);
 }
 #endif /* !UNIV_HOTBACKUP */
