@@ -186,4 +186,55 @@ SET SESSION sql_mode=@old_mode;
 sync_slave_with_master;
 
 connection master;
+
+--echo
+--echo Bug #60580/#11902767:
+--echo "statement improperly replicated crashes slave sql thread"
+--echo
+
+--echo [master]
+connection master;
+let $MYSQLD_DATADIR= `select @@datadir`;
+
+CREATE TABLE t1(f1 INT, f2 INT);
+CREATE TABLE t2(f1 INT, f2 TIMESTAMP);
+
+INSERT INTO t2 VALUES(1, '2011-03-22 21:01:28');
+INSERT INTO t2 VALUES(2, '2011-03-21 21:01:28');
+INSERT INTO t2 VALUES(3, '2011-03-20 21:01:28');
+
+CREATE TABLE t3 AS SELECT * FROM t2;
+
+CREATE VIEW v1 AS SELECT * FROM t2
+  WHERE f1 IN (SELECT f1 FROM t3 WHERE (t3.f2 IS NULL));
+
+--replace_result $MYSQLD_DATADIR MYSQLD_DATADIR
+eval SELECT 1 INTO OUTFILE '$MYSQLD_DATADIR/bug60580.csv' FROM DUAL;
+
+--replace_result $MYSQLD_DATADIR MYSQLD_DATADIR
+eval LOAD DATA LOCAL INFILE '$MYSQLD_DATADIR/bug60580.csv' INTO TABLE t1 (@f1) SET f2 = (SELECT f1 FROM v1 WHERE f1=@f1);
+
+SELECT * FROM t1;
+
+sleep 1;
+
+--echo [slave]
+sync_slave_with_master;
+
+SELECT * FROM t1;
+
+--remove_file $MYSQLD_DATADIR/bug60580.csv
+
+--echo [master]
+connection master;
+
+DROP VIEW v1;
+DROP TABLE t1, t2, t3;
+
+--echo [slave]
+sync_slave_with_master;
+
+connection master;
 --source include/rpl_end.inc
+
+--echo # End of 5.1 tests
