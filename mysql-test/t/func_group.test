@@ -1117,6 +1117,16 @@ SELECT RELEASE_LOCK('aaaaaaaaaaaaaaaaa');
 
 --enable_result_log
 
+
+--echo #
+--echo # Bug #11766094 - 59132: MIN() AND MAX() REMOVE UNSIGNEDNESS 
+--echo #
+
+CREATE TABLE t1 (a BIGINT UNSIGNED);
+INSERT INTO t1 VALUES (18446668621106209655);
+SELECT MAX(LENGTH(a)), LENGTH(MAX(a)), MIN(a), MAX(a), CONCAT(MIN(a)), CONCAT(MAX(a)) FROM t1;
+DROP TABLE t1;
+
 --echo #
 --echo End of 5.1 tests
 

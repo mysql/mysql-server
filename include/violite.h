@@ -1,4 +1,4 @@
-/* Copyright (C) 2000 MySQL AB
+/* Copyright (c) 2000, 2011, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -92,6 +92,8 @@ ssize_t vio_pending(Vio *vio);
 
 my_bool vio_get_normalized_ip_string(const struct sockaddr *addr, int addr_length,
                                      char *ip_string, size_t ip_string_size);
+
+my_bool vio_is_no_name_error(int err_code);
 
 int vio_getnameinfo(const struct sockaddr *sa,
                     char *hostname, size_t hostname_size,

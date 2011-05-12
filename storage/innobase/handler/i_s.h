@@ -26,6 +26,8 @@ Created July 18, 2007 Vasil Dimov
 #ifndef i_s_h
 #define i_s_h
 
+const char plugin_author[] = "Oracle Corporation";
+
 extern struct st_mysql_plugin	i_s_innodb_trx;
 extern struct st_mysql_plugin	i_s_innodb_locks;
 extern struct st_mysql_plugin	i_s_innodb_lock_waits;

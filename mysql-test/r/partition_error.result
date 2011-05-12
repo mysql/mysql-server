@@ -710,95 +710,8 @@ DROP TABLE t1;
 CREATE TABLE t1 (c TIMESTAMP)
 PARTITION BY HASH (c) PARTITIONS 4;
 ERROR HY000: Field 'c' is of a not allowed type for this type of partitioning
+# Moved to partition_myisam, since it was MyISAM specific
 # Added test with existing TIMESTAMP partitioning (when it was allowed).
-CREATE TABLE t1 (a TIMESTAMP)
-PARTITION BY HASH (UNIX_TIMESTAMP(a));
-INSERT INTO t1 VALUES ('2000-01-02 03:04:05');
-SELECT * FROM t1;
-a
-2000-01-02 03:04:05
-FLUSH TABLES;
-# replacing t1.frm with TO_DAYS(a) which was allowed earlier.
-# Disable warnings, since the result would differ when running with
-# --ps-protocol (only for the 'SELECT * FROM t1' statement).
-SELECT * FROM t1;
-a
-2000-01-02 03:04:05
-SHOW CREATE TABLE t1;
-Table	Create Table
-t1	CREATE TABLE `t1` (
-  `a` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
-) ENGINE=MyISAM DEFAULT CHARSET=latin1
-/*!50100 PARTITION BY HASH (TO_DAYS(a)) */
-INSERT INTO t1 VALUES ('2001-02-03 04:05:06');
-SELECT * FROM t1;
-a
-2000-01-02 03:04:05
-2001-02-03 04:05:06
-ALTER TABLE t1 ADD PARTITION PARTITIONS 2;
-Warnings:
-Warning	1486	Constant, random or timezone-dependent expressions in (sub)partitioning function are not allowed
-ALTER TABLE t1
-PARTITION BY RANGE (TO_DAYS(a))
-(PARTITION p0 VALUES LESS THAN (10000),
-PARTITION p1 VALUES LESS THAN (MAXVALUE));
-ERROR HY000: Constant, random or timezone-dependent expressions in (sub)partitioning function are not allowed
-SHOW CREATE TABLE t1;
-Table	Create Table
-t1	CREATE TABLE `t1` (
-  `a` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
-) ENGINE=MyISAM DEFAULT CHARSET=latin1
-/*!50100 PARTITION BY HASH (TO_DAYS(a))
-PARTITIONS 3 */
-CREATE TABLE t2 LIKE t1;
-SHOW CREATE TABLE t2;
-Table	Create Table
-t2	CREATE TABLE `t2` (
-  `a` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
-) ENGINE=MyISAM DEFAULT CHARSET=latin1
-/*!50100 PARTITION BY HASH (TO_DAYS(a))
-PARTITIONS 3 */
-Warnings:
-Warning	1486	Constant, random or timezone-dependent expressions in (sub)partitioning function are not allowed
-DROP TABLE t2;
-CREATE TABLE t2 SELECT * FROM t1;
-DROP TABLE t2;
-ALTER TABLE t1 PARTITION BY HASH (UNIX_TIMESTAMP(a));
-SHOW CREATE TABLE t1;
-Table	Create Table
-t1	CREATE TABLE `t1` (
-  `a` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
-) ENGINE=MyISAM DEFAULT CHARSET=latin1
-/*!50100 PARTITION BY HASH (UNIX_TIMESTAMP(a)) */
-ALTER TABLE t1 ADD PARTITION PARTITIONS 2;
-SHOW CREATE TABLE t1;
-Table	Create Table
-t1	CREATE TABLE `t1` (
-  `a` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
-) ENGINE=MyISAM DEFAULT CHARSET=latin1
-/*!50100 PARTITION BY HASH (UNIX_TIMESTAMP(a))
-PARTITIONS 3 */
-SELECT * FROM t1;
-a
-2000-01-02 03:04:05
-2001-02-03 04:05:06
-DROP TABLE t1;
-#
-# Bug#49161: Out of memory; restart server and try again (needed 2 bytes)
-#
-CREATE TABLE t1 (a INT) PARTITION BY HASH (a);
-FLUSH TABLES;
-CHECK TABLE t1;
-Table	Op	Msg_type	Msg_text
-test.t1	check	Error	Failed to read from the .par file
-test.t1	check	Error	Incorrect information in file: './test/t1.frm'
-test.t1	check	error	Corrupt
-SELECT * FROM t1;
-ERROR HY000: Failed to read from the .par file
-# Note that it is currently impossible to drop a partitioned table
-# without the .par file
-DROP TABLE t1;
-ERROR 42S02: Unknown table 't1'
 #
 # Bug#49477: Assertion `0' failed in ha_partition.cc:5530
 # with temporary table and partitions
@@ -831,10 +744,10 @@ Table	Create Table
 t1	CREATE TABLE `t1` (
   `id` int(11) DEFAULT NULL,
   `purchased` date DEFAULT NULL
-) ENGINE=MyISAM DEFAULT CHARSET=latin1
+) ENGINE=<curr_engine> DEFAULT CHARSET=latin1
 /*!50100 PARTITION BY RANGE (YEAR(purchased))
 SUBPARTITION BY HASH (TO_DAYS(purchased))
-(PARTITION p0 VALUES LESS THAN MAXVALUE ENGINE = MyISAM) */
+(PARTITION p0 VALUES LESS THAN MAXVALUE ENGINE = <curr_engine>) */
 DROP TABLE t1;
 CREATE TABLE t1 (id INT, purchased DATE)
 PARTITION BY RANGE(YEAR(purchased))
@@ -852,12 +765,12 @@ Table	Create Table
 t1	CREATE TABLE `t1` (
   `id` int(11) DEFAULT NULL,
   `purchased` date DEFAULT NULL
-) ENGINE=MyISAM DEFAULT CHARSET=latin1
+) ENGINE=<curr_engine> DEFAULT CHARSET=latin1
 /*!50100 PARTITION BY RANGE (YEAR(purchased))
 SUBPARTITION BY HASH (TO_DAYS(purchased))
 (PARTITION p0 VALUES LESS THAN MAXVALUE
- (SUBPARTITION sp0 ENGINE = MyISAM,
-  SUBPARTITION sp1 ENGINE = MyISAM)) */
+ (SUBPARTITION sp0 ENGINE = <curr_engine>,
+  SUBPARTITION sp1 ENGINE = <curr_engine>)) */
 DROP TABLE t1;
 CREATE TABLE t1 (id INT, purchased DATE)
 PARTITION BY RANGE(YEAR(purchased))
@@ -872,53 +785,11 @@ Table	Create Table
 t1	CREATE TABLE `t1` (
   `id` int(11) DEFAULT NULL,
   `purchased` date DEFAULT NULL
-) ENGINE=MyISAM DEFAULT CHARSET=latin1
+) ENGINE=<curr_engine> DEFAULT CHARSET=latin1
 /*!50100 PARTITION BY RANGE (YEAR(purchased))
-(PARTITION p0 VALUES LESS THAN MAXVALUE ENGINE = MyISAM) */
+(PARTITION p0 VALUES LESS THAN MAXVALUE ENGINE = <curr_engine>) */
 DROP TABLE t1;
 SET @@sql_mode= @org_mode;
-#
-# Bug#50392: insert_id is not reset for partitioned tables
-#            auto_increment on duplicate entry
-CREATE TABLE t1 (a INT AUTO_INCREMENT PRIMARY KEY);
-SET INSERT_ID= 13;
-INSERT INTO t1 VALUES (NULL);
-SET INSERT_ID= 12;
-INSERT INTO t1 VALUES (NULL), (NULL), (NULL);
-ERROR 23000: Duplicate entry '13' for key 'PRIMARY'
-SHOW CREATE TABLE t1;
-Table	Create Table
-t1	CREATE TABLE `t1` (
-  `a` int(11) NOT NULL AUTO_INCREMENT,
-  PRIMARY KEY (`a`)
-) ENGINE=MyISAM AUTO_INCREMENT=14 DEFAULT CHARSET=latin1
-INSERT INTO t1 VALUES (NULL);
-SELECT * FROM t1;
-a
-12
-13
-14
-DROP TABLE t1;
-CREATE TABLE t1 (a INT AUTO_INCREMENT PRIMARY KEY) PARTITION BY KEY(a);
-SET INSERT_ID= 13;
-INSERT INTO t1 VALUES (NULL);
-SET INSERT_ID= 12;
-INSERT INTO t1 VALUES (NULL), (NULL), (NULL);
-ERROR 23000: Duplicate entry '13' for key 'PRIMARY'
-SHOW CREATE TABLE t1;
-Table	Create Table
-t1	CREATE TABLE `t1` (
-  `a` int(11) NOT NULL AUTO_INCREMENT,
-  PRIMARY KEY (`a`)
-) ENGINE=MyISAM AUTO_INCREMENT=14 DEFAULT CHARSET=latin1
-/*!50100 PARTITION BY KEY (a) */
-INSERT INTO t1 VALUES (NULL);
-SELECT * FROM t1;
-a
-12
-13
-14
-DROP TABLE t1;
 CREATE TABLE t1 (a INTEGER NOT NULL, PRIMARY KEY (a));
 INSERT INTO t1 VALUES (1),(1);
 ERROR 23000: Duplicate entry '1' for key 'PRIMARY'
@@ -928,19 +799,6 @@ PARTITION BY KEY (a) PARTITIONS 2;
 INSERT INTO t1 VALUES (1),(1);
 ERROR 23000: Duplicate entry '1' for key 'PRIMARY'
 DROP TABLE t1;
-CREATE TABLE t1 (a INT)
-PARTITION BY HASH (a)
-( PARTITION p0 ENGINE=MyISAM,
-PARTITION p1);
-ERROR HY000: The mix of handlers in the partitions is not allowed in this version of MySQL
-CREATE TABLE t1 (a INT)
-PARTITION BY LIST (a)
-SUBPARTITION BY HASH (a)
-( PARTITION p0 VALUES IN (0)
-( SUBPARTITION s0, SUBPARTITION s1 ENGINE=MyISAM, SUBPARTITION s2),
-PARTITION p1 VALUES IN (1)
-( SUBPARTITION s3 ENGINE=MyISAM, SUBPARTITION s4, SUBPARTITION s5 ENGINE=MyISAM));
-ERROR HY000: The mix of handlers in the partitions is not allowed in this version of MySQL
 CREATE TABLE t1 (
 a int
 )

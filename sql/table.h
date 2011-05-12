@@ -609,8 +609,6 @@ struct TABLE_SHARE
   }
   enum row_type row_type;		/* How rows are stored */
   enum tmp_table_type tmp_table;
-  enum ha_storage_media default_storage_media;
-  char *tablespace;
 
   uint ref_count;                       /* How many TABLE objects uses this */
   uint blob_ptr_size;			/* 4 or 8 */
@@ -652,6 +650,16 @@ struct TABLE_SHARE
     table *may* be replicated.
   */
   int cached_row_logging_check;
+
+  /*
+    Storage media to use for this table (unless another storage
+    media has been specified on an individual column - in versions
+    where that is supported)
+  */
+  enum ha_storage_media default_storage_media;
+
+  /* Name of the tablespace used for this table */
+  char *tablespace;
 
 #ifdef WITH_PARTITION_STORAGE_ENGINE
   /* filled in when reading from frm */

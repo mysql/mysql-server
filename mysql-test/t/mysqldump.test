@@ -2199,7 +2199,7 @@ ALTER DATABASE `test-database` CHARACTER SET utf8 COLLATE utf8_unicode_ci ;
 
 DROP DATABASE `test-database`;
 # Switching back to test database.
-USE `test`;
+USE test;
 
 --echo #
 --echo # End of 5.1 tests
