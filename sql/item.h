@@ -18,6 +18,10 @@
 #pragma interface			/* gcc class implementation */
 #endif
 
+C_MODE_START
+#include <ma_dyncol.h>
+C_MODE_END
+
 inline
 bool trace_unsupported_func(const char *where, const char *processor_name)
 {
@@ -471,6 +475,17 @@ public:
 };
 
 
+struct st_dyncall_create_def
+{
+  Item  *num, *value;
+  CHARSET_INFO *cs;
+  uint len, frac;
+  DYNAMIC_COLUMN_TYPE type;
+};
+
+typedef struct st_dyncall_create_def DYNCALL_CREATE_DEF;
+
+
 typedef bool (Item::*Item_processor) (uchar *arg);
 /*
   Analyzer function
@@ -809,7 +824,11 @@ public:
   { return val_decimal(val); }
   virtual bool val_bool_result() { return val_bool(); }
   virtual bool is_null_result() { return is_null(); }
-
+  /*
+    Returns 1 if result type and collation for val_str() can change between
+    calls
+  */
+  virtual bool dynamic_result() { return 0; }
   /* 
     Bitmap of tables used by item
     (note: if you need to check dependencies on individual columns, check out

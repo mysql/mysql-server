@@ -30,6 +30,7 @@ pkginclude_HEADERS =	$(HEADERS_ABI) my_dbug.h m_string.h my_sys.h \
 			my_getopt.h sslopt-longopts.h my_dir.h \
 			sslopt-vars.h sslopt-case.h sql_common.h keycache.h \
 			m_ctype.h my_attribute.h my_compiler.h \
+			my_decimal_limits.h ma_dyncol.h \
 			$(HEADERS_GEN_CONFIGURE) \
 			$(HEADERS_GEN_MAKE)
 

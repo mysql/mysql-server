@@ -2686,10 +2686,15 @@ t1	CREATE TABLE `t1` (
 ) ENGINE=MyISAM DEFAULT CHARSET=latin1
 insert into t1 values (1,default);
 insert into t1 values (-1,default);
+Warnings:
+Warning	1105	Cast to unsigned converted negative integer to it's positive complement
 select * from t1;
 a	b
 1	1
 -1	18446744073709551615
+Warnings:
+Warning	1105	Cast to unsigned converted negative integer to it's positive complement
+Warning	1105	Cast to unsigned converted negative integer to it's positive complement
 drop table t1;
 set sql_warnings = 0;
 # Convert()
@@ -2703,10 +2708,15 @@ t1	CREATE TABLE `t1` (
 ) ENGINE=MyISAM DEFAULT CHARSET=latin1
 insert into t1 values (1,default);
 insert into t1 values (-1,default);
+Warnings:
+Warning	1105	Cast to unsigned converted negative integer to it's positive complement
 select * from t1;
 a	b
 1	1
 -1	18446744073709551615
+Warnings:
+Warning	1105	Cast to unsigned converted negative integer to it's positive complement
+Warning	1105	Cast to unsigned converted negative integer to it's positive complement
 drop table t1;
 set sql_warnings = 0;
 #

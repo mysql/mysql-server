@@ -1,0 +1,523 @@
+#
+# Dynamic column function test
+#
+
+--echo #
+--echo # column create
+--echo #
+select hex(COLUMN_CREATE(1, NULL AS char character set utf8));
+select hex(COLUMN_CREATE(1, "afaf" AS char character set utf8));
+select hex(COLUMN_CREATE(1, 1212 AS char character set utf8));
+select hex(COLUMN_CREATE(1, 12.12 AS char character set utf8));
+select hex(COLUMN_CREATE(1, 99999999999999999999999999999 AS char character set utf8));
+select hex(COLUMN_CREATE(1, NULL AS unsigned int));
+select hex(COLUMN_CREATE(1, 1212 AS unsigned int));
+select hex(COLUMN_CREATE(1, 7 AS unsigned int));
+select hex(COLUMN_CREATE(1, 8 AS unsigned int));
+select hex(COLUMN_CREATE(1, 127 AS unsigned int));
+select hex(COLUMN_CREATE(1, 128 AS unsigned int));
+select hex(COLUMN_CREATE(1, 12.12 AS unsigned int));
+select hex(COLUMN_CREATE(1, ~0));
+select hex(COLUMN_CREATE(1, -1));
+select hex(COLUMN_CREATE(1, 99999999999999999999999999999 AS unsigned int));
+select hex(COLUMN_CREATE(1, NULL AS int));
+select hex(COLUMN_CREATE(1, 1212 AS int));
+select hex(COLUMN_CREATE(1, 7 AS int));
+select hex(COLUMN_CREATE(1, 8 AS int));
+select hex(COLUMN_CREATE(1, 127 AS int));
+select hex(COLUMN_CREATE(1, 128 AS int));
+select hex(COLUMN_CREATE(1, 12.12 AS int));
+select hex(COLUMN_CREATE(1, 99999999999999999999999999999 AS int));
+select hex(COLUMN_CREATE(1, NULL AS double));
+select hex(COLUMN_CREATE(1, 1212 AS double));
+select hex(COLUMN_CREATE(1, 12.12 AS double));
+select hex(COLUMN_CREATE(1, 99999999999999999999999999999 AS double));
+select hex(COLUMN_CREATE(1, NULL AS decimal));
+select hex(COLUMN_CREATE(1, 1212 AS decimal));
+select hex(COLUMN_CREATE(1, 7 AS decimal));
+select hex(COLUMN_CREATE(1, 8 AS decimal));
+select hex(COLUMN_CREATE(1, 127 AS decimal));
+select hex(COLUMN_CREATE(1, 128 AS decimal));
+select hex(COLUMN_CREATE(1, 12.12 AS decimal));
+select hex(COLUMN_CREATE(1, 99999999999999999999999999999 AS decimal));
+select hex(COLUMN_CREATE(1, NULL AS date));
+select hex(COLUMN_CREATE(1, "2011-04-05" AS date)); 
+select hex(COLUMN_CREATE(1, NULL AS time));
+select hex(COLUMN_CREATE(1, "0:45:49.000001" AS time)); 
+select hex(COLUMN_CREATE(1, NULL AS datetime));
+select hex(COLUMN_CREATE(1, "2011-04-05 0:45:49.000001" AS datetime)); 
+select hex(COLUMN_CREATE(1, "afaf" AS char character set utf8,
+			 2, 1212 AS unsigned int,
+			 3, 1212 AS int,
+			 4, 12.12 AS double,
+			 4+1, 12.12 AS decimal,
+			 6, "2011-04-05" AS date,
+			 7, "- 0:45:49.000001" AS time,
+			 8, "2011-04-05 0:45:49.000001" AS datetime));
+explain extended
+select hex(COLUMN_CREATE(1, "afaf" AS char character set utf8,
+			 2, 1212 AS unsigned int,
+			 3, 1212 AS int,
+			 4, 12.12 AS double,
+			 4+1, 12.12 AS decimal,
+			 6, "2011-04-05" AS date,
+			 7, "- 0:45:49.000001" AS time,
+			 8, "2011-04-05 0:45:49.000001" AS datetime));
+select hex(column_create(1, 0.0 AS decimal));
+select hex(column_create(1, 1.0 AS decimal));
+
+--echo #
+--echo # column get uint
+--echo #
+select column_get(column_create(1, 1212 AS unsigned int), 1 as unsigned int);
+explain extended
+select column_get(column_create(1, 1212 AS unsigned int), 1 as unsigned int);
+explain extended
+select column_get(column_create(1, 1212 AS unsigned int), 1 as unsigned);
+select column_get(column_create(1, 1212 AS decimal), 1 as unsigned int);
+select column_get(column_create(1, 1212 AS double), 1 as unsigned int);
+select column_get(column_create(1, 1212 AS int), 1 as unsigned int);
+select column_get(column_create(1, "1212" AS char), 1 as unsigned int);
+select column_get(column_create(1, "2011-04-05" AS date), 1 as unsigned int);
+select column_get(column_create(1, "8:46:06.23434" AS time), 1 as unsigned int);
+select column_get(column_create(1, "2011-04-05 8:46:06.23434" AS datetime), 1 as unsigned int);
+select column_get(column_create(1, NULL AS unsigned int), 1 as unsigned int);
+--echo # column geint truncation & warnings
+select column_get(column_create(1, -1212 AS int), 1 as unsigned int);
+select column_get(column_create(1, 99999999999999999999999999999 AS decimal), 1 as unsigned int);
+select column_get(column_create(1, 999.9999999999999999 AS decimal), 1 as unsigned int);
+select column_get(column_create(1, -1 AS decimal), 1 as unsigned int);
+--replace_result 1e+029 1e+29
+select column_get(column_create(1, 99999999999999999999999999999 AS double), 1 as unsigned int);
+select column_get(column_create(1, 999.9 AS double), 1 as unsigned int);
+select column_get(column_create(1, -1 AS double), 1 as unsigned int);
+select column_get(column_create(1, "1212III" AS char), 1 as unsigned int);
+
+--echo #
+--echo # column get int
+--echo #
+select column_get(column_create(1, 1212 AS int), 1 as int);
+explain extended
+select column_get(column_create(1, 1212 AS int), 1 as int);
+explain extended
+select column_get(column_create(1, 1212 AS int), 1 as signed int);
+select column_get(column_create(1, -1212 AS int), 1 as int);
+select column_get(column_create(1, 1212 AS decimal), 1 as int);
+select column_get(column_create(1, 1212 AS double), 1 as int);
+select column_get(column_create(1, 1212 AS unsigned int), 1 as int);
+select column_get(column_create(1, "1212" AS char), 1 as int);
+select column_get(column_create(1, "-1212" AS char), 1 as int);
+select column_get(column_create(1, "2011-04-05" AS date), 1 as int);
+select column_get(column_create(1, "8:46:06.23434" AS time), 1 as int);
+select column_get(column_create(1, "2011-04-05 8:46:06.23434" AS datetime), 1 as int);
+select column_get(column_create(1, NULL AS int), 1 as int);
+--echo #column gett truncation & warnings
+select column_get(column_create(1, 18446744073709551615 AS unsigned int), 1 as int);
+select column_get(column_create(1, 99999999999999999999999999999 AS decimal), 1 as int);
+select column_get(column_create(1, -99999999999999999999999999999 AS decimal), 1 as int);
+select column_get(column_create(1, 999.9999999999999999 AS decimal), 1 as int);
+select column_get(column_create(1, 999.9 AS double), 1 as int);
+--replace_result 1e+029 1e+29
+select column_get(column_create(1, -99999999999999999999999999999 AS double), 1 as int);
+select column_get(column_create(1, "-1212III" AS char), 1 as int);
+select column_get(column_create(1, "1212III" AS char), 1 as int);
+select column_get(COLUMN_CREATE(1, ~0), 1 as signed);
+select column_get(COLUMN_CREATE(1, ~0), 1 as unsigned);
+select column_get(COLUMN_CREATE(1, -1), 1 as signed);
+select column_get(COLUMN_CREATE(1, -1), 1 as unsigned);
+
+--echo #
+--echo #column get char
+--echo #
+select column_get(column_create(1, "1212" AS char charset utf8), 1 as char charset utf8);
+explain extended
+select column_get(column_create(1, "1212" AS char charset utf8), 1 as char charset utf8);
+select column_get(column_create(1, 1212 AS unsigned int), 1 as char charset utf8);
+select column_get(column_create(1, 18446744073709551615 AS unsigned int), 1 as char charset utf8);
+select column_get(column_create(1, 1212 AS int), 1 as char charset utf8);
+select column_get(column_create(1, -1212 AS int), 1 as char charset utf8);
+select column_get(column_create(1, 9223372036854775807 AS int), 1 as char charset utf8);
+select column_get(column_create(1, -9223372036854775808 AS int), 1 as char charset utf8);
+select column_get(column_create(1, 1212.12 AS decimal), 1 as char charset utf8);
+select column_get(column_create(1, 1212.12 AS double), 1 as char charset utf8);
+select column_get(column_create(1, "2011-04-05" AS date), 1 as char charset utf8);
+select column_get(column_create(1, "8:46:06.23434" AS time), 1 as char charset utf8);
+select column_get(column_create(1, "2011-04-05 8:46:06.23434" AS datetime), 1 as char charset utf8);
+select column_get(column_create(1, NULL AS char charset utf8), 1 as char charset utf8);
+select column_get(column_create(1, "1212" AS char charset utf8), 1 as char charset binary);
+explain extended
+select column_get(column_create(1, "1212" AS char charset utf8), 1 as char charset binary);
+
+--echo #
+--echo # column get real
+--echo #
+select column_get(column_create(1, 1212.12 AS double), 1 as double);
+explain extended
+select column_get(column_create(1, 1212.12 AS double), 1 as double);
+explain extended
+select column_get(column_create(1, 1212.12 AS double), 1 as double(6,2));
+select column_get(column_create(1, 18446744073709551615 AS unsigned int), 1 as double);
+select column_get(column_create(1, 9223372036854775807 AS int), 1 as double);
+select column_get(column_create(1, -9223372036854775808 AS int), 1 as double); 
+select column_get(column_create(1, 99999999999999999999999999999 AS decimal), 1 as double);
+select column_get(column_create(1, -99999999999999999999999999999 AS decimal), 1 as double);
+select column_get(column_create(1, "2011-04-05" AS date), 1 as double);
+select column_get(column_create(1, "8:46:06.23434" AS time), 1 as double);
+select column_get(column_create(1, "2011-04-05 8:46:06.23434" AS datetime), 1 as double);
+# The replace result is needed for windows.
+select round(column_get(column_create(1, "2011-04-05 8:46:06.23434" AS datetime), 1 as double(20,6)),3);
+select column_get(column_create(1, NULL AS double), 1 as double);
+
+-- echo # column get real truncation & warnings
+select column_get(column_create(1, "1223.5aa" AS char), 1 as double);
+select column_get(column_create(1, "aa" AS char), 1 as double);
+select column_get(column_create(1, "1223.5555" AS double), 1 as double(5,2));
+select column_get(column_create(1, "1223.5555" AS double), 1 as double(3,2));
+
+--echo #
+--echo # column get decimal
+--echo #
+select column_get(column_create(1, 1212.12 AS double), 1 as decimal);
+select column_get(column_create(1, 1212.12 AS double), 1 as decimal(6,2));
+explain extended
+select column_get(column_create(1, 1212.12 AS double), 1 as decimal);
+explain extended
+select column_get(column_create(1, 1212.12 AS double), 1 as decimal(6,2));
+select column_get(column_create(1, 18446744073709551615 AS unsigned int), 1 as decimal(20,0));
+select column_get(column_create(1, 9223372036854775807 AS int), 1 as decimal(32,0));
+select column_get(column_create(1, -9223372036854775808 AS int), 1 as decimal(32,0)); 
+select column_get(column_create(1, -99999999999999999999999999999 AS decimal), 1 as decimal(40,10));
+select column_get(column_create(1, "2011-04-05" AS date), 1 as decimal(32,6));
+select column_get(column_create(1, "8:46:06.23434" AS time), 1 as decimal(32,6));
+select column_get(column_create(1, "2011-04-05 8:46:06.23434" AS datetime), 1 as decimal(32,6));
+select column_get(column_create(1, NULL as decimal), 1 as decimal(32,10));
+select column_get(column_create(1, "1223.5555" as decimal(10,5)), 1 as decimal(6,2));
+
+-- echo # column get decimal truncation & warnings
+select column_get(column_create(1, "1223.5aa" AS char), 1 as decimal(32,10));
+select column_get(column_create(1, "aa" AS char), 1 as decimal(32,10));
+select column_get(column_create(1, 18446744073709551615 AS unsigned int), 1 as decimal);
+select column_get(column_create(1, 9223372036854775807 AS int), 1 as decimal);
+select column_get(column_create(1, -9223372036854775808 AS int), 1 as decimal); 
+select column_get(column_create(1, 99999999999999999999999999999 AS decimal(32,10)), 1 as decimal);
+select column_get(column_create(1, "2011-04-05 8:46:06.23434" AS datetime), 1 as decimal);
+select column_get(column_create(1, "1223.5555" as double), 1 as decimal(5,2));
+select column_get(column_create(1, "-1223.5555" as double), 1 as decimal(5,2));
+select column_get(column_create(1, "1223.5555" AS double), 1 as decimal(3,2));
+select column_get(column_create(1, "1223.5555" AS decimal(10,5)), 1 as decimal(3,2));
+select column_get(column_create(1, 0.0 AS decimal,2, 0.0 as decimal), 1 as decimal);
+
+--echo #
+--echo # column get datetime
+--echo #
+select column_get(column_create(1, 20010203101112.121314 as double), 1 as datetime);
+select column_get(column_create(1, 20010203101112.121314 as decimal), 1 as datetime);
+select column_get(column_create(1, 20010203101112 as unsigned int), 1 as datetime);
+select column_get(column_create(1, 20010203101112 as int), 1 as datetime);
+select column_get(column_create(1, "20010203101112" as char), 1 as datetime);
+select column_get(column_create(1, "2001-02-03 10:11:12" as char), 1 as datetime);
+select column_get(column_create(1, "2001-02-03 10:11:12.121314" as char), 1 as datetime);
+select column_get(column_create(1, "2001-02-03 10:11:12.121314"), 1 as datetime);
+select column_get(column_create(1, "2011-04-05 8:46:06.23434" AS datetime), 1 as datetime);
+select column_get(column_create(1, "2011-00-00 8:46:06.23434" AS CHAR), 1 as datetime);
+select column_get(column_create(1, "2011-00-01 8:46:06.23434" AS CHAR), 1 as datetime);
+
+select column_get(column_create(1, 20010203 as unsigned int), 1 as datetime);
+select column_get(column_create(1, 20010203 as int), 1 as datetime);
+select column_get(column_create(1, 20010203), 1 as datetime);
+select column_get(column_create(1, 20010203.0), 1 as datetime);
+select column_get(column_create(1, 20010203.0 as double), 1 as datetime);
+select column_get(column_create(1, "2001-02-03"), 1 as datetime);
+select column_get(column_create(1, "20010203"), 1 as datetime);
+select column_get(column_create(1, 0), 1 as datetime);
+select column_get(column_create(1, "2001021"), 1 as datetime);
+
+select column_get(column_create(1, "8:46:06.23434" AS time), 1 as datetime);
+
+set @@sql_mode="allow_invalid_dates";
+select column_get(column_create(1, "2011-02-30 18:46:06.23434" AS CHAR), 1 as datetime);
+select column_get(column_create(1, "0000-00-000" AS CHAR), 1 as datetime);
+select column_get(column_create(1, "2001-00-02" AS CHAR), 1 as datetime);
+set @@sql_mode="";
+
+-- echo # column get datetime truncation & warnings
+select column_get(column_create(1, "1223.5aa" AS char), 1 as datetime);
+select column_get(column_create(1, 18446744073709551615 AS unsigned int), 1 as datetime);
+select column_get(column_create(1, 9223372036854775807 AS int), 1 as datetime);
+select column_get(column_create(1, -9223372036854775808 AS int), 1 as datetime); 
+select column_get(column_create(1, 99999999999999999999999999999 AS decimal(32,10)), 1 as datetime);
+--replace_result 1e+028 1e+28
+select column_get(column_create(1, 99999999999999999999999999999 AS double), 1 as datetime);
+select column_get(column_create(1, "2011-02-32 8:46:06.23434" AS CHAR), 1 as datetime);
+select column_get(column_create(1, "2011-13-01 8:46:06.23434" AS CHAR), 1 as datetime);
+select column_get(column_create(1, "2011-02-30 8:46:06.23434" AS CHAR), 1 as datetime);
+select column_get(column_create(1, "20010231"), 1 as datetime);
+select column_get(column_create(1, "0" AS CHAR), 1 as datetime);
+
+
+--echo #
+--echo # column get date
+--echo #
+select column_get(column_create(1, 20010203101112.121314 as double), 1 as date);
+select column_get(column_create(1, 20010203101112.121314 as decimal), 1 as date);
+select column_get(column_create(1, 20010203101112 as unsigned int), 1 as date);
+select column_get(column_create(1, 20010203101112 as int), 1 as date);
+select column_get(column_create(1, "20010203101112" as char), 1 as date);
+select column_get(column_create(1, "2001-02-03 10:11:12" as char), 1 as date);
+select column_get(column_create(1, "2001-02-03 10:11:12.121314" as char), 1 as date);
+select column_get(column_create(1, "2001-02-03 10:11:12.121314"), 1 as date);
+select column_get(column_create(1, "2011-04-05 8:46:06.23434" AS datetime), 1 as date);
+select column_get(column_create(1, "2011-00-00 8:46:06.23434" AS CHAR), 1 as date);
+select column_get(column_create(1, "2011-00-01 8:46:06.23434" AS CHAR), 1 as date);
+
+select column_get(column_create(1, 20010203 as unsigned int), 1 as date);
+select column_get(column_create(1, 20010203 as int), 1 as date);
+select column_get(column_create(1, 20010203), 1 as date);
+select column_get(column_create(1, 20010203.0), 1 as date);
+select column_get(column_create(1, 20010203.0 as double), 1 as date);
+select column_get(column_create(1, "2001-02-03"), 1 as date);
+select column_get(column_create(1, "20010203"), 1 as date);
+select column_get(column_create(1, 0), 1 as date);
+select column_get(column_create(1, "2001021"), 1 as date);
+
+set @@sql_mode="allow_invalid_dates";
+select column_get(column_create(1, "2011-02-30 18:46:06.23434" AS CHAR), 1 as date);
+select column_get(column_create(1, "0000-00-000" AS CHAR), 1 as date);
+select column_get(column_create(1, "2001-00-02" AS CHAR), 1 as date);
+set @@sql_mode="";
+
+-- echo # column get date truncation & warnings
+select column_get(column_create(1, "1223.5aa" AS char), 1 as date);
+select column_get(column_create(1, 18446744073709551615 AS unsigned int), 1 as date);
+select column_get(column_create(1, 9223372036854775807 AS int), 1 as date);
+select column_get(column_create(1, -9223372036854775808 AS int), 1 as date); 
+select column_get(column_create(1, 99999999999999999999999999999 AS decimal(32,10)), 1 as date);
+--replace_result 1e+028 1e+28
+select column_get(column_create(1, 99999999999999999999999999999 AS double), 1 as date);
+select column_get(column_create(1, "2011-02-32 8:46:06.23434" AS CHAR), 1 as date);
+select column_get(column_create(1, "2011-13-01 8:46:06.23434" AS CHAR), 1 as date);
+select column_get(column_create(1, "2011-02-30 8:46:06.23434" AS CHAR), 1 as date);
+select column_get(column_create(1, "20010231"), 1 as date);
+select column_get(column_create(1, "0" AS CHAR), 1 as date);
+
+--echo #
+--echo # column get time
+--echo #
+select column_get(column_create(1, 20010203101112.121314 as double), 1 as time);
+select column_get(column_create(1, 20010203101112.121314 as decimal), 1 as time);
+select column_get(column_create(1, 20010203101112 as unsigned int), 1 as time);
+select column_get(column_create(1, 20010203101112 as int), 1 as time);
+select column_get(column_create(1, "20010203101112" as char), 1 as time);
+select column_get(column_create(1, "2001-02-03 10:11:12" as char), 1 as time);
+select column_get(column_create(1, "2001-02-03 10:11:12.121314" as char), 1 as time);
+select column_get(column_create(1, "2001-02-03 10:11:12.121314"), 1 as time);
+select column_get(column_create(1, "2011-04-05 8:46:06.23434" AS datetime), 1 as time);
+select column_get(column_create(1, "2011-00-00 8:46:06.23434" AS CHAR), 1 as time);
+select column_get(column_create(1, "2011-00-01 8:46:06.23434" AS CHAR), 1 as time);
+select column_get(column_create(1, "830:46:06.23434" AS CHAR), 1 as time);
+select cast("-830:46:06.23434" AS time);
+select 1,cast("-830:46:06.23434" AS time);
+select hex(column_create(1, "-830:46:06.23434" AS CHAR));
+select column_get(column_create(1, "-830:46:06.23434" AS CHAR), 1 as time);
+select column_get(column_create(1, "0" AS CHAR), 1 as time);
+select column_get(column_create(1, "6" AS CHAR), 1 as time);
+select column_get(column_create(1, "1:6" AS CHAR), 1 as time);
+select column_get(column_create(1, "2:1:6" AS CHAR), 1 as time);
+
+select column_get(column_create(1, 0), 1 as time);
+select column_get(column_create(1, "2001021"), 1 as time);
+
+set @@sql_mode="allow_invalid_dates";
+select column_get(column_create(1, "2011-02-30 18:46:06.23434" AS CHAR), 1 as time);
+set @@sql_mode="";
+
+-- echo # column get date truncation & warnings
+select column_get(column_create(1, "1223.5aa" AS char), 1 as time);
+select column_get(column_create(1, 18446744073709551615 AS unsigned int), 1 as time);
+select column_get(column_create(1, 9223372036854775807 AS int), 1 as time);
+select column_get(column_create(1, -9223372036854775808 AS int), 1 as time); 
+select column_get(column_create(1, 99999999999999999999999999999 AS decimal(32,10)), 1 as time);
+--replace_result 1e+028 1e+28
+select column_get(column_create(1, 99999999999999999999999999999 AS double), 1 as time);
+select column_get(column_create(1, "2011-02-32 8:46:06.23434" AS CHAR), 1 as time);
+select column_get(column_create(1, "2011-13-01 8:46:06.23434" AS CHAR), 1 as time);
+select column_get(column_create(1, "2011-02-30 8:46:06.23434" AS CHAR), 1 as time);
+select column_get(column_create(1, "2001-02-03"), 1 as time);
+select column_get(column_create(1, "20010203"), 1 as time);
+
+
+-- echo # column add
+select hex(column_add(column_create(1, 1212 as integer), 2, 1212 as integer));
+select hex(column_add(column_create(1, 1212 as integer), 1, 1212 as integer));
+select hex(column_add(column_create(1, 1212 as integer), 1, NULL as integer));
+select hex(column_add(column_create(1, 1212 as integer), 2, NULL as integer));
+select hex(column_add(column_create(1, 1212 as integer), 2, 1212 as integer, 1, 11 as integer));
+select column_get(column_add(column_create(1, 1212 as integer), 2, 1212 as integer, 1, 11 as integer), 1 as integer);
+select column_get(column_add(column_create(1, 1212 as integer), 2, 1212 as integer, 1, 11 as integer), 2 as integer);
+select hex(column_add(column_create(1, 1212 as integer), 1, 1212 as integer, 2, 11 as integer));
+select hex(column_add(column_create(1, NULL as integer), 1, 1212 as integer, 2, 11 as integer));
+select hex(column_add(column_create(1, 1212 as integer, 2, 1212 as integer), 1, 11 as integer));
+select hex(column_add(column_create(1, 1), 1, null));
+select column_list(column_add(column_create(1, 1), 1, null));
+select column_list(column_add(column_create(1, 1), 1, ""));
+select hex(column_add("", 1, 1));
+
+-- echo # column delete
+select hex(column_delete(column_create(1, 1212 as integer, 2, 1212 as integer), 1));
+select hex(column_delete(column_create(1, 1 as integer, 2, 2 as integer, 3, 3 as integer), 2));
+select hex(column_delete(column_create(1, 1 as integer, 2, 2 as integer, 3, 3 as integer), 3));
+select hex(column_delete(column_create(1, 1 as integer, 2, 2 as integer, 3, 3 as integer), 4));
+select hex(column_delete(column_create(1, 1 as integer, 2, 2 as integer, 3, 3 as integer), 2, 1));
+select hex(column_delete(column_create(1, 1 as integer, 2, 2 as integer, 3, 3 as integer), 2, 3));
+select hex(column_delete(column_create(1, 1 as integer, 2, 2 as integer, 3, 3 as integer), 1, 2, 3));
+select hex(column_delete(column_create(1, 1 as integer, 2, 2 as integer, 3, 3 as integer), 1, 2, 3, 10));
+select hex(column_delete(column_create(1, 1), 1));
+select hex(column_delete("", 1));
+
+-- echo # column exists
+select column_exists(column_create(1, 1212 as integer, 2, 1212 as integer), 1);
+select column_exists(column_create(1, 1212 as integer, 2, 1212 as integer), 4);
+
+-- echo # column list
+select column_list(column_create(1, 1212 as integer, 2, 1212 as integer));
+select column_list(column_create(1, 1212 as integer));
+select column_list(column_create(1, NULL as integer));
+
+--echo #
+--echo # check error handling
+--echo #
+--error ER_DYN_COL_DATA
+select HEX(COLUMN_CREATE(1, 5, 1, 5));
+--error 1064
+select HEX(COLUMN_CREATE("", 1, 5, 1, 5));
+--error ER_DYN_COL_WRONG_FORMAT
+select COLUMN_LIST("a");
+--error ER_DYN_COL_WRONG_FORMAT
+select column_delete("a", 1);
+select hex(column_delete("", 1));
+--error ER_DYN_COL_DATA
+select hex(column_delete("", -1));
+--error ER_DYN_COL_DATA
+select hex(column_create(-1, 1));
+--error ER_DYN_COL_DATA
+select hex(column_create(65536, 1));
+--error ER_DYN_COL_DATA
+select hex(column_add("", -1, 1));
+--error ER_DYN_COL_DATA
+select hex(column_add("", 65536, 1));
+select hex(column_get("", -1 as int));
+
+--echo #
+--echo # Test with table
+--echo #
+
+# create table with 'str' to hold a set of dynamic columns
+create table t1 (id int primary key, str mediumblob);
+insert into t1 values (1, ''), (2, ''), (3, ''), (4, ''), (5, null);
+
+# Selecting a non existing column
+select id, str, column_get(str, 1 as int) from t1;
+
+# Add some dynamic columns. One and do it with create or add.
+update t1 set str=column_create(1, id, 2, "a") where id < 3;
+update t1 set str=column_add(str, 1, id, 2, "b") where id >= 4;
+
+# Show some data, if it exists
+select id, column_get(str, 1 as int),  column_get(str, 2 as char) from t1 where column_exists(str,1) or column_exists(str,2);
+
+# Add data to row 5 and 6
+update t1 set str=column_create(1, id, 10, "test") where id = 5;
+insert into t1 values (6, column_create(10, "test2"));
+
+# Update some of the columns and add a new column 3
+update t1 set str=column_add(str, 2, 'c', 1, column_get(str, 1 as int) + 1, 3, 100) where id > 2;
+
+# Check data
+select id, length(str), column_get(str, 1 as int),  column_get(str, 2 as char), column_get(str, 3 as int) from t1;
+
+# You can do anything with the columns, like SUM() or GROUP
+select column_get(str, 2 as char), sum(column_get(str, 1 as int)) from t1 group by column_get(str, 2 as char);
+select column_get(str, 2 as char), sum(column_get(str, 1 as int)) from t1 where column_exists(str, 2) <> 0 group by 1;
+select sum(column_get(str, 1 as int)) from t1 group by column_get(str, 2 as char) order by sum(column_get(str, 1 as int)) desc;
+select sum(column_get(str, 1 as int)) from t1 group by column_get(str, 2 as char) having sum(column_get(str, 1 as int)) > 2;
+select sum(column_get(str, 1 as int)) from t1 where column_get(str, 3 as int) > 50 group by column_get(str, 2 as char);
+
+# Deleting of column
+select id, column_list(str) from t1 where id= 5;
+update t1 set str=column_delete(str, 3, 4, 2) where id= 5;
+
+select id, length(str), column_list(str), column_get(str, 1 as int),  column_get(str, 2 as char), column_get(str, 3 as int) from t1;
+
+update t1 set str=column_add(str, 4, 45 as char, 2, 'c') where id= 5;
+select id, length(str), column_list(str), column_get(str, 1 as int),  column_get(str, 2 as char), column_get(str, 3 as int) from t1 where id = 5;
+
+# Check which column exists
+select id, length(str), column_list(str), column_exists(str, 4) from t1;
+select sum(column_get(str, 1 as int)), column_list(str) from t1 group by 2;
+select id, hex(str) from t1;
+
+# Check with a bit larger strings
+
+update t1 set str=column_add(str, 4, repeat("a", 100000)) where id=5;
+select id from t1 where column_get(str,4 as char(100000)) = repeat("a", 100000);
+select id from t1 where column_get(str,4 as char(100)) = repeat("a", 100);
+update t1 set str=column_add(str, 4, repeat("b", 10000)) where id=5;
+select id from t1 where column_get(str,4 as char(100000)) = repeat("b", 10000);
+update t1 set str=column_add(str, 4, repeat("c", 100)) where id=5;
+select id from t1 where column_get(str,4 as char(100000)) = repeat("c", 100);
+update t1 set str=column_add(str, 4, repeat("d", 10000)) where id=5;
+select id from t1 where column_get(str,4 as char(100000)) = repeat("d", 10000);
+update t1 set str=column_add(str, 4, repeat("e", 10), 5, repeat("f", 100000)) where id=5;
+select id from t1 where column_get(str,5 as char(100000)) = repeat("f", 100000);
+select id, column_list(str), length(str) from t1 where id=5;
+update t1 set str=column_delete(str, 5) where id=5;
+select id, column_list(str), length(str) from t1 where id=5;
+
+drop table t1;
+
+--echo #
+--echo # LP#778905: Assertion `value->year <= 9999' failed in
+--echo # dynamic_column_date_store
+--echo #
+
+--error ER_DYN_COL_WRONG_FORMAT
+SELECT COLUMN_GET( 'a' , 2 AS DATE );
+--error ER_DYN_COL_WRONG_FORMAT
+SELECT COLUMN_CREATE( 1 , COLUMN_GET( 'a' , 2 AS DATE ) );
+
+--echo #
+--echo # LP#778912: Assertion `field_pos < field_count' failed in
+--echo # Protocol_text::store in maria-5.3-mwl34
+--echo #
+
+CREATE TABLE t1 ( f1 blob );
+INSERT INTO t1 VALUES (NULL);
+INSERT INTO t1 SET f1 = COLUMN_CREATE( 2 , 'cde' );
+SELECT HEX(COLUMN_ADD(f1, 1, 'abc')), COLUMN_LIST(f1) FROM t1;
+
+# Don't print strange characters on screen
+--disable_result_log
+SELECT COLUMN_ADD(f1, 1, 'abc'), COLUMN_LIST(f1) FROM t1;
+--enable_result_log
+DROP TABLE t1;
+
+--echo #
+--echo # Some dynamic strings that caused crashes in the past
+--echo #
+
+set @a=0x0102000200030004000F0D086B74697A6A7176746F6B687563726A746E7A746A666163726C6F7A6B62636B6B756B666779666977617369796F67756C726D62677A72756E63626D78636D7077706A6F736C6D636464696770786B6371637A6A6A6463737A6A676879716462637178646C666E6B6C726A637677696E7271746C616D646368687A6C707869786D666F666261797470616A63797673737A796D74747475666B717573687A79696E7276706F796A6E767361796A6F6D646F6378677A667074746363736A796D67746C786F697873686464616265616A7A6F7168707A6B776B6376737A6B72666C6F666C69636163686F6B666D627166786A71616F;
+--error ER_DYN_COL_WRONG_FORMAT
+select column_add(@a, 3, "a");
+
+--echo #
+--echo # LP#781233 mysqld: decimal.c:1459: decimal_bin_size: 
+--echo # Assertion `scale >= 0 && precision > 0 && scale <= precision' ...
+--echo #
+
+set @a=0x00020008000009000C2C010080;
+select COLUMN_GET(@a, 9 AS DECIMAL);
+select hex(COLUMN_CREATE(0, COLUMN_GET(@a, 9 AS DECIMAL)));
+select hex(COLUMN_CREATE(0, COLUMN_GET(@a, 9 AS DECIMAL(19,0))));
+
+select hex(COLUMN_CREATE(0, COLUMN_GET(COLUMN_CREATE(0, 0.0 as decimal), 0 as decimal)));
+select hex(COLUMN_CREATE(0, 0.0 as decimal));

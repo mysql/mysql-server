@@ -985,23 +985,13 @@ bool Item_string::eq(const Item *item, bool binary_cmp) const
 
 bool Item::get_date(MYSQL_TIME *ltime,uint fuzzydate)
 {
-  if (result_type() == STRING_RESULT)
-  {
-    char buff[40];
-    String tmp(buff,sizeof(buff), &my_charset_bin),*res;
-    if (!(res=val_str(&tmp)) ||
-        str_to_datetime_with_warn(res->ptr(), res->length(),
-                                  ltime, fuzzydate) <= MYSQL_TIMESTAMP_ERROR)
-      goto err;
-  }
-  else
+  switch (result_type()) {
+  case INT_RESULT:
   {
     int was_cut;
     longlong value= val_int();
-
     if (null_value)
       goto err;
-
     if (number_to_datetime(value, ltime, fuzzydate, &was_cut) == LL(-1))
     {
       char buff[22], *end;
@@ -1009,8 +999,52 @@ bool Item::get_date(MYSQL_TIME *ltime,uint fuzzydate)
       make_truncated_value_warning(current_thd, MYSQL_ERROR::WARN_LEVEL_WARN,
                                    buff, (int) (end-buff), MYSQL_TIMESTAMP_NONE,
                                    NullS);
+      null_value= 1;
       goto err;
     }
+    break;
+  }
+  case REAL_RESULT:
+  {
+    double value= val_real();
+    if (null_value)
+      goto err;
+    if (double_to_datetime_with_warn(value, ltime, fuzzydate))
+    {
+      null_value= 1;
+      goto err;
+    }
+    break;
+  }
+  case DECIMAL_RESULT:
+  {
+    my_decimal value, *res;
+    if (!(res= val_decimal(&value)))
+      goto err;                                 // Null
+    if (decimal_to_datetime_with_warn(res, ltime, fuzzydate))
+    {
+      null_value= 1;
+      goto err;
+    }
+    break;
+  }
+  default:
+  {
+    /*
+      Default go trough string as this is the safest way to ensure that
+      we also get the microseconds.
+    */
+    char buff[40];
+    String tmp(buff,sizeof(buff), &my_charset_bin),*res;
+    if (!(res=val_str(&tmp)) ||
+        str_to_datetime_with_warn(res->ptr(), res->length(),
+                                  ltime, fuzzydate) <= MYSQL_TIMESTAMP_ERROR)
+    {
+      null_value= 1;
+      goto err;
+    }
+    break;
+  }
   }
   return 0;
 
@@ -1030,7 +1064,11 @@ bool Item::get_time(MYSQL_TIME *ltime)
   char buff[40];
   String tmp(buff,sizeof(buff),&my_charset_bin),*res;
   if (!(res=val_str(&tmp)) ||
-      str_to_time_with_warn(res->ptr(), res->length(), ltime))
+      str_to_time_with_warn(res->ptr(), res->length(), ltime,
+                            TIME_FUZZY_DATE |
+                            (current_thd->variables.sql_mode &
+                             (MODE_NO_ZERO_DATE | MODE_NO_ZERO_IN_DATE |
+                              MODE_INVALID_DATES))))
   {
     bzero((char*) ltime,sizeof(*ltime));
     return 1;
@@ -5753,7 +5791,10 @@ bool Item::send(Protocol *protocol, String *buffer)
   {
     String *res;
     if ((res=val_str(buffer)))
+    {
+      DBUG_ASSERT(!null_value);
       result= protocol->store(res->ptr(),res->length(),res->charset());
+    }
     else
     {
       DBUG_ASSERT(null_value);

@@ -256,7 +256,7 @@ void max_decimal(int precision, int frac, decimal_t *to)
 }
 
 
-static dec1 *remove_leading_zeroes(decimal_t *from, int *intg_result)
+static dec1 *remove_leading_zeroes(const decimal_t *from, int *intg_result)
 {
   int intg= from->intg, i;
   dec1 *buf0= from->buf;
@@ -334,7 +334,7 @@ int decimal_actual_fraction(decimal_t *from)
     E_DEC_OK/E_DEC_TRUNCATED/E_DEC_OVERFLOW
 */
 
-int decimal2string(decimal_t *from, char *to, int *to_len,
+int decimal2string(const decimal_t *from, char *to, int *to_len,
                    int fixed_precision, int fixed_decimals,
                    char filler)
 {
@@ -950,7 +950,7 @@ fatal_error:
     E_DEC_OK
 */
 
-int decimal2double(decimal_t *from, double *to)
+int decimal2double(const decimal_t *from, double *to)
 {
   double result= 0.0;
   int i, exp= 0;
@@ -1042,7 +1042,7 @@ int longlong2decimal(longlong from, decimal_t *to)
   return ull2dec(from, to);
 }
 
-int decimal2ulonglong(decimal_t *from, ulonglong *to)
+int decimal2ulonglong(const decimal_t *from, ulonglong *to)
 {
   dec1 *buf=from->buf;
   ulonglong x=0;
@@ -1071,7 +1071,7 @@ int decimal2ulonglong(decimal_t *from, ulonglong *to)
   return E_DEC_OK;
 }
 
-int decimal2longlong(decimal_t *from, longlong *to)
+int decimal2longlong(const decimal_t *from, longlong *to)
 {
   dec1 *buf=from->buf;
   longlong x=0;
@@ -1190,7 +1190,7 @@ int decimal2longlong(decimal_t *from, longlong *to)
 
                 7E F2 04 37 2D FB 2D
 */
-int decimal2bin(decimal_t *from, uchar *to, int precision, int frac)
+int decimal2bin(const decimal_t *from, uchar *to, int precision, int frac)
 {
   dec1 mask=from->sign ? -1 : 0, *buf1=from->buf, *stop1;
   int error=E_DEC_OK, intg=precision-frac,
@@ -1480,7 +1480,7 @@ int decimal_bin_size(int precision, int scale)
 */
 
 int
-decimal_round(decimal_t *from, decimal_t *to, int scale,
+decimal_round(const decimal_t *from, decimal_t *to, int scale,
               decimal_round_mode mode)
 {
   int frac0=scale>0 ? ROUND_UP(scale) : scale/DIG_PER_DEC1,

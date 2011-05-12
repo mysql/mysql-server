@@ -34,6 +34,7 @@
 #define YYINITDEPTH 100
 #define YYMAXDEPTH 3200                        /* Because of 64K stack */
 #define Lex (YYTHD->lex)
+
 #define Select Lex->current_select
 #include "mysql_priv.h"
 #include "slave.h"
@@ -671,6 +672,8 @@ static bool add_create_index (LEX *lex, Key::Keytype type, const char *name,
   sp_head *sphead;
   struct p_elem_val *p_elem_value;
   enum index_hint_type index_hint;
+  DYNCALL_CREATE_DEF *dyncol_def;
+  List<DYNCALL_CREATE_DEF> *dyncol_def_list;
 }
 
 %{
@@ -770,6 +773,12 @@ bool my_yyoverflow(short **a, YYSTYPE **b, ulong *yystacksize);
 %token  COLLATE_SYM                   /* SQL-2003-R */
 %token  COLLATION_SYM                 /* SQL-2003-N */
 %token  COLUMNS
+%token  COLUMN_ADD_SYM
+%token  COLUMN_CREATE_SYM
+%token  COLUMN_DELETE_SYM
+%token  COLUMN_EXISTS_SYM
+%token  COLUMN_GET_SYM
+%token  COLUMN_LIST_SYM
 %token  COLUMN_SYM                    /* SQL-2003-R */
 %token  COMMENT_SYM
 %token  COMMITTED_SYM                 /* SQL-2003-N */
@@ -1338,7 +1347,7 @@ bool my_yyoverflow(short **a, YYSTYPE **b, ulong *yystacksize);
         opt_natural_language_mode opt_query_expansion
         opt_ev_status opt_ev_on_completion ev_on_completion opt_ev_comment
         ev_alter_on_schedule_completion opt_ev_rename_to opt_ev_sql_stmt
-        optional_flush_tables_arguments
+        optional_flush_tables_arguments opt_dyncol_type dyncol_type
 
 %type <ulong_num>
         ulong_num real_ulong_num merge_insert_types
@@ -1437,6 +1446,10 @@ bool my_yyoverflow(short **a, YYSTYPE **b, ulong *yystacksize);
         get_select_lex
 
 %type <boolfunc2creator> comp_op
+
+%type <dyncol_def> dyncall_create_element
+
+%type <dyncol_def_list> dyncall_create_list
 
 %type <NONE>
         query verb_clause create change select do drop insert replace insert2
@@ -7506,6 +7519,131 @@ all_or_any:
         | ANY_SYM { $$ = 0; }
         ;
 
+opt_dyncol_type:
+          /* empty */ 
+          {
+            LEX *lex= Lex;
+	    $$= DYN_COL_NULL; /* automatic type */
+            lex->charset= NULL;
+            lex->length= lex->dec= 0;
+	  }
+        | AS dyncol_type { $$= $2; }
+        ;
+
+dyncol_type:
+          INT_SYM
+          {
+            LEX *lex= Lex;
+            $$= DYN_COL_INT;
+            lex->charset= NULL;
+            lex->length= lex->dec= 0;
+          }
+        | UNSIGNED INT_SYM 
+          {
+            LEX *lex= Lex;
+            $$= DYN_COL_UINT;
+            lex->charset= NULL;
+            lex->length= lex->dec= 0;
+          }
+        | DOUBLE_SYM
+          {
+            LEX *lex= Lex;
+            $$= DYN_COL_DOUBLE;
+            lex->charset= NULL;
+            lex->length= lex->dec= 0;
+          }
+        | REAL
+          {
+            LEX *lex= Lex;
+            $$= DYN_COL_DOUBLE;
+            lex->charset= NULL;
+            lex->length= lex->dec= 0;
+          }
+        | FLOAT_SYM
+          {
+            LEX *lex= Lex;
+            $$= DYN_COL_DOUBLE;
+            lex->charset= NULL;
+            lex->length= lex->dec= 0;
+          }
+        | DECIMAL_SYM float_options
+          {
+            $$= DYN_COL_DECIMAL;
+            Lex->charset= NULL;
+          }
+        | char opt_binary
+          {
+            LEX *lex= Lex;
+            $$= DYN_COL_STRING;
+            lex->length= lex->dec= 0;
+          }
+        | nchar
+          {
+            LEX *lex= Lex;
+            $$= DYN_COL_STRING;
+            lex->charset= national_charset_info;
+            lex->length= lex->dec= 0;
+          }
+        | DATE_SYM
+          {
+            LEX *lex= Lex;
+            $$= DYN_COL_DATE;
+            lex->charset= NULL;
+            lex->length= lex->dec= 0;
+          }
+        | TIME_SYM
+          {
+            LEX *lex= Lex;
+            $$= DYN_COL_TIME;
+            lex->charset= NULL;
+            lex->length= lex->dec= 0;
+          }
+        | DATETIME
+          {
+            LEX *lex= Lex;
+            $$= DYN_COL_DATETIME;
+            lex->charset= NULL;
+            lex->length= lex->dec= 0;
+          }
+        ;
+
+dyncall_create_element:
+   expr ',' expr opt_dyncol_type
+   {
+     LEX *lex= Lex;
+     $$= (DYNCALL_CREATE_DEF *)
+       alloc_root(YYTHD->mem_root, sizeof(DYNCALL_CREATE_DEF));
+     if ($$ == NULL)
+       MYSQL_YYABORT;
+     $$->num= $1;
+     $$->value= $3;
+     $$->type= (DYNAMIC_COLUMN_TYPE)$4;
+     $$->cs= lex->charset;
+     if (lex->length)
+       $$->len= strtoul(lex->length, NULL, 10);
+     else
+       $$->len= 0;
+     if (lex->dec)
+       $$->frac= strtoul(lex->dec, NULL, 10);
+     else
+       $$->len= 0;
+   }
+
+dyncall_create_list:
+     dyncall_create_element
+       {
+         $$= new (YYTHD->mem_root) List<DYNCALL_CREATE_DEF>;
+         if ($$ == NULL)
+           MYSQL_YYABORT;
+         $$->push_back($1);
+       }
+   | dyncall_create_list ',' dyncall_create_element
+       {
+         $1->push_back($3);
+         $$= $1;
+       }
+   ;
+
 simple_expr:
           simple_ident
         | function_call_keyword
@@ -8039,6 +8177,51 @@ function_call_nonkeyword:
             if ($$ == NULL)
               MYSQL_YYABORT;
             Lex->safe_to_cache_query=0;
+          }
+        |
+          COLUMN_ADD_SYM '(' expr ',' dyncall_create_list ')'
+          {
+            $$= create_func_dyncol_add(YYTHD, $3, *$5);
+            if ($$ == NULL)
+              MYSQL_YYABORT;
+          }
+        |
+          COLUMN_DELETE_SYM '(' expr ',' expr_list ')'
+          {
+            $$= create_func_dyncol_delete(YYTHD, $3, *$5);
+            if ($$ == NULL)
+              MYSQL_YYABORT;
+          }
+        |
+          COLUMN_EXISTS_SYM '(' expr ',' expr ')'
+          {
+            $$= new (YYTHD->mem_root) Item_func_dyncol_exists($3, $5);
+            if ($$ == NULL)
+              MYSQL_YYABORT;
+          }
+        |
+          COLUMN_LIST_SYM '(' expr ')'
+          {
+            $$= new (YYTHD->mem_root) Item_func_dyncol_list($3);
+            if ($$ == NULL)
+              MYSQL_YYABORT;
+          }
+        |
+          COLUMN_CREATE_SYM '(' dyncall_create_list ')'
+          {
+            $$= create_func_dyncol_create(YYTHD, *$3);
+            if ($$ == NULL)
+              MYSQL_YYABORT;
+          }
+        |
+          COLUMN_GET_SYM '(' expr ',' expr AS cast_type ')'
+          {
+            LEX *lex= Lex;
+            $$= create_func_dyncol_get(YYTHD, $3, $5, $7,
+                                        lex->length, lex->dec,
+                                        lex->charset);
+            if ($$ == NULL)
+              MYSQL_YYABORT;
           }
         ;
 
@@ -8641,6 +8824,8 @@ cast_type:
           { $$=ITEM_CAST_CHAR; Lex->dec= 0; }
         | NCHAR_SYM opt_field_length
           { $$=ITEM_CAST_CHAR; Lex->charset= national_charset_info; Lex->dec=0; }
+        | INT_SYM
+          { $$=ITEM_CAST_SIGNED_INT; Lex->charset= NULL; Lex->dec=Lex->length= (char*)0; }
         | SIGNED_SYM
           { $$=ITEM_CAST_SIGNED_INT; Lex->charset= NULL; Lex->dec=Lex->length= (char*)0; }
         | SIGNED_SYM INT_SYM
@@ -8657,7 +8842,10 @@ cast_type:
           { $$=ITEM_CAST_DATETIME; Lex->charset= NULL; Lex->dec=Lex->length= (char*)0; }
         | DECIMAL_SYM float_options
           { $$=ITEM_CAST_DECIMAL; Lex->charset= NULL; }
-        ;
+        | DOUBLE_SYM
+          { Lex->charset= NULL; Lex->length= Lex->dec= 0;}
+          opt_precision
+          { $$=ITEM_CAST_DOUBLE; }
 
 opt_expr_list:
           /* empty */ { $$= NULL; }
@@ -11887,6 +12075,12 @@ keyword:
         | CHECKSUM_SYM          {}
         | CHECKPOINT_SYM        {}
         | CLOSE_SYM             {}
+        | COLUMN_ADD_SYM        {}
+        | COLUMN_CREATE_SYM     {}
+        | COLUMN_DELETE_SYM     {}
+        | COLUMN_EXISTS_SYM     {}
+        | COLUMN_GET_SYM        {}
+        | COLUMN_LIST_SYM       {}
         | COMMENT_SYM           {}
         | COMMIT_SYM            {}
         | CONTAINS_SYM          {}

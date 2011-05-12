@@ -1578,17 +1578,19 @@ longlong Field::convert_decimal2longlong(const my_decimal *val,
       i= 0;
       *err= 1;
     }
-    else if (warn_if_overflow(my_decimal2int(E_DEC_ERROR &
-                                           ~E_DEC_OVERFLOW & ~E_DEC_TRUNCATED,
-                                           val, TRUE, &i)))
+    else if (warn_if_overflow(my_decimal2int((E_DEC_ERROR &
+                                              ~E_DEC_OVERFLOW &
+                                              ~E_DEC_TRUNCATED),
+                                             val, TRUE, &i)))
     {
       i= ~(longlong) 0;
       *err= 1;
     }
   }
-  else if (warn_if_overflow(my_decimal2int(E_DEC_ERROR &
-                                         ~E_DEC_OVERFLOW & ~E_DEC_TRUNCATED,
-                                         val, FALSE, &i)))
+  else if (warn_if_overflow(my_decimal2int((E_DEC_ERROR &
+                                            ~E_DEC_OVERFLOW &
+                                            ~E_DEC_TRUNCATED),
+                                           val, FALSE, &i)))
   {
     i= (val->sign() ? LONGLONG_MIN : LONGLONG_MAX);
     *err= 1;
@@ -1753,7 +1755,10 @@ bool Field::get_time(MYSQL_TIME *ltime)
   char buff[40];
   String tmp(buff,sizeof(buff),&my_charset_bin),*res;
   if (!(res=val_str(&tmp)) ||
-      str_to_time_with_warn(res->ptr(), res->length(), ltime))
+      str_to_time_with_warn(res->ptr(), res->length(), ltime,
+                            table->in_use->variables.sql_mode &
+                            (MODE_NO_ZERO_DATE | MODE_NO_ZERO_IN_DATE |
+                             MODE_INVALID_DATES)))
     return 1;
   return 0;
 }
@@ -3866,40 +3871,11 @@ int Field_longlong::store(const char *from,uint len,CHARSET_INFO *cs)
 int Field_longlong::store(double nr)
 {
   ASSERT_COLUMN_MARKED_FOR_WRITE_OR_COMPUTED;
-  int error= 0;
+  bool error;
   longlong res;
 
-  nr= rint(nr);
-  if (unsigned_flag)
-  {
-    if (nr < 0)
-    {
-      res=0;
-      error= 1;
-    }
-    else if (nr >= (double) ULONGLONG_MAX)
-    {
-      res= ~(longlong) 0;
-      error= 1;
-    }
-    else
-      res=(longlong) double2ulonglong(nr);
-  }
-  else
-  {
-    if (nr <= (double) LONGLONG_MIN)
-    {
-      res= LONGLONG_MIN;
-      error= (nr < (double) LONGLONG_MIN);
-    }
-    else if (nr >= (double) (ulonglong) LONGLONG_MAX)
-    {
-      res= LONGLONG_MAX;
-      error= (nr > (double) LONGLONG_MAX);
-    }
-    else
-      res=(longlong) nr;
-  }
+  res= double_to_longlong(nr, unsigned_flag, &error);
+
   if (error)
     set_warning(MYSQL_ERROR::WARN_LEVEL_WARN, ER_WARN_DATA_OUT_OF_RANGE, 1);
 
@@ -4144,7 +4120,18 @@ int Field_float::store(const char *from,uint len,CHARSET_INFO *cs)
 int Field_float::store(double nr)
 {
   ASSERT_COLUMN_MARKED_FOR_WRITE_OR_COMPUTED;
-  int error= truncate(&nr, FLT_MAX);
+  int error= truncate_double(&nr, field_length,
+                             not_fixed ? NOT_FIXED_DEC : dec,
+                             unsigned_flag, FLT_MAX);
+  if (error)
+  {
+    set_warning(MYSQL_ERROR::WARN_LEVEL_WARN, ER_WARN_DATA_OUT_OF_RANGE, 1);
+    if (error < 0)                                // Wrong double value
+    {
+      error= 1;
+      set_null();
+    }
+  }
   float j= (float)nr;
 
 #ifdef WORDS_BIGENDIAN
@@ -4406,7 +4393,18 @@ int Field_double::store(const char *from,uint len,CHARSET_INFO *cs)
 int Field_double::store(double nr)
 {
   ASSERT_COLUMN_MARKED_FOR_WRITE_OR_COMPUTED;
-  int error= truncate(&nr, DBL_MAX);
+  int error= truncate_double(&nr, field_length,
+                             not_fixed ? NOT_FIXED_DEC : dec,
+                             unsigned_flag, DBL_MAX);
+  if (error)
+  {
+    set_warning(MYSQL_ERROR::WARN_LEVEL_WARN, ER_WARN_DATA_OUT_OF_RANGE, 1);
+    if (error < 0)                                // Wrong double value
+    {
+      error= 1;
+      set_null();
+    }
+  }
 
 #ifdef WORDS_BIGENDIAN
   if (table->s->db_low_byte_first)
@@ -4430,28 +4428,31 @@ int Field_double::store(longlong nr, bool unsigned_val)
   If a field has fixed length, truncate the double argument pointed to by 'nr'
   appropriately.
   Also ensure that the argument is within [-max_value; max_value] range.
+
+  return
+    0   ok
+    -1  Illegal double value
+    1   Value was truncated
 */
 
-int Field_real::truncate(double *nr, double max_value)
+int truncate_double(double *nr, uint field_length, uint dec,
+                    bool unsigned_flag, double max_value)
 {
-  int error= 1;
+  int error= 0;
   double res= *nr;
   
   if (isnan(res))
   {
-    res= 0;
-    set_null();
-    set_warning(MYSQL_ERROR::WARN_LEVEL_WARN, ER_WARN_DATA_OUT_OF_RANGE, 1);
-    goto end;
+    *nr= 0;
+    return -1;
   }
   else if (unsigned_flag && res < 0)
   {
-    res= 0;
-    set_warning(MYSQL_ERROR::WARN_LEVEL_WARN, ER_WARN_DATA_OUT_OF_RANGE, 1);
-    goto end;
+    *nr= 0;
+    return 1;
   }
 
-  if (!not_fixed)
+  if (dec < NOT_FIXED_DEC)
   {
     uint order= field_length - dec;
     uint step= array_elements(log_10) - 1;
@@ -4467,20 +4468,68 @@ int Field_real::truncate(double *nr, double max_value)
   
   if (res < -max_value)
   {
-   res= -max_value;
-   set_warning(MYSQL_ERROR::WARN_LEVEL_WARN, ER_WARN_DATA_OUT_OF_RANGE, 1);
+    res= -max_value;
+    error= 1;
   }
   else if (res > max_value)
   {
     res= max_value;
-    set_warning(MYSQL_ERROR::WARN_LEVEL_WARN, ER_WARN_DATA_OUT_OF_RANGE, 1);
+    error= 1;
   }
-  else
-    error= 0;
 
-end:
   *nr= res;
   return error;
+}
+
+/*
+  Convert double to longlong / ulonglong.
+  If double is outside of range, adjust return value and set error.
+
+  SYNOPSIS
+  double_to_longlong()
+  nr	  	 Number to convert
+  unsigned_flag  1 if result is unsigned
+  error		 Will be set to 1 in case of overflow.
+*/
+
+longlong double_to_longlong(double nr, bool unsigned_flag, bool *error)
+{
+  longlong res;
+
+  *error= 0;
+
+  nr= rint(nr);
+  if (unsigned_flag)
+  {
+    if (nr < 0)
+    {
+      res= 0;
+      *error= 1;
+    }
+    else if (nr >= (double) ULONGLONG_MAX)
+    {
+      res= ~(longlong) 0;
+      *error= 1;
+    }
+    else
+      res= (longlong) double2ulonglong(nr);
+  }
+  else
+  {
+    if (nr <= (double) LONGLONG_MIN)
+    {
+      res= LONGLONG_MIN;
+      *error= (nr < (double) LONGLONG_MIN);
+    }
+    else if (nr >= (double) (ulonglong) LONGLONG_MAX)
+    {
+      res= LONGLONG_MAX;
+      *error= (nr > (double) LONGLONG_MAX);
+    }
+    else
+      res= (longlong) nr;
+  }
+  return res;
 }
 
 
@@ -4511,6 +4560,7 @@ longlong Field_double::val_int(void)
   ASSERT_COLUMN_MARKED_FOR_READ;
   double j;
   longlong res;
+  bool error;
 #ifdef WORDS_BIGENDIAN
   if (table->s->db_low_byte_first)
   {
@@ -4519,20 +4569,9 @@ longlong Field_double::val_int(void)
   else
 #endif
     doubleget(j,ptr);
-  /* Check whether we fit into longlong range */
-  if (j <= (double) LONGLONG_MIN)
-  {
-    res= (longlong) LONGLONG_MIN;
-    goto warn;
-  }
-  if (j >= (double) (ulonglong) LONGLONG_MAX)
-  {
-    res= (longlong) LONGLONG_MAX;
-    goto warn;
-  }
-  return (longlong) rint(j);
 
-warn:
+  res= double_to_longlong(j, 0, &error);
+  if (error)
   {
     char buf[DOUBLE_TO_STRING_CONVERSION_BUFFER_SIZE];
     String tmp(buf, sizeof(buf), &my_charset_latin1), *str;
@@ -5147,7 +5186,10 @@ int Field_time::store(const char *from,uint len,CHARSET_INFO *cs)
   int error= 0;
   int warning;
 
-  if (str_to_time(from, len, &ltime, &warning))
+  if (str_to_time(from, len, &ltime,
+                  table->in_use->variables.sql_mode &
+                  (MODE_NO_ZERO_DATE | MODE_NO_ZERO_IN_DATE |
+                   MODE_INVALID_DATES), &warning))
   {
     tmp=0L;
     error= 2;
@@ -5305,6 +5347,7 @@ String *Field_time::val_str(String *val_buffer,
   ltime.hour= (uint) (tmp/10000);
   ltime.minute= (uint) (tmp/100 % 100);
   ltime.second= (uint) (tmp % 100);
+  ltime.second_part= 0;
   make_time((DATE_TIME_FORMAT*) 0, &ltime, val_buffer);
   return val_buffer;
 }

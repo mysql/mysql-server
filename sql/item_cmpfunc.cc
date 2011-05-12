@@ -6045,7 +6045,7 @@ Item* Item_equal::get_first(Item *field_item)
   }
   else
   {
-#if 0    
+#if TO_BE_DELETED
     /*
       The field is not in SJ-Materialization nest. We must return the first
       field that's not embedded in a SJ-Materialization nest.
@@ -6054,8 +6054,8 @@ Item* Item_equal::get_first(Item *field_item)
           SJ-Mat(it1  it2)  ot1  ot2
 
       and equality ot2.col = ot1.col = it2.col
-      If we're looking for best substitute for 'ot2.col', we should pick ot1.col
-      and not it2.col, because when we run a join between ot1 and ot2
+      If we're looking for best substitute for 'ot2.col', we should pick
+      ot1.col and not it2.col, because when we run a join between ot1 and ot2
       execution of SJ-Mat(...) has already finished and we can't rely on the
       value of it*.*.
       psergey-fix-fix: ^^ THAT IS INCORRECT ^^. Pick the first, whatever that
@@ -6077,4 +6077,35 @@ Item* Item_equal::get_first(Item *field_item)
   // Shouldn't get here.
   DBUG_ASSERT(0);
   return NULL;
+}
+
+
+longlong Item_func_dyncol_exists::val_int()
+{
+  char buff[STRING_BUFFER_USUAL_SIZE];
+  String tmp(buff, sizeof(buff), &my_charset_bin);
+  DYNAMIC_COLUMN col;
+  String *str;
+  ulonglong num;
+  enum enum_dyncol_func_result rc;
+
+  num= args[1]->val_int();
+  str= args[0]->val_str(&tmp);
+  if (args[0]->null_value || args[1]->null_value || num > UINT_MAX16)
+    goto null;
+  col.length= str->length();
+  /* We do not change the string, so could do this trick */
+  col.str= (char *)str->ptr();
+  rc= dynamic_column_exists(&col, (uint) num);
+  if (rc < 0)
+  {
+    dynamic_column_error_message(rc);
+    goto null;
+  }
+  null_value= FALSE;
+  return rc == ER_DYNCOL_YES;
+
+null:
+  null_value= TRUE;
+  return 0;
 }

@@ -25,4 +25,4 @@ LDADD 		= $(top_builddir)/unittest/mytap/libmytap.a \
 
 EXTRA_DIST       = CMakeLists.txt 
 noinst_PROGRAMS  = bitmap-t base64-t my_atomic-t lf-t waiting_threads-t \
-		   my_vsnprintf-t
+		   my_vsnprintf-t ma_dyncol-t
