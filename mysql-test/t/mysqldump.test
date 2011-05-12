@@ -2193,6 +2193,8 @@ ALTER DATABASE `test-database` CHARACTER SET utf8 COLLATE utf8_unicode_ci ;
 --exec $MYSQL_DUMP --quote-names --compact test-database
 
 DROP DATABASE `test-database`;
+# Switching back to test database.
+USE `test`;
 
 --echo #
 --echo # End of 5.1 tests

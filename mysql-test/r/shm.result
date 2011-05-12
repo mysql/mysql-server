@@ -2155,6 +2155,8 @@ mysqld is alive
 SET @max_allowed_packet= @@global.max_allowed_packet;
 SET @net_buffer_length= @@global.net_buffer_length;
 SET GLOBAL max_allowed_packet= 1024;
+Warnings:
+Warning	1105	The value of 'max_allowed_packet' should be no less than the value of 'net_buffer_length'
 SET GLOBAL net_buffer_length= 1024;
 ERROR 1153 (08S01) at line 1: Got a packet bigger than 'max_allowed_packet' bytes
 SET GLOBAL max_allowed_packet= @max_allowed_packet;
