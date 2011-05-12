@@ -938,6 +938,72 @@ NdbTableImpl::getName() const
   return m_externalName.c_str();
 }
 
+int
+NdbTableImpl::getDbName(char buf[], size_t len) const
+{
+  if (len == 0)
+    return -1;
+
+  // db/schema/table
+  const char *ptr = m_internalName.c_str();
+
+  size_t pos = 0;
+  while (ptr[pos] && ptr[pos] != table_name_separator)
+  {
+    buf[pos] = ptr[pos];
+    pos++;
+
+    if (pos == len)
+      return -1;
+  }
+  buf[pos] = 0;
+  return 0;
+}
+
+int
+NdbTableImpl::getSchemaName(char buf[], size_t len) const
+{
+  if (len == 0)
+    return -1;
+
+  // db/schema/table
+  const char *ptr = m_internalName.c_str();
+
+  // skip over "db"
+  while (*ptr && *ptr != table_name_separator)
+    ptr++;
+
+  buf[0] = 0;
+  if (*ptr == table_name_separator)
+  {
+    ptr++;
+    size_t pos = 0;
+    while (ptr[pos] && ptr[pos] != table_name_separator)
+    {
+      buf[pos] = ptr[pos];
+      pos++;
+
+      if (pos == len)
+        return -1;
+    }
+    buf[pos] = 0;
+  }
+
+  return 0;
+}
+
+void
+NdbTableImpl::setDbSchema(const char * db, const char * schema)
+{
+  m_internalName.assfmt("%s%c%s%c%s",
+                        db,
+                        table_name_separator,
+                        schema,
+                        table_name_separator,
+                        m_externalName.c_str());
+  updateMysqlName();
+}
+
 void
 NdbTableImpl::computeAggregates()
 {
@@ -3090,7 +3156,8 @@ int NdbDictionaryImpl::alterTableGlobal(NdbTableImpl &old_impl,
 {
   DBUG_ENTER("NdbDictionaryImpl::alterTableGlobal");
   // Alter the table
-  int ret = m_receiver.alterTable(m_ndb, old_impl, impl);
+  Uint32 changeMask = 0;
+  int ret = m_receiver.alterTable(m_ndb, old_impl, impl, changeMask);
 #if ndb_bug41905
   old_impl.m_status = NdbDictionary::Object::Invalid;
 #endif
@@ -3107,18 +3174,93 @@ int NdbDictionaryImpl::alterTableGlobal(NdbTableImpl &old_impl,
     m_globalHash->unlock();
     if (ret != 0)
       m_error.code = 723;
+
+    if (ret == 0 && AlterTableReq::getNameFlag(changeMask) != 0)
+    {
+      char db0[MAX_TAB_NAME_SIZE];
+      char db1[MAX_TAB_NAME_SIZE];
+      if (old_impl.getDbName(db0, sizeof(db0)) != 0)
+      {
+        m_error.code = 705;
+        DBUG_RETURN(-1);
+      }
+      if (impl.getDbName(db1, sizeof(db0)) != 0)
+      {
+        m_error.code = 705;
+        DBUG_RETURN(-1);
+      }
+
+      bool db_change = strcmp(db0, db1) != 0;
+      if (old_impl.getSchemaName(db0, sizeof(db0)) != 0)
+      {
+        m_error.code = 705;
+        DBUG_RETURN(-1);
+      }
+      if (impl.getSchemaName(db1, sizeof(db0)) != 0)
+      {
+        m_error.code = 705;
+        DBUG_RETURN(-1);
+      }
+
+      bool schema_change = strcmp(db0, db1) != 0;
+      if (db_change || schema_change)
+      {
+        if (renameBlobTables(old_impl, impl) != 0)
+        {
+          DBUG_RETURN(-1);
+        }
+      }
+    }
     DBUG_RETURN(ret);
   }
   ERR_RETURN(getNdbError(), ret);
 }
 
 int
+NdbDictionaryImpl::renameBlobTables(const NdbTableImpl & old_tab,
+                                    const NdbTableImpl & new_tab)
+{
+  if (old_tab.m_noOfBlobs == 0)
+    return 0;
+
+  char db[MAX_TAB_NAME_SIZE];
+  char schema[MAX_TAB_NAME_SIZE];
+  new_tab.getDbName(db, sizeof(db));
+  new_tab.getSchemaName(schema, sizeof(schema));
+
+  for (unsigned i = 0; i < old_tab.m_columns.size(); i++)
+  {
+    NdbColumnImpl & c = *old_tab.m_columns[i];
+    if (! c.getBlobType() || c.getPartSize() == 0)
+      continue;
+    NdbTableImpl* _bt = c.m_blobTable;
+    if (_bt == NULL)
+    {
+      continue; // "force" mode on
+    }
+
+    NdbDictionary::Table& bt = * _bt->m_facade;
+    NdbDictionary::Table new_bt(bt);
+    new_bt.m_impl.setDbSchema(db, schema);
+
+    Uint32 changeMask = 0;
+    int ret = m_receiver.alterTable(m_ndb, bt.m_impl, new_bt.m_impl,changeMask);
+    if (ret != 0)
+    {
+      return ret;
+    }
+    assert(AlterTableReq::getNameFlag(changeMask) != 0);
+  }
+  return 0;
+}
+
+int
 NdbDictInterface::alterTable(Ndb & ndb,
                              const NdbTableImpl &old_impl,
-                             NdbTableImpl &impl)
+                             NdbTableImpl &impl,
+                             Uint32 & change_mask)
 {
   int ret;
-  Uint32 change_mask;
 
   DBUG_ENTER("NdbDictInterface::alterTable");
 
@@ -3168,8 +3310,9 @@ NdbDictInterface::compChangeMask(const NdbTableImpl &old_impl,
                       impl.m_internalName.c_str()));
   if(impl.m_internalName != old_impl.m_internalName)
   {
-    if (unlikely(is_ndb_blob_table(old_impl.m_externalName.c_str()) ||
-                 is_ndb_blob_table(impl.m_externalName.c_str())))
+    bool old_blob = is_ndb_blob_table(old_impl.m_externalName.c_str());
+    bool new_blob = is_ndb_blob_table(impl.m_externalName.c_str());
+    if (unlikely(old_blob != new_blob))
     {
       /* Attempt to alter to/from Blob part table name */
       DBUG_PRINT("info", ("Attempt to alter to/from Blob part table name"));
@@ -3260,7 +3403,9 @@ NdbDictInterface::compChangeMask(const NdbTableImpl &old_impl,
          col->m_autoIncrement ||                   // ToDo: allow this?
 	 (col->getBlobType() && col->getPartSize())
          )
+      {
         goto invalid_alter_table;
+      }
     }
     AlterTableReq::setAddAttrFlag(change_mask, true);
   }

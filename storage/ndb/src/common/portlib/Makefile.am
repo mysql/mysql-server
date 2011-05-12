@@ -33,7 +33,7 @@ EXTRA_PROGRAMS = memtest PortLibTest munmaptest
 PortLibTest_SOURCES = NdbPortLibTest.cpp
 munmaptest_SOURCES = munmaptest.cpp
 
-noinst_PROGRAMS = NdbDir-t NdbNuma-t
+noinst_PROGRAMS = NdbDir-t NdbNuma-t NdbGetInAddr-t
 
 NdbDir_t_SOURCES = NdbDir.cpp \
        $(top_srcdir)/storage/ndb/src/common/util/basestring_vsnprintf.c
@@ -46,3 +46,5 @@ NdbNuma_t_SOURCES = NdbNuma.cpp
 NdbNuma_t_CXXFLAGS = -DTEST_NDBNUMA
 NdbNuma_t_LDADD = $(top_builddir)/mysys/libmysyslt.la @LIBDL@
 
+NdbGetInAddr_t_SOURCES = NdbTCP.cpp
+NdbGetInAddr_t_CXXFLAGS = -DTEST_NDBGETINADDR
