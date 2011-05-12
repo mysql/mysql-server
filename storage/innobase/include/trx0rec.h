@@ -245,8 +245,7 @@ that the caller has a latch on the index page of the clustered index record
 and an s-latch on the purge_view. This guarantees that the stack of versions
 is locked.
 @return DB_SUCCESS, or DB_MISSING_HISTORY if the previous version is
-earlier than purge_view, which means that it may have been removed,
-DB_ERROR if corrupted record */
+earlier than purge_view, which means that it may have been removed */
 UNIV_INTERN
 ulint
 trx_undo_prev_version_build(

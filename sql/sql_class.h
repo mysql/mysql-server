@@ -696,15 +696,10 @@ public:
   virtual ~Query_arena() {};
 
   inline bool is_stmt_prepare() const { return state == INITIALIZED; }
-  inline bool is_first_sp_execute() const
-  { return state == INITIALIZED_FOR_SP; }
   inline bool is_stmt_prepare_or_first_sp_execute() const
   { return (int)state < (int)PREPARED; }
   inline bool is_stmt_prepare_or_first_stmt_execute() const
   { return (int)state <= (int)PREPARED; }
-  inline bool is_first_stmt_execute() const { return state == PREPARED; }
-  inline bool is_stmt_execute() const
-  { return state == PREPARED || state == EXECUTED; }
   inline bool is_conventional() const
   { return state == CONVENTIONAL_EXECUTION; }
 
@@ -1478,6 +1473,19 @@ class THD :public Statement,
            public Open_tables_state,
            public MDL_context_owner
 {
+private:
+  inline bool is_stmt_prepare() const
+  { DBUG_ASSERT(0); return Statement::is_stmt_prepare(); }
+
+  inline bool is_stmt_prepare_or_first_sp_execute() const
+  { DBUG_ASSERT(0); return Statement::is_stmt_prepare_or_first_sp_execute(); }
+
+  inline bool is_stmt_prepare_or_first_stmt_execute() const
+  { DBUG_ASSERT(0); return Statement::is_stmt_prepare_or_first_stmt_execute(); }
+
+  inline bool is_conventional() const
+  { DBUG_ASSERT(0); return Statement::is_conventional(); }
+
 public:
   MDL_context mdl_context;
 
@@ -3804,6 +3812,18 @@ public:
   and that may end up in the binary log.
 */
 #define CF_CAN_GENERATE_ROW_EVENTS (1U << 9)
+
+/**
+  Identifies statements which may deal with temporary tables and for which
+  temporary tables should be pre-opened to simplify privilege checks.
+*/
+#define CF_PREOPEN_TMP_TABLES   (1U << 10)
+
+/**
+  Identifies statements for which open handlers should be closed in the
+  beginning of the statement.
+*/
+#define CF_HA_CLOSE             (1U << 11)
 
 /**
   Identifies statements that can directly update a rpl info table.
