@@ -35,7 +35,7 @@ connect(default,localhost,root,,test);
 
 # Copied data from t1 into t2 large than max_binlog_cache_size
 START TRANSACTION;
---error 1197
+--error ER_TRANS_CACHE_FULL
 CREATE TABLE t2 SELECT * FROM t1;
 COMMIT;
 SHOW TABLES LIKE 't%';
