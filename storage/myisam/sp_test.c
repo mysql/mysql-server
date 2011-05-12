@@ -17,6 +17,7 @@
 /* Written by Alex Barkov, who has a shared copyright to this code */
 
 #include "myisam.h"
+#include "myisamdef.h"
 
 #ifdef HAVE_SPATIAL
 #include "sp_defs.h"
