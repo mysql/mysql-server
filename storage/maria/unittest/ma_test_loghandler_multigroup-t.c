@@ -21,7 +21,8 @@
 #include "sequence_storage.h"
 #include <my_getopt.h>
 
-extern my_bool maria_log_remove();
+extern my_bool maria_log_remove(const char *testdir);
+extern char *create_tmpdir(const char *progname);
 extern void translog_example_table_init();
 
 #ifndef DBUG_OFF
@@ -238,20 +239,22 @@ int main(int argc __attribute__((unused)), char *argv[])
   TRANSLOG_HEADER_BUFFER rec;
   LEX_CUSTRING parts[TRANSLOG_INTERNAL_PARTS + 2];
   struct st_translog_scanner_data scanner;
+  const char *progname=argv[0];
   int rc;
-
   MY_INIT(argv[0]);
 
-  bzero(&pagecache, sizeof(pagecache));
-  maria_data_root= (char *)".";
+
   load_defaults("my", load_default_groups, &argc, &argv);
-  default_argv= argv;
   get_options(&argc, &argv);
+  default_argv= argv;
+
+  bzero(&pagecache, sizeof(pagecache));
+  maria_data_root= create_tmpdir(progname);
+  if (maria_log_remove(0))
+    exit(1);
+
   /* We don't need to do physical syncs in this test */
   my_disable_sync= 1;
-
-  if (maria_log_remove())
-    exit(1);
 
   {
     uchar buff[4];
@@ -276,7 +279,7 @@ int main(int argc __attribute__((unused)), char *argv[])
     fprintf(stderr, "Got error: init_pagecache() (errno: %d)\n", errno);
     exit(1);
   }
-  if (translog_init_with_table(".", LOG_FILE_SIZE, 50112, 0, &pagecache,
+  if (translog_init_with_table(maria_data_root, LOG_FILE_SIZE, 50112, 0, &pagecache,
                                0, 0, &translog_example_table_init, 0))
   {
     fprintf(stderr, "Can't init loghandler (%d)\n", errno);
@@ -439,7 +442,7 @@ int main(int argc __attribute__((unused)), char *argv[])
     fprintf(stderr, "pass2: Got error: init_pagecache() (errno: %d)\n", errno);
     exit(1);
   }
-  if (translog_init_with_table(".", LOG_FILE_SIZE, 50112, 0, &pagecache,
+  if (translog_init_with_table(maria_data_root, LOG_FILE_SIZE, 50112, 0, &pagecache,
                                0, READONLY, &translog_example_table_init, 0))
   {
     fprintf(stderr, "pass2: Can't init loghandler (%d)\n", errno);
@@ -741,7 +744,7 @@ err:
   ma_control_file_end();
   free_defaults(default_argv);
   seq_storage_destroy(&seq);
-  if (maria_log_remove())
+  if (maria_log_remove(maria_data_root))
     exit(1);
 
   return (test(exit_status()));

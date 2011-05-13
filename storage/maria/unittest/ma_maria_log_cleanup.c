@@ -16,7 +16,7 @@
 #include "../maria_def.h"
 #include <my_dir.h>
 
-my_bool maria_log_remove()
+my_bool maria_log_remove(const char *testdir)
 {
   MY_DIR *dirp;
   uint i;
@@ -59,6 +59,28 @@ my_bool maria_log_remove()
     }
   }
   my_dirend(dirp);
+  if (testdir)
+    rmdir(testdir);
   return 0;
 }
 
+char *create_tmpdir(const char *progname)
+{
+  static char test_dirname[FN_REFLEN];
+  char tmp_name[FN_REFLEN];
+  uint length;
+
+  /* Create a temporary directory of name TMP-'executable', but without the -t extension */
+  fn_format(tmp_name, progname, "", "", MY_REPLACE_DIR | MY_REPLACE_EXT);
+  length= strlen(tmp_name);
+  if (length > 2 && tmp_name[length-2] == '-' && tmp_name[length-1] == 't')
+    tmp_name[length-2]= 0;
+  strxmov(test_dirname, "TMP-", tmp_name, NullS);
+
+  /*
+    Don't give an error if we can't create dir, as it may already exist from a previously aborted
+    run
+  */
+  (void) my_mkdir(test_dirname, 0777, MYF(0));
+  return test_dirname;
+}

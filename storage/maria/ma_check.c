@@ -234,14 +234,14 @@ int maria_chk_del(HA_CHECK *param, register MARIA_HA *info,
       {
 	if (test_flag & T_VERBOSE) puts("");
 	_ma_check_print_error(param,"Can't read delete-link at filepos: %s",
-		    llstr(next_link,buff));
+                              llstr(next_link,buff));
 	DBUG_RETURN(1);
       }
       if (*buff != '\0')
       {
 	if (test_flag & T_VERBOSE) puts("");
 	_ma_check_print_error(param,"Record at pos: %s is not remove-marked",
-		    llstr(next_link,buff));
+                              llstr(next_link,buff));
 	goto wrong;
       }
       if (share->options & HA_OPTION_PACK_RECORD)
@@ -250,7 +250,9 @@ int maria_chk_del(HA_CHECK *param, register MARIA_HA *info,
 	if (empty && prev_link != old_link)
 	{
 	  if (test_flag & T_VERBOSE) puts("");
-	  _ma_check_print_error(param,"Deleted block at %s doesn't point back at previous delete link",llstr(next_link,buff2));
+	  _ma_check_print_error(param,
+                                "Deleted block at %s doesn't point back at previous delete link",
+                                llstr(next_link,buff2));
 	  goto wrong;
 	}
 	old_link=next_link;
@@ -269,23 +271,23 @@ int maria_chk_del(HA_CHECK *param, register MARIA_HA *info,
     if (empty != share->state.state.empty)
     {
       _ma_check_print_warning(param,
-			     "Found %s deleted space in delete link chain. Should be %s",
-			     llstr(empty,buff2),
-			     llstr(share->state.state.empty,buff));
+                              "Found %s deleted space in delete link chain. Should be %s",
+                              llstr(empty,buff2),
+                              llstr(share->state.state.empty,buff));
     }
     if (next_link != HA_OFFSET_ERROR)
     {
       _ma_check_print_error(param,
-			   "Found more than the expected %s deleted rows in delete link chain",
-			   llstr(share->state.state.del, buff));
+                            "Found more than the expected %s deleted rows in delete link chain",
+                            llstr(share->state.state.del, buff));
       goto wrong;
     }
     if (i != 0)
     {
       _ma_check_print_error(param,
-			   "Found %s deleted rows in delete link chain. Should be %s",
-			   llstr(share->state.state.del - i, buff2),
-			   llstr(share->state.state.del, buff));
+                            "Found %s deleted rows in delete link chain. Should be %s",
+                            llstr(share->state.state.del - i, buff2),
+                            llstr(share->state.state.del, buff));
       goto wrong;
     }
   }
@@ -423,8 +425,8 @@ int maria_chk_size(HA_CHECK *param, register MARIA_HA *info)
       ulonglong2double(share->state.state.key_file_length) >
       ulonglong2double(share->base.margin_key_file_length)*0.9)
     _ma_check_print_warning(param,"Keyfile is almost full, %10s of %10s used",
-			   llstr(share->state.state.key_file_length,buff),
-			   llstr(share->base.max_key_file_length-1,buff));
+                            llstr(share->state.state.key_file_length,buff),
+                            llstr(share->base.max_key_file_length-1,buff));
 
   size= my_seek(info->dfile.file, 0L, MY_SEEK_END, MYF(0));
   skr=(my_off_t) share->state.state.data_file_length;
@@ -448,8 +450,8 @@ int maria_chk_size(HA_CHECK *param, register MARIA_HA *info)
     else
     {
       _ma_check_print_warning(param,
-			     "Size of datafile is: %-9s       Should be: %s",
-			     llstr(size,buff), llstr(skr,buff2));
+                              "Size of datafile is: %-9s       Should be: %s",
+                              llstr(size,buff), llstr(skr,buff2));
     }
   }
   if (!(param->testflag & T_VERY_SILENT) &&
@@ -457,8 +459,8 @@ int maria_chk_size(HA_CHECK *param, register MARIA_HA *info)
       ulonglong2double(share->state.state.data_file_length) >
       (ulonglong2double(share->base.max_data_file_length)*0.9))
     _ma_check_print_warning(param, "Datafile is almost full, %10s of %10s used",
-			   llstr(share->state.state.data_file_length,buff),
-			   llstr(share->base.max_data_file_length-1,buff2));
+                            llstr(share->state.state.data_file_length,buff),
+                            llstr(share->base.max_data_file_length-1,buff2));
   DBUG_RETURN(error);
 } /* maria_chk_size */
 

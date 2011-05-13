@@ -28,9 +28,10 @@ my $NEW_TEST= 0;      # Test group separator in an array of tests
 my $test_begin= 0;
 my $test_end= 0;
 my $test_counter= 0;
+my $using_internal_tmpdir= 0;
 my $full_tmpdir;
 my $tmpdir="tmp";
-
+my $exec_dir="TMP-ma_test_all"; # Run test in this directory
 run_tests();
 
 ####
@@ -60,7 +61,14 @@ sub run_tests
     print "$my_progname version $VER\n";
     exit(0);
   }
-  $maria_path= dirname($0) . "/..";
+
+  if (! -d $exec_dir)
+  {
+    die if (!mkdir("$exec_dir"));
+  }
+  chdir($exec_dir);
+
+  $maria_path= "../" . dirname($0) . "/..";
 
   my $suffix= ( $^O =~ /win/i  && $^O !~ /darwin/i ) ? ".exe" : "";
   $maria_exe_path= "$maria_path/release";
@@ -76,7 +84,7 @@ sub run_tests
         $maria_exe_path= $maria_path;
         if ( ! -f "$maria_exe_path/ma_test1$suffix" )
         {
-           die("Cannot find ma_test1 executable\n");
+           die("Cannot find ma_test1 executable in $maria_path\n");
         }
       }
     }
@@ -90,7 +98,8 @@ sub run_tests
   }
   else
   {
-    $full_tmpdir= "tmp";
+    $full_tmpdir= $tmpdir;
+    $using_internal_tmpdir= 1;
     if (! -d "$full_tmpdir")
     {
       die if (!mkdir("$full_tmpdir"));
@@ -227,6 +236,13 @@ sub run_tests
   run_tests_on_clrs($suffix, $opt_verbose, 0);
 
   unlink_all_possible_tmp_files();
+  if ($using_internal_tmpdir)
+  {
+    rmdir($tmpdir);
+  }
+  rmdir($exec_dir);
+  chdir("..");
+  rmdir($exec_dir);
   exit($runtime_error);
 }
 
@@ -429,13 +445,16 @@ sub run_pack_tests()
           "cp test1.MAD test2.MAD",
           "cp test1.MAI test2.MAI",
           "$maria_exe_path/aria_pack$suffix --force -s --join=test3 test1 test2",
-          "$maria_exe_path/aria_chk -s test3",
-          "$maria_exe_path/aria_chk -s --safe-recover test3",
-          "$maria_exe_path/aria_chk -s test3"
          );
 
-  return &count_tests(\@t) if ($count);
+  return (&count_tests(\@t) + 3) if ($count);
   &run_test_bunch(\@t, $verbose, 0);
+
+  ok("$maria_exe_path/aria_chk -s test3", $verbose, 0, 1);
+  @t= ("$maria_exe_path/aria_chk -s --safe-recover test3",
+       "$maria_exe_path/aria_chk -s test3");
+  &run_test_bunch(\@t, $verbose, 0);
+
   return 0;
 }
 
@@ -463,7 +482,7 @@ sub run_tests_on_warnings_and_errors
   # maria_exe_path/aria_chk$suffix -h$tmpdir -sm $tmpdir/test2 will warn that
   # Datafile is almost full
   ok("$maria_exe_path/aria_chk$suffix -h$tmpdir -sm $tmpdir/test2 >ma_test2_message.txt 2>&1",
-     $verbose, 0);
+     $verbose, 0, 1);
   ok("cat ma_test2_message.txt", $verbose, 0);
   ok("grep \"warning: Datafile is almost full\" ma_test2_message.txt>/dev/null",
      $verbose, 0);
@@ -550,7 +569,7 @@ sub run_tests_on_clrs
 sub ok
 {
   my ($com, $verbose, $iteration, $expected_error)= @_;
-  my ($msg, $output, $err, $len);
+  my ($msg, $output, $err, $errcode, $len);
 
   $test_counter++;
   if ($test_begin > $test_counter)
@@ -580,8 +599,9 @@ sub ok
     print " " x (62 - $len);
   }
   $err= $?;
+  $errcode= ($? >> 8);
   if ((!$err && !$expected_error) ||
-      (($err >> 8) == $expected_error && $expected_error))
+      ($errcode == $expected_error && $expected_error))
   {
     print "[ " if ($verbose);
     print "ok";
@@ -618,7 +638,7 @@ sub ok
   }
   $msg.= "at line ";
   $msg.= (caller)[2];
-  $msg.= "\n(errcode: $err, test: $test_counter)\n";
+  $msg.= "\n(errcode: $errcode, test: $test_counter)\n";
   if ($expected_error)
   {
     $msg.= "Was expecting errcode: $expected_error\n";
@@ -681,7 +701,7 @@ sub unlink_all_possible_tmp_files()
   unlink_log_files();
 
   # Unlink tmp files that may have been created when testing the test programs
-  unlink <$full_tmpdir/*.TMD aria_log_control aria_log.00000001 aria_log.00000002 aria_logtest1.MA? test2.MA? test3.MA?>;
+  unlink <$full_tmpdir/*.TMD $full_tmpdir/aria_read_log_test1.txt $full_tmpdir/test1*.MA? $full_tmpdir/ma_test_recovery.output aria_log_control aria_log.00000001 aria_log.00000002 aria_logtest1.MA? test1.MA? test2.MA? test3.MA?>;
 }
 
 ####
@@ -733,6 +753,7 @@ Options
                    might depend on previous ones.
 --start-from=...   Alias for --run-tests
 --silent=...       Silent option passed to ma_test* tests ('$opt_silent')
+--tmpdir=...       Store tests data in this directory (works for most tests)
 --valgrind=...     Options for valgrind.
                    ('$opt_valgrind')
 --verbose          Be more verbose. Will print each unittest on a line
