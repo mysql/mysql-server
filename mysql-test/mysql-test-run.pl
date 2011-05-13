@@ -2051,6 +2051,13 @@ sub environment_setup {
       push(@ld_library_paths, "$basedir/libmysql/.libs/",
 	   "$basedir/libmysql_r/.libs/",
 	   "$basedir/zlib/.libs/");
+      if ($^O eq "darwin")
+      {
+        # it is MAC OS and we have to add dynamic libraries paths
+        push @ld_library_paths, grep {<$_/*.dylib>} 
+          (<$bindir/storage/*/.libs/>,<$bindir/plugin/*/.libs/>,
+          <$bindir/plugin/*/*/.libs/>,<$bindir/storage/*/*/.libs>);
+      }
     }
     else
     {
