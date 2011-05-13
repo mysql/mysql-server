@@ -158,7 +158,7 @@ my $path_config_file;           # The generated config file, var/my.cnf
 # executables will be used by the test suite.
 our $opt_vs_config = $ENV{'MTR_VS_CONFIG'};
 
-my $DEFAULT_SUITES= "ndb,ndb_binlog,rpl_ndb,main,binlog,federated,rpl,innodb,ndb_team";
+my $DEFAULT_SUITES= "ndb,ndb_binlog,rpl_ndb,ndb_rpl,main,binlog,federated,rpl,innodb,ndb_team";
 my $opt_suites;
 my $opt_extra_suites;
 
