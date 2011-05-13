@@ -6753,16 +6753,15 @@ void Create_file_log_event::pack_info(Protocol *protocol)
 #if defined(HAVE_REPLICATION) && !defined(MYSQL_CLIENT)
 int Create_file_log_event::do_apply_event(Relay_log_info const *rli)
 {
-  char proc_info[17+FN_REFLEN+10], *fname_buf;
+  char fname_buf[FN_REFLEN+10];
   char *ext;
   int fd = -1;
   IO_CACHE file;
   int error = 1;
 
+  THD_STAGE_INFO(thd, stage_making_temp_file_create_before_load_data);
   bzero((char*)&file, sizeof(file));
-  fname_buf= strmov(proc_info, "Making temp file ");
   ext= slave_load_file_stem(fname_buf, file_id, server_id, ".info");
-  thd_proc_info(thd, proc_info);
   /* old copy may exist already */
   mysql_file_delete(key_file_log_event_info, fname_buf, MYF(0));
   if ((fd= mysql_file_create(key_file_log_event_info,
@@ -6932,14 +6931,13 @@ int Append_block_log_event::get_create_or_append() const
 
 int Append_block_log_event::do_apply_event(Relay_log_info const *rli)
 {
-  char proc_info[17+FN_REFLEN+10], *fname= proc_info+17;
+  char fname[FN_REFLEN+10];
   int fd;
   int error = 1;
   DBUG_ENTER("Append_block_log_event::do_apply_event");
 
-  fname= strmov(proc_info, "Making temp file ");
+  THD_STAGE_INFO(thd, stage_making_temp_file_append_before_load_data);
   slave_load_file_stem(fname, file_id, server_id, ".data");
-  thd_proc_info(thd, proc_info);
   if (get_create_or_append())
   {
     /*
