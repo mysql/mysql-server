@@ -109,6 +109,7 @@ xtPublic void xt_heap_release(XTThreadPtr self, XTHeapPtr hp)
 			if (hp->h_finalize)
 				(*hp->h_finalize)(self, hp);
 			xt_spinlock_unlock(&hp->h_lock);
+			xt_spinlock_free(NULL, &hp->h_lock);
 			xt_free(self, hp);
 			return;
 		}
