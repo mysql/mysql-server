@@ -1412,3 +1412,25 @@ SELECT STRAIGHT_JOIN (
 );
 
 drop table t1, t2, t3;
+
+
+--echo #                                                                                                                                                     
+--echo # LP BUG#777597 Wrong result with multipart keys, in_to_exists=on, NOT IN in MWL#89
+--echo #                                                                                                                                                     
+
+CREATE TABLE t1 ( f4 int);
+INSERT IGNORE INTO t1 VALUES (2),(2);
+
+CREATE TABLE t2 ( f3 int, f10 int, KEY (f10,f3) );
+INSERT IGNORE INTO t2 VALUES (6, 1), (6, 1);
+
+CREATE TABLE t3 ( f10 int );
+INSERT IGNORE INTO t3 VALUES (1);
+
+SET SESSION optimizer_switch='in_to_exists=on,materialization=off';
+
+EXPLAIN
+SELECT * FROM t1 WHERE ( 6 ) NOT IN ( SELECT t2.f3 FROM t2 JOIN t3 ON t3.f10 = t2.f10);
+SELECT * FROM t1 WHERE ( 6 ) NOT IN ( SELECT t2.f3 FROM t2 JOIN t3 ON t3.f10 = t2.f10);
+
+drop table t1,t2,t3;
