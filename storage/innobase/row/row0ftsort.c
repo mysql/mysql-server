@@ -79,10 +79,11 @@ row_merge_create_fts_sort_index(
 	field = dict_index_get_nth_field(new_index, 0);
 	field->name = NULL;
 	field->prefix_len = 0;
-	field->col = mem_heap_alloc(index->heap, sizeof(dict_col_t));
+	field->col = mem_heap_alloc(new_index->heap, sizeof(dict_col_t));
 	field->col->len = FTS_MAX_UTF8_WORD_LEN;
 	field->col->mtype = DATA_VARCHAR;
 	field->col->prtype = DATA_NOT_NULL;
+	field->col->mbminmaxlen = 0;
 	field->fixed_len = 0;
 
 	/* The second field is on the Doc ID. To reduce the
@@ -91,21 +92,23 @@ row_merge_create_fts_sort_index(
 	field = dict_index_get_nth_field(new_index, 1);
 	field->name = NULL;
 	field->prefix_len = 0;
-	field->col = mem_heap_alloc(index->heap, sizeof(dict_col_t));
+	field->col = mem_heap_alloc(new_index->heap, sizeof(dict_col_t));
 	field->col->mtype = DATA_INT;
 	field->col->len = FTS_DOC_ID_LEN;
 	field->fixed_len = FTS_DOC_ID_LEN;
 	field->col->prtype = DATA_NOT_NULL;
+	field->col->mbminmaxlen = 0;
 
 	/* The third field is on the word's Position in original doc */
 	field = dict_index_get_nth_field(new_index, 2);
 	field->name = NULL;
 	field->prefix_len = 0;
-	field->col = mem_heap_alloc(index->heap, sizeof(dict_col_t));
+	field->col = mem_heap_alloc(new_index->heap, sizeof(dict_col_t));
 	field->col->mtype = DATA_INT;
 	field->col->len = 4 ;
 	field->fixed_len = 4;
 	field->col->prtype = DATA_NOT_NULL;
+	field->col->mbminmaxlen = 0;
 
 	return(new_index);
 }
@@ -340,7 +343,7 @@ row_merge_fts_doc_tokenize(
 		field->type.mtype = DATA_VARCHAR;
 		field->type.prtype = DATA_NOT_NULL;
 		field->type.len = FTS_MAX_UTF8_WORD_LEN;
-		field->type.mbminmaxlen = DATA_MBMINMAXLEN(1, 1);
+		field->type.mbminmaxlen = 0;
 		data_size[idx] += len;
 		dfield_dup(field, buf->heap);
 		field++;
@@ -430,6 +433,7 @@ fts_parallel_tokenization(
 	ulint			buf_used = 0;
 	ulint			total_rec = 0;
 	ulint			num_doc_processed = 0;
+	doc_id_t		last_doc_id;	
 
 	ut_ad(psort_info);
 
@@ -446,6 +450,7 @@ fts_parallel_tokenization(
 	doc_item = UT_LIST_GET_FIRST(psort_info->fts_doc_list);
 loop:
 	while (doc_item) {
+		last_doc_id = doc_item->doc_id;
 		n_row_added = row_merge_fts_doc_tokenize(
 					buf, doc_item->field,
 					doc_item->doc_id,
@@ -457,8 +462,13 @@ loop:
 		}
 
 		doc_item = UT_LIST_GET_NEXT(doc_list, doc_item);
+
+		/* Always remember the last doc_item we processed */
 		if (doc_item) {
 			prev_doc_item = doc_item;
+			if (last_doc_id != doc_item->doc_id) {
+				init_pos = 0;
+			}
 		}
 	}
 
@@ -687,27 +697,31 @@ row_fts_insert_tuple(
 		fts_node = ib_vector_last(word->nodes);
 	}
 
-	/* If dtuple == NULL, this is the last word to be processed */
-	if (!dtuple && fts_node && ib_vector_size(positions) > 0) {
-		fts_cache_node_add_positions(
-			&cache, fts_node, *in_doc_id, positions);
-
-		/* Write out the current word */
-		row_merge_write_fts_word(trx, ins_graph, word,
-					 fts_node, fts_table);
-
-		if (count) {
-			(*count)++;
-		}
-		return;
-	}
-
 	if (fts_node == NULL
 	    || fts_node->ilist_size > FTS_ILIST_MAX_SIZE) {
 
 		fts_node = ib_vector_push(word->nodes, NULL);
 
 		memset(fts_node, 0x0, sizeof(*fts_node));
+	}
+
+	/* If dtuple == NULL, this is the last word to be processed */
+	if (!dtuple) {
+		if (fts_node && ib_vector_size(positions) > 0) {
+			fts_cache_node_add_positions(
+				&cache, fts_node, *in_doc_id,
+				positions);
+
+			/* Write out the current word */
+			row_merge_write_fts_word(trx, ins_graph, word,
+						 fts_node, fts_table);
+
+			if (count) {
+				(*count)++;
+			}
+		}
+
+		return;
 	}
 
 	/* Get the first field for the tokenized word */
@@ -722,6 +736,7 @@ row_fts_insert_tuple(
 	/* compare to the last word, to see if they are the same
 	word */
 	if (fts_utf8_string_cmp(&word->text, &token_word) != 0) {
+		ulint	num_item;
 
 		/* Getting a new word, flush the last position info
 		for the currnt word in fts_node */
@@ -740,8 +755,10 @@ row_fts_insert_tuple(
 		/* Copy the new word */
 		fts_utf8_string_dup(&word->text, &token_word, heap);
 
+		num_item = ib_vector_size(positions);
+
 		/* Clean up position queue */
-		for (i = 0; i < ib_vector_size(positions); i++) {
+		for (i = 0; i < num_item; i++) {
 			ib_vector_pop(positions);
 		}
 
@@ -765,9 +782,11 @@ row_fts_insert_tuple(
 	if (!(*in_doc_id) || *in_doc_id == doc_id) {
 		ib_vector_push(positions, &position);
 	} else {
+		ulint	num_pos = ib_vector_size(positions);
+
 		fts_cache_node_add_positions(&cache, fts_node,
 					     *in_doc_id, positions);
-		for (i = 0; i < ib_vector_size(positions); i++) {
+		for (i = 0; i < num_pos; i++) {
 			ib_vector_pop(positions);
 		}
 		ib_vector_push(positions, &position);
@@ -1026,7 +1045,7 @@ row_fts_merge_insert(
 
 	/* Allocate insert query graphs for FTS auxillary
 	Index Table, note we have 4 such index tables */
-	n_bytes = sizeof(que_t*) * 5;
+	n_bytes = sizeof(que_t*) * (FTS_NUM_INDEX_TABLE + 1);
 	ins_graph = mem_heap_alloc(index->heap, n_bytes);
 	memset(ins_graph, 0x0, n_bytes);
 
@@ -1064,6 +1083,13 @@ row_fts_merge_insert(
 				min_rec++;
 
 				if (min_rec >= FTS_PARALLEL_DEGREE) {
+
+					row_fts_insert_tuple(
+						trx, ins_graph, index,
+						&fts_table, &new_word,
+						positions, &last_doc_id,
+						NULL, &counta);
+
 					goto exit;
 				}
 			}
@@ -1084,6 +1110,12 @@ row_fts_merge_insert(
 			min_rec = sel_tree[0];
 
 			if (min_rec ==  -1) {
+				row_fts_insert_tuple(
+					trx, ins_graph, index,
+					&fts_table, &new_word,
+					positions, &last_doc_id,
+					NULL, &counta);
+
 				goto exit;
 			}
 		}
@@ -1118,6 +1150,12 @@ exit:
 	trx->op_info = "";
 
 	mem_heap_free(tuple_heap);
+
+	for (i = 0; i < FTS_NUM_INDEX_TABLE; i++) {
+		if (ins_graph[i]) {
+			fts_que_graph_free(ins_graph[i]);
+		}
+	}
 
 	fprintf(stderr, "FTS: inserted %lu record and final record %lu\n", (ulong)count, (ulong)counta);
 	return(error);

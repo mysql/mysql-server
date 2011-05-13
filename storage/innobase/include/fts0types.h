@@ -167,6 +167,7 @@ struct fts_cache_struct {
 					the deleted lock */
 
 	fts_stopword_t	stopword_info;	/* Cached stopwords for the FTS */
+	mem_heap_t*	cache_heap;	/* Cache Heap */
 };
 
 /* Columns of the FTS auxiliary INDEX table */

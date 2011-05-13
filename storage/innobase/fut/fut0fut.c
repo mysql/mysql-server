@@ -565,10 +565,16 @@ fts_cache_create(
 /*=============*/
 	dict_table_t*		table)	/*!< table owns the FTS cache */
 {
-	mem_heap_t*	heap = table->heap;
-	fts_cache_t*	cache = mem_heap_alloc(heap, sizeof(*cache));
+	mem_heap_t*	heap;
+	fts_cache_t*	cache; 
+
+	heap = mem_heap_create(512);
+
+	cache = mem_heap_alloc(heap, sizeof(*cache));
 
 	memset(cache, 0, sizeof(*cache));
+
+	cache->cache_heap = heap;
 
 	rw_lock_create(fts_cache_rw_lock_key, &cache->lock, SYNC_FTS_CACHE);
 
@@ -781,6 +787,7 @@ fts_cache_sync_and_free(
 	rw_lock_free(&cache->lock);
 	mutex_free(&cache->optimize_lock);
 	mutex_free(&cache->deleted_lock);
+	mem_heap_free(cache->cache_heap);
 }
 
 /********************************************************************
@@ -3135,6 +3142,7 @@ fts_sync_write_doc_stat(
 	pars_info_t*	info;
 	doc_id_t	doc_id;
 	ulint		error = DB_SUCCESS;
+	ib_uint32_t	word_count;
 
 	if (*graph) {
 		info = (*graph)->info;
@@ -3143,8 +3151,9 @@ fts_sync_write_doc_stat(
 	}
 
 	/* Convert to "storage" byte order. */
+	mach_write_to_4((byte*) &word_count, doc_stat->word_count);
 	pars_info_bind_int4_literal(info, "count",
-				    (const ib_uint32_t*) &doc_stat->word_count);
+				    (const ib_uint32_t*) &word_count);
 
 	/* Convert to "storage" byte order. */
 	fts_write_doc_id((byte*) &doc_id, doc_stat->doc_id);

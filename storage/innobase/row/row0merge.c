@@ -1962,6 +1962,7 @@ row_merge_insert_index_tuples(
 	que_t**			ins_graph;
 	fts_table_t		fts_table;
 	int			counta;
+	mem_heap_t*		fts_heap = NULL;
 
 	ut_ad(trx);
 	ut_ad(index);
@@ -1996,7 +1997,9 @@ row_merge_insert_index_tuples(
 		ib_alloc_t*             heap_alloc;
 		ulint			n_bytes;
 
-		heap_alloc = ib_heap_allocator_create(index->heap);
+		fts_heap = mem_heap_create(512);
+
+		heap_alloc = ib_heap_allocator_create(fts_heap);
 
 		memset(&new_word, 0, sizeof(new_word));
 
@@ -2008,7 +2011,7 @@ row_merge_insert_index_tuples(
 		/* Allocate insert query graphs for FTS auxillary
 		Index Table, note we have 4 such index tables */
 		n_bytes = sizeof(que_t*) * 5;
-		ins_graph = mem_heap_alloc(index->heap, n_bytes);
+		ins_graph = mem_heap_alloc(fts_heap, n_bytes);
 		memset(ins_graph, 0x0, n_bytes);
 
 		fts_table.type = FTS_INDEX_TABLE;
@@ -2099,6 +2102,10 @@ err_exit:
 	trx->op_info = "";
 
 	mem_heap_free(tuple_heap);
+
+	if (fts_heap) {
+		mem_heap_free(fts_heap);
+	}
 
 	return(error);
 }

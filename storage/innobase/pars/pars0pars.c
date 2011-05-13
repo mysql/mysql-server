@@ -2420,7 +2420,7 @@ pars_info_bind_int4_literal(
 	pbl = pars_info_lookup_bound_lit(info, name);
 
 	if (!pbl) {
-		pars_info_add_int4_literal(info, name, *val);
+		pars_info_add_literal(info, name, val, 4, DATA_INT, 0);
 	} else {
 
 		pbl->address = val;
