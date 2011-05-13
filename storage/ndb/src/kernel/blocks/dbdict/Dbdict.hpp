@@ -2365,6 +2365,7 @@ private:
     // current and new temporary work table
     TableRecordPtr m_tablePtr;
     TableRecordPtr m_newTablePtr;
+    Uint32 m_newTable_realObjectId;
 
     // before image
     RopeHandle m_oldTableName;
