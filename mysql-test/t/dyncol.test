@@ -246,7 +246,7 @@ select column_get(column_create(1, 18446744073709551615 AS unsigned int), 1 as d
 select column_get(column_create(1, 9223372036854775807 AS int), 1 as datetime);
 select column_get(column_create(1, -9223372036854775808 AS int), 1 as datetime); 
 select column_get(column_create(1, 99999999999999999999999999999 AS decimal(32,10)), 1 as datetime);
---replace_result 1e+028 1e+28
+--replace_result 9.9999999999999991e+028 9.99999999999999914332e+28
 select column_get(column_create(1, 99999999999999999999999999999 AS double), 1 as datetime);
 select column_get(column_create(1, "2011-02-32 8:46:06.23434" AS CHAR), 1 as datetime);
 select column_get(column_create(1, "2011-13-01 8:46:06.23434" AS CHAR), 1 as datetime);
@@ -292,7 +292,7 @@ select column_get(column_create(1, 18446744073709551615 AS unsigned int), 1 as d
 select column_get(column_create(1, 9223372036854775807 AS int), 1 as date);
 select column_get(column_create(1, -9223372036854775808 AS int), 1 as date); 
 select column_get(column_create(1, 99999999999999999999999999999 AS decimal(32,10)), 1 as date);
---replace_result 1e+028 1e+28
+--replace_result 9.9999999999999991e+028 9.99999999999999914332e+28
 select column_get(column_create(1, 99999999999999999999999999999 AS double), 1 as date);
 select column_get(column_create(1, "2011-02-32 8:46:06.23434" AS CHAR), 1 as date);
 select column_get(column_create(1, "2011-13-01 8:46:06.23434" AS CHAR), 1 as date);
@@ -337,7 +337,7 @@ select column_get(column_create(1, 18446744073709551615 AS unsigned int), 1 as t
 select column_get(column_create(1, 9223372036854775807 AS int), 1 as time);
 select column_get(column_create(1, -9223372036854775808 AS int), 1 as time); 
 select column_get(column_create(1, 99999999999999999999999999999 AS decimal(32,10)), 1 as time);
---replace_result 1e+028 1e+28
+--replace_result 1e+029 1e+29
 select column_get(column_create(1, 99999999999999999999999999999 AS double), 1 as time);
 select column_get(column_create(1, "2011-02-32 8:46:06.23434" AS CHAR), 1 as time);
 select column_get(column_create(1, "2011-13-01 8:46:06.23434" AS CHAR), 1 as time);
