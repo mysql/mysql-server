@@ -42,6 +42,9 @@ FIC. Three fields are sort: (word, doc_id, position) */
 exclude it from FT index */
 #define FTS_MIN_TOKEN_SIZE		3
 
+/* Number of FTS index table*/
+#define FTS_NUM_INDEX_TABLE		4
+
 /* Document id type. */
 typedef ib_uint64_t doc_id_t;
 

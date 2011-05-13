@@ -177,8 +177,6 @@ fts_parse_sql(
 	/* The InnoDB SQL parser is not re-entrant. */
 	mutex_enter(&dict_sys->mutex);
 
-	//fprintf(stderr, "%s\n", str);
-
 	graph = pars_sql(info, str);
 	ut_a(graph);
 
