@@ -2260,7 +2260,7 @@ void Query_cache::free_cache()
     do
     {
       Query_cache_query *query= block->query();
-      my_rwlock_destroy(&query->lock);
+      rwlock_destroy(&query->lock);
       block= block->next;
     } while (block != queries_blocks);
   }
