@@ -357,6 +357,7 @@ ARCHIVE_SHARE *ha_archive::get_share(const char *table_name, int *rc)
     {
       *rc= my_errno ? my_errno : -1;
       pthread_mutex_unlock(&archive_mutex);
+      pthread_mutex_destroy(&share->mutex);
       my_free(share, MYF(0));
       DBUG_RETURN(NULL);
     }
