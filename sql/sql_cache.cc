@@ -2253,6 +2253,18 @@ void Query_cache::free_cache()
 {
   DBUG_ENTER("Query_cache::free_cache");
 
+  /* Destroy locks */
+  Query_cache_block *block= queries_blocks;
+  if (block)
+  {
+    do
+    {
+      Query_cache_query *query= block->query();
+      my_rwlock_destroy(&query->lock);
+      block= block->next;
+    } while (block != queries_blocks);
+  }
+
   my_free((uchar*) cache, MYF(MY_ALLOW_ZERO_PTR));
   make_disabled();
   hash_free(&queries);
