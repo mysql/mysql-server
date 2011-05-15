@@ -32,26 +32,26 @@ ADD_CUSTOM_COMMAND(OUTPUT ${CMAKE_BINARY_DIR}/include/mysqld_error.h.tmp
 	--charset=${PROJECT_SOURCE_DIR}/sql/share/charsets 
 	--out-dir=${CMAKE_BINARY_DIR}/sql/share/
 	--header_file=${CMAKE_BINARY_DIR}/include/mysqld_error.h.tmp 
-	--name_file=${CMAKE_BINARY_DIR}/include/mysqld_ername.h
-	--state_file=${CMAKE_BINARY_DIR}/include/sql_state.h
+	--name_file=${CMAKE_BINARY_DIR}/include/mysqld_ername.h.tmp
+	--state_file=${CMAKE_BINARY_DIR}/include/sql_state.h.tmp
 	--in_file=${PROJECT_SOURCE_DIR}/sql/share/errmsg.txt
    COMMAND ${CMAKE_COMMAND} -E copy_if_different ${CMAKE_BINARY_DIR}/include/mysqld_error.h.tmp ${CMAKE_BINARY_DIR}/include/mysqld_error.h
+   COMMAND ${CMAKE_COMMAND} -E copy_if_different ${CMAKE_BINARY_DIR}/include/mysqld_ername.h.tmp ${CMAKE_BINARY_DIR}/include/mysqld_ername.h
+   COMMAND ${CMAKE_COMMAND} -E copy_if_different ${CMAKE_BINARY_DIR}/include/sql_state.h.tmp ${CMAKE_BINARY_DIR}/include/sql_state.h
    DEPENDS comp_err ${PROJECT_SOURCE_DIR}/sql/share/errmsg.txt)
 
 ADD_CUSTOM_TARGET(GenError
                   ALL
                   DEPENDS ${CMAKE_BINARY_DIR}/include/mysqld_error.h.tmp)
 
-ADD_EXECUTABLE(my_print_defaults my_print_defaults.c)
+MYSQL_ADD_EXECUTABLE(my_print_defaults my_print_defaults.c)
 TARGET_LINK_LIBRARIES(my_print_defaults strings mysys debug dbug taocrypt wsock32)
 
-ADD_EXECUTABLE(perror perror.c)
+MYSQL_ADD_EXECUTABLE(perror perror.c)
 TARGET_LINK_LIBRARIES(perror strings mysys debug dbug wsock32)
 
-ADD_EXECUTABLE(resolveip resolveip.c)
+MYSQL_ADD_EXECUTABLE(resolveip resolveip.c)
 TARGET_LINK_LIBRARIES(resolveip strings mysys debug dbug wsock32)
 
-ADD_EXECUTABLE(replace replace.c)
+MYSQL_ADD_EXECUTABLE(replace replace.c COMPONENT Server)
 TARGET_LINK_LIBRARIES(replace strings mysys debug dbug wsock32)
-
-MYSQL_INSTALL_TARGETS(comp_err my_print_defaults perror resolveip replace DESTINATION bin COMPONENT Server)
