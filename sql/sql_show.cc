@@ -7150,7 +7150,7 @@ static TABLE_LIST *get_trigger_table_impl(
 
   if (!(table= (TABLE_LIST *)thd->calloc(sizeof(TABLE_LIST))))
   {
-    my_error(ER_OUTOFMEMORY, MYF(0), sizeof(TABLE_LIST));
+    my_error(ER_OUTOFMEMORY, MYF(0), static_cast<int>(sizeof(TABLE_LIST)));
     return NULL;
   }
 

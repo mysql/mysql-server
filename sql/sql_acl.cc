@@ -1970,13 +1970,12 @@ static int replace_user_table(THD *thd, TABLE *table, const LEX_USER &combo,
     */
     else if (!password_len && no_auto_create)
     {
-      my_error(ER_PASSWORD_NO_MATCH, MYF(0), combo.user.str, combo.host.str);
+      my_error(ER_PASSWORD_NO_MATCH, MYF(0));
       goto end;
     }
     else if (!can_create_user)
     {
-      my_error(ER_CANT_CREATE_USER_WITH_GRANT, MYF(0),
-               thd->security_ctx->user, thd->security_ctx->host_or_ip);
+      my_error(ER_CANT_CREATE_USER_WITH_GRANT, MYF(0));
       goto end;
     }
     old_row_exists = 0;

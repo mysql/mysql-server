@@ -1,4 +1,4 @@
-/* Copyright (C) 2007 MySQL AB
+/* Copyright (c) 2007, 2011, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -11,8 +11,7 @@
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
-   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
-
+   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA */
 
 /*
   Functions to autenticate and handle reqests for a connection
@@ -342,7 +341,7 @@ check_user(THD *thd, enum enum_server_command command,
       passwd_len != SCRAMBLE_LENGTH &&
       passwd_len != SCRAMBLE_LENGTH_323)
   {
-    my_error(ER_HANDSHAKE_ERROR, MYF(0), thd->main_security_ctx.host_or_ip);
+    my_error(ER_HANDSHAKE_ERROR, MYF(0));
     DBUG_RETURN(1);
   }
 
@@ -373,7 +372,7 @@ check_user(THD *thd, enum enum_server_command command,
         my_net_read(net) != SCRAMBLE_LENGTH_323 + 1)
     {
       inc_host_errors(&thd->remote.sin_addr);
-      my_error(ER_HANDSHAKE_ERROR, MYF(0), thd->main_security_ctx.host_or_ip);
+      my_error(ER_HANDSHAKE_ERROR, MYF(0));
       DBUG_RETURN(1);
     }
     /* Final attempt to check the user based on reply */
@@ -773,7 +772,7 @@ static int check_connection(THD *thd)
 
     if (vio_peer_addr(net->vio, ip, &thd->peer_port))
     {
-      my_error(ER_BAD_HOST_ERROR, MYF(0), thd->main_security_ctx.host_or_ip);
+      my_error(ER_BAD_HOST_ERROR, MYF(0));
       return 1;
     }
     if (!(thd->main_security_ctx.ip= my_strdup(ip,MYF(MY_WME))))
@@ -873,8 +872,7 @@ static int check_connection(THD *thd)
 	pkt_len < MIN_HANDSHAKE_SIZE)
     {
       inc_host_errors(&thd->remote.sin_addr);
-      my_error(ER_HANDSHAKE_ERROR, MYF(0),
-               thd->main_security_ctx.host_or_ip);
+      my_error(ER_HANDSHAKE_ERROR, MYF(0));
       return 1;
     }
   }
@@ -918,7 +916,7 @@ static int check_connection(THD *thd)
     if (!ssl_acceptor_fd)
     {
       inc_host_errors(&thd->remote.sin_addr);
-      my_error(ER_HANDSHAKE_ERROR, MYF(0), thd->main_security_ctx.host_or_ip);
+      my_error(ER_HANDSHAKE_ERROR, MYF(0));
       return 1;
     }
     DBUG_PRINT("info", ("IO layer change in progress..."));
@@ -926,7 +924,7 @@ static int check_connection(THD *thd)
     {
       DBUG_PRINT("error", ("Failed to accept new SSL connection"));
       inc_host_errors(&thd->remote.sin_addr);
-      my_error(ER_HANDSHAKE_ERROR, MYF(0), thd->main_security_ctx.host_or_ip);
+      my_error(ER_HANDSHAKE_ERROR, MYF(0));
       return 1;
     }
     DBUG_PRINT("info", ("Reading user information over SSL layer"));
@@ -936,7 +934,7 @@ static int check_connection(THD *thd)
       DBUG_PRINT("error", ("Failed to read user information (pkt_len= %lu)",
 			   pkt_len));
       inc_host_errors(&thd->remote.sin_addr);
-      my_error(ER_HANDSHAKE_ERROR, MYF(0), thd->main_security_ctx.host_or_ip);
+      my_error(ER_HANDSHAKE_ERROR, MYF(0));
       return 1;
     }
   }
@@ -945,7 +943,7 @@ static int check_connection(THD *thd)
   if (end > (char *)net->read_pos + pkt_len)
   {
     inc_host_errors(&thd->remote.sin_addr);
-    my_error(ER_HANDSHAKE_ERROR, MYF(0), thd->main_security_ctx.host_or_ip);
+    my_error(ER_HANDSHAKE_ERROR, MYF(0));
     return 1;
   }
 
@@ -968,7 +966,7 @@ static int check_connection(THD *thd)
   if (user == NULL)
   {
     inc_host_errors(&thd->remote.sin_addr);
-    my_error(ER_HANDSHAKE_ERROR, MYF(0), thd->main_security_ctx.host_or_ip);
+    my_error(ER_HANDSHAKE_ERROR, MYF(0));
     return 1;
   }
 
@@ -1000,7 +998,7 @@ static int check_connection(THD *thd)
   if (passwd == NULL)
   {
     inc_host_errors(&thd->remote.sin_addr);
-    my_error(ER_HANDSHAKE_ERROR, MYF(0), thd->main_security_ctx.host_or_ip);
+    my_error(ER_HANDSHAKE_ERROR, MYF(0));
     return 1;
   }
 
@@ -1014,7 +1012,7 @@ static int check_connection(THD *thd)
     if (db == NULL)
     {
       inc_host_errors(&thd->remote.sin_addr);
-      my_error(ER_HANDSHAKE_ERROR, MYF(0), thd->main_security_ctx.host_or_ip);
+      my_error(ER_HANDSHAKE_ERROR, MYF(0));
       return 1;
     }
   }
