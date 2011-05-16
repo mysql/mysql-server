@@ -11864,12 +11864,14 @@ innodb_internal_table_validate(
 	user_table = dict_table_open_on_name_no_stats(
 			table_name, FALSE, DICT_ERR_IGNORE_NONE);
 
-	if (user_table && dict_table_has_fts_index(user_table)) {
-		*static_cast<const char**>(save) = table_name;
-		ret = 0;
-	}
+	if (user_table) {
+		if (dict_table_has_fts_index(user_table)) {
+			*static_cast<const char**>(save) = table_name;
+			ret = 0;
+		}
 
-	dict_table_close(user_table, FALSE);
+		dict_table_close(user_table, FALSE);
+	}
 
 	return(ret);
 }

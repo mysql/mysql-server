@@ -289,11 +289,14 @@ row_merge_buf_add(
 		/* If we are creating a FTS index, a new Doc
 		ID column is being added, so we need to adjust
 		any column number positioned after this Doc ID */
-		if (doc_id && (col_no > index->table->fts->doc_col)) {
+		if (doc_id
+		    && DICT_TF2_FLAG_IS_SET(index->table,
+                    			    DICT_TF_FTS_ADD_DOC_ID)
+		    && (col_no > index->table->fts->doc_col)) {
 
 			ut_ad(index->table->fts);
 
-			//col_no--;
+			col_no--;
 		}
 
 		/* Process the Doc ID column */
@@ -305,6 +308,7 @@ row_merge_buf_add(
 			field->type.mtype = ifield->col->mtype;
 			field->type.prtype = ifield->col->prtype;
 			field->type.mbminmaxlen = DATA_MBMINMAXLEN(0, 0);
+			field->type.len = ifield->col->len;
 		} else {
 			row_field = dtuple_get_nth_field(row, col_no);
 
@@ -1399,7 +1403,7 @@ row_merge_read_clustered_index(
 			}
 
 			if (!row &&  index->type & DICT_FTS && FTS_PLL_ENABLED) {
-				goto func_exit;
+				continue;
 			}
 
 			/* The buffer must be sufficiently large

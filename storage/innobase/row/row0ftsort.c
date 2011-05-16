@@ -257,9 +257,9 @@ row_fts_free_pll_merge_buf(
 /*********************************************************************//**
 Tokenize incoming text data and add to the sort buffer.
 FIXME: Consider running out of buffer in the middle of string parsing.
-@return	number of rows added, 0 if out of space */
+@return	TRUE if the record passed, FALSE if out of space */
 UNIV_INTERN
-ulint
+ibool
 row_merge_fts_doc_tokenize(
 /*=======================*/
 	row_merge_buf_t** sort_buf,	/*!< in/out: sort buffer */
@@ -283,6 +283,7 @@ row_merge_fts_doc_tokenize(
 	row_merge_buf_t* buf;
 
 	doc.tokens = 0;
+	*buf_used = 0;
 
 	doc.text.utf8 = dfield_get_data(dfield);
 
@@ -356,6 +357,7 @@ row_merge_fts_doc_tokenize(
 		field->type.mtype = DATA_INT;
 		field->type.prtype = DATA_NOT_NULL;
 		field->type.len = len;
+		field->type.mbminmaxlen = 0;
 		data_size[idx] += len;
 		dfield_dup(field, buf->heap);
 		field++;
@@ -368,6 +370,7 @@ row_merge_fts_doc_tokenize(
 		field->type.mtype = DATA_INT;
 		field->type.prtype = DATA_NOT_NULL;
 		field->type.len = len;
+		field->type.mbminmaxlen = 0;
 		data_size[idx] += len;
 		dfield_dup(field, buf->heap);
 
@@ -405,7 +408,7 @@ row_merge_fts_doc_tokenize(
 	/* we pad one byte between text accross two fields */
 	*init_pos += doc.text.len + 1;
 
-	return(n_tuple[0]);
+	return(TRUE);
 }
 /*********************************************************************//**
 Function performs parallel tokenization of the incoming doc strings.
@@ -423,7 +426,7 @@ fts_parallel_tokenization(
 	fts_doc_item_t*		doc_item = NULL;
 	fts_doc_item_t*		prev_doc_item = NULL;
 	row_merge_buf_t**	buf;
-	ulint			n_row_added = 0;
+	ibool			processed = FALSE;
 	merge_file_t**		merge_file;
 	row_merge_block_t**	block;
 	ulint			init_pos = 0;
@@ -451,15 +454,16 @@ fts_parallel_tokenization(
 loop:
 	while (doc_item) {
 		last_doc_id = doc_item->doc_id;
-		n_row_added = row_merge_fts_doc_tokenize(
+		processed = row_merge_fts_doc_tokenize(
 					buf, doc_item->field,
 					doc_item->doc_id,
 					&init_pos, &buf_used, rows_added,
 					merge_file);
-		num_doc_processed++;
-		if (!n_row_added) {
+		if (!processed) {
 			break;
 		}
+
+		num_doc_processed++;
 
 		doc_item = UT_LIST_GET_NEXT(doc_list, doc_item);
 
@@ -472,7 +476,7 @@ loop:
 		}
 	}
 
-	if (rows_added[buf_used] && !n_row_added) {
+	if (rows_added[buf_used] && !processed) {
 		row_merge_buf_sort(buf[buf_used], NULL);
 		row_merge_buf_write(buf[buf_used], merge_file[buf_used],
 				    block[buf_used]);
