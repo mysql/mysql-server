@@ -67,7 +67,6 @@ vi\.c : unused parameter
 common\.c : unused parameter
 term\.c : .*
 
-
 #
 # Ignore some warnings in libevent, which is not maintained by us.
 #
@@ -146,6 +145,7 @@ table_xt\.cc : variable.*might be clobbered by.*longjmp
 
 #
 # Yassl
+#
 include/runtime.hpp: .*pure_error.*
 .*/extra/yassl/.*taocrypt/.*: comparison with string literal
 .*/extra/yassl/taocrypt/src/blowfish\.cpp: array subscript is above array bounds
@@ -157,6 +157,12 @@ mySTL/algorithm\.hpp: is used uninitialized in this function
 # Groff warnings on OpenSUSE.
 #
 .*/dbug/.*(groff|<standard input>) : .*
+
+#
+# Warnings on OpenSolaris
+#
+.*/my_config\.h : _FILE_OFFSET_BITS
+/usr/include/sys/feature_tests.h : this is the location of the previous definition
 
 #
 # Unexplanable (?) stuff
@@ -183,3 +189,10 @@ ctype-simple\.c : .*unary minus operator applied to unsigned type, result still 
 regexec\.c : passing argument 3 of.*matcher.* discards qualifiers from pointer target type
 libmysql\.c: passing argument 2 of .*memcpy.* discards qualifiers from pointer target type : 3000-4000
 storage/xtradb/dict/dict0dict\.c : passing argument 1 of .*strcpy.* discards qualifiers from pointer target type : 2500-3500
+
+#
+# Strange things from autoconf that is probably safe to ignore
+#
+
+configure.in : warning: AC_LANG_CONFTEST: no AC_LANG_SOURCE call detected in body
+configure.in : config/ac-macros/character_sets.m4.*prefer named diversions

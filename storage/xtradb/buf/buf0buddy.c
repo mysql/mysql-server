@@ -346,7 +346,7 @@ buf_buddy_alloc_low(
 	if (have_page_hash_mutex) {
 		rw_lock_x_unlock(&page_hash_latch);
 	}
-	block = buf_LRU_get_free_block(0);
+	block = buf_LRU_get_free_block();
 	*lru = TRUE;
 	//buf_pool_mutex_enter();
 	mutex_enter(&LRU_list_mutex);
@@ -452,8 +452,6 @@ buf_buddy_relocate(
 	buf_page_t*	bpage;
 	const ulint	size	= BUF_BUDDY_LOW << i;
 	ullint		usec	= ut_time_us(NULL);
-	ulint		space;
-	ulint		page_no;
 
 	//ut_ad(buf_pool_mutex_own());
 	ut_ad(mutex_own(&zip_free_mutex));
@@ -477,6 +475,7 @@ buf_buddy_relocate(
 	if (size >= PAGE_ZIP_MIN_SIZE) {
 		/* This is a compressed page. */
 		mutex_t*	mutex;
+		ulint		space, page_no;
 
 		if (!have_page_hash_mutex) {
 			mutex_exit(&zip_free_mutex);

@@ -648,18 +648,10 @@ _fil_io(
 Confirm whether the parameters are valid or not */
 UNIV_INTERN
 ibool
-fil_area_is_exist(
+fil_is_exist(
 /*==============*/
 	ulint	space_id,	/*!< in: space id */
-	ulint	zip_size,	/*!< in: compressed page size in bytes;
-				0 for uncompressed pages */
-	ulint	block_offset,	/*!< in: offset in number of blocks */
-	ulint	byte_offset,	/*!< in: remainder of offset in bytes; in
-				aio this must be divisible by the OS block
-				size */
-	ulint	len);		/*!< in: how many bytes to read or write; this
-				must not cross a file boundary; in aio this
-				must be a block size multiple */
+	ulint	block_offset);	/*!< in: offset in number of blocks */
 /**********************************************************************//**
 Waits for an aio operation to complete. This function is used to write the
 handler for completed requests. The aio array of pending requests is divided

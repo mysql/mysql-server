@@ -458,7 +458,9 @@ void translog_lock_handler_assert_owner()
   @param num             how many records should be filled
 */
 
-static void check_translog_description_table(int num)
+static max_allowed_translog_type= 0;
+
+void check_translog_description_table(int num)
 {
   int i;
   DBUG_ENTER("check_translog_description_table");
@@ -467,6 +469,7 @@ static void check_translog_description_table(int num)
   /* last is reserved for extending the table */
   DBUG_ASSERT(num < LOGREC_NUMBER_OF_TYPES - 1);
   DBUG_ASSERT(log_record_type_descriptor[0].rclass == LOGRECTYPE_NOT_ALLOWED);
+  max_allowed_translog_type= num;
 
   for (i= 0; i <= num; i++)
   {
@@ -3583,6 +3586,7 @@ my_bool translog_init_with_table(const char *directory,
   log_descriptor.flush_no= 0;
   log_descriptor.next_pass_max_lsn= LSN_IMPOSSIBLE;
 
+  /* Normally in Aria this this calls translog_table_init() */
   (*init_table_func)();
   compile_time_assert(sizeof(log_descriptor.dirty_buffer_mask) * 8 >=
                       TRANSLOG_BUFFERS_NO);
@@ -6224,6 +6228,8 @@ my_bool translog_write_record(LSN *lsn,
                        (uint) short_trid, (ulong) rec_len));
   DBUG_ASSERT(translog_status == TRANSLOG_OK ||
               translog_status == TRANSLOG_READONLY);
+  DBUG_ASSERT(type != 0);
+  DBUG_ASSERT(type <= max_allowed_translog_type);
   if (unlikely(translog_status != TRANSLOG_OK))
   {
     DBUG_PRINT("error", ("Transaction log is write protected"));
@@ -6322,9 +6328,9 @@ my_bool translog_write_record(LSN *lsn,
 
   /* process this parts */
   if (!(rc= (log_record_type_descriptor[type].prewrite_hook &&
-             (*log_record_type_descriptor[type].prewrite_hook) (type, trn,
-                                                                tbl_info,
-                                                                hook_arg))))
+             (*log_record_type_descriptor[type].prewrite_hook)(type, trn,
+                                                               tbl_info,
+                                                               hook_arg))))
   {
     switch (log_record_type_descriptor[type].rclass) {
     case LOGRECTYPE_VARIABLE_LENGTH:
@@ -6337,6 +6343,7 @@ my_bool translog_write_record(LSN *lsn,
                                       short_trid, &parts, trn, hook_arg);
       break;
     case LOGRECTYPE_NOT_ALLOWED:
+      DBUG_ASSERT(0);
     default:
       DBUG_ASSERT(0);
       rc= 1;

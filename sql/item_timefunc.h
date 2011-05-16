@@ -1,4 +1,5 @@
-/* Copyright (C) 2000-2006 MySQL AB
+/* Copyright (c) 2000, 2011, Oracle and/or its affiliates.
+   Copyright (c) 2009-2011, Monty Program Ab
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -108,8 +109,11 @@ public:
   { DBUG_ASSERT(fixed == 1); return (double) Item_func_month::val_int(); }
   String *val_str(String *str) 
   {
-    str->set(val_int(), &my_charset_bin);
-    return null_value ? 0 : str;
+    longlong nr= val_int();
+    if (null_value)
+      return 0;
+    str->set(nr, &my_charset_bin);
+    return str;
   }
   const char *func_name() const { return "month"; }
   enum Item_result result_type () const { return INT_RESULT; }
@@ -937,6 +941,7 @@ class Item_time_typecast :public Item_typecast_maybe_null
 public:
   Item_time_typecast(Item *a) :Item_typecast_maybe_null(a) {}
   const char *func_name() const { return "cast_as_time"; }
+  bool get_date(MYSQL_TIME *ltime, uint fuzzy_date);
   String *val_str(String *str);
   bool get_time(MYSQL_TIME *ltime);
   const char *cast_type() const { return "time"; }
@@ -944,6 +949,12 @@ public:
   Field *tmp_table_field(TABLE *table)
   {
     return tmp_table_field_from_field_type(table, 0);
+  }
+  void fix_length_and_dec()
+  {
+    collation.set(&my_charset_bin);
+    max_length= 17;
+    maybe_null= 1;
   }
   bool result_as_longlong() { return TRUE; }
   longlong val_int();

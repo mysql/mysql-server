@@ -617,7 +617,7 @@ bool Protocol::send_fields(List<Item> *list, uint flags)
   Protocol_text prot(thd);
   String *local_packet= prot.storage_packet();
   CHARSET_INFO *thd_charset= thd->variables.character_set_results;
-  DBUG_ENTER("send_fields");
+  DBUG_ENTER("Protocol::send_fields");
 
   if (flags & SEND_NUM_ROWS)
   {				// Packet with number of elements

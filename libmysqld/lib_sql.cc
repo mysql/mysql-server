@@ -46,6 +46,7 @@ extern "C" void unireg_clear(int exit_code)
 {
   DBUG_ENTER("unireg_clear");
   clean_up(!opt_help && (exit_code || !opt_bootstrap)); /* purecov: inspected */
+  clean_up_mutexes();
   my_end(opt_endinfo ? MY_CHECK_ERROR | MY_GIVE_INFO : 0);
   DBUG_VOID_RETURN;
 }
@@ -574,6 +575,7 @@ void end_embedded_server()
   my_free((char*) copy_arguments_ptr, MYF(MY_ALLOW_ZERO_PTR));
   copy_arguments_ptr=0;
   clean_up(0);
+  clean_up_mutexes();
 }
 
 

@@ -558,3 +558,23 @@ exec $MYSQL_BINLOG $MYSQLD_DATADIR/$master_binlog | $MYSQL test 2>&1;
 let $binlog_file= query_get_value(SHOW MASTER STATUS, File, 1);
 source include/show_binlog_events.inc;
 
+#
+# BUG#11766427 BUG#59530: Filter by server id in mysqlbinlog fails
+# This test checks that the format description log event is not
+# filtered out by the --server-id option.
+#
+RESET MASTER;
+USE test;
+CREATE TABLE t1 (a INT);
+--let $old_server_id= `SELECT @@GLOBAL.SERVER_ID`
+SET GLOBAL SERVER_ID = 2;
+DROP TABLE t1;
+--let $master_binlog= query_get_value(SHOW MASTER STATUS, File, 1)
+FLUSH LOGS;
+# The following should only create t1, not drop it.
+--exec $MYSQL_BINLOG --server-id=1 $MYSQLD_DATADIR/$master_binlog | $MYSQL
+SHOW TABLES IN test;
+# The following should only drop t1, not create it.
+--exec $MYSQL_BINLOG --server-id=2 $MYSQLD_DATADIR/$master_binlog | $MYSQL
+SHOW TABLES IN test;
+eval SET GLOBAL SERVER_ID = $old_server_id;

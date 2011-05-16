@@ -628,3 +628,11 @@ DROP TABLE t1;
 
 --echo End of 5.1 tests
 
+#
+# Problem when comparing blobs #778901
+#
+
+CREATE TABLE t1 ( f1 blob, f2 blob );
+INSERT INTO t1 VALUES ('','');
+SELECT f1,f2,"found row" FROM t1 WHERE f1 = f2 ;
+DROP TABLE t1;

@@ -56,6 +56,16 @@ drop table t1;
 
 --source include/ctype_8bit.inc
 
+#
+# Bug #48053 String::c_ptr has a race and/or does an invalid 
+#            memory reference
+#            (triggered by Valgrind tests)
+#  (see also ctype_eucjpms.test, ctype_cp1250.test, ctype_cp1251.test)
+#
+--error 1105
+set global LC_TIME_NAMES=convert((-8388608) using cp1251);
+
+
 --echo #
 --echo # End of 5.1 tests
 --echo #

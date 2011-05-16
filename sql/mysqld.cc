@@ -450,6 +450,7 @@ TYPELIB log_output_typelib= {array_elements(log_output_names)-1,"",
 
 /* the default log output is log tables */
 static bool lower_case_table_names_used= 0;
+static bool max_long_data_size_used= false;
 static bool volatile select_thread_in_use, signal_thread_in_use;
 static bool volatile ready_to_exit;
 static my_bool opt_debugging= 0, opt_external_locking= 0, opt_console= 0;
@@ -645,6 +646,12 @@ ulong specialflag=0;
 ulong binlog_cache_use= 0, binlog_cache_disk_use= 0;
 ulong max_connections, max_connect_errors;
 ulong extra_max_connections;
+/*
+  Maximum length of parameter value which can be set through
+  mysql_send_long_data() call.
+*/
+ulong max_long_data_size;
+
 uint  max_user_connections= 0;
 ulonglong denied_connections;
 /**
@@ -1532,6 +1539,7 @@ static void wait_for_signal_thread_to_end()
 #endif
 }
 
+#endif /*EMBEDDED_LIBRARY*/
 
 static void clean_up_mutexes()
 {
@@ -1559,19 +1567,21 @@ static void clean_up_mutexes()
   (void) pthread_mutex_destroy(&LOCK_global_table_stats);
   (void) pthread_mutex_destroy(&LOCK_global_index_stats);
 
+#ifndef EMBEDDED_LIBRARY
   Events::destroy_mutexes();
+#endif /* !EMBEDDED_LIBRARY */
 #ifdef HAVE_OPENSSL
   (void) pthread_mutex_destroy(&LOCK_des_key_file);
 #ifndef HAVE_YASSL
   for (int i= 0; i < CRYPTO_num_locks(); ++i)
     (void) rwlock_destroy(&openssl_stdlocks[i].lock);
   OPENSSL_free(openssl_stdlocks);
-#endif
-#endif
+#endif /* HAVE_YASSL */
+#endif /* HAVE_OPENSSL */
 #ifdef HAVE_REPLICATION
   (void) pthread_mutex_destroy(&LOCK_rpl_status);
   (void) pthread_cond_destroy(&COND_rpl_status);
-#endif
+#endif /* HAVE_REPLICATION */
   (void) pthread_mutex_destroy(&LOCK_server_started);
   (void) pthread_cond_destroy(&COND_server_started);
   (void) pthread_mutex_destroy(&LOCK_active_mi);
@@ -1590,8 +1600,6 @@ static void clean_up_mutexes()
   (void) pthread_cond_destroy(&COND_manager);
   DBUG_VOID_RETURN;
 }
-
-#endif /*EMBEDDED_LIBRARY*/
 
 
 /**
@@ -3247,6 +3255,19 @@ sizeof(load_default_groups)/sizeof(load_default_groups[0]);
 #endif
 
 
+#ifndef EMBEDDED_LIBRARY
+static
+int
+check_enough_stack_size()
+{
+  uchar stack_top;
+
+  return check_stack_overrun(current_thd, STACK_MIN_SIZE,
+                             &stack_top);
+}
+#endif
+
+
 /**
   Initialize one of the global date/time format variables.
 
@@ -3445,18 +3466,13 @@ static int init_common_variables(const char *conf_file_name, int argc,
 				 char **argv, const char **groups)
 {
   char buff[FN_REFLEN], *s;
+  const char *basename;
   umask(((~my_umask) & 0666));
   my_decimal_set_zero(&decimal_zero); // set decimal_zero constant;
   tzset();			// Set tzname
 
   max_system_variables.pseudo_thread_id= (ulong)~0;
   server_start_time= flush_status_time= my_time(0);
-  /* TODO: remove this when my_time_t is 64 bit compatible */
-  if (server_start_time >= (time_t) MY_TIME_T_MAX)
-  {
-    sql_print_error("This MySQL server doesn't support dates later then 2038");
-    return 1;
-  }
 
   rpl_filter= new Rpl_filter;
   binlog_filter= new Rpl_filter;
@@ -3495,21 +3511,29 @@ static int init_common_variables(const char *conf_file_name, int argc,
   */
   mysql_bin_log.init_pthread_objects();
 
+  /* TODO: remove this when my_time_t is 64 bit compatible */
+  if (!IS_TIME_T_VALID_FOR_TIMESTAMP(server_start_time))
+  {
+    sql_print_error("This MySQL server doesn't support dates later then 2038");
+    return 1;
+  }
+
+  if (gethostname(glob_hostname,sizeof(glob_hostname)) < 0)
   {
     /*
       Get hostname of computer (used by 'show variables') and as default
       basename for the pid file if --log-basename is not given.
     */
-    const char *basename= glob_hostname;
-    if (gethostname(glob_hostname,sizeof(glob_hostname)) < 0)
-    {
-      strmake(glob_hostname, STRING_WITH_LEN("localhost"));
-      sql_print_warning("gethostname failed, using '%s' as hostname",
+    strmake(glob_hostname, STRING_WITH_LEN("localhost"));
+    sql_print_warning("gethostname failed, using '%s' as hostname",
                         glob_hostname);
-      basename= "mysql";
-    }
-    strmake(pidfile_name, basename, sizeof(pidfile_name)-5);
+    basename= "mysql";
   }
+  else
+  {
+    basename= glob_hostname;
+  }
+  strmake(pidfile_name, basename, sizeof(pidfile_name)-5);
   strmov(fn_ext(pidfile_name),".pid");		// Add proper extension
 
   /*
@@ -3638,7 +3662,11 @@ static int init_common_variables(const char *conf_file_name, int argc,
 #endif
   mysys_uses_curses=0;
 #ifdef USE_REGEX
-  my_regex_init(&my_charset_latin1);
+#ifndef EMBEDDED_LIBRARY
+  my_regex_init(&my_charset_latin1, check_enough_stack_size);
+#else
+  my_regex_init(&my_charset_latin1, NULL);
+#endif
 #endif
   /*
     Process a comma-separated character set list and choose
@@ -4663,7 +4691,7 @@ int main(int argc, char **argv)
 
 #ifndef DBUG_OFF
   test_lc_time_sz();
-  srand(time(NULL)); 
+  srand((uint) time(NULL)); 
 #endif
 
   /*
@@ -6083,6 +6111,7 @@ enum options_mysqld
   OPT_IGNORE_BUILTIN_INNODB,
   OPT_BINLOG_DIRECT_NON_TRANS_UPDATE,
   OPT_DEFAULT_CHARACTER_SET_OLD,
+  OPT_MAX_LONG_DATA_SIZE,
   OPT_MASTER_VERIFY_CHECKSUM,
   OPT_SLAVE_SQL_VERIFY_CHECKSUM
 };
@@ -7307,6 +7336,12 @@ each time the SQL thread starts.",
     &global_system_variables.max_length_for_sort_data,
     &max_system_variables.max_length_for_sort_data, 0, GET_ULONG,
     REQUIRED_ARG, 1024, 4, 8192*1024L, 0, 1, 0},
+  {"max_long_data_size", OPT_MAX_LONG_DATA_SIZE,
+   "The maximum size of prepared statement parameter which can be provided "
+   "through mysql_send_long_data() API call.  To be used when limit of "
+   "max_allowed_packet is too small",
+   &max_long_data_size, &max_long_data_size, 0, GET_ULONG,
+   REQUIRED_ARG, 1024*1024L, 1024, UINT_MAX32, MALLOC_OVERHEAD, 1, 0},
   {"max_prepared_stmt_count", OPT_MAX_PREPARED_STMT_COUNT,
    "Maximum number of prepared statements in the server.",
    &max_prepared_stmt_count, &max_prepared_stmt_count,
@@ -8288,6 +8323,7 @@ static void usage(void)
   puts("\
 Copyright (C) 2000-2008 MySQL AB, by Monty and others.\n\
 Copyright (C) 2008 Sun Microsystems, Inc.\n\
+Copyright (C) 2009-2011 Monty Program Ab.\n\
 This software comes with ABSOLUTELY NO WARRANTY. This is free software,\n\
 and you are welcome to modify and redistribute it under the GPL license\n\n\
 Starts the MySQL database server.\n");
@@ -9322,6 +9358,9 @@ mysqld_get_one_option(int optid,
     }
     break;
 #endif /* defined(ENABLED_DEBUG_SYNC) */
+  case OPT_MAX_LONG_DATA_SIZE:
+    max_long_data_size_used= true;
+    break;
   }
   return 0;
 }
@@ -9414,6 +9453,14 @@ static int get_options(int *argc,char **argv)
        opt_log_slow_slave_statements) &&
       !opt_slow_log)
     sql_print_warning("options --log-slow-admin-statements, --log-queries-not-using-indexes and --log-slow-slave-statements have no effect if --log_slow_queries is not set");
+  if (global_system_variables.net_buffer_length > 
+      global_system_variables.max_allowed_packet)
+  {
+    sql_print_warning("net_buffer_length (%lu) is set to be larger "
+                      "than max_allowed_packet (%lu). Please rectify.",
+                      global_system_variables.net_buffer_length, 
+                      global_system_variables.max_allowed_packet);
+  }
 
 #if defined(HAVE_BROKEN_REALPATH)
   my_use_symdir=0;
@@ -9496,6 +9543,14 @@ static int get_options(int *argc,char **argv)
                                       &extra_max_connections,
                                       &extra_connection_count);
 #endif
+
+  /*
+    If max_long_data_size is not specified explicitly use
+    value of max_allowed_packet.
+  */
+  if (!max_long_data_size_used)
+    max_long_data_size= global_system_variables.max_allowed_packet;
+
   return 0;
 }
 

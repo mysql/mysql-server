@@ -13,6 +13,8 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
+#include "my_compare.h"   /* for clr_rec_bits */
+
 /*
   Because of the function new_field() all field classes that have static
   variables must declare the size_of() member function.
@@ -30,9 +32,13 @@ class Send_field;
 class Protocol;
 class Create_field;
 class Relay_log_info;
+struct ha_field_option_struct;
 
 struct st_cache_field;
 int field_conv(Field *to,Field *from);
+int truncate_double(double *nr, uint field_length, uint dec,
+                    bool unsigned_flag, double max_value);
+longlong double_to_longlong(double nr, bool unsigned_flag, bool *error);
 
 inline uint get_enum_pack_length(int elements)
 {
@@ -135,7 +141,7 @@ public:
   const char *field_name;
   /** reference to the list of options or NULL */
   engine_option_value *option_list;
-  void *option_struct;                  /* structure with parsed options */
+  ha_field_option_struct *option_struct;   /* structure with parsed options */
   LEX_STRING	comment;
   /* Field is part of the following keys */
   key_map	key_start, part_of_key, part_of_key_not_clustered;
@@ -808,7 +814,6 @@ public:
     {}
   int store_decimal(const my_decimal *);
   my_decimal *val_decimal(my_decimal *);
-  int truncate(double *nr, double max_length);
   uint32 max_display_length() { return field_length; }
   uint size_of() const { return sizeof(*this); }
   virtual const uchar *unpack(uchar* to, const uchar *from,
@@ -2160,7 +2165,7 @@ public:
   Field *field;				// For alter table
   engine_option_value *option_list;
   /** structure with parsed options (for comparing fields in ALTER TABLE) */
-  void *option_struct;
+  ha_field_option_struct *option_struct;
 
   uint8 row,col,sc_length,interval_id;	// For rea_create_table
   uint	offset,pack_flag;

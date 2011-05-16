@@ -39,6 +39,9 @@ C_MODE_START
 #include "../mysys/my_static.h"			// For soundex_map
 C_MODE_END
 
+/**
+   @todo Remove this. It is not safe to use a shared String object.
+ */
 String my_empty_string("",default_charset_info);
 
 
@@ -116,7 +119,6 @@ String *Item_func_md5::val_str(String *str)
 {
   DBUG_ASSERT(fixed == 1);
   String * sptr= args[0]->val_str(str);
-  str->set_charset(&my_charset_bin);
   if (sptr)
   {
     uchar digest[16];
@@ -129,6 +131,7 @@ String *Item_func_md5::val_str(String *str)
       return 0;
     }
     array_to_hex((char *) str->ptr(), (const char*) digest, 16);
+    str->set_charset(&my_charset_bin);
     str->length((uint) 32);
     return str;
   }
@@ -155,7 +158,6 @@ String *Item_func_sha::val_str(String *str)
 {
   DBUG_ASSERT(fixed == 1);
   String * sptr= args[0]->val_str(str);
-  str->set_charset(&my_charset_bin);
   if (sptr)  /* If we got value different from NULL */
   {
     SHA1_CONTEXT context;  /* Context used to generate SHA1 hash */
@@ -165,11 +167,13 @@ String *Item_func_sha::val_str(String *str)
     /* No need to check error as the only case would be too long message */
     mysql_sha1_input(&context,
                      (const uchar *) sptr->ptr(), sptr->length());
+
     /* Ensure that memory is free and we got result */
     if (!( str->alloc(SHA1_HASH_SIZE*2) ||
            (mysql_sha1_result(&context,digest))))
     {
       array_to_hex((char *) str->ptr(), (const char*) digest, SHA1_HASH_SIZE);
+      str->set_charset(&my_charset_bin);
       str->length((uint)  SHA1_HASH_SIZE*2);
       null_value=0;
       return str;
@@ -461,7 +465,7 @@ String *Item_func_des_encrypt::val_str(String *str)
   if ((null_value= args[0]->null_value))
     return 0;                                   // ENCRYPT(NULL) == NULL
   if ((res_length=res->length()) == 0)
-    return &my_empty_string;
+    return make_empty_result();
 
   if (arg_count == 1)
   {
@@ -517,6 +521,7 @@ String *Item_func_des_encrypt::val_str(String *str)
   tmp_arg[res_length-1]=tail;                   // save extra length
   tmp_value.realloc(res_length+1);
   tmp_value.length(res_length+1);
+  tmp_value.set_charset(&my_charset_bin);
   tmp_value[0]=(char) (128 | key_number);
   // Real encryption
   bzero((char*) &ivec,sizeof(ivec));
@@ -604,6 +609,7 @@ String *Item_func_des_decrypt::val_str(String *str)
   if ((tail=(uint) (uchar) tmp_value[length-2]) > 8)
     goto wrong_key;				     // Wrong key
   tmp_value.length(length-1-tail);
+  tmp_value.set_charset(&my_charset_bin);
   return &tmp_value;
 
 error:
@@ -641,7 +647,7 @@ String *Item_func_concat_ws::val_str(String *str)
 
   use_as_buff= &tmp_value;
   str->length(0);				// QQ; Should be removed
-  res=str;
+  res=str;                                      // If 0 arg_count
 
   // Skip until non-null argument is found.
   // If not, return the empty string
@@ -653,7 +659,7 @@ String *Item_func_concat_ws::val_str(String *str)
     }
 
   if (i ==  arg_count)
-    return &my_empty_string;
+    return make_empty_result();
 
   for (i++; i < arg_count ; i++)
   {
@@ -804,7 +810,7 @@ String *Item_func_reverse::val_str(String *str)
     return 0;
   /* An empty string is a special case as the string pointer may be null */
   if (!res->length())
-    return &my_empty_string;
+    return make_empty_result();
   if (tmp_value.alloced_length() < res->length() &&
       tmp_value.realloc(res->length()))
   {
@@ -1144,8 +1150,7 @@ String *Item_func_left::val_str(String *str)
 
   /* if "unsigned_flag" is set, we have a *huge* positive number. */
   if ((length <= 0) && (!args[1]->unsigned_flag))
-    return &my_empty_string;
-
+    return make_empty_result();
   if ((res->length() <= (ulonglong) length) ||
       (res->length() <= (char_pos= res->charpos((int) length))))
     return res;
@@ -1188,7 +1193,7 @@ String *Item_func_right::val_str(String *str)
 
   /* if "unsigned_flag" is set, we have a *huge* positive number. */
   if ((length <= 0) && (!args[1]->unsigned_flag))
-    return &my_empty_string; /* purecov: inspected */
+    return make_empty_result(); /* purecov: inspected */
 
   if (res->length() <= (ulonglong) length)
     return res; /* purecov: inspected */
@@ -1227,7 +1232,7 @@ String *Item_func_substr::val_str(String *str)
   /* Negative or zero length, will return empty string. */
   if ((arg_count == 3) && (length <= 0) && 
       (length == 0 || !args[2]->unsigned_flag))
-    return &my_empty_string;
+    return make_empty_result();
 
   /* Assumes that the maximum length of a String is < INT_MAX32. */
   /* Set here so that rest of code sees out-of-bound value as such. */
@@ -1238,12 +1243,12 @@ String *Item_func_substr::val_str(String *str)
   /* Assumes that the maximum length of a String is < INT_MAX32. */
   if ((!args[1]->unsigned_flag && (start < INT_MIN32 || start > INT_MAX32)) ||
       (args[1]->unsigned_flag && ((ulonglong) start > INT_MAX32)))
-    return &my_empty_string;
+    return make_empty_result();
 
   start= ((start < 0) ? res->numchars() + start : start - 1);
   start= res->charpos((int) start);
   if ((start < 0) || ((uint) start + 1 > res->length()))
-    return &my_empty_string;
+    return make_empty_result();
 
   length= res->charpos((int) length, (uint32) start);
   tmp_length= res->length() - start;
@@ -1306,7 +1311,7 @@ String *Item_func_substr_index::val_str(String *str)
   null_value=0;
   uint delimiter_length= delimiter->length();
   if (!res->length() || !delimiter_length || !count)
-    return &my_empty_string;		// Wrong parameters
+    return make_empty_result();		// Wrong parameters
 
   res->set_charset(collation.collation);
 
@@ -1655,7 +1660,7 @@ String *Item_func_password::val_str(String *str)
   if ((null_value=args[0]->null_value))
     return 0;
   if (res->length() == 0)
-    return &my_empty_string;
+    return make_empty_result();
   my_make_scrambled_password(tmp_value, res->ptr(), res->length());
   str->set(tmp_value, SCRAMBLED_PASSWORD_CHAR_LENGTH, res->charset());
   return str;
@@ -1679,7 +1684,7 @@ String *Item_func_old_password::val_str(String *str)
   if ((null_value=args[0]->null_value))
     return 0;
   if (res->length() == 0)
-    return &my_empty_string;
+    return make_empty_result();
   my_make_scrambled_password_323(tmp_value, res->ptr(), res->length());
   str->set(tmp_value, SCRAMBLED_PASSWORD_CHAR_LENGTH_323, res->charset());
   return str;
@@ -1707,8 +1712,7 @@ String *Item_func_encrypt::val_str(String *str)
   if ((null_value=args[0]->null_value))
     return 0;
   if (res->length() == 0)
-    return &my_empty_string;
-
+    return make_empty_result();
   if (arg_count == 1)
   {					// generate random salt
     time_t timestamp=current_thd->query_start();
@@ -1968,7 +1972,7 @@ String *Item_func_soundex::val_str(String *str)
   for ( ; ; ) /* Skip pre-space */
   {
     if ((rc= cs->cset->mb_wc(cs, &wc, (uchar*) from, (uchar*) end)) <= 0)
-      return &my_empty_string; /* EOL or invalid byte sequence */
+      return make_empty_result(); /* EOL or invalid byte sequence */
     
     if (rc == 1 && cs->ctype)
     {
@@ -1993,7 +1997,7 @@ String *Item_func_soundex::val_str(String *str)
         {
           /* Extra safety - should not really happen */
           DBUG_ASSERT(false);
-          return &my_empty_string;
+          return make_empty_result();
         }
         to+= rc;
         break;
@@ -2291,7 +2295,7 @@ String *Item_func_make_set::val_str(String *str)
 	  else
 	  {
 	    if (tmp_str.copy(*res))		// Don't use 'str'
-	      return &my_empty_string;
+              return make_empty_result();
 	    result= &tmp_str;
 	  }
 	}
@@ -2301,11 +2305,11 @@ String *Item_func_make_set::val_str(String *str)
 	  {					// Copy data to tmp_str
 	    if (tmp_str.alloc(result->length()+res->length()+1) ||
 		tmp_str.copy(*result))
-	      return &my_empty_string;
+              return make_empty_result();
 	    result= &tmp_str;
 	  }
 	  if (tmp_str.append(STRING_WITH_LEN(","), &my_charset_bin) || tmp_str.append(*res))
-	    return &my_empty_string;
+            return make_empty_result();
 	}
       }
     }
@@ -2444,7 +2448,7 @@ String *Item_func_repeat::val_str(String *str)
   null_value= 0;
 
   if (count <= 0 && (count == 0 || !args[1]->unsigned_flag))
-    return &my_empty_string;
+    return make_empty_result();
 
   /* Assumes that the maximum length of a String is < INT_MAX32. */
   /* Bounds check on count:  If this is triggered, we will error. */
@@ -2752,7 +2756,7 @@ String *Item_func_conv::val_str(String *str)
 
   ptr= longlong2str(dec, ans, to_base, 1);
   if (str->copy(ans, (uint32) (ptr-ans), default_charset()))
-    return &my_empty_string;
+    return make_empty_result();
   return str;
 }
 
@@ -2762,22 +2766,16 @@ String *Item_func_conv_charset::val_str(String *str)
   DBUG_ASSERT(fixed == 1);
   if (use_cached_value)
     return null_value ? 0 : &str_value;
-  /* 
-    Here we don't pass 'str' as a parameter to args[0]->val_str()
-    as 'str' may point to 'str_value' (e.g. see Item::save_in_field()),
-    which we use below to convert string. 
-    Use argument's 'str_value' instead.
-  */
-  String *arg= args[0]->val_str(&args[0]->str_value);
+  String *arg= args[0]->val_str(str);
   uint dummy_errors;
   if (!arg)
   {
     null_value=1;
     return 0;
   }
-  null_value= str_value.copy(arg->ptr(),arg->length(),arg->charset(),
+  null_value= tmp_value.copy(arg->ptr(), arg->length(), arg->charset(),
                              conv_charset, &dummy_errors);
-  return null_value ? 0 : check_well_formed_result(&str_value);
+  return null_value ? 0 : check_well_formed_result(&tmp_value);
 }
 
 void Item_func_conv_charset::fix_length_and_dec()
@@ -2919,7 +2917,7 @@ String *Item_func_hex::val_str(String *str)
       return 0;
     ptr= longlong2str(dec,ans,16,1);
     if (str->copy(ans,(uint32) (ptr-ans),default_charset()))
-      return &my_empty_string;			// End of memory
+      return make_empty_result();			// End of memory
     return str;
   }
 
@@ -3219,13 +3217,67 @@ String *Item_func_quote::val_str(String *str)
   }
 
   arg_length= arg->length();
-  new_length= arg_length+2; /* for beginning and ending ' signs */
 
-  for (from= (char*) arg->ptr(), end= from + arg_length; from < end; from++)
-    new_length+= get_esc_bit(escmask, (uchar) *from);
+  if (collation.collation->mbmaxlen == 1)
+  {
+    new_length= arg_length + 2; /* for beginning and ending ' signs */
+    for (from= (char*) arg->ptr(), end= from + arg_length; from < end; from++)
+      new_length+= get_esc_bit(escmask, (uchar) *from);
+  }
+  else
+  {
+    new_length= (arg_length * 2) +  /* For string characters */
+                (2 * collation.collation->mbmaxlen); /* For quotes */
+  }
 
   if (tmp_value.alloc(new_length))
     goto null;
+
+  if (collation.collation->mbmaxlen > 1)
+  {
+    CHARSET_INFO *cs= collation.collation;
+    int mblen;
+    uchar *to_end;
+    to= (char*) tmp_value.ptr();
+    to_end= (uchar*) to + new_length;
+
+    /* Put leading quote */
+    if ((mblen= cs->cset->wc_mb(cs, '\'', (uchar *) to, to_end)) <= 0)
+      goto null;
+    to+= mblen;
+
+    for (start= (char*) arg->ptr(), end= start + arg_length; start < end; )
+    {
+      my_wc_t wc;
+      bool escape;
+      if ((mblen= cs->cset->mb_wc(cs, &wc, (uchar*) start, (uchar*) end)) <= 0)
+        goto null;
+      start+= mblen;
+      switch (wc) {
+        case 0:      escape= 1; wc= '0'; break;
+        case '\032': escape= 1; wc= 'Z'; break;
+        case '\'':   escape= 1; break;
+        case '\\':   escape= 1; break;
+        default:     escape= 0; break;
+      }
+      if (escape)
+      {
+        if ((mblen= cs->cset->wc_mb(cs, '\\', (uchar*) to, to_end)) <= 0)
+          goto null;
+        to+= mblen;
+      }
+      if ((mblen= cs->cset->wc_mb(cs, wc, (uchar*) to, to_end)) <= 0)
+        goto null;
+      to+= mblen;
+    }
+
+    /* Put trailing quote */
+    if ((mblen= cs->cset->wc_mb(cs, '\'', (uchar *) to, to_end)) <= 0)
+      goto null;
+    to+= mblen;
+    new_length= to - tmp_value.ptr();
+    goto ret;
+  }
 
   /*
     We replace characters from the end to the beginning
@@ -3258,6 +3310,8 @@ String *Item_func_quote::val_str(String *str)
     }
   }
   *to= '\'';
+
+ret:
   tmp_value.length(new_length);
   tmp_value.set_charset(collation.collation);
   null_value= 0;
@@ -3450,4 +3504,779 @@ String *Item_func_uuid::val_str(String *str)
   my_uuid2str(guid, (char *)str->ptr());
 
   return str;
+}
+
+
+Item_func_dyncol_create::Item_func_dyncol_create(List<Item> &args,
+                                                 DYNCALL_CREATE_DEF *dfs)
+  : Item_str_func(args), defs(dfs), vals(0), nums(0)
+{
+  DBUG_ASSERT((args.elements & 0x1) == 0); // even number of arguments
+}
+
+
+bool Item_func_dyncol_create::fix_fields(THD *thd, Item **ref)
+{
+  bool res= Item_func::fix_fields(thd, ref); // no need Item_str_func here
+  vals= (DYNAMIC_COLUMN_VALUE *) alloc_root(thd->mem_root,
+                                            sizeof(DYNAMIC_COLUMN_VALUE) *
+                                            (arg_count / 2));
+  nums= (uint *) alloc_root(thd->mem_root,
+                            sizeof(uint) * (arg_count / 2));
+  return res || vals == 0 || nums == 0;
+}
+
+
+void Item_func_dyncol_create::fix_length_and_dec()
+{
+  maybe_null= TRUE;
+  collation.set(&my_charset_bin);
+  decimals= 0;
+}
+
+void Item_func_dyncol_create::prepare_arguments()
+{
+  char buff[STRING_BUFFER_USUAL_SIZE];
+  String *res, tmp(buff, sizeof(buff), &my_charset_bin);
+  uint column_count= (arg_count / 2);
+  uint i;
+  my_decimal dtmp, *dres;
+
+  /* get values */
+  for (i= 0; i < column_count; i++)
+  {
+    uint valpos= i * 2 + 1;
+    DYNAMIC_COLUMN_TYPE type= defs[i].type;
+    if (type == DYN_COL_NULL) // auto detect
+    {
+      /*
+        We don't have a default here to ensure we get a warning if
+        one adds a new not handled MYSQL_TYPE_...
+      */
+      switch (args[valpos]->field_type()) {
+      case MYSQL_TYPE_DECIMAL:
+      case MYSQL_TYPE_NEWDECIMAL:
+        type= DYN_COL_DECIMAL;
+        break;
+      case MYSQL_TYPE_TINY:
+      case MYSQL_TYPE_SHORT:
+      case MYSQL_TYPE_LONG:
+      case MYSQL_TYPE_LONGLONG:
+      case MYSQL_TYPE_INT24:
+      case MYSQL_TYPE_YEAR:
+      case MYSQL_TYPE_BIT:
+        type= args[valpos]->unsigned_flag ? DYN_COL_UINT : DYN_COL_INT;
+        break;
+      case MYSQL_TYPE_FLOAT:
+      case MYSQL_TYPE_DOUBLE:
+        type= DYN_COL_DOUBLE;
+        break;
+      case MYSQL_TYPE_NULL:
+        type= DYN_COL_NULL;
+        break;
+      case MYSQL_TYPE_TIMESTAMP:
+      case MYSQL_TYPE_DATETIME:
+        type= DYN_COL_DATETIME;
+	break;
+      case MYSQL_TYPE_DATE:
+      case MYSQL_TYPE_NEWDATE:
+        type= DYN_COL_DATE;
+        break;
+      case MYSQL_TYPE_TIME:
+        type= DYN_COL_TIME;
+        break;
+      case MYSQL_TYPE_VARCHAR:
+      case MYSQL_TYPE_ENUM:
+      case MYSQL_TYPE_SET:
+      case MYSQL_TYPE_TINY_BLOB:
+      case MYSQL_TYPE_MEDIUM_BLOB:
+      case MYSQL_TYPE_LONG_BLOB:
+      case MYSQL_TYPE_BLOB:
+      case MYSQL_TYPE_VAR_STRING:
+      case MYSQL_TYPE_STRING:
+      case MYSQL_TYPE_GEOMETRY:
+        type= DYN_COL_STRING;
+        break;
+      }
+    }
+    nums[i]= (uint) args[i * 2]->val_int();
+    vals[i].type= type;
+    switch (type) {
+    case DYN_COL_NULL:
+      DBUG_ASSERT(args[valpos]->field_type() == MYSQL_TYPE_NULL);
+      break;
+    case DYN_COL_INT:
+      vals[i].long_value= args[valpos]->val_int();
+      break;
+    case DYN_COL_UINT:
+      vals[i].ulong_value= args[valpos]->val_int();
+      break;
+    case DYN_COL_DOUBLE:
+      vals[i].double_value= args[valpos]->val_real();
+      break;
+    case DYN_COL_STRING:
+      res= args[valpos]->val_str(&tmp);
+      if (res &&
+          (vals[i].string_value.str= my_strndup(res->ptr(), res->length(),
+                                                MYF(MY_WME))))
+      {
+	vals[i].string_value.length= res->length();
+	vals[i].charset= res->charset();
+      }
+      else
+      {
+        args[valpos]->null_value= 1;            // In case of out of memory
+        vals[i].string_value.str= NULL;
+        vals[i].string_value.length= 0;         // just to be safe
+      }
+      break;
+    case DYN_COL_DECIMAL:
+      if ((dres= args[valpos]->val_decimal(&dtmp)))
+      {
+	dynamic_column_prepare_decimal(&vals[i]);
+        DBUG_ASSERT(vals[i].decimal_value.len == dres->len);
+        vals[i].decimal_value.intg= dres->intg;
+        vals[i].decimal_value.frac= dres->frac;
+        vals[i].decimal_value.sign= dres->sign();
+        memcpy(vals[i].decimal_buffer, dres->buf,
+               sizeof(vals[i].decimal_buffer));
+      }
+      else
+      {
+	dynamic_column_prepare_decimal(&vals[i]); // just to be safe
+        DBUG_ASSERT(args[valpos]->null_value);
+      }
+      break;
+    case DYN_COL_DATETIME:
+      args[valpos]->get_date(&vals[i].time_value, TIME_FUZZY_DATE);
+      break;
+    case DYN_COL_DATE:
+      args[valpos]->get_date(&vals[i].time_value, TIME_FUZZY_DATE);
+      break;
+    case DYN_COL_TIME:
+      args[valpos]->get_time(&vals[i].time_value);
+      break;
+    default:
+      DBUG_ASSERT(0);
+      vals[i].type= DYN_COL_NULL;
+    }
+    if (vals[i].type != DYN_COL_NULL && args[valpos]->null_value)
+    {
+      if (vals[i].type == DYN_COL_STRING)
+        my_free(vals[i].string_value.str, MYF(MY_ALLOW_ZERO_PTR));
+      vals[i].type= DYN_COL_NULL;
+    }
+  }
+}
+
+void Item_func_dyncol_create::cleanup_arguments()
+{
+  uint column_count= (arg_count / 2);
+  uint i;
+
+  for (i= 0; i < column_count; i++)
+  {
+    if (vals[i].type == DYN_COL_STRING)
+      my_free(vals[i].string_value.str, MYF(MY_ALLOW_ZERO_PTR));
+  }
+}
+
+String *Item_func_dyncol_create::val_str(String *str)
+{
+  DYNAMIC_COLUMN col;
+  String *res;
+  uint column_count= (arg_count / 2);
+  enum enum_dyncol_func_result rc;
+  DBUG_ASSERT((arg_count & 0x1) == 0); // even number of arguments
+
+  prepare_arguments();
+
+  if ((rc= dynamic_column_create_many(&col, column_count, nums, vals)))
+  {
+    dynamic_column_error_message(rc);
+    dynamic_column_column_free(&col);
+    res= NULL;
+    null_value= TRUE;
+  }
+  else
+  {
+    /* Move result from DYNAMIC_COLUMN to str_value */
+    char *ptr;
+    size_t length, alloc_length;
+    dynamic_column_reassociate(&col, &ptr, &length, &alloc_length);
+    str_value.reassociate(ptr, (uint32) length, (uint32) alloc_length,
+                          &my_charset_bin);
+    res= &str_value;
+    null_value= FALSE;
+  }
+
+  /* cleanup */
+  cleanup_arguments();
+
+  return res;
+}
+
+void Item_func_dyncol_create::print_arguments(String *str,
+                                              enum_query_type query_type)
+{
+  uint i;
+  uint column_count= (arg_count / 2);
+  for (i= 0; i < column_count; i++)
+  {
+    args[i*2]->print(str, query_type);
+    str->append(',');
+    args[i*2 + 1]->print(str, query_type);
+    switch (defs[i].type) {
+    case DYN_COL_NULL: // automatic type => write nothing
+      break;
+    case DYN_COL_INT:
+      str->append(STRING_WITH_LEN(" AS int"));
+      break;
+    case DYN_COL_UINT:
+      str->append(STRING_WITH_LEN(" AS unsigned int"));
+      break;
+    case DYN_COL_DOUBLE:
+      str->append(STRING_WITH_LEN(" AS double"));
+      break;
+    case DYN_COL_STRING:
+      str->append(STRING_WITH_LEN(" AS char"));
+      if (defs[i].cs)
+      {
+        str->append(STRING_WITH_LEN(" charset "));
+        str->append(defs[i].cs->csname);
+        str->append(' ');
+      }
+      break;
+    case DYN_COL_DECIMAL:
+      str->append(STRING_WITH_LEN(" AS decimal"));
+      break;
+    case DYN_COL_DATETIME:
+      str->append(STRING_WITH_LEN(" AS datetime"));
+      break;
+    case DYN_COL_DATE:
+      str->append(STRING_WITH_LEN(" AS date"));
+      break;
+    case DYN_COL_TIME:
+      str->append(STRING_WITH_LEN(" AS time"));
+      break;
+    }
+    if (i < column_count - 1)
+      str->append(',');
+  }
+}
+
+
+void Item_func_dyncol_create::print(String *str,
+                                    enum_query_type query_type)
+{
+  DBUG_ASSERT((arg_count & 0x1) == 0); // even number of arguments
+  str->append(STRING_WITH_LEN("column_create("));
+  print_arguments(str, query_type);
+  str->append(')');
+}
+
+
+String *Item_func_dyncol_add::val_str(String *str)
+{
+  DYNAMIC_COLUMN col;
+  String *res;
+  uint column_count=  (arg_count / 2);
+  enum enum_dyncol_func_result rc;
+  DBUG_ASSERT((arg_count & 0x1) == 1); // odd number of arguments
+
+  /* We store the packed data last */
+  res= args[arg_count - 1]->val_str(str);
+  if (args[arg_count - 1]->null_value)
+    goto null;
+  init_dynamic_string(&col, NULL, res->length() + STRING_BUFFER_USUAL_SIZE,
+                      STRING_BUFFER_USUAL_SIZE);
+
+  col.length= res->length();
+  memcpy(col.str, res->ptr(), col.length);
+
+  prepare_arguments();
+
+  if ((rc= dynamic_column_update_many(&col, column_count, nums, vals)))
+  {
+    dynamic_column_error_message(rc);
+    dynamic_column_column_free(&col);
+    cleanup_arguments();
+    goto null;
+  }
+
+  {
+    /* Move result from DYNAMIC_COLUMN to str */
+    char *ptr;
+    size_t length, alloc_length;
+    dynamic_column_reassociate(&col, &ptr, &length, &alloc_length);
+    str->reassociate(ptr, (uint32) length, (uint32) alloc_length,
+                     &my_charset_bin);
+    null_value= FALSE;
+  }
+
+  /* cleanup */
+  dynamic_column_column_free(&col);
+  cleanup_arguments();
+
+  return str;
+
+null:
+  null_value= TRUE;
+  return NULL;
+}
+
+
+void Item_func_dyncol_add::print(String *str,
+                                 enum_query_type query_type)
+{
+  DBUG_ASSERT((arg_count & 0x1) == 1); // odd number of arguments
+  str->append(STRING_WITH_LEN("column_create("));
+  args[arg_count - 1]->print(str, query_type);
+  str->append(',');
+  print_arguments(str, query_type);
+  str->append(')');
+}
+
+
+/**
+  Get value for a column stored in a dynamic column
+
+  @notes
+  This function ensures that null_value is set correctly
+*/
+
+bool Item_dyncol_get::get_dyn_value(DYNAMIC_COLUMN_VALUE *val, String *tmp)
+{
+  DYNAMIC_COLUMN dyn_str;
+  String *res;
+  longlong num;
+  enum enum_dyncol_func_result rc;
+
+  num= args[1]->val_int();
+  if (args[1]->null_value || num < 0 || num > INT_MAX)
+  {
+    null_value= 1;
+    return 1;
+  }
+
+  res= args[0]->val_str(tmp);
+  if (args[0]->null_value)
+  {
+    null_value= 1;
+    return 1;
+  }
+
+  dyn_str.str=   (char*) res->ptr();
+  dyn_str.length= res->length();
+  if ((rc= dynamic_column_get(&dyn_str, (uint) num, val)))
+  {
+    dynamic_column_error_message(rc);
+    null_value= 1;
+    return 1;
+  }
+
+  null_value= 0;
+  return 0;                                     // ok
+}
+
+
+String *Item_dyncol_get::val_str(String *str_result)
+{
+  DYNAMIC_COLUMN_VALUE val;
+  char buff[STRING_BUFFER_USUAL_SIZE];
+  String tmp(buff, sizeof(buff), &my_charset_bin);
+
+  if (get_dyn_value(&val, &tmp))
+    return NULL;
+
+  switch (val.type) {
+  case DYN_COL_NULL:
+    goto null;
+  case DYN_COL_INT:
+  case DYN_COL_UINT:
+    str_result->set_int(val.long_value, test(val.type == DYN_COL_UINT),
+                       &my_charset_latin1);
+    break;
+  case DYN_COL_DOUBLE:
+    str_result->set_real(val.double_value, NOT_FIXED_DEC, &my_charset_latin1);
+    break;
+  case DYN_COL_STRING:
+    if ((char*) tmp.ptr() <= val.string_value.str &&
+        (char*) tmp.ptr() + tmp.length() >= val.string_value.str)
+    {
+      /* value is allocated in tmp buffer; We have to make a copy */
+      str_result->copy(val.string_value.str, val.string_value.length,
+                      val.charset);
+    }
+    else
+    {
+      /*
+        It's safe to use the current value because it's either pointing
+        into a field or in a buffer for another item and this buffer
+        is not going to be deleted during expression evaluation
+      */
+      str_result->set(val.string_value.str, val.string_value.length,
+                      val.charset);
+    }
+    break;
+  case DYN_COL_DECIMAL:
+  {
+    int res;
+    int length=
+      my_decimal_string_length((const my_decimal*)&val.decimal_value);
+    if (str_result->alloc(length))
+      goto null;
+    if ((res= decimal2string(&val.decimal_value, (char*) str_result->ptr(),
+                             &length, 0, 0, ' ')) != E_DEC_OK)
+    {
+      char buff[40];
+      int len= sizeof(buff);
+      DBUG_ASSERT(length < (int)sizeof(buff));
+      decimal2string(&val.decimal_value, buff, &len, 0, 0, ' ');
+      decimal_operation_results(res, buff, "CHAR");
+    }
+    str_result->set_charset(&my_charset_latin1);
+    str_result->length(length);
+    break;
+  }
+  case DYN_COL_DATETIME:
+  case DYN_COL_DATE:
+  case DYN_COL_TIME:
+  {
+    int length;
+    if (str_result->alloc(MAX_DATE_STRING_REP_LENGTH) ||
+        !(length= my_TIME_to_str(&val.time_value, (char*) str_result->ptr())))
+      goto null;
+    str_result->set_charset(&my_charset_latin1);
+    str_result->length(length);
+    break;
+  }
+  }
+  return str_result;
+
+null:
+  null_value= TRUE;
+  return 0;
+}
+
+
+longlong Item_dyncol_get::val_int()
+{
+  DYNAMIC_COLUMN_VALUE val;
+  char buff[STRING_BUFFER_USUAL_SIZE];
+  String tmp(buff, sizeof(buff), &my_charset_bin);
+
+  if (get_dyn_value(&val, &tmp))
+    return 0;
+
+  switch (val.type) {
+  case DYN_COL_NULL:
+    goto null;
+  case DYN_COL_UINT:
+    unsigned_flag= 1;            // Make it possible for caller to detect sign
+    return val.long_value;
+  case DYN_COL_INT:
+    unsigned_flag= 0;            // Make it possible for caller to detect sign
+    return val.long_value;
+  case DYN_COL_DOUBLE:
+  {
+    bool error;
+    longlong num;
+
+    num= double_to_longlong(val.double_value, unsigned_flag, &error);
+    if (error)
+    {
+      char buff[30];
+      sprintf(buff, "%lg", val.double_value);
+      push_warning_printf(current_thd, MYSQL_ERROR::WARN_LEVEL_WARN,
+                          ER_DATA_OVERFLOW,
+                          ER(ER_DATA_OVERFLOW),
+                          buff,
+                          unsigned_flag ? "UNSIGNED INT" : "INT");
+    }
+    return num;
+  }
+  case DYN_COL_STRING:
+  {
+    int error;
+    longlong num;
+    char *end= val.string_value.str + val.string_value.length, *org_end= end;
+
+    num= my_strtoll10(val.string_value.str, &end, &error);
+    if (end != org_end || error > 0)
+    {
+      char buff[80];
+      strmake(buff, val.string_value.str, min(sizeof(buff)-1,
+                                              val.string_value.length));
+      push_warning_printf(current_thd, MYSQL_ERROR::WARN_LEVEL_WARN,
+                          ER_BAD_DATA,
+                          ER(ER_BAD_DATA),
+                          buff,
+                          unsigned_flag ? "UNSIGNED INT" : "INT");
+    }
+    unsigned_flag= error >= 0;
+    return num;
+  }
+  case DYN_COL_DECIMAL:
+  {
+    longlong num;
+    my_decimal2int(E_DEC_FATAL_ERROR, &val.decimal_value, unsigned_flag,
+                   &num);
+    return num;
+  }
+  case DYN_COL_DATETIME:
+  case DYN_COL_DATE:
+  case DYN_COL_TIME:
+    unsigned_flag= 1;
+    return TIME_to_ulonglong(&val.time_value);
+  }
+
+null:
+  null_value= TRUE;
+  return 0;
+}
+
+
+double Item_dyncol_get::val_real()
+{
+  DYNAMIC_COLUMN_VALUE val;
+  char buff[STRING_BUFFER_USUAL_SIZE];
+  String tmp(buff, sizeof(buff), &my_charset_bin);
+
+  if (get_dyn_value(&val, &tmp))
+    return 0.0;
+
+  switch (val.type) {
+  case DYN_COL_NULL:
+    goto null;
+  case DYN_COL_UINT:
+    return ulonglong2double(val.ulong_value);
+  case DYN_COL_INT:
+    return (double) val.long_value;
+  case DYN_COL_DOUBLE:
+    return (double) val.double_value;
+  case DYN_COL_STRING:
+  {
+    int error;
+    char *end;
+    double res= my_strntod(val.charset, (char*) val.string_value.str,
+                           val.string_value.length, &end, &error);
+
+    if (end != (char*) val.string_value.str + val.string_value.length ||
+        error)
+    {
+      char buff[80];
+      strmake(buff, val.string_value.str, min(sizeof(buff)-1,
+                                              val.string_value.length));
+      push_warning_printf(current_thd, MYSQL_ERROR::WARN_LEVEL_WARN,
+                          ER_BAD_DATA,
+                          ER(ER_BAD_DATA),
+                          buff, "DOUBLE");
+    }
+    return res;
+  }
+  case DYN_COL_DECIMAL:
+  {
+    double res;
+    /* This will always succeed */
+    decimal2double(&val.decimal_value, &res);
+    return res;
+  }
+  case DYN_COL_DATETIME:
+  case DYN_COL_DATE:
+  case DYN_COL_TIME:
+    return (ulonglong2double(TIME_to_ulonglong(&val.time_value)) +
+            val.time_value.second_part / (double) TIME_SUBSECOND_RANGE);
+  }
+
+null:
+  null_value= TRUE;
+  return 0.0;
+}
+
+
+my_decimal *Item_dyncol_get::val_decimal(my_decimal *decimal_value)
+{
+  DYNAMIC_COLUMN_VALUE val;
+  char buff[STRING_BUFFER_USUAL_SIZE];
+  String tmp(buff, sizeof(buff), &my_charset_bin);
+
+  if (get_dyn_value(&val, &tmp))
+    return NULL;
+
+  switch (val.type) {
+  case DYN_COL_NULL:
+    goto null;
+  case DYN_COL_UINT:
+    int2my_decimal(E_DEC_FATAL_ERROR, val.long_value, TRUE, decimal_value);
+    break;
+  case DYN_COL_INT:
+    int2my_decimal(E_DEC_FATAL_ERROR, val.long_value, FALSE, decimal_value);
+    break;
+  case DYN_COL_DOUBLE:
+    double2my_decimal(E_DEC_FATAL_ERROR, val.double_value, decimal_value);
+    break;
+  case DYN_COL_STRING:
+  {
+    int rc;
+    rc= str2my_decimal(0, val.string_value.str, val.string_value.length,
+                       val.charset, decimal_value);
+    char buff[80];
+    strmake(buff, val.string_value.str, min(sizeof(buff)-1,
+                                            val.string_value.length));
+    if (rc != E_DEC_OK)
+    {
+      push_warning_printf(current_thd, MYSQL_ERROR::WARN_LEVEL_WARN,
+                          ER_BAD_DATA,
+                          ER(ER_BAD_DATA),
+                          buff, "DECIMAL");
+    }
+    break;
+  }
+  case DYN_COL_DECIMAL:
+  {
+    int length= STRING_BUFFER_USUAL_SIZE;
+    decimal2string(&val.decimal_value, buff, &length, 0,0, 0);
+    decimal2my_decimal(&val.decimal_value, decimal_value);
+
+    break;
+  }
+  case DYN_COL_DATETIME:
+  case DYN_COL_DATE:
+  case DYN_COL_TIME:
+  {
+    double tmp= (ulonglong2double(TIME_to_ulonglong(&val.time_value)) +
+                 val.time_value.second_part / (double) TIME_SUBSECOND_RANGE);
+    /* This can't overflow as time is always in the range of decimal */
+    double2my_decimal(E_DEC_FATAL_ERROR, tmp, decimal_value);
+    break;
+  }
+  }
+  return decimal_value;
+
+null:
+  null_value= TRUE;
+  return 0;
+}
+
+
+bool Item_dyncol_get::get_date(MYSQL_TIME *ltime, uint fuzzy_date)
+{
+  DYNAMIC_COLUMN_VALUE val;
+  char buff[STRING_BUFFER_USUAL_SIZE];
+  String tmp(buff, sizeof(buff), &my_charset_bin);
+  bool signed_value= 0;
+
+  if (get_dyn_value(&val, &tmp))
+    return 1;                                   // Error
+
+  switch (val.type) {
+  case DYN_COL_NULL:
+    goto null;
+  case DYN_COL_INT:
+    signed_value= 1;                                  // For error message
+    /* fall_trough */
+  case DYN_COL_UINT:
+  {
+    ulonglong num;
+    int error;
+
+    num= val.ulong_value;
+    number_to_datetime(num, ltime, fuzzy_date, &error);
+    if (error)
+    {
+      char buff[65];
+      int errnum= error == 2 ? ER_DATA_OVERFLOW : ER_BAD_DATA;
+      longlong2str(num, buff, signed_value ? -10 : 10, 1);
+      push_warning_printf(current_thd, MYSQL_ERROR::WARN_LEVEL_WARN,
+                          errnum,
+                          ER(errnum),
+                          buff, "DATE or DATETIME");
+      goto null;
+    }
+    return 0;
+  }
+  case DYN_COL_DOUBLE:
+  {
+    if (double_to_datetime_with_warn(val.double_value, ltime, fuzzy_date))
+      goto null;
+    return 0;
+  }
+  case DYN_COL_DECIMAL:
+    if (decimal_to_datetime_with_warn(&val.decimal_value, ltime, fuzzy_date))
+      goto null;
+    return 0;
+  case DYN_COL_STRING:
+  {
+    if (str_to_datetime_with_warn(val.string_value.str,
+                                  val.string_value.length,
+                                  ltime, fuzzy_date) <= MYSQL_TIMESTAMP_ERROR)
+      goto null;
+    return 0;
+  }
+  case DYN_COL_DATETIME:
+  case DYN_COL_DATE:
+  case DYN_COL_TIME:
+    *ltime= val.time_value;
+    return 0;
+  }
+
+null:
+  null_value= TRUE;
+  return 1;
+}
+
+
+void Item_dyncol_get::print(String *str, enum_query_type query_type)
+{
+  str->append(STRING_WITH_LEN("column_get("));
+  args[0]->print(str, query_type);
+  str->append(',');
+  args[1]->print(str, query_type);
+  str->append(')');
+}
+
+
+String *Item_func_dyncol_list::val_str(String *str)
+{
+  uint i;
+  enum enum_dyncol_func_result rc;
+  DYNAMIC_ARRAY arr;
+  DYNAMIC_COLUMN col;
+  String *res= args[0]->val_str(str);
+
+  if (args[0]->null_value)
+    goto null;
+  col.length= res->length();
+  /* We do not change the string, so could do this trick */
+  col.str= (char *)res->ptr();
+  if ((rc= dynamic_column_list(&col, &arr)))
+  {
+    dynamic_column_error_message(rc);
+    delete_dynamic(&arr);
+    goto null;
+  }
+
+  /*
+    We support elements from 0 - 65536, so max size for one element is
+    6 (including ,).
+  */
+  if (str->alloc(arr.elements * 6))
+    goto null;
+
+  str->length(0);
+  for (i= 0; i < arr.elements; i++)
+  {
+    str->qs_append(*dynamic_element(&arr, i, uint*));
+    if (i < arr.elements - 1)
+      str->qs_append(',');
+  }
+
+  null_value= FALSE;
+  delete_dynamic(&arr);
+  return str;
+
+null:
+  null_value= TRUE;
+  return NULL;
 }

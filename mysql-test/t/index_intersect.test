@@ -136,7 +136,8 @@ EXPLAIN
 SELECT * FROM City 
   WHERE Name BETWEEN 'G' AND 'J' AND Population > 1000000 AND Country LIKE 'B%';
 
---replace_column 9 #
+--replace_column 7 # 9 #
+--replace_result Population,Country,Name Population,Name,Country
 EXPLAIN
 SELECT * FROM City 
   WHERE Name BETWEEN 'G' AND 'K' AND Population > 500000 AND Country LIKE 'C%';

@@ -640,5 +640,15 @@ SELECT UPDATEXML(NULL, (LPAD(0.1111E-15, '2011', 1)), 1);
 --error ER_ILLEGAL_VALUE_FOR_TYPE
 SELECT EXTRACTVALUE('', LPAD(0.1111E-15, '2011', 1));
 
+--echo #
+--echo # Bug #44332 	my_xml_scan reads behind the end of buffer
+--echo #
+SELECT UPDATEXML(CONVERT(_latin1'<' USING utf8),'1','1');
+SELECT UPDATEXML(CONVERT(_latin1'<!--' USING utf8),'1','1');
+
+--echo #
+--echo # Bug#11766725 (bug#59901): EXTRACTVALUE STILL BROKEN AFTER FIX FOR BUG #44332
+--echo #
+SELECT ExtractValue(CONVERT('<\"', BINARY(10)), 1);
 
 --echo End of 5.1 tests

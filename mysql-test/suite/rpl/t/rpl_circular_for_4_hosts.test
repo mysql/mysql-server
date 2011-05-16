@@ -82,6 +82,7 @@ INSERT INTO t1(b,c) VALUES('B',2);
 # Wait while C will stop.
 --connection server_3
 # 1062 = ER_DUP_ENTRY
+call mtr.add_suppression("Slave SQL.*Duplicate entry .6. for key .PRIMARY.* Error_code: 1062");
 --let $slave_sql_errno= 1062
 --source include/wait_for_slave_sql_error.inc
 --connection server_1
@@ -175,7 +176,7 @@ SELECT 'Master D',a,b FROM t1 WHERE c = 3 ORDER BY a,b;
 source include/stop_slave.inc;
 --connection server_3
 DELETE FROM t1 WHERE a = 6;
-START SLAVE;
+--source include/start_slave.inc
 --connection server_2
 --sync_slave_with_master server_3
 RESET MASTER;
@@ -189,7 +190,7 @@ RESET SLAVE;
 --source include/rpl_change_topology.inc
 #--replace_result $SERVER_MYPORT_3 SERVER_MYPORT_3 $file_d LOG_FILE $pos_d LOG_POS 
 #--eval CHANGE MASTER TO master_host='127.0.0.1',master_port=$SERVER_MYPORT_3,master_user='root',master_log_file='$file_d',master_log_pos=$pos_d
-START SLAVE;
+--source include/start_slave.inc
 --connection server_3
 --sync_slave_with_master server_4
 --source include/rpl_sync.inc

@@ -1,5 +1,23 @@
 #!/usr/bin/perl
 # -*- cperl -*-
+
+# Copyright (c) 2004, 2011, Oracle and/or its affiliates.
+# Copyright (c) 2009-2011 Monty Program Ab
+#
+# This program is free software; you can redistribute it and/or
+# modify it under the terms of the GNU Library General Public
+# License as published by the Free Software Foundation; version 2
+# of the License.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
+# Library General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with this program; if not, write to the Free Software
+# Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
+
 #
 ##############################################################################
 #
@@ -171,6 +189,7 @@ my $opt_cursor_protocol;
 my $opt_view_protocol;
 
 our $opt_debug;
+our $opt_debug_server;
 our @opt_cases;                  # The test cases names in argv
 our $opt_embedded_server;
 
@@ -999,6 +1018,7 @@ sub command_line_setup {
 
              # Debugging
              'debug'                    => \$opt_debug,
+             'debug-server'             => \$opt_debug_server,
              'gdb'                      => \$opt_gdb,
              'client-gdb'               => \$opt_client_gdb,
              'manual-gdb'               => \$opt_manual_gdb,
@@ -1165,6 +1185,20 @@ sub command_line_setup {
                                     "$basedir/sql/share/charsets",
                                     "$basedir/share/charsets");
 
+  # --debug implies we run debug server
+  $opt_debug_server= 1 if $opt_debug;
+
+  if (using_extern())
+  {
+    # Connect to the running mysqld and find out what it supports
+    collect_mysqld_features_from_running_server();
+  }
+  else
+  {
+    # Run the mysqld to find out what features are available
+    collect_mysqld_features();
+  }
+
   if ( $opt_comment )
   {
     mtr_report();
@@ -1190,7 +1224,7 @@ sub command_line_setup {
 	chomp;
 	# remove comments (# foo) at the beginning of the line, or after a 
 	# blank at the end of the line
-	s/( +|^)#.*$//;
+	s/(\s+|^)#.*$//;
 	# If @ platform specifier given, use this entry only if it contains
 	# @<platform> or @!<xxx> where xxx != platform
 	if (/\@.*/)
@@ -1201,8 +1235,8 @@ sub command_line_setup {
 	  s/\@.*$//;
 	}
 	# remove whitespace
-	s/^ +//;              
-	s/ +$//;
+	s/^\s+//;
+	s/\s+$//;
 	# if nothing left, don't need to remember this line
 	if ( $_ eq "" ) {
 	  next;
@@ -1670,7 +1704,7 @@ sub collect_mysqld_features {
   my $args;
   mtr_init_args(\$args);
   mtr_add_arg($args, "--no-defaults");
-  mtr_add_arg($args, "--datadir=%s/tmp", $opt_vardir);
+  mtr_add_arg($args, "--datadir=.");
   mtr_add_arg($args, "--basedir=%s", $basedir);
   mtr_add_arg($args, "--language=%s", $path_language);
   mtr_add_arg($args, "--skip-grant-tables");
@@ -1809,7 +1843,7 @@ sub find_mysqld {
   my @mysqld_names= ("mysqld", "mysqld-max-nt", "mysqld-max",
 		     "mysqld-nt");
 
-  if ( $opt_debug ){
+  if ( $opt_debug_server ){
     # Put mysqld-debug first in the list of binaries to look for
     mtr_verbose("Adding mysqld-debug first in list of binaries to look for");
     unshift(@mysqld_names, "mysqld-debug");
@@ -1879,9 +1913,12 @@ sub executable_setup () {
 sub client_debug_arg($$) {
   my ($args, $client_name)= @_;
 
+  # Workaround for Bug #50627: drop any debug opt
+  return if $client_name =~ /^mysqlbinlog/;
+
   if ( $opt_debug ) {
     mtr_add_arg($args,
-		"--debug=d:t:A,%s/log/%s.trace",
+		"--loose-debug=d:t:A,%s/log/%s.trace",
 		$path_vardir_trace, $client_name)
   }
 }
@@ -2251,10 +2288,12 @@ sub environment_setup {
   # mysqlhotcopy
   # ----------------------------------------------------
   my $mysqlhotcopy=
-    mtr_pl_maybe_exists("$bindir/scripts/mysqlhotcopy");
-  # Since mysqltest interprets the real path as "false" in an if,
-  # use 1 ("true") to indicate "not exists" so it can be tested for
-  $ENV{'MYSQLHOTCOPY'}= $mysqlhotcopy || 1;
+    mtr_pl_maybe_exists("$basedir/scripts/mysqlhotcopy") ||
+    mtr_pl_maybe_exists("$path_client_bindir/mysqlhotcopy");
+  if ($mysqlhotcopy)
+  {
+    $ENV{'MYSQLHOTCOPY'}= $mysqlhotcopy;
+  }
 
   # ----------------------------------------------------
   # perror
@@ -2548,9 +2587,9 @@ sub check_debug_support ($) {
     #mtr_report(" - binaries are not debug compiled");
     $debug_compiled_binaries= 0;
 
-    if ( $opt_debug )
+    if ( $opt_debug_server )
     {
-      mtr_error("Can't use --debug, binaries does not support it");
+      mtr_error("Can't use --debug[-server], binary does not support it");
     }
     return;
   }
@@ -4310,8 +4349,9 @@ sub get_log_from_proc ($$) {
 # error log and write all lines that look
 # suspicious into $error_log.warnings
 #
-sub extract_warning_lines ($) {
-  my ($error_log) = @_;
+
+sub extract_warning_lines ($$) {
+  my ($error_log, $append) = @_;
 
   # Open the servers .err log file and read all lines
   # belonging to current tets into @lines
@@ -4348,9 +4388,12 @@ sub extract_warning_lines ($) {
 
   # Write all suspicious lines to $error_log.warnings file
   my $warning_log = "$error_log.warnings";
-  my $Fwarn = IO::File->new($warning_log, "w")
+  my $Fwarn = IO::File->new($warning_log, $append ? "a+" : "w")
     or die("Could not open file '$warning_log' for writing: $!");
-  print $Fwarn "Suspicious lines from $error_log\n";
+  if (!$append)
+  {
+    print $Fwarn "Suspicious lines from $error_log\n";
+  }
 
   my @patterns =
     (
@@ -4455,7 +4498,7 @@ sub start_check_warnings ($$) {
   my $log_error= $mysqld->value('#log-error');
   # To be communicated to the test
   $ENV{MTR_LOG_ERROR}= $log_error;
-  extract_warning_lines($log_error);
+  extract_warning_lines($log_error, 0);
 
   my $args;
   mtr_init_args(\$args);
@@ -4610,7 +4653,7 @@ sub check_warnings_post_shutdown {
   foreach my $mysqld ( mysqlds())
   {
     my ($testlist, $match_lines)=
-        extract_warning_lines($mysqld->value('#log-error'));
+        extract_warning_lines($mysqld->value('#log-error'), 1);
     $testname_hash->{$_}= 1 for @$testlist;
     $report.= join('', @$match_lines);
   }
@@ -4641,8 +4684,10 @@ sub check_expected_crash_and_restart {
     {
       mtr_verbose("Crash was expected, file '$expect_file' exists");
 
-      for (my $waits = 0;  $waits < 50;  $waits++)
+      for (my $waits = 0;  $waits < 50;  mtr_milli_sleep(100), $waits++)
       {
+	# Race condition seen on Windows: try again until file not empty
+	next if -z $expect_file;
 	# If last line in expect file starts with "wait"
 	# sleep a little and try again, thus allowing the
 	# test script to control when the server should start
@@ -4651,10 +4696,11 @@ sub check_expected_crash_and_restart {
 	if ($last_line =~ /^wait/ )
 	{
 	  mtr_verbose("Test says wait before restart") if $waits == 0;
-	  mtr_milli_sleep(100);
 	  next;
 	}
 
+	# Ignore any partial or unknown command
+	next unless $last_line =~ /^restart/;
 	# If last line begins "restart:", the rest of the line is read as
         # extra command line options to add to the restarted mysqld.
         # Anything other than 'wait' or 'restart:' (with a colon) will
@@ -5006,6 +5052,8 @@ sub mysqld_start ($$) {
   my @all_opts= @$extra_opts;
   if (exists $mysqld->{'restart_opts'}) {
     push (@all_opts, @{$mysqld->{'restart_opts'}});
+    mtr_verbose(My::Options::toStr("mysqld_start restart",
+				   @{$mysqld->{'restart_opts'}}));
   }
   mysqld_arguments($args,$mysqld,\@all_opts);
 
@@ -5972,6 +6020,8 @@ Options for debugging the product
   client-gdb            Start mysqltest client in gdb
   ddd                   Start mysqld in ddd
   debug                 Dump trace output for all servers and client programs
+  debug-server          Use debug version of server, but without turning on
+                        tracing
   debugger=NAME         Start mysqld in the selected debugger
   gdb                   Start the mysqld(s) in gdb
   manual-debug          Let user manually start mysqld in debugger, before

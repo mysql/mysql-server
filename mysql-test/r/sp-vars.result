@@ -380,7 +380,7 @@ ERROR 22003: Out of range value for column 'sp_vars_check_ret1()' at row 1
 SELECT sp_vars_check_ret2();
 ERROR 22003: Out of range value for column 'sp_vars_check_ret2()' at row 1
 SELECT sp_vars_check_ret3();
-ERROR HY000: Incorrect integer value: 'Hello, world' for column 'sp_vars_check_ret3()' at row 1
+ERROR 22007: Incorrect integer value: 'Hello, world' for column 'sp_vars_check_ret3()' at row 1
 SELECT sp_vars_check_ret4();
 sp_vars_check_ret4()
 154.12

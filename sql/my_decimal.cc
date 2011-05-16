@@ -30,21 +30,20 @@
     result
 */
 
-int decimal_operation_results(int result)
+int decimal_operation_results(int result, const char *value, const char *type)
 {
   switch (result) {
   case E_DEC_OK:
     break;
   case E_DEC_TRUNCATED:
     push_warning_printf(current_thd, MYSQL_ERROR::WARN_LEVEL_WARN,
-			WARN_DATA_TRUNCATED, ER(WARN_DATA_TRUNCATED),
-			"", (ulong) 0);
+			ER_DATA_TRUNCATED, ER(ER_DATA_TRUNCATED),
+			value, type);
     break;
   case E_DEC_OVERFLOW:
     push_warning_printf(current_thd, MYSQL_ERROR::WARN_LEVEL_ERROR,
-                        ER_TRUNCATED_WRONG_VALUE,
-                        ER(ER_TRUNCATED_WRONG_VALUE),
-			"DECIMAL", "");
+                        ER_DATA_OVERFLOW, ER(ER_DATA_OVERFLOW),
+			value, type);
     break;
   case E_DEC_DIV_ZERO:
     push_warning_printf(current_thd, MYSQL_ERROR::WARN_LEVEL_ERROR,
@@ -52,9 +51,8 @@ int decimal_operation_results(int result)
     break;
   case E_DEC_BAD_NUM:
     push_warning_printf(current_thd, MYSQL_ERROR::WARN_LEVEL_ERROR,
-			ER_TRUNCATED_WRONG_VALUE_FOR_FIELD,
-			ER(ER_TRUNCATED_WRONG_VALUE_FOR_FIELD),
-			"decimal", "", "", (ulong) 0);
+			ER_BAD_DATA, ER(ER_BAD_DATA),
+			value, type);
     break;
   case E_DEC_OOM:
     my_error(ER_OUT_OF_RESOURCES, MYF(0));
@@ -237,6 +235,34 @@ void my_decimal_trim(ulong *precision, uint *scale)
 }
 
 
+/*
+  Convert a decimal to an ulong with a descreptive error message
+*/
+
+int my_decimal2int(uint mask, const decimal_t *d, bool unsigned_flag,
+		   longlong *l)
+{
+  int res;
+  my_decimal rounded;
+  /* decimal_round can return only E_DEC_TRUNCATED */
+  decimal_round(d, &rounded, 0, HALF_UP);
+  res= (unsigned_flag ?
+        decimal2ulonglong(&rounded, (ulonglong *) l) :
+        decimal2longlong(&rounded, l));
+  if (res & mask)
+  {
+    char buff[DECIMAL_MAX_STR_LENGTH];
+    int length= sizeof(buff);
+    decimal2string(d, buff, &length, 0, 0, 0);
+
+    decimal_operation_results(res, buff,
+                              unsigned_flag ? "UNSIGNED INT" :
+                              "INT");
+  }
+  return res;
+}
+
+
 #ifndef DBUG_OFF
 /* routines for debugging print */
 
@@ -283,7 +309,6 @@ const char *dbug_decimal_as_string(char *buff, const my_decimal *val)
   return buff;
 }
 
+
 #endif /*DBUG_OFF*/
-
-
 #endif /*MYSQL_CLIENT*/

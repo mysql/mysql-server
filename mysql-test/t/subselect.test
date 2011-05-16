@@ -260,6 +260,7 @@ INSERT INTO t1 (numeropost,maxnumrep) VALUES (1,0),(2,1);
 select numeropost as a FROM t1 GROUP BY (SELECT 1 FROM t1 HAVING a=1);
 -- error ER_SUBQUERY_NO_1_ROW
 select numeropost as a FROM t1 ORDER BY (SELECT 1 FROM t1 HAVING a=1);
+show warnings;
 drop table t1;
 
 create table t1 (a int);
@@ -4354,8 +4355,32 @@ SELECT b FROM t1
 DROP TABLE t1;
 
 --echo #
---echo # BUG#779885: Crash in eliminate_item_equal with materialization=on in maria-5.3
+--echo # Bug #11765713 58705:
+--echo # OPTIMIZER LET ENGINE DEPEND ON UNINITIALIZED VALUES
+--echo # CREATED BY OPT_SUM_QUERY
 --echo #
+
+CREATE TABLE t1(a INT NOT NULL, KEY (a));
+INSERT INTO t1 VALUES (0), (1);
+
+--error ER_SUBQUERY_NO_1_ROW
+SELECT 1 as foo FROM t1 WHERE a < SOME
+  (SELECT a FROM t1 WHERE a <=>
+    (SELECT a FROM t1)
+  );
+
+SELECT 1 as foo FROM t1 WHERE a < SOME
+  (SELECT a FROM t1 WHERE a <=>
+    (SELECT a FROM t1 where a is null)
+  ); 
+
+DROP TABLE t1;
+
+--echo #
+--echo # BUG#779885: Crash in eliminate_item_equal with materialization=on in
+--echo # maria-5.3
+--echo #
+
 CREATE TABLE t1 ( f1 int );
 INSERT INTO t1 VALUES (19), (20);
 
@@ -4376,3 +4401,4 @@ WHERE
 );
 DROP TABLE t1,t2,t3;
 
+--echo End of 5.3 tests

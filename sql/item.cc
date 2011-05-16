@@ -984,24 +984,18 @@ bool Item_string::eq(const Item *item, bool binary_cmp) const
 
 /**
   Get the value of the function as a MYSQL_TIME structure.
-  As a extra convenience the time structure is reset on error!
+  As a extra convenience the time structure is reset on error or NULL values!
 */
 
 bool Item::get_date(MYSQL_TIME *ltime,uint fuzzydate)
 {
-  if (result_type() == STRING_RESULT)
+  switch (result_type()) {
+  case INT_RESULT:
   {
-    char buff[40];
-    String tmp(buff,sizeof(buff), &my_charset_bin),*res;
-    if (!(res=val_str(&tmp)) ||
-        str_to_datetime_with_warn(res->ptr(), res->length(),
-                                  ltime, fuzzydate) <= MYSQL_TIMESTAMP_ERROR)
-      goto err;
-  }
-  else
-  {
-    longlong value= val_int();
     int was_cut;
+    longlong value= val_int();
+    if (null_value)
+      goto err;
     if (number_to_datetime(value, ltime, fuzzydate, &was_cut) == LL(-1))
     {
       char buff[22], *end;
@@ -1009,8 +1003,52 @@ bool Item::get_date(MYSQL_TIME *ltime,uint fuzzydate)
       make_truncated_value_warning(current_thd, MYSQL_ERROR::WARN_LEVEL_WARN,
                                    buff, (int) (end-buff), MYSQL_TIMESTAMP_NONE,
                                    NullS);
+      null_value= 1;
       goto err;
     }
+    break;
+  }
+  case REAL_RESULT:
+  {
+    double value= val_real();
+    if (null_value)
+      goto err;
+    if (double_to_datetime_with_warn(value, ltime, fuzzydate))
+    {
+      null_value= 1;
+      goto err;
+    }
+    break;
+  }
+  case DECIMAL_RESULT:
+  {
+    my_decimal value, *res;
+    if (!(res= val_decimal(&value)))
+      goto err;                                 // Null
+    if (decimal_to_datetime_with_warn(res, ltime, fuzzydate))
+    {
+      null_value= 1;
+      goto err;
+    }
+    break;
+  }
+  default:
+  {
+    /*
+      Default go trough string as this is the safest way to ensure that
+      we also get the microseconds.
+    */
+    char buff[40];
+    String tmp(buff,sizeof(buff), &my_charset_bin),*res;
+    if (!(res=val_str(&tmp)) ||
+        str_to_datetime_with_warn(res->ptr(), res->length(),
+                                  ltime, fuzzydate) <= MYSQL_TIMESTAMP_ERROR)
+    {
+      null_value= 1;
+      goto err;
+    }
+    break;
+  }
   }
   return 0;
 
@@ -1030,7 +1068,11 @@ bool Item::get_time(MYSQL_TIME *ltime)
   char buff[40];
   String tmp(buff,sizeof(buff),&my_charset_bin),*res;
   if (!(res=val_str(&tmp)) ||
-      str_to_time_with_warn(res->ptr(), res->length(), ltime))
+      str_to_time_with_warn(res->ptr(), res->length(), ltime,
+                            TIME_FUZZY_DATE |
+                            (current_thd->variables.sql_mode &
+                             (MODE_NO_ZERO_DATE | MODE_NO_ZERO_IN_DATE |
+                              MODE_INVALID_DATES))))
   {
     bzero((char*) ltime,sizeof(*ltime));
     return 1;
@@ -2860,6 +2902,16 @@ bool Item_param::set_longdata(const char *str, ulong length)
     (here), and first have to concatenate all pieces together,
     write query to the binary log and only then perform conversion.
   */
+  if (str_value.length() + length > max_long_data_size)
+  {
+    my_message(ER_UNKNOWN_ERROR,
+               "Parameter of prepared statement which is set through "
+               "mysql_send_long_data() is longer than "
+               "'max_long_data_size' bytes",
+               MYF(0));
+    DBUG_RETURN(true);
+  }
+
   if (str_value.append(str, length, &my_charset_bin))
     DBUG_RETURN(TRUE);
   state= LONG_DATA_VALUE;
@@ -5743,7 +5795,10 @@ bool Item::send(Protocol *protocol, String *buffer)
   {
     String *res;
     if ((res=val_str(buffer)))
+    {
+      DBUG_ASSERT(!null_value);
       result= protocol->store(res->ptr(),res->length(),res->charset());
+    }
     else
     {
       DBUG_ASSERT(null_value);
@@ -6422,7 +6477,7 @@ void Item_ref::print(String *str, enum_query_type query_type)
     {
       THD *thd= current_thd;
       append_identifier(thd, str, (*ref)->real_item()->name,
-                        (*ref)->real_item()->name_length);
+                        strlen((*ref)->real_item()->name));
     }
     else
       (*ref)->print(str, query_type);
@@ -8031,7 +8086,7 @@ String *Item_cache_int::val_str(String *str)
     null_value= TRUE;
     return NULL;
   }
-  str->set(value, default_charset());
+  str->set_int(value, unsigned_flag, default_charset());
   return str;
 }
 

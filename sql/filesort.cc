@@ -231,7 +231,7 @@ ha_rows filesort(THD *thd, TABLE *table, SORT_FIELD *sortorder, uint s_length,
     goto err;
   }
   if (open_cached_file(&buffpek_pointers,mysql_tmpdir,TEMP_PREFIX,
-		       DISK_BUFFER_SIZE, MYF(MY_WME)))
+		       DISK_BUFFER_SIZE, MYF(ME_ERROR | MY_WME)))
     goto err;
 
   param.keys--;  			/* TODO: check why we do this */
@@ -266,7 +266,7 @@ ha_rows filesort(THD *thd, TABLE *table, SORT_FIELD *sortorder, uint s_length,
 	/* Open cached file if it isn't open */
     if (! my_b_inited(outfile) &&
 	open_cached_file(outfile,mysql_tmpdir,TEMP_PREFIX,READ_RECORD_BUFFER,
-			  MYF(MY_WME)))
+			  MYF(ME_ERROR | MY_WME)))
       goto err;
     if (reinit_io_cache(outfile,WRITE_CACHE,0L,0,0))
       goto err;
@@ -318,8 +318,7 @@ ha_rows filesort(THD *thd, TABLE *table, SORT_FIELD *sortorder, uint s_length,
     }
   }
   if (error)
-    my_message(ER_FILSORT_ABORT, ER(ER_FILSORT_ABORT),
-               MYF(ME_ERROR+ME_WAITTANG));
+    my_message(ER_FILSORT_ABORT, ER(ER_FILSORT_ABORT), MYF(0));
   else
     statistic_add(thd->status_var.filesort_rows,
 		  (ulong) records, &LOCK_status);

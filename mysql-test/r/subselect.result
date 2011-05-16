@@ -508,6 +508,9 @@ select numeropost as a FROM t1 GROUP BY (SELECT 1 FROM t1 HAVING a=1);
 ERROR 21000: Subquery returns more than 1 row
 select numeropost as a FROM t1 ORDER BY (SELECT 1 FROM t1 HAVING a=1);
 ERROR 21000: Subquery returns more than 1 row
+show warnings;
+Level	Code	Message
+Error	1242	Subquery returns more than 1 row
 drop table t1;
 create table t1 (a int);
 insert into t1 values (1),(2),(3);
@@ -5086,7 +5089,26 @@ b
 0
 DROP TABLE t1;
 #
-# BUG#779885: Crash in eliminate_item_equal with materialization=on in maria-5.3
+# Bug #11765713 58705:
+# OPTIMIZER LET ENGINE DEPEND ON UNINITIALIZED VALUES
+# CREATED BY OPT_SUM_QUERY
+#
+CREATE TABLE t1(a INT NOT NULL, KEY (a));
+INSERT INTO t1 VALUES (0), (1);
+SELECT 1 as foo FROM t1 WHERE a < SOME
+(SELECT a FROM t1 WHERE a <=>
+(SELECT a FROM t1)
+);
+ERROR 21000: Subquery returns more than 1 row
+SELECT 1 as foo FROM t1 WHERE a < SOME
+(SELECT a FROM t1 WHERE a <=>
+(SELECT a FROM t1 where a is null)
+);
+foo
+DROP TABLE t1;
+#
+# BUG#779885: Crash in eliminate_item_equal with materialization=on in
+# maria-5.3
 #
 CREATE TABLE t1 ( f1 int );
 INSERT INTO t1 VALUES (19), (20);
@@ -5105,3 +5127,4 @@ ON t2.f10 = t3.f10
 );
 f1
 DROP TABLE t1,t2,t3;
+End of 5.3 tests

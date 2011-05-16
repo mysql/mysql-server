@@ -289,57 +289,60 @@ bool handle_select(THD *thd, LEX *lex, select_result *result,
 }
 
 
-/*
+/**
   Fix fields referenced from inner selects.
 
-  SYNOPSIS
-    fix_inner_refs()
-    thd               Thread handle
-    all_fields        List of all fields used in select
-    select            Current select
-    ref_pointer_array Array of references to Items used in current select
-    group_list        GROUP BY list (is NULL by default)
+  @param thd               Thread handle
+  @param all_fields        List of all fields used in select
+  @param select            Current select
+  @param ref_pointer_array Array of references to Items used in current select
+  @param group_list        GROUP BY list (is NULL by default)
 
-  DESCRIPTION
-    The function serves 3 purposes - adds fields referenced from inner
-    selects to the current select list, resolves which class to use
-    to access referenced item (Item_ref of Item_direct_ref) and fixes
-    references (Item_ref objects) to these fields.
+  @details
+    The function serves 3 purposes
 
-    If a field isn't already in the select list and the ref_pointer_array
+    - adds fields referenced from inner query blocks to the current select list
+
+    - Decides which class to use to reference the items (Item_ref or
+      Item_direct_ref)
+
+    - fixes references (Item_ref objects) to these fields.
+
+    If a field isn't already on the select list and the ref_pointer_array
     is provided then it is added to the all_fields list and the pointer to
     it is saved in the ref_pointer_array.
 
     The class to access the outer field is determined by the following rules:
-    1. If the outer field isn't used under an aggregate function
-      then the Item_ref class should be used.
-    2. If the outer field is used under an aggregate function and this
-      function is aggregated in the select where the outer field was
-      resolved or in some more inner select then the Item_direct_ref
-      class should be used.
-      It used used also if we are grouping by a subquery that refers
-      this outer field.
+
+    -#. If the outer field isn't used under an aggregate function then the
+        Item_ref class should be used.
+
+    -#. If the outer field is used under an aggregate function and this
+        function is, in turn, aggregated in the query block where the outer
+        field was resolved or some query nested therein, then the
+        Item_direct_ref class should be used. Also it should be used if we are
+        grouping by a subquery containing the outer field.
+
     The resolution is done here and not at the fix_fields() stage as
-    it can be done only after sum functions are fixed and pulled up to
-    selects where they are have to be aggregated.
+    it can be done only after aggregate functions are fixed and pulled up to
+    selects where they are to be aggregated.
+
     When the class is chosen it substitutes the original field in the
     Item_outer_ref object.
 
     After this we proceed with fixing references (Item_outer_ref objects) to
     this field from inner subqueries.
 
-  RETURN
-    TRUE  an error occured
-    FALSE ok
-*/
+  @return Status
+  @retval true An error occured.
+  @retval false OK.
+ */
 
 bool
 fix_inner_refs(THD *thd, List<Item> &all_fields, SELECT_LEX *select,
                  Item **ref_pointer_array)
 {
   Item_outer_ref *ref;
-  bool res= FALSE;
-  bool direct_ref= FALSE;
 
   /*
     Mark the references from  the inner_refs_list that are occurred in
@@ -356,6 +359,7 @@ fix_inner_refs(THD *thd, List<Item> &all_fields, SELECT_LEX *select,
     
   while ((ref= ref_it++))
   {
+    bool direct_ref= false;
     Item *item= ref->outer_ref;
     Item **item_ref= ref->ref;
     Item_ref *new_ref;
@@ -414,7 +418,7 @@ fix_inner_refs(THD *thd, List<Item> &all_fields, SELECT_LEX *select,
       return TRUE;
     thd->used_tables|= item->used_tables();
   }
-  return res;
+  return false;
 }
 
 /**
@@ -953,7 +957,7 @@ JOIN::optimize()
       If all items were resolved by opt_sum_query, there is no need to
       open any tables.
     */
-    if ((res=opt_sum_query(select_lex->leaf_tables, all_fields, conds)))
+    if ((res=opt_sum_query(thd, select_lex->leaf_tables, all_fields, conds)))
     {
       if (res == HA_ERR_KEY_NOT_FOUND || res < 0)
       {
@@ -1965,7 +1969,7 @@ JOIN::exec()
       {
 	if (do_send_rows &&
             (procedure ? (procedure->send_row(procedure_fields_list) ||
-             procedure->end_of_records()) : result->send_data(fields_list)))
+             procedure->end_of_records()) : result->send_data(fields_list)> 0))
 	  error= 1;
 	else
 	{
@@ -2111,7 +2115,11 @@ JOIN::exec()
       JOIN_TAB *first_tab= curr_join->join_tab + curr_join->const_tables;
       first_tab->sorted= test(first_tab->loosescan_match_tab);
     }
-    if ((tmp_error= do_select(curr_join, (List<Item> *) 0, curr_tmp_table, 0)))
+
+    Procedure *save_proc= curr_join->procedure;
+    tmp_error= do_select(curr_join, (List<Item> *) 0, curr_tmp_table, 0);
+    curr_join->procedure= save_proc;
+    if (tmp_error)
     {
       error= tmp_error;
       DBUG_VOID_RETURN;
@@ -3601,6 +3609,7 @@ static uint get_semi_join_select_list_index(Field *field)
     @param field           Field used in comparision
     @param eq_func         True if we used =, <=> or IS NULL
     @param value           Value used for comparison with field
+    @param num_values      Number of values[] that we are comparing against
     @param usable_tables   Tables which can be used for key optimization
     @param sargables       IN/OUT Array of found sargable candidates
 
@@ -3700,26 +3709,7 @@ add_key_field(JOIN *join,
         eq_func is NEVER true when num_values > 1
        */
       if (!eq_func)
-      {
-        /* 
-          Additional optimization: if we're processing
-          "t.key BETWEEN c1 AND c1" then proceed as if we were processing
-          "t.key = c1".
-          TODO: This is a very limited fix. A more generic fix is possible. 
-          There are 2 options:
-          A) Make equality propagation code be able to handle BETWEEN
-             (including cases like t1.key BETWEEN t2.key AND t3.key)
-          B) Make range optimizer to infer additional "t.key = c" equalities
-             and use them in equality propagation process (see details in
-             OptimizerKBAndTodo)
-        */
-        if ((cond->functype() != Item_func::BETWEEN) ||
-            ((Item_func_between*) cond)->negated ||
-            !value[0]->eq(value[1], field->binary()))
-          return;
-        eq_func= TRUE;
-      }
-
+        return;
       if (field->result_type() == STRING_RESULT)
       {
         if ((*value)->result_type() != STRING_RESULT)
@@ -3942,9 +3932,65 @@ add_key_fields(JOIN *join, KEY_FIELD **key_fields, uint *and_level,
   case Item_func::OPTIMIZE_KEY:
   {
     Item **values;
-    // BETWEEN, IN, NE
-    if (is_local_field (cond_func->key_item()) &&
-	!(cond_func->used_tables() & OUTER_REF_TABLE_BIT))
+    /*
+      Build list of possible keys for 'a BETWEEN low AND high'.
+      It is handled similar to the equivalent condition 
+      'a >= low AND a <= high':
+    */
+    if (cond_func->functype() == Item_func::BETWEEN)
+    {
+      Item_field *field_item;
+      bool equal_func= FALSE;
+      uint num_values= 2;
+      values= cond_func->arguments();
+
+      bool binary_cmp= (values[0]->real_item()->type() == Item::FIELD_ITEM)
+            ? ((Item_field*)values[0]->real_item())->field->binary()
+            : TRUE;
+
+      /*
+        Additional optimization: If 'low = high':
+        Handle as if the condition was "t.key = low".
+      */
+      if (!((Item_func_between*)cond_func)->negated &&
+          values[1]->eq(values[2], binary_cmp))
+      {
+        equal_func= TRUE;
+        num_values= 1;
+      }
+
+      /*
+        Append keys for 'field <cmp> value[]' if the
+        condition is of the form::
+        '<field> BETWEEN value[1] AND value[2]'
+      */
+      if (is_local_field(values[0]))
+      {
+        field_item= (Item_field *) (values[0]->real_item());
+        add_key_equal_fields(join, key_fields, *and_level, cond_func,
+                             field_item, equal_func, &values[1],
+                             num_values, usable_tables, sargables);
+      }
+      /*
+        Append keys for 'value[0] <cmp> field' if the
+        condition is of the form:
+        'value[0] BETWEEN field1 AND field2'
+      */
+      for (uint i= 1; i <= num_values; i++)
+      {
+        if (is_local_field(values[i]))
+        {
+          field_item= (Item_field *) (values[i]->real_item());
+          add_key_equal_fields(join, key_fields, *and_level, cond_func,
+                               field_item, equal_func, values,
+                               1, usable_tables, sargables);
+        }
+      }
+    } // if ( ... Item_func::BETWEEN)
+
+    // IN, NE
+    else if (is_local_field (cond_func->key_item()) &&
+            !(cond_func->used_tables() & OUTER_REF_TABLE_BIT))
     {
       values= cond_func->arguments()+1;
       if (cond_func->functype() == Item_func::NE_FUNC &&
@@ -3958,21 +4004,6 @@ add_key_fields(JOIN *join, KEY_FIELD **key_fields, uint *and_level,
                            cond_func->argument_count()-1,
                            usable_tables, sargables);
     }
-    if (cond_func->functype() == Item_func::BETWEEN)
-    {
-      values= cond_func->arguments();
-      for (uint i= 1 ; i < cond_func->argument_count() ; i++)
-      {
-        Item_field *field_item;
-        if (is_local_field (cond_func->arguments()[i]))
-        {
-          field_item= (Item_field *) (cond_func->arguments()[i]->real_item());
-          add_key_equal_fields(join, key_fields, *and_level, cond_func,
-                               field_item, 0, values, 1, usable_tables, 
-                               sargables);
-        }
-      }  
-    }
     break;
   }
   case Item_func::OPTIMIZE_OP:
@@ -3983,7 +4014,8 @@ add_key_fields(JOIN *join, KEY_FIELD **key_fields, uint *and_level,
     if (is_local_field (cond_func->arguments()[0]))
     {
       add_key_equal_fields(join, key_fields, *and_level, cond_func,
-	                (Item_field*) (cond_func->arguments()[0])->real_item(),
+                           (Item_field*) (cond_func->arguments()[0])->
+                           real_item(),
 		           equal_func,
                            cond_func->arguments()+1, 1, usable_tables,
                            sargables);
@@ -3992,7 +4024,8 @@ add_key_fields(JOIN *join, KEY_FIELD **key_fields, uint *and_level,
 	cond_func->functype() != Item_func::LIKE_FUNC)
     {
       add_key_equal_fields(join, key_fields, *and_level, cond_func, 
-                       (Item_field*) (cond_func->arguments()[1])->real_item(),
+                           (Item_field*) (cond_func->arguments()[1])->
+                           real_item(),
 		           equal_func,
                            cond_func->arguments(),1,usable_tables,
                            sargables);
@@ -4008,8 +4041,9 @@ add_key_fields(JOIN *join, KEY_FIELD **key_fields, uint *and_level,
       if (unlikely(!tmp))                       // Should never be true
 	return;
       add_key_equal_fields(join, key_fields, *and_level, cond_func,
-		    (Item_field*) (cond_func->arguments()[0])->real_item(),
-		    cond_func->functype() == Item_func::ISNULL_FUNC,
+                           (Item_field*) (cond_func->arguments()[0])->
+                           real_item(),
+                           cond_func->functype() == Item_func::ISNULL_FUNC,
 			   &tmp, 1, usable_tables, sargables);
     }
     break;
@@ -7386,7 +7420,7 @@ make_join_select(JOIN *join,SQL_SELECT *select,COND *cond)
           */
           if (!(tmp= add_found_match_trig_cond(first_inner_tab, tmp, 0)))
             DBUG_RETURN(1);
-          sel->cond= tmp;
+          sel->cond= sel->original_cond= tmp;
           tab->set_select_cond(tmp, __LINE__);
           /* Push condition to storage engine if this is enabled
              and the condition is not guarded */
@@ -7419,7 +7453,7 @@ make_join_select(JOIN *join,SQL_SELECT *select,COND *cond)
 	     with key reading */
 	  if ((tab->needed_reg.is_clear_all() && tab->type != JT_EQ_REF
 	       && tab->type != JT_FT &&
-               (tab->type != JT_REF ||
+               ((tab->type != JT_REF && tab->type != JT_CONST) ||
                 (uint) tab->ref.key == tab->quick->index)) || is_hj)
 	  {
 	    sel->quick=tab->quick;		// Use value from get_quick_...
@@ -7473,7 +7507,8 @@ make_join_select(JOIN *join,SQL_SELECT *select,COND *cond)
 	      sel->cond->quick_fix_field();
 
 	    if (sel->test_quick_select(thd, tab->keys,
-				       (used_tables & ~ current_map) | OUTER_REF_TABLE_BIT,
+				       ((used_tables & ~ current_map) |
+                                        OUTER_REF_TABLE_BIT),
 				       (join->select_options &
 					OPTION_FOUND_ROWS ?
 					HA_POS_ERROR :
@@ -8339,7 +8374,6 @@ static bool
 make_join_readinfo(JOIN *join, ulonglong options, uint no_jbuf_after)
 {
   uint i;
-
   DBUG_ENTER("make_join_readinfo");
 
   bool statistics= test(!(join->select_options & SELECT_DESCRIBE));
@@ -8357,7 +8391,8 @@ make_join_readinfo(JOIN *join, ulonglong options, uint no_jbuf_after)
     /*
       The approximation below for partial join cardinality is not good because
         - it does not take into account some pushdown predicates
-        - it does not differentiate between inner joins, outer joins and semi-joins.
+        - it does not differentiate between inner joins, outer joins and
+        semi-joins.
       Later it should be improved.
     */
     JOIN_TAB *tab=join->join_tab+i;
@@ -8492,14 +8527,16 @@ make_join_readinfo(JOIN *join, ulonglong options, uint no_jbuf_after)
 	  if (tab->select && tab->select->quick)
 	  {
 	    if (statistics)
-	      status_var_increment(join->thd->status_var.select_full_range_join_count);
+	      status_var_increment(join->thd->status_var.
+                                   select_full_range_join_count);
 	  }
 	  else
 	  {
 	    join->thd->server_status|=SERVER_QUERY_NO_INDEX_USED;
 	    if (statistics)
 	    {
-	      status_var_increment(join->thd->status_var.select_full_join_count);
+	      status_var_increment(join->thd->status_var.
+                                   select_full_join_count);
 	      join->thd->query_plan_flags|= QPLAN_FULL_JOIN;
 	    }
 	  }
@@ -8537,12 +8574,14 @@ make_join_readinfo(JOIN *join, ulonglong options, uint no_jbuf_after)
       break;
     case JT_FT:
       break;
+      /* purecov: begin deadcode */
     default:
-      DBUG_PRINT("error",("Table type %d found",tab->type)); /* purecov: deadcode */
-      break;					/* purecov: deadcode */
+      DBUG_PRINT("error",("Table type %d found",tab->type));
+      break;
     case JT_UNKNOWN:
     case JT_MAYBE_REF:
-      abort();					/* purecov: deadcode */
+      abort();
+      /* purecov: end */
     }
   }
   join->join_tab[join->tables-1].next_select=0; /* Set by do_select */
@@ -9184,7 +9223,7 @@ return_zero_rows(JOIN *join, select_result *result,TABLE_LIST *tables,
       Item *item;
       while ((item= it++))
 	item->no_rows_in_result();
-      send_error= result->send_data(fields);
+      send_error= result->send_data(fields) > 0;
     }
     if (!send_error)
       result->send_eof();				// Should be safe
@@ -13589,7 +13628,7 @@ do_select(JOIN *join,List<Item> *fields,TABLE *table,Procedure *procedure)
         for (TABLE_LIST *table= join->select_lex->leaf_tables;
              table; table= table->next_leaf)
           mark_as_null_row(table->table);
-        rc= join->result->send_data(*columns_list);
+        rc= join->result->send_data(*columns_list) > 0;
       }
     }
   }
@@ -15026,16 +15065,21 @@ end_send(JOIN *join, JOIN_TAB *join_tab __attribute__((unused)),
   DBUG_ENTER("end_send");
   if (!end_of_records)
   {
-    int error;
     if (join->having && join->having->val_int() == 0)
       DBUG_RETURN(NESTED_LOOP_OK);               // Didn't match having
-    error=0;
     if (join->procedure)
-      error=join->procedure->send_row(join->procedure_fields_list);
-    else if (join->do_send_rows)
-      error=join->result->send_data(*join->fields);
-    if (error)
-      DBUG_RETURN(NESTED_LOOP_ERROR); /* purecov: inspected */
+    {
+      if (join->procedure->send_row(join->procedure_fields_list))
+        DBUG_RETURN(NESTED_LOOP_ERROR);
+      DBUG_RETURN(NESTED_LOOP_OK);
+    }
+    if (join->do_send_rows)
+    {
+      int error;
+      /* result < 0 if row was not accepted and should not be counted */
+      if ((error= join->result->send_data(*join->fields)))
+        DBUG_RETURN(error < 0 ? NESTED_LOOP_OK : NESTED_LOOP_ERROR);
+    }
     if (++join->send_records >= join->unit->select_limit_cnt &&
 	join->do_send_rows)
     {
@@ -15145,7 +15189,15 @@ end_send_group(JOIN *join, JOIN_TAB *join_tab __attribute__((unused)),
 	  else
 	  {
 	    if (join->do_send_rows)
-	      error=join->result->send_data(*join->fields) ? 1 : 0;
+            {
+	      error= join->result->send_data(*join->fields);
+              if (error < 0)
+              {
+                /* Duplicate row, don't count */
+                join->send_records--;
+                error= 0;
+              }
+            }
 	    join->send_records++;
 	  }
 	  if (join->rollup.state != ROLLUP::STATE_NONE && error <= 0)
@@ -15554,41 +15606,49 @@ bool test_if_ref(Item *root_cond, Item_field *left_item,Item *right_item)
 }
 
 
-/*
-  Extract a condition that can be checked after reading given table
-  
-  SYNOPSIS
-    make_cond_for_table()
-      cond         Condition to analyze
-      tables       Tables for which "current field values" are available
-      used_table   Table that we're extracting the condition for (may 
-                   also include PSEUDO_TABLE_BITS
-      join_tab_idx_arg The index of the JOIN_TAB this Item is being extracted
-                       for. MAX_TABLES if there is no corresponding JOIN_TAB.
-      exclude_expensive_cond  Do not push expensive conditions
-      retain_ref_cond         Retain ref conditions
+/**
+   Extract a condition that can be checked after reading given table
+   @fn make_cond_for_table()
 
-  DESCRIPTION
-    Extract the condition that can be checked after reading the table
-    specified in 'used_table', given that current-field values for tables
-    specified in 'tables' bitmap are available.
+   @param cond       Condition to analyze
+   @param tables     Tables for which "current field values" are available
+   @param used_table Table that we're extracting the condition for (may
+                     also include PSEUDO_TABLE_BITS, and may be zero)
+   @param join_tab_idx_arg
+		     The index of the JOIN_TAB this Item is being extracted
+                     for. MAX_TABLES if there is no corresponding JOIN_TAB.
+   @param exclude_expensive_cond
+		     Do not push expensive conditions
+   @param retain_ref_cond
+                     Retain ref conditions
 
-    The function assumes that
-      - Constant parts of the condition has already been checked.
-      - Condition that could be checked for tables in 'tables' has already 
-        been checked.
-        
-    The function takes into account that some parts of the condition are
-    guaranteed to be true by employed 'ref' access methods (the code that
-    does this is located at the end, search down for "EQ_FUNC").
+   @retval <>NULL Generated condition
+   @retval =NULL  Already checked, OR error
 
+   @details
+     Extract the condition that can be checked after reading the table
+     specified in 'used_table', given that current-field values for tables
+     specified in 'tables' bitmap are available.
+     If 'used_table' is 0
+     - extract conditions for all tables in 'tables'.
+     - extract conditions are unrelated to any tables
+       in the same query block/level(i.e. conditions
+       which have used_tables == 0).
 
-  SEE ALSO 
-    make_cond_for_info_schema uses similar algorithm
+     The function assumes that
+     - Constant parts of the condition has already been checked.
+     - Condition that could be checked for tables in 'tables' has already
+     been checked.
 
-  RETURN
-    Extracted condition
-*/
+     The function takes into account that some parts of the condition are
+     guaranteed to be true by employed 'ref' access methods (the code that
+     does this is located at the end, search down for "EQ_FUNC").
+
+   @note
+     Make sure to keep the implementations of make_cond_for_table() and
+     make_cond_after_sjm() synchronized.
+     make_cond_for_info_schema() uses similar algorithm as well.
+*/ 
 
 static Item *
 make_cond_for_table(THD *thd, Item *cond, table_map tables,
@@ -15603,11 +15663,13 @@ make_cond_for_table(THD *thd, Item *cond, table_map tables,
                                        retain_ref_cond);
 }
 
+
 static Item *
 make_cond_for_table_from_pred(THD *thd, Item *root_cond, Item *cond,
                               table_map tables, table_map used_table,
                               uint join_tab_idx_arg,
-                              bool exclude_expensive_cond __attribute__((unused)),
+                              bool exclude_expensive_cond __attribute__
+                              ((unused)),
                               bool retain_ref_cond)
 
 {
@@ -16251,13 +16313,13 @@ test_if_skip_sort_order(JOIN_TAB *tab,ORDER *order,ha_rows select_limit,
 {
   int ref_key;
   uint ref_key_parts;
-  int order_direction;
+  int order_direction= 0;
   uint used_key_parts;
   TABLE *table=tab->table;
   SQL_SELECT *select=tab->select;
   key_map usable_keys;
-  QUICK_SELECT_I *save_quick= 0;
-  COND *orig_select_cond= 0;
+  QUICK_SELECT_I *save_quick= select ? select->quick : 0;
+  int best_key= -1;
   DBUG_ENTER("test_if_skip_sort_order");
   LINT_INIT(ref_key_parts);
 
@@ -16277,7 +16339,7 @@ test_if_skip_sort_order(JOIN_TAB *tab,ORDER *order,ha_rows select_limit,
     }
     usable_keys.intersect(((Item_field*) item)->field->part_of_sortkey);
     if (usable_keys.is_clear_all())
-      goto use_filesort;					// No usable keys
+      goto use_filesort;                        // No usable keys
   }
 
   ref_key= -1;
@@ -16292,7 +16354,6 @@ test_if_skip_sort_order(JOIN_TAB *tab,ORDER *order,ha_rows select_limit,
   else if (select && select->quick)		// Range found by opt_range
   {
     int quick_type= select->quick->get_type();
-    save_quick= select->quick;
     /* 
       assume results are not ordered when index merge is used 
       TODO: sergeyp: Results of all index merge selects actually are ordered 
@@ -16325,15 +16386,10 @@ test_if_skip_sort_order(JOIN_TAB *tab,ORDER *order,ha_rows select_limit,
       */
       if (table->covering_keys.is_set(ref_key))
 	usable_keys.intersect(table->covering_keys);
-      if (tab->pre_idx_push_select_cond)
-        orig_select_cond= tab->set_cond(tab->pre_idx_push_select_cond);
 
       if ((new_ref_key= test_if_subkey(order, table, ref_key, ref_key_parts,
 				       &usable_keys)) < MAX_KEY)
       {
-	/* Found key that can be used to retrieve data in sorted order */
-        //psergey-mrr:if (tab->pre_idx_push_select_cond)
-        //  tab->select_cond= tab->select->cond= tab->pre_idx_push_select_cond;
 	if (tab->ref.key >= 0)
 	{
           /*
@@ -16360,22 +16416,36 @@ test_if_skip_sort_order(JOIN_TAB *tab,ORDER *order,ha_rows select_limit,
             The range optimizer constructed QUICK_RANGE for ref_key, and
             we want to use instead new_ref_key as the index. We can't
             just change the index of the quick select, because this may
-            result in an incosistent QUICK_SELECT object. Below we
+            result in an inconsistent QUICK_SELECT object. Below we
             create a new QUICK_SELECT from scratch so that all its
-            parameres are set correctly by the range optimizer.
+            parameters are set correctly by the range optimizer.
            */
           key_map new_ref_key_map;
+          COND *save_cond;
+          bool res;
           new_ref_key_map.clear_all();  // Force the creation of quick select
           new_ref_key_map.set_bit(new_ref_key); // only for new_ref_key.
 
-          if (select->test_quick_select(tab->join->thd, new_ref_key_map, 0,
-                                        (tab->join->select_options &
-                                         OPTION_FOUND_ROWS) ?
-                                        HA_POS_ERROR :
-                                        tab->join->unit->select_limit_cnt,0,
-                                        TRUE) <=
-              0)
+          /* Reset quick;  This will be restored in 'use_filesort' if needed */
+          select->quick= 0;
+          save_cond= select->cond;
+          select->cond= select->original_cond;
+          res= select->test_quick_select(tab->join->thd, new_ref_key_map, 0,
+                                         (tab->join->select_options &
+                                          OPTION_FOUND_ROWS) ?
+                                         HA_POS_ERROR :
+                                         tab->join->unit->select_limit_cnt,0,
+                                         TRUE) <= 0;
+          if (res)
+          {
+            select->cond= save_cond;
             goto use_filesort;
+          }
+          /*
+            We don't restore select->cond as we want to use the
+            original condition as index condition pushdown is not
+            active for the new index.
+          */
 	}
         ref_key= new_ref_key;
       }
@@ -16400,7 +16470,6 @@ test_if_skip_sort_order(JOIN_TAB *tab,ORDER *order,ha_rows select_limit,
     int best_key_direction;
     ha_rows best_records;
     double read_time;
-    int best_key= -1;
     bool is_best_covering= FALSE;
     double fanout= 1;
     JOIN *join= tab->join;
@@ -16618,84 +16687,21 @@ test_if_skip_sort_order(JOIN_TAB *tab,ORDER *order,ha_rows select_limit,
          tab->join->tables > tab->join->const_tables + 1) &&
          ((unsigned) best_key != table->s->primary_key ||
           !table->file->primary_key_is_clustered()))
-      DBUG_RETURN(0);
+      goto use_filesort;
 
     if (best_key >= 0)
     {
-      bool quick_created= FALSE;
       if (table->quick_keys.is_set(best_key) && best_key != ref_key)
       {
         key_map map;
         map.clear_all();       // Force the creation of quick select
         map.set_bit(best_key); // only best_key.
-        quick_created=         
-          select->test_quick_select(join->thd, map, 0,
-                                    join->select_options & OPTION_FOUND_ROWS ?
-                                    HA_POS_ERROR :
-                                    join->unit->select_limit_cnt,
-                                    TRUE, FALSE) > 0;
-      }
-      if (!no_changes)
-      {
-        /* 
-           If ref_key used index tree reading only ('Using index' in EXPLAIN),
-           and best_key doesn't, then revert the decision.
-        */
-        if (!table->covering_keys.is_set(best_key))
-          table->disable_keyread();
-        if (!quick_created)
-	{
-          tab->index= best_key;
-          tab->read_first_record= best_key_direction > 0 ?
-                                  join_read_first:join_read_last;
-          tab->type=JT_NEXT;           // Read with index_first(), index_next()
-          if (select && select->quick)
-          {
-            delete select->quick;
-            select->quick= 0;
-          }
-          if (table->covering_keys.is_set(best_key) && ! table->key_read)
-            table->enable_keyread();
-          if (tab->pre_idx_push_select_cond)
-          {
-            COND *tmp_cond= tab->pre_idx_push_select_cond;
-            if (orig_select_cond)
-            {
-              tmp_cond= and_conds(tmp_cond, orig_select_cond);
-              tmp_cond->quick_fix_field();
-            }
-            tab->set_cond(tmp_cond);
-            /* orig_select_cond was merged, no need to restore original one. */
-            orig_select_cond= 0;
-          }
-          table->file->ha_index_or_rnd_end();
-          if (join->select_options & SELECT_DESCRIBE)
-          {
-            tab->ref.key= -1;
-            tab->ref.key_parts= 0;
-            if (select_limit < table_records) 
-              tab->limit= select_limit;
-          }
-        }
-        else if (tab->type != JT_ALL)
-        {
-          /*
-            We're about to use a quick access to the table.
-            We need to change the access method so as the quick access
-            method is actually used.
-          */
-          DBUG_ASSERT(tab->select->quick);
-          tab->type=JT_ALL;
-          tab->use_quick=1;
-          tab->ref.key= -1;
-          tab->ref.key_parts=0;		// Don't use ref key.
-          tab->read_first_record= join_init_read_record;
-          if (tab->is_using_loose_index_scan())
-            join->tmp_table_param.precomputed_group_by= TRUE;
-          /*
-            TODO: update the number of records in join->best_positions[tablenr]
-          */
-        }
+        select->quick= 0;
+        select->test_quick_select(join->thd, map, 0,
+                                  join->select_options & OPTION_FOUND_ROWS ?
+                                  HA_POS_ERROR :
+                                  join->unit->select_limit_cnt,
+                                  TRUE, FALSE);
       }
       order_direction= best_key_direction;
       /*
@@ -16708,68 +16714,177 @@ test_if_skip_sort_order(JOIN_TAB *tab,ORDER *order,ha_rows select_limit,
         saved_best_key_parts :  best_key_parts;
     }
     else
-      goto use_filesort; 
+      goto use_filesort;
   } 
 
 check_reverse_order:                  
+  DBUG_ASSERT(order_direction != 0);
+
   if (order_direction == -1)		// If ORDER BY ... DESC
   {
+    int quick_type;
     if (select && select->quick)
     {
       /*
 	Don't reverse the sort order, if it's already done.
         (In some cases test_if_order_by_key() can be called multiple times
       */
-      if (!select->quick->reverse_sorted())
+      if (select->quick->reverse_sorted())
+        goto skipped_filesort;
+
+      quick_type= select->quick->get_type();
+      if (quick_type == QUICK_SELECT_I::QS_TYPE_INDEX_MERGE ||
+          quick_type == QUICK_SELECT_I::QS_TYPE_INDEX_INTERSECT ||
+          quick_type == QUICK_SELECT_I::QS_TYPE_ROR_INTERSECT ||
+          quick_type == QUICK_SELECT_I::QS_TYPE_ROR_UNION ||
+          quick_type == QUICK_SELECT_I::QS_TYPE_GROUP_MIN_MAX)
+      {
+        tab->limit= 0;
+        goto use_filesort;               // Use filesort
+      }
+    }
+  }
+
+  /*
+    Update query plan with access pattern for doing ordered access
+    according to what we have decided above.
+  */
+  if (!no_changes) // We are allowed to update QEP
+  {
+    if (best_key >= 0)
+    {
+      bool quick_created= 
+        (select && select->quick && select->quick!=save_quick);
+
+      /* 
+         If ref_key used index tree reading only ('Using index' in EXPLAIN),
+         and best_key doesn't, then revert the decision.
+      */
+      if (!table->covering_keys.is_set(best_key))
+        table->disable_keyread();
+      if (!quick_created)
+      {
+        if (select)                  // Throw any existing quick select
+          select->quick= 0;          // Cleanup either reset to save_quick,
+                                     // or 'delete save_quick'
+        tab->index= best_key;
+        tab->read_first_record= order_direction > 0 ?
+                                join_read_first:join_read_last;
+        tab->type=JT_NEXT;           // Read with index_first(), index_next()
+
+        if (table->covering_keys.is_set(best_key) && ! table->key_read)
+          table->enable_keyread();
+        if (tab->pre_idx_push_select_cond)
+        {
+          COND *tmp_cond= tab->pre_idx_push_select_cond;
+          COND *orig_select_cond= tab->select_cond;
+
+          if (orig_select_cond)
+          {
+            tmp_cond= and_conds(tmp_cond, orig_select_cond);
+            tmp_cond->quick_fix_field();
+          }
+          tab->set_cond(tmp_cond);
+        }
+        table->file->ha_index_or_rnd_end();
+        if (tab->join->select_options & SELECT_DESCRIBE)
+        {
+          tab->ref.key= -1;
+          tab->ref.key_parts= 0;
+          if (select_limit < table->file->stats.records) 
+            tab->limit= select_limit;
+        }
+      }
+      else if (tab->type != JT_ALL)
+      {
+        /*
+          We're about to use a quick access to the table.
+          We need to change the access method so as the quick access
+          method is actually used.
+        */
+        DBUG_ASSERT(tab->select->quick);
+        tab->type=JT_ALL;
+        tab->use_quick=1;
+        tab->ref.key= -1;
+        tab->ref.key_parts=0;		// Don't use ref key.
+        tab->read_first_record= join_init_read_record;
+        if (tab->is_using_loose_index_scan())
+          tab->join->tmp_table_param.precomputed_group_by= TRUE;
+
+        /*
+          Restore the original condition as changes done by pushdown
+          condition are not relevant anymore
+        */
+        if (tab->select)
+          tab->set_cond(tab->select->original_cond);
+
+        /*
+          TODO: update the number of records in join->best_positions[tablenr]
+        */
+      }
+    } // best_key >= 0
+
+    if (order_direction == -1)		// If ORDER BY ... DESC
+    {
+      if (select && select->quick)
       {
         QUICK_SELECT_DESC *tmp;
         bool error= FALSE;
-        int quick_type= select->quick->get_type();
-        if (quick_type == QUICK_SELECT_I::QS_TYPE_INDEX_MERGE ||
-            quick_type == QUICK_SELECT_I::QS_TYPE_INDEX_INTERSECT ||
-            quick_type == QUICK_SELECT_I::QS_TYPE_ROR_INTERSECT ||
-            quick_type == QUICK_SELECT_I::QS_TYPE_ROR_UNION ||
-            quick_type == QUICK_SELECT_I::QS_TYPE_GROUP_MIN_MAX)
-        {
-          tab->limit= 0;
-          select->quick= save_quick;
-          goto use_filesort;                   // Use filesort
-        }
-            
+
         /* ORDER BY range_key DESC */
-	tmp= new QUICK_SELECT_DESC((QUICK_RANGE_SELECT*)(select->quick),
-                                    used_key_parts, &error);
-	if (!tmp || error)
-	{
-	  delete tmp;
-          select->quick= save_quick;
+        tmp= new QUICK_SELECT_DESC((QUICK_RANGE_SELECT*)(select->quick),
+                                   used_key_parts, &error);
+        if (tmp && select->quick == save_quick)
+          save_quick= 0;    // ::QUICK_SELECT_DESC consumed it
+
+        if (!tmp || error)
+        {
+          delete tmp;
           tab->limit= 0;
-	  goto use_filesort;		// Reverse sort not supported
-	}
-	select->quick=tmp;
+          goto use_filesort;           // Reverse sort failed -> filesort
+        }
+        select->quick= tmp;
+      }
+      else if (tab->type != JT_NEXT && tab->type != JT_REF_OR_NULL &&
+               tab->ref.key >= 0 && tab->ref.key_parts <= used_key_parts)
+      {
+        /*
+          SELECT * FROM t1 WHERE a=1 ORDER BY a DESC,b DESC
+
+          Use a traversal function that starts by reading the last row
+          with key part (A) and then traverse the index backwards.
+        */
+        tab->read_first_record= join_read_last_key;
+        tab->read_record.read_record= join_read_prev_same;
       }
     }
-    else if (tab->type != JT_NEXT && tab->type != JT_REF_OR_NULL &&
-             tab->ref.key >= 0 && tab->ref.key_parts <= used_key_parts)
-    {
-      /*
-	SELECT * FROM t1 WHERE a=1 ORDER BY a DESC,b DESC
+    else if (select && select->quick)
+      select->quick->need_sorted_output();
 
-	Use a traversal function that starts by reading the last row
-	with key part (A) and then traverse the index backwards.
-      */
-      tab->read_first_record= join_read_last_key;
-      tab->read_record.read_record= join_read_prev_same;
-    }
+  } // QEP has been modified
+
+  /*
+    Cleanup:
+    We may have both a 'select->quick' and 'save_quick' (original)
+    at this point. Delete the one that we wan't use.
+  */
+
+skipped_filesort:
+  // Keep current (ordered) select->quick 
+  if (select && save_quick != select->quick)
+  {
+    delete save_quick;
+    save_quick= NULL;
   }
-  else if (select && select->quick)
-    select->quick->need_sorted_output();
-  if (orig_select_cond)
-    tab->set_cond(orig_select_cond);
   DBUG_RETURN(1);
+
 use_filesort:
-  if (orig_select_cond)
-    tab->set_cond(orig_select_cond);
+  // Restore original save_quick
+  if (select && select->quick != save_quick)
+  {
+    delete select->quick;
+    select->quick= save_quick;
+  }
   DBUG_RETURN(0);
 }
 
@@ -18705,7 +18820,7 @@ static bool add_ref_to_table_cond(THD *thd, JOIN_TAB *join_tab)
   {
     if (join_tab->select->cond)
       error=(int) cond->add(join_tab->select->cond);
-    join_tab->select->cond= cond;
+    join_tab->select->cond= join_tab->select->original_cond= cond;
     join_tab->set_select_cond(cond, __LINE__);
   }
   else if ((join_tab->select= make_select(join_tab->table, 0, 0, cond, 0,
@@ -19108,6 +19223,7 @@ int JOIN::rollup_send_data(uint idx)
   uint i;
   for (i= send_group_parts ; i-- > idx ; )
   {
+    int res= 0;
     /* Get reference pointers to sum functions in place */
     memcpy((char*) ref_pointer_array,
 	   (char*) rollup.ref_pointer_arrays[i],
@@ -19115,9 +19231,10 @@ int JOIN::rollup_send_data(uint idx)
     if ((!having || having->val_int()))
     {
       if (send_records < unit->select_limit_cnt && do_send_rows &&
-	  result->send_data(rollup.fields[i]))
+	  (res= result->send_data(rollup.fields[i])) > 0)
 	return 1;
-      send_records++;
+      if (!res)
+        send_records++;
     }
   }
   /* Restore ref_pointer_array */

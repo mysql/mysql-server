@@ -171,7 +171,7 @@ str_to_datetime(const char *str, uint length, MYSQL_TIME *l_time,
   my_bool found_delimitier= 0, found_space= 0;
   uint frac_pos, frac_len;
   DBUG_ENTER("str_to_datetime");
-  DBUG_PRINT("ENTER",("str: %.*s",length,str));
+  DBUG_PRINT("enter",("str: %.*s",length,str));
 
   LINT_INIT(field_length);
 
@@ -482,7 +482,7 @@ err:
 */
 
 my_bool str_to_time(const char *str, uint length, MYSQL_TIME *l_time,
-                    int *warning)
+                    ulong fuzzydate, int *warning)
 {
   ulong date[5];
   ulonglong value;
@@ -509,7 +509,7 @@ my_bool str_to_time(const char *str, uint length, MYSQL_TIME *l_time,
     int was_cut;
     enum enum_mysql_timestamp_type
       res= str_to_datetime(str, length, l_time,
-                           (TIME_FUZZY_DATE | TIME_DATETIME_ONLY), &was_cut);
+                           fuzzydate | TIME_DATETIME_ONLY, &was_cut);
     if ((int) res >= (int) MYSQL_TIMESTAMP_ERROR)
     {
       if (was_cut)
@@ -776,7 +776,7 @@ long calc_daynr(uint year,uint month,uint day)
   int y= year;                                  /* may be < 0 temporarily */
   DBUG_ENTER("calc_daynr");
 
-  if (y == 0 && month == 0 && day == 0)
+  if (y == 0 && month == 0)
     DBUG_RETURN(0);				/* Skip errors */
   /* Cast to int to be able to handle month == 0 */
   delsum= (long) (365 * y + 31 *((int) month - 1) + (int) day);
@@ -787,6 +787,7 @@ long calc_daynr(uint year,uint month,uint day)
   temp=(int) ((y/100+1)*3)/4;
   DBUG_PRINT("exit",("year: %d  month: %d  day: %d -> daynr: %ld",
 		     y+(month <= 2),month,day,delsum+y/4-temp));
+  DBUG_ASSERT(delsum+(int) y/4-temp > 0);
   DBUG_RETURN(delsum+(int) y/4-temp);
 } /* calc_daynr */
 
@@ -996,7 +997,7 @@ my_system_gmt_sec(const MYSQL_TIME *t_src, long *my_timezone,
     with unsigned time_t tmp+= shift*86400L might result in a number,
     larger then TIMESTAMP_MAX_VALUE, so another check will work.
   */
-  if ((tmp < TIMESTAMP_MIN_VALUE) || (tmp > TIMESTAMP_MAX_VALUE))
+  if (!IS_TIME_T_VALID_FOR_TIMESTAMP(tmp))
     tmp= 0;
 
   return (my_time_t) tmp;
@@ -1028,11 +1029,15 @@ void set_zero_time(MYSQL_TIME *tm, enum enum_mysql_timestamp_type time_type)
 int my_time_to_str(const MYSQL_TIME *l_time, char *to)
 {
   uint extra_hours= 0;
-  return my_sprintf(to, (to, "%s%02u:%02u:%02u",
+  return my_sprintf(to, (to,
+                         (l_time->second_part ?
+                          "%s%02u:%02u:%02u.%06ld" :
+                          "%s%02u:%02u:%02u"),
                          (l_time->neg ? "-" : ""),
                          extra_hours+ l_time->hour,
                          l_time->minute,
-                         l_time->second));
+                         l_time->second,
+                         l_time->second_part));
 }
 
 int my_date_to_str(const MYSQL_TIME *l_time, char *to)
@@ -1045,13 +1050,17 @@ int my_date_to_str(const MYSQL_TIME *l_time, char *to)
 
 int my_datetime_to_str(const MYSQL_TIME *l_time, char *to)
 {
-  return my_sprintf(to, (to, "%04u-%02u-%02u %02u:%02u:%02u",
+  return my_sprintf(to, (to,
+                         (l_time->second_part ? 
+                         "%04u-%02u-%02u %02u:%02u:%02u.%06ld" :
+                          "%04u-%02u-%02u %02u:%02u:%02u"),
                          l_time->year,
                          l_time->month,
                          l_time->day,
                          l_time->hour,
                          l_time->minute,
-                         l_time->second));
+                         l_time->second,
+                         l_time->second_part));
 }
 
 
@@ -1061,6 +1070,9 @@ int my_datetime_to_str(const MYSQL_TIME *l_time, char *to)
 
   SYNOPSIS
     my_TIME_to_string()
+
+  RETURN
+    length of string
 
   NOTE
     The string must have at least MAX_DATE_STRING_REP_LENGTH bytes reserved.
@@ -1118,7 +1130,6 @@ longlong number_to_datetime(longlong nr, MYSQL_TIME *time_res,
   long part1,part2;
 
   *was_cut= 0;
-  bzero((char*) time_res, sizeof(*time_res));
   time_res->time_type=MYSQL_TIMESTAMP_DATE;
 
   if (nr == LL(0) || nr >= LL(10000101000000))
@@ -1171,6 +1182,8 @@ longlong number_to_datetime(longlong nr, MYSQL_TIME *time_res,
   time_res->hour=  (int) (part2/10000L);  part2%=10000L;
   time_res->minute=(int) part2 / 100;
   time_res->second=(int) part2 % 100;
+  time_res->second_part=  0;
+  time_res->neg= 0;
 
   if (time_res->year <= 9999 && time_res->month <= 12 &&
       time_res->day <= 31 && time_res->hour <= 23 &&
@@ -1179,13 +1192,57 @@ longlong number_to_datetime(longlong nr, MYSQL_TIME *time_res,
     return nr;
 
   /* Don't want to have was_cut get set if NO_ZERO_DATE was violated. */
-  if (!nr && (flags & TIME_NO_ZERO_DATE))
-    return LL(-1);
+  if (nr || !(flags & TIME_NO_ZERO_DATE))
+    *was_cut= 1;
+  return LL(-1);
 
  err:
-  *was_cut= 1;
+  {
+    /* reset everything except time_type */
+    enum enum_mysql_timestamp_type save= time_res->time_type;
+    bzero((char*) time_res, sizeof(*time_res));
+    time_res->time_type= save;                     /* Restore range */
+    *was_cut= 1;                                /* Found invalid date */
+  }
   return LL(-1);
 }
+
+
+/*
+  Convert a double to a date/datetime
+
+  Note that for sub seconds, the precision of double is not good enough!
+
+  RESULT:
+    0  ok
+    1  error ;  ltime is zeroed
+*/
+
+my_bool double_to_datetime(double value, MYSQL_TIME *ltime,
+                           uint fuzzydate)
+{
+  double datepart_value;
+  int was_cut;
+
+  if (value < 0 || value >  99991231235959.0)
+  {
+    bzero((char*) ltime, sizeof(*ltime));
+    return 1;
+  }
+
+  datepart_value= floor(value);
+  if (number_to_datetime((longlong) datepart_value, ltime, fuzzydate,
+                         &was_cut) == LL(-1))
+    return 1;
+  if (ltime->time_type == MYSQL_TIMESTAMP_DATETIME ||
+      ltime->time_type == MYSQL_TIMESTAMP_TIME)
+  {
+    /* Add sub seconds to results */
+    ltime->second_part= (ulong) (floor((value - datepart_value) *
+                                       TIME_SUBSECOND_RANGE));
+  }
+  return 0;
+}  
 
 
 /* Convert time value to integer in YYYYMMDDHHMMSS format */

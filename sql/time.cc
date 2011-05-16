@@ -223,7 +223,7 @@ ulong convert_month_to_period(ulong month)
 
 timestamp_type
 str_to_datetime_with_warn(const char *str, uint length, MYSQL_TIME *l_time,
-                          uint flags)
+                          ulong flags)
 {
   int was_cut;
   THD *thd= current_thd;
@@ -232,14 +232,41 @@ str_to_datetime_with_warn(const char *str, uint length, MYSQL_TIME *l_time,
   ts_type= str_to_datetime(str, length, l_time,
                            (flags | (thd->variables.sql_mode &
                                      (MODE_INVALID_DATES |
+                                      MODE_NO_ZERO_IN_DATE |
                                       MODE_NO_ZERO_DATE))),
                            &was_cut);
   if (was_cut || ts_type <= MYSQL_TIMESTAMP_ERROR)
-    make_truncated_value_warning(current_thd, MYSQL_ERROR::WARN_LEVEL_WARN,
+    make_truncated_value_warning(thd, MYSQL_ERROR::WARN_LEVEL_WARN,
                                  str, length, ts_type,  NullS);
   return ts_type;
 }
 
+
+bool double_to_datetime_with_warn(double value, MYSQL_TIME *ltime,
+                                  ulong fuzzydate)
+{
+  if (double_to_datetime(value, ltime, fuzzydate))
+  {
+    char buff[40];
+    uint length= my_sprintf(buff, (buff, "%-30.21g", value));
+    make_truncated_value_warning(current_thd, MYSQL_ERROR::WARN_LEVEL_WARN,
+                                 buff, length, MYSQL_TIMESTAMP_DATETIME,
+                                 NullS);
+    return 1;
+  }
+  return 0;
+}
+
+bool decimal_to_datetime_with_warn(decimal_t *value, MYSQL_TIME *ltime,
+                                  ulong fuzzydate)
+{
+  char buff[40];
+  int length= sizeof(buff);
+
+  decimal2string(value, buff, &length, 0, 0, 0);
+  return (str_to_datetime_with_warn(buff, length, ltime, fuzzydate) <=
+          MYSQL_TIMESTAMP_ERROR);
+}
 
 /*
   Convert a datetime from broken-down MYSQL_TIME representation to corresponding 
@@ -284,10 +311,11 @@ my_time_t TIME_to_timestamp(THD *thd, const MYSQL_TIME *t, my_bool *in_dst_time_
     See str_to_time() for more info.
 */
 bool
-str_to_time_with_warn(const char *str, uint length, MYSQL_TIME *l_time)
+str_to_time_with_warn(const char *str, uint length, MYSQL_TIME *l_time,
+                      ulong fuzzydate)
 {
   int warning;
-  bool ret_val= str_to_time(str, length, l_time, &warning);
+  bool ret_val= str_to_time(str, length, l_time, fuzzydate, &warning);
   if (ret_val || warning)
     make_truncated_value_warning(current_thd, MYSQL_ERROR::WARN_LEVEL_WARN,
                                  str, length, MYSQL_TIMESTAMP_TIME, NullS);
@@ -719,7 +747,8 @@ void make_datetime(const DATE_TIME_FORMAT *format __attribute__((unused)),
 }
 
 
-void make_truncated_value_warning(THD *thd, MYSQL_ERROR::enum_warning_level level,
+void make_truncated_value_warning(THD *thd,
+                                  MYSQL_ERROR::enum_warning_level level,
                                   const char *str_val,
 				  uint str_length, timestamp_type time_type,
                                   const char *field_name)
@@ -762,6 +791,7 @@ void make_truncated_value_warning(THD *thd, MYSQL_ERROR::enum_warning_level leve
   push_warning(thd, level,
                ER_TRUNCATED_WRONG_VALUE, warn_buff);
 }
+
 
 /* Daynumber from year 0 to 9999-12-31 */
 #define MAX_DAY_NUMBER 3652424L

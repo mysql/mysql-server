@@ -1001,14 +1001,14 @@ struct Query_cache_query_flags
   (((L)->sql_command == SQLCOM_SELECT) && (L)->safe_to_cache_query)
 #else
 #define QUERY_CACHE_FLAGS_SIZE 0
-#define query_cache_store_query(A, B)
-#define query_cache_destroy()
-#define query_cache_result_size_limit(A)
-#define query_cache_init()
-#define query_cache_resize(A)
-#define query_cache_set_min_res_unit(A)
-#define query_cache_invalidate3(A, B, C)
-#define query_cache_invalidate1(A)
+#define query_cache_store_query(A, B)     do { } while(0)
+#define query_cache_destroy()             do { } while(0)
+#define query_cache_result_size_limit(A)  do { } while(0)
+#define query_cache_init()                do { } while(0)
+#define query_cache_resize(A)             do { } while(0)
+#define query_cache_set_min_res_unit(A)   do { } while(0)
+#define query_cache_invalidate3(A, B, C)  do { } while(0)
+#define query_cache_invalidate1(A)        do { } while(0)
 #define query_cache_send_result_to_client(A, B, C) 0
 #define query_cache_invalidate_by_MyISAM_filename_ref NULL
 
@@ -1122,7 +1122,11 @@ void reset_mqh(LEX_USER *lu, bool get_them);
 bool check_mqh(THD *thd, uint check_command);
 void time_out_user_resource_limits(THD *thd, USER_CONN *uc);
 void decrease_user_connections(USER_CONN *uc);
-void thd_init_client_charset(THD *thd, uint cs_number);
+bool thd_init_client_charset(THD *thd, uint cs_number);
+inline bool is_supported_parser_charset(CHARSET_INFO *cs)
+{
+  return test(cs->mbminlen == 1);
+}
 bool setup_connection_thread_globals(THD *thd);
 bool login_connection(THD *thd);
 void end_connection(THD *thd);
@@ -1306,6 +1310,11 @@ bool mysql_handle_derived(LEX *lex, bool (*processor)(THD *thd,
                                                       TABLE_LIST *table));
 bool mysql_derived_prepare(THD *thd, LEX *lex, TABLE_LIST *t);
 bool mysql_derived_filling(THD *thd, LEX *lex, TABLE_LIST *t);
+bool check_table_file_presence(char *old_path, char *path,
+                               const char *db,
+                               const char *table_name,
+                               const char *alias,
+                               bool issue_error);
 Field *create_tmp_field(THD *thd, TABLE *table,Item *item, Item::Type type,
 			Item ***copy_func, Field **from_field,
                         Field **def_field,
@@ -1433,6 +1442,7 @@ find_field_in_table(THD *thd, TABLE *table, const char *name, uint length,
 Field *
 find_field_in_table_sef(TABLE *table, const char *name);
 int update_virtual_fields(THD *thd, TABLE *table, bool ignore_stored= FALSE);
+int dynamic_column_error_message(enum_dyncol_func_result rc);
 
 #endif /* MYSQL_SERVER */
 
@@ -2096,6 +2106,7 @@ extern my_bool relay_log_purge, opt_innodb_safe_binlog, opt_innodb;
 extern uint test_flags,select_errors,ha_open_options;
 extern uint protocol_version, mysqld_port, mysqld_extra_port, dropping_tables;
 extern uint delay_key_write_options;
+extern ulong max_long_data_size;
 #endif /* MYSQL_SERVER */
 #if defined MYSQL_SERVER || defined INNODB_COMPATIBILITY_HOOKS
 extern MYSQL_PLUGIN_IMPORT uint lower_case_table_names;
@@ -2347,16 +2358,22 @@ ulong convert_month_to_period(ulong month);
 void get_date_from_daynr(long daynr,uint *year, uint *month,
 			 uint *day);
 my_time_t TIME_to_timestamp(THD *thd, const MYSQL_TIME *t, my_bool *not_exist);
-bool str_to_time_with_warn(const char *str,uint length,MYSQL_TIME *l_time);
+bool str_to_time_with_warn(const char *str,uint length,MYSQL_TIME *l_time,
+                           ulong fuzzydate);
 timestamp_type str_to_datetime_with_warn(const char *str, uint length,
-                                         MYSQL_TIME *l_time, uint flags);
+                                         MYSQL_TIME *l_time, ulong flags);
 void localtime_to_TIME(MYSQL_TIME *to, struct tm *from);
 void calc_time_from_sec(MYSQL_TIME *to, long seconds, long microseconds);
 
-void make_truncated_value_warning(THD *thd, MYSQL_ERROR::enum_warning_level level,
+void make_truncated_value_warning(THD *thd,
+                                  MYSQL_ERROR::enum_warning_level level,
                                   const char *str_val,
 				  uint str_length, timestamp_type time_type,
                                   const char *field_name);
+bool double_to_datetime_with_warn(double value, MYSQL_TIME *ltime,
+                                  ulong fuzzy_date);
+bool decimal_to_datetime_with_warn(decimal_t *value, MYSQL_TIME *ltime,
+                                   ulong fuzzy_date);
 
 bool date_add_interval(MYSQL_TIME *ltime, interval_type int_type, INTERVAL interval);
 bool calc_time_diff(MYSQL_TIME *l_time1, MYSQL_TIME *l_time2, int l_sign,

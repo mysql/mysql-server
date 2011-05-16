@@ -1,4 +1,5 @@
 /* Copyright (c) 2000, 2010, Oracle and/or its affiliates.
+   Copyright (c) 2009-2011, Monty Program Ab
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -1862,3 +1863,11 @@ Item *and_expressions(Item *a, Item *b, Item **org_item);
 
 bool get_mysql_time_from_str(THD *thd, String *str, timestamp_type warn_type, 
                              const char *warn_name, MYSQL_TIME *l_time);
+
+class Item_func_dyncol_exists :public Item_bool_func
+{
+public:
+  Item_func_dyncol_exists(Item *str, Item *num) :Item_bool_func(str, num) {}
+  longlong val_int();
+  const char *func_name() const { return "column_exists"; }
+};

@@ -1,15 +1,12 @@
 # Activate master-slave replication
-stop slave;
-drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9;
-reset master;
-reset slave;
-drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9;
-start slave;
+include/master-slave.inc
+[connection master]
 # Make table t for test
 DROP TABLE IF EXISTS t;
 CREATE TABLE t(id INT);
 # Start slave replication
 START SLAVE;
+include/wait_for_slave_to_start.inc
 INSERT INTO t VALUES (1);
 # Read information about master binlog
 # Sync(1) slave thread
@@ -26,7 +23,9 @@ INSERT INTO t VALUES (2);
 # Sync slave(2) thread
 # Restart slave
 STOP SLAVE;
+include/wait_for_slave_to_stop.inc
 START SLAVE;
+include/wait_for_slave_to_start.inc
 INSERT INTO t VALUES (3);
 # Read information about master binlog
 # Sync(3) slave thread
@@ -43,7 +42,9 @@ INSERT INTO t VALUES (4);
 # Sync slave(4) thread
 # Restart slave
 STOP SLAVE;
+include/wait_for_slave_to_stop.inc
 START SLAVE;
+include/wait_for_slave_to_start.inc
 INSERT INTO t VALUES (5);
 # Read information about master binlog
 # Sync slave(5) thread
@@ -60,7 +61,9 @@ INSERT INTO t VALUES (6);
 # Sync slave(6) thread
 # Restart slave
 STOP SLAVE;
+include/wait_for_slave_to_stop.inc
 START SLAVE;
+include/wait_for_slave_to_start.inc
 INSERT INTO t VALUES (7);
 # Read information about master binlog
 # Sync slave(7) thread
@@ -86,3 +89,5 @@ set global log_slow_slave_statements=OFF;
 DROP TABLE t;
 # Read information about master binlog
 # Sync slave(8) thread
+STOP SLAVE;
+include/wait_for_slave_to_stop.inc

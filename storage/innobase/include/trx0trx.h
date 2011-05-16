@@ -198,8 +198,9 @@ which is in the prepared state */
 trx_t *
 trx_get_trx_by_xid(
 /*===============*/
-			/* out: trx or NULL */
-	XID*	xid);	/*  in: X/Open XA transaction identification */
+				/* out: trx or NULL;
+				on match, the trx->xid will be invalidated */
+	const XID*	xid);	/*  in: X/Open XA transaction identifier */
 /**************************************************************************
 If required, flushes the log to disk if we called trx_commit_for_mysql()
 with trx->flush_log_later == TRUE. */

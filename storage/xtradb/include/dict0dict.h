@@ -1062,6 +1062,13 @@ dict_update_statistics(
 					not been initialized yet, otherwise
 					do nothing */
 	ibool		sync);
+/*********************************************************************//**
+*/
+UNIV_INTERN
+ibool
+dict_is_older_statistics(
+/*=====================*/
+	dict_index_t*	index);
 /********************************************************************//**
 Reserves the dictionary system mutex for MySQL. */
 UNIV_INTERN

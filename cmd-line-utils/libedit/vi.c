@@ -1012,13 +1012,10 @@ vi_histedit(EditLine *el, int c __attribute__((__unused__)))
 	if (fd < 0)
 		return CC_ERROR;
 	cp = el->el_line.buffer;
-	if (write(fd, cp, el->el_line.lastchar - cp +0u) == -1 ||
-            write(fd, "\n", 1) == -1)
-        {
-          close(fd);
-          unlink(tempfile);
-          return CC_ERROR;
-        }
+	if (write(fd, cp, el->el_line.lastchar - cp +0u) == -1)
+          goto error;
+	if (write(fd, "\n", 1) == -1)
+          goto error;
 	pid = fork();
 	switch (pid) {
 	case -1:
@@ -1046,6 +1043,12 @@ vi_histedit(EditLine *el, int c __attribute__((__unused__)))
 	unlink(tempfile);
 	/* return CC_REFRESH; */
 	return ed_newline(el, 0);
+
+/* XXXMYSQL: Avoid compiler warnings. */
+error:
+        close(fd);
+        unlink(tempfile);
+        return CC_ERROR;
 }
 
 /* vi_history_word():

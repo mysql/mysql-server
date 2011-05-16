@@ -1693,7 +1693,7 @@ multi_update::~multi_update()
 }
 
 
-bool multi_update::send_data(List<Item> &not_used_values)
+int multi_update::send_data(List<Item> &not_used_values)
 {
   TABLE_LIST *cur_table;
   DBUG_ENTER("multi_update::send_data");

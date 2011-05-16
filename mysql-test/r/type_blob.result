@@ -985,3 +985,9 @@ COUNT(*)
 DROP FUNCTION f1;
 DROP TABLE t1;
 End of 5.1 tests
+CREATE TABLE t1 ( f1 blob, f2 blob );
+INSERT INTO t1 VALUES ('','');
+SELECT f1,f2,"found row" FROM t1 WHERE f1 = f2 ;
+f1	f2	found row
+		found row
+DROP TABLE t1;

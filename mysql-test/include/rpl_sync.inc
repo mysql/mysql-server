@@ -88,7 +88,7 @@ while ($_rpl_i) {
       {
         --echo Sync IO: $_rpl_slave_io_running; Sync SQL: $_rpl_slave_sql_running
       }
-      --let $_rpl_slave_io_running= `SELECT IF('$_rpl_slave_io_running' = 'Yes', 1, '')`
+      --let $_rpl_slave_io_running= `SELECT IF('$_rpl_slave_io_running' != 'No', 1, '')`
       --let $_rpl_slave_sql_running= `SELECT IF('$_rpl_slave_sql_running' = 'Yes', 1, '')`
       if ($_rpl_slave_io_running)
       {

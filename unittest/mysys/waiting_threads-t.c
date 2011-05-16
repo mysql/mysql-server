@@ -181,6 +181,11 @@ void do_one_test()
 void do_tests()
 {
   DBUG_ENTER("do_tests");
+  if (skip_big_tests)
+  {
+    skip(1, "Big test skipped");
+    return;
+  }
   plan(14);
   compile_time_assert(THREADS >= 4);
 

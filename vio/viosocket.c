@@ -193,6 +193,11 @@ int vio_fastsend(Vio * vio __attribute__((unused)))
   int r=0;
   DBUG_ENTER("vio_fastsend");
 
+  if (vio->type == VIO_TYPE_NAMEDPIPE ||vio->type == VIO_TYPE_SHARED_MEMORY)
+  {
+    DBUG_RETURN(0);
+  }
+
 #if defined(IPTOS_THROUGHPUT)
   {
     int tos = IPTOS_THROUGHPUT;
@@ -228,7 +233,7 @@ int vio_keepalive(Vio* vio, my_bool set_keep_alive)
   DBUG_ENTER("vio_keepalive");
   DBUG_PRINT("enter", ("sd: %d  set_keep_alive: %d", vio->sd, (int)
 		       set_keep_alive));
-  if (vio->type != VIO_TYPE_NAMEDPIPE)
+  if (vio->type != VIO_TYPE_NAMEDPIPE && vio->type != VIO_TYPE_SHARED_MEMORY)
   {
     if (set_keep_alive)
       opt = 1;

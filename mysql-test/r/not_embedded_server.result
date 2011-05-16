@@ -4,3 +4,7 @@ select 1;
 SHOW VARIABLES like 'slave_skip_errors';
 Variable_name	Value
 slave_skip_errors	OFF
+#
+# Bug#58026: massive recursion and crash in regular expression handling
+#
+SELECT '1' RLIKE RPAD('1', 10000, '(');

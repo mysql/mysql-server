@@ -445,4 +445,15 @@ SELECT CAST(CAST('00000002006-000008-0000010 000010:0000011:00000012.012345'  AS
 # show we truncate microseconds from the right
 SELECT CAST(CAST('2008-07-29T10:42:51.1234567' AS DateTime) AS DECIMAL(30,7));
 
+--echo # 
+--echo # Bug#59173: Failure to handle DATE(TIME) values where Year, Month or
+--echo # Day is ZERO 
+--echo # 
+CREATE TABLE t1 (dt1 DATETIME);
+INSERT INTO t1 (dt1) VALUES ('0000-00-01 00:00:01');
+DELETE   FROM t1 WHERE dt1 = '0000-00-01 00:00:01';
+--echo # Should be empty
+SELECT * FROM t1;
+DROP TABLE t1;
+
 --echo End of 5.1 tests

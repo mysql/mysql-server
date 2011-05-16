@@ -2827,10 +2827,9 @@ TABLE *open_table(THD *thd, TABLE_LIST *table_list, MEM_ROOT *mem_root,
                  ("Found table '%s.%s' with different refresh version",
                   table_list->db, table_list->table_name));
 
-      /* Ignore FLUSH, but not name locks! */
+      /* Ignore FLUSH and pending name locks, but not acquired name locks! */
       if (flags & MYSQL_LOCK_IGNORE_FLUSH && !table->open_placeholder)
       {
-        DBUG_ASSERT(table->db_stat);
         /* Force close at once after usage */
         thd->version= table->s->version;
         continue;
@@ -9433,6 +9432,40 @@ void close_performance_schema_table(THD *thd, Open_tables_state *backup)
   pthread_mutex_unlock(&LOCK_open);
 
   thd->restore_backup_open_tables_state(backup);
+}
+
+
+/**
+  Check result of dynamic column function and issue error if it is needed
+
+  @param rc              The result code of dynamic column function
+
+  @return the result code which was get as an argument\
+*/
+
+int dynamic_column_error_message(enum_dyncol_func_result rc)
+{
+  switch (rc) {
+  case ER_DYNCOL_YES:
+  case ER_DYNCOL_OK:
+    break; // it is not an error
+  case ER_DYNCOL_FORMAT:
+    my_error(ER_DYN_COL_WRONG_FORMAT, MYF(0));
+    break;
+  case ER_DYNCOL_LIMIT:
+    my_error(ER_DYN_COL_IMPLEMENTATION_LIMIT, MYF(0));
+    break;
+  case ER_DYNCOL_RESOURCE:
+    my_error(ER_OUT_OF_RESOURCES, MYF(0));
+    break;
+  case ER_DYNCOL_DATA:
+    my_error(ER_DYN_COL_DATA, MYF(0));
+    break;
+  case ER_DYNCOL_UNKNOWN_CHARSET:
+    my_error(ER_DYN_COL_WRONG_CHARSET, MYF(0));
+    break;
+  }
+  return rc;
 }
 
 /**

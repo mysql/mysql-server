@@ -1,4 +1,5 @@
-/* Copyright (c) 2000, 2010, Oracle and/or its affiliates.
+/* Copyright (c) 2000, 2011, Oracle and/or its affiliates.
+   Copyright (c) 2009-2011 Monty Program Ab
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -460,7 +461,7 @@ class Item_decimal_typecast :public Item_func
 public:
   Item_decimal_typecast(Item *a, int len, int dec) :Item_func(a)
   {
-    decimals= dec;
+    decimals= (uint8) dec;
     max_length= my_decimal_precision_to_length_no_truncation(len, dec,
                                                              unsigned_flag);
   }
@@ -470,10 +471,27 @@ public:
   my_decimal *val_decimal(my_decimal*);
   enum Item_result result_type () const { return DECIMAL_RESULT; }
   enum_field_types field_type() const { return MYSQL_TYPE_NEWDECIMAL; }
-  void fix_length_and_dec() {};
+  void fix_length_and_dec() {}
   const char *func_name() const { return "decimal_typecast"; }
   virtual void print(String *str, enum_query_type query_type);
 };
+
+
+class Item_double_typecast :public Item_real_func
+{
+public:
+  Item_double_typecast(Item *a, int len, int dec) :Item_real_func(a)
+  {
+    decimals=   (uint8)  dec;
+    max_length= (uint32) len;
+  }
+  double val_real();
+  enum_field_types field_type() const { return MYSQL_TYPE_DOUBLE; }
+  void fix_length_and_dec() { maybe_null= 1; }
+  const char *func_name() const { return "double_typecast"; }
+  virtual void print(String *str, enum_query_type query_type);
+};
+
 
 
 class Item_func_additive_op :public Item_num_op
@@ -1713,7 +1731,7 @@ enum Cast_target
 {
   ITEM_CAST_BINARY, ITEM_CAST_SIGNED_INT, ITEM_CAST_UNSIGNED_INT,
   ITEM_CAST_DATE, ITEM_CAST_TIME, ITEM_CAST_DATETIME, ITEM_CAST_CHAR,
-  ITEM_CAST_DECIMAL
+  ITEM_CAST_DECIMAL, ITEM_CAST_DOUBLE
 };
 
 
@@ -1877,4 +1895,3 @@ public:
     return trace_unsupported_by_check_vcol_func_processor(func_name());
   }
 };
-
