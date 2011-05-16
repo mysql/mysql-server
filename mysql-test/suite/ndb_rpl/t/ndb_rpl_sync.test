@@ -1,0 +1,102 @@
+--source include/have_ndb.inc
+--source include/ndb_default_cluster.inc
+--source include/not_embedded.inc
+--source include/have_binlog_format_mixed_or_row.inc
+--source suite/ndb_rpl/ndb_master-slave.inc
+
+#
+# Currently test only works with ndb since it retrieves "old"
+# binlog positions with mysql.ndb_binlog_index and ndb_apply_status;
+#
+
+# stop the save
+--connection slave
+STOP SLAVE;
+CREATE DATABASE ndbsynctest;
+USE ndbsynctest;
+
+# get some data on the master
+--connection master
+CREATE DATABASE ndbsynctest;
+USE ndbsynctest;
+CREATE TABLE t1 (c1 BIT(1) NOT NULL, c2 BIT(1) NOT NULL, c3 CHAR(15), PRIMARY KEY(c3)) ENGINE = NDB ;
+INSERT INTO t1 VALUES (1,1,"row1"),(0,1,"row2"),(1,0,"row3"),(0,0,"row4");
+CREATE TABLE t2 (c1 CHAR(15), c2 BIT(1) NOT NULL, c3 BIT(1) NOT NULL, PRIMARY KEY(c1)) ENGINE = NDB ;
+INSERT INTO t2 VALUES ("ABC",1,1),("BCDEF",0,1),("CD",1,0),("DEFGHIJKL",0,0);
+SELECT hex(c1),hex(c2),c3 FROM t1 ORDER BY c3;
+SELECT hex(c2),hex(c3),c1 FROM t2 ORDER BY c1;
+
+# take a backup on master
+--source include/ndb_backup.inc
+
+# update a row
+UPDATE t1 SET c2=0 WHERE c3="row2";
+SELECT hex(c1),hex(c2),c3 FROM t1 ORDER BY c3;
+
+# restore on slave, first check that nothing is there
+--connection slave
+
+# we should have no tables
+SHOW TABLES;
+
+--exec $NDB_RESTORE --no-defaults --ndb-connectstring="$NDB_CONNECTSTRING_SLAVE" -b $the_backup_id -n 1 -m -r --print --print_meta $NDB_BACKUP_DIR/BACKUP/BACKUP-$the_backup_id >> $NDB_TOOLS_OUTPUT
+--exec $NDB_RESTORE --no-defaults --ndb-connectstring="$NDB_CONNECTSTRING_SLAVE" -b $the_backup_id -n 2 -r -e --print --print_meta $NDB_BACKUP_DIR/BACKUP/BACKUP-$the_backup_id >> $NDB_TOOLS_OUTPUT
+
+#
+# BUG#11960
+# prior to bugfix "DROP DATABASE" would give a warning since
+# the events were not created by ndb_restore
+#
+DROP DATABASE ndbsynctest;
+CREATE DATABASE ndbsynctest;
+USE ndbsynctest;
+--exec $NDB_RESTORE --no-defaults --ndb-connectstring="$NDB_CONNECTSTRING_SLAVE" -b $the_backup_id -n 1 -m -r --print --print_meta $NDB_BACKUP_DIR/BACKUP/BACKUP-$the_backup_id >> $NDB_TOOLS_OUTPUT
+--exec $NDB_RESTORE --no-defaults --ndb-connectstring="$NDB_CONNECTSTRING_SLAVE" -b $the_backup_id -n 2 -r -e --print --print_meta $NDB_BACKUP_DIR/BACKUP/BACKUP-$the_backup_id >> $NDB_TOOLS_OUTPUT
+
+# continue test
+SHOW TABLES;
+
+SELECT hex(c1),hex(c2),c3 FROM t1 ORDER BY c3;
+SELECT hex(c2),hex(c3),c1 FROM t2 ORDER BY c1;
+
+#
+# now setup replication to continue from last epoch
+--source include/ndb_setup_slave.inc
+--connection slave
+START SLAVE;
+
+#
+#
+#
+--connection master
+--sync_slave_with_master
+--source include/check_slave_is_running.inc
+
+SELECT hex(c1),hex(c2),c3 FROM t1 ORDER BY c3;
+SELECT hex(c2),hex(c3),c1 FROM t2 ORDER BY c1;
+
+#
+# Cleanup
+#
+
+--connection master
+DROP DATABASE ndbsynctest;
+--sync_slave_with_master
+STOP SLAVE;
+
+#
+# Test some replication commands
+#
+--connection master
+reset master;
+# should now contain nothing
+select * from mysql.ndb_binlog_index;
+
+--connection slave
+reset slave;
+# should now contain nothing
+select * from mysql.ndb_apply_status;
+
+# End 5.1 Test
+--let $rpl_only_running_threads= 1
+--source include/rpl_end.inc
