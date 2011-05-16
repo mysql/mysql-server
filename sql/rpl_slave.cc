@@ -634,7 +634,7 @@ int terminate_slave_threads(Master_info* mi,int thread_mask,bool skip_lock)
 
     DBUG_PRINT("info",("Flushing relay-log info file."));
     if (current_thd)
-      thd_proc_info(current_thd, "Flushing relay-log info file.");
+      THD_STAGE_INFO(current_thd, stage_flushing_relay_log_info_file);
 
     /*
       Flushes the relay log info regardles of the sync_relay_log_info option.
@@ -659,7 +659,7 @@ int terminate_slave_threads(Master_info* mi,int thread_mask,bool skip_lock)
 
     DBUG_PRINT("info",("Flushing relay log and master info repository."));
     if (current_thd)
-      thd_proc_info(current_thd, "Flushing relay log and master info repository.");
+      THD_STAGE_INFO(current_thd, stage_flushing_relay_log_and_master_info_repository);
 
     /*
       Flushes the master info regardles of the sync_master_info option.
@@ -2070,6 +2070,10 @@ bool show_master_info(THD* thd, Master_info* mi)
     protocol->store(mi->info_thd ? mi->info_thd->proc_info : "", &my_charset_bin);
     mysql_mutex_unlock(&mi->run_lock);
 
+    mysql_mutex_lock(&mi->rli->run_lock);
+    const char *slave_sql_running_state= mi->rli->info_thd ? mi->rli->info_thd->proc_info : "";
+    mysql_mutex_unlock(&mi->rli->run_lock);
+
     mysql_mutex_lock(&mi->data_lock);
     mysql_mutex_lock(&mi->rli->data_lock);
     mysql_mutex_lock(&mi->err_lock);
@@ -2206,10 +2210,7 @@ bool show_master_info(THD* thd, Master_info* mi)
     // SQL_Delay
     protocol->store((uint32) mi->rli->get_sql_delay());
     // SQL_Remaining_Delay
-    // THD::proc_info is not protected by any lock, so we read it once
-    // to ensure that we use the same value throughout this function.
-    const char *slave_sql_running_state= mi->rli->info_thd ? mi->rli->info_thd->proc_info : "";
-    if (slave_sql_running_state == Relay_log_info::state_delaying_string)
+    if (slave_sql_running_state == stage_sql_thd_waiting_until_delay.m_name)
     {
       time_t t= my_time(0), sql_delay_end= mi->rli->get_sql_delay_end();
       protocol->store((uint32)(t < sql_delay_end ? sql_delay_end - t : 0));
@@ -3684,7 +3685,7 @@ log '%s' at position %s, relay log '%s' position: %s", rli->get_rpl_log_name(),
 
   while (!sql_slave_killed(thd,rli))
   {
-    thd_proc_info(thd, "Reading event from the relay log");
+    THD_STAGE_INFO(thd, stage_reading_event_from_the_relay_log);
     DBUG_ASSERT(rli->info_thd == thd);
     THD_CHECK_SENTRY(thd);
 
@@ -5966,7 +5967,7 @@ bool change_master(THD* thd, Master_info* mi)
   if (need_relay_log_purge)
   {
     relay_log_purge= 1;
-    thd_proc_info(thd, "Purging old relay logs");
+    THD_STAGE_INFO(thd, stage_purging_old_relay_logs);
     if (mi->rli->purge_relay_logs(thd,
                                   0 /* not only reset, but also reinit */,
                                   &errmsg))
