@@ -1,4 +1,4 @@
-/* Copyright 2005-2008 MySQL AB, 2008 Sun Microsystems, Inc.
+/* Copyright (c) 2005, 2011, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -11,7 +11,7 @@
 
   You should have received a copy of the GNU General Public License
   along with this program; if not, write to the Free Software
-  Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
+  Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
 /*
   This handler was developed by Mikael Ronstrom for version 5.1 of MySQL.
@@ -1023,6 +1023,10 @@ static int handle_opt_part(THD *thd, HA_CHECK_OPT *check_opt,
    (modelled after mi_check_print_msg)
    TODO: move this into the handler, or rewrite mysql_admin_table.
 */
+static bool print_admin_msg(THD* thd, const char* msg_type,
+                            const char* db_name, const char* table_name,
+                            const char* op_name, const char *fmt, ...)
+  ATTRIBUTE_FORMAT(printf, 6, 7);
 static bool print_admin_msg(THD* thd, const char* msg_type,
                             const char* db_name, const char* table_name,
                             const char* op_name, const char *fmt, ...)

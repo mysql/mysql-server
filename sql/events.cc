@@ -1,4 +1,4 @@
-/* Copyright (C) 2004-2006 MySQL AB
+/* Copyright (c) 2004, 2011, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -11,7 +11,7 @@
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
-   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
+   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
 #include "mysql_priv.h"
 #include "events.h"
@@ -547,7 +547,7 @@ Events::update_event(THD *thd, Event_parse_data *parse_data,
          !sortcmp_lex_string(parse_data->name, *new_name,
                              system_charset_info))
     {
-      my_error(ER_EVENT_SAME_NAME, MYF(0), parse_data->name.str);
+      my_error(ER_EVENT_SAME_NAME, MYF(0));
       DBUG_RETURN(TRUE);
     }
 
@@ -1150,7 +1150,7 @@ Events::switch_event_scheduler_state(enum_opt_event_scheduler new_state)
 
   if (ret)
   {
-    my_error(ER_EVENT_SET_VAR_ERROR, MYF(0));
+    my_error(ER_EVENT_SET_VAR_ERROR, MYF(0), 0);
     goto end;
   }
 
