@@ -3391,7 +3391,7 @@ err:
   // print the current replication position
   sql_print_information("Slave I/O thread exiting, read up to log '%s', position %s",
                   mi->get_io_rpl_log_name(), llstr(mi->get_master_log_pos(), llbuff));
-  RUN_HOOK(binlog_relay_io, thread_stop, (thd, mi));
+  (void) RUN_HOOK(binlog_relay_io, thread_stop, (thd, mi));
   thd->reset_query();
   thd->reset_db(NULL, 0);
   if (mysql)
@@ -5724,7 +5724,7 @@ int reset_slave(THD *thd, Master_info* mi)
     goto err;
   }
 
-  RUN_HOOK(binlog_relay_io, after_reset_slave, (thd, mi));
+  (void) RUN_HOOK(binlog_relay_io, after_reset_slave, (thd, mi));
 err:
   unlock_slave_threads(mi);
   if (error)

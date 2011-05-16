@@ -175,14 +175,14 @@ bool trans_commit(THD *thd)
 
   thd->server_status&= ~SERVER_STATUS_IN_TRANS;
   res= ha_commit_trans(thd, TRUE);
+  /*
+    if res is non-zero, then ha_commit_trans has rolled back the
+    transaction, so the hooks for rollback will be called.
+  */
   if (res)
-    /*
-      if res is non-zero, then ha_commit_trans has rolled back the
-      transaction, so the hooks for rollback will be called.
-    */
-    RUN_HOOK(transaction, after_rollback, (thd, FALSE));
+    (void) RUN_HOOK(transaction, after_rollback, (thd, FALSE));
   else
-    RUN_HOOK(transaction, after_commit, (thd, FALSE));
+    (void) RUN_HOOK(transaction, after_commit, (thd, FALSE));
   thd->variables.option_bits&= ~OPTION_BEGIN;
   thd->transaction.all.reset_unsafe_rollback_flags();
   thd->lex->start_transaction_opt= 0;
@@ -254,7 +254,7 @@ bool trans_rollback(THD *thd)
 
   thd->server_status&= ~SERVER_STATUS_IN_TRANS;
   res= ha_rollback_trans(thd, TRUE);
-  RUN_HOOK(transaction, after_rollback, (thd, FALSE));
+  (void) RUN_HOOK(transaction, after_rollback, (thd, FALSE));
   thd->variables.option_bits&= ~OPTION_BEGIN;
   thd->transaction.all.reset_unsafe_rollback_flags();
   thd->lex->start_transaction_opt= 0;
@@ -299,14 +299,14 @@ bool trans_commit_stmt(THD *thd)
       thd->tx_isolation= (enum_tx_isolation) thd->variables.tx_isolation;
   }
 
+  /*
+    if res is non-zero, then ha_commit_trans has rolled back the
+    transaction, so the hooks for rollback will be called.
+  */
   if (res)
-    /*
-      if res is non-zero, then ha_commit_trans has rolled back the
-      transaction, so the hooks for rollback will be called.
-    */
-    RUN_HOOK(transaction, after_rollback, (thd, FALSE));
+    (void) RUN_HOOK(transaction, after_rollback, (thd, FALSE));
   else
-    RUN_HOOK(transaction, after_commit, (thd, FALSE));
+    (void) RUN_HOOK(transaction, after_commit, (thd, FALSE));
 
   thd->transaction.stmt.reset();
 
@@ -345,7 +345,7 @@ bool trans_rollback_stmt(THD *thd)
       thd->tx_isolation= (enum_tx_isolation) thd->variables.tx_isolation;
   }
 
-  RUN_HOOK(transaction, after_rollback, (thd, FALSE));
+  (void) RUN_HOOK(transaction, after_rollback, (thd, FALSE));
 
   thd->transaction.stmt.reset();
 
