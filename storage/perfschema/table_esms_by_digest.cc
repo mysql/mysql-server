@@ -40,16 +40,136 @@ static const TABLE_FIELD_TYPE field_types[]=
     { C_STRING_WITH_LEN("varchar(64)") },
     { NULL, 0}
   },
+  {
+    { C_STRING_WITH_LEN("DIGEST_TEXT") },
+    { C_STRING_WITH_LEN("longtext") },
+    { NULL, 0}
+  },
   { 
     { C_STRING_WITH_LEN("COUNT_STAR") },
     { C_STRING_WITH_LEN("bigint(20)") },
     { NULL, 0}
   },
+  {
+    { C_STRING_WITH_LEN("SUM_TIMER_WAIT") },
+    { C_STRING_WITH_LEN("bigint(20)") },
+    { NULL, 0}
+  },
+  {
+    { C_STRING_WITH_LEN("MIN_TIMER_WAIT") },
+    { C_STRING_WITH_LEN("bigint(20)") },
+    { NULL, 0}
+  },
+  {
+    { C_STRING_WITH_LEN("AVG_TIMER_WAIT") },
+    { C_STRING_WITH_LEN("bigint(20)") },
+    { NULL, 0}
+  },
+  {
+    { C_STRING_WITH_LEN("MAX_TIMER_WAIT") },
+    { C_STRING_WITH_LEN("bigint(20)") },
+    { NULL, 0}
+  },
+  {
+    { C_STRING_WITH_LEN("SUM_LOCK_TIME") },
+    { C_STRING_WITH_LEN("bigint(20)") },
+    { NULL, 0}
+  },
+  {
+    { C_STRING_WITH_LEN("SUM_ERRORS") },
+    { C_STRING_WITH_LEN("bigint(20)") },
+    { NULL, 0}
+  },
+  {
+    { C_STRING_WITH_LEN("SUM_WARNINGS") },
+    { C_STRING_WITH_LEN("bigint(20)") },
+    { NULL, 0}
+  },
+  {
+    { C_STRING_WITH_LEN("SUM_ROWS_AFFECTED") },
+    { C_STRING_WITH_LEN("bigint(20)") },
+    { NULL, 0}
+  },
+  {
+    { C_STRING_WITH_LEN("SUM_ROWS_SENT") },
+    { C_STRING_WITH_LEN("bigint(20)") },
+    { NULL, 0}
+  },
+  {
+    { C_STRING_WITH_LEN("SUM_ROWS_EXAMINED") },
+    { C_STRING_WITH_LEN("bigint(20)") },
+    { NULL, 0}
+  },
+  {
+    { C_STRING_WITH_LEN("SUM_CREATED_TMP_DISK_TABLES") },
+    { C_STRING_WITH_LEN("bigint(20)") },
+    { NULL, 0}
+  },
+  {
+    { C_STRING_WITH_LEN("SUM_CREATED_TMP_TABLES") },
+    { C_STRING_WITH_LEN("bigint(20)") },
+    { NULL, 0}
+  },
+  {
+    { C_STRING_WITH_LEN("SUM_SELECT_FULL_JOIN") },
+    { C_STRING_WITH_LEN("bigint(20)") },
+    { NULL, 0}
+  },
+  {
+    { C_STRING_WITH_LEN("SUM_SELECT_FULL_RANGE_JOIN") },
+    { C_STRING_WITH_LEN("bigint(20)") },
+    { NULL, 0}
+  },
+  {
+    { C_STRING_WITH_LEN("SUM_SELECT_RANGE") },
+    { C_STRING_WITH_LEN("bigint(20)") },
+    { NULL, 0}
+  },
+  {
+    { C_STRING_WITH_LEN("SUM_SELECT_RANGE_CHECK") },
+    { C_STRING_WITH_LEN("bigint(20)") },
+    { NULL, 0}
+  },
+  {
+    { C_STRING_WITH_LEN("SUM_SELECT_SCAN") },
+    { C_STRING_WITH_LEN("bigint(20)") },
+    { NULL, 0}
+  },
+  {
+    { C_STRING_WITH_LEN("SUM_SORT_MERGE_PASSES") },
+    { C_STRING_WITH_LEN("bigint(20)") },
+    { NULL, 0}
+  },
+  {
+    { C_STRING_WITH_LEN("SUM_SORT_RANGE") },
+    { C_STRING_WITH_LEN("bigint(20)") },
+    { NULL, 0}
+  },
+  {
+    { C_STRING_WITH_LEN("SUM_SORT_ROWS") },
+    { C_STRING_WITH_LEN("bigint(20)") },
+    { NULL, 0}
+  },
+  {
+    { C_STRING_WITH_LEN("SUM_SORT_SCAN") },
+    { C_STRING_WITH_LEN("bigint(20)") },
+    { NULL, 0}
+  },
+  {
+    { C_STRING_WITH_LEN("SUM_NO_INDEX_USED") },
+    { C_STRING_WITH_LEN("bigint(20)") },
+    { NULL, 0}
+  },
+  {
+    { C_STRING_WITH_LEN("SUM_NO_GOOD_INDEX_USED") },
+    { C_STRING_WITH_LEN("bigint(20)") },
+    { NULL, 0}
+  }
 };
 
 TABLE_FIELD_DEF
 table_esms_by_digest::m_field_def=
-{ 2, field_types };
+{ 26, field_types };
 
 PFS_engine_table_share
 table_esms_by_digest::m_share=

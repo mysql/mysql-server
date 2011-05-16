@@ -21,7 +21,7 @@
   Statement Digest data structures (declarations).
 */
 
-#include <stdio.h>
+extern bool flag_statements_digest;
 
 /** A statement stat record based on digest. */
 struct PFS_statements_digest_stat

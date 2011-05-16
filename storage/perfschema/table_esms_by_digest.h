@@ -39,6 +39,9 @@ struct row_esms_by_digest
   /** Column DIGEST. */
   char m_digest[COL_DIGEST_SIZE];
 
+  /** Column DIGEST_TEXT. */
+  char m_digest_text[COL_DIGEST_TEXT_SIZE];
+
   /** Columns COUNT_STAR, SUM/MIN/AVG/MAX TIMER_WAIT. */
   PFS_statement_stat_row m_stat;
 };
