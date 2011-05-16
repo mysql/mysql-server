@@ -59,6 +59,7 @@ void translog_example_table_init()
        i < LOGREC_NUMBER_OF_TYPES;
        i++)
     log_record_type_descriptor[i].rclass= LOGRECTYPE_NOT_ALLOWED;
+  check_translog_description_table(LOGREC_VARIABLE_RECORD_2LSN_EXAMPLE);
 }
 
 
