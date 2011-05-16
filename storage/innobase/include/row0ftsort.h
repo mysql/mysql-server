@@ -158,9 +158,9 @@ row_fts_free_pll_merge_buf(
 /******************************************************//**
 Tokenize incoming text data and add to the sort buffer.
 FIXME: Consider run out of buffer in the middle of string parsing.
-@return number of rows added, 0 if out of space */
+@return TRUE if the record passed, FALSE if out of space */
 UNIV_INTERN
-ulint
+ibool
 row_merge_fts_doc_tokenize(
 /*=======================*/
 	row_merge_buf_t**	sort_buf,	/*!< in/out: sort buffer */

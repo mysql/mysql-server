@@ -4312,10 +4312,12 @@ fts_load_from_added(
 
 		rw_lock_x_lock(&cache->lock);
 
-		ut_a(cache->get_docs == NULL);
+		if (cache->get_docs == NULL) {
 
-		/* We need one instance of fts_get_doc_t per index. */
-		cache->get_docs = fts_get_docs_create(cache);
+			/* We need one instance of fts_get_doc_t
+			per index. */
+			cache->get_docs = fts_get_docs_create(cache);
+		}
 
 		rw_lock_x_unlock(&cache->lock);
 
@@ -4850,6 +4852,7 @@ fts_add_doc_id_column(
 		// FIXME: Hacked the value of 603
 		dtype_form_prtype(0x603, 0),
 		sizeof(doc_id_t));
+	DICT_TF2_FLAG_SET(table, DICT_TF_FTS_ADD_DOC_ID);
 }
 
 /********************************************************************
