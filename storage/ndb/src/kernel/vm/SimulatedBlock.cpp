@@ -4397,3 +4397,13 @@ SimulatedBlock::ndbinfo_send_scan_conf(Signal* signal,
              signal_length, JBB);
 }
 
+#ifdef VM_TRACE
+void
+SimulatedBlock::assertOwnThread()
+{
+#ifdef NDBD_MULTITHREADED
+  mt_assert_own_thread(this);
+#endif
+}
+
+#endif
