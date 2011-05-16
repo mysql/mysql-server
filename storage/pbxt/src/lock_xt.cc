@@ -726,11 +726,15 @@ xtBool xt_init_row_locks(XTRowLocksPtr rl)
 		rl->rl_groups[i].lg_list_in_use = 0;
 		rl->rl_groups[i].lg_list = NULL;
 	}
+	rl->valid = 1;
 	return OK;
 }
 
 void xt_exit_row_locks(XTRowLocksPtr rl)
 {
+	if (!rl->valid)
+		return;
+
 	for (int i=0; i<XT_ROW_LOCK_GROUP_COUNT; i++) {
 		xt_spinlock_free(NULL, &rl->rl_groups[i].lg_lock);
 		rl->rl_groups[i].lg_wait_queue = NULL;
@@ -741,6 +745,7 @@ void xt_exit_row_locks(XTRowLocksPtr rl)
 			rl->rl_groups[i].lg_list = NULL;
 		}
 	}
+	rl->valid = 0;
 }
 
 /*

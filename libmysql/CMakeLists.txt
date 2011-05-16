@@ -112,18 +112,16 @@ SET(CLIENT_SOURCES   ../mysys/array.c ../strings/bchange.c ../strings/bmove.c
 
 ADD_LIBRARY(mysqlclient       STATIC ${CLIENT_SOURCES})
 ADD_DEPENDENCIES(mysqlclient GenError)
-TARGET_LINK_LIBRARIES(mysqlclient)
 
-ADD_LIBRARY(mysqlclient_notls STATIC ${CLIENT_SOURCES})
-ADD_DEPENDENCIES(mysqlclient_notls GenError)
-TARGET_LINK_LIBRARIES(mysqlclient_notls)
+SET(SHARED_SOURCES dll.c libmysql.def)
+ADD_VERSION_INFO(libmysql SHARED SHARED_SOURCES)
+ADD_LIBRARY(libmysql SHARED ${SHARED_SOURCES})
 
-ADD_LIBRARY(libmysql          SHARED ${CLIENT_SOURCES} dll.c libmysql.def)
 IF(WIN32)
   SET_TARGET_PROPERTIES(libmysql mysqlclient PROPERTIES COMPILE_FLAGS "-DUSE_TLS")
 ENDIF(WIN32)
 ADD_DEPENDENCIES(libmysql GenError)
-TARGET_LINK_LIBRARIES(libmysql wsock32)
+TARGET_LINK_LIBRARIES(libmysql mysqlclient ws2_32)
 ADD_DEFINITIONS(-DHAVE_DLOPEN)
 
 MYSQL_INSTALL_TARGETS(mysqlclient DESTINATION lib COMPONENT Development)

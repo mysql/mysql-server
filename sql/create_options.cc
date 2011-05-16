@@ -258,7 +258,7 @@ static const size_t ha_option_type_sizeof[]=
   @retval FALSE OK
 */
 
-my_bool parse_option_list(THD* thd, void **option_struct,
+my_bool parse_option_list(THD* thd, void *option_struct_arg,
                           engine_option_value *option_list,
                           ha_create_table_option *rules,
                           my_bool suppress_warning,
@@ -267,6 +267,7 @@ my_bool parse_option_list(THD* thd, void **option_struct,
   ha_create_table_option *opt;
   size_t option_struct_size= 0;
   engine_option_value *val= option_list;
+  void **option_struct= (void**)option_struct_arg;
   DBUG_ENTER("parse_option_list");
   DBUG_PRINT("enter",
              ("struct: 0x%lx list: 0x%lx rules: 0x%lx suppres %u root 0x%lx",

@@ -1123,7 +1123,6 @@ xtPublic void xt_xn_init_db(XTThreadPtr self, XTDatabaseHPtr db)
 	 */
 	for (u_int i=0; i<XT_XN_NO_OF_SEGMENTS; i++) {
 		seg = &db->db_xn_idx[i];
-		XT_XACT_INIT_LOCK(self, &seg->xs_tab_lock);
 		seg->xs_last_xn_id = db->db_xn_curr_id;
 	}
 

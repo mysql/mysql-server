@@ -343,7 +343,7 @@ typedef struct st_table_share
   struct st_table *open_tables;		/* link to open tables */
 #endif
   engine_option_value *option_list;     /* text options for table */
-  void *option_struct;                  /* structure with parsed options */
+  ha_table_option_struct *option_struct; /* structure with parsed options */
 
   /* The following is copied to each TABLE on OPEN */
   Field **field;

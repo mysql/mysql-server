@@ -938,7 +938,13 @@ static void get_options(register int *argc,register char ***argv)
 } /* get options */
 
 
-	/* Check table */
+/**
+  Check/repair table
+
+  @return 0  table is ok
+  @return 1  Got warning during check
+  @return 2  Got error during check/repair.
+*/
 
 static int maria_chk(HA_CHECK *param, char *filename)
 {
@@ -1404,6 +1410,7 @@ end2:
 
   if (param->error_printed)
   {
+    error= 2;
     if (param->testflag & (T_REP_ANY | T_SORT_RECORDS | T_SORT_INDEX))
     {
       VOID(fprintf(stderr,
@@ -1422,8 +1429,12 @@ end2:
   else if (param->warning_printed &&
 	   ! (param->testflag & (T_REP_ANY | T_SORT_RECORDS | T_SORT_INDEX |
 			  T_FORCE_CREATE)))
+  {
+    if (!error)
+      error= 1;
     VOID(fprintf(stderr, "Aria table '%s' is usable but should be fixed\n",
 		 filename));
+  }
   VOID(fflush(stderr));
   DBUG_RETURN(error);
 } /* maria_chk */
@@ -1754,14 +1765,14 @@ static int maria_sort_records(HA_CHECK *param,
   {
     _ma_check_print_warning(param,
 			   "Can't sort table '%s' on key %d;  No such key",
-		name,sort_key+1);
+                            name,sort_key+1);
     param->error_printed=0;
     DBUG_RETURN(0);				/* Nothing to do */
   }
   if (keyinfo->flag & HA_FULLTEXT)
   {
     _ma_check_print_warning(param,"Can't sort table '%s' on FULLTEXT key %d",
-			   name,sort_key+1);
+                            name,sort_key+1);
     param->error_printed=0;
     DBUG_RETURN(0);				/* Nothing to do */
   }

@@ -599,6 +599,11 @@ struct handler_log_file_data {
 
   See ha_example.cc for an example.
 */
+
+struct ha_table_option_struct;
+struct ha_field_option_struct;
+struct ha_index_option_struct;
+
 enum ha_option_type { HA_OPTION_TYPE_ULL,    /* unsigned long long */
                       HA_OPTION_TYPE_STRING, /* char * */
                       HA_OPTION_TYPE_ENUM,   /* uint */
@@ -1167,9 +1172,9 @@ typedef struct st_ha_create_information
   enum ha_choice page_checksum;         ///< If we have page_checksums
   engine_option_value *option_list;     ///< list of table create options
   /* the following three are only for ALTER TABLE, check_if_incompatible_data() */
-  void *option_struct;           ///< structure with parsed table options
-  void **fileds_option_struct;   ///< array of field option structures
-  void **indexes_option_struct;  ///< array of index option structures
+  ha_table_option_struct *option_struct;           ///< structure with parsed table options
+  ha_field_option_struct **fields_option_struct;   ///< array of field option structures
+  ha_index_option_struct **indexes_option_struct;  ///< array of index option structures
 } HA_CREATE_INFO;
 
 
