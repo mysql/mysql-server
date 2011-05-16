@@ -25,22 +25,31 @@
  * GCC
  *******************/
 #if defined(__x86_64__) || defined (__i386__)
+
+#define NDB_HAVE_MB
+#define NDB_HAVE_RMB
+#define NDB_HAVE_WMB
+#define NDB_HAVE_READ_BARRIER_DEPENDS
+#define NDB_HAVE_XCNG
+#define NDB_HAVE_CPU_PAUSE
+
 /* Memory barriers, these definitions are for x64_64. */
 #define mb()    asm volatile("mfence":::"memory")
 /* According to Intel docs, it does not reorder loads. */
-/* #define rmb() asm volatile("lfence":::"memory") */                      
+/* #define rmb() asm volatile("lfence":::"memory") */
 #define rmb()   asm volatile("" ::: "memory")
 #define wmb()   asm volatile("" ::: "memory")
 #define read_barrier_depends()  do {} while(0)
 
-#define NDB_HAVE_XCNG
-static inline
+static
+inline
 int
 xcng(volatile unsigned * addr, int val)
 {
   asm volatile ("xchg %0, %1;" : "+r" (val) , "+m" (*addr));
   return val;
 }
+
 static
 inline
 void
@@ -50,6 +59,12 @@ cpu_pause()
 }
 
 #elif defined(__sparc__)
+
+#define NDB_HAVE_MB
+#define NDB_HAVE_RMB
+#define NDB_HAVE_WMB
+#define NDB_HAVE_READ_BARRIER_DEPENDS
+
 #define mb()    asm volatile("membar #LoadLoad | #LoadStore | #StoreLoad | #StoreStore":::"memory")
 #define rmb()   asm volatile("membar #LoadLoad" ::: "memory")
 #define wmb()   asm volatile("membar #StoreStore" ::: "memory")
@@ -71,6 +86,7 @@ xcng(volatile unsigned * addr, int val)
 }
 #define cpu_pause()
 #define NDB_HAVE_XCNG
+#define NDB_HAVE_CPU_PAUSE
 #else
 /* link error if used incorrectly (i.e wo/ having NDB_HAVE_XCNG) */
 extern  int xcng(volatile unsigned * addr, int val);
@@ -78,7 +94,7 @@ extern void cpu_pause();
 #endif
 
 #else
-#error "Unsupported architecture (gcc)"
+#define NDB_NO_ASM "Unsupported architecture (gcc)"
 #endif
 
 #elif defined(__sun)
@@ -91,20 +107,32 @@ extern void cpu_pause();
  *      i.e that it clobbers memory
  */
 #if defined(__x86_64__)
+#define NDB_HAVE_MB
+#define NDB_HAVE_RMB
+#define NDB_HAVE_WMB
+#define NDB_HAVE_READ_BARRIER_DEPENDS
+
 #define mb()    asm ("mfence")
 /* According to Intel docs, it does not reorder loads. */
 /* #define rmb() asm ("lfence") */
 #define rmb()   asm ("")
 #define wmb()   asm ("")
 #define read_barrier_depends()  do {} while(0)
+
 #elif defined(__sparc)
+#define NDB_HAVE_MB
+#define NDB_HAVE_RMB
+#define NDB_HAVE_WMB
+#define NDB_HAVE_READ_BARRIER_DEPENDS
+
 #define mb() asm ("membar #LoadLoad | #LoadStore | #StoreLoad | #StoreStore")
 #define rmb() asm ("membar #LoadLoad")
 #define wmb() asm ("membar #StoreStore")
 #define read_barrier_depends()  do {} while(0)
 #else
-#error "Unsupported architecture (sun studio)"
+#define NDB_NO_ASM "Unsupported architecture (sun studio)"
 #endif
+
 #if defined(__x86_64__) || defined(__sparc)
 /**
  * we should probably use assembler for x86 aswell...
@@ -116,6 +144,7 @@ extern void cpu_pause();
 
 #ifdef HAVE_ATOMIC_SWAP_32
 #define NDB_HAVE_XCNG
+#define NDB_HAVE_CPU_PAUSE
 #if defined(__sparc)
 static inline
 int
@@ -154,6 +183,12 @@ extern void cpu_pause();
 #endif
 #endif
 #elif defined (_MSC_VER)
+
+#define NDB_HAVE_MB
+#define NDB_HAVE_RMB
+#define NDB_HAVE_WMB
+#define NDB_HAVE_READ_BARRIER_DEPENDS
+
 #include <windows.h>
 #define mb()    MemoryBarrier()
 #define read_barrier_depends()  do {} while(0)
@@ -171,6 +206,8 @@ extern void cpu_pause();
 #endif
 
 #define NDB_HAVE_XCNG
+#define NDB_HAVE_CPU_PAUSE
+
 static inline
 int
 xcng(volatile unsigned * addr, int val)
@@ -186,7 +223,7 @@ cpu_pause()
   YieldProcessor();
 }
 #else
-#error "Unsupported compiler"
+#define NDB_NO_ASM "Unsupported compiler"
 #endif
 
 #endif
