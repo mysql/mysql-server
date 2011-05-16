@@ -188,6 +188,15 @@ public:
   static bool isNdbMtLqh() { return globalData.isNdbMtLqh; }
   static Uint32 getLqhWorkers() { return globalData.ndbMtLqhWorkers; }
 
+  /**
+   * Assert that thread calling this function is "owner" of block instance
+   */
+#ifdef VM_TRACE
+  void assertOwnThread();
+#else
+  void assertOwnThread(){ }
+#endif
+
   /*
    * Instance key (1-4) is used only when sending a signal.  Receiver
    * maps it to actual instance (0, if receiver is not MT LQH).
