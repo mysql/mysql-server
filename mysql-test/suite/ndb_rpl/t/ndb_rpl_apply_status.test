@@ -1,0 +1,45 @@
+
+#
+# BUG#36123 Selecting from mysql.ndb_apply_status leads to failure
+#
+# Load the mysql.ndb_apply_status table into table def cache
+#
+
+# The table might already have been created by mysqld -> ignore error
+--error 0,1
+copy_file $MYSQL_TEST_DIR/suite/ndb_rpl/t/ndb_apply_status.frm $MYSQLTEST_VARDIR/master-data/mysql/ndb_apply_status.frm;
+--disable_result_log
+--disable_abort_on_error
+select * from mysql.ndb_apply_status;
+--enable_abort_on_error
+--enable_result_log
+
+
+-- source include/have_ndb.inc
+-- source include/have_binlog_format_mixed_or_row.inc
+-- source suite/ndb_rpl/ndb_master-slave.inc
+
+#
+# Bug#28170 replicate-ignore-db=mysql should not ignore mysql.ndb_apply_status
+#
+# Slave is started with --replicate-ignore-db=mysql
+#
+sync_slave_with_master;
+echo *** on slave there should be zero rows ***;
+select count(*) from mysql.ndb_apply_status;
+
+connection master;
+create table t1 (a int key, b int) engine ndb;
+insert into t1 values (1,1);
+echo *** on master it should be empty ***;
+#filter away stuff put there with server_id = 0 (from ndb_restore)
+select * from mysql.ndb_apply_status where server_id <> 0;
+
+sync_slave_with_master;
+echo *** on slave there should be one row ***;
+select count(*) from mysql.ndb_apply_status;
+
+connection master;
+drop table t1;
+sync_slave_with_master;
+--source include/rpl_end.inc

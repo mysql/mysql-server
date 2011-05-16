@@ -1,0 +1,13 @@
+##############################################################################
+#
+#  List the test cases that are to be disabled temporarily.
+#
+#  Separate the test case name and the comment with ':'.
+#
+#    <testcasename> : BUG#<xxxx> <date disabled> <disabler> <comment>
+#
+#  Do not use any TAB characters for whitespace.
+#
+##############################################################################
+
+ndb_rpl_ctype_ucs2_def : bug #34661 rpl_ndb_ctype_ucs2_def fails in 6.2
