@@ -48,6 +48,9 @@ AC_DEFUN([NDB_CHECK_NDBMTD], [
       AC_TRY_RUN(
         [
         #include "storage/ndb/src/kernel/vm/mt-asm.h"
+        #ifdef NDB_NO_ASM
+        #error "compiler/arch does not have asm needed for ndbmtd"
+        #endif
         int main()
         {
           unsigned int a = 0;
