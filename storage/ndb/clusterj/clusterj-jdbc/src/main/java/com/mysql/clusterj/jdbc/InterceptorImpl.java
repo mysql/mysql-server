@@ -322,7 +322,7 @@ public class InterceptorImpl {
                 }
                 String whereType = "empty";
                 if (logger.isDetailEnabled()) logger.detail(
-                        "StatementInterceptorImpl.preProcess parse result SELECT FROM " + tableName
+                        "SELECT FROM " + tableName
                         + " COLUMNS " + columnNames);
                 // we need to distinguish three cases:
                 // - no where clause (select all rows)
@@ -349,7 +349,7 @@ public class InterceptorImpl {
                     walk(root);
                 }
                 if (logger.isDetailEnabled()) logger.detail(
-                        "StatementInterceptorImpl.preProcess parse result SELECT FROM " + tableName
+                        "SELECT FROM " + tableName
                         + " COLUMNS " + columnNames + " whereType " + whereType);
                 break;
             case MySQL51Parser.DELETE:
@@ -358,14 +358,33 @@ public class InterceptorImpl {
                 getSession();
                 dictionary = session.getDictionary();
                 domainTypeHandler = getDomainTypeHandler(tableName, dictionary);
-                if (logger.isDetailEnabled()) logger.detail(
-                        "StatementInterceptorImpl.preProcess parse result DELETE " + tableName); 
                 whereNode = ((WhereNode)root.getFirstChildWithType(MySQL51Parser.WHERE));
-                if (whereNode != null) {
+                int numberOfParameters = 0;
+                if (whereNode == null) {
+                    // no where clause (delete all rows)
+                    result = new SQLExecutor.Delete(domainTypeHandler);
+                    whereType = "empty";
+                } else {
+                    // create a predicate from the tree
                     queryDomainType = (QueryDomainTypeImpl<?>) session.createQueryDomainType(domainTypeHandler);
+                    Predicate predicate = whereNode.getPredicate(queryDomainType);
+                    if (predicate != null) {
+                        // where clause that can be executed by clusterj
+                        queryDomainType.where(predicate);
+                        numberOfParameters = whereNode.getNumberOfParameters();
+                        result = new SQLExecutor.Delete(domainTypeHandler, queryDomainType, numberOfParameters);
+                        whereType = "clusterj";
+                    } else {
+                        // where clause that cannot be executed by clusterj
+                        result = new SQLExecutor.Noop();
+                        whereType = "non-clusterj";
+                    }
                     walk(root);
                 }
-                result = new SQLExecutor.Delete(domainTypeHandler, queryDomainType);
+                if (logger.isDetailEnabled()) logger.detail(
+                        "DELETE FROM " + tableName
+                        + " whereType " + whereType
+                        + " number of parameters " + numberOfParameters);
                 break;
             default:
                 // return a do-nothing ParsedSQL

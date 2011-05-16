@@ -57,6 +57,9 @@ public class SQLExecutor {
     /** The number of fields in the domain object (also the number of mapped columns) */
     protected int numberOfFields;
 
+    /** The number of parameters in the where clause */
+    protected int numberOfParameters;
+
     /** The map of field numbers to parameter numbers */
     protected int[] fieldNumberToColumnNumberMap = null;
 
@@ -75,15 +78,22 @@ public class SQLExecutor {
         initializeFieldNumberMap();
     }
 
+    public SQLExecutor(DomainTypeHandlerImpl<?> domainTypeHandler) {
+        this.domainTypeHandler = domainTypeHandler;
+    }
+
     public SQLExecutor(DomainTypeHandlerImpl<?> domainTypeHandler, List<String> columnNames,
             QueryDomainTypeImpl<?> queryDomainType) {
         this(domainTypeHandler, columnNames);
         this.queryDomainType = queryDomainType;
+        initializeFieldNumberMap();
     }
     
-    public SQLExecutor(DomainTypeHandlerImpl<?> domainTypeHandler, QueryDomainTypeImpl<?> queryDomainType) {
+    public SQLExecutor(DomainTypeHandlerImpl<?> domainTypeHandler, QueryDomainTypeImpl<?> queryDomainType,
+            int numberOfParameters) {
         this.domainTypeHandler = domainTypeHandler;
         this.queryDomainType = queryDomainType;
+        this.numberOfParameters = numberOfParameters;
     }
 
     /** This is the public interface exposed to other parts of the component. Calling this
@@ -128,7 +138,9 @@ public class SQLExecutor {
                 ParameterBindings parameterBindings) throws SQLException {
             logParameterBindings(parameterBindings);
             // create value handler to copy data from parameters to ndb
-            Map<String, Object> parameters = createParameterMap(queryDomainType, parameterBindings);
+            // count the parameters
+            int count = countParameters(parameterBindings);
+            Map<String, Object> parameters = createParameterMap(queryDomainType, parameterBindings, 0, count);
             QueryExecutionContextImpl context = new QueryExecutionContextImpl(session, parameters);
             session.startAutoTransaction();
             try {
@@ -148,19 +160,42 @@ public class SQLExecutor {
      */
     public static class Delete extends SQLExecutor implements Executor {
 
-        public Delete (DomainTypeHandlerImpl<?> domainTypeHandler, QueryDomainTypeImpl<?> queryDomainType) {
-            super(domainTypeHandler, queryDomainType);
+        public Delete (DomainTypeHandlerImpl<?> domainTypeHandler, QueryDomainTypeImpl<?> queryDomainType,
+                int numberOfParameters) {
+            super(domainTypeHandler, queryDomainType, numberOfParameters);
+        }
+
+        public Delete (DomainTypeHandlerImpl<?> domainTypeHandler) {
+            super(domainTypeHandler);
         }
 
         public ResultSetInternalMethods execute(SessionSPI session,
                 ParameterBindings parameterBindings) throws SQLException {
-            if (logger.isDetailEnabled()) logParameterBindings(parameterBindings);
-            // for now, the only delete operation supported is delete all rows
             if (queryDomainType == null) {
                 int rowsDeleted = session.deletePersistentAll(domainTypeHandler);
                 return new ResultSetInternalMethodsUpdateCount(rowsDeleted);
             } else {
-                return null;
+                int totalRowsDeleted = 0;
+                int numberOfBoundParameters = countParameters(parameterBindings);
+                int numberOfStatements = numberOfBoundParameters / numberOfParameters;
+                int offset = 0;
+                if (logger.isDebugEnabled()) logger.debug(
+                        " numberOfParameters: " + numberOfParameters
+                        + " numberOfBoundParameters: " + numberOfBoundParameters
+                        + " numberOfStatements: " + numberOfStatements
+                        );
+                for (int i = 0; i < numberOfStatements; ++i) {
+                    // this will execute each statement in the batch using different parameters
+                    Map<String, Object> parameters = createParameterMap(queryDomainType, parameterBindings,
+                            offset, numberOfParameters);
+                    offset += numberOfParameters;
+                    QueryExecutionContextImpl context = new QueryExecutionContextImpl(session, parameters);
+                    int statementRowsDeleted = queryDomainType.deletePersistentAll(context);
+                    totalRowsDeleted += statementRowsDeleted;
+                    if (logger.isDebugEnabled()) logger.debug("statement " + i
+                            + " deleted " + statementRowsDeleted);
+                }
+                return new ResultSetInternalMethodsUpdateCount(totalRowsDeleted);
             }
         }
     }
@@ -198,32 +233,25 @@ public class SQLExecutor {
 
     /** Create the parameter map assigning each bound parameter a number.
      * The result is a map in which the key is a String whose key is a cardinal number
+     * starting with 1 (for JDBC which uses 1-origin for numbering)
      * and whose value is the parameter's value.
      * @param queryDomainType the query domain type
      * @param parameterBindings the parameter bindings
+     * @param offset the number of parameters to skip
+     * @param count the number of parameters to use
      * @return
      * @throws SQLException
      */
     protected Map<String, Object> createParameterMap(QueryDomainTypeImpl<?> queryDomainType,
-            ParameterBindings parameterBindings) throws SQLException {
+            ParameterBindings parameterBindings, int offset, int count) throws SQLException {
         Map<String, Object> result = new HashMap<String, Object>();
-        int i = 1;
-        while (true) {
-            try {
-                // back up until you hear a crash
-                Object placeholder = parameterBindings.getObject(i);
-                if (logger.isDetailEnabled()) logger.detail("Put placeholder " + i + " value: " + placeholder);
-                result.put(String.valueOf(i), placeholder);
-                ++i;
-            } catch (Exception ex) {
-                break;
-            }
+        int first = offset + 1;
+        int last = offset + count + 1;
+        for (int i = first; i < last; ++i) {
+            Object placeholder = parameterBindings.getObject(i);
+            if (logger.isDetailEnabled()) logger.detail("Put placeholder " + i + " value: " + placeholder);
+            result.put(String.valueOf(i), placeholder);
         }
-        // TODO what does this do?
-//        if (i > 1) {
-//            // if there is at least one parameter, name it "?" in addition to "1"
-//            result.put("?", parameterBindings.getObject(1));       
-//        }
         return result;
     }
 

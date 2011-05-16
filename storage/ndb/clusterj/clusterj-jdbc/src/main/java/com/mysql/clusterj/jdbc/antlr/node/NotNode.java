@@ -42,6 +42,7 @@ public class NotNode extends PredicateNode {
         Predicate result = null;
         PredicateNode node = (PredicateNode) getChild(0);
         result = node.getPredicate(queryDomainType).not();
+        setNumberOfParameters(node.getNumberOfParameters());
         return result;
     }
 

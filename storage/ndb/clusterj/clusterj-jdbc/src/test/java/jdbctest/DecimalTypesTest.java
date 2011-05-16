@@ -55,8 +55,10 @@ create unique index idx_decimal_null_both on decimaltypes(decimal_null_both);
         failOnError();
     }
 
-    /** New tests */
+    /** Query tests */
     public void testQuery() {
+        generateInstances(getColumnDescriptors());
+        writeToJDBC(columnDescriptors, instances);
         queryAndVerifyResults("id greaterThan", columnDescriptors,
                 "id > ?", new Object[] {5}, 6, 7, 8, 9);
         queryAndVerifyResults("id greaterEqual", columnDescriptors,
@@ -128,17 +130,87 @@ create unique index idx_decimal_null_both on decimaltypes(decimal_null_both);
                 new BigDecimal[] {BigDecimal.valueOf(6.00001)},
                 7, 8, 9);
 
-        queryAndVerifyResults("decimal_null_btree greaterThan and lessEqual", columnDescriptors,
+        queryAndVerifyResults("decimal_null_btree greaterThan and lessEqual and decimal_null_none lessThan " +
+                "or decimal_null_none greaterThan", columnDescriptors,
                 "decimal_null_btree > ? and decimal_null_btree <= ?" +
                 " and (decimal_null_none < ? or decimal_null_none > ?)",
-                new BigDecimal[] {BigDecimal.valueOf(3.00001), BigDecimal.valueOf(6.00001), BigDecimal.valueOf(5.00003), BigDecimal.valueOf(5.00003)},
-                4, 6);
+                new BigDecimal[] {BigDecimal.valueOf(0.00001), BigDecimal.valueOf(8.00001),
+                        BigDecimal.valueOf(3.00003), BigDecimal.valueOf(6.00003)},
+                        1, 2, 7, 8);
         
-        queryAndVerifyResults("decimal_null_btree greaterThan and lessEqual", columnDescriptors,
+        queryAndVerifyResults("decimal_null_btree greaterThan and lessEqual" +
+                " and not (decimal_null_none lessThan or decimal_null_none greaterThan)", columnDescriptors,
                 "decimal_null_btree > ? and decimal_null_btree <= ?" +
                 " and not (decimal_null_none < ? or decimal_null_none > ?)",
-                new BigDecimal[] {BigDecimal.valueOf(3.00001), BigDecimal.valueOf(6.00001), BigDecimal.valueOf(5.00003), BigDecimal.valueOf(5.00003)},
-                5);
+                new BigDecimal[] {BigDecimal.valueOf(0.00001), BigDecimal.valueOf(8.00001),
+                        BigDecimal.valueOf(3.00003), BigDecimal.valueOf(6.00003)},
+                        3, 4, 5, 6);
+        
+        queryAndVerifyResults("decimal_null_btree greaterThan and lessEqual" +
+                " and (decimal_null_none between)", columnDescriptors,
+                "decimal_null_btree > ? and decimal_null_btree <= ?" +
+                " and decimal_null_none between ? and ?",
+                new BigDecimal[] {BigDecimal.valueOf(0.00001), BigDecimal.valueOf(8.00001),
+                        BigDecimal.valueOf(3.00003), BigDecimal.valueOf(6.00003)},
+                        3, 4, 5, 6);
+        
+        queryAndVerifyResults("decimal_null_btree greaterThan and lessEqual" +
+                " and not (decimal_null_none between)", columnDescriptors,
+                "decimal_null_btree > ? and decimal_null_btree <= ?" +
+                " and not decimal_null_none between ? and ?",
+                new BigDecimal[] {BigDecimal.valueOf(0.00001), BigDecimal.valueOf(8.00001),
+                        BigDecimal.valueOf(3.00003), BigDecimal.valueOf(6.00003)},
+                        1, 2, 7, 8);
+        
+        queryAndVerifyResults("decimal_null_btree greaterThan and lessEqual" +
+                " and not (decimal_null_none between)", columnDescriptors,
+                "decimal_null_btree > ? and decimal_null_btree <= ?" +
+                " and decimal_null_none not between ? and ?",
+                new BigDecimal[] {BigDecimal.valueOf(0.00001), BigDecimal.valueOf(8.00001),
+                        BigDecimal.valueOf(3.00003), BigDecimal.valueOf(6.00003)},
+                        1, 2, 7, 8);
+        
+        queryAndVerifyResults("decimal_null_none between " +
+                "and decimal_null_btree greaterThan and lessEqual", columnDescriptors,
+                "decimal_null_none between ? and ?" +
+                " and decimal_null_btree > ? and decimal_null_btree <= ?",
+                new BigDecimal[] {
+                        BigDecimal.valueOf(3.00003), BigDecimal.valueOf(6.00003),
+                        BigDecimal.valueOf(0.00001), BigDecimal.valueOf(8.00001)},
+                        3, 4, 5, 6);
+        
+        queryAndVerifyResults("not decimal_null_none between " +
+                " and decimal_null_btree greaterThan and lessEqual", columnDescriptors,
+                "not decimal_null_none between ? and ?" +
+                " and decimal_null_btree > ? and decimal_null_btree <= ?",
+                new BigDecimal[] {
+                        BigDecimal.valueOf(3.00003), BigDecimal.valueOf(6.00003),
+                        BigDecimal.valueOf(0.00001), BigDecimal.valueOf(8.00001)},
+                        1, 2, 7, 8);
+        
+        queryAndVerifyResults("decimal_null_none not between " +
+                "and decimal_null_btree greaterThan and lessEqual", columnDescriptors,
+                "decimal_null_none not between ? and ?" +
+                " and decimal_null_btree > ? and decimal_null_btree <= ?",
+                new BigDecimal[] {
+                        BigDecimal.valueOf(3.00003), BigDecimal.valueOf(6.00003),
+                        BigDecimal.valueOf(0.00001), BigDecimal.valueOf(8.00001)},
+                        1, 2, 7, 8);
+        
+        queryAndVerifyResults("decimal_null_none between", columnDescriptors,
+                "decimal_null_none between ? and ?",
+                new BigDecimal[] {BigDecimal.valueOf(4.00003), BigDecimal.valueOf(7.00003)},
+                        4, 5, 6, 7);
+        
+        queryAndVerifyResults("decimal_null_none not between", columnDescriptors,
+                "decimal_null_none not between ? and ?",
+                new BigDecimal[] {BigDecimal.valueOf(4.00003), BigDecimal.valueOf(7.00003)},
+                        0, 1, 2, 3, 8, 9);
+        
+        queryAndVerifyResults("not decimal_null_none between", columnDescriptors,
+                "not decimal_null_none between ? and ?",
+                new BigDecimal[] {BigDecimal.valueOf(4.00003), BigDecimal.valueOf(7.00003)},
+                        0, 1, 2, 3, 8, 9);
         
         failOnError();
     }

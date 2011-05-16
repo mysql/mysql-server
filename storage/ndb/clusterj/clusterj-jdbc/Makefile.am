@@ -52,6 +52,7 @@ clusterj_jdbc_java = \
   $(clusterj_jdbc_src)/com/mysql/clusterj/jdbc/antlr/QueuingErrorListener.java \
   $(clusterj_jdbc_src)/com/mysql/clusterj/jdbc/antlr/RecognizerErrorDelegate.java \
   $(clusterj_jdbc_src)/com/mysql/clusterj/jdbc/antlr/node/AndNode.java \
+  $(clusterj_jdbc_src)/com/mysql/clusterj/jdbc/antlr/node/BetweenNode.java \
   $(clusterj_jdbc_src)/com/mysql/clusterj/jdbc/antlr/node/BinaryOperatorNode.java \
   $(clusterj_jdbc_src)/com/mysql/clusterj/jdbc/antlr/node/BooleanOperatorNode.java \
   $(clusterj_jdbc_src)/com/mysql/clusterj/jdbc/antlr/node/CommandNode.java \

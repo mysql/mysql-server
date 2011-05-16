@@ -17,19 +17,22 @@
 
 package com.mysql.clusterj.jdbc.antlr.node;
 
-import com.mysql.clusterj.ClusterJFatalInternalException;
-import com.mysql.clusterj.jdbc.antlr.MySQL51Parser;
-
 import org.antlr.runtime.Token;
 
 public class BinaryOperatorNode extends PredicateNode {
 
     public BinaryOperatorNode(Token token) {
         super(token);
+        // binary operators all have exactly one parameter
+        // change this once we support non-parameter operations
+        setNumberOfParameters(1);
     }
 
-    public BinaryOperatorNode(BinaryOperatorNode binaryOperatorNode) {
+    public BinaryOperatorNode(PredicateNode binaryOperatorNode) {
         super(binaryOperatorNode);
+        // binary operators all have exactly one parameter
+        // change this once we support non-parameter operations
+        setNumberOfParameters(1);
     }
 
     @Override
@@ -42,19 +45,7 @@ public class BinaryOperatorNode extends PredicateNode {
     }
 
     protected String getParameterName() {
-        if (getChild(1).getType() == MySQL51Parser.VALUE_PLACEHOLDER) {
-            return getChild(1).getText();
-        } else {
-            throw new ClusterJFatalInternalException(local.message("ERR_RHS_Not_A_Parameter"));
-        }
-    }
-
-    protected String getPropertyName() {
-        if (getChild(0).getType() == MySQL51Parser.FIELD) {
-            return getChild(0).getChild(0).getText();
-        } else {
-            throw new ClusterJFatalInternalException(local.message("ERR_LHS_Not_A_Field"));
-        }
+        return getParameterName(1);
     }
 
 }
