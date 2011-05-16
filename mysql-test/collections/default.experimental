@@ -19,7 +19,6 @@ innodb_plugin.*  @solaris                # Bug#56063 InnoDB Plugin mysql-tests f
 main.ctype_gbk_binlog  @solaris          # Bug#46010: main.ctype_gbk_binlog fails sporadically : Table 't2' already exists
 main.func_str  @solaris                  # joro: Bug#40928
 main.sp @solaris                         # joro : Bug#54138
-main.outfile_loaddata @solaris           # joro : Bug #46895
 
 ndb.*                                    # joro : NDB tests marked as experimental as agreed with bochklin
 

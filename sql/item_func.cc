@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2010, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2011, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -11,8 +11,7 @@
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
-   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
-
+   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
 /**
   @file
@@ -1066,7 +1065,7 @@ err:
   push_warning_printf(current_thd, MYSQL_ERROR::WARN_LEVEL_ERROR,
                       ER_WARN_DATA_OUT_OF_RANGE,
                       ER(ER_WARN_DATA_OUT_OF_RANGE),
-                      name, 1);
+                      name, 1L);
   return dec;
 }
 
@@ -2851,7 +2850,7 @@ udf_handler::fix_fields(THD *thd, Item_result_field *func,
 
   if (!tmp_udf)
   {
-    my_error(ER_CANT_FIND_UDF, MYF(0), u_d->name.str, errno);
+    my_error(ER_CANT_FIND_UDF, MYF(0), u_d->name.str);
     DBUG_RETURN(TRUE);
   }
   u_d=tmp_udf;
