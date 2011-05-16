@@ -158,7 +158,10 @@ SELECT @@session.sql_mode INTO @old_sql_mode;
 SET SESSION sql_mode='ONLY_FULL_GROUP_BY';
 
 # EXPLAIN EXTENDED (with subselect). used to crash. should give NOTICE.
---error ER_MIX_OF_GROUP_FUNC_AND_FIELDS
+# Before moving max/min optimization to optimize phase this statement
+# generated error, but as far as original query do not contain aggregate
+# function user should not see error
+#  --error ER_MIX_OF_GROUP_FUNC_AND_FIELDS
 EXPLAIN EXTENDED SELECT 1 FROM t1
                           WHERE f1 > ALL( SELECT t.f1 FROM t1,t1 AS t );
 SHOW WARNINGS;

@@ -603,8 +603,53 @@ inline bool sj_is_materialize_strategy(uint strategy)
 
 class JOIN :public Sql_alloc
 {
+private:
   JOIN(const JOIN &rhs);                        /**< not implemented */
   JOIN& operator=(const JOIN &rhs);             /**< not implemented */
+
+protected:
+
+  /**
+    The subset of the state of a JOIN that represents an optimized query
+    execution plan. Allows saving/restoring different plans for the same query.
+  */
+  class Query_plan_state {
+  public:
+    DYNAMIC_ARRAY keyuse; /* Copy of the JOIN::keyuse array. */
+    POSITION best_positions[MAX_TABLES+1]; /* Copy of JOIN::best_positions */
+    /* Copies of the JOIN_TAB::keyuse pointers for each JOIN_TAB. */
+    KEYUSE *join_tab_keyuse[MAX_TABLES];
+    /* Copies of JOIN_TAB::checked_keys for each JOIN_TAB. */
+    key_map join_tab_checked_keys[MAX_TABLES];
+  public:
+    Query_plan_state()
+    {   
+      keyuse.elements= 0;
+      keyuse.buffer= NULL;
+    }
+    Query_plan_state(JOIN *join);
+    ~Query_plan_state()
+    {
+      delete_dynamic(&keyuse);
+    }
+  };
+
+  /* Results of reoptimizing a JOIN via JOIN::reoptimize(). */
+  enum enum_reopt_result {
+    REOPT_NEW_PLAN, /* there is a new reoptimized plan */
+    REOPT_OLD_PLAN, /* no new improved plan can be found, use the old one */
+    REOPT_ERROR,    /* an irrecovarable error occured during reoptimization */
+    REOPT_NONE      /* not yet reoptimized */
+  };
+
+  /* Support for plan reoptimization with rewritten conditions. */
+  enum_reopt_result reoptimize(Item *added_where, table_map join_tables,
+                               Query_plan_state *save_to);
+  void save_query_plan(Query_plan_state *save_to);
+  void restore_query_plan(Query_plan_state *restore_from);
+  /* Choose a subquery plan for a table-less subquery. */
+  bool choose_tableless_subquery_plan();
+
 public:
   JOIN_TAB *join_tab,**best_ref;
   JOIN_TAB **map2table;    ///< mapping between table indexes and JOIN_TABs
@@ -702,6 +747,13 @@ public:
     account the changes made by test_if_skip_sort_order()).
   */
   double   best_read;
+  /*
+    Estimated result rows (fanout) of the whole query. If this is a subquery
+    that is reexecuted multiple times, this value includes the estiamted # of
+    reexecutions. This value is equal to the multiplication of all
+    join->positions[i].records_read of a JOIN.
+  */
+  double   record_count;
   List<Item> *fields;
   List<Cached_item> group_fields, group_fields_cache;
   TABLE    *tmp_table;
@@ -815,6 +867,19 @@ public:
   List<TABLE_LIST> *join_list;       ///< list of joined tables in reverse order
   COND_EQUAL *cond_equal;
   COND_EQUAL *having_equal;
+  /*
+    Constant codition computed during optimization, but evaluated during
+    join execution. Typically expensive conditions that should not be
+    evaluated at optimization time.
+  */
+  Item *exec_const_cond;
+  /*
+    Constant ORDER and/or GROUP expressions that contain subqueries. Such
+    expressions need to evaluated to verify that the subquery indeed
+    returns a single row. The evaluation of such expressions is delayed
+    until query execution.
+  */
+  List<Item> exec_const_order_group_cond;
   SQL_SELECT *select;                ///<created in optimisation phase
   JOIN_TAB *return_tab;              ///<used only for outer joins
   Item **ref_pointer_array; ///<used pointer reference for this select
@@ -825,8 +890,15 @@ public:
   
   bool union_part; ///< this subselect is part of union 
   bool optimized; ///< flag to avoid double optimization in EXPLAIN
+  bool initialized; ///< flag to avoid double init_execution calls
 
   Array<Item_in_subselect> sj_subselects;
+  /*
+    Additional WHERE and HAVING predicates to be considered for IN=>EXISTS
+    subquery transformation of a JOIN object.
+  */
+  Item *in_to_exists_where;
+  Item *in_to_exists_having;
 
   /* Temporary tables used to weed-out semi-join duplicates */
   List<TABLE> sj_tmp_tables;
@@ -901,8 +973,10 @@ public:
     ref_pointer_array_size= 0;
     zero_result_cause= 0;
     optimized= 0;
+    initialized= 0;
     cond_equal= 0;
     having_equal= 0;
+    exec_const_cond= 0;
     group_optimized_away= 0;
     no_rows_in_result_called= 0;
 
@@ -917,20 +991,24 @@ public:
     no_const_tables= FALSE;
     first_select= sub_select;
     outer_ref_cond= 0;
+    in_to_exists_where= NULL;
+    in_to_exists_having= NULL;
   }
 
   int prepare(Item ***rref_pointer_array, TABLE_LIST *tables, uint wind_num,
 	      COND *conds, uint og_num, ORDER *order, ORDER *group,
 	      Item *having, ORDER *proc_param, SELECT_LEX *select,
 	      SELECT_LEX_UNIT *unit);
+  bool prepare_stage2();
   int optimize();
   int reinit();
+  int init_execution();
   void exec();
   int destroy();
   void restore_tmp();
   bool alloc_func_list();
   bool flatten_subqueries();
-  bool setup_subquery_materialization();
+  bool optimize_unflattened_subqueries();
   bool make_sum_func_list(List<Item> &all_fields, List<Item> &send_fields,
 			  bool before_group_by, bool recompute= FALSE);
 
@@ -966,7 +1044,7 @@ public:
   bool init_save_join_tab();
   bool send_row_on_empty_set()
   {
-    return (do_send_rows && implicit_grouping &&
+    return (do_send_rows && implicit_grouping && !group_optimized_away &&
             having_value != Item::COND_FALSE);
   }
   bool change_result(select_result *result);
@@ -999,6 +1077,11 @@ public:
     return test(allowed_join_cache_types & JOIN_CACHE_HASHED_BIT) &&
            max_allowed_join_cache_level > JOIN_CACHE_HASHED_BIT;
   }
+  bool choose_subquery_plan(table_map join_tables);
+  void get_partial_join_cost(uint n_tables,
+                             double *read_time_arg, double *record_count_arg);
+  /* defined in opt_subselect.cc */
+  bool transform_max_min_subquery();
 
 private:
   /**
@@ -1234,6 +1317,9 @@ protected:
     if (!inited)
     {
       inited=1;
+      TABLE *table= to_field->table;
+      my_bitmap_map *old_map= dbug_tmp_use_all_columns(table,
+                                                       table->write_set);
       if ((res= item->save_in_field(to_field, 1)))
       {       
         if (!err)
@@ -1245,6 +1331,7 @@ protected:
         */
       if (!err && to_field->table->in_use->is_error())
         err= 1; /* STORE_KEY_FATAL */
+      dbug_tmp_restore_column_map(table->write_set, old_map);
     }
     null_key= to_field->is_null() || item->null_value;
     return (err > 2 ? STORE_KEY_FATAL : (store_key_result) err);
@@ -1263,9 +1350,7 @@ inline Item * and_items(Item* cond, Item *item)
 {
   return (cond? (new Item_cond_and(cond, item)) : item);
 }
-bool choose_plan(JOIN *join,table_map join_tables);
-void get_partial_join_cost(JOIN *join, uint n_tables, double *read_time_arg,
-                           double *record_count_arg);
+bool choose_plan(JOIN *join, table_map join_tables);
 void optimize_wo_join_buffering(JOIN *join, uint first_tab, uint last_tab, 
                                 table_map last_remaining_tables, 
                                 bool first_alt, uint no_jbuf_before,
@@ -1310,5 +1395,6 @@ bool create_internal_tmp_table(TABLE *table, KEY *keyinfo,
                                ulonglong options);
 bool open_tmp_table(TABLE *table);
 void setup_tmp_table_column_bitmaps(TABLE *table, uchar *bitmaps);
+double prev_record_reads(POSITION *positions, uint idx, table_map found_ref);
 
 #endif /* SQL_SELECT_INCLUDED */

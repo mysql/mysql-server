@@ -8,6 +8,5 @@ inst_HEADERS = allocator.hpp config.hpp mutex.hpp string_util.hpp \
 lib_LTLIBRARIES = libhsclient.la
 libhsclient_la_SOURCES = config.cpp escape.cpp fatal.cpp hstcpcli.cpp \
 	socket.cpp string_util.cpp
-#libhsclient_la_LDFLAGS = -static
 libhsclient_la_CFLAGS = $(AM_CFLAGS) 
 libhsclient_la_CXXFLAGS = $(AM_CXXFLAGS) 

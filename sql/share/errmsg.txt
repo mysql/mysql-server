@@ -6269,3 +6269,5 @@ ER_DYN_COL_DATA 22007
         eng "Illegal value used as argument of dynamic column function"
 ER_DYN_COL_WRONG_CHARSET
         eng "Dynamic column contains unknown character set"
+ER_ILLEGAL_SUBQUERY_OPTIMIZER_SWITCHES
+        eng "At least one of the 'in_to_exists' or 'materialization' optimizer_switch flags must be 'on'."

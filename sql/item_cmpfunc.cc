@@ -1798,6 +1798,8 @@ Item *Item_in_optimizer::expr_cache_insert_transformer(uchar *thd_arg)
 {
   THD *thd= (THD*) thd_arg;
   DBUG_ENTER("Item_in_optimizer::expr_cache_insert_transformer");
+  if (args[1]->type() != Item::SUBSELECT_ITEM)
+    DBUG_RETURN(this); // MAX/MIN transformed => do nothing
   List<Item*> &depends_on= ((Item_subselect *)args[1])->depends_on;
 
   if (expr_cache)
@@ -1901,7 +1903,15 @@ longlong Item_in_optimizer::val_int()
   DBUG_ASSERT(fixed == 1);
   cache->store(args[0]);
   cache->cache_value();
-  
+
+  if (args[1]->type() != Item::SUBSELECT_ITEM)
+  {
+    /* MAX/MIN transformed => pass through */
+    longlong res= args[1]->val_int();
+    null_value= args[1]->null_value;
+    return (res);
+  }
+
   if (cache->null_value)
   {
     /*
@@ -2050,25 +2060,48 @@ Item *Item_in_optimizer::transform(Item_transformer transformer, uchar *argument
   if ((*args) != new_item)
     current_thd->change_item_tree(args, new_item);
 
-  /*
-    Transform the right IN operand which should be an Item_in_subselect or a
-    subclass of it. The left operand of the IN must be the same as the left
-    operand of this Item_in_optimizer, so in this case there is no further
-    transformation, we only make both operands the same.
-    TODO: is it the way it should be?
-  */
-  DBUG_ASSERT((args[1])->type() == Item::SUBSELECT_ITEM &&
-              (((Item_subselect*)(args[1]))->substype() ==
-               Item_subselect::IN_SUBS ||
-               ((Item_subselect*)(args[1]))->substype() ==
-               Item_subselect::ALL_SUBS ||
-               ((Item_subselect*)(args[1]))->substype() ==
-               Item_subselect::ANY_SUBS));
+  if (args[1]->type() != Item::SUBSELECT_ITEM)
+  {
+    /* MAX/MIN transformed => pass through */
+    new_item= args[1]->transform(transformer, argument);
+    if (!new_item)
+      return 0;
+    if (args[1] != new_item)
+      current_thd->change_item_tree(args, new_item);
+  }
+  else
+  {
+    /*
+      Transform the right IN operand which should be an Item_in_subselect or a
+      subclass of it. The left operand of the IN must be the same as the left
+      operand of this Item_in_optimizer, so in this case there is no further
+      transformation, we only make both operands the same.
+      TODO: is it the way it should be?
+    */
+    DBUG_ASSERT((args[1])->type() == Item::SUBSELECT_ITEM &&
+                (((Item_subselect*)(args[1]))->substype() ==
+                 Item_subselect::IN_SUBS ||
+                 ((Item_subselect*)(args[1]))->substype() ==
+                 Item_subselect::ALL_SUBS ||
+                 ((Item_subselect*)(args[1]))->substype() ==
+                 Item_subselect::ANY_SUBS));
 
-  Item_in_subselect *in_arg= (Item_in_subselect*)args[1];
-  in_arg->left_expr= args[0];
-
+    Item_in_subselect *in_arg= (Item_in_subselect*)args[1];
+    in_arg->left_expr= args[0];
+  }
   return (this->*transformer)(argument);
+}
+
+
+bool Item_in_optimizer::is_expensive_processor(uchar *arg)
+{
+  return args[1]->is_expensive_processor(arg);
+}
+
+
+bool Item_in_optimizer::is_expensive()
+{
+  return args[1]->is_expensive();
 }
 
 
@@ -4737,12 +4770,6 @@ Item *and_expressions(Item *a, Item *b, Item **org_item)
 longlong Item_func_isnull::val_int()
 {
   DBUG_ASSERT(fixed == 1);
-  /*
-    Handle optimization if the argument can't be null
-    This has to be here because of the test in update_used_tables().
-  */
-  if (!used_tables_cache && !with_subselect)
-    return cached_value;
   return args[0]->is_null() ? 1: 0;
 }
 
@@ -4750,12 +4777,6 @@ longlong Item_is_not_null_test::val_int()
 {
   DBUG_ASSERT(fixed == 1);
   DBUG_ENTER("Item_is_not_null_test::val_int");
-  if (!used_tables_cache && !with_subselect)
-  {
-    owner->was_null|= (!cached_value);
-    DBUG_PRINT("info", ("cached: %ld", (long) cached_value));
-    DBUG_RETURN(cached_value);
-  }
   if (args[0]->is_null())
   {
     DBUG_PRINT("info", ("null"));
@@ -4772,19 +4793,9 @@ longlong Item_is_not_null_test::val_int()
 void Item_is_not_null_test::update_used_tables()
 {
   if (!args[0]->maybe_null)
-  {
     used_tables_cache= 0;			/* is always true */
-    cached_value= (longlong) 1;
-  }
   else
-  {
     args[0]->update_used_tables();
-    if (!(used_tables_cache=args[0]->used_tables()) && !with_subselect)
-    {
-      /* Remember if the value is always NULL or never NULL */
-      cached_value= (longlong) !args[0]->is_null();
-    }
-  }
 }
 
 
@@ -5462,7 +5473,7 @@ Item *Item_func_nop_all::neg_transformer(THD *thd)
   /* "NOT (e $cmp$ ANY (SELECT ...)) -> e $rev_cmp$" ALL (SELECT ...) */
   Item_func_not_all *new_item= new Item_func_not_all(args[0]);
   Item_allany_subselect *allany= (Item_allany_subselect*)args[0];
-  allany->func= allany->func_creator(FALSE);
+  allany->create_comp_func(FALSE);
   allany->all= !allany->all;
   allany->upper_item= new_item;
   return new_item;
@@ -5474,7 +5485,7 @@ Item *Item_func_not_all::neg_transformer(THD *thd)
   Item_func_nop_all *new_item= new Item_func_nop_all(args[0]);
   Item_allany_subselect *allany= (Item_allany_subselect*)args[0];
   allany->all= !allany->all;
-  allany->func= allany->func_creator(TRUE);
+  allany->create_comp_func(TRUE);
   allany->upper_item= new_item;
   return new_item;
 }

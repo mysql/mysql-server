@@ -2079,7 +2079,7 @@ SELECT b, MAX(c) FROM t2 GROUP BY b, (SELECT c FROM t2 WHERE b > 2);
 --error ER_SUBQUERY_NO_1_ROW
 SELECT b, MAX(c) FROM t2 GROUP BY b, (SELECT c FROM t2 WHERE b > 1);
 
-
+--sorted_result
 SELECT a FROM t1 GROUP BY a
   HAVING IFNULL((SELECT b FROM t2 WHERE b > 2),
                 (SELECT c FROM t2 WHERE c=a AND b > 2 ORDER BY b)) > 3;
@@ -2087,7 +2087,7 @@ SELECT a FROM t1 GROUP BY a
 SELECT a FROM t1 GROUP BY a
   HAVING IFNULL((SELECT b FROM t2 WHERE b > 1),
                 (SELECT c FROM t2 WHERE c=a AND b > 2 ORDER BY b)) > 3;
-
+--sorted_result
 SELECT a FROM t1 GROUP BY a
   HAVING IFNULL((SELECT b FROM t2 WHERE b > 4),
                 (SELECT c FROM t2 WHERE c=a AND b > 2 ORDER BY b)) > 3;
@@ -2095,7 +2095,7 @@ SELECT a FROM t1 GROUP BY a
 SELECT a FROM t1 GROUP BY a
   HAVING IFNULL((SELECT b FROM t2 WHERE b > 4),
                 (SELECT c FROM t2 WHERE c=a AND b > 1 ORDER BY b)) > 3;
-
+--sorted_result
 SELECT a FROM t1
   ORDER BY IFNULL((SELECT b FROM t2 WHERE b > 2),
                   (SELECT c FROM t2 WHERE c=a AND b > 2 ORDER BY b));
@@ -2103,7 +2103,7 @@ SELECT a FROM t1
 SELECT a FROM t1
   ORDER BY IFNULL((SELECT b FROM t2 WHERE b > 1),
                   (SELECT c FROM t2 WHERE c=a AND b > 1 ORDER BY b));
-
+--sorted_result
 SELECT a FROM t1
   ORDER BY IFNULL((SELECT b FROM t2 WHERE b > 4),
                   (SELECT c FROM t2 WHERE c=a AND b > 2 ORDER BY b));
@@ -4375,3 +4375,30 @@ SELECT 1 as foo FROM t1 WHERE a < SOME
   ); 
 
 DROP TABLE t1;
+
+--echo #
+--echo # BUG#779885: Crash in eliminate_item_equal with materialization=on in
+--echo # maria-5.3
+--echo #
+
+CREATE TABLE t1 ( f1 int );
+INSERT INTO t1 VALUES (19), (20);
+
+CREATE TABLE t2 ( f10 varchar(32) );
+INSERT INTO t2 VALUES ('c'),('d');
+
+CREATE TABLE t3 ( f10 varchar(32) );
+INSERT INTO t3 VALUES ('a'),('b');
+
+SELECT *
+FROM t1
+WHERE
+( 't' ) IN (
+        SELECT t3.f10
+        FROM t3
+        JOIN t2
+        ON t2.f10 = t3.f10
+);
+DROP TABLE t1,t2,t3;
+
+--echo End of 5.3 tests

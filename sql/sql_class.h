@@ -2731,7 +2731,12 @@ public:
 class select_result_interceptor: public select_result
 {
 public:
-  select_result_interceptor() {}              /* Remove gcc warning */
+  select_result_interceptor()
+  {
+    DBUG_ENTER("select_result_interceptor::select_result_interceptor");
+    DBUG_PRINT("enter", ("this 0x%lx", (ulong) this));
+    DBUG_VOID_RETURN;
+  }              /* Remove gcc warning */
   uint field_count(List<Item> &fields) const { return 0; }
   bool send_fields(List<Item> &fields, uint flag) { return FALSE; }
 };
@@ -2974,6 +2979,8 @@ public:
   uint  convert_blob_length;
   CHARSET_INFO *table_charset;
   bool schema_table;
+  /* TRUE if the temp table is created for subquery materialization. */
+  bool materialized_subquery;
   /*
     True if GROUP BY and its aggregate functions are already computed
     by a table access method (e.g. by loose index scan). In this case
@@ -2997,8 +3004,8 @@ public:
   TMP_TABLE_PARAM()
     :copy_field(0), group_parts(0),
      group_length(0), group_null_parts(0), convert_blob_length(0),
-     schema_table(0), precomputed_group_by(0), force_copy_fields(0),
-     bit_fields_as_long(0), skip_create_table(0)
+    schema_table(0), materialized_subquery(0), precomputed_group_by(0),
+    force_copy_fields(0), bit_fields_as_long(0), skip_create_table(0)
   {}
   ~TMP_TABLE_PARAM()
   {
@@ -3032,6 +3039,7 @@ public:
   virtual bool create_result_table(THD *thd, List<Item> *column_types,
                                    bool is_distinct, ulonglong options,
                                    const char *alias, bool bit_fields_as_long);
+  TMP_TABLE_PARAM *get_tmp_table_param() { return &tmp_table_param; }
 };
 
 /* Base subselect interface class */
@@ -3095,7 +3103,7 @@ protected:
   void reset();
 
 public:
-  select_materialize_with_stats() {}
+  select_materialize_with_stats() { tmp_table_param.init(); }
   virtual bool create_result_table(THD *thd, List<Item> *column_types,
                                    bool is_distinct, ulonglong options,
                                    const char *alias, bool bit_fields_as_long);

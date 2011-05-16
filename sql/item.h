@@ -509,6 +509,17 @@ class COND_EQUAL;
 class Item {
   Item(const Item &);			/* Prevent use of these */
   void operator=(Item &);
+  /**
+    The index in the JOIN::join_tab array of the JOIN_TAB this Item is attached
+    to. Items are attached (or 'pushed') to JOIN_TABs during optimization by the
+    make_cond_for_table procedure. During query execution, this item is
+    evaluated when the join loop reaches the corresponding JOIN_TAB.
+
+    If the value of join_tab_idx >= MAX_TABLES, this means that there is no
+    corresponding JOIN_TAB.
+  */
+  uint join_tab_idx;
+
 public:
   static void *operator new(size_t size) throw ()
   { return sql_alloc(size); }
@@ -525,7 +536,7 @@ public:
              SUBSELECT_ITEM, ROW_ITEM, CACHE_ITEM, TYPE_HOLDER,
              PARAM_ITEM, TRIGGER_FIELD_ITEM, DECIMAL_ITEM,
              XPATH_NODESET, XPATH_NODESET_CMP,
-             VIEW_FIXER_ITEM, EXPR_CACHE_ITEM};
+             VIEW_FIXER_ITEM, EXPR_CACHE_ITEM, UNKNOWN_ITEM};
 
   enum cond_result { COND_UNDEF,COND_OK,COND_TRUE,COND_FALSE };
 
@@ -994,6 +1005,8 @@ public:
   virtual bool register_field_in_read_map(uchar *arg) { return 0; }
   virtual bool enumerate_field_refs_processor(uchar *arg) { return 0; }
   virtual bool mark_as_eliminated_processor(uchar *arg) { return 0; }
+  virtual bool eliminate_subselect_processor(uchar *arg) { return 0; }
+  virtual bool set_fake_select_as_master_processor(uchar *arg) { return 0; }
 
   /* To call bool function for all arguments */
   struct bool_func_call_args
@@ -1226,6 +1239,16 @@ public:
   virtual Item_equal *get_item_equal() { return NULL; }
   virtual void set_item_equal(Item_equal *item_eq) {};
   virtual Item_equal *find_item_equal(COND_EQUAL *cond_equal) { return NULL; }
+  /**
+    Set the join tab index to the minimal (left-most) JOIN_TAB to which this
+    Item is attached.
+  */
+  virtual void set_join_tab_idx(uint join_tab_idx_arg)
+  {
+    if (join_tab_idx_arg < join_tab_idx)
+      join_tab_idx= join_tab_idx_arg;
+  }
+  virtual uint get_join_tab_idx() { return join_tab_idx; }
 };
 
 
@@ -2637,6 +2660,43 @@ public:
   bool get_date(MYSQL_TIME *ltime,uint fuzzydate);
   virtual Ref_Type ref_type() { return DIRECT_REF; }
 };
+
+
+/**
+  This class is the same as Item_direct_ref but created to wrap Item_ident
+  before fix_fields() call
+*/
+
+class Item_direct_ref_to_ident :public Item_direct_ref
+{
+  Item_ident *ident;
+public:
+  Item_direct_ref_to_ident(Item_ident *item)
+    :Item_direct_ref(item->context, (Item**)&item, item->table_name, item->field_name,
+                     FALSE)
+  {
+    ident= item;
+    ref= (Item**)&ident;
+  }
+
+  bool fix_fields(THD *thd, Item **it)
+  {
+    DBUG_ASSERT(ident->type() == FIELD_ITEM || ident->type() == REF_ITEM);
+    if ((!ident->fixed && ident->fix_fields(thd, ref)) ||
+        ident->check_cols(1))
+      return TRUE;
+    set_properties();
+    return FALSE;
+  }
+
+  virtual void print(String *str, enum_query_type query_type)
+  { ident->print(str, query_type); }
+
+  virtual Item* transform(Item_transformer transformer, uchar *arg);
+  virtual Item* compile(Item_analyzer analyzer, uchar **arg_p,
+                        Item_transformer transformer, uchar *arg_t);
+};
+
 
 class Expression_cache;
 class Item_cache;

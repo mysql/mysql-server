@@ -1049,9 +1049,10 @@ bool Item_sum_distinct::unique_walk_function(void *element)
 void Item_sum_distinct::clear()
 {
   DBUG_ENTER("Item_sum_distinct::clear");
-  DBUG_ASSERT(tree != 0);                        /* we always have a tree */
+  /* During EXPLAIN there is no tree because it is created during execution. */
+  if (tree != 0)
+    tree->reset();
   null_value= 1;
-  tree->reset();
   is_evaluated= FALSE;
   DBUG_VOID_RETURN;
 }
