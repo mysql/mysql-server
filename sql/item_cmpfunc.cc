@@ -5755,7 +5755,7 @@ void Item_equal::update_const()
   Item *item;
   while ((item= it++))
   {
-    if (item->const_item())
+    if (item->const_item() && !item->is_expensive())
     {
       if (item == equal_items.head())
         with_const= TRUE;

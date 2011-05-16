@@ -9469,7 +9469,7 @@ static bool check_simple_equality(Item *left_item, Item *right_item,
     Item *orig_field_item= 0;
     if (left_item->type() == Item::FIELD_ITEM &&
         !((Item_field*)left_item)->depended_from &&
-        right_item->const_item())
+        right_item->const_item() && !right_item->is_expensive())
     {
       orig_field_item= left_item;
       field_item= (Item_field *) left_item;
@@ -9477,7 +9477,7 @@ static bool check_simple_equality(Item *left_item, Item *right_item,
     }
     else if (right_item->type() == Item::FIELD_ITEM &&
              !((Item_field*)right_item)->depended_from &&
-             left_item->const_item())
+             left_item->const_item() && !left_item->is_expensive())
     {
       orig_field_item= right_item;
       field_item= (Item_field *) right_item;

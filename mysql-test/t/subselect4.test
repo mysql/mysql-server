@@ -1434,3 +1434,26 @@ SELECT * FROM t1 WHERE ( 6 ) NOT IN ( SELECT t2.f3 FROM t2 JOIN t3 ON t3.f10 = t
 SELECT * FROM t1 WHERE ( 6 ) NOT IN ( SELECT t2.f3 FROM t2 JOIN t3 ON t3.f10 = t2.f10);
 
 drop table t1,t2,t3;
+
+
+--echo #                                                                                                                                                     
+--echo # LP BUG#778413 Third crash in select_describe() in maria-5.3-mwl89
+--echo #                                                                                                                                                     
+
+CREATE TABLE t1 ( f11 int) ;
+INSERT INTO t1 VALUES (1),(1);
+
+CREATE TABLE t2 ( f1 int NOT NULL) ;
+INSERT INTO t2 VALUES (20);
+
+CREATE TABLE t3 (f3 int) ;
+INSERT INTO t3 VALUES (2),(2);
+
+EXPLAIN SELECT * FROM t2
+WHERE t2.f1 = (
+        SELECT MAX( f3 ) FROM t3
+        WHERE EXISTS (
+                SELECT DISTINCT f11
+                FROM t1));
+
+drop table t1, t2, t3;
