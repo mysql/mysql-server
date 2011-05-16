@@ -312,7 +312,9 @@ extern my_bool translog_init_with_table(const char *directory,
                                         my_bool readonly,
                                         void (*init_table_func)(),
                                         my_bool no_error);
+#ifndef DBUG_OFF
 void check_translog_description_table(int num);
+#endif
 
 extern my_bool
 translog_write_record(LSN *lsn, enum translog_record_type type, TRN *trn,

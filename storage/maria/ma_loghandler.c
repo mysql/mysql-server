@@ -458,7 +458,7 @@ void translog_lock_handler_assert_owner()
   @param num             how many records should be filled
 */
 
-static max_allowed_translog_type= 0;
+static uint max_allowed_translog_type= 0;
 
 void check_translog_description_table(int num)
 {
