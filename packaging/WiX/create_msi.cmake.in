@@ -15,6 +15,28 @@ SET(COPYING_RTF "@COPYING_RTF@")
 SET(CPACK_WIX_CONFIG "@CPACK_WIX_CONFIG@")
 SET(CPACK_WIX_INCLUDE "@CPACK_WIX_INCLUDE@")
 
+LIST(APPEND EXCLUDE_DIRS
+     bin/debug
+     data/test
+     lib/plugin/debug
+     mysql-test
+     scripts
+     sql-bench
+)
+
+LIST(APPEND EXCLUDE_FILES
+     bin/echo.exe
+     bin/mysql_client_test_embedded.exe
+     bin/mysqld-debug.exe
+     bin/mysqltest_embedded.exe
+     bin/replace.exe
+     lib/debug/mysqlserver.lib
+     lib/libmysqld.dll
+     lib/libmysqld.lib
+     lib/mysqlserver.lib
+     lib/mysqlservices.lib
+)
+
 IF(CMAKE_SIZEOF_VOID_P EQUAL 8)
   SET(Win64 " Win64='yes'")
   SET(Platform x64)
@@ -197,11 +219,18 @@ ENDMACRO()
 
 
 FUNCTION(TRAVERSE_FILES dir topdir file file_comp  dir_root)
+  FILE(RELATIVE_PATH dir_rel ${topdir} ${dir})
+  IF(dir_rel)
+    LIST(FIND EXCLUDE_DIRS ${dir_rel} TO_EXCLUDE)
+    IF(NOT TO_EXCLUDE EQUAL -1)
+      MESSAGE(STATUS "excluding directory: ${dir_rel}")
+      RETURN()
+    ENDIF()
+  ENDIF()
   FILE(GLOB all_files ${dir}/*)
   IF(NOT all_files)
     RETURN()
   ENDIF()
-  FILE(RELATIVE_PATH dir_rel ${topdir} ${dir})
   IF(dir_rel)
    MAKE_DIRECTORY(${dir_root}/${dir_rel})
    MAKE_WIX_IDENTIFIER("${dir_rel}" id)
@@ -215,18 +244,31 @@ FUNCTION(TRAVERSE_FILES dir topdir file file_comp  dir_root)
   FOREACH(f ${all_files})
     IF(NOT IS_DIRECTORY ${f})
       FILE(RELATIVE_PATH rel ${topdir} ${f})
-      MAKE_WIX_IDENTIFIER("${rel}" id)
-      FILE(TO_NATIVE_PATH ${f} f_native)
-      GET_FILENAME_COMPONENT(f_ext "${f}" EXT)
-      # According to MSDN each DLL or EXE should be in the own component
-      IF(f_ext MATCHES ".exe" OR f_ext MATCHES ".dll")
+      SET(TO_EXCLUDE)
+      IF(rel MATCHES "\\.pdb$")
+        SET(TO_EXCLUDE TRUE)
+      ELSE()
+        LIST(FIND EXCLUDE_FILES ${rel} RES)
+        IF(NOT RES EQUAL -1)
+          SET(TO_EXCLUDE TRUE)
+        ENDIF()
+      ENDIF()
+      IF(TO_EXCLUDE)
+        MESSAGE(STATUS "excluding file: ${rel}")
+      ELSE()
+	MAKE_WIX_IDENTIFIER("${rel}" id)
+	FILE(TO_NATIVE_PATH ${f} f_native)
+	GET_FILENAME_COMPONENT(f_ext "${f}" EXT)
+	# According to MSDN each DLL or EXE should be in the own component
+	IF(f_ext MATCHES ".exe" OR f_ext MATCHES ".dll")
 
-        FILE(APPEND ${file} "  <Component Id='C.${id}' Guid='*' ${Win64}>\n")
-        FILE(APPEND ${file} "    <File Id='F.${id}' KeyPath='yes' Source='${f_native}'/>\n")
-        FILE(APPEND ${file} "  </Component>\n")
-        FILE(APPEND ${file_comp} "  <ComponentRef Id='C.${id}'/>\n")
-     ELSE()
-      SET(NONEXEFILES  "${NONEXEFILES}\n<File Id='F.${id}' Source='${f_native}'/>" )
+	  FILE(APPEND ${file} "  <Component Id='C.${id}' Guid='*' ${Win64}>\n")
+	  FILE(APPEND ${file} "    <File Id='F.${id}' KeyPath='yes' Source='${f_native}'/>\n")
+	  FILE(APPEND ${file} "  </Component>\n")
+	  FILE(APPEND ${file_comp} "  <ComponentRef Id='C.${id}'/>\n")
+       ELSE()
+	SET(NONEXEFILES  "${NONEXEFILES}\n<File Id='F.${id}' Source='${f_native}'/>" )
+	ENDIF()
       ENDIF()
     ENDIF()
   ENDFOREACH()
@@ -247,18 +289,18 @@ ENDFUNCTION()
 
 FUNCTION(TRAVERSE_DIRECTORIES dir topdir file prefix)
   FILE(RELATIVE_PATH rel ${topdir} ${dir})
-  IF(rel AND IS_DIRECTORY "${f}")
+  IF(rel)
     MAKE_WIX_IDENTIFIER("${rel}" id)
     GET_FILENAME_COMPONENT(name ${dir} NAME)
     FILE(APPEND ${file} "${prefix}<Directory Id='D.${id}' Name='${name}'>\n")
   ENDIF()
   FILE(GLOB all_files ${dir}/*)
-    FOREACH(f ${all_files})
+  FOREACH(f ${all_files})
     IF(IS_DIRECTORY ${f})
       TRAVERSE_DIRECTORIES(${f} ${topdir} ${file} "${prefix}  ")
     ENDIF()
   ENDFOREACH()
-  IF(rel AND IS_DIRECTORY "${f}")
+  IF(rel)
     FILE(APPEND ${file} "${prefix}</Directory>\n")
   ENDIF()
 ENDFUNCTION()
@@ -317,16 +359,25 @@ ENDIF()
 FILE(REMOVE mysql_server.wixobj)
 EXECUTE_PROCESS(
  COMMAND ${CANDLE_EXECUTABLE} -ext WixUtilExtension  mysql_server.wxs ${EXTRA_CANDLE_ARGS}
+ RESULT_VARIABLE CANDLE_RESULT
 )
+
+IF(CANDLE_RESULT)
+  MESSAGE(FATAL_ERROR "ERROR: can't run candle")
+ENDIF()
+
 EXECUTE_PROCESS(
  COMMAND ${LIGHT_EXECUTABLE} -ext WixUIExtension -ext WixUtilExtension
   mysql_server.wixobj  -out  ${CPACK_PACKAGE_FILE_NAME}.msi
   ${EXTRA_LIGHT_ARGS}
+ RESULT_VARIABLE LIGHT_RESULT
 )
+
+IF(LIGHT_RESULT)
+  MESSAGE(FATAL_ERROR "ERROR: can't run light")
+ENDIF()
 
 # Switch monolithic install on again
 EXECUTE_PROCESS(
   COMMAND ${CMAKE_COMMAND} -DCPACK_MONOLITHIC_INSTALL=1 ${CMAKE_BINARY_DIR}
-  OUTPUT_QUIET
 )
-
