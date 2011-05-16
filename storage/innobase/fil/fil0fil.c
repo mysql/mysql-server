@@ -154,6 +154,9 @@ struct fil_node_struct {
 				/*!< count of pending flushes on this file;
 				closing of the file is not allowed if
 				this is > 0 */
+	ibool		being_extended;
+				/*!< TRUE if the node is currently
+				being extended. */
 	ib_int64_t	modification_counter;/*!< when we write to the file we
 				increment this by one */
 	ib_int64_t	flush_counter;/*!< up to what
@@ -612,21 +615,15 @@ fil_node_create(
 
 	mutex_enter(&fil_system->mutex);
 
-	node = mem_alloc(sizeof(fil_node_t));
+	node = mem_zalloc(sizeof(fil_node_t));
 
 	node->name = mem_strdup(name);
-	node->open = FALSE;
 
 	ut_a(!is_raw || srv_start_raw_disk_in_use);
 
 	node->is_raw_disk = is_raw;
 	node->size = size;
 	node->magic_n = FIL_NODE_MAGIC_N;
-	node->n_pending = 0;
-	node->n_pending_flushes = 0;
-
-	node->modification_counter = 0;
-	node->flush_counter = 0;
 
 	space = fil_space_get_by_id(id);
 
@@ -860,6 +857,7 @@ fil_node_close_file(
 	ut_a(node->open);
 	ut_a(node->n_pending == 0);
 	ut_a(node->n_pending_flushes == 0);
+	ut_a(!node->being_extended);
 	ut_a(node->modification_counter == node->flush_counter);
 
 	ret = os_file_close(node->handle);
@@ -899,32 +897,37 @@ fil_try_to_close_file_in_LRU(
 
 	ut_ad(mutex_own(&fil_system->mutex));
 
-	node = UT_LIST_GET_LAST(fil_system->LRU);
-
 	if (print_info) {
 		fprintf(stderr,
 			"InnoDB: fil_sys open file LRU len %lu\n",
 			(ulong) UT_LIST_GET_LEN(fil_system->LRU));
 	}
 
-	while (node != NULL) {
+	for (node = UT_LIST_GET_LAST(fil_system->LRU);
+	     node != NULL;
+	     node = UT_LIST_GET_PREV(LRU, node)) {
+
 		if (node->modification_counter == node->flush_counter
-		    && node->n_pending_flushes == 0) {
+		    && node->n_pending_flushes == 0
+		    && !node->being_extended) {
 
 			fil_node_close_file(node, fil_system);
 
 			return(TRUE);
 		}
 
-		if (print_info && node->n_pending_flushes > 0) {
+		if (!print_info) {
+			continue;
+		}
+
+		if (node->n_pending_flushes > 0) {
 			fputs("InnoDB: cannot close file ", stderr);
 			ut_print_filename(stderr, node->name);
 			fprintf(stderr, ", because n_pending_flushes %lu\n",
 				(ulong) node->n_pending_flushes);
 		}
 
-		if (print_info
-		    && node->modification_counter != node->flush_counter) {
+		if (node->modification_counter != node->flush_counter) {
 			fputs("InnoDB: cannot close file ", stderr);
 			ut_print_filename(stderr, node->name);
 			fprintf(stderr,
@@ -933,7 +936,11 @@ fil_try_to_close_file_in_LRU(
 				(long) node->flush_counter);
 		}
 
-		node = UT_LIST_GET_PREV(LRU, node);
+		if (node->being_extended) {
+			fputs("InnoDB: cannot close file ", stderr);
+			ut_print_filename(stderr, node->name);
+			fprintf(stderr, ", because it is being extended\n");
+		}
 	}
 
 	return(FALSE);
@@ -1072,6 +1079,7 @@ fil_node_free(
 	ut_ad(mutex_own(&(system->mutex)));
 	ut_a(node->magic_n == FIL_NODE_MAGIC_N);
 	ut_a(node->n_pending == 0);
+	ut_a(!node->being_extended);
 
 	if (node->open) {
 		/* We fool the assertion in fil_node_close_file() to think
@@ -2278,7 +2286,8 @@ try_again:
 	ut_a(UT_LIST_GET_LEN(space->chain) == 1);
 	node = UT_LIST_GET_FIRST(space->chain);
 
-	if (space->n_pending_flushes > 0 || node->n_pending > 0) {
+	if (space->n_pending_flushes > 0 || node->n_pending > 0
+	    || node->being_extended) {
 		if (count > 1000) {
 			ut_print_timestamp(stderr);
 			fputs("  InnoDB: Warning: trying to"
@@ -2287,6 +2296,7 @@ try_again:
 			fprintf(stderr, ",\n"
 				"InnoDB: but there are %lu flushes"
 				" and %lu pending i/o's on it\n"
+				"InnoDB: Or it is being extended\n"
 				"InnoDB: Loop %lu.\n",
 				(ulong) space->n_pending_flushes,
 				(ulong) node->n_pending,
@@ -2585,8 +2595,10 @@ retry:
 	ut_a(UT_LIST_GET_LEN(space->chain) == 1);
 	node = UT_LIST_GET_FIRST(space->chain);
 
-	if (node->n_pending > 0 || node->n_pending_flushes > 0) {
-		/* There are pending i/o's or flushes, sleep for a while and
+	if (node->n_pending > 0 || node->n_pending_flushes > 0
+	    || node->being_extended) {
+		/* There are pending i/o's or flushes or the file is
+		currently being extended, sleep for a while and
 		retry */
 
 		mutex_exit(&fil_system->mutex);
@@ -3900,7 +3912,12 @@ fil_extend_space_to_desired_size(
 	ulint		offset_high;
 	ulint		offset_low;
 	ulint		page_size;
-	ibool		success		= TRUE;
+	ulint		pages_added;
+	ibool		success;
+
+retry:
+	pages_added = 0;
+	success = TRUE;
 
 	fil_mutex_enter_and_prepare_for_io(space_id);
 
@@ -3924,7 +3941,27 @@ fil_extend_space_to_desired_size(
 
 	node = UT_LIST_GET_LAST(space->chain);
 
+	if (!node->being_extended) {
+		/* Mark this node as undergoing extension. This flag
+		is used by other threads to wait for the extension
+		opereation to finish. */
+		node->being_extended = TRUE;
+	} else {
+		/* Another thread is currently extending the file. Wait
+		for it to finish.
+		It'd have been better to use event driven mechanism but
+		the entire module is peppered with polling stuff. */
+		mutex_exit(&fil_system->mutex);
+		os_thread_sleep(100000);
+		goto retry;
+	}
+
 	fil_node_prepare_for_io(node, fil_system, space);
+
+	/* At this point it is safe to release fil_system mutex. No
+	other thread can rename, delete or close the file because
+	we have set the node->being_extended flag. */
+	mutex_exit(&fil_system->mutex);
 
 	start_page_no = space->size;
 	file_start_page_no = space->size - node->size;
@@ -3957,9 +3994,6 @@ fil_extend_space_to_desired_size(
 				 NULL, NULL);
 #endif
 		if (success) {
-			node->size += n_pages;
-			space->size += n_pages;
-
 			os_has_said_disk_full = FALSE;
 		} else {
 			/* Let us measure the size of the file to determine
@@ -3968,18 +4002,26 @@ fil_extend_space_to_desired_size(
 			n_pages = ((ulint)
 				   (os_file_get_size_as_iblonglong(
 					   node->handle)
-				    / page_size)) - node->size;
+				    / page_size))
+				    - (node->size + pages_added);
 
-			node->size += n_pages;
-			space->size += n_pages;
-
+			pages_added += n_pages;
 			break;
 		}
 
 		start_page_no += n_pages;
+		pages_added += n_pages;
 	}
 
 	mem_free(buf2);
+
+	mutex_enter(&fil_system->mutex);
+
+	ut_a(node->being_extended);
+
+	space->size += pages_added;
+	node->size += pages_added;
+	node->being_extended = FALSE;
 
 	fil_node_complete_io(node, fil_system, OS_FILE_WRITE);
 
@@ -4190,7 +4232,6 @@ fil_node_prepare_for_io(
 	if (node->open == FALSE) {
 		/* File is closed: open it */
 		ut_a(node->n_pending == 0);
-
 		fil_node_open_file(node, system, space);
 	}
 
@@ -4784,6 +4825,7 @@ fil_validate(void)
 
 	while (fil_node != NULL) {
 		ut_a(fil_node->n_pending == 0);
+		ut_a(!fil_node->being_extended);
 		ut_a(fil_node->open);
 		ut_a(fil_node->space->purpose == FIL_TABLESPACE);
 		ut_a(fil_node->space->id != 0);
