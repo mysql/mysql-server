@@ -61,6 +61,10 @@ struct row_events_statements
   uint m_source_length;
   /** Column SQL_TEXT. */
   char m_sqltext[COL_INFO_SIZE];
+  /** Column DIGEST. */
+  char m_digest[COL_DIGEST_SIZE];
+  /** Column DIGEST_TEXT. */
+  char m_digest_text[COL_DIGEST_TEXT_SIZE];
   /** Length in bytes of @c m_info. */
   uint m_sqltext_length;
   /** Column CURRENT_SCHEMA. */
@@ -110,8 +114,6 @@ struct row_events_statements
   ulonglong m_no_index_used;
   /** Column NO_GOOD_INDEX_USED. */
   ulonglong m_no_good_index_used;
-  /** Column DIGEST. */
-  char m_digest[COL_DIGEST_SIZE];
 };
 
 /** Position of a cursor on PERFORMANCE_SCHEMA.EVENTS_STATEMENTS_CURRENT. */

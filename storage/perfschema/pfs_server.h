@@ -91,7 +91,7 @@
   #define PFS_STATEMENTS_STACK_SIZE 10
 #endif
 #ifndef PFS_DIGEST_SIZE
-  #define PFS_DIGEST_SIZE 100
+  #define PFS_DIGEST_SIZE 200
 #endif
 
 /** Performance schema global sizing parameters. */

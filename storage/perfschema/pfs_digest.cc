@@ -19,10 +19,12 @@
 */
 
 #include "pfs_digest.h"
+#include "my_sys.h"
 
 /** EVENTS_STATEMENTS_HISTORY_LONG circular buffer. */
 PFS_statements_digest_stat *statements_digest_stat_array= NULL;
-
+/** Consumer flag for table EVENTS_STATEMENTS_SUMMARY_BY_DIGEST. */
+bool flag_statements_digest= true;
 
 /**
   Initialize table EVENTS_STATEMENTS_SUMMARY_BY_DIGEST.
@@ -30,9 +32,6 @@ PFS_statements_digest_stat *statements_digest_stat_array= NULL;
 */
 int init_digest(unsigned int digest_sizing)
 {
-  printf("\n Initializing performance_schema_digests with\
-         digest_sizing=%d\n",digest_sizing);
-
   /* 
     TBD. Allocate memory for statements_digest_stat_array based on 
     performance_schema_digests_size values
@@ -43,7 +42,6 @@ int init_digest(unsigned int digest_sizing)
 /** Cleanup table EVENTS_STATEMENTS_SUMMARY_BY_DIGEST. */
 int cleanup_digest(void)
 {
-  printf("\n Yes, cleaning up performance_schema_digests\n");
   /* 
     TBD. Free memory allocated to statements_digest_stat_array. 
   */

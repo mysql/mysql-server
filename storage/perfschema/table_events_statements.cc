@@ -78,6 +78,16 @@ static const TABLE_FIELD_TYPE field_types[]=
     { NULL, 0}
   },
   {
+    { C_STRING_WITH_LEN("DIGEST") },
+    { C_STRING_WITH_LEN("varchar(64)") },
+    { NULL, 0}
+  },
+  {
+    { C_STRING_WITH_LEN("DIGEST_TEXT") },
+    { C_STRING_WITH_LEN("longtext") },
+    { NULL, 0}
+  },
+  {
     { C_STRING_WITH_LEN("CURRENT_SCHEMA") },
     { C_STRING_WITH_LEN("varchar(64)") },
     { NULL, 0}
@@ -216,17 +226,12 @@ static const TABLE_FIELD_TYPE field_types[]=
     { C_STRING_WITH_LEN("NESTING_EVENT_TYPE") },
     { C_STRING_WITH_LEN("enum(\'STATEMENT\',\'STAGE\',\'WAIT\'") },
     { NULL, 0}
-  },
-  {
-    { C_STRING_WITH_LEN("DIGEST") },
-    { C_STRING_WITH_LEN("varchar(64)") },
-    { NULL, 0}
   }
 };
 
 TABLE_FIELD_DEF
 table_events_statements_current::m_field_def=
-{38 , field_types };
+{39 , field_types };
 
 PFS_engine_table_share
 table_events_statements_current::m_share=
@@ -356,8 +361,7 @@ void table_events_statements_common::make_row(PFS_events_statements *statement)
   m_row.m_no_index_used= statement->m_no_index_used;
   m_row.m_no_good_index_used= statement->m_no_good_index_used;
 
-  /* TBD. Following */
-  strcpy(m_row.m_digest, "Mayank");
+  /* TBD for DIGEST and DIGEST_TEXT. */
 
   m_row_exists= true;
   return;
@@ -375,7 +379,7 @@ int table_events_statements_common::read_row_values(TABLE *table,
     return HA_ERR_RECORD_DELETED;
 
   /* Set the null bits */
-  DBUG_ASSERT(table->s->null_bytes == 2);
+  DBUG_ASSERT(table->s->null_bytes == 3);
   buf[0]= 0;
   buf[1]= 0;
 
@@ -427,108 +431,113 @@ int table_events_statements_common::read_row_values(TABLE *table,
         else
           f->set_null();
         break;
-      case 9: /* CURRENT_SCHEMA */
+      case 9: /* DIGEST */
+        /* TBD */
+          f->set_null();
+        break;
+      case 10: /* DIGEST_TEXT */
+        /* TBD */
+          f->set_null();
+        break;
+      case 11: /* CURRENT_SCHEMA */
         if (m_row.m_current_schema_name_length)
           set_field_varchar_utf8(f, m_row.m_current_schema_name, m_row.m_current_schema_name_length);
         else
           f->set_null();
         break;
-      case 10: /* OBJECT_TYPE */
+      case 12: /* OBJECT_TYPE */
         f->set_null();
         break;
-      case 11: /* OBJECT_SCHEMA */
+      case 13: /* OBJECT_SCHEMA */
         f->set_null();
         break;
-      case 12: /* OBJECT_NAME */
+      case 14: /* OBJECT_NAME */
         f->set_null();
         break;
-      case 13: /* OBJECT_INSTANCE_BEGIN */
+      case 15: /* OBJECT_INSTANCE_BEGIN */
         f->set_null();
         break;
-      case 14: /* MYSQL_ERRNO */
+      case 16: /* MYSQL_ERRNO */
         set_field_ulong(f, m_row.m_sql_errno);
         break;
-      case 15: /* RETURNED_SQLSTATE */
+      case 17: /* RETURNED_SQLSTATE */
         if (m_row.m_sqlstate[0] != 0)
           set_field_varchar_utf8(f, m_row.m_sqlstate, SQLSTATE_LENGTH);
         else
           f->set_null();
         break;
-      case 16: /* MESSAGE_TEXT */
+      case 18: /* MESSAGE_TEXT */
         len= strlen(m_row.m_message_text);
         if (len)
           set_field_varchar_utf8(f, m_row.m_message_text, len);
         else
           f->set_null();
         break;
-      case 17: /* ERRORS */
+      case 19: /* ERRORS */
         set_field_ulonglong(f, m_row.m_error_count);
         break;
-      case 18: /* WARNINGS */
+      case 20: /* WARNINGS */
         set_field_ulonglong(f, m_row.m_warning_count);
         break;
-      case 19: /* ROWS_AFFECTED */
+      case 21: /* ROWS_AFFECTED */
         set_field_ulonglong(f, m_row.m_rows_affected);
         break;
-      case 20: /* ROWS_SENT */
+      case 22: /* ROWS_SENT */
         set_field_ulonglong(f, m_row.m_rows_sent);
         break;
-      case 21: /* ROWS_EXAMINED */
+      case 23: /* ROWS_EXAMINED */
         set_field_ulonglong(f, m_row.m_rows_examined);
         break;
-      case 22: /* CREATED_TMP_DISK_TABLES */
+      case 24: /* CREATED_TMP_DISK_TABLES */
         set_field_ulonglong(f, m_row.m_created_tmp_disk_tables);
         break;
-      case 23: /* CREATED_TMP_TABLES */
+      case 25: /* CREATED_TMP_TABLES */
         set_field_ulonglong(f, m_row.m_created_tmp_tables);
         break;
-      case 24: /* SELECT_FULL_JOIN */
+      case 26: /* SELECT_FULL_JOIN */
         set_field_ulonglong(f, m_row.m_select_full_join);
         break;
-      case 25: /* SELECT_FULL_RANGE_JOIN */
+      case 27: /* SELECT_FULL_RANGE_JOIN */
         set_field_ulonglong(f, m_row.m_select_full_range_join);
         break;
-      case 26: /* SELECT_RANGE */
+      case 28: /* SELECT_RANGE */
         set_field_ulonglong(f, m_row.m_select_range);
         break;
-      case 27: /* SELECT_RANGE_CHECK */
+      case 29: /* SELECT_RANGE_CHECK */
         set_field_ulonglong(f, m_row.m_select_range_check);
         break;
-      case 28: /* SELECT_SCAN */
+      case 30: /* SELECT_SCAN */
         set_field_ulonglong(f, m_row.m_select_scan);
         break;
-      case 29: /* SORT_MERGE_PASSES */
+      case 31: /* SORT_MERGE_PASSES */
         set_field_ulonglong(f, m_row.m_sort_merge_passes);
         break;
-      case 30: /* SORT_RANGE */
+      case 32: /* SORT_RANGE */
         set_field_ulonglong(f, m_row.m_sort_range);
         break;
-      case 31: /* SORT_ROWS */
+      case 33: /* SORT_ROWS */
         set_field_ulonglong(f, m_row.m_sort_rows);
         break;
-      case 32: /* SORT_SCAN */
+      case 34: /* SORT_SCAN */
         set_field_ulonglong(f, m_row.m_sort_scan);
         break;
-      case 33: /* NO_INDEX_USED */
+      case 35: /* NO_INDEX_USED */
         set_field_ulonglong(f, m_row.m_no_index_used);
         break;
-      case 34: /* NO_GOOD_INDEX_USED */
+      case 36: /* NO_GOOD_INDEX_USED */
         set_field_ulonglong(f, m_row.m_no_good_index_used);
         break;
-      case 35: /* NESTING_EVENT_ID */
+      case 37: /* NESTING_EVENT_ID */
         if (m_row.m_nesting_event_id != 0)
           set_field_ulonglong(f, m_row.m_nesting_event_id);
         else
           f->set_null();
         break;
-      case 36: /* NESTING_EVENT_TYPE */
+      case 38: /* NESTING_EVENT_TYPE */
         if (m_row.m_nesting_event_id != 0)
           set_field_enum(f, m_row.m_nesting_event_type);
         else
           f->set_null();
-        break;
-      case 37: /* DIGEST */
-        /* TBD */
         break;
       default:
         DBUG_ASSERT(false);

@@ -36,12 +36,13 @@ ERROR 1050 (42S01) at line 517: Table 'events_stages_history' already exists
 ERROR 1050 (42S01) at line 532: Table 'events_stages_history_long' already exists
 ERROR 1050 (42S01) at line 545: Table 'events_stages_summary_by_thread_by_event_name' already exists
 ERROR 1050 (42S01) at line 557: Table 'events_stages_summary_global_by_event_name' already exists
-ERROR 1050 (42S01) at line 600: Table 'events_statements_current' already exists
-ERROR 1050 (42S01) at line 643: Table 'events_statements_history' already exists
-ERROR 1050 (42S01) at line 686: Table 'events_statements_history_long' already exists
-ERROR 1050 (42S01) at line 718: Table 'events_statements_summary_by_thread_by_event_name' already exists
-ERROR 1050 (42S01) at line 749: Table 'events_statements_summary_global_by_event_name' already exists
-ERROR 1644 (HY000) at line 1169: Unexpected content found in the performance_schema database.
+ERROR 1050 (42S01) at line 602: Table 'events_statements_current' already exists
+ERROR 1050 (42S01) at line 647: Table 'events_statements_history' already exists
+ERROR 1050 (42S01) at line 692: Table 'events_statements_history_long' already exists
+ERROR 1050 (42S01) at line 724: Table 'events_statements_summary_by_thread_by_event_name' already exists
+ERROR 1050 (42S01) at line 755: Table 'events_statements_summary_global_by_event_name' already exists
+ERROR 1050 (42S01) at line 787: Table 'events_statements_summary_by_digest' already exists
+ERROR 1644 (HY000) at line 1207: Unexpected content found in the performance_schema database.
 FATAL ERROR: Upgrade failed
 show tables like "user_table";
 Tables_in_performance_schema (user_table)
@@ -82,12 +83,13 @@ ERROR 1050 (42S01) at line 517: Table 'events_stages_history' already exists
 ERROR 1050 (42S01) at line 532: Table 'events_stages_history_long' already exists
 ERROR 1050 (42S01) at line 545: Table 'events_stages_summary_by_thread_by_event_name' already exists
 ERROR 1050 (42S01) at line 557: Table 'events_stages_summary_global_by_event_name' already exists
-ERROR 1050 (42S01) at line 600: Table 'events_statements_current' already exists
-ERROR 1050 (42S01) at line 643: Table 'events_statements_history' already exists
-ERROR 1050 (42S01) at line 686: Table 'events_statements_history_long' already exists
-ERROR 1050 (42S01) at line 718: Table 'events_statements_summary_by_thread_by_event_name' already exists
-ERROR 1050 (42S01) at line 749: Table 'events_statements_summary_global_by_event_name' already exists
-ERROR 1644 (HY000) at line 1169: Unexpected content found in the performance_schema database.
+ERROR 1050 (42S01) at line 602: Table 'events_statements_current' already exists
+ERROR 1050 (42S01) at line 647: Table 'events_statements_history' already exists
+ERROR 1050 (42S01) at line 692: Table 'events_statements_history_long' already exists
+ERROR 1050 (42S01) at line 724: Table 'events_statements_summary_by_thread_by_event_name' already exists
+ERROR 1050 (42S01) at line 755: Table 'events_statements_summary_global_by_event_name' already exists
+ERROR 1050 (42S01) at line 787: Table 'events_statements_summary_by_digest' already exists
+ERROR 1644 (HY000) at line 1207: Unexpected content found in the performance_schema database.
 FATAL ERROR: Upgrade failed
 show tables like "user_view";
 Tables_in_performance_schema (user_view)
@@ -126,12 +128,13 @@ ERROR 1050 (42S01) at line 517: Table 'events_stages_history' already exists
 ERROR 1050 (42S01) at line 532: Table 'events_stages_history_long' already exists
 ERROR 1050 (42S01) at line 545: Table 'events_stages_summary_by_thread_by_event_name' already exists
 ERROR 1050 (42S01) at line 557: Table 'events_stages_summary_global_by_event_name' already exists
-ERROR 1050 (42S01) at line 600: Table 'events_statements_current' already exists
-ERROR 1050 (42S01) at line 643: Table 'events_statements_history' already exists
-ERROR 1050 (42S01) at line 686: Table 'events_statements_history_long' already exists
-ERROR 1050 (42S01) at line 718: Table 'events_statements_summary_by_thread_by_event_name' already exists
-ERROR 1050 (42S01) at line 749: Table 'events_statements_summary_global_by_event_name' already exists
-ERROR 1644 (HY000) at line 1169: Unexpected content found in the performance_schema database.
+ERROR 1050 (42S01) at line 602: Table 'events_statements_current' already exists
+ERROR 1050 (42S01) at line 647: Table 'events_statements_history' already exists
+ERROR 1050 (42S01) at line 692: Table 'events_statements_history_long' already exists
+ERROR 1050 (42S01) at line 724: Table 'events_statements_summary_by_thread_by_event_name' already exists
+ERROR 1050 (42S01) at line 755: Table 'events_statements_summary_global_by_event_name' already exists
+ERROR 1050 (42S01) at line 787: Table 'events_statements_summary_by_digest' already exists
+ERROR 1644 (HY000) at line 1207: Unexpected content found in the performance_schema database.
 FATAL ERROR: Upgrade failed
 select name from mysql.proc where db='performance_schema';
 name
@@ -170,12 +173,13 @@ ERROR 1050 (42S01) at line 517: Table 'events_stages_history' already exists
 ERROR 1050 (42S01) at line 532: Table 'events_stages_history_long' already exists
 ERROR 1050 (42S01) at line 545: Table 'events_stages_summary_by_thread_by_event_name' already exists
 ERROR 1050 (42S01) at line 557: Table 'events_stages_summary_global_by_event_name' already exists
-ERROR 1050 (42S01) at line 600: Table 'events_statements_current' already exists
-ERROR 1050 (42S01) at line 643: Table 'events_statements_history' already exists
-ERROR 1050 (42S01) at line 686: Table 'events_statements_history_long' already exists
-ERROR 1050 (42S01) at line 718: Table 'events_statements_summary_by_thread_by_event_name' already exists
-ERROR 1050 (42S01) at line 749: Table 'events_statements_summary_global_by_event_name' already exists
-ERROR 1644 (HY000) at line 1169: Unexpected content found in the performance_schema database.
+ERROR 1050 (42S01) at line 602: Table 'events_statements_current' already exists
+ERROR 1050 (42S01) at line 647: Table 'events_statements_history' already exists
+ERROR 1050 (42S01) at line 692: Table 'events_statements_history_long' already exists
+ERROR 1050 (42S01) at line 724: Table 'events_statements_summary_by_thread_by_event_name' already exists
+ERROR 1050 (42S01) at line 755: Table 'events_statements_summary_global_by_event_name' already exists
+ERROR 1050 (42S01) at line 787: Table 'events_statements_summary_by_digest' already exists
+ERROR 1644 (HY000) at line 1207: Unexpected content found in the performance_schema database.
 FATAL ERROR: Upgrade failed
 select name from mysql.proc where db='performance_schema';
 name
@@ -214,12 +218,13 @@ ERROR 1050 (42S01) at line 517: Table 'events_stages_history' already exists
 ERROR 1050 (42S01) at line 532: Table 'events_stages_history_long' already exists
 ERROR 1050 (42S01) at line 545: Table 'events_stages_summary_by_thread_by_event_name' already exists
 ERROR 1050 (42S01) at line 557: Table 'events_stages_summary_global_by_event_name' already exists
-ERROR 1050 (42S01) at line 600: Table 'events_statements_current' already exists
-ERROR 1050 (42S01) at line 643: Table 'events_statements_history' already exists
-ERROR 1050 (42S01) at line 686: Table 'events_statements_history_long' already exists
-ERROR 1050 (42S01) at line 718: Table 'events_statements_summary_by_thread_by_event_name' already exists
-ERROR 1050 (42S01) at line 749: Table 'events_statements_summary_global_by_event_name' already exists
-ERROR 1644 (HY000) at line 1169: Unexpected content found in the performance_schema database.
+ERROR 1050 (42S01) at line 602: Table 'events_statements_current' already exists
+ERROR 1050 (42S01) at line 647: Table 'events_statements_history' already exists
+ERROR 1050 (42S01) at line 692: Table 'events_statements_history_long' already exists
+ERROR 1050 (42S01) at line 724: Table 'events_statements_summary_by_thread_by_event_name' already exists
+ERROR 1050 (42S01) at line 755: Table 'events_statements_summary_global_by_event_name' already exists
+ERROR 1050 (42S01) at line 787: Table 'events_statements_summary_by_digest' already exists
+ERROR 1644 (HY000) at line 1207: Unexpected content found in the performance_schema database.
 FATAL ERROR: Upgrade failed
 select name from mysql.event where db='performance_schema';
 name
