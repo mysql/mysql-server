@@ -356,6 +356,11 @@ sub main {
     # Append --extra-suites to --suites
     $opt_suites= "$opt_suites,$opt_extra_suites";
   }
+
+  # MCP > support specifying suite=*ndb_rpl* also in 6.3, but ignore it
+  $opt_suites =~ s/ndb_rpl//g;
+  # MCP <
+
   mtr_report("opt_suites: $opt_suites");
 
   mtr_report("Collecting tests...");
