@@ -45,6 +45,7 @@ public class OrNode extends BooleanOperatorNode {
         Predicate leftPredicate = leftNode.getPredicate(queryDomainType);
         Predicate rightPredicate = rightNode.getPredicate(queryDomainType);
         result = leftPredicate.or(rightPredicate);
+        setNumberOfParameters(leftNode.getNumberOfParameters() + rightNode.getNumberOfParameters());
         return result;
     }
 

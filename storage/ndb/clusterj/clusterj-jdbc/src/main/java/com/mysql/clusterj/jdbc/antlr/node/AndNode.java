@@ -45,6 +45,7 @@ public class AndNode extends BooleanOperatorNode {
         Predicate leftPredicate = leftNode.getPredicate(queryDomainType);
         Predicate rightPredicate = rightNode.getPredicate(queryDomainType);
         result = leftPredicate.and(rightPredicate);
+        setNumberOfParameters(leftNode.getNumberOfParameters() + rightNode.getNumberOfParameters());
         return result;
     }
 

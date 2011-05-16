@@ -20,6 +20,7 @@ package com.mysql.clusterj.jdbc.antlr.node;
 import org.antlr.runtime.tree.CommonTree;
 import org.antlr.runtime.Token;
 
+import com.mysql.clusterj.ClusterJFatalInternalException;
 import com.mysql.clusterj.core.util.I18NHelper;
 import com.mysql.clusterj.core.util.Logger;
 import com.mysql.clusterj.core.util.LoggerFactoryService;
@@ -28,6 +29,9 @@ import com.mysql.clusterj.query.Predicate;
 import com.mysql.clusterj.query.QueryDomainType;
 
 public class Node extends CommonTree {
+
+    /** My number of parameters */
+    protected int numberOfParameters = -1;
 
     /** My message translator */
     static final I18NHelper local = I18NHelper.getInstance(SQLExecutor.class);
@@ -51,6 +55,17 @@ public class Node extends CommonTree {
     public Predicate getPredicate(QueryDomainType<?> queryDomainType) {
         // default behavior is no predicate is possible from the tree
         return null;
+    }
+
+    public int getNumberOfParameters() {
+        if (numberOfParameters == -1) {
+            throw new ClusterJFatalInternalException(local.message("ERR_Number_Of_Parameters_Not_Initialized"));
+        }
+        return numberOfParameters;
+    }
+
+    protected void setNumberOfParameters(int numberOfParameters) {
+        this.numberOfParameters = numberOfParameters;
     }
 
 }

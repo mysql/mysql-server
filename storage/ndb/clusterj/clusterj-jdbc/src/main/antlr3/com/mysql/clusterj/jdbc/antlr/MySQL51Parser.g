@@ -796,7 +796,6 @@ equalityOperator
 		| 	value=GREATER_THAN_EQUAL<com.mysql.clusterj.jdbc.antlr.node.GreaterEqualsNode>
 		|	value=NULL_SAFE_NOT_EQUAL
 		| 	value=REGEXP
-		|	value=BETWEEN
 		|	value=CASE
 		|	value=WHEN
 		|	value=THEN
@@ -805,14 +804,15 @@ equalityOperator
 	;
 
 bitwiseOrExpr
-  : lhs=bitwiseAndExpr 
+    : lhs=bitwiseAndExpr 
     ( (op+=BITWISE_OR^ rhs+=bitwiseAndExpr)+
 // force compiler to always recognize NOT IN regardless of whatever follows
     | (((NOT^)? IN^)=>(NOT^)? IN^ (parenExprList | subselect))
     | LIKE^ unaryExpr (ESCAPE STRING)?  // STRING must be empty or one character long (or be "\\" if not in sql_mode NO_BACKSLASH_ESCAPES)
     | isOperator^
+    | ((NOT^)? BETWEEN^)=> (NOT<com.mysql.clusterj.jdbc.antlr.node.NotNode>^)? (BETWEEN<com.mysql.clusterj.jdbc.antlr.node.BetweenNode>^ unaryExpr AND! unaryExpr )
     )?
-  ;
+    ;
 
 bitwiseAndExpr
 	:	lhs=shiftExpr (op+=BITWISE_AND^ rhs+=shiftExpr)*

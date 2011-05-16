@@ -41,7 +41,9 @@ public class WhereNode extends Node {
     public Predicate getPredicate(QueryDomainType<?> queryDomainType) {
         try {
             Node child = (Node)getChild(0);
-            return child.getPredicate(queryDomainType);
+            Predicate result = child.getPredicate(queryDomainType);
+            setNumberOfParameters(child.getNumberOfParameters());
+            return result;
         } catch (Exception e) {
             // where node cannot be executed by clusterj
             return null;
