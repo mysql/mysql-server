@@ -344,8 +344,7 @@ static void _lf_pinbox_real_free(LF_PINS *pins)
 #ifdef HAVE_ALLOCA
   if (pins->stack_ends_here != NULL)
   {
-    int alloca_size;
-    alloca_size= sizeof(void *)*LF_PINBOX_PINS*npins;
+    int alloca_size= sizeof(void *)*LF_PINBOX_PINS*npins;
     /* create a sorted list of pinned addresses, to speed up searches */
     if (available_stack_size(&pinbox, *pins->stack_ends_here) > alloca_size)
     {
