@@ -24,7 +24,7 @@
 struct CreateTabReq
 {
   STATIC_CONST( SignalLength = 6 );
-  STATIC_CONST( SignalLengthLDM = 6 + 10 );
+  STATIC_CONST( SignalLengthLDM = 6 + 11 );
 
   enum RequestType {
   };
@@ -49,6 +49,7 @@ struct CreateTabReq
   Uint32 noOfKeyAttr;
   Uint32 checksumIndicator;
   Uint32 GCPIndicator;
+  Uint32 extraRowAuthorBits;
 
   SECTION( DICT_TAB_INFO = 0 );
   SECTION( FRAGMENTATION = 1 );

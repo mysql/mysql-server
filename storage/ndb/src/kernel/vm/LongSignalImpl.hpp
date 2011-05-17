@@ -48,6 +48,8 @@ bool import(SPC_ARG Ptr<SectionSegment> & first, const Uint32 * src, Uint32 len)
 bool appendToSection(SPC_ARG Uint32& firstSegmentIVal, const Uint32* src, Uint32 len);
 /* dupSection : Create new section as copy of src section */
 bool dupSection(SPC_ARG Uint32& copyFirstIVal, Uint32 srcFirstIVal);
+/* writeToSection : Overwrite section from offset with data.  */
+bool writeToSection(Uint32 firstSegmentIVal, Uint32 offset, const Uint32* src, Uint32 len);
 
 void release(SPC_ARG SegmentedSectionPtr & ptr);
 void releaseSection(SPC_ARG Uint32 firstSegmentIVal);
