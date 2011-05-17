@@ -40,6 +40,7 @@ public class PartitionKeyTest extends AbstractClusterJTest {
         setPartitionKeyTwice();
         goodIntKey();
         goodCompoundKey();
+        session = sessionFactory.getSession(); // to allow tear down classes to work
         failOnError();
     }
 
@@ -155,6 +156,7 @@ public class PartitionKeyTest extends AbstractClusterJTest {
     protected void goodIntKey() {
         try {
             session = sessionFactory.getSession();
+            session.deletePersistentAll(Employee.class);
             Employee employee = session.newInstance(Employee.class);
             employee.setId(1000);
             employee.setAge(1000);
@@ -171,6 +173,7 @@ public class PartitionKeyTest extends AbstractClusterJTest {
     protected void goodCompoundKey() {
         try {
             session = sessionFactory.getSession();
+            session.deletePersistentAll(LongIntStringPK.class);
             // key can contain nulls if not part of partition key
             Object[] key = new Object[] { 1000L, 1000, null};
             LongIntStringPK instance = session
