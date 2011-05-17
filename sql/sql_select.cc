@@ -3342,7 +3342,8 @@ JOIN::exec()
         if (curr_table->pre_idx_push_cond)
         {
           sort_table_cond= make_cond_for_table(curr_join->tmp_having,
-                                               used_tables, used_tables, 0);
+                                               used_tables,
+                                               (table_map) 0, 0);
           if (!sort_table_cond)
             DBUG_VOID_RETURN;
           Item* new_pre_idx_push_cond= 
