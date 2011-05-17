@@ -234,6 +234,10 @@ Dbtux::execREAD_CONFIG_REQ(Signal* signal)
 
   c_ctx.c_dataBuffer = (Uint32*)allocRecord("c_dataBuffer", sizeof(Uint64), (MaxXfrmDataSize + 1) >> 1);
 
+#ifdef VM_TRACE
+  c_ctx.c_debugBuffer = (char*)allocRecord("c_debugBuffer", sizeof(char), DebugBufferBytes);
+#endif
+
   // ack
   ReadConfigConf * conf = (ReadConfigConf*)signal->getDataPtrSend();
   conf->senderRef = reference();
@@ -278,10 +282,9 @@ Dbtux::readKeyAttrs(TuxCtx& ctx, const Frag& frag, TreeEnt ent, KeyData& keyData
 
 #ifdef VM_TRACE
   if (debugFlags & (DebugMaint | DebugScan)) {
-    char tmp[MaxAttrDataSize << 2];
     debugOut << "readKeyAttrs: ";
     debugOut << " ent:" << ent << " count:" << count;
-    debugOut << " data:" << keyData.print(tmp, sizeof(tmp));
+    debugOut << " data:" << keyData.print(ctx.c_debugBuffer, DebugBufferBytes);
     debugOut << endl;
   }
 #endif

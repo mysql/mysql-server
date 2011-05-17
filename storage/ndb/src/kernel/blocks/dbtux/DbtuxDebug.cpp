@@ -292,7 +292,7 @@ Dbtux::printNode(TuxCtx & ctx,
     Uint32 data2[MaxPrefSize];
     keyData2.set_buf(data2, MaxPrefSize << 2);
     readKeyAttrs(ctx, frag, node.getEnt(0), keyData2, index.m_prefAttrs);
-    if (cmpSearchKey(keyData1, keyData2, index.m_prefAttrs) != 0) {
+    if (cmpSearchKey(ctx, keyData1, keyData2, index.m_prefAttrs) != 0) {
       par.m_ok = false;
       out << par.m_path << sep;
       out << "inline prefix mismatch" << endl;
@@ -308,7 +308,7 @@ Dbtux::printNode(TuxCtx & ctx,
     entryKey2.set_buf(ctx.c_entryKey, MaxAttrDataSize << 2);
     readKeyAttrs(ctx, frag, ent1, entryKey1, index.m_numAttrs);
     readKeyAttrs(ctx, frag, ent2, entryKey2, index.m_numAttrs);
-    int ret = cmpSearchKey(entryKey1, entryKey2, index.m_numAttrs);
+    int ret = cmpSearchKey(ctx, entryKey1, entryKey2, index.m_numAttrs);
     if (ret == 0)
       ret = ent1.cmp(ent2);
     if (! (ret < 0)) {
@@ -330,7 +330,7 @@ Dbtux::printNode(TuxCtx & ctx,
     entryKey2.set_buf(ctx.c_entryKey, MaxAttrDataSize << 2);
     readKeyAttrs(ctx, frag, ent1, entryKey1, index.m_numAttrs);
     readKeyAttrs(ctx, frag, ent2, entryKey2, index.m_numAttrs);
-    int ret = cmpSearchKey(entryKey1, entryKey2, index.m_numAttrs);
+    int ret = cmpSearchKey(ctx, entryKey1, entryKey2, index.m_numAttrs);
     if (ret == 0)
       ret = ent1.cmp(ent2);
     if (i == 0 && ! (ret < 0) ||
@@ -447,9 +447,8 @@ operator<<(NdbOut& out, const Dbtux::ScanOp& scan)
     Dbtux::KeyDataC keyBoundData(index.m_keySpec, true);
     Dbtux::KeyBoundC keyBound(keyBoundData);
     tux->unpackBound(tux->c_ctx, scanBound, keyBound);
-    char tmp[Dbtux::MaxAttrDataSize << 2];
     out << " [scanBound " << dec << i;
-    out << " " << keyBound.print(tmp, sizeof(tmp));
+    out << " " << keyBound.print(tux->c_ctx.c_debugBuffer, Dbtux::DebugBufferBytes);
     out << "]";
   }
   return out;

@@ -163,9 +163,9 @@ Dbtux::setNodePref(TuxCtx & ctx, NodeHandle& node)
   }
 #ifdef VM_TRACE
   if (debugFlags & DebugMaint) {
-    char tmp[MaxAttrDataSize << 2];
     debugOut << "setNodePref: " << node;
-    debugOut << " " << prefKey.print(tmp, sizeof(tmp)) << endl;
+    debugOut << " " << prefKey.print(ctx.c_debugBuffer, DebugBufferBytes);
+    debugOut << endl;
   }
 #endif
 }
