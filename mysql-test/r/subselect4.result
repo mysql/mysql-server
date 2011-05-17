@@ -1317,7 +1317,7 @@ EXPLAIN
 SELECT i FROM t1 WHERE (1) NOT IN (SELECT i FROM t2);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	PRIMARY	t1	system	NULL	NULL	NULL	NULL	1	
-2	DEPENDENT SUBQUERY	t2	ref_or_null	k	k	5	const	2	Using where; Using index
+2	DEPENDENT SUBQUERY	t2	index_subquery	k	k	5	const	2	Using index
 DROP TABLE t2;
 DROP TABLE t1;
 #
@@ -1742,4 +1742,43 @@ SELECT f2 FROM t1 WHERE ( f2 ) IN ( SELECT t3.f2 FROM t3 JOIN t2 ON t2.f1 = 1 )
 SELECT f2 FROM t1 WHERE ( f2 ) IN ( SELECT t3.f2 FROM t3 JOIN t2 ON t2.f1 = 1 )
 )
 NULL
+drop table t1, t2, t3;
+#                                                                                                                                                     
+# LP BUG#777597 Wrong result with multipart keys, in_to_exists=on, NOT IN in MWL#89
+#                                                                                                                                                     
+CREATE TABLE t1 ( f4 int);
+INSERT IGNORE INTO t1 VALUES (2),(2);
+CREATE TABLE t2 ( f3 int, f10 int, KEY (f10,f3) );
+INSERT IGNORE INTO t2 VALUES (6, 1), (6, 1);
+CREATE TABLE t3 ( f10 int );
+INSERT IGNORE INTO t3 VALUES (1);
+SET SESSION optimizer_switch='in_to_exists=on,materialization=off';
+EXPLAIN
+SELECT * FROM t1 WHERE ( 6 ) NOT IN ( SELECT t2.f3 FROM t2 JOIN t3 ON t3.f10 = t2.f10);
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	2	
+2	DEPENDENT SUBQUERY	t3	system	NULL	NULL	NULL	NULL	1	
+2	DEPENDENT SUBQUERY	t2	ref_or_null	f10	f10	10	const,const	2	Using where; Using index
+SELECT * FROM t1 WHERE ( 6 ) NOT IN ( SELECT t2.f3 FROM t2 JOIN t3 ON t3.f10 = t2.f10);
+f4
+drop table t1,t2,t3;
+#                                                                                                                                                     
+# LP BUG#778413 Third crash in select_describe() in maria-5.3-mwl89
+#                                                                                                                                                     
+CREATE TABLE t1 ( f11 int) ;
+INSERT INTO t1 VALUES (1),(1);
+CREATE TABLE t2 ( f1 int NOT NULL) ;
+INSERT INTO t2 VALUES (20);
+CREATE TABLE t3 (f3 int) ;
+INSERT INTO t3 VALUES (2),(2);
+EXPLAIN SELECT * FROM t2
+WHERE t2.f1 = (
+SELECT MAX( f3 ) FROM t3
+WHERE EXISTS (
+SELECT DISTINCT f11
+FROM t1));
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	t2	system	NULL	NULL	NULL	NULL	1	
+2	SUBQUERY	t3	ALL	NULL	NULL	NULL	NULL	2	
+3	SUBQUERY	t1	ALL	NULL	NULL	NULL	NULL	2	Using temporary
 drop table t1, t2, t3;

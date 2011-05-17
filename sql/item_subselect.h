@@ -619,7 +619,6 @@ protected:
 class subselect_single_select_engine: public subselect_engine
 {
   bool prepared; /* simple subselect is prepared */
-  bool optimized; /* simple subselect is optimized */
   bool executed; /* simple subselect is executed */
   st_select_lex *select_lex; /* corresponding select_lex */
   JOIN * join; /* corresponding JOIN structure */
