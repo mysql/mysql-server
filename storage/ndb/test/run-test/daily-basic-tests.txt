@@ -930,9 +930,9 @@ max-time: 7200
 cmd: testTransactions
 args:
 
-max-time: 1500
+max-time: 3000
 cmd: testRestartGci
-args: T6 
+args: T6 D1
 
 max-time: 1500
 cmd: testBlobs

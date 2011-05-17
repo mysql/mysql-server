@@ -51,6 +51,8 @@ void Dbtup::initData()
 
   cCopyProcedure = RNIL;
   cCopyLastSeg = RNIL;
+  cCopyOverwrite = 0;
+  cCopyOverwriteLen = 0;
 
   // Records with constant sizes
   init_list_sizes();

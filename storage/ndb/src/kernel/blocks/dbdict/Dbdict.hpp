@@ -280,6 +280,8 @@ public:
       TR_Temporary    = 0x8,
       TR_ForceVarPart = 0x10
     };
+    Uint8 m_extra_row_gci_bits;
+    Uint8 m_extra_row_author_bits;
     Uint16 m_bits;
 
     /* Number of attibutes in table */

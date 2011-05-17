@@ -414,3 +414,58 @@ releaseSection(SPC_ARG Uint32 firstSegmentIVal)
                                      p->m_lastSegment);
   }
 }
+
+bool
+writeToSection(Uint32 firstSegmentIVal, Uint32 offset,
+               const Uint32* src,
+               Uint32 len)
+{
+  Ptr<SectionSegment> segPtr;
+
+  if (len == 0)
+    return true;
+
+  if (firstSegmentIVal == RNIL)
+  {
+    return false;
+  }
+  else
+  {
+    /* Section has at least one segment with data already */
+    g_sectionSegmentPool.getPtr(segPtr, firstSegmentIVal);
+
+    Uint32 existingLen= segPtr.p->m_sz;
+
+    assert(existingLen > 0);
+    if (offset >= existingLen)
+      return false;         /* No sparse sections or extension */
+    if (len > (existingLen - offset))
+      return false;         /* Would be extending beyond current length */
+
+    /* Advance through segments to the one containing the start offset */
+    while (offset >= SectionSegment::DataLength)
+    {
+      g_sectionSegmentPool.getPtr(segPtr, segPtr.p->m_nextSegment);
+      offset-= SectionSegment::DataLength;
+    }
+
+    /* Now overwrite the words */
+    while (true)
+    {
+      Uint32 wordsToCopy = MIN(len,
+                               SectionSegment::DataLength - offset);
+      memcpy(&segPtr.p->theData[offset], src, (wordsToCopy << 2));
+      src+= wordsToCopy;
+      len-= wordsToCopy;
+
+      if (!len)
+      {
+        return true;
+      }
+
+      offset = 0;
+      g_sectionSegmentPool.getPtr(segPtr, segPtr.p->m_nextSegment);
+    }
+  }
+}
+
