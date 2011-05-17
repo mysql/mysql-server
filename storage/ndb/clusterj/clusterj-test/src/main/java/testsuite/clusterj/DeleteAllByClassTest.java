@@ -30,6 +30,7 @@ public class DeleteAllByClassTest extends AbstractClusterJModelTest {
     public void localSetUp() {
         createSessionFactory();
         session = sessionFactory.getSession();
+        session.deletePersistentAll(Employee.class);
         createEmployeeInstances(NUMBER_TO_INSERT);
         tx = session.currentTransaction();
         for (int i = 0; i < NUMBER_TO_INSERT; ++i) {
