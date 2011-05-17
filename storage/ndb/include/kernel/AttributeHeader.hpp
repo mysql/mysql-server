@@ -66,6 +66,17 @@ public:
   STATIC_CONST( CORR_FACTOR64 = 0xFFE8 ); // including root-frag
 
   /**
+   * 64-bit row gci (extending lower if not sufficient bits)
+   *   read-only
+   */
+  STATIC_CONST( ROW_GCI64    = 0xFFE7);
+
+  /**
+   * Row author... autoset to 0, can be over written
+   */
+  STATIC_CONST( ROW_AUTHOR    = 0xFFE6);
+
+  /**
    * Optimize pseudo column and optimization options
    */
   STATIC_CONST( OPTIMIZE     = 0xFFE0 );          //pseudo column id to optimize

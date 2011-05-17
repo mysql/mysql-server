@@ -1578,6 +1578,13 @@ SimulatedBlock::dupSection(Uint32& copyFirstIVal, Uint32 srcFirstIVal)
   return ::dupSection(SB_SP_ARG copyFirstIVal, srcFirstIVal);
 }
 
+bool
+SimulatedBlock::writeToSection(Uint32 firstSegmentIVal, Uint32 offset,
+                               const Uint32* src, Uint32 len)
+{
+  return ::writeToSection(firstSegmentIVal, offset, src, len);
+}
+
 class SectionSegmentPool& 
 SimulatedBlock::getSectionSegmentPool(){
   return g_sectionSegmentPool;

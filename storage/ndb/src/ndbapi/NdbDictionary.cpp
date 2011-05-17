@@ -934,6 +934,36 @@ NdbDictionary::Table::getRowGCIIndicator() const {
 }
 
 void
+NdbDictionary::Table::setExtraRowGciBits(Uint32 val)
+{
+  if (val <= 31)
+  {
+    m_impl.m_extra_row_gci_bits = val;
+  }
+}
+
+Uint32
+NdbDictionary::Table::getExtraRowGciBits() const
+{
+  return m_impl.m_extra_row_gci_bits;
+}
+
+void
+NdbDictionary::Table::setExtraRowAuthorBits(Uint32 val)
+{
+  if (val <= 31)
+  {
+    m_impl.m_extra_row_author_bits = val;
+  }
+}
+
+Uint32
+NdbDictionary::Table::getExtraRowAuthorBits() const
+{
+  return m_impl.m_extra_row_author_bits;
+}
+
+void
 NdbDictionary::Table::setForceVarPart(bool val){
   m_impl.m_force_var_part = val;
 }
