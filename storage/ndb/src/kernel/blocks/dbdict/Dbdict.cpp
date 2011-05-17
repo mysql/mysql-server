@@ -3914,6 +3914,7 @@ Dbdict::checkPendingSchemaTrans(XSchemaFile* xsf)
         }
       }
 
+      transEntry->m_tableType = DictTabInfo::UndefTableType;
       transEntry->m_tableState = SchemaFile::SF_UNUSED;
       transEntry->m_transId = 0;
     }
@@ -9487,7 +9488,7 @@ Dbdict::alterTable_fromCommitComplete(Signal* signal,
     // Remark object as free
     SchemaFile::TableEntry * objEntry =
       objEntry = getTableEntry(alterTabPtr.p->m_newTable_realObjectId);
-    objEntry->m_tableType = DictTabInfo::SchemaTransaction;
+    objEntry->m_tableType = DictTabInfo::UndefTableType;
     objEntry->m_tableState = SchemaFile::SF_UNUSED;
     objEntry->m_transId = 0;
   }
@@ -9579,7 +9580,7 @@ Dbdict::alterTable_abortParse(Signal* signal, SchemaOpPtr op_ptr)
       // Remark object as free
       SchemaFile::TableEntry * objEntry =
         objEntry = getTableEntry(alterTabPtr.p->m_newTable_realObjectId);
-      objEntry->m_tableType = DictTabInfo::SchemaTransaction;
+      objEntry->m_tableType = DictTabInfo::UndefTableType;
       objEntry->m_tableState = SchemaFile::SF_UNUSED;
       objEntry->m_transId = 0;
     }
