@@ -1022,7 +1022,7 @@ Dbtux::scanCheck(ScanOpPtr scanPtr, TreeEnt ent)
     readKeyAttrs(c_ctx, frag, ent, entryKey, index.m_numAttrs);
     // compare bound to key
     const Uint32 boundCount = searchBound.get_data().get_cnt();
-    ret = cmpSearchBound(searchBound, entryKey, boundCount);
+    ret = cmpSearchBound(c_ctx, searchBound, entryKey, boundCount);
     ndbrequire(ret != 0);
     ret = (-1) * ret; // reverse for key vs bound
     ret = jdir * ret; // reverse for descending scan

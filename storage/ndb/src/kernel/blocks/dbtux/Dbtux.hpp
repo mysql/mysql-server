@@ -131,6 +131,10 @@ private:
   STATIC_CONST( ScanBoundSegmentSize = 7 );
   STATIC_CONST( MaxAccLockOps = MAX_PARALLEL_OP_PER_SCAN );
   STATIC_CONST( MaxTreeDepth = 32 );    // strict
+#ifdef VM_TRACE
+  // for TuxCtx::c_debugBuffer
+  STATIC_CONST( DebugBufferBytes = (MaxAttrDataSize << 2) );
+#endif
   BLOCK_DEFINES(Dbtux);
 
   // forward declarations
@@ -633,8 +637,8 @@ private:
   /*
    * DbtuxCmp.cpp
    */
-  int cmpSearchKey(const KeyDataC& searchKey, const KeyDataC& entryKey, Uint32 cnt);
-  int cmpSearchBound(const KeyBoundC& searchBound, const KeyDataC& entryKey, Uint32 cnt);
+  int cmpSearchKey(TuxCtx&, const KeyDataC& searchKey, const KeyDataC& entryKey, Uint32 cnt);
+  int cmpSearchBound(TuxCtx&, const KeyBoundC& searchBound, const KeyDataC& entryKey, Uint32 cnt);
 
   /*
    * DbtuxStat.cpp
@@ -710,6 +714,10 @@ private:
 
     // buffer for xfrm-ed PK and for temporary use
     Uint32* c_dataBuffer;
+
+#ifdef VM_TRACE
+    char* c_debugBuffer;
+#endif
   };
 
   struct TuxCtx c_ctx; // Global Tux context, for everything build MT-index build
@@ -1239,17 +1247,16 @@ Dbtux::max(unsigned x, unsigned y)
 // DbtuxCmp.cpp
 
 inline int
-Dbtux::cmpSearchKey(const KeyDataC& searchKey, const KeyDataC& entryKey, Uint32 cnt)
+Dbtux::cmpSearchKey(TuxCtx& ctx, const KeyDataC& searchKey, const KeyDataC& entryKey, Uint32 cnt)
 {
   // compare cnt attributes from each
   Uint32 num_eq;
   int ret = searchKey.cmp(entryKey, cnt, num_eq);
 #ifdef VM_TRACE
   if (debugFlags & DebugMaint) {
-    char tmp[MaxAttrDataSize << 2];
     debugOut << "cmpSearchKey: ret:" << ret;
-    debugOut << " search:" << searchKey.print(tmp, sizeof(tmp));
-    debugOut << " entry:" << entryKey.print(tmp, sizeof(tmp));
+    debugOut << " search:" << searchKey.print(ctx.c_debugBuffer, DebugBufferBytes);
+    debugOut << " entry:" << entryKey.print(ctx.c_debugBuffer, DebugBufferBytes);
     debugOut << endl;
   }
 #endif
@@ -1257,17 +1264,16 @@ Dbtux::cmpSearchKey(const KeyDataC& searchKey, const KeyDataC& entryKey, Uint32 
 }
 
 inline int
-Dbtux::cmpSearchBound(const KeyBoundC& searchBound, const KeyDataC& entryKey, Uint32 cnt)
+Dbtux::cmpSearchBound(TuxCtx& ctx, const KeyBoundC& searchBound, const KeyDataC& entryKey, Uint32 cnt)
 {
   // compare cnt attributes from each
   Uint32 num_eq;
   int ret = searchBound.cmp(entryKey, cnt, num_eq);
 #ifdef VM_TRACE
   if (debugFlags & DebugScan) {
-    char tmp[MaxAttrDataSize << 2];
     debugOut << "cmpSearchBound: res:" << ret;
-    debugOut << " search:" << searchBound.print(tmp, sizeof(tmp));
-    debugOut << " entry:" << entryKey.print(tmp, sizeof(tmp));
+    debugOut << " search:" << searchBound.print(ctx.c_debugBuffer, DebugBufferBytes);
+    debugOut << " entry:" << entryKey.print(ctx.c_debugBuffer, DebugBufferBytes);
     debugOut << endl;
   }
 #endif

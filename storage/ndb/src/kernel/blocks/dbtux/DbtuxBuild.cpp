@@ -54,6 +54,10 @@ Dbtux::mt_buildIndexFragment_wrapper(void * obj)
     ptr += MaxAttrDataSize;
     tux_ctx->c_dataBuffer = ptr;
     ptr += MaxAttrDataSize;
+#ifdef VM_TRACE
+    tux_ctx->c_debugBuffer = (char*)ptr;
+    ptr += (DebugBufferBytes + 3) / 4;
+#endif
     if (!(UintPtr(ptr) - UintPtr(req->mem_buffer) <= req->buffer_size))
       abort();
   }

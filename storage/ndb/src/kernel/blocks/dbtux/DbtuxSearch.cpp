@@ -49,13 +49,13 @@ Dbtux::findNodeToUpdate(TuxCtx& ctx, Frag& frag, const KeyDataC& searchKey, Tree
     int ret = 0;
     if (prefAttrs > 0) {
       thrjam(ctx.jamBuffer);
-      ret = cmpSearchKey(searchKey, prefKey, prefAttrs);
+      ret = cmpSearchKey(ctx, searchKey, prefKey, prefAttrs);
     }
     if (ret == 0 && prefAttrs < numAttrs) {
       thrjam(ctx.jamBuffer);
       // read and compare all attributes
       readKeyAttrs(ctx, frag, currNode.getEnt(0), entryKey, numAttrs);
-      ret = cmpSearchKey(searchKey, entryKey, numAttrs);
+      ret = cmpSearchKey(ctx, searchKey, entryKey, numAttrs);
     }
     if (ret == 0) {
       thrjam(ctx.jamBuffer);
@@ -115,7 +115,7 @@ Dbtux::findPosToAdd(TuxCtx& ctx, Frag& frag, const KeyDataC& searchKey, TreeEnt 
     int j = (hi + lo) / 2;
     // read and compare all attributes
     readKeyAttrs(ctx, frag, currNode.getEnt(j), entryKey, index.m_numAttrs);
-    int ret = cmpSearchKey(searchKey, entryKey, index.m_numAttrs);
+    int ret = cmpSearchKey(ctx, searchKey, entryKey, index.m_numAttrs);
     if (ret == 0) {
       thrjam(ctx.jamBuffer);
       // keys are equal, compare entry values
@@ -233,13 +233,13 @@ Dbtux::findNodeToScan(Frag& frag, unsigned idir, const KeyBoundC& searchBound, N
       if (prefAttrs > 0) {
         jam();
         // compare node prefix - result 0 implies bound is longer
-        ret = cmpSearchBound(searchBound, prefKey, prefAttrs);
+        ret = cmpSearchBound(c_ctx, searchBound, prefKey, prefAttrs);
       }
       if (ret == 0) {
         jam();
         // read and compare all attributes
         readKeyAttrs(c_ctx, frag, currNode.getEnt(0), entryKey, numAttrs);
-        ret = cmpSearchBound(searchBound, entryKey, numAttrs);
+        ret = cmpSearchBound(c_ctx, searchBound, entryKey, numAttrs);
         ndbrequire(ret != 0);
       }
     } else {
@@ -304,7 +304,7 @@ Dbtux::findPosToScan(Frag& frag, unsigned idir, const KeyBoundC& searchBound, No
     if (numAttrs != 0) {
       // read and compare all attributes
       readKeyAttrs(c_ctx, frag, currNode.getEnt(j), entryKey, numAttrs);
-      ret = cmpSearchBound(searchBound, entryKey, numAttrs);
+      ret = cmpSearchBound(c_ctx, searchBound, entryKey, numAttrs);
       ndbrequire(ret != 0);
     }
     if (ret < 0) {
