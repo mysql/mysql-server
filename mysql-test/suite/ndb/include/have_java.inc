@@ -98,6 +98,7 @@ push(@java_paths, @arch_paths);
 push(@java_paths, "*"); # empty path for "java on PATH variable"
 
 my $java_loc = "";
+our $java_version = "";
 
 sub java_exists {
    my ($path, $exe) = @_;
@@ -109,8 +110,16 @@ sub java_exists {
    $devnull = "NUL" if IS_WINDOWS;
 
    system($exists . " " . $java_args . " -version > " . $devnull);
+  
    my $ret =  $exists if ($? == 0);
-   return $ret; 
+   if($? == 0) {
+     my $ret = $exists;
+     open(VER, "$exists  -version 2>&1 |");
+     $java_version = <VER>;
+     close(VER);
+   }
+   
+   return $ret;
 }
 
 foreach my $path (@java_paths) 
@@ -125,14 +134,14 @@ foreach my $path (@java_paths)
     # std case
     $path .= $pathsep . "bin";
   }
-
+ 
   my $tmp = java_exists($path, "java");
 
   if ($tmp ne "") 
   {
      $java_loc = $tmp;
      last;
-  }
+   }
 }
 
 my $vardir = $ENV{MYSQLTEST_VARDIR} or die "Need MYSQLTEST_VARDIR";
@@ -142,7 +151,9 @@ if ($java_loc eq '') {
 } else {
   print $F "--let \MTR_JAVA= $java_loc\n";
   print $F "--let \MTR_JAVA_ARGS= $java_args\n";
+  print $F "--let \MTR_JAVA_VERSION= $java_version\n";
   print $F "--echo Found Java: '\$MTR_JAVA'\n";
+  print $F "--echo Java version: '\$MTR_JAVA_VERSION'\n";
 }
 $F->close();
 
