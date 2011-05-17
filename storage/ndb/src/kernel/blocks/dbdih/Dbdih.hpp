@@ -444,6 +444,8 @@ public:
    */
   struct TabRecord
   {
+    TabRecord() { }
+
     /**
      * rw-lock that protects multiple parallel DIGETNODES (readers) from
      *   updates to fragmenation changes (e.g CREATE_FRAGREQ)...
