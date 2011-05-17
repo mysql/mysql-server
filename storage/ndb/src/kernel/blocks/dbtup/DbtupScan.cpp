@@ -287,9 +287,8 @@ Dbtup::execACC_CHECK_SCAN(Signal* signal)
   }
 
   const bool lcp = (scan.m_bits & ScanOp::SCAN_LCP);
-  Uint32 lcp_list = fragPtr.p->m_lcp_keep_list;
 
-  if (lcp && lcp_list != RNIL)
+  if (lcp && ! fragPtr.p->m_lcp_keep_list_head.isNull())
   {
     jam();
     /**
@@ -297,7 +296,7 @@ Dbtup::execACC_CHECK_SCAN(Signal* signal)
      *   So that scan state is not alterer
      *   if lcp_keep rows are found in ScanOp::First
      */
-    handle_lcp_keep(signal, fragPtr.p, scanPtr.p, lcp_list);
+    handle_lcp_keep(signal, fragPtr.p, scanPtr.p);
     return;
   }
 
@@ -692,19 +691,18 @@ Dbtup::scanNext(Signal* signal, ScanOpPtr scanPtr)
  
   const bool mm = (bits & ScanOp::SCAN_DD);
   const bool lcp = (bits & ScanOp::SCAN_LCP);
-  
-  Uint32 lcp_list = fragPtr.p->m_lcp_keep_list;
+
   const Uint32 size = ((bits & ScanOp::SCAN_VS) == 0) ?
     table.m_offsets[mm].m_fix_header_size : 1;
   const Uint32 first = ((bits & ScanOp::SCAN_VS) == 0) ? 0 : 1;
 
-  if (lcp && lcp_list != RNIL)
+  if (lcp && ! fragPtr.p->m_lcp_keep_list_head.isNull())
   {
     jam();
     /**
      * Handle lcp keep list here to, due to scanCont
      */
-    handle_lcp_keep(signal, fragPtr.p, scanPtr.p, lcp_list);
+    handle_lcp_keep(signal, fragPtr.p, scanPtr.p);
     return false;
   }
 
@@ -1130,57 +1128,40 @@ Dbtup::scanNext(Signal* signal, ScanOpPtr scanPtr)
 void
 Dbtup::handle_lcp_keep(Signal* signal,
                        Fragrecord* fragPtrP,
-                       ScanOp* scanPtrP,
-                       Uint32 lcp_list)
+                       ScanOp* scanPtrP)
 {
   TablerecPtr tablePtr;
   tablePtr.i = scanPtrP->m_tableId;
   ptrCheckGuard(tablePtr, cnoOfTablerec, tablerec);
 
-  Local_key tmp;
-  tmp.assref(lcp_list);
-  tmp.m_page_no = getRealpid(fragPtrP, tmp.m_page_no);
-  
-  Ptr<Page> pagePtr;
-  c_page_pool.getPtr(pagePtr, tmp.m_page_no);
-  Tuple_header* ptr = (Tuple_header*)
-    ((Fix_page*)pagePtr.p)->get_ptr(tmp.m_page_idx, 0);
-  Uint32 headerbits = ptr->m_header_bits;
-  ndbrequire(headerbits & Tuple_header::LCP_KEEP);
-  
-  Uint32 next = ptr->m_operation_ptr_i;
-  ptr->m_operation_ptr_i = RNIL;
-  ptr->m_header_bits = headerbits & ~(Uint32)Tuple_header::FREE;
-  
-  if (tablePtr.p->m_bits & Tablerec::TR_Checksum) {
+  ndbassert(!fragPtrP->m_lcp_keep_list_head.isNull());
+  Local_key tmp = fragPtrP->m_lcp_keep_list_head;
+  Uint32 * copytuple = get_copy_tuple_raw(&tmp);
+  memcpy(&fragPtrP->m_lcp_keep_list_head,
+         copytuple+2,
+         sizeof(Local_key));
+
+  if (fragPtrP->m_lcp_keep_list_head.isNull())
+  {
     jam();
-    setChecksum(ptr, tablePtr.p);
+    ndbassert(tmp.m_page_no == fragPtrP->m_lcp_keep_list_tail.m_page_no);
+    ndbassert(tmp.m_page_idx == fragPtrP->m_lcp_keep_list_tail.m_page_idx);
+    fragPtrP->m_lcp_keep_list_tail.setNull();
   }
 
+  Local_key save = tmp;
+  setCopyTuple(tmp.m_page_no, tmp.m_page_idx);
   NextScanConf* const conf = (NextScanConf*)signal->getDataPtrSend();
   conf->scanPtr = scanPtrP->m_userPtr;
   conf->accOperationPtr = (Uint32)-1;
   conf->fragId = fragPtrP->fragmentId;
-  conf->localKey[0] = Local_key::ref2page_id(lcp_list);
-  conf->localKey[1] = Local_key::ref2page_idx(lcp_list);
+  conf->localKey[0] = tmp.m_page_no;
+  conf->localKey[1] = tmp.m_page_idx;
   conf->gci = 0;
   Uint32 blockNo = refToMain(scanPtrP->m_userRef);
   EXECUTE_DIRECT(blockNo, GSN_NEXT_SCANCONF, signal, 6);
-  
-  fragPtrP->m_lcp_keep_list = next;
-  ptr->m_header_bits |= Tuple_header::FREED; // RESTORE free flag
-  if (headerbits & Tuple_header::FREED)
-  {
-    if (tablePtr.p->m_attributes[MM].m_no_of_varsize +
-        tablePtr.p->m_attributes[MM].m_no_of_dynamic)
-    {
-      jam();
-      free_var_rec(fragPtrP, tablePtr.p, &tmp, pagePtr);
-    } else {
-      jam();
-      free_fix_rec(fragPtrP, tablePtr.p, &tmp, (Fix_page*)pagePtr.p);
-    }
-  }
+
+  c_undo_buffer.free_copy_tuple(&save);
 }
 
 void
@@ -1320,4 +1301,7 @@ Dbtup::execLCP_FRAG_ORD(Signal* signal)
   new (scanPtr.p) ScanOp;
   scanPtr.p->m_fragPtrI = fragPtr.i;
   scanPtr.p->m_state = ScanOp::First;
+
+  ndbassert(frag.m_lcp_keep_list_head.isNull());
+  ndbassert(frag.m_lcp_keep_list_tail.isNull());
 }

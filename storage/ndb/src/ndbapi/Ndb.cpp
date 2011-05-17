@@ -201,6 +201,7 @@ Ndb::NDB_connect(Uint32 tNode, Uint32 instance)
   tSignal->setData(theMyRef, 2);	// Set my block reference
   tSignal->setData(instance, 3);        // Set requested instance
   tNdbCon->Status(NdbTransaction::Connecting); // Set status to connecting
+  tNdbCon->theDBnode = tNode;
   Uint32 nodeSequence;
   tReturnCode= sendRecSignal(tNode, WAIT_TC_SEIZE, tSignal,
                              0, &nodeSequence);

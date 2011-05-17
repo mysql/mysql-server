@@ -1032,7 +1032,6 @@ NdbOperation::buildSignalsNdbRecord(Uint32 aTC_ConnectPtr,
       readMask.set(attrId);
       requestedCols++;
     }
-    theReceiver.m_record.m_column_count= requestedCols;
 
     /* Are there any columns to read via NdbRecord? */
     if (requestedCols > 0)

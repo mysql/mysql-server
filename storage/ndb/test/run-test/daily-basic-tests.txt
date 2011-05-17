@@ -20,7 +20,7 @@ max-time: 900
 cmd: testIndex
 args: -n DeferredMixedLoad T1 T6 T13
 
-max-time: 900
+max-time: 1800
 cmd: testIndex
 args: -n DeferredMixedLoadError T1 T6 T13
 
@@ -31,6 +31,10 @@ args: -n NF_DeferredMixed T1 T6 T13
 max-time: 900
 cmd: testIndex
 args: -n NF_Mixed T1 T6 T13
+
+max-time: 900
+cmd: testBasic
+args: -r 5000 -n 899 T15 D1 D2
 
 max-time: 600
 cmd: atrt-testBackup
