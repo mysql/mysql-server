@@ -457,8 +457,9 @@ public:
   }
 };
 
-static inline bool check_if_only_end_space(CHARSET_INFO *cs, char *str, 
-                                           char *end)
+static inline bool check_if_only_end_space(CHARSET_INFO *cs,
+                                           const char *str, 
+                                           const char *end)
 {
   return str+ cs->cset->scan(cs, str, end, MY_SEQ_SPACES) == end;
 }

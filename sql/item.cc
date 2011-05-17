@@ -2608,18 +2608,19 @@ void Item_string::print(String *str, enum_query_type query_type)
 
 
 double 
-double_from_string_with_check (CHARSET_INFO *cs, const char *cptr, char *end)
+double_from_string_with_check(CHARSET_INFO *cs, const char *cptr,
+                              const char *end)
 {
   int error;
-  char *org_end;
+  char *end_of_num= (char*) end;
   double tmp;
 
-  org_end= end;
-  tmp= my_strntod(cs, (char*) cptr, end - cptr, &end, &error);
-  if (error || (end != org_end && !check_if_only_end_space(cs, end, org_end)))
+  tmp= my_strntod(cs, (char*) cptr, end - cptr, &end_of_num, &error);
+  if (error || (end != end_of_num &&
+                !check_if_only_end_space(cs, end_of_num, end)))
   {
     char buff[80];
-    strmake(buff, cptr, min(sizeof(buff)-1, (size_t) (org_end-cptr)));
+    strmake(buff, cptr, min(sizeof(buff)-1, (size_t) (end-cptr)));
     push_warning_printf(current_thd, MYSQL_ERROR::WARN_LEVEL_WARN,
                         ER_TRUNCATED_WRONG_VALUE,
                         ER(ER_TRUNCATED_WRONG_VALUE), "DOUBLE",
@@ -2634,26 +2635,27 @@ double Item_string::val_real()
   DBUG_ASSERT(fixed == 1);
   return double_from_string_with_check(str_value.charset(),
                                        str_value.ptr(), 
-                                       (char *) str_value.ptr() +
+                                       str_value.ptr() +
                                        str_value.length());
 }
 
 
 longlong 
-longlong_from_string_with_check (CHARSET_INFO *cs, const char *cptr, char *end)
+longlong_from_string_with_check(CHARSET_INFO *cs, const char *cptr,
+                                const char *end)
 {
   int err;
   longlong tmp;
-  char *org_end= end;
+  char *end_of_num= (char*) end;
 
-  tmp= (*(cs->cset->strtoll10))(cs, cptr, &end, &err);
+  tmp= (*(cs->cset->strtoll10))(cs, cptr, &end_of_num, &err);
   /*
     TODO: Give error if we wanted a signed integer and we got an unsigned
     one
   */
   if (!current_thd->no_errors &&
       (err > 0 ||
-       (end != org_end && !check_if_only_end_space(cs, end, org_end))))
+       (end != end_of_num && !check_if_only_end_space(cs, end_of_num, end))))
   {
     push_warning_printf(current_thd, MYSQL_ERROR::WARN_LEVEL_WARN,
                         ER_TRUNCATED_WRONG_VALUE,
@@ -2672,7 +2674,7 @@ longlong Item_string::val_int()
 {
   DBUG_ASSERT(fixed == 1);
   return longlong_from_string_with_check(str_value.charset(), str_value.ptr(),
-                             (char *) str_value.ptr()+ str_value.length());
+                                         str_value.ptr()+ str_value.length());
 }
 
 

@@ -2289,9 +2289,11 @@ private:
 
 
 longlong 
-longlong_from_string_with_check (CHARSET_INFO *cs, const char *cptr, char *end);
+longlong_from_string_with_check(CHARSET_INFO *cs, const char *cptr,
+                                const char *end);
 double 
-double_from_string_with_check (CHARSET_INFO *cs, const char *cptr, char *end);
+double_from_string_with_check(CHARSET_INFO *cs, const char *cptr,
+                              const char *end);
 
 class Item_static_string_func :public Item_string
 {

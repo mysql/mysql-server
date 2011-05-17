@@ -82,7 +82,6 @@ void Item_subselect::init(st_select_lex *select_lex,
   else
   {
     SELECT_LEX *outer_select= unit->outer_select();
-    DBUG_ASSERT(thd);
     /*
       do not take into account expression inside aggregate functions because
       they can access original table fields
@@ -3563,7 +3562,15 @@ subselect_single_select_engine::change_result(Item_subselect *si,
   }
   else
     result= res;
-  return select_lex->join->change_result(result);
+
+  /*
+    We can't use 'result' below as gcc 4.2.4's alias optimization
+    assumes that result was not changed by thd->change_item_tree().
+    I tried to find a solution to make gcc happy, but could not find anything
+    that would not require a lot of extra code that would be harder to manage
+    than the current code.
+  */
+  return select_lex->join->change_result(res);
 }
 
 
