@@ -1,4 +1,56 @@
 CREATE TABLE articles (
+id INT UNSIGNED AUTO_INCREMENT NOT NULL PRIMARY KEY,
+title VARCHAR(200),
+body TEXT
+) ENGINE=InnoDB;
+INSERT INTO articles (title,body) VALUES
+('MySQL Tutorial','DBMS stands for DataBase ...')  ,
+('How To Use MySQL Well','After you went through a ...'),
+('Optimizing MySQL','In this tutorial we will show ...'),
+('1001 MySQL Tricks','1. Never run mysqld as root. 2. ...'),
+('MySQL vs. YourSQL','In the following database comparison ...'),
+('MySQL Security','When configured properly, MySQL ...');
+CREATE FULLTEXT INDEX idx on articles (title, body);
+SELECT * FROM articles WHERE MATCH (title, body)
+AGAINST ('Tutorial' IN NATURAL LANGUAGE MODE);
+id	title	body
+1	MySQL Tutorial	DBMS stands for DataBase ...
+3	Optimizing MySQL	In this tutorial we will show ...
+SELECT COUNT(*) FROM articles
+WHERE MATCH (title, body)
+AGAINST ('database' IN NATURAL LANGUAGE MODE);
+COUNT(*)
+2
+SELECT * FROM articles
+WHERE MATCH (title, body)
+AGAINST ('Tutorial' IN NATURAL LANGUAGE MODE);
+id	title	body
+1	MySQL Tutorial	DBMS stands for DataBase ...
+3	Optimizing MySQL	In this tutorial we will show ...
+SELECT COUNT(IF(MATCH (title, body)
+AGAINST ('database' IN NATURAL LANGUAGE MODE), 1, NULL))
+AS count FROM articles;
+count
+6
+SELECT * FROM articles WHERE MATCH (title,body)
+AGAINST ('+MySQL -YourSQL' IN BOOLEAN MODE);
+id	title	body
+1	MySQL Tutorial	DBMS stands for DataBase ...
+2	How To Use MySQL Well	After you went through a ...
+3	Optimizing MySQL	In this tutorial we will show ...
+4	1001 MySQL Tricks	1. Never run mysqld as root. 2. ...
+6	MySQL Security	When configured properly, MySQL ...
+SELECT * FROM articles WHERE MATCH (title,body)
+AGAINST ('DBMS Security' IN BOOLEAN MODE);
+id	title	body
+1	MySQL Tutorial	DBMS stands for DataBase ...
+6	MySQL Security	When configured properly, MySQL ...
+SELECT * FROM articles WHERE MATCH (title,body)
+AGAINST ('+MySQL +YourSQL' IN BOOLEAN MODE);
+id	title	body
+5	MySQL vs. YourSQL	In the following database comparison ...
+drop table articles;
+CREATE TABLE articles (
 FTS_DOC_ID BIGINT UNSIGNED AUTO_INCREMENT NOT NULL PRIMARY KEY,
 title VARCHAR(200),
 body TEXT
@@ -17,37 +69,4 @@ AGAINST ('Tutorial' IN NATURAL LANGUAGE MODE);
 FTS_DOC_ID	title	body
 1	MySQL Tutorial	DBMS stands for DataBase ...
 3	Optimizing MySQL	In this tutorial we will show ...
-SELECT COUNT(*) FROM articles
-WHERE MATCH (title, body)
-AGAINST ('database' IN NATURAL LANGUAGE MODE);
-COUNT(*)
-2
-SELECT * FROM articles
-WHERE MATCH (title, body)
-AGAINST ('Tutorial' IN NATURAL LANGUAGE MODE);
-FTS_DOC_ID	title	body
-1	MySQL Tutorial	DBMS stands for DataBase ...
-3	Optimizing MySQL	In this tutorial we will show ...
-SELECT COUNT(IF(MATCH (title, body)
-AGAINST ('database' IN NATURAL LANGUAGE MODE), 1, NULL))
-AS count FROM articles;
-count
-6
-SELECT * FROM articles WHERE MATCH (title,body)
-AGAINST ('+MySQL -YourSQL' IN BOOLEAN MODE);
-FTS_DOC_ID	title	body
-1	MySQL Tutorial	DBMS stands for DataBase ...
-2	How To Use MySQL Well	After you went through a ...
-3	Optimizing MySQL	In this tutorial we will show ...
-4	1001 MySQL Tricks	1. Never run mysqld as root. 2. ...
-6	MySQL Security	When configured properly, MySQL ...
-SELECT * FROM articles WHERE MATCH (title,body)
-AGAINST ('DBMS Security' IN BOOLEAN MODE);
-FTS_DOC_ID	title	body
-1	MySQL Tutorial	DBMS stands for DataBase ...
-6	MySQL Security	When configured properly, MySQL ...
-SELECT * FROM articles WHERE MATCH (title,body)
-AGAINST ('+MySQL +YourSQL' IN BOOLEAN MODE);
-FTS_DOC_ID	title	body
-5	MySQL vs. YourSQL	In the following database comparison ...
 drop table articles;

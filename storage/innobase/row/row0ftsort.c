@@ -452,13 +452,18 @@ fts_parallel_tokenization(
 
 	doc_item = UT_LIST_GET_FIRST(psort_info->fts_doc_list);
 loop:
+	processed = TRUE;
+
 	while (doc_item) {
 		last_doc_id = doc_item->doc_id;
+
 		processed = row_merge_fts_doc_tokenize(
 					buf, doc_item->field,
 					doc_item->doc_id,
 					&init_pos, &buf_used, rows_added,
 					merge_file);
+
+		/* Current sort buffer full, need to recycle */
 		if (!processed) {
 			break;
 		}
@@ -476,6 +481,8 @@ loop:
 		}
 	}
 
+	/* If we run out of current buffer, need to sort
+	and flush the buffer to disk */
 	if (rows_added[buf_used] && !processed) {
 		row_merge_buf_sort(buf[buf_used], NULL);
 		row_merge_buf_write(buf[buf_used], merge_file[buf_used],
@@ -497,11 +504,8 @@ loop:
 	if (doc_item) {
 		doc_item = UT_LIST_GET_NEXT(doc_list, doc_item);
 	} else if (prev_doc_item) {
-		while (!doc_item) {
-			os_thread_yield();
-			doc_item = UT_LIST_GET_NEXT(doc_list,
-						    prev_doc_item);
-		}
+		os_thread_yield();
+		doc_item = UT_LIST_GET_NEXT(doc_list, prev_doc_item);
 	} else {
 		doc_item = UT_LIST_GET_FIRST(psort_info->fts_doc_list);
 	}
@@ -546,7 +550,6 @@ exit:
 	}
 
 	DEBUG_FTS_SORT_PRINT("FTS SORT: complete merge sort\n");
-	fprintf(stderr, "done merge sort, num record %lu\n", (ulong) total_rec);
 
 	psort_info->child_status = FTS_CHILD_COMPLETE;
 	os_event_set(psort_info->psort_common->sort_event);
@@ -593,8 +596,6 @@ fts_parallel_merge(
 			     dict_table_zip_size(
 			     psort_merge->psort_common->new_table),
 			     psort_merge->psort_common->all_info, id);
-
-	DEBUG_FTS_SORT_PRINT("FTS SORT: complete parallel insert\n");
 
 	psort_merge->child_status = FTS_CHILD_COMPLETE;
 	os_event_set(psort_merge->psort_common->sort_event);
@@ -693,7 +694,6 @@ row_fts_insert_tuple(
 	doc_id_t	doc_id;
 	ulint		position;
 	fts_string_t	token_word;
-	fts_cache_t	cache;
 	ulint		i;
 
 	/* Get fts_node for the FTS auxillary INDEX table */
@@ -713,7 +713,7 @@ row_fts_insert_tuple(
 	if (!dtuple) {
 		if (fts_node && ib_vector_size(positions) > 0) {
 			fts_cache_node_add_positions(
-				&cache, fts_node, *in_doc_id,
+				NULL, fts_node, *in_doc_id,
 				positions);
 
 			/* Write out the current word */
@@ -746,7 +746,7 @@ row_fts_insert_tuple(
 		for the currnt word in fts_node */
 		if (ib_vector_size(positions) > 0) {
 			fts_cache_node_add_positions(
-				&cache, fts_node, *in_doc_id, positions);
+				NULL, fts_node, *in_doc_id, positions);
 		}
 
 		/* Write out the current word */
@@ -788,7 +788,7 @@ row_fts_insert_tuple(
 	} else {
 		ulint	num_pos = ib_vector_size(positions);
 
-		fts_cache_node_add_positions(&cache, fts_node,
+		fts_cache_node_add_positions(NULL, fts_node,
 					     *in_doc_id, positions);
 		for (i = 0; i < num_pos; i++) {
 			ib_vector_pop(positions);

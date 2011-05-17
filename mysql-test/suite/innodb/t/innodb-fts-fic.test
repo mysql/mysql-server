@@ -4,12 +4,10 @@
 
 # Create FTS table
 CREATE TABLE articles (
-	FTS_DOC_ID BIGINT UNSIGNED AUTO_INCREMENT NOT NULL PRIMARY KEY,
+	id INT UNSIGNED AUTO_INCREMENT NOT NULL PRIMARY KEY,
 	title VARCHAR(200),
 	body TEXT
 	) ENGINE=InnoDB;
-
-create unique index FTS_DOC_ID_INDEX on articles(FTS_DOC_ID);
 
 # Insert six rows
 INSERT INTO articles (title,body) VALUES
@@ -53,5 +51,31 @@ SELECT * FROM articles WHERE MATCH (title,body)
 # Select rows contain both "MySQL" and "YourSQL"
 SELECT * FROM articles WHERE MATCH (title,body)
         AGAINST ('+MySQL +YourSQL' IN BOOLEAN MODE);
+
+drop table articles;
+# Create FTS table
+CREATE TABLE articles (
+	FTS_DOC_ID BIGINT UNSIGNED AUTO_INCREMENT NOT NULL PRIMARY KEY,
+	title VARCHAR(200),
+	body TEXT
+	) ENGINE=InnoDB;
+
+create unique index FTS_DOC_ID_INDEX on articles(FTS_DOC_ID);
+
+# Insert six rows
+INSERT INTO articles (title,body) VALUES
+	('MySQL Tutorial','DBMS stands for DataBase ...')  ,
+	('How To Use MySQL Well','After you went through a ...'),
+	('Optimizing MySQL','In this tutorial we will show ...'),
+	('1001 MySQL Tricks','1. Never run mysqld as root. 2. ...'),
+	('MySQL vs. YourSQL','In the following database comparison ...'),
+	('MySQL Security','When configured properly, MySQL ...');
+
+# Create the FTS index
+CREATE FULLTEXT INDEX idx on articles (title, body);
+
+# "the" is in the default stopword, it would not be selected
+SELECT * FROM articles WHERE MATCH (title, body)
+        AGAINST ('Tutorial' IN NATURAL LANGUAGE MODE);
 
 drop table articles;

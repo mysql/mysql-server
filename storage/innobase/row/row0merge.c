@@ -2896,24 +2896,25 @@ row_merge_build_indexes(
 				? fts_sort_idx
 				: indexes[i];
 
-		DEBUG_FTS_SORT_PRINT("FTS_SORT: Complete Merge Sort\n");
-
 		if (FTS_PLL_ENABLED && indexes[i]->type & DICT_FTS) {
-			os_event_t	fts_parallel_sort_event;
-			fts_parallel_sort_event = merge_info[0].psort_common->sort_event;
+			os_event_t	fts_parallel_merge_event;
+
+			fts_parallel_merge_event
+				= merge_info[0].psort_common->sort_event;
 
 			if (FTS_PLL_MERGE) {
+				os_event_reset(fts_parallel_merge_event);
 				row_fts_start_parallel_merge(
 					merge_info, psort_info);
-				os_event_reset(fts_parallel_sort_event);
 wait_again:
-				os_event_wait(fts_parallel_sort_event);
+				os_event_wait(fts_parallel_merge_event);
 
 				for (j = 0; j < FTS_NUM_AUX_INDEX; j++) {
 					if (merge_info[j].child_status
 					    != FTS_CHILD_COMPLETE) {
 						os_event_reset(
-						fts_parallel_sort_event);
+						fts_parallel_merge_event);
+
 						goto wait_again;
 					}
 				}
@@ -2924,7 +2925,6 @@ wait_again:
 					psort_info, 0);
 			}
 
-			DEBUG_FTS_SORT_PRINT("FTS_SORT: Complete Parallel Insert\n");
 		} else {
 			error = row_merge_sort(trx, sort_idx, &merge_files[i],
 				       block, &tmpfd, table);

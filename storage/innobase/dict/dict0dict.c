@@ -2449,7 +2449,7 @@ dict_table_wakeup_bg_threads(
 	mem_heap_t*	heap = marker->self_heap->arg;
 
 #ifdef UNIV_SYNC_DEBUG
-	ut_ad(mutex_own(&table->bg_threads_mutex));
+	ut_ad(mutex_own(&table->fts->bg_threads_mutex));
 #endif /* UNIV_SYNC_DEBUG */
 
 	ib_wqueue_add(table->fts->add_wq, marker, heap);

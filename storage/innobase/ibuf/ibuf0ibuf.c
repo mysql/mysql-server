@@ -1188,48 +1188,6 @@ ibuf_page_low(
 
 	ut_ad(fil_space_get_type(IBUF_SPACE_ID) == FIL_TABLESPACE);
 
-#ifdef UNIV_DEBUG
-	if (!x_latch) {
-		mtr_start(&local_mtr);
-
-		/* Get the bitmap page without a page latch, so that
-		we will not be violating the latching order when
-		another bitmap page has already been latched by this
-		thread. The page will be buffer-fixed, and thus it
-		cannot be removed or relocated while we are looking at
-		it. The contents of the page could change, but the
-		IBUF_BITMAP_IBUF bit that we are interested in should
-		not be modified by any other thread. Nobody should be
-		calling ibuf_add_free_page() or ibuf_remove_free_page()
-		while the page is linked to the insert buffer b-tree. */
-
-		bitmap_page = buf_block_get_frame(
-			buf_page_get_gen(
-				space, zip_size,
-				ibuf_bitmap_page_no_calc(zip_size, page_no),
-				RW_NO_LATCH, NULL, BUF_GET_NO_LATCH,
-				file, line, &local_mtr));
-# ifdef UNIV_SYNC_DEBUG
-		/* This is for tracking Bug #58212. This check and message can
-		be removed once it has been established that our assumptions
-		about this condition are correct. The bug was only a one-time
-		occurrence, unable to repeat since then. */
-		void* latch = sync_thread_levels_contains(SYNC_IBUF_BITMAP);
-		if (latch) {
-			fprintf(stderr, "Bug#58212 UNIV_SYNC_DEBUG"
-				" levels %p (%u,%u)\n",
-				latch, (unsigned) space, (unsigned) page_no);
-		}
-# endif /* UNIV_SYNC_DEBUG */
-		ret = ibuf_bitmap_page_get_bits_low(
-			bitmap_page, page_no, zip_size,
-			MTR_MEMO_BUF_FIX, &local_mtr, IBUF_BITMAP_IBUF);
-
-		mtr_commit(&local_mtr);
-		return(ret);
-	}
-#endif /* UNIV_DEBUG */
-
 	if (mtr == NULL) {
 		mtr = &local_mtr;
 		mtr_start(mtr);

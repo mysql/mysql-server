@@ -693,8 +693,9 @@ or row lock! */
 #define SYNC_LOG		170
 #define SYNC_LOG_FLUSH_ORDER	147
 #define SYNC_RECV		168
-#define SYNC_FTS_CACHE          163     // FIXME: is this correct number, test
+#define SYNC_FTS_BG_THREADS	165
 #define SYNC_FTS_OPTIMIZE       164     // FIXME: is this correct number, test
+#define SYNC_FTS_CACHE          163     // FIXME: is this correct number, test
 #define	SYNC_WORK_QUEUE		162
 #define	SYNC_SEARCH_SYS_CONF	161	/* for assigning btr_search_enabled */
 #define	SYNC_SEARCH_SYS		160	/* NOTE that if we have a memory

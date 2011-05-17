@@ -1039,7 +1039,7 @@ fts_cache_find_wildcard(
 			: token->len;
 
 	strncpy((char*) term, (char*) token->utf8, srch_text.len);
-	term[token->len] = '\0';
+	term[srch_text.len] = '\0';
 	srch_text.utf8 = term;
 
 	/* Lookup the word in the rb tree */
