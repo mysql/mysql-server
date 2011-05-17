@@ -2098,3 +2098,47 @@ drop procedure if exists p1;
 drop function if exists f1;
 drop view if exists v1, v2;
 --enable_warnings
+
+
+--echo #
+--echo # Additional coverage for refactoring which was made as part of work
+--echo # on bug '27480: Extend CREATE TEMPORARY TABLES privilege to allow
+--echo # temp table operations'. 
+--echo #
+--echo # Check that we don't try to pre-open temporary tables for the elements
+--echo # from prelocking list, as this can lead to unwarranted ER_CANT_REOPEN
+--echo # errors.
+--disable_warnings
+DROP TABLE IF EXISTS t1, tm;
+--enable_warnings
+CREATE TABLE t1 (a INT);
+CREATE TRIGGER t1_bi BEFORE INSERT ON t1 FOR EACH ROW
+  SET @a:= (SELECT COUNT(*) FROM t1);
+--echo # Prelocking list for the below statement should
+--echo # contain t1 twice - once for the INSERT and once
+--echo # SELECT from the trigger.
+PREPARE stmt1 FROM 'INSERT INTO t1 VALUES (1)';
+EXECUTE stmt1;
+--echo # Create temporary table which will shadow t1.
+CREATE TEMPORARY TABLE t1 (b int);
+--echo # The below execution of statement should not fail with ER_CANT_REOPEN
+--echo # error. Instead stmt1 should be auto-matically reprepared and succeed.
+EXECUTE stmt1;
+DEALLOCATE PREPARE stmt1;
+DROP TEMPORARY TABLE t1;
+DROP TABLE t1;
+--echo #
+--echo # Also check that we properly reset table list elements from UNION
+--echo # clause of CREATE TABLE and ALTER TABLE statements.
+--echo #
+CREATE TEMPORARY TABLE t1 (i INT);
+PREPARE stmt2 FROM 'CREATE TEMPORARY TABLE tm (i INT) ENGINE=MERGE UNION=(t1)';
+EXECUTE stmt2;
+DROP TEMPORARY TABLE tm;
+EXECUTE stmt2;
+DEALLOCATE PREPARE stmt2;
+PREPARE stmt3 FROM 'ALTER TABLE tm UNION=(t1)';
+EXECUTE stmt3;
+EXECUTE stmt3;
+DEALLOCATE PREPARE stmt3;
+DROP TEMPORARY TABLES tm, t1;

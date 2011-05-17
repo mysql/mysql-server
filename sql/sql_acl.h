@@ -95,6 +95,14 @@
  CREATE_ACL | DROP_ACL | ALTER_ACL | INDEX_ACL | \
  TRIGGER_ACL | REFERENCES_ACL | GRANT_ACL | CREATE_VIEW_ACL | SHOW_VIEW_ACL)
 
+/**
+  Table-level privileges which are automatically "granted" to everyone on
+  existing temporary tables (CREATE_ACL is necessary for ALTER ... RENAME).
+*/
+#define TMP_TABLE_ACLS \
+(SELECT_ACL | INSERT_ACL | UPDATE_ACL | DELETE_ACL | CREATE_ACL | DROP_ACL | \
+ INDEX_ACL | ALTER_ACL)
+
 /*
   Defines to change the above bits to how things are stored in tables
   This is needed as the 'host' and 'db' table is missing a few privileges

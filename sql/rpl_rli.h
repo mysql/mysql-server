@@ -551,11 +551,6 @@ public:
   size_t get_number_info_rli_fields();
 
   /**
-    Text used in THD::proc_info when the slave SQL thread is delaying.
-  */
-  static const char *const state_delaying_string;
-
-  /**
     Indicate that a delay starts.
 
     This does not actually sleep; it only sets the state of this
@@ -570,7 +565,7 @@ public:
   {
     mysql_mutex_assert_owner(&data_lock);
     sql_delay_end= delay_end;
-    thd_proc_info(info_thd, state_delaying_string);
+    THD_STAGE_INFO(info_thd, stage_sql_thd_waiting_until_delay);
   }
 
   int32 get_sql_delay() { return sql_delay; }

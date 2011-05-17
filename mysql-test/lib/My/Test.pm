@@ -1,6 +1,6 @@
 # -*- cperl -*-
-# Copyright (C) 2008 MySQL AB
-#
+# Copyright (c) 2008, 2011, Oracle and/or its affiliates. All rights reserved.
+# 
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
 # the Free Software Foundation; version 2 of the License.
@@ -23,6 +23,7 @@ package My::Test;
 use strict;
 use warnings;
 use Carp;
+use mtr_results;
 
 
 sub new {
@@ -66,8 +67,25 @@ sub is_failed {
 }
 
 
+my %result_names= (
+		   'MTR_RES_PASSED'   =>  'pass',
+		   'MTR_RES_FAILED'   =>  'fail',
+		   'MTR_RES_SKIPPED'  =>  'skipped',
+		  );
+
 sub write_test {
   my ($test, $sock, $header)= @_;
+
+  if ($::opt_resfile && defined $test->{'result'}) {
+    resfile_test_info("result", $result_names{$test->{'result'}});
+    if ($test->{'timeout'}) {
+      resfile_test_info("comment", "Timeout");
+    } elsif (defined $test->{'comment'}) {
+      resfile_test_info("comment", $test->{'comment'});
+    }
+    resfile_test_info("result", "warning") if defined $test->{'check'};
+    resfile_to_test($test);
+  }
 
   # Give the test a unique key before serializing it
   $test->{key}= "$test" unless defined $test->{key};
@@ -113,6 +131,7 @@ sub read_test {
       $test->{$key}= _decode($value);
     }
   }
+  resfile_from_test($test) if $::opt_resfile;
   return $test;
 }
 

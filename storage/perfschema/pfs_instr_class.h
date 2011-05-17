@@ -116,7 +116,6 @@ struct PFS_instr_class
   {
     return m_flags & PSI_FLAG_GLOBAL;
   }
-  
   static void set_enabled(PFS_instr_class *pfs, bool enabled);
   static void set_timed(PFS_instr_class *pfs, bool timed);
 

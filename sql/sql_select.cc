@@ -3342,7 +3342,8 @@ JOIN::exec()
         if (curr_table->pre_idx_push_cond)
         {
           sort_table_cond= make_cond_for_table(curr_join->tmp_having,
-                                               used_tables, used_tables, 0);
+                                               used_tables,
+                                               (table_map) 0, 0);
           if (!sort_table_cond)
             DBUG_VOID_RETURN;
           Item* new_pre_idx_push_cond= 
@@ -11579,7 +11580,7 @@ bool JOIN_TAB::and_with_jt_and_sel_condition(Item *add_cond, uint line)
 */
 bool JOIN_TAB::and_with_condition(Item *add_cond, uint line)
 {
-  Item *old_cond= m_condition;
+  Item *old_cond __attribute__((unused))= m_condition;
   if (and_conditions(&m_condition, add_cond))
     return true;
   DBUG_PRINT("info", ("JOIN_TAB::m_condition extended. Change %p -> %p "
