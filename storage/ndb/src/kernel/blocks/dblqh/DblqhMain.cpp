@@ -4685,8 +4685,11 @@ void Dblqh::execLQHKEYREQ(Signal* signal)
 
   sig2 = lqhKeyReq->variableData[nextPos + 0];
   sig3 = cnewestGci;
+  /* If gci_hi provided, take it and set gci_lo to max value
+   * Otherwise, it will be decided by TUP at commit time as normal
+   */
   regTcPtr->gci_hi = LqhKeyReq::getGCIFlag(Treqinfo) ? sig2 : sig3;
-  regTcPtr->gci_lo = 0;
+  regTcPtr->gci_lo = LqhKeyReq::getGCIFlag(Treqinfo) ? ~Uint32(0) : 0;
   nextPos += LqhKeyReq::getGCIFlag(Treqinfo);
   
   if (LqhKeyReq::getRowidFlag(Treqinfo))

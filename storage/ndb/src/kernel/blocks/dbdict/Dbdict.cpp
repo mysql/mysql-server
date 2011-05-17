@@ -745,6 +745,9 @@ Dbdict::packTableIntoPages(SimpleProperties::Writer & w,
   w.add(DictTabInfo::SingleUserMode, tablePtr.p->singleUserMode);
   w.add(DictTabInfo::HashMapObjectId, tablePtr.p->hashMapObjectId);
   w.add(DictTabInfo::TableStorageType, tablePtr.p->storageType);
+  w.add(DictTabInfo::ExtraRowGCIBits, tablePtr.p->m_extra_row_gci_bits);
+  w.add(DictTabInfo::ExtraRowAuthorBits, tablePtr.p->m_extra_row_author_bits);
+
 
   if (tablePtr.p->hashMapObjectId != RNIL)
   {
@@ -3914,6 +3917,7 @@ Dbdict::checkPendingSchemaTrans(XSchemaFile* xsf)
         }
       }
 
+      transEntry->m_tableType = DictTabInfo::UndefTableType;
       transEntry->m_tableState = SchemaFile::SF_UNUSED;
       transEntry->m_transId = 0;
     }
@@ -4944,6 +4948,8 @@ void Dbdict::handleTabInfoInit(Signal * signal, SchemaTransPtr & trans_ptr,
   tablePtr.p->hashMapObjectId = c_tableDesc.HashMapObjectId;
   tablePtr.p->hashMapVersion = c_tableDesc.HashMapVersion;
   tablePtr.p->storageType = c_tableDesc.TableStorageType;
+  tablePtr.p->m_extra_row_gci_bits = c_tableDesc.ExtraRowGCIBits;
+  tablePtr.p->m_extra_row_author_bits = c_tableDesc.ExtraRowAuthorBits;
 
   tabRequire(tablePtr.p->noOfAttributes <= MAX_ATTRIBUTES_IN_TABLE,
              CreateTableRef::NoMoreAttributeRecords); // bad error code!
@@ -5462,6 +5468,27 @@ void Dbdict::handleTabInfo(SimpleProperties::Reader & it,
 	     CreateTableRef::InvalidPrimaryKeySize);
   tabRequire(CHECK_SUMA_MESSAGE_SIZE(keyCount, keyLength, attrCount, recordLength),
              CreateTableRef::RecordTooBig);
+
+  /* Check that all currently running nodes data support
+   * table features
+   */
+  for (Uint32 nodeId=1; nodeId < MAX_NODES; nodeId++)
+  {
+    const NodeInfo& ni = getNodeInfo(nodeId);
+
+    if (ni.m_connected &&
+        (ni.m_type == NODE_TYPE_DB))
+    {
+      /* Check that all nodes support extra bits */
+      if (tablePtr.p->m_extra_row_gci_bits ||
+          tablePtr.p->m_extra_row_author_bits)
+      {
+        tabRequire(ndb_tup_extrabits(ni.m_version),
+                   CreateTableRef::FeatureRequiresUpgrade);
+      }
+    }
+  }
+
 
   if(tablePtr.p->m_tablespace_id != RNIL || counts[3] || counts[4])
   {
@@ -6167,8 +6194,9 @@ Dbdict::createTab_local(Signal* signal,
   req->noOfNullAttributes = tabPtr.p->noOfNullBits;
   req->noOfKeyAttr = tabPtr.p->noOfPrimkey;
   req->checksumIndicator = 1;
-  req->GCPIndicator = 1;
+  req->GCPIndicator = 1 + tabPtr.p->m_extra_row_gci_bits;
   req->noOfAttributes = tabPtr.p->noOfAttributes;
+  req->extraRowAuthorBits = tabPtr.p->m_extra_row_author_bits;
   sendSignal(DBLQH_REF, GSN_CREATE_TAB_REQ, signal,
              CreateTabReq::SignalLengthLDM, JBB);
 
@@ -9487,7 +9515,7 @@ Dbdict::alterTable_fromCommitComplete(Signal* signal,
     // Remark object as free
     SchemaFile::TableEntry * objEntry =
       objEntry = getTableEntry(alterTabPtr.p->m_newTable_realObjectId);
-    objEntry->m_tableType = DictTabInfo::SchemaTransaction;
+    objEntry->m_tableType = DictTabInfo::UndefTableType;
     objEntry->m_tableState = SchemaFile::SF_UNUSED;
     objEntry->m_transId = 0;
   }
@@ -9579,7 +9607,7 @@ Dbdict::alterTable_abortParse(Signal* signal, SchemaOpPtr op_ptr)
       // Remark object as free
       SchemaFile::TableEntry * objEntry =
         objEntry = getTableEntry(alterTabPtr.p->m_newTable_realObjectId);
-      objEntry->m_tableType = DictTabInfo::SchemaTransaction;
+      objEntry->m_tableType = DictTabInfo::UndefTableType;
       objEntry->m_tableState = SchemaFile::SF_UNUSED;
       objEntry->m_transId = 0;
     }
