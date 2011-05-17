@@ -88,12 +88,14 @@ int NdbMutex_InitWithName(NdbMutex* pNdbMutex, const char * name)
   defined(HAVE_PTHREAD_MUTEXATTR_INIT) && \
   defined(HAVE_PTHREAD_MUTEXATTR_SETTYPE)
 
-  pthread_mutexattr_t t;
-  pthread_mutexattr_init(&t);
-  pthread_mutexattr_settype(&t, PTHREAD_MUTEX_ERRORCHECK);
-  result = pthread_mutex_init(p, &t);
-  assert(result == 0);
-  pthread_mutexattr_destroy(&t);
+  {
+    pthread_mutexattr_t t;
+    pthread_mutexattr_init(&t);
+    pthread_mutexattr_settype(&t, PTHREAD_MUTEX_ERRORCHECK);
+    result = pthread_mutex_init(p, &t);
+    assert(result == 0);
+    pthread_mutexattr_destroy(&t);
+  }
 #else
   result = pthread_mutex_init(p, 0);
 #endif

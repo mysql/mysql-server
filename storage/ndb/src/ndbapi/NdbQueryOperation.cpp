@@ -47,7 +47,7 @@
  */
 #define UNUSED(x) ((void)(x))
 
-//#define TEST_SCANREQ
+//#define TEST_NEXTREQ
 
 /* Various error codes that are not specific to NdbQuery. */
 static const int Err_TupleNotFound = 626;
@@ -333,32 +333,35 @@ public:
   { return m_iterState == Iter_finished; }
 
   /** 
-   * This method is only used for result streams of scan operations. It is
+   * This method is
    * used for marking a stream as holding the last batch of a sub scan. 
    * This means that it is the last batch of the scan that was instantiated 
    * from the current batch of its parent operation.
    */
-  void setSubScanComplete(bool complete)
+  void setSubScanCompletion(bool complete)
   { 
-    assert(m_operation.getQueryOperationDef().isScanOperation());
+    // Lookups should always be 'complete'
+    assert(complete || m_operation.getQueryOperationDef().isScanOperation());
     m_subScanComplete = complete; 
   }
 
   /** 
-   * This method is only relevant for result streams of scan operations. It 
+   * This method 
    * returns true if this result stream holds the last batch of a sub scan
    * This means that it is the last batch of the scan that was instantiated 
    * from the current batch of its parent operation.
    */
   bool isSubScanComplete() const
   { 
-    assert(m_operation.getQueryOperationDef().isScanOperation());
+    // Lookups should always be 'complete'
+    assert(m_subScanComplete || m_operation.getQueryOperationDef().isScanOperation());
     return m_subScanComplete; 
   }
 
   /** Variant of isSubScanComplete() above which checks that this resultstream
    * and all its descendants have consumed all batches of rows instantiated 
-   * from their parent operation(s). */
+   * from their parent operation(s).
+   */
   bool isAllSubScansComplete() const;
 
   /** For debugging.*/
@@ -530,7 +533,7 @@ NdbResultStream::NdbResultStream(NdbQueryOperationImpl& operation, Uint32 rootFr
   m_operation(operation),
   m_iterState(Iter_notStarted),
   m_currentRow(tupleNotFound),
-  m_subScanComplete(false),
+  m_subScanComplete(true),
   m_tupleSet(NULL)
 {};
 
@@ -578,8 +581,10 @@ NdbResultStream::reset()
 
   clearTupleSet();
   m_receiver.prepareSend();
-  /* If this stream will get new rows in the next batch, then so will
-   * all of its descendants.*/
+  /**
+   * If this stream will get new rows in the next batch, then so will
+   * all of its descendants.
+   */
   for (Uint32 childNo = 0; childNo < m_operation.getNoOfChildOperations();
        childNo++)
   {
@@ -605,8 +610,10 @@ NdbResultStream::clearTupleSet()
 bool
 NdbResultStream::isAllSubScansComplete() const
 { 
-  if (m_operation.getQueryOperationDef().isScanOperation() && 
-      !m_subScanComplete)
+  // Lookups should always be 'complete'
+  assert(m_subScanComplete || m_operation.getQueryOperationDef().isScanOperation());
+
+  if (!m_subScanComplete)
     return false;
 
   for (Uint32 childNo = 0; childNo < m_operation.getNoOfChildOperations(); 
@@ -2814,31 +2821,21 @@ NdbQueryImpl::sendFetchMore(NdbRootFragment& emptyFrag, bool forceSend)
   assert(!emptyFrag.finalBatchReceived());
   assert(m_queryDef.isScanQuery());
 
+  const Uint32 fragNo = emptyFrag.getFragNo();
   emptyFrag.reset();
 
   for (unsigned opNo=0; opNo<m_countOperations; opNo++) 
   {
-    const NdbQueryOperationImpl& op = getQueryOperation(opNo);
-    // Check if this is a leaf scan.
-    if (!op.getQueryOperationDef().hasScanDescendant() &&
-        op.getQueryOperationDef().isScanOperation())
+    NdbResultStream& resultStream = 
+       getQueryOperation(opNo).getResultStream(fragNo);
+
+    if (!resultStream.isSubScanComplete())
     {
-      // Find first scan ancestor that is not finished.
-      const NdbQueryOperationImpl* ancestor = &op;
-      while (ancestor != NULL && 
-             (!ancestor->getQueryOperationDef().isScanOperation() ||
-              ancestor->getResultStream(emptyFrag.getFragNo())
-              .isSubScanComplete())
-              )
-      {
-        ancestor = ancestor->getParentOperation();
-      }
-      if (ancestor!=NULL)
-      {
-        /* Reset ancestor and all its descendants, since all these
-         * streams will get a new set of rows in the next batch. */ 
-        ancestor->getResultStream(emptyFrag.getFragNo()).reset();
-      }
+      /**
+       * Reset resultstream and all its descendants, since all these
+       * streams will get a new set of rows in the next batch.
+       */ 
+      resultStream.reset();
     }
   }
 
@@ -3946,7 +3943,7 @@ NdbQueryOperationImpl
   if (myClosestScan != NULL)
   {
 
-#ifdef TEST_SCANREQ
+#ifdef TEST_NEXTREQ
     // To force usage of SCAN_NEXTREQ even for small scans resultsets
     if (this == &getRoot())
     {
@@ -4072,8 +4069,7 @@ NdbQueryOperationImpl::prepareReceiver()
                           0 /*key_size*/, 
                           0 /*read_range_no*/, 
                           getRowSize(),
-                          rowBuf,
-                          0);
+                          rowBuf);
     m_resultStreams[i]->getReceiver().prepareSend();
   }
   // So that we can test for for buffer overrun.
@@ -4703,21 +4699,18 @@ NdbQueryOperationImpl::execSCAN_TABCONF(Uint32 tcPtrI,
   for (Uint32 opNo = 0; opNo < queryDef.getNoOfOperations(); opNo++)
   {
     const NdbQueryOperationImpl& op = m_queryImpl.getQueryOperation(opNo);
-    /* Find the node number seen by the SPJ block. Since a unique index
+    /**
+     * Find the node number seen by the SPJ block. Since a unique index
      * operation will have two distincts nodes in the tree used by the
-     * SPJ block, this number may be different from 'opNo'.*/
+     * SPJ block, this number may be different from 'opNo'.
+     */
     const Uint32 internalOpNo = op.getQueryOperationDef().getQueryOperationId();
     assert(internalOpNo >= opNo);
-    const bool maskSet = ((nodeMask >> internalOpNo) & 1) == 1;
+    const bool complete = ((nodeMask >> internalOpNo) & 1) == 0;
 
-    if (op.getQueryOperationDef().isScanOperation())
-    {
-      rootFrag->getResultStream(opNo).setSubScanComplete(!maskSet);
-    }
-    else
-    {
-      assert(!maskSet);
-    }
+    // Lookups should always be 'complete'
+    assert(complete ||  op.getQueryOperationDef().isScanOperation());
+    rootFrag->getResultStream(opNo).setSubScanCompletion(complete);
   }
   // Check that nodeMask does not have more bits than we have operations. 
   assert(nodeMask >> 

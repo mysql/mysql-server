@@ -15325,6 +15325,7 @@ void Dbdih::initRestorableGciFiles()
 
 void Dbdih::initTable(TabRecordPtr tabPtr)
 {
+  new (tabPtr.p) TabRecord();
   tabPtr.p->noOfFragChunks = 0;
   tabPtr.p->method = TabRecord::NOTDEFINED;
   tabPtr.p->tabStatus = TabRecord::TS_IDLE;

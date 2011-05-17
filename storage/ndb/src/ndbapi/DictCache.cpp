@@ -457,7 +457,6 @@ GlobalDictCache::alter_table_rep(const char * name,
 				 bool altered)
 {
   DBUG_ENTER("GlobalDictCache::alter_table_rep");
-  assert(! is_ndb_blob_table(name));
   const Uint32 len = (Uint32)strlen(name);
   Vector<TableVersion> * vers = 
     m_tableHash.getData(name, len);
@@ -467,6 +466,7 @@ GlobalDictCache::alter_table_rep(const char * name,
     DBUG_VOID_RETURN;
   }
 
+  assert(! is_ndb_blob_table(name));
   const Uint32 sz = vers->size();
   if(sz == 0)
   {

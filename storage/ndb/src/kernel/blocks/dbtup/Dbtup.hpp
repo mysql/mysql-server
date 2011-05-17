@@ -723,9 +723,10 @@ struct Fragrecord {
   Uint32 m_free_page_id_list;
   DynArr256::Head m_page_map;
   DLFifoList<Page>::Head thFreeFirst;   // pages with atleast 1 free record
-  
+
   Uint32 m_lcp_scan_op;
-  Uint32 m_lcp_keep_list;
+  Local_key m_lcp_keep_list_head;
+  Local_key m_lcp_keep_list_tail;
 
   enum FragState
   { FS_FREE
@@ -1439,9 +1440,8 @@ typedef Ptr<HostBuffer> HostBufferPtr;
     STATIC_CONST( MM_SHRINK   = 0x00200000 ); // Has MM part shrunk
     STATIC_CONST( MM_GROWN    = 0x00400000 ); // Has MM part grown
     STATIC_CONST( FREED       = 0x00800000 ); // Is freed
+    STATIC_CONST( FREE        = 0x00800000 ); // alias
     STATIC_CONST( LCP_SKIP    = 0x01000000 ); // Should not be returned in LCP
-    STATIC_CONST( LCP_KEEP    = 0x02000000 ); // Should be returned in LCP
-    STATIC_CONST( FREE        = 0x02800000 ); // Is free
     STATIC_CONST( VAR_PART    = 0x04000000 ); // Is there a varpart
     STATIC_CONST( REORG_MOVE  = 0x08000000 );
 
@@ -3216,6 +3216,8 @@ private:
   Uint32* get_default_ptr(const Tablerec*, Uint32&);
   Uint32 get_len(Ptr<Page>* pagePtr, Var_part_ref ref);
 
+  STATIC_CONST( COPY_TUPLE_HEADER32 = 4 );
+
   Tuple_header* alloc_copy_tuple(const Tablerec* tabPtrP, Local_key* ptr){
     Uint32 * dst = c_undo_buffer.alloc_copy_tuple(ptr,
                                                   tabPtrP->total_rec_size);
@@ -3225,7 +3227,7 @@ private:
     bzero(dst, tabPtrP->total_rec_size);
 #endif
     Uint32 count = tabPtrP->m_no_of_attributes;
-    ChangeMask * mask = (ChangeMask*)(dst);
+    ChangeMask * mask = (ChangeMask*)(dst + COPY_TUPLE_HEADER32);
     mask->m_cols = count;
     return (Tuple_header*)(mask->end_of_mask(count));
   }
@@ -3235,11 +3237,12 @@ private:
   }
 
   Tuple_header * get_copy_tuple(Uint32 * rawptr) {
-    return (Tuple_header*)(get_change_mask_ptr(rawptr)->end_of_mask());
+    return (Tuple_header*)
+      (get_change_mask_ptr(rawptr)->end_of_mask());
   }
 
   ChangeMask * get_change_mask_ptr(Uint32 * rawptr) {
-    return (ChangeMask*)(rawptr);
+    return (ChangeMask*)(rawptr + COPY_TUPLE_HEADER32);
   }
 
   Tuple_header* get_copy_tuple(const Local_key* ptr){
@@ -3251,7 +3254,7 @@ private:
     Uint32 * tmp = raw - (1 + ((tabP->m_no_of_attributes + 31) >> 5));
     ChangeMask* mask = (ChangeMask*)tmp;
     assert(mask->end_of_mask() == raw);
-    assert(get_copy_tuple(tmp) == copytuple);
+    assert(get_copy_tuple(tmp - COPY_TUPLE_HEADER32) == copytuple);
     return mask;
   }
 
@@ -3383,10 +3386,10 @@ private:
                          Page_cache_client::Request,
                          OperationrecPtr);
   int retrieve_log_page(Signal*, FragrecordPtr, OperationrecPtr);
-  
-  void dealloc_tuple(Signal* signal, Uint32, Page*, Tuple_header*, 
-		     Operationrec*, Fragrecord*, Tablerec*);
-  
+
+  void dealloc_tuple(Signal* signal, Uint32, Page*, Tuple_header*,
+		     KeyReqStruct*, Operationrec*, Fragrecord*, Tablerec*);
+
   int handle_size_change_after_update(KeyReqStruct* req_struct,
 				      Tuple_header* org,
 				      Operationrec*,
@@ -3412,7 +3415,31 @@ private:
   void check_page_map(Fragrecord*);
   bool find_page_id_in_list(Fragrecord*, Uint32 pid);
 #endif
-  void handle_lcp_keep(Signal*, Fragrecord*, ScanOp*, Uint32 rowid);
+  void handle_lcp_keep(Signal*, Fragrecord*, ScanOp*);
+  void handle_lcp_keep_commit(const Local_key*,
+                              KeyReqStruct *,
+                              Operationrec*, Fragrecord*, Tablerec*);
+
+  void setup_lcp_read_copy_tuple( KeyReqStruct *,
+                                  Operationrec*,
+                                  Fragrecord*,
+                                  Tablerec*);
+
+  bool isCopyTuple(Uint32 pageid, Uint32 pageidx) const {
+    return (pageidx & (Uint16(1) << 15)) != 0;
+  }
+
+  void setCopyTuple(Uint32& pageid, Uint16& pageidx) const {
+    assert(!isCopyTuple(pageid, pageidx));
+    pageidx |= (Uint16(1) << 15);
+    assert(isCopyTuple(pageid, pageidx));
+  }
+
+  void clearCopyTuple(Uint32& pageid, Uint16& pageidx) const {
+    assert(isCopyTuple(pageid, pageidx));
+    pageidx &= ~(Uint16(1) << 15);
+    assert(!isCopyTuple(pageid, pageidx));
+  }
 };
 
 #if 0

@@ -158,7 +158,7 @@ my $path_config_file;           # The generated config file, var/my.cnf
 # executables will be used by the test suite.
 our $opt_vs_config = $ENV{'MTR_VS_CONFIG'};
 
-my $DEFAULT_SUITES= "ndb,ndb_binlog,rpl_ndb,main,binlog,federated,rpl,innodb,ndb_team";
+my $DEFAULT_SUITES= "ndb,ndb_binlog,rpl_ndb,ndb_rpl,main,binlog,federated,rpl,innodb,ndb_team";
 my $opt_suites;
 my $opt_extra_suites;
 
@@ -382,14 +382,11 @@ sub main {
     # Try to find a suitable value for number of workers
     my $sys_info= My::SysInfo->new();
 
-    $opt_parallel= $sys_info->num_cpus();
-    print "num_cpus: $opt_parallel, min_bogomips: " .
-      $sys_info->min_bogomips(). "\n";
+    $opt_parallel= $sys_info->num_cores();
     for my $limit (2000, 1500, 1000, 500){
       $opt_parallel-- if ($sys_info->min_bogomips() < $limit);
     }
     my $max_par= $ENV{MTR_MAX_PARALLEL} || 8;
-    print "max_par: $max_par\n";
     $opt_parallel= $max_par if ($opt_parallel > $max_par);
     $opt_parallel= $num_tests if ($opt_parallel > $num_tests);
     $opt_parallel= 1 if (IS_WINDOWS and $sys_info->isvm());
@@ -2629,6 +2626,41 @@ sub ndbcluster_wait_started($$){
     return 1;
   }
   return 0;
+}
+
+
+sub ndbcluster_dump($) {
+  my ($cluster)= @_;
+
+  print "\n== Dumping cluster log files\n\n";
+
+  # ndb_mgmd(s)
+  foreach my $ndb_mgmd ( in_cluster($cluster, ndb_mgmds()) )
+  {
+    my $datadir = $ndb_mgmd->value('DataDir');
+
+    # Should find ndb_<nodeid>_cluster.log and ndb_mgmd.log
+    foreach my $file ( glob("$datadir/ndb*.log") )
+    {
+      print "$file:\n";
+      mtr_printfile("$file");
+      print "\n";
+    }
+  }
+
+  # ndb(s)
+  foreach my $ndbd ( in_cluster($cluster, ndbds()) )
+  {
+    my $datadir = $ndbd->value('DataDir');
+
+    # Should find ndbd.log
+    foreach my $file ( glob("$datadir/ndbd.log") )
+    {
+      print "$file:\n";
+      mtr_printfile("$file");
+      print "\n";
+    }
+  }
 }
 
 
@@ -5085,6 +5117,13 @@ sub start_servers($) {
     {
       # failed to start
       $tinfo->{'comment'}= "Start of '".$cluster->name()."' cluster failed";
+
+      #
+      # Dump cluster log files to log file to help analyze the
+      # cause of the failed start
+      #
+      ndbcluster_dump($cluster);
+
       return 1;
     }
   }
