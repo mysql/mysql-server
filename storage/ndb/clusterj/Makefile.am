@@ -38,6 +38,10 @@ clusterj_DATA = $(clusterj_version_jar)
 
 EXTRA_DIST = pom.xml CMakeLists.txt
 
+class_timestamps = clusterj-api/classclusterj_api.stamp \
+                   clusterj-core/classclusterj_core.stamp \
+                   clusterj-tie/classclusterj_tie.stamp
+
 $(CLUSTERJ_MANIFEST):
 	echo "Manifest-Version: 1.0"  > $(CLUSTERJ_MANIFEST)
 	echo "Export-Package: $(CLUSTERJ_EXPORT)"  >> $(CLUSTERJ_MANIFEST) 
@@ -45,7 +49,7 @@ $(CLUSTERJ_MANIFEST):
 	echo "Bundle-Description: ClusterJ"  >> $(CLUSTERJ_MANIFEST)
 
 # make both clusterj and clusterjpa jar (the latter optional based on OPENJPA_OPT)
-$(clusterj_version_jar) : $(BASE_DIRS) $(CLUSTERJ_TESTS) $(OPENJPA_OPT) $(CLUSTERJ_MANIFEST)
+$(clusterj_version_jar) : $(BASE_DIRS) $(CLUSTERJ_TESTS) $(OPENJPA_OPT) $(CLUSTERJ_MANIFEST) $(class_timestamps)
 	rm -f $(clusterj_version_jar); \
 	@JAR@ cvfm $(clusterj_version_jar) $(CLUSTERJ_MANIFEST); \
 	for i in $(BASE_DIRS); do \
