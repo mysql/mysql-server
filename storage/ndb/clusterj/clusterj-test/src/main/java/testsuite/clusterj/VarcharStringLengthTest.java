@@ -34,10 +34,16 @@ public class VarcharStringLengthTest extends AbstractClusterJTest {
         "11111111111111111111111111111111111111111111111111" +
         "11111111111111111111111111111111111111111111111111" +
         "11111111111111111111111111111111111111111111111111";
-    public void test() {
+
+    @Override
+    public void localSetUp() {
         createSessionFactory();
         session = sessionFactory.getSession();
         session.deletePersistentAll(Employee.class);
+        addTearDownClasses(Employee.class);
+    }
+
+    public void test() {
         for (int i = 0; i < 500; ++i) {
             Employee e = session.newInstance(Employee.class, i);
             e.setName(name.substring(0, i));
@@ -45,12 +51,17 @@ public class VarcharStringLengthTest extends AbstractClusterJTest {
             e.setMagic(i);
             try {
                 session.makePersistent(e);
+                if (i > 32) {
+                    // unexpected success for lengths greater than varchar size
+                    error("Expected exception not thrown for: " + i);
+                }
             } catch (ClusterJException ex) {
                 if (i < 33) {
                     // unexpected error for lengths not greater than varchar size 
-                    error("Bad insert for: " + i + " " + ex.getMessage());
+                    error("Unexpected exception for: " + i + " " + ex.getMessage());
                 }
             }
         }
+        failOnError();
     }
 }
