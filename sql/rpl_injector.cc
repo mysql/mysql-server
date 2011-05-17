@@ -1,4 +1,4 @@
-/* Copyright (c) 2006, 2010, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2006, 2011, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -227,17 +227,6 @@ void injector::free_instance()
     s_injector= 0;
     delete inj;
   }
-}
-
-
-injector::transaction injector::new_trans(THD *thd)
-{
-   DBUG_ENTER("injector::new_trans(THD*)");
-   /*
-     Currently, there is no alternative to using 'mysql_bin_log' since that
-     is hardcoded into the way the handler is using the binary log.
-   */
-   DBUG_RETURN(transaction(&mysql_bin_log, thd));
 }
 
 void injector::new_trans(THD *thd, injector::transaction *ptr)
