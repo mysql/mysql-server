@@ -865,7 +865,9 @@ fts_cache_node_add_positions(
 	ulint		doc_id_delta;
 
 #ifdef UNIV_SYNC_DEBUG
-	ut_ad(rw_lock_own(&cache->lock, RW_LOCK_EX));
+	if (cache) {
+		ut_ad(rw_lock_own(&cache->lock, RW_LOCK_EX));
+	}
 #endif
 	ut_ad(doc_id > node->last_doc_id);
 
@@ -941,7 +943,10 @@ fts_cache_node_add_positions(
 	}
 
 	node->ilist_size += enc_len;
-	cache->total_size += enc_len;
+
+	if (cache) {
+		cache->total_size += enc_len;
+	}
 
 	if (node->first_doc_id == 0) {
 		node->first_doc_id = doc_id;
@@ -2147,9 +2152,7 @@ fts_add_doc_id(
 	fts_cache_t*    	cache = ftt->table->fts->cache;
 	ulint			i;
 
-	if (cache->get_docs == NULL) {
-		cache->get_docs = fts_get_docs_create(cache);
-	}
+	ut_ad(cache->get_docs);
 
 	if (!(ftt->table->fts->fts_status & ADDED_TABLE_SYNCED)) {
 		fts_init_index(ftt->table);
@@ -2432,9 +2435,16 @@ fts_commit_table(
 	const ib_rbt_node_t*	node;
 	ib_rbt_t*		rows;
 	ulint			error = DB_SUCCESS;
+	fts_cache_t*		cache = ftt->table->fts->cache;
 
 	rows = ftt->rows;
 
+	rw_lock_x_lock(&cache->lock);
+	if (cache->get_docs == NULL) {
+		cache->get_docs = fts_get_docs_create(cache);
+	}
+	rw_lock_x_unlock(&cache->lock);
+	
 	for (node = rbt_first(rows);
 	     node && error == DB_SUCCESS;
 	     node = rbt_next(rows, node)) {
@@ -4927,7 +4937,7 @@ fts_create(
 	fts->doc_col = ULINT_UNDEFINED;
 
 	mutex_create(fts_bg_threads_mutex_key, &fts->bg_threads_mutex,
-		     SYNC_DICT_BG_THREADS_MUTEX);
+		     SYNC_FTS_BG_THREADS);
 
 	heap_alloc = ib_heap_allocator_create(table->heap);
 	fts->indexes = ib_vector_create(heap_alloc, sizeof(dict_index_t*), 4);
