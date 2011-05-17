@@ -23,7 +23,7 @@
                               // set_handler_table_locks,
                               // lock_global_read_lock,
                               // make_global_read_lock_block_commit
-#include "sql_base.h"         // find_temporary_tablesx
+#include "sql_base.h"         // find_temporary_table
 #include "sql_cache.h"        // QUERY_CACHE_FLAGS_SIZE, query_cache_*
 #include "sql_show.h"         // mysqld_list_*, mysqld_show_*,
                               // calc_sum_of_all_status
@@ -43,7 +43,6 @@
 #include "sql_table.h"        // mysql_create_like_table,
                               // mysql_create_table,
                               // mysql_alter_table,
-                              // mysql_recreate_table,
                               // mysql_backup_table,
                               // mysql_restore_table
 #include "sql_reload.h"       // reload_acl_and_cache
@@ -116,7 +115,9 @@
    "FUNCTION" : "PROCEDURE")
 
 static bool execute_sqlcom_select(THD *thd, TABLE_LIST *all_tables);
+static bool check_show_access(THD *thd, TABLE_LIST *table);
 static void sql_kill(THD *thd, ulong id, bool only_kill_query);
+static bool lock_tables_precheck(THD *thd, TABLE_LIST *tables);
 
 const char *any_db="*any*";	// Special symbol for check_access
 
@@ -447,6 +448,62 @@ void init_update_queries(void)
   sql_command_flags[SQLCOM_CREATE_SERVER]=      CF_AUTO_COMMIT_TRANS;
   sql_command_flags[SQLCOM_ALTER_SERVER]=       CF_AUTO_COMMIT_TRANS;
   sql_command_flags[SQLCOM_DROP_SERVER]=        CF_AUTO_COMMIT_TRANS;
+
+  /*
+    The following statements can deal with temporary tables,
+    so temporary tables should be pre-opened for those statements to
+    simplify privilege checking.
+
+    There are other statements that deal with temporary tables and open
+    them, but which are not listed here. The thing is that the order of
+    pre-opening temporary tables for those statements is somewhat custom.
+  */
+  sql_command_flags[SQLCOM_CREATE_TABLE]|=    CF_PREOPEN_TMP_TABLES;
+  sql_command_flags[SQLCOM_DROP_TABLE]|=      CF_PREOPEN_TMP_TABLES;
+  sql_command_flags[SQLCOM_CREATE_INDEX]|=    CF_PREOPEN_TMP_TABLES;
+  sql_command_flags[SQLCOM_ALTER_TABLE]|=     CF_PREOPEN_TMP_TABLES;
+  sql_command_flags[SQLCOM_TRUNCATE]|=        CF_PREOPEN_TMP_TABLES;
+  sql_command_flags[SQLCOM_LOAD]|=            CF_PREOPEN_TMP_TABLES;
+  sql_command_flags[SQLCOM_DROP_INDEX]|=      CF_PREOPEN_TMP_TABLES;
+  sql_command_flags[SQLCOM_CREATE_VIEW]|=     CF_PREOPEN_TMP_TABLES;
+  sql_command_flags[SQLCOM_UPDATE]|=          CF_PREOPEN_TMP_TABLES;
+  sql_command_flags[SQLCOM_UPDATE_MULTI]|=    CF_PREOPEN_TMP_TABLES;
+  sql_command_flags[SQLCOM_INSERT]|=          CF_PREOPEN_TMP_TABLES;
+  sql_command_flags[SQLCOM_INSERT_SELECT]|=   CF_PREOPEN_TMP_TABLES;
+  sql_command_flags[SQLCOM_DELETE]|=          CF_PREOPEN_TMP_TABLES;
+  sql_command_flags[SQLCOM_DELETE_MULTI]|=    CF_PREOPEN_TMP_TABLES;
+  sql_command_flags[SQLCOM_REPLACE]|=         CF_PREOPEN_TMP_TABLES;
+  sql_command_flags[SQLCOM_REPLACE_SELECT]|=  CF_PREOPEN_TMP_TABLES;
+  sql_command_flags[SQLCOM_SELECT]|=          CF_PREOPEN_TMP_TABLES;
+  sql_command_flags[SQLCOM_SET_OPTION]|=      CF_PREOPEN_TMP_TABLES;
+  sql_command_flags[SQLCOM_DO]|=              CF_PREOPEN_TMP_TABLES;
+  sql_command_flags[SQLCOM_CALL]|=            CF_PREOPEN_TMP_TABLES;
+  sql_command_flags[SQLCOM_CHECKSUM]|=        CF_PREOPEN_TMP_TABLES;
+  sql_command_flags[SQLCOM_ANALYZE]|=         CF_PREOPEN_TMP_TABLES;
+  sql_command_flags[SQLCOM_CHECK]|=           CF_PREOPEN_TMP_TABLES;
+  sql_command_flags[SQLCOM_OPTIMIZE]|=        CF_PREOPEN_TMP_TABLES;
+  sql_command_flags[SQLCOM_REPAIR]|=          CF_PREOPEN_TMP_TABLES;
+  sql_command_flags[SQLCOM_PRELOAD_KEYS]|=    CF_PREOPEN_TMP_TABLES;
+  sql_command_flags[SQLCOM_ASSIGN_TO_KEYCACHE]|= CF_PREOPEN_TMP_TABLES;
+
+  /*
+    DDL statements that should start with closing opened handlers.
+
+    We use this flag only for statements for which open HANDLERs
+    have to be closed before emporary tables are pre-opened.
+  */
+  sql_command_flags[SQLCOM_CREATE_TABLE]|=    CF_HA_CLOSE;
+  sql_command_flags[SQLCOM_DROP_TABLE]|=      CF_HA_CLOSE;
+  sql_command_flags[SQLCOM_ALTER_TABLE]|=     CF_HA_CLOSE;
+  sql_command_flags[SQLCOM_TRUNCATE]|=        CF_HA_CLOSE;
+  sql_command_flags[SQLCOM_REPAIR]|=          CF_HA_CLOSE;
+  sql_command_flags[SQLCOM_OPTIMIZE]|=        CF_HA_CLOSE;
+  sql_command_flags[SQLCOM_ANALYZE]|=         CF_HA_CLOSE;
+  sql_command_flags[SQLCOM_CHECK]|=           CF_HA_CLOSE;
+  sql_command_flags[SQLCOM_CREATE_INDEX]|=    CF_HA_CLOSE;
+  sql_command_flags[SQLCOM_DROP_INDEX]|=      CF_HA_CLOSE;
+  sql_command_flags[SQLCOM_PRELOAD_KEYS]|=    CF_HA_CLOSE;
+  sql_command_flags[SQLCOM_ASSIGN_TO_KEYCACHE]|=  CF_HA_CLOSE;
 }
 
 bool sqlcom_can_generate_row_events(const THD *thd)
@@ -1250,6 +1307,9 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
       break;
     thd->set_query(fields, query_length);
     general_log_print(thd, command, "%s %s", table_list.table_name, fields);
+
+    if (open_temporary_tables(thd, &table_list))
+      break;
 
     if (check_table_access(thd, SELECT_ACL, &table_list,
                            TRUE, UINT_MAX, FALSE))
@@ -2055,7 +2115,7 @@ mysql_execute_command(THD *thd)
 
   status_var_increment(thd->status_var.com_stat[lex->sql_command]);
 
-  DBUG_ASSERT(thd->transaction.stmt.modified_non_trans_table == FALSE);
+  DBUG_ASSERT(thd->transaction.stmt.cannot_safely_rollback() == FALSE);
 
   /*
     End a active transaction so that this command will have it's
@@ -2079,27 +2139,41 @@ mysql_execute_command(THD *thd)
     DEBUG_SYNC(thd,"before_execute_sql_command");
 #endif
 
+  /*
+    Close tables open by HANDLERs before executing DDL statement
+    which is going to affect those tables.
+
+    This should happen before temporary tables are pre-opened as
+    otherwise we will get errors about attempt to re-open tables
+    if table to be changed is open through HANDLER.
+
+    Note that even although this is done before any privilege
+    checks there is no security problem here as closing open
+    HANDLER doesn't require any privileges anyway.
+  */
+  if (sql_command_flags[lex->sql_command] & CF_HA_CLOSE)
+    mysql_ha_rm_tables(thd, all_tables);
+
+  /*
+    Pre-open temporary tables to simplify privilege checking
+    for statements which need this.
+  */
+  if (sql_command_flags[lex->sql_command] & CF_PREOPEN_TMP_TABLES)
+  {
+    if (open_temporary_tables(thd, all_tables))
+      goto error;
+  }
+
   switch (lex->sql_command) {
 
-  case SQLCOM_SHOW_EVENTS:
-#ifndef HAVE_EVENT_SCHEDULER
-    my_error(ER_NOT_SUPPORTED_YET, MYF(0), "embedded server");
-    break;
-#endif
-  case SQLCOM_SHOW_STATUS_PROC:
-  case SQLCOM_SHOW_STATUS_FUNC:
-    if ((res= check_table_access(thd, SELECT_ACL, all_tables, FALSE,
-                                  UINT_MAX, FALSE)))
-      goto error;
-    res= execute_sqlcom_select(thd, all_tables);
-    break;
   case SQLCOM_SHOW_STATUS:
   {
     system_status_var old_status_var= thd->status_var;
     thd->initial_status_var= &old_status_var;
-    if (!(res= check_table_access(thd, SELECT_ACL, all_tables, FALSE,
-                                  UINT_MAX, FALSE)))
+
+    if (!(res= select_precheck(thd, lex, all_tables, first_table)))
       res= execute_sqlcom_select(thd, all_tables);
+
     /* Don't log SHOW STATUS commands to slow query log */
     thd->server_status&= ~(SERVER_QUERY_NO_INDEX_USED |
                            SERVER_QUERY_NO_GOOD_INDEX_USED);
@@ -2114,6 +2188,13 @@ mysql_execute_command(THD *thd)
     mysql_mutex_unlock(&LOCK_status);
     break;
   }
+  case SQLCOM_SHOW_EVENTS:
+#ifndef HAVE_EVENT_SCHEDULER
+    my_error(ER_NOT_SUPPORTED_YET, MYF(0), "embedded server");
+    break;
+#endif
+  case SQLCOM_SHOW_STATUS_PROC:
+  case SQLCOM_SHOW_STATUS_FUNC:
   case SQLCOM_SHOW_DATABASES:
   case SQLCOM_SHOW_TABLES:
   case SQLCOM_SHOW_TRIGGERS:
@@ -2131,21 +2212,7 @@ mysql_execute_command(THD *thd)
   {
     thd->status_var.last_query_cost= 0.0;
 
-    /*
-      lex->exchange != NULL implies SELECT .. INTO OUTFILE and this
-      requires FILE_ACL access.
-    */
-    ulong privileges_requested= lex->exchange ? SELECT_ACL | FILE_ACL :
-      SELECT_ACL;
-
-    if (all_tables)
-      res= check_table_access(thd,
-                              privileges_requested,
-                              all_tables, FALSE, UINT_MAX, FALSE);
-    else
-      res= check_access(thd, privileges_requested, any_db, NULL, NULL, 0, 0);
-
-    if (res)
+    if ((res= select_precheck(thd, lex, all_tables, first_table)))
       break;
 
     res= execute_sqlcom_select(thd, all_tables);
@@ -2412,9 +2479,6 @@ case SQLCOM_PREPARE:
     }
 #endif
 
-    /* Close any open handlers for the table. */
-    mysql_ha_rm_tables(thd, create_table);
-
     if (select_lex->item_list.elements)		// With select
     {
       select_result *result;
@@ -2511,10 +2575,6 @@ case SQLCOM_PREPARE:
             goto end_with_restore_list;
           }
 
-        /* So that CREATE TEMPORARY TABLE gets to binlog at commit/rollback */
-        if (create_info.options & HA_LEX_CREATE_TMP_TABLE)
-          thd->variables.option_bits|= OPTION_KEEP_LOG;
-
         /*
           select_create is currently not re-execution friendly and
           needs to be created for every execution of a PS/SP.
@@ -2540,9 +2600,6 @@ case SQLCOM_PREPARE:
     }
     else
     {
-      /* So that CREATE TEMPORARY TABLE gets to binlog at commit/rollback */
-      if (create_info.options & HA_LEX_CREATE_TMP_TABLE)
-        thd->variables.option_bits|= OPTION_KEEP_LOG;
       /* regular create */
       if (create_info.options & HA_LEX_CREATE_TABLE_LIKE)
       {
@@ -2726,6 +2783,13 @@ end_with_restore_list:
       }
       else
       {
+        /*
+          Temporary tables should be opened for SHOW CREATE TABLE, but not
+          for SHOW CREATE VIEW.
+        */
+        if (open_temporary_tables(thd, all_tables))
+          goto error;
+
         /*
           The fact that check_some_access() returned FALSE does not mean that
           access is granted. We need to check if first_table->grant.privilege
@@ -3067,11 +3131,6 @@ end_with_restore_list:
       if (check_table_access(thd, DROP_ACL, all_tables, FALSE, UINT_MAX, FALSE))
 	goto error;				/* purecov: inspected */
     }
-    else
-    {
-      /* So that DROP TEMPORARY TABLE gets to binlog at commit/rollback */
-      thd->variables.option_bits|= OPTION_KEEP_LOG;
-    }
     /* DDL and binlog write order are protected by metadata locks. */
     res= mysql_rm_table(thd, first_table, lex->drop_if_exists,
 			lex->drop_temporary);
@@ -3204,8 +3263,21 @@ end_with_restore_list:
     thd->mdl_context.release_transactional_locks();
     if (res)
       goto error;
-    if (check_table_access(thd, LOCK_TABLES_ACL | SELECT_ACL, all_tables,
-                           FALSE, UINT_MAX, FALSE))
+
+    /*
+      Here we have to pre-open temporary tables for LOCK TABLES.
+
+      CF_PREOPEN_TMP_TABLES is not set for this SQL statement simply
+      because LOCK TABLES calls close_thread_tables() as a first thing
+      (it's called from unlock_locked_tables() above). So even if
+      CF_PREOPEN_TMP_TABLES was set and the tables would be pre-opened
+      in a usual way, they would have been closed.
+    */
+
+    if (open_temporary_tables(thd, all_tables))
+      goto error;
+
+    if (lock_tables_precheck(thd, all_tables))
       goto error;
 
     thd->variables.option_bits|= OPTION_TABLE_LOCK;
@@ -3698,29 +3770,6 @@ end_with_restore_list:
     break;
   }
 #endif
-  case SQLCOM_HA_OPEN:
-    DBUG_ASSERT(first_table == all_tables && first_table != 0);
-    if (check_table_access(thd, SELECT_ACL, all_tables, FALSE, UINT_MAX, FALSE))
-      goto error;
-    res= mysql_ha_open(thd, first_table, 0);
-    break;
-  case SQLCOM_HA_CLOSE:
-    DBUG_ASSERT(first_table == all_tables && first_table != 0);
-    res= mysql_ha_close(thd, first_table);
-    break;
-  case SQLCOM_HA_READ:
-    DBUG_ASSERT(first_table == all_tables && first_table != 0);
-    /*
-      There is no need to check for table permissions here, because
-      if a user has no permissions to read a table, he won't be
-      able to open it (with SQLCOM_HA_OPEN) in the first place.
-    */
-    unit->set_limit(select_lex);
-    res= mysql_ha_read(thd, first_table, lex->ha_read_mode, lex->ident.str,
-                       lex->insert_list, lex->ha_rkey_mode, select_lex->where,
-                       unit->select_limit_cnt, unit->offset_limit_cnt);
-    break;
-
   case SQLCOM_BEGIN:
     if (trans_begin(thd, lex->start_transaction_opt))
       goto error;
@@ -4407,6 +4456,9 @@ create_sp_error:
   case SQLCOM_REPAIR:
   case SQLCOM_TRUNCATE:
   case SQLCOM_ALTER_TABLE:
+  case SQLCOM_HA_OPEN:
+  case SQLCOM_HA_READ:
+  case SQLCOM_HA_CLOSE:
     DBUG_ASSERT(first_table == all_tables && first_table != 0);
     /* fall through */
   case SQLCOM_SIGNAL:
@@ -4445,7 +4497,6 @@ finish:
 
   DBUG_ASSERT(!thd->in_active_multi_stmt_transaction() ||
                thd->in_multi_stmt_transaction_mode());
-
 
   if (! thd->in_sub_stmt)
   {
@@ -4887,20 +4938,19 @@ check_access(THD *thd, ulong want_access, const char *db, ulong *save_priv,
 }
 
 
+/**
+  Check if user has enough privileges for execution of SHOW statement,
+  which was converted to query to one of I_S tables.
+
+  @param thd    Thread context.
+  @param table  Table list element for I_S table to be queried..
+
+  @retval FALSE - Success.
+  @retval TRUE  - Failure.
+*/
+
 static bool check_show_access(THD *thd, TABLE_LIST *table)
 {
-  /*
-    This is a SHOW command using an INFORMATION_SCHEMA table.
-    check_access() has not been called for 'table',
-    and SELECT is currently always granted on the I_S, so we automatically
-    grant SELECT on table here, to bypass a call to check_access().
-    Note that not calling check_access(table) is an optimization,
-    which needs to be revisited if the INFORMATION_SCHEMA does
-    not always automatically grant SELECT but use the grant tables.
-    See Bug#38837 need a way to disable information_schema for security
-  */
-  table->grant.privilege= SELECT_ACL;
-
   switch (get_schema_table_idx(table->schema_table)) {
   case SCH_SCHEMATA:
     return (specialflag & SPECIAL_SKIP_SHOW_DB) &&
@@ -4940,6 +4990,12 @@ static bool check_show_access(THD *thd, TABLE_LIST *table)
 
     DBUG_ASSERT(dst_table);
 
+    /*
+      Open temporary tables to be able to detect them during privilege check.
+    */
+    if (open_temporary_tables(thd, dst_table))
+      return TRUE;
+
     if (check_access(thd, SELECT_ACL, dst_table->db,
                      &dst_table->grant.privilege,
                      &dst_table->grant.m_internal,
@@ -4952,6 +5008,9 @@ static bool check_show_access(THD *thd, TABLE_LIST *table)
     */
     if (check_grant(thd, SELECT_ACL, dst_table, TRUE, UINT_MAX, FALSE))
       return TRUE; /* Access denied */
+
+    close_thread_tables(thd);
+    dst_table->table= NULL;
 
     /* Access granted */
     return FALSE;
@@ -5029,19 +5088,23 @@ check_table_access(THD *thd, ulong requirements,TABLE_LIST *tables,
      */
     tables->grant.orig_want_privilege= (want_access & ~SHOW_VIEW_ACL);
 
-    if (tables->schema_table_reformed)
-    {
-      if (check_show_access(thd, tables))
-        goto deny;
-      continue;
-    }
+    /*
+      We should not encounter table list elements for reformed SHOW
+      statements unless this is first table list element in the main
+      select.
+      Such table list elements require additional privilege check
+      (see check_show_access()). This check is carried out by caller,
+      but only for the first table list element from the main select.
+    */
+    DBUG_ASSERT(!tables->schema_table_reformed ||
+                tables == thd->lex->select_lex.table_list.first);
 
     DBUG_PRINT("info", ("derived: %d  view: %d", tables->derived != 0,
                         tables->view != 0));
-    if (tables->is_anonymous_derived_table() ||
-        (tables->table && tables->table->s &&
-         (int)tables->table->s->tmp_table))
+
+    if (tables->is_anonymous_derived_table())
       continue;
+
     thd->security_ctx= sctx;
 
     if (check_access(thd, want_access, tables->get_db_name(),
@@ -5162,6 +5225,13 @@ bool check_some_access(THD *thd, ulong want_access, TABLE_LIST *table)
   }
   DBUG_PRINT("exit",("no matching access rights"));
   DBUG_RETURN(1);
+}
+
+#else
+
+static bool check_show_access(THD *thd, TABLE_LIST *table)
+{
+  return false;
 }
 
 #endif /*NO_EMBEDDED_ACCESS_CHECKS*/
@@ -5328,14 +5398,17 @@ void THD::reset_for_next_command()
   */
   thd->server_status&= ~SERVER_STATUS_CLEAR_SET;
   /*
-    If in autocommit mode and not in a transaction, reset
-    OPTION_STATUS_NO_TRANS_UPDATE | OPTION_KEEP_LOG to not get warnings
-    in ha_rollback_trans() about some tables couldn't be rolled back.
+    If in autocommit mode and not in a transaction, reset flag
+    that identifies if a transaction has done some operations
+    that cannot be safely rolled back.
+
+    If the flag is set an warning message is printed out in
+    ha_rollback_trans() saying that some tables couldn't be
+    rolled back.
   */
   if (!thd->in_multi_stmt_transaction_mode())
   {
-    thd->variables.option_bits&= ~OPTION_KEEP_LOG;
-    thd->transaction.all.modified_non_trans_table= FALSE;
+    thd->transaction.all.reset_unsafe_rollback_flags();
   }
   DBUG_ASSERT(thd->security_ctx== &thd->main_security_ctx);
   thd->thread_specific_used= FALSE;
@@ -6626,6 +6699,45 @@ Item * all_any_subquery_creator(Item *left_expr,
 
 
 /**
+  Perform first stage of privilege checking for SELECT statement.
+
+  @param thd          Thread context.
+  @param lex          LEX for SELECT statement.
+  @param tables       List of tables used by statement.
+  @param first_table  First table in the main SELECT of the SELECT
+                      statement.
+
+  @retval FALSE - Success (column-level privilege checks might be required).
+  @retval TRUE  - Failure, privileges are insufficient.
+*/
+
+bool select_precheck(THD *thd, LEX *lex, TABLE_LIST *tables,
+                     TABLE_LIST *first_table)
+{
+  bool res;
+  /*
+    lex->exchange != NULL implies SELECT .. INTO OUTFILE and this
+    requires FILE_ACL access.
+  */
+  ulong privileges_requested= lex->exchange ? SELECT_ACL | FILE_ACL :
+                                              SELECT_ACL;
+
+  if (tables)
+  {
+    res= check_table_access(thd,
+                            privileges_requested,
+                            tables, FALSE, UINT_MAX, FALSE) ||
+         (first_table && first_table->schema_table_reformed &&
+          check_show_access(thd, first_table));
+  }
+  else
+    res= check_access(thd, privileges_requested, any_db, NULL, NULL, 0, 0);
+
+  return res;
+}
+
+
+/**
   Multi update query pre-check.
 
   @param thd		Thread handler
@@ -6722,6 +6834,19 @@ bool multi_delete_precheck(THD *thd, TABLE_LIST *tables)
   TABLE_LIST *aux_tables= thd->lex->auxiliary_table_list.first;
   TABLE_LIST **save_query_tables_own_last= thd->lex->query_tables_own_last;
   DBUG_ENTER("multi_delete_precheck");
+
+  /*
+    Temporary tables are pre-opened in 'tables' list only. Here we need to
+    initialize TABLE instances in 'aux_tables' list.
+  */
+  for (TABLE_LIST *tl= aux_tables; tl; tl= tl->next_global)
+  {
+    if (tl->table)
+      continue;
+
+    if (tl->correspondent_table)
+      tl->table= tl->correspondent_table->table;
+  }
 
   /* sql_yacc guarantees that tables and aux_tables are not zero */
   DBUG_ASSERT(aux_tables != 0);
@@ -6991,9 +7116,9 @@ bool create_table_precheck(THD *thd, TABLE_LIST *tables,
     CREATE TABLE ... SELECT, also require INSERT.
   */
 
-  want_priv= ((lex->create_info.options & HA_LEX_CREATE_TMP_TABLE) ?
-              CREATE_TMP_ACL : CREATE_ACL) |
-             (select_lex->item_list.elements ? INSERT_ACL : 0);
+  want_priv= (lex->create_info.options & HA_LEX_CREATE_TMP_TABLE) ?
+             CREATE_TMP_ACL :
+             (CREATE_ACL | (select_lex->item_list.elements ? INSERT_ACL : 0));
 
   if (check_access(thd, want_priv, create_table->db,
                    &create_table->grant.privilege,
@@ -7002,11 +7127,43 @@ bool create_table_precheck(THD *thd, TABLE_LIST *tables,
     goto err;
 
   /* If it is a merge table, check privileges for merge children. */
-  if (lex->create_info.merge_list.first &&
-      check_table_access(thd, SELECT_ACL | UPDATE_ACL | DELETE_ACL,
-                         lex->create_info.merge_list.first,
-                         FALSE, UINT_MAX, FALSE))
-    goto err;
+  if (lex->create_info.merge_list.first)
+  {
+    TABLE_LIST *tl;
+    /*
+      Pre-open temporary tables from UNION clause to simplify privilege
+      checking for them.
+    */
+    if (open_temporary_tables(thd, lex->create_info.merge_list.first))
+      goto err;
+
+    if (check_table_access(thd, SELECT_ACL | UPDATE_ACL | DELETE_ACL,
+                           lex->create_info.merge_list.first,
+                           FALSE, UINT_MAX, FALSE))
+      goto err;
+
+    /*
+      Since the MERGE table in question might already exist with exactly
+      the same definition we need to close all tables opened for underlying
+      checking to allow normal open of table being created.
+      To do this we simply close all tables and then open only tables from
+      the main statement's table list.
+    */
+    close_thread_tables(thd);
+
+    /*
+      To make things safe for re-execution and upcoming open_temporary_tables()
+      we need to reset TABLE_LIST::table pointers in both main table list and
+      and UNION clause.
+    */
+    for (tl= lex->query_tables; tl; tl= tl->next_global)
+      tl->table= NULL;
+    for (tl= lex->create_info.merge_list.first; tl; tl= tl->next_global)
+      tl->table= NULL;
+
+    if (open_temporary_tables(thd, lex->query_tables))
+      DBUG_RETURN(TRUE);
+  }
 
   if (want_priv != CREATE_TMP_ACL &&
       check_grant(thd, want_priv, create_table, FALSE, 1, FALSE))
@@ -7028,6 +7185,35 @@ bool create_table_precheck(THD *thd, TABLE_LIST *tables,
 
 err:
   DBUG_RETURN(error);
+}
+
+
+/**
+  Check privileges for LOCK TABLES statement.
+
+  @param thd     Thread context.
+  @param tables  List of tables to be locked.
+
+  @retval FALSE - Success.
+  @retval TRUE  - Failure.
+*/
+
+static bool lock_tables_precheck(THD *thd, TABLE_LIST *tables)
+{
+  TABLE_LIST *first_not_own_table= thd->lex->first_not_own_table();
+
+  for (TABLE_LIST *table= tables; table != first_not_own_table && table;
+       table= table->next_global)
+  {
+    if (is_temporary_table(table))
+      continue;
+
+    if (check_table_access(thd, LOCK_TABLES_ACL | SELECT_ACL, table,
+                           FALSE, 1, FALSE))
+      return TRUE;
+  }
+
+  return FALSE;
 }
 
 

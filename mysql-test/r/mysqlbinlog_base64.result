@@ -109,3 +109,13 @@ count(*)
 35840
 drop table t1;
 drop table t2;
+RESET MASTER;
+USE test;
+SET @old_binlog_format= @@binlog_format;
+SET SESSION binlog_format=ROW;
+CREATE TABLE t1(c1 INT);
+INSERT INTO t1 VALUES (1);
+FLUSH LOGS;
+DROP TABLE t1;
+SET SESSION binlog_format= @old_binlog_format;
+RESET MASTER;
