@@ -4615,12 +4615,11 @@ int MYSQL_BIN_LOG::recover(IO_CACHE *log, Format_description_log_event *fdle,
   Log_event  *ev;
   HASH xids;
   MEM_ROOT mem_root;
-  my_off_t last_valid_pos= *valid_pos;
   /*
     The flag is used for handling the case that a transaction
     is partially written to the binlog.
   */
-  bool in_transaction= TRUE;
+  bool in_transaction= FALSE;
 
   if (! fdle->is_valid() ||
       my_hash_init(&xids, &my_charset_bin, TC_LOG_PAGE_SIZE/3, 0,
@@ -4638,11 +4637,7 @@ int MYSQL_BIN_LOG::recover(IO_CACHE *log, Format_description_log_event *fdle,
     */
     if (ev->get_type_code() == QUERY_EVENT &&
         !strcmp(((Query_log_event*)ev)->query, "BEGIN"))
-    {
       in_transaction= TRUE;
-      *valid_pos= last_valid_pos;
-    }
-    last_valid_pos= my_b_tell(log);
 
     if (ev->get_type_code() == QUERY_EVENT &&
         !strcmp(((Query_log_event*)ev)->query, "COMMIT"))
@@ -4660,15 +4655,16 @@ int MYSQL_BIN_LOG::recover(IO_CACHE *log, Format_description_log_event *fdle,
       if (!x || my_hash_insert(&xids, x))
         goto err2;
     }
+
+    /*
+      Recorded valid position for the crashed binlog file
+      which did not contain incorrect events.
+    */
+    if (!log->error && !in_transaction)
+      *valid_pos= my_b_tell(log);
+
     delete ev;
   }
-
-  /*
-    Recorded valid position for the crashed binlog file
-    which did not contain incorrect events.
-  */
-  if (!log->error && !in_transaction)
-    *valid_pos= last_valid_pos;
 
   if (ha_recover(&xids))
     goto err2;
