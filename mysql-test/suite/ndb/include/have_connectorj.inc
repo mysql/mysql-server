@@ -1,6 +1,9 @@
 --perl
 use strict;
 use IO::File;
+use lib "lib/";
+use My::Platform;
+
 
 #
 # Looks for MySQL Connector/J JAR file in MTR_CLASSPATH
@@ -11,11 +14,14 @@ my $classpath = $ENV{'MTR_CLASSPATH'} || '';
 my $vardir = $ENV{MYSQLTEST_VARDIR} or die "Need MYSQLTEST_VARDIR";
 my $jar;
 my $notfound;
+my $sep = (IS_WINDOWS) ? ';' : ':';
+
 
 # -- look for the Connctor/J jar file
-foreach $jar (split ':', $classpath) {
+foreach $jar (split $sep, $classpath) {
   if($jar =~ m/mysql-connector/  && -f $jar) {
     $ok = 2;
+    last;
   }
   elsif($jar =~ m/mysql-connector/) {
     $ok = 1;

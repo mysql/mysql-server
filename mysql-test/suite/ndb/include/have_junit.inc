@@ -1,17 +1,21 @@
 --perl
 use strict;
 use IO::File;
+use lib "lib/";
+use My::Platform;
 
 my $ok = 0;
 my $classpath = $ENV{'MTR_CLASSPATH'} || '';
 my $vardir = $ENV{MYSQLTEST_VARDIR} or die "Need MYSQLTEST_VARDIR";
 my $jar;
 my $notfound;
+my $sep = (IS_WINDOWS) ? ';' : ':';
 
 # -- look for the junit jar file
-foreach $jar (split ':', $classpath) {
+foreach $jar (split $sep, $classpath) {
   if($jar =~ m/junit/  && -f $jar) {
     $ok = 2;
+    last;
   }
   elsif($jar =~ m/junit/) {
     $ok = 1;
