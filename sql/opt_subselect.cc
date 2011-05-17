@@ -3640,7 +3640,7 @@ static void remove_subq_pushed_predicates(JOIN *join, Item **where)
 
 
 /**
-  Optimize all subqueries of a query that have were flattened into a semijoin.
+  Optimize all subqueries of a query that were not flattened into a semijoin.
 
   @details
   Optimize all immediate children subqueries of a query.
@@ -3699,7 +3699,7 @@ bool JOIN::optimize_unflattened_subqueries()
 
 bool JOIN::choose_subquery_plan(table_map join_tables)
 {
-  Query_plan_state save_qep; /* The original QEP of the subquery. */
+  Join_plan_state save_qep; /* The original QEP of the subquery. */
   enum_reopt_result reopt_result= REOPT_NONE;
   Item_in_subselect *in_subs;
 

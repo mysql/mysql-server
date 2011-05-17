@@ -959,7 +959,8 @@ JOIN::optimize()
     */
     if ((res=opt_sum_query(thd, select_lex->leaf_tables, all_fields, conds)))
     {
-      if (res == HA_ERR_KEY_NOT_FOUND || res < 0)
+      DBUG_ASSERT(res >= 0);
+      if (res == HA_ERR_KEY_NOT_FOUND)
       {
         DBUG_PRINT("info",("No matching min/max row"));
 	zero_result_cause= "No matching min/max row";
@@ -20528,7 +20529,7 @@ void JOIN::set_allowed_join_cache_types()
   @param save_to  The object into which the current query plan state is saved
 */
 
-void JOIN::save_query_plan(Query_plan_state *save_to)
+void JOIN::save_query_plan(Join_plan_state *save_to)
 {
   if (keyuse.elements)
   {
@@ -20558,7 +20559,7 @@ void JOIN::save_query_plan(Query_plan_state *save_to)
   @param The object from which the current query plan state is restored.
 */
 
-void JOIN::restore_query_plan(Query_plan_state *restore_from)
+void JOIN::restore_query_plan(Join_plan_state *restore_from)
 {
   if (restore_from->keyuse.elements)
   {
@@ -20607,7 +20608,7 @@ void JOIN::restore_query_plan(Query_plan_state *restore_from)
 
 JOIN::enum_reopt_result
 JOIN::reoptimize(Item *added_where, table_map join_tables,
-                 Query_plan_state *save_to)
+                 Join_plan_state *save_to)
 {
   DYNAMIC_ARRAY added_keyuse;
   SARGABLE_PARAM *sargables= 0; /* Used only as a dummy parameter. */

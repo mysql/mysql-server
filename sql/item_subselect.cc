@@ -1766,7 +1766,7 @@ Item_in_subselect::create_single_in_to_exists_cond(JOIN * join,
         *having_item= new_having;
       }
       else
-        DBUG_ASSERT(FALSE);
+        DBUG_ASSERT(false);
     }
   }
 

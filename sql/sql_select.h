@@ -611,9 +611,10 @@ protected:
 
   /**
     The subset of the state of a JOIN that represents an optimized query
-    execution plan. Allows saving/restoring different plans for the same query.
+    execution plan. Allows saving/restoring different JOIN plans for the same
+    query.
   */
-  class Query_plan_state {
+  class Join_plan_state {
   public:
     DYNAMIC_ARRAY keyuse; /* Copy of the JOIN::keyuse array. */
     POSITION best_positions[MAX_TABLES+1]; /* Copy of JOIN::best_positions */
@@ -622,13 +623,13 @@ protected:
     /* Copies of JOIN_TAB::checked_keys for each JOIN_TAB. */
     key_map join_tab_checked_keys[MAX_TABLES];
   public:
-    Query_plan_state()
+    Join_plan_state()
     {   
       keyuse.elements= 0;
       keyuse.buffer= NULL;
     }
-    Query_plan_state(JOIN *join);
-    ~Query_plan_state()
+    Join_plan_state(JOIN *join);
+    ~Join_plan_state()
     {
       delete_dynamic(&keyuse);
     }
@@ -644,9 +645,9 @@ protected:
 
   /* Support for plan reoptimization with rewritten conditions. */
   enum_reopt_result reoptimize(Item *added_where, table_map join_tables,
-                               Query_plan_state *save_to);
-  void save_query_plan(Query_plan_state *save_to);
-  void restore_query_plan(Query_plan_state *restore_from);
+                               Join_plan_state *save_to);
+  void save_query_plan(Join_plan_state *save_to);
+  void restore_query_plan(Join_plan_state *restore_from);
   /* Choose a subquery plan for a table-less subquery. */
   bool choose_tableless_subquery_plan();
 
@@ -748,7 +749,7 @@ public:
   */
   double   best_read;
   /*
-    Estimated result rows (fanout) of the whole query. If this is a subquery
+    Estimated result rows (fanout) of the join operation. If this is a subquery
     that is reexecuted multiple times, this value includes the estiamted # of
     reexecutions. This value is equal to the multiplication of all
     join->positions[i].records_read of a JOIN.
