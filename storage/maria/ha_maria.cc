@@ -2354,7 +2354,7 @@ void ha_maria::position(const uchar *record)
 
 int ha_maria::info(uint flag)
 {
-  return info(flag, table->s->tmp_table == NO_TMP_TABLE);
+  return (!table ? 1 : info(flag, table->s->tmp_table == NO_TMP_TABLE));
 }
 
 int ha_maria::info(uint flag, my_bool lock_table_share)

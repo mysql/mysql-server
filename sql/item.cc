@@ -767,6 +767,23 @@ bool Item_field::register_field_in_bitmap(uchar *arg)
   return 0;
 }
 
+
+/*
+  Mark field in write_map
+
+  NOTES
+    This is used by UPDATE to register underlying fields of used view fields.
+*/
+
+bool Item_field::register_field_in_write_map(uchar *arg)
+{
+  TABLE *table= (TABLE *) arg;
+  if (field->table == table || !table)
+    bitmap_set_bit(field->table->write_set, field->field_index);
+  return 0;
+}
+
+
 bool Item::check_cols(uint c)
 {
   if (c != 1)
@@ -2278,6 +2295,10 @@ table_map Item_field::used_tables() const
   return (depended_from ? OUTER_REF_TABLE_BIT : field->table->map);
 }
 
+table_map Item_field::all_used_tables() const
+{
+  return (depended_from ? OUTER_REF_TABLE_BIT : field->table->map);
+}
 
 void Item_field::fix_after_pullout(st_select_lex *new_parent, Item **ref)
 {
@@ -2530,7 +2551,7 @@ my_decimal *Item_float::val_decimal(my_decimal *decimal_value)
 
 void Item_string::print(String *str, enum_query_type query_type)
 {
-  if (query_type == QT_ORDINARY && is_cs_specified())
+  if (query_type != QT_IS && is_cs_specified())
   {
     str->append('_');
     str->append(collation.collation->csname);
@@ -2538,7 +2559,7 @@ void Item_string::print(String *str, enum_query_type query_type)
 
   str->append('\'');
 
-  if (query_type == QT_ORDINARY ||
+  if (query_type != QT_IS ||
       my_charset_same(str_value.charset(), system_charset_info))
   {
     str_value.print(str);
@@ -4030,6 +4051,34 @@ resolve_ref_in_select_and_group(THD *thd, Item_ident *ref, SELECT_LEX *select)
 }
 
 
+/*
+  @brief
+  Whether a table belongs to an outer select.
+
+  @param table table to check
+  @param select current select
+
+  @details
+  Try to find select the table belongs to by ascending the derived tables chain.
+*/
+
+static
+bool is_outer_table(TABLE_LIST *table, SELECT_LEX *select)
+{
+  DBUG_ASSERT(table->select_lex != select);
+  TABLE_LIST *tl;
+
+  for (tl= select->master_unit()->derived;
+       tl && tl->is_merged_derived();
+       select= tl->select_lex, tl= select->master_unit()->derived)
+  {
+    if (tl->select_lex == table->select_lex)
+      return FALSE;
+  }
+  return TRUE;
+}
+
+
 /**
   Resolve the name of an outer select column reference.
 
@@ -4478,7 +4527,8 @@ bool Item_field::fix_fields(THD *thd, Item **reference)
 
     if (!outer_fixed && cached_table && cached_table->select_lex &&
         context->select_lex &&
-        cached_table->select_lex != context->select_lex)
+        cached_table->select_lex != context->select_lex &&
+        is_outer_table(cached_table, context->select_lex))
     {
       int ret;
       if ((ret= fix_outer_field(thd, &from_field, reference)) < 0)
@@ -5948,8 +5998,9 @@ public:
     st_select_lex *sel;
     for (sel= current_select; sel; sel= sel->outer_select())
     {
+      List_iterator<TABLE_LIST> li(sel->leaf_tables);
       TABLE_LIST *tbl;
-      for (tbl= sel->leaf_tables; tbl; tbl= tbl->next_leaf)
+      while ((tbl= li++))
       {
         if (tbl->table == item->field->table)
         {
@@ -8433,6 +8484,8 @@ Item_result Item_type_holder::result_type() const
 
 enum_field_types Item_type_holder::get_real_type(Item *item)
 {
+  if (item->type() == REF_ITEM)
+    item= item->real_item();
   switch(item->type())
   {
   case FIELD_ITEM:

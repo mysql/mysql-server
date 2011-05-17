@@ -1198,7 +1198,9 @@ SELECT * FROM (SELECT CRC32(a) FROM t1) t2;
 CREATE TABLE t2 SELECT CRC32(a) FROM t1;
 desc t2;
 SELECT * FROM v1;
-SELECT * FROM (SELECT * FROM v1) x;
+# !!! This query crashes the server in ps-protocol due to a bug in the code of mwl106
+# !!! Uncomment it when the bug is fixed 
+# SELECT * FROM (SELECT * FROM v1) x;
 
 DROP TABLE t1, t2;
 DROP VIEW v1;

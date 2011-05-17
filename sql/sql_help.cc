@@ -637,7 +637,7 @@ bool mysqld_help(THD *thd, const char *mask)
   Protocol *protocol= thd->protocol;
   SQL_SELECT *select;
   st_find_field used_fields[array_elements(init_used_fields)];
-  TABLE_LIST *leaves= 0;
+  List<TABLE_LIST> leaves;
   TABLE_LIST tables[4];
   List<String> topics_list, categories_list, subcategories_list;
   String name, description, example;
@@ -676,7 +676,7 @@ bool mysqld_help(THD *thd, const char *mask)
     thd->lex->select_lex.context.first_name_resolution_table= &tables[0];
   if (setup_tables(thd, &thd->lex->select_lex.context,
                    &thd->lex->select_lex.top_join_list,
-                   tables, &leaves, FALSE))
+                   tables, leaves, FALSE, FALSE))
     goto error;
   memcpy((char*) used_fields, (char*) init_used_fields, sizeof(used_fields));
   if (init_fields(thd, tables, used_fields, array_elements(used_fields)))

@@ -4668,8 +4668,13 @@ static bool mysql_admin_table(THD* thd, TABLE_LIST* tables,
       thd->no_warnings_for_error= no_warnings_for_error;
       if (view_operator_func == NULL)
         table->required_type=FRMTYPE_TABLE;
-
+      if (lex->sql_command == SQLCOM_CHECK ||
+          lex->sql_command == SQLCOM_REPAIR ||
+          lex->sql_command == SQLCOM_ANALYZE ||
+          lex->sql_command == SQLCOM_OPTIMIZE)
+	thd->prepare_derived_at_open= TRUE;
       open_and_lock_tables(thd, table);
+      thd->prepare_derived_at_open= FALSE;
       thd->no_warnings_for_error= 0;
       table->next_global= save_next_global;
       table->next_local= save_next_local;
@@ -4767,7 +4772,7 @@ static bool mysql_admin_table(THD* thd, TABLE_LIST* tables,
       else
         /* Default failure code is corrupt table */
         result_code= HA_ADMIN_CORRUPT;
-      goto send_result;
+     goto send_result;
     }
 
     if (table->view)

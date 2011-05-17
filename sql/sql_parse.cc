@@ -2709,6 +2709,9 @@ mysql_execute_command(THD *thd)
             }
           }
         }
+        if (mysql_handle_single_derived(thd->lex, create_table,
+            DT_MERGE_FOR_INSERT))
+          DBUG_RETURN(1);
 
         /* So that CREATE TEMPORARY TABLE gets to binlog at commit/rollback */
         if (create_info.options & HA_LEX_CREATE_TMP_TABLE)
@@ -3235,6 +3238,10 @@ end_with_restore_list:
 
     if (!(res= open_and_lock_tables(thd, all_tables)))
     {
+      /*
+        Only the INSERT table should be merged. Other will be handled by
+        select.
+      */
       /* Skip first table, which is the table we are inserting in */
       TABLE_LIST *second_table= first_table->next_local;
       select_lex->table_list.first= second_table;
@@ -5200,6 +5207,8 @@ bool check_single_table_access(THD *thd, ulong privilege,
   /* Show only 1 table for check_grant */
   if (!(all_tables->belong_to_view &&
         (thd->lex->sql_command == SQLCOM_SHOW_FIELDS)) &&
+      !(all_tables->is_view() &&
+        all_tables->is_merged_derived()) &&
       check_grant(thd, privilege, all_tables, 0, 1, no_errors))
     goto deny;
 

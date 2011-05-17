@@ -1931,7 +1931,7 @@ create:
         | CREATE
           {
             Lex->create_view_mode= VIEW_CREATE_NEW;
-            Lex->create_view_algorithm= VIEW_ALGORITHM_UNDEFINED;
+            Lex->create_view_algorithm= DTYPE_ALGORITHM_UNDEFINED;
             Lex->create_view_suid= TRUE;
           }
           view_or_trigger_or_sp_or_event
@@ -5979,7 +5979,7 @@ alter:
               my_error(ER_SP_BADSTATEMENT, MYF(0), "ALTER VIEW");
               MYSQL_YYABORT;
             }
-            lex->create_view_algorithm= VIEW_ALGORITHM_UNDEFINED;
+            lex->create_view_algorithm= DTYPE_ALGORITHM_UNDEFINED;
             lex->create_view_mode= VIEW_ALTER;
           }
           view_tail
@@ -13553,7 +13553,7 @@ view_replace:
 
 view_algorithm:
           ALGORITHM_SYM EQ UNDEFINED_SYM
-          { Lex->create_view_algorithm= VIEW_ALGORITHM_UNDEFINED; }
+          { Lex->create_view_algorithm= DTYPE_ALGORITHM_UNDEFINED; }
         | ALGORITHM_SYM EQ MERGE_SYM
           { Lex->create_view_algorithm= VIEW_ALGORITHM_MERGE; }
         | ALGORITHM_SYM EQ TEMPTABLE_SYM

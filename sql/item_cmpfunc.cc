@@ -2396,6 +2396,16 @@ bool Item_func_between::fix_fields(THD *thd, Item **ref)
 
   thd->lex->current_select->between_count++;
 
+
+  return 0;
+}
+
+
+bool Item_func_between::eval_not_null_tables(uchar *opt_arg)
+{
+  if (Item_func_opt_neg::eval_not_null_tables(NULL))
+    return 1;
+
   /* not_null_tables_cache == union(T1(e),T1(e1),T1(e2)) */
   if (pred_level && !negated)
     return 0;
@@ -2404,9 +2414,8 @@ bool Item_func_between::fix_fields(THD *thd, Item **ref)
   not_null_tables_cache= (args[0]->not_null_tables() |
                           (args[1]->not_null_tables() &
                            args[2]->not_null_tables()));
-
   return 0;
-}
+}  
 
 
 void Item_func_between::fix_length_and_dec()
@@ -2767,12 +2776,21 @@ Item_func_if::fix_fields(THD *thd, Item **ref)
   if (Item_func::fix_fields(thd, ref))
     return 1;
 
+  return 0;
+}
+
+
+bool
+Item_func_if::eval_not_null_tables(uchar *opt_arg)
+{
+  if (Item_func::eval_not_null_tables(NULL))
+    return 1;
+
   not_null_tables_cache= (args[1]->not_null_tables() &
                           args[2]->not_null_tables());
 
   return 0;
 }
-
 
 void
 Item_func_if::fix_length_and_dec()
@@ -3955,9 +3973,20 @@ bool Item_func_in::nulls_in_row()
 bool
 Item_func_in::fix_fields(THD *thd, Item **ref)
 {
-  Item **arg, **arg_end;
 
   if (Item_func_opt_neg::fix_fields(thd, ref))
+    return 1;
+
+  return 0;
+}
+
+
+bool
+Item_func_in::eval_not_null_tables(uchar *opt_arg)
+{
+  Item **arg, **arg_end;
+
+  if (Item_func_opt_neg::eval_not_null_tables(NULL))
     return 1;
 
   /* not_null_tables_cache == union(T1(e),union(T1(ei))) */
@@ -4388,7 +4417,6 @@ Item_cond::fix_fields(THD *thd, Item **ref)
   */
   while ((item=li++))
   {
-    table_map tmp_table_map;
     while (item->type() == Item::COND_ITEM &&
 	   ((Item_cond*) item)->functype() == functype() &&
            !((Item_cond*) item)->list.is_empty())
@@ -4410,11 +4438,12 @@ Item_cond::fix_fields(THD *thd, Item **ref)
       and_tables_cache= (table_map) 0;
     else
     {
-      tmp_table_map= item->not_null_tables();
+      table_map tmp_table_map= item->not_null_tables();
       not_null_tables_cache|= tmp_table_map;
       and_tables_cache&= tmp_table_map;
       const_item_cache= FALSE;
-    }  
+    } 
+  
     with_sum_func=	    with_sum_func || item->with_sum_func;
     with_field=             with_field || item->with_field;
     with_subselect|=        item->with_subselect;
@@ -4426,6 +4455,28 @@ Item_cond::fix_fields(THD *thd, Item **ref)
   fix_length_and_dec();
   fixed= 1;
   return FALSE;
+}
+
+
+bool
+Item_cond::eval_not_null_tables(uchar *opt_arg)
+{
+  Item *item;
+  List_iterator<Item> li(list);
+  and_tables_cache= ~(table_map) 0;
+  while ((item=li++))
+  {
+    table_map tmp_table_map;
+    if (item->const_item())
+      and_tables_cache= (table_map) 0;
+    else
+    {
+      tmp_table_map= item->not_null_tables();
+      not_null_tables_cache|= tmp_table_map;
+      and_tables_cache&= tmp_table_map;
+    }
+  }
+  return 0;
 }
 
 

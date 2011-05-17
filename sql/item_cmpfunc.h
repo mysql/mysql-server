@@ -647,6 +647,7 @@ public:
   bool is_bool_func() { return 1; }
   CHARSET_INFO *compare_collation() { return cmp_collation.collation; }
   uint decimal_precision() const { return 1; }
+  bool eval_not_null_tables(uchar *opt_arg);
 };
 
 
@@ -746,6 +747,7 @@ public:
   void fix_length_and_dec();
   uint decimal_precision() const;
   const char *func_name() const { return "if"; }
+  bool eval_not_null_tables(uchar *opt_arg);
 };
 
 
@@ -1272,6 +1274,7 @@ public:
   bool nulls_in_row();
   bool is_bool_func() { return 1; }
   CHARSET_INFO *compare_collation() { return cmp_collation.collation; }
+  bool eval_not_null_tables(uchar *opt_arg);
 };
 
 class cmp_item_row :public cmp_item
@@ -1527,6 +1530,7 @@ public:
   bool subst_argument_checker(uchar **arg) { return TRUE; }
   Item *compile(Item_analyzer analyzer, uchar **arg_p,
                 Item_transformer transformer, uchar *arg_t);
+  bool eval_not_null_tables(uchar *opt_arg);
 };
 
 

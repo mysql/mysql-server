@@ -248,7 +248,7 @@ fill_defined_view_parts (THD *thd, TABLE_LIST *view)
     view->definer.user= decoy.definer.user;
     lex->definer= &view->definer;
   }
-  if (lex->create_view_algorithm == VIEW_ALGORITHM_UNDEFINED)
+  if (lex->create_view_algorithm == DTYPE_ALGORITHM_UNDEFINED)
     lex->create_view_algorithm= (uint8) decoy.algorithm;
   if (lex->create_view_suid == VIEW_SUID_DEFAULT)
     lex->create_view_suid= decoy.view_suid ? 
@@ -843,7 +843,7 @@ static int mysql_register_view(THD *thd, TABLE_LIST *view,
     ulong sql_mode= thd->variables.sql_mode & MODE_ANSI_QUOTES;
     thd->variables.sql_mode&= ~MODE_ANSI_QUOTES;
 
-    lex->unit.print(&view_query, QT_ORDINARY);
+    lex->unit.print(&view_query, QT_VIEW_INTERNAL);
     lex->unit.print(&is_query, QT_IS);
 
     thd->variables.sql_mode|= sql_mode;
@@ -876,7 +876,7 @@ static int mysql_register_view(THD *thd, TABLE_LIST *view,
   {
     push_warning(thd, MYSQL_ERROR::WARN_LEVEL_WARN, ER_WARN_VIEW_MERGE,
                  ER(ER_WARN_VIEW_MERGE));
-    lex->create_view_algorithm= VIEW_ALGORITHM_UNDEFINED;
+    lex->create_view_algorithm= DTYPE_ALGORITHM_UNDEFINED;
   }
   view->algorithm= lex->create_view_algorithm;
   view->definer.user= lex->definer->user;
@@ -1460,7 +1460,7 @@ bool mysql_make_view(THD *thd, File_parser *parser, TABLE_LIST *table,
 
       List_iterator_fast<TABLE_LIST> ti(view_select->top_join_list);
 
-      table->effective_algorithm= VIEW_ALGORITHM_MERGE;
+      table->derived_type= VIEW_ALGORITHM_MERGE;
       DBUG_PRINT("info", ("algorithm: MERGE"));
       table->updatable= (table->updatable_view != 0);
       table->effective_with_check=
@@ -1474,67 +1474,10 @@ bool mysql_make_view(THD *thd, File_parser *parser, TABLE_LIST *table,
       /* prepare view context */
       lex->select_lex.context.resolve_in_table_list_only(view_main_select_tables);
       lex->select_lex.context.outer_context= 0;
-      lex->select_lex.context.select_lex= table->select_lex;
       lex->select_lex.select_n_having_items+=
         table->select_lex->select_n_having_items;
 
-      /*
-        Tables of the main select of the view should be marked as belonging
-        to the same select as original view (again we can use LEX::select_lex
-        for this purprose because we don't support MERGE algorithm for views
-        with unions).
-      */
-      for (tbl= lex->select_lex.get_table_list(); tbl; tbl= tbl->next_local)
-        tbl->select_lex= table->select_lex;
-
-      {
-        if (view_main_select_tables->next_local)
-        {
-          table->multitable_view= TRUE;
-          if (table->belong_to_view)
-           table->belong_to_view->multitable_view= TRUE;
-        }
-        /* make nested join structure for view tables */
-        NESTED_JOIN *nested_join;
-        if (!(nested_join= table->nested_join=
-              (NESTED_JOIN *) thd->calloc(sizeof(NESTED_JOIN))))
-          goto err;
-        nested_join->join_list= view_select->top_join_list;
-
-        /* re-nest tables of VIEW */
-        ti.rewind();
-        while ((tbl= ti++))
-        {
-          tbl->join_list= &nested_join->join_list;
-          tbl->embedding= table;
-        }
-      }
-
-      /* Store WHERE clause for post-processing in setup_underlying */
       table->where= view_select->where;
-      /*
-        Add subqueries units to SELECT into which we merging current view.
-        unit(->next)* chain starts with subqueries that are used by this
-        view and continues with subqueries that are used by other views.
-        We must not add any subquery twice (otherwise we'll form a loop),
-        to do this we remember in end_unit the first subquery that has
-        been already added.
-
-        NOTE: we do not support UNION here, so we take only one select
-      */
-      SELECT_LEX_NODE *end_unit= table->select_lex->slave;
-      SELECT_LEX_UNIT *next_unit;
-      for (SELECT_LEX_UNIT *unit= lex->select_lex.first_inner_unit();
-           unit;
-           unit= next_unit)
-      {
-        if (unit == end_unit)
-          break;
-        SELECT_LEX_NODE *save_slave= unit->slave;
-        next_unit= unit->next_unit();
-        unit->include_down(table->select_lex);
-        unit->slave= save_slave; // fix include_down initialisation
-      }
 
       /* 
         We can safely ignore the VIEW's ORDER BY if we merge into union 
@@ -1551,16 +1494,12 @@ bool mysql_make_view(THD *thd, File_parser *parser, TABLE_LIST *table,
       goto ok;
     }
 
-    table->effective_algorithm= VIEW_ALGORITHM_TMPTABLE;
+    table->derived_type= VIEW_ALGORITHM_TMPTABLE;
     DBUG_PRINT("info", ("algorithm: TEMPORARY TABLE"));
     view_select->linkage= DERIVED_TABLE_TYPE;
     table->updatable= 0;
     table->effective_with_check= VIEW_CHECK_NONE;
     old_lex->subqueries= TRUE;
-
-    /* SELECT tree link */
-    lex->unit.include_down(table->select_lex);
-    lex->unit.slave= view_select; // fix include_down initialisation
 
     table->derived= &lex->unit;
   }
@@ -1568,6 +1507,9 @@ bool mysql_make_view(THD *thd, File_parser *parser, TABLE_LIST *table,
     goto err;
 
 ok:
+  /* SELECT tree link */
+  lex->unit.include_down(table->select_lex);
+  lex->unit.slave= view_select; // fix include_down initialisation
   /* global SELECT list linking */
   end= view_select;	// primary SELECT_LEX is always last
   end->link_next= old_lex->all_selects_list;

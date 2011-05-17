@@ -1570,6 +1570,9 @@ public:
     */
     TABLE_LIST *emb_on_expr_nest;
   } thd_marker;
+
+  bool prepare_derived_at_open;
+
 #ifndef MYSQL_CLIENT
   int binlog_setup_trx_data();
 
@@ -3020,13 +3023,14 @@ public:
 
 class select_union :public select_result_interceptor
 {
-protected:
+public:
   TMP_TABLE_PARAM tmp_table_param;
   int write_err; /* Error code from the last send_data->ha_write_row call. */
 public:
   TABLE *table;
+  ha_rows records;
 
-  select_union() :write_err(0),table(0) { tmp_table_param.init(); }
+  select_union() :write_err(0), table(0), records(0) { tmp_table_param.init(); }
   int prepare(List<Item> &list, SELECT_LEX_UNIT *u);
   bool send_data(List<Item> &items);
   bool send_eof();
@@ -3034,7 +3038,9 @@ public:
   void cleanup();
   virtual bool create_result_table(THD *thd, List<Item> *column_types,
                                    bool is_distinct, ulonglong options,
-                                   const char *alias, bool bit_fields_as_long);
+                                   const char *alias, 
+                                   bool bit_fields_as_long,
+                                   bool create_table);
   TMP_TABLE_PARAM *get_tmp_table_param() { return &tmp_table_param; }
 };
 
@@ -3100,9 +3106,11 @@ protected:
 
 public:
   select_materialize_with_stats() { tmp_table_param.init(); }
-  virtual bool create_result_table(THD *thd, List<Item> *column_types,
-                                   bool is_distinct, ulonglong options,
-                                   const char *alias, bool bit_fields_as_long);
+  bool create_result_table(THD *thd, List<Item> *column_types,
+                           bool is_distinct, ulonglong options,
+                           const char *alias, 
+                           bool bit_fields_as_long,
+                           bool create_table);
   bool init_result_table(ulonglong select_options);
   bool send_data(List<Item> &items);
   void cleanup();
@@ -3410,7 +3418,7 @@ public:
 class multi_update :public select_result_interceptor
 {
   TABLE_LIST *all_tables; /* query/update command tables */
-  TABLE_LIST *leaves;     /* list of leves of join table tree */
+  List<TABLE_LIST> *leaves;     /* list of leves of join table tree */
   TABLE_LIST *update_tables, *table_being_updated;
   TABLE **tmp_tables, *main_table, *table_to_update;
   TMP_TABLE_PARAM *tmp_table_param;
@@ -3436,7 +3444,7 @@ class multi_update :public select_result_interceptor
   bool error_handled;
 
 public:
-  multi_update(TABLE_LIST *ut, TABLE_LIST *leaves_list,
+  multi_update(TABLE_LIST *ut, List<TABLE_LIST> *leaves_list,
 	       List<Item> *fields, List<Item> *values,
 	       enum_duplicates handle_duplicates, bool ignore);
   ~multi_update();

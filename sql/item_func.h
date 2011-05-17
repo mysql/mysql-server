@@ -190,6 +190,7 @@ public:
                 Item_transformer transformer, uchar *arg_t);
   void traverse_cond(Cond_traverser traverser,
                      void * arg, traverse_order order);
+  bool eval_not_null_tables(uchar *opt_arg);
  // bool is_expensive_processor(uchar *arg);
  // virtual bool is_expensive() { return 0; }
   inline double fix_result(double value)
@@ -1682,14 +1683,7 @@ public:
   void fix_length_and_dec() { decimals=0; max_length=1; maybe_null=1;}
   bool check_vcol_func_processor(uchar *int_arg) 
   {
-#if 0
-    DBUG_ENTER("Item_func_is_free_lock::check_vcol_func_processor");
-    DBUG_PRINT("info",
-      ("check_vcol_func_processor returns TRUE: unsupported function"));
-    DBUG_RETURN(TRUE);
-#else
     return trace_unsupported_by_check_vcol_func_processor(func_name());
-#endif
   }
 };
 

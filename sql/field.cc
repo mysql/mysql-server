@@ -10484,3 +10484,27 @@ Field::set_datetime_warning(MYSQL_ERROR::enum_warning_level level, uint code,
                                  field_name);
   }
 }
+
+
+/*
+  @brief
+  Return possible keys for a field
+
+  @details
+  Return bit map of keys over this field which can be used by the range
+  optimizer. For a field of a generic table such keys are all keys that starts
+  from this field. For a field of a materialized derived table/view such keys
+  are all keys in which this field takes a part. This is less restrictive as
+  keys for a materialized derived table/view are generated on the fly from
+  present fields, thus the case when a field for the beginning of a key is
+  absent is impossible.
+
+  @return map of possible keys
+*/
+
+key_map Field::get_possible_keys()
+{
+  DBUG_ASSERT(table->pos_in_table_list);
+  return (table->pos_in_table_list->is_materialized_derived() ?
+          part_of_key : key_start);
+}

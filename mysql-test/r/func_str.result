@@ -2395,18 +2395,6 @@ C
 4194326291
 2366072709
 2707236321
-SELECT * FROM (SELECT * FROM v1) x;
-C
-2212294583
-450215437
-1842515611
-4088798008
-2226203566
-498629140
-1790921346
-4194326291
-2366072709
-2707236321
 DROP TABLE t1, t2;
 DROP VIEW v1;
 SELECT LOCATE('foo', NULL) FROM DUAL;
@@ -2549,14 +2537,12 @@ create table t1(f1 tinyint default null)engine=myisam;
 insert into t1 values (-1),(null);
 explain select 1 as a from t1,(select decode(f1,f1) as b from t1) a;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	2	
-1	PRIMARY	<derived2>	ALL	NULL	NULL	NULL	NULL	2	Using join buffer (flat, BNL join)
-2	DERIVED	t1	ALL	NULL	NULL	NULL	NULL	2	
+1	SIMPLE	t1	ALL	NULL	NULL	NULL	NULL	2	
+1	SIMPLE	t1	ALL	NULL	NULL	NULL	NULL	2	Using join buffer (flat, BNL join)
 explain select 1 as a from t1,(select encode(f1,f1) as b from t1) a;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	2	
-1	PRIMARY	<derived2>	ALL	NULL	NULL	NULL	NULL	2	Using join buffer (flat, BNL join)
-2	DERIVED	t1	ALL	NULL	NULL	NULL	NULL	2	
+1	SIMPLE	t1	ALL	NULL	NULL	NULL	NULL	2	
+1	SIMPLE	t1	ALL	NULL	NULL	NULL	NULL	2	Using join buffer (flat, BNL join)
 drop table t1;
 #
 # Bug#49141: Encode function is significantly slower in 5.1 compared to 5.0

@@ -887,7 +887,7 @@ Level	Code	Message
 Note	1276	Field or reference 'test.t1.a' of SELECT #3 was resolved in SELECT #2
 Note	1276	Field or reference 'test.t1.c' of SELECT #3 was resolved in SELECT #2
 Error	1054	Unknown column 'c' in 'field list'
-Note	1003	select `c` AS `c` from (select <expr_cache><count(`test`.`t1`.`a`),`test`.`t1`.`c`>((select count(`test`.`t1`.`a`) from (select count(`test`.`t1`.`b`) AS `COUNT(b)` from `test`.`t1`) `x` group by `t1`.`c`)) AS `(SELECT COUNT(a) FROM 
+Note	1003	select `c` AS `c` from (select (select count(`test`.`t1`.`a`) from (select count(`test`.`t1`.`b`) AS `COUNT(b)` from `test`.`t1`) `x` group by `test`.`t1`.`c`) AS `(SELECT COUNT(a) FROM 
 (SELECT COUNT(b) FROM t1) AS x GROUP BY c
 )` from `test`.`t1` group by `test`.`t1`.`b`) `y`
 DROP TABLE t1;
@@ -1114,9 +1114,8 @@ a
 set @@optimizer_switch=@save_optimizer_switch;
 explain select * from (select a from t0) X where a in (select a from t1);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	PRIMARY	<derived2>	ALL	NULL	NULL	NULL	NULL	11	
-1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	20	Using where; FirstMatch(<derived2>)
-2	DERIVED	t0	ALL	NULL	NULL	NULL	NULL	11	
+1	PRIMARY	t0	ALL	NULL	NULL	NULL	NULL	11	
+1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	20	Using where; FirstMatch(t0)
 drop table t0, t1;
 create table t0 (a int);
 insert into t0 values (0),(1),(2),(3),(4),(5),(6),(7),(8),(9);

@@ -110,7 +110,7 @@ show create view mysqltest.v1;
 ERROR 42000: SHOW VIEW command denied to user 'mysqltest_1'@'localhost' for table 'v1'
 explain select c from mysqltest.v2;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	PRIMARY	<derived2>	system	NULL	NULL	NULL	NULL	0	const row not found
+1	PRIMARY	<derived2>	ALL	NULL	NULL	NULL	NULL	2	
 2	DERIVED	NULL	NULL	NULL	NULL	NULL	NULL	NULL	no matching row in const table
 show create view mysqltest.v2;
 ERROR 42000: SHOW VIEW command denied to user 'mysqltest_1'@'localhost' for table 'v2'
@@ -131,7 +131,7 @@ View	Create View	character_set_client	collation_connection
 v1	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `mysqltest`.`v1` AS select (`mysqltest`.`t1`.`a` + 1) AS `c`,(`mysqltest`.`t1`.`b` + 1) AS `d` from `mysqltest`.`t1`	latin1	latin1_swedish_ci
 explain select c from mysqltest.v2;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	PRIMARY	<derived2>	system	NULL	NULL	NULL	NULL	0	const row not found
+1	PRIMARY	<derived2>	ALL	NULL	NULL	NULL	NULL	2	
 2	DERIVED	NULL	NULL	NULL	NULL	NULL	NULL	NULL	no matching row in const table
 show create view mysqltest.v2;
 View	Create View	character_set_client	collation_connection
@@ -144,7 +144,7 @@ View	Create View	character_set_client	collation_connection
 v3	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `mysqltest`.`v3` AS select (`mysqltest`.`t2`.`a` + 1) AS `c`,(`mysqltest`.`t2`.`b` + 1) AS `d` from `mysqltest`.`t2`	latin1	latin1_swedish_ci
 explain select c from mysqltest.v4;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	PRIMARY	<derived2>	system	NULL	NULL	NULL	NULL	0	const row not found
+1	PRIMARY	<derived2>	ALL	NULL	NULL	NULL	NULL	2	
 2	DERIVED	NULL	NULL	NULL	NULL	NULL	NULL	NULL	no matching row in const table
 show create view mysqltest.v4;
 View	Create View	character_set_client	collation_connection
@@ -172,30 +172,29 @@ a	b
 35	4
 46	5
 50	10
-update v1 set a=a+c;
 select * from t1;
 a	b
-16	2
-28	3
-40	4
-52	5
-61	10
+13	2
+24	3
+35	4
+46	5
+50	10
 update t2,v2 set v2.a=v2.a+v2.c where t2.x=v2.c;
 select * from t1;
 a	b
-16	2
-31	3
-44	4
-57	5
-61	10
+13	2
+27	3
+39	4
+51	5
+50	10
 update v2 set a=a+c;
 select * from t1;
 a	b
-18	2
-34	3
-48	4
-62	5
-71	10
+15	2
+30	3
+43	4
+56	5
+60	10
 update t2,v2 set v2.c=v2.a+v2.c where t2.x=v2.c;
 ERROR 42000: UPDATE command denied to user 'mysqltest_1'@'localhost' for column 'c' in table 'v2'
 update v2 set c=a+c;
@@ -576,16 +575,12 @@ UPDATE mysqltest1.v_ts SET x= 200 WHERE x = 100;
 ERROR 42000: UPDATE command denied to user 'readonly'@'localhost' for table 'v_ts'
 UPDATE mysqltest1.v_ts SET x= 200;
 ERROR 42000: UPDATE command denied to user 'readonly'@'localhost' for table 'v_ts'
-UPDATE mysqltest1.v_tu SET x= 200 WHERE x = 100;
-UPDATE mysqltest1.v_tus SET x= 200 WHERE x = 100;
-UPDATE mysqltest1.v_tu SET x= 200;
 DELETE FROM mysqltest1.v_ts WHERE x= 200;
 ERROR 42000: DELETE command denied to user 'readonly'@'localhost' for table 'v_ts'
 DELETE FROM mysqltest1.v_ts;
 ERROR 42000: DELETE command denied to user 'readonly'@'localhost' for table 'v_ts'
 DELETE FROM mysqltest1.v_td WHERE x= 200;
 ERROR 42000: SELECT command denied to user 'readonly'@'localhost' for column 'x' in table 'v_td'
-DELETE FROM mysqltest1.v_tds WHERE x= 200;
 DELETE FROM mysqltest1.v_td;
 DROP VIEW mysqltest1.v_tds;
 DROP VIEW mysqltest1.v_td;
