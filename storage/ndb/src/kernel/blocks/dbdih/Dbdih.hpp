@@ -28,6 +28,7 @@
 #include <signaldata/CopyGCIReq.hpp>
 #include <blocks/mutexes.hpp>
 #include <signaldata/LCP.hpp>
+#include <NdbSeqLock.hpp>
 
 #ifdef DBDIH_C
 
@@ -441,7 +442,15 @@ public:
    * TO LOCATE A FRAGMENT AND TO TRANSLATE A KEY OF A TUPLE TO THE FRAGMENT IT
    * BELONGS
    */
-  struct TabRecord {
+  struct TabRecord
+  {
+    /**
+     * rw-lock that protects multiple parallel DIGETNODES (readers) from
+     *   updates to fragmenation changes (e.g CREATE_FRAGREQ)...
+     *   search for DIH_TAB_WRITE_LOCK
+     */
+    NdbSeqLock m_lock;
+
     /**
      * State for copying table description into pages
      */
