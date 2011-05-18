@@ -104,9 +104,9 @@ struct trx_purge_struct{
 	sess_t*		sess;		/*!< System session running the purge
 					query */
 	trx_t*		trx;		/*!< System transaction running the
-				       	purge query: this trx is not in the
-				       	trx list of the trx system and it
-				       	never ends */
+					purge query: this trx is not in the
+					trx list of the trx system and it
+					never ends */
 	que_t*		query;		/*!< The query graph which will do the
 					parallelized purge operation */
 	rw_lock_t	latch;		/*!< The latch protecting the purge
@@ -118,7 +118,7 @@ struct trx_purge_struct{
 	read_view_t*	view;		/*!< The purge will not remove undo logs
 					which are >= this view (purge view) */
 	ulint		n_submitted;	/*!< Count of total tasks submitted
-				       	to the task queue */
+					to the task queue */
 	ulint		n_executing;	/*!< Count of currently executing purge
 					worker threads */
 	ulint		n_completed;	/*!< Count of total tasks completed */
@@ -135,7 +135,7 @@ struct trx_purge_struct{
 					invariant in trx0purge.c */
 	purge_iter_t	limit;		/* The 'purge pointer' which advances
 					during a purge, and which is used in
-				       	history list truncation */
+					history list truncation */
 	/*-----------------------------*/
 	ibool		next_stored;	/*!< TRUE if the info of the next record
 					to purge is stored below: if yes, then
