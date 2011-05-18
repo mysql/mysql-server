@@ -64,5 +64,6 @@ static const char *handler_error_messages[]=
   "Read page with wrong checksum",
   "Too many active concurrent transactions",
   "Row is not visible by the current transaction",
-  "Operation was interrupted by end user (probably kill command?)"
+  "Operation was interrupted by end user (probably kill command?)",
+  "Disk full"
 };
