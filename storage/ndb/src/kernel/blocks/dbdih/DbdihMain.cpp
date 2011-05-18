@@ -9201,6 +9201,62 @@ void Dbdih::initialiseFragstore()
   }//for    
 }//Dbdih::initialiseFragstore()
 
+inline
+bool
+Dbdih::isEmpty(const DIVERIFY_queue & q)
+{
+  return q.cverifyQueueCounter == 0;
+}
+
+inline
+void
+Dbdih::enqueue(DIVERIFY_queue & q, Ptr<ApiConnectRecord> conRecord)
+{
+  Uint32 first = q.cfirstVerifyQueue;
+  Uint32 last = q.clastVerifyQueue;
+  Uint32 count = q.cverifyQueueCounter;
+
+  Ptr<ApiConnectRecord> tmp;
+  tmp.i = last;
+  if (last != RNIL)
+  {
+    tmp.i = last;
+    ptrCheckGuard(tmp, capiConnectFileSize, apiConnectRecord);
+    tmp.p->nextApi = conRecord.i;
+  }
+  else
+  {
+    ndbassert(count == 0);
+    first = conRecord.i;
+  }
+  q.cfirstVerifyQueue = first;
+  q.clastVerifyQueue = conRecord.i;
+  q.cverifyQueueCounter = count + 1;
+}
+
+inline
+void
+Dbdih::dequeue(DIVERIFY_queue & q, Ptr<ApiConnectRecord> & conRecord)
+{
+  Uint32 first = q.cfirstVerifyQueue;
+  Uint32 last = q.clastVerifyQueue;
+  Uint32 count = q.cverifyQueueCounter;
+
+  conRecord.i = first;
+  ptrCheckGuard(conRecord, capiConnectFileSize, apiConnectRecord);
+  Uint32 next = conRecord.p->nextApi;
+  if (first == last)
+  {
+    ndbrequire(next == RNIL);
+    ndbassert(count == 1);
+    last = RNIL;
+  }
+  ndbrequire(count > 0);
+  q.cfirstVerifyQueue = next;
+  q.clastVerifyQueue = last;
+  q.cverifyQueueCounter = count - 1;
+}
+
 /*
   3.9   V E R I F I C A T I O N
   ****************************=
@@ -9217,7 +9273,8 @@ void Dbdih::execDIVERIFYREQ(Signal* signal)
 
   jamEntry();
   if ((getBlockCommit() == false) &&
-      (cfirstVerifyQueue == RNIL)) {
+      isEmpty(c_diverify_queue[0]))
+  {
     jam();
     /*-----------------------------------------------------------------------*/
     // We are not blocked and the verify queue was empty currently so we can
@@ -9235,24 +9292,14 @@ void Dbdih::execDIVERIFYREQ(Signal* signal)
   // Since we are blocked we need to put this operation last in the verify
   // queue to ensure that operation starts up in the correct order.
   /*-------------------------------------------------------------------------*/
-  ApiConnectRecordPtr tmpApiConnectptr;
   ApiConnectRecordPtr localApiConnectptr;
 
-  cverifyQueueCounter++;
   localApiConnectptr.i = signal->theData[0];
-  tmpApiConnectptr.i = clastVerifyQueue;
   ptrCheckGuard(localApiConnectptr, capiConnectFileSize, apiConnectRecord);
   localApiConnectptr.p->apiGci = m_micro_gcp.m_new_gci;
   localApiConnectptr.p->nextApi = RNIL;
-  clastVerifyQueue = localApiConnectptr.i;
-  if (tmpApiConnectptr.i == RNIL) {
-    jam();
-    cfirstVerifyQueue = localApiConnectptr.i;
-  } else {
-    jam();
-    ptrCheckGuard(tmpApiConnectptr, capiConnectFileSize, apiConnectRecord);
-    tmpApiConnectptr.p->nextApi = localApiConnectptr.i;
-  }//if
+
+  enqueue(c_diverify_queue[0], localApiConnectptr);
   emptyverificbuffer(signal, false);
   signal->theData[3] = 1; // Indicate no immediate return
   return;
@@ -9440,7 +9487,7 @@ Dbdih::execUPGRADE_PROTOCOL_ORD(Signal* signal)
 void
 Dbdih::startGcpLab(Signal* signal, Uint32 aWaitTime) 
 {
-  if (cfirstVerifyQueue != RNIL)
+  if (! isEmpty(c_diverify_queue[0]))
   {
     // Previous global checkpoint is not yet completed.
     jam();
@@ -14672,26 +14719,18 @@ void Dbdih::createFileRw(Signal* signal, FileRecordPtr filePtr)
   sendSignal(NDBFS_REF, GSN_FSOPENREQ, signal, 7, JBA);
 }//Dbdih::createFileRw()
 
-void Dbdih::emptyverificbuffer(Signal* signal, bool aContinueB) 
+void Dbdih::emptyverificbuffer(Signal* signal, bool aContinueB)
 {
-  if(cfirstVerifyQueue == RNIL){
+  if (isEmpty(c_diverify_queue[0]))
+  {
     jam();
     return;
   }//if
   ApiConnectRecordPtr localApiConnectptr;
   if(getBlockCommit() == false){
     jam();
-    ndbrequire(cverifyQueueCounter > 0);
-    cverifyQueueCounter--;
-    localApiConnectptr.i = cfirstVerifyQueue;
-    ptrCheckGuard(localApiConnectptr, capiConnectFileSize, apiConnectRecord);
+    dequeue(c_diverify_queue[0], localApiConnectptr);
     ndbrequire(localApiConnectptr.p->apiGci <= m_micro_gcp.m_current_gci);
-    cfirstVerifyQueue = localApiConnectptr.p->nextApi;
-    if (cfirstVerifyQueue == RNIL) {
-      jam();
-      ndbrequire(cverifyQueueCounter == 0);
-      clastVerifyQueue = RNIL;
-    }//if
     signal->theData[0] = localApiConnectptr.i;
     signal->theData[1] = (Uint32)(m_micro_gcp.m_current_gci >> 32);
     signal->theData[2] = (Uint32)(m_micro_gcp.m_current_gci & 0xFFFFFFFF);
@@ -15065,11 +15104,9 @@ void Dbdih::initCommonData()
   cfailurenr = 1;
   cfirstAliveNode = RNIL;
   cfirstDeadNode = RNIL;
-  cfirstVerifyQueue = RNIL;
   cgckptflag = false;
   cgcpOrderBlocked = 0;
 
-  clastVerifyQueue = RNIL;
   c_lcpMasterTakeOverState.set(LMTOS_IDLE, __LINE__);
 
   c_lcpState.clcpDelay = 0;
@@ -15103,7 +15140,6 @@ void Dbdih::initCommonData()
   cstarttype = (Uint32)-1;
   csystemnodes = 0;
   c_newest_restorable_gci = 0;
-  cverifyQueueCounter = 0;
   cwaitLcpSr = false;
   c_nodeStartMaster.blockGcp = 0;
 
@@ -17208,11 +17244,16 @@ Dbdih::execDUMP_STATE_ORD(Signal* signal)
   if (arg == DumpStateOrd::DihDumpNodeRestartInfo) {
     infoEvent("c_nodeStartMaster.blockLcp = %d, c_nodeStartMaster.blockGcp = %d, c_nodeStartMaster.wait = %d",
 	      c_nodeStartMaster.blockLcp, c_nodeStartMaster.blockGcp, c_nodeStartMaster.wait);
-    infoEvent("cfirstVerifyQueue = %d, cverifyQueueCounter = %d",
-              cfirstVerifyQueue, cverifyQueueCounter);
+    for (Uint32 i = 0; i<NDB_ARRAY_SIZE(c_diverify_queue); i++)
+    {
+      infoEvent("[ %u : cfirstVerifyQueue = 0x%.8x, cverifyQueueCounter = %u ]",
+                i,
+                c_diverify_queue[i].cfirstVerifyQueue,
+                c_diverify_queue[i].cverifyQueueCounter);
+    }
     infoEvent("cgcpOrderBlocked = %d",
               cgcpOrderBlocked);
-  }//if  
+  }//if
   if (arg == DumpStateOrd::DihDumpNodeStatusInfo) {
     NodeRecordPtr localNodePtr;
     infoEvent("Printing nodeStatus of all nodes");
