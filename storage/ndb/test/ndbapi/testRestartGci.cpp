@@ -564,7 +564,7 @@ int runUpdateVerifyGCI(NDBT_Context* ctx, NDBT_Step* step)
 
     /* First check the data is as expected */
     CHECK(hugoCalc.verifyRowValues(&hugoOps.get_row(0)) == 0);
-    CHECK(hugoCalc.getUpdatesValue(&hugoOps.get_row(0)) == loopCount);
+    CHECK((Uint64)hugoCalc.getUpdatesValue(&hugoOps.get_row(0)) == loopCount);
     //ndbout_c("Updates value is %u", hugoCalc.getUpdatesValue(&hugoOps.get_row(0)));
 
     Uint64 committedGCI;
