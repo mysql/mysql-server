@@ -8363,7 +8363,7 @@ PSI_stage_info stage_end= { 0, "end", 0};
 PSI_stage_info stage_executing= { 0, "executing", 0};
 PSI_stage_info stage_execution_of_init_command= { 0, "Execution of init_command", 0};
 PSI_stage_info stage_finished_reading_one_binlog_switching_to_next_binlog= { 0, "Finished reading one binlog; switching to next binlog", 0};
-PSI_stage_info stage_flushing_relay_log_and_master_info_files= { 0, "Flushing relay log and master info files.", 0};
+PSI_stage_info stage_flushing_relay_log_and_master_info_repository= { 0, "Flushing relay log and master info repository.", 0};
 PSI_stage_info stage_flushing_relay_log_info_file= { 0, "Flushing relay-log info file.", 0};
 PSI_stage_info stage_freeing_items= { 0, "freeing items", 0};
 PSI_stage_info stage_fulltext_initialization= { 0, "FULLTEXT initialization", 0};
@@ -8375,6 +8375,8 @@ PSI_stage_info stage_invalidating_query_cache_entries_table= { 0, "invalidating 
 PSI_stage_info stage_invalidating_query_cache_entries_table_list= { 0, "invalidating query cache entries (table list)", 0};
 PSI_stage_info stage_killing_slave= { 0, "Killing slave", 0};
 PSI_stage_info stage_logging_slow_query= { 0, "logging slow query", 0};
+PSI_stage_info stage_making_temp_file_append_before_load_data= { 0, "Making temporary file (append) before replaying LOAD DATA INFILE.", 0};
+PSI_stage_info stage_making_temp_file_create_before_load_data= { 0, "Making temporary file (create) before replaying LOAD DATA INFILE.", 0};
 PSI_stage_info stage_manage_keys= { 0, "manage keys", 0};
 PSI_stage_info stage_opening_tables= { 0, "Opening tables", 0};
 PSI_stage_info stage_optimizing= { 0, "optimizing", 0};
@@ -8399,6 +8401,7 @@ PSI_stage_info stage_sorting_for_group= { 0, "Sorting for group", 0};
 PSI_stage_info stage_sorting_for_order= { 0, "Sorting for order", 0};
 PSI_stage_info stage_sorting_result= { 0, "Sorting result", 0};
 PSI_stage_info stage_statistics= { 0, "statistics", 0};
+PSI_stage_info stage_sql_thd_waiting_until_delay= { 0, "Waiting until MASTER_DELAY seconds after master executed event", 0 };
 PSI_stage_info stage_storing_result_in_query_cache= { 0, "storing result in query cache", 0};
 PSI_stage_info stage_storing_row_into_queue= { 0, "storing row into queue", 0};
 PSI_stage_info stage_system_lock= { 0, "System lock", 0};
@@ -8452,7 +8455,7 @@ PSI_stage_info *all_server_stages[]=
   & stage_executing,
   & stage_execution_of_init_command,
   & stage_finished_reading_one_binlog_switching_to_next_binlog,
-  & stage_flushing_relay_log_and_master_info_files,
+  & stage_flushing_relay_log_and_master_info_repository,
   & stage_flushing_relay_log_info_file,
   & stage_freeing_items,
   & stage_fulltext_initialization,
@@ -8464,6 +8467,8 @@ PSI_stage_info *all_server_stages[]=
   & stage_invalidating_query_cache_entries_table_list,
   & stage_killing_slave,
   & stage_logging_slow_query,
+  & stage_making_temp_file_append_before_load_data,
+  & stage_making_temp_file_create_before_load_data,
   & stage_manage_keys,
   & stage_opening_tables,
   & stage_optimizing,
@@ -8487,6 +8492,7 @@ PSI_stage_info *all_server_stages[]=
   & stage_sorting_for_group,
   & stage_sorting_for_order,
   & stage_sorting_result,
+  & stage_sql_thd_waiting_until_delay,
   & stage_statistics,
   & stage_storing_result_in_query_cache,
   & stage_storing_row_into_queue,

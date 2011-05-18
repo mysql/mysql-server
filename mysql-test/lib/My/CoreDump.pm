@@ -1,5 +1,5 @@
 # -*- cperl -*-
-# Copyright (C) 2008 MySQL AB, 2009 Sun Microsystems, Inc.
+# Copyright (c) 2008, 2011, Oracle and/or its affiliates. All rights reserved.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -21,6 +21,7 @@ use Carp;
 use My::Platform;
 
 use File::Temp qw/ tempfile tempdir /;
+use mtr_results;
 
 my $hint_mysqld;		# Last resort guess for executable path
 
@@ -80,7 +81,7 @@ sub _gdb {
   return if $? >> 8;
   return unless $gdb_output;
 
-  print <<EOF, $gdb_output, "\n";
+  resfile_print <<EOF, $gdb_output, "\n";
 Output from gdb follows. The first stack trace is from the failing thread.
 The following stack traces are from all threads (so the failing one is
 duplicated).
@@ -124,7 +125,7 @@ sub _dbx {
   return if $? >> 8;
   return unless $dbx_output;
 
-  print <<EOF, $dbx_output, "\n";
+  resfile_print <<EOF .  $dbx_output . "\n";
 Output from dbx follows. Stack trace is printed for all threads in order,
 above this you should see info about which thread was the failing one.
 ----------------------------
@@ -244,7 +245,7 @@ sub _cdb {
   $cdb_output=~ s/^Child\-SP          RetAddr           Call Site//gm;
   $cdb_output=~ s/\+0x([0-9a-fA-F]+)//gm;
   
-  print <<EOF, $cdb_output, "\n";
+  resfile_print <<EOF, $cdb_output, "\n";
 Output from cdb follows. Faulting thread is printed twice,with and without function parameters
 Search for STACK_TEXT to see the stack trace of 
 the faulting thread. Callstacks of other threads are printed after it.

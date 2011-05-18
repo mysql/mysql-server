@@ -99,6 +99,9 @@ struct PFS_instr_class
   {
     return m_flags & PSI_FLAG_GLOBAL;
   }
+
+  static void set_enabled(PFS_instr_class *pfs, bool enabled);
+  static void set_timed(PFS_instr_class *pfs, bool timed);
 };
 
 struct PFS_mutex;
@@ -231,7 +234,17 @@ public:
     PFS_atomic::add_32(& m_refcount, -1);
   }
 
-  /** Setup object refresh version. */
+  void refresh_setup_object_flags(PFS_thread *thread);
+
+  /**
+    Setup object refresh version.
+    Cache version used when computing the enabled / timed flags.
+    @sa setup_objects_version
+    @sa m_io_enabled
+    @sa m_lock_enabled
+    @sa m_io_timed
+    @sa m_lock_timed
+  */
   uint m_setup_objects_version;
   /** Internal lock. */
   pfs_lock m_lock;
@@ -245,11 +258,14 @@ public:
   const char *m_table_name;
   /** Length in bytes of @c m_table_name. */
   uint m_table_name_length;
-  /** True if this table instrument is enabled. */
-  bool m_enabled;
-  /** True if this table instrument is timed. */
-  bool m_timed;
-  bool m_purge;
+  /** True if table io instrumentation is enabled. */
+  bool m_io_enabled;
+  /** True if table lock instrumentation is enabled. */
+  bool m_lock_enabled;
+  /** True if table io instrumentation is timed. */
+  bool m_io_timed;
+  /** True if table lock instrumentation is timed. */
+  bool m_lock_timed;
   /** Table statistics. */
   PFS_table_stat m_table_stat;
   /** Number of indexes. */
