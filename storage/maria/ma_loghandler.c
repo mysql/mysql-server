@@ -6229,7 +6229,7 @@ my_bool translog_write_record(LSN *lsn,
   DBUG_ASSERT(translog_status == TRANSLOG_OK ||
               translog_status == TRANSLOG_READONLY);
   DBUG_ASSERT(type != 0);
-  DBUG_ASSERT(type <= max_allowed_translog_type);
+  DBUG_ASSERT((uint)type <= max_allowed_translog_type);
   if (unlikely(translog_status != TRANSLOG_OK))
   {
     DBUG_PRINT("error", ("Transaction log is write protected"));
