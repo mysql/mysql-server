@@ -475,6 +475,11 @@ int ha_myisammrg::add_children_list(void)
     child_l->set_table_ref_id(mrg_child_def->get_child_table_ref_type(),
                               mrg_child_def->get_child_def_version());
     /*
+      Copy parent's prelocking attribute to allow opening of child
+      temporary residing in the prelocking list.
+    */
+    child_l->prelocking_placeholder= parent_l->prelocking_placeholder;
+    /*
       For statements which acquire a SNW metadata lock on a parent table and
       then later try to upgrade it to an X lock (e.g. ALTER TABLE), SNW
       locks should be also taken on the children tables.
@@ -617,6 +622,13 @@ extern "C" MI_INFO *myisammrg_attach_children_callback(void *callback_param)
     goto end;
   }
   child= child_l->table;
+
+  if (!child)
+  {
+    DBUG_PRINT("myrg", ("Child table does not exist"));
+    my_errno= HA_ERR_WRONG_MRG_TABLE_DEF;
+    goto end;
+  }
   /* Prepare for next child. */
   param->next();
 
