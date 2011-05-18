@@ -687,8 +687,11 @@ static inline int mysql_mutex_lock(...)
   @section IMPL_WAIT Implementation for waits aggregates
 
   For waits, the tables that contains aggregated wait data are:
+  - EVENTS_WAITS_SUMMARY_BY_ACCOUNT_BY_EVENT_NAME
+  - EVENTS_WAITS_SUMMARY_BY_HOST_BY_EVENT_NAME
   - EVENTS_WAITS_SUMMARY_BY_INSTANCE
   - EVENTS_WAITS_SUMMARY_BY_THREAD_BY_EVENT_NAME
+  - EVENTS_WAITS_SUMMARY_BY_USER_BY_EVENT_NAME
   - EVENTS_WAITS_SUMMARY_GLOBAL_BY_EVENT_NAME
   - FILE_SUMMARY_BY_EVENT_NAME
   - FILE_SUMMARY_BY_INSTANCE
@@ -700,6 +703,7 @@ static inline int mysql_mutex_lock(...)
   - conditions (mysql_cond_t)
   - file io (MYSQL_FILE)
   - table io
+  - table lock
 
   The flow of data between aggregates tables varies for each instrumentation.
 
@@ -720,45 +724,50 @@ static inline int mysql_mutex_lock(...)
         |
         | [3]
         |
-     3a |-> pfs_account(U, H).event_name(M) =====>> [D], [E], [F]
-        |    |
-        |    | [4]
-        |    |
-     3b |----+-> pfs_user(U).event_name(M)    =====>> [E]
-        |    |
-     3c |----+-> pfs_host(H).event_name(M)    =====>> [F]
+     3a |-> pfs_account(U, H).event_name(M)   =====>> [D], [E], [F]
+        .    |
+        .    | [4-RESET]
+        .    |
+     3b .....+-> pfs_user(U).event_name(M)    =====>> [E]
+        .    |
+     3c .....+-> pfs_host(H).event_name(M)    =====>> [F]
 @endverbatim
 
   How to read this diagram:
   - events that occur during the instrumented code execution are noted with numbers,
   as in [1]. Code executed by these events has an impact on overhead.
+  - events that occur during TRUNCATE TABLE operations are noted with numbers,
+  followed by "-RESET", as in [4-RESET].
+  Code executed by these events has no impact on overhead,
+  since they are executed by independent monitoring sessions.
   - events that occur when a reader extracts data from a performance schema table
   are noted with letters, as in [A]. The name of the table involved,
   and the method that builds a row are documented. Code executed by these events
   has no impact on the instrumentation overhead. Note that the table
   implementation may pull data from different buffers.
-  - placeholders for aggregates tables that are not implemented yet are
-  documented, to illustrate the overall architecture principles.
+  - nominal code paths are in plain lines. A "nominal" code path corresponds to
+  cases where the performance schema buffers are sized so that no records are lost.
+  - degenerated code paths are in dotted lines. A "degenerated" code path corresponds
+  to edge cases where parent buffers are full, which forces the code to aggregate to
+  grand parents directly.
 
   Implemented as:
   - [1] @c get_thread_mutex_locker_v1(), @c start_mutex_wait_v1(), @c end_mutex_wait_v1()
   - [2] @c destroy_mutex_v1()
+  - [3] @c aggregate_thread_waits()
+  - [4] @c PFS_account::aggregate_waits()
   - [A] EVENTS_WAITS_SUMMARY_BY_THREAD_BY_EVENT_NAME,
         @c table_ews_by_thread_by_event_name::make_row()
   - [B] EVENTS_WAITS_SUMMARY_BY_INSTANCE,
         @c table_events_waits_summary_by_instance::make_mutex_row()
   - [C] EVENTS_WAITS_SUMMARY_GLOBAL_BY_EVENT_NAME,
         @c table_ews_global_by_event_name::make_mutex_row()
-
-  Not implemented:
-  - [3] thread disconnect
-  - [4] user host disconnect
   - [D] EVENTS_WAITS_SUMMARY_BY_ACCOUNT_BY_EVENT_NAME,
-        table_ews_by_account_by_event_name::make_row()
+        @c table_ews_by_account_by_event_name::make_row()
   - [E] EVENTS_WAITS_SUMMARY_BY_USER_BY_EVENT_NAME,
-        table_ews_by_user_by_event_name::make_row()
+        @c table_ews_by_user_by_event_name::make_row()
   - [F] EVENTS_WAITS_SUMMARY_BY_HOST_BY_EVENT_NAME,
-        table_ews_by_host_by_event_name::make_row()
+        @c table_ews_by_host_by_event_name::make_row()
 
   Table EVENTS_WAITS_SUMMARY_BY_INSTANCE is a 'on the fly' aggregate,
   because the data is collected on the fly by (1) and stored into a buffer,
@@ -888,97 +897,106 @@ static inline int mysql_mutex_lock(...)
   - [B] EVENTS_WAITS_SUMMARY_BY_INSTANCE,
         @c table_events_waits_summary_by_instance::make_table_row()
   - [C] EVENTS_WAITS_SUMMARY_GLOBAL_BY_EVENT_NAME,
-        @c table_ews_global_by_event_name::make_table_io_row()
+        @c table_ews_global_by_event_name::make_table_io_row(),
+        @c table_ews_global_by_event_name::make_table_lock_row()
   - [D] OBJECTS_SUMMARY_GLOBAL_BY_TYPE,
         @c table_os_global_by_type::make_row()
 
   @section IMPL_STAGE Implementation for stages aggregates
+
+  For stages, the tables that contains aggregated data are:
+  - EVENTS_STAGES_SUMMARY_BY_ACCOUNT_BY_EVENT_NAME
+  - EVENTS_STAGES_SUMMARY_BY_HOST_BY_EVENT_NAME
+  - EVENTS_STAGES_SUMMARY_BY_THREAD_BY_EVENT_NAME
+  - EVENTS_STAGES_SUMMARY_BY_USER_BY_EVENT_NAME
+  - EVENTS_STAGES_SUMMARY_GLOBAL_BY_EVENT_NAME
 
 @verbatim
   start_stage(T, S)
    |
    | [1]
    |
- a |-> pfs_thread(T).event_name(S)            =====>> [A], [B], [C], [D], [E]
+1a |-> pfs_thread(T).event_name(S)            =====>> [A], [B], [C], [D], [E]
    |    |
    |    | [2]
    |    |
-   |  a |-> pfs_account(U, H).event_name(S) =====>> [B], [C], [D], [E]
-   |    |    |
-   |    |    | [3]
-   |    |    |
-   |  b |----+-> pfs_user(U).event_name(S)    =====>> [C]
-   |    |    |
-   |  c |----+-> pfs_host(H).event_name(S)    =====>> [D], [E]
-   |    |    |    |
-   |    |    |    | [4]
-   |  d |    |    |
- b |----+----+----+-> pfs_stage_class(S)      =====>> [E]
+   | 2a |-> pfs_account(U, H).event_name(S)   =====>> [B], [C], [D], [E]
+   |    .    |
+   |    .    | [3-RESET]
+   |    .    |
+   | 2b .....+-> pfs_user(U).event_name(S)    =====>> [C]
+   |    .    |
+   | 2c .....+-> pfs_host(H).event_name(S)    =====>> [D], [E]
+   |    .    .    |
+   |    .    .    | [4-RESET]
+   | 2d .    .    |
+1b |----+----+----+-> pfs_stage_class(S)      =====>> [E]
 
 @endverbatim
 
   Implemented as:
   - [1] @c start_stage_v1()
-  - [2d] @c delete_thread_v1()
+  - [2] @c delete_thread_v1(), @c aggregate_thread_stages()
+  - [3] @c PFS_account::aggregate_stages()
+  - [4] @c PFS_host::aggregate_stages()
   - [A] EVENTS_STAGES_SUMMARY_BY_THREAD_BY_EVENT_NAME,
         @c table_esgs_by_thread_by_event_name::make_row()
-  - [E] EVENTS_STAGES_SUMMARY_GLOBAL_BY_EVENT_NAME,
-        @c table_esgs_global_by_event_name::make_row()
-
-  Not implemented:
-  - [2a, 2b, 2c] @c delete_thread_v1() to aggregate to user/host buffers
-  - [3] user disconnect
-  - [4] host disconnect
   - [B] EVENTS_STAGES_SUMMARY_BY_ACCOUNT_BY_EVENT_NAME,
         @c table_esgs_by_account_by_event_name::make_row()
   - [C] EVENTS_STAGES_SUMMARY_BY_USER_BY_EVENT_NAME,
         @c table_esgs_by_user_by_event_name::make_row()
   - [D] EVENTS_STAGES_SUMMARY_BY_HOST_BY_EVENT_NAME,
         @c table_esgs_by_host_by_event_name::make_row()
+  - [E] EVENTS_STAGES_SUMMARY_GLOBAL_BY_EVENT_NAME,
+        @c table_esgs_global_by_event_name::make_row()
 
   @section IMPL_STATEMENT Implementation for statements aggregates
+
+  For statements, the tables that contains aggregated data are:
+  - EVENTS_STATEMENTS_SUMMARY_BY_ACCOUNT_BY_EVENT_NAME
+  - EVENTS_STATEMENTS_SUMMARY_BY_HOST_BY_EVENT_NAME
+  - EVENTS_STATEMENTS_SUMMARY_BY_THREAD_BY_EVENT_NAME
+  - EVENTS_STATEMENTS_SUMMARY_BY_USER_BY_EVENT_NAME
+  - EVENTS_STATEMENTS_SUMMARY_GLOBAL_BY_EVENT_NAME
 
 @verbatim
   statement_locker(T, S)
    |
    | [1]
    |
- a |-> pfs_thread(T).event_name(S)            =====>> [A], [B], [C], [D], [E]
+1a |-> pfs_thread(T).event_name(S)            =====>> [A], [B], [C], [D], [E]
    |    |
    |    | [2]
    |    |
-   |  a |-> pfs_account(U, H).event_name(S) =====>> [B], [C], [D], [E]
-   |    |    |
-   |    |    | [3]
-   |    |    |
-   |  b |----+-> pfs_user(U).event_name(S)    =====>> [C]
-   |    |    |
-   |  c |----+-> pfs_host(H).event_name(S)    =====>> [D], [E]
-   |    |    |    |
-   |    |    |    | [4]
-   |  d |    |    |
- b |----+----+----+-> pfs_stage_class(S)      =====>> [E]
+   | 2a |-> pfs_account(U, H).event_name(S)   =====>> [B], [C], [D], [E]
+   |    .    |
+   |    .    | [3-RESET]
+   |    .    |
+   | 2b .....+-> pfs_user(U).event_name(S)    =====>> [C]
+   |    .    |
+   | 2c .....+-> pfs_host(H).event_name(S)    =====>> [D], [E]
+   |    .    .    |
+   |    .    .    | [4-RESET]
+   | 2d .    .    |
+1b |----+----+----+-> pfs_stage_class(S)      =====>> [E]
 
 @endverbatim
 
   Implemented as:
   - [1] @c start_statement_v1(), end_statement_v1()
-  - [2d] @c delete_thread_v1()
+  - [2] @c delete_thread_v1(), @c aggregate_thread_statements()
+  - [3] @c PFS_account::aggregate_statements()
+  - [4] @c PFS_host::aggregate_statements()
   - [A] EVENTS_STATEMENTS_SUMMARY_BY_THREAD_BY_EVENT_NAME,
         @c table_esms_by_thread_by_event_name::make_row()
-  - [E] EVENTS_STATEMENTS_SUMMARY_GLOBAL_BY_EVENT_NAME,
-        @c table_esms_global_by_event_name::make_row()
-
-  Not implemented:
-  - [2a, 2b, 2c] @c delete_thread_v1() to aggregate to user/host buffers
-  - [3] user disconnect
-  - [4] host disconnect
   - [B] EVENTS_STATEMENTS_SUMMARY_BY_ACCOUNT_BY_EVENT_NAME,
         @c table_esms_by_account_by_event_name::make_row()
   - [C] EVENTS_STATEMENTS_SUMMARY_BY_USER_BY_EVENT_NAME,
         @c table_esms_by_user_by_event_name::make_row()
   - [D] EVENTS_STATEMENTS_SUMMARY_BY_HOST_BY_EVENT_NAME,
         @c table_esms_by_host_by_event_name::make_row()
+  - [E] EVENTS_STATEMENTS_SUMMARY_GLOBAL_BY_EVENT_NAME,
+        @c table_esms_global_by_event_name::make_row()
 */
 
 /**
