@@ -968,6 +968,23 @@ typedef struct PSI_table* (*open_table_v1_t)
   (struct PSI_table_share *share, const void *identity);
 
 /**
+  Unbind a table handle from the current thread.
+  This operation happens when an opened table is added to the open table cache.
+  @param table the table to unbind
+*/
+typedef void (*unbind_table_v1_t)
+  (struct PSI_table *table);
+
+/**
+  Rebind a table handle to the current thread.
+  This operation happens when a table from the open table cache
+  is reused for a thread.
+  @param table the table to unbind
+*/
+typedef void (*rebind_table_v1_t)
+  (struct PSI_table *table);
+
+/**
   Close an instrumentation table handle.
   Note that the table handle is invalid after this call.
   @param table the table handle to close
@@ -1591,6 +1608,10 @@ struct PSI_v1
   drop_table_share_v1_t drop_table_share;
   /** @sa open_table_v1_t. */
   open_table_v1_t open_table;
+  /** @sa unbind_table_v1_t. */
+  unbind_table_v1_t unbind_table;
+  /** @sa rebind_table_v1_t. */
+  rebind_table_v1_t rebind_table;
   /** @sa close_table_v1_t. */
   close_table_v1_t close_table;
   /** @sa create_file_v1_t. */

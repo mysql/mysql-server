@@ -239,6 +239,10 @@ typedef void (*drop_table_share_v1_t)
    const char *table_name, int table_name_length);
 typedef struct PSI_table* (*open_table_v1_t)
   (struct PSI_table_share *share, const void *identity);
+typedef void (*unbind_table_v1_t)
+  (struct PSI_table *table);
+typedef void (*rebind_table_v1_t)
+  (struct PSI_table *table);
 typedef void (*close_table_v1_t)(struct PSI_table *table);
 typedef void (*create_file_v1_t)(PSI_file_key key, const char *name,
                                  File file);
@@ -399,6 +403,8 @@ struct PSI_v1
   release_table_share_v1_t release_table_share;
   drop_table_share_v1_t drop_table_share;
   open_table_v1_t open_table;
+  unbind_table_v1_t unbind_table;
+  rebind_table_v1_t rebind_table;
   close_table_v1_t close_table;
   create_file_v1_t create_file;
   spawn_thread_v1_t spawn_thread;
