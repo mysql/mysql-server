@@ -989,7 +989,7 @@ struct Query_cache_query_flags
 #define query_cache_resize(A) query_cache.resize(A)
 #define query_cache_set_min_res_unit(A) query_cache.set_min_res_unit(A)
 #define query_cache_invalidate3(A, B, C) query_cache.invalidate(A, B, C)
-#define query_cache_invalidate1(A) query_cache.invalidate(A)
+#define query_cache_invalidate1(A,B) query_cache.invalidate(A,B)
 #define query_cache_send_result_to_client(A, B, C) \
   query_cache.send_result_to_client(A, B, C)
 #define query_cache_invalidate_by_MyISAM_filename_ref \
@@ -1011,9 +1011,8 @@ struct Query_cache_query_flags
 #define query_cache_invalidate1(A)        do { } while(0)
 #define query_cache_send_result_to_client(A, B, C) 0
 #define query_cache_invalidate_by_MyISAM_filename_ref NULL
-
-#define query_cache_abort(A)
-#define query_cache_end_of_result(A)
+#define query_cache_abort(A)              do { } while(0)
+#define query_cache_end_of_result(A)      do { } while(0)
 #define query_cache_maybe_disabled(T) 1
 #define query_cache_is_cacheable_query(L) 0
 #endif /*HAVE_QUERY_CACHE*/
@@ -2145,6 +2144,7 @@ extern my_bool opt_enable_named_pipe, opt_sync_frm, opt_allow_suspicious_udfs;
 extern my_bool opt_secure_auth, debug_assert_if_crashed_table;
 extern char* opt_secure_file_priv;
 extern my_bool opt_log_slow_admin_statements, opt_log_slow_slave_statements;
+extern my_bool opt_query_cache_strip_comments;
 extern my_bool sp_automatic_privileges, opt_noacl;
 extern my_bool opt_old_style_user_limits, trust_function_creators;
 extern uint opt_crash_binlog_innodb;

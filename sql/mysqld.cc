@@ -587,6 +587,7 @@ my_bool opt_secure_auth= 0;
 char* opt_secure_file_priv= 0;
 my_bool opt_log_slow_admin_statements= 0;
 my_bool opt_log_slow_slave_statements= 0;
+my_bool opt_query_cache_strip_comments = 0;
 my_bool lower_case_file_system= 0;
 my_bool opt_large_pages= 0;
 my_bool opt_myisam_use_mmap= 0;
@@ -6113,7 +6114,8 @@ enum options_mysqld
   OPT_DEFAULT_CHARACTER_SET_OLD,
   OPT_MAX_LONG_DATA_SIZE,
   OPT_MASTER_VERIFY_CHECKSUM,
-  OPT_SLAVE_SQL_VERIFY_CHECKSUM
+  OPT_SLAVE_SQL_VERIFY_CHECKSUM,
+  OPT_QUERY_CACHE_STRIP_COMMENTS
 };
 
 
@@ -7552,6 +7554,13 @@ each time the SQL thread starts.",
    &query_cache_size, &query_cache_size, 0, GET_ULONG,
    REQUIRED_ARG, 0, 0, (longlong) ULONG_MAX, 0, 1024, 0},
 #ifdef HAVE_QUERY_CACHE
+  {"query_cache_strip_comments", OPT_QUERY_CACHE_STRIP_COMMENTS,
+   "Enable and disable optimisation \"strip comment for query cache\" - "
+   "optimisation strip all comments from query while search query result "
+   "in query cache",
+   (uchar**) &opt_query_cache_strip_comments,
+   (uchar**) &opt_query_cache_strip_comments,
+   0, GET_BOOL, REQUIRED_ARG, 0, 0, 1, 0, 1, 0},
   {"query_cache_type", OPT_QUERY_CACHE_TYPE,
    "0 = OFF = Don't cache or retrieve results. 1 = ON = Cache all results "
    "except SELECT SQL_NO_CACHE ... queries. 2 = DEMAND = Cache only SELECT "

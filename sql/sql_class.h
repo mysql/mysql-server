@@ -767,8 +767,12 @@ public:
     ENGINE INNODB STATUS.
   */
   LEX_STRING query_string;
+  /*
+    If opt_query_cache_strip_comments is set, this contains query without
+    comments. If not set, it contains pointer to query_string.
+  */
+  String base_query;
   Server_side_cursor *cursor;
-
   inline char *query() { return query_string.str; }
   inline uint32 query_length() { return (uint32)query_string.length; }
   void set_query_inner(char *query_arg, uint32 query_length_arg);
@@ -789,7 +793,8 @@ public:
   char *db;
   size_t db_length;
 
-public:
+  /* This is set to 1 of last call to send_result_to_client() was ok */
+  my_bool query_cache_is_applicable;
 
   /* This constructor is called for backup statements */
   Statement() {}
