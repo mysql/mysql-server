@@ -1586,11 +1586,12 @@ int ha_archive::check(THD* thd, HA_CHECK_OPT* check_opt)
   azflush(&(share->archive_write), Z_SYNC_FLUSH);
   pthread_mutex_unlock(&share->mutex);
 
+  if (init_archive_reader())
+    DBUG_RETURN(HA_ADMIN_CORRUPT);
   /*
     Now we will rewind the archive file so that we are positioned at the 
     start of the file.
   */
-  init_archive_reader();
   read_data_header(&archive);
   while (!(rc= get_row(&archive, table->record[0])))
     count--;
