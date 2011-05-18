@@ -9215,6 +9215,7 @@ Dbdih::enqueue(DIVERIFY_queue & q, Ptr<ApiConnectRecord> conRecord)
   Uint32 first = q.cfirstVerifyQueue;
   Uint32 last = q.clastVerifyQueue;
   Uint32 count = q.cverifyQueueCounter;
+  ApiConnectRecord * apiConnectRecord = q.apiConnectRecord;
 
   Ptr<ApiConnectRecord> tmp;
   tmp.i = last;
@@ -9241,6 +9242,7 @@ Dbdih::dequeue(DIVERIFY_queue & q, Ptr<ApiConnectRecord> & conRecord)
   Uint32 first = q.cfirstVerifyQueue;
   Uint32 last = q.clastVerifyQueue;
   Uint32 count = q.cverifyQueueCounter;
+  ApiConnectRecord * apiConnectRecord = q.apiConnectRecord;
 
   conRecord.i = first;
   ptrCheckGuard(conRecord, capiConnectFileSize, apiConnectRecord);
@@ -9293,13 +9295,14 @@ void Dbdih::execDIVERIFYREQ(Signal* signal)
   // queue to ensure that operation starts up in the correct order.
   /*-------------------------------------------------------------------------*/
   ApiConnectRecordPtr localApiConnectptr;
+  DIVERIFY_queue & q = c_diverify_queue[0];
 
   localApiConnectptr.i = signal->theData[0];
-  ptrCheckGuard(localApiConnectptr, capiConnectFileSize, apiConnectRecord);
+  ptrCheckGuard(localApiConnectptr, capiConnectFileSize, q.apiConnectRecord);
   localApiConnectptr.p->apiGci = m_micro_gcp.m_new_gci;
   localApiConnectptr.p->nextApi = RNIL;
 
-  enqueue(c_diverify_queue[0], localApiConnectptr);
+  enqueue(q, localApiConnectptr);
   emptyverificbuffer(signal, false);
   signal->theData[3] = 1; // Indicate no immediate return
   return;
@@ -15452,12 +15455,17 @@ void Dbdih::initialiseRecordsLab(Signal* signal,
   case 1:{
     ApiConnectRecordPtr apiConnectptr;
     jam();
-    /******** INTIALIZING API CONNECT RECORDS ********/
-    for (apiConnectptr.i = 0; apiConnectptr.i < capiConnectFileSize; apiConnectptr.i++) {
-      refresh_watch_dog();
-      ptrAss(apiConnectptr, apiConnectRecord);
-      apiConnectptr.p->nextApi = RNIL;
-    }//for
+    for (Uint32 i = 0; i < c_diverify_queue_cnt; i++)
+    {
+      /******** INTIALIZING API CONNECT RECORDS ********/
+      for (apiConnectptr.i = 0;
+           apiConnectptr.i < capiConnectFileSize; apiConnectptr.i++)
+      {
+        refresh_watch_dog();
+        ptrAss(apiConnectptr, c_diverify_queue[i].apiConnectRecord);
+        apiConnectptr.p->nextApi = RNIL;
+      }//for
+    }
     jam();
     break;
   }
@@ -17244,7 +17252,7 @@ Dbdih::execDUMP_STATE_ORD(Signal* signal)
   if (arg == DumpStateOrd::DihDumpNodeRestartInfo) {
     infoEvent("c_nodeStartMaster.blockLcp = %d, c_nodeStartMaster.blockGcp = %d, c_nodeStartMaster.wait = %d",
 	      c_nodeStartMaster.blockLcp, c_nodeStartMaster.blockGcp, c_nodeStartMaster.wait);
-    for (Uint32 i = 0; i<NDB_ARRAY_SIZE(c_diverify_queue); i++)
+    for (Uint32 i = 0; i < c_diverify_queue_cnt; i++)
     {
       infoEvent("[ %u : cfirstVerifyQueue = 0x%.8x, cverifyQueueCounter = %u ]",
                 i,

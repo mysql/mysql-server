@@ -1268,7 +1268,6 @@ private:
 
   // Variables to support record structures and their free lists
 
-  ApiConnectRecord *apiConnectRecord;
   Uint32 capiConnectFileSize;
 
   ConnectRecord *connectRecord;
@@ -1318,10 +1317,12 @@ private:
     DIVERIFY_queue() {
       cfirstVerifyQueue = clastVerifyQueue = RNIL;
       cverifyQueueCounter = 0;
+      apiConnectRecord = 0;
     }
     Uint32 cfirstVerifyQueue;
     Uint32 clastVerifyQueue;
     Uint32 cverifyQueueCounter;
+    ApiConnectRecord *apiConnectRecord;
   };
 
   bool isEmpty(const DIVERIFY_queue&);
@@ -1329,6 +1330,7 @@ private:
   void dequeue(DIVERIFY_queue&, Ptr<ApiConnectRecord> &);
 
   DIVERIFY_queue c_diverify_queue[1];
+  Uint32 c_diverify_queue_cnt;
 
   /*------------------------------------------------------------------------*/
   /*       THIS VARIABLE KEEPS THE REFERENCES TO FILE RECORDS THAT DESCRIBE */
