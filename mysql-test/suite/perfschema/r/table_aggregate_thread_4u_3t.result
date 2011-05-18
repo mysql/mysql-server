@@ -192,8 +192,8 @@ a	b	c	d
 "================== Step 3 =================="
 execute dump_thread;
 event_name	count_star
-wait/io/table/sql/handler	0
-wait/lock/table/sql/handler	0
+wait/io/table/sql/handler	37
+wait/lock/table/sql/handler	36
 execute dump_global;
 event_name	count_star
 wait/io/table/sql/handler	37
@@ -233,8 +233,8 @@ TABLE	test	t3	31
 "================== Step 4 =================="
 execute dump_thread;
 event_name	count_star
-wait/io/table/sql/handler	0
-wait/lock/table/sql/handler	0
+wait/io/table/sql/handler	37
+wait/lock/table/sql/handler	36
 wait/io/table/sql/handler	0
 wait/lock/table/sql/handler	0
 execute dump_global;
@@ -314,10 +314,10 @@ a	b	c	d
 "================== Step 5 =================="
 execute dump_thread;
 event_name	count_star
-wait/io/table/sql/handler	0
-wait/lock/table/sql/handler	0
-wait/io/table/sql/handler	0
-wait/lock/table/sql/handler	0
+wait/io/table/sql/handler	37
+wait/lock/table/sql/handler	36
+wait/io/table/sql/handler	57
+wait/lock/table/sql/handler	36
 execute dump_global;
 event_name	count_star
 wait/io/table/sql/handler	94
@@ -357,10 +357,10 @@ TABLE	test	t3	72
 "================== Step 6 =================="
 execute dump_thread;
 event_name	count_star
-wait/io/table/sql/handler	0
-wait/lock/table/sql/handler	0
-wait/io/table/sql/handler	0
-wait/lock/table/sql/handler	0
+wait/io/table/sql/handler	37
+wait/lock/table/sql/handler	36
+wait/io/table/sql/handler	57
+wait/lock/table/sql/handler	36
 wait/io/table/sql/handler	0
 wait/lock/table/sql/handler	0
 execute dump_global;
@@ -447,12 +447,12 @@ a	b	c	d
 "================== Step 7 =================="
 execute dump_thread;
 event_name	count_star
-wait/io/table/sql/handler	0
-wait/lock/table/sql/handler	0
-wait/io/table/sql/handler	0
-wait/lock/table/sql/handler	0
-wait/io/table/sql/handler	0
-wait/lock/table/sql/handler	0
+wait/io/table/sql/handler	37
+wait/lock/table/sql/handler	36
+wait/io/table/sql/handler	57
+wait/lock/table/sql/handler	36
+wait/io/table/sql/handler	76
+wait/lock/table/sql/handler	36
 execute dump_global;
 event_name	count_star
 wait/io/table/sql/handler	170
@@ -492,12 +492,12 @@ TABLE	test	t3	123
 "================== Step 8 =================="
 execute dump_thread;
 event_name	count_star
-wait/io/table/sql/handler	0
-wait/lock/table/sql/handler	0
-wait/io/table/sql/handler	0
-wait/lock/table/sql/handler	0
-wait/io/table/sql/handler	0
-wait/lock/table/sql/handler	0
+wait/io/table/sql/handler	37
+wait/lock/table/sql/handler	36
+wait/io/table/sql/handler	57
+wait/lock/table/sql/handler	36
+wait/io/table/sql/handler	76
+wait/lock/table/sql/handler	36
 wait/io/table/sql/handler	0
 wait/lock/table/sql/handler	0
 execute dump_global;
@@ -591,14 +591,14 @@ a	b	c	d
 "================== Step 9 =================="
 execute dump_thread;
 event_name	count_star
-wait/io/table/sql/handler	0
-wait/lock/table/sql/handler	0
-wait/io/table/sql/handler	0
-wait/lock/table/sql/handler	0
-wait/io/table/sql/handler	0
-wait/lock/table/sql/handler	0
-wait/io/table/sql/handler	0
-wait/lock/table/sql/handler	0
+wait/io/table/sql/handler	37
+wait/lock/table/sql/handler	36
+wait/io/table/sql/handler	57
+wait/lock/table/sql/handler	36
+wait/io/table/sql/handler	76
+wait/lock/table/sql/handler	36
+wait/io/table/sql/handler	95
+wait/lock/table/sql/handler	36
 execute dump_global;
 event_name	count_star
 wait/io/table/sql/handler	265
@@ -642,14 +642,14 @@ unlock tables;
 "================== Step 10 =================="
 execute dump_thread;
 event_name	count_star
-wait/io/table/sql/handler	0
-wait/lock/table/sql/handler	0
-wait/io/table/sql/handler	0
-wait/lock/table/sql/handler	0
-wait/io/table/sql/handler	0
-wait/lock/table/sql/handler	0
-wait/io/table/sql/handler	0
-wait/lock/table/sql/handler	0
+wait/io/table/sql/handler	37
+wait/lock/table/sql/handler	48
+wait/io/table/sql/handler	57
+wait/lock/table/sql/handler	36
+wait/io/table/sql/handler	76
+wait/lock/table/sql/handler	36
+wait/io/table/sql/handler	95
+wait/lock/table/sql/handler	36
 execute dump_global;
 event_name	count_star
 wait/io/table/sql/handler	265
@@ -690,14 +690,14 @@ flush tables;
 "================== Step 11 =================="
 execute dump_thread;
 event_name	count_star
-wait/io/table/sql/handler	265
-wait/lock/table/sql/handler	156
-wait/io/table/sql/handler	0
-wait/lock/table/sql/handler	0
-wait/io/table/sql/handler	0
-wait/lock/table/sql/handler	0
-wait/io/table/sql/handler	0
-wait/lock/table/sql/handler	0
+wait/io/table/sql/handler	37
+wait/lock/table/sql/handler	48
+wait/io/table/sql/handler	57
+wait/lock/table/sql/handler	36
+wait/io/table/sql/handler	76
+wait/lock/table/sql/handler	36
+wait/io/table/sql/handler	95
+wait/lock/table/sql/handler	36
 execute dump_global;
 event_name	count_star
 wait/io/table/sql/handler	265
@@ -739,14 +739,14 @@ set global read_only=0;
 "================== Step 12 =================="
 execute dump_thread;
 event_name	count_star
-wait/io/table/sql/handler	265
-wait/lock/table/sql/handler	156
-wait/io/table/sql/handler	0
-wait/lock/table/sql/handler	0
-wait/io/table/sql/handler	0
-wait/lock/table/sql/handler	0
-wait/io/table/sql/handler	0
-wait/lock/table/sql/handler	0
+wait/io/table/sql/handler	37
+wait/lock/table/sql/handler	48
+wait/io/table/sql/handler	57
+wait/lock/table/sql/handler	36
+wait/io/table/sql/handler	76
+wait/lock/table/sql/handler	36
+wait/io/table/sql/handler	95
+wait/lock/table/sql/handler	36
 execute dump_global;
 event_name	count_star
 wait/io/table/sql/handler	265
@@ -786,12 +786,12 @@ TABLE	test	t3	188
 "================== Step 13 =================="
 execute dump_thread;
 event_name	count_star
-wait/io/table/sql/handler	0
-wait/lock/table/sql/handler	0
-wait/io/table/sql/handler	0
-wait/lock/table/sql/handler	0
-wait/io/table/sql/handler	0
-wait/lock/table/sql/handler	0
+wait/io/table/sql/handler	57
+wait/lock/table/sql/handler	36
+wait/io/table/sql/handler	76
+wait/lock/table/sql/handler	36
+wait/io/table/sql/handler	95
+wait/lock/table/sql/handler	36
 execute dump_global;
 event_name	count_star
 wait/io/table/sql/handler	265
@@ -831,10 +831,10 @@ TABLE	test	t3	188
 "================== Step 14 =================="
 execute dump_thread;
 event_name	count_star
-wait/io/table/sql/handler	0
-wait/lock/table/sql/handler	0
-wait/io/table/sql/handler	0
-wait/lock/table/sql/handler	0
+wait/io/table/sql/handler	76
+wait/lock/table/sql/handler	36
+wait/io/table/sql/handler	95
+wait/lock/table/sql/handler	36
 execute dump_global;
 event_name	count_star
 wait/io/table/sql/handler	265
@@ -874,8 +874,8 @@ TABLE	test	t3	188
 "================== Step 15 =================="
 execute dump_thread;
 event_name	count_star
-wait/io/table/sql/handler	0
-wait/lock/table/sql/handler	0
+wait/io/table/sql/handler	95
+wait/lock/table/sql/handler	36
 execute dump_global;
 event_name	count_star
 wait/io/table/sql/handler	265
