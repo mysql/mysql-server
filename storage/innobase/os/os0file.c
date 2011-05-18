@@ -1926,7 +1926,7 @@ os_file_set_size(
 	while (current_size < size) {
 		ulint	n_bytes;
 
-		if (size - current_size < (ib_int64_t) buf_size) {
+		if (size - current_size < (os_offset_t) buf_size) {
 			n_bytes = (ulint) (size - current_size);
 		} else {
 			n_bytes = buf_size;
