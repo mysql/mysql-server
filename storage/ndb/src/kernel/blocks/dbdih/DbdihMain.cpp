@@ -9004,12 +9004,13 @@ void Dbdih::execDIGETNODESREQ(Signal* signal)
   Uint32 fragId, newFragId = RNIL;
   DiGetNodesConf * const conf = (DiGetNodesConf *)&signal->theData[0];
   TabRecord* regTabDesc = tabRecord;
-  jamEntry();
+  EmulatedJamBuffer * jambuf = jamBuffer();
+  thrjamEntry(jambuf);
   ptrCheckGuard(tabPtr, ttabFileSize, regTabDesc);
 
   if (DictTabInfo::isOrderedIndex(tabPtr.p->tableType))
   {
-    jam();
+    thrjam(jambuf);
     tabPtr.i = tabPtr.p->primaryTableId;
     ptrCheckGuard(tabPtr, ctabFileSize, tabRecord);
   }
@@ -9027,7 +9028,7 @@ void Dbdih::execDIGETNODESREQ(Signal* signal)
     
     if (unlikely(fragId >= tabPtr.p->totalfragments))
     {
-      jam();
+      thrjam(jambuf);
       conf->zero= 1; //Indicate error;
       signal->theData[1]= ZUNDEFINED_FRAGMENT_ERROR;
       return;
@@ -9035,40 +9036,40 @@ void Dbdih::execDIGETNODESREQ(Signal* signal)
   }
   else if (tabPtr.p->method == TabRecord::HASH_MAP)
   {
-    jam();
+    thrjam(jambuf);
     Ptr<Hash2FragmentMap> ptr;
     g_hash_map.getPtr(ptr, map_ptr_i);
     fragId = ptr.p->m_map[hashValue % ptr.p->m_cnt];
 
     if (unlikely(new_map_ptr_i != RNIL))
     {
-      jam();
+      thrjam(jambuf);
       g_hash_map.getPtr(ptr, new_map_ptr_i);
       newFragId = ptr.p->m_map[hashValue % ptr.p->m_cnt];
       if (newFragId == fragId)
       {
-        jam();
+        thrjam(jambuf);
         newFragId = RNIL;
       }
     }
   }
   else if (tabPtr.p->method == TabRecord::LINEAR_HASH)
   {
-    jam();
+    thrjam(jambuf);
     fragId = hashValue & tabPtr.p->mask;
     if (fragId < tabPtr.p->hashpointer) {
-      jam();
+      thrjam(jambuf);
       fragId = hashValue & ((tabPtr.p->mask << 1) + 1);
     }//if
   }
   else if (tabPtr.p->method == TabRecord::NORMAL_HASH)
   {
-    jam();
+    thrjam(jambuf);
     fragId= hashValue % tabPtr.p->totalfragments;
   }
   else
   {
-    jam();
+    thrjam(jambuf);
     ndbassert(tabPtr.p->method == TabRecord::USER_DEFINED);
 
     /* User defined partitioning, but no distribution key passed */
@@ -9087,7 +9088,7 @@ void Dbdih::execDIGETNODESREQ(Signal* signal)
 
   if (unlikely(newFragId != RNIL))
   {
-    jam();
+    thrjam(jambuf);
     conf->reqinfo |= DiGetNodesConf::REORG_MOVING;
     getFragstore(tabPtr.p, newFragId, fragPtr);
     nodeCount = extractNodeInfo(fragPtr.p, conf->nodes + 2 + MAX_REPLICAS);
@@ -9270,14 +9271,14 @@ Dbdih::dequeue(DIVERIFY_queue & q, Ptr<ApiConnectRecord> & conRecord)
   3.9.1     R E C E I V I N G  O F  V E R I F I C A T I O N   R E Q U E S T
   *************************************************************************
   */
-void Dbdih::execDIVERIFYREQ(Signal* signal) 
+void Dbdih::execDIVERIFYREQ(Signal* signal)
 {
-
-  jamEntry();
+  EmulatedJamBuffer * jambuf = jamBuffer();
+  thrjamEntry(jambuf);
   if ((getBlockCommit() == false) &&
       isEmpty(c_diverify_queue[0]))
   {
-    jam();
+    thrjam(jambuf);
     /*-----------------------------------------------------------------------*/
     // We are not blocked and the verify queue was empty currently so we can
     // simply reply back to TC immediately. The method was called with 
