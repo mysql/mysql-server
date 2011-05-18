@@ -31,6 +31,7 @@ Usage: $0 [-h|-n] [configure-options]
   -h, --help              Show this help message.
   -n, --just-print        Don't actually run any commands; just print them.
   -c, --just-configure    Stop after running configure.
+  --with-debug=full       Build with full debug(no optimizations, keep call stack).
   --warning-mode=[old|pedantic|maintainer]
                           Influences the debug flags. Old is default.
   --prefix=path           Build with prefix 'path'.
@@ -46,6 +47,8 @@ parse_options()
     case "$1" in
     --prefix=*)
       prefix=`get_key_value "$1"`;;
+    --with-debug=full)
+      full_debug="=full";;
     --warning-mode=*)
       warning_mode=`get_key_value "$1"`;;
     -c | --just-configure)
@@ -76,6 +79,7 @@ just_print=
 just_configure=
 warning_mode=
 maintainer_mode=
+full_debug=
 
 parse_options "$@"
 
@@ -154,7 +158,11 @@ base_cxxflags="-felide-constructors -fno-exceptions -fno-rtti"
 fast_cflags="-O3 -fno-omit-frame-pointer"
 
 debug_configs="--with-debug"
-debug_cflags="$debug_cflags $debug_extra_cflags"
+if [ -z "$full_debug" ]
+then
+  debug_cflags="$debug_cflags $debug_extra_cflags"
+fi
+
 
 #
 # Configuration options.

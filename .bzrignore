@@ -3156,3 +3156,7 @@ libmysqld/sql_partition_admin.cc
 generated
 doxyerror.log
 VERSION.dep
+info_macros.cmake
+Docs/INFO_BIN
+Docs/INFO_SRC
+Testing
