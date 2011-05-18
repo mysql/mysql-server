@@ -35,8 +35,8 @@ execute dump_hosts;
 # Each connect causes 2 wait/synch/mutex/sql/LOCK_connection_count events:
 # - 1 in mysqld.cc, create_new_thread(), for the main thread
 # - 1 in sql_connect.cc, check_user(), for the connected thread
-# The main thread does not count for BY_USER_HOST / BY_HOST.
-# The user thread does count for BY_USER_HOST, BY_HOST
+# The main thread does not count for BY_ACCOUNT / BY_HOST.
+# The user thread does count for BY_ACCOUNT, BY_HOST
 #
 # Each get_lock() causes 1 wait/synch/mutex/sql/LOCK_user_locks
 #
@@ -301,7 +301,7 @@ execute dump_hosts;
 
 truncate performance_schema.events_waits_summary_by_account_by_event_name;
 
-echo "================== BY_USER_HOST truncated ==================";
+echo "================== BY_ACCOUNT truncated ==================";
 
 echo "================== Step 15 ==================";
 execute dump_thread;

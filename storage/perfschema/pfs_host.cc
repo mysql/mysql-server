@@ -286,16 +286,41 @@ search:
 void PFS_host::aggregate()
 {
   aggregate_waits();
+  aggregate_stages();
+  aggregate_statements();
+  aggregate_stats();
 }
 
 void PFS_host::aggregate_waits()
 {
-  /* No parent to aggregate to (for waits only), clean the stats */
+  /* No parent to aggregate to, clean the stats */
+  reset_waits_stats();
+}
 
-  PFS_single_stat *stat= m_instr_class_waits_stats;
-  PFS_single_stat *stat_last= stat + wait_class_max;
-  for ( ; stat < stat_last; stat++)
-    stat->reset();
+void PFS_host::aggregate_stages()
+{
+  /*
+    Aggregate EVENTS_STAGES_SUMMARY_BY_HOST_BY_EVENT_NAME to:
+    -  EVENTS_STAGES_SUMMARY_GLOBAL_BY_EVENT_NAME
+  */
+  aggregate_all_stages(m_instr_class_stages_stats,
+                       global_instr_class_stages_array);
+}
+
+void PFS_host::aggregate_statements()
+{
+  /*
+    Aggregate EVENTS_STATEMENTS_SUMMARY_BY_HOST_BY_EVENT_NAME to:
+    -  EVENTS_STATEMENTS_SUMMARY_GLOBAL_BY_EVENT_NAME
+  */
+  aggregate_all_statements(m_instr_class_statements_stats,
+                           global_instr_class_statements_array);
+}
+
+void PFS_host::aggregate_stats()
+{
+  /* No parent to aggregate to, clean the stats */
+  m_disconnected_count= 0;
 }
 
 void PFS_host::release()
@@ -305,8 +330,6 @@ void PFS_host::release()
 
 void purge_host(PFS_thread *thread, PFS_host *host)
 {
-  host->aggregate();
-
   LF_PINS *pins= get_host_hash_pins(thread);
   if (unlikely(pins == NULL))
     return;
@@ -344,7 +367,7 @@ void purge_all_host(void)
   {
     if (pfs->m_lock.is_populated())
     {
-      pfs->m_disconnected_count= 0;
+      pfs->aggregate();
       if (pfs->get_refcount() == 0)
         purge_host(thread, pfs);
     }

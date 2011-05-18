@@ -509,7 +509,7 @@ USER	CURRENT_CONNECTIONS	TOTAL_CONNECTIONS
 execute dump_hosts;
 HOST	CURRENT_CONNECTIONS	TOTAL_CONNECTIONS
 truncate performance_schema.events_waits_summary_by_account_by_event_name;
-"================== BY_USER_HOST truncated =================="
+"================== BY_ACCOUNT truncated =================="
 "================== Step 15 =================="
 execute dump_thread;
 event_name	count_star

@@ -496,7 +496,7 @@ execute dump_objects_summary;
 
 truncate performance_schema.events_waits_summary_by_account_by_event_name;
 
-echo "================== BY_USER_HOST truncated ==================";
+echo "================== BY_ACCOUNT truncated ==================";
 
 echo "================== Step 18 ==================";
 execute dump_thread;

@@ -1523,6 +1523,35 @@ void aggregate_all_stages(PFS_stage_stat *from_array,
   }
 }
 
+void aggregate_all_stages(PFS_stage_stat *from_array,
+                          PFS_stage_stat *to_array_1,
+                          PFS_stage_stat *to_array_2)
+{
+  PFS_stage_stat *from;
+  PFS_stage_stat *from_last;
+  PFS_stage_stat *to_1;
+  PFS_stage_stat *to_1_last;
+  PFS_stage_stat *to_2;
+  PFS_stage_stat *to_2_last;
+
+  from= from_array;
+  from_last= from_array + stage_class_max;
+  to_1= to_array_1;
+  to_1_last= to_array_1 + stage_class_max;
+  to_2= to_array_2;
+  to_2_last= to_array_2 + stage_class_max;
+
+  for ( ; from < from_last ; from++, to_1++, to_2++)
+  {
+    if (from->m_timer1_stat.m_count > 0)
+    {
+      to_1->aggregate(from);
+      to_2->aggregate(from);
+      from->reset();
+    }
+  }
+}
+
 void aggregate_all_statements(PFS_statement_stat *from_array,
                               PFS_statement_stat *to_array)
 {
@@ -1546,20 +1575,51 @@ void aggregate_all_statements(PFS_statement_stat *from_array,
   }
 }
 
+void aggregate_all_statements(PFS_statement_stat *from_array,
+                              PFS_statement_stat *to_array_1,
+                              PFS_statement_stat *to_array_2)
+{
+  PFS_statement_stat *from;
+  PFS_statement_stat *from_last;
+  PFS_statement_stat *to_1;
+  PFS_statement_stat *to_1_last;
+  PFS_statement_stat *to_2;
+  PFS_statement_stat *to_2_last;
+
+  from= from_array;
+  from_last= from_array + statement_class_max;
+  to_1= to_array_1;
+  to_1_last= to_array_1 + statement_class_max;
+  to_2= to_array_2;
+  to_2_last= to_array_2 + statement_class_max;
+
+  for ( ; from < from_last ; from++, to_1++, to_2++)
+  {
+    if (from->m_timer1_stat.m_count > 0)
+    {
+      to_1->aggregate(from);
+      to_2->aggregate(from);
+      from->reset();
+    }
+  }
+}
+
 void aggregate_thread_stats(PFS_thread *thread)
 {
   if (likely(thread->m_account != NULL))
   {
     thread->m_account->m_disconnected_count++;
+    return;
   }
-  else
-  {
-    if (thread->m_user != NULL)
-      thread->m_user->m_disconnected_count++;
 
-    if (thread->m_host != NULL)
-      thread->m_host->m_disconnected_count++;
-  }
+  if (thread->m_user != NULL)
+    thread->m_user->m_disconnected_count++;
+
+  if (thread->m_host != NULL)
+    thread->m_host->m_disconnected_count++;
+
+  /* There is no global table for connections statistics. */
+  return;
 }
 
 void aggregate_thread(PFS_thread *thread)
@@ -1631,15 +1691,74 @@ void aggregate_thread_waits(PFS_thread *thread)
     return;
   }
 
-  /* Orphan thread, clean the stats */
-  PFS_single_stat *stat= thread->m_instr_class_waits_stats;
-  PFS_single_stat *stat_last= stat + wait_class_max;
-  for ( ; stat < stat_last; stat++)
-    stat->reset();
+  /* Orphan thread, clean the waits stats. */
+  thread->reset_waits_stats();
 }
 
 void aggregate_thread_stages(PFS_thread *thread)
 {
+  if (likely(thread->m_account != NULL))
+  {
+    DBUG_ASSERT(thread->m_user == NULL);
+    DBUG_ASSERT(thread->m_host == NULL);
+    DBUG_ASSERT(thread->m_account->get_refcount() > 0);
+
+    /*
+      Aggregate EVENTS_STAGES_SUMMARY_BY_THREAD_BY_EVENT_NAME
+      to EVENTS_STAGES_SUMMARY_BY_ACCOUNT_BY_EVENT_NAME.
+    */
+    aggregate_all_stages(thread->m_instr_class_stages_stats,
+                         thread->m_account->m_instr_class_stages_stats);
+
+    return;
+  }
+
+  if ((thread->m_user != NULL) && (thread->m_host != NULL))
+  {
+    DBUG_ASSERT(thread->m_user->get_refcount() > 0);
+    DBUG_ASSERT(thread->m_host->get_refcount() > 0);
+
+    /*
+      Aggregate EVENTS_STAGES_SUMMARY_BY_THREAD_BY_EVENT_NAME to:
+      -  EVENTS_STAGES_SUMMARY_BY_USER_BY_EVENT_NAME
+      -  EVENTS_STAGES_SUMMARY_BY_HOST_BY_EVENT_NAME
+      in parallel.
+    */
+    aggregate_all_stages(thread->m_instr_class_stages_stats,
+                         thread->m_user->m_instr_class_stages_stats,
+                         thread->m_host->m_instr_class_stages_stats);
+    return;
+  }
+
+  if (thread->m_user != NULL)
+  {
+    DBUG_ASSERT(thread->m_user->get_refcount() > 0);
+
+    /*
+      Aggregate EVENTS_STAGES_SUMMARY_BY_THREAD_BY_EVENT_NAME to:
+      -  EVENTS_STAGES_SUMMARY_BY_USER_BY_EVENT_NAME
+      -  EVENTS_STAGES_SUMMARY_GLOBAL_BY_EVENT_NAME
+      in parallel.
+    */
+    aggregate_all_stages(thread->m_instr_class_stages_stats,
+                         thread->m_user->m_instr_class_stages_stats,
+                         global_instr_class_stages_array);
+    return;
+  }
+
+  if (thread->m_host != NULL)
+  {
+    DBUG_ASSERT(thread->m_host->get_refcount() > 0);
+
+    /*
+      Aggregate EVENTS_STAGES_SUMMARY_BY_THREAD_BY_EVENT_NAME
+      to EVENTS_STAGES_SUMMARY_BY_HOST_BY_EVENT_NAME, directly.
+    */
+    aggregate_all_stages(thread->m_instr_class_stages_stats,
+                         thread->m_host->m_instr_class_stages_stats);
+    return;
+  }
+
   /*
     Aggregate EVENTS_STAGES_SUMMARY_BY_THREAD_BY_EVENT_NAME
     to EVENTS_STAGES_SUMMARY_GLOBAL_BY_EVENT_NAME.
@@ -1650,6 +1769,68 @@ void aggregate_thread_stages(PFS_thread *thread)
 
 void aggregate_thread_statements(PFS_thread *thread)
 {
+  if (likely(thread->m_account != NULL))
+  {
+    DBUG_ASSERT(thread->m_user == NULL);
+    DBUG_ASSERT(thread->m_host == NULL);
+    DBUG_ASSERT(thread->m_account->get_refcount() > 0);
+
+    /*
+      Aggregate EVENTS_STATEMENTS_SUMMARY_BY_THREAD_BY_EVENT_NAME
+      to EVENTS_STATEMENTS_SUMMARY_BY_ACCOUNT_BY_EVENT_NAME.
+    */
+    aggregate_all_statements(thread->m_instr_class_statements_stats,
+                             thread->m_account->m_instr_class_statements_stats);
+
+    return;
+  }
+
+  if ((thread->m_user != NULL) && (thread->m_host != NULL))
+  {
+    DBUG_ASSERT(thread->m_user->get_refcount() > 0);
+    DBUG_ASSERT(thread->m_host->get_refcount() > 0);
+
+    /*
+      Aggregate EVENTS_STATEMENT_SUMMARY_BY_THREAD_BY_EVENT_NAME to:
+      -  EVENTS_STATEMENT_SUMMARY_BY_USER_BY_EVENT_NAME
+      -  EVENTS_STATEMENT_SUMMARY_BY_HOST_BY_EVENT_NAME
+      in parallel.
+    */
+    aggregate_all_statements(thread->m_instr_class_statements_stats,
+                             thread->m_user->m_instr_class_statements_stats,
+                             thread->m_host->m_instr_class_statements_stats);
+    return;
+  }
+
+  if (thread->m_user != NULL)
+  {
+    DBUG_ASSERT(thread->m_user->get_refcount() > 0);
+
+    /*
+      Aggregate EVENTS_STATEMENTS_SUMMARY_BY_THREAD_BY_EVENT_NAME to:
+      -  EVENTS_STATEMENTS_SUMMARY_BY_USER_BY_EVENT_NAME
+      -  EVENTS_STATEMENTS_SUMMARY_GLOBAL_BY_EVENT_NAME
+      in parallel.
+    */
+    aggregate_all_statements(thread->m_instr_class_statements_stats,
+                             thread->m_user->m_instr_class_statements_stats,
+                             global_instr_class_statements_array);
+    return;
+  }
+
+  if (thread->m_host != NULL)
+  {
+    DBUG_ASSERT(thread->m_host->get_refcount() > 0);
+
+    /*
+      Aggregate EVENTS_STATEMENTS_SUMMARY_BY_THREAD_BY_EVENT_NAME
+      to EVENTS_STATEMENTS_SUMMARY_BY_HOST_BY_EVENT_NAME, directly.
+    */
+    aggregate_all_statements(thread->m_instr_class_statements_stats,
+                             thread->m_host->m_instr_class_statements_stats);
+    return;
+  }
+
   /*
     Aggregate EVENTS_STATEMENTS_SUMMARY_BY_THREAD_BY_EVENT_NAME
     to EVENTS_STATEMENTS_SUMMARY_GLOBAL_BY_EVENT_NAME.

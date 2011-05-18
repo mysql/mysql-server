@@ -287,16 +287,33 @@ search:
 void PFS_user::aggregate()
 {
   aggregate_waits();
+  aggregate_stages();
+  aggregate_statements();
+  aggregate_stats();
 }
 
 void PFS_user::aggregate_waits()
 {
   /* No parent to aggregate to, clean the stats */
+  reset_waits_stats();
+}
 
-  PFS_single_stat *stat= m_instr_class_waits_stats;
-  PFS_single_stat *stat_last= stat + wait_class_max;
-  for ( ; stat < stat_last; stat++)
-    stat->reset();
+void PFS_user::aggregate_stages()
+{
+  /* No parent to aggregate to, clean the stats */
+  reset_stages_stats();
+}
+
+void PFS_user::aggregate_statements()
+{
+  /* No parent to aggregate to, clean the stats */
+  reset_statements_stats();
+}
+
+void PFS_user::aggregate_stats()
+{
+  /* No parent to aggregate to, clean the stats */
+  m_disconnected_count= 0;
 }
 
 void PFS_user::release()
@@ -314,8 +331,6 @@ PFS_user *sanitize_user(PFS_user *unsafe)
 
 void purge_user(PFS_thread *thread, PFS_user *user)
 {
-  user->aggregate();
-
   LF_PINS *pins= get_user_hash_pins(thread);
   if (unlikely(pins == NULL))
     return;
@@ -353,7 +368,7 @@ void purge_all_user(void)
   {
     if (pfs->m_lock.is_populated())
     {
-      pfs->m_disconnected_count= 0;
+      pfs->aggregate();
       if (pfs->get_refcount() == 0)
         purge_user(thread, pfs);
     }

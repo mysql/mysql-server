@@ -1347,7 +1347,7 @@ TABLE	test	t1	53
 TABLE	test	t2	0
 TABLE	test	t3	128
 truncate performance_schema.events_waits_summary_by_account_by_event_name;
-"================== BY_USER_HOST truncated =================="
+"================== BY_ACCOUNT truncated =================="
 "================== Step 18 =================="
 execute dump_thread;
 event_name	count_star

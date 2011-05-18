@@ -23,6 +23,9 @@
 #include "pfs_global.h"
 #include "pfs_instr_class.h"
 #include "pfs_instr.h"
+#include "pfs_account.h"
+#include "pfs_host.h"
+#include "pfs_user.h"
 #include "pfs_events_statements.h"
 #include "pfs_atomic.h"
 #include "m_string.h"
@@ -191,46 +194,40 @@ void reset_events_statements_by_thread()
 /** Reset table EVENTS_STATEMENTS_SUMMARY_BY_ACCOUNT_BY_EVENT_NAME data. */
 void reset_events_statements_by_account()
 {
-#ifdef LATER
   PFS_account *pfs= account_array;
   PFS_account *pfs_last= account_array + account_max;
 
   for ( ; pfs < pfs_last; pfs++)
   {
     if (pfs->m_lock.is_populated())
-      pfs->aggregate_waits();
+      pfs->aggregate_statements();
   }
-#endif
 }
 
 /** Reset table EVENTS_STATEMENTS_SUMMARY_BY_USER_BY_EVENT_NAME data. */
 void reset_events_statements_by_user()
 {
-#ifdef LATER
   PFS_user *pfs= user_array;
   PFS_user *pfs_last= user_array + user_max;
 
   for ( ; pfs < pfs_last; pfs++)
   {
     if (pfs->m_lock.is_populated())
-      pfs->aggregate_waits();
+      pfs->aggregate_statements();
   }
-#endif
 }
 
 /** Reset table EVENTS_STATEMENTS_SUMMARY_BY_HOST_BY_EVENT_NAME data. */
 void reset_events_statements_by_host()
 {
-#ifdef LATER
   PFS_host *pfs= host_array;
   PFS_host *pfs_last= host_array + host_max;
 
   for ( ; pfs < pfs_last; pfs++)
   {
     if (pfs->m_lock.is_populated())
-      pfs->aggregate_waits();
+      pfs->aggregate_statements();
   }
-#endif
 }
 
 /** Reset table EVENTS_STATEMENTS_GLOBAL_BY_EVENT_NAME data. */

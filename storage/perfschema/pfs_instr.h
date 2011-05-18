@@ -489,9 +489,15 @@ void aggregate_all_event_names(PFS_single_stat *from_array,
 
 void aggregate_all_stages(PFS_stage_stat *from_array,
                           PFS_stage_stat *to_array);
+void aggregate_all_stages(PFS_stage_stat *from_array,
+                          PFS_stage_stat *to_array_1,
+                          PFS_stage_stat *to_array_2);
 
 void aggregate_all_statements(PFS_statement_stat *from_array,
                               PFS_statement_stat *to_array);
+void aggregate_all_statements(PFS_statement_stat *from_array,
+                              PFS_statement_stat *to_array_1,
+                              PFS_statement_stat *to_array_2);
 
 void aggregate_thread(PFS_thread *thread);
 void aggregate_thread_waits(PFS_thread *thread);
