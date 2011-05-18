@@ -38,8 +38,7 @@
 #include "sql_parse.h"                          // check_stack_overrun
 #include "sql_partition.h"       // make_used_partitions_str
 #include "sql_acl.h"             // *_ACL
-#include "sql_test.h"            // print_where, print_keyuse_array,
-                                 // print_sjm, print_plan, TEST_join
+#include "sql_test.h"            // misc. debug printing utilities
 #include "records.h"             // init_read_record, end_read_record
 #include "filesort.h"            // filesort_free_buffers
 #include "sql_union.h"           // mysql_union
@@ -59,11 +58,11 @@ const char *join_type_str[]={ "UNKNOWN","system","const","eq_ref","ref",
 
 struct st_sargable_param;
 
-static void optimize_keyuse(JOIN *join, DYNAMIC_ARRAY *keyuse_array);
+static void optimize_keyuse(JOIN *join, Key_use_array *keyuse_array);
 static bool make_join_statistics(JOIN *join, TABLE_LIST *leaves, Item *conds,
-				 DYNAMIC_ARRAY *keyuse);
+                                Key_use_array *keyuse);
 static bool optimize_semijoin_nests(JOIN *join);
-static bool update_ref_and_keys(THD *thd, DYNAMIC_ARRAY *keyuse,
+static bool update_ref_and_keys(THD *thd, Key_use_array *keyuse,
                                 JOIN_TAB *join_tab,
                                 uint tables, Item *conds,
                                 COND_EQUAL *cond_equal,
@@ -3547,7 +3546,7 @@ bool JOIN::destroy()
   while ((sj_nest= sj_list_it++))
     sj_nest->sj_mat_exec= NULL;
 
-  delete_dynamic(&keyuse);
+  keyuse.clear();
   delete procedure;
   DBUG_RETURN(test(error));
 }
@@ -4710,7 +4709,7 @@ static uint get_tmp_table_rec_length(List<Item> &items)
 
 static bool
 make_join_statistics(JOIN *join, TABLE_LIST *tables_arg, Item *conds,
-		     DYNAMIC_ARRAY *keyuse_array)
+                     Key_use_array *keyuse_array)
 {
   int error;
   TABLE *table;
@@ -6092,7 +6091,7 @@ max_part_bit(key_part_map bits)
 */
 
 static bool
-add_key_part(DYNAMIC_ARRAY *keyuse_array,KEY_FIELD *key_field)
+add_key_part(Key_use_array *keyuse_array, KEY_FIELD *key_field)
 {
   Field *field=key_field->field;
   TABLE *form= field->table;
@@ -6122,7 +6121,7 @@ add_key_part(DYNAMIC_ARRAY *keyuse_array,KEY_FIELD *key_field)
                                key_field->null_rejecting,
                                key_field->cond_guard,
                                key_field->sj_pred_no);
-          if (insert_dynamic(keyuse_array, &keyuse))
+          if (keyuse_array->push_back(keyuse))
             return TRUE;
 	}
       }
@@ -6135,7 +6134,7 @@ add_key_part(DYNAMIC_ARRAY *keyuse_array,KEY_FIELD *key_field)
 #define FT_KEYPART   (MAX_REF_PARTS+10)
 
 static bool
-add_ft_keys(DYNAMIC_ARRAY *keyuse_array,
+add_ft_keys(Key_use_array *keyuse_array,
             JOIN_TAB *stat,Item *cond,table_map usable_tables)
 {
   Item_func_match *cond_func=NULL;
@@ -6197,7 +6196,7 @@ add_ft_keys(DYNAMIC_ARRAY *keyuse_array,
                        false,         // null_rejecting
                        NULL,          // cond_guard
                        UINT_MAX);     // sj_pred_no
-  return insert_dynamic(keyuse_array, &keyuse);
+  return keyuse_array->push_back(keyuse);
 }
 
 
@@ -6313,7 +6312,7 @@ static void add_key_fields_for_nj(JOIN *join, TABLE_LIST *nested_join_table,
 */
 
 static bool
-update_ref_and_keys(THD *thd, DYNAMIC_ARRAY *keyuse,JOIN_TAB *join_tab,
+update_ref_and_keys(THD *thd, Key_use_array *keyuse,JOIN_TAB *join_tab,
                     uint tables, Item *cond, COND_EQUAL *cond_equal,
                     table_map normal_tables, SELECT_LEX *select_lex,
                     SARGABLE_PARAM **sargables)
@@ -6356,8 +6355,6 @@ update_ref_and_keys(THD *thd, DYNAMIC_ARRAY *keyuse,JOIN_TAB *join_tab,
   /* set a barrier for the array of SARGABLE_PARAM */
   (*sargables)[0].field= 0; 
 
-  if (my_init_dynamic_array(keyuse, sizeof(Key_use), 20, 64))
-    return TRUE;
   if (cond)
   {
     add_key_fields(join_tab->join, &end, &and_level, cond, normal_tables,
@@ -6431,21 +6428,21 @@ update_ref_and_keys(THD *thd, DYNAMIC_ARRAY *keyuse,JOIN_TAB *join_tab,
       used in the query, we drop the partial key parts from consideration).
     Special treatment for ft-keys.
   */
-  if (keyuse->elements)
+  if (!keyuse->empty())
   {
     Key_use *save_pos, *use;
 
-    my_qsort(keyuse->buffer, keyuse->elements, sizeof(Key_use),
+    my_qsort(keyuse->begin(), keyuse->size(), keyuse->element_size(),
              reinterpret_cast<qsort_cmp>(sort_keyuse));
 
     const Key_use key_end(NULL, NULL, 0, 0, 0, 0, 0, 0, false, NULL, 0);
-    if (insert_dynamic(keyuse, &key_end)) // added for easy testing
+    if (keyuse->push_back(key_end)) // added for easy testing
       return TRUE;
 
-    use= save_pos= dynamic_element(keyuse, 0, Key_use *);
+    use= save_pos= keyuse->begin();
     const Key_use *prev= &key_end;
     found_eq_constant=0;
-    for (i=0 ; i < keyuse->elements-1 ; i++,use++)
+    for (i=0 ; i < keyuse->size()-1 ; i++,use++)
     {
       if (!use->used_tables && use->optimize != KEY_OPTIMIZE_REF_OR_NULL)
 	use->table->const_key_parts[use->key]|= use->keypart_map;
@@ -6478,9 +6475,9 @@ update_ref_and_keys(THD *thd, DYNAMIC_ARRAY *keyuse,JOIN_TAB *join_tab,
       use->table->reginfo.join_tab->checked_keys.set_bit(use->key);
       save_pos++;
     }
-    i= (uint) (save_pos - (Key_use *)keyuse->buffer);
-    (void) set_dynamic(keyuse, &key_end, i);
-    keyuse->elements=i;
+    i= (uint) (save_pos - keyuse->begin());
+    keyuse->at(i) = key_end;
+    keyuse->chop(i);
   }
   DBUG_EXECUTE("opt", print_keyuse_array(keyuse););
   return FALSE;
@@ -6490,12 +6487,11 @@ update_ref_and_keys(THD *thd, DYNAMIC_ARRAY *keyuse,JOIN_TAB *join_tab,
   Update some values in keyuse for faster choose_table_order() loop.
 */
 
-static void optimize_keyuse(JOIN *join, DYNAMIC_ARRAY *keyuse_array)
+static void optimize_keyuse(JOIN *join, Key_use_array *keyuse_array)
 {
-  Key_use *end, *keyuse= dynamic_element(keyuse_array, 0, Key_use *);
-
-  for (end= keyuse+ keyuse_array->elements ; keyuse < end ; keyuse++)
+  for (size_t ix= 0; ix < keyuse_array->size(); ++ix)
   {
+    Key_use *keyuse= &keyuse_array->at(ix);
     table_map map;
     /*
       If we find a ref, assume this table matches a proportional
