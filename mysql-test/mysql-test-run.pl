@@ -2641,7 +2641,7 @@ sub check_ndbcluster_support ($) {
     mtr_report(" - MySQL Cluster");
     # Enable ndb engine and add more test suites
     $opt_include_ndbcluster = 1;
-    $DEFAULT_SUITES.=",ndb,ndb_binlog,rpl_ndb";
+    $DEFAULT_SUITES.=",ndb,ndb_binlog,rpl_ndb,ndb_rpl";
   }
 
   if ($opt_include_ndbcluster)
@@ -2727,6 +2727,41 @@ sub ndbcluster_wait_started($$){
     return 1;
   }
   return 0;
+}
+
+
+sub ndbcluster_dump($) {
+  my ($cluster)= @_;
+
+  print "\n== Dumping cluster log files\n\n";
+
+  # ndb_mgmd(s)
+  foreach my $ndb_mgmd ( in_cluster($cluster, ndb_mgmds()) )
+  {
+    my $datadir = $ndb_mgmd->value('DataDir');
+
+    # Should find ndb_<nodeid>_cluster.log and ndb_mgmd.log
+    foreach my $file ( glob("$datadir/ndb*.log") )
+    {
+      print "$file:\n";
+      mtr_printfile("$file");
+      print "\n";
+    }
+  }
+
+  # ndb(s)
+  foreach my $ndbd ( in_cluster($cluster, ndbds()) )
+  {
+    my $datadir = $ndbd->value('DataDir');
+
+    # Should find ndbd.log
+    foreach my $file ( glob("$datadir/ndbd.log") )
+    {
+      print "$file:\n";
+      mtr_printfile("$file");
+      print "\n";
+    }
+  }
 }
 
 
@@ -5192,6 +5227,13 @@ sub start_servers($) {
     {
       # failed to start
       $tinfo->{'comment'}= "Start of '".$cluster->name()."' cluster failed";
+
+      #
+      # Dump cluster log files to log file to help analyze the
+      # cause of the failed start
+      #
+      ndbcluster_dump($cluster);
+
       return 1;
     }
   }

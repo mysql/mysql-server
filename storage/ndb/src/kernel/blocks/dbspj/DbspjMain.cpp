@@ -1150,7 +1150,7 @@ Dbspj::batchComplete(Signal* signal, Ptr<Request> requestPtr)
 /**
  * Locate next TreeNode(s) to retrieve more rows from.
  *
- *   Calcule set of 'm_active_nodes' we will receive from in NEXTREQ.
+ *   Calculate set of the 'm_active_nodes' we will receive from in NEXTREQ.
  *   Add these TreeNodes to the cursor list to be iterated.
  */
 void
@@ -1168,7 +1168,7 @@ Dbspj::prepareNextBatch(Signal* signal, Ptr<Request> requestPtr)
   if (requestPtr.p->m_bits & Request::RT_REPEAT_SCAN_RESULT)
   {
     /**
-     * If REPEAT_SCAN_RESULT we handle byshy scans by return more *new* rows
+     * If REPEAT_SCAN_RESULT we handle bushy scans by return more *new* rows
      * from only one of the active child scans. If there are multiple 
      * bushy scans not being able to return their current result set in 
      * a single batch, result sets from the other child scans are repeated
@@ -1239,7 +1239,7 @@ Dbspj::prepareNextBatch(Signal* signal, Ptr<Request> requestPtr)
   {
     /**
      * If not REPEAT_SCAN_RESULT multiple active TreeNodes may return their 
-     * remaining result simultaneously. In case of byshy-scans, these
+     * remaining result simultaneously. In case of bushy-scans, these
      * concurrent result streams are cross joins of each other
      * in SQL terms. In order to produce the cross joined result, it is
      * the responsibility of the API-client to buffer these streams and
@@ -1415,7 +1415,13 @@ Dbspj::releaseScanBuffers(Ptr<Request> requestPtr)
         releaseNodeRows(requestPtr, treeNodePtr);
       }
       
-      if (treeNodePtr.p->m_state == TreeNode::TN_ACTIVE)
+      /**
+       * Cleanup ACTIVE nodes fetching more rows in a NEXTREQ,
+       * or nodes being in 'm_active_nodes' as they will 'repeat'.
+       * (and then become active)
+       */
+      if (treeNodePtr.p->m_state == TreeNode::TN_ACTIVE ||
+          requestPtr.p->m_active_nodes.get(treeNodePtr.p->m_node_no))
       {
         jam();
         cleanupChildBranch(requestPtr, treeNodePtr);
@@ -1423,9 +1429,11 @@ Dbspj::releaseScanBuffers(Ptr<Request> requestPtr)
     }
 
     /**
-      * Build Bitmask of all nodes having TN_ACTIVE childs
+      * Collect ancestors of all nodes which are, or will
+      * become active in NEXTREQ (possibly repeated)
       */
-    if (treeNodePtr.p->m_state == TreeNode::TN_ACTIVE)
+    if (treeNodePtr.p->m_state == TreeNode::TN_ACTIVE ||
+        requestPtr.p->m_active_nodes.get(treeNodePtr.p->m_node_no))
     {
       ancestors_of_active.bitOR(treeNodePtr.p->m_ancestors);
     }

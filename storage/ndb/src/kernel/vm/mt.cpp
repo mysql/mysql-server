@@ -4170,6 +4170,22 @@ mt_wakeup(class SimulatedBlock* block)
   wakeup(&thrptr->m_waiter);
 }
 
+#ifdef VM_TRACE
+void
+mt_assert_own_thread(SimulatedBlock* block)
+{
+  Uint32 thr_no = block->getThreadId();
+  thr_data *thrptr = g_thr_repository.m_thread + thr_no;
+
+  if (unlikely(pthread_equal(thrptr->m_thr_id, pthread_self()) == 0))
+  {
+    fprintf(stderr, "mt_assert_own_thread() - assertion-failure\n");
+    fflush(stderr);
+    abort();
+  }
+}
+#endif
+
 /**
  * Global data
  */

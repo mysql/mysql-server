@@ -603,6 +603,8 @@ public:
     static const Column * RECORDS_IN_RANGE;
     static const Column * ROWID;
     static const Column * ROW_GCI;
+    static const Column * ROW_GCI64;
+    static const Column * ROW_AUTHOR;
     static const Column * ANY_VALUE;
     static const Column * COPY_ROWID;
     static const Column * LOCK_REF;
@@ -1061,6 +1063,18 @@ public:
      */
     void setStorageType(Column::StorageType);
     Column::StorageType getStorageType() const;
+
+    /**
+     * Get/set extra GCI bits (max 31)
+     */
+    void setExtraRowGciBits(Uint32);
+    Uint32 getExtraRowGciBits() const;
+
+    /**
+     * Get/set extra row author bits (max 31)
+     */
+    void setExtraRowAuthorBits(Uint32);
+    Uint32 getExtraRowAuthorBits() const;
 #endif
 
     // these 2 are not de-doxygenated
