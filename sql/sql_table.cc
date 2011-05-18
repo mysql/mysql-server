@@ -2475,6 +2475,11 @@ err:
       trans_tmp_table_deleted || non_tmp_table_deleted)
   {
     query_cache_invalidate3(thd, tables, 0);
+
+    if (non_trans_tmp_table_deleted ||
+        trans_tmp_table_deleted)
+      thd->transaction.stmt.mark_dropped_temp_table();
+
     if (!dont_log_query && mysql_bin_log.is_open())
     {
       if (non_trans_tmp_table_deleted)
@@ -4554,19 +4559,27 @@ bool mysql_create_table(THD *thd, TABLE_LIST *create_table,
   result= mysql_create_table_no_lock(thd, create_table->db,
                                      create_table->table_name, create_info,
                                      alter_info, FALSE, 0, &is_trans);
-
   /*
     Don't write statement if:
     - Table creation has failed
     - Row-based logging is used and we are creating a temporary table
     Otherwise, the statement shall be binlogged.
   */
-  if (!result &&
-      (!thd->is_current_stmt_binlog_format_row() ||
-       (thd->is_current_stmt_binlog_format_row() &&
-        !(create_info->options & HA_LEX_CREATE_TMP_TABLE))))
-    result= write_bin_log(thd, TRUE, thd->query(), thd->query_length(), is_trans);
+  if (!result)
+  {
+    /*
+      CREATE TEMPORARY TABLE doesn't terminate a transaction. Calling
+      stmt.mark_created_temp_table() guarantees the transaction can be binlogged
+      correctly.
+    */
+    if (create_info->options & HA_LEX_CREATE_TMP_TABLE)
+      thd->transaction.stmt.mark_created_temp_table();
 
+    if (!thd->is_current_stmt_binlog_format_row() ||
+        (thd->is_current_stmt_binlog_format_row() &&
+         !(create_info->options & HA_LEX_CREATE_TMP_TABLE)))
+      result= write_bin_log(thd, TRUE, thd->query(), thd->query_length(), is_trans);
+  }
 end:
   DBUG_RETURN(result);
 }
@@ -4785,6 +4798,14 @@ bool mysql_create_like_table(THD* thd, TABLE_LIST* table, TABLE_LIST* src_table,
               thd->mdl_context.is_lock_owner(MDL_key::TABLE, table->db,
                                              table->table_name,
                                              MDL_EXCLUSIVE));
+  /*
+    CREATE TEMPORARY TABLE doesn't terminate a transaction. Calling
+    stmt.mark_created_temp_table() guarantees the transaction can be binlogged
+    correctly.
+  */
+  if (create_info->options & HA_LEX_CREATE_TMP_TABLE)
+    thd->transaction.stmt.mark_created_temp_table();
+
   /*
     We have to write the query before we unlock the tables.
   */
