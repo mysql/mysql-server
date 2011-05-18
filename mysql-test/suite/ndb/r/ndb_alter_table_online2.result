@@ -75,6 +75,9 @@ name
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 update t1 set c= 0;
+select * from t1;
+pk	a	b	c
+1	5000	5000	5000
 
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 ~ Alter table t1 and try to add partitions

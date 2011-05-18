@@ -10,13 +10,6 @@
 #
 ##############################################################################
 
-rpl_ndb_ctype_ucs2_def : bug #34661 rpl_ndb_ctype_ucs2_def fails in 6.2
 rpl_ndb_set_null       : bug #51100
 
-rpl_ndb_break_3_chain : SEAGULL ndb-force-binlog-format-statement
-rpl_ndb_slave_lsu : SEAGULL ndb-force-binlog-format-statement
-rpl_ndb_slave_lsu_anyval : SEAGULL ndb-force-binlog-format-statement
-rpl_ndb_row_implicit_commit_binlog : SEAGULL ndb-force-binlog-format-statement
-
-rpl_ndb_circular_2ch : SEAGULL update test to new rpl scripts
 

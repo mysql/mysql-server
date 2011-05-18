@@ -76,6 +76,9 @@ Dbtup::execCREATE_TAB_REQ(Signal* signal)
   memset(fragOperPtr.p->m_null_bits, 0, sizeof(fragOperPtr.p->m_null_bits));
   fragOperPtr.p->charsetIndex = 0;
   fragOperPtr.p->lqhBlockrefFrag = req->senderRef;
+  fragOperPtr.p->m_extra_row_gci_bits =
+    req->GCPIndicator > 1 ? req->GCPIndicator - 1 : 0;
+  fragOperPtr.p->m_extra_row_author_bits = req->extraRowAuthorBits;
 
   regTabPtr.p->m_createTable.m_fragOpPtrI = fragOperPtr.i;
   regTabPtr.p->m_createTable.defValSectionI = RNIL;
@@ -84,6 +87,9 @@ Dbtup::execCREATE_TAB_REQ(Signal* signal)
   regTabPtr.p->m_bits |= (req->checksumIndicator ? Tablerec::TR_Checksum : 0);
   regTabPtr.p->m_bits |= (req->GCPIndicator ? Tablerec::TR_RowGCI : 0);
   regTabPtr.p->m_bits |= (req->forceVarPartFlag? Tablerec::TR_ForceVarPart : 0);
+  regTabPtr.p->m_bits |=
+    (req->GCPIndicator > 1 ? Tablerec::TR_ExtraRowGCIBits : 0);
+  regTabPtr.p->m_bits |= (req->extraRowAuthorBits ? Tablerec::TR_ExtraRowAuthorBits : 0);
 
   regTabPtr.p->m_offsets[MM].m_disk_ref_offset= 0;
   regTabPtr.p->m_offsets[MM].m_null_words= 0;
@@ -118,12 +124,26 @@ Dbtup::execCREATE_TAB_REQ(Signal* signal)
   regTabPtr.p->m_no_of_attributes= req->noOfAttributes;
   regTabPtr.p->dynTabDescriptor[MM]= RNIL;
   regTabPtr.p->dynTabDescriptor[DD]= RNIL;
+  regTabPtr.p->m_no_of_extra_columns = 0;
+
+  if (regTabPtr.p->m_bits & Tablerec::TR_ExtraRowGCIBits)
+  {
+    jam();
+    regTabPtr.p->m_no_of_extra_columns++;
+  }
+
+  if (regTabPtr.p->m_bits & Tablerec::TR_ExtraRowAuthorBits)
+  {
+    jam();
+    regTabPtr.p->m_no_of_extra_columns++;
+  }
 
   {
     Uint32 offset[10];
     Uint32 allocSize= getTabDescrOffsets(req->noOfAttributes,
                                          req->noOfCharsets,
                                          req->noOfKeyAttr,
+                                         regTabPtr.p->m_no_of_extra_columns,
                                          offset);
     Uint32 tableDescriptorRef= allocTabDescr(allocSize);
     if (tableDescriptorRef == RNIL)
@@ -177,6 +197,8 @@ void Dbtup::execTUP_ADD_ATTRREQ(Signal* signal)
   ndbrequire(fragOperPtr.p->attributeCount > 0);
   fragOperPtr.p->attributeCount--;
   const bool lastAttr = (fragOperPtr.p->attributeCount == 0);
+
+  Uint32 extraAttrId = 0;
 
   Uint32 firstTabDesIndex= regTabPtr.p->tabDescriptor + (attrId * ZAD_SIZE);
   setTabDescrWord(firstTabDesIndex, attrDescriptor);
@@ -321,7 +343,71 @@ void Dbtup::execTUP_ADD_ATTRREQ(Signal* signal)
 	       signal, 2, JBB);
     return;
   }
-  
+
+  if (fragOperPtr.p->m_extra_row_gci_bits)
+  {
+    jam();
+
+    const Uint32 bits = fragOperPtr.p->m_extra_row_gci_bits;
+
+    /**
+     * Create attribute descriptor for extra row gci bits...
+     */
+    Uint32 desc = 0;
+    Uint32 off = 0;
+
+    AttributeDescriptor::setSize(desc, 0); // bit
+    AttributeDescriptor::setArraySize(desc, bits);
+    AttributeOffset::setNullFlagPos(off, fragOperPtr.p->m_null_bits[MM]);
+    fragOperPtr.p->m_null_bits[MM] += bits;
+
+    if (fragOperPtr.p->m_null_bits[MM] > AO_NULL_FLAG_POS_MASK)
+    {
+      jam();
+      terrorCode = ZTOO_MANY_BITS_ERROR;
+      goto error;
+    }
+
+    Uint32 idx = regTabPtr.p->tabDescriptor;
+    idx += ZAD_SIZE * (regTabPtr.p->m_no_of_attributes + extraAttrId);
+    setTabDescrWord(idx, desc);
+    setTabDescrWord(idx + 1, off);
+
+    extraAttrId++;
+  }
+
+  if (fragOperPtr.p->m_extra_row_author_bits)
+  {
+    jam();
+
+    const Uint32 bits = fragOperPtr.p->m_extra_row_author_bits;
+
+    /**
+     * Create attribute descriptor for extra row gci bits...
+     */
+    Uint32 desc = 0;
+    Uint32 off = 0;
+
+    AttributeDescriptor::setSize(desc, 0); // bit
+    AttributeDescriptor::setArraySize(desc, bits);
+    AttributeOffset::setNullFlagPos(off, fragOperPtr.p->m_null_bits[MM]);
+    fragOperPtr.p->m_null_bits[MM] += bits;
+
+    if (fragOperPtr.p->m_null_bits[MM] > AO_NULL_FLAG_POS_MASK)
+    {
+      jam();
+      terrorCode = ZTOO_MANY_BITS_ERROR;
+      goto error;
+    }
+
+    Uint32 idx = regTabPtr.p->tabDescriptor;
+    idx += ZAD_SIZE * (regTabPtr.p->m_no_of_attributes + extraAttrId);
+    setTabDescrWord(idx, desc);
+    setTabDescrWord(idx + 1, off);
+
+    extraAttrId++;
+  }
+
 #define BTW(x) ((x+31) >> 5)
   regTabPtr.p->m_offsets[MM].m_null_words= BTW(fragOperPtr.p->m_null_bits[MM]);
   regTabPtr.p->m_offsets[DD].m_null_words= BTW(fragOperPtr.p->m_null_bits[DD]);
@@ -1027,6 +1113,7 @@ Dbtup::handleAlterTablePrepare(Signal *signal,
     /* Allocate a new (possibly larger) table descriptor buffer. */
     Uint32 allocSize= getTabDescrOffsets(newNoOfAttr, newNoOfCharsets,
                                          newNoOfKeyAttrs,
+                                         regTabPtr->m_no_of_extra_columns,
                                          regAlterTabOpPtr.p->tabDesOffset);
     Uint32 tableDescriptorRef= allocTabDescr(allocSize);
     if (tableDescriptorRef == RNIL) {
@@ -1047,11 +1134,24 @@ Dbtup::handleAlterTablePrepare(Signal *signal,
       (CHARSET_INFO**)(desc + regAlterTabOpPtr.p->tabDesOffset[2]);
     memcpy(CharsetArray, regTabPtr->charsetArray,
            sizeof(*CharsetArray)*regTabPtr->noOfCharsets);
-    Uint32 *attrDesPtr= desc + regAlterTabOpPtr.p->tabDesOffset[4];
+    Uint32 * const attrDesPtrStart = desc + regAlterTabOpPtr.p->tabDesOffset[4];
+    Uint32 * attrDesPtr = attrDesPtrStart;
     memcpy(attrDesPtr,
            &tableDescriptor[regTabPtr->tabDescriptor].tabDescr,
-           (ZAD_SIZE<<2)*oldNoOfAttr);
-    attrDesPtr+= ZAD_SIZE*oldNoOfAttr;
+           4 * ZAD_SIZE * oldNoOfAttr);
+
+    /**
+     * Copy extra columns descriptors to end of attrDesPtr
+     */
+    {
+      const Uint32 * src = &tableDescriptor[regTabPtr->tabDescriptor].tabDescr;
+      src += ZAD_SIZE * oldNoOfAttr;
+
+      Uint32 * dst = attrDesPtr + (ZAD_SIZE * newNoOfAttr);
+      memcpy(dst, src, 4 * ZAD_SIZE * regTabPtr->m_no_of_extra_columns);
+    }
+
+    attrDesPtr+= ZAD_SIZE * oldNoOfAttr;
 
     /*
       Loop over the new attributes to add.
@@ -1122,6 +1222,7 @@ Dbtup::handleAlterTablePrepare(Signal *signal,
       *attrDesPtr++= attrDes2;
     }
     ndbassert(newNoOfCharsets==charsetIndex);
+    ndbrequire(attrDesPtr == attrDesPtrStart + (ZAD_SIZE * newNoOfAttr));
 
     regAlterTabOpPtr.p->noOfDynNullBits= dyn_nullbits;
     ndbassert(noDynamic ==
@@ -1841,6 +1942,7 @@ void Dbtup::releaseTabDescr(Tablerec* const regTabPtr)
     getTabDescrOffsets(regTabPtr->m_no_of_attributes,
                        regTabPtr->noOfCharsets,
                        regTabPtr->noOfKeyAttr,
+                       regTabPtr->m_no_of_extra_columns,
                        offset);
 
     regTabPtr->tabDescriptor= RNIL;
