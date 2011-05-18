@@ -30,6 +30,7 @@
 #include "records.h"                          /* READ_RECORD */
 #include "opt_range.h"                /* SQL_SELECT, QUICK_SELECT_I */
 
+#include "mem_root_array.h"
 
 /* Values in optimize */
 #define KEY_OPTIMIZE_EXISTS		1
@@ -37,12 +38,24 @@
 
 /**
   Information about usage of an index to satisfy an equality condition.
-
-  @note such objects are stored in DYNAMIC_ARRAY which uses sizeof(), so keep
-  this class as POD as possible.
 */
 class Key_use {
 public:
+  // We need the default constructor for unit testing.
+  Key_use()
+    : table(NULL),
+      val(NULL),
+      used_tables(0),
+      key(0),
+      keypart(0),
+      optimize(0),
+      keypart_map(0),
+      ref_table_rows(0),
+      null_rejecting(false),
+      cond_guard(NULL),
+      sj_pred_no(UINT_MAX)
+  {}
+
   Key_use(TABLE *table_arg, Item *val_arg, table_map used_tables_arg,
           uint key_arg, uint keypart_arg, uint optimize_arg,
           key_part_map keypart_map_arg, ha_rows ref_table_rows_arg,
@@ -85,13 +98,17 @@ public:
   bool *cond_guard;
   /**
      0..64    <=> This was created from semi-join IN-equality # sj_pred_no.
-     MAX_UINT  Otherwise
+     UINT_MAX  Otherwise
 
      Not used if the index is fulltext (such index cannot be used for
      semijoin).
   */
   uint         sj_pred_no;
 };
+
+
+// Key_use has a trivial destructor, no need to run it from Mem_root_array.
+typedef Mem_root_array<Key_use, true> Key_use_array;
 
 class store_key;
 
@@ -1816,7 +1833,9 @@ public:
   bool          skip_sort_order;
 
   bool need_tmp, hidden_group_fields;
-  DYNAMIC_ARRAY keyuse;
+
+  Key_use_array keyuse;
+
   List<Item> all_fields; ///< to store all fields that used in query
   ///Above list changed to use temporary table
   List<Item> tmp_all_fields1, tmp_all_fields2, tmp_all_fields3;
@@ -1892,7 +1911,9 @@ public:
 
   JOIN(THD *thd_arg, List<Item> &fields_arg, ulonglong select_options_arg,
        select_result *result_arg)
-    :fields_list(fields_arg), sj_subselects(thd_arg->mem_root, 4)
+    : keyuse(thd_arg->mem_root),
+      fields_list(fields_arg),
+      sj_subselects(thd_arg->mem_root, 4)
   {
     init(thd_arg, fields_arg, select_options_arg, result_arg);
   }
@@ -1946,7 +1967,7 @@ public:
     all_fields= fields_arg;
     if (&fields_list != &fields_arg)      /* Avoid valgrind-warning */
       fields_list= fields_arg;
-    bzero((char*) &keyuse,sizeof(keyuse));
+    keyuse.clear();
     tmp_table_param.init();
     tmp_table_param.end_write_records= HA_POS_ERROR;
     rollup.state= ROLLUP::STATE_NONE;
