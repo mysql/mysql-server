@@ -1055,7 +1055,6 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
   }
 
   thread_running++;
-  /* TODO: set thd->lex->sql_command to SQLCOM_END here */
   VOID(pthread_mutex_unlock(&LOCK_thread_count));
 
   /**
@@ -1252,15 +1251,15 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
 #endif
 
       thd->set_query(beginning_of_next_stmt, length);
-      VOID(pthread_mutex_lock(&LOCK_thread_count));
       /*
         Count each statement from the client.
       */
       statistic_increment(thd->status_var.questions, &LOCK_status);
+      thd->set_time(); /* Reset the query start time for next query. */
+      VOID(pthread_mutex_lock(&LOCK_thread_count));
       thd->query_id= next_query_id();
-      thd->set_time(); /* Reset the query start time. */
-      /* TODO: set thd->lex->sql_command to SQLCOM_END here */
       VOID(pthread_mutex_unlock(&LOCK_thread_count));
+      /* TODO: set thd->lex->sql_command to SQLCOM_END here */
       mysql_parse(thd, beginning_of_next_stmt, length, &end_of_stmt);
     }
 
@@ -3552,7 +3551,7 @@ end_with_restore_list:
     {
 #ifdef HAVE_QUERY_CACHE
       if (thd->variables.query_cache_wlock_invalidate)
-	query_cache.invalidate_locked_for_write(first_table);
+	query_cache.invalidate_locked_for_write(thd, first_table);
 #endif /*HAVE_QUERY_CACHE*/
       thd->locked_tables=thd->lock;
       thd->lock=0;
@@ -7010,7 +7009,7 @@ bool reload_acl_and_cache(THD *thd, ulong options, TABLE_LIST *tables,
 #ifdef HAVE_QUERY_CACHE
   if (options & REFRESH_QUERY_CACHE_FREE)
   {
-    query_cache.pack();				// FLUSH QUERY CACHE
+    query_cache.pack(thd);				// FLUSH QUERY CACHE
     options &= ~REFRESH_QUERY_CACHE;    // Don't flush cache, just free memory
   }
   if (options & (REFRESH_TABLES | REFRESH_QUERY_CACHE))

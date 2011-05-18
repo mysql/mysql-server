@@ -112,7 +112,7 @@ static my_bool display_result_vertically= FALSE, display_result_lower= FALSE,
   display_metadata= FALSE, display_result_sorted= FALSE;
 static my_bool disable_query_log= 0, disable_result_log= 0;
 static my_bool disable_connect_log= 1;
-static my_bool disable_warnings= 0;
+static my_bool disable_warnings= 0, disable_column_names= 0;
 static my_bool prepare_warnings_enabled= 0;
 static my_bool disable_info= 1;
 static my_bool abort_on_error= 1;
@@ -298,6 +298,7 @@ enum enum_commands {
   Q_ENABLE_WARNINGS, Q_DISABLE_WARNINGS,
   Q_ENABLE_INFO, Q_DISABLE_INFO,
   Q_ENABLE_METADATA, Q_DISABLE_METADATA,
+  Q_ENABLE_COLUMN_NAMES, Q_DISABLE_COLUMN_NAMES,
   Q_EXEC, Q_DELIMITER,
   Q_DISABLE_ABORT_ON_ERROR, Q_ENABLE_ABORT_ON_ERROR,
   Q_DISPLAY_VERTICAL_RESULTS, Q_DISPLAY_HORIZONTAL_RESULTS,
@@ -371,6 +372,8 @@ const char *command_names[]=
   "disable_info",
   "enable_metadata",
   "disable_metadata",
+  "enable_column_names",
+  "disable_column_names",
   "exec",
   "delimiter",
   "disable_abort_on_error",
@@ -6832,6 +6835,8 @@ void append_table_headings(DYNAMIC_STRING *ds,
                            uint num_fields)
 {
   uint col_idx;
+  if (disable_column_names)
+    return;
   for (col_idx= 0; col_idx < num_fields; col_idx++)
   {
     if (col_idx)
@@ -8343,6 +8348,14 @@ int main(int argc, char **argv)
       case Q_DISABLE_METADATA:
         display_metadata= 0;
         var_set_int("$ENABLED_METADATA", 0);
+        break;
+      case Q_ENABLE_COLUMN_NAMES:
+        disable_column_names= 0;
+        var_set_int("$ENABLED_COLUMN_NAMES", 0);
+        break;
+      case Q_DISABLE_COLUMN_NAMES:
+        disable_column_names= 1;
+        var_set_int("$ENABLED_COLUMN_NAMES", 1);
         break;
       case Q_SOURCE: do_source(command); break;
       case Q_SLEEP: do_sleep(command, 0); break;

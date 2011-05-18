@@ -286,6 +286,7 @@ functions:
          if (and only if) this query has a registered result set writer
          (thd->net.query_cache_query).
  4. Query_cache::invalidate
+    Query_cache::invalidate_locked_for_write
        - Called from various places to invalidate query cache based on data-
          base, table and myisam file name. During an on going invalidation
          the query cache is temporarily disabled.
@@ -333,6 +334,8 @@ TODO list:
 #include <hash.h>
 #include "../storage/myisammrg/ha_myisammrg.h"
 #include "../storage/myisammrg/myrg_def.h"
+
+const uchar *query_state_map;
 
 #ifdef EMBEDDED_LIBRARY
 #include "emb_qcache.h"
@@ -422,6 +425,136 @@ TYPELIB query_cache_type_typelib=
 };
 
 
+/*
+  Check if character is a white space.
+*/
+
+inline bool is_white_space(char c)
+{
+  return (query_state_map[(uint) ((uchar) c)] == MY_LEX_SKIP);
+}
+
+
+/**
+  Generate a query_string without query comments or duplicated space
+
+  @param new_query	    New query without 'fluff' is stored here
+  @param query		    Original query
+  @param query_length	    Length of original query
+  @param additional_length  Extra space for query cache we need to allocate
+  			    in new_query buffer.
+
+  Note:
+    If there is no space to allocate new_query, we will put original query
+    into new_query.
+*/
+
+static void make_base_query(String *new_query,
+                            const char *query, size_t query_length,
+                            size_t additional_length)
+{
+  char *buffer;
+  const char *query_end, *last_space;
+
+  /* The following is guaranteed by the query_cache interface */
+  DBUG_ASSERT(query[query_length] == 0);
+  DBUG_ASSERT(!is_white_space(query[0]));
+
+  if (new_query->realloc(query_length + additional_length))
+  {
+    /*
+      We could not allocate the query.  Use original query for
+      the query cache;  Better than nothing....
+    */
+    new_query->set(query, query_length, system_charset_info);
+    return;
+  }
+
+  buffer= (char*) new_query->ptr();             // Store base query here
+  query_end= query + query_length;
+  last_space= 0;                                // No space found yet
+
+  while (query < query_end)
+  {
+    char current = *(query++);
+    switch (current) {
+    case '\'':
+    case '`':
+    case '"':
+      *(buffer++)= current;                     // copy first quote
+      while (query < query_end)
+      {
+        *(buffer++)= *query;
+        if (*(query++) == current)              // found pair quote
+          break;
+      }
+      continue;                                 // Continue with next symbol
+    case '/':                                   // Start of comment ?
+      /*
+        Comment of format /#!number #/, must be skipped.
+        These may include '"' and other comments, but it should
+        be safe to parse the content as a normal string.
+      */
+      if (query[0] != '*' || query[1] == '!')
+        break;
+
+      query++;                               // skip "/"
+      while (++query < query_end)
+      {
+        if (query[0] == '*' && query[1] == '/')
+        {
+          query+= 2;
+          goto insert_space;
+        }
+      }
+      continue;                                 // Will end outer loop
+    case '-':
+      if (*query != '-' || !is_white_space(query[1])) // Not a comment
+        break;
+      query++;                 // skip second "-", and go to search of "\n"
+      /* fall through */
+    case '#':
+      while (query < query_end)
+      {
+        if (*(query++) == '\n')
+          goto insert_space;
+      }
+      continue;                                 // Will end outer loop
+    default:
+      if (is_white_space(current))
+        goto insert_space;
+      break;
+    }
+    *(buffer++)= current;
+    continue;
+
+insert_space:
+    if (buffer != last_space)
+    {
+      *(buffer++)= ' ';
+      last_space= buffer;
+    }
+  }
+  if (buffer == last_space)
+    buffer--;                                   // Remove the last space
+  *buffer= 0;
+  new_query->length((size_t) (buffer - new_query->ptr()));
+}
+
+
+/**
+  Check and change local variable if global one is switched
+
+  @param thd             thread handle
+*/
+
+void inline fix_local_query_cache_mode(THD *thd)
+{
+  if (global_system_variables.query_cache_type == 0)
+    thd->variables.query_cache_type= 0;
+}
+
+
 /**
   Serialize access to the query cache.
   If the lock cannot be granted the thread hangs in a conditional wait which
@@ -431,31 +564,47 @@ TYPELIB query_cache_type_typelib=
   effect by another thread. This enables a quick path in execution to skip waits
   when the outcome is known.
 
-  @param use_timeout TRUE if the lock can abort because of a timeout.
+  @param mode TIMEOUT the lock can abort because of a timeout
+              TRY the lock can abort because it is locked now
+              WAIT wait for lock (default)
 
-  @note use_timeout is optional and default value is FALSE.
+  @note mode is optional and default value is WAIT.
 
   @return
    @retval FALSE An exclusive lock was taken
    @retval TRUE The locking attempt failed
 */
 
-bool Query_cache::try_lock(bool use_timeout)
+bool Query_cache::try_lock(THD *thd, Cache_try_lock_mode mode)
 {
-  bool interrupt= FALSE;
+  bool interrupt= TRUE;
+  const char* old_proc_info;
   DBUG_ENTER("Query_cache::try_lock");
 
+  old_proc_info= thd->proc_info;
+  thd_proc_info(thd,"Waiting on query cache mutex");
+
   pthread_mutex_lock(&structure_guard_mutex);
+  DBUG_EXECUTE_IF("status_wait_query_cache_mutex_sleep", {
+      sleep(5);
+    });
+  if (m_cache_status == DISABLED)
+  {
+    pthread_mutex_unlock(&structure_guard_mutex);
+    thd->proc_info= old_proc_info;
+    DBUG_RETURN(TRUE);
+  }
+  m_requests_in_progress++;
+  fix_local_query_cache_mode(thd);
   while (1)
   {
     if (m_cache_lock_status == Query_cache::UNLOCKED)
     {
       m_cache_lock_status= Query_cache::LOCKED;
 #ifndef DBUG_OFF
-      THD *thd= current_thd;
-      if (thd)
-        m_cache_lock_thread_id= thd->thread_id;
+      m_cache_lock_thread_id= thd->thread_id;
 #endif
+      interrupt= FALSE;
       break;
     }
     else if (m_cache_lock_status == Query_cache::LOCKED_NO_WAIT)
@@ -464,7 +613,6 @@ bool Query_cache::try_lock(bool use_timeout)
         If query cache is protected by a LOCKED_NO_WAIT lock this thread
         should avoid using the query cache as it is being evicted.
       */
-      interrupt= TRUE;
       break;
     }
     else
@@ -474,25 +622,36 @@ bool Query_cache::try_lock(bool use_timeout)
         To prevent send_result_to_client() and query_cache_insert() from
         blocking execution for too long a timeout is put on the lock.
       */
-      if (use_timeout)
+      if (mode == WAIT)
+      {
+        pthread_cond_wait(&COND_cache_status_changed, &structure_guard_mutex);
+      }
+      else if (mode == TIMEOUT)
       {
         struct timespec waittime;
         set_timespec_nsec(waittime,(ulong)(50000000L));  /* Wait for 50 msec */
         int res= pthread_cond_timedwait(&COND_cache_status_changed,
                                         &structure_guard_mutex,&waittime);
         if (res == ETIMEDOUT)
-        {
-          interrupt= TRUE;
           break;
-        }
       }
       else
       {
-        pthread_cond_wait(&COND_cache_status_changed, &structure_guard_mutex);
+        /**
+          If we are here, then mode is == TRY and there was someone else using
+          the query cache. (m_cache_lock_status != Query_cache::UNLOCKED).
+          Signal that we didn't get a lock.
+        */
+        DBUG_ASSERT(m_requests_in_progress > 1);
+        DBUG_ASSERT(mode == TRY);
+        break;
       }
     }
   }
+  if (interrupt)
+    m_requests_in_progress--;
   pthread_mutex_unlock(&structure_guard_mutex);
+  thd->proc_info = old_proc_info;
 
   DBUG_RETURN(interrupt);
 }
@@ -514,10 +673,12 @@ void Query_cache::lock_and_suspend(void)
   DBUG_ENTER("Query_cache::lock_and_suspend");
 
   pthread_mutex_lock(&structure_guard_mutex);
+  m_requests_in_progress++;
   while (m_cache_lock_status != Query_cache::UNLOCKED)
     pthread_cond_wait(&COND_cache_status_changed, &structure_guard_mutex);
   m_cache_lock_status= Query_cache::LOCKED_NO_WAIT;
 #ifndef DBUG_OFF
+  /* Here thd may not be set during shutdown */
   THD *thd= current_thd;
   if (thd)
     m_cache_lock_thread_id= thd->thread_id;
@@ -537,18 +698,18 @@ void Query_cache::lock_and_suspend(void)
   It is used by all methods which invalidates one or more tables.
  */
 
-void Query_cache::lock(void)
+void Query_cache::lock(THD *thd)
 {
   DBUG_ENTER("Query_cache::lock");
 
   pthread_mutex_lock(&structure_guard_mutex);
+  m_requests_in_progress++;
+  fix_local_query_cache_mode(thd);
   while (m_cache_lock_status != Query_cache::UNLOCKED)
     pthread_cond_wait(&COND_cache_status_changed, &structure_guard_mutex);
   m_cache_lock_status= Query_cache::LOCKED;
 #ifndef DBUG_OFF
-  THD *thd= current_thd;
-  if (thd)
-    m_cache_lock_thread_id= thd->thread_id;
+  m_cache_lock_thread_id= thd->thread_id;
 #endif
   pthread_mutex_unlock(&structure_guard_mutex);
 
@@ -565,6 +726,7 @@ void Query_cache::unlock(void)
   DBUG_ENTER("Query_cache::unlock");
   pthread_mutex_lock(&structure_guard_mutex);
 #ifndef DBUG_OFF
+  /* Thd may not be set in resize() at mysqld start */
   THD *thd= current_thd;
   if (thd)
     DBUG_ASSERT(m_cache_lock_thread_id == thd->thread_id);
@@ -574,6 +736,14 @@ void Query_cache::unlock(void)
   m_cache_lock_status= Query_cache::UNLOCKED;
   DBUG_PRINT("Query_cache",("Sending signal"));
   pthread_cond_signal(&COND_cache_status_changed);
+  DBUG_ASSERT(m_requests_in_progress > 0);
+  m_requests_in_progress--;
+  if (m_requests_in_progress == 0 && m_cache_status == DISABLE_REQUEST)
+  {
+    /* No clients => just free query cache */
+    free_cache();
+    m_cache_status= DISABLED;
+  }
   pthread_mutex_unlock(&structure_guard_mutex);
   DBUG_VOID_RETURN;
 }
@@ -590,25 +760,24 @@ void Query_cache::unlock(void)
    @retval FALSE No directive found.
 */
  
-static bool has_no_cache_directive(char *sql)
+static bool has_no_cache_directive(const char *sql)
 {
-  int i=0;
-  while (sql[i] == ' ')
-    ++i;
+  while (is_white_space(*sql))
+    sql++;
     
-  if (my_toupper(system_charset_info, sql[i])    == 'S' &&
-      my_toupper(system_charset_info, sql[i+1])  == 'Q' &&
-      my_toupper(system_charset_info, sql[i+2])  == 'L' &&
-      my_toupper(system_charset_info, sql[i+3])  == '_' &&
-      my_toupper(system_charset_info, sql[i+4])  == 'N' &&
-      my_toupper(system_charset_info, sql[i+5])  == 'O' &&
-      my_toupper(system_charset_info, sql[i+6])  == '_' &&
-      my_toupper(system_charset_info, sql[i+7])  == 'C' &&
-      my_toupper(system_charset_info, sql[i+8])  == 'A' &&
-      my_toupper(system_charset_info, sql[i+9])  == 'C' &&
-      my_toupper(system_charset_info, sql[i+10]) == 'H' &&
-      my_toupper(system_charset_info, sql[i+11]) == 'E' &&
-      my_toupper(system_charset_info, sql[i+12]) == ' ')
+  if (my_toupper(system_charset_info, sql[0])  == 'S' &&
+      my_toupper(system_charset_info, sql[1])  == 'Q' &&
+      my_toupper(system_charset_info, sql[2])  == 'L' &&
+      my_toupper(system_charset_info, sql[3])  == '_' &&
+      my_toupper(system_charset_info, sql[4])  == 'N' &&
+      my_toupper(system_charset_info, sql[5])  == 'O' &&
+      my_toupper(system_charset_info, sql[6])  == '_' &&
+      my_toupper(system_charset_info, sql[7])  == 'C' &&
+      my_toupper(system_charset_info, sql[8])  == 'A' &&
+      my_toupper(system_charset_info, sql[9])  == 'C' &&
+      my_toupper(system_charset_info, sql[10]) == 'H' &&
+      my_toupper(system_charset_info, sql[11]) == 'E' &&
+      my_isspace(system_charset_info, sql[12]))
     return TRUE;
   
   return FALSE;       
@@ -866,14 +1035,23 @@ void query_cache_insert(NET *net, const char *packet, ulong length)
 {
   DBUG_ENTER("query_cache_insert");
 
-  /* See the comment on double-check locking usage above. */
   if (net->query_cache_query == 0)
     DBUG_VOID_RETURN;
+
+  DBUG_ASSERT(current_thd);
 
   DBUG_EXECUTE_IF("wait_in_query_cache_insert",
                   debug_wait_for_kill("wait_in_query_cache_insert"); );
 
-  if (query_cache.try_lock())
+  /* First we check if query cache is disable without doing a mutex lock */
+  if(query_cache.is_disabled())
+    DBUG_VOID_RETURN;
+
+  /*
+    Lock the cache with try_lock(). try_lock() will fail if
+    cache was disabled between the above test and lock.
+  */
+  if (query_cache.try_lock(current_thd, Query_cache::WAIT))
     DBUG_VOID_RETURN;
 
   Query_cache_block *query_block= (Query_cache_block*)net->query_cache_query;
@@ -931,7 +1109,7 @@ void query_cache_abort(NET *net)
   if (net->query_cache_query == 0)
     DBUG_VOID_RETURN;
 
-  if (query_cache.try_lock())
+  if (query_cache.try_lock(current_thd, Query_cache::WAIT))
   {
     net->query_cache_query = 0;
     DBUG_VOID_RETURN;
@@ -984,7 +1162,7 @@ void query_cache_end_of_result(THD *thd)
                      emb_count_querycache_size(thd));
 #endif
 
-  if (query_cache.try_lock())
+  if (query_cache.try_lock(thd, Query_cache::WAIT))
   {
     thd->net.query_cache_query= 0;
     DBUG_VOID_RETURN;
@@ -1073,6 +1251,7 @@ Query_cache::Query_cache(ulong query_cache_limit_arg,
    query_cache_limit(query_cache_limit_arg),
    queries_in_cache(0), hits(0), inserts(0), refused(0),
    total_blocks(0), lowmem_prunes(0),
+   m_cache_status(OK),
    min_allocation_unit(ALIGN_SIZE(min_allocation_unit_arg)),
    min_result_data_size(ALIGN_SIZE(min_result_data_size_arg)),
    def_query_hash_size(ALIGN_SIZE(def_query_hash_size_arg)),
@@ -1095,6 +1274,12 @@ ulong Query_cache::resize(ulong query_cache_size_arg)
   DBUG_PRINT("qcache", ("from %lu to %lu",query_cache_size,
 			query_cache_size_arg));
   DBUG_ASSERT(initialized);
+
+  if (global_system_variables.query_cache_type == 0)
+  {
+    my_error(ER_QUERY_CACHE_IS_DISABLED, MYF(0));
+    DBUG_RETURN(0);
+  }
 
   lock_and_suspend();
 
@@ -1128,8 +1313,17 @@ ulong Query_cache::resize(ulong query_cache_size_arg)
   query_cache_size= query_cache_size_arg;
   new_query_cache_size= init_cache();
 
+  /*
+    m_cache_status is internal query cache switch so switching it on/off
+    will not be reflected on global_system_variables.query_cache_type
+  */
   if (new_query_cache_size)
+  {
     DBUG_EXECUTE("check_querycache",check_integrity(1););
+    m_cache_status= OK;                         // size > 0 => enable cache
+  }
+  else
+    m_cache_status= DISABLED;                   // size 0 means the cache disabled
 
   unlock();
   DBUG_RETURN(new_query_cache_size);
@@ -1148,6 +1342,9 @@ void Query_cache::store_query(THD *thd, TABLE_LIST *tables_used)
 {
   TABLE_COUNTER_TYPE local_tables;
   ulong tot_length;
+  const char *query;
+  size_t query_length;
+  uint8 tables_type;
   DBUG_ENTER("Query_cache::store_query");
   /*
     Testing 'query_cache_size' without a lock here is safe: the thing
@@ -1157,12 +1354,23 @@ void Query_cache::store_query(THD *thd, TABLE_LIST *tables_used)
 
     See also a note on double-check locking usage above.
   */
-  if (thd->locked_tables || query_cache_size == 0)
+  if (!thd->query_cache_is_applicable || query_cache_size == 0)
+  {
+    DBUG_PRINT("qcache", ("Query cache not ready"));
     DBUG_VOID_RETURN;
-  uint8 tables_type= 0;
+  }
+  if (thd->lex->sql_command != SQLCOM_SELECT)
+  {
+    DBUG_PRINT("qcache", ("Ignoring not SELECT command"));
+    DBUG_VOID_RETURN;
+  }
 
-  if ((local_tables= is_cacheable(thd, thd->query_length(),
-				  thd->query(), thd->lex, tables_used,
+  /* The following assert fails if we haven't called send_result_to_client */
+  DBUG_ASSERT(thd->base_query.is_alloced() ||
+              thd->base_query.ptr() == thd->query());
+
+  tables_type= 0;
+  if ((local_tables= is_cacheable(thd, thd->lex, tables_used,
 				  &tables_type)))
   {
     NET *net= &thd->net;
@@ -1239,7 +1447,7 @@ def_week_frmt: %lu, in_trans: %d, autocommit: %d",
       The 'TRUE' parameter indicate that the lock is allowed to timeout
 
     */
-    if (try_lock(TRUE))
+    if (try_lock(thd, Query_cache::WAIT))
       DBUG_VOID_RETURN;
     if (query_cache_size == 0)
     {
@@ -1255,11 +1463,13 @@ def_week_frmt: %lu, in_trans: %d, autocommit: %d",
       DBUG_VOID_RETURN;
     }
 
+    query=        thd->base_query.ptr();
+    query_length= thd->base_query.length();
+
     /* Key is query + database + flag */
     if (thd->db_length)
     {
-      memcpy(thd->query() + thd->query_length() + 1, thd->db, 
-        thd->db_length);
+      memcpy((char*) (query + query_length + 1), thd->db, thd->db_length);
       DBUG_PRINT("qcache", ("database: %s  length: %u",
 			    thd->db, (unsigned) thd->db_length)); 
     }
@@ -1267,24 +1477,24 @@ def_week_frmt: %lu, in_trans: %d, autocommit: %d",
     {
       DBUG_PRINT("qcache", ("No active database"));
     }
-    tot_length= thd->query_length() + thd->db_length + 1 +
+    tot_length= query_length + thd->db_length + 1 +
       QUERY_CACHE_FLAGS_SIZE;
     /*
       We should only copy structure (don't use it location directly)
       because of alignment issue
     */
-    memcpy((void*) (thd->query() + (tot_length - QUERY_CACHE_FLAGS_SIZE)),
+    memcpy((void*) (query + (tot_length - QUERY_CACHE_FLAGS_SIZE)),
 	   &flags, QUERY_CACHE_FLAGS_SIZE);
 
     /* Check if another thread is processing the same query? */
     Query_cache_block *competitor = (Query_cache_block *)
-      hash_search(&queries, (uchar*) thd->query(), tot_length);
+      hash_search(&queries, (uchar*) query, tot_length);
     DBUG_PRINT("qcache", ("competitor 0x%lx", (ulong) competitor));
     if (competitor == 0)
     {
       /* Query is not in cache and no one is working with it; Store it */
       Query_cache_block *query_block;
-      query_block= write_block_data(tot_length, (uchar*) thd->query(),
+      query_block= write_block_data(tot_length, (uchar*) query,
 				    ALIGN_SIZE(sizeof(Query_cache_query)),
 				    Query_cache_block::QUERY, local_tables);
       if (query_block != 0)
@@ -1341,7 +1551,7 @@ def_week_frmt: %lu, in_trans: %d, autocommit: %d",
       DBUG_PRINT("qcache", ("Another thread process same query"));
     }
   }
-  else if (thd->lex->sql_command == SQLCOM_SELECT)
+  else
     statistic_increment(refused, &structure_guard_mutex);
 
 end:
@@ -1416,7 +1626,7 @@ send_data_in_chunks(NET *net, const uchar *packet, ulong len)
 */
 
 int
-Query_cache::send_result_to_client(THD *thd, char *sql, uint query_length)
+Query_cache::send_result_to_client(THD *thd, char *org_sql, uint query_length)
 {
   ulonglong engine_data;
   Query_cache_query *query;
@@ -1427,6 +1637,7 @@ Query_cache::send_result_to_client(THD *thd, char *sql, uint query_length)
   Query_cache_block_table *block_table, *block_table_end;
   ulong tot_length;
   Query_cache_query_flags flags;
+  const char *sql, *sql_end;
   DBUG_ENTER("Query_cache::send_result_to_client");
 
   /*
@@ -1436,51 +1647,96 @@ Query_cache::send_result_to_client(THD *thd, char *sql, uint query_length)
 
     See also a note on double-check locking usage above.
   */
-  if (thd->locked_tables || thd->variables.query_cache_type == 0 ||
-      query_cache_size == 0)
+  if (is_disabled() || thd->locked_tables ||
+      thd->variables.query_cache_type == 0)
     goto err;
+  DBUG_ASSERT(query_cache_size != 0);           // otherwise cache would be disabled
 
-  if (!thd->lex->safe_to_cache_query)
+  thd->query_cache_is_applicable= 1;
+  sql= org_sql; sql_end= sql + query_length;
+
+  /*
+    Skip all comments at start of query. The following tests is false for
+    all normal queries.
+  */
+  if (!my_isalpha(system_charset_info, *sql))
   {
-    DBUG_PRINT("qcache", ("SELECT is non-cacheable"));
+    while (sql < sql_end)
+    {
+      char current= *sql;
+      switch (current) {
+      case '/':
+        if (sql[1] != '*')
+          break;
+        sql+= 2;                              // Skip '/*'
+        if (*sql == '!')
+        {
+          /*
+            Found / *!number comment; Skip number to see if sql
+            starts with 'select'
+          */
+          sql++;
+          while (my_isdigit(system_charset_info, *sql))
+            sql++;
+        }
+        else
+        {
+          while (sql++ < sql_end)
+          {
+            if (sql[-1] == '*' && *sql == '/')
+            {
+              sql++;
+              break;
+            }
+          }
+        }
+        continue;
+      case '-':
+        if (sql[1] != '-' || !is_white_space(sql[2])) // Not a comment
+          break;
+        sql++;                               // Skip first '-'
+        /* Fall through */
+      case '#':
+        while (++sql < sql_end)
+        {
+          if (*sql == '\n')
+          {
+            sql++;                            // Skip '\n'
+            break;
+          }
+        }
+        /* Continue with analyzing current symbol */
+        continue;
+      case '\r':
+      case '\n':
+      case '\t':
+      case ' ':
+      case '(':    // To handle (select a from t1) union (select a from t1);
+        sql++;
+        continue;
+      default:
+        break;
+      }
+      /* We only come here when we found the first word of the sql */
+      break;
+    }
+  }
+  if ((my_toupper(system_charset_info, sql[0]) != 'S' ||
+       my_toupper(system_charset_info, sql[1]) != 'E' ||
+       my_toupper(system_charset_info, sql[2]) != 'L'))
+  {
+    DBUG_PRINT("qcache", ("The statement is not a SELECT; Not cached"));
     goto err;
   }
 
+  if ((sql_end - sql) > 20 && has_no_cache_directive(sql+6))
   {
-    uint i= 0;
     /*
-      Skip '(' characters in queries like following:
-      (select a from t1) union (select a from t1);
+      We do not increase 'refused' statistics here since it will be done
+      later when the query is parsed.
     */
-    while (sql[i]=='(')
-      i++;
-
-    /*
-      Test if the query is a SELECT
-      (pre-space is removed in dispatch_command).
-
-      First '/' looks like comment before command it is not
-      frequently appeared in real life, consequently we can
-      check all such queries, too.
-    */
-    if ((my_toupper(system_charset_info, sql[i])     != 'S' ||
-         my_toupper(system_charset_info, sql[i + 1]) != 'E' ||
-         my_toupper(system_charset_info, sql[i + 2]) != 'L') &&
-        sql[i] != '/')
-    {
-      DBUG_PRINT("qcache", ("The statement is not a SELECT; Not cached"));
-      goto err;
-    }
-    
-    if (query_length > 20 && has_no_cache_directive(&sql[i+6]))
-    {
-      /*
-        We do not increase 'refused' statistics here since it will be done
-        later when the query is parsed.
-      */
-      DBUG_PRINT("qcache", ("The statement has a SQL_NO_CACHE directive"));
-      goto err;
-    }
+    DBUG_PRINT("qcache", ("The statement has a SQL_NO_CACHE directive"));
+    goto err;
   }
 
   /*
@@ -1488,9 +1744,9 @@ Query_cache::send_result_to_client(THD *thd, char *sql, uint query_length)
     disabled or if a full cache flush is in progress, the attempt to
     get the lock is aborted.
 
-    The 'TRUE' parameter indicate that the lock is allowed to timeout
+    The WAIT parameter indicate that the lock is allowed to timeout.
   */
-  if (try_lock(TRUE))
+  if (try_lock(thd, Query_cache::WAIT))
     goto err;
 
   if (query_cache_size == 0)
@@ -1503,11 +1759,23 @@ Query_cache::send_result_to_client(THD *thd, char *sql, uint query_length)
   DBUG_ASSERT(thd->net.query_cache_query == 0);
 
   Query_cache_block *query_block;
+  if (opt_query_cache_strip_comments)
+  {
+    make_base_query(&thd->base_query, sql, (size_t) (sql_end - sql),
+                    thd->db_length + 1 + QUERY_CACHE_FLAGS_SIZE);
+    sql=          thd->base_query.ptr();
+    query_length= thd->base_query.length();
+  }
+  else
+  {
+    sql= org_sql;
+    thd->base_query.set(sql, query_length, system_charset_info);
+  }
 
   tot_length= query_length + thd->db_length + 1 + QUERY_CACHE_FLAGS_SIZE;
   if (thd->db_length)
   {
-    memcpy(sql+query_length+1, thd->db, thd->db_length);
+    memcpy((char*) (sql+query_length+1), thd->db, thd->db_length);
     DBUG_PRINT("qcache", ("database: '%s'  length: %u",
 			  thd->db, (unsigned)thd->db_length));
   }
@@ -1638,7 +1906,7 @@ def_week_frmt: %lu, in_trans: %d, autocommit: %d",
           temporary tables => assign following variable to make check
           faster.
         */
-        thd->lex->safe_to_cache_query=0;
+        thd->query_cache_is_applicable= 0;      // Query can't be cached
         BLOCK_UNLOCK_RD(query_block);
         DBUG_RETURN(-1);
       }
@@ -1654,7 +1922,7 @@ def_week_frmt: %lu, in_trans: %d, autocommit: %d",
 		 ("probably no SELECT access to %s.%s =>  return to normal processing",
 		  table_list.db, table_list.alias));
       unlock();
-      thd->lex->safe_to_cache_query=0;		// Don't try to cache this
+      thd->query_cache_is_applicable= 0;        // Query can't be cached
       BLOCK_UNLOCK_RD(query_block);
       DBUG_RETURN(-1);				// Privilege error
     }
@@ -1663,7 +1931,7 @@ def_week_frmt: %lu, in_trans: %d, autocommit: %d",
       DBUG_PRINT("qcache", ("Need to check column privileges for %s.%s",
 			    table_list.db, table_list.alias));
       BLOCK_UNLOCK_RD(query_block);
-      thd->lex->safe_to_cache_query= 0;		// Don't try to cache this
+      thd->query_cache_is_applicable= 0;        // Query can't be cached
       goto err_unlock;				// Parse query
     }
 #endif /*!NO_EMBEDDED_ACCESS_CHECKS*/
@@ -1687,7 +1955,7 @@ def_week_frmt: %lu, in_trans: %d, autocommit: %d",
                                   table->key_length());
       }
       else
-        thd->lex->safe_to_cache_query= 0;       // Don't try to cache this
+        thd->query_cache_is_applicable= 0;      // Query can't be cached
       goto err_unlock;				// Parse query
     }
     else
@@ -1738,11 +2006,14 @@ def_week_frmt: %lu, in_trans: %d, autocommit: %d",
 
 err_unlock:
   unlock();
-err:
   /*
     query_plan_flags doesn't have to be changed here as it contains
     QPLAN_QC_NO by default
   */
+  DBUG_RETURN(0);				// Query was not cached
+
+err:
+  thd->query_cache_is_applicable= 0;            // Query can't be cached
   DBUG_RETURN(0);				// Query was not cached
 }
 
@@ -1755,6 +2026,8 @@ void Query_cache::invalidate(THD *thd, TABLE_LIST *tables_used,
 			     my_bool using_transactions)
 {
   DBUG_ENTER("Query_cache::invalidate (table list)");
+  if (is_disabled())
+    DBUG_VOID_RETURN;
 
   using_transactions= using_transactions &&
     (thd->options & (OPTION_NOT_AUTOCOMMIT | OPTION_BEGIN));
@@ -1782,10 +2055,12 @@ void Query_cache::invalidate(THD *thd, TABLE_LIST *tables_used,
   DBUG_VOID_RETURN;
 }
 
-void Query_cache::invalidate(CHANGED_TABLE_LIST *tables_used)
+void Query_cache::invalidate(THD *thd, CHANGED_TABLE_LIST *tables_used)
 {
   DBUG_ENTER("Query_cache::invalidate (changed table list)");
-  THD *thd= current_thd;
+  if (is_disabled())
+    DBUG_VOID_RETURN;
+
   for (; tables_used; tables_used= tables_used->next)
   {
     thd_proc_info(thd, "invalidating query cache entries (table list)");
@@ -1808,10 +2083,13 @@ void Query_cache::invalidate(CHANGED_TABLE_LIST *tables_used)
   NOTE
     can be used only for opened tables
 */
-void Query_cache::invalidate_locked_for_write(TABLE_LIST *tables_used)
+void Query_cache::invalidate_locked_for_write(THD *thd,
+                                              TABLE_LIST *tables_used)
 {
-  THD *thd= current_thd;
   DBUG_ENTER("Query_cache::invalidate_locked_for_write");
+  if (is_disabled())
+    DBUG_VOID_RETURN;
+
   for (; tables_used; tables_used= tables_used->next_local)
   {
     thd_proc_info(thd, "invalidating query cache entries (table)");
@@ -1832,7 +2110,9 @@ void Query_cache::invalidate(THD *thd, TABLE *table,
 			     my_bool using_transactions)
 {
   DBUG_ENTER("Query_cache::invalidate (table)");
-  
+  if (is_disabled())
+    DBUG_VOID_RETURN;
+
   using_transactions= using_transactions &&
     (thd->options & (OPTION_NOT_AUTOCOMMIT | OPTION_BEGIN));
   if (using_transactions && 
@@ -1849,6 +2129,8 @@ void Query_cache::invalidate(THD *thd, const char *key, uint32  key_length,
 			     my_bool using_transactions)
 {
   DBUG_ENTER("Query_cache::invalidate (key)");
+  if (is_disabled())
+   DBUG_VOID_RETURN;
 
   using_transactions= using_transactions &&
     (thd->options & (OPTION_NOT_AUTOCOMMIT | OPTION_BEGIN));
@@ -1865,18 +2147,19 @@ void Query_cache::invalidate(THD *thd, const char *key, uint32  key_length,
    Remove all cached queries that uses the given database.
 */
 
-void Query_cache::invalidate(char *db)
+void Query_cache::invalidate(THD *thd, char *db)
 {
-  bool restart= FALSE;
+  bool restart;
   DBUG_ENTER("Query_cache::invalidate (db)");
+  if (is_disabled())
+    DBUG_VOID_RETURN;
 
+  restart= FALSE;
   /*
     Lock the query cache and queue all invalidation attempts to avoid
     the risk of a race between invalidation, cache inserts and flushes.
   */
-  lock();
-
-  THD *thd= current_thd;
+  lock(thd);
 
   if (query_cache_size > 0)
   {
@@ -1954,6 +2237,9 @@ void Query_cache::invalidate_by_MyISAM_filename(const char *filename)
 void Query_cache::flush()
 {
   DBUG_ENTER("Query_cache::flush");
+  if (is_disabled())
+    DBUG_VOID_RETURN;
+
   DBUG_EXECUTE_IF("wait_in_query_cache_flush1",
                   debug_wait_for_kill("wait_in_query_cache_flush1"););
 
@@ -1981,7 +2267,7 @@ void Query_cache::flush()
 
 */
 
-void Query_cache::pack(ulong join_limit, uint iteration_limit)
+void Query_cache::pack(THD *thd, ulong join_limit, uint iteration_limit)
 {
   DBUG_ENTER("Query_cache::pack");
 
@@ -1989,7 +2275,7 @@ void Query_cache::pack(ulong join_limit, uint iteration_limit)
     If the entire qc is being invalidated we can bail out early
     instead of waiting for the lock.
   */
-  if (try_lock())
+  if (try_lock(thd, Query_cache::WAIT))
     DBUG_VOID_RETURN;
 
   if (query_cache_size == 0)
@@ -2026,8 +2312,22 @@ void Query_cache::destroy()
     pthread_cond_destroy(&COND_cache_status_changed);
     pthread_mutex_destroy(&structure_guard_mutex);
     initialized = 0;
+    DBUG_ASSERT(m_requests_in_progress == 0);
   }
   DBUG_VOID_RETURN;
+}
+
+
+void Query_cache::disable_query_cache(void)
+{
+  m_cache_status= DISABLE_REQUEST;
+  /*
+    If there is no requests in progress try to free buffer.
+    try_lock(TRY) will exit immediately if there is lock.
+    unlock() should free block.
+  */
+  if (m_requests_in_progress == 0 && !try_lock(current_thd, TRY))
+    unlock();
 }
 
 
@@ -2041,7 +2341,19 @@ void Query_cache::init()
   pthread_mutex_init(&structure_guard_mutex,MY_MUTEX_INIT_FAST);
   pthread_cond_init(&COND_cache_status_changed, NULL);
   m_cache_lock_status= Query_cache::UNLOCKED;
+  m_cache_status= Query_cache::OK;
+  m_requests_in_progress= 0;
   initialized = 1;
+  query_state_map= default_charset_info->state_map;
+  /*
+    If we explicitly turn off query cache from the command line query cache will
+    be disabled for the reminder of the server life time. This is because we
+    want to avoid locking the QC specific mutex if query cache isn't going to
+    be used.
+  */
+  if (global_system_variables.query_cache_type == 0)
+    query_cache.disable_query_cache();
+
   DBUG_VOID_RETURN;
 }
 
@@ -2747,7 +3059,7 @@ void Query_cache::invalidate_table(THD *thd, uchar * key, uint32  key_length)
     Lock the query cache and queue all invalidation attempts to avoid
     the risk of a race between invalidation, cache inserts and flushes.
   */
-  lock();
+  lock(thd);
 
   DBUG_EXECUTE_IF("wait_in_query_cache_invalidate2",
                   debug_wait_for_kill("wait_in_query_cache_invalidate2"); );
@@ -3528,7 +3840,7 @@ Query_cache::process_and_count_tables(THD *thd, TABLE_LIST *tables_used,
     {
       DBUG_PRINT("qcache", ("Don't cache statement as it refers to "
                             "tables with column privileges."));
-      thd->lex->safe_to_cache_query= 0;
+      thd->query_cache_is_applicable= 0;        // Query can't be cached
       DBUG_RETURN(0);
     }
 #endif
@@ -3593,13 +3905,13 @@ Query_cache::process_and_count_tables(THD *thd, TABLE_LIST *tables_used,
 */
 
 TABLE_COUNTER_TYPE
-Query_cache::is_cacheable(THD *thd, uint32 query_len, char *query, LEX *lex,
+Query_cache::is_cacheable(THD *thd, LEX *lex,
                           TABLE_LIST *tables_used, uint8 *tables_type)
 {
   TABLE_COUNTER_TYPE table_count;
   DBUG_ENTER("Query_cache::is_cacheable");
 
-  if (query_cache_is_cacheable_query(lex) &&
+  if (thd->lex->safe_to_cache_query &&
       (thd->variables.query_cache_type == 1 ||
        (thd->variables.query_cache_type == 2 && (lex->select_lex.options &
 						 OPTION_TO_QUERY_CACHE))))
@@ -3664,7 +3976,7 @@ my_bool Query_cache::ask_handler_allowance(THD *thd,
     {
       DBUG_PRINT("qcache", ("Handler does not allow caching for %s.%s",
 			    tables_used->db, tables_used->alias));
-      thd->lex->safe_to_cache_query= 0;          // Don't try to cache this
+      thd->query_cache_is_applicable= 0;        // Query can't be cached
       DBUG_RETURN(1);
     }
   }
@@ -4757,3 +5069,4 @@ err2:
 #endif /* DBUG_OFF */
 
 #endif /*HAVE_QUERY_CACHE*/
+

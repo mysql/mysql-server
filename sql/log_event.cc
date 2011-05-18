@@ -7964,7 +7964,7 @@ int Rows_log_event::do_apply_event(Relay_log_info const *rli)
       const_cast<Relay_log_info*>(rli)->m_table_map.set_table(ptr->table_id, ptr->table);
     }
 #ifdef HAVE_QUERY_CACHE
-    query_cache.invalidate_locked_for_write(rli->tables_to_lock);
+    query_cache.invalidate_locked_for_write(thd, rli->tables_to_lock);
 #endif
   }
 

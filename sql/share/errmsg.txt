@@ -6271,3 +6271,7 @@ ER_DYN_COL_WRONG_CHARSET
         eng "Dynamic column contains unknown character set"
 ER_ILLEGAL_SUBQUERY_OPTIMIZER_SWITCHES
         eng "At least one of the 'in_to_exists' or 'materialization' optimizer_switch flags must be 'on'."
+ER_QUERY_CACHE_IS_DISABLED
+        eng "Query cache is disabled (resize or similar command in progress); repeat this command later"
+ER_QUERY_CACHE_IS_GLOBALY_DISABLED
+        eng "Query cache is globally disabled and you can't enable it only for this session"

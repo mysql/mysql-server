@@ -1311,7 +1311,7 @@ commit_one_phase_2(THD *thd, bool all, THD_TRANS *trans, bool is_real_trans)
     {
 #ifdef HAVE_QUERY_CACHE
       if (thd->transaction.changed_tables)
-        query_cache.invalidate(thd->transaction.changed_tables);
+        query_cache.invalidate(thd, thd->transaction.changed_tables);
 #endif
       thd->variables.tx_isolation=thd->session_tx_isolation;
     }

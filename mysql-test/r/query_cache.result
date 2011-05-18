@@ -1639,6 +1639,7 @@ set GLOBAL query_cache_type=default;
 set GLOBAL query_cache_limit=default;
 set GLOBAL query_cache_min_res_unit=default;
 set GLOBAL query_cache_size=default;
+set local query_cache_type=default;
 FLUSH STATUS;
 SET GLOBAL query_cache_size=10*1024*1024;
 SET @save_concurrent_insert= @@concurrent_insert;
@@ -1823,3 +1824,33 @@ SELECT 1 FROM t1 GROUP BY
 DROP TABLE t1;
 SET GLOBAL query_cache_size= default;
 End of 5.1 tests
+New query cache switching OFF mechanism test
+set global query_cache_size=1024*1024*20;
+set global query_cache_type=on;
+select @@query_cache_size, @@global.query_cache_type, @@local.query_cache_type;
+@@query_cache_size	@@global.query_cache_type	@@local.query_cache_type
+20971520	ON	ON
+set global query_cache_size=0;
+select @@query_cache_size, @@global.query_cache_type, @@local.query_cache_type;
+@@query_cache_size	@@global.query_cache_type	@@local.query_cache_type
+0	ON	ON
+set global query_cache_size=1024*1024*20;
+select @@query_cache_size, @@global.query_cache_type, @@local.query_cache_type;
+@@query_cache_size	@@global.query_cache_type	@@local.query_cache_type
+20971520	ON	ON
+set global query_cache_type=off;
+select @@query_cache_size, @@global.query_cache_type, @@local.query_cache_type;
+@@query_cache_size	@@global.query_cache_type	@@local.query_cache_type
+20971520	OFF	OFF
+set global query_cache_type=on;
+select @@query_cache_size, @@global.query_cache_type, @@local.query_cache_type;
+@@query_cache_size	@@global.query_cache_type	@@local.query_cache_type
+20971520	ON	OFF
+set local query_cache_type= on;
+select @@query_cache_size, @@global.query_cache_type, @@local.query_cache_type;
+@@query_cache_size	@@global.query_cache_type	@@local.query_cache_type
+20971520	ON	ON
+restore defaults
+SET GLOBAL query_cache_type= default;
+SET GLOBAL query_cache_size= default;
+SET LOCAL query_cache_type= default;

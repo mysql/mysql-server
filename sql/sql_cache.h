@@ -276,8 +276,11 @@ private:
   my_thread_id m_cache_lock_thread_id;
 #endif
   pthread_cond_t COND_cache_status_changed;
+  uint m_requests_in_progress;
   enum Cache_lock_status { UNLOCKED, LOCKED_NO_WAIT, LOCKED };
   Cache_lock_status m_cache_lock_status;
+  enum Cache_staus {OK, DISABLE_REQUEST, DISABLED};
+  Cache_staus m_cache_status;
 
   void free_query_internal(Query_cache_block *point);
   void invalidate_table_internal(THD *thd, uchar *key, uint32 key_length);
@@ -292,7 +295,7 @@ protected:
       2. query block (for operation inside query (query block/results))
 
     Thread doing cache flush releases the mutex once it sets
-    m_cache_status flag, so other threads may bypass the cache as
+    m_cache_lock_status flag, so other threads may bypass the cache as
     if it is disabled, not waiting for reset to finish.  The exception
     is other threads that were going to do cache flush---they'll wait
     till the end of a flush operation.
@@ -407,7 +410,7 @@ protected:
     If query is cacheable return number tables in query
     (query without tables not cached)
   */
-  TABLE_COUNTER_TYPE is_cacheable(THD *thd, uint32 query_len, char *query,
+  TABLE_COUNTER_TYPE is_cacheable(THD *thd,
                                   LEX *lex, TABLE_LIST *tables_used,
                                   uint8 *tables_type);
   TABLE_COUNTER_TYPE process_and_count_tables(THD *thd,
@@ -422,6 +425,10 @@ protected:
 	      ulong min_result_data_size = QUERY_CACHE_MIN_RESULT_DATA_SIZE,
 	      uint def_query_hash_size = QUERY_CACHE_DEF_QUERY_HASH_SIZE,
 	      uint def_table_hash_size = QUERY_CACHE_DEF_TABLE_HASH_SIZE);
+
+  bool is_disabled(void) { return m_cache_status != OK; }
+  bool is_disable_in_progress(void)
+  { return m_cache_status == DISABLE_REQUEST; }
 
   /* initialize cache (mutex) */
   void init();
@@ -442,22 +449,23 @@ protected:
   int send_result_to_client(THD *thd, char *query, uint query_length);
 
   /* Remove all queries that uses any of the listed following tables */
-  void invalidate(THD* thd, TABLE_LIST *tables_used,
+  void invalidate(THD *thd, TABLE_LIST *tables_used,
 		  my_bool using_transactions);
-  void invalidate(CHANGED_TABLE_LIST *tables_used);
-  void invalidate_locked_for_write(TABLE_LIST *tables_used);
-  void invalidate(THD* thd, TABLE *table, my_bool using_transactions);
+  void invalidate(THD *thd, CHANGED_TABLE_LIST *tables_used);
+  void invalidate_locked_for_write(THD *thd, TABLE_LIST *tables_used);
+  void invalidate(THD *thd, TABLE *table, my_bool using_transactions);
   void invalidate(THD *thd, const char *key, uint32  key_length,
 		  my_bool using_transactions);
 
   /* Remove all queries that uses any of the tables in following database */
-  void invalidate(char *db);
+  void invalidate(THD *thd, char *db);
 
   /* Remove all queries that uses any of the listed following table */
   void invalidate_by_MyISAM_filename(const char *filename);
 
   void flush();
-  void pack(ulong join_limit = QUERY_CACHE_PACK_LIMIT,
+  void pack(THD *thd,
+            ulong join_limit = QUERY_CACHE_PACK_LIMIT,
 	    uint iteration_limit = QUERY_CACHE_PACK_ITERATION);
 
   void destroy();
@@ -485,10 +493,13 @@ protected:
 			const char *name);
   my_bool in_blocks(Query_cache_block * point);
 
-  bool try_lock(bool use_timeout= FALSE);
-  void lock(void);
+  enum Cache_try_lock_mode {WAIT, TIMEOUT, TRY};
+  bool try_lock(THD *thd, Cache_try_lock_mode mode= WAIT);
+  void lock(THD *thd);
   void lock_and_suspend(void);
   void unlock(void);
+
+  void disable_query_cache(void);
 };
 
 extern Query_cache query_cache;
