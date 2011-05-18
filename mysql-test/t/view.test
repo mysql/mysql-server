@@ -3574,9 +3574,7 @@ insert into t1 values (1), (1);
 insert into t2 values (1), (1);
 
 prepare stmt from "select * from v2 where a = 1";
-# !!! This command returns a wrong result due to a bug in the code of mwl106
-# !!! Unocomment it when the bug is fixed
-# execute stmt;
+execute stmt;
 
 drop view v1, v2;
 drop table t1, t2;

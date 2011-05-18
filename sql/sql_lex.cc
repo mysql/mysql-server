@@ -1669,6 +1669,7 @@ void st_select_lex::init_select()
   cond_value= having_value= Item::COND_UNDEF;
   inner_refs_list.empty();
   full_group_by_flag= 0;
+  merged_into= 0;
 }
 
 /*
@@ -3393,6 +3394,7 @@ bool SELECT_LEX::merge_subquery(TABLE_LIST *derived, SELECT_LEX *subq_select,
   /* Walk through child's tables and adjust table map, tablenr,
    * parent_lex */
   subq_select->remap_tables(derived, map, table_no, this);
+  subq_select->merged_into= this;
   return FALSE;
 }
 

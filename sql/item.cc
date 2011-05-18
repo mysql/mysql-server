@@ -652,7 +652,7 @@ void Item_ident::cleanup()
 bool Item_ident::remove_dependence_processor(uchar * arg)
 {
   DBUG_ENTER("Item_ident::remove_dependence_processor");
-  if (depended_from == (st_select_lex *) arg)
+  if (get_depended_from() == (st_select_lex *) arg)
     depended_from= 0;
   context= &((st_select_lex *) arg)->context;
   DBUG_RETURN(0);
@@ -2292,17 +2292,17 @@ table_map Item_field::used_tables() const
 {
   if (field->table->const_table)
     return 0;					// const item
-  return (depended_from ? OUTER_REF_TABLE_BIT : field->table->map);
+  return (get_depended_from() ? OUTER_REF_TABLE_BIT : field->table->map);
 }
 
 table_map Item_field::all_used_tables() const
 {
-  return (depended_from ? OUTER_REF_TABLE_BIT : field->table->map);
+  return (get_depended_from() ? OUTER_REF_TABLE_BIT : field->table->map);
 }
 
 void Item_field::fix_after_pullout(st_select_lex *new_parent, Item **ref)
 {
-  if (new_parent == depended_from)
+  if (new_parent == get_depended_from())
     depended_from= NULL;
   Name_resolution_context *ctx= new Name_resolution_context();
   ctx->outer_context= NULL; // We don't build a complete name resolver
@@ -6299,8 +6299,9 @@ bool Item_ref::fix_fields(THD *thd, Item **reference)
   {
     if (depended_from && reference)
     {
-      DBUG_ASSERT(context->select_lex != depended_from);
-      context->select_lex->register_dependency_item(depended_from, reference);
+      DBUG_ASSERT(context->select_lex != get_depended_from());
+      context->select_lex->register_dependency_item(get_depended_from(),
+                                                    reference);
     }
     /*
       It could be that we're referring to something that's in ancestor selects.
@@ -7260,7 +7261,7 @@ bool Item_outer_ref::fix_fields(THD *thd, Item **reference)
 
 void Item_outer_ref::fix_after_pullout(st_select_lex *new_parent, Item **ref)
 {
-  if (depended_from == new_parent)
+  if (get_depended_from() == new_parent)
   {
     *ref= outer_ref;
     (*ref)->fix_after_pullout(new_parent, ref);
@@ -7270,7 +7271,7 @@ void Item_outer_ref::fix_after_pullout(st_select_lex *new_parent, Item **ref)
 void Item_ref::fix_after_pullout(st_select_lex *new_parent, Item **refptr)
 {
   (*ref)->fix_after_pullout(new_parent, ref);
-  if (depended_from == new_parent)
+  if (get_depended_from() == new_parent)
     depended_from= NULL;
 }
 
@@ -8859,6 +8860,49 @@ void view_error_processor(THD *thd, void *data)
 {
   ((TABLE_LIST *)data)->hide_view_error(thd);
 }
+
+
+inline struct st_select_lex *Item_ident::get_depended_from() const
+{
+  st_select_lex *dep;
+  if ((dep= depended_from))
+    for ( ; dep->merged_into; dep= dep->merged_into);
+  return dep;
+}
+
+
+table_map Item_ref::used_tables() const		
+{
+  return get_depended_from() ? OUTER_REF_TABLE_BIT : (*ref)->used_tables(); 
+}
+
+
+void Item_ref::update_used_tables() 
+{ 
+  if (!get_depended_from())
+    (*ref)->update_used_tables(); 
+}
+
+
+table_map Item_direct_view_ref::used_tables() const		
+{
+  return get_depended_from() ? 
+         OUTER_REF_TABLE_BIT :
+         (view->merged ? (*ref)->used_tables() : view->table->map); 
+}
+
+
+/*
+  we add RAND_TABLE_BIT to prevent moving this item from HAVING to WHERE
+*/
+table_map Item_ref_null_helper::used_tables() const
+{
+  return (get_depended_from() ?
+          OUTER_REF_TABLE_BIT :
+          (*ref)->used_tables() | RAND_TABLE_BIT);
+}
+
+
 
 /*****************************************************************************
 ** Instantiate templates

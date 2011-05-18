@@ -1637,6 +1637,7 @@ public:
   Item_ident(TABLE_LIST *view_arg, const char *field_name_arg);
   const char *full_name() const;
   void cleanup();
+  struct st_select_lex *get_depended_from() const;
   bool remove_dependence_processor(uchar * arg);
   virtual void print(String *str, enum_query_type query_type);
   virtual bool change_context_processor(uchar *cntx)
@@ -2524,15 +2525,8 @@ public:
   Field *get_tmp_table_field()
   { return result_field ? result_field : (*ref)->get_tmp_table_field(); }
   Item *get_tmp_table_item(THD *thd);
-  table_map used_tables() const		
-  {
-    return depended_from ? OUTER_REF_TABLE_BIT : (*ref)->used_tables(); 
-  }
-  void update_used_tables() 
-  { 
-    if (!depended_from)
-      (*ref)->update_used_tables(); 
-  }
+  inline table_map used_tables() const;		
+  inline void update_used_tables(); 
   bool const_item() const 
   {
     return (*ref)->const_item();
@@ -2852,12 +2846,7 @@ public:
   bool subst_argument_checker(uchar **arg);
   Item *equal_fields_propagator(uchar *arg);
   Item *replace_equal_field(uchar *arg);
-  table_map used_tables() const		
-  {
-    return depended_from ? 
-           OUTER_REF_TABLE_BIT :
-           (view->merged ? (*ref)->used_tables() : view->table->map); 
-  }
+  table_map used_tables() const;	
   bool walk(Item_processor processor, bool walk_subquery, uchar *arg)
   { 
     return (*ref)->walk(processor, walk_subquery, arg) ||
@@ -2960,15 +2949,7 @@ public:
   bool val_bool();
   bool get_date(MYSQL_TIME *ltime, uint fuzzydate);
   virtual void print(String *str, enum_query_type query_type);
-  /*
-    we add RAND_TABLE_BIT to prevent moving this item from HAVING to WHERE
-  */
-  table_map used_tables() const
-  {
-    return (depended_from ?
-            OUTER_REF_TABLE_BIT :
-            (*ref)->used_tables() | RAND_TABLE_BIT);
-  }
+  table_map used_tables() const;
 };
 
 /*

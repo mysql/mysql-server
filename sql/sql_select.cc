@@ -3903,7 +3903,7 @@ is_local_field (Item *field)
 {
   return field->real_item()->type() == Item::FIELD_ITEM
      && !(field->used_tables() & OUTER_REF_TABLE_BIT)
-     && !((Item_field *)field->real_item())->depended_from;
+    && !((Item_field *)field->real_item())->get_depended_from();
 }
 
 
@@ -9586,21 +9586,21 @@ static bool check_simple_equality(Item *left_item, Item *right_item,
   if (left_item->type() == Item::REF_ITEM &&
       ((Item_ref*)left_item)->ref_type() == Item_ref::VIEW_REF)
   {
-    if (((Item_ref*)left_item)->depended_from)
+    if (((Item_ref*)left_item)->get_depended_from())
       return FALSE;
     left_item= left_item->real_item();
   }
   if (right_item->type() == Item::REF_ITEM &&
       ((Item_ref*)right_item)->ref_type() == Item_ref::VIEW_REF)
   {
-    if (((Item_ref*)right_item)->depended_from)
+    if (((Item_ref*)right_item)->get_depended_from())
       return FALSE;
     right_item= right_item->real_item();
   }
   if (left_item->type() == Item::FIELD_ITEM &&
       right_item->type() == Item::FIELD_ITEM &&
-      !((Item_field*)left_item)->depended_from &&
-      !((Item_field*)right_item)->depended_from)
+      !((Item_field*)left_item)->get_depended_from() &&
+      !((Item_field*)right_item)->get_depended_from())
   {
     /* The predicate the form field1=field2 is processed */
 
@@ -9683,7 +9683,7 @@ static bool check_simple_equality(Item *left_item, Item *right_item,
     Item_field *field_item= 0;
     Item *orig_field_item= 0;
     if (left_item->type() == Item::FIELD_ITEM &&
-        !((Item_field*)left_item)->depended_from &&
+        !((Item_field*)left_item)->get_depended_from() &&
         right_item->const_item())
     {
       orig_field_item= left_item;
@@ -9691,7 +9691,7 @@ static bool check_simple_equality(Item *left_item, Item *right_item,
       const_item= right_item;
     }
     else if (right_item->type() == Item::FIELD_ITEM &&
-             !((Item_field*)right_item)->depended_from &&
+             !((Item_field*)right_item)->get_depended_from() &&
              left_item->const_item())
     {
       orig_field_item= right_item;

@@ -3601,6 +3601,12 @@ create view v2 as select 1 a from t2, v1 where c in
 insert into t1 values (1), (1);
 insert into t2 values (1), (1);
 prepare stmt from "select * from v2 where a = 1";
+execute stmt;
+a
+1
+1
+1
+1
 drop view v1, v2;
 drop table t1, t2;
 CREATE TABLE t1 (a INT);

@@ -426,7 +426,7 @@ static bool convert_constant_item(THD *thd, Item_field *field_item,
       Don't save field value if no data has been read yet.
       Outer constant values are always saved.
     */
-    bool save_field_value= (field_item->depended_from &&
+    bool save_field_value= (field_item->get_depended_from() &&
                             (field_item->const_item() ||
                              !(field->table->status & STATUS_NO_RECORD)));
     if (save_field_value)
