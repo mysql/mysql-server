@@ -978,7 +978,7 @@ bool resolve_subquery(THD *thd, JOIN *join)
 
     /* Register the subquery for further processing in flatten_subqueries() */
     select_lex->outer_select()->join->
-      sj_subselects.append(thd->mem_root, in_exists_predicate);
+      sj_subselects.push_back(in_exists_predicate);
   }
   else
   {
@@ -4170,11 +4170,11 @@ bool JOIN::flatten_subqueries()
   Item_exists_subselect **subq_end;
   DBUG_ENTER("JOIN::flatten_subqueries");
 
-  if (sj_subselects.elements() == 0)
+  if (sj_subselects.empty())
     DBUG_RETURN(FALSE);
 
   /* First, convert child join's subqueries. We proceed bottom-up here */
-  for (subq= sj_subselects.front(), subq_end= sj_subselects.back(); 
+  for (subq= sj_subselects.begin(), subq_end= sj_subselects.end(); 
        subq != subq_end;
        subq++)
   {
@@ -4207,7 +4207,7 @@ bool JOIN::flatten_subqueries()
   {
     if (tbl->on_expr || tbl->in_outer_join_nest())
     {
-      subq= sj_subselects.front();
+      subq= sj_subselects.begin();
       arena= thd->activate_stmt_arena_if_needed(&backup);
       goto skip_conversion;
     }
@@ -4220,11 +4220,14 @@ bool JOIN::flatten_subqueries()
       - prefer correlated subqueries over uncorrelated;
       - prefer subqueries that have greater number of outer tables;
   */
-  sj_subselects.sort(subq_sj_candidate_cmp);
+  my_qsort(sj_subselects.begin(),
+           sj_subselects.size(), sj_subselects.element_size(),
+           reinterpret_cast<qsort_cmp>(subq_sj_candidate_cmp));
+
   // #tables-in-parent-query + #tables-in-subquery < MAX_TABLES
   /* Replace all subqueries to be flattened with Item_int(1) */
   arena= thd->activate_stmt_arena_if_needed(&backup);
-  for (subq= sj_subselects.front(); 
+  for (subq= sj_subselects.begin(); 
        subq != subq_end && 
        tables + (*subq)->unit->first_select()->join->tables < MAX_TABLES;
        subq++)
@@ -4235,7 +4238,7 @@ bool JOIN::flatten_subqueries()
       DBUG_RETURN(TRUE); /* purecov: inspected */
   }
  
-  for (subq= sj_subselects.front(); 
+  for (subq= sj_subselects.begin(); 
        subq != subq_end && 
        tables + (*subq)->unit->first_select()->join->tables < MAX_TABLES;
        subq++)
