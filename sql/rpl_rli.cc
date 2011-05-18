@@ -43,22 +43,23 @@ const char* info_rli_fields[]=
   "sql_delay"
 };
 
-const char *const Relay_log_info::state_delaying_string = "Waiting until MASTER_DELAY seconds after master executed event";
-
 Relay_log_info::Relay_log_info(bool is_slave_recovery
 #ifdef HAVE_PSI_INTERFACE
                                ,PSI_mutex_key *param_key_info_run_lock,
                                PSI_mutex_key *param_key_info_data_lock,
+                               PSI_mutex_key *param_key_info_sleep_lock,
                                PSI_mutex_key *param_key_info_data_cond,
                                PSI_mutex_key *param_key_info_start_cond,
-                               PSI_mutex_key *param_key_info_stop_cond
+                               PSI_mutex_key *param_key_info_stop_cond,
+                               PSI_mutex_key *param_key_info_sleep_cond
 #endif
                               )
    :Rpl_info("SQL"
 #ifdef HAVE_PSI_INTERFACE
              ,param_key_info_run_lock, param_key_info_data_lock,
+             param_key_info_sleep_lock,
              param_key_info_data_cond, param_key_info_start_cond,
-             param_key_info_stop_cond
+             param_key_info_stop_cond, param_key_info_sleep_cond
 #endif
             ),
    replicate_same_server_id(::replicate_same_server_id),

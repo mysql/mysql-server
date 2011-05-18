@@ -3768,7 +3768,7 @@ Default database: '%s'. Query: '%s'",
                     if (strcmp("COMMIT", query) != 0 &&
                         strcmp("BEGIN", query) != 0)
                     {
-                      if (thd->transaction.all.modified_non_trans_table)
+                      if (thd->transaction.all.cannot_safely_rollback())
                         const_cast<Relay_log_info*>(rli)->abort_slave= 1;
                     };);
   }
@@ -5319,7 +5319,8 @@ int Load_log_event::do_apply_event(NET* net, Relay_log_info const *rli,
         update it inside mysql_load().
       */
       List<Item> tmp_list;
-      if (mysql_load(thd, &ex, &tables, field_list, tmp_list, tmp_list,
+      if (open_temporary_tables(thd, &tables) ||
+          mysql_load(thd, &ex, &tables, field_list, tmp_list, tmp_list,
                      handle_dup, ignore, net != 0))
         thd->is_slave_error= 1;
       if (thd->cuted_fields)
@@ -6086,10 +6087,10 @@ void User_var_log_event::pack_info(Protocol* protocol)
       break;
     case DECIMAL_RESULT:
     {
-      if (!(buf= (char*) my_malloc(val_offset + DECIMAL_MAX_STR_LENGTH,
+      if (!(buf= (char*) my_malloc(val_offset + DECIMAL_MAX_STR_LENGTH + 1,
                                    MYF(MY_WME))))
         return;
-      String str(buf+val_offset, DECIMAL_MAX_STR_LENGTH, &my_charset_bin);
+      String str(buf+val_offset, DECIMAL_MAX_STR_LENGTH + 1, &my_charset_bin);
       my_decimal dec;
       binary2my_decimal(E_DEC_FATAL_ERROR, (uchar*) (val+2), &dec, val[0],
                         val[1]);
@@ -6753,16 +6754,15 @@ void Create_file_log_event::pack_info(Protocol *protocol)
 #if defined(HAVE_REPLICATION) && !defined(MYSQL_CLIENT)
 int Create_file_log_event::do_apply_event(Relay_log_info const *rli)
 {
-  char proc_info[17+FN_REFLEN+10], *fname_buf;
+  char fname_buf[FN_REFLEN+10];
   char *ext;
   int fd = -1;
   IO_CACHE file;
   int error = 1;
 
+  THD_STAGE_INFO(thd, stage_making_temp_file_create_before_load_data);
   bzero((char*)&file, sizeof(file));
-  fname_buf= strmov(proc_info, "Making temp file ");
   ext= slave_load_file_stem(fname_buf, file_id, server_id, ".info");
-  thd_proc_info(thd, proc_info);
   /* old copy may exist already */
   mysql_file_delete(key_file_log_event_info, fname_buf, MYF(0));
   if ((fd= mysql_file_create(key_file_log_event_info,
@@ -6932,14 +6932,13 @@ int Append_block_log_event::get_create_or_append() const
 
 int Append_block_log_event::do_apply_event(Relay_log_info const *rli)
 {
-  char proc_info[17+FN_REFLEN+10], *fname= proc_info+17;
+  char fname[FN_REFLEN+10];
   int fd;
   int error = 1;
   DBUG_ENTER("Append_block_log_event::do_apply_event");
 
-  fname= strmov(proc_info, "Making temp file ");
+  THD_STAGE_INFO(thd, stage_making_temp_file_append_before_load_data);
   slave_load_file_stem(fname, file_id, server_id, ".data");
-  thd_proc_info(thd, proc_info);
   if (get_create_or_append())
   {
     /*
@@ -7909,7 +7908,7 @@ int Rows_log_event::do_apply_event(Relay_log_info const *rli)
       has not yet modified anything. Note, all.modified is reset
       by mysql_reset_thd_for_next_command.
     */
-    thd->transaction.stmt.modified_non_trans_table= FALSE;
+    thd->transaction.stmt.reset_unsafe_rollback_flags();
     /*
       This is a row injection, so we flag the "statement" as
       such. Note that this code is called both when the slave does row
@@ -8152,8 +8151,14 @@ int Rows_log_event::do_apply_event(Relay_log_info const *rli)
       m_curr_row= m_curr_row_end;
  
       if (error == 0 && !transactional_table)
-        thd->transaction.all.modified_non_trans_table=
-          thd->transaction.stmt.modified_non_trans_table= TRUE;
+      {
+        /*
+          We rely on trans_commit_stmt() to propagate unsafe_rollback_flags
+          from statement to transaction level. For that reason, only the
+          statement level is set.
+        */
+        thd->transaction.stmt.mark_modified_non_trans_table();
+      }
 
       if (m_curr_row == m_rows_end)
         break;
@@ -8171,7 +8176,7 @@ int Rows_log_event::do_apply_event(Relay_log_info const *rli)
          to shutdown trying to finish incomplete events group.
      */
       DBUG_EXECUTE_IF("stop_slave_middle_group",
-                      if (thd->transaction.all.modified_non_trans_table)
+                      if (thd->transaction.all.cannot_safely_rollback())
                         const_cast<Relay_log_info*>(rli)->abort_slave= 1;);
     }
 
