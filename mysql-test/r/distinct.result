@@ -794,3 +794,14 @@ DROP TABLE t1;
 SET @@sort_buffer_size = @old_sort_buffer_size;
 SET @@max_heap_table_size = @old_max_heap_table_size;
 End of 5.1 tests
+#
+# Bug #11744875: 4082: integer lengths cause truncation with distinct concat and innodb
+#
+CREATE TABLE t1 (a INT(1), b INT(1));
+INSERT INTO t1 VALUES (1111, 2222), (3333, 4444);
+SELECT DISTINCT CONCAT(a,b) AS c FROM t1 ORDER BY 1;
+c
+11112222
+33334444
+DROP TABLE t1;
+End of 5.5 tests

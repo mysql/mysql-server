@@ -111,7 +111,8 @@ Slave_reporting_capability::report(loglevel level, int err_code,
   uint pbuffsize= sizeof(buff);
   va_list args;
 
-  if (level == ERROR_LEVEL && has_temporary_error(thd, err_code))
+  if (level == ERROR_LEVEL && has_temporary_error(thd, err_code) &&
+      !thd->transaction.all.cannot_safely_rollback())
     level= WARNING_LEVEL;
 
   va_start(args, msg);

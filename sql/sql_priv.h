@@ -101,7 +101,7 @@
 #define OPTION_BEGIN            (1ULL << 20)    // THD, intern
 #define OPTION_TABLE_LOCK       (1ULL << 21)    // THD, intern
 #define OPTION_QUICK            (1ULL << 22)    // SELECT (for DELETE)
-#define OPTION_KEEP_LOG         (1ULL << 23)    // THD, user
+/* 23rd bit is unused. It was occupied by OPTION_KEEP_LOG. */
 
 /* The following is used to detect a conflict with DISTINCT */
 #define SELECT_ALL              (1ULL << 24)    // SELECT, user, parser

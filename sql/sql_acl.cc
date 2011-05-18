@@ -3645,6 +3645,7 @@ int mysql_table_grant(THD *thd, TABLE_LIST *table_list,
   {						// Should never happen
     /* Restore the state of binlog format */
     DBUG_ASSERT(!thd->is_current_stmt_binlog_format_row());
+    thd->lex->restore_backup_query_tables_list(&backup);
     if (save_binlog_row_based)
       thd->set_current_stmt_binlog_format_row();
     DBUG_RETURN(TRUE);				/* purecov: deadcode */
@@ -4619,6 +4620,20 @@ bool check_grant(THD *thd, ulong want_access, TABLE_LIST *tables,
       }
       continue;
     }
+
+    if (is_temporary_table(tl))
+    {
+      /*
+        If this table list element corresponds to a pre-opened temporary
+        table skip checking of all relevant table-level privileges for it.
+        Note that during creation of temporary table we still need to check
+        if user has CREATE_TMP_ACL.
+      */
+      tl->grant.privilege|= TMP_TABLE_ACLS;
+      tl->grant.want_privilege= 0;
+      continue;
+    }
+
     GRANT_TABLE *grant_table= table_hash_search(sctx->host, sctx->ip,
                                                 tl->get_db_name(),
                                                 sctx->priv_user,

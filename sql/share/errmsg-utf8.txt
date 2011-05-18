@@ -6498,3 +6498,8 @@ WARN_OPTION_BELOW_LIMIT
 
 ER_CHANGE_RPL_INFO_REPOSITORY_FAILURE
   eng "Failure while changing the type of replication repository: %s."
+
+ER_WARNING_NOT_COMPLETE_ROLLBACK_WITH_CREATED_TEMP_TABLE
+  eng "The creation of some temporary tables could not be rolled back."
+ER_WARNING_NOT_COMPLETE_ROLLBACK_WITH_DROPPED_TEMP_TABLE
+  eng "Some temporary tables were dropped, but these operations could not be rolled back."

@@ -254,7 +254,9 @@ extern PSI_mutex_key key_BINLOG_LOCK_index, key_BINLOG_LOCK_prep_xids,
   key_LOCK_table_share, key_LOCK_thd_data,
   key_LOCK_user_conn, key_LOCK_uuid_generator, key_LOG_LOCK_log,
   key_master_info_data_lock, key_master_info_run_lock,
+  key_master_info_sleep_lock,
   key_mutex_slave_reporting_capability_err_lock, key_relay_log_info_data_lock,
+  key_relay_log_info_sleep_lock,
   key_relay_log_info_log_space_lock, key_relay_log_info_run_lock,
   key_structure_guard_mutex, key_TABLE_SHARE_LOCK_ha_data,
   key_LOCK_error_messages, key_LOCK_thread_count, key_PARTITION_LOCK_auto_inc;
@@ -274,8 +276,10 @@ extern PSI_cond_key key_BINLOG_COND_prep_xids, key_BINLOG_update_cond,
   key_delayed_insert_cond, key_delayed_insert_cond_client,
   key_item_func_sleep_cond, key_master_info_data_cond,
   key_master_info_start_cond, key_master_info_stop_cond,
+  key_master_info_sleep_cond,
   key_relay_log_info_data_cond, key_relay_log_info_log_space_cond,
   key_relay_log_info_start_cond, key_relay_log_info_stop_cond,
+  key_relay_log_info_sleep_cond,
   key_TABLE_SHARE_cond, key_user_level_lock_cond,
   key_COND_thread_count, key_COND_thread_cache, key_COND_flush_thread_cache;
 extern PSI_cond_key key_RELAYLOG_update_cond;
@@ -330,7 +334,7 @@ extern PSI_stage_info stage_end;
 extern PSI_stage_info stage_executing;
 extern PSI_stage_info stage_execution_of_init_command;
 extern PSI_stage_info stage_finished_reading_one_binlog_switching_to_next_binlog;
-extern PSI_stage_info stage_flushing_relay_log_and_master_info_files;
+extern PSI_stage_info stage_flushing_relay_log_and_master_info_repository;
 extern PSI_stage_info stage_flushing_relay_log_info_file;
 extern PSI_stage_info stage_freeing_items;
 extern PSI_stage_info stage_fulltext_initialization;
@@ -342,6 +346,8 @@ extern PSI_stage_info stage_invalidating_query_cache_entries_table;
 extern PSI_stage_info stage_invalidating_query_cache_entries_table_list;
 extern PSI_stage_info stage_killing_slave;
 extern PSI_stage_info stage_logging_slow_query;
+extern PSI_stage_info stage_making_temp_file_append_before_load_data;
+extern PSI_stage_info stage_making_temp_file_create_before_load_data;
 extern PSI_stage_info stage_manage_keys;
 extern PSI_stage_info stage_opening_tables;
 extern PSI_stage_info stage_optimizing;
@@ -365,6 +371,7 @@ extern PSI_stage_info stage_setup;
 extern PSI_stage_info stage_sorting_for_group;
 extern PSI_stage_info stage_sorting_for_order;
 extern PSI_stage_info stage_sorting_result;
+extern PSI_stage_info stage_sql_thd_waiting_until_delay;
 extern PSI_stage_info stage_statistics;
 extern PSI_stage_info stage_storing_result_in_query_cache;
 extern PSI_stage_info stage_storing_row_into_queue;
