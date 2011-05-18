@@ -94,8 +94,10 @@ bool thd_is_connection_alive(THD *thd);
 void close_connection(THD *thd, uint errcode);
 /* End the connection before closing it */
 void end_connection(THD *thd);
+/* Decrement connection counter */
+void dec_connection_count();
 /* Destroy THD object */
-void unlink_thd(THD *thd);
+void delete_thd(THD *thd);
 
 /*
   thread_created is maintained by thread pool when activated since
