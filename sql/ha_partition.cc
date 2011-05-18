@@ -47,10 +47,6 @@
   if this file.
 */
 
-#ifdef __GNUC__
-#pragma implementation				// gcc: Class implementation
-#endif
-
 #include "sql_priv.h"
 #include "sql_parse.h"                          // append_file_to_dir
 #include "binlog.h"                             // mysql_bin_log
@@ -2872,7 +2868,7 @@ int ha_partition::open(const char *name, int mode, uint test_if_locked)
                       (PARTITION_ENABLED_TABLE_FLAGS));
   while (*(++file))
   {
-    DBUG_ASSERT(ref_length >= (*file)->ref_length);
+    /* MyISAM can have smaller ref_length for partitions with MAX_ROWS set */
     set_if_bigger(ref_length, ((*file)->ref_length));
     /*
       Verify that all partitions have the same set of table flags.
@@ -4258,20 +4254,17 @@ end_dont_reset_start_part:
 void ha_partition::position(const uchar *record)
 {
   handler *file= m_file[m_last_part];
+  uint pad_length;
   DBUG_ASSERT(bitmap_is_set(&(m_part_info->read_partitions), m_last_part));
   DBUG_ENTER("ha_partition::position");
 
   file->position(record);
   int2store(ref, m_last_part);
-  memcpy((ref + PARTITION_BYTES_IN_POS), file->ref,
-	 (ref_length - PARTITION_BYTES_IN_POS));
+  memcpy((ref + PARTITION_BYTES_IN_POS), file->ref, file->ref_length);
+  pad_length= m_ref_length - PARTITION_BYTES_IN_POS - file->ref_length;
+  if (pad_length)
+    memset((ref + PARTITION_BYTES_IN_POS + file->ref_length), 0, pad_length);
 
-#ifdef SUPPORTING_PARTITION_OVER_DIFFERENT_ENGINES
-#ifdef HAVE_purify
-  bzero(ref + PARTITION_BYTES_IN_POS + ref_length,
-        max_ref_length-ref_length);
-#endif /* HAVE_purify */
-#endif
   DBUG_VOID_RETURN;
 }
 

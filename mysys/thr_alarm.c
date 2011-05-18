@@ -1,4 +1,4 @@
-/* Copyright (C) 2000 MySQL AB, 2008-2009 Sun Microsystems, Inc
+/* Copyright (c) 2000, 2011, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -260,7 +260,7 @@ void thr_end_alarm(thr_alarm_t *alarmed)
   {
     if ((ALARM*) queue_element(&alarm_queue,i) == alarm_data)
     {
-      queue_remove(&alarm_queue,i),MYF(0);
+      queue_remove(&alarm_queue,i);
       if (alarm_data->malloced)
 	my_free(alarm_data);
       found++;

@@ -54,7 +54,11 @@ int Rpl_info_file::do_init_info()
       the old descriptor and re-create the old file
     */
     if (info_fd >= 0)
+    {
+      if (my_b_inited(&info_file))
+        end_io_cache(&info_file);
       my_close(info_fd, MYF(MY_WME));
+    }
     if ((info_fd = my_open(info_fname, O_CREAT|O_RDWR|O_BINARY, MYF(MY_WME))) < 0)
     {
       sql_print_error("Failed to create a new info file (\
@@ -170,7 +174,8 @@ void Rpl_info_file::do_end_info()
 
   if (info_fd >= 0)
   {
-    end_io_cache(&info_file);
+    if (my_b_inited(&info_file))
+      end_io_cache(&info_file);
     my_close(info_fd, MYF(MY_WME));
     info_fd = -1;
   }
