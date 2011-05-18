@@ -7983,7 +7983,8 @@ copy_data_between_tables(TABLE *from,TABLE *to,
 
   if (order)
   {
-    if (to->s->primary_key != MAX_KEY && to->file->primary_key_is_clustered())
+    if (to->s->primary_key != MAX_KEY &&
+        to->file->ha_table_flags() & HA_TABLE_SCAN_ON_INDEX)
     {
       char warn_buff[MYSQL_ERRMSG_SIZE];
       my_snprintf(warn_buff, sizeof(warn_buff), 

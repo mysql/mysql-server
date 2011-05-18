@@ -161,8 +161,11 @@
 */
 #define HA_KEY_SCAN_NOT_ROR     128 
 #define HA_DO_INDEX_COND_PUSHDOWN  256 /* Supports Index Condition Pushdown */
-
-
+/*
+  Data is clustered on this key. This means that when you read the key
+  you also get the row data in the same block.
+*/
+#define HA_CLUSTERED_INDEX      512
 
 /*
   bits in alter_table_flags:
@@ -2311,9 +2314,22 @@ public:
 
 
  /*
-   @retval TRUE   Primary key (if there is one) is clustered
-                  key covering all fields
-   @retval FALSE  otherwise
+   Check if the primary key (if there is one) is a clustered key covering
+   all fields. This means:
+
+   - Data is stored together with the primary key (no secondary lookup
+     needed to find the row data). The optimizer uses this to find out
+     the cost of fetching data.
+   - The primary key is part of each secondary key and is used
+     to find the row data in the primary index when reading trough
+     secondary indexes.
+   - When doing a HA_KEYREAD_ONLY we get also all the primary key parts
+     into the row. This is critical property used by index_merge.
+
+   For a clustered primary key, index_flags() returns also HA_CLUSTERED_INDEX
+
+   @retval TRUE   yes
+   @retval FALSE  No.
  */
  virtual bool primary_key_is_clustered() { return FALSE; }
  virtual int cmp_ref(const uchar *ref1, const uchar *ref2)

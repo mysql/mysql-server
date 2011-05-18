@@ -8550,17 +8550,19 @@ make_join_readinfo(JOIN *join, ulonglong options, uint no_jbuf_after)
 	  else if (!table->covering_keys.is_clear_all() &&
 		   !(tab->select && tab->select->quick))
 	  {					// Only read index tree
+#ifdef BAD_OPTIMIZATION
 	    /*
-            It has turned out that the below change, while speeding things
-            up for disk-bound loads, slows them down for cases when the data
-            is in disk cache (see BUG#35850):
-	    //  See bug #26447: "Using the clustered index for a table scan
-	    //  is always faster than using a secondary index".
+              It has turned out that the below change, while speeding things
+              up for disk-bound loads, slows them down for cases when the data
+              is in disk cache (see BUG#35850):
+              See bug #26447: "Using the clustered index for a table scan
+              is always faster than using a secondary index".
+            */
             if (table->s->primary_key != MAX_KEY &&
                 table->file->primary_key_is_clustered())
               tab->index= table->s->primary_key;
             else
-	    */
+#endif
               tab->index=find_shortest_key(table, & table->covering_keys);
 	    tab->read_first_record= join_read_first;
             /* Read with index_first / index_next */
@@ -16525,9 +16527,9 @@ test_if_skip_sort_order(JOIN_TAB *tab,ORDER *order,ha_rows select_limit,
         */
         DBUG_ASSERT (ref_key != (int) nr);
 
-        bool is_covering= table->covering_keys.is_set(nr) ||
-                          (nr == table->s->primary_key &&
-                          table->file->primary_key_is_clustered());
+        bool is_covering= (table->covering_keys.is_set(nr) ||
+                           (table->file->index_flags(nr, 0, 1) &
+                            HA_CLUSTERED_INDEX));
 	
         /* 
           Don't use an index scan with ORDER BY without limit.
@@ -16680,42 +16682,37 @@ test_if_skip_sort_order(JOIN_TAB *tab,ORDER *order,ha_rows select_limit,
     /*
       filesort() and join cache are usually faster than reading in 
       index order and not using join cache, except in case that chosen
-      index is clustered primary key.
+      index is clustered key.
     */
-    if ((select_limit >= table_records) &&
-        (tab->type == JT_ALL &&
-         tab->join->tables > tab->join->const_tables + 1) &&
-         ((unsigned) best_key != table->s->primary_key ||
-          !table->file->primary_key_is_clustered()))
+    if (best_key < 0 ||
+        ((select_limit >= table_records) &&
+         (tab->type == JT_ALL &&
+          tab->join->tables > tab->join->const_tables + 1) &&
+         !(table->file->index_flags(best_key, 0, 1) & HA_CLUSTERED_INDEX)))
       goto use_filesort;
 
-    if (best_key >= 0)
+    if (table->quick_keys.is_set(best_key) && best_key != ref_key)
     {
-      if (table->quick_keys.is_set(best_key) && best_key != ref_key)
-      {
-        key_map map;
-        map.clear_all();       // Force the creation of quick select
-        map.set_bit(best_key); // only best_key.
-        select->quick= 0;
-        select->test_quick_select(join->thd, map, 0,
-                                  join->select_options & OPTION_FOUND_ROWS ?
-                                  HA_POS_ERROR :
-                                  join->unit->select_limit_cnt,
-                                  TRUE, FALSE);
-      }
-      order_direction= best_key_direction;
-      /*
-        saved_best_key_parts is actual number of used keyparts found by the
-        test_if_order_by_key function. It could differ from keyinfo->key_parts,
-        thus we have to restore it in case of desc order as it affects
-        QUICK_SELECT_DESC behaviour.
-      */
-      used_key_parts= (order_direction == -1) ?
-        saved_best_key_parts :  best_key_parts;
+      key_map map;
+      map.clear_all();       // Force the creation of quick select
+      map.set_bit(best_key); // only best_key.
+      select->quick= 0;
+      select->test_quick_select(join->thd, map, 0,
+                                join->select_options & OPTION_FOUND_ROWS ?
+                                HA_POS_ERROR :
+                                join->unit->select_limit_cnt,
+                                TRUE, FALSE);
     }
-    else
-      goto use_filesort;
-  } 
+    order_direction= best_key_direction;
+    /*
+      saved_best_key_parts is actual number of used keyparts found by the
+      test_if_order_by_key function. It could differ from keyinfo->key_parts,
+      thus we have to restore it in case of desc order as it affects
+      QUICK_SELECT_DESC behaviour.
+    */
+    used_key_parts= (order_direction == -1) ?
+      saved_best_key_parts :  best_key_parts;
+  }
 
 check_reverse_order:                  
   DBUG_ASSERT(order_direction != 0);

@@ -3408,12 +3408,15 @@ UNIV_INTERN
 ulong
 ha_innobase::index_flags(
 /*=====================*/
-	uint,
-	uint,
-	bool)
+	uint index,
+	uint part,
+	bool all_parts)
 const
 {
-	return(HA_READ_NEXT | HA_READ_PREV | HA_READ_ORDER
+       ulong extra_flag= 0;
+       if (table && index == table->s->primary_key)
+             extra_flag= HA_CLUSTERED_INDEX;
+	return(HA_READ_NEXT | HA_READ_PREV | HA_READ_ORDER | extra_flag 
 	       | HA_READ_RANGE | HA_KEYREAD_ONLY | HA_DO_INDEX_COND_PUSHDOWN);
 }
 

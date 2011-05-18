@@ -877,6 +877,10 @@ public:
   */
   virtual ulong index_flags(uint inx, uint part, bool all_parts) const
   {
+    /*
+      The following code is not safe if you are using different
+      storage engines or different index types per partition.
+    */
     return m_file[0]->index_flags(inx, part, all_parts);
   }
 
