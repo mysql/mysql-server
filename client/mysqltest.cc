@@ -1276,12 +1276,17 @@ static void cleanup_and_exit(int exit_code)
 
 void print_file_stack()
 {
-  for (struct st_test_file* err_file= cur_file;
-       err_file != file_stack;
-       err_file--)
+  struct st_test_file* err_file= cur_file;
+  if (err_file == file_stack)
+    return;
+
+  for (;;)
   {
+    err_file--;
     fprintf(stderr, "included from %s at line %d:\n",
             err_file->file_name, err_file->lineno);
+    if (err_file == file_stack)
+      break;
   }
 }
 
