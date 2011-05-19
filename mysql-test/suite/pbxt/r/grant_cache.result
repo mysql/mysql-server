@@ -168,7 +168,7 @@ Variable_name	Value
 Qcache_hits	7
 show status like "Qcache_not_cached";
 Variable_name	Value
-Qcache_not_cached	7
+Qcache_not_cached	4
 select "user4";
 user4
 user4
@@ -198,7 +198,7 @@ Variable_name	Value
 Qcache_hits	8
 show status like "Qcache_not_cached";
 Variable_name	Value
-Qcache_not_cached	8
+Qcache_not_cached	5
 set names binary;
 delete from mysql.user where user in ("mysqltest_1","mysqltest_2","mysqltest_3");
 delete from mysql.db where user in ("mysqltest_1","mysqltest_2","mysqltest_3");
