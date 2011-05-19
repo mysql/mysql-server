@@ -2963,6 +2963,33 @@ err_alloc:
   DBUG_RETURN(error);
 }
 
+void ha_partition::unbind_psi()
+{
+  uint i;
+
+  DBUG_ENTER("ha_partition::unbind_psi");
+  handler::unbind_psi();
+  for (i= 0; i < m_tot_parts; i++)
+  {
+    DBUG_ASSERT(m_file[i] != NULL);
+    m_file[i]->unbind_psi();
+  }
+  DBUG_VOID_RETURN;
+}
+
+void ha_partition::rebind_psi()
+{
+  uint i;
+
+  DBUG_ENTER("ha_partition::rebind_psi");
+  handler::rebind_psi();
+  for (i= 0; i < m_tot_parts; i++)
+  {
+    DBUG_ASSERT(m_file[i] != NULL);
+    m_file[i]->rebind_psi();
+  }
+  DBUG_VOID_RETURN;
+}
 
 /**
   Clone the open and locked partitioning handler.

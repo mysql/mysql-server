@@ -299,6 +299,8 @@ public:
     If the object was opened it will also be closed before being deleted.
   */
   virtual int open(const char *name, int mode, uint test_if_locked);
+  virtual void unbind_psi();
+  virtual void rebind_psi();
   virtual int close(void);
 
   /*
