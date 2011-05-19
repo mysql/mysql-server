@@ -4,6 +4,65 @@ let $MYSQLD_DATADIR= `select @@datadir`;
 
 let $innodb_file_format_max_orig=`select @@innodb_file_format_max`;
 
+let $per_table=`select @@innodb_file_per_table`;
+let $format=`select @@innodb_file_format`;
+set global innodb_file_per_table=on;
+set global innodb_file_format='Barracuda';
+
+# Test an assertion failure on purge.
+CREATE TABLE t1_purge (
+A INT,
+B BLOB, C BLOB, D BLOB, E BLOB,
+F BLOB, G BLOB, H BLOB,
+PRIMARY KEY (B(767), C(767), D(767), E(767), A),
+INDEX (A)
+) ENGINE=InnoDB ROW_FORMAT=DYNAMIC;
+
+INSERT INTO t1_purge VALUES (1,
+REPEAT('b', 766), REPEAT('c', 766), REPEAT('d', 766), REPEAT('e', 766),
+REPEAT('f', 766), REPEAT('g', 766), REPEAT('h', 766));
+
+CREATE TABLE t2_purge (
+A INT PRIMARY KEY,
+B BLOB, C BLOB, D BLOB, E BLOB,
+F BLOB, G BLOB, H BLOB, I BLOB,
+J BLOB, K BLOB, L BLOB,
+INDEX (B(767))) ENGINE=InnoDB ROW_FORMAT=DYNAMIC;
+
+INSERT INTO t2_purge VALUES (1,
+REPEAT('b', 766), REPEAT('c', 766), REPEAT('d', 766), REPEAT('e', 766),
+REPEAT('f', 766), REPEAT('g', 766), REPEAT('h', 766), REPEAT('i', 766),
+REPEAT('j', 766), REPEAT('k', 766), REPEAT('l', 766));
+
+CREATE TABLE t3_purge (
+A INT,
+B VARCHAR(800), C VARCHAR(800), D VARCHAR(800), E VARCHAR(800),
+F VARCHAR(800), G VARCHAR(800), H VARCHAR(800),
+PRIMARY KEY (B(767), C(767), D(767), E(767), A),
+INDEX (A)
+) ENGINE=InnoDB ROW_FORMAT=DYNAMIC;
+
+INSERT INTO t3_purge SELECT * FROM t1_purge;
+
+CREATE TABLE t4_purge (
+A INT PRIMARY KEY,
+B VARCHAR(800), C VARCHAR(800), D VARCHAR(800), E VARCHAR(800),
+F VARCHAR(800), G VARCHAR(800), H VARCHAR(800), I VARCHAR(800),
+J VARCHAR(800), K VARCHAR(800), L VARCHAR(800),
+INDEX (B(767))) ENGINE=InnoDB ROW_FORMAT=DYNAMIC;
+
+INSERT INTO t4_purge SELECT * FROM t2_purge;
+
+# This would trigger the failure (Bug #12429576)
+# if purge gets a chance to run before DROP TABLE t1_purge, ....
+DELETE FROM t1_purge;
+DELETE FROM t2_purge;
+DELETE FROM t3_purge;
+DELETE FROM t4_purge;
+
+eval set global innodb_file_per_table=$per_table;
+eval set global innodb_file_format=$format;
+
 create table t1(a int not null, b int, c char(10) not null, d varchar(20)) engine = innodb;
 insert into t1 values (5,5,'oo','oo'),(4,4,'tr','tr'),(3,4,'ad','ad'),(2,3,'ak','ak');
 commit;
@@ -357,8 +416,6 @@ explain select * from t1 where b like 'adfd%';
 # end disabled45225_1
 drop table t1;
 
-let $per_table=`select @@innodb_file_per_table`;
-let $format=`select @@innodb_file_format`;
 set global innodb_file_per_table=on;
 set global innodb_file_format='Barracuda';
 # Test creating a table that could lead to undo log overflow.
@@ -401,6 +458,7 @@ alter table t1 row_format=compact;
 create index t1u on t1 (u(1));
 
 drop table t1;
+
 eval set global innodb_file_per_table=$per_table;
 eval set global innodb_file_format=$format;
 eval set global innodb_file_format_max=$format;
@@ -544,6 +602,9 @@ DROP TABLE t1;
 #
 #DROP TABLE t1;
 # end disabled45225_2
+#this delay is needed because 45225_2 is disabled, to allow the purge to run
+SELECT SLEEP(10);
+DROP TABLE t1_purge, t2_purge, t3_purge, t4_purge;
 
 #
 # restore environment to the state it was before this test execution
