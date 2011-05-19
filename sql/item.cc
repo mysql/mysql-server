@@ -8862,7 +8862,7 @@ void view_error_processor(THD *thd, void *data)
 }
 
 
-inline struct st_select_lex *Item_ident::get_depended_from() const
+inline st_select_lex *Item_ident::get_depended_from() const
 {
   st_select_lex *dep;
   if ((dep= depended_from))

@@ -3521,7 +3521,7 @@ void st_select_lex::set_explain_type()
   for the derived table to which this select belongs to.
 */
 
-void SELECT_LEX::increase_derived_records(uint records)
+void SELECT_LEX::increase_derived_records(ha_rows records)
 {
   SELECT_LEX_UNIT *unit= master_unit();
   DBUG_ASSERT(unit->derived);

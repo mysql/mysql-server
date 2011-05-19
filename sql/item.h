@@ -1637,7 +1637,7 @@ public:
   Item_ident(TABLE_LIST *view_arg, const char *field_name_arg);
   const char *full_name() const;
   void cleanup();
-  struct st_select_lex *get_depended_from() const;
+  st_select_lex *get_depended_from() const;
   bool remove_dependence_processor(uchar * arg);
   virtual void print(String *str, enum_query_type query_type);
   virtual bool change_context_processor(uchar *cntx)
