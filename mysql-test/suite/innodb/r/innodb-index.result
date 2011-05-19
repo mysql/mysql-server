@@ -1,3 +1,46 @@
+set global innodb_file_per_table=on;
+set global innodb_file_format='Barracuda';
+CREATE TABLE t1_purge (
+A INT,
+B BLOB, C BLOB, D BLOB, E BLOB,
+F BLOB, G BLOB, H BLOB,
+PRIMARY KEY (B(767), C(767), D(767), E(767), A),
+INDEX (A)
+) ENGINE=InnoDB ROW_FORMAT=DYNAMIC;
+INSERT INTO t1_purge VALUES (1,
+REPEAT('b', 766), REPEAT('c', 766), REPEAT('d', 766), REPEAT('e', 766),
+REPEAT('f', 766), REPEAT('g', 766), REPEAT('h', 766));
+CREATE TABLE t2_purge (
+A INT PRIMARY KEY,
+B BLOB, C BLOB, D BLOB, E BLOB,
+F BLOB, G BLOB, H BLOB, I BLOB,
+J BLOB, K BLOB, L BLOB,
+INDEX (B(767))) ENGINE=InnoDB ROW_FORMAT=DYNAMIC;
+INSERT INTO t2_purge VALUES (1,
+REPEAT('b', 766), REPEAT('c', 766), REPEAT('d', 766), REPEAT('e', 766),
+REPEAT('f', 766), REPEAT('g', 766), REPEAT('h', 766), REPEAT('i', 766),
+REPEAT('j', 766), REPEAT('k', 766), REPEAT('l', 766));
+CREATE TABLE t3_purge (
+A INT,
+B VARCHAR(800), C VARCHAR(800), D VARCHAR(800), E VARCHAR(800),
+F VARCHAR(800), G VARCHAR(800), H VARCHAR(800),
+PRIMARY KEY (B(767), C(767), D(767), E(767), A),
+INDEX (A)
+) ENGINE=InnoDB ROW_FORMAT=DYNAMIC;
+INSERT INTO t3_purge SELECT * FROM t1_purge;
+CREATE TABLE t4_purge (
+A INT PRIMARY KEY,
+B VARCHAR(800), C VARCHAR(800), D VARCHAR(800), E VARCHAR(800),
+F VARCHAR(800), G VARCHAR(800), H VARCHAR(800), I VARCHAR(800),
+J VARCHAR(800), K VARCHAR(800), L VARCHAR(800),
+INDEX (B(767))) ENGINE=InnoDB ROW_FORMAT=DYNAMIC;
+INSERT INTO t4_purge SELECT * FROM t2_purge;
+DELETE FROM t1_purge;
+DELETE FROM t2_purge;
+DELETE FROM t3_purge;
+DELETE FROM t4_purge;
+set global innodb_file_per_table=0;
+set global innodb_file_format=Antelope;
 create table t1(a int not null, b int, c char(10) not null, d varchar(20)) engine = innodb;
 insert into t1 values (5,5,'oo','oo'),(4,4,'tr','tr'),(3,4,'ad','ad'),(2,3,'ak','ak');
 commit;
@@ -1085,3 +1128,7 @@ t2	CREATE TABLE `t2` (
 ) ENGINE=InnoDB DEFAULT CHARSET=latin1
 DROP TABLE t2;
 DROP TABLE t1;
+SELECT SLEEP(10);
+SLEEP(10)
+0
+DROP TABLE t1_purge, t2_purge, t3_purge, t4_purge;
