@@ -9042,7 +9042,7 @@ ha_ndbcluster::multi_range_read_info_const(uint keyno, RANGE_SEQ_IF *seq,
       cost->io_count= index_only_read_time(keyno, total_rows);
     else
       cost->io_count= read_time(keyno, n_ranges, total_rows);
-    cost->cpu_cost= (double) total_rows / TIME_FOR_COMPARE + 0.01;
+    cost->cpu_cost= total_rows * ROW_EVALUATE_COST + 0.01;
   }
   return total_rows;
 }

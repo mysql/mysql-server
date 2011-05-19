@@ -678,7 +678,7 @@ int decimal_shift(decimal_t *dec, int shift)
     if (do_left)
     {
       do_mini_left_shift(dec, l_mini_shift, beg, end);
-      mini_shift=- l_mini_shift;
+      mini_shift= -l_mini_shift;
     }
     else
     {

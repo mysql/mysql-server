@@ -45,8 +45,6 @@ const char* info_rli_fields[]=
   "sql_delay"
 };
 
-const char *const Relay_log_info::state_delaying_string = "Waiting until MASTER_DELAY seconds after master executed event";
-
 Relay_log_info::Relay_log_info(bool is_slave_recovery
 #ifdef HAVE_PSI_INTERFACE
                                ,PSI_mutex_key *param_key_info_run_lock,
