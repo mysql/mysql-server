@@ -206,6 +206,7 @@ ENDIF()
 SET(TESTS
   bounded_queue
   dbug
+  dynarray
   mdl
   mdl_mytap
   my_bitmap

@@ -5903,7 +5903,6 @@ Note	1249	Select 2 was reduced during optimization
 CREATE VIEW v1 AS SELECT 1 LIKE ( 1 IN ( SELECT 1 ) );
 CREATE VIEW v2 AS SELECT 1 LIKE '%' ESCAPE ( 1 IN ( SELECT 1 ) );
 DROP VIEW v1, v2;
-End of 5.1 tests.
 Set up test tables.
 CREATE TABLE t1 (
 t1_id INT UNSIGNED,
@@ -6216,6 +6215,24 @@ id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 DROP TABLE t2;
 DROP TABLE t1;
 #
+# Bug #11765713 58705:
+# OPTIMIZER LET ENGINE DEPEND ON UNINITIALIZED VALUES
+# CREATED BY OPT_SUM_QUERY
+#
+CREATE TABLE t1(a INT NOT NULL, KEY (a));
+INSERT INTO t1 VALUES (0), (1);
+SELECT 1 as foo FROM t1 WHERE a < SOME
+(SELECT a FROM t1 WHERE a <=>
+(SELECT a FROM t1)
+);
+ERROR 21000: Subquery returns more than 1 row
+SELECT 1 as foo FROM t1 WHERE a < SOME
+(SELECT a FROM t1 WHERE a <=>
+(SELECT a FROM t1 where a is null)
+);
+foo
+DROP TABLE t1;
+#
 # Bug #57704: Cleanup code dies with void TABLE::set_keyread(bool): 
 #             Assertion `file' failed.
 #
@@ -6227,6 +6244,54 @@ SELECT 1 FROM
 1) FROM t1) AS e;
 ERROR 21000: Operand should contain 1 column(s)
 DROP TABLE t1;
+#
+# Bug#11764086: Null left operand to NOT IN in WHERE clause
+# behaves differently than real NULL
+#
+CREATE TABLE parent (id int);
+INSERT INTO parent VALUES (1), (2);
+CREATE TABLE child (parent_id int, other int);
+INSERT INTO child VALUES (1,NULL);
+# Offending query (c.parent_id is NULL for null-complemented rows only)
+SELECT    p.id, c.parent_id
+FROM      parent p
+LEFT JOIN child  c
+ON        p.id = c.parent_id
+WHERE     c.parent_id NOT IN (
+SELECT parent_id 
+FROM   child
+WHERE  parent_id = 3
+);
+id	parent_id
+1	1
+2	NULL
+# Some syntactic variations with IS FALSE and IS NOT TRUE
+SELECT    p.id, c.parent_id
+FROM      parent p
+LEFT JOIN child  c
+ON        p.id = c.parent_id
+WHERE     c.parent_id IN (
+SELECT parent_id 
+FROM   child
+WHERE  parent_id = 3
+) IS NOT TRUE;
+id	parent_id
+1	1
+2	NULL
+SELECT    p.id, c.parent_id
+FROM      parent p
+LEFT JOIN child  c
+ON        p.id = c.parent_id
+WHERE     c.parent_id IN (
+SELECT parent_id 
+FROM   child
+WHERE  parent_id = 3
+) IS FALSE;
+id	parent_id
+1	1
+2	NULL
+DROP TABLE parent, child;
+# End of test for bug#11764086.
 End of 5.5 tests.
 #
 # BUG#48920: COUNT DISTINCT returns 1 for NULL values when in a subquery 
