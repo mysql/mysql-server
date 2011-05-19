@@ -1007,4 +1007,23 @@ OPTIMIZE TABLE t1;
 DROP TABLE t1;
 
 
+--echo #
+--echo # Bug#11762345 54927: DROPPING AND ADDING AN INDEX IN ONE
+--echo #              COMMAND CAN FAIL IN INNODB PLUGIN 1.0
+--echo #
+
+--disable_warnings
+DROP TABLE IF EXISTS t1;
+--enable_warnings
+
+CREATE TABLE t1 (id int, a  int, b  int, PRIMARY KEY (id),
+                 INDEX a (a)) ENGINE=innodb;
+
+ALTER TABLE t1 DROP INDEX a, ADD INDEX a (b, a);
+# This used to fail
+ALTER TABLE t1 DROP INDEX a, ADD INDEX (a, b);
+
+DROP TABLE t1;
+
+
 --echo End of 6.0 tests
