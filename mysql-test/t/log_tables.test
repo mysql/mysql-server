@@ -283,7 +283,7 @@ drop table mysql.slow_log;
 use mysql;
 
 CREATE TABLE `general_log` (
-  `event_time` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP
+  `event_time` timestamp(6) NOT NULL DEFAULT CURRENT_TIMESTAMP
                          ON UPDATE CURRENT_TIMESTAMP,
   `user_host` mediumtext NOT NULL,
   `thread_id` int(11) NOT NULL,
@@ -293,11 +293,11 @@ CREATE TABLE `general_log` (
 ) ENGINE=CSV DEFAULT CHARSET=utf8 COMMENT='General log';
 
 CREATE TABLE `slow_log` (
-  `start_time` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP
+  `start_time` timestamp(6) NOT NULL DEFAULT CURRENT_TIMESTAMP
                          ON UPDATE CURRENT_TIMESTAMP,
   `user_host` mediumtext NOT NULL,
-  `query_time` time NOT NULL,
-  `lock_time` time NOT NULL,
+  `query_time` time(6) NOT NULL,
+  `lock_time` time(6) NOT NULL,
   `rows_sent` int(11) NOT NULL,
   `rows_examined` int(11) NOT NULL,
   `db` varchar(512) NOT NULL,
@@ -710,10 +710,10 @@ DROP DATABASE IF EXISTS `db_17876`;
 CREATE DATABASE db_17876;
 
 CREATE TABLE `db_17876.slow_log_data` (
-  `start_time` timestamp  default CURRENT_TIMESTAMP on update CURRENT_TIMESTAMP,
+  `start_time` timestamp(6)  default CURRENT_TIMESTAMP on update CURRENT_TIMESTAMP,
   `user_host` mediumtext ,
-  `query_time` time ,
-  `lock_time` time ,
+  `query_time` time(6) ,
+  `lock_time` time(6) ,
   `rows_sent` int(11) ,
   `rows_examined` int(11) ,
   `db` varchar(512) default NULL,
@@ -724,7 +724,7 @@ CREATE TABLE `db_17876.slow_log_data` (
 );
 
 CREATE TABLE `db_17876.general_log_data` (
-  `event_time` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  `event_time` timestamp(6) NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
   `user_host` mediumtext,
   `thread_id` int(11) DEFAULT NULL,
   `server_id` int(11) DEFAULT NULL,
@@ -736,7 +736,7 @@ DELIMITER //;
 
 CREATE procedure `db_17876.archiveSlowLog`()
 BEGIN
-  DECLARE start_time, query_time, lock_time CHAR(20);
+  DECLARE start_time, query_time, lock_time CHAR(28);
   DECLARE user_host MEDIUMTEXT;
   DECLARE rows_set, rows_examined, last_insert_id, insert_id, server_id INT;
   DECLARE dbname MEDIUMTEXT;
@@ -776,7 +776,7 @@ END //
 
 CREATE procedure `db_17876.archiveGeneralLog`()
 BEGIN
-  DECLARE event_time CHAR(20);
+  DECLARE event_time CHAR(28);
   DECLARE user_host, argument MEDIUMTEXT;
   DECLARE thread_id, server_id INT;
   DECLARE sql_text BLOB;

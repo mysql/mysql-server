@@ -211,7 +211,7 @@ public:
              uint user_host_len, int thread_id,
              const char *command_type, uint command_type_len,
              const char *sql_text, uint sql_text_len);
-  bool write(THD *thd, time_t current_time, time_t query_start_arg,
+  bool write(THD *thd, time_t current_time,
              const char *user_host, uint user_host_len,
              ulonglong query_utime, ulonglong lock_utime, bool is_command,
              const char *sql_text, uint sql_text_len);
@@ -425,14 +425,14 @@ public:
   virtual bool init()= 0;
   virtual void cleanup()= 0;
 
-  virtual bool log_slow(THD *thd, time_t current_time,
-                        time_t query_start_arg, const char *user_host,
+  virtual bool log_slow(THD *thd, my_hrtime_t current_time,
+                        const char *user_host,
                         uint user_host_len, ulonglong query_utime,
                         ulonglong lock_utime, bool is_command,
                         const char *sql_text, uint sql_text_len)= 0;
   virtual bool log_error(enum loglevel level, const char *format,
                          va_list args)= 0;
-  virtual bool log_general(THD *thd, time_t event_time, const char *user_host,
+  virtual bool log_general(THD *thd, my_hrtime_t event_time, const char *user_host,
                            uint user_host_len, int thread_id,
                            const char *command_type, uint command_type_len,
                            const char *sql_text, uint sql_text_len,
@@ -454,14 +454,14 @@ public:
   virtual bool init();
   virtual void cleanup();
 
-  virtual bool log_slow(THD *thd, time_t current_time,
-                        time_t query_start_arg, const char *user_host,
+  virtual bool log_slow(THD *thd, my_hrtime_t current_time,
+                        const char *user_host,
                         uint user_host_len, ulonglong query_utime,
                         ulonglong lock_utime, bool is_command,
                         const char *sql_text, uint sql_text_len);
   virtual bool log_error(enum loglevel level, const char *format,
                          va_list args);
-  virtual bool log_general(THD *thd, time_t event_time, const char *user_host,
+  virtual bool log_general(THD *thd, my_hrtime_t event_time, const char *user_host,
                            uint user_host_len, int thread_id,
                            const char *command_type, uint command_type_len,
                            const char *sql_text, uint sql_text_len,
@@ -486,14 +486,14 @@ public:
   virtual bool init();
   virtual void cleanup();
 
-  virtual bool log_slow(THD *thd, time_t current_time,
-                        time_t query_start_arg, const char *user_host,
+  virtual bool log_slow(THD *thd, my_hrtime_t current_time,
+                        const char *user_host,
                         uint user_host_len, ulonglong query_utime,
                         ulonglong lock_utime, bool is_command,
                         const char *sql_text, uint sql_text_len);
   virtual bool log_error(enum loglevel level, const char *format,
                          va_list args);
-  virtual bool log_general(THD *thd, time_t event_time, const char *user_host,
+  virtual bool log_general(THD *thd, my_hrtime_t event_time, const char *user_host,
                            uint user_host_len, int thread_id,
                            const char *command_type, uint command_type_len,
                            const char *sql_text, uint sql_text_len,
