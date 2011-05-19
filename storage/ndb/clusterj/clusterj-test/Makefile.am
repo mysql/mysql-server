@@ -176,8 +176,9 @@ EXTRA_DIST = \
 
 $(MANIFEST):
 	echo "Manifest-Version: 1.0"  > $(MANIFEST)
-	echo "Bundle-Name: ClusterJ API"  >> $(MANIFEST)
-	echo "Bundle-Description: The API for ClusterJ"  >> $(MANIFEST)
+	echo "Export-Package: regression,testsuite.clusterj,testsuite.clusterj.model,testsuite.clusterj.domaintypehandler"  >> $(MANIFEST)
+	echo "Bundle-Name: ClusterJ Test"  >> $(MANIFEST)
+	echo "Bundle-Description: The Test Suite for ClusterJ"  >> $(MANIFEST)
 	echo "Bundle-SymbolicName: com.mysql.clusterj.clusterj-test" >> $(MANIFEST)
 
 classclusterj_test.stamp: $(clusterj_test_java)

@@ -17,7 +17,7 @@
 include $(top_srcdir)/storage/ndb/config/common.mk.am
 include $(top_srcdir)/storage/ndb/config/java_support.mk.am
 
-CLUSTERJ_EXPORT=com.mysql.clusterj,com.mysql.clusterj.query,com.mysql.clusterj.annotation, com.mysql.clusterj.metadata,com.mysql.clusterj.spi,com.mysql.clusterj.store,com.mysql.clusterj.util,com.mysql.clusterj.tie
+CLUSTERJ_EXPORT=com.mysql.clusterj,com.mysql.clusterj.annotation,com.mysql.clusterj.query,com.mysql.clusterj.core,com.mysql.clusterj.core.metadata,com.mysql.clusterj.core.query,com.mysql.clusterj.core.spi,com.mysql.clusterj.core.store,com.mysql.clusterj.core.util,com.mysql.clusterj.jdbc,com.mysql.clusterj.jdbc.antlr,com.mysql.clusterj.jdbc.antlr.node,com.mysql.clusterj.tie
 
 BASE_DIRS = clusterj-api clusterj-core clusterj-tie
 
