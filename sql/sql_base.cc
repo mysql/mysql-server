@@ -467,14 +467,7 @@ static void table_def_use_table(THD *thd, TABLE *table)
   /* The children must be detached from the table. */
   DBUG_ASSERT(! table->file->extra(HA_EXTRA_IS_ATTACHED_CHILDREN));
 
-#ifdef HAVE_PSI_INTERFACE
-  /*
-    Notify the instrumentation that this table is now owned
-    by this thread.
-  */
-  if (likely(PSI_server != NULL))
-    PSI_server->rebind_table(table->file->m_psi);
-#endif
+  table->file->rebind_psi();
 }
 
 
@@ -491,15 +484,7 @@ static void table_def_unuse_table(TABLE *table)
   DBUG_ASSERT(! table->s->has_old_version());
 
   table->in_use= 0;
-
-#ifdef HAVE_PSI_INTERFACE
-  /*
-    Notify the instrumentation that this table is not owned
-    by this thread any more.
-  */
-  if (likely(PSI_server != NULL))
-    PSI_server->unbind_table(table->file->m_psi);
-#endif
+  table->file->unbind_psi();
 
   /* Remove table from the list of tables used in this share. */
   table->s->used_tables.remove(table);

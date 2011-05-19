@@ -606,7 +606,19 @@ static void set_thd_in_use_temporary_tables(Relay_log_info *rli)
   TABLE *table;
 
   for (table= rli->save_temporary_tables ; table ; table= table->next)
+  {
     table->in_use= rli->info_thd;
+    if (table->file != NULL)
+    {
+      /*
+        Since we are stealing opened temporary tables from one thread to another,
+        we need to let the performance schema know that,
+        for aggregates per thread to work properly.
+      */
+      table->file->unbind_psi();
+      table->file->rebind_psi();
+    }
+  }
 }
 
 int terminate_slave_threads(Master_info* mi,int thread_mask,bool skip_lock)

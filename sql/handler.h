@@ -1360,6 +1360,9 @@ public:
   */
   PSI_table *m_psi;
 
+  virtual void unbind_psi();
+  virtual void rebind_psi();
+
 private:
   friend class DsMrr_impl;
   /**

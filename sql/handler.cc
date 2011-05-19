@@ -2132,6 +2132,30 @@ THD *handler::ha_thd(void) const
   return (table && table->in_use) ? table->in_use : current_thd;
 }
 
+void handler::unbind_psi()
+{
+#ifdef HAVE_PSI_INTERFACE
+  /*
+    Notify the instrumentation that this table is not owned
+    by this thread any more.
+  */
+  if (likely(PSI_server != NULL))
+    PSI_server->unbind_table(m_psi);
+#endif
+}
+
+void handler::rebind_psi()
+{
+#ifdef HAVE_PSI_INTERFACE
+  /*
+    Notify the instrumentation that this table is now owned
+    by this thread.
+  */
+  if (likely(PSI_server != NULL))
+    PSI_server->rebind_table(m_psi);
+#endif
+}
+
 PSI_table_share *handler::ha_table_share_psi(const TABLE_SHARE *share) const
 {
   return share->m_psi;
