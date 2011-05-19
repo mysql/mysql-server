@@ -356,8 +356,8 @@ bool st_select_lex_unit::prepare(THD *thd_arg, select_result *sel_result,
     List_iterator_fast<Item> tp(types);
     Item *type;
     ulonglong create_options;
-    uint save_tablenr;
-    table_map save_map;
+    uint save_tablenr= 0;
+    table_map save_map= 0;
 
     while ((type= tp++))
     {

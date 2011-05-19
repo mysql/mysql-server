@@ -7793,10 +7793,10 @@ bool generate_derived_keys(DYNAMIC_ARRAY *keyuse_array)
   TABLE *prev_table= 0;
   for (uint i= 0; i < elements; i++, keyuse++)
   {
-    KEYUSE *first_table_keyuse;
-    table_map last_used_tables;
-    uint count;
-    uint keys;
+    KEYUSE *first_table_keyuse= NULL;
+    table_map last_used_tables= 0;
+    uint count= 0;
+    uint keys= 0;
     TABLE_LIST *derived= NULL;
     if (keyuse->table != prev_table)
       derived= keyuse->table->pos_in_table_list;
