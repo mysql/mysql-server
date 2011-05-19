@@ -1402,9 +1402,6 @@ static void destroy_cond_v1(PSI_cond* cond)
 static PSI_table_share*
 get_table_share_v1(my_bool temporary, TABLE_SHARE *share)
 {
-  /* Do not instrument this table is all table instruments are disabled. */
-  if (! global_table_io_class.m_enabled && ! global_table_lock_class.m_enabled)
-    return NULL;
   /* An instrumented thread is required, for LF_PINS. */
   PFS_thread *pfs_thread= my_pthread_getspecific_ptr(PFS_thread*, THR_PFS);
   if (unlikely(pfs_thread == NULL))
@@ -1454,6 +1451,16 @@ open_table_v1(PSI_table_share *share, const void *identity)
   PFS_thread *thread= my_pthread_getspecific_ptr(PFS_thread*, THR_PFS);
   if (unlikely(thread == NULL))
     return NULL;
+
+  if (unlikely(setup_objects_version != pfs_table_share->m_setup_objects_version))
+  {
+    pfs_table_share->refresh_setup_object_flags(thread);
+  }
+
+  /* Do not instrument this table is all table instruments are disabled. */
+  if (! pfs_table_share->m_io_enabled && ! pfs_table_share->m_lock_enabled)
+    return NULL;
+
   PFS_table *pfs_table= create_table(pfs_table_share, thread, identity);
   return reinterpret_cast<PSI_table *> (pfs_table);
 }
@@ -2212,27 +2219,8 @@ get_thread_table_io_locker_v1(PSI_table_locker_state *state,
   if (! flag_global_instrumentation)
     return NULL;
 
-  if (! global_table_io_class.m_enabled)
-    return NULL;
-
   PFS_table_share *share= pfs_table->m_share;
-  if (unlikely(setup_objects_version != share->m_setup_objects_version))
-  {
-    PFS_thread *pfs_thread= my_pthread_getspecific_ptr(PFS_thread*, THR_PFS);
-    if (unlikely(pfs_thread == NULL))
-      return NULL;
-    /* Refresh the enabled and timed flags from SETUP_OBJECTS */
-    share->m_setup_objects_version= setup_objects_version;
-    lookup_setup_object(pfs_thread,
-                        OBJECT_TYPE_TABLE, /* even for temporary tables */
-                        share->m_schema_name,
-                        share->m_schema_name_length,
-                        share->m_table_name,
-                        share->m_table_name_length,
-                        & share->m_enabled,
-                        & share->m_timed);
-  }
-  if (! share->m_enabled)
+  if (! share->m_io_enabled)
     return NULL;
 
   PFS_instr_class *klass;
@@ -2250,7 +2238,7 @@ get_thread_table_io_locker_v1(PSI_table_locker_state *state,
     state->m_thread= reinterpret_cast<PSI_thread *> (pfs_thread);
     flags= STATE_FLAG_THREAD;
 
-    if (klass->m_timed && share->m_timed)
+    if (share->m_io_timed)
       flags|= STATE_FLAG_TIMED;
 
     if (flag_events_waits_current)
@@ -2284,7 +2272,7 @@ get_thread_table_io_locker_v1(PSI_table_locker_state *state,
   }
   else
   {
-    if (klass->m_timed && share->m_timed)
+    if (share->m_io_timed)
     {
       flags= STATE_FLAG_TIMED;
     }
@@ -2320,27 +2308,8 @@ get_thread_table_lock_locker_v1(PSI_table_locker_state *state,
   if (! flag_global_instrumentation)
     return NULL;
 
-  if (! global_table_lock_class.m_enabled)
-    return NULL;
-
   PFS_table_share *share= pfs_table->m_share;
-  if (unlikely(setup_objects_version != share->m_setup_objects_version))
-  {
-    PFS_thread *pfs_thread= my_pthread_getspecific_ptr(PFS_thread*, THR_PFS);
-    if (unlikely(pfs_thread == NULL))
-      return NULL;
-    /* Refresh the enabled and timed flags from SETUP_OBJECTS */
-    share->m_setup_objects_version= setup_objects_version;
-    lookup_setup_object(pfs_thread,
-                        OBJECT_TYPE_TABLE, /* even for temporary tables */
-                        share->m_schema_name,
-                        share->m_schema_name_length,
-                        share->m_table_name,
-                        share->m_table_name_length,
-                        & share->m_enabled,
-                        & share->m_timed);
-  }
-  if (! share->m_enabled)
+  if (! share->m_lock_enabled)
     return NULL;
 
   PFS_instr_class *klass;
@@ -2380,7 +2349,7 @@ get_thread_table_lock_locker_v1(PSI_table_locker_state *state,
     state->m_thread= reinterpret_cast<PSI_thread *> (pfs_thread);
     flags= STATE_FLAG_THREAD;
 
-    if (klass->m_timed && share->m_timed)
+    if (share->m_lock_timed)
       flags|= STATE_FLAG_TIMED;
 
     if (flag_events_waits_current)
@@ -2414,7 +2383,7 @@ get_thread_table_lock_locker_v1(PSI_table_locker_state *state,
   }
   else
   {
-    if (klass->m_timed && share->m_timed)
+    if (share->m_lock_timed)
     {
       flags= STATE_FLAG_TIMED;
     }
