@@ -33,9 +33,6 @@ import testsuite.clusterj.model.IdBase;
 
 abstract public class AbstractQueryTest extends AbstractClusterJModelTest {
 
-    /** The class of instances, supplied by a subclass. */
-    Class<?> instanceType = getInstanceType();
-
     /**
      * Create instances required by the test, used for the queries.
      * @param number the number of instances to create
@@ -71,7 +68,7 @@ abstract public class AbstractQueryTest extends AbstractClusterJModelTest {
         createInstances(numberOfInstances);
         try {
             tx.begin();
-            session.deletePersistentAll(instanceType);
+            session.deletePersistentAll(getInstanceType());
             tx.commit();
         } catch (Throwable t) {
             // ignore errors while deleting
@@ -80,7 +77,7 @@ abstract public class AbstractQueryTest extends AbstractClusterJModelTest {
         session.makePersistentAll(instances);
         tx.commit();
         if (getCleanupAfterTest())
-            addTearDownClasses(instanceType);
+            addTearDownClasses(getInstanceType());
     }
 
     protected void setAutotransaction(boolean b) {
@@ -326,7 +323,7 @@ abstract public class AbstractQueryTest extends AbstractClusterJModelTest {
     public void equalQuery(String propertyName, String expectedIndex,
             Object parameterValue, int... expected) {
         tx.begin();
-        QueryHolder holder = new QueryHolder(instanceType, propertyName, expectedIndex);
+        QueryHolder holder = new QueryHolder(getInstanceType(), propertyName, expectedIndex);
         // specify the where clause
         holder.dobj.where(holder.equal);
         // create the query
@@ -344,7 +341,7 @@ abstract public class AbstractQueryTest extends AbstractClusterJModelTest {
         if (!autotransaction) {
             tx.begin();
         }
-        QueryHolder holder = new QueryHolder(instanceType, propertyName, expectedIndex);
+        QueryHolder holder = new QueryHolder(getInstanceType(), propertyName, expectedIndex);
         // specify the where clause
         holder.dobj.where(holder.equal);
         // create the query
@@ -362,7 +359,7 @@ abstract public class AbstractQueryTest extends AbstractClusterJModelTest {
             String extraPropertyName, Object parameterValue2, 
             String expectedIndex, int... expected) {
         tx.begin();
-        QueryHolder holder = new QueryHolder(instanceType, propertyName, expectedIndex, extraPropertyName);
+        QueryHolder holder = new QueryHolder(getInstanceType(), propertyName, expectedIndex, extraPropertyName);
         // specify the where clause
         holder.dobj.where(holder.equalOrEqual);
         // create the query
@@ -380,7 +377,7 @@ abstract public class AbstractQueryTest extends AbstractClusterJModelTest {
             String extraPropertyName, Object parameterValue2, 
             String expectedIndex, int... expected) {
         tx.begin();
-        QueryHolder holder = new QueryHolder(instanceType, propertyName, expectedIndex, extraPropertyName);
+        QueryHolder holder = new QueryHolder(getInstanceType(), propertyName, expectedIndex, extraPropertyName);
         // specify the where clause
         holder.dobj.where(holder.equalOrIn);
         // create the query
@@ -397,7 +394,7 @@ abstract public class AbstractQueryTest extends AbstractClusterJModelTest {
     public void inQuery(String propertyName, Object parameterValue1,
             String expectedIndex, int... expected) {
         tx.begin();
-        QueryHolder holder = new QueryHolder(instanceType, propertyName, expectedIndex);
+        QueryHolder holder = new QueryHolder(getInstanceType(), propertyName, expectedIndex);
         // specify the where clause
         holder.dobj.where(holder.in);
         // create the query
@@ -414,7 +411,7 @@ abstract public class AbstractQueryTest extends AbstractClusterJModelTest {
             String extraPropertyName, Object parameterValue2, 
             String expectedIndex, int... expected) {
         tx.begin();
-        QueryHolder holder = new QueryHolder(instanceType, propertyName, expectedIndex, extraPropertyName);
+        QueryHolder holder = new QueryHolder(getInstanceType(), propertyName, expectedIndex, extraPropertyName);
         // specify the where clause
         holder.dobj.where(holder.inAndIn);
         // create the query
@@ -432,7 +429,7 @@ abstract public class AbstractQueryTest extends AbstractClusterJModelTest {
             String extraPropertyName, Object parameterValue2, Object parameterValue3,
             String expectedIndex, int...expected) {
         tx.begin();
-        QueryHolder holder = new QueryHolder(instanceType, propertyName, expectedIndex, extraPropertyName);
+        QueryHolder holder = new QueryHolder(getInstanceType(), propertyName, expectedIndex, extraPropertyName);
         // specify the where clause
         holder.dobj.where(holder.inAndBetween);
         // create the query
@@ -451,7 +448,7 @@ abstract public class AbstractQueryTest extends AbstractClusterJModelTest {
             String extraPropertyName, Object parameterValue3, 
             String expectedIndex, int... expected) {
         tx.begin();
-        QueryHolder holder = new QueryHolder(instanceType, propertyName, expectedIndex, extraPropertyName);
+        QueryHolder holder = new QueryHolder(getInstanceType(), propertyName, expectedIndex, extraPropertyName);
         // specify the where clause
         holder.dobj.where(holder.betweenAndIn);
         // create the query
@@ -470,7 +467,7 @@ abstract public class AbstractQueryTest extends AbstractClusterJModelTest {
             Object parameterValue, int... expected) {
 
         tx.begin();
-        QueryHolder holder = new QueryHolder(instanceType, propertyName, expectedIndex);
+        QueryHolder holder = new QueryHolder(getInstanceType(), propertyName, expectedIndex);
         // set the where clause into the query 
         holder.dobj.where(holder.greaterThan);
         // create the query
@@ -487,7 +484,7 @@ abstract public class AbstractQueryTest extends AbstractClusterJModelTest {
             Object parameterValue, int... expected) {
 
         tx.begin();
-        QueryHolder holder = new QueryHolder(instanceType, propertyName, expectedIndex);
+        QueryHolder holder = new QueryHolder(getInstanceType(), propertyName, expectedIndex);
         // set the where clause into the query
         holder.dobj.where(holder.greaterEqual);
         // create the query
@@ -504,7 +501,7 @@ abstract public class AbstractQueryTest extends AbstractClusterJModelTest {
             Object parameterValue, int... expected) {
 
         tx.begin();
-        QueryHolder holder = new QueryHolder(instanceType, propertyName, expectedIndex);
+        QueryHolder holder = new QueryHolder(getInstanceType(), propertyName, expectedIndex);
         // set the where clause into the query
         holder.dobj.where(holder.lessThan);
         // create the query
@@ -521,7 +518,7 @@ abstract public class AbstractQueryTest extends AbstractClusterJModelTest {
             Object parameterValue, int... expected) {
 
         tx.begin();
-        QueryHolder holder = new QueryHolder(instanceType, propertyName, expectedIndex);
+        QueryHolder holder = new QueryHolder(getInstanceType(), propertyName, expectedIndex);
         // set the where clause into the query
         holder.dobj.where(holder.lessEqual);
         // create the query
@@ -539,7 +536,7 @@ abstract public class AbstractQueryTest extends AbstractClusterJModelTest {
             int... expected) {
 
         tx.begin();
-        QueryHolder holder = new QueryHolder(instanceType, propertyName, expectedIndex);
+        QueryHolder holder = new QueryHolder(getInstanceType(), propertyName, expectedIndex);
         // set the where clause into the query
         holder.dobj.where(holder.between);
         // create the query
@@ -558,7 +555,7 @@ abstract public class AbstractQueryTest extends AbstractClusterJModelTest {
             int... expected) {
 
         tx.begin();
-        QueryHolder holder = new QueryHolder(instanceType, propertyName, expectedIndex);
+        QueryHolder holder = new QueryHolder(getInstanceType(), propertyName, expectedIndex);
         // set the where clause into the query
         holder.dobj.where(holder.greaterThanAndLessThan);
         // create the query
@@ -578,7 +575,7 @@ abstract public class AbstractQueryTest extends AbstractClusterJModelTest {
         if (!autotransaction) {
             tx.begin();
         }
-        QueryHolder holder = new QueryHolder(instanceType, propertyName, expectedIndex);
+        QueryHolder holder = new QueryHolder(getInstanceType(), propertyName, expectedIndex);
         // set the where clause into the query
         holder.dobj.where(holder.greaterThanAndLessThan);
         // create the query
@@ -598,7 +595,7 @@ abstract public class AbstractQueryTest extends AbstractClusterJModelTest {
             int... expected) {
 
         tx.begin();
-        QueryHolder holder = new QueryHolder(instanceType, propertyName, expectedIndex);
+        QueryHolder holder = new QueryHolder(getInstanceType(), propertyName, expectedIndex);
         // set the where clause into the query
         holder.dobj.where(holder.greaterEqualAndLessThan);
         // create the query
@@ -617,7 +614,7 @@ abstract public class AbstractQueryTest extends AbstractClusterJModelTest {
             int... expected) {
 
         tx.begin();
-        QueryHolder holder = new QueryHolder(instanceType, propertyName, expectedIndex);
+        QueryHolder holder = new QueryHolder(getInstanceType(), propertyName, expectedIndex);
         // set the where clause into the query
         holder.dobj.where(holder.greaterThanAndLessEqual);
         // create the query
@@ -636,7 +633,7 @@ abstract public class AbstractQueryTest extends AbstractClusterJModelTest {
             int... expected) {
 
         tx.begin();
-        QueryHolder holder = new QueryHolder(instanceType, propertyName, expectedIndex);
+        QueryHolder holder = new QueryHolder(getInstanceType(), propertyName, expectedIndex);
         // set the where clause into the query
         holder.dobj.where(holder.greaterEqualAndLessEqual);
         // create the query
@@ -654,7 +651,7 @@ abstract public class AbstractQueryTest extends AbstractClusterJModelTest {
             String extraPropertyName, PredicateProvider extraPredicateProvider, Object extraParameterValue, 
             String expectedIndex, int... expected) {
         tx.begin();
-        holder = new QueryHolder(instanceType, propertyName, expectedIndex,
+        holder = new QueryHolder(getInstanceType(), propertyName, expectedIndex,
                 extraPropertyName);
         // specify the where clause
         Predicate extraPredicate = extraPredicateProvider.getPredicate(holder);
@@ -678,7 +675,7 @@ abstract public class AbstractQueryTest extends AbstractClusterJModelTest {
             String extraPropertyName, PredicateProvider extraPredicateProvider, Object extraParameterValue, 
             String expectedIndex, int... expected) {
         tx.begin();
-        holder = new QueryHolder(instanceType, propertyName, expectedIndex,
+        holder = new QueryHolder(getInstanceType(), propertyName, expectedIndex,
                 extraPropertyName);
         // specify the where clause
         Predicate extraPredicate = extraPredicateProvider.getPredicate(holder);
@@ -702,7 +699,7 @@ abstract public class AbstractQueryTest extends AbstractClusterJModelTest {
             String extraPropertyName, PredicateProvider extraPredicateProvider, Object extraParameterValue, 
             String expectedIndex, int... expected) {
         tx.begin();
-        holder = new QueryHolder(instanceType, propertyName, expectedIndex,
+        holder = new QueryHolder(getInstanceType(), propertyName, expectedIndex,
                 extraPropertyName);
         // specify the where clause
         Predicate extraPredicate = extraPredicateProvider.getPredicate(holder);
@@ -726,7 +723,7 @@ abstract public class AbstractQueryTest extends AbstractClusterJModelTest {
             String extraPropertyName, PredicateProvider extraPredicateProvider, Object extraParameterValue, 
             String expectedIndex, int... expected) {
         tx.begin();
-        holder = new QueryHolder(instanceType, propertyName, expectedIndex,
+        holder = new QueryHolder(getInstanceType(), propertyName, expectedIndex,
                 extraPropertyName);
         // specify the where clause
         Predicate extraPredicate = extraPredicateProvider.getPredicate(holder);
@@ -750,7 +747,7 @@ abstract public class AbstractQueryTest extends AbstractClusterJModelTest {
             String extraPropertyName, PredicateProvider extraPredicateProvider, Object extraParameterValue, 
             String expectedIndex, int... expected) {
         tx.begin();
-        holder = new QueryHolder(instanceType, propertyName, expectedIndex,
+        holder = new QueryHolder(getInstanceType(), propertyName, expectedIndex,
                 extraPropertyName);
         // specify the where clause
         Predicate extraPredicate = extraPredicateProvider.getPredicate(holder);
@@ -775,7 +772,7 @@ abstract public class AbstractQueryTest extends AbstractClusterJModelTest {
             Object extraParameterValue1, Object extraParameterValue2,
             String expectedIndex, int... expected) {
         tx.begin();
-        QueryHolder holder = new QueryHolder(instanceType, propertyName, expectedIndex,
+        QueryHolder holder = new QueryHolder(getInstanceType(), propertyName, expectedIndex,
                 extraPropertyName);
         // specify the where clause
         Predicate extraPredicate = extraPredicateProvider.getPredicate(holder);
@@ -798,7 +795,7 @@ abstract public class AbstractQueryTest extends AbstractClusterJModelTest {
     public void notEqualQuery(String propertyName, String expectedIndex,
             Object parameterValue, int... expected) {
         tx.begin();
-        QueryHolder holder = new QueryHolder(instanceType, propertyName, expectedIndex);
+        QueryHolder holder = new QueryHolder(getInstanceType(), propertyName, expectedIndex);
         // specify the where clause
         holder.dobj.where(holder.notEqual);
         // create the query
@@ -814,7 +811,7 @@ abstract public class AbstractQueryTest extends AbstractClusterJModelTest {
     public void notNotEqualQuery(String propertyName, String expectedIndex,
             Object parameterValue, int... expected) {
         tx.begin();
-        QueryHolder holder = new QueryHolder(instanceType, propertyName, expectedIndex);
+        QueryHolder holder = new QueryHolder(getInstanceType(), propertyName, expectedIndex);
         // specify the where clause
         holder.dobj.where(holder.notEqual.not());
         // create the query
@@ -830,7 +827,7 @@ abstract public class AbstractQueryTest extends AbstractClusterJModelTest {
     public void notNotNotEqualQuery(String propertyName, String expectedIndex,
             Object parameterValue, int... expected) {
         tx.begin();
-        QueryHolder holder = new QueryHolder(instanceType, propertyName, expectedIndex);
+        QueryHolder holder = new QueryHolder(getInstanceType(), propertyName, expectedIndex);
         // specify the where clause
         holder.dobj.where(holder.dobj.not(holder.notEqual.not()));
         // create the query
@@ -847,7 +844,7 @@ abstract public class AbstractQueryTest extends AbstractClusterJModelTest {
             Object parameterValue, int... expected) {
 
         tx.begin();
-        QueryHolder holder = new QueryHolder(instanceType, propertyName, expectedIndex);
+        QueryHolder holder = new QueryHolder(getInstanceType(), propertyName, expectedIndex);
         // set the where clause into the query 
         holder.dobj.where(holder.notGreaterThan);
         // create the query
@@ -864,7 +861,7 @@ abstract public class AbstractQueryTest extends AbstractClusterJModelTest {
             Object parameterValue, int... expected) {
 
         tx.begin();
-        QueryHolder holder = new QueryHolder(instanceType, propertyName, expectedIndex);
+        QueryHolder holder = new QueryHolder(getInstanceType(), propertyName, expectedIndex);
         // set the where clause into the query
         holder.dobj.where(holder.notGreaterEqual);
         // create the query
@@ -881,7 +878,7 @@ abstract public class AbstractQueryTest extends AbstractClusterJModelTest {
             Object parameterValue, int... expected) {
 
         tx.begin();
-        QueryHolder holder = new QueryHolder(instanceType, propertyName, expectedIndex);
+        QueryHolder holder = new QueryHolder(getInstanceType(), propertyName, expectedIndex);
         // set the where clause into the query
         holder.dobj.where(holder.notLessThan);
         // create the query
@@ -898,7 +895,7 @@ abstract public class AbstractQueryTest extends AbstractClusterJModelTest {
             Object parameterValue, int... expected) {
 
         tx.begin();
-        QueryHolder holder = new QueryHolder(instanceType, propertyName, expectedIndex);
+        QueryHolder holder = new QueryHolder(getInstanceType(), propertyName, expectedIndex);
         // set the where clause into the query
         holder.dobj.where(holder.notLessEqual);
         // create the query
@@ -916,7 +913,7 @@ abstract public class AbstractQueryTest extends AbstractClusterJModelTest {
             int... expected) {
 
         tx.begin();
-        QueryHolder holder = new QueryHolder(instanceType, propertyName, expectedIndex);
+        QueryHolder holder = new QueryHolder(getInstanceType(), propertyName, expectedIndex);
         // set the where clause into the query
         holder.dobj.where(holder.notBetween);
         // create the query
@@ -935,7 +932,7 @@ abstract public class AbstractQueryTest extends AbstractClusterJModelTest {
             int... expected) {
 
         tx.begin();
-        QueryHolder holder = new QueryHolder(instanceType, propertyName, expectedIndex);
+        QueryHolder holder = new QueryHolder(getInstanceType(), propertyName, expectedIndex);
         // set the where clause into the query
         holder.dobj.where(holder.greaterThanAndNotGreaterThan);
         // create the query
@@ -954,7 +951,7 @@ abstract public class AbstractQueryTest extends AbstractClusterJModelTest {
             int... expected) {
 
         tx.begin();
-        QueryHolder holder = new QueryHolder(instanceType, propertyName, expectedIndex);
+        QueryHolder holder = new QueryHolder(getInstanceType(), propertyName, expectedIndex);
         // set the where clause into the query
         holder.dobj.where(holder.greaterEqualAndNotGreaterThan);
         // create the query
@@ -973,7 +970,7 @@ abstract public class AbstractQueryTest extends AbstractClusterJModelTest {
             int... expected) {
 
         tx.begin();
-        QueryHolder holder = new QueryHolder(instanceType, propertyName, expectedIndex);
+        QueryHolder holder = new QueryHolder(getInstanceType(), propertyName, expectedIndex);
         // set the where clause into the query
         holder.dobj.where(holder.greaterThanAndNotGreaterEqual);
         // create the query
@@ -992,7 +989,7 @@ abstract public class AbstractQueryTest extends AbstractClusterJModelTest {
             int... expected) {
 
         tx.begin();
-        QueryHolder holder = new QueryHolder(instanceType, propertyName, expectedIndex);
+        QueryHolder holder = new QueryHolder(getInstanceType(), propertyName, expectedIndex);
         // set the where clause into the query
         holder.dobj.where(holder.greaterEqualAndNotGreaterEqual);
         // create the query
