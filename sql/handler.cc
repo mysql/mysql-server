@@ -345,6 +345,7 @@ int ha_init_errors(void)
   SETMSG(HA_ERR_AUTOINC_READ_FAILED,    ER(ER_AUTOINC_READ_FAILED));
   SETMSG(HA_ERR_AUTOINC_ERANGE,         ER(ER_WARN_DATA_OUT_OF_RANGE));
   SETMSG(HA_ERR_TOO_MANY_CONCURRENT_TRXS, ER(ER_TOO_MANY_CONCURRENT_TRXS));
+  SETMSG(HA_ERR_DISK_FULL,              ER(ER_DISK_FULL));
 
   /* Register the error messages for use with my_error(). */
   return my_error_register(errmsgs, HA_ERR_FIRST, HA_ERR_LAST);
@@ -2758,6 +2759,11 @@ void handler::print_error(int error, myf errflag)
     break;
   case ENOENT:
     textno=ER_FILE_NOT_FOUND;
+    break;
+  case ENOSPC:
+  case HA_ERR_DISK_FULL:
+    textno= ER_DISK_FULL;
+    SET_FATAL_ERROR;                            // Ensure error is logged
     break;
   case HA_ERR_KEY_NOT_FOUND:
   case HA_ERR_NO_ACTIVE_RECORD:

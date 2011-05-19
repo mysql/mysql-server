@@ -8550,17 +8550,19 @@ make_join_readinfo(JOIN *join, ulonglong options, uint no_jbuf_after)
 	  else if (!table->covering_keys.is_clear_all() &&
 		   !(tab->select && tab->select->quick))
 	  {					// Only read index tree
+#ifdef BAD_OPTIMIZATION
 	    /*
-            It has turned out that the below change, while speeding things
-            up for disk-bound loads, slows them down for cases when the data
-            is in disk cache (see BUG#35850):
-	    //  See bug #26447: "Using the clustered index for a table scan
-	    //  is always faster than using a secondary index".
+              It has turned out that the below change, while speeding things
+              up for disk-bound loads, slows them down for cases when the data
+              is in disk cache (see BUG#35850):
+              See bug #26447: "Using the clustered index for a table scan
+              is always faster than using a secondary index".
+            */
             if (table->s->primary_key != MAX_KEY &&
                 table->file->primary_key_is_clustered())
               tab->index= table->s->primary_key;
             else
-	    */
+#endif
               tab->index=find_shortest_key(table, & table->covering_keys);
 	    tab->read_first_record= join_read_first;
             /* Read with index_first / index_next */
@@ -16308,7 +16310,7 @@ find_field_in_item_list (Field *field, void *data)
 */
 
 static bool
-test_if_skip_sort_order(JOIN_TAB *tab,ORDER *order,ha_rows select_limit,
+test_if_skip_sort_order(JOIN_TAB *tab,ORDER *order,ha_rows select_limit_arg,
 			bool no_changes, const key_map *map)
 {
   int ref_key;
@@ -16320,8 +16322,11 @@ test_if_skip_sort_order(JOIN_TAB *tab,ORDER *order,ha_rows select_limit,
   key_map usable_keys;
   QUICK_SELECT_I *save_quick= select ? select->quick : 0;
   int best_key= -1;
+  ha_rows best_select_limit;
   DBUG_ENTER("test_if_skip_sort_order");
+
   LINT_INIT(ref_key_parts);
+  LINT_INIT(best_select_limit);
 
   /*
     Keys disabled by ALTER TABLE ... DISABLE KEYS should have already
@@ -16486,7 +16491,7 @@ test_if_skip_sort_order(JOIN_TAB *tab,ORDER *order,ha_rows select_limit,
       resolved with a key;  This is because filesort() is usually faster than
       retrieving all rows through an index.
     */
-    if (select_limit >= table_records)
+    if (select_limit_arg >= table_records)
     {
       keys= *table->file->keys_to_use_for_scanning();
       keys.merge(table->covering_keys);
@@ -16514,6 +16519,7 @@ test_if_skip_sort_order(JOIN_TAB *tab,ORDER *order,ha_rows select_limit,
     for (nr=0; nr < table->s->keys ; nr++)
     {
       int direction;
+      ha_rows select_limit= select_limit_arg;
 
       if (keys.is_set(nr) &&
           (direction= test_if_order_by_key(order, table, nr, &used_key_parts)))
@@ -16525,9 +16531,9 @@ test_if_skip_sort_order(JOIN_TAB *tab,ORDER *order,ha_rows select_limit,
         */
         DBUG_ASSERT (ref_key != (int) nr);
 
-        bool is_covering= table->covering_keys.is_set(nr) ||
-                          (nr == table->s->primary_key &&
-                          table->file->primary_key_is_clustered());
+        bool is_covering= (table->covering_keys.is_set(nr) ||
+                           (table->file->index_flags(nr, 0, 1) &
+                            HA_CLUSTERED_INDEX));
 	
         /* 
           Don't use an index scan with ORDER BY without limit.
@@ -16606,7 +16612,8 @@ test_if_skip_sort_order(JOIN_TAB *tab,ORDER *order,ha_rows select_limit,
                 select_limit= table_records;
             else
               select_limit= (ha_rows) (select_limit*rec_per_key);
-          }
+          } /* group */
+
           /* 
             If tab=tk is not the last joined table tn then to get first
             L records from the result set we can expect to retrieve
@@ -16650,8 +16657,7 @@ test_if_skip_sort_order(JOIN_TAB *tab,ORDER *order,ha_rows select_limit,
 	  */
           index_scan_time= select_limit/rec_per_key *
 	                   min(rec_per_key, table->file->scan_time());
-          if ((ref_key < 0 && is_covering) || 
-              (ref_key < 0 && (group || table->force_index)) ||
+          if ((ref_key < 0 && (group || table->force_index || is_covering)) ||
               index_scan_time < read_time)
           {
             ha_rows quick_records= table_records;
@@ -16663,7 +16669,8 @@ test_if_skip_sort_order(JOIN_TAB *tab,ORDER *order,ha_rows select_limit,
             if (best_key < 0 ||
                 (select_limit <= min(quick_records,best_records) ?
                  keyinfo->key_parts < best_key_parts :
-                 quick_records < best_records))
+                 quick_records < best_records) ||
+                (!is_best_covering && is_covering))
             {
               best_key= nr;
               best_key_parts= keyinfo->key_parts;
@@ -16671,6 +16678,7 @@ test_if_skip_sort_order(JOIN_TAB *tab,ORDER *order,ha_rows select_limit,
               best_records= quick_records;
               is_best_covering= is_covering;
               best_key_direction= direction; 
+              best_select_limit= select_limit;
             }
           }   
 	}      
@@ -16680,42 +16688,37 @@ test_if_skip_sort_order(JOIN_TAB *tab,ORDER *order,ha_rows select_limit,
     /*
       filesort() and join cache are usually faster than reading in 
       index order and not using join cache, except in case that chosen
-      index is clustered primary key.
+      index is clustered key.
     */
-    if ((select_limit >= table_records) &&
-        (tab->type == JT_ALL &&
-         tab->join->tables > tab->join->const_tables + 1) &&
-         ((unsigned) best_key != table->s->primary_key ||
-          !table->file->primary_key_is_clustered()))
+    if (best_key < 0 ||
+        ((select_limit_arg >= table_records) &&
+         (tab->type == JT_ALL &&
+          tab->join->tables > tab->join->const_tables + 1) &&
+         !(table->file->index_flags(best_key, 0, 1) & HA_CLUSTERED_INDEX)))
       goto use_filesort;
 
-    if (best_key >= 0)
+    if (table->quick_keys.is_set(best_key) && best_key != ref_key)
     {
-      if (table->quick_keys.is_set(best_key) && best_key != ref_key)
-      {
-        key_map map;
-        map.clear_all();       // Force the creation of quick select
-        map.set_bit(best_key); // only best_key.
-        select->quick= 0;
-        select->test_quick_select(join->thd, map, 0,
-                                  join->select_options & OPTION_FOUND_ROWS ?
-                                  HA_POS_ERROR :
-                                  join->unit->select_limit_cnt,
-                                  TRUE, FALSE);
-      }
-      order_direction= best_key_direction;
-      /*
-        saved_best_key_parts is actual number of used keyparts found by the
-        test_if_order_by_key function. It could differ from keyinfo->key_parts,
-        thus we have to restore it in case of desc order as it affects
-        QUICK_SELECT_DESC behaviour.
-      */
-      used_key_parts= (order_direction == -1) ?
-        saved_best_key_parts :  best_key_parts;
+      key_map map;
+      map.clear_all();       // Force the creation of quick select
+      map.set_bit(best_key); // only best_key.
+      select->quick= 0;
+      select->test_quick_select(join->thd, map, 0,
+                                join->select_options & OPTION_FOUND_ROWS ?
+                                HA_POS_ERROR :
+                                join->unit->select_limit_cnt,
+                                TRUE, FALSE);
     }
-    else
-      goto use_filesort;
-  } 
+    order_direction= best_key_direction;
+    /*
+      saved_best_key_parts is actual number of used keyparts found by the
+      test_if_order_by_key function. It could differ from keyinfo->key_parts,
+      thus we have to restore it in case of desc order as it affects
+      QUICK_SELECT_DESC behaviour.
+    */
+    used_key_parts= (order_direction == -1) ?
+      saved_best_key_parts :  best_key_parts;
+  }
 
 check_reverse_order:                  
   DBUG_ASSERT(order_direction != 0);
@@ -16791,8 +16794,8 @@ check_reverse_order:
         {
           tab->ref.key= -1;
           tab->ref.key_parts= 0;
-          if (select_limit < table->file->stats.records) 
-            tab->limit= select_limit;
+          if (best_select_limit < table->file->stats.records)
+            tab->limit= best_select_limit;
         }
       }
       else if (tab->type != JT_ALL)

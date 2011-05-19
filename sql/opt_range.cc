@@ -1816,6 +1816,12 @@ QUICK_RANGE_SELECT::~QUICK_RANGE_SELECT()
   DBUG_VOID_RETURN;
 }
 
+/*
+  QUICK_INDEX_SORT_SELECT works as follows:
+  - Do index scans, accumulate rowids in the Unique object 
+    (Unique will also sort and de-duplicate rowids)
+  - Use rowids from unique to run a disk-ordered sweep
+*/
 
 QUICK_INDEX_SORT_SELECT::QUICK_INDEX_SORT_SELECT(THD *thd_param,
                                                  TABLE *table)
@@ -1848,7 +1854,18 @@ QUICK_INDEX_SORT_SELECT::push_quick_back(QUICK_RANGE_SELECT *quick_sel_range)
   if (head->file->primary_key_is_clustered() &&
       quick_sel_range->index == head->s->primary_key)
   {
-   /* A quick_select over a clustered primary key is handled specifically */
+   /*
+     A quick_select over a clustered primary key is handled specifically
+     Here we assume:
+     - PK columns are included in any other merged index
+     - Scan on the PK is disk-ordered.
+       (not meeting #2 will only cause performance degradation)
+
+       We could treat clustered PK as any other index, but that would
+       be inefficient. There is no point in doing scan on
+       CPK, remembering the rowid, then making rnd_pos() call with
+       that rowid.
+    */
     pk_quick_select= quick_sel_range;
     DBUG_RETURN(0);
   }
@@ -4298,11 +4315,19 @@ double get_sweep_read_cost(const PARAM *param, ha_rows records)
   DBUG_ENTER("get_sweep_read_cost");
   if (param->table->file->primary_key_is_clustered())
   {
+    /*
+      We are using the primary key to find the rows.
+      Calculate the cost for this.
+    */
     result= param->table->file->read_time(param->table->s->primary_key,
                                           (uint)records, records);
   }
   else
   {
+    /*
+      Rows will be retreived with rnd_pos(). Caluclate the expected
+      cost for this.
+    */
     double n_blocks=
       ceil(ulonglong2double(param->table->file->stats.data_file_length) /
            IO_SIZE);
@@ -5013,7 +5038,7 @@ bool prepare_search_best_index_intersect(PARAM *param,
       if ((*index_scan)->keynr == table->s->primary_key)
       {
         common->cpk_scan= cpk_scan= *index_scan;
-          break;
+        break;
       }
     }
   }
@@ -6187,7 +6212,6 @@ TRP_ROR_INTERSECT *get_best_ror_intersect(const PARAM *param, SEL_TREE *tree,
   ROR_SCAN_INFO **cur_ror_scan;
   ROR_SCAN_INFO *cpk_scan= NULL;
   uint cpk_no;
-  bool cpk_scan_used= FALSE;
 
   if (!(tree->ror_scans= (ROR_SCAN_INFO**)alloc_root(param->mem_root,
                                                      sizeof(ROR_SCAN_INFO*)*
@@ -6199,11 +6223,20 @@ TRP_ROR_INTERSECT *get_best_ror_intersect(const PARAM *param, SEL_TREE *tree,
   for (idx= 0, cur_ror_scan= tree->ror_scans; idx < param->keys; idx++)
   {
     ROR_SCAN_INFO *scan;
+    uint key_no;
     if (!tree->ror_scans_map.is_set(idx))
       continue;
+    key_no= param->real_keynr[idx];
+    if (key_no != cpk_no &&
+        param->table->file->index_flags(key_no,0,0) & HA_CLUSTERED_INDEX)
+    {
+      /* Ignore clustering keys */
+      tree->n_ror_scans--;
+      continue;
+    }
     if (!(scan= make_ror_scan(param, idx, tree->keys[idx])))
       return NULL;
-    if (param->real_keynr[idx] == cpk_no)
+    if (key_no == cpk_no)
     {
       cpk_scan= scan;
       tree->n_ror_scans--;
@@ -6289,15 +6322,14 @@ TRP_ROR_INTERSECT *get_best_ror_intersect(const PARAM *param, SEL_TREE *tree,
   {
     if (ror_intersect_add(intersect, cpk_scan, TRUE) && 
         (intersect->total_cost < min_cost))
-    {
-      cpk_scan_used= TRUE;
       intersect_best= intersect; //just set pointer here
-    }
   }
+  else
+    cpk_scan= 0;                                // Don't use cpk_scan
 
   /* Ok, return ROR-intersect plan if we have found one */
   TRP_ROR_INTERSECT *trp= NULL;
-  if (min_cost < read_time && (cpk_scan_used || best_num > 1))
+  if (min_cost < read_time && (cpk_scan || best_num > 1))
   {
     if (!(trp= new (param->mem_root) TRP_ROR_INTERSECT))
       DBUG_RETURN(trp);
@@ -6316,7 +6348,7 @@ TRP_ROR_INTERSECT *get_best_ror_intersect(const PARAM *param, SEL_TREE *tree,
     set_if_smaller(param->table->quick_condition_rows, best_rows);
     trp->records= best_rows;
     trp->index_scan_costs= intersect_best->index_scan_costs;
-    trp->cpk_scan= cpk_scan_used? cpk_scan: NULL;
+    trp->cpk_scan= cpk_scan;
     DBUG_PRINT("info", ("Returning non-covering ROR-intersect plan:"
                         "cost %g, records %lu",
                         trp->read_cost, (ulong) trp->records));
@@ -9511,10 +9543,10 @@ ha_rows check_quick_select(PARAM *param, uint idx, bool index_only,
   bool pk_is_clustered= file->primary_key_is_clustered();
   if (index_only && 
       (file->index_flags(keynr, param->max_key_part, 1) & HA_KEYREAD_ONLY) &&
-      !(pk_is_clustered && keynr == param->table->s->primary_key))
+      !(file->index_flags(keynr, param->max_key_part, 1) & HA_CLUSTERED_INDEX))
      *mrr_flags |= HA_MRR_INDEX_ONLY;
   
-  if (current_thd->lex->sql_command != SQLCOM_SELECT)
+  if (param->thd->lex->sql_command != SQLCOM_SELECT)
     *mrr_flags |= HA_MRR_USE_DEFAULT_IMPL;
 
   *bufsize= param->thd->variables.mrr_buff_size;
