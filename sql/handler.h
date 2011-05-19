@@ -163,7 +163,7 @@
 #define HA_DO_INDEX_COND_PUSHDOWN  256 /* Supports Index Condition Pushdown */
 /*
   Data is clustered on this key. This means that when you read the key
-  you also get the row data in the same block.
+  you also get the row data without any additional disk reads.
 */
 #define HA_CLUSTERED_INDEX      512
 
@@ -2314,8 +2314,8 @@ public:
 
 
  /*
-   Check if the primary key (if there is one) is a clustered key covering
-   all fields. This means:
+   Check if the primary key (if there is one) is a clustered and a
+   reference key. This means:
 
    - Data is stored together with the primary key (no secondary lookup
      needed to find the row data). The optimizer uses this to find out
@@ -2326,7 +2326,13 @@ public:
    - When doing a HA_KEYREAD_ONLY we get also all the primary key parts
      into the row. This is critical property used by index_merge.
 
-   For a clustered primary key, index_flags() returns also HA_CLUSTERED_INDEX
+   All the above is usually true for engines that store the row
+   data in the primary key index (e.g. in a b-tree), and use the primary
+   key value as a position().  InnoDB is an example of such an engine.
+
+   For such a clustered primary key, the following should also hold:
+   index_flags() should contain HA_CLUSTERED_INDEX
+   table_flags() should contain HA_TABLE_SCAN_ON_INDEX
 
    @retval TRUE   yes
    @retval FALSE  No.
