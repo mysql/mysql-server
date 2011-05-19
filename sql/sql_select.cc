@@ -12091,7 +12091,7 @@ Field *create_tmp_field(THD *thd, TABLE *table,Item *item, Item::Type type,
          (orig_item && orig_item->maybe_null)) && /* for outer joined views/dt*/        
         !field->field->maybe_null())
     {
-      bool save_maybe_null;
+      bool save_maybe_null= FALSE;
       /*
         The item the ref points to may have maybe_null flag set while
         the ref doesn't have it. This may happen for outer fields
