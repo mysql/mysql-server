@@ -96,6 +96,7 @@ use mtr_cases;
 use mtr_report;
 use mtr_match;
 use mtr_unique;
+use mtr_results;
 use IO::Socket::INET;
 use IO::Select;
 
@@ -245,6 +246,8 @@ my $build_thread= 0;
 my $opt_record;
 my $opt_report_features;
 
+our $opt_resfile= $ENV{'MTR_RESULT_FILE'} || 0;
+
 my $opt_skip_core;
 
 our $opt_check_testcases= 1;
@@ -321,6 +324,14 @@ my $opt_parallel= $ENV{MTR_PARALLEL} || 1;
 
 select(STDOUT);
 $| = 1; # Automatically flush STDOUT
+
+# Used by --result-file for for formatting times
+
+sub isotime($) {
+  my ($sec,$min,$hr,$day,$mon,$yr)= gmtime($_[0]);
+  return sprintf "%d-%02d-%02dT%02d:%02d:%02dZ",
+    $yr+1900, $mon+1, $day, $hr, $min, $sec;
+}
 
 main();
 
@@ -425,6 +436,11 @@ sub main {
   mtr_error("Could not create testcase server port: $!") unless $server;
   my $server_port = $server->sockport();
   mtr_report("Using server port $server_port");
+
+  if ($opt_resfile) {
+    resfile_init("$opt_vardir/mtr-results.txt");
+    print_global_resfile();
+  }
 
   # --------------------------------------------------------------------------
   # Read definitions from include/plugin.defs
@@ -649,6 +665,7 @@ sub run_test_server ($$$) {
 		     $savedir);
 	      }
 	    }
+	    resfile_print_test();
 	    $num_saved_datadir++;
 	    $num_failed_test++ unless ($result->{retries} ||
                                        $result->{exp_fail});
@@ -671,6 +688,7 @@ sub run_test_server ($$$) {
 	    }
 	  }
 
+	  resfile_print_test();
 	  # Retry test run after test failure
 	  my $retries= $result->{retries} || 2;
 	  my $test_has_failed= $result->{failures} || 0;
@@ -958,6 +976,49 @@ sub set_vardir {
 }
 
 
+sub print_global_resfile {
+  resfile_global("start_time", isotime $^T);
+  resfile_global("user_id", $<);
+  resfile_global("embedded-server", $opt_embedded_server ? 1 : 0);
+  resfile_global("ps-protocol", $opt_ps_protocol ? 1 : 0);
+  resfile_global("sp-protocol", $opt_sp_protocol ? 1 : 0);
+  resfile_global("view-protocol", $opt_view_protocol ? 1 : 0);
+  resfile_global("cursor-protocol", $opt_cursor_protocol ? 1 : 0);
+  resfile_global("ssl", $opt_ssl ? 1 : 0);
+  resfile_global("compress", $opt_compress ? 1 : 0);
+  resfile_global("parallel", $opt_parallel);
+  resfile_global("check-testcases", $opt_check_testcases ? 1 : 0);
+  resfile_global("mysqld", \@opt_extra_mysqld_opt);
+  resfile_global("debug", $opt_debug ? 1 : 0);
+  resfile_global("gcov", $opt_gcov ? 1 : 0);
+  resfile_global("gprof", $opt_gprof ? 1 : 0);
+  resfile_global("valgrind", $opt_valgrind ? 1 : 0);
+  resfile_global("callgrind", $opt_callgrind ? 1 : 0);
+  resfile_global("mem", $opt_mem ? 1 : 0);
+  resfile_global("tmpdir", $opt_tmpdir);
+  resfile_global("vardir", $opt_vardir);
+  resfile_global("fast", $opt_fast ? 1 : 0);
+  resfile_global("force-restart", $opt_force_restart ? 1 : 0);
+  resfile_global("reorder", $opt_reorder ? 1 : 0);
+  resfile_global("sleep", $opt_sleep);
+  resfile_global("repeat", $opt_repeat);
+  resfile_global("user", $opt_user);
+  resfile_global("testcase-timeout", $opt_testcase_timeout);
+  resfile_global("suite-timeout", $opt_suite_timeout);
+  resfile_global("shutdown-timeout", $opt_shutdown_timeout ? 1 : 0);
+  resfile_global("warnings", $opt_warnings ? 1 : 0);
+  resfile_global("max-connections", $opt_max_connections);
+#  resfile_global("default-myisam", $opt_default_myisam ? 1 : 0);
+  resfile_global("product", "MySQL");
+  # Somewhat hacky code to convert numeric version back to dot notation
+  my $v1= int($mysql_version_id / 10000);
+  my $v2= int(($mysql_version_id % 10000)/100);
+  my $v3= $mysql_version_id % 100;
+  resfile_global("version", "$v1.$v2.$v3");
+}
+
+
+
 sub command_line_setup {
   my $opt_comment;
   my $opt_usage;
@@ -1100,6 +1161,7 @@ sub command_line_setup {
 	     'max-connections=i'        => \$opt_max_connections,
 	     'default-myisam!'          => \&collect_option,
 	     'report-times'             => \$opt_report_times,
+	     'result-file'              => \$opt_resfile,
 	     'unit-tests!'              => \$opt_ctest,
 
              'help|h'                   => \$opt_usage,
@@ -3650,6 +3712,18 @@ sub timezone {
 # Storage for changed environment variables
 my %old_env;
 
+sub resfile_report_test ($) {
+  my $tinfo=  shift;
+
+  resfile_new_test();
+
+  resfile_test_info("name", $tinfo->{name});
+  resfile_test_info("variation", $tinfo->{combination})
+    if $tinfo->{combination};
+  resfile_test_info("start_time", isotime time);
+}
+
+
 #
 # Run a single test case
 #
@@ -3662,6 +3736,7 @@ sub run_testcase ($) {
   my $tinfo=  shift;
 
   mtr_verbose("Running test:", $tinfo->{name});
+  resfile_report_test($tinfo) if $opt_resfile;
 
   # Allow only alpanumerics pluss _ - + . in combination names,
   # or anything beginning with -- (the latter comes from --combination)
@@ -3867,6 +3942,7 @@ sub run_testcase ($) {
 	# Test case suceeded, but it has produced unexpected
 	# warnings, continue in $res == 1
 	$res= 1;
+	resfile_output($tinfo->{'warnings'}) if $opt_resfile;
       }
 
       if ( $res == 0 )
@@ -3883,6 +3959,7 @@ sub run_testcase ($) {
 	    # Test case had sideeffects, not fatal error, just continue
 	    stop_all_servers($opt_shutdown_timeout);
 	    mtr_report("Resuming tests...\n");
+	    resfile_output($tinfo->{'check'}) if $opt_resfile;
 	  }
 	  else {
 	    # Test case check failed fatally, probably a server crashed
@@ -3944,6 +4021,9 @@ sub run_testcase ($) {
       # Save info from this testcase run to mysqltest.log
       if( -f $path_current_testlog)
       {
+	if ($opt_resfile && $res && $res != 62) {
+	  resfile_output_file($path_current_testlog);
+	}
 	mtr_appendfile_to_file($path_current_testlog, $path_testlog);
 	unlink($path_current_testlog);
       }
