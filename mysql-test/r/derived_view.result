@@ -354,6 +354,11 @@ id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t1	ALL	NULL	NULL	NULL	NULL	11	100.00	Using where
 Warnings:
 Note	1003	select `test`.`t1`.`f1` AS `f1`,`test`.`t1`.`f11` AS `f11` from `test`.`t1` where ((`test`.`t1`.`f1` > 2) and (`test`.`t1`.`f1` < 7))
+select * from (select * from 
+(select * from t1 where f1 < 7) tt where f1 > 2) zz;
+f1	f11
+3	3
+5	5
 materialized derived in merged derived
 explain extended  select * from (select * from 
 (select * from t1 where f1 < 7 group by f1) tt where f1 > 2) zz;
@@ -375,6 +380,11 @@ id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 2	DERIVED	t1	ALL	NULL	NULL	NULL	NULL	11	100.00	Using where; Using temporary; Using filesort
 Warnings:
 Note	1003	select `zz`.`f1` AS `f1`,`zz`.`f11` AS `f11` from (select `test`.`t1`.`f1` AS `f1`,`test`.`t1`.`f11` AS `f11` from `test`.`t1` where ((`test`.`t1`.`f1` > 2) and (`test`.`t1`.`f1` < 7)) group by `test`.`t1`.`f1`) `zz`
+select * from (select * from 
+(select * from t1 where f1 < 7) tt where f1 > 2 group by f1) zz;
+f1	f11
+3	3
+5	5
 materialized derived in materialized derived
 explain extended  select * from (select * from 
 (select * from t1 where f1 < 7 group by f1) tt where f1 > 2 group by f1) zz;
@@ -433,6 +443,16 @@ id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t1	ALL	NULL	NULL	NULL	NULL	11	100.00	Using where; Using join buffer (flat, BNL join)
 Warnings:
 Note	1003	select `test`.`t1`.`f1` AS `f1`,`test`.`t1`.`f11` AS `f11`,`test`.`t1`.`f1` AS `f1`,`test`.`t1`.`f11` AS `f11` from `test`.`t1` join `test`.`t1` where ((`test`.`t1`.`f1` = `test`.`t1`.`f1`) and (`test`.`t1`.`f1` > 2) and (`test`.`t1`.`f1` < 7) and (`test`.`t1`.`f1` > 2) and (`test`.`t1`.`f1` < 7))
+select * from 
+(select * from 
+(select * from t1 where f1 < 7 ) tt where f1 > 2 ) x
+join 
+(select * from 
+(select * from t1 where f1 < 7 ) tt where f1 > 2 ) z
+on x.f1 = z.f1;
+f1	f11	f1	f11
+3	3	3	3
+5	5	5	5
 materialized in materialized derived join 
 materialized in materialized derived
 explain extended  select * from 
@@ -469,6 +489,10 @@ id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 2	DERIVED	t2	ALL	NULL	NULL	NULL	NULL	11	100.00	Using where; Using temporary; Using filesort
 Warnings:
 Note	1003	select `tt`.`f2` AS `f2`,`tt`.`f22` AS `f22` from (select `test`.`t2`.`f2` AS `f2`,`test`.`t2`.`f22` AS `f22` from `test`.`t2` where (`test`.`t2`.`f2` in (2,3)) group by 1) `tt`
+select * from (select * from v4 group by 1) tt;
+f2	f22
+2	2
+3	3
 materialized view in merged derived
 explain extended 
 select * from ( select * from v1 where f1 < 7) tt;
@@ -490,6 +514,10 @@ id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t2	ALL	NULL	NULL	NULL	NULL	11	100.00	Using where
 Warnings:
 Note	1003	select `test`.`t2`.`f2` AS `f2`,`test`.`t2`.`f22` AS `f22` from `test`.`t2` where ((`test`.`t2`.`f2` < 7) and (`test`.`t2`.`f2` in (2,3)))
+select * from (select * from v6) tt;
+f2	f22
+3	3
+2	2
 materialized view in a merged view in a materialized derived
 create view v7 as select * from v1;
 explain extended select * from (select * from v7 group by 1) tt;
@@ -499,6 +527,19 @@ id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 4	DERIVED	t1	ALL	NULL	NULL	NULL	NULL	11	100.00	Using temporary; Using filesort
 Warnings:
 Note	1003	select `tt`.`f1` AS `f1`,`tt`.`f11` AS `f11` from (select `v1`.`f1` AS `f1`,`v1`.`f11` AS `f11` from `test`.`v1` group by 1) `tt`
+select * from (select * from v7 group by 1) tt;
+f1	f11
+1	1
+2	2
+3	3
+5	5
+7	7
+9	9
+11	11
+13	13
+15	15
+17	17
+19	19
 join of above two
 explain extended select * from v6 join v7 on f2=f1;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra

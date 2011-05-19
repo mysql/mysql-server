@@ -110,10 +110,8 @@ select * from v1 join v4 on f1=f2;
 --echo merged derived in merged derived
 explain extended select * from (select * from 
   (select * from t1 where f1 < 7) tt where f1 > 2) zz;
-# !!! This query crashes the server in ps-protocol due to a bug in the code of mwl106
-# !!! Uncomment it when the bug is fixed 
-# select * from (select * from 
-#   (select * from t1 where f1 < 7) tt where f1 > 2) zz;
+select * from (select * from 
+  (select * from t1 where f1 < 7) tt where f1 > 2) zz;
 
 --echo materialized derived in merged derived
 explain extended  select * from (select * from 
@@ -124,10 +122,8 @@ select * from (select * from
 --echo merged derived in materialized derived
 explain  extended select * from (select * from 
   (select * from t1 where f1 < 7) tt where f1 > 2 group by f1) zz;
-# !!! This query crashes the server in ps-protocol due to a bug in the code of mwl106
-# !!! Uncomment it when the bug is fixed 
-# select * from (select * from 
-#   (select * from t1 where f1 < 7) tt where f1 > 2 group by f1) zz;
+select * from (select * from 
+  (select * from t1 where f1 < 7) tt where f1 > 2 group by f1) zz;
 
 --echo materialized derived in materialized derived
 explain extended  select * from (select * from 
@@ -160,15 +156,13 @@ join
   (select * from t1 where f1 < 7 ) tt where f1 > 2 ) z
  on x.f1 = z.f1;
 
-# !!! This query crashes the server in ps-protocol due to a bug in the code of mwl106
-# !!! Uncomment it when the bug is fixed 
-# select * from 
-#  (select * from 
-#   (select * from t1 where f1 < 7 ) tt where f1 > 2 ) x
-# join 
-#  (select * from 
-#   (select * from t1 where f1 < 7 ) tt where f1 > 2 ) z
-#  on x.f1 = z.f1;
+select * from 
+ (select * from 
+  (select * from t1 where f1 < 7 ) tt where f1 > 2 ) x
+join 
+ (select * from 
+  (select * from t1 where f1 < 7 ) tt where f1 > 2 ) z
+ on x.f1 = z.f1;
 
 --echo materialized in materialized derived join 
 --echo   materialized in materialized derived
@@ -191,9 +185,7 @@ join
 --echo merged view in materialized derived
 explain extended
 select * from (select * from v4 group by 1) tt;
-# !!! This query crashes the server in ps-protocol due to a bug in the code of mwl106
-# !!! Uncomment it when the bug is fixed 
-# select * from (select * from v4 group by 1) tt;
+select * from (select * from v4 group by 1) tt;
 
 --echo materialized view in merged derived
 explain extended 
@@ -203,16 +195,12 @@ select * from ( select * from v1 where f1 < 7) tt;
 --echo merged view in a merged view in a merged derived
 create view v6 as select * from v4 where f2 < 7;
 explain extended select * from (select * from v6) tt;
-# !!! This query crashes the server in ps-protocol due to a bug in the code of mwl106
-# !!! Uncomment it when the bug is fixed 
-# select * from (select * from v6) tt;
+select * from (select * from v6) tt;
 
 --echo materialized view in a merged view in a materialized derived
 create view v7 as select * from v1;
 explain extended select * from (select * from v7 group by 1) tt;
-# !!! This query crashes the server in ps-protocol due to a bug in the code of mwl106
-# !!! Uncomment it when the bug is fixed 
-# select * from (select * from v7 group by 1) tt;
+select * from (select * from v7 group by 1) tt;
 
 --echo join of above two
 explain extended select * from v6 join v7 on f2=f1;

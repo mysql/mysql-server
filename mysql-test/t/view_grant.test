@@ -223,7 +223,7 @@ use mysqltest;
 # update with rights on VIEW column
 update t2,v1 set v1.a=v1.a+v1.c where t2.x=v1.c;
 select * from t1;
-# !!! This query failsin ps-protocol due to a bug in the code of mwl106
+# !!! This query fails in ps-protocol due to a bug in the code of mwl106
 # !!! Uncomment it when the bug is fixed 
 # update v1 set a=a+c;
 select * from t1;

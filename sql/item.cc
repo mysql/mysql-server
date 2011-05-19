@@ -6295,7 +6295,7 @@ bool Item_ref::fix_fields(THD *thd, Item **reference)
                       last_checked_context->select_lex->nest_level);
     }
   }
-  else
+  else if (ref_type() != VIEW_REF)
   {
     if (depended_from && reference)
     {
