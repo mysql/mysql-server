@@ -1794,7 +1794,8 @@ BackupRestore::table(const TableS & table){
   
   const NdbTableImpl & tmptab = NdbTableImpl::getImpl(* table.m_dictTable);
   if ((int) tmptab.m_indexType != (int) NdbDictionary::Index::Undefined){
-    m_indexes.push_back(table.m_dictTable);
+    if (!table.getSysTable())
+      m_indexes.push_back(table.m_dictTable);
     return true;
   }
   

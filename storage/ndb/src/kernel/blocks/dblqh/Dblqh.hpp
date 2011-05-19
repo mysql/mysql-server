@@ -563,6 +563,8 @@ public:
     Uint8 scanKeyinfoFlag;
     Uint8 m_last_row;
     Uint8 m_reserved;
+    Uint8 statScan;
+    Uint8 dummy[3]; // align?
   }; // Size 272 bytes
   typedef Ptr<ScanRecord> ScanRecordPtr;
 

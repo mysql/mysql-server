@@ -623,8 +623,12 @@ name VARCHAR(255)
 
 ndb_show_tables completed.....
 
+select id into @tmp1 from ndb_show_tables_results
+where name like '%NDB$IS_SAMPLE_X1%';
 select * from ndb_show_tables_results
 where type like '%Index%'
+and name not like '%NDB$IS_SAMPLE_X1%'
+and name not like concat('%NDB$INDEX_',@tmp1,'_CUSTOM%')
 order by 1,2,3,4,5,6,7;
 id	type	state	logging	_database	_schema	name
 drop table ndb_show_tables_results;

@@ -3396,6 +3396,8 @@ Dblqh::execREAD_PSEUDO_REQ(Signal* signal){
     break;
   }
   case AttributeHeader::RECORDS_IN_RANGE:
+  case AttributeHeader::INDEX_STAT_KEY:
+  case AttributeHeader::INDEX_STAT_VALUE:
   {
     jam();
     // scanptr gets reset somewhere within the timeslice
@@ -10445,6 +10447,7 @@ void Dblqh::continueAfterReceivingAllAiLab(Signal* signal)
   AccScanReq::setLockMode(req->requestInfo, scanptr.p->scanLockMode);
   AccScanReq::setReadCommittedFlag(req->requestInfo, scanptr.p->readCommitted);
   AccScanReq::setDescendingFlag(req->requestInfo, scanptr.p->descending);
+  AccScanReq::setStatScanFlag(req->requestInfo, scanptr.p->statScan);
 
   if (refToMain(tcConnectptr.p->clientBlockref) == BACKUP)
   {
@@ -11516,6 +11519,7 @@ Uint32 Dblqh::initScanrec(const ScanFragReq* scanFragReq,
   scanptr.p->descending = descending;
   scanptr.p->tupScan = tupScan;
   scanptr.p->lcpScan = ScanFragReq::getLcpScanFlag(reqinfo);
+  scanptr.p->statScan = ScanFragReq::getStatScanFlag(reqinfo);
   scanptr.p->scanState = ScanRecord::SCAN_FREE;
   scanptr.p->scanFlag = ZFALSE;
   scanptr.p->m_row_id.setNull();

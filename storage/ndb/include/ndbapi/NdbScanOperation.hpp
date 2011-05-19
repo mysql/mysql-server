@@ -82,7 +82,9 @@ public:
       It is enabled by default for scans using LM_Exclusive, but must be
       explicitly specified to enable the taking-over of LM_Read locks.
     */
-    SF_KeyInfo = 1
+    SF_KeyInfo = 1,
+    /* Statistics scan (INDEX_STAT) */
+    SF_StatScan = 2
   };
 
 
