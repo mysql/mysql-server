@@ -695,7 +695,7 @@ fractional:
 int check_time_range(struct st_mysql_time *my_time, uint dec, int *warning) 
 {
   longlong hour;
-  static ulong max_sec_part[MAX_SEC_PART_DIGITS+1]= {000000, 900000, 990000,
+  static ulong max_sec_part[TIME_SECOND_PART_DIGITS+1]= {000000, 900000, 990000,
                                              999000, 999900, 999990, 999999};
 
   if (my_time->minute >= 60 || my_time->second >= 60)
@@ -704,7 +704,7 @@ int check_time_range(struct st_mysql_time *my_time, uint dec, int *warning)
   hour= my_time->hour + (24*my_time->day);
 
   if (dec == AUTO_SEC_PART_DIGITS)
-    dec= MAX_SEC_PART_DIGITS;
+    dec= TIME_SECOND_PART_DIGITS;
 
   if (hour <= TIME_MAX_HOUR &&
       (hour != TIME_MAX_HOUR || my_time->minute != TIME_MAX_MINUTE ||
@@ -1042,9 +1042,9 @@ int my_time_to_str(const MYSQL_TIME *l_time, char *to, int digits)
   ulong day= (l_time->year || l_time->month) ? 0 : l_time->day;
 
   if (digits == AUTO_SEC_PART_DIGITS)
-    digits= l_time->second_part ? MAX_SEC_PART_DIGITS : 0;
+    digits= l_time->second_part ? TIME_SECOND_PART_DIGITS : 0;
 
-  DBUG_ASSERT(digits >= 0 && digits <= MAX_SEC_PART_DIGITS);
+  DBUG_ASSERT(digits >= 0 && digits <= TIME_SECOND_PART_DIGITS);
 
   return sprintf(to,
                  digits ? "%s%02lu:%02u:%02u.%0*lu"
@@ -1063,9 +1063,9 @@ int my_date_to_str(const MYSQL_TIME *l_time, char *to)
 int my_datetime_to_str(const MYSQL_TIME *l_time, char *to, int digits)
 {
   if (digits == AUTO_SEC_PART_DIGITS)
-    digits= l_time->second_part ? MAX_SEC_PART_DIGITS : 0;
+    digits= l_time->second_part ? TIME_SECOND_PART_DIGITS : 0;
 
-  DBUG_ASSERT(digits >= 0 && digits <= MAX_SEC_PART_DIGITS);
+  DBUG_ASSERT(digits >= 0 && digits <= TIME_SECOND_PART_DIGITS);
 
   return sprintf(to,
                  digits ? "%04u-%02u-%02u %02u:%02u:%02u.%0*lu"

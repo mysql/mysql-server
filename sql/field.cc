@@ -5056,7 +5056,7 @@ static uint sec_part_bytes[MAX_DATETIME_PRECISION+1]= { 0, 1, 1, 2, 2, 3, 3 };
 static uint datetime_hires_bytes[MAX_DATETIME_PRECISION+1]=
 { 5, 6, 6, 7, 7, 7, 8 };
 static uint time_hires_bytes[MAX_DATETIME_PRECISION+1]=
-{ 3, 4, 4, 4, 5, 5, 6 };
+{ 3, 4, 4, 5, 5, 5, 6 };
 
 void Field_timestamp_hires::store_TIME(my_time_t timestamp, ulong sec_part)
 {
@@ -5520,7 +5520,14 @@ String *Field_time_hires::val_str(String *str,
 
 bool Field_time_hires::get_date(MYSQL_TIME *ltime, uint fuzzydate)
 {
-  ulonglong packed= read_bigendian(ptr, Field_time_hires::pack_length());
+  uint32 len= pack_length();
+  longlong packed= read_bigendian(ptr, len);
+
+  /* sign extension */
+  longlong mask= 1LL << (len*8 - 1);
+  if (packed & mask)
+    packed|= ~(mask-1);
+
   unpack_time(sec_part_unshift(packed, dec), ltime);
   /*
     unpack_time() returns MYSQL_TIMESTAMP_DATETIME.

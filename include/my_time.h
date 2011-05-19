@@ -70,8 +70,10 @@ typedef long my_time_t;
 #define TIME_MAX_MINUTE 59
 #define TIME_MAX_SECOND 59
 #define TIME_MAX_SECOND_PART 999999
+#define TIME_SECOND_PART_FACTOR (TIME_MAX_SECOND_PART+1)
+#define TIME_SECOND_PART_DIGITS 6
 #define TIME_MAX_VALUE (TIME_MAX_HOUR*10000 + TIME_MAX_MINUTE*100 + \
-                        TIME_MAX_SECOND + TIME_MAX_SECOND_PART/1e6)
+                        TIME_MAX_SECOND + TIME_MAX_SECOND_PART/(double)TIME_SECOND_PART_FACTOR)
 #define TIME_MAX_VALUE_SECONDS (TIME_MAX_HOUR * 3600L + \
                                 TIME_MAX_MINUTE * 60L + TIME_MAX_SECOND)
 
@@ -139,8 +141,6 @@ void set_zero_time(MYSQL_TIME *tm, enum enum_mysql_timestamp_type time_type);
   sent using binary protocol fit in this buffer.
 */
 #define MAX_DATE_STRING_REP_LENGTH 30
-#define MAX_SEC_PART_VALUE  999999
-#define MAX_SEC_PART_DIGITS 6
 #define AUTO_SEC_PART_DIGITS 31 /* same as NOT_FIXED_DEC */
 
 int my_time_to_str(const MYSQL_TIME *l_time, char *to, int digits);
@@ -150,16 +150,16 @@ int my_TIME_to_str(const MYSQL_TIME *l_time, char *to, int digits);
 
 static inline longlong sec_part_shift(longlong second_part, int digits)
 {
-  return second_part / log_10_int[MAX_SEC_PART_DIGITS - digits];
+  return second_part / (longlong)log_10_int[TIME_SECOND_PART_DIGITS - digits];
 }
 static inline longlong sec_part_unshift(longlong second_part, int digits)
 {
-  return second_part * log_10_int[MAX_SEC_PART_DIGITS - digits];
+  return second_part * (longlong)log_10_int[TIME_SECOND_PART_DIGITS - digits];
 }
 static inline ulong sec_part_truncate(ulong second_part, int digits)
 {
   /* the cast here should be unnecessary! */
-  return second_part - second_part % (ulong)log_10_int[MAX_SEC_PART_DIGITS - digits];
+  return second_part - second_part % (ulong)log_10_int[TIME_SECOND_PART_DIGITS - digits];
 }
 
 #define hrtime_to_my_time(X) ((my_time_t)hrtime_to_time(X))

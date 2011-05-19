@@ -894,6 +894,7 @@ extern ulong crc32(ulong crc, const uchar *buf, uint len);
 extern uint my_set_max_open_files(uint files);
 void my_free_open_file_info(void);
 
+#define HRTIME_RESOLUTION               1000000
 typedef struct {ulonglong val;} my_hrtime_t;
 typedef struct {ulonglong val;} my_timediff_t;
 void my_time_init();
@@ -904,7 +905,7 @@ extern ulonglong my_getsystime(void);
 #define my_micro_time()                 (my_getsystime()/10)
 #define hrtime_to_time(X)               ((X).val/1000000)
 #define hrtime_from_time(X)             ((ulonglong)((X)*1000000ULL))
-#define hrtime_to_double(X)             ((X).val/1e6)
+#define hrtime_to_double(X)             ((X).val/(double)HRTIME_RESOLUTION)
 #define hrtime_sec_part(X)              ((ulong)((X).val%1000000))
 #define my_time(X)                      hrtime_to_time(my_hrtime())
 #define my_micro_and_hrtime(X,Y)        my_diff_and_hrtime(X,Y)

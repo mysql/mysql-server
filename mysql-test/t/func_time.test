@@ -15,6 +15,7 @@ select now()-now(),weekday(curdate())-weekday(now()),unix_timestamp()-unix_times
 select from_unixtime(unix_timestamp("1994-03-02 10:11:12")),from_unixtime(unix_timestamp("1994-03-02 10:11:12"),"%Y-%m-%d %h:%i:%s"),from_unixtime(unix_timestamp("1994-03-02 10:11:12"))+0;
 select sec_to_time(9001),sec_to_time(9001)+0,time_to_sec("15:12:22"),
   sec_to_time(time_to_sec("0:30:47")/6.21);
+select sec_to_time(9001.1), time_to_sec('15:12:22.123456'), time_to_sec(15.5566778899);
 select sec_to_time(time_to_sec('-838:59:59'));
 select now()-curdate()*1000000-curtime();
 select strcmp(current_timestamp(),concat(current_date()," ",current_time()));
@@ -926,7 +927,7 @@ select convert_tz(timediff('0000-00-00 00:00:00', cast('2008-03-26 07:09:06' as 
 # lp:736370 Datetime functions in subquery context cause wrong result and bogus warnings in mysql-5.1-micr
 #
 create table t1 (f1 integer, f2 date);
-insert into t1 values (1,'2011-05-05'),(2,'2011-05-05'),(3,'2011-05-05'),(4,'2011-05-05'),(5,'2011-05-05');
+insert into t1 values (1,'2011-05-05'),(2,'2011-05-05'),(3,'2011-05-05'),(4,'2011-05-05'),(5,'2011-05-05'),(6, '2011-05-06');
 select * from t1 where 1 and concat(f2)=MAKEDATE(2011, 125);
 drop table t1;
 

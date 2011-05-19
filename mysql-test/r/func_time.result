@@ -16,6 +16,11 @@ select sec_to_time(9001),sec_to_time(9001)+0,time_to_sec("15:12:22"),
 sec_to_time(time_to_sec("0:30:47")/6.21);
 sec_to_time(9001)	sec_to_time(9001)+0	time_to_sec("15:12:22")	sec_to_time(time_to_sec("0:30:47")/6.21)
 02:30:01	23001	54742	00:04:57.423510
+select sec_to_time(9001.1), time_to_sec('15:12:22.123456'), time_to_sec(15.5566778899);
+sec_to_time(9001.1)	time_to_sec('15:12:22.123456')	time_to_sec(15.5566778899)
+02:30:01.1	54742.123456	15.556677
+Warnings:
+Warning	1292	Truncated incorrect time value: '15.5566778899'
 select sec_to_time(time_to_sec('-838:59:59'));
 sec_to_time(time_to_sec('-838:59:59'))
 -838:59:59
@@ -1487,7 +1492,7 @@ select convert_tz(timediff('0000-00-00 00:00:00', cast('2008-03-26 07:09:06' as 
 convert_tz(timediff('0000-00-00 00:00:00', cast('2008-03-26 07:09:06' as datetime)), 'UTC', 'Europe/Moscow')
 NULL
 create table t1 (f1 integer, f2 date);
-insert into t1 values (1,'2011-05-05'),(2,'2011-05-05'),(3,'2011-05-05'),(4,'2011-05-05'),(5,'2011-05-05');
+insert into t1 values (1,'2011-05-05'),(2,'2011-05-05'),(3,'2011-05-05'),(4,'2011-05-05'),(5,'2011-05-05'),(6, '2011-05-06');
 select * from t1 where 1 and concat(f2)=MAKEDATE(2011, 125);
 f1	f2
 1	2011-05-05

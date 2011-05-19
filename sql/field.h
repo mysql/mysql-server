@@ -1234,7 +1234,7 @@ public:
   dec(dec_arg)
   {
     DBUG_ASSERT(dec);
-    DBUG_ASSERT(dec <= MAX_SEC_PART_DIGITS);
+    DBUG_ASSERT(dec <= TIME_SECOND_PART_DIGITS);
   }
   void sql_type(String &str) const;
   long get_timestamp(ulong *sec_part) const;
@@ -1407,7 +1407,7 @@ public:
      dec(dec_arg)
   {
     DBUG_ASSERT(dec);
-    DBUG_ASSERT(dec <= MAX_SEC_PART_DIGITS);
+    DBUG_ASSERT(dec <= TIME_SECOND_PART_DIGITS);
   }
   enum ha_base_keytype key_type() const { return HA_KEYTYPE_BINARY; }
   uint decimals() const { return dec; }
@@ -1476,7 +1476,7 @@ public:
                     field_name_arg, cs), dec(dec_arg)
   {
     DBUG_ASSERT(dec);
-    DBUG_ASSERT(dec <= MAX_SEC_PART_DIGITS);
+    DBUG_ASSERT(dec <= TIME_SECOND_PART_DIGITS);
   }
   enum ha_base_keytype key_type() const { return HA_KEYTYPE_BINARY; }
   int store_decimal(const my_decimal *d);

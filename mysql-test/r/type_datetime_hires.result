@@ -1,6 +1,6 @@
 drop table if exists t1, t2, t3;
 create table t1 (a datetime(7));
-ERROR 42000: Too big precision 7 specified for column 'a'. Maximum is 6.
+ERROR 42000: Too big precision 7 specified for 'a'. Maximum is 6.
 create table t1 (a datetime(3), key(a));
 insert t1 values ('2010-12-11 00:20:03.1234');
 insert t1 values ('2010-12-11 15:47:11.1234');
@@ -147,6 +147,10 @@ t2	CREATE TABLE `t2` (
   `a` datetime(6) DEFAULT NULL,
   `b` datetime(6) DEFAULT NULL
 ) ENGINE=MyISAM DEFAULT CHARSET=latin1
+select * from t2;
+a	b
+2010-02-03 04:05:06.000000	2010-02-03 04:05:06.789100
+2011-01-02 03:04:06.234500	2011-01-02 03:04:06.234561
 drop view v1;
 drop table t1, t2;
 CREATE TABLE t1 (
@@ -213,4 +217,130 @@ t1	p03	RANGE	to_days(taken)	MAXVALUE	3
 t2	p01	RANGE	extract(microsecond from taken)	123000	3
 t2	p02	RANGE	extract(microsecond from taken)	500000	4
 t2	p03	RANGE	extract(microsecond from taken)	MAXVALUE	3
+drop table t1, t2;
+create table t1 (
+q_date date,
+q_time time,
+q_time5 time(5),
+q_datetime datetime,
+q_datetime1 datetime(1),
+q_datetime3 datetime(3),
+q_datetime5 datetime(5),
+q_timestamp timestamp,
+q_timestamp2 timestamp(2),
+q_timestamp4 timestamp(4),
+q_timestamp6 timestamp(6),
+q_varchar50 varchar(50),
+q_varchar60 varchar(60),
+q_varchar70 varchar(70),
+q_varchar80 varchar(80));
+create table t2 (
+date_datetime datetime,
+time_datetime datetime,
+time5_varchar100 varchar(100),
+datetime_time time,
+datetime1_date  date,
+datetime3_timestamp timestamp,
+datetime5_varchar100 varchar(100),
+timestamp_datetime datetime,
+timestamp2_date date,
+timestamp4_time time,
+timestamp6_varchar100 varchar(100),
+varchar50_date date,
+varchar60_datetime datetime,
+varchar70_time time,
+varchar80_timestamp timestamp);
+insert t1 values ('2010-11-12 11:14:17.765432',
+'2010-11-12 11:14:17.765432', '2010-11-12 11:14:17.765432',
+'2010-11-12 11:14:17.765432', '2010-11-12 11:14:17.765432',
+'2010-11-12 11:14:17.765432', '2010-11-12 11:14:17.765432',
+'2010-11-12 11:14:17.765432', '2010-11-12 11:14:17.765432',
+'2010-11-12 11:14:17.765432', '2010-11-12 11:14:17.765432',
+'2010-11-12 11:14:17.765432', '2010-11-12 11:14:17.765432',
+'2010-11-12 11:14:17.765432', '2010-11-12 11:14:17.765432');
+Warnings:
+Note	1265	Data truncated for column 'q_date' at row 1
+Note	1265	Data truncated for column 'q_time' at row 1
+Note	1265	Data truncated for column 'q_time5' at row 1
+select * from t1;;
+q_date	2010-11-12
+q_time	11:14:17
+q_time5	11:14:17.76543
+q_datetime	2010-11-12 11:14:17
+q_datetime1	2010-11-12 11:14:17.7
+q_datetime3	2010-11-12 11:14:17.765
+q_datetime5	2010-11-12 11:14:17.76543
+q_timestamp	2010-11-12 11:14:17
+q_timestamp2	2010-11-12 11:14:17.76
+q_timestamp4	2010-11-12 11:14:17.7654
+q_timestamp6	2010-11-12 11:14:17.765432
+q_varchar50	2010-11-12 11:14:17.765432
+q_varchar60	2010-11-12 11:14:17.765432
+q_varchar70	2010-11-12 11:14:17.765432
+q_varchar80	2010-11-12 11:14:17.765432
+insert t2 select * from t1;
+Warnings:
+Warning	1265	Data truncated for column 'time_datetime' at row 1
+Note	1265	Data truncated for column 'datetime_time' at row 1
+Note	1265	Data truncated for column 'datetime1_date' at row 1
+Note	1265	Data truncated for column 'timestamp2_date' at row 1
+Note	1265	Data truncated for column 'timestamp4_time' at row 1
+Note	1265	Data truncated for column 'varchar50_date' at row 1
+Note	1265	Data truncated for column 'varchar70_time' at row 1
+select * from t2;;
+date_datetime	2010-11-12 00:00:00
+time_datetime	0000-00-00 00:00:00
+time5_varchar100	11:14:17.76543
+datetime_time	11:14:17
+datetime1_date	2010-11-12
+datetime3_timestamp	2010-11-12 11:14:17
+datetime5_varchar100	2010-11-12 11:14:17.76543
+timestamp_datetime	2010-11-12 11:14:17
+timestamp2_date	2010-11-12
+timestamp4_time	11:14:17
+timestamp6_varchar100	2010-11-12 11:14:17.765432
+varchar50_date	2010-11-12
+varchar60_datetime	2010-11-12 11:14:17
+varchar70_time	11:14:17
+varchar80_timestamp	2010-11-12 11:14:17
+alter table t1
+change q_date date_datetime datetime,
+change q_time time_datetime datetime,
+change q_time5 time5_varchar100 varchar(100),
+change q_datetime datetime_time time,
+change q_datetime1 datetime1_date  date,
+change q_datetime3 datetime3_timestamp timestamp,
+change q_datetime5 datetime5_varchar100 varchar(100),
+change q_timestamp timestamp_datetime datetime,
+change q_timestamp2 timestamp2_date date,
+change q_timestamp4 timestamp4_time time,
+change q_timestamp6 timestamp6_varchar100 varchar(100),
+change q_varchar50 varchar50_date date,
+change q_varchar60 varchar60_datetime datetime,
+change q_varchar70 varchar70_time time,
+change q_varchar80 varchar80_timestamp timestamp;
+Warnings:
+Warning	1265	Data truncated for column 'time_datetime' at row 1
+Note	1265	Data truncated for column 'datetime_time' at row 1
+Note	1265	Data truncated for column 'datetime1_date' at row 1
+Note	1265	Data truncated for column 'timestamp2_date' at row 1
+Note	1265	Data truncated for column 'timestamp4_time' at row 1
+Note	1265	Data truncated for column 'varchar50_date' at row 1
+Note	1265	Data truncated for column 'varchar70_time' at row 1
+select * from t1;;
+date_datetime	2010-11-12 00:00:00
+time_datetime	0000-00-00 00:00:00
+time5_varchar100	11:14:17.76543
+datetime_time	11:14:17
+datetime1_date	2010-11-12
+datetime3_timestamp	2010-11-12 11:14:17
+datetime5_varchar100	2010-11-12 11:14:17.76543
+timestamp_datetime	2010-11-12 11:14:17
+timestamp2_date	2010-11-12
+timestamp4_time	11:14:17
+timestamp6_varchar100	2010-11-12 11:14:17.765432
+varchar50_date	2010-11-12
+varchar60_datetime	2010-11-12 11:14:17
+varchar70_time	11:14:17
+varchar80_timestamp	2010-11-12 11:14:17
 drop table t1, t2;

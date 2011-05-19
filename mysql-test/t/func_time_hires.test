@@ -9,9 +9,9 @@ select now(), curtime(0), utc_timestamp(1), utc_time(2), current_time(3),
 select sec_to_time(time_to_sec('1:2:3')), sec_to_time(time_to_sec('2:3:4.567890'));
 select time_to_sec(sec_to_time(11111)), time_to_sec(sec_to_time(11111.22222));
 --horizontal_results
---error ER_WRONG_ARGUMENTS
+--error ER_TOO_BIG_PRECISION
 select current_timestamp(7);
---error ER_WRONG_ARGUMENTS
+--error ER_TOO_BIG_PRECISION
 select curtime(7);
 
 --disable_warnings
@@ -85,12 +85,12 @@ drop table t1;
 create table t1 (f1 timestamp(6));
 insert into t1 values ('2002-07-15 21:00:00');
 select time(f1) from t1;
-select time(f1) from t1 union all select time(f1) from t1;
+select time(f1) from t1 union all select time(f1 + interval 1 second) from t1;
 alter table t1 modify f1 timestamp;
 select time(f1) from t1;
-select time(f1) from t1 union all select time(f1) from t1;
+select time(f1) from t1 union all select time(f1 + interval 1 second) from t1;
 # but the effect cannot be eliminated completely:
 alter table t1 modify f1 varchar(100);
 select time(f1) from t1;
-select time(f1) from t1 union all select time(f1) from t1;
+select time(f1) from t1 union all select time(f1 + interval 1 second) from t1;
 drop table t1;

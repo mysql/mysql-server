@@ -115,3 +115,11 @@ select * from t1 force key (f1) where f1 < curdate();
 select * from t1 ignore key (f1) where f1 < curdate();
 drop table t1;
 
+#
+# comparison of time and datetime:
+#
+create table t1(f1 time);
+insert into t1 values ('23:38:57');
+select f1, f1 = '2010-10-11 23:38:57' from t1;
+drop table t1;
+

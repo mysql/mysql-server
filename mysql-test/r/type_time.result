@@ -167,3 +167,9 @@ f1	f2
 00:20:01	a
 00:20:03	b
 drop table t1;
+create table t1(f1 time);
+insert into t1 values ('23:38:57');
+select f1, f1 = '2010-10-11 23:38:57' from t1;
+f1	f1 = '2010-10-11 23:38:57'
+23:38:57	0
+drop table t1;

@@ -4105,6 +4105,11 @@ str_to_date('2007-10-09','%Y-%m-%d') <= '2007/10/20 00:00:00 GMT-6'
 1
 Warnings:
 Warning	1292	Truncated incorrect date value: '2007/10/20 00:00:00 GMT-6'
+select str_to_date('2007-10-09','%Y-%m-%d') <= '2007/10/2000:00:00 GMT-6';
+str_to_date('2007-10-09','%Y-%m-%d') <= '2007/10/2000:00:00 GMT-6'
+0
+Warnings:
+Warning	1292	Truncated incorrect date value: '2007/10/2000:00:00 GMT-6'
 select str_to_date('2007-10-01','%Y-%m-%d') = '2007-10-1 00:00:00 GMT-6';
 str_to_date('2007-10-01','%Y-%m-%d') = '2007-10-1 00:00:00 GMT-6'
 1
@@ -4168,14 +4173,10 @@ str_to_date('2007-10-00','%Y-%m-%d') between '2007/09/01 00:00:00'
 set SQL_MODE=TRADITIONAL;
 select str_to_date('2007-10-00 12:34','%Y-%m-%d %H:%i') = '2007-10-00 12:34';
 str_to_date('2007-10-00 12:34','%Y-%m-%d %H:%i') = '2007-10-00 12:34'
-0
-Warnings:
-Warning	1292	Truncated incorrect datetime value: '2007-10-00 12:34'
+1
 select str_to_date('2007-10-01 12:34','%Y-%m-%d %H:%i') = '2007-10-00 12:34';
 str_to_date('2007-10-01 12:34','%Y-%m-%d %H:%i') = '2007-10-00 12:34'
 0
-Warnings:
-Warning	1292	Truncated incorrect datetime value: '2007-10-00 12:34'
 select str_to_date('2007-10-00 12:34','%Y-%m-%d %H:%i') = '2007-10-01 12:34';
 str_to_date('2007-10-00 12:34','%Y-%m-%d %H:%i') = '2007-10-01 12:34'
 0
@@ -4219,14 +4220,23 @@ str_to_date('','%Y-%m-%d') = ''
 1
 Warnings:
 Warning	1292	Truncated incorrect date value: ''
-select str_to_date('1000-01-01','%Y-%m-%d') between '0000-00-00' and NULL;
-str_to_date('1000-01-01','%Y-%m-%d') between '0000-00-00' and NULL
+select str_to_date('2000-01-01','%Y-%m-%d') between '1000-01-01' and '2001-01-01';
+str_to_date('2000-01-01','%Y-%m-%d') between '1000-01-01' and '2001-01-01'
+1
+select str_to_date('2000-01-01','%Y-%m-%d') between '1000-01-01' and NULL;
+str_to_date('2000-01-01','%Y-%m-%d') between '1000-01-01' and NULL
 NULL
-select str_to_date('1000-01-01','%Y-%m-%d') between NULL and '2000-00-00';
-str_to_date('1000-01-01','%Y-%m-%d') between NULL and '2000-00-00'
+select str_to_date('2000-01-01','%Y-%m-%d') between NULL and '2001-01-01';
+str_to_date('2000-01-01','%Y-%m-%d') between NULL and '2001-01-01'
 NULL
-select str_to_date('1000-01-01','%Y-%m-%d') between NULL and NULL;
-str_to_date('1000-01-01','%Y-%m-%d') between NULL and NULL
+select str_to_date('2000-01-01','%Y-%m-%d') between '2001-01-01' and NULL;
+str_to_date('2000-01-01','%Y-%m-%d') between '2001-01-01' and NULL
+0
+select str_to_date('2000-01-01','%Y-%m-%d') between NULL and '1000-01-01';
+str_to_date('2000-01-01','%Y-%m-%d') between NULL and '1000-01-01'
+0
+select str_to_date('2000-01-01','%Y-%m-%d') between NULL and NULL;
+str_to_date('2000-01-01','%Y-%m-%d') between NULL and NULL
 NULL
 CREATE TABLE t1 (c11 INT UNSIGNED NOT NULL AUTO_INCREMENT PRIMARY KEY);
 CREATE TABLE t2 (c21 INT UNSIGNED NOT NULL, 

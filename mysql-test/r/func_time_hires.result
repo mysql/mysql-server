@@ -23,9 +23,9 @@ select time_to_sec(sec_to_time(11111)), time_to_sec(sec_to_time(11111.22222));
 time_to_sec(sec_to_time(11111))	11111
 time_to_sec(sec_to_time(11111.22222))	11111.22222
 select current_timestamp(7);
-ERROR HY000: Incorrect arguments to now
+ERROR 42000: Too big precision 7 specified for 'now'. Maximum is 6.
 select curtime(7);
-ERROR HY000: Incorrect arguments to curtime
+ERROR 42000: Too big precision 7 specified for 'curtime'. Maximum is 6.
 drop table if exists t1;
 create table t1 select sec_to_time(12345), sec_to_time(12345.6789),
 sec_to_time(1234567e-2), now(), curtime(0),
@@ -130,7 +130,7 @@ t5	12:13:14.12345
 t6	12:13:14.123456
 drop table t1;
 select CAST(@a AS DATETIME(7));
-ERROR 42000: Too big precision 7 specified for column '(@a)'. Maximum is 6.
+ERROR 42000: Too big precision 7 specified for '(@a)'. Maximum is 6.
 SELECT CONVERT_TZ('2011-01-02 12:00:00', '+00:00', '+03:00');
 CONVERT_TZ('2011-01-02 12:00:00', '+00:00', '+03:00')
 2011-01-02 15:00:00
@@ -154,24 +154,24 @@ insert into t1 values ('2002-07-15 21:00:00');
 select time(f1) from t1;
 time(f1)
 21:00:00.000000
-select time(f1) from t1 union all select time(f1) from t1;
+select time(f1) from t1 union all select time(f1 + interval 1 second) from t1;
 time(f1)
 21:00:00.000000
-21:00:00.000000
+21:00:01.000000
 alter table t1 modify f1 timestamp;
 select time(f1) from t1;
 time(f1)
 21:00:00
-select time(f1) from t1 union all select time(f1) from t1;
+select time(f1) from t1 union all select time(f1 + interval 1 second) from t1;
 time(f1)
 21:00:00
-21:00:00
+21:00:01
 alter table t1 modify f1 varchar(100);
 select time(f1) from t1;
 time(f1)
 21:00:00
-select time(f1) from t1 union all select time(f1) from t1;
+select time(f1) from t1 union all select time(f1 + interval 1 second) from t1;
 time(f1)
 21:00:00.000000
-21:00:00.000000
+21:00:01.000000
 drop table t1;

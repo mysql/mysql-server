@@ -629,12 +629,14 @@ int Arg_comparator::set_compare_func(Item_result_field *item, Item_result type)
   @param[in]   warn_name  Field name for issuing the warning
   @param[out]  l_time     The MYSQL_TIME objects is initialized.
 
-  Parses a date provided in the string str into a MYSQL_TIME object. If the
-  string contains an incorrect date or doesn't correspond to a date at all
-  then a warning is issued. The warn_type and the warn_name arguments are used
-  as the name and the type of the field when issuing the warning. If any input
-  was discarded (trailing or non-timestamp-y characters), return value will be
-  TRUE.
+  Parses a date provided in the string str into a MYSQL_TIME object.
+  The date is used for comparison, that is fuzzy dates are allowed
+  independently of sql_mode.
+  If the string contains an incorrect date or doesn't correspond to a date at
+  all then a warning is issued. The warn_type and the warn_name arguments are
+  used as the name and the type of the field when issuing the warning. If any
+  input was discarded (trailing or non-timestamp-y characters), return value
+  will be TRUE.
 
   @return Status flag
   @retval FALSE Success.
@@ -648,8 +650,6 @@ bool get_mysql_time_from_str(THD *thd, String *str, timestamp_type warn_type,
   int error;
   enum_mysql_timestamp_type timestamp_type;
   int flags= TIME_FUZZY_DATE | MODE_INVALID_DATES;
-
-  flags|= thd->variables.sql_mode & (MODE_NO_ZERO_IN_DATE | MODE_NO_ZERO_DATE);
 
   if (warn_type == MYSQL_TIMESTAMP_TIME)
     flags|= TIME_TIME_ONLY;

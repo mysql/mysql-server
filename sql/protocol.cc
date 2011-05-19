@@ -1200,7 +1200,7 @@ bool Protocol_binary::store(MYSQL_TIME *tm, int decimals)
   pos[5]= (uchar) tm->minute;
   pos[6]= (uchar) tm->second;
   DBUG_ASSERT(decimals == AUTO_SEC_PART_DIGITS ||
-              (decimals >= 0 && decimals <= MAX_SEC_PART_DIGITS));
+              (decimals >= 0 && decimals <= TIME_SECOND_PART_DIGITS));
   if (decimals != AUTO_SEC_PART_DIGITS)
     tm->second_part= sec_part_truncate(tm->second_part, decimals);
   int4store(pos+7, tm->second_part);
@@ -1242,7 +1242,7 @@ bool Protocol_binary::store_time(MYSQL_TIME *tm, int decimals)
   pos[6]= (uchar) tm->minute;
   pos[7]= (uchar) tm->second;
   DBUG_ASSERT(decimals == AUTO_SEC_PART_DIGITS ||
-              (decimals >= 0 && decimals <= MAX_SEC_PART_DIGITS));
+              (decimals >= 0 && decimals <= TIME_SECOND_PART_DIGITS));
   if (decimals != AUTO_SEC_PART_DIGITS)
     tm->second_part= sec_part_truncate(tm->second_part, decimals);
   int4store(pos+8, tm->second_part);

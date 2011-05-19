@@ -332,7 +332,9 @@ public:
   void fix_length_and_dec()
   {
     maybe_null= TRUE;
-    decimals=args[0]->decimals;
+    decimals= args[0]->decimals;
+    if (decimals != NOT_FIXED_DEC)
+      set_if_smaller(decimals, TIME_SECOND_PART_DIGITS);
     max_length=17;
   }
   bool check_partition_func_processor(uchar *int_arg) {return FALSE;}
@@ -389,7 +391,7 @@ public:
   void fix_length_and_dec()
   {
     max_length= MAX_TIME_WIDTH +
-                   (decimals ? min(decimals, MAX_SEC_PART_DIGITS)+1 : 0);
+                   (decimals ? min(decimals, TIME_SECOND_PART_DIGITS)+1 : 0);
   }
 };
 
@@ -597,8 +599,8 @@ public:
     collation.set(&my_charset_bin);
     maybe_null=1;
     decimals= args[0]->decimals;
-    if (decimals != NOT_FIXED_DEC && decimals > MAX_SEC_PART_DIGITS)
-      decimals= MAX_SEC_PART_DIGITS;
+    if (decimals != NOT_FIXED_DEC)
+      set_if_smaller(decimals, TIME_SECOND_PART_DIGITS);
     Item_timefunc::fix_length_and_dec();
   }
   const char *func_name() const { return "sec_to_time"; }
@@ -700,9 +702,13 @@ public:
     maybe_null= 1;
     max_length= MIN_TIME_WIDTH;
     if (decimals == NOT_FIXED_DEC)
+    {
       decimals= args[0]->decimals;
+      if (decimals != NOT_FIXED_DEC)
+        set_if_smaller(decimals, TIME_SECOND_PART_DIGITS);
+    }
     if (decimals && decimals != NOT_FIXED_DEC)
-      max_length+= min(decimals, MAX_SEC_PART_DIGITS) + 1;
+      max_length+= min(decimals, TIME_SECOND_PART_DIGITS) + 1;
   }
 };
 
@@ -722,7 +728,7 @@ public:
     maybe_null= 1;
     max_length= MAX_DATETIME_WIDTH;
     if (decimals && decimals != NOT_FIXED_DEC)
-      max_length+= min(decimals, MAX_SEC_PART_DIGITS) + 1;
+      max_length+= min(decimals, TIME_SECOND_PART_DIGITS) + 1;
   }
 };
 

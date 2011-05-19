@@ -1,6 +1,6 @@
 drop table if exists t1, t2, t3;
 create table t1 (a time(7));
-ERROR 42000: Too big precision 7 specified for column 'a'. Maximum is 6.
+ERROR 42000: Too big precision 7 specified for 'a'. Maximum is 6.
 create table t1 (a time(3), key(a));
 insert t1 values ('2010-12-11 00:20:03.1234');
 Warnings:
@@ -163,5 +163,24 @@ t2	CREATE TABLE `t2` (
   `a` time(6) DEFAULT NULL,
   `b` time(6) DEFAULT NULL
 ) ENGINE=MyISAM DEFAULT CHARSET=latin1
+select * from t2;
+a	b
+03:04:06.234500	03:04:06.234561
+04:05:06.000000	04:05:06.789100
 drop view v1;
 drop table t1, t2;
+create table t1 (a time(4) not null);
+insert into t1 values ('-00:00:00.6'),('-00:00:00.7'),('-00:00:00.8'),('-00:00:00.9'),('-00:00:01.0'),('-00:00:01.1'),('-00:00:01.000000'),('-00:00:01.100001'),('-00:00:01.000002'),('-00:00:01.090000');
+select * from t1;
+a
+-00:00:00.6000
+-00:00:00.7000
+-00:00:00.8000
+-00:00:00.9000
+-00:00:01.0000
+-00:00:01.1000
+-00:00:01.0000
+-00:00:01.1000
+-00:00:01.0000
+-00:00:01.0900
+drop table t1;

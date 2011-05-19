@@ -89,6 +89,7 @@ select * from v1;
 show columns from v1;
 create table t2 select * from v1;
 show create table t2;
+select * from t2;
 
 drop view v1;
 drop table t1, t2;

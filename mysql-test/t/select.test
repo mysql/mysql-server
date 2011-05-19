@@ -3514,6 +3514,7 @@ select str_to_date('2007-10-09','%Y-%m-%d') between '2007/10/01 00:00:00 GMT'
                                                 and '2007/10/20 00:00:00 GMT';
 select str_to_date('2007-10-09','%Y-%m-%d') > '2007/10/01 00:00:00 GMT-6';
 select str_to_date('2007-10-09','%Y-%m-%d') <= '2007/10/20 00:00:00 GMT-6';
+select str_to_date('2007-10-09','%Y-%m-%d') <= '2007/10/2000:00:00 GMT-6';
 
 # We have all we need -- and trailing garbage:
 # (leaving out a leading zero in first example to prove it's a
@@ -3562,10 +3563,12 @@ select str_to_date('1','%Y-%m-%d') = '1';
 select str_to_date('1','%Y-%m-%d') = '1';
 select str_to_date('','%Y-%m-%d') = '';
 
-# these three should work!
-select str_to_date('1000-01-01','%Y-%m-%d') between '0000-00-00' and NULL;
-select str_to_date('1000-01-01','%Y-%m-%d') between NULL and '2000-00-00';
-select str_to_date('1000-01-01','%Y-%m-%d') between NULL and NULL;
+select str_to_date('2000-01-01','%Y-%m-%d') between '1000-01-01' and '2001-01-01';
+select str_to_date('2000-01-01','%Y-%m-%d') between '1000-01-01' and NULL;
+select str_to_date('2000-01-01','%Y-%m-%d') between NULL and '2001-01-01';
+select str_to_date('2000-01-01','%Y-%m-%d') between '2001-01-01' and NULL;
+select str_to_date('2000-01-01','%Y-%m-%d') between NULL and '1000-01-01';
+select str_to_date('2000-01-01','%Y-%m-%d') between NULL and NULL;
 
 #
 # Bug #30666: Incorrect order when using range conditions on 2 tables or more

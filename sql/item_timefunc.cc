@@ -1479,9 +1479,10 @@ bool Item_func_curdate::get_date(MYSQL_TIME *res,
 
 bool Item_func_curtime::fix_fields(THD *thd, Item **items)
 {
-  if (decimals > MAX_SEC_PART_DIGITS)
+  if (decimals > TIME_SECOND_PART_DIGITS)
   {
-    my_error(ER_WRONG_ARGUMENTS, MYF(0), func_name());
+    my_error(ER_TOO_BIG_PRECISION, MYF(0), decimals, func_name(),
+             TIME_SECOND_PART_DIGITS);
     return 1;
   }
   return Item_timefunc::fix_fields(thd, items);
@@ -1492,7 +1493,7 @@ void Item_func_curtime::fix_length_and_dec()
   collation.set(&my_charset_bin);
   store_now_in_TIME(&ltime);
   max_length= MAX_TIME_WIDTH +
-    (decimals ? min(decimals, MAX_SEC_PART_DIGITS)+1 : 0);
+    (decimals ? min(decimals, TIME_SECOND_PART_DIGITS)+1 : 0);
 }
 
 bool Item_func_curtime::get_date(MYSQL_TIME *res,
@@ -1505,11 +1506,11 @@ bool Item_func_curtime::get_date(MYSQL_TIME *res,
 static void set_sec_part(ulong sec_part, MYSQL_TIME *ltime, Item *item)
 {
   DBUG_ASSERT(item->decimals == AUTO_SEC_PART_DIGITS ||
-              item->decimals <= MAX_SEC_PART_DIGITS);
+              item->decimals <= TIME_SECOND_PART_DIGITS);
   if (item->decimals)
   {
     ltime->second_part= sec_part;
-    if (item->decimals < MAX_SEC_PART_DIGITS)
+    if (item->decimals < TIME_SECOND_PART_DIGITS)
       ltime->second_part= sec_part_truncate(ltime->second_part, item->decimals);
   }
 }
@@ -1548,9 +1549,10 @@ void Item_func_curtime_utc::store_now_in_TIME(MYSQL_TIME *now_time)
 
 bool Item_func_now::fix_fields(THD *thd, Item **items)
 {
-  if (decimals > MAX_SEC_PART_DIGITS)
+  if (decimals > TIME_SECOND_PART_DIGITS)
   {
-    my_error(ER_WRONG_ARGUMENTS, MYF(0), func_name());
+    my_error(ER_TOO_BIG_PRECISION, MYF(0), decimals, func_name(),
+             TIME_SECOND_PART_DIGITS);
     return 1;
   }
   return Item_temporal_func::fix_fields(thd, items);
@@ -1561,7 +1563,7 @@ void Item_func_now::fix_length_and_dec()
   collation.set(&my_charset_bin);
   store_now_in_TIME(&ltime);
   max_length= MAX_DATETIME_WIDTH +
-                 (decimals ? min(decimals, MAX_SEC_PART_DIGITS)+1 : 0);
+                 (decimals ? min(decimals, TIME_SECOND_PART_DIGITS)+1 : 0);
 }
 
 
@@ -1848,7 +1850,7 @@ void Item_func_convert_tz::fix_length_and_dec()
   max_length= MAX_DATETIME_WIDTH;
   decimals= args[0]->decimals;
   if (decimals && decimals != NOT_FIXED_DEC)
-    max_length+= min(decimals, MAX_SEC_PART_DIGITS) + 1;
+    max_length+= min(decimals, TIME_SECOND_PART_DIGITS) + 1;
   maybe_null= 1;
 }
 
@@ -1949,7 +1951,7 @@ void Item_date_add_interval::fix_length_and_dec()
   else
     decimals= args[0]->decimals;
   if (decimals)
-    max_length+= min(decimals, MAX_SEC_PART_DIGITS) + 1;
+    max_length+= min(decimals, TIME_SECOND_PART_DIGITS) + 1;
   value.alloc(max_length);
 }
 
@@ -2402,7 +2404,7 @@ void Item_func_add_time::fix_length_and_dec()
   else if (arg0_field_type == MYSQL_TYPE_TIME)
     cached_field_type= MYSQL_TYPE_TIME;
   if (decimals)
-    max_length+= min(decimals, MAX_SEC_PART_DIGITS) + 1;
+    max_length+= min(decimals, TIME_SECOND_PART_DIGITS) + 1;
 }
 
 /**
@@ -2467,7 +2469,7 @@ bool Item_func_add_time::get_date(MYSQL_TIME *ltime, uint fuzzy_date)
 
   if (cached_field_type == MYSQL_TYPE_STRING &&
       (l_time1.second_part || l_time2.second_part))
-    dec= MAX_SEC_PART_DIGITS;
+    dec= TIME_SECOND_PART_DIGITS;
 
   if (!is_time)
   {
@@ -2931,7 +2933,7 @@ void Item_func_str_to_date::fix_length_and_dec()
 {
   maybe_null= 1;
   cached_field_type= MYSQL_TYPE_DATETIME;
-  max_length= MAX_DATETIME_WIDTH+MAX_SEC_PART_DIGITS;
+  max_length= MAX_DATETIME_WIDTH + TIME_SECOND_PART_DIGITS;
   cached_timestamp_type= MYSQL_TIMESTAMP_DATETIME;
   decimals= AUTO_SEC_PART_DIGITS;
   if ((const_item= args[1]->const_item()))
