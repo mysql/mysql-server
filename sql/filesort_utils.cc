@@ -26,8 +26,7 @@ double get_merge_cost(ha_rows num_elements, ha_rows num_buffers, uint elem_size)
 {
   return 
     2.0 * ((double) num_elements * elem_size) / IO_SIZE
-    + (double) num_elements * log((double) num_buffers) /
-      (TIME_FOR_COMPARE_ROWID * M_LN2);
+    + num_elements * log((double) num_buffers) * ROWID_COMPARE_COST / M_LN2;
 }
 }
 
@@ -49,8 +48,7 @@ double get_merge_many_buffs_cost_fast(ha_rows num_rows,
   // Calculate CPU cost of sorting buffers.
   total_cost=
     ( num_buffers * num_keys_per_buffer * log(1.0 + num_keys_per_buffer) +
-      last_n_elems * log(1.0 + last_n_elems) )
-    / TIME_FOR_COMPARE_ROWID;
+      last_n_elems * log(1.0 + last_n_elems) ) * ROWID_COMPARE_COST;
   
   // Simulate behavior of merge_many_buff().
   while (num_buffers >= MERGEBUFF2)
