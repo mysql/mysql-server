@@ -92,6 +92,7 @@ EXTRA_DIST= \
 
 $(MANIFEST):
 	echo "Manifest-Version: 1.0"  > $(MANIFEST)
+	echo "Export-Package: com.mysql.clusterj.jpatest,com.mysql.clusterj.jpatest.model"  >> $(MANIFEST)
 	echo "Bundle-Name: ClusterJ API"  >> $(MANIFEST)
 	echo "Bundle-Description: The API for ClusterJ"  >> $(MANIFEST)
 	echo "Bundle-SymbolicName: com.mysql.clusterj.clusterj-jpatest" >> $(MANIFEST)
