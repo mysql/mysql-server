@@ -33,22 +33,23 @@ public class QueryByteArrayTypesTest extends AbstractQueryTest {
         createAllByteArrayTypesInstances(number);
     }
 
-    /** Test all single- and double-predicate queries using DateTypes.
-drop table if exists timetypes;
-create table timetypes (
+    /** Test all single- and double-predicate queries using ByteArrayTypes.
+
+drop table if exists bytestype;
+
+create table bytestype (
  id int not null primary key,
 
- bytes_null_hash timestamp,
- bytes_null_btree timestamp,
- bytes_null_both timestamp,
- bytes_null_none timestamp
+ bytes_null_hash varbinary(8),
+ bytes_null_btree varbinary(8),
+ bytes_null_both varbinary(8),
+ bytes_null_none varbinary(8),
+
+key idx_bytes_null_btree (bytes_null_btree),
+unique key idx_bytes_null_both (bytes_null_both),
+unique key idx_bytes_null_hash (bytes_null_hash) using hash
 
 ) ENGINE=ndbcluster DEFAULT CHARSET=latin1;
-
-create unique index idx_bytes_null_hash using hash on timetypes(bytes_null_hash);
-create index idx_bytes_null_btree on timetypes(bytes_null_btree);
-create unique index idx_bytes_null_both on timetypes(bytes_null_both);
-
      */
 
     public void test() {
