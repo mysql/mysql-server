@@ -5,15 +5,19 @@
 
 use strict;
 use IO::File;
+use lib "lib/";
+use My::Platform;
 
 my $ok = 0;
 my $classpath = $ENV{'MTR_CLASSPATH'} || '';
 my $vardir = $ENV{MYSQLTEST_VARDIR} or die "Need MYSQLTEST_VARDIR";
 my $jar;
 my $notfound;
+my $sep = (IS_WINDOWS) ? ';' : ':';
 
 # -- look for the openjpa jar file
-foreach $jar (split ':', $classpath) {
+
+foreach $jar (split $sep, $classpath) {
   if($jar =~ m/openjpa/  && -f $jar) {
     $ok = 2;
   }
