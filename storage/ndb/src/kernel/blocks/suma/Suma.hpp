@@ -171,6 +171,7 @@ public:
     Uint32 m_requestInfo;
 
     Uint32 m_frag_cnt; // only scan this many fragments...
+    Uint32 m_frag_id;  // only scan this specific fragment...
     Uint32 m_tableId;  // redundant...
 
     /**
@@ -185,6 +186,7 @@ public:
     Uint32 m_currentFragment;       // Index in tabPtr.p->m_fragments
     Uint32 m_currentNoOfAttributes; // No of attributes for current table
     DataBuffer<15>::Head m_attributeList; // Attribute if other than default
+    DataBuffer<15>::Head m_boundInfo;  // For range scan
     
     void startScan(Signal*);
     void nextScan(Signal*);
