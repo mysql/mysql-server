@@ -818,6 +818,7 @@ trx_purge_get_next_rec(
 	mtr_t		mtr;
 
 	ut_ad(purge_sys->next_stored);
+	ut_ad(purge_sys->iter.trx_no < purge_sys->view->low_limit_no);
 
 	space = purge_sys->rseg->space;
 	zip_size = purge_sys->rseg->zip_size;
@@ -935,9 +936,6 @@ trx_purge_fetch_next_rec(
 					handled */
 	mem_heap_t*	heap)		/*!< in: memory heap where copied */
 {
-	const read_view_t*	view = purge_sys->view;
-	const purge_iter_t	iter = purge_sys->iter;
-
 	if (!purge_sys->next_stored) {
 		trx_purge_choose_next_log();
 
@@ -953,7 +951,7 @@ trx_purge_fetch_next_rec(
 		}
 	}
 
-	if (iter.trx_no >= view->low_limit_no) {
+	if (purge_sys->iter.trx_no >= purge_sys->view->low_limit_no) {
 
 		return(NULL);
 	}
@@ -964,8 +962,6 @@ trx_purge_fetch_next_rec(
 	*roll_ptr = trx_undo_build_roll_ptr(
 		FALSE, purge_sys->rseg->id,
 		purge_sys->page_no, purge_sys->offset);
-
-	ut_ad(iter.trx_no < view->low_limit_no);
 
 	/* The following call will advance the stored values of the
 	purge iterator. */
