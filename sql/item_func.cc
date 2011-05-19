@@ -3906,6 +3906,7 @@ bool Item_func_set_user_var::fix_fields(THD *thd, Item **ref)
     entry->collation.set(args[0]->collation.collation, DERIVATION_IMPLICIT);
   collation.set(entry->collation.collation, DERIVATION_IMPLICIT);
   cached_result_type= args[0]->result_type();
+  if (thd->lex->current_select)
   {
     /*
       When this function is used in a derived table/view force the derived
