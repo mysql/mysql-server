@@ -67,6 +67,7 @@ static struct my_option my_long_options[]=
    NO_ARG, 0, 0, 0, 0, 0, 0},
   {"service", 'S', "Name of the existing Windows service",
   &opt_service, &opt_service, 0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
+  {0, 0, 0, 0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0}
 };
 
 
