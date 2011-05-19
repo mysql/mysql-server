@@ -3446,6 +3446,8 @@ err:
 static struct rand_struct uuid_rand;
 static uint nanoseq;
 static ulonglong uuid_time=0;
+static longlong interval_timer_offset;
+
 static char clock_seq_and_node_str[]="-0000-000000000000";
 
 /**
@@ -3473,6 +3475,7 @@ static void set_clock_seq_str()
   uint16 clock_seq= ((uint)(my_rnd(&uuid_rand)*16383)) | UUID_VARIANT;
   tohex(clock_seq_and_node_str+1, clock_seq, 4);
   nanoseq= 0;
+  interval_timer_offset= my_hrtime().val * 10 - my_interval_timer()/100 + UUID_TIME_OFFSET;
 }
 
 String *Item_func_uuid::val_str(String *str)
@@ -3512,7 +3515,7 @@ String *Item_func_uuid::val_str(String *str)
     set_clock_seq_str();
   }
 
-  ulonglong tv= my_getsystime() + UUID_TIME_OFFSET + nanoseq;
+  ulonglong tv= my_interval_timer()/100 + interval_timer_offset + nanoseq;
 
   if (likely(tv > uuid_time))
   {
@@ -3564,7 +3567,7 @@ String *Item_func_uuid::val_str(String *str)
         irrelevant in the new numberspace.
       */
       set_clock_seq_str();
-      tv= my_getsystime() + UUID_TIME_OFFSET;
+      tv= my_interval_timer()/100 + interval_timer_offset;
       nanoseq= 0;
       DBUG_PRINT("uuid",("making new numberspace"));
     }

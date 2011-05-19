@@ -1947,7 +1947,7 @@ static bool cache_thread()
         this thread for handling of new THD object/connection.
       */
       thd->mysys_var->abort= 0;
-      thd->thr_create_utime= my_micro_time();
+      thd->thr_create_utime= microsecond_interval_timer();
       threads.append(thd);
       return(1);
     }
@@ -4907,7 +4907,7 @@ void handle_connection_in_main_thread(THD *thd)
   thread_cache_size=0;			// Safety
   threads.append(thd);
   pthread_mutex_unlock(&LOCK_thread_count);
-  thd->start_utime= my_micro_time();
+  thd->start_utime= microsecond_interval_timer();
   handle_one_connection(thd);
 }
 
@@ -4933,7 +4933,7 @@ void create_thread_to_handle_connection(THD *thd)
     thread_created++;
     threads.append(thd);
     DBUG_PRINT("info",(("creating thread %lu"), thd->thread_id));
-    thd->prior_thr_create_utime= thd->start_utime= my_micro_time();
+    thd->prior_thr_create_utime= thd->start_utime= microsecond_interval_timer();
     if ((error=pthread_create(&thd->real_id,&connection_attrib,
                               handle_one_connection,
                               (void*) thd)))

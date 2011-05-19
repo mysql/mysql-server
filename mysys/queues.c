@@ -596,15 +596,15 @@ bool do_test(uint no_parts, uint l_max_ind, bool l_fix_used)
 
 static void start_measurement()
 {
-  start_time= my_getsystime();
+  start_time= my_interval_timer();
 }
 
 static void stop_measurement()
 {
-  ulonglong stop_time= my_getsystime();
+  ulonglong stop_time= my_interval_timer();
   uint time_in_micros;
   stop_time-= start_time;
-  stop_time/= 10; /* Convert to microseconds */
+  stop_time/= 1000; /* Convert to microseconds */
   time_in_micros= (uint)stop_time;
   printf("Time expired is %u microseconds \n", time_in_micros);
 }

@@ -14,67 +14,66 @@
    Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
 
 
-/* 
-   TODO: in functions my_micro_time() and my_micro_time_and_time() there
-   exists some common code that should be merged into a function.
-*/
-
 #include "mysys_priv.h"
 #include "my_static.h"
 
 #ifdef __NETWARE__
 #include <nks/time.h>
 #elif defined(__WIN__)
-static ulonglong query_performance_frequency, query_performance_offset;
 #define OFFSET_TO_EPOC 116444736000000000LL
-#elif defined(HAVE_GETHRTIME)
-static ulonglong gethrtime_offset;
+static ulonglong query_performance_frequency;
 #endif
 
 /*
-  get time since epoc in 100 nanosec units
+  return number of nanoseconds since unspecified (but always the same)
+  point in the past
 
   NOTE:
   Thus to get the current time we should use the system function
   with the highest possible resolution
 
-  The value is not subject to resetting or drifting by way of adjtime() or
-  settimeofday(), and thus it is *NOT* appropriate for getting the current
-  timestamp. It can be used for calculating time intervals, though.
-  And it's good enough for UUID.
+  The value is not not anchored to any specific point in time (e.g. epoch) nor
+  is it subject to resetting or drifting by way of adjtime() or settimeofday(),
+  and thus it is *NOT* appropriate for getting the current timestamp. It can be
+  used for calculating time intervals, though.
 */
 
-ulonglong my_getsystime()
+ulonglong my_interval_timer()
 {
 #ifdef HAVE_CLOCK_GETTIME
   struct timespec tp;
-  clock_gettime(CLOCK_REALTIME, &tp);
-  return (ulonglong)tp.tv_sec*10000000+(ulonglong)tp.tv_nsec/100;
+  clock_gettime(CLOCK_MONOTONIC, &tp);
+  return tp.tv_sec*1000000000ULL+tp.tv_nsec;
 #elif defined(HAVE_GETHRTIME)
-  return gethrtime()/100-gethrtime_offset;
+  return gethrtime();
 #elif defined(__WIN__)
   LARGE_INTEGER t_cnt;
   if (query_performance_frequency)
   {
     QueryPerformanceCounter(&t_cnt);
-    return ((t_cnt.QuadPart / query_performance_frequency * 10000000) +
-            ((t_cnt.QuadPart % query_performance_frequency) * 10000000 /
-             query_performance_frequency) + query_performance_offset);
+    return (t_cnt.QuadPart / query_performance_frequency * 1000000000ULL) +
+            ((t_cnt.QuadPart % query_performance_frequency) * 1000000000ULL /
+             query_performance_frequency);
   }
-  return 0;
+  else
+  {
+    ulonglong newtime;
+    GetSystemTimeAsFileTime((FILETIME*)&newtime);
+    return newtime*100ULL;
+  }
 #elif defined(__NETWARE__)
   NXTime_t tm;
   NXGetTime(NX_SINCE_1970, NX_NSECONDS, &tm);
-  return (ulonglong)tm/100;
+  return (ulonglong)tm;
 #else
   /* TODO: check for other possibilities for hi-res timestamping */
   struct timeval tv;
   gettimeofday(&tv,NULL);
-  return (ulonglong)tv.tv_sec*10000000+(ulonglong)tv.tv_usec*10;
+  return tv.tv_sec*1000000000ULL+tv.tv_usec*1000ULL;
 #endif
 }
 
-/* Return current time in microseconds since epoch */
+/* Return current time in HRTIME_RESOLUTION (microseconds) since epoch */
 
 my_hrtime_t my_hrtime()
 {
@@ -84,60 +83,24 @@ my_hrtime_t my_hrtime()
   GetSystemTimeAsFileTime((FILETIME*)&newtime);
   newtime -= OFFSET_TO_EPOC;
   hrtime.val= newtime/10;
-#elif defined(HAVE_GETHRTIME)
-  struct timeval t;
-  /*
-    The following loop is here because gettimeofday may fail on some systems
-  */
-  while (gettimeofday(&t, NULL) != 0)
-  {}
-  hrtime.val= t.tv_sec*1000000 + t.tv_usec;
+#elif defined(HAVE_CLOCK_GETTIME)
+  struct timespec tp;
+  clock_gettime(CLOCK_REALTIME, &tp);
+  return tp.tv_sec*1000000ULL+tp.tv_nsec/1000ULL;
 #else
-  hrtime.val= my_getsystime()/10;
+  struct timeval t;
+  /* The following loop is here because gettimeofday may fail on some systems */
+  while (gettimeofday(&t, NULL) != 0) {}
+  hrtime.val= t.tv_sec*1000000ULL + t.tv_usec;
 #endif
   return hrtime;
-}
-
-/*
-  This function is basically equivalent to
-
-     *interval= my_getsystime()/10;
-     *timestamp= my_time();
-
-   but it avoids calling OS time functions twice, if possible.
-*/
-void my_diff_and_hrtime(my_timediff_t *interval, my_hrtime_t *timestamp)
-{
-  interval->val= my_getsystime() / 10;
-#if defined(__WIN__) || defined(HAVE_GETHRTIME)
-  *timestamp= my_hrtime();
-#else
-  timestamp->val= interval->val;
-#endif
 }
 
 void my_time_init()
 {
 #ifdef __WIN__
-  FILETIME ft;
-  LARGE_INTEGER li, t_cnt;
-  DBUG_ASSERT(sizeof(LARGE_INTEGER) == sizeof(query_performance_frequency));
+  compile_time_assert(sizeof(LARGE_INTEGER) == sizeof(query_performance_frequency));
   if (QueryPerformanceFrequency((LARGE_INTEGER *)&query_performance_frequency) == 0)
     query_performance_frequency= 0;
-  else
-  {
-    GetSystemTimeAsFileTime(&ft);
-    li.LowPart=  ft.dwLowDateTime;
-    li.HighPart= ft.dwHighDateTime;
-    query_performance_offset= li.QuadPart-OFFSET_TO_EPOC;
-    QueryPerformanceCounter(&t_cnt);
-    query_performance_offset-= (t_cnt.QuadPart /
-                                query_performance_frequency * 10000000 +
-                                t_cnt.QuadPart %
-                                query_performance_frequency * 10000000 /
-                                query_performance_frequency);
-  }
-#elif defined(HAVE_GETHRTIME)
-  gethrtime_offset= gethrtime();
 #endif
 }

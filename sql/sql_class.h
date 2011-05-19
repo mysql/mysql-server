@@ -2028,17 +2028,14 @@ public:
     {
       start_time= hrtime_to_my_time(user_time);
       start_time_sec_part= hrtime_sec_part(user_time);
-      start_utime= utime_after_lock= my_micro_time();
     }
     else
     {
-      my_hrtime_t hrtime;
-      my_timediff_t timediff;
-      my_micro_and_hrtime(&timediff, &hrtime);
+      my_hrtime_t hrtime= my_hrtime();
       start_time= hrtime_to_my_time(hrtime);
       start_time_sec_part= hrtime_sec_part(hrtime);
-      utime_after_lock= start_utime= timediff.val;
     }
+    start_utime= utime_after_lock= microsecond_interval_timer();
   }
   inline void	set_current_time()
   {
@@ -2051,15 +2048,15 @@ public:
     user_time= t;
     start_time= hrtime_to_my_time(user_time);
     start_time_sec_part= hrtime_sec_part(user_time);
-    start_utime= utime_after_lock= my_micro_time();
+    start_utime= utime_after_lock= microsecond_interval_timer();
   }
   inline void	set_time(my_time_t t, ulong sec_part)
   {
     my_hrtime_t hrtime= { hrtime_from_time(t) + sec_part };
     set_time(hrtime);
   }
-  void set_time_after_lock()  { utime_after_lock= my_micro_time(); }
-  ulonglong current_utime()  { return my_micro_time(); }
+  void set_time_after_lock()  { utime_after_lock= microsecond_interval_timer(); }
+  ulonglong current_utime()  { return microsecond_interval_timer(); }
   inline ulonglong found_rows(void)
   {
     return limit_found_rows;

@@ -221,7 +221,7 @@ void PROF_MEASUREMENT::set_label(const char *status_arg,
 */
 void PROF_MEASUREMENT::collect()
 {
-  time_usecs= (double) my_getsystime() / 10.0;  /* 1 sec was 1e7, now is 1e6 */
+  time_usecs= my_interval_timer() / 1e3;  /* ns to us */
 #ifdef HAVE_GETRUSAGE
   getrusage(RUSAGE_SELF, &rusage);
 #endif

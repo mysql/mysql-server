@@ -1084,7 +1084,7 @@ pthread_handler_t handle_one_connection(void *arg)
 {
   THD *thd= (THD*) arg;
 
-  thd->thr_create_utime= my_micro_time();
+  thd->thr_create_utime= microsecond_interval_timer();
 
   if (thread_scheduler.init_new_connection_thread())
   {

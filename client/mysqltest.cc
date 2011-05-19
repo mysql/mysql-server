@@ -8516,7 +8516,7 @@ void timer_output(void)
 
 ulonglong timer_now(void)
 {
-  return my_micro_time() / 1000;
+  return my_interval_timer() / 1000000;
 }
 
 
