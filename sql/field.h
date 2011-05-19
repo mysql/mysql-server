@@ -149,7 +149,6 @@ public:
   virtual bool str_needs_quotes() { return FALSE; }
   virtual Item_result result_type () const=0;
   virtual Item_result cmp_type () const { return result_type(); }
-  virtual Item_result cast_to_int_type () const { return cmp_type(); }
   static bool type_can_have_key_part(enum_field_types);
   static enum_field_types field_type_merge(enum_field_types, enum_field_types);
   static Item_result result_merge_type(enum_field_types);
@@ -1437,7 +1436,6 @@ public:
     {}
   enum_field_types type() const { return MYSQL_TYPE_DATETIME;}
   enum ha_base_keytype key_type() const { return HA_KEYTYPE_ULONGLONG; }
-  enum Item_result cmp_type () const { return TIME_RESULT; }
   uint decimals() const { return 0; }
   double val_real(void);
   longlong val_int(void);
@@ -1934,7 +1932,6 @@ public:
   Field *new_field(MEM_ROOT *root, struct st_table *new_table, bool keep_type);
   enum_field_types type() const { return MYSQL_TYPE_STRING; }
   enum Item_result cmp_type () const { return INT_RESULT; }
-  enum Item_result cast_to_int_type () const { return INT_RESULT; }
   enum ha_base_keytype key_type() const;
   int  store(const char *to,uint length,CHARSET_INFO *charset);
   int  store(double nr);

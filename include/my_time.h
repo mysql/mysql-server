@@ -80,6 +80,8 @@ typedef long my_time_t;
 my_bool check_date(const MYSQL_TIME *ltime, my_bool not_zero_date,
                    ulong flags, int *was_cut);
 enum enum_mysql_timestamp_type
+str_to_time(const char *str, uint length, MYSQL_TIME *l_time, int *warning);
+enum enum_mysql_timestamp_type
 str_to_datetime(const char *str, uint length, MYSQL_TIME *l_time,
                 uint flags, int *was_cut);
 longlong number_to_datetime(longlong nr, MYSQL_TIME *time_res,

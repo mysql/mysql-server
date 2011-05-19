@@ -724,6 +724,7 @@ set time_zone= @@global.time_zone;
 #
 
 select str_to_date('10:00 PM', '%h:%i %p') + INTERVAL 10 MINUTE;
+select str_to_date("1997-00-04 22:23:00","%Y-%m-%D") + interval 10 minute;
 
 #
 # Bug #21103: DATE column not compared as DATE
@@ -985,4 +986,8 @@ create table t1 (f1 datetime);
 insert into t1 values ('0000-00-00 00:00:00');
 select cast(f1 AS time) from t1;
 drop table t1;
+
+select greatest(cast("0-0-0" as date), cast("10:20:05" as time));
+select greatest(cast("0-0-0" as date), cast("10:20:05" as time)) = '0000-00-00';
+select cast(greatest(cast("0-0-0" as date), cast("10:20:05" as time)) as datetime(6));
 

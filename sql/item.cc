@@ -194,10 +194,11 @@ bool Item::val_bool()
   case STRING_RESULT:
     return val_real() != 0.0;
   case ROW_RESULT:
-  default:
+  case TIME_RESULT:
     DBUG_ASSERT(0);
     return 0;                                   // Wrong (but safe)
   }
+  return 0;                                   // Wrong (but safe)
 }
 
 
@@ -472,18 +473,17 @@ void Item::print_value(String *str)
   {
     switch (result_type())
     {
-      default:
-        DBUG_ASSERT(0);
       case STRING_RESULT:
-        str->append('\'');
-        str->append(*ptr);
-        str->append('\'');
+        append_unescaped(str, ptr->ptr(), ptr->length());
         break;
       case DECIMAL_RESULT:
       case REAL_RESULT:
       case INT_RESULT:
         str->append(*ptr);
         break;
+      case ROW_RESULT:
+      case TIME_RESULT:
+        DBUG_ASSERT(0);
     }
   }
 }
@@ -533,7 +533,7 @@ void Item::rename(char *new_name)
 
 Item_result Item::cmp_type() const
 {
-  switch(field_type()) {
+  switch (field_type()) {
   case MYSQL_TYPE_DECIMAL:
   case MYSQL_TYPE_NEWDECIMAL:
                            return DECIMAL_RESULT;
@@ -1020,7 +1020,7 @@ err:
 
 bool Item::get_time(MYSQL_TIME *ltime)
 {
-  return get_date(ltime, TIME_TIME_ONLY);
+  return get_date(ltime, TIME_TIME_ONLY | TIME_FUZZY_DATE);
 }
 
 CHARSET_INFO *Item::default_charset()
@@ -2187,10 +2187,11 @@ bool Item_field::val_bool_result()
   case STRING_RESULT:
     return result_field->val_real() != 0.0;
   case ROW_RESULT:
-  default:
+  case TIME_RESULT:
     DBUG_ASSERT(0);
     return 0;                                   // Shut up compiler
   }
+  return 0;
 }
 
 
@@ -2748,8 +2749,6 @@ void Item_param::set_time(MYSQL_TIME *tm, timestamp_type time_type,
   value.time= *tm;
   value.time.time_type= time_type;
 
-  decimals= value.time.second_part > 0 ? TIME_SECOND_PART_DIGITS : 0;
-
   if (value.time.year > 9999 || value.time.month > 12 ||
       value.time.day > 31 ||
       (time_type != MYSQL_TIMESTAMP_TIME && value.time.hour > 23) ||
@@ -2765,6 +2764,7 @@ void Item_param::set_time(MYSQL_TIME *tm, timestamp_type time_type,
   state= TIME_VALUE;
   maybe_null= 0;
   max_length= max_length_arg;
+  decimals= tm->second_part > 0 ? TIME_SECOND_PART_DIGITS : 0;
   DBUG_VOID_RETURN;
 }
 
@@ -2888,7 +2888,8 @@ bool Item_param::set_from_user_var(THD *thd, const user_var_entry *entry)
       param_type= MYSQL_TYPE_NEWDECIMAL;
       break;
     }
-    default:
+    case ROW_RESULT:
+    case TIME_RESULT:
       DBUG_ASSERT(0);
       set_null();
     }
@@ -3355,7 +3356,8 @@ Item_copy *Item_copy::create (Item *item)
         new Item_copy_uint (item) : new Item_copy_int (item);
     case DECIMAL_RESULT:
       return new Item_copy_decimal (item);
-    default:
+    case TIME_RESULT:
+    case ROW_RESULT:
       DBUG_ASSERT (0);
   }
   /* should not happen */
@@ -4810,10 +4812,11 @@ enum_field_types Item::field_type() const
   case DECIMAL_RESULT: return MYSQL_TYPE_NEWDECIMAL;
   case REAL_RESULT:    return MYSQL_TYPE_DOUBLE;
   case ROW_RESULT:
-  default:
+  case TIME_RESULT:
     DBUG_ASSERT(0);
     return MYSQL_TYPE_VARCHAR;
   }
+  return MYSQL_TYPE_VARCHAR;
 }
 
 
@@ -6232,7 +6235,7 @@ bool Item_ref::val_bool_result()
     case STRING_RESULT:
       return result_field->val_real() != 0.0;
     case ROW_RESULT:
-    default:
+    case TIME_RESULT:
       DBUG_ASSERT(0);
     }
   }
@@ -6885,6 +6888,7 @@ void resolve_const_item(THD *thd, Item **ref, Item *comp_item)
   {
     bool is_null;
     Item **ref_copy= ref;
+    /* the following call creates a constant and puts it in new_item */
     get_datetime_value(thd, &ref_copy, &new_item, comp_item, &is_null);
     if (is_null)
       new_item= new Item_null(name);
@@ -6964,8 +6968,6 @@ void resolve_const_item(THD *thd, Item **ref, Item *comp_item)
                (Item*) new Item_decimal(name, result, length, decimals));
     break;
   }
-  default:
-    DBUG_ASSERT(0);
   }
   if (new_item)
     thd->change_item_tree(ref, new_item);
@@ -7045,20 +7047,24 @@ int stored_field_cmp_to_item(THD *thd, Field *field, Item *item)
     field_val= field->val_decimal(&field_buf);
     return my_decimal_cmp(item_val, field_val);
   }
+  /*
+    We have to check field->cmp_type() instead of res_type,
+    as result_type() - and thus res_type - can never be TIME_RESULT (yet).
+  */
   if (field->cmp_type() == TIME_RESULT)
   {
-      MYSQL_TIME field_time, item_time;
-      if (field->type() == MYSQL_TYPE_TIME)
-      {
-        field->get_time(&field_time);
-        item->get_time(&item_time);
-      }
-      else
-      {
-        field->get_date(&field_time, TIME_FUZZY_DATE | TIME_INVALID_DATES);
-        item->get_date(&item_time, TIME_FUZZY_DATE | TIME_INVALID_DATES);
-      }
-      return my_time_compare(&field_time, &item_time);
+    MYSQL_TIME field_time, item_time;
+    if (field->type() == MYSQL_TYPE_TIME)
+    {
+      field->get_time(&field_time);
+      item->get_time(&item_time);
+    }
+    else
+    {
+      field->get_date(&field_time, TIME_FUZZY_DATE | TIME_INVALID_DATES);
+      item->get_date(&item_time, TIME_FUZZY_DATE | TIME_INVALID_DATES);
+    }
+    return my_time_compare(&field_time, &item_time);
   }
   double result= item->val_real();
   if (item->null_value)
@@ -7101,11 +7107,8 @@ Item_cache* Item_cache::get_cache(const Item *item, const Item_result type)
     return new Item_cache_row();
   case TIME_RESULT:
     return new Item_cache_int(MYSQL_TYPE_DATETIME);
-  default:
-    // should never be in real life
-    DBUG_ASSERT(0);
-    return 0;
   }
+  return 0;
 }
 
 void Item_cache::store(Item *item)
@@ -7614,7 +7617,7 @@ enum_field_types Item_type_holder::get_real_type(Item *item)
       case DECIMAL_RESULT:
         return MYSQL_TYPE_NEWDECIMAL;
       case ROW_RESULT:
-      default:
+      case TIME_RESULT:
         DBUG_ASSERT(0);
         return MYSQL_TYPE_VAR_STRING;
       }

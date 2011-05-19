@@ -286,7 +286,7 @@ public:
   friend int stringcmp(const String *a,const String *b);
   friend String *copy_if_not_alloced(String *a,String *b,uint32 arg_length);
   uint32 numchars();
-  int charpos(int i,uint32 offset=0);
+  int charpos(longlong i,uint32 offset=0);
 
   int reserve(uint32 space_needed)
   {

@@ -64,6 +64,19 @@ localtimestamp(6)	2011-01-01 01:01:01.123456
 time_to_sec('12:34:56')	45296
 time_to_sec('12:34:56.789')	45296.789
 drop table t1;
+select sec_to_time(3020399.99999), sec_to_time(3020399.999999), sec_to_time(3020399.9999999);
+sec_to_time(3020399.99999)	sec_to_time(3020399.999999)	sec_to_time(3020399.9999999)
+838:59:59.99998	838:59:59.999999	838:59:59.999999
+Warnings:
+Warning	1292	Truncated incorrect time value: '3020399.9999999'
+select sec_to_time(-3020399.99999), sec_to_time(-3020399.999999), sec_to_time(-3020399.9999999);
+sec_to_time(-3020399.99999)	sec_to_time(-3020399.999999)	sec_to_time(-3020399.9999999)
+-838:59:59.99998	-838:59:59.999999	-838:59:59.999999
+Warnings:
+Warning	1292	Truncated incorrect time value: '-3020399.9999999'
+select 20010101000203.000000004 + interval 1 day;
+20010101000203.000000004 + interval 1 day
+2001-01-02 00:02:03.000000
 set @a=cast('2011-01-02 12:13:14' as datetime);
 select @a + interval 1 minute;
 @a + interval 1 minute

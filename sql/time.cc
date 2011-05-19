@@ -250,30 +250,36 @@ str_to_datetime_with_warn(const char *str, uint length, MYSQL_TIME *l_time,
     TIME_to_timestamp()
       thd             - current thread
       t               - datetime in broken-down representation, 
-      in_dst_time_gap - pointer to bool which is set to true if t represents
-                        value which doesn't exists (falls into the spring 
-                        time-gap) or to false otherwise.
+      error_code      - 0, if the conversion was successful;
+                        ER_WARN_DATA_OUT_OF_RANGE, if t contains datetime value
+                           which is out of TIMESTAMP range;
+                        ER_WARN_INVALID_TIMESTAMP, if t represents value which
+                           doesn't exists (falls into the spring time-gap).
    
   RETURN
      Number seconds in UTC since start of Unix Epoch corresponding to t.
-     0 - t contains datetime value which is out of TIMESTAMP range.
+     0 - in case of ER_WARN_DATA_OUT_OF_RANGE
      
 */
-my_time_t TIME_to_timestamp(THD *thd, const MYSQL_TIME *t, my_bool *in_dst_time_gap)
+my_time_t TIME_to_timestamp(THD *thd, const MYSQL_TIME *t, uint *error_code)
 {
   my_time_t timestamp;
+  my_bool in_dst_time_gap= 0;
 
-  *in_dst_time_gap= 0;
+  *error_code= 0;
   thd->time_zone_used= 1;
 
-  timestamp= thd->variables.time_zone->TIME_to_gmt_sec(t, in_dst_time_gap);
+  timestamp= thd->variables.time_zone->TIME_to_gmt_sec(t, &in_dst_time_gap);
   if (timestamp)
   {
+    if (in_dst_time_gap)
+      *error_code= ER_WARN_INVALID_TIMESTAMP;
     return timestamp;
   }
 
   /* If we are here we have range error. */
-  return(0);
+  *error_code= ER_WARN_DATA_OUT_OF_RANGE;
+  return 0;
 }
 
 
@@ -675,6 +681,7 @@ const char *get_date_time_format_str(KNOWN_DATE_TIME_FORMAT *format,
 void make_time(const DATE_TIME_FORMAT *format __attribute__((unused)),
                const MYSQL_TIME *l_time, String *str)
 {
+  str->alloc(MAX_DATE_STRING_REP_LENGTH);
   uint length= (uint) my_time_to_str(l_time, (char*) str->ptr(), 0);
   str->length(length);
   str->set_charset(&my_charset_bin);
@@ -684,6 +691,7 @@ void make_time(const DATE_TIME_FORMAT *format __attribute__((unused)),
 void make_date(const DATE_TIME_FORMAT *format __attribute__((unused)),
                const MYSQL_TIME *l_time, String *str)
 {
+  str->alloc(MAX_DATE_STRING_REP_LENGTH);
   uint length= (uint) my_date_to_str(l_time, (char*) str->ptr());
   str->length(length);
   str->set_charset(&my_charset_bin);
@@ -693,6 +701,7 @@ void make_date(const DATE_TIME_FORMAT *format __attribute__((unused)),
 void make_datetime(const DATE_TIME_FORMAT *format __attribute__((unused)),
                    const MYSQL_TIME *l_time, String *str)
 {
+  str->alloc(MAX_DATE_STRING_REP_LENGTH);
   uint length= (uint) my_datetime_to_str(l_time, (char*) str->ptr(), 0);
   str->length(length);
   str->set_charset(&my_charset_bin);
@@ -776,7 +785,7 @@ bool date_add_interval(MYSQL_TIME *ltime, interval_type int_type, INTERVAL inter
     my_bool neg= ltime->neg;
     enum enum_mysql_timestamp_type time_type= ltime->time_type;
 
-    if (ltime->time_type != MYSQL_TIMESTAMP_TIME)
+    if (time_type != MYSQL_TIMESTAMP_TIME)
       ltime->day+= calc_daynr(ltime->year, ltime->month, 1) - 1;
 
     usec= COMBINE(ltime) + sign*COMBINE(&interval);
@@ -791,7 +800,7 @@ bool date_add_interval(MYSQL_TIME *ltime, interval_type int_type, INTERVAL inter
     if (int_type != INTERVAL_DAY)
       ltime->time_type= MYSQL_TIMESTAMP_DATETIME; // Return full date
 
-    daynr= ltime->day + 32*(ltime->month + 13*ltime->year);
+    daynr= usec/1000000/24/60/60;
 
     /* Day number from year 0 to 9999-12-31 */
     if ((ulonglong) daynr > MAX_DAY_NUMBER)

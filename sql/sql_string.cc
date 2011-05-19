@@ -551,7 +551,7 @@ uint32 String::numchars()
   return str_charset->cset->numchars(str_charset, Ptr, Ptr+str_length);
 }
 
-int String::charpos(int i,uint32 offset)
+int String::charpos(longlong i,uint32 offset)
 {
   if (i <= 0)
     return i;

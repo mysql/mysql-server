@@ -285,6 +285,10 @@ DROP TABLE t1;
 
 --echo End of 5.1 tests
 
+select cast("2101-00-01 02:03:04" as datetime);
+select cast(cast("2101-00-01 02:03:04" as datetime) as time);
+
+
 #
 # lp:737458 Casting dates and times into integers works differently in 5.1-micro
 #

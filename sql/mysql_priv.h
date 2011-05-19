@@ -733,11 +733,11 @@ public:
   void copy(String *dst) const { dst->set(num, &my_charset_bin); }
 };
 
-class Lazy_string_dbl: public Lazy_string
+class Lazy_string_double: public Lazy_string
 {
   double num;
 public:
-  Lazy_string_dbl(double num_arg) : Lazy_string(), num(num_arg) {}
+  Lazy_string_double(double num_arg) : Lazy_string(), num(num_arg) {}
   void copy(String *dst) const
   { dst->set_real(num, NOT_FIXED_DEC, &my_charset_bin); }
 };
@@ -754,6 +754,19 @@ public:
     dst->set_charset(&my_charset_bin);
   }
 };
+
+static inline enum enum_mysql_timestamp_type
+mysql_type_to_time_type(enum enum_field_types mysql_type)
+{
+  switch(mysql_type) {
+  case MYSQL_TYPE_TIME: return MYSQL_TIMESTAMP_TIME;
+  case MYSQL_TYPE_TIMESTAMP:
+  case MYSQL_TYPE_DATETIME: return MYSQL_TIMESTAMP_DATETIME;
+  case MYSQL_TYPE_NEWDATE:
+  case MYSQL_TYPE_DATE: return MYSQL_TIMESTAMP_DATE;
+  default: return MYSQL_TIMESTAMP_ERROR;
+  }
+}
 
 #include "sql_list.h"
 #include "sql_map.h"
@@ -2212,7 +2225,7 @@ ulong convert_period_to_month(ulong period);
 ulong convert_month_to_period(ulong month);
 void get_date_from_daynr(long daynr,uint *year, uint *month,
 			 uint *day);
-my_time_t TIME_to_timestamp(THD *thd, const MYSQL_TIME *t, my_bool *not_exist);
+my_time_t TIME_to_timestamp(THD *thd, const MYSQL_TIME *t, uint *error_code);
 timestamp_type str_to_datetime_with_warn(const char *str, uint length,
                                          MYSQL_TIME *l_time, uint flags);
 void localtime_to_TIME(MYSQL_TIME *to, struct tm *from);
@@ -2256,19 +2269,6 @@ void make_time(const DATE_TIME_FORMAT *format, const MYSQL_TIME *l_time,
 int my_time_compare(MYSQL_TIME *a, MYSQL_TIME *b);
 longlong get_datetime_value(THD *thd, Item ***item_arg, Item **cache_arg,
                             Item *warn_item, bool *is_null);
-
-static inline enum enum_mysql_timestamp_type
-mysql_type_to_time_type(enum enum_field_types mysql_type)
-{
-  switch(mysql_type) {
-  case MYSQL_TYPE_TIME: return MYSQL_TIMESTAMP_TIME;
-  case MYSQL_TYPE_TIMESTAMP:
-  case MYSQL_TYPE_DATETIME: return MYSQL_TIMESTAMP_DATETIME;
-  case MYSQL_TYPE_NEWDATE:
-  case MYSQL_TYPE_DATE: return MYSQL_TIMESTAMP_DATE;
-  default: return MYSQL_TIMESTAMP_ERROR;
-  }
-}
 
 int test_if_number(char *str,int *res,bool allow_wildcards);
 void change_byte(uchar *,uint,char,char);

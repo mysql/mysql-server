@@ -360,23 +360,35 @@ public:
   { return tmp_table_field_from_field_type(table, 0); }
   int save_in_field(Field *field, bool no_conversions)
   { return save_date_in_field(field); }
+  void fix_length_and_dec()
+  { 
+    static const uint max_time_type_width[5]=
+    { MAX_DATETIME_WIDTH, MAX_DATETIME_WIDTH, MAX_DATE_WIDTH,
+      MAX_DATETIME_WIDTH, MIN_TIME_WIDTH };
+
+    max_length= max_time_type_width[mysql_type_to_time_type(field_type())+2];
+    if (decimals)
+    {
+      if (decimals == NOT_FIXED_DEC)
+        max_length+= TIME_SECOND_PART_DIGITS + 1;
+      else
+      {
+        set_if_smaller(decimals, TIME_SECOND_PART_DIGITS);
+        max_length+= decimals + 1;
+      }
+    }
+  }
 };
 
 class Item_datefunc :public Item_temporal_func
 {
 public:
-  Item_datefunc() :Item_temporal_func() {}
-  Item_datefunc(Item *a) :Item_temporal_func(a) {}
+  Item_datefunc() :Item_temporal_func() { }
+  Item_datefunc(Item *a) :Item_temporal_func(a) { }
   enum_field_types field_type() const { return MYSQL_TYPE_DATE; }
   const char *func_name() const { return "date"; }
   bool get_date(MYSQL_TIME *res, uint fuzzy_date)
   { return get_arg0_date(res, fuzzy_date); }
-  void fix_length_and_dec()
-  { 
-    collation.set(&my_charset_bin);
-    decimals=0;
-    max_length=MAX_DATE_WIDTH*MY_CHARSET_BIN_MB_MAXLEN;
-  }
 };
 
 
@@ -388,11 +400,6 @@ public:
   Item_timefunc(Item *a,Item *b) :Item_temporal_func(a,b) {}
   Item_timefunc(Item *a, Item *b, Item *c) :Item_temporal_func(a, b ,c) {}
   enum_field_types field_type() const { return MYSQL_TYPE_TIME; }
-  void fix_length_and_dec()
-  {
-    max_length= MAX_TIME_WIDTH +
-                   (decimals ? min(decimals, TIME_SECOND_PART_DIGITS)+1 : 0);
-  }
 };
 
 
@@ -404,7 +411,11 @@ class Item_func_curtime :public Item_timefunc
 public:
   Item_func_curtime(uint dec) :Item_timefunc() { decimals= dec; }
   bool fix_fields(THD *, Item **);
-  void fix_length_and_dec();
+  void fix_length_and_dec()
+  {
+    store_now_in_TIME(&ltime);
+    Item_timefunc::fix_length_and_dec();
+  }
   bool get_date(MYSQL_TIME *res, uint fuzzy_date);
   /* 
     Abstract method that defines which time zone is used for conversion.
@@ -472,7 +483,11 @@ class Item_func_now :public Item_temporal_func
 public:
   Item_func_now(uint dec) :Item_temporal_func() { decimals= dec; }
   bool fix_fields(THD *, Item **);
-  void fix_length_and_dec();
+  void fix_length_and_dec()
+  {
+    store_now_in_TIME(&ltime);
+    Item_temporal_func::fix_length_and_dec();
+  }
   bool get_date(MYSQL_TIME *res, uint fuzzy_date);
   virtual void store_now_in_TIME(MYSQL_TIME *now_time)=0;
 };
@@ -591,16 +606,14 @@ class Item_func_convert_tz :public Item_temporal_func
 
 class Item_func_sec_to_time :public Item_timefunc
 {
+  bool sec_to_time(double seconds, MYSQL_TIME *ltime);
 public:
   Item_func_sec_to_time(Item *item) :Item_timefunc(item) {}
   bool get_date(MYSQL_TIME *res, uint fuzzy_date);
   void fix_length_and_dec()
-  { 
-    collation.set(&my_charset_bin);
+  {
     maybe_null=1;
     decimals= args[0]->decimals;
-    if (decimals != NOT_FIXED_DEC)
-      set_if_smaller(decimals, TIME_SECOND_PART_DIGITS);
     Item_timefunc::fix_length_and_dec();
   }
   const char *func_name() const { return "sec_to_time"; }
@@ -645,12 +658,12 @@ class Item_extract :public Item_int_func
 
 class Item_char_typecast :public Item_str_func
 {
-  int cast_length;
+  uint cast_length;
   CHARSET_INFO *cast_cs, *from_cs;
   bool charset_conversion;
   String tmp_value;
 public:
-  Item_char_typecast(Item *a, int length_arg, CHARSET_INFO *cs_arg)
+  Item_char_typecast(Item *a, uint length_arg, CHARSET_INFO *cs_arg)
     :Item_str_func(a), cast_length(length_arg), cast_cs(cs_arg) {}
   enum Functype functype() const { return CHAR_TYPECAST_FUNC; }
   bool eq(const Item *item, bool binary_cmp) const;
@@ -667,6 +680,13 @@ public:
   Item_temporal_typecast(Item *a) :Item_temporal_func(a) {}
   virtual const char *cast_type() const = 0;
   void print(String *str, enum_query_type query_type);
+  void fix_length_and_dec()
+  {
+    maybe_null= 1;
+    if (decimals == NOT_FIXED_DEC)
+      decimals= args[0]->decimals;
+    Item_temporal_func::fix_length_and_dec();
+  }
 };
 
 class Item_date_typecast :public Item_temporal_typecast
@@ -677,13 +697,6 @@ public:
   bool get_date(MYSQL_TIME *ltime, uint fuzzy_date);
   const char *cast_type() const { return "date"; }
   enum_field_types field_type() const { return MYSQL_TYPE_DATE; }
-  void fix_length_and_dec()
-  {
-    collation.set(&my_charset_bin);
-    decimals= 0;
-    max_length= MAX_DATE_WIDTH;
-    maybe_null= 1;
-  }
 };
 
 
@@ -696,20 +709,6 @@ public:
   bool get_date(MYSQL_TIME *ltime, uint fuzzy_date);
   const char *cast_type() const { return "time"; }
   enum_field_types field_type() const { return MYSQL_TYPE_TIME; }
-  void fix_length_and_dec()
-  {
-    collation.set(&my_charset_bin);
-    maybe_null= 1;
-    max_length= MIN_TIME_WIDTH;
-    if (decimals == NOT_FIXED_DEC)
-    {
-      decimals= args[0]->decimals;
-      if (decimals != NOT_FIXED_DEC)
-        set_if_smaller(decimals, TIME_SECOND_PART_DIGITS);
-    }
-    if (decimals && decimals != NOT_FIXED_DEC)
-      max_length+= min(decimals, TIME_SECOND_PART_DIGITS) + 1;
-  }
 };
 
 
@@ -722,14 +721,6 @@ public:
   const char *cast_type() const { return "datetime"; }
   enum_field_types field_type() const { return MYSQL_TYPE_DATETIME; }
   bool get_date(MYSQL_TIME *ltime, uint fuzzy_date);
-  void fix_length_and_dec()
-  {
-    collation.set(&my_charset_bin);
-    maybe_null= 1;
-    max_length= MAX_DATETIME_WIDTH;
-    if (decimals && decimals != NOT_FIXED_DEC)
-      max_length+= min(decimals, TIME_SECOND_PART_DIGITS) + 1;
-  }
 };
 
 class Item_func_makedate :public Item_temporal_func
@@ -740,10 +731,9 @@ public:
   enum_field_types field_type() const { return MYSQL_TYPE_DATE; }
   void fix_length_and_dec()
   { 
-    decimals=0;
-    max_length=MAX_DATE_WIDTH*MY_CHARSET_BIN_MB_MAXLEN;
     /* It returns NULL when the second argument is less or equal to 0 */
     maybe_null= 1;
+    Item_temporal_func::fix_length_and_dec();
   }
   bool get_date(MYSQL_TIME *ltime, uint fuzzy_date);
 };

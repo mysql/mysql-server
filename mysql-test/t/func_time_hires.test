@@ -27,6 +27,9 @@ show create table t1;
 --query_vertical select * from t1
 drop table t1;
 
+select sec_to_time(3020399.99999), sec_to_time(3020399.999999), sec_to_time(3020399.9999999);
+select sec_to_time(-3020399.99999), sec_to_time(-3020399.999999), sec_to_time(-3020399.9999999);
+select 20010101000203.000000004 + interval 1 day;
 #
 # precision of expressions
 #

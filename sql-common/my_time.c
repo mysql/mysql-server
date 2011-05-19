@@ -19,9 +19,6 @@
 /* Windows version of localtime_r() is declared in my_ptrhead.h */
 #include <my_pthread.h>
 
-static enum enum_mysql_timestamp_type str_to_time(const char *, uint,
-                                                  MYSQL_TIME *, int *);
-
 ulonglong log_10_int[20]=
 {
   1, 10, 100, 1000, 10000UL, 100000UL, 1000000UL, 10000000UL,
@@ -491,7 +488,7 @@ err:
      MYSQL_TIMESTAMP_ERROR
 */
 
-static enum enum_mysql_timestamp_type
+enum enum_mysql_timestamp_type
 str_to_time(const char *str, uint length, MYSQL_TIME *l_time, int *warning)
 {
   ulong date[5];
@@ -716,7 +713,7 @@ int check_time_range(struct st_mysql_time *my_time, uint dec, int *warning)
   my_time->hour= TIME_MAX_HOUR;
   my_time->minute= TIME_MAX_MINUTE;
   my_time->second= TIME_MAX_SECOND;
-  my_time->second_part= TIME_MAX_SECOND_PART;
+  my_time->second_part= max_sec_part[dec];
   *warning|= MYSQL_TIME_WARN_OUT_OF_RANGE;
   return 0;
 }
@@ -1245,7 +1242,7 @@ int number_to_time(double nr, MYSQL_TIME *ltime, int *was_cut)
   ltime->hour  = tmp/100/100;
   ltime->minute= tmp/100%100;
   ltime->second= tmp%100;
-  ltime->second_part= (ulong)((nr-tmp)*1e6);
+  ltime->second_part= (ulong)((nr-tmp)*TIME_SECOND_PART_FACTOR);
 
   if (ltime->minute < 60 && ltime->second < 60)
     return 0;
@@ -1336,7 +1333,7 @@ double TIME_to_double(const MYSQL_TIME *my_time)
   if (my_time->time_type == MYSQL_TIMESTAMP_DATE)
     return d;
 
-  d+= my_time->second_part/1e6;
+  d+= my_time->second_part/(double)TIME_SECOND_PART_FACTOR;
   return my_time->neg ? -d : d;
 }
 

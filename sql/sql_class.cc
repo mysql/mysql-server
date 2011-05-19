@@ -2338,7 +2338,8 @@ bool select_max_min_finder_subselect::send_data(List<Item> &items)
       case DECIMAL_RESULT:
         op= &select_max_min_finder_subselect::cmp_decimal;
         break;
-      default:
+      case ROW_RESULT:
+      case TIME_RESULT:
         // This case should never be choosen
 	DBUG_ASSERT(0);
 	op= 0;

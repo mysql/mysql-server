@@ -47,6 +47,17 @@ template class List<Create_field>;
 template class List_iterator<Create_field>;
 #endif
 
+static const char *zero_timestamp="0000-00-00 00:00:00.000000";
+
+/* number of bytes to store second_part part of the TIMESTAMP(N) */
+static uint sec_part_bytes[MAX_DATETIME_PRECISION+1]= { 0, 1, 1, 2, 2, 3, 3 };
+
+/* number of bytes to store DATETIME(N) */
+static uint datetime_hires_bytes[MAX_DATETIME_PRECISION+1]= { 5, 6, 6, 7, 7, 7, 8 };
+
+/* number of bytes to store TIME(N) */
+static uint time_hires_bytes[MAX_DATETIME_PRECISION+1]= { 3, 4, 4, 5, 5, 5, 6 };
+
 uchar Field_null::null[1]={1};
 const char field_separator=',';
 
@@ -4693,6 +4704,7 @@ long Field_timestamp::get_timestamp(ulong *sec_part) const
   return tmp;
 }
 
+
 int Field_timestamp::store_TIME_with_warning(THD *thd, MYSQL_TIME *l_time,
                                              const Lazy_string *str,
                                              bool was_cut, bool have_smth_to_conv)
@@ -4700,7 +4712,6 @@ int Field_timestamp::store_TIME_with_warning(THD *thd, MYSQL_TIME *l_time,
   ASSERT_COLUMN_MARKED_FOR_WRITE;
   uint error = 0;
   my_time_t timestamp;
-  my_bool in_dst_time_gap;
 
   if (was_cut || !have_smth_to_conv)
   {
@@ -4708,19 +4719,14 @@ int Field_timestamp::store_TIME_with_warning(THD *thd, MYSQL_TIME *l_time,
     set_datetime_warning(MYSQL_ERROR::WARN_LEVEL_WARN, WARN_DATA_TRUNCATED,
                          str, MYSQL_TIMESTAMP_DATETIME, 1);
   }
+  /* Only convert a correct date (not a zero date) */
   if (have_smth_to_conv && l_time->month)
   {
-    if (!(timestamp= TIME_to_timestamp(thd, l_time, &in_dst_time_gap)))
+    uint conversion_error;
+    timestamp= TIME_to_timestamp(thd, l_time, &conversion_error);
+    if (conversion_error)
     {
-      set_datetime_warning(MYSQL_ERROR::WARN_LEVEL_WARN,
-                           ER_WARN_DATA_OUT_OF_RANGE,
-                           str, MYSQL_TIMESTAMP_DATETIME, !error);
-      error= 1;
-    }
-    else if (in_dst_time_gap)
-    {
-      set_datetime_warning(MYSQL_ERROR::WARN_LEVEL_WARN,
-                           ER_WARN_INVALID_TIMESTAMP,
+      set_datetime_warning(MYSQL_ERROR::WARN_LEVEL_WARN, conversion_error,
                            str, MYSQL_TIMESTAMP_DATETIME, !error);
       error= 1;
     }
@@ -4736,7 +4742,7 @@ int Field_timestamp::store_TIME_with_warning(THD *thd, MYSQL_TIME *l_time,
 
 int Field_timestamp::store_time(MYSQL_TIME *ltime,timestamp_type time_type)
 {
-  THD *thd= table ? table->in_use : current_thd;
+  THD *thd= table->in_use;
   int unused;
   MYSQL_TIME l_time= *ltime;
   Lazy_string_time str(ltime);
@@ -4753,7 +4759,7 @@ int Field_timestamp::store(const char *from,uint len,CHARSET_INFO *cs)
   int error;
   int have_smth_to_conv;
   Lazy_string_str str(from, len);
-  THD *thd= table ? table->in_use : current_thd;
+  THD *thd= table->in_use;
 
   /* We don't want to store invalid or fuzzy datetime values in TIMESTAMP */
   have_smth_to_conv= (str_to_datetime(from, len, &l_time,
@@ -4769,16 +4775,18 @@ int Field_timestamp::store(double nr)
 {
   MYSQL_TIME l_time;
   int error;
-  Lazy_string_dbl str(nr);
-  THD *thd= table ? table->in_use : current_thd;
+  Lazy_string_double str(nr);
+  THD *thd= table->in_use;
 
   /* We don't want to store invalid or fuzzy datetime values in TIMESTAMP */
+  if (nr < 0 || nr > LONGLONG_MAX)
+    nr= LONGLONG_MAX;
   longlong tmp= number_to_datetime((longlong) floor(nr),
                                    &l_time, (thd->variables.sql_mode &
                                                  MODE_NO_ZERO_DATE) |
                                    MODE_NO_ZERO_IN_DATE, &error);
-  l_time.second_part= (ulong)((nr-floor(nr))*1e6);
-  return store_TIME_with_warning(thd, &l_time, &str, error, tmp != LL(-1));
+  l_time.second_part= (ulong)((nr-floor(nr))*TIME_SECOND_PART_FACTOR);
+  return store_TIME_with_warning(thd, &l_time, &str, error, tmp != -1);
 }
 
 
@@ -4787,7 +4795,7 @@ int Field_timestamp::store(longlong nr, bool unsigned_val)
   MYSQL_TIME l_time;
   int error;
   Lazy_string_num str(nr);
-  THD *thd= table ? table->in_use : current_thd;
+  THD *thd= table->in_use;
 
   /* We don't want to store invalid or fuzzy datetime values in TIMESTAMP */
   longlong tmp= number_to_datetime(nr, &l_time, (thd->variables.sql_mode &
@@ -4804,11 +4812,16 @@ double Field_timestamp::val_real(void)
 longlong Field_timestamp::val_int(void)
 {
   MYSQL_TIME time_tmp;
-  THD  *thd= table ? table->in_use : current_thd;
+  THD  *thd= table->in_use;
 
   thd->time_zone_used= 1;
   ulong sec_part;
   uint32 temp= get_timestamp(&sec_part);
+
+  /*
+     Field_timestamp() and Field_timestamp_hres() shares this code.
+     This is why are also testing sec_part below.
+  */
 
   if (temp == 0 && sec_part == 0)
     return(0);
@@ -4820,11 +4833,10 @@ longlong Field_timestamp::val_int(void)
          time_tmp.minute * 100 + time_tmp.second;
 }
 
-static const char *zero_timestamp="0000-00-00 00:00:00.000000";
 String *Field_timestamp::val_str(String *val_buffer, String *val_ptr)
 {
   uint32 temp2;
-  THD *thd= table ? table->in_use : current_thd;
+  THD *thd= table->in_use;
   MYSQL_TIME time_tmp;
   char *to;
 
@@ -4891,7 +4903,7 @@ String *Field_timestamp::val_str(String *val_buffer, String *val_ptr)
 
 bool Field_timestamp::get_date(MYSQL_TIME *ltime, uint fuzzydate)
 {
-  THD *thd= table ? table->in_use : current_thd;
+  THD *thd= table->in_use;
   thd->time_zone_used= 1;
   ulong sec_part;
   uint32 temp= get_timestamp(&sec_part);
@@ -4961,7 +4973,7 @@ void Field_timestamp::sql_type(String &res) const
 
 int Field_timestamp::set_time()
 {
-  THD *thd= table ? table->in_use : current_thd;
+  THD *thd= table->in_use;
   set_notnull();
   store_TIME(thd->query_start(), 0);
   return 0;
@@ -5052,12 +5064,6 @@ static longlong read_bigendian(const uchar *from, uint bytes)
   }
 }
 
-static uint sec_part_bytes[MAX_DATETIME_PRECISION+1]= { 0, 1, 1, 2, 2, 3, 3 };
-static uint datetime_hires_bytes[MAX_DATETIME_PRECISION+1]=
-{ 5, 6, 6, 7, 7, 7, 8 };
-static uint time_hires_bytes[MAX_DATETIME_PRECISION+1]=
-{ 3, 4, 4, 5, 5, 5, 6 };
-
 void Field_timestamp_hires::store_TIME(my_time_t timestamp, ulong sec_part)
 {
   mi_int4store(ptr, timestamp);
@@ -5074,7 +5080,7 @@ long Field_timestamp_hires::get_timestamp(ulong *sec_part) const
 double Field_timestamp_hires::val_real(void)
 {
   MYSQL_TIME time_tmp;
-  THD  *thd= table ? table->in_use : current_thd;
+  THD  *thd= table->in_use;
 
   thd->time_zone_used= 1;
   ulong sec_part;
@@ -5119,7 +5125,7 @@ int Field_timestamp_hires::store_decimal(const my_decimal *d)
 
 int Field_timestamp_hires::set_time()
 {
-  THD *thd= table ? table->in_use : current_thd;
+  THD *thd= table->in_use;
   set_notnull();
   store_TIME(thd->query_start(), thd->query_start_sec_part());
   return 0;
@@ -5238,7 +5244,7 @@ int Field_temporal::store(const char *from,uint len,CHARSET_INFO *cs)
   MYSQL_TIME ltime;
   int error;
   enum enum_mysql_timestamp_type func_res;
-  THD *thd= table ? table->in_use : current_thd;
+  THD *thd= table->in_use;
   Lazy_string_str str(from, len);
 
   func_res= str_to_datetime(from, len, &ltime,
@@ -5255,22 +5261,18 @@ int Field_temporal::store(double nr)
 {
   int error= 0;
   MYSQL_TIME ltime;
-  longlong tmp;
-  THD *thd= table ? table->in_use : current_thd;
-  Lazy_string_dbl str(nr);
+  THD *thd= table->in_use;
+  Lazy_string_double str(nr);
 
-  if (nr < 0.0 || nr > 99991231235959.0)
-  {
-    tmp= -1;
-    error= 1;
-  }
-  else
-    tmp= number_to_datetime((longlong) floor(nr), &ltime, (TIME_FUZZY_DATE |
-                                         (thd->variables.sql_mode &
-                                          (MODE_NO_ZERO_IN_DATE |
-                                           MODE_NO_ZERO_DATE |
-                                           MODE_INVALID_DATES))), &error);
-  ltime.second_part= (ulong)((nr-floor(nr))*1e6);
+  if (nr < 0 || nr > LONGLONG_MAX)
+    nr= LONGLONG_MAX;
+  longlong tmp= number_to_datetime((longlong) floor(nr), &ltime,
+                                   (TIME_FUZZY_DATE |
+                                       (thd->variables.sql_mode &
+                                        (MODE_NO_ZERO_IN_DATE |
+                                         MODE_NO_ZERO_DATE |
+                                         MODE_INVALID_DATES))), &error);
+  ltime.second_part= (ulong)((nr-floor(nr))*TIME_SECOND_PART_FACTOR);
   return store_TIME_with_warning(&ltime, &str, error, tmp != -1);
 }
 
@@ -5280,7 +5282,7 @@ int Field_temporal::store(longlong nr, bool unsigned_val)
   int error;
   MYSQL_TIME ltime;
   longlong tmp;
-  THD *thd= table ? table->in_use : current_thd;
+  THD *thd= table->in_use;
   Lazy_string_num str(nr);
 
   tmp= number_to_datetime(nr, &ltime, (TIME_FUZZY_DATE |
@@ -5340,8 +5342,8 @@ int Field_time::store(const char *from,uint len,CHARSET_INFO *cs)
   MYSQL_TIME ltime;
   Lazy_string_str str(from, len);
   int was_cut;
-  int have_smth_to_conv= str_to_datetime(from, len, &ltime, TIME_TIME_ONLY,
-                                         &was_cut) > MYSQL_TIMESTAMP_ERROR;
+  int have_smth_to_conv=
+    str_to_time(from, len, &ltime, &was_cut) > MYSQL_TIMESTAMP_ERROR;
   
   return store_TIME_with_warning(&ltime, &str, was_cut, have_smth_to_conv);
 }
@@ -5361,7 +5363,7 @@ int Field_time::store_time(MYSQL_TIME *ltime, timestamp_type time_type)
 int Field_time::store(double nr)
 {
   MYSQL_TIME ltime;
-  Lazy_string_dbl str(nr);
+  Lazy_string_double str(nr);
   int was_cut;
   int have_smth_to_conv= !number_to_time(nr, &ltime, &was_cut);
 
@@ -5405,7 +5407,6 @@ String *Field_time::val_str(String *val_buffer,
 {
   ASSERT_COLUMN_MARKED_FOR_READ;
   MYSQL_TIME ltime;
-  val_buffer->alloc(MAX_DATE_STRING_REP_LENGTH);
   long tmp=(long) sint3korr(ptr);
   ltime.neg= 0;
   if (tmp < 0)
@@ -5432,7 +5433,7 @@ String *Field_time::val_str(String *val_buffer,
  
 bool Field_time::get_date(MYSQL_TIME *ltime, uint fuzzydate)
 {
-  THD *thd= table ? table->in_use : current_thd;
+  THD *thd= table->in_use;
   if (!(fuzzydate & (TIME_FUZZY_DATE|TIME_TIME_ONLY)))
   {
     push_warning_printf(thd, MYSQL_ERROR::WARN_LEVEL_WARN,
@@ -5751,7 +5752,6 @@ String *Field_date::val_str(String *val_buffer,
 {
   ASSERT_COLUMN_MARKED_FOR_READ;
   MYSQL_TIME ltime;
-  val_buffer->alloc(field_length);
   int32 tmp;
   if (ARCH_BIGENDIAN && table && table->s->db_low_byte_first)
     tmp=sint4korr(ptr);
@@ -10085,7 +10085,7 @@ Field::set_warning(MYSQL_ERROR::enum_warning_level level, uint code,
     If this field was created only for type conversion purposes it
     will have table == NULL.
   */
-  THD *thd= table ? table->in_use : current_thd;
+  THD *thd= table->in_use;
   if (thd->count_cuted_fields)
   {
     thd->cuted_fields+= cuted_increment;
@@ -10119,7 +10119,7 @@ void Field::set_datetime_warning(MYSQL_ERROR::enum_warning_level level,
                             uint code, const Lazy_string *str,
                             timestamp_type ts_type, int cuted_increment)
 {
-  THD *thd= table ? table->in_use : current_thd;
+  THD *thd= table->in_use;
   if ((thd->really_abort_on_warning() &&
        level >= MYSQL_ERROR::WARN_LEVEL_WARN) ||
       set_warning(level, code, cuted_increment))

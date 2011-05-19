@@ -5044,7 +5044,7 @@ find_qualified_function_builder(THD *thd)
   return & Create_sp_func::s_singleton;
 }
 
-static inline const char* item_name(Item *a, String *str)
+static const char* item_name(Item *a, String *str)
 {
   if (a->name)
     return a->name;
@@ -5053,14 +5053,32 @@ static inline const char* item_name(Item *a, String *str)
   return str->c_ptr_safe();
 }
 
-Item *
-create_func_cast(THD *thd, Item *a, Cast_target cast_type,
-                 const char *c_len, const char *c_dec,
-                 CHARSET_INFO *cs)
+static uint get_number(Item *a, const char *c_len, bool *err,
+                       uint maximum, uint errcode)
 {
-  Item *UNINIT_VAR(res);
+  if (!c_len)
+    return 0;
+
+  int unused;
   char buff[1024];
   String buf(buff, sizeof(buff), system_charset_info);
+
+  ulonglong decoded_size= my_strtoll10(c_len, NULL, &unused);
+  uint len= min(decoded_size, UINT_MAX32);
+
+  if (decoded_size > maximum)
+  {
+    my_error(errcode, MYF(0), len, item_name(a, &buf), maximum);
+    *err= true;
+  }
+  return len;
+}
+
+Item *create_func_cast(THD *thd, Item *a, Cast_target cast_type,
+                       const char *c_len, const char *c_dec,
+                       CHARSET_INFO *cs)
+{
+  Item *UNINIT_VAR(res);
 
   switch (cast_type) {
   case ITEM_CAST_BINARY:
@@ -5078,20 +5096,11 @@ create_func_cast(THD *thd, Item *a, Cast_target cast_type,
   case ITEM_CAST_TIME:
   case ITEM_CAST_DATETIME:
   {
-    uint len;
-    if (c_len)
-    {
-      errno= 0;
-      len= strtoul(c_len, NULL, 10);
-      if (errno != 0 || len > MAX_DATETIME_PRECISION)
-      {
-        my_error(ER_TOO_BIG_PRECISION, MYF(0), len,
-                 item_name(a, &buf), MAX_DATETIME_PRECISION);
-        return NULL;
-      }
-    }
-    else
-      len= 0;
+    bool err= false;
+    uint len= get_number(a, c_len, &err, MAX_DATETIME_PRECISION,
+                         ER_TOO_BIG_PRECISION);
+    if (err)
+      return NULL;
 
     if (cast_type == ITEM_CAST_TIME)
       res= new (thd->mem_root) Item_time_typecast(a, len);
@@ -5101,72 +5110,40 @@ create_func_cast(THD *thd, Item *a, Cast_target cast_type,
   }
   case ITEM_CAST_DECIMAL:
   {
-    ulong len= 0;
-    uint dec= 0;
+    bool err= false;
+    ulong len= get_number(a, c_len, &err, DECIMAL_MAX_PRECISION,
+                          ER_TOO_BIG_PRECISION);
+    uint  dec= get_number(a, c_dec, &err, DECIMAL_MAX_SCALE,
+                          ER_TOO_BIG_SCALE);
+    if (err)
+      return NULL;
 
-    if (c_len)
-    {
-      ulong decoded_size;
-      errno= 0;
-      decoded_size= strtoul(c_len, NULL, 10);
-      if (errno != 0)
-      {
-        my_error(ER_TOO_BIG_PRECISION, MYF(0), decoded_size,
-                 item_name(a, &buf), DECIMAL_MAX_PRECISION);
-        return NULL;
-      }
-      len= decoded_size;
-    }
-
-    if (c_dec)
-    {
-      ulong decoded_size;
-      errno= 0;
-      decoded_size= strtoul(c_dec, NULL, 10);
-      if ((errno != 0) || (decoded_size > UINT_MAX))
-      {
-        my_error(ER_TOO_BIG_SCALE, MYF(0), decoded_size,
-                 item_name(a, &buf), DECIMAL_MAX_SCALE);
-        return NULL;
-      }
-      dec= decoded_size;
-    }
-    my_decimal_trim(&len, &dec);
     if (len < dec)
     {
       my_error(ER_M_BIGGER_THAN_D, MYF(0), "");
-      return 0;
+      return NULL;
     }
-    if (len > DECIMAL_MAX_PRECISION)
-    {
-      my_error(ER_TOO_BIG_PRECISION, MYF(0), len,
-               item_name(a, &buf), DECIMAL_MAX_PRECISION);
-      return 0;
-    }
-    if (dec > DECIMAL_MAX_SCALE)
-    {
-      my_error(ER_TOO_BIG_SCALE, MYF(0), dec, item_name(a, &buf),
-               DECIMAL_MAX_SCALE);
-      return 0;
-    }
+    my_decimal_trim(&len, &dec);
     res= new (thd->mem_root) Item_decimal_typecast(a, len, dec);
     break;
   }
   case ITEM_CAST_CHAR:
   {
-    int len= -1;
+    uint len= ~0U;
     CHARSET_INFO *real_cs= (cs ? cs : thd->variables.collation_connection);
     if (c_len)
     {
-      ulong decoded_size;
-      errno= 0;
-      decoded_size= strtoul(c_len, NULL, 10);
-      if ((errno != 0) || (decoded_size > MAX_FIELD_BLOBLENGTH))
+      int err;
+      ulonglong decoded_size= my_strtoll10(c_len, NULL, &err);
+      if (decoded_size> MAX_FIELD_BLOBLENGTH)
       {
-       my_error(ER_TOO_BIG_DISPLAYWIDTH, MYF(0), "cast as char", MAX_FIELD_BLOBLENGTH);
+        char buff[1024];
+        String buf(buff, sizeof(buff), system_charset_info);
+        my_error(ER_TOO_BIG_DISPLAYWIDTH, MYF(0),
+                 item_name(a, &buf), MAX_FIELD_BLOBLENGTH);
         return NULL;
       }
-      len= (int) decoded_size;
+      len= decoded_size;
     }
     res= new (thd->mem_root) Item_char_typecast(a, len, real_cs);
     break;

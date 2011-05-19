@@ -614,8 +614,6 @@ int Arg_comparator::set_compare_func(Item_result_field *item, Item_result type)
     }
     break;
   }
-  default:
-    DBUG_ASSERT(0);
   }
   return 0;
 }
@@ -708,6 +706,18 @@ static ulonglong get_date_from_str(THD *thd, String *str,
   return pack_time(&l_time);
 }
 
+/**
+  Prepare the comparator (set the comparison function) for comparing
+  items *a1 and *a2 in the context of 'type'.
+
+  @param[in]      owner_arg  Item, peforming the comparison (e.g. Item_func_eq)
+  @param[in,out]  a1         first argument to compare
+  @param[in,out]  a2         second argument to compare
+  @param[in]      type       type context to compare in
+
+  Both *a1 and *a2 can be replaced by this method - typically by constant
+  items, holding the cached converted value of the original (constant) item.
+*/
 
 int Arg_comparator::set_cmp_func(Item_result_field *owner_arg,
                                         Item **a1, Item **a2,
@@ -791,19 +801,16 @@ void Arg_comparator::set_datetime_cmp_func(Item_result_field *owner_arg,
   func= comparator_matrix[TIME_RESULT][is_owner_equal_func()];
 }
 
-
-/*
+/**
   Retrieves correct DATETIME value from given item.
 
-  SYNOPSIS
-    get_datetime_value()
-    thd                 thread handle
-    item_arg   [in/out] item to retrieve DATETIME value from
-    cache_arg  [in/out] pointer to place to store the caching item to
-    warn_item  [in]     item for issuing the conversion warning
-    is_null    [out]    TRUE <=> the item_arg is null
+  @param[in]     thd         thread handle
+  @param[in,out] item_arg    item to retrieve DATETIME value from
+  @param[in,out] cache_arg   pointer to place to store the caching item to
+  @param[in]     warn_item   item for issuing the conversion warning
+  @param[out]    is_null     TRUE <=> the item_arg is null
 
-  DESCRIPTION
+  @details
     Retrieves the correct DATETIME value from given item for comparison by the
     compare_datetime() function.
 
@@ -818,7 +825,10 @@ void Arg_comparator::set_datetime_cmp_func(Item_result_field *owner_arg,
     depending on the other operand (when comparing a string with a date, it's
     parsed as a date, when comparing a string with a time it's parsed as a time)
 
-  RETURN
+    If the item is a constant it is replaced by the Item_cache_int, that
+    holds the packed datetime value.
+
+  @return
     MYSQL_TIME value, packed in a longlong, suitable for comparison.
 */
 
@@ -829,16 +839,15 @@ get_datetime_value(THD *thd, Item ***item_arg, Item **cache_arg,
   longlong UNINIT_VAR(value);
   Item *item= **item_arg;
   enum_field_types f_type= warn_item->field_type();
-  timestamp_type t_type=
-    f_type == MYSQL_TYPE_DATE ? MYSQL_TIMESTAMP_DATE :
-    f_type == MYSQL_TYPE_TIME ? MYSQL_TIMESTAMP_TIME :
-                                MYSQL_TIMESTAMP_DATETIME;
 
   switch (item->cmp_type()) {
   case TIME_RESULT:
     /* if it's our Item_cache_int, as created below, we simply use the value */
     if (item->result_type() == INT_RESULT)
+    {
       value= item->val_int();
+      cache_arg= 0;
+    }
     else
     {
       MYSQL_TIME buf;
@@ -872,7 +881,7 @@ get_datetime_value(THD *thd, Item ***item_arg, Item **cache_arg,
       int was_cut;
       longlong res;
 
-      if (t_type == MYSQL_TIMESTAMP_TIME)
+      if (f_type == MYSQL_TYPE_TIME)
         res= number_to_time((double)value, &buf, &was_cut);
       else
         res= number_to_datetime(value, &buf, TIME_INVALID_DATES|TIME_FUZZY_DATE,
@@ -880,8 +889,9 @@ get_datetime_value(THD *thd, Item ***item_arg, Item **cache_arg,
       if (res == -1)
       {
         const Lazy_string_num str(value);
-        make_truncated_value_warning(thd, MYSQL_ERROR::WARN_LEVEL_WARN,
-                                     &str, t_type, warn_item->name);
+        make_truncated_value_warning(thd, MYSQL_ERROR::WARN_LEVEL_WARN, &str,
+                                     mysql_type_to_time_type(f_type),
+                                     warn_item->field_name_or_null());
         value= 0;
       }
       else
@@ -903,7 +913,10 @@ get_datetime_value(THD *thd, Item ***item_arg, Item **cache_arg,
           some insignificant zeros.
         */
         bool error;
-        value= (longlong) get_date_from_str(thd, str, t_type, warn_item->name, &error);
+        value= (longlong) get_date_from_str(thd, str,
+                                            mysql_type_to_time_type(f_type),
+                                            warn_item->field_name_or_null(),
+                                            &error);
         /*
           If str did not contain a valid date according to the current
           SQL_MODE, get_date_from_str() has already thrown a warning,
@@ -913,12 +926,23 @@ get_datetime_value(THD *thd, Item ***item_arg, Item **cache_arg,
       }
       break;
     }
-  default: DBUG_ASSERT(0);
+  case ROW_RESULT:
+    DBUG_ASSERT(0);
   }
   if ((*is_null= item->null_value))
     return ~(ulonglong) 0;
-  if (cache_arg && item->const_item() && item->type() != Item::CACHE_ITEM)
+  if (cache_arg && item->const_item())
   {
+    /*
+      cache the packed datetime value in the Item_cache object.
+      Because the packed datetime value is longlong, we use Item_cache_int,
+      and it has result_type() == INT_RESULT.
+      But we create it to have field_type() == MYSQL_TYPE_TIME (or
+      MYSQL_TIMESTAMP_DATE or MYSQL_TYPE_DATETIME), and thus it will have
+      cmp_type() == TIME_RESULT.
+      As no other item can have this combination of cmp_type() and result_type(),
+      it allows us to identify our cache items, see 'case TIME_RESULT:' above.
+    */
     Item_cache_int *cache= new Item_cache_int(f_type);
     cache->store(item, value);
     *cache_arg= cache;
@@ -975,9 +999,6 @@ int Arg_comparator::compare_e_datetime()
 {
   bool a_is_null, b_is_null;
   longlong a_value, b_value;
-
-  if (set_null)
-    owner->null_value= 0;
 
   /* Get DATE/DATETIME/TIME value of the 'a' item. */
   a_value= get_datetime_value(thd, &a, &a_cache, *b, &a_is_null);
@@ -1961,10 +1982,9 @@ bool Item_func_between::fix_fields(THD *thd, Item **ref)
 
 void Item_func_between::fix_length_and_dec()
 {
-  max_length= 1;
-  int i;
-  compare_as_dates= 0;
   THD *thd= current_thd;
+  max_length= 1;
+  compare_as_dates= 0;
 
   /*
     As some compare functions are generated after sql_yacc,
@@ -1980,7 +2000,7 @@ void Item_func_between::fix_length_and_dec()
 
   /*
     When comparing as date/time, we need to convert non-temporal values
-    (e.g.  strings) to MYSQL_TIME. get_datetime_value() doees it
+    (e.g.  strings) to MYSQL_TIME. get_datetime_value() does it
     automatically when one of the operands is a date/time.  But here we
     may need to compare two strings as dates (str1 BETWEEN str2 AND date).
     For this to work, we need to know what date/time type we compare
@@ -1988,7 +2008,7 @@ void Item_func_between::fix_length_and_dec()
   */
   if (cmp_type ==  TIME_RESULT)
   {
-    for (i= 0; i < 3; i++)
+    for (int i= 0; i < 3; i++)
     {
       if (args[i]->cmp_type() == TIME_RESULT)
       {
@@ -2149,7 +2169,7 @@ longlong Item_func_between::val_int()
     }
     break;
   }
-  default:
+  case ROW_RESULT:
     DBUG_ASSERT(0);
     null_value= 1;
     return 0;
@@ -2203,7 +2223,7 @@ Item_func_ifnull::fix_length_and_dec()
     decimals= 0;
     break;
   case ROW_RESULT:
-  default:
+  case TIME_RESULT:
     DBUG_ASSERT(0);
   }
   cached_field_type= agg_field_type(args, 2);
@@ -2942,6 +2962,7 @@ void Item_func_coalesce::fix_length_and_dec()
   agg_result_type(&hybrid_type, args, arg_count);
   Item_result cmp_type;
   agg_cmp_type(&cmp_type, args, arg_count);
+  ///< @todo let result_type() return TIME_RESULT and remove this special case
   if (cmp_type == TIME_RESULT)
   {
     count_real_length();
@@ -2964,7 +2985,7 @@ void Item_func_coalesce::fix_length_and_dec()
     decimals= 0;
     break;
   case ROW_RESULT:
-  default:
+  case TIME_RESULT:
     DBUG_ASSERT(0);
   }
 }
@@ -3293,7 +3314,7 @@ cmp_item* cmp_item::get_comparator(Item_result type,
     return new cmp_item_row;
   case DECIMAL_RESULT:
     return new cmp_item_decimal;
-  default:
+  case TIME_RESULT:
     DBUG_ASSERT(0);
     break;
   }
@@ -3741,9 +3762,9 @@ void Item_func_in::fix_length_and_dec()
       case DECIMAL_RESULT:
         array= new in_decimal(arg_count - 1);
         break;
-      default:
+      case TIME_RESULT:
         DBUG_ASSERT(0);
-        return;
+        break;
       }
     }
     if (array && !(thd->is_fatal_error))		// If not EOM

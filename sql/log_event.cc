@@ -1978,12 +1978,10 @@ end:
   delete td;
 }
 
-#ifdef MYSQL_CLIENT
 void free_table_map_log_event(Table_map_log_event *event)
 {
   delete event;
 }
-#endif
 
 void Log_event::print_base64(IO_CACHE* file,
                              PRINT_EVENT_INFO* print_event_info,
@@ -3614,7 +3612,7 @@ bool Start_log_event_v3::write(IO_CACHE* file)
   int2store(buff + ST_BINLOG_VER_OFFSET,binlog_version);
   memcpy(buff + ST_SERVER_VER_OFFSET,server_version,ST_SERVER_VER_LEN);
   if (!dont_set_created)
-    created= get_time();
+    created= get_time(); // this sets when and when_sec_part as a side effect
   int4store(buff + ST_CREATED_OFFSET,created);
   return (write_header(file, sizeof(buff)) ||
           my_b_safe_write(file, (uchar*) buff, sizeof(buff)));

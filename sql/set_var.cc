@@ -2999,7 +2999,7 @@ void sys_var_thd_lc_time_names::set_default(THD *thd, enum_var_type type)
 }
 
 /*
-  Handling of microseoncds given as seconds.part_seconds
+  Handling of microseconds given as seconds.part_seconds
 
   NOTES
     The argument to long query time is in seconds in decimal

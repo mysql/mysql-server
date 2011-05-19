@@ -5555,8 +5555,8 @@ ER_WARN_CANT_DROP_DEFAULT_KEYCACHE
         eng "Cannot drop default keycache"
         ger "Der vorgabemäßige Schlüssel-Cache kann nicht gelöscht werden"
 ER_TOO_BIG_DISPLAYWIDTH 42000 S1009
-        eng "Display width out of range for column '%-.192s' (max = %lu)"
-        ger "Anzeigebreite außerhalb des zulässigen Bereichs für Spalte '%-.192s' (Maximum: %lu)"
+        eng "Display width out of range for '%-.192s' (max = %lu)"
+        ger "Anzeigebreite außerhalb des zulässigen Bereichs für '%-.192s' (Maximum: %lu)"
 ER_XAER_DUPID XAE08
         eng "XAER_DUPID: The XID already exists"
         ger "XAER_DUPID: Die XID existiert bereits"

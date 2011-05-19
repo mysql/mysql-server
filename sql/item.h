@@ -568,7 +568,9 @@ public:
   { return save_in_field(field, 1); }
   virtual bool send(Protocol *protocol, String *str);
   virtual bool eq(const Item *, bool binary_cmp) const;
+  /* result_type() of an item specifies how the value should be returned */
   virtual Item_result result_type() const { return REAL_RESULT; }
+  /* ... while cmp_type() specifies how it should be compared */
   virtual Item_result cmp_type() const;
   virtual Item_result cast_to_int_type() const { return cmp_type(); }
   virtual enum_field_types string_field_type() const;
@@ -731,6 +733,8 @@ public:
   /* This is also used to create fields in CREATE ... SELECT: */
   virtual Field *tmp_table_field(TABLE *t_arg) { return 0; }
   virtual const char *full_name() const { return name ? name : "???"; }
+  const char *field_name_or_null()
+  { return real_item()->type() == Item::FIELD_ITEM ? name : NULL; }
 
   /*
     *result* family of methods is analog of *val* family (see above) but
@@ -1492,7 +1496,7 @@ public:
   }
   Item_result cast_to_int_type() const
   {
-    return field->cast_to_int_type();
+    return field->cmp_type();
   }
   enum_field_types field_type() const
   {

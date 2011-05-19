@@ -3588,7 +3588,7 @@ static void fetch_string_with_conversion(MYSQL_BIND *param, char *value,
   case MYSQL_TYPE_TIME:
   {
     MYSQL_TIME *tm= (MYSQL_TIME *)buffer;
-    str_to_datetime(value, length, tm, TIME_TIME_ONLY, &err);
+    str_to_time(value, length, tm, &err);
     *param->error= test(err);
     break;
   }

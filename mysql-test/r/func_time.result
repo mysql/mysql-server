@@ -1036,7 +1036,7 @@ SELECT SEC_TO_TIME(CAST(-1 AS UNSIGNED));
 SEC_TO_TIME(CAST(-1 AS UNSIGNED))
 838:59:59
 Warnings:
-Warning	1292	Truncated incorrect time value: '18446744073709551616'
+Warning	1292	Truncated incorrect time value: '1.84467440737096e+19'
 SET NAMES latin1;
 SET character_set_results = NULL;
 SHOW VARIABLES LIKE 'character_set_results';
@@ -1223,6 +1223,11 @@ str_to_date('10:00 PM', '%h:%i %p') + INTERVAL 10 MINUTE
 NULL
 Warnings:
 Error	1411	Incorrect datetime value: '10:00 PM' for function str_to_date
+select str_to_date("1997-00-04 22:23:00","%Y-%m-%D") + interval 10 minute;
+str_to_date("1997-00-04 22:23:00","%Y-%m-%D") + interval 10 minute
+NULL
+Warnings:
+Error	1411	Incorrect datetime value: '1997-00-04 22:23:00' for function str_to_date
 create table t1 (field DATE);
 insert into t1 values ('2006-11-06');
 select * from t1 where field < '2006-11-06 04:08:36.0';
@@ -1545,3 +1550,12 @@ select cast(f1 AS time) from t1;
 cast(f1 AS time)
 00:00:00
 drop table t1;
+select greatest(cast("0-0-0" as date), cast("10:20:05" as time));
+greatest(cast("0-0-0" as date), cast("10:20:05" as time))
+0000-00-00
+select greatest(cast("0-0-0" as date), cast("10:20:05" as time)) = '0000-00-00';
+greatest(cast("0-0-0" as date), cast("10:20:05" as time)) = '0000-00-00'
+1
+select cast(greatest(cast("0-0-0" as date), cast("10:20:05" as time)) as datetime(6));
+cast(greatest(cast("0-0-0" as date), cast("10:20:05" as time)) as datetime(6))
+0000-00-00 00:00:00.000000
