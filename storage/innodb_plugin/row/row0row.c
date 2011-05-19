@@ -151,8 +151,6 @@ row_build_index_entry(
 		} else if (dfield_is_ext(dfield)) {
 			ut_a(len >= BTR_EXTERN_FIELD_REF_SIZE);
 			len -= BTR_EXTERN_FIELD_REF_SIZE;
-			ut_a(ind_field->prefix_len <= len
-			     || dict_index_is_clust(index));
 		}
 
 		len = dtype_get_at_most_n_mbchars(
