@@ -10614,6 +10614,7 @@ Dbtc::initScanrec(ScanRecordPtr scanptr,
   ScanFragReq::setDescendingFlag(tmp, ScanTabReq::getDescendingFlag(ri));
   ScanFragReq::setTupScanFlag(tmp, ScanTabReq::getTupScanFlag(ri));
   ScanFragReq::setNoDiskFlag(tmp, ScanTabReq::getNoDiskFlag(ri));
+  ScanFragReq::setStatScanFlag(tmp, ScanTabReq::getStatScanFlag(ri));
   if (ScanTabReq::getViaSPJFlag(ri))
   {
     jam();

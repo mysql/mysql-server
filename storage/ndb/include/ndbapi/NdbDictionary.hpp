@@ -610,6 +610,8 @@ public:
     static const Column * OPTIMIZE;
     static const Column * FRAGMENT_EXTENT_SPACE;
     static const Column * FRAGMENT_FREE_EXTENT_SPACE;
+    static const Column * INDEX_STAT_KEY;
+    static const Column * INDEX_STAT_VALUE;
 
     int getSizeInBytes() const;
 

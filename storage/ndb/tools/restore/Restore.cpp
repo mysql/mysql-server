@@ -523,6 +523,9 @@ RestoreMetaData::markSysTables()
         strcmp(tableName, "NDB$EVENTS_0") == 0 ||
         strcmp(tableName, "sys/def/SYSTAB_0") == 0 ||
         strcmp(tableName, "sys/def/NDB$EVENTS_0") == 0 ||
+        // index stats tables and indexes
+        strncmp(tableName, "NDB$IS_", 7) == 0 ||
+        strstr(tableName, "/NDB$IS_") != 0 ||
         /*
           The following is for old MySQL versions,
            before we changed the database name of the tables from

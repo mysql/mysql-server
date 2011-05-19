@@ -2418,7 +2418,8 @@ Dbtup::read_pseudo(const Uint32 * inBuffer, Uint32 inPos,
   Uint32* outBuffer = outBuf + ((outPos - 1) >> 2);
   
   Uint32 sz;
-  SignalT<4> signalT;
+  const Uint32 DataSz = MAX_INDEX_STAT_KEY_SIZE;
+  SignalT<DataSz> signalT;
   Signal * signal = new (&signalT) Signal(0);
   bzero(signal, sizeof(signalT));
   switch(attrId){
@@ -2488,6 +2489,23 @@ Dbtup::read_pseudo(const Uint32 * inBuffer, Uint32 inPos,
     outBuffer[4] = signal->theData[3];
     sz = 4;
     break;
+  case AttributeHeader::INDEX_STAT_KEY:
+  case AttributeHeader::INDEX_STAT_VALUE:
+  {
+    signal->theData[0] = req_struct->operPtrP->userpointer;
+    signal->theData[1] = attrId;
+
+    EXECUTE_DIRECT(DBLQH, GSN_READ_PSEUDO_REQ, signal, 2);
+
+    const Uint8* src = (Uint8*)&signal->theData[0];
+    Uint32 byte_sz = 2 + src[0] + (src[1] << 8);
+    Uint8* dst = (Uint8*)&outBuffer[1];
+    memcpy(dst, src, byte_sz);
+    while (byte_sz % 4 != 0)
+      dst[byte_sz++] = 0;
+    sz = byte_sz / 4;
+    break;
+  }
   case AttributeHeader::ROWID:
     outBuffer[1] = req_struct->frag_page_id;
     outBuffer[2] = req_struct->operPtrP->m_tuple_location.m_page_idx;

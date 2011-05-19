@@ -108,6 +108,7 @@ private:
   static Uint32 getViaSPJFlag(const Uint32 & requestInfo);
   static Uint32 getPassAllConfsFlag(const Uint32 & requestInfo);
   static Uint32 get4WordConf(const Uint32&);
+  static UintR getStatScanFlag(const UintR & requestInfo);
 
   /**
    * Set:ers for requestInfo
@@ -127,6 +128,7 @@ private:
   static void setViaSPJFlag(Uint32 & requestInfo, Uint32 val);
   static void setPassAllConfsFlag(Uint32 & requestInfo, Uint32 val);
   static void set4WordConf(Uint32 & requestInfo, Uint32 val);
+  static void setStatScanFlag(UintR & requestInfo, UintR val);
 };
 
 /**
@@ -150,10 +152,11 @@ private:
  j = Via SPJ flag          - 1  Bit 27
  a = Pass all confs flag   - 1  Bit 28
  f = 4 word conf           - 1  Bit 29
+ s = Stat scan             - 1  Bit 30  index stats
 
            1111111111222222222233
  01234567890123456789012345678901
- pppppppplnhcktzxbbbbbbbbbbdjaf
+ pppppppplnhcktzxbbbbbbbbbbdjafs
 */
 
 #define PARALLEL_SHIFT     (0)
@@ -192,6 +195,8 @@ private:
 #define SCAN_SPJ_SHIFT (27)
 #define SCAN_PASS_CONF_SHIFT (28)
 #define SCAN_4WORD_CONF_SHIFT (29)
+
+#define STAT_SCAN_SHIFT (30)
 
 inline
 Uint8
@@ -390,6 +395,19 @@ void
 ScanTabReq::set4WordConf(UintR & requestInfo, Uint32 flag){
   ASSERT_BOOL(flag, "TcKeyReq::setPassAllConfs");
   requestInfo |= (flag << SCAN_4WORD_CONF_SHIFT);
+}
+
+inline
+UintR 
+ScanTabReq::getStatScanFlag(const UintR & requestInfo){
+  return (requestInfo >> STAT_SCAN_SHIFT) & 1;
+}
+
+inline
+void 
+ScanTabReq::setStatScanFlag(UintR & requestInfo, Uint32 flag){
+  ASSERT_BOOL(flag, "ScanTabReq::setStatScanFlag");
+  requestInfo |= (flag << STAT_SCAN_SHIFT);
 }
 
 /**

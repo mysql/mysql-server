@@ -24,6 +24,7 @@
 #include <signaldata/DictTabInfo.hpp>
 #include <signaldata/SchemaTrans.hpp>
 #include <signaldata/CreateTable.hpp>
+#include <signaldata/CreateIndx.hpp>
 #include <signaldata/CreateHashMap.hpp>
 #include <signaldata/ReadNodesConf.hpp>
 #include <signaldata/NodeFailRep.hpp>
@@ -2406,16 +2407,16 @@ Ndbcntr::execCREATE_FILE_CONF(Signal* signal)
   createDDObjects(signal, conf->senderData + 1);
 }
 
-void Ndbcntr::createSystableLab(Signal* signal, unsigned index)
+void Ndbcntr::createSystableLab(Signal* signal, Uint32 ti)
 {
-  if (index >= g_sysTableCount) {
-    ndbassert(index == g_sysTableCount);
+  if (ti >= g_sysTableCount) {
+    ndbassert(ti == g_sysTableCount);
     createDDObjects(signal, 0);
     return;
   }
-  const SysTable& table = *g_sysTableList[index];
-  Uint32 propPage[256];
-  LinearWriter w(propPage, 256);
+  const SysTable& table = *g_sysTableList[ti];
+  Uint32 propPage[1024];
+  LinearWriter w(propPage, 1024);
 
   // XXX remove commented-out lines later
 
@@ -2436,7 +2437,8 @@ void Ndbcntr::createSystableLab(Signal* signal, unsigned index)
   w.add(DictTabInfo::HashMapObjectId, c_hashMapId);
   w.add(DictTabInfo::HashMapVersion, c_hashMapVersion);
 
-  for (unsigned i = 0; i < table.columnCount; i++) {
+  Uint32 i;
+  for (i = 0; i < table.columnCount; i++) {
     const SysColumn& column = table.columnList[i];
     ndbassert(column.pos == i);
     w.add(DictTabInfo::AttributeName, column.name);
@@ -2445,11 +2447,13 @@ void Ndbcntr::createSystableLab(Signal* signal, unsigned index)
     w.add(DictTabInfo::AttributeStorageType, 
 	  (Uint32)NDB_STORAGETYPE_MEMORY);
     switch(column.type){
+    case DictTabInfo::ExtVarchar:
     case DictTabInfo::ExtVarbinary:
       jam();
       w.add(DictTabInfo::AttributeArrayType,
             (Uint32)NDB_ARRAYTYPE_SHORT_VAR);
       break;
+    case DictTabInfo::ExtLongvarchar:
     case DictTabInfo::ExtLongvarbinary:
       jam();
       w.add(DictTabInfo::AttributeArrayType,
@@ -2475,10 +2479,12 @@ void Ndbcntr::createSystableLab(Signal* signal, unsigned index)
 
   CreateTableReq* const req = (CreateTableReq*)signal->getDataPtrSend();
   req->clientRef = reference();
-  req->clientData = index;
+  req->clientData = ti;
   req->requestInfo = 0;
   req->transId = c_schemaTransId;
   req->transKey = c_schemaTransKey;
+
+  D("create table" << V(ti) << V(table.name));
   sendSignal(DBDICT_REF, GSN_CREATE_TABLE_REQ, signal,
 	     CreateTableReq::SignalLength, JBB, ptr, 1);
   return;
@@ -2487,6 +2493,9 @@ void Ndbcntr::createSystableLab(Signal* signal, unsigned index)
 void Ndbcntr::execCREATE_TABLE_REF(Signal* signal) 
 {
   jamEntry();
+  const CreateTableRef* ref = (const CreateTableRef*)signal->getDataPtr();
+  ndbout << "CreateTableRef" << " errorCode=" << ref->errorCode
+         << " errorLine=" << ref->errorLine << endl;
   progError(__LINE__,NDBD_EXIT_NDBREQUIRE, "CREATE_TABLE_REF");
   return;
 }//Ndbcntr::execDICTTABREF()
@@ -2495,14 +2504,92 @@ void Ndbcntr::execCREATE_TABLE_CONF(Signal* signal)
 {
   jamEntry();
   const CreateTableConf* conf = (const CreateTableConf*)signal->getDataPtr();
-  //csystabId = conf->tableId;
   ndbrequire(conf->transId == c_schemaTransId);
-  ndbrequire(conf->senderData < g_sysTableCount);
-  const SysTable& table = *g_sysTableList[conf->senderData];
+  const Uint32 ti = conf->clientData;
+  ndbrequire(ti < g_sysTableCount);
+  const SysTable& table = *g_sysTableList[ti];
   table.tableId = conf->tableId;
   table.tableVersion = conf->tableVersion;
-  createSystableLab(signal, conf->senderData + 1);
-  //startInsertTransactions(signal);
+  createSysindexLab(signal, ti, 0);
+  return;
+}//Ndbcntr::execDICTTABCONF()
+
+void Ndbcntr::createSysindexLab(Signal* signal, Uint32 ti, Uint32 xi)
+{
+  ndbrequire(ti < g_sysTableCount);
+  const SysTable& table = *g_sysTableList[ti];
+  if (xi >= table.indexCount) {
+    ndbassert(xi == table.indexCount);
+    createSystableLab(signal, ti + 1);
+    return;
+  }
+
+  ndbrequire(table.indexList[xi] != 0);
+  const SysIndex& index = *table.indexList[xi];
+  CreateIndxReq* const req = (CreateIndxReq*)signal->getDataPtrSend();
+  req->clientRef = reference();
+  req->clientData = ti | (xi << 8);
+  req->transId = c_schemaTransId;
+  req->transKey = c_schemaTransKey;
+  req->requestInfo = 0;
+  req->tableId = table.tableId;
+  req->tableVersion = table.tableVersion;
+  req->indexType = index.indexType;
+  req->online = 1;
+
+  LinearSectionPtr ptr[3];
+
+  Uint32 attr[1 + 32];
+  attr[0] = index.columnCount;
+  memcpy(&attr[1], index.columnList, index.columnCount * 4);
+  ptr[0].p = attr;
+  ptr[0].sz = 1 + index.columnCount;
+
+  Uint32 propPage[256];
+  LinearWriter w(propPage, 256);
+  w.first();
+  char name[MAX_TAB_NAME_SIZE];
+  sprintf(name, index.name, table.tableId);
+  w.add(DictTabInfo::TableName, name);
+  w.add(DictTabInfo::TableLoggedFlag, index.indexLoggedFlag);
+  w.add(DictTabInfo::TableEnd, (Uint32)true);
+  Uint32 length = w.getWordsUsed();
+  ptr[1].p = &propPage[0];
+  ptr[1].sz = length;
+
+  D("create index" << V(ti) << V(xi) << V(name));
+  sendSignal(DBDICT_REF, GSN_CREATE_INDX_REQ, signal,
+             CreateIndxReq::SignalLength, JBB, ptr, 2);
+}
+
+void Ndbcntr::execCREATE_INDX_REF(Signal* signal)
+{
+  jamEntry();
+  const CreateIndxRef* ref = (const CreateIndxRef*)signal->getDataPtr();
+  ndbout << "CreateIndxRef" << " errorCode=" << ref->errorCode
+         << " errorLine=" << ref->errorLine << endl;
+  progError(__LINE__,NDBD_EXIT_NDBREQUIRE, "CREATE_INDX_REF");
+  return;
+}//Ndbcntr::execDICTTABREF()
+
+void Ndbcntr::execCREATE_INDX_CONF(Signal* signal)
+{
+  jamEntry();
+  const CreateIndxConf* conf = (const CreateIndxConf*)signal->getDataPtr();
+  ndbrequire(conf->transId == c_schemaTransId);
+
+  const Uint32 ti = conf->clientData & 0xFF;
+  const Uint32 xi = conf->clientData >> 8;
+  ndbrequire(ti < g_sysTableCount);
+  const SysTable& table = *g_sysTableList[ti];
+  ndbrequire(xi < table.indexCount);
+  ndbrequire(table.indexList[xi] != 0);
+  const SysIndex& index = *table.indexList[xi];
+
+  index.tableId = table.tableId;
+  index.indexId = conf->indexId;
+  index.indexVersion = conf->indexVersion;
+  createSysindexLab(signal, ti, xi + 1);
   return;
 }//Ndbcntr::execDICTTABCONF()
 
