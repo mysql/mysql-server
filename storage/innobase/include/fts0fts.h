@@ -71,6 +71,14 @@ those defined in mysql file ft_global.h */
 
 #define FTS_INDEX_TABLE_IND_NAME	"FTS_INDEX_TABLE_IND"
 
+/* Signal an optimize when the number of added documents
+exceeds this threshold. */
+static const ulint FTS_OPTIMIZE_ADD_THRESHOLD = 1000;
+
+/* Signal an optimize when the number of deleted documents
+exceeds this threshold. */
+static const ulint FTS_OPTIMIZE_DEL_THRESHOLD = 100;
+
 /* FTS rank type, which will be between 0 .. 1 inclusive */
 typedef float fts_rank_t;
 
@@ -371,27 +379,42 @@ void
 fts_free(
 /*=====*/
 	fts_t*		fts);		/* out: fts_t instance */
-/********************************************************************
+/**********************************************************************//**
 Startup the optimize thread and create the work queue. */
-
+UNIV_INTERN
 void
 fts_optimize_init(void);
 /*====================*/
+/**********************************************************************//**
+Check whether the work queue is initialized.
+@return TRUE if optimze queue is initialized. */
+UNIV_INTERN
+ibool
+fts_optimize_is_init(void);
+/*======================*/
 /********************************************************************
+Remove the table from the OPTIMIZER's list. We do wait for
+acknowledgement from the consumer of the message. */
+UNIV_INTERN
+void
+fts_optimize_remove_table(
+/*======================*/
+	dict_table_t*	table);		/* in: table to remove */
+/**********************************************************************//**
 Signal the optimize thread to prepare for shutdown. */
-
+UNIV_INTERN
 void
 fts_optimize_start_shutdown(void);
 /*==============================*/
 
-/********************************************************************
+/**********************************************************************//**
 Inform optimize to clean up. */
 
 void
 fts_optimize_end(void);
 /*===================*/
 
-/********************************************************************
+/**********************************************************************//**
 Take a FTS savepoint. */
 
 void
@@ -401,7 +424,7 @@ fts_savepoint_take(
 	trx_t*		trx,		/* in: transaction */
 	const char*	name);		/* in: savepoint name */
 
-/********************************************************************
+/**********************************************************************//**
 Release the savepoint data identified by  name. */
 
 void
@@ -428,6 +451,25 @@ table or FTS index defined on them. */
 void
 fts_drop_orphaned_tables(void);
 /*==========================*/
+
+/****************************************************************//**
+Run SYNC on the table, i.e., write out data from the cache to the
+FTS auxiliary INDEX table and clear the cache at the end.
+@return DB_SUCCESS if all OK */
+UNIV_INTERN
+ulint
+fts_sync_table(
+/*===========*/
+	dict_table_t*	table);		/*!< in: table */
+
+/********************************************************************
+Fetch COUNT(*) from specified table. */
+ulint
+fts_get_rows_count(
+/*===============*/
+					/* out: the number of rows in
+					the table */
+	fts_table_t*	fts_table);	/* in: fts table to read */
 
 /* Information about changes in a single transaction affecting
 the FTS system. */

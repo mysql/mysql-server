@@ -1186,6 +1186,11 @@ convert_error:
 			index entry count in the translation table
 			to zero, so that translation table will be rebuilt */
 			share->idx_trans_tbl.index_count = 0;
+
+			if (num_fts_index) {
+				dict_table_get_all_fts_indexes(
+					innodb_table, innodb_table->fts->indexes);
+			}
 		}
 
 		error = convert_error_code_to_mysql(error,

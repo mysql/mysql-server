@@ -547,13 +547,6 @@ fts_optimize_add_table(
 /*===================*/
 	dict_table_t*	table);		/* in: table to add */
 /********************************************************************
-Remove the table from the OPTIMIZER's list. */
-
-void
-fts_optimize_remove_table(
-/*======================*/
-	dict_table_t*	table);		/* in: table to remove */
-/********************************************************************
 Optimize a table. */
 
 void
@@ -579,5 +572,17 @@ fts_cache_node_add_positions(
 	fts_node_t*	node,		/* in: word node */
 	doc_id_t	doc_id,		/* in: doc id */
 	ib_vector_t*	positions);	/* in: fts_token_t::positions */
+
+/********************************************************************
+Create the config table name for retrieving index specific value. */
+UNIV_INTERN
+char*
+fts_config_create_index_param_name(
+/*===============================*/
+						/* out,own: index config
+						parameter name */
+	const char*		param,		/* in: base name of param */
+	const dict_index_t*	index);		/* in: index for config */
+
 
 #endif /* INNOBASE_FTS0PRIV_H */

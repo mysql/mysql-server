@@ -131,16 +131,15 @@ fts_config_get_value(
 	return(error);
 }
 
-/********************************************************************
-Create the config table name for retrieving index specific value. */
-static
+/*********************************************************************//**
+Create the config table name for retrieving index specific value.
+@return index config parameter name */
+UNIV_INTERN
 char*
 fts_config_create_index_param_name(
 /*===============================*/
-						/* out,own: index config
-						parameter name */
-	const char*		param,		/* in: base name of param */
-	const dict_index_t*	index)		/* in: index for config */
+	const char*		param,		/*!< in: base name of param */
+	const dict_index_t*	index)		/*!< in: index for config */
 {
 	ulint		len;
 	char*		name;

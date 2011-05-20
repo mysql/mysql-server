@@ -76,14 +76,6 @@ static const ulint FTS_CACHE_SIZE_LOWER_LIMIT_IN_MB = 1;
 /* The cache size permissible upper limit (1G) */
 static const ulint FTS_CACHE_SIZE_UPPER_LIMIT_IN_MB = 1024;
 
-/* Signal an optimize when the number of added documents
-exceeds this threshold. */
-static const ulint FTS_OPTIMIZE_ADD_THRESHOLD = 100;
-
-/* Signal an optimize when the number of deleted documents
-exceeds this threshold. */
-static const ulint FTS_OPTIMIZE_DEL_THRESHOLD = 100;
-
 /* Time to sleep after DEADLOCK error before retrying operation. */
 static const ulint FTS_DEADLOCK_RETRY_WAIT = 100000;
 
@@ -276,6 +268,7 @@ ulint
 fts_sync(
 /*=====*/
 	fts_sync_t*	sync);		/*!< in: sync state */
+
 /****************************************************************//**
 Add the document with the given id to the table's cache, and run
 SYNC if the cache grows too big. */
@@ -3482,15 +3475,15 @@ fts_sync_commit(
 	return(error);
 }
 
-/********************************************************************
+/****************************************************************//**
 Run SYNC on the table, i.e., write out data from the cache to the
-FTS auxiliary INDEX table and clear the cache at the end. */
+FTS auxiliary INDEX table and clear the cache at the end.
+@return DB_SUCCESS if all OK */
 static
 ulint
 fts_sync(
 /*=====*/
-						/* out: DB_SUCCESS if all OK */
-	fts_sync_t*	sync)			/* in: sync state */
+	fts_sync_t*	sync)		/*!< in: sync state */
 {
 	ulint		i;
 	ulint		total;
@@ -3546,6 +3539,27 @@ fts_sync(
 		cache->deleted -= deleted;
 
 		mutex_exit(&cache->deleted_lock);
+	}
+
+	return(error);
+}
+
+/****************************************************************//**
+Run SYNC on the table, i.e., write out data from the cache to the
+FTS auxiliary INDEX table and clear the cache at the end.
+@return DB_SUCCESS if all OK */
+UNIV_INTERN
+ulint
+fts_sync_table(
+/*===========*/
+	dict_table_t*	table)		/*!< in: table */
+{
+	ulint	error = DB_SUCCESS;
+
+	ut_ad(table->fts);
+
+	if (table->fts->cache) {
+		fts_sync(table->fts->cache->sync);
 	}
 
 	return(error);
@@ -4185,7 +4199,6 @@ fts_read_ulint(
 
 /********************************************************************
 Fetch COUNT(*) from specified table. */
-static
 ulint
 fts_get_rows_count(
 /*===============*/
@@ -4999,6 +5012,7 @@ fts_start_shutdown(
 	}
 
 	mutex_exit(&fts->bg_threads_mutex);
+
 }
 
 /********************************************************************
@@ -5765,6 +5779,9 @@ fts_init_index(
 	    && (table->fts->cache->stopword_info.status & STOPWORD_NOT_INIT)) {
 		fts_load_stopword(table, NULL, NULL, TRUE, TRUE);
 	}
+
+	/* Register the table with the optimize thread. */
+	fts_optimize_add_table(table);
 
 	return(error);
 }
