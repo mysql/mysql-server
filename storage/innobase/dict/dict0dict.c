@@ -24,6 +24,7 @@ Created 1/8/1996 Heikki Tuuri
 ***********************************************************************/
 
 #include "dict0dict.h"
+#include "fts0fts.h"
 
 #ifdef UNIV_NONINL
 #include "dict0dict.ic"
@@ -1669,6 +1670,10 @@ dict_table_remove_from_cache_low(
 	}
 
 	if (table->fts) {
+		if (fts_optimize_is_init()) {
+			fts_optimize_remove_table(table);
+		}
+
 		fts_free(table->fts);
 	}
 

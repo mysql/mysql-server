@@ -6805,6 +6805,7 @@ ha_innobase::ft_init_ext(
 
 	if (!(table->fts->fts_status & ADDED_TABLE_SYNCED)) {
 		fts_init_index(table);
+
 		table->fts->fts_status |= ADDED_TABLE_SYNCED;
 	}
 
@@ -13255,6 +13256,8 @@ i_s_innodb_metrics,
 i_s_innodb_stopword,
 i_s_innodb_fts_inserted,
 i_s_innodb_fts_deleted,
+i_s_innodb_fts_being_deleted,
+i_s_innodb_fts_config,
 i_s_innodb_fts_index_cache,
 i_s_innodb_fts_index_table,
 i_s_innodb_sys_tables,
