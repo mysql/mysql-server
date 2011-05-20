@@ -52,6 +52,8 @@
 #include "sp.h"
 #include "set_var.h"
 #include "debug_sync.h"
+#include <mysql/plugin.h>
+#include <mysql/service_thd_wait.h>
 
 #ifdef NO_EMBEDDED_ACCESS_CHECKS
 #define sp_restore_security_context(A,B) while (0) {}
@@ -3890,6 +3892,7 @@ longlong Item_func_get_lock::val_int()
   timed_cond.set_timeout(timeout * ULL(1000000000));
 
   error= 0;
+  thd_wait_begin(thd, THD_WAIT_USER_LOCK);
   while (ull->locked && !thd->killed)
   {
     DBUG_PRINT("info", ("waiting on lock"));
@@ -3901,6 +3904,7 @@ longlong Item_func_get_lock::val_int()
     }
     error= 0;
   }
+  thd_wait_end(thd);
 
   if (ull->locked)
   {
@@ -4118,6 +4122,7 @@ longlong Item_func_sleep::val_int()
   thd->mysys_var->current_cond=  &cond;
 
   error= 0;
+  thd_wait_begin(thd, THD_WAIT_SLEEP);
   while (!thd->killed)
   {
     error= timed_cond.wait(&cond, &LOCK_user_locks);
@@ -4125,6 +4130,7 @@ longlong Item_func_sleep::val_int()
       break;
     error= 0;
   }
+  thd_wait_end(thd);
   thd_proc_info(thd, 0);
   mysql_mutex_unlock(&LOCK_user_locks);
   mysql_mutex_lock(&thd->mysys_var->mutex);

@@ -3,6 +3,9 @@
 # other platforms
 --source include/windows.inc
 
+# thread pool causes different results
+-- source include/not_threadpool.inc
+
 # Only run this test if named pipe is avaliable
 let $nmp= query_get_value("SHOW VARIABLES LIKE 'named_pipe'", Value, 1);
 if ($nmp != ON){

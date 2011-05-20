@@ -1,6 +1,9 @@
 # This test  uses grants, which can't get tested for embedded server
 -- source include/not_embedded.inc
 
+#Don't run this test when thread_pool active
+--source include/not_threadpool.inc
+
 # check that CSV engine was compiled in, as the result of the test depends
 # on the presence of the log tables (which are CSV-based).
 --source include/have_csv.inc
