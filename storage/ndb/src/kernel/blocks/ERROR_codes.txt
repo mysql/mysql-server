@@ -29,6 +29,7 @@ Next DBTUX 12010
 Next SUMA 13047
 Next LGMAN 15001
 Next TSMAN 16001
+Next DBSPJ 17000
 
 TESTING NODE FAILURE, ARBITRATION
 ---------------------------------

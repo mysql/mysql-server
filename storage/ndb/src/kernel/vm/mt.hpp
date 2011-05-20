@@ -74,4 +74,11 @@ Uint32 mt_get_thread_references_for_blocks(const Uint32 blocks[],
  */
 void mt_wakeup(class SimulatedBlock*);
 
+#ifdef VM_TRACE
+/**
+ * Assert that thread calling this function is "owner" of block instance
+ */
+void mt_assert_own_thread(class SimulatedBlock*);
+#endif
+
 #endif

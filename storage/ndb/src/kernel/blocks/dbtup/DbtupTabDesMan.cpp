@@ -38,8 +38,11 @@
  */
 
 Uint32
-Dbtup::getTabDescrOffsets(Uint32 noOfAttrs, Uint32 noOfCharsets,
-                          Uint32 noOfKeyAttr, Uint32* offset)
+Dbtup::getTabDescrOffsets(Uint32 noOfAttrs,
+                          Uint32 noOfCharsets,
+                          Uint32 noOfKeyAttr,
+                          Uint32 extraColumns,
+                          Uint32* offset)
 {
   // belongs to configure.in
   unsigned sizeOfPointer = sizeof(CHARSET_INFO*);
@@ -53,7 +56,7 @@ Dbtup::getTabDescrOffsets(Uint32 noOfAttrs, Uint32 noOfCharsets,
   offset[2] = allocSize += noOfAttrs * sizeOfReadFunction();
   offset[3] = allocSize += noOfCharsets * sizeOfPointer;
   offset[4] = allocSize += noOfKeyAttr;
-  offset[5] = allocSize += noOfAttrs * ZAD_SIZE;
+  offset[5] = allocSize += (noOfAttrs + extraColumns) * ZAD_SIZE;
   offset[6] = allocSize += (noOfAttrs+1) >> 1;  // real order
   allocSize += ZTD_TRAILER_SIZE;
   // return number of words
@@ -322,6 +325,7 @@ Dbtup::verifytabdes()
         const Uint32 alloc = getTabDescrOffsets(ptr.p->m_no_of_attributes,
                                                 ptr.p->noOfCharsets,
                                                 ptr.p->noOfKeyAttr,
+                                                ptr.p->m_no_of_extra_columns,
                                                 offset);
         const Uint32 desc = ptr.p->readKeyArray - offset[3];
         Uint32 size = alloc;

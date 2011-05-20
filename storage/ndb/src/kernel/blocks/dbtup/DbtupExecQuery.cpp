@@ -192,6 +192,8 @@ Dbtup::insertActiveOpList(OperationrecPtr regOperPtr,
       prevOpPtr.p->op_struct.m_wait_log_buffer;
     regOperPtr.p->op_struct.m_load_diskpage_on_commit= 
       prevOpPtr.p->op_struct.m_load_diskpage_on_commit;
+    regOperPtr.p->op_struct.m_gci_written=
+      prevOpPtr.p->op_struct.m_gci_written;
     regOperPtr.p->m_undo_buffer_space= prevOpPtr.p->m_undo_buffer_space;
     // start with prev mask (matters only for UPD o UPD)
 
@@ -629,6 +631,8 @@ void Dbtup::execTUPKEYREQ(Signal* signal)
                 req_struct.attrinfo_len,
                 attrInfoIVal);
    
+   regOperPtr->op_struct.m_gci_written = 0;
+
    if (Roptype == ZINSERT && Local_key::isInvalid(pageid, pageidx))
    {
      // No tuple allocatated yet
@@ -1114,6 +1118,15 @@ int Dbtup::handleUpdateReq(Signal* signal,
   
   if (!req_struct->interpreted_exec) {
     jam();
+
+    if (regTabPtr->m_bits & Tablerec::TR_ExtraRowAuthorBits)
+    {
+      jam();
+      Uint32 attrId =
+        regTabPtr->getExtraAttrId<Tablerec::TR_ExtraRowAuthorBits>();
+
+      store_extra_row_bits(attrId, regTabPtr, dst, /* default */ 0, false);
+    }
     int retValue = updateAttributes(req_struct,
 				    &cinBuffer[0],
 				    req_struct->attrinfo_len);
@@ -1659,6 +1672,14 @@ int Dbtup::handleInsertReq(Signal* signal,
   {
     terrorCode = ZAI_INCONSISTENCY_ERROR;
     goto update_error;
+  }
+
+  if (regTabPtr->m_bits & Tablerec::TR_ExtraRowAuthorBits)
+  {
+    Uint32 attrId =
+      regTabPtr->getExtraAttrId<Tablerec::TR_ExtraRowAuthorBits>();
+
+    store_extra_row_bits(attrId, regTabPtr, tuple_ptr, /* default */ 0, false);
   }
   
   if (!regTabPtr->m_default_value_location.isNull())
@@ -2209,6 +2230,28 @@ int Dbtup::interpreterStartLab(Signal* signal,
 	return -1;
       }
     }
+
+    if ((RlogSize > 0) ||
+        (RfinalUpdateLen > 0))
+    {
+      /* Operation updates row,
+       * reset author pseudo-col before update takes effect
+       * This should probably occur only if the interpreted program
+       * did not explicitly write the value, but that requires a bit
+       * to record whether the value has been written.
+       */
+      Tablerec* regTabPtr = req_struct->tablePtrP;
+      Tuple_header* dst = req_struct->m_tuple_ptr;
+
+      if (regTabPtr->m_bits & Tablerec::TR_ExtraRowAuthorBits)
+      {
+        Uint32 attrId =
+          regTabPtr->getExtraAttrId<Tablerec::TR_ExtraRowAuthorBits>();
+
+        store_extra_row_bits(attrId, regTabPtr, dst, /* default */ 0, false);
+      }
+    }
+
     if (RfinalUpdateLen > 0) {
       jam();
       /* ---------------------------------------------------------------- */
@@ -2871,7 +2914,7 @@ int Dbtup::interpreterNextLab(Signal* signal,
 	    {
 	      return TUPKEY_abort(req_struct, 40);
 	    }
-            res1 = (*sqlType.m_cmp)(cs, s1, attrLen, s2, argLen, true);
+            res1 = (*sqlType.m_cmp)(cs, s1, attrLen, s2, argLen);
           }
 	} else {
           if ((cond == Interpreter::LIKE) ||

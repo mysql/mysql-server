@@ -9004,12 +9004,13 @@ void Dbdih::execDIGETNODESREQ(Signal* signal)
   Uint32 fragId, newFragId = RNIL;
   DiGetNodesConf * const conf = (DiGetNodesConf *)&signal->theData[0];
   TabRecord* regTabDesc = tabRecord;
-  jamEntry();
+  EmulatedJamBuffer * jambuf = jamBuffer();
+  thrjamEntry(jambuf);
   ptrCheckGuard(tabPtr, ttabFileSize, regTabDesc);
 
   if (DictTabInfo::isOrderedIndex(tabPtr.p->tableType))
   {
-    jam();
+    thrjam(jambuf);
     tabPtr.i = tabPtr.p->primaryTableId;
     ptrCheckGuard(tabPtr, ctabFileSize, tabRecord);
   }
@@ -9027,7 +9028,7 @@ void Dbdih::execDIGETNODESREQ(Signal* signal)
     
     if (unlikely(fragId >= tabPtr.p->totalfragments))
     {
-      jam();
+      thrjam(jambuf);
       conf->zero= 1; //Indicate error;
       signal->theData[1]= ZUNDEFINED_FRAGMENT_ERROR;
       return;
@@ -9035,40 +9036,40 @@ void Dbdih::execDIGETNODESREQ(Signal* signal)
   }
   else if (tabPtr.p->method == TabRecord::HASH_MAP)
   {
-    jam();
+    thrjam(jambuf);
     Ptr<Hash2FragmentMap> ptr;
     g_hash_map.getPtr(ptr, map_ptr_i);
     fragId = ptr.p->m_map[hashValue % ptr.p->m_cnt];
 
     if (unlikely(new_map_ptr_i != RNIL))
     {
-      jam();
+      thrjam(jambuf);
       g_hash_map.getPtr(ptr, new_map_ptr_i);
       newFragId = ptr.p->m_map[hashValue % ptr.p->m_cnt];
       if (newFragId == fragId)
       {
-        jam();
+        thrjam(jambuf);
         newFragId = RNIL;
       }
     }
   }
   else if (tabPtr.p->method == TabRecord::LINEAR_HASH)
   {
-    jam();
+    thrjam(jambuf);
     fragId = hashValue & tabPtr.p->mask;
     if (fragId < tabPtr.p->hashpointer) {
-      jam();
+      thrjam(jambuf);
       fragId = hashValue & ((tabPtr.p->mask << 1) + 1);
     }//if
   }
   else if (tabPtr.p->method == TabRecord::NORMAL_HASH)
   {
-    jam();
+    thrjam(jambuf);
     fragId= hashValue % tabPtr.p->totalfragments;
   }
   else
   {
-    jam();
+    thrjam(jambuf);
     ndbassert(tabPtr.p->method == TabRecord::USER_DEFINED);
 
     /* User defined partitioning, but no distribution key passed */
@@ -9087,7 +9088,7 @@ void Dbdih::execDIGETNODESREQ(Signal* signal)
 
   if (unlikely(newFragId != RNIL))
   {
-    jam();
+    thrjam(jambuf);
     conf->reqinfo |= DiGetNodesConf::REORG_MOVING;
     getFragstore(tabPtr.p, newFragId, fragPtr);
     nodeCount = extractNodeInfo(fragPtr.p, conf->nodes + 2 + MAX_REPLICAS);
@@ -9201,6 +9202,64 @@ void Dbdih::initialiseFragstore()
   }//for    
 }//Dbdih::initialiseFragstore()
 
+inline
+bool
+Dbdih::isEmpty(const DIVERIFY_queue & q)
+{
+  return q.cverifyQueueCounter == 0;
+}
+
+inline
+void
+Dbdih::enqueue(DIVERIFY_queue & q, Ptr<ApiConnectRecord> conRecord)
+{
+  Uint32 first = q.cfirstVerifyQueue;
+  Uint32 last = q.clastVerifyQueue;
+  Uint32 count = q.cverifyQueueCounter;
+  ApiConnectRecord * apiConnectRecord = q.apiConnectRecord;
+
+  Ptr<ApiConnectRecord> tmp;
+  tmp.i = last;
+  if (last != RNIL)
+  {
+    tmp.i = last;
+    ptrCheckGuard(tmp, capiConnectFileSize, apiConnectRecord);
+    tmp.p->nextApi = conRecord.i;
+  }
+  else
+  {
+    ndbassert(count == 0);
+    first = conRecord.i;
+  }
+  q.cfirstVerifyQueue = first;
+  q.clastVerifyQueue = conRecord.i;
+  q.cverifyQueueCounter = count + 1;
+}
+
+inline
+void
+Dbdih::dequeue(DIVERIFY_queue & q, Ptr<ApiConnectRecord> & conRecord)
+{
+  Uint32 first = q.cfirstVerifyQueue;
+  Uint32 last = q.clastVerifyQueue;
+  Uint32 count = q.cverifyQueueCounter;
+  ApiConnectRecord * apiConnectRecord = q.apiConnectRecord;
+
+  conRecord.i = first;
+  ptrCheckGuard(conRecord, capiConnectFileSize, apiConnectRecord);
+  Uint32 next = conRecord.p->nextApi;
+  if (first == last)
+  {
+    ndbrequire(next == RNIL);
+    ndbassert(count == 1);
+    last = RNIL;
+  }
+  ndbrequire(count > 0);
+  q.cfirstVerifyQueue = next;
+  q.clastVerifyQueue = last;
+  q.cverifyQueueCounter = count - 1;
+}
+
 /*
   3.9   V E R I F I C A T I O N
   ****************************=
@@ -9212,13 +9271,14 @@ void Dbdih::initialiseFragstore()
   3.9.1     R E C E I V I N G  O F  V E R I F I C A T I O N   R E Q U E S T
   *************************************************************************
   */
-void Dbdih::execDIVERIFYREQ(Signal* signal) 
+void Dbdih::execDIVERIFYREQ(Signal* signal)
 {
-
-  jamEntry();
+  EmulatedJamBuffer * jambuf = jamBuffer();
+  thrjamEntry(jambuf);
   if ((getBlockCommit() == false) &&
-      (cfirstVerifyQueue == RNIL)) {
-    jam();
+      isEmpty(c_diverify_queue[0]))
+  {
+    thrjam(jambuf);
     /*-----------------------------------------------------------------------*/
     // We are not blocked and the verify queue was empty currently so we can
     // simply reply back to TC immediately. The method was called with 
@@ -9235,24 +9295,15 @@ void Dbdih::execDIVERIFYREQ(Signal* signal)
   // Since we are blocked we need to put this operation last in the verify
   // queue to ensure that operation starts up in the correct order.
   /*-------------------------------------------------------------------------*/
-  ApiConnectRecordPtr tmpApiConnectptr;
   ApiConnectRecordPtr localApiConnectptr;
+  DIVERIFY_queue & q = c_diverify_queue[0];
 
-  cverifyQueueCounter++;
   localApiConnectptr.i = signal->theData[0];
-  tmpApiConnectptr.i = clastVerifyQueue;
-  ptrCheckGuard(localApiConnectptr, capiConnectFileSize, apiConnectRecord);
+  ptrCheckGuard(localApiConnectptr, capiConnectFileSize, q.apiConnectRecord);
   localApiConnectptr.p->apiGci = m_micro_gcp.m_new_gci;
   localApiConnectptr.p->nextApi = RNIL;
-  clastVerifyQueue = localApiConnectptr.i;
-  if (tmpApiConnectptr.i == RNIL) {
-    jam();
-    cfirstVerifyQueue = localApiConnectptr.i;
-  } else {
-    jam();
-    ptrCheckGuard(tmpApiConnectptr, capiConnectFileSize, apiConnectRecord);
-    tmpApiConnectptr.p->nextApi = localApiConnectptr.i;
-  }//if
+
+  enqueue(q, localApiConnectptr);
   emptyverificbuffer(signal, false);
   signal->theData[3] = 1; // Indicate no immediate return
   return;
@@ -9440,7 +9491,7 @@ Dbdih::execUPGRADE_PROTOCOL_ORD(Signal* signal)
 void
 Dbdih::startGcpLab(Signal* signal, Uint32 aWaitTime) 
 {
-  if (cfirstVerifyQueue != RNIL)
+  if (! isEmpty(c_diverify_queue[0]))
   {
     // Previous global checkpoint is not yet completed.
     jam();
@@ -14672,26 +14723,18 @@ void Dbdih::createFileRw(Signal* signal, FileRecordPtr filePtr)
   sendSignal(NDBFS_REF, GSN_FSOPENREQ, signal, 7, JBA);
 }//Dbdih::createFileRw()
 
-void Dbdih::emptyverificbuffer(Signal* signal, bool aContinueB) 
+void Dbdih::emptyverificbuffer(Signal* signal, bool aContinueB)
 {
-  if(cfirstVerifyQueue == RNIL){
+  if (isEmpty(c_diverify_queue[0]))
+  {
     jam();
     return;
   }//if
   ApiConnectRecordPtr localApiConnectptr;
   if(getBlockCommit() == false){
     jam();
-    ndbrequire(cverifyQueueCounter > 0);
-    cverifyQueueCounter--;
-    localApiConnectptr.i = cfirstVerifyQueue;
-    ptrCheckGuard(localApiConnectptr, capiConnectFileSize, apiConnectRecord);
+    dequeue(c_diverify_queue[0], localApiConnectptr);
     ndbrequire(localApiConnectptr.p->apiGci <= m_micro_gcp.m_current_gci);
-    cfirstVerifyQueue = localApiConnectptr.p->nextApi;
-    if (cfirstVerifyQueue == RNIL) {
-      jam();
-      ndbrequire(cverifyQueueCounter == 0);
-      clastVerifyQueue = RNIL;
-    }//if
     signal->theData[0] = localApiConnectptr.i;
     signal->theData[1] = (Uint32)(m_micro_gcp.m_current_gci >> 32);
     signal->theData[2] = (Uint32)(m_micro_gcp.m_current_gci & 0xFFFFFFFF);
@@ -15065,11 +15108,9 @@ void Dbdih::initCommonData()
   cfailurenr = 1;
   cfirstAliveNode = RNIL;
   cfirstDeadNode = RNIL;
-  cfirstVerifyQueue = RNIL;
   cgckptflag = false;
   cgcpOrderBlocked = 0;
 
-  clastVerifyQueue = RNIL;
   c_lcpMasterTakeOverState.set(LMTOS_IDLE, __LINE__);
 
   c_lcpState.clcpDelay = 0;
@@ -15103,7 +15144,6 @@ void Dbdih::initCommonData()
   cstarttype = (Uint32)-1;
   csystemnodes = 0;
   c_newest_restorable_gci = 0;
-  cverifyQueueCounter = 0;
   cwaitLcpSr = false;
   c_nodeStartMaster.blockGcp = 0;
 
@@ -15325,6 +15365,7 @@ void Dbdih::initRestorableGciFiles()
 
 void Dbdih::initTable(TabRecordPtr tabPtr)
 {
+  new (tabPtr.p) TabRecord();
   tabPtr.p->noOfFragChunks = 0;
   tabPtr.p->method = TabRecord::NOTDEFINED;
   tabPtr.p->tabStatus = TabRecord::TS_IDLE;
@@ -15415,12 +15456,17 @@ void Dbdih::initialiseRecordsLab(Signal* signal,
   case 1:{
     ApiConnectRecordPtr apiConnectptr;
     jam();
-    /******** INTIALIZING API CONNECT RECORDS ********/
-    for (apiConnectptr.i = 0; apiConnectptr.i < capiConnectFileSize; apiConnectptr.i++) {
-      refresh_watch_dog();
-      ptrAss(apiConnectptr, apiConnectRecord);
-      apiConnectptr.p->nextApi = RNIL;
-    }//for
+    for (Uint32 i = 0; i < c_diverify_queue_cnt; i++)
+    {
+      /******** INTIALIZING API CONNECT RECORDS ********/
+      for (apiConnectptr.i = 0;
+           apiConnectptr.i < capiConnectFileSize; apiConnectptr.i++)
+      {
+        refresh_watch_dog();
+        ptrAss(apiConnectptr, c_diverify_queue[i].apiConnectRecord);
+        apiConnectptr.p->nextApi = RNIL;
+      }//for
+    }
     jam();
     break;
   }
@@ -17207,11 +17253,16 @@ Dbdih::execDUMP_STATE_ORD(Signal* signal)
   if (arg == DumpStateOrd::DihDumpNodeRestartInfo) {
     infoEvent("c_nodeStartMaster.blockLcp = %d, c_nodeStartMaster.blockGcp = %d, c_nodeStartMaster.wait = %d",
 	      c_nodeStartMaster.blockLcp, c_nodeStartMaster.blockGcp, c_nodeStartMaster.wait);
-    infoEvent("cfirstVerifyQueue = %d, cverifyQueueCounter = %d",
-              cfirstVerifyQueue, cverifyQueueCounter);
+    for (Uint32 i = 0; i < c_diverify_queue_cnt; i++)
+    {
+      infoEvent("[ %u : cfirstVerifyQueue = 0x%.8x, cverifyQueueCounter = %u ]",
+                i,
+                c_diverify_queue[i].cfirstVerifyQueue,
+                c_diverify_queue[i].cverifyQueueCounter);
+    }
     infoEvent("cgcpOrderBlocked = %d",
               cgcpOrderBlocked);
-  }//if  
+  }//if
   if (arg == DumpStateOrd::DihDumpNodeStatusInfo) {
     NodeRecordPtr localNodePtr;
     infoEvent("Printing nodeStatus of all nodes");
