@@ -9902,10 +9902,9 @@ static COND *build_equal_items_for_cond(THD *thd, COND *cond,
       as soon the field is not of a string type or the field reference is
       an argument of a comparison predicate. 
     */ 
-    uchar is_subst_valid= (uchar) 1;
-    uchar *is_subst_valid_ptr= &is_subst_valid;
+    uchar* is_subst_valid= (uchar *) Item::ANY_SUBST;
     cond= cond->compile(&Item::subst_argument_checker,
-                        &is_subst_valid_ptr, 
+                        &is_subst_valid, 
                         &Item::equal_fields_propagator,
                         (uchar *) inherited);
     cond->update_used_tables();
