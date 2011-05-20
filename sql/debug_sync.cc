@@ -453,14 +453,11 @@ static void init_debug_sync_psi_keys(void)
   const char* category= "sql";
   int count;
 
-  if (PSI_server == NULL)
-    return;
-
   count= array_elements(all_debug_sync_mutexes);
-  PSI_server->register_mutex(category, all_debug_sync_mutexes, count);
+  mysql_mutex_register(category, all_debug_sync_mutexes, count);
 
   count= array_elements(all_debug_sync_conds);
-  PSI_server->register_cond(category, all_debug_sync_conds, count);
+  mysql_cond_register(category, all_debug_sync_conds, count);
 }
 #endif /* HAVE_PSI_INTERFACE */
 
@@ -1745,11 +1742,20 @@ static void debug_sync_execute(THD *thd, st_debug_sync_action *action)
         We don't use enter_cond()/exit_cond(). They do not save old
         mutex and cond. This would prohibit the use of DEBUG_SYNC
         between other places of enter_cond() and exit_cond().
+
+        We need to check for existence of thd->mysys_var to also make
+        it possible to use DEBUG_SYNC framework in scheduler when this
+        variable has been set to NULL.
       */
-      old_mutex= thd->mysys_var->current_mutex;
-      old_cond= thd->mysys_var->current_cond;
-      thd->mysys_var->current_mutex= &debug_sync_global.ds_mutex;
-      thd->mysys_var->current_cond= &debug_sync_global.ds_cond;
+      if (thd->mysys_var)
+      {
+        old_mutex= thd->mysys_var->current_mutex;
+        old_cond= thd->mysys_var->current_cond;
+        thd->mysys_var->current_mutex= &debug_sync_global.ds_mutex;
+        thd->mysys_var->current_cond= &debug_sync_global.ds_cond;
+      }
+      else
+        old_mutex= NULL;
 
       set_timespec(abstime, action->timeout);
       DBUG_EXECUTE("debug_sync_exec", {
@@ -1804,11 +1810,16 @@ static void debug_sync_execute(THD *thd, st_debug_sync_action *action)
         is locked. (See comment in THD::exit_cond().)
       */
       mysql_mutex_unlock(&debug_sync_global.ds_mutex);
-      mysql_mutex_lock(&thd->mysys_var->mutex);
-      thd->mysys_var->current_mutex= old_mutex;
-      thd->mysys_var->current_cond= old_cond;
-      thd_proc_info(thd, old_proc_info);
-      mysql_mutex_unlock(&thd->mysys_var->mutex);
+      if (old_mutex)
+      {
+        mysql_mutex_lock(&thd->mysys_var->mutex);
+        thd->mysys_var->current_mutex= old_mutex;
+        thd->mysys_var->current_cond= old_cond;
+        thd_proc_info(thd, old_proc_info);
+        mysql_mutex_unlock(&thd->mysys_var->mutex);
+      }
+      else
+        thd_proc_info(thd, old_proc_info);
     }
     else
     {

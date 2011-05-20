@@ -1,4 +1,4 @@
-/* Copyright (c) 2006, 2010, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2006, 2011, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -339,21 +339,16 @@ public:
       THD *m_thd;
     };
 
-    /* 
+    /*
        Create a new transaction.  This member function will prepare for a
        sequence of *_row calls by, for example, reserving resources and
-       locking files. There are two overloaded alternatives: one returning a
-       transaction by value and one using placement semantics. The following
-       two calls are equivalent, with the exception that the latter will
-       overwrite the transaction.
-
-         injector::transaction trans1= inj->new_trans(thd);
+       locking files. The call uses placement semantics and will overwrite
+       the transaction.
 
          injector::transaction trans2;
          inj->new_trans(thd, &trans);
      */
-    transaction new_trans(THD *);
-    void        new_trans(THD *, transaction *);
+    void new_trans(THD *, transaction *);
 
     int record_incident(THD*, Incident incident);
     int record_incident(THD*, Incident incident, LEX_STRING const message);

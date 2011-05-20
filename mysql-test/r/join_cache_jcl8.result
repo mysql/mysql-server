@@ -1311,11 +1311,11 @@ id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	t5	eq_ref	PRIMARY,t5_formattypeid	PRIMARY	4	test.t4.formatclassid	1	Using where; Using join buffer (BKA_UNIQUE, incremental buffers)
 1	SIMPLE	t2	eq_ref	PRIMARY	PRIMARY	4	test.t1.metaid	1	Using join buffer (BKA_UNIQUE, incremental buffers)
 1	SIMPLE	t7	ref	PRIMARY	PRIMARY	4	test.t1.metaid	1	Using index
-1	SIMPLE	t3	ref	t3_metaid,t3_formatid,t3_metaidformatid	t3_metaid	4	test.t1.metaid	2	Using where; Using join buffer (BKA_UNIQUE, incremental buffers)
 1	SIMPLE	t8	eq_ref	PRIMARY	PRIMARY	4	test.t7.artistid	1	Using join buffer (BKA_UNIQUE, incremental buffers)
-1	SIMPLE	t9	index	PRIMARY,t9_subgenreid,t9_metaid	PRIMARY	8	NULL	2	Using where; Using index; Using join buffer (BNL, incremental buffers)
+1	SIMPLE	t9	ref	PRIMARY,t9_subgenreid,t9_metaid	t9_metaid	4	test.t7.metaid	2	Using index condition; Using join buffer (BKA_UNIQUE, incremental buffers)
 1	SIMPLE	t10	eq_ref	PRIMARY,t10_genreid	PRIMARY	4	test.t9.subgenreid	1	Using join buffer (BKA_UNIQUE, incremental buffers)
 1	SIMPLE	t11	eq_ref	PRIMARY	PRIMARY	4	test.t10.genreid	1	Using join buffer (BKA_UNIQUE, incremental buffers)
+1	SIMPLE	t3	ALL	t3_metaid,t3_formatid,t3_metaidformatid	NULL	NULL	NULL	2	Using where; Using join buffer (BNL, incremental buffers)
 SELECT t1.uniquekey, t1.xml AS affiliateXml,
 t8.name AS artistName, t8.artistid, 
 t11.name AS genreName, t11.genreid, t11.priority AS genrePriority,
@@ -2250,5 +2250,60 @@ col_int_key	col_datetime
 0	2000-09-26 07:45:57
 2	2003-02-11 21:19:41
 drop table t1,t2;
+
+# Bug#11766522 "59651: ASSERTION `TABLE_REF->HAS_RECORD' FAILED
+# WITH JOIN_CACHE_LEVEL=3"
+
+CREATE TABLE t1 (
+b varchar(20)
+)  ;
+INSERT INTO t1 VALUES ('1'),('1');
+CREATE TABLE t4 (
+col253 text
+)  ;
+INSERT INTO t4 VALUES (''),('pf');
+CREATE TABLE t6 (
+col282 timestamp
+)  ;
+INSERT INTO t6 VALUES ('2010-11-07 01:04:45'),('2010-12-13 01:36:32');
+CREATE TABLE t7 (
+col319 timestamp NOT NULL,
+UNIQUE KEY idx263 (col319)
+)  ;
+insert into t7 values("2000-01-01"),("2000-01-02");
+CREATE TABLE t3 (
+col582 char(230) CHARACTER SET utf8 DEFAULT NULL
+)  ;
+INSERT INTO t3 VALUES ('cymej'),('spb');
+CREATE TABLE t5 (
+col712 time
+)  ;
+insert into t5 values(0),(0);
+CREATE TABLE t8 (
+col804 char(169),
+col805 varchar(51)
+)  ;
+INSERT INTO t8 VALUES ('tmqcb','pwk');
+CREATE TABLE t2 (
+col841 varchar(10)
+)  ;
+INSERT INTO t2 VALUES (''),('');
+set join_buffer_size=1;
+Warnings:
+Warning	1292	Truncated incorrect join_buffer_size value: '1'
+select @@join_buffer_size;
+@@join_buffer_size
+128
+select count(*) from
+(t1 join t2 join t3)
+left join t4 on 1
+left join t5 on 1 like t4.col253
+left join t6 on t5.col712 is null
+left join t7 on t1.b <=>t7.col319
+left join t8 on t3.col582 <=  1;
+count(*)
+32
+drop table t1,t2,t3,t4,t5,t6,t7,t8;
+set @@join_buffer_size=default;
 set optimizer_join_cache_level = default;
 set optimizer_switch = default;

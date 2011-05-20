@@ -122,8 +122,6 @@ struct sync_array_struct {
 	ulint		n_cells;	/*!< number of cells in the
 					wait array */
 	sync_cell_t*	array;		/*!< pointer to wait array */
-	ulint		protection;	/*!< this flag tells which
-					mutex protects the data */
 	mutex_t		mutex;		/*!< possible database mutex
 					protecting this data structure */
 	os_mutex_t	os_mutex;	/*!< Possible operating system mutex
@@ -133,16 +131,22 @@ struct sync_array_struct {
 					to prevent infinite recursion
 					in implementation, we fall back to
 					an OS mutex. */
-	ulint		sg_count;	/*!< count of how many times an
-					object has been signalled */
 	ulint		res_count;	/*!< count of cell reservations
 					since creation of the array */
 };
 
-#ifdef UNIV_PFS_MUTEX
-/* Key to register the mutex with performance schema */
-UNIV_INTERN mysql_pfs_key_t	syn_arr_mutex_key;
-#endif
+/** User configured sync array size */
+UNIV_INTERN ulong	srv_sync_array_size = 32;
+
+/** Locally stored copy of srv_sync_array_size */
+static	ulint		sync_array_size;
+
+/** The global array of wait cells for implementation of the database's own
+mutexes and read-write locks */
+static	sync_array_t**	sync_wait_array;
+
+/** count of how many times an object has been signalled */
+static ulint		sg_count;
 
 #ifdef UNIV_SYNC_DEBUG
 /******************************************************************//**
@@ -184,17 +188,7 @@ sync_array_enter(
 /*=============*/
 	sync_array_t*	arr)	/*!< in: sync wait array */
 {
-	ulint	protection;
-
-	protection = arr->protection;
-
-	if (protection == SYNC_ARRAY_OS_MUTEX) {
-		os_mutex_enter(arr->os_mutex);
-	} else if (protection == SYNC_ARRAY_MUTEX) {
-		mutex_enter(&(arr->mutex));
-	} else {
-		ut_error;
-	}
+	os_mutex_enter(arr->os_mutex);
 }
 
 /******************************************************************//**
@@ -205,17 +199,7 @@ sync_array_exit(
 /*============*/
 	sync_array_t*	arr)	/*!< in: sync wait array */
 {
-	ulint	protection;
-
-	protection = arr->protection;
-
-	if (protection == SYNC_ARRAY_OS_MUTEX) {
-		os_mutex_exit(arr->os_mutex);
-	} else if (protection == SYNC_ARRAY_MUTEX) {
-		mutex_exit(&(arr->mutex));
-	} else {
-		ut_error;
-	}
+	os_mutex_exit(arr->os_mutex);
 }
 
 /*******************************************************************//**
@@ -223,15 +207,12 @@ Creates a synchronization wait array. It is protected by a mutex
 which is automatically reserved when the functions operating on it
 are called.
 @return	own: created wait array */
-UNIV_INTERN
+static
 sync_array_t*
 sync_array_create(
 /*==============*/
-	ulint	n_cells,	/*!< in: number of cells in the array
+	ulint	n_cells)	/*!< in: number of cells in the array
 				to create */
-	ulint	protection)	/*!< in: either SYNC_ARRAY_OS_MUTEX or
-				SYNC_ARRAY_MUTEX: determines the type
-				of mutex protecting the data structure */
 {
 	ulint		sz;
 	sync_array_t*	arr;
@@ -247,46 +228,28 @@ sync_array_create(
 	memset(arr->array, 0x0, sz);
 
 	arr->n_cells = n_cells;
-	arr->protection = protection;
 
 	/* Then create the mutex to protect the wait array complex */
-	if (protection == SYNC_ARRAY_OS_MUTEX) {
-		arr->os_mutex = os_mutex_create();
-	} else if (protection == SYNC_ARRAY_MUTEX) {
-		mutex_create(syn_arr_mutex_key,
-			     &arr->mutex, SYNC_NO_ORDER_CHECK);
-	} else {
-		ut_error;
-	}
+	arr->os_mutex = os_mutex_create();
 
 	return(arr);
 }
 
 /******************************************************************//**
 Frees the resources in a wait array. */
-UNIV_INTERN
+static
 void
 sync_array_free(
 /*============*/
 	sync_array_t*	arr)	/*!< in, own: sync wait array */
 {
-	ulint		protection;
-
 	ut_a(arr->n_reserved == 0);
 
 	sync_array_validate(arr);
 
-	protection = arr->protection;
-
 	/* Release the mutex protecting the wait array complex */
 
-	if (protection == SYNC_ARRAY_OS_MUTEX) {
-		os_mutex_free(arr->os_mutex);
-	} else if (protection == SYNC_ARRAY_MUTEX) {
-		mutex_free(&(arr->mutex));
-	} else {
-		ut_error;
-	}
+	os_mutex_free(arr->os_mutex);
 
 	ut_free(arr->array);
 	ut_free(arr);
@@ -849,19 +812,55 @@ sync_array_free_cell(
 Increments the signalled count. */
 UNIV_INTERN
 void
-sync_array_object_signalled(
-/*========================*/
-	sync_array_t*	arr)	/*!< in: wait array */
+sync_array_object_signalled(void)
+/*=============================*/
 {
 #ifdef HAVE_ATOMIC_BUILTINS
-	(void) os_atomic_increment_ulint(&arr->sg_count, 1);
+	(void) os_atomic_increment_ulint(&sg_count, 1);
 #else
+	++sg_count;
+#endif /* HAVE_ATOMIC_BUILTINS */
+}
+
+/**********************************************************************//**
+If the wakeup algorithm does not work perfectly at semaphore relases,
+this function will do the waking (see the comment in mutex_exit). This
+function should be called about every 1 second in the server.
+
+Note that there's a race condition between this thread and mutex_exit
+changing the lock_word and calling signal_object, so sometimes this finds
+threads to wake up even when nothing has gone wrong. */
+static
+void
+sync_array_wake_threads_if_sema_free_low(
+/*=====================================*/
+	sync_array_t*	arr)		/* in/out: wait array */
+{
+	ulint		i = 0;
+	ulint		count;
+
 	sync_array_enter(arr);
 
-	arr->sg_count++;
+	for (count = 0;  count < arr->n_reserved; ++i) {
+		sync_cell_t*	cell;
+
+		cell = sync_array_get_nth_cell(arr, i);
+
+		if (cell->wait_object != NULL) {
+
+			count++;
+
+			if (sync_arr_cell_can_wake_up(cell)) {
+				os_event_t      event;
+
+				event = sync_cell_get_event(cell);
+
+				os_event_set(event);
+			}
+		}
+	}
 
 	sync_array_exit(arr);
-#endif
 }
 
 /**********************************************************************//**
@@ -877,53 +876,31 @@ void
 sync_arr_wake_threads_if_sema_free(void)
 /*====================================*/
 {
-	sync_array_t*	arr	= sync_primary_wait_array;
-	sync_cell_t*	cell;
-	ulint		count;
 	ulint		i;
-	os_event_t      event;
 
-	sync_array_enter(arr);
+	for (i = 0; i < sync_array_size; ++i) {
 
-	i = 0;
-	count = 0;
-
-	while (count < arr->n_reserved) {
-
-		cell = sync_array_get_nth_cell(arr, i);
-		i++;
-
-		if (cell->wait_object == NULL) {
-			continue;
-		}
-			count++;
-
-			if (sync_arr_cell_can_wake_up(cell)) {
-
-			event = sync_cell_get_event(cell);
-
-			os_event_set(event);
-		}
-
+		sync_array_wake_threads_if_sema_free_low(
+			sync_wait_array[i]);
 	}
-
-	sync_array_exit(arr);
 }
 
 /**********************************************************************//**
 Prints warnings of long semaphore waits to stderr.
 @return	TRUE if fatal semaphore wait threshold was exceeded */
-UNIV_INTERN
+static
 ibool
-sync_array_print_long_waits(void)
-/*=============================*/
+sync_array_print_long_waits_low(
+/*============================*/
+	sync_array_t*	arr,	/*!< in: sync array instance */
+	os_thread_id_t*	waiter,	/*!< out: longest waiting thread */
+	const void**	sema,	/*!< out: longest-waited-for semaphore */
+	ibool*		noticed)/*!< out: TRUE if long wait noticed */
 {
-	sync_cell_t*	cell;
-	ibool		old_val;
-	ibool		noticed = FALSE;
 	ulint		i;
 	ulint		fatal_timeout = srv_fatal_semaphore_wait_threshold;
 	ibool		fatal = FALSE;
+	double		longest_diff = 0;
 
 #ifdef UNIV_DEBUG_VALGRIND
 	/* Increase the timeouts if running under valgrind because it executes
@@ -937,30 +914,78 @@ sync_array_print_long_waits(void)
 # define SYNC_ARRAY_TIMEOUT	240
 #endif
 
-	for (i = 0; i < sync_primary_wait_array->n_cells; i++) {
+	for (i = 0; i < arr->n_cells; i++) {
 
-		cell = sync_array_get_nth_cell(sync_primary_wait_array, i);
+		double		diff;
+		sync_cell_t*	cell;
+		void*		wait_object;
 
-		if (cell->wait_object != NULL && cell->waiting
-		    && difftime(time(NULL), cell->reservation_time)
-		    > SYNC_ARRAY_TIMEOUT) {
+		cell = sync_array_get_nth_cell(arr, i);
+
+		wait_object = cell->wait_object;
+
+		if (wait_object == NULL || !cell->waiting) {
+
+			continue;
+		}
+
+		diff = difftime(time(NULL), cell->reservation_time);
+
+		if (diff > SYNC_ARRAY_TIMEOUT) {
 			fputs("InnoDB: Warning: a long semaphore wait:\n",
 			      stderr);
 			sync_array_cell_print(stderr, cell);
-			noticed = TRUE;
+			*noticed = TRUE;
 		}
 
-		if (cell->wait_object != NULL && cell->waiting
-		    && difftime(time(NULL), cell->reservation_time)
-		    > fatal_timeout) {
+		if (diff > fatal_timeout) {
+			fatal = TRUE;
+		}
+
+		if (diff > longest_diff) {
+			longest_diff = diff;
+			*sema = wait_object;
+			*waiter = cell->thread;
+		}
+	}
+
+#undef SYNC_ARRAY_TIMEOUT
+
+	return(fatal);
+}
+
+/**********************************************************************//**
+Prints warnings of long semaphore waits to stderr.
+@return	TRUE if fatal semaphore wait threshold was exceeded */
+UNIV_INTERN
+ibool
+sync_array_print_long_waits(
+/*========================*/
+	os_thread_id_t*	waiter,	/*!< out: longest waiting thread */
+	const void**	sema)	/*!< out: longest-waited-for semaphore */
+{
+	ulint		i;
+	ibool		fatal = FALSE;
+	ibool		noticed = FALSE;
+
+	for (i = 0; i < sync_array_size; ++i) {
+
+		sync_array_t*	arr = sync_wait_array[i];
+
+		if (sync_array_print_long_waits_low(
+				arr, waiter, sema, &noticed)) {
+
 			fatal = TRUE;
 		}
 	}
 
 	if (noticed) {
+		ibool	old_val;
+
 		fprintf(stderr,
 			"InnoDB: ###### Starts InnoDB Monitor"
 			" for 30 secs to print diagnostic info:\n");
+
 		old_val = srv_print_innodb_monitor;
 
 		/* If some crucial semaphore is reserved, then also the InnoDB
@@ -985,8 +1010,6 @@ sync_array_print_long_waits(void)
 			" to the standard error stream\n");
 	}
 
-#undef SYNC_ARRAY_TIMEOUT
-
 	return(fatal);
 }
 
@@ -994,38 +1017,33 @@ sync_array_print_long_waits(void)
 Prints info of the wait array. */
 static
 void
-sync_array_output_info(
-/*===================*/
+sync_array_print_info_low(
+/*======================*/
 	FILE*		file,	/*!< in: file where to print */
-	sync_array_t*	arr)	/*!< in: wait array; NOTE! caller must own the
-				mutex */
+	sync_array_t*	arr)	/*!< in: wait array */
 {
-	sync_cell_t*	cell;
-	ulint		count;
 	ulint		i;
+	ulint		count = 0;
 
 	fprintf(file,
-		"OS WAIT ARRAY INFO: reservation count %ld, signal count %ld\n",
-						(long) arr->res_count, (long) arr->sg_count);
-	i = 0;
-	count = 0;
+		"OS WAIT ARRAY INFO: reservation count %ld\n",
+		(long) arr->res_count);
 
-	while (count < arr->n_reserved) {
+	for (i = 0; count < arr->n_reserved; ++i) {
+		sync_cell_t*	cell;
 
 		cell = sync_array_get_nth_cell(arr, i);
 
-	if (cell->wait_object != NULL) {
-		count++;
+		if (cell->wait_object != NULL) {
+			count++;
 			sync_array_cell_print(file, cell);
 		}
-
-		i++;
 	}
 }
 
 /**********************************************************************//**
 Prints info of the wait array. */
-UNIV_INTERN
+static
 void
 sync_array_print_info(
 /*==================*/
@@ -1034,7 +1052,94 @@ sync_array_print_info(
 {
 	sync_array_enter(arr);
 
-	sync_array_output_info(file, arr);
+	sync_array_print_info_low(file, arr);
 
 	sync_array_exit(arr);
+}
+
+/**********************************************************************//**
+Create the primary system wait array(s), they are protected by an OS mutex */
+UNIV_INTERN
+void
+sync_array_init(
+/*============*/
+	ulint		n_threads)		/*!< in: Number of slots to
+						create in all arrays */
+{
+	ulint		i;
+	ulint		n_slots;
+
+	ut_a(sync_wait_array == NULL);
+	ut_a(srv_sync_array_size > 0);
+	ut_a(n_threads > srv_sync_array_size);
+
+	sync_array_size = srv_sync_array_size;
+
+	/* We have to use ut_malloc() because the mutex infrastructure
+	hasn't been initialised yet. It is required by mem_alloc() and
+	the heap functions. */
+
+	sync_wait_array = ut_malloc(sizeof(*sync_wait_array) * sync_array_size);
+
+	n_slots = 1 + (n_threads - 1) / sync_array_size;
+
+	for (i = 0; i < sync_array_size; ++i) {
+
+		sync_wait_array[i] = sync_array_create(n_slots);
+	}
+}
+
+/**********************************************************************//**
+Close sync array wait sub-system. */
+UNIV_INTERN
+void
+sync_array_close(void)
+/*==================*/
+{
+	ulint		i;
+
+	for (i = 0; i < sync_array_size; ++i) {
+		sync_array_free(sync_wait_array[i]);
+	}
+
+	ut_free(sync_wait_array);
+	sync_wait_array = NULL;
+}
+
+/**********************************************************************//**
+Print info about the sync array(s). */
+UNIV_INTERN
+void
+sync_array_print(
+/*=============*/
+	FILE*		file)		/*!< in/out: Print to this stream */
+{
+	ulint		i;
+
+	for (i = 0; i < sync_array_size; ++i) {
+		sync_array_print_info(file, sync_wait_array[i]);
+	}
+
+	fprintf(file,
+		"OS WAIT ARRAY INFO: signal count %ld\n", (long) sg_count);
+
+}
+
+/**********************************************************************//**
+Get an instance of the sync wait array. */
+UNIV_INTERN
+sync_array_t*
+sync_array_get(void)
+/*================*/
+{
+	ulint		i;
+	static ulint	count;
+
+#ifdef HAVE_ATOMIC_BUILTINS
+	i = os_atomic_increment_ulint(&count, 1);
+#else
+	i = count++;
+#endif /* HAVE_ATOMIC_BUILTINS */
+
+	return(sync_wait_array[i % sync_array_size]);
 }

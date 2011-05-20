@@ -30,6 +30,7 @@ connection slave;
 --disable_result_log
 CALL mtr.add_suppression("Failed to open the existing info file");
 CALL mtr.add_suppression("Error while reading from master info file");
+CALL mtr.add_suppression("Failed to create a new info file");
 --enable_result_log
 
 # START SLAVE will fail because it can't read the file (mode 000)

@@ -28,6 +28,7 @@
 #
 
 --source include/not_embedded.inc
+--source include/not_threadpool.inc
 
 SET @global_thread_cache_size = @@GLOBAL.thread_cache_size;
 

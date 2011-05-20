@@ -80,16 +80,19 @@ Master_info::Master_info(
 #ifdef HAVE_PSI_INTERFACE
                          PSI_mutex_key *param_key_info_run_lock,
                          PSI_mutex_key *param_key_info_data_lock,
+                         PSI_mutex_key *param_key_info_sleep_lock,
                          PSI_mutex_key *param_key_info_data_cond,
                          PSI_mutex_key *param_key_info_start_cond,
-                         PSI_mutex_key *param_key_info_stop_cond
+                         PSI_mutex_key *param_key_info_stop_cond,
+                         PSI_mutex_key *param_key_info_sleep_cond
 #endif
                         )
    :Rpl_info("I/O"
 #ifdef HAVE_PSI_INTERFACE
              ,param_key_info_run_lock, param_key_info_data_lock,
+             param_key_info_sleep_lock,
              param_key_info_data_cond, param_key_info_start_cond,
-             param_key_info_stop_cond
+             param_key_info_stop_cond, param_key_info_sleep_cond
 #endif
             ),
    ssl(0), ssl_verify_server_cert(0),
@@ -267,12 +270,10 @@ int Master_info::init_info()
   if (necessary_to_configure)
   {
     init_master_log_pos();
-    goto end;
   }
   else if (read_info(handler))
     goto err;
 
-end:
   if (flush_info(TRUE))
     goto err;
 
@@ -280,7 +281,7 @@ end:
   DBUG_RETURN(0);
 
 err:
-  sql_print_error("Error reading master configuration");
+  sql_print_error("Error reading master configuration.");
   DBUG_RETURN(1);
 }
 

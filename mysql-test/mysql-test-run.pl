@@ -96,6 +96,7 @@ use mtr_cases;
 use mtr_report;
 use mtr_match;
 use mtr_unique;
+use mtr_results;
 use IO::Socket::INET;
 use IO::Select;
 
@@ -162,7 +163,7 @@ our $opt_vs_config = $ENV{'MTR_VS_CONFIG'};
 
 # If you add a new suite, please check TEST_DIRS in Makefile.am.
 #
-my $DEFAULT_SUITES= "main,sys_vars,binlog,federated,rpl,innodb,perfschema";
+my $DEFAULT_SUITES= "main,sys_vars,binlog,federated,rpl,innodb,perfschema,funcs_1";
 my $opt_suites;
 
 our $opt_verbose= 0;  # Verbose output, enable with --verbose
@@ -211,8 +212,8 @@ our $opt_clean_vardir= $ENV{'MTR_CLEAN_VARDIR'};
 
 our $opt_gcov;
 our $opt_gcov_exe= "gcov";
-our $opt_gcov_err= "mysql-test-gcov.msg";
-our $opt_gcov_msg= "mysql-test-gcov.err";
+our $opt_gcov_err= "mysql-test-gcov.err";
+our $opt_gcov_msg= "mysql-test-gcov.msg";
 
 our $opt_gprof;
 our %gprof_dirs;
@@ -220,9 +221,12 @@ our %gprof_dirs;
 our $glob_debugger= 0;
 our $opt_gdb;
 our $opt_client_gdb;
+our $opt_dbx;
+our $opt_client_dbx;
 our $opt_ddd;
 our $opt_client_ddd;
 our $opt_manual_gdb;
+our $opt_manual_dbx;
 our $opt_manual_ddd;
 our $opt_manual_debug;
 our $opt_debugger;
@@ -242,6 +246,8 @@ my $build_thread= 0;
 
 my $opt_record;
 my $opt_report_features;
+
+our $opt_resfile= $ENV{'MTR_RESULT_FILE'} || 0;
 
 my $opt_skip_core;
 
@@ -272,12 +278,13 @@ my $opt_strace_client;
 
 our $opt_user = "root";
 
-my $opt_valgrind= 0;
+our $opt_valgrind= 0;
 my $opt_valgrind_mysqld= 0;
 my $opt_valgrind_mysqltest= 0;
 my @default_valgrind_args= ("--show-reachable=yes");
 my @valgrind_args;
 my $opt_valgrind_path;
+my $valgrind_reports= 0;
 my $opt_callgrind;
 my %mysqld_logs;
 my $opt_debug_sync_timeout= 300; # Default timeout for WAIT_FOR actions.
@@ -325,6 +332,14 @@ $opt_retry = 1; # Don't retry failed tests
 
 select(STDOUT);
 $| = 1; # Automatically flush STDOUT
+
+# Used by --result-file for for formatting times
+
+sub isotime($) {
+  my ($sec,$min,$hr,$day,$mon,$yr)= gmtime($_[0]);
+  return sprintf "%d-%02d-%02dT%02d:%02d:%02dZ",
+    $yr+1900, $mon+1, $day, $hr, $min, $sec;
+}
 
 main();
 
@@ -430,6 +445,11 @@ sub main {
   my $server_port = $server->sockport();
   mtr_report("Using server port $server_port");
 
+  if ($opt_resfile) {
+    resfile_init("$opt_vardir/mtr-results.txt");
+    print_global_resfile();
+  }
+
   # --------------------------------------------------------------------------
   # Read definitions from include/plugin.defs
   #
@@ -509,10 +529,29 @@ sub main {
 
   push @$completed, run_ctest() if $opt_ctest;
 
+  if ($opt_valgrind) {
+    # Create minimalistic "test" for the reporting
+    my $tinfo = My::Test->new
+      (
+       name           => 'valgrind_report',
+      );
+    # Set dummy worker id to align report with normal tests
+    $tinfo->{worker} = 0 if $opt_parallel > 1;
+    if ($valgrind_reports) {
+      $tinfo->{result}= 'MTR_RES_FAILED';
+      $tinfo->{comment}= "Valgrind reported failures at shutdown, see above";
+      $tinfo->{failures}= 1;
+    } else {
+      $tinfo->{result}= 'MTR_RES_PASSED';
+    }
+    mtr_report_test($tinfo);
+    push @$completed, $tinfo;
+  }
+
   mtr_print_line();
 
   if ( $opt_gcov ) {
-    gcov_collect($basedir, $opt_gcov_exe,
+    gcov_collect($bindir, $opt_gcov_exe,
 		 $opt_gcov_msg, $opt_gcov_err);
   }
 
@@ -554,7 +593,9 @@ sub run_test_server ($$$) {
   my $s= IO::Select->new();
   $s->add($server);
   while (1) {
+    mark_time_used('admin');
     my @ready = $s->can_read(1); # Wake up once every second
+    mark_time_idle();
     foreach my $sock (@ready) {
       if ($sock == $server) {
 	# New client connected
@@ -632,6 +673,7 @@ sub run_test_server ($$$) {
 		     $savedir);
 	      }
 	    }
+	    resfile_print_test();
 	    $num_saved_datadir++;
 	    $num_failed_test++ unless ($result->{retries} ||
                                        $result->{exp_fail});
@@ -654,6 +696,7 @@ sub run_test_server ($$$) {
 	    }
 	  }
 
+	  resfile_print_test();
 	  # Retry test run after test failure
 	  my $retries= $result->{retries} || 2;
 	  my $test_has_failed= $result->{failures} || 0;
@@ -706,6 +749,9 @@ sub run_test_server ($$$) {
 	}
 	elsif ($line =~ /^SPENT/) {
 	  add_total_times($line);
+	}
+	elsif ($line eq 'VALGREP' && $opt_valgrind) {
+	  $valgrind_reports= 1;
 	}
 	else {
 	  mtr_error("Unknown response: '$line' from client");
@@ -892,11 +938,12 @@ sub run_worker ($) {
       my $valgrind_reports= 0;
       if ($opt_valgrind_mysqld) {
         $valgrind_reports= valgrind_exit_reports();
+	print $server "VALGREP\n" if $valgrind_reports;
       }
       if ( $opt_gprof ) {
 	gprof_collect (find_mysqld($basedir), keys %gprof_dirs);
       }
-      mark_time_used('init');
+      mark_time_used('admin');
       print_times_used($server, $thread_num);
       exit($valgrind_reports);
     }
@@ -935,6 +982,49 @@ sub set_vardir {
   $path_current_testlog= "$opt_vardir/log/current_test";
 
 }
+
+
+sub print_global_resfile {
+  resfile_global("start_time", isotime $^T);
+  resfile_global("user_id", $<);
+  resfile_global("embedded-server", $opt_embedded_server ? 1 : 0);
+  resfile_global("ps-protocol", $opt_ps_protocol ? 1 : 0);
+  resfile_global("sp-protocol", $opt_sp_protocol ? 1 : 0);
+  resfile_global("view-protocol", $opt_view_protocol ? 1 : 0);
+  resfile_global("cursor-protocol", $opt_cursor_protocol ? 1 : 0);
+  resfile_global("ssl", $opt_ssl ? 1 : 0);
+  resfile_global("compress", $opt_compress ? 1 : 0);
+  resfile_global("parallel", $opt_parallel);
+  resfile_global("check-testcases", $opt_check_testcases ? 1 : 0);
+  resfile_global("mysqld", \@opt_extra_mysqld_opt);
+  resfile_global("debug", $opt_debug ? 1 : 0);
+  resfile_global("gcov", $opt_gcov ? 1 : 0);
+  resfile_global("gprof", $opt_gprof ? 1 : 0);
+  resfile_global("valgrind", $opt_valgrind ? 1 : 0);
+  resfile_global("callgrind", $opt_callgrind ? 1 : 0);
+  resfile_global("mem", $opt_mem ? 1 : 0);
+  resfile_global("tmpdir", $opt_tmpdir);
+  resfile_global("vardir", $opt_vardir);
+  resfile_global("fast", $opt_fast ? 1 : 0);
+  resfile_global("force-restart", $opt_force_restart ? 1 : 0);
+  resfile_global("reorder", $opt_reorder ? 1 : 0);
+  resfile_global("sleep", $opt_sleep);
+  resfile_global("repeat", $opt_repeat);
+  resfile_global("user", $opt_user);
+  resfile_global("testcase-timeout", $opt_testcase_timeout);
+  resfile_global("suite-timeout", $opt_suite_timeout);
+  resfile_global("shutdown-timeout", $opt_shutdown_timeout ? 1 : 0);
+  resfile_global("warnings", $opt_warnings ? 1 : 0);
+  resfile_global("max-connections", $opt_max_connections);
+#  resfile_global("default-myisam", $opt_default_myisam ? 1 : 0);
+  resfile_global("product", "MySQL");
+  # Somewhat hacky code to convert numeric version back to dot notation
+  my $v1= int($mysql_version_id / 10000);
+  my $v2= int(($mysql_version_id % 10000)/100);
+  my $v3= $mysql_version_id % 100;
+  resfile_global("version", "$v1.$v2.$v3");
+}
+
 
 
 sub command_line_setup {
@@ -1010,6 +1100,9 @@ sub command_line_setup {
              'ddd'                      => \$opt_ddd,
              'client-ddd'               => \$opt_client_ddd,
              'manual-ddd'               => \$opt_manual_ddd,
+             'dbx'                      => \$opt_dbx,
+	     'client-dbx'               => \$opt_client_dbx,
+	     'manual-dbx'               => \$opt_manual_dbx,
 	     'debugger=s'               => \$opt_debugger,
 	     'client-debugger=s'        => \$opt_client_debugger,
              'strace-client:s'          => \$opt_strace_client,
@@ -1077,6 +1170,7 @@ sub command_line_setup {
 	     'max-connections=i'        => \$opt_max_connections,
 	     'default-myisam!'          => \&collect_option,
 	     'report-times'             => \$opt_report_times,
+	     'result-file'              => \$opt_resfile,
 	     'unit-tests!'              => \$opt_ctest,
 
              'help|h'                   => \$opt_usage,
@@ -1199,7 +1293,7 @@ sub command_line_setup {
 	chomp;
 	# remove comments (# foo) at the beginning of the line, or after a 
 	# blank at the end of the line
-	s/( +|^)#.*$//;
+	s/(\s+|^)#.*$//;
 	# If @ platform specifier given, use this entry only if it contains
 	# @<platform> or @!<xxx> where xxx != platform
 	if (/\@.*/)
@@ -1210,8 +1304,8 @@ sub command_line_setup {
 	  s/\@.*$//;
 	}
 	# remove whitespace
-	s/^ +//;              
-	s/ +$//;
+	s/^\s+//;
+	s/\s+$//;
 	# if nothing left, don't need to remember this line
 	if ( $_ eq "" ) {
 	  next;
@@ -1435,6 +1529,12 @@ sub command_line_setup {
       $opt_ddd= undef;
     }
 
+    if ($opt_dbx) {
+      mtr_warning("Silently converting --dbx to --client-dbx in embedded mode");
+      $opt_client_dbx= $opt_dbx;
+      $opt_dbx= undef;
+    }
+
     if ($opt_debugger)
     {
       mtr_warning("Silently converting --debugger to --client-debugger in embedded mode");
@@ -1443,7 +1543,7 @@ sub command_line_setup {
     }
 
     if ( $opt_gdb || $opt_ddd || $opt_manual_gdb || $opt_manual_ddd ||
-	 $opt_manual_debug || $opt_debugger )
+	 $opt_manual_debug || $opt_debugger || $opt_dbx || $opt_manual_dbx)
     {
       mtr_error("You need to use the client debug options for the",
 		"embedded server. Ex: --client-gdb");
@@ -1471,6 +1571,7 @@ sub command_line_setup {
   # --------------------------------------------------------------------------
   if ( $opt_gdb || $opt_client_gdb || $opt_ddd || $opt_client_ddd ||
        $opt_manual_gdb || $opt_manual_ddd || $opt_manual_debug ||
+       $opt_dbx || $opt_client_dbx || $opt_manual_dbx ||
        $opt_debugger || $opt_client_debugger )
   {
     # Indicate that we are using debugger
@@ -2190,7 +2291,12 @@ sub environment_setup {
   $ENV{'DEFAULT_MASTER_PORT'}= $mysqld_variables{'port'};
   $ENV{'MYSQL_TMP_DIR'}=      $opt_tmpdir;
   $ENV{'MYSQLTEST_VARDIR'}=   $opt_vardir;
+  # Used for guessing default plugin dir, we can't really know for sure
   $ENV{'MYSQL_LIBDIR'}=       "$basedir/lib";
+  # Override if this does not exist, but lib64 does (best effort)
+  if (! -d "$basedir/lib" && -d "$basedir/lib64") {
+    $ENV{'MYSQL_LIBDIR'}=     "$basedir/lib64";
+  }
   $ENV{'MYSQL_BINDIR'}=       "$bindir";
   $ENV{'MYSQL_SHAREDIR'}=     $path_language;
   $ENV{'MYSQL_CHARSETSDIR'}=  $path_charsetsdir;
@@ -3648,6 +3754,18 @@ sub timezone {
 # Storage for changed environment variables
 my %old_env;
 
+sub resfile_report_test ($) {
+  my $tinfo=  shift;
+
+  resfile_new_test();
+
+  resfile_test_info("name", $tinfo->{name});
+  resfile_test_info("variation", $tinfo->{combination})
+    if $tinfo->{combination};
+  resfile_test_info("start_time", isotime time);
+}
+
+
 #
 # Run a single test case
 #
@@ -3660,6 +3778,7 @@ sub run_testcase ($) {
   my $tinfo=  shift;
 
   mtr_verbose("Running test:", $tinfo->{name});
+  resfile_report_test($tinfo) if $opt_resfile;
 
   # Allow only alpanumerics pluss _ - + . in combination names,
   # or anything beginning with -- (the latter comes from --combination)
@@ -3804,7 +3923,7 @@ sub run_testcase ($) {
 
   do_before_run_mysqltest($tinfo);
 
-  mark_time_used('init');
+  mark_time_used('admin');
 
   if ( $opt_check_testcases and check_testcase($tinfo, "before") ){
     # Failed to record state of server or server crashed
@@ -3865,6 +3984,7 @@ sub run_testcase ($) {
 	# Test case suceeded, but it has produced unexpected
 	# warnings, continue in $res == 1
 	$res= 1;
+	resfile_output($tinfo->{'warnings'}) if $opt_resfile;
       }
 
       if ( $res == 0 )
@@ -3881,6 +4001,7 @@ sub run_testcase ($) {
 	    # Test case had sideeffects, not fatal error, just continue
 	    stop_all_servers($opt_shutdown_timeout);
 	    mtr_report("Resuming tests...\n");
+	    resfile_output($tinfo->{'check'}) if $opt_resfile;
 	  }
 	  else {
 	    # Test case check failed fatally, probably a server crashed
@@ -3942,6 +4063,9 @@ sub run_testcase ($) {
       # Save info from this testcase run to mysqltest.log
       if( -f $path_current_testlog)
       {
+	if ($opt_resfile && $res && $res != 62) {
+	  resfile_output_file($path_current_testlog);
+	}
 	mtr_appendfile_to_file($path_current_testlog, $path_testlog);
 	unlink($path_current_testlog);
       }
@@ -4119,6 +4243,9 @@ sub extract_warning_lines ($$) {
     );
   my $skip_valgrind= 0;
 
+  my $last_pat= "";
+  my $num_rep= 0;
+
   foreach my $line ( @lines )
   {
     if ($opt_valgrind_mysqld) {
@@ -4133,11 +4260,29 @@ sub extract_warning_lines ($$) {
     {
       if ( $line =~ /$pat/ )
       {
-	print $Fwarn $line;
+	# Remove initial timestamp and look for consecutive identical lines
+	my $line_pat= $line;
+	$line_pat =~ s/^[0-9: ]*//;
+	if ($line_pat eq $last_pat) {
+	  $num_rep++;
+	} else {
+	  # Previous line had been repeated, report that first
+	  if ($num_rep) {
+	    print $Fwarn ".... repeated $num_rep times: $last_pat";
+	    $num_rep= 0;
+	  }
+	  $last_pat= $line_pat;
+	  print $Fwarn $line;
+	}
 	last;
       }
     }
   }
+  # Catch the case of last warning being repeated
+  if ($num_rep) {
+    print $Fwarn ".... repeated $num_rep times: $last_pat";
+  }
+
   $Fwarn = undef; # Close file
 
 }
@@ -4746,6 +4891,9 @@ sub mysqld_start ($$) {
   {
     ddd_arguments(\$args, \$exe, $mysqld->name());
   }
+  if ( $opt_dbx || $opt_manual_dbx ) {
+    dbx_arguments(\$args, \$exe, $mysqld->name());
+  }
   elsif ( $opt_debugger )
   {
     debugger_arguments(\$args, \$exe, $mysqld->name());
@@ -4771,13 +4919,6 @@ sub mysqld_start ($$) {
   unlink($mysqld->value('pid-file'));
 
   my $output= $mysqld->value('#log-error');
-  if ( $opt_valgrind and $opt_debug )
-  {
-    # When both --valgrind and --debug is selected, send
-    # all output to the trace file, making it possible to
-    # see the exact location where valgrind complains
-    $output= "$opt_vardir/log/".$mysqld->name().".trace";
-  }
   # Remember this log file for valgrind error report search
   $mysqld_logs{$output}= 1 if $opt_valgrind;
   # Remember data dir for gmon.out files if using gprof
@@ -5297,7 +5438,7 @@ sub start_mysqltest ($) {
   my $exe= $exe_mysqltest;
   my $args;
 
-  mark_time_used('init');
+  mark_time_used('admin');
 
   mtr_init_args(\$args);
 
@@ -5444,6 +5585,9 @@ sub start_mysqltest ($) {
   {
     ddd_arguments(\$args, \$exe, "client");
   }
+  if ( $opt_client_dbx ) {
+    dbx_arguments(\$args, \$exe, "client");
+  }
   elsif ( $opt_client_debugger )
   {
     debugger_arguments(\$args, \$exe, "client");
@@ -5478,23 +5622,11 @@ sub gdb_arguments {
   # Remove the old gdbinit file
   unlink($gdb_init_file);
 
-  if ( $type eq "client" )
-  {
-    # write init file for client
-    mtr_tofile($gdb_init_file,
-	       "set args $str\n" .
-	       "break main\n");
-  }
-  else
-  {
-    # write init file for mysqld
-    mtr_tofile($gdb_init_file,
-	       "set args $str\n" .
-	       "break mysql_parse\n" .
-	       "commands 1\n" .
-	       "disable 1\n" .
-	       "end\n");
-  }
+  # write init file for mysqld or client
+  mtr_tofile($gdb_init_file,
+	     "set args $str\n" .
+	     "break main\n" .
+	     "run");
 
   if ( $opt_manual_gdb )
   {
@@ -5541,24 +5673,12 @@ sub ddd_arguments {
   # Remove the old gdbinit file
   unlink($gdb_init_file);
 
-  if ( $type eq "client" )
-  {
-    # write init file for client
-    mtr_tofile($gdb_init_file,
-	       "set args $str\n" .
-	       "break main\n");
-  }
-  else
-  {
-    # write init file for mysqld
-    mtr_tofile($gdb_init_file,
-	       "file ../sql/mysqld\n" .
-	       "set args $str\n" .
-	       "break mysql_parse\n" .
-	       "commands 1\n" .
-	       "disable 1\n" .
-	       "end");
-  }
+  # write init file for mysqld or client
+  mtr_tofile($gdb_init_file,
+	     "file $$exe\n" .
+	     "set args $str\n" .
+	     "break main\n" .
+	     "run");
 
   if ( $opt_manual_ddd )
   {
@@ -5584,6 +5704,46 @@ sub ddd_arguments {
   }
   mtr_add_arg($$args, "--command=$gdb_init_file");
   mtr_add_arg($$args, "$save_exe");
+}
+
+
+#
+# Modify the exe and args so that program is run in dbx in xterm
+#
+sub dbx_arguments {
+  my $args= shift;
+  my $exe=  shift;
+  my $type= shift;
+
+  # Put $args into a single string
+  my $str= join " ", @$$args;
+
+  if ( $opt_manual_dbx ) {
+    print "\nTo start dbx for $type, type in another window:\n";
+    print "cd $glob_mysql_test_dir; dbx -c \"stop in main; " .
+          "run $str\" $$exe\n";
+
+    # Indicate the exe should not be started
+    $$exe= undef;
+    return;
+  }
+
+  $$args= [];
+  mtr_add_arg($$args, "-title");
+  mtr_add_arg($$args, "$type");
+  mtr_add_arg($$args, "-e");
+
+  if ( $exe_libtool ) {
+    mtr_add_arg($$args, $exe_libtool);
+    mtr_add_arg($$args, "--mode=execute");
+  }
+
+  mtr_add_arg($$args, "dbx");
+  mtr_add_arg($$args, "-c");
+  mtr_add_arg($$args, "stop in main; run $str");
+  mtr_add_arg($$args, "$$exe");
+
+  $$exe= "xterm";
 }
 
 
@@ -5616,18 +5776,6 @@ sub debugger_arguments {
 
     # Set exe to debuggername
     $$exe= $debugger;
-
-  }
-  elsif ( $debugger eq "dbx" )
-  {
-    # xterm -e dbx -r exe arg1 .. argn
-
-    unshift(@$$args, $$exe);
-    unshift(@$$args, "-r");
-    unshift(@$$args, $debugger);
-    unshift(@$$args, "-e");
-
-    $$exe= "xterm";
 
   }
   else
@@ -5705,6 +5853,7 @@ sub valgrind_exit_reports() {
                         @culprits);
             mtr_print_line();
             print ("$valgrind_rep\n");
+            $found_err= 1;
             $err_in_report= 0;
           }
           # Make ready to collect new report
@@ -5931,6 +6080,7 @@ Options for debugging the product
   client-ddd            Start mysqltest client in ddd
   client-debugger=NAME  Start mysqltest in the selected debugger
   client-gdb            Start mysqltest client in gdb
+  client-dbx            Start mysqltest client in dbx
   ddd                   Start mysqld in ddd
   debug                 Dump trace output for all servers and client programs
   debug-common          Same as debug, but sets 'd' debug flags to
@@ -5939,11 +6089,14 @@ Options for debugging the product
                         tracing
   debugger=NAME         Start mysqld in the selected debugger
   gdb                   Start the mysqld(s) in gdb
+  dbx                   Start the mysqld(s) in dbx
   manual-debug          Let user manually start mysqld in debugger, before
                         running test(s)
   manual-gdb            Let user manually start mysqld in gdb, before running
                         test(s)
   manual-ddd            Let user manually start mysqld in ddd, before running
+                        test(s)
+  manual-dbx            Let user manually start mysqld in dbx, before running
                         test(s)
   strace-client[=path]  Create strace output for mysqltest client, optionally
                         specifying name and path to the trace program to use.

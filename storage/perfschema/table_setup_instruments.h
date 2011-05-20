@@ -32,14 +32,8 @@
 /** A row of PERFORMANCE_SCHEMA.SETUP_INSTRUMENTS. */
 struct row_setup_instruments
 {
-  /** Column NAME. */
-  const char *m_name;
-  /** Length in bytes of @c m_name. */
-  uint m_name_length;
-  /** Column ENABLED. */
-  bool *m_enabled_ptr;
-  /** Column TIMED. */
-  bool *m_timed_ptr;
+  /** Columns NAME, ENABLED, TIMED. */
+  PFS_instr_class *m_instr_class;
 };
 
 /** Position of a cursor on PERFORMANCE_SCHEMA.SETUP_INSTRUMENTS. */
@@ -49,11 +43,12 @@ struct pos_setup_instruments : public PFS_double_index
   static const uint VIEW_MUTEX= 1;
   static const uint VIEW_RWLOCK= 2;
   static const uint VIEW_COND= 3;
-  /** Reverved for WL#4674, PERFORMANCE_SCHEMA Setup For Actors. */
   static const uint VIEW_THREAD= 4;
   static const uint VIEW_FILE= 5;
   static const uint VIEW_TABLE= 6;
-  static const uint LAST_VIEW= 6;
+  static const uint VIEW_STAGE= 7;
+  static const uint VIEW_STATEMENT= 8;
+  static const uint LAST_VIEW= 8;
 
   pos_setup_instruments()
     : PFS_double_index(FIRST_VIEW, 1)

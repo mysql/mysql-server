@@ -27,8 +27,14 @@
 #include <my_pthread.h>
 #include <mysql/psi/psi.h>
 
+/**
+  Entry point to the performance schema implementation.
+  This singleton is used to discover the performance schema services.
+*/
 extern struct PSI_bootstrap PFS_bootstrap;
+/** Performance schema Thread Local Storage key.  */
 extern pthread_key(PFS_thread*, THR_PFS);
+/** True when @c THR_PFS is initialized. */
 extern bool THR_PFS_initialized;
 
 #endif

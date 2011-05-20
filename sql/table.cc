@@ -310,7 +310,7 @@ TABLE_CATEGORY get_table_category(const LEX_STRING *db, const LEX_STRING *name)
     #  Share
 */
 
-TABLE_SHARE *alloc_table_share(TABLE_LIST *table_list, char *key,
+TABLE_SHARE *alloc_table_share(TABLE_LIST *table_list, const char *key,
                                uint key_length)
 {
   MEM_ROOT mem_root;
@@ -470,7 +470,7 @@ void TABLE_SHARE::destroy()
   }
 #endif /* WITH_PARTITION_STORAGE_ENGINE */
 
-#ifdef HAVE_PSI_INTERFACE
+#ifdef HAVE_PSI_TABLE_INTERFACE
   if (likely(PSI_server && m_psi))
     PSI_server->release_table_share(m_psi);
 #endif
@@ -1530,7 +1530,7 @@ static int open_binary_frm(THD *thd, TABLE_SHARE *share, uchar *head,
       const uchar field_flags= format_section_fields[i];
       const uchar field_storage= (field_flags & STORAGE_TYPE_MASK);
       const uchar field_column_format=
-        ((field_flags >> COLUMN_FORMAT_SHIFT)& STORAGE_TYPE_MASK);
+        ((field_flags >> COLUMN_FORMAT_SHIFT)& COLUMN_FORMAT_MASK);
       DBUG_PRINT("debug", ("field flags: %u, storage: %u, column_format: %u",
                            field_flags, field_storage, field_column_format));
 #ifndef MCP_WL3627
@@ -2031,7 +2031,8 @@ int open_table_from_share(THD *thd, TABLE_SHARE *share, const char *alias,
 
     Query_arena *backup_stmt_arena_ptr= thd->stmt_arena;
     Query_arena backup_arena;
-    Query_arena part_func_arena(&outparam->mem_root, Query_arena::INITIALIZED);
+    Query_arena part_func_arena(&outparam->mem_root,
+                                Query_arena::STMT_INITIALIZED);
     thd->set_n_backup_active_arena(&part_func_arena, &backup_arena);
     thd->stmt_arena= &part_func_arena;
     bool tmp;
@@ -3381,7 +3382,7 @@ void TABLE::init(THD *thd, TABLE_LIST *tl)
   force_index= 0;
   force_index_order= 0;
   force_index_group= 0;
-  status= STATUS_NO_RECORD;
+  status= STATUS_GARBAGE | STATUS_NOT_FOUND;
   insert_values= 0;
   fulltext_searched= 0;
   file->ft_handler= 0;
@@ -5498,13 +5499,3 @@ bool is_simple_order(ORDER *order)
   }
   return TRUE;
 }
-
-
-/*****************************************************************************
-** Instansiate templates
-*****************************************************************************/
-
-#ifdef HAVE_EXPLICIT_TEMPLATE_INSTANTIATION
-template class List<String>;
-template class List_iterator<String>;
-#endif

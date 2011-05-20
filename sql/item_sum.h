@@ -19,10 +19,6 @@
 
 /* classes for sum functions */
 
-#ifdef USE_PRAGMA_INTERFACE
-#pragma interface			/* gcc class implementation */
-#endif
-
 #include <my_tree.h>
 #include "sql_udf.h"                            /* udf_handler */
 

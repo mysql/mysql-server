@@ -626,10 +626,10 @@ bool Log_to_csv_event_handler::
     if (table->field[SQLT_FIELD_LOCK_TIME]->store_time(&t, MYSQL_TIMESTAMP_TIME))
       goto err;
     /* rows_sent */
-    if (table->field[SQLT_FIELD_ROWS_SENT]->store((longlong) thd->sent_row_count, TRUE))
+    if (table->field[SQLT_FIELD_ROWS_SENT]->store((longlong) thd->get_sent_row_count(), TRUE))
       goto err;
     /* rows_examined */
-    if (table->field[SQLT_FIELD_ROWS_EXAMINED]->store((longlong) thd->examined_row_count, TRUE))
+    if (table->field[SQLT_FIELD_ROWS_EXAMINED]->store((longlong) thd->get_examined_row_count(), TRUE))
       goto err;
   }
   else
@@ -1931,8 +1931,8 @@ bool MYSQL_QUERY_LOG::write(THD *thd, time_t current_time,
                     "# Query_time: %s  Lock_time: %s"
                     " Rows_sent: %lu  Rows_examined: %lu\n",
                     query_time_buff, lock_time_buff,
-                    (ulong) thd->sent_row_count,
-                    (ulong) thd->examined_row_count) == (uint) -1)
+                    (ulong) thd->get_sent_row_count(),
+                    (ulong) thd->get_examined_row_count()) == (uint) -1)
       tmp_errno= errno;
     if (thd->db && strcmp(thd->db, db))
     {						// Database changed
@@ -2485,7 +2485,7 @@ int TC_LOG_MMAP::open(const char *opt_name)
   {
     pg->next=pg+1;
     pg->waiters=0;
-    pg->state=POOL;
+    pg->state=PS_POOL;
     mysql_mutex_init(key_PAGE_lock, &pg->lock, MY_MUTEX_INIT_FAST);
     mysql_cond_init(key_PAGE_cond, &pg->cond, 0);
     pg->start=(my_xid *)(data + i*tc_log_page_size);
@@ -2659,7 +2659,7 @@ int TC_LOG_MMAP::log_xid(THD *thd, my_xid xid)
   cookie= (ulong)((uchar *)p->ptr - data);      // can never be zero
   *p->ptr++= xid;
   p->free--;
-  p->state= DIRTY;
+  p->state= PS_DIRTY;
 
   /* to sync or not to sync - this is the question */
   mysql_mutex_unlock(&LOCK_active);
@@ -2671,13 +2671,13 @@ int TC_LOG_MMAP::log_xid(THD *thd, my_xid xid)
     p->waiters++;
     /*
       note - it must be while (), not do ... while () here
-      as p->state may be not DIRTY when we come here
+      as p->state may be not PS_DIRTY when we come here
     */
-    while (p->state == DIRTY && syncing)
+    while (p->state == PS_DIRTY && syncing)
       mysql_cond_wait(&p->cond, &LOCK_sync);
     p->waiters--;
-    err= p->state == ERROR;
-    if (p->state != DIRTY)                   // page was synced
+    err= p->state == PS_ERROR;
+    if (p->state != PS_DIRTY)                   // page was synced
     {
       if (p->waiters == 0)
         mysql_cond_signal(&COND_pool);       // in case somebody's waiting
@@ -2715,7 +2715,7 @@ int TC_LOG_MMAP::sync()
   pool_last->next=syncing;
   pool_last=syncing;
   syncing->next=0;
-  syncing->state= err ? ERROR : POOL;
+  syncing->state= err ? PS_ERROR : PS_POOL;
   mysql_cond_broadcast(&syncing->cond);      // signal "sync done"
   mysql_cond_signal(&COND_pool);             // in case somebody's waiting
   mysql_mutex_unlock(&LOCK_pool);

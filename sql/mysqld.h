@@ -23,6 +23,7 @@
 #include "my_atomic.h"                     /* my_atomic_rwlock_t */
 #include "mysql/psi/mysql_file.h"          /* MYSQL_FILE */
 #include "sql_list.h"                      /* I_List */
+#include "sql_cmd.h"                       /* SQLCOM_END */
 
 class THD;
 struct handlerton;
@@ -76,8 +77,9 @@ bool is_secure_file_path(char *path);
 // These are needed for unit testing.
 void set_remaining_args(int argc, char **argv);
 int init_common_variables();
+void my_init_signals();
 
-extern MYSQL_PLUGIN_IMPORT CHARSET_INFO *system_charset_info;
+extern "C" MYSQL_PLUGIN_IMPORT CHARSET_INFO *system_charset_info;
 extern MYSQL_PLUGIN_IMPORT CHARSET_INFO *files_charset_info ;
 extern MYSQL_PLUGIN_IMPORT CHARSET_INFO *national_charset_info;
 extern MYSQL_PLUGIN_IMPORT CHARSET_INFO *table_alias_charset;
@@ -195,7 +197,8 @@ extern my_bool opt_slave_sql_verify_checksum;
 extern ulong thread_cache_size;
 extern ulong back_log;
 extern char language[FN_REFLEN];
-extern ulong server_id, concurrency;
+extern "C" MYSQL_PLUGIN_IMPORT ulong server_id;
+extern ulong concurrency;
 extern time_t server_start_time, flush_status_time;
 extern char *opt_mysql_tmpdir, mysql_charsets_dir[];
 extern int mysql_unpacked_real_data_home_len;
@@ -216,8 +219,8 @@ extern handlerton *heap_hton;
 extern const char *load_default_groups[];
 extern struct my_option my_long_options[];
 extern int mysqld_server_started;
-extern int orig_argc;
-extern char **orig_argv;
+extern "C" MYSQL_PLUGIN_IMPORT int orig_argc;
+extern "C" MYSQL_PLUGIN_IMPORT char **orig_argv;
 extern pthread_attr_t connection_attrib;
 extern MYSQL_FILE *bootstrap_file;
 extern my_bool old_mode;
@@ -228,6 +231,10 @@ extern char err_shared_dir[];
 extern TYPELIB thread_handling_typelib;
 extern my_decimal decimal_zero;
 
+/*
+  THR_MALLOC is a key which will be used to set/get MEM_ROOT** for a thread,
+  using my_pthread_setspecific_ptr()/my_thread_getspecific_ptr().
+*/
 extern pthread_key(MEM_ROOT**,THR_MALLOC);
 
 #ifdef HAVE_PSI_INTERFACE
@@ -251,7 +258,9 @@ extern PSI_mutex_key key_BINLOG_LOCK_index, key_BINLOG_LOCK_prep_xids,
   key_LOCK_table_share, key_LOCK_thd_data,
   key_LOCK_user_conn, key_LOCK_uuid_generator, key_LOG_LOCK_log,
   key_master_info_data_lock, key_master_info_run_lock,
+  key_master_info_sleep_lock,
   key_mutex_slave_reporting_capability_err_lock, key_relay_log_info_data_lock,
+  key_relay_log_info_sleep_lock,
   key_relay_log_info_log_space_lock, key_relay_log_info_run_lock,
   key_structure_guard_mutex, key_TABLE_SHARE_LOCK_ha_data,
   key_LOCK_error_messages, key_LOCK_thread_count, key_PARTITION_LOCK_auto_inc;
@@ -271,8 +280,10 @@ extern PSI_cond_key key_BINLOG_COND_prep_xids, key_BINLOG_update_cond,
   key_delayed_insert_cond, key_delayed_insert_cond_client,
   key_item_func_sleep_cond, key_master_info_data_cond,
   key_master_info_start_cond, key_master_info_stop_cond,
+  key_master_info_sleep_cond,
   key_relay_log_info_data_cond, key_relay_log_info_log_space_cond,
   key_relay_log_info_start_cond, key_relay_log_info_stop_cond,
+  key_relay_log_info_sleep_cond,
   key_TABLE_SHARE_cond, key_user_level_lock_cond,
   key_COND_thread_count, key_COND_thread_cache, key_COND_flush_thread_cache;
 extern PSI_cond_key key_RELAYLOG_update_cond;
@@ -296,6 +307,114 @@ extern PSI_file_key key_file_query_log, key_file_slow_log;
 extern PSI_file_key key_file_relaylog, key_file_relaylog_index;
 
 void init_server_psi_keys();
+#endif /* HAVE_PSI_INTERFACE */
+
+/*
+  MAINTAINER: Please keep this list in order, to limit merge collisions.
+  Hint: grep PSI_stage_info | sort -u
+*/
+extern PSI_stage_info stage_after_create;
+extern PSI_stage_info stage_allocating_local_table;
+extern PSI_stage_info stage_changing_master;
+extern PSI_stage_info stage_checking_master_version;
+extern PSI_stage_info stage_checking_permissions;
+extern PSI_stage_info stage_checking_privileges_on_cached_query;
+extern PSI_stage_info stage_checking_query_cache_for_query;
+extern PSI_stage_info stage_cleaning_up;
+extern PSI_stage_info stage_closing_tables;
+extern PSI_stage_info stage_connecting_to_master;
+extern PSI_stage_info stage_converting_heap_to_myisam;
+extern PSI_stage_info stage_copying_to_group_table;
+extern PSI_stage_info stage_copying_to_tmp_table;
+extern PSI_stage_info stage_copy_to_tmp_table;
+extern PSI_stage_info stage_creating_delayed_handler;
+extern PSI_stage_info stage_creating_sort_index;
+extern PSI_stage_info stage_creating_table;
+extern PSI_stage_info stage_creating_tmp_table;
+extern PSI_stage_info stage_deleting_from_main_table;
+extern PSI_stage_info stage_deleting_from_reference_tables;
+extern PSI_stage_info stage_discard_or_import_tablespace;
+extern PSI_stage_info stage_end;
+extern PSI_stage_info stage_executing;
+extern PSI_stage_info stage_execution_of_init_command;
+extern PSI_stage_info stage_finished_reading_one_binlog_switching_to_next_binlog;
+extern PSI_stage_info stage_flushing_relay_log_and_master_info_repository;
+extern PSI_stage_info stage_flushing_relay_log_info_file;
+extern PSI_stage_info stage_freeing_items;
+extern PSI_stage_info stage_fulltext_initialization;
+extern PSI_stage_info stage_got_handler_lock;
+extern PSI_stage_info stage_got_old_table;
+extern PSI_stage_info stage_init;
+extern PSI_stage_info stage_insert;
+extern PSI_stage_info stage_invalidating_query_cache_entries_table;
+extern PSI_stage_info stage_invalidating_query_cache_entries_table_list;
+extern PSI_stage_info stage_killing_slave;
+extern PSI_stage_info stage_logging_slow_query;
+extern PSI_stage_info stage_making_temp_file_append_before_load_data;
+extern PSI_stage_info stage_making_temp_file_create_before_load_data;
+extern PSI_stage_info stage_manage_keys;
+extern PSI_stage_info stage_opening_tables;
+extern PSI_stage_info stage_optimizing;
+extern PSI_stage_info stage_preparing;
+extern PSI_stage_info stage_purging_old_relay_logs;
+extern PSI_stage_info stage_query_end;
+extern PSI_stage_info stage_queueing_master_event_to_the_relay_log;
+extern PSI_stage_info stage_reading_event_from_the_relay_log;
+extern PSI_stage_info stage_registering_slave_on_master;
+extern PSI_stage_info stage_removing_duplicates;
+extern PSI_stage_info stage_removing_tmp_table;
+extern PSI_stage_info stage_rename;
+extern PSI_stage_info stage_rename_result_table;
+extern PSI_stage_info stage_requesting_binlog_dump;
+extern PSI_stage_info stage_reschedule;
+extern PSI_stage_info stage_searching_rows_for_update;
+extern PSI_stage_info stage_sending_binlog_event_to_slave;
+extern PSI_stage_info stage_sending_cached_result_to_client;
+extern PSI_stage_info stage_sending_data;
+extern PSI_stage_info stage_setup;
+extern PSI_stage_info stage_sorting_for_group;
+extern PSI_stage_info stage_sorting_for_order;
+extern PSI_stage_info stage_sorting_result;
+extern PSI_stage_info stage_sql_thd_waiting_until_delay;
+extern PSI_stage_info stage_statistics;
+extern PSI_stage_info stage_storing_result_in_query_cache;
+extern PSI_stage_info stage_storing_row_into_queue;
+extern PSI_stage_info stage_system_lock;
+extern PSI_stage_info stage_update;
+extern PSI_stage_info stage_updating;
+extern PSI_stage_info stage_updating_main_table;
+extern PSI_stage_info stage_updating_reference_tables;
+extern PSI_stage_info stage_upgrading_lock;
+extern PSI_stage_info stage_user_lock;
+extern PSI_stage_info stage_user_sleep;
+extern PSI_stage_info stage_verifying_table;
+extern PSI_stage_info stage_waiting_for_delay_list;
+extern PSI_stage_info stage_waiting_for_handler_insert;
+extern PSI_stage_info stage_waiting_for_handler_lock;
+extern PSI_stage_info stage_waiting_for_handler_open;
+extern PSI_stage_info stage_waiting_for_insert;
+extern PSI_stage_info stage_waiting_for_master_to_send_event;
+extern PSI_stage_info stage_waiting_for_master_update;
+extern PSI_stage_info stage_waiting_for_slave_mutex_on_exit;
+extern PSI_stage_info stage_waiting_for_the_next_event_in_relay_log;
+extern PSI_stage_info stage_waiting_to_finalize_termination;
+extern PSI_stage_info stage_waiting_to_get_readlock;
+
+#ifdef HAVE_PSI_INTERFACE
+/**
+  Statement instrumentation keys (sql).
+  The last entry, at [SQLCOM_END], is for parsing errors.
+*/
+extern PSI_statement_info sql_statement_info[(uint) SQLCOM_END + 1];
+
+/**
+  Statement instrumentation keys (com).
+  The last entry, at [COM_END], is for packet errors.
+*/
+extern PSI_statement_info com_statement_info[(uint) COM_END + 1];
+
+void init_sql_statement_info();
+void init_com_statement_info();
 #endif /* HAVE_PSI_INTERFACE */
 
 #ifndef __WIN__
@@ -323,7 +442,7 @@ extern uint mysql_real_data_home_len;
 extern const char *mysql_real_data_home_ptr;
 extern ulong thread_handling;
 extern MYSQL_PLUGIN_IMPORT char  *mysql_data_home;
-extern char server_version[SERVER_VERSION_LENGTH];
+extern "C" MYSQL_PLUGIN_IMPORT char server_version[SERVER_VERSION_LENGTH];
 extern MYSQL_PLUGIN_IMPORT char mysql_real_data_home[];
 extern char mysql_unpacked_real_data_home[];
 extern MYSQL_PLUGIN_IMPORT struct system_variables global_system_variables;
@@ -517,6 +636,10 @@ get_thread_running()
 extern "C" THD *_current_thd_noinline();
 #define _current_thd() _current_thd_noinline()
 #else
+/*
+  THR_THD is a key which will be used to set/get THD* for a thread,
+  using my_pthread_setspecific_ptr()/my_thread_getspecific_ptr().
+*/
 extern pthread_key(THD*, THR_THD);
 inline THD *_current_thd(void)
 {

@@ -55,6 +55,7 @@
 #include "sql_truncate.h"                      // Sql_cmd_truncate_table
 #include "sql_admin.h"                         // Sql_cmd_analyze/Check..._table
 #include "sql_partition_admin.h"               // Sql_cmd_alter_table_*_part.
+#include "sql_handler.h"                       // Sql_cmd_handler_*
 #include "sql_signal.h"
 #include "event_parse_data.h"
 #include <myisam.h>
@@ -752,6 +753,7 @@ static bool add_create_index (LEX *lex, Key::Keytype type,
   handlerton *db_type;
   enum row_type row_type;
   enum ha_rkey_function ha_rkey_mode;
+  enum enum_ha_read_modes ha_read_mode;
   enum enum_tx_isolation tx_isolation;
   enum Cast_target cast_type;
   enum Item_udftype udf_type;
@@ -1531,6 +1533,9 @@ bool my_yyoverflow(short **a, YYSTYPE **b, ulong *yystacksize);
 %type <tx_isolation> isolation_types
 
 %type <ha_rkey_mode> handler_rkey_mode
+  
+%type <ha_read_mode> handler_read_or_scan handler_scan_function
+        handler_rkey_function
 
 %type <cast_type> cast_type
 
@@ -1587,7 +1592,6 @@ bool my_yyoverflow(short **a, YYSTYPE **b, ulong *yystacksize);
         equal optional_braces
         opt_mi_check_type opt_to mi_check_types normal_join
         table_to_table_list table_to_table opt_table_list opt_as
-        handler_rkey_function handler_read_or_scan
         single_multi table_wild_list table_wild_one opt_wild
         union_clause union_list
         precision subselect_start opt_and charset
@@ -11776,7 +11780,23 @@ field_or_var:
 
 opt_load_data_set_spec:
           /* empty */ {}
-        | SET insert_update_list {}
+        | SET load_data_set_list {}
+        ;
+
+load_data_set_list:
+          load_data_set_list ',' load_data_set_elem
+        | load_data_set_elem
+        ;
+
+load_data_set_elem:
+          simple_ident_nospvar equal remember_name expr_or_default remember_end
+          {
+            LEX *lex= Lex;
+            if (lex->update_list.push_back($1) || 
+                lex->value_list.push_back($4))
+                MYSQL_YYABORT;
+            $4->set_name($3, (uint) ($5 - $3), YYTHD->charset());
+          }
         ;
 
 /* Common definitions */
@@ -13406,6 +13426,7 @@ unlock:
 handler:
           HANDLER_SYM table_ident OPEN_SYM opt_table_alias
           {
+            THD *thd= YYTHD;
             LEX *lex= Lex;
             if (lex->sphead)
             {
@@ -13413,11 +13434,15 @@ handler:
               MYSQL_YYABORT;
             }
             lex->sql_command = SQLCOM_HA_OPEN;
-            if (!lex->current_select->add_table_to_list(lex->thd, $2, $4, 0))
+            if (!lex->current_select->add_table_to_list(thd, $2, $4, 0))
+              MYSQL_YYABORT;
+            lex->m_sql_cmd= new (thd->mem_root) Sql_cmd_handler_open();
+            if (lex->m_sql_cmd == NULL)
               MYSQL_YYABORT;
           }
         | HANDLER_SYM table_ident_nodb CLOSE_SYM
           {
+            THD *thd= YYTHD;
             LEX *lex= Lex;
             if (lex->sphead)
             {
@@ -13425,7 +13450,10 @@ handler:
               MYSQL_YYABORT;
             }
             lex->sql_command = SQLCOM_HA_CLOSE;
-            if (!lex->current_select->add_table_to_list(lex->thd, $2, 0, 0))
+            if (!lex->current_select->add_table_to_list(thd, $2, 0, 0))
+              MYSQL_YYABORT;
+            lex->m_sql_cmd= new (thd->mem_root) Sql_cmd_handler_close();
+            if (lex->m_sql_cmd == NULL)
               MYSQL_YYABORT;
           }
         | HANDLER_SYM table_ident_nodb READ_SYM
@@ -13438,7 +13466,6 @@ handler:
             }
             lex->expr_allows_subselect= FALSE;
             lex->sql_command = SQLCOM_HA_READ;
-            lex->ha_rkey_mode= HA_READ_KEY_EXACT; /* Avoid purify warnings */
             Item *one= new (YYTHD->mem_root) Item_int((int32) 1);
             if (one == NULL)
               MYSQL_YYABORT;
@@ -13449,42 +13476,50 @@ handler:
           }
           handler_read_or_scan where_clause opt_limit_clause
           {
+            THD *thd= YYTHD;
+            LEX *lex= Lex;
             Lex->expr_allows_subselect= TRUE;
             /* Stored functions are not supported for HANDLER READ. */
-            if (Lex->uses_stored_routines())
+            if (lex->uses_stored_routines())
             {
               my_error(ER_NOT_SUPPORTED_YET, MYF(0),
                        "stored functions in HANDLER ... READ");
               MYSQL_YYABORT;
             }
+            lex->m_sql_cmd= new (thd->mem_root) Sql_cmd_handler_read($5,
+                                  lex->ident.str, lex->insert_list,
+                                  thd->m_parser_state->m_yacc.m_ha_rkey_mode);
+            if (lex->m_sql_cmd == NULL)
+              MYSQL_YYABORT;
           }
         ;
 
 handler_read_or_scan:
-          handler_scan_function       { Lex->ident= null_lex_str; }
-        | ident handler_rkey_function { Lex->ident= $1; }
+          handler_scan_function       { Lex->ident= null_lex_str; $$=$1; }
+        | ident handler_rkey_function { Lex->ident= $1; $$=$2; }
         ;
 
 handler_scan_function:
-          FIRST_SYM { Lex->ha_read_mode = RFIRST; }
-        | NEXT_SYM  { Lex->ha_read_mode = RNEXT;  }
+          FIRST_SYM { $$= RFIRST; }
+        | NEXT_SYM  { $$= RNEXT;  }
         ;
 
 handler_rkey_function:
-          FIRST_SYM { Lex->ha_read_mode = RFIRST; }
-        | NEXT_SYM  { Lex->ha_read_mode = RNEXT;  }
-        | PREV_SYM  { Lex->ha_read_mode = RPREV;  }
-        | LAST_SYM  { Lex->ha_read_mode = RLAST;  }
+          FIRST_SYM { $$= RFIRST; }
+        | NEXT_SYM  { $$= RNEXT;  }
+        | PREV_SYM  { $$= RPREV;  }
+        | LAST_SYM  { $$= RLAST;  }
         | handler_rkey_mode
           {
-            LEX *lex=Lex;
-            lex->ha_read_mode = RKEY;
-            lex->ha_rkey_mode=$1;
-            if (!(lex->insert_list = new List_item))
+            YYTHD->m_parser_state->m_yacc.m_ha_rkey_mode= $1;
+            Lex->insert_list= new List_item;
+            if (! Lex->insert_list)
               MYSQL_YYABORT;
           }
           '(' values ')'
-          {}
+          {
+            $$= RKEY;
+          }
         ;
 
 handler_rkey_mode:

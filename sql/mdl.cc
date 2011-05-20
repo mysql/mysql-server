@@ -18,6 +18,8 @@
 #include "debug_sync.h"
 #include <hash.h>
 #include <mysqld_error.h>
+#include <mysql/plugin.h>
+#include <mysql/service_thd_wait.h>
 
 #ifdef HAVE_PSI_INTERFACE
 static PSI_mutex_key key_MDL_map_mutex;
@@ -51,20 +53,16 @@ static PSI_cond_info all_mdl_conds[]=
 */
 static void init_mdl_psi_keys(void)
 {
-  const char *category= "sql";
   int count;
 
-  if (PSI_server == NULL)
-    return;
-
   count= array_elements(all_mdl_mutexes);
-  PSI_server->register_mutex(category, all_mdl_mutexes, count);
+  mysql_mutex_register("sql", all_mdl_mutexes, count);
 
   count= array_elements(all_mdl_rwlocks);
-  PSI_server->register_rwlock(category, all_mdl_rwlocks, count);
+  mysql_rwlock_register("sql", all_mdl_rwlocks, count);
 
   count= array_elements(all_mdl_conds);
-  PSI_server->register_cond(category, all_mdl_conds, count);
+  mysql_cond_register("sql", all_mdl_conds, count);
 }
 #endif /* HAVE_PSI_INTERFACE */
 
@@ -974,10 +972,14 @@ MDL_wait::timed_wait(MDL_context_owner *owner, struct timespec *abs_timeout,
 
   old_msg= owner->enter_cond(&m_COND_wait_status, &m_LOCK_wait_status,
                              wait_state_name);
+  thd_wait_begin(NULL, THD_WAIT_META_DATA_LOCK);
   while (!m_wait_status && !owner->is_killed() &&
          wait_result != ETIMEDOUT && wait_result != ETIME)
+  {
     wait_result= mysql_cond_timedwait(&m_COND_wait_status, &m_LOCK_wait_status,
                                       abs_timeout);
+  }
+  thd_wait_end(NULL);
 
   if (m_wait_status == EMPTY)
   {

@@ -1021,7 +1021,7 @@ buf_flush_init_for_writing(
 		ulint		zip_size = page_zip_get_size(page_zip);
 		ut_ad(zip_size);
 		ut_ad(ut_is_2pow(zip_size));
-		ut_ad(zip_size <= UNIV_PAGE_SIZE);
+		ut_ad(zip_size <= UNIV_ZIP_SIZE_MAX);
 
 		switch (UNIV_EXPECT(fil_page_get_type(page), FIL_PAGE_INDEX)) {
 		case FIL_PAGE_TYPE_ALLOCATED:
@@ -1744,7 +1744,7 @@ buf_flush_batch(
 	ut_ad(flush_type == BUF_FLUSH_LRU || flush_type == BUF_FLUSH_LIST);
 #ifdef UNIV_SYNC_DEBUG
 	ut_ad((flush_type != BUF_FLUSH_LIST)
-	      || sync_thread_levels_empty_gen(TRUE));
+	      || sync_thread_levels_empty_except_dict());
 #endif /* UNIV_SYNC_DEBUG */
 
 	buf_pool_mutex_enter(buf_pool);

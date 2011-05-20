@@ -20,10 +20,6 @@
   that you can implement.
 */
 
-#ifdef USE_PRAGMA_INTERFACE
-#pragma interface			/* gcc class implementation */
-#endif
-
 #include <mysql.h>
 
 /* 

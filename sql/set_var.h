@@ -20,10 +20,6 @@
   "public" interface to sys_var - server configuration variables.
 */
 
-#ifdef USE_PRAGMA_INTERFACE
-#pragma interface                       /* gcc class implementation */
-#endif
-
 #include <my_getopt.h>
 
 class sys_var;
@@ -288,7 +284,7 @@ public:
 
 
 /* optional things, have_* variables */
-extern SHOW_COMP_OPTION have_csv, have_innodb;
+extern SHOW_COMP_OPTION have_csv;
 extern SHOW_COMP_OPTION have_ndbcluster, have_partitioning;
 extern SHOW_COMP_OPTION have_profiling;
 

@@ -25,10 +25,6 @@ ELSE()
 ENDIF() 
 
 IF(CMAKE_COMPILER_IS_GNUCXX)
-  # Remove -fno-implicit-templates, gunit sources cannot be compiled with it.
-  STRING(REPLACE "-fno-implicit-templates" "" CMAKE_CXX_FLAGS
-    ${CMAKE_CXX_FLAGS})
-
   # MySQL is often compiled/linked with gcc rather than g++
   # (to avoid dependencies on libstdc++.so)
   # This does not work for googletest binaries.
@@ -210,18 +206,21 @@ ENDIF()
 SET(TESTS
   bounded_queue
   dbug
+  dynarray
   mdl
   mdl_mytap
   my_bitmap
   my_decimal
   my_regex
   sql_list
+  sql_plist
   thread_utils
   )
 
 # Add tests (link them with gunit library and the server libraries) 
 SET(SERVER_TESTS
   item
+  opt_range
 )
 
 FOREACH(test ${TESTS})
@@ -235,9 +234,9 @@ ENDFOREACH()
 
 FOREACH(test ${SERVER_TESTS})
   IF(WIN32)
-    ADD_EXECUTABLE(${test}-t ${test}-t.cc ../../sql/nt_servc.cc)
+    ADD_EXECUTABLE(${test}-t ${test}-t.cc test_utils.cc ../../sql/nt_servc.cc)
   ELSE()
-    ADD_EXECUTABLE(${test}-t ${test}-t.cc)
+    ADD_EXECUTABLE(${test}-t ${test}-t.cc test_utils.cc)
   ENDIF()
   TARGET_LINK_LIBRARIES(${test}-t sql binlog rpl master slave sql)
   TARGET_LINK_LIBRARIES(${test}-t gunit sqlgunitlib strings dbug regex mysys)

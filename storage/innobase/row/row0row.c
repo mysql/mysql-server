@@ -11,8 +11,8 @@ ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
 FOR A PARTICULAR PURPOSE. See the GNU General Public License for more details.
 
 You should have received a copy of the GNU General Public License along with
-this program; if not, write to the Free Software Foundation, Inc., 59 Temple
-Place, Suite 330, Boston, MA 02111-1307 USA
+this program; if not, write to the Free Software Foundation, Inc.,
+51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA
 
 *****************************************************************************/
 
@@ -299,7 +299,7 @@ row_build(
 		768-byte prefix of each externally stored
 		column. No cache is needed. */
 		ut_ad(dict_table_get_format(index->table)
-		      < DICT_TF_FORMAT_ZIP);
+		      < UNIV_FORMAT_B);
 	} else if (j) {
 		*ext = row_ext_create(j, ext_cols, row,
 				      dict_table_zip_size(index->table),

@@ -321,7 +321,7 @@ MYSQL_LOCK *mysql_lock_tables(THD *thd, TABLE **tables, uint count, uint flags)
   if (! (sql_lock= get_lock_data(thd, tables, count, GET_LOCK_STORE_LOCKS)))
     DBUG_RETURN(NULL);
 
-  thd_proc_info(thd, "System lock");
+  THD_STAGE_INFO(thd, stage_system_lock);
   DBUG_PRINT("info", ("thd->proc_info %s", thd->proc_info));
   if (sql_lock->table_count && lock_external(thd, sql_lock->table,
                                              sql_lock->table_count))
@@ -348,8 +348,6 @@ MYSQL_LOCK *mysql_lock_tables(THD *thd, TABLE **tables, uint count, uint flags)
       my_error(rc, MYF(0));
   }
 end:
-  thd_proc_info(thd, 0);
-
   if (thd->killed)
   {
     thd->send_kill_message();

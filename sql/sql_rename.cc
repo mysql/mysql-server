@@ -142,8 +142,7 @@ bool mysql_rename_tables(THD *thd, TABLE_LIST *table_list, bool silent)
     }
   }
 
-  if (lock_table_names(thd, table_list, 0, thd->variables.lock_wait_timeout,
-                       MYSQL_OPEN_SKIP_TEMPORARY))
+  if (lock_table_names(thd, table_list, 0, thd->variables.lock_wait_timeout, 0))
     goto err;
 
 #ifndef MCP_GLOBAL_SCHEMA_LOCK

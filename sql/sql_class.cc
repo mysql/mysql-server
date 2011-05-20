@@ -13,17 +13,12 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
-
 /*****************************************************************************
 **
 ** This file implements classes defined in sql_class.h
 ** Especially the classes to handle a result from a select
 **
 *****************************************************************************/
-
-#ifdef USE_PRAGMA_IMPLEMENTATION
-#pragma implementation				// gcc: Class implementation
-#endif
 
 #include "my_global.h"                          /* NO_EMBEDDED_ACCESS_CHECKS */
 #include "sql_priv.h"
@@ -60,6 +55,8 @@
 #include "sql_callback.h"
 #include "lock.h"
 
+#include <mysql/psi/mysql_statement.h>
+
 /*
   The following is used to initialise Table_ident with a internal
   table name
@@ -68,23 +65,6 @@ char internal_table_name[2]= "*";
 char empty_c_string[1]= {0};    /* used for not defined db */
 
 const char * const THD::DEFAULT_WHERE= "field list";
-
-
-/*****************************************************************************
-** Instansiate templates
-*****************************************************************************/
-
-#ifdef HAVE_EXPLICIT_TEMPLATE_INSTANTIATION
-/* Used templates */
-template class List<Key>;
-template class List_iterator<Key>;
-template class List<Key_part_spec>;
-template class List_iterator<Key_part_spec>;
-template class List<Alter_drop>;
-template class List_iterator<Alter_drop>;
-template class List<Alter_column>;
-template class List_iterator<Alter_column>;
-#endif
 
 /****************************************************************************
 ** User variables
@@ -218,6 +198,252 @@ bool foreign_key_prefix(Key *a, Key *b)
 ** Thread specific functions
 ****************************************************************************/
 
+/**
+  Get reference to scheduler data object
+
+  @param thd            THD object
+
+  @retval               Scheduler data object on THD
+*/
+void *thd_get_scheduler_data(THD *thd)
+{
+  return thd->scheduler.data;
+}
+
+/**
+  Set reference to Scheduler data object for THD object
+
+  @param thd            THD object
+  @param psi            Scheduler data object to set on THD
+*/
+void thd_set_scheduler_data(THD *thd, void *data)
+{
+  thd->scheduler.data= data;
+}
+
+/**
+  Get reference to Performance Schema object for THD object
+
+  @param thd            THD object
+
+  @retval               Performance schema object for thread on THD
+*/
+PSI_thread *thd_get_psi(THD *thd)
+{
+  return thd->scheduler.m_psi;
+}
+
+/**
+  Set reference to Performance Schema object for THD object
+
+  @param thd            THD object
+  @param psi            Performance schema object for thread
+*/
+void thd_set_psi(THD *thd, PSI_thread *psi)
+{
+  thd->scheduler.m_psi= psi;
+}
+
+/**
+  Set the state on connection to killed
+
+  @param thd               THD object
+*/
+void thd_set_killed(THD *thd)
+{
+  thd->killed= THD::KILL_CONNECTION;
+}
+
+/**
+  Clear errors from the previous THD
+
+  @param thd              THD object
+*/
+void thd_clear_errors(THD *thd)
+{
+  my_errno= 0;
+  thd->mysys_var->abort= 0;
+}
+
+/**
+  Set thread stack in THD object
+
+  @param thd              Thread object
+  @param stack_start      Start of stack to set in THD object
+*/
+void thd_set_thread_stack(THD *thd, char *stack_start)
+{
+  thd->thread_stack= stack_start;
+}
+
+/**
+  Lock connection data for the set of connections this connection
+  belongs to
+
+  @param thd                       THD object
+*/
+void thd_lock_thread_count(THD *)
+{
+  mysql_mutex_lock(&LOCK_thread_count);
+}
+
+/**
+  Lock connection data for the set of connections this connection
+  belongs to
+
+  @param thd                       THD object
+*/
+void thd_unlock_thread_count(THD *)
+{
+  mysql_cond_broadcast(&COND_thread_count);
+  mysql_mutex_unlock(&LOCK_thread_count);
+}
+
+/**
+  Close the socket used by this connection
+
+  @param thd                THD object
+*/
+void thd_close_connection(THD *thd)
+{
+  if (thd->net.vio)
+    vio_close(thd->net.vio);
+}
+
+/**
+  Get current THD object from thread local data
+
+  @retval     The THD object for the thread, NULL if not connection thread
+*/
+THD *thd_get_current_thd()
+{
+  return current_thd;
+}
+
+/**
+  Set up various THD data for a new connection
+
+  thd_new_connection_setup
+
+  @param              thd            THD object
+  @param              stack_start    Start of stack for connection
+*/
+void thd_new_connection_setup(THD *thd, char *stack_start)
+{
+#ifdef HAVE_PSI_INTERFACE
+  if (PSI_server)
+    thd_set_psi(thd,
+                PSI_server->new_thread(key_thread_one_connection,
+                                       thd,
+                                       thd_get_thread_id((MYSQL_THD)thd)));
+#endif
+  thd->set_time();
+  thd->prior_thr_create_utime= thd->thr_create_utime= thd->start_utime=
+    my_micro_time();
+  threads.append(thd);
+  thd_unlock_thread_count(thd);
+  DBUG_PRINT("info", ("init new connection. thd: 0x%lx fd: %d",
+          (ulong)thd, thd->net.vio->sd));
+  thd_set_thread_stack(thd, stack_start);
+}
+
+/**
+  Lock data that needs protection in THD object
+
+  @param thd                   THD object
+*/
+void thd_lock_data(THD *thd)
+{
+  mysql_mutex_lock(&thd->LOCK_thd_data);
+}
+
+/**
+  Unlock data that needs protection in THD object
+
+  @param thd                   THD object
+*/
+void thd_unlock_data(THD *thd)
+{
+  mysql_mutex_unlock(&thd->LOCK_thd_data);
+}
+
+/**
+  Support method to check if connection has already started transcaction
+
+  @param client_cntx    Low level client context
+
+  @retval               TRUE if connection already started transaction
+*/
+bool thd_is_transaction_active(THD *thd)
+{
+  return thd->transaction.is_active();
+}
+
+/**
+  Check if there is buffered data on the socket representing the connection
+
+  @param thd                  THD object
+*/
+int thd_connection_has_data(THD *thd)
+{
+  Vio *vio= thd->net.vio;
+  return vio->has_data(vio);
+}
+
+/**
+  Set reading/writing on socket, used by SHOW PROCESSLIST
+
+  @param thd                       THD object
+  @param val                       Value to set it to (0 or 1)
+*/
+void thd_set_net_read_write(THD *thd, uint val)
+{
+  thd->net.reading_or_writing= val;
+}
+
+/**
+  Set reference to mysys variable in THD object
+
+  @param thd             THD object
+  @param mysys_var       Reference to set
+*/
+void thd_set_mysys_var(THD *thd, st_my_thread_var *mysys_var)
+{
+  thd->set_mysys_var(mysys_var);
+}
+
+/**
+  Get socket file descriptor for this connection
+
+  @param thd            THD object
+
+  @retval               Socket of the connection
+*/
+my_socket thd_get_fd(THD *thd)
+{
+  return thd->net.vio->sd;
+}
+
+/**
+  Get thread attributes for connection threads
+
+  @retval      Reference to thread attribute for connection threads
+*/
+pthread_attr_t *get_connection_attrib(void)
+{
+  return &connection_attrib;
+}
+
+/**
+  Get max number of connections
+
+  @retval         Max number of connections for MySQL Server
+*/
+ulong get_max_connections(void)
+{
+  return max_connections;
+}
+
 /*
   The following functions form part of the C plugin API
 */
@@ -280,8 +506,8 @@ const char *set_thd_proc_info(void *thd_arg, const char *info,
   thd->profiling.status_change(info, calling_function, basename, calling_line);
 #endif
   thd->proc_info= info;
-#ifdef HAVE_PSI_INTERFACE
-  if (PSI_server)
+#ifdef HAVE_PSI_THREAD_INTERFACE
+  if (likely(PSI_server != NULL))
     PSI_server->set_thread_state(info);
 #endif
   return old_info;
@@ -499,7 +725,7 @@ bool Drop_table_error_handler::handle_condition(THD *thd,
 
 
 THD::THD(bool enable_plugins)
-   :Statement(&main_lex, &main_mem_root, CONVENTIONAL_EXECUTION,
+   :Statement(&main_lex, &main_mem_root, STMT_CONVENTIONAL_EXECUTION,
               /* statement id */ 0),
    rli_fake(0),
    user_time(0), in_sub_stmt(0),
@@ -511,9 +737,10 @@ THD::THD(bool enable_plugins)
    first_successful_insert_id_in_prev_stmt_for_binlog(0),
    first_successful_insert_id_in_cur_stmt(0),
    stmt_depends_on_first_successful_insert_id_in_prev_stmt(FALSE),
-   examined_row_count(0),
+   m_examined_row_count(0),
    warning_info(&main_warning_info),
    stmt_da(&main_da),
+   m_statement_psi(NULL),
    is_fatal_error(0),
    transaction_rollback_request(0),
    is_fatal_sub_stmt_error(0),
@@ -528,7 +755,7 @@ THD::THD(bool enable_plugins)
    debug_sync_control(0),
 #endif /* defined(ENABLED_DEBUG_SYNC) */
    m_enable_plugins(enable_plugins),
-   main_warning_info(0)
+   main_warning_info(0, false)
 {
   ulong tmp;
 
@@ -555,7 +782,7 @@ THD::THD(bool enable_plugins)
   tmp_table=0;
   used_tables=0;
   cuted_fields= 0L;
-  sent_row_count= 0L;
+  m_sent_row_count= 0L;
   limit_found_rows= 0;
   m_row_count_func= -1;
   statement_id_counter= 0UL;
@@ -587,7 +814,7 @@ THD::THD(bool enable_plugins)
   client_capabilities= 0;                       // minimalistic client
   ull=0;
   system_thread= NON_SYSTEM_THREAD;
-  cleanup_done= abort_on_warning= no_warnings_for_error= 0;
+  cleanup_done= abort_on_warning= 0;
   peer_port= 0;					// For SHOW PROCESSLIST
   transaction.m_pending_rows_event= 0;
   transaction.on= 1;
@@ -863,10 +1090,6 @@ MYSQL_ERROR* THD::raise_condition(uint sql_errno,
 
   query_cache_abort(&query_cache_tls);
 
-  /* FIXME: broken special case */
-  if (no_warnings_for_error && (level == MYSQL_ERROR::WARN_LEVEL_ERROR))
-    DBUG_RETURN(NULL);
-
   /* When simulating OOM, skip writing to error log to avoid mtr errors */
   DBUG_EXECUTE_IF("simulate_out_of_memory", DBUG_RETURN(NULL););
 
@@ -944,8 +1167,8 @@ void THD::init(void)
   if (variables.sql_mode & MODE_NO_BACKSLASH_ESCAPES)
     server_status|= SERVER_STATUS_NO_BACKSLASH_ESCAPES;
 
-  transaction.all.modified_non_trans_table=
-    transaction.stmt.modified_non_trans_table= FALSE;
+  transaction.all.reset_unsafe_rollback_flags();
+  transaction.stmt.reset_unsafe_rollback_flags();
   open_options=ha_open_options;
   update_lock_default= (variables.low_priority_updates ?
 			TL_WRITE_LOW_PRIORITY :
@@ -1405,6 +1628,25 @@ bool THD::store_globals()
     created in another thread
   */
   thr_lock_info_init(&lock_info);
+  return 0;
+}
+
+/*
+  Remove the thread specific info (THD and mem_root pointer) stored during
+  store_global call for this thread.
+*/
+bool THD::restore_globals()
+{
+  /*
+    Assert that thread_stack is initialized: it's necessary to be able
+    to track stack overrun.
+  */
+  DBUG_ASSERT(thread_stack);
+  
+  /* Undocking the thread specific data. */
+  my_pthread_setspecific_ptr(THR_THD, NULL);
+  my_pthread_setspecific_ptr(THR_MALLOC, NULL);
+  
   return 0;
 }
 
@@ -1921,7 +2163,7 @@ bool select_send::send_data(List<Item> &items)
     DBUG_RETURN(TRUE);
   }
 
-  thd->sent_row_count++;
+  thd->inc_sent_row_count(1);
 
   if (thd->vio_ok())
     DBUG_RETURN(protocol->write());
@@ -2013,7 +2255,7 @@ select_to_file::~select_to_file()
 
 select_export::~select_export()
 {
-  thd->sent_row_count=row_count;
+  thd->set_sent_row_count(row_count);
 }
 
 
@@ -3307,7 +3549,7 @@ extern "C" int thd_slave_thread(const MYSQL_THD thd)
 
 extern "C" int thd_non_transactional_update(const MYSQL_THD thd)
 {
-  return(thd->transaction.all.modified_non_trans_table);
+  return thd->transaction.all.has_modified_non_trans_table();
 }
 
 extern "C" int thd_binlog_format(const MYSQL_THD thd)
@@ -3358,7 +3600,7 @@ extern "C" void thd_pool_wait_end(MYSQL_THD thd);
 
   thd_wait_end MUST be called immediately after waking up again.
 */
-extern "C" void thd_wait_begin(MYSQL_THD thd, thd_wait_type wait_type)
+extern "C" void thd_wait_begin(MYSQL_THD thd, int wait_type)
 {
   MYSQL_CALLBACK(thread_scheduler, thd_wait_begin, (thd, wait_type));
 }
@@ -3374,7 +3616,7 @@ extern "C" void thd_wait_end(MYSQL_THD thd)
   MYSQL_CALLBACK(thread_scheduler, thd_wait_end, (thd));
 }
 #else
-extern "C" void thd_wait_begin(MYSQL_THD thd, thd_wait_type wait_type)
+extern "C" void thd_wait_begin(MYSQL_THD thd, int wait_type)
 {
   /* do NOTHING for the embedded library */
   return;
@@ -3437,8 +3679,8 @@ void THD::reset_sub_statement_state(Sub_statement_state *backup,
   backup->in_sub_stmt=     in_sub_stmt;
   backup->enable_slow_log= enable_slow_log;
   backup->limit_found_rows= limit_found_rows;
-  backup->examined_row_count= examined_row_count;
-  backup->sent_row_count=   sent_row_count;
+  backup->examined_row_count= m_examined_row_count;
+  backup->sent_row_count= m_sent_row_count;
   backup->cuted_fields=     cuted_fields;
   backup->client_capabilities= client_capabilities;
   backup->savepoints= transaction.savepoints;
@@ -3461,8 +3703,8 @@ void THD::reset_sub_statement_state(Sub_statement_state *backup,
   /* Disable result sets */
   client_capabilities &= ~CLIENT_MULTI_RESULTS;
   in_sub_stmt|= new_state;
-  examined_row_count= 0;
-  sent_row_count= 0;
+  m_examined_row_count= 0;
+  m_sent_row_count= 0;
   cuted_fields= 0;
   transaction.savepoints= 0;
   first_successful_insert_id_in_cur_stmt= 0;
@@ -3508,7 +3750,7 @@ void THD::restore_sub_statement_state(Sub_statement_state *backup)
   first_successful_insert_id_in_cur_stmt= 
     backup->first_successful_insert_id_in_cur_stmt;
   limit_found_rows= backup->limit_found_rows;
-  sent_row_count=   backup->sent_row_count;
+  set_sent_row_count(backup->sent_row_count);
   client_capabilities= backup->client_capabilities;
   /*
     If we've left sub-statement mode, reset the fatal error flag.
@@ -3526,7 +3768,7 @@ void THD::restore_sub_statement_state(Sub_statement_state *backup)
     The following is added to the old values as we are interested in the
     total complexity of the query
   */
-  examined_row_count+= backup->examined_row_count;
+  inc_examined_row_count(backup->examined_row_count);
   cuted_fields+=       backup->cuted_fields;
   DBUG_VOID_RETURN;
 }
@@ -3539,12 +3781,152 @@ void THD::set_statement(Statement *stmt)
   mysql_mutex_unlock(&LOCK_thd_data);
 }
 
+void THD::set_sent_row_count(ha_rows count)
+{
+  m_sent_row_count= count;
+  MYSQL_SET_STATEMENT_ROWS_SENT(m_statement_psi, m_sent_row_count);
+}
+
+void THD::set_examined_row_count(ha_rows count)
+{
+  m_examined_row_count= count;
+  MYSQL_SET_STATEMENT_ROWS_EXAMINED(m_statement_psi, m_examined_row_count);
+}
+
+void THD::inc_sent_row_count(ha_rows count)
+{
+  m_sent_row_count+= count;
+  MYSQL_SET_STATEMENT_ROWS_SENT(m_statement_psi, m_sent_row_count);
+}
+
+void THD::inc_examined_row_count(ha_rows count)
+{
+  m_examined_row_count+= count;
+  MYSQL_SET_STATEMENT_ROWS_EXAMINED(m_statement_psi, m_examined_row_count);
+}
+
+void THD::inc_status_created_tmp_disk_tables()
+{
+  status_var_increment(status_var.created_tmp_disk_tables);
+#ifdef HAVE_PSI_STATEMENT_INTERFACE
+  if (likely(PSI_server && m_statement_psi))
+    PSI_server->inc_statement_created_tmp_disk_tables(m_statement_psi, 1);
+#endif
+}
+
+void THD::inc_status_created_tmp_tables()
+{
+  status_var_increment(status_var.created_tmp_tables);
+#ifdef HAVE_PSI_STATEMENT_INTERFACE
+  if (likely(PSI_server && m_statement_psi))
+    PSI_server->inc_statement_created_tmp_tables(m_statement_psi, 1);
+#endif
+}
+
+void THD::inc_status_select_full_join()
+{
+  status_var_increment(status_var.select_full_join_count);
+#ifdef HAVE_PSI_STATEMENT_INTERFACE
+  if (likely(PSI_server && m_statement_psi))
+    PSI_server->inc_statement_select_full_join(m_statement_psi, 1);
+#endif
+}
+
+void THD::inc_status_select_full_range_join()
+{
+  status_var_increment(status_var.select_full_range_join_count);
+#ifdef HAVE_PSI_STATEMENT_INTERFACE
+  if (likely(PSI_server && m_statement_psi))
+    PSI_server->inc_statement_select_full_range_join(m_statement_psi, 1);
+#endif
+}
+
+void THD::inc_status_select_range()
+{
+  status_var_increment(status_var.select_range_count);
+#ifdef HAVE_PSI_STATEMENT_INTERFACE
+  if (likely(PSI_server && m_statement_psi))
+    PSI_server->inc_statement_select_range(m_statement_psi, 1);
+#endif
+}
+
+void THD::inc_status_select_range_check()
+{
+  status_var_increment(status_var.select_range_check_count);
+#ifdef HAVE_PSI_STATEMENT_INTERFACE
+  if (likely(PSI_server && m_statement_psi))
+    PSI_server->inc_statement_select_range_check(m_statement_psi, 1);
+#endif
+}
+
+void THD::inc_status_select_scan()
+{
+  status_var_increment(status_var.select_scan_count);
+#ifdef HAVE_PSI_STATEMENT_INTERFACE
+  if (likely(PSI_server && m_statement_psi))
+    PSI_server->inc_statement_select_scan(m_statement_psi, 1);
+#endif
+}
+
+void THD::inc_status_sort_merge_passes()
+{
+  status_var_increment(status_var.filesort_merge_passes);
+#ifdef HAVE_PSI_STATEMENT_INTERFACE
+  if (likely(PSI_server && m_statement_psi))
+    PSI_server->inc_statement_sort_merge_passes(m_statement_psi, 1);
+#endif
+}
+
+void THD::inc_status_sort_range()
+{
+  status_var_increment(status_var.filesort_range_count);
+#ifdef HAVE_PSI_STATEMENT_INTERFACE
+  if (likely(PSI_server && m_statement_psi))
+    PSI_server->inc_statement_sort_range(m_statement_psi, 1);
+#endif
+}
+
+void THD::inc_status_sort_rows(ha_rows count)
+{
+  statistic_add(status_var.filesort_rows, count, &LOCK_status);
+#ifdef HAVE_PSI_STATEMENT_INTERFACE
+  if (likely(PSI_server && m_statement_psi))
+    PSI_server->inc_statement_sort_rows(m_statement_psi, count);
+#endif
+}
+
+void THD::inc_status_sort_scan()
+{
+  status_var_increment(status_var.filesort_scan_count);
+#ifdef HAVE_PSI_STATEMENT_INTERFACE
+  if (likely(PSI_server && m_statement_psi))
+    PSI_server->inc_statement_sort_scan(m_statement_psi, 1);
+#endif
+}
+
+void THD::set_status_no_index_used()
+{
+  server_status|= SERVER_QUERY_NO_INDEX_USED;
+#ifdef HAVE_PSI_STATEMENT_INTERFACE
+  if (likely(PSI_server && m_statement_psi))
+    PSI_server->set_statement_no_index_used(m_statement_psi);
+#endif
+}
+
+void THD::set_status_no_good_index_used()
+{
+  server_status|= SERVER_QUERY_NO_GOOD_INDEX_USED;
+#ifdef HAVE_PSI_STATEMENT_INTERFACE
+  if (likely(PSI_server && m_statement_psi))
+    PSI_server->set_statement_no_good_index_used(m_statement_psi);
+#endif
+}
 
 void THD::set_command(enum enum_server_command command)
 {
   m_command= command;
-#ifdef HAVE_PSI_INTERFACE
-  if (PSI_server)
+#ifdef HAVE_PSI_THREAD_INTERFACE
+  if (likely(PSI_server != NULL))
     PSI_server->set_thread_command(m_command);
 #endif
 }
@@ -3558,8 +3940,8 @@ void THD::set_query(const CSET_STRING &string_arg)
   set_query_inner(string_arg);
   mysql_mutex_unlock(&LOCK_thd_data);
 
-#ifdef HAVE_PSI_INTERFACE
-  if (PSI_server)
+#ifdef HAVE_PSI_THREAD_INTERFACE
+  if (likely(PSI_server != NULL))
     PSI_server->set_thread_info(query(), query_length());
 #endif
 }
@@ -3694,11 +4076,8 @@ static void init_xid_psi_keys(void)
   const char* category= "sql";
   int count;
 
-  if (PSI_server == NULL)
-    return;
-
   count= array_elements(all_xid_mutexes);
-  PSI_server->register_mutex(category, all_xid_mutexes, count);
+  mysql_mutex_register(category, all_xid_mutexes, count);
 }
 #endif /* HAVE_PSI_INTERFACE */
 
@@ -3746,6 +4125,7 @@ bool xid_cache_insert(XID *xid, enum xa_states xa_state)
     xs->xa_state=xa_state;
     xs->xid.set(xid);
     xs->in_thd=0;
+    xs->rm_error=0;
     res=my_hash_insert(&xid_cache, (uchar*)xs);
   }
   mysql_mutex_unlock(&LOCK_xid_cache);
