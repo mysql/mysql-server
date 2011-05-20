@@ -1,0 +1,22 @@
+include/master-slave.inc
+[connection master]
+create table t1(pk int not null primary key, i int) engine = ndb;
+select count(*) from t1;
+count(*)
+1000
+Restarting mysqld
+show binlog events in 'master-bin.000002'  from <start_pos> limit 0,1;
+Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+master-bin.000002	#	Incident	1	<end_pos>	#1 (LOST_EVENTS)
+drop table if exists t1;
+Get IO thread to reconnect to Master
+start slave;
+include/wait_for_slave_sql_error.inc [errno=1590]
+Last_SQL_Error = 'The incident LOST_EVENTS occured on the master. Message: mysqld startup'
+Slave_IO_Running = 'Yes'
+Slave_SQL_Running = 'No'
+Last_Errno = '1590'
+Last_Error = 'The incident LOST_EVENTS occured on the master. Message: mysqld startup'
+drop table if exists t1;
+include/stop_slave_io.inc
+RESET SLAVE;

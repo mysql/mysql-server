@@ -1122,6 +1122,7 @@ HugoOperations::releaseLockHandles(Ndb* pNdb,
         return NDBT_FAILED;
       }
       const NdbLockHandle* nullPtr = NULL;
+      (void)nullPtr; // ??
       //lockHandles.set(nullPtr, offset + i, nullPtr);
     }
     else

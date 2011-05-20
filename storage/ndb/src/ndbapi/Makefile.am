@@ -22,6 +22,8 @@ ndberror_check_t_SOURCES = ndberror_check.cpp
 noinst_LTLIBRARIES = libndbapi.la
 
 libndbapi_la_SOURCES = \
+        NdbQueryBuilder.cpp     \
+        NdbQueryOperation.cpp   \
         TransporterFacade.cpp   \
         ClusterMgr.cpp  \
         Ndb.cpp \
@@ -41,7 +43,8 @@ libndbapi_la_SOURCES = \
         NdbOperationInt.cpp     \
         NdbOperationDefine.cpp  \
         NdbOperationExec.cpp    \
-        NdbScanOperation.cpp    NdbScanFilter.cpp \
+        NdbScanOperation.cpp    \
+        NdbScanFilter.cpp       \
         NdbIndexOperation.cpp   \
         NdbEventOperation.cpp   \
         NdbEventOperationImpl.cpp   \

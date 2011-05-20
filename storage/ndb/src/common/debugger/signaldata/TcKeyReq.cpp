@@ -79,6 +79,9 @@ printTCKEYREQ(FILE * output, const Uint32 * theData, Uint32 len, Uint16 receiver
     if(sig->getQueueOnRedoProblemFlag(sig->requestInfo))
       fprintf(output, "Queue ");
 
+    if(sig->getDeferredConstraints(sig->requestInfo))
+      fprintf(output, "Deferred-constraints ");
+
     fprintf(output, "\n");
   }
   

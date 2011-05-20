@@ -55,7 +55,7 @@ private:
   
   SetLogLevelOrd& assign (const LogLevel& ll){
     noOfEntries = LogLevel::LOGLEVEL_CATEGORIES;
-    for(size_t i = 0; i<noOfEntries; i++){
+    for(Uint32 i = 0; i<noOfEntries; i++){
       theData[i] = (i << 16) | ll.getLogLevel((LogLevel::EventCategory)i);
     }
     return * this;
@@ -63,7 +63,7 @@ private:
 
   SetLogLevelOrd& assign (const EventSubscribeReq& ll){
     noOfEntries = ll.noOfEntries;
-    for(size_t i = 0; i<noOfEntries; i++){
+    for(Uint32 i = 0; i<noOfEntries; i++){
       theData[i] = ll.theData[i];
     }
     return * this;

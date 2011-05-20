@@ -69,6 +69,10 @@ void Qmgr::initData()
   ndb_mgm_get_int_parameter(p, CFG_DB_API_HEARTBEAT_INTERVAL, &hbDBAPI);
   
   setHbApiDelay(hbDBAPI);
+
+#ifdef ERROR_INSERT
+  nodeFailCount = 0;
+#endif
 }//Qmgr::initData()
 
 void Qmgr::initRecords() 
@@ -145,6 +149,10 @@ Qmgr::Qmgr(Block_context& ctx)
 
   addRecSignal(GSN_UPGRADE_PROTOCOL_ORD, &Qmgr::execUPGRADE_PROTOCOL_ORD);
   
+  // Connectivity check signals
+  addRecSignal(GSN_NODE_PING_REQ, &Qmgr::execNODE_PINGREQ);
+  addRecSignal(GSN_NODE_PING_CONF, &Qmgr::execNODE_PINGCONF);
+
   initData();
 }//Qmgr::Qmgr()
 

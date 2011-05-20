@@ -81,7 +81,7 @@ int runBankTransactions(NDBT_Context* ctx, NDBT_Step* step){
     Bank bank(ctx->m_cluster_connection);
     while(!ctx->isTestStopped() && 
           ctx->getProperty(NMR_SR) <= NdbMixRestarter::SR_STOPPING)
-      if(bank.performTransactions(0, 1) == NDBT_FAILED)
+      if(bank.performTransactions(wait, yield) == NDBT_FAILED)
 	break;
     
     ndbout_c("runBankTransactions is stopped");
@@ -94,7 +94,7 @@ int runBankTransactions(NDBT_Context* ctx, NDBT_Step* step){
 
 int runBankGL(NDBT_Context* ctx, NDBT_Step* step){
   int yield = 1; // Loops before bank returns 
-  int result = NDBT_OK;
+  //int result = NDBT_OK;
   
   ctx->incProperty(NMR_SR_THREADS);
   while (ctx->isTestStopped() == false) 
@@ -179,7 +179,7 @@ int runBankSum(NDBT_Context* ctx, NDBT_Step* step){
 int
 runMixRestart(NDBT_Context* ctx, NDBT_Step* step)
 {
-  int result = NDBT_OK;
+  //int result = NDBT_OK;
   NdbMixRestarter res;
   int runtime = ctx->getNumLoops();
   int sleeptime = ctx->getNumRecords();

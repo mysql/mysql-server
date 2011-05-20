@@ -127,6 +127,7 @@ public:
     NdbNodeBitmask m_skip_nodes;
     NdbNodeBitmask m_starting_nodes;
     NdbNodeBitmask m_starting_nodes_w_log;
+    NdbNodeBitmask m_no_nodegroup_nodes;
 
     Uint16 m_president_candidate;
     Uint32 m_president_candidate_gci;
@@ -147,7 +148,48 @@ public:
   NdbNodeBitmask c_readnodes_nodes;
 
   Uint32 c_maxDynamicId;
-  
+
+  struct ConnectCheckRec
+  {
+    bool m_enabled;                     // Config set && all node version OK
+    bool m_active;                      // Connectivity check underway?
+    Timer m_timer;                      // Check timer object
+    Uint32 m_currentRound;              // Last round started
+    Uint32 m_tick;                      // Periods elapsed in current check
+    NdbNodeBitmask m_nodesPinged;       // Nodes sent a NodePingReq in round
+    NdbNodeBitmask m_nodesWaiting;      // Nodes which have not sent a response
+    NdbNodeBitmask m_nodesFailedDuring; // Nodes which failed during check
+    NdbNodeBitmask m_nodesSuspect;      // Nodes with suspect connectivity
+
+    ConnectCheckRec()
+    {
+      m_enabled = false;
+      m_active = false;
+      m_currentRound = 0;
+      m_tick = 0;
+      m_nodesPinged.clear();
+      m_nodesWaiting.clear();
+      m_nodesFailedDuring.clear();
+      m_nodesSuspect.clear();
+    }
+
+    void reportNodeConnect(Uint32 nodeId);
+    /* reportNodeFailure.
+     * return code true means the connect check is completed
+     */
+    bool reportNodeFailure(Uint32 nodeId);
+
+    bool getEnabled() const {
+      if (m_enabled)
+      {
+        assert(m_timer.getDelay() > 0);
+      }
+      return m_enabled;
+    }
+  };
+
+  ConnectCheckRec m_connectivity_check;
+
   // Records
   struct NodeRec {
     /*
@@ -319,6 +361,10 @@ private:
 
   void execUPGRADE_PROTOCOL_ORD(Signal*);
   
+  // Connectivity check signals
+  void execNODE_PINGREQ(Signal* signal);
+  void execNODE_PINGCONF(Signal* signal);
+
   // Statement blocks
   void check_readnodes_reply(Signal* signal, Uint32 nodeId, Uint32 gsn);
   Uint32 check_startup(Signal* signal);
@@ -377,6 +423,7 @@ private:
   void setHbDelay(UintR aHbDelay);
   void setHbApiDelay(UintR aHbApiDelay);
   void setArbitTimeout(UintR aArbitTimeout);
+  void setCCDelay(UintR aCCDelay);
 
   // Interface to arbitration module
   void handleArbitStart(Signal* signal);
@@ -400,6 +447,17 @@ private:
   void computeArbitNdbMask(NdbNodeBitmaskPOD& aMask);
   void reportArbitEvent(Signal* signal, Ndb_logevent_type type,
                         const NodeBitmask mask = NodeBitmask());
+
+  // Interface to Connectivity Check
+  void startConnectivityCheck(Signal* signal, Uint32 reason, Uint32 node);
+  void checkConnectivityTimeSignal(Signal* signal);
+  void connectivityCheckCompleted(Signal* signal);
+  bool isNodeConnectivitySuspect(Uint32 nodeId) const;
+  void handleFailFromSuspect(Signal* signal,
+                             Uint32 reason,
+                             Uint16 aFailedNode,
+                             Uint16 sourceNode);
+
   // Initialisation
   void initData();
   void initRecords();
@@ -451,6 +509,7 @@ private:
   Uint32 c_restartPartialTimeout;
   Uint32 c_restartPartionedTimeout;
   Uint32 c_restartFailureTimeout;
+  Uint32 c_restartNoNodegroupTimeout;
   Uint64 c_start_election_time;
 
   Uint16 creadyDistCom;
@@ -511,6 +570,10 @@ private:
   // user-defined hbOrder must set all values non-zero and distinct
   int check_hb_order_config();
   bool m_hb_order_config_used;
+
+#ifdef ERROR_INSERT
+  Uint32 nodeFailCount;
+#endif
 };
 
 #endif

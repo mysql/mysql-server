@@ -185,6 +185,22 @@ Dbtc::updateBuddyTimer(ApiConnectRecordPtr apiPtr)
   }//if
 }
 
+static
+inline
+bool
+tc_testbit(Uint32 flags, Uint32 flag)
+{
+  return (flags & flag) != 0;
+}
+
+static
+inline
+void
+tc_clearbit(Uint32 & flags, Uint32 flag)
+{
+  flags &= ~(Uint32)flag;
+}
+
 void Dbtc::execCONTINUEB(Signal* signal) 
 {
   UintR tcase;
@@ -313,8 +329,9 @@ void Dbtc::execCONTINUEB(Signal* signal)
     if (likely((transPtr.p->transid[0] == Tdata1) &&
                (transPtr.p->transid[1] == Tdata2)))
     {
-      ndbrequire(transPtr.p->triggerPending);
-      transPtr.p->triggerPending = false;
+      ndbrequire(tc_testbit(transPtr.p->m_flags,
+                            ApiConnectRecord::TF_TRIGGER_PENDING));
+      tc_clearbit(transPtr.p->m_flags, ApiConnectRecord::TF_TRIGGER_PENDING);
       /* Try executing triggers now */
       executeTriggers(signal, &transPtr);
     }
@@ -324,6 +341,19 @@ void Dbtc::execCONTINUEB(Signal* signal)
     apiConnectptr.i = Tdata0;
     ptrCheckGuard(apiConnectptr, capiConnectFilesize, apiConnectRecord);
     sendtckeyconf(signal, Tdata1);
+    return;
+  case TcContinueB::ZSEND_FIRE_TRIG_REQ:
+    jam();
+    apiConnectptr.i = Tdata0;
+    ptrCheckGuard(apiConnectptr, capiConnectFilesize, apiConnectRecord);
+    if (unlikely(! (apiConnectptr.p->transid[0] == Tdata1 &&
+                    apiConnectptr.p->transid[1] == Tdata2 &&
+                    apiConnectptr.p->apiConnectstate == CS_SEND_FIRE_TRIG_REQ)))
+    {
+      warningReport(signal, 29);
+      return;
+    }
+    sendFireTrigReq(signal, apiConnectptr, signal->theData[4]);
     return;
   default:
     ndbrequire(false);
@@ -375,6 +405,16 @@ void Dbtc::execINCL_NODEREQ(Signal* signal)
   }
 
   sendSignal(tblockref, GSN_INCL_NODECONF, signal, 2, JBB);
+
+  if (m_deferred_enabled)
+  {
+    jam();
+    if (!ndbd_deferred_unique_constraints(getNodeInfo(Tnode).m_version))
+    {
+      jam();
+      m_deferred_enabled = 0;
+    }
+  }
 }
 
 void Dbtc::execREAD_NODESREF(Signal* signal) 
@@ -854,6 +894,11 @@ void Dbtc::execREAD_NODESCONF(Signal* signal)
           jam();
           hostptr.p->hostLqhBlockRef = numberToRef(DBLQH, i);
         }
+        if (!ndbd_deferred_unique_constraints(getNodeInfo(i).m_version))
+        {
+          jam();
+          m_deferred_enabled = 0;
+        }
       }//if
     }//if
   }//for
@@ -1182,6 +1227,11 @@ void Dbtc::execTCSEIZEREQ(Signal* signal)
   jamEntry();
   tapiPointer = signal->theData[0]; /* REQUEST SENDERS CONNECT RECORD POINTER*/
   tapiBlockref = signal->theData[1]; /* SENDERS BLOCK REFERENCE*/
+
+  if (signal->getLength() > 2)
+  {
+    ndbassert(instance() == signal->theData[2]);
+  }
   
   const NodeState::StartLevel sl = 
     (NodeState::StartLevel)getNodeState().startLevel;
@@ -1769,7 +1819,7 @@ start_failure:
   {
     jam();
     initApiConnectRec(signal, apiConnectptr.p, true);
-    apiConnectptr.p->m_exec_flag = 1;
+    apiConnectptr.p->m_flags |= ApiConnectRecord::TF_EXEC_FLAG;
     goto start_failure;
   }
   case 61:
@@ -1903,7 +1953,6 @@ void Dbtc::execKEYINFO(Signal* signal)
     return;
   }//switch
 }//Dbtc::execKEYINFO()
-
 
 /**
  * sendKeyInfoTrain
@@ -2304,7 +2353,7 @@ void Dbtc::initApiConnectRec(Signal* signal,
   UintR Ttransid0 = tcKeyReq->transId1;
   UintR Ttransid1 = tcKeyReq->transId2;
 
-  regApiPtr->m_exec_flag = 0;
+  tc_clearbit(regApiPtr->m_flags, ApiConnectRecord::TF_EXEC_FLAG);
   regApiPtr->returncode = 0;
   regApiPtr->returnsignal = RS_TCKEYCONF;
   ndbassert(regApiPtr->firstTcConnect == RNIL);
@@ -2315,7 +2364,8 @@ void Dbtc::initApiConnectRec(Signal* signal,
   regApiPtr->lqhkeyreqrec = 0;
   regApiPtr->tckeyrec = 0;
   regApiPtr->tcindxrec = 0;
-  regApiPtr->m_commit_ack_marker_received = 0;
+  tc_clearbit(regApiPtr->m_flags,
+              ApiConnectRecord::TF_COMMIT_ACK_MARKER_RECEIVED);
   regApiPtr->no_commit_ack_markers = 0;
   regApiPtr->failureNr = TfailureNr;
   regApiPtr->transid[0] = Ttransid0;
@@ -2325,15 +2375,19 @@ void Dbtc::initApiConnectRec(Signal* signal,
   regApiPtr->currSavePointId = 0;
   regApiPtr->m_transaction_nodes.clear();
   regApiPtr->singleUserMode = 0;
+  regApiPtr->m_pre_commit_pass = 0;
   // Trigger data
   releaseFiredTriggerData(&regApiPtr->theFiredTriggers);
   // Index data
-  regApiPtr->indexOpReturn = false;
+  tc_clearbit(regApiPtr->m_flags,
+              ApiConnectRecord::TF_INDEX_OP_RETURN);
   regApiPtr->noIndexOp = 0;
   if(releaseIndexOperations)
     releaseAllSeizedIndexOperations(regApiPtr);
   regApiPtr->immediateTriggerId = RNIL;
 
+  tc_clearbit(regApiPtr->m_flags,
+              ApiConnectRecord::TF_DEFERRED_CONSTRAINTS);
   c_counters.ctransCount++;
 
 #ifdef ERROR_INSERT
@@ -2374,8 +2428,6 @@ Dbtc::seizeTcRecord(Signal* signal)
 
   regTcPtr->prevTcConnect = TlastTcConnect;
   regTcPtr->nextTcConnect = RNIL;
-  regTcPtr->accumulatingTriggerData.i = RNIL;  
-  regTcPtr->accumulatingTriggerData.p = NULL;  
   regTcPtr->noFiredTriggers = 0;
   regTcPtr->noReceivedTriggers = 0;
   regTcPtr->triggerExecutionCount = 0;
@@ -2484,13 +2536,15 @@ void Dbtc::execTCKEYREQ(Signal* signal)
   apiConnectptr.p = regApiPtr;
 
   Uint32 TstartFlag = TcKeyReq::getStartFlag(Treqinfo);
-  Uint32 TexecFlag = TcKeyReq::getExecuteFlag(Treqinfo);
+  Uint32 TexecFlag =
+    TcKeyReq::getExecuteFlag(Treqinfo) ? ApiConnectRecord::TF_EXEC_FLAG : 0;
 
   Uint8 Tspecial_op_flags = regApiPtr->m_special_op_flags;
-  bool isIndexOpReturn = regApiPtr->indexOpReturn;
+  bool isIndexOpReturn = tc_testbit(regApiPtr->m_flags,
+                                    ApiConnectRecord::TF_INDEX_OP_RETURN);
   bool isExecutingTrigger = Tspecial_op_flags & TcConnectRecord::SOF_TRIGGER;
   regApiPtr->m_special_op_flags = 0; // Reset marker
-  regApiPtr->m_exec_flag |= TexecFlag;
+  regApiPtr->m_flags |= TexecFlag;
   TableRecordPtr localTabptr;
   localTabptr.i = TtabIndex;
   localTabptr.p = &tableRecord[TtabIndex];
@@ -2502,7 +2556,7 @@ void Dbtc::execTCKEYREQ(Signal* signal)
       //---------------------------------------------------------------------
       jam();
       initApiConnectRec(signal, regApiPtr);
-      regApiPtr->m_exec_flag = TexecFlag;
+      regApiPtr->m_flags |= TexecFlag;
     } else {
       releaseSections(handle);
       if(getAllowStartTransaction(sendersNodeId, localTabptr.p->singleUserMode) == true){
@@ -2541,7 +2595,7 @@ void Dbtc::execTCKEYREQ(Signal* signal)
         return;
       }
       initApiConnectRec(signal, regApiPtr);
-      regApiPtr->m_exec_flag = TexecFlag;
+      regApiPtr->m_flags |= TexecFlag;
     } else { 
       //----------------------------------------------------------------------
       // Transaction is started already. 
@@ -2572,7 +2626,7 @@ void Dbtc::execTCKEYREQ(Signal* signal)
 	//--------------------------------------------------------------------
         jam();
         initApiConnectRec(signal, regApiPtr);
-	regApiPtr->m_exec_flag = TexecFlag;
+	regApiPtr->m_flags |= TexecFlag;
       } else if(TexecFlag) {
         releaseSections(handle);
 	TCKEY_abort(signal, 59);
@@ -2613,6 +2667,8 @@ void Dbtc::execTCKEYREQ(Signal* signal)
     }//if
     break;
   case CS_START_COMMITTING:
+  case CS_SEND_FIRE_TRIG_REQ:
+  case CS_WAIT_FIRE_TRIG_REQ:
     jam();
     if(isIndexOpReturn || isExecutingTrigger){
       break;
@@ -2735,6 +2791,11 @@ void Dbtc::execTCKEYREQ(Signal* signal)
     SegmentedSectionPtr attrInfoSec;
     if (handle.getSection(attrInfoSec, TcKeyReq::AttrInfoSectionNum))
       TattrLen= attrInfoSec.sz;
+
+    if (TcKeyReq::getDeferredConstraints(Treqinfo))
+    {
+      regApiPtr->m_flags |= ApiConnectRecord::TF_DEFERRED_CONSTRAINTS;
+    }
   }
   else
   {
@@ -2943,7 +3004,8 @@ void Dbtc::execTCKEYREQ(Signal* signal)
   else
   {
     /* Insert, Update, Write, Delete */
-    if (!regApiPtr->m_commit_ack_marker_received)
+    if (!tc_testbit(regApiPtr->m_flags,
+                    ApiConnectRecord::TF_COMMIT_ACK_MARKER_RECEIVED))
     {
       if(regApiPtr->commitAckMarker != RNIL)
         regTcPtr->commitAckMarker = regApiPtr->commitAckMarker;
@@ -3030,7 +3092,7 @@ void Dbtc::execTCKEYREQ(Signal* signal)
       jam();
       // Trigger execution at commit
       regApiPtr->apiConnectstate = CS_REC_COMMITTING;
-    } else {
+    } else if (!regApiPtr->isExecutingDeferredTriggers()) {
       jam();
       regApiPtr->apiConnectstate = CS_RECEIVING;
     }//if
@@ -3326,6 +3388,10 @@ void Dbtc::tckeyreq050Lab(Signal* signal)
       jam();
       regApiPtr->apiConnectstate = CS_START_COMMITTING;
       break;
+    case CS_SEND_FIRE_TRIG_REQ:
+    case CS_WAIT_FIRE_TRIG_REQ:
+      jam();
+      break;
     default:
       jam();
       systemErrorLab(signal, __LINE__);
@@ -3407,16 +3473,7 @@ void Dbtc::attrinfoDihReceivedLab(Signal* signal)
       TcConnectRecordPtr opPtr;
       opPtr.i = trigOp;
       ptrCheckGuard(opPtr, ctcConnectFilesize, tcConnectRecord);
-      opPtr.p->triggerExecutionCount--;
-      if (opPtr.p->triggerExecutionCount == 0)
-      {
-        /**
-         * We have completed current trigger execution
-         * Continue triggering operation
-         */
-        jam();
-        continueTriggeringOp(signal, opPtr.p);
-      }
+      trigger_op_finished(signal, apiConnectptr, opPtr.p);
       return;
     }
     else
@@ -3497,6 +3554,8 @@ void Dbtc::sendlqhkeyreq(Signal* signal,
     }//if
   }//if
 #endif
+  Uint32 Tdeferred = tc_testbit(regApiPtr->m_flags,
+                                ApiConnectRecord::TF_DEFERRED_CONSTRAINTS);
   Uint32 reorg = 0;
   Uint32 Tspecial_op = regTcPtr->m_special_op_flags;
   if (Tspecial_op == 0)
@@ -3563,6 +3622,7 @@ void Dbtc::sendlqhkeyreq(Signal* signal,
   LqhKeyReq::setOperation(Tdata10, sig1);
   LqhKeyReq::setNoDiskFlag(Tdata10, regCachePtr->m_no_disk_flag);
   LqhKeyReq::setQueueOnRedoProblemFlag(Tdata10, regCachePtr->m_op_queue);
+  LqhKeyReq::setDeferredConstraints(Tdata10, (Tdeferred & m_deferred_enabled));
 
   /* ----------------------------------------------------------------------- 
    * If we are sending a short LQHKEYREQ, then there will be some AttrInfo
@@ -3643,8 +3703,6 @@ void Dbtc::sendlqhkeyreq(Signal* signal,
   }//if
 
   // Reset trigger count
-  regTcPtr->accumulatingTriggerData.i = RNIL;  
-  regTcPtr->accumulatingTriggerData.p = NULL;  
   regTcPtr->noFiredTriggers = 0;
   regTcPtr->triggerExecutionCount = 0;
 
@@ -3968,6 +4026,13 @@ void Dbtc::execPACKED_SIGNAL(Signal* signal)
       execLQHKEYCONF(signal);
       Tstep += LqhKeyConf::SignalLength;
       break;
+    case ZFIRE_TRIG_CONF:
+      jam();
+      signal->header.theLength = 4;
+      signal->theData[3] = TpackDataPtr[3];
+      execFIRE_TRIG_CONF(signal);
+      Tstep += 4;
+      break;
     default:
       systemErrorLab(signal, __LINE__);
       return;
@@ -4042,10 +4107,13 @@ void Dbtc::execSIGNAL_DROPPED_REP(Signal* signal)
     apiConnectptr.p->returncode = ZGET_DATAREC_ERROR;
 
     /* Set m_exec_flag according to the dropped request */
-    apiConnectptr.p->m_exec_flag = 
-      TcKeyReq::getExecuteFlag(truncatedTcKeyReq->requestInfo);
+    apiConnectptr.p->m_flags |=
+      TcKeyReq::getExecuteFlag(truncatedTcKeyReq->requestInfo) ?
+      ApiConnectRecord::TF_EXEC_FLAG : 0;
 
-    DEBUG("  Execute flag set to " << apiConnectptr.p->m_exec_flag);
+    DEBUG(" Execute flag set to " << tc_testbit(apiConnectptr.p->m_flags,
+                                                ApiConnectRecord::TF_EXEC_FLAG)
+          );
 
     abortErrorLab(signal);
 
@@ -4102,7 +4170,8 @@ void Dbtc::execSIGNAL_DROPPED_REP(Signal* signal)
 
 void Dbtc::execLQHKEYCONF(Signal* signal) 
 {
-  const LqhKeyConf * const lqhKeyConf = (LqhKeyConf *)signal->getDataPtr();
+  const LqhKeyConf * lqhKeyConf = CAST_CONSTPTR(LqhKeyConf,
+                                                signal->getDataPtr());
 #ifdef UNUSED
   ndbout << "TC: Received LQHKEYCONF"
          << " transId1=" << lqhKeyConf-> transId1
@@ -4157,7 +4226,8 @@ void Dbtc::execLQHKEYCONF(Signal* signal)
   UintR TapiConnectFilesize = capiConnectFilesize;
   UintR Ttrans1 = lqhKeyConf->transId1;
   UintR Ttrans2 = lqhKeyConf->transId2;
-  Uint32 noFired = lqhKeyConf->noFiredTriggers;
+  Uint32 noFired = LqhKeyConf::getFiredCount(lqhKeyConf->noFiredTriggers);
+  Uint32 deferred = LqhKeyConf::getDeferredBit(lqhKeyConf->noFiredTriggers);
 
   if (TapiConnectptrIndex >= TapiConnectFilesize) {
     TCKEY_abort(signal, 29);
@@ -4213,6 +4283,10 @@ void Dbtc::execLQHKEYCONF(Signal* signal)
   regTcPtr->lastLqhCon = tlastLqhConnect;
   regTcPtr->lastLqhNodeId = refToNode(tlastLqhBlockref);
   regTcPtr->noFiredTriggers = noFired;
+  regTcPtr->m_special_op_flags |= (deferred) ?
+    TcConnectRecord::SOF_DEFERRED_TRIGGER : 0;
+  regApiPtr.p->m_flags |= (deferred) ?
+    ApiConnectRecord::TF_DEFERRED_TRIGGERS : 0;
 
   UintR Ttckeyrec = (UintR)regApiPtr.p->tckeyrec;
   UintR TclientData = regTcPtr->clientData;
@@ -4220,10 +4294,7 @@ void Dbtc::execLQHKEYCONF(Signal* signal)
   Uint32 TopSimple = regTcPtr->opSimple;
   Uint32 Toperation = regTcPtr->operation;
   ConnectionState TapiConnectstate = regApiPtr.p->apiConnectstate;
-  if (Ttckeyrec > (ZTCOPCONF_SIZE - 2)) {
-    TCKEY_abort(signal, 30);
-    return;
-  }
+
   if (TapiConnectstate == CS_ABORTING) {
     warningReport(signal, 27);
     return;
@@ -4248,7 +4319,7 @@ void Dbtc::execLQHKEYCONF(Signal* signal)
     const Uint32 noOfLqhs = regTcPtr->noOfNodes;
     CommitAckMarker * tmp = m_commitAckMarkerHash.getPtr(commitAckMarker);
     jam();
-    regApiPtr.p->m_commit_ack_marker_received = TRUE;
+    regApiPtr.p->m_flags |= ApiConnectRecord::TF_COMMIT_ACK_MARKER_RECEIVED;
     /**
      * Populate LQH array
      */
@@ -4263,6 +4334,12 @@ void Dbtc::execLQHKEYCONF(Signal* signal)
   } else {
     if (noFired == 0 && regTcPtr->triggeringOperation == RNIL) {
       jam();
+
+      if (Ttckeyrec > (ZTCOPCONF_SIZE - 2)) {
+        TCKEY_abort(signal, 30);
+        return;
+      }
+
       /*
        * Skip counting triggering operations the first round
        * since they will enter execLQHKEYCONF a second time
@@ -4376,7 +4453,8 @@ void Dbtc::execLQHKEYCONF(Signal* signal)
   /**
    * And now decide what to do next
    */
-  if (regTcPtr->triggeringOperation != RNIL) {
+  if (regTcPtr->triggeringOperation != RNIL &&
+      !regApiPtr.p->isExecutingDeferredTriggers()) {
     jam();
     // This operation was created by a trigger execting operation
     // Restart it if we have executed all it's triggers
@@ -4384,15 +4462,7 @@ void Dbtc::execLQHKEYCONF(Signal* signal)
 
     opPtr.i = regTcPtr->triggeringOperation;
     ptrCheckGuard(opPtr, ctcConnectFilesize, localTcConnectRecord);
-    opPtr.p->triggerExecutionCount--;
-    if (opPtr.p->triggerExecutionCount == 0) {
-      /*
-      We have completed current trigger execution
-      Continue triggering operation
-      */
-      jam();
-      continueTriggeringOp(signal, opPtr.p);
-    }
+    trigger_op_finished(signal, regApiPtr, opPtr.p);
   } else if (noFired == 0) {
     // This operation did not fire any triggers, finish operation
     jam();
@@ -4418,7 +4488,7 @@ void Dbtc::execLQHKEYCONF(Signal* signal)
 void Dbtc::setupIndexOpReturn(ApiConnectRecord* regApiPtr,
 			      TcConnectRecord* regTcPtr) 
 {
-  regApiPtr->indexOpReturn = true;
+  regApiPtr->m_flags |= ApiConnectRecord::TF_INDEX_OP_RETURN;
   regApiPtr->indexOp = regTcPtr->indexOp;
   regApiPtr->clientData = regTcPtr->clientData;
   regApiPtr->attrInfoLen = regTcPtr->attrInfoLen;
@@ -4449,6 +4519,7 @@ Dbtc::lqhKeyConf_checkTransactionState(Signal * signal,
   UintR Tlqhkeyreqrec = regApiPtr.p->lqhkeyreqrec;
   int TnoOfOutStanding = Tlqhkeyreqrec - Tlqhkeyconfrec;
 
+  apiConnectptr = regApiPtr;
   switch (TapiConnectstate) {
   case CS_START_COMMITTING:
     if (TnoOfOutStanding == 0) {
@@ -4460,7 +4531,10 @@ Dbtc::lqhKeyConf_checkTransactionState(Signal * signal,
         jam();
         sendtckeyconf(signal, 0);
         return;
-      } else if (regApiPtr.p->indexOpReturn) {
+      }
+      else if (tc_testbit(regApiPtr.p->m_flags,
+                          ApiConnectRecord::TF_INDEX_OP_RETURN))
+      {
 	jam();
         sendtckeyconf(signal, 0);
         return;
@@ -4483,11 +4557,14 @@ Dbtc::lqhKeyConf_checkTransactionState(Signal * signal,
         jam();
         sendtckeyconf(signal, 0);
         return;
-      } else if (regApiPtr.p->indexOpReturn) {
+      }
+      else if (tc_testbit(regApiPtr.p->m_flags,
+                          ApiConnectRecord::TF_INDEX_OP_RETURN))
+      {
 	jam();
         sendtckeyconf(signal, 0);
         return;
-	}//if
+      }//if
       jam();
     }//if
     return;
@@ -4497,7 +4574,10 @@ Dbtc::lqhKeyConf_checkTransactionState(Signal * signal,
         jam();
         sendtckeyconf(signal, 0);
         return;
-      } else if (regApiPtr.p->indexOpReturn) {
+      }
+      else if (tc_testbit(regApiPtr.p->m_flags,
+                          ApiConnectRecord::TF_INDEX_OP_RETURN))
+      {
         jam();
         sendtckeyconf(signal, 0);
         return;
@@ -4515,6 +4595,17 @@ Dbtc::lqhKeyConf_checkTransactionState(Signal * signal,
 /*       COMPLETED. ENSURE TCKEYREC IS ZERO TO PREVENT ERRORS.   */
 /*---------------------------------------------------------------*/
     regApiPtr.p->tckeyrec = 0;
+    return;
+  case CS_SEND_FIRE_TRIG_REQ:
+    return;
+  case CS_WAIT_FIRE_TRIG_REQ:
+    if (TnoOfOutStanding == 0 && regApiPtr.p->pendingTriggers == 0)
+    {
+      jam();
+      regApiPtr.p->apiConnectstate = CS_START_COMMITTING;
+      diverify010Lab(signal);
+      return;
+    }
     return;
   default:
     TCKEY_abort(signal, 46);
@@ -4549,7 +4640,8 @@ void Dbtc::sendtckeyconf(Signal* signal, UintR TcommitFlag)
   const UintR TpacketLen = 6 + TopWords;
   regApiPtr->tckeyrec = 0;
 
-  if (regApiPtr->indexOpReturn) {
+  if (tc_testbit(regApiPtr->m_flags, ApiConnectRecord::TF_INDEX_OP_RETURN))
+  {
     jam();
     // Return internally generated TCKEY
     TcKeyConf * const tcKeyConf = (TcKeyConf *)signal->getDataPtrSend();
@@ -4566,7 +4658,7 @@ void Dbtc::sendtckeyconf(Signal* signal, UintR TcommitFlag)
     Uint32 sigLen = 1 /** gci_lo */ +
       TcKeyConf::StaticLength + TcKeyConf::OperationLength;
     EXECUTE_DIRECT(DBTC, GSN_TCKEYCONF, signal, sigLen);
-    regApiPtr->indexOpReturn = false;
+    tc_clearbit(regApiPtr->m_flags, ApiConnectRecord::TF_INDEX_OP_RETURN);
     if (TopWords == 0) {
       jam();
       return; // No queued TcKeyConf
@@ -4574,7 +4666,7 @@ void Dbtc::sendtckeyconf(Signal* signal, UintR TcommitFlag)
   }//if
   if(TcommitFlag){
     jam();
-    regApiPtr->m_exec_flag = 0;
+    tc_clearbit(regApiPtr->m_flags, ApiConnectRecord::TF_EXEC_FLAG);
   }
   TcKeyConf::setNoOfOperations(confInfo, (TopWords >> 1));
   if ((TpacketLen + 1 /** gci_lo */ > 25) || !is_api){
@@ -4674,7 +4766,6 @@ void Dbtc::execSEND_PACKED(Signal* signal)
     arrGuard(Thostptr.i - 1, MAX_NODES - 1);
     UintR TnoOfPackedWordsLqh = Thostptr.p->noOfPackedWordsLqh;
     UintR TnoOfWordsTCKEYCONF = Thostptr.p->noOfWordsTCKEYCONF;
-    UintR TnoOfWordsTCINDXCONF = Thostptr.p->noOfWordsTCINDXCONF;
     jam();
     if (TnoOfPackedWordsLqh > 0) {
       jam();
@@ -4683,10 +4774,6 @@ void Dbtc::execSEND_PACKED(Signal* signal)
     if (TnoOfWordsTCKEYCONF > 0) {
       jam();
       sendPackedTCKEYCONF(signal, Thostptr.p, (Uint32)Thostptr.i);
-    }//if
-    if (TnoOfWordsTCINDXCONF > 0) {
-      jam();
-      sendPackedTCINDXCONF(signal, Thostptr.p, (Uint32)Thostptr.i);
     }//if
     Thostptr.p->inPackedList = false;
   }//for
@@ -4749,27 +4836,6 @@ void Dbtc::sendPackedTCKEYCONF(Signal* signal,
   sendSignal(TBref, GSN_TCKEYCONF, signal, TnoOfWords, JBB);
 }//Dbtc::sendPackedTCKEYCONF()
 
-void Dbtc::sendPackedTCINDXCONF(Signal* signal,
-                                HostRecord * ahostptr,
-                                UintR hostId)
-{
-  UintR Tj;
-  UintR TnoOfWords = ahostptr->noOfWordsTCINDXCONF;
-  BlockReference TBref = numberToRef(API_PACKED, hostId);
-  for (Tj = 0; Tj < ahostptr->noOfWordsTCINDXCONF; Tj += 4) {
-    UintR sig0 = ahostptr->packedWordsTCINDXCONF[Tj + 0];
-    UintR sig1 = ahostptr->packedWordsTCINDXCONF[Tj + 1];
-    UintR sig2 = ahostptr->packedWordsTCINDXCONF[Tj + 2];
-    UintR sig3 = ahostptr->packedWordsTCINDXCONF[Tj + 3];
-    signal->theData[Tj + 0] = sig0;
-    signal->theData[Tj + 1] = sig1;
-    signal->theData[Tj + 2] = sig2;
-    signal->theData[Tj + 3] = sig3;
-  }//for
-  ahostptr->noOfWordsTCINDXCONF = 0;
-  sendSignal(TBref, GSN_TCINDXCONF, signal, TnoOfWords, JBB);
-}//Dbtc::sendPackedTCINDXCONF()
-
 /*
 4.3.11 DIVERIFY 
 ---------------
@@ -4787,6 +4853,19 @@ void Dbtc::diverify010Lab(Signal* signal)
     jam();
     systemErrorLab(signal, __LINE__);
   }//if
+
+  if (tc_testbit(regApiPtr->m_flags, ApiConnectRecord::TF_DEFERRED_TRIGGERS))
+  {
+    jam();
+    /**
+     * If trans has deferred triggers, let them fire just before
+     *   transaction starts to commit
+     */
+    regApiPtr->pendingTriggers = 0;
+    tc_clearbit(regApiPtr->m_flags, ApiConnectRecord::TF_DEFERRED_TRIGGERS);
+    sendFireTrigReq(signal, apiConnectptr, regApiPtr->firstTcConnect);
+    return;
+  }
 
   if (regApiPtr->lqhkeyreqrec)
   {
@@ -4846,7 +4925,8 @@ void Dbtc::seizeApiConnectCopy(Signal* signal)
   cfirstfreeApiConnectCopy = locApiConnectptr.p->nextApiConnect;
   locApiConnectptr.p->nextApiConnect = RNIL;
   regApiPtr->apiCopyRecord = locApiConnectptr.i;
-  regApiPtr->triggerPending = false;
+  tc_clearbit(regApiPtr->m_flags,
+              ApiConnectRecord::TF_TRIGGER_PENDING);
   regApiPtr->m_special_op_flags = 0;
 }//Dbtc::seizeApiConnectCopy()
 
@@ -5571,6 +5651,237 @@ Dbtc::sendCompleteLqh(Signal* signal,
 }
 
 void
+Dbtc::sendFireTrigReq(Signal* signal,
+                      Ptr<ApiConnectRecord> regApiPtr,
+                      Uint32 TopPtrI)
+{
+  UintR TtcConnectFilesize = ctcConnectFilesize;
+  TcConnectRecord *localTcConnectRecord = tcConnectRecord;
+  TcConnectRecordPtr localTcConnectptr;
+
+  setApiConTimer(regApiPtr.i, ctcTimer, __LINE__);
+  regApiPtr.p->apiConnectstate = CS_SEND_FIRE_TRIG_REQ;
+
+  localTcConnectptr.i = TopPtrI;
+  ndbassert(TopPtrI != RNIL);
+  Uint32 Tlqhkeyreqrec = regApiPtr.p->lqhkeyreqrec;
+  Uint32 pass = regApiPtr.p->m_pre_commit_pass;
+  for (Uint32 i = 0; localTcConnectptr.i != RNIL && i < 16; i++)
+  {
+    ptrCheckGuard(localTcConnectptr,
+                  TtcConnectFilesize, localTcConnectRecord);
+
+    const Uint32 nextTcConnect = localTcConnectptr.p->nextTcConnect;
+    Uint32 flags = localTcConnectptr.p->m_special_op_flags;
+    if (flags & TcConnectRecord::SOF_DEFERRED_TRIGGER)
+    {
+      jam();
+      tc_clearbit(flags, TcConnectRecord::SOF_DEFERRED_TRIGGER);
+      ndbrequire(localTcConnectptr.p->tcConnectstate == OS_PREPARED);
+      localTcConnectptr.p->tcConnectstate = OS_FIRE_TRIG_REQ;
+      localTcConnectptr.p->m_special_op_flags = flags;
+      i += sendFireTrigReqLqh(signal, localTcConnectptr, pass);
+      Tlqhkeyreqrec++;
+    }
+    localTcConnectptr.i = nextTcConnect;
+  }
+
+  regApiPtr.p->lqhkeyreqrec = Tlqhkeyreqrec;
+  if (localTcConnectptr.i == RNIL)
+  {
+    /**
+     * Now wait for FIRE_TRIG_CONF
+     */
+    jam();
+    regApiPtr.p->apiConnectstate = CS_WAIT_FIRE_TRIG_REQ;
+    ndbrequire(pass < 255);
+    regApiPtr.p->m_pre_commit_pass = (Uint8)(pass + 1);
+    return;
+  }
+  else
+  {
+    jam();
+    signal->theData[0] = TcContinueB::ZSEND_FIRE_TRIG_REQ;
+    signal->theData[1] = regApiPtr.i;
+    signal->theData[2] = regApiPtr.p->transid[0];
+    signal->theData[3] = regApiPtr.p->transid[1];
+    signal->theData[4] = localTcConnectptr.i;
+    if (ERROR_INSERTED_CLEAR(8090))
+    {
+      sendSignalWithDelay(cownref, GSN_CONTINUEB, signal, 5000, 5);
+    }
+    else
+    {
+      sendSignal(cownref, GSN_CONTINUEB, signal, 5, JBB);
+    }
+  }
+}
+
+Uint32
+Dbtc::sendFireTrigReqLqh(Signal* signal,
+                         Ptr<TcConnectRecord> regTcPtr,
+                         Uint32 pass)
+{
+  HostRecordPtr Thostptr;
+  UintR ThostFilesize = chostFilesize;
+  ApiConnectRecord * const regApiPtr = apiConnectptr.p;
+  Thostptr.i = regTcPtr.p->tcNodedata[0];
+  ptrCheckGuard(Thostptr, ThostFilesize, hostRecord);
+
+  Uint32 Tnode = Thostptr.i;
+  Uint32 self = getOwnNodeId();
+  Uint32 ret = (Tnode == self) ? 4 : 1;
+
+  Uint32 Tdata[FireTrigReq::SignalLength];
+  FireTrigReq * req = CAST_PTR(FireTrigReq, Tdata);
+  req->tcOpRec = regTcPtr.i;
+  req->transId[0] = regApiPtr->transid[0];
+  req->transId[1] = regApiPtr->transid[1];
+  req->pass = pass;
+  Uint32 len = FireTrigReq::SignalLength;
+
+  // currently packed signal cannot address specific instance
+  const bool send_unpacked = getNodeInfo(Thostptr.i).m_lqh_workers > 1;
+  if (send_unpacked) {
+    memcpy(signal->theData, Tdata, len << 2);
+    Uint32 instanceKey = regTcPtr.p->lqhInstanceKey;
+    BlockReference lqhRef = numberToRef(DBLQH, instanceKey, Tnode);
+    sendSignal(lqhRef, GSN_FIRE_TRIG_REQ, signal, len, JBB);
+    return ret;
+  }
+
+  if (Thostptr.p->noOfPackedWordsLqh > 25 - len) {
+    jam();
+    sendPackedSignalLqh(signal, Thostptr.p);
+  } else {
+    jam();
+    ret = 1;
+    updatePackedList(signal, Thostptr.p, Thostptr.i);
+  }
+
+  Tdata[0] |= (ZFIRE_TRIG_REQ << 28);
+  UintR Tindex = Thostptr.p->noOfPackedWordsLqh;
+  UintR* TDataPtr = &Thostptr.p->packedWordsLqh[Tindex];
+  memcpy(TDataPtr, Tdata, len << 2);
+  Thostptr.p->noOfPackedWordsLqh = Tindex + len;
+  return ret;
+}
+
+void
+Dbtc::execFIRE_TRIG_CONF(Signal* signal)
+{
+  TcConnectRecordPtr localTcConnectptr;
+  ApiConnectRecordPtr regApiPtr;
+
+  UintR TtcConnectFilesize = ctcConnectFilesize;
+  UintR TapiConnectFilesize = capiConnectFilesize;
+  TcConnectRecord *localTcConnectRecord = tcConnectRecord;
+  ApiConnectRecord *localApiConnectRecord = apiConnectRecord;
+
+  const FireTrigConf * conf = CAST_CONSTPTR(FireTrigConf, signal->theData);
+  localTcConnectptr.i = conf->tcOpRec;
+  jamEntry();
+  ptrCheckGuard(localTcConnectptr, TtcConnectFilesize, localTcConnectRecord);
+  regApiPtr.i = localTcConnectptr.p->apiConnect;
+  if (localTcConnectptr.p->tcConnectstate != OS_FIRE_TRIG_REQ)
+  {
+    warningReport(signal, 28);
+    return;
+  }//if
+  ptrCheckGuard(regApiPtr, TapiConnectFilesize,
+                localApiConnectRecord);
+
+  Uint32 Tlqhkeyreqrec = regApiPtr.p->lqhkeyreqrec;
+  Uint32 TapiConnectstate = regApiPtr.p->apiConnectstate;
+  UintR Tdata1 = regApiPtr.p->transid[0] - conf->transId[0];
+  UintR Tdata2 = regApiPtr.p->transid[1] - conf->transId[1];
+  Uint32 TcheckCondition =
+    (TapiConnectstate != CS_SEND_FIRE_TRIG_REQ) &&
+    (TapiConnectstate != CS_WAIT_FIRE_TRIG_REQ);
+
+  Tdata1 = Tdata1 | Tdata2 | TcheckCondition;
+
+  if (Tdata1 != 0) {
+    warningReport(signal, 28);
+    return;
+  }//if
+
+  if (ERROR_INSERTED_CLEAR(8091))
+  {
+    jam();
+    return;
+  }
+
+  CRASH_INSERTION(8092);
+
+  setApiConTimer(regApiPtr.i, ctcTimer, __LINE__);
+  ndbassert(Tlqhkeyreqrec > 0);
+  regApiPtr.p->lqhkeyreqrec = Tlqhkeyreqrec - 1;
+  localTcConnectptr.p->tcConnectstate = OS_PREPARED;
+
+  Uint32 noFired  = FireTrigConf::getFiredCount(conf->noFiredTriggers);
+  Uint32 deferred = FireTrigConf::getDeferredBit(conf->noFiredTriggers);
+
+  regApiPtr.p->pendingTriggers += noFired;
+  regApiPtr.p->m_flags |= (deferred) ?
+    ApiConnectRecord::TF_DEFERRED_TRIGGERS : 0;
+  localTcConnectptr.p->m_special_op_flags |= (deferred) ?
+    TcConnectRecord::SOF_DEFERRED_TRIGGER : 0;
+
+  if (regApiPtr.p->pendingTriggers == 0)
+  {
+    jam();
+    lqhKeyConf_checkTransactionState(signal, regApiPtr);
+  }
+}
+
+void
+Dbtc::execFIRE_TRIG_REF(Signal* signal)
+{
+  TcConnectRecordPtr localTcConnectptr;
+  ApiConnectRecordPtr regApiPtr;
+
+  UintR TtcConnectFilesize = ctcConnectFilesize;
+  UintR TapiConnectFilesize = capiConnectFilesize;
+  TcConnectRecord *localTcConnectRecord = tcConnectRecord;
+  ApiConnectRecord *localApiConnectRecord = apiConnectRecord;
+
+  const FireTrigRef * ref = CAST_CONSTPTR(FireTrigRef, signal->theData);
+  localTcConnectptr.i = ref->tcOpRec;
+  jamEntry();
+  ptrCheckGuard(localTcConnectptr, TtcConnectFilesize, localTcConnectRecord);
+  regApiPtr.i = localTcConnectptr.p->apiConnect;
+  if (localTcConnectptr.p->tcConnectstate != OS_FIRE_TRIG_REQ)
+  {
+    warningReport(signal, 28);
+    return;
+  }//if
+  ptrCheckGuard(regApiPtr, TapiConnectFilesize,
+                localApiConnectRecord);
+
+  apiConnectptr = regApiPtr;
+
+  UintR Tdata1 = regApiPtr.p->transid[0] - ref->transId[0];
+  UintR Tdata2 = regApiPtr.p->transid[1] - ref->transId[1];
+  Tdata1 = Tdata1 | Tdata2;
+  if (Tdata1 != 0) {
+    warningReport(signal, 28);
+    return;
+  }//if
+
+  if (regApiPtr.p->apiConnectstate != CS_SEND_FIRE_TRIG_REQ &&
+      regApiPtr.p->apiConnectstate != CS_WAIT_FIRE_TRIG_REQ)
+  {
+    jam();
+    warningReport(signal, 28);
+    return;
+  }
+
+  terrorCode = ref->errCode;
+  abortErrorLab(signal);
+}
+
+void
 Dbtc::execTC_COMMIT_ACK(Signal* signal){
   jamEntry();
 
@@ -5954,19 +6265,16 @@ void Dbtc::execLQHKEYREF(Signal* signal)
          */
         regApiPtr->lqhkeyreqrec--;
 
+        /**
+         * An failing op in LQH, never leaves the commit ack marker around
+         * TODO: This can be bug in ordinary code too!!!
+         */
+        clearCommitAckMarker(regApiPtr, regTcPtr);
+
         unlinkReadyTcCon(signal);
         releaseTcCon();
 
-        opPtr.p->triggerExecutionCount--;
-        if (opPtr.p->triggerExecutionCount == 0)
-        {
-          /**
-           * We have completed current trigger execution
-           * Continue triggering operation
-           */
-          jam();
-          continueTriggeringOp(signal, opPtr.p);
-        }
+        trigger_op_finished(signal, apiConnectptr, opPtr.p);
         return;
       }
       
@@ -6031,7 +6339,10 @@ void Dbtc::execLQHKEYREF(Signal* signal)
           jam();
           diverify010Lab(signal);
 	  return;
-	} else if (regApiPtr->tckeyrec > 0 || regApiPtr->m_exec_flag) {
+	}
+        else if (regApiPtr->tckeyrec > 0 ||
+                 tc_testbit(regApiPtr->m_flags, ApiConnectRecord::TF_EXEC_FLAG))
+        {
 	  jam();
 	  sendtckeyconf(signal, 2);
 	  return;
@@ -6067,7 +6378,8 @@ void Dbtc::clearCommitAckMarker(ApiConnectRecord * const regApiPtr,
     if (regApiPtr->no_commit_ack_markers == 0)
     {
       regApiPtr->commitAckMarker = RNIL;
-      regApiPtr->m_commit_ack_marker_received = FALSE;
+      tc_clearbit(regApiPtr->m_flags,
+                  ApiConnectRecord::TF_COMMIT_ACK_MARKER_RECEIVED);
       m_commitAckMarkerHash.release(commitAckMarker);
     }
   }
@@ -6115,7 +6427,7 @@ void Dbtc::execTC_COMMITREQ(Signal* signal)
     const Uint32 transId2      = regApiPtr->transid[1];
     Uint32 errorCode           = 0;
 
-    regApiPtr->m_exec_flag = 1;
+    regApiPtr->m_flags |= ApiConnectRecord::TF_EXEC_FLAG;
     switch (regApiPtr->apiConnectstate) {
     case CS_STARTED:
       tcConnectptr.i = regApiPtr->firstTcConnect;
@@ -6267,7 +6579,7 @@ void Dbtc::execTCROLLBACKREQ(Signal* signal)
     return;
   }//if
 
-  apiConnectptr.p->m_exec_flag = 1;
+  apiConnectptr.p->m_flags |= ApiConnectRecord::TF_EXEC_FLAG;
   switch (apiConnectptr.p->apiConnectstate) {
   case CS_STARTED:
   case CS_RECEIVING:
@@ -6553,6 +6865,18 @@ void Dbtc::warningReport(Signal* signal, int place)
     ndbout << "Received LQHKEYCONF in wrong api-state in Dbtc" << endl;
 #endif
     break;
+  case 28:
+    jam();
+#ifdef ABORT_TRACE
+    ndbout << "Discarding FIRE_TRIG_REF/CONF in Dbtc" << endl;
+#endif
+    break;
+  case 29:
+    jam();
+#ifdef ABORT_TRACE
+    ndbout << "Discarding TcContinueB::ZSEND_FIRE_TRIG_REQ in Dbtc" << endl;
+#endif
+    break;
   default:
     jam();
     break;
@@ -6802,6 +7126,8 @@ ABORT020:
   case OS_PREPARED:
     jam();
   case OS_OPERATING:
+    jam();
+  case OS_FIRE_TRIG_REQ:
     jam();
     /*----------------------------------------------------------------------
      * WE HAVE SENT LQHKEYREQ AND ARE IN SOME STATE OF EITHER STILL       
@@ -7121,7 +7447,8 @@ void Dbtc::timeOutFoundLab(Signal* signal, Uint32 TapiConPtr, Uint32 errCode)
 	<< " H'" << apiConnectptr.p->transid[1] << "] " << dec 
 	<< "Time-out in state = " << apiConnectptr.p->apiConnectstate
 	<< " apiConnectptr.i = " << apiConnectptr.i 
-	<< " - exec: " << apiConnectptr.p->m_exec_flag
+	<< " - exec: "
+        << tc_testbit(apiConnectptr.p->m_flags, ApiConnectRecord::TF_EXEC_FLAG)
 	<< " - place: " << c_apiConTimer_line[apiConnectptr.i]
 	<< " code: " << errCode);
   switch (apiConnectptr.p->apiConnectstate) {
@@ -7147,6 +7474,8 @@ void Dbtc::timeOutFoundLab(Signal* signal, Uint32 TapiConPtr, Uint32 errCode)
   case CS_RECEIVING:
   case CS_REC_COMMITTING:
   case CS_START_COMMITTING:
+  case CS_WAIT_FIRE_TRIG_REQ:
+  case CS_SEND_FIRE_TRIG_REQ:
     jam();
     /*------------------------------------------------------------------*/
     /*       WE ARE STILL IN THE PREPARE PHASE AND THE TRANSACTION HAS  */
@@ -8070,6 +8399,28 @@ void Dbtc::execNODE_FAILREP(Signal* signal)
     Callback cb = {safe_cast(&Dbtc::ndbdFailBlockCleanupCallback), 
                   myHostPtr.i};
     simBlockNodeFailure(signal, myHostPtr.i, cb);
+  }
+
+  if (m_deferred_enabled == 0)
+  {
+    jam();
+    Uint32 ok = 1;
+    for(Uint32 n = c_alive_nodes.find_first();
+        n != c_alive_nodes.NotFound;
+        n = c_alive_nodes.find_next(n+1))
+    {
+      if (!ndbd_deferred_unique_constraints(getNodeInfo(n).m_version))
+      {
+        jam();
+        ok = 0;
+        break;
+      }
+    }
+    if (ok)
+    {
+      jam();
+      m_deferred_enabled = ~Uint32(0);
+    }
   }
 }//Dbtc::execNODE_FAILREP()
 
@@ -11759,7 +12110,7 @@ void Dbtc::initApiConnect(Signal* signal)
     apiConnectptr.p->commitAckMarker = RNIL;
     apiConnectptr.p->firstTcConnect = RNIL;
     apiConnectptr.p->lastTcConnect = RNIL;
-    apiConnectptr.p->triggerPending = false;
+    apiConnectptr.p->m_flags = 0;
     apiConnectptr.p->m_special_op_flags = 0;
     apiConnectptr.p->accumulatingIndexOp = RNIL;
     apiConnectptr.p->executingIndexOp = RNIL;
@@ -11788,7 +12139,7 @@ void Dbtc::initApiConnect(Signal* signal)
       apiConnectptr.p->commitAckMarker = RNIL;
       apiConnectptr.p->firstTcConnect = RNIL;
       apiConnectptr.p->lastTcConnect = RNIL;
-      apiConnectptr.p->triggerPending = false;
+      apiConnectptr.p->m_flags = 0;
       apiConnectptr.p->m_special_op_flags = 0;
       apiConnectptr.p->accumulatingIndexOp = RNIL;
       apiConnectptr.p->executingIndexOp = RNIL;
@@ -11817,7 +12168,7 @@ void Dbtc::initApiConnect(Signal* signal)
     apiConnectptr.p->commitAckMarker = RNIL;
     apiConnectptr.p->firstTcConnect = RNIL;
     apiConnectptr.p->lastTcConnect = RNIL;
-    apiConnectptr.p->triggerPending = false;
+    apiConnectptr.p->m_flags = 0;
     apiConnectptr.p->m_special_op_flags = 0;
     apiConnectptr.p->accumulatingIndexOp = RNIL;
     apiConnectptr.p->executingIndexOp = RNIL;
@@ -11859,7 +12210,6 @@ void Dbtc::inithost(Signal* signal)
     hostptr.p->inPackedList = false;
     hostptr.p->lqhTransStatus = LTS_IDLE;
     hostptr.p->noOfWordsTCKEYCONF = 0;
-    hostptr.p->noOfWordsTCINDXCONF = 0;
     hostptr.p->noOfPackedWordsLqh = 0;
     hostptr.p->hostLqhBlockRef = calcLqhBlockRef(hostptr.i);
     hostptr.p->m_nf_bits = 0;
@@ -12124,13 +12474,15 @@ void Dbtc::releaseAbortResources(Signal* signal)
   apiConnectptr.p->abortState = AS_IDLE;
   releaseAllSeizedIndexOperations(apiConnectptr.p);
 
-  if(apiConnectptr.p->m_exec_flag || apiConnectptr.p->apiFailState == ZTRUE){
+  if (tc_testbit(apiConnectptr.p->m_flags, ApiConnectRecord::TF_EXEC_FLAG) ||
+      apiConnectptr.p->apiFailState == ZTRUE)
+  {
     jam();
     bool ok = false;
     Uint32 blockRef = apiConnectptr.p->ndbapiBlockref;
     ReturnSignal ret = apiConnectptr.p->returnsignal;
     apiConnectptr.p->returnsignal = RS_NO_RETURN;
-    apiConnectptr.p->m_exec_flag = 0;
+    tc_clearbit(apiConnectptr.p->m_flags, ApiConnectRecord::TF_EXEC_FLAG);
     switch(ret){
     case RS_TCROLLBACKCONF:
       jam();
@@ -12232,7 +12584,8 @@ void Dbtc::seizeApiConnect(Signal* signal)
     apiConnectptr.p->nextApiConnect = RNIL;
     setApiConTimer(apiConnectptr.i, 0, __LINE__);
     apiConnectptr.p->apiConnectstate = CS_CONNECTED; /* STATE OF CONNECTION */
-    apiConnectptr.p->triggerPending = false;
+    tc_clearbit(apiConnectptr.p->m_flags,
+                ApiConnectRecord::TF_TRIGGER_PENDING);
     apiConnectptr.p->m_special_op_flags = 0;
   } else {
     jam();
@@ -13447,11 +13800,12 @@ void Dbtc::execFIRE_TRIG_ORD(Signal* signal)
     {
       jam();      
       opPtr.p->noReceivedTriggers++;
-      opPtr.p->triggerExecutionCount++;
+      opPtr.p->triggerExecutionCount++; // Default 1 LQHKEYREQ per trigger
 
       // Insert fired trigger in execution queue
       transPtr.p->theFiredTriggers.add(trigPtr);
-      if (opPtr.p->noReceivedTriggers == opPtr.p->noFiredTriggers) {
+      if (opPtr.p->noReceivedTriggers == opPtr.p->noFiredTriggers ||
+          transPtr.p->isExecutingDeferredTriggers()) {
 	executeTriggers(signal, &transPtr);
       }
       return;
@@ -13650,7 +14004,9 @@ void Dbtc::execTCINDXREQ(Signal* signal)
     jam();
     releaseSections(handle);
     terrorCode = ZCLUSTER_IN_SINGLEUSER_MODE;
-    regApiPtr->m_exec_flag |= TcKeyReq::getExecuteFlag(tcIndxRequestInfo);
+    regApiPtr->m_flags |=
+      TcKeyReq::getExecuteFlag(tcIndxRequestInfo) ?
+      ApiConnectRecord::TF_EXEC_FLAG : 0;
     apiConnectptr = transPtr;
     abortErrorLab(signal);
     return;
@@ -13661,7 +14017,9 @@ void Dbtc::execTCINDXREQ(Signal* signal)
     releaseSections(handle);
     // Failed to allocate index operation
     terrorCode = 288;
-    regApiPtr->m_exec_flag |= TcKeyReq::getExecuteFlag(tcIndxRequestInfo);
+    regApiPtr->m_flags |=
+      TcKeyReq::getExecuteFlag(tcIndxRequestInfo) ?
+      ApiConnectRecord::TF_EXEC_FLAG : 0;
     apiConnectptr = transPtr;
     abortErrorLab(signal);
     return;
@@ -13751,94 +14109,6 @@ void Dbtc::execTCINDXREQ(Signal* signal)
     }
   }
 }
-
-
-void Dbtc::sendTcIndxConf(Signal* signal, UintR TcommitFlag) 
-{
-  HostRecordPtr localHostptr;
-  ApiConnectRecord * const regApiPtr = apiConnectptr.p;
-  const UintR TopWords = (UintR)regApiPtr->tcindxrec;
-  localHostptr.i = refToNode(regApiPtr->ndbapiBlockref);
-  const Uint32 type = getNodeInfo(localHostptr.i).m_type;
-  const bool is_api = (type >= NodeInfo::API && type <= NodeInfo::MGM);
-  const BlockNumber TblockNum = refToBlock(regApiPtr->ndbapiBlockref);
-  const Uint32 Tmarker = (regApiPtr->commitAckMarker == RNIL ? 0 : 1);
-  ptrAss(localHostptr, hostRecord);
-  UintR TcurrLen = localHostptr.p->noOfWordsTCINDXCONF;
-  UintR confInfo = 0;
-  TcIndxConf::setNoOfOperations(confInfo, (TopWords >> 1));
-  TcIndxConf::setCommitFlag(confInfo, TcommitFlag == 1);
-  TcIndxConf::setMarkerFlag(confInfo, Tmarker);
-  const UintR TpacketLen = 6 + TopWords;
-  regApiPtr->tcindxrec = 0;
-
-  if(TcommitFlag || (regApiPtr->lqhkeyreqrec == regApiPtr->lqhkeyconfrec)){
-    jam();
-    regApiPtr->m_exec_flag = 0;
-  }
-
-  if ((TpacketLen + 1 /** gci_lo */ > 25) || !is_api){
-    TcIndxConf * const tcIndxConf = (TcIndxConf *)signal->getDataPtrSend();
-    
-    jam();
-    tcIndxConf->apiConnectPtr = regApiPtr->ndbapiConnect;
-    tcIndxConf->gci_hi = Uint32(regApiPtr->globalcheckpointid >> 32);
-    Uint32 *gci_lo = (Uint32*)&tcIndxConf->operations[TopWords >> 1];
-    * gci_lo = Uint32(regApiPtr->globalcheckpointid);
-    tcIndxConf->confInfo = confInfo;
-    tcIndxConf->transId1 = regApiPtr->transid[0];
-    tcIndxConf->transId2 = regApiPtr->transid[1];
-    copyFromToLen(&regApiPtr->tcIndxSendArray[0],
-                  (UintR*)&tcIndxConf->operations,
-                  (UintR)ZTCOPCONF_SIZE);
-    sendSignal(regApiPtr->ndbapiBlockref,
-               GSN_TCINDXCONF, signal,
-               (TpacketLen - 1) + 1 /** gci_lo */, JBB);
-    return;
-  } else if (((TcurrLen + TpacketLen + 1 /** gci_lo */) > 25) &&
-             (TcurrLen > 0)) {
-    jam();
-    sendPackedTCINDXCONF(signal, localHostptr.p, localHostptr.i);
-    TcurrLen = 0;
-  } else {
-    jam();
-    updatePackedList(signal, localHostptr.p, localHostptr.i);
-  }//if
-// -------------------------------------------------------------------------
-// The header contains the block reference of receiver plus the real signal
-// length - 3, since we have the real signal length plus one additional word
-// for the header we have to do - 4.
-// -------------------------------------------------------------------------
-  UintR Tpack0 = (TblockNum << 16) + (TpacketLen - 4 + 1 /** gci_lo */);
-  UintR Tpack1 = regApiPtr->ndbapiConnect;
-  UintR Tpack2 = Uint32(regApiPtr->globalcheckpointid >> 32);
-  UintR Tpack3 = confInfo;
-  UintR Tpack4 = regApiPtr->transid[0];
-  UintR Tpack5 = regApiPtr->transid[1];
-  UintR Tpack6 = Uint32(regApiPtr->globalcheckpointid);
-
-  localHostptr.p->noOfWordsTCINDXCONF = TcurrLen + TpacketLen + 1 /* gci_lo */;
-
-  localHostptr.p->packedWordsTCINDXCONF[TcurrLen + 0] = Tpack0;
-  localHostptr.p->packedWordsTCINDXCONF[TcurrLen + 1] = Tpack1;
-  localHostptr.p->packedWordsTCINDXCONF[TcurrLen + 2] = Tpack2;
-  localHostptr.p->packedWordsTCINDXCONF[TcurrLen + 3] = Tpack3;
-  localHostptr.p->packedWordsTCINDXCONF[TcurrLen + 4] = Tpack4;
-  localHostptr.p->packedWordsTCINDXCONF[TcurrLen + 5] = Tpack5;
-
-  UintR Ti;
-  for (Ti = 6; Ti < TpacketLen; Ti++) {
-    localHostptr.p->packedWordsTCINDXCONF[TcurrLen + Ti] = 
-          regApiPtr->tcIndxSendArray[Ti - 6];
-  }//for
-  localHostptr.p->packedWordsTCINDXCONF[TcurrLen + TpacketLen] = Tpack6;
-
-  if (unlikely(!ndb_check_micro_gcp(getNodeInfo(localHostptr.i).m_version)))
-  {
-    jam();
-    ndbassert(Tpack6 == 0 || getNodeInfo(localHostptr.i).m_version == 0);
-  }
-}//Dbtc::sendTcIndxConf()
 
 void Dbtc::execINDXKEYINFO(Signal* signal)
 {
@@ -13964,7 +14234,7 @@ Dbtc::saveINDXKEYINFO(Signal* signal,
     releaseIndexOperation(apiConnectptr.p, indexOp);
     terrorCode = 289;
     if(TcKeyReq::getExecuteFlag(indexOp->tcIndxReq.requestInfo))
-      apiConnectptr.p->m_exec_flag= 1;
+      apiConnectptr.p->m_flags |= ApiConnectRecord::TF_EXEC_FLAG;
     abortErrorLab(signal);
     return -1;
   }
@@ -14006,7 +14276,7 @@ Dbtc::saveINDXATTRINFO(Signal* signal,
     releaseIndexOperation(apiConnectptr.p, indexOp);
     terrorCode = 289;
     if(TcKeyReq::getExecuteFlag(indexOp->tcIndxReq.requestInfo))
-      apiConnectptr.p->m_exec_flag= 1;
+      apiConnectptr.p->m_flags |= ApiConnectRecord::TF_EXEC_FLAG;
     abortErrorLab(signal);
     return -1;
   }
@@ -14024,6 +14294,10 @@ bool Dbtc::receivedAllINDXATTRINFO(TcIndexOperation* indexOp)
 {
   return (indexOp->pendingAttrInfo == 0);
 }
+
+#ifdef ERROR_INSERT
+extern bool ErrorImportActive;
+#endif
 
 bool  Dbtc::saveTRANSID_AI(Signal* signal,
 			   TcIndexOperation* indexOp, 
@@ -14103,9 +14377,22 @@ bool  Dbtc::saveTRANSID_AI(Signal* signal,
     {
       jam();
       /* Add key information to long section */
-      if (appendToSection(indexOp->transIdAISectionIVal,
-                          src,
-                          remain))
+#ifdef ERROR_INSERT
+      if (ERROR_INSERTED(8066))
+      {
+        ErrorImportActive = true;
+      }
+#endif
+
+      bool res = appendToSection(indexOp->transIdAISectionIVal, src, remain);
+#ifdef ERROR_INSERT
+      if (ERROR_INSERTED(8066))
+      {
+        ErrorImportActive = false;
+      }
+#endif
+
+      if (res)
       {
         jam();
         remain= 0;
@@ -14193,7 +14480,7 @@ void Dbtc::execTCKEYCONF(Signal* signal)
   /**
    * Check on TCKEYCONF whether the the transaction was committed
    */
-  Uint32 Tcommit = TcKeyConf::getCommitFlag(confInfo);
+  ndbassert(TcKeyConf::getCommitFlag(confInfo) == false);
 
   indexOpPtr.p = indexOp;
   if (!indexOp) {
@@ -14246,28 +14533,6 @@ void Dbtc::execTCKEYCONF(Signal* signal)
     executeIndexOperation(signal, regApiPtr, indexOp);
     break;
   }
-  case(IOS_INDEX_OPERATION): {
-    // We are done, send TCINDXCONF
-    jam();    
-    Uint32 Ttcindxrec = regApiPtr->tcindxrec;
-    // Copy reply from TcKeyConf
-
-    ndbassert(regApiPtr->noIndexOp);
-    regApiPtr->noIndexOp--; // Decrease count
-    regApiPtr->tcIndxSendArray[Ttcindxrec] = indexOp->tcIndxReq.senderData;
-    regApiPtr->tcIndxSendArray[Ttcindxrec + 1] = 
-      tcKeyConf->operations[0].attrInfoLen;
-    regApiPtr->tcindxrec = Ttcindxrec + 2;
-    if (regApiPtr->noIndexOp == 0) {
-      jam();
-      sendTcIndxConf(signal, Tcommit);
-    } else if (regApiPtr->tcindxrec == ZTCOPCONF_SIZE) {
-      jam();
-      sendTcIndxConf(signal, 0);
-    }
-    releaseIndexOperation(regApiPtr, indexOp);
-    break;
-  }
   }
 }
 
@@ -14298,23 +14563,11 @@ void Dbtc::execTCKEYREF(Signal* signal)
   case(IOS_INDEX_ACCESS_WAIT_FOR_TRANSID_AI):
   case(IOS_INDEX_ACCESS_WAIT_FOR_TCKEYCONF): {
     jam();    
-    /**
-     * Increase count as it will be decreased below...
-     *   (and the code is written to handle failing lookup on "real" table
-     *    not lookup on index table)
-     */
-    regApiPtr->noIndexOp++;
-    // else continue
-  }
-  case(IOS_INDEX_OPERATION): {
     // Send TCINDXREF 
     
-    jam();
     TcKeyReq * const tcIndxReq = &indexOp->tcIndxReq;
     TcKeyRef * const tcIndxRef = (TcKeyRef *)signal->getDataPtrSend();
     
-    ndbassert(regApiPtr->noIndexOp);
-    regApiPtr->noIndexOp--; // Decrease count
     tcIndxRef->connectPtr = tcIndxReq->senderData;
     tcIndxRef->transId[0] = tcKeyRef->transId[0];
     tcIndxRef->transId[1] = tcKeyRef->transId[1];
@@ -14510,20 +14763,6 @@ void Dbtc::execTRANSID_AI(Signal* signal)
     // else continue waiting for more TRANSID_AI
     break;
   }
-  case(IOS_INDEX_OPERATION): {
-    // Should never receive TRANSID_AI in this state!!
-    jam();    
-    TcKeyRef * const tcIndxRef = (TcKeyRef *)signal->getDataPtrSend();
-
-    tcIndxRef->connectPtr = indexOp->tcIndxReq.senderData;
-    tcIndxRef->transId[0] = regApiPtr->transid[0];
-    tcIndxRef->transId[1] = regApiPtr->transid[1];
-    tcIndxRef->errorCode = 4349;
-    tcIndxRef->errorData = regApiPtr->errorData;
-    sendSignal(regApiPtr->ndbapiBlockref, GSN_TCINDXREF, signal, 
-	       TcKeyRef::SignalLength, JBB);
-    return;
-  }
   }
 }
 
@@ -14581,6 +14820,7 @@ void Dbtc::readIndexTable(Signal* signal,
   TcKeyReq::setOperationType(tcKeyRequestInfo, 
 			     opType == ZREAD ? ZREAD : ZREAD_EX);
   TcKeyReq::setAIInTcKeyReq(tcKeyRequestInfo, 0); // No AI in long TCKEYREQ
+  TcKeyReq::setInterpretedFlag(tcKeyRequestInfo, 0);
   tcKeyReq->senderData = indexOp->indexOpId;
   indexOp->indexOpState = IOS_INDEX_ACCESS;
   regApiPtr->executingIndexOp = regApiPtr->accumulatingIndexOp;
@@ -14719,10 +14959,8 @@ void Dbtc::executeIndexOperation(Signal* signal,
     tcKeyReq->scanInfo = indexOp->fragmentId; // As read from Index table
     TcKeyReq::setDistributionKeyFlag(tcKeyRequestInfo, 1U);
   }
-  indexOp->indexOpState = IOS_INDEX_OPERATION;
-  regApiPtr->m_special_op_flags = TcConnectRecord::SOF_INDEX_BASE_TABLE_ACCESS;
-  regApiPtr->executingIndexOp = indexOp->indexOpId;;
-  regApiPtr->noIndexOp++; // Increase count
+  regApiPtr->m_special_op_flags = 0;
+  regApiPtr->executingIndexOp = 0;
 
   /* KeyInfo section
    * Get the KeyInfo we received from the index table lookup
@@ -14753,6 +14991,9 @@ void Dbtc::executeIndexOperation(Signal* signal,
     signal->header.m_noOfSections = 2;
     indexOp->attrInfoSectionIVal = RNIL;
   }
+
+  releaseIndexOperation(regApiPtr, indexOp);
+
   TcKeyReq::setKeyLength(tcKeyRequestInfo, keyInfoFromTransIdAI.sz);
   TcKeyReq::setAIInTcKeyReq(tcKeyRequestInfo, 0);
   TcKeyReq::setCommitFlag(tcKeyRequestInfo, 0);
@@ -14780,12 +15021,27 @@ void Dbtc::executeIndexOperation(Signal* signal,
   const Uint32 currSavePointId = regApiPtr->currSavePointId;
   regApiPtr->currSavePointId = tmp.p->savePointId;
 
+#ifdef ERROR_INSERT
+  bool err8072 = ERROR_INSERTED(8072);
+  if (err8072)
+  {
+    CLEAR_ERROR_INSERT_VALUE;
+  }
+#endif
+
   /* Execute TCKEYREQ now - it is now responsible for freeing
    * the KeyInfo and AttrInfo sections 
    */
   EXECUTE_DIRECT(DBTC, GSN_TCKEYREQ, signal, TcKeyReq::StaticLength);
   jamEntry();
-  
+
+#ifdef ERROR_INSERT
+  if (err8072)
+  {
+    SET_ERROR_INSERT_VALUE(8072);
+  }
+#endif
+
   if (unlikely(regApiPtr->apiConnectstate == CS_ABORTING))
   {
     // TODO : Presumably the abort cleans up the operation
@@ -14865,6 +15121,31 @@ void Dbtc::saveTriggeringOpState(Signal* signal, TcConnectRecord* trigOp)
                 LqhKeyConf::SignalLength);  
 }
 
+void
+Dbtc::trigger_op_finished(Signal* signal, ApiConnectRecordPtr regApiPtr,
+                          TcConnectRecord* triggeringOp)
+{
+  if (!regApiPtr.p->isExecutingDeferredTriggers())
+  {
+    ndbassert(triggeringOp->triggerExecutionCount > 0);
+    triggeringOp->triggerExecutionCount--;
+    if (triggeringOp->triggerExecutionCount == 0)
+    {
+      /**
+       * We have completed current trigger execution
+       * Continue triggering operation
+       */
+      jam();
+      continueTriggeringOp(signal, triggeringOp);
+    }
+  }
+  else
+  {
+    jam();
+    lqhKeyConf_checkTransactionState(signal, regApiPtr);
+  }
+}
+
 void Dbtc::continueTriggeringOp(Signal* signal, TcConnectRecord* trigOp)
 {
   LqhKeyConf * lqhKeyConf = (LqhKeyConf *)signal->getDataPtr();
@@ -14872,23 +15153,14 @@ void Dbtc::continueTriggeringOp(Signal* signal, TcConnectRecord* trigOp)
                 (UintR*)lqhKeyConf,
 		LqhKeyConf::SignalLength);
 
+  ndbassert(trigOp->savedState[LqhKeyConf::SignalLength-1] != ~Uint32(0));
+  trigOp->savedState[LqhKeyConf::SignalLength-1] = ~Uint32(0);
+
   lqhKeyConf->noFiredTriggers = 0;
   trigOp->noReceivedTriggers = 0;
 
   // All triggers executed successfully, continue operation
   execLQHKEYCONF(signal);
-}
-
-void Dbtc::scheduleFiredTrigger(ApiConnectRecordPtr* transPtr,
-                                TcConnectRecordPtr* opPtr)
-{
-  // Set initial values for trigger fireing operation
-  opPtr->p->triggerExecutionCount++;
-
-  // Insert fired trigger in execution queue
-  transPtr->p->theFiredTriggers.add(opPtr->p->accumulatingTriggerData);
-  opPtr->p->accumulatingTriggerData.i = RNIL;
-  opPtr->p->accumulatingTriggerData.p = NULL;
 }
 
 void Dbtc::executeTriggers(Signal* signal, ApiConnectRecordPtr* transPtr)
@@ -14901,7 +15173,10 @@ void Dbtc::executeTriggers(Signal* signal, ApiConnectRecordPtr* transPtr)
   if (!regApiPtr->theFiredTriggers.isEmpty()) {
     jam();
     if ((regApiPtr->apiConnectstate == CS_STARTED) ||
-        (regApiPtr->apiConnectstate == CS_START_COMMITTING)) {
+        (regApiPtr->apiConnectstate == CS_START_COMMITTING) ||
+        (regApiPtr->apiConnectstate == CS_SEND_FIRE_TRIG_REQ) ||
+        (regApiPtr->apiConnectstate == CS_WAIT_FIRE_TRIG_REQ))
+    {
       jam();
       regApiPtr->theFiredTriggers.first(trigPtr);
       while (trigPtr.i != RNIL) {
@@ -14911,7 +15186,8 @@ void Dbtc::executeTriggers(Signal* signal, ApiConnectRecordPtr* transPtr)
         ptrCheckGuard(opPtr, ctcConnectFilesize, localTcConnectRecord);
 	FiredTriggerPtr nextTrigPtr = trigPtr;
 	regApiPtr->theFiredTriggers.next(nextTrigPtr);
-        if (opPtr.p->noReceivedTriggers == opPtr.p->noFiredTriggers) {
+        if (opPtr.p->noReceivedTriggers == opPtr.p->noFiredTriggers ||
+            regApiPtr->isExecutingDeferredTriggers()) {
           jam();
           // Fireing operation is ready to have a trigger executing
           executeTrigger(signal, trigPtr.p, transPtr, &opPtr);
@@ -14944,9 +15220,11 @@ void Dbtc::executeTriggers(Signal* signal, ApiConnectRecordPtr* transPtr)
       {
         // Wait until transaction is ready to execute a trigger
         jam();
-        if (!regApiPtr->triggerPending) {
+        if (!tc_testbit(regApiPtr->m_flags,
+                        ApiConnectRecord::TF_TRIGGER_PENDING))
+        {
           jam();
-          regApiPtr->triggerPending = true;
+          regApiPtr->m_flags |= ApiConnectRecord::TF_TRIGGER_PENDING;
           signal->theData[0] = TcContinueB::TRIGGER_PENDING;
           signal->theData[1] = transPtr->i;
           signal->theData[2] = regApiPtr->transid[0];
@@ -14978,6 +15256,7 @@ void Dbtc::executeTrigger(Signal* signal,
        c_theDefinedTriggers.getPtr(firedTriggerData->triggerId)) 
       != NULL)
   {
+    transPtr->p->pendingTriggers--;
     switch(firedTriggerData->triggerType) {
     case(TriggerType::SECONDARY_INDEX):
       jam();
@@ -15017,8 +15296,8 @@ void Dbtc::executeIndexTrigger(Signal* signal,
   }
   case(TriggerEvent::TE_UPDATE): {
     jam();
-    deleteFromIndexTable(signal, firedTriggerData, transPtr, opPtr, 
-			 indexData, true); // Hold the triggering operation
+    opPtr->p->triggerExecutionCount++; // One is already added...and this is 2
+    deleteFromIndexTable(signal, firedTriggerData, transPtr, opPtr, indexData);
     insertIntoIndexTable(signal, firedTriggerData, transPtr, opPtr, indexData);
     break;
   }
@@ -15141,8 +15420,7 @@ void Dbtc::insertIntoIndexTable(Signal* signal,
                                 TcFiredTriggerData* firedTriggerData, 
                                 ApiConnectRecordPtr* transPtr,
                                 TcConnectRecordPtr* opPtr,
-                                TcIndexData* indexData,
-                                bool holdOperation)
+                                TcIndexData* indexData)
 {
   ApiConnectRecord* regApiPtr = transPtr->p;
   TcConnectRecord* opRecord = opPtr->p;
@@ -15156,10 +15434,6 @@ void Dbtc::insertIntoIndexTable(Signal* signal,
   ptrCheckGuard(indexTabPtr, ctabrecFilesize, tableRecord);
   tcKeyReq->apiConnectPtr = transPtr->i;
   tcKeyReq->senderData = opPtr->i;
-  if (holdOperation) {
-    jam();
-    opRecord->triggerExecutionCount++;
-  }//if
 
   /* Key for insert to unique index table is the afterValues from the
    * base table operation (from update or insert on base).
@@ -15171,6 +15445,15 @@ void Dbtc::insertIntoIndexTable(Signal* signal,
   AttributeBuffer::DataBufferPool & pool = c_theAttributeBufferPool;
   LocalDataBuffer<11> afterValues(pool, firedTriggerData->afterValues);
   LocalDataBuffer<11> keyValues(pool, firedTriggerData->keyValues);
+
+  if (afterValues.getSize() == 0)
+  {
+    jam();
+    ndbrequire(tc_testbit(regApiPtr->m_flags,
+                          ApiConnectRecord::TF_DEFERRED_CONSTRAINTS));
+    trigger_op_finished(signal, *transPtr, opRecord);
+    return;
+  }
 
   Uint32 keyIVal= RNIL;
   Uint32 attrIVal= RNIL;
@@ -15204,15 +15487,7 @@ void Dbtc::insertIntoIndexTable(Signal* signal,
     {
       jam();
       releaseSection(keyIVal);
-      opRecord->triggerExecutionCount--;
-      if (opRecord->triggerExecutionCount == 0) {
-        /*
-          We have completed current trigger execution
-          Continue triggering operation
-        */
-        jam();
-        continueTriggeringOp(signal, opRecord);	
-      }//if
+      trigger_op_finished(signal, *transPtr, opRecord);
       return;
     }
     
@@ -15306,8 +15581,7 @@ void Dbtc::deleteFromIndexTable(Signal* signal,
                                 TcFiredTriggerData* firedTriggerData, 
                                 ApiConnectRecordPtr* transPtr,
                                 TcConnectRecordPtr* opPtr,
-                                TcIndexData* indexData,
-                                bool holdOperation)
+                                TcIndexData* indexData)
 {
   ApiConnectRecord* regApiPtr = transPtr->p;
   TcConnectRecord* opRecord = opPtr->p;
@@ -15319,10 +15593,7 @@ void Dbtc::deleteFromIndexTable(Signal* signal,
   ptrCheckGuard(indexTabPtr, ctabrecFilesize, tableRecord);
   tcKeyReq->apiConnectPtr = transPtr->i;
   tcKeyReq->senderData = opPtr->i;
-  if (holdOperation) {
-    jam();
-    opRecord->triggerExecutionCount++;
-  }//if
+
   // Calculate key length and renumber attribute id:s
   AttributeBuffer::DataBufferPool & pool = c_theAttributeBufferPool;
   LocalDataBuffer<11> beforeValues(pool, firedTriggerData->beforeValues);
@@ -15330,7 +15601,16 @@ void Dbtc::deleteFromIndexTable(Signal* signal,
   Uint32 keyIVal= RNIL;
   Uint32 attrId= 0;
   bool hasNull= false;
-  
+
+  if (beforeValues.getSize() == 0)
+  {
+    jam();
+    ndbrequire(tc_testbit(regApiPtr->m_flags,
+                          ApiConnectRecord::TF_DEFERRED_CONSTRAINTS));
+    trigger_op_finished(signal, *transPtr, opRecord);
+    return;
+  }
+
   /* Build Delete KeyInfo section from beforevalues */
   if (unlikely((! appendAttrDataToSection(keyIVal,
                                           beforeValues,
@@ -15352,15 +15632,7 @@ void Dbtc::deleteFromIndexTable(Signal* signal,
   {
     jam();
     releaseSection(keyIVal);
-    opRecord->triggerExecutionCount--;
-    if (opRecord->triggerExecutionCount == 0) {
-      /*
-        We have completed current trigger execution
-        Continue triggering operation
-      */
-      jam();
-      continueTriggeringOp(signal, opRecord);	
-    }//if
+    trigger_op_finished(signal, *transPtr, opRecord);
     return;
   }
 

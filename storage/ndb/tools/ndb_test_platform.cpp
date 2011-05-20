@@ -28,7 +28,7 @@ int test_snprintf(const char * fmt, int buf_sz, int result)
 {
   int ret;
   char buf[100];
-  ret = BaseString::snprintf(buf, buf_sz, fmt);
+  ret = BaseString::snprintf(buf, buf_sz, "%s", fmt);
   
   if(ret < 0)
   {

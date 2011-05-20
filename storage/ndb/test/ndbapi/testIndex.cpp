@@ -2612,7 +2612,7 @@ runBug56829(NDBT_Context* ctx, NDBT_Step* step)
         const NdbDictionary::Column* col = pTab->getColumn(j);
         if (col->getPrimaryKey() || calc.isUpdateCol(j))
           continue;
-        CHARSET_INFO* cs = col->getCharset();
+        //CHARSET_INFO* cs = col->getCharset();
         if (NdbSqlUtil::check_column_for_ordered_index(col->getType(), col->getCharset()) == 0)
         {
           ind.addColumn(*col);
@@ -2719,6 +2719,422 @@ runBug56829(NDBT_Context* ctx, NDBT_Step* step)
   return result;
 }
 
+#define CHK_RET_FAILED(x) if (!(x)) { ndbout_c("Failed on line: %u", __LINE__); return NDBT_FAILED; }
+
+int
+runBug12315582(NDBT_Context* ctx, NDBT_Step* step)
+{
+  const NdbDictionary::Table * pTab = ctx->getTab();
+  Ndb* pNdb = GETNDB(step);
+  NdbDictionary::Dictionary * dict = pNdb->getDictionary();
+
+  const NdbDictionary::Index* pIdx= dict->getIndex(pkIdxName, pTab->getName());
+  CHK_RET_FAILED(pIdx != 0);
+
+  const NdbRecord * pRowRecord = pTab->getDefaultRecord();
+  CHK_RET_FAILED(pRowRecord != 0);
+  const NdbRecord * pIdxRecord = pIdx->getDefaultRecord();
+  CHK_RET_FAILED(pIdxRecord != 0);
+
+  const Uint32 len = NdbDictionary::getRecordRowLength(pRowRecord);
+  Uint8 * pRow = new Uint8[len];
+  bzero(pRow, len);
+
+  HugoCalculator calc(* pTab);
+  calc.equalForRow(pRow, pRowRecord, 0);
+
+  NdbTransaction* pTrans = pNdb->startTransaction();
+  CHK_RET_FAILED(pTrans != 0);
+
+  const NdbOperation * pOp[2] = { 0, 0 };
+  for (Uint32 i = 0; i<2; i++)
+  {
+    NdbInterpretedCode code;
+    if (i == 0)
+      code.interpret_exit_ok();
+    else
+      code.interpret_exit_nok();
+
+    code.finalise();
+
+    NdbOperation::OperationOptions opts;
+    bzero(&opts, sizeof(opts));
+    opts.optionsPresent = NdbOperation::OperationOptions::OO_INTERPRETED;
+    opts.interpretedCode = &code;
+
+    pOp[i] = pTrans->readTuple(pIdxRecord, (char*)pRow,
+                               pRowRecord, (char*)pRow,
+                               NdbOperation::LM_Read,
+                               0,
+                               &opts,
+                               sizeof(opts));
+    CHK_RET_FAILED(pOp[i]);
+  }
+
+  int res = pTrans->execute(Commit, AO_IgnoreError);
+
+  CHK_RET_FAILED(res == 0);
+  CHK_RET_FAILED(pOp[0]->getNdbError().code == 0);
+  CHK_RET_FAILED(pOp[1]->getNdbError().code != 0);
+
+  delete [] pRow;
+
+  return NDBT_OK;
+}
+
+int
+runBug60851(NDBT_Context* ctx, NDBT_Step* step)
+{
+  const NdbDictionary::Table * pTab = ctx->getTab();
+  Ndb* pNdb = GETNDB(step);
+  NdbDictionary::Dictionary * dict = pNdb->getDictionary();
+
+  const NdbDictionary::Index* pIdx= dict->getIndex(pkIdxName, pTab->getName());
+  CHK_RET_FAILED(pIdx != 0);
+
+  const NdbRecord * pRowRecord = pTab->getDefaultRecord();
+  CHK_RET_FAILED(pRowRecord != 0);
+  const NdbRecord * pIdxRecord = pIdx->getDefaultRecord();
+  CHK_RET_FAILED(pIdxRecord != 0);
+
+  const Uint32 len = NdbDictionary::getRecordRowLength(pRowRecord);
+  Uint8 * pRow = new Uint8[len];
+
+  NdbTransaction* pTrans = pNdb->startTransaction();
+  CHK_RET_FAILED(pTrans != 0);
+
+  const NdbOperation * pOp[3] = { 0, 0, 0};
+  for (Uint32 i = 0; i<3; i++)
+  {
+    NdbInterpretedCode code;
+    if (i == 1)
+      code.interpret_exit_nok();
+    else
+      code.interpret_exit_ok();
+
+    code.finalise();
+
+    bzero(pRow, len);
+    HugoCalculator calc(* pTab);
+    calc.equalForRow(pRow, pRowRecord, i);
+
+    NdbOperation::OperationOptions opts;
+    bzero(&opts, sizeof(opts));
+    opts.optionsPresent = NdbOperation::OperationOptions::OO_INTERPRETED;
+    opts.interpretedCode = &code;
+
+    pOp[i] = pTrans->deleteTuple(pIdxRecord, (char*)pRow,
+                                 pRowRecord, (char*)pRow,
+                                 0,
+                                 &opts,
+                                 sizeof(opts));
+    CHK_RET_FAILED(pOp[i]);
+  }
+
+  int res = pTrans->execute(Commit, AO_IgnoreError);
+
+  CHK_RET_FAILED(res == 0);
+  CHK_RET_FAILED(pOp[0]->getNdbError().code == 0);
+  CHK_RET_FAILED(pOp[1]->getNdbError().code != 0);
+  CHK_RET_FAILED(pOp[2]->getNdbError().code == 0);
+
+  delete [] pRow;
+
+  return NDBT_OK;
+}
+
+static
+const int
+deferred_errors[] = {
+  5064, 0,
+  5065, 0,
+  5066, 0,
+  5067, 0,
+  5068, 0,
+  5069, 0,
+  5070, 0,
+  5071, 0,
+  5072, 1,
+  8090, 0,
+  8091, 0,
+  8092, 2, // connected tc
+  0, 0 // trailer
+};
+
+int
+runTestDeferredError(NDBT_Context* ctx, NDBT_Step* step)
+{
+  NdbRestarter res;
+  Ndb* pNdb = GETNDB(step);
+  const NdbDictionary::Table* pTab = ctx->getTab();
+
+  const int rows = ctx->getNumRecords();
+
+  const NdbRecord * pRowRecord = pTab->getDefaultRecord();
+  CHK_RET_FAILED(pRowRecord != 0);
+
+  const Uint32 len = NdbDictionary::getRecordRowLength(pRowRecord);
+  Uint8 * pRow = new Uint8[len];
+
+  for (int i = 0; deferred_errors[i] != 0; i += 2)
+  {
+    const int errorno = deferred_errors[i];
+    const int nodefail = deferred_errors[i+1];
+
+    for (int j = 0; j<3; j++)
+    {
+      NdbTransaction* pTrans = pNdb->startTransaction();
+      CHK_RET_FAILED(pTrans != 0);
+
+      int nodeId =
+        nodefail == 0 ? 0 :
+        nodefail == 1 ? res.getNode(NdbRestarter::NS_RANDOM) :
+        nodefail == 2 ? pTrans->getConnectedNodeId() :
+        0;
+
+      ndbout_c("errorno: %u(nf: %u - %u) j: %u : %s", errorno,
+               nodefail, nodeId, j,
+               j == 0 ? "test before error insert" :
+               j == 1 ? "test with error insert" :
+               j == 2 ? "test after error insert" :
+               "");
+      if (j == 0 || j == 2)
+      {
+        // First time succeed
+        // Last time succeed
+      }
+      else if (nodefail == 0)
+      {
+        CHK_RET_FAILED(res.insertErrorInAllNodes(errorno) == 0);
+      }
+      else
+      {
+        int val2[] = { DumpStateOrd::CmvmiSetRestartOnErrorInsert, 1 };
+        CHK_RET_FAILED(res.dumpStateOneNode(nodeId, val2, 2) == 0);
+        CHK_RET_FAILED(res.insertErrorInNode(nodeId, errorno) == 0);
+      }
+
+      for (int rowNo = 0; rowNo < 100; rowNo++)
+      {
+        int rowId = rand() % rows;
+        bzero(pRow, len);
+
+        HugoCalculator calc(* pTab);
+        calc.setValues(pRow, pRowRecord, rowId, rand());
+
+        NdbOperation::OperationOptions opts;
+        bzero(&opts, sizeof(opts));
+        opts.optionsPresent =
+          NdbOperation::OperationOptions::OO_DEFERRED_CONSTAINTS;
+
+        const NdbOperation * pOp = pTrans->updateTuple(pRowRecord, (char*)pRow,
+                                                       pRowRecord, (char*)pRow,
+                                                       0,
+                                                       &opts,
+                                                       sizeof(opts));
+        CHK_RET_FAILED(pOp != 0);
+      }
+
+      int result = pTrans->execute(Commit, AO_IgnoreError);
+      if (j == 0 || j == 2)
+      {
+        CHK_RET_FAILED(result == 0);
+      }
+      else
+      {
+        CHK_RET_FAILED(result != 0);
+      }
+      pTrans->close();
+
+
+      if (j == 0 || j == 2)
+      {
+      }
+      else
+      {
+        if (nodefail)
+        {
+          ndbout_c("  waiting for %u to enter not-started", nodeId);
+          // Wait for a node to enter not-started
+          CHK_RET_FAILED(res.waitNodesNoStart(&nodeId, 1) == 0);
+
+          ndbout_c("  starting all");
+          CHK_RET_FAILED(res.startAll() == 0);
+          ndbout_c("  wait cluster started");
+          CHK_RET_FAILED(res.waitClusterStarted() == 0);
+          ndbout_c("  cluster started");
+        }
+        CHK_RET_FAILED(res.insertErrorInAllNodes(0) == 0);
+      }
+    }
+  }
+
+  delete [] pRow;
+
+  return NDBT_OK;
+}
+
+int
+runMixedDML(NDBT_Context* ctx, NDBT_Step* step)
+{
+  Ndb* pNdb = GETNDB(step);
+  const NdbDictionary::Table* pTab = ctx->getTab();
+
+  unsigned seed = (unsigned)NdbTick_CurrentMillisecond();
+
+  const int rows = ctx->getNumRecords();
+  const int loops = 10 * ctx->getNumLoops();
+  const int until_stopped = ctx->getProperty("UntilStopped");
+  const int deferred = ctx->getProperty("Deferred");
+  const int batch = ctx->getProperty("Batch", Uint32(50));
+
+  const NdbRecord * pRowRecord = pTab->getDefaultRecord();
+  CHK_RET_FAILED(pRowRecord != 0);
+
+  const Uint32 len = NdbDictionary::getRecordRowLength(pRowRecord);
+  Uint8 * pRow = new Uint8[len];
+
+  int count_ok = 0;
+  int count_failed = 0;
+  for (int i = 0; i < loops || (until_stopped && !ctx->isTestStopped()); i++)
+  {
+    NdbTransaction* pTrans = pNdb->startTransaction();
+    CHK_RET_FAILED(pTrans != 0);
+
+    int lastrow = 0;
+    int result = 0;
+    for (int rowNo = 0; rowNo < batch; rowNo++)
+    {
+      int left = rows - lastrow;
+      int rowId = lastrow;
+      if (left)
+      {
+        rowId += ndb_rand_r(&seed) % (left / 10 + 1);
+      }
+      else
+      {
+        break;
+      }
+      lastrow = rowId;
+
+      bzero(pRow, len);
+
+      HugoCalculator calc(* pTab);
+      calc.setValues(pRow, pRowRecord, rowId, rand());
+
+      NdbOperation::OperationOptions opts;
+      bzero(&opts, sizeof(opts));
+      if (deferred)
+      {
+        opts.optionsPresent =
+          NdbOperation::OperationOptions::OO_DEFERRED_CONSTAINTS;
+      }
+
+      const NdbOperation* pOp = 0;
+      switch(ndb_rand_r(&seed) % 3){
+      case 0:
+        pOp = pTrans->writeTuple(pRowRecord, (char*)pRow,
+                                 pRowRecord, (char*)pRow,
+                                 0,
+                                 &opts,
+                                 sizeof(opts));
+        break;
+      case 1:
+        pOp = pTrans->deleteTuple(pRowRecord, (char*)pRow,
+                                  pRowRecord, (char*)pRow,
+                                  0,
+                                  &opts,
+                                  sizeof(opts));
+        break;
+      case 2:
+        pOp = pTrans->updateTuple(pRowRecord, (char*)pRow,
+                                  pRowRecord, (char*)pRow,
+                                  0,
+                                  &opts,
+                                  sizeof(opts));
+        break;
+      }
+      CHK_RET_FAILED(pOp != 0);
+      result = pTrans->execute(NoCommit, AO_IgnoreError);
+      if (result != 0)
+      {
+        goto found_error;
+      }
+    }
+
+    result = pTrans->execute(Commit, AO_IgnoreError);
+    if (result != 0)
+    {
+  found_error:
+      count_failed++;
+      NdbError err = pTrans->getNdbError();
+      ndbout << err << endl;
+      CHK_RET_FAILED(err.code == 1235 ||
+                     err.code == 1236 ||
+                     err.code == 5066 ||
+                     err.status == NdbError::TemporaryError ||
+                     err.classification == NdbError::NoDataFound ||
+                     err.classification == NdbError::ConstraintViolation);
+    }
+    else
+    {
+      count_ok++;
+    }
+    pTrans->close();
+  }
+
+  ndbout_c("count_ok: %d count_failed: %d",
+           count_ok, count_failed);
+  delete [] pRow;
+
+  return NDBT_OK;
+}
+
+int
+runDeferredError(NDBT_Context* ctx, NDBT_Step* step)
+{
+  NdbRestarter res;
+
+  for (int l = 0; l<ctx->getNumLoops() && !ctx->isTestStopped(); l++)
+  {
+    for (int i = 0; deferred_errors[i] != 0 && !ctx->isTestStopped(); i += 2)
+    {
+      const int errorno = deferred_errors[i];
+      const int nodefail = deferred_errors[i+1];
+
+      int nodeId = res.getNode(NdbRestarter::NS_RANDOM);
+
+      ndbout_c("errorno: %u (nf: %u - %u)",
+               errorno,
+               nodefail, nodeId);
+
+      if (nodefail == 0)
+      {
+        CHK_RET_FAILED(res.insertErrorInNode(nodeId, errorno) == 0);
+        NdbSleep_MilliSleep(300);
+        CHK_RET_FAILED(res.insertErrorInNode(nodeId, errorno) == 0);
+      }
+      else
+      {
+        int val2[] = { DumpStateOrd::CmvmiSetRestartOnErrorInsert, 1 };
+        CHK_RET_FAILED(res.dumpStateOneNode(nodeId, val2, 2) == 0);
+        CHK_RET_FAILED(res.insertErrorInNode(nodeId, errorno) == 0);
+        ndbout_c("  waiting for %u to enter not-started", nodeId);
+        // Wait for a node to enter not-started
+        CHK_RET_FAILED(res.waitNodesNoStart(&nodeId, 1) == 0);
+
+        ndbout_c("  starting all");
+        CHK_RET_FAILED(res.startAll() == 0);
+        ndbout_c("  wait cluster started");
+        CHK_RET_FAILED(res.waitClusterStarted() == 0);
+        ndbout_c("  cluster started");
+      }
+    }
+  }
+
+  ctx->stopTest();
+  return NDBT_OK;
+}
 
 NDBT_TESTSUITE(testIndex);
 TESTCASE("CreateAll", 
@@ -3120,12 +3536,89 @@ TESTCASE("FireTrigOverload", ""){
   FINALIZER(runClearError);
   FINALIZER(createRandomIndex_Drop);
 }
+TESTCASE("DeferredError",
+         "Test with deferred unique index handling and error inserts")
+{
+  TC_PROPERTY("LoggedIndexes", Uint32(0));
+  TC_PROPERTY("OrderedIndex", Uint32(0));
+  INITIALIZER(createPkIndex);
+  INITIALIZER(runLoadTable);
+  STEP(runTestDeferredError);
+  FINALIZER(createPkIndex_Drop);
+}
+TESTCASE("DeferredMixedLoad",
+         "Test mixed load of DML with deferred indexes")
+{
+  TC_PROPERTY("LoggedIndexes", Uint32(0));
+  TC_PROPERTY("OrderedIndex", Uint32(0));
+  TC_PROPERTY("UntilStopped", Uint32(0));
+  TC_PROPERTY("Deferred", Uint32(1));
+  INITIALIZER(createPkIndex);
+  INITIALIZER(runLoadTable);
+  STEPS(runMixedDML, 10);
+  FINALIZER(createPkIndex_Drop);
+}
+TESTCASE("DeferredMixedLoadError",
+         "Test mixed load of DML with deferred indexes")
+{
+  TC_PROPERTY("LoggedIndexes", Uint32(0));
+  TC_PROPERTY("OrderedIndex", Uint32(0));
+  TC_PROPERTY("UntilStopped", Uint32(1));
+  TC_PROPERTY("Deferred", Uint32(1));
+  INITIALIZER(createPkIndex);
+  INITIALIZER(runLoadTable);
+  STEPS(runMixedDML, 4);
+  STEP(runDeferredError);
+  FINALIZER(createPkIndex_Drop);
+}
+TESTCASE("NF_DeferredMixed",
+         "Test mixed load of DML with deferred indexes")
+{
+  TC_PROPERTY("LoggedIndexes", Uint32(0));
+  TC_PROPERTY("OrderedIndex", Uint32(0));
+  TC_PROPERTY("UntilStopped", Uint32(1));
+  TC_PROPERTY("Deferred", Uint32(1));
+  INITIALIZER(createPkIndex);
+  INITIALIZER(runLoadTable);
+  STEPS(runMixedDML, 4);
+  STEP(runRestarts);
+  FINALIZER(createPkIndex_Drop);
+}
+TESTCASE("NF_Mixed",
+         "Test mixed load of DML")
+{
+  TC_PROPERTY("LoggedIndexes", Uint32(0));
+  TC_PROPERTY("OrderedIndex", Uint32(0));
+  TC_PROPERTY("UntilStopped", Uint32(1));
+  INITIALIZER(createPkIndex);
+  INITIALIZER(runLoadTable);
+  STEPS(runMixedDML, 4);
+  STEP(runRestarts);
+  FINALIZER(createPkIndex_Drop);
+}
 TESTCASE("Bug56829",
          "Return empty ordered index nodes to index fragment "
          "so that empty fragment pages can be freed"){
   STEP(runBug56829);
 }
-  
+TESTCASE("Bug12315582", "")
+{
+  TC_PROPERTY("LoggedIndexes", Uint32(0));
+  TC_PROPERTY("OrderedIndex", Uint32(0));
+  INITIALIZER(createPkIndex);
+  INITIALIZER(runLoadTable);
+  INITIALIZER(runBug12315582);
+  FINALIZER(createPkIndex_Drop);
+}
+TESTCASE("Bug60851", "")
+{
+  TC_PROPERTY("LoggedIndexes", Uint32(0));
+  TC_PROPERTY("OrderedIndex", Uint32(0));
+  INITIALIZER(createPkIndex);
+  INITIALIZER(runLoadTable);
+  INITIALIZER(runBug60851);
+  FINALIZER(createPkIndex_Drop);
+}
 NDBT_TESTSUITE_END(testIndex);
 
 int main(int argc, const char** argv){

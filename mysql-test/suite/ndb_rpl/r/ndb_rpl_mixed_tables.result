@@ -1,0 +1,283 @@
+==== Initialization ====
+include/master-slave.inc
+[connection master]
+---- setup master ----
+CREATE TABLE myisam_innodb (a INT) ENGINE=MYISAM;
+CREATE TABLE innodb_myisam (a INT) ENGINE=INNODB;
+CREATE TABLE myisam_ndb    (a INT) ENGINE=MYISAM;
+CREATE TABLE ndb_myisam    (a INT) ENGINE=NDB;
+CREATE TABLE innodb_ndb    (a INT) ENGINE=INNODB;
+CREATE TABLE ndb_innodb    (a INT) ENGINE=NDB;
+SHOW CREATE TABLE myisam_innodb;
+Table	Create Table
+myisam_innodb	CREATE TABLE `myisam_innodb` (
+  `a` int(11) DEFAULT NULL
+) ENGINE=MyISAM DEFAULT CHARSET=latin1
+SHOW CREATE TABLE innodb_myisam;
+Table	Create Table
+innodb_myisam	CREATE TABLE `innodb_myisam` (
+  `a` int(11) DEFAULT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=latin1
+SHOW CREATE TABLE myisam_ndb;
+Table	Create Table
+myisam_ndb	CREATE TABLE `myisam_ndb` (
+  `a` int(11) DEFAULT NULL
+) ENGINE=MyISAM DEFAULT CHARSET=latin1
+SHOW CREATE TABLE ndb_myisam;
+Table	Create Table
+ndb_myisam	CREATE TABLE `ndb_myisam` (
+  `a` int(11) DEFAULT NULL
+) ENGINE=ndbcluster DEFAULT CHARSET=latin1
+SHOW CREATE TABLE innodb_ndb;
+Table	Create Table
+innodb_ndb	CREATE TABLE `innodb_ndb` (
+  `a` int(11) DEFAULT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=latin1
+SHOW CREATE TABLE ndb_innodb;
+Table	Create Table
+ndb_innodb	CREATE TABLE `ndb_innodb` (
+  `a` int(11) DEFAULT NULL
+) ENGINE=ndbcluster DEFAULT CHARSET=latin1
+---- setup slave with different engines ----
+DROP TABLE myisam_innodb, innodb_myisam;
+DROP TABLE myisam_ndb, ndb_myisam;
+DROP TABLE innodb_ndb, ndb_innodb;
+CREATE TABLE myisam_innodb (a INT) ENGINE=INNODB;
+CREATE TABLE innodb_myisam (a INT) ENGINE=MYISAM;
+CREATE TABLE myisam_ndb    (a INT) ENGINE=NDB;
+CREATE TABLE ndb_myisam    (a INT) ENGINE=MYISAM;
+CREATE TABLE innodb_ndb    (a INT) ENGINE=NDB;
+CREATE TABLE ndb_innodb    (a INT) ENGINE=INNODB;
+SHOW CREATE TABLE myisam_innodb;
+Table	Create Table
+myisam_innodb	CREATE TABLE `myisam_innodb` (
+  `a` int(11) DEFAULT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=latin1
+SHOW CREATE TABLE innodb_myisam;
+Table	Create Table
+innodb_myisam	CREATE TABLE `innodb_myisam` (
+  `a` int(11) DEFAULT NULL
+) ENGINE=MyISAM DEFAULT CHARSET=latin1
+SHOW CREATE TABLE myisam_ndb;
+Table	Create Table
+myisam_ndb	CREATE TABLE `myisam_ndb` (
+  `a` int(11) DEFAULT NULL
+) ENGINE=ndbcluster DEFAULT CHARSET=latin1
+SHOW CREATE TABLE ndb_myisam;
+Table	Create Table
+ndb_myisam	CREATE TABLE `ndb_myisam` (
+  `a` int(11) DEFAULT NULL
+) ENGINE=MyISAM DEFAULT CHARSET=latin1
+SHOW CREATE TABLE innodb_ndb;
+Table	Create Table
+innodb_ndb	CREATE TABLE `innodb_ndb` (
+  `a` int(11) DEFAULT NULL
+) ENGINE=ndbcluster DEFAULT CHARSET=latin1
+SHOW CREATE TABLE ndb_innodb;
+Table	Create Table
+ndb_innodb	CREATE TABLE `ndb_innodb` (
+  `a` int(11) DEFAULT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=latin1
+==== AUTOCOMMIT=0, transactions ====
+---- COMMIT ----
+SET AUTOCOMMIT = 0;
+BEGIN;
+INSERT INTO myisam_innodb VALUES (1);
+INSERT INTO myisam_innodb VALUES (2);
+COMMIT;
+BEGIN;
+INSERT INTO innodb_myisam VALUES (3);
+INSERT INTO innodb_myisam VALUES (4);
+COMMIT;
+BEGIN;
+INSERT INTO myisam_ndb VALUES (5);
+INSERT INTO myisam_ndb VALUES (6);
+COMMIT;
+BEGIN;
+INSERT INTO ndb_myisam VALUES (7);
+INSERT INTO ndb_myisam VALUES (8);
+COMMIT;
+BEGIN;
+INSERT INTO ndb_innodb VALUES (9);
+INSERT INTO ndb_innodb VALUES (10);
+COMMIT;
+BEGIN;
+INSERT INTO innodb_ndb VALUES (11);
+INSERT INTO innodb_ndb VALUES (12);
+COMMIT;
+---- ROLLBACK ----
+BEGIN;
+INSERT INTO myisam_innodb VALUES (13);
+INSERT INTO myisam_innodb VALUES (14);
+ROLLBACK;
+Warnings:
+Warning	1196	Some non-transactional changed tables couldn't be rolled back
+BEGIN;
+INSERT INTO innodb_myisam VALUES (15);
+INSERT INTO innodb_myisam VALUES (16);
+ROLLBACK;
+BEGIN;
+INSERT INTO myisam_ndb VALUES (17);
+INSERT INTO myisam_ndb VALUES (18);
+ROLLBACK;
+Warnings:
+Warning	1196	Some non-transactional changed tables couldn't be rolled back
+BEGIN;
+INSERT INTO ndb_myisam VALUES (19);
+INSERT INTO ndb_myisam VALUES (20);
+ROLLBACK;
+BEGIN;
+INSERT INTO ndb_innodb VALUES (21);
+INSERT INTO ndb_innodb VALUES (22);
+ROLLBACK;
+BEGIN;
+INSERT INTO innodb_ndb VALUES (23);
+INSERT INTO innodb_ndb VALUES (24);
+ROLLBACK;
+==== AUTOCOMMIT=1, transactions ====
+---- COMMIT ----
+SET AUTOCOMMIT = 1;
+BEGIN;
+INSERT INTO myisam_innodb VALUES (25);
+INSERT INTO myisam_innodb VALUES (26);
+COMMIT;
+BEGIN;
+INSERT INTO innodb_myisam VALUES (27);
+INSERT INTO innodb_myisam VALUES (28);
+COMMIT;
+BEGIN;
+INSERT INTO myisam_ndb VALUES (29);
+INSERT INTO myisam_ndb VALUES (30);
+COMMIT;
+BEGIN;
+INSERT INTO ndb_myisam VALUES (31);
+INSERT INTO ndb_myisam VALUES (32);
+COMMIT;
+BEGIN;
+INSERT INTO ndb_innodb VALUES (33);
+INSERT INTO ndb_innodb VALUES (34);
+COMMIT;
+BEGIN;
+INSERT INTO innodb_ndb VALUES (35);
+INSERT INTO innodb_ndb VALUES (36);
+COMMIT;
+---- ROLLBACK ----
+BEGIN;
+INSERT INTO myisam_innodb VALUES (37);
+INSERT INTO myisam_innodb VALUES (38);
+ROLLBACK;
+Warnings:
+Warning	1196	Some non-transactional changed tables couldn't be rolled back
+BEGIN;
+INSERT INTO innodb_myisam VALUES (39);
+INSERT INTO innodb_myisam VALUES (40);
+ROLLBACK;
+BEGIN;
+INSERT INTO myisam_ndb VALUES (41);
+INSERT INTO myisam_ndb VALUES (42);
+ROLLBACK;
+Warnings:
+Warning	1196	Some non-transactional changed tables couldn't be rolled back
+BEGIN;
+INSERT INTO ndb_myisam VALUES (43);
+INSERT INTO ndb_myisam VALUES (44);
+ROLLBACK;
+BEGIN;
+INSERT INTO ndb_innodb VALUES (45);
+INSERT INTO ndb_innodb VALUES (46);
+ROLLBACK;
+BEGIN;
+INSERT INTO innodb_ndb VALUES (47);
+INSERT INTO innodb_ndb VALUES (48);
+ROLLBACK;
+==== AUTOCOMMIT=1, single statements ====
+INSERT INTO myisam_innodb VALUES (49);
+INSERT INTO myisam_innodb VALUES (50);
+INSERT INTO innodb_myisam VALUES (51);
+INSERT INTO innodb_myisam VALUES (52);
+INSERT INTO myisam_ndb VALUES (53);
+INSERT INTO myisam_ndb VALUES (54);
+INSERT INTO ndb_myisam VALUES (55);
+INSERT INTO ndb_myisam VALUES (56);
+INSERT INTO ndb_innodb VALUES (57);
+INSERT INTO ndb_innodb VALUES (58);
+INSERT INTO innodb_ndb VALUES (59);
+INSERT INTO innodb_ndb VALUES (60);
+==== AUTOCOMMIT=0, single statements, myisam on master ====
+SET AUTOCOMMIT = 0;
+INSERT INTO myisam_innodb VALUES (61);
+INSERT INTO myisam_innodb VALUES (62);
+INSERT INTO myisam_ndb VALUES (63);
+INSERT INTO myisam_ndb VALUES (64);
+==== Show results ====
+SELECT * FROM myisam_innodb ORDER BY a;
+a
+1
+2
+13
+14
+25
+26
+37
+38
+49
+50
+61
+62
+SELECT * FROM innodb_myisam ORDER BY a;
+a
+3
+4
+27
+28
+51
+52
+SELECT * FROM myisam_ndb    ORDER BY a;
+a
+5
+6
+17
+18
+29
+30
+41
+42
+53
+54
+63
+64
+SELECT * FROM ndb_myisam    ORDER BY a;
+a
+7
+8
+31
+32
+55
+56
+SELECT * FROM innodb_ndb    ORDER BY a;
+a
+11
+12
+35
+36
+59
+60
+SELECT * FROM ndb_innodb    ORDER BY a;
+a
+9
+10
+33
+34
+57
+58
+include/diff_tables.inc [master:myisam_innodb, slave:myisam_innodb]
+include/diff_tables.inc [master:innodb_myisam, slave:innodb_myisam]
+include/diff_tables.inc [master:myisam_ndb, slave:myisam_ndb]
+include/diff_tables.inc [master:ndb_myisam, slave:ndb_myisam]
+include/diff_tables.inc [master:innodb_ndb, slave:innodb_ndb]
+include/diff_tables.inc [master:ndb_innodb, slave:ndb_innodb]
+==== Clean up ====
+drop table myisam_innodb, innodb_myisam;
+drop table myisam_ndb, ndb_myisam;
+drop table innodb_ndb, ndb_innodb;
+include/rpl_end.inc

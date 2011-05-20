@@ -1,0 +1,22 @@
+###########################################################
+# Author: Jeb
+# Date: 2009-04-10
+# Purpose: This is a simple test to ensure that mixed replication
+#          stays default for NDB replication due to Bug#40586.
+#          If this test starts failing, then the default has been
+#          changed and a bug needs to be opened to again
+#          set "MIXED" as default replication for NDB.
+##########################################################
+
+--source include/have_ndb.inc
+--source include/have_log_bin.inc
+--source suite/ndb_rpl/ndb_master-slave.inc
+
+disable_query_log;
+# so that both ROW and MIXED is output as MIXED
+# since both are exceptable valuse for NDB Replication
+-- replace_result ROW MIXED
+show variables like 'binlog_format';
+enable_query_log;
+
+--source include/rpl_end.inc

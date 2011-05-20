@@ -17,12 +17,14 @@
 
 
 #include <ndb_global.h>
+
 #include <my_base.h>
 #include <ndberror.h>
 #include <m_string.h>
 
 #include "../mgmsrv/ndb_mgmd_error.h"
 
+#include "NdbQueryBuilderImpl.hpp"
 
 typedef struct ErrorBundle {
   int code;
@@ -94,6 +96,7 @@ static const char* empty_string = "";
  * 4500 - ""
  * 4600 - ""
  * 4700 - "" Event
+ * 4800 - API, QueryBuilder
  * 5000 - Management server
  */
 
@@ -137,6 +140,7 @@ ErrorBundle ErrorCodes[] = {
     "Transaction was committed but all read information was not "
     "received due to node crash" },
   { 4119, DMEC, NR, "Simple/dirty read failed due to node failure" },
+  { 20016, DMEC, NR, "Query aborted due to node failure" },
   
   /**
    * Node shutdown
@@ -183,7 +187,7 @@ ErrorBundle ErrorCodes[] = {
   { 805,  DMEC, TR, "Out of attrinfo records in tuple manager" },
   { 830,  DMEC, TR, "Out of add fragment operation records" },
   { 873,  DMEC, TR, "Out of attrinfo records for scan in tuple manager" },
-  { 899,  DMEC, TR, "Rowid already allocated" },
+  { 899,  DMEC, IE, "Internal error: rowid already allocated" },
   { 1217, DMEC, TR, "Out of operation records in local data manager (increase MaxNoOfLocalOperations)" },
   { 1218, DMEC, TR, "Send Buffers overloaded in NDB kernel" },
   { 1220, DMEC, TR, "REDO log files overloaded (increase FragmentLogFileSize)" },
@@ -490,7 +494,7 @@ ErrorBundle ErrorCodes[] = {
 
   { 1300, DMEC, IE, "Undefined error" },
   { 1301, DMEC, IE, "Backup issued to not master (reissue command to master)" },
-  { 1302, DMEC, IE, "Out of backup record" },
+  { 1302, DMEC, AE, "A backup is already running" },
   { 1303, DMEC, IS, "Out of resources" },
   { 1304, DMEC, IE, "Sequence failure" },
   { 1305, DMEC, IE, "Backup definition not implemented" },
@@ -746,6 +750,59 @@ ErrorBundle ErrorCodes[] = {
   { 2810, DMEC, TR, "No space left on the device" },
   { 2811, DMEC, TR, "Error with file permissions, please check file system" },
   { 2815, DMEC, TR, "Error in reading files, please check file system" },
+
+  /**
+   * NdbQueryBuilder API errors
+   */
+  { QRY_REQ_ARG_IS_NULL, DMEC, AE, 
+    "Required argument is NULL" },
+  { QRY_TOO_FEW_KEY_VALUES, DMEC, AE, 
+    "All required 'key' values was not specified" },
+  { QRY_TOO_MANY_KEY_VALUES, DMEC, AE,
+    "Too many 'key' or 'bound' values was specified" },
+  { QRY_OPERAND_HAS_WRONG_TYPE, DMEC, AE, 
+    "Incompatible datatype specified in operand argument" },
+  { QRY_CHAR_OPERAND_TRUNCATED, DMEC, AE, 
+    "Character operand was right truncated" },
+  { QRY_NUM_OPERAND_RANGE, DMEC, AE, 
+    "Numeric operand out of range" },
+  { QRY_MULTIPLE_PARENTS, DMEC, AE, 
+    "Multiple 'parents' specified in linkedValues for this operation" },
+  { QRY_UNKONWN_PARENT, DMEC, AE, 
+    "Unknown 'parent' specified in linkedValue" },
+  { QRY_UNKNOWN_COLUMN, DMEC, AE, 
+    "Unknown 'column' specified in linkedValue" },
+  { QRY_UNRELATED_INDEX, DMEC, AE, 
+    "Specified 'index' does not belong to specified 'table'" },
+  { QRY_WRONG_INDEX_TYPE, DMEC, AE, 
+    "Wrong type of index specified for this operation"},
+  { QRY_OPERAND_ALREADY_BOUND, DMEC, AE, 
+    "Can't use same operand value to specify different column values" },
+  { QRY_DEFINITION_TOO_LARGE, DMEC, AE, 
+    "Query definition too large." },
+  { QRY_RESULT_ROW_ALREADY_DEFINED, DMEC, AE, 
+    "Result row already defined for NdbQueryOperation."},
+  { QRY_HAS_ZERO_OPERATIONS, DMEC, AE, 
+    "Query defintion should have at least one operation."},
+  { QRY_IN_ERROR_STATE, DMEC, AE, 
+    "A previous query operation failed, which you missed to catch."},
+  { QRY_ILLEGAL_STATE, DMEC, AE, 
+    "Query is in illegal state for this operation."},
+  { QRY_WRONG_OPERATION_TYPE, DMEC, AE, 
+    "This method cannot be invoked on this type of operation (lookup/scan/"
+    "index scan)."},
+  { QRY_SCAN_ORDER_ALREADY_SET, DMEC, AE, 
+    "Index scan order was already set in query definition."},
+  { QRY_PARAMETER_HAS_WRONG_TYPE, DMEC, AE, 
+    "Parameter value has an incompatible datatype" },
+  { QRY_CHAR_PARAMETER_TRUNCATED, DMEC, AE, 
+    "Character Parameter was right truncated" },
+  { QRY_MULTIPLE_SCAN_SORTED, DMEC, AE, 
+    "Query with multiple scans may not be sorted." },
+  { QRY_SEQUENTIAL_SCAN_SORTED, DMEC, AE, 
+    "Parallelism cannot be restricted for sorted scans." },
+  { QRY_BATCH_SIZE_TOO_SMALL, DMEC, AE, 
+    "Batch size for sub scan cannot be smaller than number of fragments." },
 
   { NO_CONTACT_WITH_PROCESS, DMEC, AE,
     "No contact with the process (dead ?)."},

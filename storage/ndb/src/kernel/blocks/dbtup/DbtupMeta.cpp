@@ -76,6 +76,9 @@ Dbtup::execCREATE_TAB_REQ(Signal* signal)
   memset(fragOperPtr.p->m_null_bits, 0, sizeof(fragOperPtr.p->m_null_bits));
   fragOperPtr.p->charsetIndex = 0;
   fragOperPtr.p->lqhBlockrefFrag = req->senderRef;
+  fragOperPtr.p->m_extra_row_gci_bits =
+    req->GCPIndicator > 1 ? req->GCPIndicator - 1 : 0;
+  fragOperPtr.p->m_extra_row_author_bits = req->extraRowAuthorBits;
 
   regTabPtr.p->m_createTable.m_fragOpPtrI = fragOperPtr.i;
   regTabPtr.p->m_createTable.defValSectionI = RNIL;
@@ -84,6 +87,9 @@ Dbtup::execCREATE_TAB_REQ(Signal* signal)
   regTabPtr.p->m_bits |= (req->checksumIndicator ? Tablerec::TR_Checksum : 0);
   regTabPtr.p->m_bits |= (req->GCPIndicator ? Tablerec::TR_RowGCI : 0);
   regTabPtr.p->m_bits |= (req->forceVarPartFlag? Tablerec::TR_ForceVarPart : 0);
+  regTabPtr.p->m_bits |=
+    (req->GCPIndicator > 1 ? Tablerec::TR_ExtraRowGCIBits : 0);
+  regTabPtr.p->m_bits |= (req->extraRowAuthorBits ? Tablerec::TR_ExtraRowAuthorBits : 0);
 
   regTabPtr.p->m_offsets[MM].m_disk_ref_offset= 0;
   regTabPtr.p->m_offsets[MM].m_null_words= 0;
@@ -118,12 +124,26 @@ Dbtup::execCREATE_TAB_REQ(Signal* signal)
   regTabPtr.p->m_no_of_attributes= req->noOfAttributes;
   regTabPtr.p->dynTabDescriptor[MM]= RNIL;
   regTabPtr.p->dynTabDescriptor[DD]= RNIL;
+  regTabPtr.p->m_no_of_extra_columns = 0;
+
+  if (regTabPtr.p->m_bits & Tablerec::TR_ExtraRowGCIBits)
+  {
+    jam();
+    regTabPtr.p->m_no_of_extra_columns++;
+  }
+
+  if (regTabPtr.p->m_bits & Tablerec::TR_ExtraRowAuthorBits)
+  {
+    jam();
+    regTabPtr.p->m_no_of_extra_columns++;
+  }
 
   {
     Uint32 offset[10];
     Uint32 allocSize= getTabDescrOffsets(req->noOfAttributes,
                                          req->noOfCharsets,
                                          req->noOfKeyAttr,
+                                         regTabPtr.p->m_no_of_extra_columns,
                                          offset);
     Uint32 tableDescriptorRef= allocTabDescr(allocSize);
     if (tableDescriptorRef == RNIL)
@@ -177,6 +197,8 @@ void Dbtup::execTUP_ADD_ATTRREQ(Signal* signal)
   ndbrequire(fragOperPtr.p->attributeCount > 0);
   fragOperPtr.p->attributeCount--;
   const bool lastAttr = (fragOperPtr.p->attributeCount == 0);
+
+  Uint32 extraAttrId = 0;
 
   Uint32 firstTabDesIndex= regTabPtr.p->tabDescriptor + (attrId * ZAD_SIZE);
   setTabDescrWord(firstTabDesIndex, attrDescriptor);
@@ -321,7 +343,71 @@ void Dbtup::execTUP_ADD_ATTRREQ(Signal* signal)
 	       signal, 2, JBB);
     return;
   }
-  
+
+  if (fragOperPtr.p->m_extra_row_gci_bits)
+  {
+    jam();
+
+    const Uint32 bits = fragOperPtr.p->m_extra_row_gci_bits;
+
+    /**
+     * Create attribute descriptor for extra row gci bits...
+     */
+    Uint32 desc = 0;
+    Uint32 off = 0;
+
+    AttributeDescriptor::setSize(desc, 0); // bit
+    AttributeDescriptor::setArraySize(desc, bits);
+    AttributeOffset::setNullFlagPos(off, fragOperPtr.p->m_null_bits[MM]);
+    fragOperPtr.p->m_null_bits[MM] += bits;
+
+    if (fragOperPtr.p->m_null_bits[MM] > AO_NULL_FLAG_POS_MASK)
+    {
+      jam();
+      terrorCode = ZTOO_MANY_BITS_ERROR;
+      goto error;
+    }
+
+    Uint32 idx = regTabPtr.p->tabDescriptor;
+    idx += ZAD_SIZE * (regTabPtr.p->m_no_of_attributes + extraAttrId);
+    setTabDescrWord(idx, desc);
+    setTabDescrWord(idx + 1, off);
+
+    extraAttrId++;
+  }
+
+  if (fragOperPtr.p->m_extra_row_author_bits)
+  {
+    jam();
+
+    const Uint32 bits = fragOperPtr.p->m_extra_row_author_bits;
+
+    /**
+     * Create attribute descriptor for extra row gci bits...
+     */
+    Uint32 desc = 0;
+    Uint32 off = 0;
+
+    AttributeDescriptor::setSize(desc, 0); // bit
+    AttributeDescriptor::setArraySize(desc, bits);
+    AttributeOffset::setNullFlagPos(off, fragOperPtr.p->m_null_bits[MM]);
+    fragOperPtr.p->m_null_bits[MM] += bits;
+
+    if (fragOperPtr.p->m_null_bits[MM] > AO_NULL_FLAG_POS_MASK)
+    {
+      jam();
+      terrorCode = ZTOO_MANY_BITS_ERROR;
+      goto error;
+    }
+
+    Uint32 idx = regTabPtr.p->tabDescriptor;
+    idx += ZAD_SIZE * (regTabPtr.p->m_no_of_attributes + extraAttrId);
+    setTabDescrWord(idx, desc);
+    setTabDescrWord(idx + 1, off);
+
+    extraAttrId++;
+  }
+
 #define BTW(x) ((x+31) >> 5)
   regTabPtr.p->m_offsets[MM].m_null_words= BTW(fragOperPtr.p->m_null_bits[MM]);
   regTabPtr.p->m_offsets[DD].m_null_words= BTW(fragOperPtr.p->m_null_bits[DD]);
@@ -611,6 +697,10 @@ void Dbtup::execTUPFRAGREQ(Signal* signal)
   Uint64 minRows =
     (((Uint64)req->minRowsHigh) << 32) + req->minRowsLow;
 
+  (void)reqinfo;
+  (void)maxRows;
+  (void)minRows;
+
   if (req->userPtr == (Uint32)-1) 
   {
     jam();
@@ -699,7 +789,8 @@ void Dbtup::execTUPFRAGREQ(Signal* signal)
   regFragPtr.p->m_tablespace_id= tablespace_id;
   regFragPtr.p->m_undo_complete= false;
   regFragPtr.p->m_lcp_scan_op = RNIL;
-  regFragPtr.p->m_lcp_keep_list = RNIL;
+  regFragPtr.p->m_lcp_keep_list_head.setNull();
+  regFragPtr.p->m_lcp_keep_list_tail.setNull();
   regFragPtr.p->noOfPages = 0;
   regFragPtr.p->noOfVarPages = 0;
   regFragPtr.p->m_max_page_no = 0;
@@ -1022,6 +1113,7 @@ Dbtup::handleAlterTablePrepare(Signal *signal,
     /* Allocate a new (possibly larger) table descriptor buffer. */
     Uint32 allocSize= getTabDescrOffsets(newNoOfAttr, newNoOfCharsets,
                                          newNoOfKeyAttrs,
+                                         regTabPtr->m_no_of_extra_columns,
                                          regAlterTabOpPtr.p->tabDesOffset);
     Uint32 tableDescriptorRef= allocTabDescr(allocSize);
     if (tableDescriptorRef == RNIL) {
@@ -1042,11 +1134,24 @@ Dbtup::handleAlterTablePrepare(Signal *signal,
       (CHARSET_INFO**)(desc + regAlterTabOpPtr.p->tabDesOffset[2]);
     memcpy(CharsetArray, regTabPtr->charsetArray,
            sizeof(*CharsetArray)*regTabPtr->noOfCharsets);
-    Uint32 *attrDesPtr= desc + regAlterTabOpPtr.p->tabDesOffset[4];
+    Uint32 * const attrDesPtrStart = desc + regAlterTabOpPtr.p->tabDesOffset[4];
+    Uint32 * attrDesPtr = attrDesPtrStart;
     memcpy(attrDesPtr,
            &tableDescriptor[regTabPtr->tabDescriptor].tabDescr,
-           (ZAD_SIZE<<2)*oldNoOfAttr);
-    attrDesPtr+= ZAD_SIZE*oldNoOfAttr;
+           4 * ZAD_SIZE * oldNoOfAttr);
+
+    /**
+     * Copy extra columns descriptors to end of attrDesPtr
+     */
+    {
+      const Uint32 * src = &tableDescriptor[regTabPtr->tabDescriptor].tabDescr;
+      src += ZAD_SIZE * oldNoOfAttr;
+
+      Uint32 * dst = attrDesPtr + (ZAD_SIZE * newNoOfAttr);
+      memcpy(dst, src, 4 * ZAD_SIZE * regTabPtr->m_no_of_extra_columns);
+    }
+
+    attrDesPtr+= ZAD_SIZE * oldNoOfAttr;
 
     /*
       Loop over the new attributes to add.
@@ -1117,6 +1222,7 @@ Dbtup::handleAlterTablePrepare(Signal *signal,
       *attrDesPtr++= attrDes2;
     }
     ndbassert(newNoOfCharsets==charsetIndex);
+    ndbrequire(attrDesPtr == attrDesPtrStart + (ZAD_SIZE * newNoOfAttr));
 
     regAlterTabOpPtr.p->noOfDynNullBits= dyn_nullbits;
     ndbassert(noDynamic ==
@@ -1569,6 +1675,8 @@ Dbtup::computeTableMetaData(Tablerec *regTabPtr)
   /* Room for changemask */
   total_rec_size += 1 + ((regTabPtr->m_no_of_attributes + 31) >> 5);
 
+  total_rec_size += COPY_TUPLE_HEADER32;
+
   regTabPtr->total_rec_size= total_rec_size;
 
   setUpQueryRoutines(regTabPtr);
@@ -1805,7 +1913,7 @@ Dbtup::execDROP_TAB_REQ(Signal* signal)
 {
   jamEntry();
   if (ERROR_INSERTED(4013)) {
-#ifdef VM_TRACE
+#if defined VM_TRACE || defined ERROR_INSERT
     verifytabdes();
 #endif
   }
@@ -1834,6 +1942,7 @@ void Dbtup::releaseTabDescr(Tablerec* const regTabPtr)
     getTabDescrOffsets(regTabPtr->m_no_of_attributes,
                        regTabPtr->noOfCharsets,
                        regTabPtr->noOfKeyAttr,
+                       regTabPtr->m_no_of_extra_columns,
                        offset);
 
     regTabPtr->tabDescriptor= RNIL;
@@ -2456,14 +2565,14 @@ Dbtup::start_restore_lcp(Uint32 tableId, Uint32 fragId)
   TablerecPtr tabPtr;
   tabPtr.i= tableId;
   ptrCheckGuard(tabPtr, cnoOfTablerec, tablerec);
-  
-  ndbassert(tabPtr.p->m_attributes[DD].m_no_of_fixsize < (1 << 16));
-  ndbassert(tabPtr.p->m_attributes[DD].m_no_of_varsize < (1 << 16));
-  
-  Uint32 saveAttrCounts = 
-    (tabPtr.p->m_attributes[DD].m_no_of_fixsize << 16) |
-    (tabPtr.p->m_attributes[DD].m_no_of_varsize << 0);
-  
+
+  ndbassert(Uint16(tabPtr.p->m_attributes[DD].m_no_of_fixsize << 16) == 0);
+  ndbassert(Uint16(tabPtr.p->m_attributes[DD].m_no_of_varsize << 16) == 0);
+
+  Uint32 saveAttrCounts =
+    (Uint32(tabPtr.p->m_attributes[DD].m_no_of_fixsize) << 16) |
+    (Uint32(tabPtr.p->m_attributes[DD].m_no_of_varsize) << 0);
+
   tabPtr.p->m_dropTable.tabUserPtr= saveAttrCounts;
   tabPtr.p->m_dropTable.tabUserRef= (tabPtr.p->m_bits & Tablerec::TR_RowGCI)? 1 : 0;
   tabPtr.p->m_createTable.defValLocation = tabPtr.p->m_default_value_location;
@@ -2561,7 +2670,7 @@ Dbtup::execDROP_FRAG_REQ(Signal* signal)
 {
   jamEntry();
   if (ERROR_INSERTED(4013)) {
-#ifdef VM_TRACE
+#if defined VM_TRACE || defined ERROR_INSERT
     verifytabdes();
 #endif
   }

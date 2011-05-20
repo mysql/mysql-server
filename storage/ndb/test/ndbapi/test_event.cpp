@@ -904,7 +904,7 @@ int runEventConsumer(NDBT_Context* ctx, NDBT_Step* step)
 
   while(!ctx->isTestStopped())
   {
-    int count= 0;
+    //int count= 0;
     Ndb* ndb= GETNDB(step);
 
     Uint64 last_gci = 0;
@@ -1003,7 +1003,7 @@ end:
 
 int runRestarter(NDBT_Context* ctx, NDBT_Step* step){
   int result = NDBT_OK;
-  int loops = ctx->getNumLoops();
+  //int loops = ctx->getNumLoops();
   NdbRestarter restarter;
   int i = 0;
   int lastId = 0;
@@ -1903,7 +1903,7 @@ runLoadTable(NDBT_Context* ctx, NDBT_Step* step)
 
 int 
 runScanUpdateUntilStopped(NDBT_Context* ctx, NDBT_Step* step){
-  int records = ctx->getNumRecords();
+  //int records = ctx->getNumRecords();
   int parallelism = ctx->getProperty("Parallelism", (Uint32)0);
   int abort = ctx->getProperty("AbortProb", (Uint32)0);
   HugoTransactions hugoTrans(*ctx->getTab());
@@ -1920,7 +1920,7 @@ runScanUpdateUntilStopped(NDBT_Context* ctx, NDBT_Step* step){
 int 
 runInsertDeleteUntilStopped(NDBT_Context* ctx, NDBT_Step* step)
 {
-  int result = NDBT_OK;
+  //int result = NDBT_OK;
   int records = ctx->getNumRecords();
   HugoTransactions hugoTrans(*ctx->getTab());
   UtilTransactions utilTrans(*ctx->getTab());
@@ -1940,7 +1940,7 @@ runInsertDeleteUntilStopped(NDBT_Context* ctx, NDBT_Step* step)
 int 
 runBug31701(NDBT_Context* ctx, NDBT_Step* step)
 {
-  int result = NDBT_OK;
+  //int result = NDBT_OK;
 
   NdbRestarter restarter;
 
@@ -2189,7 +2189,7 @@ cleanup:
 int 
 runBug33793(NDBT_Context* ctx, NDBT_Step* step)
 {
-  int result = NDBT_OK;
+  //int result = NDBT_OK;
   int loops = ctx->getNumLoops();
 
   NdbRestarter restarter;
@@ -2305,10 +2305,10 @@ op(Ndb* xndb, const NdbDictionary::Table * table)
 int
 runBug34853(NDBT_Context* ctx, NDBT_Step* step)
 {
-  int result = NDBT_OK;
-  int loops = ctx->getNumLoops();
-  int records = ctx->getNumRecords();
-  Ndb* pNdb = GETNDB(step);
+  //int result = NDBT_OK;
+  //int loops = ctx->getNumLoops();
+  //int records = ctx->getNumRecords();
+  //Ndb* pNdb = GETNDB(step);
   NdbRestarter res;
 
   if (res.getNumDbNodes() < 2)
@@ -2698,7 +2698,7 @@ runBug37279(NDBT_Context* ctx, NDBT_Step* step)
   NdbDictionary::Dictionary* dict = pNdb->getDictionary();
   
   const NdbDictionary::Table* tab = dict->getTable(ctx->getTab()->getName());
-  const NdbDictionary::Table* org = tab;
+  //const NdbDictionary::Table* org = tab;
   NdbEventOperation* pOp0 = createEventOperation(pNdb, *tab);
   
   if (pOp0 == 0)
@@ -3199,7 +3199,7 @@ runBug37672(NDBT_Context* ctx, NDBT_Step* step)
 int
 runBug30780(NDBT_Context* ctx, NDBT_Step* step)
 {
-  int result = NDBT_OK;
+  //int result = NDBT_OK;
 
   NdbRestarter res;
 

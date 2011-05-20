@@ -12,6 +12,30 @@
 # You should have received a copy of the GNU General Public License
 # along with this program; if not, write to the Free Software
 # Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
+max-time: 900
+cmd: testIndex
+args: -n DeferredError
+
+max-time: 900
+cmd: testIndex
+args: -n DeferredMixedLoad T1 T6 T13
+
+max-time: 1800
+cmd: testIndex
+args: -n DeferredMixedLoadError T1 T6 T13
+
+max-time: 900
+cmd: testIndex
+args: -n NF_DeferredMixed T1 T6 T13
+
+max-time: 900
+cmd: testIndex
+args: -n NF_Mixed T1 T6 T13
+
+max-time: 900
+cmd: testBasic
+args: -r 5000 -n 899 T15 D1 D2
+
 max-time: 600
 cmd: atrt-testBackup
 args: -n NFMaster T1
@@ -104,6 +128,18 @@ args: -n UpdateAndRead
 max-time: 500
 cmd: testBasic
 args: -n DeleteRead
+
+max-time: 500
+cmd: testSpj
+args: -n LookupJoin
+
+max-time: 500
+cmd: testSpj
+args: -n ScanJoin
+
+max-time: 500
+cmd: testSpj
+args: -n MixedJoin
 
 max-time: 500
 cmd: testBasic
@@ -395,6 +431,10 @@ max-time: 1800
 cmd: testScan
 args: -n ScanRead100 -l 100 T1 D1 D2 
 
+max-time: 1800
+cmd: testScan
+args: -n TupScanRead100 -l 100 T1 D1 D2 
+
 max-time: 600
 cmd: testScan
 args: -n ScanRead40 -l 100 T1 D1 D2 
@@ -559,6 +599,10 @@ max-time: 500
 cmd: testScan
 args: -n Bug54945 T1
 
+max-time: 600
+cmd: testScan
+args: -n Bug12324191 T1 T6 T13
+
 max-time: 1800
 cmd: testNodeRestart
 args: -n Bug27003 T1
@@ -667,6 +711,10 @@ max-time: 2500
 cmd: testIndex
 args: -n NFNR2_O T6 T13 
 
+max-time: 2500
+cmd: testSpj
+args: -n NF_Join T6 T13
+
 #
 # DICT TESTS
 max-time: 500
@@ -688,6 +736,10 @@ args: -n Bug28717 T1
 max-time: 1500
 cmd: testDict
 args: -n CreateAndDropAtRandom -l 200 T1
+
+max-time: 1500
+cmd: testDict
+args: -n CreateAndDropIndexes -l 200 T1
 
 max-time: 1500
 cmd: testDict
@@ -878,9 +930,9 @@ max-time: 7200
 cmd: testTransactions
 args:
 
-max-time: 1500
+max-time: 3000
 cmd: testRestartGci
-args: T6 
+args: T6 D1
 
 max-time: 1500
 cmd: testBlobs
@@ -1643,6 +1695,14 @@ max-time: 300
 cmd: testIndex
 args: -n Bug56829 T1
 
+max-time: 300
+cmd: testIndex
+args: -n Bug12315582 T1
+
+max-time: 300
+cmd: testIndex
+args: -n Bug60851 T1
+
 max-time: 500
 cmd: testNodeRestart
 args: -n ForceStopAndRestart T1
@@ -1654,4 +1714,8 @@ args: -n Bug58277 T1
 max-time: 300
 cmd: testDict
 args: -n Bug57057 T1
+
+max-time: 600
+cmd: testNodeRestart
+args: -n ClusterSplitLatency T1
 

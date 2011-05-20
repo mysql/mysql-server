@@ -6,11 +6,11 @@
 -- source include/have_ndb.inc
 -- source include/have_log_bin.inc
 
---disable_warnings
-drop table if exists t1, t2, t3;
---enable_warnings
+--disable_query_log
+CALL mtr.add_suppression("Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT");
+--enable_query_log
 
-#
+	#
 # Bug #29222 Statement mode replicates both statement and
 # rows when writing to an NDB table
 #
@@ -27,6 +27,8 @@ START TRANSACTION;
 INSERT INTO t3 VALUES (1,1), (1,2), (2,1), (2,2);
 UPDATE t1, t3 SET m = 2, e = 3 WHERE n = f;
 UPDATE t3, t2 SET e = 2, b = 3 WHERE f = c;
+--echo NOTE! This testcase is affected by bug11932585
+--echo the above UPDATE is binlogged in own transation
 COMMIT;
 --source include/show_binlog_events.inc
 DROP TABLE t1, t2, t3;

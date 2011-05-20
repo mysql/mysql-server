@@ -196,8 +196,6 @@ HugoCalculator::calcValue(int record,
   case NdbDictionary::Column::Unsigned:
   case NdbDictionary::Column::Bigint:
   case NdbDictionary::Column::Bigunsigned:
-  case NdbDictionary::Column::Float:
-  case NdbDictionary::Column::Double:
   case NdbDictionary::Column::Olddecimal:
   case NdbDictionary::Column::Olddecimalunsigned:
   case NdbDictionary::Column::Decimal:
@@ -225,6 +223,22 @@ HugoCalculator::calcValue(int record,
       memcpy(&copy, ((Uint32*)buf)+tmp, 4);
       copy &= ((1 << size) - 1);
       memcpy(((Uint32*)buf)+tmp, &copy, 4);
+    }
+    break;
+  case NdbDictionary::Column::Float:
+    {
+      float x = (float)myRand(&seed);
+      memcpy(buf+pos, &x, 4);
+      pos += 4;
+      len -= 4;
+    }
+    break;
+  case NdbDictionary::Column::Double:
+    {
+      double x = (double)myRand(&seed);
+      memcpy(buf+pos, &x, 8);
+      pos += 8;
+      len -= 8;
     }
     break;
   case NdbDictionary::Column::Varbinary:
@@ -445,3 +459,75 @@ HugoCalculator::getUpdatesValue(NDBT_ResultRow* const pRow) const {
   return pRow->attributeStore(m_updatesCol)->u_32_value();
 }
 
+int
+HugoCalculator::equalForRow(Uint8 * pRow,
+                            const NdbRecord* pRecord,
+                            int rowId)
+{
+  for(int attrId = 0; attrId < m_tab.getNoOfColumns(); attrId++)
+  {
+    const NdbDictionary::Column* attr = m_tab.getColumn(attrId);
+
+    if (attr->getPrimaryKey() == true)
+    {
+      char buf[8000];
+      int len = attr->getSizeInBytes();
+      memset(buf, 0, sizeof(buf));
+      Uint32 real_len;
+      const char * value = calcValue(rowId, attrId, 0, buf,
+                                     len, &real_len);
+      assert(value != 0); // NULLable PK not supported...
+      Uint32 off = 0;
+      bool ret = NdbDictionary::getOffset(pRecord, attrId, off);
+      if (!ret)
+        abort();
+      memcpy(pRow + off, buf, real_len);
+    }
+  }
+  return NDBT_OK;
+}
+
+int
+HugoCalculator::setValues(Uint8 * pRow,
+                          const NdbRecord* pRecord,
+                          int rowId,
+                          int updateVal)
+{
+  int res = equalForRow(pRow, pRecord, rowId);
+  if (res != 0)
+  {
+    return res;
+  }
+
+  for(int attrId = 0; attrId < m_tab.getNoOfColumns(); attrId++)
+  {
+    const NdbDictionary::Column* attr = m_tab.getColumn(attrId);
+
+    if (attr->getPrimaryKey() == false)
+    {
+      char buf[8000];
+      int len = attr->getSizeInBytes();
+      memset(buf, 0, sizeof(buf));
+      Uint32 real_len;
+      const char * value = calcValue(rowId, attrId, updateVal, buf,
+                                     len, &real_len);
+      if (value != 0)
+      {
+        Uint32 off = 0;
+        bool ret = NdbDictionary::getOffset(pRecord, attrId, off);
+        if (!ret)
+          abort();
+        memcpy(pRow + off, buf, real_len);
+        if (attr->getNullable())
+          NdbDictionary::setNull(pRecord, (char*)pRow, attrId, false);
+      }
+      else
+      {
+        assert(attr->getNullable());
+        NdbDictionary::setNull(pRecord, (char*)pRow, attrId, true);
+      }
+    }
+  }
+
+  return NDBT_OK;
+}

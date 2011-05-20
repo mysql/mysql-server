@@ -4,7 +4,8 @@
 # code between engine tests     #
 #################################
 -- source include/have_ndb.inc
--- source suite/rpl_ndb/ndb_master-slave.inc
+-- source include/master-slave.inc
 let $engine_type=NDBCLUSTER;
 -- source extra/rpl_tests/rpl_row_blob.test
 
+--source include/rpl_end.inc

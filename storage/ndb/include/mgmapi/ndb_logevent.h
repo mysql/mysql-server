@@ -117,6 +117,12 @@ extern "C" {
     NDB_LE_LCP_TakeoverStarted = 33,
     /** NDB_MGM_EVENT_CATEGORY_NODE_RESTART */
     NDB_LE_LCP_TakeoverCompleted = 34,
+    /** NDB_MGM_EVENT_CATEGORY_NODE_RESTART */
+    NDB_LE_ConnectCheckStarted = 82,
+    /** NDB_MGM_EVENT_CATEGORY_NODE_RESTART */
+    NDB_LE_ConnectCheckCompleted = 83,
+    /** NDB_MGM_EVENT_CATEGORY_NODE_RESTART */
+    NDB_LE_NodeFailRejected = 84,
 
     /** NDB_MGM_EVENT_CATEGORY_STATISTIC */
     NDB_LE_TransReportCounters = 35,
@@ -477,6 +483,21 @@ extern "C" {
   struct ndb_logevent_LCP_TakeoverCompleted {
     unsigned state;
   };
+  struct ndb_logevent_ConnectCheckStarted {
+    unsigned other_node_count;
+    unsigned reason;
+    unsigned causing_node;
+  };
+  struct ndb_logevent_ConnectCheckCompleted {
+    unsigned nodes_checked;
+    unsigned nodes_suspect;
+    unsigned nodes_failed;
+  };
+  struct ndb_logevent_NodeFailRejected {
+    unsigned reason;
+    unsigned failed_node;
+    unsigned source_node;
+  };
 
   /* STATISTIC */
   struct ndb_logevent_TransReportCounters {
@@ -833,6 +854,9 @@ extern "C" {
       struct ndb_logevent_GCP_TakeoverCompleted GCP_TakeoverCompleted;
       struct ndb_logevent_LCP_TakeoverStarted LCP_TakeoverStarted;
       struct ndb_logevent_LCP_TakeoverCompleted LCP_TakeoverCompleted;
+      struct ndb_logevent_ConnectCheckStarted ConnectCheckStarted;
+      struct ndb_logevent_ConnectCheckCompleted ConnectCheckCompleted;
+      struct ndb_logevent_NodeFailRejected NodeFailRejected;
 
       /* STATISTIC */
       struct ndb_logevent_TransReportCounters TransReportCounters;

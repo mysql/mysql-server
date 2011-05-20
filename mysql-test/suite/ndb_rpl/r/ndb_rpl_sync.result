@@ -1,0 +1,82 @@
+include/master-slave.inc
+[connection master]
+STOP SLAVE;
+CREATE DATABASE ndbsynctest;
+USE ndbsynctest;
+CREATE DATABASE ndbsynctest;
+USE ndbsynctest;
+CREATE TABLE t1 (c1 BIT(1) NOT NULL, c2 BIT(1) NOT NULL, c3 CHAR(15), PRIMARY KEY(c3)) ENGINE = NDB ;
+INSERT INTO t1 VALUES (1,1,"row1"),(0,1,"row2"),(1,0,"row3"),(0,0,"row4");
+CREATE TABLE t2 (c1 CHAR(15), c2 BIT(1) NOT NULL, c3 BIT(1) NOT NULL, PRIMARY KEY(c1)) ENGINE = NDB ;
+INSERT INTO t2 VALUES ("ABC",1,1),("BCDEF",0,1),("CD",1,0),("DEFGHIJKL",0,0);
+SELECT hex(c1),hex(c2),c3 FROM t1 ORDER BY c3;
+hex(c1)	hex(c2)	c3
+1	1	row1
+0	1	row2
+1	0	row3
+0	0	row4
+SELECT hex(c2),hex(c3),c1 FROM t2 ORDER BY c1;
+hex(c2)	hex(c3)	c1
+1	1	ABC
+0	1	BCDEF
+1	0	CD
+0	0	DEFGHIJKL
+UPDATE t1 SET c2=0 WHERE c3="row2";
+SELECT hex(c1),hex(c2),c3 FROM t1 ORDER BY c3;
+hex(c1)	hex(c2)	c3
+1	1	row1
+0	0	row2
+1	0	row3
+0	0	row4
+SHOW TABLES;
+Tables_in_ndbsynctest
+DROP DATABASE ndbsynctest;
+CREATE DATABASE ndbsynctest;
+USE ndbsynctest;
+SHOW TABLES;
+Tables_in_ndbsynctest
+t1
+t2
+SELECT hex(c1),hex(c2),c3 FROM t1 ORDER BY c3;
+hex(c1)	hex(c2)	c3
+1	1	row1
+0	1	row2
+1	0	row3
+0	0	row4
+SELECT hex(c2),hex(c3),c1 FROM t2 ORDER BY c1;
+hex(c2)	hex(c3)	c1
+1	1	ABC
+0	1	BCDEF
+1	0	CD
+0	0	DEFGHIJKL
+SELECT @the_epoch:=MAX(epoch) FROM mysql.ndb_apply_status;
+@the_epoch:=MAX(epoch)
+<the_epoch>
+@the_pos:=Position	@the_file:=SUBSTRING_INDEX(REPLACE(FILE,'\\','/'), '/', -1)
+<the_pos>	master-bin.000001
+CHANGE MASTER TO
+master_log_file = 'master-bin.000001',
+master_log_pos = <the_pos> ;
+START SLAVE;
+include/check_slave_is_running.inc
+SELECT hex(c1),hex(c2),c3 FROM t1 ORDER BY c3;
+hex(c1)	hex(c2)	c3
+1	1	row1
+0	0	row2
+1	0	row3
+0	0	row4
+SELECT hex(c2),hex(c3),c1 FROM t2 ORDER BY c1;
+hex(c2)	hex(c3)	c1
+1	1	ABC
+0	1	BCDEF
+1	0	CD
+0	0	DEFGHIJKL
+DROP DATABASE ndbsynctest;
+STOP SLAVE;
+reset master;
+select * from mysql.ndb_binlog_index;
+Position	File	epoch	inserts	updates	deletes	schemaops	orig_server_id	orig_epoch	gci
+reset slave;
+select * from mysql.ndb_apply_status;
+server_id	epoch	log_name	start_pos	end_pos
+include/rpl_end.inc

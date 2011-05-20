@@ -1,0 +1,137 @@
+#
+# Test of auto_increment in CRBR
+#
+#####################################
+# By: JBM
+# Date: 2006-02-10
+# Change: Augmented test to use with cluster
+#####################################
+--source include/have_ndb.inc
+--source include/have_binlog_format_mixed_or_row.inc
+--source suite/ndb_rpl/ndb_master-slave.inc
+
+--echo ***************** Test 1 ************************
+--echo
+CREATE TABLE t1 (a INT NOT NULL auto_increment,b INT, PRIMARY KEY (a)) ENGINE=NDB auto_increment=3;
+insert into t1 values (NULL,1),(NULL,2),(NULL,3);
+--echo ******* Select from Master *************
+--echo
+select * from t1 ORDER BY a;
+
+
+sync_slave_with_master;
+--echo ******* Select from Slave *************
+--echo
+select * from t1 ORDER BY a;
+connection master;
+drop table t1;
+
+create table t1 (a int not null auto_increment,b int, primary key (a)) engine=NDB;
+insert into t1 values (1,1),(NULL,2),(3,3),(NULL,4);
+delete from t1 where b=4;
+insert into t1 values (NULL,5),(NULL,6);
+--echo ******* Select from Master *************
+--echo
+select * from t1 ORDER BY a;
+
+sync_slave_with_master;
+--echo ******* Select from Slave *************
+--echo
+select * from t1 ORDER BY a;
+connection master;
+
+drop table t1;
+
+create table t1 (a int not null auto_increment, primary key (a)) engine=NDB;
+# Insert with 2 insert statements to get better testing of logging
+insert into t1 values (NULL),(5),(NULL);
+insert into t1 values (250),(NULL);
+--echo ******* Select from Master *************
+--echo
+select * from t1 ORDER BY a;
+insert into t1 values (1000);
+set @@insert_id=400;
+insert into t1 values(NULL),(NULL);
+--echo ******* Select from Master *************
+--echo
+select * from t1 ORDER BY a;
+
+sync_slave_with_master;
+--echo ******* Select from Slave *************
+--echo
+select * from t1 ORDER BY a;
+connection master;
+drop table t1;
+
+create table t1 (a int not null auto_increment, primary key (a)) engine=NDB;
+# Insert with 2 insert statements to get better testing of logging
+insert into t1 values (NULL),(5),(NULL),(NULL);
+insert into t1 values (500),(NULL),(502),(NULL),(600);
+--echo ******* Select from Master *************
+--echo
+select * from t1 ORDER BY a;
+set @@insert_id=600;
+# We expect a duplicate key error that we will ignore below
+--error 1022
+insert into t1 values(600),(NULL),(NULL);
+set @@insert_id=600;
+insert ignore into t1 values(600),(NULL),(NULL),(610),(NULL);
+--echo ******* Select from Master *************
+--echo
+select * from t1 ORDER BY a;
+
+sync_slave_with_master;
+--echo ******* Select from Slave *************
+--echo
+select * from t1 ORDER BY a;
+connection master;
+drop table t1;
+
+#
+# Test that auto-increment works when slave has rows in the table
+#
+
+create table t1 (a int not null auto_increment, primary key (a)) engine=NDB;
+
+sync_slave_with_master;
+insert into t1 values(2),(12),(22),(32),(42);
+connection master;
+
+insert into t1 values (NULL),(NULL);
+insert into t1 values (3),(NULL),(NULL);
+--echo ******* Select from Master *************
+--echo
+select * from t1 ORDER BY a;
+
+sync_slave_with_master;
+--echo ******* Select from Slave *************
+--echo
+--echo ** Slave should have 2, 12, 22, 32, 42 **
+--echo ** Master will have 2 but not 12, 22, 32, 42 **
+--echo
+select * from t1 ORDER BY a;
+connection master;
+drop table t1;
+
+#
+# Bug #42232 Cluster to cluster replication is not setting auto_increment
+# on slave cluster
+#
+set @old_ndb_autoincrement_prefetch_sz = @@session.ndb_autoincrement_prefetch_sz;
+set ndb_autoincrement_prefetch_sz = 32;
+CREATE TABLE t1 (id INT NOT NULL AUTO_INCREMENT KEY) ENGINE=ndb;
+INSERT INTO t1 () VALUES (),(),();
+sync_slave_with_master;
+set @old_ndb_autoincrement_prefetch_sz = @@session.ndb_autoincrement_prefetch_sz;
+set ndb_autoincrement_prefetch_sz = 32;
+select * from t1 order by id;
+INSERT INTO t1 () VALUES (),(),();
+select * from t1 order by id;
+set ndb_autoincrement_prefetch_sz = @old_ndb_autoincrement_prefetch_sz;
+connection master;
+select * from t1 order by id;
+drop table t1;
+set ndb_autoincrement_prefetch_sz = @old_ndb_autoincrement_prefetch_sz;
+# End cleanup
+sync_slave_with_master;
+--source include/rpl_end.inc

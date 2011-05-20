@@ -2467,14 +2467,6 @@ case SQLCOM_PREPARE:
     {
       select_result *result;
 
-#ifndef MCP_GLOBAL_SCHEMA_LOCK
-      Ndb_global_schema_lock_guard global_schema_lock_guard(thd);
-
-      if (!(create_info.options & HA_LEX_CREATE_TMP_TABLE) &&
-          !thd->locked_tables_mode)
-        global_schema_lock_guard.lock();
-#endif
-
       /*
         If:
         a) we inside an SP and there was NAME_CONST substitution,
@@ -2527,6 +2519,13 @@ case SQLCOM_PREPARE:
         res= 1;
         goto end_with_restore_list;
       }
+
+#ifndef MCP_GLOBAL_SCHEMA_LOCK
+      Ndb_global_schema_lock_guard global_schema_lock(thd);
+
+      if (!(create_info.options & HA_LEX_CREATE_TMP_TABLE))
+        (void)global_schema_lock.lock();
+#endif
 
       if (!(res= open_and_lock_tables(thd, lex->query_tables, TRUE, 0)))
       {

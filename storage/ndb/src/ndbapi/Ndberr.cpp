@@ -81,3 +81,17 @@ NdbDictInterface::getNdbError() const {
   update(m_error);
   return m_error;
 }
+
+const
+NdbError &
+NdbQueryBuilderImpl::getNdbError() const {
+  update(m_error);
+  return m_error;
+}
+
+const
+NdbError &
+NdbQueryImpl::getNdbError() const {
+  update(m_error);
+  return m_error;
+}

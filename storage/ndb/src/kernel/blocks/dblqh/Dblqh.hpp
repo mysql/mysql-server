@@ -2112,10 +2112,12 @@ public:
     Uint8 m_disk_table;
     Uint8 m_use_rowid;
     Uint8 m_dealloc;
+    Uint8 m_fire_trig_pass;
     enum op_flags {
       OP_ISLONGREQ              = 0x1,
       OP_SAVEATTRINFO           = 0x2,
-      OP_SCANKEYINFOPOSSAVED    = 0x4
+      OP_SCANKEYINFOPOSSAVED    = 0x4,
+      OP_DEFERRED_CONSTRAINTS   = 0x8
     };
     Uint32 m_flags;
     Uint32 m_log_part_ptr_i;
@@ -2307,6 +2309,8 @@ private:
 
   void execBUILD_INDX_IMPL_REF(Signal* signal);
   void execBUILD_INDX_IMPL_CONF(Signal* signal);
+
+  void execFIRE_TRIG_REQ(Signal*);
 
   // Statement blocks
 
@@ -2731,9 +2735,11 @@ public:
   Uint32 readPrimaryKeys(Uint32 opPtrI, Uint32 * dst, bool xfrm);
 private:
 
-  void acckeyconf_tupkeyreq(Signal*, TcConnectionrec*, Fragrecord*, Uint32, Uint32);
-  void acckeyconf_load_diskpage(Signal*,TcConnectionrecPtr,Fragrecord*,Uint32);
-  
+  void acckeyconf_tupkeyreq(Signal*, TcConnectionrec*, Fragrecord*,
+                            Uint32, Uint32, Uint32);
+  void acckeyconf_load_diskpage(Signal*,TcConnectionrecPtr,Fragrecord*,
+                                Uint32, Uint32);
+
   void handle_nr_copy(Signal*, Ptr<TcConnectionrec>);
   void exec_acckeyreq(Signal*, Ptr<TcConnectionrec>);
   int compare_key(const TcConnectionrec*, const Uint32 * ptr, Uint32 len);
@@ -3240,6 +3246,7 @@ public:
   Uint32 c_max_redo_lag;
   Uint32 c_max_redo_lag_counter;
   Uint64 cTotalLqhKeyReqCount;
+  Uint32 c_max_parallel_scans_per_frag;
 
   inline bool getAllowRead() const {
     return getNodeState().startLevel < NodeState::SL_STOPPING_3;
@@ -3263,6 +3270,9 @@ public:
   void suspendFile(Signal* signal, Ptr<LogFileRecord> logFile, Uint32 millis);
 
   void send_runredo_event(Signal*, LogPartRecord *, Uint32 currgci);
+
+  void sendFireTrigConfTc(Signal* signal, BlockReference ref, Uint32 Tdata[]);
+  bool check_fire_trig_pass(Uint32 op, Uint32 pass);
 };
 
 inline
@@ -3339,9 +3349,19 @@ Dblqh::accminupdate(Signal* signal, Uint32 opId, const Local_key* key)
   regTcPtr.i= opId;
   ptrCheckGuard(regTcPtr, ctcConnectrecFileSize, tcConnectionrec);
   signal->theData[0] = regTcPtr.p->accConnectrec;
-  signal->theData[1] = key->m_page_no << MAX_TUPLES_BITS | key->m_page_idx;
+  signal->theData[1] = key->m_page_no;
+  signal->theData[2] = key->m_page_idx;
   c_acc->execACCMINUPDATE(signal);
-  
+
+  if (ERROR_INSERTED(5714))
+  {
+    FragrecordPtr regFragptr;
+    regFragptr.i = regTcPtr.p->fragmentptr;
+    c_fragment_pool.getPtr(regFragptr);
+    if (regFragptr.p->m_copy_started_state == Fragrecord::AC_NR_COPY)
+      ndbout << " LK: " << *key;
+  }
+
   if (ERROR_INSERTED(5712) || ERROR_INSERTED(5713))
     ndbout << " LK: " << *key;
   regTcPtr.p->m_row_id = *key;
@@ -3351,6 +3371,14 @@ inline
 bool
 Dblqh::TRACE_OP_CHECK(const TcConnectionrec* regTcPtr)
 {
+  if (ERROR_INSERTED(5714))
+  {
+    FragrecordPtr regFragptr;
+    regFragptr.i = regTcPtr->fragmentptr;
+    c_fragment_pool.getPtr(regFragptr);
+    return regFragptr.p->m_copy_started_state == Fragrecord::AC_NR_COPY;
+  }
+
   return (ERROR_INSERTED(5712) && 
 	  (regTcPtr->operation == ZINSERT ||
 	   regTcPtr->operation == ZDELETE)) ||

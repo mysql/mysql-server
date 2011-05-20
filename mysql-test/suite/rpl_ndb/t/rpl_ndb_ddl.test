@@ -25,9 +25,10 @@
 
 --source include/have_ndb.inc
 --source include/have_binlog_format_mixed_or_row.inc
---source suite/rpl_ndb/ndb_master-slave.inc
+--source include/master-slave.inc
 let $engine_type= NDB;
 let $temp_engine_type= MEMORY;
 let $show_binlog = 0;
 let $manipulate = 0;
 -- source extra/rpl_tests/rpl_ddl.test
+--source include/rpl_end.inc

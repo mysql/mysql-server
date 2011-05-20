@@ -28,6 +28,7 @@
 #include <signaldata/CopyGCIReq.hpp>
 #include <blocks/mutexes.hpp>
 #include <signaldata/LCP.hpp>
+#include <NdbSeqLock.hpp>
 
 #ifdef DBDIH_C
 
@@ -441,7 +442,17 @@ public:
    * TO LOCATE A FRAGMENT AND TO TRANSLATE A KEY OF A TUPLE TO THE FRAGMENT IT
    * BELONGS
    */
-  struct TabRecord {
+  struct TabRecord
+  {
+    TabRecord() { }
+
+    /**
+     * rw-lock that protects multiple parallel DIGETNODES (readers) from
+     *   updates to fragmenation changes (e.g CREATE_FRAGREQ)...
+     *   search for DIH_TAB_WRITE_LOCK
+     */
+    NdbSeqLock m_lock;
+
     /**
      * State for copying table description into pages
      */
@@ -504,12 +515,12 @@ public:
     Method method;
     Storage tabStorage;
 
-    Uint32 pageRef[8];
+    Uint32 pageRef[32];
 //-----------------------------------------------------------------------------
 // Each entry in this array contains a reference to 16 fragment records in a
 // row. Thus finding the correct record is very quick provided the fragment id.
 //-----------------------------------------------------------------------------
-    Uint32 startFid[MAX_NDB_NODES];
+    Uint32 startFid[MAX_NDB_NODES * MAX_FRAG_PER_NODE / NO_OF_FRAGS_PER_CHUNK];
 
     Uint32 tabFile[2];
     Uint32 connectrec;                                    
@@ -951,6 +962,7 @@ private:
   void replication(Uint32 noOfReplicas,
                    NodeGroupRecordPtr NGPtr,
                    FragmentstorePtr regFragptr);
+  void sendDihRestartRef(Signal*);
   void selectMasterCandidateAndSend(Signal *);
   void setLcpActiveStatusEnd(Signal*);
   void setLcpActiveStatusStart(Signal *);

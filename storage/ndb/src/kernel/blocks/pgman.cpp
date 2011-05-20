@@ -1670,11 +1670,14 @@ int
 Pgman::get_page_no_lirs(Signal* signal, Ptr<Page_entry> ptr, Page_request page_req)
 {
   jamEntry();
+
+#ifdef VM_TRACE
   Ptr<Page_request> tmp = { &page_req, RNIL};
 
   D(">get_page");
   D(ptr);
   D(tmp);
+#endif
 
   Uint32 req_flags = page_req.m_flags;
 
@@ -2791,8 +2794,6 @@ void
 Pgman::execDBINFO_SCANREQ(Signal *signal)
 {
   DbinfoScanReq req= *(DbinfoScanReq*)signal->theData;
-  const Ndbinfo::ScanCursor* cursor =
-    reinterpret_cast<const Ndbinfo::ScanCursor*>(DbinfoScan::getCursorPtr(&req));
   Ndbinfo::Ratelimit rl;
 
   jamEntry();
@@ -2800,7 +2801,6 @@ Pgman::execDBINFO_SCANREQ(Signal *signal)
   case Ndbinfo::DISKPAGEBUFFER_TABLEID:
   {
     jam();
-    BlockNumber bn = blockToMain(number());
     Ndbinfo::Row row(signal, req);
     row.write_uint32(getOwnNodeId());
     row.write_uint32(instance());   // block instance

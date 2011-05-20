@@ -257,6 +257,9 @@ SignalDataPrintFunctions[] = {
   ,{ GSN_DBINFO_SCANCONF, printDBINFO_SCAN }
   ,{ GSN_DBINFO_SCANREF, printDBINFO_SCAN_REF }
 
+  ,{ GSN_NODE_PING_REQ, printNODE_PING_REQ }
+  ,{ GSN_NODE_PING_CONF, printNODE_PING_CONF }
+
   ,{ 0, 0 }
 };
 

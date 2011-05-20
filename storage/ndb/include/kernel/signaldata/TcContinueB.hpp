@@ -46,7 +46,8 @@ private:
     TRIGGER_PENDING                        = 17,
     
     DelayTCKEYCONF = 18,
-    ZNF_CHECK_TRANSACTIONS = 19
+    ZNF_CHECK_TRANSACTIONS = 19,
+    ZSEND_FIRE_TRIG_REQ = 20
   };
 };
 

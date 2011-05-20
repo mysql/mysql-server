@@ -14,6 +14,7 @@ TimeBetweenEpochs=             100
 NoOfFragmentLogFiles=          4
 FragmentLogFileSize=           12M
 DiskPageBufferMemory=          4M
+SharedGlobalMemory=            20M
 TwoPassInitialNodeRestartCopy=1
 
 # O_DIRECT has issues on 2.4 whach have not been handled, Bug #29612

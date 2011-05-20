@@ -71,7 +71,7 @@ File_class::File_class(const char* aFileName, const char* mode) :
   m_file(NULL), 
   m_fileMode(mode)
 {
-  BaseString::snprintf(m_fileName, PATH_MAX, aFileName);
+  BaseString::snprintf(m_fileName, PATH_MAX, "%s", aFileName);
 }
 
 bool
@@ -88,7 +88,7 @@ File_class::open(const char* aFileName, const char* mode)
     /**
      * Only copy if it's not the same string
      */
-    BaseString::snprintf(m_fileName, PATH_MAX, aFileName);
+    BaseString::snprintf(m_fileName, PATH_MAX, "%s", aFileName);
   }
   m_fileMode = mode;
   bool rc = true;

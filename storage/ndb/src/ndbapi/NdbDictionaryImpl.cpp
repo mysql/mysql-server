@@ -378,6 +378,10 @@ NdbColumnImpl::create_pseudo_columns()
     NdbColumnImpl::create_pseudo("NDB$ROWID");
   NdbDictionary::Column::ROW_GCI=
     NdbColumnImpl::create_pseudo("NDB$ROW_GCI");
+  NdbDictionary::Column::ROW_GCI64 =
+    NdbColumnImpl::create_pseudo("NDB$ROW_GCI64");
+  NdbDictionary::Column::ROW_AUTHOR =
+    NdbColumnImpl::create_pseudo("NDB$ROW_AUTHOR");
   NdbDictionary::Column::ANY_VALUE=
     NdbColumnImpl::create_pseudo("NDB$ANY_VALUE");
   NdbDictionary::Column::COPY_ROWID=
@@ -408,6 +412,8 @@ NdbColumnImpl::destory_pseudo_columns()
   delete NdbDictionary::Column::RECORDS_IN_RANGE;
   delete NdbDictionary::Column::ROWID;
   delete NdbDictionary::Column::ROW_GCI;
+  delete NdbDictionary::Column::ROW_GCI64;
+  delete NdbDictionary::Column::ROW_AUTHOR;
   delete NdbDictionary::Column::ANY_VALUE;
   delete NdbDictionary::Column::OPTIMIZE;
   NdbDictionary::Column::FRAGMENT= 0;
@@ -421,6 +427,8 @@ NdbColumnImpl::destory_pseudo_columns()
   NdbDictionary::Column::RECORDS_IN_RANGE= 0;
   NdbDictionary::Column::ROWID= 0;
   NdbDictionary::Column::ROW_GCI= 0;
+  NdbDictionary::Column::ROW_GCI64= 0;
+  NdbDictionary::Column::ROW_AUTHOR= 0;
   NdbDictionary::Column::ANY_VALUE= 0;
   NdbDictionary::Column::OPTIMIZE= 0;
 
@@ -497,6 +505,18 @@ NdbColumnImpl::create_pseudo(const char * name){
     col->setType(NdbDictionary::Column::Bigunsigned);
     col->m_impl.m_attrId = AttributeHeader::ROW_GCI;
     col->m_impl.m_attrSize = 8;
+    col->m_impl.m_arraySize = 1;
+    col->m_impl.m_nullable = true;
+  } else if(!strcmp(name, "NDB$ROW_GCI64")){
+    col->setType(NdbDictionary::Column::Bigunsigned);
+    col->m_impl.m_attrId = AttributeHeader::ROW_GCI64;
+    col->m_impl.m_attrSize = 8;
+    col->m_impl.m_arraySize = 1;
+    col->m_impl.m_nullable = true;
+  } else if(!strcmp(name, "NDB$ROW_AUTHOR")){
+    col->setType(NdbDictionary::Column::Unsigned);
+    col->m_impl.m_attrId = AttributeHeader::ROW_AUTHOR;
+    col->m_impl.m_attrSize = 4;
     col->m_impl.m_arraySize = 1;
     col->m_impl.m_nullable = true;
   } else if(!strcmp(name, "NDB$ANY_VALUE")){
@@ -638,6 +658,8 @@ NdbTableImpl::init(){
   m_hash_map_id = RNIL;
   m_hash_map_version = ~0;
   m_storageType = NDB_STORAGETYPE_DEFAULT;
+  m_extra_row_gci_bits = 0;
+  m_extra_row_author_bits = 0;
 }
 
 bool
@@ -832,6 +854,22 @@ NdbTableImpl::equal(const NdbTableImpl& obj) const
     DBUG_RETURN(false);
   }
 
+  if (m_extra_row_gci_bits != obj.m_extra_row_gci_bits)
+  {
+    DBUG_PRINT("info",("m_extra_row_gci_bits %d != %d",
+                       (int32)m_extra_row_gci_bits,
+                       (int32)obj.m_extra_row_gci_bits));
+    DBUG_RETURN(false);
+  }
+
+  if (m_extra_row_author_bits != obj.m_extra_row_author_bits)
+  {
+    DBUG_PRINT("info",("m_extra_row_author_bits %d != %d",
+                       (int32)m_extra_row_author_bits,
+                       (int32)obj.m_extra_row_author_bits));
+    DBUG_RETURN(false);
+  }
+
   DBUG_RETURN(true);
 }
 
@@ -897,6 +935,8 @@ NdbTableImpl::assign(const NdbTableImpl& org)
   m_fragmentCount = org.m_fragmentCount;
   
   m_single_user_mode = org.m_single_user_mode;
+  m_extra_row_gci_bits = org.m_extra_row_gci_bits;
+  m_extra_row_author_bits = org.m_extra_row_author_bits;
 
   if (m_index != 0)
     delete m_index;
@@ -936,6 +976,72 @@ const char *
 NdbTableImpl::getName() const
 {
   return m_externalName.c_str();
+}
+
+int
+NdbTableImpl::getDbName(char buf[], size_t len) const
+{
+  if (len == 0)
+    return -1;
+
+  // db/schema/table
+  const char *ptr = m_internalName.c_str();
+
+  size_t pos = 0;
+  while (ptr[pos] && ptr[pos] != table_name_separator)
+  {
+    buf[pos] = ptr[pos];
+    pos++;
+
+    if (pos == len)
+      return -1;
+  }
+  buf[pos] = 0;
+  return 0;
+}
+
+int
+NdbTableImpl::getSchemaName(char buf[], size_t len) const
+{
+  if (len == 0)
+    return -1;
+
+  // db/schema/table
+  const char *ptr = m_internalName.c_str();
+
+  // skip over "db"
+  while (*ptr && *ptr != table_name_separator)
+    ptr++;
+
+  buf[0] = 0;
+  if (*ptr == table_name_separator)
+  {
+    ptr++;
+    size_t pos = 0;
+    while (ptr[pos] && ptr[pos] != table_name_separator)
+    {
+      buf[pos] = ptr[pos];
+      pos++;
+
+      if (pos == len)
+        return -1;
+    }
+    buf[pos] = 0;
+  }
+
+  return 0;
+}
+
+void
+NdbTableImpl::setDbSchema(const char * db, const char * schema)
+{
+  m_internalName.assfmt("%s%c%s%c%s",
+                        db,
+                        table_name_separator,
+                        schema,
+                        table_name_separator,
+                        m_externalName.c_str());
+  updateMysqlName();
 }
 
 void
@@ -2685,6 +2791,8 @@ NdbDictInterface::parseTableInfo(NdbTableImpl ** ret,
   impl->m_maxLoadFactor = tableDesc->MaxLoadFactor;
   impl->m_single_user_mode = tableDesc->SingleUserMode;
   impl->m_storageType = tableDesc->TableStorageType;
+  impl->m_extra_row_gci_bits = tableDesc->ExtraRowGCIBits;
+  impl->m_extra_row_author_bits = tableDesc->ExtraRowAuthorBits;
 
   impl->m_indexType = (NdbDictionary::Object::Type)
     getApiConstant(tableDesc->TableType,
@@ -3090,7 +3198,8 @@ int NdbDictionaryImpl::alterTableGlobal(NdbTableImpl &old_impl,
 {
   DBUG_ENTER("NdbDictionaryImpl::alterTableGlobal");
   // Alter the table
-  int ret = m_receiver.alterTable(m_ndb, old_impl, impl);
+  Uint32 changeMask = 0;
+  int ret = m_receiver.alterTable(m_ndb, old_impl, impl, changeMask);
 #if ndb_bug41905
   old_impl.m_status = NdbDictionary::Object::Invalid;
 #endif
@@ -3107,18 +3216,93 @@ int NdbDictionaryImpl::alterTableGlobal(NdbTableImpl &old_impl,
     m_globalHash->unlock();
     if (ret != 0)
       m_error.code = 723;
+
+    if (ret == 0 && AlterTableReq::getNameFlag(changeMask) != 0)
+    {
+      char db0[MAX_TAB_NAME_SIZE];
+      char db1[MAX_TAB_NAME_SIZE];
+      if (old_impl.getDbName(db0, sizeof(db0)) != 0)
+      {
+        m_error.code = 705;
+        DBUG_RETURN(-1);
+      }
+      if (impl.getDbName(db1, sizeof(db0)) != 0)
+      {
+        m_error.code = 705;
+        DBUG_RETURN(-1);
+      }
+
+      bool db_change = strcmp(db0, db1) != 0;
+      if (old_impl.getSchemaName(db0, sizeof(db0)) != 0)
+      {
+        m_error.code = 705;
+        DBUG_RETURN(-1);
+      }
+      if (impl.getSchemaName(db1, sizeof(db0)) != 0)
+      {
+        m_error.code = 705;
+        DBUG_RETURN(-1);
+      }
+
+      bool schema_change = strcmp(db0, db1) != 0;
+      if (db_change || schema_change)
+      {
+        if (renameBlobTables(old_impl, impl) != 0)
+        {
+          DBUG_RETURN(-1);
+        }
+      }
+    }
     DBUG_RETURN(ret);
   }
   ERR_RETURN(getNdbError(), ret);
 }
 
 int
+NdbDictionaryImpl::renameBlobTables(const NdbTableImpl & old_tab,
+                                    const NdbTableImpl & new_tab)
+{
+  if (old_tab.m_noOfBlobs == 0)
+    return 0;
+
+  char db[MAX_TAB_NAME_SIZE];
+  char schema[MAX_TAB_NAME_SIZE];
+  new_tab.getDbName(db, sizeof(db));
+  new_tab.getSchemaName(schema, sizeof(schema));
+
+  for (unsigned i = 0; i < old_tab.m_columns.size(); i++)
+  {
+    NdbColumnImpl & c = *old_tab.m_columns[i];
+    if (! c.getBlobType() || c.getPartSize() == 0)
+      continue;
+    NdbTableImpl* _bt = c.m_blobTable;
+    if (_bt == NULL)
+    {
+      continue; // "force" mode on
+    }
+
+    NdbDictionary::Table& bt = * _bt->m_facade;
+    NdbDictionary::Table new_bt(bt);
+    new_bt.m_impl.setDbSchema(db, schema);
+
+    Uint32 changeMask = 0;
+    int ret = m_receiver.alterTable(m_ndb, bt.m_impl, new_bt.m_impl,changeMask);
+    if (ret != 0)
+    {
+      return ret;
+    }
+    assert(AlterTableReq::getNameFlag(changeMask) != 0);
+  }
+  return 0;
+}
+
+int
 NdbDictInterface::alterTable(Ndb & ndb,
                              const NdbTableImpl &old_impl,
-                             NdbTableImpl &impl)
+                             NdbTableImpl &impl,
+                             Uint32 & change_mask)
 {
   int ret;
-  Uint32 change_mask;
 
   DBUG_ENTER("NdbDictInterface::alterTable");
 
@@ -3168,8 +3352,9 @@ NdbDictInterface::compChangeMask(const NdbTableImpl &old_impl,
                       impl.m_internalName.c_str()));
   if(impl.m_internalName != old_impl.m_internalName)
   {
-    if (unlikely(is_ndb_blob_table(old_impl.m_externalName.c_str()) ||
-                 is_ndb_blob_table(impl.m_externalName.c_str())))
+    bool old_blob = is_ndb_blob_table(old_impl.m_externalName.c_str());
+    bool new_blob = is_ndb_blob_table(impl.m_externalName.c_str());
+    if (unlikely(old_blob != new_blob))
     {
       /* Attempt to alter to/from Blob part table name */
       DBUG_PRINT("info", ("Attempt to alter to/from Blob part table name"));
@@ -3203,7 +3388,9 @@ NdbDictInterface::compChangeMask(const NdbTableImpl &old_impl,
      impl.m_tablespace_version != old_impl.m_tablespace_version ||
      impl.m_id != old_impl.m_id ||
      impl.m_version != old_impl.m_version ||
-     sz < old_sz)
+     sz < old_sz ||
+     impl.m_extra_row_gci_bits != old_impl.m_extra_row_gci_bits ||
+     impl.m_extra_row_author_bits != old_impl.m_extra_row_author_bits)
   {
     DBUG_PRINT("info", ("Old and new table not compatible"));
     goto invalid_alter_table;
@@ -3260,7 +3447,9 @@ NdbDictInterface::compChangeMask(const NdbTableImpl &old_impl,
          col->m_autoIncrement ||                   // ToDo: allow this?
 	 (col->getBlobType() && col->getPartSize())
          )
+      {
         goto invalid_alter_table;
+      }
     }
     AlterTableReq::setAddAttrFlag(change_mask, true);
   }
@@ -3389,6 +3578,8 @@ NdbDictInterface::serializeTableDesc(Ndb & ndb,
   tmpTab->LinearHashFlag = impl.m_linear_flag;
   tmpTab->SingleUserMode = impl.m_single_user_mode;
   tmpTab->ForceVarPartFlag = impl.m_force_var_part;
+  tmpTab->ExtraRowGCIBits = impl.m_extra_row_gci_bits;
+  tmpTab->ExtraRowAuthorBits = impl.m_extra_row_author_bits;
 
   tmpTab->FragmentType = getKernelConstant(impl.m_fragmentType,
  					   fragmentTypeMapping,
@@ -8280,6 +8471,8 @@ const NdbDictionary::Column * NdbDictionary::Column::DISK_REF = 0;
 const NdbDictionary::Column * NdbDictionary::Column::RECORDS_IN_RANGE = 0;
 const NdbDictionary::Column * NdbDictionary::Column::ROWID = 0;
 const NdbDictionary::Column * NdbDictionary::Column::ROW_GCI = 0;
+const NdbDictionary::Column * NdbDictionary::Column::ROW_GCI64 = 0;
+const NdbDictionary::Column * NdbDictionary::Column::ROW_AUTHOR = 0;
 const NdbDictionary::Column * NdbDictionary::Column::ANY_VALUE = 0;
 const NdbDictionary::Column * NdbDictionary::Column::COPY_ROWID = 0;
 const NdbDictionary::Column * NdbDictionary::Column::OPTIMIZE = 0;

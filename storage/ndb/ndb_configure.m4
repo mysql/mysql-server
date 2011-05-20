@@ -2,7 +2,7 @@
 # Should be updated when creating a new NDB version
 NDB_VERSION_MAJOR=7
 NDB_VERSION_MINOR=0
-NDB_VERSION_BUILD=23
+NDB_VERSION_BUILD=25
 NDB_VERSION_STATUS=""
 
 dnl for build ndb docs
@@ -48,6 +48,9 @@ AC_DEFUN([NDB_CHECK_NDBMTD], [
       AC_TRY_RUN(
         [
         #include "storage/ndb/src/kernel/vm/mt-asm.h"
+        #ifdef NDB_NO_ASM
+        #error "compiler/arch does not have asm needed for ndbmtd"
+        #endif
         int main()
         {
           unsigned int a = 0;

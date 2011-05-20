@@ -848,8 +848,6 @@ LocalProxy::execTIME_SIGNAL(Signal* signal)
 {
   Ss_TIME_SIGNAL& ss = ssSeize<Ss_TIME_SIGNAL>();
 
-  // could use same for MT TC
-  ndbrequire(number() == DBLQH);
   sendREQ(signal, ss);
   ssRelease<Ss_TIME_SIGNAL>(ss);
 }

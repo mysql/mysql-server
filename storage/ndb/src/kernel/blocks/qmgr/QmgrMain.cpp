@@ -38,8 +38,12 @@
 #include <signaldata/Upgrade.hpp>
 #include <signaldata/EnableCom.hpp>
 #include <signaldata/RouteOrd.hpp>
-
+#include <signaldata/NodePing.hpp>
+#include <signaldata/DihRestart.hpp>
 #include <ndb_version.h>
+
+#include <EventLogger.hpp>
+extern EventLogger * g_eventLogger;
 
 //#define DEBUG_QMGR_START
 #ifdef DEBUG_QMGR_START
@@ -385,14 +389,15 @@ void Qmgr::startphase1(Signal* signal)
 {
   jamEntry();
 
-  
   NodeRecPtr nodePtr;
   nodePtr.i = getOwnNodeId();
   ptrAss(nodePtr, nodeRec);
   nodePtr.p->phase = ZSTARTING;
-  
-  signal->theData[0] = reference();
-  sendSignal(DBDIH_REF, GSN_DIH_RESTARTREQ, signal, 1, JBB);
+
+  DihRestartReq * req = CAST_PTR(DihRestartReq, signal->getDataPtrSend());
+  req->senderRef = reference();
+  sendSignal(DBDIH_REF, GSN_DIH_RESTARTREQ, signal,
+             DihRestartReq::SignalLength, JBB);
   return;
 }
 
@@ -401,7 +406,11 @@ Qmgr::execDIH_RESTARTREF(Signal*signal)
 {
   jamEntry();
 
+  const DihRestartRef * ref = CAST_CONSTPTR(DihRestartRef,
+                                            signal->getDataPtr());
   c_start.m_latest_gci = 0;
+  c_start.m_no_nodegroup_nodes.assign(NdbNodeBitmask::Size,
+                                      ref->no_nodegroup_mask);
   execCM_INFOCONF(signal);
 }
 
@@ -409,8 +418,13 @@ void
 Qmgr::execDIH_RESTARTCONF(Signal*signal)
 {
   jamEntry();
-  
-  c_start.m_latest_gci = signal->theData[1];
+
+  const DihRestartConf * conf = CAST_CONSTPTR(DihRestartConf,
+                                              signal->getDataPtr());
+
+  c_start.m_latest_gci = conf->latest_gci;
+  c_start.m_no_nodegroup_nodes.assign(NdbNodeBitmask::Size,
+                                      conf->no_nodegroup_mask);
   execCM_INFOCONF(signal);
 }
 
@@ -434,6 +448,23 @@ void Qmgr::setHbApiDelay(UintR aHbApiDelay)
 void Qmgr::setArbitTimeout(UintR aArbitTimeout)
 {
   arbitRec.timeout = (aArbitTimeout < 10 ? 10 : aArbitTimeout);
+}
+
+void Qmgr::setCCDelay(UintR aCCDelay)
+{
+  NDB_TICKS now = NdbTick_CurrentMillisecond();
+  if (aCCDelay == 0)
+  {
+    /* Connectivity check disabled */
+    m_connectivity_check.m_enabled = false;
+    m_connectivity_check.m_timer.setDelay(0);
+  }
+  else
+  {
+    m_connectivity_check.m_enabled = true;
+    m_connectivity_check.m_timer.setDelay(aCCDelay < 10 ? 10 : aCCDelay);
+    m_connectivity_check.m_timer.reset(now);
+  }
 }
 
 void Qmgr::execCONNECT_REP(Signal* signal)
@@ -717,6 +748,27 @@ void Qmgr::execCM_REGREQ(Signal* signal)
   Uint32 start_type = ~0;
   NdbNodeBitmask skip_nodes;
 
+  if (!c_connectedNodes.get(cmRegReq->nodeId))
+  {
+    jam();
+
+    /**
+     * With ndbmtd, there is a race condition such that
+     *   CM_REGREQ can arrive prior to CONNECT_REP
+     *   since CONNECT_REP is sent from CMVMI
+     *
+     * In such cases, ignore the CM_REGREQ which is safe
+     *   as it will anyway be resent by starting node
+     */
+    g_eventLogger->info("discarding CM_REGREQ from %u "
+                        "as we're not yet connected (isNdbMt: %u)",
+                        cmRegReq->nodeId,
+                        (unsigned)isNdbMt());
+
+    ndbrequire(isNdbMt());
+    return;
+  }
+
   if (signal->getLength() == CmRegReq::SignalLength)
   {
     jam();
@@ -767,6 +819,17 @@ void Qmgr::execCM_REGREQ(Signal* signal)
     jam();
     infoEvent("Connection from node %u refused as it does not support "
               "user-defined HeartbeatOrder",
+              addNodePtr.i);
+    sendCmRegrefLab(signal, Tblockref, CmRegRef::ZINCOMPATIBLE_VERSION);
+    return;
+  }
+
+  if (m_connectivity_check.m_enabled &&
+      !ndbd_connectivity_check(startingVersion))
+  {
+    jam();
+    infoEvent("Connection from node %u refused as it does not support "
+              "ConnectCheckIntervalDelay",
               addNodePtr.i);
     sendCmRegrefLab(signal, Tblockref, CmRegRef::ZINCOMPATIBLE_VERSION);
     return;
@@ -1018,6 +1081,17 @@ void Qmgr::execCM_REGCONF(Signal* signal)
     return;
   }
 
+  if (m_connectivity_check.m_enabled &&
+      !ndbd_connectivity_check(cmRegConf->presidentVersion))
+  {
+    jam();
+    m_connectivity_check.m_enabled = false;
+    ndbout_c("Disabling ConnectCheckIntervalDelay as president "
+             " does not support it");
+    infoEvent("Disabling ConnectCheckIntervalDelay as president "
+              " does not support it");
+  }
+
   myNodePtr.i = getOwnNodeId();
   ptrCheckGuard(myNodePtr, MAX_NDB_NODES, nodeRec);
   
@@ -1117,7 +1191,7 @@ retry:
 		       "I think president is: %d",
 		       nodeId, president, cpresident);
 
-  ndbout_c(buf);
+  ndbout_c("%s", buf);
   CRASH_INSERTION(933);
 
   if (getNodeState().startLevel == NodeState::SL_STARTED)
@@ -1154,7 +1228,8 @@ retry:
   }
   
   CRASH_INSERTION(932);
-  
+  CRASH_INSERTION(938);
+
   progError(__LINE__, 
 	    NDBD_EXIT_PARTITIONED_SHUTDOWN,
 	    buf);
@@ -1405,6 +1480,12 @@ Qmgr::check_startup(Signal* signal)
   Uint64 now = NdbTick_CurrentMillisecond();
   Uint64 partial_timeout = c_start_election_time + c_restartPartialTimeout;
   Uint64 partitioned_timeout = partial_timeout + c_restartPartionedTimeout;
+  Uint64 no_nodegroup_timeout = c_start_election_time +
+    c_restartNoNodegroupTimeout;
+
+  const bool no_nodegroup_active =
+    (c_restartNoNodegroupTimeout != ~Uint32(0)) &&
+    (! c_start.m_no_nodegroup_nodes.isclear());
 
   /**
    * First see if we should wait more...
@@ -1424,16 +1505,7 @@ Qmgr::check_startup(Signal* signal)
   if ((c_start.m_latest_gci == 0) || 
       (c_start.m_start_type == (1 << NodeState::ST_INITIAL_START)))
   {
-    if (!tmp.equal(c_definedNodes))
-    {
-      jam();
-      signal->theData[1] = 1;
-      signal->theData[2] = ~0;
-      report_mask.assign(wait);
-      retVal = 0;
-      goto start_report;
-    }
-    else
+    if (tmp.equal(c_definedNodes))
     {
       jam();
       signal->theData[1] = 0x8000;
@@ -1442,7 +1514,51 @@ Qmgr::check_startup(Signal* signal)
       retVal = 1;
       goto start_report;
     }
+    else if (no_nodegroup_active)
+    {
+      if (now < no_nodegroup_timeout)
+      {
+        signal->theData[1] = 6;
+        signal->theData[2] = Uint32((no_nodegroup_timeout - now + 500) / 1000);
+        report_mask.assign(wait);
+        retVal = 0;
+        goto start_report;
+      }
+      tmp.bitOR(c_start.m_no_nodegroup_nodes);
+      if (tmp.equal(c_definedNodes))
+      {
+        signal->theData[1] = 0x8000;
+        report_mask.assign(c_definedNodes);
+        report_mask.bitANDC(c_start.m_starting_nodes);
+        retVal = 1;
+        goto start_report;
+      }
+      else
+      {
+        jam();
+        signal->theData[1] = 1;
+        signal->theData[2] = ~0;
+        report_mask.assign(wait);
+        retVal = 0;
+        goto start_report;
+      }
+    }
+    else
+    {
+      jam();
+      signal->theData[1] = 1;
+      signal->theData[2] = ~0;
+      report_mask.assign(wait);
+      retVal = 0;
+      goto start_report;
+    }
   }
+
+  if (now >= no_nodegroup_timeout)
+  {
+    tmp.bitOR(c_start.m_no_nodegroup_nodes);
+  }
+
   {
     const bool all = c_start.m_starting_nodes.equal(c_definedNodes);
     CheckNodeGroups* sd = (CheckNodeGroups*)&signal->theData[0];
@@ -1518,10 +1634,22 @@ Qmgr::check_startup(Signal* signal)
     if (now < partial_timeout)
     {
       jam();
+
       signal->theData[1] = c_restartPartialTimeout == (Uint32) ~0 ? 2 : 3;
       signal->theData[2] = Uint32((partial_timeout - now + 500) / 1000);
       report_mask.assign(wait);
       retVal = 0;
+
+      if (no_nodegroup_active && now < no_nodegroup_timeout)
+      {
+        signal->theData[1] = 7;
+        signal->theData[2] = Uint32((no_nodegroup_timeout - now + 500) / 1000);
+      }
+      else if (no_nodegroup_active && now >= no_nodegroup_timeout)
+      {
+        report_mask.bitANDC(c_start.m_no_nodegroup_nodes);
+      }
+
       goto start_report;
     }
   
@@ -1554,14 +1682,14 @@ check_log:
   {
     Uint32 save[4+4*NdbNodeBitmask::Size];
     memcpy(save, signal->theData, sizeof(save));
-    
-    signal->theData[0] = 0;
-    c_start.m_starting_nodes.copyto(NdbNodeBitmask::Size, signal->theData+1);
-    memcpy(signal->theData+1+NdbNodeBitmask::Size, c_start.m_node_gci,
-	   4*MAX_NDB_NODES);
-    EXECUTE_DIRECT(DBDIH, GSN_DIH_RESTARTREQ, signal, 
-		   1+NdbNodeBitmask::Size+MAX_NDB_NODES);
-    
+
+    DihRestartReq * req = CAST_PTR(DihRestartReq, signal->getDataPtrSend());
+    req->senderRef = 0;
+    c_start.m_starting_nodes.copyto(NdbNodeBitmask::Size, req->nodemask);
+    memcpy(req->node_gcis, c_start.m_node_gci, 4*MAX_NDB_NODES);
+    EXECUTE_DIRECT(DBDIH, GSN_DIH_RESTARTREQ, signal,
+		   DihRestartReq::CheckLength);
+
     incompleteng = signal->theData[0];
     memcpy(signal->theData, save, sizeof(save));
 
@@ -1609,8 +1737,9 @@ start_report:
     c_start.m_starting_nodes.copyto(sz, ptr); ptr += sz;
     c_start.m_skip_nodes.copyto(sz, ptr); ptr += sz;
     report_mask.copyto(sz, ptr); ptr+= sz;
-    sendSignal(CMVMI_REF, GSN_EVENT_REP, signal, 
-	       4+4*NdbNodeBitmask::Size, JBB);
+    c_start.m_no_nodegroup_nodes.copyto(sz, ptr); ptr += sz;
+    sendSignal(CMVMI_REF, GSN_EVENT_REP, signal,
+	       4+5*NdbNodeBitmask::Size, JBB);
   }
   return retVal;
   
@@ -1990,6 +2119,7 @@ void Qmgr::execCM_ADD(Signal* signal)
     jam();
     ndbrequire(addNodePtr.p->phase == ZSTARTING);
     addNodePtr.p->phase = ZRUNNING;
+    m_connectivity_check.reportNodeConnect(addNodePtr.i);
     setNodeInfo(addNodePtr.i).m_heartbeat_cnt= 0;
     c_clusterNodes.set(addNodePtr.i);
     findNeighbours(signal, __LINE__);
@@ -2245,8 +2375,6 @@ void Qmgr::execCM_ACKADD(Signal* signal)
  * WE HAVE BEEN INCLUDED INTO THE CLUSTER. IT IS NOW TIME TO CALCULATE WHICH 
  * ARE OUR LEFT AND RIGHT NEIGHBOURS FOR THE HEARTBEAT PROTOCOL. 
  *--------------------------------------------------------------------------*/
-#include <EventLogger.hpp>
-extern EventLogger * g_eventLogger;
 void Qmgr::findNeighbours(Signal* signal, Uint32 from) 
 {
   UintR toldLeftNeighbour;
@@ -2388,9 +2516,11 @@ void Qmgr::initData(Signal* signal)
   Uint32 hbDBDB = 1500;
   Uint32 arbitTimeout = 1000;
   Uint32 arbitMethod = ARBIT_METHOD_DEFAULT;
+  Uint32 ccInterval = 0;
   c_restartPartialTimeout = 30000;
   c_restartPartionedTimeout = 60000;
   c_restartFailureTimeout = ~0;
+  c_restartNoNodegroupTimeout = 15000;
   ndb_mgm_get_int_parameter(p, CFG_DB_HEARTBEAT_INTERVAL, &hbDBDB);
   ndb_mgm_get_int_parameter(p, CFG_DB_ARBIT_TIMEOUT, &arbitTimeout);
   ndb_mgm_get_int_parameter(p, CFG_DB_ARBIT_METHOD, &arbitMethod);
@@ -2398,25 +2528,35 @@ void Qmgr::initData(Signal* signal)
 			    &c_restartPartialTimeout);
   ndb_mgm_get_int_parameter(p, CFG_DB_START_PARTITION_TIMEOUT,
 			    &c_restartPartionedTimeout);
+  ndb_mgm_get_int_parameter(p, CFG_DB_START_NO_NODEGROUP_TIMEOUT,
+			    &c_restartNoNodegroupTimeout);
   ndb_mgm_get_int_parameter(p, CFG_DB_START_FAILURE_TIMEOUT,
 			    &c_restartFailureTimeout);
- 
+  ndb_mgm_get_int_parameter(p, CFG_DB_CONNECT_CHECK_DELAY,
+                            &ccInterval);
+
   if(c_restartPartialTimeout == 0)
   {
     c_restartPartialTimeout = ~0;
   }
-  
+
   if (c_restartPartionedTimeout ==0)
   {
     c_restartPartionedTimeout = ~0;
   }
-  
+
   if (c_restartFailureTimeout == 0)
   {
     c_restartFailureTimeout = ~0;
   }
 
+  if (c_restartNoNodegroupTimeout == 0)
+  {
+    c_restartNoNodegroupTimeout = ~0;
+  }
+
   setHbDelay(hbDBDB);
+  setCCDelay(ccInterval);
   setArbitTimeout(arbitTimeout);
 
   arbitRec.method = (ArbitRec::Method)arbitMethod;
@@ -2535,10 +2675,22 @@ void Qmgr::timerHandlingLab(Signal* signal)
       sendHeartbeat(signal);
       hb_send_timer.reset(TcurrentTime);
     }
-    if (hb_check_timer.check(TcurrentTime)) {
-      jam();
-      checkHeartbeat(signal);
-      hb_check_timer.reset(TcurrentTime);
+    if (likely(! m_connectivity_check.m_active))
+    {
+      if (hb_check_timer.check(TcurrentTime)) {
+        jam();
+        checkHeartbeat(signal);
+        hb_check_timer.reset(TcurrentTime);
+      }
+    }
+    else
+    {
+      /* Connectivity check */
+      if (m_connectivity_check.m_timer.check(TcurrentTime)) {
+        jam();
+        checkConnectivityTimeSignal(signal);
+        m_connectivity_check.m_timer.reset(TcurrentTime);
+      }
     }
   }
   
@@ -2643,16 +2795,26 @@ void Qmgr::checkHeartbeat(Signal* signal)
 
   if (getNodeInfo(nodePtr.i).m_heartbeat_cnt > 4) {
     jam();
-    /**----------------------------------------------------------------------
-     * OUR LEFT NEIGHBOUR HAVE KEPT QUIET FOR THREE CONSECUTIVE HEARTBEAT 
-     * PERIODS. THUS WE DECLARE HIM DOWN.
-     *----------------------------------------------------------------------*/
-    signal->theData[0] = NDB_LE_DeadDueToHeartbeat;
-    signal->theData[1] = nodePtr.i;
-    sendSignal(CMVMI_REF, GSN_EVENT_REP, signal, 2, JBB);
+    if (m_connectivity_check.getEnabled())
+    {
+      jam();
+      /* Start connectivity check, indicating the cause */
+      startConnectivityCheck(signal, FailRep::ZHEARTBEAT_FAILURE, nodePtr.i);
+      return;
+    }
+    else
+    {
+      /**----------------------------------------------------------------------
+       * OUR LEFT NEIGHBOUR HAVE KEPT QUIET FOR THREE CONSECUTIVE HEARTBEAT
+       * PERIODS. THUS WE DECLARE HIM DOWN.
+       *----------------------------------------------------------------------*/
+      signal->theData[0] = NDB_LE_DeadDueToHeartbeat;
+      signal->theData[1] = nodePtr.i;
+      sendSignal(CMVMI_REF, GSN_EVENT_REP, signal, 2, JBB);
 
-    failReportLab(signal, nodePtr.i, FailRep::ZHEARTBEAT_FAILURE, getOwnNodeId());
-    return;
+      failReportLab(signal, nodePtr.i, FailRep::ZHEARTBEAT_FAILURE, getOwnNodeId());
+      return;
+    }
   }//if
 }//Qmgr::checkHeartbeat()
 
@@ -2791,7 +2953,7 @@ void Qmgr::checkStartInterface(Signal* signal, Uint64 now)
                                nodePtr.i, 
                                (getNodeInfo(nodePtr.i).m_heartbeat_cnt + 1)/60,
                                nodePtr.p->failState);
-	  warningEvent(buf);
+	  warningEvent("%s", buf);
           if (((getNodeInfo(nodePtr.i).m_heartbeat_cnt + 1) % 300) == 0)
           {
             jam();
@@ -3056,6 +3218,7 @@ void Qmgr::execDISCONNECT_REP(Signal* signal)
   {
     jam();
     CRASH_INSERTION(932);
+    CRASH_INSERTION(938);
     BaseString::snprintf(buf, 100, "Node %u disconnected", nodeId);    
     progError(__LINE__, NDBD_EXIT_SR_OTHERNODEFAILED, buf);
     ndbrequire(false);
@@ -3583,6 +3746,24 @@ void Qmgr::failReportLab(Signal* signal, Uint16 aFailedNode,
     jam();
     return;
   }
+
+  if (isNodeConnectivitySuspect(sourceNode) &&
+      // (! isNodeConnectivitySuspect(aFailedNode)) &&  // TODO : Required?
+      ((aFailCause == FailRep::ZCONNECT_CHECK_FAILURE) ||
+       (aFailCause == FailRep::ZLINK_FAILURE)))
+  {
+    jam();
+    /* Connectivity related failure report from a node with suspect
+     * connectivity, handle differently
+     */
+    ndbrequire(sourceNode != getOwnNodeId());
+
+    handleFailFromSuspect(signal,
+                          aFailCause,
+                          aFailedNode,
+                          sourceNode);
+    return;
+  }
   
   if (failedNodePtr.i == getOwnNodeId()) {
     jam();
@@ -3639,11 +3820,15 @@ void Qmgr::failReportLab(Signal* signal, Uint16 aFailedNode,
     case FailRep::ZMULTI_NODE_SHUTDOWN:
       msg = "Multi node shutdown";
       break;
+    case FailRep::ZCONNECT_CHECK_FAILURE:
+      msg = "Connectivity check failure";
+      break;
     default:
       msg = "<UNKNOWN>";
     }
     
     CRASH_INSERTION(932);
+    CRASH_INSERTION(938);
 
     char buf[255];
     BaseString::snprintf(buf, sizeof(buf), 
@@ -3670,6 +3855,7 @@ void Qmgr::failReportLab(Signal* signal, Uint16 aFailedNode,
   {
     jam();
     CRASH_INSERTION(932);
+    CRASH_INSERTION(938);
     char buf[100];
     BaseString::snprintf(buf, 100, "Node failure during restart");
     progError(__LINE__, NDBD_EXIT_SR_OTHERNODEFAILED, buf);
@@ -3768,6 +3954,7 @@ void Qmgr::execPREP_FAILREQ(Signal* signal)
   {
     jam();
     CRASH_INSERTION(932);
+    CRASH_INSERTION(938);
     char buf[100];
     BaseString::snprintf(buf, 100, "Node failure during restart");
     progError(__LINE__, NDBD_EXIT_SR_OTHERNODEFAILED, buf);
@@ -4494,6 +4681,34 @@ void Qmgr::failReport(Signal* signal,
   ptrCheckGuard(failedNodePtr, MAX_NDB_NODES, nodeRec);
   if (failedNodePtr.p->phase == ZRUNNING) {
     jam();
+
+#ifdef ERROR_INSERT
+    if (ERROR_INSERTED(938))
+    {
+      nodeFailCount++;
+      ndbout_c("QMGR : execFAIL_REP : %u nodes have failed", nodeFailCount);
+      /* Count DB nodes */
+      Uint32 nodeCount = 0;
+      for (Uint32 i = 1; i < MAX_NDB_NODES; i++)
+      {
+        if (getNodeInfo(i).getType() == NODE_TYPE_DB)
+          nodeCount++;
+      }
+
+      /* When > 25% of cluster has failed, resume communications */
+      if (nodeFailCount > (nodeCount / 4))
+      {
+        ndbout_c("QMGR : execFAIL_REP > 25%% nodes failed, resuming comms");
+        Signal save = *signal;
+        signal->theData[0] = 9991;
+        sendSignal(CMVMI_REF, GSN_DUMP_STATE_ORD, signal, 1, JBB);
+        *signal = save;
+        nodeFailCount = 0;
+        SET_ERROR_INSERT_VALUE(932);
+      }
+    }
+#endif
+
 /* WE ALSO NEED TO ADD HERE SOME CODE THAT GETS OUR NEW NEIGHBOURS. */
     if (cpresident == getOwnNodeId()) {
       jam();
@@ -4543,6 +4758,13 @@ void Qmgr::failReport(Signal* signal,
       jam();
       return;
     }//if
+
+    if (unlikely(m_connectivity_check.reportNodeFailure(failedNodePtr.i)))
+    {
+      jam();
+      connectivityCheckCompleted(signal);
+    }
+
     failedNodePtr.p->ndynamicId = 0;
     findNeighbours(signal, __LINE__);
     if (failedNodePtr.i == cpresident) {
@@ -5657,6 +5879,7 @@ Qmgr::stateArbitCrash(Signal* signal)
     return;
 #endif
   CRASH_INSERTION(932);
+  CRASH_INSERTION(938);
   progError(__LINE__, NDBD_EXIT_ARBIT_SHUTDOWN,
             "Arbitrator decided to shutdown this node");
 }
@@ -5772,7 +5995,7 @@ Qmgr::execDUMP_STATE_ORD(Signal* signal)
         sprintf(buf, "Node %d: <UNKNOWN>(%d)", i, nodePtr.p->phase);
         break;
       }
-      infoEvent(buf);
+      infoEvent("%s", buf);
     }
   }
 
@@ -5819,6 +6042,62 @@ Qmgr::execDUMP_STATE_ORD(Signal* signal)
     }
     ndbout << buf << endl;
   }
+
+#ifdef ERROR_INSERT
+  Uint32 dumpCode = signal->theData[0];
+  if ((dumpCode == 9992) ||
+      (dumpCode == 9993))
+  {
+    if (signal->getLength() == 2)
+    {
+      Uint32 nodeId = signal->theData[1];
+      Uint32& newNodeId = signal->theData[1];
+      Uint32 length = 2;
+      assert(257 > MAX_NODES);
+      if (nodeId > MAX_NODES)
+      {
+        const char* type = "None";
+        switch (nodeId)
+        {
+        case 257:
+        {
+          /* Left (lower) neighbour */
+          newNodeId = cneighbourl;
+          type = "Left neighbour";
+          break;
+        }
+        case 258:
+        {
+          /* Right (higher) neighbour */
+          newNodeId = cneighbourh;
+          type = "Right neighbour";
+          break;
+        }
+        case 259:
+        {
+          /* President */
+          newNodeId = cpresident;
+          type = "President";
+          break;
+        }
+        }
+        ndbout_c("QMGR : Mapping request on node id %u to node id %u (%s)",
+                 nodeId, newNodeId, type);
+        if (newNodeId != nodeId)
+        {
+          sendSignal(CMVMI_REF, GSN_DUMP_STATE_ORD, signal, length, JBB);
+        }
+      }
+    }
+  }
+
+  if (dumpCode == 9994)
+  {
+    ndbout_c("setCCDelay(%u)", signal->theData[1]);
+    setCCDelay(signal->theData[1]);
+    m_connectivity_check.m_enabled = true;
+  }
+#endif
 }//Qmgr::execDUMP_STATE_ORD()
 
 
@@ -6214,4 +6493,492 @@ Qmgr::check_hb_order_config()
   }
   m_hb_order_config_used = true;
   return 0;
+}
+
+static const Uint32 CC_SuspectTicks = 1;
+static const Uint32 CC_FailedTicks = 2;
+
+void
+Qmgr::startConnectivityCheck(Signal* signal, Uint32 reason, Uint32 causingNode)
+{
+  jam();
+  ndbrequire(m_connectivity_check.getEnabled());
+
+  if (m_connectivity_check.m_active)
+  {
+    jam();
+    /* Connectivity check underway already
+     * do nothing
+     */
+    return;
+  }
+
+
+  m_connectivity_check.m_nodesPinged.clear();
+
+  /* Send NODE_PINGREQ signal to all other running nodes, and
+   * initialise connectivity check bitmasks.
+   * Note that nodes may already be considered suspect due to
+   * a previous connectivity check round.
+   */
+  Uint32 ownId = getOwnNodeId();
+  NodePingReq* pingReq = CAST_PTR(NodePingReq, &signal->theData[0]);
+  pingReq->senderData = ++m_connectivity_check.m_currentRound;
+  pingReq->senderRef = reference();
+
+  for (Uint32 i=1; i < MAX_NDB_NODES; i++)
+  {
+    if (i != ownId)
+    {
+      NodeRec& node = nodeRec[i];
+      if (node.phase == ZRUNNING)
+      {
+        /* If connection was considered ok, treat as unknown,
+         * If it was considered slow, continue to treat
+         *   as slow
+         */
+        sendSignal(node.blockRef,
+                   GSN_NODE_PING_REQ,
+                   signal,
+                   NodePingReq::SignalLength,
+                   JBA);
+
+        m_connectivity_check.m_nodesPinged.set(i);
+      }
+    }
+  }
+
+  /* Initialise result bitmasks */
+  m_connectivity_check.m_nodesWaiting.assign(m_connectivity_check.m_nodesPinged);
+  m_connectivity_check.m_nodesFailedDuring.clear();
+
+  /* Ensure only live nodes are considered suspect */
+  m_connectivity_check.m_nodesSuspect.bitAND(m_connectivity_check.m_nodesPinged);
+
+  const char* reasonText = "Unknown";
+  bool firstTime = true;
+
+  switch(reason)
+  {
+  case FailRep::ZHEARTBEAT_FAILURE:
+    reasonText = "Heartbeat failure";
+    break;
+  case FailRep::ZCONNECT_CHECK_FAILURE:
+    reasonText = "Connectivity check request";
+    break;
+  default:
+    firstTime = false;
+    ndbrequire(m_connectivity_check.m_nodesSuspect.count() > 0);
+    break;
+  }
+
+  if (!m_connectivity_check.m_nodesPinged.isclear())
+  {
+    jam();
+    {
+      char buff[100];
+      m_connectivity_check.m_nodesPinged.getText(buff);
+      if (firstTime)
+      {
+        g_eventLogger->info("QMGR : Starting connectivity check of %u other nodes (%s) due to %s from node %u.",
+                            m_connectivity_check.m_nodesPinged.count(),
+                            buff,
+                            reasonText,
+                            causingNode);
+      }
+      else
+      {
+        char buff2[100];
+        m_connectivity_check.m_nodesSuspect.getText(buff2);
+        g_eventLogger->info("QMGR : Restarting connectivity check of %u other nodes (%s) due to %u syspect nodes (%s)",
+                            m_connectivity_check.m_nodesPinged.count(),
+                            buff,
+                            m_connectivity_check.m_nodesSuspect.count(),
+                            buff2);
+      }
+    }
+
+    /* Generate cluster log event */
+    Uint32 bitmaskSz = NdbNodeBitmask::Size;
+    signal->theData[0] = NDB_LE_ConnectCheckStarted;
+    signal->theData[1] = m_connectivity_check.m_nodesPinged.count();
+    signal->theData[2] = reason;
+    signal->theData[3] = causingNode;
+    signal->theData[4] = bitmaskSz;
+    Uint32* sigPtr = &signal->theData[5];
+    m_connectivity_check.m_nodesPinged.copyto(bitmaskSz, sigPtr); sigPtr+= bitmaskSz;
+    m_connectivity_check.m_nodesSuspect.copyto(bitmaskSz, sigPtr);
+    sendSignal(CMVMI_REF, GSN_EVENT_REP, signal, 5 + (2 * bitmaskSz), JBB);
+
+    m_connectivity_check.m_active = true;
+    m_connectivity_check.m_tick = 0;
+    NDB_TICKS now = NdbTick_CurrentMillisecond();
+    m_connectivity_check.m_timer.reset(now);
+  }
+  else
+  {
+    g_eventLogger->info("QMGR : Connectivity check requested due to %s (from %u) not started as no other running nodes.",
+                        reasonText,
+                        causingNode);
+  }
+}
+
+void
+Qmgr::execNODE_PINGREQ(Signal* signal)
+{
+  jamEntry();
+  Uint32 ownId = getOwnNodeId();
+  const NodePingReq* pingReq = CAST_CONSTPTR(NodePingReq, &signal->theData[0]);
+  Uint32 sendersRef = signal->getSendersBlockRef();
+  Uint32 sendersNodeId = refToNode(sendersRef);
+  Uint32 senderData = pingReq->senderData;
+
+  ndbrequire(sendersNodeId != ownId);
+
+  /* We will start our own connectivity check if necessary
+   * before responding with PING_CONF to the requestor.
+   * This means that the sending node will receive our PING_REQ
+   * before our PING_CONF, which should avoid them starting an
+   * unnecessary extra connectivity check round in some cases.
+   */
+  if (likely(m_connectivity_check.getEnabled()))
+  {
+    jam();
+    /* We have connectivity checking configured */
+    if (! m_connectivity_check.m_active)
+    {
+      jam();
+
+      {
+        /* Don't start a new connectivity check if the requesting
+         * node has failed from our point of view
+         */
+        NodeRecPtr nodePtr;
+        nodePtr.i = sendersNodeId;
+        ptrCheckGuard(nodePtr, MAX_NDB_NODES, nodeRec);
+        if (unlikely(nodePtr.p->phase != ZRUNNING))
+        {
+          jam();
+
+          g_eventLogger->warning("QMGR : Discarding NODE_PINGREQ from non-running node %u (%u)",
+                                 sendersNodeId, nodePtr.p->phase);
+          return;
+        }
+      }
+
+      /* Start our own Connectivity Check now indicating reason and causing node */
+      startConnectivityCheck(signal, FailRep::ZCONNECT_CHECK_FAILURE, sendersNodeId);
+    }
+  }
+  else
+  {
+    jam();
+    g_eventLogger->warning("QMGR : NODE_PINGREQ received from node %u, but connectivity "
+                           "checking not configured on this node.  Ensure all "
+                           "nodes have the same configuration for parameter "
+                           "ConnectCheckIntervalMillis.",
+                           sendersNodeId);
+  }
+
+  /* Now respond with NODE_PINGCONF */
+  NodePingConf* pingConf = CAST_PTR(NodePingConf, &signal->theData[0]);
+
+  pingConf->senderData = senderData;
+  pingConf->senderRef = reference();
+
+  sendSignal(sendersRef,
+             GSN_NODE_PING_CONF,
+             signal,
+             NodePingConf::SignalLength,
+             JBA);
+}
+
+void
+Qmgr::ConnectCheckRec::reportNodeConnect(Uint32 nodeId)
+{
+  /* Clear any suspicion */
+  m_nodesSuspect.clear(nodeId);
+}
+
+bool
+Qmgr::ConnectCheckRec::reportNodeFailure(Uint32 nodeId)
+{
+  if (unlikely(m_active))
+  {
+    m_nodesFailedDuring.set(nodeId);
+
+    if (m_nodesWaiting.get(nodeId))
+    {
+      /* We were waiting for a NODE_PING_CONF from this node,
+       * remove it from the set
+       */
+      m_nodesWaiting.clear(nodeId);
+
+      return m_nodesWaiting.isclear();
+    }
+  }
+  return false;
+}
+
+void
+Qmgr::execNODE_PINGCONF(Signal* signal)
+{
+  jamEntry();
+
+  ndbrequire(m_connectivity_check.getEnabled());
+
+  const NodePingConf* pingConf = CAST_CONSTPTR(NodePingConf, &signal->theData[0]);
+  Uint32 sendersBlockRef = signal->getSendersBlockRef();
+  Uint32 sendersNodeId = refToNode(sendersBlockRef);
+  Uint32 roundNumber = pingConf->senderData;
+
+  ndbrequire(sendersNodeId != getOwnNodeId());
+  ndbrequire((m_connectivity_check.m_active)                                || /* Normal */
+             (m_connectivity_check.m_nodesWaiting.get(sendersNodeId)          || /* We killed last round */
+              m_connectivity_check.m_nodesFailedDuring.get(sendersNodeId)));     /* Someone killed */
+
+  if (unlikely((! m_connectivity_check.m_active) ||
+               (roundNumber != m_connectivity_check.m_currentRound)))
+  {
+    g_eventLogger->warning("QMGR : Received NODEPING_CONF from node %u for round %u, "
+                           "but we are %sactive on round %u.  Discarding.",
+                           sendersNodeId,
+                           roundNumber,
+                           ((m_connectivity_check.m_active)?"":"in"),
+                           m_connectivity_check.m_currentRound);
+    return;
+  }
+
+  /* Node must have been pinged, we must be waiting for the response,
+   * or the node must have already failed
+   */
+  ndbrequire(m_connectivity_check.m_nodesPinged.get(sendersNodeId));
+  ndbrequire(m_connectivity_check.m_nodesWaiting.get(sendersNodeId) ||
+             m_connectivity_check.m_nodesFailedDuring.get(sendersNodeId));
+
+  m_connectivity_check.m_nodesWaiting.clear(sendersNodeId);
+
+  if (likely(m_connectivity_check.m_tick < CC_SuspectTicks))
+  {
+    jam();
+    /* Node responded on time, clear any suspicion about it */
+    m_connectivity_check.m_nodesSuspect.clear(sendersNodeId);
+  }
+
+  if (m_connectivity_check.m_nodesWaiting.isclear())
+  {
+    jam();
+    /* Connectivity check round is now finished */
+    connectivityCheckCompleted(signal);
+  }
+}
+
+void
+Qmgr::connectivityCheckCompleted(Signal* signal)
+{
+  jam();
+
+  m_connectivity_check.m_active = false;
+
+  /* Log the following :
+   * Nodes checked
+   * Nodes responded ok
+   * Nodes responded late (now suspect)
+   * Nodes failed to respond.
+   * Nodes failed during
+   */
+  char pinged[100];
+  char late[100];
+  char silent[100];
+  char failed[100];
+
+  /* Any 'waiting' nodes have been killed
+   * Surviving suspects do not include them.
+   */
+  NdbNodeBitmask survivingSuspects(m_connectivity_check.m_nodesSuspect);
+  survivingSuspects.bitANDC(m_connectivity_check.m_nodesWaiting);
+
+  /* Nodes that failed during the check are also excluded */
+  survivingSuspects.bitANDC(m_connectivity_check.m_nodesFailedDuring);
+
+  m_connectivity_check.m_nodesPinged.getText(pinged);
+  survivingSuspects.getText(late);
+  m_connectivity_check.m_nodesWaiting.getText(silent);
+  m_connectivity_check.m_nodesFailedDuring.getText(failed);
+
+  g_eventLogger->info("QMGR : Connectivity check completed, "
+                      "%u other nodes checked (%s), "
+                      "%u responded on time, "
+                      "%u responded late (%s), "
+                      "%u no response will be failed (%s), "
+                      "%u failed during check (%s)\n",
+                      m_connectivity_check.m_nodesPinged.count(),
+                      pinged,
+                      m_connectivity_check.m_nodesPinged.count() -
+                      m_connectivity_check.m_nodesSuspect.count(),
+                      survivingSuspects.count(),
+                      late,
+                      m_connectivity_check.m_nodesWaiting.count(),
+                      silent,
+                      m_connectivity_check.m_nodesFailedDuring.count(),
+                      failed);
+
+  /* Log in Cluster log */
+  signal->theData[0] = NDB_LE_ConnectCheckCompleted;
+  signal->theData[1] = m_connectivity_check.m_nodesPinged.count();
+  signal->theData[2] = survivingSuspects.count();
+  signal->theData[3] = m_connectivity_check.m_nodesWaiting.count() +
+    m_connectivity_check.m_nodesFailedDuring.count();
+
+  sendSignal(CMVMI_REF, GSN_EVENT_REP, signal, 4, JBB);
+
+  if (survivingSuspects.count() > 0)
+  {
+    jam();
+    /* Still suspect nodes, start another round */
+    g_eventLogger->info("QMGR : Starting new connectivity check due to suspect nodes.");
+    /* Restart connectivity check, no external reason or cause */
+    startConnectivityCheck(signal, 0, 0);
+  }
+  else
+  {
+    jam();
+    /* No suspect nodes, stop the protocol now */
+
+    g_eventLogger->info("QMGR : All other nodes (%u) connectivity ok.",
+                        m_connectivity_check.m_nodesPinged.count() -
+                        (m_connectivity_check.m_nodesWaiting.count() +
+                         m_connectivity_check.m_nodesFailedDuring.count()));
+
+    /* Send a heartbeat to our right neighbour at this point as a gesture
+     * of goodwill
+     */
+    sendHeartbeat(signal);
+    hb_send_timer.reset(NdbTick_CurrentMillisecond());
+  };
+}
+
+void
+Qmgr::checkConnectivityTimeSignal(Signal* signal)
+{
+  /* Executed periodically when a connectivity check is
+   * underway.
+   * After CC_SuspectTicks have elapsed, any nodes
+   * which have not responded are considered
+   * 'Suspect'.
+   * After CC_FailedTicks have elapsed, any nodes
+   * which have not responded are considered
+   * to have failed, and failure handling
+   * begins.
+   */
+  jam();
+
+  /* Preconditions, otherwise we shouldn't have been called */
+  ndbrequire(m_connectivity_check.getEnabled());
+  ndbrequire(m_connectivity_check.m_active);
+  ndbrequire(!m_connectivity_check.m_nodesWaiting.isclear());
+
+  m_connectivity_check.m_tick++;
+
+  switch (m_connectivity_check.m_tick)
+  {
+  case CC_SuspectTicks:
+  {
+    jam();
+    /* Still waiting to hear from some nodes, they are now
+     * suspect
+     */
+    m_connectivity_check.m_nodesSuspect.bitOR(m_connectivity_check.m_nodesWaiting);
+    return;
+  }
+  case CC_FailedTicks:
+  {
+    jam();
+    /* Still waiting to hear from some nodes, they will now
+     * be failed
+     */
+    m_connectivity_check.m_active = false;
+    Uint32 nodeId = 0;
+
+    while ((nodeId = m_connectivity_check.m_nodesWaiting.find(nodeId))
+           != BitmaskImpl::NotFound)
+    {
+      jam();
+      /* Log failure reason */
+      /* Todo : Connectivity Check specific failure log? */
+      signal->theData[0] = NDB_LE_DeadDueToHeartbeat;
+      signal->theData[1] = nodeId;
+
+      sendSignal(CMVMI_REF, GSN_EVENT_REP, signal, 2, JBB);
+
+      /* Fail the node */
+      /* TODO : Consider real time break here */
+      failReportLab(signal, nodeId, FailRep::ZCONNECT_CHECK_FAILURE, getOwnNodeId());
+      nodeId++;
+    }
+
+    /* Now handle the end of the Connectivity Check */
+    connectivityCheckCompleted(signal);
+  }
+  }
+}
+
+bool
+Qmgr::isNodeConnectivitySuspect(Uint32 nodeId) const
+{
+  return m_connectivity_check.m_nodesSuspect.get(nodeId);
+}
+
+void
+Qmgr::handleFailFromSuspect(Signal* signal,
+                            Uint32 reason,
+                            Uint16 aFailedNode,
+                            Uint16 sourceNode)
+{
+  jam();
+
+  const char* reasonText = "Unknown";
+
+  /* We have received a failure report about some node X from
+   * some other node that we consider to have suspect connectivity
+   * which may have caused the report.
+   *
+   * We will 'invert' the sense of this, and handle it as
+   * a failure report of the sender, with the same cause.
+   */
+  switch(reason)
+  {
+  case FailRep::ZCONNECT_CHECK_FAILURE:
+    jam();
+    /* Suspect says that connectivity check failed for another node.
+     * As suspect has bad connectivity from our point of view, we
+     * blame him.
+     */
+    reasonText = "ZCONNECT_CHECK_FAILURE";
+    break;
+  case FailRep::ZLINK_FAILURE:
+    jam();
+    /* Suspect says that link failed for another node.
+     * As suspect has bad connectivity from our point of view, we
+     * blame her.
+     */
+    reasonText = "ZLINK_FAILURE";
+    break;
+  default:
+    ndbrequire(false);
+  }
+
+  g_eventLogger->warning("QMGR : Received Connectivity failure notification about "
+                         "%u from suspect node %u with reason %s.  "
+                         "Mapping to failure of %u sourced by me.",
+                         aFailedNode, sourceNode, reasonText, sourceNode);
+
+  signal->theData[0] = NDB_LE_NodeFailRejected;
+  signal->theData[1] = reason;
+  signal->theData[2] = aFailedNode;
+  signal->theData[3] = sourceNode;
+
+  sendSignal(CMVMI_REF, GSN_EVENT_REP, signal, 4, JBB);
+
+  failReportLab(signal, sourceNode, (FailRep::FailCause) reason, getOwnNodeId());
 }

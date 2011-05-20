@@ -552,14 +552,14 @@ int mysql_create_db(THD *thd, char *db, HA_CREATE_INFO *create_info,
     my_error(ER_DB_CREATE_EXISTS, MYF(0), db);
     DBUG_RETURN(-1);
   }
+  
+#ifndef MCP_GLOBAL_SCHEMA_LOCK
+  Ndb_global_schema_lock_guard global_schema_lock(thd);
+  (void)global_schema_lock.lock();
+ #endif
 
   if (lock_schema_name(thd, db))
     DBUG_RETURN(-1);
-
-#ifndef MCP_GLOBAL_SCHEMA_LOCK
-  Ndb_global_schema_lock_guard global_schema_lock_guard(thd);
-  global_schema_lock_guard.lock();
-#endif
 
   /* Check directory */
   path_len= build_table_filename(path, sizeof(path) - 1, db, "", "", 0);
@@ -690,13 +690,13 @@ bool mysql_alter_db(THD *thd, const char *db, HA_CREATE_INFO *create_info)
   int error= 0;
   DBUG_ENTER("mysql_alter_db");
 
+#ifndef MCP_GLOBAL_SCHEMA_LOCK
+  Ndb_global_schema_lock_guard global_schema_lock(thd);
+  (void)global_schema_lock.lock();
+#endif
+
   if (lock_schema_name(thd, db))
     DBUG_RETURN(TRUE);
-
-#ifndef MCP_GLOBAL_SCHEMA_LOCK
-  Ndb_global_schema_lock_guard global_schema_lock_guard(thd);
-  global_schema_lock_guard.lock();
-#endif
 
   /* 
      Recreate db options file: /dbpath/.db.opt
@@ -776,14 +776,13 @@ bool mysql_rm_db(THD *thd,char *db,bool if_exists, bool silent)
   Drop_table_error_handler err_handler;
   DBUG_ENTER("mysql_rm_db");
 
+#ifndef MCP_GLOBAL_SCHEMA_LOCK
+  Ndb_global_schema_lock_guard global_schema_lock(thd);
+  (void)global_schema_lock.lock();
+ #endif
 
   if (lock_schema_name(thd, db))
     DBUG_RETURN(true);
-
-#ifndef MCP_GLOBAL_SCHEMA_LOCK
-  Ndb_global_schema_lock_guard global_schema_lock_guard(thd);
-  global_schema_lock_guard.lock();
-#endif
 
   length= build_table_filename(path, sizeof(path) - 1, db, "", "", 0);
   strmov(path+length, MY_DB_OPT_FILE);		// Append db option file name

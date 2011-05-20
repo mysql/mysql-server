@@ -545,6 +545,16 @@ Configuration::getClusterConfigIterator() const {
   return m_clusterConfigIter;
 }
 
+Uint32 
+Configuration::get_config_generation() const {
+  Uint32 generation = ~0;
+  ndb_mgm_configuration_iterator sys_iter(*m_clusterConfig,
+                                          CFG_SECTION_SYSTEM);
+  sys_iter.get(CFG_SYS_CONFIG_GENERATION, &generation);
+  return generation;
+}
+ 
+
 void
 Configuration::calcSizeAlt(ConfigValues * ownConfig){
   const char * msg = "Invalid configuration fetched";
@@ -733,7 +743,11 @@ Configuration::calcSizeAlt(ConfigValues * ownConfig){
 
 
   if (noOfLocalScanRecords == 0) {
+#if NDB_VERSION_D < NDB_MAKE_VERSION(7,2,0)
     noOfLocalScanRecords = (noOfDBNodes * noOfScanRecords) + 
+#else
+    noOfLocalScanRecords = 4 * (noOfDBNodes * noOfScanRecords) +
+#endif
       1 /* NR */ + 
       1 /* LCP */; 
   }

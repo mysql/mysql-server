@@ -287,9 +287,8 @@ Dbtup::execACC_CHECK_SCAN(Signal* signal)
   }
 
   const bool lcp = (scan.m_bits & ScanOp::SCAN_LCP);
-  Uint32 lcp_list = fragPtr.p->m_lcp_keep_list;
 
-  if (lcp && lcp_list != RNIL)
+  if (lcp && ! fragPtr.p->m_lcp_keep_list_head.isNull())
   {
     jam();
     /**
@@ -297,7 +296,7 @@ Dbtup::execACC_CHECK_SCAN(Signal* signal)
      *   So that scan state is not alterer
      *   if lcp_keep rows are found in ScanOp::First
      */
-    handle_lcp_keep(signal, fragPtr.p, scanPtr.p, lcp_list);
+    handle_lcp_keep(signal, fragPtr.p, scanPtr.p);
     return;
   }
 
@@ -354,7 +353,8 @@ Dbtup::scanReply(Signal* signal, ScanOpPtr scanPtr)
       lockReq->fragId = frag.fragmentId;
       lockReq->fragPtrI = RNIL; // no cached frag ptr yet
       lockReq->hashValue = md5_hash((Uint64*)pkData, pkSize);
-      lockReq->tupAddr = key_mm.ref();
+      lockReq->page_id = key_mm.m_page_no;
+      lockReq->page_idx = key_mm.m_page_idx;
       lockReq->transId1 = scan.m_transId1;
       lockReq->transId2 = scan.m_transId2;
       EXECUTE_DIRECT(DBACC, GSN_ACC_LOCKREQ,
@@ -432,10 +432,9 @@ Dbtup::scanReply(Signal* signal, ScanOpPtr scanPtr)
     const ScanPos& pos = scan.m_scanPos;
     conf->accOperationPtr = accLockOp;
     conf->fragId = frag.fragmentId;
-    conf->localKey[0] = pos.m_key_mm.ref();
-    conf->localKey[1] = 0;
-    conf->localKeyLength = 1;
-    unsigned signalLength = 6;
+    conf->localKey[0] = pos.m_key_mm.m_page_no;
+    conf->localKey[1] = pos.m_key_mm.m_page_idx;
+    unsigned signalLength = 5;
     if (scan.m_bits & ScanOp::SCAN_LOCK) {
       sendSignal(scan.m_userRef, GSN_NEXT_SCANCONF,
           signal, signalLength, JBB);
@@ -475,6 +474,13 @@ Dbtup::execACCKEYCONF(Signal* signal)
   jamEntry();
   ScanOpPtr scanPtr;
   scanPtr.i = signal->theData[0];
+
+  Uint32 localKey1 = signal->theData[3];
+  Uint32 localKey2 = signal->theData[4];
+  Local_key tmp;
+  tmp.m_page_no = localKey1;
+  tmp.m_page_idx = localKey2;
+
   c_scanOpPool.getPtr(scanPtr);
   ScanOp& scan = *scanPtr.p;
   ndbrequire(scan.m_bits & ScanOp::SCAN_LOCK_WAIT && scan.m_accLockOp != RNIL);
@@ -482,10 +488,37 @@ Dbtup::execACCKEYCONF(Signal* signal)
   if (scan.m_state == ScanOp::Blocked) {
     // the lock wait was for current entry
     jam();
-    scan.m_state = ScanOp::Locked;
-    // LQH has the ball
-    return;
+
+    if (likely(scan.m_scanPos.m_key_mm.m_page_no == tmp.m_page_no &&
+               scan.m_scanPos.m_key_mm.m_page_idx == tmp.m_page_idx))
+    {
+      jam();
+      scan.m_state = ScanOp::Locked;
+      // LQH has the ball
+      return;
+    }
+    else
+    {
+      jam();
+      /**
+       * This means that there was DEL/INS on rowid that we tried to lock
+       *   and the primary key that was previously located on this rowid
+       *   (scanPos.m_key_mm) has moved.
+       *   (DBACC keeps of track of primary keys)
+       *
+       * We don't care about the primary keys, but is interested in ROWID
+       *   so rescan this position.
+       *   Which is implemented by using execACCKEYREF...
+       */
+      ndbout << "execACCKEYCONF "
+             << scan.m_scanPos.m_key_mm
+             << " != " << tmp << " ";
+      scan.m_bits |= ScanOp::SCAN_LOCK_WAIT;
+      execACCKEYREF(signal);
+      return;
+    }
   }
+
   if (scan.m_state != ScanOp::Aborting) {
     // we were moved, release lock
     jam();
@@ -658,19 +691,18 @@ Dbtup::scanNext(Signal* signal, ScanOpPtr scanPtr)
  
   const bool mm = (bits & ScanOp::SCAN_DD);
   const bool lcp = (bits & ScanOp::SCAN_LCP);
-  
-  Uint32 lcp_list = fragPtr.p->m_lcp_keep_list;
+
   const Uint32 size = ((bits & ScanOp::SCAN_VS) == 0) ?
     table.m_offsets[mm].m_fix_header_size : 1;
   const Uint32 first = ((bits & ScanOp::SCAN_VS) == 0) ? 0 : 1;
 
-  if (lcp && lcp_list != RNIL)
+  if (lcp && ! fragPtr.p->m_lcp_keep_list_head.isNull())
   {
     jam();
     /**
      * Handle lcp keep list here to, due to scanCont
      */
-    handle_lcp_keep(signal, fragPtr.p, scanPtr.p, lcp_list);
+    handle_lcp_keep(signal, fragPtr.p, scanPtr.p);
     return false;
   }
 
@@ -1065,12 +1097,11 @@ Dbtup::scanNext(Signal* signal, ScanOpPtr scanPtr)
 	conf->scanPtr = scan.m_userPtr;
 	conf->accOperationPtr = RNIL;
 	conf->fragId = frag.fragmentId;
-	conf->localKey[0] = pos.m_key_mm.ref();
-	conf->localKey[1] = 0;
-	conf->localKeyLength = 1;
+	conf->localKey[0] = pos.m_key_mm.m_page_no;
+	conf->localKey[1] = pos.m_key_mm.m_page_idx;
 	conf->gci = foundGCI;
 	Uint32 blockNo = refToMain(scan.m_userRef);
-	EXECUTE_DIRECT(blockNo, GSN_NEXT_SCANCONF, signal, 7);
+	EXECUTE_DIRECT(blockNo, GSN_NEXT_SCANCONF, signal, 6);
 	jamEntry();
 
 	// TUPKEYREQ handles savepoint stuff
@@ -1097,58 +1128,40 @@ Dbtup::scanNext(Signal* signal, ScanOpPtr scanPtr)
 void
 Dbtup::handle_lcp_keep(Signal* signal,
                        Fragrecord* fragPtrP,
-                       ScanOp* scanPtrP,
-                       Uint32 lcp_list)
+                       ScanOp* scanPtrP)
 {
   TablerecPtr tablePtr;
   tablePtr.i = scanPtrP->m_tableId;
   ptrCheckGuard(tablePtr, cnoOfTablerec, tablerec);
 
-  Local_key tmp;
-  tmp.assref(lcp_list);
-  tmp.m_page_no = getRealpid(fragPtrP, tmp.m_page_no);
-  
-  Ptr<Page> pagePtr;
-  c_page_pool.getPtr(pagePtr, tmp.m_page_no);
-  Tuple_header* ptr = (Tuple_header*)
-    ((Fix_page*)pagePtr.p)->get_ptr(tmp.m_page_idx, 0);
-  Uint32 headerbits = ptr->m_header_bits;
-  ndbrequire(headerbits & Tuple_header::LCP_KEEP);
-  
-  Uint32 next = ptr->m_operation_ptr_i;
-  ptr->m_operation_ptr_i = RNIL;
-  ptr->m_header_bits = headerbits & ~(Uint32)Tuple_header::FREE;
-  
-  if (tablePtr.p->m_bits & Tablerec::TR_Checksum) {
+  ndbassert(!fragPtrP->m_lcp_keep_list_head.isNull());
+  Local_key tmp = fragPtrP->m_lcp_keep_list_head;
+  Uint32 * copytuple = get_copy_tuple_raw(&tmp);
+  memcpy(&fragPtrP->m_lcp_keep_list_head,
+         copytuple+2,
+         sizeof(Local_key));
+
+  if (fragPtrP->m_lcp_keep_list_head.isNull())
+  {
     jam();
-    setChecksum(ptr, tablePtr.p);
+    ndbassert(tmp.m_page_no == fragPtrP->m_lcp_keep_list_tail.m_page_no);
+    ndbassert(tmp.m_page_idx == fragPtrP->m_lcp_keep_list_tail.m_page_idx);
+    fragPtrP->m_lcp_keep_list_tail.setNull();
   }
 
+  Local_key save = tmp;
+  setCopyTuple(tmp.m_page_no, tmp.m_page_idx);
   NextScanConf* const conf = (NextScanConf*)signal->getDataPtrSend();
   conf->scanPtr = scanPtrP->m_userPtr;
   conf->accOperationPtr = (Uint32)-1;
   conf->fragId = fragPtrP->fragmentId;
-  conf->localKey[0] = lcp_list;
-  conf->localKey[1] = 0;
-  conf->localKeyLength = 1;
+  conf->localKey[0] = tmp.m_page_no;
+  conf->localKey[1] = tmp.m_page_idx;
   conf->gci = 0;
   Uint32 blockNo = refToMain(scanPtrP->m_userRef);
-  EXECUTE_DIRECT(blockNo, GSN_NEXT_SCANCONF, signal, 7);
-  
-  fragPtrP->m_lcp_keep_list = next;
-  ptr->m_header_bits |= Tuple_header::FREED; // RESTORE free flag
-  if (headerbits & Tuple_header::FREED)
-  {
-    if (tablePtr.p->m_attributes[MM].m_no_of_varsize +
-        tablePtr.p->m_attributes[MM].m_no_of_dynamic)
-    {
-      jam();
-      free_var_rec(fragPtrP, tablePtr.p, &tmp, pagePtr);
-    } else {
-      jam();
-      free_fix_rec(fragPtrP, tablePtr.p, &tmp, (Fix_page*)pagePtr.p);
-    }
-  }
+  EXECUTE_DIRECT(blockNo, GSN_NEXT_SCANCONF, signal, 6);
+
+  c_undo_buffer.free_copy_tuple(&save);
 }
 
 void
@@ -1288,4 +1301,7 @@ Dbtup::execLCP_FRAG_ORD(Signal* signal)
   new (scanPtr.p) ScanOp;
   scanPtr.p->m_fragPtrI = fragPtr.i;
   scanPtr.p->m_state = ScanOp::First;
+
+  ndbassert(frag.m_lcp_keep_list_head.isNull());
+  ndbassert(frag.m_lcp_keep_list_tail.isNull());
 }

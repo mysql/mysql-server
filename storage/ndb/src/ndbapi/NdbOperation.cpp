@@ -182,7 +182,7 @@ NdbOperation::init(const NdbTableImpl* tab, NdbTransaction* myConnection,
     return -1;
   }
   theTCREQ = tSignal;
-  theTCREQ->setSignal(m_tcReqGSN, DBTC);
+  theTCREQ->setSignal(m_tcReqGSN, refToBlock(theNdbCon->m_tcRef));
 
   theAI_LenInCurrAI = 20;
   TcKeyReq * const tcKeyReq = CAST_PTR(TcKeyReq, theTCREQ->getDataPtrSend());

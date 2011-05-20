@@ -128,6 +128,11 @@ TransporterRegistry::TransporterRegistry(TransporterCallback *callback,
  }
 
 #endif
+#ifdef ERROR_INSERT
+  m_blocked.clear();
+  m_blocked_with_data.clear();
+  m_blocked_disconnected.clear();
+#endif
   // Initialize member variables
   nTransporters    = 0;
   nTCPTransporters = 0;
@@ -673,6 +678,16 @@ TransporterRegistry::prepareSend(TransporterSendBufferHandle *sendHandle,
 	return SEND_MESSAGE_TOO_BIG;
       }
     } else {
+#ifdef ERROR_INSERT
+      if (m_blocked.get(nodeId))
+      {
+        /* Looks like it disconnected while blocked.  We'll pretend
+         * not to notice for now
+         */
+        WARNING("Signal to " << nodeId << " discarded as node blocked + disconnected");
+        return SEND_OK;
+      }
+#endif
       DEBUG("Signal to " << nodeId << " lost(disconnect) ");
       return SEND_DISCONNECTED;
     }
@@ -746,6 +761,16 @@ TransporterRegistry::prepareSend(TransporterSendBufferHandle *sendHandle,
 	return SEND_MESSAGE_TOO_BIG;
       }
     } else {
+#ifdef ERROR_INSERT
+      if (m_blocked.get(nodeId))
+      {
+        /* Looks like it disconnected while blocked.  We'll pretend
+         * not to notice for now
+         */
+        WARNING("Signal to " << nodeId << " discarded as node blocked + disconnected");
+        return SEND_OK;
+      }
+#endif
       DEBUG("Signal to " << nodeId << " lost(disconnect) ");
       return SEND_DISCONNECTED;
     }
@@ -959,6 +984,15 @@ TransporterRegistry::pollReceive(Uint32 timeOutMillis,
     {
       for (int i = 0; i < num_socket_events; i++)
       {
+        Uint32 trpid = m_epoll_events[i].data.u32;
+#ifdef ERROR_INSERT
+        if (m_blocked.get(trpid))
+        {
+          /* Don't pull from socket now, wait till unblocked */
+          m_blocked_with_data.set(trpid);
+          continue;
+        }
+#endif
         mask.set(m_epoll_events[i].data.u32);
       }
     }
@@ -1098,6 +1132,14 @@ TransporterRegistry::poll_TCP(Uint32 timeOutMillis, NodeBitmask& mask)
       if (idx[i] != MAX_NODES + 1)
       {
         Uint32 node_id = t->getRemoteNodeId();
+#ifdef ERROR_INSERT
+        if (m_blocked.get(i))
+        {
+          /* Don't pull from socket now, wait till unblocked */
+          m_blocked_with_data.set(i);
+          continue;
+        }
+#endif
         if (m_socket_poller.has_read(idx[i]))
           mask.set(node_id);
       }
@@ -1177,6 +1219,19 @@ TransporterRegistry::performReceive()
     m_has_data_transporters.clear(Uint32(0));
     consume_extra_sockets();
   }
+
+#ifdef ERROR_INSERT
+  if (!m_blocked.isclear())
+  {
+    if (m_has_data_transporters.isclear())
+    {
+        /* poll sees data, but we want to ignore for now
+         * sleep a little to avoid busy loop
+         */
+      NdbSleep_MilliSleep(1);
+    }
+  }
+#endif
 
 #ifdef NDB_TCP_TRANSPORTER
   Uint32 id = 0;
@@ -1270,7 +1325,7 @@ void
 TransporterRegistry::consume_extra_sockets()
 {
   char buf[4096];
-  int ret;
+  ssize_t ret;
   int err;
   NDB_SOCKET_TYPE sock = m_extra_wakeup_sockets[0];
   do
@@ -1365,6 +1420,59 @@ TransporterRegistry::printState(){
 	     << " PerformState: " << performStates[remoteNodeId]
 	     << " IOState: " << ioStates[remoteNodeId] << endl;
     }
+}
+#endif
+
+#ifdef ERROR_INSERT
+bool
+TransporterRegistry::isBlocked(NodeId nodeId)
+{
+  return m_blocked.get(nodeId);
+}
+
+void
+TransporterRegistry::blockReceive(NodeId nodeId)
+{
+  /* Check that node is not already blocked?
+   * Stop pulling from its socket (but track received data etc)
+   */
+  /* Shouldn't already be blocked with data */
+  assert(!m_blocked.get(nodeId));
+
+  m_blocked.set(nodeId);
+
+  if (m_has_data_transporters.get(nodeId))
+  {
+    assert(!m_blocked_with_data.get(nodeId));
+    m_blocked_with_data.set(nodeId);
+    m_has_data_transporters.clear(nodeId);
+  }
+}
+
+void
+TransporterRegistry::unblockReceive(NodeId nodeId)
+{
+  /* Check that node is blocked?
+   * Resume pulling from its socket
+   * Ensure in-flight data is processed if there was some
+   */
+  assert(m_blocked.get(nodeId));
+  assert(!m_has_data_transporters.get(nodeId));
+
+  m_blocked.clear(nodeId);
+
+  if (m_blocked_with_data.get(nodeId))
+  {
+    m_has_data_transporters.set(nodeId);
+  }
+
+  if (m_blocked_disconnected.get(nodeId))
+  {
+    /* Process disconnect notification/handling now */
+    m_blocked_disconnected.clear(nodeId);
+
+    report_disconnect(nodeId, m_disconnect_errors[nodeId]);
+  }
 }
 #endif
 
@@ -1487,6 +1595,19 @@ TransporterRegistry::report_disconnect(NodeId node_id, int errnum)
 {
   DBUG_ENTER("TransporterRegistry::report_disconnect");
   DBUG_PRINT("info",("performStates[%d]=DISCONNECTED",node_id));
+
+#ifdef ERROR_INSERT
+  if (m_blocked.get(node_id))
+  {
+    /* We are simulating real latency, so control events experience
+     * it too
+     */
+    m_blocked_disconnected.set(node_id);
+    m_disconnect_errors[node_id] = errnum;
+    DBUG_VOID_RETURN;
+  }
+#endif
+
   performStates[node_id] = DISCONNECTED;
   m_has_data_transporters.clear(node_id);
   callbackObj->reportDisconnect(node_id, errnum);

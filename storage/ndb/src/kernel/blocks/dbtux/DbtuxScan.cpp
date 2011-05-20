@@ -39,15 +39,7 @@ Dbtux::execACC_SCANREQ(Signal* signal)
     c_indexPool.getPtr(indexPtr, req->tableId);
     // get the fragment
     FragPtr fragPtr;
-    fragPtr.i = RNIL;
-    for (unsigned i = 0; i < indexPtr.p->m_numFrags; i++) {
-      jam();
-      if (indexPtr.p->m_fragId[i] == req->fragmentNo) {
-        jam();
-        c_fragPool.getPtr(fragPtr, indexPtr.p->m_fragPtrI[i]);
-        break;
-      }
-    }
+    findFrag(*indexPtr.p, req->fragmentNo, fragPtr);
     ndbrequire(fragPtr.i != RNIL);
     Frag& frag = *fragPtr.p;
     // check for index not Online (i.e. Dropping)
@@ -511,7 +503,10 @@ Dbtux::execACC_CHECK_SCAN(Signal* signal)
       const Uint32* const buf32 = static_cast<Uint32*>(pkData);
       const Uint64* const buf64 = reinterpret_cast<const Uint64*>(buf32);
       lockReq->hashValue = md5_hash(buf64, pkSize);
-      lockReq->tupAddr = getTupAddr(frag, ent);
+      Uint32 lkey1, lkey2;
+      getTupAddr(frag, ent, lkey1, lkey2);
+      lockReq->page_id = lkey1;
+      lockReq->page_idx = lkey2;
       lockReq->transId1 = scan.m_transId1;
       lockReq->transId2 = scan.m_transId2;
       // execute
@@ -599,10 +594,11 @@ Dbtux::execACC_CHECK_SCAN(Signal* signal)
     }
     conf->accOperationPtr = accLockOp;
     conf->fragId = frag.m_fragId;
-    conf->localKey[0] = getTupAddr(frag, ent);
-    conf->localKey[1] = 0;
-    conf->localKeyLength = 1;
-    unsigned signalLength = 6;
+    Uint32 lkey1, lkey2;
+    getTupAddr(frag, ent, lkey1, lkey2);
+    conf->localKey[0] = lkey1;
+    conf->localKey[1] = lkey2;
+    unsigned signalLength = 5;
     // add key info
     if (! scan.m_readCommitted) {
       sendSignal(scan.m_userRef, GSN_NEXT_SCANCONF,
@@ -854,8 +850,9 @@ Dbtux::scanFind(ScanOpPtr scanPtr)
  * 0 - up from left child (scan this node next)
  * 1 - up from right child (proceed to parent)
  * 2 - up from root (the scan ends)
- * 3 - left to right within node (at end proceed to right child)
+ * 3 - left to right within node (at end set state 5)
  * 4 - down from parent (proceed to left child)
+ * 5 - at node end proceed to right child (state becomes 4)
  *
  * If an entry was found, scan direction is 3.  Therefore tree
  * re-organizations need not worry about scan direction.
@@ -922,6 +919,19 @@ Dbtux::scanNext(ScanOpPtr scanPtr, bool fromMaintReq)
       // pretend we came from left child
       pos.m_dir = idir;
     }
+    if (pos.m_dir == 5) {
+      // at node end proceed to right child
+      jam();
+      TupLoc loc = node.getLink(1 - idir);
+      if (loc != NullTupLoc) {
+        jam();
+        pos.m_loc = loc;
+        pos.m_dir = 4;  // down from parent as usual
+        continue;
+      }
+      // pretend we came from right child
+      pos.m_dir = 1 - idir;
+    }
     const unsigned occup = node.getOccup();
     if (occup == 0) {
       jam();
@@ -953,15 +963,8 @@ Dbtux::scanNext(ScanOpPtr scanPtr, bool fromMaintReq)
         break;
       }
       // after node proceed to right child
-      TupLoc loc = node.getLink(1 - idir);
-      if (loc != NullTupLoc) {
-        jam();
-        pos.m_loc = loc;
-        pos.m_dir = 4;
-        continue;
-      }
-      // pretend we came from right child
-      pos.m_dir = 1 - idir;
+      pos.m_dir = 5;
+      continue;
     }
     if (pos.m_dir == 1 - idir) {
       // coming up from right child proceed to parent

@@ -29,3 +29,10 @@ comment='NDB_TABLE=NOLOGGING,NOLOGGINGa';
 --enable_warnings
 show warnings;
 drop table t1;
+
+create table t1 (a int primary key,
+                 b blob comment 'NDB_COLUMN=MAX_BLOB_PART_SIZE',
+                 c blob)
+engine NDB;
+source show_attributes.inc;
+drop table t1;

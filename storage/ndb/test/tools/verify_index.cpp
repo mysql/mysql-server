@@ -78,7 +78,6 @@ int main(int argc, const char** argv){
     return NDBT_ProgramExit(NDBT_FAILED);
   }
 
-  int rows = 0;
   UtilTransactions utilTrans(*pTab);
   if (utilTrans.verifyIndex(&MyNdb, 
 			    _indexname, 

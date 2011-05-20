@@ -189,3 +189,10 @@ b
 c
 drop table t1;
 drop table t1;
+Bug 11894966 - second mysqld does not have table after non
+distributed table alter to ndb
+create table t1(a int) engine myisam;
+insert into t1 values(37);
+alter table t1 engine ndb;
+truncate t1;
+drop table t1;

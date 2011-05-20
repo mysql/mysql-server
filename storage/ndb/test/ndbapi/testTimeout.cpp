@@ -500,8 +500,8 @@ int runScanRefreshNoTimeout(NDBT_Context* ctx, NDBT_Step* step){
 int 
 runError4012(NDBT_Context* ctx, NDBT_Step* step){
   int result = NDBT_OK;
-  int loops = ctx->getNumLoops();
-  int stepNo = step->getStepNo();
+  //int loops = ctx->getNumLoops();
+  //int stepNo = step->getStepNo();
   
   int timeout = ctx->getProperty("TransactionDeadlockTimeout", TIMEOUT);
 

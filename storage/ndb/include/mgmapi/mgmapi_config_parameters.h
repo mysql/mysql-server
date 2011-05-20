@@ -180,6 +180,11 @@
 #define CFG_DB_LATE_ALLOC             615
 
 #define CFG_DB_2PASS_INR              616
+#define CFG_DB_PARALLEL_SCANS_PER_FRAG 617
+
+#define CFG_DB_CONNECT_CHECK_DELAY    618
+
+#define CFG_DB_START_NO_NODEGROUP_TIMEOUT 619
 
 #define CFG_NODE_ARBIT_RANK           200
 #define CFG_NODE_ARBIT_DELAY          201
