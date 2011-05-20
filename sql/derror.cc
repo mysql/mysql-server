@@ -1,4 +1,5 @@
 /* Copyright (C) 2000-2005 MySQL AB
+   Copyright (C) 2011 Monty Program Ab
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -24,6 +25,7 @@
 #include "mysql_priv.h"
 #include "mysys_err.h"
 
+static bool check_error_mesg(const char *file_name, const char **errmsg);
 static bool read_texts(const char *file_name,const char ***point,
 		       uint error_messages);
 static void init_myfunc_errs(void);
@@ -32,9 +34,12 @@ static void init_myfunc_errs(void);
   Read messages from errorfile.
 
   This function can be called multiple times to reload the messages.
-  If it fails to load the messages, it will fail softly by initializing
-  the errmesg pointer to an array of empty strings or by keeping the
-  old array if it exists.
+
+  If it fails to load the messages:
+   - If we already have error messages loaded, keep the old ones and
+     return FALSE(ok)
+  - Initializing the errmesg pointer to an array of empty strings
+    and return TRUE (error)
 
   @retval
     FALSE       OK
@@ -44,25 +49,44 @@ static void init_myfunc_errs(void);
 
 bool init_errmessage(void)
 {
-  const char **errmsgs, **ptr;
+  const char **errmsgs, **ptr, **org_errmsgs;
+  bool error= FALSE;
   DBUG_ENTER("init_errmessage");
 
   /*
     Get a pointer to the old error messages pointer array.
     read_texts() tries to free it.
   */
-  errmsgs= my_error_unregister(ER_ERROR_FIRST, ER_ERROR_LAST);
+  org_errmsgs= my_error_unregister(ER_ERROR_FIRST, ER_ERROR_LAST);
 
   /* Read messages from file. */
-  if (read_texts(ERRMSG_FILE, &errmsgs, ER_ERROR_LAST - ER_ERROR_FIRST + 1) &&
-      !errmsgs)
+  if (read_texts(ERRMSG_FILE, &errmsgs, ER_ERROR_LAST - ER_ERROR_FIRST + 1) ||
+      check_error_mesg(ERRMSG_FILE, errmsgs))
   {
-    if (!(errmsgs= (const char**) my_malloc((ER_ERROR_LAST-ER_ERROR_FIRST+1)*
-                                            sizeof(char*), MYF(0))))
-      DBUG_RETURN(TRUE);
-    for (ptr= errmsgs; ptr < errmsgs + ER_ERROR_LAST - ER_ERROR_FIRST; ptr++)
-	  *ptr= "";
+    x_free(errmsgs);
+    
+    if (org_errmsgs)
+    {
+      /* Use old error messages */
+      errmsgs= org_errmsgs;
+    }
+    else
+    {
+      /*
+        No error messages.  Create a temporary empty error message so
+        that we don't get a crash if some code wrongly tries to access
+        a non existing error message.
+      */
+      if (!(errmsgs= (const char**) my_malloc((ER_ERROR_LAST-ER_ERROR_FIRST+1)*
+                                              sizeof(char*), MYF(0))))
+        DBUG_RETURN(TRUE);
+      for (ptr= errmsgs; ptr < errmsgs + ER_ERROR_LAST - ER_ERROR_FIRST; ptr++)
+        *ptr= "";
+      error= TRUE;
+    }
   }
+  else
+    x_free(org_errmsgs);                        // Free old language
 
   /* Register messages for use with my_error(). */
   if (my_error_register(errmsgs, ER_ERROR_FIRST, ER_ERROR_LAST))
@@ -73,7 +97,29 @@ bool init_errmessage(void)
 
   errmesg= errmsgs;		        /* Init global variabel */
   init_myfunc_errs();			/* Init myfunc messages */
-  DBUG_RETURN(FALSE);
+  DBUG_RETURN(error);
+}
+
+
+/**
+   Check the error messages array contains all relevant error messages
+*/
+
+static bool check_error_mesg(const char *file_name, const char **errmsg)
+{
+  /*
+    The last MySQL error message can't be an empty string; If it is,
+    it means that the error file doesn't contain all MySQL messages
+    and is probably from an older version of MySQL / MariaDB.
+  */
+  if (errmsg[ER_LAST_MYSQL_ERROR_MESSAGE -1 - ER_ERROR_FIRST][0] == 0)
+  {
+    sql_print_error("Error message file '%s' is probably from and older "
+                    "version of MariaDB / MYSQL as it doesn't contain all "
+                    "error messages", file_name);
+    return 1;
+  }
+  return 0;
 }
 
 
@@ -99,6 +145,8 @@ static bool read_texts(const char *file_name,const char ***point,
   const char *errmsg;
   DBUG_ENTER("read_texts");
 
+  *point= 0;
+
   LINT_INIT(buff);
   funktpos=0;
   if ((file=my_open(fn_format(name,file_name,language,"",4),
@@ -108,6 +156,7 @@ static bool read_texts(const char *file_name,const char ***point,
 
   funktpos=1;
   if (my_read(file,(uchar*) head,32,MYF(MY_NABP))) goto err;
+  funktpos=2;
   if (head[0] != (uchar) 254 || head[1] != (uchar) 254 ||
       head[2] != 2 || head[3] != 1)
     goto err; /* purecov: inspected */
@@ -133,19 +182,16 @@ Please install the latest version of this file.",name);
   if (count < error_messages)
   {
     sql_print_error("\
-Error message file '%s' had only %d error messages,\n\
-but it should contain at least %d error messages.\n\
-Check that the above file is the right version for this program!",
+Error message file '%s' had only %d error messages, but it should contain at least %d error messages.\nCheck that the above file is the right version for this program!",
 		    name,count,error_messages);
     VOID(my_close(file,MYF(MY_WME)));
     DBUG_RETURN(1);
   }
 
-  x_free((uchar*) *point);		/* Free old language */
   if (!(*point= (const char**)
 	my_malloc((size_t) (length+count*sizeof(char*)),MYF(0))))
   {
-    funktpos=2;					/* purecov: inspected */
+    funktpos=3;					/* purecov: inspected */
     goto err;					/* purecov: inspected */
   }
   buff= (uchar*) (*point + count);
@@ -169,9 +215,11 @@ Check that the above file is the right version for this program!",
 
 err:
   switch (funktpos) {
-  case 2:
+  case 3:
     errmsg= "Not enough memory for messagefile '%s'";
     break;
+  case 2:
+    errmsg= "Incompatible header in messagefile '%s'. Probably from another version of MariaDB";
   case 1:
     errmsg= "Can't read from messagefile '%s'";
     break;

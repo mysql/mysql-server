@@ -6214,6 +6214,19 @@ ER_DEBUG_SYNC_HIT_LIMIT
   eng "debug sync point hit limit reached"
   ger "Debug Sync Point Hit Limit erreicht"
 
+#
+# MariaDB error messages section starts here
+#
+
+# The following is here to allow us to detect if there was missing
+# error messages in the errmsg.sys file
+
+ER_LAST_MYSQL_ERROR_MESSAGE
+   eng ""
+
+# MariaDB error numbers starts from 1900
+start-error-number 1900
+
 ER_VCOL_BASED_ON_VCOL
         eng "A computed column cannot be based on a computed column"
 
