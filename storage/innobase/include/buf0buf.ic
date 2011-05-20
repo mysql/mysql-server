@@ -35,6 +35,7 @@ Created 11/5/1995 Heikki Tuuri
 #include "buf0lru.h"
 #include "buf0rea.h"
 
+#ifndef UNIV_HOTBACKUP
 /** A chunk of buffers. The buffer pool is allocated in chunks. */
 struct buf_chunk_struct{
 	ulint		mem_size;	/*!< allocated size of the chunk */
@@ -171,6 +172,7 @@ buf_page_peek_if_too_old(
 			     / (BUF_LRU_OLD_RATIO_DIV * 4))));
 	}
 }
+#endif /* !UNIV_HOTBACKUP */
 
 /*********************************************************************//**
 Gets the state of a block.
@@ -690,7 +692,8 @@ buf_page_get_zip_size(
 /*==================*/
 	const buf_page_t*	bpage)	/*!< in: pointer to the control block */
 {
-	return(bpage->zip.ssize ? 512 << bpage->zip.ssize : 0);
+	return(bpage->zip.ssize
+	       ? (UNIV_ZIP_SIZE_MIN >> 1) << bpage->zip.ssize : 0);
 }
 
 /*********************************************************************//**
@@ -702,7 +705,8 @@ buf_block_get_zip_size(
 /*===================*/
 	const buf_block_t*	block)	/*!< in: pointer to the control block */
 {
-	return(block->page.zip.ssize ? 512 << block->page.zip.ssize : 0);
+	return(block->page.zip.ssize
+	       ? (UNIV_ZIP_SIZE_MIN >> 1) << block->page.zip.ssize : 0);
 }
 
 #ifndef UNIV_HOTBACKUP
@@ -984,8 +988,6 @@ buf_page_hash_get_low(
 {
 	buf_page_t*	bpage;
 
-	ut_ad(buf_pool);
-
 #ifdef UNIV_SYNC_DEBUG
 	ulint		hash_fold;
 	rw_lock_t*	hash_lock;
@@ -1074,7 +1076,8 @@ buf_page_hash_get_locked(
 
 	bpage = buf_page_hash_get_low(buf_pool, space, offset, fold);
 
-	if (!bpage || UNIV_UNLIKELY(buf_pool_watch_is_sentinel(buf_pool, bpage))) {
+	if (!bpage
+	    || UNIV_UNLIKELY(buf_pool_watch_is_sentinel(buf_pool, bpage))) {
 		bpage = NULL;
 		goto unlock_and_exit;
 	}
@@ -1219,7 +1222,6 @@ buf_page_release_zip(
 		break;
 	}
 
-	
 	ut_error;
 }
 

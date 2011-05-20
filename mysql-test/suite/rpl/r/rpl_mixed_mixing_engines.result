@@ -2711,7 +2711,7 @@ master-bin.000001	#	Query	#	#	COMMIT
 -b-b-b-b-b-b-b-b-b-b-b- >> R << -b-b-b-b-b-b-b-b-b-b-b-
 ROLLBACK;
 Warnings:
-Warning	1196	Some non-transactional changed tables couldn't be rolled back
+Warning	#	Some non-transactional changed tables couldn't be rolled back
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 -e-e-e-e-e-e-e-e-e-e-e- >> R << -e-e-e-e-e-e-e-e-e-e-e-
 -b-b-b-b-b-b-b-b-b-b-b- >> B N N R << -b-b-b-b-b-b-b-b-b-b-b-
@@ -2745,7 +2745,7 @@ master-bin.000001	#	Query	#	#	COMMIT
 -b-b-b-b-b-b-b-b-b-b-b- >> R << -b-b-b-b-b-b-b-b-b-b-b-
 ROLLBACK;
 Warnings:
-Warning	1196	Some non-transactional changed tables couldn't be rolled back
+Warning	#	Some non-transactional changed tables couldn't be rolled back
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 -e-e-e-e-e-e-e-e-e-e-e- >> R << -e-e-e-e-e-e-e-e-e-e-e-
 -b-b-b-b-b-b-b-b-b-b-b- >> B N N-trig R << -b-b-b-b-b-b-b-b-b-b-b-
@@ -2781,7 +2781,7 @@ master-bin.000001	#	Query	#	#	COMMIT
 -b-b-b-b-b-b-b-b-b-b-b- >> R << -b-b-b-b-b-b-b-b-b-b-b-
 ROLLBACK;
 Warnings:
-Warning	1196	Some non-transactional changed tables couldn't be rolled back
+Warning	#	Some non-transactional changed tables couldn't be rolled back
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 -e-e-e-e-e-e-e-e-e-e-e- >> R << -e-e-e-e-e-e-e-e-e-e-e-
 -b-b-b-b-b-b-b-b-b-b-b- >> B N N-func R << -b-b-b-b-b-b-b-b-b-b-b-
@@ -2818,7 +2818,7 @@ master-bin.000001	#	Query	#	#	COMMIT
 -b-b-b-b-b-b-b-b-b-b-b- >> R << -b-b-b-b-b-b-b-b-b-b-b-
 ROLLBACK;
 Warnings:
-Warning	1196	Some non-transactional changed tables couldn't be rolled back
+Warning	#	Some non-transactional changed tables couldn't be rolled back
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 -e-e-e-e-e-e-e-e-e-e-e- >> R << -e-e-e-e-e-e-e-e-e-e-e-
 -b-b-b-b-b-b-b-b-b-b-b- >> B N N-proc R << -b-b-b-b-b-b-b-b-b-b-b-
@@ -2855,7 +2855,7 @@ master-bin.000001	#	Query	#	#	COMMIT
 -b-b-b-b-b-b-b-b-b-b-b- >> R << -b-b-b-b-b-b-b-b-b-b-b-
 ROLLBACK;
 Warnings:
-Warning	1196	Some non-transactional changed tables couldn't be rolled back
+Warning	#	Some non-transactional changed tables couldn't be rolled back
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 -e-e-e-e-e-e-e-e-e-e-e- >> R << -e-e-e-e-e-e-e-e-e-e-e-
 -b-b-b-b-b-b-b-b-b-b-b- >> B N-trig N R << -b-b-b-b-b-b-b-b-b-b-b-
@@ -2889,7 +2889,7 @@ master-bin.000001	#	Query	#	#	COMMIT
 -b-b-b-b-b-b-b-b-b-b-b- >> R << -b-b-b-b-b-b-b-b-b-b-b-
 ROLLBACK;
 Warnings:
-Warning	1196	Some non-transactional changed tables couldn't be rolled back
+Warning	#	Some non-transactional changed tables couldn't be rolled back
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 -e-e-e-e-e-e-e-e-e-e-e- >> R << -e-e-e-e-e-e-e-e-e-e-e-
 -b-b-b-b-b-b-b-b-b-b-b- >> B N-trig N-trig R << -b-b-b-b-b-b-b-b-b-b-b-
@@ -2925,7 +2925,7 @@ master-bin.000001	#	Query	#	#	COMMIT
 -b-b-b-b-b-b-b-b-b-b-b- >> R << -b-b-b-b-b-b-b-b-b-b-b-
 ROLLBACK;
 Warnings:
-Warning	1196	Some non-transactional changed tables couldn't be rolled back
+Warning	#	Some non-transactional changed tables couldn't be rolled back
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 -e-e-e-e-e-e-e-e-e-e-e- >> R << -e-e-e-e-e-e-e-e-e-e-e-
 -b-b-b-b-b-b-b-b-b-b-b- >> B N-trig N-func R << -b-b-b-b-b-b-b-b-b-b-b-
@@ -2962,7 +2962,7 @@ master-bin.000001	#	Query	#	#	COMMIT
 -b-b-b-b-b-b-b-b-b-b-b- >> R << -b-b-b-b-b-b-b-b-b-b-b-
 ROLLBACK;
 Warnings:
-Warning	1196	Some non-transactional changed tables couldn't be rolled back
+Warning	#	Some non-transactional changed tables couldn't be rolled back
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 -e-e-e-e-e-e-e-e-e-e-e- >> R << -e-e-e-e-e-e-e-e-e-e-e-
 -b-b-b-b-b-b-b-b-b-b-b- >> B N-trig N-proc R << -b-b-b-b-b-b-b-b-b-b-b-
@@ -3001,7 +3001,7 @@ master-bin.000001	#	Query	#	#	COMMIT
 -b-b-b-b-b-b-b-b-b-b-b- >> R << -b-b-b-b-b-b-b-b-b-b-b-
 ROLLBACK;
 Warnings:
-Warning	1196	Some non-transactional changed tables couldn't be rolled back
+Warning	#	Some non-transactional changed tables couldn't be rolled back
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 -e-e-e-e-e-e-e-e-e-e-e- >> R << -e-e-e-e-e-e-e-e-e-e-e-
 -b-b-b-b-b-b-b-b-b-b-b- >> B N-func N R << -b-b-b-b-b-b-b-b-b-b-b-
@@ -3037,7 +3037,7 @@ master-bin.000001	#	Query	#	#	COMMIT
 -b-b-b-b-b-b-b-b-b-b-b- >> R << -b-b-b-b-b-b-b-b-b-b-b-
 ROLLBACK;
 Warnings:
-Warning	1196	Some non-transactional changed tables couldn't be rolled back
+Warning	#	Some non-transactional changed tables couldn't be rolled back
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 -e-e-e-e-e-e-e-e-e-e-e- >> R << -e-e-e-e-e-e-e-e-e-e-e-
 -b-b-b-b-b-b-b-b-b-b-b- >> B N-func N-trig R << -b-b-b-b-b-b-b-b-b-b-b-
@@ -3075,7 +3075,7 @@ master-bin.000001	#	Query	#	#	COMMIT
 -b-b-b-b-b-b-b-b-b-b-b- >> R << -b-b-b-b-b-b-b-b-b-b-b-
 ROLLBACK;
 Warnings:
-Warning	1196	Some non-transactional changed tables couldn't be rolled back
+Warning	#	Some non-transactional changed tables couldn't be rolled back
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 -e-e-e-e-e-e-e-e-e-e-e- >> R << -e-e-e-e-e-e-e-e-e-e-e-
 -b-b-b-b-b-b-b-b-b-b-b- >> B N-func N-func R << -b-b-b-b-b-b-b-b-b-b-b-
@@ -3114,7 +3114,7 @@ master-bin.000001	#	Query	#	#	COMMIT
 -b-b-b-b-b-b-b-b-b-b-b- >> R << -b-b-b-b-b-b-b-b-b-b-b-
 ROLLBACK;
 Warnings:
-Warning	1196	Some non-transactional changed tables couldn't be rolled back
+Warning	#	Some non-transactional changed tables couldn't be rolled back
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 -e-e-e-e-e-e-e-e-e-e-e- >> R << -e-e-e-e-e-e-e-e-e-e-e-
 -b-b-b-b-b-b-b-b-b-b-b- >> B N-func N-proc R << -b-b-b-b-b-b-b-b-b-b-b-
@@ -3154,7 +3154,7 @@ master-bin.000001	#	Query	#	#	COMMIT
 -b-b-b-b-b-b-b-b-b-b-b- >> R << -b-b-b-b-b-b-b-b-b-b-b-
 ROLLBACK;
 Warnings:
-Warning	1196	Some non-transactional changed tables couldn't be rolled back
+Warning	#	Some non-transactional changed tables couldn't be rolled back
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 -e-e-e-e-e-e-e-e-e-e-e- >> R << -e-e-e-e-e-e-e-e-e-e-e-
 -b-b-b-b-b-b-b-b-b-b-b- >> B N-proc N R << -b-b-b-b-b-b-b-b-b-b-b-
@@ -3194,7 +3194,7 @@ master-bin.000001	#	Query	#	#	COMMIT
 -b-b-b-b-b-b-b-b-b-b-b- >> R << -b-b-b-b-b-b-b-b-b-b-b-
 ROLLBACK;
 Warnings:
-Warning	1196	Some non-transactional changed tables couldn't be rolled back
+Warning	#	Some non-transactional changed tables couldn't be rolled back
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 -e-e-e-e-e-e-e-e-e-e-e- >> R << -e-e-e-e-e-e-e-e-e-e-e-
 -b-b-b-b-b-b-b-b-b-b-b- >> B N-proc N-trig R << -b-b-b-b-b-b-b-b-b-b-b-
@@ -3236,7 +3236,7 @@ master-bin.000001	#	Query	#	#	COMMIT
 -b-b-b-b-b-b-b-b-b-b-b- >> R << -b-b-b-b-b-b-b-b-b-b-b-
 ROLLBACK;
 Warnings:
-Warning	1196	Some non-transactional changed tables couldn't be rolled back
+Warning	#	Some non-transactional changed tables couldn't be rolled back
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 -e-e-e-e-e-e-e-e-e-e-e- >> R << -e-e-e-e-e-e-e-e-e-e-e-
 -b-b-b-b-b-b-b-b-b-b-b- >> B N-proc N-func R << -b-b-b-b-b-b-b-b-b-b-b-
@@ -3279,7 +3279,7 @@ master-bin.000001	#	Query	#	#	COMMIT
 -b-b-b-b-b-b-b-b-b-b-b- >> R << -b-b-b-b-b-b-b-b-b-b-b-
 ROLLBACK;
 Warnings:
-Warning	1196	Some non-transactional changed tables couldn't be rolled back
+Warning	#	Some non-transactional changed tables couldn't be rolled back
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 -e-e-e-e-e-e-e-e-e-e-e- >> R << -e-e-e-e-e-e-e-e-e-e-e-
 -b-b-b-b-b-b-b-b-b-b-b- >> B N-proc N-proc R << -b-b-b-b-b-b-b-b-b-b-b-
@@ -3327,7 +3327,7 @@ Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 -b-b-b-b-b-b-b-b-b-b-b- >> R << -b-b-b-b-b-b-b-b-b-b-b-
 ROLLBACK;
 Warnings:
-Warning	1196	Some non-transactional changed tables couldn't be rolled back
+Warning	#	Some non-transactional changed tables couldn't be rolled back
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 -e-e-e-e-e-e-e-e-e-e-e- >> R << -e-e-e-e-e-e-e-e-e-e-e-
 -b-b-b-b-b-b-b-b-b-b-b- >> B N eN R << -b-b-b-b-b-b-b-b-b-b-b-
@@ -3359,7 +3359,7 @@ master-bin.000001	#	Query	#	#	COMMIT
 -b-b-b-b-b-b-b-b-b-b-b- >> R << -b-b-b-b-b-b-b-b-b-b-b-
 ROLLBACK;
 Warnings:
-Warning	1196	Some non-transactional changed tables couldn't be rolled back
+Warning	#	Some non-transactional changed tables couldn't be rolled back
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 -e-e-e-e-e-e-e-e-e-e-e- >> R << -e-e-e-e-e-e-e-e-e-e-e-
 -b-b-b-b-b-b-b-b-b-b-b- >> B N Ne R << -b-b-b-b-b-b-b-b-b-b-b-
@@ -3394,7 +3394,7 @@ master-bin.000001	#	Query	#	#	COMMIT
 -b-b-b-b-b-b-b-b-b-b-b- >> R << -b-b-b-b-b-b-b-b-b-b-b-
 ROLLBACK;
 Warnings:
-Warning	1196	Some non-transactional changed tables couldn't be rolled back
+Warning	#	Some non-transactional changed tables couldn't be rolled back
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 -e-e-e-e-e-e-e-e-e-e-e- >> R << -e-e-e-e-e-e-e-e-e-e-e-
 -b-b-b-b-b-b-b-b-b-b-b- >> B N Ne-trig R << -b-b-b-b-b-b-b-b-b-b-b-
@@ -3429,7 +3429,7 @@ master-bin.000001	#	Query	#	#	COMMIT
 -b-b-b-b-b-b-b-b-b-b-b- >> R << -b-b-b-b-b-b-b-b-b-b-b-
 ROLLBACK;
 Warnings:
-Warning	1196	Some non-transactional changed tables couldn't be rolled back
+Warning	#	Some non-transactional changed tables couldn't be rolled back
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 -e-e-e-e-e-e-e-e-e-e-e- >> R << -e-e-e-e-e-e-e-e-e-e-e-
 -b-b-b-b-b-b-b-b-b-b-b- >> B N Ne-func R << -b-b-b-b-b-b-b-b-b-b-b-
@@ -3461,7 +3461,7 @@ master-bin.000001	#	Query	#	#	COMMIT
 -b-b-b-b-b-b-b-b-b-b-b- >> R << -b-b-b-b-b-b-b-b-b-b-b-
 ROLLBACK;
 Warnings:
-Warning	1196	Some non-transactional changed tables couldn't be rolled back
+Warning	#	Some non-transactional changed tables couldn't be rolled back
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 -e-e-e-e-e-e-e-e-e-e-e- >> R << -e-e-e-e-e-e-e-e-e-e-e-
 -b-b-b-b-b-b-b-b-b-b-b- >> B eN N R << -b-b-b-b-b-b-b-b-b-b-b-
@@ -3493,7 +3493,7 @@ master-bin.000001	#	Query	#	#	COMMIT
 -b-b-b-b-b-b-b-b-b-b-b- >> R << -b-b-b-b-b-b-b-b-b-b-b-
 ROLLBACK;
 Warnings:
-Warning	1196	Some non-transactional changed tables couldn't be rolled back
+Warning	#	Some non-transactional changed tables couldn't be rolled back
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 -e-e-e-e-e-e-e-e-e-e-e- >> R << -e-e-e-e-e-e-e-e-e-e-e-
 -b-b-b-b-b-b-b-b-b-b-b- >> B Ne N R << -b-b-b-b-b-b-b-b-b-b-b-
@@ -3528,7 +3528,7 @@ master-bin.000001	#	Query	#	#	COMMIT
 -b-b-b-b-b-b-b-b-b-b-b- >> R << -b-b-b-b-b-b-b-b-b-b-b-
 ROLLBACK;
 Warnings:
-Warning	1196	Some non-transactional changed tables couldn't be rolled back
+Warning	#	Some non-transactional changed tables couldn't be rolled back
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 -e-e-e-e-e-e-e-e-e-e-e- >> R << -e-e-e-e-e-e-e-e-e-e-e-
 -b-b-b-b-b-b-b-b-b-b-b- >> B Ne-trig N R << -b-b-b-b-b-b-b-b-b-b-b-
@@ -3563,7 +3563,7 @@ master-bin.000001	#	Query	#	#	COMMIT
 -b-b-b-b-b-b-b-b-b-b-b- >> R << -b-b-b-b-b-b-b-b-b-b-b-
 ROLLBACK;
 Warnings:
-Warning	1196	Some non-transactional changed tables couldn't be rolled back
+Warning	#	Some non-transactional changed tables couldn't be rolled back
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 -e-e-e-e-e-e-e-e-e-e-e- >> R << -e-e-e-e-e-e-e-e-e-e-e-
 -b-b-b-b-b-b-b-b-b-b-b- >> B Ne-func N R << -b-b-b-b-b-b-b-b-b-b-b-
@@ -4302,7 +4302,7 @@ master-bin.000001	#	Query	#	#	COMMIT
 -b-b-b-b-b-b-b-b-b-b-b- >> R << -b-b-b-b-b-b-b-b-b-b-b-
 ROLLBACK;
 Warnings:
-Warning	1196	Some non-transactional changed tables couldn't be rolled back
+Warning	#	Some non-transactional changed tables couldn't be rolled back
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 -e-e-e-e-e-e-e-e-e-e-e- >> R << -e-e-e-e-e-e-e-e-e-e-e-
 -b-b-b-b-b-b-b-b-b-b-b- >> B T N R << -b-b-b-b-b-b-b-b-b-b-b-
@@ -4330,7 +4330,7 @@ master-bin.000001	#	Query	#	#	COMMIT
 -b-b-b-b-b-b-b-b-b-b-b- >> R << -b-b-b-b-b-b-b-b-b-b-b-
 ROLLBACK;
 Warnings:
-Warning	1196	Some non-transactional changed tables couldn't be rolled back
+Warning	#	Some non-transactional changed tables couldn't be rolled back
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 -e-e-e-e-e-e-e-e-e-e-e- >> R << -e-e-e-e-e-e-e-e-e-e-e-
 -b-b-b-b-b-b-b-b-b-b-b- >> B T N-trig R << -b-b-b-b-b-b-b-b-b-b-b-
@@ -4360,7 +4360,7 @@ master-bin.000001	#	Query	#	#	COMMIT
 -b-b-b-b-b-b-b-b-b-b-b- >> R << -b-b-b-b-b-b-b-b-b-b-b-
 ROLLBACK;
 Warnings:
-Warning	1196	Some non-transactional changed tables couldn't be rolled back
+Warning	#	Some non-transactional changed tables couldn't be rolled back
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 -e-e-e-e-e-e-e-e-e-e-e- >> R << -e-e-e-e-e-e-e-e-e-e-e-
 -b-b-b-b-b-b-b-b-b-b-b- >> B T N-func R << -b-b-b-b-b-b-b-b-b-b-b-
@@ -4391,7 +4391,7 @@ master-bin.000001	#	Query	#	#	COMMIT
 -b-b-b-b-b-b-b-b-b-b-b- >> R << -b-b-b-b-b-b-b-b-b-b-b-
 ROLLBACK;
 Warnings:
-Warning	1196	Some non-transactional changed tables couldn't be rolled back
+Warning	#	Some non-transactional changed tables couldn't be rolled back
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 -e-e-e-e-e-e-e-e-e-e-e- >> R << -e-e-e-e-e-e-e-e-e-e-e-
 -b-b-b-b-b-b-b-b-b-b-b- >> B T N-proc R << -b-b-b-b-b-b-b-b-b-b-b-
@@ -4422,7 +4422,7 @@ master-bin.000001	#	Query	#	#	COMMIT
 -b-b-b-b-b-b-b-b-b-b-b- >> R << -b-b-b-b-b-b-b-b-b-b-b-
 ROLLBACK;
 Warnings:
-Warning	1196	Some non-transactional changed tables couldn't be rolled back
+Warning	#	Some non-transactional changed tables couldn't be rolled back
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 -e-e-e-e-e-e-e-e-e-e-e- >> R << -e-e-e-e-e-e-e-e-e-e-e-
 -b-b-b-b-b-b-b-b-b-b-b- >> B T-trig N R << -b-b-b-b-b-b-b-b-b-b-b-
@@ -4450,7 +4450,7 @@ master-bin.000001	#	Query	#	#	COMMIT
 -b-b-b-b-b-b-b-b-b-b-b- >> R << -b-b-b-b-b-b-b-b-b-b-b-
 ROLLBACK;
 Warnings:
-Warning	1196	Some non-transactional changed tables couldn't be rolled back
+Warning	#	Some non-transactional changed tables couldn't be rolled back
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 -e-e-e-e-e-e-e-e-e-e-e- >> R << -e-e-e-e-e-e-e-e-e-e-e-
 -b-b-b-b-b-b-b-b-b-b-b- >> B T-trig N-trig R << -b-b-b-b-b-b-b-b-b-b-b-
@@ -4480,7 +4480,7 @@ master-bin.000001	#	Query	#	#	COMMIT
 -b-b-b-b-b-b-b-b-b-b-b- >> R << -b-b-b-b-b-b-b-b-b-b-b-
 ROLLBACK;
 Warnings:
-Warning	1196	Some non-transactional changed tables couldn't be rolled back
+Warning	#	Some non-transactional changed tables couldn't be rolled back
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 -e-e-e-e-e-e-e-e-e-e-e- >> R << -e-e-e-e-e-e-e-e-e-e-e-
 -b-b-b-b-b-b-b-b-b-b-b- >> B T-trig N-func R << -b-b-b-b-b-b-b-b-b-b-b-
@@ -4511,7 +4511,7 @@ master-bin.000001	#	Query	#	#	COMMIT
 -b-b-b-b-b-b-b-b-b-b-b- >> R << -b-b-b-b-b-b-b-b-b-b-b-
 ROLLBACK;
 Warnings:
-Warning	1196	Some non-transactional changed tables couldn't be rolled back
+Warning	#	Some non-transactional changed tables couldn't be rolled back
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 -e-e-e-e-e-e-e-e-e-e-e- >> R << -e-e-e-e-e-e-e-e-e-e-e-
 -b-b-b-b-b-b-b-b-b-b-b- >> B T-trig N-proc R << -b-b-b-b-b-b-b-b-b-b-b-
@@ -4544,7 +4544,7 @@ master-bin.000001	#	Query	#	#	COMMIT
 -b-b-b-b-b-b-b-b-b-b-b- >> R << -b-b-b-b-b-b-b-b-b-b-b-
 ROLLBACK;
 Warnings:
-Warning	1196	Some non-transactional changed tables couldn't be rolled back
+Warning	#	Some non-transactional changed tables couldn't be rolled back
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 -e-e-e-e-e-e-e-e-e-e-e- >> R << -e-e-e-e-e-e-e-e-e-e-e-
 -b-b-b-b-b-b-b-b-b-b-b- >> B T-func N R << -b-b-b-b-b-b-b-b-b-b-b-
@@ -4574,7 +4574,7 @@ master-bin.000001	#	Query	#	#	COMMIT
 -b-b-b-b-b-b-b-b-b-b-b- >> R << -b-b-b-b-b-b-b-b-b-b-b-
 ROLLBACK;
 Warnings:
-Warning	1196	Some non-transactional changed tables couldn't be rolled back
+Warning	#	Some non-transactional changed tables couldn't be rolled back
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 -e-e-e-e-e-e-e-e-e-e-e- >> R << -e-e-e-e-e-e-e-e-e-e-e-
 -b-b-b-b-b-b-b-b-b-b-b- >> B T-func N-trig R << -b-b-b-b-b-b-b-b-b-b-b-
@@ -4606,7 +4606,7 @@ master-bin.000001	#	Query	#	#	COMMIT
 -b-b-b-b-b-b-b-b-b-b-b- >> R << -b-b-b-b-b-b-b-b-b-b-b-
 ROLLBACK;
 Warnings:
-Warning	1196	Some non-transactional changed tables couldn't be rolled back
+Warning	#	Some non-transactional changed tables couldn't be rolled back
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 -e-e-e-e-e-e-e-e-e-e-e- >> R << -e-e-e-e-e-e-e-e-e-e-e-
 -b-b-b-b-b-b-b-b-b-b-b- >> B T-func N-func R << -b-b-b-b-b-b-b-b-b-b-b-
@@ -4639,7 +4639,7 @@ master-bin.000001	#	Query	#	#	COMMIT
 -b-b-b-b-b-b-b-b-b-b-b- >> R << -b-b-b-b-b-b-b-b-b-b-b-
 ROLLBACK;
 Warnings:
-Warning	1196	Some non-transactional changed tables couldn't be rolled back
+Warning	#	Some non-transactional changed tables couldn't be rolled back
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 -e-e-e-e-e-e-e-e-e-e-e- >> R << -e-e-e-e-e-e-e-e-e-e-e-
 -b-b-b-b-b-b-b-b-b-b-b- >> B T-func N-proc R << -b-b-b-b-b-b-b-b-b-b-b-
@@ -4670,7 +4670,7 @@ master-bin.000001	#	Query	#	#	COMMIT
 -b-b-b-b-b-b-b-b-b-b-b- >> R << -b-b-b-b-b-b-b-b-b-b-b-
 ROLLBACK;
 Warnings:
-Warning	1196	Some non-transactional changed tables couldn't be rolled back
+Warning	#	Some non-transactional changed tables couldn't be rolled back
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 -e-e-e-e-e-e-e-e-e-e-e- >> R << -e-e-e-e-e-e-e-e-e-e-e-
 -b-b-b-b-b-b-b-b-b-b-b- >> B T-proc N R << -b-b-b-b-b-b-b-b-b-b-b-
@@ -4698,7 +4698,7 @@ master-bin.000001	#	Query	#	#	COMMIT
 -b-b-b-b-b-b-b-b-b-b-b- >> R << -b-b-b-b-b-b-b-b-b-b-b-
 ROLLBACK;
 Warnings:
-Warning	1196	Some non-transactional changed tables couldn't be rolled back
+Warning	#	Some non-transactional changed tables couldn't be rolled back
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 -e-e-e-e-e-e-e-e-e-e-e- >> R << -e-e-e-e-e-e-e-e-e-e-e-
 -b-b-b-b-b-b-b-b-b-b-b- >> B T-proc N-trig R << -b-b-b-b-b-b-b-b-b-b-b-
@@ -4728,7 +4728,7 @@ master-bin.000001	#	Query	#	#	COMMIT
 -b-b-b-b-b-b-b-b-b-b-b- >> R << -b-b-b-b-b-b-b-b-b-b-b-
 ROLLBACK;
 Warnings:
-Warning	1196	Some non-transactional changed tables couldn't be rolled back
+Warning	#	Some non-transactional changed tables couldn't be rolled back
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 -e-e-e-e-e-e-e-e-e-e-e- >> R << -e-e-e-e-e-e-e-e-e-e-e-
 -b-b-b-b-b-b-b-b-b-b-b- >> B T-proc N-func R << -b-b-b-b-b-b-b-b-b-b-b-
@@ -4759,7 +4759,7 @@ master-bin.000001	#	Query	#	#	COMMIT
 -b-b-b-b-b-b-b-b-b-b-b- >> R << -b-b-b-b-b-b-b-b-b-b-b-
 ROLLBACK;
 Warnings:
-Warning	1196	Some non-transactional changed tables couldn't be rolled back
+Warning	#	Some non-transactional changed tables couldn't be rolled back
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 -e-e-e-e-e-e-e-e-e-e-e- >> R << -e-e-e-e-e-e-e-e-e-e-e-
 -b-b-b-b-b-b-b-b-b-b-b- >> B T-proc N-proc R << -b-b-b-b-b-b-b-b-b-b-b-
@@ -4805,7 +4805,7 @@ master-bin.000001	#	Query	#	#	COMMIT
 -b-b-b-b-b-b-b-b-b-b-b- >> R << -b-b-b-b-b-b-b-b-b-b-b-
 ROLLBACK;
 Warnings:
-Warning	1196	Some non-transactional changed tables couldn't be rolled back
+Warning	#	Some non-transactional changed tables couldn't be rolled back
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 -e-e-e-e-e-e-e-e-e-e-e- >> R << -e-e-e-e-e-e-e-e-e-e-e-
 -b-b-b-b-b-b-b-b-b-b-b- >> B eT N R << -b-b-b-b-b-b-b-b-b-b-b-
@@ -4834,7 +4834,7 @@ master-bin.000001	#	Query	#	#	COMMIT
 -b-b-b-b-b-b-b-b-b-b-b- >> R << -b-b-b-b-b-b-b-b-b-b-b-
 ROLLBACK;
 Warnings:
-Warning	1196	Some non-transactional changed tables couldn't be rolled back
+Warning	#	Some non-transactional changed tables couldn't be rolled back
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 -e-e-e-e-e-e-e-e-e-e-e- >> R << -e-e-e-e-e-e-e-e-e-e-e-
 -b-b-b-b-b-b-b-b-b-b-b- >> B Te N R << -b-b-b-b-b-b-b-b-b-b-b-
@@ -4884,7 +4884,7 @@ master-bin.000001	#	Query	#	#	COMMIT
 -b-b-b-b-b-b-b-b-b-b-b- >> R << -b-b-b-b-b-b-b-b-b-b-b-
 ROLLBACK;
 Warnings:
-Warning	1196	Some non-transactional changed tables couldn't be rolled back
+Warning	#	Some non-transactional changed tables couldn't be rolled back
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 -e-e-e-e-e-e-e-e-e-e-e- >> R << -e-e-e-e-e-e-e-e-e-e-e-
 -b-b-b-b-b-b-b-b-b-b-b- >> B T Ne R << -b-b-b-b-b-b-b-b-b-b-b-
@@ -5492,7 +5492,7 @@ Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 -b-b-b-b-b-b-b-b-b-b-b- >> R << -b-b-b-b-b-b-b-b-b-b-b-
 ROLLBACK;
 Warnings:
-Warning	1196	Some non-transactional changed tables couldn't be rolled back
+Warning	#	Some non-transactional changed tables couldn't be rolled back
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 -e-e-e-e-e-e-e-e-e-e-e- >> R << -e-e-e-e-e-e-e-e-e-e-e-
 -b-b-b-b-b-b-b-b-b-b-b- >> B N T R << -b-b-b-b-b-b-b-b-b-b-b-
@@ -5520,7 +5520,7 @@ Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 -b-b-b-b-b-b-b-b-b-b-b- >> R << -b-b-b-b-b-b-b-b-b-b-b-
 ROLLBACK;
 Warnings:
-Warning	1196	Some non-transactional changed tables couldn't be rolled back
+Warning	#	Some non-transactional changed tables couldn't be rolled back
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 -e-e-e-e-e-e-e-e-e-e-e- >> R << -e-e-e-e-e-e-e-e-e-e-e-
 -b-b-b-b-b-b-b-b-b-b-b- >> B N T-proc R << -b-b-b-b-b-b-b-b-b-b-b-
@@ -5548,7 +5548,7 @@ Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 -b-b-b-b-b-b-b-b-b-b-b- >> R << -b-b-b-b-b-b-b-b-b-b-b-
 ROLLBACK;
 Warnings:
-Warning	1196	Some non-transactional changed tables couldn't be rolled back
+Warning	#	Some non-transactional changed tables couldn't be rolled back
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 -e-e-e-e-e-e-e-e-e-e-e- >> R << -e-e-e-e-e-e-e-e-e-e-e-
 -b-b-b-b-b-b-b-b-b-b-b- >> B N T-trig R << -b-b-b-b-b-b-b-b-b-b-b-
@@ -5578,7 +5578,7 @@ Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 -b-b-b-b-b-b-b-b-b-b-b- >> R << -b-b-b-b-b-b-b-b-b-b-b-
 ROLLBACK;
 Warnings:
-Warning	1196	Some non-transactional changed tables couldn't be rolled back
+Warning	#	Some non-transactional changed tables couldn't be rolled back
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 -e-e-e-e-e-e-e-e-e-e-e- >> R << -e-e-e-e-e-e-e-e-e-e-e-
 -b-b-b-b-b-b-b-b-b-b-b- >> B N T-func R << -b-b-b-b-b-b-b-b-b-b-b-
@@ -5606,7 +5606,7 @@ Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 -b-b-b-b-b-b-b-b-b-b-b- >> R << -b-b-b-b-b-b-b-b-b-b-b-
 ROLLBACK;
 Warnings:
-Warning	1196	Some non-transactional changed tables couldn't be rolled back
+Warning	#	Some non-transactional changed tables couldn't be rolled back
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 -e-e-e-e-e-e-e-e-e-e-e- >> R << -e-e-e-e-e-e-e-e-e-e-e-
 -b-b-b-b-b-b-b-b-b-b-b- >> B N-trig T R << -b-b-b-b-b-b-b-b-b-b-b-
@@ -5634,7 +5634,7 @@ Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 -b-b-b-b-b-b-b-b-b-b-b- >> R << -b-b-b-b-b-b-b-b-b-b-b-
 ROLLBACK;
 Warnings:
-Warning	1196	Some non-transactional changed tables couldn't be rolled back
+Warning	#	Some non-transactional changed tables couldn't be rolled back
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 -e-e-e-e-e-e-e-e-e-e-e- >> R << -e-e-e-e-e-e-e-e-e-e-e-
 -b-b-b-b-b-b-b-b-b-b-b- >> B N-trig T-trig R << -b-b-b-b-b-b-b-b-b-b-b-
@@ -5664,7 +5664,7 @@ Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 -b-b-b-b-b-b-b-b-b-b-b- >> R << -b-b-b-b-b-b-b-b-b-b-b-
 ROLLBACK;
 Warnings:
-Warning	1196	Some non-transactional changed tables couldn't be rolled back
+Warning	#	Some non-transactional changed tables couldn't be rolled back
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 -e-e-e-e-e-e-e-e-e-e-e- >> R << -e-e-e-e-e-e-e-e-e-e-e-
 -b-b-b-b-b-b-b-b-b-b-b- >> B N-trig T-func R << -b-b-b-b-b-b-b-b-b-b-b-
@@ -5692,7 +5692,7 @@ Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 -b-b-b-b-b-b-b-b-b-b-b- >> R << -b-b-b-b-b-b-b-b-b-b-b-
 ROLLBACK;
 Warnings:
-Warning	1196	Some non-transactional changed tables couldn't be rolled back
+Warning	#	Some non-transactional changed tables couldn't be rolled back
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 -e-e-e-e-e-e-e-e-e-e-e- >> R << -e-e-e-e-e-e-e-e-e-e-e-
 -b-b-b-b-b-b-b-b-b-b-b- >> B N-trig T-proc R << -b-b-b-b-b-b-b-b-b-b-b-
@@ -5722,7 +5722,7 @@ Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 -b-b-b-b-b-b-b-b-b-b-b- >> R << -b-b-b-b-b-b-b-b-b-b-b-
 ROLLBACK;
 Warnings:
-Warning	1196	Some non-transactional changed tables couldn't be rolled back
+Warning	#	Some non-transactional changed tables couldn't be rolled back
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 -e-e-e-e-e-e-e-e-e-e-e- >> R << -e-e-e-e-e-e-e-e-e-e-e-
 -b-b-b-b-b-b-b-b-b-b-b- >> B N-func T R << -b-b-b-b-b-b-b-b-b-b-b-
@@ -5752,7 +5752,7 @@ Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 -b-b-b-b-b-b-b-b-b-b-b- >> R << -b-b-b-b-b-b-b-b-b-b-b-
 ROLLBACK;
 Warnings:
-Warning	1196	Some non-transactional changed tables couldn't be rolled back
+Warning	#	Some non-transactional changed tables couldn't be rolled back
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 -e-e-e-e-e-e-e-e-e-e-e- >> R << -e-e-e-e-e-e-e-e-e-e-e-
 -b-b-b-b-b-b-b-b-b-b-b- >> B N-func T-trig R << -b-b-b-b-b-b-b-b-b-b-b-
@@ -5784,7 +5784,7 @@ Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 -b-b-b-b-b-b-b-b-b-b-b- >> R << -b-b-b-b-b-b-b-b-b-b-b-
 ROLLBACK;
 Warnings:
-Warning	1196	Some non-transactional changed tables couldn't be rolled back
+Warning	#	Some non-transactional changed tables couldn't be rolled back
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 -e-e-e-e-e-e-e-e-e-e-e- >> R << -e-e-e-e-e-e-e-e-e-e-e-
 -b-b-b-b-b-b-b-b-b-b-b- >> B N-func T-func R << -b-b-b-b-b-b-b-b-b-b-b-
@@ -5814,7 +5814,7 @@ Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 -b-b-b-b-b-b-b-b-b-b-b- >> R << -b-b-b-b-b-b-b-b-b-b-b-
 ROLLBACK;
 Warnings:
-Warning	1196	Some non-transactional changed tables couldn't be rolled back
+Warning	#	Some non-transactional changed tables couldn't be rolled back
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 -e-e-e-e-e-e-e-e-e-e-e- >> R << -e-e-e-e-e-e-e-e-e-e-e-
 -b-b-b-b-b-b-b-b-b-b-b- >> B N-func T-proc R << -b-b-b-b-b-b-b-b-b-b-b-
@@ -5845,7 +5845,7 @@ Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 -b-b-b-b-b-b-b-b-b-b-b- >> R << -b-b-b-b-b-b-b-b-b-b-b-
 ROLLBACK;
 Warnings:
-Warning	1196	Some non-transactional changed tables couldn't be rolled back
+Warning	#	Some non-transactional changed tables couldn't be rolled back
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 -e-e-e-e-e-e-e-e-e-e-e- >> R << -e-e-e-e-e-e-e-e-e-e-e-
 -b-b-b-b-b-b-b-b-b-b-b- >> B N-proc T R << -b-b-b-b-b-b-b-b-b-b-b-
@@ -5879,7 +5879,7 @@ Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 -b-b-b-b-b-b-b-b-b-b-b- >> R << -b-b-b-b-b-b-b-b-b-b-b-
 ROLLBACK;
 Warnings:
-Warning	1196	Some non-transactional changed tables couldn't be rolled back
+Warning	#	Some non-transactional changed tables couldn't be rolled back
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 -e-e-e-e-e-e-e-e-e-e-e- >> R << -e-e-e-e-e-e-e-e-e-e-e-
 -b-b-b-b-b-b-b-b-b-b-b- >> B N-proc T-proc R << -b-b-b-b-b-b-b-b-b-b-b-
@@ -5913,7 +5913,7 @@ Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 -b-b-b-b-b-b-b-b-b-b-b- >> R << -b-b-b-b-b-b-b-b-b-b-b-
 ROLLBACK;
 Warnings:
-Warning	1196	Some non-transactional changed tables couldn't be rolled back
+Warning	#	Some non-transactional changed tables couldn't be rolled back
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 -e-e-e-e-e-e-e-e-e-e-e- >> R << -e-e-e-e-e-e-e-e-e-e-e-
 -b-b-b-b-b-b-b-b-b-b-b- >> B N-proc T-trig R << -b-b-b-b-b-b-b-b-b-b-b-
@@ -5949,7 +5949,7 @@ Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 -b-b-b-b-b-b-b-b-b-b-b- >> R << -b-b-b-b-b-b-b-b-b-b-b-
 ROLLBACK;
 Warnings:
-Warning	1196	Some non-transactional changed tables couldn't be rolled back
+Warning	#	Some non-transactional changed tables couldn't be rolled back
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 -e-e-e-e-e-e-e-e-e-e-e- >> R << -e-e-e-e-e-e-e-e-e-e-e-
 -b-b-b-b-b-b-b-b-b-b-b- >> B N-proc T-func R << -b-b-b-b-b-b-b-b-b-b-b-
@@ -6539,7 +6539,7 @@ Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 -b-b-b-b-b-b-b-b-b-b-b- >> R << -b-b-b-b-b-b-b-b-b-b-b-
 ROLLBACK;
 Warnings:
-Warning	1196	Some non-transactional changed tables couldn't be rolled back
+Warning	#	Some non-transactional changed tables couldn't be rolled back
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 -e-e-e-e-e-e-e-e-e-e-e- >> R << -e-e-e-e-e-e-e-e-e-e-e-
 -b-b-b-b-b-b-b-b-b-b-b- >> B tN T R << -b-b-b-b-b-b-b-b-b-b-b-
@@ -6588,7 +6588,7 @@ Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 -b-b-b-b-b-b-b-b-b-b-b- >> R << -b-b-b-b-b-b-b-b-b-b-b-
 ROLLBACK;
 Warnings:
-Warning	1196	Some non-transactional changed tables couldn't be rolled back
+Warning	#	Some non-transactional changed tables couldn't be rolled back
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 -e-e-e-e-e-e-e-e-e-e-e- >> R << -e-e-e-e-e-e-e-e-e-e-e-
 -b-b-b-b-b-b-b-b-b-b-b- >> B NT T R << -b-b-b-b-b-b-b-b-b-b-b-
@@ -6618,7 +6618,7 @@ Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 -b-b-b-b-b-b-b-b-b-b-b- >> R << -b-b-b-b-b-b-b-b-b-b-b-
 ROLLBACK;
 Warnings:
-Warning	1196	Some non-transactional changed tables couldn't be rolled back
+Warning	#	Some non-transactional changed tables couldn't be rolled back
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 -e-e-e-e-e-e-e-e-e-e-e- >> R << -e-e-e-e-e-e-e-e-e-e-e-
 -b-b-b-b-b-b-b-b-b-b-b- >> B NT-trig T R << -b-b-b-b-b-b-b-b-b-b-b-
@@ -6650,7 +6650,7 @@ Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 -b-b-b-b-b-b-b-b-b-b-b- >> R << -b-b-b-b-b-b-b-b-b-b-b-
 ROLLBACK;
 Warnings:
-Warning	1196	Some non-transactional changed tables couldn't be rolled back
+Warning	#	Some non-transactional changed tables couldn't be rolled back
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 -e-e-e-e-e-e-e-e-e-e-e- >> R << -e-e-e-e-e-e-e-e-e-e-e-
 -b-b-b-b-b-b-b-b-b-b-b- >> B NT-func T R << -b-b-b-b-b-b-b-b-b-b-b-
@@ -6682,7 +6682,7 @@ Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 -b-b-b-b-b-b-b-b-b-b-b- >> R << -b-b-b-b-b-b-b-b-b-b-b-
 ROLLBACK;
 Warnings:
-Warning	1196	Some non-transactional changed tables couldn't be rolled back
+Warning	#	Some non-transactional changed tables couldn't be rolled back
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 -e-e-e-e-e-e-e-e-e-e-e- >> R << -e-e-e-e-e-e-e-e-e-e-e-
 -b-b-b-b-b-b-b-b-b-b-b- >> B TN T R << -b-b-b-b-b-b-b-b-b-b-b-
@@ -6712,7 +6712,7 @@ Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 -b-b-b-b-b-b-b-b-b-b-b- >> R << -b-b-b-b-b-b-b-b-b-b-b-
 ROLLBACK;
 Warnings:
-Warning	1196	Some non-transactional changed tables couldn't be rolled back
+Warning	#	Some non-transactional changed tables couldn't be rolled back
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 -e-e-e-e-e-e-e-e-e-e-e- >> R << -e-e-e-e-e-e-e-e-e-e-e-
 -b-b-b-b-b-b-b-b-b-b-b- >> B TN-trig T R << -b-b-b-b-b-b-b-b-b-b-b-
@@ -6746,7 +6746,7 @@ Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 -b-b-b-b-b-b-b-b-b-b-b- >> R << -b-b-b-b-b-b-b-b-b-b-b-
 ROLLBACK;
 Warnings:
-Warning	1196	Some non-transactional changed tables couldn't be rolled back
+Warning	#	Some non-transactional changed tables couldn't be rolled back
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 -e-e-e-e-e-e-e-e-e-e-e- >> R << -e-e-e-e-e-e-e-e-e-e-e-
 -b-b-b-b-b-b-b-b-b-b-b- >> B TN-func T R << -b-b-b-b-b-b-b-b-b-b-b-
@@ -6791,7 +6791,7 @@ Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 -b-b-b-b-b-b-b-b-b-b-b- >> R << -b-b-b-b-b-b-b-b-b-b-b-
 ROLLBACK;
 Warnings:
-Warning	1196	Some non-transactional changed tables couldn't be rolled back
+Warning	#	Some non-transactional changed tables couldn't be rolled back
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 -e-e-e-e-e-e-e-e-e-e-e- >> R << -e-e-e-e-e-e-e-e-e-e-e-
 -b-b-b-b-b-b-b-b-b-b-b- >> B tNe T R << -b-b-b-b-b-b-b-b-b-b-b-
@@ -6842,7 +6842,7 @@ Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 -b-b-b-b-b-b-b-b-b-b-b- >> R << -b-b-b-b-b-b-b-b-b-b-b-
 ROLLBACK;
 Warnings:
-Warning	1196	Some non-transactional changed tables couldn't be rolled back
+Warning	#	Some non-transactional changed tables couldn't be rolled back
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 -e-e-e-e-e-e-e-e-e-e-e- >> R << -e-e-e-e-e-e-e-e-e-e-e-
 -b-b-b-b-b-b-b-b-b-b-b- >> B NeT-trig T R << -b-b-b-b-b-b-b-b-b-b-b-
@@ -6875,7 +6875,7 @@ Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 -b-b-b-b-b-b-b-b-b-b-b- >> R << -b-b-b-b-b-b-b-b-b-b-b-
 ROLLBACK;
 Warnings:
-Warning	1196	Some non-transactional changed tables couldn't be rolled back
+Warning	#	Some non-transactional changed tables couldn't be rolled back
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 -e-e-e-e-e-e-e-e-e-e-e- >> R << -e-e-e-e-e-e-e-e-e-e-e-
 -b-b-b-b-b-b-b-b-b-b-b- >> B NeT-func T R << -b-b-b-b-b-b-b-b-b-b-b-
@@ -6908,7 +6908,7 @@ Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 -b-b-b-b-b-b-b-b-b-b-b- >> R << -b-b-b-b-b-b-b-b-b-b-b-
 ROLLBACK;
 Warnings:
-Warning	1196	Some non-transactional changed tables couldn't be rolled back
+Warning	#	Some non-transactional changed tables couldn't be rolled back
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 -e-e-e-e-e-e-e-e-e-e-e- >> R << -e-e-e-e-e-e-e-e-e-e-e-
 -b-b-b-b-b-b-b-b-b-b-b- >> B TeN-trig T R << -b-b-b-b-b-b-b-b-b-b-b-
@@ -6943,7 +6943,7 @@ Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 -b-b-b-b-b-b-b-b-b-b-b- >> R << -b-b-b-b-b-b-b-b-b-b-b-
 ROLLBACK;
 Warnings:
-Warning	1196	Some non-transactional changed tables couldn't be rolled back
+Warning	#	Some non-transactional changed tables couldn't be rolled back
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 -e-e-e-e-e-e-e-e-e-e-e- >> R << -e-e-e-e-e-e-e-e-e-e-e-
 -b-b-b-b-b-b-b-b-b-b-b- >> B TeN-func T R << -b-b-b-b-b-b-b-b-b-b-b-
@@ -7537,7 +7537,7 @@ master-bin.000001	#	Query	#	#	COMMIT
 -b-b-b-b-b-b-b-b-b-b-b- >> R << -b-b-b-b-b-b-b-b-b-b-b-
 ROLLBACK;
 Warnings:
-Warning	1196	Some non-transactional changed tables couldn't be rolled back
+Warning	#	Some non-transactional changed tables couldn't be rolled back
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 -e-e-e-e-e-e-e-e-e-e-e- >> R << -e-e-e-e-e-e-e-e-e-e-e-
 -b-b-b-b-b-b-b-b-b-b-b- >> B T tN R << -b-b-b-b-b-b-b-b-b-b-b-
@@ -7587,7 +7587,7 @@ master-bin.000001	#	Query	#	#	COMMIT
 -b-b-b-b-b-b-b-b-b-b-b- >> R << -b-b-b-b-b-b-b-b-b-b-b-
 ROLLBACK;
 Warnings:
-Warning	1196	Some non-transactional changed tables couldn't be rolled back
+Warning	#	Some non-transactional changed tables couldn't be rolled back
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 -e-e-e-e-e-e-e-e-e-e-e- >> R << -e-e-e-e-e-e-e-e-e-e-e-
 -b-b-b-b-b-b-b-b-b-b-b- >> B T NT R << -b-b-b-b-b-b-b-b-b-b-b-
@@ -7617,7 +7617,7 @@ master-bin.000001	#	Query	#	#	COMMIT
 -b-b-b-b-b-b-b-b-b-b-b- >> R << -b-b-b-b-b-b-b-b-b-b-b-
 ROLLBACK;
 Warnings:
-Warning	1196	Some non-transactional changed tables couldn't be rolled back
+Warning	#	Some non-transactional changed tables couldn't be rolled back
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 -e-e-e-e-e-e-e-e-e-e-e- >> R << -e-e-e-e-e-e-e-e-e-e-e-
 -b-b-b-b-b-b-b-b-b-b-b- >> B T NT-trig R << -b-b-b-b-b-b-b-b-b-b-b-
@@ -7649,7 +7649,7 @@ master-bin.000001	#	Query	#	#	COMMIT
 -b-b-b-b-b-b-b-b-b-b-b- >> R << -b-b-b-b-b-b-b-b-b-b-b-
 ROLLBACK;
 Warnings:
-Warning	1196	Some non-transactional changed tables couldn't be rolled back
+Warning	#	Some non-transactional changed tables couldn't be rolled back
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 -e-e-e-e-e-e-e-e-e-e-e- >> R << -e-e-e-e-e-e-e-e-e-e-e-
 -b-b-b-b-b-b-b-b-b-b-b- >> B T NT-func R << -b-b-b-b-b-b-b-b-b-b-b-
@@ -7681,7 +7681,7 @@ master-bin.000001	#	Query	#	#	COMMIT
 -b-b-b-b-b-b-b-b-b-b-b- >> R << -b-b-b-b-b-b-b-b-b-b-b-
 ROLLBACK;
 Warnings:
-Warning	1196	Some non-transactional changed tables couldn't be rolled back
+Warning	#	Some non-transactional changed tables couldn't be rolled back
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 -e-e-e-e-e-e-e-e-e-e-e- >> R << -e-e-e-e-e-e-e-e-e-e-e-
 -b-b-b-b-b-b-b-b-b-b-b- >> B T TN R << -b-b-b-b-b-b-b-b-b-b-b-
@@ -7711,7 +7711,7 @@ master-bin.000001	#	Query	#	#	COMMIT
 -b-b-b-b-b-b-b-b-b-b-b- >> R << -b-b-b-b-b-b-b-b-b-b-b-
 ROLLBACK;
 Warnings:
-Warning	1196	Some non-transactional changed tables couldn't be rolled back
+Warning	#	Some non-transactional changed tables couldn't be rolled back
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 -e-e-e-e-e-e-e-e-e-e-e- >> R << -e-e-e-e-e-e-e-e-e-e-e-
 -b-b-b-b-b-b-b-b-b-b-b- >> B T TN-trig R << -b-b-b-b-b-b-b-b-b-b-b-
@@ -7745,7 +7745,7 @@ master-bin.000001	#	Query	#	#	COMMIT
 -b-b-b-b-b-b-b-b-b-b-b- >> R << -b-b-b-b-b-b-b-b-b-b-b-
 ROLLBACK;
 Warnings:
-Warning	1196	Some non-transactional changed tables couldn't be rolled back
+Warning	#	Some non-transactional changed tables couldn't be rolled back
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 -e-e-e-e-e-e-e-e-e-e-e- >> R << -e-e-e-e-e-e-e-e-e-e-e-
 -b-b-b-b-b-b-b-b-b-b-b- >> B T TN-func R << -b-b-b-b-b-b-b-b-b-b-b-
@@ -7790,7 +7790,7 @@ master-bin.000001	#	Query	#	#	COMMIT
 -b-b-b-b-b-b-b-b-b-b-b- >> R << -b-b-b-b-b-b-b-b-b-b-b-
 ROLLBACK;
 Warnings:
-Warning	1196	Some non-transactional changed tables couldn't be rolled back
+Warning	#	Some non-transactional changed tables couldn't be rolled back
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 -e-e-e-e-e-e-e-e-e-e-e- >> R << -e-e-e-e-e-e-e-e-e-e-e-
 -b-b-b-b-b-b-b-b-b-b-b- >> B T tNe R << -b-b-b-b-b-b-b-b-b-b-b-
@@ -7842,7 +7842,7 @@ master-bin.000001	#	Query	#	#	COMMIT
 -b-b-b-b-b-b-b-b-b-b-b- >> R << -b-b-b-b-b-b-b-b-b-b-b-
 ROLLBACK;
 Warnings:
-Warning	1196	Some non-transactional changed tables couldn't be rolled back
+Warning	#	Some non-transactional changed tables couldn't be rolled back
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 -e-e-e-e-e-e-e-e-e-e-e- >> R << -e-e-e-e-e-e-e-e-e-e-e-
 -b-b-b-b-b-b-b-b-b-b-b- >> B T NeT-trig R << -b-b-b-b-b-b-b-b-b-b-b-
@@ -7875,7 +7875,7 @@ master-bin.000001	#	Query	#	#	COMMIT
 -b-b-b-b-b-b-b-b-b-b-b- >> R << -b-b-b-b-b-b-b-b-b-b-b-
 ROLLBACK;
 Warnings:
-Warning	1196	Some non-transactional changed tables couldn't be rolled back
+Warning	#	Some non-transactional changed tables couldn't be rolled back
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 -e-e-e-e-e-e-e-e-e-e-e- >> R << -e-e-e-e-e-e-e-e-e-e-e-
 -b-b-b-b-b-b-b-b-b-b-b- >> B T NeT-func R << -b-b-b-b-b-b-b-b-b-b-b-
@@ -7908,7 +7908,7 @@ master-bin.000001	#	Query	#	#	COMMIT
 -b-b-b-b-b-b-b-b-b-b-b- >> R << -b-b-b-b-b-b-b-b-b-b-b-
 ROLLBACK;
 Warnings:
-Warning	1196	Some non-transactional changed tables couldn't be rolled back
+Warning	#	Some non-transactional changed tables couldn't be rolled back
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 -e-e-e-e-e-e-e-e-e-e-e- >> R << -e-e-e-e-e-e-e-e-e-e-e-
 -b-b-b-b-b-b-b-b-b-b-b- >> B T TeN-trig R << -b-b-b-b-b-b-b-b-b-b-b-
@@ -7943,7 +7943,7 @@ master-bin.000001	#	Query	#	#	COMMIT
 -b-b-b-b-b-b-b-b-b-b-b- >> R << -b-b-b-b-b-b-b-b-b-b-b-
 ROLLBACK;
 Warnings:
-Warning	1196	Some non-transactional changed tables couldn't be rolled back
+Warning	#	Some non-transactional changed tables couldn't be rolled back
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 -e-e-e-e-e-e-e-e-e-e-e- >> R << -e-e-e-e-e-e-e-e-e-e-e-
 -b-b-b-b-b-b-b-b-b-b-b- >> B T TeN-func R << -b-b-b-b-b-b-b-b-b-b-b-
@@ -8569,7 +8569,7 @@ master-bin.000001	#	Query	#	#	COMMIT
 -b-b-b-b-b-b-b-b-b-b-b- >> R << -b-b-b-b-b-b-b-b-b-b-b-
 ROLLBACK;
 Warnings:
-Warning	1196	Some non-transactional changed tables couldn't be rolled back
+Warning	#	Some non-transactional changed tables couldn't be rolled back
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 -e-e-e-e-e-e-e-e-e-e-e- >> R << -e-e-e-e-e-e-e-e-e-e-e-
 -b-b-b-b-b-b-b-b-b-b-b- >> B tN N R << -b-b-b-b-b-b-b-b-b-b-b-
@@ -8600,7 +8600,7 @@ master-bin.000001	#	Query	#	#	COMMIT
 -b-b-b-b-b-b-b-b-b-b-b- >> R << -b-b-b-b-b-b-b-b-b-b-b-
 ROLLBACK;
 Warnings:
-Warning	1196	Some non-transactional changed tables couldn't be rolled back
+Warning	#	Some non-transactional changed tables couldn't be rolled back
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 -e-e-e-e-e-e-e-e-e-e-e- >> R << -e-e-e-e-e-e-e-e-e-e-e-
 -b-b-b-b-b-b-b-b-b-b-b- >> B nT N R << -b-b-b-b-b-b-b-b-b-b-b-
@@ -8632,7 +8632,7 @@ master-bin.000001	#	Query	#	#	COMMIT
 -b-b-b-b-b-b-b-b-b-b-b- >> R << -b-b-b-b-b-b-b-b-b-b-b-
 ROLLBACK;
 Warnings:
-Warning	1196	Some non-transactional changed tables couldn't be rolled back
+Warning	#	Some non-transactional changed tables couldn't be rolled back
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 -e-e-e-e-e-e-e-e-e-e-e- >> R << -e-e-e-e-e-e-e-e-e-e-e-
 -b-b-b-b-b-b-b-b-b-b-b- >> B NT N R << -b-b-b-b-b-b-b-b-b-b-b-
@@ -8668,7 +8668,7 @@ master-bin.000001	#	Query	#	#	COMMIT
 -b-b-b-b-b-b-b-b-b-b-b- >> R << -b-b-b-b-b-b-b-b-b-b-b-
 ROLLBACK;
 Warnings:
-Warning	1196	Some non-transactional changed tables couldn't be rolled back
+Warning	#	Some non-transactional changed tables couldn't be rolled back
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 -e-e-e-e-e-e-e-e-e-e-e- >> R << -e-e-e-e-e-e-e-e-e-e-e-
 -b-b-b-b-b-b-b-b-b-b-b- >> B NT-trig N R << -b-b-b-b-b-b-b-b-b-b-b-
@@ -8706,7 +8706,7 @@ master-bin.000001	#	Query	#	#	COMMIT
 -b-b-b-b-b-b-b-b-b-b-b- >> R << -b-b-b-b-b-b-b-b-b-b-b-
 ROLLBACK;
 Warnings:
-Warning	1196	Some non-transactional changed tables couldn't be rolled back
+Warning	#	Some non-transactional changed tables couldn't be rolled back
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 -e-e-e-e-e-e-e-e-e-e-e- >> R << -e-e-e-e-e-e-e-e-e-e-e-
 -b-b-b-b-b-b-b-b-b-b-b- >> B NT-func N R << -b-b-b-b-b-b-b-b-b-b-b-
@@ -8744,7 +8744,7 @@ master-bin.000001	#	Query	#	#	COMMIT
 -b-b-b-b-b-b-b-b-b-b-b- >> R << -b-b-b-b-b-b-b-b-b-b-b-
 ROLLBACK;
 Warnings:
-Warning	1196	Some non-transactional changed tables couldn't be rolled back
+Warning	#	Some non-transactional changed tables couldn't be rolled back
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 -e-e-e-e-e-e-e-e-e-e-e- >> R << -e-e-e-e-e-e-e-e-e-e-e-
 -b-b-b-b-b-b-b-b-b-b-b- >> B TN N R << -b-b-b-b-b-b-b-b-b-b-b-
@@ -8780,7 +8780,7 @@ master-bin.000001	#	Query	#	#	COMMIT
 -b-b-b-b-b-b-b-b-b-b-b- >> R << -b-b-b-b-b-b-b-b-b-b-b-
 ROLLBACK;
 Warnings:
-Warning	1196	Some non-transactional changed tables couldn't be rolled back
+Warning	#	Some non-transactional changed tables couldn't be rolled back
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 -e-e-e-e-e-e-e-e-e-e-e- >> R << -e-e-e-e-e-e-e-e-e-e-e-
 -b-b-b-b-b-b-b-b-b-b-b- >> B TN-trig N R << -b-b-b-b-b-b-b-b-b-b-b-
@@ -8820,7 +8820,7 @@ master-bin.000001	#	Query	#	#	COMMIT
 -b-b-b-b-b-b-b-b-b-b-b- >> R << -b-b-b-b-b-b-b-b-b-b-b-
 ROLLBACK;
 Warnings:
-Warning	1196	Some non-transactional changed tables couldn't be rolled back
+Warning	#	Some non-transactional changed tables couldn't be rolled back
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 -e-e-e-e-e-e-e-e-e-e-e- >> R << -e-e-e-e-e-e-e-e-e-e-e-
 -b-b-b-b-b-b-b-b-b-b-b- >> B TN-func N R << -b-b-b-b-b-b-b-b-b-b-b-
@@ -8872,7 +8872,7 @@ master-bin.000001	#	Query	#	#	COMMIT
 -b-b-b-b-b-b-b-b-b-b-b- >> R << -b-b-b-b-b-b-b-b-b-b-b-
 ROLLBACK;
 Warnings:
-Warning	1196	Some non-transactional changed tables couldn't be rolled back
+Warning	#	Some non-transactional changed tables couldn't be rolled back
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 -e-e-e-e-e-e-e-e-e-e-e- >> R << -e-e-e-e-e-e-e-e-e-e-e-
 -b-b-b-b-b-b-b-b-b-b-b- >> B tNe N R << -b-b-b-b-b-b-b-b-b-b-b-
@@ -8904,7 +8904,7 @@ master-bin.000001	#	Query	#	#	COMMIT
 -b-b-b-b-b-b-b-b-b-b-b- >> R << -b-b-b-b-b-b-b-b-b-b-b-
 ROLLBACK;
 Warnings:
-Warning	1196	Some non-transactional changed tables couldn't be rolled back
+Warning	#	Some non-transactional changed tables couldn't be rolled back
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 -e-e-e-e-e-e-e-e-e-e-e- >> R << -e-e-e-e-e-e-e-e-e-e-e-
 -b-b-b-b-b-b-b-b-b-b-b- >> B nTe N R << -b-b-b-b-b-b-b-b-b-b-b-
@@ -8937,7 +8937,7 @@ master-bin.000001	#	Query	#	#	COMMIT
 -b-b-b-b-b-b-b-b-b-b-b- >> R << -b-b-b-b-b-b-b-b-b-b-b-
 ROLLBACK;
 Warnings:
-Warning	1196	Some non-transactional changed tables couldn't be rolled back
+Warning	#	Some non-transactional changed tables couldn't be rolled back
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 -e-e-e-e-e-e-e-e-e-e-e- >> R << -e-e-e-e-e-e-e-e-e-e-e-
 -b-b-b-b-b-b-b-b-b-b-b- >> B NeT-trig N R << -b-b-b-b-b-b-b-b-b-b-b-
@@ -8976,7 +8976,7 @@ master-bin.000001	#	Query	#	#	COMMIT
 -b-b-b-b-b-b-b-b-b-b-b- >> R << -b-b-b-b-b-b-b-b-b-b-b-
 ROLLBACK;
 Warnings:
-Warning	1196	Some non-transactional changed tables couldn't be rolled back
+Warning	#	Some non-transactional changed tables couldn't be rolled back
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 -e-e-e-e-e-e-e-e-e-e-e- >> R << -e-e-e-e-e-e-e-e-e-e-e-
 -b-b-b-b-b-b-b-b-b-b-b- >> B NeT-func N R << -b-b-b-b-b-b-b-b-b-b-b-
@@ -9015,7 +9015,7 @@ master-bin.000001	#	Query	#	#	COMMIT
 -b-b-b-b-b-b-b-b-b-b-b- >> R << -b-b-b-b-b-b-b-b-b-b-b-
 ROLLBACK;
 Warnings:
-Warning	1196	Some non-transactional changed tables couldn't be rolled back
+Warning	#	Some non-transactional changed tables couldn't be rolled back
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 -e-e-e-e-e-e-e-e-e-e-e- >> R << -e-e-e-e-e-e-e-e-e-e-e-
 -b-b-b-b-b-b-b-b-b-b-b- >> B TeN-trig N R << -b-b-b-b-b-b-b-b-b-b-b-
@@ -9056,7 +9056,7 @@ master-bin.000001	#	Query	#	#	COMMIT
 -b-b-b-b-b-b-b-b-b-b-b- >> R << -b-b-b-b-b-b-b-b-b-b-b-
 ROLLBACK;
 Warnings:
-Warning	1196	Some non-transactional changed tables couldn't be rolled back
+Warning	#	Some non-transactional changed tables couldn't be rolled back
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 -e-e-e-e-e-e-e-e-e-e-e- >> R << -e-e-e-e-e-e-e-e-e-e-e-
 -b-b-b-b-b-b-b-b-b-b-b- >> B TeN-func N R << -b-b-b-b-b-b-b-b-b-b-b-
@@ -9682,7 +9682,7 @@ master-bin.000001	#	Query	#	#	COMMIT
 -b-b-b-b-b-b-b-b-b-b-b- >> R << -b-b-b-b-b-b-b-b-b-b-b-
 ROLLBACK;
 Warnings:
-Warning	1196	Some non-transactional changed tables couldn't be rolled back
+Warning	#	Some non-transactional changed tables couldn't be rolled back
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 -e-e-e-e-e-e-e-e-e-e-e- >> R << -e-e-e-e-e-e-e-e-e-e-e-
 -b-b-b-b-b-b-b-b-b-b-b- >> B N tN R << -b-b-b-b-b-b-b-b-b-b-b-
@@ -9713,7 +9713,7 @@ Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 -b-b-b-b-b-b-b-b-b-b-b- >> R << -b-b-b-b-b-b-b-b-b-b-b-
 ROLLBACK;
 Warnings:
-Warning	1196	Some non-transactional changed tables couldn't be rolled back
+Warning	#	Some non-transactional changed tables couldn't be rolled back
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 -e-e-e-e-e-e-e-e-e-e-e- >> R << -e-e-e-e-e-e-e-e-e-e-e-
 -b-b-b-b-b-b-b-b-b-b-b- >> B N nT R << -b-b-b-b-b-b-b-b-b-b-b-
@@ -9745,7 +9745,7 @@ master-bin.000001	#	Query	#	#	COMMIT
 -b-b-b-b-b-b-b-b-b-b-b- >> R << -b-b-b-b-b-b-b-b-b-b-b-
 ROLLBACK;
 Warnings:
-Warning	1196	Some non-transactional changed tables couldn't be rolled back
+Warning	#	Some non-transactional changed tables couldn't be rolled back
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 -e-e-e-e-e-e-e-e-e-e-e- >> R << -e-e-e-e-e-e-e-e-e-e-e-
 -b-b-b-b-b-b-b-b-b-b-b- >> B N NT R << -b-b-b-b-b-b-b-b-b-b-b-
@@ -9781,7 +9781,7 @@ master-bin.000001	#	Query	#	#	COMMIT
 -b-b-b-b-b-b-b-b-b-b-b- >> R << -b-b-b-b-b-b-b-b-b-b-b-
 ROLLBACK;
 Warnings:
-Warning	1196	Some non-transactional changed tables couldn't be rolled back
+Warning	#	Some non-transactional changed tables couldn't be rolled back
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 -e-e-e-e-e-e-e-e-e-e-e- >> R << -e-e-e-e-e-e-e-e-e-e-e-
 -b-b-b-b-b-b-b-b-b-b-b- >> B N NT-trig R << -b-b-b-b-b-b-b-b-b-b-b-
@@ -9819,7 +9819,7 @@ master-bin.000001	#	Query	#	#	COMMIT
 -b-b-b-b-b-b-b-b-b-b-b- >> R << -b-b-b-b-b-b-b-b-b-b-b-
 ROLLBACK;
 Warnings:
-Warning	1196	Some non-transactional changed tables couldn't be rolled back
+Warning	#	Some non-transactional changed tables couldn't be rolled back
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 -e-e-e-e-e-e-e-e-e-e-e- >> R << -e-e-e-e-e-e-e-e-e-e-e-
 -b-b-b-b-b-b-b-b-b-b-b- >> B N NT-func R << -b-b-b-b-b-b-b-b-b-b-b-
@@ -9857,7 +9857,7 @@ master-bin.000001	#	Query	#	#	COMMIT
 -b-b-b-b-b-b-b-b-b-b-b- >> R << -b-b-b-b-b-b-b-b-b-b-b-
 ROLLBACK;
 Warnings:
-Warning	1196	Some non-transactional changed tables couldn't be rolled back
+Warning	#	Some non-transactional changed tables couldn't be rolled back
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 -e-e-e-e-e-e-e-e-e-e-e- >> R << -e-e-e-e-e-e-e-e-e-e-e-
 -b-b-b-b-b-b-b-b-b-b-b- >> B N TN R << -b-b-b-b-b-b-b-b-b-b-b-
@@ -9893,7 +9893,7 @@ master-bin.000001	#	Query	#	#	COMMIT
 -b-b-b-b-b-b-b-b-b-b-b- >> R << -b-b-b-b-b-b-b-b-b-b-b-
 ROLLBACK;
 Warnings:
-Warning	1196	Some non-transactional changed tables couldn't be rolled back
+Warning	#	Some non-transactional changed tables couldn't be rolled back
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 -e-e-e-e-e-e-e-e-e-e-e- >> R << -e-e-e-e-e-e-e-e-e-e-e-
 -b-b-b-b-b-b-b-b-b-b-b- >> B N TN-trig R << -b-b-b-b-b-b-b-b-b-b-b-
@@ -9933,7 +9933,7 @@ master-bin.000001	#	Query	#	#	COMMIT
 -b-b-b-b-b-b-b-b-b-b-b- >> R << -b-b-b-b-b-b-b-b-b-b-b-
 ROLLBACK;
 Warnings:
-Warning	1196	Some non-transactional changed tables couldn't be rolled back
+Warning	#	Some non-transactional changed tables couldn't be rolled back
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 -e-e-e-e-e-e-e-e-e-e-e- >> R << -e-e-e-e-e-e-e-e-e-e-e-
 -b-b-b-b-b-b-b-b-b-b-b- >> B N TN-func R << -b-b-b-b-b-b-b-b-b-b-b-
@@ -9984,7 +9984,7 @@ master-bin.000001	#	Query	#	#	COMMIT
 -b-b-b-b-b-b-b-b-b-b-b- >> R << -b-b-b-b-b-b-b-b-b-b-b-
 ROLLBACK;
 Warnings:
-Warning	1196	Some non-transactional changed tables couldn't be rolled back
+Warning	#	Some non-transactional changed tables couldn't be rolled back
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 -e-e-e-e-e-e-e-e-e-e-e- >> R << -e-e-e-e-e-e-e-e-e-e-e-
 -b-b-b-b-b-b-b-b-b-b-b- >> B N tNe R << -b-b-b-b-b-b-b-b-b-b-b-
@@ -10016,7 +10016,7 @@ Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 -b-b-b-b-b-b-b-b-b-b-b- >> R << -b-b-b-b-b-b-b-b-b-b-b-
 ROLLBACK;
 Warnings:
-Warning	1196	Some non-transactional changed tables couldn't be rolled back
+Warning	#	Some non-transactional changed tables couldn't be rolled back
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 -e-e-e-e-e-e-e-e-e-e-e- >> R << -e-e-e-e-e-e-e-e-e-e-e-
 -b-b-b-b-b-b-b-b-b-b-b- >> B N nTe R << -b-b-b-b-b-b-b-b-b-b-b-
@@ -10049,7 +10049,7 @@ master-bin.000001	#	Query	#	#	COMMIT
 -b-b-b-b-b-b-b-b-b-b-b- >> R << -b-b-b-b-b-b-b-b-b-b-b-
 ROLLBACK;
 Warnings:
-Warning	1196	Some non-transactional changed tables couldn't be rolled back
+Warning	#	Some non-transactional changed tables couldn't be rolled back
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 -e-e-e-e-e-e-e-e-e-e-e- >> R << -e-e-e-e-e-e-e-e-e-e-e-
 -b-b-b-b-b-b-b-b-b-b-b- >> B N NeT-trig R << -b-b-b-b-b-b-b-b-b-b-b-
@@ -10088,7 +10088,7 @@ master-bin.000001	#	Query	#	#	COMMIT
 -b-b-b-b-b-b-b-b-b-b-b- >> R << -b-b-b-b-b-b-b-b-b-b-b-
 ROLLBACK;
 Warnings:
-Warning	1196	Some non-transactional changed tables couldn't be rolled back
+Warning	#	Some non-transactional changed tables couldn't be rolled back
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 -e-e-e-e-e-e-e-e-e-e-e- >> R << -e-e-e-e-e-e-e-e-e-e-e-
 -b-b-b-b-b-b-b-b-b-b-b- >> B N NeT-func R << -b-b-b-b-b-b-b-b-b-b-b-
@@ -10127,7 +10127,7 @@ master-bin.000001	#	Query	#	#	COMMIT
 -b-b-b-b-b-b-b-b-b-b-b- >> R << -b-b-b-b-b-b-b-b-b-b-b-
 ROLLBACK;
 Warnings:
-Warning	1196	Some non-transactional changed tables couldn't be rolled back
+Warning	#	Some non-transactional changed tables couldn't be rolled back
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 -e-e-e-e-e-e-e-e-e-e-e- >> R << -e-e-e-e-e-e-e-e-e-e-e-
 -b-b-b-b-b-b-b-b-b-b-b- >> B N TeN-trig R << -b-b-b-b-b-b-b-b-b-b-b-
@@ -10168,7 +10168,7 @@ master-bin.000001	#	Query	#	#	COMMIT
 -b-b-b-b-b-b-b-b-b-b-b- >> R << -b-b-b-b-b-b-b-b-b-b-b-
 ROLLBACK;
 Warnings:
-Warning	1196	Some non-transactional changed tables couldn't be rolled back
+Warning	#	Some non-transactional changed tables couldn't be rolled back
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 -e-e-e-e-e-e-e-e-e-e-e- >> R << -e-e-e-e-e-e-e-e-e-e-e-
 -b-b-b-b-b-b-b-b-b-b-b- >> B N TeN-func R << -b-b-b-b-b-b-b-b-b-b-b-
@@ -10251,7 +10251,7 @@ Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 -b-b-b-b-b-b-b-b-b-b-b- >> Rn << -b-b-b-b-b-b-b-b-b-b-b-
 ROLLBACK TO S_0;
 Warnings:
-Warning	1196	Some non-transactional changed tables couldn't be rolled back
+Warning	#	Some non-transactional changed tables couldn't be rolled back
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 -e-e-e-e-e-e-e-e-e-e-e- >> Rn << -e-e-e-e-e-e-e-e-e-e-e-
 -b-b-b-b-b-b-b-b-b-b-b- >> C << -b-b-b-b-b-b-b-b-b-b-b-
@@ -10260,8 +10260,6 @@ Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 master-bin.000001	#	Query	#	#	BEGIN
 master-bin.000001	#	Query	#	#	use `test`; INSERT INTO tt_1(trans_id, stmt_id) VALUES (318, 4)
 master-bin.000001	#	Query	#	#	SAVEPOINT `S_0`
-master-bin.000001	#	Query	#	#	use `test`; INSERT INTO tt_1(trans_id, stmt_id) VALUES (318, 7)
-master-bin.000001	#	Query	#	#	ROLLBACK TO `S_0`
 master-bin.000001	#	Xid	#	#	COMMIT /* XID */
 -e-e-e-e-e-e-e-e-e-e-e- >> C << -e-e-e-e-e-e-e-e-e-e-e-
 -b-b-b-b-b-b-b-b-b-b-b- >> B N T Sn T Rn C << -b-b-b-b-b-b-b-b-b-b-b-
@@ -10272,8 +10270,6 @@ master-bin.000001	#	Query	#	#	COMMIT
 master-bin.000001	#	Query	#	#	BEGIN
 master-bin.000001	#	Query	#	#	use `test`; INSERT INTO tt_1(trans_id, stmt_id) VALUES (318, 4)
 master-bin.000001	#	Query	#	#	SAVEPOINT `S_0`
-master-bin.000001	#	Query	#	#	use `test`; INSERT INTO tt_1(trans_id, stmt_id) VALUES (318, 7)
-master-bin.000001	#	Query	#	#	ROLLBACK TO `S_0`
 master-bin.000001	#	Xid	#	#	COMMIT /* XID */
 -e-e-e-e-e-e-e-e-e-e-e- >> B N T Sn T Rn C << -e-e-e-e-e-e-e-e-e-e-e-
 
@@ -10303,7 +10299,7 @@ Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 -b-b-b-b-b-b-b-b-b-b-b- >> Rn << -b-b-b-b-b-b-b-b-b-b-b-
 ROLLBACK TO S_0;
 Warnings:
-Warning	1196	Some non-transactional changed tables couldn't be rolled back
+Warning	#	Some non-transactional changed tables couldn't be rolled back
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 -e-e-e-e-e-e-e-e-e-e-e- >> Rn << -e-e-e-e-e-e-e-e-e-e-e-
 -b-b-b-b-b-b-b-b-b-b-b- >> C << -b-b-b-b-b-b-b-b-b-b-b-
@@ -10312,8 +10308,6 @@ Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 master-bin.000001	#	Query	#	#	BEGIN
 master-bin.000001	#	Query	#	#	use `test`; INSERT INTO tt_1(trans_id, stmt_id) VALUES (319, 2)
 master-bin.000001	#	Query	#	#	SAVEPOINT `S_0`
-master-bin.000001	#	Query	#	#	use `test`; INSERT INTO tt_1(trans_id, stmt_id) VALUES (319, 7)
-master-bin.000001	#	Query	#	#	ROLLBACK TO `S_0`
 master-bin.000001	#	Xid	#	#	COMMIT /* XID */
 -e-e-e-e-e-e-e-e-e-e-e- >> C << -e-e-e-e-e-e-e-e-e-e-e-
 -b-b-b-b-b-b-b-b-b-b-b- >> B T N Sn T Rn C << -b-b-b-b-b-b-b-b-b-b-b-
@@ -10324,8 +10318,6 @@ master-bin.000001	#	Query	#	#	COMMIT
 master-bin.000001	#	Query	#	#	BEGIN
 master-bin.000001	#	Query	#	#	use `test`; INSERT INTO tt_1(trans_id, stmt_id) VALUES (319, 2)
 master-bin.000001	#	Query	#	#	SAVEPOINT `S_0`
-master-bin.000001	#	Query	#	#	use `test`; INSERT INTO tt_1(trans_id, stmt_id) VALUES (319, 7)
-master-bin.000001	#	Query	#	#	ROLLBACK TO `S_0`
 master-bin.000001	#	Xid	#	#	COMMIT /* XID */
 -e-e-e-e-e-e-e-e-e-e-e- >> B T N Sn T Rn C << -e-e-e-e-e-e-e-e-e-e-e-
 
@@ -10355,7 +10347,7 @@ Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 -b-b-b-b-b-b-b-b-b-b-b- >> Rn << -b-b-b-b-b-b-b-b-b-b-b-
 ROLLBACK TO S_0;
 Warnings:
-Warning	1196	Some non-transactional changed tables couldn't be rolled back
+Warning	#	Some non-transactional changed tables couldn't be rolled back
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 -e-e-e-e-e-e-e-e-e-e-e- >> Rn << -e-e-e-e-e-e-e-e-e-e-e-
 -b-b-b-b-b-b-b-b-b-b-b- >> C << -b-b-b-b-b-b-b-b-b-b-b-
@@ -10364,8 +10356,6 @@ Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 master-bin.000001	#	Query	#	#	BEGIN
 master-bin.000001	#	Query	#	#	use `test`; INSERT INTO tt_1(trans_id, stmt_id) VALUES (320, 2)
 master-bin.000001	#	Query	#	#	SAVEPOINT `S_0`
-master-bin.000001	#	Query	#	#	use `test`; INSERT INTO tt_1(trans_id, stmt_id) VALUES (320, 7)
-master-bin.000001	#	Query	#	#	ROLLBACK TO `S_0`
 master-bin.000001	#	Xid	#	#	COMMIT /* XID */
 -e-e-e-e-e-e-e-e-e-e-e- >> C << -e-e-e-e-e-e-e-e-e-e-e-
 -b-b-b-b-b-b-b-b-b-b-b- >> B T Sn N T Rn C << -b-b-b-b-b-b-b-b-b-b-b-
@@ -10376,8 +10366,6 @@ master-bin.000001	#	Query	#	#	COMMIT
 master-bin.000001	#	Query	#	#	BEGIN
 master-bin.000001	#	Query	#	#	use `test`; INSERT INTO tt_1(trans_id, stmt_id) VALUES (320, 2)
 master-bin.000001	#	Query	#	#	SAVEPOINT `S_0`
-master-bin.000001	#	Query	#	#	use `test`; INSERT INTO tt_1(trans_id, stmt_id) VALUES (320, 7)
-master-bin.000001	#	Query	#	#	ROLLBACK TO `S_0`
 master-bin.000001	#	Xid	#	#	COMMIT /* XID */
 -e-e-e-e-e-e-e-e-e-e-e- >> B T Sn N T Rn C << -e-e-e-e-e-e-e-e-e-e-e-
 
@@ -11290,6 +11278,8 @@ Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 -e-e-e-e-e-e-e-e-e-e-e- >> CT << -e-e-e-e-e-e-e-e-e-e-e-
 -b-b-b-b-b-b-b-b-b-b-b- >> R << -b-b-b-b-b-b-b-b-b-b-b-
 ROLLBACK;
+Warnings:
+Warning	#	The creation of some temporary tables could not be rolled back.
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 master-bin.000001	#	Query	#	#	BEGIN
 master-bin.000001	#	Query	#	#	use `test`; INSERT INTO tt_1(trans_id, stmt_id) VALUES (351, 2)
@@ -11337,11 +11327,13 @@ Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 -b-b-b-b-b-b-b-b-b-b-b- >> Rn << -b-b-b-b-b-b-b-b-b-b-b-
 ROLLBACK TO S_0;
 Warnings:
-Warning	1196	Some non-transactional changed tables couldn't be rolled back
+Warning	#	The creation of some temporary tables could not be rolled back.
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 -e-e-e-e-e-e-e-e-e-e-e- >> Rn << -e-e-e-e-e-e-e-e-e-e-e-
 -b-b-b-b-b-b-b-b-b-b-b- >> R << -b-b-b-b-b-b-b-b-b-b-b-
 ROLLBACK;
+Warnings:
+Warning	#	The creation of some temporary tables could not be rolled back.
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 master-bin.000001	#	Query	#	#	BEGIN
 master-bin.000001	#	Query	#	#	use `test`; INSERT INTO tt_1(trans_id, stmt_id) VALUES (353, 2)
@@ -11390,6 +11382,8 @@ Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 -e-e-e-e-e-e-e-e-e-e-e- >> T << -e-e-e-e-e-e-e-e-e-e-e-
 -b-b-b-b-b-b-b-b-b-b-b- >> R << -b-b-b-b-b-b-b-b-b-b-b-
 ROLLBACK;
+Warnings:
+Warning	#	The creation of some temporary tables could not be rolled back.
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 master-bin.000001	#	Query	#	#	BEGIN
 master-bin.000001	#	Query	#	#	use `test`; INSERT INTO tt_1(trans_id, stmt_id) VALUES (355, 2)
@@ -11438,7 +11432,8 @@ Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 -b-b-b-b-b-b-b-b-b-b-b- >> R << -b-b-b-b-b-b-b-b-b-b-b-
 ROLLBACK;
 Warnings:
-Warning	1196	Some non-transactional changed tables couldn't be rolled back
+Warning	#	Some non-transactional changed tables couldn't be rolled back
+Warning	#	The creation of some temporary tables could not be rolled back.
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 master-bin.000001	#	Query	#	#	BEGIN
 master-bin.000001	#	Query	#	#	use `test`; CREATE TEMPORARY TABLE tt_xx_14 (a int) engine=Innodb
@@ -11480,6 +11475,8 @@ Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 -e-e-e-e-e-e-e-e-e-e-e- >> T << -e-e-e-e-e-e-e-e-e-e-e-
 -b-b-b-b-b-b-b-b-b-b-b- >> R << -b-b-b-b-b-b-b-b-b-b-b-
 ROLLBACK;
+Warnings:
+Warning	#	The creation of some temporary tables could not be rolled back.
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 master-bin.000001	#	Query	#	#	BEGIN
 master-bin.000001	#	Query	#	#	use `test`; CREATE TEMPORARY TABLE tt_xx_15 (a int) engine=Innodb
@@ -11526,7 +11523,8 @@ Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 -b-b-b-b-b-b-b-b-b-b-b- >> R << -b-b-b-b-b-b-b-b-b-b-b-
 ROLLBACK;
 Warnings:
-Warning	1196	Some non-transactional changed tables couldn't be rolled back
+Warning	#	Some non-transactional changed tables couldn't be rolled back
+Warning	#	The creation of some temporary tables could not be rolled back.
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 master-bin.000001	#	Query	#	#	BEGIN
 master-bin.000001	#	Query	#	#	use `test`; CREATE TEMPORARY TABLE tt_xx_16 (a int) engine=Innodb

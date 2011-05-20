@@ -568,7 +568,7 @@ int mysql_load(THD *thd,sql_exchange *ex,TABLE_LIST *table_list,
 
           /* since there is already an error, the possible error of
              writing binary log will be ignored */
-	  if (thd->transaction.stmt.modified_non_trans_table)
+	  if (thd->transaction.stmt.cannot_safely_rollback())
             (void) write_execute_load_query_log_event(thd, ex,
                                                       table_list->db, 
                                                       table_list->table_name,
@@ -592,8 +592,6 @@ int mysql_load(THD *thd,sql_exchange *ex,TABLE_LIST *table_list,
 	  (ulong) (info.records - info.copied),
           (ulong) thd->warning_info->statement_warn_count());
 
-  if (thd->transaction.stmt.modified_non_trans_table)
-    thd->transaction.all.modified_non_trans_table= TRUE;
 #ifndef EMBEDDED_LIBRARY
   if (mysql_bin_log.is_open())
   {
@@ -642,7 +640,7 @@ int mysql_load(THD *thd,sql_exchange *ex,TABLE_LIST *table_list,
   my_ok(thd, info.copied + info.deleted, 0L, name);
 err:
   DBUG_ASSERT(transactional_table || !(info.copied || info.deleted) ||
-              thd->transaction.stmt.modified_non_trans_table);
+              thd->transaction.stmt.cannot_safely_rollback());
   table->file->ha_release_auto_increment();
   table->auto_increment_field_not_null= FALSE;
   thd->abort_on_warning= 0;
@@ -743,8 +741,7 @@ static bool write_execute_load_query_log_event(THD *thd, sql_exchange* ex,
       pfields.append("`");
       pfields.append(item->name);
       pfields.append("`");
-      pfields.append("=");
-      val->print(&pfields, QT_ORDINARY);
+      pfields.append(val->name);
     }
   }
 
@@ -1263,7 +1260,6 @@ read_xml_field(THD *thd, COPY_INFO &info, TABLE_LIST *table_list,
       We don't need to reset auto-increment field since we are restoring
       its default value at the beginning of each loop iteration.
     */
-    thd->transaction.stmt.modified_non_trans_table= no_trans_update_stmt;
     thd->warning_info->inc_current_row_for_warning();
     continue_loop:;
   }
@@ -1302,9 +1298,10 @@ READ_INFO::READ_INFO(File file_par, uint tot_length, const CHARSET_INFO *cs,
 		     String &field_term, String &line_start, String &line_term,
 		     String &enclosed_par, int escape, bool get_it_from_net,
 		     bool is_fifo)
-  :file(file_par),escape_char(escape)
+  :file(file_par), buff_length(tot_length), escape_char(escape),
+   found_end_of_line(false), eof(false), need_end_io_cache(false),
+   error(false), line_cuted(false), found_null(false), read_charset(cs)
 {
-  read_charset= cs;
   field_term_ptr=(char*) field_term.ptr();
   field_term_length= field_term.length();
   line_term_ptr=(char*) line_term.ptr();
@@ -1332,12 +1329,10 @@ READ_INFO::READ_INFO(File file_par, uint tot_length, const CHARSET_INFO *cs,
     (uchar) enclosed_par[0] : INT_MAX;
   field_term_char= field_term_length ? (uchar) field_term_ptr[0] : INT_MAX;
   line_term_char= line_term_length ? (uchar) line_term_ptr[0] : INT_MAX;
-  error=eof=found_end_of_line=found_null=line_cuted=0;
-  buff_length=tot_length;
 
 
   /* Set of a stack for unget if long terminators */
-  uint length=max(field_term_length,line_term_length)+1;
+  uint length= max(cs->mbmaxlen, max(field_term_length, line_term_length)) + 1;
   set_if_bigger(length,line_start.length());
   stack=stack_pos=(int*) sql_alloc(sizeof(int)*length);
 
@@ -1379,7 +1374,7 @@ READ_INFO::READ_INFO(File file_par, uint tot_length, const CHARSET_INFO *cs,
 
 READ_INFO::~READ_INFO()
 {
-  if (!error && need_end_io_cache)
+  if (need_end_io_cache)
     ::end_io_cache(&cache);
 
   if (buffer != NULL)

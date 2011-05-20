@@ -105,6 +105,7 @@ When one supplies long data for a placeholder:
 #include "sp_head.h"
 #include "sp.h"
 #include "sp_cache.h"
+#include "sql_handler.h"  // mysql_ha_rm_tables
 #include "probes_mysql.h"
 #ifdef EMBEDDED_LIBRARY
 /* include MYSQL_BIND headers */
@@ -1456,13 +1457,7 @@ static int mysql_test_select(Prepared_statement *stmt,
 
   lex->select_lex.context.resolve_in_select_list= TRUE;
 
-  ulong privilege= lex->exchange ? SELECT_ACL | FILE_ACL : SELECT_ACL;
-  if (tables)
-  {
-    if (check_table_access(thd, privilege, tables, FALSE, UINT_MAX, FALSE))
-      goto error;
-  }
-  else if (check_access(thd, privilege, any_db, NULL, NULL, 0, 0))
+  if (select_precheck(thd, lex, tables, lex->select_lex.table_list.first))
     goto error;
 
   if (!lex->result && !(lex->result= new (stmt->mem_root) select_send))
@@ -1963,6 +1958,19 @@ static bool check_prepared_statement(Prepared_statement *stmt)
   /* Reset warning count for each query that uses tables */
   if (tables)
     thd->warning_info->opt_clear_warning_info(thd->query_id);
+
+  if (sql_command_flags[sql_command] & CF_HA_CLOSE)
+    mysql_ha_rm_tables(thd, tables);
+
+  /*
+    Open temporary tables that are known now. Temporary tables added by
+    prelocking will be opened afterwards (during open_tables()).
+  */
+  if (sql_command_flags[sql_command] & CF_PREOPEN_TMP_TABLES)
+  {
+    if (open_temporary_tables(thd, tables))
+      goto error;
+  }
 
   switch (sql_command) {
   case SQLCOM_REPLACE:
@@ -2713,7 +2721,7 @@ void mysqld_stmt_reset(THD *thd, char *packet)
   */
   reset_stmt_params(stmt);
 
-  stmt->state= Query_arena::PREPARED;
+  stmt->state= Query_arena::STMT_PREPARED;
 
   general_log_print(thd, thd->get_command(), NullS);
 
@@ -2832,7 +2840,7 @@ void mysql_stmt_get_longdata(THD *thd, char *packet, ulong packet_length)
   if (param_number >= stmt->param_count)
   {
     /* Error will be sent in execute call */
-    stmt->state= Query_arena::ERROR;
+    stmt->state= Query_arena::STMT_ERROR;
     stmt->last_errno= ER_WRONG_ARGUMENTS;
     sprintf(stmt->last_error, ER(ER_WRONG_ARGUMENTS),
             "mysqld_stmt_send_long_data");
@@ -2843,7 +2851,8 @@ void mysql_stmt_get_longdata(THD *thd, char *packet, ulong packet_length)
   param= stmt->param_array[param_number];
 
   Diagnostics_area new_stmt_da, *save_stmt_da= thd->stmt_da;
-  Warning_info new_warnning_info(thd->query_id), *save_warinig_info= thd->warning_info;
+  Warning_info new_warnning_info(thd->query_id, false);
+  Warning_info *save_warinig_info= thd->warning_info;
 
   thd->stmt_da= &new_stmt_da;
   thd->warning_info= &new_warnning_info;
@@ -2855,7 +2864,7 @@ void mysql_stmt_get_longdata(THD *thd, char *packet, ulong packet_length)
 #endif
   if (thd->stmt_da->is_error())
   {
-    stmt->state= Query_arena::ERROR;
+    stmt->state= Query_arena::STMT_ERROR;
     stmt->last_errno= thd->stmt_da->sql_errno();
     strncpy(stmt->last_error, thd->stmt_da->message(), MYSQL_ERRMSG_SIZE);
   }
@@ -2972,6 +2981,7 @@ Execute_sql_statement(LEX_STRING sql_text)
 bool
 Execute_sql_statement::execute_server_code(THD *thd)
 {
+  PSI_statement_locker *parent_locker;
   bool error;
 
   if (alloc_query(thd, m_sql_text.str, m_sql_text.length))
@@ -2991,7 +3001,10 @@ Execute_sql_statement::execute_server_code(THD *thd)
 
   thd->lex->set_trg_event_type_for_tables();
 
-  error= mysql_execute_command(thd);
+  parent_locker= thd->m_statement_psi;
+  thd->m_statement_psi= NULL;
+  error= mysql_execute_command(thd) ;
+  thd->m_statement_psi= parent_locker;
 
   /* report error issued during command execution */
   if (error == 0 && thd->spcont == NULL)
@@ -3010,7 +3023,7 @@ end:
 
 Prepared_statement::Prepared_statement(THD *thd_arg)
   :Statement(NULL, &main_mem_root,
-             INITIALIZED, ++thd_arg->statement_id_counter),
+             STMT_INITIALIZED, ++thd_arg->statement_id_counter),
   thd(thd_arg),
   result(thd_arg),
   param_array(0),
@@ -3283,7 +3296,7 @@ bool Prepared_statement::prepare(const char *packet, uint packet_len)
   {
     setup_set_params();
     lex->context_analysis_only&= ~CONTEXT_ANALYSIS_ONLY_PREPARE;
-    state= Query_arena::PREPARED;
+    state= Query_arena::STMT_PREPARED;
     flags&= ~ (uint) IS_IN_USE;
 
     /* 
@@ -3401,7 +3414,7 @@ Prepared_statement::execute_loop(String *expanded_query,
   int reprepare_attempt= 0;
 
   /* Check if we got an error when sending long data */
-  if (state == Query_arena::ERROR)
+  if (state == Query_arena::STMT_ERROR)
   {
     my_message(last_errno, last_error, MYF(0));
     return TRUE;
@@ -3464,7 +3477,7 @@ Prepared_statement::execute_server_runnable(Server_runnable *server_runnable)
   Item_change_list save_change_list;
   thd->change_list.move_elements_to(&save_change_list);
 
-  state= CONVENTIONAL_EXECUTION;
+  state= STMT_CONVENTIONAL_EXECUTION;
 
   if (!(lex= new (mem_root) st_lex_local))
     return TRUE;
@@ -3768,13 +3781,17 @@ bool Prepared_statement::execute(String *expanded_query, bool open_cursor)
     if (query_cache_send_result_to_client(thd, thd->query(),
                                           thd->query_length()) <= 0)
     {
+      PSI_statement_locker *parent_locker;
       MYSQL_QUERY_EXEC_START(thd->query(),
                              thd->thread_id,
                              (char *) (thd->db ? thd->db : ""),
                              &thd->security_ctx->priv_user[0],
                              (char *) thd->security_ctx->host_or_ip,
                              1);
+      parent_locker= thd->m_statement_psi;
+      thd->m_statement_psi= NULL;
       error= mysql_execute_command(thd);
+      thd->m_statement_psi= parent_locker;
       MYSQL_QUERY_EXEC_DONE(error);
     }
   }
@@ -3799,8 +3816,8 @@ bool Prepared_statement::execute(String *expanded_query, bool open_cursor)
   thd->set_statement(&stmt_backup);
   thd->stmt_arena= old_stmt_arena;
 
-  if (state == Query_arena::PREPARED)
-    state= Query_arena::EXECUTED;
+  if (state == Query_arena::STMT_PREPARED)
+    state= Query_arena::STMT_EXECUTED;
 
   if (error == 0 && this->lex->sql_command == SQLCOM_CALL)
   {
@@ -3901,7 +3918,7 @@ Ed_result_set::Ed_result_set(List<Ed_row> *rows_arg,
 */
 
 Ed_connection::Ed_connection(THD *thd)
-  :m_warning_info(thd->query_id),
+  :m_warning_info(thd->query_id, false),
   m_thd(thd),
   m_rsets(0),
   m_current_rset(0)

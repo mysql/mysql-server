@@ -187,7 +187,7 @@ private:
 class StringHolder {
     ASN1_STRING  asnString_;
 public:
-    StringHolder(const char* str, int sz);
+    StringHolder(const char* str, int sz, byte type= 0);
     ~StringHolder();
 
     ASN1_STRING* GetString();
@@ -205,7 +205,7 @@ class X509 {
     StringHolder afterDate_;    // not valid after
 public:
     X509(const char* i, size_t, const char* s, size_t,
-         const char* b, int, const char* a, int);
+         ASN1_STRING *b, ASN1_STRING *a);
     ~X509() {}
 
     X509_NAME* GetIssuer();

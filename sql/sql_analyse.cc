@@ -22,10 +22,6 @@
 **	 - type set is out of optimization yet
 */
 
-#ifdef USE_PRAGMA_IMPLEMENTATION
-#pragma implementation				// gcc: Class implementation
-#endif
-
 #define MYSQL_LEX 1
 
 #include "sql_priv.h"
@@ -1106,7 +1102,7 @@ int collect_real(double *element, element_count count __attribute__((unused)),
 int collect_decimal(uchar *element, element_count count,
                     TREE_INFO *info)
 {
-  char buff[DECIMAL_MAX_STR_LENGTH];
+  char buff[DECIMAL_MAX_STR_LENGTH + 1];
   String s(buff, sizeof(buff),&my_charset_bin);
 
   if (info->found)

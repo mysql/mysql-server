@@ -58,7 +58,7 @@ Created 12/19/1997 Heikki Tuuri
 #include "buf0lru.h"
 #include "ha_prototypes.h"
 
-#include "my_handler.h" /* enum icp_result */
+#include "my_compare.h" /* enum icp_result */
 
 /* Maximum number of rows to prefetch; MySQL interface has another parameter */
 #define SEL_MAX_N_PREFETCH	16
@@ -526,8 +526,8 @@ Pops the column values for a prefetched, cached row from the column prefetch
 buffers and places them to the val fields in the column nodes. */
 static
 void
-sel_pop_prefetched_row(
-/*===================*/
+sel_dequeue_prefetched_row(
+/*=======================*/
 	plan_t*	plan)	/*!< in: plan node for a table */
 {
 	sym_node_t*	column;
@@ -588,8 +588,8 @@ Pushes the column values for a prefetched, cached row to the column prefetch
 buffers from the val fields in the column nodes. */
 UNIV_INLINE
 void
-sel_push_prefetched_row(
-/*====================*/
+sel_enqueue_prefetched_row(
+/*=======================*/
 	plan_t*	plan)	/*!< in: plan node for a table */
 {
 	sym_node_t*	column;
@@ -1365,7 +1365,7 @@ table_loop:
 	index = plan->index;
 
 	if (plan->n_rows_prefetched > 0) {
-		sel_pop_prefetched_row(plan);
+		sel_dequeue_prefetched_row(plan);
 
 		goto next_table_no_mtr;
 	}
@@ -1811,13 +1811,13 @@ skip_lock:
 		goto next_table;
 	}
 
-	sel_push_prefetched_row(plan);
+	sel_enqueue_prefetched_row(plan);
 
 	if (plan->n_rows_prefetched == SEL_MAX_N_PREFETCH) {
 
 		/* The prefetch buffer is now full */
 
-		sel_pop_prefetched_row(plan);
+		sel_dequeue_prefetched_row(plan);
 
 		goto next_table;
 	}
@@ -1916,7 +1916,7 @@ table_exhausted:
 	if (plan->n_rows_prefetched > 0) {
 		/* The table became exhausted during a prefetch */
 
-		sel_pop_prefetched_row(plan);
+		sel_dequeue_prefetched_row(plan);
 
 		goto next_table_no_mtr;
 	}
@@ -1962,7 +1962,7 @@ stop_for_a_while:
 	mtr_commit(&mtr);
 
 #ifdef UNIV_SYNC_DEBUG
-	ut_ad(sync_thread_levels_empty_gen(TRUE));
+	ut_ad(sync_thread_levels_empty_except_dict());
 #endif /* UNIV_SYNC_DEBUG */
 	err = DB_SUCCESS;
 	goto func_exit;
@@ -1982,7 +1982,7 @@ commit_mtr_for_a_while:
 	mtr_has_extra_clust_latch = FALSE;
 
 #ifdef UNIV_SYNC_DEBUG
-	ut_ad(sync_thread_levels_empty_gen(TRUE));
+	ut_ad(sync_thread_levels_empty_except_dict());
 #endif /* UNIV_SYNC_DEBUG */
 
 	goto table_loop;
@@ -1999,7 +1999,7 @@ lock_wait_or_error:
 	mtr_commit(&mtr);
 
 #ifdef UNIV_SYNC_DEBUG
-	ut_ad(sync_thread_levels_empty_gen(TRUE));
+	ut_ad(sync_thread_levels_empty_except_dict());
 #endif /* UNIV_SYNC_DEBUG */
 
 func_exit:
@@ -3229,8 +3229,8 @@ sel_restore_position_for_mysql(
 Pops a cached row for MySQL from the fetch cache. */
 UNIV_INLINE
 void
-row_sel_pop_cached_row_for_mysql(
-/*=============================*/
+row_sel_dequeue_cached_row_for_mysql(
+/*=================================*/
 	byte*		buf,		/*!< in/out: buffer where to copy the
 					row */
 	row_prebuilt_t*	prebuilt)	/*!< in: prebuilt struct */
@@ -3286,37 +3286,55 @@ row_sel_pop_cached_row_for_mysql(
 }
 
 /********************************************************************//**
+Initialise the prefetch cache. */
+UNIV_INLINE
+void
+row_sel_prefetch_cache_init(
+/*========================*/
+	row_prebuilt_t*	prebuilt)	/*!< in/out: prebuilt struct */
+{
+	ulint	i;
+	ulint	sz;
+	byte*	ptr;
+
+	/* Reserve space for the magic number. */
+	sz = UT_ARR_SIZE(prebuilt->fetch_cache) * (prebuilt->mysql_row_len + 8);
+	ptr = mem_alloc(sz);
+
+	for (i = 0; i < UT_ARR_SIZE(prebuilt->fetch_cache); i++) {
+
+		/* A user has reported memory corruption in these
+		buffers in Linux. Put magic numbers there to help
+		to track a possible bug. */
+
+		mach_write_to_4(ptr, ROW_PREBUILT_FETCH_MAGIC_N);
+		ptr += 4;
+
+		prebuilt->fetch_cache[i] = ptr;
+		ptr += prebuilt->mysql_row_len;
+
+		mach_write_to_4(ptr, ROW_PREBUILT_FETCH_MAGIC_N);
+		ptr += 4;
+	}
+}
+
+/********************************************************************//**
 Pushes a row for MySQL to the fetch cache. */
 UNIV_INLINE
 void
-row_sel_push_cache_row_for_mysql(
-/*=============================*/
+row_sel_enqueue_cache_row_for_mysql(
+/*================================*/
 	byte*		mysql_rec,	/*!< in/out: MySQL record */
 	row_prebuilt_t*	prebuilt)	/*!< in/out: prebuilt struct */
 {
 	ut_a(prebuilt->n_fetch_cached < MYSQL_FETCH_CACHE_SIZE);
 	ut_a(!prebuilt->templ_contains_blob);
 
-	if (UNIV_UNLIKELY(prebuilt->fetch_cache[0] == NULL)) {
-		ulint	i;
+	if (prebuilt->fetch_cache[0] == NULL) {
 		/* Allocate memory for the fetch cache */
 		ut_ad(prebuilt->n_fetch_cached == 0);
 
-		for (i = 0; i < MYSQL_FETCH_CACHE_SIZE; i++) {
-			byte*	buf;
-
-			/* A user has reported memory corruption in these
-			buffers in Linux. Put magic numbers there to help
-			to track a possible bug. */
-
-			buf = mem_alloc(prebuilt->mysql_row_len + 8);
-
-			prebuilt->fetch_cache[i] = buf + 4;
-
-			mach_write_to_4(buf, ROW_PREBUILT_FETCH_MAGIC_N);
-			mach_write_to_4(buf + 4 + prebuilt->mysql_row_len,
-					ROW_PREBUILT_FETCH_MAGIC_N);
-		}
+		row_sel_prefetch_cache_init(prebuilt);
 	}
 
 	ut_ad(prebuilt->fetch_cache_first == 0);
@@ -3550,8 +3568,6 @@ row_search_for_mysql(
 	rec_offs_init(offsets_);
 
 	ut_ad(index && pcur && search_tuple);
-	ut_ad(trx->mysql_thd == NULL
-	      || trx->mysql_thread_id == os_thread_get_curr_id());
 
 	if (UNIV_UNLIKELY(prebuilt->table->ibd_file_missing)) {
 		ut_print_timestamp(stderr);
@@ -3568,11 +3584,17 @@ row_search_for_mysql(
 			"InnoDB: how you can resolve the problem.\n",
 			prebuilt->table->name);
 
+#ifdef UNIV_SYNC_DEBUG
+		ut_ad(!sync_thread_levels_nonempty_trx(trx->has_search_latch));
+#endif /* UNIV_SYNC_DEBUG */
 		return(DB_ERROR);
 	}
 
 	if (UNIV_UNLIKELY(!prebuilt->index_usable)) {
 
+#ifdef UNIV_SYNC_DEBUG
+		ut_ad(!sync_thread_levels_nonempty_trx(trx->has_search_latch));
+#endif /* UNIV_SYNC_DEBUG */
 		return(DB_MISSING_HISTORY);
 	}
 
@@ -3676,7 +3698,7 @@ row_search_for_mysql(
 			prebuilt->fetch_cache_first = 0;
 
 		} else if (UNIV_LIKELY(prebuilt->n_fetch_cached > 0)) {
-			row_sel_pop_cached_row_for_mysql(buf, prebuilt);
+			row_sel_dequeue_cached_row_for_mysql(buf, prebuilt);
 
 			prebuilt->n_rows_fetched++;
 
@@ -4682,7 +4704,7 @@ requires_clust_rec:
 			goto next_rec;
 		}
 
-		row_sel_push_cache_row_for_mysql(buf, prebuilt);
+		row_sel_enqueue_cache_row_for_mysql(buf, prebuilt);
 
 		if (prebuilt->n_fetch_cached < MYSQL_FETCH_CACHE_SIZE) {
 			goto next_rec;
@@ -4917,7 +4939,7 @@ normal_return:
 	mtr_commit(&mtr);
 
 	if (prebuilt->n_fetch_cached > 0) {
-		row_sel_pop_cached_row_for_mysql(buf, prebuilt);
+		row_sel_dequeue_cached_row_for_mysql(buf, prebuilt);
 
 		err = DB_SUCCESS;
 	}
@@ -4950,6 +4972,10 @@ func_exit:
 			prebuilt->row_read_type = ROW_READ_TRY_SEMI_CONSISTENT;
 		}
 	}
+
+#ifdef UNIV_SYNC_DEBUG
+	ut_ad(!sync_thread_levels_nonempty_trx(trx->has_search_latch));
+#endif /* UNIV_SYNC_DEBUG */
 	return(err);
 }
 

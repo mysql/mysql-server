@@ -13,10 +13,6 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
-#ifdef USE_PRAGMA_IMPLEMENTATION
-#pragma implementation
-#endif
-
 /* variable declarations are in sys_vars.cc now !!! */
 
 #include "my_global.h"                          /* NO_EMBEDDED_ACCESS_CHECKS */

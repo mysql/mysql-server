@@ -1,5 +1,5 @@
 # -*- cperl -*-
-# Copyright (C) 2008 MySQL AB
+# Copyright (c) 2004, 2011, Oracle and/or its affiliates. All rights reserved.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -156,8 +156,7 @@ sub my_find_paths {
   # User can select to look in a special build dir
   # which is a subdirectory of any of the paths
   my @extra_dirs;
-  my $build_dir= $::opt_config_dir || $ENV{MTR_VS_CONFIG}
-                                   || $ENV{MTR_BUILD_DIR};
+  my $build_dir= $::opt_vs_config || $ENV{MTR_VS_CONFIG} || $ENV{MTR_BUILD_DIR};
   push(@extra_dirs, $build_dir) if defined $build_dir;
 
   if (defined $extension){

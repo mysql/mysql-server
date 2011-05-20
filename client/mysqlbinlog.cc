@@ -687,10 +687,18 @@ Exit_status process_event(PRINT_EVENT_INFO *print_event_info, Log_event *ev,
       */
       start_datetime= 0;
       offset= 0; // print everything and protect against cycling rec_count
+      /*
+        Skip events according to the --server-id flag.  However, don't
+        skip format_description or rotate events, because they they
+        are really "global" events that are relevant for the entire
+        binlog, even if they have a server_id.  Also, we have to read
+        the format_description event so that we can parse subsequent
+        events.
+      */
+      if (ev_type != ROTATE_EVENT &&
+          server_id && (server_id != ev->server_id))
+        goto end;
     }
-    if (server_id && (server_id != ev->server_id))
-      /* skip just this event, continue processing the log. */
-      goto end;
     if (((my_time_t)(ev->when) >= stop_datetime)
         || (pos >= stop_position_mot))
     {
@@ -931,7 +939,8 @@ Exit_status process_event(PRINT_EVENT_INFO *print_event_info, Log_event *ev,
         row events.
       */
       if (!print_event_info->printed_fd_event && !short_form &&
-          ev_type != TABLE_MAP_EVENT && ev_type != ROWS_QUERY_LOG_EVENT)
+          ev_type != TABLE_MAP_EVENT && ev_type != ROWS_QUERY_LOG_EVENT &&
+          opt_base64_output_mode != BASE64_OUTPUT_DECODE_ROWS)
       {
         const char* type_str= ev->get_type_str();
         if (opt_base64_output_mode == BASE64_OUTPUT_NEVER)
@@ -1684,8 +1693,7 @@ static Exit_status dump_remote_log_entries(PRINT_EVENT_INFO *print_event_info,
       */
       ev->register_temp_buf((char *) net->read_pos + 1);
     }
-    if (glob_description_event->binlog_version >= 3 ||
-        (type != LOAD_EVENT && type != CREATE_FILE_EVENT))
+    if (raw_mode || (type != LOAD_EVENT))
     {
       /*
         If this is a Rotate event, maybe it's the end of the requested binlog;
@@ -1773,6 +1781,14 @@ static Exit_status dump_remote_log_entries(PRINT_EVENT_INFO *print_event_info,
           ev->temp_buf= 0;
           ev= 0;
         }
+      }
+      
+      if (type == LOAD_EVENT)
+      {
+        DBUG_ASSERT(raw_mode);
+        warning("Attempting to load a remote pre-4.0 binary log that contains "
+                "LOAD DATA INFILE statements. The file will not be copied from "
+                "the remote server. ");
       }
 
       if (raw_mode)

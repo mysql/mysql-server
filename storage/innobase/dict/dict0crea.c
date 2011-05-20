@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1996, 2010, Innobase Oy. All Rights Reserved.
+Copyright (c) 1996, 2011, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -11,8 +11,8 @@ ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
 FOR A PARTICULAR PURPOSE. See the GNU General Public License for more details.
 
 You should have received a copy of the GNU General Public License along with
-this program; if not, write to the Free Software Foundation, Inc., 59 Temple
-Place, Suite 330, Boston, MA 02111-1307 USA
+this program; if not, write to the Free Software Foundation, Inc.,
+51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA
 
 *****************************************************************************/
 
@@ -75,6 +75,7 @@ dict_create_sys_tables_tuple(
 	dfield = dtuple_get_nth_field(entry, 0/*NAME*/);
 
 	dfield_set_data(dfield, table->name, ut_strlen(table->name));
+
 	/* 3: ID -------------------------------*/
 	dfield = dtuple_get_nth_field(entry, 1/*ID*/);
 
@@ -82,6 +83,7 @@ dict_create_sys_tables_tuple(
 	mach_write_to_8(ptr, table->id);
 
 	dfield_set_data(dfield, ptr, 8);
+
 	/* 4: N_COLS ---------------------------*/
 	dfield = dtuple_get_nth_field(entry, 2/*N_COLS*/);
 
@@ -93,36 +95,41 @@ dict_create_sys_tables_tuple(
 	mach_write_to_4(ptr, table->n_def
 			| ((table->flags & DICT_TF_COMPACT) << 31));
 	dfield_set_data(dfield, ptr, 4);
-	/* 5: TYPE -----------------------------*/
+
+	/* 5: TYPE (table flags) -----------------------------*/
 	dfield = dtuple_get_nth_field(entry, 3/*TYPE*/);
 
 	ptr = mem_heap_alloc(heap, 4);
-	if (table->flags & (~DICT_TF_COMPACT & ~(~0 << DICT_TF_BITS))) {
+	if (table->flags & ~DICT_TF_COMPACT) {
 		ut_a(table->flags & DICT_TF_COMPACT);
-		ut_a(dict_table_get_format(table) >= DICT_TF_FORMAT_ZIP);
+		ut_a(dict_table_get_format(table) >= UNIV_FORMAT_B);
 		ut_a((table->flags & DICT_TF_ZSSIZE_MASK)
 		     <= (DICT_TF_ZSSIZE_MAX << DICT_TF_ZSSIZE_SHIFT));
-		ut_a(!(table->flags & (~0 << DICT_TF2_BITS)));
-		mach_write_to_4(ptr, table->flags & ~(~0 << DICT_TF_BITS));
+		ut_a(!(table->flags & ~DICT_TF_BIT_MASK));
+		mach_write_to_4(ptr, table->flags & DICT_TF_BIT_MASK);
 	} else {
 		mach_write_to_4(ptr, DICT_TABLE_ORDINARY);
 	}
 
 	dfield_set_data(dfield, ptr, 4);
+
 	/* 6: MIX_ID (obsolete) ---------------------------*/
 	dfield = dtuple_get_nth_field(entry, 4/*MIX_ID*/);
 
 	ptr = mem_heap_zalloc(heap, 8);
 
 	dfield_set_data(dfield, ptr, 8);
-	/* 7: MIX_LEN (additional flags) --------------------------*/
 
+	/* 7: MIX_LEN (additional flags) --------------------------*/
 	dfield = dtuple_get_nth_field(entry, 5/*MIX_LEN*/);
 
 	ptr = mem_heap_alloc(heap, 4);
-	mach_write_to_4(ptr, table->flags >> DICT_TF2_SHIFT);
+	/* Be sure all non-used bits are zero. */
+	ut_a(!(table->flags2 & ~DICT_TF2_BIT_MASK));
+	mach_write_to_4(ptr, table->flags2);
 
 	dfield_set_data(dfield, ptr, 4);
+
 	/* 8: CLUSTER_NAME ---------------------*/
 	dfield = dtuple_get_nth_field(entry, 6/*CLUSTER_NAME*/);
 	dfield_set_null(dfield); /* not supported */
@@ -287,11 +294,12 @@ dict_build_table_def_step(
 			is_path = FALSE;
 		}
 
-		ut_ad(dict_table_get_format(table) <= DICT_TF_FORMAT_MAX);
+		ut_ad(dict_table_get_format(table) <= UNIV_FORMAT_MAX);
 		ut_ad(!dict_table_zip_size(table)
-		      || dict_table_get_format(table) >= DICT_TF_FORMAT_ZIP);
+		      || dict_table_get_format(table) >= UNIV_FORMAT_B);
 
-		flags = table->flags & ~(~0 << DICT_TF_BITS);
+		flags = table->flags;
+		ut_a(!(flags & ~DICT_TF_BIT_MASK));
 		error = fil_create_new_single_table_tablespace(
 			space, path_or_name, is_path,
 			flags == DICT_TF_COMPACT ? 0 : flags,
@@ -309,8 +317,10 @@ dict_build_table_def_step(
 
 		mtr_commit(&mtr);
 	} else {
-		/* Create in the system tablespace: disallow new features */
-		table->flags &= (~0 << DICT_TF_BITS) | DICT_TF_COMPACT;
+		/* Create in the system tablespace: disallow Barracuda
+		features by keeping only the first bit which says whether
+		the row format is redundant or compact */
+		table->flags &= DICT_TF_COMPACT;
 	}
 
 	row = dict_create_sys_tables_tuple(table, node->heap);
@@ -376,6 +386,7 @@ dict_create_sys_indexes_tuple(
 	mach_write_to_8(ptr, table->id);
 
 	dfield_set_data(dfield, ptr, 8);
+
 	/* 1: ID ----------------------------*/
 	dfield = dtuple_get_nth_field(entry, 1/*ID*/);
 
@@ -383,10 +394,12 @@ dict_create_sys_indexes_tuple(
 	mach_write_to_8(ptr, index->id);
 
 	dfield_set_data(dfield, ptr, 8);
+
 	/* 4: NAME --------------------------*/
 	dfield = dtuple_get_nth_field(entry, 2/*NAME*/);
 
 	dfield_set_data(dfield, index->name, ut_strlen(index->name));
+
 	/* 5: N_FIELDS ----------------------*/
 	dfield = dtuple_get_nth_field(entry, 3/*N_FIELDS*/);
 
@@ -394,6 +407,7 @@ dict_create_sys_indexes_tuple(
 	mach_write_to_4(ptr, index->n_fields);
 
 	dfield_set_data(dfield, ptr, 4);
+
 	/* 6: TYPE --------------------------*/
 	dfield = dtuple_get_nth_field(entry, 4/*TYPE*/);
 
@@ -401,6 +415,7 @@ dict_create_sys_indexes_tuple(
 	mach_write_to_4(ptr, index->type);
 
 	dfield_set_data(dfield, ptr, 4);
+
 	/* 7: SPACE --------------------------*/
 
 #if DICT_SYS_INDEXES_SPACE_NO_FIELD != 7
@@ -413,6 +428,7 @@ dict_create_sys_indexes_tuple(
 	mach_write_to_4(ptr, index->space);
 
 	dfield_set_data(dfield, ptr, 4);
+
 	/* 8: PAGE_NO --------------------------*/
 
 #if DICT_SYS_INDEXES_PAGE_NO_FIELD != 8
@@ -425,6 +441,7 @@ dict_create_sys_indexes_tuple(
 	mach_write_to_4(ptr, FIL_NULL);
 
 	dfield_set_data(dfield, ptr, 4);
+
 	/*--------------------------------*/
 
 	return(entry);
@@ -1123,7 +1140,7 @@ dict_create_index_step(
 			node->table, node->index, FIL_NULL,
 			trx_is_strict(trx)
 			|| dict_table_get_format(node->table)
-			>= DICT_TF_FORMAT_ZIP);
+			>= UNIV_FORMAT_B);
 
 		node->index = dict_index_get_if_in_cache_low(index_id);
 		ut_a(!node->index == (err != DB_SUCCESS));

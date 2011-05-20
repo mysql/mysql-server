@@ -11,8 +11,8 @@ ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
 FOR A PARTICULAR PURPOSE. See the GNU General Public License for more details.
 
 You should have received a copy of the GNU General Public License along with
-this program; if not, write to the Free Software Foundation, Inc., 59 Temple
-Place, Suite 330, Boston, MA 02111-1307 USA
+this program; if not, write to the Free Software Foundation, Inc.,
+51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA
 
 *****************************************************************************/
 
@@ -1153,13 +1153,11 @@ fil_space_create(
 	fil_space_t*	space;
 
 	/* The tablespace flags (FSP_SPACE_FLAGS) should be 0 for
-	ROW_FORMAT=COMPACT
-	((table->flags & ~(~0 << DICT_TF_BITS)) == DICT_TF_COMPACT) and
+	ROW_FORMAT=COMPACT (table->flags == DICT_TF_COMPACT) and
 	ROW_FORMAT=REDUNDANT (table->flags == 0).  For any other
-	format, the tablespace flags should equal
-	(table->flags & ~(~0 << DICT_TF_BITS)). */
+	format, the tablespace flags should equal table->flags. */
 	ut_a(flags != DICT_TF_COMPACT);
-	ut_a(!(flags & (~0UL << DICT_TF_BITS)));
+	ut_a(!(flags & ~DICT_TF_BIT_MASK));
 
 try_again:
 	/*printf(
@@ -2697,13 +2695,11 @@ fil_create_new_single_table_tablespace(
 	ut_a(space_id < SRV_LOG_SPACE_FIRST_ID);
 	ut_a(size >= FIL_IBD_FILE_INITIAL_SIZE);
 	/* The tablespace flags (FSP_SPACE_FLAGS) should be 0 for
-	ROW_FORMAT=COMPACT
-	((table->flags & ~(~0 << DICT_TF_BITS)) == DICT_TF_COMPACT) and
+	ROW_FORMAT=COMPACT (table->flags == DICT_TF_COMPACT) and
 	ROW_FORMAT=REDUNDANT (table->flags == 0).  For any other
-	format, the tablespace flags should equal
-	(table->flags & ~(~0 << DICT_TF_BITS)). */
+	format, the tablespace flags should equal table->flags. */
 	ut_a(flags != DICT_TF_COMPACT);
-	ut_a(!(flags & (~0UL << DICT_TF_BITS)));
+	ut_a(!(flags & ~DICT_TF_BIT_MASK));
 
 	path = fil_make_ibd_name(tablename, is_temp);
 
@@ -2792,7 +2788,7 @@ error_exit2:
 		page_zip_des_t	page_zip;
 		ulint		zip_size;
 
-		zip_size = ((PAGE_ZIP_MIN_SIZE >> 1)
+		zip_size = ((UNIV_ZIP_SIZE_MIN >> 1)
 			    << ((flags & DICT_TF_ZSSIZE_MASK)
 				>> DICT_TF_ZSSIZE_SHIFT));
 
@@ -2959,7 +2955,7 @@ fil_reset_too_high_lsns(
 	fputs(".\n", stderr);
 
 	ut_a(ut_is_2pow(zip_size));
-	ut_a(zip_size <= UNIV_PAGE_SIZE);
+	ut_a(zip_size <= UNIV_ZIP_SIZE_MAX);
 
 	/* Loop through all the pages in the tablespace and reset the lsn and
 	the page checksum if necessary */
@@ -3072,13 +3068,11 @@ fil_open_single_table_tablespace(
 	filepath = fil_make_ibd_name(name, FALSE);
 
 	/* The tablespace flags (FSP_SPACE_FLAGS) should be 0 for
-	ROW_FORMAT=COMPACT
-	((table->flags & ~(~0 << DICT_TF_BITS)) == DICT_TF_COMPACT) and
+	ROW_FORMAT=COMPACT (table->flags == DICT_TF_COMPACT) and
 	ROW_FORMAT=REDUNDANT (table->flags == 0).  For any other
-	format, the tablespace flags should equal
-	(table->flags & ~(~0 << DICT_TF_BITS)). */
+	format, the tablespace flags should equal table->flags. */
 	ut_a(flags != DICT_TF_COMPACT);
-	ut_a(!(flags & (~0UL << DICT_TF_BITS)));
+	ut_a(!(flags & ~DICT_TF_BIT_MASK));
 
 	file = os_file_create_simple_no_error_handling(
 		innodb_file_data_key, filepath, OS_FILE_OPEN,
@@ -3131,8 +3125,7 @@ fil_open_single_table_tablespace(
 
 	ut_free(buf2);
 
-	if (UNIV_UNLIKELY(space_id != id
-			  || space_flags != (flags & ~(~0 << DICT_TF_BITS)))) {
+	if (UNIV_UNLIKELY(space_id != id || space_flags != flags)) {
 		ut_print_timestamp(stderr);
 
 		fputs("  InnoDB: Error: tablespace id and flags in file ",
@@ -3353,7 +3346,7 @@ fil_load_single_table_tablespace(
 		return;
 	}
 #endif
-	/* Read the first page of the tablespace if the size big enough */
+	/* Read the first page of the tablespace if the size is big enough */
 
 	buf2 = ut_malloc(2 * UNIV_PAGE_SIZE);
 	/* Align the memory for file i/o if we might have O_DIRECT set */
@@ -4346,8 +4339,6 @@ fil_io(
 	ut_ad(recv_no_ibuf_operations || (type == OS_FILE_WRITE)
 	      || !ibuf_bitmap_page(zip_size, block_offset)
 	      || sync || is_log);
-	ut_ad(!ibuf_inside() || is_log || (type == OS_FILE_WRITE)
-	      || ibuf_page(space_id, zip_size, block_offset, NULL));
 # endif /* UNIV_LOG_DEBUG */
 	if (sync) {
 		mode = OS_AIO_SYNC;
@@ -4533,8 +4524,8 @@ fil_aio_wait(
 		ret = os_aio_linux_handle(segment, &fil_node,
 					  &message, &type);
 #else
-		ret = 0; /* Eliminate compiler warning */
 		ut_error;
+		ret = 0; /* Eliminate compiler warning */
 #endif
 	} else {
 		srv_set_io_thread_op_info(segment, "simulated aio handle");
@@ -4544,6 +4535,10 @@ fil_aio_wait(
 	}
 
 	ut_a(ret);
+	if (UNIV_UNLIKELY(fil_node == NULL)) {
+		ut_ad(srv_shutdown_state == SRV_SHUTDOWN_EXIT_THREADS);
+		return;
+	}
 
 	srv_set_io_thread_op_info(segment, "complete io for fil node");
 

@@ -79,6 +79,14 @@ ulong thread_class_lost= 0;
 ulong file_class_max= 0;
 /** Number of file class lost. @sa file_class_array */
 ulong file_class_lost= 0;
+/** Size of the stage class array. @sa stage_class_array */
+ulong stage_class_max= 0;
+/** Number of stage class lost. @sa stage_class_array */
+ulong stage_class_lost= 0;
+/** Size of the statement class array. @sa statement_class_array */
+ulong statement_class_max= 0;
+/** Number of statement class lost. @sa statement_class_array */
+ulong statement_class_lost= 0;
 /** Size of the table share array. @sa table_share_array */
 ulong table_share_max= 0;
 /** Number of table share lost. @sa table_share_array */
@@ -110,6 +118,36 @@ PFS_table_share *table_share_array= NULL;
 PFS_instr_class global_table_io_class;
 PFS_instr_class global_table_lock_class;
 
+void PFS_instr_class::set_enabled(PFS_instr_class *pfs, bool enabled)
+{
+  pfs->m_enabled= enabled;
+
+  /*
+    When the table instruments are changed,
+    the cache on top of SETUP_OBJECTS is invalidated.
+  */
+  if ((pfs == & global_table_io_class) ||
+      (pfs == & global_table_lock_class))
+  {
+    setup_objects_version++;
+  }
+}
+
+void PFS_instr_class::set_timed(PFS_instr_class *pfs, bool timed)
+{
+  pfs->m_timed= timed;
+
+  /*
+    When the table instruments are changed,
+    the cache on top of SETUP_OBJECTS is invalidated.
+  */
+  if ((pfs == & global_table_io_class) ||
+      (pfs == & global_table_lock_class))
+  {
+    setup_objects_version++;
+  }
+}
+
 /**
   Hash index for instrumented table shares.
   This index is searched by table fully qualified name (@c PFS_table_share_key),
@@ -133,12 +171,22 @@ static volatile uint32 file_class_allocated_count= 0;
 
 static PFS_file_class *file_class_array= NULL;
 
+static volatile uint32 stage_class_dirty_count= 0;
+static volatile uint32 stage_class_allocated_count= 0;
+
+static PFS_stage_class *stage_class_array= NULL;
+
+static volatile uint32 statement_class_dirty_count= 0;
+static volatile uint32 statement_class_allocated_count= 0;
+
+static PFS_statement_class *statement_class_array= NULL;
+
 uint mutex_class_start= 0;
 uint rwlock_class_start= 0;
 uint cond_class_start= 0;
 uint file_class_start= 0;
 uint table_class_start= 0;
-uint max_instrument_class= 0;
+uint wait_class_max= 0;
 
 void init_event_name_sizing(const PFS_global_param *param)
 {
@@ -147,7 +195,7 @@ void init_event_name_sizing(const PFS_global_param *param)
   cond_class_start= rwlock_class_start + param->m_rwlock_class_sizing;
   file_class_start= cond_class_start + param->m_cond_class_sizing;
   table_class_start= file_class_start + param->m_file_class_sizing;
-  max_instrument_class= table_class_start + 2; /* global table io, lock */
+  wait_class_max= table_class_start + 2; /* global table io, lock */
 
   memcpy(global_table_io_class.m_name, "wait/io/table/sql/handler", 25);
   global_table_io_class.m_name_length= 25;
@@ -391,6 +439,24 @@ static void set_table_share_key(PFS_table_share_key *key,
   }
 }
 
+void PFS_table_share::refresh_setup_object_flags(PFS_thread *thread)
+{
+  bool enabled;
+  bool timed;
+  m_setup_objects_version= setup_objects_version;
+  lookup_setup_object(thread,
+                      OBJECT_TYPE_TABLE,
+                      m_schema_name, m_schema_name_length,
+                      m_table_name, m_table_name_length,
+                      &enabled, &timed);
+
+  m_io_enabled= enabled && global_table_io_class.m_enabled;
+  m_io_timed= timed && global_table_io_class.m_timed;
+
+  m_lock_enabled= enabled && global_table_lock_class.m_enabled;
+  m_lock_timed= timed && global_table_lock_class.m_timed;
+}
+
 /**
   Initialize the file class buffer.
   @param file_class_sizing            max number of file class
@@ -423,6 +489,74 @@ void cleanup_file_class(void)
   file_class_array= NULL;
   file_class_dirty_count= file_class_allocated_count= 0;
   file_class_max= 0;
+}
+
+/**
+  Initialize the stage class buffer.
+  @param stage_class_sizing            max number of stage class
+  @return 0 on success
+*/
+int init_stage_class(uint stage_class_sizing)
+{
+  int result= 0;
+  stage_class_dirty_count= stage_class_allocated_count= 0;
+  stage_class_max= stage_class_sizing;
+  stage_class_lost= 0;
+
+  if (stage_class_max > 0)
+  {
+    stage_class_array= PFS_MALLOC_ARRAY(stage_class_max, PFS_stage_class,
+                                        MYF(MY_ZEROFILL));
+    if (unlikely(stage_class_array == NULL))
+      return 1;
+  }
+  else
+    stage_class_array= NULL;
+
+  return result;
+}
+
+/** Cleanup the stage class buffers. */
+void cleanup_stage_class(void)
+{
+  pfs_free(stage_class_array);
+  stage_class_array= NULL;
+  stage_class_dirty_count= stage_class_allocated_count= 0;
+  stage_class_max= 0;
+}
+
+/**
+  Initialize the statement class buffer.
+  @param statement_class_sizing            max number of statement class
+  @return 0 on success
+*/
+int init_statement_class(uint statement_class_sizing)
+{
+  int result= 0;
+  statement_class_dirty_count= statement_class_allocated_count= 0;
+  statement_class_max= statement_class_sizing;
+  statement_class_lost= 0;
+
+  if (statement_class_max > 0)
+  {
+    statement_class_array= PFS_MALLOC_ARRAY(statement_class_max, PFS_statement_class,
+                                            MYF(MY_ZEROFILL));
+    if (unlikely(statement_class_array == NULL))
+      return 1;
+  }
+  else
+    statement_class_array= NULL;
+
+  return result;
+}
+
+/** Cleanup the statement class buffers. */
+void cleanup_statement_class(void)
+{
+  pfs_free(statement_class_array);
+  statement_class_array= NULL;
+  statement_class_dirty_count= statement_class_allocated_count= 0;
+  statement_class_max= 0;
 }
 
 static void init_instr_class(PFS_instr_class *klass,
@@ -749,6 +883,74 @@ PFS_file_key register_file_class(const char *name, uint name_length,
 }
 
 /**
+  Register a stage instrumentation metadata.
+  @param name                         the instrumented name
+  @param name_length                  length in bytes of name
+  @param flags                        the instrumentation flags
+  @return a stage instrumentation key
+*/
+PFS_stage_key register_stage_class(const char *name, uint name_length,
+                                   int flags)
+{
+  /* See comments in register_mutex_class */
+  uint32 index;
+  PFS_stage_class *entry;
+
+  REGISTER_CLASS_BODY_PART(index, stage_class_array, stage_class_max,
+                           name, name_length)
+
+  index= PFS_atomic::add_u32(&stage_class_dirty_count, 1);
+
+  if (index < stage_class_max)
+  {
+    entry= &stage_class_array[index];
+    init_instr_class(entry, name, name_length, flags);
+    entry->m_index= index;
+    entry->m_event_name_index= index;
+    PFS_atomic::add_u32(&stage_class_allocated_count, 1);
+
+    return (index + 1);
+  }
+
+  stage_class_lost++;
+  return 0;
+}
+
+/**
+  Register a statement instrumentation metadata.
+  @param name                         the instrumented name
+  @param name_length                  length in bytes of name
+  @param flags                        the instrumentation flags
+  @return a statement instrumentation key
+*/
+PFS_statement_key register_statement_class(const char *name, uint name_length,
+                                           int flags)
+{
+  /* See comments in register_mutex_class */
+  uint32 index;
+  PFS_statement_class *entry;
+
+  REGISTER_CLASS_BODY_PART(index, statement_class_array, statement_class_max,
+                           name, name_length)
+
+  index= PFS_atomic::add_u32(&statement_class_dirty_count, 1);
+
+  if (index < statement_class_max)
+  {
+    entry= &statement_class_array[index];
+    init_instr_class(entry, name, name_length, flags);
+    entry->m_index= index;
+    entry->m_event_name_index= index;
+    PFS_atomic::add_u32(&statement_class_allocated_count, 1);
+
+    return (index + 1);
+  }
+
+  statement_class_lost++;
+  return 0;
+}
+
+/**
   Find a file instrumentation class by key.
   @param key                          the instrument key
   @return the instrument class, or NULL
@@ -761,6 +963,36 @@ PFS_file_class *find_file_class(PFS_file_key key)
 PFS_file_class *sanitize_file_class(PFS_file_class *unsafe)
 {
   SANITIZE_ARRAY_BODY(PFS_file_class, file_class_array, file_class_max, unsafe);
+}
+
+/**
+  Find a stage instrumentation class by key.
+  @param key                          the instrument key
+  @return the instrument class, or NULL
+*/
+PFS_stage_class *find_stage_class(PFS_stage_key key)
+{
+  FIND_CLASS_BODY(key, stage_class_allocated_count, stage_class_array);
+}
+
+PFS_stage_class *sanitize_stage_class(PFS_stage_class *unsafe)
+{
+  SANITIZE_ARRAY_BODY(PFS_stage_class, stage_class_array, stage_class_max, unsafe);
+}
+
+/**
+  Find a statement instrumentation class by key.
+  @param key                          the instrument key
+  @return the instrument class, or NULL
+*/
+PFS_statement_class *find_statement_class(PFS_stage_key key)
+{
+  FIND_CLASS_BODY(key, statement_class_allocated_count, statement_class_array);
+}
+
+PFS_statement_class *sanitize_statement_class(PFS_statement_class *unsafe)
+{
+  SANITIZE_ARRAY_BODY(PFS_statement_class, statement_class_array, statement_class_max, unsafe);
 }
 
 PFS_instr_class *find_table_class(uint index)
@@ -857,8 +1089,10 @@ PFS_table_share* find_or_create_table_share(PFS_thread *thread,
   uint retry_count= 0;
   uint version= 0;
   const uint retry_max= 3;
-  bool enabled= true;
-  bool timed= true;
+  bool io_enabled= true;
+  bool lock_enabled= true;
+  bool io_timed= true;
+  bool lock_timed= true;
 
 search:
   entry= reinterpret_cast<PFS_table_share**>
@@ -881,12 +1115,20 @@ search:
 
   if (retry_count == 0)
   {
+    bool enabled;
+    bool timed;
     version= setup_objects_version;
     lookup_setup_object(thread,
                         OBJECT_TYPE_TABLE,
                         schema_name, schema_name_length,
                         table_name, table_name_length,
                         &enabled, &timed);
+
+    io_enabled= enabled && global_table_io_class.m_enabled;
+    io_timed= timed && global_table_io_class.m_timed;
+
+    lock_enabled= enabled && global_table_lock_class.m_enabled;
+    lock_timed= timed && global_table_lock_class.m_timed;
 
     /*
       Even when enabled is false, a record is added in the dictionary:
@@ -917,8 +1159,10 @@ search:
           pfs->m_schema_name_length= schema_name_length;
           pfs->m_table_name= &pfs->m_key.m_hash_key[schema_name_length + 2];
           pfs->m_table_name_length= table_name_length;
-          pfs->m_enabled= enabled;
-          pfs->m_timed= timed;
+          pfs->m_io_enabled= io_enabled;
+          pfs->m_lock_enabled= lock_enabled;
+          pfs->m_io_timed= io_timed;
+          pfs->m_lock_timed= lock_timed;
           pfs->init_refcount();
           pfs->m_table_stat.reset();
           set_keys(pfs, share);

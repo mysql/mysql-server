@@ -19,6 +19,7 @@
   schema tables (implementation).
 */
 
+#include "my_global.h"
 #include "pfs_column_values.h"
 
 LEX_STRING PERFORMANCE_SCHEMA_str=
@@ -38,4 +39,10 @@ LEX_STRING thread_instrument_prefix=
 
 LEX_STRING file_instrument_prefix=
 { C_STRING_WITH_LEN("wait/io/file/") };
+
+LEX_STRING stage_instrument_prefix=
+{ C_STRING_WITH_LEN("stage/") };
+
+LEX_STRING statement_instrument_prefix=
+{ C_STRING_WITH_LEN("statement/") };
 

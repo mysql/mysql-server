@@ -27,9 +27,6 @@
 #include "sql_array.h"         // Dynamic_array
 #include "log_event.h"         // append_query_string, Query_log_event
 
-#ifdef USE_PRAGMA_IMPLEMENTATION
-#pragma implementation
-#endif
 #include "sp_head.h"
 #include "sp.h"
 #include "sp_pcontext.h"
@@ -375,8 +372,8 @@ sp_eval_expr(THD *thd, Field *result_field, Item **expr_item_ptr)
   Item *expr_item;
   enum_check_fields save_count_cuted_fields= thd->count_cuted_fields;
   bool save_abort_on_warning= thd->abort_on_warning;
-  bool save_stmt_modified_non_trans_table= 
-    thd->transaction.stmt.modified_non_trans_table;
+  unsigned int stmt_unsafe_rollback_flags=
+    thd->transaction.stmt.get_unsafe_rollback_flags();
 
   DBUG_ENTER("sp_eval_expr");
 
@@ -397,7 +394,7 @@ sp_eval_expr(THD *thd, Field *result_field, Item **expr_item_ptr)
   thd->abort_on_warning=
     thd->variables.sql_mode &
     (MODE_STRICT_TRANS_TABLES | MODE_STRICT_ALL_TABLES);
-  thd->transaction.stmt.modified_non_trans_table= FALSE;
+  thd->transaction.stmt.reset_unsafe_rollback_flags();
 
   /* Save the value in the field. Convert the value if needed. */
 
@@ -405,7 +402,7 @@ sp_eval_expr(THD *thd, Field *result_field, Item **expr_item_ptr)
 
   thd->count_cuted_fields= save_count_cuted_fields;
   thd->abort_on_warning= save_abort_on_warning;
-  thd->transaction.stmt.modified_non_trans_table= save_stmt_modified_non_trans_table;
+  thd->transaction.stmt.set_unsafe_rollback_flags(stmt_unsafe_rollback_flags);
 
   if (!thd->is_error())
     DBUG_RETURN(FALSE);
@@ -550,7 +547,7 @@ sp_head::operator delete(void *ptr, size_t size) throw()
 
 
 sp_head::sp_head()
-  :Query_arena(&main_mem_root, INITIALIZED_FOR_SP),
+  :Query_arena(&main_mem_root, STMT_INITIALIZED_FOR_SP),
    m_flags(0),
    m_sp_cache_version(0),
    unsafe_flags(0),
@@ -1208,7 +1205,7 @@ sp_head::execute(THD *thd, bool merge_da_on_success)
   Query_arena *old_arena;
   /* per-instruction arena */
   MEM_ROOT execute_mem_root;
-  Query_arena execute_arena(&execute_mem_root, INITIALIZED_FOR_SP),
+  Query_arena execute_arena(&execute_mem_root, STMT_INITIALIZED_FOR_SP),
               backup_arena;
   query_id_t old_query_id;
   TABLE *old_derived_tables;
@@ -1217,7 +1214,8 @@ sp_head::execute(THD *thd, bool merge_da_on_success)
   String old_packet;
   Reprepare_observer *save_reprepare_observer= thd->m_reprepare_observer;
   Object_creation_ctx *saved_creation_ctx;
-  Warning_info *saved_warning_info, warning_info(thd->warning_info->warn_id());
+  Warning_info *saved_warning_info;
+  Warning_info warning_info(thd->warning_info->warn_id(), false);
 
   /*
     Just reporting a stack overrun error
@@ -1488,7 +1486,7 @@ sp_head::execute(THD *thd, bool merge_da_on_success)
   thd->m_reprepare_observer= save_reprepare_observer;
 
   thd->stmt_arena= old_arena;
-  state= EXECUTED;
+  state= STMT_EXECUTED;
 
   /*
     Restore the caller's original warning information area:
@@ -1646,7 +1644,7 @@ sp_head::execute_trigger(THD *thd,
   sp_rcontext *nctx = NULL;
   bool err_status= FALSE;
   MEM_ROOT call_mem_root;
-  Query_arena call_arena(&call_mem_root, Query_arena::INITIALIZED_FOR_SP);
+  Query_arena call_arena(&call_mem_root, Query_arena::STMT_INITIALIZED_FOR_SP);
   Query_arena backup_arena;
 
   DBUG_ENTER("sp_head::execute_trigger");
@@ -1787,7 +1785,7 @@ sp_head::execute_function(THD *thd, Item **argp, uint argcount,
   String binlog_buf(buf, sizeof(buf), &my_charset_bin);
   bool err_status= FALSE;
   MEM_ROOT call_mem_root;
-  Query_arena call_arena(&call_mem_root, Query_arena::INITIALIZED_FOR_SP);
+  Query_arena call_arena(&call_mem_root, Query_arena::STMT_INITIALIZED_FOR_SP);
   Query_arena backup_arena;
   DBUG_ENTER("sp_head::execute_function");
   DBUG_PRINT("info", ("function %s", m_name.str));
@@ -2544,7 +2542,7 @@ sp_head::restore_thd_mem_root(THD *thd)
   DBUG_ENTER("sp_head::restore_thd_mem_root");
   Item *flist= free_list;       // The old list
   set_query_arena(thd);         // Get new free_list and mem_root
-  state= INITIALIZED_FOR_SP;
+  state= STMT_INITIALIZED_FOR_SP;
 
   DBUG_PRINT("info", ("mem_root 0x%lx returned from thd mem root 0x%lx",
                       (ulong) &mem_root, (ulong) &thd->mem_root));
@@ -2916,8 +2914,9 @@ sp_lex_keeper::reset_lex_and_exec_core(THD *thd, uint *nextp,
     It's reset further in the common code part.
     It's merged with the saved parent's value at the exit of this func.
   */
-  bool parent_modified_non_trans_table= thd->transaction.stmt.modified_non_trans_table;
-  thd->transaction.stmt.modified_non_trans_table= FALSE;
+  unsigned int parent_unsafe_rollback_flags=
+    thd->transaction.stmt.get_unsafe_rollback_flags();
+  thd->transaction.stmt.reset_unsafe_rollback_flags();
   DBUG_ASSERT(!thd->derived_tables);
   DBUG_ASSERT(thd->change_list.is_empty());
   /*
@@ -3008,13 +3007,13 @@ sp_lex_keeper::reset_lex_and_exec_core(THD *thd, uint *nextp,
       (thd->stmt_da->sql_errno() != ER_CANT_REOPEN_TABLE &&
        thd->stmt_da->sql_errno() != ER_NO_SUCH_TABLE &&
        thd->stmt_da->sql_errno() != ER_UPDATE_TABLE_USED))
-    thd->stmt_arena->state= Query_arena::EXECUTED;
+    thd->stmt_arena->state= Query_arena::STMT_EXECUTED;
 
   /*
     Merge here with the saved parent's values
     what is needed from the substatement gained
   */
-  thd->transaction.stmt.modified_non_trans_table |= parent_modified_non_trans_table;
+  thd->transaction.stmt.add_unsafe_rollback_flags(parent_unsafe_rollback_flags);
   /*
     Unlike for PS we should not call Item's destructors for newly created
     items after execution of each instruction in stored routine. This is
@@ -3040,8 +3039,9 @@ int sp_instr::exec_open_and_lock_tables(THD *thd, TABLE_LIST *tables)
     Check whenever we have access to tables for this statement
     and open and lock them before executing instructions core function.
   */
-  if (check_table_access(thd, SELECT_ACL, tables, FALSE, UINT_MAX, FALSE)
-      || open_and_lock_tables(thd, tables, TRUE, 0))
+  if (open_temporary_tables(thd, tables) ||
+      check_table_access(thd, SELECT_ACL, tables, FALSE, UINT_MAX, FALSE) ||
+      open_and_lock_tables(thd, tables, TRUE, 0))
     result= -1;
   else
     result= 0;

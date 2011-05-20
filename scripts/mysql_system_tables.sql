@@ -28,7 +28,7 @@ set @had_db_table= @@warning_count != 0;
 CREATE TABLE IF NOT EXISTS host (  Host char(60) binary DEFAULT '' NOT NULL, Db char(64) binary DEFAULT '' NOT NULL, Select_priv enum('N','Y') COLLATE utf8_general_ci DEFAULT 'N' NOT NULL, Insert_priv enum('N','Y') COLLATE utf8_general_ci DEFAULT 'N' NOT NULL, Update_priv enum('N','Y') COLLATE utf8_general_ci DEFAULT 'N' NOT NULL, Delete_priv enum('N','Y') COLLATE utf8_general_ci DEFAULT 'N' NOT NULL, Create_priv enum('N','Y') COLLATE utf8_general_ci DEFAULT 'N' NOT NULL, Drop_priv enum('N','Y') COLLATE utf8_general_ci DEFAULT 'N' NOT NULL, Grant_priv enum('N','Y') COLLATE utf8_general_ci DEFAULT 'N' NOT NULL, References_priv enum('N','Y') COLLATE utf8_general_ci DEFAULT 'N' NOT NULL, Index_priv enum('N','Y') COLLATE utf8_general_ci DEFAULT 'N' NOT NULL, Alter_priv enum('N','Y') COLLATE utf8_general_ci DEFAULT 'N' NOT NULL, Create_tmp_table_priv enum('N','Y') COLLATE utf8_general_ci DEFAULT 'N' NOT NULL, Lock_tables_priv enum('N','Y') COLLATE utf8_general_ci DEFAULT 'N' NOT NULL, Create_view_priv enum('N','Y') COLLATE utf8_general_ci DEFAULT 'N' NOT NULL, Show_view_priv enum('N','Y') COLLATE utf8_general_ci DEFAULT 'N' NOT NULL, Create_routine_priv enum('N','Y') COLLATE utf8_general_ci DEFAULT 'N' NOT NULL, Alter_routine_priv enum('N','Y') COLLATE utf8_general_ci DEFAULT 'N' NOT NULL, Execute_priv enum('N','Y') COLLATE utf8_general_ci DEFAULT 'N' NOT NULL, Trigger_priv enum('N','Y') COLLATE utf8_general_ci DEFAULT 'N' NOT NULL, PRIMARY KEY Host (Host,Db) ) engine=MyISAM CHARACTER SET utf8 COLLATE utf8_bin comment='Host privileges;  Merged with database privileges';
 
 
-CREATE TABLE IF NOT EXISTS user (   Host char(60) binary DEFAULT '' NOT NULL, User char(16) binary DEFAULT '' NOT NULL, Password char(41) character set latin1 collate latin1_bin DEFAULT '' NOT NULL, Select_priv enum('N','Y') COLLATE utf8_general_ci DEFAULT 'N' NOT NULL, Insert_priv enum('N','Y') COLLATE utf8_general_ci DEFAULT 'N' NOT NULL, Update_priv enum('N','Y') COLLATE utf8_general_ci DEFAULT 'N' NOT NULL, Delete_priv enum('N','Y') COLLATE utf8_general_ci DEFAULT 'N' NOT NULL, Create_priv enum('N','Y') COLLATE utf8_general_ci DEFAULT 'N' NOT NULL, Drop_priv enum('N','Y') COLLATE utf8_general_ci DEFAULT 'N' NOT NULL, Reload_priv enum('N','Y') COLLATE utf8_general_ci DEFAULT 'N' NOT NULL, Shutdown_priv enum('N','Y') COLLATE utf8_general_ci DEFAULT 'N' NOT NULL, Process_priv enum('N','Y') COLLATE utf8_general_ci DEFAULT 'N' NOT NULL, File_priv enum('N','Y') COLLATE utf8_general_ci DEFAULT 'N' NOT NULL, Grant_priv enum('N','Y') COLLATE utf8_general_ci DEFAULT 'N' NOT NULL, References_priv enum('N','Y') COLLATE utf8_general_ci DEFAULT 'N' NOT NULL, Index_priv enum('N','Y') COLLATE utf8_general_ci DEFAULT 'N' NOT NULL, Alter_priv enum('N','Y') COLLATE utf8_general_ci DEFAULT 'N' NOT NULL, Show_db_priv enum('N','Y') COLLATE utf8_general_ci DEFAULT 'N' NOT NULL, Super_priv enum('N','Y') COLLATE utf8_general_ci DEFAULT 'N' NOT NULL, Create_tmp_table_priv enum('N','Y') COLLATE utf8_general_ci DEFAULT 'N' NOT NULL, Lock_tables_priv enum('N','Y') COLLATE utf8_general_ci DEFAULT 'N' NOT NULL, Execute_priv enum('N','Y') COLLATE utf8_general_ci DEFAULT 'N' NOT NULL, Repl_slave_priv enum('N','Y') COLLATE utf8_general_ci DEFAULT 'N' NOT NULL, Repl_client_priv enum('N','Y') COLLATE utf8_general_ci DEFAULT 'N' NOT NULL, Create_view_priv enum('N','Y') COLLATE utf8_general_ci DEFAULT 'N' NOT NULL, Show_view_priv enum('N','Y') COLLATE utf8_general_ci DEFAULT 'N' NOT NULL, Create_routine_priv enum('N','Y') COLLATE utf8_general_ci DEFAULT 'N' NOT NULL, Alter_routine_priv enum('N','Y') COLLATE utf8_general_ci DEFAULT 'N' NOT NULL, Create_user_priv enum('N','Y') COLLATE utf8_general_ci DEFAULT 'N' NOT NULL, Event_priv enum('N','Y') COLLATE utf8_general_ci DEFAULT 'N' NOT NULL, Trigger_priv enum('N','Y') COLLATE utf8_general_ci DEFAULT 'N' NOT NULL, Create_tablespace_priv enum('N','Y') COLLATE utf8_general_ci DEFAULT 'N' NOT NULL, ssl_type enum('','ANY','X509', 'SPECIFIED') COLLATE utf8_general_ci DEFAULT '' NOT NULL, ssl_cipher BLOB NOT NULL, x509_issuer BLOB NOT NULL, x509_subject BLOB NOT NULL, max_questions int(11) unsigned DEFAULT 0  NOT NULL, max_updates int(11) unsigned DEFAULT 0  NOT NULL, max_connections int(11) unsigned DEFAULT 0  NOT NULL, max_user_connections int(11) unsigned DEFAULT 0  NOT NULL, plugin char(64) DEFAULT '' NOT NULL, authentication_string TEXT NOT NULL, PRIMARY KEY Host (Host,User) ) engine=MyISAM CHARACTER SET utf8 COLLATE utf8_bin comment='Users and global privileges';
+CREATE TABLE IF NOT EXISTS user (   Host char(60) binary DEFAULT '' NOT NULL, User char(16) binary DEFAULT '' NOT NULL, Password char(41) character set latin1 collate latin1_bin DEFAULT '' NOT NULL, Select_priv enum('N','Y') COLLATE utf8_general_ci DEFAULT 'N' NOT NULL, Insert_priv enum('N','Y') COLLATE utf8_general_ci DEFAULT 'N' NOT NULL, Update_priv enum('N','Y') COLLATE utf8_general_ci DEFAULT 'N' NOT NULL, Delete_priv enum('N','Y') COLLATE utf8_general_ci DEFAULT 'N' NOT NULL, Create_priv enum('N','Y') COLLATE utf8_general_ci DEFAULT 'N' NOT NULL, Drop_priv enum('N','Y') COLLATE utf8_general_ci DEFAULT 'N' NOT NULL, Reload_priv enum('N','Y') COLLATE utf8_general_ci DEFAULT 'N' NOT NULL, Shutdown_priv enum('N','Y') COLLATE utf8_general_ci DEFAULT 'N' NOT NULL, Process_priv enum('N','Y') COLLATE utf8_general_ci DEFAULT 'N' NOT NULL, File_priv enum('N','Y') COLLATE utf8_general_ci DEFAULT 'N' NOT NULL, Grant_priv enum('N','Y') COLLATE utf8_general_ci DEFAULT 'N' NOT NULL, References_priv enum('N','Y') COLLATE utf8_general_ci DEFAULT 'N' NOT NULL, Index_priv enum('N','Y') COLLATE utf8_general_ci DEFAULT 'N' NOT NULL, Alter_priv enum('N','Y') COLLATE utf8_general_ci DEFAULT 'N' NOT NULL, Show_db_priv enum('N','Y') COLLATE utf8_general_ci DEFAULT 'N' NOT NULL, Super_priv enum('N','Y') COLLATE utf8_general_ci DEFAULT 'N' NOT NULL, Create_tmp_table_priv enum('N','Y') COLLATE utf8_general_ci DEFAULT 'N' NOT NULL, Lock_tables_priv enum('N','Y') COLLATE utf8_general_ci DEFAULT 'N' NOT NULL, Execute_priv enum('N','Y') COLLATE utf8_general_ci DEFAULT 'N' NOT NULL, Repl_slave_priv enum('N','Y') COLLATE utf8_general_ci DEFAULT 'N' NOT NULL, Repl_client_priv enum('N','Y') COLLATE utf8_general_ci DEFAULT 'N' NOT NULL, Create_view_priv enum('N','Y') COLLATE utf8_general_ci DEFAULT 'N' NOT NULL, Show_view_priv enum('N','Y') COLLATE utf8_general_ci DEFAULT 'N' NOT NULL, Create_routine_priv enum('N','Y') COLLATE utf8_general_ci DEFAULT 'N' NOT NULL, Alter_routine_priv enum('N','Y') COLLATE utf8_general_ci DEFAULT 'N' NOT NULL, Create_user_priv enum('N','Y') COLLATE utf8_general_ci DEFAULT 'N' NOT NULL, Event_priv enum('N','Y') COLLATE utf8_general_ci DEFAULT 'N' NOT NULL, Trigger_priv enum('N','Y') COLLATE utf8_general_ci DEFAULT 'N' NOT NULL, Create_tablespace_priv enum('N','Y') COLLATE utf8_general_ci DEFAULT 'N' NOT NULL, ssl_type enum('','ANY','X509', 'SPECIFIED') COLLATE utf8_general_ci DEFAULT '' NOT NULL, ssl_cipher BLOB NOT NULL, x509_issuer BLOB NOT NULL, x509_subject BLOB NOT NULL, max_questions int(11) unsigned DEFAULT 0  NOT NULL, max_updates int(11) unsigned DEFAULT 0  NOT NULL, max_connections int(11) unsigned DEFAULT 0  NOT NULL, max_user_connections int(11) unsigned DEFAULT 0  NOT NULL, plugin char(64) DEFAULT '', authentication_string TEXT, PRIMARY KEY Host (Host,User) ) engine=MyISAM CHARACTER SET utf8 COLLATE utf8_bin comment='Users and global privileges';
 
 -- Remember for later if user table already existed
 set @had_user_table= @@warning_count != 0;
@@ -100,9 +100,9 @@ CREATE TABLE IF NOT EXISTS event ( db char(64) CHARACTER SET utf8 COLLATE utf8_b
 
 CREATE TABLE IF NOT EXISTS ndb_binlog_index (Position BIGINT UNSIGNED NOT NULL, File VARCHAR(255) NOT NULL, epoch BIGINT UNSIGNED NOT NULL, inserts INT UNSIGNED NOT NULL, updates INT UNSIGNED NOT NULL, deletes INT UNSIGNED NOT NULL, schemaops INT UNSIGNED NOT NULL, orig_server_id INT UNSIGNED NOT NULL, orig_epoch BIGINT UNSIGNED NOT NULL, gci INT UNSIGNED NOT NULL, PRIMARY KEY(epoch, orig_server_id, orig_epoch)) ENGINE=MYISAM;
 
-CREATE TABLE IF NOT EXISTS slave_relay_log_info (Master_id INTEGER UNSIGNED NOT NULL, Number_of_lines INTEGER UNSIGNED NOT NULL, Relay_log_name TEXT CHARACTER SET utf8 COLLATE utf8_bin NOT NULL, Relay_log_pos BIGINT UNSIGNED NOT NULL, Master_log_name TEXT CHARACTER SET utf8 COLLATE utf8_bin NOT NULL, Master_log_pos BIGINT UNSIGNED NOT NULL, Sql_delay INTEGER NOT NULL, PRIMARY KEY(Master_id)) ENGINE=MYISAM DEFAULT CHARSET=utf8 COMMENT 'Relay Log Information';
+CREATE TABLE IF NOT EXISTS slave_relay_log_info (Master_id INTEGER UNSIGNED NOT NULL, Number_of_lines INTEGER UNSIGNED NOT NULL COMMENT 'Number of lines in the file or rows in the table. Used to version table definitions.', Relay_log_name TEXT CHARACTER SET utf8 COLLATE utf8_bin NOT NULL COMMENT 'The name of the current relay log file.', Relay_log_pos BIGINT UNSIGNED NOT NULL COMMENT 'The relay log position of the last executed event.', Master_log_name TEXT CHARACTER SET utf8 COLLATE utf8_bin NOT NULL COMMENT 'The name of the master binary log file from which the events in the relay log file were read.', Master_log_pos BIGINT UNSIGNED NOT NULL COMMENT 'The master log position of the last executed event.', Sql_delay INTEGER NOT NULL COMMENT 'The number of seconds that the slave must lag behind the master.', PRIMARY KEY(Master_id)) ENGINE=MYISAM DEFAULT CHARSET=utf8 COMMENT 'Relay Log Information';
 
-CREATE TABLE IF NOT EXISTS slave_master_info (Master_id INTEGER UNSIGNED NOT NULL, Number_of_lines INTEGER UNSIGNED NOT NULL, Master_log_name TEXT CHARACTER SET utf8 COLLATE utf8_bin NOT NULL, Master_log_pos BIGINT UNSIGNED NOT NULL, Host TEXT CHARACTER SET utf8 COLLATE utf8_bin, User_name TEXT CHARACTER SET utf8 COLLATE utf8_bin, User_password TEXT CHARACTER SET utf8 COLLATE utf8_bin, Port INTEGER UNSIGNED NOT NULL, Connect_retry INTEGER UNSIGNED NOT NULL, Enabled_ssl BOOLEAN NOT NULL, Ssl_ca TEXT CHARACTER SET utf8 COLLATE utf8_bin, Ssl_capath TEXT CHARACTER SET utf8 COLLATE utf8_bin, Ssl_cert TEXT CHARACTER SET utf8 COLLATE utf8_bin, Ssl_cipher TEXT CHARACTER SET utf8 COLLATE utf8_bin, Ssl_key TEXT CHARACTER SET utf8 COLLATE utf8_bin, Ssl_verify_servert_cert BOOLEAN NOT NULL, Heartbeat FLOAT NOT NULL, Bind TEXT CHARACTER SET utf8 COLLATE utf8_bin, Ignored_server_ids TEXT CHARACTER SET utf8 COLLATE utf8_bin, Uuid TEXT CHARACTER SET utf8 COLLATE utf8_bin, Retry_count BIGINT UNSIGNED NOT NULL, PRIMARY KEY(Master_id)) ENGINE=MYISAM DEFAULT CHARSET=utf8 COMMENT 'Master Information';
+CREATE TABLE IF NOT EXISTS slave_master_info (Master_id INTEGER UNSIGNED NOT NULL, Number_of_lines INTEGER UNSIGNED NOT NULL COMMENT 'Number of lines in the file.', Master_log_name TEXT CHARACTER SET utf8 COLLATE utf8_bin NOT NULL COMMENT 'The name of the master binary log currently being read from the master.', Master_log_pos BIGINT UNSIGNED NOT NULL COMMENT 'The master log position of the last read event.', Host TEXT CHARACTER SET utf8 COLLATE utf8_bin COMMENT 'The host name of the master.', User_name TEXT CHARACTER SET utf8 COLLATE utf8_bin COMMENT 'The user name used to connect to the master.', User_password TEXT CHARACTER SET utf8 COLLATE utf8_bin COMMENT 'The password used to connect to the master.', Port INTEGER UNSIGNED NOT NULL COMMENT 'The network port used to connect to the master.', Connect_retry INTEGER UNSIGNED NOT NULL COMMENT 'The period (in seconds) that the slave will wait before trying to reconnect to the master.', Enabled_ssl BOOLEAN NOT NULL COMMENT 'Indicates whether the server supports SSL connections.', Ssl_ca TEXT CHARACTER SET utf8 COLLATE utf8_bin COMMENT 'The file used for the Certificate Authority (CA) certificate.', Ssl_capath TEXT CHARACTER SET utf8 COLLATE utf8_bin COMMENT 'The path to the Certificate Authority (CA) certificates.', Ssl_cert TEXT CHARACTER SET utf8 COLLATE utf8_bin COMMENT 'The name of the SSL certificate file.', Ssl_cipher TEXT CHARACTER SET utf8 COLLATE utf8_bin COMMENT 'The name of the cipher in use for the SSL connection.', Ssl_key TEXT CHARACTER SET utf8 COLLATE utf8_bin COMMENT 'The name of the SSL key file.', Ssl_verify_server_cert BOOLEAN NOT NULL COMMENT 'Whether to verify the server certificate.', Heartbeat FLOAT NOT NULL COMMENT '', Bind TEXT CHARACTER SET utf8 COLLATE utf8_bin COMMENT 'Displays which interface is employed when connecting to the MySQL server', Ignored_server_ids TEXT CHARACTER SET utf8 COLLATE utf8_bin COMMENT 'The number of server IDs to be ignored, followed by the actual server IDs', Uuid TEXT CHARACTER SET utf8 COLLATE utf8_bin COMMENT 'The master server uuid.', Retry_count BIGINT UNSIGNED NOT NULL COMMENT 'Number of reconnect attempts, to the master, before giving up.', PRIMARY KEY(Master_id)) ENGINE=MYISAM DEFAULT CHARSET=utf8 COMMENT 'Master Information';
 
 --
 -- PERFORMANCE SCHEMA INSTALLATION
@@ -202,6 +202,7 @@ SET @cmd="CREATE TABLE performance_schema.events_waits_current("
   "OBJECT_TYPE VARCHAR(64),"
   "OBJECT_INSTANCE_BEGIN BIGINT not null,"
   "NESTING_EVENT_ID BIGINT unsigned,"
+  "NESTING_EVENT_TYPE ENUM('STATEMENT', 'STAGE', 'WAIT'),"
   "OPERATION VARCHAR(32) not null,"
   "NUMBER_OF_BYTES BIGINT unsigned,"
   "FLAGS INTEGER unsigned"
@@ -231,6 +232,7 @@ SET @cmd="CREATE TABLE performance_schema.events_waits_history("
   "OBJECT_TYPE VARCHAR(64),"
   "OBJECT_INSTANCE_BEGIN BIGINT not null,"
   "NESTING_EVENT_ID BIGINT unsigned,"
+  "NESTING_EVENT_TYPE ENUM('STATEMENT', 'STAGE', 'WAIT'),"
   "OPERATION VARCHAR(32) not null,"
   "NUMBER_OF_BYTES BIGINT unsigned,"
   "FLAGS INTEGER unsigned"
@@ -260,6 +262,7 @@ SET @cmd="CREATE TABLE performance_schema.events_waits_history_long("
   "OBJECT_TYPE VARCHAR(64),"
   "OBJECT_INSTANCE_BEGIN BIGINT not null,"
   "NESTING_EVENT_ID BIGINT unsigned,"
+  "NESTING_EVENT_TYPE ENUM('STATEMENT', 'STAGE', 'WAIT'),"
   "OPERATION VARCHAR(32) not null,"
   "NUMBER_OF_BYTES BIGINT unsigned,"
   "FLAGS INTEGER unsigned"
@@ -728,6 +731,329 @@ SET @str = IF(@have_pfs = 1, @cmd, 'SET @dummy = 0');
 PREPARE stmt FROM @str;
 EXECUTE stmt;
 DROP PREPARE stmt;
+
+--
+-- TABLE EVENTS_STAGES_CURRENT
+--
+
+SET @cmd="CREATE TABLE performance_schema.events_stages_current("
+  "THREAD_ID INTEGER not null,"
+  "EVENT_ID BIGINT unsigned not null,"
+  "EVENT_NAME VARCHAR(128) not null,"
+  "SOURCE VARCHAR(64),"
+  "TIMER_START BIGINT unsigned,"
+  "TIMER_END BIGINT unsigned,"
+  "TIMER_WAIT BIGINT unsigned,"
+  "NESTING_EVENT_ID BIGINT unsigned,"
+  "NESTING_EVENT_TYPE ENUM('STATEMENT', 'STAGE', 'WAIT')"
+  ")ENGINE=PERFORMANCE_SCHEMA;";
+
+SET @str = IF(@have_pfs = 1, @cmd, 'SET @dummy = 0');
+PREPARE stmt FROM @str;
+EXECUTE stmt;
+DROP PREPARE stmt;
+
+--
+-- TABLE EVENTS_STAGES_HISTORY
+--
+
+SET @cmd="CREATE TABLE performance_schema.events_stages_history("
+  "THREAD_ID INTEGER not null,"
+  "EVENT_ID BIGINT unsigned not null,"
+  "EVENT_NAME VARCHAR(128) not null,"
+  "SOURCE VARCHAR(64),"
+  "TIMER_START BIGINT unsigned,"
+  "TIMER_END BIGINT unsigned,"
+  "TIMER_WAIT BIGINT unsigned,"
+  "NESTING_EVENT_ID BIGINT unsigned,"
+  "NESTING_EVENT_TYPE ENUM('STATEMENT', 'STAGE', 'WAIT')"
+  ")ENGINE=PERFORMANCE_SCHEMA;";
+
+SET @str = IF(@have_pfs = 1, @cmd, 'SET @dummy = 0');
+PREPARE stmt FROM @str;
+EXECUTE stmt;
+DROP PREPARE stmt;
+
+--
+-- TABLE EVENTS_STAGES_HISTORY_LONG
+--
+
+SET @cmd="CREATE TABLE performance_schema.events_stages_history_long("
+  "THREAD_ID INTEGER not null,"
+  "EVENT_ID BIGINT unsigned not null,"
+  "EVENT_NAME VARCHAR(128) not null,"
+  "SOURCE VARCHAR(64),"
+  "TIMER_START BIGINT unsigned,"
+  "TIMER_END BIGINT unsigned,"
+  "TIMER_WAIT BIGINT unsigned,"
+  "NESTING_EVENT_ID BIGINT unsigned,"
+  "NESTING_EVENT_TYPE ENUM('STATEMENT', 'STAGE', 'WAIT')"
+  ")ENGINE=PERFORMANCE_SCHEMA;";
+
+SET @str = IF(@have_pfs = 1, @cmd, 'SET @dummy = 0');
+PREPARE stmt FROM @str;
+EXECUTE stmt;
+DROP PREPARE stmt;
+
+--
+-- TABLE EVENTS_STAGES_SUMMARY_BY_THREAD_BY_EVENT_NAME
+--
+
+SET @cmd="CREATE TABLE performance_schema.events_stages_summary_by_thread_by_event_name("
+  "THREAD_ID INTEGER not null,"
+  "EVENT_NAME VARCHAR(128) not null,"
+  "COUNT_STAR BIGINT unsigned not null,"
+  "SUM_TIMER_WAIT BIGINT unsigned not null,"
+  "MIN_TIMER_WAIT BIGINT unsigned not null,"
+  "AVG_TIMER_WAIT BIGINT unsigned not null,"
+  "MAX_TIMER_WAIT BIGINT unsigned not null"
+  ")ENGINE=PERFORMANCE_SCHEMA;";
+
+SET @str = IF(@have_pfs = 1, @cmd, 'SET @dummy = 0');
+PREPARE stmt FROM @str;
+EXECUTE stmt;
+DROP PREPARE stmt;
+
+--
+-- TABLE EVENTS_STAGES_SUMMARY_GLOBAL_BY_EVENT_NAME
+--
+
+SET @cmd="CREATE TABLE performance_schema.events_stages_summary_global_by_event_name("
+  "EVENT_NAME VARCHAR(128) not null,"
+  "COUNT_STAR BIGINT unsigned not null,"
+  "SUM_TIMER_WAIT BIGINT unsigned not null,"
+  "MIN_TIMER_WAIT BIGINT unsigned not null,"
+  "AVG_TIMER_WAIT BIGINT unsigned not null,"
+  "MAX_TIMER_WAIT BIGINT unsigned not null"
+  ")ENGINE=PERFORMANCE_SCHEMA;";
+
+SET @str = IF(@have_pfs = 1, @cmd, 'SET @dummy = 0');
+PREPARE stmt FROM @str;
+EXECUTE stmt;
+DROP PREPARE stmt;
+
+--
+-- TABLE EVENTS_STATEMENTS_CURRENT
+--
+
+SET @cmd="CREATE TABLE performance_schema.events_statements_current("
+  "THREAD_ID INTEGER not null,"
+  "EVENT_ID BIGINT unsigned not null,"
+  "EVENT_NAME VARCHAR(128) not null,"
+  "SOURCE VARCHAR(64),"
+  "TIMER_START BIGINT unsigned,"
+  "TIMER_END BIGINT unsigned,"
+  "TIMER_WAIT BIGINT unsigned,"
+  "LOCK_TIME bigint unsigned not null,"
+  "SQL_TEXT LONGTEXT,"
+  "CURRENT_SCHEMA VARCHAR(64),"
+  "OBJECT_TYPE VARCHAR(64),"
+  "OBJECT_SCHEMA VARCHAR(64),"
+  "OBJECT_NAME VARCHAR(64),"
+  "OBJECT_INSTANCE_BEGIN BIGINT,"
+  "MYSQL_ERRNO INTEGER,"
+  "RETURNED_SQLSTATE VARCHAR(5),"
+  "MESSAGE_TEXT VARCHAR(128),"
+  "ERRORS BIGINT unsigned not null,"
+  "WARNINGS BIGINT unsigned not null,"
+  "ROWS_AFFECTED BIGINT unsigned not null,"
+  "ROWS_SENT BIGINT unsigned not null,"
+  "ROWS_EXAMINED BIGINT unsigned not null,"
+  "CREATED_TMP_DISK_TABLES BIGINT unsigned not null,"
+  "CREATED_TMP_TABLES BIGINT unsigned not null,"
+  "SELECT_FULL_JOIN BIGINT unsigned not null,"
+  "SELECT_FULL_RANGE_JOIN BIGINT unsigned not null,"
+  "SELECT_RANGE BIGINT unsigned not null,"
+  "SELECT_RANGE_CHECK BIGINT unsigned not null,"
+  "SELECT_SCAN BIGINT unsigned not null,"
+  "SORT_MERGE_PASSES BIGINT unsigned not null,"
+  "SORT_RANGE BIGINT unsigned not null,"
+  "SORT_ROWS BIGINT unsigned not null,"
+  "SORT_SCAN BIGINT unsigned not null,"
+  "NO_INDEX_USED BIGINT unsigned not null,"
+  "NO_GOOD_INDEX_USED BIGINT unsigned not null,"
+  "NESTING_EVENT_ID BIGINT unsigned,"
+  "NESTING_EVENT_TYPE ENUM('STATEMENT', 'STAGE', 'WAIT')"
+  ")ENGINE=PERFORMANCE_SCHEMA;";
+
+SET @str = IF(@have_pfs = 1, @cmd, 'SET @dummy = 0');
+PREPARE stmt FROM @str;
+EXECUTE stmt;
+DROP PREPARE stmt;
+
+--
+-- TABLE EVENTS_STATEMENTS_HISTORY
+--
+
+SET @cmd="CREATE TABLE performance_schema.events_statements_history("
+  "THREAD_ID INTEGER not null,"
+  "EVENT_ID BIGINT unsigned not null,"
+  "EVENT_NAME VARCHAR(128) not null,"
+  "SOURCE VARCHAR(64),"
+  "TIMER_START BIGINT unsigned,"
+  "TIMER_END BIGINT unsigned,"
+  "TIMER_WAIT BIGINT unsigned,"
+  "LOCK_TIME bigint unsigned not null,"
+  "SQL_TEXT LONGTEXT,"
+  "CURRENT_SCHEMA VARCHAR(64),"
+  "OBJECT_TYPE VARCHAR(64),"
+  "OBJECT_SCHEMA VARCHAR(64),"
+  "OBJECT_NAME VARCHAR(64),"
+  "OBJECT_INSTANCE_BEGIN BIGINT,"
+  "MYSQL_ERRNO INTEGER,"
+  "RETURNED_SQLSTATE VARCHAR(5),"
+  "MESSAGE_TEXT VARCHAR(128),"
+  "ERRORS BIGINT unsigned not null,"
+  "WARNINGS BIGINT unsigned not null,"
+  "ROWS_AFFECTED BIGINT unsigned not null,"
+  "ROWS_SENT BIGINT unsigned not null,"
+  "ROWS_EXAMINED BIGINT unsigned not null,"
+  "CREATED_TMP_DISK_TABLES BIGINT unsigned not null,"
+  "CREATED_TMP_TABLES BIGINT unsigned not null,"
+  "SELECT_FULL_JOIN BIGINT unsigned not null,"
+  "SELECT_FULL_RANGE_JOIN BIGINT unsigned not null,"
+  "SELECT_RANGE BIGINT unsigned not null,"
+  "SELECT_RANGE_CHECK BIGINT unsigned not null,"
+  "SELECT_SCAN BIGINT unsigned not null,"
+  "SORT_MERGE_PASSES BIGINT unsigned not null,"
+  "SORT_RANGE BIGINT unsigned not null,"
+  "SORT_ROWS BIGINT unsigned not null,"
+  "SORT_SCAN BIGINT unsigned not null,"
+  "NO_INDEX_USED BIGINT unsigned not null,"
+  "NO_GOOD_INDEX_USED BIGINT unsigned not null,"
+  "NESTING_EVENT_ID BIGINT unsigned,"
+  "NESTING_EVENT_TYPE ENUM('STATEMENT', 'STAGE', 'WAIT')"
+  ")ENGINE=PERFORMANCE_SCHEMA;";
+
+SET @str = IF(@have_pfs = 1, @cmd, 'SET @dummy = 0');
+PREPARE stmt FROM @str;
+EXECUTE stmt;
+DROP PREPARE stmt;
+
+--
+-- TABLE EVENTS_STATEMENTS_HISTORY_LONG
+--
+
+SET @cmd="CREATE TABLE performance_schema.events_statements_history_long("
+  "THREAD_ID INTEGER not null,"
+  "EVENT_ID BIGINT unsigned not null,"
+  "EVENT_NAME VARCHAR(128) not null,"
+  "SOURCE VARCHAR(64),"
+  "TIMER_START BIGINT unsigned,"
+  "TIMER_END BIGINT unsigned,"
+  "TIMER_WAIT BIGINT unsigned,"
+  "LOCK_TIME bigint unsigned not null,"
+  "SQL_TEXT LONGTEXT,"
+  "CURRENT_SCHEMA VARCHAR(64),"
+  "OBJECT_TYPE VARCHAR(64),"
+  "OBJECT_SCHEMA VARCHAR(64),"
+  "OBJECT_NAME VARCHAR(64),"
+  "OBJECT_INSTANCE_BEGIN BIGINT,"
+  "MYSQL_ERRNO INTEGER,"
+  "RETURNED_SQLSTATE VARCHAR(5),"
+  "MESSAGE_TEXT VARCHAR(128),"
+  "ERRORS BIGINT unsigned not null,"
+  "WARNINGS BIGINT unsigned not null,"
+  "ROWS_AFFECTED BIGINT unsigned not null,"
+  "ROWS_SENT BIGINT unsigned not null,"
+  "ROWS_EXAMINED BIGINT unsigned not null,"
+  "CREATED_TMP_DISK_TABLES BIGINT unsigned not null,"
+  "CREATED_TMP_TABLES BIGINT unsigned not null,"
+  "SELECT_FULL_JOIN BIGINT unsigned not null,"
+  "SELECT_FULL_RANGE_JOIN BIGINT unsigned not null,"
+  "SELECT_RANGE BIGINT unsigned not null,"
+  "SELECT_RANGE_CHECK BIGINT unsigned not null,"
+  "SELECT_SCAN BIGINT unsigned not null,"
+  "SORT_MERGE_PASSES BIGINT unsigned not null,"
+  "SORT_RANGE BIGINT unsigned not null,"
+  "SORT_ROWS BIGINT unsigned not null,"
+  "SORT_SCAN BIGINT unsigned not null,"
+  "NO_INDEX_USED BIGINT unsigned not null,"
+  "NO_GOOD_INDEX_USED BIGINT unsigned not null,"
+  "NESTING_EVENT_ID BIGINT unsigned,"
+  "NESTING_EVENT_TYPE ENUM('STATEMENT', 'STAGE', 'WAIT')"
+  ")ENGINE=PERFORMANCE_SCHEMA;";
+
+SET @str = IF(@have_pfs = 1, @cmd, 'SET @dummy = 0');
+PREPARE stmt FROM @str;
+EXECUTE stmt;
+DROP PREPARE stmt;
+
+--
+-- TABLE EVENTS_STATEMENTS_SUMMARY_BY_THREAD_BY_EVENT_NAME
+--
+
+SET @cmd="CREATE TABLE performance_schema.events_statements_summary_by_thread_by_event_name("
+  "THREAD_ID INTEGER not null,"
+  "EVENT_NAME VARCHAR(128) not null,"
+  "COUNT_STAR BIGINT unsigned not null,"
+  "SUM_TIMER_WAIT BIGINT unsigned not null,"
+  "MIN_TIMER_WAIT BIGINT unsigned not null,"
+  "AVG_TIMER_WAIT BIGINT unsigned not null,"
+  "MAX_TIMER_WAIT BIGINT unsigned not null,"
+  "SUM_LOCK_TIME BIGINT unsigned not null,"
+  "SUM_ERRORS BIGINT unsigned not null,"
+  "SUM_WARNINGS BIGINT unsigned not null,"
+  "SUM_ROWS_AFFECTED BIGINT unsigned not null,"
+  "SUM_ROWS_SENT BIGINT unsigned not null,"
+  "SUM_ROWS_EXAMINED BIGINT unsigned not null,"
+  "SUM_CREATED_TMP_DISK_TABLES BIGINT unsigned not null,"
+  "SUM_CREATED_TMP_TABLES BIGINT unsigned not null,"
+  "SUM_SELECT_FULL_JOIN BIGINT unsigned not null,"
+  "SUM_SELECT_FULL_RANGE_JOIN BIGINT unsigned not null,"
+  "SUM_SELECT_RANGE BIGINT unsigned not null,"
+  "SUM_SELECT_RANGE_CHECK BIGINT unsigned not null,"
+  "SUM_SELECT_SCAN BIGINT unsigned not null,"
+  "SUM_SORT_MERGE_PASSES BIGINT unsigned not null,"
+  "SUM_SORT_RANGE BIGINT unsigned not null,"
+  "SUM_SORT_ROWS BIGINT unsigned not null,"
+  "SUM_SORT_SCAN BIGINT unsigned not null,"
+  "SUM_NO_INDEX_USED BIGINT unsigned not null,"
+  "SUM_NO_GOOD_INDEX_USED BIGINT unsigned not null"
+  ")ENGINE=PERFORMANCE_SCHEMA;";
+
+SET @str = IF(@have_pfs = 1, @cmd, 'SET @dummy = 0');
+PREPARE stmt FROM @str;
+EXECUTE stmt;
+DROP PREPARE stmt;
+
+--
+-- TABLE EVENTS_STATEMENTS_SUMMARY_GLOBAL_BY_EVENT_NAME
+--
+
+SET @cmd="CREATE TABLE performance_schema.events_statements_summary_global_by_event_name("
+  "EVENT_NAME VARCHAR(128) not null,"
+  "COUNT_STAR BIGINT unsigned not null,"
+  "SUM_TIMER_WAIT BIGINT unsigned not null,"
+  "MIN_TIMER_WAIT BIGINT unsigned not null,"
+  "AVG_TIMER_WAIT BIGINT unsigned not null,"
+  "MAX_TIMER_WAIT BIGINT unsigned not null,"
+  "SUM_LOCK_TIME BIGINT unsigned not null,"
+  "SUM_ERRORS BIGINT unsigned not null,"
+  "SUM_WARNINGS BIGINT unsigned not null,"
+  "SUM_ROWS_AFFECTED BIGINT unsigned not null,"
+  "SUM_ROWS_SENT BIGINT unsigned not null,"
+  "SUM_ROWS_EXAMINED BIGINT unsigned not null,"
+  "SUM_CREATED_TMP_DISK_TABLES BIGINT unsigned not null,"
+  "SUM_CREATED_TMP_TABLES BIGINT unsigned not null,"
+  "SUM_SELECT_FULL_JOIN BIGINT unsigned not null,"
+  "SUM_SELECT_FULL_RANGE_JOIN BIGINT unsigned not null,"
+  "SUM_SELECT_RANGE BIGINT unsigned not null,"
+  "SUM_SELECT_RANGE_CHECK BIGINT unsigned not null,"
+  "SUM_SELECT_SCAN BIGINT unsigned not null,"
+  "SUM_SORT_MERGE_PASSES BIGINT unsigned not null,"
+  "SUM_SORT_RANGE BIGINT unsigned not null,"
+  "SUM_SORT_ROWS BIGINT unsigned not null,"
+  "SUM_SORT_SCAN BIGINT unsigned not null,"
+  "SUM_NO_INDEX_USED BIGINT unsigned not null,"
+  "SUM_NO_GOOD_INDEX_USED BIGINT unsigned not null"
+  ")ENGINE=PERFORMANCE_SCHEMA;";
+
+SET @str = IF(@have_pfs = 1, @cmd, 'SET @dummy = 0');
+PREPARE stmt FROM @str;
+EXECUTE stmt;
+DROP PREPARE stmt;
+
 
 CREATE TABLE IF NOT EXISTS proxies_priv (Host char(60) binary DEFAULT '' NOT NULL, User char(16) binary DEFAULT '' NOT NULL, Proxied_host char(60) binary DEFAULT '' NOT NULL, Proxied_user char(16) binary DEFAULT '' NOT NULL, With_grant BOOL DEFAULT 0 NOT NULL, Grantor char(77) DEFAULT '' NOT NULL, Timestamp timestamp, PRIMARY KEY Host (Host,User,Proxied_host,Proxied_user), KEY Grantor (Grantor) ) engine=MyISAM CHARACTER SET utf8 COLLATE utf8_bin comment='User proxy privileges';
 

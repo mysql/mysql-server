@@ -25,8 +25,8 @@ ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
 FOR A PARTICULAR PURPOSE. See the GNU General Public License for more details.
 
 You should have received a copy of the GNU General Public License along with
-this program; if not, write to the Free Software Foundation, Inc., 59 Temple
-Place, Suite 330, Boston, MA 02111-1307 USA
+this program; if not, write to the Free Software Foundation, Inc.,
+51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA
 
 *****************************************************************************/
 
@@ -132,7 +132,7 @@ Sun Studio */
 /* Following defines are to enable performance schema
 instrumentation in each of four InnoDB modules if
 HAVE_PSI_INTERFACE is defined. */
-#ifdef HAVE_PSI_INTERFACE
+#if defined HAVE_PSI_INTERFACE && !defined UNIV_HOTBACKUP
 # define UNIV_PFS_MUTEX
 # define UNIV_PFS_RWLOCK
 /* For I/O instrumentation, performance schema rely
@@ -266,6 +266,19 @@ easy way to get it to work. See http://bugs.mysql.com/bug.php?id=52263. */
 #else
 # define UNIV_INTERN
 #endif
+#if defined __GNUC__ && (__GNUC__ > 4 || __GNUC__ == 4 && __GNUC_MINOR__ >= 3)
+/** Starting with GCC 4.3, the "cold" attribute is used to inform the
+compiler that a function is unlikely executed.  The function is
+optimized for size rather than speed and on many targets it is placed
+into special subsection of the text section so all cold functions
+appears close together improving code locality of non-cold parts of
+program.  The paths leading to call of cold functions within code are
+marked as unlikely by the branch prediction mechanism.  optimize a
+rarely invoked function for size instead for speed. */
+# define UNIV_COLD __attribute__((cold))
+#else
+# define UNIV_COLD /* empty */
+#endif
 
 #ifndef UNIV_MUST_NOT_INLINE
 /* Definition for inline version */
@@ -298,7 +311,7 @@ definitions: */
 
 /* The following alignment is used in memory allocations in memory heap
 management to ensure correct alignment for doubles etc. */
-#define UNIV_MEM_ALIGNMENT      8
+#define UNIV_MEM_ALIGNMENT	8
 
 /* The following alignment is used in aligning lints etc. */
 #define UNIV_WORD_ALIGNMENT	UNIV_WORD_SIZE
@@ -308,25 +321,58 @@ management to ensure correct alignment for doubles etc. */
 			========================
 */
 
-/* The 2-logarithm of UNIV_PAGE_SIZE: */
+/** Antelope File Format: InnoDB/MySQL up to 5.1.
+This format includes REDUNDANT and COMPACT row formats */
+#define UNIV_FORMAT_A		0
+
+/** Barracuda File Format: Introduced in InnoDB plugin for 5.1:
+This format includes COMPRESSED and DYNAMIC row formats,
+including new BLOB treatment */
+#define UNIV_FORMAT_B		1
+
+/** Minimum supported file format */
+#define UNIV_FORMAT_MIN		UNIV_FORMAT_A
+
+/** Maximum supported file format */
+#define UNIV_FORMAT_MAX		UNIV_FORMAT_B
+
+/** The 2-logarithm of UNIV_PAGE_SIZE: */
 #define UNIV_PAGE_SIZE_SHIFT	14
-/* The universal page size of the database */
+
+/** The universal page size of the database */
 #define UNIV_PAGE_SIZE		(1 << UNIV_PAGE_SIZE_SHIFT)
 
-/* Maximum number of parallel threads in a parallelized operation */
+/** log2 of smallest compressed page size (1<<10 == 1024 bytes) */
+#define UNIV_ZIP_SIZE_SHIFT_MIN	10
+
+/** log2 of largest compressed page size (1<<14 == 16384 bytes).
+A compressed page directory entry reserves 14 bits for the start offset
+and 2 bits for flags. This limits the uncompressed page size to 16k.
+Even though a 16k uncompressed page can theoretically be compressed
+into a larger compressed page, it is not a useful feature so we will
+limit both with this same constant. */
+#define UNIV_ZIP_SIZE_SHIFT_MAX	14
+
+/** Smallest compressed page size */
+#define UNIV_ZIP_SIZE_MIN	(1 << UNIV_ZIP_SIZE_SHIFT_MIN)
+
+/** Largest compressed page size */
+#define UNIV_ZIP_SIZE_MAX	(1 << UNIV_ZIP_SIZE_SHIFT_MAX)
+
+/** Maximum number of parallel threads in a parallelized operation */
 #define UNIV_MAX_PARALLELISM	32
 
-/* The maximum length of a table name. This is the MySQL limit and is
+/** The maximum length of a table name. This is the MySQL limit and is
 defined in mysql_com.h like NAME_CHAR_LEN*SYSTEM_CHARSET_MBMAXLEN, the
 number does not include a terminating '\0'. InnoDB probably can handle
 longer names internally */
 #define MAX_TABLE_NAME_LEN	192
 
-/* The maximum length of a database name. Like MAX_TABLE_NAME_LEN this is
+/** The maximum length of a database name. Like MAX_TABLE_NAME_LEN this is
 the MySQL's NAME_LEN, see check_and_convert_db_name(). */
 #define MAX_DATABASE_NAME_LEN	MAX_TABLE_NAME_LEN
 
-/* MAX_FULL_NAME_LEN defines the full name path including the
+/** MAX_FULL_NAME_LEN defines the full name path including the
 database name and table name. In addition, 14 bytes is added for:
 	2 for surrounding quotes around table name
 	1 for the separating dot (.)
@@ -371,7 +417,7 @@ typedef long int		lint;
 typedef __int64			ib_int64_t;
 typedef unsigned __int64	ib_uint64_t;
 #elif !defined(UNIV_HOTBACKUP)
-/* Note: longlong and ulonglong come from MySQL headers. */
+/** Note: longlong and ulonglong come from MySQL headers. */
 typedef longlong		ib_int64_t;
 typedef ulonglong		ib_uint64_t;
 #endif
@@ -386,31 +432,31 @@ typedef unsigned long long int	ullint;
 #endif
 #endif
 
-/* The 'undefined' value for a ulint */
+/** The 'undefined' value for a ulint */
 #define ULINT_UNDEFINED		((ulint)(-1))
 
-/* The 'undefined' value for a ib_uint64_t */
+/** The 'undefined' value for a ib_uint64_t */
 #define UINT64_UNDEFINED	((ib_uint64_t)(-1))
 
 /** The bitmask of 32-bit unsigned integer */
 #define ULINT32_MASK		0xFFFFFFFF
-/* The undefined 32-bit unsigned integer */
+/** The undefined 32-bit unsigned integer */
 #define	ULINT32_UNDEFINED	ULINT32_MASK
 
-/* Maximum value for a ulint */
+/** Maximum value for a ulint */
 #define ULINT_MAX		((ulint)(-2))
 
-/* Maximum value for ib_uint64_t */
+/** Maximum value for ib_uint64_t */
 #define IB_ULONGLONG_MAX	((ib_uint64_t) (~0ULL))
 #define IB_UINT64_MAX		IB_ULONGLONG_MAX
 
 /** The generic InnoDB system object identifier data type */
 typedef ib_uint64_t	ib_id_t;
 
-/* The 'undefined' value for a ullint */
+/** The 'undefined' value for a ullint */
 #define ULLINT_UNDEFINED        ((ullint)(-1))
 
-/* This 'ibool' type is used within Innobase. Remember that different included
+/** This 'ibool' type is used within Innobase. Remember that different included
 headers may define 'bool' differently. Do not assume that 'bool' is a ulint! */
 #define ibool			ulint
 
@@ -421,7 +467,7 @@ headers may define 'bool' differently. Do not assume that 'bool' is a ulint! */
 
 #endif
 
-/* The following number as the length of a logical field means that the field
+/** The following number as the length of a logical field means that the field
 has the SQL NULL as its value. NOTE that because we assume that the length
 of a field is a 32-bit integer when we store it, for example, to an undo log
 on disk, we must have also this number fit in 32 bits, also in 64-bit
@@ -429,7 +475,7 @@ computers! */
 
 #define UNIV_SQL_NULL ULINT32_UNDEFINED
 
-/* Lengths which are not UNIV_SQL_NULL, but bigger than the following
+/** Lengths which are not UNIV_SQL_NULL, but bigger than the following
 number indicate that a field contains a reference to an externally
 stored part of the field in the tablespace. The length field then
 contains the sum of the following flag and the locally stored len. */

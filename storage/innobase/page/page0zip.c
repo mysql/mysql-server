@@ -11,8 +11,8 @@ ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
 FOR A PARTICULAR PURPOSE. See the GNU General Public License for more details.
 
 You should have received a copy of the GNU General Public License along with
-this program; if not, write to the Free Software Foundation, Inc., 59 Temple
-Place, Suite 330, Boston, MA 02111-1307 USA
+this program; if not, write to the Free Software Foundation, Inc.,
+51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA
 
 *****************************************************************************/
 
@@ -1516,7 +1516,7 @@ page_zip_fields_decode(
 	}
 
 	table = dict_mem_table_create("ZIP_DUMMY", DICT_HDR_SPACE, n,
-				      DICT_TF_COMPACT);
+				      DICT_TF_COMPACT, 0);
 	index = dict_mem_index_create("ZIP_DUMMY", "ZIP_DUMMY",
 				      DICT_HDR_SPACE, 0, n);
 	index->table = table;
@@ -4426,7 +4426,9 @@ page_zip_reorganize(
 	dict_index_t*	index,	/*!< in: index of the B-tree node */
 	mtr_t*		mtr)	/*!< in: mini-transaction */
 {
+#ifndef UNIV_HOTBACKUP
 	buf_pool_t*	buf_pool	= buf_pool_from_block(block);
+#endif /* !UNIV_HOTBACKUP */
 	page_zip_des_t*	page_zip	= buf_block_get_page_zip(block);
 	page_t*		page		= buf_block_get_frame(block);
 	buf_block_t*	temp_block;

@@ -21,10 +21,6 @@
   This file defines all compare functions
 */
 
-#ifdef USE_PRAGMA_IMPLEMENTATION
-#pragma implementation				// gcc: Class implementation
-#endif
-
 #include "sql_priv.h"
 #include <m_ctype.h>
 #include "sql_select.h"
@@ -430,7 +426,8 @@ static bool convert_constant_item(THD *thd, Item_field *field_item,
     */
     bool save_field_value= (field_item->depended_from &&
                             (field_item->const_item() ||
-                             !(field->table->status & STATUS_NO_RECORD)));
+                             !(field->table->status &
+                               (STATUS_GARBAGE | STATUS_NOT_FOUND))));
     if (save_field_value)
       orig_field_val= field->val_int();
     if (!(*item)->is_null() && !(*item)->save_in_field(field, 1))
@@ -1767,6 +1764,17 @@ bool Item_in_optimizer::fix_fields(THD *thd, Item **ref)
   with_sum_func= with_sum_func || args[1]->with_sum_func;
   used_tables_cache|= args[1]->used_tables();
   not_null_tables_cache|= args[1]->not_null_tables();
+
+  if (!sub->is_top_level_item())
+  {
+    /*
+      This is a NOT IN subquery predicate (or equivalent). Null values passed
+      from outer tables and used in the left-hand expression of the predicate
+      must be considered in the evaluation, hence filter out these tables
+      from the set of null-rejecting tables.
+    */
+    not_null_tables_cache&= ~args[0]->not_null_tables();
+  }
   const_item_cache&= args[1]->const_item();
   fixed= 1;
   return FALSE;
@@ -1793,6 +1801,7 @@ void Item_in_optimizer::fix_after_pullout(st_select_lex *parent_select,
   not_null_tables_cache|= args[1]->not_null_tables();
   const_item_cache&= args[1]->const_item();
 }
+
 
 /**
    The implementation of optimized \<outer expression\> [NOT] IN \<subquery\>
@@ -2003,7 +2012,7 @@ Item *Item_in_optimizer::transform(Item_transformer transformer, uchar *argument
 {
   Item *new_item;
 
-  DBUG_ASSERT(!current_thd->is_stmt_prepare());
+  DBUG_ASSERT(!current_thd->stmt_arena->is_stmt_prepare());
   DBUG_ASSERT(arg_count == 2);
 
   /* Transform the left IN operand. */
@@ -4156,13 +4165,11 @@ void Item_func_in::fix_length_and_dec()
       uint j=0;
       for (uint i=1 ; i < arg_count ; i++)
       {
-	if (!args[i]->null_value)			// Skip NULL values
-        {
-          array->set(j,args[i]);
-	  j++;
-        }
-	else
-	  have_null= 1;
+        array->set(j,args[i]);
+        if (!args[i]->null_value)                      // Skip NULL values
+          j++;
+        else
+          have_null= 1;
       }
       if ((array->used_count= j))
 	array->sort();
@@ -4474,7 +4481,7 @@ bool Item_cond::walk(Item_processor processor, bool walk_subquery, uchar *arg)
 
 Item *Item_cond::transform(Item_transformer transformer, uchar *arg)
 {
-  DBUG_ASSERT(!current_thd->is_stmt_prepare());
+  DBUG_ASSERT(!current_thd->stmt_arena->is_stmt_prepare());
 
   List_iterator<Item> li(list);
   Item *item;
@@ -5872,7 +5879,7 @@ bool Item_equal::walk(Item_processor processor, bool walk_subquery, uchar *arg)
 
 Item *Item_equal::transform(Item_transformer transformer, uchar *arg)
 {
-  DBUG_ASSERT(!current_thd->is_stmt_prepare());
+  DBUG_ASSERT(!current_thd->stmt_arena->is_stmt_prepare());
 
   List_iterator<Item_field> it(fields);
   Item *item;

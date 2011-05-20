@@ -2830,4 +2830,27 @@ PACK_KEYS=0;
 CREATE INDEX a ON t1 (a);
 CREATE INDEX c on t1 (c);
 DROP TABLE t1;
+#
+# Additional coverage for refactoring which is made as part
+# of fix for bug #27480 "Extend CREATE TEMPORARY TABLES privilege
+# to allow temp table operations".
+#
+# Check that OPTIMIZE table works for temporary InnoDB tables.
+DROP TABLE IF EXISTS t1;
+CREATE TEMPORARY TABLE t1 (a INT) ENGINE=InnoDB;
+OPTIMIZE TABLE t1;
+Table	Op	Msg_type	Msg_text
+test.t1	optimize	note	Table does not support optimize, doing recreate + analyze instead
+test.t1	optimize	status	OK
+DROP TABLE t1;
+#
+# Bug#11762345 54927: DROPPING AND ADDING AN INDEX IN ONE
+#              COMMAND CAN FAIL IN INNODB PLUGIN 1.0
+#
+DROP TABLE IF EXISTS t1;
+CREATE TABLE t1 (id int, a  int, b  int, PRIMARY KEY (id),
+INDEX a (a)) ENGINE=innodb;
+ALTER TABLE t1 DROP INDEX a, ADD INDEX a (b, a);
+ALTER TABLE t1 DROP INDEX a, ADD INDEX (a, b);
+DROP TABLE t1;
 End of 6.0 tests

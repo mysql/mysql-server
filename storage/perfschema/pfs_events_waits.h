@@ -23,6 +23,7 @@
 
 #include "pfs_column_types.h"
 #include "pfs_lock.h"
+#include "pfs_events.h"
 
 struct PFS_mutex;
 struct PFS_rwlock;
@@ -45,7 +46,7 @@ enum events_waits_class
 };
 
 /** A wait event record. */
-struct PFS_events_waits
+struct PFS_events_waits : public PFS_events
 {
   /**
     The type of wait.
@@ -61,22 +62,6 @@ struct PFS_events_waits
   events_waits_class m_wait_class;
   /** Executing thread. */
   PFS_thread *m_thread;
-  /** Instrument metadata. */
-  PFS_instr_class *m_class;
-  /** Event id. */
-  ulonglong m_event_id;
-  /** Nesting event id. */
-  ulonglong m_nesting_event_id;
-  /**
-    Timer start.
-    This member is populated only if m_timed is true.
-  */
-  ulonglong m_timer_start;
-  /**
-    Timer end.
-    This member is populated only if m_timed is true.
-  */
-  ulonglong m_timer_end;
   /** Object type */
   enum_object_type m_object_type;
   /** Table share, for table operations only. */
@@ -87,10 +72,6 @@ struct PFS_events_waits
   uint32 m_weak_version;
   /** Address in memory of the object instance waited on. */
   const void *m_object_instance_addr;
-  /** Location of the instrumentation in the source code (file name). */
-  const char *m_source_file;
-  /** Location of the instrumentation in the source code (line number). */
-  uint m_source_line;
   /** Operation performed. */
   enum_operation_type m_operation;
   /**
@@ -128,6 +109,8 @@ void cleanup_events_waits_history_long();
 void reset_events_waits_current();
 void reset_events_waits_history();
 void reset_events_waits_history_long();
+void reset_events_waits_by_thread();
+void reset_events_waits_global();
 
 void reset_table_waits_by_table();
 void reset_table_io_waits_by_table();

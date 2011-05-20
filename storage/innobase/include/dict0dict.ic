@@ -11,8 +11,8 @@ ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
 FOR A PARTICULAR PURPOSE. See the GNU General Public License for more details.
 
 You should have received a copy of the GNU General Public License along with
-this program; if not, write to the Free Software Foundation, Inc., 59 Temple
-Place, Suite 330, Boston, MA 02111-1307 USA
+this program; if not, write to the Free Software Foundation, Inc.,
+51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA
 
 *****************************************************************************/
 
@@ -144,7 +144,7 @@ ulint
 dict_col_get_fixed_size(
 /*====================*/
 	const dict_col_t*	col,	/*!< in: column */
-	ulint			comp)	/*!< in: nonzero=ROW_FORMAT=COMPACT  */
+	ulint			comp)	/*!< in: nonzero=ROW_FORMAT=COMPACT */
 {
 	return(dtype_get_fixed_size_low(col->mtype, col->prtype, col->len,
 					col->mbminmaxlen, comp));
@@ -467,10 +467,10 @@ dict_table_flags_to_zip_size(
 	ulint	zip_size = flags & DICT_TF_ZSSIZE_MASK;
 
 	if (UNIV_UNLIKELY(zip_size)) {
-		zip_size = ((PAGE_ZIP_MIN_SIZE >> 1)
+		zip_size = ((UNIV_ZIP_SIZE_MIN >> 1)
 			 << (zip_size >> DICT_TF_ZSSIZE_SHIFT));
 
-		ut_ad(zip_size <= UNIV_PAGE_SIZE);
+		ut_ad(zip_size <= UNIV_ZIP_SIZE_MAX);
 	}
 
 	return(zip_size);
@@ -490,6 +490,7 @@ dict_table_zip_size(
 	return(dict_table_flags_to_zip_size(table->flags));
 }
 
+#ifndef UNIV_HOTBACKUP
 /*********************************************************************//**
 Obtain exclusive locks on all index trees of the table. This is to prevent
 accessing index trees while InnoDB is updating internal metadata for
@@ -532,6 +533,8 @@ dict_table_x_unlock_indexes(
 		rw_lock_x_unlock(dict_index_get_lock(index));
 	}
 }
+#endif /* !UNIV_HOTBACKUP */
+
 /********************************************************************//**
 Gets the number of fields in the internal representation of an index,
 including fields added by the dictionary system.

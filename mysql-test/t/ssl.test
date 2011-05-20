@@ -11,6 +11,10 @@ connect (ssl_con,localhost,root,,,,,SSL);
 # Check ssl turned on
 SHOW STATUS LIKE 'Ssl_cipher';
 
+# Check ssl expiration
+SHOW STATUS LIKE 'Ssl_server_not_before';
+SHOW STATUS LIKE 'Ssl_server_not_after';
+
 # Source select test case
 -- source include/common-tests.inc
 

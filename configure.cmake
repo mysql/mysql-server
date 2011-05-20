@@ -1,5 +1,4 @@
-
-# Copyright (C) 2009 Sun Microsystems,Inc
+# Copyright (c) 2009, 2011, Oracle and/or its affiliates. All rights reserved.
 # 
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -67,15 +66,7 @@ IF(CMAKE_COMPILER_IS_GNUCXX)
   # MySQL "canonical" GCC flags. At least -fno-rtti flag affects
   # ABI and cannot be simply removed. 
   SET(CMAKE_CXX_FLAGS 
-    "${CMAKE_CXX_FLAGS} -fno-implicit-templates -fno-exceptions -fno-rtti")
-  IF(CMAKE_CXX_FLAGS)
-    STRING(REGEX MATCH "fno-implicit-templates" NO_IMPLICIT_TEMPLATES
-      ${CMAKE_CXX_FLAGS})
-    IF (NO_IMPLICIT_TEMPLATES)
-      SET(HAVE_EXPLICIT_TEMPLATE_INSTANTIATION TRUE)
-    ENDIF()
-  ENDIF()
-
+    "${CMAKE_CXX_FLAGS} -fno-exceptions -fno-rtti")
   IF (CMAKE_EXE_LINKER_FLAGS MATCHES " -static " 
      OR CMAKE_EXE_LINKER_FLAGS MATCHES " -static$")
      SET(HAVE_DLOPEN FALSE CACHE "Disable dlopen due to -static flag" FORCE)
@@ -350,7 +341,6 @@ CHECK_FUNCTION_EXISTS (fseeko HAVE_FSEEKO)
 CHECK_FUNCTION_EXISTS (fsync HAVE_FSYNC)
 CHECK_FUNCTION_EXISTS (getcwd HAVE_GETCWD)
 CHECK_FUNCTION_EXISTS (gethostbyaddr_r HAVE_GETHOSTBYADDR_R)
-CHECK_FUNCTION_EXISTS (gethostbyname_r HAVE_GETHOSTBYNAME_R)
 CHECK_FUNCTION_EXISTS (gethrtime HAVE_GETHRTIME)
 CHECK_FUNCTION_EXISTS (getnameinfo HAVE_GETNAMEINFO)
 CHECK_FUNCTION_EXISTS (getpass HAVE_GETPASS)
@@ -363,6 +353,10 @@ CHECK_FUNCTION_EXISTS (getwd HAVE_GETWD)
 CHECK_FUNCTION_EXISTS (gmtime_r HAVE_GMTIME_R)
 CHECK_FUNCTION_EXISTS (initgroups HAVE_INITGROUPS)
 CHECK_FUNCTION_EXISTS (issetugid HAVE_ISSETUGID)
+CHECK_FUNCTION_EXISTS (getuid HAVE_GETUID)
+CHECK_FUNCTION_EXISTS (geteuid HAVE_GETEUID)
+CHECK_FUNCTION_EXISTS (getgid HAVE_GETGID)
+CHECK_FUNCTION_EXISTS (getegid HAVE_GETEGID)
 CHECK_FUNCTION_EXISTS (ldiv HAVE_LDIV)
 CHECK_FUNCTION_EXISTS (localtime_r HAVE_LOCALTIME_R)
 CHECK_FUNCTION_EXISTS (longjmp HAVE_LONGJMP)
@@ -488,6 +482,7 @@ CHECK_SYMBOL_EXISTS(getpagesize "unistd.h" HAVE_GETPAGESIZE)
 CHECK_SYMBOL_EXISTS(TIOCGWINSZ "sys/ioctl.h" GWINSZ_IN_SYS_IOCTL)
 CHECK_SYMBOL_EXISTS(FIONREAD "sys/ioctl.h" FIONREAD_IN_SYS_IOCTL)
 CHECK_SYMBOL_EXISTS(TIOCSTAT "sys/ioctl.h" TIOCSTAT_IN_SYS_IOCTL)
+CHECK_SYMBOL_EXISTS(FIONREAD "sys/filio.h" FIONREAD_IN_SYS_FILIO)
 CHECK_SYMBOL_EXISTS(gettimeofday "sys/time.h" HAVE_GETTIMEOFDAY)
 
 CHECK_SYMBOL_EXISTS(finite  "math.h" HAVE_FINITE_IN_MATH_H)
@@ -920,44 +915,6 @@ CHECK_CXX_SOURCE_COMPILES("
     }
   "
   HAVE_SOLARIS_STYLE_GETHOST)
-
-CHECK_CXX_SOURCE_COMPILES("
-    #undef inline
-    #if !defined(SCO) && !defined(__osf__) && !defined(_REENTRANT)
-    #define _REENTRANT
-    #endif
-    #include <pthread.h>
-    #include <sys/types.h>
-    #include <sys/socket.h>
-    #include <netinet/in.h>
-    #include <arpa/inet.h>
-    #include <netdb.h>
-    int main()
-    {
-       int ret = gethostbyname_r((const char *) 0,
-	(struct hostent*) 0, (char*) 0, 0, (struct hostent **) 0, (int *) 0);
-      return 0;
-    }"
-    HAVE_GETHOSTBYNAME_R_GLIBC2_STYLE)
-
-CHECK_CXX_SOURCE_COMPILES("
-    #undef inline
-    #if !defined(SCO) && !defined(__osf__) && !defined(_REENTRANT)
-    #define _REENTRANT
-    #endif
-    #include <pthread.h>
-    #include <sys/types.h>
-    #include <sys/socket.h>
-    #include <netinet/in.h>
-    #include <arpa/inet.h>
-    #include <netdb.h>
-    int main()
-    {
-      int ret = gethostbyname_r((const char *) 0, (struct hostent*) 0, (struct hostent_data*) 0);
-      return 0;
-    }"
-    HAVE_GETHOSTBYNAME_R_RETURN_INT)
-
 
 # Use of ALARMs to wakeup on timeout on sockets
 #

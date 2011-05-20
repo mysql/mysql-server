@@ -320,10 +320,6 @@ The following options may be given as the first argument:
  max_join_size records return an error
  --max-length-for-sort-data=# 
  Max number of bytes in sorted records
- --max-long-data-size=# 
- The maximum BLOB length to send to server from
- mysql_send_long_data API. Deprecated option; use
- max_allowed_packet instead.
  --max-prepared-stmt-count=# 
  Maximum number of prepared statements in the server
  --max-relay-log-size=# 
@@ -430,6 +426,14 @@ The following options may be given as the first argument:
  mrr_cost_based} and val is one of {on, off, default}
  --performance-schema 
  Enable the performance schema.
+ --performance-schema-events-stages-history-long-size=# 
+ Number of rows in EVENTS_STAGES_HISTORY_LONG.
+ --performance-schema-events-stages-history-size=# 
+ Number of rows per thread in EVENTS_STAGES_HISTORY.
+ --performance-schema-events-statements-history-long-size=# 
+ Number of rows in EVENTS_STATEMENTS_HISTORY_LONG.
+ --performance-schema-events-statements-history-size=# 
+ Number of rows per thread in EVENTS_STATEMENTS_HISTORY.
  --performance-schema-events-waits-history-long-size=# 
  Number of rows in EVENTS_WAITS_HISTORY_LONG.
  --performance-schema-events-waits-history-size=# 
@@ -452,6 +456,10 @@ The following options may be given as the first argument:
  Maximum number of rwlock instruments.
  --performance-schema-max-rwlock-instances=# 
  Maximum number of instrumented RWLOCK objects.
+ --performance-schema-max-stage-classes=# 
+ Maximum number of stage instruments.
+ --performance-schema-max-statement-classes=# 
+ Maximum number of statement instruments.
  --performance-schema-max-table-handles=# 
  Maximum number of opened instrumented tables.
  --performance-schema-max-table-instances=# 
@@ -856,7 +864,6 @@ max-error-count 64
 max-heap-table-size 16777216
 max-join-size 18446744073709551615
 max-length-for-sort-data 1024
-max-long-data-size 1048576
 max-prepared-stmt-count 16382
 max-relay-log-size 0
 max-seeks-for-key 18446744073709551615
@@ -891,6 +898,10 @@ optimizer-prune-level 1
 optimizer-search-depth 62
 optimizer-switch index_merge=on,index_merge_union=on,index_merge_sort_union=on,index_merge_intersection=on,engine_condition_pushdown=on,index_condition_pushdown=on,mrr=on,mrr_cost_based=on
 performance-schema FALSE
+performance-schema-events-stages-history-long-size 10000
+performance-schema-events-stages-history-size 10
+performance-schema-events-statements-history-long-size 10000
+performance-schema-events-statements-history-size 10
 performance-schema-events-waits-history-long-size 10000
 performance-schema-events-waits-history-size 10
 performance-schema-max-cond-classes 80
@@ -902,6 +913,8 @@ performance-schema-max-mutex-classes 200
 performance-schema-max-mutex-instances 1000000
 performance-schema-max-rwlock-classes 30
 performance-schema-max-rwlock-instances 1000000
+performance-schema-max-stage-classes 100
+performance-schema-max-statement-classes 165
 performance-schema-max-table-handles 10000
 performance-schema-max-table-instances 1000
 performance-schema-max-thread-classes 50

@@ -28,10 +28,6 @@
 #ifndef _log_event_h
 #define _log_event_h
 
-#if defined(USE_PRAGMA_INTERFACE) && defined(MYSQL_SERVER)
-#pragma interface			/* gcc class implementation */
-#endif
-
 #include <my_bitmap.h>
 #include "rpl_constants.h"
 

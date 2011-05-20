@@ -21,10 +21,6 @@
   Sum functions (COUNT, MIN...)
 */
 
-#ifdef USE_PRAGMA_IMPLEMENTATION
-#pragma implementation				// gcc: Class implementation
-#endif
-
 #include "sql_priv.h"
 #include "sql_select.h"
 
@@ -1146,16 +1142,12 @@ Item_sum_hybrid::fix_fields(THD *thd, Item **ref)
 
   switch (hybrid_type= item->result_type()) {
   case INT_RESULT:
-    max_length= 20;
-    break;
   case DECIMAL_RESULT:
+  case STRING_RESULT:
     max_length= item->max_length;
     break;
   case REAL_RESULT:
     max_length= float_length(decimals);
-    break;
-  case STRING_RESULT:
-    max_length= item->max_length;
     break;
   case ROW_RESULT:
   default:
@@ -2895,7 +2887,8 @@ int group_concat_key_cmp_with_order(const void* arg, const void* key1,
       uint offset= (field->offset(field->table->record[0]) -
                     table->s->null_bytes);
       if ((res= field->cmp((uchar*)key1 + offset, (uchar*)key2 + offset)))
-        return (*order_item)->asc ? res : -res;
+        return ((*order_item)->direction == ORDER::ORDER_ASC) ? res : -res;
+          
     }
   }
   /*
@@ -3436,7 +3429,7 @@ void Item_func_group_concat::print(String *str, enum_query_type query_type)
       if (i)
         str->append(',');
       orig_args[i + arg_count_field]->print(str, query_type);
-      if (order[i]->asc)
+      if (order[i]->direction == ORDER::ORDER_ASC)
         str->append(STRING_WITH_LEN(" ASC"));
       else
         str->append(STRING_WITH_LEN(" DESC"));

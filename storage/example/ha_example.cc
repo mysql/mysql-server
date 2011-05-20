@@ -87,10 +87,6 @@
     -Brian
 */
 
-#ifdef USE_PRAGMA_IMPLEMENTATION
-#pragma implementation        // gcc: Class implementation
-#endif
-
 #include "sql_priv.h"
 #include "sql_class.h"           // MYSQL_HANDLERTON_INTERFACE_VERSION
 #include "ha_example.h"
@@ -140,11 +136,8 @@ static void init_example_psi_keys()
   const char* category= "example";
   int count;
 
-  if (PSI_server == NULL)
-    return;
-
   count= array_elements(all_example_mutexes);
-  PSI_server->register_mutex(category, all_example_mutexes, count);
+  mysql_mutex_register(category, all_example_mutexes, count);
 }
 #endif
 

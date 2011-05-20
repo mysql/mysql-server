@@ -1929,8 +1929,6 @@ row_merge_lock_table(
 	sel_node_t*	node;
 
 	ut_ad(trx);
-	ut_ad(trx->mysql_thd == NULL
-	      || trx->mysql_thread_id == os_thread_get_curr_id());
 	ut_ad(mode == LOCK_X || mode == LOCK_S);
 
 	heap = mem_heap_create(512);
@@ -2295,7 +2293,8 @@ row_merge_create_temporary_table(
 	ut_ad(table);
 	ut_ad(mutex_own(&dict_sys->mutex));
 
-	new_table = dict_mem_table_create(table_name, 0, n_cols, table->flags);
+	new_table = dict_mem_table_create(
+		table_name, 0, n_cols, table->flags, table->flags2);
 
 	for (i = 0; i < n_cols; i++) {
 		const dict_col_t*	col;
@@ -2402,8 +2401,6 @@ row_merge_rename_tables(
 	pars_info_t*	info;
 	char		old_name[MAX_FULL_NAME_LEN + 1];
 
-	ut_ad(trx->mysql_thd == NULL
-	      || trx->mysql_thread_id == os_thread_get_curr_id());
 	ut_ad(old_table != new_table);
 	ut_ad(mutex_own(&dict_sys->mutex));
 
@@ -2460,7 +2457,7 @@ row_merge_rename_tables(
 	if (err != DB_SUCCESS) {
 err_exit:
 		trx->error_state = DB_SUCCESS;
-		trx_general_rollback_for_mysql(trx, NULL);
+		trx_rollback_to_savepoint(trx, NULL);
 		trx->error_state = DB_SUCCESS;
 	}
 

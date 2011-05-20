@@ -14,10 +14,6 @@
    51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA */
 
 
-#ifdef USE_PRAGMA_IMPLEMENTATION
-#pragma implementation                         // gcc: Class implementation
-#endif
-
 #include "sql_priv.h"
 #include "transaction.h"
 #include "rpl_handler.h"
@@ -79,6 +75,33 @@ static bool xa_trans_rolled_back(XID_STATE *xid_state)
 
 
 /**
+  Rollback the active XA transaction.
+
+  @note Resets rm_error before calling ha_rollback(), so
+        the thd->transaction.xid structure gets reset
+        by ha_rollback() / THD::transaction::cleanup().
+
+  @return TRUE if the rollback failed, FALSE otherwise.
+*/
+
+static bool xa_trans_force_rollback(THD *thd)
+{
+  /*
+    We must reset rm_error before calling ha_rollback(),
+    so thd->transaction.xid structure gets reset
+    by ha_rollback()/THD::transaction::cleanup().
+  */
+  thd->transaction.xid_state.rm_error= 0;
+  if (ha_rollback_trans(thd, true))
+  {
+    my_error(ER_XAER_RMERR, MYF(0));
+    return true;
+  }
+  return false;
+}
+
+
+/**
   Begin a new transaction.
 
   @note Beginning a transaction implicitly commits any current
@@ -111,8 +134,8 @@ bool trans_begin(THD *thd, uint flags)
     res= test(ha_commit_trans(thd, TRUE));
   }
 
-  thd->variables.option_bits&= ~(OPTION_BEGIN | OPTION_KEEP_LOG);
-  thd->transaction.all.modified_non_trans_table= FALSE;
+  thd->variables.option_bits&= ~OPTION_BEGIN;
+  thd->transaction.all.reset_unsafe_rollback_flags();
 
   if (res)
     DBUG_RETURN(TRUE);
@@ -152,16 +175,16 @@ bool trans_commit(THD *thd)
 
   thd->server_status&= ~SERVER_STATUS_IN_TRANS;
   res= ha_commit_trans(thd, TRUE);
+  /*
+    if res is non-zero, then ha_commit_trans has rolled back the
+    transaction, so the hooks for rollback will be called.
+  */
   if (res)
-    /*
-      if res is non-zero, then ha_commit_trans has rolled back the
-      transaction, so the hooks for rollback will be called.
-    */
-    RUN_HOOK(transaction, after_rollback, (thd, FALSE));
+    (void) RUN_HOOK(transaction, after_rollback, (thd, FALSE));
   else
-    RUN_HOOK(transaction, after_commit, (thd, FALSE));
-  thd->variables.option_bits&= ~(OPTION_BEGIN | OPTION_KEEP_LOG);
-  thd->transaction.all.modified_non_trans_table= FALSE;
+    (void) RUN_HOOK(transaction, after_commit, (thd, FALSE));
+  thd->variables.option_bits&= ~OPTION_BEGIN;
+  thd->transaction.all.reset_unsafe_rollback_flags();
   thd->lex->start_transaction_opt= 0;
 
   DBUG_RETURN(test(res));
@@ -197,8 +220,8 @@ bool trans_commit_implicit(THD *thd)
     res= test(ha_commit_trans(thd, TRUE));
   }
 
-  thd->variables.option_bits&= ~(OPTION_BEGIN | OPTION_KEEP_LOG);
-  thd->transaction.all.modified_non_trans_table= FALSE;
+  thd->variables.option_bits&= ~OPTION_BEGIN;
+  thd->transaction.all.reset_unsafe_rollback_flags();
 
   /*
     Upon implicit commit, reset the current transaction
@@ -231,9 +254,9 @@ bool trans_rollback(THD *thd)
 
   thd->server_status&= ~SERVER_STATUS_IN_TRANS;
   res= ha_rollback_trans(thd, TRUE);
-  RUN_HOOK(transaction, after_rollback, (thd, FALSE));
-  thd->variables.option_bits&= ~(OPTION_BEGIN | OPTION_KEEP_LOG);
-  thd->transaction.all.modified_non_trans_table= FALSE;
+  (void) RUN_HOOK(transaction, after_rollback, (thd, FALSE));
+  thd->variables.option_bits&= ~OPTION_BEGIN;
+  thd->transaction.all.reset_unsafe_rollback_flags();
   thd->lex->start_transaction_opt= 0;
 
   DBUG_RETURN(test(res));
@@ -267,6 +290,8 @@ bool trans_commit_stmt(THD *thd)
   */
   DBUG_ASSERT(! thd->in_sub_stmt);
 
+  thd->transaction.merge_unsafe_rollback_flags();
+
   if (thd->transaction.stmt.ha_list)
   {
     res= ha_commit_trans(thd, FALSE);
@@ -274,14 +299,14 @@ bool trans_commit_stmt(THD *thd)
       thd->tx_isolation= (enum_tx_isolation) thd->variables.tx_isolation;
   }
 
+  /*
+    if res is non-zero, then ha_commit_trans has rolled back the
+    transaction, so the hooks for rollback will be called.
+  */
   if (res)
-    /*
-      if res is non-zero, then ha_commit_trans has rolled back the
-      transaction, so the hooks for rollback will be called.
-    */
-    RUN_HOOK(transaction, after_rollback, (thd, FALSE));
+    (void) RUN_HOOK(transaction, after_rollback, (thd, FALSE));
   else
-    RUN_HOOK(transaction, after_commit, (thd, FALSE));
+    (void) RUN_HOOK(transaction, after_commit, (thd, FALSE));
 
   thd->transaction.stmt.reset();
 
@@ -309,6 +334,8 @@ bool trans_rollback_stmt(THD *thd)
   */
   DBUG_ASSERT(! thd->in_sub_stmt);
 
+  thd->transaction.merge_unsafe_rollback_flags();
+
   if (thd->transaction.stmt.ha_list)
   {
     ha_rollback_trans(thd, FALSE);
@@ -318,7 +345,7 @@ bool trans_rollback_stmt(THD *thd)
       thd->tx_isolation= (enum_tx_isolation) thd->variables.tx_isolation;
   }
 
-  RUN_HOOK(transaction, after_rollback, (thd, FALSE));
+  (void) RUN_HOOK(transaction, after_rollback, (thd, FALSE));
 
   thd->transaction.stmt.reset();
 
@@ -361,6 +388,13 @@ bool trans_savepoint(THD *thd, LEX_STRING name)
   if (!(thd->in_multi_stmt_transaction_mode() || thd->in_sub_stmt) ||
       !opt_using_transactions)
     DBUG_RETURN(FALSE);
+
+  enum xa_states xa_state= thd->transaction.xid_state.xa_state;
+  if (xa_state != XA_NOTR)
+  {
+    my_error(ER_XAER_RMFAIL, MYF(0), xa_state_names[xa_state]);
+    DBUG_RETURN(TRUE);
+  }
 
   sv= find_savepoint(thd, name);
 
@@ -435,14 +469,17 @@ bool trans_rollback_to_savepoint(THD *thd, LEX_STRING name)
     DBUG_RETURN(TRUE);
   }
 
+  enum xa_states xa_state= thd->transaction.xid_state.xa_state;
+  if (xa_state != XA_NOTR)
+  {
+    my_error(ER_XAER_RMFAIL, MYF(0), xa_state_names[xa_state]);
+    DBUG_RETURN(TRUE);
+  }
+
   if (ha_rollback_to_savepoint(thd, sv))
     res= TRUE;
-  else if (((thd->variables.option_bits & OPTION_KEEP_LOG) ||
-            thd->transaction.all.modified_non_trans_table) &&
-           !thd->slave_thread)
-    push_warning(thd, MYSQL_ERROR::WARN_LEVEL_WARN,
-                 ER_WARNING_NOT_COMPLETE_ROLLBACK,
-                 ER(ER_WARNING_NOT_COMPLETE_ROLLBACK));
+  else if (thd->transaction.all.cannot_safely_rollback() && !thd->slave_thread)
+    thd->transaction.push_unsafe_rollback_warnings(thd);
 
   thd->transaction.savepoints= sv;
 
@@ -635,8 +672,7 @@ bool trans_xa_commit(THD *thd)
 
   if (xa_trans_rolled_back(&thd->transaction.xid_state))
   {
-    if (ha_rollback_trans(thd, TRUE))
-      my_error(ER_XAER_RMERR, MYF(0));
+    xa_trans_force_rollback(thd);
     res= thd->is_error();
   }
   else if (xa_state == XA_IDLE && thd->lex->xa_opt == XA_ONE_PHASE)
@@ -680,8 +716,8 @@ bool trans_xa_commit(THD *thd)
     DBUG_RETURN(TRUE);
   }
 
-  thd->variables.option_bits&= ~(OPTION_BEGIN | OPTION_KEEP_LOG);
-  thd->transaction.all.modified_non_trans_table= FALSE;
+  thd->variables.option_bits&= ~OPTION_BEGIN;
+  thd->transaction.all.reset_unsafe_rollback_flags();
   thd->server_status&= ~SERVER_STATUS_IN_TRANS;
   xid_cache_delete(&thd->transaction.xid_state);
   thd->transaction.xid_state.xa_state= XA_NOTR;
@@ -725,18 +761,10 @@ bool trans_xa_rollback(THD *thd)
     DBUG_RETURN(TRUE);
   }
 
-  /*
-    Resource Manager error is meaningless at this point, as we perform
-    explicit rollback request by user. We must reset rm_error before
-    calling ha_rollback(), so thd->transaction.xid structure gets reset
-    by ha_rollback()/THD::transaction::cleanup().
-  */
-  thd->transaction.xid_state.rm_error= 0;
-  if ((res= test(ha_rollback_trans(thd, TRUE))))
-    my_error(ER_XAER_RMERR, MYF(0));
+  res= xa_trans_force_rollback(thd);
 
-  thd->variables.option_bits&= ~(OPTION_BEGIN | OPTION_KEEP_LOG);
-  thd->transaction.all.modified_non_trans_table= FALSE;
+  thd->variables.option_bits&= ~OPTION_BEGIN;
+  thd->transaction.all.reset_unsafe_rollback_flags();
   thd->server_status&= ~SERVER_STATUS_IN_TRANS;
   xid_cache_delete(&thd->transaction.xid_state);
   thd->transaction.xid_state.xa_state= XA_NOTR;

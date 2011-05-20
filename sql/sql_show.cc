@@ -1775,10 +1775,6 @@ public:
   CSET_STRING query_string;
 };
 
-#ifdef HAVE_EXPLICIT_TEMPLATE_INSTANTIATION
-template class I_List<thread_info>;
-#endif
-
 static const char *thread_state_info(THD *tmp)
 {
 #ifndef EMBEDDED_LIBRARY
@@ -3060,11 +3056,18 @@ fill_schema_show_cols_or_idxs(THD *thd, TABLE_LIST *tables,
     SQLCOM_SHOW_FIELDS is used because it satisfies 'only_view_structure()' 
   */
   lex->sql_command= SQLCOM_SHOW_FIELDS;
-  res= open_normal_and_derived_tables(thd, show_table_list,
-                                      (MYSQL_OPEN_IGNORE_FLUSH |
-                                       MYSQL_OPEN_FORCE_SHARED_HIGH_PRIO_MDL |
-                                       (can_deadlock ?
-                                        MYSQL_OPEN_FAIL_ON_MDL_CONFLICT : 0)));
+
+  res= open_temporary_tables(thd, show_table_list);
+
+  if (!res)
+  {
+    res= open_normal_and_derived_tables(thd, show_table_list,
+                                        (MYSQL_OPEN_IGNORE_FLUSH |
+                                         MYSQL_OPEN_FORCE_SHARED_HIGH_PRIO_MDL |
+                                         (can_deadlock ?
+                                          MYSQL_OPEN_FAIL_ON_MDL_CONFLICT : 0)));
+  }
+
   lex->sql_command= save_sql_command;
 
   DEBUG_SYNC(thd, "after_open_table_ignore_flush");
@@ -3296,7 +3299,7 @@ static int fill_schema_table_from_frm(THD *thd, TABLE_LIST *tables,
   uint res= 0;
   int not_used;
   my_hash_value_type hash_value;
-  char key[MAX_DBKEY_LENGTH];
+  const char *key;
   uint key_length;
   char db_name_buff[NAME_LEN + 1], table_name_buff[NAME_LEN + 1];
 
@@ -3369,7 +3372,7 @@ static int fill_schema_table_from_frm(THD *thd, TABLE_LIST *tables,
     goto end;
   }
 
-  key_length= create_table_def_key(thd, key, &table_list, 0);
+  key_length= get_table_def_key(&table_list, &key);
   hash_value= my_calc_hash(&table_def_cache, (uchar*) key, key_length);
   mysql_mutex_lock(&LOCK_open);
   share= get_table_share(thd, &table_list, key,
@@ -3442,6 +3445,45 @@ end:
   thd->clear_error();
   return res;
 }
+
+
+/**
+  Trigger_error_handler is intended to intercept and silence SQL conditions
+  that might happen during trigger loading for SHOW statements.
+  The potential SQL conditions are:
+
+    - ER_PARSE_ERROR -- this error is thrown if a trigger definition file
+      is damaged or contains invalid CREATE TRIGGER statement. That should
+      not happen in normal life.
+
+    - ER_TRG_NO_DEFINER -- this warning is thrown when we're loading a
+      trigger created/imported in/from the version of MySQL, which does not
+      support trigger definers.
+
+    - ER_TRG_NO_CREATION_CTX -- this warning is thrown when we're loading a
+      trigger created/imported in/from the version of MySQL, which does not
+      support trigger creation contexts.
+*/
+
+class Trigger_error_handler : public Internal_error_handler
+{
+public:
+  bool handle_condition(THD *thd,
+                        uint sql_errno,
+                        const char* sqlstate,
+                        MYSQL_ERROR::enum_warning_level level,
+                        const char* msg,
+                        MYSQL_ERROR ** cond_hdl)
+  {
+    if (sql_errno == ER_PARSE_ERROR ||
+        sql_errno == ER_TRG_NO_DEFINER ||
+        sql_errno == ER_TRG_NO_CREATION_CTX)
+      return true;
+
+    return false;
+  }
+};
+
 
 
 /**
@@ -3585,6 +3627,12 @@ int get_all_tables(THD *thd, TABLE_LIST *tables, Item *cond)
   it.rewind(); /* To get access to new elements in basis list */
   while ((db_name= it++))
   {
+    LEX_STRING orig_db_name;
+
+    /* db_name can be changed in make_table_list() func */
+    if (!thd->make_lex_string(&orig_db_name, db_name->str,
+                              db_name->length, FALSE))
+      goto err;
 #ifndef NO_EMBEDDED_ACCESS_CHECKS
     if (!(check_access(thd, SELECT_ACL, db_name->str,
                        &thd->col_access, NULL, 0, 1) ||
@@ -3593,7 +3641,6 @@ int get_all_tables(THD *thd, TABLE_LIST *tables, Item *cond)
         acl_get(sctx->host, sctx->ip, sctx->priv_user, db_name->str, 0))
 #endif
     {
-      thd->no_warnings_for_error= 1;
       List<LEX_STRING> table_names;
       int res= make_table_name_list(thd, &table_names, lex,
                                     &lookup_field_vals,
@@ -3642,24 +3689,34 @@ int get_all_tables(THD *thd, TABLE_LIST *tables, Item *cond)
             if (!(table_open_method & ~OPEN_FRM_ONLY) &&
                 !with_i_schema)
             {
-              if (!fill_schema_table_from_frm(thd, tables, schema_table, db_name,
-                                              table_name, schema_table_idx,
-                                              can_deadlock))
+              /*
+                Here we need to filter out warnings, which can happen
+                during loading of triggers in fill_schema_table_from_frm(),
+                because we don't need those warnings to pollute output of
+                SELECT from I_S / SHOW-statements.
+              */
+
+              Trigger_error_handler err_handler;
+              thd->push_internal_handler(&err_handler);
+
+              int res= fill_schema_table_from_frm(thd, tables, schema_table,
+                                                  db_name, table_name,
+                                                  schema_table_idx,
+                                                  can_deadlock);
+
+              thd->pop_internal_handler();
+
+              if (!res)
                 continue;
             }
 
             int res;
-            LEX_STRING tmp_lex_string, orig_db_name;
+            LEX_STRING tmp_lex_string;
             /*
               Set the parent lex of 'sel' because it is needed by
               sel.init_query() which is called inside make_table_list.
             */
-            thd->no_warnings_for_error= 1;
             sel.parent_lex= lex;
-            /* db_name can be changed in make_table_list() func */
-            if (!thd->make_lex_string(&orig_db_name, db_name->str,
-                                      db_name->length, FALSE))
-              goto err;
             if (make_table_list(thd, &sel, db_name, table_name))
               goto err;
             TABLE_LIST *show_table_list= sel.table_list.first;
@@ -5526,12 +5583,9 @@ static void store_schema_partitions_record(THD *thd, TABLE *schema_table,
                               strlen(part_elem->tablespace_name), cs);
     else
     {
-      char *ts= showing_table->file->get_tablespace_name(thd,0,0);
+      char *ts= showing_table->s->tablespace;
       if(ts)
-      {
         table->field[24]->store(ts, strlen(ts), cs);
-        my_free(ts);
-      }
       else
         table->field[24]->set_null();
     }
@@ -6696,6 +6750,92 @@ int make_schema_select(THD *thd, SELECT_LEX *sel,
 }
 
 
+/**
+  Fill INFORMATION_SCHEMA-table, leave correct Diagnostics_area /
+  Warning_info state after itself.
+
+  This function is a wrapper around ST_SCHEMA_TABLE::fill_table(), which
+  may "partially silence" some errors. The thing is that during
+  fill_table() many errors might be emitted. These errors stem from the
+  nature of fill_table().
+
+  For example, SELECT ... FROM INFORMATION_SCHEMA.xxx WHERE TABLE_NAME = 'xxx'
+  results in a number of 'Table <db name>.xxx does not exist' errors,
+  because fill_table() tries to open the 'xxx' table in every possible
+  database.
+
+  Those errors are cleared (the error status is cleared from
+  Diagnostics_area) inside fill_table(), but they remain in Warning_info
+  (Warning_info is not cleared because it may contain useful warnings).
+
+  This function is responsible for making sure that Warning_info does not
+  contain warnings corresponding to the cleared errors.
+
+  @note: THD::no_warnings_for_error used to be set before calling
+  fill_table(), thus those errors didn't go to Warning_info. This is not
+  the case now (THD::no_warnings_for_error was eliminated as a hack), so we
+  need to take care of those warnings here.
+
+  @param thd            Thread context.
+  @param table_list     I_S table.
+  @param join_table     JOIN/SELECT table.
+
+  @return Error status.
+  @retval TRUE Error.
+  @retval FALSE Success.
+*/
+static bool do_fill_table(THD *thd,
+                          TABLE_LIST *table_list,
+                          JOIN_TAB *join_table)
+{
+  // NOTE: fill_table() may generate many "useless" warnings, which will be
+  // ignored afterwards. On the other hand, there might be "useful"
+  // warnings, which should be presented to the user. Warning_info usually
+  // stores no more than THD::variables.max_error_count warnings.
+  // The problem is that "useless warnings" may occupy all the slots in the
+  // Warning_info, so "useful warnings" get rejected. In order to avoid
+  // that problem we create a Warning_info instance, which is capable of
+  // storing "unlimited" number of warnings.
+  Warning_info wi(thd->query_id, true);
+  Warning_info *wi_saved= thd->warning_info;
+
+  thd->warning_info= &wi;
+
+  bool res= table_list->schema_table->fill_table(
+    thd, table_list, join_table->condition());
+
+  thd->warning_info= wi_saved;
+
+  // Pass an error if any.
+
+  if (thd->stmt_da->is_error())
+  {
+    thd->warning_info->push_warning(thd,
+                                    thd->stmt_da->sql_errno(),
+                                    thd->stmt_da->get_sqlstate(),
+                                    MYSQL_ERROR::WARN_LEVEL_ERROR,
+                                    thd->stmt_da->message());
+  }
+
+  // Pass warnings (if any).
+  //
+  // Filter out warnings with WARN_LEVEL_ERROR level, because they
+  // correspond to the errors which were filtered out in fill_table().
+
+
+  List_iterator_fast<MYSQL_ERROR> it(wi.warn_list());
+  MYSQL_ERROR *err;
+
+  while ((err= it++))
+  {
+    if (err->get_level() != MYSQL_ERROR::WARN_LEVEL_ERROR)
+      thd->warning_info->push_warning(thd, err);
+  }
+
+  return res;
+}
+
+
 /*
   Fill temporary schema tables before SELECT
 
@@ -6718,7 +6858,6 @@ bool get_schema_tables_result(JOIN *join,
   bool result= 0;
   DBUG_ENTER("get_schema_tables_result");
 
-  thd->no_warnings_for_error= 1;
   for (JOIN_TAB *tab= join->join_tab; tab < tmp_join_tab; tab++)
   {  
     if (!tab->table || !tab->table->pos_in_table_list)
@@ -6769,8 +6908,7 @@ bool get_schema_tables_result(JOIN *join,
       else
         table_list->table->file->stats.records= 0;
 
-      if (table_list->schema_table->fill_table(thd, table_list,
-                                               tab->select_cond))
+      if (do_fill_table(thd, table_list, tab))
       {
         result= 1;
         join->error= 1;
@@ -6782,7 +6920,6 @@ bool get_schema_tables_result(JOIN *join,
       table_list->schema_table_state= executed_place;
     }
   }
-  thd->no_warnings_for_error= 0;
   DBUG_RETURN(result);
 }
 
@@ -7549,11 +7686,6 @@ ST_SCHEMA_TABLE schema_tables[]=
 };
 
 
-#ifdef HAVE_EXPLICIT_TEMPLATE_INSTANTIATION
-template class List_iterator_fast<char>;
-template class List<char>;
-#endif
-
 int initialize_schema_table(st_plugin_int *plugin)
 {
   ST_SCHEMA_TABLE *schema_table;
@@ -7839,7 +7971,7 @@ bool show_create_trigger(THD *thd, const sp_name *trg_name)
   /*
     Open the table by name in order to load Table_triggers_list object.
   */
-  if (open_tables(thd, &lst, &num_tables, MYSQL_OPEN_SKIP_TEMPORARY |
+  if (open_tables(thd, &lst, &num_tables,
                   MYSQL_OPEN_FORCE_SHARED_HIGH_PRIO_MDL))
   {
     my_error(ER_TRG_CANT_OPEN_TABLE, MYF(0),

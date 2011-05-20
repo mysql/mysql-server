@@ -27,6 +27,8 @@ int32 inserts= 0, N;
 LF_ALLOCATOR lf_allocator;
 LF_HASH lf_hash;
 
+int with_my_thread_init=0;
+
 /*
   pin allocator - alloc and release an element in a loop
 */
@@ -36,7 +38,8 @@ pthread_handler_t test_lf_pinbox(void *arg)
   int32 x= 0;
   LF_PINS *pins;
 
-  my_thread_init();
+  if (with_my_thread_init)
+    my_thread_init();
 
   pins= lf_pinbox_get_pins(&lf_allocator.pinbox);
 
@@ -49,7 +52,10 @@ pthread_handler_t test_lf_pinbox(void *arg)
   pthread_mutex_lock(&mutex);
   if (!--running_threads) pthread_cond_signal(&cond);
   pthread_mutex_unlock(&mutex);
-  my_thread_end();
+
+  if (with_my_thread_init)
+    my_thread_end();
+
   return 0;
 }
 
@@ -68,7 +74,8 @@ pthread_handler_t test_lf_alloc(void *arg)
   int32 x,y= 0;
   LF_PINS *pins;
 
-  my_thread_init();
+  if (with_my_thread_init)
+    my_thread_init();
 
   pins= lf_alloc_get_pins(&lf_allocator);
 
@@ -101,7 +108,9 @@ pthread_handler_t test_lf_alloc(void *arg)
   }
   if (!--running_threads) pthread_cond_signal(&cond);
   pthread_mutex_unlock(&mutex);
-  my_thread_end();
+
+  if (with_my_thread_init)
+    my_thread_end();
   return 0;
 }
 
@@ -112,7 +121,8 @@ pthread_handler_t test_lf_hash(void *arg)
   int32 x,y,z,sum= 0, ins= 0;
   LF_PINS *pins;
 
-  my_thread_init();
+  if (with_my_thread_init)
+    my_thread_init();
 
   pins= lf_hash_get_pins(&lf_hash);
 
@@ -152,14 +162,15 @@ pthread_handler_t test_lf_hash(void *arg)
   }
   if (!--running_threads) pthread_cond_signal(&cond);
   pthread_mutex_unlock(&mutex);
-  my_thread_end();
+  if (with_my_thread_init)
+    my_thread_end();
   return 0;
 }
 
 
 void do_tests()
 {
-  plan(4);
+  plan(7);
 
   lf_alloc_init(&lf_allocator, sizeof(TLA), offsetof(TLA, not_used));
   lf_hash_init(&lf_hash, sizeof(int), LF_HASH_UNIQUE, 0, sizeof(int), 0,
@@ -168,9 +179,15 @@ void do_tests()
   bad= my_atomic_initialize();
   ok(!bad, "my_atomic_initialize() returned %d", bad);
 
-  test_concurrently("lf_pinbox", test_lf_pinbox, N= THREADS, CYCLES);
-  test_concurrently("lf_alloc",  test_lf_alloc,  N= THREADS, CYCLES);
-  test_concurrently("lf_hash",   test_lf_hash,   N= THREADS, CYCLES/10);
+  with_my_thread_init= 1;
+  test_concurrently("lf_pinbox (with my_thread_init)", test_lf_pinbox, N= THREADS, CYCLES);
+  test_concurrently("lf_alloc (with my_thread_init)",  test_lf_alloc,  N= THREADS, CYCLES);
+  test_concurrently("lf_hash (with my_thread_init)",   test_lf_hash,   N= THREADS, CYCLES/10);
+
+  with_my_thread_init= 0;
+  test_concurrently("lf_pinbox (without my_thread_init)", test_lf_pinbox, N= THREADS, CYCLES);
+  test_concurrently("lf_alloc (without my_thread_init)",  test_lf_alloc,  N= THREADS, CYCLES);
+  test_concurrently("lf_hash (without my_thread_init)",   test_lf_hash,   N= THREADS, CYCLES/10);
 
   lf_hash_destroy(&lf_hash);
   lf_alloc_destroy(&lf_allocator);

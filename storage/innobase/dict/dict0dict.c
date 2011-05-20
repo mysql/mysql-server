@@ -54,7 +54,6 @@ UNIV_INTERN dict_index_t*	dict_ind_compact;
 #include "que0que.h"
 #include "rem0cmp.h"
 #include "row0merge.h"
-#include "srv0srv.h" /* srv_lower_case_table_names */
 #include "m_ctype.h" /* my_isspace() */
 #include "ha_prototypes.h" /* innobase_strcasecmp(), innobase_casedn_str() */
 #include "srv0mon.h"
@@ -1988,14 +1987,14 @@ too_big:
 	}
 
 	switch (dict_table_get_format(table)) {
-	case DICT_TF_FORMAT_51:
+	case UNIV_FORMAT_A:
 		/* ROW_FORMAT=REDUNDANT and ROW_FORMAT=COMPACT store
 		prefixes of externally stored columns locally within
 		the record.  There are no special considerations for
 		the undo log record size. */
 		goto undo_size_ok;
 
-	case DICT_TF_FORMAT_ZIP:
+	case UNIV_FORMAT_B:
 		/* In ROW_FORMAT=DYNAMIC and ROW_FORMAT=COMPRESSED,
 		column prefix indexes require that prefixes of
 		externally stored columns are written to the undo log.
@@ -2005,8 +2004,8 @@ too_big:
 		checked for below. */
 		break;
 
-#if DICT_TF_FORMAT_ZIP != DICT_TF_FORMAT_MAX
-# error "DICT_TF_FORMAT_ZIP != DICT_TF_FORMAT_MAX"
+#if UNIV_FORMAT_B != UNIV_FORMAT_MAX
+# error "UNIV_FORMAT_B != UNIV_FORMAT_MAX"
 #endif
 	}
 
@@ -3446,14 +3445,14 @@ dict_scan_table_name(
 	/* Values;  0 = Store and compare as given; case sensitive
 	            1 = Store and compare in lower; case insensitive
 	            2 = Store as given, compare in lower; case semi-sensitive */
-	if (srv_lower_case_table_names == 2) {
+	if (innobase_get_lower_case_table_names() == 2) {
 		innobase_casedn_str(ref);
 		*table = dict_table_get_low(ref);
 		memcpy(ref, database_name, database_name_len);
 		ref[database_name_len] = '/';
 		memcpy(ref + database_name_len + 1, table_name, table_name_len + 1);
 	} else {
-		if (srv_lower_case_table_names == 1) {
+		if (innobase_get_lower_case_table_names() == 1) {
 			innobase_casedn_str(ref);
 		}
 		*table = dict_table_get_low(ref);
@@ -5085,7 +5084,7 @@ dict_ind_init(void)
 	dict_table_t*		table;
 
 	/* create dummy table and index for REDUNDANT infimum and supremum */
-	table = dict_mem_table_create("SYS_DUMMY1", DICT_HDR_SPACE, 1, 0);
+	table = dict_mem_table_create("SYS_DUMMY1", DICT_HDR_SPACE, 1, 0, 0);
 	dict_mem_table_add_col(table, NULL, NULL, DATA_CHAR,
 			       DATA_ENGLISH | DATA_NOT_NULL, 8);
 
@@ -5097,7 +5096,8 @@ dict_ind_init(void)
 
 	/* create dummy table and index for COMPACT infimum and supremum */
 	table = dict_mem_table_create("SYS_DUMMY2",
-				      DICT_HDR_SPACE, 1, DICT_TF_COMPACT);
+				      DICT_HDR_SPACE, 1,
+				      DICT_TF_COMPACT, 0);
 	dict_mem_table_add_col(table, NULL, NULL, DATA_CHAR,
 			       DATA_ENGLISH | DATA_NOT_NULL, 8);
 	dict_ind_compact = dict_mem_index_create("SYS_DUMMY2", "SYS_DUMMY2",
@@ -5110,6 +5110,7 @@ dict_ind_init(void)
 	dict_ind_redundant->cached = dict_ind_compact->cached = TRUE;
 }
 
+#ifndef UNIV_HOTBACKUP
 /**********************************************************************//**
 Frees dict_ind_redundant and dict_ind_compact. */
 static
@@ -5130,7 +5131,6 @@ dict_ind_free(void)
 	dict_mem_table_free(table);
 }
 
-#ifndef UNIV_HOTBACKUP
 /**********************************************************************//**
 Get index by name
 @return	index, NULL if does not exist */
@@ -5472,9 +5472,8 @@ dict_close(void)
 		rw_lock_free(&dict_table_stats_latches[i]);
 	}
 }
-#endif /* !UNIV_HOTBACKUP */
 
-#ifdef UNIV_DEBUG
+# ifdef UNIV_DEBUG
 /**********************************************************************//**
 Validate the dictionary table LRU list.
 @return TRUE if valid  */
@@ -5559,4 +5558,5 @@ dict_non_lru_find_table(
 
 	return(FALSE);
 }
-#endif /* UNIV_DEBUG */
+# endif /* UNIV_DEBUG */
+#endif /* !UNIV_HOTBACKUP */

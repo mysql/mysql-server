@@ -17,10 +17,6 @@
 #ifndef _SP_HEAD_H_
 #define _SP_HEAD_H_
 
-#ifdef USE_PRAGMA_INTERFACE
-#pragma interface			/* gcc class implementation */
-#endif
-
 /*
   It is necessary to include set_var.h instead of item.h because there
   are dependencies on include order for set_var.h and item.h. This
@@ -560,7 +556,7 @@ public:
 
   /// Should give each a name or type code for debugging purposes?
   sp_instr(uint ip, sp_pcontext *ctx)
-    :Query_arena(0, INITIALIZED_FOR_SP), marked(0), m_ip(ip), m_ctx(ctx)
+    :Query_arena(0, STMT_INITIALIZED_FOR_SP), marked(0), m_ip(ip), m_ctx(ctx)
   {}
 
   virtual ~sp_instr()

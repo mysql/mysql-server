@@ -18,55 +18,42 @@
 #include "my_config.h"
 #include <gtest/gtest.h>
 
+#include "test_utils.h"
+
 #include "item.h"
 #include "sql_class.h"
-#include "rpl_handler.h"                        // delegates_init()
 
 namespace {
+
+using my_testing::Server_initializer;
+using my_testing::Mock_error_handler;
 
 class ItemTest : public ::testing::Test
 {
 protected:
-  /*
-    This is the part of the server global things which have to be initialized
-    for this (very simple) unit test. Presumably the list will grow once
-    we start writing tests for more advanced classes.
-    TODO: Move to a common library.
-   */
   static void SetUpTestCase()
   {
-    static char *my_name= strdup(my_progname);
-    char *argv[] = { my_name, 0 };
-    set_remaining_args(1, argv);
-    init_common_variables();
-    randominit(&sql_rand, 0, 0);
-    xid_cache_init();
-    delegates_init();
+    Server_initializer::SetUpTestCase();
   }
 
   static void TearDownTestCase()
   {
-    delegates_destroy();
-    xid_cache_free();
+    Server_initializer::TearDownTestCase();
   }
-
-  ItemTest() : m_thd(NULL) {}
 
   virtual void SetUp()
   {
-    m_thd= new THD(false);
-    THD *stack_thd= m_thd;
-    m_thd->thread_stack= (char*) &stack_thd;
-    m_thd->store_globals();
+    initializer.SetUp();
   }
 
   virtual void TearDown()
   {
-    m_thd->cleanup_after_query();
-    delete m_thd;
+    initializer.TearDown();
   }
 
-  THD      *m_thd;
+  THD *thd() { return initializer.thd(); }
+
+  Server_initializer initializer;
 };
 
 
@@ -182,10 +169,42 @@ TEST_F(ItemTest, ItemFuncDesDecrypt)
   Item_func_des_decrypt *item_decrypt=
     new Item_func_des_decrypt(item_two, item_one);
   
-  EXPECT_FALSE(item_decrypt->fix_fields(m_thd, NULL));
+  EXPECT_FALSE(item_decrypt->fix_fields(thd(), NULL));
   EXPECT_EQ(length, item_one->max_length);
   EXPECT_EQ(length, item_two->max_length);
   EXPECT_LE(item_decrypt->max_length, length);
+}
+
+
+TEST_F(ItemTest, ItemFuncIntDivOverflow)
+{
+  const char dividend_str[]=
+    "99999999999999999999999999999999999999999"
+    "99999999999999999999999999999999999999999";
+  const char divisor_str[]= "0.5";
+  Item_float *dividend= new Item_float(dividend_str, sizeof(dividend_str));
+  Item_float *divisor= new Item_float(divisor_str, sizeof(divisor_str));
+  Item_func_int_div* quotient= new Item_func_int_div(dividend, divisor);
+
+  Mock_error_handler error_handler(thd(), ER_TRUNCATED_WRONG_VALUE);
+  EXPECT_FALSE(quotient->fix_fields(thd(), NULL));
+  initializer.set_expected_error(ER_DATA_OUT_OF_RANGE);
+  quotient->val_int();
+}
+
+
+TEST_F(ItemTest, ItemFuncIntDivUnderflow)
+{
+  // Bug #11792200 - DIVIDING LARGE NUMBERS CAUSES STACK CORRUPTIONS
+  const char dividend_str[]= "1.175494351E-37";
+  const char divisor_str[]= "1.7976931348623157E+308";
+  Item_float *dividend= new Item_float(dividend_str, sizeof(dividend_str));
+  Item_float *divisor= new Item_float(divisor_str, sizeof(divisor_str));
+  Item_func_int_div* quotient= new Item_func_int_div(dividend, divisor);
+
+  Mock_error_handler error_handler(thd(), ER_TRUNCATED_WRONG_VALUE);
+  EXPECT_FALSE(quotient->fix_fields(thd(), NULL));
+  EXPECT_EQ(0, quotient->val_int());
 }
 
 
@@ -202,8 +221,8 @@ TEST_F(ItemTest, ItemFuncSetUserVar)
   LEX_STRING var_name= { C_STRING_WITH_LEN("a") };
   Item_func_set_user_var *user_var=
     new Item_func_set_user_var(var_name, item_str);
-  EXPECT_FALSE(user_var->set_entry(m_thd, true));
-  EXPECT_FALSE(user_var->fix_fields(m_thd, NULL));
+  EXPECT_FALSE(user_var->set_entry(thd(), true));
+  EXPECT_FALSE(user_var->fix_fields(thd(), NULL));
   EXPECT_EQ(val1, user_var->val_int());
   
   my_decimal decimal;
@@ -234,7 +253,7 @@ TEST_F(ItemTest, OutOfMemory)
   EXPECT_EQ(null_item, item);
 
   DBUG_SET("+d,simulate_out_of_memory");
-  item= new (m_thd->mem_root) Item_int(42);
+  item= new (thd()->mem_root) Item_int(42);
   EXPECT_EQ(null_item, item);
 #endif
 }
@@ -248,7 +267,7 @@ TEST_F(ItemTest, ItemFuncXor)
   Item_func_xor *item_xor=
     new Item_func_xor(item_zero, item_one_a);
 
-  EXPECT_FALSE(item_xor->fix_fields(m_thd, NULL));
+  EXPECT_FALSE(item_xor->fix_fields(thd(), NULL));
   EXPECT_EQ(1, item_xor->val_int());
   EXPECT_EQ(1U, item_xor->decimal_precision());
 
@@ -257,7 +276,7 @@ TEST_F(ItemTest, ItemFuncXor)
   Item_func_xor *item_xor_same=
     new Item_func_xor(item_one_a, item_one_b);
 
-  EXPECT_FALSE(item_xor_same->fix_fields(m_thd, NULL));
+  EXPECT_FALSE(item_xor_same->fix_fields(thd(), NULL));
   EXPECT_EQ(0, item_xor_same->val_int());
   EXPECT_FALSE(item_xor_same->val_bool());
   EXPECT_FALSE(item_xor_same->is_null());
@@ -266,8 +285,8 @@ TEST_F(ItemTest, ItemFuncXor)
   item_xor->print(&print_buffer, QT_ORDINARY);
   EXPECT_STREQ("(0 xor 1)", print_buffer.c_ptr_safe());
 
-  Item *neg_xor= item_xor->neg_transformer(m_thd);
-  EXPECT_FALSE(neg_xor->fix_fields(m_thd, NULL));
+  Item *neg_xor= item_xor->neg_transformer(thd());
+  EXPECT_FALSE(neg_xor->fix_fields(thd(), NULL));
   EXPECT_EQ(0, neg_xor->val_int());
   EXPECT_DOUBLE_EQ(0.0, neg_xor->val_real());
   EXPECT_FALSE(neg_xor->val_bool());
@@ -279,7 +298,7 @@ TEST_F(ItemTest, ItemFuncXor)
 
   Item_func_xor *item_xor_null=
     new Item_func_xor(item_zero, new Item_null());
-  EXPECT_FALSE(item_xor_null->fix_fields(m_thd, NULL));
+  EXPECT_FALSE(item_xor_null->fix_fields(thd(), NULL));
 
   EXPECT_EQ(0, item_xor_null->val_int());
   EXPECT_TRUE(item_xor_null->is_null());

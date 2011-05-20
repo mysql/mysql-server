@@ -41,10 +41,6 @@ TODO:
  -Brian
 */
 
-#ifdef USE_PRAGMA_IMPLEMENTATION
-#pragma implementation        // gcc: Class implementation
-#endif
-
 #include "my_global.h"
 #include "sql_priv.h"
 #include "sql_class.h"                          // SSV
@@ -133,14 +129,11 @@ static void init_tina_psi_keys(void)
   const char* category= "csv";
   int count;
 
-  if (PSI_server == NULL)
-    return;
-
   count= array_elements(all_tina_mutexes);
-  PSI_server->register_mutex(category, all_tina_mutexes, count);
+  mysql_mutex_register(category, all_tina_mutexes, count);
 
   count= array_elements(all_tina_files);
-  PSI_server->register_file(category, all_tina_files, count);
+  mysql_file_register(category, all_tina_files, count);
 }
 #endif /* HAVE_PSI_INTERFACE */
 

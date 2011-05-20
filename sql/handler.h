@@ -3,24 +3,22 @@
 
 /* Copyright (c) 2000, 2011, Oracle and/or its affiliates. All rights reserved.
 
-   This program is free software; you can redistribute it and/or modify
-   it under the terms of the GNU General Public License as published by
-   the Free Software Foundation; version 2 of the License.
+   This program is free software; you can redistribute it and/or
+   modify it under the terms of the GNU General Public License
+   as published by the Free Software Foundation; version 2 of
+   the License.
 
    This program is distributed in the hope that it will be useful,
    but WITHOUT ANY WARRANTY; without even the implied warranty of
-   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
    GNU General Public License for more details.
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
-   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
+   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA
+   02110-1301  USA */
 
 /* Definitions for parameters to do with handler-routines */
-
-#ifdef USE_PRAGMA_INTERFACE
-#pragma interface			/* gcc class implementation */
-#endif
 
 #include "sql_const.h"
 #include "mysqld.h"                             /* server_id */
@@ -30,7 +28,7 @@
 #include "structs.h"                            /* SHOW_COMP_OPTION */
 
 #include <my_global.h>
-#include <my_handler.h>
+#include <my_compare.h>
 #include <ft_global.h>
 #include <keycache.h>
 
@@ -61,7 +59,7 @@
   a table with rnd_next()
   - We will see all rows (including deleted ones)
   - Row positions are 'table->s->db_record_offset' apart
-  If this flag is not set, filesort will do a postion() call for each matched
+  If this flag is not set, filesort will do a position() call for each matched
   row to be able to find the row later.
 */
 #define HA_REC_NOT_IN_SEQ      (1 << 3)
@@ -838,145 +836,6 @@ struct handlerton
 */
 #define HTON_NO_BINLOG_ROW_OPT       (1 << 9)
 
-class Ha_trx_info;
-
-struct THD_TRANS
-{
-  /* true is not all entries in the ht[] support 2pc */
-  bool        no_2pc;
-  /* storage engines that registered in this transaction */
-  Ha_trx_info *ha_list;
-  /* 
-    The purpose of this flag is to keep track of non-transactional
-    tables that were modified in scope of:
-    - transaction, when the variable is a member of
-    THD::transaction.all
-    - top-level statement or sub-statement, when the variable is a
-    member of THD::transaction.stmt
-    This member has the following life cycle:
-    * stmt.modified_non_trans_table is used to keep track of
-    modified non-transactional tables of top-level statements. At
-    the end of the previous statement and at the beginning of the session,
-    it is reset to FALSE.  If such functions
-    as mysql_insert, mysql_update, mysql_delete etc modify a
-    non-transactional table, they set this flag to TRUE.  At the
-    end of the statement, the value of stmt.modified_non_trans_table 
-    is merged with all.modified_non_trans_table and gets reset.
-    * all.modified_non_trans_table is reset at the end of transaction
-    
-    * Since we do not have a dedicated context for execution of a
-    sub-statement, to keep track of non-transactional changes in a
-    sub-statement, we re-use stmt.modified_non_trans_table. 
-    At entrance into a sub-statement, a copy of the value of
-    stmt.modified_non_trans_table (containing the changes of the
-    outer statement) is saved on stack. Then 
-    stmt.modified_non_trans_table is reset to FALSE and the
-    substatement is executed. Then the new value is merged with the
-    saved value.
-  */
-  bool modified_non_trans_table;
-
-  void reset() { no_2pc= FALSE; modified_non_trans_table= FALSE; }
-  bool is_empty() const { return ha_list == NULL; }
-};
-
-
-/**
-  Either statement transaction or normal transaction - related
-  thread-specific storage engine data.
-
-  If a storage engine participates in a statement/transaction,
-  an instance of this class is present in
-  thd->transaction.{stmt|all}.ha_list. The addition to
-  {stmt|all}.ha_list is made by trans_register_ha().
-
-  When it's time to commit or rollback, each element of ha_list
-  is used to access storage engine's prepare()/commit()/rollback()
-  methods, and also to evaluate if a full two phase commit is
-  necessary.
-
-  @sa General description of transaction handling in handler.cc.
-*/
-
-class Ha_trx_info
-{
-public:
-  /** Register this storage engine in the given transaction context. */
-  void register_ha(THD_TRANS *trans, handlerton *ht_arg)
-  {
-    DBUG_ASSERT(m_flags == 0);
-    DBUG_ASSERT(m_ht == NULL);
-    DBUG_ASSERT(m_next == NULL);
-
-    m_ht= ht_arg;
-    m_flags= (int) TRX_READ_ONLY; /* Assume read-only at start. */
-
-    m_next= trans->ha_list;
-    trans->ha_list= this;
-  }
-
-  /** Clear, prepare for reuse. */
-  void reset()
-  {
-    m_next= NULL;
-    m_ht= NULL;
-    m_flags= 0;
-  }
-
-  Ha_trx_info() { reset(); }
-
-  void set_trx_read_write()
-  {
-    DBUG_ASSERT(is_started());
-    m_flags|= (int) TRX_READ_WRITE;
-  }
-  bool is_trx_read_write() const
-  {
-    DBUG_ASSERT(is_started());
-    return m_flags & (int) TRX_READ_WRITE;
-  }
-  bool is_started() const { return m_ht != NULL; }
-  /** Mark this transaction read-write if the argument is read-write. */
-  void coalesce_trx_with(const Ha_trx_info *stmt_trx)
-  {
-    /*
-      Must be called only after the transaction has been started.
-      Can be called many times, e.g. when we have many
-      read-write statements in a transaction.
-    */
-    DBUG_ASSERT(is_started());
-    if (stmt_trx->is_trx_read_write())
-      set_trx_read_write();
-  }
-  Ha_trx_info *next() const
-  {
-    DBUG_ASSERT(is_started());
-    return m_next;
-  }
-  handlerton *ht() const
-  {
-    DBUG_ASSERT(is_started());
-    return m_ht;
-  }
-private:
-  enum { TRX_READ_ONLY= 0, TRX_READ_WRITE= 1 };
-  /** Auxiliary, used for ha_list management */
-  Ha_trx_info *m_next;
-  /**
-    Although a given Ha_trx_info instance is currently always used
-    for the same storage engine, 'ht' is not-NULL only when the
-    corresponding storage is a part of a transaction.
-  */
-  handlerton *m_ht;
-  /**
-    Transaction flags related to this engine.
-    Not-null only if this instance is a part of transaction.
-    May assume a combination of enum values above.
-  */
-  uchar       m_flags;
-};
-
-
 enum enum_tx_isolation { ISO_READ_UNCOMMITTED, ISO_READ_COMMITTED,
 			 ISO_REPEATABLE_READ, ISO_SERIALIZABLE};
 
@@ -1542,7 +1401,7 @@ public:
     DBUG_ASSERT(m_lock_type == F_UNLCK);
     DBUG_ASSERT(inited == NONE);
   }
-  virtual handler *clone(MEM_ROOT *mem_root);
+  virtual handler *clone(const char *name, MEM_ROOT *mem_root);
   /** This is called after create to allow us to set up cached variables */
   void init()
   {
@@ -1816,9 +1675,12 @@ public:
   }
   /**
      @brief
-     Positions an index cursor to the index specified in the handle. Fetches the
-     row if available. If the key value is null, begin at the first key of the
-     index.
+     Positions an index cursor to the index specified in the handle
+     ('active_index'). Fetches the row if available. If the key value is null,
+     begin at the first key of the index.
+     @returns 0 if success (found a record, and function has set table->status
+     to 0); non-zero if no record (function has set table->status to
+     STATUS_NOT_FOUND).
   */
   virtual int index_read_map(uchar * buf, const uchar * key,
                              key_part_map keypart_map,
@@ -1830,27 +1692,34 @@ public:
 protected:
   /**
      @brief
-     Positions an index cursor to the index specified in the handle. Fetches the
-     row if available. If the key value is null, begin at the first key of the
-     index.
+     Positions an index cursor to the index specified in argument. Fetches
+     the row if available. If the key value is null, begin at the first key of
+     the index.
+     @returns @see index_read_map().
   */
   virtual int index_read_idx_map(uchar * buf, uint index, const uchar * key,
                                  key_part_map keypart_map,
                                  enum ha_rkey_function find_flag);
+  /// @returns @see index_read_map().
   virtual int index_next(uchar * buf)
    { return  HA_ERR_WRONG_COMMAND; }
+  /// @returns @see index_read_map().
   virtual int index_prev(uchar * buf)
    { return  HA_ERR_WRONG_COMMAND; }
+  /// @returns @see index_read_map().
   virtual int index_first(uchar * buf)
    { return  HA_ERR_WRONG_COMMAND; }
+  /// @returns @see index_read_map().
   virtual int index_last(uchar * buf)
    { return  HA_ERR_WRONG_COMMAND; }
 public:
+  /// @returns @see index_read_map().
   virtual int index_next_same(uchar *buf, const uchar *key, uint keylen);
   /**
      @brief
      The following functions works like index_read, but it find the last
      row with the current key value or prefix.
+     @returns @see index_read_map().
   */
   virtual int index_read_last_map(uchar * buf, const uchar * key,
                                   key_part_map keypart_map)
@@ -1870,7 +1739,9 @@ public:
     { return NULL; }
   virtual int ft_read(uchar *buf) { return HA_ERR_WRONG_COMMAND; }
 protected:
+  /// @returns @see index_read_map().
   virtual int rnd_next(uchar *buf)=0;
+  /// @returns @see index_read_map().
   virtual int rnd_pos(uchar * buf, uchar *pos)=0;
 public:
   /**
@@ -1985,7 +1856,6 @@ public:
   { return FALSE; }
   virtual char* get_foreign_key_create_info()
   { return(NULL);}  /* gets foreign key create string from InnoDB */
-  virtual char* get_tablespace_name(THD *thd, char *name, uint name_len);
   /** used in ALTER TABLE; 1 if changing storage engine is allowed */
   virtual bool can_switch_engines() { return 1; }
   /**
