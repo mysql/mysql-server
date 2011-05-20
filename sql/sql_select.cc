@@ -3002,6 +3002,7 @@ make_join_statistics(JOIN *join, TABLE_LIST *tables_arg, COND *conds,
              if (bitmap_is_set(stat[j].dependent, i) &&
                  bitmap_is_set(stat[i].dependent, k))
                bitmap_set_bit(stat[j].dependent, k);
+           }
          }
        }  
     */
