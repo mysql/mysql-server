@@ -229,6 +229,9 @@ INSERT INTO t3 VALUES
 ('BEL','Dutch',59.2),('BLZ','English',50.8);
 --enable_query_log
 
+# Disable materialization to avoid races between query plans
+set @bug35674_save_optimizer_switch=@@optimizer_switch;
+set optimizer_switch='materialization=off';
 EXPLAIN
 SELECT Name FROM t2 
   WHERE t2.Code IN (SELECT Country FROM t1 WHERE Population > 5000000)
@@ -236,6 +239,7 @@ SELECT Name FROM t2
         t2.Code IN (SELECT Country FROM t3 
                            WHERE Language='English' AND Percentage > 10 AND
                                  t2.Population > 100000);
+set optimizer_switch=@bug35674_save_optimizer_switch;
 
 DROP TABLE t1,t2,t3;
   
