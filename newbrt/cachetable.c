@@ -83,7 +83,6 @@ struct ctpair {
     enum cachetable_dirty dirty;
 
     char     verify_flag;        // Used in verify_cachetable()
-    BOOL     write_me;           // write_pair 
     BOOL     remove_me;          // write_pair
 
     u_int32_t fullhash;
@@ -1157,8 +1156,7 @@ static void cachetable_complete_write_pair (CACHETABLE ct, PAIR p, BOOL do_remov
 
 // Write a pair to storage
 // Effects: an exclusive lock on the pair is obtained, the write callback is called,
-// the pair dirty state is adjusted, and the write is completed.  The write_me boolean
-// is true when the pair is dirty and the pair is requested to be written.  The keep_me
+// the pair dirty state is adjusted, and the write is completed.  The keep_me
 // boolean is true, so the pair is not yet evicted from the cachetable.
 // Requires: This thread must hold the write lock for the pair.
 static void cachetable_write_pair(CACHETABLE ct, PAIR p) {
@@ -1171,7 +1169,7 @@ static void cachetable_write_pair(CACHETABLE ct, PAIR p) {
     void *value = p->value;
     void *extraargs = p->extraargs;
     long size = p->size;
-    BOOL dowrite = (BOOL)(p->dirty && p->write_me);
+    BOOL dowrite = (BOOL)(p->dirty);
     BOOL for_checkpoint = p->checkpoint_pending;
 
     //Must set to FALSE before releasing cachetable lock
@@ -1187,8 +1185,7 @@ static void cachetable_write_pair(CACHETABLE ct, PAIR p) {
     rwlock_read_unlock(&cachefile->fdlock);
 
     // the pair is no longer dirty once written
-    if (p->dirty && p->write_me)
-        p->dirty = CACHETABLE_CLEAN;
+    p->dirty = CACHETABLE_CLEAN;
 
     assert(!p->checkpoint_pending);
     rwlock_read_unlock(&ct->pending_lock);
@@ -1224,20 +1221,19 @@ static void cachetable_complete_write_pair (CACHETABLE ct, PAIR p, BOOL do_remov
 // flush and remove a pair from the cachetable.  the callbacks are run by a thread in
 // a thread pool.
 
-static void flush_and_maybe_remove (CACHETABLE ct, PAIR p, BOOL write_me) {
+static void flush_and_maybe_remove (CACHETABLE ct, PAIR p) {
     rwlock_write_lock(&p->rwlock, ct->mutex);
     p->state = CTPAIR_WRITING;
     assert(ct->size_writing>=0);
     ct->size_writing += p->size;
     assert(ct->size_writing >= 0);
-    p->write_me = write_me;
     p->remove_me = TRUE;
 #if DO_WORKER_THREAD
     WORKITEM wi = &p->asyncwork;
     workitem_init(wi, cachetable_writer, p);
     // evictions without a write or unpinned pair's that are clean
     // can be run in the current thread
-    if (!p->write_me || (!rwlock_readers(&p->rwlock) && !p->dirty)) {
+    if (!rwlock_readers(&p->rwlock) && !p->dirty) {
         cachetable_write_pair(ct, p);
     } else {
 #if !TOKU_CACHETABLE_DO_EVICT_FROM_WRITER
@@ -1264,7 +1260,7 @@ again:
 	PAIR remove_me;
 	for (remove_me = ct->tail; remove_me; remove_me = remove_me->prev) {
 	    if (remove_me->state == CTPAIR_IDLE && !rwlock_users(&remove_me->rwlock)) {
-		flush_and_maybe_remove(ct, remove_me, TRUE);
+		flush_and_maybe_remove(ct, remove_me);
 		goto again;
 	    }
 	}
@@ -1409,7 +1405,6 @@ write_pair_for_checkpoint (CACHETABLE ct, PAIR p, BOOL write_if_dirty)
             assert(ct->size_writing>=0);
             ct->size_writing += p->size;
             assert(ct->size_writing>=0);
-            p->write_me = TRUE;
             p->remove_me = FALSE;
             workitem_init(&p->asyncwork, NULL, p);
             cachetable_write_pair(ct, p);    // releases the write lock on the pair
@@ -1928,7 +1923,7 @@ static int cachetable_flush_cachefile(CACHETABLE ct, CACHEFILE cf) {
             nfound++;
             p->cq = &cq;
             if (p->state == CTPAIR_IDLE)
-                flush_and_maybe_remove(ct, p, TRUE);
+                flush_and_maybe_remove(ct, p);
         }
         ctpair_destroy(p);     //Release our reference
     }
