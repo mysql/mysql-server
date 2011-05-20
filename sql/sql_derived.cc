@@ -857,14 +857,13 @@ bool mysql_derived_create(THD *thd, LEX *lex, TABLE_LIST *derived)
 
 bool mysql_derived_fill(THD *thd, LEX *lex, TABLE_LIST *derived)
 {
-  TABLE *table= derived->table;
   SELECT_LEX_UNIT *unit= derived->get_unit();
   bool res= FALSE;
 
   if (unit->executed && !unit->uncacheable && !unit->describe)
     return FALSE;
   /*check that table creation passed without problems. */
-  DBUG_ASSERT(table && table->created);
+  DBUG_ASSERT(derived->table && derived->table->created);
   SELECT_LEX *first_select= unit->first_select();
   select_union *derived_result= derived->derived_result;
   SELECT_LEX *save_current_select= lex->current_select;
