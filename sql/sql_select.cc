@@ -18154,7 +18154,7 @@ get_sort_by_table(ORDER *a,ORDER *b, List<TABLE_LIST> &tables)
   if (!map || (map & (RAND_TABLE_BIT | OUTER_REF_TABLE_BIT)))
     DBUG_RETURN(0);
 
-  while ((table= ti++) && !(map & table->table->map));
+  while ((table= ti++) && !(map & table->table->map)) ;
   if (map != table->table->map)
     DBUG_RETURN(0);				// More than one table
   DBUG_PRINT("exit",("sort by table: %d",table->table->tablenr));
