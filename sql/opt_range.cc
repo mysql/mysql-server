@@ -2223,8 +2223,8 @@ int SQL_SELECT::test_quick_select(THD *thd, key_map keys_to_use,
   records= head->file->stats.records;
   if (!records)
     records++;					/* purecov: inspected */
-  scan_time= (double) records / TIME_FOR_COMPARE + 1;
-  read_time= (double) head->file->scan_time() + scan_time + 1.1;
+  scan_time= records * ROW_EVALUATE_COST + 1;
+  read_time= head->file->scan_time() + scan_time + 1.1;
   if (head->force_index)
     scan_time= read_time= DBL_MAX;
   if (limit < records)
@@ -2324,7 +2324,7 @@ int SQL_SELECT::test_quick_select(THD *thd, key_map keys_to_use,
       double key_read_time= 
         param.table->file->index_only_read_time(key_for_use, 
                                                 rows2double(records)) +
-        (double) records / TIME_FOR_COMPARE;
+        records * ROW_EVALUATE_COST;
       DBUG_PRINT("info",  ("'all'+'using index' scan will be using key %d, "
                            "read time %g", key_for_use, key_read_time));
       if (key_read_time < read_time)
@@ -3877,7 +3877,7 @@ TABLE_READ_PLAN *get_best_disjunct_quick(PARAM *param, SEL_IMERGE *imerge,
       Add one ROWID comparison for each row retrieved on non-CPK scan.  (it
       is done in QUICK_RANGE_SELECT::row_in_ranges)
      */
-    imerge_cost += non_cpk_scan_records / TIME_FOR_COMPARE_ROWID;
+    imerge_cost += non_cpk_scan_records * ROWID_COMPARE_COST;
   }
 
   /* Calculate cost(rowid_to_row_scan) */
@@ -3966,7 +3966,7 @@ skip_to_ror_scan:
       cost= param->table->file->
               read_time(param->real_keynr[(*cur_child)->key_idx], 1,
                         (*cur_child)->records) +
-              rows2double((*cur_child)->records) / TIME_FOR_COMPARE;
+              rows2double((*cur_child)->records) * ROW_EVALUATE_COST;
     }
     else
       cost= read_time;
@@ -4013,8 +4013,8 @@ skip_to_ror_scan:
     get_sweep_read_cost(param->table, roru_total_records, is_interrupted,
                         &sweep_cost);
     roru_total_cost= roru_index_costs +
-                     rows2double(roru_total_records)*log((double)n_child_scans) /
-                     (TIME_FOR_COMPARE_ROWID * M_LN2) +
+                     rows2double(roru_total_records) *
+                     log((double)n_child_scans) * ROWID_COMPARE_COST / M_LN2 +
                      sweep_cost.total_cost();
   }
 
@@ -4469,11 +4469,11 @@ static bool ror_intersect_add(ROR_INTERSECT_INFO *info,
   {
     /*
       CPK scan is used to filter out rows. We apply filtering for 
-      each record of every scan. Assuming 1/TIME_FOR_COMPARE_ROWID
+      each record of every scan. Assuming ROWID_COMPARE_COST
       per check this gives us:
     */
-    info->index_scan_costs += rows2double(info->index_records) / 
-                              TIME_FOR_COMPARE_ROWID;
+    info->index_scan_costs += rows2double(info->index_records) * 
+                              ROWID_COMPARE_COST;
   }
   else
   {
@@ -4856,9 +4856,9 @@ TRP_ROR_INTERSECT *get_best_covering_ror_intersect(PARAM *param,
                                            tree->ror_scans, ror_scan_mark););
 
   /* Add priority queue use cost. */
-  total_cost += rows2double(records)*
-                log((double)(ror_scan_mark - tree->ror_scans)) /
-                (TIME_FOR_COMPARE_ROWID * M_LN2);
+  total_cost += rows2double(records) *
+                log((double)(ror_scan_mark - tree->ror_scans)) *
+                ROWID_COMPARE_COST / M_LN2;
   DBUG_PRINT("info", ("Covering ROR-intersect full cost: %g", total_cost));
 
   if (total_cost > read_time)
@@ -7069,11 +7069,53 @@ key_or(RANGE_OPT_PARAM *param, SEL_ARG *key1,SEL_ARG *key2)
         This is the case ("cmp>=0" means that tmp.max >= key2.min):
         key2:              [----]
         tmp:     [------------*****]
+      */
 
+      if (!tmp->next_key_part)
+      {
+        /*
+          tmp->next_key_part is empty: cut the range that is covered
+          by tmp from key2. 
+          Reason: (key2->next_key_part OR tmp->next_key_part) will be
+          empty and therefore equal to tmp->next_key_part. Thus, this
+          part of the key2 range is completely covered by tmp.
+        */
+        if (tmp->cmp_max_to_max(key2) >= 0)
+        {
+          /*
+            tmp covers the entire range in key2. 
+            key2:              [----]
+            tmp:     [-----------------]
+
+            Move on to next range in key2
+          */
+          key2->increment_use_count(-1); // Free not used tree
+          key2=key2->next;
+          continue;
+        }
+        else
+        {
+          /*
+            This is the case:
+            key2:           [-------]
+            tmp:     [---------]
+
+            Result:
+            key2:               [---]
+            tmp:     [---------]
+          */
+          key2->copy_max_to_min(tmp);
+          continue;
+        }
+      }
+
+      /*
         The ranges are overlapping but have not been merged because
-        next_key_part of tmp and key2 are different
+        next_key_part of tmp and key2 differ. 
+        key2:              [----]
+        tmp:     [------------*****]
 
-        Result:
+        Split tmp in two where key2 starts:
         key2:              [----]
         key1:    [--------][--*****]
                  ^         ^
@@ -7082,7 +7124,7 @@ key_or(RANGE_OPT_PARAM *param, SEL_ARG *key1,SEL_ARG *key2)
       SEL_ARG *new_arg=tmp->clone_first(key2);
       if (!new_arg)
         return 0;                               // OOM
-      if ((new_arg->next_key_part= key1->next_key_part))
+      if ((new_arg->next_key_part= tmp->next_key_part))
         new_arg->increment_use_count(key1->use_count+1);
       tmp->copy_min_to_min(key2);
       key1=key1->insert(new_arg);
@@ -7191,12 +7233,21 @@ key_or(RANGE_OPT_PARAM *param, SEL_ARG *key1,SEL_ARG *key2)
                       ^        ^
                       new_arg  tmp
           Steps:
+           0) If tmp->next_key_part is empty: do nothing. Reason:
+              (key2_cpy->next_key_part OR tmp->next_key_part) will be
+              empty and therefore equal to tmp->next_key_part. Thus,
+              the range in key2_cpy is completely covered by tmp
            1) Make new_arg with range [tmp.min, key2_cpy.max].
               new_arg->next_key_part is OR between next_key_part
               of tmp and key2_cpy
            2) Make tmp the range [key2.max, tmp.max]
            3) Insert new_arg into key1
         */
+        if (!tmp->next_key_part) // Step 0
+        {
+          key2_cpy.increment_use_count(-1);     // Free not used tree
+          break;
+        }
         SEL_ARG *new_arg=tmp->clone_last(&key2_cpy);
         if (!new_arg)
           return 0; // OOM
@@ -10776,7 +10827,7 @@ void cost_group_min_max(TABLE* table, KEY *index_info, uint used_key_parts,
     no CPU cost. We leave it here to make this cost comparable to that of index
     scan as computed in SQL_SELECT::test_quick_select().
   */
-  cpu_cost= (double) num_groups / TIME_FOR_COMPARE;
+  cpu_cost= num_groups * ROW_EVALUATE_COST;
 
   *read_cost= io_cost + cpu_cost;
   *records= num_groups;

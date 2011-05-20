@@ -525,6 +525,7 @@ while (`SELECT HEX(@commands) != HEX('')`)
   }
   if (`SELECT HEX(@command) = HEX('R')`)
   {
+    --replace_column 2 #
     --error 0, ER_GET_ERRMSG
     eval ROLLBACK;
   }
@@ -539,7 +540,8 @@ while (`SELECT HEX(@commands) != HEX('')`)
     {
       --dec $sn
     }
-     eval ROLLBACK TO S_$sn;
+    --replace_column 2 #
+    eval ROLLBACK TO S_$sn;
   }
   if (`SELECT HEX(@command) = HEX('Cn')`)
   {

@@ -1,5 +1,5 @@
 #ifndef BINLOG_H_INCLUDED
-/* Copyright (c) 2010, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2010, 2011, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -106,8 +106,8 @@ class MYSQL_BIN_LOG: public TC_LOG, private MYSQL_LOG
   int new_file_impl(bool need_lock);
 
 public:
-  MYSQL_LOG::generate_name;
-  MYSQL_LOG::is_open;
+  using MYSQL_LOG::generate_name;
+  using MYSQL_LOG::is_open;
 
   /* This is relay log */
   bool is_relay_log;
@@ -323,8 +323,8 @@ bool stmt_has_updated_trans_table(const THD *thd);
 bool use_trans_cache(const THD* thd, bool is_transactional);
 bool ending_trans(THD* thd, const bool all);
 bool ending_single_stmt_trans(THD* thd, const bool all);
-bool trans_has_updated_non_trans_table(const THD* thd);
-bool stmt_has_updated_non_trans_table(const THD* thd);
+bool trans_cannot_safely_rollback(const THD* thd);
+bool stmt_cannot_safely_rollback(const THD* thd);
 
 int log_loaded_block(IO_CACHE* file);
 File open_binlog(IO_CACHE *log, const char *log_file_name,
