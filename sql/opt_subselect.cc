@@ -1551,6 +1551,7 @@ void advance_sj_state(JOIN *join, table_map remaining_tables,
   pos->prefix_record_count= *current_record_count;
   pos->sj_strategy= SJ_OPT_NONE;
   
+  pos->prefix_dups_producing_tables= join->cur_dups_producing_tables;
   /* Initialize the state or copy it from prev. tables */
   if (idx == join->const_tables)
   {
@@ -1983,7 +1984,6 @@ void advance_sj_state(JOIN *join, table_map remaining_tables,
       }
     }
   }
-  pos->prefix_dups_producing_tables= join->cur_dups_producing_tables;
 }
 
 
