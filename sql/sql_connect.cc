@@ -708,6 +708,32 @@ pthread_handler_t handle_one_connection(void *arg)
   return 0;
 }
 
+bool thd_prepare_connection(THD *thd)
+{
+  bool rc;
+  lex_start(thd);
+  rc= login_connection(thd);
+  MYSQL_AUDIT_NOTIFY_CONNECTION_CONNECT(thd);
+  if (rc)
+    return rc;
+
+  MYSQL_CONNECTION_START(thd->thread_id, &thd->security_ctx->priv_user[0],
+                         (char *) thd->security_ctx->host_or_ip);
+
+  prepare_new_connection_state(thd);
+  return FALSE;
+}
+
+bool thd_is_connection_alive(THD *thd)
+{
+  NET *net= &thd->net;
+  if (!net->error &&
+      net->vio != 0 &&
+      !(thd->killed == THD::KILL_CONNECTION))
+    return TRUE;
+  return FALSE;
+}
+
 void do_handle_one_connection(THD *thd_arg)
 {
   THD *thd= thd_arg;
@@ -750,22 +776,13 @@ void do_handle_one_connection(THD *thd_arg)
 
   for (;;)
   {
-    NET *net= &thd->net;
     bool rc;
 
-    lex_start(thd);
-    rc= login_connection(thd);
-    MYSQL_AUDIT_NOTIFY_CONNECTION_CONNECT(thd);
+    rc= thd_prepare_connection(thd);
     if (rc)
       goto end_thread;
 
-    MYSQL_CONNECTION_START(thd->thread_id, &thd->security_ctx->priv_user[0],
-                           (char *) thd->security_ctx->host_or_ip);
-
-    prepare_new_connection_state(thd);
-
-    while (!net->error && net->vio != 0 &&
-           !(thd->killed == THD::KILL_CONNECTION))
+    while (thd_is_connection_alive(thd))
     {
       mysql_audit_release(thd);
       if (do_command(thd))

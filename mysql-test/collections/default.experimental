@@ -28,6 +28,7 @@ sys_vars.wait_timeout_func                    # Bug#41255 2010-04-26 alik wait_t
 sys_vars.ndb_log_update_as_write_basic
 sys_vars.have_ndbcluster_basic
 sys_vars.ndb_log_updated_only_basic
+sys_vars.rpl_init_slave_func		 # Bug#12535301 2011-05-09 andrei sys_vars.rpl_init_slave_func mismatches in daily-5.5
 
 main.gis-rtree                           # svoj: due to BUG#38965
 main.type_float                          # svoj: due to BUG#38965
