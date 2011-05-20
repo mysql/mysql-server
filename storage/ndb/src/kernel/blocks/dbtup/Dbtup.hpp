@@ -1740,11 +1740,12 @@ public:
    * specified by location of original tuple and version number.  Input
    * is attribute ids in AttributeHeader format.  Output is attribute
    * data with headers.  Uses readAttributes with xfrm option set.
+   * After wl4163, xfrm is not set.
    * Returns number of words or negative (-terrorCode) on error.
    */
   int tuxReadAttrs(EmulatedJamBuffer*,
                    Uint32 fragPtrI, Uint32 pageId, Uint32 pageOffset, Uint32 tupVersion,
-                   const Uint32* attrIds, Uint32 numAttrs, Uint32* dataOut);
+                   const Uint32* attrIds, Uint32 numAttrs, Uint32* dataOut, bool xfrmFlag);
 
   /*
    * TUX reads primary key without headers into an array of words.  Used
