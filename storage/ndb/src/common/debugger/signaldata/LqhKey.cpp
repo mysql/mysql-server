@@ -65,7 +65,9 @@ printLQHKEYREQ(FILE * output, const Uint32 * theData, Uint32 len, Uint16 receive
     fprintf(output, "GCI ");
   if(LqhKeyReq::getQueueOnRedoProblemFlag(reqInfo))
     fprintf(output, "Queue ");
-  
+  if(LqhKeyReq::getDeferredConstraints(reqInfo))
+    fprintf(output, "Deferred-constraints ");
+
   fprintf(output, "ScanInfo/noFiredTriggers: H\'%x\n", sig->scanInfo);
   
   fprintf(output,

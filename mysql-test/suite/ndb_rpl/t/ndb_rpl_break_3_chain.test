@@ -1,0 +1,122 @@
+--source include/have_ndb.inc
+
+# setup replication 1->2->3
+--let $rpl_topology= 1->2->3
+--source include/rpl_init.inc
+
+# create connections to first mysqld in each cluster
+--let $rpl_connection_name= cluster1
+--let $rpl_server_number= 1
+--source include/rpl_connect.inc
+
+--let $rpl_connection_name= cluster2
+--let $rpl_server_number= 2
+--source include/rpl_connect.inc
+
+--let $rpl_connection_name= cluster3
+--let $rpl_server_number= 3
+--source include/rpl_connect.inc
+
+--let $rpl_connection_name= cluster1
+--source include/rpl_connection.inc
+show variables like 'server_id';
+select @cluster1_server_id:=(variable_value+0) 
+       from information_schema.global_variables 
+       where variable_name like 'server_id';
+
+let $CLUSTER1_SERVER_ID= query_get_value('select @cluster1_server_id as v',v,1);
+
+--let $rpl_connection_name= cluster2
+--source include/rpl_connection.inc
+show variables like 'server_id';
+
+--let $rpl_connection_name= cluster3
+--source include/rpl_connection.inc
+show variables like 'server_id';
+
+--echo First show replication 1->2->3
+--let $rpl_connection_name= cluster1
+--source include/rpl_connection.inc
+use test;
+create table t1(a int primary key, b varchar(50)) engine=ndb;
+
+insert into t1 values (1,'Summertime');
+
+--sync_slave_with_master cluster2
+--echo Cluster2 has insert and apply_status from Cluster1
+show variables like 'server_id';
+--replace_column 2 # 3 # 4 # 5 #
+select * from mysql.ndb_apply_status order by server_id;
+select * from test.t1;
+
+--sync_slave_with_master cluster3
+--echo Cluster3 has insert and apply_status from Cluster1+2
+show variables like 'server_id';
+--replace_column 2 # 3 # 4 # 5 #
+select * from mysql.ndb_apply_status order by server_id;
+select * from test.t1;
+
+--echo Break Cluster3's link with Cluster2
+--let $rpl_connection_name= cluster3
+--source include/rpl_connection.inc
+
+--source include/stop_slave.inc
+
+--echo Make further changes on Cluster1
+--let $rpl_connection_name= cluster1
+--source include/rpl_connection.inc
+insert into test.t1 values (2, "The cotton is high");
+insert into test.t1 values (3, "Daddys rich");
+
+--sync_slave_with_master cluster2
+--echo Show changes exist on Cluster2
+select * from test.t1 order by a;
+
+--echo Check data on Cluster3
+--let $rpl_connection_name= cluster3
+--source include/rpl_connection.inc
+select * from test.t1 order by a;
+
+--echo Now change Cluster3 to skip-over Cluster2 and get binlog direct from Cluster1
+
+--replace_column 2 # 3 # 4 # 5 #
+select * from mysql.ndb_apply_status order by server_id;
+
+--disable_query_log
+--disable_result_log
+eval select @binlog_file_name:=log_name from mysql.ndb_apply_status 
+            where server_id = $CLUSTER1_SERVER_ID;
+eval select @binlog_file_pos:=end_pos from mysql.ndb_apply_status
+            where server_id = $CLUSTER1_SERVER_ID;
+--enable_query_log
+--enable_result_log
+
+let $CLUSTER1_LOG_FILE= query_get_value('select @binlog_file_name as v', v, 1);
+let $CLUSTER1_LOG_POS= query_get_value('select @binlog_file_pos as v', v, 1);
+
+--let $rpl_topology= 1->2, 1->3
+--let $rpl_master_log_file= 3:$CLUSTER1_LOG_FILE
+--let $rpl_master_log_pos= 3:$CLUSTER1_LOG_POS
+--source include/rpl_change_topology.inc
+
+--source include/start_slave.inc
+
+--let $rpl_connection_name= cluster1
+--source include/rpl_connection.inc
+--sync_slave_with_master cluster3
+
+--echo Now show that cluster 3 is successfully replicating from Cluster1
+--let $rpl_connection_name= cluster3
+--source include/rpl_connection.inc
+select * from test.t1 order by a;
+
+--echo Clean up
+--let $rpl_connection_name= cluster1
+--source include/rpl_connection.inc
+drop table test.t1;
+
+--source include/rpl_end.inc
+
+
+
+

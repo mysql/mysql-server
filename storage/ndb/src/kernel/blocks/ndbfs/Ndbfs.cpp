@@ -42,6 +42,9 @@
 #include <NdbOut.hpp>
 #include <Configuration.hpp>
 
+#include <EventLogger.hpp>
+extern EventLogger * g_eventLogger;
+
 inline
 int pageSize( const NewVARIABLE* baseAddrRef )
 {
@@ -515,6 +518,11 @@ Ndbfs::execFSCLOSEREQ(Signal * signal)
     fsRef->setErrorCode(fsRef->errorCode, FsRef::fsErrFileDoesNotExist);
     fsRef->osErrorCode  = ~0; // Indicate local error
     sendSignal(userRef, GSN_FSCLOSEREF, signal, 3, JBB);
+
+    g_eventLogger->warning("Trying to close unknown file!! %u", userPointer);
+    g_eventLogger->warning("Dumping files");
+    signal->theData[0] = 405;
+    execDUMP_STATE_ORD(signal);
     return;
   }
 
@@ -540,7 +548,19 @@ Ndbfs::execFSCLOSEREQ(Signal * signal)
 void 
 Ndbfs::readWriteRequest(int action, Signal * signal)
 {
-  const FsReadWriteReq * const fsRWReq = (FsReadWriteReq *)&signal->theData[0];
+  Uint32 theData[25 + 2 * 32];
+  memcpy(theData, signal->theData, 4 * signal->getLength());
+  SectionHandle handle(this, signal);
+  if (handle.m_cnt > 0)
+  {
+    SegmentedSectionPtr secPtr;
+    ndbrequire(handle.getSection(secPtr, 0));
+    ndbrequire(signal->getLength() + secPtr.sz < NDB_ARRAY_SIZE(theData));
+    copy(theData + signal->getLength(), secPtr);
+    releaseSections(handle);
+  }
+
+  const FsReadWriteReq * const fsRWReq = (FsReadWriteReq *)theData;
   Uint16 filePointer =  (Uint16)fsRWReq->filePointer;
   const UintR userPointer = fsRWReq->userPointer; 
   const BlockReference userRef = fsRWReq->userReference;
@@ -1122,6 +1142,14 @@ Ndbfs::report(Request * request, Signal* signal)
     case Request:: close: {
       jam();
       sendSignal(ref, GSN_FSCLOSEREF, signal, FsRef::SignalLength, JBB);
+
+      g_eventLogger->warning("Error closing file: %s %u/%u",
+                             request->file->theFileName.c_str(),
+                             fsRef->errorCode,
+                             fsRef->osErrorCode);
+      g_eventLogger->warning("Dumping files");
+      signal->theData[0] = 405;
+      execDUMP_STATE_ORD(signal);
       break;
     }
     case Request:: writeSync:
@@ -1547,6 +1575,19 @@ Ndbfs::execDUMP_STATE_ORD(Signal* signal)
       ndbout_c("%2d (0x%lx): %s", i, (long) file, file->isOpen()?"OPEN":"CLOSED");
     }
 #endif
+  }
+
+  if(signal->theData[0] == 405)
+  {
+    for (unsigned i = 0; i < theFiles.size(); i++)
+    {
+      AsyncFile* file = theFiles[i];
+      if (file == 0)
+        continue;
+      ndbout_c("%u : %s %s", i,
+               file->theFileName.c_str() ? file->theFileName.c_str() : "",
+               file->isOpen() ? "OPEN" : "CLOSED");
+    }
   }
 }//Ndbfs::execDUMP_STATE_ORD()
 

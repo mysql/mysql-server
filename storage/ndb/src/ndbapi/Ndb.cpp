@@ -38,7 +38,7 @@ void connect();
 
 Connect to any node which has no connection at the moment.
 ****************************************************************************/
-NdbTransaction* Ndb::doConnect(Uint32 tConNode) 
+NdbTransaction* Ndb::doConnect(Uint32 tConNode, Uint32 instance)
 {
   Uint32        tNode;
   Uint32        tAnyAlive = 0;
@@ -47,12 +47,12 @@ NdbTransaction* Ndb::doConnect(Uint32 tConNode)
   DBUG_ENTER("Ndb::doConnect");
 
   if (tConNode != 0) {
-    TretCode = NDB_connect(tConNode);
+    TretCode = NDB_connect(tConNode, instance);
     if ((TretCode == 1) || (TretCode == 2)) {
 //****************************************************************************
 // We have connections now to the desired node. Return
 //****************************************************************************
-      DBUG_RETURN(getConnectedNdbTransaction(tConNode));
+      DBUG_RETURN(getConnectedNdbTransaction(tConNode, instance));
     } else if (TretCode < 0) {
       DBUG_RETURN(NULL);
     } else if (TretCode != 0) {
@@ -63,6 +63,7 @@ NdbTransaction* Ndb::doConnect(Uint32 tConNode)
 // We will connect to any node. Make sure that we have connections to all
 // nodes.
 //****************************************************************************
+  Uint32 anyInstance = 0;
   if (theImpl->m_optimized_node_selection)
   {
     Ndb_cluster_connection_node_iter &node_iter= 
@@ -70,14 +71,14 @@ NdbTransaction* Ndb::doConnect(Uint32 tConNode)
     theImpl->m_ndb_cluster_connection.init_get_next_node(node_iter);
     while ((tNode= theImpl->m_ndb_cluster_connection.get_next_node(node_iter)))
     {
-      TretCode= NDB_connect(tNode);
+      TretCode= NDB_connect(tNode, anyInstance);
       if ((TretCode == 1) ||
 	  (TretCode == 2))
       {
 //****************************************************************************
 // We have connections now to the desired node. Return
 //****************************************************************************
-	DBUG_RETURN(getConnectedNdbTransaction(tNode));
+	DBUG_RETURN(getConnectedNdbTransaction(tNode, anyInstance));
       } else if (TretCode < 0) {
         DBUG_RETURN(NULL);
       } else if (TretCode != 0) {
@@ -100,14 +101,14 @@ NdbTransaction* Ndb::doConnect(Uint32 tConNode)
 
       Tcount++;
       tNode= theImpl->theDBnodes[theCurrentConnectIndex];
-      TretCode= NDB_connect(tNode);
+      TretCode= NDB_connect(tNode, anyInstance);
       if ((TretCode == 1) ||
 	  (TretCode == 2))
       {
 //****************************************************************************
 // We have connections now to the desired node. Return
 //****************************************************************************
-	DBUG_RETURN(getConnectedNdbTransaction(tNode));
+	DBUG_RETURN(getConnectedNdbTransaction(tNode, anyInstance));
       } else if (TretCode < 0) {
         DBUG_RETURN(NULL);
       } else if (TretCode != 0) {
@@ -132,7 +133,7 @@ NdbTransaction* Ndb::doConnect(Uint32 tConNode)
 }
 
 int 
-Ndb::NDB_connect(Uint32 tNode) 
+Ndb::NDB_connect(Uint32 tNode, Uint32 instance)
 {
 //****************************************************************************
 // We will perform seize of a transaction record in DBTC in the specified node.
@@ -150,10 +151,35 @@ Ndb::NDB_connect(Uint32 tNode)
   }
 
   NdbTransaction * tConArray = theConnectionArray[tNode];
-  if (tConArray != NULL) {
+  if (instance != 0 && tConArray != 0)
+  {
+    NdbTransaction* prev = 0;
+    NdbTransaction* curr = tConArray;
+    while (curr)
+    {
+      if (refToInstance(curr->m_tcRef) == instance)
+      {
+        if (prev != 0)
+        {
+          prev->theNext = curr->theNext;
+          curr->theNext = tConArray;
+          theConnectionArray[tNode] = curr;
+        }
+        else
+        {
+          assert(curr == tConArray);
+        }
+        DBUG_RETURN(2);
+      }
+      prev = curr;
+      curr = curr->theNext;
+    }
+  }
+  else if (tConArray != NULL)
+  {
     DBUG_RETURN(2);
   }
-  
+
   NdbTransaction * tNdbCon = getNdbCon();	// Get free connection object.
   if (tNdbCon == NULL) {
     DBUG_RETURN(4);
@@ -173,7 +199,9 @@ Ndb::NDB_connect(Uint32 tNode)
 // Set connection pointer as NdbTransaction object
 //************************************************
   tSignal->setData(theMyRef, 2);	// Set my block reference
+  tSignal->setData(instance, 3);        // Set requested instance
   tNdbCon->Status(NdbTransaction::Connecting); // Set status to connecting
+  tNdbCon->theDBnode = tNode;
   Uint32 nodeSequence;
   tReturnCode= sendRecSignal(tNode, WAIT_TC_SEIZE, tSignal,
                              0, &nodeSequence);
@@ -220,9 +248,36 @@ Ndb::NDB_connect(Uint32 tNode)
 }//Ndb::NDB_connect()
 
 NdbTransaction *
-Ndb::getConnectedNdbTransaction(Uint32 nodeId){
+Ndb::getConnectedNdbTransaction(Uint32 nodeId, Uint32 instance){
   NdbTransaction* next = theConnectionArray[nodeId];
+  if (instance != 0)
+  {
+    NdbTransaction * prev = 0;
+    while (next)
+    {
+      if (refToInstance(next->m_tcRef) == instance)
+      {
+        if (prev != 0)
+        {
+          assert(false); // Should have been moved in NDB_connect
+          prev->theNext = next->theNext;
+          goto found_middle;
+        }
+        else
+        {
+          assert(next == theConnectionArray[nodeId]);
+          goto found_first;
+        }
+      }
+      prev = next;
+      next = next->theNext;
+    }
+    assert(false); // !!
+    return 0;
+  }
+found_first:
   theConnectionArray[nodeId] = next->theNext;
+found_middle:
   next->theNext = NULL;
 
   return next;
@@ -703,7 +758,7 @@ Ndb::startTransaction(const NdbDictionary::Table* table, Uint32 partitionId)
     
     theImpl->incClientStat(TransStartCount, 1);
 
-    NdbTransaction *trans= startTransactionLocal(0, nodeId);
+    NdbTransaction *trans= startTransactionLocal(0, nodeId, 0);
     DBUG_PRINT("exit",("start trans: 0x%lx  transid: 0x%lx",
                        (long) trans,
                        (long) (trans ? trans->getTransactionId() : 0)));
@@ -772,7 +827,7 @@ Ndb::startTransaction(const NdbDictionary::Table *table,
     theImpl->incClientStat( TransStartCount, 1 );
 
     {
-      NdbTransaction *trans= startTransactionLocal(0, nodeId);
+      NdbTransaction *trans= startTransactionLocal(0, nodeId, 0);
       DBUG_PRINT("exit",("start trans: 0x%lx  transid: 0x%lx",
 			 (long) trans,
                          (long) (trans ? trans->getTransactionId() : 0)));
@@ -808,7 +863,9 @@ Ndb::hupp(NdbTransaction* pBuddyTrans)
     checkFailedNode();
 
     Uint32 nodeId = pBuddyTrans->getConnectedNodeId();
-    NdbTransaction* pCon = startTransactionLocal(aPriority, nodeId);
+    NdbTransaction* pCon =
+      startTransactionLocal(aPriority, nodeId,
+                            refToInstance(pBuddyTrans->m_tcRef));
     if(pCon == NULL)
       DBUG_RETURN(NULL);
 
@@ -831,8 +888,8 @@ Ndb::hupp(NdbTransaction* pBuddyTrans)
   }//if
 }//Ndb::hupp()
 
-NdbTransaction* 
-Ndb::startTransactionLocal(Uint32 aPriority, Uint32 nodeId)
+NdbTransaction*
+Ndb::startTransactionLocal(Uint32 aPriority, Uint32 nodeId, Uint32 instance)
 {
 #ifdef VM_TRACE
   char buf[255];
@@ -853,7 +910,7 @@ Ndb::startTransactionLocal(Uint32 aPriority, Uint32 nodeId)
   
   NdbTransaction* tConnection;
   Uint64 tFirstTransId = theFirstTransId;
-  tConnection = doConnect(nodeId);
+  tConnection = doConnect(nodeId, instance);
   if (tConnection == NULL) {
     DBUG_RETURN(NULL);
   }//if
@@ -2194,6 +2251,17 @@ Ndb::getNdbErrorDetail(const NdbError& err, char* buff, Uint32 buffLen) const
   DBUG_RETURN(NULL);
 }
 
+void
+Ndb::setCustomData(void* _customDataPtr)
+{
+  theImpl->customDataPtr = _customDataPtr;
+}
+
+void*
+Ndb::getCustomData() const
+{
+  return theImpl->customDataPtr;
+}
 
 Uint32
 Ndb::getMinDbNodeVersion() const

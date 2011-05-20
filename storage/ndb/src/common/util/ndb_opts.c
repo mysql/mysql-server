@@ -128,6 +128,9 @@ my_bool ndb_is_load_default_arg_separator(const char* arg)
    */
   if (my_getopt_is_args_separator(arg))
     return TRUE;
+#elif MYSQL_VERSION_ID >= 50501
+  if (arg == args_separator)
+    return TRUE;
 #else
   (void)arg;
 #endif

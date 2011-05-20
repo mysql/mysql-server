@@ -219,16 +219,11 @@ private:
   static const TreeEnt NullTreeEnt;
 
   /*
-   * Tree node has 1) fixed part 2) a prefix of index key data for min
-   * entry 3) max and min entries 4) rest of entries 5) one extra entry
-   * used as work space.
+   * Tree node has 3 parts:
    *
-   * struct TreeNode            part 1, size 6 words
-   * min prefix                 part 2, size TreeHead::m_prefSize
-   * max entry                  part 3
-   * min entry                  part 3
-   * rest of entries            part 4
-   * work entry                 part 5
+   * 1) struct TreeNode - the header (6 words)
+   * 2) some key values for min entry - the min prefix
+   * 3) list of TreeEnt (each 2 words)
    *
    * There are 3 links to other nodes: left child, right child, parent.
    * Occupancy (number of entries) is at least 1 except temporarily when
@@ -248,17 +243,6 @@ private:
   STATIC_CONST( NodeHeadSize = sizeof(TreeNode) >> 2 );
 
   /*
-   * Tree node "access size" was for an early version with signal
-   * interface to TUP.  It is now used only to compute sizes.
-   */
-  enum AccSize {
-    AccNone = 0,
-    AccHead = 1,                // part 1
-    AccPref = 2,                // parts 1-3
-    AccFull = 3                 // parts 1-5
-  };
-
-  /*
    * Tree header.  There is one in each fragment.  Contains tree
    * parameters and address of root node.
    */
@@ -273,7 +257,6 @@ private:
     TupLoc m_root;              // root node
     TreeHead();
     // methods
-    unsigned getSize(AccSize acc) const;
     Data getPref(TreeNode* node) const;
     TreeEnt* getEntList(TreeNode* node) const;
   };
@@ -562,7 +545,6 @@ private:
     // access other parts of the node
     Data getPref();
     TreeEnt getEnt(unsigned pos);
-    TreeEnt getMinMax(unsigned i);
     // for ndbrequire and ndbassert
     void progError(int line, int cause, const char* file);
   };
@@ -583,6 +565,7 @@ private:
   void readTablePk(const Frag& frag, TreeEnt ent, Data pkData, unsigned& pkSize);
   void copyAttrs(TuxCtx&, const Frag& frag, ConstData data1, Data data2, unsigned maxlen2 = MaxAttrDataSize);
   void unpackBound(const ScanBound& bound, Data data);
+  void findFrag(const Index& index, Uint32 fragId, FragPtr& fragPtr);
 
   /*
    * DbtuxMeta.cpp
@@ -674,11 +657,14 @@ private:
   /*
    * DbtuxSearch.cpp
    */
+  void findNodeToUpdate(TuxCtx&, Frag& frag, ConstData searchKey, TreeEnt searchEnt, NodeHandle& currNode);
+  bool findPosToAdd(TuxCtx&, Frag& frag, ConstData searchKey, TreeEnt searchEnt, NodeHandle& currNode, TreePos& treePos);
+  bool findPosToRemove(TuxCtx&, Frag& frag, ConstData searchKey, TreeEnt searchEnt, NodeHandle& currNode, TreePos& treePos);
   bool searchToAdd(TuxCtx&, Frag& frag, ConstData searchKey, TreeEnt searchEnt, TreePos& treePos);
-  bool searchToRemove(Frag& frag, ConstData searchKey, TreeEnt searchEnt, TreePos& treePos);
+  bool searchToRemove(TuxCtx&, Frag& frag, ConstData searchKey, TreeEnt searchEnt, TreePos& treePos);
+  void findNodeToScan(Frag& frag, unsigned dir, ConstData boundInfo, unsigned boundCount, NodeHandle& currNode);
+  void findPosToScan(Frag& frag, unsigned idir, ConstData boundInfo, unsigned boundCount, NodeHandle& currNode, Uint16* pos);
   void searchToScan(Frag& frag, ConstData boundInfo, unsigned boundCount, bool descending, TreePos& treePos);
-  void searchToScanAscending(Frag& frag, ConstData boundInfo, unsigned boundCount, TreePos& treePos);
-  void searchToScanDescending(Frag& frag, ConstData boundInfo, unsigned boundCount, TreePos& treePos);
 
   /*
    * DbtuxCmp.cpp
@@ -776,7 +762,7 @@ private:
 
   // inlined utils
   DescEnt& getDescEnt(Uint32 descPage, Uint32 descOff);
-  Uint32 getTupAddr(const Frag& frag, TreeEnt ent);
+  void getTupAddr(const Frag& frag, TreeEnt ent, Uint32& lkey1, Uint32& lkey2);
   static unsigned min(unsigned x, unsigned y);
   static unsigned max(unsigned x, unsigned y);
 
@@ -927,22 +913,6 @@ Dbtux::TreeHead::TreeHead() :
   m_entryCount(0),
   m_root()
 {
-}
-
-inline unsigned
-Dbtux::TreeHead::getSize(AccSize acc) const
-{
-  switch (acc) {
-  case AccNone:
-    return 0;
-  case AccHead:
-    return NodeHeadSize;
-  case AccPref:
-    return NodeHeadSize + m_prefSize + 2 * TreeEntSize;
-  case AccFull:
-    return m_nodeSize;
-  }
-  return 0;
 }
 
 inline Dbtux::Data
@@ -1201,15 +1171,7 @@ Dbtux::NodeHandle::getEnt(unsigned pos)
   TreeEnt* entList = tree.getEntList(m_node);
   const unsigned occup = m_node->m_occup;
   ndbrequire(pos < occup);
-  return entList[(1 + pos) % occup];
-}
-
-inline Dbtux::TreeEnt
-Dbtux::NodeHandle::getMinMax(unsigned i)
-{
-  const unsigned occup = m_node->m_occup;
-  ndbrequire(i <= 1 && occup != 0);
-  return getEnt(i == 0 ? 0 : occup - 1);
+  return entList[pos];
 }
 
 // parameters for methods
@@ -1242,15 +1204,15 @@ Dbtux::getDescEnt(Uint32 descPage, Uint32 descOff)
   return *descEnt;
 }
 
-inline Uint32
-Dbtux::getTupAddr(const Frag& frag, TreeEnt ent)
+inline
+void
+Dbtux::getTupAddr(const Frag& frag, TreeEnt ent, Uint32& lkey1, Uint32& lkey2)
 {
   const Uint32 tableFragPtrI = frag.m_tupTableFragPtrI;
   const TupLoc tupLoc = ent.m_tupLoc;
-  Uint32 tupAddr = NullTupAddr;
-  c_tup->tuxGetTupAddr(tableFragPtrI, tupLoc.getPageId(), tupLoc.getPageOffset(), tupAddr);
+  c_tup->tuxGetTupAddr(tableFragPtrI, tupLoc.getPageId(),tupLoc.getPageOffset(),
+                       lkey1, lkey2);
   jamEntry();
-  return tupAddr;
 }
 
 inline unsigned

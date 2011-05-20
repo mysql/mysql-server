@@ -83,15 +83,7 @@ Dbtux::mt_buildIndexFragment(mt_BuildIndxCtx* req)
   const Uint32 fragId = req->fragId;
   // get the fragment
   FragPtr fragPtr;
-  fragPtr.i = RNIL;
-  for (unsigned i = 0; i < indexPtr.p->m_numFrags; i++) {
-    jam();
-    if (indexPtr.p->m_fragId[i] == fragId) {
-      jam();
-      c_fragPool.getPtr(fragPtr, indexPtr.p->m_fragPtrI[i]);
-      break;
-    }
-  }
+  findFrag(*indexPtr.p, fragId, fragPtr);
   ndbrequire(fragPtr.i != RNIL);
   Frag& frag = *fragPtr.p;
 

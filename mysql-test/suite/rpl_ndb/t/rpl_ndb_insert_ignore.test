@@ -2,7 +2,8 @@
 # Wrapper for rpl_insert_ignore.test#
 #####################################
 -- source include/have_ndb.inc
--- source suite/rpl_ndb/ndb_master-slave.inc
+-- source include/have_binlog_format_row.inc
+-- source include/master-slave.inc
 let $engine_type=NDB;
-let $engine_type2=myisam;
 -- source extra/rpl_tests/rpl_insert_ignore.test
+--source include/rpl_end.inc

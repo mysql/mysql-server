@@ -76,7 +76,21 @@
 #define MAX_ATTR_DEFAULT_VALUE_SIZE ((MAX_TUPLE_SIZE_IN_WORDS + 1) * 4)  //Add 1 word for AttributeHeader
 #define MAX_ATTRIBUTES_IN_TABLE 512
 #define MAX_ATTRIBUTES_IN_INDEX 32
-#define MAX_TUPLE_SIZE_IN_WORDS 2013
+#define MAX_TUPLE_SIZE_IN_WORDS 3500
+
+/**
+ * When sending a SUB_TABLE_DATA from SUMA to API
+ *
+ */
+#define MAX_SUMA_MESSAGE_IN_WORDS 8028
+
+/**
+ * When sending a SUB_TABLE_DATA
+ *  this is is the maximum size that it can become
+ */
+#define CHECK_SUMA_MESSAGE_SIZE(NO_KEYS,KEY_SIZE_IN_WORDS,NO_COLUMNS,TUPLE_SIZE_IN_WORDS) \
+  ((NO_KEYS + KEY_SIZE_IN_WORDS + 2 * (NO_COLUMNS + TUPLE_SIZE_IN_WORDS)) <= MAX_SUMA_MESSAGE_IN_WORDS)
+
 #define MAX_KEY_SIZE_IN_WORDS 1023
 #define MAX_FRM_DATA_SIZE 6000
 #define MAX_NULL_BITS 4096
@@ -118,11 +132,6 @@
  * Maximum number of Parallel Scan queries on one hash index fragment
  */
 #define MAX_PARALLEL_SCANS_PER_FRAG 12
-/*
- * Maximum parallel ordered index scans per primary table fragment.
- * Implementation limit is (256 minus 12).
- */
-#define MAX_PARALLEL_INDEX_SCANS_PER_FRAG 32
 
 /**
  * Computed defines

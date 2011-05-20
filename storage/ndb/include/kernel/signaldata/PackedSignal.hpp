@@ -28,6 +28,8 @@
 #define ZCOMPLETED 3
 #define ZLQHKEYCONF 4
 #define ZREMOVE_MARKER 5
+#define ZFIRE_TRIG_REQ 6
+#define ZFIRE_TRIG_CONF 7
 
 class PackedSignal {
 

@@ -150,6 +150,9 @@ public:
 
     TableStorageType   = 155,
 
+    ExtraRowGCIBits    = 156,
+    ExtraRowAuthorBits = 157,
+
     TableEnd           = 999,
     
     AttributeName          = 1000, // String, Mandatory
@@ -380,6 +383,9 @@ public:
     Uint32 HashMapVersion;
 
     Uint32 TableStorageType;
+
+    Uint32 ExtraRowGCIBits;
+    Uint32 ExtraRowAuthorBits;
 
     Table() {}
     void init();

@@ -17,6 +17,7 @@
 */
 
 #include <stdio.h>
+#include <NdbDictionary.hpp>
 #include "ndberror.c"
 
 // Mock implementation of 'my_snprintf'

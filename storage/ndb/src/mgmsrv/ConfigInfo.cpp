@@ -31,6 +31,7 @@
 #else
 #include "ConfigInfo.hpp"
 #include <mgmapi_config_parameters.h>
+#include <ndb_version.h>
 #endif /* NDB_MGMAPI */
 
 #define KEY_INTERNAL 0
@@ -933,7 +934,11 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
     ConfigInfo::CI_USED,
     false,
     ConfigInfo::CI_INT64,
+#if NDB_VERSION_D < NDB_MAKE_VERSION(7,2,0)
     "20M",
+#else
+    "128M",
+#endif
     "0",
     "65536G" }, // 32k pages * 32-bit i value
   
@@ -972,7 +977,19 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
     "0",
     "0",
     STR_VALUE(MAX_INT_RNIL) },
-  
+
+  {
+    CFG_DB_START_NO_NODEGROUP_TIMEOUT,
+    "StartNoNodegroupTimeout",
+    DB_TOKEN,
+    "Time to wait for nodes wo/ nodegroup before trying to start (0=forever)",
+    ConfigInfo::CI_USED,
+    0,
+    ConfigInfo::CI_INT,
+    "15000",
+    "0",
+    STR_VALUE(MAX_INT_RNIL) },
+
   {
     CFG_DB_HEARTBEAT_INTERVAL,
     "HeartbeatIntervalDbDb",
@@ -981,8 +998,24 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
     ConfigInfo::CI_USED,
     0,
     ConfigInfo::CI_INT,
+#if NDB_VERSION_D < NDB_MAKE_VERSION(7,2,0)
     "1500",
+#else
+    "5000",
+#endif
     "10",
+    STR_VALUE(MAX_INT_RNIL) },
+
+  {
+    CFG_DB_CONNECT_CHECK_DELAY,
+    "ConnectCheckIntervalDelay",
+    DB_TOKEN,
+    "Time between "DB_TOKEN_PRINT" connectivity check stages.  "DB_TOKEN_PRINT" considered suspect after 1 and dead after 2 intervals.",
+    ConfigInfo::CI_USED,
+    0,
+    ConfigInfo::CI_INT,
+    "0",
+    "0",
     STR_VALUE(MAX_INT_RNIL) },
 
   {
@@ -1041,7 +1074,11 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
     ConfigInfo::CI_USED,
     0,
     ConfigInfo::CI_INT,
+#if NDB_VERSION_D < NDB_MAKE_VERSION(7,2,0)
     "4000",
+#else
+    "0",
+#endif
     "0",
     "256000" },
 
@@ -1254,7 +1291,11 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
     ConfigInfo::CI_USED,
     false,
     ConfigInfo::CI_INT,
+#if NDB_VERSION_D < NDB_MAKE_VERSION(7,2,0)
     "3000",
+#else
+    "7500",
+#endif
     "10",
     STR_VALUE(MAX_INT_RNIL) },
 
@@ -1266,7 +1307,7 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
     ConfigInfo::CI_USED,
     false,
     ConfigInfo::CI_ENUM,
-    0,
+    "Default", /* Default value */
     (const char*)arbit_method_typelib,
     0
   },
@@ -1926,6 +1967,24 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
     "true"                       /* Max */
   },
 
+  {
+    CFG_DB_PARALLEL_SCANS_PER_FRAG,
+    "MaxParallelScansPerFragment",
+    DB_TOKEN,
+    "Max parallel scans per fragment (tup or tux). If this limit is reached "
+    " scans will be serialized using a queue.",
+    ConfigInfo::CI_USED,
+    false,
+    ConfigInfo::CI_INT,
+#if NDB_VERSION_D < NDB_MAKE_VERSION(7,2,0)
+    "32",
+#else
+    "256",
+#endif
+    "1",                         /* Min */
+    STR_VALUE(MAX_INT_RNIL)      /* Max */
+  },
+
   /***************************************************************************
    * API
    ***************************************************************************/
@@ -2124,12 +2183,17 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
     CFG_DEFAULT_OPERATION_REDO_PROBLEM_ACTION,
     "DefaultOperationRedoProblemAction",
     API_TOKEN,
-    "If Redo-log is having problem, should operation default (unless overridden on transaction/operation level) abort or be put on queue"
-    " in a row times, transactions will be aborted",
+    "If Redo-log is having problem, should operation default "
+    "(unless overridden on transaction/operation level) abort "
+    "or be put on queue",
     ConfigInfo::CI_USED,
     false,
     ConfigInfo::CI_ENUM,
-    0, /* default for ENUM doesnt seem to work... */
+#if NDB_VERSION_D < NDB_MAKE_VERSION(7,2,0)
+    "abort", /* Default value */
+#else
+    "queue", /* Default value */
+#endif
     (const char*)default_operation_redo_problem_action_typelib,
     0
   },
@@ -3105,11 +3169,26 @@ ConfigInfo::ConfigInfo()
              entry->name != 0; entry++)
           values.put(entry->name, entry->value);
         require(pinfo.put("values", &values));
-        // fallthrough
+
+        if(param._default == MANDATORY)
+          pinfo.put("Mandatory", (Uint32)1);
+        else if(param._default)
+        {
+          /*
+            Map default value of enum from string to int since
+            enum is stored as int internally
+          */
+          Uint32 default_value;
+          require(values.get(param._default, &default_value));
+          require(pinfo.put("Default", default_value));
+
+          /* Also store the default as string */
+          require(pinfo.put("DefaultString", param._default));
+        }
+        break;
       }
       case CI_STRING:
-        assert(param._type == CI_ENUM || // Allow fallthrough from enum
-               param._min == 0); // String can't have min value
+        assert(param._min == 0); // String can't have min value
         assert(param._max == 0); // String can't have max value
 
         if(param._default == MANDATORY)
@@ -3159,7 +3238,6 @@ ConfigInfo::ConfigInfo()
         {
 	  case CI_SECTION:
 	    break;
-	  case CI_ENUM:
 	  case CI_STRING:
           case CI_BITMASK:
 	    require(p->put(param._fname, param._default));
@@ -3178,6 +3256,20 @@ ConfigInfo::ConfigInfo()
 	      require(p->put64(param._fname, Uint64(default_uint64)));
 	      break;
 	    }
+          case CI_ENUM:
+          {
+            /*
+              Map default value of enum from string to int since
+              enum is stored as int internally
+            */
+            Uint32 default_value;
+            require(verify_enum(getInfo(param._section),
+                                param._fname, param._default,
+                                default_value));
+            require(p->put(param._fname, default_value));
+            break;
+          }
+
 	}
       }
       require(m_systemDefaults.put(param._section, p, true));
@@ -3205,7 +3297,7 @@ ConfigInfo::ConfigInfo()
       ndbout << "Edit file " << __FILE__ << "." << endl;
       require(false);
     }
-  }
+   }
 
 }
 
@@ -3291,8 +3383,29 @@ ConfigInfo::getDefault(const Properties * section, const char* fname) const {
 
 const char*
 ConfigInfo::getDefaultString(const Properties * section,
-                             const char* fname) const {
-  return getInfoString(section, fname, "Default");
+                             const char* fname) const
+{
+  switch (getType(section, fname))
+  {
+  case ConfigInfo::CI_BITMASK:
+  case ConfigInfo::CI_STRING:
+    return getInfoString(section, fname, "Default");
+
+  case ConfigInfo::CI_ENUM:
+  {
+    /*
+      Default value for enum are stored as int internally
+      but also stores the orignal string, use different
+      key to get at the default value as string
+     */
+    return getInfoString(section, fname, "DefaultString");
+  }
+
+  default:
+    require(false);
+  }
+
+  return NULL;
 }
 
 bool
@@ -4096,6 +4209,7 @@ applyDefaultValues(InitConfigFileParser::Context & ctx,
       else
       {
         switch (ctx.m_info->getType(ctx.m_currentInfo, name)){
+        case ConfigInfo::CI_ENUM:
         case ConfigInfo::CI_INT:
         case ConfigInfo::CI_BOOL:{
           Uint32 val = 0;
@@ -4110,7 +4224,6 @@ applyDefaultValues(InitConfigFileParser::Context & ctx,
           break;
         }
         case ConfigInfo::CI_BITMASK:
-        case ConfigInfo::CI_ENUM:
         case ConfigInfo::CI_STRING:{
           const char * val;
           require(ctx.m_currentSection->get(name, &val));

@@ -1,9 +1,5 @@
-stop slave;
-drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9;
-reset master;
-reset slave;
-drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9;
-start slave;
+include/master-slave.inc
+[connection master]
 DROP TABLE IF EXISTS t1;
 DROP TABLE IF EXISTS t2;
 DROP PROCEDURE IF EXISTS p1;
@@ -38,7 +34,10 @@ INSERT INTO t1 VALUES ('MySQL','1993-02-04'),('ROCKS', '1990-08-27'),('Texas', '
 END|
 CALL p2();
 CALL p1();
+Warnings:
+Error	1329	No data - zero rows fetched, selected, or processed
 DROP TABLE t1;
 DROP TABLE t2;
 DROP PROCEDURE p1;
 DROP PROCEDURE p2;
+include/rpl_end.inc

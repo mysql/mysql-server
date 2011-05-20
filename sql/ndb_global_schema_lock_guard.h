@@ -28,8 +28,9 @@ public:
   int lock(bool no_lock_queue=false,
            bool report_cluster_disconnected=true);
 private:
-  THD *m_thd;
+  THD* m_thd;
   bool m_locked;
 };
 
 #endif
+

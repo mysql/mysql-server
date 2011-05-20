@@ -594,4 +594,62 @@ ndbd_non_trans_copy_frag_req(Uint32 x)
   return x >= NDBD_NON_TRANS_COPY_FRAG_REQ_71;
 }
 
+#define NDBD_PING_REQ_70 NDB_MAKE_VERSION(7,0,24)
+#define NDBD_PING_REQ_71 NDB_MAKE_VERSION(7,1,13)
+
+static
+inline
+int
+ndbd_connectivity_check(Uint32 x)
+{
+  const Uint32 major = (x >> 16) & 0xFF;
+  const Uint32 minor = (x >>  8) & 0xFF;
+
+  if (major == 7 && minor == 0)
+    return x >= NDBD_PING_REQ_70;
+
+  return x >= NDBD_PING_REQ_71;
+}
+
+#define NDBD_DEFERRED_UNIQUE_CONSTRAINTS_70 NDB_MAKE_VERSION(7,0,25)
+#define NDBD_DEFERRED_UNIQUE_CONSTRAINTS_71 NDB_MAKE_VERSION(7,1,14)
+
+static
+inline
+int
+ndbd_deferred_unique_constraints(Uint32 x)
+{
+  const Uint32 major = (x >> 16) & 0xFF;
+  const Uint32 minor = (x >>  8) & 0xFF;
+
+  if (major == 7 && minor == 0)
+    return x >= NDBD_DEFERRED_UNIQUE_CONSTRAINTS_70;
+
+  return x >= NDBD_DEFERRED_UNIQUE_CONSTRAINTS_71;
+}
+
+#define NDBD_TUP_EXTRABITS_70 NDB_MAKE_VERSION(7,0,25)
+#define NDBD_TUP_EXTRABITS_71 NDB_MAKE_VERSION(7,1,14)
+#define NDBD_TUP_EXTRABITS_72 NDB_MAKE_VERSION(7,2,1)
+
+static
+inline
+int
+ndb_tup_extrabits(Uint32 x)
+{
+  {
+    const Uint32 major = (x >> 16) & 0xFF;
+    const Uint32 minor = (x >>  8) & 0xFF;
+
+    if (major == 7 && minor < 2)
+    {
+      if (minor == 0)
+        return x >= NDBD_TUP_EXTRABITS_70;
+      else if (minor == 1)
+        return x >= NDBD_TUP_EXTRABITS_71;
+    }
+    return x >= NDBD_TUP_EXTRABITS_72;
+  }
+}
+
 #endif

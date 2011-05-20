@@ -452,11 +452,12 @@ private:
   bool has_null_in_unique_index(uint idx_no) const;
   bool check_index_fields_not_null(KEY *key_info);
 
-  uint set_up_partition_info(partition_info *part_info,
-                             TABLE *table,
-                             void *tab);
-  int set_range_data(void *tab, partition_info* part_info);
-  int set_list_data(void *tab, partition_info* part_info);
+  int set_up_partition_info(partition_info *part_info,
+                            NdbDictionary::Table&) const;
+  int set_range_data(const partition_info* part_info,
+                     NdbDictionary::Table&) const;
+  int set_list_data(const partition_info* part_info,
+                    NdbDictionary::Table&) const;
   int ndb_pk_update_row(THD *thd, 
                         const uchar *old_data, uchar *new_data,
                         uint32 old_part_id);
@@ -527,7 +528,8 @@ private:
                                NdbOperation::GetValueSpec gets[2]);
   void get_hidden_fields_scan(NdbScanOperation::ScanOptions *options,
                               NdbOperation::GetValueSpec gets[2]);
-  void eventSetAnyValue(THD *thd, NdbOperation::OperationOptions *options);
+  void eventSetAnyValue(THD *thd,
+                        NdbOperation::OperationOptions *options) const;
   bool check_index_fields_in_write_set(uint keyno);
 
   const NdbOperation *pk_unique_index_read_key(uint idx, 

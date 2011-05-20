@@ -51,6 +51,8 @@ void Dbtup::initData()
 
   cCopyProcedure = RNIL;
   cCopyLastSeg = RNIL;
+  cCopyOverwrite = 0;
+  cCopyOverwriteLen = 0;
 
   // Records with constant sizes
   init_list_sizes();
@@ -127,6 +129,8 @@ Dbtup::Dbtup(Block_context& ctx, Uint32 instanceNumber)
 
   addRecSignal(GSN_DROP_FRAG_REQ, &Dbtup::execDROP_FRAG_REQ);
   addRecSignal(GSN_SUB_GCP_COMPLETE_REP, &Dbtup::execSUB_GCP_COMPLETE_REP);
+
+  addRecSignal(GSN_FIRE_TRIG_REQ, &Dbtup::execFIRE_TRIG_REQ);
 
   fragoperrec = 0;
   fragrecord = 0;
@@ -668,7 +672,6 @@ void Dbtup::initializeDefaultValuesFrag()
   DefaultValuesFragment.p->fragStatus = Fragrecord::FS_ONLINE;
   DefaultValuesFragment.p->m_undo_complete= false;
   DefaultValuesFragment.p->m_lcp_scan_op = RNIL;
-  DefaultValuesFragment.p->m_lcp_keep_list = RNIL;
   DefaultValuesFragment.p->noOfPages = 0;
   DefaultValuesFragment.p->noOfVarPages = 0;
   DefaultValuesFragment.p->m_max_page_no = 0;

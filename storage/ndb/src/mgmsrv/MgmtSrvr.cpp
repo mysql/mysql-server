@@ -1050,6 +1050,187 @@ int MgmtSrvr::sendStopMgmd(NodeId nodeId,
   return 0;
 }
 
+/**
+ * send STOP_REQ to all DB-nodes
+ *   and wait for them to stop or refuse
+ *
+ */
+int
+MgmtSrvr::sendall_STOP_REQ(NodeBitmask &stoppedNodes,
+                           bool abort,
+                           bool stop,
+                           bool restart,
+                           bool nostart,
+                           bool initialStart)
+{
+  int error = 0;
+  DBUG_ENTER("MgmtSrvr::sendall_STOP_REQ");
+  DBUG_PRINT("enter", ("abort: %d  stop: %d  restart: %d  "
+                       "nostart: %d  initialStart: %d",
+                       abort, stop, restart, nostart, initialStart));
+
+  stoppedNodes.clear();
+
+  SignalSender ss(theFacade);
+  ss.lock(); // lock will be released on exit
+
+  SimpleSignal ssig;
+  StopReq* const stopReq = CAST_PTR(StopReq, ssig.getDataPtrSend());
+  ssig.set(ss, TestOrd::TraceAPI, NDBCNTR, GSN_STOP_REQ, StopReq::SignalLength);
+
+  stopReq->requestInfo = 0;
+  stopReq->apiTimeout = 5000;
+  stopReq->transactionTimeout = 1000;
+  stopReq->readOperationTimeout = 1000;
+  stopReq->operationTimeout = 1000;
+  stopReq->senderData = 12;
+  stopReq->senderRef = ss.getOwnRef();
+  stopReq->singleuser = 0;
+  StopReq::setSystemStop(stopReq->requestInfo, stop);
+  StopReq::setPerformRestart(stopReq->requestInfo, restart);
+  StopReq::setStopAbort(stopReq->requestInfo, abort);
+  StopReq::setNoStart(stopReq->requestInfo, nostart);
+  StopReq::setInitialStart(stopReq->requestInfo, initialStart);
+
+  // send the signals
+  int failed = 0;
+  NodeBitmask nodes;
+  {
+    NodeId nodeId = 0;
+    while(getNextNodeId(&nodeId, NDB_MGM_NODE_TYPE_NDB))
+    {
+      if (okToSendTo(nodeId, true) == 0)
+      {
+	SendStatus result = ss.sendSignal(nodeId, &ssig);
+	if (result == SEND_OK)
+	  nodes.set(nodeId);
+        else
+          failed++;
+      }
+      else
+      {
+        failed++;
+      }
+    }
+  }
+
+  if (nodes.isclear() && failed > 0)
+  {
+    DBUG_RETURN(SEND_OR_RECEIVE_FAILED);
+  }
+
+  // now wait for the replies
+  while (!nodes.isclear())
+  {
+    SimpleSignal *signal = ss.waitFor();
+    int gsn = signal->readSignalNumber();
+    switch (gsn) {
+    case GSN_STOP_REF:
+    {
+      const StopRef * const ref = CAST_CONSTPTR(StopRef, signal->getDataPtr());
+      const NodeId nodeId = refToNode(signal->header.theSendersBlockRef);
+#ifdef VM_TRACE
+      ndbout_c("Node %d refused stop", nodeId);
+#endif
+      assert(nodes.get(nodeId));
+      nodes.clear(nodeId);
+      error = translateStopRef(ref->errorCode);
+      break;
+    }
+    case GSN_STOP_CONF:
+    {
+      const NodeId nodeId = refToNode(signal->header.theSendersBlockRef);
+      assert(nodes.get(nodeId));
+      nodes.clear(nodeId);
+      break;
+    }
+    case GSN_NF_COMPLETEREP:
+    {
+      const NFCompleteRep * rep = CAST_CONSTPTR(NFCompleteRep,
+                                                signal->getDataPtr());
+      nodes.clear(rep->failedNodeId); // clear the failed node
+      stoppedNodes.set(rep->failedNodeId);
+      break;
+    }
+    case GSN_NODE_FAILREP:
+    {
+      const NodeFailRep * rep = CAST_CONSTPTR(NodeFailRep,
+                                              signal->getDataPtr());
+      NodeBitmask mask;
+      mask.assign(NdbNodeBitmask::Size, rep->theNodes);
+      nodes.bitANDC(mask);
+      stoppedNodes.bitOR(mask);
+      break;
+    }
+    case GSN_API_REGCONF:
+    case GSN_TAKE_OVERTCCONF:
+    case GSN_CONNECT_REP:
+      continue;
+    default:
+      report_unknown_signal(signal);
+      DBUG_RETURN(SEND_OR_RECEIVE_FAILED);
+    }
+  }
+
+  DBUG_RETURN(error);
+}
+
+int
+MgmtSrvr::guess_master_node(SignalSender& ss)
+{
+  /**
+   * First check if m_master_node is started
+   */
+  NodeId guess = m_master_node;
+  if (guess != 0)
+  {
+    trp_node node = ss.getNodeInfo(guess);
+    if (node.m_state.startLevel == NodeState::SL_STARTED)
+      return guess;
+  }
+
+  /**
+   * Check for any started node
+   */
+  guess = 0;
+  while(getNextNodeId(&guess, NDB_MGM_NODE_TYPE_NDB))
+  {
+    trp_node node = ss.getNodeInfo(guess);
+    if (node.m_state.startLevel == NodeState::SL_STARTED)
+    {
+      return guess;
+    }
+  }
+
+  /**
+   * Check any confirmed node
+   */
+  guess = 0;
+  while(getNextNodeId(&guess, NDB_MGM_NODE_TYPE_NDB))
+  {
+    trp_node node = ss.getNodeInfo(guess);
+    if (node.is_confirmed())
+    {
+      return guess;
+    }
+  }
+
+  /**
+   * Check any connected node
+   */
+  guess = 0;
+  while(getNextNodeId(&guess, NDB_MGM_NODE_TYPE_NDB))
+  {
+    trp_node node = ss.getNodeInfo(guess);
+    if (node.is_connected())
+    {
+      return guess;
+    }
+  }
+
+  return 0; // give up
+}
+
 /*
  * Common method for handeling all STOP_REQ signalling that
  * is used by Stopping, Restarting and Single user commands
@@ -1068,8 +1249,7 @@ int MgmtSrvr::sendStopMgmd(NodeId nodeId,
  */
 
 int MgmtSrvr::sendSTOP_REQ(const Vector<NodeId> &node_ids,
-			   NdbNodeBitmask &stoppedNodes,
-			   Uint32 singleUserNodeId,
+			   NodeBitmask &stoppedNodes,
 			   bool abort,
 			   bool stop,
 			   bool restart,
@@ -1079,30 +1259,69 @@ int MgmtSrvr::sendSTOP_REQ(const Vector<NodeId> &node_ids,
 {
   int error = 0;
   DBUG_ENTER("MgmtSrvr::sendSTOP_REQ");
-  DBUG_PRINT("enter", ("no of nodes: %d  singleUseNodeId: %d  "
+  DBUG_PRINT("enter", ("no of nodes: %d "
                        "abort: %d  stop: %d  restart: %d  "
                        "nostart: %d  initialStart: %d",
-                       node_ids.size(), singleUserNodeId,
+                       node_ids.size(),
                        abort, stop, restart, nostart, initialStart));
 
   stoppedNodes.clear();
+  *stopSelf= 0;
+
+  NodeBitmask ndb_nodes_to_stop;
+  NodeBitmask mgm_nodes_to_stop;
 
   SignalSender ss(theFacade);
   ss.lock(); // lock will be released on exit
 
+  /**
+   * First verify arguments
+   */
+  for (unsigned i = 0; i < node_ids.size(); i++)
+  {
+    switch(getNodeType(node_ids[i])){
+    case NDB_MGM_NODE_TYPE_MGM:
+      mgm_nodes_to_stop.set(node_ids[i]);
+      break;
+    case NDB_MGM_NODE_TYPE_NDB:
+      ndb_nodes_to_stop.set(node_ids[i]);
+      break;
+    default:
+      DBUG_RETURN(WRONG_PROCESS_TYPE);
+    }
+  }
+
+  /**
+   * Process ndb_mgmd
+   */
+  for (Uint32 i = mgm_nodes_to_stop.find(0);
+       i != mgm_nodes_to_stop.NotFound;
+       i = mgm_nodes_to_stop.find(i + 1))
+  {
+    if (i != getOwnNodeId())
+    {
+      error= sendStopMgmd(i, abort, stop, restart,
+                          nostart, initialStart);
+      if (error == 0)
+      {
+        stoppedNodes.set(i);
+      }
+    }
+    else
+    {
+      g_eventLogger->info("Stopping this node");
+      * stopSelf = (restart)? -1 : 1;
+      stoppedNodes.set(i);
+    }
+  }
+
+  /**
+   * Process ndbd
+   */
   SimpleSignal ssig;
   StopReq* const stopReq = CAST_PTR(StopReq, ssig.getDataPtrSend());
   ssig.set(ss, TestOrd::TraceAPI, NDBCNTR, GSN_STOP_REQ, StopReq::SignalLength);
 
-  NdbNodeBitmask notstarted;
-  for (Uint32 i = 0; i<node_ids.size(); i++)
-  {
-    Uint32 nodeId = node_ids[i];
-    trp_node node = ss.getNodeInfo(nodeId);
-    if (node.m_state.startLevel != NodeState::SL_STARTED)
-      notstarted.set(nodeId);
-  }
-  
   stopReq->requestInfo = 0;
   stopReq->apiTimeout = 5000;
   stopReq->transactionTimeout = 1000;
@@ -1110,134 +1329,75 @@ int MgmtSrvr::sendSTOP_REQ(const Vector<NodeId> &node_ids,
   stopReq->operationTimeout = 1000;
   stopReq->senderData = 12;
   stopReq->senderRef = ss.getOwnRef();
-  if (singleUserNodeId)
-  {
-    stopReq->singleuser = 1;
-    stopReq->singleUserApi = singleUserNodeId;
-    StopReq::setSystemStop(stopReq->requestInfo, false);
-    StopReq::setPerformRestart(stopReq->requestInfo, false);
-    StopReq::setStopAbort(stopReq->requestInfo, false);
-  }
-  else
-  {
-    stopReq->singleuser = 0;
-    StopReq::setSystemStop(stopReq->requestInfo, stop);
-    StopReq::setPerformRestart(stopReq->requestInfo, restart);
-    StopReq::setStopAbort(stopReq->requestInfo, abort);
-    StopReq::setNoStart(stopReq->requestInfo, nostart);
-    StopReq::setInitialStart(stopReq->requestInfo, initialStart);
-  }
+  stopReq->singleuser = 0;
+  StopReq::setSystemStop(stopReq->requestInfo, stop);
+  StopReq::setPerformRestart(stopReq->requestInfo, restart);
+  StopReq::setStopAbort(stopReq->requestInfo, abort);
+  StopReq::setNoStart(stopReq->requestInfo, nostart);
+  StopReq::setInitialStart(stopReq->requestInfo, initialStart);
 
-  // send the signals
-  NdbNodeBitmask nodes;
-  NodeId nodeId= 0;
-  int use_master_node= 0;
-  int do_send= 0;
-  *stopSelf= 0;
-  NdbNodeBitmask nodes_to_stop;
+  int use_master_node = 0;
+  int do_send = 0;
+  if (ndb_nodes_to_stop.count() > 1)
   {
-    for (unsigned i= 0; i < node_ids.size(); i++)
+    do_send = 1;
+    use_master_node = 1;
+    ndb_nodes_to_stop.copyto(NdbNodeBitmask::Size, stopReq->nodes);
+    StopReq::setStopNodes(stopReq->requestInfo, 1);
+  }
+  else if (ndb_nodes_to_stop.count() == 1)
+  {
+    Uint32 nodeId = ndb_nodes_to_stop.find(0);
+    if (okToSendTo(nodeId, true) == 0)
     {
-      nodeId= node_ids[i];
-      g_eventLogger->info("Going to stop node %d", nodeId);
-
-      if ((getNodeType(nodeId) != NDB_MGM_NODE_TYPE_MGM)
-          &&(getNodeType(nodeId) != NDB_MGM_NODE_TYPE_NDB))
-        DBUG_RETURN(WRONG_PROCESS_TYPE);
-
-      if (getNodeType(nodeId) != NDB_MGM_NODE_TYPE_MGM)
-        nodes_to_stop.set(nodeId);
-      else if (nodeId != getOwnNodeId())
+      SendStatus result = ss.sendSignal(nodeId, &ssig);
+      if (result != SEND_OK)
       {
-        error= sendStopMgmd(nodeId, abort, stop, restart,
-                            nostart, initialStart);
-        if (error == 0)
-          stoppedNodes.set(nodeId);
-      }
-      else
-      {
-        g_eventLogger->info("Stopping this node");
-        *stopSelf= (restart)? -1 : 1;
-        stoppedNodes.set(nodeId);
+        DBUG_RETURN(SEND_OR_RECEIVE_FAILED);
       }
     }
-  }
-  int no_of_nodes_to_stop= nodes_to_stop.count();
-  if (node_ids.size())
-  {
-    if (no_of_nodes_to_stop)
+    else
     {
-      do_send= 1;
-      if (no_of_nodes_to_stop == 1)
-      {
-        nodeId= nodes_to_stop.find(0);
-      }
-      else // multi node stop, send to master
-      {
-        use_master_node= 1;
-        nodes_to_stop.copyto(NdbNodeBitmask::Size, stopReq->nodes);
-        StopReq::setStopNodes(stopReq->requestInfo, 1);
-      }
+      DBUG_RETURN(SEND_OR_RECEIVE_FAILED);
     }
   }
-  else
-  {
-    nodeId= 0;
-    while(getNextNodeId(&nodeId, NDB_MGM_NODE_TYPE_NDB))
-    {
-      if(okToSendTo(nodeId, true) == 0)
-      {
-	SendStatus result = ss.sendSignal(nodeId, &ssig);
-	if (result == SEND_OK)
-	  nodes.set(nodeId);
-      }
-    }
-  }
+
 
   // now wait for the replies
-  while (!nodes.isclear() || do_send)
+  Uint32 sendNodeId = ndb_nodes_to_stop.find(0);
+  while (!stoppedNodes.contains(ndb_nodes_to_stop))
   {
     if (do_send)
     {
-      int r;
-      assert(nodes.count() == 0);
-      if (use_master_node)
-        nodeId= m_master_node;
-      if ((r= okToSendTo(nodeId, true)) != 0)
+      assert(use_master_node);
+      sendNodeId = guess_master_node(ss);
+      if (okToSendTo(sendNodeId, true) != 0)
       {
-        bool next;
-        if (!use_master_node)
-          DBUG_RETURN(r);
-        m_master_node= nodeId= 0;
-        while((next= getNextNodeId(&nodeId, NDB_MGM_NODE_TYPE_NDB)) == true &&
-              (r= okToSendTo(nodeId, true)) != 0);
-        if (!next)
-          DBUG_RETURN(NO_CONTACT_WITH_DB_NODES);
-      }
-      if (ss.sendSignal(nodeId, &ssig) != SEND_OK)
         DBUG_RETURN(SEND_OR_RECEIVE_FAILED);
-      nodes.set(nodeId);
-      do_send= 0;
+      }
+
+      if (ss.sendSignal(sendNodeId, &ssig) != SEND_OK)
+      {
+        DBUG_RETURN(SEND_OR_RECEIVE_FAILED);
+      }
+      do_send = 0;
     }
+
     SimpleSignal *signal = ss.waitFor();
     int gsn = signal->readSignalNumber();
     switch (gsn) {
     case GSN_STOP_REF:{
       const StopRef * const ref = CAST_CONSTPTR(StopRef, signal->getDataPtr());
       const NodeId nodeId = refToNode(signal->header.theSendersBlockRef);
-#ifdef VM_TRACE
-      ndbout_c("Node %d refused stop", nodeId);
-#endif
-      assert(nodes.get(nodeId));
-      nodes.clear(nodeId);
+      assert(nodeId == sendNodeId);
       if (ref->errorCode == StopRef::MultiNodeShutdownNotMaster)
       {
         assert(use_master_node);
         m_master_node= ref->masterNodeId;
-        do_send= 1;
+        do_send = 1;
         continue;
       }
-      error = translateStopRef(ref->errorCode);
+      DBUG_RETURN(translateStopRef(ref->errorCode));
       break;
     }
     case GSN_STOP_CONF:{
@@ -1245,43 +1405,22 @@ int MgmtSrvr::sendSTOP_REQ(const Vector<NodeId> &node_ids,
       const StopConf * const ref = CAST_CONSTPTR(StopConf, signal->getDataPtr());
 #endif
       const NodeId nodeId = refToNode(signal->header.theSendersBlockRef);
-#ifdef VM_TRACE
-      ndbout_c("Node %d single user mode", nodeId);
-#endif
-      assert(nodes.get(nodeId));
-      if (singleUserNodeId != 0)
-      {
-        stoppedNodes.set(nodeId);
-      }
-      else
-      {
-        assert(no_of_nodes_to_stop > 1);
-        stoppedNodes.bitOR(nodes_to_stop);
-      }
-      nodes.clear(nodeId);
+      assert(nodeId == sendNodeId);
+      stoppedNodes.bitOR(ndb_nodes_to_stop);
       break;
     }
     case GSN_NF_COMPLETEREP:{
       const NFCompleteRep * const rep =
 	CAST_CONSTPTR(NFCompleteRep, signal->getDataPtr());
-#ifdef VM_TRACE
-      ndbout_c("sendSTOP_REQ Node %d fail completed", rep->failedNodeId);
-#endif
-      nodes.clear(rep->failedNodeId); // clear the failed node
-      if (singleUserNodeId == 0)
-        stoppedNodes.set(rep->failedNodeId);
+      stoppedNodes.set(rep->failedNodeId);
       break;
     }
     case GSN_NODE_FAILREP:{
       const NodeFailRep * const rep =
 	CAST_CONSTPTR(NodeFailRep, signal->getDataPtr());
-      NdbNodeBitmask mask;
+      NodeBitmask mask;
       mask.assign(NdbNodeBitmask::Size, rep->theNodes);
-      mask.bitANDC(notstarted);
-      nodes.bitANDC(mask);
-      
-      if (singleUserNodeId == 0)
-	stoppedNodes.bitOR(mask);
+      stoppedNodes.bitOR(mask);
       break;
     }
     case GSN_API_REGCONF:
@@ -1290,9 +1429,6 @@ int MgmtSrvr::sendSTOP_REQ(const Vector<NodeId> &node_ids,
       continue;
     default:
       report_unknown_signal(signal);
-#ifdef VM_TRACE
-      ndbout_c("Unknown signal %d", gsn);
-#endif
       DBUG_RETURN(SEND_OR_RECEIVE_FAILED);
     }
   }
@@ -1319,16 +1455,20 @@ int MgmtSrvr::stopNodes(const Vector<NodeId> &node_ids,
     return OPERATION_NOT_ALLOWED_START_STOP;
   }
 
-  NdbNodeBitmask nodes;
-  int ret= sendSTOP_REQ(node_ids,
-                        nodes,
-                        0,
-                        abort,
-                        false,
-                        false,
-                        false,
-                        false,
-                        stopSelf);
+  NodeBitmask nodes;
+  int ret = 0;
+  if (node_ids.size() > 0)
+  {
+    ret = sendSTOP_REQ(node_ids, nodes,
+                       abort, false, false, false, false,
+                       stopSelf);
+  }
+  else
+  {
+    ret = sendall_STOP_REQ(nodes,
+                           abort, false, false, false, false);
+  }
+
   if (stopCount)
     *stopCount= nodes.count();
   return ret;
@@ -1362,20 +1502,15 @@ int MgmtSrvr::shutdownMGM(int *stopCount, bool abort, int *stopSelf)
 
 int MgmtSrvr::shutdownDB(int * stopCount, bool abort)
 {
-  NdbNodeBitmask nodes;
-  Vector<NodeId> node_ids;
+  NodeBitmask nodes;
 
-  int tmp;
+  int ret = sendall_STOP_REQ(nodes,
+                             abort,
+                             true,
+                             false,
+                             false,
+                             false);
 
-  int ret = sendSTOP_REQ(node_ids,
-			 nodes,
-			 0,
-			 abort,
-			 true,
-			 false,
-			 false,
-			 false,
-                         &tmp);
   if (stopCount)
     *stopCount = nodes.count();
   return ret;
@@ -1385,25 +1520,120 @@ int MgmtSrvr::shutdownDB(int * stopCount, bool abort)
  * Enter single user mode on all live nodes
  */
 
-int MgmtSrvr::enterSingleUser(int * stopCount, Uint32 singleUserNodeId)
+int MgmtSrvr::enterSingleUser(int * stopCount, Uint32 apiNodeId)
 {
-  if (getNodeType(singleUserNodeId) != NDB_MGM_NODE_TYPE_API)
+  if (getNodeType(apiNodeId) != NDB_MGM_NODE_TYPE_API)
     return NODE_NOT_API_NODE;
-  NdbNodeBitmask nodes;
-  Vector<NodeId> node_ids;
-  int stopSelf;
-  int ret = sendSTOP_REQ(node_ids,
-			 nodes,
-			 singleUserNodeId,
-			 false,
-			 false,
-			 false,
-			 false,
-			 false,
-                         &stopSelf);
+
+  // Init
   if (stopCount)
-    *stopCount = nodes.count();
-  return ret;
+  {
+    * stopCount = 0;
+  }
+
+  SignalSender ss(theFacade);
+  ss.lock(); // lock will be released on exit
+
+  SimpleSignal ssig;
+  StopReq* const stopReq = CAST_PTR(StopReq, ssig.getDataPtrSend());
+  ssig.set(ss, TestOrd::TraceAPI, NDBCNTR, GSN_STOP_REQ, StopReq::SignalLength);
+
+  stopReq->requestInfo = 0;
+  stopReq->apiTimeout = 5000;
+  stopReq->transactionTimeout = 1000;
+  stopReq->readOperationTimeout = 1000;
+  stopReq->operationTimeout = 1000;
+  stopReq->senderData = 12;
+  stopReq->senderRef = ss.getOwnRef();
+  stopReq->singleuser = 1;
+  stopReq->singleUserApi = apiNodeId;
+  StopReq::setSystemStop(stopReq->requestInfo, false);
+  StopReq::setPerformRestart(stopReq->requestInfo, false);
+  StopReq::setStopAbort(stopReq->requestInfo, false);
+
+  NodeBitmask nodes;
+  {
+    NodeId nodeId = 0;
+    Uint32 failed = 0;
+    while (getNextNodeId(&nodeId, NDB_MGM_NODE_TYPE_NDB))
+    {
+      if (okToSendTo(nodeId, true) == 0)
+      {
+	SendStatus result = ss.sendSignal(nodeId, &ssig);
+	if (result == SEND_OK)
+	  nodes.set(nodeId);
+        else
+          failed++;
+      }
+      else
+      {
+        failed++;
+      }
+    }
+    if (nodes.isclear())
+    {
+      if (failed)
+      {
+        return SEND_OR_RECEIVE_FAILED;
+      }
+      return NO_CONTACT_WITH_DB_NODES;
+    }
+  }
+
+  int error = 0;
+  int ok = 0;
+  while (!nodes.isclear())
+  {
+    SimpleSignal *signal = ss.waitFor();
+    int gsn = signal->readSignalNumber();
+    switch (gsn) {
+    case GSN_STOP_REF:
+    {
+      const StopRef * const ref = CAST_CONSTPTR(StopRef, signal->getDataPtr());
+      nodes.clear(refToNode(signal->header.theSendersBlockRef));
+      error = translateStopRef(ref->errorCode);
+      break;
+    }
+    case GSN_STOP_CONF:
+    {
+      ok++;
+      nodes.clear(refToNode(signal->header.theSendersBlockRef));
+      break;
+    }
+    case GSN_NF_COMPLETEREP:
+    {
+      const NFCompleteRep * rep = CAST_CONSTPTR(NFCompleteRep,
+                                                signal->getDataPtr());
+      nodes.clear(rep->failedNodeId);
+      break;
+    }
+
+    case GSN_NODE_FAILREP:
+    {
+      const NodeFailRep * rep = CAST_CONSTPTR(NodeFailRep,
+                                              signal->getDataPtr());
+      NodeBitmask mask;
+      mask.assign(NdbNodeBitmask::Size, rep->theNodes);
+      nodes.bitANDC(mask);
+      break;
+    }
+    case GSN_API_REGCONF:
+    case GSN_TAKE_OVERTCCONF:
+    case GSN_CONNECT_REP:
+      continue;
+
+    default:
+      report_unknown_signal(signal);
+      return SEND_OR_RECEIVE_FAILED;
+    }
+  }
+
+  if (stopCount)
+  {
+    * stopCount = ok;
+  }
+
+  return error;
 }
 
 /*
@@ -1476,16 +1706,19 @@ int MgmtSrvr::restartNodes(const Vector<NodeId> &node_ids,
     return OPERATION_NOT_ALLOWED_START_STOP;
   }
 
-  NdbNodeBitmask nodes;
-  int ret= sendSTOP_REQ(node_ids,
-                        nodes,
-                        0,
-                        abort,
-                        false,
-                        true,
-                        true,
-                        initialStart,
-                        stopSelf);
+  NodeBitmask nodes;
+  int ret = 0;
+  if (node_ids.size() > 0)
+  {
+    ret = sendSTOP_REQ(node_ids, nodes,
+                       abort, false, true, true, initialStart,
+                       stopSelf);
+  }
+  else
+  {
+    ret = sendall_STOP_REQ(nodes,
+                           abort, false, true, true, initialStart);
+  }
 
   if (ret)
     return ret;
@@ -1550,19 +1783,14 @@ int MgmtSrvr::restartNodes(const Vector<NodeId> &node_ids,
 int MgmtSrvr::restartDB(bool nostart, bool initialStart,
                         bool abort, int * stopCount)
 {
-  NdbNodeBitmask nodes;
-  Vector<NodeId> node_ids;
-  int tmp;
+  NodeBitmask nodes;
 
-  int ret = sendSTOP_REQ(node_ids,
-			 nodes,
-			 0,
-			 abort,
-			 true,
-			 true,
-			 true,
-			 initialStart,
-                         &tmp);
+  int ret = sendall_STOP_REQ(nodes,
+                             abort,
+                             true,
+                             true,
+                             true,
+                             initialStart);
 
   if (ret)
     return ret;

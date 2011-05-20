@@ -389,6 +389,148 @@ int runTestBug34107(NDBT_Context* ctx, NDBT_Step* step){
   return NDBT_OK;
 }
 
+static char pkIdxName[256];
+
+int
+createPkIndex(NDBT_Context* ctx, NDBT_Step* step){
+  const NdbDictionary::Table* pTab = ctx->getTab();
+  Ndb* pNdb = GETNDB(step);
+
+  bool orderedIndex = ctx->getProperty("OrderedIndex", (unsigned)0);
+  bool logged = ctx->getProperty("LoggedIndexes", (Uint32)0);
+  bool noddl= ctx->getProperty("NoDDL");
+
+  // Create index
+  BaseString::snprintf(pkIdxName, 255, "IDC_PK_%s", pTab->getName());
+  if (orderedIndex)
+    ndbout << "Creating " << ((logged)?"logged ": "temporary ") << "ordered index "
+	   << pkIdxName << " (";
+  else
+    ndbout << "Creating " << ((logged)?"logged ": "temporary ") << "unique index "
+	   << pkIdxName << " (";
+
+  NdbDictionary::Index pIdx(pkIdxName);
+  pIdx.setTable(pTab->getName());
+  if (orderedIndex)
+    pIdx.setType(NdbDictionary::Index::OrderedIndex);
+  else
+    pIdx.setType(NdbDictionary::Index::UniqueHashIndex);
+  for (int c = 0; c< pTab->getNoOfColumns(); c++){
+    const NdbDictionary::Column * col = pTab->getColumn(c);
+    if(col->getPrimaryKey()){
+      pIdx.addIndexColumn(col->getName());
+      ndbout << col->getName() <<" ";
+    }
+  }
+
+  pIdx.setStoredIndex(logged);
+  ndbout << ") ";
+  if (noddl)
+  {
+    const NdbDictionary::Index* idx= pNdb->
+      getDictionary()->getIndex(pkIdxName, pTab->getName());
+
+    if (!idx)
+    {
+      ndbout << "Failed - Index does not exist and DDL not allowed" << endl;
+      ERR(pNdb->getDictionary()->getNdbError());
+      return NDBT_FAILED;
+    }
+    else
+    {
+      // TODO : Check index definition is ok
+    }
+  }
+  else
+  {
+    if (pNdb->getDictionary()->createIndex(pIdx) != 0){
+      ndbout << "FAILED!" << endl;
+      const NdbError err = pNdb->getDictionary()->getNdbError();
+      ERR(err);
+      return NDBT_FAILED;
+    }
+  }
+
+  ndbout << "OK!" << endl;
+  return NDBT_OK;
+}
+
+int
+createPkIndex_Drop(NDBT_Context* ctx, NDBT_Step* step)
+{
+  const NdbDictionary::Table* pTab = ctx->getTab();
+  Ndb* pNdb = GETNDB(step);
+
+  bool noddl= ctx->getProperty("NoDDL");
+
+  // Drop index
+  if (!noddl)
+  {
+    ndbout << "Dropping index " << pkIdxName << " ";
+    if (pNdb->getDictionary()->dropIndex(pkIdxName,
+                                         pTab->getName()) != 0){
+      ndbout << "FAILED!" << endl;
+      ERR(pNdb->getDictionary()->getNdbError());
+      return NDBT_FAILED;
+    } else {
+      ndbout << "OK!" << endl;
+    }
+  }
+
+  return NDBT_OK;
+}
+
+#define CHK_RET_FAILED(x) if (!(x)) { ndbout_c("Failed on line: %u", __LINE__); return NDBT_FAILED; }
+
+int
+runInterpretedUKLookup(NDBT_Context* ctx, NDBT_Step* step)
+{
+  const NdbDictionary::Table * pTab = ctx->getTab();
+  Ndb* pNdb = GETNDB(step);
+  NdbDictionary::Dictionary * dict = pNdb->getDictionary();
+
+  const NdbDictionary::Index* pIdx= dict->getIndex(pkIdxName, pTab->getName());
+  CHK_RET_FAILED(pIdx != 0);
+
+  const NdbRecord * pRowRecord = pTab->getDefaultRecord();
+  CHK_RET_FAILED(pRowRecord != 0);
+  const NdbRecord * pIdxRecord = pIdx->getDefaultRecord();
+  CHK_RET_FAILED(pIdxRecord != 0);
+
+  const Uint32 len = NdbDictionary::getRecordRowLength(pRowRecord);
+  Uint8 * pRow = new Uint8[len];
+  bzero(pRow, len);
+
+  HugoCalculator calc(* pTab);
+  calc.equalForRow(pRow, pRowRecord, 0);
+
+  NdbTransaction* pTrans = pNdb->startTransaction();
+  CHK_RET_FAILED(pTrans != 0);
+
+  NdbInterpretedCode code;
+  code.interpret_exit_ok();
+  code.finalise();
+
+  NdbOperation::OperationOptions opts;
+  bzero(&opts, sizeof(opts));
+  opts.optionsPresent = NdbOperation::OperationOptions::OO_INTERPRETED;
+  opts.interpretedCode = &code;
+
+  const NdbOperation * pOp = pTrans->readTuple(pIdxRecord, (char*)pRow,
+                                               pRowRecord, (char*)pRow,
+                                               NdbOperation::LM_Read,
+                                               0,
+                                               &opts,
+                                               sizeof(opts));
+  CHK_RET_FAILED(pOp);
+  int res = pTrans->execute(Commit, AbortOnError);
+
+  CHK_RET_FAILED(res == 0);
+
+  delete [] pRow;
+
+  return NDBT_OK;
+}
 
 NDBT_TESTSUITE(testInterpreter);
 TESTCASE("IncValue32", 
@@ -480,6 +622,13 @@ TESTCASE("NdbErrorOperation",
   INITIALIZER(runCheckGetNdbErrorOperation);
 }
 #endif
+TESTCASE("InterpretedUKLookup", "")
+{
+  INITIALIZER(runLoadTable);
+  INITIALIZER(createPkIndex);
+  INITIALIZER(runInterpretedUKLookup);
+  INITIALIZER(createPkIndex_Drop);
+}
 NDBT_TESTSUITE_END(testInterpreter);
 
 int main(int argc, const char** argv){

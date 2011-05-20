@@ -1578,6 +1578,13 @@ SimulatedBlock::dupSection(Uint32& copyFirstIVal, Uint32 srcFirstIVal)
   return ::dupSection(SB_SP_ARG copyFirstIVal, srcFirstIVal);
 }
 
+bool
+SimulatedBlock::writeToSection(Uint32 firstSegmentIVal, Uint32 offset,
+                               const Uint32* src, Uint32 len)
+{
+  return ::writeToSection(firstSegmentIVal, offset, src, len);
+}
+
 class SectionSegmentPool& 
 SimulatedBlock::getSectionSegmentPool(){
   return g_sectionSegmentPool;
@@ -4397,3 +4404,13 @@ SimulatedBlock::ndbinfo_send_scan_conf(Signal* signal,
              signal_length, JBB);
 }
 
+#ifdef VM_TRACE
+void
+SimulatedBlock::assertOwnThread()
+{
+#ifdef NDBD_MULTITHREADED
+  mt_assert_own_thread(this);
+#endif
+}
+
+#endif

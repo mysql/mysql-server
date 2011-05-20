@@ -88,6 +88,8 @@ void Dblqh::initData()
   cTotalLqhKeyReqCount = 0;
   c_max_redo_lag = 30; // seconds
   c_max_redo_lag_counter = 3; // 3 strikes and you're out
+
+  c_max_parallel_scans_per_frag = 32;
 }//Dblqh::initData()
 
 void Dblqh::initRecords() 
@@ -421,6 +423,8 @@ Dblqh::Dblqh(Block_context& ctx, Uint32 instanceNumber):
   addRecSignal(GSN_FSWRITEREQ,
                &Dblqh::execFSWRITEREQ);
   addRecSignal(GSN_DBINFO_SCANREQ, &Dblqh::execDBINFO_SCANREQ);
+
+  addRecSignal(GSN_FIRE_TRIG_REQ, &Dblqh::execFIRE_TRIG_REQ);
 
   initData();
 

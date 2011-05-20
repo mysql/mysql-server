@@ -33,6 +33,10 @@ class NdbApiSignal;
 class Ndb;
 class NdbBlob;
 class NdbInterpretedCode;
+class NdbQueryImpl;
+class NdbQueryDef;
+class NdbQuery;
+class NdbQueryParamValue;
 class NdbLockHandle;
 
 #ifndef DOXYGEN_SHOULD_SKIP_INTERNAL
@@ -148,6 +152,8 @@ class NdbTransaction
   friend class NdbIndexScanOperation;
   friend class NdbBlob;
   friend class ha_ndbcluster;
+  friend class NdbQueryImpl;
+  friend class NdbQueryOperationImpl;
 #endif
 
 public:
@@ -821,8 +827,21 @@ public:
             const NdbScanOperation::ScanOptions *options = 0,
             Uint32 sizeOfOptions = 0);
 
-  /* LockHandle methods */
+  /**
+   * Add a prepared NdbQueryDef to transaction for execution.
+   *
+   * If the NdbQueryDef contains parameters,
+   * (built with NdbQueryBilder::paramValue()) the value of these
+   * parameters are specified in the 'paramValue' array. Parameter values
+   * Should be supplied in the same order as the related paramValue's
+   * was defined.
+   */
+  NdbQuery*
+  createQuery(const NdbQueryDef* query,
+              const NdbQueryParamValue paramValue[]= 0,
+              NdbOperation::LockMode lock_mode= NdbOperation::LM_Read);
 
+  /* LockHandle methods */
   /*
    * Shared or Exclusive locks taken by read operations in a transaction
    * are normally held until the transaction commits or aborts.
@@ -908,6 +927,7 @@ private:
    * Release completed operations
    */
   void releaseCompletedOperations();
+  void releaseCompletedQueries();
 
   typedef Uint64 TimeMillis_t;
   /**************************************************************************
@@ -988,12 +1008,11 @@ private:
 
   // Release all cursor operations in connection
   void releaseOps(NdbOperation*);	
+  void releaseQueries(NdbQueryImpl*);
   void releaseScanOperations(NdbIndexScanOperation*);	
   bool releaseScanOperation(NdbIndexScanOperation** listhead,
 			    NdbIndexScanOperation** listtail,
 			    NdbIndexScanOperation* op);
-  void releaseExecutedScanOperation(NdbIndexScanOperation*);
-
   void          releaseLockHandles();
   
   // Set the transaction identity of the transaction
@@ -1139,9 +1158,12 @@ private:
   
   NdbIndexScanOperation* m_firstExecutedScanOp;
 
-  // Scan operations
-  // The operation actually performing the scan
-  NdbScanOperation* theScanningOp; 
+  // Scan operations or queries:
+  // The operation or query actually performing the scan.
+  // (Only one of theScanningOp/m_scanningQuery be non-NULL,
+  //  which indirectly indicates the type)
+  NdbScanOperation* theScanningOp;
+
   Uint32 theBuddyConPtr;
   // optim: any blobs
   bool theBlobFlag;
@@ -1175,6 +1197,19 @@ private:
 
   NdbTransaction(const NdbTransaction&); // Not impl.
   NdbTransaction&operator=(const NdbTransaction&);
+
+  // Query operation (aka multicursor)
+  NdbQueryImpl* m_firstQuery;        // First query in defining list.
+  NdbQueryImpl* m_firstExecQuery;    // First query to send for execution
+  NdbQueryImpl* m_firstActiveQuery;  // First query actively executing, or completed
+
+  // Scan operations or queries:
+  // The operation or query actually performing the scan.
+  // (Only one of theScanningOp/m_scanningQuery be non-NULL,
+  //  which indirectly indicates the type)
+  NdbQueryImpl* m_scanningQuery;
+
+  Uint32 m_tcRef;
 };
 
 #ifndef DOXYGEN_SHOULD_SKIP_INTERNAL

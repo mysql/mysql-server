@@ -237,6 +237,18 @@ static MYSQL_THDVAR_UINT(
   0                                  /* block */
 );
 
+static MYSQL_THDVAR_UINT(
+  deferred_constraints,              /* name */
+  PLUGIN_VAR_RQCMDARG,
+  "Specified that constraints should be checked deferred (when supported)",
+  NULL,                              /* check func */
+  NULL,                              /* update func */
+  0,                                 /* default */
+  0,                                 /* min */
+  1,                                 /* max */
+  0                                  /* block */
+);
+
 static int ndbcluster_end(handlerton *hton, ha_panic_function flag);
 static bool ndbcluster_show_status(handlerton *hton, THD*,
                                    stat_print_fn *,
@@ -3824,7 +3836,7 @@ ha_ndbcluster::get_hidden_fields_scan(NdbScanOperation::ScanOptions *options,
 
 inline void
 ha_ndbcluster::eventSetAnyValue(THD *thd, 
-                                NdbOperation::OperationOptions *options)
+                                NdbOperation::OperationOptions *options) const
 {
   options->anyValue= 0;
   if (unlikely(m_slow_path))
@@ -4070,6 +4082,12 @@ int ha_ndbcluster::ndb_write_row(uchar *record,
     options.extraSetValues= sets;
     options.numExtraSetValues= num_sets;
   }
+  if (thd->slave_thread || THDVAR(thd, deferred_constraints))
+  {
+    options.optionsPresent |=
+      NdbOperation::OperationOptions::OO_DEFERRED_CONSTAINTS;
+  }
+
   if (options.optionsPresent != 0)
     poptions=&options;
 
@@ -4820,6 +4838,12 @@ int ha_ndbcluster::ndb_update_row(const uchar *old_data, uchar *new_data,
   
   bool need_flush= add_row_check_if_batch_full(thd_ndb);
 
+  if (thd->slave_thread || THDVAR(thd, deferred_constraints))
+  {
+    options.optionsPresent |=
+      NdbOperation::OperationOptions::OO_DEFERRED_CONSTAINTS;
+  }
+
   if (cursor)
   {
     /*
@@ -4971,6 +4995,7 @@ int ha_ndbcluster::end_bulk_delete()
                           &ignore_count) != 0)
     {
       no_uncommitted_rows_execute_failure();
+      m_is_bulk_delete = false;
       DBUG_RETURN(ndb_err(m_thd_ndb->trans));
     }
     assert(m_rows_deleted >= ignore_count);
@@ -5043,6 +5068,12 @@ int ha_ndbcluster::ndb_delete_row(const uchar *record,
   */
   uint delete_size= 12 + (m_bytes_per_write >> 2);
   bool need_flush= add_row_check_if_batch_full_size(thd_ndb, delete_size);
+
+  if (thd->slave_thread || THDVAR(thd, deferred_constraints))
+  {
+    options.optionsPresent |=
+      NdbOperation::OperationOptions::OO_DEFERRED_CONSTAINTS;
+  }
 
   if (cursor)
   {
@@ -5552,7 +5583,11 @@ int ha_ndbcluster::index_first(uchar *buf)
   // Start the ordered index scan and fetch the first row
 
   // Only HA_READ_ORDER indexes get called by index_first
+#ifdef MCP_BUG11764737
   const int error= ordered_index_scan(0, 0, TRUE, FALSE, buf, NULL);
+#else
+  const int error= ordered_index_scan(0, 0, m_sorted, FALSE, buf, NULL);
+#endif
   table->status=error ? STATUS_NOT_FOUND: 0;
   DBUG_RETURN(error);
 }
@@ -5562,7 +5597,11 @@ int ha_ndbcluster::index_last(uchar *buf)
 {
   DBUG_ENTER("ha_ndbcluster::index_last");
   ha_statistic_increment(&SSV::ha_read_last_count);
+#ifdef MCP_BUG11764737
   const int error= ordered_index_scan(0, 0, TRUE, TRUE, buf, NULL);
+#else
+  const int error= ordered_index_scan(0, 0, m_sorted, TRUE, buf, NULL);
+#endif
   table->status=error ? STATUS_NOT_FOUND: 0;
   DBUG_RETURN(error);
 }
@@ -6223,14 +6262,6 @@ int ha_ndbcluster::reset()
 
   assert(m_is_bulk_delete == false);
   m_is_bulk_delete = false;
-
-  /* 
-    Setting pushed_code=NULL here is a temporary fix for bug #58553. This
-    should not be needed any longer if http://lists.mysql.com/commits/125336 
-    is merged into this branch.
-  */
-  pushed_cond= NULL;
-
   DBUG_RETURN(0);
 }
 
@@ -7239,6 +7270,13 @@ struct NDB_Modifier ndb_table_modifiers[] =
   { NDB_Modifier::M_BOOL, 0, 0, 0, {0} }
 };
 
+static const
+struct NDB_Modifier ndb_column_modifiers[] =
+{
+  { NDB_Modifier::M_BOOL, STRING_WITH_LEN("MAX_BLOB_PART_SIZE"), 0, {0} },
+  { NDB_Modifier::M_BOOL, 0, 0, 0, {0} }
+};
+
 /**
  * NDB_Modifiers
  *
@@ -7500,6 +7538,12 @@ ndb_blob_striping()
   return false;
 }
 
+#if NDB_VERSION_D < NDB_MAKE_VERSION(7,2,0)
+const Uint32 OLD_NDB_MAX_TUPLE_SIZE_IN_WORDS = 2013;
+#else
+const Uint32 OLD_NDB_MAX_TUPLE_SIZE_IN_WORDS = NDB_MAX_TUPLE_SIZE_IN_WORDS;
+#endif
+
 static int create_ndb_column(THD *thd,
                              NDBCOL &col,
                              Field *field,
@@ -7521,6 +7565,13 @@ static int create_ndb_column(THD *thd,
   CHARSET_INFO *cs= const_cast<CHARSET_INFO*>(field->charset());
   // Set type and sizes
   const enum enum_field_types mysql_type= field->real_type();
+
+  NDB_Modifiers column_modifiers(ndb_column_modifiers);
+  column_modifiers.parse(thd, "NDB_COLUMN=",
+                         field->comment.str,
+                         field->comment.length);
+
+  const NDB_Modifier * mod_maxblob = column_modifiers.get("MAX_BLOB_PART_SIZE");
 
   {
     /* Clear default value (col obj is reused for whole table def) */
@@ -7763,6 +7814,10 @@ static int create_ndb_column(THD *thd,
         col.setInlineSize(256);
         col.setPartSize(2000);
         col.setStripeSize(ndb_blob_striping() ? 16 : 0);
+        if (mod_maxblob->m_found)
+        {
+          col.setPartSize(4 * (NDB_MAX_TUPLE_SIZE_IN_WORDS - /* safty */ 13));
+        }
       }
       else if (field_blob->max_data_length() < (1 << 24))
         goto mysql_type_medium_blob;
@@ -7781,6 +7836,10 @@ static int create_ndb_column(THD *thd,
     col.setInlineSize(256);
     col.setPartSize(4000);
     col.setStripeSize(ndb_blob_striping() ? 8 : 0);
+    if (mod_maxblob->m_found)
+    {
+      col.setPartSize(4 * (NDB_MAX_TUPLE_SIZE_IN_WORDS - /* safty */ 13));
+    }
     break;
   mysql_type_long_blob:
   case MYSQL_TYPE_LONG_BLOB:  
@@ -7791,8 +7850,12 @@ static int create_ndb_column(THD *thd,
       col.setCharset(cs);
     }
     col.setInlineSize(256);
-    col.setPartSize(4 * (NDB_MAX_TUPLE_SIZE_IN_WORDS - /* safty */ 13));
+    col.setPartSize(4 * (OLD_NDB_MAX_TUPLE_SIZE_IN_WORDS - /* safty */ 13));
     col.setStripeSize(ndb_blob_striping() ? 4 : 0);
+    if (mod_maxblob->m_found)
+    {
+      col.setPartSize(4 * (NDB_MAX_TUPLE_SIZE_IN_WORDS - /* safty */ 13));
+    }
     break;
   // Other types
   case MYSQL_TYPE_ENUM:
@@ -8086,7 +8149,6 @@ int ha_ndbcluster::create(const char *name,
   bool use_disk= FALSE;
   NdbDictionary::Table::SingleUserMode single_user_mode= NdbDictionary::Table::SingleUserModeLocked;
   bool ndb_sys_table= FALSE;
-  partition_info *part_info;
   int result= 0;
   NdbDictionary::ObjectId objId;
 
@@ -8126,7 +8188,7 @@ int ha_ndbcluster::create(const char *name,
     */
     if ((my_errno= write_ndb_file(name)))
       DBUG_RETURN(my_errno);
-    ndbcluster_create_binlog_setup(thd, get_ndb(thd), name, strlen(name),
+    ndbcluster_create_binlog_setup(thd, ndb, name, strlen(name),
                                    m_dbname, m_tabname, FALSE);
     DBUG_RETURN(my_errno);
   }
@@ -8373,6 +8435,9 @@ int ha_ndbcluster::create(const char *name,
      * 2 - words from pk in blob table
      * 5 - from extra words added by tup/dict??
      */
+
+    // To be upgrade/downgrade safe...we currently use
+    // old NDB_MAX_TUPLE_SIZE_IN_WORDS, unless MAX_BLOB_PART_SIZE is set
     switch (form->field[i]->real_type()) {
     case MYSQL_TYPE_GEOMETRY:
     case MYSQL_TYPE_BLOB:    
@@ -8380,11 +8445,15 @@ int ha_ndbcluster::create(const char *name,
     case MYSQL_TYPE_LONG_BLOB: 
     {
       NdbDictionary::Column * column= tab.getColumn(i);
-      int size= pk_length + (column->getPartSize()+3)/4 + 7;
-      if (size > NDB_MAX_TUPLE_SIZE_IN_WORDS && 
-         (pk_length+7) < NDB_MAX_TUPLE_SIZE_IN_WORDS)
+      unsigned size= pk_length + (column->getPartSize()+3)/4 + 7;
+      unsigned ndb_max= OLD_NDB_MAX_TUPLE_SIZE_IN_WORDS;
+      if (column->getPartSize() > (int)(4 * ndb_max))
+        ndb_max= NDB_MAX_TUPLE_SIZE_IN_WORDS; // MAX_BLOB_PART_SIZE
+
+      if (size > ndb_max &&
+          (pk_length+7) < ndb_max)
       {
-        size= NDB_MAX_TUPLE_SIZE_IN_WORDS - pk_length - 7;
+        size= ndb_max - pk_length - 7;
         column->setPartSize(4*size);
       }
       /**
@@ -8399,8 +8468,7 @@ int ha_ndbcluster::create(const char *name,
   }
 
   // Check partition info
-  part_info= form->part_info;
-  if ((my_errno= set_up_partition_info(part_info, form, (void*)&tab)))
+  if ((my_errno= set_up_partition_info(form->part_info, tab)))
     goto abort;
 
   if (tab.getFragmentType() == NDBTAB::HashMapPartition && 
@@ -11587,9 +11655,11 @@ int handle_trailing_share(THD *thd, NDB_SHARE *share)
    */
   if (!((share->use_count == 1) && share->util_thread))
   {
+#ifdef NDB_LOG_TRAILING_SHARE_ERRORS
     sql_print_warning("NDB_SHARE: %s already exists use_count=%d."
                       " Moving away for safety, but possible memleak.",
                       share->key, share->use_count);
+#endif
   }
   dbug_print_open_tables();
 
@@ -13480,10 +13550,11 @@ void ha_ndbcluster::set_auto_partitions(partition_info *part_info)
 }
 
 
-int ha_ndbcluster::set_range_data(void *tab_ref, partition_info *part_info)
+int
+ha_ndbcluster::set_range_data(const partition_info *part_info,
+                              NdbDictionary::Table& ndbtab) const
 {
   const uint num_parts = partition_info_num_parts(part_info);
-  NDBTAB *tab= (NDBTAB*)tab_ref;
   int error= 0;
   bool unsigned_flag= part_info->part_expr->unsigned_flag;
   DBUG_ENTER("set_range_data");
@@ -13512,16 +13583,18 @@ int ha_ndbcluster::set_range_data(void *tab_ref, partition_info *part_info)
     }
     range_data[i]= (int32)range_val;
   }
-  tab->setRangeListData(range_data, num_parts);
+  ndbtab.setRangeListData(range_data, num_parts);
 error:
   my_free((char*)range_data, MYF(0));
   DBUG_RETURN(error);
 }
 
-int ha_ndbcluster::set_list_data(void *tab_ref, partition_info *part_info)
+
+int
+ha_ndbcluster::set_list_data(const partition_info *part_info,
+                             NdbDictionary::Table& ndbtab) const
 {
   const uint num_list_values = partition_info_num_list_values(part_info);
-  NDBTAB *tab= (NDBTAB*)tab_ref;
   int32 *list_data= (int32*)my_malloc(num_list_values*2*sizeof(int32), MYF(0));
   int error= 0;
   bool unsigned_flag= part_info->part_expr->unsigned_flag;
@@ -13547,7 +13620,7 @@ int ha_ndbcluster::set_list_data(void *tab_ref, partition_info *part_info)
     list_data[2*i]= (int32)list_val;
     list_data[2*i+1]= list_entry->partition_id;
   }
-  tab->setRangeListData(list_data, 2*num_list_values);
+  ndbtab.setRangeListData(list_data, 2*num_list_values);
 error:
   my_free((char*)list_data, MYF(0));
   DBUG_RETURN(error);
@@ -13566,18 +13639,15 @@ error:
   implement the function to map to a partition.
 */
 
-uint ha_ndbcluster::set_up_partition_info(partition_info *part_info,
-                                          TABLE *table,
-                                          void *tab_par)
+int
+ha_ndbcluster::set_up_partition_info(partition_info *part_info,
+                                     NdbDictionary::Table& ndbtab) const
 {
   uint32 frag_data[MAX_PARTITIONS];
   char *ts_names[MAX_PARTITIONS];
   ulong fd_index= 0, i, j;
-  NDBTAB *tab= (NDBTAB*)tab_par;
   NDBTAB::FragmentType ftype= NDBTAB::UserDefined;
   partition_element *part_elem;
-  bool first= TRUE;
-  uint tot_ts_name_len;
   List_iterator<partition_element> part_it(part_info->partitions);
   int error;
   DBUG_ENTER("ha_ndbcluster::set_up_partition_info");
@@ -13591,7 +13661,7 @@ uint ha_ndbcluster::set_up_partition_info(partition_info *part_info,
 
     for (i= 0; i < part_info->part_field_list.elements; i++)
     {
-      NDBCOL *col= tab->getColumn(fields[i]->field_index);
+      NDBCOL *col= ndbtab.getColumn(fields[i]->field_index);
       DBUG_PRINT("info",("setting dist key on %s", col->getName()));
       col->setPartitionKey(TRUE);
     }
@@ -13623,25 +13693,24 @@ uint ha_ndbcluster::set_up_partition_info(partition_info *part_info,
     col.setNullable(FALSE);
     col.setPrimaryKey(FALSE);
     col.setAutoIncrement(FALSE);
-    tab->addColumn(col);
+    ndbtab.addColumn(col);
     if (part_info->part_type == RANGE_PARTITION)
     {
-      if ((error= set_range_data((void*)tab, part_info)))
+      if ((error= set_range_data(part_info, ndbtab)))
       {
         DBUG_RETURN(error);
       }
     }
     else if (part_info->part_type == LIST_PARTITION)
     {
-      if ((error= set_list_data((void*)tab, part_info)))
+      if ((error= set_list_data(part_info, ndbtab)))
       {
         DBUG_RETURN(error);
       }
     }
   }
-  tab->setFragmentType(ftype);
+  ndbtab.setFragmentType(ftype);
   i= 0;
-  tot_ts_name_len= 0;
   do
   {
     uint ng;
@@ -13664,13 +13733,12 @@ uint ha_ndbcluster::set_up_partition_info(partition_info *part_info,
         frag_data[fd_index++]= ng;
       } while (++j < partition_info_num_subparts(part_info));
     }
-    first= FALSE;
   } while (++i < partition_info_num_parts(part_info));
 
   const bool use_default_num_parts =
     partition_info_use_default_num_partitions(part_info);
-  tab->setDefaultNoPartitionsFlag(use_default_num_parts);
-  tab->setLinearFlag(part_info->linear_hash_ind);
+  ndbtab.setDefaultNoPartitionsFlag(use_default_num_parts);
+  ndbtab.setLinearFlag(part_info->linear_hash_ind);
   {
     ha_rows max_rows= table_share->max_rows;
     ha_rows min_rows= table_share->min_rows;
@@ -13678,12 +13746,12 @@ uint ha_ndbcluster::set_up_partition_info(partition_info *part_info,
       max_rows= min_rows;
     if (max_rows != (ha_rows)0) /* default setting, don't set fragmentation */
     {
-      tab->setMaxRows(max_rows);
-      tab->setMinRows(min_rows);
+      ndbtab.setMaxRows(max_rows);
+      ndbtab.setMinRows(min_rows);
     }
   }
-  tab->setFragmentCount(fd_index);
-  tab->setFragmentData(frag_data, fd_index);
+  ndbtab.setFragmentCount(fd_index);
+  ndbtab.setFragmentData(frag_data, fd_index);
   DBUG_RETURN(0);
 }
 
@@ -15378,7 +15446,7 @@ static struct st_mysql_sys_var* system_variables[]= {
   MYSQL_SYSVAR(nodeid),
   MYSQL_SYSVAR(blob_read_batch_bytes),
   MYSQL_SYSVAR(blob_write_batch_bytes),
-
+  MYSQL_SYSVAR(deferred_constraints),
   NULL
 };
 

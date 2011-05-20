@@ -140,6 +140,8 @@ Row GCI: 1
 SingleUserMode: 0
 ForceVarPart: 1
 FragmentCount: 2
+ExtraRowGciBits: 0
+ExtraRowAuthorBits: 0
 TableStatus: Retrieved
 -- Attributes -- 
 i Int PRIMARY KEY DISTRIBUTION KEY AT=FIXED ST=MEMORY AUTO_INCR
@@ -178,6 +180,8 @@ Row GCI: 1
 SingleUserMode: 0
 ForceVarPart: 1
 FragmentCount: 2
+ExtraRowGciBits: 0
+ExtraRowAuthorBits: 0
 TableStatus: Retrieved
 -- Attributes -- 
 pk Int PRIMARY KEY DISTRIBUTION KEY AT=FIXED ST=MEMORY AUTO_INCR
@@ -246,6 +250,8 @@ Row GCI: 1
 SingleUserMode: 0
 ForceVarPart: 1
 FragmentCount: 2
+ExtraRowGciBits: 0
+ExtraRowAuthorBits: 0
 TableStatus: Retrieved
 -- Attributes -- 
 i Int PRIMARY KEY DISTRIBUTION KEY AT=FIXED ST=MEMORY AUTO_INCR
@@ -283,6 +289,8 @@ Row GCI: 1
 SingleUserMode: 0
 ForceVarPart: 1
 FragmentCount: 2
+ExtraRowGciBits: 0
+ExtraRowAuthorBits: 0
 TableStatus: Retrieved
 -- Attributes -- 
 pk Int PRIMARY KEY DISTRIBUTION KEY AT=FIXED ST=MEMORY AUTO_INCR
@@ -360,6 +368,8 @@ Row GCI: 1
 SingleUserMode: 0
 ForceVarPart: 1
 FragmentCount: 2
+ExtraRowGciBits: 0
+ExtraRowAuthorBits: 0
 TableStatus: Retrieved
 -- Attributes -- 
 i Int PRIMARY KEY DISTRIBUTION KEY AT=FIXED ST=MEMORY AUTO_INCR
@@ -450,6 +460,8 @@ Row GCI: 1
 SingleUserMode: 0
 ForceVarPart: 1
 FragmentCount: 2
+ExtraRowGciBits: 0
+ExtraRowAuthorBits: 0
 TableStatus: Retrieved
 -- Attributes -- 
 i Int PRIMARY KEY DISTRIBUTION KEY AT=FIXED ST=MEMORY AUTO_INCR
@@ -497,6 +509,8 @@ Row GCI: 1
 SingleUserMode: 0
 ForceVarPart: 1
 FragmentCount: 2
+ExtraRowGciBits: 0
+ExtraRowAuthorBits: 0
 TableStatus: Retrieved
 -- Attributes -- 
 a Int PRIMARY KEY DISTRIBUTION KEY AT=FIXED ST=MEMORY
@@ -538,6 +552,8 @@ Row GCI: 1
 SingleUserMode: 0
 ForceVarPart: 1
 FragmentCount: 2
+ExtraRowGciBits: 0
+ExtraRowAuthorBits: 0
 TableStatus: Retrieved
 -- Attributes -- 
 a Int PRIMARY KEY DISTRIBUTION KEY AT=FIXED ST=MEMORY
@@ -587,6 +603,8 @@ Row GCI: 1
 SingleUserMode: 0
 ForceVarPart: 1
 FragmentCount: 2
+ExtraRowGciBits: 0
+ExtraRowAuthorBits: 0
 TableStatus: Retrieved
 -- Attributes -- 
 a Int PRIMARY KEY DISTRIBUTION KEY AT=FIXED ST=MEMORY
@@ -630,6 +648,8 @@ Row GCI: 1
 SingleUserMode: 0
 ForceVarPart: 1
 FragmentCount: 2
+ExtraRowGciBits: 0
+ExtraRowAuthorBits: 0
 TableStatus: Retrieved
 -- Attributes -- 
 a Int PRIMARY KEY DISTRIBUTION KEY AT=FIXED ST=MEMORY
@@ -672,6 +692,8 @@ Row GCI: 1
 SingleUserMode: 0
 ForceVarPart: 1
 FragmentCount: 2
+ExtraRowGciBits: 0
+ExtraRowAuthorBits: 0
 TableStatus: Retrieved
 -- Attributes -- 
 a Int PRIMARY KEY DISTRIBUTION KEY AT=FIXED ST=MEMORY
@@ -714,6 +736,8 @@ Row GCI: 1
 SingleUserMode: 0
 ForceVarPart: 1
 FragmentCount: 2
+ExtraRowGciBits: 0
+ExtraRowAuthorBits: 0
 TableStatus: Retrieved
 -- Attributes -- 
 a Int PRIMARY KEY DISTRIBUTION KEY AT=FIXED ST=MEMORY
@@ -758,6 +782,8 @@ Row GCI: 1
 SingleUserMode: 0
 ForceVarPart: 1
 FragmentCount: 2
+ExtraRowGciBits: 0
+ExtraRowAuthorBits: 0
 TableStatus: Retrieved
 -- Attributes -- 
 a Int PRIMARY KEY DISTRIBUTION KEY AT=FIXED ST=MEMORY
@@ -805,6 +831,8 @@ Row GCI: 1
 SingleUserMode: 0
 ForceVarPart: 1
 FragmentCount: 2
+ExtraRowGciBits: 0
+ExtraRowAuthorBits: 0
 TableStatus: Retrieved
 -- Attributes -- 
 a Int PRIMARY KEY DISTRIBUTION KEY AT=FIXED ST=MEMORY
@@ -847,6 +875,8 @@ Row GCI: 1
 SingleUserMode: 0
 ForceVarPart: 1
 FragmentCount: 2
+ExtraRowGciBits: 0
+ExtraRowAuthorBits: 0
 TableStatus: Retrieved
 -- Attributes -- 
 a Int PRIMARY KEY DISTRIBUTION KEY AT=FIXED ST=MEMORY
@@ -891,6 +921,8 @@ Row GCI: 1
 SingleUserMode: 0
 ForceVarPart: 1
 FragmentCount: 2
+ExtraRowGciBits: 0
+ExtraRowAuthorBits: 0
 TableStatus: Retrieved
 -- Attributes -- 
 a Int PRIMARY KEY DISTRIBUTION KEY AT=FIXED ST=MEMORY
@@ -936,6 +968,8 @@ Row GCI: 1
 SingleUserMode: 0
 ForceVarPart: 1
 FragmentCount: 2
+ExtraRowGciBits: 0
+ExtraRowAuthorBits: 0
 TableStatus: Retrieved
 -- Attributes -- 
 a Int PRIMARY KEY DISTRIBUTION KEY AT=FIXED ST=MEMORY
@@ -985,6 +1019,8 @@ Row GCI: 1
 SingleUserMode: 0
 ForceVarPart: 1
 FragmentCount: 2
+ExtraRowGciBits: 0
+ExtraRowAuthorBits: 0
 TableStatus: Retrieved
 -- Attributes -- 
 a Int PRIMARY KEY DISTRIBUTION KEY AT=FIXED ST=MEMORY
@@ -1028,6 +1064,8 @@ Row GCI: 1
 SingleUserMode: 0
 ForceVarPart: 1
 FragmentCount: 2
+ExtraRowGciBits: 0
+ExtraRowAuthorBits: 0
 TableStatus: Retrieved
 -- Attributes -- 
 a Int PRIMARY KEY DISTRIBUTION KEY AT=FIXED ST=MEMORY
@@ -1070,6 +1108,8 @@ Row GCI: 1
 SingleUserMode: 0
 ForceVarPart: 1
 FragmentCount: 2
+ExtraRowGciBits: 0
+ExtraRowAuthorBits: 0
 TableStatus: Retrieved
 -- Attributes -- 
 a Int PRIMARY KEY DISTRIBUTION KEY AT=FIXED ST=MEMORY
@@ -1112,6 +1152,8 @@ Row GCI: 1
 SingleUserMode: 0
 ForceVarPart: 1
 FragmentCount: 2
+ExtraRowGciBits: 0
+ExtraRowAuthorBits: 0
 TableStatus: Retrieved
 -- Attributes -- 
 a Int PRIMARY KEY DISTRIBUTION KEY AT=FIXED ST=MEMORY
@@ -1154,6 +1196,8 @@ Row GCI: 1
 SingleUserMode: 0
 ForceVarPart: 1
 FragmentCount: 2
+ExtraRowGciBits: 0
+ExtraRowAuthorBits: 0
 TableStatus: Retrieved
 -- Attributes -- 
 a Int PRIMARY KEY DISTRIBUTION KEY AT=FIXED ST=MEMORY
@@ -1198,6 +1242,8 @@ Row GCI: 1
 SingleUserMode: 0
 ForceVarPart: 1
 FragmentCount: 2
+ExtraRowGciBits: 0
+ExtraRowAuthorBits: 0
 TableStatus: Retrieved
 -- Attributes -- 
 a Int PRIMARY KEY DISTRIBUTION KEY AT=FIXED ST=MEMORY
@@ -1245,6 +1291,8 @@ Row GCI: 1
 SingleUserMode: 0
 ForceVarPart: 1
 FragmentCount: 2
+ExtraRowGciBits: 0
+ExtraRowAuthorBits: 0
 TableStatus: Retrieved
 -- Attributes -- 
 a Int PRIMARY KEY DISTRIBUTION KEY AT=FIXED ST=MEMORY
@@ -1333,6 +1381,8 @@ Row GCI: 1
 SingleUserMode: 0
 ForceVarPart: 1
 FragmentCount: 2
+ExtraRowGciBits: 0
+ExtraRowAuthorBits: 0
 TableStatus: Retrieved
 -- Attributes -- 
 i Int PRIMARY KEY DISTRIBUTION KEY AT=FIXED ST=MEMORY AUTO_INCR

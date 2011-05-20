@@ -42,7 +42,7 @@ void Dbtup::execTUP_DEALLOCREQ(Signal* signal)
   getFragmentrec(regFragPtr, frag_id, regTabPtr.p);
   ndbassert(regFragPtr.p != NULL);
   
-  if (! (((frag_page_id << MAX_TUPLES_BITS) + page_index) == ~ (Uint32) 0))
+  if (! Local_key::isInvalid(frag_page_id, page_index))
   {
     Local_key tmp;
     tmp.m_page_no= getRealpid(regFragPtr.p, frag_page_id); 
@@ -51,15 +51,8 @@ void Dbtup::execTUP_DEALLOCREQ(Signal* signal)
     PagePtr pagePtr;
     Tuple_header* ptr= (Tuple_header*)get_ptr(&pagePtr, &tmp, regTabPtr.p);
 
-    ndbassert(ptr->m_header_bits & Tuple_header::FREE);
+    ndbassert(ptr->m_header_bits & Tuple_header::FREED);
 
-    if (ptr->m_header_bits & Tuple_header::LCP_KEEP)
-    {
-      ndbassert(! (ptr->m_header_bits & Tuple_header::FREED));
-      ptr->m_header_bits |= Tuple_header::FREED;
-      return;
-    }
-    
     if (regTabPtr.p->m_attributes[MM].m_no_of_varsize +
         regTabPtr.p->m_attributes[MM].m_no_of_dynamic)
     {
@@ -154,15 +147,16 @@ Dbtup::is_rowid_lcp_scanned(const Local_key& key1,
 
 void
 Dbtup::dealloc_tuple(Signal* signal,
-		     Uint32 gci,
+		     Uint32 gci_hi,
+                     Uint32 gci_lo,
 		     Page* page,
 		     Tuple_header* ptr, 
+                     KeyReqStruct * req_struct,
 		     Operationrec* regOperPtr, 
 		     Fragrecord* regFragPtr, 
 		     Tablerec* regTabPtr)
 {
   Uint32 lcpScan_ptr_i= regFragPtr->m_lcp_scan_op;
-  Uint32 lcp_keep_list = regFragPtr->m_lcp_keep_list;
 
   Uint32 bits = ptr->m_header_bits;
   Uint32 extra_bits = Tuple_header::FREED;
@@ -175,7 +169,7 @@ Dbtup::dealloc_tuple(Signal* signal,
     tmpptr.i = m_pgman_ptr.i;
     tmpptr.p = reinterpret_cast<Page*>(m_pgman_ptr.p);
     disk_page_free(signal, regTabPtr, regFragPtr, 
-		   &disk, tmpptr, gci);
+		   &disk, tmpptr, gci_hi);
   }
   
   if (! (bits & (Tuple_header::LCP_SKIP | Tuple_header::ALLOC)) && 
@@ -189,9 +183,15 @@ Dbtup::dealloc_tuple(Signal* signal,
     if (!is_rowid_lcp_scanned(rowid, *scanOp.p))
     {
       jam();
-      extra_bits = Tuple_header::LCP_KEEP; // Note REMOVE FREE
-      ptr->m_operation_ptr_i = lcp_keep_list;
-      regFragPtr->m_lcp_keep_list = rowid.ref();
+
+      /**
+       * We're committing a delete, on a row that should
+       *   be part of LCP. Copy original row into copy-tuple
+       *   and add this copy-tuple to lcp-keep-list
+       *
+       */
+      handle_lcp_keep_commit(&rowid,
+                             req_struct, regOperPtr, regFragPtr, regTabPtr);
     }
   }
   
@@ -200,8 +200,76 @@ Dbtup::dealloc_tuple(Signal* signal,
   if (regTabPtr->m_bits & Tablerec::TR_RowGCI)
   {
     jam();
-    * ptr->get_mm_gci(regTabPtr) = gci;
+    * ptr->get_mm_gci(regTabPtr) = gci_hi;
+    if (regTabPtr->m_bits & Tablerec::TR_ExtraRowGCIBits)
+    {
+      Uint32 attrId = regTabPtr->getExtraAttrId<Tablerec::TR_ExtraRowGCIBits>();
+      store_extra_row_bits(attrId, regTabPtr, ptr, gci_lo, /* truncate */true);
+    }
   }
+}
+
+void
+Dbtup::handle_lcp_keep_commit(const Local_key* rowid,
+                              KeyReqStruct * req_struct,
+                              Operationrec * opPtrP,
+                              Fragrecord * regFragPtr,
+                              Tablerec * regTabPtr)
+{
+  bool disk = false;
+  Uint32 sizes[4];
+  Uint32 * copytuple = get_copy_tuple_raw(&opPtrP->m_copy_tuple_location);
+  Tuple_header * dst = get_copy_tuple(copytuple);
+  Tuple_header * org = req_struct->m_tuple_ptr;
+  if (regTabPtr->need_expand(disk))
+  {
+    setup_fixed_part(req_struct, opPtrP, regTabPtr);
+    req_struct->m_tuple_ptr = dst;
+    expand_tuple(req_struct, sizes, org, regTabPtr, disk);
+    shrink_tuple(req_struct, sizes+2, regTabPtr, disk);
+  }
+  else
+  {
+    memcpy(dst, org, 4*regTabPtr->m_offsets[MM].m_fix_header_size);
+  }
+  dst->m_header_bits |= Tuple_header::COPY_TUPLE;
+
+  /**
+   * Store original row-id in copytuple[0,1]
+   * Store next-ptr in copytuple[1,2] (set to RNIL/RNIL)
+   *
+   */
+  assert(sizeof(Local_key) == 8);
+  memcpy(copytuple+0, rowid, sizeof(Local_key));
+
+  Local_key nil;
+  nil.setNull();
+  memcpy(copytuple+2, &nil, sizeof(nil));
+
+  /**
+   * Link it to list
+   */
+  if (regFragPtr->m_lcp_keep_list_tail.isNull())
+  {
+    jam();
+    regFragPtr->m_lcp_keep_list_head = opPtrP->m_copy_tuple_location;
+  }
+  else
+  {
+    jam();
+    Uint32 * tail = get_copy_tuple_raw(&regFragPtr->m_lcp_keep_list_tail);
+    Local_key nextptr;
+    memcpy(&nextptr, tail+2, sizeof(Local_key));
+    ndbassert(nextptr.isNull());
+    nextptr = opPtrP->m_copy_tuple_location;
+    memcpy(tail+2, &nextptr, sizeof(Local_key));
+  }
+  regFragPtr->m_lcp_keep_list_tail = opPtrP->m_copy_tuple_location;
+
+  /**
+   * And finally clear m_copy_tuple_location so that it won't be freed
+   */
+  opPtrP->m_copy_tuple_location.setNull();
 }
 
 #if 0
@@ -226,7 +294,8 @@ static void dump_buf_hex(unsigned char *p, Uint32 bytes)
 
 void
 Dbtup::commit_operation(Signal* signal,
-			Uint32 gci,
+			Uint32 gci_hi,
+                        Uint32 gci_lo,
 			Tuple_header* tuple_ptr, 
 			PagePtr pagePtr,
 			Operationrec* regOperPtr, 
@@ -247,6 +316,7 @@ Dbtup::commit_operation(Signal* signal,
   Uint32 fixsize= regTabPtr->m_offsets[MM].m_fix_header_size;
   Uint32 mm_vars= regTabPtr->m_attributes[MM].m_no_of_varsize;
   Uint32 mm_dyns= regTabPtr->m_attributes[MM].m_no_of_dynamic;
+  bool update_gci_at_commit = ! regOperPtr->op_struct.m_gci_written;
   if((mm_vars+mm_dyns) == 0)
   {
     jam();
@@ -337,7 +407,7 @@ Dbtup::commit_operation(Signal* signal,
     if(copy_bits & Tuple_header::DISK_ALLOC)
     {
       jam();
-      disk_page_alloc(signal, regTabPtr, regFragPtr, &key, diskPagePtr, gci);
+      disk_page_alloc(signal, regTabPtr, regFragPtr, &key, diskPagePtr, gci_hi);
     }
     
     if(regTabPtr->m_attributes[DD].m_no_of_varsize == 0)
@@ -357,7 +427,7 @@ Dbtup::commit_operation(Signal* signal,
     {
       jam();
       disk_page_undo_update(diskPagePtr.p, 
-			    &key, dst, sz, gci, logfile_group_id);
+			    &key, dst, sz, gci_hi, logfile_group_id);
     }
     
     memcpy(dst, disk_ptr, 4*sz);
@@ -390,10 +460,17 @@ Dbtup::commit_operation(Signal* signal,
   tuple_ptr->m_header_bits= copy_bits;
   tuple_ptr->m_operation_ptr_i= save;
   
-  if (regTabPtr->m_bits & Tablerec::TR_RowGCI)
+  if (regTabPtr->m_bits & Tablerec::TR_RowGCI  &&
+      update_gci_at_commit)
   {
     jam();
-    * tuple_ptr->get_mm_gci(regTabPtr) = gci;
+    * tuple_ptr->get_mm_gci(regTabPtr) = gci_hi;
+    if (regTabPtr->m_bits & Tablerec::TR_ExtraRowGCIBits)
+    {
+      Uint32 attrId = regTabPtr->getExtraAttrId<Tablerec::TR_ExtraRowGCIBits>();
+      store_extra_row_bits(attrId, regTabPtr, tuple_ptr, gci_lo,
+                           /* truncate */true);
+    }
   }
   
   if (regTabPtr->m_bits & Tablerec::TR_Checksum) {
@@ -580,7 +657,7 @@ void Dbtup::execTUP_COMMITREQ(Signal* signal)
   FragrecordPtr regFragPtr;
   OperationrecPtr regOperPtr;
   TablerecPtr regTabPtr;
-  KeyReqStruct req_struct(this);
+  KeyReqStruct req_struct(this, KRS_COMMIT);
   TransState trans_state;
   Uint32 no_of_fragrec, no_of_tablerec;
 
@@ -775,7 +852,7 @@ skip_disk:
     if(regOperPtr.p->op_struct.op_type != ZDELETE)
     {
       jam();
-      commit_operation(signal, gci_hi, tuple_ptr, page,
+      commit_operation(signal, gci_hi, gci_lo, tuple_ptr, page,
 		       regOperPtr.p, regFragPtr.p, regTabPtr.p); 
     }
     else
@@ -785,8 +862,8 @@ skip_disk:
       {
 	ndbassert(tuple_ptr->m_header_bits & Tuple_header::DISK_PART);
       }
-      dealloc_tuple(signal, gci_hi, page.p, tuple_ptr,
-		    regOperPtr.p, regFragPtr.p, regTabPtr.p); 
+      dealloc_tuple(signal, gci_hi, gci_lo, page.p, tuple_ptr,
+		    &req_struct, regOperPtr.p, regFragPtr.p, regTabPtr.p);
     }
   } 
 
@@ -824,16 +901,17 @@ Dbtup::set_commit_change_mask_info(const Tablerec* regTabPtr,
   else
   {
     Uint32 * dst = req_struct->changeMask.rep.data;
-    Uint32 * maskptr = get_copy_tuple_raw(&regOperPtr->m_copy_tuple_location);
-    Uint32 cols = * maskptr;
+    Uint32 * rawptr = get_copy_tuple_raw(&regOperPtr->m_copy_tuple_location);
+    ChangeMask * maskptr = get_change_mask_ptr(rawptr);
+    Uint32 cols = maskptr->m_cols;
     if (cols == regTabPtr->m_no_of_attributes)
     {
-      memcpy(dst, maskptr + 1, 4*masklen);
+      memcpy(dst, maskptr->m_mask, 4*masklen);
     }
     else
     {
       ndbassert(regTabPtr->m_no_of_attributes > cols); // no drop column
-      memcpy(dst, maskptr + 1, 4*((cols + 31) >> 5));
+      memcpy(dst, maskptr->m_mask, 4*((cols + 31) >> 5));
       req_struct->changeMask.setRange(cols,
                                       regTabPtr->m_no_of_attributes - cols);
     }

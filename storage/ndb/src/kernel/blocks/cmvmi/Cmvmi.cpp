@@ -1043,7 +1043,14 @@ void Cmvmi::execCONNECT_REP(Signal *signal){
    * Inform QMGR that client has connected
    */
   signal->theData[0] = hostId;
-  sendSignal(QMGR_REF, GSN_CONNECT_REP, signal, 1, JBA);
+  if (ERROR_INSERTED(9005))
+  {
+    sendSignalWithDelay(QMGR_REF, GSN_CONNECT_REP, signal, 50, 1);
+  }
+  else
+  {
+    sendSignal(QMGR_REF, GSN_CONNECT_REP, signal, 1, JBA);
+  }
 
   /* Automatically subscribe events for MGM nodes.
    */
@@ -1837,6 +1844,108 @@ Cmvmi::execDUMP_STATE_ORD(Signal* signal)
 #endif
 #endif
 
+#ifdef ERROR_INSERT
+  /* <Target NodeId> dump 9992 <NodeId list>
+   * On Target NodeId, block receiving signals from NodeId list
+   *
+   * <Target NodeId> dump 9993 <NodeId list>
+   * On Target NodeId, resume receiving signals from NodeId list
+   *
+   * <Target NodeId> dump 9991
+   * On Target NodeId, resume receiving signals from any blocked node
+   *
+   *
+   * See also code in QMGR for blocking receive from nodes based
+   * on HB roles.
+   *
+   */
+  if((arg == 9993) ||  /* Unblock recv from nodeid */
+     (arg == 9992))    /* Block recv from nodeid */
+  {
+    bool block = (arg == 9992);
+    for (Uint32 n = 1; n < signal->getLength(); n++)
+    {
+      Uint32 nodeId = signal->theData[n];
+
+      if ((nodeId > 0) &&
+          (nodeId < MAX_NODES))
+      {
+        if (block)
+        {
+          ndbout_c("CMVMI : Blocking receive from node %u", nodeId);
+
+          globalTransporterRegistry.blockReceive(nodeId);
+        }
+        else
+        {
+          ndbout_c("CMVMI : Unblocking receive from node %u", nodeId);
+
+          globalTransporterRegistry.unblockReceive(nodeId);
+        }
+      }
+      else
+      {
+        ndbout_c("CMVMI : Ignoring dump %u for node %u",
+                 arg, nodeId);
+      }
+    }
+  }
+  if (arg == 9990) /* Block recv from all ndbd matching pattern */
+  {
+    Uint32 pattern = 0;
+    if (signal->getLength() > 1)
+    {
+      pattern = signal->theData[1];
+      ndbout_c("CMVMI : Blocking receive from all ndbds matching pattern -%s-",
+               ((pattern == 1)? "Other side":"Unknown"));
+    }
+
+    for (Uint32 node = 1; node < MAX_NDB_NODES; node++)
+    {
+      if (globalTransporterRegistry.is_connected(node))
+      {
+        if (getNodeInfo(node).m_type == NodeInfo::DB)
+        {
+          if (!globalTransporterRegistry.isBlocked(node))
+          {
+            switch (pattern)
+            {
+            case 1:
+            {
+              /* Match if given node is on 'other side' of
+               * 2-replica cluster
+               */
+              if ((getOwnNodeId() & 1) != (node & 1))
+              {
+                /* Node is on the 'other side', match */
+                break;
+              }
+              /* Node is on 'my side', don't match */
+              continue;
+            }
+            default:
+              break;
+            }
+            ndbout_c("CMVMI : Blocking receive from node %u", node);
+            globalTransporterRegistry.blockReceive(node);
+          }
+        }
+      }
+    }
+  }
+  if (arg == 9991) /* Unblock recv from all blocked */
+  {
+    for (Uint32 node = 0; node < MAX_NODES; node++)
+    {
+      if (globalTransporterRegistry.isBlocked(node))
+      {
+        ndbout_c("CMVMI : Unblocking receive from node %u", node);
+        globalTransporterRegistry.unblockReceive(node);
+      }
+    }
+  }
+#endif
+
   if (arg == 9999)
   {
     Uint32 delay = 1000;
@@ -2006,7 +2115,8 @@ void Cmvmi::execDBINFO_SCANREQ(Signal *signal)
     const NodeState& nodeState = getNodeState();
     const Uint32 start_level = nodeState.startLevel;
     const NDB_TICKS uptime = (NdbTick_CurrentMillisecond()/1000) - m_start_time;
-
+    Uint32 generation = m_ctx.m_config.get_config_generation(); 
+ 
     Ndbinfo::Row row(signal, req);
     row.write_uint32(getOwnNodeId()); // Node id
 
@@ -2014,6 +2124,7 @@ void Cmvmi::execDBINFO_SCANREQ(Signal *signal)
     row.write_uint32(start_level);
     row.write_uint32(start_level == NodeState::SL_STARTING ?
                      nodeState.starting.startPhase : 0);
+    row.write_uint32(generation);
     ndbinfo_send_row(signal, req, row, rl);
     break;
   }

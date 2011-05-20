@@ -403,7 +403,7 @@ drop table t1;
 # test the limit of no of attributes in one table
 #  - use while loop to build dynamic sql string
 #
-let $i=512; # The current max number of attributes
+let $i=511; # The current max number of attributes
 let $separator=;
 let $sql=create table t1 (;
 while ($i)
@@ -412,6 +412,7 @@ while ($i)
   let $separator=,;
   dec $i;
 }
+let $sql=$sql, c512 varchar(10000);
 let $sql=$sql, primary key using hash(c1)) engine=ndb;
 let $sql=$sql partition by key(c1);
 #             ^^^^^^^^^^^^^^^^^^^^
@@ -420,9 +421,28 @@ let $sql=$sql partition by key(c1);
 
 eval $sql; # eval the sql and create the table
 
-insert into t1 (c1) values (1), (2), (3);
+set @v10 = '0123456789';
+set @v100 = concat(@v10,@v10,@v10,@v10,@v10,@v10,@v10,@v10,@v10,@v10);
+set @v1000 =concat(@v100,@v100,@v100,@v100,@v100,@v100,@v100,@v100,@v100,@v100);
+set @v10000 = concat(@v1000,@v1000,@v1000,@v1000,@v1000,@v1000,@v1000,@v1000,@v1000,@v1000);
+set @v13000 = concat(@v10000, @v1000,@v1000,@v1000);
+
+insert into t1 (c1,c512) values (1,@v10000), (2,@v10000), (3,@v10000);
+select c1, length(c512) from t1 order by 1;
 delete from t1;
 drop table t1;
+
+create table t1 (a int primary key, b varchar(13000)) engine = ndb;
+insert into t1 values (1,@v13000), (2,@v13000);
+select length(b) from t1 order by 1;
+drop table t1;
+
+#
+# test bug#53354 - crash when creating partitioned table with multiple columns in the partition key
+#
+
+--error ER_SAME_NAME_PARTITION_FIELD
+create table `t1` (`a` int, b int, primary key (a,b)) engine=ndb partition by key(`a`,`b`,`a`);
 
 #
 # test max size of attribute name and truncation

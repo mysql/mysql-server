@@ -1,0 +1,24 @@
+include/master-slave.inc
+[connection master]
+create table t1(pk int not null primary key, i int) engine = ndb;
+select count(*) from t1;
+count(*)
+1000
+Restarting mysqld
+show binlog events in 'master-bin.000002'  from <start_pos> limit 0,1;
+Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+master-bin.000002	#	Incident	1	<end_pos>	#1 (LOST_EVENTS)
+start slave;
+Sync Slave with master
+Show that Slave has not stopped (has skipped GAP)
+Slave_IO_Running = 'Yes'
+Slave_SQL_Running = 'Yes'
+Last_Errno = '0'
+Last_Error = ''
+Show that replication can continue
+insert into t1 values (1001, 1001);
+select count(*) from t1;
+count(*)
+1001
+drop table t1;
+include/stop_slave.inc

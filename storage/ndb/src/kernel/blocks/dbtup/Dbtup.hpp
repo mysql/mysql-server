@@ -420,6 +420,8 @@ struct Fragoperrec {
   Uint32 attributeCount;
   Uint32 charsetIndex;
   Uint32 m_null_bits[2];
+  Uint32 m_extra_row_gci_bits;
+  Uint32 m_extra_row_author_bits;
   union {
     BlockReference lqhBlockrefFrag;
     Uint32 m_senderRef;
@@ -723,9 +725,10 @@ struct Fragrecord {
   Uint32 m_free_page_id_list;
   DynArr256::Head m_page_map;
   DLFifoList<Page>::Head thFreeFirst;   // pages with atleast 1 free record
-  
+
   Uint32 m_lcp_scan_op;
-  Uint32 m_lcp_keep_list;
+  Local_key m_lcp_keep_list_head;
+  Local_key m_lcp_keep_list_tail;
 
   enum FragState
   { FS_FREE
@@ -826,10 +829,11 @@ struct Operationrec {
     unsigned int m_disk_preallocated : 1;
     unsigned int m_load_diskpage_on_commit : 1;
     unsigned int m_wait_log_buffer : 1;
+    unsigned int m_gci_written : 1;
   };
   union {
     OpBitFields op_struct;
-    Uint16 op_bit_fields;
+    Uint32 op_bit_fields;
   };
 
   /*
@@ -960,7 +964,10 @@ ArrayPool<TupTriggerData> c_triggerPool;
       subscriptionDeleteTriggers(triggerPool),
       subscriptionUpdateTriggers(triggerPool),
       constraintUpdateTriggers(triggerPool),
-      tuxCustomTriggers(triggerPool)
+      tuxCustomTriggers(triggerPool),
+      deferredInsertTriggers(triggerPool),
+      deferredDeleteTriggers(triggerPool),
+      deferredUpdateTriggers(triggerPool)
       {}
     
     Bitmask<MAXNROFATTRIBUTESINWORDS> notNullAttributeMask;
@@ -1015,7 +1022,9 @@ ArrayPool<TupTriggerData> c_triggerPool;
       TR_Checksum = 0x1, // Need to be 1
       TR_RowGCI   = 0x2,
       TR_ForceVarPart = 0x4,
-      TR_DiskPart  = 0x8
+      TR_DiskPart  = 0x8,
+      TR_ExtraRowGCIBits = 0x10,
+      TR_ExtraRowAuthorBits = 0x20
     };
     Uint16 m_bits;
     Uint16 total_rec_size; // Max total size for entire tuple in words
@@ -1028,6 +1037,7 @@ ArrayPool<TupTriggerData> c_triggerPool;
     Uint16 noOfKeyAttr;
     Uint16 noOfCharsets;
     Uint16 m_dyn_null_bits[2];
+    Uint16 m_no_of_extra_columns; // "Hidden" columns
 
     bool need_expand() const { 
       return m_no_of_attributes > m_attributes[MM].m_no_of_fixsize;
@@ -1051,6 +1061,17 @@ ArrayPool<TupTriggerData> c_triggerPool;
 	m_attributes[MM].m_no_of_varsize > 0 ||
 	m_attributes[MM].m_no_of_dynamic > 0 ||
         (disk && m_attributes[DD].m_no_of_varsize > 0);
+    }
+
+    template <Uint32 bit> Uint32 getExtraAttrId() const {
+      if (bit == TR_ExtraRowGCIBits)
+        return 0;
+      Uint32 no = 0;
+      if (m_bits & TR_ExtraRowGCIBits)
+        no++;
+      assert(bit == TR_ExtraRowAuthorBits);
+      //if (bit == TR_ExtraRowAuthorBits)
+      return no;
     }
 
     /**
@@ -1090,7 +1111,10 @@ ArrayPool<TupTriggerData> c_triggerPool;
     DLList<TupTriggerData> subscriptionDeleteTriggers;
     DLList<TupTriggerData> subscriptionUpdateTriggers;
     DLList<TupTriggerData> constraintUpdateTriggers;
-    
+    DLList<TupTriggerData> deferredInsertTriggers;
+    DLList<TupTriggerData> deferredUpdateTriggers;
+    DLList<TupTriggerData> deferredDeleteTriggers;
+
     // List of ordered indexes
     DLList<TupTriggerData> tuxCustomTriggers;
     
@@ -1364,12 +1388,12 @@ typedef Ptr<HostBuffer> HostBufferPtr;
     STATIC_CONST( SZ32 = 1 );
 
     void copyout(Local_key* dst) const {
-      dst->m_page_no = m_ref >> MAX_TUPLES_BITS;
-      dst->m_page_idx = m_ref & MAX_TUPLES_PER_PAGE;
+      dst->m_page_no = Local_key::ref2page_id(m_ref);
+      dst->m_page_idx = Local_key::ref2page_idx(m_ref);
     }
 
     void assign(const Local_key* src) {
-      m_ref = (src->m_page_no << MAX_TUPLES_BITS) | src->m_page_idx;
+      m_ref = Local_key::ref(src->m_page_no, src->m_page_idx);
     }
 #else
     Uint32 m_page_no;
@@ -1433,9 +1457,8 @@ typedef Ptr<HostBuffer> HostBufferPtr;
     STATIC_CONST( MM_SHRINK   = 0x00200000 ); // Has MM part shrunk
     STATIC_CONST( MM_GROWN    = 0x00400000 ); // Has MM part grown
     STATIC_CONST( FREED       = 0x00800000 ); // Is freed
+    STATIC_CONST( FREE        = 0x00800000 ); // alias
     STATIC_CONST( LCP_SKIP    = 0x01000000 ); // Should not be returned in LCP
-    STATIC_CONST( LCP_KEEP    = 0x02000000 ); // Should be returned in LCP
-    STATIC_CONST( FREE        = 0x02800000 ); // Is free
     STATIC_CONST( VAR_PART    = 0x04000000 ); // Is there a varpart
     STATIC_CONST( REORG_MOVE  = 0x08000000 );
 
@@ -1505,19 +1528,31 @@ typedef Ptr<HostBuffer> HostBufferPtr;
     STATIC_CONST( SZ32 = 1 );
   };
 
+  enum When
+  {
+    KRS_PREPARE = 0,
+    KRS_COMMIT = 1,
+    KRS_PRE_COMMIT0 = 2, // There can be multiple pre commit phases...
+    KRS_PRE_COMMIT1 = 3
+  };
+
 struct KeyReqStruct {
 
-  KeyReqStruct(EmulatedJamBuffer * _jamBuffer) {
+  KeyReqStruct(EmulatedJamBuffer * _jamBuffer, When when = KRS_PREPARE) {
 #if defined VM_TRACE || defined ERROR_INSERT
     memset(this, 0xf3, sizeof(* this));
 #endif
     jamBuffer = _jamBuffer;
+    m_when = when;
+    m_deferred_constraints = true;
   }
-  KeyReqStruct(Dbtup* tup) {
+  KeyReqStruct(Dbtup* tup, When when = KRS_PREPARE) {
 #if defined VM_TRACE || defined ERROR_INSERT
     memset(this, 0xf3, sizeof(* this));
 #endif
     jamBuffer = tup->jamBuffer();
+    m_when = when;
+    m_deferred_constraints = true;
   }
   
 /**
@@ -1564,6 +1599,7 @@ struct KeyReqStruct {
   /* Flag: is tuple in expanded or in shrunken/stored format? */
   bool is_expanded;
   bool m_is_lcp;
+  enum When m_when;
 
   struct Var_data {
     /*
@@ -1611,6 +1647,7 @@ struct KeyReqStruct {
   bool            last_row;
   bool            m_use_rowid;
   Uint8           m_reorg;
+  bool            m_deferred_constraints;
 
   Signal*         signal;
   Uint32 no_fired_triggers;
@@ -1661,6 +1698,22 @@ struct TupHeadInfo {
 };
 */
 
+  struct ChangeMask
+  {
+    Uint32 m_cols;
+    Uint32 m_mask[1];
+
+    const Uint32 * end_of_mask() const { return end_of_mask(m_cols); }
+    const Uint32 * end_of_mask(Uint32 cols) const {
+      return m_mask + ((cols + 31) >> 5);
+    }
+
+    Uint32 * end_of_mask() { return end_of_mask(m_cols); }
+    Uint32 * end_of_mask(Uint32 cols) {
+      return m_mask + ((cols + 31) >> 5);
+    }
+  };
+
 // updateAttributes module
   Uint32          terrorCode;
 
@@ -1671,7 +1724,8 @@ public:
   /*
    * TUX uses logical tuple address when talking to ACC and LQH.
    */
-  void tuxGetTupAddr(Uint32 fragPtrI, Uint32 pageId, Uint32 pageOffset, Uint32& tupAddr);
+  void tuxGetTupAddr(Uint32 fragPtrI, Uint32 pageId, Uint32 pageOffset,
+                     Uint32& lkey1, Uint32& lkey2);
 
   /*
    * TUX index in TUP has single Uint32 array attribute which stores an
@@ -1711,11 +1765,11 @@ public:
    */
   bool tuxQueryTh(Uint32 fragPtrI, Uint32 pageId, Uint32 pageIndex, Uint32 tupVersion, Uint32 transId1, Uint32 transId2, bool dirty, Uint32 savepointId);
 
-  int load_diskpage(Signal*, Uint32 opRec, Uint32 fragPtrI, 
-		    Uint32 local_key, Uint32 flags);
+  int load_diskpage(Signal*, Uint32 opRec, Uint32 fragPtrI,
+		    Uint32 lkey1, Uint32 lkey2, Uint32 flags);
 
-  int load_diskpage_scan(Signal*, Uint32 opRec, Uint32 fragPtrI, 
-			 Uint32 local_key, Uint32 flags);
+  int load_diskpage_scan(Signal*, Uint32 opRec, Uint32 fragPtrI,
+			 Uint32 lkey1, Uint32 lkey2, Uint32 flags);
 
   void start_restore_lcp(Uint32 tableId, Uint32 fragmentId);
   void complete_restore_lcp(Signal*, Uint32 ref, Uint32 data,
@@ -1981,6 +2035,12 @@ private:
 //------------------------------------------------------------------
 //------------------------------------------------------------------
   void execDROP_TRIG_IMPL_REQ(Signal* signal);
+
+  /**
+   * Deferred triggers execute when execFIRE_TRIG_REQ
+   *   is called
+   */
+  void execFIRE_TRIG_REQ(Signal* signal);
 
 // *****************************************************************
 // Setting up the environment for reads, inserts, updates and deletes.
@@ -2492,10 +2552,10 @@ private:
   Uint32 get_fix_page_offset(Uint32 page_index, Uint32 tuple_size);
 
   Uint32 decr_tup_version(Uint32 tuple_version);
-  void update_change_mask_info(const Tablerec*, Uint32* dst, const Uint32*src);
-  void set_change_mask_info(const Tablerec*, Uint32* dst);
-  void clear_change_mask_info(const Tablerec*, Uint32* dst);
-  void copy_change_mask_info(const Tablerec*, Uint32* dst, const Uint32* src);
+  void update_change_mask_info(const Tablerec*, ChangeMask* dst, const Uint32*src);
+  void set_change_mask_info(const Tablerec*, ChangeMask* dst);
+  void clear_change_mask_info(const Tablerec*, ChangeMask* dst);
+  void copy_change_mask_info(const Tablerec*, ChangeMask* dst, const ChangeMask * src);
   void set_commit_change_mask_info(const Tablerec*,
                                    KeyReqStruct*,
                                    const Operationrec*);
@@ -2567,11 +2627,11 @@ private:
                                     Tablerec* tablePtr,
                                     bool disk);
 
-#if 0
-  void checkDeferredTriggers(Signal* signal, 
+  void checkDeferredTriggers(KeyReqStruct *req_struct,
                              Operationrec* regOperPtr,
-                             Tablerec* regTablePtr);
-#endif
+                             Tablerec* regTablePtr,
+                             bool disk);
+
   void checkDetachedTriggers(KeyReqStruct *req_struct,
                              Operationrec* regOperPtr,
                              Tablerec* regTablePtr,
@@ -2582,9 +2642,19 @@ private:
                              Operationrec* regOperPtr,
                              bool disk);
 
+  void checkDeferredTriggersDuringPrepare(KeyReqStruct *req_struct,
+                                          DLList<TupTriggerData>& triggerList,
+                                          Operationrec* const regOperPtr,
+                                          bool disk);
   void fireDeferredTriggers(KeyReqStruct *req_struct,
                             DLList<TupTriggerData>& triggerList,
-                            Operationrec* regOperPtr);
+                            Operationrec* const regOperPtr,
+                            bool disk);
+
+  void fireDeferredConstraints(KeyReqStruct *req_struct,
+                               DLList<TupTriggerData>& triggerList,
+                               Operationrec* const regOperPtr,
+                               bool disk);
 
   void fireDetachedTriggers(KeyReqStruct *req_struct,
                             DLList<TupTriggerData>& triggerList,
@@ -2897,10 +2967,15 @@ private:
   void initData();
   void initRecords();
 
+  // 2 words for optional GCI64 + AUTHOR info
+#define EXTRA_COPY_PROC_WORDS 2
+#define MAX_COPY_PROC_LEN (MAX_ATTRIBUTES_IN_TABLE + EXTRA_COPY_PROC_WORDS)
+
+
   void deleteScanProcedure(Signal* signal, Operationrec* regOperPtr);
   void allocCopyProcedure();
   void freeCopyProcedure();
-  void prepareCopyProcedure(Uint32 numAttrs);
+  void prepareCopyProcedure(Uint32 numAttrs, Uint16 tableBits);
   void releaseCopyProcedure();
   void copyProcedure(Signal* signal,
                      TablerecPtr regTabPtr,
@@ -2919,7 +2994,7 @@ private:
 //-----------------------------------------------------------------------------
 
 // Public methods
-  Uint32 getTabDescrOffsets(Uint32, Uint32, Uint32, Uint32*);
+  Uint32 getTabDescrOffsets(Uint32, Uint32, Uint32, Uint32, Uint32*);
   Uint32 getDynTabDescrOffsets(Uint32 MaskSize, Uint32* offset);
   Uint32 allocTabDescr(Uint32 allocSize);
   void releaseTabDescr(Uint32 desc);
@@ -2933,7 +3008,7 @@ private:
   void   removeTdArea(Uint32 tabDesRef, Uint32 list);
   void   insertTdArea(Uint32 tabDesRef, Uint32 list);
   void   itdaMergeTabDescr(Uint32& retRef, Uint32& retNo, bool normal);
-#ifdef VM_TRACE
+#if defined VM_TRACE || defined ERROR_INSERT
   void verifytabdes();
 #endif
 
@@ -3120,6 +3195,8 @@ private:
   Uint32 czero;
   Uint32 cCopyProcedure;
   Uint32 cCopyLastSeg;
+  Uint32 cCopyOverwrite;
+  Uint32 cCopyOverwriteLen;
 
  // A little bit bigger to cover overwrites in copy algorithms (16384 real size).
 #define ZATTR_BUFFER_SIZE 16384
@@ -3162,6 +3239,8 @@ private:
   Uint32* get_default_ptr(const Tablerec*, Uint32&);
   Uint32 get_len(Ptr<Page>* pagePtr, Var_part_ref ref);
 
+  STATIC_CONST( COPY_TUPLE_HEADER32 = 4 );
+
   Tuple_header* alloc_copy_tuple(const Tablerec* tabPtrP, Local_key* ptr){
     Uint32 * dst = c_undo_buffer.alloc_copy_tuple(ptr,
                                                   tabPtrP->total_rec_size);
@@ -3171,9 +3250,9 @@ private:
     bzero(dst, tabPtrP->total_rec_size);
 #endif
     Uint32 count = tabPtrP->m_no_of_attributes;
-    * dst = count;
-    dst += 1 + ((count + 31) >> 5);
-    return (Tuple_header*)dst;
+    ChangeMask * mask = (ChangeMask*)(dst + COPY_TUPLE_HEADER32);
+    mask->m_cols = count;
+    return (Tuple_header*)(mask->end_of_mask(count));
   }
 
   Uint32 * get_copy_tuple_raw(const Local_key* ptr) {
@@ -3181,19 +3260,25 @@ private:
   }
 
   Tuple_header * get_copy_tuple(Uint32 * rawptr) {
-    Uint32 masksz = ((* rawptr) + 31) >> 5;
-    return (Tuple_header*)(rawptr + 1 + masksz);
+    return (Tuple_header*)
+      (get_change_mask_ptr(rawptr)->end_of_mask());
+  }
+
+  ChangeMask * get_change_mask_ptr(Uint32 * rawptr) {
+    return (ChangeMask*)(rawptr + COPY_TUPLE_HEADER32);
   }
 
   Tuple_header* get_copy_tuple(const Local_key* ptr){
     return get_copy_tuple(get_copy_tuple_raw(ptr));
   }
 
-  Uint32* get_change_mask_ptr(const Tablerec* tabP, Tuple_header* copy_tuple){
-    Uint32 * tmp = (Uint32*)copy_tuple;
-    tmp -= 1 + ((tabP->m_no_of_attributes + 31) >> 5);
-    assert(get_copy_tuple(tmp) == copy_tuple);
-    return tmp + 1;
+  ChangeMask* get_change_mask_ptr(const Tablerec* tabP,Tuple_header* copytuple){
+    Uint32 * raw = (Uint32*)copytuple;
+    Uint32 * tmp = raw - (1 + ((tabP->m_no_of_attributes + 31) >> 5));
+    ChangeMask* mask = (ChangeMask*)tmp;
+    assert(mask->end_of_mask() == raw);
+    assert(get_copy_tuple(tmp - COPY_TUPLE_HEADER32) == copytuple);
+    return mask;
   }
 
   /**
@@ -3318,16 +3403,20 @@ private:
   void findFirstOp(OperationrecPtr&);
   bool is_rowid_lcp_scanned(const Local_key& key1,
                            const Dbtup::ScanOp& op);
-  void commit_operation(Signal*, Uint32, Tuple_header*, PagePtr,
+  void commit_operation(Signal*, Uint32, Uint32, Tuple_header*, PagePtr,
 			Operationrec*, Fragrecord*, Tablerec*);
   int retrieve_data_page(Signal*,
                          Page_cache_client::Request,
                          OperationrecPtr);
   int retrieve_log_page(Signal*, FragrecordPtr, OperationrecPtr);
-  
-  void dealloc_tuple(Signal* signal, Uint32, Page*, Tuple_header*, 
-		     Operationrec*, Fragrecord*, Tablerec*);
-  
+
+  void dealloc_tuple(Signal* signal, Uint32, Uint32, Page*, Tuple_header*,
+		     KeyReqStruct*, Operationrec*, Fragrecord*, Tablerec*);
+  bool store_extra_row_bits(Uint32, const Tablerec*, Tuple_header*, Uint32,
+                            bool);
+  void read_extra_row_bits(Uint32, const Tablerec*, Tuple_header*, Uint32 *,
+                           bool);
+
   int handle_size_change_after_update(KeyReqStruct* req_struct,
 				      Tuple_header* org,
 				      Operationrec*,
@@ -3353,7 +3442,31 @@ private:
   void check_page_map(Fragrecord*);
   bool find_page_id_in_list(Fragrecord*, Uint32 pid);
 #endif
-  void handle_lcp_keep(Signal*, Fragrecord*, ScanOp*, Uint32 rowid);
+  void handle_lcp_keep(Signal*, Fragrecord*, ScanOp*);
+  void handle_lcp_keep_commit(const Local_key*,
+                              KeyReqStruct *,
+                              Operationrec*, Fragrecord*, Tablerec*);
+
+  void setup_lcp_read_copy_tuple( KeyReqStruct *,
+                                  Operationrec*,
+                                  Fragrecord*,
+                                  Tablerec*);
+
+  bool isCopyTuple(Uint32 pageid, Uint32 pageidx) const {
+    return (pageidx & (Uint16(1) << 15)) != 0;
+  }
+
+  void setCopyTuple(Uint32& pageid, Uint16& pageidx) const {
+    assert(!isCopyTuple(pageid, pageidx));
+    pageidx |= (Uint16(1) << 15);
+    assert(isCopyTuple(pageid, pageidx));
+  }
+
+  void clearCopyTuple(Uint32& pageid, Uint16& pageidx) const {
+    assert(isCopyTuple(pageid, pageidx));
+    pageidx &= ~(Uint16(1) << 15);
+    assert(!isCopyTuple(pageid, pageidx));
+  }
 };
 
 #if 0
@@ -3509,52 +3622,56 @@ bool Dbtup::find_savepoint(OperationrecPtr& loopOpPtr, Uint32 savepointId)
 inline
 void
 Dbtup::update_change_mask_info(const Tablerec* tablePtrP,
-                               Uint32* dst,
+                               ChangeMask* dst,
                                const Uint32 * src)
 {
+  assert(dst->m_cols == tablePtrP->m_no_of_attributes);
+  Uint32 * ptr = dst->m_mask;
   Uint32 len = (tablePtrP->m_no_of_attributes + 31) >> 5;
   for (Uint32 i = 0; i<len; i++)
   {
-    * dst |= *src;
-    dst++;
+    * ptr |= *src;
+    ptr++;
     src++;
   }
 }
 
 inline
 void
-Dbtup::set_change_mask_info(const Tablerec* tablePtrP, Uint32* dst)
+Dbtup::set_change_mask_info(const Tablerec* tablePtrP, ChangeMask* dst)
 {
+  assert(dst->m_cols == tablePtrP->m_no_of_attributes);
   Uint32 len = (tablePtrP->m_no_of_attributes + 31) >> 5;
-  BitmaskImpl::set(len, dst);
+  BitmaskImpl::set(len, dst->m_mask);
 }
 
 inline
 void
-Dbtup::clear_change_mask_info(const Tablerec* tablePtrP, Uint32* dst)
+Dbtup::clear_change_mask_info(const Tablerec* tablePtrP, ChangeMask* dst)
 {
+  assert(dst->m_cols == tablePtrP->m_no_of_attributes);
   Uint32 len = (tablePtrP->m_no_of_attributes + 31) >> 5;
-  BitmaskImpl::clear(len, dst);
+  BitmaskImpl::clear(len, dst->m_mask);
 }
 
 inline
 void
 Dbtup::copy_change_mask_info(const Tablerec* tablePtrP,
-                             Uint32* dst, const Uint32* src)
+                             ChangeMask* dst, const ChangeMask* src)
 {
   Uint32 dst_cols = tablePtrP->m_no_of_attributes;
-  Uint32 src_cols = * src;
-  const Uint32 * src_ptr = src + 1;
+  assert(dst->m_cols == dst_cols);
+  Uint32 src_cols = src->m_cols;
 
   if (dst_cols == src_cols)
   {
-    memcpy(dst, src_ptr, 4 * ((dst_cols + 31) >> 5));
+    memcpy(dst->m_mask, src->m_mask, 4 * ((dst_cols + 31) >> 5));
   }
   else
   {
     ndbassert(dst_cols > src_cols); // drop column not supported
-    memcpy(dst, src_ptr, 4 * ((src_cols + 31) >> 5));
-    BitmaskImpl::setRange((dst_cols + 31) >> 5, dst,
+    memcpy(dst->m_mask, src->m_mask, 4 * ((src_cols + 31) >> 5));
+    BitmaskImpl::setRange((dst_cols + 31) >> 5, dst->m_mask,
                           src_cols,  (dst_cols - src_cols));
   }
 }

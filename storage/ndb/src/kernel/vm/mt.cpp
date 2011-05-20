@@ -401,7 +401,7 @@ struct thr_safe_pool
 
   T* m_free_list;
   Uint32 m_cnt;
-  thr_spin_lock<NDB_CL - (sizeof(T*) + sizeof(Uint32))> m_lock;
+  thr_spin_lock<NDB_CL - (sizeof(void*) + sizeof(Uint32))> m_lock;
 
   T* seize(Ndbd_mem_manager *mm, Uint32 rg) {
     T* ret = 0;
@@ -4169,6 +4169,22 @@ mt_wakeup(class SimulatedBlock* block)
   thr_data *thrptr = g_thr_repository.m_thread + thr_no;
   wakeup(&thrptr->m_waiter);
 }
+
+#ifdef VM_TRACE
+void
+mt_assert_own_thread(SimulatedBlock* block)
+{
+  Uint32 thr_no = block->getThreadId();
+  thr_data *thrptr = g_thr_repository.m_thread + thr_no;
+
+  if (unlikely(pthread_equal(thrptr->m_thr_id, pthread_self()) == 0))
+  {
+    fprintf(stderr, "mt_assert_own_thread() - assertion-failure\n");
+    fflush(stderr);
+    abort();
+  }
+}
+#endif
 
 /**
  * Global data

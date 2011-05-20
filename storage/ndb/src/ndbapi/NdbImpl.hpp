@@ -24,6 +24,7 @@
 #include <kernel/ndb_limits.h>
 #include <NdbTick.h>
 
+#include "NdbQueryOperationImpl.hpp"
 #include "ndb_cluster_connection_impl.hpp"
 #include "NdbDictionaryImpl.hpp"
 #include "ObjectMap.hpp"
@@ -123,6 +124,8 @@ public:
   }
 
   BaseString m_systemPrefix; // Buffer for preformatted for <sys>/<def>/
+  
+  void* customDataPtr;
 
   Uint64 clientStats[ Ndb::NumClientStatistics ];
   
@@ -263,6 +266,8 @@ NdbReceiver::getTransaction() const {
   case NDB_UNINITIALIZED:
     assert(false);
     return NULL;
+  case NDB_QUERY_OPERATION:
+    return &((NdbQueryOperationImpl*)m_owner)->getQuery().getNdbTransaction();
   default:
     return ((NdbOperation*)m_owner)->theNdbCon;
   }

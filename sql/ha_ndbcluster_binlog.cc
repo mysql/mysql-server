@@ -2790,36 +2790,33 @@ ndb_binlog_thread_handle_schema_event_post_epoch(THD *thd,
           }
           free_share(&share);
         }
-        if (ndb_binlog_running)
+
+        if (share)
         {
           /*
-            we need to free any share here as command below
-            may need to call handle_trailing_share
+            Free the share pointer early, ndb_create_table_from_engine()
+            may delete what share is pointing to as a sideeffect
           */
-          if (share)
-          {
-            /* ndb_share reference temporary free */
-            DBUG_PRINT("NDB_SHARE", ("%s temporary free  use_count: %u",
-                                     share->key, share->use_count));
-            free_share(&share);
-            share= 0;
-          }
-          thd_ndb_options.set(TNO_NO_LOCK_SCHEMA_OP);
-          if (ndbcluster_check_if_local_table(schema->db, schema->name))
-          {
-            DBUG_PRINT("info", ("NDB Binlog: Skipping locally defined table '%s.%s'",
-                                schema->db, schema->name));
-            sql_print_error("NDB Binlog: Skipping locally defined table '%s.%s' from "
-                            "binlog schema event '%s' from node %d. ",
-                            schema->db, schema->name, schema->query,
-                            schema->node_id);
-          }
-          else if (ndb_create_table_from_engine(thd, schema->db, schema->name))
-          {
-            print_could_not_discover_error(thd, schema);
-          }
+          DBUG_PRINT("NDB_SHARE", ("%s early free, use_count: %u",
+                                   share->key, share->use_count));
+          free_share(&share);
+          share= 0;
+        }
+
+        thd_ndb_options.set(TNO_NO_LOCK_SCHEMA_OP);
+        if (ndbcluster_check_if_local_table(schema->db, schema->name))
+        {
+          sql_print_error("NDB Binlog: Skipping locally defined table '%s.%s' "
+                          "from binlog schema event '%s' from node %d.",
+                          schema->db, schema->name, schema->query,
+                          schema->node_id);
+        }
+        else if (ndb_create_table_from_engine(thd, schema->db, schema->name))
+        {
+          print_could_not_discover_error(thd, schema);
         }
         break;
+
       case SOT_ONLINE_ALTER_TABLE_PREPARE:
       {
         if (opt_ndb_extra_logging > 9)
@@ -5623,6 +5620,9 @@ ndb_binlog_thread_func(void *arg)
   thd->client_capabilities= 0;
   thd->security_ctx->skip_grants();
   my_net_init(&thd->net, 0);
+
+  // Ndb binlog thread always use row format
+  thd->set_current_stmt_binlog_format_row();
 
   /*
     Set up ndb binlog

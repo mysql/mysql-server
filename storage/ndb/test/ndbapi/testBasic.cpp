@@ -1287,12 +1287,12 @@ int
 runBug25090(NDBT_Context* ctx, NDBT_Step* step){
   
   Ndb* pNdb = GETNDB(step);
-  NdbDictionary::Dictionary * dict = pNdb->getDictionary();
+  //NdbDictionary::Dictionary * dict = pNdb->getDictionary();
 
   HugoOperations ops(*ctx->getTab());
   
   int loops = ctx->getNumLoops();
-  const int rows = ctx->getNumRecords();
+  //const int rows = ctx->getNumRecords();
   
   while (loops--)
   {
@@ -1317,7 +1317,7 @@ runDeleteRead(NDBT_Context* ctx, NDBT_Step* step){
 
   int a;
   int loops = ctx->getNumLoops();
-  const int rows = ctx->getNumRecords();
+  //const int rows = ctx->getNumRecords();
   
   while (loops--)
   {
@@ -1371,12 +1371,12 @@ runBug27756(NDBT_Context* ctx, NDBT_Step* step)
 {
   
   Ndb* pNdb = GETNDB(step);
-  NdbDictionary::Dictionary * dict = pNdb->getDictionary();
+  //NdbDictionary::Dictionary * dict = pNdb->getDictionary();
   
   HugoOperations ops(*ctx->getTab());
 
   int loops = ctx->getNumLoops();
-  const int rows = ctx->getNumRecords();
+  //const int rows = ctx->getNumRecords();
   
   Vector<Uint64> copies;
   while (loops--)
@@ -1832,7 +1832,7 @@ runBug34348(NDBT_Context* ctx, NDBT_Step* step)
         }
       }
       chk1(result == NDBT_OK);
-      assert(BitmaskImpl::count(sz, rowmask)== rowcnt);
+      assert(BitmaskImpl::count(sz, rowmask)== (Uint32)rowcnt);
 
       // delete about 1/2 remaining
       while (result == NDBT_OK)
@@ -1852,7 +1852,7 @@ runBug34348(NDBT_Context* ctx, NDBT_Step* step)
         break;
       }
       chk1(result == NDBT_OK);
-      assert(BitmaskImpl::count(sz, rowmask)== rowcnt);
+      assert(BitmaskImpl::count(sz, rowmask)== (Uint32)rowcnt);
 
       // insert until full again
       while (result == NDBT_OK)
@@ -1874,7 +1874,7 @@ runBug34348(NDBT_Context* ctx, NDBT_Step* step)
         break;
       }
       chk1(result == NDBT_OK);
-      assert(BitmaskImpl::count(sz, rowmask)== rowcnt);
+      assert(BitmaskImpl::count(sz, rowmask)== (Uint32)rowcnt);
 
       // delete all
       while (result == NDBT_OK)
@@ -1892,7 +1892,7 @@ runBug34348(NDBT_Context* ctx, NDBT_Step* step)
         break;
       }
       chk1(result == NDBT_OK);
-      assert(BitmaskImpl::count(sz, rowmask)== rowcnt);
+      assert(BitmaskImpl::count(sz, rowmask)== (Uint32)rowcnt);
       assert(rowcnt == 0);
 
       loop++;
@@ -2267,6 +2267,154 @@ runBug59496_case2(NDBT_Context* ctx, NDBT_Step* step)
   return NDBT_OK;
 }
 
+#define CHK_RET_FAILED(x) if (!(x)) { ndbout_c("Failed on line: %u", __LINE__); return NDBT_FAILED; }
+
+int
+runTest899(NDBT_Context* ctx, NDBT_Step* step)
+{
+  Ndb* pNdb = GETNDB(step);
+  const NdbDictionary::Table* pTab = ctx->getTab();
+
+  const int rows = ctx->getNumRecords();
+  const int loops = ctx->getNumLoops();
+  const int batch = ctx->getProperty("Batch", Uint32(50));
+  const int until_stopped = ctx->getProperty("UntilStopped");
+
+  const NdbRecord * pRowRecord = pTab->getDefaultRecord();
+  CHK_RET_FAILED(pRowRecord != 0);
+
+  const Uint32 len = NdbDictionary::getRecordRowLength(pRowRecord);
+  Uint8 * pRow = new Uint8[len];
+
+  int count_ok = 0;
+  int count_failed = 0;
+  int count_899 = 0;
+  for (int i = 0; i < loops || (until_stopped && !ctx->isTestStopped()); i++)
+  {
+    ndbout_c("loop: %d",i);
+    int result = 0;
+    for (int rowNo = 0; rowNo < rows;)
+    {
+      NdbTransaction* pTrans = pNdb->startTransaction();
+      CHK_RET_FAILED(pTrans != 0);
+
+      for (int b = 0; rowNo < rows && b < batch; rowNo++, b++)
+      {
+        bzero(pRow, len);
+
+        HugoCalculator calc(* pTab);
+
+        NdbOperation::OperationOptions opts;
+        bzero(&opts, sizeof(opts));
+
+        const NdbOperation* pOp = 0;
+        switch(i % 2){
+        case 0:
+          calc.setValues(pRow, pRowRecord, rowNo, rand());
+          pOp = pTrans->writeTuple(pRowRecord, (char*)pRow,
+                                   pRowRecord, (char*)pRow,
+                                   0,
+                                   &opts,
+                                   sizeof(opts));
+          result = pTrans->execute(NoCommit);
+          break;
+        case 1:
+          calc.setValues(pRow, pRowRecord, rowNo, rand());
+          pOp = pTrans->deleteTuple(pRowRecord, (char*)pRow,
+                                    pRowRecord, (char*)pRow,
+                                    0,
+                                    &opts,
+                                    sizeof(opts));
+          result = pTrans->execute(NoCommit, AO_IgnoreError);
+          break;
+        }
+
+        CHK_RET_FAILED(pOp != 0);
+
+        if (result != 0)
+        {
+          goto found_error;
+        }
+      }
+      result = pTrans->execute(Commit);
+
+      if (result != 0)
+      {
+    found_error:
+        count_failed++;
+        NdbError err = pTrans->getNdbError();
+        if (! (err.status == NdbError::TemporaryError ||
+               err.classification == NdbError::NoDataFound ||
+               err.classification == NdbError::ConstraintViolation))
+        {
+          ndbout << err << endl;
+        }
+        CHK_RET_FAILED(err.status == NdbError::TemporaryError ||
+                       err.classification == NdbError::NoDataFound ||
+                       err.classification == NdbError::ConstraintViolation);
+        if (err.code == 899)
+        {
+          count_899++;
+          ndbout << err << endl;
+        }
+      }
+      else
+      {
+        count_ok++;
+      }
+      pTrans->close();
+    }
+  }
+
+  ndbout_c("count_ok: %d count_failed: %d (899: %d)",
+           count_ok, count_failed, count_899);
+  delete [] pRow;
+
+  return count_899 == 0 ? NDBT_OK : NDBT_FAILED;
+}
+
+int
+runInit899(NDBT_Context* ctx, NDBT_Step* step)
+{
+  NdbRestarter restarter;
+  int val = DumpStateOrd::DihMinTimeBetweenLCP;
+  restarter.dumpStateAllNodes(&val, 1);
+
+  Ndb* pNdb = GETNDB(step);
+  const NdbDictionary::Table* pTab = ctx->getTab();
+  const NdbDictionary::Table * pTab2 = pNdb->getDictionary()->
+    getTable(pTab->getName());
+
+  int tableId = pTab2->getObjectId();
+  int val2[] = { DumpStateOrd::BackupErrorInsert, 10042, tableId };
+
+  for (int i = 0; i < restarter.getNumDbNodes(); i++)
+  {
+    if (i & 1)
+    {
+      int nodeId = restarter.getDbNodeId(i);
+      ndbout_c("Setting slow LCP of table %d on node %d",
+               tableId, nodeId);
+      restarter.dumpStateOneNode(nodeId, val2, 3);
+    }
+  }
+
+  return NDBT_OK;
+}
+
+int
+runEnd899(NDBT_Context* ctx, NDBT_Step* step)
+{
+  // reset LCP speed
+  NdbRestarter restarter;
+  int val[] = { DumpStateOrd::DihMinTimeBetweenLCP, 0 };
+  restarter.dumpStateAllNodes(val, 2);
+
+  restarter.insertErrorInAllNodes(0);
+  return NDBT_OK;
+}
+
+
 NDBT_TESTSUITE(testBasic);
 TESTCASE("PkInsert", 
 	 "Verify that we can insert and delete from this table using PK"
@@ -2617,6 +2765,13 @@ TESTCASE("Bug59496_case2", "")
   INITIALIZER(runLoadTable);
   STEP(runBug59496_case2);
   STEPS(runBug59496_scan, 10);
+}
+TESTCASE("899", "")
+{
+  INITIALIZER(runLoadTable);
+  INITIALIZER(runInit899);
+  STEP(runTest899);
+  FINALIZER(runEnd899);
 }
 NDBT_TESTSUITE_END(testBasic);
 
