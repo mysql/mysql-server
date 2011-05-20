@@ -813,6 +813,7 @@ THD::THD()
   m_binlog_invoker= FALSE;
   memset(&invoker_user, 0, sizeof(invoker_user));
   memset(&invoker_host, 0, sizeof(invoker_host));
+  prepare_derived_at_open= FALSE;
 }
 
 
@@ -3046,7 +3047,8 @@ bool
 select_materialize_with_stats::
 create_result_table(THD *thd_arg, List<Item> *column_types,
                     bool is_union_distinct, ulonglong options,
-                    const char *table_alias, bool bit_fields_as_long)
+                    const char *table_alias, bool bit_fields_as_long,
+                    bool create_table)
 {
   DBUG_ASSERT(table == 0);
   tmp_table_param.field_count= column_types->elements;

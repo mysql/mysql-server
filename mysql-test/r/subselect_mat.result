@@ -1336,8 +1336,8 @@ i
 10
 DROP TABLE t1, t2, t3;
 #
-# LPBUG#609121: RQG: wrong result on aggregate + NOT IN + HAVING and
-# partial_match_table_scan=on
+# LPBUG#611622/BUG#52344: Subquery materialization:  Assertion 
+#                         if subquery in on-clause of outer join
 #
 CREATE TABLE t1 (c1 int);
 INSERT INTO t1 VALUES (1),(2);
@@ -1345,7 +1345,7 @@ CREATE TABLE t2 (c2 int);
 INSERT INTO t2 VALUES (10);
 PREPARE st1 FROM "
 SELECT *
-FROM t2 LEFT JOIN (SELECT * FROM t2) t3 ON (8, 4) IN (SELECT c1, c1 FROM t1)";
+FROM t2 LEFT JOIN t2 t3 ON (8, 4) IN (SELECT c1, c1 FROM t1)";
 EXECUTE st1;
 c2	c2
 10	10

@@ -652,7 +652,7 @@ void Item_ident::cleanup()
 bool Item_ident::remove_dependence_processor(uchar * arg)
 {
   DBUG_ENTER("Item_ident::remove_dependence_processor");
-  if (depended_from == (st_select_lex *) arg)
+  if (get_depended_from() == (st_select_lex *) arg)
     depended_from= 0;
   context= &((st_select_lex *) arg)->context;
   DBUG_RETURN(0);
@@ -766,6 +766,23 @@ bool Item_field::register_field_in_bitmap(uchar *arg)
   bitmap_set_bit(bitmap, field->field_index);
   return 0;
 }
+
+
+/*
+  Mark field in write_map
+
+  NOTES
+    This is used by UPDATE to register underlying fields of used view fields.
+*/
+
+bool Item_field::register_field_in_write_map(uchar *arg)
+{
+  TABLE *table= (TABLE *) arg;
+  if (field->table == table || !table)
+    bitmap_set_bit(field->table->write_set, field->field_index);
+  return 0;
+}
+
 
 bool Item::check_cols(uint c)
 {
@@ -2317,13 +2334,17 @@ table_map Item_field::used_tables() const
 {
   if (field->table->const_table)
     return 0;					// const item
-  return (depended_from ? OUTER_REF_TABLE_BIT : field->table->map);
+  return (get_depended_from() ? OUTER_REF_TABLE_BIT : field->table->map);
 }
 
+table_map Item_field::all_used_tables() const
+{
+  return (get_depended_from() ? OUTER_REF_TABLE_BIT : field->table->map);
+}
 
 void Item_field::fix_after_pullout(st_select_lex *new_parent, Item **ref)
 {
-  if (new_parent == depended_from)
+  if (new_parent == get_depended_from())
     depended_from= NULL;
   Name_resolution_context *ctx= new Name_resolution_context();
   ctx->outer_context= NULL; // We don't build a complete name resolver
@@ -2572,7 +2593,7 @@ my_decimal *Item_float::val_decimal(my_decimal *decimal_value)
 
 void Item_string::print(String *str, enum_query_type query_type)
 {
-  if (query_type == QT_ORDINARY && is_cs_specified())
+  if (query_type != QT_IS && is_cs_specified())
   {
     str->append('_');
     str->append(collation.collation->csname);
@@ -2580,7 +2601,7 @@ void Item_string::print(String *str, enum_query_type query_type)
 
   str->append('\'');
 
-  if (query_type == QT_ORDINARY ||
+  if (query_type != QT_IS ||
       my_charset_same(str_value.charset(), system_charset_info))
   {
     str_value.print(str);
@@ -4084,6 +4105,34 @@ resolve_ref_in_select_and_group(THD *thd, Item_ident *ref, SELECT_LEX *select)
 }
 
 
+/*
+  @brief
+  Whether a table belongs to an outer select.
+
+  @param table table to check
+  @param select current select
+
+  @details
+  Try to find select the table belongs to by ascending the derived tables chain.
+*/
+
+static
+bool is_outer_table(TABLE_LIST *table, SELECT_LEX *select)
+{
+  DBUG_ASSERT(table->select_lex != select);
+  TABLE_LIST *tl;
+
+  for (tl= select->master_unit()->derived;
+       tl && tl->is_merged_derived();
+       select= tl->select_lex, tl= select->master_unit()->derived)
+  {
+    if (tl->select_lex == table->select_lex)
+      return FALSE;
+  }
+  return TRUE;
+}
+
+
 /**
   Resolve the name of an outer select column reference.
 
@@ -4532,7 +4581,8 @@ bool Item_field::fix_fields(THD *thd, Item **reference)
 
     if (!outer_fixed && cached_table && cached_table->select_lex &&
         context->select_lex &&
-        cached_table->select_lex != context->select_lex)
+        cached_table->select_lex != context->select_lex &&
+        is_outer_table(cached_table, context->select_lex))
     {
       int ret;
       if ((ret= fix_outer_field(thd, &from_field, reference)) < 0)
@@ -6007,8 +6057,9 @@ public:
     st_select_lex *sel;
     for (sel= current_select; sel; sel= sel->outer_select())
     {
+      List_iterator<TABLE_LIST> li(sel->leaf_tables);
       TABLE_LIST *tbl;
-      for (tbl= sel->leaf_tables; tbl; tbl= tbl->next_leaf)
+      while ((tbl= li++))
       {
         if (tbl->table == item->field->table)
         {
@@ -6303,12 +6354,13 @@ bool Item_ref::fix_fields(THD *thd, Item **reference)
                       last_checked_context->select_lex->nest_level);
     }
   }
-  else
+  else if (ref_type() != VIEW_REF)
   {
     if (depended_from && reference)
     {
-      DBUG_ASSERT(context->select_lex != depended_from);
-      context->select_lex->register_dependency_item(depended_from, reference);
+      DBUG_ASSERT(context->select_lex != get_depended_from());
+      context->select_lex->register_dependency_item(get_depended_from(),
+                                                    reference);
     }
     /*
       It could be that we're referring to something that's in ancestor selects.
@@ -7273,7 +7325,7 @@ bool Item_outer_ref::fix_fields(THD *thd, Item **reference)
 
 void Item_outer_ref::fix_after_pullout(st_select_lex *new_parent, Item **ref)
 {
-  if (depended_from == new_parent)
+  if (get_depended_from() == new_parent)
   {
     *ref= outer_ref;
     (*ref)->fix_after_pullout(new_parent, ref);
@@ -7283,7 +7335,7 @@ void Item_outer_ref::fix_after_pullout(st_select_lex *new_parent, Item **ref)
 void Item_ref::fix_after_pullout(st_select_lex *new_parent, Item **refptr)
 {
   (*ref)->fix_after_pullout(new_parent, ref);
-  if (depended_from == new_parent)
+  if (get_depended_from() == new_parent)
     depended_from= NULL;
 }
 
@@ -8505,6 +8557,8 @@ Item_result Item_type_holder::result_type() const
 
 enum_field_types Item_type_holder::get_real_type(Item *item)
 {
+  if (item->type() == REF_ITEM)
+    item= item->real_item();
   switch(item->type())
   {
   case FIELD_ITEM:
@@ -8878,6 +8932,49 @@ void view_error_processor(THD *thd, void *data)
 {
   ((TABLE_LIST *)data)->hide_view_error(thd);
 }
+
+
+st_select_lex *Item_ident::get_depended_from() const
+{
+  st_select_lex *dep;
+  if ((dep= depended_from))
+    for ( ; dep->merged_into; dep= dep->merged_into) ;
+  return dep;
+}
+
+
+table_map Item_ref::used_tables() const		
+{
+  return get_depended_from() ? OUTER_REF_TABLE_BIT : (*ref)->used_tables(); 
+}
+
+
+void Item_ref::update_used_tables() 
+{ 
+  if (!get_depended_from())
+    (*ref)->update_used_tables(); 
+}
+
+
+table_map Item_direct_view_ref::used_tables() const		
+{
+  return get_depended_from() ? 
+         OUTER_REF_TABLE_BIT :
+         (view->merged ? (*ref)->used_tables() : view->table->map); 
+}
+
+
+/*
+  we add RAND_TABLE_BIT to prevent moving this item from HAVING to WHERE
+*/
+table_map Item_ref_null_helper::used_tables() const
+{
+  return (get_depended_from() ?
+          OUTER_REF_TABLE_BIT :
+          (*ref)->used_tables() | RAND_TABLE_BIT);
+}
+
+
 
 /*****************************************************************************
 ** Instantiate templates

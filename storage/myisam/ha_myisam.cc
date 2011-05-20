@@ -1865,6 +1865,9 @@ int ha_myisam::info(uint flag)
   MI_ISAMINFO misam_info;
   char name_buff[FN_REFLEN];
 
+  if (!table)
+    return 1;
+
   (void) mi_status(file,&misam_info,flag);
   if (flag & HA_STATUS_VARIABLE)
   {

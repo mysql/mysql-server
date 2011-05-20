@@ -601,6 +601,7 @@ public:
   virtual bool may_be_null() { return maybe_null; };
   virtual table_map upper_select_const_tables()= 0;
   static table_map calc_const_tables(TABLE_LIST *);
+  static table_map calc_const_tables(List<TABLE_LIST> &list);
   virtual void print(String *str, enum_query_type query_type)= 0;
   virtual bool change_result(Item_subselect *si,
                              select_result_interceptor *result,

@@ -846,6 +846,7 @@ public:
      class Field_enumerator)
   */
   virtual table_map used_tables() const { return (table_map) 0L; }
+  virtual table_map all_used_tables() const { return used_tables(); }
   /*
     Return table map of tables that can't be NULL tables (tables that are
     used in a context where if they would contain a NULL row generated
@@ -1003,10 +1004,13 @@ public:
   virtual bool reset_query_id_processor(uchar *query_id_arg) { return 0; }
   virtual bool is_expensive_processor(uchar *arg) { return 0; }
   virtual bool register_field_in_read_map(uchar *arg) { return 0; }
+  virtual bool register_field_in_write_map(uchar *arg) { return 0; }
   virtual bool enumerate_field_refs_processor(uchar *arg) { return 0; }
   virtual bool mark_as_eliminated_processor(uchar *arg) { return 0; }
   virtual bool eliminate_subselect_processor(uchar *arg) { return 0; }
   virtual bool set_fake_select_as_master_processor(uchar *arg) { return 0; }
+  virtual bool view_used_tables_processor(uchar *arg) { return 0; }
+  virtual bool eval_not_null_tables(uchar *opt_arg) { return 0; }
 
   /* To call bool function for all arguments */
   struct bool_func_call_args
@@ -1022,6 +1026,7 @@ public:
       (this->*(info->bool_function))();
     return FALSE;
   }
+
   /*
     The next function differs from the previous one that a bitmap to be updated
     is passed as uchar *arg.
@@ -1244,8 +1249,8 @@ public:
     { return Field::GEOM_GEOMETRY; };
   String *check_well_formed_result(String *str, bool send_error= 0);
   bool eq_by_collation(Item *item, bool binary_cmp, CHARSET_INFO *cs); 
-
   Item* set_expr_cache(THD *thd, List<Item*> &depends_on);
+  virtual Item *get_cached_item() { return NULL; }
 
   virtual Item_equal *get_item_equal() { return NULL; }
   virtual void set_item_equal(Item_equal *item_eq) {};
@@ -1260,6 +1265,13 @@ public:
       join_tab_idx= join_tab_idx_arg;
   }
   virtual uint get_join_tab_idx() { return join_tab_idx; }
+
+  table_map view_used_tables(TABLE_LIST *view)
+  {
+    view->view_used_tables= 0;
+    walk(&Item::view_used_tables_processor, 0, (uchar *) view);
+    return view->view_used_tables;
+  }
 };
 
 
@@ -1659,6 +1671,7 @@ public:
   Item_ident(TABLE_LIST *view_arg, const char *field_name_arg);
   const char *full_name() const;
   void cleanup();
+  st_select_lex *get_depended_from() const;
   bool remove_dependence_processor(uchar * arg);
   virtual void print(String *str, enum_query_type query_type);
   virtual bool change_context_processor(uchar *cntx)
@@ -1746,6 +1759,7 @@ public:
   int save_in_field(Field *field,bool no_conversions);
   void save_org_in_field(Field *field);
   table_map used_tables() const;
+  table_map all_used_tables() const; 
   enum Item_result result_type () const
   {
     return field->result_type();
@@ -1775,6 +1789,7 @@ public:
   bool add_field_to_set_processor(uchar * arg);
   bool find_item_in_field_list_processor(uchar *arg);
   bool register_field_in_read_map(uchar *arg);
+  bool register_field_in_write_map(uchar *arg);
   bool register_field_in_bitmap(uchar *arg);
   bool check_partition_func_processor(uchar *int_arg) {return FALSE;}
   bool vcol_in_partition_func_processor(uchar *bool_arg);
@@ -2546,15 +2561,8 @@ public:
   Field *get_tmp_table_field()
   { return result_field ? result_field : (*ref)->get_tmp_table_field(); }
   Item *get_tmp_table_item(THD *thd);
-  table_map used_tables() const		
-  {
-    return depended_from ? OUTER_REF_TABLE_BIT : (*ref)->used_tables(); 
-  }
-  void update_used_tables() 
-  { 
-    if (!depended_from) 
-      (*ref)->update_used_tables(); 
-  }
+  inline table_map used_tables() const;		
+  inline void update_used_tables(); 
   bool const_item() const 
   {
     return (*ref)->const_item();
@@ -2843,12 +2851,14 @@ public:
 class Item_direct_view_ref :public Item_direct_ref
 {
   Item_equal *item_equal;
+  TABLE_LIST *view;
 public:
   Item_direct_view_ref(Name_resolution_context *context_arg, Item **item,
-                  const char *table_name_arg,
-                  const char *field_name_arg)
+                       const char *table_name_arg,
+                       const char *field_name_arg,
+                       TABLE_LIST *view_arg)
     :Item_direct_ref(context_arg, item, table_name_arg, field_name_arg),
-     item_equal(0) {}
+    item_equal(0), view(view_arg) {}
   /* Constructor need to process subselect with temporary tables (see Item) */
   Item_direct_view_ref(THD *thd, Item_direct_ref *item)
     :Item_direct_ref(thd, item), item_equal(0) {}
@@ -2872,6 +2882,19 @@ public:
   bool subst_argument_checker(uchar **arg);
   Item *equal_fields_propagator(uchar *arg);
   Item *replace_equal_field(uchar *arg);
+  table_map used_tables() const;	
+  bool walk(Item_processor processor, bool walk_subquery, uchar *arg)
+  { 
+    return (*ref)->walk(processor, walk_subquery, arg) ||
+           (this->*processor)(arg);
+  }
+   bool view_used_tables_processor(uchar *arg) 
+  {
+    TABLE_LIST *view_arg= (TABLE_LIST *) arg;
+    if (view_arg == view)
+      view_arg->view_used_tables|= (*ref)->used_tables();
+    return 0;
+  }
 };
 
 
@@ -2962,15 +2985,7 @@ public:
   bool val_bool();
   bool get_date(MYSQL_TIME *ltime, uint fuzzydate);
   virtual void print(String *str, enum_query_type query_type);
-  /*
-    we add RAND_TABLE_BIT to prevent moving this item from HAVING to WHERE
-  */
-  table_map used_tables() const
-  {
-    return (depended_from ?
-            OUTER_REF_TABLE_BIT :
-            (*ref)->used_tables() | RAND_TABLE_BIT);
-  }
+  table_map used_tables() const;
 };
 
 /*
@@ -3216,6 +3231,17 @@ public:
   void copy();
 };
 
+
+/*
+  Cached_item_XXX objects are not exactly caches. They do the following:
+
+  Each Cached_item_XXX object has
+   - its source item
+   - saved value of the source item
+   - cmp() method that compares the saved value with the current value of the
+     source item, and if they were not equal saves item's value into the saved
+     value.
+*/
 
 /*
   Cached_item_XXX objects are not exactly caches. They do the following:

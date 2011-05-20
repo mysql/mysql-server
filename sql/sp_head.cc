@@ -2847,6 +2847,9 @@ int sp_instr::exec_open_and_lock_tables(THD *thd, TABLE_LIST *tables)
     result= -1;
   else
     result= 0;
+  /* Prepare all derived tables/views to catch possible errors. */
+  if (!result)
+    result= mysql_handle_derived(thd->lex, DT_PREPARE) ? -1 : 0;
 
   return result;
 }

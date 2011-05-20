@@ -975,8 +975,8 @@ SELECT i FROM t1 LEFT JOIN t2 ON (j) IN (SELECT max(k) FROM t3);
 DROP TABLE t1, t2, t3;
 
 --echo #
---echo # LPBUG#609121: RQG: wrong result on aggregate + NOT IN + HAVING and
---echo # partial_match_table_scan=on
+--echo # LPBUG#611622/BUG#52344: Subquery materialization:  Assertion 
+--echo #                         if subquery in on-clause of outer join
 --echo #
 
 CREATE TABLE t1 (c1 int);
@@ -987,7 +987,7 @@ INSERT INTO t2 VALUES (10);
 
 PREPARE st1 FROM "
 SELECT *
-FROM t2 LEFT JOIN (SELECT * FROM t2) t3 ON (8, 4) IN (SELECT c1, c1 FROM t1)";
+FROM t2 LEFT JOIN t2 t3 ON (8, 4) IN (SELECT c1, c1 FROM t1)";
 
 EXECUTE st1;
 EXECUTE st1;

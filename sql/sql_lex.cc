@@ -23,6 +23,7 @@
 #include <hash.h>
 #include "sp.h"
 #include "sp_head.h"
+#include "sql_select.h"
 
 /*
   We are using pointer to this variable for distinguishing between assignment
@@ -309,7 +310,6 @@ void lex_start(THD *thd)
   lex->derived_tables= 0;
   lex->lock_option= TL_READ;
   lex->safe_to_cache_query= 1;
-  lex->leaf_tables_insert= 0;
   lex->parsing_options.reset();
   lex->empty_field_list_on_rset= 0;
   lex->select_lex.select_number= 1;
@@ -1594,6 +1594,7 @@ void st_select_lex_unit::init_query()
   describe= 0;
   found_rows_for_union= 0;
   insert_table_with_stored_vcol= 0;
+  derived= 0;
 }
 
 void st_select_lex::init_query()
@@ -1602,7 +1603,8 @@ void st_select_lex::init_query()
   table_list.empty();
   top_join_list.empty();
   join_list= &top_join_list;
-  embedding= leaf_tables= 0;
+  embedding= 0;
+  leaf_tables.empty();
   item_list.empty();
   join= 0;
   having= prep_having= where= prep_where= 0;
@@ -1670,6 +1672,7 @@ void st_select_lex::init_select()
   cond_value= having_value= Item::COND_UNDEF;
   inner_refs_list.empty();
   full_group_by_flag= 0;
+  merged_into= 0;
 }
 
 /*
@@ -2154,9 +2157,27 @@ void st_select_lex::print_order(String *str,
   {
     if (order->counter_used)
     {
-      char buffer[20];
-      size_t length= my_snprintf(buffer, 20, "%d", order->counter);
-      str->append(buffer, (uint) length);
+      if (query_type != QT_VIEW_INTERNAL)
+      {
+        char buffer[20];
+        size_t length= my_snprintf(buffer, 20, "%d", order->counter);
+        str->append(buffer, (uint) length);
+      }
+      else
+      {
+        /* replace numeric reference with expression */
+        if (order->item[0]->type() == Item::INT_ITEM &&
+            order->item[0]->basic_const_item())
+        {
+          char buffer[20];
+          size_t length= my_snprintf(buffer, 20, "%d", order->counter);
+          str->append(buffer, (uint) length);
+          /* make it expression instead of integer constant */
+          str->append(STRING_WITH_LEN("+0"));
+        }
+        else
+          (*order->item)->print(str, query_type);
+      }
     }
     else
       (*order->item)->print(str, query_type);
@@ -2348,22 +2369,6 @@ bool st_lex::can_be_merged()
 
   /* find non VIEW subqueries/unions */
   bool selects_allow_merge= select_lex.next_select() == 0;
-  if (selects_allow_merge)
-  {
-    for (SELECT_LEX_UNIT *tmp_unit= select_lex.first_inner_unit();
-         tmp_unit;
-         tmp_unit= tmp_unit->next_unit())
-    {
-      if (tmp_unit->first_select()->parent_lex == this &&
-          (tmp_unit->item == 0 ||
-           (tmp_unit->item->place() != IN_WHERE &&
-            tmp_unit->item->place() != IN_ON)))
-      {
-        selects_allow_merge= 0;
-        break;
-      }
-    }
-  }
 
   return (selects_allow_merge &&
 	  select_lex.group_list.elements == 0 &&
@@ -2993,7 +2998,11 @@ static void fix_prepare_info_in_table_list(THD *thd, TABLE_LIST *tbl)
       thd->check_and_register_item_tree(&tbl->prep_on_expr, &tbl->on_expr);
       tbl->on_expr= tbl->on_expr->copy_andor_structure(thd);
     }
-    fix_prepare_info_in_table_list(thd, tbl->merge_underlying_list);
+    if (tbl->is_view_or_derived() && tbl->is_merged_derived())
+    {
+      SELECT_LEX *sel= tbl->get_single_select();
+      fix_prepare_info_in_table_list(thd, sel->get_table_list());
+    }
   }
 }
 
@@ -3119,6 +3128,8 @@ bool st_select_lex::optimize_unflattened_subqueries()
       for (SELECT_LEX *sl= un->first_select(); sl; sl= sl->next_select())
       {
         JOIN *inner_join= sl->join;
+        if (!inner_join)
+          continue;
         SELECT_LEX *save_select= un->thd->lex->current_select;
         ulonglong save_options;
         int res;
@@ -3145,19 +3156,349 @@ bool st_select_lex::optimize_unflattened_subqueries()
 }
 
 
+
+/**
+  @brief Process all derived tables/views of the SELECT.
+
+  @param lex    LEX of this thread
+  @param phase  phases to run derived tables/views through
+
+  @details
+  This function runs specified 'phases' on all tables from the
+  table_list of this select.
+
+  @return FALSE ok.
+  @return TRUE an error occur.
+*/
+
+bool st_select_lex::handle_derived(struct st_lex *lex, uint phases)
+{
+  for (TABLE_LIST *cursor= (TABLE_LIST*) table_list.first;
+       cursor;
+       cursor= cursor->next_local)
+  {
+    if (cursor->is_view_or_derived() && cursor->handle_derived(lex, phases))
+      return TRUE;
+  }
+  return FALSE;
+}
+
+
+/**
+  @brief
+  Returns first unoccupied table map and table number
+
+  @param map     [out] return found map
+  @param tablenr [out] return found tablenr
+
+  @details
+  Returns first unoccupied table map and table number in this select.
+  Map and table are returned in *'map' and *'tablenr' accordingly.
+
+  @retrun TRUE  no free table map/table number
+  @return FALSE found free table map/table number
+*/
+
+bool st_select_lex::get_free_table_map(table_map *map, uint *tablenr)
+{
+  *map= 0;
+  *tablenr= 0;
+  TABLE_LIST *tl;
+  if (!join)
+  {
+    (*map)= 1<<1;
+    (*tablenr)++;
+    return FALSE;
+  }
+  List_iterator<TABLE_LIST> ti(leaf_tables);
+  while ((tl= ti++))
+  {
+    if (tl->table->map > *map)
+      *map= tl->table->map;
+    if (tl->table->tablenr > *tablenr)
+      *tablenr= tl->table->tablenr;
+  }
+  (*map)<<= 1;
+  (*tablenr)++;
+  if (*tablenr >= MAX_TABLES)
+    return TRUE;
+  return FALSE;
+}
+
+
+/**
+  @brief
+  Append given table to the leaf_tables list.
+
+  @param link  Offset to which list in table structure to use
+  @param table Table to append
+
+  @details
+  Append given 'table' to the leaf_tables list using the 'link' offset.
+  If the 'table' is linked with other tables through next_leaf/next_local
+  chains then whole list will be appended.
+*/
+
+void st_select_lex::append_table_to_list(TABLE_LIST *TABLE_LIST::*link,
+                                         TABLE_LIST *table)
+{
+  TABLE_LIST *tl;
+  for (tl= leaf_tables.head(); tl->*link; tl= tl->*link) ;
+  tl->*link= table;
+}
+
+/*
+  @brief
+  Remove given table from the leaf_tables list.
+
+  @param link  Offset to which list in table structure to use
+  @param table Table to remove
+
+  @details
+  Remove 'table' from the leaf_tables list using the 'link' offset.
+*/
+
+void st_select_lex::remove_table_from_list(TABLE_LIST *table)
+{
+  TABLE_LIST *tl;
+  List_iterator<TABLE_LIST> ti(leaf_tables);
+  while ((tl= ti++))
+  {
+    if (tl == table)
+    {
+      ti.remove();
+      break;
+    }
+  }
+}
+
+
+/**
+  @brief
+  Assigns new table maps to tables in the leaf_tables list
+
+  @param derived    Derived table to take initial table map from
+  @param map        table map to begin with
+  @param tablenr    table number to begin with
+  @param parent_lex new parent select_lex
+
+  @details
+  Assign new table maps/table numbers to all tables in the leaf_tables list.
+  'map'/'tablenr' are used for the first table and shifted to left/
+  increased for each consequent table in the leaf_tables list.
+  If the 'derived' table is given then it's table map/number is used for the
+  first table in the list and 'map'/'tablenr' are used for the second and
+  all consequent tables.
+  The 'parent_lex' is set as the new parent select_lex for all tables in the
+  list.
+*/
+
+void st_select_lex::remap_tables(TABLE_LIST *derived, table_map map,
+                                 uint tablenr, SELECT_LEX *parent_lex)
+{
+  bool first_table= TRUE;
+  TABLE_LIST *tl;
+  table_map first_map;
+  uint first_tablenr;
+
+  if (derived && derived->table)
+  {
+    first_map= derived->table->map;
+    first_tablenr= derived->table->tablenr;
+  }
+  else
+  {
+    first_map= map;
+    map<<= 1;
+    first_tablenr= tablenr++;
+  }
+  /*
+    Assign table bit/table number.
+    To the first table of the subselect the table bit/tablenr of the
+    derived table is assigned. The rest of tables are getting bits
+    sequentially, starting from the provided table map/tablenr.
+  */
+  List_iterator<TABLE_LIST> ti(leaf_tables);
+  while ((tl= ti++))
+  {
+    if (first_table)
+    {
+      first_table= FALSE;
+      tl->table->set_table_map(first_map, first_tablenr);
+    }
+    else
+    {
+      tl->table->set_table_map(map, tablenr);
+      tablenr++;
+      map<<= 1;
+    }
+    SELECT_LEX *old_sl= tl->select_lex;
+    tl->select_lex= parent_lex;
+    for(TABLE_LIST *emb= tl->embedding;
+        emb && emb->select_lex == old_sl;
+        emb= emb->embedding)
+      emb->select_lex= parent_lex;
+  }
+}
+
+/**
+  @brief
+  Merge a subquery into this select.
+
+  @param derived     derived table of the subquery to be merged
+  @param subq_select select_lex of the subquery
+  @param map         table map for assigning to merged tables from subquery
+  @param table_no    table number for assigning to merged tables from subquery
+
+  @details
+  This function merges a subquery into its parent select. In short the
+  merge operation appends the subquery FROM table list to the parent's
+  FROM table list. In more details:
+    .) the top_join_list of the subquery is wrapped into a join_nest
+       and attached to 'derived'
+    .) subquery's leaf_tables list  is merged with the leaf_tables
+       list of this select_lex
+    .) the table maps and table numbers of the tables merged from
+       the subquery are adjusted to reflect their new binding to
+       this select
+
+  @return TRUE  an error occur
+  @return FALSE ok
+*/
+
+bool SELECT_LEX::merge_subquery(TABLE_LIST *derived, SELECT_LEX *subq_select,
+                                uint table_no, table_map map)
+{
+  derived->wrap_into_nested_join(subq_select->top_join_list);
+  /* Reconnect the next_leaf chain. */
+  leaf_tables.concat(&subq_select->leaf_tables);
+
+  ftfunc_list->concat(subq_select->ftfunc_list);
+  if (join)
+  {
+    Item_in_subselect **in_subq;
+    Item_in_subselect **in_subq_end;
+    for (in_subq= subq_select->join->sj_subselects.front(), 
+         in_subq_end= subq_select->join->sj_subselects.back(); 
+         in_subq != in_subq_end; 
+         in_subq++)
+    {
+      join->sj_subselects.append(join->thd->mem_root, *in_subq);
+      (*in_subq)->emb_on_expr_nest= derived;
+    }
+  }
+  /*
+    Remove merged table from chain.
+    When merge_subquery is called at a subquery-to-semijoin transformation
+    the derived isn't in the leaf_tables list, so in this case the call of
+    remove_table_from_list does not cause any actions.
+  */
+  remove_table_from_list(derived);
+
+  /* Walk through child's tables and adjust table map, tablenr,
+   * parent_lex */
+  subq_select->remap_tables(derived, map, table_no, this);
+  subq_select->merged_into= this;
+  return FALSE;
+}
+
+
+/**
+  @brief
+  Mark tables from the leaf_tables list as belong to a derived table.
+
+  @param derived   tables will be marked as belonging to this derived
+
+  @details
+  Run through the leaf_list and mark all tables as belonging to the 'derived'.
+*/
+
+void SELECT_LEX::mark_as_belong_to_derived(TABLE_LIST *derived)
+{
+  /* Mark tables as belonging to this DT */
+  TABLE_LIST *tl;
+  List_iterator<TABLE_LIST> ti(leaf_tables);
+  while ((tl= ti++))
+  {
+    tl->skip_temporary= 1;
+    tl->belong_to_derived= derived;
+  }
+}
+
+
+/**
+  @brief
+  Update used_tables cache for this select
+
+  @details
+  This function updates used_tables cache of ON expressions of all tables
+  in the leaf_tables list and of the conds expression (if any).
+*/
+
+void SELECT_LEX::update_used_tables()
+{
+  TABLE_LIST *tl;
+  List_iterator<TABLE_LIST> ti(leaf_tables);
+  while ((tl= ti++))
+  {
+    if (tl->on_expr)
+    {
+      tl->on_expr->update_used_tables();
+      tl->on_expr->walk(&Item::eval_not_null_tables, 0, NULL);
+    }
+    TABLE_LIST *embedding= tl->embedding;
+    while (embedding)
+    {
+      if (embedding->on_expr && 
+          embedding->nested_join->join_list.head() == tl)
+      {
+        embedding->on_expr->update_used_tables();
+        embedding->on_expr->walk(&Item::eval_not_null_tables, 0, NULL);
+      }
+      tl= embedding;
+      embedding= tl->embedding;
+    }
+  }
+  if (join->conds)
+  {
+    join->conds->update_used_tables();
+    join->conds->walk(&Item::eval_not_null_tables, 0, NULL);
+  }
+}
+
+
 /**
   Set the EXPLAIN type for this subquery.
 */
 
 void st_select_lex::set_explain_type()
 {
+  bool is_primary= FALSE;
+  if (next_select())
+    is_primary= TRUE;
+
+  if (!is_primary && first_inner_unit())
+  {
+    /*
+      If there is at least one materialized derived|view then it's a PRIMARY select.
+      Otherwise, all derived tables/views were merged and this select is a SIMPLE one.
+    */
+    for (SELECT_LEX_UNIT *un= first_inner_unit(); un; un= un->next_unit())
+    {
+      if ((!un->derived || un->derived->is_materialized_derived()))
+      {
+        is_primary= TRUE;
+        break;
+      }
+    }
+  }
+
   SELECT_LEX *first= master_unit()->first_select();
   /* drop UNCACHEABLE_EXPLAIN, because it is for internal usage only */
   uint8 is_uncacheable= (uncacheable & ~UNCACHEABLE_EXPLAIN);
 
   type= ((&master_unit()->thd->lex->select_lex == this) ?
-         (first_inner_unit() || next_select() ?
-          "PRIMARY" : "SIMPLE") :
+         (is_primary ? "PRIMARY" : "SIMPLE"):    
          ((this == first) ?
           ((linkage == DERIVED_TABLE_TYPE) ?
            "DERIVED" :
@@ -3170,6 +3511,76 @@ void st_select_lex::set_explain_type()
            is_uncacheable ? "UNCACHEABLE UNION":
            "UNION")));
   options|= SELECT_DESCRIBE;
+}
+
+
+/**
+  @brief
+  Increase estimated number of records for a derived table/view
+
+  @param records  number of records to increase estimate by
+
+  @details
+  This function increases estimated number of records by the 'records'
+  for the derived table to which this select belongs to.
+*/
+
+void SELECT_LEX::increase_derived_records(ha_rows records)
+{
+  SELECT_LEX_UNIT *unit= master_unit();
+  DBUG_ASSERT(unit->derived);
+
+  select_union *result= (select_union*)unit->result;
+  result->records+= records;
+}
+
+
+/**
+  @brief
+  Mark select's derived table as a const one.
+
+  @param empty Whether select has an empty result set
+
+  @details
+  Mark derived table/view of this select as a constant one (to
+  materialize it at the optimization phase) unless this select belongs to a
+  union. Estimated number of rows is incremented if this select has non empty
+  result set.
+*/
+
+void SELECT_LEX::mark_const_derived(bool empty)
+{
+  TABLE_LIST *derived= master_unit()->derived;
+  if (!join->thd->lex->describe && derived)
+  {
+    if (!empty)
+      increase_derived_records(1);
+    if (!master_unit()->is_union() && !derived->is_merged_derived())
+      derived->fill_me= TRUE;
+  }
+}
+
+bool st_select_lex::save_leaf_tables(THD *thd)
+{
+  Query_arena *arena= thd->stmt_arena, backup;
+  if (arena->is_conventional())
+    arena= 0;                                  
+  else
+    thd->set_n_backup_active_arena(arena, &backup);
+
+  List_iterator_fast<TABLE_LIST> li(leaf_tables);
+  TABLE_LIST *table;
+  while ((table= li++))
+  {
+    if (leaf_tables_exec.push_back(table))
+      return 1;
+    table->tablenr_exec= table->table->tablenr;
+    table->map_exec= table->table->map;
+  }
+  if (arena)
+    thd->restore_active_arena(arena, &backup);
+
+  return 0;
 }
 
 

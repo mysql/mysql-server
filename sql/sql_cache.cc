@@ -3853,16 +3853,17 @@ Query_cache::process_and_count_tables(THD *thd, TABLE_LIST *tables_used,
     }
     else
     {
-      DBUG_PRINT("qcache", ("table: %s  db:  %s  type: %u",
-                            tables_used->table->s->table_name.str,
-                            tables_used->table->s->db.str,
-                            tables_used->table->s->db_type()->db_type));
       if (tables_used->derived)
       {
+        DBUG_PRINT("qcache", ("table: %s", tables_used->alias));
         table_count--;
         DBUG_PRINT("qcache", ("derived table skipped"));
         continue;
       }
+      DBUG_PRINT("qcache", ("table: %s  db:  %s  type: %u",
+                            tables_used->table->s->table_name.str,
+                            tables_used->table->s->db.str,
+                            tables_used->table->s->db_type()->db_type));
       *tables_type|= tables_used->table->file->table_cache_type();
 
       /*

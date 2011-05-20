@@ -594,6 +594,9 @@ public:
     DBUG_ASSERT(0);
     return GEOM_GEOMETRY;
   }
+
+  key_map get_possible_keys();
+
   /* Hash value */
   virtual void hash(ulong *nr, ulong *nr2);
 

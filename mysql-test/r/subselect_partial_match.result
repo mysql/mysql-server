@@ -26,11 +26,10 @@ set @@optimizer_switch='materialization=on,semijoin=off,partial_match_rowid_merg
 EXPLAIN EXTENDED
 SELECT * FROM (SELECT * FROM t1 WHERE a1 NOT IN (SELECT b2 FROM t2)) table1;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	PRIMARY	<derived2>	system	NULL	NULL	NULL	NULL	0	0.00	const row not found
-2	DERIVED	t1	ALL	NULL	NULL	NULL	NULL	2	100.00	Using where
+1	SIMPLE	t1	ALL	NULL	NULL	NULL	NULL	2	100.00	Using where
 3	SUBQUERY	t2	ALL	NULL	NULL	NULL	NULL	2	100.00	
 Warnings:
-Note	1003	select NULL AS `a1`,NULL AS `a2` from (select `test`.`t1`.`a1` AS `a1`,`test`.`t1`.`a2` AS `a2` from `test`.`t1` where (not(<expr_cache><`test`.`t1`.`a1`>(<in_optimizer>(`test`.`t1`.`a1`,`test`.`t1`.`a1` in ()))))) `table1`
+Note	1003	select `test`.`t1`.`a1` AS `a1`,`test`.`t1`.`a2` AS `a2` from `test`.`t1` where (not(<in_optimizer>(`test`.`t1`.`a1`,`test`.`t1`.`a1` in ( <materialize> (select `test`.`t2`.`b2` from `test`.`t2` ), <primary_index_lookup>(`test`.`t1`.`a1` in <temporary table> on distinct_key where ((`test`.`t1`.`a1` = `materialized subselect`.`b2`)))))))
 DROP TABLE t1, t2;
 set @@optimizer_switch=@save_optimizer_switch;
 #

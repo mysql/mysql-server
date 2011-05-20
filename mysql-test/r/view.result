@@ -117,7 +117,7 @@ c
 12
 explain extended select c from v5;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	PRIMARY	<derived3>	ALL	NULL	NULL	NULL	NULL	5	100.00	
+1	SIMPLE	<derived3>	ALL	NULL	NULL	NULL	NULL	5	100.00	
 3	DERIVED	t1	ALL	NULL	NULL	NULL	NULL	5	100.00	
 Warnings:
 Note	1003	select (`v2`.`c` + 1) AS `c` from `test`.`v2`
@@ -237,7 +237,7 @@ a
 3
 explain select * from v1;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	PRIMARY	<derived2>	ALL	NULL	NULL	NULL	NULL	3	
+1	PRIMARY	<derived2>	ALL	NULL	NULL	NULL	NULL	6	
 2	DERIVED	t1	ALL	NULL	NULL	NULL	NULL	6	Using temporary
 select * from t1;
 a
@@ -302,7 +302,7 @@ a+1
 4
 explain select * from v1;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	PRIMARY	<derived2>	ALL	NULL	NULL	NULL	NULL	2	
+1	PRIMARY	<derived2>	ALL	NULL	NULL	NULL	NULL	4	
 2	DERIVED	t1	ALL	NULL	NULL	NULL	NULL	4	Using filesort
 drop view v1;
 drop table t1;
@@ -1256,8 +1256,8 @@ s1
 insert into t1 values (0);
 execute stmt1;
 s1
-0
 1
+0
 deallocate prepare stmt1;
 drop view v2;
 drop table t1, t2;
@@ -2881,28 +2881,6 @@ Tables_in_test
 t1
 DROP TABLE t1;
 DROP VIEW IF EXISTS v1;
-CREATE DATABASE bug21261DB;
-USE bug21261DB;
-CREATE TABLE t1 (x INT);
-CREATE SQL SECURITY INVOKER VIEW v1 AS SELECT x FROM t1;
-GRANT INSERT, UPDATE ON v1 TO 'user21261'@'localhost';
-GRANT INSERT, UPDATE ON t1 TO 'user21261'@'localhost';
-CREATE TABLE t2 (y INT);
-GRANT SELECT ON t2 TO 'user21261'@'localhost';
-INSERT INTO v1 (x) VALUES (5);
-UPDATE v1 SET x=1;
-GRANT SELECT ON v1 TO 'user21261'@'localhost';
-GRANT SELECT ON t1 TO 'user21261'@'localhost';
-UPDATE v1,t2 SET x=1 WHERE x=y;
-SELECT * FROM t1;
-x
-1
-REVOKE ALL PRIVILEGES, GRANT OPTION FROM 'user21261'@'localhost';
-DROP USER 'user21261'@'localhost';
-DROP VIEW v1;
-DROP TABLE t1;
-DROP DATABASE bug21261DB;
-USE test;
 create table t1 (f1 datetime);
 create view v1 as select * from t1 where f1 between now() and now() + interval 1 minute;
 show create view v1;

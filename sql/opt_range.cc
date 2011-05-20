@@ -9510,7 +9510,7 @@ ha_rows check_quick_select(PARAM *param, uint idx, bool index_only,
   SEL_ARG_RANGE_SEQ seq;
   RANGE_SEQ_IF seq_if = {NULL, sel_arg_range_seq_init, sel_arg_range_seq_next, 0, 0};
   handler *file= param->table->file;
-  ha_rows rows;
+  ha_rows rows= HA_POS_ERROR;
   uint keynr= param->real_keynr[idx];
   DBUG_ENTER("check_quick_select");
   
@@ -9550,8 +9550,13 @@ ha_rows check_quick_select(PARAM *param, uint idx, bool index_only,
     *mrr_flags |= HA_MRR_USE_DEFAULT_IMPL;
 
   *bufsize= param->thd->variables.mrr_buff_size;
-  rows= file->multi_range_read_info_const(keynr, &seq_if, (void*)&seq, 0,
-                                          bufsize, mrr_flags, cost);
+  /*
+    Skip materialized derived table/view result table from MRR check as
+    they aren't contain any data yet.
+  */
+  if (param->table->pos_in_table_list->is_non_derived())
+    rows= file->multi_range_read_info_const(keynr, &seq_if, (void*)&seq, 0,
+                                            bufsize, mrr_flags, cost);
   if (rows != HA_POS_ERROR)
   {
     param->quick_rows[keynr]= rows;

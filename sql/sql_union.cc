@@ -112,6 +112,7 @@ bool select_union::flush()
       options            create options
       table_alias        name of the temporary table
       bit_fields_as_long convert bit fields to ulonglong
+      create_table       whether to physically create result table
 
   DESCRIPTION
     Create a temporary table that is used to store the result of a UNION,
@@ -126,7 +127,7 @@ bool
 select_union::create_result_table(THD *thd_arg, List<Item> *column_types,
                                   bool is_union_distinct, ulonglong options,
                                   const char *alias,
-                                   bool bit_fields_as_long)
+                                  bool bit_fields_as_long, bool create_table)
 {
   DBUG_ASSERT(table == 0);
   tmp_table_param.init();
@@ -135,10 +136,14 @@ select_union::create_result_table(THD *thd_arg, List<Item> *column_types,
 
   if (! (table= create_tmp_table(thd_arg, &tmp_table_param, *column_types,
                                  (ORDER*) 0, is_union_distinct, 1,
-                                 options, HA_POS_ERROR, (char*) alias)))
+                                 options, HA_POS_ERROR, (char*) alias,
+                                 !create_table)))
     return TRUE;
-  table->file->extra(HA_EXTRA_WRITE_CACHE);
-  table->file->extra(HA_EXTRA_IGNORE_DUP_KEY);
+  if (create_table)
+  {
+    table->file->extra(HA_EXTRA_WRITE_CACHE);
+    table->file->extra(HA_EXTRA_IGNORE_DUP_KEY);
+  }
   return FALSE;
 }
 
@@ -304,6 +309,7 @@ bool st_select_lex_unit::prepare(THD *thd_arg, select_result *sel_result,
                                (is_union_select ? NULL :
                                 thd_arg->lex->proc_list.first),
                                sl, this);
+
     /* There are no * in the statement anymore (for PS) */
     sl->with_wild= 0;
     last_procedure= join->procedure;
@@ -358,6 +364,8 @@ bool st_select_lex_unit::prepare(THD *thd_arg, select_result *sel_result,
     List_iterator_fast<Item> tp(types);
     Item *type;
     ulonglong create_options;
+    uint save_tablenr= 0;
+    table_map save_map= 0;
 
     while ((type= tp++))
     {
@@ -410,12 +418,22 @@ bool st_select_lex_unit::prepare(THD *thd_arg, select_result *sel_result,
       create_options= create_options | TMP_TABLE_FORCE_MYISAM;
 
     if (union_result->create_result_table(thd, &types, test(union_distinct),
-                                          create_options, "", FALSE))
+                                          create_options, "", FALSE, TRUE))
       goto err;
+    if (fake_select_lex && !fake_select_lex->first_cond_optimization)
+    {
+      save_tablenr= result_table_list.tablenr_exec;
+      save_map= result_table_list.map_exec;
+    }
     bzero((char*) &result_table_list, sizeof(result_table_list));
     result_table_list.db= (char*) "";
     result_table_list.table_name= result_table_list.alias= (char*) "union";
     result_table_list.table= table= union_result->table;
+    if (fake_select_lex && !fake_select_lex->first_cond_optimization)
+    {
+      result_table_list.tablenr_exec= save_tablenr;
+      result_table_list.map_exec= save_map;
+    }
 
     thd_arg->lex->current_select= lex_select_save;
     if (!item_list.elements)
@@ -479,18 +497,21 @@ err:
 }
 
 
-bool st_select_lex_unit::exec()
+/**
+  Run optimization phase.
+
+  @return FALSE unit successfully passed optimization phase.
+  @return TRUE an error occur.
+*/
+bool st_select_lex_unit::optimize()
 {
   SELECT_LEX *lex_select_save= thd->lex->current_select;
   SELECT_LEX *select_cursor=first_select();
-  ulonglong add_rows=0;
-  ha_rows examined_rows= 0;
-  DBUG_ENTER("st_select_lex_unit::exec");
+  DBUG_ENTER("st_select_lex_unit::optimize");
 
-  if (executed && !uncacheable && !describe)
+  if (optimized && !uncacheable && !describe)
     DBUG_RETURN(FALSE);
-  executed= 1;
-  
+
   if (uncacheable || !item || !item->assigned() || describe)
   {
     if (item)
@@ -511,12 +532,71 @@ bool st_select_lex_unit::exec()
     }
     for (SELECT_LEX *sl= select_cursor; sl; sl= sl->next_select())
     {
-      ha_rows records_at_start= 0;
       thd->lex->current_select= sl;
 
       if (optimized)
 	saved_error= sl->join->reinit();
       else
+      {
+        set_limit(sl);
+	if (sl == global_parameters || describe)
+	{
+	  offset_limit_cnt= 0;
+	  /*
+	    We can't use LIMIT at this stage if we are using ORDER BY for the
+	    whole query
+	  */
+	  if (sl->order_list.first || describe)
+	    select_limit_cnt= HA_POS_ERROR;
+        }
+
+        /*
+          When using braces, SQL_CALC_FOUND_ROWS affects the whole query:
+          we don't calculate found_rows() per union part.
+          Otherwise, SQL_CALC_FOUND_ROWS should be done on all sub parts.
+        */
+        sl->join->select_options= 
+          (select_limit_cnt == HA_POS_ERROR || sl->braces) ?
+          sl->options & ~OPTION_FOUND_ROWS : sl->options | found_rows_for_union;
+
+	saved_error= sl->join->optimize();
+      }
+
+      if (saved_error)
+      {
+	thd->lex->current_select= lex_select_save;
+	DBUG_RETURN(saved_error);
+      }
+    }
+  }
+  optimized= 1;
+
+  thd->lex->current_select= lex_select_save;
+  DBUG_RETURN(saved_error);
+}
+
+
+bool st_select_lex_unit::exec()
+{
+  SELECT_LEX *lex_select_save= thd->lex->current_select;
+  SELECT_LEX *select_cursor=first_select();
+  ulonglong add_rows=0;
+  ha_rows examined_rows= 0;
+  DBUG_ENTER("st_select_lex_unit::exec");
+
+  if (executed && !uncacheable && !describe)
+    DBUG_RETURN(FALSE);
+  executed= 1;
+  
+  saved_error= optimize();
+
+  if (uncacheable || !item || !item->assigned() || describe)
+  {
+    for (SELECT_LEX *sl= select_cursor; sl; sl= sl->next_select())
+    {
+      ha_rows records_at_start= 0;
+      thd->lex->current_select= sl;
+
       {
         set_limit(sl);
 	if (sl == global_parameters || describe)
@@ -590,7 +670,6 @@ bool st_select_lex_unit::exec()
       }
     }
   }
-  optimized= 1;
 
   /* Send result to 'result' */
   saved_error= TRUE;

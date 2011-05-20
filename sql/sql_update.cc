@@ -229,7 +229,11 @@ int mysql_update(THD *thd,
     if (open_tables(thd, &table_list, &table_count, 0))
       DBUG_RETURN(1);
 
-    if (table_list->multitable_view)
+     //Prepare views so they are handled correctly.
+    if (mysql_handle_derived(thd->lex, DT_INIT))
+      DBUG_RETURN(1);
+
+    if (table_list->is_multitable())
     {
       DBUG_ASSERT(table_list->view != 0);
       DBUG_PRINT("info", ("Switch to multi-update"));
@@ -244,15 +248,19 @@ int mysql_update(THD *thd,
       DBUG_RETURN(1);
     close_tables_for_reopen(thd, &table_list);
   }
-
-  if (mysql_handle_derived(thd->lex, &mysql_derived_prepare) ||
-      (thd->fill_derived_tables() &&
-       mysql_handle_derived(thd->lex, &mysql_derived_filling)))
+  if (table_list->handle_derived(thd->lex, DT_MERGE_FOR_INSERT))
+    DBUG_RETURN(1);
+  if (table_list->handle_derived(thd->lex, DT_PREPARE))
     DBUG_RETURN(1);
 
   thd_proc_info(thd, "init");
   table= table_list->table;
 
+  if (!table_list->updatable)
+  {
+    my_error(ER_NON_UPDATABLE_TABLE, MYF(0), table_list->alias, "UPDATE");
+    DBUG_RETURN(1);
+  }
   /* Calculate "table->covering_keys" based on the WHERE */
   table->covering_keys= table->s->keys_in_use;
   table->quick_keys.clear_all();
@@ -271,13 +279,17 @@ int mysql_update(THD *thd,
   table_list->grant.want_privilege= table->grant.want_privilege= want_privilege;
   table_list->register_want_access(want_privilege);
 #endif
+  /* 'Unfix' fields to allow correct marking by the setup_fields function. */
+  if (table_list->is_view())
+    unfix_fields(fields);
+
   if (setup_fields_with_no_wrap(thd, 0, fields, MARK_COLUMNS_WRITE, 0, 0))
     DBUG_RETURN(1);                     /* purecov: inspected */
   if (table_list->view && check_fields(thd, fields))
   {
     DBUG_RETURN(1);
   }
-  if (!table_list->updatable || check_key_in_view(thd, table_list))
+  if (check_key_in_view(thd, table_list))
   {
     my_error(ER_NON_UPDATABLE_TABLE, MYF(0), table_list->alias, "UPDATE");
     DBUG_RETURN(1);
@@ -869,6 +881,11 @@ int mysql_update(THD *thd,
   }
   thd->count_cuted_fields= CHECK_FIELD_IGNORE;		/* calc cuted fields */
   thd->abort_on_warning= 0;
+  if (thd->lex->current_select->first_cond_optimization)
+  {
+    thd->lex->current_select->save_leaf_tables(thd);
+    thd->lex->current_select->first_cond_optimization= 0;
+  }
   DBUG_RETURN((error >= 0 || thd->is_error()) ? 1 : 0);
 
 err:
@@ -929,8 +946,8 @@ bool mysql_prepare_update(THD *thd, TABLE_LIST *table_list,
   if (setup_tables_and_check_access(thd, &select_lex->context, 
                                     &select_lex->top_join_list,
                                     table_list,
-                                    &select_lex->leaf_tables,
-                                    FALSE, UPDATE_ACL, SELECT_ACL) ||
+                                    select_lex->leaf_tables,
+                                    FALSE, UPDATE_ACL, SELECT_ACL, TRUE) ||
       setup_conds(thd, table_list, select_lex->leaf_tables, conds) ||
       select_lex->setup_ref_array(thd, order_num) ||
       setup_order(thd, select_lex->ref_pointer_array,
@@ -967,8 +984,8 @@ static table_map get_table_map(List<Item> *items)
   Item_field *item;
   table_map map= 0;
 
-  while ((item= (Item_field *) item_it++)) 
-    map|= item->used_tables();
+  while ((item= (Item_field *) item_it++))
+    map|= item->all_used_tables();
   DBUG_PRINT("info", ("table_map: 0x%08lx", (long) map));
   return map;
 }
@@ -990,7 +1007,7 @@ int mysql_multi_update_prepare(THD *thd)
 {
   LEX *lex= thd->lex;
   TABLE_LIST *table_list= lex->query_tables;
-  TABLE_LIST *tl, *leaves;
+  TABLE_LIST *tl;
   List<Item> *fields= &lex->select_lex.item_list;
   table_map tables_for_update;
   bool update_view= 0;
@@ -1013,19 +1030,24 @@ reopen_tables:
   /* open tables and create derived ones, but do not lock and fill them */
   if (((original_multiupdate || need_reopen) &&
        open_tables(thd, &table_list, &table_count, 0)) ||
-      mysql_handle_derived(lex, &mysql_derived_prepare))
+      mysql_handle_derived(lex, DT_INIT))
     DBUG_RETURN(TRUE);
   /*
     setup_tables() need for VIEWs. JOIN::prepare() will call setup_tables()
     second time, but this call will do nothing (there are check for second
     call in setup_tables()).
   */
+  //We need to merge for insert prior to prepare.
+  if (mysql_handle_list_of_derived(lex, table_list, DT_MERGE_FOR_INSERT))
+    DBUG_RETURN(1);
+  if  (mysql_handle_list_of_derived(lex, table_list, DT_PREPARE))
+    DBUG_RETURN(1);
 
   if (setup_tables_and_check_access(thd, &lex->select_lex.context,
                                     &lex->select_lex.top_join_list,
                                     table_list,
-                                    &lex->select_lex.leaf_tables, FALSE,
-                                    UPDATE_ACL, SELECT_ACL))
+                                    lex->select_lex.leaf_tables, FALSE,
+                                    UPDATE_ACL, SELECT_ACL, TRUE))
     DBUG_RETURN(TRUE);
 
   if (setup_fields_with_no_wrap(thd, 0, *fields, MARK_COLUMNS_WRITE, 0, 0))
@@ -1050,8 +1072,8 @@ reopen_tables:
   /*
     Setup timestamp handling and locking mode
   */
-  leaves= lex->select_lex.leaf_tables;
-  for (tl= leaves; tl; tl= tl->next_leaf)
+  List_iterator<TABLE_LIST> ti(lex->select_lex.leaf_tables);
+  while ((tl= ti++))
   {
     TABLE *table= tl->table;
     /* Only set timestamp column if this is not modified */
@@ -1093,7 +1115,7 @@ reopen_tables:
   for (tl= table_list; tl; tl= tl->next_local)
   {
     /* Check access privileges for table */
-    if (!tl->derived)
+    if (!tl->is_derived())
     {
       uint want_privilege= tl->updating ? UPDATE_ACL : SELECT_ACL;
       if (check_access(thd, want_privilege,
@@ -1107,7 +1129,7 @@ reopen_tables:
   /* check single table update for view compound from several tables */
   for (tl= table_list; tl; tl= tl->next_local)
   {
-    if (tl->effective_algorithm == VIEW_ALGORITHM_MERGE)
+    if (tl->is_merged_derived())
     {
       TABLE_LIST *for_update= 0;
       if (tl->check_single_table(&for_update, tables_for_update, tl))
@@ -1162,6 +1184,8 @@ reopen_tables:
       */
       unit->unclean();
     }
+    // Reset 'prepared' flags for all derived tables/views
+    mysql_handle_list_of_derived(thd->lex, table_list, DT_REINIT);
 
     /*
       Also we need to cleanup Natural_join_column::table_field items.
@@ -1184,7 +1208,8 @@ reopen_tables:
   */
   lex->select_lex.exclude_from_table_unique_test= TRUE;
   /* We only need SELECT privilege for columns in the values list */
-  for (tl= leaves; tl; tl= tl->next_leaf)
+  ti.rewind();
+  while ((tl= ti++))
   {
     TABLE *table= tl->table;
     TABLE_LIST *tlist;
@@ -1213,10 +1238,6 @@ reopen_tables:
   */
   lex->select_lex.exclude_from_table_unique_test= FALSE;
  
-  if (thd->fill_derived_tables() &&
-      mysql_handle_derived(lex, &mysql_derived_filling))
-    DBUG_RETURN(TRUE);
-
   DBUG_RETURN (FALSE);
 }
 
@@ -1239,7 +1260,7 @@ bool mysql_multi_update(THD *thd,
   DBUG_ENTER("mysql_multi_update");
 
   if (!(result= new multi_update(table_list,
-				 thd->lex->select_lex.leaf_tables,
+				 &thd->lex->select_lex.leaf_tables,
 				 fields, values,
 				 handle_duplicates, ignore)))
     DBUG_RETURN(TRUE);
@@ -1274,7 +1295,7 @@ bool mysql_multi_update(THD *thd,
 
 
 multi_update::multi_update(TABLE_LIST *table_list,
-			   TABLE_LIST *leaves_list,
+                           List<TABLE_LIST> *leaves_list,
 			   List<Item> *field_list, List<Item> *value_list,
 			   enum enum_duplicates handle_duplicates_arg,
                            bool ignore_arg)
@@ -1292,6 +1313,7 @@ multi_update::multi_update(TABLE_LIST *table_list,
 
 int multi_update::prepare(List<Item> &not_used_values,
 			  SELECT_LEX_UNIT *lex_unit)
+
 {
   TABLE_LIST *table_ref;
   SQL_I_List<TABLE_LIST> update;
@@ -1301,11 +1323,19 @@ int multi_update::prepare(List<Item> &not_used_values,
   List_iterator_fast<Item> value_it(*values);
   uint i, max_fields;
   uint leaf_table_count= 0;
+  List_iterator<TABLE_LIST> ti(*leaves);
   DBUG_ENTER("multi_update::prepare");
 
   thd->count_cuted_fields= CHECK_FIELD_WARN;
   thd->cuted_fields=0L;
   thd_proc_info(thd, "updating main table");
+
+  SELECT_LEX *select_lex= lex_unit->first_select();
+  if (select_lex->first_cond_optimization)
+  {
+    if (select_lex->handle_derived(thd->lex, DT_MERGE))
+      DBUG_RETURN(TRUE);
+  }
 
   tables_to_update= get_table_map(fields);
 
@@ -1320,7 +1350,7 @@ int multi_update::prepare(List<Item> &not_used_values,
     TABLE::tmp_set by pointing TABLE::read_set to it and then restore it after
     setup_fields().
   */
-  for (table_ref= leaves; table_ref; table_ref= table_ref->next_leaf)
+  while ((table_ref= ti++))
   {
     TABLE *table= table_ref->table;
     if (tables_to_update & table->map)
@@ -1338,7 +1368,8 @@ int multi_update::prepare(List<Item> &not_used_values,
 
   int error= setup_fields(thd, 0, *values, MARK_COLUMNS_READ, 0, 0);
 
-  for (table_ref= leaves; table_ref; table_ref= table_ref->next_leaf)
+  ti.rewind();
+  while ((table_ref= ti++))
   {
     TABLE *table= table_ref->table;
     if (tables_to_update & table->map)
@@ -1367,7 +1398,8 @@ int multi_update::prepare(List<Item> &not_used_values,
   */
 
   update.empty();
-  for (table_ref= leaves; table_ref; table_ref= table_ref->next_leaf)
+  ti.rewind();
+  while ((table_ref= ti++))
   {
     /* TODO: add support of view of join support */
     TABLE *table=table_ref->table;
@@ -1593,9 +1625,9 @@ loop_end:
     {
       table_map unupdated_tables= table_ref->check_option->used_tables() &
                                   ~first_table_for_update->map;
-      for (TABLE_LIST *tbl_ref =leaves;
-           unupdated_tables && tbl_ref;
-           tbl_ref= tbl_ref->next_leaf)
+      List_iterator<TABLE_LIST> ti(*leaves);
+      TABLE_LIST *tbl_ref;
+      while ((tbl_ref= ti++) && unupdated_tables)
       {
         if (unupdated_tables & tbl_ref->table->map)
           unupdated_tables&= ~tbl_ref->table->map;

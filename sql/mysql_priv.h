@@ -61,12 +61,15 @@ class Parser_state;
 
   QT_ORDINARY -- ordinary SQL query.
   QT_IS -- SQL query to be shown in INFORMATION_SCHEMA (in utf8 and without
-  character set introducers).
+           character set introducers).
+  QT_VIEW_INTERNAL -- view internal representation (like QT_ORDINARY except
+                      ORDER BY clause)
 */
 enum enum_query_type
 {
   QT_ORDINARY,
-  QT_IS
+  QT_IS,
+  QT_VIEW_INTERNAL
 };
 
 /* TODO convert all these three maps to Bitmap classes */
@@ -513,7 +516,6 @@ protected:
 */
 #define TMP_TABLE_FORCE_MYISAM          (ULL(1) << 32)
 #define OPTION_PROFILING                (ULL(1) << 33)
-
 
 
 /**
@@ -1304,11 +1306,9 @@ int mysql_explain_select(THD *thd, SELECT_LEX *sl, char const *type,
 			 select_result *result);
 bool mysql_union(THD *thd, LEX *lex, select_result *result,
                  SELECT_LEX_UNIT *unit, ulong setup_tables_done_option);
-bool mysql_handle_derived(LEX *lex, bool (*processor)(THD *thd,
-                                                      LEX *lex,
-                                                      TABLE_LIST *table));
-bool mysql_derived_prepare(THD *thd, LEX *lex, TABLE_LIST *t);
-bool mysql_derived_filling(THD *thd, LEX *lex, TABLE_LIST *t);
+bool mysql_handle_derived(LEX *lex, uint phases);
+bool mysql_handle_single_derived(LEX *lex, TABLE_LIST *derived, uint phases);
+bool mysql_handle_list_of_derived(LEX *lex, TABLE_LIST *dt_list, uint phases);
 bool check_table_file_presence(char *old_path, char *path,
                                const char *db,
                                const char *table_name,
@@ -1322,6 +1322,11 @@ Field *create_tmp_field(THD *thd, TABLE *table,Item *item, Item::Type type,
                         bool make_copy_field,
                         uint convert_blob_length);
 bool open_tmp_table(TABLE *table);
+bool create_internal_tmp_table(TABLE *table, KEY *keyinfo, 
+                                      ENGINE_COLUMNDEF *start_recinfo,
+                                      ENGINE_COLUMNDEF **recinfo,
+                                      ulonglong options);
+
 void sp_prepare_create_field(THD *thd, Create_field *sql_field);
 int prepare_create_field(Create_field *sql_field, 
 			 uint *blob_columns, 
@@ -1629,17 +1634,21 @@ bool get_key_map_from_key_list(key_map *map, TABLE *table,
 bool insert_fields(THD *thd, Name_resolution_context *context,
 		   const char *db_name, const char *table_name,
                    List_iterator<Item> *it, bool any_privileges);
+void make_leaves_list(List<TABLE_LIST> &list, TABLE_LIST *tables,
+                      bool full_table_list, TABLE_LIST *boundary);
 bool setup_tables(THD *thd, Name_resolution_context *context,
                   List<TABLE_LIST> *from_clause, TABLE_LIST *tables,
-                  TABLE_LIST **leaves, bool select_insert);
+                  List<TABLE_LIST> &leaves, bool select_insert,
+                  bool full_table_list);
 bool setup_tables_and_check_access(THD *thd, 
                                    Name_resolution_context *context,
                                    List<TABLE_LIST> *from_clause, 
                                    TABLE_LIST *tables, 
-                                   TABLE_LIST **leaves, 
+                                   List<TABLE_LIST> &leaves, 
                                    bool select_insert,
                                    ulong want_access_first,
-                                   ulong want_access);
+                                   ulong want_access,
+                                   bool full_table_list);
 int setup_wild(THD *thd, TABLE_LIST *tables, List<Item> &fields,
 	       List<Item> *sum_func_list, uint wild_num);
 bool setup_fields(THD *thd, Item** ref_pointer_array,
@@ -1658,7 +1667,7 @@ inline bool setup_fields_with_no_wrap(THD *thd, Item **ref_pointer_array,
   thd->lex->select_lex.no_wrap_view_item= FALSE;
   return res;
 }
-int setup_conds(THD *thd, TABLE_LIST *tables, TABLE_LIST *leaves,
+int setup_conds(THD *thd, TABLE_LIST *tables, List<TABLE_LIST> &leaves,
 		COND **conds);
 void wrap_ident(THD *thd, Item **conds);
 int setup_ftfuncs(SELECT_LEX* select);
@@ -1681,7 +1690,8 @@ inline int open_and_lock_tables(THD *thd, TABLE_LIST *tables)
 /* simple open_and_lock_tables without derived handling for single table */
 TABLE *open_n_lock_single_table(THD *thd, TABLE_LIST *table_l,
                                 thr_lock_type lock_type);
-bool open_normal_and_derived_tables(THD *thd, TABLE_LIST *tables, uint flags);
+bool open_normal_and_derived_tables(THD *thd, TABLE_LIST *tables, uint flags,
+                                    uint dt_phases);
 int lock_tables(THD *thd, TABLE_LIST *tables, uint counter, bool *need_reopen);
 int decide_logging_format(THD *thd, TABLE_LIST *tables);
 TABLE *open_temporary_table(THD *thd, const char *path, const char *db,
@@ -1711,6 +1721,7 @@ void flush_tables();
 bool is_equal(const LEX_STRING *a, const LEX_STRING *b);
 char *make_default_log_name(char *buff,const char* log_ext);
 char *make_once_alloced_filename(const char *basename, const char *ext);
+void unfix_fields(List<Item> &items);
 
 #ifdef WITH_PARTITION_STORAGE_ENGINE
 uint fast_alter_partition_table(THD *thd, TABLE *table,
@@ -2596,7 +2607,7 @@ Item * all_any_subquery_creator(Item *left_expr,
 inline void setup_table_map(TABLE *table, TABLE_LIST *table_list, uint tablenr)
 {
   table->used_fields= 0;
-  table->const_table= 0;
+  table_list->reset_const_table();
   table->null_row= 0;
   table->status= STATUS_NO_RECORD;
   table->maybe_null= table_list->outer_join;
@@ -2612,6 +2623,14 @@ inline void setup_table_map(TABLE *table, TABLE_LIST *table_list, uint tablenr)
   table->force_index_order= table->force_index_group= 0;
   table->covering_keys= table->s->keys_for_keyread;
   table->merge_keys.clear_all();
+  TABLE_LIST *orig= table_list->select_lex ?
+    table_list->select_lex->master_unit()->derived : 0;
+  if (!orig || !orig->is_merged_derived())
+  {
+    /* Tables merged from derived were set up already.*/
+    table->covering_keys= table->s->keys_for_keyread;
+    table->merge_keys.clear_all();
+  }
 }
 
 
