@@ -423,7 +423,6 @@ typedef struct st_table_share
   bool null_field_first;
   bool system;                          /* Set if system table (one record) */
   bool crypted;                         /* If .frm file is crypted */
-  bool db_low_byte_first;		/* Portable row format */
   bool crashed;
   bool is_view;
   bool name_lock, replace_with_name_lock;

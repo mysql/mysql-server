@@ -344,3 +344,10 @@ varchar60_datetime	2010-11-12 11:14:17
 varchar70_time	11:14:17
 varchar80_timestamp	2010-11-12 11:14:17
 drop table t1, t2;
+create table t1 (a datetime, b datetime(6));
+insert t1 values ('2010-01-02 03:04:05.678912', '2010-01-02 03:04:05.678912');
+update t1 set b=a;
+select * from t1;
+a	b
+2010-01-02 03:04:05	2010-01-02 03:04:05.000000
+drop table t1;

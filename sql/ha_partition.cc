@@ -235,7 +235,6 @@ void ha_partition::init_handler_variables()
   m_extra_prepare_for_update= FALSE;
   m_extra_cache_part_id= NO_CURRENT_PART_ID;
   m_handler_status= handler_not_initialized;
-  m_low_byte_first= 1;
   m_part_field_array= NULL;
   m_ordered_rec_buffer= NULL;
   m_top_entry= NO_CURRENT_PART_ID;
@@ -374,18 +373,11 @@ bool ha_partition::initialize_partition(MEM_ROOT *mem_root)
     Verify that all partitions have the same table_flags.
   */
   check_table_flags= m_file[0]->ha_table_flags();
-  m_low_byte_first= m_file[0]->low_byte_first();
   m_pkey_is_clustered= TRUE;
   file_array= m_file;
   do
   {
     file= *file_array;
-    if (m_low_byte_first != file->low_byte_first())
-    {
-      // Cannot have handlers with different endian
-      my_error(ER_MIX_HANDLER_ERROR, MYF(0));
-      DBUG_RETURN(1);
-    }
     if (!file->primary_key_is_clustered())
       m_pkey_is_clustered= FALSE;
     if (check_table_flags != file->ha_table_flags())

@@ -129,3 +129,9 @@ alter table t1
 
 drop table t1, t2;
 
+create table t1 (a datetime, b datetime(6));
+insert t1 values ('2010-01-02 03:04:05.678912', '2010-01-02 03:04:05.678912');
+update t1 set b=a;
+select * from t1;
+drop table t1;
+

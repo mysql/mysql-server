@@ -99,7 +99,6 @@ private:
     for this since the MySQL Server sometimes allocating the handler object
     without freeing them.
   */
-  ulong m_low_byte_first;
   enum enum_handler_status
   {
     handler_not_initialized= 0,
@@ -883,12 +882,6 @@ public:
   virtual uint max_supported_key_parts() const;
   virtual uint max_supported_key_length() const;
   virtual uint max_supported_key_part_length() const;
-
-  /*
-    All handlers in a partitioned table must have the same low_byte_first
-  */
-  virtual bool low_byte_first() const
-  { return m_low_byte_first; }
 
   /*
     The extra record buffer length is the maximum needed by all handlers.

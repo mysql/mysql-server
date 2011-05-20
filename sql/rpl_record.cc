@@ -103,7 +103,7 @@ pack_row(TABLE *table, MY_BITMAP const* cols,
         const uchar *old_pack_ptr= pack_ptr;
 #endif
         pack_ptr= field->pack(pack_ptr, field->ptr + offset,
-                              field->max_data_length(), TRUE);
+                              field->max_data_length());
         DBUG_PRINT("debug", ("field: %s; pack_ptr: 0x%lx;"
                              " pack_ptr':0x%lx; bytes: %d",
                              field->field_name, (ulong) old_pack_ptr,
@@ -283,7 +283,7 @@ unpack_row(Relay_log_info const *rli,
 #ifndef DBUG_OFF
         uchar const *const old_pack_ptr= pack_ptr;
 #endif
-        pack_ptr= f->unpack(f->ptr, pack_ptr, metadata, TRUE);
+        pack_ptr= f->unpack(f->ptr, pack_ptr, metadata);
 	DBUG_PRINT("debug", ("field: %s; metadata: 0x%x;"
                              " pack_ptr: 0x%lx; pack_ptr': 0x%lx; bytes: %d",
                              f->field_name, metadata,

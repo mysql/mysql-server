@@ -133,7 +133,7 @@ uint32 table_def::calc_field_size(uint col, uchar *master_data) const
       always read the length in little-endian order.
     */
     Field_blob fb(m_field_metadata[col]);
-    length= fb.get_packed_size(master_data, TRUE);
+    length= fb.get_packed_size(master_data);
 #else
     /*
       Compute the length of the data. We cannot use get_length() here

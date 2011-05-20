@@ -1418,13 +1418,6 @@ int Field::store(const char *to, uint length, CHARSET_INFO *cs,
    should be overridden. The other functions are just convenience
    functions and hence should not be overridden.
 
-   The value of <code>low_byte_first</code> is dependent on how the
-   packed data is going to be used: for local use, e.g., temporary
-   store on disk or in memory, use the native format since that is
-   faster. For data that is going to be transfered to other machines
-   (e.g., when writing data to the binary log), data should always be
-   stored in little-endian format.
-
    @note The default method for packing fields just copy the raw bytes
    of the record into the destination, but never more than
    <code>max_length</code> characters.
@@ -1442,15 +1435,9 @@ int Field::store(const char *to, uint length, CHARSET_INFO *cs,
    is 1000. This information is sometimes needed to decide how to pack
    the data.
 
-   @param low_byte_first
-   @c TRUE if integers should be stored little-endian, @c FALSE if
-   native format should be used. Note that for little-endian machines,
-   the value of this flag is a moot point since the native format is
-   little-endian.
 */
 uchar *
-Field::pack(uchar *to, const uchar *from, uint max_length,
-            bool low_byte_first __attribute__((unused)))
+Field::pack(uchar *to, const uchar *from, uint max_length)
 {
   uint32 length= pack_length();
   set_if_smaller(length, max_length);
@@ -1481,16 +1468,10 @@ Field::pack(uchar *to, const uchar *from, uint max_length,
    @param   param_data Real type and original pack length of the field
                        data
 
-   @param low_byte_first
-   If this flag is @c true, all composite entities (e.g., lengths)
-   should be unpacked in little-endian format; otherwise, the entities
-   are unpacked in native order.
-
    @return  New pointer into memory based on from + length of the data
 */
 const uchar *
-Field::unpack(uchar* to, const uchar *from, uint param_data,
-              bool low_byte_first __attribute__((unused)))
+Field::unpack(uchar* to, const uchar *from, uint param_data)
 {
   uint length=pack_length();
   int from_type= 0;
@@ -2924,13 +2905,10 @@ uint Field_new_decimal::is_equal(Create_field *new_field)
    @return  New pointer into memory based on from + length of the data
 */
 const uchar *
-Field_new_decimal::unpack(uchar* to,
-                          const uchar *from,
-                          uint param_data,
-                          bool low_byte_first)
+Field_new_decimal::unpack(uchar* to, const uchar *from, uint param_data)
 {
   if (param_data == 0)
-    return Field::unpack(to, from, param_data, low_byte_first);
+    return Field::unpack(to, from, param_data);
 
   uint from_precision= (param_data & 0xff00) >> 8U;
   uint from_decimal= param_data & 0x00ff;
@@ -3152,10 +3130,7 @@ int Field_short::store(const char *from,uint len,CHARSET_INFO *cs)
   
   error= get_int(cs, from, len, &rnd, UINT_MAX16, INT_MIN16, INT_MAX16);
   store_tmp= unsigned_flag ? (int) (ulonglong) rnd : (int) rnd;
-  if (ARCH_BIGENDIAN && table->s->db_low_byte_first)
-    int2store(ptr, store_tmp);
-  else
-    shortstore(ptr, (short) store_tmp);
+  int2store(ptr, store_tmp);
   return error;
 }
 
@@ -3200,10 +3175,7 @@ int Field_short::store(double nr)
     else
       res=(int16) (int) nr;
   }
-  if (ARCH_BIGENDIAN && table->s->db_low_byte_first)
-    int2store(ptr,res);
-  else
-    shortstore(ptr,res);
+  int2store(ptr,res);
   return error;
 }
 
@@ -3251,10 +3223,7 @@ int Field_short::store(longlong nr, bool unsigned_val)
     else
       res=(int16) nr;
   }
-  if (ARCH_BIGENDIAN && table->s->db_low_byte_first)
-    int2store(ptr,res);
-  else
-    shortstore(ptr,res);
+  int2store(ptr,res);
   return error;
 }
 
@@ -3263,10 +3232,7 @@ double Field_short::val_real(void)
 {
   ASSERT_COLUMN_MARKED_FOR_READ;
   short j;
-  if (ARCH_BIGENDIAN && table->s->db_low_byte_first)
-    j=sint2korr(ptr);
-  else
-    shortget(j,ptr);
+  j=sint2korr(ptr);
   return unsigned_flag ? (double) (unsigned short) j : (double) j;
 }
 
@@ -3274,10 +3240,7 @@ longlong Field_short::val_int(void)
 {
   ASSERT_COLUMN_MARKED_FOR_READ;
   short j;
-  if (ARCH_BIGENDIAN && table->s->db_low_byte_first)
-    j=sint2korr(ptr);
-  else
-    shortget(j,ptr);
+  j=sint2korr(ptr);
   return unsigned_flag ? (longlong) (unsigned short) j : (longlong) j;
 }
 
@@ -3292,10 +3255,7 @@ String *Field_short::val_str(String *val_buffer,
   val_buffer->alloc(mlength);
   char *to=(char*) val_buffer->ptr();
   short j;
-  if (ARCH_BIGENDIAN && table->s->db_low_byte_first)
-    j=sint2korr(ptr);
-  else
-    shortget(j,ptr);
+  j=sint2korr(ptr);
 
   if (unsigned_flag)
     length=(uint) cs->cset->long10_to_str(cs, to, mlength, 10, 
@@ -3318,16 +3278,8 @@ bool Field_short::send_binary(Protocol *protocol)
 int Field_short::cmp(const uchar *a_ptr, const uchar *b_ptr)
 {
   short a,b;
-  if (ARCH_BIGENDIAN && table->s->db_low_byte_first)
-  {
-    a=sint2korr(a_ptr);
-    b=sint2korr(b_ptr);
-  }
-  else
-  {
-    shortget(a,a_ptr);
-    shortget(b,b_ptr);
-  }
+  a=sint2korr(a_ptr);
+  b=sint2korr(b_ptr);
 
   if (unsigned_flag)
     return ((unsigned short) a < (unsigned short) b) ? -1 :
@@ -3337,22 +3289,11 @@ int Field_short::cmp(const uchar *a_ptr, const uchar *b_ptr)
 
 void Field_short::sort_string(uchar *to,uint length __attribute__((unused)))
 {
-  if (ARCH_BIGENDIAN && !table->s->db_low_byte_first)
-  {
-    if (unsigned_flag)
-      to[0] = ptr[0];
-    else
-      to[0] = (char) (ptr[0] ^ 128);		/* Revers signbit */
-    to[1]   = ptr[1];
-  }
+  if (unsigned_flag)
+    to[0] = ptr[1];
   else
-  {
-    if (unsigned_flag)
-      to[0] = ptr[1];
-    else
-      to[0] = (char) (ptr[1] ^ 128);		/* Revers signbit */
-    to[1]   = ptr[0];
-  }
+    to[0] = (char) (ptr[1] ^ 128);              /* Revers signbit */
+  to[1]   = ptr[0];
 }
 
 void Field_short::sql_type(String &res) const
@@ -3567,10 +3508,7 @@ int Field_long::store(const char *from,uint len,CHARSET_INFO *cs)
   
   error= get_int(cs, from, len, &rnd, UINT_MAX32, INT_MIN32, INT_MAX32);
   store_tmp= unsigned_flag ? (long) (ulonglong) rnd : (long) rnd;
-  if (ARCH_BIGENDIAN && table->s->db_low_byte_first)
-    int4store(ptr, store_tmp);
-  else
-    longstore(ptr, store_tmp);
+  int4store(ptr, store_tmp);
   return error;
 }
 
@@ -3615,10 +3553,7 @@ int Field_long::store(double nr)
   if (error)
     set_warning(MYSQL_ERROR::WARN_LEVEL_WARN, ER_WARN_DATA_OUT_OF_RANGE, 1);
 
-  if (ARCH_BIGENDIAN && table->s->db_low_byte_first)
-    int4store(ptr,res);
-  else
-    longstore(ptr,res);
+  int4store(ptr,res);
   return error;
 }
 
@@ -3664,10 +3599,7 @@ int Field_long::store(longlong nr, bool unsigned_val)
   if (error)
     set_warning(MYSQL_ERROR::WARN_LEVEL_WARN, ER_WARN_DATA_OUT_OF_RANGE, 1);
 
-  if (ARCH_BIGENDIAN && table->s->db_low_byte_first)
-    int4store(ptr,res);
-  else
-    longstore(ptr,res);
+  int4store(ptr,res);
   return error;
 }
 
@@ -3676,10 +3608,7 @@ double Field_long::val_real(void)
 {
   ASSERT_COLUMN_MARKED_FOR_READ;
   int32 j;
-  if (ARCH_BIGENDIAN && table->s->db_low_byte_first)
-    j=sint4korr(ptr);
-  else
-    longget(j,ptr);
+  j=sint4korr(ptr);
   return unsigned_flag ? (double) (uint32) j : (double) j;
 }
 
@@ -3689,10 +3618,7 @@ longlong Field_long::val_int(void)
   int32 j;
   /* See the comment in Field_long::store(long long) */
   DBUG_ASSERT(table->in_use == current_thd);
-  if (ARCH_BIGENDIAN && table->s->db_low_byte_first)
-    j=sint4korr(ptr);
-  else
-    longget(j,ptr);
+  j=sint4korr(ptr);
   return unsigned_flag ? (longlong) (uint32) j : (longlong) j;
 }
 
@@ -3706,10 +3632,7 @@ String *Field_long::val_str(String *val_buffer,
   val_buffer->alloc(mlength);
   char *to=(char*) val_buffer->ptr();
   int32 j;
-  if (ARCH_BIGENDIAN && table->s->db_low_byte_first)
-    j=sint4korr(ptr);
-  else
-    longget(j,ptr);
+  j=sint4korr(ptr);
 
   if (unsigned_flag)
     length=cs->cset->long10_to_str(cs,to,mlength, 10,(long) (uint32)j);
@@ -3731,16 +3654,8 @@ bool Field_long::send_binary(Protocol *protocol)
 int Field_long::cmp(const uchar *a_ptr, const uchar *b_ptr)
 {
   int32 a,b;
-  if (ARCH_BIGENDIAN && table->s->db_low_byte_first)
-  {
-    a=sint4korr(a_ptr);
-    b=sint4korr(b_ptr);
-  }
-  else
-  {
-    longget(a,a_ptr);
-    longget(b,b_ptr);
-  }
+  a=sint4korr(a_ptr);
+  b=sint4korr(b_ptr);
   if (unsigned_flag)
     return ((uint32) a < (uint32) b) ? -1 : ((uint32) a > (uint32) b) ? 1 : 0;
   return (a < b) ? -1 : (a > b) ? 1 : 0;
@@ -3748,26 +3663,13 @@ int Field_long::cmp(const uchar *a_ptr, const uchar *b_ptr)
 
 void Field_long::sort_string(uchar *to,uint length __attribute__((unused)))
 {
-  if (ARCH_BIGENDIAN && !table->s->db_low_byte_first)
-  {
-    if (unsigned_flag)
-      to[0] = ptr[0];
-    else
-      to[0] = (char) (ptr[0] ^ 128);		/* Revers signbit */
-    to[1]   = ptr[1];
-    to[2]   = ptr[2];
-    to[3]   = ptr[3];
-  }
+  if (unsigned_flag)
+    to[0] = ptr[3];
   else
-  {
-    if (unsigned_flag)
-      to[0] = ptr[3];
-    else
-      to[0] = (char) (ptr[3] ^ 128);		/* Revers signbit */
-    to[1]   = ptr[2];
-    to[2]   = ptr[1];
-    to[3]   = ptr[0];
-  }
+    to[0] = (char) (ptr[3] ^ 128);              /* Revers signbit */
+  to[1]   = ptr[2];
+  to[2]   = ptr[1];
+  to[3]   = ptr[0];
 }
 
 
@@ -3801,10 +3703,7 @@ int Field_longlong::store(const char *from,uint len,CHARSET_INFO *cs)
     error= 1;
   else
     error= 0;
-  if (ARCH_BIGENDIAN && table->s->db_low_byte_first)
-    int8store(ptr,tmp);
-  else
-    longlongstore(ptr,tmp);
+  int8store(ptr,tmp);
   return error;
 }
 
@@ -3849,10 +3748,7 @@ int Field_longlong::store(double nr)
   if (error)
     set_warning(MYSQL_ERROR::WARN_LEVEL_WARN, ER_WARN_DATA_OUT_OF_RANGE, 1);
 
-  if (ARCH_BIGENDIAN && table->s->db_low_byte_first)
-    int8store(ptr,res);
-  else
-    longlongstore(ptr,res);
+  int8store(ptr,res);
   return error;
 }
 
@@ -3876,10 +3772,7 @@ int Field_longlong::store(longlong nr, bool unsigned_val)
     }
   }
 
-  if (ARCH_BIGENDIAN && table->s->db_low_byte_first)
-    int8store(ptr,nr);
-  else
-    longlongstore(ptr,nr);
+  int8store(ptr,nr);
   return error;
 }
 
@@ -3888,10 +3781,7 @@ double Field_longlong::val_real(void)
 {
   ASSERT_COLUMN_MARKED_FOR_READ;
   longlong j;
-  if (ARCH_BIGENDIAN && table->s->db_low_byte_first)
-    j=sint8korr(ptr);
-  else
-    longlongget(j,ptr);
+  j=sint8korr(ptr);
   /* The following is open coded to avoid a bug in gcc 3.3 */
   if (unsigned_flag)
   {
@@ -3906,10 +3796,7 @@ longlong Field_longlong::val_int(void)
 {
   ASSERT_COLUMN_MARKED_FOR_READ;
   longlong j;
-  if (ARCH_BIGENDIAN && table->s->db_low_byte_first)
-    j=sint8korr(ptr);
-  else
-    longlongget(j,ptr);
+  j=sint8korr(ptr);
   return j;
 }
 
@@ -3923,10 +3810,7 @@ String *Field_longlong::val_str(String *val_buffer,
   val_buffer->alloc(mlength);
   char *to=(char*) val_buffer->ptr();
   longlong j;
-  if (ARCH_BIGENDIAN && table->s->db_low_byte_first)
-    j=sint8korr(ptr);
-  else
-    longlongget(j,ptr);
+  j=sint8korr(ptr);
 
   length=(uint) (cs->cset->longlong10_to_str)(cs,to,mlength,
 					unsigned_flag ? 10 : -10, j);
@@ -3947,16 +3831,8 @@ bool Field_longlong::send_binary(Protocol *protocol)
 int Field_longlong::cmp(const uchar *a_ptr, const uchar *b_ptr)
 {
   longlong a,b;
-  if (ARCH_BIGENDIAN && table->s->db_low_byte_first)
-  {
-    a=sint8korr(a_ptr);
-    b=sint8korr(b_ptr);
-  }
-  else
-  {
-    longlongget(a,a_ptr);
-    longlongget(b,b_ptr);
-  }
+  a=sint8korr(a_ptr);
+  b=sint8korr(b_ptr);
   if (unsigned_flag)
     return ((ulonglong) a < (ulonglong) b) ? -1 :
     ((ulonglong) a > (ulonglong) b) ? 1 : 0;
@@ -3965,34 +3841,17 @@ int Field_longlong::cmp(const uchar *a_ptr, const uchar *b_ptr)
 
 void Field_longlong::sort_string(uchar *to,uint length __attribute__((unused)))
 {
-  if (ARCH_BIGENDIAN && !table->s->db_low_byte_first)
-  {
-    if (unsigned_flag)
-      to[0] = ptr[0];
-    else
-      to[0] = (char) (ptr[0] ^ 128);		/* Revers signbit */
-    to[1]   = ptr[1];
-    to[2]   = ptr[2];
-    to[3]   = ptr[3];
-    to[4]   = ptr[4];
-    to[5]   = ptr[5];
-    to[6]   = ptr[6];
-    to[7]   = ptr[7];
-  }
+  if (unsigned_flag)
+    to[0] = ptr[7];
   else
-  {
-    if (unsigned_flag)
-      to[0] = ptr[7];
-    else
-      to[0] = (char) (ptr[7] ^ 128);		/* Revers signbit */
-    to[1]   = ptr[6];
-    to[2]   = ptr[5];
-    to[3]   = ptr[4];
-    to[4]   = ptr[3];
-    to[5]   = ptr[2];
-    to[6]   = ptr[1];
-    to[7]   = ptr[0];
-  }
+    to[0] = (char) (ptr[7] ^ 128);		/* Revers signbit */
+  to[1]   = ptr[6];
+  to[2]   = ptr[5];
+  to[3]   = ptr[4];
+  to[4]   = ptr[3];
+  to[5]   = ptr[2];
+  to[6]   = ptr[1];
+  to[7]   = ptr[0];
 }
 
 
@@ -4008,39 +3867,6 @@ void Field_longlong::sql_type(String &res) const
 /*
   Floating-point numbers
  */
-
-uchar *
-Field_real::pack(uchar *to, const uchar *from,
-                 uint max_length, bool low_byte_first)
-{
-  DBUG_ENTER("Field_real::pack");
-  DBUG_ASSERT(max_length >= pack_length());
-  if (ARCH_BIGENDIAN && low_byte_first != table->s->db_low_byte_first)
-  {
-    const uchar *dptr= from + pack_length();
-    while (dptr-- > from)
-      *to++ = *dptr;
-    DBUG_RETURN(to);
-  }
-  else
-    DBUG_RETURN(Field::pack(to, from, max_length, low_byte_first));
-}
-
-const uchar *
-Field_real::unpack(uchar *to, const uchar *from,
-                   uint param_data, bool low_byte_first)
-{
-  DBUG_ENTER("Field_real::unpack");
-  if (ARCH_BIGENDIAN && low_byte_first != table->s->db_low_byte_first)
-  {
-    const uchar *dptr= from + pack_length();
-    while (dptr-- > from)
-      *to++ = *dptr;
-    DBUG_RETURN(from + pack_length());
-  }
-  else
-    DBUG_RETURN(Field::unpack(to, from, param_data, low_byte_first));
-}
 
 /****************************************************************************
   single precision float
@@ -4069,10 +3895,7 @@ int Field_float::store(double nr)
   int error= truncate(&nr, FLT_MAX);
   float j= (float)nr;
 
-  if (ARCH_BIGENDIAN && table->s->db_low_byte_first)
-    float4store(ptr,j);
-  else
-    memcpy_fixed(ptr,(uchar*) &j,sizeof(j));
+  float4store(ptr,j);
   return error;
 }
 
@@ -4088,20 +3911,14 @@ double Field_float::val_real(void)
 {
   ASSERT_COLUMN_MARKED_FOR_READ;
   float j;
-  if (ARCH_BIGENDIAN && table->s->db_low_byte_first)
-    float4get(j,ptr);
-  else
-    memcpy_fixed((uchar*) &j,ptr,sizeof(j));
+  float4get(j,ptr);
   return ((double) j);
 }
 
 longlong Field_float::val_int(void)
 {
   float j;
-  if (ARCH_BIGENDIAN && table->s->db_low_byte_first)
-    float4get(j,ptr);
-  else
-    memcpy_fixed((uchar*) &j,ptr,sizeof(j));
+  float4get(j,ptr);
   return (longlong) rint(j);
 }
 
@@ -4111,10 +3928,7 @@ String *Field_float::val_str(String *val_buffer,
 {
   ASSERT_COLUMN_MARKED_FOR_READ;
   float nr;
-  if (ARCH_BIGENDIAN && table->s->db_low_byte_first)
-    float4get(nr,ptr);
-  else
-    memcpy_fixed((uchar*) &nr,ptr,sizeof(nr));
+  float4get(nr,ptr);
 
   uint to_length=max(field_length,70);
   val_buffer->alloc(to_length);
@@ -4189,16 +4003,8 @@ String *Field_float::val_str(String *val_buffer,
 int Field_float::cmp(const uchar *a_ptr, const uchar *b_ptr)
 {
   float a,b;
-  if (ARCH_BIGENDIAN && table->s->db_low_byte_first)
-  {
-    float4get(a,a_ptr);
-    float4get(b,b_ptr);
-  }
-  else
-  {
-    memcpy_fixed(&a,a_ptr,sizeof(float));
-    memcpy_fixed(&b,b_ptr,sizeof(float));
-  }
+  float4get(a,a_ptr);
+  float4get(b,b_ptr);
   return (a < b) ? -1 : (a > b) ? 1 : 0;
 }
 
@@ -4207,10 +4013,7 @@ int Field_float::cmp(const uchar *a_ptr, const uchar *b_ptr)
 void Field_float::sort_string(uchar *to,uint length __attribute__((unused)))
 {
   float nr;
-  if (ARCH_BIGENDIAN && table->s->db_low_byte_first)
-    float4get(nr,ptr);
-  else
-    memcpy_fixed(&nr,ptr,sizeof(float));
+  float4get(nr,ptr);
 
   uchar *tmp= to;
   if (nr == (float) 0.0)
@@ -4308,10 +4111,7 @@ int Field_double::store(double nr)
   ASSERT_COLUMN_MARKED_FOR_WRITE;
   int error= truncate(&nr, DBL_MAX);
 
-  if (ARCH_BIGENDIAN && table->s->db_low_byte_first)
-    float8store(ptr,nr);
-  else
-    doublestore(ptr,nr);
+  float8store(ptr,nr);
   return error;
 }
 
@@ -4391,10 +4191,7 @@ double Field_double::val_real(void)
 {
   ASSERT_COLUMN_MARKED_FOR_READ;
   double j;
-  if (ARCH_BIGENDIAN && table->s->db_low_byte_first)
-    float8get(j,ptr);
-  else
-    doubleget(j,ptr);
+  float8get(j,ptr);
   return j;
 }
 
@@ -4403,10 +4200,7 @@ longlong Field_double::val_int(void)
   ASSERT_COLUMN_MARKED_FOR_READ;
   double j;
   longlong res;
-  if (ARCH_BIGENDIAN && table->s->db_low_byte_first)
-    float8get(j,ptr);
-  else
-    doubleget(j,ptr);
+  float8get(j,ptr);
   /* Check whether we fit into longlong range */
   if (j <= (double) LONGLONG_MIN)
   {
@@ -4447,10 +4241,7 @@ String *Field_double::val_str(String *val_buffer,
 {
   ASSERT_COLUMN_MARKED_FOR_READ;
   double nr;
-  if (ARCH_BIGENDIAN && table->s->db_low_byte_first)
-    float8get(nr,ptr);
-  else
-    doubleget(nr,ptr);
+  float8get(nr,ptr);
 
   uint to_length= DOUBLE_TO_STRING_CONVERSION_BUFFER_SIZE;
   val_buffer->alloc(to_length);
@@ -4531,16 +4322,8 @@ bool Field_double::send_binary(Protocol *protocol)
 int Field_double::cmp(const uchar *a_ptr, const uchar *b_ptr)
 {
   double a,b;
-  if (ARCH_BIGENDIAN && table->s->db_low_byte_first)
-  {
-    float8get(a,a_ptr);
-    float8get(b,b_ptr);
-  }
-  else
-  {
-    doubleget(a, a_ptr);
-    doubleget(b, b_ptr);
-  }
+  float8get(a,a_ptr);
+  float8get(b,b_ptr);
   return (a < b) ? -1 : (a > b) ? 1 : 0;
 }
 
@@ -4552,10 +4335,7 @@ int Field_double::cmp(const uchar *a_ptr, const uchar *b_ptr)
 void Field_double::sort_string(uchar *to,uint length __attribute__((unused)))
 {
   double nr;
-  if (ARCH_BIGENDIAN && table->s->db_low_byte_first)
-    float8get(nr,ptr);
-  else
-    doubleget(nr,ptr);
+  float8get(nr,ptr);
   change_double_for_sort(nr, to);
 }
 
@@ -4697,11 +4477,7 @@ long Field_timestamp::get_timestamp(ulong *sec_part) const
 {
   ASSERT_COLUMN_MARKED_FOR_READ;
   *sec_part= 0;
-  if (ARCH_BIGENDIAN && table && table->s->db_low_byte_first)
-    return sint4korr(ptr);
-  long tmp;
-  longget(tmp,ptr);
-  return tmp;
+  return sint4korr(ptr);
 }
 
 
@@ -4932,36 +4708,18 @@ bool Field_timestamp::send_binary(Protocol *protocol)
 int Field_timestamp::cmp(const uchar *a_ptr, const uchar *b_ptr)
 {
   int32 a,b;
-  if (ARCH_BIGENDIAN && table && table->s->db_low_byte_first)
-  {
-    a=sint4korr(a_ptr);
-    b=sint4korr(b_ptr);
-  }
-  else
-  {
-    longget(a,a_ptr);
-    longget(b,b_ptr);
-  }
+  a=sint4korr(a_ptr);
+  b=sint4korr(b_ptr);
   return ((uint32) a < (uint32) b) ? -1 : ((uint32) a > (uint32) b) ? 1 : 0;
 }
 
 
 void Field_timestamp::sort_string(uchar *to,uint length __attribute__((unused)))
 {
-  if (ARCH_BIGENDIAN && !(table && table->s->db_low_byte_first))
-  {
-    to[0] = ptr[0];
-    to[1] = ptr[1];
-    to[2] = ptr[2];
-    to[3] = ptr[3];
-  }
-  else
-  {
-    to[0] = ptr[3];
-    to[1] = ptr[2];
-    to[2] = ptr[1];
-    to[3] = ptr[0];
-  }
+  to[0] = ptr[3];
+  to[1] = ptr[2];
+  to[2] = ptr[1];
+  to[3] = ptr[0];
 }
 
 
@@ -4986,6 +4744,7 @@ void Field_timestamp_hires::sql_type(String &res) const
                                 "timestamp(%u)", dec));
 }
 
+#ifdef NOT_USED
 static void store_native(ulonglong num, uchar *to, uint bytes)
 {
   switch(bytes) {
@@ -5009,6 +4768,7 @@ static longlong read_native(const uchar *from, uint bytes)
   default: DBUG_ASSERT(0); return 0;
   }
 }
+#endif
 
 static void store_lowendian(ulonglong num, uchar *to, uint bytes)
 {
@@ -5706,10 +5466,7 @@ void Field_year::sql_type(String &res) const
 void Field_date::store_TIME(MYSQL_TIME *ltime)
 {
   uint tmp= ltime->year*10000L + ltime->month*100+ltime->day;
-  if (ARCH_BIGENDIAN && table && table->s->db_low_byte_first)
-    int4store(ptr,tmp);
-  else
-    longstore(ptr,tmp);
+  int4store(ptr,tmp);
 }
 
 bool Field_date::send_binary(Protocol *protocol)
@@ -5727,10 +5484,7 @@ double Field_date::val_real(void)
 {
   ASSERT_COLUMN_MARKED_FOR_READ;
   int32 j;
-  if (ARCH_BIGENDIAN && table && table->s->db_low_byte_first)
-    j=sint4korr(ptr);
-  else
-    longget(j,ptr);
+  j=sint4korr(ptr);
   return (double) (uint32) j;
 }
 
@@ -5739,10 +5493,7 @@ longlong Field_date::val_int(void)
 {
   ASSERT_COLUMN_MARKED_FOR_READ;
   int32 j;
-  if (ARCH_BIGENDIAN && table && table->s->db_low_byte_first)
-    j=sint4korr(ptr);
-  else
-    longget(j,ptr);
+  j=sint4korr(ptr);
   return (longlong) (uint32) j;
 }
 
@@ -5753,10 +5504,7 @@ String *Field_date::val_str(String *val_buffer,
   ASSERT_COLUMN_MARKED_FOR_READ;
   MYSQL_TIME ltime;
   int32 tmp;
-  if (ARCH_BIGENDIAN && table && table->s->db_low_byte_first)
-    tmp=sint4korr(ptr);
-  else
-    longget(tmp,ptr);
+  tmp=sint4korr(ptr);
   ltime.neg= 0;
   ltime.year= (int) ((uint32) tmp/10000L % 10000);
   ltime.month= (int) ((uint32) tmp/100 % 100);
@@ -5769,36 +5517,18 @@ String *Field_date::val_str(String *val_buffer,
 int Field_date::cmp(const uchar *a_ptr, const uchar *b_ptr)
 {
   int32 a,b;
-  if (ARCH_BIGENDIAN && table && table->s->db_low_byte_first)
-  {
-    a=sint4korr(a_ptr);
-    b=sint4korr(b_ptr);
-  }
-  else
-  {
-    longget(a,a_ptr);
-    longget(b,b_ptr);
-  }
+  a=sint4korr(a_ptr);
+  b=sint4korr(b_ptr);
   return ((uint32) a < (uint32) b) ? -1 : ((uint32) a > (uint32) b) ? 1 : 0;
 }
 
 
 void Field_date::sort_string(uchar *to,uint length __attribute__((unused)))
 {
-  if (ARCH_BIGENDIAN && !(table && table->s->db_low_byte_first))
-  {
-    to[0] = ptr[0];
-    to[1] = ptr[1];
-    to[2] = ptr[2];
-    to[3] = ptr[3];
-  }
-  else
-  {
-    to[0] = ptr[3];
-    to[1] = ptr[2];
-    to[2] = ptr[1];
-    to[3] = ptr[0];
-  }
+  to[0] = ptr[3];
+  to[1] = ptr[2];
+  to[2] = ptr[1];
+  to[3] = ptr[0];
 }
 
 void Field_date::sql_type(String &res) const
@@ -5922,10 +5652,7 @@ void Field_newdate::sql_type(String &res) const
 void Field_datetime::store_TIME(MYSQL_TIME *ltime)
 {
   ulonglong tmp= TIME_to_ulonglong_datetime(ltime);
-  if (ARCH_BIGENDIAN && table && table->s->db_low_byte_first)
-    int8store(ptr,tmp);
-  else
-    longlongstore(ptr,tmp);
+  int8store(ptr,tmp);
 }
 
 bool Field_datetime::send_binary(Protocol *protocol)
@@ -5945,10 +5672,7 @@ longlong Field_datetime::val_int(void)
 {
   ASSERT_COLUMN_MARKED_FOR_READ;
   longlong j;
-  if (ARCH_BIGENDIAN && table && table->s->db_low_byte_first)
-    j=sint8korr(ptr);
-  else
-    longlongget(j,ptr);
+  j=sint8korr(ptr);
   return j;
 }
 
@@ -6024,44 +5748,22 @@ bool Field_datetime::get_date(MYSQL_TIME *ltime, uint fuzzydate)
 int Field_datetime::cmp(const uchar *a_ptr, const uchar *b_ptr)
 {
   longlong a,b;
-  if (ARCH_BIGENDIAN && table && table->s->db_low_byte_first)
-  {
-    a=sint8korr(a_ptr);
-    b=sint8korr(b_ptr);
-  }
-  else
-  {
-    longlongget(a,a_ptr);
-    longlongget(b,b_ptr);
-  }
+  a=sint8korr(a_ptr);
+  b=sint8korr(b_ptr);
   return ((ulonglong) a < (ulonglong) b) ? -1 :
     ((ulonglong) a > (ulonglong) b) ? 1 : 0;
 }
 
 void Field_datetime::sort_string(uchar *to,uint length __attribute__((unused)))
 {
-  if (ARCH_BIGENDIAN && !(table && table->s->db_low_byte_first))
-  {
-    to[0] = ptr[0];
-    to[1] = ptr[1];
-    to[2] = ptr[2];
-    to[3] = ptr[3];
-    to[4] = ptr[4];
-    to[5] = ptr[5];
-    to[6] = ptr[6];
-    to[7] = ptr[7];
-  }
-  else
-  {
-    to[0] = ptr[7];
-    to[1] = ptr[6];
-    to[2] = ptr[5];
-    to[3] = ptr[4];
-    to[4] = ptr[3];
-    to[5] = ptr[2];
-    to[6] = ptr[1];
-    to[7] = ptr[0];
-  }
+  to[0] = ptr[7];
+  to[1] = ptr[6];
+  to[2] = ptr[5];
+  to[3] = ptr[4];
+  to[4] = ptr[3];
+  to[5] = ptr[2];
+  to[6] = ptr[1];
+  to[7] = ptr[0];
 }
 
 
@@ -6614,9 +6316,7 @@ void Field_string::sql_type(String &res) const
 }
 
 
-uchar *Field_string::pack(uchar *to, const uchar *from,
-                          uint max_length,
-                          bool low_byte_first __attribute__((unused)))
+uchar *Field_string::pack(uchar *to, const uchar *from, uint max_length)
 {
   uint length=      min(field_length,max_length);
   uint local_char_length= max_length/field_charset->mbmaxlen;
@@ -6658,10 +6358,7 @@ uchar *Field_string::pack(uchar *to, const uchar *from,
    @return  New pointer into memory based on from + length of the data
 */
 const uchar *
-Field_string::unpack(uchar *to,
-                     const uchar *from,
-                     uint param_data,
-                     bool low_byte_first __attribute__((unused)))
+Field_string::unpack(uchar *to, const uchar *from, uint param_data)
 {
   uint from_length, length;
 
@@ -7123,9 +6820,7 @@ uint32 Field_varstring::data_length()
   Here the number of length bytes are depending on the given max_length
 */
 
-uchar *Field_varstring::pack(uchar *to, const uchar *from,
-                             uint max_length,
-                             bool low_byte_first __attribute__((unused)))
+uchar *Field_varstring::pack(uchar *to, const uchar *from, uint max_length)
 {
   uint length= length_bytes == 1 ? (uint) *from : uint2korr(from);
   set_if_smaller(max_length, field_length);
@@ -7145,8 +6840,7 @@ uchar *Field_varstring::pack(uchar *to, const uchar *from,
 
 
 uchar *
-Field_varstring::pack_key(uchar *to, const uchar *key, uint max_length,
-                          bool low_byte_first __attribute__((unused)))
+Field_varstring::pack_key(uchar *to, const uchar *key, uint max_length)
 {
   uint length=  length_bytes == 1 ? (uint) *key : uint2korr(key);
   uint local_char_length= ((field_charset->mbmaxlen > 1) ?
@@ -7183,8 +6877,7 @@ Field_varstring::pack_key(uchar *to, const uchar *key, uint max_length,
 */
 
 const uchar *
-Field_varstring::unpack_key(uchar *to, const uchar *key, uint max_length,
-                            bool low_byte_first __attribute__((unused)))
+Field_varstring::unpack_key(uchar *to, const uchar *key, uint max_length)
 {
   /* get length of the blob key */
   uint32 length= *key++;
@@ -7211,9 +6904,8 @@ Field_varstring::unpack_key(uchar *to, const uchar *key, uint max_length,
     end of key storage
 */
 
-uchar *
-Field_varstring::pack_key_from_key_image(uchar *to, const uchar *from, uint max_length,
-                                         bool low_byte_first __attribute__((unused)))
+uchar * Field_varstring::pack_key_from_key_image(uchar *to, const uchar *from,
+                                                 uint max_length)
 {
   /* Key length is always stored as 2 bytes */
   uint length= uint2korr(from);
@@ -7244,9 +6936,7 @@ Field_varstring::pack_key_from_key_image(uchar *to, const uchar *from, uint max_
    @return  New pointer into memory based on from + length of the data
 */
 const uchar *
-Field_varstring::unpack(uchar *to, const uchar *from,
-                        uint param_data,
-                        bool low_byte_first __attribute__((unused)))
+Field_varstring::unpack(uchar *to, const uchar *from, uint param_data)
 {
   uint length;
   uint l_bytes= (param_data && (param_data < field_length)) ? 
@@ -7472,24 +7162,15 @@ Field_blob::Field_blob(uchar *ptr_arg, uchar *null_ptr_arg, uchar null_bit_arg,
 }
 
 
-void Field_blob::store_length(uchar *i_ptr, 
-                              uint i_packlength, 
-                              uint32 i_number, 
-                              bool low_byte_first)
+void Field_blob::store_length(uchar *i_ptr, uint i_packlength, uint32 i_number)
 {
-  if (ARCH_BIGENDIAN && low_byte_first)
-    store_lowendian(i_number, i_ptr, i_packlength);
-  else
-    store_native(i_number, i_ptr, i_packlength);
+  store_lowendian(i_number, i_ptr, i_packlength);
 }
 
 
-uint32 Field_blob::get_length(const uchar *pos, uint packlength_arg, bool low_byte_first)
+uint32 Field_blob::get_length(const uchar *pos, uint packlength_arg)
 {
-  if (ARCH_BIGENDIAN && table->s->db_low_byte_first)
-    return (uint32)read_lowendian(pos, packlength_arg);
-  else
-    return (uint32)read_native(pos, packlength_arg);
+  return (uint32)read_lowendian(pos, packlength_arg);
 }
 
 
@@ -7858,14 +7539,11 @@ void Field_blob::sql_type(String &res) const
   }
 }
 
-uchar *Field_blob::pack(uchar *to, const uchar *from,
-                        uint max_length, bool low_byte_first)
+uchar *Field_blob::pack(uchar *to, const uchar *from, uint max_length)
 {
   DBUG_ENTER("Field_blob::pack");
-  DBUG_PRINT("enter", ("to: 0x%lx; from: 0x%lx;"
-                       " max_length: %u; low_byte_first: %d",
-                       (ulong) to, (ulong) from,
-                       max_length, low_byte_first));
+  DBUG_PRINT("enter", ("to: 0x%lx; from: 0x%lx; max_length: %u",
+                       (ulong) to, (ulong) from, max_length));
   DBUG_DUMP("record", from, table->s->reclength);
   uchar *save= ptr;
   ptr= (uchar*) from;
@@ -7876,7 +7554,7 @@ uchar *Field_blob::pack(uchar *to, const uchar *from,
     length given is smaller than the actual length of the blob, we
     just store the initial bytes of the blob.
   */
-  store_length(to, packlength, min(length, max_length), low_byte_first);
+  store_length(to, packlength, min(length, max_length));
 
   /*
     Store the actual blob data, which will occupy 'length' bytes.
@@ -7909,18 +7587,14 @@ uchar *Field_blob::pack(uchar *to, const uchar *from,
 
    @return  New pointer into memory based on from + length of the data
 */
-const uchar *Field_blob::unpack(uchar *to, 
-                                const uchar *from,
-                                uint param_data,
-                                bool low_byte_first)
+const uchar *Field_blob::unpack(uchar *to, const uchar *from, uint param_data)
 {
   DBUG_ENTER("Field_blob::unpack");
-  DBUG_PRINT("enter", ("to: 0x%lx; from: 0x%lx;"
-                       " param_data: %u; low_byte_first: %d",
-                       (ulong) to, (ulong) from, param_data, low_byte_first));
+  DBUG_PRINT("enter", ("to: 0x%lx; from: 0x%lx; param_data: %u",
+                       (ulong) to, (ulong) from, param_data));
   uint const master_packlength=
     param_data > 0 ? param_data & 0xFF : packlength;
-  uint32 const length= get_length(from, master_packlength, low_byte_first);
+  uint32 const length= get_length(from, master_packlength);
   DBUG_DUMP("packed", from, length + master_packlength);
   bitmap_set_bit(table->write_set, field_index);
   store(reinterpret_cast<const char*>(from) + master_packlength,
@@ -7977,8 +7651,7 @@ int Field_blob::pack_cmp(const uchar *b, uint key_length_arg,
 /** Create a packed key that will be used for storage from a MySQL row. */
 
 uchar *
-Field_blob::pack_key(uchar *to, const uchar *from, uint max_length,
-                     bool low_byte_first __attribute__((unused)))
+Field_blob::pack_key(uchar *to, const uchar *from, uint max_length)
 {
   uchar *save= ptr;
   ptr= (uchar*) from;
@@ -8022,8 +7695,7 @@ Field_blob::pack_key(uchar *to, const uchar *from, uint max_length,
 */
 
 const uchar *
-Field_blob::unpack_key(uchar *to, const uchar *from, uint max_length,
-                       bool low_byte_first __attribute__((unused)))
+Field_blob::unpack_key(uchar *to, const uchar *from, uint max_length)
 {
   /* get length of the blob key */
   uint32 length= *from++;
@@ -8031,7 +7703,7 @@ Field_blob::unpack_key(uchar *to, const uchar *from, uint max_length,
     length+= *from++ << 8;
 
   /* put the length into the record buffer */
-  store_length(to, packlength, length, table->s->db_low_byte_first);
+  store_length(to, packlength, length);
 
   /* put the address of the blob buffer or NULL */
   if (length)
@@ -8046,9 +7718,8 @@ Field_blob::unpack_key(uchar *to, const uchar *from, uint max_length,
 
 /** Create a packed key that will be used for storage from a MySQL key. */
 
-uchar *
-Field_blob::pack_key_from_key_image(uchar *to, const uchar *from, uint max_length,
-                                    bool low_byte_first __attribute__((unused)))
+uchar *Field_blob::pack_key_from_key_image(uchar *to, const uchar *from,
+                                           uint max_length)
 {
   uint length=uint2korr(from);
   if (length > max_length)
@@ -8199,10 +7870,7 @@ enum ha_base_keytype Field_enum::key_type() const
 
 void Field_enum::store_type(ulonglong value)
 {
-  if (ARCH_BIGENDIAN && table->s->db_low_byte_first)
-    store_lowendian(value, ptr, packlength);
-  else
-    store_native(value, ptr, packlength);
+  store_lowendian(value, ptr, packlength);
 }
 
 
@@ -8288,10 +7956,7 @@ double Field_enum::val_real(void)
 longlong Field_enum::val_int(void)
 {
   ASSERT_COLUMN_MARKED_FOR_READ;
-  if (ARCH_BIGENDIAN && table->s->db_low_byte_first)
-    return read_lowendian(ptr, packlength);
-  else
-    return read_native(ptr, packlength);
+  return read_lowendian(ptr, packlength);
 }
 
 
@@ -9043,8 +8708,7 @@ void Field_bit::sql_type(String &res) const
 
 
 uchar *
-Field_bit::pack(uchar *to, const uchar *from, uint max_length,
-                bool low_byte_first __attribute__((unused)))
+Field_bit::pack(uchar *to, const uchar *from, uint max_length)
 {
   DBUG_ASSERT(max_length > 0);
   uint length;
@@ -9091,8 +8755,7 @@ Field_bit::pack(uchar *to, const uchar *from, uint max_length,
    @return  New pointer into memory based on from + length of the data
 */
 const uchar *
-Field_bit::unpack(uchar *to, const uchar *from, uint param_data,
-                  bool low_byte_first __attribute__((unused)))
+Field_bit::unpack(uchar *to, const uchar *from, uint param_data)
 {
   uint const from_len= (param_data >> 8U) & 0x00ff;
   uint const from_bit_len= param_data & 0x00ff;

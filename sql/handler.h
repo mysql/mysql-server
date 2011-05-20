@@ -1623,7 +1623,6 @@ public:
   virtual uint max_supported_key_part_length() const { return 255; }
   virtual uint min_record_length(uint options) const { return 1; }
 
-  virtual bool low_byte_first() const { return 1; }
   virtual uint checksum() const { return 0; }
   virtual bool is_crashed() const  { return 0; }
   virtual bool auto_repair() const { return 0; }

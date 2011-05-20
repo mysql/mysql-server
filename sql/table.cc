@@ -757,8 +757,6 @@ static int open_binary_frm(THD *thd, TABLE_SHARE *share, uchar *head,
   share->db_record_offset= 1;
   if (db_create_options & HA_OPTION_LONG_BLOB_PTR)
     share->blob_ptr_size= portable_sizeof_char_ptr;
-  /* Set temporarily a good value for db_low_byte_first */
-  share->db_low_byte_first= test(legacy_db_type != DB_TYPE_ISAM);
   error=4;
   share->max_rows= uint4korr(head+18);
   share->min_rows= uint4korr(head+22);
@@ -1597,7 +1595,6 @@ static int open_binary_frm(THD *thd, TABLE_SHARE *share, uchar *head,
                       (null_bit_pos + 7) / 8);
   share->last_null_bit_pos= null_bit_pos;
 
-  share->db_low_byte_first= handler_file->low_byte_first();
   share->column_bitmap_size= bitmap_buffer_size(share->fields);
 
   if (!(bitmaps= (my_bitmap_map*) alloc_root(&share->mem_root,
