@@ -4675,7 +4675,7 @@ Item_equal *Item_field::find_item_equal(COND_EQUAL *cond_equal)
   The function checks whether a substitution of a field item for
   an equal item is valid.
 
-  @param arg   *arg != NULL && **arg <-> the field is in the context
+  @param arg   *arg != NULL <-> the field is in the context
                where substitution for an equal item is valid
 
   @note
@@ -4701,8 +4701,10 @@ Item_equal *Item_field::find_item_equal(COND_EQUAL *cond_equal)
 
 bool Item_field::subst_argument_checker(uchar **arg)
 {
-  return (!(*arg) && (result_type() != STRING_RESULT)) ||
-          ((*arg) && (**arg));
+  return *arg &&
+         (*arg == (uchar *) Item::ANY_SUBST ||
+          result_type() != STRING_RESULT || 
+          (field->flags & BINARY_FLAG));
 }
 
 
@@ -6376,9 +6378,11 @@ Item* Item_ref::transform(Item_transformer transformer, uchar *arg)
 
   First the function applies the analyzer to the Item_ref object. Then
   if the analizer succeeeds we first applies the compile method to the
-  object the Item_ref object is referencing.  If this returns a new
+  object the Item_ref object is referencing. If this returns a new
   item the old item is substituted for a new one.  After this the
   transformer is applied to the Item_ref object itself.
+  The compile function is not called if the analyzer returns NULL
+  in the parameter arg_p. 
 
   @param analyzer      the analyzer callback function to be applied to the
                        nodes of the tree of the object
@@ -6399,10 +6403,13 @@ Item* Item_ref::compile(Item_analyzer analyzer, uchar **arg_p,
 
   /* Compile the Item we are referencing. */
   DBUG_ASSERT((*ref) != NULL);
-  uchar *arg_v= *arg_p;
-  Item *new_item= (*ref)->compile(analyzer, &arg_v, transformer, arg_t);
-  if (new_item && *ref != new_item)
-    current_thd->change_item_tree(ref, new_item);
+  if (*arg_p)
+  {
+    uchar *arg_v= *arg_p;
+    Item *new_item= (*ref)->compile(analyzer, &arg_v, transformer, arg_t);
+    if (new_item && *ref != new_item)
+      current_thd->change_item_tree(ref, new_item);
+  }
 
   /* Transform this Item object. */
   return (this->*transformer)(arg_t);
@@ -7270,7 +7277,7 @@ Item_equal *Item_direct_view_ref::find_item_equal(COND_EQUAL *cond_equal)
   The function checks whether a substitution of a reference to field item for
   an equal item is valid.
 
-  @param arg   *arg != NULL && **arg <-> the reference is in the context
+  @param arg   *arg != NULL <-> the reference is in the context
                where substitution for an equal item is valid
 
   @note
@@ -7283,11 +7290,19 @@ Item_equal *Item_direct_view_ref::find_item_equal(COND_EQUAL *cond_equal)
 */
 bool Item_direct_view_ref::subst_argument_checker(uchar **arg)
 {
-  bool res=  (!(*arg) && (result_type() != STRING_RESULT)) ||
-          ((*arg) && (**arg));
+  bool res= FALSE;
+  if (*arg)
+  { 
+    Item *item= real_item();
+    if (item->type() == FIELD_ITEM &&
+        (*arg == (uchar *) Item::ANY_SUBST || 
+         result_type() != STRING_RESULT ||
+         (((Item_field *) item)->field->flags & BINARY_FLAG)))
+      res= TRUE;
+  }
   /* Block any substitution into the wrapped object */
   if (*arg)
-    **arg= (uchar) 0;
+    *arg= NULL; 
   return res; 
 }
 

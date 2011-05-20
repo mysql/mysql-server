@@ -251,6 +251,21 @@ public:
   }
 
   /*
+    By default only substitution for a field whose two different values
+    are never equal is allowed in the arguments of a function.
+    This is overruled for the direct arguments of comparison functions.
+  */ 
+  bool subst_argument_checker(uchar **arg) 
+  { 
+    if (*arg)
+    {
+      *arg= (uchar *) Item::IDENTITY_SUBST;
+      return TRUE;
+    }
+    return FALSE;
+  }
+
+  /*
     We assume the result of any function that has a TIMESTAMP argument to be
     timezone-dependent, since a TIMESTAMP value in both numeric and string
     contexts is interpreted according to the current timezone.

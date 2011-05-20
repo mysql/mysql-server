@@ -352,6 +352,8 @@ Item *Item_func::transform(Item_transformer transformer, uchar *argument)
     the old item is substituted for a new one.
     After this the transformer is applied to the root node
     of the Item_func object. 
+    The compile function is not called if the analyzer returns NULL
+    in the parameter arg_p. 
 
   @param analyzer      the analyzer callback function to be applied to the
                        nodes of the tree of the object
@@ -369,7 +371,7 @@ Item *Item_func::compile(Item_analyzer analyzer, uchar **arg_p,
 {
   if (!(this->*analyzer)(arg_p))
     return 0;
-  if (arg_count)
+  if (*arg_p && arg_count)
   {
     Item **arg,**arg_end;
     for (arg= args, arg_end= args+arg_count; arg != arg_end; arg++)
@@ -377,7 +379,7 @@ Item *Item_func::compile(Item_analyzer analyzer, uchar **arg_p,
       /* 
         The same parameter value of arg_p must be passed
         to analyze any argument of the condition formula.
-      */   
+      */
       uchar *arg_v= *arg_p;
       Item *new_item= (*arg)->compile(analyzer, &arg_v, transformer, arg_t);
       if (new_item && *arg != new_item)

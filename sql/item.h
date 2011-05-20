@@ -1057,12 +1057,23 @@ public:
     return FALSE;
   }
 
+  /*
+    The enumeration Subst_constraint is currently used only in implementations
+    of the virtual function subst_argument_checker.
+  */ 
+  enum Subst_constraint 
+  { 
+    NO_SUBST= 0,         /* No substitution for a field is allowed   */
+    ANY_SUBST,           /* Any substitution for a field is allowed  */ 
+    IDENTITY_SUBST       /* Substitution for a field is allowed if any two
+                            different values of the field type are not equal */
+  };
+
   virtual bool subst_argument_checker(uchar **arg)
-  {
-    if (*arg)
-      *arg= NULL;
-    return TRUE;
+  { 
+    return (*arg != NULL); 
   }
+
   /*
     @brief
     Processor used to check acceptability of an item in the defining
