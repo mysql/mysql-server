@@ -422,7 +422,7 @@ my_bool opt_super_large_pages= 0;
 my_bool opt_myisam_use_mmap= 0;
 uint   opt_large_page_size= 0;
 #if defined(ENABLED_DEBUG_SYNC)
-uint    opt_debug_sync_timeout= 0;
+MYSQL_PLUGIN_IMPORT uint    opt_debug_sync_timeout= 0;
 #endif /* defined(ENABLED_DEBUG_SYNC) */
 my_bool opt_old_style_user_limits= 0, trust_function_creators= 0;
 /*
@@ -2009,6 +2009,36 @@ extern "C" sig_handler end_thread_signal(int sig __attribute__((unused)))
 
 
 /*
+  Decrease number of connections
+
+  SYNOPSIS
+    dec_connection_count()
+*/
+
+void dec_connection_count()
+{
+  mysql_mutex_lock(&LOCK_connection_count);
+  --connection_count;
+  mysql_mutex_unlock(&LOCK_connection_count);
+}
+
+
+/*
+  Delete the THD object and decrease number of threads
+
+  SYNOPSIS
+    delete_thd()
+    thd		 Thread handler
+*/
+
+void delete_thd(THD *thd)
+{
+  thread_count--;
+  delete thd;
+}
+
+
+/*
   Unlink thd from global list of available connections and free thd
 
   SYNOPSIS
@@ -2023,15 +2053,10 @@ void unlink_thd(THD *thd)
 {
   DBUG_ENTER("unlink_thd");
   DBUG_PRINT("enter", ("thd: 0x%lx", (long) thd));
-  thd->cleanup();
 
-  mysql_mutex_lock(&LOCK_connection_count);
-  --connection_count;
-  mysql_mutex_unlock(&LOCK_connection_count);
-
+  dec_connection_count();
   mysql_mutex_lock(&LOCK_thread_count);
-  thread_count--;
-  delete thd;
+  delete_thd(thd);
   DBUG_VOID_RETURN;
 }
 
@@ -4922,6 +4947,14 @@ static bool read_init_file(char *file_name)
   DBUG_RETURN(FALSE);
 }
 
+
+/**
+  Increment number of created threads
+*/
+void inc_thread_created(void)
+{
+  thread_created++;
+}
 
 #ifndef EMBEDDED_LIBRARY
 
