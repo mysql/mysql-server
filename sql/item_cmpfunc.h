@@ -397,7 +397,10 @@ public:
   }
   Item *neg_transformer(THD *thd);
   virtual Item *negated_item();
-  bool subst_argument_checker(uchar **arg) { return TRUE; }
+  bool subst_argument_checker(uchar **arg)
+  {
+    return (*arg != NULL);     
+  }
 };
 
 class Item_func_not :public Item_bool_func

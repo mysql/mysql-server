@@ -4085,3 +4085,31 @@ SELECT * FROM v1 WHERE a > 'JJ' OR a AND a = 'VV';
 
 DROP VIEW v1;
 DROP TABLE t1;
+
+--echo #
+--echo # Bug#777745: crash  with equality propagation 
+--echo #             over view fields
+--echo #
+
+CREATE TABLE t1 (a int NOT NULL ) ;
+INSERT INTO t1 VALUES (2), (1);
+
+CREATE TABLE t2 (a int NOT NULL , b int NOT NULL) ;
+INSERT INTO t2 VALUES (2,20),(2,30);
+
+CREATE VIEW  v2 AS SELECT * FROM t2;
+
+EXPLAIN
+SELECT * FROM t1,v2 
+  WHERE v2.a = t1.a AND v2.a = 2 AND v2.a IS NULL AND t1.a != 0;
+SELECT * FROM t1,v2 
+  WHERE v2.a = t1.a AND v2.a = 2 AND v2.a IS NULL AND t1.a != 0;
+
+EXPLAIN
+SELECT * FROM t1,v2 
+  WHERE v2.a = t1.a AND v2.a = 2 AND v2.a+1 > 2 AND t1.a != 0;
+SELECT * FROM t1,v2 
+  WHERE v2.a = t1.a AND v2.a = 2 AND v2.a+1 > 2 AND t1.a != 0;
+
+DROP VIEW v2;
+DROP TABLE t1,t2;
