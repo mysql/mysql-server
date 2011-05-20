@@ -27,14 +27,15 @@ libgeneral_la_SOURCES = \
             strdup.c \
             ConfigValues.cpp ndb_init.cpp basestring_vsnprintf.c \
             Bitmask.cpp SparseBitmask.cpp parse_mask.hpp \
-	    ndb_rand.c require.c Vector.cpp
+	    ndb_rand.c require.c Vector.cpp \
+	    NdbPack.cpp
 
 INCLUDES_LOC = @ZLIB_INCLUDES@
 
 libndbazio_la_SOURCES = ndbzio.c
 libndbazio_la_LIBADD = @ZLIB_LIBS@
 
-noinst_PROGRAMS = BaseString-t HashMap-t Bitmask-t SparseBitmask-t ndb_version-t
+noinst_PROGRAMS = BaseString-t HashMap-t Bitmask-t SparseBitmask-t ndb_version-t NdbPack-t
 
 BaseString_t_SOURCES = BaseString.cpp
 BaseString_t_CXXFLAGS = -DTEST_BASE_STRING
@@ -72,6 +73,15 @@ SparseBitmask_t_LDADD = \
 ndb_version_t_SOURCES = version.cpp
 ndb_version_t_CXXFLAGS = -DTEST_VERSION
 ndb_version_t_LDADD = libgeneral.la
+
+NdbPack_t_SOURCES = NdbPack.cpp
+NdbPack_t_CXXFLAGS = -DTEST_NDB_PACK
+NdbPack_t_LDADD = \
+	libgeneral.la \
+	$(top_builddir)/storage/ndb/src/common/portlib/libportlib.la \
+	$(top_builddir)/mysys/libmysys.la \
+	$(top_builddir)/strings/libmystrings.la \
+	$(top_builddir)/dbug/libdbug.la
 
 include $(top_srcdir)/storage/ndb/config/common.mk.am
 include $(top_srcdir)/storage/ndb/config/type_util.mk.am

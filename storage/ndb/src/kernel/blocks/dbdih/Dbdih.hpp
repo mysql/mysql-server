@@ -28,6 +28,7 @@
 #include <signaldata/CopyGCIReq.hpp>
 #include <blocks/mutexes.hpp>
 #include <signaldata/LCP.hpp>
+#include <NdbSeqLock.hpp>
 
 #ifdef DBDIH_C
 
@@ -441,7 +442,17 @@ public:
    * TO LOCATE A FRAGMENT AND TO TRANSLATE A KEY OF A TUPLE TO THE FRAGMENT IT
    * BELONGS
    */
-  struct TabRecord {
+  struct TabRecord
+  {
+    TabRecord() { }
+
+    /**
+     * rw-lock that protects multiple parallel DIGETNODES (readers) from
+     *   updates to fragmenation changes (e.g CREATE_FRAGREQ)...
+     *   search for DIH_TAB_WRITE_LOCK
+     */
+    NdbSeqLock m_lock;
+
     /**
      * State for copying table description into pages
      */
@@ -1257,7 +1268,6 @@ private:
 
   // Variables to support record structures and their free lists
 
-  ApiConnectRecord *apiConnectRecord;
   Uint32 capiConnectFileSize;
 
   ConnectRecord *connectRecord;
@@ -1302,9 +1312,25 @@ private:
     2.4  C O M M O N    S T O R E D    V A R I A B L E S
     ----------------------------------------------------
   */
-  Uint32 cfirstVerifyQueue;
-  Uint32 clastVerifyQueue;
-  Uint32 cverifyQueueCounter;
+  struct DIVERIFY_queue
+  {
+    DIVERIFY_queue() {
+      cfirstVerifyQueue = clastVerifyQueue = RNIL;
+      cverifyQueueCounter = 0;
+      apiConnectRecord = 0;
+    }
+    Uint32 cfirstVerifyQueue;
+    Uint32 clastVerifyQueue;
+    Uint32 cverifyQueueCounter;
+    ApiConnectRecord *apiConnectRecord;
+  };
+
+  bool isEmpty(const DIVERIFY_queue&);
+  void enqueue(DIVERIFY_queue&, Ptr<ApiConnectRecord>);
+  void dequeue(DIVERIFY_queue&, Ptr<ApiConnectRecord> &);
+
+  DIVERIFY_queue c_diverify_queue[1];
+  Uint32 c_diverify_queue_cnt;
 
   /*------------------------------------------------------------------------*/
   /*       THIS VARIABLE KEEPS THE REFERENCES TO FILE RECORDS THAT DESCRIBE */

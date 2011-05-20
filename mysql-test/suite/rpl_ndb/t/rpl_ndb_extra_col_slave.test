@@ -1,6 +1,6 @@
 -- source include/have_binlog_format_row.inc
 -- source include/have_ndb.inc
--- source suite/rpl_ndb/ndb_master-slave.inc
+-- source include/master-slave.inc
 
 #
 # This is a disgrace...but slave randomly spits out these warnings

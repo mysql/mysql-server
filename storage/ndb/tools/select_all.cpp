@@ -49,6 +49,8 @@ static int _dumpDisk = 0;
 static int use_rowid = 0;
 static int nodata = 0;
 static int use_gci = 0;
+static int use_gci64 = 0;
+static int use_author = 0;
 
 static struct my_option my_long_options[] =
 {
@@ -86,6 +88,12 @@ static struct my_option my_long_options[] =
   { "gci", NDB_OPT_NOSHORT, "Dump gci",
     (uchar**) &use_gci, (uchar**) &use_gci, 0,
     GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0 }, 
+  { "gci64", NDB_OPT_NOSHORT, "Dump ROW$GCI64",
+    (uchar**) &use_gci64, (uchar**) &use_gci64, 0,
+    GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0 },
+  { "author", NDB_OPT_NOSHORT, "Dump ROW$AUTHOR",
+    (uchar**) &use_author, (uchar**) &use_author, 0,
+    GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0 },
   { "tupscan", 't', "Scan in tup order",
     (uchar**) &_tup, (uchar**) &_tup, 0,
     GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0 }, 
@@ -328,7 +336,7 @@ int scanReadRecords(Ndb* pNdb,
     if(_dumpDisk && disk)
       disk_ref = pOp->getValue(NdbDictionary::Column::DISK_REF);
 
-    NdbRecAttr * rowid= 0, *frag = 0, *gci = 0;
+    NdbRecAttr * rowid= 0, *frag = 0, *gci = 0, *gci64 = 0, *author = 0;
     if (use_rowid)
     {
       frag = pOp->getValue(NdbDictionary::Column::FRAGMENT);
@@ -339,7 +347,17 @@ int scanReadRecords(Ndb* pNdb,
     {
       gci = pOp->getValue(NdbDictionary::Column::ROW_GCI);
     }
+
+    if (use_gci64)
+    {
+      gci64 = pOp->getValue(NdbDictionary::Column::ROW_GCI64);
+    }
     
+    if (use_author)
+    {
+      author = pOp->getValue(NdbDictionary::Column::ROW_AUTHOR);
+    }
+
     check = pTrans->execute(NdbTransaction::NoCommit);   
     if( check == -1 ) {
       const NdbError err = pTrans->getNdbError();
@@ -386,6 +404,18 @@ int scanReadRecords(Ndb* pNdb,
         ndbout << "DISK_REF";
       }
 
+      if (gci64)
+      {
+        DELIMITER;
+        ndbout << "ROW$GCI64";
+      }
+
+      if (author)
+      {
+        DELIMITER;
+        ndbout << "ROW$AUTHOR";
+      }
+
       ndbout << endl;
     }
 #undef DELIMITER
@@ -426,8 +456,30 @@ int scanReadRecords(Ndb* pNdb,
 	       << " m_page: " << disk_ref->u_32_value() 
 	       << " m_page_idx: " << *(Uint16*)(disk_ref->aRef() + 4) << " ]";
       }
+
+      if (gci64)
+      {
+	if (gci64->isNULL())
+	  ndbout << "\tNULL";
+        else
+        {
+          Uint64 tmp = gci64->u_64_value();
+          ndbout << "\t" << Uint32(tmp >> 32) << "/" << Uint32(tmp);
+        }
+      }
+
+      if (author)
+      {
+	if (author->isNULL())
+	  ndbout << "\tNULL";
+        else
+        {
+          ndbout << "\t" << author->u_32_value();
+        }
+      }
+
       
-      if (rowid || disk_ref || gci || !nodata)
+      if (rowid || disk_ref || gci || !nodata || gci64 || author)
 	ndbout << endl;
       eof = pOp->nextResult();
     }

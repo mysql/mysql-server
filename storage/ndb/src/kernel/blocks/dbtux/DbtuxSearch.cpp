@@ -32,25 +32,30 @@
  * is within the node.
  */
 void
-Dbtux::findNodeToUpdate(TuxCtx& ctx, Frag& frag, ConstData searchKey, TreeEnt searchEnt, NodeHandle& currNode)
+Dbtux::findNodeToUpdate(TuxCtx& ctx, Frag& frag, const KeyDataC& searchKey, TreeEnt searchEnt, NodeHandle& currNode)
 {
-  const TreeHead& tree = frag.m_tree;
-  const Uint32 numAttrs = frag.m_numAttrs;
+  const Index& index = *c_indexPool.getPtr(frag.m_indexId);
+  const Uint32 numAttrs = index.m_numAttrs;
+  const Uint32 prefAttrs = index.m_prefAttrs;
+  const Uint32 prefBytes = index.m_prefBytes;
+  KeyData entryKey(index.m_keySpec, false, 0);
+  entryKey.set_buf(ctx.c_entryKey, MaxAttrDataSize << 2);
+  KeyDataC prefKey(index.m_keySpec, false);
   NodeHandle glbNode(frag);     // potential g.l.b of final node
   while (true) {
     thrjam(ctx.jamBuffer);
     selectNode(currNode, currNode.m_loc);
-    int ret;
-    // compare prefix
-    unsigned start = 0;
-    ret = cmpSearchKey(ctx, frag, start, searchKey, currNode.getPref(), tree.m_prefSize);
-    if (ret == NdbSqlUtil::CmpUnknown) {
+    prefKey.set_buf(currNode.getPref(), prefBytes, prefAttrs);
+    int ret = 0;
+    if (prefAttrs > 0) {
       thrjam(ctx.jamBuffer);
-      // read and compare remaining attributes
-      ndbrequire(start < numAttrs);
-      readKeyAttrs(ctx, frag, currNode.getEnt(0), start, ctx.c_entryKey);
-      ret = cmpSearchKey(ctx, frag, start, searchKey, ctx.c_entryKey);
-      ndbrequire(ret != NdbSqlUtil::CmpUnknown);
+      ret = cmpSearchKey(ctx, searchKey, prefKey, prefAttrs);
+    }
+    if (ret == 0 && prefAttrs < numAttrs) {
+      thrjam(ctx.jamBuffer);
+      // read and compare all attributes
+      readKeyAttrs(ctx, frag, currNode.getEnt(0), entryKey, numAttrs);
+      ret = cmpSearchKey(ctx, searchKey, entryKey, numAttrs);
     }
     if (ret == 0) {
       thrjam(ctx.jamBuffer);
@@ -97,20 +102,20 @@ Dbtux::findNodeToUpdate(TuxCtx& ctx, Frag& frag, ConstData searchKey, TreeEnt se
  * search.  Return true if ok i.e. entry to add is not a duplicate.
  */
 bool
-Dbtux::findPosToAdd(TuxCtx& ctx, Frag& frag, ConstData searchKey, TreeEnt searchEnt, NodeHandle& currNode, TreePos& treePos)
+Dbtux::findPosToAdd(TuxCtx& ctx, Frag& frag, const KeyDataC& searchKey, TreeEnt searchEnt, NodeHandle& currNode, TreePos& treePos)
 {
+  const Index& index = *c_indexPool.getPtr(frag.m_indexId);
   int lo = -1;
   int hi = (int)currNode.getOccup();
-  int ret;
+  KeyData entryKey(index.m_keySpec, false, 0);
+  entryKey.set_buf(ctx.c_entryKey, MaxAttrDataSize << 2);
   while (hi - lo > 1) {
     thrjam(ctx.jamBuffer);
     // hi - lo > 1 implies lo < j < hi
     int j = (hi + lo) / 2;
-    // read and compare attributes
-    unsigned start = 0;
-    readKeyAttrs(ctx, frag, currNode.getEnt(j), start, ctx.c_entryKey);
-    ret = cmpSearchKey(ctx, frag, start, searchKey, ctx.c_entryKey);
-    ndbrequire(ret != NdbSqlUtil::CmpUnknown);
+    // read and compare all attributes
+    readKeyAttrs(ctx, frag, currNode.getEnt(j), entryKey, index.m_numAttrs);
+    int ret = cmpSearchKey(ctx, searchKey, entryKey, index.m_numAttrs);
     if (ret == 0) {
       thrjam(ctx.jamBuffer);
       // keys are equal, compare entry values
@@ -139,7 +144,7 @@ Dbtux::findPosToAdd(TuxCtx& ctx, Frag& frag, ConstData searchKey, TreeEnt search
  * search.  Return true if ok i.e. the entry was found.
  */
 bool
-Dbtux::findPosToRemove(TuxCtx& ctx, Frag& frag, ConstData searchKey, TreeEnt searchEnt, NodeHandle& currNode, TreePos& treePos)
+Dbtux::findPosToRemove(TuxCtx& ctx, Frag& frag, const KeyDataC& searchKey, TreeEnt searchEnt, NodeHandle& currNode, TreePos& treePos)
 {
   const unsigned occup = currNode.getOccup();
   for (unsigned j = 0; j < occup; j++) {
@@ -160,7 +165,7 @@ Dbtux::findPosToRemove(TuxCtx& ctx, Frag& frag, ConstData searchKey, TreeEnt sea
  * Search for entry to add.
  */
 bool
-Dbtux::searchToAdd(TuxCtx& ctx, Frag& frag, ConstData searchKey, TreeEnt searchEnt, TreePos& treePos)
+Dbtux::searchToAdd(TuxCtx& ctx, Frag& frag, const KeyDataC& searchKey, TreeEnt searchEnt, TreePos& treePos)
 {
   const TreeHead& tree = frag.m_tree;
   NodeHandle currNode(frag);
@@ -183,7 +188,7 @@ Dbtux::searchToAdd(TuxCtx& ctx, Frag& frag, ConstData searchKey, TreeEnt searchE
  * Search for entry to remove.
  */
 bool
-Dbtux::searchToRemove(TuxCtx& ctx, Frag& frag, ConstData searchKey, TreeEnt searchEnt, TreePos& treePos)
+Dbtux::searchToRemove(TuxCtx& ctx, Frag& frag, const KeyDataC& searchKey, TreeEnt searchEnt, TreePos& treePos)
 {
   const TreeHead& tree = frag.m_tree;
   NodeHandle currNode(frag);
@@ -208,22 +213,38 @@ Dbtux::searchToRemove(TuxCtx& ctx, Frag& frag, ConstData searchKey, TreeEnt sear
  * Search within the found node is done by caller.
  */
 void
-Dbtux::findNodeToScan(Frag& frag, unsigned idir, ConstData boundInfo, unsigned boundCount, NodeHandle& currNode)
+Dbtux::findNodeToScan(Frag& frag, unsigned idir, const KeyBoundC& searchBound, NodeHandle& currNode)
 {
-  const TreeHead& tree = frag.m_tree;
+  const int jdir = 1 - 2 * int(idir);
+  const Index& index = *c_indexPool.getPtr(frag.m_indexId);
+  const Uint32 numAttrs = searchBound.get_data().get_cnt();
+  const Uint32 prefAttrs = min(index.m_prefAttrs, numAttrs);
+  const Uint32 prefBytes = index.m_prefBytes;
+  KeyData entryKey(index.m_keySpec, false, 0);
+  entryKey.set_buf(c_ctx.c_entryKey, MaxAttrDataSize << 2);
+  KeyDataC prefKey(index.m_keySpec, false);
   NodeHandle glbNode(frag);     // potential g.l.b of final node
   while (true) {
     jam();
     selectNode(currNode, currNode.m_loc);
-    int ret;
-    // compare prefix
-    ret = cmpScanBound(frag, idir, boundInfo, boundCount, currNode.getPref(), tree.m_prefSize);
-    if (ret == NdbSqlUtil::CmpUnknown) {
+    prefKey.set_buf(currNode.getPref(), prefBytes, prefAttrs);
+    int ret = 0;
+    if (numAttrs > 0) {
+      if (prefAttrs > 0) {
+        jam();
+        // compare node prefix - result 0 implies bound is longer
+        ret = cmpSearchBound(c_ctx, searchBound, prefKey, prefAttrs);
+      }
+      if (ret == 0) {
+        jam();
+        // read and compare all attributes
+        readKeyAttrs(c_ctx, frag, currNode.getEnt(0), entryKey, numAttrs);
+        ret = cmpSearchBound(c_ctx, searchBound, entryKey, numAttrs);
+        ndbrequire(ret != 0);
+      }
+    } else {
       jam();
-      // read and compare all attributes
-      readKeyAttrs(c_ctx, frag, currNode.getEnt(0), 0, c_ctx.c_entryKey);
-      ret = cmpScanBound(frag, idir, boundInfo, boundCount, c_ctx.c_entryKey);
-      ndbrequire(ret != NdbSqlUtil::CmpUnknown);
+      ret = (-1) * jdir;
     }
     if (ret < 0) {
       // bound is left of this node
@@ -266,23 +287,26 @@ Dbtux::findNodeToScan(Frag& frag, unsigned idir, ConstData boundInfo, unsigned b
  * search similar to findPosToAdd().
  */
 void
-Dbtux::findPosToScan(Frag& frag, unsigned idir, ConstData boundInfo, unsigned boundCount, NodeHandle& currNode, Uint16* pos)
+Dbtux::findPosToScan(Frag& frag, unsigned idir, const KeyBoundC& searchBound, NodeHandle& currNode, Uint16* pos)
 {
   const int jdir = 1 - 2 * int(idir);
+  const Index& index = *c_indexPool.getPtr(frag.m_indexId);
+  const Uint32 numAttrs = searchBound.get_data().get_cnt();
   int lo = -1;
   int hi = (int)currNode.getOccup();
+  KeyData entryKey(index.m_keySpec, false, 0);
+  entryKey.set_buf(c_ctx.c_entryKey, MaxAttrDataSize << 2);
   while (hi - lo > 1) {
     jam();
     // hi - lo > 1 implies lo < j < hi
     int j = (hi + lo) / 2;
     int ret = (-1) * jdir;
-    if (boundCount != 0) {
-      // read and compare attributes
-      const TreeEnt currEnt = currNode.getEnt(j);
-      readKeyAttrs(c_ctx, frag, currEnt, 0, c_ctx.c_entryKey);
-      ret = cmpScanBound(frag, idir, boundInfo, boundCount, c_ctx.c_entryKey);
+    if (numAttrs != 0) {
+      // read and compare all attributes
+      readKeyAttrs(c_ctx, frag, currNode.getEnt(j), entryKey, numAttrs);
+      ret = cmpSearchBound(c_ctx, searchBound, entryKey, numAttrs);
+      ndbrequire(ret != 0);
     }
-    ndbrequire(ret != 0);
     if (ret < 0) {
       jam();
       hi = j;
@@ -302,7 +326,7 @@ Dbtux::findPosToScan(Frag& frag, unsigned idir, ConstData boundInfo, unsigned bo
  * Search for scan start position.
  */
 void
-Dbtux::searchToScan(Frag& frag, ConstData boundInfo, unsigned boundCount, bool descending, TreePos& treePos)
+Dbtux::searchToScan(Frag& frag, unsigned idir, const KeyBoundC& searchBound, TreePos& treePos)
 {
   const TreeHead& tree = frag.m_tree;
   NodeHandle currNode(frag);
@@ -312,11 +336,10 @@ Dbtux::searchToScan(Frag& frag, ConstData boundInfo, unsigned boundCount, bool d
     jam();
     return;
   }
-  const unsigned idir = unsigned(descending);
-  findNodeToScan(frag, idir, boundInfo, boundCount, currNode);
+  findNodeToScan(frag, idir, searchBound, currNode);
   treePos.m_loc = currNode.m_loc;
   Uint16 pos;
-  findPosToScan(frag, idir, boundInfo, boundCount, currNode, &pos);
+  findPosToScan(frag, idir, searchBound, currNode, &pos);
   const unsigned occup = currNode.getOccup();
   if (idir == 0) {
     if (pos < occup) {

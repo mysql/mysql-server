@@ -35,15 +35,15 @@ create table ba(ks int primary key, st int, lp int) engine = ndb;
 # Wait for each mysqld to startup binlogging
 --let $source_server=mysqld1
 --let $dest_server=mysqld2
-source suite/rpl_ndb/t/rpl_ndb_wait_schema_logging.inc;
+source suite/ndb_rpl/t/wait_schema_logging.inc;
 
 --let $source_server=mysqld1
 --let $dest_server=mysqld3
-source suite/rpl_ndb/t/rpl_ndb_wait_schema_logging.inc;
+source suite/ndb_rpl/t/wait_schema_logging.inc;
 
 --let $source_server=mysqld1
 --let $dest_server=mysqld4
-source suite/rpl_ndb/t/rpl_ndb_wait_schema_logging.inc;
+source suite/ndb_rpl/t/wait_schema_logging.inc;
 
 --disable_query_log
 connection mysqld1;

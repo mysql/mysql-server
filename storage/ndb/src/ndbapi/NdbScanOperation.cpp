@@ -717,10 +717,9 @@ compare_index_row_prefix(const NdbRecord *rec,
 
       void *info= col->charset_info;
       int res=
-        (*col->compare_function)(info, ptr1, maxSize, ptr2, maxSize, true);
+        (*col->compare_function)(info, ptr1, maxSize, ptr2, maxSize);
       if (res)
       {
-        assert(res != NdbSqlUtil::CmpUnknown);
         return res;
       }
     }
@@ -3593,10 +3592,9 @@ int compare_ndbrecord(const NdbReceiver *r1,
       void *info= result_col->charset_info;
       int res=
         (*result_col->compare_function)
-            (info, a_ptr, maxSize, b_ptr, maxSize, true);
+            (info, a_ptr, maxSize, b_ptr, maxSize);
       if (res)
       {
-        assert(res != NdbSqlUtil::CmpUnknown);
         return res * jdir;
       }
     }
