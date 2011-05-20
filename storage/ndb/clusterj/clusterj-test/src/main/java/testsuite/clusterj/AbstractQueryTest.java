@@ -66,16 +66,8 @@ abstract public class AbstractQueryTest extends AbstractClusterJModelTest {
         tx = session.currentTransaction();
         int numberOfInstances = getNumberOfInstances();
         createInstances(numberOfInstances);
-        try {
-            tx.begin();
-            session.deletePersistentAll(getInstanceType());
-            tx.commit();
-        } catch (Throwable t) {
-            // ignore errors while deleting
-        }
-        tx.begin();
+        session.deletePersistentAll(getInstanceType());
         session.makePersistentAll(instances);
-        tx.commit();
         if (getCleanupAfterTest())
             addTearDownClasses(getInstanceType());
     }
