@@ -582,6 +582,14 @@ WHERE v1field IN ( SELECT v2field as vf_inner FROM v2 );
 END|
 INSERT INTO t1 VALUES (1),(2),(3);
 INSERT INTO t2 VALUES (2),(3),(4);
+CALL p1;
+v1field
+2
+3
+CALL p1;
+v1field
+2
+3
 DROP TABLE t1,t2;
 DROP VIEW v1,v2;
 DROP PROCEDURE p1;
