@@ -4603,10 +4603,19 @@ void ha_ndbcluster::transaction_checks(THD *thd)
 {
   if (thd->lex->sql_command == SQLCOM_LOAD)
   {
-    m_transaction_on= FALSE;
     /* Would be simpler if has_transactions() didn't always say "yes" */
-    thd->transaction.all.modified_non_trans_table=
-      thd->transaction.stmt.modified_non_trans_table= TRUE;
+    m_transaction_on= FALSE;
+    /*
+      In the future, after integrating the ndb code-base into trunk,
+      make sure that it is necessary to mark that the transaction
+      has updated a non-transactional table and one cannot simply
+      rely on the fact that the statement's flag is propagated to
+      the transaction upon committing the statement.
+
+      \Alfranio
+    */
+    thd->transaction.all.mark_modified_non_trans_table();
+    thd->transaction.stmt.mark_modified_non_trans_table();
   }
   else if (!thd->transaction.on)
     m_transaction_on= FALSE;
@@ -9033,7 +9042,7 @@ ha_ndbcluster::multi_range_read_info_const(uint keyno, RANGE_SEQ_IF *seq,
       cost->io_count= index_only_read_time(keyno, total_rows);
     else
       cost->io_count= read_time(keyno, n_ranges, total_rows);
-    cost->cpu_cost= (double) total_rows / TIME_FOR_COMPARE + 0.01;
+    cost->cpu_cost= total_rows * ROW_EVALUATE_COST + 0.01;
   }
   return total_rows;
 }

@@ -2475,6 +2475,11 @@ err:
       trans_tmp_table_deleted || non_tmp_table_deleted)
   {
     query_cache_invalidate3(thd, tables, 0);
+
+    if (non_trans_tmp_table_deleted ||
+        trans_tmp_table_deleted)
+      thd->transaction.stmt.mark_dropped_temp_table();
+
     if (!dont_log_query && mysql_bin_log.is_open())
     {
       if (non_trans_tmp_table_deleted)
@@ -4554,19 +4559,27 @@ bool mysql_create_table(THD *thd, TABLE_LIST *create_table,
   result= mysql_create_table_no_lock(thd, create_table->db,
                                      create_table->table_name, create_info,
                                      alter_info, FALSE, 0, &is_trans);
-
   /*
     Don't write statement if:
     - Table creation has failed
     - Row-based logging is used and we are creating a temporary table
     Otherwise, the statement shall be binlogged.
   */
-  if (!result &&
-      (!thd->is_current_stmt_binlog_format_row() ||
-       (thd->is_current_stmt_binlog_format_row() &&
-        !(create_info->options & HA_LEX_CREATE_TMP_TABLE))))
-    result= write_bin_log(thd, TRUE, thd->query(), thd->query_length(), is_trans);
+  if (!result)
+  {
+    /*
+      CREATE TEMPORARY TABLE doesn't terminate a transaction. Calling
+      stmt.mark_created_temp_table() guarantees the transaction can be binlogged
+      correctly.
+    */
+    if (create_info->options & HA_LEX_CREATE_TMP_TABLE)
+      thd->transaction.stmt.mark_created_temp_table();
 
+    if (!thd->is_current_stmt_binlog_format_row() ||
+        (thd->is_current_stmt_binlog_format_row() &&
+         !(create_info->options & HA_LEX_CREATE_TMP_TABLE)))
+      result= write_bin_log(thd, TRUE, thd->query(), thd->query_length(), is_trans);
+  }
 end:
   DBUG_RETURN(result);
 }
@@ -4786,6 +4799,14 @@ bool mysql_create_like_table(THD* thd, TABLE_LIST* table, TABLE_LIST* src_table,
                                              table->table_name,
                                              MDL_EXCLUSIVE));
   /*
+    CREATE TEMPORARY TABLE doesn't terminate a transaction. Calling
+    stmt.mark_created_temp_table() guarantees the transaction can be binlogged
+    correctly.
+  */
+  if (create_info->options & HA_LEX_CREATE_TMP_TABLE)
+    thd->transaction.stmt.mark_created_temp_table();
+
+  /*
     We have to write the query before we unlock the tables.
   */
   if (thd->is_current_stmt_binlog_format_row())
@@ -4952,41 +4973,48 @@ err:
 
 /**
   @brief Check if both DROP and CREATE are present for an index in ALTER TABLE
- 
-  @details Checks if any index is being modified (present as both DROP INDEX 
-    and ADD INDEX) in the current ALTER TABLE statement. Needed for disabling 
+
+  @details Checks if any index is being modified (present as both DROP INDEX
+    and ADD INDEX) in the current ALTER TABLE statement. Needed for disabling
     in-place ALTER TABLE.
-  
-  @param table       The table being altered
-  @param alter_info  The ALTER TABLE structure
-  @return presence of index being altered  
+
+  @param table              The table being altered.
+  @param key_info_buffer    Array of KEY structs for new indexes.
+  @param index_drop_buffer  Array of offsets into table->key_info for indexes
+                            to be dropped.
+  @param index_drop_count   Number of indexes to be dropped.
+  @param index_add_buffer   Array of offsets into key_info_buffer representing
+                            new indexes.
+  @param index_add_count    Number of indexes to add.
+  @return presence of index being both dropped and added
   @retval FALSE  No such index
   @retval TRUE   Have at least 1 index modified
 */
 
 static bool
-is_index_maintenance_unique (TABLE *table, Alter_info *alter_info)
+is_index_maintenance_unique (const TABLE *table, const KEY *key_info_buffer,
+                             const uint *index_drop_buffer,
+                             uint index_drop_count,
+                             const uint *index_add_buffer, uint index_add_count)
 {
-  List_iterator<Key> key_it(alter_info->key_list);
-  List_iterator<Alter_drop> drop_it(alter_info->drop_list);
-  Key *key;
+  const KEY *add_key;
+  const KEY *drop_key;
+  const uint *idx_add_p;
+  const uint *idx_drop_p;
 
-  while ((key= key_it++))
+  for (idx_add_p= index_add_buffer;
+       idx_add_p < index_add_buffer + index_add_count; idx_add_p++)
   {
-    if (key->name.str)
+    add_key= key_info_buffer + *idx_add_p;
+    for (idx_drop_p= index_drop_buffer;
+         idx_drop_p < index_drop_buffer + index_drop_count; idx_drop_p++)
     {
-      Alter_drop *drop;
-
-      drop_it.rewind();
-      while ((drop= drop_it++))
-      {
-        if (drop->type == Alter_drop::KEY &&
-            !my_strcasecmp(system_charset_info, key->name.str, drop->name))
-          return TRUE;
-      }
+      drop_key= table->key_info + *idx_drop_p;
+      if (!my_strcasecmp(system_charset_info, add_key->name, drop_key->name))
+        return true;
     }
   }
-  return FALSE;
+  return false;
 }
 
 
@@ -6277,14 +6305,8 @@ bool mysql_alter_table(THD *thd,char *new_db, char *new_name,
   */
   new_db_type= create_info->db_type;
 
-  if (is_index_maintenance_unique (table, alter_info))
-    need_copy_table= ALTER_TABLE_DATA_CHANGED;
-
   if (mysql_prepare_alter_table(thd, table, create_info, alter_info))
     goto err;
-
-  if (need_copy_table == ALTER_TABLE_METADATA_ONLY)
-    need_copy_table= alter_info->change_level;
 
   set_table_default_charset(thd, create_info, db);
 
@@ -6297,6 +6319,8 @@ bool mysql_alter_table(THD *thd,char *new_db, char *new_name,
     need_copy_table= ALTER_TABLE_DATA_CHANGED;
   else
   {
+    need_copy_table= alter_info->change_level;
+
     Alter_table_change_level need_copy_table_res;
     /* Check how much the tables differ. */
     if (mysql_compare_tables(table, alter_info,
@@ -6307,16 +6331,24 @@ bool mysql_alter_table(THD *thd,char *new_db, char *new_name,
                              &index_add_buffer, &index_add_count,
                              &candidate_key_count, FALSE))
       goto err;
-   
+
     DBUG_EXECUTE_IF("alter_table_only_metadata_change", {
       if (need_copy_table_res != ALTER_TABLE_METADATA_ONLY)
         goto err; });
     DBUG_EXECUTE_IF("alter_table_only_index_change", {
       if (need_copy_table_res != ALTER_TABLE_INDEX_CHANGED)
         goto err; });
-   
+
     if (need_copy_table == ALTER_TABLE_METADATA_ONLY)
       need_copy_table= need_copy_table_res;
+
+    if (need_copy_table == ALTER_TABLE_INDEX_CHANGED)
+    {
+      if (is_index_maintenance_unique(table, key_info_buffer,
+                                      index_drop_buffer, index_drop_count,
+                                      index_add_buffer, index_add_count))
+        need_copy_table= ALTER_TABLE_DATA_CHANGED;
+    }
   }
 
   /*

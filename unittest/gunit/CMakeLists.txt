@@ -206,6 +206,7 @@ ENDIF()
 SET(TESTS
   bounded_queue
   dbug
+  dynarray
   mdl
   mdl_mytap
   my_bitmap
@@ -219,6 +220,7 @@ SET(TESTS
 # Add tests (link them with gunit library and the server libraries) 
 SET(SERVER_TESTS
   item
+  opt_range
 )
 
 FOREACH(test ${TESTS})
@@ -232,9 +234,9 @@ ENDFOREACH()
 
 FOREACH(test ${SERVER_TESTS})
   IF(WIN32)
-    ADD_EXECUTABLE(${test}-t ${test}-t.cc ../../sql/nt_servc.cc)
+    ADD_EXECUTABLE(${test}-t ${test}-t.cc test_utils.cc ../../sql/nt_servc.cc)
   ELSE()
-    ADD_EXECUTABLE(${test}-t ${test}-t.cc)
+    ADD_EXECUTABLE(${test}-t ${test}-t.cc test_utils.cc)
   ENDIF()
   TARGET_LINK_LIBRARIES(${test}-t sql binlog rpl master slave sql)
   TARGET_LINK_LIBRARIES(${test}-t gunit sqlgunitlib strings dbug regex mysys)

@@ -140,6 +140,14 @@ struct my_aligned_storage
 
 #endif /* __cplusplus */
 
+# ifndef MY_ALIGNED
+/*
+  Make sure MY_ALIGNED can be used also on platforms where we don't
+  have a way of aligning data structures.
+*/
+#define MY_ALIGNED(size)
+#endif
+
 #include <my_attribute.h>
 
 #endif /* MY_COMPILER_INCLUDED */
