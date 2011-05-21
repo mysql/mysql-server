@@ -11,7 +11,7 @@
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
-   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307 USA */
+   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA */
 
 /**
   @file
@@ -1467,7 +1467,7 @@ static int mysql_test_select(Prepared_statement *stmt,
 
   if (!lex->result && !(lex->result= new (stmt->mem_root) select_send))
   {
-    my_error(ER_OUTOFMEMORY, MYF(0), sizeof(select_send));
+    my_error(ER_OUTOFMEMORY, MYF(0), static_cast<int>(sizeof(select_send)));
     goto error;
   }
 
@@ -2543,7 +2543,7 @@ void mysqld_stmt_execute(THD *thd, char *packet_arg, uint packet_length)
   if (!(stmt= find_prepared_statement(thd, stmt_id)))
   {
     char llbuf[22];
-    my_error(ER_UNKNOWN_STMT_HANDLER, MYF(0), sizeof(llbuf),
+    my_error(ER_UNKNOWN_STMT_HANDLER, MYF(0), static_cast<int>(sizeof(llbuf)),
              llstr(stmt_id, llbuf), "mysqld_stmt_execute");
     DBUG_VOID_RETURN;
   }
@@ -2597,7 +2597,7 @@ void mysql_sql_stmt_execute(THD *thd)
   if (!(stmt= (Prepared_statement*) thd->stmt_map.find_by_name(name)))
   {
     my_error(ER_UNKNOWN_STMT_HANDLER, MYF(0),
-             name->length, name->str, "EXECUTE");
+             static_cast<int>(name->length), name->str, "EXECUTE");
     DBUG_VOID_RETURN;
   }
 
@@ -2639,7 +2639,7 @@ void mysqld_stmt_fetch(THD *thd, char *packet, uint packet_length)
   if (!(stmt= find_prepared_statement(thd, stmt_id)))
   {
     char llbuf[22];
-    my_error(ER_UNKNOWN_STMT_HANDLER, MYF(0), sizeof(llbuf),
+    my_error(ER_UNKNOWN_STMT_HANDLER, MYF(0), static_cast<int>(sizeof(llbuf)),
              llstr(stmt_id, llbuf), "mysqld_stmt_fetch");
     DBUG_VOID_RETURN;
   }
@@ -2699,7 +2699,7 @@ void mysqld_stmt_reset(THD *thd, char *packet)
   if (!(stmt= find_prepared_statement(thd, stmt_id)))
   {
     char llbuf[22];
-    my_error(ER_UNKNOWN_STMT_HANDLER, MYF(0), sizeof(llbuf),
+    my_error(ER_UNKNOWN_STMT_HANDLER, MYF(0), static_cast<int>(sizeof(llbuf)),
              llstr(stmt_id, llbuf), "mysqld_stmt_reset");
     DBUG_VOID_RETURN;
   }
@@ -2774,7 +2774,7 @@ void mysql_sql_stmt_close(THD *thd)
 
   if (! (stmt= (Prepared_statement*) thd->stmt_map.find_by_name(name)))
     my_error(ER_UNKNOWN_STMT_HANDLER, MYF(0),
-             name->length, name->str, "DEALLOCATE PREPARE");
+             static_cast<int>(name->length), name->str, "DEALLOCATE PREPARE");
   else if (stmt->is_in_use())
     my_error(ER_PS_NO_RECURSION, MYF(0));
   else
