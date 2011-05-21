@@ -1,4 +1,4 @@
-/* Copyright (c) 2004, 2010, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2004, 2011, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -445,7 +445,7 @@ Events::update_event(THD *thd, Event_parse_data *parse_data,
          !sortcmp_lex_string(parse_data->name, *new_name,
                              system_charset_info))
     {
-      my_error(ER_EVENT_SAME_NAME, MYF(0), parse_data->name.str);
+      my_error(ER_EVENT_SAME_NAME, MYF(0));
       DBUG_RETURN(TRUE);
     }
 

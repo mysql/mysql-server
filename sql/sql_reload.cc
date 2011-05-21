@@ -86,7 +86,7 @@ bool reload_acl_and_cache(THD *thd, unsigned long options,
           When an error is returned, my_message may have not been called and
           the client will hang waiting for a response.
         */
-        my_error(ER_UNKNOWN_ERROR, MYF(0), "FLUSH PRIVILEGES failed");
+        my_error(ER_UNKNOWN_ERROR, MYF(0));
       }
     }
 

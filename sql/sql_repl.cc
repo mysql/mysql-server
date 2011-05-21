@@ -1490,7 +1490,7 @@ bool change_master(THD* thd, Master_info* mi)
     get_dynamic(&lex_mi->repl_ignore_server_ids, (uchar*) &s_id, i);
     if (s_id == ::server_id && replicate_same_server_id)
     {
-      my_error(ER_SLAVE_IGNORE_SERVER_IDS, MYF(0), s_id);
+      my_error(ER_SLAVE_IGNORE_SERVER_IDS, MYF(0), static_cast<int>(s_id));
       ret= TRUE;
       goto err;
     }

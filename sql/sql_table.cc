@@ -2618,7 +2618,8 @@ int prepare_create_field(Create_field *sql_field,
           MAX_FIELD_CHARLENGTH)
       {
         my_printf_error(ER_TOO_BIG_FIELDLENGTH, ER(ER_TOO_BIG_FIELDLENGTH),
-                        MYF(0), sql_field->field_name, MAX_FIELD_CHARLENGTH);
+                        MYF(0), sql_field->field_name,
+                        static_cast<ulong>(MAX_FIELD_CHARLENGTH));
         DBUG_RETURN(1);
       }
     }
@@ -3614,12 +3615,12 @@ mysql_prepare_create_table(THD *thd, HA_CREATE_INFO *create_info,
            (MODE_STRICT_TRANS_TABLES | MODE_STRICT_ALL_TABLES)))
       {
         my_error(ER_TOO_LONG_INDEX_COMMENT, MYF(0),
-                 key_info->name, (uint) INDEX_COMMENT_MAXLEN);
+                 key_info->name, static_cast<ulong>(INDEX_COMMENT_MAXLEN));
         DBUG_RETURN(-1);
       }
       char warn_buff[MYSQL_ERRMSG_SIZE];
       my_snprintf(warn_buff, sizeof(warn_buff), ER(ER_TOO_LONG_INDEX_COMMENT),
-                  key_info->name, (uint) INDEX_COMMENT_MAXLEN);
+                  key_info->name, static_cast<ulong>(INDEX_COMMENT_MAXLEN));
       /* do not push duplicate warnings */
       if (!check_duplicate_warning(thd, warn_buff, strlen(warn_buff)))
         push_warning(thd, MYSQL_ERROR::WARN_LEVEL_WARN,
@@ -3747,7 +3748,8 @@ static bool prepare_blob_field(THD *thd, Create_field *sql_field)
                                                       MODE_STRICT_ALL_TABLES)))
     {
       my_error(ER_TOO_BIG_FIELDLENGTH, MYF(0), sql_field->field_name,
-               MAX_FIELD_VARCHARLENGTH / sql_field->charset->mbmaxlen);
+               static_cast<ulong>(MAX_FIELD_VARCHARLENGTH /
+                                  sql_field->charset->mbmaxlen));
       DBUG_RETURN(1);
     }
     sql_field->sql_type= MYSQL_TYPE_BLOB;
