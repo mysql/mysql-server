@@ -1195,6 +1195,25 @@ bool THD::store_globals()
   return 0;
 }
 
+/*
+  Remove the thread specific info (THD and mem_root pointer) stored during
+  store_global call for this thread.
+*/
+bool THD::restore_globals()
+{
+  /*
+    Assert that thread_stack is initialized: it's necessary to be able
+    to track stack overrun.
+  */
+  DBUG_ASSERT(thread_stack);
+  
+  /* Undocking the thread specific data. */
+  my_pthread_setspecific_ptr(THR_THD, NULL);
+  my_pthread_setspecific_ptr(THR_MALLOC, NULL);
+  
+  return 0;
+}
+
 
 /*
   Cleanup after query.
