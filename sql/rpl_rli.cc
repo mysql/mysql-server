@@ -27,6 +27,8 @@
 #include "transaction.h"
 #include "sql_parse.h"                          // end_trans, ROLLBACK
 #include "rpl_slave.h"
+#include <mysql/plugin.h>
+#include <mysql/service_thd_wait.h>
 
 /*
   Please every time you add a new field to the relay log info, update
@@ -534,6 +536,7 @@ int Relay_log_info::wait_for_pos(THD* thd, String* log_name,
       We are going to mysql_cond_(timed)wait(); if the SQL thread stops it
       will wake us up.
     */
+    thd_wait_begin(thd, THD_WAIT_BINLOG);
     if (timeout > 0)
     {
       /*
@@ -551,6 +554,7 @@ int Relay_log_info::wait_for_pos(THD* thd, String* log_name,
     }
     else
       mysql_cond_wait(&data_cond, &data_lock);
+    thd_wait_end(thd);
     DBUG_PRINT("info",("Got signal of master update or timed out"));
     if (error == ETIMEDOUT || error == ETIME)
     {
