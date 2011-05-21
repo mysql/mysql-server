@@ -9296,7 +9296,7 @@ bool Create_field::init(THD *thd, char *fld_name, enum_field_types fld_type,
   if (decimals >= NOT_FIXED_DEC)
   {
     my_error(ER_TOO_BIG_SCALE, MYF(0), decimals, fld_name,
-             NOT_FIXED_DEC-1);
+             static_cast<ulong>(NOT_FIXED_DEC - 1));
     DBUG_RETURN(TRUE);
   }
 
@@ -9366,8 +9366,8 @@ bool Create_field::init(THD *thd, char *fld_name, enum_field_types fld_type,
     my_decimal_trim(&length, &decimals);
     if (length > DECIMAL_MAX_PRECISION)
     {
-      my_error(ER_TOO_BIG_PRECISION, MYF(0), length, fld_name,
-               DECIMAL_MAX_PRECISION);
+      my_error(ER_TOO_BIG_PRECISION, MYF(0), static_cast<int>(length),
+               fld_name, static_cast<ulong>(DECIMAL_MAX_PRECISION));
       DBUG_RETURN(TRUE);
     }
     if (length < decimals)
@@ -9591,7 +9591,7 @@ bool Create_field::init(THD *thd, char *fld_name, enum_field_types fld_type,
       if (length > MAX_BIT_FIELD_LENGTH)
       {
         my_error(ER_TOO_BIG_DISPLAYWIDTH, MYF(0), fld_name,
-                 MAX_BIT_FIELD_LENGTH);
+                 static_cast<ulong>(MAX_BIT_FIELD_LENGTH));
         DBUG_RETURN(TRUE);
       }
       pack_length= (length + 7) / 8;

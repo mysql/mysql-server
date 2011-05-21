@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2010, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2011, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -8699,7 +8699,7 @@ NDB_SHARE *ndbcluster_get_share(const char *key, TABLE *table,
       DBUG_PRINT("error", ("get_share: failed to alloc share"));
       if (!have_lock)
         mysql_mutex_unlock(&ndbcluster_mutex);
-      my_error(ER_OUTOFMEMORY, MYF(0), sizeof(*share));
+      my_error(ER_OUTOFMEMORY, MYF(0), static_cast<int>(sizeof(*share)));
       DBUG_RETURN(0);
     }
   }

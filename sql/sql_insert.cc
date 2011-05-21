@@ -3932,7 +3932,7 @@ select_create::prepare(List<Item> &values, SELECT_LEX_UNIT *u)
 
   if (table->s->fields < values.elements)
   {
-    my_error(ER_WRONG_VALUE_COUNT_ON_ROW, MYF(0), 1);
+    my_error(ER_WRONG_VALUE_COUNT_ON_ROW, MYF(0), 1L);
     DBUG_RETURN(-1);
   }
 
