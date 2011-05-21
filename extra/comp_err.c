@@ -870,6 +870,7 @@ static struct errors *generate_empty_message(uint d_code)
   if (my_init_dynamic_array(&new_error->msg, sizeof(struct message), 0, 1))
     return(0);				/* OOM: Fatal error */
 
+  new_error->er_name= NULL;
   new_error->d_code=    d_code;
   new_error->sql_code1= empty_string;
   new_error->sql_code2= empty_string;
