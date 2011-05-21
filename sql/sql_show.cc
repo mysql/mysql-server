@@ -2428,12 +2428,11 @@ bool schema_table_store_record(THD *thd, TABLE *table)
 }
 
 
-int make_table_list(THD *thd, SELECT_LEX *sel,
-                    LEX_STRING *db_name, LEX_STRING *table_name)
+static int make_table_list(THD *thd, SELECT_LEX *sel,
+                           LEX_STRING *db_name, LEX_STRING *table_name)
 {
   Table_ident *table_ident;
   table_ident= new Table_ident(thd, *db_name, *table_name, 1);
-  sel->init_query();
   if (!sel->add_table_to_list(thd, table_ident, 0, 0, TL_READ))
     return 1;
   return 0;
@@ -3003,79 +3002,179 @@ make_table_name_list(THD *thd, List<LEX_STRING> *table_names, LEX *lex,
 
 
 /**
-  @brief          Fill I_S table for SHOW COLUMNS|INDEX commands
+  Fill I_S table with data obtained by performing full-blown table open.
 
-  @param[in]      thd                      thread handler
-  @param[in]      tables                   TABLE_LIST for I_S table
-  @param[in]      schema_table             pointer to I_S structure
-  @param[in]      open_tables_state_backup pointer to Open_tables_state object
-                                           which is used to save|restore original
-                                           status of variables related to
-                                           open tables state
+  @param  thd                       Thread handler.
+  @param  is_show_fields_or_keys    Indicates whether it is a legacy SHOW
+                                    COLUMNS or SHOW KEYS statement.
+  @param  table                     TABLE object for I_S table to be filled.
+  @param  schema_table              I_S table description structure.
+  @param  orig_db_name              Database name.
+  @param  orig_table_name           Table name.
+  @param  open_tables_state_backup  Open_tables_state object which is used
+                                    to save/restore original status of
+                                    variables related to open tables state.
 
-  @return         Operation status
-    @retval       0           success
-    @retval       1           error
+  @retval FALSE - Success.
+  @retval TRUE  - Failure.
 */
 
-static int 
-fill_schema_show_cols_or_idxs(THD *thd, TABLE_LIST *tables,
-                              ST_SCHEMA_TABLE *schema_table,
-                              Open_tables_state *open_tables_state_backup)
+static bool
+fill_schema_table_by_open(THD *thd, bool is_show_fields_or_keys,
+                          TABLE *table, ST_SCHEMA_TABLE *schema_table,
+                          LEX_STRING *orig_db_name,
+                          LEX_STRING *orig_table_name,
+                          Open_tables_state *open_tables_state_backup)
 {
-  LEX *lex= thd->lex;
-  bool res;
-  LEX_STRING tmp_lex_string, tmp_lex_string1, *db_name, *table_name;
-  enum_sql_command save_sql_command= lex->sql_command;
-  TABLE_LIST *show_table_list= tables->schema_select_lex->table_list.first;
-  TABLE *table= tables->table;
-  int error= 1;
-  DBUG_ENTER("fill_schema_show");
+  Query_arena i_s_arena(thd->mem_root,
+                        Query_arena::CONVENTIONAL_EXECUTION),
+              backup_arena, *old_arena;
+  LEX *old_lex= thd->lex, temp_lex, *lex;
+  LEX_STRING db_name, table_name;
+  TABLE_LIST *table_list;
+  bool result= true;
 
-  lex->all_selects_list= tables->schema_select_lex;
   /*
-    Restore thd->temporary_tables to be able to process
-    temporary tables(only for 'show index' & 'show columns').
-    This should be changed when processing of temporary tables for
-    I_S tables will be done.
+    When a view is opened its structures are allocated on a permanent
+    statement arena and linked into the LEX tree for the current statement
+    (this happens even in cases when view is handled through TEMPTABLE
+    algorithm).
+
+    To prevent this process from unnecessary hogging of memory in the permanent
+    arena of our I_S query and to avoid damaging its LEX we use temporary
+    arena and LEX for table/view opening.
+
+    Use temporary arena instead of statement permanent arena. Also make
+    it active arena and save original one for successive restoring.
   */
-  thd->temporary_tables= open_tables_state_backup->temporary_tables;
+  old_arena= thd->stmt_arena;
+  thd->stmt_arena= &i_s_arena;
+  thd->set_n_backup_active_arena(&i_s_arena, &backup_arena);
+
+  /* Prepare temporary LEX. */
+  thd->lex= lex= &temp_lex;
+  lex_start(thd);
+
+  /* Disable constant subquery evaluation as we won't be locking tables. */
+  lex->context_analysis_only= CONTEXT_ANALYSIS_ONLY_VIEW;
+
+  /*
+    Some of process_table() functions rely on wildcard being passed from
+    old LEX (or at least being initialized).
+  */
+  lex->wild= old_lex->wild;
+
+  /*
+    Since make_table_list() might change database and table name passed
+    to it we create copies of orig_db_name and orig_table_name here.
+    These copies are used for make_table_list() while unaltered values
+    are passed to process_table() functions.
+  */
+  if (!thd->make_lex_string(&db_name, orig_db_name->str,
+                            orig_db_name->length, FALSE) ||
+      !thd->make_lex_string(&table_name, orig_table_name->str,
+                            orig_table_name->length, FALSE))
+    goto end;
+
+  /*
+    Create table list element for table to be open. Link it with the
+    temporary LEX. The latter is required to correctly open views and
+    produce table describing their structure.
+  */
+  if (make_table_list(thd, &lex->select_lex, &db_name, &table_name))
+    goto end;
+
+  table_list= lex->select_lex.table_list.first;
+
+  if (is_show_fields_or_keys)
+  {
+    /*
+      Restore thd->temporary_tables to be able to process
+      temporary tables (only for 'show index' & 'show columns').
+      This should be changed when processing of temporary tables for
+      I_S tables will be done.
+    */
+    thd->temporary_tables= open_tables_state_backup->temporary_tables;
+  }
+  else
+  {
+    /*
+      Apply optimization flags for table opening which are relevant for
+      this I_S table. We can't do this for SHOW COLUMNS/KEYS because of
+      backward compatibility.
+    */
+    table_list->i_s_requested_object= schema_table->i_s_requested_object;
+  }
+
   /*
     Let us set fake sql_command so views won't try to merge
     themselves into main statement. If we don't do this,
     SELECT * from information_schema.xxxx will cause problems.
-    SQLCOM_SHOW_FIELDS is used because it satisfies 'only_view_structure()' 
+    SQLCOM_SHOW_FIELDS is used because it satisfies
+    'only_view_structure()'.
   */
   lex->sql_command= SQLCOM_SHOW_FIELDS;
-  res= open_normal_and_derived_tables(thd, show_table_list,
-                                      MYSQL_LOCK_IGNORE_FLUSH);
-  lex->sql_command= save_sql_command;
+
+  result= open_normal_and_derived_tables(thd, table_list,
+                                         MYSQL_LOCK_IGNORE_FLUSH);
+
   /*
-    get_all_tables() returns 1 on failure and 0 on success thus
-    return only these and not the result code of ::process_table()
-
-    We should use show_table_list->alias instead of 
-    show_table_list->table_name because table_name
-    could be changed during opening of I_S tables. It's safe
-    to use alias because alias contains original table name 
-    in this case(this part of code is used only for 
-    'show columns' & 'show statistics' commands).
+    Restore old value of sql_command back as it is being looked at in
+    process_table() function.
   */
-   table_name= thd->make_lex_string(&tmp_lex_string1, show_table_list->alias,
-                                    strlen(show_table_list->alias), FALSE);
-   if (!show_table_list->view)
-     db_name= thd->make_lex_string(&tmp_lex_string, show_table_list->db,
-                                   show_table_list->db_length, FALSE);
-   else
-     db_name= &show_table_list->view_db;
-      
+  lex->sql_command= old_lex->sql_command;
 
-   error= test(schema_table->process_table(thd, show_table_list,
-                                           table, res, db_name,
-                                           table_name));
-   thd->temporary_tables= 0;
-   close_tables_for_reopen(thd, &show_table_list);
-   DBUG_RETURN(error);
+  /*
+    XXX:  show_table_list has a flag i_is_requested,
+    and when it's set, open_normal_and_derived_tables()
+    can return an error without setting an error message
+    in THD, which is a hack. This is why we have to
+    check for res, then for thd->is_error() and only then
+    for thd->main_da.sql_errno().
+
+    Again we don't do this for SHOW COLUMNS/KEYS because
+    of backward compatibility.
+  */
+  if (!is_show_fields_or_keys && result && thd->is_error() &&
+      thd->main_da.sql_errno() == ER_NO_SUCH_TABLE)
+  {
+    /*
+      Hide error for a non-existing table.
+      For example, this error can occur when we use a where condition
+      with a db name and table, but the table does not exist.
+    */
+    result= 0;
+    thd->clear_error();
+  }
+  else
+  {
+    result= schema_table->process_table(thd, table_list,
+                                        table, result,
+                                        orig_db_name,
+                                        orig_table_name);
+  }
+
+end:
+  lex->unit.cleanup();
+
+  /* Restore original LEX value, statement's arena and THD arena values. */
+  lex_end(thd->lex);
+
+  if (i_s_arena.free_list)
+    i_s_arena.free_items();
+
+  /*
+    For safety reset list of open temporary tables before closing
+    all tables open within this Open_tables_state.
+  */
+  thd->temporary_tables= NULL;
+  close_thread_tables(thd);
+  thd->lex= old_lex;
+
+  thd->stmt_arena= old_arena;
+  thd->restore_active_arena(&i_s_arena, &backup_arena);
+
+  return result;
 }
 
 
@@ -3300,11 +3399,8 @@ int get_all_tables(THD *thd, TABLE_LIST *tables, COND *cond)
 {
   LEX *lex= thd->lex;
   TABLE *table= tables->table;
-  SELECT_LEX *old_all_select_lex= lex->all_selects_list;
-  enum_sql_command save_sql_command= lex->sql_command;
   SELECT_LEX *lsel= tables->schema_select_lex;
   ST_SCHEMA_TABLE *schema_table= tables->schema_table;
-  SELECT_LEX sel;
   LOOKUP_FIELD_VALUES lookup_field_vals;
   LEX_STRING *db_name, *table_name;
   bool with_i_schema;
@@ -3312,19 +3408,13 @@ int get_all_tables(THD *thd, TABLE_LIST *tables, COND *cond)
   List<LEX_STRING> db_names;
   List_iterator_fast<LEX_STRING> it(db_names);
   COND *partial_cond= 0;
-  uint derived_tables= lex->derived_tables; 
   int error= 1;
   Open_tables_state open_tables_state_backup;
-  uint8 save_context_analysis_only= lex->context_analysis_only;
-  Query_tables_list query_tables_list_backup;
 #ifndef NO_EMBEDDED_ACCESS_CHECKS
   Security_context *sctx= thd->security_ctx;
 #endif
   uint table_open_method;
   DBUG_ENTER("get_all_tables");
-
-  lex->context_analysis_only|= CONTEXT_ANALYSIS_ONLY_VIEW;
-  lex->reset_n_backup_query_tables_list(&query_tables_list_backup);
 
   /*
     We should not introduce deadlocks even if we already have some
@@ -3340,8 +3430,18 @@ int get_all_tables(THD *thd, TABLE_LIST *tables, COND *cond)
   */
   if (lsel && lsel->table_list.first)
   {
-    error= fill_schema_show_cols_or_idxs(thd, tables, schema_table,
-                                         &open_tables_state_backup);
+    LEX_STRING db_name, table_name;
+
+    db_name.str= lsel->table_list.first->db;
+    db_name.length= lsel->table_list.first->db_length;
+
+    table_name.str= lsel->table_list.first->table_name;
+    table_name.length= lsel->table_list.first->table_name_length;
+
+    error= fill_schema_table_by_open(thd, TRUE,
+                                     table, schema_table,
+                                     &db_name, &table_name,
+                                     &open_tables_state_backup);
     goto err;
   }
 
@@ -3399,12 +3499,6 @@ int get_all_tables(THD *thd, TABLE_LIST *tables, COND *cond)
   it.rewind(); /* To get access to new elements in basis list */
   while ((db_name= it++))
   {
-    LEX_STRING orig_db_name;
-
-    /* db_name can be changed in make_table_list() func */
-    if (!thd->make_lex_string(&orig_db_name, db_name->str,
-                              db_name->length, FALSE))
-      goto err;
 #ifndef NO_EMBEDDED_ACCESS_CHECKS
     if (!(check_access(thd,SELECT_ACL, db_name->str, 
                        &thd->col_access, 0, 1, with_i_schema) ||
@@ -3466,64 +3560,14 @@ int get_all_tables(THD *thd, TABLE_LIST *tables, COND *cond)
                 continue;
             }
 
-            int res;
-            LEX_STRING tmp_lex_string;
-            /*
-              Set the parent lex of 'sel' because it is needed by
-              sel.init_query() which is called inside make_table_list.
-            */
             thd->no_warnings_for_error= 1;
-            sel.parent_lex= lex;
-            if (make_table_list(thd, &sel, db_name, table_name))
-              goto err;
-            TABLE_LIST *show_table_list= sel.table_list.first;
-            lex->all_selects_list= &sel;
-            lex->derived_tables= 0;
-            lex->sql_command= SQLCOM_SHOW_FIELDS;
-            show_table_list->i_s_requested_object=
-              schema_table->i_s_requested_object;
+
             DEBUG_SYNC(thd, "before_open_in_get_all_tables");
-            res= open_normal_and_derived_tables(thd, show_table_list,
-                                                MYSQL_LOCK_IGNORE_FLUSH);
-            lex->sql_command= save_sql_command;
-            /*
-              XXX:  show_table_list has a flag i_is_requested,
-              and when it's set, open_normal_and_derived_tables()
-              can return an error without setting an error message
-              in THD, which is a hack. This is why we have to
-              check for res, then for thd->is_error() only then
-              for thd->main_da.sql_errno().
-            */
-            if (res && thd->is_error() &&
-                thd->main_da.sql_errno() == ER_NO_SUCH_TABLE)
-            {
-              /*
-                Hide error for not existing table.
-                This error can occur for example when we use
-                where condition with db name and table name and this
-                table does not exist.
-              */
-              res= 0;
-              thd->clear_error();
-            }
-            else
-            {
-              /*
-                We should use show_table_list->alias instead of 
-                show_table_list->table_name because table_name
-                could be changed during opening of I_S tables. It's safe
-                to use alias because alias contains original table name 
-                in this case.
-              */
-              thd->make_lex_string(&tmp_lex_string, show_table_list->alias,
-                                   strlen(show_table_list->alias), FALSE);
-              res= schema_table->process_table(thd, show_table_list, table,
-                                               res, &orig_db_name,
-                                               &tmp_lex_string);
-              close_tables_for_reopen(thd, &show_table_list);
-            }
-            DBUG_ASSERT(!lex->query_tables_own_last);
-            if (res)
+
+            if (fill_schema_table_by_open(thd, FALSE,
+                                          table, schema_table,
+                                          db_name, table_name,
+                                          &open_tables_state_backup))
               goto err;
           }
         }
@@ -3539,11 +3583,7 @@ int get_all_tables(THD *thd, TABLE_LIST *tables, COND *cond)
   error= 0;
 err:
   thd->restore_backup_open_tables_state(&open_tables_state_backup);
-  lex->restore_backup_query_tables_list(&query_tables_list_backup);
-  lex->derived_tables= derived_tables;
-  lex->all_selects_list= old_all_select_lex;
-  lex->context_analysis_only= save_context_analysis_only;
-  lex->sql_command= save_sql_command;
+
   DBUG_RETURN(error);
 }
 
