@@ -293,7 +293,8 @@ extended_usage()
     version string suffix: [none]
 
   All packages except Classic include support for user-defined
-  partitioning.
+  partitioning. All packages include support for Performance
+  Schema.
 
   If --with-debug is used, an additional "-debug" is appended to the
   version string.
