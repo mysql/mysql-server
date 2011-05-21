@@ -293,7 +293,7 @@ retry:
 #endif /* UNIV_SYNC_DEBUG */
 	trx->op_info = "waiting in InnoDB queue";
 
-	thd_wait_begin(trx->mysql_thd, THD_WAIT_ROW_TABLE_LOCK);
+	thd_wait_begin(trx->mysql_thd, THD_WAIT_USER_LOCK);
 	os_event_wait(slot->event);
 	thd_wait_end(trx->mysql_thd);
 
