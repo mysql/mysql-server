@@ -1,4 +1,4 @@
-/* Copyright (C) 2000-2006 MySQL AB, 2008-2009 Sun Microsystems, Inc
+/* Copyright (c) 2000, 2011, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -11,8 +11,7 @@
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
-   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
-
+   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA */
 
 /*
   Functions to create a unireg form-file from a FIELD and a fieldname-fieldinfo
@@ -230,13 +229,13 @@ bool mysql_create_frm(THD *thd, const char *file_name,
          (MODE_STRICT_TRANS_TABLES | MODE_STRICT_ALL_TABLES)))
     {
       my_error(ER_TOO_LONG_TABLE_COMMENT, MYF(0),
-               real_table_name, (uint) TABLE_COMMENT_MAXLEN);
+               real_table_name, static_cast<ulong>(TABLE_COMMENT_MAXLEN));
       my_free(screen_buff);
       DBUG_RETURN(1);
     }
     char warn_buff[MYSQL_ERRMSG_SIZE];
     my_snprintf(warn_buff, sizeof(warn_buff), ER(ER_TOO_LONG_TABLE_COMMENT),
-                real_table_name, (uint) TABLE_COMMENT_MAXLEN);
+                real_table_name, static_cast<ulong>(TABLE_COMMENT_MAXLEN));
     /* do not push duplicate warnings */
     if (!check_duplicate_warning(current_thd, warn_buff, strlen(warn_buff)))
       push_warning(current_thd, MYSQL_ERROR::WARN_LEVEL_WARN,
@@ -737,13 +736,14 @@ static bool pack_header(uchar *forminfo, enum legacy_db_type table_type,
       if ((current_thd->variables.sql_mode &
 	   (MODE_STRICT_TRANS_TABLES | MODE_STRICT_ALL_TABLES)))
       {
-        my_error(ER_TOO_LONG_FIELD_COMMENT, MYF(0),
-                 field->field_name, (uint) COLUMN_COMMENT_MAXLEN);
+        my_error(ER_TOO_LONG_FIELD_COMMENT, MYF(0), field->field_name,
+                 static_cast<ulong>(COLUMN_COMMENT_MAXLEN));
 	DBUG_RETURN(1);
       }
       char warn_buff[MYSQL_ERRMSG_SIZE];
       my_snprintf(warn_buff, sizeof(warn_buff), ER(ER_TOO_LONG_FIELD_COMMENT),
-                  field->field_name, (uint) COLUMN_COMMENT_MAXLEN);
+                  field->field_name,
+                  static_cast<ulong>(COLUMN_COMMENT_MAXLEN));
       /* do not push duplicate warnings */
       if (!check_duplicate_warning(current_thd, warn_buff, strlen(warn_buff)))
         push_warning(current_thd, MYSQL_ERROR::WARN_LEVEL_WARN,
@@ -831,7 +831,7 @@ static bool pack_header(uchar *forminfo, enum legacy_db_type table_type,
 
   if (reclength > (ulong) file->max_record_length())
   {
-    my_error(ER_TOO_BIG_ROWSIZE, MYF(0), (uint) file->max_record_length());
+    my_error(ER_TOO_BIG_ROWSIZE, MYF(0), static_cast<long>(file->max_record_length()));
     DBUG_RETURN(1);
   }
   /* Hack to avoid bugs with small static rows in MySQL */
