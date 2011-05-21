@@ -4473,7 +4473,7 @@ timestamp_auto_set_type Field_timestamp::get_auto_set_type() const
   }
 }
 
-long Field_timestamp::get_timestamp(ulong *sec_part) const
+my_time_t Field_timestamp::get_timestamp(ulong *sec_part) const
 {
   ASSERT_COLUMN_MARKED_FOR_READ;
   *sec_part= 0;
@@ -4592,7 +4592,7 @@ longlong Field_timestamp::val_int(void)
 
   thd->time_zone_used= 1;
   ulong sec_part;
-  uint32 temp= get_timestamp(&sec_part);
+  my_time_t temp= get_timestamp(&sec_part);
 
   /*
      Field_timestamp() and Field_timestamp_hres() shares this code.
@@ -4622,7 +4622,7 @@ String *Field_timestamp::val_str(String *val_buffer, String *val_ptr)
 
   thd->time_zone_used= 1;
   ulong sec_part;
-  uint32 temp= get_timestamp(&sec_part);
+  my_time_t temp= get_timestamp(&sec_part);
 
   if (temp == 0 && sec_part == 0)
   {				      /* Zero time is "000000" */
@@ -4682,7 +4682,7 @@ bool Field_timestamp::get_date(MYSQL_TIME *ltime, uint fuzzydate)
   THD *thd= table->in_use;
   thd->time_zone_used= 1;
   ulong sec_part;
-  uint32 temp= get_timestamp(&sec_part);
+  my_time_t temp= get_timestamp(&sec_part);
   if (temp == 0 && sec_part == 0)
   {				      /* Zero time is "000000" */
     if (fuzzydate & TIME_NO_ZERO_DATE)
@@ -4830,7 +4830,7 @@ void Field_timestamp_hires::store_TIME(my_time_t timestamp, ulong sec_part)
   store_bigendian(sec_part_shift(sec_part, dec), ptr+4, sec_part_bytes[dec]);
 }
 
-long Field_timestamp_hires::get_timestamp(ulong *sec_part) const
+my_time_t Field_timestamp_hires::get_timestamp(ulong *sec_part) const
 {
   ASSERT_COLUMN_MARKED_FOR_READ;
   *sec_part= (long)sec_part_unshift(read_bigendian(ptr+4, sec_part_bytes[dec]), dec);
@@ -4844,7 +4844,7 @@ double Field_timestamp_hires::val_real(void)
 
   thd->time_zone_used= 1;
   ulong sec_part;
-  uint32 temp= get_timestamp(&sec_part);
+  my_time_t temp= get_timestamp(&sec_part);
 
   if (temp == 0 && sec_part == 0)
     return(0);

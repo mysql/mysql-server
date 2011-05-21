@@ -2282,6 +2282,14 @@ bool Item_func_min_max::get_date(MYSQL_TIME *ltime, uint fuzzy_date)
 {
   longlong UNINIT_VAR(min_max);
   DBUG_ASSERT(fixed == 1);
+
+  /*
+    just like ::val_int() method of an string item can be called,
+    for example, SELECT CONCAT("10", "12") + 1,
+    ::get_date() can be called for non-temporal values,
+    for example, SELECT MONTH(GREATEST("2011-11-21", "2010-10-09"))
+
+  */
   if (!compare_as_dates)
     return Item_func::get_date(ltime, fuzzy_date);
 

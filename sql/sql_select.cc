@@ -9417,36 +9417,36 @@ remove_eq_conds(THD *thd, COND *cond, Item::cond_result *cond_value)
   return cond;					// Point at next and level
 }
 
-/* 
+/**
   Check if equality can be used in removing components of GROUP BY/DISTINCT
   
-  SYNOPSIS
-    test_if_equality_guarantees_uniqueness()
-      l          the left comparison argument (a field if any)
-      r          the right comparison argument (a const of any)
+  @param    l          the left comparison argument (a field if any)
+  @param    r          the right comparison argument (a const of any)
   
-  DESCRIPTION    
-    Checks if an equality predicate can be used to take away 
-    DISTINCT/GROUP BY because it is known to be true for exactly one 
-    distinct value (e.g. <expr> == <const>).
-    Arguments must be of the same type because e.g. 
-    <string_field> = <int_const> may match more than 1 distinct value from 
-    the column. 
-    We must take into consideration and the optimization done for various 
-    string constants when compared to dates etc (see Item_int_with_ref) as
-    well as the collation of the arguments.
+  @details
+  Checks if an equality predicate can be used to take away 
+  DISTINCT/GROUP BY because it is known to be true for exactly one 
+  distinct value (e.g. <expr> == <const>).
+  Arguments must be of the same type because e.g. 
+  <string_field> = <int_const> may match more than 1 distinct value from 
+  the column.
+  Additionally, strings must have the same collation.
+  Or the *field* must be a datetime - if the constant is a datetime
+  and a field is not - this is not enough, consider:
+    create table t1 (a varchar(100));
+    insert t1 values ('2010-01-02'), ('2010-1-2'), ('20100102');
+    select distinct t1 from t1 where a=date('2010-01-02');
   
-  RETURN VALUE  
-    TRUE    can be used
-    FALSE   cannot be used
+  @retval true    can be used
+  @retval false   cannot be used
 */
 static bool
 test_if_equality_guarantees_uniqueness(Item *l, Item *r)
 {
   return r->const_item() &&
-    /* elements must be compared as dates */
+    /* the field is a date (the const will be converted to a date) */
      (l->cmp_type() == TIME_RESULT ||
-      /* or of the same result type */
+      /* or arguments are of the same result type */
       (r->result_type() == l->result_type() &&
        /* and must have the same collation if compared as strings */
        (l->result_type() != STRING_RESULT ||

@@ -1015,6 +1015,7 @@ public:
       when_sec_part= thd->start_time_sec_part;
       return when;
     }
+    /* thd will only be 0 here at time of log creation */
     if ((tmp_thd= current_thd))
     {
       when= tmp_thd->start_time;

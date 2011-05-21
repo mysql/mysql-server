@@ -3041,6 +3041,11 @@ public:
   bool cache_value();
   bool get_date(MYSQL_TIME *ltime, uint fuzzydate);
   int save_in_field(Field *field, bool no_conversions);
+  /*
+    Having a clone_item method tells optimizer that this object
+    is a constant and need not be optimized further.
+    Important when storing packed datetime values.
+  */
   Item *clone_item()
   {
     Item_cache_int *item= new Item_cache_int(cached_field_type);

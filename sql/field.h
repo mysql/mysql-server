@@ -1137,7 +1137,7 @@ public:
       Field::set_default();
   }
   /* Get TIMESTAMP field value as seconds since begging of Unix Epoch */
-  virtual long get_timestamp(ulong *sec_part) const;
+  virtual my_time_t get_timestamp(ulong *sec_part) const;
   virtual void store_TIME(my_time_t timestamp, ulong sec_part)
   {
     int4store(ptr,timestamp);
@@ -1172,7 +1172,7 @@ public:
     DBUG_ASSERT(dec <= TIME_SECOND_PART_DIGITS);
   }
   void sql_type(String &str) const;
-  long get_timestamp(ulong *sec_part) const;
+  my_time_t get_timestamp(ulong *sec_part) const;
   void store_TIME(my_time_t timestamp, ulong sec_part);
   int store_decimal(const my_decimal *d);
   double val_real(void);

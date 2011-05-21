@@ -7106,6 +7106,7 @@ Item_cache* Item_cache::get_cache(const Item *item, const Item_result type)
   case ROW_RESULT:
     return new Item_cache_row();
   case TIME_RESULT:
+    /* this item will store a packed datetime value as an integer */
     return new Item_cache_int(MYSQL_TYPE_DATETIME);
   }
   return 0;
