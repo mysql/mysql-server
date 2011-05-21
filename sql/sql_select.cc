@@ -2960,6 +2960,7 @@ make_join_statistics(JOIN *join, List<TABLE_LIST> &tables_list,
     table->reginfo.not_exists_optimize=0;
     bzero((char*) table->const_key_parts, sizeof(key_part_map)*table->s->keys);
     all_table_map|= table->map;
+    s->preread_init_done= FALSE;
     s->join=join;
     s->info=0;					// For describe
 
@@ -3387,13 +3388,6 @@ make_join_statistics(JOIN *join, List<TABLE_LIST> &tables_list,
     {
       if (choose_plan(join, all_table_map & ~join->const_table_map))
         goto error;
-      /*
-        Calculate estimated number of rows for materialized derived
-        table/view.
-      */
-      for (i= 0; i < join->tables ; i++)
-        records*= join->best_positions[i].records_read ?
-                  (ha_rows)join->best_positions[i].records_read : 1;
     }
     else
     {
@@ -3403,8 +3397,18 @@ make_join_statistics(JOIN *join, List<TABLE_LIST> &tables_list,
       join->best_read=1.0;
     }
   
-    if (unit->derived && unit->derived->is_materialized_derived())
+    if (!(join->select_options & SELECT_DESCRIBE) &&
+        unit->derived && unit->derived->is_materialized_derived())
+    {
+      /*
+        Calculate estimated number of rows for materialized derived
+        table/view.
+      */
+      for (i= 0; i < join->tables ; i++)
+        records*= join->best_positions[i].records_read ?
+                  (ha_rows)join->best_positions[i].records_read : 1;
       join->select_lex->increase_derived_records(records);
+    }
   }
 
   if (join->choose_subquery_plan(all_table_map & ~join->const_table_map))
@@ -4581,11 +4585,11 @@ static bool sort_and_filter_keyuse(DYNAMIC_ARRAY *keyuse)
   my_qsort(keyuse->buffer, keyuse->elements, sizeof(KEYUSE),
            (qsort_cmp) sort_keyuse);
 
-  generate_derived_keys(keyuse);
-
   bzero((char*) &key_end, sizeof(key_end));    /* Add for easy testing */
   if (insert_dynamic(keyuse, (uchar*) &key_end))
     return TRUE;
+
+  generate_derived_keys(keyuse);
 
   use= save_pos= dynamic_element(keyuse,0,KEYUSE*);
   prev= &key_end;
@@ -6992,6 +6996,7 @@ JOIN::make_simple_join(JOIN *parent, TABLE *temp_table)
   join_tab->ref.key = -1;
   join_tab->not_used_in_distinct=0;
   join_tab->read_first_record= join_init_read_record;
+  join_tab->preread_init_done= FALSE;
   join_tab->join= this;
   join_tab->ref.key_parts= 0;
   join_tab->keep_current_rowid= FALSE;
@@ -7861,10 +7866,11 @@ bool generate_derived_keys(DYNAMIC_ARRAY *keyuse_array)
       }
       count++;
       keyuse++;
-      i++;
       if (keyuse->table != prev_table &&
           generate_derived_keys_for_table(first_table_keyuse, count, ++keys))
         return TRUE;
+      if (++i == elements)
+        break;
     }
   }
   return FALSE;
@@ -8880,6 +8886,7 @@ void JOIN_TAB::cleanup()
   {
     table->disable_keyread();
     table->file->ha_index_or_rnd_end();
+    preread_init_done= FALSE;
     /*
       We need to reset this for next select
       (Tested in part_of_refkey)

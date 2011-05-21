@@ -684,7 +684,7 @@ SET SESSION sql_safe_updates = DEFAULT;
 CREATE FUNCTION f1 () RETURNS BLOB RETURN 1;
 CREATE TABLE t1 (f1 DATE);
 INSERT INTO t1 VALUES('2001-01-01');
-# !!! This query crashes the server due to a bug in the code of mwl106
+# !!! This query returns a wrong error due to a bug in the code of mwl106
 # !!! Uncomment it when the bug is fixed
 # UPDATE (SELECT 1 FROM t1 WHERE f1 = (SELECT f1() FROM t1)) x, t1 SET f1 = 1;
 DROP FUNCTION f1;
