@@ -1,4 +1,4 @@
-set timestamp=unix_timestamp('2011-01-01 01:01:01') + 0.123456, time_zone='+03:00';
+set timestamp=unix_timestamp('2011-01-01 01:01:01.123456'), time_zone='+03:00';
 select sec_to_time(12345), sec_to_time(12345.6789), sec_to_time(1234567e-2);
 sec_to_time(12345)	03:25:45
 sec_to_time(12345.6789)	03:25:45.6789
@@ -31,7 +31,7 @@ create table t1 select sec_to_time(12345), sec_to_time(12345.6789),
 sec_to_time(1234567e-2), now(), curtime(0),
 utc_timestamp(1), utc_time(2), current_time(3),
 current_timestamp(4), localtime(5), localtimestamp(6),
-time_to_sec('12:34:56'), time_to_sec('12:34:56.789');
+time_to_sec(123456), time_to_sec('12:34:56.789');
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
@@ -46,7 +46,7 @@ t1	CREATE TABLE `t1` (
   `current_timestamp(4)` datetime(4) NOT NULL DEFAULT '0000-00-00 00:00:00.0000',
   `localtime(5)` datetime(5) NOT NULL DEFAULT '0000-00-00 00:00:00.00000',
   `localtimestamp(6)` datetime(6) NOT NULL DEFAULT '0000-00-00 00:00:00.000000',
-  `time_to_sec('12:34:56')` double DEFAULT NULL,
+  `time_to_sec(123456)` bigint(17) DEFAULT NULL,
   `time_to_sec('12:34:56.789')` double DEFAULT NULL
 ) ENGINE=MyISAM DEFAULT CHARSET=latin1
 select * from t1;
@@ -61,9 +61,19 @@ current_time(3)	01:01:01.123
 current_timestamp(4)	2011-01-01 01:01:01.1234
 localtime(5)	2011-01-01 01:01:01.12345
 localtimestamp(6)	2011-01-01 01:01:01.123456
-time_to_sec('12:34:56')	45296
+time_to_sec(123456)	45296
 time_to_sec('12:34:56.789')	45296.789
 drop table t1;
+select unix_timestamp('2011-01-01 01:01:01'), unix_timestamp('2011-01-01 01:01:01.123456'), unix_timestamp(cast('2011-01-01 01:01:01.123456' as datetime(0))), unix_timestamp(cast('2011-01-01 01:01:01.123456' as datetime(4)));;
+unix_timestamp('2011-01-01 01:01:01')	1293832861
+unix_timestamp('2011-01-01 01:01:01.123456')	1293832861.12346
+unix_timestamp(cast('2011-01-01 01:01:01.123456' as datetime(0)))	1293832861
+unix_timestamp(cast('2011-01-01 01:01:01.123456' as datetime(4)))	1293832861.1235
+select from_unixtime(unix_timestamp('2011/1/1 1:1:1')), from_unixtime(unix_timestamp('2011/1/1 1:1:1.123456')), from_unixtime(unix_timestamp(cast('2011/1/1 1:1:1.123456' as datetime(0)))), from_unixtime(unix_timestamp(cast('2011/1/1 1:1:1.123456' as datetime(4))));;
+from_unixtime(unix_timestamp('2011/1/1 1:1:1'))	2011-01-01 01:01:01
+from_unixtime(unix_timestamp('2011/1/1 1:1:1.123456'))	2011-01-01 01:01:01.123456
+from_unixtime(unix_timestamp(cast('2011/1/1 1:1:1.123456' as datetime(0))))	2011-01-01 01:01:01
+from_unixtime(unix_timestamp(cast('2011/1/1 1:1:1.123456' as datetime(4))))	2011-01-01 01:01:01.1234
 select sec_to_time(3020399.99999), sec_to_time(3020399.999999), sec_to_time(3020399.9999999);
 sec_to_time(3020399.99999)	sec_to_time(3020399.999999)	sec_to_time(3020399.9999999)
 838:59:59.99998	838:59:59.999999	838:59:59.999999

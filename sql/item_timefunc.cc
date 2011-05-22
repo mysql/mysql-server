@@ -1176,26 +1176,23 @@ longlong Item_func_year::val_int_endpoint(bool left_endp, bool *incl_endp)
 }
 
 
-longlong Item_func_unix_timestamp::val_int()
+bool Item_func_unix_timestamp::get_timestamp_value(my_time_t *seconds,
+                                                   ulong *second_part)
 {
-  MYSQL_TIME ltime;
-  uint not_used;
-  
   DBUG_ASSERT(fixed == 1);
-  if (arg_count == 0)
-    return (longlong) current_thd->query_start();
   if (args[0]->type() == FIELD_ITEM)
   {						// Optimize timestamp field
     Field *field=((Item_field*) args[0])->field;
     if (field->type() == MYSQL_TYPE_TIMESTAMP)
     {
       if ((null_value= field->is_null()))
-        return 0;
-      ulong unused;
-      return ((Field_timestamp*) field)->get_timestamp(&unused);
+        return 1;
+      *seconds= ((Field_timestamp*)field)->get_timestamp(second_part);
+      return 0;
     }
   }
-  
+
+  MYSQL_TIME ltime;
   if (get_arg0_date(&ltime, 0))
   {
     /*
@@ -1204,14 +1201,53 @@ longlong Item_func_unix_timestamp::val_int()
       this case).
     */
     null_value= args[0]->null_value;
-    return 0;
+    return 1;
   }
-  
-  return (longlong) TIME_to_timestamp(current_thd, &ltime, &not_used);
+
+  uint not_used;
+  *seconds= TIME_to_timestamp(current_thd, &ltime, &not_used);
+  *second_part= ltime.second_part;
+  return 0;
 }
 
 
-double Item_func_time_to_sec::val_real()
+longlong Item_func_unix_timestamp::int_op()
+{
+  if (arg_count == 0)
+    return (longlong) current_thd->query_start();
+  
+  ulong second_part;
+  my_time_t seconds;
+  if (get_timestamp_value(&seconds, &second_part))
+    return 0;
+
+  return seconds;
+}
+
+
+double Item_func_unix_timestamp::real_op()
+{
+  ulong second_part;
+  my_time_t seconds;
+  if (get_timestamp_value(&seconds, &second_part))
+    return 0;
+
+  return seconds + second_part/(double)TIME_SECOND_PART_FACTOR;
+}
+
+
+longlong Item_func_time_to_sec::int_op()
+{
+  DBUG_ASSERT(fixed == 1);
+  MYSQL_TIME ltime;
+  longlong seconds;
+  (void) get_arg0_time(&ltime);
+  seconds=ltime.hour*3600L+ltime.minute*60+ltime.second;
+  return ltime.neg ? -seconds : seconds;
+}
+
+
+double Item_func_time_to_sec::real_op()
 {
   DBUG_ASSERT(fixed == 1);
   MYSQL_TIME ltime;
@@ -1797,6 +1833,7 @@ void Item_func_from_unixtime::fix_length_and_dec()
   thd= current_thd;
   maybe_null= 1;
   thd->time_zone_used= 1;
+  decimals= args[0]->decimals;
   Item_temporal_func::fix_length_and_dec();
 }
 
@@ -1804,17 +1841,15 @@ void Item_func_from_unixtime::fix_length_and_dec()
 bool Item_func_from_unixtime::get_date(MYSQL_TIME *ltime,
 				       uint fuzzy_date __attribute__((unused)))
 {
-  ulonglong tmp= (ulonglong)(args[0]->val_int());
-  /*
-    "tmp > TIMESTAMP_MAX_VALUE" check also covers case of negative
-    from_unixtime() argument since tmp is unsigned.
-  */
-  if ((null_value= (args[0]->null_value || tmp > TIMESTAMP_MAX_VALUE)))
-    return 1;
+  double tmp= args[0]->val_real();
+  if (args[0]->null_value || tmp < 0 || tmp > TIMESTAMP_MAX_VALUE)
+    return (null_value= 1);
 
   thd->variables.time_zone->gmt_sec_to_TIME(ltime, (my_time_t)tmp);
 
-  return 0;
+  ltime->second_part= (ulong)((tmp - floor(tmp))*TIME_SECOND_PART_FACTOR);
+
+  return (null_value= 0);
 }
 
 

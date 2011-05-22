@@ -1,5 +1,5 @@
 
-set timestamp=unix_timestamp('2011-01-01 01:01:01') + 0.123456, time_zone='+03:00';
+set timestamp=unix_timestamp('2011-01-01 01:01:01.123456'), time_zone='+03:00';
 
 --vertical_results
 select sec_to_time(12345), sec_to_time(12345.6789), sec_to_time(1234567e-2);
@@ -22,10 +22,13 @@ create table t1 select sec_to_time(12345), sec_to_time(12345.6789),
                        sec_to_time(1234567e-2), now(), curtime(0),
                        utc_timestamp(1), utc_time(2), current_time(3),
                        current_timestamp(4), localtime(5), localtimestamp(6),
-                       time_to_sec('12:34:56'), time_to_sec('12:34:56.789');
+                       time_to_sec(123456), time_to_sec('12:34:56.789');
 show create table t1;
 --query_vertical select * from t1
 drop table t1;
+
+--query_vertical select unix_timestamp('2011-01-01 01:01:01'), unix_timestamp('2011-01-01 01:01:01.123456'), unix_timestamp(cast('2011-01-01 01:01:01.123456' as datetime(0))), unix_timestamp(cast('2011-01-01 01:01:01.123456' as datetime(4)));
+--query_vertical select from_unixtime(unix_timestamp('2011/1/1 1:1:1')), from_unixtime(unix_timestamp('2011/1/1 1:1:1.123456')), from_unixtime(unix_timestamp(cast('2011/1/1 1:1:1.123456' as datetime(0)))), from_unixtime(unix_timestamp(cast('2011/1/1 1:1:1.123456' as datetime(4))));
 
 select sec_to_time(3020399.99999), sec_to_time(3020399.999999), sec_to_time(3020399.9999999);
 select sec_to_time(-3020399.99999), sec_to_time(-3020399.999999), sec_to_time(-3020399.9999999);

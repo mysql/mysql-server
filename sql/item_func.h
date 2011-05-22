@@ -242,6 +242,8 @@ class Item_func_numhybrid: public Item_func
 protected:
   Item_result hybrid_type;
 public:
+  Item_func_numhybrid() :Item_func(), hybrid_type(REAL_RESULT)
+  {}
   Item_func_numhybrid(Item *a) :Item_func(a), hybrid_type(REAL_RESULT)
   {}
   Item_func_numhybrid(Item *a,Item *b)

@@ -297,15 +297,37 @@ class Item_func_dayname :public Item_func_weekday
 };
 
 
-class Item_func_unix_timestamp :public Item_int_func
+class Item_func_seconds_hybrid: public Item_func_numhybrid
 {
-  String value;
 public:
-  Item_func_unix_timestamp() :Item_int_func() {}
-  Item_func_unix_timestamp(Item *a) :Item_int_func(a) {}
-  longlong val_int();
+  Item_func_seconds_hybrid() :Item_func_numhybrid() {}
+  Item_func_seconds_hybrid(Item *a) :Item_func_numhybrid(a) {}
+  void fix_num_length_and_dec()
+  {
+    if (arg_count)
+      decimals= args[0]->decimals;
+    if (decimals != NOT_FIXED_DEC)
+      set_if_smaller(decimals, TIME_SECOND_PART_DIGITS);
+    max_length=17 + (decimals ? decimals + 1 : 0);
+  }
+  void find_num_type() { hybrid_type= decimals ? REAL_RESULT : INT_RESULT; }
+  my_decimal *decimal_op(my_decimal* buf) { DBUG_ASSERT(0); return 0; }
+  String *str_op(String *str) { DBUG_ASSERT(0); return 0; }
+};
+
+class Item_func_unix_timestamp :public Item_func_seconds_hybrid
+{
+  bool get_timestamp_value(my_time_t *seconds, ulong *second_part);
+public:
+  Item_func_unix_timestamp() :Item_func_seconds_hybrid() {}
+  Item_func_unix_timestamp(Item *a) :Item_func_seconds_hybrid(a) {}
   const char *func_name() const { return "unix_timestamp"; }
   bool check_partition_func_processor(uchar *int_arg) {return FALSE;}
+  void fix_num_length_and_dec()
+  {
+    maybe_null= false;
+    Item_func_seconds_hybrid::fix_num_length_and_dec();
+  }
   /*
     UNIX_TIMESTAMP() depends on the current timezone
     (and thus may not be used as a partitioning function)
@@ -315,29 +337,24 @@ public:
   {
     return !has_timestamp_args();
   }
-  void fix_length_and_dec()
-  {
-    decimals=0;
-    max_length=10*MY_CHARSET_BIN_MB_MAXLEN;
-  }
+  longlong int_op();
+  double real_op();
 };
 
 
-class Item_func_time_to_sec :public Item_real_func
+class Item_func_time_to_sec :public Item_func_seconds_hybrid
 {
 public:
-  Item_func_time_to_sec(Item *item) :Item_real_func(item) {}
+  Item_func_time_to_sec(Item *item) :Item_func_seconds_hybrid(item) {}
   const char *func_name() const { return "time_to_sec"; }
-  double val_real();
-  void fix_length_and_dec()
+  void fix_num_length_and_dec()
   {
-    maybe_null= TRUE;
-    decimals= args[0]->decimals;
-    if (decimals != NOT_FIXED_DEC)
-      set_if_smaller(decimals, TIME_SECOND_PART_DIGITS);
-    max_length=17;
+    maybe_null= true;
+    Item_func_seconds_hybrid::fix_num_length_and_dec();
   }
   bool check_partition_func_processor(uchar *int_arg) {return FALSE;}
+  longlong int_op();
+  double real_op();
 };
 
 
