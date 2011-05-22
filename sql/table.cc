@@ -3797,7 +3797,6 @@ bool TABLE_LIST::prep_check_option(THD *thd, uint8 check_opt_type)
 
     if (where)
     {
-      DBUG_ASSERT(where->fixed);
       check_option= where->copy_andor_structure(thd);
     }
     if (is_cascaded)

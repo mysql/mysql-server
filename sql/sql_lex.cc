@@ -1672,6 +1672,7 @@ void st_select_lex::init_select()
   cond_value= having_value= Item::COND_UNDEF;
   inner_refs_list.empty();
   full_group_by_flag= 0;
+  insert_tables= 0;
   merged_into= 0;
 }
 

@@ -4165,6 +4165,7 @@ subselect_hash_sj_engine::make_unique_engine()
     DBUG_RETURN(NULL);
 
   tab->table= tmp_table;
+  tab->preread_init_done= FALSE;
   tab->ref.tmp_table_index_lookup_init(thd, tmp_key, it, FALSE);
 
   DBUG_RETURN(new subselect_uniquesubquery_engine(thd, tab, item,
