@@ -856,7 +856,8 @@ fil_node_close_file(
 	ut_a(node->open);
 	ut_a(node->n_pending == 0);
 	ut_a(node->n_pending_flushes == 0);
-	ut_a(node->modification_counter == node->flush_counter);
+	ut_a(node->modification_counter == node->flush_counter
+	     || srv_fast_shutdown == 2);
 
 	ret = os_file_close(node->handle);
 	ut_a(ret);
