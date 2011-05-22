@@ -2941,7 +2941,7 @@ row_truncate_table_for_mysql(
 		rec = btr_pcur_get_rec(&pcur);
 
 		if (root_page_no != FIL_NULL) {
-			page_rec_write_index_page_no(
+			page_rec_write_field(
 				rec, DICT_SYS_INDEXES_PAGE_NO_FIELD,
 				root_page_no, &mtr);
 			/* We will need to commit and restart the
