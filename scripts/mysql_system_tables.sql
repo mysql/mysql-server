@@ -135,6 +135,14 @@ PREPARE stmt FROM @str;
 EXECUTE stmt;
 DROP PREPARE stmt;
 
+# Set NDBINFO in offline mode during (re)create of tables
+# and views to avoid errors caused by no such table or
+# different table definition in NDB
+SET @str=IF(@have_ndbinfo,'SET @@global.ndbinfo_offline=TRUE','SET @dummy = 0');
+PREPARE stmt FROM @str;
+EXECUTE stmt;
+DROP PREPARE stmt;
+
 # Drop any old views in ndbinfo
 SET @str=IF(@have_ndbinfo,'DROP VIEW IF EXISTS ndbinfo.transporters','SET @dummy = 0');
 PREPARE stmt FROM @str;
@@ -374,6 +382,12 @@ DROP PREPARE stmt;
 
 # ndbinfo.diskpagebuffer
 SET @str=IF(@have_ndbinfo,'CREATE OR REPLACE SQL SECURITY INVOKER VIEW `ndbinfo`.`diskpagebuffer` AS SELECT node_id, block_instance, pages_written, pages_written_lcp, pages_read, log_waits, page_requests_direct_return, page_requests_wait_queue, page_requests_wait_io FROM ndbinfo.ndb$diskpagebuffer','SET @dummy = 0');
+PREPARE stmt FROM @str;
+EXECUTE stmt;
+DROP PREPARE stmt;
+
+# Finally turn off offline mode
+SET @str=IF(@have_ndbinfo,'SET @@global.ndbinfo_offline=FALSE','SET @dummy = 0');
 PREPARE stmt FROM @str;
 EXECUTE stmt;
 DROP PREPARE stmt;
