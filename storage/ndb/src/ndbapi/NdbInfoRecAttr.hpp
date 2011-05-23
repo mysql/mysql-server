@@ -46,13 +46,18 @@ public:
     return m_len;
   }
 
+  bool isNULL() const {
+    return !m_defined;
+  }
+
 protected:
   friend class NdbInfoScanOperation;
-  NdbInfoRecAttr() : m_data(NULL), m_len(0) {};
+  NdbInfoRecAttr() : m_data(NULL), m_len(0), m_defined(false) {};
   ~NdbInfoRecAttr() {};
 private:
   const char* m_data;
   Uint32 m_len;
+  bool m_defined;
 };
 
 #endif
