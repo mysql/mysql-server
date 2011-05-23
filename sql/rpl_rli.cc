@@ -1258,6 +1258,16 @@ void Relay_log_info::clear_tables_to_lock()
       tables_to_lock->m_tabledef.table_def::~table_def();
       tables_to_lock->m_tabledef_valid= FALSE;
     }
+
+    /*
+      If blob fields were used during conversion of field values 
+      from the master table into the slave table, then we need to 
+      free the memory used temporarily to store their values before
+      copying into the slave's table.
+    */
+    if (tables_to_lock->m_conv_table)
+      free_blobs(tables_to_lock->m_conv_table);
+
     tables_to_lock=
       static_cast<RPL_TABLE_LIST*>(tables_to_lock->next_global);
     tables_to_lock_count--;
