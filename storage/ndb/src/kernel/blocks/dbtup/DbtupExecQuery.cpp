@@ -2914,7 +2914,7 @@ int Dbtup::interpreterNextLab(Signal* signal,
 	    {
 	      return TUPKEY_abort(req_struct, 40);
 	    }
-            res1 = (*sqlType.m_cmp)(cs, s1, attrLen, s2, argLen, true);
+            res1 = (*sqlType.m_cmp)(cs, s1, attrLen, s2, argLen);
           }
 	} else {
           if ((cond == Interpreter::LIKE) ||
