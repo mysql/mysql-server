@@ -49,22 +49,18 @@ Dbtux::statRecordsInRange(ScanOpPtr scanPtr, Uint32* out)
 {
   ScanOp& scan = *scanPtr.p;
   Frag& frag = *c_fragPool.getPtr(scan.m_fragPtrI);
+  const Index& index = *c_indexPool.getPtr(frag.m_indexId);
   TreeHead& tree = frag.m_tree;
   // get first and last position
   TreePos pos1 = scan.m_scanPos;
   TreePos pos2;
   { // as in scanFirst()
-    setKeyAttrs(c_ctx, frag);
     const unsigned idir = 1;
-    const ScanBound& bound = *scan.m_bound[idir];
-    ScanBoundIterator iter;
-    bound.first(iter);
-    for (unsigned j = 0; j < bound.getSize(); j++) {
-      jam();
-      c_dataBuffer[j] = *iter.data;
-      bound.next(iter);
-    }
-    searchToScan(frag, c_dataBuffer, scan.m_boundCnt[idir], true, pos2);
+    const ScanBound& scanBound = scan.m_scanBound[idir];
+    KeyDataC searchBoundData(index.m_keySpec, true);
+    KeyBoundC searchBound(searchBoundData);
+    unpackBound(c_ctx, scanBound, searchBound);
+    searchToScan(frag, idir, searchBound, pos2);
     // committed read (same timeslice) and range not empty
     ndbrequire(pos2.m_loc != NullTupLoc);
   }

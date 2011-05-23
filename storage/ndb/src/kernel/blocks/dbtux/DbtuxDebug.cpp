@@ -211,6 +211,7 @@ Dbtux::printNode(TuxCtx & ctx,
     par.m_depth = 0;
     return;
   }
+  const Index& index = *c_indexPool.getPtr(frag.m_indexId);
   TreeHead& tree = frag.m_tree;
   NodeHandle node(frag);
   selectNode(node, loc);
@@ -283,33 +284,34 @@ Dbtux::printNode(TuxCtx & ctx,
   }
 #endif
   // check inline prefix
-  { ConstData data1 = node.getPref();
+  {
+    KeyDataC keyData1(index.m_keySpec, false);
+    const Uint32* data1 = node.getPref();
+    keyData1.set_buf(data1, index.m_prefBytes, index.m_prefAttrs);
+    KeyData keyData2(index.m_keySpec, false, 0);
     Uint32 data2[MaxPrefSize];
-    memset(data2, DataFillByte, MaxPrefSize << 2);
-    readKeyAttrs(ctx, frag, node.getEnt(0), 0, ctx.c_searchKey);
-    copyAttrs(ctx, frag, ctx.c_searchKey, data2, tree.m_prefSize);
-    for (unsigned n = 0; n < tree.m_prefSize; n++) {
-      if (data1[n] != data2[n]) {
-        par.m_ok = false;
-        out << par.m_path << sep;
-        out << "inline prefix mismatch word " << n;
-        out << " value " << hex << data1[n];
-        out << " should be " << hex << data2[n] << endl;
-        break;
-      }
+    keyData2.set_buf(data2, MaxPrefSize << 2);
+    readKeyAttrs(ctx, frag, node.getEnt(0), keyData2, index.m_prefAttrs);
+    if (cmpSearchKey(ctx, keyData1, keyData2, index.m_prefAttrs) != 0) {
+      par.m_ok = false;
+      out << par.m_path << sep;
+      out << "inline prefix mismatch" << endl;
     }
   }
   // check ordering within node
   for (unsigned j = 1; j < node.getOccup(); j++) {
     const TreeEnt ent1 = node.getEnt(j - 1);
     const TreeEnt ent2 = node.getEnt(j);
-    unsigned start = 0;
-    readKeyAttrs(ctx, frag, ent1, start, ctx.c_searchKey);
-    readKeyAttrs(ctx, frag, ent2, start, ctx.c_entryKey);
-    int ret = cmpSearchKey(ctx, frag, start, ctx.c_searchKey, ctx.c_entryKey);
+    KeyData entryKey1(index.m_keySpec, false, 0);
+    KeyData entryKey2(index.m_keySpec, false, 0);
+    entryKey1.set_buf(ctx.c_searchKey, MaxAttrDataSize << 2);
+    entryKey2.set_buf(ctx.c_entryKey, MaxAttrDataSize << 2);
+    readKeyAttrs(ctx, frag, ent1, entryKey1, index.m_numAttrs);
+    readKeyAttrs(ctx, frag, ent2, entryKey2, index.m_numAttrs);
+    int ret = cmpSearchKey(ctx, entryKey1, entryKey2, index.m_numAttrs);
     if (ret == 0)
       ret = ent1.cmp(ent2);
-    if (ret != -1) {
+    if (! (ret < 0)) {
       par.m_ok = false;
       out << par.m_path << sep;
       out << " disorder within node at pos " << j << endl;
@@ -322,13 +324,17 @@ Dbtux::printNode(TuxCtx & ctx,
     const TreeEnt ent1 = cpar[i].m_minmax[1 - i];
     const unsigned pos = (i == 0 ? 0 : node.getOccup() - 1);
     const TreeEnt ent2 = node.getEnt(pos);
-    unsigned start = 0;
-    readKeyAttrs(ctx, frag, ent1, start, ctx.c_searchKey);
-    readKeyAttrs(ctx, frag, ent2, start, ctx.c_entryKey);
-    int ret = cmpSearchKey(ctx, frag, start, ctx.c_searchKey, ctx.c_entryKey);
+    KeyData entryKey1(index.m_keySpec, false, 0);
+    KeyData entryKey2(index.m_keySpec, false, 0);
+    entryKey1.set_buf(ctx.c_searchKey, MaxAttrDataSize << 2);
+    entryKey2.set_buf(ctx.c_entryKey, MaxAttrDataSize << 2);
+    readKeyAttrs(ctx, frag, ent1, entryKey1, index.m_numAttrs);
+    readKeyAttrs(ctx, frag, ent2, entryKey2, index.m_numAttrs);
+    int ret = cmpSearchKey(ctx, entryKey1, entryKey2, index.m_numAttrs);
     if (ret == 0)
       ret = ent1.cmp(ent2);
-    if (ret != (i == 0 ? -1 : +1)) {
+    if (i == 0 && ! (ret < 0) ||
+        i == 1 && ! (ret > 0)) {
       par.m_ok = false;
       out << par.m_path << sep;
       out << " disorder wrt subtree " << i << endl;
@@ -406,17 +412,6 @@ operator<<(NdbOut& out, const Dbtux::TreePos& pos)
 }
 
 NdbOut&
-operator<<(NdbOut& out, const Dbtux::DescAttr& descAttr)
-{
-  out << "[DescAttr " << hex << &descAttr;
-  out << " [attrDesc " << hex << descAttr.m_attrDesc;
-  out << " [primaryAttrId " << dec << descAttr.m_primaryAttrId << "]";
-  out << " [typeId " << dec << descAttr.m_typeId << "]";
-  out << "]";
-  return out;
-}
-
-NdbOut&
 operator<<(NdbOut& out, const Dbtux::ScanOp& scan)
 {
   Dbtux* tux = (Dbtux*)globalData.getBlock(DBTUX);
@@ -447,17 +442,15 @@ operator<<(NdbOut& out, const Dbtux::ScanOp& scan)
   out << " [pos " << scan.m_scanPos << "]";
   out << " [ent " << scan.m_scanEnt << "]";
   for (unsigned i = 0; i <= 1; i++) {
-    out << " [bound " << dec << i;
-    Dbtux::ScanBound& bound = *scan.m_bound[i];
-    Dbtux::ScanBoundIterator iter;
-    bound.first(iter);
-    for (unsigned j = 0; j < bound.getSize(); j++) {
-      out << " " << hex << *iter.data;
-      bound.next(iter);
-    }
+    const Dbtux::ScanBound scanBound = scan.m_scanBound[i];
+    const Dbtux::Index& index = *tux->c_indexPool.getPtr(scan.m_indexId);
+    Dbtux::KeyDataC keyBoundData(index.m_keySpec, true);
+    Dbtux::KeyBoundC keyBound(keyBoundData);
+    tux->unpackBound(tux->c_ctx, scanBound, keyBound);
+    out << " [scanBound " << dec << i;
+    out << " " << keyBound.print(tux->c_ctx.c_debugBuffer, Dbtux::DebugBufferBytes);
     out << "]";
   }
-  out << "]";
   return out;
 }
 
@@ -477,6 +470,8 @@ operator<<(NdbOut& out, const Dbtux::Index& index)
   out << " [descPage " << hex << index.m_descPage << "]";
   out << " [descOff " << dec << index.m_descOff << "]";
   out << " [numAttrs " << dec << index.m_numAttrs << "]";
+  out << " [prefAttrs " << dec << index.m_prefAttrs << "]";
+  out << " [prefBytes " << dec << index.m_prefBytes << "]";
   out << "]";
   return out;
 }
@@ -488,9 +483,6 @@ operator<<(NdbOut& out, const Dbtux::Frag& frag)
   out << " [tableId " << dec << frag.m_tableId << "]";
   out << " [indexId " << dec << frag.m_indexId << "]";
   out << " [fragId " << dec << frag.m_fragId << "]";
-  out << " [descPage " << hex << frag.m_descPage << "]";
-  out << " [descOff " << dec << frag.m_descOff << "]";
-  out << " [numAttrs " << dec << frag.m_numAttrs << "]";
   out << " [tree " << frag.m_tree << "]";
   out << "]";
   return out;

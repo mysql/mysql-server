@@ -131,7 +131,8 @@ Dbtup::tuxReadAttrs(EmulatedJamBuffer * jamBuf,
                     Uint32 tupVersion,
                     const Uint32* attrIds,
                     Uint32 numAttrs,
-                    Uint32* dataOut)
+                    Uint32* dataOut,
+                    bool xfrmFlag)
 {
   thrjamEntry(jamBuf);
   // use own variables instead of globals
@@ -185,7 +186,7 @@ Dbtup::tuxReadAttrs(EmulatedJamBuffer * jamBuf,
                            numAttrs,
                            dataOut,
                            ZNIL,
-                           true);
+                           xfrmFlag);
 
   // done
   return ret;

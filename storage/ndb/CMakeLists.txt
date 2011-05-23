@@ -17,6 +17,8 @@
 SET(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH}
     ${CMAKE_SOURCE_DIR}/cmake
     ${CMAKE_SOURCE_DIR}/storage/ndb/cmake)
+
+MESSAGE(STATUS "Using cmake version ${CMAKE_VERSION}")
     
 # Check if this is MySQL Cluster build i.e the MySQL Server
 # version string ends in -ndb-Y.Y.Y[-status]    

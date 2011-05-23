@@ -30,17 +30,17 @@
 #include <EventLogger.hpp>
 extern EventLogger * g_eventLogger;
 
-AsyncIoThread::AsyncIoThread(class Ndbfs& fs, AsyncFile* file)
+AsyncIoThread::AsyncIoThread(class Ndbfs& fs, bool bound)
   : m_fs(fs)
 {
-  m_current_file = file;
-  if (file)
+  m_current_file = 0;
+  if (bound)
   {
-    theMemoryChannelPtr = &theMemoryChannel;
+    theMemoryChannelPtr = &m_fs.theToBoundThreads;
   }
   else
   {
-    theMemoryChannelPtr = &m_fs.theToThreads;
+    theMemoryChannelPtr = &m_fs.theToUnboundThreads;
   }
   theReportTo = &m_fs.theFromThreads;
 }
@@ -149,13 +149,17 @@ AsyncIoThread::run()
     switch (request->action) {
     case Request::open:
       file->openReq(request);
+      if (request->error == 0 && request->m_do_bind)
+        attach(file);
       break;
     case Request::close:
       file->closeReq(request);
+      detach(file);
       break;
     case Request::closeRemove:
       file->closeReq(request);
       file->removeReq(request);
+      detach(file);
       break;
     case Request::readPartial:
     case Request::read:
@@ -264,4 +268,33 @@ AsyncIoThread::buildIndxReq(Request* request)
   req.mem_buffer = request->file->m_page_ptr.p;
   req.buffer_size = request->file->m_page_cnt * sizeof(GlobalPage);
   request->error = (* req.func_ptr)(&req);
+}
+
+void
+AsyncIoThread::attach(AsyncFile* file)
+{
+  assert(m_current_file == 0);
+  assert(theMemoryChannelPtr == &m_fs.theToBoundThreads);
+  m_current_file = file;
+  theMemoryChannelPtr = &theMemoryChannel;
+  file->attach(this);
+  m_fs.cnt_active_bound(1);
+}
+
+void
+AsyncIoThread::detach(AsyncFile* file)
+{
+  if (m_current_file == 0)
+  {
+    assert(file->getThread() == 0);
+  }
+  else
+  {
+    assert(m_current_file == file);
+    assert(theMemoryChannelPtr = &theMemoryChannel);
+    m_current_file = 0;
+    theMemoryChannelPtr = &m_fs.theToBoundThreads;
+    file->detach(this);
+    m_fs.cnt_active_bound(-1);
+  }
 }
