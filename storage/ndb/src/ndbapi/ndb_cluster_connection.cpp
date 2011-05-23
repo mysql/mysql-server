@@ -332,6 +332,11 @@ unsigned Ndb_cluster_connection::get_connect_count() const
   return m_impl.get_connect_count();
 }
 
+unsigned Ndb_cluster_connection::get_min_db_version() const
+{
+  return m_impl.get_min_db_version();
+}
+
 int Ndb_cluster_connection::get_latest_error() const
 {
   return m_impl.m_latest_error;

@@ -418,34 +418,35 @@ NdbInfoScanOperation::execDBINFO_TRANSID_AI(const SimpleSignal * signal)
   m_rows_received++;
   DBUG_PRINT("info", ("rows received: %d", m_rows_received));
 
-  const Uint32* start = signal->ptr[0].p;
-  const Uint32* end = start + signal->ptr[0].sz;
-
-  DBUG_PRINT("info", ("start: %p, end: %p", start, end));
-  for (unsigned col = 0; col < m_table->columns(); col++)
+  // Reset all recattr values before reading the new row
+  for (unsigned i = 0; i < m_recAttrs.size(); i++)
   {
+    if (m_recAttrs[i])
+      m_recAttrs[i]->m_defined = false;
+  }
 
-    // Read attribute header
-    const AttributeHeader ah(*start);
-    const Uint32 len = ah.getByteSize();
+  // Read attributes from long signal section
+  AttributeHeader* attr = (AttributeHeader*)signal->ptr[0].p;
+  AttributeHeader* last = (AttributeHeader*)(signal->ptr[0].p +
+                                            signal->ptr[0].sz);
+  while (attr < last)
+  {
+    const Uint32 col = attr->getAttributeId();
+    const Uint32 len = attr->getByteSize();
     DBUG_PRINT("info", ("col: %u, len: %u", col, len));
-
-    // Step past attribute header
-    start += ah.getHeaderSize();
-
-    NdbInfoRecAttr* attr = m_recAttrs[col];
-    if (attr)
+    if (col < m_recAttrs.size())
     {
-      // Update NdbInfoRecAttr pointer and length
-      attr->m_data = (const char*)start;
-      attr->m_len = len;
+      NdbInfoRecAttr* rec_attr = m_recAttrs[col];
+      if (rec_attr)
+      {
+        // Update NdbInfoRecAttr pointer, length and defined flag
+        rec_attr->m_data = (const char*)attr->getDataPtr();
+        rec_attr->m_len = len;
+        rec_attr->m_defined = true;
+      }
     }
 
-    // Step to next attribute header
-    start += ah.getDataSize();
-
-    // No reading beyond end of signal size
-    assert(start <= end);
+    attr = attr->getNext();
   }
 
   DBUG_RETURN(false); // Don't wait more, process this row

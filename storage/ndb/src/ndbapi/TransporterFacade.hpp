@@ -303,6 +303,12 @@ unsigned Ndb_cluster_connection_impl::get_connect_count() const
 }
 
 inline
+unsigned Ndb_cluster_connection_impl::get_min_db_version() const
+{
+  return m_transporter_facade->getMinDbNodeVersion();
+}
+
+inline
 bool
 TransporterFacade::get_node_alive(NodeId n) const {
   if (theClusterMgr)
