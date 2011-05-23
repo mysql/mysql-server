@@ -2189,7 +2189,15 @@ void free_blobs(register TABLE *table)
   for (ptr= table->s->blob_field, end=ptr + table->s->blob_fields ;
        ptr != end ;
        ptr++)
-    ((Field_blob*) table->field[*ptr])->free();
+  {
+    /*
+      Reduced TABLE objects which are used by row-based replication for
+      type conversion might have some fields missing. Skip freeing BLOB
+      buffers for such missing fields.
+    */
+    if (table->field[*ptr])
+      ((Field_blob*) table->field[*ptr])->free();
+  }
 }
 
 
