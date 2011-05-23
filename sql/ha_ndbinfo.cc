@@ -373,21 +373,36 @@ int ha_ndbinfo::open(const char *name, int mode, uint test_if_locked)
     DBUG_RETURN(err2mysql(err));
   }
 
+  /*
+    Check table def. to detect incompatible differences which should
+    return an error. Differences which only generate a warning
+    is checked on first use
+  */
   DBUG_PRINT("info", ("Comparing MySQL's table def against NDB"));
   const NdbInfo::Table* ndb_tab = m_impl.m_table;
   for (uint i = 0; i < table->s->fields; i++)
   {
     const Field* field = table->field[i];
-    const NdbInfo::Column* col = ndb_tab->getColumn(field->field_name);
-    if (!col)
+
+    // Check if field is NULLable
+    if (const_cast<Field*>(field)->real_maybe_null() == false)
     {
-      // The column didn't exist
+      // Only NULLable fields supported
       warn_incompatible(ndb_tab, true,
-                        "column '%s' does not exist",
+                        "column '%s' is NOT NULL",
                         field->field_name);
       DBUG_RETURN(ERR_INCOMPAT_TABLE_DEF);
     }
 
+    // Check if column exist in NDB
+    const NdbInfo::Column* col = ndb_tab->getColumn(field->field_name);
+    if (!col)
+    {
+      // The column didn't exist
+      continue;
+    }
+
+    // Check compatible field and column type
     bool compatible = false;
     switch(col->m_type)
     {
@@ -465,13 +480,30 @@ int ha_ndbinfo::rnd_init(bool scan)
     m_impl.m_first_use = false;
 
     /*
-      Due to different code paths in MySQL Server
-      for prepared statement protocol, some warnings
-      from 'handler::open' are lost and need to be
-      deffered to first use instead
+      Check table def. and generate warnings for incompatibilites
+      which is allowed but should generate a warning.
+      (Done this late due to different code paths in MySQL Server for
+      prepared statement protocol, where warnings from 'handler::open'
+      are lost).
     */
+    uint fields_found_in_ndb = 0;
     const NdbInfo::Table* ndb_tab = m_impl.m_table;
-    if (table->s->fields < ndb_tab->columns())
+    for (uint i = 0; i < table->s->fields; i++)
+    {
+      const Field* field = table->field[i];
+      const NdbInfo::Column* col = ndb_tab->getColumn(field->field_name);
+      if (!col)
+      {
+        // The column didn't exist
+        warn_incompatible(ndb_tab, true,
+                          "column '%s' does not exist",
+                          field->field_name);
+        continue;
+      }
+      fields_found_in_ndb++;
+    }
+
+    if (fields_found_in_ndb < ndb_tab->columns())
     {
       // There are more columns available in NDB
       warn_incompatible(ndb_tab, false,
@@ -599,7 +631,7 @@ ha_ndbinfo::unpack_record(uchar *dst_row)
   {
     Field *field = table->field[i];
     const NdbInfoRecAttr* record = m_impl.m_columns[i];
-    if (m_impl.m_columns[i])
+    if (record && !record->isNULL())
     {
       field->set_notnull();
       field->move_field_offset(dst_offset);
