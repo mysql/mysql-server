@@ -249,6 +249,7 @@ template <class T> inline T* Pool<T>::get()
    }
    --theTop;
    tmp = theList[theTop];
+   tmp->atGet();
    return tmp;
 }
 
