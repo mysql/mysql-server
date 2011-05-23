@@ -92,6 +92,45 @@ static MYSQL_SYSVAR_UINT(
   0                                 /* block */
 );
 
+static my_bool opt_ndbinfo_offline;
+
+static
+void
+offline_update(THD* thd, struct st_mysql_sys_var* var,
+               void* var_ptr, const void* save)
+{
+  DBUG_ENTER("offline_update");
+
+  const my_bool new_offline =
+    (*(static_cast<const my_bool*>(save)) != 0);
+  if (new_offline == opt_ndbinfo_offline)
+  {
+    // No change
+    DBUG_VOID_RETURN;
+  }
+
+  // Set offline mode, any tables opened from here on will
+  // be opened in the new mode
+  opt_ndbinfo_offline = new_offline;
+
+  // Close any open tables which may be in the old mode
+  (void)close_cached_tables(thd, NULL, false, true, false);
+
+  DBUG_VOID_RETURN;
+}
+
+static MYSQL_SYSVAR_BOOL(
+  offline,                          /* name */
+  opt_ndbinfo_offline,              /* var */
+  PLUGIN_VAR_NOCMDOPT,
+  "Set ndbinfo in offline mode, tables and views can "
+  "be opened even if they don't exist or have different "
+  "definition in NDB. No rows will be returned.",
+  NULL,                             /* check func. */
+  offline_update,                   /* update func. */
+  0                                 /* default */
+);
+
 
 static NdbInfo* g_ndbinfo;
 
@@ -124,10 +163,15 @@ struct ha_ndbinfo_impl
   Vector<const NdbInfoRecAttr *> m_columns;
   bool m_first_use;
 
+  // Indicates if table has been opened in offline mode
+  // can only be reset by closing the table
+  bool m_offline;
+
   ha_ndbinfo_impl() :
     m_table(NULL),
     m_scan_op(NULL),
-    m_first_use(true)
+    m_first_use(true),
+    m_offline(false)
   {
   }
 };
@@ -289,12 +333,18 @@ bool ha_ndbinfo::is_open(void) const
   return m_impl.m_table != NULL;
 }
 
+bool ha_ndbinfo::is_offline(void) const
+{
+  return m_impl.m_offline;
+}
+
 int ha_ndbinfo::open(const char *name, int mode, uint test_if_locked)
 {
   DBUG_ENTER("ha_ndbinfo::open");
   DBUG_PRINT("enter", ("name: %s, mode: %d", name, mode));
 
   assert(is_closed());
+  assert(!is_offline()); // Closed table can not be offline
 
   if (mode == O_RDWR)
   {
@@ -307,9 +357,11 @@ int ha_ndbinfo::open(const char *name, int mode, uint test_if_locked)
     DBUG_ASSERT(false);
   }
 
-  if (ndbcluster_is_disabled())
+  if (opt_ndbinfo_offline ||
+      ndbcluster_is_disabled())
   {
-    // Allow table to be opened with ndbcluster disabled
+    // Mark table as being offline and allow it to be opened
+    m_impl.m_offline = true;
     DBUG_RETURN(0);
   }
 
@@ -378,7 +430,7 @@ int ha_ndbinfo::close(void)
 {
   DBUG_ENTER("ha_ndbinfo::close");
 
-  if (ndbcluster_is_disabled())
+  if (is_offline())
     DBUG_RETURN(0);
 
   assert(is_open());
@@ -395,12 +447,13 @@ int ha_ndbinfo::rnd_init(bool scan)
   DBUG_ENTER("ha_ndbinfo::rnd_init");
   DBUG_PRINT("info", ("scan: %d", scan));
 
-  if (ndbcluster_is_disabled())
+  if (is_offline())
   {
     push_warning(current_thd, MYSQL_ERROR::WARN_LEVEL_NOTE, 1,
-                 "'NDBINFO' has been started "
-                 "in limited mode since the 'NDBCLUSTER' "
-                 "engine is disabled - no rows can be returned");
+                 "'NDBINFO' has been started in offline mode "
+                 "since the 'NDBCLUSTER' engine is disabled "
+                 "or @@global.ndbinfo_offline is turned on "
+                 "- no rows can be returned");
     DBUG_RETURN(0);
   }
 
@@ -466,7 +519,7 @@ int ha_ndbinfo::rnd_end()
 {
   DBUG_ENTER("ha_ndbinfo::rnd_end");
 
-  if (ndbcluster_is_disabled())
+  if (is_offline())
     DBUG_RETURN(0);
 
   assert(is_open());
@@ -486,7 +539,7 @@ int ha_ndbinfo::rnd_next(uchar *buf)
   int err;
   DBUG_ENTER("ha_ndbinfo::rnd_next");
 
-  if (ndbcluster_is_disabled())
+  if (is_offline())
     DBUG_RETURN(HA_ERR_END_OF_FILE);
 
   assert(is_open());
@@ -712,6 +765,7 @@ struct st_mysql_sys_var* ndbinfo_system_variables[]= {
   MYSQL_SYSVAR(database),
   MYSQL_SYSVAR(table_prefix),
   MYSQL_SYSVAR(version),
+  MYSQL_SYSVAR(offline),
 
   NULL
 };

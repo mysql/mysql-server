@@ -136,6 +136,7 @@ Variable_name	Value
 ndbinfo_database	ndbinfo
 ndbinfo_max_bytes	0
 ndbinfo_max_rows	10
+ndbinfo_offline	OFF
 ndbinfo_show_hidden	OFF
 ndbinfo_table_prefix	ndb$
 ndbinfo_version	NDB_VERSION_D
@@ -234,6 +235,58 @@ ERROR 42000: The used table type doesn't support AUTO_INCREMENT columns
 
 select distinct node_id
 from ndbinfo.diskpagebuffer;
+node_id
+1
+2
+
+set @@ndbinfo_offline=1;
+ERROR HY000: Variable 'ndbinfo_offline' is a GLOBAL variable and should be set with SET GLOBAL
+
+SELECT DISTINCT(node_id) FROM ndbinfo.counters ORDER BY node_id;
+node_id
+1
+2
+
+set @@global.ndbinfo_offline=TRUE;
+select @@ndbinfo_offline;
+@@ndbinfo_offline
+1
+
+CREATE TABLE ndb$does_not_exist_in_ndb(
+  node_id int,
+  message varchar(255)
+) ENGINE = ndbinfo;
+
+CREATE VIEW view_on_table_which_does_not_exist_in_ndb AS
+  SELECT node_id, message
+  FROM ndbinfo.ndb$does_not_exist_in_ndb;
+
+SHOW CREATE TABLE ndb$does_not_exist_in_ndb;
+Table	Create Table
+ndb$does_not_exist_in_ndb	CREATE TABLE `ndb$does_not_exist_in_ndb` (
+  `node_id` int(11) DEFAULT NULL,
+  `message` varchar(255) DEFAULT NULL
+) ENGINE=NDBINFO DEFAULT CHARSET=latin1
+
+SELECT * FROM view_on_table_which_does_not_exist_in_ndb;
+node_id	message
+Warnings:
+Note	1	'NDBINFO' has been started in offline mode since the 'NDBCLUSTER' engine is disabled or @@global.ndbinfo_offline is turned on - no rows can be returned
+SELECT * FROM ndb$does_not_exist_in_ndb;
+node_id	message
+Warnings:
+Note	1	'NDBINFO' has been started in offline mode since the 'NDBCLUSTER' engine is disabled or @@global.ndbinfo_offline is turned on - no rows can be returned
+SELECT DISTINCT(node_id) FROM ndbinfo.counters ORDER BY node_id;
+node_id
+Warnings:
+Note	1	'NDBINFO' has been started in offline mode since the 'NDBCLUSTER' engine is disabled or @@global.ndbinfo_offline is turned on - no rows can be returned
+
+DROP VIEW view_on_table_which_does_not_exist_in_ndb;
+DROP TABLE ndb$does_not_exist_in_ndb;
+
+set @@global.ndbinfo_offline = FALSE;
+
+SELECT DISTINCT(node_id) FROM ndbinfo.counters ORDER BY node_id;
 node_id
 1
 2
