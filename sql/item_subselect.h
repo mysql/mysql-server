@@ -464,7 +464,7 @@ public:
   Item_in_subselect()
     :Item_exists_subselect(), left_expr_cache(0), first_execution(TRUE),
     optimizer(0), abort_on_null(0),
-    pushed_cond_guards(NULL), func(NULL), in_strategy(0),
+    pushed_cond_guards(NULL), func(NULL), in_strategy(SUBS_NOT_TRANSFORMED),
     upper_item(0)
     {}
   void cleanup();
@@ -619,7 +619,6 @@ protected:
 class subselect_single_select_engine: public subselect_engine
 {
   bool prepared; /* simple subselect is prepared */
-  bool optimized; /* simple subselect is optimized */
   bool executed; /* simple subselect is executed */
   st_select_lex *select_lex; /* corresponding select_lex */
   JOIN * join; /* corresponding JOIN structure */
