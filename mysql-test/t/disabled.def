@@ -9,11 +9,11 @@
 #  Do not use any TAB characters for whitespace.
 #
 ##############################################################################
-lowercase_table3         : Bug#54845 2010-06-30 alik main.lowercase_table3 on Mac OSX
+lowercase_table3         : Bug#11762269 2010-06-30 alik main.lowercase_table3 on Mac OSX
 query_cache_28249        : Bug#43861 2009-03-25 main.query_cache_28249 fails sporadically
-log_tables-big           : Bug#48646 2010-11-15 mattiasj report already exists
-read_many_rows_innodb    : Bug#37635 2010-11-15 mattiasj report already exists
-sum_distinct-big         : Bug#56927 2010-11-15 mattiasj was not tested
-alter_table-big          : Bug#37248 2010-11-15 mattiasj was not tested
-create-big               : Bug#37248 2010-11-15 mattiasj was not tested
+log_tables-big           : Bug#11756699 2010-11-15 mattiasj report already exists
+read_many_rows_innodb    : Bug#11748886 2010-11-15 mattiasj report already exists
+sum_distinct-big         : Bug#11764126 2010-11-15 mattiasj was not tested
+alter_table-big          : Bug#11748731 2010-11-15 mattiasj was not tested
+create-big               : Bug#11748731 2010-11-15 mattiasj was not tested
 archive-big              : Bug#11817185 2011-03-10 Anitha Disabled since this leads to timeout on Solaris Sparc
