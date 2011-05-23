@@ -205,18 +205,19 @@ int check_and_do_in_subquery_rewrites(JOIN *join)
           !optimizer_flag(thd, OPTIMIZER_SWITCH_MATERIALIZATION))
         my_error(ER_ILLEGAL_SUBQUERY_OPTIMIZER_SWITCHES, MYF(0));
 
+      /*
+        If the subquery predicate is IN/=ANY, analyse and set all possible
+        subquery execution strategies based on optimizer switches and syntactic
+        properties.
+      */
       if (in_subs)
       {
-        /* Subquery predicate is an IN/=ANY predicate. */
-        if (optimizer_flag(thd, OPTIMIZER_SWITCH_IN_TO_EXISTS))
-          in_subs->in_strategy|= SUBS_IN_TO_EXISTS;
-        if (optimizer_flag(thd, OPTIMIZER_SWITCH_MATERIALIZATION))
-          in_subs->in_strategy|= SUBS_MATERIALIZATION;
-
         /*
           Check if the subquery predicate can be executed via materialization.
           The required conditions are:
-          1. Subquery is a single SELECT (not a UNION)
+          0. The materialization optimizer switch was set.
+          1. Subquery is a single SELECT (not a UNION).
+             TODO: this is a limitation that can be fixed
           2. Subquery is not a table-less query. In this case there is no
              point in materializing.
           2A The upper query is not a table-less SELECT ... FROM DUAL. We
@@ -230,7 +231,7 @@ int check_and_do_in_subquery_rewrites(JOIN *join)
              non-top-level queries because it cannot handle NULLs correctly.
           4. Subquery is non-correlated
              TODO:
-             This is an overly restrictive condition. It can be extended to:
+             This condition is too restrictive (limitation). It can be extended to:
              (Subquery is non-correlated ||
               Subquery is correlated to any query outer to IN predicate ||
               (Subquery is correlated to the immediate outer query &&
@@ -240,30 +241,30 @@ int check_and_do_in_subquery_rewrites(JOIN *join)
           (*) The subquery must be part of a SELECT statement. The current
                condition also excludes multi-table update statements.
         */
-        if (!(in_subs->in_strategy & SUBS_MATERIALIZATION && 
-              !select_lex->is_part_of_union() &&                            // 1
-              parent_unit->first_select()->leaf_tables &&                   // 2
-              thd->lex->sql_command == SQLCOM_SELECT &&                     // *
-              select_lex->outer_select()->leaf_tables &&                    // 2A
-              subquery_types_allow_materialization(in_subs) &&
-              // psergey-todo: duplicated_subselect_card_check: where it's done?
-              (in_subs->is_top_level_item() ||                               //3
-               optimizer_flag(thd,
-                              OPTIMIZER_SWITCH_PARTIAL_MATCH_ROWID_MERGE) || //3
-               optimizer_flag(thd,
-                              OPTIMIZER_SWITCH_PARTIAL_MATCH_TABLE_SCAN)) && //3
-              !in_subs->is_correlated))                                      //4
+        if (optimizer_flag(thd, OPTIMIZER_SWITCH_MATERIALIZATION) &&      // 0
+            !select_lex->is_part_of_union() &&                            // 1
+            parent_unit->first_select()->leaf_tables &&                   // 2
+            thd->lex->sql_command == SQLCOM_SELECT &&                     // *
+            select_lex->outer_select()->leaf_tables &&                    // 2A
+            subquery_types_allow_materialization(in_subs) &&
+            (in_subs->is_top_level_item() ||                               //3
+             optimizer_flag(thd,
+                            OPTIMIZER_SWITCH_PARTIAL_MATCH_ROWID_MERGE) || //3
+             optimizer_flag(thd,
+                            OPTIMIZER_SWITCH_PARTIAL_MATCH_TABLE_SCAN)) && //3
+            !in_subs->is_correlated)                                       //4
         {
-          /* Materialization is not possible based on syntactic properties. */
-          in_subs->in_strategy&= ~SUBS_MATERIALIZATION;
+          in_subs->in_strategy|= SUBS_MATERIALIZATION;
         }
 
-        if (!in_subs->in_strategy)
+        /*
+          IN-TO-EXISTS is the only universal strategy. Choose it if the user
+          allowed it via an optimizer switch, or if materialization is not
+          possible.
+        */
+        if (optimizer_flag(thd, OPTIMIZER_SWITCH_IN_TO_EXISTS) ||
+            !in_subs->in_strategy)
         {
-          /*
-            If neither materialization is possible, nor the user chose
-            IN-TO-EXISTS, choose IN-TO-EXISTS as the only universal strategy.
-          */
           in_subs->in_strategy|= SUBS_IN_TO_EXISTS;
         }
       }
@@ -3703,10 +3704,9 @@ bool JOIN::choose_subquery_plan(table_map join_tables)
   enum_reopt_result reopt_result= REOPT_NONE;
   Item_in_subselect *in_subs;
 
-  if (select_lex->master_unit()->item &&
-      select_lex->master_unit()->item->is_in_predicate())
+  if (is_in_subquery())
   {
-    in_subs= (Item_in_subselect*) select_lex->master_unit()->item;
+    in_subs= (Item_in_subselect*) unit->item;
     if (in_subs->create_in_to_exists_cond(this))
       return true;
   }
@@ -3943,11 +3943,10 @@ bool JOIN::choose_subquery_plan(table_map join_tables)
 bool JOIN::choose_tableless_subquery_plan()
 {
   DBUG_ASSERT(!tables_list || !tables);
-  if (select_lex->master_unit()->item)
+  if (unit->item)
   {
-    DBUG_ASSERT(select_lex->master_unit()->item->type() ==
-                Item::SUBSELECT_ITEM);
-    Item_subselect *subs_predicate= select_lex->master_unit()->item;
+    DBUG_ASSERT(unit->item->type() == Item::SUBSELECT_ITEM);
+    Item_subselect *subs_predicate= unit->item;
 
     /*
       If the optimizer determined that his query has an empty result,
@@ -3990,4 +3989,3 @@ bool JOIN::choose_tableless_subquery_plan()
   }
   return FALSE;
 }
-

@@ -57,7 +57,8 @@ static bool update_ref_and_keys(THD *thd, DYNAMIC_ARRAY *keyuse,
                                 uint tables, COND *conds,
                                 table_map table_map, SELECT_LEX *select_lex,
                                 st_sargable_param **sargables);
-static bool sort_and_filter_keyuse(DYNAMIC_ARRAY *keyuse);
+static bool sort_and_filter_keyuse(DYNAMIC_ARRAY *keyuse,
+                                   bool skip_unprefixed_keyparts);
 static int sort_keyuse(KEYUSE *a,KEYUSE *b);
 static bool create_ref_for_key(JOIN *join, JOIN_TAB *j, KEYUSE *org_keyuse,
 			       table_map used_tables);
@@ -914,7 +915,6 @@ JOIN::optimize()
                            "Impossible HAVING" : "Impossible WHERE";
       tables= 0;
       error= 0;
-      choose_tableless_subquery_plan();
       goto setup_subq_exit;
     }
   }
@@ -966,7 +966,6 @@ JOIN::optimize()
 	zero_result_cause= "No matching min/max row";
         tables= 0;
 	error=0;
-        choose_tableless_subquery_plan();
         goto setup_subq_exit;
       }
       if (res > 1)
@@ -1007,7 +1006,6 @@ JOIN::optimize()
   {
     DBUG_PRINT("info",("No tables"));
     error= 0;
-    choose_tableless_subquery_plan();
     goto setup_subq_exit;
   }
   error= -1;					// Error is sent to client
@@ -1508,6 +1506,9 @@ JOIN::optimize()
   DBUG_RETURN(0);
 
 setup_subq_exit:
+  /* Choose an execution strategy for this JOIN. */
+  if (!tables_list || !tables)
+    choose_tableless_subquery_plan();
   /*
     Even with zero matching rows, subqueries in the HAVING clause may
     need to be evaluated if there are aggregate functions in the query.
@@ -3036,7 +3037,16 @@ make_join_statistics(JOIN *join, TABLE_LIST *tables_arg, COND *conds,
     if (update_ref_and_keys(join->thd, keyuse_array, stat, join->tables,
                             conds, ~outer_join, join->select_lex, &sargables))
       goto error;
-    if (keyuse_array->elements && sort_and_filter_keyuse(keyuse_array))
+    /*
+      Keyparts without prefixes may be useful if this JOIN is a subquery, and
+      if the subquery may be executed via the IN-EXISTS strategy.
+    */
+    bool skip_unprefixed_keyparts=
+      !(join->is_in_subquery() &&
+        ((Item_in_subselect*)join->unit->item)->in_strategy & SUBS_IN_TO_EXISTS);
+
+    if (keyuse_array->elements &&
+        sort_and_filter_keyuse(keyuse_array, skip_unprefixed_keyparts))
       goto error;
     DBUG_EXECUTE("opt", print_keyuse_array(keyuse_array););
   }
@@ -4505,7 +4515,8 @@ update_ref_and_keys(THD *thd, DYNAMIC_ARRAY *keyuse,JOIN_TAB *join_tab,
   Special treatment for ft-keys.
 */
 
-static bool sort_and_filter_keyuse(DYNAMIC_ARRAY *keyuse)
+static bool sort_and_filter_keyuse(DYNAMIC_ARRAY *keyuse, 
+                                   bool skip_unprefixed_keyparts)
 {
   KEYUSE key_end, *prev, *save_pos, *use;
   uint found_eq_constant, i;
@@ -4532,12 +4543,12 @@ static bool sort_and_filter_keyuse(DYNAMIC_ARRAY *keyuse)
       {
         if (use->key == prev->key && use->table == prev->table)
         {
-          if (prev->keypart+1 < use->keypart ||
+          if ((prev->keypart+1 < use->keypart && skip_unprefixed_keyparts) ||
               (prev->keypart == use->keypart && found_eq_constant))
             continue;				/* remove */
         }
-        else if (use->keypart != 0)		// First found must be 0
-          continue;
+        else if (use->keypart != 0 && skip_unprefixed_keyparts)
+          continue; /* remove - first found must be 0 */
       }
 
       prev= use;
@@ -16938,8 +16949,7 @@ create_sort_index(THD *thd, JOIN *join, ORDER *order,
   select= tab->select;
 
   /* Currently ORDER BY ... LIMIT is not supported in subqueries. */
-  DBUG_ASSERT(join->group_list ||
-              !(join->unit->item && join->unit->item->is_in_predicate()));
+  DBUG_ASSERT(join->group_list || !join->is_in_subquery());
 
   /*
     When there is SQL_BIG_RESULT do not sort using index for GROUP BY,
@@ -20659,7 +20669,7 @@ JOIN::reoptimize(Item *added_where, table_map join_tables,
   /* added_keyuse contents is copied, and it is no longer needed. */
   delete_dynamic(&added_keyuse);
 
-  if (sort_and_filter_keyuse(&keyuse))
+  if (sort_and_filter_keyuse(&keyuse, true))
     return REOPT_ERROR;
   optimize_keyuse(this, &keyuse);
 

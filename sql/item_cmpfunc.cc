@@ -2096,13 +2096,14 @@ Item *Item_in_optimizer::transform(Item_transformer transformer, uchar *argument
 
 bool Item_in_optimizer::is_expensive_processor(uchar *arg)
 {
-  return args[1]->is_expensive_processor(arg);
+  return args[0]->is_expensive_processor(arg) ||
+         args[1]->is_expensive_processor(arg);
 }
 
 
 bool Item_in_optimizer::is_expensive()
 {
-  return args[1]->is_expensive();
+  return args[0]->is_expensive() || args[1]->is_expensive();
 }
 
 

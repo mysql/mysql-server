@@ -464,7 +464,7 @@ public:
   Item_in_subselect()
     :Item_exists_subselect(), left_expr_cache(0), first_execution(TRUE),
     optimizer(0), abort_on_null(0),
-    pushed_cond_guards(NULL), func(NULL), in_strategy(0),
+    pushed_cond_guards(NULL), func(NULL), in_strategy(SUBS_NOT_TRANSFORMED),
     upper_item(0)
     {}
   void cleanup();

@@ -1083,6 +1083,11 @@ public:
                              double *read_time_arg, double *record_count_arg);
   /* defined in opt_subselect.cc */
   bool transform_max_min_subquery();
+  /* True if this JOIN is a subquery under an IN predicate. */
+  bool is_in_subquery()
+  {
+    return (unit->item && unit->item->is_in_predicate());
+  }
 
 private:
   /**

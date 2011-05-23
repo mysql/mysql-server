@@ -3123,7 +3123,7 @@ bool st_select_lex::optimize_unflattened_subqueries()
         un->set_limit(un->global_parameters);
         un->thd->lex->current_select= sl;
         save_options= inner_join->select_options;
-        if (un->outer_select()->options & SELECT_DESCRIBE)
+        if (options & SELECT_DESCRIBE)
         {
           /* Optimize the subquery in the context of EXPLAIN. */
           sl->set_explain_type();

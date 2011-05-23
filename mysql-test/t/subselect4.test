@@ -1328,48 +1328,6 @@ set @@optimizer_switch=@save_optimizer_switch;
 
 drop table t0,t1,t2;
 
---echo #                                                                                                                                                     
---echo # LP BUG#718593 Crash in substitute_for_best_equal_field -> eliminate_item_equal -> 
---echo # Item_field::find_item_equal -> Item_equal::contains
---echo #                                                                                                                                                     
-
-set @save_optimizer_switch=@@optimizer_switch;
-SET @@optimizer_switch = 'semijoin=off';
-
-CREATE TABLE t1 ( f3 int(11), f10 varchar(1), f11 varchar(1)) ;
-INSERT IGNORE INTO t1 VALUES (6,'f','f'),(2,'d','d');
-
-CREATE TABLE t2 ( f12 int(11), f13 int(11)) ;
-insert into t2 values (1,2), (3,4);
-
-EXPLAIN
-SELECT * FROM t2
-WHERE ( f12 ) IN (
-        SELECT alias2.f3
-        FROM t1 AS alias1 JOIN t1 AS alias2 ON alias2.f10 = alias1.f11
-        WHERE alias1.f11 OR alias1.f3 = 50 AND alias1.f10
-);
-SELECT * FROM t2
-WHERE ( f12 ) IN (
-        SELECT alias2.f3
-        FROM t1 AS alias1 JOIN t1 AS alias2 ON alias2.f10 = alias1.f11
-        WHERE alias1.f11 OR alias1.f3 = 50 AND alias1.f10
-);
-
-EXPLAIN
-SELECT * FROM t2
-WHERE ( f12 ) IN (
-        SELECT alias2.f3
-        FROM t1 AS alias1, t1 AS alias2
-        WHERE (alias2.f10 = alias1.f11) AND (alias1.f11 OR alias1.f3 = 50 AND alias1.f10));
-SELECT * FROM t2
-WHERE ( f12 ) IN (
-        SELECT alias2.f3
-        FROM t1 AS alias1, t1 AS alias2
-        WHERE (alias2.f10 = alias1.f11) AND (alias1.f11 OR alias1.f3 = 50 AND alias1.f10));
-
-set @@optimizer_switch=@save_optimizer_switch;
-drop table t1, t2;
 
 --echo #                                                                                                                                                     
 --echo # LP BUG#715759 Wrong result with in_to_exists=on in maria-5.3-mwl89
