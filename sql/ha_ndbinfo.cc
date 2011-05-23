@@ -56,10 +56,10 @@ static MYSQL_THDVAR_BOOL(
   FALSE                              /* default */
 );
 
-static char* ndbinfo_dbname = (char*)"ndbinfo";
+static char* opt_ndbinfo_dbname = (char*)"ndbinfo";
 static MYSQL_SYSVAR_STR(
   database,                         /* name */
-  ndbinfo_dbname,                   /* var */
+  opt_ndbinfo_dbname,               /* var */
   PLUGIN_VAR_RQCMDARG | PLUGIN_VAR_READONLY,
   "Name of the database used by ndbinfo",
   NULL,                             /* check func. */
@@ -67,10 +67,10 @@ static MYSQL_SYSVAR_STR(
   NULL                              /* default */
 );
 
-static char* table_prefix = (char*)"ndb$";
+static char* opt_ndbinfo_table_prefix = (char*)"ndb$";
 static MYSQL_SYSVAR_STR(
   table_prefix,                     /* name */
-  table_prefix,                     /* var */
+  opt_ndbinfo_table_prefix,         /* var */
   PLUGIN_VAR_RQCMDARG | PLUGIN_VAR_READONLY,
   "Prefix to use for all virtual tables loaded from NDB",
   NULL,                             /* check func. */
@@ -78,10 +78,10 @@ static MYSQL_SYSVAR_STR(
   NULL                              /* default */
 );
 
-static Uint32 version = NDB_VERSION_D;
+static Uint32 opt_ndbinfo_version = NDB_VERSION_D;
 static MYSQL_SYSVAR_UINT(
   version,                          /* name */
-  version,                          /* var */
+  opt_ndbinfo_version,              /* var */
   PLUGIN_VAR_NOCMDOPT | PLUGIN_VAR_READONLY,
   "Compile version for ndbinfo",
   NULL,                             /* check func. */
@@ -255,7 +255,7 @@ static void
 generate_sql(const NdbInfo::Table* ndb_tab, BaseString& sql)
 {
   sql.appfmt("'CREATE TABLE `%s`.`%s%s` (",
-             ndbinfo_dbname, table_prefix, ndb_tab->getName());
+             opt_ndbinfo_dbname, opt_ndbinfo_table_prefix, ndb_tab->getName());
 
   const char* separator = "";
   for (unsigned i = 0; i < ndb_tab->columns(); i++)
@@ -309,7 +309,7 @@ warn_incompatible(const NdbInfo::Table* ndb_tab, bool fatal,
 
   msg.assfmt("Table '%s%s' is defined differently in NDB, %s. The "
              "SQL to regenerate is: ",
-             table_prefix, ndb_tab->getName(), explanation);
+             opt_ndbinfo_table_prefix, ndb_tab->getName(), explanation);
   generate_sql(ndb_tab, msg);
 
   const MYSQL_ERROR::enum_warning_level level =
@@ -670,7 +670,7 @@ ndbinfo_find_files(handlerton *hton, THD *thd,
     List_iterator<LEX_STRING> it(*files);
     while ((dir_name=it++))
     {
-      if (strcmp(dir_name->str, ndbinfo_dbname))
+      if (strcmp(dir_name->str, opt_ndbinfo_dbname))
         continue;
 
       DBUG_PRINT("info", ("Hiding own databse '%s'", dir_name->str));
@@ -681,7 +681,7 @@ ndbinfo_find_files(handlerton *hton, THD *thd,
   }
 
   DBUG_ASSERT(db);
-  if (strcmp(db, ndbinfo_dbname))
+  if (strcmp(db, opt_ndbinfo_dbname))
     DBUG_RETURN(0); // Only hide files in "our" db
 
   /* Hide all files that start with "our" prefix */
@@ -689,7 +689,7 @@ ndbinfo_find_files(handlerton *hton, THD *thd,
   List_iterator<LEX_STRING> it(*files);
   while ((file_name=it++))
   {
-    if (is_prefix(file_name->str, table_prefix))
+    if (is_prefix(file_name->str, opt_ndbinfo_table_prefix))
     {
       DBUG_PRINT("info", ("Hiding '%s'", file_name->str));
       it.remove();
@@ -721,11 +721,11 @@ int ndbinfo_init(void *plugin)
 
   char prefix[FN_REFLEN];
   build_table_filename(prefix, sizeof(prefix) - 1,
-                       ndbinfo_dbname, table_prefix, "", 0);
+                       opt_ndbinfo_dbname, opt_ndbinfo_table_prefix, "", 0);
   DBUG_PRINT("info", ("prefix: '%s'", prefix));
   assert(g_ndb_cluster_connection);
   g_ndbinfo = new NdbInfo(g_ndb_cluster_connection, prefix,
-                          ndbinfo_dbname, table_prefix);
+                          opt_ndbinfo_dbname, opt_ndbinfo_table_prefix);
   if (!g_ndbinfo)
   {
     sql_print_error("Failed to create NdbInfo");
