@@ -352,6 +352,7 @@ ibool
 lock_validate(void);
 /*===============*/
 
+# ifdef UNIV_DEBUG_LOCK_VALIDATE
 /*********************************************************************//**
 Validates the record lock queues on a page.
 @return	TRUE if ok */
@@ -359,10 +360,9 @@ static
 ibool
 lock_rec_validate_page(
 /*===================*/
-	ulint	space,	/*!< in: space id */
-	ulint	zip_size,/*!< in: compressed page size in bytes
-			or 0 for uncompressed pages */
-	ulint	page_no);/*!< in: page number */
+	const buf_block_t*	block)	/*!< in: buffer block */
+	__attribute__((nonnull, warn_unused_result));
+# endif /* UNIV_DEBUG_LOCK_VALIDATE */
 #endif /* UNIV_DEBUG */
 
 /* The lock system */
@@ -1100,10 +1100,10 @@ lock_rec_reset_nth_bit(
 Gets the first or next record lock on a page.
 @return	next lock, NULL if none exists */
 UNIV_INLINE
-lock_t*
-lock_rec_get_next_on_page(
-/*======================*/
-	lock_t*	lock)	/*!< in: a record lock */
+const lock_t*
+lock_rec_get_next_on_page_const(
+/*============================*/
+	const lock_t*	lock)	/*!< in: a record lock */
 {
 	ulint	space;
 	ulint	page_no;
@@ -1130,6 +1130,18 @@ lock_rec_get_next_on_page(
 	}
 
 	return(lock);
+}
+
+/*********************************************************************//**
+Gets the first or next record lock on a page.
+@return	next lock, NULL if none exists */
+UNIV_INLINE
+lock_t*
+lock_rec_get_next_on_page(
+/*======================*/
+	lock_t*	lock)	/*!< in: a record lock */
+{
+	return((lock_t*) lock_rec_get_next_on_page_const(lock));
 }
 
 /*********************************************************************//**
@@ -2645,9 +2657,7 @@ lock_move_reorganize_page(
 	mem_heap_free(heap);
 
 #ifdef UNIV_DEBUG_LOCK_VALIDATE
-	ut_ad(lock_rec_validate_page(buf_block_get_space(block),
-				     buf_block_get_zip_size(block),
-				     buf_block_get_page_no(block)));
+	ut_ad(lock_rec_validate_page(block));
 #endif
 }
 
@@ -2735,12 +2745,8 @@ lock_move_rec_list_end(
 	lock_mutex_exit_kernel();
 
 #ifdef UNIV_DEBUG_LOCK_VALIDATE
-	ut_ad(lock_rec_validate_page(buf_block_get_space(block),
-				     buf_block_get_zip_size(block),
-				     buf_block_get_page_no(block)));
-	ut_ad(lock_rec_validate_page(buf_block_get_space(new_block),
-				     buf_block_get_zip_size(block),
-				     buf_block_get_page_no(new_block)));
+	ut_ad(lock_rec_validate_page(block));
+	ut_ad(lock_rec_validate_page(new_block));
 #endif
 }
 
@@ -2848,9 +2854,7 @@ lock_move_rec_list_start(
 	lock_mutex_exit_kernel();
 
 #ifdef UNIV_DEBUG_LOCK_VALIDATE
-	ut_ad(lock_rec_validate_page(buf_block_get_space(block),
-				     buf_block_get_zip_size(block),
-				     buf_block_get_page_no(block)));
+	ut_ad(lock_rec_validate_page(block));
 #endif
 }
 
@@ -3833,17 +3837,18 @@ Checks if other transactions have an incompatible mode lock request in
 the lock queue.
 @return	lock or NULL */
 UNIV_INLINE
-lock_t*
+const lock_t*
 lock_table_other_has_incompatible(
 /*==============================*/
-	trx_t*		trx,	/*!< in: transaction, or NULL if all
-				transactions should be included */
-	ulint		wait,	/*!< in: LOCK_WAIT if also waiting locks are
-				taken into account, or 0 if not */
-	dict_table_t*	table,	/*!< in: table */
-	enum lock_mode	mode)	/*!< in: lock mode */
+	const trx_t*		trx,	/*!< in: transaction, or NULL if all
+					transactions should be included */
+	ulint			wait,	/*!< in: LOCK_WAIT if also
+					waiting locks are taken into
+					account, or 0 if not */
+	const dict_table_t*	table,	/*!< in: table */
+	enum lock_mode		mode)	/*!< in: lock mode */
 {
-	lock_t*	lock;
+	const lock_t*	lock;
 
 	ut_ad(mutex_own(&kernel_mutex));
 
@@ -3934,10 +3939,10 @@ static
 ibool
 lock_table_has_to_wait_in_queue(
 /*============================*/
-	lock_t*	wait_lock)	/*!< in: waiting table lock */
+	const lock_t*	wait_lock)	/*!< in: waiting table lock */
 {
-	dict_table_t*	table;
-	lock_t*		lock;
+	const dict_table_t*	table;
+	const lock_t*		lock;
 
 	ut_ad(mutex_own(&kernel_mutex));
 	ut_ad(lock_get_wait(wait_lock));
@@ -4677,9 +4682,9 @@ static
 ibool
 lock_table_queue_validate(
 /*======================*/
-	dict_table_t*	table)	/*!< in: table */
+	const dict_table_t*	table)	/*!< in: table */
 {
-	lock_t*	lock;
+	const lock_t*	lock;
 
 	ut_ad(mutex_own(&kernel_mutex));
 
@@ -4715,7 +4720,7 @@ lock_rec_queue_validate(
 /*====================*/
 	const buf_block_t*	block,	/*!< in: buffer block containing rec */
 	const rec_t*		rec,	/*!< in: record to look at */
-	dict_index_t*		index,	/*!< in: index, or NULL if not known */
+	const dict_index_t*	index,	/*!< in: index, or NULL if not known */
 	const ulint*		offsets)/*!< in: rec_get_offsets(rec, index) */
 {
 	trx_t*	impl_trx;
@@ -4860,42 +4865,28 @@ lock_rec_queue_validate(
 /*********************************************************************//**
 Validates the record lock queues on a page.
 @return	TRUE if ok */
-static
+static __attribute__((nonnull, warn_unused_result))
 ibool
-lock_rec_validate_page(
-/*===================*/
-	ulint	space,	/*!< in: space id */
-	ulint	zip_size,/*!< in: compressed page size in bytes
-			or 0 for uncompressed pages */
-	ulint	page_no)/*!< in: page number */
+lock_rec_validate_page_low(
+/*=======================*/
+	const buf_block_t*	block)	/*!< in: buffer block */
 {
-	dict_index_t*	index;
-	buf_block_t*	block;
-	const page_t*	page;
-	lock_t*		lock;
+	const lock_t*	lock;
 	const rec_t*	rec;
 	ulint		nth_lock	= 0;
 	ulint		nth_bit		= 0;
 	ulint		i;
-	mtr_t		mtr;
 	mem_heap_t*	heap		= NULL;
 	ulint		offsets_[REC_OFFS_NORMAL_SIZE];
 	ulint*		offsets		= offsets_;
 	rec_offs_init(offsets_);
 
-	ut_ad(!mutex_own(&kernel_mutex));
+	ut_ad(mutex_own(&kernel_mutex));
+	ut_ad(buf_block_get_state(block) == BUF_BLOCK_FILE_PAGE);
 
-	mtr_start(&mtr);
-
-	ut_ad(zip_size != ULINT_UNDEFINED);
-	block = buf_page_get(space, zip_size, page_no, RW_X_LATCH, &mtr);
-	buf_block_dbg_add_level(block, SYNC_NO_ORDER_CHECK);
-
-	page = block->frame;
-
-	lock_mutex_enter_kernel();
 loop:
-	lock = lock_rec_get_first_on_page_addr(space, page_no);
+	lock = lock_rec_get_first_on_page_addr(buf_block_get_space(block),
+					       buf_block_get_page_no(block));
 
 	if (!lock) {
 		goto function_exit;
@@ -4903,7 +4894,7 @@ loop:
 
 	for (i = 0; i < nth_lock; i++) {
 
-		lock = lock_rec_get_next_on_page(lock);
+		lock = lock_rec_get_next_on_page_const(lock);
 
 		if (!lock) {
 			goto function_exit;
@@ -4926,15 +4917,14 @@ loop:
 
 		if (i == 1 || lock_rec_get_nth_bit(lock, i)) {
 
-			index = lock->index;
-			rec = page_find_rec_with_heap_no(page, i);
+			rec = page_find_rec_with_heap_no(block->frame, i);
 			ut_a(rec);
-			offsets = rec_get_offsets(rec, index, offsets,
+			offsets = rec_get_offsets(rec, lock->index, offsets,
 						  ULINT_UNDEFINED, &heap);
 #if 0
 			fprintf(stderr,
-				"Validating %lu %lu\n",
-				(ulong) space, (ulong) page_no);
+				"Validating %u %u\n",
+				block->page.space, block->page.offset);
 #endif
 			lock_mutex_exit_kernel();
 
@@ -4943,7 +4933,8 @@ loop:
 			check WILL break the latching order and may
 			cause a deadlock of threads. */
 
-			lock_rec_queue_validate(block, rec, index, offsets);
+			lock_rec_queue_validate(block, rec, lock->index,
+						offsets);
 
 			lock_mutex_enter_kernel();
 
@@ -4959,15 +4950,31 @@ loop:
 	goto loop;
 
 function_exit:
-	lock_mutex_exit_kernel();
-
-	mtr_commit(&mtr);
-
 	if (UNIV_LIKELY_NULL(heap)) {
 		mem_heap_free(heap);
 	}
 	return(TRUE);
 }
+
+#ifdef UNIV_DEBUG_LOCK_VALIDATE
+/*********************************************************************//**
+Validates the record lock queues on a page.
+@return	TRUE if ok */
+static
+ibool
+lock_rec_validate_page(
+/*===================*/
+	const buf_block_t*	block)	/*!< in: buffer block */
+{
+	ibool	valid;
+
+	lock_mutex_enter_kernel();
+	valid = lock_rec_validate_page_low(block);
+	lock_mutex_exit_kernel();
+
+	return(valid);
+}
+#endif /* UNIV_DEBUG_LOCK_VALIDATE */
 
 /*********************************************************************//**
 Validates the lock system.
@@ -4977,11 +4984,8 @@ ibool
 lock_validate(void)
 /*===============*/
 {
-	lock_t*		lock;
-	trx_t*		trx;
-	ib_uint64_t	limit;
-	ulint		space;
-	ulint		page_no;
+	const lock_t*	lock;
+	const trx_t*	trx;
 	ulint		i;
 
 	lock_mutex_enter_kernel();
@@ -5006,9 +5010,14 @@ lock_validate(void)
 
 	for (i = 0; i < hash_get_n_cells(lock_sys->rec_hash); i++) {
 
-		limit = 0;
+		ulint		space;
+		ulint		page_no;
+		ib_uint64_t	limit	= 0;
 
 		for (;;) {
+			mtr_t		mtr;
+			buf_block_t*	block;
+
 			lock = HASH_GET_FIRST(lock_sys->rec_hash, i);
 
 			while (lock) {
@@ -5032,15 +5041,16 @@ lock_validate(void)
 				break;
 			}
 
-			lock_mutex_exit_kernel();
+			mtr_start(&mtr);
+			block = buf_page_get(
+				space, fil_space_get_zip_size(space),
+				page_no, RW_X_LATCH, &mtr);
+			buf_block_dbg_add_level(block, SYNC_NO_ORDER_CHECK);
 
-			lock_rec_validate_page(space,
-					       fil_space_get_zip_size(space),
-					       page_no);
+			ut_ad(lock_rec_validate_page_low(block));
+			mtr_commit(&mtr);
 
-			lock_mutex_enter_kernel();
-
-			limit = ut_ull_create(space, page_no + 1);
+			limit++;
 		}
 	}
 
