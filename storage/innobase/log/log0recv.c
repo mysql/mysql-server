@@ -3443,19 +3443,15 @@ recv_reset_log_files_for_backup(
 		}
 
 		fprintf(stderr,
-			"Setting log file size to %lu %lu\n",
-			(ulong) ut_get_high32(log_file_size),
-			(ulong) log_file_size & 0xFFFFFFFFUL);
+			"Setting log file size to %llu\n",
+			log_file_size);
 
-		success = os_file_set_size(name, log_file,
-					   log_file_size & 0xFFFFFFFFUL,
-					   ut_get_high32(log_file_size));
+		success = os_file_set_size(name, log_file, log_file_size);
 
 		if (!success) {
 			fprintf(stderr,
-				"InnoDB: Cannot set %s size to %lu %lu\n",
-				name, (ulong) ut_get_high32(log_file_size),
-				(ulong) (log_file_size & 0xFFFFFFFFUL));
+				"InnoDB: Cannot set %s size to %llu\n",
+				name, log_file_size);
 			exit(1);
 		}
 
@@ -3509,9 +3505,8 @@ log_group_recover_from_archive_file(
 	ulint		len;
 	ibool		ret;
 	byte*		buf;
-	ulint		read_offset;
-	ulint		file_size;
-	ulint		file_size_high;
+	os_offset_t	read_offset;
+	os_offset_t	file_size;
 	int		input_char;
 	char		name[10000];
 
@@ -3553,10 +3548,8 @@ ask_again:
 		}
 	}
 
-	ret = os_file_get_size(file_handle, &file_size, &file_size_high);
-	ut_a(ret);
-
-	ut_a(file_size_high == 0);
+	file_size = os_file_get_size(file_handle);
+	ut_a(file_size != (os_offset_t) -1);
 
 	fprintf(stderr, "InnoDB: Opened archived log file %s\n", name);
 

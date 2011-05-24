@@ -1109,7 +1109,7 @@ err:
   push_warning_printf(current_thd, MYSQL_ERROR::WARN_LEVEL_WARN,
                       ER_WARN_DATA_OUT_OF_RANGE,
                       ER(ER_WARN_DATA_OUT_OF_RANGE),
-                      name, 1);
+                      name, 1L);
   return dec;
 }
 
@@ -3167,7 +3167,7 @@ udf_handler::fix_fields(THD *thd, Item_result_field *func,
 
   if (!tmp_udf)
   {
-    my_error(ER_CANT_FIND_UDF, MYF(0), u_d->name.str, errno);
+    my_error(ER_CANT_FIND_UDF, MYF(0), u_d->name.str);
     DBUG_RETURN(TRUE);
   }
   u_d=tmp_udf;
