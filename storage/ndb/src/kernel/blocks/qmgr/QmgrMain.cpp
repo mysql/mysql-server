@@ -2481,27 +2481,9 @@ void Qmgr::findNeighbours(Signal* signal, Uint32 from)
 /*---------------------------------------------------------------------------*/
 void Qmgr::initData(Signal* signal) 
 {
-  cfailureNr = 1;
-  ccommitFailureNr = 1;
-  cprepareFailureNr = 1;
-  cnoFailedNodes = 0;
-  cnoPrepFailedNodes = 0;
-  creadyDistCom = ZFALSE;
-  cpresident = ZNIL;
-  c_start.m_president_candidate = ZNIL;
-  c_start.m_president_candidate_gci = 0;
-  cpdistref = 0;
-  cneighbourh = ZNIL;
-  cneighbourl = ZNIL;
-  cdelayRegreq = ZDELAY_REGREQ;
-  cactivateApiCheck = 0;
-  c_allow_api_connect = 0;
-  ctoStatus = Q_NOT_ACTIVE;
-
   NDB_TICKS now = NdbTick_CurrentMillisecond();
   interface_check_timer.setDelay(1000);
   interface_check_timer.reset(now);
-  clatestTransactionCheck = 0;
 
   // catch-all for missing initializations
   memset(&arbitRec, 0, sizeof(arbitRec));
