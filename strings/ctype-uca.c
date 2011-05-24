@@ -21974,7 +21974,7 @@ create_tailoring(CHARSET_INFO *cs, MY_CHARSET_LOADER *loader)
         {
           my_snprintf(loader->error, sizeof(loader->error),
                       "Can't reset before "
-                      "a primary ignorable character U+%04X", r->base[0]);
+                      "a primary ignorable character U+%04lX", r->base[0]);
           rc= 1;
           goto ex;
         }

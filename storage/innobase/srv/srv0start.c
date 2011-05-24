@@ -520,32 +520,6 @@ srv_normalize_path_for_win(
 
 #ifndef UNIV_HOTBACKUP
 /*********************************************************************//**
-Calculates the low 32 bits when a file size which is given as a number
-database pages is converted to the number of bytes.
-@return	low 32 bytes of file size when expressed in bytes */
-static
-ulint
-srv_calc_low32(
-/*===========*/
-	ib_uint64_t	file_size)	/*!< in: file size in database pages */
-{
-	return((ulint) (0xFFFFFFFFUL & (file_size << UNIV_PAGE_SIZE_SHIFT)));
-}
-
-/*********************************************************************//**
-Calculates the high 32 bits when a file size which is given as a number
-of database pages is converted to the number of bytes.
-@return	high 32 bytes of file size when expressed in bytes */
-static
-ulint
-srv_calc_high32(
-/*============*/
-	ib_uint64_t	file_size)	/*!< in: file size in database pages */
-{
-	return((ulint) (file_size >> (32 - UNIV_PAGE_SIZE_SHIFT)));
-}
-
-/*********************************************************************//**
 Creates or opens the log files and closes them.
 @return	DB_SUCCESS or error code */
 static
@@ -562,11 +536,10 @@ open_or_create_log_file(
 	ulint	k,			/*!< in: log group number */
 	ulint	i)			/*!< in: log file number in group */
 {
-	ibool	ret;
-	ulint	size;
-	ulint	size_high;
-	char	name[10000];
-	ulint	dirnamelen;
+	ibool		ret;
+	os_offset_t	size;
+	char		name[10000];
+	ulint		dirnamelen;
 
 	UT_NOT_USED(create_new_db);
 
@@ -614,20 +587,20 @@ open_or_create_log_file(
 			return(DB_ERROR);
 		}
 
-		ret = os_file_get_size(files[i], &size, &size_high);
-		ut_a(ret);
+		size = os_file_get_size(files[i]);
+		ut_a(size != (os_offset_t) -1);
 
-		if (size != srv_calc_low32(srv_log_file_size)
-		    || size_high != srv_calc_high32(srv_log_file_size)) {
+		if (UNIV_UNLIKELY(size != (os_offset_t) srv_log_file_size
+				  << UNIV_PAGE_SIZE_SHIFT)) {
 
 			fprintf(stderr,
 				"InnoDB: Error: log file %s is"
-				" of different size %lu %lu bytes\n"
+				" of different size %llu bytes\n"
 				"InnoDB: than specified in the .cnf"
-				" file %lu %lu bytes!\n",
-				name, (ulong) size_high, (ulong) size,
-				(ulong) srv_calc_high32(srv_log_file_size),
-				(ulong) srv_calc_low32(srv_log_file_size));
+				" file %llu bytes!\n",
+				name, size,
+				(os_offset_t) srv_log_file_size
+				<< UNIV_PAGE_SIZE_SHIFT);
 
 			return(DB_ERROR);
 		}
@@ -654,8 +627,8 @@ open_or_create_log_file(
 			" full: wait...\n");
 
 		ret = os_file_set_size(name, files[i],
-				       srv_calc_low32(srv_log_file_size),
-				       srv_calc_high32(srv_log_file_size));
+				       (os_offset_t) srv_log_file_size
+				       << UNIV_PAGE_SIZE_SHIFT);
 		if (!ret) {
 			fprintf(stderr,
 				"InnoDB: Error in creating %s:"
@@ -731,14 +704,13 @@ open_or_create_data_files(
 	ulint*		sum_of_new_sizes)/*!< out: sum of sizes of the
 					new files added */
 {
-	ibool	ret;
-	ulint	i;
-	ibool	one_opened	= FALSE;
-	ibool	one_created	= FALSE;
-	ulint	size;
-	ulint	size_high;
-	ulint	rounded_size_pages;
-	char	name[10000];
+	ibool		ret;
+	ulint		i;
+	ibool		one_opened	= FALSE;
+	ibool		one_created	= FALSE;
+	os_offset_t	size;
+	ulint		rounded_size_pages;
+	char		name[10000];
 
 	if (srv_n_data_files >= 1000) {
 		fprintf(stderr, "InnoDB: can only have < 1000 data files\n"
@@ -864,13 +836,11 @@ open_or_create_data_files(
 				goto skip_size_check;
 			}
 
-			ret = os_file_get_size(files[i], &size, &size_high);
-			ut_a(ret);
+			size = os_file_get_size(files[i]);
+			ut_a(size != (os_offset_t) -1);
 			/* Round size downward to megabytes */
 
-			rounded_size_pages
-				= (size / (1024 * 1024) + 4096 * size_high)
-					<< (20 - UNIV_PAGE_SIZE_SHIFT);
+			rounded_size_pages = size >> UNIV_PAGE_SIZE_SHIFT;
 
 			if (i == srv_n_data_files - 1
 			    && srv_auto_extend_last_data_file) {
@@ -959,8 +929,8 @@ skip_size_check:
 
 			ret = os_file_set_size(
 				name, files[i],
-				srv_calc_low32(srv_data_file_sizes[i]),
-				srv_calc_high32(srv_data_file_sizes[i]));
+				(os_offset_t) srv_data_file_sizes[i]
+				<< UNIV_PAGE_SIZE_SHIFT);
 
 			if (!ret) {
 				fprintf(stderr,
@@ -970,8 +940,7 @@ skip_size_check:
 				return(DB_ERROR);
 			}
 
-			*sum_of_new_sizes = *sum_of_new_sizes
-				+ srv_data_file_sizes[i];
+			*sum_of_new_sizes += srv_data_file_sizes[i];
 		}
 
 		ret = os_file_close(files[i]);
@@ -1464,7 +1433,7 @@ innobase_start_or_create_for_mysql(void)
 	if (sum_of_new_sizes < 10485760 / UNIV_PAGE_SIZE) {
 		ut_print_timestamp(stderr);
 		fprintf(stderr,
-			" InnoDB: Error: tablespace size must be"
+			" InnoDB: Error: tablesapce size must be"
 			" at least 10 MB\n");
 
 		return(DB_ERROR);

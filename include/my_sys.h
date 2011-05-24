@@ -483,7 +483,8 @@ typedef struct st_io_cache		/* Used when cacheing files */
 
 typedef int (*qsort2_cmp)(const void *, const void *, const void *);
 
-typedef void (*my_error_reporter)(enum loglevel level, const char *format, ...);
+typedef void (*my_error_reporter)(enum loglevel level, const char *format, ...)
+  ATTRIBUTE_FORMAT_FPTR(printf, 2, 3);
 
 extern my_error_reporter my_charset_error_reporter;
 

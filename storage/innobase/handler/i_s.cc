@@ -4272,7 +4272,7 @@ i_s_sys_tables_fill_table(
 			i_s_dict_fill_sys_tables(thd, table_rec, tables->table);
 		} else {
 			push_warning_printf(thd, MYSQL_ERROR::WARN_LEVEL_WARN,
-					    ER_CANT_FIND_SYSTEM_REC,
+					    ER_CANT_FIND_SYSTEM_REC, "%s",
 					    err_msg);
 		}
 
@@ -4554,7 +4554,7 @@ i_s_sys_tables_fill_table_stats(
 						     tables->table);
 		} else {
 			push_warning_printf(thd, MYSQL_ERROR::WARN_LEVEL_WARN,
-					    ER_CANT_FIND_SYSTEM_REC,
+					    ER_CANT_FIND_SYSTEM_REC, "%s",
 					    err_msg);
 		}
 
@@ -4810,7 +4810,7 @@ i_s_sys_indexes_fill_table(
 						 tables->table);
 		} else {
 			push_warning_printf(thd, MYSQL_ERROR::WARN_LEVEL_WARN,
-					    ER_CANT_FIND_SYSTEM_REC,
+					    ER_CANT_FIND_SYSTEM_REC, "%s",
 					    err_msg);
 		}
 
@@ -5045,7 +5045,7 @@ i_s_sys_columns_fill_table(
 						 tables->table);
 		} else {
 			push_warning_printf(thd, MYSQL_ERROR::WARN_LEVEL_WARN,
-					    ER_CANT_FIND_SYSTEM_REC,
+					    ER_CANT_FIND_SYSTEM_REC, "%s",
 					    err_msg);
 		}
 
@@ -5252,7 +5252,7 @@ i_s_sys_fields_fill_table(
 			last_id = index_id;
 		} else {
 			push_warning_printf(thd, MYSQL_ERROR::WARN_LEVEL_WARN,
-					    ER_CANT_FIND_SYSTEM_REC,
+					    ER_CANT_FIND_SYSTEM_REC, "%s",
 					    err_msg);
 		}
 
@@ -5473,7 +5473,7 @@ i_s_sys_foreign_fill_table(
 						 tables->table);
 		} else {
 			push_warning_printf(thd, MYSQL_ERROR::WARN_LEVEL_WARN,
-					    ER_CANT_FIND_SYSTEM_REC,
+					    ER_CANT_FIND_SYSTEM_REC, "%s",
 					    err_msg);
 		}
 
@@ -5687,7 +5687,7 @@ i_s_sys_foreign_cols_fill_table(
 				tables->table);
 		} else {
 			push_warning_printf(thd, MYSQL_ERROR::WARN_LEVEL_WARN,
-					    ER_CANT_FIND_SYSTEM_REC,
+					    ER_CANT_FIND_SYSTEM_REC, "%s",
 					    err_msg);
 		}
 
