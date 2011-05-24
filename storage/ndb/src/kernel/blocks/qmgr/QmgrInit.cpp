@@ -69,6 +69,24 @@ void Qmgr::initData()
   ndb_mgm_get_int_parameter(p, CFG_DB_API_HEARTBEAT_INTERVAL, &hbDBAPI);
   
   setHbApiDelay(hbDBAPI);
+
+  cfailureNr = 1;
+  ccommitFailureNr = 1;
+  cprepareFailureNr = 1;
+  cnoFailedNodes = 0;
+  cnoPrepFailedNodes = 0;
+  creadyDistCom = ZFALSE;
+  cpresident = ZNIL;
+  c_start.m_president_candidate = ZNIL;
+  c_start.m_president_candidate_gci = 0;
+  cpdistref = 0;
+  cneighbourh = ZNIL;
+  cneighbourl = ZNIL;
+  cdelayRegreq = ZDELAY_REGREQ;
+  cactivateApiCheck = 0;
+  c_allow_api_connect = 0;
+  ctoStatus = Q_NOT_ACTIVE;
+  clatestTransactionCheck = 0;
 }//Qmgr::initData()
 
 void Qmgr::initRecords() 
