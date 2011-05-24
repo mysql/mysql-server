@@ -429,7 +429,7 @@ dict_process_sys_fields_rec(
 	mach_write_to_8(last_index_id, last_id);
 
 	err_msg = dict_load_field_low(buf, NULL, sys_field,
-				      pos, last_index_id, heap, rec);
+				      pos, last_index_id, heap, rec, NULL, 0);
 
 	*index_id = mach_read_from_8(buf);
 
@@ -994,6 +994,9 @@ dict_load_columns(
 /** Error message for a delete-marked record in dict_load_field_low() */
 static const char* dict_load_field_del = "delete-marked record in SYS_FIELDS";
 
+static const char* dict_load_field_too_big = "column prefix exceeds maximum"
+					     " limit";
+
 /********************************************************************//**
 Loads an index field definition from a SYS_FIELDS record to
 dict_index_t.
@@ -1015,7 +1018,12 @@ dict_load_field_low(
 	byte*		last_index_id,	/*!< in: last index id */
 	mem_heap_t*	heap,		/*!< in/out: memory heap
 					for temporary storage */
-	const rec_t*	rec)		/*!< in: SYS_FIELDS record */
+	const rec_t*	rec,		/*!< in: SYS_FIELDS record */
+	char*		addition_err_str,/*!< out: additional error message
+					that requires information to be
+					filled, or NULL */
+	ulint		err_str_len)	/*!< in: length of addition_err_str
+					in bytes */
 {
 	const byte*	field;
 	ulint		len;
@@ -1095,6 +1103,19 @@ err_len:
 		goto err_len;
 	}
 
+	if (prefix_len >= DICT_MAX_INDEX_COL_LEN) {
+		if (addition_err_str) {
+			ut_snprintf(addition_err_str, err_str_len,
+				    "index field '%s' has a prefix length"
+				    " of %lu bytes",
+				    mem_heap_strdupl(
+						heap, (const char*) field, len),
+				    (ulong) prefix_len);
+		}
+
+		return(dict_load_field_too_big);
+	}
+
 	if (index) {
 		dict_mem_index_add_field(
 			index, mem_heap_strdupl(heap, (const char*) field, len),
@@ -1154,14 +1175,16 @@ dict_load_fields(
 	btr_pcur_open_on_user_rec(sys_index, tuple, PAGE_CUR_GE,
 				  BTR_SEARCH_LEAF, &pcur, &mtr);
 	for (i = 0; i < index->n_fields; i++) {
-		const char* err_msg;
+		const char*	err_msg;
+		char		addition_err_str[1024];
 
 		rec = btr_pcur_get_rec(&pcur);
 
 		ut_a(btr_pcur_is_on_user_rec(&pcur));
 
 		err_msg = dict_load_field_low(buf, index, NULL, NULL, NULL,
-					      heap, rec);
+					      heap, rec, addition_err_str,
+					      sizeof(addition_err_str));
 
 		if (err_msg == dict_load_field_del) {
 			/* There could be delete marked records in
@@ -1170,7 +1193,24 @@ dict_load_fields(
 
 			goto next_rec;
 		} else if (err_msg) {
-			fprintf(stderr, "InnoDB: %s\n", err_msg);
+			if (err_msg == dict_load_field_too_big) {
+				fprintf(stderr, "InnoDB: Error: load index"
+					" '%s' failed.\n"
+					"InnoDB: %s,\n"
+					"InnoDB: which exceeds the"
+					" maximum limit of %lu bytes.\n"
+					"InnoDB: Please use server that"
+					" supports long index prefix\n"
+					"InnoDB: or turn on"
+					" innodb_force_recovery to load"
+					" the table\n",
+					index->name, addition_err_str,
+					(ulong) (DICT_MAX_INDEX_COL_LEN - 1));
+
+			} else {
+				fprintf(stderr, "InnoDB: %s\n", err_msg);
+			}
+
 			error = DB_CORRUPTION;
 			goto func_exit;
 		}
@@ -1446,7 +1486,26 @@ corrupted:
 			of the database server */
 			dict_mem_index_free(index);
 		} else {
-			dict_load_fields(index, heap);
+			error = dict_load_fields(index, heap);
+
+			if (error != DB_SUCCESS) {
+
+				fprintf(stderr, "InnoDB: Error: load index '%s'"
+					" for table '%s' failed\n",
+					index->name, table->name);
+
+				/* If the force recovery flag is set, and
+				if the failed index is not the primary index, we
+				will continue and open other indexes */
+				if (srv_force_recovery
+				    && !dict_index_is_clust(index)) {
+					error = DB_SUCCESS;
+					goto next_rec;
+				} else {
+					goto func_exit;
+				}
+			}
+
 			error = dict_index_add_to_cache(table, index,
 							index->page, FALSE);
 			/* The data dictionary tables should never contain
@@ -1771,9 +1830,18 @@ err_exit:
 		} else {
 			table->fk_max_recusive_level = 0;
 		}
-	} else if (!srv_force_recovery) {
-		dict_table_remove_from_cache(table);
-		table = NULL;
+	} else {
+		dict_index_t*	index;
+
+		/* Make sure that at least the clustered index was loaded.
+		Otherwise refuse to load the table */
+		index = dict_table_get_first_index(table);
+
+		if (!srv_force_recovery || !index
+		     || !dict_index_is_clust(index)) {
+			dict_table_remove_from_cache(table);
+			table = NULL;
+		}
 	}
 #if 0
 	if (err != DB_SUCCESS && table != NULL) {
