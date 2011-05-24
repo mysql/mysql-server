@@ -9,5 +9,5 @@
 #  Do not use any TAB characters for whitespace.
 #
 ##############################################################################
-kill                     : Bug#37780 2008-12-03 HHunger need some changes to be robust enough for pushbuild.
-read_many_rows_innodb    : Bug#37635 2010-11-15 mattiasj report already exists
+kill                     : Bug#11748945 2008-12-03 HHunger need some changes to be robust enough for pushbuild.
+read_many_rows_innodb    : Bug#11748886 2010-11-15 mattiasj report already exists
