@@ -203,7 +203,7 @@ Dbtux::getPathToNode(NodeHandle node, Uint16* path)
 static double
 tux_log2(double x)
 {
-  return ::log(x) / ::log(2);
+  return ::log(x) / ::log((double)2.0);
 }
 
 int
