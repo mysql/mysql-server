@@ -75,7 +75,7 @@ Dbtux::execACC_SCANREQ(Signal* signal)
       errorCode = AccScanRef::TuxNoFreeScanOp;
       break;
     }
-    new (scanPtr.p) ScanOp(c_scanBoundPool);
+    new (scanPtr.p) ScanOp;
     scanPtr.p->m_state = ScanOp::First;
     scanPtr.p->m_userPtr = req->senderData;
     scanPtr.p->m_userRef = req->senderRef;
@@ -131,9 +131,9 @@ Dbtux::execACC_SCANREQ(Signal* signal)
  * Check that sets of lower and upper bounds are on initial sequences of
  * keys and that all but possibly last bound is non-strict.
  *
- * Finally save the sets of lower and upper bounds (i.e. start key and
- * end key).  Full bound type is included but only the strict bit is
- * used since lower and upper have now been separated.
+ * Finally convert the sets of lower and upper bounds (i.e. start key
+ * and end key) to NdbPack format.  The data is saved in segmented
+ * memory.  The bound is reconstructed at use time via unpackBound().
  *
  * Error handling:  Error code is set in the scan and also returned in
  * EXECUTE_DIRECT (the old way).
@@ -143,174 +143,144 @@ Dbtux::execTUX_BOUND_INFO(Signal* signal)
 {
   jamEntry();
   // get records
-  TuxBoundInfo* const sig = (TuxBoundInfo*)signal->getDataPtrSend();
-  const TuxBoundInfo* const req = (const TuxBoundInfo*)sig;
+  TuxBoundInfo* const req = (TuxBoundInfo*)signal->getDataPtrSend();
   ScanOp& scan = *c_scanOpPool.getPtr(req->tuxScanPtrI);
   const Index& index = *c_indexPool.getPtr(scan.m_indexId);
-  const DescEnt& descEnt = getDescEnt(index.m_descPage, index.m_descOff);
-  // collect normalized lower and upper bounds
-  struct BoundInfo {
-    int type2;     // with EQ -> LE/GE
-    Uint32 offset; // offset in xfrmData
-    Uint32 size;
-  };
-  BoundInfo boundInfo[2][MaxIndexAttributes];
-  const unsigned dstSize = MaxAttrDataSize;
-  // use some static buffer (they are only used within a timeslice)
-  Uint32* const xfrmData = c_dataBuffer;
-  Uint32 dstPos = 0;
-  // largest attrId seen plus one
-  Uint32 maxAttrId[2] = { 0, 0 };
-  // walk through entries
-  const Uint32* const data = (Uint32*)sig + TuxBoundInfo::SignalLength;
-  Uint32 offset = 0;
-  while (offset + 2 <= req->boundAiLength) {
+  const DescHead& descHead = getDescHead(index);
+  const KeyType* keyTypes = getKeyTypes(descHead);
+  // extract lower and upper bound in separate passes
+  for (unsigned idir = 0; idir <= 1; idir++) {
     jam();
-    const unsigned type = data[offset];
-    const AttributeHeader* ah = (const AttributeHeader*)&data[offset + 1];
-    const Uint32 attrId = ah->getAttributeId();
-    const Uint32 byteSize = ah->getByteSize();
-    const Uint32 dataSize = ah->getDataSize();
-    if (type > 4 || attrId >= index.m_numAttrs || dstPos + 2 + dataSize > dstSize) {
+    struct BoundInfo {
+      int type2;      // with EQ -> LE/GE
+      Uint32 offset;  // word offset in signal data
+      Uint32 bytes;
+    };
+    BoundInfo boundInfo[MaxIndexAttributes];
+    // largest attrId seen plus one
+    Uint32 maxAttrId = 0;
+    const Uint32* const data = &req->data[0];
+    Uint32 offset = 0;
+    while (offset + 2 <= req->boundAiLength) {
       jam();
-      scan.m_errorCode = TuxBoundInfo::InvalidAttrInfo;
-      sig->errorCode = scan.m_errorCode;
-      return;
-    }
-    // copy header
-    xfrmData[dstPos + 0] = data[offset + 0];
-    xfrmData[dstPos + 1] = data[offset + 1];
-    // copy bound value
-    Uint32 dstBytes = 0;
-    Uint32 dstWords = 0;
-    if (! ah->isNULL()) {
-      jam();
-      const uchar* srcPtr = (const uchar*)&data[offset + 2];
-      const DescAttr& descAttr = descEnt.m_descAttr[attrId];
-      Uint32 typeId = descAttr.m_typeId;
-      Uint32 maxBytes = AttributeDescriptor::getSizeInBytes(descAttr.m_attrDesc);
-      Uint32 lb, len;
-      bool ok = NdbSqlUtil::get_var_length(typeId, srcPtr, maxBytes, lb, len);
-      if (! ok) {
-        jam();
-        scan.m_errorCode = TuxBoundInfo::InvalidCharFormat;
-        sig->errorCode = scan.m_errorCode;
-        return;
-      }
-      Uint32 srcBytes = lb + len;
-      Uint32 srcWords = (srcBytes + 3) / 4;
-      if (srcBytes != byteSize) {
+      const Uint32 type = data[offset];
+      const AttributeHeader* ah = (const AttributeHeader*)&data[offset + 1];
+      const Uint32 attrId = ah->getAttributeId();
+      const Uint32 byteSize = ah->getByteSize();
+      const Uint32 dataSize = ah->getDataSize();
+      // check type
+      if (unlikely(type > 4)) {
         jam();
         scan.m_errorCode = TuxBoundInfo::InvalidAttrInfo;
-        sig->errorCode = scan.m_errorCode;
+        req->errorCode = scan.m_errorCode;
         return;
       }
-      uchar* dstPtr = (uchar*)&xfrmData[dstPos + 2];
-      if (descAttr.m_charset == 0) {
-        memcpy(dstPtr, srcPtr, srcWords << 2);
-        dstBytes = srcBytes;
-        dstWords = srcWords;
-      } else {
+      Uint32 type2 = type;
+      if (type2 == 4) {
         jam();
-        CHARSET_INFO* cs = all_charsets[descAttr.m_charset];
-        Uint32 xmul = cs->strxfrm_multiply;
-        if (xmul == 0)
-          xmul = 1;
-        // see comment in DbtcMain.cpp
-        Uint32 dstLen = xmul * (maxBytes - lb);
-        if (dstLen > ((dstSize - dstPos) << 2)) {
+        type2 = (idir << 1); // LE=0 GE=2
+      }
+      // check if attribute belongs to this bound
+      if ((type2 & 0x2) == (idir << 1)) {
+        if (unlikely(attrId >= index.m_numAttrs)) {
           jam();
-          scan.m_errorCode = TuxBoundInfo::TooMuchAttrInfo;
-          sig->errorCode = scan.m_errorCode;
+          scan.m_errorCode = TuxBoundInfo::InvalidAttrInfo;
+          req->errorCode = scan.m_errorCode;
           return;
         }
-        int n = NdbSqlUtil::strnxfrm_bug7284(cs, dstPtr, dstLen, srcPtr + lb, len);
-        ndbrequire(n != -1);
-        dstBytes = n;
-        while ((n & 3) != 0) {
-          dstPtr[n++] = 0;
+        // mark entries in any gap as undefined
+        while (maxAttrId <= attrId) {
+          jam();
+          BoundInfo& b = boundInfo[maxAttrId];
+          b.type2 = -1;
+          maxAttrId++;
         }
-        dstWords = n / 4;
-      }
-    }
-    for (unsigned j = 0; j <= 1; j++) {
-      jam();
-      // check if lower/upper bit matches
-      const unsigned luBit = (j << 1);
-      if ((type & 0x2) != luBit && type != 4)
-        continue;
-      // EQ -> LE, GE
-      const unsigned type2 = (type & 0x1) | luBit;
-      // fill in any gap
-      while (maxAttrId[j] <= attrId) {
-        jam();
-        BoundInfo& b = boundInfo[j][maxAttrId[j]];
-        maxAttrId[j]++;
-        b.type2 = -1;
-      }
-      BoundInfo& b = boundInfo[j][attrId];
-      if (b.type2 != -1) {
-        // compare with previously defined bound
-        if (b.type2 != (int)type2 ||
-            b.size != 2 + dstWords ||
-            memcmp(&xfrmData[b.offset + 2], &xfrmData[dstPos + 2], dstWords << 2) != 0) {
+        BoundInfo& b = boundInfo[attrId];
+        // duplicate no longer allowed (wl#4163)
+        if (unlikely(b.type2 != -1)) {
           jam();
           scan.m_errorCode = TuxBoundInfo::InvalidBounds;
-          sig->errorCode = scan.m_errorCode;
+          req->errorCode = scan.m_errorCode;
           return;
         }
-      } else {
-        // fix length
-        AttributeHeader* ah = (AttributeHeader*)&xfrmData[dstPos + 1];
-        ah->setByteSize(dstBytes);
-        // enter new bound
-        jam();
-        b.type2 = type2;
-        b.offset = dstPos;
-        b.size = 2 + dstWords;
+        b.type2 = (int)type2;
+        b.offset = offset + 1; // poai
+        b.bytes = byteSize;
       }
+      // jump to next
+      offset += 2 + dataSize;
     }
-    // jump to next
-    offset += 2 + dataSize;
-    dstPos += 2 + dstWords;
-  }
-  if (offset != req->boundAiLength) {
-    jam();
-    scan.m_errorCode = TuxBoundInfo::InvalidAttrInfo;
-    sig->errorCode = scan.m_errorCode;
-    return;
-  }
-  for (unsigned j = 0; j <= 1; j++) {
-    // save lower/upper bound in index attribute id order
-    for (unsigned i = 0; i < maxAttrId[j]; i++) {
+    if (unlikely(offset != req->boundAiLength)) {
       jam();
-      const BoundInfo& b = boundInfo[j][i];
-      // check for gap or strict bound before last
-      if (b.type2 == -1 || (i + 1 < maxAttrId[j] && (b.type2 & 0x1))) {
-        jam();
-        scan.m_errorCode = TuxBoundInfo::InvalidBounds;
-        sig->errorCode = scan.m_errorCode;
-        return;
-      }
-      bool ok = scan.m_bound[j]->append(&xfrmData[b.offset], b.size);
-      if (! ok) {
+      scan.m_errorCode = TuxBoundInfo::InvalidAttrInfo;
+      req->errorCode = scan.m_errorCode;
+      return;
+    }
+    // check and pack the bound data
+    KeyData searchBoundData(index.m_keySpec, true, 0);
+    KeyBound searchBound(searchBoundData);
+    searchBoundData.set_buf(c_ctx.c_searchKey, MaxAttrDataSize << 2);
+    int strict = 0; // 0 or 1
+    Uint32 i;
+    for (i = 0; i < maxAttrId; i++) {
+      jam();
+      const BoundInfo& b = boundInfo[i];
+       // check for gap or strict bound before last
+       strict = (b.type2 & 0x1);
+       if (unlikely(b.type2 == -1 || (i + 1 < maxAttrId && strict))) {
+         jam();
+         scan.m_errorCode = TuxBoundInfo::InvalidBounds;
+         req->errorCode = scan.m_errorCode;
+         return;
+       }
+       Uint32 len;
+       if (unlikely(searchBoundData.add_poai(&data[b.offset], &len) == -1 ||
+           b.bytes != len)) {
+         jam();
+         scan.m_errorCode = TuxBoundInfo::InvalidCharFormat;
+         req->errorCode = scan.m_errorCode;
+         return;
+       }
+    }
+    int side = 0;
+    if (maxAttrId != 0) {
+      // arithmetic is faster
+      // side = (idir == 0 ? (strict ? +1 : -1) : (strict ? -1 : +1));
+      side = (-1) * (1 - 2 * strict) * (1 - 2 * int(idir));
+    }
+    if (unlikely(searchBound.finalize(side) == -1)) {
+      jam();
+      scan.m_errorCode = TuxBoundInfo::InvalidCharFormat;
+      req->errorCode = scan.m_errorCode;
+      return;
+    }
+    ScanBound& scanBound = scan.m_scanBound[idir];
+    scanBound.m_cnt = maxAttrId;
+    scanBound.m_side = side;
+    // save data words in segmented memory
+    {
+      DataBuffer<ScanBoundSegmentSize>::Head& head = scanBound.m_head;
+      LocalDataBuffer<ScanBoundSegmentSize> b(c_scanBoundPool, head);
+      const Uint32* data = (const Uint32*)searchBoundData.get_data_buf();
+      Uint32 size = (searchBoundData.get_data_len() + 3) / 4;
+      bool ok = b.append(data, size);
+      if (unlikely(!ok)) {
         jam();
         scan.m_errorCode = TuxBoundInfo::OutOfBuffers;
-        sig->errorCode = scan.m_errorCode;
+        req->errorCode = scan.m_errorCode;
         return;
       }
     }
-    scan.m_boundCnt[j] = maxAttrId[j];
   }
   if (ERROR_INSERTED(12009)) {
     jam();
     CLEAR_ERROR_INSERT_VALUE;
     scan.m_errorCode = TuxBoundInfo::InvalidBounds;
-    sig->errorCode = scan.m_errorCode;
+    req->errorCode = scan.m_errorCode;
     return;
   }
   // no error
-  sig->errorCode = 0;
+  req->errorCode = 0;
 }
 
 void
@@ -478,7 +448,7 @@ Dbtux::execACC_CHECK_SCAN(Signal* signal)
     scanFind(scanPtr);
   }
   // for reading tuple key in Found or Locked state
-  Data pkData = c_dataBuffer;
+  Uint32* pkData = c_ctx.c_dataBuffer;
   unsigned pkSize = 0; // indicates not yet done
   if (scan.m_state == ScanOp::Found) {
     // found an entry to return
@@ -757,18 +727,21 @@ Dbtux::scanFirst(ScanOpPtr scanPtr)
 {
   ScanOp& scan = *scanPtr.p;
   Frag& frag = *c_fragPool.getPtr(scan.m_fragPtrI);
+  const Index& index = *c_indexPool.getPtr(frag.m_indexId);
 #ifdef VM_TRACE
   if (debugFlags & DebugScan) {
     debugOut << "Enter first scan " << scanPtr.i << " " << scan << endl;
   }
 #endif
-  // set up index keys for this operation
-  setKeyAttrs(c_ctx, frag);
   // scan direction 0, 1
   const unsigned idir = scan.m_descending;
-  unpackBound(*scan.m_bound[idir], c_dataBuffer);
+  // set up bound from segmented memory
+  const ScanBound& scanBound = scan.m_scanBound[idir];
+  KeyDataC searchBoundData(index.m_keySpec, true);
+  KeyBoundC searchBound(searchBoundData);
+  unpackBound(c_ctx, scanBound, searchBound);
   TreePos treePos;
-  searchToScan(frag, c_dataBuffer, scan.m_boundCnt[idir], scan.m_descending, treePos);
+  searchToScan(frag, idir, searchBound, treePos);
   if (treePos.m_loc != NullTupLoc) {
     scan.m_scanPos = treePos;
     // link the scan to node found
@@ -779,11 +752,15 @@ Dbtux::scanFirst(ScanOpPtr scanPtr)
       jam();
       // check upper bound
       TreeEnt ent = node.getEnt(treePos.m_pos);
-      if (scanCheck(scanPtr, ent))
+      if (scanCheck(scanPtr, ent)) {
+        jam();
         scan.m_state = ScanOp::Current;
-      else
+      } else {
+        jam();
         scan.m_state = ScanOp::Last;
+      }
     } else {
+      jam();
       scan.m_state = ScanOp::Next;
     }
   } else {
@@ -874,8 +851,6 @@ Dbtux::scanNext(ScanOpPtr scanPtr, bool fromMaintReq)
 #endif
   // cannot be moved away from tuple we have locked
   ndbrequire(scan.m_state != ScanOp::Locked);
-  // set up index keys for this operation
-  setKeyAttrs(c_ctx, frag);
   // scan direction
   const unsigned idir = scan.m_descending; // 0, 1
   const int jdir = 1 - 2 * (int)idir;      // 1, -1
@@ -1030,17 +1005,34 @@ Dbtux::scanCheck(ScanOpPtr scanPtr, TreeEnt ent)
     return false;
   }
   Frag& frag = *c_fragPool.getPtr(scan.m_fragPtrI);
+  const Index& index = *c_indexPool.getPtr(frag.m_indexId);
   const unsigned idir = scan.m_descending;
   const int jdir = 1 - 2 * (int)idir;
-  unpackBound(*scan.m_bound[1 - idir], c_dataBuffer);
-  unsigned boundCnt = scan.m_boundCnt[1 - idir];
-  readKeyAttrs(c_ctx, frag, ent, 0, c_ctx.c_entryKey);
-  int ret = cmpScanBound(frag, 1 - idir, c_dataBuffer, boundCnt, c_ctx.c_entryKey);
-  ndbrequire(ret != NdbSqlUtil::CmpUnknown);
-  if (jdir * ret > 0)
-    return true;
-  // hit upper bound of single range scan
-  return false;
+  const ScanBound& scanBound = scan.m_scanBound[1 - idir];
+  int ret = 0;
+  if (scanBound.m_cnt != 0) {
+    jam();
+    // set up bound from segmented memory
+    KeyDataC searchBoundData(index.m_keySpec, true);
+    KeyBoundC searchBound(searchBoundData);
+    unpackBound(c_ctx, scanBound, searchBound);
+    // key data for the entry
+    KeyData entryKey(index.m_keySpec, true, 0);
+    entryKey.set_buf(c_ctx.c_entryKey, MaxAttrDataSize << 2);
+    readKeyAttrs(c_ctx, frag, ent, entryKey, index.m_numAttrs);
+    // compare bound to key
+    const Uint32 boundCount = searchBound.get_data().get_cnt();
+    ret = cmpSearchBound(c_ctx, searchBound, entryKey, boundCount);
+    ndbrequire(ret != 0);
+    ret = (-1) * ret; // reverse for key vs bound
+    ret = jdir * ret; // reverse for descending scan
+  }
+#ifdef VM_TRACE
+  if (debugFlags & DebugScan) {
+    debugOut << "Check scan " << scanPtr.i << " " << scan << " ret:" << dec << ret << endl;
+  }
+#endif
+  return (ret <= 0);
 }
 
 /*
@@ -1207,8 +1199,12 @@ Dbtux::releaseScanOp(ScanOpPtr& scanPtr)
   }
 #endif
   Frag& frag = *c_fragPool.getPtr(scanPtr.p->m_fragPtrI);
-  scanPtr.p->m_boundMin.release();
-  scanPtr.p->m_boundMax.release();
+  for (unsigned i = 0; i <= 1; i++) {
+    ScanBound& scanBound = scanPtr.p->m_scanBound[i];
+    DataBuffer<ScanBoundSegmentSize>::Head& head = scanBound.m_head;
+    LocalDataBuffer<ScanBoundSegmentSize> b(c_scanBoundPool, head);
+    b.release();
+  }
   // unlink from per-fragment list and release from pool
   frag.m_scanList.release(scanPtr);
 }

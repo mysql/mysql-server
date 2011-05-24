@@ -381,19 +381,3 @@ IF(NOT INSTALL_LAYOUT MATCHES "RPM")
   )
 ENDIF()
 
-# Dump cmake's output and error log to help diagnosing
-# platform checks
-MACRO(DUMP_FILE filename)
-  IF(EXISTS ${filename})
-    FILE(READ ${filename} content)
-    MESSAGE(STATUS "=vvvv= Dumping ${filename} ")
-    MESSAGE(STATUS "${content}")
-    MESSAGE(STATUS "=^^^^=")
-  ELSE()
-    MESSAGE(STATUS "'${filename}' does not exist")
-  ENDIF()
-ENDMACRO()
- 
-DUMP_FILE("${CMAKE_BINARY_DIR}/CMakeFiles/CMakeError.log")
-DUMP_FILE("${CMAKE_BINARY_DIR}/CMakeFiles/CMakeOutput.log")
-

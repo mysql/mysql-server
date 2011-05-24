@@ -17,6 +17,7 @@
 
 #include <NdbSqlUtil.hpp>
 #include <ndb_version.h>
+#include <math.h>
 
 /*
  * Data types.  The entries must be in the numerical order.
@@ -222,243 +223,185 @@ NdbSqlUtil::getType(Uint32 typeId)
   return m_typeList[Type::Undefined];
 }
 
-const NdbSqlUtil::Type&
-NdbSqlUtil::getTypeBinary(Uint32 typeId)
-{
-  switch (typeId) {
-  case Type::Char:
-  case Type::Varchar:
-  case Type::Binary:
-  case Type::Varbinary:
-  case Type::Longvarchar:
-  case Type::Longvarbinary:
-    typeId = Type::Binary;
-    break;
-  case Type::Text:
-    typeId = Type::Blob;
-    break;
-  default:
-    break;
-  }
-  return getType(typeId);
-}
-
 /*
  * Comparison functions.
  */
 
 int
-NdbSqlUtil::cmpTinyint(const void* info, const void* p1, unsigned n1, const void* p2, unsigned n2, bool full)
+NdbSqlUtil::cmpTinyint(const void* info, const void* p1, unsigned n1, const void* p2, unsigned n2)
 {
-  if (n2 >= sizeof(Int8)) {
-    Int8 v1, v2;
-    memcpy(&v1, p1, sizeof(Int8));
-    memcpy(&v2, p2, sizeof(Int8));
-    if (v1 < v2)
-      return -1;
-    if (v1 > v2)
-      return +1;
-    return 0;
-  }
-  assert(! full);
-  return CmpUnknown;
+  assert(info == 0 && n1 == 1 && n2 == 1);
+  Int8 v1, v2;
+  memcpy(&v1, p1, 1);
+  memcpy(&v2, p2, 1);
+  int w1 = (int)v1;
+  int w2 = (int)v2;
+  return w1 - w2;
 }
 
 int
-NdbSqlUtil::cmpTinyunsigned(const void* info, const void* p1, unsigned n1, const void* p2, unsigned n2, bool full)
+NdbSqlUtil::cmpTinyunsigned(const void* info, const void* p1, unsigned n1, const void* p2, unsigned n2)
 {
-  if (n2 >= sizeof(Uint8)) {
-    Uint8 v1, v2;
-    memcpy(&v1, p1, sizeof(Uint8));
-    memcpy(&v2, p2, sizeof(Uint8));
-    if (v1 < v2)
-      return -1;
-    if (v1 > v2)
-      return +1;
-    return 0;
-  }
-  assert(! full);
-  return CmpUnknown;
+  assert(info == 0 && n1 == 1 && n2 == 1);
+  Uint8 v1, v2;
+  memcpy(&v1, p1, 1);
+  memcpy(&v2, p2, 1);
+  int w1 = (int)v1;
+  int w2 = (int)v2;
+  return w1 - w2;
 }
 
 int
-NdbSqlUtil::cmpSmallint(const void* info, const void* p1, unsigned n1, const void* p2, unsigned n2, bool full)
+NdbSqlUtil::cmpSmallint(const void* info, const void* p1, unsigned n1, const void* p2, unsigned n2)
 {
-  if (n2 >= sizeof(Int16)) {
-    Int16 v1, v2;
-    memcpy(&v1, p1, sizeof(Int16));
-    memcpy(&v2, p2, sizeof(Int16));
-    if (v1 < v2)
-      return -1;
-    if (v1 > v2)
-      return +1;
-    return 0;
-  }
-  assert(! full);
-  return CmpUnknown;
+  assert(info == 0 && n1 == 2 && n2 == 2);
+  Int16 v1, v2;
+  memcpy(&v1, p1, 2);
+  memcpy(&v2, p2, 2);
+  int w1 = (int)v1;
+  int w2 = (int)v2;
+  return w1 - w2;
 }
 
 int
-NdbSqlUtil::cmpSmallunsigned(const void* info, const void* p1, unsigned n1, const void* p2, unsigned n2, bool full)
+NdbSqlUtil::cmpSmallunsigned(const void* info, const void* p1, unsigned n1, const void* p2, unsigned n2)
 {
-  if (n2 >= sizeof(Uint16)) {
-    Uint16 v1, v2;
-    memcpy(&v1, p1, sizeof(Uint16));
-    memcpy(&v2, p2, sizeof(Uint16));
-    if (v1 < v2)
-      return -1;
-    if (v1 > v2)
-      return +1;
-    return 0;
-  }
-  assert(! full);
-  return CmpUnknown;
+  assert(info == 0 && n1 == 2 && n2 == 2);
+  Uint16 v1, v2;
+  memcpy(&v1, p1, 2);
+  memcpy(&v2, p2, 2);
+  int w1 = (int)v1;
+  int w2 = (int)v2;
+  return w1 - w2;
 }
 
 int
-NdbSqlUtil::cmpMediumint(const void* info, const void* p1, unsigned n1, const void* p2, unsigned n2, bool full)
+NdbSqlUtil::cmpMediumint(const void* info, const void* p1, unsigned n1, const void* p2, unsigned n2)
 {
-  if (n2 >= 3) {
-    Int32 v1, v2;
-    v1 = sint3korr((const uchar*)p1);
-    v2 = sint3korr((const uchar*)p2);
-    if (v1 < v2)
-      return -1;
-    if (v1 > v2)
-      return +1;
-    return 0;
-  }
-  assert(! full);
-  return CmpUnknown;
+  assert(info == 0 && n1 == 3 && n2 == 3);
+  uchar b1[4];
+  uchar b2[4];
+  memcpy(b1, p1, 3);
+  b1[3] = 0;
+  memcpy(b2, p2, 3);
+  b2[3] = 0;
+  int w1 = (int)sint3korr(b1);
+  int w2 = (int)sint3korr(b2);
+  return w1 - w2;
 }
 
 int
-NdbSqlUtil::cmpMediumunsigned(const void* info, const void* p1, unsigned n1, const void* p2, unsigned n2, bool full)
+NdbSqlUtil::cmpMediumunsigned(const void* info, const void* p1, unsigned n1, const void* p2, unsigned n2)
 {
-  if (n2 >= 3) {
-    Uint32 v1, v2;
-    v1 = uint3korr((const uchar*)p1);
-    v2 = uint3korr((const uchar*)p2);
-    if (v1 < v2)
-      return -1;
-    if (v1 > v2)
-      return +1;
-    return 0;
-  }
-  assert(! full);
-  return CmpUnknown;
+  assert(info == 0 && n1 == 3 && n2 == 3);
+  uchar b1[4];
+  uchar b2[4];
+  memcpy(b1, p1, 3);
+  b1[3] = 0;
+  memcpy(b2, p2, 3);
+  b2[3] = 0;
+  int w1 = (int)uint3korr(b1);
+  int w2 = (int)uint3korr(b2);
+  return w1 - w2;
 }
 
 int
-NdbSqlUtil::cmpInt(const void* info, const void* p1, unsigned n1, const void* p2, unsigned n2, bool full)
+NdbSqlUtil::cmpInt(const void* info, const void* p1, unsigned n1, const void* p2, unsigned n2)
 {
-  if (n2 >= sizeof(Int32)) {
-    Int32 v1, v2;
-    memcpy(&v1, p1, sizeof(Int32));
-    memcpy(&v2, p2, sizeof(Int32));
-    if (v1 < v2)
-      return -1;
-    if (v1 > v2)
-      return +1;
-    return 0;
-  }
-  assert(! full);
-  return CmpUnknown;
+  assert(info == 0 && n1 == 4 && n2 == 4);
+  Int32 v1, v2;
+  memcpy(&v1, p1, 4);
+  memcpy(&v2, p2, 4);
+  if (v1 < v2)
+    return -1;
+  if (v1 > v2)
+    return +1;
+  return 0;
 }
 
 int
-NdbSqlUtil::cmpUnsigned(const void* info, const void* p1, unsigned n1, const void* p2, unsigned n2, bool full)
+NdbSqlUtil::cmpUnsigned(const void* info, const void* p1, unsigned n1, const void* p2, unsigned n2)
 {
-  if (n2 >= sizeof(Uint32)) {
-    Uint32 v1, v2;
-    memcpy(&v1, p1, sizeof(Uint32));
-    memcpy(&v2, p2, sizeof(Uint32));
-    if (v1 < v2)
-      return -1;
-    if (v1 > v2)
-      return +1;
-    return 0;
-  }
-  assert(! full);
-  return CmpUnknown;
+  assert(info == 0 && n1 == 4 && n2 == 4);
+  Uint32 v1, v2;
+  memcpy(&v1, p1, 4);
+  memcpy(&v2, p2, 4);
+  if (v1 < v2)
+    return -1;
+  if (v1 > v2)
+    return +1;
+  return 0;
 }
 
 int
-NdbSqlUtil::cmpBigint(const void* info, const void* p1, unsigned n1, const void* p2, unsigned n2, bool full)
+NdbSqlUtil::cmpBigint(const void* info, const void* p1, unsigned n1, const void* p2, unsigned n2)
 {
-  if (n2 >= sizeof(Int64)) {
-    Int64 v1, v2;
-    memcpy(&v1, p1, sizeof(Int64));
-    memcpy(&v2, p2, sizeof(Int64));
-    if (v1 < v2)
-      return -1;
-    if (v1 > v2)
-      return +1;
-    return 0;
-  }
-  assert(! full);
-  return CmpUnknown;
+  assert(info == 0 && n1 == 8 && n2 == 8);
+  Int64 v1, v2;
+  memcpy(&v1, p1, 8);
+  memcpy(&v2, p2, 8);
+  if (v1 < v2)
+    return -1;
+  if (v1 > v2)
+    return +1;
+  return 0;
 }
 
 int
-NdbSqlUtil::cmpBigunsigned(const void* info, const void* p1, unsigned n1, const void* p2, unsigned n2, bool full)
+NdbSqlUtil::cmpBigunsigned(const void* info, const void* p1, unsigned n1, const void* p2, unsigned n2)
 {
-  if (n2 >= sizeof(Uint64)) {
-    Uint64 v1, v2;
-    memcpy(&v1, p1, sizeof(Uint64));
-    memcpy(&v2, p2, sizeof(Uint64));
-    if (v1 < v2)
-      return -1;
-    if (v1 > v2)
-      return +1;
-    return 0;
-  }
-  assert(! full);
-  return CmpUnknown;
+  assert(info == 0 && n1 == 8 && n2 == 8);
+  Uint64 v1, v2;
+  memcpy(&v1, p1, 8);
+  memcpy(&v2, p2, 8);
+  if (v1 < v2)
+    return -1;
+  if (v1 > v2)
+    return +1;
+  return 0;
 }
 
 int
-NdbSqlUtil::cmpFloat(const void* info, const void* p1, unsigned n1, const void* p2, unsigned n2, bool full)
+NdbSqlUtil::cmpFloat(const void* info, const void* p1, unsigned n1, const void* p2, unsigned n2)
 {
-  if (n2 >= sizeof(float)) {
-    float v1, v2;
-    memcpy(&v1, p1, sizeof(float));
-    memcpy(&v2, p2, sizeof(float));
-    if (v1 < v2)
-      return -1;
-    if (v1 > v2)
-      return +1;
-    return 0;
-  }
-  assert(! full);
-  return CmpUnknown;
+  assert(info == 0 && n1 == 4 && n2 == 4);
+  float v1, v2;
+  memcpy(&v1, p1, 4);
+  memcpy(&v2, p2, 4);
+  require(!isnan(v1) && !isnan(v2));
+  if (v1 < v2)
+    return -1;
+  if (v1 > v2)
+    return +1;
+  return 0;
 }
 
 int
-NdbSqlUtil::cmpDouble(const void* info, const void* p1, unsigned n1, const void* p2, unsigned n2, bool full)
+NdbSqlUtil::cmpDouble(const void* info, const void* p1, unsigned n1, const void* p2, unsigned n2)
 {
-  if (n2 >= sizeof(double)) {
-    double v1, v2;
-    memcpy(&v1, p1, sizeof(double));
-    memcpy(&v2, p2, sizeof(double));
-    if (v1 < v2)
-      return -1;
-    if (v1 > v2)
-      return +1;
-    return 0;
-  }
-  assert(! full);
-  return CmpUnknown;
+  assert(info == 0 && n1 == 8 && n2 == 8);
+  double v1, v2;
+  memcpy(&v1, p1, 8);
+  memcpy(&v2, p2, 8);
+  require(!isnan(v1) && !isnan(v2));
+  if (v1 < v2)
+    return -1;
+  if (v1 > v2)
+    return +1;
+  return 0;
 }
 
 int
-NdbSqlUtil::cmp_olddecimal(const uchar* s1, const uchar* s2, unsigned n)
+NdbSqlUtil::cmpOlddecimal(const void* info, const void* p1, unsigned n1, const void* p2, unsigned n2)
 {
+  assert(info == 0 && n1 == n2);
+  const uchar* v1 = (const uchar*)p1;
+  const uchar* v2 = (const uchar*)p2;
   int sgn = +1;
   unsigned i = 0;
-  while (i < n) {
-    int c1 = s1[i];
-    int c2 = s2[i];
+  while (i < n1) {
+    int c1 = v1[i];
+    int c2 = v2[i];
     if (c1 == c2) {
       if (c1 == '-')
         sgn = -1;
@@ -477,225 +420,121 @@ NdbSqlUtil::cmp_olddecimal(const uchar* s1, const uchar* s2, unsigned n)
 }
 
 int
-NdbSqlUtil::cmpOlddecimal(const void* info, const void* p1, unsigned n1, const void* p2, unsigned n2, bool full)
+NdbSqlUtil::cmpOlddecimalunsigned(const void* info, const void* p1, unsigned n1, const void* p2, unsigned n2)
 {
-  if (full) {
-    assert(n1 == n2);
-    const uchar* v1 = (const uchar*)p1;
-    const uchar* v2 = (const uchar*)p2;
-    return cmp_olddecimal(v1, v2, n1);
-  }
-  return CmpUnknown;
+  return cmpOlddecimal(info, p1, n1, p2, n2);
 }
 
 int
-NdbSqlUtil::cmpOlddecimalunsigned(const void* info, const void* p1, unsigned n1, const void* p2, unsigned n2, bool full)
+NdbSqlUtil::cmpDecimal(const void* info, const void* p1, unsigned n1, const void* p2, unsigned n2)
 {
-  if (full) {
-    assert(n1 == n2);
-    const uchar* v1 = (const uchar*)p1;
-    const uchar* v2 = (const uchar*)p2;
-    return cmp_olddecimal(v1, v2, n1);
-  }
-  return CmpUnknown;
+  return cmpBinary(info, p1, n1, p2, n2);
 }
 
 int
-NdbSqlUtil::cmpDecimal(const void* info, const void* p1, unsigned n1, const void* p2, unsigned n2, bool full)
+NdbSqlUtil::cmpDecimalunsigned(const void* info, const void* p1, unsigned n1, const void* p2, unsigned n2)
 {
+  return cmpBinary(info, p1, n1, p2, n2);
+}
+
+int
+NdbSqlUtil::cmpChar(const void* info, const void* p1, unsigned n1, const void* p2, unsigned n2)
+{
+  // allow different lengths
+  assert(info != 0);
   const uchar* v1 = (const uchar*)p1;
   const uchar* v2 = (const uchar*)p2;
-  // compare as binary strings
-  unsigned n = (n1 <= n2 ? n1 : n2);
-  int k = memcmp(v1, v2, n);
-  if (k == 0) {
-    k = (full ? n1 : n) - n2;
-  }
-  return k < 0 ? -1 : k > 0 ? +1 : full ? 0 : CmpUnknown;
-}
-
-int
-NdbSqlUtil::cmpDecimalunsigned(const void* info, const void* p1, unsigned n1, const void* p2, unsigned n2, bool full)
-{
-  const uchar* v1 = (const uchar*)p1;
-  const uchar* v2 = (const uchar*)p2;
-  // compare as binary strings
-  unsigned n = (n1 <= n2 ? n1 : n2);
-  int k = memcmp(v1, v2, n);
-  if (k == 0) {
-    k = (full ? n1 : n) - n2;
-  }
-  return k < 0 ? -1 : k > 0 ? +1 : full ? 0 : CmpUnknown;
-}
-
-int
-NdbSqlUtil::cmpChar(const void* info, const void* p1, unsigned n1, const void* p2, unsigned n2, bool full)
-{
-  // collation does not work on prefix for some charsets
-  assert(full);
-  const uchar* v1 = (const uchar*)p1;
-  const uchar* v2 = (const uchar*)p2;
-  // not const in MySQL
-  CHARSET_INFO* cs = (CHARSET_INFO*)(info);
+  CHARSET_INFO* cs = (CHARSET_INFO*)info;
   // compare with space padding
   int k = (*cs->coll->strnncollsp)(cs, v1, n1, v2, n2, false);
-  return k < 0 ? -1 : k > 0 ? +1 : 0;
+  return k;
 }
 
 int
-NdbSqlUtil::cmpVarchar(const void* info, const void* p1, unsigned n1, const void* p2, unsigned n2, bool full)
+NdbSqlUtil::cmpVarchar(const void* info, const void* p1, unsigned n1, const void* p2, unsigned n2)
 {
-  const unsigned lb = 1;
-  // collation does not work on prefix for some charsets
-  assert(full && n1 >= lb && n2 >= lb);
+  assert(info != 0);
+  const uint lb = 1;
   const uchar* v1 = (const uchar*)p1;
   const uchar* v2 = (const uchar*)p2;
-  unsigned m1 = *v1;
-  unsigned m2 = *v2;
-  if (m1 <= n1 - lb && m2 <= n2 - lb) {
-    CHARSET_INFO* cs = (CHARSET_INFO*)(info);
-    // compare with space padding
-    int k = (*cs->coll->strnncollsp)(cs, v1 + lb, m1, v2 + lb, m2, false);
-    return k < 0 ? -1 : k > 0 ? +1 : 0;
+  uint m1 = v1[0];
+  uint m2 = v2[0];
+  require(lb + m1 <= n1 && lb + m2 <= n2);
+  CHARSET_INFO* cs = (CHARSET_INFO*)info;
+  // compare with space padding
+  int k = (*cs->coll->strnncollsp)(cs, v1 + lb, m1, v2 + lb, m2, false);
+  return k;
+}
+
+int
+NdbSqlUtil::cmpBinary(const void* info, const void* p1, unsigned n1, const void* p2, unsigned n2)
+{
+  // allow different lengths
+  assert(info == 0);
+  const uchar* v1 = (const uchar*)p1;
+  const uchar* v2 = (const uchar*)p2;
+  int k = 0;
+  if (n1 < n2) {
+    k = memcmp(v1, v2, n1);
+    if (k == 0)
+      k = -1;
+  } else if (n1 > n2) {
+    k = memcmp(v1, v2, n2);
+    if (k == 0)
+      k = +1;
+  } else {
+    k = memcmp(v1, v2, n1);
   }
-  // treat bad data as NULL
-  if (m1 > n1 - lb && m2 <= n2 - lb)
+  return k;
+}
+
+int
+NdbSqlUtil::cmpVarbinary(const void* info, const void* p1, unsigned n1, const void* p2, unsigned n2)
+{
+  assert(info == 0);
+  const uint lb = 1;
+  const uchar* v1 = (const uchar*)p1;
+  const uchar* v2 = (const uchar*)p2;
+  uint m1 = v1[0];
+  uint m2 = v2[0];
+  require(lb + m1 <= n1 && lb + m2 <= n2);
+  int k = cmpBinary(info, v1 + lb, m1, v2 + lb, m2);
+  return k;
+}
+
+int
+NdbSqlUtil::cmpDatetime(const void* info, const void* p1, unsigned n1, const void* p2, unsigned n2)
+{
+  assert(info == 0 && n1 == 8 && n2 == 8);
+  Int64 v1, v2;
+  memcpy(&v1, p1, sizeof(Int64));
+  memcpy(&v2, p2, sizeof(Int64));
+  if (v1 < v2)
     return -1;
-  if (m1 <= n1 - lb && m2 > n2 - lb)
+  if (v1 > v2)
     return +1;
   return 0;
 }
 
 int
-NdbSqlUtil::cmpBinary(const void* info, const void* p1, unsigned n1, const void* p2, unsigned n2, bool full)
+NdbSqlUtil::cmpDate(const void* info, const void* p1, unsigned n1, const void* p2, unsigned n2)
 {
-  const uchar* v1 = (const uchar*)p1;
-  const uchar* v2 = (const uchar*)p2;
-  // compare as binary strings
-  unsigned n = (n1 <= n2 ? n1 : n2);
-  int k = memcmp(v1, v2, n);
-  if (k == 0) {
-    k = (full ? n1 : n) - n2;
-  }
-  return k < 0 ? -1 : k > 0 ? +1 : full ? 0 : CmpUnknown;
-}
-
-int
-NdbSqlUtil::cmpVarbinary(const void* info, const void* p1, unsigned n1, const void* p2, unsigned n2, bool full)
-{
-  const unsigned lb = 1;
-  if (n2 >= lb) {
-    assert(n1 >= lb);
-    const uchar* v1 = (const uchar*)p1;
-    const uchar* v2 = (const uchar*)p2;
-    unsigned m1 = *v1;
-    unsigned m2 = *v2;
-    if (m1 <= n1 - lb && m2 <= n2 - lb) {
-      // compare as binary strings
-      unsigned m = (m1 <= m2 ? m1 : m2);
-      int k = memcmp(v1 + lb, v2 + lb, m);
-      if (k == 0) {
-        k = (full ? m1 : m) - m2;
-      }
-      return k < 0 ? -1 : k > 0 ? +1 : full ? 0 : CmpUnknown;
-    }
-    // treat bad data as NULL
-    if (m1 > n1 - lb && m2 <= n2 - lb)
-      return -1;
-    if (m1 <= n1 - lb && m2 > n2 - lb)
-      return +1;
-    return 0;
-  }
-  assert(! full);
-  return CmpUnknown;
-}
-
-int
-NdbSqlUtil::cmpDatetime(const void* info, const void* p1, unsigned n1, const void* p2, unsigned n2, bool full)
-{
-  if (n2 >= sizeof(Int64)) {
-    Int64 v1, v2;
-    memcpy(&v1, p1, sizeof(Int64));
-    memcpy(&v2, p2, sizeof(Int64));
-    if (v1 < v2)
-      return -1;
-    if (v1 > v2)
-      return +1;
-    return 0;
-  }
-  assert(! full);
-  return CmpUnknown;
-}
-
-int
-NdbSqlUtil::cmpDate(const void* info, const void* p1, unsigned n1, const void* p2, unsigned n2, bool full)
-{
-#ifdef ndb_date_is_4_byte_native_int
-  if (n2 >= sizeof(Int32)) {
-    Int32 v1, v2;
-    memcpy(&v1, p1, sizeof(Int32));
-    memcpy(&v2, p2, sizeof(Int32));
-    if (v1 < v2)
-      return -1;
-    if (v1 > v2)
-      return +1;
-    return 0;
-  }
-#else
-#ifdef ndb_date_sol9x86_cc_xO3_madness
-  if (n2 >= 3) {
-    const uchar* v1 = (const uchar*)p1;
-    const uchar* v2 = (const uchar*)p2;
-    // from Field_newdate::val_int
-    Uint64 j1 = uint3korr(v1);
-    Uint64 j2 = uint3korr(v2);
-    j1 = (j1 % 32L)+(j1 / 32L % 16L)*100L + (j1/(16L*32L))*10000L;
-    j2 = (j2 % 32L)+(j2 / 32L % 16L)*100L + (j2/(16L*32L))*10000L;
-    if (j1 < j2)
-      return -1;
-    if (j1 > j2)
-      return +1;
-    return 0;
-  }
-#else
-  if (n2 >= 3) {
-    const uchar* v1 = (const uchar*)p1;
-    const uchar* v2 = (const uchar*)p2;
-    uint j1 = uint3korr(v1);
-    uint j2 = uint3korr(v2);
-    uint d1 = (j1 & 31);
-    uint d2 = (j2 & 31);
-    j1 = (j1 >> 5);
-    j2 = (j2 >> 5);
-    uint m1 = (j1 & 15);
-    uint m2 = (j2 & 15);
-    j1 = (j1 >> 4);
-    j2 = (j2 >> 4);
-    uint y1 = j1;
-    uint y2 = j2;
-    if (y1 < y2)
-      return -1;
-    if (y1 > y2)
-      return +1;
-    if (m1 < m2)
-      return -1;
-    if (m1 > m2)
-      return +1;
-    if (d1 < d2)
-      return -1;
-    if (d1 > d2)
-      return +1;
-    return 0;
-  }
-#endif
-#endif
-  assert(! full);
-  return CmpUnknown;
+  assert(info == 0 && n1 == 3 && n2 == 3);
+  uchar b1[4];
+  uchar b2[4];
+  memcpy(b1, p1, 3);
+  b1[3] = 0;
+  memcpy(b2, p2, 3);
+  b2[3] = 0;
+  // from Field_newdate::val_int
+  int w1 = (int)uint3korr(b1);
+  int w2 = (int)uint3korr(b2);
+  return w1 - w2;
 }
 
 // not supported
 int
-NdbSqlUtil::cmpBlob(const void* info, const void* p1, unsigned n1, const void* p2, unsigned n2, bool full)
+NdbSqlUtil::cmpBlob(const void* info, const void* p1, unsigned n1, const void* p2, unsigned n2)
 {
   assert(false);
   return 0;
@@ -703,14 +542,14 @@ NdbSqlUtil::cmpBlob(const void* info, const void* p1, unsigned n1, const void* p
 
 // not supported
 int
-NdbSqlUtil::cmpText(const void* info, const void* p1, unsigned n1, const void* p2, unsigned n2, bool full)
+NdbSqlUtil::cmpText(const void* info, const void* p1, unsigned n1, const void* p2, unsigned n2)
 {
   assert(false);
   return 0;
 }
 
 int
-NdbSqlUtil::cmpBit(const void* info, const void* p1, unsigned n1, const void* p2, unsigned n2, bool full)
+NdbSqlUtil::cmpBit(const void* info, const void* p1, unsigned n1, const void* p2, unsigned n2)
 { 
   /* Bitfields are stored as 32-bit words
    * This means that a byte-by-byte comparison will not work on all platforms
@@ -733,7 +572,7 @@ NdbSqlUtil::cmpBit(const void* info, const void* p1, unsigned n1, const void* p2
     memcpy(copyP1, p1, words << 2);
     memcpy(copyP2, p2, words << 2);
 
-    return cmpBit(info, copyP1, bytes, copyP2, bytes, full);
+    return cmpBit(info, copyP1, bytes, copyP2, bytes);
   }
 
   const Uint32* wp1= (const Uint32*) p1;
@@ -764,112 +603,81 @@ NdbSqlUtil::cmpBit(const void* info, const void* p1, unsigned n1, const void* p2
 
 
 int
-NdbSqlUtil::cmpTime(const void* info, const void* p1, unsigned n1, const void* p2, unsigned n2, bool full)
+NdbSqlUtil::cmpTime(const void* info, const void* p1, unsigned n1, const void* p2, unsigned n2)
 {
-  if (n2 >= 3) {
-    const uchar* v1 = (const uchar*)p1;
-    const uchar* v2 = (const uchar*)p2;
-    // from Field_time::val_int
-    Int32 j1 = sint3korr(v1);
-    Int32 j2 = sint3korr(v2);
-    if (j1 < j2)
-      return -1;
-    if (j1 > j2)
-      return +1;
-    return 0;
-  }
-  assert(! full);
-  return CmpUnknown;
+  assert(info == 0 && n1 == 3 && n2 == 3);
+  uchar b1[4];
+  uchar b2[4];
+  memcpy(b1, p1, 3);
+  b1[3] = 0;
+  memcpy(b2, p2, 3);
+  b2[3] = 0;
+  // from Field_time::val_int
+  int j1 = (int)sint3korr(b1);
+  int j2 = (int)sint3korr(b2);
+  if (j1 < j2)
+    return -1;
+  if (j1 > j2)
+    return +1;
+  return 0;
 }
 
 // not yet
 
 int
-NdbSqlUtil::cmpLongvarchar(const void* info, const void* p1, unsigned n1, const void* p2, unsigned n2, bool full)
+NdbSqlUtil::cmpLongvarchar(const void* info, const void* p1, unsigned n1, const void* p2, unsigned n2)
 {
-  const unsigned lb = 2;
-  // collation does not work on prefix for some charsets
-  assert(full && n1 >= lb && n2 >= lb);
+  assert(info != 0);
+  const uint lb = 2;
   const uchar* v1 = (const uchar*)p1;
   const uchar* v2 = (const uchar*)p2;
-  unsigned m1 = uint2korr(v1);
-  unsigned m2 = uint2korr(v2);
-  if (m1 <= n1 - lb && m2 <= n2 - lb) {
-    CHARSET_INFO* cs = (CHARSET_INFO*)(info);
-    // compare with space padding
-    int k = (*cs->coll->strnncollsp)(cs, v1 + lb, m1, v2 + lb, m2, false);
-    return k < 0 ? -1 : k > 0 ? +1 : 0;
-  }
-  // treat bad data as NULL
-  if (m1 > n1 - lb && m2 <= n2 - lb)
+  uint m1 = v1[0] | (v1[1] << 8);
+  uint m2 = v2[0] | (v2[1] << 8);
+  require(lb + m1 <= n1 && lb + m2 <= n2);
+  CHARSET_INFO* cs = (CHARSET_INFO*)info;
+  // compare with space padding
+  int k = (*cs->coll->strnncollsp)(cs, v1 + lb, m1, v2 + lb, m2, false);
+  return k;
+}
+
+int
+NdbSqlUtil::cmpLongvarbinary(const void* info, const void* p1, unsigned n1, const void* p2, unsigned n2)
+{
+  assert(info == 0);
+  const uint lb = 2;
+  const uchar* v1 = (const uchar*)p1;
+  const uchar* v2 = (const uchar*)p2;
+  uint m1 = v1[0] | (v1[1] << 8);
+  uint m2 = v2[0] | (v2[1] << 8);
+  require(lb + m1 <= n1 && lb + m2 <= n2);
+  int k = cmpBinary(info, v1 + lb, m1, v2 + lb, m2);
+  return k;
+}
+
+int
+NdbSqlUtil::cmpYear(const void* info, const void* p1, unsigned n1, const void* p2, unsigned n2)
+{
+  assert(info == 0 && n1 == 1 && n2 == 1);
+  Uint8 v1, v2;
+  memcpy(&v1, p1, 1);
+  memcpy(&v2, p2, 1);
+  int w1 = (int)v1;
+  int w2 = (int)v2;
+  return w1 - w2;
+}
+
+int
+NdbSqlUtil::cmpTimestamp(const void* info, const void* p1, unsigned n1, const void* p2, unsigned n2)
+{
+  assert(info == 0 && n1 == 4 && n2 == 4);
+  Uint32 v1, v2;
+  memcpy(&v1, p1, 4);
+  memcpy(&v2, p2, 4);
+  if (v1 < v2)
     return -1;
-  if (m1 <= n1 - lb && m2 > n2 - lb)
+  if (v1 > v2)
     return +1;
   return 0;
-}
-
-int
-NdbSqlUtil::cmpLongvarbinary(const void* info, const void* p1, unsigned n1, const void* p2, unsigned n2, bool full)
-{
-  const unsigned lb = 2;
-  if (n2 >= lb) {
-    assert(n1 >= lb);
-    const uchar* v1 = (const uchar*)p1;
-    const uchar* v2 = (const uchar*)p2;
-    unsigned m1 = uint2korr(v1);
-    unsigned m2 = uint2korr(v2);
-    if (m1 <= n1 - lb && m2 <= n2 - lb) {
-      // compare as binary strings
-      unsigned m = (m1 <= m2 ? m1 : m2);
-      int k = memcmp(v1 + lb, v2 + lb, m);
-      if (k == 0) {
-        k = (full ? m1 : m) - m2;
-      }
-      return k < 0 ? -1 : k > 0 ? +1 : full ? 0 : CmpUnknown;
-    }
-    // treat bad data as NULL
-    if (m1 > n1 - lb && m2 <= n2 - lb)
-      return -1;
-    if (m1 <= n1 - lb && m2 > n2 - lb)
-      return +1;
-    return 0;
-  }
-  assert(! full);
-  return CmpUnknown;
-}
-
-int
-NdbSqlUtil::cmpYear(const void* info, const void* p1, unsigned n1, const void* p2, unsigned n2, bool full)
-{
-  if (n2 >= sizeof(Uint8)) {
-    Uint8 v1, v2;
-    memcpy(&v1, p1, sizeof(Uint8));
-    memcpy(&v2, p2, sizeof(Uint8));
-    if (v1 < v2)
-      return -1;
-    if (v1 > v2)
-      return +1;
-    return 0;
-  }
-  assert(! full);
-  return CmpUnknown;
-}
-
-int
-NdbSqlUtil::cmpTimestamp(const void* info, const void* p1, unsigned n1, const void* p2, unsigned n2, bool full)
-{
-  if (n2 >= sizeof(Uint32)) {
-    Uint32 v1, v2;
-    memcpy(&v1, p1, sizeof(Uint32));
-    memcpy(&v2, p2, sizeof(Uint32));
-    if (v1 < v2)
-      return -1;
-    if (v1 > v2)
-      return +1;
-    return 0;
-  }
-  assert(! full);
-  return CmpUnknown;
 }
 
 // like
