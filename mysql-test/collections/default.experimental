@@ -12,7 +12,8 @@ main.lock_multi_bug38499                 # Bug#11755645 2009-09-19 alik main.loc
 main.outfile_loaddata @solaris           # Bug#11755168 2010-01-20 alik Test "outfile_loaddata" fails (reproducible)
 main.signal_demo3 @solaris               # Bug#11755949 2010-01-20 alik Several test cases fail on Solaris with error Thread stack overrun
 main.sp @solaris                         # Bug#11755949 2010-01-20 alik Several test cases fail on Solaris with error Thread stack overrun
-query_cache_28249                        # Bug#12584161 2009-03-25 main.query_cache_28249 fails sporadically
+main.query_cache_28249                   # Bug#12584161 2009-03-25 main.query_cache_28249 fails sporadically
+main.log_tables-big                      # Bug#11756699 2010-11-15 mattiasj report already exists
 main.type_float @freebsd                 # Bug#11749418 2010-05-04 alik test cases gis-rtree, type_float, type_newdecimal fail in embedded server
 main.wait_timeout @solaris               # Bug#11758972 2010-04-26 alik wait_timeout fails on OpenSolaris
 
