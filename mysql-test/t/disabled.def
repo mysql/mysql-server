@@ -10,5 +10,4 @@
 #
 ##############################################################################
 kill                     : Bug#37780 2008-12-03 HHunger need some changes to be robust enough for pushbuild.
-log_tables-big           : Bug#48646 2010-11-15 mattiasj report already exists
 read_many_rows_innodb    : Bug#37635 2010-11-15 mattiasj report already exists

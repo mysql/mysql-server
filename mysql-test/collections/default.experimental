@@ -19,7 +19,8 @@ innodb_plugin.*  @solaris                # Bug#56063 InnoDB Plugin mysql-tests f
 main.ctype_gbk_binlog  @solaris          # Bug#46010: main.ctype_gbk_binlog fails sporadically : Table 't2' already exists
 main.func_str  @solaris                  # joro: Bug#40928
 main.sp @solaris                         # joro : Bug#54138
-query_cache_28249                        # Bug#12584161 2009-03-25 main.query_cache_28249 fails sporadically
+main.query_cache_28249                   # Bug#12584161 2009-03-25 main.query_cache_28249 fails sporadically
+main.log_tables-big                      # Bug#11756699 2010-11-15 mattiasj report already exists
 
 
 ndb.*                                    # joro : NDB tests marked as experimental as agreed with bochklin
