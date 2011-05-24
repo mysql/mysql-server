@@ -1758,7 +1758,7 @@ Trix::statMetaGetSampleX1(Signal* signal, StatOp& stat)
   meta.m_cb.m_callbackData = stat.m_ownPtrI;
   const char* name_fmt = Ndbcntr::g_sysIndex_NDBIS_SAMPLE_X1.name;
   char name[MAX_TAB_NAME_SIZE];
-  snprintf(name, sizeof(name), name_fmt, c_statMetaSample->tableId);
+  BaseString::snprintf(name, sizeof(name), name_fmt, c_statMetaSample->tableId);
   sendGetTabInfoReq(signal, stat, name);
 }
 
@@ -1785,7 +1785,7 @@ Trix::sendGetTabInfoReq(Signal* signal, StatOp& stat, const char* name)
   D("sendGetTabInfoReq" << V(stat) << V(name));
   GetTabInfoReq* req = (GetTabInfoReq*)signal->getDataPtrSend();
 
-  Uint32 name_len = strlen(name) + 1;
+  Uint32 name_len = (Uint32)strlen(name) + 1;
   Uint32 name_len_words = (name_len + 3 ) / 4;
   Uint32 name_buf[32];
   ndbrequire(name_len_words <= 32);
