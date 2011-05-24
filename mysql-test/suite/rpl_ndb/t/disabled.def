@@ -11,5 +11,5 @@
 ##############################################################################
 
 rpl_ndb_set_null       : bug #51100
-
+rpl_ndb_row_implicit_commit_binlog : BUG#12586131 - fails on SET PASSWORD
 
