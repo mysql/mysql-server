@@ -361,7 +361,6 @@ ibool
 lock_validate(void);
 /*===============*/
 
-# ifdef UNIV_DEBUG_LOCK_VALIDATE
 /*********************************************************************//**
 Validates the record lock queues on a page.
 @return	TRUE if ok */
@@ -371,7 +370,6 @@ lock_rec_validate_page(
 /*===================*/
 	const buf_block_t*	block)	/*!< in: buffer block */
 	__attribute__((nonnull, warn_unused_result));
-# endif /* UNIV_DEBUG_LOCK_VALIDATE */
 #endif /* UNIV_DEBUG */
 
 /* The lock system */
@@ -5221,10 +5219,10 @@ func_exit:
 /*********************************************************************//**
 Validates the record lock queues on a page.
 @return	TRUE if ok */
-static __attribute__((nonnull, warn_unused_result))
+static
 ibool
-lock_rec_validate_page_low(
-/*=======================*/
+lock_rec_validate_page(
+/*===================*/
 	const buf_block_t*	block)	/*!< in: buffer block */
 {
 	const lock_t*	lock;
@@ -5237,11 +5235,14 @@ lock_rec_validate_page_low(
 	ulint*		offsets		= offsets_;
 	rec_offs_init(offsets_);
 
-	ut_ad(lock_mutex_own());
+	ut_ad(!lock_mutex_own());
 #ifdef UNIV_SYNC_DEBUG
-	ut_ad(rw_lock_own(&trx_sys->lock, RW_LOCK_SHARED));
+	ut_ad(!rw_lock_own(&trx_sys->lock, RW_LOCK_SHARED));
+	ut_ad(!rw_lock_own(&trx_sys->lock, RW_LOCK_EX));
 #endif /* UNIV_SYNC_DEBUG */
 
+	lock_mutex_enter();
+	rw_lock_s_lock(&trx_sys->lock);
 loop:
 	lock = lock_rec_get_first_on_page_addr(buf_block_get_space(block),
 					       buf_block_get_page_no(block));
@@ -5249,6 +5250,10 @@ loop:
 	if (!lock) {
 		goto function_exit;
 	}
+
+#if defined UNIV_DEBUG_FILE_ACCESSES || defined UNIV_DEBUG
+	ut_a(!block->page.file_page_was_freed);
+#endif
 
 	for (i = 0; i < nth_lock; i++) {
 
@@ -5301,33 +5306,14 @@ loop:
 	goto loop;
 
 function_exit:
+	lock_mutex_exit();
+	rw_lock_s_unlock(&trx_sys->lock);
+
 	if (UNIV_LIKELY_NULL(heap)) {
 		mem_heap_free(heap);
 	}
 	return(TRUE);
 }
-
-#ifdef UNIV_DEBUG_LOCK_VALIDATE
-/*********************************************************************//**
-Validates the record lock queues on a page.
-@return	TRUE if ok */
-static
-ibool
-lock_rec_validate_page(
-/*===================*/
-	const buf_block_t*	block)	/*!< in: buffer block */
-{
-	ibool	valid;
-
-	lock_mutex_enter();
-	rw_lock_s_lock(&trx_sys->lock);
-	valid = lock_rec_validate_page_low(block);
-	lock_mutex_exit();
-	rw_lock_s_unlock(&trx_sys->lock);
-
-	return(valid);
-}
-#endif /* UNIV_DEBUG_LOCK_VALIDATE */
 
 /*********************************************************************//**
 Validates the lock system.
@@ -5391,16 +5377,30 @@ lock_validate(void)
 				break;
 			}
 
+			lock_mutex_exit();
+			rw_lock_s_unlock(&trx_sys->lock);
+
+			/* The lock and the block that it is referring
+			to may be freed at this point. We pass
+			BUF_GET_POSSIBLY_FREED to skip a debug check.
+			If the lock exists in lock_rec_validate_page()
+			we assert !block->page.file_page_was_freed. */
+
 			mtr_start(&mtr);
-			block = buf_page_get(
+			block = buf_page_get_gen(
 				space, fil_space_get_zip_size(space),
-				page_no, RW_X_LATCH, &mtr);
+				page_no, RW_X_LATCH, NULL,
+				BUF_GET_POSSIBLY_FREED,
+				__FILE__, __LINE__, &mtr);
 			buf_block_dbg_add_level(block, SYNC_NO_ORDER_CHECK);
 
-			ut_ad(lock_rec_validate_page_low(block));
+			ut_ad(lock_rec_validate_page(block));
 			mtr_commit(&mtr);
 
 			limit++;
+
+			lock_mutex_enter();
+			rw_lock_s_lock(&trx_sys->lock);
 		}
 	}
 
