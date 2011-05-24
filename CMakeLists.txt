@@ -128,6 +128,14 @@ IF(MSVC)
     # generate map files, set stack size (see bug#20815)
     SET(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} /MAP /MAPINFO:EXPORTS")
     SET(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} /STACK:1048576")
+    IF(NOT MCP_BUG11765145)
+      # Fails to link with error message about missing .map file, turn
+      # off incremental linking to workaround problem 
+      IF(CMAKE_GENERATOR MATCHES "Visual Studio 10")
+        MESSAGE(STATUS "Turning off incremental linking for VS 2010")
+        SET(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} /INCREMENTAL:NO")
+      ENDIF()
+    ENDIF()
 
     # remove support for Exception handling
     STRING(REPLACE "/GX"   "" CMAKE_CXX_FLAGS            ${CMAKE_CXX_FLAGS})
