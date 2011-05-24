@@ -22,7 +22,7 @@
 #include <kernel/NodeBitmask.hpp>
 #include "ConfigInfo.hpp"
 #include <mgmapi.h>
-#include <mgmapi_configuration.hpp>
+#include "../mgmapi/mgmapi_configuration.hpp"
 
 
 /**
