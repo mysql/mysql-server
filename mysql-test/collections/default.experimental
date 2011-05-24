@@ -14,23 +14,23 @@ funcs_1.ndb*                             # joro : NDB tests marked as experiment
 
 funcs_2.ndb_charset                      # joro : NDB tests marked as experimental as agreed with bochklin
 
-innodb_plugin.*  @solaris                # Bug#56063 InnoDB Plugin mysql-tests fail on Solaris
+innodb_plugin.*  @solaris                # Bug#11763366 InnoDB Plugin mysql-tests fail on Solaris
 
-main.ctype_gbk_binlog  @solaris          # Bug#46010: main.ctype_gbk_binlog fails sporadically : Table 't2' already exists
-main.func_str  @solaris                  # joro: Bug#40928
-main.sp @solaris                         # joro : Bug#54138
+main.ctype_gbk_binlog  @solaris          # Bug#11754407: main.ctype_gbk_binlog fails sporadically : Table 't2' already exists
+main.func_str  @solaris                  # joro: Bug#11750406
+main.sp @solaris                         # joro : Bug#11761625
 main.query_cache_28249                   # Bug#12584161 2009-03-25 main.query_cache_28249 fails sporadically
 main.log_tables-big                      # Bug#11756699 2010-11-15 mattiasj report already exists
 
 
 ndb.*                                    # joro : NDB tests marked as experimental as agreed with bochklin
 
-rpl.rpl_innodb_bug28430   @solaris       # Bug#46029
-rpl.rpl_row_sp011         @solaris       # Joro : Bug #45445
+rpl.rpl_innodb_bug28430   @solaris       # Bug#11754425
+rpl.rpl_row_sp011         @solaris       # Joro : Bug #11753919
 rpl.rpl_stop_slave                       # Sven : BUG#12345981
 
 rpl_ndb.*                                # joro : NDB tests marked as experimental as agreed with bochklin
-rpl_ndb.rpl_ndb_log                      # Bug#38998
+rpl_ndb.rpl_ndb_log                      # Bug#11749433
 
 stress.ddl_ndb                           # joro : NDB tests marked as experimental as agreed with bochklin
 
@@ -48,6 +48,6 @@ parts.partition_mgm_lc1_ndb              # joro : NDB tests marked as experiment
 parts.partition_mgm_lc2_ndb              # joro : NDB tests marked as experimental as agreed with bochklin
 parts.partition_syntax_ndb               # joro : NDB tests marked as experimental as agreed with bochklin
 parts.partition_value_ndb                # joro : NDB tests marked as experimental as agreed with bochklin
-main.gis-rtree                           # svoj: due to BUG#38965
-main.type_float                          # svoj: due to BUG#38965
-main.type_newdecimal                     # svoj: due to BUG#38965
+main.gis-rtree                           # svoj: due to BUG#11749418
+main.type_float                          # svoj: due to BUG#11749418
+main.type_newdecimal                     # svoj: due to BUG#11749418
