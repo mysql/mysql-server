@@ -18,6 +18,26 @@
 #
 # Run platform checks and create ndb_config.h
 #
+
+
+# Include the platform-specific file. To allow exceptions, this code
+# looks for files in order of how specific they are. If there is, for
+# example, a generic Linux.cmake and a version-specific
+# Linux-2.6.28-11-generic, it will pick Linux-2.6.28-11-generic and
+# include it. It is then up to the file writer to include the generic
+# version if necessary.
+FOREACH(_base
+        ${CMAKE_SYSTEM_NAME}-${CMAKE_SYSTEM_VERSION}-${CMAKE_SYSTEM_PROCESSOR}
+        ${CMAKE_SYSTEM_NAME}-${CMAKE_SYSTEM_VERSION}
+        ${CMAKE_SYSTEM_NAME})
+  SET(_file ${CMAKE_CURRENT_SOURCE_DIR}/cmake/os/${_base}.cmake)
+  IF(EXISTS ${_file})
+    INCLUDE(${_file})
+    BREAK()
+  ENDIF()
+ENDFOREACH()
+
+
 INCLUDE(CheckFunctionExists)
 INCLUDE(CheckIncludeFiles)
 INCLUDE(CheckCSourceCompiles)
@@ -153,7 +173,8 @@ IF(WITH_NDBMTD)
     return a;
   }"
   NDB_BUILD_NDBMTD)
-
+ELSE()
+  SET(NDB_BUILD_NDBMTD CACHE INTERNAL "")
 ENDIF()
 
 SET(WITH_NDB_PORT "" CACHE INTEGER
