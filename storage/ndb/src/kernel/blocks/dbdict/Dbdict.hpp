@@ -222,10 +222,6 @@ public:
       }
       return false;
     }
-
-    /** Singly linked in internal (attributeId) order */
-    // TODO use DL template when possible to have more than 1
-    Uint32 nextAttributeIdPtrI;
   };
   typedef Ptr<AttributeRecord> AttributeRecordPtr;
   ArrayPool<AttributeRecord> c_attributeRecordPool;
