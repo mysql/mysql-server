@@ -2275,13 +2275,12 @@ static int replace_user_table(THD *thd, TABLE *table, const LEX_USER &combo,
     */
     else if (!password_len && !combo.plugin.length && no_auto_create)
     {
-      my_error(ER_PASSWORD_NO_MATCH, MYF(0), combo.user.str, combo.host.str);
+      my_error(ER_PASSWORD_NO_MATCH, MYF(0));
       goto end;
     }
     else if (!can_create_user)
     {
-      my_error(ER_CANT_CREATE_USER_WITH_GRANT, MYF(0),
-               thd->security_ctx->user, thd->security_ctx->host_or_ip);
+      my_error(ER_CANT_CREATE_USER_WITH_GRANT, MYF(0));
       goto end;
     }
     else if (combo.plugin.str[0])
@@ -2309,8 +2308,8 @@ static int replace_user_table(THD *thd, TABLE *table, const LEX_USER &combo,
     /* what == 'N' means revoke */
     if (combo.plugin.length && what != 'N')
     {
-        my_error(ER_GRANT_PLUGIN_USER_EXISTS, MYF(0), combo.user.length, 
-                 combo.user.str);
+        my_error(ER_GRANT_PLUGIN_USER_EXISTS, MYF(0),
+                 static_cast<int>(combo.user.length), combo.user.str);
         goto end;
     }
     if (combo.password.str)                             // If password given
@@ -8901,7 +8900,7 @@ err:
   if (mpvio->status == MPVIO_EXT::FAILURE)
   {
     inc_host_errors(mpvio->ip);
-    my_error(ER_HANDSHAKE_ERROR, MYF(0), mpvio->auth_info.host_or_ip);
+    my_error(ER_HANDSHAKE_ERROR, MYF(0));
   }
   DBUG_RETURN(-1);
 }
@@ -9487,7 +9486,7 @@ static int native_password_authenticate(MYSQL_PLUGIN_VIO *vio,
   }
 
   inc_host_errors(mpvio->ip);
-  my_error(ER_HANDSHAKE_ERROR, MYF(0), mpvio->auth_info.host_or_ip);
+  my_error(ER_HANDSHAKE_ERROR, MYF(0));
   DBUG_RETURN(CR_ERROR);
 }
 
@@ -9541,7 +9540,7 @@ static int old_password_authenticate(MYSQL_PLUGIN_VIO *vio,
   }
 
   inc_host_errors(mpvio->ip);
-  my_error(ER_HANDSHAKE_ERROR, MYF(0), mpvio->auth_info.host_or_ip);
+  my_error(ER_HANDSHAKE_ERROR, MYF(0));
   return CR_ERROR;
 }
 

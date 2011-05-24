@@ -695,7 +695,7 @@ static bool event_scheduler_update(sys_var *self, THD *thd, enum_var_type type)
             : Events::stop();
   mysql_mutex_lock(&LOCK_global_system_variables);
   if (ret)
-    my_error(ER_EVENT_SET_VAR_ERROR, MYF(0));
+    my_error(ER_EVENT_SET_VAR_ERROR, MYF(0), 0);
   return ret;
 }
 
@@ -2504,7 +2504,7 @@ static bool update_last_insert_id(THD *thd, set_var *var)
 {
   if (!var->value)
   {
-    my_error(ER_NO_DEFAULT, MYF(0), var->var->name);
+    my_error(ER_NO_DEFAULT, MYF(0), var->var->name.str);
     return true;
   }
   thd->first_successful_insert_id_in_prev_stmt=
@@ -2553,7 +2553,7 @@ static bool update_insert_id(THD *thd, set_var *var)
 {
   if (!var->value)
   {
-    my_error(ER_NO_DEFAULT, MYF(0), var->var->name);
+    my_error(ER_NO_DEFAULT, MYF(0), var->var->name.str);
     return true;
   }
   thd->force_one_auto_inc_interval(var->save_result.ulonglong_value);
@@ -2576,7 +2576,7 @@ static bool update_rand_seed1(THD *thd, set_var *var)
 {
   if (!var->value)
   {
-    my_error(ER_NO_DEFAULT, MYF(0), var->var->name);
+    my_error(ER_NO_DEFAULT, MYF(0), var->var->name.str);
     return true;
   }
   thd->rand.seed1= (ulong) var->save_result.ulonglong_value;
@@ -2598,7 +2598,7 @@ static bool update_rand_seed2(THD *thd, set_var *var)
 {
   if (!var->value)
   {
-    my_error(ER_NO_DEFAULT, MYF(0), var->var->name);
+    my_error(ER_NO_DEFAULT, MYF(0), var->var->name.str);
     return true;
   }
   thd->rand.seed2= (ulong) var->save_result.ulonglong_value;
