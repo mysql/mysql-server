@@ -28,8 +28,8 @@
 
 #include <NdbOut.hpp>
 #include <mgmapi.h>
-#include <mgmapi_configuration.hpp>
-#include <ConfigInfo.hpp>
+#include "../src/mgmapi/mgmapi_configuration.hpp"
+#include "../src/mgmsrv/ConfigInfo.hpp"
 #include <NdbAutoPtr.hpp>
 #include <NdbTCP.h>
 
@@ -552,7 +552,7 @@ noconnect:
   return conf;
 }
 
-#include <Config.hpp>
+#include "../src/mgmsrv/Config.hpp"
 #include <EventLogger.hpp>
 
 extern EventLogger *g_eventLogger;
