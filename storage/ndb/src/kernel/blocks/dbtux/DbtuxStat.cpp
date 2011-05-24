@@ -104,7 +104,8 @@ Dbtux::statRecordsInRange(ScanOpPtr scanPtr, Uint32* out)
     // committed read (same timeslice) and range not empty
     ndbrequire(pos2.m_loc != NullTupLoc);
   }
-  out[0] = frag.m_entryCount;
+  // wl4124_todo change all to Uint64 if ever needed (unlikely)
+  out[0] = (Uint32)frag.m_entryCount;
   out[2] = getEntriesBeforeOrAfter(frag, pos1, 0);
   out[3] = getEntriesBeforeOrAfter(frag, pos2, 1);
   if (pos1.m_loc == pos2.m_loc) {
@@ -137,7 +138,7 @@ Dbtux::getEntriesBeforeOrAfter(Frag& frag, TreePos pos, unsigned idir)
   ndbrequire(depth != 0 && depth <= MaxTreeDepth);
   TreeHead& tree = frag.m_tree;
   Uint32 cnt = 0;
-  Uint32 tot = frag.m_entryCount;
+  Uint32 tot = (Uint32)frag.m_entryCount;
   unsigned i = 0;
   // contribution from levels above
   while (i + 1 < depth) {
@@ -198,6 +199,13 @@ Dbtux::getPathToNode(NodeHandle node, Uint16* path)
 
 // stats scan
 
+// windows has no log2
+static double
+tux_log2(double x)
+{
+  return ::log(x) / ::log(2);
+}
+
 int
 Dbtux::statScanInit(StatOpPtr statPtr, const Uint32* data, Uint32 len,
                     Uint32* usedLen)
@@ -238,7 +246,7 @@ Dbtux::statScanInit(StatOpPtr statPtr, const Uint32* data, Uint32 len,
   Uint32 avgKeyBytes = 0;
   if (frag.m_entryCount != 0)
   {
-    avgKeyBytes = frag.m_entryBytes / frag.m_entryCount;
+    avgKeyBytes = (Uint32)(frag.m_entryBytes / frag.m_entryCount);
     if (avgKeyBytes > stat.m_keySpec.get_max_data_len(false))
       avgKeyBytes = stat.m_keySpec.get_max_data_len(false);
   }
@@ -250,11 +258,11 @@ Dbtux::statScanInit(StatOpPtr statPtr, const Uint32* data, Uint32 len,
     double c = avgKeyBytes;
     double d = index.m_numAttrs;
     double e =  c + (1 + d) * 4; // approx size of one sample
-    double f = frag.m_entryCount;
+    double f = (double)frag.m_entryCount;
     double g = f * e; // max possible sample bytes
     if (g < 1.0)
       g = 1.0;
-    double h = 1 + 0.01 * b * ::log2(g); // scale factor
+    double h = 1 + 0.01 * b * tux_log2(g); // scale factor
     double i = a * h; // sample bytes allowed
     double j = i / e; // sample count
     double k = f / j; // sampling frequency
@@ -634,10 +642,10 @@ Dbtux::statMonCheck(Signal* signal, StatMon& mon)
         // compute scaled percentags - see wl4124.txt
         double a = c_indexStatTriggerPct;
         double b = c_indexStatTriggerScale;
-        double c = frag.m_entryCount;
-        double d = 1 + 0.01 * b * ::log2(c); // inverse scale factor
+        double c = (double)count;
+        double d = 1 + 0.01 * b * tux_log2(c); // inverse scale factor
         double e = a / d; // scaled trigger pct
-        double f = ops;
+        double f = (double)ops;
         double g = 100.0 * f / c;
         update = (g >= e);
         D("statMonCheck" << V(update) << V(f) << V(c));
