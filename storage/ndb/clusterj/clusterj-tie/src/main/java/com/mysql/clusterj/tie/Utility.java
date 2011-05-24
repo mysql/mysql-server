@@ -419,9 +419,11 @@ public class Utility {
             switch (storeColumn.getType()) {
                 case Bit:
                     // bit fields are always stored in an int32
+                    return value & ooooooff;
                 case Tinyint:
                 case Year:
-                    return value & ooooooff;
+                    // other byte values are stored in the high byte of an int
+                    return value << 24;
                 default:
                     throw new ClusterJUserException(local.message(
                             "ERR_Unsupported_Mapping", storeColumn.getType(), "byte"));
