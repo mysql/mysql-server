@@ -10,7 +10,6 @@
 #
 ##############################################################################
 lowercase_table3         : Bug#11762269 2010-06-30 alik main.lowercase_table3 on Mac OSX
-log_tables-big           : Bug#11756699 2010-11-15 mattiasj report already exists
 read_many_rows_innodb    : Bug#11748886 2010-11-15 mattiasj report already exists
 sum_distinct-big         : Bug#11764126 2010-11-15 mattiasj was not tested
 alter_table-big          : Bug#11748731 2010-11-15 mattiasj was not tested
