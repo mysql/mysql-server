@@ -3495,7 +3495,7 @@ i_s_fts_config_fill(
 	fts_table_t		fts_table;
 	dict_table_t*		user_table;
 	ulint			i = 0;
-	dict_index_t*		index;
+	dict_index_t*		index = NULL;
 	unsigned char		str[FTS_MAX_CONFIG_VALUE_LEN + 1];
 
 	DBUG_ENTER("i_s_fts_config_fill");
@@ -3523,22 +3523,34 @@ i_s_fts_config_fill(
 
 	fts_table.suffix = "CONFIG";
 
-	index = (dict_index_t*) ib_vector_getp_const(user_table->fts->indexes, 0);
+	if (!ib_vector_is_empty(user_table->fts->indexes)) {
+		index = (dict_index_t*) ib_vector_getp_const(
+				user_table->fts->indexes, 0);
+	}
 
 	while (fts_config_key[i]) {
 		fts_string_t	value;
 		char*		key_name;
+		ulint		allocated = FALSE;
 
 		value.len = FTS_MAX_CONFIG_VALUE_LEN;
 
 		value.utf8 = str;
 
-		key_name = fts_config_create_index_param_name(
-				fts_config_key[i], index);
+		if (strcmp(fts_config_key[i], FTS_TOTAL_WORD_COUNT) == 0
+		    && index) {
+			key_name = fts_config_create_index_param_name(
+					fts_config_key[i], index);
+			allocated = TRUE;
+		} else {
+			key_name = (char*) fts_config_key[i];
+		}
 
 		fts_config_get_value(trx, &fts_table, key_name, &value);
 
-		ut_free(key_name);
+		if (allocated) {
+			ut_free(key_name);
+		}
 
 		OK(field_store_string(
                         fields[FTS_CONFIG_KEY], fts_config_key[i]));

@@ -239,7 +239,7 @@ row_merge_buf_add(
 	const dtuple_t*		row,	/*!< in: row in clustered index */
 	const row_ext_t*	ext,	/*!< in: cache of externally stored
 					column prefixes, or NULL */
-	doc_id_t		doc_id)	/*!< in: Doc ID if we are
+	doc_id_t*		doc_id)	/*!< in/out: Doc ID if we are
 					creating FTS index */
 
 {
@@ -289,7 +289,7 @@ row_merge_buf_add(
 		/* If we are creating a FTS index, a new Doc
 		ID column is being added, so we need to adjust
 		any column number positioned after this Doc ID */
-		if (doc_id
+		if (*doc_id > 0
 		    && DICT_TF2_FLAG_IS_SET(index->table,
                     			    DICT_TF_FTS_ADD_DOC_ID)
 		    && (col_no > index->table->fts->doc_col)) {
@@ -300,9 +300,9 @@ row_merge_buf_add(
 		}
 
 		/* Process the Doc ID column */
-		if (doc_id && col_no == index->table->fts->doc_col) {
+		if (*doc_id > 0 && col_no == index->table->fts->doc_col) {
 			doc_id_t	write_doc_id;
-			fts_write_doc_id((byte*) &write_doc_id, doc_id);
+			fts_write_doc_id((byte*) &write_doc_id, *doc_id);
 			dfield_set_data(field, &write_doc_id,
 					sizeof(write_doc_id));
 			field->type.mtype = ifield->col->mtype;
@@ -320,22 +320,21 @@ row_merge_buf_add(
 					buf->heap, sizeof(fts_doc_item_t));
 				/* fetch Doc ID if it already exists
 				in the row, and not supplied by the caller */
-				if (!doc_id) {
+				if (*doc_id == 0) {
 					const dfield_t*	doc_field;
 					doc_field = dtuple_get_nth_field(
 						row,
 						index->table->fts->doc_col);
-					doc_id = (doc_id_t) mach_read_from_8(
+					*doc_id = (doc_id_t) mach_read_from_8(
 						dfield_get_data(doc_field));
-					ut_a(doc_id > 0);
-
+					ut_a(*doc_id > 0);
 				}
 				if (FTS_PLL_ENABLED) {
 					dfield_dup(field, buf->heap);
 					doc_item->field = field;
-					doc_item->doc_id = doc_id;
+					doc_item->doc_id = *doc_id;
 
-					bucket = doc_id %
+					bucket = *doc_id %
 					FTS_PARALLEL_DEGREE;
 					UT_LIST_ADD_LAST(
 						doc_list,
@@ -346,7 +345,7 @@ row_merge_buf_add(
 				}
 
 				n_row_added += row_merge_fts_doc_tokenize(
-					&buf, row_field, doc_id, &init_pos,
+					&buf, row_field, *doc_id, &init_pos,
 					NULL, NULL, NULL);
 
 				if (!n_row_added) {
@@ -1212,6 +1211,7 @@ row_merge_read_clustered_index(
 	ulint*			nonnull = NULL;	/* NOT NULL columns */
 	dict_index_t*		fts_index = NULL;/* FTS index */
 	doc_id_t		doc_id = 0;
+	doc_id_t		max_doc_id = 0;
 	ibool			add_doc_id = FALSE;
 	os_event_t		fts_parallel_sort_event = NULL;
 
@@ -1249,6 +1249,7 @@ row_merge_read_clustered_index(
 			if (add_doc_id) {
 				fts_get_next_doc_id(
 					(dict_table_t*)new_table,
+					old_table->name,
 					 &doc_id);
 				ut_ad(doc_id > 0);
 			}
@@ -1381,6 +1382,8 @@ row_merge_read_clustered_index(
 		/* Get the next Doc ID */
 		if (add_doc_id) {
 			doc_id++;
+		} else {
+			doc_id = 0;
 		}
 
 		/* Build all entries for all the indexes to be created
@@ -1394,11 +1397,17 @@ row_merge_read_clustered_index(
 
 			if (UNIV_LIKELY
 			    (row && (rows_added = row_merge_buf_add(
-				buf, fts_index, psort_info, row, ext, doc_id)))) {
+				buf, fts_index, psort_info,
+				row, ext, &doc_id)))) {
+
 				/* If we are creating FTS index,
 				a single row can generate more
 				records for tokenized word */
 				file->n_rec += rows_added;
+				if (doc_id > max_doc_id) {
+					max_doc_id = doc_id;
+				}
+
 				continue;
 			}
 
@@ -1451,7 +1460,8 @@ err_exit:
 
 				if (UNIV_UNLIKELY
 				    (!(rows_added = row_merge_buf_add(
-					buf, fts_index, psort_info, row, ext, doc_id)))) {
+					buf, fts_index, psort_info, row,
+					ext, &doc_id)))) {
 					/* An empty buffer should have enough
 					room for at least one record.
 					TODO: for FTS index building, we'll
@@ -1470,11 +1480,6 @@ err_exit:
 		if (UNIV_UNLIKELY(!has_next)) {
 			goto func_exit;
 		}
-	}
-
-	/* Update the last Doc ID we used */
-	if (add_doc_id) {
-		fts_update_last_doc_id((dict_table_t*)new_table, doc_id, NULL);
 	}
 
 func_exit:
@@ -1513,6 +1518,14 @@ wait_again:
 	}
 
 	mem_free(merge_buf);
+
+	/* Update the next Doc ID we used. Table should be locked, so
+	no concurrent DML */
+	if (max_doc_id) {
+		new_table->fts->cache->next_doc_id = max_doc_id;
+		fts_get_next_doc_id(new_table, old_table->name, &doc_id);
+		ut_a(doc_id > max_doc_id);
+	}
 
 	trx->op_info = "";
 
@@ -2521,6 +2534,7 @@ row_merge_create_temporary_table(
 	if (DICT_TF2_FLAG_IS_SET(table, DICT_TF_FTS_ADD_DOC_ID)) {
 		fts_add_doc_id_column(new_table);
 		new_table->fts->doc_col = n_cols;
+		DICT_TF2_FLAG_SET(new_table, DICT_TF_FTS_HAS_DOC_ID);
 	}
 
 	error = row_create_table_for_mysql(new_table, trx);

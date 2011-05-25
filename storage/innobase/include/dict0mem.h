@@ -114,10 +114,15 @@ ROW_FORMAT=REDUNDANT. */
 						table->flags. */
 #define DICT_TF2_TEMPORARY		1	/*!< TRUE for tables from
 						CREATE TEMPORARY TABLE. */
-#define DICT_TF_FTS_ADD_DOC_ID		2	/* Need to add Doc ID column
-						for FTS index build */
+#define DICT_TF_FTS_HAS_DOC_ID		2	/* Has internal defined
+						DOC ID column */
 #define DICT_TF_FTS			4	/* has an FTS index */
-#define DICT_TF2_BITS			(DICT_TF2_SHIFT + 3)
+#define DICT_TF_FTS_ADD_DOC_ID		8	/* Need to add Doc ID column
+						for FTS index build.
+						This is a transient bit
+						for index build */
+
+#define DICT_TF2_BITS			(DICT_TF2_SHIFT + 4)
 						/*!< Total number of bits
 						in table->flags. */
 /* @} */

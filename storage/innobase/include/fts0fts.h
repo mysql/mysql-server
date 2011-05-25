@@ -143,9 +143,10 @@ transaction to generate the document id. */
 ulint
 fts_get_next_doc_id(
 /*================*/
-					/* out: DB_SUCCESS if OK */
-	dict_table_t*	table,		/* in: table */
-	doc_id_t*	doc_id);	/* out: new document id */
+						/* out: DB_SUCCESS if OK */
+	const dict_table_t*	table,		/* in: table */
+	const char*		table_name,	/* in: table name */
+	doc_id_t*		doc_id);	/* out: new document id */
 /********************************************************************
 Update the last document id. This function could create a new
 transaction to update the last document id. */
@@ -153,10 +154,11 @@ transaction to update the last document id. */
 ulint
 fts_update_last_doc_id(
 /*===================*/
-					/* out: DB_SUCCESS if OK */
-	dict_table_t*	table,		/* in: table */
-	doc_id_t	doc_id,		/* in: last document id */
-	trx_t*		trx);		/* in: update trx */
+						/* out: DB_SUCCESS if OK */
+	const dict_table_t*	table,		/* in: table */
+	const char*		table_name,	/* in: table name */
+	doc_id_t		doc_id,		/* in: last document id */
+	trx_t*			trx);		/* in: update trx */
 /********************************************************************
 Create a new document id .*/
 
@@ -392,6 +394,15 @@ UNIV_INTERN
 ibool
 fts_optimize_is_init(void);
 /*======================*/
+/****************************************************************//**
+Drops index ancillary tables for a FTS index
+@return DB_SUCCESS or error code */
+UNIV_INTERN
+ulint
+fts_drop_index_tables(
+/*==================*/
+	trx_t*		trx,		/*!< in: transaction */
+	dict_index_t*	index);		/*!< in: Index to drop */
 /********************************************************************
 Remove the table from the OPTIMIZER's list. We do wait for
 acknowledgement from the consumer of the message. */
@@ -451,6 +462,17 @@ table or FTS index defined on them. */
 void
 fts_drop_orphaned_tables(void);
 /*==========================*/
+
+/********************************************************************
+Since we do a horizontal split on the index table, we need to drop the
+all the split tables. */
+ulint
+fts_drop_index_split_tables(
+/*========================*/
+						/* out: DB_SUCCESS
+						or error code */
+	trx_t*		trx,			/* in: transaction */
+	dict_index_t*	index);			/* in: fts instance */
 
 /****************************************************************//**
 Run SYNC on the table, i.e., write out data from the cache to the

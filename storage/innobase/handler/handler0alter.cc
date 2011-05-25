@@ -563,7 +563,9 @@ innobase_create_key_def(
 	KEY*		key_info,	/*!< in: Indexes to be created */
 	ulint&		n_keys,		/*!< in/out: Number of indexes to
 					be created */
-	ulint*		num_fts_index)	/*!< out: Number of FTS indexes */
+	ulint*		num_fts_index,	/*!< out: Number of FTS indexes */
+	ibool*		add_fts_doc_id)	/*!< out: Whether we need to add
+					new DOC ID column for FTS index */
 {
 	ulint			i = 0;
 	merge_index_def_t*	indexdef;
@@ -576,6 +578,8 @@ innobase_create_key_def(
 	indexdef = indexdefs = (merge_index_def_t*)
 		mem_heap_alloc(heap, sizeof *indexdef
 			       * (n_keys + UT_LIST_GET_LEN(table->indexes)));
+
+	*add_fts_doc_id = FALSE;
 
 	/* If there is a primary key, it is always the first index
 	defined for the table. */
@@ -617,7 +621,7 @@ innobase_create_key_def(
 	Doc ID hidden column and rebuild the primary index */
 	if (*num_fts_index) {
 		if (!innobase_fts_check_doc_id_col(table, &fts_doc_col_no)) {
-			DICT_TF2_FLAG_SET(table, DICT_TF_FTS_ADD_DOC_ID);
+			*add_fts_doc_id = TRUE;
 
 			ut_print_timestamp(stderr);
 			fprintf(stderr, "  InnoDB: Rebuild table %s to add "
@@ -632,8 +636,7 @@ innobase_create_key_def(
 	the table to add the unique Doc ID column for FTS index. And
 	thus the primary index would required to be rebuilt. Copy all
 	the index definitions */
-	if (new_primary
-	    || DICT_TF2_FLAG_IS_SET(table, DICT_TF_FTS_ADD_DOC_ID)) {
+	if (new_primary || *add_fts_doc_id) {
 		const dict_index_t*	index;
 
 		if (new_primary) {
@@ -668,8 +671,9 @@ innobase_create_key_def(
 		/* The primary index would be rebuilt if a FTS Doc ID
 		column is to be added, and the primary index definition
 		is just copied from old table and stored in indexdefs[0] */
-		if (DICT_TF2_FLAG_IS_SET(table, DICT_TF_FTS_ADD_DOC_ID)) {
+		if (*add_fts_doc_id) {
 			indexdefs[0].ind_type |= DICT_CLUSTERED;
+			DICT_TF2_FLAG_SET(table, DICT_TF_FTS_ADD_DOC_ID);
 		}
 
 		row_mysql_unlock_data_dictionary(trx);
@@ -899,7 +903,7 @@ err_exit:
 
 	index_defs = innobase_create_key_def(
 		trx, innodb_table, heap, key_info, num_of_idx,
-		&num_fts_index);
+		&num_fts_index, &fts_add_doc_id);
 
 	/* We do not support create more than one FT index on the
 	table yet.
@@ -911,9 +915,6 @@ err_exit:
 	}
 
 	new_primary = DICT_CLUSTERED & index_defs[0].ind_type;
-
-	fts_add_doc_id = DICT_TF2_FLAG_IS_SET(innodb_table,
-					      DICT_TF_FTS_ADD_DOC_ID);
 
 	/* If a new FTS Doc ID column is to be added, there will be
 	one additional index to be built on the Doc ID column itself. */
@@ -1009,12 +1010,10 @@ err_exit:
 		num_created++;
 	}
 
+	/* create FTS_DOC_ID_INDEX on the Doc ID column on the table */
 	if (fts_add_doc_id) {
-		/* create FTS_DOC_ID_INDEX on the Doc ID column on
-		the table */
 		index[num_of_idx] = innobase_create_fts_doc_id_idx(
 					       indexed_table, trx, heap);
-
 		/* FTS_DOC_ID_INDEX is internal defined new index */
 		num_of_idx++;
 	}
@@ -1193,6 +1192,8 @@ convert_error:
 			}
 		}
 
+		DICT_TF2_FLAG_UNSET(innodb_table, DICT_TF_FTS_ADD_DOC_ID);
+
 		error = convert_error_code_to_mysql(error,
 						    innodb_table->flags,
 						    user_thd);
@@ -1217,6 +1218,44 @@ convert_error:
 	srv_active_wake_master_thread();
 
 	DBUG_RETURN(error);
+}
+
+/*******************************************************************//**
+Drop auxiliary tables related to an FTS index
+@return	DB_SUCCESS or error number */
+static
+ulint
+innobase_drop_fts_index(
+/*====================*/
+	dict_table_t*	table,	/*!< in: Table where indexes are dropped */
+	dict_index_t*	index,	/*!< in: Index to be dropped */
+	trx_t*		trx)	/*!< in: Transaction for the drop */
+{
+	ib_vector_t*    indexes = table->fts->indexes;
+	ulint		err = DB_SUCCESS;
+
+	ut_a(indexes);
+
+	if (ib_vector_size(indexes) == 1) {
+
+		fts_optimize_remove_table(table);
+
+		DICT_TF2_FLAG_UNSET(table, DICT_TF_FTS);
+
+		if (!DICT_TF2_FLAG_IS_SET(table,
+				    DICT_TF_FTS_HAS_DOC_ID)) {
+			err = fts_drop_tables(trx, table);
+
+			fts_free(table->fts);
+			return(err);
+		}
+	}
+
+	err = fts_drop_index_tables(trx, index);
+
+	ib_vector_remove(indexes, (const void*) index);
+
+	return(err);
 }
 
 /*******************************************************************//**
@@ -1518,6 +1557,13 @@ ha_innobase::final_drop_index(
 		next_index = dict_table_get_next_index(index);
 
 		if (index->to_be_dropped) {
+
+			/* If it is FTS index, first drop its
+			auxiliary tables */
+			if (index->type == DICT_FTS) {
+				innobase_drop_fts_index(
+					prebuilt->table, index, trx);
+			}
 
 			row_merge_drop_index(index, prebuilt->table, trx);
 		}

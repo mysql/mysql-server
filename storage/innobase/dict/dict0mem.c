@@ -103,8 +103,10 @@ dict_mem_table_create(
 	/* If the table has an FTS index or we are in the process
 	of building one, create the table->fts */
 	if (dict_table_has_fts_index(table)
+	    || DICT_TF2_FLAG_IS_SET(table, DICT_TF_FTS_HAS_DOC_ID)
 	    || DICT_TF2_FLAG_IS_SET(table, DICT_TF_FTS_ADD_DOC_ID)) {
                 table->fts = fts_create(table);
+		table->fts->cache = fts_cache_create(table);
         } else {
                 table->fts = NULL;
         }

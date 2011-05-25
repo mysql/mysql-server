@@ -78,6 +78,16 @@ ib_vector_pop(
 					/* out: pointer to the "new" element */
 	ib_vector_t*	vec);		/* in/out: vector */
 
+/*******************************************************************//**
+Remove an element to the vector
+@return pointer to the "removed" element */
+UNIV_INLINE
+void*
+ib_vector_remove(
+/*=============*/
+	ib_vector_t*	vec,	/*!< in: vector */
+	const void*	elem);	/*!< in: value to remove */
+
 /********************************************************************
 Get the number of elements in the vector. */
 UNIV_INLINE
