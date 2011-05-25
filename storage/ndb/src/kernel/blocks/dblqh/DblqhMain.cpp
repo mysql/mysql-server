@@ -148,6 +148,7 @@ operator<<(NdbOut& out, Operation_t op)
   case ZDELETE: out << "DELETE"; break;
   case ZWRITE: out << "WRITE"; break;
   case ZUNLOCK: out << "UNLOCK"; break;
+  case ZREFRESH: out << "REFRESH"; break;
   }
   return out;
 }
@@ -4533,6 +4534,7 @@ void Dblqh::execLQHKEYREQ(Signal* signal)
     regTcPtr->lockType = 
       op == ZREAD_EX ? ZUPDATE : 
       (Operation_t) op == ZWRITE ? ZINSERT : 
+      (Operation_t) op == ZREFRESH ? ZINSERT :
       (Operation_t) op == ZUNLOCK ? ZREAD : // lockType not relevant for unlock req
       (Operation_t) op;
   }
@@ -5072,6 +5074,7 @@ void Dblqh::prepareContinueAfterBlockedLab(Signal* signal)
     case ZINSERT: TRACENR("INSERT"); break;
     case ZDELETE: TRACENR("DELETE"); break;
     case ZUNLOCK: TRACENR("UNLOCK"); break;
+    case ZREFRESH: TRACENR("REFRESH"); break;
     default: TRACENR("<Unknown: " << regTcPtr->operation << ">"); break;
     }
     
@@ -5121,7 +5124,6 @@ Dblqh::exec_acckeyreq(Signal* signal, TcConnectionrecPtr regTcPtr)
   Uint32 taccreq;
   regTcPtr.p->transactionState = TcConnectionrec::WAIT_ACC;
   taccreq = regTcPtr.p->operation;
-  taccreq = taccreq + (regTcPtr.p->opSimple << 3);
   taccreq = taccreq + (regTcPtr.p->lockType << 4);
   taccreq = taccreq + (regTcPtr.p->dirtyOp << 6);
   taccreq = taccreq + (regTcPtr.p->replicaType << 7);
@@ -5286,15 +5288,17 @@ Dblqh::handle_nr_copy(Signal* signal, Ptr<TcConnectionrec> regTcPtr)
     if (match)
     {
       jam();
-      if (op != ZDELETE)
+      if (op != ZDELETE && op != ZREFRESH)
       {
 	if (TRACENR_FLAG)
-	  TRACENR(" Changing from to ZWRITE" << endl);
+	  TRACENR(" Changing from INSERT/UPDATE to ZWRITE" << endl);
 	regTcPtr.p->operation = ZWRITE;
       }
       goto run;
     }
-    
+
+    ndbassert(!match && op == ZINSERT);
+
     /**
      * 1) Delete row at specified rowid (if len > 0)
      * 2) Delete specified row at different rowid (if exists)
@@ -6006,7 +6010,7 @@ Dblqh::acckeyconf_tupkeyreq(Signal* signal, TcConnectionrec* regTcPtr,
   
   TRACE_OP(regTcPtr, "TUPKEYREQ");
   
-  regTcPtr->m_use_rowid |= (op == ZINSERT);
+  regTcPtr->m_use_rowid |= (op == ZINSERT || op == ZREFRESH);
   regTcPtr->m_row_id.m_page_no = page_no;
   regTcPtr->m_row_id.m_page_idx = page_idx;
   

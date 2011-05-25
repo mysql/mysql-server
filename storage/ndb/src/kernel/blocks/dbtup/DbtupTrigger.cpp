@@ -863,6 +863,7 @@ void Dbtup::checkDetachedTriggers(KeyReqStruct *req_struct,
   switch (save_type) {
   case ZUPDATE:
   case ZINSERT:
+  case ZREFRESH:
     req_struct->m_tuple_ptr =get_copy_tuple(&regOperPtr->m_copy_tuple_location);
     break;
   }
@@ -878,7 +879,10 @@ void Dbtup::checkDetachedTriggers(KeyReqStruct *req_struct,
       return;
       goto end;
     }
-    regOperPtr->op_struct.op_type = ZINSERT;
+    else if (save_type != ZREFRESH)
+    {
+      regOperPtr->op_struct.op_type = ZINSERT;
+    }
   }
   else if (save_type == ZINSERT) {
     /**
@@ -929,6 +933,29 @@ void Dbtup::checkDetachedTriggers(KeyReqStruct *req_struct,
     fireDetachedTriggers(req_struct,
                          regTablePtr->subscriptionUpdateTriggers, 
                          regOperPtr, disk);
+    break;
+  case ZREFRESH:
+    jam();
+    /* Depending on the Refresh scenario, fire Delete or Insert
+     * triggers to simulate the effect of arriving at the tuple's
+     * current state.
+     */
+    switch(regOperPtr->m_copy_tuple_location.m_file_no){
+    case Operationrec::RF_SINGLE_NOT_EXIST:
+    case Operationrec::RF_MULTI_NOT_EXIST:
+      fireDetachedTriggers(req_struct,
+                           regTablePtr->subscriptionDeleteTriggers,
+                           regOperPtr, disk);
+      break;
+    case Operationrec::RF_SINGLE_EXIST:
+    case Operationrec::RF_MULTI_EXIST:
+      fireDetachedTriggers(req_struct,
+                           regTablePtr->subscriptionInsertTriggers,
+                           regOperPtr, disk);
+      break;
+    default:
+      ndbrequire(false);
+    }
     break;
   default:
     ndbrequire(false);
@@ -1375,12 +1402,14 @@ out:
 
     switch(regOperPtr->op_struct.op_type) {
     case(ZINSERT):
+    is_insert:
       jam();
       // Send AttrInfo signals with new attribute values
       trigAttrInfo->setAttrInfoType(TrigAttrInfo::AFTER_VALUES);
       sendTrigAttrInfo(signal, afterBuffer, noAfterWords, executeDirect, ref);
       break;
     case(ZDELETE):
+    is_delete:
       if (trigPtr->sendBeforeValues) {
         jam();
         trigAttrInfo->setAttrInfoType(TrigAttrInfo::BEFORE_VALUES);
@@ -1397,6 +1426,23 @@ out:
       trigAttrInfo->setAttrInfoType(TrigAttrInfo::AFTER_VALUES);
       sendTrigAttrInfo(signal, afterBuffer, noAfterWords, executeDirect, ref);
       break;
+    case ZREFRESH:
+      jam();
+      /* Reuse Insert/Delete trigger firing code as necessary */
+      switch(regOperPtr->m_copy_tuple_location.m_file_no){
+      case Operationrec::RF_SINGLE_NOT_EXIST:
+        jam();
+      case Operationrec::RF_MULTI_NOT_EXIST:
+        jam();
+        goto is_delete;
+      case Operationrec::RF_SINGLE_EXIST:
+        jam();
+      case Operationrec::RF_MULTI_EXIST:
+        jam();
+        goto is_insert;
+      default:
+        ndbrequire(false);
+      }
     default:
       ndbrequire(false);
     }
@@ -1423,6 +1469,25 @@ out:
   case(ZDELETE):
     jam();
     fireTrigOrd->m_triggerEvent = TriggerEvent::TE_DELETE;
+    break;
+  case ZREFRESH:
+    jam();
+    switch(regOperPtr->m_copy_tuple_location.m_file_no){
+    case Operationrec::RF_SINGLE_NOT_EXIST:
+      jam();
+    case Operationrec::RF_MULTI_NOT_EXIST:
+      jam();
+      fireTrigOrd->m_triggerEvent = TriggerEvent::TE_DELETE;
+      break;
+    case Operationrec::RF_SINGLE_EXIST:
+      jam();
+    case Operationrec::RF_MULTI_EXIST:
+      jam();
+      fireTrigOrd->m_triggerEvent = TriggerEvent::TE_INSERT;
+      break;
+    default:
+      ndbrequire(false);
+    }
     break;
   default:
     ndbrequire(false);
@@ -1615,7 +1680,7 @@ bool Dbtup::readTriggerInfo(TupTriggerData* const trigPtr,
 // Delete without sending before values only read Primary Key
 //--------------------------------------------------------------------
     return true;
-  } else {
+  } else if (regOperPtr->op_struct.op_type != ZREFRESH){
     jam();
 //--------------------------------------------------------------------
 // All others send all attributes that are monitored, except:
@@ -1632,6 +1697,27 @@ bool Dbtup::readTriggerInfo(TupTriggerData* const trigPtr,
     numAttrsToRead = setAttrIds(attributeMask, regTabPtr->m_no_of_attributes,
                                 &readBuffer[0]);
   }
+  else
+  {
+    jam();
+    ndbassert(regOperPtr->op_struct.op_type == ZREFRESH);
+    /* Refresh specific before/after value hacks */
+    switch(regOperPtr->m_copy_tuple_location.m_file_no){
+    case Operationrec::RF_SINGLE_NOT_EXIST:
+    case Operationrec::RF_MULTI_NOT_EXIST:
+      return true; // generate ZDELETE...no before values
+    case Operationrec::RF_SINGLE_EXIST:
+    case Operationrec::RF_MULTI_EXIST:
+      // generate ZINSERT...all after values
+      numAttrsToRead = setAttrIds(trigPtr->attributeMask,
+                                  regTabPtr->m_no_of_attributes,
+                                  &readBuffer[0]);
+      break;
+    default:
+      ndbrequire(false);
+    }
+  }
+
   ndbrequire(numAttrsToRead <= MAX_ATTRIBUTES_IN_TABLE);
 //--------------------------------------------------------------------
 // Read Main tuple values
@@ -1875,6 +1961,9 @@ Dbtup::executeTuxCommitTriggers(Signal* signal,
       return;
     jam();
     tupVersion= regOperPtr->tupVersion;
+  } else if (regOperPtr->op_struct.op_type == ZREFRESH) {
+    /* Refresh should not affect TUX */
+    return;
   } else {
     ndbrequire(false);
     tupVersion= 0; // remove warning
@@ -1906,6 +1995,10 @@ Dbtup::executeTuxAbortTriggers(Signal* signal,
     tupVersion = regOperPtr->tupVersion;
   } else if (regOperPtr->op_struct.op_type == ZDELETE) {
     jam();
+    return;
+  } else if (regOperPtr->op_struct.op_type == ZREFRESH) {
+    jam();
+    /* Refresh should not affect TUX */
     return;
   } else {
     ndbrequire(false);

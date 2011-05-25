@@ -2209,6 +2209,7 @@ NdbTransaction::receiveTCKEY_FAILCONF(const TcKeyFailConf * failConf)
       case NdbOperation::DeleteRequest:
       case NdbOperation::WriteRequest:
       case NdbOperation::UnlockRequest:
+      case NdbOperation::RefreshRequest:
 	tOp = tOp->next();
 	break;
       case NdbOperation::ReadRequest:
@@ -2713,6 +2714,52 @@ NdbTransaction::writeTuple(const NdbRecord *key_rec, const char *key_row,
   return op;
 }
 
+const NdbOperation *
+NdbTransaction::refreshTuple(const NdbRecord *key_rec, const char *key_row,
+                             const NdbOperation::OperationOptions *opts,
+                             Uint32 sizeOfOptions)
+{
+  /* Check TC node version lockless */
+  {
+    Uint32 tcVer = theNdb->theImpl->getNodeInfo(theDBnode).m_info.m_version;
+    if (unlikely(! ndb_refresh_tuple(tcVer)))
+    {
+      /* Function not implemented yet */
+      setOperationErrorCodeAbort(4003);
+      return NULL;
+    }
+  }
+
+  /* Check that the NdbRecord specifies the full primary key. */
+  if (!(key_rec->flags & NdbRecord::RecHasAllKeys))
+  {
+    setOperationErrorCodeAbort(4292);
+    return NULL;
+  }
+
+  Uint8 keymask[NDB_MAX_ATTRIBUTES_IN_TABLE/8];
+  bzero(keymask, sizeof(keymask));
+  for (Uint32 i = 0; i<key_rec->key_index_length; i++)
+  {
+    Uint32 id = key_rec->columns[key_rec->key_indexes[i]].attrId;
+    keymask[(id / 8)] |= (1 << (id & 7));
+  }
+
+  NdbOperation *op= setupRecordOp(NdbOperation::RefreshRequest,
+                                  NdbOperation::LM_Exclusive,
+                                  NdbOperation::AbortOnError,
+                                  key_rec, key_row,
+                                  key_rec, key_row,
+                                  keymask /* mask */,
+                                  opts,
+                                  sizeOfOptions);
+  if(!op)
+    return op;
+
+  theSimpleState= 0;
+
+  return op;
+}
 
 NdbScanOperation *
 NdbTransaction::scanTable(const NdbRecord *result_record,
