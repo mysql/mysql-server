@@ -9004,7 +9004,7 @@ void Dbdih::execDIGETNODESREQ(Signal* signal)
   Uint32 fragId, newFragId = RNIL;
   DiGetNodesConf * const conf = (DiGetNodesConf *)&signal->theData[0];
   TabRecord* regTabDesc = tabRecord;
-  EmulatedJamBuffer * jambuf = jamBuffer();
+  EmulatedJamBuffer * jambuf = * (EmulatedJamBuffer**)(req->jamBuffer);
   thrjamEntry(jambuf);
   ptrCheckGuard(tabPtr, ttabFileSize, regTabDesc);
 
@@ -9273,7 +9273,7 @@ Dbdih::dequeue(DIVERIFY_queue & q, Ptr<ApiConnectRecord> & conRecord)
   */
 void Dbdih::execDIVERIFYREQ(Signal* signal)
 {
-  EmulatedJamBuffer * jambuf = jamBuffer();
+  EmulatedJamBuffer * jambuf = * (EmulatedJamBuffer**)(signal->theData+2);
   thrjamEntry(jambuf);
   if ((getBlockCommit() == false) &&
       isEmpty(c_diverify_queue[0]))
