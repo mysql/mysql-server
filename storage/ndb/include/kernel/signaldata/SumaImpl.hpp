@@ -306,6 +306,7 @@ struct SubSyncConf {
 struct SubTableData {
   friend bool printSUB_TABLE_DATA(FILE *, const Uint32 *, Uint32, Uint16);
   STATIC_CONST( SignalLength = 8 );
+  STATIC_CONST( SignalLengthWithTransId = 10 );
   SECTION( DICT_TAB_INFO = 0 );
   SECTION( ATTR_INFO = 0 );
   SECTION( AFTER_VALUES = 1 );
@@ -329,6 +330,8 @@ struct SubTableData {
   };
   Uint32 totalLen;
   Uint32 gci_lo;
+  Uint32 transId1;
+  Uint32 transId2;
 
   static void setOperation(Uint32& ri, Uint32 val) { 
     ri = (ri & 0xFFFFFF00) | val;
