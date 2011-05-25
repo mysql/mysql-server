@@ -775,7 +775,7 @@ void KEY_PART_INFO::init_flags()
 void KEY_PART_INFO::init_from_field(Field *fld)
 {
   field= fld;
-  fieldnr= field->field_index;
+  fieldnr= field->field_index + 1;
   null_bit= field->null_bit;
   null_offset= (uint) (field->null_ptr - (uchar*) field->table->record[0]);
   offset= field->offset(field->table->record[0]);
