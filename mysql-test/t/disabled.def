@@ -15,4 +15,4 @@ sum_distinct-big         : Bug#11764126 2010-11-15 mattiasj was not tested
 alter_table-big          : Bug#11748731 2010-11-15 mattiasj was not tested
 create-big               : Bug#11748731 2010-11-15 mattiasj was not tested
 archive-big              : Bug#11817185 2011-03-10 Anitha Disabled since this leads to timeout on Solaris Sparc
-main.query_cache_28249                   # Bug#12584161 2009-03-25 main.query_cache_28249 fails sporadically
+main.query_cache_28249   : Bug#12584161 2009-03-25 main.query_cache_28249 fails sporadically
