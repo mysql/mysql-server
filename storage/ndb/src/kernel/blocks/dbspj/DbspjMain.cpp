@@ -3686,7 +3686,7 @@ Dbspj::getNodes(Signal* signal, BuildKeyReq& dst, Uint32 tableId)
 
 #if 1
   EXECUTE_DIRECT(DBDIH, GSN_DIGETNODESREQ, signal,
-                 DiGetNodesReq::SignalLength);
+                 DiGetNodesReq::SignalLength, 0);
 #else
   sendSignal(DBDIH_REF, GSN_DIGETNODESREQ, signal,
              DiGetNodesReq::SignalLength, JBB);
