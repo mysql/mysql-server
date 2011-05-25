@@ -628,4 +628,52 @@ ndbd_deferred_unique_constraints(Uint32 x)
   return x >= NDBD_DEFERRED_UNIQUE_CONSTRAINTS_71;
 }
 
+#define NDBD_TUP_EXTRABITS_70 NDB_MAKE_VERSION(7,0,25)
+#define NDBD_TUP_EXTRABITS_71 NDB_MAKE_VERSION(7,1,14)
+#define NDBD_TUP_EXTRABITS_72 NDB_MAKE_VERSION(7,2,1)
+
+static
+inline
+int
+ndb_tup_extrabits(Uint32 x)
+{
+  {
+    const Uint32 major = (x >> 16) & 0xFF;
+    const Uint32 minor = (x >>  8) & 0xFF;
+
+    if (major == 7 && minor < 2)
+    {
+      if (minor == 0)
+        return x >= NDBD_TUP_EXTRABITS_70;
+      else if (minor == 1)
+        return x >= NDBD_TUP_EXTRABITS_71;
+    }
+    return x >= NDBD_TUP_EXTRABITS_72;
+  }
+}
+
+#define NDBD_REFRESH_TUPLE_70 NDB_MAKE_VERSION(7,0,26)
+#define NDBD_REFRESH_TUPLE_71 NDB_MAKE_VERSION(7,1,15)
+#define NDBD_REFRESH_TUPLE_72 NDB_MAKE_VERSION(7,2,1)
+
+static
+inline
+int
+ndb_refresh_tuple(Uint32 x)
+{
+  {
+    const Uint32 major = (x >> 16) & 0xFF;
+    const Uint32 minor = (x >>  8) & 0xFF;
+
+    if (major == 7 && minor < 2)
+    {
+      if (minor == 0)
+        return x >= NDBD_REFRESH_TUPLE_70;
+      else if (minor == 1)
+        return x >= NDBD_REFRESH_TUPLE_71;
+    }
+    return x >= NDBD_REFRESH_TUPLE_72;
+  }
+}
+
 #endif

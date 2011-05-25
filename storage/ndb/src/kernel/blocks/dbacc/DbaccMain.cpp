@@ -971,9 +971,12 @@ void Dbacc::initOpRec(Signal* signal)
   Uint32 readFlag = (((Treqinfo >> 4) & 0x3) == 0);      // Only 1 if Read
   Uint32 dirtyFlag = (((Treqinfo >> 6) & 0x1) == 1);     // Only 1 if Dirty
   Uint32 dirtyReadFlag = readFlag & dirtyFlag;
+  Uint32 operation = Treqinfo & 0xf;
+  if (operation == ZREFRESH)
+    operation = ZWRITE; /* Insert if !exist, otherwise lock */
 
   Uint32 opbits = 0;
-  opbits |= Treqinfo & 0x7;
+  opbits |= operation;
   opbits |= ((Treqinfo >> 4) & 0x3) ? (Uint32) Operationrec::OP_LOCK_MODE : 0;
   opbits |= ((Treqinfo >> 4) & 0x3) ? (Uint32) Operationrec::OP_ACC_LOCK_MODE : 0;
   opbits |= (dirtyReadFlag) ? (Uint32) Operationrec::OP_DIRTY_READ : 0;
@@ -2323,6 +2326,27 @@ void Dbacc::execACCMINUPDATE(Signal* signal)
   ndbrequire(false);
 }//Dbacc::execACCMINUPDATE()
 
+void
+Dbacc::removerow(Uint32 opPtrI, const Local_key* key)
+{
+  jamEntry();
+  operationRecPtr.i = opPtrI;
+  ptrCheckGuard(operationRecPtr, coprecsize, operationrec);
+  Uint32 opbits = operationRecPtr.p->m_op_bits;
+  fragrecptr.i = operationRecPtr.p->fragptr;
+
+  /* Mark element disappeared */
+  opbits |= Operationrec::OP_ELEMENT_DISAPPEARED;
+  opbits &= ~Uint32(Operationrec::OP_COMMIT_DELETE_CHECK);
+  operationRecPtr.p->m_op_bits = opbits;
+
+#ifdef VM_TRACE
+  ptrCheckGuard(fragrecptr, cfragmentsize, fragmentrec);
+  ndbrequire(operationRecPtr.p->localdata[0] == key->m_page_no);
+  ndbrequire(operationRecPtr.p->localdata[1] == key->m_page_idx);
+#endif
+}//Dbacc::execACCMINUPDATE()
+
 /* ******************--------------------------------------------------------------- */
 /* ACC_COMMITREQ                                        COMMIT  TRANSACTION          */
 /*                                                     SENDER: LQH,    LEVEL B       */
@@ -2371,6 +2395,16 @@ void Dbacc::execACC_COMMITREQ(Signal* signal)
       }//if
     } else {
       jam();                                                /* EXPAND PROCESS HANDLING */
+      if (unlikely(opbits & Operationrec::OP_ELEMENT_DISAPPEARED))
+      {
+        jam();
+        /* Commit of refresh of non existing tuple.
+         *   ZREFRESH->ZWRITE->ZINSERT
+         * Do not affect element count
+         */
+        ndbrequire((opbits & Operationrec::OP_MASK) == ZINSERT);
+        return;
+      }
       fragrecptr.p->noOfElements++;
       fragrecptr.p->slack -= fragrecptr.p->elementLength;
       if (fragrecptr.p->slack >= (1u << 31)) { 

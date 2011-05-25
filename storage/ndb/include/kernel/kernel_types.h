@@ -36,9 +36,7 @@ enum Operation_t {
   ,ZDELETE  = 3
   ,ZWRITE   = 4
   ,ZREAD_EX = 5
-#if 0
-  ,ZREAD_CONSISTENT = 6
-#endif
+  ,ZREFRESH = 6
   ,ZUNLOCK  = 7
 };
 

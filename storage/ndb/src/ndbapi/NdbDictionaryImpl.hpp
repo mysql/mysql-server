@@ -238,6 +238,8 @@ public:
   Uint16 m_fragmentCount;
   Uint8 m_single_user_mode;
   Uint8 m_storageType;  // NDB_STORAGETYPE_MEMORY or _DISK or DEFAULT
+  Uint8 m_extra_row_gci_bits;
+  Uint8 m_extra_row_author_bits;
 
   NdbIndexImpl * m_index;
   NdbColumnImpl * getColumn(unsigned attrId);

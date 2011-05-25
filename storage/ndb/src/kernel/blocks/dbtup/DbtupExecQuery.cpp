@@ -192,6 +192,8 @@ Dbtup::insertActiveOpList(OperationrecPtr regOperPtr,
       prevOpPtr.p->op_struct.m_wait_log_buffer;
     regOperPtr.p->op_struct.m_load_diskpage_on_commit= 
       prevOpPtr.p->op_struct.m_load_diskpage_on_commit;
+    regOperPtr.p->op_struct.m_gci_written=
+      prevOpPtr.p->op_struct.m_gci_written;
     regOperPtr.p->m_undo_buffer_space= prevOpPtr.p->m_undo_buffer_space;
     // start with prev mask (matters only for UPD o UPD)
 
@@ -212,7 +214,14 @@ Dbtup::insertActiveOpList(OperationrecPtr regOperPtr,
 	  prevOpPtr.p->op_struct.delete_insert_flag= true;
 	  regOperPtr.p->op_struct.delete_insert_flag= true;
 	  return true;
-	} else {
+	}
+        else if (op == ZREFRESH)
+        {
+          /* ZREFRESH after Delete - ok */
+          return true;
+        }
+        else
+        {
 	  terrorCode= ZTUPLE_DELETED_ERROR;
 	  return false;
 	}
@@ -221,6 +230,12 @@ Dbtup::insertActiveOpList(OperationrecPtr regOperPtr,
       {
 	terrorCode= ZINSERT_ERROR;
 	return false;
+      }
+      else if (prevOp == ZREFRESH)
+      {
+        /* No operation after a ZREFRESH */
+        terrorCode= ZOP_AFTER_REFRESH_ERROR;
+        return false;
       }
       return true;
     }
@@ -281,21 +296,39 @@ Dbtup::setup_read(KeyReqStruct *req_struct,
       dirty= false;
     }
 
+    /* found == true indicates that savepoint is some state
+     * within tuple's current transaction's uncommitted operations
+     */
     bool found= find_savepoint(currOpPtr, savepointId);
     
     Uint32 currOp= currOpPtr.p->op_struct.op_type;
     
+    /* is_insert==true if tuple did not exist before its current
+     * transaction
+     */
     bool is_insert = (bits & Tuple_header::ALLOC);
+
+    /* If savepoint is in transaction, and post-delete-op
+     *   OR
+     * Tuple didn't exist before
+     *      AND
+     *   Read is dirty
+     *           OR
+     *   Savepoint is before-transaction
+     *
+     * Tuple does not exist in read's view
+     */
     if((found && currOp == ZDELETE) || 
        ((dirty || !found) && is_insert))
     {
+      /* Tuple not visible to this read operation */
       terrorCode= ZTUPLE_DELETED_ERROR;
       break;
     }
     
     if(dirty || !found)
     {
-      
+      /* Read existing committed tuple */
     }
     else
     {
@@ -349,6 +382,17 @@ Dbtup::load_diskpage(Signal* signal,
     jam();
     regOperPtr->op_struct.m_wait_log_buffer= 1;
     regOperPtr->op_struct.m_load_diskpage_on_commit= 1;
+    if (unlikely((flags & 7) == ZREFRESH))
+    {
+      jam();
+      /* Refresh of previously nonexistant DD tuple.
+       * No diskpage to load at commit time
+       */
+      regOperPtr->op_struct.m_wait_log_buffer= 0;
+      regOperPtr->op_struct.m_load_diskpage_on_commit= 0;
+    }
+
+    /* In either case return 1 for 'proceed' */
     return 1;
   }
   
@@ -408,6 +452,7 @@ Dbtup::load_diskpage(Signal* signal,
   case ZUPDATE:
   case ZINSERT:
   case ZWRITE:
+  case ZREFRESH:
     regOperPtr->op_struct.m_wait_log_buffer= 1;
     regOperPtr->op_struct.m_load_diskpage_on_commit= 1;
   }
@@ -554,7 +599,7 @@ void Dbtup::execTUPKEYREQ(Signal* signal)
    Uint32 Rstoredid= tupKeyReq->storedProcedure;
 
    regOperPtr->fragmentPtr= Rfragptr;
-   regOperPtr->op_struct.op_type= (TrequestInfo >> 6) & 0xf;
+   regOperPtr->op_struct.op_type= (TrequestInfo >> 6) & 0x7;
    regOperPtr->op_struct.delete_insert_flag = false;
    regOperPtr->op_struct.m_reorg = (TrequestInfo >> 12) & 3;
 
@@ -629,10 +674,18 @@ void Dbtup::execTUPKEYREQ(Signal* signal)
                 req_struct.attrinfo_len,
                 attrInfoIVal);
    
+   regOperPtr->op_struct.m_gci_written = 0;
+
    if (Roptype == ZINSERT && Local_key::isInvalid(pageid, pageidx))
    {
-     // No tuple allocatated yet
+     // No tuple allocated yet
      goto do_insert;
+   }
+
+   if (Roptype == ZREFRESH && Local_key::isInvalid(pageid, pageidx))
+   {
+     // No tuple allocated yet
+     goto do_refresh;
    }
 
    if (unlikely(isCopyTuple(pageid, pageidx)))
@@ -827,6 +880,23 @@ void Dbtup::execTUPKEYREQ(Signal* signal)
 
        sendTUPKEYCONF(signal, &req_struct, regOperPtr);
        return;
+     }
+     else if (Roptype == ZREFRESH)
+     {
+       /**
+        * No TUX or immediate triggers, just detached triggers
+        */
+   do_refresh:
+       if (unlikely(handleRefreshReq(signal, operPtr,
+                                     fragptr, regTabPtr,
+                                     &req_struct, disk_page != RNIL) == -1))
+       {
+         return;
+       }
+
+       sendTUPKEYCONF(signal, &req_struct, regOperPtr);
+       return;
+
      }
      else
      {
@@ -1114,6 +1184,15 @@ int Dbtup::handleUpdateReq(Signal* signal,
   
   if (!req_struct->interpreted_exec) {
     jam();
+
+    if (regTabPtr->m_bits & Tablerec::TR_ExtraRowAuthorBits)
+    {
+      jam();
+      Uint32 attrId =
+        regTabPtr->getExtraAttrId<Tablerec::TR_ExtraRowAuthorBits>();
+
+      store_extra_row_bits(attrId, regTabPtr, dst, /* default */ 0, false);
+    }
     int retValue = updateAttributes(req_struct,
 				    &cinBuffer[0],
 				    req_struct->attrinfo_len);
@@ -1660,6 +1739,14 @@ int Dbtup::handleInsertReq(Signal* signal,
     terrorCode = ZAI_INCONSISTENCY_ERROR;
     goto update_error;
   }
+
+  if (regTabPtr->m_bits & Tablerec::TR_ExtraRowAuthorBits)
+  {
+    Uint32 attrId =
+      regTabPtr->getExtraAttrId<Tablerec::TR_ExtraRowAuthorBits>();
+
+    store_extra_row_bits(attrId, regTabPtr, tuple_ptr, /* default */ 0, false);
+  }
   
   if (!regTabPtr->m_default_value_location.isNull())
   {
@@ -2034,6 +2121,197 @@ error:
   return -1;
 }
 
+int
+Dbtup::handleRefreshReq(Signal* signal,
+                        Ptr<Operationrec> regOperPtr,
+                        Ptr<Fragrecord>  regFragPtr,
+                        Tablerec* regTabPtr,
+                        KeyReqStruct *req_struct,
+                        bool disk)
+{
+  /* Here we setup the tuple so that a transition to its current
+   * state can be observed by SUMA's detached triggers.
+   *
+   * If the tuple does not exist then we fabricate a tuple
+   * so that it can appear to be 'deleted'.
+   *   The fabricated tuple may have invalid NULL values etc.
+   * If the tuple does exist then we fabricate a null-change
+   * update to the tuple.
+   *
+   * The logic differs depending on whether there are already
+   * other operations on the tuple in this transaction.
+   * No other operations (including Refresh) are allowed after
+   * a refresh.
+   */
+  Uint32 refresh_case;
+  if (regOperPtr.p->is_first_operation())
+  {
+    jam();
+    if (Local_key::isInvalid(req_struct->frag_page_id,
+                             regOperPtr.p->m_tuple_location.m_page_idx))
+    {
+      jam();
+      refresh_case = Operationrec::RF_SINGLE_NOT_EXIST;
+      //ndbout_c("case 1");
+      /**
+       * This is refresh of non-existing tuple...
+       *   i.e "delete", reuse initial insert
+       */
+       Local_key accminupdate;
+       Local_key * accminupdateptr = &accminupdate;
+
+       /**
+        * We don't need ...in this scenario
+        * - disk
+        * - default values
+        */
+       Uint32 save_disk = regTabPtr->m_no_of_disk_attributes;
+       Local_key save_defaults = regTabPtr->m_default_value_location;
+       Bitmask<MAXNROFATTRIBUTESINWORDS> save_mask =
+         regTabPtr->notNullAttributeMask;
+
+       regTabPtr->m_no_of_disk_attributes = 0;
+       regTabPtr->m_default_value_location.setNull();
+       regOperPtr.p->op_struct.op_type = ZINSERT;
+
+       /**
+        * Update notNullAttributeMask  to only include primary keys
+        */
+       regTabPtr->notNullAttributeMask.clear();
+       const Uint32 * primarykeys =
+         (Uint32*)&tableDescriptor[regTabPtr->readKeyArray].tabDescr;
+       for (Uint32 i = 0; i<regTabPtr->noOfKeyAttr; i++)
+         regTabPtr->notNullAttributeMask.set(primarykeys[i] >> 16);
+
+       int res = handleInsertReq(signal, regOperPtr,
+                                 regFragPtr, regTabPtr, req_struct,
+                                 &accminupdateptr);
+
+       regTabPtr->m_no_of_disk_attributes = save_disk;
+       regTabPtr->m_default_value_location = save_defaults;
+       regTabPtr->notNullAttributeMask = save_mask;
+
+       if (unlikely(res == -1))
+       {
+         return -1;
+       }
+
+       regOperPtr.p->op_struct.op_type = ZREFRESH;
+
+       if (accminupdateptr)
+       {
+       /**
+          * Update ACC local-key, once *everything* has completed succesfully
+          */
+         c_lqh->accminupdate(signal,
+                             regOperPtr.p->userpointer,
+                             accminupdateptr);
+       }
+    }
+    else
+    {
+      refresh_case = Operationrec::RF_SINGLE_EXIST;
+      //ndbout_c("case 2");
+      jam();
+
+      Uint32 tup_version_save = req_struct->m_tuple_ptr->get_tuple_version();
+      Uint32 new_tup_version = decr_tup_version(tup_version_save);
+      Tuple_header* origTuple = req_struct->m_tuple_ptr;
+      origTuple->set_tuple_version(new_tup_version);
+      int res = handleUpdateReq(signal, regOperPtr.p, regFragPtr.p,
+                                regTabPtr, req_struct, disk);
+      /* Now we must reset the original tuple header back
+       * to the original version.
+       * The copy tuple will have the correct version due to
+       * the update incrementing it.
+       * On commit, the tuple becomes the copy tuple.
+       * On abort, the original tuple remains.  If we don't
+       * reset it here, then aborts cause the version to
+       * decrease
+       */
+      origTuple->set_tuple_version(tup_version_save);
+      if (res == -1)
+        return -1;
+    }
+  }
+  else
+  {
+    /* Not first operation on tuple in transaction */
+    jam();
+
+    Uint32 tup_version_save = req_struct->prevOpPtr.p->tupVersion;
+    Uint32 new_tup_version = decr_tup_version(tup_version_save);
+    req_struct->prevOpPtr.p->tupVersion = new_tup_version;
+
+    int res;
+    if (req_struct->prevOpPtr.p->op_struct.op_type == ZDELETE)
+    {
+      refresh_case = Operationrec::RF_MULTI_NOT_EXIST;
+      //ndbout_c("case 3");
+
+      jam();
+      /**
+       * We don't need ...in this scenario
+       * - default values
+       *
+       * We keep disk attributes to avoid issues with 'insert'
+       */
+      Local_key save_defaults = regTabPtr->m_default_value_location;
+      Bitmask<MAXNROFATTRIBUTESINWORDS> save_mask =
+        regTabPtr->notNullAttributeMask;
+
+      regTabPtr->m_default_value_location.setNull();
+      regOperPtr.p->op_struct.op_type = ZINSERT;
+
+      /**
+       * Update notNullAttributeMask  to only include primary keys
+       */
+      regTabPtr->notNullAttributeMask.clear();
+      const Uint32 * primarykeys =
+        (Uint32*)&tableDescriptor[regTabPtr->readKeyArray].tabDescr;
+      for (Uint32 i = 0; i<regTabPtr->noOfKeyAttr; i++)
+        regTabPtr->notNullAttributeMask.set(primarykeys[i] >> 16);
+
+      /**
+       * This is multi-update + DELETE + REFRESH
+       */
+      Local_key * accminupdateptr = 0;
+      res = handleInsertReq(signal, regOperPtr,
+                            regFragPtr, regTabPtr, req_struct,
+                            &accminupdateptr);
+
+      regTabPtr->m_default_value_location = save_defaults;
+      regTabPtr->notNullAttributeMask = save_mask;
+
+      if (unlikely(res == -1))
+      {
+        return -1;
+      }
+
+      regOperPtr.p->op_struct.op_type = ZREFRESH;
+    }
+    else
+    {
+      jam();
+      refresh_case = Operationrec::RF_MULTI_EXIST;
+      //ndbout_c("case 4");
+      /**
+       * This is multi-update + INSERT/UPDATE + REFRESH
+       */
+      res = handleUpdateReq(signal, regOperPtr.p, regFragPtr.p,
+                            regTabPtr, req_struct, disk);
+    }
+    req_struct->prevOpPtr.p->tupVersion = tup_version_save;
+    if (res == -1)
+      return -1;
+  }
+
+  /* Store the refresh scenario in the copy tuple location */
+  // TODO : Verify this is never used as a copy tuple location!
+  regOperPtr.p->m_copy_tuple_location.m_file_no = refresh_case;
+  return 0;
+}
+
 bool
 Dbtup::checkNullAttributes(KeyReqStruct * req_struct,
                            Tablerec* regTabPtr)
@@ -2209,6 +2487,28 @@ int Dbtup::interpreterStartLab(Signal* signal,
 	return -1;
       }
     }
+
+    if ((RlogSize > 0) ||
+        (RfinalUpdateLen > 0))
+    {
+      /* Operation updates row,
+       * reset author pseudo-col before update takes effect
+       * This should probably occur only if the interpreted program
+       * did not explicitly write the value, but that requires a bit
+       * to record whether the value has been written.
+       */
+      Tablerec* regTabPtr = req_struct->tablePtrP;
+      Tuple_header* dst = req_struct->m_tuple_ptr;
+
+      if (regTabPtr->m_bits & Tablerec::TR_ExtraRowAuthorBits)
+      {
+        Uint32 attrId =
+          regTabPtr->getExtraAttrId<Tablerec::TR_ExtraRowAuthorBits>();
+
+        store_extra_row_bits(attrId, regTabPtr, dst, /* default */ 0, false);
+      }
+    }
+
     if (RfinalUpdateLen > 0) {
       jam();
       /* ---------------------------------------------------------------- */

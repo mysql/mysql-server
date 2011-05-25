@@ -39,6 +39,8 @@ operator <<(class NdbOut& ndbout, const NDBT_Table & tab)
   ndbout << "SingleUserMode: " << (Uint32) tab.getSingleUserMode() << endl;
   ndbout << "ForceVarPart: " << tab.getForceVarPart() << endl;
   ndbout << "FragmentCount: " << tab.getFragmentCount() << endl;
+  ndbout << "ExtraRowGciBits: " << tab.getExtraRowGciBits() << endl;
+  ndbout << "ExtraRowAuthorBits: " << tab.getExtraRowAuthorBits() << endl;
 
   //<< ((tab.getTupleKey() == TupleId) ? " tupleid" : "") <<endl;
   ndbout << "TableStatus: ";

@@ -224,10 +224,6 @@ public:
       }
       return false;
     }
-
-    /** Singly linked in internal (attributeId) order */
-    // TODO use DL template when possible to have more than 1
-    Uint32 nextAttributeIdPtrI;
   };
   typedef Ptr<AttributeRecord> AttributeRecordPtr;
   ArrayPool<AttributeRecord> c_attributeRecordPool;
@@ -282,6 +278,8 @@ public:
       TR_Temporary    = 0x8,
       TR_ForceVarPart = 0x10
     };
+    Uint8 m_extra_row_gci_bits;
+    Uint8 m_extra_row_author_bits;
     Uint16 m_bits;
 
     /* Number of attibutes in table */

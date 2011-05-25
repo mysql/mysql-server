@@ -3061,6 +3061,7 @@ void Dbtc::execTCKEYREQ(Signal* signal)
     case ZINSERT:
     case ZDELETE:
     case ZWRITE:
+    case ZREFRESH:
       jam();
       break;
     default:
@@ -3142,6 +3143,34 @@ handle_reorg_trigger(DiGetNodesConf * conf)
   }
 }
 
+bool
+Dbtc::isRefreshSupported() const
+{
+  const NodeVersionInfo& nvi = getNodeVersionInfo();
+  const Uint32 minVer = nvi.m_type[NodeInfo::DB].m_min_version;
+  const Uint32 maxVer = nvi.m_type[NodeInfo::DB].m_max_version;
+
+  if (likely (minVer == maxVer))
+  {
+    /* Normal case, use function */
+    return ndb_refresh_tuple(minVer);
+  }
+
+  /* As refresh feature was introduced across three minor versions
+   * we check that all data nodes support it.  This slow path
+   * should only be hit during upgrades between versions
+   */
+  for (Uint32 i=1; i < MAX_NODES; i++)
+  {
+    const NodeInfo& nodeInfo = getNodeInfo(i);
+    if ((nodeInfo.m_type == NODE_TYPE_DB) &&
+        (nodeInfo.m_connected) &&
+        (! ndb_refresh_tuple(nodeInfo.m_version)))
+      return false;
+  }
+  return true;
+}
+
 /**
  * tckeyreq050Lab
  * This method is executed once all KeyInfo has been obtained for
@@ -3188,6 +3217,7 @@ void Dbtc::tckeyreq050Lab(Signal* signal)
   req->tableId = Ttableref;
   req->hashValue = TdistrHashValue;
   req->distr_key_indicator = regCachePtr->distributionKeyIndicator;
+  * (EmulatedJamBuffer**)req->jamBuffer = jamBuffer();
 
   /*-------------------------------------------------------------*/
   /* FOR EFFICIENCY REASONS WE AVOID THE SIGNAL SENDING HERE AND */
@@ -3198,7 +3228,7 @@ void Dbtc::tckeyreq050Lab(Signal* signal)
   /* IS SPENT IN DIH AND EVEN LESS IN REPLICATED NDB.            */
   /*-------------------------------------------------------------*/
   EXECUTE_DIRECT(DBDIH, GSN_DIGETNODESREQ, signal,
-                 DiGetNodesReq::SignalLength);
+                 DiGetNodesReq::SignalLength, 0);
   DiGetNodesConf * conf = (DiGetNodesConf *)&signal->theData[0];
   UintR Tdata2 = conf->reqinfo;
   UintR TerrorIndicator = signal->theData[0];
@@ -3367,6 +3397,14 @@ void Dbtc::tckeyreq050Lab(Signal* signal)
     TlastReplicaNo = tnoOfBackup + tnoOfStandby;
     regTcPtr->lastReplicaNo = (Uint8)TlastReplicaNo;
     regTcPtr->noOfNodes = (Uint8)(TlastReplicaNo + 1);
+
+    if (unlikely((Toperation == ZREFRESH) &&
+                 (! isRefreshSupported())))
+    {
+      /* Function not implemented yet */
+      TCKEY_abort(signal,63);
+      return;
+    }
   }//if
 
   if (regCachePtr->isLongTcKeyReq || 
@@ -4878,7 +4916,9 @@ void Dbtc::diverify010Lab(Signal* signal)
        * CONNECTIONS AND THEN WHEN ALL DIVERIFYCONF HAVE BEEN RECEIVED THE 
        * COMMIT MESSAGE CAN BE SENT TO ALL INVOLVED PARTS.
        *---------------------------------------------------------------------*/
-      EXECUTE_DIRECT(DBDIH, GSN_DIVERIFYREQ, signal, 1);
+      * (EmulatedJamBuffer**)(signal->theData+2) = jamBuffer();
+      EXECUTE_DIRECT(DBDIH, GSN_DIVERIFYREQ, signal,
+                     2 + sizeof(void*)/sizeof(Uint32), 0);
       if (signal->theData[3] == 0) {
         execDIVERIFYCONF(signal);
       }
@@ -10872,9 +10912,9 @@ void Dbtc::execDIH_SCAN_TAB_CONF(Signal* signal)
     req->tableId = tabPtr.i;
     req->hashValue = cachePtr.p->distributionKey;
     req->distr_key_indicator = tabPtr.p->get_user_defined_partitioning();
-
+    * (EmulatedJamBuffer**)req->jamBuffer = jamBuffer();
     EXECUTE_DIRECT(DBDIH, GSN_DIGETNODESREQ, signal,
-                   DiGetNodesReq::SignalLength);
+                   DiGetNodesReq::SignalLength, 0);
     UintR TerrorIndicator = signal->theData[0];
     jamEntry();
     if (TerrorIndicator != 0)
