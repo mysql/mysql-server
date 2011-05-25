@@ -542,7 +542,7 @@ void Dbdih::execCONTINUEB(Signal* signal)
     break;
   case DihContinueB::ZEMPTY_VERIFY_QUEUE:
     jam();
-    emptyverificbuffer(signal, true);
+    emptyverificbuffer(signal, signal->theData[1], true);
     return;
     break;
   case DihContinueB::ZCHECK_GCP_STOP:
@@ -9320,7 +9320,10 @@ loop:
   /*-------------------------------------------------------------------------*/
   DIVERIFY_queue & q = c_diverify_queue[0];
   enqueue(q, signal->theData[0], m_micro_gcp.m_new_gci);
-  emptyverificbuffer(signal, false);
+  if (blocked == 0 && jambuf == jamBuffer())
+  {
+    emptyverificbuffer(signal, 0, false);
+  }
   signal->theData[3] = blocked + 1; // Indicate no immediate return
   return;
 }//Dbdih::execDIVERIFYREQ()
@@ -9505,15 +9508,18 @@ Dbdih::execUPGRADE_PROTOCOL_ORD(Signal* signal)
 }
 
 void
-Dbdih::startGcpLab(Signal* signal, Uint32 aWaitTime) 
+Dbdih::startGcpLab(Signal* signal, Uint32 aWaitTime)
 {
-  if (! isEmpty(c_diverify_queue[0]))
+  for (Uint32 i = 0; i < c_diverify_queue_cnt; i++)
   {
-    // Previous global checkpoint is not yet completed.
-    jam();
-    signal->theData[0] = DihContinueB::ZSTART_GCP;
-    sendSignalWithDelay(reference(), GSN_CONTINUEB, signal, 10, 1);
-    return;
+    if (c_diverify_queue[i].m_empty_done == 0)
+    {
+      // Previous global checkpoint is not yet completed.
+      jam();
+      signal->theData[0] = DihContinueB::ZSTART_GCP;
+      sendSignalWithDelay(reference(), GSN_CONTINUEB, signal, 10, 1);
+      return;
+    }
   }
 
   emptyWaitGCPMasterQueue(signal,
@@ -10196,8 +10202,14 @@ void Dbdih::execGCP_COMMIT(Signal* signal)
   m_micro_gcp.m_old_gci = m_micro_gcp.m_current_gci;
   m_micro_gcp.m_current_gci = gci;
   cgckptflag = false;
-  emptyverificbuffer(signal, true);
   m_micro_gcp.m_lock.write_unlock();
+
+  for (Uint32 i = 0; i < c_diverify_queue_cnt; i++)
+  {
+    jam();
+    c_diverify_queue[i].m_empty_done = 0;
+    emptyverificbuffer(signal, i, true);
+  }
 
   GCPNoMoreTrans* req2 = (GCPNoMoreTrans*)signal->getDataPtrSend();
   req2->senderRef = reference();
@@ -14743,44 +14755,78 @@ void Dbdih::createFileRw(Signal* signal, FileRecordPtr filePtr)
   sendSignal(NDBFS_REF, GSN_FSOPENREQ, signal, 7, JBA);
 }//Dbdih::createFileRw()
 
-void Dbdih::emptyverificbuffer(Signal* signal, bool aContinueB)
+void
+Dbdih::emptyverificbuffer(Signal* signal, Uint32 q, bool aContinueB)
 {
-  if (isEmpty(c_diverify_queue[0]))
+  if(unlikely(getBlockCommit() == true))
   {
     jam();
     return;
-  }//if
-  ApiConnectRecord localApiConnect;
-  if(getBlockCommit() == false){
+  }
+
+  if (!isEmpty(c_diverify_queue[q]))
+  {
     jam();
-    dequeue(c_diverify_queue[0], localApiConnect);
+
+    ApiConnectRecord localApiConnect;
+    dequeue(c_diverify_queue[q], localApiConnect);
     ndbrequire(localApiConnect.apiGci <= m_micro_gcp.m_current_gci);
     signal->theData[0] = localApiConnect.senderData;
     signal->theData[1] = (Uint32)(m_micro_gcp.m_current_gci >> 32);
     signal->theData[2] = (Uint32)(m_micro_gcp.m_current_gci & 0xFFFFFFFF);
     signal->theData[3] = 0;
     sendSignal(clocaltcblockref, GSN_DIVERIFYCONF, signal, 4, JBB);
-    if (aContinueB == true) {
-      jam();
-      //-----------------------------------------------------------------------
-      // This emptying happened as part of a take-out process by continueb signals.
-      // This ensures that we will empty the queue eventually. We will also empty
-      // one item every time we insert one item to ensure that the list doesn't
-      // grow when it is not blocked.
-      //-----------------------------------------------------------------------
-      signal->theData[0] = DihContinueB::ZEMPTY_VERIFY_QUEUE;
-      sendSignal(reference(), GSN_CONTINUEB, signal, 1, JBB);
-    }//if
-  } else {
+  }
+  else if (aContinueB == true)
+  {
+    jam();
+    /**
+     * Make sure that we don't miss any pending transactions
+     *   (transactions that are added to list by other thread
+     *    while we execute this code)
+     */
+    Uint32 blocks[] = { DBTC, 0 };
+    Callback c = { safe_cast(&Dbdih::emptyverificbuffer_check), q };
+    synchronize_threads_for_blocks(signal, blocks, c);
+    return;
+  }
+
+  if (aContinueB == true)
+  {
     jam();
     //-----------------------------------------------------------------------
-    // We are blocked so it is no use in continuing the emptying of the
-    // verify buffer. Whenever the block is removed the emptying will
-    // restart.
+    // This emptying happened as part of a take-out process by continueb signals
+    // This ensures that we will empty the queue eventually. We will also empty
+    // one item every time we insert one item to ensure that the list doesn't
+    // grow when it is not blocked.
     //-----------------------------------------------------------------------
-  }  
+    signal->theData[0] = DihContinueB::ZEMPTY_VERIFY_QUEUE;
+    signal->theData[1] = q;
+    sendSignal(reference(), GSN_CONTINUEB, signal, 2, JBB);
+  }//if
+
   return;
 }//Dbdih::emptyverificbuffer()
+
+void
+Dbdih::emptyverificbuffer_check(Signal* signal, Uint32 q, Uint32 retVal)
+{
+  ndbrequire(retVal == 0);
+  if (!isEmpty(c_diverify_queue[q]))
+  {
+    jam();
+    signal->theData[0] = DihContinueB::ZEMPTY_VERIFY_QUEUE;
+    signal->theData[1] = q;
+    sendSignal(reference(), GSN_CONTINUEB, signal, 2, JBB);
+  }
+  else
+  {
+    /**
+     * Done with emptyverificbuffer
+     */
+    c_diverify_queue[q].m_empty_done = 1;
+  }
+}
 
 /*************************************************************************/
 /*       FIND THE NODES FROM WHICH WE CAN EXECUTE THE LOG TO RESTORE THE */
@@ -17964,7 +18010,11 @@ void Dbdih::execUNBLOCK_COMMIT_ORD(Signal* signal){
     jam();
     
     c_blockCommit = false;
-    emptyverificbuffer(signal, true);
+    for (Uint32 i = 0; i<c_diverify_queue_cnt; i++)
+    {
+      c_diverify_queue[i].m_empty_done = 0;
+      emptyverificbuffer(signal, i, true);
+    }
   }
 }
 
