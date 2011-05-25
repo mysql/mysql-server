@@ -8070,6 +8070,8 @@ void Dblqh::commitContinueAfterBlockedLab(Signal* signal)
       tupCommitReq->hashValue = regTcPtr.p->hashValue;
       tupCommitReq->diskpage = RNIL;
       tupCommitReq->gci_lo = regTcPtr.p->gci_lo;
+      tupCommitReq->transId1 = regTcPtr.p->transid[0];
+      tupCommitReq->transId2 = regTcPtr.p->transid[1];
       EXECUTE_DIRECT(tup, GSN_TUP_COMMITREQ, signal, 
 		     TupCommitReq::SignalLength);
 

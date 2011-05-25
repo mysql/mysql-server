@@ -164,6 +164,18 @@ static int runCreateEvent(NDBT_Context* ctx, NDBT_Step* step)
   return NDBT_OK;
 }
 
+Uint32 setAnyValue(Ndb* ndb, NdbTransaction* trans, int rowid, int updVal)
+{
+  /* XOR 2 32bit words of transid together */
+  Uint64 transId = trans->getTransactionId();
+  return transId ^ (transId >> 32);
+}
+
+bool checkAnyValueTransId(Uint64 transId, Uint32 anyValue)
+{
+  return transId && (anyValue == Uint32(transId ^ (transId >> 32)));
+}
+
 struct receivedEvent {
   Uint32 pk;
   Uint32 count;
@@ -294,6 +306,24 @@ eventOperation(Ndb* pNdb, const NdbDictionary::Table &tab, void* pstats, int rec
 	case NdbDictionary::Event::TE_ALL:
 	  abort();
 	}
+
+        /* Check event transaction id */
+        Uint32 anyValue = pOp->getAnyValue();
+        Uint64 transId = pOp->getTransId();
+        if (anyValue)
+        {
+          if (!checkAnyValueTransId(transId, anyValue))
+          {
+            g_err << "ERROR : TransId and AnyValue mismatch.  "
+                  << "Transid : " << transId
+                  << ", AnyValue : " << anyValue
+                  << ", Expected AnyValue : "
+                  << (Uint32) ((transId >> 32) ^ transId)
+                  << endl;
+            abort();
+            return NDBT_FAILED;
+          }
+        }
 
 	if ((int)pk < records) {
 	  recEvent[pk].pk = pk;
@@ -498,6 +528,8 @@ int runEventLoad(NDBT_Context* ctx, NDBT_Step* step)
   int records = ctx->getNumRecords();
   HugoTransactions hugoTrans(*ctx->getTab());
 
+  hugoTrans.setAnyValueCallback(setAnyValue);
+
   sleep(1);
 #if 0
   sleep(5);
@@ -520,6 +552,7 @@ int runEventMixedLoad(NDBT_Context* ctx, NDBT_Step* step)
   int loops = ctx->getNumLoops();
   int records = ctx->getNumRecords();
   HugoTransactions hugoTrans(*ctx->getTab());
+  hugoTrans.setAnyValueCallback(setAnyValue);
   
   if(ctx->getPropertyWait("LastGCI_hi", ~(Uint32)0))
   {
@@ -720,6 +753,24 @@ int runEventApplier(NDBT_Context* ctx, NDBT_Step* step)
 	  default:
 	    abort();
 	  }
+
+          /* Check event transaction id */
+          Uint32 anyValue = pOp->getAnyValue();
+          Uint64 transId = pOp->getTransId();
+          if (anyValue)
+          {
+            if (!checkAnyValueTransId(transId, anyValue))
+            {
+              g_err << "ERROR : TransId and AnyValue mismatch.  "
+                    << "Transid : " << transId
+                    << ", AnyValue : " << anyValue
+                    << ", Expected AnyValue : "
+                    << (Uint32) ((transId >> 32) ^ transId)
+                    << endl;
+              abort();
+              return NDBT_FAILED;
+            }
+          }
 
 	  for (i= 0; i < n_columns; i++)
 	  {
