@@ -20,7 +20,7 @@ main.wait_timeout @solaris               # Bug#11758972 2010-04-26 alik wait_tim
 
 rpl.rpl_checksum                         # BUG#12370830 2011-04-18 sven rpl_checksum failed on pb2 (server crash)
 rpl.rpl_cross_version                    # BUG#12416611 2011-05-02 sven fails sporadically on pb2, valgrind errors
-rpl.rpl_delayed_slave                    # BUG#57514 rpl_delayed_slave fails sporadically in pb
+rpl.rpl_delayed_slave                    # BUG#11764654 rpl_delayed_slave fails sporadically in pb
 rpl.rpl_innodb_bug28430                  # Bug#11754425
 rpl.rpl_heartbeat_basic                  # BUG#12403008 2011-04-27 sven fails sporadically
 rpl.rpl_row_ignorable_event              # BUG#12416768 2011-05-02 sven fails sporadically on pb2, result mistmatch in output from mysqlbinlog
