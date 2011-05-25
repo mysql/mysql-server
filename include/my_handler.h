@@ -135,6 +135,7 @@ extern void my_handler_error_unregister(void);
                    if we're scanning "t.key BETWEEN 10 AND 20" and got a
                    "t.key=21" tuple (the engine should stop scanning and return
                    HA_ERR_END_OF_FILE right away).
+  3=ICP_ABORTED_BY_USER
 
  -1= ICP_ERROR  - Reserved for internal errors in engines. Should not be
 	          returned by index_cond_func_xxx
@@ -144,7 +145,8 @@ typedef enum icp_result {
   ICP_ERROR=-1,
   ICP_NO_MATCH=0,
   ICP_MATCH=1,
-  ICP_OUT_OF_RANGE=2
+  ICP_OUT_OF_RANGE=2,
+  ICP_ABORTED_BY_USER=3,
 } ICP_RESULT;
 
 

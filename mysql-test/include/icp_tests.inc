@@ -225,3 +225,63 @@ SELECT COUNT(*) FROM t3;
 
 DROP PROCEDURE insert_data;
 DROP TABLE t1, t2, t3;
+
+--echo #
+--echo # Bug#57372 "Multi-table updates and deletes fail when running with ICP 
+--echo #            against InnoDB"
+--echo #
+
+CREATE TABLE t1 (
+  a INT KEY, 
+  b INT
+);
+
+CREATE TABLE t2 (
+  a INT KEY, 
+  b INT
+);
+
+INSERT INTO t1 VALUES (1, 101), (2, 102), (3, 103), (4, 104), (5, 105);
+INSERT INTO t2 VALUES (1, 1), (2, 2), (3, 3), (4, 4), (5, 5);
+
+UPDATE t1, t2 
+SET t1.a = t1.a + 100, t2.b = t1.a + 10 
+WHERE t1.a BETWEEN 2 AND 4 AND t2.a = t1.b - 100;
+
+--sorted_result
+SELECT * FROM t1;
+--sorted_result
+SELECT * FROM t2;
+
+DROP TABLE t1, t2;
+
+--echo #
+--echo # Bug#59259 "Incorrect rows returned for a correlated subquery
+--echo #            when ICP is on"
+--echo #
+
+CREATE TABLE t1 (pk INTEGER PRIMARY KEY, i INTEGER NOT NULL) ENGINE=InnoDB;
+
+INSERT INTO t1 VALUES (11,0);
+INSERT INTO t1 VALUES (12,5);
+INSERT INTO t1 VALUES (15,0);
+
+CREATE TABLE t2 (pk INTEGER PRIMARY KEY, i INTEGER NOT NULL) ENGINE=InnoDB;
+
+INSERT INTO t2 VALUES (11,1);
+INSERT INTO t2 VALUES (12,2);
+INSERT INTO t2 VALUES (15,4);
+
+set @save_optimizer_switch= @@optimizer_switch;
+set optimizer_switch='semijoin=off';
+
+EXPLAIN
+SELECT * FROM t1
+WHERE pk IN (SELECT it.pk FROM t2 JOIN t2 AS it ON it.i=it.i WHERE it.pk-t1.i<10);
+SELECT * FROM t1
+WHERE pk IN (SELECT it.pk FROM t2 JOIN t2 AS it ON it.i=it.i WHERE it.pk-t1.i<10);
+
+set optimizer_switch=@save_optimizer_switch;
+
+DROP TABLE t1, t2;
+
