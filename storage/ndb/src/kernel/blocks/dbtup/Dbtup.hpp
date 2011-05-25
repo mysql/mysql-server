@@ -268,6 +268,7 @@ inline const Uint32* ALIGN_WORD(const void* ptr)
 #define ZMUST_BE_ABORTED_ERROR 898
 #define ZTUPLE_DELETED_ERROR 626
 #define ZINSERT_ERROR 630
+#define ZOP_AFTER_REFRESH_ERROR 920
 
 #define ZINVALID_CHAR_FORMAT 744
 #define ZROWID_ALLOCATED 899
@@ -843,6 +844,19 @@ struct Operationrec {
    * version even if in the same transaction.
    */
   Uint16 tupVersion;
+
+  /*
+   * When refreshing a row, there are four scenarios
+   * The actual scenario is encoded in the 'copy tuple location'
+   * to enable special handling at commit time
+   */
+  enum RefreshScenario
+  {
+    RF_SINGLE_NOT_EXIST = 1,    /* Refresh op first in trans, no row */
+    RF_SINGLE_EXIST     = 2,    /* Refresh op first in trans, row exists */
+    RF_MULTI_NOT_EXIST  = 3,    /* Refresh op !first in trans, row deleted */
+    RF_MULTI_EXIST      = 4     /* Refresh op !first in trans, row exists */
+  };
 };
 typedef Ptr<Operationrec> OperationrecPtr;
 
@@ -2079,6 +2093,13 @@ private:
                       Tablerec* regTabPtr,
                       KeyReqStruct* req_struct,
 		      bool disk);
+
+  int handleRefreshReq(Signal* signal,
+                       Ptr<Operationrec>,
+                       Ptr<Fragrecord>,
+                       Tablerec*,
+                       KeyReqStruct*,
+                       bool disk);
 
 //------------------------------------------------------------------
 //------------------------------------------------------------------
@@ -3406,6 +3427,8 @@ private:
                            const Dbtup::ScanOp& op);
   void commit_operation(Signal*, Uint32, Uint32, Tuple_header*, PagePtr,
 			Operationrec*, Fragrecord*, Tablerec*);
+  void commit_refresh(Signal*, Uint32, Uint32, Tuple_header*, PagePtr,
+                      KeyReqStruct*, Operationrec*, Fragrecord*, Tablerec*);
   int retrieve_data_page(Signal*,
                          Page_cache_client::Request,
                          OperationrecPtr);
