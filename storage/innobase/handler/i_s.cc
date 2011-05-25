@@ -3347,7 +3347,7 @@ i_s_innodb_buffer_page_get_info(
 
 		page_info->space_id = buf_page_get_space(bpage);
 
-		page_info->page_num = buf_page_get_page_no(bpage);;
+		page_info->page_num = buf_page_get_page_no(bpage);
 
 		page_info->flush_type = bpage->flush_type;
 
@@ -4793,7 +4793,7 @@ i_s_sys_indexes_fill_table(
 
 	/* Process each record in the table */
 	while (rec) {
-		const char*	err_msg;;
+		const char*	err_msg;
 		table_id_t	table_id;
 		dict_index_t	index_rec;
 
