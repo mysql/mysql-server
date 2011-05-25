@@ -36,6 +36,9 @@ setup_consumers
 setup_instruments
 setup_objects
 setup_timers
+socket_instances
+socket_summary_by_event_name
+socket_summary_by_instance
 table_io_waits_summary_by_index_usage
 table_io_waits_summary_by_table
 table_lock_waits_summary_by_table
