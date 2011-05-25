@@ -657,6 +657,8 @@ sub run_test_server ($$$) {
 			     mtr_report(" - deleting it, already saved",
 					"$opt_max_save_core");
 			     unlink("$core_file");
+			   } else {
+			     mtr_compress_file($core_file) unless @opt_cases;
 			   }
 			   ++$num_saved_cores;
 			 }
