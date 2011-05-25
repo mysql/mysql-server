@@ -87,6 +87,11 @@ public:
 		     int recordNo,
 		     int numRecords = 1);
   
+  int pkRefreshRecord(Ndb*,
+                      int recordNo,
+                      int numRecords = 1,
+                      int anyValueInfo = 0); /* 0 - none, 1+ Val | record */
+
   int execute_Commit(Ndb*, 
 		     AbortOption ao = AbortOnError);
   int execute_NoCommit(Ndb*,

@@ -43,6 +43,8 @@ struct ThrOutput {
   NDBT_Stats latency;
 };
 
+static int _refresh = 0;
+
 int main(int argc, const char** argv){
   ndb_init();
 
@@ -63,7 +65,9 @@ int main(int argc, const char** argv){
     //    { "batch", 'b', arg_integer, &_batch, "batch value", "batch" },
     { "records", 'r', arg_integer, &_records, "Number of records", "records" },
     { "usage", '?', arg_flag, &_help, "Print help", "" },
-    { "database", 'd', arg_string, &db, "Database", "" }
+    { "database", 'd', arg_string, &db, "Database", "" },
+    { "refresh", 0, arg_flag, &_refresh, "refresh record rather than update them", "" }
+
   };
   int num_args = sizeof(args) / sizeof(args[0]);
   int optind = 0;
@@ -135,7 +139,10 @@ int main(int argc, const char** argv){
     ths.stop();
 
     if (ths.get_err())
+    {
+      ths.disconnect();
       NDBT_ProgramExit(NDBT_FAILED);
+    }
 
     if (_stats) {
       NDBT_Stats latency;
@@ -160,6 +167,8 @@ int main(int argc, const char** argv){
     i++;
   }
 
+  ths.disconnect();
+
   return NDBT_ProgramExit(NDBT_OK);
 }
 
@@ -177,9 +186,19 @@ static void hugoPkUpdate(NDBT_Thread& thr)
   hugoTrans.setThrInfo(ths.get_count(), thr.get_thread_no());
 
   int ret;
-  ret = hugoTrans.pkUpdateRecords(thr.get_ndb(),
-                                  input->records,
-                                  input->batch);
+  if (_refresh == 0)
+  {
+    ret = hugoTrans.pkUpdateRecords(thr.get_ndb(),
+                                    input->records,
+                                    input->batch);
+  }
+  else
+  {
+    ret = hugoTrans.pkRefreshRecords(thr.get_ndb(),
+                                     0,
+                                     input->records,
+                                     input->batch);
+  }
   if (ret != 0)
     thr.set_err(ret);
 }

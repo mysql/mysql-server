@@ -567,6 +567,47 @@ int HugoOperations::pkDeleteRecord(Ndb* pNdb,
   return NDBT_OK;
 }
 
+int HugoOperations::pkRefreshRecord(Ndb* pNdb,
+                                    int recordNo,
+                                    int numRecords,
+                                    int anyValueInfo){
+
+  char buffer[NDB_MAX_TUPLE_SIZE];
+  const NdbDictionary::Table * pTab =
+    pNdb->getDictionary()->getTable(tab.getName());
+
+  if (pTab == 0)
+  {
+    return NDBT_FAILED;
+  }
+
+  const NdbRecord * record = pTab->getDefaultRecord();
+  NdbOperation::OperationOptions opts;
+  opts.optionsPresent = NdbOperation::OperationOptions::OO_ANYVALUE;
+  for(int r=0; r < numRecords; r++)
+  {
+    bzero(buffer, sizeof(buffer));
+    if (calc.equalForRow((Uint8*)buffer, record, r + recordNo))
+    {
+      return NDBT_FAILED;
+    }
+
+    opts.anyValue = anyValueInfo?
+      (anyValueInfo << 16) | (r+recordNo) :
+      0;
+
+    const NdbOperation* pOp = pTrans->refreshTuple(record, buffer,
+                                                   &opts, sizeof(opts));
+    if (pOp == NULL)
+    {
+      ERR(pTrans->getNdbError());
+      setNdbError(pTrans->getNdbError());
+      return NDBT_FAILED;
+    }
+  }
+  return NDBT_OK;
+}
+
 int HugoOperations::execute_Commit(Ndb* pNdb,
 				   AbortOption eao){
 
