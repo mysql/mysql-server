@@ -8871,7 +8871,7 @@ ha_innobase::info_low(
 		ulint	num_innodb_index = UT_LIST_GET_LEN(ib_table->indexes)
 					- prebuilt->clust_index_was_generated;
 
-		if ((!DICT_TF2_FLAG_IS_SET(ib_table, DICT_TF_FTS)
+		if ((!DICT_TF2_FLAG_IS_SET(ib_table, DICT_TF_FTS_HAS_DOC_ID)
 		     && (table->s->keys != num_innodb_index))
 		    || (num_innodb_index < table->s->keys)) {
 			sql_print_error("Table %s contains %lu "

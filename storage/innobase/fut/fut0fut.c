@@ -1101,7 +1101,6 @@ fts_drop_common_tables(
 /********************************************************************
 Since we do a horizontal split on the index table, we need to drop the
 all the split tables. */
-static
 ulint
 fts_drop_index_split_tables(
 /*========================*/
@@ -1142,65 +1141,86 @@ fts_drop_index_split_tables(
 	return(error);
 }
 
-/********************************************************************
-Drops the index ancillary tables needed for supporting an FTS index
-on the given table. row_mysql_lock_data_dictionary must have been called
-before this. */
-static
+/****************************************************************//**
+Drops FTS auxiliary tables for an FTS index
+@return DB_SUCCESS or error code */
+UNIV_INTERN
 ulint
 fts_drop_index_tables(
 /*==================*/
-						/* out: DB_SUCCESS
-						or error code */
-	trx_t*		trx,			/* in: transaction */
-	fts_t*		fts)			/* in: fts instance */
+	trx_t*		trx,		/*!< in: transaction */
+	dict_index_t*	index)		/*!< in: Index to drop */
 {
-	ulint		i;
-	fts_table_t	fts_table;
-	ulint		error = DB_SUCCESS;
+	ulint			err;
+	ulint			error = DB_SUCCESS;
+	fts_table_t		fts_table;
+	ulint			j;
 
 	static const char*	index_tables[] = {
 		"DOC_ID",
 		NULL
 	};
 
+	err = fts_drop_index_split_tables(trx, index);
+
+	/* We only return the status of the last error. */
+	if (err != DB_SUCCESS) {
+		error = err;
+	}
+
 	fts_table.suffix = NULL;
 	fts_table.type = FTS_INDEX_TABLE;
+	fts_table.index_id = index->id;
+	fts_table.table_id = index->table->id;
+	fts_table.parent = index->table->name;
 
-	for (i = 0; i < ib_vector_size(fts->indexes); ++i) {
-		ulint		j;
-		ulint		err;
-		dict_index_t*	index;
+	for (j = 0; index_tables[j] != NULL; ++j) {
+		ulint	err;
+		char*	table_name;
 
-		index = ib_vector_getp(fts->indexes, i);
+		fts_table.suffix = index_tables[j];
 
-		err = fts_drop_index_split_tables(trx, index);
+		table_name = fts_get_table_name(&fts_table);
+
+		err = fts_drop_table(trx, table_name);
 
 		/* We only return the status of the last error. */
 		if (err != DB_SUCCESS) {
 			error = err;
 		}
 
-		fts_table.index_id = index->id;
-		fts_table.table_id = index->table->id;
-		fts_table.parent = index->table->name;
+		mem_free(table_name);
+	}
 
-		for (j = 0; index_tables[j] != NULL; ++j) {
-			ulint	err;
-			char*	table_name;
+	return(error);
+}
 
-			fts_table.suffix = index_tables[j];
+/********************************************************************
+Drops FTS ancillary tables needed for supporting an FTS index
+on the given table. row_mysql_lock_data_dictionary must have been called
+before this. */
+static
+ulint
+fts_drop_all_index_tables(
+/*======================*/
+						/* out: DB_SUCCESS
+						or error code */
+	trx_t*		trx,			/* in: transaction */
+	fts_t*		fts)			/* in: fts instance */
+{
+	ulint		i;
+	ulint		error = DB_SUCCESS;
 
-			table_name = fts_get_table_name(&fts_table);
+	for (i = 0; i < ib_vector_size(fts->indexes); ++i) {
+		ulint		err;
+		dict_index_t*	index;
 
-			err = fts_drop_table(trx, table_name);
+		index = ib_vector_getp(fts->indexes, i);
 
-			/* We only return the status of the last error. */
-			if (err != DB_SUCCESS) {
-				error = err;
-			}
+		err = fts_drop_index_tables(trx, index);
 
-			mem_free(table_name);
+		if (err != DB_SUCCESS) {
+			error = err;
 		}
 	}
 
@@ -1230,7 +1250,7 @@ fts_drop_tables(
 	error = fts_drop_common_tables(trx, &fts_table);
 
 	if (error == DB_SUCCESS) {
-		error = fts_drop_index_tables(trx, table->fts);
+		error = fts_drop_all_index_tables(trx, table->fts);
 	}
 
 	return(error);
@@ -1929,23 +1949,29 @@ ulint
 fts_get_next_doc_id(
 /*================*/
 						/* out: DB_SUCCESS if OK */
-	dict_table_t*	table,			/* in: table */
-	doc_id_t*	doc_id)			/* out: new document id */
+	const dict_table_t*	table,		/* in: table */
+	const char*		table_name,	/* in: table name */
+	doc_id_t*		doc_id)		/* out: new document id */
 {
 	trx_t*		trx;
 	pars_info_t*	info;
 	ulint		error;
 	fts_table_t	fts_table;
 	que_t*		graph = NULL;
-	fts_cache_t*	cache = table->fts->cache;;
-
+	fts_cache_t*	cache = table->fts->cache;
+	doc_id_t	current_doc_id;
 retry:
 	ut_a(table->fts->doc_col != ULINT_UNDEFINED);
 
 	fts_table.suffix = "CONFIG";
 	fts_table.table_id = table->id;
 	fts_table.type = FTS_COMMON_TABLE;
-	fts_table.parent = table->name;
+
+	if (table_name) {
+		fts_table.parent = table_name;
+	} else {
+		fts_table.parent = table->name;
+	}
 
 	// FIXME: We will need a mutex here!
 	/* Try and allocate from the reserved block. */
@@ -1956,6 +1982,8 @@ retry:
 
 		return(DB_SUCCESS);
 	}
+
+	current_doc_id = cache->next_doc_id;
 
 	trx = trx_allocate_for_background();
 
@@ -1997,10 +2025,12 @@ retry:
 	ut_a(*doc_id > 0);
 
 	/* The column has to be stored in text format. */
+	*doc_id = ut_max(*doc_id, current_doc_id + 1);
 	cache->next_doc_id = *doc_id;
 	cache->last_doc_id = cache->next_doc_id + FTS_DOC_ID_STEP;
 
-	error = fts_update_last_doc_id(table, cache->last_doc_id, trx);
+	error = fts_update_last_doc_id(table, table_name,
+				       cache->last_doc_id, trx);
 
 func_exit:
 	row_mysql_unlock_data_dictionary(trx);
@@ -2035,9 +2065,10 @@ ulint
 fts_update_last_doc_id(
 /*===================*/
 						/* out: DB_SUCCESS if OK */
-	dict_table_t*	table,			/* in: table */
-	doc_id_t	doc_id,			/* in: last document id */
-	trx_t*		trx)			/* in: update trx */
+	const dict_table_t*	table,		/* in: table */
+	const char*		table_name,	/* in: table name */
+	doc_id_t		doc_id,		/* in: last document id */
+	trx_t*			trx)		/* in: update trx */
 {
 	byte		id[FTS_MAX_ID_LEN];
 	pars_info_t*	info;
@@ -2051,7 +2082,12 @@ fts_update_last_doc_id(
 	fts_table.suffix = "CONFIG";
 	fts_table.table_id = table->id;
 	fts_table.type = FTS_COMMON_TABLE;
-	fts_table.parent = table->name;
+
+	if (table_name) {
+		fts_table.parent = table_name;
+	} else {
+		fts_table.parent = table->name;
+	}
 
 	if (!trx) {
 		trx = trx_allocate_for_background();
@@ -2395,7 +2431,7 @@ fts_create_doc_id(
 
 	ut_a(table->fts->doc_col != ULINT_UNDEFINED);
 
-	error = fts_get_next_doc_id(table, &doc_id);
+	error = fts_get_next_doc_id(table, NULL, &doc_id);
 
 	if (error == DB_SUCCESS) {
 		dfield_t*	dfield;
@@ -4872,10 +4908,10 @@ fts_add_doc_id_column(
 		table->heap,
 		FTS_DOC_ID_COL_NAME,
 		DATA_INT,
-		// FIXME: Hacked the value of 603
-		dtype_form_prtype(0x603, 0),
+		dtype_form_prtype(DATA_NOT_NULL | DATA_UNSIGNED
+				  | DATA_BINARY_TYPE | DATA_FTS_DOC_ID, 0),
 		sizeof(doc_id_t));
-	DICT_TF2_FLAG_SET(table, DICT_TF_FTS_ADD_DOC_ID);
+	DICT_TF2_FLAG_SET(table, DICT_TF_FTS_HAS_DOC_ID);
 }
 
 /********************************************************************
@@ -4893,7 +4929,7 @@ fts_update_doc_id(
 	doc_id_t	doc_id;
 
 	/* Get the new document id that will be added. */
-	error = fts_get_next_doc_id(table, &doc_id);
+	error = fts_get_next_doc_id(table, NULL, &doc_id);
 
 	if (error == DB_SUCCESS) {
 		dict_index_t*	clust_index;
