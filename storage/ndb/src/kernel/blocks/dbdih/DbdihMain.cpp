@@ -3471,6 +3471,12 @@ void Dbdih::execEND_TOREQ(Signal* signal)
              EndToConf::SignalLength, JBB);
 }//Dbdih::execEND_TOREQ()
 
+#define DIH_TAB_WRITE_LOCK(tabPtrP) \
+  do { assertOwnThread(); tabPtrP->m_lock.write_lock(); } while (0)
+
+#define DIH_TAB_WRITE_UNLOCK(tabPtrP) \
+  do { assertOwnThread(); tabPtrP->m_lock.write_unlock(); } while (0)
+
 /* --------------------------------------------------------------------------*/
 /*       AN ORDER TO START OR COMMIT THE REPLICA CREATION ARRIVED FROM THE   */
 /*       MASTER.                                                             */
@@ -3511,7 +3517,8 @@ void Dbdih::execCREATE_FRAGREQ(Signal* signal)
     dump_replica_info(fragPtr.p);
   }
   ndbrequire(frReplicaPtr.i != RNIL);
-  
+
+  DIH_TAB_WRITE_LOCK(tabPtr.p);
   switch (replicaType) {
   case CreateFragReq::STORED:
     jam();
@@ -3546,6 +3553,7 @@ void Dbdih::execCREATE_FRAGREQ(Signal* signal)
     ndbrequire(false);
     break;
   }//switch
+  DIH_TAB_WRITE_UNLOCK(tabPtr.p);
 
   /* ------------------------------------------------------------------------*/
   /*       THE NEW NODE OF THIS REPLICA IS THE STARTING NODE.                */
@@ -8035,7 +8043,9 @@ Dbdih::sendAddFragreq(Signal* signal, ConnectRecordPtr connectPtr,
     if (AlterTableReq::getReorgFragFlag(connectPtr.p->m_alter.m_changeMask))
     {
       jam();
+      DIH_TAB_WRITE_LOCK(tabPtr.p);
       tabPtr.p->m_new_map_ptr_i = connectPtr.p->m_alter.m_new_map_ptr_i;
+      DIH_TAB_WRITE_UNLOCK(tabPtr.p);
     }
 
     if (AlterTableReq::getAddFragFlag(connectPtr.p->m_alter.m_changeMask))
@@ -8523,6 +8533,7 @@ void Dbdih::execALTER_TAB_REQ(Signal * signal)
     if (AlterTableReq::getReorgFragFlag(connectPtr.p->m_alter.m_changeMask))
     {
       jam();
+      DIH_TAB_WRITE_LOCK(tabPtr.p);
       Uint32 save = tabPtr.p->m_map_ptr_i;
       tabPtr.p->m_map_ptr_i = tabPtr.p->m_new_map_ptr_i;
       tabPtr.p->m_new_map_ptr_i = save;
@@ -8534,6 +8545,7 @@ void Dbdih::execALTER_TAB_REQ(Signal * signal)
         getFragstore(tabPtr.p, i, fragPtr);
         fragPtr.p->distributionKey = (fragPtr.p->distributionKey + 1) & 0xFF;
       }
+      DIH_TAB_WRITE_UNLOCK(tabPtr.p);
 
       ndbassert(tabPtr.p->m_scan_count[1] == 0);
       tabPtr.p->m_scan_count[1] = tabPtr.p->m_scan_count[0];
@@ -8558,8 +8570,10 @@ void Dbdih::execALTER_TAB_REQ(Signal * signal)
 
     send_alter_tab_conf(signal, connectPtr);
 
+    DIH_TAB_WRITE_LOCK(tabPtr.p);
     tabPtr.p->m_new_map_ptr_i = RNIL;
     tabPtr.p->m_scan_reorg_flag = 0;
+    DIH_TAB_WRITE_UNLOCK(tabPtr.p);
 
     ndbrequire(tabPtr.p->connectrec == connectPtr.i);
     tabPtr.p->connectrec = RNIL;
@@ -9017,17 +9031,18 @@ void Dbdih::execDIGETNODESREQ(Signal* signal)
     ptrCheckGuard(tabPtr, ctabFileSize, tabRecord);
   }
 
+loop:
+  Uint32 val = tabPtr.p->m_lock.read_lock();
   Uint32 map_ptr_i = tabPtr.p->m_map_ptr_i;
   Uint32 new_map_ptr_i = tabPtr.p->m_new_map_ptr_i;
 
   /* When distr key indicator is set, regardless
-   * of distribution algorithm in use, hashValue 
+   * of distribution algorithm in use, hashValue
    * IS fragment id.
    */
   if (req->distr_key_indicator)
   {
     fragId = hashValue;
-    
     if (unlikely(fragId >= tabPtr.p->totalfragments))
     {
       thrjam(jambuf);
@@ -9099,6 +9114,9 @@ void Dbdih::execDIGETNODESREQ(Signal* signal)
       (fragPtr.p->distributionKey << 16) +
       (dihGetInstanceKey(fragPtr) << 24);
   }
+
+  if (unlikely(!tabPtr.p->m_lock.read_unlock(val)))
+    goto loop;
 }//Dbdih::execDIGETNODESREQ()
 
 Uint32 Dbdih::extractNodeInfo(const Fragmentstore * fragPtr, Uint32 nodes[]) 
@@ -18085,11 +18103,15 @@ void Dbdih::execDIH_SWITCH_REPLICA_REQ(Signal* signal)
     sendSignal(senderRef, GSN_DIH_SWITCH_REPLICA_REF, signal,
                DihSwitchReplicaRef::SignalLength, JBB);
   }//if
+
+  DIH_TAB_WRITE_LOCK(tabPtr.p);
   for (Uint32 i = 0; i < noOfReplicas; i++) {
     jam();
     ndbrequire(i < MAX_REPLICAS);
     fragPtr.p->activeNodes[i] = req->newNodeOrder[i];
   }//for
+  DIH_TAB_WRITE_UNLOCK(tabPtr.p);
+
   /**
    * Reply
    */
