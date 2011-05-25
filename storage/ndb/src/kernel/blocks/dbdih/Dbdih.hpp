@@ -1370,8 +1370,15 @@ private:
    */
   struct MicroGcp
   {
+    MicroGcp() { }
     bool m_enabled;
     Uint32 m_master_ref;
+
+    /**
+     * rw-lock that protects multiple parallel DIVERIFY (readers) from
+     *   updates to gcp-state (e.g GCP_PREPARE, GCP_COMMIT)
+     */
+    NdbSeqLock m_lock;
     Uint64 m_old_gci;
     Uint64 m_current_gci; // Currently active
     Uint64 m_new_gci;     // Currently being prepared...

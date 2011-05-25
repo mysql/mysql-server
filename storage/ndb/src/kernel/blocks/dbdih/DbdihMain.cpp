@@ -9294,8 +9294,10 @@ void Dbdih::execDIVERIFYREQ(Signal* signal)
 {
   EmulatedJamBuffer * jambuf = * (EmulatedJamBuffer**)(signal->theData+2);
   thrjamEntry(jambuf);
-  if ((getBlockCommit() == false) &&
-      isEmpty(c_diverify_queue[0]))
+loop:
+  Uint32 val = m_micro_gcp.m_lock.read_lock();
+  Uint32 blocked = getBlockCommit() == true ? 1 : 0;
+  if (blocked == 0 && isEmpty(c_diverify_queue[0]))
   {
     thrjam(jambuf);
     /*-----------------------------------------------------------------------*/
@@ -9308,6 +9310,8 @@ void Dbdih::execDIVERIFYREQ(Signal* signal)
     signal->theData[1] = (Uint32)(m_micro_gcp.m_current_gci >> 32);
     signal->theData[2] = (Uint32)(m_micro_gcp.m_current_gci & 0xFFFFFFFF);
     signal->theData[3] = 0;
+    if (unlikely(! m_micro_gcp.m_lock.read_unlock(val)))
+      goto loop;
     return;
   }//if
   /*-------------------------------------------------------------------------*/
@@ -9317,7 +9321,7 @@ void Dbdih::execDIVERIFYREQ(Signal* signal)
   DIVERIFY_queue & q = c_diverify_queue[0];
   enqueue(q, signal->theData[0], m_micro_gcp.m_new_gci);
   emptyverificbuffer(signal, false);
-  signal->theData[3] = 1; // Indicate no immediate return
+  signal->theData[3] = blocked + 1; // Indicate no immediate return
   return;
 }//Dbdih::execDIVERIFYREQ()
 
@@ -10069,10 +10073,12 @@ void Dbdih::execGCP_PREPARE(Signal* signal)
   
   ndbrequire(m_micro_gcp.m_state == MicroGcp::M_GCP_IDLE);
 
+  m_micro_gcp.m_lock.write_lock();
   cgckptflag = true;
   m_micro_gcp.m_state = MicroGcp::M_GCP_PREPARE;
   m_micro_gcp.m_new_gci = gci;
   m_micro_gcp.m_master_ref = retRef;
+  m_micro_gcp.m_lock.write_unlock();
 
   if (ERROR_INSERTED(7031))
   {
@@ -10186,10 +10192,12 @@ void Dbdih::execGCP_COMMIT(Signal* signal)
   m_micro_gcp.m_state = MicroGcp::M_GCP_COMMIT;
   m_micro_gcp.m_master_ref = calcDihBlockRef(masterNodeId);
   
+  m_micro_gcp.m_lock.write_lock();
   m_micro_gcp.m_old_gci = m_micro_gcp.m_current_gci;
   m_micro_gcp.m_current_gci = gci;
   cgckptflag = false;
   emptyverificbuffer(signal, true);
+  m_micro_gcp.m_lock.write_unlock();
 
   GCPNoMoreTrans* req2 = (GCPNoMoreTrans*)signal->getDataPtrSend();
   req2->senderRef = reference();
