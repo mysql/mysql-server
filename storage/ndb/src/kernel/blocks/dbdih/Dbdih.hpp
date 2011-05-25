@@ -947,7 +947,6 @@ private:
   bool isMaster();
   bool isActiveMaster();
 
-  void emptyverificbuffer(Signal *, bool aContintueB);
   void handleGcpStateInMaster(Signal *, NodeRecordPtr failedNodeptr);
   void initRestartInfo(Signal*);
   void initRestorableGciFiles();
@@ -1317,15 +1316,19 @@ private:
     DIVERIFY_queue() {
       cfirstVerifyQueue = clastVerifyQueue = 0;
       apiConnectRecord = 0;
+      m_empty_done = 1;
     }
     ApiConnectRecord *apiConnectRecord;
     Uint32 cfirstVerifyQueue;
     Uint32 clastVerifyQueue;
+    Uint32 m_empty_done;
   };
 
   bool isEmpty(const DIVERIFY_queue&);
   void enqueue(DIVERIFY_queue&, Uint32 senderData, Uint64 gci);
   void dequeue(DIVERIFY_queue&, ApiConnectRecord &);
+  void emptyverificbuffer(Signal *, Uint32 q, bool aContintueB);
+  void emptyverificbuffer_check(Signal*, Uint32, Uint32);
 
   DIVERIFY_queue c_diverify_queue[1];
   Uint32 c_diverify_queue_cnt;
