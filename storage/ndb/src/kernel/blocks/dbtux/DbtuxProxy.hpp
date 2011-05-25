@@ -20,7 +20,6 @@
 #include <signaldata/AlterIndxImpl.hpp>
 #include <signaldata/DropTab.hpp>
 #include <signaldata/IndexStatSignal.hpp>
-#include <DblqhCommon.hpp>
 
 class DbtuxProxy : public LocalProxy {
 public:
