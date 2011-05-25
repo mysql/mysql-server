@@ -2009,6 +2009,19 @@ extern "C" sig_handler end_thread_signal(int sig __attribute__((unused)))
 
 
 /*
+  Cleanup THD object
+
+  SYNOPSIS
+    thd_cleanup()
+    thd		 Thread handler
+*/
+
+void thd_cleanup(THD *thd)
+{
+  thd->cleanup();
+}
+
+/*
   Decrease number of connections
 
   SYNOPSIS
@@ -2054,6 +2067,7 @@ void unlink_thd(THD *thd)
   DBUG_ENTER("unlink_thd");
   DBUG_PRINT("enter", ("thd: 0x%lx", (long) thd));
 
+  thd_cleanup(thd);
   dec_connection_count();
   mysql_mutex_lock(&LOCK_thread_count);
   delete_thd(thd);
