@@ -3188,6 +3188,7 @@ void Dbtc::tckeyreq050Lab(Signal* signal)
   req->tableId = Ttableref;
   req->hashValue = TdistrHashValue;
   req->distr_key_indicator = regCachePtr->distributionKeyIndicator;
+  * (EmulatedJamBuffer**)req->jamBuffer = jamBuffer();
 
   /*-------------------------------------------------------------*/
   /* FOR EFFICIENCY REASONS WE AVOID THE SIGNAL SENDING HERE AND */
@@ -3198,7 +3199,7 @@ void Dbtc::tckeyreq050Lab(Signal* signal)
   /* IS SPENT IN DIH AND EVEN LESS IN REPLICATED NDB.            */
   /*-------------------------------------------------------------*/
   EXECUTE_DIRECT(DBDIH, GSN_DIGETNODESREQ, signal,
-                 DiGetNodesReq::SignalLength);
+                 DiGetNodesReq::SignalLength, 0);
   DiGetNodesConf * conf = (DiGetNodesConf *)&signal->theData[0];
   UintR Tdata2 = conf->reqinfo;
   UintR TerrorIndicator = signal->theData[0];
@@ -4878,7 +4879,9 @@ void Dbtc::diverify010Lab(Signal* signal)
        * CONNECTIONS AND THEN WHEN ALL DIVERIFYCONF HAVE BEEN RECEIVED THE 
        * COMMIT MESSAGE CAN BE SENT TO ALL INVOLVED PARTS.
        *---------------------------------------------------------------------*/
-      EXECUTE_DIRECT(DBDIH, GSN_DIVERIFYREQ, signal, 1);
+      * (EmulatedJamBuffer**)(signal->theData+2) = jamBuffer();
+      EXECUTE_DIRECT(DBDIH, GSN_DIVERIFYREQ, signal,
+                     2 + sizeof(void*)/sizeof(Uint32), 0);
       if (signal->theData[3] == 0) {
         execDIVERIFYCONF(signal);
       }
@@ -10871,9 +10874,9 @@ void Dbtc::execDIH_SCAN_TAB_CONF(Signal* signal)
     req->tableId = tabPtr.i;
     req->hashValue = cachePtr.p->distributionKey;
     req->distr_key_indicator = tabPtr.p->get_user_defined_partitioning();
-
+    * (EmulatedJamBuffer**)req->jamBuffer = jamBuffer();
     EXECUTE_DIRECT(DBDIH, GSN_DIGETNODESREQ, signal,
-                   DiGetNodesReq::SignalLength);
+                   DiGetNodesReq::SignalLength, 0);
     UintR TerrorIndicator = signal->theData[0];
     jamEntry();
     if (TerrorIndicator != 0)
