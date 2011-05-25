@@ -122,7 +122,7 @@ public:
    * ONGOING */
   struct ApiConnectRecord {
     Uint64 apiGci;
-    Uint32 nextApi;
+    Uint32 senderData;
   };
   typedef Ptr<ApiConnectRecord> ApiConnectRecordPtr;
 
@@ -1315,19 +1315,17 @@ private:
   struct DIVERIFY_queue
   {
     DIVERIFY_queue() {
-      cfirstVerifyQueue = clastVerifyQueue = RNIL;
-      cverifyQueueCounter = 0;
+      cfirstVerifyQueue = clastVerifyQueue = 0;
       apiConnectRecord = 0;
     }
+    ApiConnectRecord *apiConnectRecord;
     Uint32 cfirstVerifyQueue;
     Uint32 clastVerifyQueue;
-    Uint32 cverifyQueueCounter;
-    ApiConnectRecord *apiConnectRecord;
   };
 
   bool isEmpty(const DIVERIFY_queue&);
-  void enqueue(DIVERIFY_queue&, Ptr<ApiConnectRecord>);
-  void dequeue(DIVERIFY_queue&, Ptr<ApiConnectRecord> &);
+  void enqueue(DIVERIFY_queue&, Uint32 senderData, Uint64 gci);
+  void dequeue(DIVERIFY_queue&, ApiConnectRecord &);
 
   DIVERIFY_queue c_diverify_queue[1];
   Uint32 c_diverify_queue_cnt;

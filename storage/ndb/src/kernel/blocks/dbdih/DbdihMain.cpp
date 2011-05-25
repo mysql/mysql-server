@@ -1298,6 +1298,8 @@ void Dbdih::execREAD_CONFIG_REQ(Signal* signal)
   ndbrequireErr(!ndb_mgm_get_int_parameter(p, CFG_DIH_API_CONNECT, 
 					   &capiConnectFileSize),
 		NDBD_EXIT_INVALID_CONFIG);
+  capiConnectFileSize++; // Increase by 1...so that srsw queue never gets full
+
   ndbrequireErr(!ndb_mgm_get_int_parameter(p, CFG_DIH_FRAG_CONNECT, 
 					   &cfragstoreFileSize),
 		NDBD_EXIT_INVALID_CONFIG);
@@ -9202,62 +9204,61 @@ void Dbdih::initialiseFragstore()
   }//for    
 }//Dbdih::initialiseFragstore()
 
+#ifndef NDB_HAVE_RMB
+#define rmb() do { } while (0)
+#endif
+
+#ifndef NDB_HAVE_WMB
+#define wmb() do { } while (0)
+#endif
+
 inline
 bool
 Dbdih::isEmpty(const DIVERIFY_queue & q)
 {
-  return q.cverifyQueueCounter == 0;
+  return q.cfirstVerifyQueue == q.clastVerifyQueue;
 }
 
 inline
 void
-Dbdih::enqueue(DIVERIFY_queue & q, Ptr<ApiConnectRecord> conRecord)
+Dbdih::enqueue(DIVERIFY_queue & q, Uint32 senderData, Uint64 gci)
 {
-  Uint32 first = q.cfirstVerifyQueue;
   Uint32 last = q.clastVerifyQueue;
-  Uint32 count = q.cverifyQueueCounter;
   ApiConnectRecord * apiConnectRecord = q.apiConnectRecord;
 
-  Ptr<ApiConnectRecord> tmp;
-  tmp.i = last;
-  if (last != RNIL)
+  apiConnectRecord[last].senderData = senderData;
+  apiConnectRecord[last].apiGci = gci;
+  wmb();
+  if (last + 1 == capiConnectFileSize)
   {
-    tmp.i = last;
-    ptrCheckGuard(tmp, capiConnectFileSize, apiConnectRecord);
-    tmp.p->nextApi = conRecord.i;
+    q.clastVerifyQueue = 0;
   }
   else
   {
-    ndbassert(count == 0);
-    first = conRecord.i;
+    q.clastVerifyQueue = last + 1;
   }
-  q.cfirstVerifyQueue = first;
-  q.clastVerifyQueue = conRecord.i;
-  q.cverifyQueueCounter = count + 1;
+  assert(q.clastVerifyQueue != q.cfirstVerifyQueue);
 }
 
 inline
 void
-Dbdih::dequeue(DIVERIFY_queue & q, Ptr<ApiConnectRecord> & conRecord)
+Dbdih::dequeue(DIVERIFY_queue & q, ApiConnectRecord & conRecord)
 {
   Uint32 first = q.cfirstVerifyQueue;
-  Uint32 last = q.clastVerifyQueue;
-  Uint32 count = q.cverifyQueueCounter;
   ApiConnectRecord * apiConnectRecord = q.apiConnectRecord;
 
-  conRecord.i = first;
-  ptrCheckGuard(conRecord, capiConnectFileSize, apiConnectRecord);
-  Uint32 next = conRecord.p->nextApi;
-  if (first == last)
+  rmb();
+  conRecord.senderData = apiConnectRecord[first].senderData;
+  conRecord.apiGci = apiConnectRecord[first].apiGci;
+
+  if (first + 1 == capiConnectFileSize)
   {
-    ndbrequire(next == RNIL);
-    ndbassert(count == 1);
-    last = RNIL;
+    q.cfirstVerifyQueue = 0;
   }
-  ndbrequire(count > 0);
-  q.cfirstVerifyQueue = next;
-  q.clastVerifyQueue = last;
-  q.cverifyQueueCounter = count - 1;
+  else
+  {
+    q.cfirstVerifyQueue = first + 1;
+  }
 }
 
 /*
@@ -9295,15 +9296,8 @@ void Dbdih::execDIVERIFYREQ(Signal* signal)
   // Since we are blocked we need to put this operation last in the verify
   // queue to ensure that operation starts up in the correct order.
   /*-------------------------------------------------------------------------*/
-  ApiConnectRecordPtr localApiConnectptr;
   DIVERIFY_queue & q = c_diverify_queue[0];
-
-  localApiConnectptr.i = signal->theData[0];
-  ptrCheckGuard(localApiConnectptr, capiConnectFileSize, q.apiConnectRecord);
-  localApiConnectptr.p->apiGci = m_micro_gcp.m_new_gci;
-  localApiConnectptr.p->nextApi = RNIL;
-
-  enqueue(q, localApiConnectptr);
+  enqueue(q, signal->theData[0], m_micro_gcp.m_new_gci);
   emptyverificbuffer(signal, false);
   signal->theData[3] = 1; // Indicate no immediate return
   return;
@@ -14730,12 +14724,12 @@ void Dbdih::emptyverificbuffer(Signal* signal, bool aContinueB)
     jam();
     return;
   }//if
-  ApiConnectRecordPtr localApiConnectptr;
+  ApiConnectRecord localApiConnect;
   if(getBlockCommit() == false){
     jam();
-    dequeue(c_diverify_queue[0], localApiConnectptr);
-    ndbrequire(localApiConnectptr.p->apiGci <= m_micro_gcp.m_current_gci);
-    signal->theData[0] = localApiConnectptr.i;
+    dequeue(c_diverify_queue[0], localApiConnect);
+    ndbrequire(localApiConnect.apiGci <= m_micro_gcp.m_current_gci);
+    signal->theData[0] = localApiConnect.senderData;
     signal->theData[1] = (Uint32)(m_micro_gcp.m_current_gci >> 32);
     signal->theData[2] = (Uint32)(m_micro_gcp.m_current_gci & 0xFFFFFFFF);
     signal->theData[3] = 0;
@@ -15464,7 +15458,8 @@ void Dbdih::initialiseRecordsLab(Signal* signal,
       {
         refresh_watch_dog();
         ptrAss(apiConnectptr, c_diverify_queue[i].apiConnectRecord);
-        apiConnectptr.p->nextApi = RNIL;
+        apiConnectptr.p->senderData = RNIL;
+        apiConnectptr.p->apiGci = ~(Uint64)0;
       }//for
     }
     jam();
@@ -17255,10 +17250,11 @@ Dbdih::execDUMP_STATE_ORD(Signal* signal)
 	      c_nodeStartMaster.blockLcp, c_nodeStartMaster.blockGcp, c_nodeStartMaster.wait);
     for (Uint32 i = 0; i < c_diverify_queue_cnt; i++)
     {
-      infoEvent("[ %u : cfirstVerifyQueue = 0x%.8x, cverifyQueueCounter = %u ]",
+      infoEvent("[ %u : cfirstVerifyQueue = %u clastVerifyQueue = %u sz: %u]",
                 i,
                 c_diverify_queue[i].cfirstVerifyQueue,
-                c_diverify_queue[i].cverifyQueueCounter);
+                c_diverify_queue[i].clastVerifyQueue,
+                capiConnectFileSize);
     }
     infoEvent("cgcpOrderBlocked = %d",
               cgcpOrderBlocked);
