@@ -914,6 +914,7 @@ public:
     DeleteRequest = 3,            ///< Delete Operation
     WriteRequest = 4,             ///< Write Operation
     ReadExclusive = 5,            ///< Read exclusive
+    RefreshRequest = 6,           ///<
     UnlockRequest = 7,            ///< Unlock operation
     OpenScanRequest,              ///< Scan Operation
     OpenRangeScanRequest,         ///< Range scan operation

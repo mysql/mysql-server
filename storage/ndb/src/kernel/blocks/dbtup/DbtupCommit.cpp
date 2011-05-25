@@ -849,7 +849,15 @@ skip_disk:
     
     tuple_ptr->m_operation_ptr_i = RNIL;
     
-    if(regOperPtr.p->op_struct.op_type != ZDELETE)
+    if (regOperPtr.p->op_struct.op_type == ZDELETE)
+    {
+      jam();
+      if (get_page)
+        ndbassert(tuple_ptr->m_header_bits & Tuple_header::DISK_PART);
+      dealloc_tuple(signal, gci_hi, gci_lo, page.p, tuple_ptr,
+                    &req_struct, regOperPtr.p, regFragPtr.p, regTabPtr.p);
+    }
+    else if(regOperPtr.p->op_struct.op_type != ZREFRESH)
     {
       jam();
       commit_operation(signal, gci_hi, gci_lo, tuple_ptr, page,
@@ -858,14 +866,10 @@ skip_disk:
     else
     {
       jam();
-      if (get_page)
-      {
-	ndbassert(tuple_ptr->m_header_bits & Tuple_header::DISK_PART);
-      }
-      dealloc_tuple(signal, gci_hi, gci_lo, page.p, tuple_ptr,
-		    &req_struct, regOperPtr.p, regFragPtr.p, regTabPtr.p);
+      commit_refresh(signal, gci_hi, gci_lo, tuple_ptr, page,
+                     &req_struct, regOperPtr.p, regFragPtr.p, regTabPtr.p);
     }
-  } 
+  }
 
   if (nextOp != RNIL)
   {
@@ -916,4 +920,49 @@ Dbtup::set_commit_change_mask_info(const Tablerec* regTabPtr,
                                       regTabPtr->m_no_of_attributes - cols);
     }
   }
+}
+
+void
+Dbtup::commit_refresh(Signal* signal,
+                      Uint32 gci_hi,
+                      Uint32 gci_lo,
+                      Tuple_header* tuple_ptr,
+                      PagePtr pagePtr,
+                      KeyReqStruct * req_struct,
+                      Operationrec* regOperPtr,
+                      Fragrecord* regFragPtr,
+                      Tablerec* regTabPtr)
+{
+  /* Committing a refresh operation.
+   * Refresh of an existing row looks like an update
+   * and can commit normally.
+   * Refresh of a non-existing row looks like an Insert which
+   * is 'undone' at commit time.
+   * This is achieved by making special calls to ACC to get
+   * it to forget, before deallocating the tuple locally.
+   */
+  switch(regOperPtr->m_copy_tuple_location.m_file_no){
+  case Operationrec::RF_SINGLE_NOT_EXIST:
+  case Operationrec::RF_MULTI_NOT_EXIST:
+    break;
+  case Operationrec::RF_SINGLE_EXIST:
+  case Operationrec::RF_MULTI_EXIST:
+    // "Normal" update
+    commit_operation(signal, gci_hi, gci_lo, tuple_ptr, pagePtr,
+                     regOperPtr, regFragPtr, regTabPtr);
+    return;
+
+  default:
+    ndbrequire(false);
+  }
+
+  Local_key key = regOperPtr->m_tuple_location;
+  key.m_page_no = pagePtr.p->frag_page_id;
+
+  /**
+   * Tell ACC to delete
+   */
+  c_lqh->accremoverow(signal, regOperPtr->userpointer, &key);
+  dealloc_tuple(signal, gci_hi, gci_lo, pagePtr.p, tuple_ptr,
+                req_struct, regOperPtr, regFragPtr, regTabPtr);
 }

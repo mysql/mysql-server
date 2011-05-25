@@ -3061,6 +3061,7 @@ void Dbtc::execTCKEYREQ(Signal* signal)
     case ZINSERT:
     case ZDELETE:
     case ZWRITE:
+    case ZREFRESH:
       jam();
       break;
     default:
@@ -3140,6 +3141,34 @@ handle_reorg_trigger(DiGetNodesConf * conf)
   {
     conf->nodes[0] = 0; // Should not execute...
   }
+}
+
+bool
+Dbtc::isRefreshSupported() const
+{
+  const NodeVersionInfo& nvi = getNodeVersionInfo();
+  const Uint32 minVer = nvi.m_type[NodeInfo::DB].m_min_version;
+  const Uint32 maxVer = nvi.m_type[NodeInfo::DB].m_max_version;
+
+  if (likely (minVer == maxVer))
+  {
+    /* Normal case, use function */
+    return ndb_refresh_tuple(minVer);
+  }
+
+  /* As refresh feature was introduced across three minor versions
+   * we check that all data nodes support it.  This slow path
+   * should only be hit during upgrades between versions
+   */
+  for (Uint32 i=1; i < MAX_NODES; i++)
+  {
+    const NodeInfo& nodeInfo = getNodeInfo(i);
+    if ((nodeInfo.m_type == NODE_TYPE_DB) &&
+        (nodeInfo.m_connected) &&
+        (! ndb_refresh_tuple(nodeInfo.m_version)))
+      return false;
+  }
+  return true;
 }
 
 /**
@@ -3368,6 +3397,14 @@ void Dbtc::tckeyreq050Lab(Signal* signal)
     TlastReplicaNo = tnoOfBackup + tnoOfStandby;
     regTcPtr->lastReplicaNo = (Uint8)TlastReplicaNo;
     regTcPtr->noOfNodes = (Uint8)(TlastReplicaNo + 1);
+
+    if (unlikely((Toperation == ZREFRESH) &&
+                 (! isRefreshSupported())))
+    {
+      /* Function not implemented yet */
+      TCKEY_abort(signal,63);
+      return;
+    }
   }//if
 
   if (regCachePtr->isLongTcKeyReq || 
