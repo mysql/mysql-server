@@ -9,7 +9,6 @@ main.func_math @freebsd                  # Bug#11751977 2010-05-04 alik main.fun
 main.gis-rtree @freebsd                  # Bug#11749418 2010-05-04 alik test cases gis-rtree, type_float, type_newdecimal fail in embedded server
 main.lock_multi_bug38499                 # Bug#11755645 2009-09-19 alik main.lock_multi_bug38499 times out sporadically
 main.mysqlslap @windows                  # Bug#11761520 2010-08-10 alik mysqlslap fails sporadically starting from Dahlia
-main.outfile_loaddata @solaris           # Bug#11755168 2010-01-20 alik Test "outfile_loaddata" fails (reproducible)
 main.signal_demo3 @solaris               # Bug#11755949 2010-01-20 alik Several test cases fail on Solaris with error Thread stack overrun
 main.sp @solaris                         # Bug#11755949 2010-01-20 alik Several test cases fail on Solaris with error Thread stack overrun
 main.subquery_sj_none @solaris          # Bug#11755949 2010-01-20 alik Several test cases fail on Solaris with error Thread stack overrun
