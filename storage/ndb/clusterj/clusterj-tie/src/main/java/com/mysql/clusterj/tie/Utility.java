@@ -390,7 +390,7 @@ public class Utility {
                 case Date:
                     // the high order bytes are the little endian representation
                     // the original is 0000000000xxyyzz and the result is zzyyxx0000000000
-                    int packDate = packDate(value);
+                    long packDate = packDate(value);
                     result |= (packDate & ooooooff) << 56;
                     result |= (packDate & ooooffoo) << 40;
                     result |= (packDate & ooffoooo) << 24;
@@ -400,7 +400,7 @@ public class Utility {
                 case Time:
                     // the high order bytes are the little endian representation
                     // the original is 0000000000xxyyzz and the result is zzyyxx0000000000
-                    int packTime = packDate(value);
+                    long packTime = packTime(value);
                     result |= (packTime & ooooooff) << 56;
                     result |= (packTime & ooooffoo) << 40;
                     result |= (packTime & ooffoooo) << 24;
