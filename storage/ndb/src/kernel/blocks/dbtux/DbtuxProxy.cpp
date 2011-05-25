@@ -15,6 +15,7 @@
 
 #include "DbtuxProxy.hpp"
 #include "Dbtux.hpp"
+#include "../dblqh/DblqhCommon.hpp"
 
 DbtuxProxy::DbtuxProxy(Block_context& ctx) :
   LocalProxy(DBTUX, ctx)
