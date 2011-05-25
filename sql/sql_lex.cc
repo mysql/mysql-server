@@ -3121,8 +3121,16 @@ bool st_select_lex::optimize_unflattened_subqueries()
   for (SELECT_LEX_UNIT *un= first_inner_unit(); un; un= un->next_unit())
   {
     Item_subselect *subquery_predicate= un->item;
+    
     if (subquery_predicate)
     {
+      if (subquery_predicate->substype() == Item_subselect::IN_SUBS)
+      {
+        Item_in_subselect *in_subs=(Item_in_subselect*)subquery_predicate;
+        if (in_subs->is_jtbm_merged)
+          continue;
+      }
+
       for (SELECT_LEX *sl= un->first_select(); sl; sl= sl->next_select())
       {
         JOIN *inner_join= sl->join;

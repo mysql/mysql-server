@@ -31,12 +31,14 @@
 #include "mysql_priv.h"
 #include "sql_select.h"
 
+double get_post_group_estimate(JOIN* join, double join_op_rows);
+
 
 Item_subselect::Item_subselect():
-  Item_result_field(), value_assigned(0), thd(0), substitution(0),
-  expr_cache(0), engine(0), old_engine(0), used_tables_cache(0),
-  have_to_be_excluded(0), const_item_cache(1), inside_first_fix_fields(0),
-  done_first_fix_fields(FALSE), forced_const(FALSE), eliminated(FALSE),
+  Item_result_field(), value_assigned(0), thd(0), old_engine(0), 
+  used_tables_cache(0), have_to_be_excluded(0), const_item_cache(1),
+  inside_first_fix_fields(0), done_first_fix_fields(FALSE), 
+  substitution(0), expr_cache(0), engine(0), forced_const(FALSE), eliminated(FALSE),
   engine_changed(0), changed(0), is_correlated(FALSE)
 {
   with_subselect= 1;
@@ -227,13 +229,13 @@ bool Item_subselect::fix_fields(THD *thd_param, Item **ref)
       if (!(*ref)->fixed)
 	res= (*ref)->fix_fields(thd, ref);
       goto end;
-//psergey-merge:  done_first_fix_fields= FALSE;
+
     }
     // Is it one field subselect?
     if (engine->cols() > max_columns)
     {
       my_error(ER_OPERAND_COLUMNS, MYF(0), 1);
-//psergey-merge:  done_first_fix_fields= FALSE;
+
       goto end;
     }
     fix_length_and_dec();
@@ -251,6 +253,7 @@ bool Item_subselect::fix_fields(THD *thd_param, Item **ref)
 
 end:
   done_first_fix_fields= FALSE;
+  inside_first_fix_fields= FALSE;
   thd->where= save_where;
   return res;
 }
@@ -545,6 +548,64 @@ bool Item_subselect::exec()
 }
 
 
+/*
+int Item_subselect::optimize(double *out_rows, double *cost)
+{
+  int res;
+  DBUG_ASSERT(0);
+  res= engine->optimize(out_rows, cost);
+  return res;
+}
+*/
+
+
+int Item_in_subselect::optimize(double *out_rows, double *cost)
+{
+  int res;
+  DBUG_ENTER("Item_in_subselect::optimize");
+  SELECT_LEX *save_select= thd->lex->current_select;
+  JOIN *join= unit->first_select()->join;
+
+  thd->lex->current_select= join->select_lex;
+  if ((res= join->optimize()))
+    DBUG_RETURN(res);
+
+  /* Calculate #rows and cost of join execution */
+  join->get_partial_cost_and_fanout(join->table_count - join->const_tables, 
+                                    table_map(-1),
+                                    cost, out_rows);
+
+  /*
+    Adjust join output cardinality. There can be these cases:
+    - Have no GROUP BY and no aggregate funcs: we won't get into this 
+      function because such join will be processed as a merged semi-join 
+      (TODO: does it really mean we don't need to handle such cases here at 
+       all? put ASSERT)
+    - Have no GROUP BY but have aggregate funcs: output is 1 record.
+    - Have GROUP BY and have (or not) aggregate funcs:  need to adjust output 
+      cardinality.
+  */
+  thd->lex->current_select= save_select;
+  if (!join->group_list && !join->group_optimized_away &&
+      join->tmp_table_param.sum_func_count)
+  {
+    DBUG_PRINT("info",("Materialized join will have only 1 row (it has "
+                       "aggregates but no GROUP BY"));
+    *out_rows= 1;
+  }
+  
+  /* Now with grouping */
+  if (join->group_list)
+  {
+    DBUG_PRINT("info",("Materialized join has grouping, trying to estimate it"));
+    double output_rows= get_post_group_estimate(join, *out_rows);
+    DBUG_PRINT("info",("Got value of %g", output_rows));
+    *out_rows= output_rows;
+  }
+
+  DBUG_RETURN(res);
+
+}
 /**
   Check if an expression cache is needed for this subquery
 
@@ -854,9 +915,6 @@ Item_singlerow_subselect::select_transformer(JOIN *join)
 void Item_singlerow_subselect::store(uint i, Item *item)
 {
   row[i]->store(item);
-  //psergey-merge: can do without that: row[i]->cache_value();
-  //psergey-backport-timours: ^ really, without that ^ 
-  //psergey-try-merge-again:
   row[i]->cache_value();
 }
 
@@ -1078,7 +1136,9 @@ bool Item_in_subselect::test_limit(st_select_lex_unit *unit_arg)
 Item_in_subselect::Item_in_subselect(Item * left_exp,
 				     st_select_lex *select_lex):
   Item_exists_subselect(), left_expr_cache(0), first_execution(TRUE),
-  optimizer(0), pushed_cond_guards(NULL), in_strategy(0), upper_item(0)
+  optimizer(0), pushed_cond_guards(NULL), in_strategy(0),
+  is_jtbm_merged(FALSE), is_flattenable_semijoin(FALSE), 
+  upper_item(0)
 {
   DBUG_ENTER("Item_in_subselect::Item_in_subselect");
   left_expr= left_exp;
@@ -2342,7 +2402,8 @@ bool Item_in_subselect::setup_mat_engine()
   if (!(mat_engine= new subselect_hash_sj_engine(thd, this, select_engine)))
     DBUG_RETURN(TRUE);
 
-  if (mat_engine->init(&select_engine->join->fields_list))
+  if (mat_engine->init(&select_engine->join->fields_list,
+                       engine->get_identifier()))
     DBUG_RETURN(TRUE);
 
   engine= mat_engine;
@@ -2371,7 +2432,7 @@ bool Item_in_subselect::init_left_expr_cache()
     An IN predicate might be evaluated in a query for which all tables have
     been optimzied away.
   */ 
-  if (!outer_join || !outer_join->tables || !outer_join->tables_list)
+  if (!outer_join || !outer_join->table_count || !outer_join->tables_list)
     return TRUE;
 
   if (!(left_expr_cache= new List<Cached_item>))
@@ -2751,9 +2812,9 @@ int subselect_single_select_engine::exec()
         pushed down into the subquery. Those optimizations are ref[_or_null]
         acceses. Change them to be full table scans.
       */
-      for (uint i=join->const_tables ; i < join->tables ; i++)
+      for (JOIN_TAB *tab= first_linear_tab(join, WITHOUT_CONST_TABLES); tab;
+           tab= next_linear_tab(join, tab, WITH_BUSH_ROOTS))
       {
-        JOIN_TAB *tab=join->join_tab+i;
         if (tab && tab->keyuse)
         {
           for (uint i= 0; i < tab->ref.key_parts; i++)
@@ -3837,6 +3898,8 @@ bitmap_init_memroot(MY_BITMAP *map, uint n_bits, MEM_ROOT *mem_root)
   reexecution.
 
   @param tmp_columns the items that produce the data for the temp table
+  @param subquery_id subquery's identifier (to make "<subquery%d>" name for
+                                            EXPLAIN)
 
   @details
   - Create a temporary table to store the result of the IN subquery. The
@@ -3852,7 +3915,7 @@ bitmap_init_memroot(MY_BITMAP *map, uint n_bits, MEM_ROOT *mem_root)
   @retval FALSE otherwise
 */
 
-bool subselect_hash_sj_engine::init(List<Item> *tmp_columns)
+bool subselect_hash_sj_engine::init(List<Item> *tmp_columns, uint subquery_id)
 {
   select_union *result_sink;
   /* Options to create_tmp_table. */
@@ -3890,10 +3953,18 @@ bool subselect_hash_sj_engine::init(List<Item> *tmp_columns)
 */
   if (!(result_sink= new select_materialize_with_stats))
     DBUG_RETURN(TRUE);
+    
+  char buf[32];
+  uint len= my_snprintf(buf, sizeof(buf), "<subquery%d>", subquery_id);
+  char *name;
+  if (!(name= (char*)thd->alloc(len + 1)))
+    DBUG_RETURN(TRUE);
+  memcpy(name, buf, len+1);
+
   result_sink->get_tmp_table_param()->materialized_subquery= true;
   if (result_sink->create_result_table(thd, tmp_columns, TRUE,
                                        tmp_create_options,
-                                       "materialized subselect", TRUE))
+                         name, TRUE))
     DBUG_RETURN(TRUE);
 
   tmp_table= result_sink->table;
@@ -3986,7 +4057,7 @@ bool subselect_hash_sj_engine::make_semi_join_conds()
   if (!(tmp_table_ref= (TABLE_LIST*) thd->alloc(sizeof(TABLE_LIST))))
     DBUG_RETURN(TRUE);
 
-  tmp_table_ref->init_one_table("", "materialized subselect", TL_READ);
+  tmp_table_ref->init_one_table("", tmp_table->alias.c_ptr(), TL_READ);
   tmp_table_ref->table= tmp_table;
 
   context= new Name_resolution_context;
@@ -4120,6 +4191,223 @@ void subselect_hash_sj_engine::cleanup()
   tmp_table= NULL;
 }
 
+
+/*
+  Get fanout produced by tables specified in the table_map
+*/
+
+double get_fanout_with_deps(JOIN *join, table_map tset)
+{
+  /* Handle the case of "Impossible WHERE" */
+  if (join->table_count == 0)
+    return 0.0;
+
+  /* First, recursively get all tables we depend on */
+  table_map deps_to_check= tset;
+  table_map checked_deps= 0;
+  table_map further_deps;
+  do
+  {
+    further_deps= 0;
+    Table_map_iterator tm_it(deps_to_check);
+    int tableno;
+    while ((tableno = tm_it.next_bit()) != Table_map_iterator::BITMAP_END)
+    {
+      /* get tableno's dependency tables that are not in needed_set */
+      further_deps |= join->map2table[tableno]->ref.depend_map & ~checked_deps;
+    }
+
+    checked_deps |= deps_to_check;
+    deps_to_check= further_deps;
+  } while (further_deps != 0);
+
+  
+  /* Now, walk the join order and calculate the fanout */
+  double fanout= 1;
+  for (JOIN_TAB *tab= first_top_level_tab(join, WITHOUT_CONST_TABLES); tab;
+       tab= next_top_level_tab(join, tab))
+  {
+    if ((tab->table->map & checked_deps) && !tab->emb_sj_nest && 
+        tab->records_read != 0)
+    {
+      fanout *= rows2double(tab->records_read);
+    }
+  } 
+  return fanout;
+}
+
+
+#if 0
+void check_out_index_stats(JOIN *join)
+{
+  ORDER *order;
+  uint n_order_items;
+
+  /*
+    First, collect the keys that we can use in each table.
+    We can use a key if 
+    - all tables refer to it.
+  */
+  key_map key_start_use[MAX_TABLES];
+  key_map key_infix_use[MAX_TABLES];
+  table_map key_used=0;
+  table_map non_key_used= 0;
+  
+  bzero(&key_start_use, sizeof(key_start_use)); //psergey-todo: safe initialization!
+  bzero(&key_infix_use, sizeof(key_infix_use));
+  
+  for (order= join->group_list; order; order= order->next)
+  {
+    Item *item= order->item[0];
+
+    if (item->real_type() == Item::FIELD_ITEM)
+    {
+      if (item->used_tables() & OUTER_REF_TABLE_BIT)
+        continue; /* outside references are like constants for us */
+
+      Field *field= ((Item_field*)item->real_item())->field;
+      uint table_no= field->table->tablenr;
+      if (!(non_key_used && table_map(1) << table_no) && 
+          !field->part_of_key.is_clear_all())
+      {
+        key_map infix_map= field->part_of_key;
+        infix_map.subtract(field->key_start);
+        key_start_use[table_no].merge(field->key_start);
+        key_infix_use[table_no].merge(infix_map);
+        key_used |= table_no;
+      }
+      continue;
+    }
+    /* 
+      Note: the below will cause clauses like GROUP BY YEAR(date) not to be
+      handled. 
+    */
+    non_key_used |= item->used_tables();
+  }
+  
+  Table_map_iterator tm_it(key_used & ~non_key_used);
+  int tableno;
+  while ((tableno = tm_it.next_bit()) != Table_map_iterator::BITMAP_END)
+  {
+    key_map::iterator key_it(key_start_use);
+    int keyno;
+    while ((keyno = tm_it.next_bit()) != key_map::iterator::BITMAP_END)
+    {
+      for (order= join->group_list; order; order= order->next)
+      {
+        Item *item= order->item[0];
+        if (item->used_tables() & (table_map(1) << tableno))
+        {
+          DBUG_ASSERT(item->real_type() == Item::FIELD_ITEM);
+        }
+      }
+      /*
+      if (continuation)
+      {
+        walk through list and find which key parts are occupied;
+        // note that the above can't be made any faster.
+      }
+      else
+        use rec_per_key[0];
+      
+      find out the cardinality.
+      check if cardinality decreases if we use it;
+      */
+    }
+  }
+}
+#endif
+
+
+/*
+  Get an estimate of how many records will be produced after the GROUP BY
+  operation.
+
+  @param join           Join we're operating on 
+  @param join_op_rows   How many records will be produced by the join
+                        operations (this is what join optimizer produces)
+  
+  @seealso
+     See also optimize_semijoin_nests(), grep for "Adjust output cardinality 
+     estimates".  Very similar code there that is not joined with this one
+     because we operate on different data structs and too much effort is
+     needed to abstract them out.
+
+  @return
+     Number of records we expect to get after the GROUP BY operation
+*/
+
+double get_post_group_estimate(JOIN* join, double join_op_rows)
+{
+  table_map tables_in_group_list= table_map(0);
+
+  /* Find out which tables are used in GROUP BY list */
+  for (ORDER *order= join->group_list; order; order= order->next)
+  {
+    Item *item= order->item[0];
+    if (item->used_tables() & RAND_TABLE_BIT)
+    {
+      /* Each join output record will be in its own group */
+      return join_op_rows;
+    }
+    tables_in_group_list|= item->used_tables();
+  }
+  tables_in_group_list &= ~PSEUDO_TABLE_BITS;
+
+  /*
+    Use join fanouts to calculate the max. number of records in the group-list
+  */
+  double fanout_rows[MAX_KEY];
+  bzero(&fanout_rows, sizeof(fanout_rows));
+  double out_rows;
+  
+  out_rows= get_fanout_with_deps(join, tables_in_group_list);
+
+#if 0
+  /* The following will be needed when making use of index stats: */
+  /* 
+    Also generate max. number of records for each of the tables mentioned 
+    in the group-list. We'll use that a baseline number that we'll try to 
+    reduce by using
+     - #table-records 
+     - index statistics.
+  */
+  Table_map_iterator tm_it(tables_in_group_list);
+  int tableno;
+  while ((tableno = tm_it.next_bit()) != Table_map_iterator::BITMAP_END)
+  {
+    fanout_rows[tableno]= get_fanout_with_deps(join, table_map(1) << tableno);
+  }
+  
+  /*
+    Try to bring down estimates using index statistics.
+  */
+  //check_out_index_stats(join);
+#endif
+
+  return out_rows;
+}
+
+
+/*
+  Optimize the underlying subselect's join
+
+  @param out_rows   OUT   How many records we expect to get in the 
+                          materialized table
+  @param cost       OUT   Cost to materialize the subquery
+
+  @return 
+    0  OK
+    1  Fatal error
+*/
+#if 0
+int subselect_hash_sj_engine::optimize(double *out_rows, double *cost)
+{
+  DBUG_ENTER("subselect_hash_sj_engine::optimize");
+  DBUG_ASSERT(0);
+  DBUG_RETURN(0);
+}
+#endif
 
 /**
   Execute a subquery IN predicate via materialization.

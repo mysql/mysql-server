@@ -358,6 +358,10 @@ Canada
 China
 Czech Republic
 drop table t1, t2;
+drop procedure if exists p1;
+drop procedure if exists p2;
+drop procedure if exists p3;
+drop procedure if exists p4;
 CREATE TABLE t1(a INT);
 CREATE TABLE t2(c INT);
 CREATE PROCEDURE p1(v1 int)

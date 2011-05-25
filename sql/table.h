@@ -66,7 +66,8 @@ typedef struct st_order {
   bool   counter_used;                  /* parameter was counter of columns */
   Field  *field;			/* If tmp-table group */
   char	 *buff;				/* If tmp-table group */
-  table_map used, depend_map;
+  table_map used; /* NOTE: the below is only set to 0 but is still used by eq_ref_table */
+  table_map depend_map;
 } ORDER;
 
 /**
@@ -967,6 +968,12 @@ struct st_table {
     file->extra(HA_EXTRA_KEYREAD);
     DBUG_VOID_RETURN;
   }
+  /*
+    Returns TRUE if the table is filled at execution phase (and so, the
+    optimizer must not do anything that depends on the contents of the table,
+    like range analysis or constant table detection)
+  */
+  bool is_filled_at_execution();
   inline void disable_keyread()
   {
     DBUG_ENTER("disable_keyread");
@@ -1195,7 +1202,7 @@ class Item_in_subselect;
   1) table (TABLE_LIST::view == NULL)
      - base table
        (TABLE_LIST::derived == NULL)
-     - subquery - TABLE_LIST::table is a temp table
+     - FROM-clause subquery - TABLE_LIST::table is a temp table
        (TABLE_LIST::derived != NULL)
      - information schema table
        (TABLE_LIST::schema_table != NULL)
@@ -1214,6 +1221,8 @@ class Item_in_subselect;
        (TABLE_LIST::natural_join != NULL)
        - JOIN ... USING
          (TABLE_LIST::join_using_fields != NULL)
+     - semi-join nest (sj_on_expr!= NULL && sj_subq_pred!=NULL)
+  4) jtbm semi-join (jtbm_subselect != NULL)
 */
 
 class Index_hint;
@@ -1256,8 +1265,14 @@ struct TABLE_LIST
   */
   table_map     sj_inner_tables;
   /* Number of IN-compared expressions */
-  uint          sj_in_exprs; 
+  uint          sj_in_exprs;
+  
+  /* If this is a non-jtbm semi-join nest: corresponding subselect predicate */
   Item_in_subselect  *sj_subq_pred;
+
+  /* If this is a jtbm semi-join object: corresponding subselect predicate */
+  Item_in_subselect  *jtbm_subselect;
+
   SJ_MATERIALIZATION_INFO *sj_mat_info;
 
   /*

@@ -165,13 +165,25 @@ enum enum_nested_loop_state
 
 typedef enum_nested_loop_state
 (*Next_select_func)(JOIN *, struct st_join_table *, bool);
+
+/*
+  Function prototype for reading first record for a join tab
+
+  RETURN
+     0     - OK
+    -1     - Record not found
+    Other  - A fatal error
+*/
 typedef int (*Read_record_func)(struct st_join_table *tab);
+
 Next_select_func setup_end_select_func(JOIN *join);
 int rr_sequential(READ_RECORD *info);
+int rr_sequential_and_unpack(READ_RECORD *info);
 
 
 class JOIN_CACHE;
 class SJ_TMP_TABLE;
+class JOIN_TAB_RANGE;
 
 typedef struct st_join_table {
   st_join_table() {}                          /* Remove gcc warning */
@@ -200,6 +212,21 @@ typedef struct st_join_table {
   st_join_table *last_inner;    /**< last table table for embedding outer join */
   st_join_table *first_upper;  /**< first inner table for embedding outer join */
   st_join_table *first_unmatched; /**< used for optimization purposes only     */
+
+  /*
+    For join tabs that are inside an SJM bush: root of the bush
+  */
+  st_join_table *bush_root_tab;
+
+  /* TRUE <=> This join_tab is inside an SJM bush and is the last leaf tab here */
+  bool          last_leaf_in_bush;
+  
+  /*
+    ptr  - this is a bush, and ptr points to description of child join_tab
+           range
+    NULL - this join tab has no bush children
+  */
+  JOIN_TAB_RANGE *bush_children;
   
   /* Special content for EXPLAIN 'Extra' column or NULL if none */
   const char	*info;
@@ -237,7 +264,13 @@ typedef struct st_join_table {
     method (but not 'index' for some reason), i.e. this matches method which
     E(#records) is in found_records.
   */
-  ha_rows       read_time;
+  double        read_time;
+  
+  /* psergey-todo: make the below have type double, like POSITION::records_read? */
+  ha_rows       records_read;
+  
+  /* Startup cost for execution */
+  double        startup_cost;
     
   double        partial_join_cardinality;
 
@@ -330,11 +363,11 @@ typedef struct st_join_table {
   /*
     Semi-join strategy to be used for this join table. This is a copy of
     POSITION::sj_strategy field. This field is set up by the
-    fix_semijion_strategies_for_picked_join_order.
+    fix_semijoin_strategies_for_picked_join_order.
   */
   uint sj_strategy;
 
-  struct st_join_table *first_sjm_sibling;
+  uint n_sj_tables;
 
   void cleanup();
   inline bool is_using_loose_index_scan()
@@ -450,9 +483,6 @@ enum_nested_loop_state sub_select_cache(JOIN *join, JOIN_TAB *join_tab, bool
                                         end_of_records);
 enum_nested_loop_state sub_select(JOIN *join,JOIN_TAB *join_tab, bool
                                   end_of_records);
-enum_nested_loop_state sub_select_sjm(JOIN *join, JOIN_TAB *join_tab, 
-                                      bool end_of_records);
-
 enum_nested_loop_state
 end_send_group(JOIN *join, JOIN_TAB *join_tab __attribute__((unused)),
 	       bool end_of_records);
@@ -600,6 +630,13 @@ inline bool sj_is_materialize_strategy(uint strategy)
   return strategy >= SJ_OPT_MATERIALIZE;
 }
 
+class JOIN_TAB_RANGE: public Sql_alloc
+{
+public:
+  JOIN_TAB *start;
+  JOIN_TAB *end;
+};
+
 
 class JOIN :public Sql_alloc
 {
@@ -651,20 +688,40 @@ protected:
   bool choose_tableless_subquery_plan();
 
 public:
-  JOIN_TAB *join_tab,**best_ref;
+  JOIN_TAB *join_tab, **best_ref;
   JOIN_TAB **map2table;    ///< mapping between table indexes and JOIN_TABs
   JOIN_TAB *join_tab_save; ///< saved join_tab for subquery reexecution
+
+  List<JOIN_TAB_RANGE> join_tab_ranges;
+  
+  /*
+    Base tables participating in the join. After join optimization is done, the
+    tables are stored in the join order (but the only really important part is 
+    that const tables are first).
+  */
   TABLE    **table;
-  TABLE    **all_tables;
   /**
     The table which has an index that allows to produce the requried ordering.
     A special value of 0x1 means that the ordering will be produced by
     passing 1st non-const table to filesort(). NULL means no such table exists.
   */
   TABLE    *sort_by_table;
-  uint	   tables;        /**< Number of tables in the join */
+  /* 
+    Number of tables in the join. 
+    (In MySQL, it is named 'tables' and is also the number of elements in 
+     join->join_tab array. In MariaDB, the latter is not true, so we've renamed
+     the variable)
+  */
+  uint	   table_count;
   uint     outer_tables;  /**< Number of tables that are not inside semijoin */
   uint     const_tables;
+  /* 
+    Number of tables in the top join_tab array. Normally this matches
+    (join_tab_ranges.head()->end - join_tab_ranges.head()->start). 
+    
+    We keep it here so that it is saved/restored with JOIN::restore_tmp.
+  */
+  uint     top_join_tab_count;
   uint	   send_group_parts;
   bool	   group;          /**< If query contains GROUP BY clause */
   /**
@@ -691,7 +748,8 @@ public:
   /* Tables removed by table elimination. Set to 0 before the elimination. */
   table_map eliminated_tables;
   /*
-     Bitmap of all inner tables from outer joins
+     Bitmap of all inner tables from outer joins (set at start of
+     make_join_statistics)
   */
   table_map outer_join;
   ha_rows  send_records,found_records,examined_rows,row_limit, select_limit;
@@ -740,7 +798,6 @@ public:
 
   /* We also maintain a stack of join optimization states in * join->positions[] */
 /******* Join optimization state members end *******/
-  Next_select_func first_select;
   /*
     The cost of best complete join plan found so far during optimization,
     after optimization phase - cost of picked join order (not taking into
@@ -892,6 +949,10 @@ public:
   bool optimized; ///< flag to avoid double optimization in EXPLAIN
   bool initialized; ///< flag to avoid double init_execution calls
 
+  /* 
+    Subqueries that will need to be converted to semi-join nests, including
+    those converted to jtbm nests. The list is emptied when conversion is done.
+  */
   Array<Item_in_subselect> sj_subselects;
   /*
     Additional WHERE and HAVING predicates to be considered for IN=>EXISTS
@@ -899,7 +960,7 @@ public:
   */
   Item *in_to_exists_where;
   Item *in_to_exists_having;
-
+  
   /* Temporary tables used to weed-out semi-join duplicates */
   List<TABLE> sj_tmp_tables;
   /* SJM nests that are executed with SJ-Materialization strategy */
@@ -932,7 +993,8 @@ public:
   {
     join_tab= join_tab_save= 0;
     table= 0;
-    tables= 0;
+    table_count= 0;
+    top_join_tab_count= 0;
     const_tables= 0;
     eliminated_tables= 0;
     join_list= 0;
@@ -989,7 +1051,6 @@ public:
     rollup.state= ROLLUP::STATE_NONE;
 
     no_const_tables= FALSE;
-    first_select= sub_select;
     outer_ref_cond= 0;
     in_to_exists_where= NULL;
     in_to_exists_having= NULL;
@@ -1054,7 +1115,7 @@ public:
   }
   inline table_map all_tables_map()
   {
-    return (table_map(1) << tables) - 1;
+    return (table_map(1) << table_count) - 1;
   }
   /* 
     Return the table for which an index scan can be used to satisfy 
@@ -1077,9 +1138,12 @@ public:
            max_allowed_join_cache_level > JOIN_CACHE_HASHED_BIT;
   }
   bool choose_subquery_plan(table_map join_tables);
-  void get_partial_join_cost(uint n_tables,
-                             double *read_time_arg, double *record_count_arg);
-
+  //void get_partial_join_cost(uint n_tables,
+  //                           double *read_time_arg, double *record_count_arg);
+  void get_partial_cost_and_fanout(uint end_tab_idx,
+                                   table_map filter_map,
+                                   double *read_time_arg, 
+                                   double *record_count_arg);
 private:
   /**
     TRUE if the query contains an aggregate function but has no GROUP
@@ -1090,6 +1154,15 @@ private:
   void cleanup_item_list(List<Item> &items) const;
 };
 
+enum enum_with_bush_roots { WITH_BUSH_ROOTS, WITHOUT_BUSH_ROOTS};
+enum enum_with_const_tables { WITH_CONST_TABLES, WITHOUT_CONST_TABLES};
+
+JOIN_TAB *first_linear_tab(JOIN *join, enum enum_with_const_tables const_tbls);
+JOIN_TAB *next_linear_tab(JOIN* join, JOIN_TAB* tab, 
+                          enum enum_with_bush_roots include_bush_roots);
+
+JOIN_TAB *first_top_level_tab(JOIN *join, enum enum_with_const_tables with_const);
+JOIN_TAB *next_top_level_tab(JOIN *join, JOIN_TAB *tab);
 
 typedef struct st_select_check {
   uint const_ref,reg_ref;
@@ -1341,6 +1414,7 @@ int safe_index_read(JOIN_TAB *tab);
 COND *remove_eq_conds(THD *thd, COND *cond, Item::cond_result *cond_value);
 int test_if_item_cache_changed(List<Cached_item> &list);
 int join_init_read_record(JOIN_TAB *tab);
+int join_read_record_no_init(JOIN_TAB *tab);
 void set_position(JOIN *join,uint idx,JOIN_TAB *table,KEYUSE *key);
 inline Item * and_items(Item* cond, Item *item)
 {

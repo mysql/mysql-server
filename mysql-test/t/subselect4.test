@@ -1,5 +1,8 @@
 # General purpose bug fix tests go here : subselect.test too large
 
+--disable_warnings
+drop table if exists t1,t2,t3,t4,t5,t6;
+--enable_warnings
 
 --echo #
 --echo # Bug #46791: Assertion failed:(table->key_read==0),function unknown
@@ -663,6 +666,7 @@ INSERT INTO t2 VALUES ('f'),('d');
 SET @old_optimizer_switch = @@session.optimizer_switch;
 SET SESSION optimizer_switch = 'materialization=on,in_to_exists=off,';
 
+select sin(0);
 EXPLAIN
 SELECT * FROM t1
 WHERE f3 = (

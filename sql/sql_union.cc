@@ -129,6 +129,11 @@ select_union::create_result_table(THD *thd_arg, List<Item> *column_types,
                                  (ORDER*) 0, is_union_distinct, 1,
                                  options, HA_POS_ERROR, (char*) alias)))
     return TRUE;
+  //psergey-merge-fix:
+  table->keys_in_use_for_query.clear_all();
+  for (uint i=0; i < table->s->fields; i++)
+    table->field[i]->flags &= ~PART_KEY_FLAG;
+
   table->file->extra(HA_EXTRA_WRITE_CACHE);
   table->file->extra(HA_EXTRA_IGNORE_DUP_KEY);
   return FALSE;
@@ -704,7 +709,8 @@ bool st_select_lex_unit::cleanup()
     if ((join= fake_select_lex->join))
     {
       join->tables_list= 0;
-      join->tables= 0;
+      join->table_count= 0;
+      join->top_join_tab_count= 0;
     }
     error|= fake_select_lex->cleanup();
     /*

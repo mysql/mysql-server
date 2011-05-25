@@ -1217,7 +1217,8 @@ public:
   virtual Item_equal *find_item_equal(COND_EQUAL *cond_equal) { return NULL; }
   /**
     Set the join tab index to the minimal (left-most) JOIN_TAB to which this
-    Item is attached.
+    Item is attached. The number is an index is depth_first_tab() traversal
+    order.
   */
   virtual void set_join_tab_idx(uint join_tab_idx_arg)
   {
