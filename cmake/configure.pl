@@ -190,6 +190,11 @@ foreach my $option (@ARGV)
     $cmakeargs = $cmakeargs." \"-DWITH_COMMENT=".substr($option,13)."\""; 
     next;
   }
+  if ($option =~ /with-gcov/)
+  {
+      $cmakeargs = $cmakeargs." -DENABLE_GCOV=ON"; 
+      next;
+  }
 
   $option = uc($option);
   $option =~ s/-/_/g;
