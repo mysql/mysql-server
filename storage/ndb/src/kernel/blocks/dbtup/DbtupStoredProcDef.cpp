@@ -189,8 +189,15 @@ void Dbtup::allocCopyProcedure()
     ndbrequire(appendToSection(iVal, &ahWord, 1));
   }
 
+  /* Add space for extra attrs */
+  ahWord = 0;
+  for (Uint32 extra=0; extra < EXTRA_COPY_PROC_WORDS; extra++)
+    ndbrequire(appendToSection(iVal, &ahWord, 1));
+
   cCopyProcedure= iVal;
   cCopyLastSeg= RNIL;
+  cCopyOverwrite= 0;
+  cCopyOverwriteLen= 0;
 }
 
 void Dbtup::freeCopyProcedure()
@@ -201,7 +208,8 @@ void Dbtup::freeCopyProcedure()
   cCopyProcedure=RNIL;
 }
 
-void Dbtup::prepareCopyProcedure(Uint32 numAttrs)
+void Dbtup::prepareCopyProcedure(Uint32 numAttrs,
+                                 Uint16 tableBits)
 {
   /* Set length of copy procedure section to the
    * number of attributes supplied
@@ -209,22 +217,49 @@ void Dbtup::prepareCopyProcedure(Uint32 numAttrs)
   ndbassert(numAttrs <= MAX_ATTRIBUTES_IN_TABLE);
   ndbassert(cCopyProcedure != RNIL);
   ndbassert(cCopyLastSeg == RNIL);
+  ndbassert(cCopyOverwrite == 0);
+  ndbassert(cCopyOverwriteLen == 0);
   Ptr<SectionSegment> first;
   g_sectionSegmentPool.getPtr(first, cCopyProcedure);
 
   /* Record original 'last segment' of section */
   cCopyLastSeg= first.p->m_lastSegment;
 
+  /* Check table bits to see if we need to do extra reads */
+  Uint32 extraAttrIds[EXTRA_COPY_PROC_WORDS];
+  Uint32 extraReads = 0;
+
+  if (tableBits & Tablerec::TR_ExtraRowGCIBits)
+  {
+    AttributeHeader ah(AttributeHeader::ROW_GCI64,0);
+    extraAttrIds[extraReads++] = ah.m_value;
+  }
+  if (tableBits & Tablerec::TR_ExtraRowAuthorBits)
+  {
+    AttributeHeader ah(AttributeHeader::ROW_AUTHOR,0);
+    extraAttrIds[extraReads++] = ah.m_value;
+  }
+
   /* Modify section to represent relevant prefix 
    * of code by modifying size and lastSegment
    */
-  first.p->m_sz= numAttrs;
+  Uint32 newSize = numAttrs + extraReads;
+  first.p->m_sz= newSize;
 
+  if (extraReads)
+  {
+    cCopyOverwrite= numAttrs;
+    cCopyOverwriteLen = extraReads;
+
+    ndbrequire(writeToSection(first.i, numAttrs, extraAttrIds, extraReads));
+  }
+
+   /* Trim section size and lastSegment */
   Ptr<SectionSegment> curr= first;  
-  while(numAttrs > SectionSegment::DataLength)
+  while(newSize > SectionSegment::DataLength)
   {
     g_sectionSegmentPool.getPtr(curr, curr.p->m_nextSegment);
-    numAttrs-= SectionSegment::DataLength;
+    newSize-= SectionSegment::DataLength;
   }
   first.p->m_lastSegment= curr.i;
 }
@@ -238,10 +273,24 @@ void Dbtup::releaseCopyProcedure()
   Ptr<SectionSegment> first;
   g_sectionSegmentPool.getPtr(first, cCopyProcedure);
   
-  ndbassert(first.p->m_sz <= MAX_ATTRIBUTES_IN_TABLE);
-  first.p->m_sz= MAX_ATTRIBUTES_IN_TABLE;
+  ndbassert(first.p->m_sz <= MAX_COPY_PROC_LEN);
+  first.p->m_sz= MAX_COPY_PROC_LEN;
   first.p->m_lastSegment= cCopyLastSeg;
   
+  if (cCopyOverwriteLen)
+  {
+    ndbassert(cCopyOverwriteLen <= EXTRA_COPY_PROC_WORDS);
+    Uint32 attrids[EXTRA_COPY_PROC_WORDS];
+    for (Uint32 i=0; i < cCopyOverwriteLen; i++)
+    {
+      AttributeHeader ah(cCopyOverwrite + i, 0);
+      attrids[i] = ah.m_value;
+    }
+    ndbrequire(writeToSection(first.i, cCopyOverwrite, attrids, cCopyOverwriteLen));
+    cCopyOverwriteLen= 0;
+    cCopyOverwrite= 0;
+  }
+
   cCopyLastSeg= RNIL;
 }
   
@@ -257,8 +306,13 @@ void Dbtup::copyProcedure(Signal* signal,
    * This assumes that there is only one fragment copy going
    * on at any time, which is verified by checking 
    * cCopyLastSeg == RNIL before starting each copy
+   *
+   * If the table has extra per-row metainformation that
+   * needs copied then we add that to the copy procedure
+   * as well.
    */
-  prepareCopyProcedure(regTabPtr.p->m_no_of_attributes);
+  prepareCopyProcedure(regTabPtr.p->m_no_of_attributes,
+                       regTabPtr.p->m_bits);
 
   SectionHandle handle(this);
   handle.m_cnt=1;

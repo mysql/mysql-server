@@ -1502,6 +1502,79 @@ HugoTransactions::pkDelRecords(Ndb* pNdb,
 }
 
 int 
+HugoTransactions::pkRefreshRecords(Ndb* pNdb,
+                                   int startFrom,
+                                   int count,
+                                   int batch)
+{
+  int r = 0;
+  int retryAttempt = 0;
+
+  g_info << "|- Refreshing records..." << startFrom << "-" << (startFrom+count)
+         << " (batch=" << batch << ")" << endl;
+
+  while (r < count)
+  {
+    if(r + batch > count)
+      batch = count - r;
+
+    if (retryAttempt >= m_retryMax)
+    {
+      g_info << "ERROR: has retried this operation " << retryAttempt
+	     << " times, failing!" << endl;
+      return NDBT_FAILED;
+    }
+
+    pTrans = pNdb->startTransaction();
+    if (pTrans == NULL)
+    {
+      const NdbError err = pNdb->getNdbError();
+
+      if (err.status == NdbError::TemporaryError){
+	ERR(err);
+	NdbSleep_MilliSleep(50);
+	retryAttempt++;
+	continue;
+      }
+      ERR(err);
+      return NDBT_FAILED;
+    }
+
+    if (pkRefreshRecord(pNdb, r, batch) != NDBT_OK)
+    {
+      ERR(pTrans->getNdbError());
+      closeTransaction(pNdb);
+      return NDBT_FAILED;
+    }
+
+    if (pTrans->execute(Commit, AbortOnError) == -1)
+    {
+      const NdbError err = pTrans->getNdbError();
+
+      switch(err.status){
+      case NdbError::TemporaryError:
+	ERR(err);
+	closeTransaction(pNdb);
+	NdbSleep_MilliSleep(50);
+	retryAttempt++;
+	continue;
+	break;
+
+      default:
+	ERR(err);
+	closeTransaction(pNdb);
+	return NDBT_FAILED;
+      }
+    }
+
+    closeTransaction(pNdb);
+    r += batch; // Read next record
+  }
+
+  return NDBT_OK;
+}
+
+int
 HugoTransactions::pkReadUnlockRecords(Ndb* pNdb, 
                                       int records,
                                       int batch,

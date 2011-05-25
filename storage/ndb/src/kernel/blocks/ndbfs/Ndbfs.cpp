@@ -45,6 +45,8 @@
 #include <EventLogger.hpp>
 extern EventLogger * g_eventLogger;
 
+NdbMutex g_active_bound_threads_mutex;
+
 inline
 int pageSize( const NewVARIABLE* baseAddrRef )
 {
@@ -62,9 +64,14 @@ Ndbfs::Ndbfs(Block_context& ctx) :
   scanningInProgress(false),
   theLastId(0),
   theRequestPool(0),
-  m_maxOpenedFiles(0)
+  m_maxOpenedFiles(0),
+  m_bound_threads_cnt(0),
+  m_unbounds_threads_cnt(0),
+  m_active_bound_threads_cnt(0)
 {
   BLOCK_CONSTRUCTOR(Ndbfs);
+
+  NdbMutex_Init(&g_active_bound_threads_mutex);
 
   // Set received signals
   addRecSignal(GSN_READ_CONFIG_REQ, &Ndbfs::execREAD_CONFIG_REQ);
@@ -100,7 +107,8 @@ Ndbfs::~Ndbfs()
   request.action = Request::end;
   for (unsigned i = 0; i < theThreads.size(); i++)
   {
-    theToThreads.writeChannel(&request);
+    theToBoundThreads.writeChannel(&request);
+    theToUnboundThreads.writeChannel(&request);
   }
 
   for (unsigned i = 0; i < theThreads.size(); i++)
@@ -274,7 +282,12 @@ Ndbfs::execREAD_CONFIG_REQ(Signal* signal)
   // Create idle AsyncFiles
   for (Uint32 i = 0; i < noIdleFiles; i++)
   {
-    theIdleBoundFiles.push_back(createAsyncFile(true /* bound */));
+    theIdleFiles.push_back(createAsyncFile());
+    AsyncIoThread * thr = createIoThread(/* bound */ true);
+    if (thr)
+    {
+      theThreads.push_back(thr);
+    }
   }
 
   Uint32 threadpool = 2;
@@ -283,7 +296,7 @@ Ndbfs::execREAD_CONFIG_REQ(Signal* signal)
   // Create IoThreads
   for (Uint32 i = 0; i < threadpool; i++)
   {
-    AsyncIoThread * thr = createIoThread(0);
+    AsyncIoThread * thr = createIoThread(/* bound */ false);
     if (thr)
     {
       jam();
@@ -339,7 +352,7 @@ Ndbfs::execSTTOR(Signal* signal)
   ndbrequire(0);
 }
 
-int 
+int
 Ndbfs::forward( AsyncFile * file, Request* request)
 {
   jam();
@@ -348,9 +361,13 @@ Ndbfs::forward( AsyncFile * file, Request* request)
   {
     thr->dispatch(request);
   }
+  else if (request->m_do_bind)
+  {
+    theToBoundThreads.writeChannel(request);
+  }
   else
   {
-    theToThreads.writeChannel(request);
+    theToUnboundThreads.writeChannel(request);
   }
   return 1;
 }
@@ -444,7 +461,8 @@ Ndbfs::execFSOPENREQ(Signal* signal)
   request->par.open.file_size <<= 32;
   request->par.open.file_size |= fsOpenReq->file_size_lo;
   request->par.open.auto_sync_size = fsOpenReq->auto_sync_size;
-  
+  request->m_do_bind = bound;
+
   ndbrequire(forward(file, request));
 }
 
@@ -454,7 +472,8 @@ Ndbfs::execFSREMOVEREQ(Signal* signal)
   jamEntry();
   const FsRemoveReq * const req = (FsRemoveReq *)signal->getDataPtr();
   const BlockReference userRef = req->userReference;
-  AsyncFile* file = getIdleFile(true);
+  bool bound = true;
+  AsyncFile* file = getIdleFile(bound);
   ndbrequire(file != NULL);
 
   SectionHandle handle(this, signal);
@@ -479,7 +498,8 @@ Ndbfs::execFSREMOVEREQ(Signal* signal)
   request->set(userRef, req->userPointer, newId() );
   request->file = file;
   request->theTrace = signal->getTrace();
-  
+  request->m_do_bind = bound;
+
   if (version == 6)
   {
     ndbrequire(bp < NDB_ARRAY_SIZE(m_base_path));
@@ -541,6 +561,7 @@ Ndbfs::execFSCLOSEREQ(Signal * signal)
   request->file = openFile;
   request->error = 0;
   request->theTrace = signal->getTrace();
+  request->m_do_bind = false;
 
   ndbrequire(forward(openFile, request));
 }
@@ -584,6 +605,7 @@ Ndbfs::readWriteRequest(int action, Signal * signal)
   request->file = openFile;
   request->action = (Request::Action) action;
   request->theTrace = signal->getTrace();
+  request->m_do_bind = false;
 
   Uint32 format = fsRWReq->getFormatFlag(fsRWReq->operationFlag);
 
@@ -804,7 +826,8 @@ Ndbfs::execFSSYNCREQ(Signal * signal)
   request->set(userRef, userPointer, filePointer);
   request->file = openFile;
   request->theTrace = signal->getTrace();
-  
+  request->m_do_bind = false;
+
   ndbrequire(forward(openFile,request));
 }
 
@@ -832,6 +855,7 @@ Ndbfs::execFSSUSPENDORD(Signal * signal)
   request->file = openFile;
   request->theTrace = signal->getTrace();
   request->par.suspend.milliseconds = millis;
+  request->m_do_bind = false;
 
   ndbrequire(forward(openFile,request));
 }
@@ -895,6 +919,7 @@ Ndbfs::execFSAPPENDREQ(Signal * signal)
     request->action = Request::append;
   else
     request->action = Request::append_synch;
+  request->m_do_bind = false;
   ndbrequire(forward(openFile, request));
   return;
   
@@ -918,7 +943,8 @@ Ndbfs::execALLOC_MEM_REQ(Signal* signal)
 
   AllocMemReq* req = (AllocMemReq*)signal->getDataPtr();
 
-  AsyncFile* file = getIdleFile(true);
+  bool bound = true;
+  AsyncFile* file = getIdleFile(bound);
   ndbrequire(file != NULL);
 
   Request *request = theRequestPool->get();
@@ -932,6 +958,7 @@ Ndbfs::execALLOC_MEM_REQ(Signal* signal)
   request->par.alloc.requestInfo = req->requestInfo;
   request->par.alloc.bytes = (Uint64(req->bytes_hi) << 32) + req->bytes_lo;
   request->action = Request::allocmem;
+  request->m_do_bind = bound;
   ndbrequire(forward(file, request));
 }
 
@@ -943,7 +970,8 @@ Ndbfs::execBUILD_INDX_IMPL_REQ(Signal* signal)
   jamEntry();
   mt_BuildIndxReq * req = (mt_BuildIndxReq*)signal->getDataPtr();
 
-  AsyncFile* file = getIdleFile(true);
+  bool bound = true;
+  AsyncFile* file = getIdleFile(bound);
   ndbrequire(file != NULL);
 
   Request *request = theRequestPool->get();
@@ -972,6 +1000,7 @@ Ndbfs::execBUILD_INDX_IMPL_REQ(Signal* signal)
 
   memcpy(&request->par.build.m_req, req, sizeof(* req));
   request->action = Request::buildindx;
+  request->m_do_bind = bound;
   ndbrequire(forward(file, request));
 }
 
@@ -1000,8 +1029,8 @@ Ndbfs::newId()
 }
 
 AsyncFile*
-Ndbfs::createAsyncFile(bool bound){
-
+Ndbfs::createAsyncFile()
+{
   // Check limit of open files
   if (m_maxFiles !=0 && theFiles.size() ==  m_maxFiles)
   {
@@ -1024,42 +1053,35 @@ Ndbfs::createAsyncFile(bool bound){
     ERROR_SET(fatal, NDBD_EXIT_AFS_MAXOPEN,""," Ndbfs::createAsyncFile");
   }
 
-  if (bound)
-  {
-    AsyncIoThread * thr = createIoThread(file);
-    theThreads.push_back(thr);
-    file->attach(thr);
-
-#ifdef VM_TRACE
-    ndbout_c("NDBFS: Created new file thread %d", theFiles.size());
-#endif
-  }
-
   theFiles.push_back(file);
-  
   return file;
 }
 
 void
 Ndbfs::pushIdleFile(AsyncFile* file)
 {
-  if (file->getThread())
-  {
-    theIdleBoundFiles.push_back(file);
-  }
-  else
-  {
-    theIdleUnboundFiles.push_back(file);
-  }
+  assert(file->getThread() == 0);
+  theIdleFiles.push_back(file);
 }
 
 AsyncIoThread*
-Ndbfs::createIoThread(AsyncFile* file)
+Ndbfs::createIoThread(bool bound)
 {
-  AsyncIoThread* thr = new AsyncIoThread(*this, file);
+  AsyncIoThread* thr = new AsyncIoThread(*this, bound);
+  if (thr)
+  {
+#ifdef VM_TRACE
+    ndbout_c("NDBFS: Created new file thread %d", theThreads.size());
+#endif
 
-  struct NdbThread* thrptr = thr->doStart();
-  globalEmulatorData.theConfiguration->addThread(thrptr, NdbfsThread);
+    struct NdbThread* thrptr = thr->doStart();
+    globalEmulatorData.theConfiguration->addThread(thrptr, NdbfsThread);
+
+    if (bound)
+      m_bound_threads_cnt++;
+    else
+      m_unbounds_threads_cnt++;
+  }
 
   return thr;
 }
@@ -1067,31 +1089,50 @@ Ndbfs::createIoThread(AsyncFile* file)
 AsyncFile*
 Ndbfs::getIdleFile(bool bound)
 {
-  if (bound)
+  AsyncFile* file = 0;
+  Uint32 sz = theIdleFiles.size();
+  if (sz)
   {
-    Uint32 sz = theIdleBoundFiles.size();
-    if (sz)
-    {
-      AsyncFile* file = theIdleBoundFiles[sz - 1];
-      theIdleBoundFiles.erase(sz - 1);
-      return file;
-    }
+    file = theIdleFiles[sz - 1];
+    theIdleFiles.erase(sz - 1);
   }
   else
   {
-    Uint32 sz = theIdleUnboundFiles.size();
-    if (sz)
-    {
-      AsyncFile* file = theIdleUnboundFiles[sz - 1];
-      theIdleUnboundFiles.erase(sz - 1);
-      return file;
-    }
+    file = createAsyncFile();
   }
 
-  return createAsyncFile(bound);
+  if (bound)
+  {
+    /**
+     * Check if we should create thread
+     */
+    if (m_active_bound_threads_cnt == m_bound_threads_cnt)
+    {
+      AsyncIoThread * thr = createIoThread(true);
+      if (thr)
+      {
+        theThreads.push_back(thr);
+      }
+    }
+  }
+  return file;
 }
 
-
+void
+Ndbfs::cnt_active_bound(int val)
+{
+  Guard g(&g_active_bound_threads_mutex);
+  if (val < 0)
+  {
+    val = -val;
+    assert(m_active_bound_threads_cnt >= (Uint32)val);
+    m_active_bound_threads_cnt -= val;
+  }
+  else
+  {
+    m_active_bound_threads_cnt += val;
+  }
+}
 
 void
 Ndbfs::report(Request * request, Signal* signal)
@@ -1506,10 +1547,13 @@ Ndbfs::execDUMP_STATE_ORD(Signal* signal)
     infoEvent("NDBFS: Files: %d Open files: %d",
 	      theFiles.size(),
 	      theOpenFiles.size());
-    infoEvent(" Idle files: (bound: %u unbound: %u) Max opened files: %d",
-              theIdleBoundFiles.size(),
-              theIdleUnboundFiles.size(),
+    infoEvent(" Idle files: %u Max opened files: %d",
+              theIdleFiles.size(),
               m_maxOpenedFiles);
+    infoEvent(" Bound Threads: %u (active %u) Unbound threads: %u",
+              m_bound_threads_cnt,
+              m_active_bound_threads_cnt,
+              m_unbounds_threads_cnt);
     infoEvent(" Max files: %d",
 	      m_maxFiles);
     infoEvent(" Requests: %d",
@@ -1522,7 +1566,10 @@ Ndbfs::execDUMP_STATE_ORD(Signal* signal)
     
     for (unsigned i = 0; i < theOpenFiles.size(); i++){
       AsyncFile* file = theOpenFiles.getFile(i);
-      infoEvent("%2d (0x%lx): %s", i, (long)file, file->theFileName.c_str());
+      infoEvent("%2d (0x%lx): %s thr: %lx", i,
+                (long)file,
+                file->theFileName.c_str(),
+                (long)file->getThread());
     }
     return;
   }
@@ -1536,18 +1583,14 @@ Ndbfs::execDUMP_STATE_ORD(Signal* signal)
     return;
   }
   if(signal->theData[0] == DumpStateOrd::NdbfsDumpIdleFiles){
-    infoEvent("NDBFS: Dump idle files: %d %u",
-              theIdleBoundFiles.size(), theIdleUnboundFiles.size());
-    
-    for (unsigned i = 0; i < theIdleBoundFiles.size(); i++){
-      AsyncFile* file = theIdleBoundFiles[i];
+    infoEvent("NDBFS: Dump idle files: %u",
+              theIdleFiles.size());
+
+    for (unsigned i = 0; i < theIdleFiles.size(); i++){
+      AsyncFile* file = theIdleFiles[i];
       infoEvent("%2d (0x%lx): %s", i, (long)file, file->isOpen()?"OPEN":"CLOSED");
     }
 
-    for (unsigned i = 0; i < theIdleUnboundFiles.size(); i++){
-      AsyncFile* file = theIdleUnboundFiles[i];
-      infoEvent("%2d (0x%lx): %s", i, (long)file, file->isOpen()?"OPEN":"CLOSED");
-    }
     return;
   }
 

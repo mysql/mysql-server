@@ -350,6 +350,7 @@ protected:
   bool import(SegmentedSectionPtr& ptr, const Uint32* src, Uint32 len);
   bool appendToSection(Uint32& firstSegmentIVal, const Uint32* src, Uint32 len);
   bool dupSection(Uint32& copyFirstIVal, Uint32 srcFirstIVal);
+  bool writeToSection(Uint32 firstSegmentIVal, Uint32 offset, const Uint32* src, Uint32 len);
 
   void handle_invalid_sections_in_send_signal(Signal*) const;
   void handle_lingering_sections_after_execute(Signal*) const;

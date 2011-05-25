@@ -768,6 +768,7 @@ ErrorBundle ErrorCodes[] = {
   { 2810, DMEC, TR, "No space left on the device" },
   { 2811, DMEC, TR, "Error with file permissions, please check file system" },
   { 2815, DMEC, TR, "Error in reading files, please check file system" },
+  {  920, DMEC, AE, "Row operation defined after refreshTuple()" },
 
   /**
    * NdbQueryBuilder API errors

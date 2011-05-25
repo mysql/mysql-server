@@ -268,6 +268,7 @@ inline const Uint32* ALIGN_WORD(const void* ptr)
 #define ZMUST_BE_ABORTED_ERROR 898
 #define ZTUPLE_DELETED_ERROR 626
 #define ZINSERT_ERROR 630
+#define ZOP_AFTER_REFRESH_ERROR 920
 
 #define ZINVALID_CHAR_FORMAT 744
 #define ZROWID_ALLOCATED 899
@@ -420,6 +421,8 @@ struct Fragoperrec {
   Uint32 attributeCount;
   Uint32 charsetIndex;
   Uint32 m_null_bits[2];
+  Uint32 m_extra_row_gci_bits;
+  Uint32 m_extra_row_author_bits;
   union {
     BlockReference lqhBlockrefFrag;
     Uint32 m_senderRef;
@@ -827,10 +830,11 @@ struct Operationrec {
     unsigned int m_disk_preallocated : 1;
     unsigned int m_load_diskpage_on_commit : 1;
     unsigned int m_wait_log_buffer : 1;
+    unsigned int m_gci_written : 1;
   };
   union {
     OpBitFields op_struct;
-    Uint16 op_bit_fields;
+    Uint32 op_bit_fields;
   };
 
   /*
@@ -840,6 +844,19 @@ struct Operationrec {
    * version even if in the same transaction.
    */
   Uint16 tupVersion;
+
+  /*
+   * When refreshing a row, there are four scenarios
+   * The actual scenario is encoded in the 'copy tuple location'
+   * to enable special handling at commit time
+   */
+  enum RefreshScenario
+  {
+    RF_SINGLE_NOT_EXIST = 1,    /* Refresh op first in trans, no row */
+    RF_SINGLE_EXIST     = 2,    /* Refresh op first in trans, row exists */
+    RF_MULTI_NOT_EXIST  = 3,    /* Refresh op !first in trans, row deleted */
+    RF_MULTI_EXIST      = 4     /* Refresh op !first in trans, row exists */
+  };
 };
 typedef Ptr<Operationrec> OperationrecPtr;
 
@@ -1019,7 +1036,9 @@ ArrayPool<TupTriggerData> c_triggerPool;
       TR_Checksum = 0x1, // Need to be 1
       TR_RowGCI   = 0x2,
       TR_ForceVarPart = 0x4,
-      TR_DiskPart  = 0x8
+      TR_DiskPart  = 0x8,
+      TR_ExtraRowGCIBits = 0x10,
+      TR_ExtraRowAuthorBits = 0x20
     };
     Uint16 m_bits;
     Uint16 total_rec_size; // Max total size for entire tuple in words
@@ -1032,6 +1051,7 @@ ArrayPool<TupTriggerData> c_triggerPool;
     Uint16 noOfKeyAttr;
     Uint16 noOfCharsets;
     Uint16 m_dyn_null_bits[2];
+    Uint16 m_no_of_extra_columns; // "Hidden" columns
 
     bool need_expand() const { 
       return m_no_of_attributes > m_attributes[MM].m_no_of_fixsize;
@@ -1055,6 +1075,17 @@ ArrayPool<TupTriggerData> c_triggerPool;
 	m_attributes[MM].m_no_of_varsize > 0 ||
 	m_attributes[MM].m_no_of_dynamic > 0 ||
         (disk && m_attributes[DD].m_no_of_varsize > 0);
+    }
+
+    template <Uint32 bit> Uint32 getExtraAttrId() const {
+      if (bit == TR_ExtraRowGCIBits)
+        return 0;
+      Uint32 no = 0;
+      if (m_bits & TR_ExtraRowGCIBits)
+        no++;
+      assert(bit == TR_ExtraRowAuthorBits);
+      //if (bit == TR_ExtraRowAuthorBits)
+      return no;
     }
 
     /**
@@ -2063,6 +2094,13 @@ private:
                       KeyReqStruct* req_struct,
 		      bool disk);
 
+  int handleRefreshReq(Signal* signal,
+                       Ptr<Operationrec>,
+                       Ptr<Fragrecord>,
+                       Tablerec*,
+                       KeyReqStruct*,
+                       bool disk);
+
 //------------------------------------------------------------------
 //------------------------------------------------------------------
   int  updateStartLab(Signal* signal,
@@ -2951,10 +2989,15 @@ private:
   void initData();
   void initRecords();
 
+  // 2 words for optional GCI64 + AUTHOR info
+#define EXTRA_COPY_PROC_WORDS 2
+#define MAX_COPY_PROC_LEN (MAX_ATTRIBUTES_IN_TABLE + EXTRA_COPY_PROC_WORDS)
+
+
   void deleteScanProcedure(Signal* signal, Operationrec* regOperPtr);
   void allocCopyProcedure();
   void freeCopyProcedure();
-  void prepareCopyProcedure(Uint32 numAttrs);
+  void prepareCopyProcedure(Uint32 numAttrs, Uint16 tableBits);
   void releaseCopyProcedure();
   void copyProcedure(Signal* signal,
                      TablerecPtr regTabPtr,
@@ -2973,7 +3016,7 @@ private:
 //-----------------------------------------------------------------------------
 
 // Public methods
-  Uint32 getTabDescrOffsets(Uint32, Uint32, Uint32, Uint32*);
+  Uint32 getTabDescrOffsets(Uint32, Uint32, Uint32, Uint32, Uint32*);
   Uint32 getDynTabDescrOffsets(Uint32 MaskSize, Uint32* offset);
   Uint32 allocTabDescr(Uint32 allocSize);
   void releaseTabDescr(Uint32 desc);
@@ -3174,6 +3217,8 @@ private:
   Uint32 czero;
   Uint32 cCopyProcedure;
   Uint32 cCopyLastSeg;
+  Uint32 cCopyOverwrite;
+  Uint32 cCopyOverwriteLen;
 
  // A little bit bigger to cover overwrites in copy algorithms (16384 real size).
 #define ZATTR_BUFFER_SIZE 16384
@@ -3380,15 +3425,21 @@ private:
   void findFirstOp(OperationrecPtr&);
   bool is_rowid_lcp_scanned(const Local_key& key1,
                            const Dbtup::ScanOp& op);
-  void commit_operation(Signal*, Uint32, Tuple_header*, PagePtr,
+  void commit_operation(Signal*, Uint32, Uint32, Tuple_header*, PagePtr,
 			Operationrec*, Fragrecord*, Tablerec*);
+  void commit_refresh(Signal*, Uint32, Uint32, Tuple_header*, PagePtr,
+                      KeyReqStruct*, Operationrec*, Fragrecord*, Tablerec*);
   int retrieve_data_page(Signal*,
                          Page_cache_client::Request,
                          OperationrecPtr);
   int retrieve_log_page(Signal*, FragrecordPtr, OperationrecPtr);
 
-  void dealloc_tuple(Signal* signal, Uint32, Page*, Tuple_header*,
+  void dealloc_tuple(Signal* signal, Uint32, Uint32, Page*, Tuple_header*,
 		     KeyReqStruct*, Operationrec*, Fragrecord*, Tablerec*);
+  bool store_extra_row_bits(Uint32, const Tablerec*, Tuple_header*, Uint32,
+                            bool);
+  void read_extra_row_bits(Uint32, const Tablerec*, Tuple_header*, Uint32 *,
+                           bool);
 
   int handle_size_change_after_update(KeyReqStruct* req_struct,
 				      Tuple_header* org,

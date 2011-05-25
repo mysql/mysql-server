@@ -43,6 +43,8 @@ class Request
 public:
   Request() {}
 
+  void atGet() { m_do_bind = false; }
+
   enum Action {
     open,
     close,
@@ -113,6 +115,7 @@ public:
    // Information for open, needed if the first open action fails.
   AsyncFile* file;
   Uint32 theTrace;
+  bool m_do_bind;
 
   MemoryChannel<Request>::ListMember m_mem_channel;
 };
@@ -134,7 +137,7 @@ class AsyncIoThread
   friend class Ndbfs;
   friend class AsyncFile;
 public:
-  AsyncIoThread(class Ndbfs&, AsyncFile* file);
+  AsyncIoThread(class Ndbfs&, bool bound);
   virtual ~AsyncIoThread() {};
 
   struct NdbThread* doStart();
@@ -174,6 +177,8 @@ private:
    */
   void buildIndxReq(Request*);
 
+  void attach(AsyncFile*);
+  void detach(AsyncFile*);
 };
 
 #endif

@@ -147,7 +147,8 @@ Dbtup::is_rowid_lcp_scanned(const Local_key& key1,
 
 void
 Dbtup::dealloc_tuple(Signal* signal,
-		     Uint32 gci,
+		     Uint32 gci_hi,
+                     Uint32 gci_lo,
 		     Page* page,
 		     Tuple_header* ptr, 
                      KeyReqStruct * req_struct,
@@ -168,7 +169,7 @@ Dbtup::dealloc_tuple(Signal* signal,
     tmpptr.i = m_pgman_ptr.i;
     tmpptr.p = reinterpret_cast<Page*>(m_pgman_ptr.p);
     disk_page_free(signal, regTabPtr, regFragPtr, 
-		   &disk, tmpptr, gci);
+		   &disk, tmpptr, gci_hi);
   }
   
   if (! (bits & (Tuple_header::LCP_SKIP | Tuple_header::ALLOC)) && 
@@ -199,7 +200,12 @@ Dbtup::dealloc_tuple(Signal* signal,
   if (regTabPtr->m_bits & Tablerec::TR_RowGCI)
   {
     jam();
-    * ptr->get_mm_gci(regTabPtr) = gci;
+    * ptr->get_mm_gci(regTabPtr) = gci_hi;
+    if (regTabPtr->m_bits & Tablerec::TR_ExtraRowGCIBits)
+    {
+      Uint32 attrId = regTabPtr->getExtraAttrId<Tablerec::TR_ExtraRowGCIBits>();
+      store_extra_row_bits(attrId, regTabPtr, ptr, gci_lo, /* truncate */true);
+    }
   }
 }
 
@@ -288,7 +294,8 @@ static void dump_buf_hex(unsigned char *p, Uint32 bytes)
 
 void
 Dbtup::commit_operation(Signal* signal,
-			Uint32 gci,
+			Uint32 gci_hi,
+                        Uint32 gci_lo,
 			Tuple_header* tuple_ptr, 
 			PagePtr pagePtr,
 			Operationrec* regOperPtr, 
@@ -309,6 +316,7 @@ Dbtup::commit_operation(Signal* signal,
   Uint32 fixsize= regTabPtr->m_offsets[MM].m_fix_header_size;
   Uint32 mm_vars= regTabPtr->m_attributes[MM].m_no_of_varsize;
   Uint32 mm_dyns= regTabPtr->m_attributes[MM].m_no_of_dynamic;
+  bool update_gci_at_commit = ! regOperPtr->op_struct.m_gci_written;
   if((mm_vars+mm_dyns) == 0)
   {
     jam();
@@ -399,7 +407,7 @@ Dbtup::commit_operation(Signal* signal,
     if(copy_bits & Tuple_header::DISK_ALLOC)
     {
       jam();
-      disk_page_alloc(signal, regTabPtr, regFragPtr, &key, diskPagePtr, gci);
+      disk_page_alloc(signal, regTabPtr, regFragPtr, &key, diskPagePtr, gci_hi);
     }
     
     if(regTabPtr->m_attributes[DD].m_no_of_varsize == 0)
@@ -419,7 +427,7 @@ Dbtup::commit_operation(Signal* signal,
     {
       jam();
       disk_page_undo_update(diskPagePtr.p, 
-			    &key, dst, sz, gci, logfile_group_id);
+			    &key, dst, sz, gci_hi, logfile_group_id);
     }
     
     memcpy(dst, disk_ptr, 4*sz);
@@ -452,10 +460,17 @@ Dbtup::commit_operation(Signal* signal,
   tuple_ptr->m_header_bits= copy_bits;
   tuple_ptr->m_operation_ptr_i= save;
   
-  if (regTabPtr->m_bits & Tablerec::TR_RowGCI)
+  if (regTabPtr->m_bits & Tablerec::TR_RowGCI  &&
+      update_gci_at_commit)
   {
     jam();
-    * tuple_ptr->get_mm_gci(regTabPtr) = gci;
+    * tuple_ptr->get_mm_gci(regTabPtr) = gci_hi;
+    if (regTabPtr->m_bits & Tablerec::TR_ExtraRowGCIBits)
+    {
+      Uint32 attrId = regTabPtr->getExtraAttrId<Tablerec::TR_ExtraRowGCIBits>();
+      store_extra_row_bits(attrId, regTabPtr, tuple_ptr, gci_lo,
+                           /* truncate */true);
+    }
   }
   
   if (regTabPtr->m_bits & Tablerec::TR_Checksum) {
@@ -834,23 +849,27 @@ skip_disk:
     
     tuple_ptr->m_operation_ptr_i = RNIL;
     
-    if(regOperPtr.p->op_struct.op_type != ZDELETE)
+    if (regOperPtr.p->op_struct.op_type == ZDELETE)
     {
       jam();
-      commit_operation(signal, gci_hi, tuple_ptr, page,
+      if (get_page)
+        ndbassert(tuple_ptr->m_header_bits & Tuple_header::DISK_PART);
+      dealloc_tuple(signal, gci_hi, gci_lo, page.p, tuple_ptr,
+                    &req_struct, regOperPtr.p, regFragPtr.p, regTabPtr.p);
+    }
+    else if(regOperPtr.p->op_struct.op_type != ZREFRESH)
+    {
+      jam();
+      commit_operation(signal, gci_hi, gci_lo, tuple_ptr, page,
 		       regOperPtr.p, regFragPtr.p, regTabPtr.p); 
     }
     else
     {
       jam();
-      if (get_page)
-      {
-	ndbassert(tuple_ptr->m_header_bits & Tuple_header::DISK_PART);
-      }
-      dealloc_tuple(signal, gci_hi, page.p, tuple_ptr,
-		    &req_struct, regOperPtr.p, regFragPtr.p, regTabPtr.p);
+      commit_refresh(signal, gci_hi, gci_lo, tuple_ptr, page,
+                     &req_struct, regOperPtr.p, regFragPtr.p, regTabPtr.p);
     }
-  } 
+  }
 
   if (nextOp != RNIL)
   {
@@ -901,4 +920,49 @@ Dbtup::set_commit_change_mask_info(const Tablerec* regTabPtr,
                                       regTabPtr->m_no_of_attributes - cols);
     }
   }
+}
+
+void
+Dbtup::commit_refresh(Signal* signal,
+                      Uint32 gci_hi,
+                      Uint32 gci_lo,
+                      Tuple_header* tuple_ptr,
+                      PagePtr pagePtr,
+                      KeyReqStruct * req_struct,
+                      Operationrec* regOperPtr,
+                      Fragrecord* regFragPtr,
+                      Tablerec* regTabPtr)
+{
+  /* Committing a refresh operation.
+   * Refresh of an existing row looks like an update
+   * and can commit normally.
+   * Refresh of a non-existing row looks like an Insert which
+   * is 'undone' at commit time.
+   * This is achieved by making special calls to ACC to get
+   * it to forget, before deallocating the tuple locally.
+   */
+  switch(regOperPtr->m_copy_tuple_location.m_file_no){
+  case Operationrec::RF_SINGLE_NOT_EXIST:
+  case Operationrec::RF_MULTI_NOT_EXIST:
+    break;
+  case Operationrec::RF_SINGLE_EXIST:
+  case Operationrec::RF_MULTI_EXIST:
+    // "Normal" update
+    commit_operation(signal, gci_hi, gci_lo, tuple_ptr, pagePtr,
+                     regOperPtr, regFragPtr, regTabPtr);
+    return;
+
+  default:
+    ndbrequire(false);
+  }
+
+  Local_key key = regOperPtr->m_tuple_location;
+  key.m_page_no = pagePtr.p->frag_page_id;
+
+  /**
+   * Tell ACC to delete
+   */
+  c_lqh->accremoverow(signal, regOperPtr->userpointer, &key);
+  dealloc_tuple(signal, gci_hi, gci_lo, pagePtr.p, tuple_ptr,
+                req_struct, regOperPtr, regFragPtr, regTabPtr);
 }

@@ -67,6 +67,7 @@ class Ndb_cluster_connection_impl : public Ndb_cluster_connection
   Uint32 get_next_alive_node(Ndb_cluster_connection_node_iter &iter);
 
   inline unsigned get_connect_count() const;
+  inline unsigned get_min_db_version() const;
 public:
   inline Uint64 *get_latest_trans_gci() { return &m_latest_trans_gci; }
 

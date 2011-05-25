@@ -73,13 +73,16 @@ void Dbdih::initData()
   c_2pass_inr = false;
 }//Dbdih::initData()
 
-void Dbdih::initRecords() 
+void Dbdih::initRecords()
 {
   // Records with dynamic sizes
-  apiConnectRecord = (ApiConnectRecord*)
-    allocRecord("ApiConnectRecord", 
-                sizeof(ApiConnectRecord),
-                capiConnectFileSize);
+  for (Uint32 i = 0; i < c_diverify_queue_cnt; i++)
+  {
+    c_diverify_queue[i].apiConnectRecord = (ApiConnectRecord*)
+      allocRecord("ApiConnectRecord",
+                  sizeof(ApiConnectRecord),
+                  capiConnectFileSize);
+  }
 
   connectRecord = (ConnectRecord*)allocRecord("ConnectRecord",
                                               sizeof(ConnectRecord), 
@@ -306,7 +309,6 @@ Dbdih::Dbdih(Block_context& ctx):
                &Dbdih::execDIH_GET_TABINFO_CONF);
 #endif
 
-  apiConnectRecord = 0;
   connectRecord = 0;
   fileRecord = 0;
   fragmentstore = 0;
@@ -319,15 +321,20 @@ Dbdih::Dbdih(Block_context& ctx):
   c_nextNodeGroup = 0;
   c_fragments_per_node = 1;
   bzero(c_node_groups, sizeof(c_node_groups));
+  c_diverify_queue_cnt = 1;
 
 }//Dbdih::Dbdih()
 
-Dbdih::~Dbdih() 
+Dbdih::~Dbdih()
 {
-  deallocRecord((void **)&apiConnectRecord, "ApiConnectRecord", 
-                sizeof(ApiConnectRecord),
-                capiConnectFileSize);
-  
+  for (Uint32 i = 0; i<c_diverify_queue_cnt; i++)
+  {
+    deallocRecord((void **)&c_diverify_queue[i].apiConnectRecord,
+                  "ApiConnectRecord",
+                  sizeof(ApiConnectRecord),
+                  capiConnectFileSize);
+  }
+
   deallocRecord((void **)&connectRecord, "ConnectRecord",
                 sizeof(ConnectRecord), 
                 cconnectFileSize);

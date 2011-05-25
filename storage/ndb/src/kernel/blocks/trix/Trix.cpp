@@ -1584,7 +1584,7 @@ bool
 Trix::statOpSeize(Uint32& statPtrI)
 {
   StatOpPtr statPtr;
-  if (ERROR_INSERTED(17001) ||
+  if (ERROR_INSERTED(18001) ||
       !c_statOpPool.seize(statPtr))
   {
     jam();
@@ -1600,7 +1600,7 @@ Trix::statOpSeize(Uint32& statPtrI)
   stat.m_ownPtrI = statPtrI;
 
   SubscriptionRecPtr subRecPtr;
-  if (ERROR_INSERTED(17002) ||
+  if (ERROR_INSERTED(18002) ||
       !c_theSubscriptions.seize(subRecPtr))
   {
     jam();
@@ -1987,8 +1987,8 @@ Trix::statUtilPrepareConf(Signal* signal, Uint32 statPtrI)
   util.m_prepareId = utilConf->prepareId;
 
   const Uint32 ot = send.m_operationType;
-  if (ERROR_INSERTED(17011) && ot == UtilPrepareReq::Read ||
-      ERROR_INSERTED(17012) && ot != UtilPrepareReq::Read)
+  if (ERROR_INSERTED(18011) && ot == UtilPrepareReq::Read ||
+      ERROR_INSERTED(18012) && ot != UtilPrepareReq::Read)
   {
     jam();
     CLEAR_ERROR_INSERT_VALUE;
@@ -2400,9 +2400,9 @@ Trix::statCleanExecute(Signal* signal, StatOp& stat)
   releaseSections(handle);
 
   const Uint32 rt = stat.m_requestType;
-  if (ERROR_INSERTED(17021) && rt == IndexStatReq::RT_CLEAN_NEW ||
-      ERROR_INSERTED(17022) && rt == IndexStatReq::RT_CLEAN_OLD ||
-      ERROR_INSERTED(17023) && rt == IndexStatReq::RT_CLEAN_ALL)
+  if (ERROR_INSERTED(18021) && rt == IndexStatReq::RT_CLEAN_NEW ||
+      ERROR_INSERTED(18022) && rt == IndexStatReq::RT_CLEAN_OLD ||
+      ERROR_INSERTED(18023) && rt == IndexStatReq::RT_CLEAN_ALL)
   {
     jam();
     CLEAR_ERROR_INSERT_VALUE;
@@ -2574,7 +2574,7 @@ Trix::statScanExecute(Signal* signal, StatOp& stat)
   scan.m_keyBytes += kb;
   releaseSections(handle);
 
-  if (ERROR_INSERTED(17024))
+  if (ERROR_INSERTED(18024))
   {
     jam();
     CLEAR_ERROR_INSERT_VALUE;

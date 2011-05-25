@@ -25,6 +25,7 @@
 #include <AttributeDescriptor.hpp>
 #include "AttributeOffset.hpp"
 #include <AttributeHeader.hpp>
+#include <dblqh/Dblqh.hpp>
 
 void
 Dbtup::setUpQueryRoutines(Tablerec *regTabPtr)
@@ -1743,6 +1744,63 @@ int Dbtup::updateAttributes(KeyReqStruct *req_struct,
       inBufIndex += 1 + sz;
       req_struct->in_buf_index = inBufIndex;
     }
+    else if (attributeId == AttributeHeader::ROW_AUTHOR)
+    {
+      jam();
+      Uint32 sz= ahIn.getDataSize();
+      ndbrequire(sz == 1);
+
+      Uint32 value = * (inBuffer + inBufIndex + 1);
+      Uint32 attrId =
+        regTabPtr->getExtraAttrId<Tablerec::TR_ExtraRowAuthorBits>();
+
+      if (unlikely(!(regTabPtr->m_bits & Tablerec::TR_ExtraRowAuthorBits)))
+      {
+        return -ZATTRIBUTE_ID_ERROR;
+      }
+
+      if (unlikely(store_extra_row_bits(attrId, regTabPtr,
+                                        req_struct->m_tuple_ptr,
+                                        value, /* truncate */ false) == false))
+      {
+        return -ZAI_INCONSISTENCY_ERROR;
+      }
+      inBufIndex += 1 + sz;
+      req_struct->in_buf_index = inBufIndex;
+    }
+    else if (attributeId == AttributeHeader::ROW_GCI64)
+    {
+      jam();
+      Uint32 sz= ahIn.getDataSize();
+      ndbrequire(sz == 2);
+      Uint32 attrId =
+        regTabPtr->getExtraAttrId<Tablerec::TR_ExtraRowGCIBits>();
+      Uint32 gciLo = * (inBuffer + inBufIndex + 1);
+      Uint32 gciHi = * (inBuffer + inBufIndex + 2);
+
+      if (unlikely(!(regTabPtr->m_bits & Tablerec::TR_RowGCI)))
+      {
+        return -ZATTRIBUTE_ID_ERROR;
+      }
+
+      /* Record that GCI has been set explicitly */
+      regOperPtr->op_struct.m_gci_written = 1;
+
+      *req_struct->m_tuple_ptr->get_mm_gci(regTabPtr) = gciHi;
+
+      if (regTabPtr->m_bits & Tablerec::TR_ExtraRowGCIBits)
+      {
+        if (unlikely(store_extra_row_bits(attrId, regTabPtr,
+                                          req_struct->m_tuple_ptr,
+                                          gciLo, /*truncate*/ true) == false))
+        {
+          return -ZAI_INCONSISTENCY_ERROR;
+        }
+      }
+
+      inBufIndex+= 1 + sz;
+      req_struct->in_buf_index = inBufIndex;
+    }
     else
     {
       jam();
@@ -2520,6 +2578,48 @@ Dbtup::read_pseudo(const Uint32 * inBuffer, Uint32 inPos,
       sz = 2;
     }
     break;
+  case AttributeHeader::ROW_GCI64:
+  {
+    sz = 0;
+    if (req_struct->tablePtrP->m_bits & Tablerec::TR_RowGCI)
+    {
+      Uint32 tmp0 = *req_struct->m_tuple_ptr->get_mm_gci(req_struct->tablePtrP);
+      Uint32 tmp1 = ~Uint32(0);
+      if (req_struct->tablePtrP->m_bits & Tablerec::TR_ExtraRowGCIBits)
+      {
+        Uint32 attrId =
+          req_struct->tablePtrP->getExtraAttrId<Tablerec::TR_ExtraRowGCIBits>();
+        read_extra_row_bits(attrId,
+                            req_struct->tablePtrP,
+                            req_struct->m_tuple_ptr,
+                            &tmp1,
+                            /* extend */ true);
+      }
+      Uint64 tmp = Uint64(tmp0) << 32 | tmp1;
+      memcpy(outBuffer + 1, &tmp, sizeof(tmp));
+      sz = 2;
+    }
+    break;
+  }
+  case AttributeHeader::ROW_AUTHOR:
+  {
+    sz = 0;
+    if (req_struct->tablePtrP->m_bits & Tablerec::TR_ExtraRowAuthorBits)
+    {
+      Uint32 attrId = req_struct->tablePtrP
+        ->getExtraAttrId<Tablerec::TR_ExtraRowAuthorBits>();
+
+      Uint32 tmp;
+      read_extra_row_bits(attrId,
+                          req_struct->tablePtrP,
+                          req_struct->m_tuple_ptr,
+                          &tmp,
+                          /* extend */ false);
+      outBuffer[1] = tmp;
+      sz = 1;
+    }
+    break;
+  }
   case AttributeHeader::ANY_VALUE:
   {
     /**
@@ -3443,4 +3543,86 @@ Dbtup::read_lcp_keys(Uint32 tableId,
   ndbrequire(ret > 0);
 
   return ret;
+}
+
+bool
+Dbtup::store_extra_row_bits(Uint32 extra_no,
+                            const Tablerec* regTabPtr,
+                            Tuple_header* ptr,
+                            Uint32 value,
+                            bool truncate)
+{
+  jam();
+  if (unlikely(extra_no >= regTabPtr->m_no_of_extra_columns))
+    return false;
+  /**
+   * ExtraRowGCIBits are using regTabPtr->m_no_of_attributes + extra_no
+   */
+  Uint32 num_attr= regTabPtr->m_no_of_attributes;
+  Uint32 attrId = num_attr + extra_no;
+  Uint32 descr_start = regTabPtr->tabDescriptor;
+  TableDescriptor *tab_descr = &tableDescriptor[descr_start];
+  ndbrequire(descr_start + (attrId << ZAD_LOG_SIZE)<= cnoOfTabDescrRec);
+
+  Uint32 attrDescriptorIndex = attrId << ZAD_LOG_SIZE;
+  Uint32 attrDescriptor = tab_descr[attrDescriptorIndex].tabDescr;
+  Uint32 attrOffset = tab_descr[attrDescriptorIndex + 1].tabDescr;
+
+  Uint32 pos = AttributeOffset::getNullFlagPos(attrOffset);
+  Uint32 bitCount = AttributeDescriptor::getArraySize(attrDescriptor);
+  Uint32 maxVal = (1 << bitCount) - 1;
+  Uint32 *bits= ptr->get_null_bits(regTabPtr);
+
+  if (value > maxVal)
+  {
+    if (truncate)
+    {
+      value = maxVal;
+    }
+    else
+    {
+      return false;
+    }
+  }
+
+  Uint32 check = regTabPtr->m_offsets[MM].m_null_words;
+  BitmaskImpl::setField(check, bits, pos, bitCount, &value);
+  return true;
+}
+
+void
+Dbtup::read_extra_row_bits(Uint32 extra_no,
+                           const Tablerec* regTabPtr,
+                           Tuple_header* ptr,
+                           Uint32 * value,
+                           bool extend)
+{
+  /**
+   * ExtraRowGCIBits are using regTabPtr->m_no_of_attributes + extra_no
+   */
+  ndbrequire(extra_no < regTabPtr->m_no_of_extra_columns);
+  Uint32 num_attr= regTabPtr->m_no_of_attributes;
+  Uint32 attrId = num_attr + extra_no;
+  Uint32 descr_start = regTabPtr->tabDescriptor;
+  TableDescriptor *tab_descr = &tableDescriptor[descr_start];
+  ndbrequire(descr_start + (attrId << ZAD_LOG_SIZE)<= cnoOfTabDescrRec);
+
+  Uint32 attrDescriptorIndex = attrId << ZAD_LOG_SIZE;
+  Uint32 attrDescriptor = tab_descr[attrDescriptorIndex].tabDescr;
+  Uint32 attrOffset = tab_descr[attrDescriptorIndex + 1].tabDescr;
+
+  Uint32 pos = AttributeOffset::getNullFlagPos(attrOffset);
+  Uint32 bitCount = AttributeDescriptor::getArraySize(attrDescriptor);
+  Uint32 maxVal = (1 << bitCount) - 1;
+  Uint32 *bits= ptr->get_null_bits(regTabPtr);
+
+  Uint32 tmp;
+  Uint32 check = regTabPtr->m_offsets[MM].m_null_words;
+  BitmaskImpl::getField(check, bits, pos, bitCount, &tmp);
+
+  if (tmp == maxVal && extend)
+  {
+    tmp = ~Uint32(0);
+  }
+  * value = tmp;
 }

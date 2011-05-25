@@ -140,7 +140,7 @@ ndbout << "Ptr: " << ptr.p->word32 << " \tIndex: " << tmp_string << " \tValue: "
 /**
  * Check kernel_types for other operation types
  */
-#define ZSCAN_OP 6
+#define ZSCAN_OP 8
 #define ZSCAN_REC_SIZE 256
 #define ZSTAND_BY 2
 #define ZTABLESIZE 16
@@ -642,6 +642,7 @@ public:
   class Dblqh* c_lqh;
 
   void execACCMINUPDATE(Signal* signal);
+  void removerow(Uint32 op, const Local_key*);
 
 private:
   BLOCK_DEFINES(Dbacc);

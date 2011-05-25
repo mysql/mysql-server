@@ -23,6 +23,7 @@ NdbInfo::NdbInfo(class Ndb_cluster_connection* connection,
                  const char* prefix, const char* dbname,
                  const char* table_prefix) :
   m_connect_count(connection->get_connect_count()),
+  m_min_db_version(0),
   m_connection(connection),
   m_tables_table(NULL), m_columns_table(NULL),
   m_prefix(prefix),
@@ -270,7 +271,9 @@ bool NdbInfo::load_tables()
   }
 
   // After sucessfull load of the tables, set connect count
+  // and the min db version of cluster
   m_connect_count = m_connection->get_connect_count();
+  m_min_db_version = m_connection->get_min_db_version();
   return true;
 }
 
@@ -328,12 +331,14 @@ void NdbInfo::flush_tables()
 bool
 NdbInfo::check_tables()
 {
-  if (m_connection->get_connect_count() != m_connect_count)
+  if (unlikely(m_connection->get_connect_count() != m_connect_count ||
+               m_connection->get_min_db_version() != m_min_db_version))
   {
-    // Connect count has changed -> flush the cached table definitions
+    // Connect count or min db version of cluster has changed
+    //  -> flush the cached table definitions
     flush_tables();
   }
-  if (m_tables.entries() <= NUM_HARDCODED_TABLES)
+  if (unlikely(m_tables.entries() <= NUM_HARDCODED_TABLES))
   {
     // Global table cache is not loaded yet or has been
     // flushed, try to load it
