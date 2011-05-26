@@ -327,6 +327,12 @@ int main(int argc, char** argv){
   sql.assfmt("CREATE DATABASE IF NOT EXISTS `%s`", opt_ndbinfo_db);
   print_conditional_sql(sql);
 
+  printf("# Set NDBINFO in offline mode during (re)create of tables\n");
+  printf("# and views to avoid errors caused by no such table or\n");
+  printf("# different table definition in NDB\n");
+  sql.assfmt("SET @@global.ndbinfo_offline=TRUE");
+  print_conditional_sql(sql);
+
   printf("# Drop any old views in %s\n", opt_ndbinfo_db);
   for (size_t i = 0; i < num_views; i++)
   {
@@ -429,6 +435,10 @@ int main(int argc, char** argv){
                opt_ndbinfo_db, v.name, view_sql.c_str());
     print_conditional_sql(sql);
   }
+
+  printf("# Finally turn off offline mode\n");
+  sql.assfmt("SET @@global.ndbinfo_offline=FALSE");
+  print_conditional_sql(sql);
 
   return 0;
 }

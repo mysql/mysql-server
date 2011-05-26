@@ -122,7 +122,7 @@ public:
    * ONGOING */
   struct ApiConnectRecord {
     Uint64 apiGci;
-    Uint32 nextApi;
+    Uint32 senderData;
   };
   typedef Ptr<ApiConnectRecord> ApiConnectRecordPtr;
 
@@ -947,7 +947,6 @@ private:
   bool isMaster();
   bool isActiveMaster();
 
-  void emptyverificbuffer(Signal *, bool aContintueB);
   void handleGcpStateInMaster(Signal *, NodeRecordPtr failedNodeptr);
   void initRestartInfo(Signal*);
   void initRestorableGciFiles();
@@ -1315,21 +1314,25 @@ private:
   struct DIVERIFY_queue
   {
     DIVERIFY_queue() {
-      cfirstVerifyQueue = clastVerifyQueue = RNIL;
-      cverifyQueueCounter = 0;
+      m_ref = 0;
+      cfirstVerifyQueue = clastVerifyQueue = 0;
       apiConnectRecord = 0;
+      m_empty_done = 1;
     }
+    ApiConnectRecord *apiConnectRecord;
     Uint32 cfirstVerifyQueue;
     Uint32 clastVerifyQueue;
-    Uint32 cverifyQueueCounter;
-    ApiConnectRecord *apiConnectRecord;
+    Uint32 m_empty_done;
+    Uint32 m_ref;
   };
 
   bool isEmpty(const DIVERIFY_queue&);
-  void enqueue(DIVERIFY_queue&, Ptr<ApiConnectRecord>);
-  void dequeue(DIVERIFY_queue&, Ptr<ApiConnectRecord> &);
+  void enqueue(DIVERIFY_queue&, Uint32 senderData, Uint64 gci);
+  void dequeue(DIVERIFY_queue&, ApiConnectRecord &);
+  void emptyverificbuffer(Signal *, Uint32 q, bool aContintueB);
+  void emptyverificbuffer_check(Signal*, Uint32, Uint32);
 
-  DIVERIFY_queue c_diverify_queue[1];
+  DIVERIFY_queue c_diverify_queue[MAX_NDBMT_LQH_THREADS];
   Uint32 c_diverify_queue_cnt;
 
   /*------------------------------------------------------------------------*/
@@ -1372,8 +1375,15 @@ private:
    */
   struct MicroGcp
   {
+    MicroGcp() { }
     bool m_enabled;
     Uint32 m_master_ref;
+
+    /**
+     * rw-lock that protects multiple parallel DIVERIFY (readers) from
+     *   updates to gcp-state (e.g GCP_PREPARE, GCP_COMMIT)
+     */
+    NdbSeqLock m_lock;
     Uint64 m_old_gci;
     Uint64 m_current_gci; // Currently active
     Uint64 m_new_gci;     // Currently being prepared...

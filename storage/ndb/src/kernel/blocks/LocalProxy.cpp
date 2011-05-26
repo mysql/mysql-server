@@ -661,6 +661,19 @@ LocalProxy::sendNF_COMPLETEREP(Signal* signal, Uint32 ssId)
 
     sendSignal(DBDIH_REF, GSN_NF_COMPLETEREP,
                signal, NFCompleteRep::SignalLength, JBB);
+
+    if (number() == DBTC)
+    {
+      /**
+       * DBTC send NF_COMPLETEREP "early" to QMGR
+       *   so that it can allow api to handle node-failure of
+       *   transactions eariler...
+       * See Qmgr::execNF_COMPLETEREP
+       */
+      jam();
+      sendSignal(QMGR_REF, GSN_NF_COMPLETEREP, signal,
+                 NFCompleteRep::SignalLength, JBB);
+    }
   }
 }
 

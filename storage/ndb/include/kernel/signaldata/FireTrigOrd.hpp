@@ -57,7 +57,7 @@ class FireTrigOrd {
 public:
   STATIC_CONST( SignalLength = 11 );
   STATIC_CONST( SignalWithGCILength = 9 );
-  STATIC_CONST( SignalLengthSuma = 12 );
+  STATIC_CONST( SignalLengthSuma = 14 );
 
 private:
   Uint32 m_connectionPtr;
@@ -72,15 +72,11 @@ private:
     Uint32 m_gci_hi;
     Uint32 m_triggerType;
   };
-  union {
-    Uint32 m_hashValue;
-    Uint32 m_transId1;
-  };
-  union {
-    Uint32 m_any_value;
-    Uint32 m_transId2;
-  };
+  Uint32 m_transId1;
+  Uint32 m_transId2;
   Uint32 m_gci_lo;
+  Uint32 m_hashValue;
+  Uint32 m_any_value;
   // Public methods
 public:
   Uint32 getConnectionPtr() const;

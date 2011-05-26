@@ -542,7 +542,7 @@ void Dbdih::execCONTINUEB(Signal* signal)
     break;
   case DihContinueB::ZEMPTY_VERIFY_QUEUE:
     jam();
-    emptyverificbuffer(signal, true);
+    emptyverificbuffer(signal, signal->theData[1], true);
     return;
     break;
   case DihContinueB::ZCHECK_GCP_STOP:
@@ -1298,6 +1298,8 @@ void Dbdih::execREAD_CONFIG_REQ(Signal* signal)
   ndbrequireErr(!ndb_mgm_get_int_parameter(p, CFG_DIH_API_CONNECT, 
 					   &capiConnectFileSize),
 		NDBD_EXIT_INVALID_CONFIG);
+  capiConnectFileSize++; // Increase by 1...so that srsw queue never gets full
+
   ndbrequireErr(!ndb_mgm_get_int_parameter(p, CFG_DIH_FRAG_CONNECT, 
 					   &cfragstoreFileSize),
 		NDBD_EXIT_INVALID_CONFIG);
@@ -3469,6 +3471,12 @@ void Dbdih::execEND_TOREQ(Signal* signal)
              EndToConf::SignalLength, JBB);
 }//Dbdih::execEND_TOREQ()
 
+#define DIH_TAB_WRITE_LOCK(tabPtrP) \
+  do { assertOwnThread(); tabPtrP->m_lock.write_lock(); } while (0)
+
+#define DIH_TAB_WRITE_UNLOCK(tabPtrP) \
+  do { assertOwnThread(); tabPtrP->m_lock.write_unlock(); } while (0)
+
 /* --------------------------------------------------------------------------*/
 /*       AN ORDER TO START OR COMMIT THE REPLICA CREATION ARRIVED FROM THE   */
 /*       MASTER.                                                             */
@@ -3509,7 +3517,8 @@ void Dbdih::execCREATE_FRAGREQ(Signal* signal)
     dump_replica_info(fragPtr.p);
   }
   ndbrequire(frReplicaPtr.i != RNIL);
-  
+
+  DIH_TAB_WRITE_LOCK(tabPtr.p);
   switch (replicaType) {
   case CreateFragReq::STORED:
     jam();
@@ -3544,6 +3553,7 @@ void Dbdih::execCREATE_FRAGREQ(Signal* signal)
     ndbrequire(false);
     break;
   }//switch
+  DIH_TAB_WRITE_UNLOCK(tabPtr.p);
 
   /* ------------------------------------------------------------------------*/
   /*       THE NEW NODE OF THIS REPLICA IS THE STARTING NODE.                */
@@ -8033,7 +8043,9 @@ Dbdih::sendAddFragreq(Signal* signal, ConnectRecordPtr connectPtr,
     if (AlterTableReq::getReorgFragFlag(connectPtr.p->m_alter.m_changeMask))
     {
       jam();
+      DIH_TAB_WRITE_LOCK(tabPtr.p);
       tabPtr.p->m_new_map_ptr_i = connectPtr.p->m_alter.m_new_map_ptr_i;
+      DIH_TAB_WRITE_UNLOCK(tabPtr.p);
     }
 
     if (AlterTableReq::getAddFragFlag(connectPtr.p->m_alter.m_changeMask))
@@ -8521,6 +8533,7 @@ void Dbdih::execALTER_TAB_REQ(Signal * signal)
     if (AlterTableReq::getReorgFragFlag(connectPtr.p->m_alter.m_changeMask))
     {
       jam();
+      DIH_TAB_WRITE_LOCK(tabPtr.p);
       Uint32 save = tabPtr.p->m_map_ptr_i;
       tabPtr.p->m_map_ptr_i = tabPtr.p->m_new_map_ptr_i;
       tabPtr.p->m_new_map_ptr_i = save;
@@ -8532,6 +8545,7 @@ void Dbdih::execALTER_TAB_REQ(Signal * signal)
         getFragstore(tabPtr.p, i, fragPtr);
         fragPtr.p->distributionKey = (fragPtr.p->distributionKey + 1) & 0xFF;
       }
+      DIH_TAB_WRITE_UNLOCK(tabPtr.p);
 
       ndbassert(tabPtr.p->m_scan_count[1] == 0);
       tabPtr.p->m_scan_count[1] = tabPtr.p->m_scan_count[0];
@@ -8556,8 +8570,10 @@ void Dbdih::execALTER_TAB_REQ(Signal * signal)
 
     send_alter_tab_conf(signal, connectPtr);
 
+    DIH_TAB_WRITE_LOCK(tabPtr.p);
     tabPtr.p->m_new_map_ptr_i = RNIL;
     tabPtr.p->m_scan_reorg_flag = 0;
+    DIH_TAB_WRITE_UNLOCK(tabPtr.p);
 
     ndbrequire(tabPtr.p->connectrec == connectPtr.i);
     tabPtr.p->connectrec = RNIL;
@@ -9004,7 +9020,7 @@ void Dbdih::execDIGETNODESREQ(Signal* signal)
   Uint32 fragId, newFragId = RNIL;
   DiGetNodesConf * const conf = (DiGetNodesConf *)&signal->theData[0];
   TabRecord* regTabDesc = tabRecord;
-  EmulatedJamBuffer * jambuf = jamBuffer();
+  EmulatedJamBuffer * jambuf = * (EmulatedJamBuffer**)(req->jamBuffer);
   thrjamEntry(jambuf);
   ptrCheckGuard(tabPtr, ttabFileSize, regTabDesc);
 
@@ -9015,17 +9031,18 @@ void Dbdih::execDIGETNODESREQ(Signal* signal)
     ptrCheckGuard(tabPtr, ctabFileSize, tabRecord);
   }
 
+loop:
+  Uint32 val = tabPtr.p->m_lock.read_lock();
   Uint32 map_ptr_i = tabPtr.p->m_map_ptr_i;
   Uint32 new_map_ptr_i = tabPtr.p->m_new_map_ptr_i;
 
   /* When distr key indicator is set, regardless
-   * of distribution algorithm in use, hashValue 
+   * of distribution algorithm in use, hashValue
    * IS fragment id.
    */
   if (req->distr_key_indicator)
   {
     fragId = hashValue;
-    
     if (unlikely(fragId >= tabPtr.p->totalfragments))
     {
       thrjam(jambuf);
@@ -9097,6 +9114,9 @@ void Dbdih::execDIGETNODESREQ(Signal* signal)
       (fragPtr.p->distributionKey << 16) +
       (dihGetInstanceKey(fragPtr) << 24);
   }
+
+  if (unlikely(!tabPtr.p->m_lock.read_unlock(val)))
+    goto loop;
 }//Dbdih::execDIGETNODESREQ()
 
 Uint32 Dbdih::extractNodeInfo(const Fragmentstore * fragPtr, Uint32 nodes[]) 
@@ -9202,62 +9222,71 @@ void Dbdih::initialiseFragstore()
   }//for    
 }//Dbdih::initialiseFragstore()
 
+#ifndef NDB_HAVE_RMB
+#define rmb() do { } while (0)
+#endif
+
+#ifndef NDB_HAVE_WMB
+#define wmb() do { } while (0)
+#endif
+
 inline
 bool
 Dbdih::isEmpty(const DIVERIFY_queue & q)
 {
-  return q.cverifyQueueCounter == 0;
+  return q.cfirstVerifyQueue == q.clastVerifyQueue;
 }
 
 inline
 void
-Dbdih::enqueue(DIVERIFY_queue & q, Ptr<ApiConnectRecord> conRecord)
+Dbdih::enqueue(DIVERIFY_queue & q, Uint32 senderData, Uint64 gci)
 {
+#ifndef NDEBUG
+  /**
+   * - assert only
+   * - we must read first *before* "publishing last
+   *   or else DIH-thread could already have consumed entry
+   *   when we call assert
+   */
   Uint32 first = q.cfirstVerifyQueue;
+#endif
+
   Uint32 last = q.clastVerifyQueue;
-  Uint32 count = q.cverifyQueueCounter;
   ApiConnectRecord * apiConnectRecord = q.apiConnectRecord;
 
-  Ptr<ApiConnectRecord> tmp;
-  tmp.i = last;
-  if (last != RNIL)
+  apiConnectRecord[last].senderData = senderData;
+  apiConnectRecord[last].apiGci = gci;
+  wmb();
+  if (last + 1 == capiConnectFileSize)
   {
-    tmp.i = last;
-    ptrCheckGuard(tmp, capiConnectFileSize, apiConnectRecord);
-    tmp.p->nextApi = conRecord.i;
+    q.clastVerifyQueue = 0;
   }
   else
   {
-    ndbassert(count == 0);
-    first = conRecord.i;
+    q.clastVerifyQueue = last + 1;
   }
-  q.cfirstVerifyQueue = first;
-  q.clastVerifyQueue = conRecord.i;
-  q.cverifyQueueCounter = count + 1;
+  assert(q.clastVerifyQueue != first);
 }
 
 inline
 void
-Dbdih::dequeue(DIVERIFY_queue & q, Ptr<ApiConnectRecord> & conRecord)
+Dbdih::dequeue(DIVERIFY_queue & q, ApiConnectRecord & conRecord)
 {
   Uint32 first = q.cfirstVerifyQueue;
-  Uint32 last = q.clastVerifyQueue;
-  Uint32 count = q.cverifyQueueCounter;
   ApiConnectRecord * apiConnectRecord = q.apiConnectRecord;
 
-  conRecord.i = first;
-  ptrCheckGuard(conRecord, capiConnectFileSize, apiConnectRecord);
-  Uint32 next = conRecord.p->nextApi;
-  if (first == last)
+  rmb();
+  conRecord.senderData = apiConnectRecord[first].senderData;
+  conRecord.apiGci = apiConnectRecord[first].apiGci;
+
+  if (first + 1 == capiConnectFileSize)
   {
-    ndbrequire(next == RNIL);
-    ndbassert(count == 1);
-    last = RNIL;
+    q.cfirstVerifyQueue = 0;
   }
-  ndbrequire(count > 0);
-  q.cfirstVerifyQueue = next;
-  q.clastVerifyQueue = last;
-  q.cverifyQueueCounter = count - 1;
+  else
+  {
+    q.cfirstVerifyQueue = first + 1;
+  }
 }
 
 /*
@@ -9273,10 +9302,15 @@ Dbdih::dequeue(DIVERIFY_queue & q, Ptr<ApiConnectRecord> & conRecord)
   */
 void Dbdih::execDIVERIFYREQ(Signal* signal)
 {
-  EmulatedJamBuffer * jambuf = jamBuffer();
+  EmulatedJamBuffer * jambuf = * (EmulatedJamBuffer**)(signal->theData+2);
   thrjamEntry(jambuf);
-  if ((getBlockCommit() == false) &&
-      isEmpty(c_diverify_queue[0]))
+  Uint32 qno = signal->theData[1];
+  ndbassert(qno < NDB_ARRAY_SIZE(c_diverify_queue));
+  DIVERIFY_queue & q = c_diverify_queue[qno];
+loop:
+  Uint32 val = m_micro_gcp.m_lock.read_lock();
+  Uint32 blocked = getBlockCommit() == true ? 1 : 0;
+  if (blocked == 0 && isEmpty(q))
   {
     thrjam(jambuf);
     /*-----------------------------------------------------------------------*/
@@ -9289,23 +9323,20 @@ void Dbdih::execDIVERIFYREQ(Signal* signal)
     signal->theData[1] = (Uint32)(m_micro_gcp.m_current_gci >> 32);
     signal->theData[2] = (Uint32)(m_micro_gcp.m_current_gci & 0xFFFFFFFF);
     signal->theData[3] = 0;
+    if (unlikely(! m_micro_gcp.m_lock.read_unlock(val)))
+      goto loop;
     return;
   }//if
   /*-------------------------------------------------------------------------*/
   // Since we are blocked we need to put this operation last in the verify
   // queue to ensure that operation starts up in the correct order.
   /*-------------------------------------------------------------------------*/
-  ApiConnectRecordPtr localApiConnectptr;
-  DIVERIFY_queue & q = c_diverify_queue[0];
-
-  localApiConnectptr.i = signal->theData[0];
-  ptrCheckGuard(localApiConnectptr, capiConnectFileSize, q.apiConnectRecord);
-  localApiConnectptr.p->apiGci = m_micro_gcp.m_new_gci;
-  localApiConnectptr.p->nextApi = RNIL;
-
-  enqueue(q, localApiConnectptr);
-  emptyverificbuffer(signal, false);
-  signal->theData[3] = 1; // Indicate no immediate return
+  enqueue(q, signal->theData[0], m_micro_gcp.m_new_gci);
+  if (blocked == 0 && jambuf == jamBuffer())
+  {
+    emptyverificbuffer(signal, 0, false);
+  }
+  signal->theData[3] = blocked + 1; // Indicate no immediate return
   return;
 }//Dbdih::execDIVERIFYREQ()
 
@@ -9489,15 +9520,18 @@ Dbdih::execUPGRADE_PROTOCOL_ORD(Signal* signal)
 }
 
 void
-Dbdih::startGcpLab(Signal* signal, Uint32 aWaitTime) 
+Dbdih::startGcpLab(Signal* signal, Uint32 aWaitTime)
 {
-  if (! isEmpty(c_diverify_queue[0]))
+  for (Uint32 i = 0; i < c_diverify_queue_cnt; i++)
   {
-    // Previous global checkpoint is not yet completed.
-    jam();
-    signal->theData[0] = DihContinueB::ZSTART_GCP;
-    sendSignalWithDelay(reference(), GSN_CONTINUEB, signal, 10, 1);
-    return;
+    if (c_diverify_queue[i].m_empty_done == 0)
+    {
+      // Previous global checkpoint is not yet completed.
+      jam();
+      signal->theData[0] = DihContinueB::ZSTART_GCP;
+      sendSignalWithDelay(reference(), GSN_CONTINUEB, signal, 10, 1);
+      return;
+    }
   }
 
   emptyWaitGCPMasterQueue(signal,
@@ -10057,10 +10091,12 @@ void Dbdih::execGCP_PREPARE(Signal* signal)
   
   ndbrequire(m_micro_gcp.m_state == MicroGcp::M_GCP_IDLE);
 
+  m_micro_gcp.m_lock.write_lock();
   cgckptflag = true;
   m_micro_gcp.m_state = MicroGcp::M_GCP_PREPARE;
   m_micro_gcp.m_new_gci = gci;
   m_micro_gcp.m_master_ref = retRef;
+  m_micro_gcp.m_lock.write_unlock();
 
   if (ERROR_INSERTED(7031))
   {
@@ -10174,10 +10210,18 @@ void Dbdih::execGCP_COMMIT(Signal* signal)
   m_micro_gcp.m_state = MicroGcp::M_GCP_COMMIT;
   m_micro_gcp.m_master_ref = calcDihBlockRef(masterNodeId);
   
+  m_micro_gcp.m_lock.write_lock();
   m_micro_gcp.m_old_gci = m_micro_gcp.m_current_gci;
   m_micro_gcp.m_current_gci = gci;
   cgckptflag = false;
-  emptyverificbuffer(signal, true);
+  m_micro_gcp.m_lock.write_unlock();
+
+  for (Uint32 i = 0; i < c_diverify_queue_cnt; i++)
+  {
+    jam();
+    c_diverify_queue[i].m_empty_done = 0;
+    emptyverificbuffer(signal, i, true);
+  }
 
   GCPNoMoreTrans* req2 = (GCPNoMoreTrans*)signal->getDataPtrSend();
   req2->senderRef = reference();
@@ -14723,44 +14767,78 @@ void Dbdih::createFileRw(Signal* signal, FileRecordPtr filePtr)
   sendSignal(NDBFS_REF, GSN_FSOPENREQ, signal, 7, JBA);
 }//Dbdih::createFileRw()
 
-void Dbdih::emptyverificbuffer(Signal* signal, bool aContinueB)
+void
+Dbdih::emptyverificbuffer(Signal* signal, Uint32 q, bool aContinueB)
 {
-  if (isEmpty(c_diverify_queue[0]))
+  if(unlikely(getBlockCommit() == true))
   {
     jam();
     return;
-  }//if
-  ApiConnectRecordPtr localApiConnectptr;
-  if(getBlockCommit() == false){
+  }
+
+  if (!isEmpty(c_diverify_queue[q]))
+  {
     jam();
-    dequeue(c_diverify_queue[0], localApiConnectptr);
-    ndbrequire(localApiConnectptr.p->apiGci <= m_micro_gcp.m_current_gci);
-    signal->theData[0] = localApiConnectptr.i;
+
+    ApiConnectRecord localApiConnect;
+    dequeue(c_diverify_queue[q], localApiConnect);
+    ndbrequire(localApiConnect.apiGci <= m_micro_gcp.m_current_gci);
+    signal->theData[0] = localApiConnect.senderData;
     signal->theData[1] = (Uint32)(m_micro_gcp.m_current_gci >> 32);
     signal->theData[2] = (Uint32)(m_micro_gcp.m_current_gci & 0xFFFFFFFF);
     signal->theData[3] = 0;
-    sendSignal(clocaltcblockref, GSN_DIVERIFYCONF, signal, 4, JBB);
-    if (aContinueB == true) {
-      jam();
-      //-----------------------------------------------------------------------
-      // This emptying happened as part of a take-out process by continueb signals.
-      // This ensures that we will empty the queue eventually. We will also empty
-      // one item every time we insert one item to ensure that the list doesn't
-      // grow when it is not blocked.
-      //-----------------------------------------------------------------------
-      signal->theData[0] = DihContinueB::ZEMPTY_VERIFY_QUEUE;
-      sendSignal(reference(), GSN_CONTINUEB, signal, 1, JBB);
-    }//if
-  } else {
+    sendSignal(c_diverify_queue[q].m_ref, GSN_DIVERIFYCONF, signal, 4, JBB);
+  }
+  else if (aContinueB == true)
+  {
+    jam();
+    /**
+     * Make sure that we don't miss any pending transactions
+     *   (transactions that are added to list by other thread
+     *    while we execute this code)
+     */
+    Uint32 blocks[] = { DBTC, 0 };
+    Callback c = { safe_cast(&Dbdih::emptyverificbuffer_check), q };
+    synchronize_threads_for_blocks(signal, blocks, c);
+    return;
+  }
+
+  if (aContinueB == true)
+  {
     jam();
     //-----------------------------------------------------------------------
-    // We are blocked so it is no use in continuing the emptying of the
-    // verify buffer. Whenever the block is removed the emptying will
-    // restart.
+    // This emptying happened as part of a take-out process by continueb signals
+    // This ensures that we will empty the queue eventually. We will also empty
+    // one item every time we insert one item to ensure that the list doesn't
+    // grow when it is not blocked.
     //-----------------------------------------------------------------------
-  }  
+    signal->theData[0] = DihContinueB::ZEMPTY_VERIFY_QUEUE;
+    signal->theData[1] = q;
+    sendSignal(reference(), GSN_CONTINUEB, signal, 2, JBB);
+  }//if
+
   return;
 }//Dbdih::emptyverificbuffer()
+
+void
+Dbdih::emptyverificbuffer_check(Signal* signal, Uint32 q, Uint32 retVal)
+{
+  ndbrequire(retVal == 0);
+  if (!isEmpty(c_diverify_queue[q]))
+  {
+    jam();
+    signal->theData[0] = DihContinueB::ZEMPTY_VERIFY_QUEUE;
+    signal->theData[1] = q;
+    sendSignal(reference(), GSN_CONTINUEB, signal, 2, JBB);
+  }
+  else
+  {
+    /**
+     * Done with emptyverificbuffer
+     */
+    c_diverify_queue[q].m_empty_done = 1;
+  }
+}
 
 /*************************************************************************/
 /*       FIND THE NODES FROM WHICH WE CAN EXECUTE THE LOG TO RESTORE THE */
@@ -15456,15 +15534,21 @@ void Dbdih::initialiseRecordsLab(Signal* signal,
   case 1:{
     ApiConnectRecordPtr apiConnectptr;
     jam();
+    c_diverify_queue[0].m_ref = calcTcBlockRef(getOwnNodeId());
     for (Uint32 i = 0; i < c_diverify_queue_cnt; i++)
     {
+      if (c_diverify_queue_cnt > 1)
+      {
+        c_diverify_queue[i].m_ref = numberToRef(DBTC, i + 1, 0);
+      }
       /******** INTIALIZING API CONNECT RECORDS ********/
       for (apiConnectptr.i = 0;
            apiConnectptr.i < capiConnectFileSize; apiConnectptr.i++)
       {
         refresh_watch_dog();
         ptrAss(apiConnectptr, c_diverify_queue[i].apiConnectRecord);
-        apiConnectptr.p->nextApi = RNIL;
+        apiConnectptr.p->senderData = RNIL;
+        apiConnectptr.p->apiGci = ~(Uint64)0;
       }//for
     }
     jam();
@@ -17255,10 +17339,11 @@ Dbdih::execDUMP_STATE_ORD(Signal* signal)
 	      c_nodeStartMaster.blockLcp, c_nodeStartMaster.blockGcp, c_nodeStartMaster.wait);
     for (Uint32 i = 0; i < c_diverify_queue_cnt; i++)
     {
-      infoEvent("[ %u : cfirstVerifyQueue = 0x%.8x, cverifyQueueCounter = %u ]",
+      infoEvent("[ %u : cfirstVerifyQueue = %u clastVerifyQueue = %u sz: %u]",
                 i,
                 c_diverify_queue[i].cfirstVerifyQueue,
-                c_diverify_queue[i].cverifyQueueCounter);
+                c_diverify_queue[i].clastVerifyQueue,
+                capiConnectFileSize);
     }
     infoEvent("cgcpOrderBlocked = %d",
               cgcpOrderBlocked);
@@ -17942,7 +18027,11 @@ void Dbdih::execUNBLOCK_COMMIT_ORD(Signal* signal){
     jam();
     
     c_blockCommit = false;
-    emptyverificbuffer(signal, true);
+    for (Uint32 i = 0; i<c_diverify_queue_cnt; i++)
+    {
+      c_diverify_queue[i].m_empty_done = 0;
+      emptyverificbuffer(signal, i, true);
+    }
   }
 }
 
@@ -18089,11 +18178,15 @@ void Dbdih::execDIH_SWITCH_REPLICA_REQ(Signal* signal)
     sendSignal(senderRef, GSN_DIH_SWITCH_REPLICA_REF, signal,
                DihSwitchReplicaRef::SignalLength, JBB);
   }//if
+
+  DIH_TAB_WRITE_LOCK(tabPtr.p);
   for (Uint32 i = 0; i < noOfReplicas; i++) {
     jam();
     ndbrequire(i < MAX_REPLICAS);
     fragPtr.p->activeNodes[i] = req->newNodeOrder[i];
   }//for
+  DIH_TAB_WRITE_UNLOCK(tabPtr.p);
+
   /**
    * Reply
    */

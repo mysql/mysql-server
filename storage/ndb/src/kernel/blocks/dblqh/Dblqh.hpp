@@ -3157,8 +3157,10 @@ private:
 
 public:
   bool is_same_trans(Uint32 opId, Uint32 trid1, Uint32 trid2);
-  void get_op_info(Uint32 opId, Uint32 *hash, Uint32* gci_hi, Uint32* gci_lo);
+  void get_op_info(Uint32 opId, Uint32 *hash, Uint32* gci_hi, Uint32* gci_lo,
+                   Uint32* transId1, Uint32* transId2);
   void accminupdate(Signal*, Uint32 opPtrI, const Local_key*);
+  void accremoverow(Signal*, Uint32 opPtrI, const Local_key*);
 
   /**
    *
@@ -3329,7 +3331,8 @@ Dblqh::is_same_trans(Uint32 opId, Uint32 trid1, Uint32 trid2)
 
 inline
 void
-Dblqh::get_op_info(Uint32 opId, Uint32 *hash, Uint32* gci_hi, Uint32* gci_lo)
+Dblqh::get_op_info(Uint32 opId, Uint32 *hash, Uint32* gci_hi, Uint32* gci_lo,
+                   Uint32* transId1, Uint32* transId2)
 {
   TcConnectionrecPtr regTcPtr;  
   regTcPtr.i= opId;
@@ -3337,6 +3340,8 @@ Dblqh::get_op_info(Uint32 opId, Uint32 *hash, Uint32* gci_hi, Uint32* gci_lo)
   *hash = regTcPtr.p->hashValue;
   *gci_hi = regTcPtr.p->gci_hi;
   *gci_lo = regTcPtr.p->gci_lo;
+  *transId1 = regTcPtr.p->transid[0];
+  *transId2 = regTcPtr.p->transid[1];
 }
 
 #include "../dbacc/Dbacc.hpp"
@@ -3365,6 +3370,16 @@ Dblqh::accminupdate(Signal* signal, Uint32 opId, const Local_key* key)
   if (ERROR_INSERTED(5712) || ERROR_INSERTED(5713))
     ndbout << " LK: " << *key;
   regTcPtr.p->m_row_id = *key;
+}
+
+inline
+void
+Dblqh::accremoverow(Signal* signal, Uint32 opId, const Local_key* key)
+{
+  TcConnectionrecPtr regTcPtr;
+  regTcPtr.i= opId;
+  ptrCheckGuard(regTcPtr, ctcConnectrecFileSize, tcConnectionrec);
+  c_acc->removerow(regTcPtr.p->accConnectrec, key);
 }
 
 inline

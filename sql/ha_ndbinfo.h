@@ -83,6 +83,8 @@ private:
   bool is_open(void) const;
   bool is_closed(void) const { return ! is_open(); };
 
+  bool is_offline(void) const;
+
   struct ha_ndbinfo_impl& m_impl;
 
 };

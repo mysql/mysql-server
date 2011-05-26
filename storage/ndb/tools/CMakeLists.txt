@@ -72,12 +72,6 @@ MYSQL_ADD_EXECUTABLE(ndb_config
   COMPONENT ClusterTools)
 TARGET_LINK_LIBRARIES(ndb_config ndbmgmclient ndbconf)
 
-SET(options "-I${CMAKE_SOURCE_DIR}/storage/ndb/src/mgmapi")
-SET(options "${options} -I${CMAKE_SOURCE_DIR}/storage/ndb/src/mgmsrv")
-SET(options "${options} -I${CMAKE_SOURCE_DIR}/storage/ndb/include/mgmcommon")
-SET_TARGET_PROPERTIES(ndb_config PROPERTIES
-                      COMPILE_FLAGS "${options}")
-
 # Build ndbinfo_sql and run it to create ndbinfo.sql
 ADD_EXECUTABLE(ndbinfo_sql ndbinfo_sql.cpp)
 TARGET_LINK_LIBRARIES(ndbinfo_sql ndbclient)

@@ -79,19 +79,19 @@ private:
 
   // Communication from/to files
   MemoryChannel<Request> theFromThreads;
-  MemoryChannel<Request> theToThreads;
+  MemoryChannel<Request> theToBoundThreads;
+  MemoryChannel<Request> theToUnboundThreads;
 
   Pool<Request>* theRequestPool;
 
-  AsyncIoThread* createIoThread(AsyncFile* file);
-  AsyncFile* createAsyncFile(bool bound);
+  AsyncIoThread* createIoThread(bool bound);
+  AsyncFile* createAsyncFile();
   AsyncFile* getIdleFile(bool bound);
   void pushIdleFile(AsyncFile*);
 
   Vector<AsyncIoThread*> theThreads;// List of all created threads
   Vector<AsyncFile*> theFiles;      // List all created AsyncFiles
-  Vector<AsyncFile*> theIdleBoundFiles;   // List of idle AsyncFiles
-  Vector<AsyncFile*> theIdleUnboundFiles; // List of idle AsyncFiles
+  Vector<AsyncFile*> theIdleFiles;  // List of idle AsyncFiles
   OpenFiles theOpenFiles;           // List of open AsyncFiles
 
   BaseString m_base_path[FsOpenReq::BP_MAX];
@@ -105,6 +105,11 @@ private:
   void readWriteRequest(  int action, Signal * signal );
 
   static Uint32 translateErrno(int aErrno);
+
+  Uint32 m_bound_threads_cnt;
+  Uint32 m_unbounds_threads_cnt;
+  Uint32 m_active_bound_threads_cnt;
+  void cnt_active_bound(int val);
 public:
   const BaseString& get_base_path(Uint32 no) const;
 };

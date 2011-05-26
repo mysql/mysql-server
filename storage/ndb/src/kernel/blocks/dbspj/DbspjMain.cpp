@@ -3682,10 +3682,11 @@ Dbspj::getNodes(Signal* signal, BuildKeyReq& dst, Uint32 tableId)
   req->tableId = tableId;
   req->hashValue = dst.hashInfo[1];
   req->distr_key_indicator = 0; // userDefinedPartitioning not supported!
+  * (EmulatedJamBuffer**)req->jamBuffer = jamBuffer();
 
 #if 1
   EXECUTE_DIRECT(DBDIH, GSN_DIGETNODESREQ, signal,
-                 DiGetNodesReq::SignalLength);
+                 DiGetNodesReq::SignalLength, 0);
 #else
   sendSignal(DBDIH_REF, GSN_DIGETNODESREQ, signal,
              DiGetNodesReq::SignalLength, JBB);
