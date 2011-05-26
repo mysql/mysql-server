@@ -471,8 +471,10 @@ fts_tolower(
 	str.len = len;
 	str.utf8 = lc_str;
 
-	/* Need to copy the NUL character too. */
-	memcpy(str.utf8, src, len + 1);
+	memcpy(str.utf8, src, len);
+
+	/* Make sure the last byte is NUL terminated */
+	str.utf8[len] = '\0';
 
 	fts_utf8_tolower(&str);
 
@@ -2868,10 +2870,7 @@ fts_query_calculate_ranking(
 
 		weight = (double) doc_freq->freq * word_freq->idf;
 
-		ranking->rank += weight * word_freq->idf;
-
-		//fprintf(stderr, "%lu %8.4lf\n",
-		//(ulint) ranking->doc_id, ranking->rank);
+		ranking->rank += (fts_rank_t) (weight * word_freq->idf);
 
 		ut_free(rbt_remove_node(ranking->words, node));
 	}

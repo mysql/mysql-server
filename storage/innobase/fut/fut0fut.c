@@ -1895,7 +1895,7 @@ fts_get_total_document_count(
 		dict_stats_update(table, DICT_STATS_RECALC_TRANSIENT, FALSE);
 	}
 
-	return(table->stat_n_rows);
+	return((ulint) table->stat_n_rows);
 }
 
 /********************************************************************
@@ -2333,7 +2333,7 @@ fts_delete(
 
 	fts_que_graph_free(graph);
 
-	n_rows_updated = trx->undo_no -undo_no;
+	n_rows_updated = (ulint) (trx->undo_no -undo_no);
 
 	/* If the row was deleted in FTS ADDED then the cache
 	needs to know, */
@@ -2731,8 +2731,7 @@ fts_fetch_doc_by_id(
 	if (btr_pcur_get_low_match(&pcur) == 1) {
 		ulint			len;
 		const byte*		data;
-		ulint			offsets_[REC_OFFS_NORMAL_SIZE];
-		ulint*			offsets = offsets_;
+		ulint*			offsets = NULL;
 		ulint			doc_len = 0;
 		ulint			num_field;
 		const dict_field_t*	ifield;
@@ -2774,7 +2773,7 @@ fts_fetch_doc_by_id(
 		}
 
 		offsets = rec_get_offsets(clust_rec, clust_index,
-					  offsets, ULINT_UNDEFINED, &heap);
+					  NULL, ULINT_UNDEFINED, &heap);
 
 		num_field = dict_index_get_n_fields(index);
 
