@@ -3919,6 +3919,12 @@ get_innobase_type_from_mysql_type(
 	case HA_KEYTYPE_DOUBLE:
 		return(DATA_DOUBLE);
 	case HA_KEYTYPE_BINARY:
+                if (field->type() == MYSQL_TYPE_TINY)
+                if (field->type() == MYSQL_TYPE_TINY)
+                { // compatibility workaround
+                	*unsigned_flag= 1 ;
+                	return DATA_INT;
+                }
 		return(DATA_FIXBINARY);
 	case HA_KEYTYPE_VARBINARY2:
 		if (field->type() != MYSQL_TYPE_VARCHAR)
