@@ -1253,28 +1253,6 @@ page_move_rec_list_start(
 
 	return(TRUE);
 }
-
-/***********************************************************************//**
-This is a low-level operation which is used in a database index creation
-to update the page number of a created B-tree to a data dictionary record. */
-UNIV_INTERN
-void
-page_rec_write_index_page_no(
-/*=========================*/
-	rec_t*	rec,	/*!< in: record to update */
-	ulint	i,	/*!< in: index of the field to update */
-	ulint	page_no,/*!< in: value to write */
-	mtr_t*	mtr)	/*!< in: mtr */
-{
-	byte*	data;
-	ulint	len;
-
-	data = rec_get_nth_field_old(rec, i, &len);
-
-	ut_ad(len == 4);
-
-	mlog_write_ulint(data, page_no, MLOG_4BYTES, mtr);
-}
 #endif /* !UNIV_HOTBACKUP */
 
 /**************************************************************//**
