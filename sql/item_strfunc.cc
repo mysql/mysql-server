@@ -763,7 +763,7 @@ String *Item_func_des_encrypt::val_str(String *str)
     key_number=127;				// User key string
 
     /* We make good 24-byte (168 bit) key from given plaintext key with MD5 */
-    bzero((char*) &ivec,sizeof(ivec));
+    memset(&ivec, 0, sizeof(ivec));
     EVP_BytesToKey(EVP_des_ede3_cbc(),EVP_md5(),NULL,
 		   (uchar*) keystr->ptr(), (int) keystr->length(),
 		   1, (uchar*) &keyblock,ivec);
@@ -795,7 +795,7 @@ String *Item_func_des_encrypt::val_str(String *str)
   tmp_value.set_charset(&my_charset_bin);
   tmp_value[0]=(char) (128 | key_number);
   // Real encryption
-  bzero((char*) &ivec,sizeof(ivec));
+  memset(&ivec, 0, sizeof(ivec));
   DES_ede3_cbc_encrypt((const uchar*) (tmp_arg.ptr()),
 		       (uchar*) (tmp_value.ptr()+1),
 		       res_length,
@@ -855,7 +855,7 @@ String *Item_func_des_decrypt::val_str(String *str)
     if (!keystr)
       goto error;
 
-    bzero((char*) &ivec,sizeof(ivec));
+    memset(&ivec, 0, sizeof(ivec));
     EVP_BytesToKey(EVP_des_ede3_cbc(),EVP_md5(),NULL,
 		   (uchar*) keystr->ptr(),(int) keystr->length(),
 		   1,(uchar*) &keyblock,ivec);
@@ -868,7 +868,7 @@ String *Item_func_des_decrypt::val_str(String *str)
   if (tmp_value.alloc(length-1))
     goto error;
 
-  bzero((char*) &ivec,sizeof(ivec));
+  memset(&ivec, 0, sizeof(ivec));
   DES_ede3_cbc_encrypt((const uchar*) res->ptr()+1,
 		       (uchar*) (tmp_value.ptr()),
 		       length-1,

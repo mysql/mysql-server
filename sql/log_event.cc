@@ -6761,7 +6761,7 @@ int Create_file_log_event::do_apply_event(Relay_log_info const *rli)
   int error = 1;
 
   THD_STAGE_INFO(thd, stage_making_temp_file_create_before_load_data);
-  bzero((char*)&file, sizeof(file));
+  memset(&file, 0, sizeof(file));
   ext= slave_load_file_stem(fname_buf, file_id, server_id, ".info");
   /* old copy may exist already */
   mysql_file_delete(key_file_log_event_info, fname_buf, MYF(0));
@@ -8576,7 +8576,7 @@ Table_map_log_event::Table_map_log_event(THD *thd, TABLE *tbl, ulong tid,
                                  &m_field_metadata, (m_colcnt * 2),
                                  NULL);
 
-  bzero(m_field_metadata, (m_colcnt * 2));
+  memset(m_field_metadata, 0, (m_colcnt * 2));
 
   /*
     Create an array for the field metadata and store it.
@@ -8594,7 +8594,7 @@ Table_map_log_event::Table_map_log_event(THD *thd, TABLE *tbl, ulong tid,
   else
     m_data_size+= m_field_metadata_size + 3; 
 
-  bzero(m_null_bits, num_null_bytes);
+  memset(m_null_bits, 0, num_null_bytes);
   for (unsigned int i= 0 ; i < m_table->s->fields ; ++i)
     if (m_table->field[i]->maybe_null())
       m_null_bits[(i / 8)]+= 1 << (i % 8);
@@ -10604,12 +10604,12 @@ st_print_event_info::st_print_event_info()
 {
   /*
     Currently we only use static PRINT_EVENT_INFO objects, so zeroed at
-    program's startup, but these explicit bzero() is for the day someone
+    program's startup, but these explicit memset() is for the day someone
     creates dynamic instances.
   */
-  bzero(db, sizeof(db));
-  bzero(charset, sizeof(charset));
-  bzero(time_zone_str, sizeof(time_zone_str));
+  memset(db, 0, sizeof(db));
+  memset(charset, 0, sizeof(charset));
+  memset(time_zone_str, 0, sizeof(time_zone_str));
   delimiter[0]= ';';
   delimiter[1]= 0;
   myf const flags = MYF(MY_WME | MY_NABP);

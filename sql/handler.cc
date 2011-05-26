@@ -2034,8 +2034,8 @@ int ha_delete_table(THD *thd, handlerton *table_type, const char *path,
   TABLE_SHARE dummy_share;
   DBUG_ENTER("ha_delete_table");
 
-  bzero((char*) &dummy_table, sizeof(dummy_table));
-  bzero((char*) &dummy_share, sizeof(dummy_share));
+  memset(&dummy_table, 0, sizeof(dummy_table));
+  memset(&dummy_share, 0, sizeof(dummy_share));
   dummy_table.s= &dummy_share;
 
   /* DB_TYPE_UNKNOWN is used in ALTER TABLE when renaming only .frm files */
@@ -3954,7 +3954,7 @@ int ha_create_table_from_engine(THD* thd, const char *db, const char *name)
   DBUG_ENTER("ha_create_table_from_engine");
   DBUG_PRINT("enter", ("name '%s'.'%s'", db, name));
 
-  bzero((uchar*) &create_info,sizeof(create_info));
+  memset(&create_info, 0, sizeof(create_info));
   if ((error= ha_discover(thd, db, name, &frmblob, &frmlen)))
   {
     /* Table could not be discovered and thus not created */

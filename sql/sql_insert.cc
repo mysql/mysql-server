@@ -773,7 +773,7 @@ bool mysql_insert(THD *thd,TABLE_LIST *table_list,
   /*
     Fill in the given fields and dump it to the table file
   */
-  bzero((char*) &info,sizeof(info));
+  memset(&info, 0, sizeof(info));
   info.ignore= ignore;
   info.handle_duplicates=duplic;
   info.update_fields= &update_fields;
@@ -1914,11 +1914,11 @@ public:
     */
     thd.variables.lock_wait_timeout= LONG_TIMEOUT;
 
-    bzero((char*) &thd.net, sizeof(thd.net));		// Safety
-    bzero((char*) &table_list, sizeof(table_list));	// Safety
+    memset(&thd.net, 0, sizeof(thd.net));           // Safety
+    memset(&table_list, 0, sizeof(table_list));     // Safety
     thd.system_thread= SYSTEM_THREAD_DELAYED_INSERT;
     thd.security_ctx->host_or_ip= "";
-    bzero((char*) &info,sizeof(info));
+    memset(&info, 0, sizeof(info));
     mysql_mutex_init(key_delayed_insert_mutex, &mutex, MY_MUTEX_INIT_FAST);
     mysql_cond_init(key_delayed_insert_cond, &cond, NULL);
     mysql_cond_init(key_delayed_insert_cond_client, &cond_client, NULL);
@@ -2314,7 +2314,7 @@ TABLE *Delayed_insert::get_local_table(THD* client_thd)
   copy->def_write_set.bitmap= ((my_bitmap_map*)
                                (bitmap + share->column_bitmap_size));
   copy->tmp_set.bitmap= 0;                      // To catch errors
-  bzero((char*) bitmap, share->column_bitmap_size*2);
+  memset(bitmap, 0, share->column_bitmap_size*2);
   copy->read_set=  &copy->def_read_set;
   copy->write_set= &copy->def_write_set;
 
@@ -3201,7 +3201,7 @@ select_insert::select_insert(TABLE_LIST *table_list_par, TABLE *table_par,
    autoinc_value_of_last_inserted_row(0),
    insert_into_view(table_list_par && table_list_par->view != 0)
 {
-  bzero((char*) &info,sizeof(info));
+  memset(&info, 0, sizeof(info));
   info.handle_duplicates= duplic;
   info.ignore= ignore_check_option_errors;
   info.update_fields= update_fields;

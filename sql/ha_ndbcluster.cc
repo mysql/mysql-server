@@ -672,7 +672,7 @@ int ha_ndbcluster::ndb_err(NdbTransaction *trans)
     m_table->setStatusInvalid();
     /* Close other open handlers not used by any thread */
     TABLE_LIST table_list;
-    bzero((char*) &table_list,sizeof(table_list));
+    memset(&table_list, 0, sizeof(table_list));
     table_list.db= m_dbname;
     table_list.alias= table_list.table_name= m_tabname;
     close_cached_tables(thd, &table_list, FALSE, LONG_TIMEOUT);
@@ -4253,7 +4253,7 @@ void ha_ndbcluster::get_dynamic_partition_info(PARTITION_STATS *stat_info,
      implement ndb function which retrives the statistics
      about ndb partitions.
   */
-  bzero((char*) stat_info, sizeof(PARTITION_STATS));
+  memset(stat_info, 0, sizeof(PARTITION_STATS));
   return;
 }
 
@@ -8434,7 +8434,7 @@ int handle_trailing_share(NDB_SHARE *share)
   mysql_mutex_unlock(&ndbcluster_mutex);
 
   TABLE_LIST table_list;
-  bzero((char*) &table_list,sizeof(table_list));
+  memset(&table_list, 0, sizeof(table_list));
   table_list.db= share->db;
   table_list.alias= table_list.table_name= share->table_name;
   close_cached_tables(thd, &table_list, FALSE, LONG_TIMEOUT);
@@ -8730,8 +8730,8 @@ void ndbcluster_real_free_share(NDB_SHARE **share)
     // (*share)->table_share->mem_root is freed by free_table_share
     free_table_share((*share)->table_share);
 #ifndef DBUG_OFF
-    bzero((uchar*)(*share)->table_share, sizeof(*(*share)->table_share));
-    bzero((uchar*)(*share)->table, sizeof(*(*share)->table));
+    memset((*share)->table_share, 0, sizeof(*(*share)->table_share));
+    memset((*share)->table, 0, sizeof(*(*share)->table));
     (*share)->table_share= 0;
     (*share)->table= 0;
 #endif

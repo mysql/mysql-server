@@ -580,10 +580,10 @@ st_join_table::st_join_table()
 {
   /**
     @todo Add constructor to READ_RECORD.
-    All users do init_read_record(), which does bzero(),
+    All users do init_read_record(), which does memset(),
     rather than invoking a constructor.
   */
-  bzero(&read_record, sizeof(read_record));
+  memset(&read_record, 0, sizeof(read_record));
 }
 
 

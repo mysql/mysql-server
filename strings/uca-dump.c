@@ -359,7 +359,7 @@ normalize_weight(MY_UCA_ITEM *item, size_t level,
 {
   size_t num, i;
   
-  bzero(weight, weight_elements * sizeof(*weight));
+  memset(weight, 0, weight_elements * sizeof(*weight));
 
   /*
     Copy non-zero weights only. For example:
@@ -653,11 +653,11 @@ main(int ac, char **av)
   size_t level, maxchar= MY_UCA_MAXCHAR;
   static int pageloaded[MY_UCA_NPAGES];
 
-  bzero(&uca, sizeof(uca));
+  memset(&uca, 0, sizeof(uca));
   
   process_options(ac, av, &uca);
   
-  bzero(pageloaded, sizeof(pageloaded));
+  memset(pageloaded, 0, sizeof(pageloaded));
   
   load_uca_file(&uca, maxchar, pageloaded);
   

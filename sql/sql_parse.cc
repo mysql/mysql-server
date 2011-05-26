@@ -2694,7 +2694,7 @@ end_with_restore_list:
     */
     thd->enable_slow_log= opt_log_slow_admin_statements;
 
-    bzero((char*) &create_info, sizeof(create_info));
+    memset(&create_info, 0, sizeof(create_info));
     create_info.db_type= 0;
     create_info.row_type= ROW_TYPE_NOT_USED;
     create_info.default_table_charset= thd->variables.collation_database;
@@ -5153,7 +5153,7 @@ check_routine_access(THD *thd, ulong want_access,char *db, char *name,
 {
   TABLE_LIST tables[1];
   
-  bzero((char *)tables, sizeof(TABLE_LIST));
+  memset(tables, 0, sizeof(TABLE_LIST));
   tables->db= db;
   tables->table_name= tables->alias= name;
   
@@ -5586,7 +5586,7 @@ void create_select_for_variable(const char *var_name)
   lex->sql_command= SQLCOM_SELECT;
   tmp.str= (char*) var_name;
   tmp.length=strlen(var_name);
-  bzero((char*) &null_lex_string.str, sizeof(null_lex_string));
+  memset(&null_lex_string, 0, sizeof(null_lex_string));
   /*
     We set the name of Item to @@session.var_name because that then is used
     as the column name in the output.

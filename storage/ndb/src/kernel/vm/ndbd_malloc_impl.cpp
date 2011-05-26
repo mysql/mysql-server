@@ -169,8 +169,8 @@ Ndbd_mem_manager::ndb_log2(Uint32 input)
 Ndbd_mem_manager::Ndbd_mem_manager()
 {
   m_base_page = 0;
-  bzero(m_buddy_lists, sizeof(m_buddy_lists));
-  bzero(m_resource_limit, sizeof(m_resource_limit));
+  memset(m_buddy_lists, 0, sizeof(m_buddy_lists));
+  memset(m_resource_limit, 0, sizeof(m_resource_limit));
   
   if (sizeof(Free_page_data) != (4 * (1 << FPD_2LOG)))
   {
@@ -282,7 +282,7 @@ Ndbd_mem_manager::init(bool alloc_less_memory)
 
   Uint32 cnt = 0;
   struct InitChunk chunks[MAX_CHUNKS];
-  bzero(chunks, sizeof(chunks));
+  memset(chunks, 0, sizeof(chunks));
 
   Uint32 allocated = 0;
   while (cnt < MAX_CHUNKS && allocated < pages)

@@ -1843,7 +1843,7 @@ void Item_sum_variance::reset_field()
   nr= args[0]->val_real();              /* sets null_value as side-effect */
 
   if (args[0]->null_value)
-    bzero(res,sizeof(double)*2+sizeof(longlong));
+    memset(res, 0, sizeof(double)*2+sizeof(longlong));
   else
   {
     /* Serialize format is (double)m, (double)s, (longlong)count */
@@ -2231,7 +2231,7 @@ void Item_sum_avg::reset_field()
     double nr= args[0]->val_real();
 
     if (args[0]->null_value)
-      bzero(res,sizeof(double)+sizeof(longlong));
+      memset(res, 0, sizeof(double)+sizeof(longlong));
     else
     {
       longlong tmp= 1;

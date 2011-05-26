@@ -822,7 +822,7 @@ OPEN_TABLE_LIST *list_open_tables(THD *thd, const char *db, const char *wild)
   DBUG_ENTER("list_open_tables");
 
   mysql_mutex_lock(&LOCK_open);
-  bzero((char*) &table_list,sizeof(table_list));
+  memset(&table_list, 0, sizeof(table_list));
   start_list= &open_list;
   open_list=0;
 
@@ -1169,7 +1169,7 @@ bool close_cached_connection_tables(THD *thd, LEX_STRING *connection)
   DBUG_ENTER("close_cached_connections");
   DBUG_ASSERT(thd);
 
-  bzero(&tmp, sizeof(TABLE_LIST));
+  memset(&tmp, 0, sizeof(TABLE_LIST));
 
   mysql_mutex_lock(&LOCK_open);
 
@@ -8053,7 +8053,7 @@ bool setup_fields(THD *thd, Item **ref_pointer_array,
     ref_pointer_array
   */
   if (ref_pointer_array)
-    bzero(ref_pointer_array, sizeof(Item *) * fields.elements);
+    memset(ref_pointer_array, 0, sizeof(Item *) * fields.elements);
 
   /*
     We call set_entry() there (before fix_fields() of the whole list of field

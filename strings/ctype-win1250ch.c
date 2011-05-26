@@ -504,7 +504,7 @@ my_strnxfrm_win1250ch(const CHARSET_INFO *cs  __attribute__((unused)),
   }
   if ((flags & MY_STRXFRM_PAD_TO_MAXLEN) && len > totlen)
   {
-    bfill(dest + totlen, len - totlen, 0x00);
+    memset(dest + totlen, 0x00, len - totlen);
     totlen= len;
   }
   return totlen;

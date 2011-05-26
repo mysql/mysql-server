@@ -708,7 +708,7 @@ public:
   {
     void *ptr;
     if ((ptr=alloc_root(mem_root,size)))
-      bzero(ptr, size);
+      memset(ptr, 0, size);
     return ptr;
   }
   inline char *strdup(const char *str)
@@ -1976,7 +1976,7 @@ public:
     }
     st_transactions()
     {
-      bzero((char*)this, sizeof(*this));
+      memset(this, 0, sizeof(*this));
       xid_state.xid.null();
       init_sql_alloc(&mem_root, ALLOC_ROOT_MIN_BLOCK_SIZE, 0);
     }

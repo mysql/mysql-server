@@ -1449,7 +1449,7 @@ unpack_fields(MYSQL_DATA *data,MEM_ROOT *alloc,uint fields,
     free_rows(data);				/* Free old data */
     DBUG_RETURN(0);
   }
-  bzero((char*) field, (uint) sizeof(MYSQL_FIELD)*fields);
+  memset(field, 0, sizeof(MYSQL_FIELD)*fields);
   if (server_capabilities & CLIENT_PROTOCOL_41)
   {
     /* server is 4.1, and returns the new field result format */
@@ -1712,7 +1712,7 @@ mysql_init(MYSQL *mysql)
     mysql->free_me=1;
   }
   else
-    bzero((char*) (mysql), sizeof(*(mysql)));
+    memset(mysql, 0, sizeof(*(mysql)));
   mysql->options.connect_timeout= CONNECT_TIMEOUT;
   mysql->charset=default_client_charset_info;
   strmov(mysql->net.sqlstate, not_error_sqlstate);
@@ -2498,7 +2498,7 @@ static int send_client_reply_packet(MCPVIO_EXT *mpvio,
     int4store(buff,mysql->client_flag);
     int4store(buff+4, net->max_packet_size);
     buff[8]= (char) mysql->charset->number;
-    bzero(buff+9, 32-9);
+    memset(buff+9, 0, 32-9);
     end= buff+32;
   }
   else
@@ -2733,7 +2733,7 @@ static int client_mpvio_write_packet(struct st_plugin_vio *mpv,
 */
 void mpvio_info(Vio *vio, MYSQL_PLUGIN_VIO_INFO *info)
 {
-  bzero(info, sizeof(*info));
+  memset(info, 0, sizeof(*info));
   switch (vio->type) {
   case VIO_TYPE_TCPIP:
     info->protocol= MYSQL_VIO_TCP;
@@ -3102,7 +3102,7 @@ CLI_MYSQL_REAL_CONNECT(MYSQL *mysql,const char *host, const char *user,
     host_info= (char*) ER(CR_LOCALHOST_CONNECTION);
     DBUG_PRINT("info", ("Using UNIX sock '%s'", unix_socket));
 
-    bzero((char*) &UNIXaddr, sizeof(UNIXaddr));
+    memset(&UNIXaddr, 0, sizeof(UNIXaddr));
     UNIXaddr.sun_family= AF_UNIX;
     strmake(UNIXaddr.sun_path, unix_socket, sizeof(UNIXaddr.sun_path)-1);
 
@@ -3615,7 +3615,7 @@ my_bool mysql_reconnect(MYSQL *mysql)
   if (mysql_set_character_set(&tmp_mysql, mysql->charset->csname))
   {
     DBUG_PRINT("error", ("mysql_set_character_set() failed"));
-    bzero((char*) &tmp_mysql.options,sizeof(tmp_mysql.options));
+    memset(&tmp_mysql.options, 0, sizeof(tmp_mysql.options));
     mysql_close(&tmp_mysql);
     mysql->net.last_errno= tmp_mysql.net.last_errno;
     strmov(mysql->net.last_error, tmp_mysql.net.last_error);
@@ -3632,7 +3632,7 @@ my_bool mysql_reconnect(MYSQL *mysql)
   mysql->stmts= 0;
 
   /* Don't free options as these are now used in tmp_mysql */
-  bzero((char*) &mysql->options,sizeof(mysql->options));
+  memset(&mysql->options, 0, sizeof(mysql->options));
   mysql->free_me=0;
   mysql_close(mysql);
   *mysql=tmp_mysql;
@@ -3705,7 +3705,7 @@ static void mysql_close_free_options(MYSQL *mysql)
     my_free(mysql->options.extension->default_auth);
     my_free(mysql->options.extension);
   }
-  bzero((char*) &mysql->options,sizeof(mysql->options));
+  memset(&mysql->options, 0, sizeof(mysql->options));
   DBUG_VOID_RETURN;
 }
 
@@ -3970,7 +3970,7 @@ MYSQL_RES * STDCALL mysql_store_result(MYSQL *mysql)
   result->fields=	mysql->fields;
   result->field_alloc=	mysql->field_alloc;
   result->field_count=	mysql->field_count;
-  /* The rest of result members is bzeroed in malloc */
+  /* The rest of result members is zerofilled in my_malloc */
   mysql->fields=0;				/* fields is now in result */
   clear_alloc_root(&mysql->field_alloc);
   /* just in case this was mistakenly called after mysql_stmt_execute() */
