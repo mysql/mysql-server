@@ -558,8 +558,10 @@ xtPublic int xt_p_set_low_priority(pthread_t thr)
 		 */
 
 		/* -20 = highest, 20 = lowest */
+#ifdef SET_GLOBAL_PRIORITY
 		if (setpriority(PRIO_PROCESS, getpid(), 20) == -1)
 			return errno;
+#endif
 		return 0;
 	}
 	return pth_set_priority(thr, pth_min_priority);

@@ -5,6 +5,10 @@
 -- source include/not_embedded.inc
 -- source include/have_innodb_plugin.inc
 
+# This test will not work if we don't do full shutdown of innodb
+#
+set @@global.innodb_fast_shutdown=0;
+
 CREATE TABLE t(a INT)ENGINE=InnoDB;
 RENAME TABLE t TO u;
 DROP TABLE u;
