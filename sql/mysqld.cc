@@ -8894,7 +8894,7 @@ mysqld_get_one_option(int optid,
   }
   case OPT_EVENT_SCHEDULER:
 #ifndef HAVE_EVENT_SCHEDULER
-    sql_perror("Event scheduler is not supported in embedded build.");
+    sql_print_error("Event scheduler is not supported in embedded build.");
 #else
     if (Events::set_opt_event_scheduler(argument))
       return 1;

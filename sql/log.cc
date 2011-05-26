@@ -5261,9 +5261,23 @@ static bool test_if_number(register const char *str,
 
 void sql_perror(const char *message)
 {
-#ifdef HAVE_STRERROR
+#if defined(_WIN32)
+  char* buf;
+  DWORD dw= GetLastError();
+  if (FormatMessage(FORMAT_MESSAGE_ALLOCATE_BUFFER |  FORMAT_MESSAGE_FROM_SYSTEM |
+        FORMAT_MESSAGE_IGNORE_INSERTS,  NULL, dw,
+        MAKELANGID(LANG_NEUTRAL, SUBLANG_DEFAULT), (LPSTR)&buf, 0, NULL ) > 0)
+  {
+    sql_print_error("%s: %s",message, buf);
+    LocalFree((HLOCAL)buf);
+  }
+  else
+  {
+    sql_print_error("%s", message);
+  }
+#elif defined(HAVE_STRERROR)
   sql_print_error("%s: %s",message, strerror(errno));
-#else
+#else 
   perror(message);
 #endif
 }
