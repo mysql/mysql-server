@@ -434,7 +434,7 @@ fts_parallel_tokenization(
 	int			tmpfd[FTS_NUM_AUX_INDEX];
 	ulint			rows_added[FTS_NUM_AUX_INDEX];
 	ulint			buf_used = 0;
-	ulint			total_rec = 0;
+	ib_uint64_t		total_rec = 0;
 	ulint			num_doc_processed = 0;
 	doc_id_t		last_doc_id;	
 
@@ -493,6 +493,9 @@ loop:
 		UNIV_MEM_INVALID(block[buf_used][0], sizeof block[buf_used][0]);
 		buf[buf_used] = row_merge_buf_empty(buf[buf_used]);
 		rows_added[buf_used] = 0;
+
+		ut_a(doc_item);
+		goto loop;
 	}
 
 	/* Parent done scanning, and if we process all the docs, exit */
@@ -1033,7 +1036,7 @@ row_fts_merge_insert(
 		foffs[i] = 0;
 
 		buf[i] = mem_heap_alloc(graph_heap, sizeof *buf[i]);
-		counta += psort_info[i].merge_file[id]->n_rec;
+		counta += (int) psort_info[i].merge_file[id]->n_rec;
 	}
 	fprintf(stderr, "to inserted %lu record \n", (ulong)counta);
 	counta = 0;

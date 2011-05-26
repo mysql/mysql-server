@@ -2581,7 +2581,7 @@ i_s_fts_deleted_generic_fill(
 
 		doc_id = *(doc_id_t*)ib_vector_get_const(deleted->doc_ids, j);
 
-		OK(fields[I_S_FTS_DOC_ID]->store(doc_id));
+		OK(fields[I_S_FTS_DOC_ID]->store((longlong) doc_id, true));
 
 		OK(schema_table_store_record(thd, table));
 	}
@@ -2811,7 +2811,7 @@ i_s_fts_inserted_fill(
 
 		doc_id = *(doc_id_t*)ib_vector_get_const(inserted->doc_ids, j);
 
-		OK(fields[I_S_FTS_DOC_ID]->store(doc_id));
+		OK(fields[I_S_FTS_DOC_ID]->store((longlong) doc_id, true));
 
 		OK(schema_table_store_record(thd, table));
 	}
@@ -3009,16 +3009,18 @@ i_s_fts_index_cache_fill_one_index(
 						(word->text.utf8)));
 
 					OK(fields[I_S_FTS_FIRST_DOC_ID]->store(
-						node->first_doc_id));
+						(longlong) node->first_doc_id,
+						true));
 
 					OK(fields[I_S_FTS_LAST_DOC_ID]->store(
-						node->last_doc_id));
+						(longlong) node->last_doc_id,
+						true));
 
 					OK(fields[I_S_FTS_DOC_COUNT]->store(
 						node->doc_count));
 
 					OK(fields[I_S_FTS_ILIST_DOC_ID]->store(
-						doc_id));
+						(longlong) doc_id, true));
 
 					OK(fields[I_S_FTS_ILIST_DOC_POS]->store(
 						pos));
@@ -3306,16 +3308,18 @@ i_s_fts_index_table_fill_one_index(
 						(word->text.utf8)));
 
 					OK(fields[I_S_FTS_FIRST_DOC_ID]->store(
-						node->first_doc_id));
+						(longlong) node->first_doc_id,
+						true));
 
 					OK(fields[I_S_FTS_LAST_DOC_ID]->store(
-						node->last_doc_id));
+						(longlong) node->last_doc_id,
+						true));
 
 					OK(fields[I_S_FTS_DOC_COUNT]->store(
 						node->doc_count));
 
 					OK(fields[I_S_FTS_ILIST_DOC_ID]->store(
-						doc_id));
+						(longlong) doc_id, true));
 
 					OK(fields[I_S_FTS_ILIST_DOC_POS]->store(
 						pos));

@@ -663,7 +663,7 @@ fts_fetch_index_words(
 	fts_zip_t*	zip = user_arg;
 	que_node_t*	exp = sel_node->select_list;
 	dfield_t*	dfield = que_node_get_val(exp);
-	byte		len = dfield_get_len(dfield);
+	byte		len = (byte) dfield_get_len(dfield);
 	void*		data = dfield_get_data(dfield);
 
 	/* Skip the duplicate words. */
@@ -1095,7 +1095,7 @@ fts_optimize_encode_node(
 	}
 
 	/* Calculate the space required to store the ilist. */
-	doc_id_delta = doc_id - node->last_doc_id;
+	doc_id_delta = (ulint) (doc_id - node->last_doc_id);
 	enc_len = fts_get_encoded_len(doc_id_delta);
 
 	/* Calculate the size of the encoded pos array. */
@@ -1140,7 +1140,8 @@ fts_optimize_encode_node(
 	src = enc->src_ilist_ptr;
 	dst = node->ilist + node->ilist_size;
 
-	/* Encode the doc id. */
+	/* Encode the doc id.
+	FIXME: fts_encode_int encode ulint instead of 8 bytes doc_id_t */
 	dst += fts_encode_int(doc_id_delta, dst);
 
 	/* Copy the encoded pos array. */
