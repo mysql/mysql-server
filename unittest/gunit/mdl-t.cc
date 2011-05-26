@@ -40,6 +40,18 @@ mysql_mutex_t LOCK_open;
 uint    opt_debug_sync_timeout= 0;
 
 /*
+  Mock thd_wait_begin/end functions
+*/
+
+extern "C" void thd_wait_begin(MYSQL_THD thd, int wait_type)
+{
+}
+
+extern "C" void thd_wait_end(MYSQL_THD thd)
+{
+}
+
+/*
   A mock error handler.
 */
 static uint expected_error= 0;

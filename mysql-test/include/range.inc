@@ -1471,3 +1471,35 @@ INSERT INTO t2 VALUES (1, 1, 2);
 EXPLAIN SELECT * FROM t2 WHERE a = 1 AND b >= 2 AND c >= 2;
 
 DROP TABLE t1, t2;
+
+--echo #
+--echo # BUG#11765831: 'RANGE ACCESS' MAY INCORRECTLY FILTER 
+--echo #               AWAY QUALIFYING ROWS
+--echo #
+
+CREATE TABLE t10(
+  K INT NOT NULL AUTO_INCREMENT,
+  I INT, J INT,
+  PRIMARY KEY(K),
+  KEY(I,J)
+);
+INSERT INTO t10(I,J) VALUES (6,1),(6,2),(6,3),(6,4),(6,5),
+                            (6,6),(6,7),(6,8),(6,9),(6,0);
+
+CREATE TABLE t100 LIKE t10;
+INSERT INTO t100(I,J) SELECT X.I, X.K+(10*Y.K) FROM t10 AS X,t10 AS Y;
+
+# Insert offending value:
+INSERT INTO t100(I,J) VALUES(8,26);
+
+let $query= SELECT * FROM t100 WHERE I <> 6 OR (I <> 8 AND J = 5);
+
+#Verify that 'range' access will be used
+--echo
+--eval EXPLAIN $query
+
+# Only row 101,8,26 should be returned
+--echo
+--eval $query
+
+DROP TABLE t10,t100;

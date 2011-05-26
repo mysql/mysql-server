@@ -2,6 +2,9 @@
 # to optimize things we skip this test on all other platforms
 --source include/windows.inc
 
+# thread pool causes different results
+-- source include/not_threadpool.inc
+
 # Only run this test if shared memory is avaliable
 let $shm= query_get_value("SHOW VARIABLES LIKE 'shared_memory'", Value, 1);
 if ($shm != ON){

@@ -5136,25 +5136,18 @@ buf_get_latched_pages_number(void)
 #endif /* UNIV_DEBUG */
 
 /*********************************************************************//**
-Returns the number of pending buf pool ios.
-@return	number of pending I/O operations */
+Returns the number of pending buf pool read ios.
+@return	number of pending read I/O operations */
 UNIV_INTERN
 ulint
-buf_get_n_pending_ios(void)
-/*=======================*/
+buf_get_n_pending_read_ios(void)
+/*============================*/
 {
 	ulint	i;
 	ulint	pend_ios = 0;
 
 	for (i = 0; i < srv_buf_pool_instances; i++) {
-		buf_pool_t*	buf_pool;
-
-		buf_pool = buf_pool_from_array(i);
-
-		pend_ios +=
-			buf_pool->n_pend_reads
-			+ buf_pool->n_flush[BUF_FLUSH_LRU]
-			+ buf_pool->n_flush[BUF_FLUSH_LIST];
+		pend_ios += buf_pool_from_array(i)->n_pend_reads;
 	}
 
 	return(pend_ios);

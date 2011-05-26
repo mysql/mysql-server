@@ -51,9 +51,9 @@ class TC_LOG_MMAP: public TC_LOG
 {
   public:                // only to keep Sun Forte on sol9x86 happy
   typedef enum {
-    POOL,                 // page is in pool
-    ERROR,                // last sync failed
-    DIRTY                 // new xids added since last sync
+    PS_POOL,                 // page is in pool
+    PS_ERROR,                // last sync failed
+    PS_DIRTY                 // new xids added since last sync
   } PAGE_STATE;
 
   private:
@@ -473,7 +473,7 @@ void sql_print_warning(const char *format, ...) ATTRIBUTE_FORMAT(printf, 1, 2);
 void sql_print_information(const char *format, ...)
   ATTRIBUTE_FORMAT(printf, 1, 2);
 typedef void (*sql_print_message_func)(const char *format, ...)
-  ATTRIBUTE_FORMAT(printf, 1, 2);
+  ATTRIBUTE_FORMAT_FPTR(printf, 1, 2);
 extern sql_print_message_func sql_print_message_handlers[];
 
 int error_log_print(enum loglevel level, const char *format,
