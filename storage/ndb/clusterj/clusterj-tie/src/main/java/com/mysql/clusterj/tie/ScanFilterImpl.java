@@ -1,5 +1,5 @@
 /*
- *  Copyright (c) 2010, Oracle and/or its affiliates. All rights reserved.
+ *  Copyright (c) 2010, 2011 Oracle and/or its affiliates. All rights reserved.
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -137,9 +137,16 @@ class ScanFilterImpl implements ScanFilter {
     }
 
     public void cmpString(BinaryCondition condition, Column storeColumn, String value) {
-        ByteBuffer buffer = Utility.convertValue(storeColumn, value);
+        if (logger.isDebugEnabled())
+            logger.debug(storeColumn.getName() + " " + condition + " " + value);
+        ByteBuffer buffer;
+        if (condition == BinaryCondition.COND_LIKE) {
+            buffer = Utility.convertValueForLikeFilter(storeColumn, value);
+        } else {
+            buffer = Utility.convertValue(storeColumn, value);
+        }
         int returnCode = ndbScanFilter.cmp(convertCondition(condition),
-                storeColumn.getColumnId(), buffer, buffer.capacity());
+                storeColumn.getColumnId(), buffer, buffer.limit());
         handleError(returnCode, ndbScanFilter);
     }
 
@@ -165,6 +172,8 @@ class ScanFilterImpl implements ScanFilter {
                 return NdbScanFilter.BinaryCondition.COND_GE;
             case COND_GT:
                 return NdbScanFilter.BinaryCondition.COND_GT;
+            case COND_LIKE:
+                return NdbScanFilter.BinaryCondition.COND_LIKE;
             default:
                 throw new ClusterJFatalInternalException(
                         local.message("ERR_Implementation_Should_Not_Occur"));
