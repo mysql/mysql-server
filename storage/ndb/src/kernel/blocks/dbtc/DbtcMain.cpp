@@ -4887,6 +4887,7 @@ void Dbtc::diverify010Lab(Signal* signal)
   UintR TfirstfreeApiConnectCopy = cfirstfreeApiConnectCopy;
   ApiConnectRecord * const regApiPtr = apiConnectptr.p;
   signal->theData[0] = apiConnectptr.i;
+  signal->theData[1] = instance() ? instance() - 1 : 0;
   if (ERROR_INSERTED(8022)) {
     jam();
     systemErrorLab(signal, __LINE__);
