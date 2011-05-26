@@ -9241,6 +9241,16 @@ inline
 void
 Dbdih::enqueue(DIVERIFY_queue & q, Uint32 senderData, Uint64 gci)
 {
+#ifndef NDEBUG
+  /**
+   * - assert only
+   * - we must read first *before* "publishing last
+   *   or else DIH-thread could already have consumed entry
+   *   when we call assert
+   */
+  Uint32 first = q.cfirstVerifyQueue;
+#endif
+
   Uint32 last = q.clastVerifyQueue;
   ApiConnectRecord * apiConnectRecord = q.apiConnectRecord;
 
@@ -9255,7 +9265,7 @@ Dbdih::enqueue(DIVERIFY_queue & q, Uint32 senderData, Uint64 gci)
   {
     q.clastVerifyQueue = last + 1;
   }
-  assert(q.clastVerifyQueue != q.cfirstVerifyQueue);
+  assert(q.clastVerifyQueue != first);
 }
 
 inline
