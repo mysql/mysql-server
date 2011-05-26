@@ -8479,11 +8479,23 @@ Dbtc::checkNodeFailComplete(Signal* signal,
     nfRep->blockNo      = DBTC;
     nfRep->nodeId       = cownNodeid;
     nfRep->failedNodeId = hostptr.i;
-    sendSignal(cdihblockref, GSN_NF_COMPLETEREP, signal, 
-	       NFCompleteRep::SignalLength, JBB);
 
-    sendSignal(QMGR_REF, GSN_NF_COMPLETEREP, signal, 
-	       NFCompleteRep::SignalLength, JBB);
+    if (instance() == 0)
+    {
+      jam();
+      sendSignal(cdihblockref, GSN_NF_COMPLETEREP, signal,
+                 NFCompleteRep::SignalLength, JBB);
+      sendSignal(QMGR_REF, GSN_NF_COMPLETEREP, signal,
+                 NFCompleteRep::SignalLength, JBB);
+    }
+    else
+    {
+      /**
+       * Send to proxy
+       */
+      sendSignal(DBTC_REF, GSN_NF_COMPLETEREP, signal,
+                 NFCompleteRep::SignalLength, JBB);
+    }
   }
 
   CRASH_INSERTION(8058);
@@ -8633,7 +8645,7 @@ Dbtc::checkScanFragList(Signal* signal,
   DEBUG("checkScanActiveInFailedLqh: scanFragError");
 }
 
-void Dbtc::execTAKE_OVERTCCONF(Signal* signal) 
+void Dbtc::execTAKE_OVERTCCONF(Signal* signal)
 {
   jamEntry();
 
@@ -8713,7 +8725,10 @@ void Dbtc::execTAKE_OVERTCREQ(Signal* signal)
   tcNodeFailptr.i = 0;
   ptrAss(tcNodeFailptr, tcFailRecord);
   if (tcNodeFailptr.p->failStatus != FS_IDLE ||
-      cmasterNodeId != getOwnNodeId())
+      cmasterNodeId != getOwnNodeId() ||
+      (! (instance() == 0 /* single TC */ ||
+          instance() == TAKE_OVER_INSTANCE))) /* in mt-TC case let 1 instance
+                                                 do take-over */
   {
     jam();
     /*------------------------------------------------------------*/
@@ -8728,6 +8743,7 @@ void Dbtc::execTAKE_OVERTCREQ(Signal* signal)
     tcNodeFailptr.p->queueIndex = tcNodeFailptr.p->queueIndex + 1;
     return;
   }//if
+  ndbrequire(instance() == 0 || instance() == TAKE_OVER_INSTANCE);
   startTakeOverLab(signal);
 }//Dbtc::execTAKE_OVERTCREQ()
 
