@@ -984,7 +984,7 @@ bool Item::get_date(MYSQL_TIME *ltime,uint fuzzydate)
 {
   if (field_type() == MYSQL_TYPE_TIME)
     fuzzydate|= TIME_TIME_ONLY;
-  if (result_type() == STRING_RESULT || fuzzydate & TIME_TIME_ONLY)
+  if (result_type() != INT_RESULT || fuzzydate & TIME_TIME_ONLY)
   {
     char buff[40];
     String tmp(buff,sizeof(buff), &my_charset_bin),*res;

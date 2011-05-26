@@ -87,6 +87,11 @@ Warning	1292	Truncated incorrect time value: '-3020399.9999999'
 select 20010101000203.000000004 + interval 1 day;
 20010101000203.000000004 + interval 1 day
 2001-01-02 00:02:03.000000
+Warnings:
+Warning	1292	Truncated incorrect datetime value: '20010101000203.000000004'
+select 20010101000203.4 + interval 1 day;
+20010101000203.4 + interval 1 day
+2001-01-02 00:02:03.4
 set @a=cast('2011-01-02 12:13:14' as datetime);
 select @a + interval 1 minute;
 @a + interval 1 minute

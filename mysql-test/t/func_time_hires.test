@@ -33,6 +33,7 @@ drop table t1;
 select sec_to_time(3020399.99999), sec_to_time(3020399.999999), sec_to_time(3020399.9999999);
 select sec_to_time(-3020399.99999), sec_to_time(-3020399.999999), sec_to_time(-3020399.9999999);
 select 20010101000203.000000004 + interval 1 day;
+select 20010101000203.4 + interval 1 day;
 #
 # precision of expressions
 #
