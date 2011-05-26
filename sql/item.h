@@ -3567,7 +3567,7 @@ public:
     DBUG_ENTER("Item_cache_row::cleanup");
     Item_cache::cleanup();
     if (save_array)
-      bzero(values, item_count*sizeof(Item**));
+      memset(values, 0, item_count*sizeof(Item**));
     else
       values= 0;
     DBUG_VOID_RETURN;

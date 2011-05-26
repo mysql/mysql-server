@@ -1264,7 +1264,7 @@ bool Protocol_binary::prepare_for_send(uint num_columns)
 void Protocol_binary::prepare_for_resend()
 {
   packet->length(bit_fields+1);
-  bzero((uchar*) packet->ptr(), 1+bit_fields);
+  memset(const_cast<char*>(packet->ptr()), 0, 1+bit_fields);
   field_pos=0;
 }
 

@@ -1611,9 +1611,9 @@ MYSQL_BIN_LOG::MYSQL_BIN_LOG(uint *sync_period)
     before main().
   */
   index_file_name[0] = 0;
-  bzero((char*) &index_file, sizeof(index_file));
-  bzero((char*) &purge_index_file, sizeof(purge_index_file));
-  bzero((char*) &crash_safe_index_file, sizeof(crash_safe_index_file));
+  memset(&index_file, 0, sizeof(index_file));
+  memset(&purge_index_file, 0, sizeof(purge_index_file));
+  memset(&crash_safe_index_file, 0, sizeof(crash_safe_index_file));
 }
 
 /* this is called only once */
@@ -2510,7 +2510,7 @@ int MYSQL_BIN_LOG::close_crash_safe_index_file()
     end_io_cache(&crash_safe_index_file);
     error= my_close(crash_safe_index_file.file, MYF(0));
   }
-  bzero((char*) &crash_safe_index_file, sizeof(crash_safe_index_file));
+  memset(&crash_safe_index_file, 0, sizeof(crash_safe_index_file));
 
   DBUG_RETURN(error);
 }
@@ -2872,7 +2872,7 @@ int MYSQL_BIN_LOG::close_purge_index_file()
     error= my_close(purge_index_file.file, MYF(0));
   }
   my_delete(purge_index_file_name, MYF(0));
-  bzero((char*) &purge_index_file, sizeof(purge_index_file));
+  memset(&purge_index_file, 0, sizeof(purge_index_file));
 
   DBUG_RETURN(error);
 }

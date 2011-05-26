@@ -811,7 +811,7 @@ static my_bool acl_load(THD *thd, TABLE_LIST *tables)
   while (!(read_record_info.read_record(&read_record_info)))
   {
     ACL_USER user;
-    bzero(&user, sizeof(user));
+    memset(&user, 0, sizeof(user));
     update_hostname(&user.host, get_field(&mem, table->field[0]));
     user.user= get_field(&mem, table->field[1]);
     if (check_no_resolve && hostname_requires_resolving(user.host.hostname))
@@ -1858,7 +1858,7 @@ bool change_password(THD *thd, const char *host, const char *user,
       account in tests.  It's ok to leave 'updating' set after tables_ok.
     */
     tables.updating= 1;
-    /* Thanks to bzero, tables.next==0 */
+    /* Thanks to memset, tables.next==0 */
     if (!(thd->spcont || rpl_filter->tables_ok(0, &tables)))
       DBUG_RETURN(0);
   }
@@ -5699,7 +5699,7 @@ void get_mqh(const char *user, const char *host, USER_CONN *uc)
   if (initialized && (acl_user= find_acl_user(host,user, FALSE)))
     uc->user_resources= acl_user->user_resource;
   else
-    bzero((char*) &uc->user_resources, sizeof(uc->user_resources));
+    memset(&uc->user_resources, 0, sizeof(uc->user_resources));
 
   mysql_mutex_unlock(&acl_cache->lock);
 }
@@ -7140,7 +7140,7 @@ bool sp_grant_privileges(THD *thd, const char *sp_db, const char *sp_name,
  found_acl:
   mysql_mutex_unlock(&acl_cache->lock);
 
-  bzero((char*)tables, sizeof(TABLE_LIST));
+  memset(tables, 0, sizeof(TABLE_LIST));
   user_list.empty();
 
   tables->db= (char*)sp_db;
@@ -7191,7 +7191,7 @@ bool sp_grant_privileges(THD *thd, const char *sp_db, const char *sp_name,
 
   thd->lex->ssl_type= SSL_TYPE_NOT_SPECIFIED;
   thd->lex->ssl_cipher= thd->lex->x509_subject= thd->lex->x509_issuer= 0;
-  bzero((char*) &thd->lex->mqh, sizeof(thd->lex->mqh));
+  memset(&thd->lex->mqh, 0, sizeof(thd->lex->mqh));
 
   /*
     Only care about whether the operation failed or succeeded
@@ -8092,7 +8092,7 @@ static bool send_server_handshake_packet(MPVIO_EXT *mpvio,
         if a plugin provided less, we pad it to 20 with zeros
       */
       memcpy(scramble_buf, data, data_len);
-      bzero(scramble_buf + data_len, SCRAMBLE_LENGTH - data_len);
+      memset(scramble_buf + data_len, 0, SCRAMBLE_LENGTH - data_len);
       data= scramble_buf;
     }
     else
@@ -8131,7 +8131,7 @@ static bool send_server_handshake_packet(MPVIO_EXT *mpvio,
   int2store(end + 3, mpvio->server_status[0]);
   int2store(end + 5, mpvio->client_capabilities >> 16);
   end[7]= data_len;
-  bzero(end + 8, 10);
+  memset(end + 8, 0, 10);
   end+= 18;
   /* write scramble tail */
   end= (char*) memcpy(end, data + SCRAMBLE_LENGTH_323,
