@@ -1929,7 +1929,7 @@ master_def:
             if ($3 > MASTER_DELAY_MAX)
             {
               my_error(ER_MASTER_DELAY_VALUE_OUT_OF_RANGE, MYF(0),
-                       $3, MASTER_DELAY_MAX);
+                       static_cast<uint>($3), MASTER_DELAY_MAX);
             }
             else
               Lex->mi.sql_delay = $3;

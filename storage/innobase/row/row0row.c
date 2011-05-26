@@ -47,35 +47,6 @@ Created 4/20/1996 Heikki Tuuri
 #include "read0read.h"
 #include "ut0mem.h"
 
-/*********************************************************************//**
-Gets the offset of trx id field, in bytes relative to the origin of
-a clustered index record.
-@return	offset of DATA_TRX_ID */
-UNIV_INTERN
-ulint
-row_get_trx_id_offset(
-/*==================*/
-	const rec_t*	rec __attribute__((unused)),
-				/*!< in: record */
-	dict_index_t*	index,	/*!< in: clustered index */
-	const ulint*	offsets)/*!< in: rec_get_offsets(rec, index) */
-{
-	ulint	pos;
-	ulint	offset;
-	ulint	len;
-
-	ut_ad(dict_index_is_clust(index));
-	ut_ad(rec_offs_validate(rec, index, offsets));
-
-	pos = dict_index_get_sys_col_pos(index, DATA_TRX_ID);
-
-	offset = rec_get_nth_field_offs(offsets, pos, &len);
-
-	ut_ad(len == DATA_TRX_ID_LEN);
-
-	return(offset);
-}
-
 /*****************************************************************//**
 When an insert or purge to a table is performed, this function builds
 the entry to be inserted into or purged from an index on the table.
