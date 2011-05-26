@@ -27,6 +27,8 @@
 #include "transaction.h"
 #include "sql_parse.h"                          // end_trans, ROLLBACK
 #include "rpl_slave.h"
+#include <mysql/plugin.h>
+#include <mysql/service_thd_wait.h>
 
 /*
   Please every time you add a new field to the relay log info, update
@@ -534,6 +536,7 @@ int Relay_log_info::wait_for_pos(THD* thd, String* log_name,
       We are going to mysql_cond_(timed)wait(); if the SQL thread stops it
       will wake us up.
     */
+    thd_wait_begin(thd, THD_WAIT_BINLOG);
     if (timeout > 0)
     {
       /*
@@ -551,6 +554,7 @@ int Relay_log_info::wait_for_pos(THD* thd, String* log_name,
     }
     else
       mysql_cond_wait(&data_cond, &data_lock);
+    thd_wait_end(thd);
     DBUG_PRINT("info",("Got signal of master update or timed out"));
     if (error == ETIMEDOUT || error == ETIME)
     {
@@ -980,6 +984,16 @@ void Relay_log_info::clear_tables_to_lock()
       tables_to_lock->m_tabledef.table_def::~table_def();
       tables_to_lock->m_tabledef_valid= FALSE;
     }
+
+    /*
+      If blob fields were used during conversion of field values 
+      from the master table into the slave table, then we need to 
+      free the memory used temporarily to store their values before
+      copying into the slave's table.
+    */
+    if (tables_to_lock->m_conv_table)
+      free_blobs(tables_to_lock->m_conv_table);
+
     tables_to_lock=
       static_cast<RPL_TABLE_LIST*>(tables_to_lock->next_global);
     tables_to_lock_count--;
