@@ -666,7 +666,6 @@ INSERT INTO t2 VALUES ('f'),('d');
 SET @old_optimizer_switch = @@session.optimizer_switch;
 SET SESSION optimizer_switch = 'materialization=on,in_to_exists=off,';
 
-select sin(0);
 EXPLAIN
 SELECT * FROM t1
 WHERE f3 = (

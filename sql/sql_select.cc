@@ -9114,7 +9114,10 @@ void JOIN_TAB::cleanup()
     if (table->pos_in_table_list && 
         table->pos_in_table_list->jtbm_subselect)
     {
+      end_read_record(&read_record);
+      //psergey-merge:
       table->pos_in_table_list->jtbm_subselect->cleanup();
+      return;
     }
     /*
       We need to reset this for next select
