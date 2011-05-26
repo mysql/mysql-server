@@ -840,7 +840,8 @@ open_or_create_data_files(
 			ut_a(size != (os_offset_t) -1);
 			/* Round size downward to megabytes */
 
-			rounded_size_pages = size >> UNIV_PAGE_SIZE_SHIFT;
+			rounded_size_pages = (ulint)
+				(size >> UNIV_PAGE_SIZE_SHIFT);
 
 			if (i == srv_n_data_files - 1
 			    && srv_auto_extend_last_data_file) {
