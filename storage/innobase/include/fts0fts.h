@@ -147,6 +147,17 @@ fts_get_next_doc_id(
 	const dict_table_t*	table,		/* in: table */
 	const char*		table_name,	/* in: table name */
 	doc_id_t*		doc_id);	/* out: new document id */
+
+/*********************************************************************//**
+Get the next available document id. */
+UNIV_INTERN
+void
+fts_update_next_doc_id(
+/*===================*/
+	const dict_table_t*	table,		/*!< in: table */
+	const char*		table_name,	/*!< in: table name */
+	doc_id_t		doc_id,		/*!< in: DOC ID to set */
+	ibool			need_dict_lock);/*!< in: Need dict_sys mutex */
 /********************************************************************
 Update the last document id. This function could create a new
 transaction to update the last document id. */
@@ -437,23 +448,49 @@ fts_savepoint_take(
 
 /**********************************************************************//**
 Release the savepoint data identified by  name. */
-
+UNIV_INTERN
 void
 fts_savepoint_release(
 /*==================*/
-					/* out: DB_SUCCESS or error code */
-	trx_t*		trx,		/* in: transaction */
-	const char*	name);		/* in: savepoint name */
+	trx_t*		trx,		/*!< in: transaction */
+	const char*	name);		/*!< in: savepoint name */
 
-/********************************************************************
+/**********************************************************************//**
+Free the FTS cache. */
+UNIV_INTERN
+void
+fts_cache_destroy(
+/*==============*/
+	fts_cache_t*	cache);		/*!< in: cache*/
+
+/*********************************************************************//**
+Clear cache. If the shutdown flag is TRUE then the cache can contain
+data that needs to be freed. For regular clear as part of normal
+working we assume the caller has freed all resources. */
+UNIV_INTERN
+void
+fts_cache_clear(
+/*============*/
+	fts_cache_t*	cache,		/*!< in: cache */
+	ibool		shutdown);	/*!< in: TRUE if shutdown of
+					add thread. */
+
+/*********************************************************************//**
+Initialize things in cache. */
+UNIV_INTERN
+void
+fts_cache_init(
+/*===========*/
+	fts_cache_t*	cache);		/*!< in: cache */
+
+/*********************************************************************//**
 Rollback to and including savepoint indentified by name. */
-
+UNIV_INTERN
 void
 fts_savepoint_rollback(
 /*===================*/
-					/* out: DB_SUCCESS or error code */
-	trx_t*		trx,		/* in: transaction */
-	const char*	name);		/* in: savepoint name */
+	trx_t*		trx,		/*!< in: transaction */
+	const char*	name);		/*!< in: savepoint name */
 
 /*************************************************************************
 Drop all orphaned FTS auxiliary tables, those that don't have a parent

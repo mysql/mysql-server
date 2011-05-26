@@ -1,0 +1,102 @@
+# This is the DDL function tests for innodb FTS
+
+-- source include/have_innodb.inc
+
+# Create FTS table
+CREATE TABLE fts_test (
+	id INT UNSIGNED AUTO_INCREMENT NOT NULL PRIMARY KEY,
+	title VARCHAR(200),
+	body TEXT
+	) ENGINE=InnoDB;
+
+# Insert six rows
+INSERT INTO fts_test (title,body) VALUES
+	('MySQL Tutorial','DBMS stands for DataBase ...')  ,
+	('How To Use MySQL Well','After you went through a ...'),
+	('Optimizing MySQL','In this tutorial we will show ...'),
+	('1001 MySQL Tricks','1. Never run mysqld as root. 2. ...'),
+	('MySQL vs. YourSQL','In the following database comparison ...'),
+	('MySQL Security','When configured properly, MySQL ...');
+
+# Create the FTS index
+CREATE FULLTEXT INDEX idx on fts_test (title, body);
+
+# Select word "tutorial" in the table
+SELECT * FROM fts_test WHERE MATCH (title, body)
+        AGAINST ('Tutorial' IN NATURAL LANGUAGE MODE);
+
+
+# Drop the FTS idx
+DROP INDEX idx ON fts_test;
+
+# Continue insert some rows
+INSERT INTO fts_test (title,body) VALUES
+	('MySQL Tutorial','DBMS stands for DataBase ...')  ,
+	('How To Use MySQL Well','After you went through a ...'),
+	('Optimizing MySQL','In this tutorial we will show ...'),
+	('1001 MySQL Tricks','1. Never run mysqld as root. 2. ...'),
+	('MySQL vs. YourSQL','In the following database comparison ...'),
+	('MySQL Security','When configured properly, MySQL ...');
+
+
+# Recreate the FTS index
+CREATE FULLTEXT INDEX idx on fts_test (title, body);
+
+# Select word "tutorial" in the table
+SELECT * FROM fts_test WHERE MATCH (title, body)
+        AGAINST ('Tutorial' IN NATURAL LANGUAGE MODE);
+
+# Boolean search
+# Select rows contain "MySQL" but not "YourSQL"
+SELECT * FROM fts_test WHERE MATCH (title,body)
+        AGAINST ('+MySQL -YourSQL' IN BOOLEAN MODE);
+
+# Truncate table
+TRUNCATE TABLE fts_test;
+
+DROP INDEX idx ON fts_test;
+
+# Continue insert some rows
+INSERT INTO fts_test (title,body) VALUES
+	('MySQL Tutorial','DBMS stands for DataBase ...')  ,
+	('How To Use MySQL Well','After you went through a ...'),
+	('Optimizing MySQL','In this tutorial we will show ...'),
+	('1001 MySQL Tricks','1. Never run mysqld as root. 2. ...'),
+	('MySQL vs. YourSQL','In the following database comparison ...'),
+	('MySQL Security','When configured properly, MySQL ...');
+
+# Recreate the FTS index
+CREATE FULLTEXT INDEX idx on fts_test (title, body);
+
+# Select word "tutorial" in the table
+SELECT * FROM fts_test WHERE MATCH (title, body)
+        AGAINST ('Tutorial' IN NATURAL LANGUAGE MODE);
+
+DROP TABLE fts_test;
+
+# Create FTS table
+CREATE TABLE fts_test (
+	FTS_DOC_ID BIGINT UNSIGNED AUTO_INCREMENT NOT NULL PRIMARY KEY,
+	title VARCHAR(200),
+	body TEXT
+	) ENGINE=InnoDB;
+
+create unique index FTS_DOC_ID_INDEX on fts_test(FTS_DOC_ID);
+
+# Insert six rows
+INSERT INTO fts_test (title,body) VALUES
+	('MySQL Tutorial','DBMS stands for DataBase ...')  ,
+	('How To Use MySQL Well','After you went through a ...'),
+	('Optimizing MySQL','In this tutorial we will show ...'),
+	('1001 MySQL Tricks','1. Never run mysqld as root. 2. ...'),
+	('MySQL vs. YourSQL','In the following database comparison ...'),
+	('MySQL Security','When configured properly, MySQL ...');
+
+# Create the FTS index
+CREATE FULLTEXT INDEX idx on fts_test (title, body);
+
+# "the" is in the default stopword, it would not be selected
+SELECT * FROM fts_test WHERE MATCH (title, body)
+        AGAINST ('Tutorial' IN NATURAL LANGUAGE MODE);
+
+drop table fts_test;

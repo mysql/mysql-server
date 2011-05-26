@@ -520,13 +520,13 @@ fts_index_cache_init(
 	}
 }
 
-/********************************************************************
+/*********************************************************************//**
 Initialize things in cache. */
-static
+UNIV_INTERN
 void
 fts_cache_init(
 /*===========*/
-	fts_cache_t*	cache)			/* in: cache */
+	fts_cache_t*	cache)			/*!< in: cache */
 {
 	ulint		i;
 
@@ -677,16 +677,15 @@ fts_words_free(
 	}
 }
 
-/********************************************************************
+/*********************************************************************//**
 Clear cache. If the shutdown flag is TRUE then the cache can contain
 data that needs to be freed. For regular clear as part of normal
 working we assume the caller has freed all resources. */
-static
 void
 fts_cache_clear(
 /*============*/
-	fts_cache_t*	cache,			/* in: cache */
-	ibool		shutdown)		/* in: TRUE if shutdown of
+	fts_cache_t*	cache,			/*!< in: cache */
+	ibool		shutdown)		/*!< in: TRUE if shutdown of
 						add thread. */
 {
 	ulint		i;
@@ -767,16 +766,14 @@ fts_get_index_cache(
 	return(NULL);
 }
 
-/********************************************************************
-Sync the cache contensts and then free the cache. */
-static
+/**********************************************************************//**
+Free the FTS cache. */
+UNIV_INTERN
 void
-fts_cache_sync_and_free(
-/*====================*/
-	fts_cache_t*	cache)			/* in: cache*/
+fts_cache_destroy(
+/*==============*/
+	fts_cache_t*	cache)			/*!< in: cache*/
 {
-	fts_cache_clear(cache, TRUE);
-
 	rw_lock_free(&cache->lock);
 	mutex_free(&cache->optimize_lock);
 	mutex_free(&cache->deleted_lock);
@@ -1941,17 +1938,45 @@ fts_get_total_word_count(
 	return(error);
 }
 
-/********************************************************************
-Get the next available document id. This function creates a new
-transaction to generate the document id. */
+/*********************************************************************//**
+Update the next Doc ID */
+UNIV_INTERN
+void
+fts_update_next_doc_id(
+/*===================*/
+	const dict_table_t*	table,		/*!< in: table */
+	const char*		table_name,	/*!< in: table name */
+	doc_id_t		doc_id,		/*!< in: DOC ID to set */
+	ibool			need_dict_lock)	/*!< in: Need dict_sys mutex */
+{
+	table->fts->cache->next_doc_id = doc_id + 1;
+	table->fts->cache->last_doc_id = table->fts->cache->next_doc_id
+					 + FTS_DOC_ID_STEP;
 
+	if (need_dict_lock) {
+		mutex_enter(&(dict_sys->mutex));	
+	}
+
+	fts_update_last_doc_id(table, table_name, 
+			       table->fts->cache->last_doc_id, NULL);
+
+	if (need_dict_lock) {
+		mutex_exit(&(dict_sys->mutex));
+	}
+
+}
+
+/*********************************************************************//**
+Get the next available document id. This function creates a new
+transaction to generate the document id.
+@return DB_SUCCESS if OK */
+UNIV_INTERN
 ulint
 fts_get_next_doc_id(
 /*================*/
-						/* out: DB_SUCCESS if OK */
-	const dict_table_t*	table,		/* in: table */
-	const char*		table_name,	/* in: table name */
-	doc_id_t*		doc_id)		/* out: new document id */
+	const dict_table_t*	table,		/*!< in: table */
+	const char*		table_name,	/*!< in: table name */
+	doc_id_t*		doc_id)		/*!< out: new document id */
 {
 	trx_t*		trx;
 	pars_info_t*	info;
@@ -1959,7 +1984,6 @@ fts_get_next_doc_id(
 	fts_table_t	fts_table;
 	que_t*		graph = NULL;
 	fts_cache_t*	cache = table->fts->cache;
-	doc_id_t	current_doc_id;
 retry:
 	ut_a(table->fts->doc_col != ULINT_UNDEFINED);
 
@@ -1982,8 +2006,6 @@ retry:
 
 		return(DB_SUCCESS);
 	}
-
-	current_doc_id = cache->next_doc_id;
 
 	trx = trx_allocate_for_background();
 
@@ -2025,7 +2047,6 @@ retry:
 	ut_a(*doc_id > 0);
 
 	/* The column has to be stored in text format. */
-	*doc_id = ut_max(*doc_id, current_doc_id + 1);
 	cache->next_doc_id = *doc_id;
 	cache->last_doc_id = cache->next_doc_id + FTS_DOC_ID_STEP;
 
@@ -3458,9 +3479,6 @@ fts_sync_commit(
 
 	trx->op_info = "doing SYNC commit";
 
-	/* TODO: uncomment when we have such a lock implemented
-	rwu_lock_u_upgrade(&cache->lock); */
-
 	/* Delete deleted Dod ID from ADD table */
 	error = fts_sync_delete_from_added(sync);
 
@@ -3504,8 +3522,6 @@ fts_sync_commit(
 	trx_free_for_background(trx);
 	sync->trx = NULL;
 
-	/* TODO: use upgrade-lock when we have such a lock implemented
-	rwu_lock_x_unlock(&cache->lock); */
 	rw_lock_x_unlock(&cache->lock);
 
 	return(error);
@@ -5025,7 +5041,7 @@ fts_free(
 	}
 
 	if (fts->cache) {
-		fts_cache_sync_and_free(fts->cache);
+		fts_cache_destroy(fts->cache);
 	}
 }
 

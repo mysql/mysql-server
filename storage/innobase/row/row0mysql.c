@@ -3134,7 +3134,7 @@ next_rec:
 		fts_table.id = new_id;
 
 		err = fts_create_common_tables(trx, &fts_table, table->name,
-					       FALSE);
+					       TRUE);
 
 		if (err == DB_SUCCESS) {
 			for (i = 0; i < ib_vector_size(table->fts->indexes);
@@ -3215,6 +3215,14 @@ next_rec:
 		}
 
 		dict_table_change_id_in_cache(table, new_id);
+
+		/* Reset the Doc ID in cache to 0 */
+		if (dict_table_has_fts_index(table)
+		    && table->fts->cache) {
+			fts_update_next_doc_id(table, NULL, 0, FALSE);
+			fts_cache_clear(table->fts->cache, FALSE);
+			fts_cache_init(table->fts->cache);
+		}
 	}
 
 	/* Reset auto-increment. */

@@ -1249,6 +1249,9 @@ innobase_drop_fts_index(
 			fts_free(table->fts);
 			return(err);
 		}
+
+		fts_cache_destroy(table->fts->cache);
+		table->fts->cache = fts_cache_create(table);
 	}
 
 	err = fts_drop_index_tables(trx, index);
