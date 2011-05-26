@@ -9,13 +9,6 @@ set @@optimizer_switch='materialization=on,in_to_exists=off,semijoin=off';
 
 --source t/subselect_sj_mat.test
 set @@optimizer_switch='materialization=on,in_to_exists=off,semijoin=off';
-set @@optimizer_switch='materialization=on,in_to_exists=off,semijoin=off';
-explain select min(a1) from t1 where 7 in (select b1 from t2);
-select min(a1) from t1 where 7 in (select b1 from t2);
-# Executed via IN=>EXISTS
-set @@optimizer_switch='materialization=off,in_to_exists=on,semijoin=off';
-
-set @@optimizer_switch=default;
 #
 # Test that the contents of the temp table of a materialized subquery is
 # cleaned up between PS re-executions.

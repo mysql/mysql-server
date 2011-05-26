@@ -1138,12 +1138,13 @@ public:
            max_allowed_join_cache_level > JOIN_CACHE_HASHED_BIT;
   }
   bool choose_subquery_plan(table_map join_tables);
-  //void get_partial_join_cost(uint n_tables,
-  //                           double *read_time_arg, double *record_count_arg);
   void get_partial_cost_and_fanout(uint end_tab_idx,
                                    table_map filter_map,
                                    double *read_time_arg, 
                                    double *record_count_arg);
+  void get_prefix_cost_and_fanout(uint n_tables, 
+                                  double *read_time_arg,
+                                  double *record_count_arg);
 private:
   /**
     TRUE if the query contains an aggregate function but has no GROUP

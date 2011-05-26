@@ -353,7 +353,7 @@ int check_and_do_in_subquery_rewrites(JOIN *join)
     }
     else
     {
-      DBUG_PRINT("info", ("Subquery can't be converted to semi-join"));
+      DBUG_PRINT("info", ("Subquery can't be converted to merged semi-join"));
       /* Test if the user has set a legal combination of optimizer switches. */
       if (!optimizer_flag(thd, OPTIMIZER_SWITCH_IN_TO_EXISTS) &&
           !optimizer_flag(thd, OPTIMIZER_SWITCH_MATERIALIZATION))
@@ -395,7 +395,8 @@ int check_and_do_in_subquery_rewrites(JOIN *join)
         join->sj_subselects list to be populated for every EXECUTE. 
 
         */
-        if (!select_lex->is_part_of_union() &&                            // 1
+        if (optimizer_flag(thd, OPTIMIZER_SWITCH_MATERIALIZATION) && 
+            !select_lex->is_part_of_union() &&                            // 1
             parent_unit->first_select()->leaf_tables &&                   // 2
             thd->lex->sql_command == SQLCOM_SELECT &&                     // *
             select_lex->outer_select()->leaf_tables &&                    // 2A
@@ -888,8 +889,6 @@ void get_delayed_table_estimates(TABLE *table,
                                  double *startup_cost)
 {
   Item_in_subselect *item= table->pos_in_table_list->jtbm_subselect;
-  double rows;
-  double read_time;
 
   //psergey-merge: moving off here: item->optimize(&rows, &read_time);
 
@@ -899,10 +898,11 @@ void get_delayed_table_estimates(TABLE *table,
   subselect_hash_sj_engine *hash_sj_engine=
     ((subselect_hash_sj_engine*)item->engine);
 
-  *out_rows= (ha_rows)rows;
-  *startup_cost= read_time;
+  *out_rows= (ha_rows)item->jtbm_record_count;
+  *startup_cost= item->jtbm_read_time;
+
   /* Calculate cost of scanning the temptable */
-  double data_size= rows * hash_sj_engine->tmp_table->s->reclength;
+  double data_size= (*out_rows) * hash_sj_engine->tmp_table->s->reclength;
   /* Do like in handler::read_time */
   *scan_time= data_size/IO_SIZE + 2;
 } 
@@ -1326,6 +1326,9 @@ static bool convert_subq_to_jtbm(JOIN *parent_join,
   //  DBUG_RETURN(TRUE);
   double rows;
   double read_time;
+
+  // psergey-merge: disable IN->EXISTS for JTBM subqueries, for now.
+  subq_pred->in_strategy &= ~SUBS_IN_TO_EXISTS;
   subq_pred->optimize(&rows, &read_time);
 
   subq_pred->jtbm_read_time= read_time;
@@ -1710,10 +1713,16 @@ bool optimize_semijoin_nests(JOIN *join, table_map all_table_map)
         sjm->tables= n_tables;
         sjm->is_used= FALSE;
         double subjoin_out_rows, subjoin_read_time;
+
+        /*
         join->get_partial_cost_and_fanout(n_tables + join->const_tables,
                                           table_map(-1),
                                           &subjoin_read_time, 
                                           &subjoin_out_rows);
+        */
+        join->get_prefix_cost_and_fanout(n_tables, 
+                                         &subjoin_read_time,
+                                         &subjoin_out_rows);
 
         sjm->materialization_cost.convert_from_cost(subjoin_read_time);
         sjm->rows= subjoin_out_rows;

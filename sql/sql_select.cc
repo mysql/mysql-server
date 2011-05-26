@@ -5935,6 +5935,36 @@ void JOIN::get_partial_cost_and_fanout(uint end_tab_idx,
 }
 
 
+/*
+  Get prefix cost and fanout. This function is different from
+  get_partial_cost_and_fanout:
+   - it operates on a JOIN that haven't yet finished its optimization phase (in
+     particular, fix_semijoin_strategies_for_picked_join_order() and
+     get_best_combination() haven't been called)
+   - it assumes the the join prefix doesn't have any semi-join plans
+
+  These assumptions are met by the caller of the function.
+*/
+
+void JOIN::get_prefix_cost_and_fanout(uint n_tables, 
+                                      double *read_time_arg,
+                                      double *record_count_arg)
+{
+  double record_count= 1;
+  double read_time= 0.0;
+  for (uint i= const_tables; i < n_tables + const_tables ; i++)
+  {
+    if (best_positions[i].records_read)
+    {
+      record_count *= best_positions[i].records_read;
+      read_time += best_positions[i].read_time;
+    }
+  }
+  *read_time_arg= read_time;// + record_count / TIME_FOR_COMPARE;
+  *record_count_arg= record_count;
+}
+
+
 /**
   Find a good, possibly optimal, query execution plan (QEP) by a possibly
   exhaustive search.

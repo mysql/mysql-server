@@ -3,7 +3,6 @@
 # (WL#1110: Subquery optimization: materialization)
 #
 
-set optimizer_switch='firstmatch=off';
 --disable_warnings
 drop table if exists t1, t2, t3, t1i, t2i, t3i;
 drop view if exists v1, v2, v1m, v2m;
@@ -48,6 +47,8 @@ insert into t1i select * from t1;
 insert into t2i select * from t2;
 insert into t3i select * from t3;
 
+# force the use of materialization
+set @@optimizer_switch='materialization=on,in_to_exists=off,firstmatch=off';
 
 /******************************************************************************
 * Simple tests.
@@ -920,8 +921,8 @@ set session optimizer_switch=@save_optimizer_switch;
 drop table t1, t2, t3;
 
 #
-# Test that the contentes of the temp table of a materialized subquery is
-# cleanup up between PS reexecutions.
+# Test that the contents of the temp table of a materialized subquery is
+# cleaned up between PS re-executions.
 #
 
 create table t0 (a int);
@@ -969,4 +970,3 @@ explain select left(a1,7), left(a2,7) from t1_1024 where (a1,3) in (select subst
 select left(a1,7), left(a2,7) from t1_1024 where (a1,3) in (select substring(b1,1,1024), count(*) from t2_1024 where b1 > '0');
 
 drop table t1_1024, t2_1024;
-
