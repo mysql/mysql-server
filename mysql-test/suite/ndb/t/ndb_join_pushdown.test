@@ -3295,6 +3295,24 @@ select count(*) from t1 as x0
 
 drop table t1;
 
+## Test scan sorted on string field.
+create table t1 (pk char(10) primary key, u int not null) engine=ndb;
+create table t2 (pk int primary key, u int not null) engine=ndb;
+
+insert into t1 values ('wh',1);
+insert into t1 values ('ik',2);
+insert into t1 values ('cu',3);
+insert into t1 values ('pw',4);
+insert into t1 values ('cq',4);
+
+insert into t2 values (1,2), (2,3), (3,4), (4,5);
+
+explain select * from t1 join t2 on t1.u = t2.pk order by t1.pk;
+select * from t1 join t2 on t1.u = t2.pk order by t1.pk;
+
+drop table t1;
+drop table t2;
+
 ########################################
 # Verify DBSPJ counters for entire test:
 
