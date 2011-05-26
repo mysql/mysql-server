@@ -503,7 +503,7 @@ DbtcProxy::execTCSEIZEREQ(Signal* signal)
     return;
   }
 
-  signal->theData[2] = m_tc_seize_req_instance;
+  signal->theData[2] = 1 + m_tc_seize_req_instance;
   sendSignal(workerRef(m_tc_seize_req_instance), GSN_TCSEIZEREQ, signal,
              signal->getLength(), JBB);
   m_tc_seize_req_instance = (m_tc_seize_req_instance + 1) % c_workers;
