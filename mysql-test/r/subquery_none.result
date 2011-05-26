@@ -6506,4 +6506,29 @@ SELECT * FROM (SELECT default(a) FROM t GROUP BY a) d;
 default(a)
 aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
 DROP TABLE t;
+#
+# Bug 11765699 - 58690: !TABLE || (!TABLE->READ_SET || 
+#                BITMAP_IS_SET(TABLE->READ_SET, FIELD_INDEX
+#
+CREATE TABLE t1(a INT);
+INSERT INTO t1 VALUES (0), (1);
+CREATE TABLE t2(
+b TEXT, 
+c INT, 
+PRIMARY KEY (b(1))
+);
+INSERT INTO t2 VALUES ('a', 2), ('b', 3);
+SELECT 1 FROM t1 WHERE a = 
+(SELECT 1 FROM t2 WHERE b = 
+(SELECT 1 FROM t1 t11 WHERE c = 1 OR t1.a = 1 AND 1 = 2)
+ORDER BY b
+);
+1
+SELECT 1 FROM t1 WHERE a = 
+(SELECT 1 FROM t2 WHERE b = 
+(SELECT 1 FROM t1 t11 WHERE c = 1 OR t1.a = 1 AND 1 = 2)
+GROUP BY b
+);
+1
+DROP TABLE t1, t2;
 set optimizer_switch=default;
