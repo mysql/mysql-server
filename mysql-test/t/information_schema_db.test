@@ -2,6 +2,9 @@
 # in the embedded server by default). So skip the test in embedded-server mode.
 -- source include/not_embedded.inc
 
+#Don't run this test when thread_pool active
+--source include/not_threadpool.inc
+
 -- source include/testdb_only.inc
 
 --disable_warnings
