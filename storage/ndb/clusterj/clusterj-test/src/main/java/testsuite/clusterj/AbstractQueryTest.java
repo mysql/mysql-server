@@ -101,13 +101,16 @@ abstract public class AbstractQueryTest extends AbstractClusterJModelTest {
         public Predicate greaterThanAndLessThan;
         public Predicate greaterEqualAndLessThan;
         public Predicate greaterThanAndLessEqual;
+        public Predicate greaterThanAndLike;
         public Predicate greaterEqualAndLessEqual;
+        public Predicate greaterEqualAndLike;
         public Predicate notEqual;
         public Predicate notGreaterThan;
         public Predicate notGreaterEqual;
         public Predicate notLessThan;
         public Predicate notLessEqual;
         public Predicate notBetween;
+        public Predicate like;
         public Predicate greaterThanAndNotGreaterThan;
         public Predicate greaterEqualAndNotGreaterThan;
         public Predicate greaterThanAndNotGreaterEqual;
@@ -167,10 +170,13 @@ abstract public class AbstractQueryTest extends AbstractClusterJModelTest {
             notLessThan = lessThan.not();
             notLessEqual = lessEqual.not();
             notBetween = between.not();
+            like = propertyPredicate.like(paramEqualPredicate);
             greaterThanAndNotGreaterThan = greaterThan.and(propertyPredicate.greaterThan(paramUpperPredicate).not());
             greaterEqualAndNotGreaterThan = greaterEqual.and(propertyPredicate.greaterThan(paramUpperPredicate).not());
             greaterThanAndNotGreaterEqual = greaterThan.and(propertyPredicate.greaterEqual(paramUpperPredicate).not());
             greaterEqualAndNotGreaterEqual = greaterEqual.and(propertyPredicate.greaterEqual(paramUpperPredicate).not());
+            greaterThanAndLike = greaterThan.and(propertyPredicate.like(paramUpperPredicate));
+            greaterEqualAndLike = greaterEqual.and(propertyPredicate.like(paramUpperPredicate));
         }
         public QueryHolder(Class<?> type, String propertyName, String expectedIndex,
                 String extraPropertyName) {
@@ -325,6 +331,22 @@ abstract public class AbstractQueryTest extends AbstractClusterJModelTest {
         // get the results
         holder.setExpectedResultIds(expected);
         holder.checkResults(propertyName + " equal");
+        tx.commit();
+    }
+
+    public void likeQuery(String propertyName, String expectedIndex,
+            Object parameterValue, int... expected) {
+        tx.begin();
+        QueryHolder holder = new QueryHolder(getInstanceType(), propertyName, expectedIndex);
+        // specify the where clause
+        holder.dobj.where(holder.like);
+        // create the query
+        holder.createQuery(session);
+        // set the parameter value
+        holder.setParameterEqual(parameterValue);
+        // get the results
+        holder.setExpectedResultIds(expected);
+        holder.checkResults(propertyName + " like");
         tx.commit();
     }
 
@@ -561,6 +583,25 @@ abstract public class AbstractQueryTest extends AbstractClusterJModelTest {
         tx.commit();
     }
 
+    public void greaterThanAndLikeQuery(String propertyName, String expectedIndex,
+            Object parameterLowerValue, Object parameterUpperValue,
+            int... expected) {
+
+        tx.begin();
+        QueryHolder holder = new QueryHolder(getInstanceType(), propertyName, expectedIndex);
+        // set the where clause into the query
+        holder.dobj.where(holder.greaterThanAndLike);
+        // create the query
+        holder.createQuery(session);
+        // set the parameter value
+        holder.setParameterUpper(parameterUpperValue);
+        holder.setParameterLower(parameterLowerValue);
+        // get the results
+        holder.setExpectedResultIds(expected);
+        holder.checkResults(propertyName + " greaterThanAndLike");
+        tx.commit();
+    }
+
     public void deleteGreaterThanAndLessThanQuery(String propertyName, String expectedIndex,
             Object parameterLowerValue, Object parameterUpperValue,
             int expected) {
@@ -636,6 +677,25 @@ abstract public class AbstractQueryTest extends AbstractClusterJModelTest {
         // get the results
         holder.setExpectedResultIds(expected);
         holder.checkResults(propertyName + " lessEqualAndGreaterEqual");
+        tx.commit();
+    }
+
+    public void greaterEqualAndLikeQuery(String propertyName, String expectedIndex,
+            Object parameterLowerValue, Object parameterUpperValue,
+            int... expected) {
+
+        tx.begin();
+        QueryHolder holder = new QueryHolder(getInstanceType(), propertyName, expectedIndex);
+        // set the where clause into the query
+        holder.dobj.where(holder.greaterEqualAndLike);
+        // create the query
+        holder.createQuery(session);
+        // set the parameter value
+        holder.setParameterUpper(parameterUpperValue);
+        holder.setParameterLower(parameterLowerValue);
+        // get the results
+        holder.setExpectedResultIds(expected);
+        holder.checkResults(propertyName + " greaterEqualAndLike");
         tx.commit();
     }
 

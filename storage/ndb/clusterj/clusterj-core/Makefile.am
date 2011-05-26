@@ -43,6 +43,7 @@ clusterj_core_java = \
   $(clusterj_core_src)/com/mysql/clusterj/core/query/GreaterThanPredicateImpl.java \
   $(clusterj_core_src)/com/mysql/clusterj/core/query/LessEqualPredicateImpl.java \
   $(clusterj_core_src)/com/mysql/clusterj/core/query/LessThanPredicateImpl.java \
+  $(clusterj_core_src)/com/mysql/clusterj/core/query/LikePredicateImpl.java \
   $(clusterj_core_src)/com/mysql/clusterj/core/query/ParameterImpl.java \
   $(clusterj_core_src)/com/mysql/clusterj/core/query/PredicateImpl.java \
   $(clusterj_core_src)/com/mysql/clusterj/core/query/PropertyImpl.java \

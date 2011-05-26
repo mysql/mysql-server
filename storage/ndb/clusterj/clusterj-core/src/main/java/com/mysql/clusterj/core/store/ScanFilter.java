@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2010, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2010, 2011, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -25,7 +25,7 @@ import java.math.BigInteger;
  */
 public interface ScanFilter {
 
-    public enum BinaryCondition{COND_GE, COND_LE, COND_EQ, COND_GT, COND_LT}
+    public enum BinaryCondition{COND_GE, COND_LE, COND_EQ, COND_GT, COND_LT, COND_LIKE}
 
     public enum Group {GROUP_AND, GROUP_OR, GROUP_NAND, GROUP_NOR}
 

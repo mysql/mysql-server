@@ -1,5 +1,5 @@
 /*
- *  Copyright (c) 2010, Oracle and/or its affiliates. All rights reserved.
+ *  Copyright (c) 2010, 2011, Oracle and/or its affiliates. All rights reserved.
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -958,6 +958,22 @@ public class Utility {
         }
         ByteBuffer byteBuffer = encodeToByteBuffer(chars, storeColumn.getCharsetNumber(), offset);
         fixBufferPrefixLength(storeColumn.getName(), byteBuffer, offset);
+        if (logger.isDetailEnabled()) dumpBytesToLog(byteBuffer, byteBuffer.limit());
+        return byteBuffer;
+    }
+
+    /** Encode a String as a ByteBuffer that can be passed to ndbjtie in a COND_LIKE filter.
+     * There is no length information in the beginning of the buffer.
+     * @param storeColumn the column definition
+     * @param value the value to be converted
+     * @return the ByteBuffer
+     */
+    protected static ByteBuffer convertValueForLikeFilter(Column storeColumn, String value) {
+        if (value == null) {
+            value = "";
+        }
+        CharSequence chars = value;
+        ByteBuffer byteBuffer = encodeToByteBuffer(chars, storeColumn.getCharsetNumber(), 0);
         if (logger.isDetailEnabled()) dumpBytesToLog(byteBuffer, byteBuffer.limit());
         return byteBuffer;
     }
