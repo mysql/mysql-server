@@ -79,6 +79,9 @@ DbtcProxy::DbtcProxy(Block_context& ctx) :
   addRecSignal(GSN_DROP_INDX_IMPL_CONF,&DbtcProxy::execDROP_INDX_IMPL_CONF);
   addRecSignal(GSN_DROP_INDX_IMPL_REF, &DbtcProxy::execDROP_INDX_IMPL_REF);
 
+  // GSN_TAKE_OVERTCCONF
+  addRecSignal(GSN_TAKE_OVERTCCONF,&DbtcProxy::execTAKE_OVERTCCONF);
+
   m_tc_seize_req_instance = 0;
 }
 
@@ -920,6 +923,27 @@ DbtcProxy::sendDROP_INDX_IMPL_CONF(Signal* signal, Uint32 ssId)
   }
 
   ssRelease<Ss_DROP_INDX_IMPL_REQ>(ssId);
+}
+
+void
+DbtcProxy::execTAKE_OVERTCCONF(Signal* signal)
+{
+  jamEntry();
+
+  if (!checkNodeFailSequence(signal))
+  {
+    jam();
+    return;
+  }
+
+  for (Uint32 i = 0; i < c_workers; i++)
+  {
+    jam();
+    Uint32 ref = numberToRef(number(), workerInstance(i), getOwnNodeId());
+    sendSignal(ref, GSN_TAKE_OVERTCCONF, signal,
+               signal->getLength(),
+               JBB);
+  }
 }
 
 BLOCK_FUNCTIONS(DbtcProxy)
