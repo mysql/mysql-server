@@ -144,6 +144,13 @@
 
 class Dbtc: public SimulatedBlock {
 public:
+
+  /**
+   * Incase of mt-TC...only one instance will perform actual take-over
+   *   let this be TAKE_OVER_INSTANCE
+   */
+  STATIC_CONST( TAKE_OVER_INSTANCE = 1 );
+
   enum ConnectionState {
     CS_CONNECTED = 0,
     CS_DISCONNECTED = 1,

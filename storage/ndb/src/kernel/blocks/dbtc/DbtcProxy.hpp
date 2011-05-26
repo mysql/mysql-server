@@ -304,6 +304,9 @@ protected:
   void execDROP_INDX_IMPL_CONF(Signal*);
   void execDROP_INDX_IMPL_REF(Signal*);
   void sendDROP_INDX_IMPL_CONF(Signal*, Uint32 ssId);
+
+  // GSN_TAKE_OVERTCCONF
+  void execTAKE_OVERTCCONF(Signal*);
 };
 
 #endif
