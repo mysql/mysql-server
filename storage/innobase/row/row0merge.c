@@ -1522,9 +1522,8 @@ wait_again:
 	/* Update the next Doc ID we used. Table should be locked, so
 	no concurrent DML */
 	if (max_doc_id) {
-		new_table->fts->cache->next_doc_id = max_doc_id;
-		fts_get_next_doc_id(new_table, old_table->name, &doc_id);
-		ut_a(doc_id > max_doc_id);
+		fts_update_next_doc_id(new_table, old_table->name,
+					max_doc_id, TRUE);
 	}
 
 	trx->op_info = "";
