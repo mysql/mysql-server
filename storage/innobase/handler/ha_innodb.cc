@@ -7325,10 +7325,18 @@ ha_innobase::external_lock(
 
 	reset_template(prebuilt);
 
-	if (lock_type == F_WRLCK) {
+	if (lock_type == F_WRLCK
+	    || (table->s->tmp_table
+		&& thd_sql_command(thd) == SQLCOM_LOCK_TABLES)) {
 
 		/* If this is a SELECT, then it is in UPDATE TABLE ...
-		or SELECT ... FOR UPDATE */
+		or SELECT ... FOR UPDATE
+
+		For temporary tables which are locked for READ by LOCK TABLES
+		updates are still allowed by SQL-layer. In order to accomodate
+		for such a situation we always request X-lock for such table
+		at LOCK TABLES time.
+		*/
 		prebuilt->select_lock_type = LOCK_X;
 		prebuilt->stored_select_lock_type = LOCK_X;
 	}
