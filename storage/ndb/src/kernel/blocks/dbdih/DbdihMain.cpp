@@ -9304,10 +9304,13 @@ void Dbdih::execDIVERIFYREQ(Signal* signal)
 {
   EmulatedJamBuffer * jambuf = * (EmulatedJamBuffer**)(signal->theData+2);
   thrjamEntry(jambuf);
+  Uint32 qno = signal->theData[1];
+  ndbassert(qno < NDB_ARRAY_SIZE(c_diverify_queue));
+  DIVERIFY_queue & q = c_diverify_queue[qno];
 loop:
   Uint32 val = m_micro_gcp.m_lock.read_lock();
   Uint32 blocked = getBlockCommit() == true ? 1 : 0;
-  if (blocked == 0 && isEmpty(c_diverify_queue[0]))
+  if (blocked == 0 && isEmpty(q))
   {
     thrjam(jambuf);
     /*-----------------------------------------------------------------------*/
@@ -9328,7 +9331,6 @@ loop:
   // Since we are blocked we need to put this operation last in the verify
   // queue to ensure that operation starts up in the correct order.
   /*-------------------------------------------------------------------------*/
-  DIVERIFY_queue & q = c_diverify_queue[0];
   enqueue(q, signal->theData[0], m_micro_gcp.m_new_gci);
   if (blocked == 0 && jambuf == jamBuffer())
   {
@@ -14785,7 +14787,7 @@ Dbdih::emptyverificbuffer(Signal* signal, Uint32 q, bool aContinueB)
     signal->theData[1] = (Uint32)(m_micro_gcp.m_current_gci >> 32);
     signal->theData[2] = (Uint32)(m_micro_gcp.m_current_gci & 0xFFFFFFFF);
     signal->theData[3] = 0;
-    sendSignal(clocaltcblockref, GSN_DIVERIFYCONF, signal, 4, JBB);
+    sendSignal(c_diverify_queue[q].m_ref, GSN_DIVERIFYCONF, signal, 4, JBB);
   }
   else if (aContinueB == true)
   {
@@ -15532,8 +15534,13 @@ void Dbdih::initialiseRecordsLab(Signal* signal,
   case 1:{
     ApiConnectRecordPtr apiConnectptr;
     jam();
+    c_diverify_queue[0].m_ref = calcTcBlockRef(getOwnNodeId());
     for (Uint32 i = 0; i < c_diverify_queue_cnt; i++)
     {
+      if (c_diverify_queue_cnt > 1)
+      {
+        c_diverify_queue[i].m_ref = numberToRef(DBTC, i + 1, 0);
+      }
       /******** INTIALIZING API CONNECT RECORDS ********/
       for (apiConnectptr.i = 0;
            apiConnectptr.i < capiConnectFileSize; apiConnectptr.i++)
