@@ -548,7 +548,8 @@ static st_plugin_dl *plugin_dl_add(const LEX_STRING *dl, int report)
     if (!cur)
     {
       free_plugin_mem(&plugin_dl);
-      report_error(report, ER_OUTOFMEMORY, plugin_dl.dl.length);
+      report_error(report, ER_OUTOFMEMORY,
+                   static_cast<int>(plugin_dl.dl.length));
       DBUG_RETURN(0);
     }
     /*
@@ -570,7 +571,8 @@ static st_plugin_dl *plugin_dl_add(const LEX_STRING *dl, int report)
   if (! (plugin_dl.dl.str= (char*) my_malloc(plugin_dl.dl.length, MYF(0))))
   {
     free_plugin_mem(&plugin_dl);
-    report_error(report, ER_OUTOFMEMORY, plugin_dl.dl.length);
+    report_error(report, ER_OUTOFMEMORY,
+                 static_cast<int>(plugin_dl.dl.length));
     DBUG_RETURN(0);
   }
   plugin_dl.dl.length= copy_and_convert(plugin_dl.dl.str, plugin_dl.dl.length,
@@ -581,7 +583,8 @@ static st_plugin_dl *plugin_dl_add(const LEX_STRING *dl, int report)
   if (! (tmp= plugin_dl_insert_or_reuse(&plugin_dl)))
   {
     free_plugin_mem(&plugin_dl);
-    report_error(report, ER_OUTOFMEMORY, sizeof(struct st_plugin_dl));
+    report_error(report, ER_OUTOFMEMORY,
+                 static_cast<int>(sizeof(struct st_plugin_dl)));
     DBUG_RETURN(0);
   }
   DBUG_RETURN(tmp);

@@ -38,8 +38,7 @@
 #include "sql_parse.h"                          // check_stack_overrun
 #include "sql_partition.h"       // make_used_partitions_str
 #include "sql_acl.h"             // *_ACL
-#include "sql_test.h"            // print_where, print_keyuse_array,
-                                 // print_sjm, print_plan, TEST_join
+#include "sql_test.h"            // misc. debug printing utilities
 #include "records.h"             // init_read_record, end_read_record
 #include "filesort.h"            // filesort_free_buffers
 #include "sql_union.h"           // mysql_union
@@ -59,11 +58,11 @@ const char *join_type_str[]={ "UNKNOWN","system","const","eq_ref","ref",
 
 struct st_sargable_param;
 
-static void optimize_keyuse(JOIN *join, DYNAMIC_ARRAY *keyuse_array);
+static void optimize_keyuse(JOIN *join, Key_use_array *keyuse_array);
 static bool make_join_statistics(JOIN *join, TABLE_LIST *leaves, Item *conds,
-				 DYNAMIC_ARRAY *keyuse);
+                                Key_use_array *keyuse);
 static bool optimize_semijoin_nests(JOIN *join);
-static bool update_ref_and_keys(THD *thd, DYNAMIC_ARRAY *keyuse,
+static bool update_ref_and_keys(THD *thd, Key_use_array *keyuse,
                                 JOIN_TAB *join_tab,
                                 uint tables, Item *conds,
                                 COND_EQUAL *cond_equal,
@@ -979,7 +978,7 @@ bool resolve_subquery(THD *thd, JOIN *join)
 
     /* Register the subquery for further processing in flatten_subqueries() */
     select_lex->outer_select()->join->
-      sj_subselects.append(thd->mem_root, in_exists_predicate);
+      sj_subselects.push_back(in_exists_predicate);
   }
   else
   {
@@ -3547,7 +3546,7 @@ bool JOIN::destroy()
   while ((sj_nest= sj_list_it++))
     sj_nest->sj_mat_exec= NULL;
 
-  delete_dynamic(&keyuse);
+  keyuse.clear();
   delete procedure;
   DBUG_RETURN(test(error));
 }
@@ -4171,11 +4170,11 @@ bool JOIN::flatten_subqueries()
   Item_exists_subselect **subq_end;
   DBUG_ENTER("JOIN::flatten_subqueries");
 
-  if (sj_subselects.elements() == 0)
+  if (sj_subselects.empty())
     DBUG_RETURN(FALSE);
 
   /* First, convert child join's subqueries. We proceed bottom-up here */
-  for (subq= sj_subselects.front(), subq_end= sj_subselects.back(); 
+  for (subq= sj_subselects.begin(), subq_end= sj_subselects.end(); 
        subq != subq_end;
        subq++)
   {
@@ -4208,7 +4207,7 @@ bool JOIN::flatten_subqueries()
   {
     if (tbl->on_expr || tbl->in_outer_join_nest())
     {
-      subq= sj_subselects.front();
+      subq= sj_subselects.begin();
       arena= thd->activate_stmt_arena_if_needed(&backup);
       goto skip_conversion;
     }
@@ -4221,11 +4220,14 @@ bool JOIN::flatten_subqueries()
       - prefer correlated subqueries over uncorrelated;
       - prefer subqueries that have greater number of outer tables;
   */
-  sj_subselects.sort(subq_sj_candidate_cmp);
+  my_qsort(sj_subselects.begin(),
+           sj_subselects.size(), sj_subselects.element_size(),
+           reinterpret_cast<qsort_cmp>(subq_sj_candidate_cmp));
+
   // #tables-in-parent-query + #tables-in-subquery < MAX_TABLES
   /* Replace all subqueries to be flattened with Item_int(1) */
   arena= thd->activate_stmt_arena_if_needed(&backup);
-  for (subq= sj_subselects.front(); 
+  for (subq= sj_subselects.begin(); 
        subq != subq_end && 
        tables + (*subq)->unit->first_select()->join->tables < MAX_TABLES;
        subq++)
@@ -4236,7 +4238,7 @@ bool JOIN::flatten_subqueries()
       DBUG_RETURN(TRUE); /* purecov: inspected */
   }
  
-  for (subq= sj_subselects.front(); 
+  for (subq= sj_subselects.begin(); 
        subq != subq_end && 
        tables + (*subq)->unit->first_select()->join->tables < MAX_TABLES;
        subq++)
@@ -4710,7 +4712,7 @@ static uint get_tmp_table_rec_length(List<Item> &items)
 
 static bool
 make_join_statistics(JOIN *join, TABLE_LIST *tables_arg, Item *conds,
-		     DYNAMIC_ARRAY *keyuse_array)
+                     Key_use_array *keyuse_array)
 {
   int error;
   TABLE *table;
@@ -6092,7 +6094,7 @@ max_part_bit(key_part_map bits)
 */
 
 static bool
-add_key_part(DYNAMIC_ARRAY *keyuse_array,KEY_FIELD *key_field)
+add_key_part(Key_use_array *keyuse_array, KEY_FIELD *key_field)
 {
   Field *field=key_field->field;
   TABLE *form= field->table;
@@ -6122,7 +6124,7 @@ add_key_part(DYNAMIC_ARRAY *keyuse_array,KEY_FIELD *key_field)
                                key_field->null_rejecting,
                                key_field->cond_guard,
                                key_field->sj_pred_no);
-          if (insert_dynamic(keyuse_array, &keyuse))
+          if (keyuse_array->push_back(keyuse))
             return TRUE;
 	}
       }
@@ -6135,7 +6137,7 @@ add_key_part(DYNAMIC_ARRAY *keyuse_array,KEY_FIELD *key_field)
 #define FT_KEYPART   (MAX_REF_PARTS+10)
 
 static bool
-add_ft_keys(DYNAMIC_ARRAY *keyuse_array,
+add_ft_keys(Key_use_array *keyuse_array,
             JOIN_TAB *stat,Item *cond,table_map usable_tables)
 {
   Item_func_match *cond_func=NULL;
@@ -6197,7 +6199,7 @@ add_ft_keys(DYNAMIC_ARRAY *keyuse_array,
                        false,         // null_rejecting
                        NULL,          // cond_guard
                        UINT_MAX);     // sj_pred_no
-  return insert_dynamic(keyuse_array, &keyuse);
+  return keyuse_array->push_back(keyuse);
 }
 
 
@@ -6313,7 +6315,7 @@ static void add_key_fields_for_nj(JOIN *join, TABLE_LIST *nested_join_table,
 */
 
 static bool
-update_ref_and_keys(THD *thd, DYNAMIC_ARRAY *keyuse,JOIN_TAB *join_tab,
+update_ref_and_keys(THD *thd, Key_use_array *keyuse,JOIN_TAB *join_tab,
                     uint tables, Item *cond, COND_EQUAL *cond_equal,
                     table_map normal_tables, SELECT_LEX *select_lex,
                     SARGABLE_PARAM **sargables)
@@ -6356,8 +6358,6 @@ update_ref_and_keys(THD *thd, DYNAMIC_ARRAY *keyuse,JOIN_TAB *join_tab,
   /* set a barrier for the array of SARGABLE_PARAM */
   (*sargables)[0].field= 0; 
 
-  if (my_init_dynamic_array(keyuse, sizeof(Key_use), 20, 64))
-    return TRUE;
   if (cond)
   {
     add_key_fields(join_tab->join, &end, &and_level, cond, normal_tables,
@@ -6431,21 +6431,21 @@ update_ref_and_keys(THD *thd, DYNAMIC_ARRAY *keyuse,JOIN_TAB *join_tab,
       used in the query, we drop the partial key parts from consideration).
     Special treatment for ft-keys.
   */
-  if (keyuse->elements)
+  if (!keyuse->empty())
   {
     Key_use *save_pos, *use;
 
-    my_qsort(keyuse->buffer, keyuse->elements, sizeof(Key_use),
+    my_qsort(keyuse->begin(), keyuse->size(), keyuse->element_size(),
              reinterpret_cast<qsort_cmp>(sort_keyuse));
 
     const Key_use key_end(NULL, NULL, 0, 0, 0, 0, 0, 0, false, NULL, 0);
-    if (insert_dynamic(keyuse, &key_end)) // added for easy testing
+    if (keyuse->push_back(key_end)) // added for easy testing
       return TRUE;
 
-    use= save_pos= dynamic_element(keyuse, 0, Key_use *);
+    use= save_pos= keyuse->begin();
     const Key_use *prev= &key_end;
     found_eq_constant=0;
-    for (i=0 ; i < keyuse->elements-1 ; i++,use++)
+    for (i=0 ; i < keyuse->size()-1 ; i++,use++)
     {
       if (!use->used_tables && use->optimize != KEY_OPTIMIZE_REF_OR_NULL)
 	use->table->const_key_parts[use->key]|= use->keypart_map;
@@ -6478,9 +6478,9 @@ update_ref_and_keys(THD *thd, DYNAMIC_ARRAY *keyuse,JOIN_TAB *join_tab,
       use->table->reginfo.join_tab->checked_keys.set_bit(use->key);
       save_pos++;
     }
-    i= (uint) (save_pos - (Key_use *)keyuse->buffer);
-    (void) set_dynamic(keyuse, &key_end, i);
-    keyuse->elements=i;
+    i= (uint) (save_pos - keyuse->begin());
+    keyuse->at(i) = key_end;
+    keyuse->chop(i);
   }
   DBUG_EXECUTE("opt", print_keyuse_array(keyuse););
   return FALSE;
@@ -6490,12 +6490,11 @@ update_ref_and_keys(THD *thd, DYNAMIC_ARRAY *keyuse,JOIN_TAB *join_tab,
   Update some values in keyuse for faster choose_table_order() loop.
 */
 
-static void optimize_keyuse(JOIN *join, DYNAMIC_ARRAY *keyuse_array)
+static void optimize_keyuse(JOIN *join, Key_use_array *keyuse_array)
 {
-  Key_use *end, *keyuse= dynamic_element(keyuse_array, 0, Key_use *);
-
-  for (end= keyuse+ keyuse_array->elements ; keyuse < end ; keyuse++)
+  for (size_t ix= 0; ix < keyuse_array->size(); ++ix)
   {
+    Key_use *keyuse= &keyuse_array->at(ix);
     table_map map;
     /*
       If we find a ref, assume this table matches a proportional
@@ -7067,10 +7066,10 @@ best_access_path(JOIN      *join,
                  POSITION *pos,
                  POSITION *loose_scan_pos)
 {
-  THD *thd= join->thd;
+  THD *const thd= join->thd;
   Key_use *best_key=        NULL;
   uint best_max_key_part=   0;
-  my_bool found_constraint= 0;
+  bool found_constraint=    false;
   double best=              DBL_MAX;
   double best_time=         DBL_MAX;
   double records=           DBL_MAX;
@@ -7083,7 +7082,7 @@ best_access_path(JOIN      *join,
   double best_quick_records= DBL_MAX;
   table_map best_ref_depends_map= 0;
   double tmp;
-  bool best_uses_jbuf= FALSE;
+  bool best_uses_jbuf= false;
 
   Loose_scan_opt loose_scan_opt;
   DBUG_ENTER("best_access_path");
@@ -7096,28 +7095,27 @@ best_access_path(JOIN      *join,
   */
   if (unlikely(s->keyuse != NULL))
   {                                            /* Use key if possible */
-    TABLE *table= s->table;
-    Key_use *keyuse;
+    TABLE *const table= s->table;
     double best_records= DBL_MAX;
-    uint max_key_part=0;
 
     /* Test how we can use keys */
     ha_rows rec=
       s->records/MATCHING_ROWS_IN_OTHER_TABLE;  // Assumed records/key
-    for (keyuse=s->keyuse ; keyuse->table == table ;)
+    for (Key_use *keyuse=s->keyuse; keyuse->table == table; )
     {
       key_part_map found_part= 0;
       table_map found_ref= 0;
-      uint key= keyuse->key;
-      KEY *keyinfo= table->key_info+key;
-      bool ft_key=  (keyuse->keypart == FT_KEYPART);
+      const uint key= keyuse->key;
+      uint max_key_part= 0;
+      KEY *const keyinfo= table->key_info+key;
+      const bool ft_key= (keyuse->keypart == FT_KEYPART);
       /* Bitmap of keyparts where the ref access is over 'keypart=const': */
       key_part_map const_part= 0;
       /* The or-null keypart in ref-or-null access: */
       key_part_map ref_or_null_part= 0;
 
       /* Calculate how many key segments of the current key we can use */
-      Key_use *start_key= keyuse;
+      Key_use *const start_key= keyuse;
 
       loose_scan_opt.next_ref_key();
       DBUG_PRINT("info", ("Considering ref access on key %s",
@@ -7131,7 +7129,7 @@ best_access_path(JOIN      *join,
       
       do /* For each keypart */
       {
-        uint keypart= keyuse->keypart;
+        const uint keypart= keyuse->keypart;
         table_map best_part_found_ref= 0;
         double best_prev_record_reads= DBL_MAX;
         
@@ -7453,12 +7451,12 @@ best_access_path(JOIN      *join,
         loose_scan_opt.check_ref_access_part2(key, start_key, records, tmp);
 
       } /* not ft_key */
-      if (tmp < best_time - records/(double) TIME_FOR_COMPARE ||
+      if (tmp < best_time - records * ROW_EVALUATE_COST ||
           (quick_matches_more_parts && 
            quick_records < best_quick_records))
       {
         best_quick_records = quick_records;
-        best_time= tmp + records/(double) TIME_FOR_COMPARE;
+        best_time= tmp + records * ROW_EVALUATE_COST;
         best= tmp;
         best_records= records;
         best_key= start_key;
@@ -7543,7 +7541,7 @@ best_access_path(JOIN      *join,
       */
       tmp= record_count *
         (s->quick->read_time +
-         (s->found_records - rnd_records)/(double) TIME_FOR_COMPARE);
+         (s->found_records - rnd_records) * ROW_EVALUATE_COST);
 
       loose_scan_opt.check_range_access(join, idx, s->quick);
     }
@@ -7563,8 +7561,7 @@ best_access_path(JOIN      *join,
           - skip rows which does not satisfy join condition
         */
         tmp= record_count *
-          (tmp +
-           (s->records - rnd_records)/(double) TIME_FOR_COMPARE);
+             (tmp + (s->records - rnd_records) * ROW_EVALUATE_COST);
       }
       else
       {
@@ -7583,18 +7580,18 @@ best_access_path(JOIN      *join,
            we read the table (see flush_cached_records for details). Here we
            take into account cost to read and skip these records.
         */
-        tmp+= (s->records - rnd_records)/(double) TIME_FOR_COMPARE;
+        tmp+= (s->records - rnd_records) * ROW_EVALUATE_COST;
       }
     }
 
     /*
       We estimate the cost of evaluating WHERE clause for found records
-      as record_count * rnd_records / TIME_FOR_COMPARE. This cost plus
+      as record_count * rnd_records * ROW_EVALUATE_COST. This cost plus
       tmp give us total cost of using TABLE SCAN
     */
     if (best == DBL_MAX ||
-        (tmp  + record_count/(double) TIME_FOR_COMPARE*rnd_records <
-         best + record_count/(double) TIME_FOR_COMPARE*records))
+        (tmp  + (record_count * ROW_EVALUATE_COST * rnd_records) <
+         best + (record_count * ROW_EVALUATE_COST * records)))
     {
       /*
         If the table has a range (s->quick is set) make_join_select()
@@ -7915,7 +7912,7 @@ void Optimize_table_order::optimize_straight_join(table_map join_tables)
     /* compute the cost of the new plan extended with 's' */
     record_count*= join->positions[idx].records_read;
     read_time+=    join->positions[idx].read_time
-                   + record_count / (double) TIME_FOR_COMPARE;
+                   + record_count * ROW_EVALUATE_COST;
     advance_sj_state(join_tables, s, idx, &record_count, &read_time,
                      &loose_scan_pos);
 
@@ -8169,7 +8166,7 @@ bool Optimize_table_order::greedy_search(table_map remaining_tables)
     /* compute the cost of the new plan extended with 'best_table' */
     record_count*= join->positions[idx].records_read;
     read_time+=    join->positions[idx].read_time
-                   + record_count / (double) TIME_FOR_COMPARE;
+                   + record_count * ROW_EVALUATE_COST;
 
     remaining_tables&= ~(best_table->table->map);
     --size_remain;
@@ -8215,7 +8212,7 @@ void get_partial_join_cost(JOIN *join, uint n_tables, double *read_time_arg,
     {
       record_count *= join->best_positions[i].records_read;
       read_time += join->best_positions[i].read_time
-                   + record_count / (double) TIME_FOR_COMPARE;
+                   + record_count * ROW_EVALUATE_COST;
     }
   }
   *read_time_arg= read_time;
@@ -8394,7 +8391,7 @@ bool Optimize_table_order::best_extension_by_limited_search(
       current_record_count= record_count * position->records_read;
       current_read_time=    read_time
                             + position->read_time
-                            + current_record_count / (double) TIME_FOR_COMPARE;
+                            + current_record_count * ROW_EVALUATE_COST;
 
       if (has_sj)
       {
@@ -10663,19 +10660,17 @@ void revise_cache_usage(JOIN_TAB *join_tab)
 }
 
 
-/* 
+/**
   Check whether a join buffer can be used to join the specified table   
 
-  SYNOPSIS
-    check_join_cache_usage()
-      tab                 joined table to check join buffer usage for
-      join                join for which the check is performed
-      options             options of the join
-      no_jbuf_after       don't use join buffering after table with this number
-      icp_other_tables_ok OUT TRUE if condition pushdown supports
-                          other tables presence
+  @param tab             joined table to check join buffer usage for
+  @param join            join for which the check is performed
+  @param options         options of the join
+  @param no_jbuf_after   don't use join buffering after table with this number
+  @param icp_other_tables_ok[out] TRUE if condition pushdown supports
+                                  other tables presence
 
-  DESCRIPTION
+  @details
     The function finds out whether the table 'tab' can be joined using a join
     buffer. This check is performed after the best execution plan for 'join'
     has been chosen. If the function decides that a join buffer can be employed
@@ -10711,7 +10706,7 @@ void revise_cache_usage(JOIN_TAB *join_tab)
     failure to do this results in an invocation of the function that destructs
     the created object.
  
-  NOTES
+  @note
     An inner table of a nested outer join or a nested semi-join can be currently
     joined only when a linked cache object is employed. In these cases setting
     join cache level to an odd number results in denial of usage of any join
@@ -10723,7 +10718,7 @@ void revise_cache_usage(JOIN_TAB *join_tab)
     an index. For these engines setting the value of join_cache_level to 5 or 6
     results in that no join buffer is used to join the table. 
    
-  TODO
+  @todo
     Support BKA inside SJ-Materialization nests. When doing this, we'll need
     to only store sj-inner tables in the join buffer.
 #if 0
@@ -10747,7 +10742,7 @@ void revise_cache_usage(JOIN_TAB *join_tab)
         }
 #endif
 
-  RETURN
+  @return
     Bitmap describing the chosen cache's properties:
     1) the algorithm (JOIN_CACHE::ALG_NONE, JOIN_CACHE::ALG_BNL,
     JOIN_CACHE::ALG_BKA, JOIN_CACHE::ALG_BKA_UNIQUE)
@@ -11247,33 +11242,28 @@ bool setup_sj_materialization(JOIN_TAB *tab)
 }
 
 
-/*
+/**
   Plan refinement stage: do various setup things for the executor
 
-  SYNOPSIS
-    make_join_readinfo()
-      join           Join being processed
-      options        Join's options (checking for SELECT_DESCRIBE, 
-                     SELECT_NO_JOIN_CACHE)
-      no_jbuf_after  Don't use join buffering after table with this number.
+  @param join          Join being processed
+  @param options       Join's options (checking for SELECT_DESCRIBE, 
+                       SELECT_NO_JOIN_CACHE)
+  @param no_jbuf_after Don't use join buffering after table with this number.
 
-  DESCRIPTION
+  @return false if successful, true if error (Out of memory)
+
+  @details
     Plan refinement stage: do various set ups for the executioner
       - setup join buffering use
       - push index conditions
       - increment relevant counters
       - etc
-
-  RETURN 
-    FALSE - OK
-    TRUE  - Out of memory
 */
 
 static bool
 make_join_readinfo(JOIN *join, ulonglong options, uint no_jbuf_after)
 {
-  uint i, jcl;
-  bool statistics= test(!(join->select_options & SELECT_DESCRIBE));
+  const bool statistics= test(!(join->select_options & SELECT_DESCRIBE));
   uint first_sjm_table= MAX_TABLES;
   uint last_sjm_table= MAX_TABLES;
 
@@ -11285,11 +11275,12 @@ make_join_readinfo(JOIN *join, ulonglong options, uint no_jbuf_after)
   if (setup_semijoin_dups_elimination(join, options, no_jbuf_after))
     DBUG_RETURN(TRUE); /* purecov: inspected */
 
-  for (i=join->const_tables ; i < join->tables ; i++)
+  for (uint i= join->const_tables; i < join->tables; i++)
   {
-    JOIN_TAB *tab=join->join_tab+i;
-    TABLE *table=tab->table;
+    JOIN_TAB *const tab= join->join_tab+i;
+    TABLE    *const table= tab->table;
     bool icp_other_tables_ok;
+    uint jcl;
     tab->read_record.table= table;
     tab->read_record.file=table->file;
     tab->read_record.unlock_row= rr_unlock_row;
@@ -11440,12 +11431,12 @@ make_join_readinfo(JOIN *join, ulonglong options, uint no_jbuf_after)
     If a join buffer is used to join a table the ordering by an index
     for the first non-constant table cannot be employed anymore.
   */
-  for (i=join->const_tables ; i < join->tables ; i++)
+  for (uint i= join->const_tables; i < join->tables; i++)
   {
-    JOIN_TAB *tab=join->join_tab+i;
+    JOIN_TAB *const tab=join->join_tab + i;
     if (tab->use_join_cache)
     {
-      JOIN_TAB *sort_by_tab= join->get_sort_by_join_tab();
+      JOIN_TAB *const sort_by_tab= join->get_sort_by_join_tab();
       if (sort_by_tab)
       {
         join->need_tmp= 1;
