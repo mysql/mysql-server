@@ -3185,18 +3185,19 @@ NdbQueryImpl::OrderedFragSet::reorganize()
     while(first<last)
     {
       assert(middle<m_activeFragCount);
-      switch(compare(*m_activeFrags[m_activeFragCount-1], 
-                     *m_activeFrags[middle]))
+      const int cmpRes = compare(*m_activeFrags[m_activeFragCount-1], 
+                                 *m_activeFrags[middle]);
+      if (cmpRes < 0)
       {
-      case -1:
         first = middle + 1;
-        break;
-      case 0:
+      }
+      else if (cmpRes == 0)
+      {
         last = first = middle;
-        break;
-      case 1:
+      }
+      else
+      {
         last = middle;
-        break;
       }
       middle = (first+last)/2;
     }
@@ -3245,7 +3246,7 @@ NdbQueryImpl::OrderedFragSet::add(NdbRootFragment& frag)
       int current = 0;
       // Insert the new frag such that the array remains sorted.
       while(current<m_activeFragCount && 
-            compare(frag, *m_activeFrags[current])==-1)
+            compare(frag, *m_activeFrags[current]) < 0)
       {
         current++;
       }
@@ -3289,7 +3290,7 @@ NdbQueryImpl::OrderedFragSet::verifySortOrder() const
 {
   for(int i = 0; i<m_activeFragCount-2; i++)
   {
-    if(compare(*m_activeFrags[i], *m_activeFrags[i+1])==-1)
+    if(compare(*m_activeFrags[i], *m_activeFrags[i+1]) < 0)
     {
       assert(false);
       return false;
@@ -3302,7 +3303,7 @@ NdbQueryImpl::OrderedFragSet::verifySortOrder() const
 /**
  * Compare frags such that f1<f2 if f1 is empty but f2 is not.
  * - Othewise compare record contents.
- * @return -1 if frag1<frag2, 0 if frag1 == frag2, otherwise 1.
+ * @return negative if frag1<frag2, 0 if frag1 == frag2, otherwise positive.
 */
 int
 NdbQueryImpl::OrderedFragSet::compare(const NdbRootFragment& frag1,

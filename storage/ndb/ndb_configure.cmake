@@ -18,6 +18,26 @@
 #
 # Run platform checks and create ndb_config.h
 #
+
+
+# Include the platform-specific file. To allow exceptions, this code
+# looks for files in order of how specific they are. If there is, for
+# example, a generic Linux.cmake and a version-specific
+# Linux-2.6.28-11-generic, it will pick Linux-2.6.28-11-generic and
+# include it. It is then up to the file writer to include the generic
+# version if necessary.
+FOREACH(_base
+        ${CMAKE_SYSTEM_NAME}-${CMAKE_SYSTEM_VERSION}-${CMAKE_SYSTEM_PROCESSOR}
+        ${CMAKE_SYSTEM_NAME}-${CMAKE_SYSTEM_VERSION}
+        ${CMAKE_SYSTEM_NAME})
+  SET(_file ${CMAKE_CURRENT_SOURCE_DIR}/cmake/os/${_base}.cmake)
+  IF(EXISTS ${_file})
+    INCLUDE(${_file})
+    BREAK()
+  ENDIF()
+ENDFOREACH()
+
+
 INCLUDE(CheckFunctionExists)
 INCLUDE(CheckIncludeFiles)
 INCLUDE(CheckCSourceCompiles)
@@ -31,7 +51,7 @@ CHECK_FUNCTION_EXISTS(pthread_condattr_setclock HAVE_PTHREAD_CONDATTR_SETCLOCK)
 CHECK_FUNCTION_EXISTS(pthread_self HAVE_PTHREAD_SELF)
 CHECK_FUNCTION_EXISTS(sched_get_priority_min HAVE_SCHED_GET_PRIORITY_MIN)
 CHECK_FUNCTION_EXISTS(sched_get_priority_max HAVE_SCHED_GET_PRIORITY_MAX)
-CHECK_FUNCTION_EXISTS(sched_setaffinity HAVE_SCHED_SETAFFINTIY)
+CHECK_FUNCTION_EXISTS(sched_setaffinity HAVE_SCHED_SETAFFINITY)
 CHECK_FUNCTION_EXISTS(sched_setscheduler HAVE_SCHED_SETSCHEDULER)
 CHECK_FUNCTION_EXISTS(processor_bind HAVE_PROCESSOR_BIND)
 CHECK_FUNCTION_EXISTS(epoll_create HAVE_EPOLL_CREATE)
@@ -153,7 +173,8 @@ IF(WITH_NDBMTD)
     return a;
   }"
   NDB_BUILD_NDBMTD)
-
+ELSE()
+  SET(NDB_BUILD_NDBMTD CACHE INTERNAL "")
 ENDIF()
 
 SET(WITH_NDB_PORT "" CACHE INTEGER

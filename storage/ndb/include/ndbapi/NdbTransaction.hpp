@@ -752,6 +752,12 @@ public:
                                   const NdbOperation::OperationOptions *opts = 0,
                                   Uint32 sizeOfOptions = 0);
 
+#ifndef DOXYGEN_SHOULD_SKIP_INTERNAL
+  const NdbOperation *refreshTuple(const NdbRecord *key_rec, const char *key_row,
+                                   const NdbOperation::OperationOptions *opts = 0,
+                                   Uint32 sizeOfOptions = 0);
+#endif
+
   /**
    * Scan a table, using NdbRecord to read out column data.
    *

@@ -192,6 +192,7 @@ public:
   unsigned max_nodegroup();
   unsigned node_id();
   unsigned get_connect_count() const;
+  unsigned get_min_db_version() const;
 
   void init_get_next_node(Ndb_cluster_connection_node_iter &iter);
   unsigned int get_next_node(Ndb_cluster_connection_node_iter &iter);

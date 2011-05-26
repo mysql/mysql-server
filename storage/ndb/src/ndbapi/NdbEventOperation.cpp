@@ -137,6 +137,12 @@ NdbEventOperation::getLatestGCI() const
   return m_impl.getLatestGCI();
 }
 
+Uint64
+NdbEventOperation::getTransId() const
+{
+  return m_impl.getTransId();
+}
+
 NdbDictionary::Event::TableEvent
 NdbEventOperation::getEventType() const
 {
