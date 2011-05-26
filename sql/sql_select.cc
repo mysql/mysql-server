@@ -1904,6 +1904,11 @@ JOIN::optimize()
       thd->restore_active_arena(arena, &backup);
   }
 
+  /*
+    Note: optimize_cond() makes changes to conds. Since
+    select_lex->where and conds points to the same condition, this
+    function call effectively changes select_lex->where as well.
+  */
   conds= optimize_cond(this, conds, join_list, TRUE, &select_lex->cond_value);
   if (thd->is_error())
   {
@@ -1913,6 +1918,7 @@ JOIN::optimize()
   }
 
   {
+    // Note above about optimize_cond() also applies to selec_lex->having
     having= optimize_cond(this, having, join_list, FALSE,
                           &select_lex->having_value);
     if (thd->is_error())
@@ -14711,7 +14717,8 @@ optimize_cond(JOIN *join, Item *conds, List<TABLE_LIST> *join_list,
   SYNPOSIS
     remove_eq_conds()
     thd 			THD environment
-    cond                        the condition to handle
+    cond                        the condition to handle. Note that cond
+                                is changed by this function
     cond_value                  the resulting value of the condition
 
   RETURN
@@ -14773,9 +14780,34 @@ internal_remove_eq_conds(THD *thd, Item *cond, Item::cond_result *cond_value)
 	*cond_value != Item::COND_OK)
       return (Item*) 0;
     if (((Item_cond*) cond)->argument_list()->elements == 1)
-    {						// Remove list
+    {
+      /*
+        BUG#11765699:
+        We're dealing with an AND or OR item that has only one
+        argument. However, it is not an option to empty the list
+        because:
+
+         - this function is called for either JOIN::conds or
+           JOIN::having, but these point to the same condition as
+           SELECT_LEX::where and SELECT_LEX::having do.
+
+         - The return value of remove_eq_conds() is assigned to
+           JOIN::conds and JOIN::having, so emptying the list and
+           returning the only remaining item "replaces" the AND or OR
+           with item for the variables in JOIN. However, the return
+           value is not assigned to the SELECT_LEX counterparts. Thus,
+           if argument_list is emptied, SELECT_LEX forgets the item in
+           argument_list()->head().
+
+        item is therefore returned, but argument_list is not emptied.
+      */
       item= ((Item_cond*) cond)->argument_list()->head();
-      ((Item_cond*) cond)->argument_list()->empty();
+      /*
+        Consider reenabling the line below when the optimizer has been
+        split into properly separated phases.
+ 
+        ((Item_cond*) cond)->argument_list()->empty();
+      */
       return item;
     }
   }
