@@ -4393,7 +4393,11 @@ lock_trx_table_locks_remove(
 
 	ut_ad(lock_mutex_own());
 
-	trx_mutex_enter(trx);
+	if (!trx->lock.was_chosen_as_deadlock_victim) {
+		trx_mutex_enter(trx);
+	} else {
+		ut_ad(trx_mutex_own(trx));
+	}
 
 	for (i = ib_vector_size(trx->lock.table_locks) - 1; i >= 0; --i) {
 		const lock_t*	lock;
@@ -4410,12 +4414,18 @@ lock_trx_table_locks_remove(
 
 		if (lock == lock_to_remove) {
 			ib_vector_set(trx->lock.table_locks, i, NULL);
-			trx_mutex_exit(trx);
+
+			if (!trx->lock.was_chosen_as_deadlock_victim) {
+				trx_mutex_exit(trx);
+			}
+
 			return;
 		}
 	}
 
-	trx_mutex_exit(trx);
+	if (!trx->lock.was_chosen_as_deadlock_victim) {
+		trx_mutex_exit(trx);
+	}
 
 	/* Lock must exist in the vector. */
 	ut_error;
