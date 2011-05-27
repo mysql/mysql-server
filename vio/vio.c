@@ -91,7 +91,7 @@ static void vio_init(Vio* vio, enum enum_vio_type type,
     vio->has_data=        has_no_data;
     vio->timeout=         vio_win32_timeout;
     vio->viogetfd=        vio_getfd;
-    
+
     /* Set default timeout */
     vio->read_timeout_ms= INFINITE;
     vio->write_timeout_ms= INFINITE;
@@ -99,7 +99,7 @@ static void vio_init(Vio* vio, enum enum_vio_type type,
     DBUG_VOID_RETURN;
   }
 #endif
-#ifdef HAVE_SMEM 
+#ifdef HAVE_SMEM
   if (type == VIO_TYPE_SHARED_MEMORY)
   {
     vio->viodelete=       vio_delete;
@@ -120,15 +120,15 @@ static void vio_init(Vio* vio, enum enum_vio_type type,
     vio->viogetfd=        vio_getfd;
 
     /* Currently, shared memory is on Windows only, hence the below is ok*/
-    vio->timeout= vio_win32_timeout; 
+    vio->timeout= vio_win32_timeout;
 
     /* Set default timeout */
     vio->read_timeout_ms= INFINITE;
     vio->write_timeout_ms= INFINITE;
     DBUG_VOID_RETURN;
   }
-#endif   
-#ifdef HAVE_OPENSSL 
+#endif
+#ifdef HAVE_OPENSSL
   if (type == VIO_TYPE_SSL)
   {
     vio->viodelete=       vio_ssl_delete;
@@ -191,8 +191,8 @@ Vio *mysql_socket_vio_new(MYSQL_SOCKET mysql_socket, enum enum_vio_type type, ui
   Vio *vio;
   my_socket sd= mysql_socket_getfd(mysql_socket);
   DBUG_ENTER("mysql_socket_vio_new");
-  DBUG_PRINT("enter", ("sd: %d", sd)); 
-  
+  DBUG_PRINT("enter", ("sd: %d", sd));
+
   if ((vio = (Vio*) my_malloc(sizeof(*vio),MYF(MY_WME))))
   {
     vio_init(vio, type, sd, 0, flags);
@@ -228,7 +228,7 @@ Vio *mysql_socket_vio_new(MYSQL_SOCKET mysql_socket, enum enum_vio_type type, ui
 
     vio->mysql_socket= mysql_socket;
   }
-  DBUG_RETURN(vio);  
+  DBUG_RETURN(vio);
 }
 
 /* Open the socket or TCP/IP connection and read the fnctl() status */
@@ -242,7 +242,7 @@ Vio *vio_new(my_socket sd, enum enum_vio_type type, uint flags)
 
   mysql_socket_setfd(&mysql_socket, sd);
   vio = mysql_socket_vio_new(mysql_socket, type, flags);
-  
+
   DBUG_RETURN(vio);
 }
 

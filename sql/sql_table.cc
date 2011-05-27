@@ -1650,7 +1650,7 @@ void execute_ddl_log_recovery()
   /*
     Initialise global_ddl_log struct
   */
-  bzero(global_ddl_log.file_entry_buf, sizeof(global_ddl_log.file_entry_buf));
+  memset(global_ddl_log.file_entry_buf, 0, sizeof(global_ddl_log.file_entry_buf));
   global_ddl_log.inited= FALSE;
   global_ddl_log.recovery_phase= TRUE;
   global_ddl_log.io_size= IO_SIZE;
@@ -2812,7 +2812,8 @@ int prepare_create_field(Create_field *sql_field,
           MAX_FIELD_CHARLENGTH)
       {
         my_printf_error(ER_TOO_BIG_FIELDLENGTH, ER(ER_TOO_BIG_FIELDLENGTH),
-                        MYF(0), sql_field->field_name, MAX_FIELD_CHARLENGTH);
+                        MYF(0), sql_field->field_name,
+                        static_cast<ulong>(MAX_FIELD_CHARLENGTH));
         DBUG_RETURN(1);
       }
     }
@@ -3808,12 +3809,12 @@ mysql_prepare_create_table(THD *thd, HA_CREATE_INFO *create_info,
            (MODE_STRICT_TRANS_TABLES | MODE_STRICT_ALL_TABLES)))
       {
         my_error(ER_TOO_LONG_INDEX_COMMENT, MYF(0),
-                 key_info->name, (uint) INDEX_COMMENT_MAXLEN);
+                 key_info->name, static_cast<ulong>(INDEX_COMMENT_MAXLEN));
         DBUG_RETURN(-1);
       }
       char warn_buff[MYSQL_ERRMSG_SIZE];
       my_snprintf(warn_buff, sizeof(warn_buff), ER(ER_TOO_LONG_INDEX_COMMENT),
-                  key_info->name, (uint) INDEX_COMMENT_MAXLEN);
+                  key_info->name, static_cast<ulong>(INDEX_COMMENT_MAXLEN));
       /* do not push duplicate warnings */
       if (!check_duplicate_warning(thd, warn_buff, strlen(warn_buff)))
         push_warning(thd, MYSQL_ERROR::WARN_LEVEL_WARN,
@@ -3941,7 +3942,8 @@ static bool prepare_blob_field(THD *thd, Create_field *sql_field)
                                                       MODE_STRICT_ALL_TABLES)))
     {
       my_error(ER_TOO_BIG_FIELDLENGTH, MYF(0), sql_field->field_name,
-               MAX_FIELD_VARCHARLENGTH / sql_field->charset->mbmaxlen);
+               static_cast<ulong>(MAX_FIELD_VARCHARLENGTH /
+                                  sql_field->charset->mbmaxlen));
       DBUG_RETURN(1);
     }
     sql_field->sql_type= MYSQL_TYPE_BLOB;
@@ -4756,7 +4758,7 @@ bool mysql_create_like_table(THD* thd, TABLE_LIST* table, TABLE_LIST* src_table,
   src_table->table->use_all_columns();
 
   /* Fill HA_CREATE_INFO and Alter_info with description of source table. */
-  bzero((char*) &local_create_info, sizeof(local_create_info));
+  memset(&local_create_info, 0, sizeof(local_create_info));
   local_create_info.db_type= src_table->table->s->db_type();
   local_create_info.row_type= src_table->table->s->row_type;
   if (mysql_prepare_alter_table(thd, src_table->table, &local_create_info,
@@ -4973,41 +4975,48 @@ err:
 
 /**
   @brief Check if both DROP and CREATE are present for an index in ALTER TABLE
- 
-  @details Checks if any index is being modified (present as both DROP INDEX 
-    and ADD INDEX) in the current ALTER TABLE statement. Needed for disabling 
+
+  @details Checks if any index is being modified (present as both DROP INDEX
+    and ADD INDEX) in the current ALTER TABLE statement. Needed for disabling
     in-place ALTER TABLE.
-  
-  @param table       The table being altered
-  @param alter_info  The ALTER TABLE structure
-  @return presence of index being altered  
+
+  @param table              The table being altered.
+  @param key_info_buffer    Array of KEY structs for new indexes.
+  @param index_drop_buffer  Array of offsets into table->key_info for indexes
+                            to be dropped.
+  @param index_drop_count   Number of indexes to be dropped.
+  @param index_add_buffer   Array of offsets into key_info_buffer representing
+                            new indexes.
+  @param index_add_count    Number of indexes to add.
+  @return presence of index being both dropped and added
   @retval FALSE  No such index
   @retval TRUE   Have at least 1 index modified
 */
 
 static bool
-is_index_maintenance_unique (TABLE *table, Alter_info *alter_info)
+is_index_maintenance_unique (const TABLE *table, const KEY *key_info_buffer,
+                             const uint *index_drop_buffer,
+                             uint index_drop_count,
+                             const uint *index_add_buffer, uint index_add_count)
 {
-  List_iterator<Key> key_it(alter_info->key_list);
-  List_iterator<Alter_drop> drop_it(alter_info->drop_list);
-  Key *key;
+  const KEY *add_key;
+  const KEY *drop_key;
+  const uint *idx_add_p;
+  const uint *idx_drop_p;
 
-  while ((key= key_it++))
+  for (idx_add_p= index_add_buffer;
+       idx_add_p < index_add_buffer + index_add_count; idx_add_p++)
   {
-    if (key->name.str)
+    add_key= key_info_buffer + *idx_add_p;
+    for (idx_drop_p= index_drop_buffer;
+         idx_drop_p < index_drop_buffer + index_drop_count; idx_drop_p++)
     {
-      Alter_drop *drop;
-
-      drop_it.rewind();
-      while ((drop= drop_it++))
-      {
-        if (drop->type == Alter_drop::KEY &&
-            !my_strcasecmp(system_charset_info, key->name.str, drop->name))
-          return TRUE;
-      }
+      drop_key= table->key_info + *idx_drop_p;
+      if (!my_strcasecmp(system_charset_info, add_key->name, drop_key->name))
+        return true;
     }
   }
-  return FALSE;
+  return false;
 }
 
 
@@ -5763,7 +5772,7 @@ mysql_prepare_alter_table(THD *thd, TABLE *table,
       KEY_CREATE_INFO key_create_info;
       Key *key;
       enum Key::Keytype key_type;
-      bzero((char*) &key_create_info, sizeof(key_create_info));
+      memset(&key_create_info, 0, sizeof(key_create_info));
 
       key_create_info.algorithm= key_info->algorithm;
       if (key_info->flags & HA_USES_BLOCK_SIZE)
@@ -6298,14 +6307,8 @@ bool mysql_alter_table(THD *thd,char *new_db, char *new_name,
   */
   new_db_type= create_info->db_type;
 
-  if (is_index_maintenance_unique (table, alter_info))
-    need_copy_table= ALTER_TABLE_DATA_CHANGED;
-
   if (mysql_prepare_alter_table(thd, table, create_info, alter_info))
     goto err;
-
-  if (need_copy_table == ALTER_TABLE_METADATA_ONLY)
-    need_copy_table= alter_info->change_level;
 
   set_table_default_charset(thd, create_info, db);
 
@@ -6318,6 +6321,8 @@ bool mysql_alter_table(THD *thd,char *new_db, char *new_name,
     need_copy_table= ALTER_TABLE_DATA_CHANGED;
   else
   {
+    need_copy_table= alter_info->change_level;
+
     Alter_table_change_level need_copy_table_res;
     /* Check how much the tables differ. */
     if (mysql_compare_tables(table, alter_info,
@@ -6328,16 +6333,24 @@ bool mysql_alter_table(THD *thd,char *new_db, char *new_name,
                              &index_add_buffer, &index_add_count,
                              &candidate_key_count, FALSE))
       goto err;
-   
+
     DBUG_EXECUTE_IF("alter_table_only_metadata_change", {
       if (need_copy_table_res != ALTER_TABLE_METADATA_ONLY)
         goto err; });
     DBUG_EXECUTE_IF("alter_table_only_index_change", {
       if (need_copy_table_res != ALTER_TABLE_INDEX_CHANGED)
         goto err; });
-   
+
     if (need_copy_table == ALTER_TABLE_METADATA_ONLY)
       need_copy_table= need_copy_table_res;
+
+    if (need_copy_table == ALTER_TABLE_INDEX_CHANGED)
+    {
+      if (is_index_maintenance_unique(table, key_info_buffer,
+                                      index_drop_buffer, index_drop_count,
+                                      index_add_buffer, index_add_count))
+        need_copy_table= ALTER_TABLE_DATA_CHANGED;
+    }
   }
 
   /*
@@ -7201,7 +7214,7 @@ copy_data_between_tables(TABLE *from,TABLE *to,
     {
       from->sort.io_cache=(IO_CACHE*) my_malloc(sizeof(IO_CACHE),
                                                 MYF(MY_FAE | MY_ZEROFILL));
-      bzero((char *) &tables, sizeof(tables));
+      memset(&tables, 0, sizeof(tables));
       tables.table= from;
       tables.alias= tables.table_name= from->s->table_name.str;
       tables.db= from->s->db.str;
@@ -7338,7 +7351,7 @@ bool mysql_recreate_table(THD *thd, TABLE_LIST *table_list)
   /* Same applies to MDL request. */
   table_list->mdl_request.set_type(MDL_SHARED_NO_WRITE);
 
-  bzero((char*) &create_info, sizeof(create_info));
+  memset(&create_info, 0, sizeof(create_info));
   create_info.row_type=ROW_TYPE_NOT_USED;
   create_info.default_table_charset=default_charset_info;
   /* Force alter table to recreate table */

@@ -80,25 +80,6 @@ trx_purge_fetch_next_rec(
 					handled */
 	mem_heap_t*	heap);		/*!< in: memory heap where copied */
 
-/*****************************************************************//**
-Checks if trx_id is >= purge_view: then it is guaranteed that its update
-undo log still exists in the system.
-@return TRUE if is sure that it is preserved, also if the function
-returns FALSE, it is possible that the undo log still exists in the
-system */
-UNIV_INTERN
-ibool
-trx_purge_update_undo_must_exist(
-/*=============================*/
-	trx_id_t	trx_id)	/*!< in: transaction id */
-{
-#ifdef UNIV_SYNC_DEBUG
-	ut_ad(rw_lock_own(&(purge_sys->latch), RW_LOCK_SHARED));
-#endif /* UNIV_SYNC_DEBUG */
-
-	return(!read_view_sees_trx_id(purge_sys->view, trx_id));
-}
-
 /****************************************************************//**
 Builds a purge 'query' graph. The actual purge is performed by executing
 this query graph.
@@ -837,6 +818,7 @@ trx_purge_get_next_rec(
 	mtr_t		mtr;
 
 	ut_ad(purge_sys->next_stored);
+	ut_ad(purge_sys->iter.trx_no < purge_sys->view->low_limit_no);
 
 	space = purge_sys->rseg->space;
 	zip_size = purge_sys->rseg->zip_size;
@@ -954,9 +936,6 @@ trx_purge_fetch_next_rec(
 					handled */
 	mem_heap_t*	heap)		/*!< in: memory heap where copied */
 {
-	const read_view_t*	view = purge_sys->view;
-	const purge_iter_t	iter = purge_sys->iter;
-
 	if (!purge_sys->next_stored) {
 		trx_purge_choose_next_log();
 
@@ -972,7 +951,7 @@ trx_purge_fetch_next_rec(
 		}
 	}
 
-	if (iter.trx_no >= view->low_limit_no) {
+	if (purge_sys->iter.trx_no >= purge_sys->view->low_limit_no) {
 
 		return(NULL);
 	}
@@ -983,8 +962,6 @@ trx_purge_fetch_next_rec(
 	*roll_ptr = trx_undo_build_roll_ptr(
 		FALSE, purge_sys->rseg->id,
 		purge_sys->page_no, purge_sys->offset);
-
-	ut_ad(iter.trx_no < view->low_limit_no);
 
 	/* The following call will advance the stored values of the
 	purge iterator. */

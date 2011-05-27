@@ -4549,7 +4549,7 @@ ha_innobase::store_key_val_for_row(
 	simple memcmp to compare two key values to determine if they are
 	equal. MySQL does this to compare contents of two 'ref' values. */
 
-	bzero(buff, buff_len);
+	memset(buff, 0, buff_len);
 
 	for (; key_part != end; key_part++) {
 		is_null = FALSE;
@@ -4627,7 +4627,7 @@ ha_innobase::store_key_val_for_row(
 			length of the true VARCHAR in the key value, though
 			only len first bytes after the 2 length bytes contain
 			actual data. The rest of the space was reset to zero
-			in the bzero() call above. */
+			in the memset() call above. */
 
 			buff += key_len;
 
@@ -12099,9 +12099,9 @@ static MYSQL_SYSVAR_ULONG(purge_threads, srv_n_purge_threads,
 
 static MYSQL_SYSVAR_ULONG(sync_array_size, srv_sync_array_size,
   PLUGIN_VAR_OPCMDARG,
-  "Size of the mutex/lock wait array. Default is 32.",
+  "Size of the mutex/lock wait array.",
   NULL, NULL,
-  32,			/* Default setting */
+  1,			/* Default setting */
   1,			/* Minimum value */
   1024, 0);		/* Maximum value */
 

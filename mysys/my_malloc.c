@@ -55,7 +55,7 @@ void *my_malloc(size_t size, myf my_flags)
       exit(1);
   }
   else if (my_flags & MY_ZEROFILL)
-    bzero(point, size);
+    memset(point, 0, size);
   DBUG_PRINT("exit",("ptr: %p", point));
   DBUG_RETURN(point);
 }
