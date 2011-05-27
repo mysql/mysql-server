@@ -24,6 +24,8 @@
 
 #ifdef HAVE_OPENSSL
 
+#ifndef DBUG_OFF
+
 static void
 report_errors(SSL* ssl)
 {
@@ -31,9 +33,7 @@ report_errors(SSL* ssl)
   const char *file;
   const char *data;
   int line, flags;
-#ifndef DBUG_OFF
   char buf[512];
-#endif
 
   DBUG_ENTER("report_errors");
 
@@ -50,6 +50,8 @@ report_errors(SSL* ssl)
   DBUG_PRINT("info", ("socket_errno: %d", socket_errno));
   DBUG_VOID_RETURN;
 }
+
+#endif
 
 
 size_t vio_ssl_read(Vio *vio, uchar* buf, size_t size)
