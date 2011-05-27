@@ -10131,7 +10131,11 @@ Dblqh::seize_acc_ptr_list(ScanRecord* scanP,
   Uint32 segments= (new_batch_size + (SectionSegment::DataLength -2 )) / 
     SectionSegment::DataLength;
 
-  ndbassert(segments >= scanP->scan_acc_segments);
+  if (segments <= scanP->scan_acc_segments)
+  {
+    // No need to allocate more segments.
+    return true;
+  }
 
   if (new_batch_size > 1)
   {
