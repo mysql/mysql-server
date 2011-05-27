@@ -1948,8 +1948,10 @@ static void network_init(void)
       sql_perror("Can't start server : UNIX Socket "); /* purecov: inspected */
       unireg_abort(1);				/* purecov: inspected */
     }
+    
     mysql_socket_set_thread_owner(unix_sock);
-    bzero((char*) &UNIXaddr, sizeof(UNIXaddr));
+    
+    memset(&UNIXaddr, 0, sizeof(UNIXaddr));
     UNIXaddr.sun_family = AF_UNIX;
     strmov(UNIXaddr.sun_path, mysqld_unix_port);
     (void) unlink(mysqld_unix_port);

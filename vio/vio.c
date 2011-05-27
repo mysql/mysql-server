@@ -62,7 +62,7 @@ static void vio_init(Vio* vio, enum enum_vio_type type,
 #ifndef HAVE_VIO_READ_BUFF
   flags&= ~VIO_BUFFERED_READ;
 #endif
-  bzero((char*) vio, sizeof(*vio));
+  memset(vio, 0, sizeof(*vio));
   vio->type= type;
   vio->mysql_socket= MYSQL_INVALID_SOCKET;
   mysql_socket_setfd(&vio->mysql_socket, sd);

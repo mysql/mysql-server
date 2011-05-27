@@ -752,19 +752,11 @@ void do_handle_one_connection(THD *thd_arg)
 
     mysql_socket_set_thread_owner(net->vio->mysql_socket);
 
-    lex_start(thd);
-    rc= login_connection(thd);
-    MYSQL_AUDIT_NOTIFY_CONNECTION_CONNECT(thd);
+    rc= thd_prepare_connection(thd);
     if (rc)
       goto end_thread;
 
-    MYSQL_CONNECTION_START(thd->thread_id, &thd->security_ctx->priv_user[0],
-                           (char *) thd->security_ctx->host_or_ip);
-
-    prepare_new_connection_state(thd);
-
-    while (!net->error && net->vio != 0 &&
-           !(thd->killed == THD::KILL_CONNECTION))
+    while (thd_is_connection_alive(thd))
     {
       mysql_audit_release(thd);
       if (do_command(thd))
