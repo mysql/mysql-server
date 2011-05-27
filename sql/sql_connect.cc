@@ -773,8 +773,9 @@ void do_handle_one_connection(THD *thd_arg)
 
   for (;;)
   {
-    bool rc;
+	bool rc;
 
+    NET *net= &thd->net;
     mysql_socket_set_thread_owner(net->vio->mysql_socket);
 
     rc= thd_prepare_connection(thd);
