@@ -1136,6 +1136,10 @@ static int handle_opt_part(THD *thd, HA_CHECK_OPT *check_opt,
 static bool print_admin_msg(THD* thd, const char* msg_type,
                             const char* db_name, const char* table_name,
                             const char* op_name, const char *fmt, ...)
+  ATTRIBUTE_FORMAT(printf, 6, 7);
+static bool print_admin_msg(THD* thd, const char* msg_type,
+                            const char* db_name, const char* table_name,
+                            const char* op_name, const char *fmt, ...)
 {
   va_list args;
   Protocol *protocol= thd->protocol;
@@ -2333,7 +2337,7 @@ bool ha_partition::create_handlers(MEM_ROOT *mem_root)
   if (!(m_file= (handler **) alloc_root(mem_root, alloc_len)))
     DBUG_RETURN(TRUE);
   m_file_tot_parts= m_tot_parts;
-  bzero((char*) m_file, alloc_len);
+  memset(m_file, 0, alloc_len);
   for (i= 0; i < m_tot_parts; i++)
   {
     handlerton *hton= plugin_data(m_engine_array[i], handlerton*);
@@ -2385,7 +2389,7 @@ bool ha_partition::new_handlers_from_part_info(MEM_ROOT *mem_root)
     goto error_end;
   }
   m_file_tot_parts= m_tot_parts;
-  bzero((char*) m_file, alloc_len);
+  memset(m_file, 0, alloc_len);
   DBUG_ASSERT(m_part_info->num_parts > 0);
 
   i= 0;
@@ -2924,7 +2928,7 @@ int ha_partition::open(const char *name, int mode, uint test_if_locked)
     DBUG_PRINT("info", ("table_share->ha_part_data 0x%p",
                         table_share->ha_part_data));
     /* zeros both auto_increment variables and partition_name_hash.records */
-    bzero(table_share->ha_part_data, sizeof(HA_DATA_PARTITION));
+    memset(table_share->ha_part_data, 0, sizeof(HA_DATA_PARTITION));
     table_share->ha_part_data_destroy= ha_data_partition_destroy;
     mysql_mutex_init(key_PARTITION_LOCK_auto_inc,
                      &table_share->ha_part_data->LOCK_auto_inc,

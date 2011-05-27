@@ -608,7 +608,7 @@ static int upgrade_already_done(void)
     Read from file, don't care if it fails since it
     will be detected by the strncmp
   */
-  bzero(buf, sizeof(buf));
+  memset(buf, 0, sizeof(buf));
   res= fgets(buf, sizeof(buf), in);
 
   my_fclose(in, MYF(0));

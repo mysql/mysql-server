@@ -547,7 +547,7 @@ sp_head::operator delete(void *ptr, size_t size) throw()
 
 
 sp_head::sp_head()
-  :Query_arena(&main_mem_root, INITIALIZED_FOR_SP),
+  :Query_arena(&main_mem_root, STMT_INITIALIZED_FOR_SP),
    m_flags(0),
    m_sp_cache_version(0),
    unsafe_flags(0),
@@ -1063,7 +1063,7 @@ void sp_head::recursion_level_error(THD *thd)
   if (m_type == TYPE_ENUM_PROCEDURE)
   {
     my_error(ER_SP_RECURSION_LIMIT, MYF(0),
-             thd->variables.max_sp_recursion_depth,
+             static_cast<int>(thd->variables.max_sp_recursion_depth),
              m_name.str);
   }
   else
@@ -1205,7 +1205,7 @@ sp_head::execute(THD *thd, bool merge_da_on_success)
   Query_arena *old_arena;
   /* per-instruction arena */
   MEM_ROOT execute_mem_root;
-  Query_arena execute_arena(&execute_mem_root, INITIALIZED_FOR_SP),
+  Query_arena execute_arena(&execute_mem_root, STMT_INITIALIZED_FOR_SP),
               backup_arena;
   query_id_t old_query_id;
   TABLE *old_derived_tables;
@@ -1486,7 +1486,7 @@ sp_head::execute(THD *thd, bool merge_da_on_success)
   thd->m_reprepare_observer= save_reprepare_observer;
 
   thd->stmt_arena= old_arena;
-  state= EXECUTED;
+  state= STMT_EXECUTED;
 
   /*
     Restore the caller's original warning information area:
@@ -1644,7 +1644,7 @@ sp_head::execute_trigger(THD *thd,
   sp_rcontext *nctx = NULL;
   bool err_status= FALSE;
   MEM_ROOT call_mem_root;
-  Query_arena call_arena(&call_mem_root, Query_arena::INITIALIZED_FOR_SP);
+  Query_arena call_arena(&call_mem_root, Query_arena::STMT_INITIALIZED_FOR_SP);
   Query_arena backup_arena;
 
   DBUG_ENTER("sp_head::execute_trigger");
@@ -1785,7 +1785,7 @@ sp_head::execute_function(THD *thd, Item **argp, uint argcount,
   String binlog_buf(buf, sizeof(buf), &my_charset_bin);
   bool err_status= FALSE;
   MEM_ROOT call_mem_root;
-  Query_arena call_arena(&call_mem_root, Query_arena::INITIALIZED_FOR_SP);
+  Query_arena call_arena(&call_mem_root, Query_arena::STMT_INITIALIZED_FOR_SP);
   Query_arena backup_arena;
   DBUG_ENTER("sp_head::execute_function");
   DBUG_PRINT("info", ("function %s", m_name.str));
@@ -2542,7 +2542,7 @@ sp_head::restore_thd_mem_root(THD *thd)
   DBUG_ENTER("sp_head::restore_thd_mem_root");
   Item *flist= free_list;       // The old list
   set_query_arena(thd);         // Get new free_list and mem_root
-  state= INITIALIZED_FOR_SP;
+  state= STMT_INITIALIZED_FOR_SP;
 
   DBUG_PRINT("info", ("mem_root 0x%lx returned from thd mem root 0x%lx",
                       (ulong) &mem_root, (ulong) &thd->mem_root));
@@ -2569,7 +2569,7 @@ sp_head::restore_thd_mem_root(THD *thd)
 bool check_show_routine_access(THD *thd, sp_head *sp, bool *full_access)
 {
   TABLE_LIST tables;
-  bzero((char*) &tables,sizeof(tables));
+  memset(&tables, 0, sizeof(tables));
   tables.db= (char*) "mysql";
   tables.table_name= tables.alias= (char*) "proc";
   *full_access= (!check_table_access(thd, SELECT_ACL, &tables, FALSE,
@@ -3007,7 +3007,7 @@ sp_lex_keeper::reset_lex_and_exec_core(THD *thd, uint *nextp,
       (thd->stmt_da->sql_errno() != ER_CANT_REOPEN_TABLE &&
        thd->stmt_da->sql_errno() != ER_NO_SUCH_TABLE &&
        thd->stmt_da->sql_errno() != ER_UPDATE_TABLE_USED))
-    thd->stmt_arena->state= Query_arena::EXECUTED;
+    thd->stmt_arena->state= Query_arena::STMT_EXECUTED;
 
   /*
     Merge here with the saved parent's values

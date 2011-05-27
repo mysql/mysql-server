@@ -127,7 +127,7 @@ int my_security_attr_create(SECURITY_ATTRIBUTES **psa, const char **perror,
     *perror= "Failed to allocate memory for SECURITY_ATTRIBUTES";
     goto error;
   }
-  bzero(owner_token, owner_token_length);
+  memset(owner_token, 0, owner_token_length);
   if (! GetTokenInformation(htoken, TokenUser, owner_token,
                             owner_token_length, &owner_token_length))
   {

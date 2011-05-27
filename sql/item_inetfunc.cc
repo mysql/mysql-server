@@ -358,7 +358,7 @@ static bool str_to_ipv6(const char *str, int str_length, in6_addr *ipv6_address)
     return false;
   }
 
-  bzero(ipv6_address, IN6_ADDR_SIZE);
+  memset(ipv6_address, 0, IN6_ADDR_SIZE);
 
   const char *p= str;
 

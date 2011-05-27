@@ -176,6 +176,89 @@ TEST_F(ItemTest, ItemFuncDesDecrypt)
 }
 
 
+TEST_F(ItemTest, ItemFuncExportSet)
+{
+  String str;
+  Item *on_string= new Item_string(STRING_WITH_LEN("on"), &my_charset_bin);
+  Item *off_string= new Item_string(STRING_WITH_LEN("off"), &my_charset_bin);
+  Item *sep_string= new Item_string(STRING_WITH_LEN(","), &my_charset_bin);
+  {
+    // Testing basic functionality.
+    Item_func_export_set *export_set=
+      new Item_func_export_set(new Item_int(2),
+                               on_string,
+                               off_string,
+                               sep_string,
+                               new Item_int(4));
+    EXPECT_FALSE(export_set->fix_fields(thd(), NULL));
+    EXPECT_EQ(&str, export_set->val_str(&str));
+    EXPECT_STREQ("off,on,off,off", str.c_ptr_safe());
+  }
+  {
+    // Testing corner case: number_of_bits == zero.
+    Item_func_export_set *export_set=
+      new Item_func_export_set(new Item_int(2),
+                               on_string,
+                               off_string,
+                               sep_string,
+                               new Item_int(0));
+    EXPECT_FALSE(export_set->fix_fields(thd(), NULL));
+    EXPECT_EQ(&str, export_set->val_str(&str));
+    EXPECT_STREQ("", str.c_ptr_safe());
+  }
+
+  /*
+    Bug#11765562 58545:
+    EXPORT_SET() CAN BE USED TO MAKE ENTIRE SERVER COMPLETELY UNRESPONSIVE
+   */
+  const ulong max_size= 1024;
+  const ulonglong repeat= max_size / 2;
+  Item *item_int_repeat= new Item_int(repeat);
+  Item *string_x= new Item_string(STRING_WITH_LEN("x"), &my_charset_bin);
+  String * const null_string= NULL;
+  thd()->variables.max_allowed_packet= max_size;
+  {
+    // Testing overflow caused by 'on-string'.
+    Mock_error_handler error_handler(thd(), ER_WARN_ALLOWED_PACKET_OVERFLOWED);
+    Item_func_export_set *export_set=
+      new Item_func_export_set(new Item_int(0xff),
+                               new Item_func_repeat(string_x, item_int_repeat),
+                               string_x,
+                               sep_string);
+    EXPECT_FALSE(export_set->fix_fields(thd(), NULL));
+    EXPECT_EQ(null_string, export_set->val_str(&str));
+    EXPECT_STREQ("", str.c_ptr_safe());
+    EXPECT_EQ(1, error_handler.handle_called());
+  }
+  {
+    // Testing overflow caused by 'off-string'.
+    Mock_error_handler error_handler(thd(), ER_WARN_ALLOWED_PACKET_OVERFLOWED);
+    Item_func_export_set *export_set=
+      new Item_func_export_set(new Item_int(0xff),
+                               string_x,
+                               new Item_func_repeat(string_x, item_int_repeat),
+                               sep_string);
+    EXPECT_FALSE(export_set->fix_fields(thd(), NULL));
+    EXPECT_EQ(null_string, export_set->val_str(&str));
+    EXPECT_STREQ("", str.c_ptr_safe());
+    EXPECT_EQ(1, error_handler.handle_called());
+  }
+  {
+    // Testing overflow caused by 'separator-string'.
+    Mock_error_handler error_handler(thd(), ER_WARN_ALLOWED_PACKET_OVERFLOWED);
+    Item_func_export_set *export_set=
+      new Item_func_export_set(new Item_int(0xff),
+                               string_x,
+                               string_x,
+                               new Item_func_repeat(string_x, item_int_repeat));
+    EXPECT_FALSE(export_set->fix_fields(thd(), NULL));
+    EXPECT_EQ(null_string, export_set->val_str(&str));
+    EXPECT_STREQ("", str.c_ptr_safe());
+    EXPECT_EQ(1, error_handler.handle_called());
+  }
+}
+
+
 TEST_F(ItemTest, ItemFuncIntDivOverflow)
 {
   const char dividend_str[]=

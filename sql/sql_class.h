@@ -665,14 +665,14 @@ public:
   /*
     The states relfects three diffrent life cycles for three
     different types of statements:
-    Prepared statement: INITIALIZED -> PREPARED -> EXECUTED.
-    Stored procedure:   INITIALIZED_FOR_SP -> EXECUTED.
-    Other statements:   CONVENTIONAL_EXECUTION never changes.
+    Prepared statement: STMT_INITIALIZED -> STMT_PREPARED -> STMT_EXECUTED.
+    Stored procedure:   STMT_INITIALIZED_FOR_SP -> STMT_EXECUTED.
+    Other statements:   STMT_CONVENTIONAL_EXECUTION never changes.
   */
   enum enum_state
   {
-    INITIALIZED= 0, INITIALIZED_FOR_SP= 1, PREPARED= 2,
-    CONVENTIONAL_EXECUTION= 3, EXECUTED= 4, ERROR= -1
+    STMT_INITIALIZED= 0, STMT_INITIALIZED_FOR_SP= 1, STMT_PREPARED= 2,
+    STMT_CONVENTIONAL_EXECUTION= 3, STMT_EXECUTED= 4, STMT_ERROR= -1
   };
 
   enum_state state;
@@ -695,20 +695,20 @@ public:
   virtual Type type() const;
   virtual ~Query_arena() {};
 
-  inline bool is_stmt_prepare() const { return state == INITIALIZED; }
+  inline bool is_stmt_prepare() const { return state == STMT_INITIALIZED; }
   inline bool is_stmt_prepare_or_first_sp_execute() const
-  { return (int)state < (int)PREPARED; }
+  { return (int)state < (int)STMT_PREPARED; }
   inline bool is_stmt_prepare_or_first_stmt_execute() const
-  { return (int)state <= (int)PREPARED; }
+  { return (int)state <= (int)STMT_PREPARED; }
   inline bool is_conventional() const
-  { return state == CONVENTIONAL_EXECUTION; }
+  { return state == STMT_CONVENTIONAL_EXECUTION; }
 
   inline void* alloc(size_t size) { return alloc_root(mem_root,size); }
   inline void* calloc(size_t size)
   {
     void *ptr;
     if ((ptr=alloc_root(mem_root,size)))
-      bzero(ptr, size);
+      memset(ptr, 0, size);
     return ptr;
   }
   inline char *strdup(const char *str)
@@ -1976,7 +1976,7 @@ public:
     }
     st_transactions()
     {
-      bzero((char*)this, sizeof(*this));
+      memset(this, 0, sizeof(*this));
       xid_state.xid.null();
       init_sql_alloc(&mem_root, ALLOC_ROOT_MIN_BLOCK_SIZE, 0);
     }
@@ -2521,6 +2521,7 @@ public:
   void cleanup(void);
   void cleanup_after_query();
   bool store_globals();
+  bool restore_globals();
 #ifdef SIGNAL_WITH_VIO_CLOSE
   inline void set_active_vio(Vio* vio)
   {
