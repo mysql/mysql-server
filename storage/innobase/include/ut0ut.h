@@ -98,16 +98,6 @@ do {								\
 #define UT_MIN(a, b)	((a) < (b) ? (a) : (b))
 #define UT_MAX(a, b)	((a) > (b) ? (a) : (b))
 
-/********************************************************//**
-Gets the high 32 bits in a ulint. That is makes a shift >> 32,
-but since there seem to be compiler bugs in both gcc and Visual C++,
-we do this by a special conversion.
-@return	a >> 32 */
-UNIV_INTERN
-ulint
-ut_get_high32(
-/*==========*/
-	ulint	a);	/*!< in: ulint */
 /******************************************************//**
 Calculates the minimum of two ulints.
 @return	minimum */
