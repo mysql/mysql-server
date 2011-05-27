@@ -343,7 +343,7 @@ void thd_new_connection_setup(THD *thd, char *stack_start)
   threads.append(thd);
   thd_unlock_thread_count(thd);
   DBUG_PRINT("info", ("init new connection. thd: 0x%lx fd: %d",
-          (ulong)thd, thd->net.vio->sd));
+          (ulong)thd, mysql_socket_getfd(thd->net.vio->mysql_socket)));
   thd_set_thread_stack(thd, stack_start);
 }
 
@@ -421,7 +421,7 @@ void thd_set_mysys_var(THD *thd, st_my_thread_var *mysys_var)
 */
 my_socket thd_get_fd(THD *thd)
 {
-  return thd->net.vio->sd;
+  return mysql_socket_getfd(thd->net.vio->mysql_socket);
 }
 
 /**
