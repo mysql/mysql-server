@@ -8527,14 +8527,14 @@ static ulong parse_client_handshake_packet(MPVIO_EXT *mpvio,
   DBUG_PRINT("info", ("client capabilities: %lu", mpvio->client_capabilities));
   if (mpvio->client_capabilities & CLIENT_SSL)
   {
-    char error_string[1024] __attribute__((unused));
+    unsigned long errptr;
 
     /* Do the SSL layering. */
     if (!ssl_acceptor_fd)
       return packet_error;
 
     DBUG_PRINT("info", ("IO layer change in progress..."));
-    if (sslaccept(ssl_acceptor_fd, net->vio, net->read_timeout))
+    if (sslaccept(ssl_acceptor_fd, net->vio, net->read_timeout, &errptr))
     {
       DBUG_PRINT("error", ("Failed to accept new SSL connection"));
       return packet_error;

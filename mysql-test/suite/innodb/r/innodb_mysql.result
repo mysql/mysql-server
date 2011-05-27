@@ -2663,7 +2663,6 @@ COUNT(*)
 1537
 SET SESSION sort_buffer_size = DEFAULT;
 DROP TABLE t1;
-End of 5.1 tests
 #
 # Test for bug #39932 "create table fails if column for FK is in different
 #                      case than in corr index".
@@ -2684,6 +2683,23 @@ t2	CREATE TABLE `t2` (
   CONSTRAINT `x` FOREIGN KEY (`fk`) REFERENCES `t1` (`pk`)
 ) ENGINE=InnoDB DEFAULT CHARSET=latin1
 drop table t2, t1;
+#
+# Test for bug #11762012 - "54553: INNODB ASSERTS IN HA_INNOBASE::
+#                           UPDATE_ROW, TEMPORARY TABLE, TABLE LOCK".
+#
+DROP TABLE IF EXISTS t1;
+CREATE TEMPORARY TABLE t1 (c int) ENGINE = InnoDB;
+INSERT INTO t1 VALUES (1);
+LOCK TABLES t1 READ;
+# Even though temporary table was locked for READ we
+# still allow writes to it to be compatible with MyISAM.
+# This is possible since due to fact that temporary tables
+# are specific to connection and therefore locking for them
+# is irrelevant.
+UPDATE t1 SET c = 5;
+UNLOCK TABLES;
+DROP TEMPORARY TABLE t1;
+End of 5.1 tests
 #
 # Bug#44613 SELECT statement inside FUNCTION takes a shared lock
 #
