@@ -135,17 +135,17 @@ struct st_VioSSLFd
   SSL_CTX *ssl_context;
 };
 
-int sslaccept(struct st_VioSSLFd*, Vio *, long timeout);
-int sslconnect(struct st_VioSSLFd*, Vio *, long timeout);
+int sslaccept(struct st_VioSSLFd*, Vio *, long timeout, unsigned long *errptr);
+int sslconnect(struct st_VioSSLFd*, Vio *, long timeout, unsigned long *errptr);
 
 struct st_VioSSLFd
 *new_VioSSLConnectorFd(const char *key_file, const char *cert_file,
-         const char *ca_file,  const char *ca_path,
-         const char *cipher);
+		       const char *ca_file,  const char *ca_path,
+		       const char *cipher, enum enum_ssl_init_error* error);
 struct st_VioSSLFd
 *new_VioSSLAcceptorFd(const char *key_file, const char *cert_file,
-        const char *ca_file,const char *ca_path,
-        const char *cipher, enum enum_ssl_init_error* error);
+		      const char *ca_file,const char *ca_path,
+		      const char *cipher, enum enum_ssl_init_error* error);
 void free_vio_ssl_acceptor_fd(struct st_VioSSLFd *fd);
 #endif /* ! EMBEDDED_LIBRARY */
 #endif /* HAVE_OPENSSL */
