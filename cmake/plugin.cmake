@@ -1,4 +1,4 @@
-# Copyright (C) 2009 Sun Microsystems, Inc
+# Copyright (c) 2009, 2011, Oracle and/or its affiliates. All rights reserved.
 # 
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -26,6 +26,23 @@ INCLUDE(${MYSQL_CMAKE_SCRIPT_DIR}/cmake_parse_arguments.cmake)
 # [RECOMPILE_FOR_EMBEDDED]
 # [LINK_LIBRARIES lib1...libN]
 # [DEPENDENCIES target1...targetN]
+
+# Append collections files for the plugin to the common files
+# Make sure we don't copy twice if running cmake again
+
+MACRO(PLUGIN_APPEND_COLLECTIONS plugin)
+  SET(fcopied "${CMAKE_CURRENT_SOURCE_DIR}/tests/collections/FilesCopied")
+  IF(EXISTS ${fcopied})
+    RETURN()
+  ENDIF()
+  FILE(GLOB collections ${CMAKE_CURRENT_SOURCE_DIR}/tests/collections/*)
+  FOREACH(cfile ${collections})
+    FILE(READ ${cfile} contents)
+    GET_FILENAME_COMPONENT(fname ${cfile} NAME)
+    FILE(APPEND ${CMAKE_SOURCE_DIR}/mysql-test/collections/${fname} "${contents}")
+    FILE(APPEND ${fcopied} "${fname}\n")
+  ENDFOREACH()
+ENDMACRO()
 
 MACRO(MYSQL_ADD_PLUGIN)
   MYSQL_PARSE_ARGUMENTS(ARG
@@ -180,6 +197,10 @@ MACRO(MYSQL_ADD_PLUGIN)
     # Install dynamic library
     MYSQL_INSTALL_TARGETS(${target} DESTINATION ${INSTALL_PLUGINDIR} COMPONENT Server)
     INSTALL_DEBUG_TARGET(${target} DESTINATION ${INSTALL_PLUGINDIR}/debug)
+    # For internal testing in PB2, append collections files
+    IF(DEFINED ENV{PB2WORKDIR})
+      PLUGIN_APPEND_COLLECTIONS(${plugin})
+    ENDIF()
   ELSE()
     IF(WITHOUT_${plugin})
       # Update cache variable
