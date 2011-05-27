@@ -585,6 +585,8 @@ public:
   void set_thd(THD *thd_arg) { thd= thd_arg; }
   inline bool is_union (); 
 
+  void set_unique_exlude();
+
   friend void lex_start(THD *thd);
   friend int subselect_union_engine::exec();
 

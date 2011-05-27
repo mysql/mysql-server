@@ -5851,7 +5851,9 @@ bool TABLE_LIST::init_derived(THD *thd, bool init_view)
   if (!is_view())
   {
     /* A subquery might be forced to be materialized due to a side-effect. */
-    if (!is_materialized_derived() && first_select->is_mergeable())
+    if (!is_materialized_derived() && first_select->is_mergeable() &&
+        !(thd->lex->sql_command == SQLCOM_UPDATE_MULTI ||
+          thd->lex->sql_command == SQLCOM_UPDATE))
       set_merged_derived();
     else
       set_materialized_derived();
@@ -5862,9 +5864,7 @@ bool TABLE_LIST::init_derived(THD *thd, bool init_view)
   */
   if (is_materialized_derived())
   {
-    SELECT_LEX *sl;
-    for (sl= first_select ;sl ; sl= sl->next_select())
-      sl->exclude_from_table_unique_test= TRUE;
+    unit->master_unit()->set_unique_exlude();
   }
   /*
     Create field translation for mergeable derived tables/views.

@@ -1040,8 +1040,8 @@ reopen_tables:
   //We need to merge for insert prior to prepare.
   if (mysql_handle_list_of_derived(lex, table_list, DT_MERGE_FOR_INSERT))
     DBUG_RETURN(1);
-  if  (mysql_handle_list_of_derived(lex, table_list, DT_PREPARE))
-    DBUG_RETURN(1);
+  if (mysql_handle_derived(lex, DT_PREPARE))
+    DBUG_RETURN(TRUE);
 
   if (setup_tables_and_check_access(thd, &lex->select_lex.context,
                                     &lex->select_lex.top_join_list,

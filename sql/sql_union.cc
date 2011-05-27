@@ -944,3 +944,27 @@ void st_select_lex::cleanup_all_joins(bool full)
     for (sl= unit->first_select(); sl; sl= sl->next_select())
       sl->cleanup_all_joins(full);
 }
+
+
+/**
+  Set exclude_from_table_unique_test for selects of this unit and all
+  underlying selects.
+
+  @note used to exclude materialized derived tables (views) from unique
+  table check.
+*/
+
+void st_select_lex_unit::set_unique_exlude()
+{
+  for (SELECT_LEX *sl= first_select(); sl; sl= sl->next_select())
+  {
+    sl->exclude_from_table_unique_test= TRUE;
+    for (SELECT_LEX_UNIT *unit= sl->first_inner_unit();
+         unit;
+         unit= unit->next_unit())
+    {
+      unit->set_unique_exlude();
+    }
+  }
+}
+

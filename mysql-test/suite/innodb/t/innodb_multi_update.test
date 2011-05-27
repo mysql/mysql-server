@@ -34,9 +34,7 @@ drop table bug38999_1,bug38999_2;
 --echo #
 CREATE TABLE t1(f1 INT) ENGINE=INNODB;
 INSERT INTO t1 VALUES(1);
-# !!! This query returns a wrong error due to a bug in the code of mwl106
-# !!! Uncomment it when the bug is fixed
-# --error ER_OPERAND_COLUMNS
-# UPDATE (SELECT ((SELECT 1 FROM t1), 1) FROM t1 WHERE (SELECT 1 FROM t1)) x, (SELECT 1) AS d SET d.f1 = 1;
+--error ER_OPERAND_COLUMNS
+UPDATE (SELECT ((SELECT 1 FROM t1), 1) FROM t1 WHERE (SELECT 1 FROM t1)) x, (SELECT 1) AS d SET d.f1 = 1;
 DROP TABLE t1;
 
