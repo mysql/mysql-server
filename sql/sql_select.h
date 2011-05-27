@@ -1888,7 +1888,8 @@ public:
   bool union_part; ///< this subselect is part of union 
   bool optimized; ///< flag to avoid double optimization in EXPLAIN
   
-  Array<Item_exists_subselect> sj_subselects;
+  // true: No need to run DTORs on pointers.
+  Mem_root_array<Item_exists_subselect*, true> sj_subselects;
 
   /* Temporary tables used to weed-out semi-join duplicates */
   List<TABLE> sj_tmp_tables;
@@ -1913,7 +1914,7 @@ public:
        select_result *result_arg)
     : keyuse(thd_arg->mem_root),
       fields_list(fields_arg),
-      sj_subselects(thd_arg->mem_root, 4)
+      sj_subselects(thd_arg->mem_root)
   {
     init(thd_arg, fields_arg, select_options_arg, result_arg);
   }

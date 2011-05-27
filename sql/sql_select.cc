@@ -978,7 +978,7 @@ bool resolve_subquery(THD *thd, JOIN *join)
 
     /* Register the subquery for further processing in flatten_subqueries() */
     select_lex->outer_select()->join->
-      sj_subselects.append(thd->mem_root, in_exists_predicate);
+      sj_subselects.push_back(in_exists_predicate);
   }
   else
   {
@@ -1904,6 +1904,11 @@ JOIN::optimize()
       thd->restore_active_arena(arena, &backup);
   }
 
+  /*
+    Note: optimize_cond() makes changes to conds. Since
+    select_lex->where and conds points to the same condition, this
+    function call effectively changes select_lex->where as well.
+  */
   conds= optimize_cond(this, conds, join_list, TRUE, &select_lex->cond_value);
   if (thd->is_error())
   {
@@ -1913,6 +1918,7 @@ JOIN::optimize()
   }
 
   {
+    // Note above about optimize_cond() also applies to selec_lex->having
     having= optimize_cond(this, having, join_list, FALSE,
                           &select_lex->having_value);
     if (thd->is_error())
@@ -4170,11 +4176,11 @@ bool JOIN::flatten_subqueries()
   Item_exists_subselect **subq_end;
   DBUG_ENTER("JOIN::flatten_subqueries");
 
-  if (sj_subselects.elements() == 0)
+  if (sj_subselects.empty())
     DBUG_RETURN(FALSE);
 
   /* First, convert child join's subqueries. We proceed bottom-up here */
-  for (subq= sj_subselects.front(), subq_end= sj_subselects.back(); 
+  for (subq= sj_subselects.begin(), subq_end= sj_subselects.end(); 
        subq != subq_end;
        subq++)
   {
@@ -4207,7 +4213,7 @@ bool JOIN::flatten_subqueries()
   {
     if (tbl->on_expr || tbl->in_outer_join_nest())
     {
-      subq= sj_subselects.front();
+      subq= sj_subselects.begin();
       arena= thd->activate_stmt_arena_if_needed(&backup);
       goto skip_conversion;
     }
@@ -4220,11 +4226,14 @@ bool JOIN::flatten_subqueries()
       - prefer correlated subqueries over uncorrelated;
       - prefer subqueries that have greater number of outer tables;
   */
-  sj_subselects.sort(subq_sj_candidate_cmp);
+  my_qsort(sj_subselects.begin(),
+           sj_subselects.size(), sj_subselects.element_size(),
+           reinterpret_cast<qsort_cmp>(subq_sj_candidate_cmp));
+
   // #tables-in-parent-query + #tables-in-subquery < MAX_TABLES
   /* Replace all subqueries to be flattened with Item_int(1) */
   arena= thd->activate_stmt_arena_if_needed(&backup);
-  for (subq= sj_subselects.front(); 
+  for (subq= sj_subselects.begin(); 
        subq != subq_end && 
        tables + (*subq)->unit->first_select()->join->tables < MAX_TABLES;
        subq++)
@@ -4235,7 +4244,7 @@ bool JOIN::flatten_subqueries()
       DBUG_RETURN(TRUE); /* purecov: inspected */
   }
  
-  for (subq= sj_subselects.front(); 
+  for (subq= sj_subselects.begin(); 
        subq != subq_end && 
        tables + (*subq)->unit->first_select()->join->tables < MAX_TABLES;
        subq++)
@@ -14708,7 +14717,8 @@ optimize_cond(JOIN *join, Item *conds, List<TABLE_LIST> *join_list,
   SYNPOSIS
     remove_eq_conds()
     thd 			THD environment
-    cond                        the condition to handle
+    cond                        the condition to handle. Note that cond
+                                is changed by this function
     cond_value                  the resulting value of the condition
 
   RETURN
@@ -14770,9 +14780,34 @@ internal_remove_eq_conds(THD *thd, Item *cond, Item::cond_result *cond_value)
 	*cond_value != Item::COND_OK)
       return (Item*) 0;
     if (((Item_cond*) cond)->argument_list()->elements == 1)
-    {						// Remove list
+    {
+      /*
+        BUG#11765699:
+        We're dealing with an AND or OR item that has only one
+        argument. However, it is not an option to empty the list
+        because:
+
+         - this function is called for either JOIN::conds or
+           JOIN::having, but these point to the same condition as
+           SELECT_LEX::where and SELECT_LEX::having do.
+
+         - The return value of remove_eq_conds() is assigned to
+           JOIN::conds and JOIN::having, so emptying the list and
+           returning the only remaining item "replaces" the AND or OR
+           with item for the variables in JOIN. However, the return
+           value is not assigned to the SELECT_LEX counterparts. Thus,
+           if argument_list is emptied, SELECT_LEX forgets the item in
+           argument_list()->head().
+
+        item is therefore returned, but argument_list is not emptied.
+      */
       item= ((Item_cond*) cond)->argument_list()->head();
-      ((Item_cond*) cond)->argument_list()->empty();
+      /*
+        Consider reenabling the line below when the optimizer has been
+        split into properly separated phases.
+ 
+        ((Item_cond*) cond)->argument_list()->empty();
+      */
       return item;
     }
   }
