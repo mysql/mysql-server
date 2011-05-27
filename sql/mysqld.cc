@@ -2070,6 +2070,12 @@ void unlink_thd(THD *thd)
   thd_cleanup(thd);
   dec_connection_count();
   mysql_mutex_lock(&LOCK_thread_count);
+  /*
+    Used by binlog_reset_master.  It would be cleaner to use
+    DEBUG_SYNC here, but that's not possible because the THD's debug
+    sync feature has been shut down at this point.
+  */
+  DBUG_EXECUTE_IF("sleep_after_lock_thread_count_before_delete_thd", sleep(5););
   delete_thd(thd);
   DBUG_VOID_RETURN;
 }
