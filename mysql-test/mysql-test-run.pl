@@ -263,7 +263,6 @@ my $opt_shutdown_timeout= $ENV{MTR_SHUTDOWN_TIMEOUT} ||  10; # seconds
 my $opt_start_timeout   = $ENV{MTR_START_TIMEOUT}    || 180; # seconds
 
 sub suite_timeout { return $opt_suite_timeout * 60; };
-sub check_timeout { return $opt_testcase_timeout * 6; };
 
 my $opt_wait_all;
 my $opt_user_args;
@@ -298,6 +297,8 @@ sub testcase_timeout ($) {
   }
   return $opt_testcase_timeout * 60;
 }
+
+sub check_timeout ($) { return testcase_timeout($_[0]) / 10; }
 
 our $opt_warnings= 1;
 
@@ -657,6 +658,8 @@ sub run_test_server ($$$) {
 			     mtr_report(" - deleting it, already saved",
 					"$opt_max_save_core");
 			     unlink("$core_file");
+			   } else {
+			     mtr_compress_file($core_file) unless @opt_cases;
 			   }
 			   ++$num_saved_cores;
 			 }
@@ -3413,7 +3416,7 @@ sub check_testcase($$)
   # Return immediately if no check proceess was started
   return 0 unless ( keys %started );
 
-  my $timeout= start_timer(check_timeout());
+  my $timeout= start_timer(check_timeout($tinfo));
 
   while (1){
     my $result;
@@ -3485,7 +3488,7 @@ test case was executed:\n";
     }
     elsif ( $proc->{timeout} ) {
       $tinfo->{comment}.= "Timeout for 'check-testcase' expired after "
-	.check_timeout()." seconds";
+	.check_timeout($tinfo)." seconds";
       $result= 4;
     }
     else {
@@ -3575,7 +3578,7 @@ sub run_on_all($$)
   # Return immediately if no check proceess was started
   return 0 unless ( keys %started );
 
-  my $timeout= start_timer(check_timeout());
+  my $timeout= start_timer(check_timeout($tinfo));
 
   while (1){
     my $result;
@@ -3606,7 +3609,7 @@ sub run_on_all($$)
     }
     elsif ($proc->{timeout}) {
       $tinfo->{comment}.= "Timeout for '$run' expired after "
-	.check_timeout()." seconds";
+	.check_timeout($tinfo)." seconds";
     }
     else {
       # Unknown process returned, most likley a crash, abort everything
@@ -4331,7 +4334,7 @@ sub check_warnings ($) {
   # Return immediately if no check proceess was started
   return 0 unless ( keys %started );
 
-  my $timeout= start_timer(check_timeout());
+  my $timeout= start_timer(check_timeout($tinfo));
 
   while (1){
     my $result= 0;
@@ -4383,7 +4386,7 @@ sub check_warnings ($) {
     }
     elsif ( $proc->{timeout} ) {
       $tinfo->{comment}.= "Timeout for 'check warnings' expired after "
-	.check_timeout()." seconds";
+	.check_timeout($tinfo)." seconds";
       $result= 4;
     }
     else {
