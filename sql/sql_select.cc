@@ -18520,8 +18520,9 @@ join_materialize_table(JOIN_TAB *tab)
               !derived->materialized);
   bool res= mysql_handle_single_derived(tab->table->in_use->lex,
                                         derived, &mysql_derived_materialize);
-  mysql_handle_single_derived(tab->table->in_use->lex,
-                              derived, &mysql_derived_cleanup);
+  if (!tab->table->in_use->lex->describe)
+    mysql_handle_single_derived(tab->table->in_use->lex,
+                                derived, &mysql_derived_cleanup);
   return res ? NESTED_LOOP_ERROR : NESTED_LOOP_OK;
 }
 
