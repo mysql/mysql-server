@@ -693,3 +693,23 @@ DROP VIEW v1,v2,v3,v4,v6,v7;
 
 --echo #
 
+--echo #
+--echo # Bug#11791649 - ASSERT: FIXED == 0, IN ITEM.CC ON EXPLAIN WITH VIEW
+--echo #                IN SUBQUERY 
+--echo #
+CREATE TABLE t1 (pk int);
+INSERT INTO t1 VALUES (1);
+
+CREATE TABLE t2 (col_varchar_nokey varchar(1));
+INSERT INTO t2 VALUES ('m'), ('f');
+
+EXPLAIN SELECT pk
+FROM t1
+WHERE (2) IN
+  ( SELECT *
+     FROM (SELECT COUNT(col_varchar_nokey) FROM t2) d
+  )
+; 
+DROP TABLE t1,t2;
+--echo #
+
