@@ -4047,6 +4047,32 @@ static void end_ssl()
 
 #endif /* EMBEDDED_LIBRARY */
 
+#ifdef _WIN32
+/**
+  Registers a file to be collected when Windows Error Reporting creates a crash 
+  report.
+
+  @note only works on Vista and later, since WerRegisterFile() is not available
+  on earlier Windows.
+*/
+#include <werapi.h>
+static void add_file_to_crash_report(char *file)
+{
+  /* Load WerRegisterFile function dynamically.*/
+  HRESULT (WINAPI *pWerRegisterFile)(PCWSTR, WER_REGISTER_FILE_TYPE, DWORD)
+    =(HRESULT (WINAPI *) (PCWSTR, WER_REGISTER_FILE_TYPE, DWORD))
+    GetProcAddress(GetModuleHandle("kernel32"),"WerRegisterFile");
+
+  if (pWerRegisterFile)
+  {
+    wchar_t wfile[MAX_PATH+1]= {0};
+    if (mbstowcs(wfile, file, MAX_PATH) != (size_t)-1)
+    {
+      pWerRegisterFile(wfile, WerRegFileTypeOther, WER_FILE_ANONYMOUS_DATA);
+    }
+  }
+}
+#endif
 
 static int init_server_components()
 {
@@ -4099,6 +4125,11 @@ static int init_server_components()
 
       if (!res)
         setbuf(stderr, NULL);
+
+#ifdef _WIN32
+      /* Add error log to windows crash reporting. */
+      add_file_to_crash_report(log_error_file);
+#endif
     }
   }
 
@@ -9011,7 +9042,7 @@ mysqld_get_one_option(int optid,
   }
   case OPT_EVENT_SCHEDULER:
 #ifndef HAVE_EVENT_SCHEDULER
-    sql_perror("Event scheduler is not supported in embedded build.");
+    sql_print_error("Event scheduler is not supported in embedded build.");
 #else
     if (Events::set_opt_event_scheduler(argument))
       return 1;
