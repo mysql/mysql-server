@@ -785,7 +785,6 @@ inject_jtbm_conds(JOIN *join, List<TABLE_LIST> *join_list, Item **join_where)
       double rows;
       double read_time;
 
-      // psergey-merge: disable IN->EXISTS for JTBM subqueries, for now.
       subq_pred->in_strategy &= ~SUBS_IN_TO_EXISTS;
       subq_pred->optimize(&rows, &read_time);
 
@@ -908,7 +907,6 @@ JOIN::optimize()
       thd->restore_active_arena(arena, &backup);
   }
   
-  //psergey-merge
   inject_jtbm_conds(this, join_list, &conds);
 
   conds= optimize_cond(this, conds, join_list, &cond_value, &cond_equal);   

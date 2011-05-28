@@ -890,8 +890,6 @@ void get_delayed_table_estimates(TABLE *table,
 {
   Item_in_subselect *item= table->pos_in_table_list->jtbm_subselect;
 
-  //psergey-merge: moving off here: item->optimize(&rows, &read_time);
-
   DBUG_ASSERT(item->engine->engine_type() ==
               subselect_engine::HASH_SJ_ENGINE);
 
@@ -1322,24 +1320,15 @@ static bool convert_subq_to_jtbm(JOIN *parent_join,
   TABLE_LIST *tl;
   DBUG_ENTER("convert_subq_to_jtbm");
 
-  //if (subq_pred->setup_engine(TRUE))
-  //  DBUG_RETURN(TRUE);
   double rows;
   double read_time;
 
-  // psergey-merge: disable IN->EXISTS for JTBM subqueries, for now.
   subq_pred->in_strategy &= ~SUBS_IN_TO_EXISTS;
   subq_pred->optimize(&rows, &read_time);
 
   subq_pred->jtbm_read_time= read_time;
   subq_pred->jtbm_record_count=rows;
   subq_pred->is_jtbm_merged= TRUE;
-
-  //psergey-merge: The following is called inside optimize() call:
-#if 0
-  if (subq_pred->setup_mat_engine())
-    DBUG_RETURN(TRUE);
-#endif
 
   if (subq_pred->engine->engine_type() != subselect_engine::HASH_SJ_ENGINE)
   {

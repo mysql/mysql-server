@@ -7816,28 +7816,6 @@ bool setup_tables(THD *thd, Name_resolution_context *context,
         DBUG_RETURN(1);
       }
       DBUG_ASSERT(item == table_list->jtbm_subselect->optimizer);
-  /*    
-      {
-        Item_in_subselect *subq_pred= table_list->jtbm_subselect;
-        double rows;
-        double read_time;
-
-        // psergey-merge: disable IN->EXISTS for JTBM subqueries, for now.
-        subq_pred->in_strategy &= ~SUBS_IN_TO_EXISTS;
-        subq_pred->optimize(&rows, &read_time);
-
-        subq_pred->jtbm_read_time= read_time;
-        subq_pred->jtbm_record_count=rows;
-        subq_pred->is_jtbm_merged= TRUE;
-      }
-      // The following call should never ever be made on its own anymore:
-      if (table_list->jtbm_subselect->setup_mat_engine()) // dont_switch_arena=FALSE 
-        DBUG_RETURN(1);
-  */
-      //psergey-merge: fix prepared statements:
-      //subselect_hash_sj_engine *mat_engine= 
-      //  (subselect_hash_sj_engine*)table_list->jtbm_subselect->engine;
-      //table= table_list->table= mat_engine->tmp_table;
     }
   }
 
