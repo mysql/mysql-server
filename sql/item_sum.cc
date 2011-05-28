@@ -674,7 +674,8 @@ void Item_sum_hybrid::setup_hybrid(Item *item, Item *value_arg)
   /* Don't cache value, as it will change */
   if (!item->const_item())
     arg_cache->set_used_tables(RAND_TABLE_BIT);
-  if (cmp= new Arg_comparator())
+  cmp= new Arg_comparator();
+  if (cmp)
     cmp->set_cmp_func(this, (Item**)&arg_cache, (Item**)&value, FALSE);
   collation.set(item->collation);
 }
