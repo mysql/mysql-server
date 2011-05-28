@@ -1794,6 +1794,12 @@ enum_nested_loop_state JOIN_CACHE_BNL::join_matching_records(bool skip_last)
     tab->table->status= 0;
   }
 
+  /* Materialize table prior reading it */
+  if (join_tab->materialize_table &&
+      !join_tab->table->pos_in_table_list->materialized &&
+      (error= (*join_tab->materialize_table)(join_tab)))
+    goto finish;
+
   /* Start retrieving all records of the joined table */
   if ((error= (*join_tab->read_first_record)(join_tab)))
   {
@@ -2297,6 +2303,12 @@ enum_nested_loop_state JOIN_CACHE_BKA::join_matching_records(bool skip_last)
   if (!records)
     return NESTED_LOOP_OK;  
                    
+  /* Materialize table prior reading it */
+  if (join_tab->materialize_table &&
+      !join_tab->table->pos_in_table_list->materialized &&
+      (error= (*join_tab->materialize_table)(join_tab)))
+    goto finish;
+
   rc= init_join_matching_records(&seq_funcs, records);
   if (rc != NESTED_LOOP_OK)
     goto finish;

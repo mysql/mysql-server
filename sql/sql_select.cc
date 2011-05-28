@@ -11414,10 +11414,7 @@ make_join_readinfo(JOIN *join, ulonglong options, uint no_jbuf_after)
     // Materialize derived tables prior to accessing them.
     if (tab->table->pos_in_table_list->uses_materialization() &&
         !tab->table->pos_in_table_list->materialized)
-    {
-      tab->save_read_first_record= tab->read_first_record;
-      tab->read_first_record= join_materialize_table;
-    }
+      tab->materialize_table= join_materialize_table;
   }
   join->join_tab[join->tables-1].next_select=0; /* Set by do_select */
 
@@ -17551,7 +17548,7 @@ sub_select(JOIN *join,JOIN_TAB *join_tab,bool end_of_records)
       (*join_tab->next_select)(join,join_tab+1,end_of_records);
     DBUG_RETURN(nls);
   }
-  int error;
+  int error= 0;
   enum_nested_loop_state rc;
   READ_RECORD *info= &join_tab->read_record;
 
@@ -17575,7 +17572,13 @@ sub_select(JOIN *join,JOIN_TAB *join_tab,bool end_of_records)
   }
   join->thd->warning_info->reset_current_row_for_warning();
 
-  error= (*join_tab->read_first_record)(join_tab);
+  /* Materialize table prior reading it */
+  if (join_tab->materialize_table &&
+      !join_tab->table->pos_in_table_list->materialized)
+    error= (*join_tab->materialize_table)(join_tab);
+
+  if (!error)
+    error= (*join_tab->read_first_record)(join_tab);
 
   if (join_tab->keep_current_rowid)
     join_tab->table->file->position(join_tab->table->record[0]);
@@ -18515,11 +18518,7 @@ join_materialize_table(JOIN_TAB *tab)
                                         derived, &mysql_derived_materialize);
   mysql_handle_single_derived(tab->table->in_use->lex,
                               derived, &mysql_derived_cleanup);
-  if (res)
-    return -1;
-  tab->read_first_record= tab->save_read_first_record;
-  tab->save_read_first_record= NULL;
-  return (*tab->read_first_record)(tab);
+  return res ? NESTED_LOOP_ERROR : NESTED_LOOP_OK;
 }
 
 
