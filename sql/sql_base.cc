@@ -7774,10 +7774,12 @@ bool setup_tables(THD *thd, Name_resolution_context *context,
       table_list->jtbm_table_no= tablenr;
     }
     else
+    {
       setup_table_map(table, table_list, tablenr);
 
-    if (table_list->process_index_hints(table))
-      DBUG_RETURN(1);
+      if (table_list->process_index_hints(table))
+        DBUG_RETURN(1);
+    }
   }
   if (tablenr > MAX_TABLES)
   {

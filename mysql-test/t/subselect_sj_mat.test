@@ -5,6 +5,8 @@
 
 --disable_warnings
 drop table if exists t1, t2, t3, t1i, t2i, t3i;
+drop table if exists columns;
+drop table if exists t1_16, t2_16, t3_16;
 drop view if exists v1, v2, v1m, v2m;
 --enable_warnings
 

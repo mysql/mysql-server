@@ -7928,7 +7928,9 @@ make_join_select(JOIN *join,SQL_SELECT *select,COND *cond)
 
 	sel->head=tab->table;
         DBUG_EXECUTE("where",
-                     print_where(tmp,tab->table->alias.c_ptr(),
+                     print_where(tmp, 
+                                 tab->table ? tab->table->alias.c_ptr() :
+                                   "(sjm-nest)",
                                  QT_ORDINARY););
 	if (tab->quick)
 	{
