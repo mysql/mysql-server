@@ -133,6 +133,42 @@ c1	c2	c3	c4
 
 DROP TABLE t1;
 #
+# BUG#43618: MyISAM&Maria returns wrong results with 'between' 
+#            on timestamp
+#
+CREATE TABLE t1(
+ts TIMESTAMP NOT NULL, 
+c char NULL,
+PRIMARY KEY(ts)
+);
+INSERT INTO t1 VALUES
+('1971-01-01','a'),
+('2007-05-25','b'),
+('2008-01-01','c'),
+('2038-01-09','d');
+
+# Execute select with invalid timestamp, desc ordering
+SELECT *
+FROM t1 
+WHERE ts BETWEEN '0000-00-00' AND '2010-00-01 00:00:00' 
+ORDER BY ts DESC
+LIMIT 2;
+ts	c
+2008-01-01 00:00:00	c
+2007-05-25 00:00:00	b
+
+# Should use index condition
+EXPLAIN
+SELECT *
+FROM t1 
+WHERE ts BETWEEN '0000-00-00' AND '2010-00-01 00:00:00' 
+ORDER BY ts DESC
+LIMIT 2;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	range	PRIMARY	PRIMARY	4	NULL	4	Using index condition
+
+DROP TABLE t1;
+#
 # BUG#49906: Assertion failed - Field_varstring::val_str in field.cc
 # (Note: Fixed by patch for LP BUG#625841)
 #
