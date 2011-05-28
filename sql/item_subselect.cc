@@ -4064,6 +4064,7 @@ bool subselect_hash_sj_engine::make_semi_join_conds()
   context->init();
   context->first_name_resolution_table=
     context->last_name_resolution_table= tmp_table_ref;
+  semi_join_conds_context= context;
   
   for (uint i= 0; i < item_in->left_expr->cols(); i++)
   {

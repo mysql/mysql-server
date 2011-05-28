@@ -1397,6 +1397,7 @@ static bool convert_subq_to_jtbm(JOIN *parent_join,
 
   jtbm->table->tablenr= parent_join->table_count;
   jtbm->table->map= table_map(1) << (parent_join->table_count);
+  jtbm->jtbm_table_no= jtbm->table->tablenr;
 
   parent_join->table_count++;
   DBUG_ASSERT(parent_join->table_count < MAX_TABLES);
@@ -1409,7 +1410,7 @@ static bool convert_subq_to_jtbm(JOIN *parent_join,
   create_subquery_temptable_name(tbl_alias, hash_sj_engine->materialize_join->
                                               select_lex->select_number);
   jtbm->alias= tbl_alias;
-
+#if 0
   /* Inject sj_on_expr into the parent's WHERE or ON */
   if (emb_tbl_nest)
   {
@@ -1426,7 +1427,7 @@ static bool convert_subq_to_jtbm(JOIN *parent_join,
     parent_join->conds->fix_fields(parent_join->thd, &parent_join->conds);
     parent_join->select_lex->where= parent_join->conds;
   }
-
+#endif
   /* Don't unlink the child subselect, as the subquery will be used. */
 
   DBUG_RETURN(FALSE);

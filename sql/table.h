@@ -1272,6 +1272,7 @@ struct TABLE_LIST
 
   /* If this is a jtbm semi-join object: corresponding subselect predicate */
   Item_in_subselect  *jtbm_subselect;
+  uint jtbm_table_no;
 
   SJ_MATERIALIZATION_INFO *sj_mat_info;
 

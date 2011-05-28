@@ -839,6 +839,8 @@ public:
     not equal to the search key in SQL terms.
   */
   Item_cond_and *semi_join_conds;
+  Name_resolution_context *semi_join_conds_context;
+
 
   subselect_hash_sj_engine(THD *thd, Item_subselect *in_predicate,
                            subselect_single_select_engine *old_engine)

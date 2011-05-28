@@ -7768,7 +7768,14 @@ bool setup_tables(THD *thd, Name_resolution_context *context,
       first_select_table= 0;
       tablenr= 0;
     }
-    setup_table_map(table, table_list, tablenr);
+
+    if (table_list->jtbm_subselect)
+    {
+      table_list->jtbm_table_no= tablenr;
+    }
+    else
+      setup_table_map(table, table_list, tablenr);
+
     if (table_list->process_index_hints(table))
       DBUG_RETURN(1);
   }
@@ -7797,17 +7804,38 @@ bool setup_tables(THD *thd, Name_resolution_context *context,
       if (res)
         DBUG_RETURN(1);
     }
+
     if (table_list->jtbm_subselect)
     {
-      Item *item= table_list->jtbm_subselect;
-      if (item->fix_fields(thd, &item))
+      Item *item= table_list->jtbm_subselect->optimizer;
+      if (table_list->jtbm_subselect->optimizer->fix_fields(thd, &item))
       {
         my_error(ER_TOO_MANY_TABLES,MYF(0),MAX_TABLES); /* psergey-todo: WHY ER_TOO_MANY_TABLES ???*/
         DBUG_RETURN(1);
       }
-      DBUG_ASSERT(item == table_list->jtbm_subselect);
+      DBUG_ASSERT(item == table_list->jtbm_subselect->optimizer);
+  /*    
+      {
+        Item_in_subselect *subq_pred= table_list->jtbm_subselect;
+        double rows;
+        double read_time;
+
+        // psergey-merge: disable IN->EXISTS for JTBM subqueries, for now.
+        subq_pred->in_strategy &= ~SUBS_IN_TO_EXISTS;
+        subq_pred->optimize(&rows, &read_time);
+
+        subq_pred->jtbm_read_time= read_time;
+        subq_pred->jtbm_record_count=rows;
+        subq_pred->is_jtbm_merged= TRUE;
+      }
+      // The following call should never ever be made on its own anymore:
       if (table_list->jtbm_subselect->setup_mat_engine()) // dont_switch_arena=FALSE 
         DBUG_RETURN(1);
+  */
+      //psergey-merge: fix prepared statements:
+      //subselect_hash_sj_engine *mat_engine= 
+      //  (subselect_hash_sj_engine*)table_list->jtbm_subselect->engine;
+      //table= table_list->table= mat_engine->tmp_table;
     }
   }
 

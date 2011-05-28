@@ -766,6 +766,57 @@ err:
 }
 
 
+void
+inject_jtbm_conds(JOIN *join, List<TABLE_LIST> *join_list, Item **join_where)
+{
+  TABLE_LIST *table;
+  NESTED_JOIN *nested_join;
+  List_iterator<TABLE_LIST> li(*join_list);
+  DBUG_ENTER("inject_jtbm_conds");
+
+  
+  while ((table= li++))
+  {
+    Item_in_subselect *item;
+    
+    if ((item= table->jtbm_subselect))
+    {
+      Item_in_subselect *subq_pred= item;
+      double rows;
+      double read_time;
+
+      // psergey-merge: disable IN->EXISTS for JTBM subqueries, for now.
+      subq_pred->in_strategy &= ~SUBS_IN_TO_EXISTS;
+      subq_pred->optimize(&rows, &read_time);
+
+      subq_pred->jtbm_read_time= read_time;
+      subq_pred->jtbm_record_count=rows;
+      subq_pred->is_jtbm_merged= TRUE;
+
+      subselect_hash_sj_engine *hash_sj_engine=
+        ((subselect_hash_sj_engine*)item->engine);
+      
+      
+      //repeat of convert_subq_to_jtbm:
+      table->table= hash_sj_engine->tmp_table;
+
+      setup_table_map(table->table, table, table->jtbm_table_no);
+
+      Item *sj_conds= hash_sj_engine->semi_join_conds;
+
+      (*join_where)= and_items(*join_where, sj_conds);
+      (*join_where)->fix_fields(join->thd, join_where);
+      //parent_join->select_lex->where= parent_join->conds;
+    }
+
+    if ((nested_join= table->nested_join))
+    {
+      inject_jtbm_conds(join, &nested_join->join_list, join_where);
+    }
+  }
+  DBUG_VOID_RETURN;
+}
+
 /**
   global select optimisation.
 
@@ -856,6 +907,9 @@ JOIN::optimize()
     if (arena)
       thd->restore_active_arena(arena, &backup);
   }
+  
+  //psergey-merge
+  inject_jtbm_conds(this, join_list, &conds);
 
   conds= optimize_cond(this, conds, join_list, &cond_value, &cond_equal);   
   if (thd->is_error())
