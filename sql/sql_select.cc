@@ -5926,7 +5926,7 @@ void JOIN::get_partial_cost_and_fanout(uint end_tab_idx,
 {
   double record_count= 1;
   double read_time= 0.0;
-  double sj_inner_fanout;
+  double sj_inner_fanout= 1.0;
   JOIN_TAB *end_tab= NULL;
   JOIN_TAB *tab;
   uint i;
