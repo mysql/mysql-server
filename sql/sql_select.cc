@@ -1853,6 +1853,7 @@ JOIN::optimize()
       zero_result_cause=  select_lex->having_value == Item::COND_FALSE ?
                            "Impossible HAVING" : "Impossible WHERE";
       tables= 0;
+      best_rowcount= 0;
       goto setup_subq_exit;
     }
   }
@@ -1898,6 +1899,7 @@ JOIN::optimize()
     */
     if ((res=opt_sum_query(select_lex->leaf_tables, all_fields, conds)))
     {
+      best_rowcount= 0;
       if (res == HA_ERR_KEY_NOT_FOUND)
       {
         DBUG_PRINT("info",("No matching min/max row"));
@@ -1921,6 +1923,7 @@ JOIN::optimize()
       DBUG_PRINT("info",("Select tables optimized away"));
       zero_result_cause= "Select tables optimized away";
       tables_list= 0;				// All tables resolved
+      best_rowcount= 1;
       const_tables= tables;
       /*
         Extract all table-independent conditions and replace the WHERE
@@ -15391,6 +15394,7 @@ void setup_tmp_table_column_bitmaps(TABLE *table, uchar *bitmaps)
   table->s->all_set= table->def_read_set;
   bitmap_set_all(&table->s->all_set);
   table->default_column_bitmaps();
+  table->s->column_bitmap_size= bitmap_buffer_size(field_count);
 }
 
 
