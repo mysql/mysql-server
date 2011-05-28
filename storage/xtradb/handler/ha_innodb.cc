@@ -4461,12 +4461,24 @@ get_innobase_type_from_mysql_type(
 	case MYSQL_TYPE_SHORT:
 	case MYSQL_TYPE_INT24:
 	case MYSQL_TYPE_DATE:
-	case MYSQL_TYPE_DATETIME:
 	case MYSQL_TYPE_YEAR:
 	case MYSQL_TYPE_NEWDATE:
+           return(DATA_INT);
+
 	case MYSQL_TYPE_TIME:
+	case MYSQL_TYPE_DATETIME:
 	case MYSQL_TYPE_TIMESTAMP:
-		return(DATA_INT);
+          /*
+            XtraDB should ideally just check field->keytype() and never
+            field->type().  The following check is here to only
+            change the new hires datetime/timestamp/time fields to
+            use DATA_FIXBINARY.  We can't convert this function to
+            just test for field->keytype() as then the check if a
+            table is compatible will fail for old tables.
+          */
+           if (field->key_type() == HA_KEYTYPE_BINARY)
+             return(DATA_FIXBINARY);
+           return(DATA_INT);
 	case MYSQL_TYPE_FLOAT:
 		return(DATA_FLOAT);
 	case MYSQL_TYPE_DOUBLE:

@@ -505,7 +505,8 @@ Field *Item_func::tmp_table_field(TABLE *table)
     field= Field_new_decimal::create_from_item(this);
     break;
   case ROW_RESULT:
-  default:
+  case TIME_RESULT:
+  case IMPOSSIBLE_RESULT:
     // This case should never be chosen
     DBUG_ASSERT(0);
     field= 0;
@@ -763,7 +764,9 @@ void Item_func_num1::find_num_type()
     break;
   case DECIMAL_RESULT:
     break;
-  default:
+  case TIME_RESULT:
+  case ROW_RESULT:
+  case IMPOSSIBLE_RESULT:
     DBUG_ASSERT(0);
   }
   DBUG_PRINT("info", ("Type: %s",
@@ -820,7 +823,9 @@ String *Item_func_numhybrid::val_str(String *str)
   }
   case STRING_RESULT:
     return str_op(&str_value);
-  default:
+  case TIME_RESULT:
+  case ROW_RESULT:
+  case IMPOSSIBLE_RESULT:
     DBUG_ASSERT(0);
   }
   return str;
@@ -855,7 +860,9 @@ double Item_func_numhybrid::val_real()
     return (res ? my_strntod(res->charset(), (char*) res->ptr(), res->length(),
 			     &end_not_used, &err_not_used) : 0.0);
   }
-  default:
+  case TIME_RESULT:
+  case ROW_RESULT:
+  case IMPOSSIBLE_RESULT:
     DBUG_ASSERT(0);
   }
   return 0.0;
@@ -890,7 +897,9 @@ longlong Item_func_numhybrid::val_int()
     CHARSET_INFO *cs= res->charset();
     return (*(cs->cset->strtoll10))(cs, res->ptr(), &end, &err_not_used);
   }
-  default:
+  case TIME_RESULT:
+  case ROW_RESULT:
+  case IMPOSSIBLE_RESULT:
     DBUG_ASSERT(0);
   }
   return 0;
@@ -928,7 +937,8 @@ my_decimal *Item_func_numhybrid::val_decimal(my_decimal *decimal_value)
     break;
   }  
   case ROW_RESULT:
-  default:
+  case TIME_RESULT:
+  case IMPOSSIBLE_RESULT:
     DBUG_ASSERT(0);
   }
   return val;
@@ -987,8 +997,7 @@ longlong Item_func_signed::val_int()
   longlong value;
   int error;
 
-  if (args[0]->cast_to_int_type() != STRING_RESULT ||
-      args[0]->result_as_longlong())
+  if (args[0]->cast_to_int_type() != STRING_RESULT)
   {
     value= args[0]->val_int();
     null_value= args[0]->null_value; 
@@ -1051,8 +1060,7 @@ longlong Item_func_unsigned::val_int()
       goto err;                                 // Warn about overflow
     return value;
   }
-  else if (args[0]->cast_to_int_type() != STRING_RESULT ||
-           args[0]->result_as_longlong())
+  else if (args[0]->cast_to_int_type() != STRING_RESULT)
   {
     value= args[0]->val_int();
     null_value= args[0]->null_value; 
@@ -1445,7 +1453,7 @@ void Item_func_div::fix_length_and_dec()
   DBUG_ENTER("Item_func_div::fix_length_and_dec");
   prec_increment= current_thd->variables.div_precincrement;
   Item_num_op::fix_length_and_dec();
-  switch(hybrid_type) {
+  switch (hybrid_type) {
   case REAL_RESULT:
   {
     decimals=max(args[0]->decimals,args[1]->decimals)+prec_increment;
@@ -1468,7 +1476,10 @@ void Item_func_div::fix_length_and_dec()
   case DECIMAL_RESULT:
     result_precision();
     break;
-  default:
+  case STRING_RESULT:
+  case ROW_RESULT:
+  case TIME_RESULT:
+  case IMPOSSIBLE_RESULT:
     DBUG_ASSERT(0);
   }
   maybe_null= 1; // devision by zero
@@ -1938,8 +1949,7 @@ void Item_func_int_val::find_num_type()
 {
   DBUG_ENTER("Item_func_int_val::find_num_type");
   DBUG_PRINT("info", ("name %s", func_name()));
-  switch(hybrid_type= args[0]->result_type())
-  {
+  switch (hybrid_type= args[0]->result_type()) {
   case STRING_RESULT:
   case REAL_RESULT:
     hybrid_type= REAL_RESULT;
@@ -1962,7 +1972,9 @@ void Item_func_int_val::find_num_type()
       hybrid_type= INT_RESULT;
     }
     break;
-  default:
+  case ROW_RESULT:
+  case TIME_RESULT:
+  case IMPOSSIBLE_RESULT:
     DBUG_ASSERT(0);
   }
   DBUG_PRINT("info", ("Type: %s",
@@ -2138,7 +2150,9 @@ void Item_func_round::fix_length_and_dec()
                                                              unsigned_flag);
     break;
   }
-  default:
+  case ROW_RESULT:
+  case TIME_RESULT:
+  case IMPOSSIBLE_RESULT:
     DBUG_ASSERT(0); /* This result type isn't handled */
   }
 }
@@ -2346,10 +2360,10 @@ double Item_func_units::val_real()
 void Item_func_min_max::fix_length_and_dec()
 {
   int max_int_part=0;
-  bool datetime_found= FALSE;
   decimals=0;
   max_length=0;
   maybe_null=0;
+  thd= current_thd;
   cmp_type=args[0]->result_type();
 
   for (uint i=0 ; i < arg_count ; i++)
@@ -2358,23 +2372,17 @@ void Item_func_min_max::fix_length_and_dec()
     set_if_bigger(decimals, args[i]->decimals);
     set_if_bigger(max_int_part, args[i]->decimal_int_part());
     if (args[i]->maybe_null)
-      maybe_null=1;
-    cmp_type=item_cmp_type(cmp_type,args[i]->result_type());
-    if (args[i]->result_type() != ROW_RESULT && args[i]->is_datetime())
+      maybe_null= 1;
+    cmp_type= item_cmp_type(cmp_type,args[i]->result_type());
+    if (args[i]->cmp_type() == TIME_RESULT)
     {
-      datetime_found= TRUE;
-      if (!datetime_item || args[i]->field_type() == MYSQL_TYPE_DATETIME)
-        datetime_item= args[i];
+      if (!compare_as_dates || args[i]->field_type() == MYSQL_TYPE_DATETIME)
+        compare_as_dates= args[i];
     }
   }
   if (cmp_type == STRING_RESULT)
   {
     agg_arg_charsets(collation, args, arg_count, MY_COLL_CMP_CONV, 1);
-    if (datetime_found)
-    {
-      thd= current_thd;
-      compare_as_dates= TRUE;
-    }
   }
   else if ((cmp_type == DECIMAL_RESULT) || (cmp_type == INT_RESULT))
     max_length= my_decimal_precision_to_length_no_truncation(max_int_part +
@@ -2382,61 +2390,69 @@ void Item_func_min_max::fix_length_and_dec()
                                                              unsigned_flag);
   else if (cmp_type == REAL_RESULT)
     max_length= float_length(decimals);
-  cached_field_type= agg_field_type(args, arg_count);
+
+  if (compare_as_dates)
+    cached_field_type= compare_as_dates->field_type();
+  else
+    cached_field_type= agg_field_type(args, arg_count);
 }
 
 
 /*
   Compare item arguments in the DATETIME context.
 
-  SYNOPSIS
-    cmp_datetimes()
-    value [out]   found least/greatest DATE/DATETIME value
-
   DESCRIPTION
     Compare item arguments as DATETIME values and return the index of the
     least/greatest argument in the arguments array.
-    The correct integer DATE/DATETIME value of the found argument is
+    The correct DATE/DATETIME value of the found argument is
     stored to the value pointer, if latter is provided.
 
   RETURN
-   0	If one of arguments is NULL or there was a execution error
-   #	index of the least/greatest argument
+   1	If one of arguments is NULL or there was a execution error
+   0    Otherwise
 */
 
-uint Item_func_min_max::cmp_datetimes(ulonglong *value)
+bool Item_func_min_max::get_date(MYSQL_TIME *ltime, uint fuzzy_date)
 {
   longlong UNINIT_VAR(min_max);
-  uint min_max_idx= 0;
+  DBUG_ASSERT(fixed == 1);
+
+  /*
+    just like ::val_int() method of an string item can be called,
+    for example, SELECT CONCAT("10", "12") + 1,
+    ::get_date() can be called for non-temporal values,
+    for example, SELECT MONTH(GREATEST("2011-11-21", "2010-10-09"))
+
+  */
+  if (!compare_as_dates)
+    return Item_func::get_date(ltime, fuzzy_date);
+
+  null_value= 0;
 
   for (uint i=0; i < arg_count ; i++)
   {
     Item **arg= args + i;
     bool is_null;
-    longlong res= get_datetime_value(thd, &arg, 0, datetime_item, &is_null);
+    longlong res= get_datetime_value(thd, &arg, 0, compare_as_dates, &is_null);
 
-    /* Check if we need to stop (because of error or KILL)  and stop the loop */
-    if (thd->is_error())
+    /* Check if we need to stop (because of error or KILL) and stop the loop */
+    if (thd->is_error() || args[i]->null_value)
     {
       null_value= 1;
-      return 0;
+      return 1;
     }
 
-    if ((null_value= args[i]->null_value))
-      return 0;
     if (i == 0 || (res < min_max ? cmp_sign : -cmp_sign) > 0)
-    {
       min_max= res;
-      min_max_idx= i;
-    }
   }
-  if (value)
+  unpack_time(min_max, ltime);
+  if (compare_as_dates->field_type() == MYSQL_TYPE_DATE)
   {
-    *value= min_max;
-    if (datetime_item->field_type() == MYSQL_TYPE_DATE)
-      *value/= 1000000L;
+    ltime->time_type= MYSQL_TIMESTAMP_DATE;
+    ltime->hour= ltime->minute= ltime->second= ltime->second_part= 0;
   }
-  return min_max_idx;
+
+  return 0;
 }
 
 
@@ -2445,19 +2461,14 @@ String *Item_func_min_max::val_str(String *str)
   DBUG_ASSERT(fixed == 1);
   if (compare_as_dates)
   {
-    String *str_res;
-    uint min_max_idx= cmp_datetimes(NULL);
-    if (null_value)
+    MYSQL_TIME ltime;
+    if (get_date(&ltime, TIME_FUZZY_DATE))
       return 0;
-    str_res= args[min_max_idx]->val_str(str);
-    if (args[min_max_idx]->null_value)
-    {
-      // check if the call to val_str() above returns a NULL value
-      null_value= 1;
-      return NULL;
-    }
-    str_res->set_charset(collation.collation);
-    return str_res;
+
+    str->alloc(MAX_DATE_STRING_REP_LENGTH);
+    str->set_charset(collation.collation);
+    str->length(my_TIME_to_str(&ltime, const_cast<char*>(str->ptr()), decimals));
+    return str;
   }
   switch (cmp_type) {
   case INT_RESULT:
@@ -2509,9 +2520,9 @@ String *Item_func_min_max::val_str(String *str)
     return res;
   }
   case ROW_RESULT:
-  default:
-    // This case should never be chosen
-    DBUG_ASSERT(0);
+  case TIME_RESULT:
+  case IMPOSSIBLE_RESULT:
+    DBUG_ASSERT(0);                // This case should never be chosen
     return 0;
   }
   return 0;					// Keep compiler happy
@@ -2524,9 +2535,11 @@ double Item_func_min_max::val_real()
   double value=0.0;
   if (compare_as_dates)
   {
-    ulonglong result= 0;
-    (void)cmp_datetimes(&result);
-    return (double)result;
+    MYSQL_TIME ltime;
+    if (get_date(&ltime, TIME_FUZZY_DATE))
+      return 0;
+
+    return TIME_to_double(&ltime);
   }
   for (uint i=0; i < arg_count ; i++)
   {
@@ -2551,9 +2564,11 @@ longlong Item_func_min_max::val_int()
   longlong value=0;
   if (compare_as_dates)
   {
-    ulonglong result= 0;
-    (void)cmp_datetimes(&result);
-    return (longlong)result;
+    MYSQL_TIME ltime;
+    if (get_date(&ltime, TIME_FUZZY_DATE))
+      return 0;
+
+    return TIME_to_ulonglong(&ltime);
   }
   for (uint i=0; i < arg_count ; i++)
   {
@@ -2579,10 +2594,11 @@ my_decimal *Item_func_min_max::val_decimal(my_decimal *dec)
 
   if (compare_as_dates)
   {
-    ulonglong value= 0;
-    (void)cmp_datetimes(&value);
-    ulonglong2decimal(value, dec);
-    return dec;
+    MYSQL_TIME ltime;
+    if (get_date(&ltime, TIME_FUZZY_DATE))
+      return 0;
+
+    return date2my_decimal(&ltime, dec);
   }
   for (uint i=0; i < arg_count ; i++)
   {
@@ -3065,8 +3081,7 @@ udf_handler::fix_fields(THD *thd, Item_result_field *func,
 
       if (arguments[i]->const_item())
       {
-        switch (arguments[i]->result_type()) 
-        {
+        switch (arguments[i]->result_type()) {
         case STRING_RESULT:
         case DECIMAL_RESULT:
         {
@@ -3092,9 +3107,9 @@ udf_handler::fix_fields(THD *thd, Item_result_field *func,
           to+= ALIGN_SIZE(sizeof(double));
           break;
         case ROW_RESULT:
-        default:
-          // This case should never be chosen
-          DBUG_ASSERT(0);
+        case TIME_RESULT:
+        case IMPOSSIBLE_RESULT:
+          DBUG_ASSERT(0);          // This case should never be chosen
           break;
         }
       }
@@ -3167,9 +3182,9 @@ bool udf_handler::get_arguments()
       }
       break;
     case ROW_RESULT:
-    default:
-      // This case should never be chosen
-      DBUG_ASSERT(0);
+    case TIME_RESULT:
+    case IMPOSSIBLE_RESULT:
+      DBUG_ASSERT(0);              // This case should never be chosen
       break;
     }
   }
@@ -3789,9 +3804,9 @@ longlong Item_func_benchmark::val_int()
       (void) args[1]->val_decimal(&tmp_decimal);
       break;
     case ROW_RESULT:
-    default:
-      // This case should never be chosen
-      DBUG_ASSERT(0);
+    case TIME_RESULT:
+    case IMPOSSIBLE_RESULT:
+      DBUG_ASSERT(0);              // This case should never be chosen
       return 0;
     }
   }
@@ -4145,6 +4160,7 @@ double user_var_entry::val_real(bool *null_value)
   case STRING_RESULT:
     return my_atof(value);                      // This is null terminated
   case ROW_RESULT:
+  case TIME_RESULT:
   case IMPOSSIBLE_RESULT:
     DBUG_ASSERT(0);				// Impossible
     break;
@@ -4177,6 +4193,7 @@ longlong user_var_entry::val_int(bool *null_value) const
     return my_strtoll10(value, (char**) 0, &error);// String is null terminated
   }
   case ROW_RESULT:
+  case TIME_RESULT:
   case IMPOSSIBLE_RESULT:
     DBUG_ASSERT(0);				// Impossible
     break;
@@ -4211,6 +4228,7 @@ String *user_var_entry::val_str(bool *null_value, String *str,
       str= 0;					// EOM error
     break;
   case ROW_RESULT:
+  case TIME_RESULT:
   case IMPOSSIBLE_RESULT:
     DBUG_ASSERT(0);				// Impossible
     break;
@@ -4239,6 +4257,7 @@ my_decimal *user_var_entry::val_decimal(bool *null_value, my_decimal *val)
     str2my_decimal(E_DEC_FATAL_ERROR, value, length, collation.collation, val);
     break;
   case ROW_RESULT:
+  case TIME_RESULT:
   case IMPOSSIBLE_RESULT:
     DBUG_ASSERT(0);				// Impossible
     break;
@@ -4278,8 +4297,9 @@ Item_func_set_user_var::check(bool use_result_field)
   {
     save_result.vint= use_result_field ? result_field->val_int() :
                        args[0]->val_int();
-    unsigned_flag= use_result_field ? ((Field_num*)result_field)->unsigned_flag:
-                    args[0]->unsigned_flag;
+    unsigned_flag= (use_result_field ?
+                    ((Field_num*)result_field)->unsigned_flag:
+                    args[0]->unsigned_flag);
     break;
   }
   case STRING_RESULT:
@@ -4296,9 +4316,9 @@ Item_func_set_user_var::check(bool use_result_field)
     break;
   }
   case ROW_RESULT:
-  default:
-    // This case should never be chosen
-    DBUG_ASSERT(0);
+  case TIME_RESULT:
+  case IMPOSSIBLE_RESULT:
+    DBUG_ASSERT(0);                // This case should never be chosen
     break;
   }
   DBUG_RETURN(FALSE);
@@ -4331,9 +4351,9 @@ void Item_func_set_user_var::save_item_result(Item *item)
     save_result.vdec= item->val_decimal_result(&decimal_buff);
     break;
   case ROW_RESULT:
-  default:
-    // Should never happen
-    DBUG_ASSERT(0);
+  case TIME_RESULT:
+  case IMPOSSIBLE_RESULT:
+    DBUG_ASSERT(0);                // This case should never be chosen
     break;
   }
   DBUG_VOID_RETURN;
@@ -4399,9 +4419,9 @@ Item_func_set_user_var::update()
     break;
   }
   case ROW_RESULT:
-  default:
-    // This case should never be chosen
-    DBUG_ASSERT(0);
+  case TIME_RESULT:
+  case IMPOSSIBLE_RESULT:
+    DBUG_ASSERT(0);                // This case should never be chosen
     break;
   }
   DBUG_RETURN(res);
@@ -4834,7 +4854,7 @@ void Item_func_get_user_var::fix_length_and_dec()
     max_length= var_entry->length;
 
     collation.set(var_entry->collation);
-    switch(m_cached_result_type) {
+    switch (m_cached_result_type) {
     case REAL_RESULT:
       max_length= DBL_DIG + 8;
       break;
@@ -4850,8 +4870,9 @@ void Item_func_get_user_var::fix_length_and_dec()
       decimals= DECIMAL_MAX_SCALE;
       break;
     case ROW_RESULT:                            // Keep compiler happy
-    default:
-      DBUG_ASSERT(0);
+    case TIME_RESULT:
+    case IMPOSSIBLE_RESULT:
+      DBUG_ASSERT(0);                // This case should never be chosen
       break;
     }
   }

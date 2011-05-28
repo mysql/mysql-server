@@ -507,6 +507,16 @@
 }
 
 {
+   dlclose memory loss from plugin variant 10
+   Memcheck:Leak
+   fun:calloc
+   obj:/lib*/libdl-*.so
+   fun:dlclose
+   fun:*free_plugin_mem*
+   fun:*plugin_dl_del*
+}
+
+{
    dlsym memory loss from plugin on SuSE 11.1 x64
    Memcheck:Leak
    fun:*alloc

@@ -634,4 +634,3 @@ size_t my_snprintf(char* to, size_t n, const char* fmt, ...)
   va_end(args);
   return result;
 }
-

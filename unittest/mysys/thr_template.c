@@ -29,7 +29,7 @@ void do_tests();
 void test_concurrently(const char *test, pthread_handler handler, int n, int m)
 {
   pthread_t t;
-  ulonglong now= my_getsystime();
+  ulonglong now= my_interval_timer();
 
   bad= 0;
 
@@ -47,8 +47,8 @@ void test_concurrently(const char *test, pthread_handler handler, int n, int m)
     pthread_cond_wait(&cond, &mutex);
   pthread_mutex_unlock(&mutex);
 
-  now= my_getsystime()-now;
-  ok(!bad, "tested %s in %g secs (%d)", test, ((double)now)/1e7, bad);
+  now= my_interval_timer() - now;
+  ok(!bad, "tested %s in %g secs (%d)", test, ((double)now)/1e9, bad);
 }
 
 int main(int argc __attribute__((unused)), char **argv)

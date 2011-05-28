@@ -652,17 +652,30 @@ Item_sum_hybrid::fix_fields(THD *thd, Item **ref)
     Setup cache/comparator of MIN/MAX functions. When called by the
     copy_or_same function value_arg parameter contains calculated value
     of the original MIN/MAX object and it is saved in this object's cache.
+
+    We mark the value and arg_cache with 'RAND_TABLE_BIT' to ensure
+    that Arg_comparator::compare_datetime() doesn't allocate new
+    item inside of Arg_comparator.  This would cause compare_datetime()
+    and Item_sum_min::add() to use different values!
 */
 
 void Item_sum_hybrid::setup_hybrid(Item *item, Item *value_arg)
 {
-  value= Item_cache::get_cache(item);
+  if (!(value= Item_cache::get_cache(item)))
+    return;
   value->setup(item);
   value->store(value_arg);
-  arg_cache= Item_cache::get_cache(item);
+  /* Don't cache value, as it will change */
+  if (!item->const_item())
+    value->set_used_tables(RAND_TABLE_BIT);
+  if (!(arg_cache= Item_cache::get_cache(item)))
+    return;
   arg_cache->setup(item);
-  cmp= new Arg_comparator();
-  cmp->set_cmp_func(this, (Item**)&arg_cache, (Item**)&value, FALSE);
+  /* Don't cache value, as it will change */
+  if (!item->const_item())
+    arg_cache->set_used_tables(RAND_TABLE_BIT);
+  if (cmp= new Arg_comparator())
+    cmp->set_cmp_func(this, (Item**)&arg_cache, (Item**)&value, FALSE);
   collation.set(item->collation);
 }
 
@@ -687,14 +700,17 @@ Field *Item_sum_hybrid::create_tmp_field(bool group, TABLE *table,
   */
   switch (args[0]->field_type()) {
   case MYSQL_TYPE_DATE:
-    field= new Field_newdate(maybe_null, name, collation.collation);
+    field= new Field_newdate(0, maybe_null ? (uchar*)"" : 0, 0, Field::NONE,
+                             name, collation.collation);
     break;
   case MYSQL_TYPE_TIME:
-    field= new Field_time(maybe_null, name, collation.collation);
+    field= new_Field_time(0, maybe_null ? (uchar*)"" : 0, 0, Field::NONE,
+                          name, decimals, collation.collation);
     break;
   case MYSQL_TYPE_TIMESTAMP:
   case MYSQL_TYPE_DATETIME:
-    field= new Field_datetime(maybe_null, name, collation.collation);
+    field= new_Field_datetime(0, maybe_null ? (uchar*)"" : 0, 0, Field::NONE,
+                              name, decimals, collation.collation);
     break;
   default:
     return Item_sum::create_tmp_field(group, table, convert_blob_length);

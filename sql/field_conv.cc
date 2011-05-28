@@ -365,6 +365,14 @@ static void do_field_decimal(Copy_field *copy)
 }
 
 
+static void do_field_temporal(Copy_field *copy)
+{
+  MYSQL_TIME ltime;
+  copy->from_field->get_date(&ltime, TIME_FUZZY_DATE);
+  copy->to_field->store_time(&ltime, ltime.time_type);
+}
+
+
 /**
   string copy for single byte characters set when to string is shorter than
   from string.
@@ -561,7 +569,7 @@ void Copy_field::set(uchar *to,Field *from)
 /*
   To do: 
 
-  If 'save\ is set to true and the 'from' is a blob field, do_copy is set to
+  If 'save' is set to true and the 'from' is a blob field, do_copy is set to
   do_save_blob rather than do_conv_blob.  The only differences between them
   appears to be:
 
@@ -638,13 +646,11 @@ void Copy_field::set(Field *to,Field *from,bool save)
 Copy_field::Copy_func *
 Copy_field::get_copy_func(Field *to,Field *from)
 {
-  bool compatible_db_low_byte_first= (to->table->s->db_low_byte_first ==
-                                     from->table->s->db_low_byte_first);
   if (to->flags & BLOB_FLAG)
   {
     if (!(from->flags & BLOB_FLAG) || from->charset() != to->charset())
       return do_conv_blob;
-    if (from_length != to_length || !compatible_db_low_byte_first)
+    if (from_length != to_length)
     {
       // Correct pointer to point at char pointer
       to_ptr+=   to_length - to->table->s->blob_ptr_size;
@@ -659,6 +665,19 @@ Copy_field::get_copy_func(Field *to,Field *from)
       return do_field_int;
     if (to->result_type() == DECIMAL_RESULT)
       return do_field_decimal;
+    if (to->cmp_type() == TIME_RESULT)          // TODO; Optimize this
+    {
+      /* If types are not 100 % identical then convert trough get_date() */
+      if (!to->eq_def(from) ||
+          (((to->table->in_use->variables.sql_mode &
+             (MODE_NO_ZERO_IN_DATE | MODE_NO_ZERO_DATE |
+              MODE_INVALID_DATES))) &&
+           (to->type() == MYSQL_TYPE_DATE ||
+            to->type() == MYSQL_TYPE_DATETIME)))
+        return do_field_temporal;
+      /* Do binary copy */
+    }
+
     // Check if identical fields
     if (from->result_type() == STRING_RESULT)
     {
@@ -675,12 +694,7 @@ Copy_field::get_copy_func(Field *to,Field *from)
         If we are copying date or datetime's we have to check the dates
         if we don't allow 'all' dates.
       */
-      if (to->real_type() != from->real_type() ||
-          !compatible_db_low_byte_first ||
-          ((to->table->in_use->variables.sql_mode &
-            (MODE_NO_ZERO_IN_DATE | MODE_NO_ZERO_DATE | MODE_INVALID_DATES)) &&
-           (to->type() == MYSQL_TYPE_DATE ||
-            to->type() == MYSQL_TYPE_DATETIME)))
+      if (to->real_type() != from->real_type())
       {
 	if (from->real_type() == MYSQL_TYPE_ENUM ||
 	    from->real_type() == MYSQL_TYPE_SET)
@@ -727,8 +741,7 @@ Copy_field::get_copy_func(Field *to,Field *from)
       }
     }
     else if (to->real_type() != from->real_type() ||
-	     to_length != from_length ||
-             !compatible_db_low_byte_first)
+	     to_length != from_length)
     {
       if (to->real_type() == MYSQL_TYPE_DECIMAL ||
 	  to->result_type() == STRING_RESULT)
@@ -739,7 +752,7 @@ Copy_field::get_copy_func(Field *to,Field *from)
     }
     else
     {
-      if (!to->eq_def(from) || !compatible_db_low_byte_first)
+      if (!to->eq_def(from))
       {
 	if (to->real_type() == MYSQL_TYPE_DECIMAL)
 	  return do_field_string;
@@ -772,14 +785,13 @@ int field_conv(Field *to,Field *from)
   {
     if (to->pack_length() == from->pack_length() &&
         !(to->flags & UNSIGNED_FLAG && !(from->flags & UNSIGNED_FLAG)) &&
+        to->decimals() == from->decimals() &&
 	to->real_type() != MYSQL_TYPE_ENUM &&
 	to->real_type() != MYSQL_TYPE_SET &&
         to->real_type() != MYSQL_TYPE_BIT &&
         (to->real_type() != MYSQL_TYPE_NEWDECIMAL ||
-         ((to->field_length == from->field_length &&
-           (((Field_num*)to)->dec == ((Field_num*)from)->dec)))) &&
+         to->field_length == from->field_length) &&
         from->charset() == to->charset() &&
-	to->table->s->db_low_byte_first == from->table->s->db_low_byte_first &&
         (!(to->table->in_use->variables.sql_mode &
            (MODE_NO_ZERO_IN_DATE | MODE_NO_ZERO_DATE | MODE_INVALID_DATES)) ||
          (to->type() != MYSQL_TYPE_DATE &&

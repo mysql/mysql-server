@@ -109,7 +109,8 @@ select column_get(column_create(1, "1212" AS char), 1 as int);
 select column_get(column_create(1, "-1212" AS char), 1 as int);
 select column_get(column_create(1, "2011-04-05" AS date), 1 as int);
 select column_get(column_create(1, "8:46:06.23434" AS time), 1 as int);
-select column_get(column_create(1, "2011-04-05 8:46:06.23434" AS datetime), 1 as int);
+select column_get(column_create(1, "8:46:06.23434" AS time(6)), 1 as int);
+select column_get(column_create(1, "2011-04-05 8:46:06.23434" AS datetime(6)), 1 as int);
 select column_get(column_create(1, NULL AS int), 1 as int);
 --echo #column gett truncation & warnings
 select column_get(column_create(1, 18446744073709551615 AS unsigned int), 1 as int);
@@ -142,7 +143,11 @@ select column_get(column_create(1, 1212.12 AS decimal), 1 as char charset utf8);
 select column_get(column_create(1, 1212.12 AS double), 1 as char charset utf8);
 select column_get(column_create(1, "2011-04-05" AS date), 1 as char charset utf8);
 select column_get(column_create(1, "8:46:06.23434" AS time), 1 as char charset utf8);
+select column_get(column_create(1, "8:46:06.23434" AS time(0)), 1 as char charset utf8);
+select column_get(column_create(1, "8:46:06.23434" AS time(6)), 1 as char charset utf8);
 select column_get(column_create(1, "2011-04-05 8:46:06.23434" AS datetime), 1 as char charset utf8);
+select column_get(column_create(1, "2011-04-05 8:46:06.23434" AS datetime(0)), 1 as char charset utf8);
+select column_get(column_create(1, "2011-04-05 8:46:06.23434" AS datetime(6)), 1 as char charset utf8);
 select column_get(column_create(1, NULL AS char charset utf8), 1 as char charset utf8);
 select column_get(column_create(1, "1212" AS char charset utf8), 1 as char charset binary);
 explain extended
@@ -163,7 +168,9 @@ select column_get(column_create(1, 99999999999999999999999999999 AS decimal), 1 
 select column_get(column_create(1, -99999999999999999999999999999 AS decimal), 1 as double);
 select column_get(column_create(1, "2011-04-05" AS date), 1 as double);
 select column_get(column_create(1, "8:46:06.23434" AS time), 1 as double);
+select column_get(column_create(1, "8:46:06.23434" AS time(6)), 1 as double);
 select column_get(column_create(1, "2011-04-05 8:46:06.23434" AS datetime), 1 as double);
+select column_get(column_create(1, "2011-04-05 8:46:06.23434" AS datetime(6)), 1 as double);
 # The replace result is needed for windows.
 select round(column_get(column_create(1, "2011-04-05 8:46:06.23434" AS datetime), 1 as double(20,6)),3);
 select column_get(column_create(1, NULL AS double), 1 as double);
@@ -189,7 +196,10 @@ select column_get(column_create(1, -9223372036854775808 AS int), 1 as decimal(32
 select column_get(column_create(1, -99999999999999999999999999999 AS decimal), 1 as decimal(40,10));
 select column_get(column_create(1, "2011-04-05" AS date), 1 as decimal(32,6));
 select column_get(column_create(1, "8:46:06.23434" AS time), 1 as decimal(32,6));
-select column_get(column_create(1, "2011-04-05 8:46:06.23434" AS datetime), 1 as decimal(32,6));
+select column_get(column_create(1, "8:46:06.23434" AS time(6)), 1 as decimal(32,6));
+select column_get(column_create(1, "2011-04-05 8:46:06.123456" AS datetime), 1 as decimal(32,6));
+select column_get(column_create(1, "2011-04-05 8:46:06.123456" AS datetime(6)), 1 as decimal(32,6));
+select column_get(column_create(1, "2011-04-05 8:46:06.12345678" AS datetime(6)), 1 as decimal(32,8));
 select column_get(column_create(1, NULL as decimal), 1 as decimal(32,10));
 select column_get(column_create(1, "1223.5555" as decimal(10,5)), 1 as decimal(6,2));
 
@@ -219,6 +229,8 @@ select column_get(column_create(1, "2001-02-03 10:11:12" as char), 1 as datetime
 select column_get(column_create(1, "2001-02-03 10:11:12.121314" as char), 1 as datetime);
 select column_get(column_create(1, "2001-02-03 10:11:12.121314"), 1 as datetime);
 select column_get(column_create(1, "2011-04-05 8:46:06.23434" AS datetime), 1 as datetime);
+select column_get(column_create(1, "2011-04-05 8:46:06.23434" AS datetime), 1 as datetime(0));
+select column_get(column_create(1, "2011-04-05 8:46:06.23434" AS datetime), 1 as datetime(6));
 select column_get(column_create(1, "2011-00-00 8:46:06.23434" AS CHAR), 1 as datetime);
 select column_get(column_create(1, "2011-00-01 8:46:06.23434" AS CHAR), 1 as datetime);
 
@@ -310,15 +322,17 @@ select column_get(column_create(1, 20010203101112 as int), 1 as time);
 select column_get(column_create(1, "20010203101112" as char), 1 as time);
 select column_get(column_create(1, "2001-02-03 10:11:12" as char), 1 as time);
 select column_get(column_create(1, "2001-02-03 10:11:12.121314" as char), 1 as time);
+select column_get(column_create(1, "2001-02-03 10:11:12.121314" as char), 1 as time(6));
 select column_get(column_create(1, "2001-02-03 10:11:12.121314"), 1 as time);
-select column_get(column_create(1, "2011-04-05 8:46:06.23434" AS datetime), 1 as time);
-select column_get(column_create(1, "2011-00-00 8:46:06.23434" AS CHAR), 1 as time);
-select column_get(column_create(1, "2011-00-01 8:46:06.23434" AS CHAR), 1 as time);
-select column_get(column_create(1, "830:46:06.23434" AS CHAR), 1 as time);
-select cast("-830:46:06.23434" AS time);
-select 1,cast("-830:46:06.23434" AS time);
+select column_get(column_create(1, "2011-04-05 8:46:06.23434" AS datetime), 1 as time(6));
+select column_get(column_create(1, "2011-00-00 8:46:06.23434" AS CHAR), 1 as time(6));
+select column_get(column_create(1, "2011-00-01 8:46:06.23434" AS CHAR), 1 as time(6));
+select column_get(column_create(1, "830:46:06.23434" AS CHAR), 1 as time(6));
+select column_get(column_create(1, "830:46:06" AS CHAR), 1 as time(6));
+select cast("-830:46:06.23434" AS time(6));
+select 1,cast("-830:46:06.23434" AS time(6));
 select hex(column_create(1, "-830:46:06.23434" AS CHAR));
-select column_get(column_create(1, "-830:46:06.23434" AS CHAR), 1 as time);
+select column_get(column_create(1, "-830:46:06.23434" AS CHAR), 1 as time(6));
 select column_get(column_create(1, "0" AS CHAR), 1 as time);
 select column_get(column_create(1, "6" AS CHAR), 1 as time);
 select column_get(column_create(1, "1:6" AS CHAR), 1 as time);
@@ -333,6 +347,7 @@ set @@sql_mode="";
 
 -- echo # column get date truncation & warnings
 select column_get(column_create(1, "1223.5aa" AS char), 1 as time);
+select column_get(column_create(1, "1223.5aa" AS char), 1 as time(3));
 select column_get(column_create(1, 18446744073709551615 AS unsigned int), 1 as time);
 select column_get(column_create(1, 9223372036854775807 AS int), 1 as time);
 select column_get(column_create(1, -9223372036854775808 AS int), 1 as time); 

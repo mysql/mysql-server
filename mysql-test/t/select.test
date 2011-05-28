@@ -3513,6 +3513,7 @@ DROP VIEW v1;
 select str_to_date('2007-10-09','%Y-%m-%d') between '2007/10/01 00:00:00 GMT'
                                                 and '2007/10/20 00:00:00 GMT';
 select str_to_date('2007-10-09','%Y-%m-%d') > '2007/10/01 00:00:00 GMT-6';
+select str_to_date('2007-10-09','%Y-%m-%d') <= '2007/10/20 00:00:00 GMT-6';
 select str_to_date('2007-10-09','%Y-%m-%d') <= '2007/10/2000:00:00 GMT-6';
 
 # We have all we need -- and trailing garbage:
@@ -3562,10 +3563,12 @@ select str_to_date('1','%Y-%m-%d') = '1';
 select str_to_date('1','%Y-%m-%d') = '1';
 select str_to_date('','%Y-%m-%d') = '';
 
-# these three should work!
-select str_to_date('1000-01-01','%Y-%m-%d') between '0000-00-00' and NULL;
-select str_to_date('1000-01-01','%Y-%m-%d') between NULL and '2000-00-00';
-select str_to_date('1000-01-01','%Y-%m-%d') between NULL and NULL;
+select str_to_date('2000-01-01','%Y-%m-%d') between '1000-01-01' and '2001-01-01';
+select str_to_date('2000-01-01','%Y-%m-%d') between '1000-01-01' and NULL;
+select str_to_date('2000-01-01','%Y-%m-%d') between NULL and '2001-01-01';
+select str_to_date('2000-01-01','%Y-%m-%d') between '2001-01-01' and NULL;
+select str_to_date('2000-01-01','%Y-%m-%d') between NULL and '1000-01-01';
+select str_to_date('2000-01-01','%Y-%m-%d') between NULL and NULL;
 
 #
 # Bug #30666: Incorrect order when using range conditions on 2 tables or more
@@ -3893,9 +3896,9 @@ DROP TABLE t1;
 # Field_varstring::store
 #
 
-CREATE TABLE A (date_key date);
+CREATE TABLE t1 (date_key date);
 
-CREATE TABLE C (
+CREATE TABLE t2 (
   pk int,
   int_nokey int,
   int_key int,
@@ -3904,20 +3907,20 @@ CREATE TABLE C (
   varchar_key varchar(1)
 );
 
-INSERT INTO C VALUES 
+INSERT INTO t2 VALUES 
 (1,1,1,'0000-00-00',NULL,NULL),
 (1,1,1,'0000-00-00',NULL,NULL);
 
-SELECT 1 FROM C WHERE pk > ANY (SELECT 1 FROM C);
+SELECT 1 FROM t2 WHERE pk > ANY (SELECT 1 FROM t2);
 
-SELECT COUNT(DISTINCT 1) FROM C 
-  WHERE date_key = (SELECT 1 FROM A WHERE C.date_key IS NULL) GROUP BY pk; 
-SELECT date_nokey FROM C 
-  WHERE int_key IN (SELECT 1 FROM A) 
+SELECT COUNT(DISTINCT 1) FROM t2 
+  WHERE date_key = (SELECT 1 FROM t1 WHERE t2.date_key IS NULL) GROUP BY pk; 
+SELECT date_nokey FROM t2
+  WHERE int_key IN (SELECT 1 FROM t1)
   HAVING date_nokey = '10:41:7' 
   ORDER BY date_key;
 
-DROP TABLE A,C;
+DROP TABLE t1,t2;
 
 #
 # Bug #42957: no results from 

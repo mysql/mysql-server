@@ -151,6 +151,7 @@ static event_handle_t eh;
 static Report_t ref;
 static void *refneb= NULL;
 my_bool event_flag= FALSE;
+
 static int volumeid= -1;
 
   /* NEB event callback */
@@ -433,12 +434,13 @@ bool opt_large_files= sizeof(my_off_t) > 4;
 */
 static my_bool opt_help= 0, opt_verbose= 0;
 
-arg_cmp_func Arg_comparator::comparator_matrix[5][2] =
+arg_cmp_func Arg_comparator::comparator_matrix[6][2] =
 {{&Arg_comparator::compare_string,     &Arg_comparator::compare_e_string},
  {&Arg_comparator::compare_real,       &Arg_comparator::compare_e_real},
  {&Arg_comparator::compare_int_signed, &Arg_comparator::compare_e_int},
  {&Arg_comparator::compare_row,        &Arg_comparator::compare_e_row},
- {&Arg_comparator::compare_decimal,    &Arg_comparator::compare_e_decimal}};
+ {&Arg_comparator::compare_decimal,    &Arg_comparator::compare_e_decimal},
+ {&Arg_comparator::compare_datetime,   &Arg_comparator::compare_e_datetime}};
 
 const char *log_output_names[] = { "NONE", "FILE", "TABLE", NullS};
 static const unsigned int log_output_names_len[]= { 4, 4, 5, 0 };
@@ -457,6 +459,13 @@ static my_bool opt_debugging= 0, opt_external_locking= 0, opt_console= 0;
 static my_bool opt_short_log_format= 0;
 static my_bool opt_ignore_wrong_options= 0, opt_expect_abort= 0;
 static my_bool opt_sync= 0, opt_thread_alarm;
+/*
+  Set this to 1 if you want to that 'strict mode' should affect all date
+  operations. If this is 0, then date checking is only done when storing
+  dates into a table.
+*/
+my_bool strict_date_checking= 0;
+
 static uint kill_cached_threads, wake_thread;
 ulong thread_created;
 uint thread_handling;
@@ -710,6 +719,8 @@ const char *in_additional_cond= "<IN COND>";
 const char *in_having_cond= "<IN HAVING>";
 
 my_decimal decimal_zero;
+my_decimal max_seconds_for_time_type, time_second_part_factor;
+
 /* classes for comparation parsing/processing */
 Eq_creator eq_creator;
 Ne_creator ne_creator;
@@ -2112,7 +2123,7 @@ static bool cache_thread()
         this thread for handling of new THD object/connection.
       */
       thd->mysys_var->abort= 0;
-      thd->thr_create_utime= my_micro_time();
+      thd->thr_create_utime= microsecond_interval_timer();
       threads.append(thd);
       return(1);
     }
@@ -3469,7 +3480,6 @@ static int init_common_variables(const char *conf_file_name, int argc,
   char buff[FN_REFLEN], *s;
   const char *basename;
   umask(((~my_umask) & 0666));
-  my_decimal_set_zero(&decimal_zero); // set decimal_zero constant;
   tzset();			// Set tzname
 
   max_system_variables.pseudo_thread_id= (ulong)~0;
@@ -5214,9 +5224,9 @@ void handle_connection_in_main_thread(THD *thd)
   safe_mutex_assert_owner(&LOCK_thread_count);
   thread_cache_size=0;			// Safety
   threads.append(thd);
-  thd->start_utime= my_micro_time();
+  thd->set_time(my_hrtime());
   pthread_mutex_unlock(&LOCK_thread_count);
-  thd->start_utime= my_micro_time();
+  thd->start_utime= microsecond_interval_timer();
   handle_one_connection(thd);
 }
 
@@ -5242,7 +5252,7 @@ void create_thread_to_handle_connection(THD *thd)
     thread_created++;
     threads.append(thd);
     DBUG_PRINT("info",(("creating thread %lu"), thd->thread_id));
-    thd->prior_thr_create_utime= thd->start_utime= my_micro_time();
+    thd->prior_thr_create_utime= thd->start_utime= microsecond_interval_timer();
     if ((error=pthread_create(&thd->real_id,&connection_attrib,
                               handle_one_connection,
                               (void*) thd)))
@@ -8533,6 +8543,13 @@ static int mysql_init_variables(void)
 
   /* set key_cache_hash.default_value = dflt_key_cache */
   multi_keycache_init();
+
+  /* Useful MariaDB variables */
+  double2decimal((double) TIME_MAX_VALUE_SECONDS +
+                 TIME_MAX_SECOND_PART/(double)TIME_SECOND_PART_FACTOR,
+                 &max_seconds_for_time_type);
+  longlong2decimal(TIME_SECOND_PART_FACTOR, &time_second_part_factor);
+  my_decimal_set_zero(&decimal_zero); // set decimal_zero constant;
 
   /* Set directory paths */
   strmake(language, LANGUAGE, sizeof(language)-1);

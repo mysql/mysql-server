@@ -931,14 +931,22 @@ extern ulong crc32(ulong crc, const uchar *buf, uint len);
 extern uint my_set_max_open_files(uint files);
 void my_free_open_file_info(void);
 
-extern time_t my_time(myf flags);
-extern ulonglong my_getsystime(void);
-extern ulonglong my_getcputime(void);
-extern ulonglong my_micro_time();
-extern ulonglong my_micro_time_and_time(time_t *time_arg);
-time_t my_time_possible_from_micro(ulonglong microtime);
 extern my_bool my_gethwaddr(uchar *to);
 extern int my_getncpus();
+
+#define HRTIME_RESOLUTION               1000000ULL  /* microseconds */
+typedef struct {ulonglong val;} my_hrtime_t;
+void my_time_init();
+extern my_hrtime_t my_hrtime();
+extern ulonglong my_interval_timer(void);
+extern ulonglong my_getcputime(void);
+
+#define microsecond_interval_timer()    (my_interval_timer()/1000)
+#define hrtime_to_time(X)               ((X).val/HRTIME_RESOLUTION)
+#define hrtime_from_time(X)             ((ulonglong)((X)*HRTIME_RESOLUTION))
+#define hrtime_to_double(X)             ((X).val/(double)HRTIME_RESOLUTION)
+#define hrtime_sec_part(X)              ((ulong)((X).val % HRTIME_RESOLUTION))
+#define my_time(X)                      hrtime_to_time(my_hrtime())
 
 #ifdef HAVE_SYS_MMAN_H
 #include <sys/mman.h>

@@ -1,0 +1,16 @@
+
+let type=timestamp;
+--source include/type_hrtime.inc
+
+set time_zone='+03:00';
+set timestamp=unix_timestamp('2011-01-01 01:01:01') + 0.123456;
+
+create table t1 (a timestamp(5));
+#
+# CREATE ... DEFAULT NOW(X)
+#
+
+insert t1 values ();
+select * from t1;
+drop table t1;
+

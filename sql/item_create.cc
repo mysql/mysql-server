@@ -31,7 +31,28 @@
 =============================================================================
 */
 
-/*
+static const char* item_name(Item *a, String *str)
+{
+  if (a->name)
+    return a->name;
+  str->length(0);
+  a->print(str, QT_ORDINARY);
+  return str->c_ptr_safe();
+}
+
+
+static void wrong_precision_error(uint errcode, Item *a,
+                                  ulonglong number, ulong maximum)
+{
+  char buff[1024];
+  String buf(buff, sizeof(buff), system_charset_info);
+
+  my_error(errcode, MYF(0), (uint) min(number, UINT_MAX32),
+           item_name(a, &buf), maximum);
+}
+
+
+/**
   Get precision and scale for a declaration
  
   return
@@ -42,18 +63,16 @@
 bool get_length_and_scale(ulonglong length, ulonglong decimals,
                           ulong *out_length, uint *out_decimals,
                           uint max_precision, uint max_scale,
-                          const char *name)
+                          Item *a)
 {
   if (length > (ulonglong) max_precision)
   {
-    my_error(ER_TOO_BIG_PRECISION, MYF(0), (int) length, name,
-             max_precision);
+    wrong_precision_error(ER_TOO_BIG_PRECISION, a, length, max_precision);
     return 1;
   }
   if (decimals > (ulonglong) max_scale)
   {
-    my_error(ER_TOO_BIG_SCALE, MYF(0), (int) decimals, name,
-             DECIMAL_MAX_SCALE);
+    wrong_precision_error(ER_TOO_BIG_SCALE, a, decimals, max_scale);
     return 1;
   }
 
@@ -5124,10 +5143,22 @@ create_func_cast(THD *thd, Item *a, Cast_target cast_type,
     res= new (thd->mem_root) Item_date_typecast(a);
     break;
   case ITEM_CAST_TIME:
-    res= new (thd->mem_root) Item_time_typecast(a);
+    if (decimals > MAX_DATETIME_PRECISION)
+    {
+      wrong_precision_error(ER_TOO_BIG_PRECISION, a, decimals,
+                            MAX_DATETIME_PRECISION);
+      return 0;
+    }
+    res= new (thd->mem_root) Item_time_typecast(a, (uint) decimals);
     break;
   case ITEM_CAST_DATETIME:
-    res= new (thd->mem_root) Item_datetime_typecast(a);
+    if (decimals > MAX_DATETIME_PRECISION)
+    {
+      wrong_precision_error(ER_TOO_BIG_PRECISION, a, decimals,
+                            MAX_DATETIME_PRECISION);
+      return 0;
+    }
+    res= new (thd->mem_root) Item_datetime_typecast(a, (uint) decimals);
     break;
   case ITEM_CAST_DECIMAL:
   {
@@ -5135,7 +5166,7 @@ create_func_cast(THD *thd, Item *a, Cast_target cast_type,
     uint dec;
     if (get_length_and_scale(length, decimals, &len, &dec,
                              DECIMAL_MAX_PRECISION, DECIMAL_MAX_SCALE,
-                             a->name))
+                             a))
       return NULL;
     res= new (thd->mem_root) Item_decimal_typecast(a, len, dec);
     break;
@@ -5152,7 +5183,7 @@ create_func_cast(THD *thd, Item *a, Cast_target cast_type,
     }
     else if (get_length_and_scale(length, decimals, &len, &dec,
                                   DECIMAL_MAX_PRECISION, NOT_FIXED_DEC-1,
-                                  a->name))
+                                  a))
       return NULL;
     res= new (thd->mem_root) Item_double_typecast(a, (uint) length,
                                                   (uint) decimals);
@@ -5166,7 +5197,9 @@ create_func_cast(THD *thd, Item *a, Cast_target cast_type,
     {
       if (length > MAX_FIELD_BLOBLENGTH)
       {
-        my_error(ER_TOO_BIG_DISPLAYWIDTH, MYF(0), "cast as char",
+        char buff[1024];
+        String buf(buff, sizeof(buff), system_charset_info);
+        my_error(ER_TOO_BIG_DISPLAYWIDTH, MYF(0), item_name(a, &buf),
                  MAX_FIELD_BLOBLENGTH);
         return NULL;
       }

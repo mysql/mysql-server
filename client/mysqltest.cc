@@ -7487,7 +7487,8 @@ int util_query(MYSQL* org_mysql, const char* query){
     cur_con->util_mysql= mysql;
   }
 
-  return mysql_query(mysql, query);
+  int ret= mysql_query(mysql, query);
+  DBUG_RETURN(ret);
 }
 
 
@@ -8749,7 +8750,7 @@ void timer_output(void)
 
 ulonglong timer_now(void)
 {
-  return my_micro_time() / 1000;
+  return my_interval_timer() / 1000000;
 }
 
 

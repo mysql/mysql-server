@@ -3944,8 +3944,14 @@ String *Item_dyncol_get::val_str(String *str_result)
   case DYN_COL_TIME:
   {
     int length;
+    /*
+      We use AUTO_SEC_PART_DIGITS here to ensure that we do not loose
+      any microseconds from the data. This is safe to do as we are
+      asked to return the time argument as a string.
+    */
     if (str_result->alloc(MAX_DATE_STRING_REP_LENGTH) ||
-        !(length= my_TIME_to_str(&val.time_value, (char*) str_result->ptr())))
+        !(length= my_TIME_to_str(&val.time_value, (char*) str_result->ptr(),
+                                 AUTO_SEC_PART_DIGITS)))
       goto null;
     str_result->set_charset(&my_charset_latin1);
     str_result->length(length);
@@ -4086,7 +4092,7 @@ double Item_dyncol_get::val_real()
   case DYN_COL_DATE:
   case DYN_COL_TIME:
     return (ulonglong2double(TIME_to_ulonglong(&val.time_value)) +
-            val.time_value.second_part / (double) TIME_SUBSECOND_RANGE);
+            val.time_value.second_part / (double) TIME_SECOND_PART_FACTOR);
   }
 
 null:
@@ -4145,10 +4151,12 @@ my_decimal *Item_dyncol_get::val_decimal(my_decimal *decimal_value)
   case DYN_COL_DATE:
   case DYN_COL_TIME:
   {
-    double tmp= (ulonglong2double(TIME_to_ulonglong(&val.time_value)) +
-                 val.time_value.second_part / (double) TIME_SUBSECOND_RANGE);
-    /* This can't overflow as time is always in the range of decimal */
-    double2my_decimal(E_DEC_FATAL_ERROR, tmp, decimal_value);
+    my_decimal time_part, sub_second, fractions;
+    longlong2decimal(TIME_to_ulonglong(&val.time_value), &time_part);
+    longlong2decimal(val.time_value.second_part, &sub_second);
+    my_decimal_div(E_DEC_FATAL_ERROR, &fractions, &sub_second,
+                   &time_second_part_factor, TIME_SECOND_PART_DIGITS);
+    my_decimal_add(E_DEC_FATAL_ERROR, decimal_value, &time_part, &fractions);
     break;
   }
   }

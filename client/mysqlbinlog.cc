@@ -811,7 +811,7 @@ Exit_status process_event(PRINT_EVENT_INFO *print_event_info, Log_event *ev,
     read them to be able to process the wanted events.
   */
   if (((rec_count >= offset) &&
-       ((my_time_t)(ev->when) >= start_datetime)) ||
+       (ev->when >= start_datetime)) ||
       (ev_type == FORMAT_DESCRIPTION_EVENT))
   {
     if (ev_type != FORMAT_DESCRIPTION_EVENT)
@@ -835,7 +835,7 @@ Exit_status process_event(PRINT_EVENT_INFO *print_event_info, Log_event *ev,
           server_id && (server_id != ev->server_id))
         goto end;
     }
-    if (((my_time_t)(ev->when) >= stop_datetime)
+    if ((ev->when >= stop_datetime)
         || (pos >= stop_position_mot))
     {
       /* end the program */

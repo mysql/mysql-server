@@ -357,29 +357,27 @@ bool subquery_types_allow_materialization(Item_in_subselect *in_subs)
     Item *inner= it++;
     all_are_fields &= (outer->real_item()->type() == Item::FIELD_ITEM && 
                        inner->real_item()->type() == Item::FIELD_ITEM);
-    if (outer->result_type() != inner->result_type())
+    if (outer->cmp_type() != inner->cmp_type())
       DBUG_RETURN(FALSE);
-    switch (outer->result_type()) {
+    switch (outer->cmp_type()) {
     case STRING_RESULT:
-      if (outer->is_datetime() != inner->is_datetime())
+      if (!(outer->collation.collation == inner->collation.collation))
         DBUG_RETURN(FALSE);
-
-      if (!(outer->collation.collation == inner->collation.collation 
-          /*&& outer->max_length <= inner->max_length */))
+      // Materialization does not work with BLOB columns
+      if (inner->field_type() == MYSQL_TYPE_BLOB || 
+          inner->field_type() == MYSQL_TYPE_GEOMETRY)
         DBUG_RETURN(FALSE);
-    /*case INT_RESULT:
-      if (!(outer->unsigned_flag ^ inner->unsigned_flag))
-        DBUG_RETURN(FALSE); */
+      break;
+    case TIME_RESULT:
+      if (mysql_type_to_time_type(outer->field_type()) !=
+          mysql_type_to_time_type(outer->field_type()))
+        DBUG_RETURN(FALSE);
     default:
-      ;/* suitable for materialization */
+      /* suitable for materialization */
+      break;
     }
-
-    // Materialization does not work with BLOB columns
-    if (inner->field_type() == MYSQL_TYPE_BLOB || 
-	inner->field_type() == MYSQL_TYPE_GEOMETRY)
-        DBUG_RETURN(FALSE);
   }
-    
+
   in_subs->types_allow_materialization= TRUE;
   in_subs->sjm_scan_allowed= all_are_fields;
   DBUG_PRINT("info",("subquery_types_allow_materialization: ok, allowed"));
@@ -2747,7 +2745,6 @@ TABLE *create_duplicate_weedout_tmp_table(THD *thd,
   init_tmp_table_share(thd, share, "", 0, tmpname, tmpname);
   share->blob_field= blob_field;
   share->blob_ptr_size= portable_sizeof_char_ptr;
-  share->db_low_byte_first=1;                // True for HEAP and MyISAM
   share->table_charset= NULL;
   share->primary_key= MAX_KEY;               // Indicate no primary key
   share->keys_for_keyread.init();

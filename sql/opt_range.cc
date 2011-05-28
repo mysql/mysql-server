@@ -7392,7 +7392,6 @@ get_mm_leaf(RANGE_OPT_PARAM *param, COND *conf_func, Field *field,
   SEL_ARG *tree= 0;
   MEM_ROOT *alloc= param->mem_root;
   uchar *str;
-  ulong orig_sql_mode;
   int err;
   DBUG_ENTER("get_mm_leaf");
 
@@ -7560,16 +7559,8 @@ get_mm_leaf(RANGE_OPT_PARAM *param, COND *conf_func, Field *field,
     We can't always use indexes when comparing a string index to a number
     cmp_type() is checked to allow compare of dates to numbers
   */
-  if (field->result_type() == STRING_RESULT &&
-      value->result_type() != STRING_RESULT &&
-      field->cmp_type() != value->result_type())
+  if (field->cmp_type() == STRING_RESULT && value->cmp_type() != STRING_RESULT)
     goto end;
-  /* For comparison purposes allow invalid dates like 2000-01-32 */
-  orig_sql_mode= field->table->in_use->variables.sql_mode;
-  if (value->real_item()->type() == Item::STRING_ITEM &&
-      (field->type() == MYSQL_TYPE_DATE ||
-       field->type() == MYSQL_TYPE_DATETIME))
-    field->table->in_use->variables.sql_mode|= MODE_INVALID_DATES;
   err= value->save_in_field_no_warnings(field, 1);
   if (err > 0)
   {
@@ -7581,7 +7572,6 @@ get_mm_leaf(RANGE_OPT_PARAM *param, COND *conf_func, Field *field,
       {
         tree= new (alloc) SEL_ARG(field, 0, 0);
         tree->type= SEL_ARG::IMPOSSIBLE;
-        field->table->in_use->variables.sql_mode= orig_sql_mode;
         goto end;
       }
       else
@@ -7615,10 +7605,7 @@ get_mm_leaf(RANGE_OPT_PARAM *param, COND *conf_func, Field *field,
           */
         }
         else
-        {
-          field->table->in_use->variables.sql_mode= orig_sql_mode;
           goto end;
-        }
       }
     }
 
@@ -7641,12 +7628,10 @@ get_mm_leaf(RANGE_OPT_PARAM *param, COND *conf_func, Field *field,
   }
   else if (err < 0)
   {
-    field->table->in_use->variables.sql_mode= orig_sql_mode;
     /* This happens when we try to insert a NULL field in a not null column */
     tree= &null_element;                        // cmp with NULL is never TRUE
     goto end;
   }
-  field->table->in_use->variables.sql_mode= orig_sql_mode;
 
   /*
     Any sargable predicate except "<=>" involving NULL as a constant is always

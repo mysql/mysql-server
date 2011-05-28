@@ -923,11 +923,11 @@ ERROR 42000: For float(M,D), double(M,D) or decimal(M,D), M must be >= D (column
 select cast(ln(14000) as decimal(2,3)) c1;
 ERROR 42000: For float(M,D), double(M,D) or decimal(M,D), M must be >= D (column '').
 create table t1 (sl decimal(70,30));
-ERROR 42000: Too big precision 70 specified for column 'sl'. Maximum is 65.
+ERROR 42000: Too big precision 70 specified for 'sl'. Maximum is 65.
 create table t1 (sl decimal(32,31));
-ERROR 42000: Too big scale 31 specified for column 'sl'. Maximum is 30.
+ERROR 42000: Too big scale 31 specified for 'sl'. Maximum is 30.
 create table t1 (sl decimal(0,38));
-ERROR 42000: Too big scale 38 specified for column 'sl'. Maximum is 30.
+ERROR 42000: Too big scale 38 specified for 'sl'. Maximum is 30.
 create table t1 (sl decimal(0,30));
 ERROR 42000: For float(M,D), double(M,D) or decimal(M,D), M must be >= D (column 'sl').
 create table t1 (sl decimal(5, 5));
@@ -1485,12 +1485,12 @@ SELECT CAST(1 AS decimal(65,10));
 CAST(1 AS decimal(65,10))
 1.0000000000
 SELECT CAST(1 AS decimal(66,10));
-ERROR 42000: Too big precision 66 specified for column '1'. Maximum is 65.
+ERROR 42000: Too big precision 66 specified for '1'. Maximum is 65.
 SELECT CAST(1 AS decimal(65,30));
 CAST(1 AS decimal(65,30))
 1.000000000000000000000000000000
 SELECT CAST(1 AS decimal(65,31));
-ERROR 42000: Too big scale 31 specified for column '1'. Maximum is 30.
+ERROR 42000: Too big scale 31 specified for '1'. Maximum is 30.
 CREATE TABLE t1 (a int DEFAULT NULL, b int DEFAULT NULL);
 INSERT INTO t1 VALUES (3,30), (1,10), (2,10);
 SELECT a+CAST(1 AS decimal(65,30)) AS aa, SUM(b) FROM t1 GROUP BY aa;
@@ -1499,7 +1499,7 @@ aa	SUM(b)
 3.000000000000000000000000000000	10
 4.000000000000000000000000000000	30
 SELECT a+CAST(1 AS decimal(65,31)) AS aa, SUM(b) FROM t1 GROUP BY aa;
-ERROR 42000: Too big scale 31 specified for column '1'. Maximum is 30.
+ERROR 42000: Too big scale 31 specified for '1'. Maximum is 30.
 DROP TABLE t1;
 CREATE TABLE t1 (a int DEFAULT NULL, b int DEFAULT NULL);
 INSERT INTO t1 VALUES (3,30), (1,10), (2,10);

@@ -65,7 +65,7 @@ pthread_handler_t test_wt(void *arg)
 
   my_rnd_init(&rand, (ulong)(intptr)&m, id);
   if (kill_strategy == YOUNGEST)
-    thds[id].thd.weight= (ulong)~my_getsystime();
+    thds[id].thd.weight= (ulong) ~ my_interval_timer();
   if (kill_strategy == LOCKS)
     thds[id].thd.weight= 0;
 
@@ -116,7 +116,7 @@ retry:
       if (kill_strategy == LOCKS)
         thds[id].thd.weight= 0;
       if (kill_strategy == YOUNGEST)
-        thds[id].thd.weight= (ulong)~my_getsystime();
+        thds[id].thd.weight= (ulong)~ my_interval_timer();
     }
     else if (kill_strategy == LOCKS)
       thds[id].thd.weight++;

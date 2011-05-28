@@ -2911,38 +2911,37 @@ int set_var_collation_client::update(THD *thd)
 
 bool sys_var_timestamp::check(THD *thd, set_var *var)
 {
-  longlong val;
-  var->save_result.ulonglong_value= var->value->val_int();
-  val= (longlong) var->save_result.ulonglong_value;
-  if (val != 0 &&          // this is how you set the default value
-      (val < TIMESTAMP_MIN_VALUE || val > TIMESTAMP_MAX_VALUE))
+  double val= var->value->val_real();
+  if (val < 0 || val > MY_TIME_T_MAX)
   {
     char buf[64];
     my_error(ER_WRONG_VALUE_FOR_VAR, MYF(0), "timestamp", llstr(val, buf));
     return TRUE;
   }
+  var->save_result.ulonglong_value= hrtime_from_time(val);
   return FALSE;
 }
 
 
 bool sys_var_timestamp::update(THD *thd,  set_var *var)
 {
-  thd->set_time((time_t) var->save_result.ulonglong_value);
+  my_hrtime_t hrtime = { var->save_result.ulonglong_value };
+  thd->set_time(hrtime);
   return FALSE;
 }
 
 
 void sys_var_timestamp::set_default(THD *thd, enum_var_type type)
 {
-  thd->user_time=0;
+  thd->user_time.val= 0;
 }
 
 
 uchar *sys_var_timestamp::value_ptr(THD *thd, enum_var_type type,
 				   LEX_STRING *base)
 {
-  thd->sys_var_tmp.long_value= (long) thd->start_time;
-  return (uchar*) &thd->sys_var_tmp.long_value;
+  thd->sys_var_tmp.double_value= thd->start_time + thd->start_time_sec_part/1e6;
+  return (uchar*) &thd->sys_var_tmp.double_value;
 }
 
 
@@ -3195,7 +3194,7 @@ void sys_var_thd_lc_time_names::set_default(THD *thd, enum_var_type type)
 }
 
 /*
-  Handling of microseoncds given as seconds.part_seconds
+  Handling of microseconds given as seconds.part_seconds
 
   NOTES
     The argument to long query time is in seconds in decimal
@@ -3241,10 +3240,10 @@ void sys_var_microseconds::set_default(THD *thd, enum_var_type type)
 uchar *sys_var_microseconds::value_ptr(THD *thd, enum_var_type type,
                                           LEX_STRING *base)
 {
-  thd->tmp_double_value= (double) ((type == OPT_GLOBAL) ?
+  thd->sys_var_tmp.double_value= (double) ((type == OPT_GLOBAL) ?
                                    global_system_variables.*offset :
                                    thd->variables.*offset) / 1000000.0;
-  return (uchar*) &thd->tmp_double_value;
+  return (uchar*) &thd->sys_var_tmp.double_value;
 }
 
 

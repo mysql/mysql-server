@@ -100,7 +100,8 @@ int my_connect(my_socket s, const struct sockaddr *name, unsigned int namelen,
 struct my_rnd_struct;
 enum Item_result
 {
-  STRING_RESULT=0, REAL_RESULT, INT_RESULT, ROW_RESULT, DECIMAL_RESULT
+  STRING_RESULT=0, REAL_RESULT, INT_RESULT, ROW_RESULT, DECIMAL_RESULT,
+  TIME_RESULT
 };
 typedef struct st_udf_args
 {

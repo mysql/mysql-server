@@ -500,6 +500,8 @@ static int table2maria(TABLE *table_arg, data_file_type row_type,
 
     if (found->flags & BLOB_FLAG)
       recinfo_pos->type= FIELD_BLOB;
+    else if (found->type() == MYSQL_TYPE_TIMESTAMP)
+      recinfo_pos->type= FIELD_NORMAL;
     else if (found->type() == MYSQL_TYPE_VARCHAR)
       recinfo_pos->type= FIELD_VARCHAR;
     else if (!(options & HA_OPTION_PACK_RECORD) ||

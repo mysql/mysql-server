@@ -713,7 +713,8 @@ Log_event::Log_event(THD* thd_arg, uint16 flags_arg, bool using_trans)
    checksum_alg(BINLOG_CHECKSUM_ALG_UNDEF)
 {
   server_id=	thd->server_id;
-  when=		thd->start_time;
+  when=         thd->start_time;
+  when_sec_part=thd->start_time_sec_part;
   cache_stmt=	using_trans;
 }
 
@@ -735,7 +736,8 @@ Log_event::Log_event()
     We can't call my_time() here as this would cause a call before
     my_init() is called
   */
-  when=		0;
+  when=         0;
+  when_sec_part=0;
   log_pos=	0;
 }
 #endif /* !MYSQL_CLIENT */
@@ -754,6 +756,7 @@ Log_event::Log_event(const char* buf,
   thd = 0;
 #endif
   when = uint4korr(buf);
+  when_sec_part= 0;
   server_id = uint4korr(buf + SERVER_ID_OFFSET);
   data_written= uint4korr(buf + EVENT_LEN_OFFSET);
   if (description_event->binlog_version==1)
@@ -842,21 +845,13 @@ int Log_event::do_update_pos(Relay_log_info *rli)
     DBUG_EXECUTE_IF("let_first_flush_log_change_timestamp",
                     if (debug_not_change_ts_if_art_event == 1
                         && is_artificial_event())
-                    {
-                      debug_not_change_ts_if_art_event= 0;
-                    });
-#ifndef DBUG_OFF
-    rli->stmt_done(log_pos, 
-                   is_artificial_event() &&
-                   debug_not_change_ts_if_art_event > 0 ? 0 : when);
-#else
-    rli->stmt_done(log_pos, is_artificial_event()? 0 : when);
-#endif
+                      debug_not_change_ts_if_art_event= 0; );
+    rli->stmt_done(log_pos, is_artificial_event()
+                   IF_DBUG(&& debug_not_change_ts_if_art_event > 0) ?
+                     0 : when);
     DBUG_EXECUTE_IF("let_first_flush_log_change_timestamp",
                     if (debug_not_change_ts_if_art_event == 0)
-                    {
-                      debug_not_change_ts_if_art_event= 2;
-                    });
+                      debug_not_change_ts_if_art_event= 2; );
   }
   return 0;                                   // Cannot fail currently
 }
@@ -1097,7 +1092,7 @@ bool Log_event::write_header(IO_CACHE* file, ulong event_data_length)
     log_pos= my_b_safe_tell(file)+data_written;
   }
 
-  now= (ulong) get_time();                              // Query start time
+  now= get_time();                               // Query start time
 
   /*
     Header will be of size LOG_EVENT_HEADER_LEN for all events, except for
@@ -2020,6 +2015,7 @@ beg:
       uint64 i64= uint8korr(ptr); /* YYYYMMDDhhmmss */
       d= (ulong) (i64 / 1000000);
       t= (ulong) (i64 % 1000000);
+
       my_b_printf(file, "%04d-%02d-%02d %02d:%02d:%02d",
                   (int) (d / 10000), (int) (d % 10000) / 100, (int) (d % 100),
                   (int) (t / 10000), (int) (t % 10000) / 100, (int) t % 100);
@@ -2275,12 +2271,10 @@ end:
   delete td;
 }
 
-#ifdef MYSQL_CLIENT
 void free_table_map_log_event(Table_map_log_event *event)
 {
   delete event;
 }
-#endif
 
 void Log_event::print_base64(IO_CACHE* file,
                              PRINT_EVENT_INFO* print_event_info,
@@ -2363,15 +2357,13 @@ void Log_event::print_base64(IO_CACHE* file,
 void Log_event::print_timestamp(IO_CACHE* file, time_t* ts)
 {
   struct tm *res;
+  time_t my_when= when;
   DBUG_ENTER("Log_event::print_timestamp");
   if (!ts)
-    ts = &when;
-#ifdef MYSQL_SERVER				// This is always false
-  struct tm tm_tmp;
-  localtime_r(ts,(res= &tm_tmp));
-#else
+  {
+    ts = &my_when;
+  }
   res=localtime(ts);
-#endif
 
   my_b_printf(file,"%02d%02d%02d %2d:%02d:%02d",
               res->tm_year % 100,
@@ -2655,6 +2647,15 @@ bool Query_log_event::write(IO_CACHE* file)
       memcpy(start, host.str, host.length);
       start+= host.length;
     }
+
+  }
+
+  if (thd && thd->query_start_sec_part_used)
+  {
+    *start++= Q_HRNOW;
+    get_time();
+    int3store(start, when_sec_part);
+    start+= 3;
   }
   /*
     NOTE: When adding new status vars, please don't forget to update
@@ -2748,7 +2749,7 @@ Query_log_event::Query_log_event(THD* thd_arg, const char* query_arg,
 
   error_code= errcode;
 
-  time(&end_time);
+  end_time= my_time(0);
   exec_time = (ulong) (end_time  - thd_arg->start_time);
   /**
     @todo this means that if we have no catalog, then it is replicated
@@ -2883,6 +2884,7 @@ code_name(int code)
   case Q_CHARSET_DATABASE_CODE: return "Q_CHARSET_DATABASE_CODE";
   case Q_TABLE_MAP_FOR_UPDATE_CODE: return "Q_TABLE_MAP_FOR_UPDATE_CODE";
   case Q_MASTER_DATA_WRITTEN_CODE: return "Q_MASTER_DATA_WRITTEN_CODE";
+  case Q_HRNOW: return "Q_HRNOW";
   }
   sprintf(buf, "CODE#%d", code);
   return buf;
@@ -3099,6 +3101,14 @@ Query_log_event::Query_log_event(const char* buf, uint event_len,
       CHECK_SPACE(pos, end, host.length);
       host.str= (char *)pos;
       pos+= host.length;
+      break;
+    }
+    case Q_HRNOW:
+    {
+      CHECK_SPACE(pos, end, 3);
+      when_sec_part= uint3korr(pos);
+      pos+= 3;
+      break;
     }
     default:
       /* That's why you must write status vars in growing order of code */
@@ -3178,7 +3188,7 @@ void Query_log_event::print_query_header(IO_CACHE* file,
 					 PRINT_EVENT_INFO* print_event_info)
 {
   // TODO: print the catalog ??
-  char buff[40],*end;				// Enough for SET TIMESTAMP
+  char buff[64], *end;				// Enough for SET TIMESTAMP
   bool different_db= 1;
   uint32 tmp;
 
@@ -3205,6 +3215,11 @@ void Query_log_event::print_query_header(IO_CACHE* file,
   }
 
   end=int10_to_str((long) when, strmov(buff,"SET TIMESTAMP="),10);
+  if (when_sec_part)
+  {
+    *end++= '.';
+    end=int10_to_str(when_sec_part, end, 10);
+  }
   end= strmov(end, print_event_info->delimiter);
   *end++='\n';
   my_b_write(file, (uchar*) buff, (uint) (end-buff));
@@ -3466,7 +3481,7 @@ int Query_log_event::do_apply_event(Relay_log_info const *rli,
   */
   if (is_trans_keyword() || rpl_filter->db_ok(thd->db))
   {
-    thd->set_time((time_t)when);
+    thd->set_time(when, when_sec_part);
     thd->set_query((char*)query_arg, q_len_arg);
     VOID(pthread_mutex_lock(&LOCK_thread_count));
     thd->query_id = next_query_id();
@@ -3913,7 +3928,7 @@ bool Start_log_event_v3::write(IO_CACHE* file)
   int2store(buff + ST_BINLOG_VER_OFFSET,binlog_version);
   memcpy(buff + ST_SERVER_VER_OFFSET,server_version,ST_SERVER_VER_LEN);
   if (!dont_set_created)
-    created= when= get_time();
+    created= get_time(); // this sets when and when_sec_part as a side effect
   int4store(buff + ST_CREATED_OFFSET,created);
   return (write_header(file, sizeof(buff)) ||
           wrapper_my_b_safe_write(file, (uchar*) buff, sizeof(buff)) ||
@@ -4337,7 +4352,7 @@ bool Format_description_log_event::write(IO_CACHE* file)
   int2store(buff + ST_BINLOG_VER_OFFSET,binlog_version);
   memcpy((char*) buff + ST_SERVER_VER_OFFSET,server_version,ST_SERVER_VER_LEN);
   if (!dont_set_created)
-    created= when= get_time();
+    created= get_time();
   int4store(buff + ST_CREATED_OFFSET,created);
   buff[ST_COMMON_HEADER_LEN_OFFSET]= LOG_EVENT_HEADER_LEN;
   memcpy((char*) buff+ST_COMMON_HEADER_LEN_OFFSET + 1, (uchar*) post_header_len,
@@ -5145,7 +5160,7 @@ int Load_log_event::do_apply_event(NET* net, Relay_log_info const *rli,
   */
   if (rpl_filter->db_ok(thd->db))
   {
-    thd->set_time((time_t)when);
+    thd->set_time(when, when_sec_part);
     VOID(pthread_mutex_lock(&LOCK_thread_count));
     thd->query_id = next_query_id();
     VOID(pthread_mutex_unlock(&LOCK_thread_count));
@@ -7991,7 +8006,7 @@ int Rows_log_event::do_apply_event(Relay_log_info const *rli)
       TIMESTAMP column to a table with one.
       So we call set_time(), like in SBR. Presently it changes nothing.
     */
-    thd->set_time((time_t)when);
+    thd->set_time(when, when_sec_part);
 
     /*
       Now we are in a statement and will stay in a statement until we
