@@ -258,54 +258,71 @@ WHERE ( f2 ) IN (SELECT t1.f1
 drop table t1,t2,t3;
 
 
+--echo #                                                                                                                                                     
+--echo # LP BUG#718593 Crash in substitute_for_best_equal_field -> eliminate_item_equal -> 
+--echo # Item_field::find_item_equal -> Item_equal::contains
 --echo #
---echo # LP BUG#718593 Crash in substitute_for_best_equal_field ->
---echo # eliminate_item_equal -> Item_field::find_item_equal -> Item_equal::contains
 
---disable_parsing # not yet fixed
+set @save_optimizer_switch=@@optimizer_switch;
+SET @@optimizer_switch = 'semijoin=off';
 
 CREATE TABLE t1 ( f3 int(11), f10 varchar(1), f11 varchar(1)) ;
 INSERT IGNORE INTO t1 VALUES (6,'f','f'),(2,'d','d');
 
 CREATE TABLE t2 ( f12 int(11), f13 int(11)) ;
-
-set @save_optimizer_switch=@@optimizer_switch;
-set @@optimizer_switch='materialization=off,in_to_exists=on,semijoin=off';
-
-EXPLAIN
-SELECT * FROM t2
-WHERE (f12) IN (
-      SELECT alias2.f3
-      FROM t1 AS alias1, t1 AS alias2
-      WHERE (alias2.f10 = alias1.f11) AND
-             (alias1.f11 OR alias1.f3 = 50 AND alias1.f10));
-
-SELECT * FROM t2
-WHERE (f12) IN (
-      SELECT alias2.f3
-      FROM t1 AS alias1, t1 AS alias2
-      WHERE (alias2.f10 = alias1.f11) AND
-             (alias1.f11 OR alias1.f3 = 50 AND alias1.f10));
-
 insert into t2 values (1,2), (3,4);
 
 EXPLAIN
 SELECT * FROM t2
-WHERE (f12) IN (
-      SELECT alias2.f3
-      FROM t1 AS alias1, t1 AS alias2
-      WHERE (alias2.f10 = alias1.f11) AND
-             (alias1.f11 OR alias1.f3 = 50 AND alias1.f10));
-
+WHERE ( f12 ) IN (
+        SELECT alias2.f3
+        FROM t1 AS alias1 JOIN t1 AS alias2 ON alias2.f10 = alias1.f11
+        WHERE alias1.f11 OR alias1.f3 = 50 AND alias1.f10
+);
 SELECT * FROM t2
-WHERE (f12) IN (
-      SELECT alias2.f3
-      FROM t1 AS alias1, t1 AS alias2
-      WHERE (alias2.f10 = alias1.f11) AND
-             (alias1.f11 OR alias1.f3 = 50 AND alias1.f10));
+WHERE ( f12 ) IN (
+        SELECT alias2.f3
+        FROM t1 AS alias1 JOIN t1 AS alias2 ON alias2.f10 = alias1.f11
+        WHERE alias1.f11 OR alias1.f3 = 50 AND alias1.f10
+);
 
-set session optimizer_switch=@save_optimizer_switch;
+EXPLAIN
+SELECT * FROM t2
+WHERE ( f12 ) IN (
+        SELECT alias2.f3
+        FROM t1 AS alias1, t1 AS alias2
+        WHERE (alias2.f10 = alias1.f11) AND (alias1.f11 OR alias1.f3 = 50 AND alias1.f10));
+SELECT * FROM t2
+WHERE ( f12 ) IN (
+        SELECT alias2.f3
+        FROM t1 AS alias1, t1 AS alias2
+        WHERE (alias2.f10 = alias1.f11) AND (alias1.f11 OR alias1.f3 = 50 AND alias1.f10));
 
+set @@optimizer_switch=@save_optimizer_switch;
 drop table t1, t2;
 
---enable_parsing
+
+--echo #
+--echo # MWL#89: test introduced after Sergey Petrunia's review - test that
+--echo # keyparts wihtout index prefix are used with the IN-EXISTS strategy.
+--echo # 
+
+create table t1 (c1 int);
+insert into t1 values (1), (2), (3);
+
+create table t2 (kp1 int, kp2 int, c2 int, filler char(100));
+insert into t2 values (0,0,0,'filler'),(0,1,1,'filler'),(0,2,2,'filler'),(0,3,3,'filler');
+
+create index key1 on t2 (kp1, kp2);
+create index key2 on t2 (kp1);
+create index key3 on t2 (kp2);
+
+set session optimizer_switch='default';
+
+analyze table t2;
+
+explain
+select c1 from t1 where c1 in (select kp1 from t2 where kp2 = 10 and c2 = 4) or c1 > 7;
+select c1 from t1 where c1 in (select kp1 from t2 where kp2 = 10 and c2 = 4) or c1 > 7;
+
+drop table t1, t2;

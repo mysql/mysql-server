@@ -1328,48 +1328,6 @@ set @@optimizer_switch=@save_optimizer_switch;
 
 drop table t0,t1,t2;
 
---echo #                                                                                                                                                     
---echo # LP BUG#718593 Crash in substitute_for_best_equal_field -> eliminate_item_equal -> 
---echo # Item_field::find_item_equal -> Item_equal::contains
---echo #                                                                                                                                                     
-
-set @save_optimizer_switch=@@optimizer_switch;
-SET @@optimizer_switch = 'semijoin=off';
-
-CREATE TABLE t1 ( f3 int(11), f10 varchar(1), f11 varchar(1)) ;
-INSERT IGNORE INTO t1 VALUES (6,'f','f'),(2,'d','d');
-
-CREATE TABLE t2 ( f12 int(11), f13 int(11)) ;
-insert into t2 values (1,2), (3,4);
-
-EXPLAIN
-SELECT * FROM t2
-WHERE ( f12 ) IN (
-        SELECT alias2.f3
-        FROM t1 AS alias1 JOIN t1 AS alias2 ON alias2.f10 = alias1.f11
-        WHERE alias1.f11 OR alias1.f3 = 50 AND alias1.f10
-);
-SELECT * FROM t2
-WHERE ( f12 ) IN (
-        SELECT alias2.f3
-        FROM t1 AS alias1 JOIN t1 AS alias2 ON alias2.f10 = alias1.f11
-        WHERE alias1.f11 OR alias1.f3 = 50 AND alias1.f10
-);
-
-EXPLAIN
-SELECT * FROM t2
-WHERE ( f12 ) IN (
-        SELECT alias2.f3
-        FROM t1 AS alias1, t1 AS alias2
-        WHERE (alias2.f10 = alias1.f11) AND (alias1.f11 OR alias1.f3 = 50 AND alias1.f10));
-SELECT * FROM t2
-WHERE ( f12 ) IN (
-        SELECT alias2.f3
-        FROM t1 AS alias1, t1 AS alias2
-        WHERE (alias2.f10 = alias1.f11) AND (alias1.f11 OR alias1.f3 = 50 AND alias1.f10));
-
-set @@optimizer_switch=@save_optimizer_switch;
-drop table t1, t2;
 
 --echo #                                                                                                                                                     
 --echo # LP BUG#715759 Wrong result with in_to_exists=on in maria-5.3-mwl89
@@ -1410,5 +1368,50 @@ EXPLAIN SELECT STRAIGHT_JOIN (
 SELECT STRAIGHT_JOIN (
         SELECT f2 FROM t1 WHERE ( f2 ) IN ( SELECT t3.f2 FROM t3 JOIN t2 ON t2.f1 = 1 )
 );
+
+drop table t1, t2, t3;
+
+
+--echo #                                                                                                                                                     
+--echo # LP BUG#777597 Wrong result with multipart keys, in_to_exists=on, NOT IN in MWL#89
+--echo #                                                                                                                                                     
+
+CREATE TABLE t1 ( f4 int);
+INSERT IGNORE INTO t1 VALUES (2),(2);
+
+CREATE TABLE t2 ( f3 int, f10 int, KEY (f10,f3) );
+INSERT IGNORE INTO t2 VALUES (6, 1), (6, 1);
+
+CREATE TABLE t3 ( f10 int );
+INSERT IGNORE INTO t3 VALUES (1);
+
+SET SESSION optimizer_switch='in_to_exists=on,materialization=off';
+
+EXPLAIN
+SELECT * FROM t1 WHERE ( 6 ) NOT IN ( SELECT t2.f3 FROM t2 JOIN t3 ON t3.f10 = t2.f10);
+SELECT * FROM t1 WHERE ( 6 ) NOT IN ( SELECT t2.f3 FROM t2 JOIN t3 ON t3.f10 = t2.f10);
+
+drop table t1,t2,t3;
+
+
+--echo #                                                                                                                                                     
+--echo # LP BUG#778413 Third crash in select_describe() in maria-5.3-mwl89
+--echo #                                                                                                                                                     
+
+CREATE TABLE t1 ( f11 int) ;
+INSERT INTO t1 VALUES (1),(1);
+
+CREATE TABLE t2 ( f1 int NOT NULL) ;
+INSERT INTO t2 VALUES (20);
+
+CREATE TABLE t3 (f3 int) ;
+INSERT INTO t3 VALUES (2),(2);
+
+EXPLAIN SELECT * FROM t2
+WHERE t2.f1 = (
+        SELECT MAX( f3 ) FROM t3
+        WHERE EXISTS (
+                SELECT DISTINCT f11
+                FROM t1));
 
 drop table t1, t2, t3;
