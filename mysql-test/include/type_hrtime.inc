@@ -15,6 +15,7 @@ insert t1 values (20101211010203.45678);
 insert t1 values (20101211030405.789e0);
 insert t1 values (99991231235959e1);
 select * from t1;
+--replace_regex /121000/121094/ /457000/457031/ /789000/789062/
 select truncate(a, 6) from t1; # Field::val_real()
 select a DIV 1 from t1; # Field::val_int()
 select group_concat(distinct a) from t1; # Field::cmp()

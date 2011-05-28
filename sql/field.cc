@@ -4602,7 +4602,7 @@ int Field_timestamp::store(double nr)
 
   /* We don't want to store invalid or fuzzy datetime values in TIMESTAMP */
   if (nr < 0 || nr > LONGLONG_MAX)
-    nr= LONGLONG_MAX;
+    nr= (double)LONGLONG_MAX;
   tmp= number_to_datetime((longlong) floor(nr),
                           &l_time, (thd->variables.sql_mode &
                                     MODE_NO_ZERO_DATE) |
@@ -5075,7 +5075,7 @@ int Field_temporal::store(double nr)
   Lazy_string_double str(nr);
 
   if (nr < 0 || nr > LONGLONG_MAX)
-    nr= LONGLONG_MAX;
+    nr= (double)LONGLONG_MAX;
   longlong tmp= number_to_datetime((longlong) floor(nr), &ltime,
                                    (TIME_FUZZY_DATE |
                                        (thd->variables.sql_mode &

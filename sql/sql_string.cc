@@ -580,8 +580,8 @@ uint32 String::numchars()
 int String::charpos(longlong i,uint32 offset)
 {
   if (i <= 0)
-    return i;
-  return str_charset->cset->charpos(str_charset,Ptr+offset,Ptr+str_length,i);
+    return (int)i;
+  return (int)str_charset->cset->charpos(str_charset,Ptr+offset,Ptr+str_length,(size_t)i);
 }
 
 int String::strstr(const String &s,uint32 offset)

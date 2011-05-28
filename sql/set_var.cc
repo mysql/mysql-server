@@ -2915,7 +2915,7 @@ bool sys_var_timestamp::check(THD *thd, set_var *var)
   if (val < 0 || val > MY_TIME_T_MAX)
   {
     char buf[64];
-    my_error(ER_WRONG_VALUE_FOR_VAR, MYF(0), "timestamp", llstr(val, buf));
+    my_error(ER_WRONG_VALUE_FOR_VAR, MYF(0), "timestamp", llstr((longlong)val, buf));
     return TRUE;
   }
   var->save_result.ulonglong_value= hrtime_from_time(val);

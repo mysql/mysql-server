@@ -77,31 +77,22 @@ int pthread_cond_timedwait(pthread_cond_t *cond, pthread_mutex_t *mutex,
                            struct timespec *abstime)
 {
   int result;
-  long timeout; 
-  union ft64 now;
-
+  DWORD timeout;
+  long long timeout_us;
+  my_hrtime_t now;
+  my_hrtime_t then;
   if( abstime != NULL )
   {
-    GetSystemTimeAsFileTime(&now.ft);
+    now= my_hrtime();
+    then.val= 1000000ULL*abstime->tv_sec + abstime->tv_nsec/1000;
+    timeout_us=  then.val - now.val;
 
-    /*
-      Calculate time left to abstime
-      - subtract start time from current time(values are in 100ns units)
-      - convert to millisec by dividing with 10000
-    */
-    timeout= (long)((abstime->tv.i64 - now.i64) / 10000);
-    
-    /* Don't allow the timeout to be negative */
-    if (timeout < 0)
-      timeout= 0L;
-
-    /*
-      Make sure the calucated timeout does not exceed original timeout
-      value which could cause "wait for ever" if system time changes
-    */
-    if (timeout > abstime->max_timeout_msec)
-      timeout= abstime->max_timeout_msec;
-
+    if (timeout_us < 0)
+      timeout= 0;
+    else if (timeout_us > 1000ULL*INFINITE)
+      timeout= INFINITE;
+    else
+      timeout= (DWORD)(timeout_us/1000);
   }
   else
   {

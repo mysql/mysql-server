@@ -369,8 +369,7 @@ xtPublic xtBool xt_fs_stat(XTThreadPtr self, char *path, off_t *size, struct tim
 	CloseHandle(fh);
 	if (size)
 		*size = (off_t) info.nFileSizeLow | (((off_t) info.nFileSizeHigh) << 32);
-	if (mod_time)
-		mod_time->tv.ft = info.ftLastWriteTime;
+	memset(mod_time, 0, sizeof(*mod_time));
 #else
 	struct stat sb;
 

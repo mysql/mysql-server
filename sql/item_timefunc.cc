@@ -100,7 +100,7 @@ bool Item_func_sec_to_time::sec_to_time(my_decimal *seconds, MYSQL_TIME *ltime)
   my_decimal_mul(E_DEC_FATAL_ERROR, &tmp, &sub_seconds,
                  &time_second_part_factor);
   (void) decimal2longlong(&tmp, &full_seconds);
-  ltime->second_part= full_seconds;
+  ltime->second_part= (ulong)full_seconds;
 
   return 0;
 
