@@ -436,9 +436,9 @@ insert into t1 values ("abcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcd
 insert into t1 values ("abcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyz");
 drop table t1;
 
-#
-# Bug 12796: Record doesn't show when selecting through index
-#
+--echo #
+--echo # Bug 12796: Record doesn't show when selecting through index
+--echo #
 CREATE TABLE t1 (a int, key(a)) engine=heap;
 insert into t1 values (0);
 delete from t1;
@@ -480,3 +480,39 @@ INSERT INTO t1 VALUES('', 0);
 ALTER TABLE t1 MODIFY c1 VARCHAR(101);
 SELECT c2 FROM t1;
 DROP TABLE t1;
+
+--echo #
+--echo # BUG#11825482: Broken key length calculation for btree index
+--echo #
+CREATE TABLE h1 (f1 VARCHAR(1), f2 INT NOT NULL,
+                 UNIQUE KEY h1i (f1,f2) USING BTREE ) ENGINE=HEAP;
+INSERT INTO h1 VALUES(NULL,0),(NULL,1);
+SELECT 'wrong' as 'result' FROM dual WHERE ('h', 0) NOT IN (SELECT * FROM h1);
+
+CREATE TABLE t1 (  
+  pk int NOT NULL,  
+  col_int_nokey INT,  
+  col_varchar_nokey VARCHAR(1),  
+  PRIMARY KEY (pk)  
+);
+
+INSERT INTO t1 VALUES (19,5,'h'),(20,5,'h');
+  
+CREATE TABLE t2 (col_int_nokey INT);
+
+INSERT INTO t2 VALUES (1),(2);
+
+CREATE VIEW v1 AS
+  SELECT col_varchar_nokey, COUNT( col_varchar_nokey )
+  FROM t1
+  WHERE col_int_nokey <= 141 AND pk <= 4
+;
+
+SELECT col_int_nokey FROM t2
+WHERE ('h', 0) NOT IN ( SELECT * FROM v1);
+--echo # shouldn't crash
+EXPLAIN SELECT col_int_nokey FROM t2
+WHERE ('h', 0) NOT IN ( SELECT * FROM v1);
+
+DROP TABLE t1,t2,h1;
+DROP VIEW v1;
