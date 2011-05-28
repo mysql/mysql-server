@@ -264,6 +264,7 @@ typedef struct st_join_table : public Sql_alloc
   */
   uint          packed_info;
 
+  READ_RECORD::Setup_func materialize_table;
   READ_RECORD::Setup_func read_first_record;
   Next_select_func next_select;
   READ_RECORD	read_record;
@@ -271,7 +272,6 @@ typedef struct st_join_table : public Sql_alloc
     The following two fields are used for a [NOT] IN subquery if it is
     executed by an alternative full table scan when the left operand of
     the subquery predicate is evaluated to NULL.
-    save_read_first_record is also used during derived tables materialization.
   */
   READ_RECORD::Setup_func save_read_first_record;/* to save read_first_record */
   READ_RECORD::Read_func save_read_record;/* to save read_record.read_record */
@@ -453,6 +453,7 @@ st_join_table::st_join_table()
     pre_idx_push_select_cond(NULL),
     info(NULL),
     packed_info(0),
+    materialize_table(NULL),
     read_first_record(NULL),
     next_select(NULL),
     read_record(),

@@ -693,3 +693,64 @@ DROP VIEW v1,v2,v3,v4,v6,v7;
 
 --echo #
 
+--echo #
+--echo # Bug#11791677 - ASSERTION FAILED IN JOIN_MATERIALIZE_TABLE IN
+--echo #                SQL_SELECT.CC ON NESTED SUBQUERY 
+--echo #
+CREATE TABLE t1 (
+  pk int(11) NOT NULL AUTO_INCREMENT,
+  col_int_key int(11) DEFAULT NULL,
+  col_varchar_key varchar(1) DEFAULT NULL,
+  PRIMARY KEY (pk),
+  KEY col_varchar_key (col_varchar_key,col_int_key)
+);
+
+INSERT INTO t1 VALUES (10,8,'v'), (29,4,'c');
+  
+CREATE TABLE t2 (  
+  pk int(11) NOT NULL AUTO_INCREMENT,
+  col_int_nokey int(11) DEFAULT NULL,
+  col_varchar_key varchar(1) DEFAULT NULL,
+  PRIMARY KEY (pk)
+);
+
+INSERT INTO t2 VALUES (16,1,'c'), (20,4,'d');
+
+CREATE TABLE t3 (
+  `field1` varchar(1) DEFAULT NULL,
+  `field2` int(11) DEFAULT NULL
+);
+
+INSERT INTO t3 VALUES ('m',6),('c',4);
+
+SELECT *
+FROM t3
+WHERE (field1, field2) IN (
+  SELECT t1.col_varchar_key AS field1,
+         t1.col_int_key AS field2
+  FROM ( t1 INNER JOIN (
+      SELECT t2.*
+      FROM t2
+      WHERE t2.col_int_nokey < t2.pk ) AS alias2
+    ON (alias2.col_varchar_key = t1.col_varchar_key ) )
+  GROUP BY field1, field2
+  ORDER BY t1.col_int_key, t1 .pk DESC )
+;
+
+DROP TABLE t1,t2,t3;
+--echo #
+
+--echo #
+--echo # Bug#11791705 - CRASH IN JOIN_MATERIALIZE_TABLE OR ASSERTION FAIL:
+--echo #                !TAB->SAVE_READ_FIRST_RECORD
+--echo #
+CREATE TABLE t1 (a INTEGER);
+INSERT INTO t1 VALUES (NULL),(NULL);
+
+SELECT * FROM t1
+WHERE (a, a) NOT IN
+  (SELECT * FROM (SELECT 8, 4 UNION SELECT 2, 3) tt) ;
+
+DROP TABLE t1; 
+--echo #
+
