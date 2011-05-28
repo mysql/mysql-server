@@ -3904,7 +3904,7 @@ static void fetch_datetime_with_conversion(MYSQL_BIND *param,
       fetch_string_with_conversion:
     */
     char buff[MAX_DATE_STRING_REP_LENGTH];
-    uint length= my_TIME_to_str(my_time, buff);
+    uint length= my_TIME_to_str(my_time, buff, field->decimals);
     /* Resort to string conversion */
     fetch_string_with_conversion(param, (char *)buff, length);
     break;

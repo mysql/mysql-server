@@ -66,27 +66,96 @@ cast(cast("20:01:01" as time) as datetime)
 select cast(cast("8:46:06.23434" AS time) as decimal(32,10));
 cast(cast("8:46:06.23434" AS time) as decimal(32,10))
 84606.2343400000
+select cast(cast("2011-04-05 8:46:06.23434" AS datetime) as decimal(32,6));
+cast(cast("2011-04-05 8:46:06.23434" AS datetime) as decimal(32,6))
+20110405084606.234340
+#
+# Check handling of cast with microseconds
+#
 select cast(cast(20010203101112.121314 as double) as datetime);
 cast(cast(20010203101112.121314 as double) as datetime)
-2001-02-03 10:11:12.125000
+2001-02-03 10:11:12
 select cast(cast(010203101112.12 as double) as datetime);
 cast(cast(010203101112.12 as double) as datetime)
-2001-02-03 10:11:12.120000
+2001-02-03 10:11:12
 select cast(cast(20010203101112.121314 as decimal(32,6)) as datetime);
 cast(cast(20010203101112.121314 as decimal(32,6)) as datetime)
-2001-02-03 10:11:12.121314
+2001-02-03 10:11:12
 select cast(20010203101112.121314 as datetime);
 cast(20010203101112.121314 as datetime)
-2001-02-03 10:11:12.121314
+2001-02-03 10:11:12
 select cast(110203101112.121314 as datetime);
 cast(110203101112.121314 as datetime)
-2011-02-03 10:11:12.121314
+2011-02-03 10:11:12
 select cast(cast(010203101112.12 as double) as datetime);
 cast(cast(010203101112.12 as double) as datetime)
+2001-02-03 10:11:12
+select cast("2011-02-03 10:11:12.123456" as datetime);
+cast("2011-02-03 10:11:12.123456" as datetime)
+2011-02-03 10:11:12
+select cast("2011-02-03 10:11:12.123456" as datetime(0));
+cast("2011-02-03 10:11:12.123456" as datetime(0))
+2011-02-03 10:11:12
+select cast("2011-02-03 10:11:12.123456" as datetime(5));
+cast("2011-02-03 10:11:12.123456" as datetime(5))
+2011-02-03 10:11:12.12345
+select cast("2011-02-03 10:11:12.123456" as datetime(6));
+cast("2011-02-03 10:11:12.123456" as datetime(6))
+2011-02-03 10:11:12.123456
+select cast("2011-02-03 10:11:12" as datetime(6));
+cast("2011-02-03 10:11:12" as datetime(6))
+2011-02-03 10:11:12.000000
+select cast(cast(20010203101112.1 as double) as datetime(1));
+cast(cast(20010203101112.1 as double) as datetime(1))
+2001-02-03 10:11:12.1
+select cast(cast(010203101112.12 as double) as datetime(2));
+cast(cast(010203101112.12 as double) as datetime(2))
+2001-02-03 10:11:12.12
+select cast(cast(20010203101112.121314 as decimal(32,6)) as datetime(6));
+cast(cast(20010203101112.121314 as decimal(32,6)) as datetime(6))
+2001-02-03 10:11:12.121314
+select cast(20010203101112.121314 as datetime(6));
+cast(20010203101112.121314 as datetime(6))
+2001-02-03 10:11:12.121314
+select cast(110203101112.121314 as datetime(6));
+cast(110203101112.121314 as datetime(6))
+2011-02-03 10:11:12.121314
+select cast(cast(010203101112.12 as double) as datetime(6));
+cast(cast(010203101112.12 as double) as datetime(6))
 2001-02-03 10:11:12.120000
-select cast(cast("2011-04-05 8:46:06.23434" AS datetime) as time);
-cast(cast("2011-04-05 8:46:06.23434" AS datetime) as time)
-08:46:06.234340
+select cast("2011-02-03 10:11:12.123456" as time);
+cast("2011-02-03 10:11:12.123456" as time)
+10:11:12
+select cast("2011-02-03 10:11:12.123456" as time(6));
+cast("2011-02-03 10:11:12.123456" as time(6))
+10:11:12.123456
+select cast("10:11:12.123456" as time);
+cast("10:11:12.123456" as time)
+10:11:12
+select cast("10:11:12.123456" as time(0));
+cast("10:11:12.123456" as time(0))
+10:11:12
+select cast("10:11:12.123456" as time(5));
+cast("10:11:12.123456" as time(5))
+10:11:12.12345
+select cast("10:11:12.123456" as time(6));
+cast("10:11:12.123456" as time(6))
+10:11:12.123456
+select cast("10:11:12" as time(6));
+cast("10:11:12" as time(6))
+10:11:12.000000
+select cast(cast("2011-04-05 8:46:06.123456" AS datetime) as time);
+cast(cast("2011-04-05 8:46:06.123456" AS datetime) as time)
+08:46:06
+select cast(cast("2011-04-05 8:46:06.123456" AS datetime) as time(6));
+cast(cast("2011-04-05 8:46:06.123456" AS datetime) as time(6))
+08:46:06.123456
+select cast(cast("2011-04-05 8:46:06.123456" AS datetime(6)) as time);
+cast(cast("2011-04-05 8:46:06.123456" AS datetime(6)) as time)
+08:46:06
+select cast(cast("2011-04-05 8:46:06.123456" AS datetime(6)) as time(6));
+cast(cast("2011-04-05 8:46:06.123456" AS datetime(6)) as time(6))
+08:46:06.123456
 select cast(NULL as unsigned), cast(1/0 as unsigned);
 cast(NULL as unsigned)	cast(1/0 as unsigned)
 NULL	NULL
@@ -318,13 +387,13 @@ ERROR 42000: For float(M,D), double(M,D) or decimal(M,D), M must be >= D (column
 select cast(1 as decimal(5,6));
 ERROR 42000: For float(M,D), double(M,D) or decimal(M,D), M must be >= D (column '').
 select cast(1 as double(66,6));
-ERROR 42000: Too big precision 66 specified for column '1'. Maximum is 65.
+ERROR 42000: Too big precision 66 specified for '1'. Maximum is 65.
 select cast(1 as decimal(66,6));
-ERROR 42000: Too big precision 66 specified for column '1'. Maximum is 65.
+ERROR 42000: Too big precision 66 specified for '1'. Maximum is 65.
 select cast(1 as decimal(64,63));
-ERROR 42000: Too big scale 63 specified for column '1'. Maximum is 30.
+ERROR 42000: Too big scale 63 specified for '1'. Maximum is 30.
 select cast(1 as double(64,63));
-ERROR 42000: Too big scale 63 specified for column '1'. Maximum is 30.
+ERROR 42000: Too big scale 63 specified for '1'. Maximum is 30.
 set names binary;
 select cast(_latin1'test' as char character set latin2);
 cast(_latin1'test' as char character set latin2)
@@ -433,7 +502,7 @@ cast("2001-1-1" as datetime) = "2001-01-01 00:00:00"
 1
 select cast("1:2:3" as TIME) = "1:02:03";
 cast("1:2:3" as TIME) = "1:02:03"
-0
+1
 CREATE TABLE t1 (a enum ('aac','aab','aaa') not null);
 INSERT INTO t1 VALUES ('aaa'),('aab'),('aac');
 SELECT a, CAST(a AS CHAR) FROM t1 ORDER BY CAST(a AS UNSIGNED) ;
@@ -640,3 +709,29 @@ SELECT CONVERT(t2.a USING UTF8) FROM t1, t1 t2 LIMIT 1
 1
 DROP TABLE t1;
 End of 5.1 tests
+select cast("2101-00-01 02:03:04" as datetime);
+cast("2101-00-01 02:03:04" as datetime)
+2101-00-01 02:03:04
+select cast(cast("2101-00-01 02:03:04" as datetime) as time);
+cast(cast("2101-00-01 02:03:04" as datetime) as time)
+02:03:04
+SELECT CAST(CAST('20:05:05' AS TIME) as date);
+CAST(CAST('20:05:05' AS TIME) as date)
+0000-00-00
+set sql_mode= TRADITIONAL;
+select cast("2101-00-01 02:03:04" as datetime);
+cast("2101-00-01 02:03:04" as datetime)
+2101-00-01 02:03:04
+select cast(cast("2101-00-01 02:03:04" as datetime) as time);
+cast(cast("2101-00-01 02:03:04" as datetime) as time)
+02:03:04
+SELECT CAST(CAST('20:05:05' AS TIME) as date);
+CAST(CAST('20:05:05' AS TIME) as date)
+0000-00-00
+set sql_mode=DEFAULT;
+create table t1 (f1 time, f2 date, f3 datetime);
+insert into t1 values ('11:22:33','2011-12-13','2011-12-13 11:22:33');
+select cast(f1 as unsigned), cast(f2 as unsigned), cast(f3 as unsigned) from t1;
+cast(f1 as unsigned)	cast(f2 as unsigned)	cast(f3 as unsigned)
+112233	20111213	20111213112233
+drop table t1;

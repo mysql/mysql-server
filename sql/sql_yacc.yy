@@ -682,10 +682,10 @@ bool my_yyoverflow(short **a, YYSTYPE **b, ulong *yystacksize);
 
 %pure_parser                                    /* We have threads */
 /*
-  Currently there are 169 shift/reduce conflicts.
+  Currently there are 171 shift/reduce conflicts.
   We should not introduce new conflicts any more.
 */
-%expect 169
+%expect 171
 
 /*
    Comments for TOKENS.
@@ -1348,6 +1348,7 @@ bool my_yyoverflow(short **a, YYSTYPE **b, ulong *yystacksize);
         opt_ev_status opt_ev_on_completion ev_on_completion opt_ev_comment
         ev_alter_on_schedule_completion opt_ev_rename_to opt_ev_sql_stmt
         optional_flush_tables_arguments opt_dyncol_type dyncol_type
+        opt_time_precision
 
 %type <ulong_num>
         ulong_num real_ulong_num merge_insert_types
@@ -2083,7 +2084,7 @@ opt_ev_status:
 ev_starts:
           /* empty */
           {
-            Item *item= new (YYTHD->mem_root) Item_func_now_local();
+            Item *item= new (YYTHD->mem_root) Item_func_now_local(0);
             if (item == NULL)
               MYSQL_YYABORT;
             Lex->event_parse_data->item_starts= item;
@@ -5215,7 +5216,7 @@ type:
           { $$=MYSQL_TYPE_YEAR; }
         | DATE_SYM
           { $$=MYSQL_TYPE_DATE; }
-        | TIME_SYM
+        | TIME_SYM opt_field_length
           { $$=MYSQL_TYPE_TIME; }
         | TIMESTAMP opt_field_length
           {
@@ -5230,7 +5231,7 @@ type:
               $$=MYSQL_TYPE_TIMESTAMP;
             }
           }
-        | DATETIME
+        | DATETIME opt_field_length
           { $$=MYSQL_TYPE_DATETIME; }
         | TINYBLOB
           {
@@ -5423,9 +5424,9 @@ attribute:
           NULL_SYM { Lex->type&= ~ NOT_NULL_FLAG; }
         | not NULL_SYM { Lex->type|= NOT_NULL_FLAG; }
         | DEFAULT now_or_signed_literal { Lex->default_value=$2; }
-        | ON UPDATE_SYM NOW_SYM optional_braces
+        | ON UPDATE_SYM NOW_SYM opt_time_precision
           {
-            Item *item= new (YYTHD->mem_root) Item_func_now_local();
+            Item *item= new (YYTHD->mem_root) Item_func_now_local($4);
             if (item == NULL)
               MYSQL_YYABORT;
             Lex->on_update_value= item;
@@ -5495,9 +5496,9 @@ attribute:
         ;
 
 now_or_signed_literal:
-          NOW_SYM optional_braces
+          NOW_SYM opt_time_precision
           {
-            $$= new (YYTHD->mem_root) Item_func_now_local();
+            $$= new (YYTHD->mem_root) Item_func_now_local($2);
             if ($$ == NULL)
               MYSQL_YYABORT;
           }
@@ -7104,6 +7105,12 @@ select_alias:
         | TEXT_STRING_sys { $$=$1; }
         ;
 
+opt_time_precision:
+          /* empty */             { $$= 0;  }
+        | '(' ')'                 { $$= 0;  }
+        | '(' real_ulong_num ')'  { $$= $2; };
+        ;
+
 optional_braces:
           /* empty */ {}
         | '(' ')' {}
@@ -7591,19 +7598,21 @@ dyncol_type:
             lex->charset= NULL;
             lex->length= lex->dec= 0;
           }
-        | TIME_SYM
+        | TIME_SYM opt_field_length
           {
             LEX *lex= Lex;
             $$= DYN_COL_TIME;
             lex->charset= NULL;
-            lex->length= lex->dec= 0;
+            lex->dec= lex->length;
+            lex->length= 0;
           }
-        | DATETIME
+        | DATETIME opt_field_length
           {
             LEX *lex= Lex;
             $$= DYN_COL_DATETIME;
             lex->charset= NULL;
-            lex->length= lex->dec= 0;
+            lex->dec= lex->length;
+            lex->length= 0;
           }
         ;
 
@@ -7907,13 +7916,13 @@ function_call_keyword:
           }
         | TIME_SYM '(' expr ')'
           {
-            $$= new (YYTHD->mem_root) Item_time_typecast($3);
+            $$= new (YYTHD->mem_root) Item_time_typecast($3, AUTO_SEC_PART_DIGITS);
             if ($$ == NULL)
               MYSQL_YYABORT;
           }
         | TIMESTAMP '(' expr ')'
           {
-            $$= new (YYTHD->mem_root) Item_datetime_typecast($3);
+            $$= new (YYTHD->mem_root) Item_datetime_typecast($3, AUTO_SEC_PART_DIGITS);
             if ($$ == NULL)
               MYSQL_YYABORT;
           }
@@ -8020,16 +8029,9 @@ function_call_nonkeyword:
               MYSQL_YYABORT;
             Lex->safe_to_cache_query=0;
           }
-        | CURTIME optional_braces
+        | CURTIME opt_time_precision
           {
-            $$= new (YYTHD->mem_root) Item_func_curtime_local();
-            if ($$ == NULL)
-              MYSQL_YYABORT;
-            Lex->safe_to_cache_query=0;
-          }
-        | CURTIME '(' expr ')'
-          {
-            $$= new (YYTHD->mem_root) Item_func_curtime_local($3);
+            $$= new (YYTHD->mem_root) Item_func_curtime_local($2);
             if ($$ == NULL)
               MYSQL_YYABORT;
             Lex->safe_to_cache_query=0;
@@ -8060,16 +8062,9 @@ function_call_nonkeyword:
             if ($$ == NULL)
               MYSQL_YYABORT;
           }
-        | NOW_SYM optional_braces
+        | NOW_SYM opt_time_precision
           {
-            $$= new (YYTHD->mem_root) Item_func_now_local();
-            if ($$ == NULL)
-              MYSQL_YYABORT;
-            Lex->safe_to_cache_query=0;
-          }
-        | NOW_SYM '(' expr ')'
-          {
-            $$= new (YYTHD->mem_root) Item_func_now_local($3);
+            $$= new (YYTHD->mem_root) Item_func_now_local($2);
             if ($$ == NULL)
               MYSQL_YYABORT;
             Lex->safe_to_cache_query=0;
@@ -8117,7 +8112,7 @@ function_call_nonkeyword:
             if ($$ == NULL)
               MYSQL_YYABORT;
           }
-        | SYSDATE optional_braces
+        | SYSDATE opt_time_precision
           {
             /*
               Unlike other time-related functions, SYSDATE() is
@@ -8128,19 +8123,9 @@ function_call_nonkeyword:
             */
             Lex->set_stmt_unsafe();
             if (global_system_variables.sysdate_is_now == 0)
-              $$= new (YYTHD->mem_root) Item_func_sysdate_local();
+              $$= new (YYTHD->mem_root) Item_func_sysdate_local($2);
             else
-              $$= new (YYTHD->mem_root) Item_func_now_local();
-            if ($$ == NULL)
-              MYSQL_YYABORT;
-            Lex->safe_to_cache_query=0;
-          }
-        | SYSDATE '(' expr ')'
-          {
-            if (global_system_variables.sysdate_is_now == 0)
-              $$= new (YYTHD->mem_root) Item_func_sysdate_local($3);
-            else
-              $$= new (YYTHD->mem_root) Item_func_now_local($3);
+              $$= new (YYTHD->mem_root) Item_func_now_local($2);
             if ($$ == NULL)
               MYSQL_YYABORT;
             Lex->safe_to_cache_query=0;
@@ -8164,16 +8149,16 @@ function_call_nonkeyword:
               MYSQL_YYABORT;
             Lex->safe_to_cache_query=0;
           }
-        | UTC_TIME_SYM optional_braces
+        | UTC_TIME_SYM opt_time_precision
           {
-            $$= new (YYTHD->mem_root) Item_func_curtime_utc();
+            $$= new (YYTHD->mem_root) Item_func_curtime_utc($2);
             if ($$ == NULL)
               MYSQL_YYABORT;
             Lex->safe_to_cache_query=0;
           }
-        | UTC_TIMESTAMP_SYM optional_braces
+        | UTC_TIMESTAMP_SYM opt_time_precision
           {
-            $$= new (YYTHD->mem_root) Item_func_now_utc();
+            $$= new (YYTHD->mem_root) Item_func_now_utc($2);
             if ($$ == NULL)
               MYSQL_YYABORT;
             Lex->safe_to_cache_query=0;
@@ -8836,10 +8821,18 @@ cast_type:
           { $$=ITEM_CAST_UNSIGNED_INT; Lex->charset= NULL; Lex->dec=Lex->length= (char*)0; }
         | DATE_SYM
           { $$=ITEM_CAST_DATE; Lex->charset= NULL; Lex->dec=Lex->length= (char*)0; }
-        | TIME_SYM
-          { $$=ITEM_CAST_TIME; Lex->charset= NULL; Lex->dec=Lex->length= (char*)0; }
-        | DATETIME
-          { $$=ITEM_CAST_DATETIME; Lex->charset= NULL; Lex->dec=Lex->length= (char*)0; }
+        | TIME_SYM opt_field_length
+          {
+            $$=ITEM_CAST_TIME;
+            LEX *lex= Lex;
+            lex->charset= NULL; lex->dec= lex->length; lex->length= (char*)0;
+           }
+        | DATETIME opt_field_length
+          {
+            $$=ITEM_CAST_DATETIME;
+            LEX *lex= Lex;
+            lex->charset= NULL; lex->dec= lex->length; lex->length= (char*)0;
+           }
         | DECIMAL_SYM float_options
           { $$=ITEM_CAST_DECIMAL; Lex->charset= NULL; }
         | DOUBLE_SYM

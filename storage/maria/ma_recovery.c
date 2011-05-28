@@ -335,7 +335,7 @@ int maria_apply_log(LSN from_lsn, LSN end_lsn,
     }
   }
 
-  now= my_getsystime();
+  now= microsecond_interval_timer();
   in_redo_phase= TRUE;
   trnman_init(max_trid_in_control_file);
   if (run_redo_phase(from_lsn, end_lsn, apply))
@@ -366,10 +366,10 @@ int maria_apply_log(LSN from_lsn, LSN end_lsn,
   in_redo_phase= FALSE;
 
   old_now= now;
-  now= my_getsystime();
+  now= microsecond_interval_timer();
   if (recovery_message_printed == REC_MSG_REDO)
   {
-    double phase_took= (now - old_now)/10000000.0;
+    double phase_took= (now - old_now)/1000000.0;
     /*
       Detailed progress info goes to stderr, because ma_message_no_user()
       cannot put several messages on one line.
@@ -435,10 +435,10 @@ int maria_apply_log(LSN from_lsn, LSN end_lsn,
   }
 
   old_now= now;
-  now= my_getsystime();
+  now= microsecond_interval_timer();
   if (recovery_message_printed == REC_MSG_UNDO)
   {
-    double phase_took= (now - old_now)/10000000.0;
+    double phase_took= (now - old_now)/1000000.0;
     procent_printed= 1;
     fprintf(stderr, " (%.1f seconds); ", phase_took);
     fflush(stderr);
@@ -455,10 +455,10 @@ int maria_apply_log(LSN from_lsn, LSN end_lsn,
   }
 
   old_now= now;
-  now= my_getsystime();
+  now= microsecond_interval_timer();
   if (recovery_message_printed == REC_MSG_FLUSH)
   {
-    double phase_took= (now - old_now)/10000000.0;
+    double phase_took= (now - old_now)/1000000.0;
     procent_printed= 1;
     fprintf(stderr, " (%.1f seconds); ", phase_took);
     fflush(stderr);

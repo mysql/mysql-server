@@ -830,9 +830,95 @@ typedef my_bool (*qc_engine_callback)(THD *thd, char *table_key,
                                       uint key_length,
                                       ulonglong *engine_data);
 #include "sql_string.h"
+#include "my_decimal.h"
+
+/*
+  to unify the code that differs only in the argument passed to the
+  error message (string vs. number)
+
+  We pass this container around, and only convert the number
+  to a string when necessary.
+*/
+class Lazy_string
+{
+public:
+  Lazy_string() {}
+  virtual ~Lazy_string() {}
+  virtual void copy_to(String *str) const = 0;
+};
+
+class Lazy_string_str : public Lazy_string
+{
+  const char *str;
+  size_t len;
+public:
+  Lazy_string_str(const char *str_arg, size_t len_arg)
+    : Lazy_string(), str(str_arg), len(len_arg) {}
+  void copy_to(String *dst) const
+  { dst->copy(str, len, system_charset_info); }
+};
+
+class Lazy_string_num : public Lazy_string
+{
+  longlong num;
+public:
+  Lazy_string_num(longlong num_arg) : Lazy_string(), num(num_arg) {}
+  void copy_to(String *dst) const { dst->set(num, &my_charset_bin); }
+};
+
+class Lazy_string_decimal : public Lazy_string
+{
+  my_decimal num;
+public:
+  Lazy_string_decimal(my_decimal num_arg) : Lazy_string(), num(num_arg)
+  {
+    num.fix_buffer_pointer();
+  }
+  void copy_to(String *dst) const
+  {
+    my_decimal2string(E_DEC_FATAL_ERROR, &num, 0, 0, '0', dst);
+  }
+};
+
+class Lazy_string_double: public Lazy_string
+{
+  double num;
+public:
+  Lazy_string_double(double num_arg) : Lazy_string(), num(num_arg) {}
+  void copy_to(String *dst) const
+  { dst->set_real(num, NOT_FIXED_DEC, &my_charset_bin); }
+};
+
+class Lazy_string_time : public Lazy_string
+{
+  const MYSQL_TIME *ltime;
+public:
+  Lazy_string_time(const MYSQL_TIME *ltime_arg)
+    : Lazy_string(), ltime(ltime_arg) {}
+  void copy_to(String *dst) const
+  {
+    dst->alloc(MAX_DATETIME_FULL_WIDTH);
+    dst->length((uint) my_TIME_to_str(ltime, (char*) dst->ptr(),
+                                      AUTO_SEC_PART_DIGITS));
+    dst->set_charset(&my_charset_bin);
+  }
+};
+
+static inline enum enum_mysql_timestamp_type
+mysql_type_to_time_type(enum enum_field_types mysql_type)
+{
+  switch (mysql_type) {
+  case MYSQL_TYPE_TIME: return MYSQL_TIMESTAMP_TIME;
+  case MYSQL_TYPE_TIMESTAMP:
+  case MYSQL_TYPE_DATETIME: return MYSQL_TIMESTAMP_DATETIME;
+  case MYSQL_TYPE_NEWDATE:
+  case MYSQL_TYPE_DATE: return MYSQL_TIMESTAMP_DATE;
+  default: return MYSQL_TIMESTAMP_ERROR;
+  }
+}
+
 #include "sql_list.h"
 #include "sql_map.h"
-#include "my_decimal.h"
 #include "handler.h"
 #include "parse_file.h"
 #include "table.h"
@@ -856,6 +942,7 @@ typedef Comp_creator* (*chooser_compare_func_creator)(bool invert);
 #endif
 #include "item.h"
 extern my_decimal decimal_zero;
+extern my_decimal max_seconds_for_time_type, time_second_part_factor;
 
 /* sql_parse.cc */
 void free_items(Item *item);
@@ -2357,7 +2444,7 @@ ulong convert_period_to_month(ulong period);
 ulong convert_month_to_period(ulong month);
 void get_date_from_daynr(long daynr,uint *year, uint *month,
 			 uint *day);
-my_time_t TIME_to_timestamp(THD *thd, const MYSQL_TIME *t, my_bool *not_exist);
+my_time_t TIME_to_timestamp(THD *thd, const MYSQL_TIME *t, uint *error);
 bool str_to_time_with_warn(const char *str,uint length,MYSQL_TIME *l_time,
                            ulong fuzzydate);
 timestamp_type str_to_datetime_with_warn(const char *str, uint length,
@@ -2367,13 +2454,22 @@ void calc_time_from_sec(MYSQL_TIME *to, long seconds, long microseconds);
 
 void make_truncated_value_warning(THD *thd,
                                   MYSQL_ERROR::enum_warning_level level,
-                                  const char *str_val,
-				  uint str_length, timestamp_type time_type,
+                                  const Lazy_string *str_val,
+                                  timestamp_type time_type,
                                   const char *field_name);
 bool double_to_datetime_with_warn(double value, MYSQL_TIME *ltime,
                                   ulong fuzzy_date);
 bool decimal_to_datetime_with_warn(decimal_t *value, MYSQL_TIME *ltime,
                                    ulong fuzzy_date);
+
+static inline void make_truncated_value_warning(THD *thd,
+                MYSQL_ERROR::enum_warning_level level, const char *str_val,
+                uint str_length, timestamp_type time_type,
+                const char *field_name)
+{
+  const Lazy_string_str str(str_val, str_length);
+  make_truncated_value_warning(thd, level, &str, time_type, field_name);
+}
 
 bool date_add_interval(MYSQL_TIME *ltime, interval_type int_type, INTERVAL interval);
 bool calc_time_diff(MYSQL_TIME *l_time1, MYSQL_TIME *l_time2, int l_sign,

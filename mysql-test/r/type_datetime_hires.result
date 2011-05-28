@@ -1,0 +1,363 @@
+drop table if exists t1, t2, t3;
+create table t1 (a datetime(7));
+ERROR 42000: Too big precision 7 specified for 'a'. Maximum is 6.
+create table t1 (a datetime(3), key(a));
+insert t1 values ('2010-12-11 00:20:03.1234');
+insert t1 values ('2010-12-11 15:47:11.1234');
+insert t1 values (20101211010203.45678);
+insert t1 values (20101211030405.789e0);
+insert t1 values (99991231235959e1);
+Warnings:
+Warning	1265	Data truncated for column 'a' at row 1
+select * from t1;
+a
+0000-00-00 00:00:00.000
+2010-12-11 00:20:03.123
+2010-12-11 01:02:03.456
+2010-12-11 03:04:05.789
+2010-12-11 15:47:11.123
+select truncate(a, 6) from t1;
+truncate(a, 6)
+0.000000
+20101211002003.121094
+20101211010203.457031
+20101211030405.789062
+20101211154711.121094
+select a DIV 1 from t1;
+a DIV 1
+0
+20101211002003
+20101211010203
+20101211030405
+20101211154711
+select group_concat(distinct a) from t1;
+group_concat(distinct a)
+0000-00-00 00:00:00.000,2010-12-11 00:20:03.123,2010-12-11 01:02:03.456,2010-12-11 03:04:05.789,2010-12-11 15:47:11.123
+alter table t1 engine=innodb;
+select * from t1 order by a;
+a
+0000-00-00 00:00:00.000
+2010-12-11 00:20:03.123
+2010-12-11 01:02:03.456
+2010-12-11 03:04:05.789
+2010-12-11 15:47:11.123
+select * from t1 order by a+0;
+a
+0000-00-00 00:00:00.000
+2010-12-11 00:20:03.123
+2010-12-11 01:02:03.456
+2010-12-11 03:04:05.789
+2010-12-11 15:47:11.123
+drop table t1;
+create table t1 (a datetime(4)) engine=innodb;
+insert t1 values ('2010-12-11 01:02:03.456789');
+select * from t1;
+a
+2010-12-11 01:02:03.4567
+select extract(microsecond from a + interval 100 microsecond) from t1 where a>'2010-11-12 01:02:03.456';
+extract(microsecond from a + interval 100 microsecond)
+456800
+select a from t1 where a>'2010-11-12 01:02:03.456' group by a;
+a
+2010-12-11 01:02:03.4567
+show create table t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `a` datetime(4) DEFAULT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=latin1
+show columns from t1;
+Field	Type	Null	Key	Default	Extra
+a	datetime(4)	YES		NULL	
+select table_name, column_name, column_default, is_nullable, data_type, character_maximum_length, character_octet_length, numeric_precision, numeric_scale, datetime_precision, character_set_name, collation_name, column_type, column_key, extra from information_schema.columns where table_name='t1';
+table_name	t1
+column_name	a
+column_default	NULL
+is_nullable	YES
+data_type	datetime
+character_maximum_length	NULL
+character_octet_length	NULL
+numeric_precision	NULL
+numeric_scale	NULL
+datetime_precision	4
+character_set_name	NULL
+collation_name	NULL
+column_type	datetime(4)
+column_key	
+extra	
+select a, a+interval 9876543 microsecond from t1;
+a	a+interval 9876543 microsecond
+2010-12-11 01:02:03.4567	2010-12-11 01:02:13.333243
+update t1 set a=a+interval 9876543 microsecond;
+select * from t1;
+a
+2010-12-11 01:02:13.3332
+select a, a + interval 2 year from t1;
+a	a + interval 2 year
+2010-12-11 01:02:13.3332	2012-12-11 01:02:13.3332
+insert t1 select a + interval 2 year from t1;
+select * from t1;
+a
+2010-12-11 01:02:13.3332
+2012-12-11 01:02:13.3332
+delete from t1 where a < 20110101;
+select * from t1;
+a
+2012-12-11 01:02:13.3332
+create table t2 select * from t1;
+create table t3 like t1;
+show create table t2;
+Table	Create Table
+t2	CREATE TABLE `t2` (
+  `a` datetime(4) DEFAULT NULL
+) ENGINE=MyISAM DEFAULT CHARSET=latin1
+show create table t3;
+Table	Create Table
+t3	CREATE TABLE `t3` (
+  `a` datetime(4) DEFAULT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=latin1
+drop table t1, t2, t3;
+create table t1 (a datetime(6), b datetime(6));
+create procedure foo(x datetime, y datetime(4)) insert into t1 values (x, y);
+call foo('2010-02-03 4:5:6.789123', '2010-02-03 4:5:6.789123');
+select * from t1;
+a	b
+2010-02-03 04:05:06.000000	2010-02-03 04:05:06.789100
+create procedure bar(a int, c datetime(5))
+begin
+declare b datetime(4);
+set b = c + interval a microsecond;
+insert t1 values (b, c + interval a microsecond);
+end|
+call bar(1111111, '2011-01-02 3:4:5.123456');
+select * from t1;
+a	b
+2010-02-03 04:05:06.000000	2010-02-03 04:05:06.789100
+2011-01-02 03:04:06.234500	2011-01-02 03:04:06.234561
+drop procedure foo;
+drop procedure bar;
+create function xyz(s char(20)) returns datetime(4)
+return addtime('2010-10-10 10:10:10.101010', s);
+select xyz('1:1:1.010101');
+xyz('1:1:1.010101')
+2010-10-10 11:11:11.1111
+drop function xyz;
+create view v1 as select * from t1 group by a,b;
+select * from v1;
+a	b
+2010-02-03 04:05:06.000000	2010-02-03 04:05:06.789100
+2011-01-02 03:04:06.234500	2011-01-02 03:04:06.234561
+show columns from v1;
+Field	Type	Null	Key	Default	Extra
+a	datetime(6)	YES		NULL	
+b	datetime(6)	YES		NULL	
+create table t2 select * from v1;
+show create table t2;
+Table	Create Table
+t2	CREATE TABLE `t2` (
+  `a` datetime(6) DEFAULT NULL,
+  `b` datetime(6) DEFAULT NULL
+) ENGINE=MyISAM DEFAULT CHARSET=latin1
+select * from t2;
+a	b
+2010-02-03 04:05:06.000000	2010-02-03 04:05:06.789100
+2011-01-02 03:04:06.234500	2011-01-02 03:04:06.234561
+drop view v1;
+drop table t1, t2;
+CREATE TABLE t1 (
+taken datetime(5) NOT NULL DEFAULT '0000-00-00 00:00:00',
+id int(11) NOT NULL DEFAULT '0',
+PRIMARY KEY (id,taken),
+KEY taken (taken)
+)
+PARTITION BY RANGE (to_days(taken))
+(
+PARTITION p01 VALUES LESS THAN (732920),
+PARTITION p02 VALUES LESS THAN (732950),
+PARTITION p03 VALUES LESS THAN MAXVALUE);
+INSERT INTO t1 VALUES
+('2006-09-27 21:50:01.123456',0),
+('2006-09-27 21:50:01.123456',1),
+('2006-09-27 21:50:01.123456',2),
+('2006-09-28 21:50:01.123456',3),
+('2006-09-29 21:50:01.123456',4),
+('2006-09-29 21:50:01.123456',5),
+('2006-09-30 21:50:01.123456',6),
+('2006-10-01 21:50:01.123456',7),
+('2006-10-02 21:50:01.123456',8),
+('2006-10-02 21:50:01.123456',9);
+SELECT id,to_days(taken) FROM t1 order by 2;
+id	to_days(taken)
+0	732946
+1	732946
+2	732946
+3	732947
+5	732948
+4	732948
+6	732949
+7	732950
+8	732951
+9	732951
+CREATE TABLE t2 (
+taken datetime(5) NOT NULL DEFAULT '0000-00-00 00:00:00',
+id int(11) NOT NULL DEFAULT '0',
+PRIMARY KEY (id,taken),
+KEY taken (taken)
+)
+PARTITION BY RANGE (extract(microsecond from taken))
+(
+PARTITION p01 VALUES LESS THAN (123000),
+PARTITION p02 VALUES LESS THAN (500000),
+PARTITION p03 VALUES LESS THAN MAXVALUE);
+INSERT INTO t2 VALUES
+('2006-09-27 21:50:01',0),
+('2006-09-27 21:50:01.1',1),
+('2006-09-27 21:50:01.12',2),
+('2006-09-28 21:50:01.123',3),
+('2006-09-29 21:50:01.1234',4),
+('2006-09-29 21:50:01.12345',5),
+('2006-09-30 21:50:01.123456',6),
+('2006-10-01 21:50:01.56',7),
+('2006-10-02 21:50:01.567',8),
+('2006-10-02 21:50:01.5678',9);
+select table_name,partition_name,partition_method,partition_expression,partition_description,table_rows from information_schema.partitions where table_name in ('t1', 't2');
+table_name	partition_name	partition_method	partition_expression	partition_description	table_rows
+t1	p01	RANGE	to_days(taken)	732920	0
+t1	p02	RANGE	to_days(taken)	732950	7
+t1	p03	RANGE	to_days(taken)	MAXVALUE	3
+t2	p01	RANGE	extract(microsecond from taken)	123000	3
+t2	p02	RANGE	extract(microsecond from taken)	500000	4
+t2	p03	RANGE	extract(microsecond from taken)	MAXVALUE	3
+drop table t1, t2;
+create table t1 (
+q_date date,
+q_time time,
+q_time5 time(5),
+q_datetime datetime,
+q_datetime1 datetime(1),
+q_datetime3 datetime(3),
+q_datetime5 datetime(5),
+q_timestamp timestamp,
+q_timestamp2 timestamp(2),
+q_timestamp4 timestamp(4),
+q_timestamp6 timestamp(6),
+q_varchar50 varchar(50),
+q_varchar60 varchar(60),
+q_varchar70 varchar(70),
+q_varchar80 varchar(80));
+create table t2 (
+date_datetime datetime,
+time_datetime datetime,
+time5_varchar100 varchar(100),
+datetime_time time,
+datetime1_date  date,
+datetime3_timestamp timestamp,
+datetime5_varchar100 varchar(100),
+timestamp_datetime datetime,
+timestamp2_date date,
+timestamp4_time time,
+timestamp6_varchar100 varchar(100),
+varchar50_date date,
+varchar60_datetime datetime,
+varchar70_time time,
+varchar80_timestamp timestamp);
+insert t1 values ('2010-11-12 11:14:17.765432',
+'2010-11-12 11:14:17.765432', '2010-11-12 11:14:17.765432',
+'2010-11-12 11:14:17.765432', '2010-11-12 11:14:17.765432',
+'2010-11-12 11:14:17.765432', '2010-11-12 11:14:17.765432',
+'2010-11-12 11:14:17.765432', '2010-11-12 11:14:17.765432',
+'2010-11-12 11:14:17.765432', '2010-11-12 11:14:17.765432',
+'2010-11-12 11:14:17.765432', '2010-11-12 11:14:17.765432',
+'2010-11-12 11:14:17.765432', '2010-11-12 11:14:17.765432');
+Warnings:
+Note	1265	Data truncated for column 'q_date' at row 1
+Note	1265	Data truncated for column 'q_time' at row 1
+Note	1265	Data truncated for column 'q_time5' at row 1
+select * from t1;;
+q_date	2010-11-12
+q_time	11:14:17
+q_time5	11:14:17.76543
+q_datetime	2010-11-12 11:14:17
+q_datetime1	2010-11-12 11:14:17.7
+q_datetime3	2010-11-12 11:14:17.765
+q_datetime5	2010-11-12 11:14:17.76543
+q_timestamp	2010-11-12 11:14:17
+q_timestamp2	2010-11-12 11:14:17.76
+q_timestamp4	2010-11-12 11:14:17.7654
+q_timestamp6	2010-11-12 11:14:17.765432
+q_varchar50	2010-11-12 11:14:17.765432
+q_varchar60	2010-11-12 11:14:17.765432
+q_varchar70	2010-11-12 11:14:17.765432
+q_varchar80	2010-11-12 11:14:17.765432
+insert t2 select * from t1;
+Warnings:
+Warning	1265	Data truncated for column 'time_datetime' at row 1
+Note	1265	Data truncated for column 'datetime_time' at row 1
+Note	1265	Data truncated for column 'datetime1_date' at row 1
+Note	1265	Data truncated for column 'timestamp2_date' at row 1
+Note	1265	Data truncated for column 'timestamp4_time' at row 1
+Note	1265	Data truncated for column 'varchar50_date' at row 1
+Note	1265	Data truncated for column 'varchar70_time' at row 1
+select * from t2;;
+date_datetime	2010-11-12 00:00:00
+time_datetime	0000-00-00 00:00:00
+time5_varchar100	11:14:17.76543
+datetime_time	11:14:17
+datetime1_date	2010-11-12
+datetime3_timestamp	2010-11-12 11:14:17
+datetime5_varchar100	2010-11-12 11:14:17.76543
+timestamp_datetime	2010-11-12 11:14:17
+timestamp2_date	2010-11-12
+timestamp4_time	11:14:17
+timestamp6_varchar100	2010-11-12 11:14:17.765432
+varchar50_date	2010-11-12
+varchar60_datetime	2010-11-12 11:14:17
+varchar70_time	11:14:17
+varchar80_timestamp	2010-11-12 11:14:17
+alter table t1
+change q_date date_datetime datetime,
+change q_time time_datetime datetime,
+change q_time5 time5_varchar100 varchar(100),
+change q_datetime datetime_time time,
+change q_datetime1 datetime1_date  date,
+change q_datetime3 datetime3_timestamp timestamp,
+change q_datetime5 datetime5_varchar100 varchar(100),
+change q_timestamp timestamp_datetime datetime,
+change q_timestamp2 timestamp2_date date,
+change q_timestamp4 timestamp4_time time,
+change q_timestamp6 timestamp6_varchar100 varchar(100),
+change q_varchar50 varchar50_date date,
+change q_varchar60 varchar60_datetime datetime,
+change q_varchar70 varchar70_time time,
+change q_varchar80 varchar80_timestamp timestamp;
+Warnings:
+Warning	1265	Data truncated for column 'time_datetime' at row 1
+Note	1265	Data truncated for column 'datetime_time' at row 1
+Note	1265	Data truncated for column 'datetime1_date' at row 1
+Note	1265	Data truncated for column 'timestamp2_date' at row 1
+Note	1265	Data truncated for column 'timestamp4_time' at row 1
+Note	1265	Data truncated for column 'varchar50_date' at row 1
+Note	1265	Data truncated for column 'varchar70_time' at row 1
+select * from t1;;
+date_datetime	2010-11-12 00:00:00
+time_datetime	0000-00-00 00:00:00
+time5_varchar100	11:14:17.76543
+datetime_time	11:14:17
+datetime1_date	2010-11-12
+datetime3_timestamp	2010-11-12 11:14:17
+datetime5_varchar100	2010-11-12 11:14:17.76543
+timestamp_datetime	2010-11-12 11:14:17
+timestamp2_date	2010-11-12
+timestamp4_time	11:14:17
+timestamp6_varchar100	2010-11-12 11:14:17.765432
+varchar50_date	2010-11-12
+varchar60_datetime	2010-11-12 11:14:17
+varchar70_time	11:14:17
+varchar80_timestamp	2010-11-12 11:14:17
+drop table t1, t2;
+create table t1 (a datetime, b datetime(6));
+insert t1 values ('2010-01-02 03:04:05.678912', '2010-01-02 03:04:05.678912');
+update t1 set b=a;
+select * from t1;
+a	b
+2010-01-02 03:04:05	2010-01-02 03:04:05.000000
+drop table t1;

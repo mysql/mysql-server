@@ -2000,7 +2000,7 @@ int fill_schema_processlist(THD* thd, TABLE_LIST* tables, COND* cond)
   TABLE *table= tables->table;
   CHARSET_INFO *cs= system_charset_info;
   char *user;
-  ulonglong unow= my_micro_time();
+  my_hrtime_t unow= my_hrtime();
   DBUG_ENTER("fill_process_list");
 
   user= thd->security_ctx->master_access & PROCESS_ACL ?
@@ -2058,8 +2058,10 @@ int fill_schema_processlist(THD* thd, TABLE_LIST* tables, COND* cond)
         table->field[4]->store(command_name[tmp->command].str,
                                command_name[tmp->command].length, cs);
       /* MYSQL_TIME */
-      const ulonglong utime= tmp->start_utime ? unow - tmp->start_utime : 0;
-      table->field[5]->store(utime / 1000000, TRUE);
+      const ulonglong utime= (tmp->start_time ?
+                              (unow.val - tmp->start_time * HRTIME_RESOLUTION -
+                               tmp->start_time_sec_part) : 0);
+      table->field[5]->store(utime / HRTIME_RESOLUTION, TRUE);
       /* STATE */
 #ifndef EMBEDDED_LIBRARY
       val= (char*) (tmp->net.reading_or_writing ?
@@ -2096,7 +2098,7 @@ int fill_schema_processlist(THD* thd, TABLE_LIST* tables, COND* cond)
       pthread_mutex_unlock(&tmp->LOCK_thd_data);
 
       /* TIME_MS */
-      table->field[8]->store((double)(utime / 1000.0));
+      table->field[8]->store((double)(utime / (HRTIME_RESOLUTION / 1000.0)));
 
       if (schema_table_store_record(thd, table))
       {
@@ -4342,7 +4344,7 @@ static int get_schema_column_record(THD *thd, TABLE_LIST *tables,
         end=strmov(end,grant_types.type_names[bitnr]);
       }
     }
-    table->field[17]->store(tmp+1,end == tmp ? 0 : (uint) (end-tmp-1), cs);
+    table->field[18]->store(tmp+1,end == tmp ? 0 : (uint) (end-tmp-1), cs);
 
 #endif
     table->field[1]->store(db_name->str, db_name->length, cs);
@@ -4351,7 +4353,7 @@ static int get_schema_column_record(THD *thd, TABLE_LIST *tables,
                            cs);
     table->field[4]->store((longlong) count, TRUE);
     field->sql_type(type);
-    table->field[14]->store(type.ptr(), type.length(), cs);
+    table->field[15]->store(type.ptr(), type.length(), cs);
     /*
       MySQL column type has the following format:
       base_type [(dimension)] [unsigned] [zerofill].
@@ -4398,6 +4400,7 @@ static int get_schema_column_record(THD *thd, TABLE_LIST *tables,
       They are set to -1 if they should not be set (we should return NULL)
     */
 
+    field_length= -1;
     decimals= field->decimals();
     switch (field->type()) {
     case MYSQL_TYPE_NEWDECIMAL:
@@ -4426,8 +4429,13 @@ static int get_schema_column_record(THD *thd, TABLE_LIST *tables,
       if (decimals == NOT_FIXED_DEC)
         decimals= -1;                           // return NULL
     break;
+    case MYSQL_TYPE_TIME:
+    case MYSQL_TYPE_TIMESTAMP:
+    case MYSQL_TYPE_DATETIME:
+      table->field[12]->store((longlong) field->decimals(), TRUE);
+      table->field[12]->set_notnull();
+      break;
     default:
-      field_length= decimals= -1;
       break;
     }
 
@@ -4435,40 +4443,40 @@ static int get_schema_column_record(THD *thd, TABLE_LIST *tables,
     {
       table->field[10]->store((longlong) field_length, TRUE);
       table->field[10]->set_notnull();
-    }
-    if (decimals >= 0)
-    {
-      table->field[11]->store((longlong) decimals, TRUE);
-      table->field[11]->set_notnull();
+      if (decimals >= 0)
+      {
+        table->field[11]->store((longlong) decimals, TRUE);
+        table->field[11]->set_notnull();
+      }
     }
 
     if (field->has_charset())
     {
       pos=(uchar*) field->charset()->csname;
-      table->field[12]->store((const char*) pos,
-                              strlen((const char*) pos), cs);
-      table->field[12]->set_notnull();
-      pos=(uchar*) field->charset()->name;
       table->field[13]->store((const char*) pos,
                               strlen((const char*) pos), cs);
       table->field[13]->set_notnull();
+      pos=(uchar*) field->charset()->name;
+      table->field[14]->store((const char*) pos,
+                              strlen((const char*) pos), cs);
+      table->field[14]->set_notnull();
     }
     pos=(uchar*) ((field->flags & PRI_KEY_FLAG) ? "PRI" :
                  (field->flags & UNIQUE_KEY_FLAG) ? "UNI" :
                  (field->flags & MULTIPLE_KEY_FLAG) ? "MUL":"");
-    table->field[15]->store((const char*) pos,
+    table->field[16]->store((const char*) pos,
                             strlen((const char*) pos), cs);
 
     if (field->unireg_check == Field::NEXT_NUMBER)
-      table->field[16]->store(STRING_WITH_LEN("auto_increment"), cs);
+      table->field[17]->store(STRING_WITH_LEN("auto_increment"), cs);
     if (show_table->timestamp_field == field &&
         field->unireg_check != Field::TIMESTAMP_DN_FIELD)
-      table->field[16]->store(STRING_WITH_LEN("on update CURRENT_TIMESTAMP"),
+      table->field[17]->store(STRING_WITH_LEN("on update CURRENT_TIMESTAMP"),
                               cs);
     if (field->vcol_info)
-      table->field[16]->store(STRING_WITH_LEN("VIRTUAL"), cs);
+      table->field[17]->store(STRING_WITH_LEN("VIRTUAL"), cs);
 
-    table->field[18]->store(field->comment.str, field->comment.length, cs);
+    table->field[19]->store(field->comment.str, field->comment.length, cs);
     if (schema_table_store_record(thd, table))
       DBUG_RETURN(1);
   }
@@ -6212,14 +6220,23 @@ TABLE *create_schema_table(THD *thd, TABLE_LIST *table_list)
       item->unsigned_flag= (fields_info->field_flags & MY_I_S_UNSIGNED);
       break;
     case MYSQL_TYPE_DATE:
+      if (!(item=new Item_return_date_time(fields_info->field_name,
+                                           MAX_DATE_WIDTH,
+                                           fields_info->field_type)))
+        DBUG_RETURN(0);
+      break;
     case MYSQL_TYPE_TIME:
+      if (!(item=new Item_return_date_time(fields_info->field_name,
+                                           MAX_TIME_FULL_WIDTH,
+                                           fields_info->field_type)))
+        DBUG_RETURN(0);
+      break;
     case MYSQL_TYPE_TIMESTAMP:
     case MYSQL_TYPE_DATETIME:
       if (!(item=new Item_return_date_time(fields_info->field_name,
+                                           MAX_DATETIME_WIDTH,
                                            fields_info->field_type)))
-      {
         DBUG_RETURN(0);
-      }
       break;
     case MYSQL_TYPE_FLOAT:
     case MYSQL_TYPE_DOUBLE:
@@ -6405,7 +6422,7 @@ int make_table_names_old_format(THD *thd, ST_SCHEMA_TABLE *schema_table)
 
 int make_columns_old_format(THD *thd, ST_SCHEMA_TABLE *schema_table)
 {
-  int fields_arr[]= {3, 14, 13, 6, 15, 5, 16, 17, 18, -1};
+  int fields_arr[]= {3, 15, 14, 6, 16, 5, 17, 18, 19, -1};
   int *field_num= fields_arr;
   ST_FIELD_INFO *field_info;
   Name_resolution_context *context= &thd->lex->select_lex.context;
@@ -6413,9 +6430,9 @@ int make_columns_old_format(THD *thd, ST_SCHEMA_TABLE *schema_table)
   for (; *field_num >= 0; field_num++)
   {
     field_info= &schema_table->fields_info[*field_num];
-    if (!thd->lex->verbose && (*field_num == 13 ||
-                               *field_num == 17 ||
-                               *field_num == 18))
+    if (!thd->lex->verbose && (*field_num == 14 ||
+                               *field_num == 18 ||
+                               *field_num == 19))
       continue;
     Item_field *field= new Item_field(context,
                                       NullS, NullS, field_info->field_name);
@@ -6883,6 +6900,8 @@ ST_FIELD_INFO columns_fields_info[]=
   {"NUMERIC_PRECISION", MY_INT64_NUM_DECIMAL_DIGITS, MYSQL_TYPE_LONGLONG,
    0, (MY_I_S_MAYBE_NULL | MY_I_S_UNSIGNED), 0, OPEN_FRM_ONLY},
   {"NUMERIC_SCALE", MY_INT64_NUM_DECIMAL_DIGITS , MYSQL_TYPE_LONGLONG,
+   0, (MY_I_S_MAYBE_NULL | MY_I_S_UNSIGNED), 0, OPEN_FRM_ONLY},
+  {"DATETIME_PRECISION", MY_INT64_NUM_DECIMAL_DIGITS, MYSQL_TYPE_LONGLONG,
    0, (MY_I_S_MAYBE_NULL | MY_I_S_UNSIGNED), 0, OPEN_FRM_ONLY},
   {"CHARACTER_SET_NAME", MY_CS_NAME_SIZE, MYSQL_TYPE_STRING, 0, 1, 0,
    OPEN_FRM_ONLY},

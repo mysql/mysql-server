@@ -1081,7 +1081,7 @@ static my_bool translog_write_file_header()
   memcpy(page, maria_trans_file_magic, sizeof(maria_trans_file_magic));
   page+= sizeof(maria_trans_file_magic);
   /* timestamp */
-  timestamp= my_getsystime();
+  timestamp= my_hrtime().val;
   int8store(page, timestamp);
   page+= 8;
   /* maria version */
@@ -7719,7 +7719,7 @@ static my_bool translog_sync_files(uint32 min, uint32 max,
 
   flush_interval= group_commit_wait;
   if (flush_interval)
-    flush_start= my_micro_time();
+    flush_start= microsecond_interval_timer();
   for (fn= min; fn <= max; fn++)
   {
     TRANSLOG_FILE *file= get_logfile_by_number(fn);
@@ -7986,7 +7986,8 @@ retest:
     /*
       We do not check time here because pthread_mutex_lock rarely takes
       a lot of time so we can sacrifice a bit precision to performance
-      (taking into account that my_micro_time() might be expensive call).
+      (taking into account that microsecond_interval_timer() might be
+      expensive call).
     */
     if (flush_interval == 0)
       break;  /* flush pass is ended */
@@ -7995,7 +7996,8 @@ retest:
     if (log_descriptor.next_pass_max_lsn == LSN_IMPOSSIBLE)
     {
       if (flush_interval == 0 ||
-          (time_spent= (my_micro_time() - flush_start)) >= flush_interval)
+          (time_spent= (microsecond_interval_timer() - flush_start)) >=
+          flush_interval)
       {
         pthread_mutex_unlock(&log_descriptor.log_flush_lock);
         break;
@@ -8786,7 +8788,7 @@ ma_soft_sync_background( void *arg __attribute__((unused)))
     DBUG_ENTER("ma_soft_sync_background");
     for(;;)
     {
-      ulonglong prev_loop= my_micro_time();
+      ulonglong prev_loop= microsecond_interval_timer();
       ulonglong time, sleep;
       uint32 min, max, sync_request;
       min= soft_sync_min;
@@ -8798,7 +8800,7 @@ ma_soft_sync_background( void *arg __attribute__((unused)))
       sleep= group_commit_wait;
       if (sync_request)
         translog_sync_files(min, max, FALSE);
-      time= my_micro_time() - prev_loop;
+      time= microsecond_interval_timer() - prev_loop;
       if (time > sleep)
         sleep= 0;
       else

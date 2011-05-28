@@ -442,7 +442,7 @@ int my_pthread_mutex_trylock(pthread_mutex_t *mutex);
 
 #ifndef set_timespec_nsec
 #define set_timespec_nsec(ABSTIME,NSEC)                                 \
-  set_timespec_time_nsec((ABSTIME),my_getsystime(),(NSEC))
+  set_timespec_time_nsec((ABSTIME), my_hrtime().val*1000 + (NSEC))
 #endif /* !set_timespec_nsec */
 
 /* adapt for two different flavors of struct timespec */
@@ -455,11 +455,10 @@ int my_pthread_mutex_trylock(pthread_mutex_t *mutex);
 #endif /* HAVE_TIMESPEC_TS_SEC */
 
 #ifndef set_timespec_time_nsec
-#define set_timespec_time_nsec(ABSTIME,TIME,NSEC) do {                  \
-  ulonglong nsec= (NSEC);                                               \
-  ulonglong now= (TIME) + (nsec/100);                                   \
-  (ABSTIME).MY_tv_sec=  (now / ULL(10000000));                          \
-  (ABSTIME).MY_tv_nsec= (now % ULL(10000000) * 100 + (nsec % 100));     \
+#define set_timespec_time_nsec(ABSTIME,NSEC) do {    \
+  ulonglong now= (NSEC);                             \
+  (ABSTIME).MY_tv_sec=  (now / 1000000000ULL);       \
+  (ABSTIME).MY_tv_nsec= (now % 1000000000ULL);       \
 } while(0)
 #endif /* !set_timespec_time_nsec */
 

@@ -5513,11 +5513,11 @@ ER_SP_NO_RECURSION
         eng "Recursive stored functions and triggers are not allowed."
         ger "Rekursive gespeicherte Routinen und Triggers sind nicht erlaubt"
 ER_TOO_BIG_SCALE 42000 S1009
-        eng "Too big scale %d specified for column '%-.192s'. Maximum is %lu."
-        ger "Zu großer Skalierungsfaktor %d für Feld '%-.192s' angegeben. Maximum ist %lu"
+        eng "Too big scale %u specified for '%-.192s'. Maximum is %lu."
+        ger "Zu großer Skalierungsfaktor %u für '%-.192s' angegeben. Maximum ist %lu"
 ER_TOO_BIG_PRECISION 42000 S1009
-        eng "Too big precision %d specified for column '%-.192s'. Maximum is %lu."
-        ger "Zu große Genauigkeit %d für Feld '%-.192s' angegeben. Maximum ist %lu"
+        eng "Too big precision %u specified for '%-.192s'. Maximum is %lu."
+        ger "Zu große Genauigkeit %u für '%-.192s' angegeben. Maximum ist %lu"
 ER_M_BIGGER_THAN_D 42000 S1009
         eng "For float(M,D), double(M,D) or decimal(M,D), M must be >= D (column '%-.192s')."
         ger "Für FLOAT(M,D), DOUBLE(M,D) oder DECIMAL(M,D) muss M >= D sein (Feld '%-.192s')"
@@ -5555,8 +5555,8 @@ ER_WARN_CANT_DROP_DEFAULT_KEYCACHE
         eng "Cannot drop default keycache"
         ger "Der vorgabemäßige Schlüssel-Cache kann nicht gelöscht werden"
 ER_TOO_BIG_DISPLAYWIDTH 42000 S1009
-        eng "Display width out of range for column '%-.192s' (max = %lu)"
-        ger "Anzeigebreite außerhalb des zulässigen Bereichs für Spalte '%-.192s' (Maximum: %lu)"
+        eng "Display width out of range for '%-.192s' (max = %lu)"
+        ger "Anzeigebreite außerhalb des zulässigen Bereichs für '%-.192s' (Maximum: %lu)"
 ER_XAER_DUPID XAE08
         eng "XAER_DUPID: The XID already exists"
         ger "XAER_DUPID: Die XID existiert bereits"

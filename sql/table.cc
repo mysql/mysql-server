@@ -776,8 +776,6 @@ static int open_binary_frm(THD *thd, TABLE_SHARE *share, uchar *head,
   share->db_record_offset= 1;
   if (db_create_options & HA_OPTION_LONG_BLOB_PTR)
     share->blob_ptr_size= portable_sizeof_char_ptr;
-  /* Set temporarily a good value for db_low_byte_first */
-  share->db_low_byte_first= test(legacy_db_type != DB_TYPE_ISAM);
   error=4;
   share->max_rows= uint4korr(head+18);
   share->min_rows= uint4korr(head+22);
@@ -1696,7 +1694,6 @@ static int open_binary_frm(THD *thd, TABLE_SHARE *share, uchar *head,
   share->can_cmp_whole_record= (share->blob_fields == 0 &&
                                 share->varchar_fields == 0);
 
-  share->db_low_byte_first= handler_file->low_byte_first();
   share->column_bitmap_size= bitmap_buffer_size(share->fields);
 
   if (!(bitmaps= (my_bitmap_map*) alloc_root(&share->mem_root,
@@ -1994,7 +1991,12 @@ bool unpack_vcol_info_from_frm(THD *thd,
   vcol_arena= table->expr_arena;
   if (!vcol_arena)
   {
-    Query_arena expr_arena(&table->mem_root, Query_arena::INITIALIZED);
+    /*
+      We need to use CONVENTIONAL_EXECUTION here to ensure that
+      any new items created by fix_fields() are not reverted.
+    */
+    Query_arena expr_arena(&table->mem_root,
+                           Query_arena::CONVENTIONAL_EXECUTION);
     if (!(vcol_arena= (Query_arena *) alloc_root(&table->mem_root,
                                                  sizeof(Query_arena))))
       goto err;

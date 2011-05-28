@@ -544,15 +544,9 @@ id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 select f2 from t2 where f2 in ('a','b');
 f2
 0
-Warnings:
-Warning	1292	Truncated incorrect DOUBLE value: 'a'
-Warning	1292	Truncated incorrect DOUBLE value: 'b'
 explain select f2 from t2 where f2 in ('a','b');
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	t2	index	t2f2	t2f2	5	NULL	3	Using where; Using index
-Warnings:
-Warning	1292	Truncated incorrect DOUBLE value: 'a'
-Warning	1292	Truncated incorrect DOUBLE value: 'b'
 select f2 from t2 where f2 in (1,'b');
 f2
 0

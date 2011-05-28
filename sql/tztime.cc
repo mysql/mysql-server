@@ -214,7 +214,7 @@ tz_load(const char *name, TIME_ZONE_INFO *sp, MEM_ROOT *storage)
                                          ALIGN_SIZE(sp->typecnt *
                                                     sizeof(TRAN_TYPE_INFO)) +
 #ifdef ABBR_ARE_USED
-                                         ALIGN_SIZE(sp->charcnt) +
+                                         ALIGN_SIZE(sp->charcnt+1) +
 #endif
                                          sp->leapcnt * sizeof(LS_INFO))))
       return 1;
@@ -227,7 +227,7 @@ tz_load(const char *name, TIME_ZONE_INFO *sp, MEM_ROOT *storage)
     tzinfo_buf+= ALIGN_SIZE(sp->typecnt * sizeof(TRAN_TYPE_INFO));
 #ifdef ABBR_ARE_USED
     sp->chars= tzinfo_buf;
-    tzinfo_buf+= ALIGN_SIZE(sp->charcnt);
+    tzinfo_buf+= ALIGN_SIZE(sp->charcnt+1);
 #endif
     sp->lsis= (LS_INFO *)tzinfo_buf;
 
@@ -877,8 +877,9 @@ sec_since_epoch(int year, int mon, int mday, int hour, int min ,int sec)
 
   RETURN VALUE
     Seconds in UTC since Epoch.
-    0 in case of error.
+    0 in case of error.  In this case *in_dst_time_gap is also set
 */
+
 static my_time_t
 TIME_to_gmt_sec(const MYSQL_TIME *t, const TIME_ZONE_INFO *sp,
                 my_bool *in_dst_time_gap)
@@ -887,12 +888,14 @@ TIME_to_gmt_sec(const MYSQL_TIME *t, const TIME_ZONE_INFO *sp,
   uint saved_seconds;
   uint i;
   int shift= 0;
-
   DBUG_ENTER("TIME_to_gmt_sec");
 
+  *in_dst_time_gap= 0;
   if (!validate_timestamp_range(t))
+  {
+    *in_dst_time_gap= 1;                        // Mark error
     DBUG_RETURN(0);
-
+  }
 
   /* We need this for correct leap seconds handling */
   if (t->second < SECS_PER_MIN)
@@ -936,6 +939,7 @@ TIME_to_gmt_sec(const MYSQL_TIME *t, const TIME_ZONE_INFO *sp,
       This means that source time can't be represented as my_time_t due to
       limited my_time_t range.
     */
+    *in_dst_time_gap= 1;                        // Mark error
     DBUG_RETURN(0);
   }
 
@@ -952,6 +956,7 @@ TIME_to_gmt_sec(const MYSQL_TIME *t, const TIME_ZONE_INFO *sp,
     if (local_t > (my_time_t) (TIMESTAMP_MAX_VALUE - shift * SECS_PER_DAY +
                                sp->revtis[i].rt_offset - saved_seconds))
     {
+      *in_dst_time_gap= 1;                        // Mark error
       DBUG_RETURN(0);                           /* my_time_t overflow */
     }
     local_t+= shift * SECS_PER_DAY;
@@ -973,7 +978,10 @@ TIME_to_gmt_sec(const MYSQL_TIME *t, const TIME_ZONE_INFO *sp,
 
   /* check for TIMESTAMP_MAX_VALUE was already done above */
   if (local_t < TIMESTAMP_MIN_VALUE)
+  {
     local_t= 0;
+    *in_dst_time_gap= 1;                        // Mark error
+  }
 
   DBUG_RETURN(local_t);
 }
@@ -1336,24 +1344,31 @@ Time_zone_offset::Time_zone_offset(long tz_offset_arg):
                         datetime  value passed doesn't really exist
                         (i.e. falls into spring time-gap) and is not
                         touched otherwise.
-                        It is not really used in this class.
+                        It is not really used in this class, except
+                        for indicating error
 
   RETURN VALUE
-    Corresponding my_time_t value or 0 in case of error
+    Corresponding my_time_t value or 0 in case of error. In case of error
+    *in_dst_time_gap is also set.
 */
+
 my_time_t
-Time_zone_offset::TIME_to_gmt_sec(const MYSQL_TIME *t, my_bool *in_dst_time_gap) const
+Time_zone_offset::TIME_to_gmt_sec(const MYSQL_TIME *t,
+                                  my_bool *in_dst_time_gap) const
 {
   my_time_t local_t;
   int shift= 0;
 
+  *in_dst_time_gap= 0;                          // Reset
   /*
     Check timestamp range.we have to do this as calling function relies on
     us to make all validation checks here.
   */
   if (!validate_timestamp_range(t))
+  {
+    *in_dst_time_gap= 1;                        // Mark error
     return 0;
-
+  }
   /*
     Do a temporary shift of the boundary dates to avoid
     overflow of my_time_t if the time value is near it's
@@ -1376,6 +1391,7 @@ Time_zone_offset::TIME_to_gmt_sec(const MYSQL_TIME *t, my_bool *in_dst_time_gap)
     return local_t;
 
   /* range error*/
+  *in_dst_time_gap= 1;                        // Mark error
   return 0;
 }
 

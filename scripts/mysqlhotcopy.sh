@@ -856,7 +856,7 @@ A sample log-pos table definition:
 
 CREATE TABLE log_pos (
   host            varchar(60) NOT null,
-  time_stamp      timestamp(14) NOT NULL,
+  time_stamp      timestamp NOT NULL,
   log_file        varchar(32) default NULL,
   log_pos         int(11)     default NULL,
   master_host     varchar(60) NULL,

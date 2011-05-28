@@ -309,7 +309,7 @@ ERROR HY000: Unknown event 'intact_check'
 DROP EVENT no_such_event;
 ERROR HY000: Unknown event 'no_such_event'
 CREATE EVENT intact_check_1 ON SCHEDULE EVERY 5 HOUR DO SELECT 5;
-ERROR HY000: Failed to store event name. Error code 2 from storage engine.
+ERROR HY000: Failed to store event name. Error code 1 from storage engine.
 ALTER EVENT intact_check_1 ON SCHEDULE EVERY 8 HOUR DO SELECT 8;
 ERROR HY000: Unknown event 'intact_check_1'
 ALTER EVENT intact_check_1 RENAME TO intact_check_2;

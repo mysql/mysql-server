@@ -690,12 +690,12 @@ enum lockman_getlock_result lockman_getlock(LOCKMAN *lm, LOCK_OWNER *lo,
     }
 
     /* yuck. waiting */
-    deadline= my_getsystime() + lm->lock_timeout * 10000;
-    set_timespec_nsec(timeout,lm->lock_timeout * 1000000);
+    deadline= my_hrtime().val*1000 + lm->lock_timeout * 1000000;
+    set_timespec_time_nsec(timeout, deadline);
     do
     {
       pthread_cond_timedwait(wait_for_lo->cond, wait_for_lo->mutex, &timeout);
-    } while (!DELETED(blocker->link) && my_getsystime() < deadline);
+    } while (!DELETED(blocker->link) && my_hrtime().val < deadline/1000);
     pthread_mutex_unlock(wait_for_lo->mutex);
     lf_rwlock_by_pins(pins);
     if (!DELETED(blocker->link))

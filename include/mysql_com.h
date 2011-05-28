@@ -447,7 +447,8 @@ struct my_rnd_struct;
 
 enum Item_result
 {
-  STRING_RESULT=0, REAL_RESULT, INT_RESULT, ROW_RESULT, DECIMAL_RESULT
+  STRING_RESULT=0, REAL_RESULT, INT_RESULT, ROW_RESULT, DECIMAL_RESULT,
+  TIME_RESULT
 #ifdef MYSQL_SERVER
   ,IMPOSSIBLE_RESULT  /* Yes, we know this is ugly, don't tell us */
 #endif

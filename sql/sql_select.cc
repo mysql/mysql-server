@@ -3704,30 +3704,21 @@ add_key_field(JOIN *join,
         (*sargables)->arg_value= value;
         (*sargables)->num_values= num_values;
       }
+
       /*
-	We can't always use indexes when comparing a string index to a
-	number. cmp_type() is checked to allow compare of dates to numbers.
-        eq_func is NEVER true when num_values > 1
+	We can't use indexes when comparing a string index to a
+	number or two strings if the effective collation
+        of the operation differ from the field collation.
        */
       if (!eq_func)
         return;
-      if (field->result_type() == STRING_RESULT)
+
+      if (field->cmp_type() == STRING_RESULT)
       {
-        if ((*value)->result_type() != STRING_RESULT)
-        {
-          if (field->cmp_type() != (*value)->result_type())
+        if ((*value)->cmp_type() != STRING_RESULT)
             return;
-        }
-        else
-        {
-          /*
-            We can't use indexes if the effective collation
-            of the operation differ from the field collation.
-          */
-          if (field->cmp_type() == STRING_RESULT &&
-              ((Field_str*)field)->charset() != cond->compare_collation())
-            return;
-        }
+        if (((Field_str*)field)->charset() != cond->compare_collation())
+          return;
       }
     }
   }
@@ -3856,7 +3847,6 @@ is_local_field (Item *field)
   The primary reason for having and_level attribute is the OR operation which 
   uses and_level to mark KEY_FIELDs that should get into the result of the OR
   operation
-
 */
 
 static void
@@ -11555,36 +11545,36 @@ remove_eq_conds(THD *thd, COND *cond, Item::cond_result *cond_value)
   return cond;					// Point at next and level
 }
 
-/* 
+/**
   Check if equality can be used in removing components of GROUP BY/DISTINCT
   
-  SYNOPSIS
-    test_if_equality_guarantees_uniqueness()
-      l          the left comparison argument (a field if any)
-      r          the right comparison argument (a const of any)
+  @param    l          the left comparison argument (a field if any)
+  @param    r          the right comparison argument (a const of any)
   
-  DESCRIPTION    
-    Checks if an equality predicate can be used to take away 
-    DISTINCT/GROUP BY because it is known to be true for exactly one 
-    distinct value (e.g. <expr> == <const>).
-    Arguments must be of the same type because e.g. 
-    <string_field> = <int_const> may match more than 1 distinct value from 
-    the column. 
-    We must take into consideration and the optimization done for various 
-    string constants when compared to dates etc (see Item_int_with_ref) as
-    well as the collation of the arguments.
+  @details
+  Checks if an equality predicate can be used to take away 
+  DISTINCT/GROUP BY because it is known to be true for exactly one 
+  distinct value (e.g. <expr> == <const>).
+  Arguments must be of the same type because e.g. 
+  <string_field> = <int_const> may match more than 1 distinct value from 
+  the column.
+  Additionally, strings must have the same collation.
+  Or the *field* must be a datetime - if the constant is a datetime
+  and a field is not - this is not enough, consider:
+    create table t1 (a varchar(100));
+    insert t1 values ('2010-01-02'), ('2010-1-2'), ('20100102');
+    select distinct t1 from t1 where a=date('2010-01-02');
   
-  RETURN VALUE  
-    TRUE    can be used
-    FALSE   cannot be used
+  @retval true    can be used
+  @retval false   cannot be used
 */
 static bool
 test_if_equality_guarantees_uniqueness(Item *l, Item *r)
 {
   return r->const_item() &&
-    /* elements must be compared as dates */
-     (Arg_comparator::can_compare_as_dates(l, r, 0) ||
-      /* or of the same result type */
+    /* the field is a date (the const will be converted to a date) */
+     (l->cmp_type() == TIME_RESULT ||
+      /* or arguments are of the same result type */
       (r->result_type() == l->result_type() &&
        /* and must have the same collation if compared as strings */
        (l->result_type() != STRING_RESULT ||
@@ -11770,15 +11760,12 @@ static Field *create_tmp_field_from_item(THD *thd, Item *item, TABLE *table,
   case STRING_RESULT:
     DBUG_ASSERT(item->collation.collation);
   
-    enum enum_field_types type;
     /*
       DATE/TIME and GEOMETRY fields have STRING_RESULT result type. 
       To preserve type they needed to be handled separately.
     */
-    if ((type= item->field_type()) == MYSQL_TYPE_DATETIME ||
-        type == MYSQL_TYPE_TIME || type == MYSQL_TYPE_DATE ||
-        type == MYSQL_TYPE_NEWDATE ||
-        type == MYSQL_TYPE_TIMESTAMP || type == MYSQL_TYPE_GEOMETRY)
+    if (item->cmp_type() == TIME_RESULT ||
+        item->field_type() == MYSQL_TYPE_GEOMETRY)
       new_field= item->tmp_table_field_from_field_type(table, 1);
     /* 
       Make sure that the blob fits into a Field_varstring which has 
@@ -12240,7 +12227,6 @@ create_tmp_table(THD *thd,TMP_TABLE_PARAM *param,List<Item> &fields,
   init_tmp_table_share(thd, share, "", 0, tmpname, tmpname);
   share->blob_field= blob_field;
   share->blob_ptr_size= portable_sizeof_char_ptr;
-  share->db_low_byte_first=1;                // True for HEAP, MyISAM and Maria
   share->table_charset= param->table_charset;
   share->primary_key= MAX_KEY;               // Indicate no primary key
   share->keys_for_keyread.init();

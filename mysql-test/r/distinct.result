@@ -794,3 +794,27 @@ DROP TABLE t1;
 SET @@sort_buffer_size = @old_sort_buffer_size;
 SET @@max_heap_table_size = @old_max_heap_table_size;
 End of 5.1 tests
+create table t1 (a varchar(100));
+insert t1 values ('2010-10-10'), ('20101010');
+select * from t1 where a = DATE('2010-10-10');
+a
+2010-10-10
+20101010
+select distinct a from t1 where a = DATE('2010-10-10');
+a
+2010-10-10
+20101010
+drop table t1;
+create table t1 (f1 varchar(40));
+insert into t1 values ('2010-10-10 00:00:00.0001'),('2010-10-10 00:00:00.0002'),('2010-10-10 00:00:00.0003');
+select time(f1) from t1 ;
+time(f1)
+00:00:00.000100
+00:00:00.000200
+00:00:00.000300
+select distinct time(f1) from t1 ;
+time(f1)
+00:00:00.000100
+00:00:00.000200
+00:00:00.000300
+drop table t1;

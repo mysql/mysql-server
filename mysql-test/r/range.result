@@ -1106,14 +1106,11 @@ id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	t1	ref	PRIMARY	PRIMARY	20	const	2	Using index condition
 Warnings:
 Warning	1292	Incorrect datetime value: '2005-12-01 24:00:00' for column 'started' at row 1
-Warning	1292	Incorrect datetime value: '2005-12-01 24:00:00' for column 'started' at row 1
 SELECT * FROM t1 WHERE item='A1' AND started<='2005-12-01 24:00:00';
 item	started	price
-A1	2005-11-01 08:00:00	1000.000
-A1	2005-11-15 00:00:00	2000.000
 Warnings:
 Warning	1292	Incorrect datetime value: '2005-12-01 24:00:00' for column 'started' at row 1
-Warning	1292	Incorrect datetime value: '2005-12-01 24:00:00' for column 'started' at row 1
+Warning	1292	Incorrect datetime value: '2005-12-01 24:00:00' for column 'started' at row 0
 SELECT * FROM t1 WHERE item='A1' AND started<='2005-12-02 00:00:00';
 item	started	price
 A1	2005-11-01 08:00:00	1000.000
@@ -1122,14 +1119,10 @@ DROP INDEX `PRIMARY` ON t1;
 EXPLAIN SELECT * FROM t1 WHERE item='A1' AND started<='2005-12-01 24:00:00';
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	t1	ALL	NULL	NULL	NULL	NULL	4	Using where
-Warnings:
-Warning	1292	Incorrect datetime value: '2005-12-01 24:00:00' for column 'started' at row 1
 SELECT * FROM t1 WHERE item='A1' AND started<='2005-12-01 24:00:00';
 item	started	price
-A1	2005-11-01 08:00:00	1000.000
-A1	2005-11-15 00:00:00	2000.000
 Warnings:
-Warning	1292	Incorrect datetime value: '2005-12-01 24:00:00' for column 'started' at row 1
+Warning	1292	Incorrect datetime value: '2005-12-01 24:00:00' for column 'started' at row 0
 SELECT * FROM t1 WHERE item='A1' AND started<='2005-12-02 00:00:00';
 item	started	price
 A1	2005-11-01 08:00:00	1000.000
@@ -1586,14 +1579,13 @@ str_to_date('2007-20-00', '%Y-%m-%d') >= '2007/10/20' AND
 str_to_date('2007-20-00', '%Y-%m-%d') <= ''
 NULL
 Warnings:
-Warning	1292	Truncated incorrect date value: ''
 Error	1411	Incorrect datetime value: '2007-20-00' for function str_to_date
 Error	1411	Incorrect datetime value: '2007-20-00' for function str_to_date
 SELECT str_to_date('2007-10-00', '%Y-%m-%d') BETWEEN '' AND '2007/10/20';
 str_to_date('2007-10-00', '%Y-%m-%d') BETWEEN '' AND '2007/10/20'
 1
 Warnings:
-Warning	1292	Truncated incorrect datetime value: ''
+Warning	1292	Truncated incorrect date value: ''
 SELECT str_to_date('2007-20-00', '%Y-%m-%d') BETWEEN '2007/10/20' AND '';
 str_to_date('2007-20-00', '%Y-%m-%d') BETWEEN '2007/10/20' AND ''
 NULL
@@ -1768,3 +1760,9 @@ SELECT * FROM t1, t1 as t2 WHERE t1.i4 BETWEEN t2.pk AND t2.pk;
 pk	i4	pk	i4
 DROP TABLE t1;
 End of 5.1 tests
+create table t1 (f1 datetime, key (f1));
+insert into t1 values ('2000-03-09 15:56:59'),('2000-05-05 23:24:28'),('2000-06-13 13:12:06');
+select  min(f1)  from t1 where f1 >= '2006-05-25 07:00:20' and f1 between '2003-11-23 10:00:09' and '2010-01-01 01:01:01' and f1 > '2001-01-01 01:01:01';
+min(f1)
+NULL
+drop table t1;
