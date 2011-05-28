@@ -1329,6 +1329,64 @@ DROP TABLE t1,t2,t3;
 DROP VIEW v1,v2,v3,v4,v6,v7;
 #
 #
+# BUG#11783262: CRASH IN ITEM_FIELD::ITEM_FIELD IN ITEM.CC ON SUBQUERY
+#               IN FROM WITH WL5274 
+#
+CREATE TABLE t1 (
+col_int_key INT,
+col_time_key time,
+col_varchar_key VARCHAR(1),
+KEY col_int_key (col_int_key),
+KEY col_varchar_key (col_varchar_key,col_int_key)
+) ENGINE=INNODB;
+SELECT alias1.col_time_key AS field1
+FROM ( ( SELECT SQ1_alias1.* FROM t1 AS SQ1_alias1 ) AS alias1
+INNER JOIN t1 AS alias2
+ON (alias2.col_int_key = alias1.col_int_key)
+)
+WHERE alias1.col_int_key = 207
+ORDER BY alias1.col_varchar_key, field1;
+field1
+DROP TABLE t1;
+#
+# Bug#11807437: VALGRIND WARNING IN MYSQL_DERIVED_OPTIMIZE() LINE 293
+#
+CREATE TABLE t1 (
+f1 int(11) DEFAULT NULL
+);
+SELECT 1
+FROM (
+SELECT 1, 2 FROM DUAL
+WHERE EXISTS  (
+SELECT f1
+FROM  t1
+)) AS tt
+;
+1
+DROP TABLE t1;
+#
+#
+# Bug#11808582: VALGRIND ON WL#5274: INVALID WRITE IN MC_REPLACE_STRMEM.C:493) 
+#
+CREATE TABLE t1 (
+pk INT NOT NULL AUTO_INCREMENT,
+col_int_key INT,
+col_time_key time,
+col_varchar_key VARCHAR(1),
+PRIMARY KEY (pk),
+KEY col_int_key (col_int_key),
+KEY col_varchar_key (col_varchar_key,col_int_key)
+) ENGINE=InnoDB;
+SELECT tt.col_time_key
+FROM ( ( SELECT * FROM t1 ) AS tt
+INNER JOIN t1
+ON (t1.col_int_key = tt.col_int_key)
+)
+WHERE tt.col_int_key = 207
+ORDER BY tt.col_varchar_key, tt.pk ASC, 1;
+col_time_key
+DROP TABLE t1;
+#
 # Bug#11791677 - ASSERTION FAILED IN JOIN_MATERIALIZE_TABLE IN
 #                SQL_SELECT.CC ON NESTED SUBQUERY 
 #
