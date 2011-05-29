@@ -4495,26 +4495,6 @@ double get_post_group_estimate(JOIN* join, double join_op_rows)
 }
 
 
-/*
-  Optimize the underlying subselect's join
-
-  @param out_rows   OUT   How many records we expect to get in the 
-                          materialized table
-  @param cost       OUT   Cost to materialize the subquery
-
-  @return 
-    0  OK
-    1  Fatal error
-*/
-#if 0
-int subselect_hash_sj_engine::optimize(double *out_rows, double *cost)
-{
-  DBUG_ENTER("subselect_hash_sj_engine::optimize");
-  DBUG_ASSERT(0);
-  DBUG_RETURN(0);
-}
-#endif
-
 /**
   Execute a subquery IN predicate via materialization.
 

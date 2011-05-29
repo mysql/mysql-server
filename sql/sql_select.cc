@@ -5928,6 +5928,8 @@ greedy_search(JOIN      *join,
   @param record_count_arg[out] store record count here
 
   @note
+  end_tab==NULL  means get full join cost and fanout
+
     When used by semi-join materialization code the idea is that we
     detect sj-materialization after we've put all sj-inner tables into
     the join prefix.
@@ -5942,39 +5944,6 @@ greedy_search(JOIN      *join,
 
   @returns
     read_time_arg and record_count_arg contain the computed cost.
-*/
-#if 0
-void JOIN::get_partial_join_cost(uint n_tables,
-                                 double *read_time_arg, double *record_count_arg)
-{
-#if 0
-  double record_count= 1;
-  double read_time= 0.0;
-
-  DBUG_ASSERT(n_tables <= tables);
-
-  for (uint i= const_tables; i < n_tables; i++)
-  {
-    if (best_positions[i].records_read)
-    {
-      record_count *= best_positions[i].records_read;
-      read_time += best_positions[i].read_time;
-    }
-  }
-  *read_time_arg= read_time;// + record_count / TIME_FOR_COMPARE;
-  *record_count_arg= record_count;
-#endif
-  DBUG_ASSERT(0);
-}
-#endif
-
-/*
-  Get partial join cost and fanout
-
-  end_tab==NULL  means get full join cost and fanout
-
-  if end_tab belongs to a semi-join nest, get fanout within the scope of that
-    nest.
 */
 
 void JOIN::get_partial_cost_and_fanout(uint end_tab_idx,
@@ -6521,14 +6490,6 @@ int JOIN_TAB::make_scan_filter()
   Item *cond= is_inner_table_of_outer_join() ?
                 *get_first_inner_table()->on_expr_ref : join->conds;
   
-  /*
-    psergey4timour: passing MAX_TABLES here is not correct. 
-
-    The following make_cond_for_table call constructs a condition that will be
-    applied when reading a table with join buffering.  This means that we're
-    nearly certain that this condition will be checked fewer than #{records in 
-    join output} times.
-  */
   if (cond &&
       (tmp= make_cond_for_table(join->thd, cond,
                                join->const_table_map | table->map,
