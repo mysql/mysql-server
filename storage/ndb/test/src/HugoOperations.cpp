@@ -400,6 +400,8 @@ int HugoOperations::pkUpdateRecord(Ndb* pNdb,
     Uint32 partId;
     if(getPartIdForRow(pOp, r+recordNo, partId))
       pOp->setPartitionId(partId);
+
+    pOp->setAnyValue(getAnyValueForRowUpd(r+recordNo, updatesValue));
     
   }
   return NDBT_OK;
@@ -803,7 +805,8 @@ HugoOperations::HugoOperations(const NdbDictionary::Table& _tab,
   UtilTransactions(_tab, idx),
   pIndexScanOp(NULL),
   calc(_tab),
-  m_quiet(false)
+  m_quiet(false),
+  avCallback(NULL)
 {
 }
 
@@ -1199,6 +1202,22 @@ void
 HugoOperations::setNdbError(const NdbError& error)
 {
   m_error.code = error.code ? error.code : 1;
+}
+
+void
+HugoOperations::setAnyValueCallback(AnyValueCallback avc)
+{
+  avCallback = avc;
+}
+
+Uint32
+HugoOperations::getAnyValueForRowUpd(int row, int update)
+{
+  if (avCallback == NULL)
+    return 0;
+
+  return (avCallback)(pTrans->getNdb(), pTrans,
+                      row, update);
 }
 
 template class Vector<HugoOperations::RsPair>;

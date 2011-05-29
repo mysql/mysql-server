@@ -1510,6 +1510,8 @@ out:
     break;
   case (TriggerType::SUBSCRIPTION_BEFORE): // Only Suma
     jam();
+    fireTrigOrd->m_transId1 = req_struct->trans_id1;
+    fireTrigOrd->m_transId2 = req_struct->trans_id2;
     fireTrigOrd->setGCI(req_struct->gci_hi);
     fireTrigOrd->setHashValue(req_struct->hash_value);
     fireTrigOrd->m_any_value = regOperPtr->m_any_value;

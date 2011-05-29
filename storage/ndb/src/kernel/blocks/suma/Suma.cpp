@@ -4359,6 +4359,8 @@ Suma::execFIRE_TRIG_ORD(Signal* signal)
   const Uint64 gci = gci_lo | (Uint64(gci_hi) << 32);
   const Uint32 event     = trg->getTriggerEvent();
   const Uint32 any_value = trg->getAnyValue();
+  const Uint32 transId1  = trg->m_transId1;
+  const Uint32 transId2  = trg->m_transId2;
 
   Ptr<Subscription> subPtr;
   c_subscriptionPool.getPtr(subPtr, trigId & 0xFFFF);
@@ -4431,6 +4433,8 @@ Suma::execFIRE_TRIG_ORD(Signal* signal)
     data->flags          = 0;
     data->anyValue       = any_value;
     data->totalLen       = ptrLen;
+    data->transId1       = transId1;
+    data->transId2       = transId2;
     
     {
       LocalDLList<Subscriber> list(c_subscriberPool, subPtr.p->m_subscribers);
@@ -4439,13 +4443,13 @@ Suma::execFIRE_TRIG_ORD(Signal* signal)
       {
 	data->senderData = subbPtr.p->m_senderData;
 	sendSignal(subbPtr.p->m_senderRef, GSN_SUB_TABLE_DATA, signal,
-		   SubTableData::SignalLength, JBB, ptr, nptr);
+		   SubTableData::SignalLengthWithTransId, JBB, ptr, nptr);
       }
     }
   }
   else 
   {
-    const uint buffer_header_sz = 4;
+    const uint buffer_header_sz = 6;
     Uint32* dst;
     Uint32 sz = f_trigBufferSize + b_trigBufferSize + buffer_header_sz;
     if((dst = get_buffer_ptr(signal, bucket, gci, sz)))
@@ -4454,6 +4458,8 @@ Suma::execFIRE_TRIG_ORD(Signal* signal)
       * dst++ = schemaVersion;
       * dst++ = (event << 16) | f_trigBufferSize;
       * dst++ = any_value;
+      * dst++ = transId1;
+      * dst++ = transId2;
       memcpy(dst, f_buffer, f_trigBufferSize << 2);
       dst += f_trigBufferSize;
       memcpy(dst, b_buffer, b_trigBufferSize << 2);
@@ -6432,13 +6438,15 @@ Suma::resend_bucket(Signal* signal, Uint32 buck, Uint64 min_gci,
     } 
     else
     {
-      const uint buffer_header_sz = 4;
+      const uint buffer_header_sz = 6;
       g_cnt++;
       Uint32 subPtrI = * src++ ;
       Uint32 schemaVersion = * src++;
       Uint32 event = * src >> 16;
       Uint32 sz_1 = (* src ++) & 0xFFFF;
       Uint32 any_value = * src++;
+      Uint32 transId1 = * src++;
+      Uint32 transId2 = * src++;
 
       ndbassert(sz - buffer_header_sz >= sz_1);
       
@@ -6470,6 +6478,8 @@ Suma::resend_bucket(Signal* signal, Uint32 buck, Uint64 min_gci,
 	data->flags          = 0;
 	data->anyValue       = any_value;
 	data->totalLen       = ptrLen;
+        data->transId1       = transId1;
+        data->transId2       = transId2;
 	
 	{
           LocalDLList<Subscriber> list(c_subscriberPool,
@@ -6479,7 +6489,7 @@ Suma::resend_bucket(Signal* signal, Uint32 buck, Uint64 min_gci,
           {
             data->senderData = subbPtr.p->m_senderData;
             sendSignal(subbPtr.p->m_senderRef, GSN_SUB_TABLE_DATA, signal,
-                       SubTableData::SignalLength, JBB, ptr, nptr);
+                       SubTableData::SignalLengthWithTransId, JBB, ptr, nptr);
           }
         }
       }
