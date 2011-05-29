@@ -7760,7 +7760,6 @@ bool setup_tables(THD *thd, Name_resolution_context *context,
        table_list= table_list->next_leaf, tablenr++)
   {
     TABLE *table= table_list->table;
-    table->pos_in_table_list= table_list;
     if (first_select_table &&
         table_list->top_table() == first_select_table)
     {
@@ -7775,6 +7774,7 @@ bool setup_tables(THD *thd, Name_resolution_context *context,
     }
     else
     {
+      table->pos_in_table_list= table_list;
       setup_table_map(table, table_list, tablenr);
 
       if (table_list->process_index_hints(table))
