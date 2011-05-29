@@ -1,5 +1,8 @@
 # General purpose bug fix tests go here : subselect.test too large
 
+--disable_warnings
+drop table if exists t1,t2,t3,t4,t5,t6;
+--enable_warnings
 
 --echo #
 --echo # Bug #46791: Assertion failed:(table->key_read==0),function unknown

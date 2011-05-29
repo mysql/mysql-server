@@ -7759,7 +7759,6 @@ bool setup_tables(THD *thd, Name_resolution_context *context,
        table_list= table_list->next_leaf, tablenr++)
   {
     TABLE *table= table_list->table;
-    table->pos_in_table_list= table_list;
     if (first_select_table &&
         table_list->top_table() == first_select_table)
     {
@@ -7767,9 +7766,19 @@ bool setup_tables(THD *thd, Name_resolution_context *context,
       first_select_table= 0;
       tablenr= 0;
     }
-    setup_table_map(table, table_list, tablenr);
-    if (table_list->process_index_hints(table))
-      DBUG_RETURN(1);
+
+    if (table_list->jtbm_subselect)
+    {
+      table_list->jtbm_table_no= tablenr;
+    }
+    else
+    {
+      table->pos_in_table_list= table_list;
+      setup_table_map(table, table_list, tablenr);
+
+      if (table_list->process_index_hints(table))
+        DBUG_RETURN(1);
+    }
   }
   if (tablenr > MAX_TABLES)
   {
@@ -7795,6 +7804,17 @@ bool setup_tables(THD *thd, Name_resolution_context *context,
         thd->restore_active_arena(arena, &backup);
       if (res)
         DBUG_RETURN(1);
+    }
+
+    if (table_list->jtbm_subselect)
+    {
+      Item *item= table_list->jtbm_subselect->optimizer;
+      if (table_list->jtbm_subselect->optimizer->fix_fields(thd, &item))
+      {
+        my_error(ER_TOO_MANY_TABLES,MYF(0),MAX_TABLES); /* psergey-todo: WHY ER_TOO_MANY_TABLES ???*/
+        DBUG_RETURN(1);
+      }
+      DBUG_ASSERT(item == table_list->jtbm_subselect->optimizer);
     }
   }
 
@@ -8217,7 +8237,7 @@ int setup_conds(THD *thd, TABLE_LIST *tables, TABLE_LIST *leaves,
       goto err_no_arena;
   }
 
-  thd->thd_marker.emb_on_expr_nest= (TABLE_LIST*)1;
+  thd->thd_marker.emb_on_expr_nest= NO_JOIN_NEST;
   if (*conds)
   {
     thd->where="where clause";
