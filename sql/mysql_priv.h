@@ -679,6 +679,12 @@ enabled by default, add OPTIMIZER_SWITCH_MATERIALIZATION
 #define CONTEXT_ANALYSIS_ONLY_DERIVED 4
 
 /*
+  Don't evaluate constant sub-expressions of virtual column
+  expressions when opening tables
+*/ 
+#define CONTEXT_ANALYSIS_ONLY_VCOL_EXPR 8
+
+/*
   Uncachable causes:
 
 This subquery has fields from outer query (put by user)
@@ -1095,7 +1101,7 @@ struct Query_cache_query_flags
 #define query_cache_resize(A)             do { } while(0)
 #define query_cache_set_min_res_unit(A)   do { } while(0)
 #define query_cache_invalidate3(A, B, C)  do { } while(0)
-#define query_cache_invalidate1(A)        do { } while(0)
+#define query_cache_invalidate1(A,B)      do { } while(0)
 #define query_cache_send_result_to_client(A, B, C) 0
 #define query_cache_invalidate_by_MyISAM_filename_ref NULL
 #define query_cache_abort(A)              do { } while(0)

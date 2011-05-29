@@ -1840,7 +1840,9 @@ bool fix_vcol_expr(THD *thd,
   save_use_only_table_context= thd->lex->use_only_table_context;
   thd->lex->use_only_table_context= TRUE;
   /* Fix fields referenced to by the virtual column function */
+  thd->lex->context_analysis_only|= CONTEXT_ANALYSIS_ONLY_VCOL_EXPR;
   error= func_expr->fix_fields(thd, (Item**)0);
+  thd->lex->context_analysis_only&= ~CONTEXT_ANALYSIS_ONLY_VCOL_EXPR;
   /* Restore the original context*/
   thd->lex->use_only_table_context= save_use_only_table_context;
   context->table_list= save_table_list;

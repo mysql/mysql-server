@@ -1885,6 +1885,7 @@ typedef struct st_lex : public Query_tables_list
   {
     return (context_analysis_only &
             (CONTEXT_ANALYSIS_ONLY_PREPARE |
+             CONTEXT_ANALYSIS_ONLY_VCOL_EXPR |
              CONTEXT_ANALYSIS_ONLY_VIEW));
   }
 
