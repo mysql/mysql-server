@@ -8072,6 +8072,8 @@ void Dblqh::commitContinueAfterBlockedLab(Signal* signal)
       tupCommitReq->hashValue = regTcPtr.p->hashValue;
       tupCommitReq->diskpage = RNIL;
       tupCommitReq->gci_lo = regTcPtr.p->gci_lo;
+      tupCommitReq->transId1 = regTcPtr.p->transid[0];
+      tupCommitReq->transId2 = regTcPtr.p->transid[1];
       EXECUTE_DIRECT(tup, GSN_TUP_COMMITREQ, signal, 
 		     TupCommitReq::SignalLength);
 
@@ -10131,7 +10133,11 @@ Dblqh::seize_acc_ptr_list(ScanRecord* scanP,
   Uint32 segments= (new_batch_size + (SectionSegment::DataLength -2 )) / 
     SectionSegment::DataLength;
 
-  ndbassert(segments >= scanP->scan_acc_segments);
+  if (segments <= scanP->scan_acc_segments)
+  {
+    // No need to allocate more segments.
+    return true;
+  }
 
   if (new_batch_size > 1)
   {

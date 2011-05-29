@@ -1314,6 +1314,7 @@ private:
   struct DIVERIFY_queue
   {
     DIVERIFY_queue() {
+      m_ref = 0;
       cfirstVerifyQueue = clastVerifyQueue = 0;
       apiConnectRecord = 0;
       m_empty_done = 1;
@@ -1322,6 +1323,7 @@ private:
     Uint32 cfirstVerifyQueue;
     Uint32 clastVerifyQueue;
     Uint32 m_empty_done;
+    Uint32 m_ref;
   };
 
   bool isEmpty(const DIVERIFY_queue&);
@@ -1330,7 +1332,7 @@ private:
   void emptyverificbuffer(Signal *, Uint32 q, bool aContintueB);
   void emptyverificbuffer_check(Signal*, Uint32, Uint32);
 
-  DIVERIFY_queue c_diverify_queue[1];
+  DIVERIFY_queue c_diverify_queue[MAX_NDBMT_LQH_THREADS];
   Uint32 c_diverify_queue_cnt;
 
   /*------------------------------------------------------------------------*/
