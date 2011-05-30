@@ -15,7 +15,7 @@
 
 #include "item_inetfunc.h"
 
-#include "violite.h"  // vio_getnameinfo()
+#include "my_net.h"
 
 ///////////////////////////////////////////////////////////////////////////
 
@@ -531,7 +531,7 @@ static bool str_to_ipv6(const char *str, int str_length, in6_addr *ipv6_address)
                   It must be at least of INET_ADDRSTRLEN.
 
   @note The problem with inet_ntop() is that it is available starting from
-  Windows Vista, but out the minimum supported version is Windows 2000.
+  Windows Vista, but the minimum supported version is Windows 2000.
 */
 
 static void ipv4_to_str(const in_addr *ipv4, char *str)
