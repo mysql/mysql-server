@@ -7423,7 +7423,7 @@ make_join_select(JOIN *join,SQL_SELECT *select,COND *cond)
           */
           if (!(tmp= add_found_match_trig_cond(first_inner_tab, tmp, 0)))
             DBUG_RETURN(1);
-          sel->cond= sel->original_cond= tmp;
+          sel->cond= tmp;
           tab->set_select_cond(tmp, __LINE__);
           /* Push condition to storage engine if this is enabled
              and the condition is not guarded */
@@ -16432,7 +16432,8 @@ test_if_skip_sort_order(JOIN_TAB *tab,ORDER *order,ha_rows select_limit_arg,
           /* Reset quick;  This will be restored in 'use_filesort' if needed */
           select->quick= 0;
           save_cond= select->cond;
-          select->cond= select->original_cond;
+          if (select->pre_idx_push_select_cond)
+            select->cond= select->pre_idx_push_select_cond;
           res= select->test_quick_select(tab->join->thd, new_ref_key_map, 0,
                                          (tab->join->select_options &
                                           OPTION_FOUND_ROWS) ?
@@ -16816,8 +16817,8 @@ check_reverse_order:
           Restore the original condition as changes done by pushdown
           condition are not relevant anymore
         */
-        if (tab->select)
-          tab->set_cond(tab->select->original_cond);
+        if (tab->select && tab->select->pre_idx_push_select_cond)
+          tab->set_cond(tab->select->pre_idx_push_select_cond);
 
         /*
           TODO: update the number of records in join->best_positions[tablenr]
@@ -18820,7 +18821,9 @@ static bool add_ref_to_table_cond(THD *thd, JOIN_TAB *join_tab)
   {
     if (join_tab->select->cond)
       error=(int) cond->add(join_tab->select->cond);
-    join_tab->select->cond= join_tab->select->original_cond= cond;
+    join_tab->select->cond= cond;
+    if (join_tab->select->pre_idx_push_select_cond)
+      join_tab->select->pre_idx_push_select_cond= cond;
     join_tab->set_select_cond(cond, __LINE__);
   }
   else if ((join_tab->select= make_select(join_tab->table, 0, 0, cond, 0,

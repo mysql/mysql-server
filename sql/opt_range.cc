@@ -1665,7 +1665,7 @@ SQL_SELECT *make_select(TABLE *head, table_map const_tables,
   select->read_tables=read_tables;
   select->const_tables=const_tables;
   select->head=head;
-  select->cond= select->original_cond= conds;
+  select->cond= conds;
 
   if (head->sort.io_cache)
   {
