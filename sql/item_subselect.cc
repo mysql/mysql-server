@@ -558,17 +558,6 @@ bool Item_subselect::exec()
 }
 
 
-/*
-int Item_subselect::optimize(double *out_rows, double *cost)
-{
-  int res;
-  DBUG_ASSERT(0);
-  res= engine->optimize(out_rows, cost);
-  return res;
-}
-*/
-
-
 int Item_in_subselect::optimize(double *out_rows, double *cost)
 {
   int res;
@@ -616,6 +605,8 @@ int Item_in_subselect::optimize(double *out_rows, double *cost)
   DBUG_RETURN(res);
 
 }
+
+
 /**
   Check if an expression cache is needed for this subquery
 

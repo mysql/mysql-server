@@ -598,7 +598,6 @@ bool make_in_exists_conversion(THD *thd, JOIN *join, Item_in_subselect *item)
 {
   DBUG_ENTER("make_in_exists_conversion");
   JOIN *child_join= item->unit->first_select()->join;
-  //Item_subselect::trans_res res;
   bool res;
 
   /* 
@@ -624,7 +623,6 @@ bool make_in_exists_conversion(THD *thd, JOIN *join, Item_in_subselect *item)
 
   thd->lex->current_select= save_select_lex;
 
-  //if (res == Item_subselect::RES_ERROR)
   if (res)
     DBUG_RETURN(TRUE);
 
@@ -769,18 +767,6 @@ bool convert_join_subqueries_to_semijoins(JOIN *join)
   
   // Temporary measure: disable semi-joins when they are together with outer
   // joins.
-  /*
-  for (TABLE_LIST *tbl= join->select_lex->leaf_tables; tbl; tbl=tbl->next_leaf)
-  {
-    TABLE_LIST *embedding= tbl->embedding;
-    if (tbl->on_expr || (tbl->embedding && !(embedding->sj_on_expr && 
-                                            !embedding->embedding)))
-    {
-      in_subq= join->sj_subselects.front();
-      arena= thd->activate_stmt_arena_if_needed(&backup);
-      goto skip_conversion;
-    }
-  }*/
   if (check_for_outer_joins(join->join_list))
   {
     in_subq= join->sj_subselects.front();
@@ -935,7 +921,8 @@ void get_delayed_table_estimates(TABLE *table,
   *startup_cost= item->jtbm_read_time;
 
   /* Calculate cost of scanning the temptable */
-  double data_size= (*out_rows) * hash_sj_engine->tmp_table->s->reclength;
+  double data_size= item->jtbm_record_count * 
+                    hash_sj_engine->tmp_table->s->reclength;
   /* Do like in handler::read_time */
   *scan_time= data_size/IO_SIZE + 2;
 } 
@@ -1353,10 +1340,9 @@ static bool convert_subq_to_jtbm(JOIN *parent_join,
   List<TABLE_LIST> *emb_join_list= &parent_lex->top_join_list;
   TABLE_LIST *emb_tbl_nest= NULL; // will change when we learn to handle outer joins
   TABLE_LIST *tl;
-  DBUG_ENTER("convert_subq_to_jtbm");
-
   double rows;
   double read_time;
+  DBUG_ENTER("convert_subq_to_jtbm");
 
   subq_pred->in_strategy &= ~SUBS_IN_TO_EXISTS;
   subq_pred->optimize(&rows, &read_time);
@@ -1368,11 +1354,6 @@ static bool convert_subq_to_jtbm(JOIN *parent_join,
   if (subq_pred->engine->engine_type() != subselect_engine::HASH_SJ_ENGINE)
   {
     *remove_item= FALSE;
-/*
-    bool res;
-    res= make_in_exists_conversion(parent_join->thd, parent_join, subq_pred);
-    DBUG_RETURN(res);
-*/
     DBUG_RETURN(FALSE);
   }
 
@@ -3779,7 +3760,7 @@ int setup_semijoin_dups_elimination(JOIN *join, ulonglong options,
         SJ_TMP_TABLE *sjtbl;
         if (jt_rowid_offset) /* Temptable has at least one rowid */
         {
-          uint tabs_size= (last_tab - sjtabs) * sizeof(SJ_TMP_TABLE::TAB);
+          size_t tabs_size= (last_tab - sjtabs) * sizeof(SJ_TMP_TABLE::TAB);
           if (!(sjtbl= (SJ_TMP_TABLE*)thd->alloc(sizeof(SJ_TMP_TABLE))) ||
               !(sjtbl->tabs= (SJ_TMP_TABLE::TAB*) thd->alloc(tabs_size)))
             DBUG_RETURN(TRUE); /* purecov: inspected */
