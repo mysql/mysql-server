@@ -9045,7 +9045,7 @@ int QUICK_RANGE_SELECT::reset()
       (Now ndb stores  complete row in here, instead of only the used fields
       which gives us valgrind warnings in compare_record[])
     */
-    memset(mrange_buff, 0, mrange_bufsiz);
+    memset(mrange_buff, 0, buf_size);
 #endif
   }
 
