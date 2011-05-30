@@ -163,16 +163,19 @@ UNIV_INTERN
 ibool
 row_merge_fts_doc_tokenize(
 /*=======================*/
-	row_merge_buf_t**	sort_buf,	/*!< in/out: sort buffer */
-	const dfield_t*		dfield,		/*!< in: Field contain doc
-						to be parsed */
-	doc_id_t		doc_id,		/*!< in: document ID */
-	ulint*			init_pos,	/*!< in/out: doc start
-						position */
-	ulint*			buf_used,	/*!< in/out: sort buffer used */
-	ulint*			rows_added,	/*!< in/out: num rows added */
-	merge_file_t**		merge_file);	/*!< in/out: merge file to
-						fill */
+	row_merge_buf_t** sort_buf,	/*!< in/out: sort buffer */
+	const dfield_t*	dfield,		/*!< in: Field contain doc to be
+					parsed */
+	doc_id_t	doc_id,		/*!< in: Doc ID for this document */
+	fts_doc_t*	doc,		/*!< in: Doc to be tokenized */
+	ulint*		processed_len,	/*!< in: Length processed */
+	ulint		zip_size,	/*!< in: Table zip size */
+	mem_heap_t*	blob_heap,	/*!< in: Heap used when fetch externally
+					stored record */
+	ulint*		init_pos,	/*!< in/out: doc start position */
+	ulint*		buf_used,	/*!< in/out: sort buffer used */
+	ulint*		rows_added,	/*!< in/out: num rows added */
+	merge_file_t**	merge_file);	/*!< in/out: merge file to fill */
 /********************************************************************//**
 Read sorted file containing index data tuples and insert these data
 tuples to the index

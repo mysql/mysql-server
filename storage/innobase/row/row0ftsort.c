@@ -28,6 +28,7 @@ Created 10/13/2010 Jimmy Yang
 #include "row0ftsort.h"
 #include "row0merge.h"
 #include "row0row.h"
+#include "btr0cur.h"
 
 /** Read the next record to buffer N.
 @param N	index into array of merge info structure */
@@ -265,7 +266,12 @@ row_merge_fts_doc_tokenize(
 	row_merge_buf_t** sort_buf,	/*!< in/out: sort buffer */
 	const dfield_t*	dfield,		/*!< in: Field contain doc to be
 					parsed */
-	doc_id_t	doc_id,		/*!< in: doc id for this document */
+	doc_id_t	doc_id,		/*!< in: Doc ID for this document */
+	fts_doc_t*	doc,		/*!< in: Doc to be tokenized */
+	ulint*		processed_len,	/*!< in: Length processed */
+	ulint		zip_size,	/*!< in: Table zip size */
+	mem_heap_t*	blob_heap,	/*!< in: Heap used when fetch external
+					stored record */
 	ulint*		init_pos,	/*!< in/out: doc start position */
 	ulint*		buf_used,	/*!< in/out: sort buffer used */
 	ulint*		rows_added,	/*!< in/out: num rows added */
@@ -278,16 +284,37 @@ row_merge_fts_doc_tokenize(
 	dfield_t*	field;
 	ulint		data_size[FTS_NUM_AUX_INDEX];
 	ulint		len;
-	fts_doc_t	doc;
 	ulint		n_tuple[FTS_NUM_AUX_INDEX];
 	row_merge_buf_t* buf;
+	byte*		data;
+	ulint		data_len;
+	ibool		buf_full = FALSE;
 
-	doc.tokens = 0;
 	*buf_used = 0;
 
-	doc.text.utf8 = dfield_get_data(dfield);
 
-	doc.text.len = dfield_get_len(dfield);
+	/* If "dfield" is not NULL, we will fetch the data, otherwise
+	previous document has not yet finished being processed, so continue
+	from last time left */
+	if (dfield) {
+		data = dfield_get_data(dfield);
+		data_len = dfield_get_len(dfield);
+
+		if (dfield_is_ext(dfield)) {
+			doc->text.utf8 = btr_copy_externally_stored_field(
+				&doc->text.len, data, zip_size,
+				data_len, blob_heap);
+		} else {
+			doc->text.utf8 = data;
+			doc->text.len = data_len;
+		}
+
+		doc->tokens = 0;
+		*processed_len = 0;
+	} else {
+		ut_ad(doc->text.utf8);
+		ut_ad(*processed_len < doc->text.len);
+	}
 
 	str.utf8 = str_buf;
 
@@ -304,20 +331,22 @@ row_merge_fts_doc_tokenize(
 
 	/* Tokenize the data and add each word string, its corresponding
 	doc id and position to sort buffer */
-	for (i = 0; i < doc.text.len; i += inc) {
+	for (i = *processed_len; i < doc->text.len; i += inc) {
 		doc_id_t	write_doc_id;
 		ib_uint32_t	position;
 		ulint           offset = 0;
 		ulint		idx = 0;
+		ulint		cur_len = 0;
 
 		inc = fts_get_next_token(
-			doc.text.utf8 + i,
-			doc.text.utf8 + doc.text.len, &str, &offset);
+			doc->text.utf8 + i,
+			doc->text.utf8 + doc->text.len, &str, &offset);
 
 		ut_a(inc > 0);
 
 		/* Ignore string len smaller thane FTS_MIN_TOKEN_SIZE */
 		if (str.len < FTS_MIN_TOKEN_SIZE) {
+			*processed_len += inc;
 			continue;
 		}
 
@@ -345,7 +374,7 @@ row_merge_fts_doc_tokenize(
 		field->type.prtype = DATA_NOT_NULL;
 		field->type.len = FTS_MAX_UTF8_WORD_LEN;
 		field->type.mbminmaxlen = 0;
-		data_size[idx] += len;
+		cur_len += len;
 		dfield_dup(field, buf->heap);
 		field++;
 
@@ -358,7 +387,7 @@ row_merge_fts_doc_tokenize(
 		field->type.prtype = DATA_NOT_NULL;
 		field->type.len = len;
 		field->type.mbminmaxlen = 0;
-		data_size[idx] += len;
+		cur_len += len;
 		dfield_dup(field, buf->heap);
 		field++;
 
@@ -371,22 +400,25 @@ row_merge_fts_doc_tokenize(
 		field->type.prtype = DATA_NOT_NULL;
 		field->type.len = len;
 		field->type.mbminmaxlen = 0;
-		data_size[idx] += len;
+		cur_len += len;
 		dfield_dup(field, buf->heap);
 
 		/* One variable length column, word with its lenght less than
 		FTS_MAX_UTF8_WORD_LEN (128) bytes, add one extra size
 		and one extra byte */
-		data_size[idx] += 2;
+		cur_len += 2;
 
 		/* Reserve one byte for the end marker of row_merge_block_t. */
-		if (buf->total_size + data_size[idx]
+		if (buf->total_size + data_size[idx] + cur_len 
 		    >= sizeof(row_merge_block_t) - 1) {
-			return(FALSE);
+			buf_full = TRUE;
+			break;
 		}
 
 		/* Increment the number of tuples */
 		n_tuple[idx]++;
+		*processed_len += inc;
+		data_size[idx] += cur_len;
 	}
 
 	if (FTS_PLL_ENABLED) {
@@ -405,10 +437,12 @@ row_merge_fts_doc_tokenize(
 		sort_buf[0]->n_tuples += n_tuple[0];
 	}
 
-	/* we pad one byte between text accross two fields */
-	*init_pos += doc.text.len + 1;
+	if (!buf_full) {
+		/* we pad one byte between text accross two fields */
+		*init_pos += doc->text.len + 1;
+	}
 
-	return(TRUE);
+	return(!buf_full);
 }
 /*********************************************************************//**
 Function performs parallel tokenization of the incoming doc strings.
@@ -437,38 +471,48 @@ fts_parallel_tokenization(
 	ib_uint64_t		total_rec = 0;
 	ulint			num_doc_processed = 0;
 	doc_id_t		last_doc_id;	
+	ulint			zip_size;
+	mem_heap_t*		blob_heap = NULL;
+	fts_doc_t		doc;
+	ulint			processed_len = 0;
 
 	ut_ad(psort_info);
 
 	id = psort_info->psort_id;
 	buf = psort_info->merge_buf;
 	merge_file = psort_info->merge_file;
+	blob_heap = mem_heap_create(512);
+	memset(&doc, 0, sizeof(doc));
 
 	for (i = 0; i < FTS_NUM_AUX_INDEX; i++) {
 		rows_added[i] = 0;
 	}
 
 	block = psort_info->merge_block;
+	zip_size = dict_table_zip_size(psort_info->psort_common->new_table);
 
 	doc_item = UT_LIST_GET_FIRST(psort_info->fts_doc_list);
-loop:
-	processed = TRUE;
 
+	processed = TRUE;
+loop:
 	while (doc_item) {
 		last_doc_id = doc_item->doc_id;
 
 		processed = row_merge_fts_doc_tokenize(
-					buf, doc_item->field,
-					doc_item->doc_id,
-					&init_pos, &buf_used, rows_added,
-					merge_file);
+					buf, processed ? doc_item->field : NULL,
+					doc_item->doc_id, &doc, &processed_len,
+					zip_size, blob_heap, &init_pos,
+					&buf_used, rows_added, merge_file);
 
 		/* Current sort buffer full, need to recycle */
 		if (!processed) {
+			ut_ad(processed_len < doc.text.len);
 			break;
 		}
 
 		num_doc_processed++;
+
+		mem_heap_empty(blob_heap);
 
 		doc_item = UT_LIST_GET_NEXT(doc_list, doc_item);
 
@@ -553,6 +597,8 @@ exit:
 	}
 
 	DEBUG_FTS_SORT_PRINT("FTS SORT: complete merge sort\n");
+
+	mem_heap_free(blob_heap);
 
 	psort_info->child_status = FTS_CHILD_COMPLETE;
 	os_event_set(psort_info->psort_common->sort_event);

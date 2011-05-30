@@ -5145,7 +5145,7 @@ btr_copy_externally_stored_field_prefix(
 Copies an externally stored field of a record to mem heap.  The
 clustered index record must be protected by a lock or a page latch.
 @return	the whole field copied to heap */
-static
+UNIV_INTERN
 byte*
 btr_copy_externally_stored_field(
 /*=============================*/
