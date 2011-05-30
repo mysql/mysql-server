@@ -1849,7 +1849,7 @@ Trix::statGetMetaDone(Signal* signal, StatOp& stat)
   SubscriptionRecord* subRec = c_theSubscriptions.getPtr(stat.m_subRecPtrI);
   D("statGetMetaDone" << V(stat));
 
-  c_statGetMetaDone = true;
+  // c_statGetMetaDone = true;
 
   subRec->requestType = STAT_UTIL;
   // fill in constant part
