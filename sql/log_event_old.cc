@@ -1230,8 +1230,11 @@ int Update_rows_log_event_old::do_exec_row(TABLE *table)
 #ifndef MYSQL_CLIENT
 Old_rows_log_event::Old_rows_log_event(THD *thd_arg, TABLE *tbl_arg, ulong tid,
                                        MY_BITMAP const *cols,
-                                       bool is_transactional)
-  : Log_event(thd_arg, 0, is_transactional),
+                                       bool using_trans)
+  : Log_event(thd_arg, 0,
+              using_trans ? Log_event::EVENT_TRANSACTIONAL_CACHE :
+                            Log_event::EVENT_STMT_CACHE,
+              Log_event::EVENT_NORMAL_LOGGING),
     m_row_count(0),
     m_table(tbl_arg),
     m_table_id(tid),
@@ -1746,7 +1749,7 @@ int Old_rows_log_event::do_apply_event(Relay_log_info const *rli)
     last_event_start_time here instead.
   */
   if (table && (table->s->primary_key == MAX_KEY) &&
-      !use_trans_cache() && get_flags(STMT_END_F) == RLE_NO_FLAGS)
+      !is_using_trans_cache() && get_flags(STMT_END_F) == RLE_NO_FLAGS)
   {
     /*
       ------------ Temporary fix until WL#2975 is implemented ---------
