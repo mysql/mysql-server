@@ -110,10 +110,10 @@ where n=1..n_uniq.
 @} */
 
 /* names of the tables from the persistent statistics storage */
-#define TABLE_STATS_NAME	"innodb/table_stats"
-#define TABLE_STATS_NAME_PRINT	"innodb.table_stats"
-#define INDEX_STATS_NAME	"innodb/index_stats"
-#define INDEX_STATS_NAME_PRINT	"innodb.index_stats"
+#define TABLE_STATS_NAME	"mysql/innodb_table_stats"
+#define TABLE_STATS_NAME_PRINT	"mysql.innodb_table_stats"
+#define INDEX_STATS_NAME	"mysql/innodb_index_stats"
+#define INDEX_STATS_NAME_PRINT	"mysql.innodb_index_stats"
 
 #ifdef UNIV_STATS_DEBUG
 #define DEBUG_PRINTF(fmt, ...)	printf(fmt, ## __VA_ARGS__)
@@ -1674,7 +1674,7 @@ end_free:
 
 /*********************************************************************//**
 Called for the row that is selected by
-SELECT ... FROM innodb.table_stats WHERE table='...'
+SELECT ... FROM mysql.innodb_table_stats WHERE table='...'
 The second argument is a pointer to the table and the fetched stats are
 written to it.
 dict_stats_fetch_table_stats_step() @{
@@ -1703,7 +1703,7 @@ dict_stats_fetch_table_stats_step(
 		void*		data = dfield_get_data(dfield);
 
 		switch (i) {
-		case 0: /* innodb.table_stats.n_rows */
+		case 0: /* mysql.innodb_table_stats.n_rows */
 
 			ut_a(dtype_get_mtype(type) == DATA_INT);
 			ut_a(len == 8);
@@ -1712,7 +1712,7 @@ dict_stats_fetch_table_stats_step(
 
 			break;
 
-		case 1: /* innodb.table_stats.clustered_index_size */
+		case 1: /* mysql.innodb_table_stats.clustered_index_size */
 
 			ut_a(dtype_get_mtype(type) == DATA_INT);
 			ut_a(len == 8);
@@ -1722,7 +1722,7 @@ dict_stats_fetch_table_stats_step(
 
 			break;
 
-		case 2: /* innodb.table_stats.sum_of_other_index_sizes */
+		case 2: /* mysql.innodb_table_stats.sum_of_other_index_sizes */
 
 			ut_a(dtype_get_mtype(type) == DATA_INT);
 			ut_a(len == 8);
@@ -1736,7 +1736,7 @@ dict_stats_fetch_table_stats_step(
 
 			/* someone changed SELECT
 			n_rows,clustered_index_size,sum_of_other_index_sizes
-			to select more columns from table_stats without
+			to select more columns from innodb_table_stats without
 			adjusting here */
 			ut_error;
 		}
@@ -1744,7 +1744,7 @@ dict_stats_fetch_table_stats_step(
 
 	/* if i < 3 this means someone changed the
 	SELECT n_rows,clustered_index_size,sum_of_other_index_sizes
-	to select less columns from table_stats without adjusting here;
+	to select less columns from innodb_table_stats without adjusting here;
 	if i > 3 we would have ut_error'ed earlier */
 	ut_a(i == 3 /*n_rows,clustered_index_size,sum_of_other_index_sizes*/);
 
@@ -1755,17 +1755,17 @@ dict_stats_fetch_table_stats_step(
 
 /*********************************************************************//**
 Called for the rows that are selected by
-SELECT ... FROM innodb.index_stats WHERE table='...'
+SELECT ... FROM mysql.innodb_index_stats WHERE table='...'
 The second argument is a pointer to the table and the fetched stats are
 written to its indexes.
 Let a table has N indexes and each index has Ui unique columns, then
-innodb.index_stats will have N*SUM(Ui) rows for for that table. So this
+mysql.innodb_index_stats will have N*SUM(Ui) rows for for that table. So this
 function will be called N*SUM(Ui) times. In each call it searches for the
 currently fetched index into table->indexes linearly,
 assuming this list is not sorted. Thus, overall, fetching all indexes' stats
-from innodb.index_stats is O(N^2) where N is the number of indexes. This can
-be improved if we sort table->indexes in a temporary area just once and then
-search in that sorted list. Then the complexity will be O(N*log(N)).
+from mysql.innodb_index_stats is O(N^2) where N is the number of indexes.
+This can be improved if we sort table->indexes in a temporary area just once
+and then search in that sorted list. Then the complexity will be O(N*log(N)).
 We assume a table will not have more than 100 indexes, so we go with the
 simpler N^2 algorithm.
 dict_stats_fetch_index_stats_step() @{
@@ -1799,7 +1799,7 @@ dict_stats_fetch_index_stats_step(
 		void*		data = dfield_get_data(dfield);
 
 		switch (i) {
-		case 0: /* innodb.index_stats.index_name */
+		case 0: /* mysql.innodb_index_stats.index_name */
 
 			ut_a(dtype_get_mtype(type) == DATA_VARMYSQL);
 
@@ -1817,9 +1817,9 @@ dict_stats_fetch_index_stats_step(
 			}
 
 			/* if index is NULL here this means that
-			innodb.index_stats contains more rows than the number
-			of indexes in the table; this is ok, we just return
-			ignoring those extra rows; in other words
+			mysql.innodb_index_stats contains more rows than the
+			number of indexes in the table; this is ok, we just
+			return ignoring those extra rows; in other words
 			dict_stats_fetch_index_stats_step() has been called
 			for a row from index_stats with unknown index_name
 			column */
@@ -1830,7 +1830,7 @@ dict_stats_fetch_index_stats_step(
 
 			break;
 
-		case 1: /* innodb.index_stats.stat_name */
+		case 1: /* mysql.innodb_index_stats.stat_name */
 
 			ut_a(dtype_get_mtype(type) == DATA_VARMYSQL);
 
@@ -1841,7 +1841,7 @@ dict_stats_fetch_index_stats_step(
 
 			break;
 
-		case 2: /* innodb.index_stats.stat_value */
+		case 2: /* mysql.innodb_index_stats.stat_value */
 
 			ut_a(dtype_get_mtype(type) == DATA_INT);
 			ut_a(len == 8);
@@ -1854,7 +1854,7 @@ dict_stats_fetch_index_stats_step(
 
 			break;
 
-		case 3: /* innodb.index_stats.sample_size */
+		case 3: /* mysql.innodb_index_stats.sample_size */
 
 			ut_a(dtype_get_mtype(type) == DATA_INT);
 			ut_a(len == 8 || len == UNIV_SQL_NULL);
@@ -1877,7 +1877,7 @@ dict_stats_fetch_index_stats_step(
 
 			/* someone changed
 			SELECT index_name,stat_name,stat_value,sample_size
-			to select more columns from index_stats without
+			to select more columns from innodb_index_stats without
 			adjusting here */
 			ut_error;
 		}
@@ -1885,7 +1885,7 @@ dict_stats_fetch_index_stats_step(
 
 	/* if i < 4 this means someone changed the
 	SELECT index_name,stat_name,stat_value,sample_size
-	to select less columns from index_stats without adjusting here;
+	to select less columns from innodb_index_stats without adjusting here;
 	if i > 4 we would have ut_error'ed earlier */
 	ut_a(i == 4 /* index_name,stat_name,stat_value,sample_size */);
 
@@ -1920,12 +1920,13 @@ dict_stats_fetch_index_stats_step(
 			ut_print_timestamp(stderr);
 			fprintf(stderr,
 				" InnoDB: Ignoring strange row from "
-				"innodb.index_stats WHERE "
+				"%s WHERE "
 				"database_name = '%.*s' AND "
 				"table_name = '%s' AND "
 				"index_name = '%s' AND "
 				"stat_name = '%.*s'; because stat_name "
 				"is malformed\n",
+				INDEX_STATS_NAME_PRINT,
 				(int) dict_get_db_name_len(table->name),
 				table->name,
 				dict_remove_db_name(table->name),
@@ -1945,13 +1946,14 @@ dict_stats_fetch_index_stats_step(
 			ut_print_timestamp(stderr);
 			fprintf(stderr,
 				" InnoDB: Ignoring strange row from "
-				"innodb.index_stats WHERE "
+				"%s WHERE "
 				"database_name = '%.*s' AND "
 				"table_name = '%s' AND "
 				"index_name = '%s' AND "
 				"stat_name = '%.*s'; because stat_name is "
 				"out of range, the index has %lu unique "
 				"columns\n",
+				INDEX_STATS_NAME_PRINT,
 				(int) dict_get_db_name_len(table->name),
 				table->name,
 				dict_remove_db_name(table->name),
@@ -2087,13 +2089,13 @@ dict_stats_fetch_from_ps(
 
 	/* pinfo is freed by que_eval_sql() */
 
-	/* XXX If innodb.index_stats contained less rows than the number
+	/* XXX If mysql.innodb_index_stats contained less rows than the number
 	of indexes in the table, then some of the indexes of the table
 	were left uninitialized. Currently this is ignored and those
 	indexes are left with uninitialized stats until ANALYZE TABLE is
 	run. This condition happens when the user creates a new index
 	on a table. We could return DB_STATS_DO_NOT_EXIST from here,
-	forcing the usage of transient stats until innodb.index_stats
+	forcing the usage of transient stats until mysql.innodb_index_stats
 	is complete. */
 
 	trx_commit_for_mysql(trx);
@@ -2497,7 +2499,7 @@ dict_stats_delete_table_stats(
 		return(DB_SUCCESS);
 	}
 
-	/* skip table_stats and index_stats themselves */
+	/* skip innodb_table_stats and innodb_index_stats themselves */
 	if (strcmp(table_name, TABLE_STATS_NAME) == 0
 	    || strcmp(table_name, INDEX_STATS_NAME) == 0) {
 
@@ -2836,10 +2838,12 @@ test_dict_stats_save()
 	ut_a(ret == DB_SUCCESS);
 
 	printf("\nOK: stats saved successfully, now go ahead and read "
-	       "what's inside innodb.table_stats and innodb.index_stats:\n\n");
+	       "what's inside %s and %s:\n\n",
+	       TABLE_STATS_NAME_PRINT,
+	       INDEX_STATS_NAME_PRINT);
 
 	printf("SELECT COUNT(*) = 1 AS table_stats_saved_successfully\n"
-	       "FROM innodb.table_stats\n"
+	       "FROM %s\n"
 	       "WHERE\n"
 	       "database_name = '%s' AND\n"
 	       "table_name = '%s' AND\n"
@@ -2847,6 +2851,7 @@ test_dict_stats_save()
 	       "clustered_index_size = %d AND\n"
 	       "sum_of_other_index_sizes = %d;\n"
 	       "\n",
+	       TABLE_STATS_NAME_PRINT,
 	       TEST_DATABASE_NAME,
 	       TEST_TABLE_NAME,
 	       TEST_N_ROWS,
@@ -2854,7 +2859,7 @@ test_dict_stats_save()
 	       TEST_SUM_OF_OTHER_INDEX_SIZES);
 
 	printf("SELECT COUNT(*) = 3 AS tidx1_stats_saved_successfully\n"
-	       "FROM innodb.index_stats\n"
+	       "FROM %s\n"
 	       "WHERE\n"
 	       "database_name = '%s' AND\n"
 	       "table_name = '%s' AND\n"
@@ -2868,6 +2873,7 @@ test_dict_stats_save()
 	       "  sample_size = '%d' AND stat_description = '%s')\n"
 	       ");\n"
 	       "\n",
+	       INDEX_STATS_NAME_PRINT,
 	       TEST_DATABASE_NAME,
 	       TEST_TABLE_NAME,
 	       TEST_IDX1_NAME,
@@ -2878,7 +2884,7 @@ test_dict_stats_save()
 	       TEST_IDX1_COL1_NAME);
 
 	printf("SELECT COUNT(*) = 6 AS tidx2_stats_saved_successfully\n"
-	       "FROM innodb.index_stats\n"
+	       "FROM %s\n"
 	       "WHERE\n"
 	       "database_name = '%s' AND\n"
 	       "table_name = '%s' AND\n"
@@ -2898,6 +2904,7 @@ test_dict_stats_save()
 	       "  sample_size = '%d' AND stat_description = '%s,%s,%s,%s')\n"
 	       ");\n"
 	       "\n",
+	       INDEX_STATS_NAME_PRINT,
 	       TEST_DATABASE_NAME,
 	       TEST_TABLE_NAME,
 	       TEST_IDX2_NAME,
