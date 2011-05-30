@@ -270,7 +270,7 @@ Dbtux::readKeyAttrs(TuxCtx& ctx, const Frag& frag, TreeEnt ent, KeyData& keyData
   const Uint32* keyAttrs32 = (const Uint32*)&keyAttrs[0];
 
   int ret;
-  ret = c_tup->tuxReadAttrs(ctx.jamBuffer, tableFragPtrI, tupLoc.getPageId(), tupLoc.getPageOffset(), tupVersion, keyAttrs32, count, outputBuffer, false);
+  ret = c_tup->tuxReadAttrs(ctx.jamBuffer, tableFragPtrI, pageId, pageOffset, tupVersion, keyAttrs32, count, outputBuffer, false);
   jamEntry();
   ndbrequire(ret > 0);
   keyData.reset();

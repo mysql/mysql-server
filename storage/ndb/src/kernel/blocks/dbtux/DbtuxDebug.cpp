@@ -333,8 +333,8 @@ Dbtux::printNode(TuxCtx & ctx,
     int ret = cmpSearchKey(ctx, entryKey1, entryKey2, index.m_numAttrs);
     if (ret == 0)
       ret = ent1.cmp(ent2);
-    if (i == 0 && ! (ret < 0) ||
-        i == 1 && ! (ret > 0)) {
+    if ((i == 0 && ! (ret < 0)) ||
+        (i == 1 && ! (ret > 0))) {
       par.m_ok = false;
       out << par.m_path << sep;
       out << " disorder wrt subtree " << i << endl;
