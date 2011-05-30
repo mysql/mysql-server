@@ -204,9 +204,7 @@ Ndbcntr::g_sysTable_NDBIS_SAMPLE = {
 const Ndbcntr::SysTable*
 Ndbcntr::g_sysTableList[] = {
   &g_sysTable_SYSTAB_0,
-  &g_sysTable_NDBEVENTS_0,
-  &g_sysTable_NDBIS_HEAD,
-  &g_sysTable_NDBIS_SAMPLE
+  &g_sysTable_NDBEVENTS_0
 };
 
 //TODO Backup needs this info to allocate appropriate number of records
