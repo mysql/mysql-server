@@ -146,8 +146,8 @@ Dbtux::execTUX_BOUND_INFO(Signal* signal)
   TuxBoundInfo* const req = (TuxBoundInfo*)signal->getDataPtrSend();
   ScanOp& scan = *c_scanOpPool.getPtr(req->tuxScanPtrI);
   const Index& index = *c_indexPool.getPtr(scan.m_indexId);
-  const DescHead& descHead = getDescHead(index);
-  const KeyType* keyTypes = getKeyTypes(descHead);
+  //UNUSED const DescHead& descHead = getDescHead(index);
+  //UNUSED const KeyType* keyTypes = getKeyTypes(descHead);
   // extract lower and upper bound in separate passes
   for (unsigned idir = 0; idir <= 1; idir++) {
     jam();

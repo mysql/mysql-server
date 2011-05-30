@@ -2708,7 +2708,7 @@ Suma::SyncRecord::nextScan(Signal* signal)
   
   ScanFragReq * req = (ScanFragReq *)signal->getDataPtrSend();
   const Uint32 parallelism = 16;
-  const Uint32 attrLen = 5 + attrBuf.getSize();
+  //const Uint32 attrLen = 5 + attrBuf.getSize();
 
   req->senderData = ptrI;
   req->resultRef = suma.reference();
