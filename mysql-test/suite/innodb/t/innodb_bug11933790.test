@@ -22,7 +22,7 @@ ANALYZE TABLE bug11933790;
 SET autocommit=0;
 
 # lock the records in innodb.table_stats
-SELECT * FROM innodb.table_stats FOR UPDATE;
+SELECT * FROM mysql.innodb_table_stats FOR UPDATE;
 
 -- connect (con1,localhost,root,,)
 
@@ -45,4 +45,5 @@ ANALYZE TABLE bug11933790;
 COMMIT;
 
 DROP TABLE bug11933790;
-DROP DATABASE innodb;
+DROP TABLE mysql.innodb_index_stats;
+DROP TABLE mysql.innodb_table_stats;
