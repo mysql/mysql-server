@@ -598,6 +598,23 @@ btr_copy_externally_stored_field_prefix(
 				a lock or a page latch */
 	ulint		local_len);/*!< in: length of data, in bytes */
 /*******************************************************************//**
+Copies an externally stored field of a record to mem heap.  The
+clustered index record must be protected by a lock or a page latch.
+@return the whole field copied to heap */
+UNIV_INTERN
+byte*
+btr_copy_externally_stored_field(
+/*=============================*/
+	ulint*		len,	/*!< out: length of the whole field */
+	const byte*	data,	/*!< in: 'internally' stored part of the
+				field containing also the reference to
+				the external part; must be protected by
+				a lock or a page latch */
+	ulint		zip_size,/*!< in: nonzero=compressed BLOB page size,
+				zero for uncompressed BLOBs */
+	ulint		local_len,/*!< in: length of data */
+	mem_heap_t*	heap);	/*!< in: mem heap */
+/*******************************************************************//**
 Copies an externally stored field of a record to mem heap.
 @return	the field copied to heap, or NULL if the field is incomplete */
 UNIV_INTERN

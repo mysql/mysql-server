@@ -345,7 +345,8 @@ row_merge_buf_add(
 				}
 
 				n_row_added += row_merge_fts_doc_tokenize(
-					&buf, row_field, *doc_id, &init_pos,
+					&buf, row_field, *doc_id, NULL, NULL,
+					0, NULL, &init_pos,
 					NULL, NULL, NULL);
 
 				if (!n_row_added) {
