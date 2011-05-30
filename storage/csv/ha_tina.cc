@@ -1747,7 +1747,10 @@ int ha_tina::check(THD* thd, HA_CHECK_OPT* check_opt)
 bool ha_tina::check_if_incompatible_data(HA_CREATE_INFO *info,
 					   uint table_changes)
 {
-  return COMPATIBLE_DATA_YES;
+  if (table_changes == IS_EQUAL_NO)
+    return COMPATIBLE_DATA_NO;
+  else
+    return COMPATIBLE_DATA_YES;
 }
 
 struct st_mysql_storage_engine csv_storage_engine=
