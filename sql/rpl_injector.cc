@@ -245,15 +245,11 @@ void injector::new_trans(THD *thd, injector::transaction *ptr)
 int injector::record_incident(THD *thd, Incident incident)
 {
   Incident_log_event ev(thd, incident);
-  if (int error= mysql_bin_log.write(&ev))
-    return error;
-  return mysql_bin_log.rotate_and_purge(RP_FORCE_ROTATE);
+  return mysql_bin_log.write_incident(&ev, TRUE);
 }
 
 int injector::record_incident(THD *thd, Incident incident, LEX_STRING const message)
 {
   Incident_log_event ev(thd, incident, message);
-  if (int error= mysql_bin_log.write(&ev))
-    return error;
-  return mysql_bin_log.rotate_and_purge(RP_FORCE_ROTATE);
+  return mysql_bin_log.write_incident(&ev, TRUE);
 }

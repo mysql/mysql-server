@@ -926,9 +926,10 @@ public:
     EVENT_SKIP_COUNT
   };
 
+protected:
   enum enum_event_cache_type 
   {
-    EVENT_INVALID_CACHE,
+    EVENT_INVALID_CACHE= 0,
     /* 
       If possible the event should use a non-transactional cache before
       being flushed to the binary log. This means that it must be flushed
@@ -943,15 +944,35 @@ public:
     EVENT_TRANSACTIONAL_CACHE,
     /* 
       The event must be written directly to the binary log without going
-      through a cache.
+      through any cache.
     */
     EVENT_NO_CACHE,
-    /**
+    /*
        If there is a need for different types, introduce them before this.
     */
     EVENT_CACHE_COUNT
   };
 
+  enum enum_event_logging_type
+  {
+    EVENT_INVALID_LOGGING= 0,
+    /*
+      The event must be written to a cache and upon commit or rollback
+      written to the binary log.
+    */
+    EVENT_NORMAL_LOGGING,
+    /*
+      The event must be written to an empty cache and immediatly written
+      to the binary log without waiting for any other event.
+    */
+    EVENT_IMMEDIATE_LOGGING,
+    /*
+       If there is a need for different types, introduce them before this.
+    */
+    EVENT_CACHE_LOGGING_COUNT
+  };
+
+public:
   /*
     The following type definition is to be used whenever data is placed 
     and manipulated in a common buffer. Use this typedef for buffers
@@ -1002,12 +1023,6 @@ public:
   */
   uint16 flags;
   
-  /*
-    Defines the type of the cache, if any, where the event will be
-    stored before being flushed to disk.
-  */
-  uint16 cache_type;
-
   /**
     A storage to cache the global system variable's value.
     Handling of a separate event will be governed its member.
@@ -1015,14 +1030,28 @@ public:
   ulong slave_exec_mode;
 
   /**
+    Defines the type of the cache, if any, where the event will be
+    stored before being flushed to disk.
+  */
+  enum_event_cache_type event_cache_type;
+
+  /**
+    Defines when information, i.e. event or cache, will be flushed
+    to disk.
+  */
+  enum_event_logging_type event_logging_type;
+  /**
     Placeholder for event checksum while writing to binlog.
    */
   ha_checksum crc;
 #ifdef MYSQL_SERVER
   THD* thd;
 
-  Log_event();
-  Log_event(THD* thd_arg, uint16 flags_arg, bool is_transactional);
+  Log_event(enum_event_cache_type cache_type_arg= EVENT_INVALID_CACHE,
+            enum_event_logging_type logging_type_arg= EVENT_INVALID_LOGGING);
+  Log_event(THD* thd_arg, uint16 flags_arg,
+            enum_event_cache_type cache_type_arg,
+            enum_event_logging_type logging_type_arg);
   /*
     read_log_event() functions read an event from a binlog or relay
     log; used by SHOW BINLOG EVENTS, the binlog_dump thread on the
@@ -1063,7 +1092,10 @@ public:
     return thd ? thd->db : 0;
   }
 #else
-  Log_event() : temp_buf(0) {}
+  Log_event(enum_event_cache_type cache_type_arg= EVENT_INVALID_CACHE,
+            enum_event_logging_type logging_type_arg= EVENT_INVALID_LOGGING)
+  : temp_buf(0), event_cache_type(cache_type_arg),
+  event_logging_type(logging_type_arg) { }
     /* avoid having to link mysqlbinlog against libpthread */
   static Log_event* read_log_event(IO_CACHE* file,
                                    const Format_description_log_event
@@ -1137,17 +1169,17 @@ public:
   bool is_relay_log_event() const { return flags & LOG_EVENT_RELAY_LOG_F; }
   bool is_ignorable_event() const { return flags & LOG_EVENT_IGNORABLE_F; }
   bool is_no_filter_event() const { return flags & LOG_EVENT_NO_FILTER_F; }
-  inline bool use_trans_cache() const
-  { 
-    return (cache_type == Log_event::EVENT_TRANSACTIONAL_CACHE);
-  }
-  inline void set_direct_logging()
+  inline bool is_using_trans_cache() const
   {
-    cache_type = Log_event::EVENT_NO_CACHE;
+    return (event_cache_type == EVENT_TRANSACTIONAL_CACHE);
   }
-  inline bool use_direct_logging()
+  inline bool is_using_stmt_cache() const
   {
-    return (cache_type == Log_event::EVENT_NO_CACHE);
+    return(event_cache_type == EVENT_STMT_CACHE);
+  }
+  inline bool is_using_immediate_logging() const
+  {
+    return(event_logging_type == EVENT_IMMEDIATE_LOGGING);
   }
   Log_event(const char* buf, const Format_description_log_event
             *description_event);
@@ -1774,7 +1806,8 @@ public:
 #ifdef MYSQL_SERVER
 
   Query_log_event(THD* thd_arg, const char* query_arg, ulong query_length,
-                  bool using_trans, bool direct, bool suppress_use, int error);
+                  bool using_trans, bool immediate, bool suppress_use,
+                  int error, bool ignore_command= FALSE);
   const char* get_db() { return db; }
 #ifdef HAVE_REPLICATION
   void pack_info(Protocol* protocol);
@@ -2365,9 +2398,10 @@ public:
 
 #ifdef MYSQL_SERVER
   Intvar_log_event(THD* thd_arg, uchar type_arg, ulonglong val_arg,
-                   uint16 cache_type_arg)
-    :Log_event(thd_arg, 0, 0), val(val_arg), type(type_arg)
-  { cache_type= cache_type_arg; }
+                   enum_event_cache_type cache_type_arg,
+                   enum_event_logging_type logging_type_arg)
+    :Log_event(thd_arg, 0, cache_type_arg, logging_type_arg),
+    val(val_arg), type(type_arg) { }
 #ifdef HAVE_REPLICATION
   void pack_info(Protocol* protocol);
 #endif /* HAVE_REPLICATION */
@@ -2442,9 +2476,10 @@ class Rand_log_event: public Log_event
 
 #ifdef MYSQL_SERVER
   Rand_log_event(THD* thd_arg, ulonglong seed1_arg, ulonglong seed2_arg,
-                 uint16 cache_type_arg)
-    :Log_event(thd_arg, 0, 0), seed1(seed1_arg), seed2(seed2_arg)
-    { cache_type= cache_type_arg; }
+                 enum_event_cache_type cache_type_arg,
+                 enum_event_logging_type logging_type_arg)
+    :Log_event(thd_arg, 0, cache_type_arg, logging_type_arg),
+    seed1(seed1_arg), seed2(seed2_arg) { }
 #ifdef HAVE_REPLICATION
   void pack_info(Protocol* protocol);
 #endif /* HAVE_REPLICATION */
@@ -2488,8 +2523,12 @@ class Xid_log_event: public Log_event
    my_xid xid;
 
 #ifdef MYSQL_SERVER
-  Xid_log_event(THD* thd_arg, my_xid x): Log_event(thd_arg, 0, TRUE), xid(x)
-  { cache_type= EVENT_NO_CACHE; }
+  Xid_log_event(THD* thd_arg, my_xid x)
+  : Log_event(thd_arg, 0, 
+              Log_event::EVENT_TRANSACTIONAL_CACHE,
+              Log_event::EVENT_NORMAL_LOGGING),
+  xid(x)
+  { }
 #ifdef HAVE_REPLICATION
   void pack_info(Protocol* protocol);
 #endif /* HAVE_REPLICATION */
@@ -2542,11 +2581,14 @@ public:
   User_var_log_event(THD* thd_arg, char *name_arg, uint name_len_arg,
                      char *val_arg, ulong val_len_arg, Item_result type_arg,
 		     uint charset_number_arg, uchar flags_arg,
-                     uint16 cache_type_arg)
-    :Log_event(thd_arg, 0, 0), name(name_arg), name_len(name_len_arg), val(val_arg),
-     val_len(val_len_arg), type(type_arg), charset_number(charset_number_arg),
-     flags(flags_arg)
-    { is_null= !val; cache_type= cache_type_arg; }
+                     enum_event_cache_type cache_type_arg,
+                     enum_event_logging_type logging_type_arg)
+    :Log_event(thd_arg, 0, cache_type_arg, logging_type_arg), name(name_arg),
+     name_len(name_len_arg), val(val_arg), val_len(val_len_arg), type(type_arg),
+     charset_number(charset_number_arg), flags(flags_arg)
+    { 
+      is_null= !val;
+    }
   void pack_info(Protocol* protocol);
 #else
   void print(FILE* file, PRINT_EVENT_INFO* print_event_info);
@@ -2986,7 +3028,7 @@ public:
                                ulong query_length, uint fn_pos_start_arg,
                                uint fn_pos_end_arg,
                                enum_load_dup_handling dup_handling_arg,
-                               bool using_trans, bool direct,
+                               bool using_trans, bool immediate,
                                bool suppress_use, int errcode);
 #ifdef HAVE_REPLICATION
   void pack_info(Protocol* protocol);
@@ -4006,18 +4048,20 @@ class Incident_log_event : public Log_event {
 public:
 #ifdef MYSQL_SERVER
   Incident_log_event(THD *thd_arg, Incident incident)
-    : Log_event(thd_arg, LOG_EVENT_NO_FILTER_F, FALSE), m_incident(incident)
+    : Log_event(thd_arg, LOG_EVENT_NO_FILTER_F, Log_event::EVENT_NO_CACHE,
+                Log_event::EVENT_IMMEDIATE_LOGGING), m_incident(incident)
   {
     DBUG_ENTER("Incident_log_event::Incident_log_event");
     DBUG_PRINT("enter", ("m_incident: %d", m_incident));
     m_message.str= NULL;                    /* Just as a precaution */
     m_message.length= 0;
-    set_direct_logging();
     DBUG_VOID_RETURN;
   }
 
   Incident_log_event(THD *thd_arg, Incident incident, LEX_STRING const msg)
-    : Log_event(thd_arg, LOG_EVENT_NO_FILTER_F, FALSE), m_incident(incident)
+    : Log_event(thd_arg, LOG_EVENT_NO_FILTER_F,
+                Log_event::EVENT_NO_CACHE,
+                Log_event::EVENT_IMMEDIATE_LOGGING), m_incident(incident)
   {
     DBUG_ENTER("Incident_log_event::Incident_log_event");
     DBUG_PRINT("enter", ("m_incident: %d", m_incident));
@@ -4031,7 +4075,6 @@ public:
     }
     strmake(m_message.str, msg.str, msg.length);
     m_message.length= msg.length;
-    set_direct_logging();
     DBUG_VOID_RETURN;
   }
 #endif
@@ -4089,7 +4132,9 @@ class Ignorable_log_event : public Log_event {
 public:
 #ifndef MYSQL_CLIENT
   Ignorable_log_event(THD *thd_arg)
-      : Log_event(thd_arg, LOG_EVENT_IGNORABLE_F, FALSE)
+      : Log_event(thd_arg, LOG_EVENT_IGNORABLE_F, 
+                  Log_event::EVENT_STMT_CACHE,
+                  Log_event::EVENT_NORMAL_LOGGING)
   {
     DBUG_ENTER("Ignorable_log_event::Ignorable_log_event");
     DBUG_VOID_RETURN;
