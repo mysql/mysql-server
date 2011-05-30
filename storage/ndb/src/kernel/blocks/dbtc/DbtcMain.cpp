@@ -1260,7 +1260,7 @@ void Dbtc::handleApiFailState(Signal* signal, UintR TapiConnectptr)
   if (capiConnectClosing[TfailedApiNode] == 0) {
     jam();
     signal->theData[0] = TfailedApiNode;
-    signal->theData[1] = cownref;
+    signal->theData[1] = reference();
     sendSignal(capiFailRef, GSN_API_FAILCONF, signal, 2, JBB);
   }//if
 }//Dbtc::handleApiFailState()
@@ -7661,7 +7661,7 @@ Dbtc::apiFailBlockCleanupCallback(Signal* signal,
   jamEntry();
   
   signal->theData[0] = failedNodeId;
-  signal->theData[1] = cownref;
+  signal->theData[1] = reference();
   sendSignal(capiFailRef, GSN_API_FAILCONF, signal, 2, JBB);
 }
 
@@ -11897,6 +11897,21 @@ Dbtc::execDUMP_STATE_ORD(Signal* signal)
     return;
   }
 #endif
+
+  if (arg == 7019 && signal->getLength() == 2)
+  {
+    jam();
+    Uint32 nodeId = signal->theData[1];
+    if (nodeId < MAX_NODES && nodeId < NDB_ARRAY_SIZE(capiConnectClosing))
+    {
+      warningEvent(" DBTC: capiConnectClosing[%u]: %u",
+                   nodeId, capiConnectClosing[nodeId]);
+    }
+    else
+    {
+      warningEvent(" DBTC: dump-7019 to unknown node: %u", nodeId);
+    }
+  }
 }//Dbtc::execDUMP_STATE_ORD()
 
 bool

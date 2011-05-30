@@ -2679,23 +2679,70 @@ void Qmgr::checkStartInterface(Signal* signal, Uint64 now)
         if(((getNodeInfo(nodePtr.i).m_heartbeat_cnt + 1) % 60) == 0)
         {
           jam();
-	  char buf[100];
-	  BaseString::snprintf(buf, sizeof(buf), 
-                               "Failure handling of node %d has not completed"
-                               " in %d min - state = %d",
-                               nodePtr.i, 
-                               (getNodeInfo(nodePtr.i).m_heartbeat_cnt + 1)/60,
-                               nodePtr.p->failState);
-	  warningEvent(buf);
-          if (((getNodeInfo(nodePtr.i).m_heartbeat_cnt + 1) % 300) == 0)
+	  char buf[256];
+          if (getNodeInfo(nodePtr.i).m_type == NodeInfo::DB)
           {
             jam();
-            /**
-             * Also dump DIH nf-state
-             */
-            signal->theData[0] = 7019;
-            signal->theData[1] = nodePtr.i;
-            sendSignal(DBDIH_REF, GSN_DUMP_STATE_ORD, signal, 2, JBB);
+            BaseString::snprintf(buf, sizeof(buf),
+                                 "Failure handling of node %d has not completed"
+                                 " in %d min - state = %d",
+                                 nodePtr.i,
+                                 (getNodeInfo(nodePtr.i).m_heartbeat_cnt+1)/60,
+                                 nodePtr.p->failState);
+            warningEvent("%s", buf);
+            if (((getNodeInfo(nodePtr.i).m_heartbeat_cnt + 1) % 300) == 0)
+            {
+              jam();
+              /**
+               * Also dump DIH nf-state
+               */
+              signal->theData[0] = 7019;
+              signal->theData[1] = nodePtr.i;
+              sendSignal(DBDIH_REF, GSN_DUMP_STATE_ORD, signal, 2, JBB);
+            }
+          }
+          else
+          {
+            jam();
+            BaseString::snprintf(buf, sizeof(buf),
+                                 "Failure handling of api %u has not completed"
+                                 " in %d min - state = %d",
+                                 nodePtr.i,
+                                 (getNodeInfo(nodePtr.i).m_heartbeat_cnt+1)/60,
+                                 nodePtr.p->failState);
+            warningEvent("%s", buf);
+            if (nodePtr.p->failState == WAITING_FOR_API_FAILCONF)
+            {
+              jam();
+              compile_time_assert(NDB_ARRAY_SIZE(nodePtr.p->m_failconf_blocks) == 4);
+              BaseString::snprintf(buf, sizeof(buf),
+                                   "  Waiting for blocks: %u %u %u %u",
+                                   nodePtr.p->m_failconf_blocks[0],
+                                   nodePtr.p->m_failconf_blocks[1],
+                                   nodePtr.p->m_failconf_blocks[2],
+                                   nodePtr.p->m_failconf_blocks[3]);
+              warningEvent("%s", buf);
+
+              for (Uint32 i = 0; i<NDB_ARRAY_SIZE(nodePtr.p->m_failconf_blocks);
+                   i++)
+              {
+                jam();
+                if (nodePtr.p->m_failconf_blocks[i] != 0)
+                {
+                  jam();
+                  signal->theData[0] = 7019;
+                  signal->theData[1] = nodePtr.i;
+                  sendSignal(numberToRef(nodePtr.p->m_failconf_blocks[i],
+                                         getOwnNodeId()),
+                             GSN_DUMP_STATE_ORD, signal, 2, JBB);
+                }
+                else
+                {
+                  jam();
+                  break;
+                }
+              }
+            }
           }
 	}
       }
@@ -2726,14 +2773,18 @@ void Qmgr::sendApiFailReq(Signal* signal, Uint16 failedNodeNo)
   signal->theData[1] = QMGR_REF; 
 
   ptrCheckGuard(failedNodePtr, MAX_NODES, nodeRec);
-  
-  failedNodePtr.p->failState = WAITING_FOR_FAILCONF1;
+  failedNodePtr.p->failState = WAITING_FOR_API_FAILCONF;
 
   /* JBB used to ensure delivery *after* any pending
    * signals
    */
+  add_failconf_block(failedNodePtr, DBTC);
   sendSignal(DBTC_REF, GSN_API_FAILREQ, signal, 2, JBB);
+
+  add_failconf_block(failedNodePtr, DBDICT);
   sendSignal(DBDICT_REF, GSN_API_FAILREQ, signal, 2, JBB);
+
+  add_failconf_block(failedNodePtr, SUMA);
   sendSignal(SUMA_REF, GSN_API_FAILREQ, signal, 2, JBB);
 }//Qmgr::sendApiFailReq()
 
@@ -2758,30 +2809,118 @@ void Qmgr::execAPI_FAILCONF(Signal* signal)
   failedNodePtr.i = signal->theData[0];  
   ptrCheckGuard(failedNodePtr, MAX_NODES, nodeRec);
 
-  if (failedNodePtr.p->failState == WAITING_FOR_FAILCONF1)
+  Uint32 block = refToMain(signal->theData[1]);
+  if (failedNodePtr.p->failState != WAITING_FOR_API_FAILCONF ||
+      !remove_failconf_block(failedNodePtr, block))
   {
     jam();
-    failedNodePtr.p->failState = WAITING_FOR_FAILCONF2;
-  }
-  else if (failedNodePtr.p->failState == WAITING_FOR_FAILCONF2)
-  {
-    jam();
-    failedNodePtr.p->failState = WAITING_FOR_FAILCONF3;
-  }
-  else if (failedNodePtr.p->failState == WAITING_FOR_FAILCONF3)
+    ndbout << "execAPI_FAILCONF from " << block
+           << " failedNodePtr.p->failState = "
+	   << (Uint32)(failedNodePtr.p->failState)
+           << " blocks: ";
+    for (Uint32 i = 0;i<NDB_ARRAY_SIZE(failedNodePtr.p->m_failconf_blocks);i++)
+    {
+      printf("%u ", failedNodePtr.p->m_failconf_blocks[i]);
+    }
+    ndbout << endl;
+    systemErrorLab(signal, __LINE__);
+  }//if
+
+  if (is_empty_failconf_block(failedNodePtr))
   {
     jam();
     failedNodePtr.p->failState = NORMAL;
+
+    /**
+     * When we set this state, connection will later be opened
+     *   in checkStartInterface
+     */
   }
-  else
-  {
-    jam();
-    ndbout << "failedNodePtr.p->failState = "
-	   << (Uint32)(failedNodePtr.p->failState) << endl;
-    systemErrorLab(signal, __LINE__);
-  }//if
   return;
 }//Qmgr::execAPI_FAILCONF()
+
+void
+Qmgr::add_failconf_block(NodeRecPtr nodePtr, Uint32 block)
+{
+  // Check that it does not already exists!!
+  Uint32 pos = 0;
+  for (; pos < NDB_ARRAY_SIZE(nodePtr.p->m_failconf_blocks); pos++)
+  {
+    jam();
+    if (nodePtr.p->m_failconf_blocks[pos] == 0)
+    {
+      jam();
+      break;
+    }
+    else if (nodePtr.p->m_failconf_blocks[pos] == block)
+    {
+      jam();
+      break;
+    }
+  }
+
+  ndbrequire(pos != NDB_ARRAY_SIZE(nodePtr.p->m_failconf_blocks));
+  ndbassert(nodePtr.p->m_failconf_blocks[pos] != block);
+  if (nodePtr.p->m_failconf_blocks[pos] == block)
+  {
+    jam();
+    /**
+     * Already in list!!
+     */
+#ifdef ERROR_INSERT
+    ndbrequire(false);
+#endif
+    return;
+  }
+  ndbrequire(nodePtr.p->m_failconf_blocks[pos] == 0);
+  nodePtr.p->m_failconf_blocks[pos] = block;
+}
+
+bool
+Qmgr::remove_failconf_block(NodeRecPtr nodePtr, Uint32 block)
+{
+  // Check that it does exists!!
+  Uint32 pos = 0;
+  for (; pos < NDB_ARRAY_SIZE(nodePtr.p->m_failconf_blocks); pos++)
+  {
+    jam();
+    if (nodePtr.p->m_failconf_blocks[pos] == 0)
+    {
+      jam();
+      break;
+    }
+    else if (nodePtr.p->m_failconf_blocks[pos] == block)
+    {
+      jam();
+      break;
+    }
+  }
+
+  if (pos == NDB_ARRAY_SIZE(nodePtr.p->m_failconf_blocks) ||
+      nodePtr.p->m_failconf_blocks[pos] != block)
+  {
+    jam();
+    /**
+     * Not found!!
+     */
+    return false;
+  }
+
+  nodePtr.p->m_failconf_blocks[pos] = 0;
+  for (pos++; pos < NDB_ARRAY_SIZE(nodePtr.p->m_failconf_blocks); pos++)
+  {
+    jam();
+    nodePtr.p->m_failconf_blocks[pos - 1] = nodePtr.p->m_failconf_blocks[pos];
+  }
+
+  return true;
+}
+
+bool
+Qmgr::is_empty_failconf_block(NodeRecPtr nodePtr) const
+{
+  return nodePtr.p->m_failconf_blocks[0] == 0;
+}
 
 void Qmgr::execNDB_FAILCONF(Signal* signal) 
 {
@@ -3661,8 +3800,9 @@ void Qmgr::handleApiCloseComConf(Signal* signal)
         jam();
         signal->theData[0] = nodeId;
         signal->theData[1] = QMGR_REF;
+        add_failconf_block(failedNodePtr, SUMA);
         sendSignal(SUMA_REF, GSN_API_FAILREQ, signal, 2, JBB);
-        failedNodePtr.p->failState = WAITING_FOR_FAILCONF3;
+        failedNodePtr.p->failState = WAITING_FOR_API_FAILCONF;
       }
       
       if (getNodeInfo(failedNodePtr.i).getType() == NodeInfo::MGM)
