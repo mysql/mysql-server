@@ -117,18 +117,6 @@ public:
     bool keyFlag;
     bool nullable;
   };
-  struct SysIndex {
-    const char* name;
-    Uint32 columnCount;
-    Uint32 columnList[4];
-    // DictTabInfo
-    DictTabInfo::TableType indexType;
-    bool indexLoggedFlag;
-    // saved id (initially set only at creating node)
-    mutable Uint32 tableId;
-    mutable Uint32 indexId;
-    mutable Uint32 indexVersion;
-  };
   struct SysTable {
     const char* name;
     unsigned columnCount;
@@ -137,21 +125,27 @@ public:
     DictTabInfo::TableType tableType;
     DictTabInfo::FragmentType fragmentType;
     bool tableLoggedFlag;
-    // indexes
-    Uint32 indexCount;
-    const SysIndex** indexList;
-    // saved id (initially set only at creating node)
+    // saved table id
     mutable Uint32 tableId;
     mutable Uint32 tableVersion;
+  };
+  struct SysIndex {
+    const char* name;
+    const SysTable* primaryTable;
+    Uint32 columnCount;
+    Uint32 columnList[4];
+    // DictTabInfo
+    DictTabInfo::TableType indexType;
+    DictTabInfo::FragmentType fragmentType;
+    bool indexLoggedFlag;
+    // saved index table id
+    mutable Uint32 indexId;
   };
   static const SysTable* g_sysTableList[];
   static const unsigned g_sysTableCount;
   // the system tables
   static const SysTable g_sysTable_SYSTAB_0;
   static SysTable g_sysTable_NDBEVENTS_0;
-  static const SysTable g_sysTable_NDBIS_HEAD;
-  static const SysTable g_sysTable_NDBIS_SAMPLE;
-  static const SysIndex g_sysIndex_NDBIS_SAMPLE_X1;
   // schema trans
   Uint32 c_schemaTransId;
   Uint32 c_schemaTransKey;
@@ -201,8 +195,6 @@ private:
   void execSCHEMA_TRANS_END_REF(Signal* signal);
   void execCREATE_TABLE_REF(Signal* signal);
   void execCREATE_TABLE_CONF(Signal* signal);
-  void execCREATE_INDX_REF(Signal* signal);
-  void execCREATE_INDX_CONF(Signal* signal);
   void execCREATE_HASH_MAP_REF(Signal* signal);
   void execCREATE_HASH_MAP_CONF(Signal* signal);
   void execCREATE_FILEGROUP_REF(Signal* signal);
@@ -252,8 +244,7 @@ private:
   void systemErrorLab(Signal* signal, int line);
 
   void createHashMap(Signal*, Uint32 index);
-  void createSystableLab(Signal* signal, Uint32 ti);
-  void createSysindexLab(Signal* signal, Uint32 ti, Uint32 xi);
+  void createSystableLab(Signal* signal, unsigned index);
   void createDDObjects(Signal*, unsigned index);
   void crSystab7Lab(Signal* signal);
   void crSystab8Lab(Signal* signal);

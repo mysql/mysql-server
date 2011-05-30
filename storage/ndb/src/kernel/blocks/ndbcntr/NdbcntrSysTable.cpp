@@ -39,7 +39,7 @@ Ndbcntr::g_sysTable_SYSTAB_0 = {
   arrayLength(column_SYSTAB_0), column_SYSTAB_0,
   DictTabInfo::SystemTable,
   DictTabInfo::HashMapPartition,
-  true, 0, 0, ~0, ~0
+  true, ~0, ~0
 };
 
 // NDB$EVENTS_0
@@ -90,113 +90,7 @@ Ndbcntr::g_sysTable_NDBEVENTS_0 = {
   arrayLength(column_NDBEVENTS_0), column_NDBEVENTS_0,
   DictTabInfo::SystemTable,
   DictTabInfo::HashMapPartition,
-  true, 0, 0, ~0, ~0
-};
-
-// NDB$IS_HEAD
-
-static const Ndbcntr::SysColumn
-column_NDBIS_HEAD[] = {
-  // key must be first
-  { 0, "INDEX_ID",
-    DictTabInfo::ExtUnsigned, 1,
-    true, false
-  },
-  { 1, "INDEX_VERSION",
-    DictTabInfo::ExtUnsigned, 1,
-    true, false
-  },
-  // table
-  { 2, "TABLE_ID",
-    DictTabInfo::ExtUnsigned, 1,
-    false, false
-  },
-  { 3, "FRAG_COUNT",
-    DictTabInfo::ExtUnsigned, 1,
-    false, false
-  },
-  { 4, "VALUE_FORMAT",
-    DictTabInfo::ExtUnsigned, 1,
-    false, false
-  },
-  // current sample
-  { 5, "SAMPLE_VERSION",
-    DictTabInfo::ExtUnsigned, 1,
-    false, false
-  },
-  { 6, "LOAD_TIME",
-    DictTabInfo::ExtUnsigned, 1,
-    false, false
-  },
-  { 7, "SAMPLE_COUNT",
-    DictTabInfo::ExtUnsigned, 1,
-    false, false
-  },
-  { 8, "KEY_BYTES",
-    DictTabInfo::ExtUnsigned, 1,
-    false, false
-  }
-};
-
-const Ndbcntr::SysTable
-Ndbcntr::g_sysTable_NDBIS_HEAD = {
-  "sys/def/NDB$IS_HEAD",
-  arrayLength(column_NDBIS_HEAD), column_NDBIS_HEAD,
-  DictTabInfo::SystemTable,
-  DictTabInfo::HashMapPartition,
-  true, 0, 0, ~0, ~0
-};
-
-// NDB$IS_SAMPLE
-
-static const Ndbcntr::SysColumn
-column_NDBIS_SAMPLE[] = {
-  // key must be first
-  { 0, "INDEX_ID",
-    DictTabInfo::ExtUnsigned, 1,
-    true, false
-  },
-  { 1, "INDEX_VERSION",
-    DictTabInfo::ExtUnsigned, 1,
-    true, false
-  },
-  { 2, "SAMPLE_VERSION",
-    DictTabInfo::ExtUnsigned, 1,
-    true, false
-  },
-  { 3, "STAT_KEY",
-    DictTabInfo::ExtLongvarbinary, MAX_INDEX_STAT_KEY_SIZE * 4,
-    true, false
-  },
-  // value
-  { 4, "STAT_VALUE",
-    DictTabInfo::ExtLongvarbinary, MAX_INDEX_STAT_VALUE_CSIZE * 4,
-    false, false
-  }
-};
-
-const Ndbcntr::SysIndex
-Ndbcntr::g_sysIndex_NDBIS_SAMPLE_X1 = {
-    "sys/def/%u/NDB$IS_SAMPLE_X1",
-    3, { 0, 1, 2, ~0 },
-    DictTabInfo::OrderedIndex,
-    false, ~0, ~0, ~0
-};
-
-static const Ndbcntr::SysIndex*
-index_NDBIS_SAMPLE[] = {
-  &Ndbcntr::g_sysIndex_NDBIS_SAMPLE_X1
-};
-
-const Ndbcntr::SysTable
-Ndbcntr::g_sysTable_NDBIS_SAMPLE = {
-  "sys/def/NDB$IS_SAMPLE",
-  arrayLength(column_NDBIS_SAMPLE), column_NDBIS_SAMPLE,
-  DictTabInfo::SystemTable,
-  DictTabInfo::HashMapPartition,
-  true,
-  arrayLength(index_NDBIS_SAMPLE), index_NDBIS_SAMPLE,
-  ~0, ~0
+  true, ~0, ~0
 };
 
 // all

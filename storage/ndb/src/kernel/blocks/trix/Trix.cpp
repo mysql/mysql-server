@@ -116,9 +116,6 @@ Trix::Trix(Block_context& ctx) :
 
   // index stats sys tables
   c_statGetMetaDone = false;
-  c_statMetaHead = &Ndbcntr::g_sysTable_NDBIS_HEAD;
-  c_statMetaSample = &Ndbcntr::g_sysTable_NDBIS_SAMPLE;
-  c_statMetaSampleX1 = &Ndbcntr::g_sysIndex_NDBIS_SAMPLE_X1;
 }
 
 /**
@@ -1695,6 +1692,79 @@ Trix::execINDEX_STAT_IMPL_REQ(Signal* signal)
 
 // sys tables metadata
 
+const Trix::SysColumn
+Trix::g_statMetaHead_column[] = {
+  { 0, "INDEX_ID",
+    true
+  },
+  { 1, "INDEX_VERSION",
+    true
+  },
+  { 2, "TABLE_ID",
+    false
+  },
+  { 3, "FRAG_COUNT",
+    false
+  },
+  { 4, "VALUE_FORMAT",
+    false
+  },
+  { 5, "SAMPLE_VERSION",
+    false
+  },
+  { 6, "LOAD_TIME",
+    false
+  },
+  { 7, "SAMPLE_COUNT",
+    false
+  },
+  { 8, "KEY_BYTES",
+    false
+  }
+};
+
+const Trix::SysColumn
+Trix::g_statMetaSample_column[] = {
+  { 0, "INDEX_ID",
+    true
+  },
+  { 1, "INDEX_VERSION",
+    true
+  },
+  { 2, "SAMPLE_VERSION",
+    true
+  },
+  { 3, "STAT_KEY",
+    true
+  },
+  { 4, "STAT_VALUE",
+    false
+  }
+};
+
+const Trix::SysTable
+Trix::g_statMetaHead = {
+  "sys/def/NDB$IS_HEAD",
+  ~(Uint32)0,
+  sizeof(g_statMetaHead_column)/sizeof(g_statMetaHead_column[0]),
+  g_statMetaHead_column
+};
+
+const Trix::SysTable
+Trix::g_statMetaSample = {
+  "sys/def/NDB$IS_SAMPLE",
+  ~(Uint32)0,
+  sizeof(g_statMetaSample_column)/sizeof(g_statMetaSample_column[0]),
+  g_statMetaSample_column
+};
+
+const Trix::SysIndex
+Trix::g_statMetaSampleX1 = {
+  "sys/def/%u/NDB$IS_SAMPLE_X1",
+  ~(Uint32)0,
+  ~(Uint32)0
+};
+
 void
 Trix::statMetaGetHead(Signal* signal, StatOp& stat)
 {
@@ -1702,7 +1772,7 @@ Trix::statMetaGetHead(Signal* signal, StatOp& stat)
   StatOp::Meta& meta = stat.m_meta;
   meta.m_cb.m_callbackFunction = safe_cast(&Trix::statMetaGetHeadCB);
   meta.m_cb.m_callbackData = stat.m_ownPtrI;
-  const char* name = Ndbcntr::g_sysTable_NDBIS_HEAD.name;
+  const char* name = g_statMetaHead.name;
   sendGetTabInfoReq(signal, stat, name);
 }
 
@@ -1718,7 +1788,7 @@ Trix::statMetaGetHeadCB(Signal* signal, Uint32 statPtrI, Uint32 ret)
     statOpError(signal, stat, ret, __LINE__);
     return;
   }
-  c_statMetaHead->tableId = meta.m_conf.tableId;
+  g_statMetaHead.tableId = meta.m_conf.tableId;
   statMetaGetSample(signal, stat);
 }
 
@@ -1729,7 +1799,7 @@ Trix::statMetaGetSample(Signal* signal, StatOp& stat)
   StatOp::Meta& meta = stat.m_meta;
   meta.m_cb.m_callbackFunction = safe_cast(&Trix::statMetaGetSampleCB);
   meta.m_cb.m_callbackData = stat.m_ownPtrI;
-  const char* name = Ndbcntr::g_sysTable_NDBIS_SAMPLE.name;
+  const char* name = g_statMetaSample.name;
   sendGetTabInfoReq(signal, stat, name);
 }
 
@@ -1745,7 +1815,7 @@ Trix::statMetaGetSampleCB(Signal* signal, Uint32 statPtrI, Uint32 ret)
     statOpError(signal, stat, ret, __LINE__);
     return;
   }
-  c_statMetaSample->tableId = meta.m_conf.tableId;
+  g_statMetaSample.tableId = meta.m_conf.tableId;
   statMetaGetSampleX1(signal, stat);
 }
 
@@ -1756,9 +1826,9 @@ Trix::statMetaGetSampleX1(Signal* signal, StatOp& stat)
   StatOp::Meta& meta = stat.m_meta;
   meta.m_cb.m_callbackFunction = safe_cast(&Trix::statMetaGetSampleX1CB);
   meta.m_cb.m_callbackData = stat.m_ownPtrI;
-  const char* name_fmt = Ndbcntr::g_sysIndex_NDBIS_SAMPLE_X1.name;
+  const char* name_fmt = g_statMetaSampleX1.name;
   char name[MAX_TAB_NAME_SIZE];
-  BaseString::snprintf(name, sizeof(name), name_fmt, c_statMetaSample->tableId);
+  BaseString::snprintf(name, sizeof(name), name_fmt, g_statMetaSample.tableId);
   sendGetTabInfoReq(signal, stat, name);
 }
 
@@ -1774,8 +1844,8 @@ Trix::statMetaGetSampleX1CB(Signal* signal, Uint32 statPtrI, Uint32 ret)
     statOpError(signal, stat, ret, __LINE__);
     return;
   }
-  c_statMetaSampleX1->tableId = c_statMetaSample->tableId;
-  c_statMetaSampleX1->indexId = meta.m_conf.tableId;
+  g_statMetaSampleX1.tableId = g_statMetaSample.tableId;
+  g_statMetaSampleX1.indexId = meta.m_conf.tableId;
   statGetMetaDone(signal, stat);
 }
 
@@ -1872,7 +1942,7 @@ Trix::statHeadRead(Signal* signal, StatOp& stat)
   util.m_not_found = false;
   util.m_cb.m_callbackFunction = safe_cast(&Trix::statHeadReadCB);
   util.m_cb.m_callbackData = stat.m_ownPtrI;
-  send.m_sysTable = c_statMetaHead;
+  send.m_sysTable = &g_statMetaHead;
   send.m_operationType = UtilPrepareReq::Read;
   statUtilPrepare(signal, stat);
 }
@@ -1899,7 +1969,7 @@ Trix::statHeadInsert(Signal* signal, StatOp& stat)
 
   util.m_cb.m_callbackFunction = safe_cast(&Trix::statHeadInsertCB);
   util.m_cb.m_callbackData = stat.m_ownPtrI;
-  send.m_sysTable = c_statMetaHead;
+  send.m_sysTable = &g_statMetaHead;
   send.m_operationType = UtilPrepareReq::Insert;
   statUtilPrepare(signal, stat);
 }
@@ -1923,7 +1993,7 @@ Trix::statHeadUpdate(Signal* signal, StatOp& stat)
 
   util.m_cb.m_callbackFunction = safe_cast(&Trix::statHeadUpdateCB);
   util.m_cb.m_callbackData = stat.m_ownPtrI;
-  send.m_sysTable = c_statMetaHead;
+  send.m_sysTable = &g_statMetaHead;
   send.m_operationType = UtilPrepareReq::Update;
   statUtilPrepare(signal, stat);
 }
@@ -1947,7 +2017,7 @@ Trix::statHeadDelete(Signal* signal, StatOp& stat)
 
   util.m_cb.m_callbackFunction = safe_cast(&Trix::statHeadDeleteCB);
   util.m_cb.m_callbackData = stat.m_ownPtrI;
-  send.m_sysTable = c_statMetaHead;
+  send.m_sysTable = &g_statMetaHead;
   send.m_operationType = UtilPrepareReq::Delete;
   statUtilPrepare(signal, stat);
 }
@@ -2076,7 +2146,7 @@ Trix::statUtilExecuteConf(Signal* signal, Uint32 statPtrI)
     }
     releaseSections(handle);
 
-    const Ndbcntr::SysTable& sysTable = *send.m_sysTable;
+    const SysTable& sysTable = *send.m_sysTable;
     for (Uint32 i = 0; i < sysTable.columnCount; i++)
     {
       jam();
@@ -2297,7 +2367,7 @@ Trix::statCleanPrepare(Signal* signal, StatOp& stat)
   subRec->subscriptionKey = rand();
   subRec->prepareId = RNIL;
   subRec->indexType = 0; // not used
-  subRec->sourceTableId = c_statMetaSampleX1->indexId;
+  subRec->sourceTableId = g_statMetaSampleX1.indexId;
   subRec->targetTableId = RNIL;
   subRec->noOfIndexColumns = ao_size;
   subRec->noOfKeyColumns = 0;
@@ -2349,7 +2419,7 @@ Trix::statCleanPrepare(Signal* signal, StatOp& stat)
   clean.m_boundSize = 3 * clean.m_boundCount;
 
   // TRIX traps the CONF
-  send.m_sysTable = c_statMetaSample;
+  send.m_sysTable = &g_statMetaSample;
   send.m_operationType = UtilPrepareReq::Delete;
   statSendPrepare(signal, stat);
 }
@@ -2418,7 +2488,7 @@ Trix::statCleanExecute(Signal* signal, StatOp& stat)
   }
 
   // TRIX traps the CONF
-  send.m_sysTable = c_statMetaSample;
+  send.m_sysTable = &g_statMetaSample;
   send.m_operationType = UtilPrepareReq::Delete;
   send.m_prepareId = subRec->prepareId;
   subRec->expectedConf++;
@@ -2522,7 +2592,7 @@ Trix::statScanPrepare(Signal* signal, StatOp& stat)
   ao_buf.append(ao_list, ao_size);
 
   // TRIX traps the CONF
-  send.m_sysTable = c_statMetaSample;
+  send.m_sysTable = &g_statMetaSample;
   send.m_operationType = UtilPrepareReq::Insert;
   statSendPrepare(signal, stat);
 }
@@ -2590,7 +2660,7 @@ Trix::statScanExecute(Signal* signal, StatOp& stat)
   }
 
   // TRIX traps the CONF
-  send.m_sysTable = c_statMetaSample;
+  send.m_sysTable = &g_statMetaSample;
   send.m_operationType = UtilPrepareReq::Insert;
   send.m_prepareId = subRec->prepareId;
   subRec->expectedConf++;
@@ -2698,7 +2768,7 @@ Trix::statSendPrepare(Signal* signal, StatOp& stat)
 {
   StatOp::Send& send = stat.m_send;
   const IndexStatImplReq* req = &stat.m_req;
-  const Ndbcntr::SysTable& sysTable = *send.m_sysTable;
+  const SysTable& sysTable = *send.m_sysTable;
   D("statSendPrepare" << V(stat));
 
   UtilPrepareReq* utilReq =
@@ -2717,7 +2787,7 @@ Trix::statSendPrepare(Signal* signal, StatOp& stat)
 
   Uint32 i;
   for (i = 0; i < sysTable.columnCount; i++) {
-    const Ndbcntr::SysColumn& c = sysTable.columnList[i];
+    const SysColumn& c = sysTable.columnList[i];
     switch (send.m_operationType) {
     case UtilPrepareReq::Read:
     case UtilPrepareReq::Insert:
@@ -2749,7 +2819,7 @@ Trix::statSendExecute(Signal* signal, StatOp& stat)
   D("statSendExecute" << V(stat));
   StatOp::Send& send = stat.m_send;
   StatOp::Attr& attr = stat.m_attr;
-  const Ndbcntr::SysTable& sysTable = *send.m_sysTable;
+  const SysTable& sysTable = *send.m_sysTable;
 
   UtilExecuteReq* utilReq =
     (UtilExecuteReq*)signal->getDataPtrSend();
@@ -2768,7 +2838,7 @@ Trix::statSendExecute(Signal* signal, StatOp& stat)
   attr.m_dataSize = 0;
 
   for (Uint32 i = 0; i < sysTable.columnCount; i++) {
-    const Ndbcntr::SysColumn& c = sysTable.columnList[i];
+    const SysColumn& c = sysTable.columnList[i];
     switch (send.m_operationType) {
     case UtilPrepareReq::Read:
     case UtilPrepareReq::Insert:
@@ -2819,11 +2889,11 @@ Trix::statDataPtr(StatOp& stat, Uint32 i, Uint32*& dptr, Uint32& bytes)
   StatOp::Data& data = stat.m_data;
   StatOp::Send& send = stat.m_send;
 
-  const Ndbcntr::SysTable& sysTable = *send.m_sysTable;
+  const SysTable& sysTable = *send.m_sysTable;
   ndbrequire(i < sysTable.columnCount);
-  const Ndbcntr::SysColumn& c = sysTable.columnList[i];
+  const SysColumn& c = sysTable.columnList[i];
 
-  if (&sysTable == c_statMetaHead)
+  if (&sysTable == &g_statMetaHead)
   {
     switch (i) {
     case 0:
@@ -2869,7 +2939,7 @@ Trix::statDataPtr(StatOp& stat, Uint32 i, Uint32*& dptr, Uint32& bytes)
     return;
   }
 
-  if (&sysTable == c_statMetaSample)
+  if (&sysTable == &g_statMetaSample)
   {
     switch (i) {
     case 0:
