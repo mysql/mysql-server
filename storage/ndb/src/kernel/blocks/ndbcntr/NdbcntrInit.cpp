@@ -87,8 +87,6 @@ Ndbcntr::Ndbcntr(Block_context& ctx):
   addRecSignal(GSN_SCHEMA_TRANS_END_REF, &Ndbcntr::execSCHEMA_TRANS_END_REF);
   addRecSignal(GSN_CREATE_TABLE_REF, &Ndbcntr::execCREATE_TABLE_REF);
   addRecSignal(GSN_CREATE_TABLE_CONF, &Ndbcntr::execCREATE_TABLE_CONF);
-  addRecSignal(GSN_CREATE_INDX_REF, &Ndbcntr::execCREATE_INDX_REF);
-  addRecSignal(GSN_CREATE_INDX_CONF, &Ndbcntr::execCREATE_INDX_CONF);
   addRecSignal(GSN_CREATE_HASH_MAP_REF, &Ndbcntr::execCREATE_HASH_MAP_REF);
   addRecSignal(GSN_CREATE_HASH_MAP_CONF, &Ndbcntr::execCREATE_HASH_MAP_CONF);
   addRecSignal(GSN_CREATE_FILEGROUP_REF, &Ndbcntr::execCREATE_FILEGROUP_REF);

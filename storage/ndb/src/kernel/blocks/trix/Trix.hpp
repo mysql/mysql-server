@@ -28,7 +28,6 @@
 #include <signaldata/IndexStatSignal.hpp>
 #include <signaldata/GetTabInfo.hpp>
 #include <signaldata/TuxBound.hpp>
-#include <ndbcntr/Ndbcntr.hpp>
 #define ZNOT_FOUND 626
 
 // Error codes
@@ -172,9 +171,27 @@ private:
    */
 
   bool c_statGetMetaDone;
-  const Ndbcntr::SysTable* c_statMetaHead;
-  const Ndbcntr::SysTable* c_statMetaSample;
-  const Ndbcntr::SysIndex* c_statMetaSampleX1;
+  struct SysColumn {
+    Uint32 pos;
+    const char* name;
+    bool keyFlag;
+  };
+  struct SysTable {
+    const char* name;
+    mutable Uint32 tableId;
+    const Uint32 columnCount;
+    const SysColumn* columnList;
+  };
+  struct SysIndex {
+    const char* name;
+    mutable Uint32 tableId;
+    mutable Uint32 indexId;
+  };
+  static const SysColumn g_statMetaHead_column[];
+  static const SysColumn g_statMetaSample_column[];
+  static const SysTable g_statMetaHead;
+  static const SysTable g_statMetaSample;
+  static const SysIndex g_statMetaSampleX1;
 
   struct StatOp {
     struct Meta {
@@ -233,7 +250,7 @@ private:
     struct Drop {
     };
     struct Send {
-      const Ndbcntr::SysTable* m_sysTable;
+      const SysTable* m_sysTable;
       Uint32 m_operationType;     // UtilPrepareReq::OperationTypeValue
       Uint32 m_prepareId;
       Send() {}
