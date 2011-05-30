@@ -954,7 +954,7 @@ void st_select_lex::cleanup_all_joins(bool full)
   table check.
 */
 
-void st_select_lex_unit::set_unique_exlude()
+void st_select_lex_unit::set_unique_exclude()
 {
   for (SELECT_LEX *sl= first_select(); sl; sl= sl->next_select())
   {
@@ -963,7 +963,7 @@ void st_select_lex_unit::set_unique_exlude()
          unit;
          unit= unit->next_unit())
     {
-      unit->set_unique_exlude();
+      unit->set_unique_exclude();
     }
   }
 }

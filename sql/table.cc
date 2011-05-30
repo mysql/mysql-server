@@ -5864,7 +5864,7 @@ bool TABLE_LIST::init_derived(THD *thd, bool init_view)
   */
   if (is_materialized_derived())
   {
-    unit->master_unit()->set_unique_exlude();
+    unit->master_unit()->set_unique_exclude();
   }
   /*
     Create field translation for mergeable derived tables/views.
