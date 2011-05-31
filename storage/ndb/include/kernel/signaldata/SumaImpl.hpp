@@ -250,7 +250,7 @@ struct SubSyncReq {
   friend class Suma;
 
   friend bool printSUB_SYNC_REQ(FILE *, const Uint32 *, Uint32, Uint16);
-  STATIC_CONST( SignalLength = 7 );
+  STATIC_CONST( SignalLength = 8 );
   
   Uint32 senderRef;
   Uint32 senderData;
@@ -259,16 +259,21 @@ struct SubSyncReq {
   Uint32 part; // SubscriptionData::Part
   Uint32 requestInfo;
   Uint32 fragCount;
+  Uint32 fragId; // ZNIL if not used
 
   enum {
     LM_Exclusive = 0x1
     ,Reorg = 0x2
     ,NoDisk = 0x4
     ,TupOrder = 0x8
+    ,LM_CommittedRead = 0x10
+    ,RangeScan = 0x20
+    ,StatScan = 0x40
   };
 
   SECTION( ATTRIBUTE_LIST = 0); // Used when doing SingelTableScan  
   SECTION( TABLE_LIST = 1 );
+  SECTION( TUX_BOUND_INFO = 1); // If range scan
 };
 
 struct SubSyncRef {

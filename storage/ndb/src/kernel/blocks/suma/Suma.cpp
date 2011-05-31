@@ -174,7 +174,12 @@ Suma::execREAD_CONFIG_REQ(Signal* signal)
     c_subOpPool.setSize(256);
   
   c_syncPool.setSize(2);
-  c_dataBufferPool.setSize(noAttrs);
+
+  // Trix: max 5 concurrent index stats ops with max 9 words bounds
+  Uint32 noOfBoundWords = 5 * 9;
+
+  // XXX multiplies number of words by 15 ???
+  c_dataBufferPool.setSize(noAttrs + noOfBoundWords);
 
   c_maxBufferedEpochs = maxBufferedEpochs;
 
@@ -2292,6 +2297,7 @@ Suma::execSUB_SYNC_REQ(Signal* signal)
   syncPtr.p->m_error            = 0;
   syncPtr.p->m_requestInfo      = req->requestInfo;
   syncPtr.p->m_frag_cnt         = req->fragCount;
+  syncPtr.p->m_frag_id          = req->fragId;
   syncPtr.p->m_tableId          = subPtr.p->m_tableId;
 
   {
@@ -2302,8 +2308,17 @@ Suma::execSUB_SYNC_REQ(Signal* signal)
       handle.getSection(ptr, SubSyncReq::ATTRIBUTE_LIST);
       LocalDataBuffer<15> attrBuf(c_dataBufferPool, syncPtr.p->m_attributeList);
       append(attrBuf, ptr, getSectionSegmentPool());
-      releaseSections(handle);
     }
+    if (req->requestInfo & SubSyncReq::RangeScan)
+    {
+      jam();
+      ndbrequire(handle.m_cnt > 1)
+      SegmentedSectionPtr ptr;
+      handle.getSection(ptr, SubSyncReq::TUX_BOUND_INFO);
+      LocalDataBuffer<15> boundBuf(c_dataBufferPool, syncPtr.p->m_boundInfo);
+      append(boundBuf, ptr, getSectionSegmentPool());
+    }
+    releaseSections(handle);
   }
 
   /**
@@ -2432,8 +2447,30 @@ Suma::execDIH_SCAN_GET_NODES_CONF(Signal* signal)
     fd.m_fragDesc.m_nodeId = conf->nodes[0];
     fd.m_fragDesc.m_fragmentNo = fragNo;
     fd.m_fragDesc.m_lqhInstanceKey = conf->instanceKey;
-    signal->theData[2] = fd.m_dummy;
-    fragBuf.append(&signal->theData[2], 1);
+    if (ptr.p->m_frag_id == ZNIL)
+    {
+      signal->theData[2] = fd.m_dummy;
+      fragBuf.append(&signal->theData[2], 1);
+    }
+    else if (ptr.p->m_frag_id == fragNo)
+    {
+      /*
+       * Given fragment must have a replica on this node.
+       */
+      const Uint32 ownNodeId = getOwnNodeId();
+      Uint32 i = 0;
+      for (i = 0; i < nodeCount; i++)
+        if (conf->nodes[i] == ownNodeId)
+          break;
+      if (i == nodeCount)
+      {
+        sendSubSyncRef(signal, 1428);
+        return;
+      }
+      fd.m_fragDesc.m_nodeId = ownNodeId;
+      signal->theData[2] = fd.m_dummy;
+      fragBuf.append(&signal->theData[2], 1);
+    }
   }
 
   const Uint32 nextFrag = fragNo + 1;
@@ -2740,6 +2777,21 @@ Suma::SyncRecord::nextScan(Signal* signal)
     ScanFragReq::setTupScanFlag(req->requestInfo, 1);
   }
 
+  if (m_requestInfo & SubSyncReq::LM_CommittedRead)
+  {
+    ScanFragReq::setReadCommittedFlag(req->requestInfo, 1);
+  }
+
+  if (m_requestInfo & SubSyncReq::RangeScan)
+  {
+    ScanFragReq::setRangeScanFlag(req->requestInfo, 1);
+  }
+
+  if (m_requestInfo & SubSyncReq::StatScan)
+  {
+    ScanFragReq::setStatScanFlag(req->requestInfo, 1);
+  }
+
   req->fragmentNoKeyLen = fd.m_fragDesc.m_fragmentNo;
   req->schemaVersion = tabPtr.p->m_schemaVersion;
   req->transId1 = 0;
@@ -2763,10 +2815,25 @@ Suma::SyncRecord::nextScan(Signal* signal)
     AttributeHeader::init(&attrInfo[pos++], * it.data, 0);
   }
   LinearSectionPtr ptr[3];
+  Uint32 noOfSections;
   ptr[0].p = attrInfo;
   ptr[0].sz = pos;
+  noOfSections = 1;
+  if (m_requestInfo & SubSyncReq::RangeScan)
+  {
+    jam();
+    Uint32 oldpos = pos; // after attrInfo
+    LocalDataBuffer<15> boundBuf(suma.c_dataBufferPool, m_boundInfo);
+    for (boundBuf.first(it); !it.curr.isNull(); boundBuf.next(it))
+    {
+      attrInfo[pos++] = *it.data;
+    }
+    ptr[1].p = &attrInfo[oldpos];
+    ptr[1].sz = pos - oldpos;
+    noOfSections = 2;
+  }
   suma.sendSignal(lqhRef, GSN_SCAN_FRAGREQ, signal, 
-		  ScanFragReq::SignalLength, JBB, ptr, 1);
+		  ScanFragReq::SignalLength, JBB, ptr, noOfSections);
   
   m_currentNoOfAttributes = attrBuf.getSize();        
 
@@ -5305,6 +5372,9 @@ Suma::SyncRecord::release(){
 
   LocalDataBuffer<15> attrBuf(suma.c_dataBufferPool, m_attributeList);
   attrBuf.release();  
+
+  LocalDataBuffer<15> boundBuf(suma.c_dataBufferPool, m_boundInfo);
+  boundBuf.release();  
 }
 
 

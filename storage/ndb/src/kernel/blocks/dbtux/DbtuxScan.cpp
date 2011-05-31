@@ -95,6 +95,30 @@ Dbtux::execACC_SCANREQ(Signal* signal)
      * 0 0 0 - read latest (read lock)
      * 0 1 1 - read exclusive (write lock)
      */
+    const bool isStatScan = AccScanReq::getStatScanFlag(req->requestInfo);
+    if (unlikely(isStatScan)) {
+      jam();
+      if (!scanPtr.p->m_readCommitted) {
+        jam();
+        errorCode = AccScanRef::TuxInvalidLockMode;
+        break;
+      }
+      StatOpPtr statPtr;
+      if (!c_statOpPool.seize(statPtr)) {
+        jam();
+        errorCode = AccScanRef::TuxNoFreeStatOp;
+        break;
+      }
+      scanPtr.p->m_statOpPtrI = statPtr.i;
+      new (statPtr.p) StatOp(*indexPtr.p);
+      statPtr.p->m_scanOpPtrI = scanPtr.i;
+      // rest of StatOp is initialized in execTUX_BOUND_INFO
+#ifdef VM_TRACE
+      if (debugFlags & DebugStat) {
+        debugOut << "Seize stat op" << endl;
+      }
+#endif
+    }
 #ifdef VM_TRACE
     if (debugFlags & DebugScan) {
       debugOut << "Seize scan " << scanPtr.i << " " << *scanPtr.p << endl;
@@ -144,10 +168,34 @@ Dbtux::execTUX_BOUND_INFO(Signal* signal)
   jamEntry();
   // get records
   TuxBoundInfo* const req = (TuxBoundInfo*)signal->getDataPtrSend();
-  ScanOp& scan = *c_scanOpPool.getPtr(req->tuxScanPtrI);
+  ScanOpPtr scanPtr;
+  scanPtr.i = req->tuxScanPtrI;
+  c_scanOpPool.getPtr(scanPtr);
+  ScanOp& scan = *scanPtr.p;
   const Index& index = *c_indexPool.getPtr(scan.m_indexId);
-  //UNUSED const DescHead& descHead = getDescHead(index);
-  //UNUSED const KeyType* keyTypes = getKeyTypes(descHead);
+  const DescHead& descHead = getDescHead(index);
+  const KeyType* keyTypes = getKeyTypes(descHead);
+  // data passed in Signal
+  const Uint32* const boundData = &req->data[0];
+  Uint32 boundLen = req->boundAiLength;
+  Uint32 boundOffset = 0;
+  // initialize stats scan
+  if (unlikely(scan.m_statOpPtrI != RNIL)) {
+    // stats options before bounds
+    StatOpPtr statPtr;
+    statPtr.i = scan.m_statOpPtrI;
+    c_statOpPool.getPtr(statPtr);
+    Uint32 usedLen = 0;
+    if (statScanInit(statPtr, boundData, boundLen, &usedLen) == -1) {
+      jam();
+      ndbrequire(scan.m_errorCode != 0);
+      req->errorCode = scan.m_errorCode;
+      return;
+    }
+    ndbrequire(usedLen <= boundLen);
+    boundLen -= usedLen;
+    boundOffset += usedLen;
+  }
   // extract lower and upper bound in separate passes
   for (unsigned idir = 0; idir <= 1; idir++) {
     jam();
@@ -159,9 +207,9 @@ Dbtux::execTUX_BOUND_INFO(Signal* signal)
     BoundInfo boundInfo[MaxIndexAttributes];
     // largest attrId seen plus one
     Uint32 maxAttrId = 0;
-    const Uint32* const data = &req->data[0];
+    const Uint32* const data = &boundData[boundOffset];
     Uint32 offset = 0;
-    while (offset + 2 <= req->boundAiLength) {
+    while (offset + 2 <= boundLen) {
       jam();
       const Uint32 type = data[offset];
       const AttributeHeader* ah = (const AttributeHeader*)&data[offset + 1];
@@ -210,7 +258,7 @@ Dbtux::execTUX_BOUND_INFO(Signal* signal)
       // jump to next
       offset += 2 + dataSize;
     }
-    if (unlikely(offset != req->boundAiLength)) {
+    if (unlikely(offset != boundLen)) {
       jam();
       scan.m_errorCode = TuxBoundInfo::InvalidAttrInfo;
       req->errorCode = scan.m_errorCode;
@@ -798,7 +846,20 @@ Dbtux::scanFind(ScanOpPtr scanPtr)
       NodeHandle node(frag);
       selectNode(node, pos.m_loc);
       const TreeEnt ent = node.getEnt(pos.m_pos);
-      if (scanVisible(scanPtr, ent)) {
+      if (unlikely(scan.m_statOpPtrI != RNIL)) {
+        StatOpPtr statPtr;
+        statPtr.i = scan.m_statOpPtrI;
+        c_statOpPool.getPtr(statPtr);
+        // report row to stats, returns true if a sample is available
+        int ret = statScanAddRow(statPtr, ent);
+        if (ret == 1) {
+          jam();
+          scan.m_state = ScanOp::Found;
+          // may not access non-pseudo cols but must return valid ent
+          scan.m_scanEnt = ent;
+          break;
+        }
+      } else if (scanVisible(scanPtr, ent)) {
         jam();
         scan.m_state = ScanOp::Found;
         scan.m_scanEnt = ent;
@@ -1204,6 +1265,13 @@ Dbtux::releaseScanOp(ScanOpPtr& scanPtr)
     DataBuffer<ScanBoundSegmentSize>::Head& head = scanBound.m_head;
     LocalDataBuffer<ScanBoundSegmentSize> b(c_scanBoundPool, head);
     b.release();
+  }
+  if (unlikely(scanPtr.p->m_statOpPtrI != RNIL)) {
+    jam();
+    StatOpPtr statPtr;
+    statPtr.i = scanPtr.p->m_statOpPtrI;
+    c_statOpPool.getPtr(statPtr);
+    c_statOpPool.release(statPtr);
   }
   // unlink from per-fragment list and release from pool
   frag.m_scanList.release(scanPtr);

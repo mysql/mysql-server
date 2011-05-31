@@ -17,7 +17,7 @@
 */
 
 #ifndef UTIL_RELEASE_HPP
-#define UTIL_PREPARE_HPP
+#define UTIL_RELEASE_HPP
 
 #include "SignalData.hpp"
 
