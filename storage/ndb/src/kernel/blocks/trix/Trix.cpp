@@ -2058,8 +2058,8 @@ Trix::statUtilPrepareConf(Signal* signal, Uint32 statPtrI)
   util.m_prepareId = utilConf->prepareId;
 
   const Uint32 ot = send.m_operationType;
-  if (ERROR_INSERTED(18011) && ot == UtilPrepareReq::Read ||
-      ERROR_INSERTED(18012) && ot != UtilPrepareReq::Read)
+  if ((ERROR_INSERTED(18011) && ot == UtilPrepareReq::Read) ||
+      (ERROR_INSERTED(18012) && ot != UtilPrepareReq::Read))
   {
     jam();
     CLEAR_ERROR_INSERT_VALUE;
@@ -2227,7 +2227,7 @@ Trix::statUtilReleaseConf(Signal* signal, Uint32 statPtrI)
 void
 Trix::statReadHeadDone(Signal* signal, StatOp& stat)
 {
-  StatOp::Data& data = stat.m_data;
+  //UNUSED StatOp::Data& data = stat.m_data;
   D("statReadHeadDone" << V(stat));
 
   switch (stat.m_requestType) {
@@ -2471,9 +2471,9 @@ Trix::statCleanExecute(Signal* signal, StatOp& stat)
   releaseSections(handle);
 
   const Uint32 rt = stat.m_requestType;
-  if (ERROR_INSERTED(18021) && rt == IndexStatReq::RT_CLEAN_NEW ||
-      ERROR_INSERTED(18022) && rt == IndexStatReq::RT_CLEAN_OLD ||
-      ERROR_INSERTED(18023) && rt == IndexStatReq::RT_CLEAN_ALL)
+  if ((ERROR_INSERTED(18021) && rt == IndexStatReq::RT_CLEAN_NEW) ||
+      (ERROR_INSERTED(18022) && rt == IndexStatReq::RT_CLEAN_OLD) ||
+      (ERROR_INSERTED(18023) && rt == IndexStatReq::RT_CLEAN_ALL))
   {
     jam();
     CLEAR_ERROR_INSERT_VALUE;
@@ -2892,7 +2892,7 @@ Trix::statDataPtr(StatOp& stat, Uint32 i, Uint32*& dptr, Uint32& bytes)
 
   const SysTable& sysTable = *send.m_sysTable;
   ndbrequire(i < sysTable.columnCount);
-  const SysColumn& c = sysTable.columnList[i];
+  //UNUSED const SysColumn& c = sysTable.columnList[i];
 
   if (&sysTable == &g_statMetaHead)
   {
@@ -3146,7 +3146,7 @@ Trix::statOpRef(Signal* signal, const IndexStatImplReq* req,
 void
 Trix::statOpEvent(StatOp& stat, const char* level, const char* msg, ...)
 {
-  const IndexStatImplReq* req = &stat.m_req;
+  //UNUSED const IndexStatImplReq* req = &stat.m_req;
   StatOp::Data& data = stat.m_data;
 
   char tmp1[100];
