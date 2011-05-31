@@ -1785,7 +1785,8 @@ Trix::statMetaGetHeadCB(Signal* signal, Uint32 statPtrI, Uint32 ret)
   if (ret != 0)
   {
     jam();
-    statOpError(signal, stat, ret, __LINE__);
+    Uint32 supress[] = { GetTabInfoRef::TableNotDefined, 0 };
+    statOpError(signal, stat, ret, __LINE__, supress);
     return;
   }
   g_statMetaHead.tableId = meta.m_conf.tableId;
@@ -3077,12 +3078,24 @@ Trix::statOpConf(Signal* signal, StatOp& stat)
 
 void
 Trix::statOpError(Signal* signal, StatOp& stat,
-                   Uint32 errorCode, Uint32 errorLine)
+                  Uint32 errorCode, Uint32 errorLine,
+                  const Uint32 * supress)
 {
   D("statOpError" << V(stat) << V(errorCode) << V(errorLine));
 
+  if (supress)
+  {
+    for (Uint32 i = 0; supress[i] != 0; i++)
+    {
+      if (errorCode == supress[i])
+      {
+        goto do_supress;
+      }
+    }
+  }
   statOpEvent(stat, "W", "error %u line %u", errorCode, errorLine);
 
+do_supress:
   ndbrequire(stat.m_errorCode == 0);
   stat.m_errorCode = errorCode;
   stat.m_errorLine = errorLine;
