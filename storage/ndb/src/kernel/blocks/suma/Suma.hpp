@@ -369,7 +369,8 @@ public:
   Uint32 c_maxBufferedEpochs;
 
   NodeBitmask c_failedApiNodes;
-  
+  Uint32 c_failedApiNodesState[MAX_NODES];
+
   /**
    * Functions
    */

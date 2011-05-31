@@ -245,8 +245,8 @@ choose_conf(){
 
 count_hosts(){
     ch="CHOOSE_host"
-    cnt=$(for i in `grep $ch $1 | sed 's!,! !g'` ; do echo $i; done\
-          | grep $ch | sort | uniq | wc -l)
+    list=`grep $ch $1 | sed 's!,! !g'`
+    cnt=`for i in $list; do echo $i; done | grep $ch | sort | uniq | wc -l`
     echo $cnt
 }
 
