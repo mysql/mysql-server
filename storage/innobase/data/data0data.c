@@ -585,7 +585,8 @@ dtuple_convert_big_rec(
 
 	if (dict_table_get_format(index->table) < UNIV_FORMAT_B) {
 		/* up to MySQL 5.1: store a 768-byte prefix locally */
-		local_len = BTR_EXTERN_FIELD_REF_SIZE + DICT_MAX_INDEX_COL_LEN;
+		local_len = BTR_EXTERN_FIELD_REF_SIZE
+			+ DICT_ANTELOPE_MAX_INDEX_COL_LEN;
 	} else {
 		/* new-format table: do not store any BLOB prefix locally */
 		local_len = BTR_EXTERN_FIELD_REF_SIZE;
@@ -757,7 +758,10 @@ dtuple_convert_back_big_rec(
 
 		local_len -= BTR_EXTERN_FIELD_REF_SIZE;
 
-		ut_ad(local_len <= DICT_MAX_INDEX_COL_LEN);
+		/* Only in REDUNDANT and COMPACT format, we store
+		up to DICT_ANTELOPE_MAX_INDEX_COL_LEN (768) bytes
+		locally */
+		ut_ad(local_len <= DICT_ANTELOPE_MAX_INDEX_COL_LEN);
 
 		dfield_set_data(dfield,
 				(char*) b->data - local_len,
