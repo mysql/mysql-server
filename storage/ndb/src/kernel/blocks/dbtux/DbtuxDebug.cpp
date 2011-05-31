@@ -125,7 +125,7 @@ void Dbtux::execDBINFO_SCANREQ(Signal *signal)
 
 /*
  * 12001 log file 0-close 1-open 2-append 3-append to signal log
- * 12002 log flags 1-meta 2-maint 4-tree 8-scan
+ * 12002 log flags 1-meta 2-maint 4-tree 8-scan lock-16 stat-32
  */
 void
 Dbtux::execDUMP_STATE_ORD(Signal* signal)
@@ -425,6 +425,8 @@ operator<<(NdbOut& out, const Dbtux::ScanOp& scan)
   out << " [savePointId " << dec << scan.m_savePointId << "]";
   out << " [accLockOp " << hex << scan.m_accLockOp << "]";
   out << " [accLockOps";
+  if (globalData.isNdbMtLqh)//TODO
+    return out;
   {
     DLFifoList<Dbtux::ScanLock>::Head head = scan.m_accLockOps;
     LocalDLFifoList<Dbtux::ScanLock> list(tux->c_scanLockPool, head);
@@ -461,6 +463,8 @@ operator<<(NdbOut& out, const Dbtux::Index& index)
   out << "[Index " << hex << &index;
   out << " [tableId " << dec << index.m_tableId << "]";
   out << " [numFrags " << dec << index.m_numFrags << "]";
+  if (globalData.isNdbMtLqh)//TODO
+    return out;
   for (unsigned i = 0; i < index.m_numFrags; i++) {
     out << " [frag " << dec << i << " ";
     const Dbtux::Frag& frag = *tux->c_fragPool.getPtr(index.m_fragPtrI[i]);
@@ -472,6 +476,8 @@ operator<<(NdbOut& out, const Dbtux::Index& index)
   out << " [numAttrs " << dec << index.m_numAttrs << "]";
   out << " [prefAttrs " << dec << index.m_prefAttrs << "]";
   out << " [prefBytes " << dec << index.m_prefBytes << "]";
+  out << " [statFragPtrI " << hex << index.m_statFragPtrI << "]";
+  out << " [statLoadTime " << dec << index.m_statLoadTime << "]";
   out << "]";
   return out;
 }
@@ -483,6 +489,9 @@ operator<<(NdbOut& out, const Dbtux::Frag& frag)
   out << " [tableId " << dec << frag.m_tableId << "]";
   out << " [indexId " << dec << frag.m_indexId << "]";
   out << " [fragId " << dec << frag.m_fragId << "]";
+  out << " [entryCount " << dec << frag.m_entryCount << "]";
+  out << " [entryBytes " << dec << frag.m_entryBytes << "]";
+  out << " [entryOps " << dec << frag.m_entryOps << "]";
   out << " [tree " << frag.m_tree << "]";
   out << "]";
   return out;
@@ -522,6 +531,26 @@ operator<<(NdbOut& out, const Dbtux::NodeHandle& node)
   for (unsigned pos = 0; pos < numpos; pos++)
     out << " " << entList[pos];
   out << "]";
+  out << "]";
+  return out;
+}
+
+NdbOut&
+operator<<(NdbOut& out, const Dbtux::StatOp& stat)
+{
+  out << "[StatOp " << hex << &stat;
+  out << " [saveSize " << dec << stat.m_saveSize << "]";
+  out << " [saveScale " << dec << stat.m_saveScale << "]";
+  out << " [batchSize " << dec << stat.m_batchSize << "]";
+  out << "]";
+  return out;
+}
+
+NdbOut&
+operator<<(NdbOut& out, const Dbtux::StatMon& mon)
+{
+  out << "[StatMon";
+  out << " [loopIndexId " << dec << mon.m_loopIndexId << "]";
   out << "]";
   return out;
 }

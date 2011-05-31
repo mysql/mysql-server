@@ -84,6 +84,10 @@ public:
   STATIC_CONST( OPTIMIZE_MOVE_VARPART = 0x0001 ); //option to move varpart
   STATIC_CONST( OPTIMIZE_MOVE_FIXPART = 0x0002 ); //option to move fixpart
 
+  // index stats pseudo columns
+  STATIC_CONST( INDEX_STAT_KEY   = 0xFFD0 );
+  STATIC_CONST( INDEX_STAT_VALUE = 0xFFD1 );
+
   // NOTE: in 5.1 ctors and init take size in bytes
 
   /** Initialize AttributeHeader at location aHeaderPtr */

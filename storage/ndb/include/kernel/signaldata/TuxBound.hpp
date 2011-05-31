@@ -31,7 +31,10 @@ public:
     BoundLT = 1,        // bit 0 for strict
     BoundGE = 2,
     BoundGT = 3,
-    BoundEQ = 4
+    BoundEQ = 4,
+    // stats scan parameter ids
+    StatSaveSize = 11,
+    StatSaveScale = 12
   };
   enum ErrorCode {
     InvalidAttrInfo = 4110,

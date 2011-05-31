@@ -128,6 +128,9 @@ Dbtux::execTUX_MAINT_REQ(Signal* signal)
       ndbrequire(frag.m_freeLoc != NullTupLoc);
     }
     treeAdd(c_ctx, frag, treePos, ent);
+    frag.m_entryCount++;
+    frag.m_entryBytes += searchKey.get_data_len();
+    frag.m_entryOps++;
     break;
   case TuxMaintReq::OpRemove:
     jam();
@@ -147,6 +150,10 @@ Dbtux::execTUX_MAINT_REQ(Signal* signal)
       break;
     }
     treeRemove(frag, treePos);
+    ndbrequire(frag.m_entryCount != 0);
+    frag.m_entryCount--;
+    frag.m_entryBytes -= searchKey.get_data_len();
+    frag.m_entryOps++;
     break;
   default:
     ndbrequire(false);

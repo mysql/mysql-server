@@ -1985,6 +1985,114 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
     STR_VALUE(MAX_INT_RNIL)      /* Max */
   },
 
+  /* ordered index stats */
+
+  {
+    CFG_DB_INDEX_STAT_AUTO_CREATE,
+    "IndexStatAutoCreate",
+    DB_TOKEN,
+    "Make create index also create initial index stats",
+    ConfigInfo::CI_USED,
+    0,
+    ConfigInfo::CI_INT,
+    "0",
+    "0",
+    "1"
+  },
+
+  {
+    CFG_DB_INDEX_STAT_AUTO_UPDATE,
+    "IndexStatAutoUpdate",
+    DB_TOKEN,
+    "Monitor each index for changes and trigger automatic stats updates."
+    " See IndexStatTrigger options",
+    ConfigInfo::CI_USED,
+    0,
+    ConfigInfo::CI_INT,
+    "0",
+    "0",
+    "1"
+  },
+
+  {
+    CFG_DB_INDEX_STAT_SAVE_SIZE,
+    "IndexStatSaveSize",
+    DB_TOKEN,
+    "Maximum bytes allowed for the saved stats of one index."
+    " At least 1 sample is produced regardless of size limit."
+    " The size is scaled up by a factor from IndexStatSaveScale."
+    " The value affects size of stats saved in NDB system tables"
+    " and in mysqld memory cache",
+    ConfigInfo::CI_USED,
+    0,
+    ConfigInfo::CI_INT,
+    "32768",
+    "0",
+    STR_VALUE(MAX_INT_RNIL)
+  },
+
+  {
+    CFG_DB_INDEX_STAT_SAVE_SCALE,
+    "IndexStatSaveScale",
+    DB_TOKEN,
+    "Factor to scale up IndexStatSaveSize for a large index."
+    " Given in units of 0.01."
+    " Multiplied by a logarithmic index size."
+    " Value 0 disables scaling",
+    ConfigInfo::CI_USED,
+    0,
+    ConfigInfo::CI_INT,
+    "100",
+    "0",
+    STR_VALUE(MAX_INT_RNIL)
+  },
+
+  {
+    CFG_DB_INDEX_STAT_TRIGGER_PCT,
+    "IndexStatTriggerPct",
+    DB_TOKEN,
+    "Percent change (in DML ops) to schedule index stats update."
+    " The value is scaled down by a factor from IndexStatTriggerScale."
+    " Value 0 disables the trigger",
+    ConfigInfo::CI_USED,
+    0,
+    ConfigInfo::CI_INT,
+    "100",
+    "0",
+    STR_VALUE(MAX_INT_RNIL)
+  },
+
+  {
+    CFG_DB_INDEX_STAT_TRIGGER_SCALE,
+    "IndexStatTriggerScale",
+    DB_TOKEN,
+    "Factor to scale down IndexStatTriggerPct for a large index."
+    " Given in units of 0.01."
+    " Multiplied by a logarithmic index size."
+    " Value 0 disables scaling",
+    ConfigInfo::CI_USED,
+    0,
+    ConfigInfo::CI_INT,
+    "100",
+    "0",
+    STR_VALUE(MAX_INT_RNIL)
+  },
+
+  {
+    CFG_DB_INDEX_STAT_UPDATE_DELAY,
+    "IndexStatUpdateDelay",
+    DB_TOKEN,
+    "Minimum delay in seconds between automatic index stats updates"
+    " for a given index."
+    " Value 0 means no delay",
+    ConfigInfo::CI_USED,
+    0,
+    ConfigInfo::CI_INT,
+    "60",
+    "0",
+    STR_VALUE(MAX_INT_RNIL)
+  },
+
   /***************************************************************************
    * API
    ***************************************************************************/
