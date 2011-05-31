@@ -8437,6 +8437,20 @@ int ha_ndbcluster::create(const char *name,
     goto abort_return;
   }
 
+  // Save the table level storage media setting
+  switch(create_info->storage_media)
+  {
+    case HA_SM_DISK:
+      tab.setStorageType(NdbDictionary::Column::StorageTypeDisk);
+      break;
+    case HA_SM_DEFAULT:
+      tab.setStorageType(NdbDictionary::Column::StorageTypeDefault);
+      break;
+    case HA_SM_MEMORY:
+      tab.setStorageType(NdbDictionary::Column::StorageTypeMemory);
+      break;
+  }
+
   DBUG_PRINT("info", ("Table %s is %s stored with tablespace %s",
                       m_tabname,
                       (use_disk) ? "disk" : "memory",
