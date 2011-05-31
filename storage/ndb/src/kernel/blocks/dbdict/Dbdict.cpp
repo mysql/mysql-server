@@ -12159,7 +12159,7 @@ Dbdict::alterIndex_parse(Signal* signal, bool master,
     }
 
     // skip system indexes (at least index stats indexes)
-    if (strstr(indexName, "/NDB$IS_") != 0) {
+    if (strstr(indexName, "/" NDB_INDEX_STAT_PREFIX) != 0) {
       jam();
       D("skip index stats operations for system index");
       alterIndexPtr.p->m_sub_index_stat_dml = true;

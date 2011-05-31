@@ -5118,9 +5118,6 @@ void Dbtc::linkApiToGcp(Ptr<GcpRecord> regGcpPtr,
 void
 Dbtc::crash_gcp(Uint32 line)
 {
-  UintR Tfirstgcp = cfirstgcp;
-  UintR TgcpFilesize = cgcpFilesize;
-  GcpRecord *localGcpRecord = gcpRecord;
   GcpRecordPtr localGcpPointer;
 
   localGcpPointer.i = cfirstgcp;
@@ -7802,10 +7799,10 @@ void Dbtc::sendAbortedAfterTimeout(Signal* signal, int Tcheck)
 	for(Uint32 i = 0; i<TloopCount; i++)
 	{
 	  BaseString::snprintf(buf2, sizeof(buf2), "%s %d", buf, tmp[i]);
-	  BaseString::snprintf(buf, sizeof(buf), buf2);
+	  BaseString::snprintf(buf, sizeof(buf), "%s", buf2);
 	}
-	warningEvent(buf);
-	ndbout_c(buf);
+	warningEvent("%s", buf);
+	ndbout_c("%s", buf);
 	ndbrequire(false);
 	releaseAbortResources(signal);
 	return;
@@ -10671,7 +10668,6 @@ Dbtc::initScanrec(ScanRecordPtr scanptr,
   ScanFragReq::setDescendingFlag(tmp, ScanTabReq::getDescendingFlag(ri));
   ScanFragReq::setTupScanFlag(tmp, ScanTabReq::getTupScanFlag(ri));
   ScanFragReq::setNoDiskFlag(tmp, ScanTabReq::getNoDiskFlag(ri));
-  ScanFragReq::setStatScanFlag(tmp, ScanTabReq::getStatScanFlag(ri));
   if (ScanTabReq::getViaSPJFlag(ri))
   {
     jam();
@@ -13439,7 +13435,7 @@ Dbtc::match_and_print(Signal* signal, ApiConnectRecordPtr apiPtr)
 		       apiTimer ? (ctcTimer - apiTimer) / 100 : 0,
 		       c_apiConTimer_line[apiPtr.i],
 		       stateptr);
-  infoEvent(buf);
+  infoEvent("%s", buf);
   
   memcpy(signal->theData, temp, 4*len);
   return true;

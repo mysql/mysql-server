@@ -866,7 +866,9 @@ skip_disk:
     {
       jam();
       if (get_page)
+      {
         ndbassert(tuple_ptr->m_header_bits & Tuple_header::DISK_PART);
+      }
       dealloc_tuple(signal, gci_hi, gci_lo, page.p, tuple_ptr,
                     &req_struct, regOperPtr.p, regFragPtr.p, regTabPtr.p);
     }

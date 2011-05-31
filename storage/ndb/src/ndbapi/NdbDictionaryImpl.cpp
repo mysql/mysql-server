@@ -396,10 +396,6 @@ NdbColumnImpl::create_pseudo_columns()
     NdbColumnImpl::create_pseudo("NDB$LOCK_REF");
   NdbDictionary::Column::OP_ID = 
     NdbColumnImpl::create_pseudo("NDB$OP_ID");
-  NdbDictionary::Column::INDEX_STAT_KEY =
-    NdbColumnImpl::create_pseudo("NDB$INDEX_STAT_KEY");
-  NdbDictionary::Column::INDEX_STAT_VALUE =
-    NdbColumnImpl::create_pseudo("NDB$INDEX_STAT_VALUE");
 }
 
 void
@@ -449,11 +445,6 @@ NdbColumnImpl::destory_pseudo_columns()
   delete NdbDictionary::Column::OP_ID;
   NdbDictionary::Column::LOCK_REF = 0;
   NdbDictionary::Column::OP_ID = 0;
-
-  delete NdbDictionary::Column::INDEX_STAT_KEY;
-  delete NdbDictionary::Column::INDEX_STAT_VALUE;
-  NdbDictionary::Column::INDEX_STAT_KEY = 0;
-  NdbDictionary::Column::INDEX_STAT_VALUE = 0;
 }
 
 NdbDictionary::Column *
@@ -563,16 +554,6 @@ NdbColumnImpl::create_pseudo(const char * name){
     col->m_impl.m_attrId = AttributeHeader::OP_ID;
     col->m_impl.m_attrSize = 8;
     col->m_impl.m_arraySize = 1;
-  } else if (!strcmp(name, "NDB$INDEX_STAT_KEY")){
-    col->setType(NdbDictionary::Column::Longvarbinary);
-    col->m_impl.m_attrId = AttributeHeader::INDEX_STAT_KEY;
-    col->m_impl.m_attrSize = 1;
-    col->m_impl.m_arraySize = 2 + MAX_INDEX_STAT_KEY_SIZE * 4;;
-  } else if (!strcmp(name, "NDB$INDEX_STAT_VALUE")){
-    col->setType(NdbDictionary::Column::Longvarbinary);
-    col->m_impl.m_attrId = AttributeHeader::INDEX_STAT_VALUE;
-    col->m_impl.m_attrSize = 1;
-    col->m_impl.m_arraySize = 2 + MAX_INDEX_STAT_VALUE_SIZE * 4;
   }
   else {
     abort();
@@ -8499,8 +8480,5 @@ const NdbDictionary::Column * NdbDictionary::Column::FRAGMENT_EXTENT_SPACE = 0;
 const NdbDictionary::Column * NdbDictionary::Column::FRAGMENT_FREE_EXTENT_SPACE = 0;
 const NdbDictionary::Column * NdbDictionary::Column::LOCK_REF = 0;
 const NdbDictionary::Column * NdbDictionary::Column::OP_ID = 0;
-
-const NdbDictionary::Column * NdbDictionary::Column::INDEX_STAT_KEY = 0;
-const NdbDictionary::Column * NdbDictionary::Column::INDEX_STAT_VALUE = 0;
 
 template class Vector<NdbDictInterface::Tx::Op>;
