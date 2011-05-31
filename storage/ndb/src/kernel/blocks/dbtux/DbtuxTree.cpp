@@ -49,7 +49,6 @@ Dbtux::treeAdd(TuxCtx& ctx, Frag& frag, TreePos treePos, TreeEnt ent)
     tree.m_root = node.m_loc;
     break;
   } while (0);
-  tree.m_entryCount++;
 }
 
 /*
@@ -212,8 +211,6 @@ Dbtux::treeRemove(Frag& frag, TreePos treePos)
     treeRemoveLeaf(frag, node);
     break;
   } while (0);
-  ndbrequire(tree.m_entryCount != 0);
-  tree.m_entryCount--;
 }
 
 /*
