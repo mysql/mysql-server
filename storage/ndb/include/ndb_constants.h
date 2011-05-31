@@ -112,4 +112,16 @@
  */
 #define NDB_BACKUP_SEQUENCE 0x1F000000
 
+/**
+ * Defines for index statistics
+ */
+#define NDB_INDEX_STAT_DB     "mysql"
+#define NDB_INDEX_STAT_SCHEMA "def"
+
+#define NDB_INDEX_STAT_HEAD_TABLE    "NDB$IS_HEAD"
+#define NDB_INDEX_STAT_SAMPLE_TABLE  "NDB$IS_SAMPLE"
+#define NDB_INDEX_STAT_SAMPLE_INDEX1 "NDB$IS_SAMPLE_X1"
+
+#define NDB_INDEX_STAT_PREFIX        "NDB$IS"
+
 #endif

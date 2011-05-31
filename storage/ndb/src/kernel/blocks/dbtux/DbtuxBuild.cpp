@@ -139,6 +139,9 @@ Dbtux::mt_buildIndexFragment(mt_BuildIndxCtx* req)
       ndbrequire(frag.m_freeLoc != NullTupLoc);
     }
     treeAdd(ctx, frag, treePos, ent);
+    frag.m_entryCount++;
+    frag.m_entryBytes += searchKey.get_data_len();
+    frag.m_entryOps++;
   }
 
   if (err < 0)
