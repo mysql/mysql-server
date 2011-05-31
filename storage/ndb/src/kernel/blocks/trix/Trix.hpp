@@ -408,7 +408,8 @@ private:
   // conf and ref
   void statOpSuccess(Signal*, StatOp&);
   void statOpConf(Signal*, StatOp&);
-  void statOpError(Signal*, StatOp&, Uint32 errorCode, Uint32 errorLine);
+  void statOpError(Signal*, StatOp&, Uint32 errorCode, Uint32 errorLine,
+                   const Uint32 * supress = 0);
   void statOpAbort(Signal*, StatOp&);
   void statOpRef(Signal*, StatOp&);
   void statOpRef(Signal*, const IndexStatImplReq*, Uint32 errorCode, Uint32 errorLine);
