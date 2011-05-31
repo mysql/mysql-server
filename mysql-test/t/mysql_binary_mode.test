@@ -1,0 +1,54 @@
+source include/have_binlog_format_statement.inc;
+RESET MASTER;
+
+--echo # Bug#33048 Not able to recover binary/blob data correctly using mysqlbinlog
+--echo # --------------------------------------------------------------------------
+--echo # The test verify that 0x00 and 0x0D0A sequence can be handled correctly by
+--echo # mysql
+--echo
+
+let $table_name= `SELECT 0x410D0A42`;
+eval CREATE TABLE `$table_name` (c1 CHAR(100));
+
+let $char= `SELECT 0x410042`;
+--echo # It is a faked statement. ASCII 0 is in the original statement, it would
+--echo # make the test result to become a binary file which was difficult to get
+--echo # the diff result if the original query was logged in the result.
+--echo INSERT INTO `A\r\nB` VALUES("A\0B");
+--echo
+--disable_query_log
+eval INSERT INTO `$table_name` VALUES("$char");
+--enable_query_log
+
+let $char= `SELECT 0x410D0A42`;
+eval INSERT INTO `$table_name` VALUES("$char");
+
+eval SELECT HEX(c1) FROM `$table_name`;
+
+--echo
+FLUSH LOGS;
+eval DROP TABLE `$table_name`;
+
+--echo
+let $MYSQLD_DATADIR= `SELECT @@datadir`;
+--exec $MYSQL_BINLOG $MYSQLD_DATADIR/master-bin.000001 > $MYSQLTEST_VARDIR/tmp/my.sql
+
+--echo # '--exec mysql ...' without --binary-mode option
+--echo # It creates the table with a wrong table name and generates an error.
+--error 1
+--exec $MYSQL test < $MYSQLTEST_VARDIR/tmp/my.sql 2>&1
+
+--echo
+--echo # It is not in binary_mode, so table name '0x410D0A42' is translated to
+--echo # '0x410A42' by mysql.
+let $table_name1= `SELECT 0x410A42`;
+eval DROP TABLE `$table_name1`;
+
+--echo
+--echo # In binary_mode, table name '0x410D0A42' and string '0x410042' can be
+--echo # handled correctly.
+--exec $MYSQL --binary-mode test < $MYSQLTEST_VARDIR/tmp/my.sql
+eval SELECT HEX(c1) FROM `$table_name`;
+
+--echo
+eval DROP TABLE `$table_name`;
