@@ -1257,11 +1257,16 @@ void Dbtc::handleApiFailState(Signal* signal, UintR TapiConnectptr)
   capiConnectClosing[TfailedApiNode]--;
   releaseApiCon(signal, TapiConnectptr);
   TlocalApiConnectptr.p->apiFailState = ZFALSE;
-  if (capiConnectClosing[TfailedApiNode] == 0) {
+  if (capiConnectClosing[TfailedApiNode] == 0)
+  {
     jam();
-    signal->theData[0] = TfailedApiNode;
-    signal->theData[1] = reference();
-    sendSignal(capiFailRef, GSN_API_FAILCONF, signal, 2, JBB);
+
+    /**
+     * Perform block-level cleanups (e.g assembleFragments...)
+     */
+    Callback cb = {safe_cast(&Dbtc::apiFailBlockCleanupCallback),
+                   TfailedApiNode};
+    simBlockNodeFailure(signal, TfailedApiNode, cb);
   }//if
 }//Dbtc::handleApiFailState()
 
