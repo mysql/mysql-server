@@ -9542,16 +9542,6 @@ acl_authenticate(THD *thd, uint connect_errors, uint com_change_user_pkt_len)
   else
     my_ok(thd);
 
-#if defined(MYSQL_SERVER) && !defined(EMBEDDED_LIBRARY)
-  /*
-    Allow the network layer to skip big packets. Although a malicious
-    authenticated session might use this to trick the server to read
-    big packets indefinitely, this is a previously established behavior
-    that needs to be preserved as to not break backwards compatibility.
-  */
-  thd->net.skip_big_packet= TRUE;
-#endif
-
 #ifdef HAVE_PSI_THREAD_INTERFACE
   if (likely(PSI_server != NULL))
   {
