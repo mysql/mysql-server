@@ -172,29 +172,30 @@ a	b
 35	4
 46	5
 50	10
+update v1 set a=a+c;
 select * from t1;
 a	b
-13	2
-24	3
-35	4
-46	5
-50	10
+16	2
+28	3
+40	4
+52	5
+61	10
 update t2,v2 set v2.a=v2.a+v2.c where t2.x=v2.c;
 select * from t1;
 a	b
-13	2
-27	3
-39	4
-51	5
-50	10
+16	2
+31	3
+44	4
+57	5
+61	10
 update v2 set a=a+c;
 select * from t1;
 a	b
-15	2
-30	3
-43	4
-56	5
-60	10
+18	2
+34	3
+48	4
+62	5
+71	10
 update t2,v2 set v2.c=v2.a+v2.c where t2.x=v2.c;
 ERROR 42000: UPDATE command denied to user 'mysqltest_1'@'localhost' for column 'c' in table 'v2'
 update v2 set c=a+c;
@@ -575,12 +576,16 @@ UPDATE mysqltest1.v_ts SET x= 200 WHERE x = 100;
 ERROR 42000: UPDATE command denied to user 'readonly'@'localhost' for table 'v_ts'
 UPDATE mysqltest1.v_ts SET x= 200;
 ERROR 42000: UPDATE command denied to user 'readonly'@'localhost' for table 'v_ts'
+UPDATE mysqltest1.v_tu SET x= 200 WHERE x = 100;
+UPDATE mysqltest1.v_tus SET x= 200 WHERE x = 100;
+UPDATE mysqltest1.v_tu SET x= 200;
 DELETE FROM mysqltest1.v_ts WHERE x= 200;
 ERROR 42000: DELETE command denied to user 'readonly'@'localhost' for table 'v_ts'
 DELETE FROM mysqltest1.v_ts;
 ERROR 42000: DELETE command denied to user 'readonly'@'localhost' for table 'v_ts'
 DELETE FROM mysqltest1.v_td WHERE x= 200;
 ERROR 42000: SELECT command denied to user 'readonly'@'localhost' for column 'x' in table 'v_td'
+DELETE FROM mysqltest1.v_tds WHERE x= 200;
 DELETE FROM mysqltest1.v_td;
 DROP VIEW mysqltest1.v_tds;
 DROP VIEW mysqltest1.v_td;
