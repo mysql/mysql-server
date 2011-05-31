@@ -1744,7 +1744,7 @@ Trix::g_statMetaSample_column[] = {
 
 const Trix::SysTable
 Trix::g_statMetaHead = {
-  "sys/def/NDB$IS_HEAD",
+  NDB_INDEX_STAT_DB "/" NDB_INDEX_STAT_SCHEMA "/" NDB_INDEX_STAT_HEAD_TABLE,
   ~(Uint32)0,
   sizeof(g_statMetaHead_column)/sizeof(g_statMetaHead_column[0]),
   g_statMetaHead_column
@@ -1752,7 +1752,7 @@ Trix::g_statMetaHead = {
 
 const Trix::SysTable
 Trix::g_statMetaSample = {
-  "sys/def/NDB$IS_SAMPLE",
+  NDB_INDEX_STAT_DB "/" NDB_INDEX_STAT_SCHEMA "/" NDB_INDEX_STAT_SAMPLE_TABLE,
   ~(Uint32)0,
   sizeof(g_statMetaSample_column)/sizeof(g_statMetaSample_column[0]),
   g_statMetaSample_column
@@ -1760,7 +1760,7 @@ Trix::g_statMetaSample = {
 
 const Trix::SysIndex
 Trix::g_statMetaSampleX1 = {
-  "sys/def/%u/NDB$IS_SAMPLE_X1",
+  NDB_INDEX_STAT_DB "/" NDB_INDEX_STAT_SCHEMA "/%u/" NDB_INDEX_STAT_SAMPLE_INDEX1,
   ~(Uint32)0,
   ~(Uint32)0
 };

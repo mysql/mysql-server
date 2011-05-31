@@ -4367,8 +4367,8 @@ void Dblqh::execLQHKEYREQ(Signal* signal)
 
   {
     const NodeBitmask& all = globalTransporterRegistry.get_status_overloaded();
-    if (unlikely(!all.isclear() &&
-                 checkTransporterOverloaded(signal, all, lqhKeyReq)) ||
+    if (unlikely((!all.isclear() &&
+                  checkTransporterOverloaded(signal, all, lqhKeyReq))) ||
         ERROR_INSERTED_CLEAR(5047)) {
       jam();
       releaseSections(handle);
