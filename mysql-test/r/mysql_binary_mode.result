@@ -26,7 +26,7 @@ B`;
 
 # '--exec mysql ...' without --binary-mode option
 # It creates the table with a wrong table name and generates an error.
-ERROR at line 34: ASCII '\0' appeared in the statement, but this is not allowed unless option --binary-mode is enabled and mysql is run in non-interactive mode. Set --binary-mode 1 if ASCII '\0' is expected. Query: 'INSERT INTO `A
+ERROR at line 34: ASCII '\0' appeared in the statement, but this is not allowed unless option --binary-mode is enabled and mysql is run in non-interactive mode. Set --binary-mode to 1 if ASCII '\0' is expected. Query: 'INSERT INTO `A
 B` VALUES("A'.
 
 # It is not in binary_mode, so table name '0x410D0A42' is translated to
