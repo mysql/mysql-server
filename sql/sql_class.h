@@ -561,7 +561,6 @@ typedef struct system_status_var
   ulong key_cache_write;
   /* END OF KEY_CACHE parts */
 
-  ulong net_big_packet_count;
   ulong opened_tables;
   ulong opened_shares;
   ulong select_full_join_count;
