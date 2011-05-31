@@ -1689,7 +1689,8 @@ static struct my_option my_long_options[] =
    GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
   {"binary-mode", OPT_BINARY_MODE,
    "By default, ASCII '\\0' is disallowed and '\\r\\n' is translated to '\\n'. "
-   "This switch turns off both features in non-interactive mode (for input "
+   "This switch turns off both features, and also turns off parsing of all client"
+   "commands except \\C and DELIMITER, in non-interactive mode (for input "
    "piped to mysql or loaded using the 'source' command). This is necessary "
    "when processing output from mysqlbinlog that may contain blobs.",
    &opt_binary_mode, &opt_binary_mode, 0, GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0},
@@ -1984,7 +1985,7 @@ static int read_and_execute(bool interactive)
         String msg;
         msg.append("ASCII '\\0' appeared in the statement, but this is not "
                    "allowed unless option --binary-mode is enabled and mysql is "
-                   "run in non-interactive mode. Set --binary-mode 1 if ASCII "
+                   "run in non-interactive mode. Set --binary-mode to 1 if ASCII "
                    "'\\0' is expected. Query: '");
         msg.append(glob_buffer);
         msg.append(line);
@@ -2104,7 +2105,8 @@ static int read_and_execute(bool interactive)
 
 /**
    It checks if the input is a short form command. It returns the command's
-   pointer if a command is found, else return NULL.
+   pointer if a command is found, else return NULL. Note that if binary-mode
+   is set, then only \C is searched for.
 
    @param cmd_char    A character of one byte.
 
@@ -2117,6 +2119,11 @@ static COMMANDS *find_command(char cmd_char)
   DBUG_PRINT("enter", ("cmd_char: %d", cmd_char));
 
   int index= -1;
+
+  /*
+    In binary-mode, we disallow all mysql commands except '\C'
+    and DELIMITER.
+  */
   if (real_binary_mode)
   {
     if (cmd_char == 'C')
@@ -2136,7 +2143,8 @@ static COMMANDS *find_command(char cmd_char)
 
 /**
    It checks if the input is a long form command. It returns the command's
-   pointer if a command is found, else return NULL.
+   pointer if a command is found, else return NULL. Note that if binary-mode 
+   is set, then only DELIMITER is searched for.
 
    @param name    A string.
    @return
@@ -2184,7 +2192,7 @@ static COMMANDS *find_command(char *name)
   {
     /*
       All commands are in the first part of commands array and have a function
-      to implemente it.
+      to implement it.
     */
     for (uint i= 0; commands[i].func; i++)
     {
