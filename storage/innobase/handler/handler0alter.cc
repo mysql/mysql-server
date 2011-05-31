@@ -539,7 +539,7 @@ innobase_create_key_def(
 	if (!new_primary && (key_info->flags & HA_NOSAME)
 	    && (!(key_info->flags & HA_KEY_HAS_PART_KEY_SEG))
 	    && row_table_got_default_clust_index(table)) {
-		uint    key_part = key_info->key_parts;
+		uint	key_part = key_info->key_parts;
 
 		new_primary = TRUE;
 
@@ -592,6 +592,27 @@ innobase_create_key_def(
 	n_keys = indexdef - indexdefs;
 
 	DBUG_RETURN(indexdefs);
+}
+
+/*******************************************************************//**
+Check each index column size, make sure they do not exceed the max limit
+@return	HA_ERR_INDEX_COL_TOO_LONG if index column size exceeds limit */
+static
+int
+innobase_check_column_length(
+/*=========================*/
+	const dict_table_t*table,	/*!< in: table definition */
+	const KEY*	key_info)	/*!< in: Indexes to be created */
+{
+	ulint	max_col_len = DICT_MAX_FIELD_LEN_BY_FORMAT(table);
+
+	for (ulint key_part = 0; key_part < key_info->key_parts; key_part++) {
+		if (key_info->key_part[key_part].length > max_col_len) {
+			my_error(ER_INDEX_COLUMN_TOO_LONG, MYF(0), max_col_len);
+			return(HA_ERR_INDEX_COL_TOO_LONG);
+		}
+	}
+	return(0);
 }
 
 /*******************************************************************//**
@@ -674,6 +695,17 @@ ha_innobase::add_index(
 
 	if (UNIV_UNLIKELY(error)) {
 		DBUG_RETURN(error);
+	}
+
+	/* Check each index's column length to make sure they do not
+	exceed limit */
+	for (ulint i = 0; i < num_of_keys; i++) {
+		error = innobase_check_column_length(innodb_table,
+						     &key_info[i]);
+
+		if (error) {
+			DBUG_RETURN(error);
+		}
 	}
 
 	heap = mem_heap_create(1024);
