@@ -122,8 +122,6 @@ row_build_index_entry(
 		} else if (dfield_is_ext(dfield)) {
 			ut_a(len >= BTR_EXTERN_FIELD_REF_SIZE);
 			len -= BTR_EXTERN_FIELD_REF_SIZE;
-			ut_a(ind_field->prefix_len <= len
-			     || dict_index_is_clust(index));
 		}
 
 		len = dtype_get_at_most_n_mbchars(
@@ -272,8 +270,7 @@ row_build(
 		ut_ad(dict_table_get_format(index->table)
 		      < DICT_TF_FORMAT_ZIP);
 	} else if (j) {
-		*ext = row_ext_create(j, ext_cols, row,
-				      dict_table_zip_size(index->table),
+		*ext = row_ext_create(j, ext_cols, index->table->flags, row,
 				      heap);
 	} else {
 		*ext = NULL;
