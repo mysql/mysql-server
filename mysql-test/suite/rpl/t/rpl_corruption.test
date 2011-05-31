@@ -79,6 +79,16 @@ SET GLOBAL debug="-d,corrupt_read_log_event_char";
 
 # Emulate corruption on master with crc checking on master
 --echo # 3. Master read a corrupted event from binlog and send the error to slave
+
+# We have a rare but nasty potential race here: if the dump thread on
+# the master for the _old_ slave connection has not yet discovered
+# that the slave has disconnected, we will inject the corrupt event on
+# the wrong connection, and the test will fail
+# (+d,corrupt_read_log_event2 corrupts only one event).
+let $wait_condition=
+  SELECT COUNT(*)=0 FROM INFORMATION_SCHEMA.PROCESSLIST WHERE command = 'Binlog Dump';
+--source include/wait_condition.inc
+
 SET GLOBAL debug="+d,corrupt_read_log_event2";
 --connection slave
 START SLAVE IO_THREAD;
