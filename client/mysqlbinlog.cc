@@ -39,7 +39,12 @@
 #include "sql_common.h"
 #include <welcome_copyright_notice.h> // ORACLE_WELCOME_COPYRIGHT_NOTICE
 
-#define BIN_LOG_HEADER_SIZE	4
+#include <algorithm>
+
+using std::min;
+using std::max;
+
+#define BIN_LOG_HEADER_SIZE	4U
 #define PROBE_HEADER_LEN	(EVENT_LEN_OFFSET+4)
 
 
@@ -2073,7 +2078,7 @@ static Exit_status dump_local_log_entries(PRINT_EVENT_INFO *print_event_info,
       my_off_t length,tmp;
       for (length= start_position_mot ; length > 0 ; length-=tmp)
       {
-	tmp=min(length,sizeof(buff));
+	tmp= min<size_t>(length, sizeof(buff));
 	if (my_b_read(file, buff, (uint) tmp))
         {
           error("Failed reading from file.");

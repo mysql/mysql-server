@@ -502,8 +502,8 @@ public:
   const char *func_name() const { return "cast_as_unsigned"; }
   void fix_length_and_dec()
   {
-    fix_char_length(min(args[0]->max_char_length(),
-                        DECIMAL_MAX_PRECISION + 2));
+    fix_char_length(std::min<uint32>(args[0]->max_char_length(),
+                                     DECIMAL_MAX_PRECISION + 2));
     unsigned_flag=1;
   }
   longlong val_int();

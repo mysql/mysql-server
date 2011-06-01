@@ -24,6 +24,9 @@
 #include "sql_priv.h"
 #include "sql_select.h"
 
+using std::min;
+using std::max;
+
 /**
   Calculate the affordable RAM limit for structures like TREE or Unique
   used in Item_sum_*
@@ -1523,7 +1526,7 @@ void Item_sum_avg::fix_length_and_dec()
   if (hybrid_type == DECIMAL_RESULT)
   {
     int precision= args[0]->decimal_precision() + prec_increment;
-    decimals= min(args[0]->decimals + prec_increment, DECIMAL_MAX_SCALE);
+    decimals= min<uint>(args[0]->decimals + prec_increment, DECIMAL_MAX_SCALE);
     max_length= my_decimal_precision_to_length_no_truncation(precision,
                                                              decimals,
                                                              unsigned_flag);
@@ -1532,7 +1535,7 @@ void Item_sum_avg::fix_length_and_dec()
     dec_bin_size= my_decimal_get_binary_size(f_precision, f_scale);
   }
   else {
-    decimals= min(args[0]->decimals + prec_increment, NOT_FIXED_DEC);
+    decimals= min<uint>(args[0]->decimals + prec_increment, NOT_FIXED_DEC);
     max_length= args[0]->max_length + prec_increment;
   }
 }
@@ -1735,7 +1738,7 @@ void Item_sum_variance::fix_length_and_dec()
   case DECIMAL_RESULT:
   {
     int precision= args[0]->decimal_precision()*2 + prec_increment;
-    decimals= min(args[0]->decimals + prec_increment, DECIMAL_MAX_SCALE);
+    decimals= min<uint>(args[0]->decimals + prec_increment, DECIMAL_MAX_SCALE);
     max_length= my_decimal_precision_to_length_no_truncation(precision,
                                                              decimals,
                                                              unsigned_flag);
@@ -3370,7 +3373,7 @@ bool Item_func_group_concat::setup(THD *thd)
       syntax of this function). If there is no ORDER BY clause, we don't
       create this tree.
     */
-    init_tree(tree, (uint) min(thd->variables.max_heap_table_size,
+    init_tree(tree,  min<uint>(thd->variables.max_heap_table_size,
                                thd->variables.sortbuff_size/16), 0,
               tree_key_length, 
               group_concat_key_cmp_with_order , 0, NULL, (void*) this);

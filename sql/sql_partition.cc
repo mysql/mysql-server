@@ -68,6 +68,10 @@
 #include "opt_range.h"                  // store_key_image_to_rec
 #include "sql_analyse.h"                // append_escaped
 
+#include <algorithm>
+using std::max;
+using std::min;
+
 #ifdef WITH_PARTITION_STORAGE_ENGINE
 #include "ha_partition.h"
 

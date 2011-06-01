@@ -29,6 +29,11 @@
 #include "sql_table.h"                          // tablename_to_filename
 #include "sql_class.h"                          // THD
 
+#include <algorithm>
+
+using std::min;
+using std::max;
+
 ulonglong myisam_recover_options;
 static ulong opt_myisam_block_size;
 

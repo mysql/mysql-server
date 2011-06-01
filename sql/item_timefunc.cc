@@ -49,6 +49,9 @@
 #include <m_ctype.h>
 #include <time.h>
 
+using std::min;
+using std::max;
+
 /** Day number for Dec 31st, 9999. */
 #define MAX_DAY_NUMBER 3652424L
 
@@ -613,7 +616,7 @@ static bool extract_date_time(DATE_TIME_FORMAT *format,
 err:
   {
     char buff[128];
-    strmake(buff, val_begin, min(length, sizeof(buff)-1));
+    strmake(buff, val_begin, min<size_t>(length, sizeof(buff)-1));
     push_warning_printf(current_thd, MYSQL_ERROR::WARN_LEVEL_WARN,
                         ER_WRONG_VALUE_FOR_TYPE, ER(ER_WRONG_VALUE_FOR_TYPE),
                         date_time_type, buff, "str_to_date");
@@ -1887,8 +1890,8 @@ void Item_func_date_format::fix_length_and_dec()
   else
   {
     fixed_length=0;
-    max_length=min(arg1->max_length, MAX_BLOB_WIDTH) * 10 *
-                   collation.collation->mbmaxlen;
+    max_length= min<uint32>(arg1->max_length, MAX_BLOB_WIDTH) * 10 *
+      collation.collation->mbmaxlen;
     set_if_smaller(max_length,MAX_BLOB_WIDTH);
   }
   maybe_null=1;					// If wrong date
@@ -3489,7 +3492,7 @@ null_date:
   if (val && (fuzzy_date & TIME_NO_ZERO_DATE))
   {
     char buff[128];
-    strmake(buff, val->ptr(), min(val->length(), sizeof(buff)-1));
+    strmake(buff, val->ptr(), min<size_t>(val->length(), sizeof(buff)-1));
     push_warning_printf(current_thd, MYSQL_ERROR::WARN_LEVEL_WARN,
                         ER_WRONG_VALUE_FOR_TYPE, ER(ER_WRONG_VALUE_FOR_TYPE),
                         "datetime", buff, "str_to_date");

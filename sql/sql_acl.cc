@@ -50,6 +50,9 @@
 #include "hostname.h"
 #include "sql_db.h"
 
+using std::min;
+using std::max;
+
 bool mysql_user_table_is_in_short_password_format= false;
 
 static const
@@ -1267,7 +1270,7 @@ static ulong get_sort(uint count,...)
         chars= 128;                             // Marker that chars existed
       }
     }
-    sort= (sort << 8) + (wild_pos ? min(wild_pos, 127) : chars);
+    sort= (sort << 8) + (wild_pos ? min(wild_pos, 127U) : chars);
   }
   va_end(args);
   return sort;

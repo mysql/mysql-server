@@ -1376,10 +1376,8 @@ do { doubleget_union _tmp; \
 #define MY_INT64_NUM_DECIMAL_DIGITS 21U
 
 /* Define some useful general macros (should be done after all headers). */
-#if !defined(max)
-#define max(a, b)	((a) > (b) ? (a) : (b))
-#define min(a, b)	((a) < (b) ? (a) : (b))
-#endif  
+#define MY_MAX(a, b)	((a) > (b) ? (a) : (b))
+#define MY_MIN(a, b)	((a) < (b) ? (a) : (b))
 
 /*
   Only Linux is known to need an explicit sync of the directory to make sure a

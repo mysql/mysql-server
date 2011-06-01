@@ -37,6 +37,11 @@ C_MODE_START
 #include "errmsg.h"
 #include "embedded_priv.h"
 
+#include <algorithm>
+
+using std::min;
+using std::max;
+
 extern unsigned int mysql_server_last_errno;
 extern char mysql_server_last_error[MYSQL_ERRMSG_SIZE];
 static my_bool emb_read_query_result(MYSQL *mysql);
@@ -863,7 +868,7 @@ write_eof_packet(THD *thd, uint server_status, uint statement_warn_count)
     is cleared between substatements, and mysqltest gets confused
   */
   thd->cur_data->embedded_info->warning_count=
-    (thd->spcont ? 0 : min(statement_warn_count, 65535));
+    (thd->spcont ? 0 : min(statement_warn_count, 65535U));
   return FALSE;
 }
 
