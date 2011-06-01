@@ -27,7 +27,7 @@ then
   do
     SAVE_IFS=$IFS
     IFS=":"
-    declare -a ARR=($1)
+    declare -a ARR="($1)"
     IFS=$SAVE_IFS
     DIR=`dirname "${ARR[1]}"`
     REMOTE_DIR=`cygpath -u $DIR`
