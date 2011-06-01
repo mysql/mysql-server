@@ -1128,7 +1128,7 @@ static void copy_to_read_buffer(IO_CACHE *write_cache,
   */
   while (write_length)
   {
-    size_t copy_length= min(write_length, write_cache->buffer_length);
+    size_t copy_length= MY_MIN(write_length, write_cache->buffer_length);
     int  __attribute__((unused)) rc;
 
     rc= lock_io_cache(write_cache, write_cache->pos_in_file);
@@ -1286,7 +1286,7 @@ read_append_buffer:
       TODO: figure out if the assert below is needed or correct.
     */
     DBUG_ASSERT(pos_in_file == info->end_of_file);
-    copy_len=min(Count, len_in_buff);
+    copy_len= MY_MIN(Count, len_in_buff);
     memcpy(Buffer, info->append_read_pos, copy_len);
     info->append_read_pos += copy_len;
     Count -= copy_len;
@@ -1395,7 +1395,7 @@ int _my_b_async_read(register IO_CACHE *info, uchar *Buffer, size_t Count)
     }
 #endif
 	/* Copy found bytes to buffer */
-    length=min(Count,read_length);
+    length= MY_MIN(Count, read_length);
     memcpy(Buffer,info->read_pos,(size_t) length);
     Buffer+=length;
     Count-=length;
@@ -1429,7 +1429,7 @@ int _my_b_async_read(register IO_CACHE *info, uchar *Buffer, size_t Count)
       if ((read_length=mysql_file_read(info->file,info->request_pos,
 			               read_length, info->myflags)) == (size_t) -1)
         return info->error= -1;
-      use_length=min(Count,read_length);
+      use_length= MY_MIN(Count, read_length);
       memcpy(Buffer,info->request_pos,(size_t) use_length);
       info->read_pos=info->request_pos+Count;
       info->read_end=info->request_pos+read_length;

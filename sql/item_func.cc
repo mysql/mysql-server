@@ -50,6 +50,9 @@
 #include <mysql/plugin.h>
 #include <mysql/service_thd_wait.h>
 
+using std::min;
+using std::max;
+
 #ifdef NO_EMBEDDED_ACCESS_CHECKS
 #define sp_restore_security_context(A,B) while (0) {}
 #endif
@@ -1484,7 +1487,7 @@ void Item_func_mul::result_precision()
     unsigned_flag= args[0]->unsigned_flag & args[1]->unsigned_flag;
   decimals= min(args[0]->decimals + args[1]->decimals, DECIMAL_MAX_SCALE);
   uint est_prec = args[0]->decimal_precision() + args[1]->decimal_precision();
-  uint precision= min(est_prec, DECIMAL_MAX_PRECISION);
+  uint precision= min<uint>(est_prec, DECIMAL_MAX_PRECISION);
   max_length= my_decimal_precision_to_length_no_truncation(precision, decimals,
                                                            unsigned_flag);
 }
@@ -1536,16 +1539,16 @@ my_decimal *Item_func_div::decimal_op(my_decimal *decimal_value)
 
 void Item_func_div::result_precision()
 {
-  uint precision=min(args[0]->decimal_precision() + 
-                     args[1]->decimals + prec_increment,
-                     DECIMAL_MAX_PRECISION);
+  uint precision= min<uint>(args[0]->decimal_precision() +
+                            args[1]->decimals + prec_increment,
+                            DECIMAL_MAX_PRECISION);
 
   /* Integer operations keep unsigned_flag if one of arguments is unsigned */
   if (result_type() == INT_RESULT)
     unsigned_flag= args[0]->unsigned_flag | args[1]->unsigned_flag;
   else
     unsigned_flag= args[0]->unsigned_flag & args[1]->unsigned_flag;
-  decimals= min(args[0]->decimals + prec_increment, DECIMAL_MAX_SCALE);
+  decimals= min<uint>(args[0]->decimals + prec_increment, DECIMAL_MAX_SCALE);
   max_length= my_decimal_precision_to_length_no_truncation(precision, decimals,
                                                            unsigned_flag);
 }
@@ -2418,7 +2421,7 @@ my_decimal *Item_func_round::decimal_op(my_decimal *decimal_value)
   my_decimal val, *value= args[0]->val_decimal(&val);
   longlong dec= args[1]->val_int();
   if (dec >= 0 || args[1]->unsigned_flag)
-    dec= min((ulonglong) dec, decimals);
+    dec= min<ulonglong>(dec, decimals);
   else if (dec < INT_MIN)
     dec= INT_MIN;
     
@@ -3306,7 +3309,7 @@ udf_handler::fix_fields(THD *thd, Item_result_field *func,
       free_udf(u_d);
       DBUG_RETURN(TRUE);
     }
-    func->max_length=min(initid.max_length,MAX_BLOB_WIDTH);
+    func->max_length= min<size_t>(initid.max_length, MAX_BLOB_WIDTH);
     func->maybe_null=initid.maybe_null;
     const_item_cache=initid.const_item;
     /* 
@@ -3315,7 +3318,7 @@ udf_handler::fix_fields(THD *thd, Item_result_field *func,
     */  
     if (!const_item_cache && !used_tables_cache)
       used_tables_cache= RAND_TABLE_BIT;
-    func->decimals=min(initid.decimals,NOT_FIXED_DEC);
+    func->decimals= min<uint>(initid.decimals, NOT_FIXED_DEC);
   }
   initialized=1;
   if (error)

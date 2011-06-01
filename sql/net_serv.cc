@@ -45,6 +45,11 @@
 #include <errno.h>
 #include "probes_mysql.h"
 
+#include <algorithm>
+
+using std::min;
+using std::max;
+
 #ifdef EMBEDDED_LIBRARY
 #undef MYSQL_SERVER
 #undef MYSQL_CLIENT

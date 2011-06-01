@@ -32,6 +32,12 @@
 #include "sql_audit.h"
 #include <mysql/plugin_auth.h>
 #include "lock.h"                               // MYSQL_LOCK_IGNORE_TIMEOUT
+
+#include <algorithm>
+
+using std::min;
+using std::max;
+
 #define REPORT_TO_LOG  1
 #define REPORT_TO_USER 2
 
@@ -560,7 +566,7 @@ static st_plugin_dl *plugin_dl_add(const LEX_STRING *dl, int report)
     for (i=0;
          (old=(struct st_mysql_plugin *)(ptr+i*sizeof_st_plugin))->info;
          i++)
-      memcpy(cur+i, old, min(sizeof(cur[i]), sizeof_st_plugin));
+      memcpy(cur+i, old, min<size_t>(sizeof(cur[i]), sizeof_st_plugin));
 
     sym= cur;
   }

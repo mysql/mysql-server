@@ -379,7 +379,7 @@
 
 #cmakedefine HAVE_MBSTATE_T
 
-#define MAX_INDEXES 64
+#define MAX_INDEXES 64U
 
 #cmakedefine QSORT_TYPE_IS_VOID 1
 #cmakedefine RETQSORTTYPE @RETQSORTTYPE@

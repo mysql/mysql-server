@@ -27,6 +27,9 @@
 #include "sql_parse.h"                          // check_stack_overrun
 #include "sql_time.h"                  // make_truncated_value_warning
 
+using std::min;
+using std::max;
+
 static bool convert_constant_item(THD *, Item_field *, Item **);
 static longlong
 get_year_value(THD *thd, Item ***item_arg, Item **cache_arg,
@@ -627,7 +630,7 @@ int Arg_comparator::set_compare_func(Item_result_field *item, Item_result type)
   {
     if ((*a)->decimals < NOT_FIXED_DEC && (*b)->decimals < NOT_FIXED_DEC)
     {
-      precision= 5 / log_10[max((*a)->decimals, (*b)->decimals) + 1];
+      precision= 5 / log_10[MY_MAX((*a)->decimals, (*b)->decimals) + 1];
       if (func == &Arg_comparator::compare_real)
         func= &Arg_comparator::compare_real_fixed;
       else if (func == &Arg_comparator::compare_e_real)
@@ -2596,7 +2599,7 @@ uint Item_func_ifnull::decimal_precision() const
   int arg1_int_part= args[1]->decimal_int_part();
   int max_int_part= max(arg0_int_part, arg1_int_part);
   int precision= max_int_part + decimals;
-  return min(precision, DECIMAL_MAX_PRECISION);
+  return min<uint>(precision, DECIMAL_MAX_PRECISION);
 }
 
 
@@ -2785,7 +2788,7 @@ uint Item_func_if::decimal_precision() const
   int arg1_prec= args[1]->decimal_int_part();
   int arg2_prec= args[2]->decimal_int_part();
   int precision=max(arg1_prec,arg2_prec) + decimals;
-  return min(precision, DECIMAL_MAX_PRECISION);
+  return min<uint>(precision, DECIMAL_MAX_PRECISION);
 }
 
 
@@ -3244,7 +3247,7 @@ uint Item_func_case::decimal_precision() const
 
   if (else_expr_num != -1) 
     set_if_bigger(max_int_part, args[else_expr_num]->decimal_int_part());
-  return min(max_int_part + decimals, DECIMAL_MAX_PRECISION);
+  return min<uint>(max_int_part + decimals, DECIMAL_MAX_PRECISION);
 }
 
 
@@ -5288,8 +5291,8 @@ void Item_func_like::turboBM_compute_bad_character_shifts()
 
 bool Item_func_like::turboBM_matches(const char* text, int text_len) const
 {
-  register int bcShift;
-  register int turboShift;
+  int bcShift;
+  int turboShift;
   int shift = pattern_len;
   int j     = 0;
   int u     = 0;
@@ -5303,7 +5306,7 @@ bool Item_func_like::turboBM_matches(const char* text, int text_len) const
   {
     while (j <= tlmpl)
     {
-      register int i= plm1;
+      int i= plm1;
       while (i >= 0 && pattern[i] == text[i + j])
       {
 	i--;
@@ -5313,7 +5316,7 @@ bool Item_func_like::turboBM_matches(const char* text, int text_len) const
       if (i < 0)
 	return 1;
 
-      register const int v = plm1 - i;
+      const int v = plm1 - i;
       turboShift = u - v;
       bcShift    = bmBc[(uint) (uchar) text[i + j]] - plm1 + i;
       shift      = max(turboShift, bcShift);
@@ -5334,7 +5337,7 @@ bool Item_func_like::turboBM_matches(const char* text, int text_len) const
   {
     while (j <= tlmpl)
     {
-      register int i = plm1;
+      int i = plm1;
       while (i >= 0 && likeconv(cs,pattern[i]) == likeconv(cs,text[i + j]))
       {
 	i--;
@@ -5344,7 +5347,7 @@ bool Item_func_like::turboBM_matches(const char* text, int text_len) const
       if (i < 0)
 	return 1;
 
-      register const int v = plm1 - i;
+      const int v = plm1 - i;
       turboShift = u - v;
       bcShift    = bmBc[(uint) likeconv(cs, text[i + j])] - plm1 + i;
       shift      = max(turboShift, bcShift);

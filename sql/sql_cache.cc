@@ -348,6 +348,9 @@ TODO list:
 #include "emb_qcache.h"
 #endif
 
+using std::min;
+using std::max;
+
 #if !defined(EXTRA_DBUG) && !defined(DBUG_OFF)
 #define RW_WLOCK(M) {DBUG_PRINT("lock", ("rwlock wlock 0x%lx",(ulong)(M))); \
   if (!mysql_rwlock_wrlock(M)) DBUG_PRINT("lock", ("rwlock wlock ok")); \
@@ -3131,11 +3134,11 @@ void Query_cache::unlink_table(Query_cache_block_table *node)
 *****************************************************************************/
 
 Query_cache_block *
-Query_cache::allocate_block(ulong len, my_bool not_less, ulong min)
+Query_cache::allocate_block(ulong len, my_bool not_less, ulong minimum)
 {
   DBUG_ENTER("Query_cache::allocate_block");
   DBUG_PRINT("qcache", ("len %lu, not less %d, min %lu",
-             len, not_less,min));
+             len, not_less, minimum));
 
   if (len >= min(query_cache_size, query_cache_limit))
   {
@@ -3148,7 +3151,7 @@ Query_cache::allocate_block(ulong len, my_bool not_less, ulong min)
   Query_cache_block *block;
   do
   {
-    block= get_free_block(len, not_less, min);
+    block= get_free_block(len, not_less, minimum);
   }
   while (block == 0 && !free_old_query());
 

@@ -46,6 +46,9 @@ This file contains the implementation of error and warnings related
 #include "sql_error.h"
 #include "sp_rcontext.h"
 
+using std::min;
+using std::max;
+
 /*
   Design notes about MYSQL_ERROR::m_message_text.
 

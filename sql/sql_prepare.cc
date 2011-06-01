@@ -115,6 +115,10 @@ When one supplies long data for a placeholder:
 #endif
 #include "lock.h"                               // MYSQL_OPEN_FORCE_SHARED_MDL
 
+#include <algorithm>
+using std::max;
+using std::min;
+
 /**
   A result class used to send cursor rows using the binary protocol.
 */
@@ -340,7 +344,7 @@ static bool send_prep_stmt(Prepared_statement *stmt, uint columns)
   int2store(buff+5, columns);
   int2store(buff+7, stmt->param_count);
   buff[9]= 0;                                   // Guard against a 4.1 client
-  tmp= min(stmt->thd->warning_info->statement_warn_count(), 65535);
+  tmp= min(stmt->thd->warning_info->statement_warn_count(), 65535UL);
   int2store(buff+10, tmp);
 
   /*

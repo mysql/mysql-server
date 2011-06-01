@@ -27,6 +27,7 @@
 #include "sql_cache.h"
 #include "structs.h"                            /* SHOW_COMP_OPTION */
 
+#include <algorithm>
 #include <my_global.h>
 #include <my_compare.h>
 #include <ft_global.h>
@@ -287,7 +288,7 @@
 #define HA_LEX_CREATE_TABLE_LIKE 4
 #define HA_OPTION_NO_CHECKSUM	(1L << 17)
 #define HA_OPTION_NO_DELAY_KEY_WRITE (1L << 18)
-#define HA_MAX_REC_LENGTH	65535
+#define HA_MAX_REC_LENGTH	65535U
 
 /* Table caching type */
 #define HA_CACHE_TBL_NONTRANSACT 0
@@ -1967,15 +1968,15 @@ public:
   { return (HA_ERR_WRONG_COMMAND); }
 
   uint max_record_length() const
-  { return min(HA_MAX_REC_LENGTH, max_supported_record_length()); }
+  { return std::min(HA_MAX_REC_LENGTH, max_supported_record_length()); }
   uint max_keys() const
-  { return min(MAX_KEY, max_supported_keys()); }
+  { return std::min(MAX_KEY, max_supported_keys()); }
   uint max_key_parts() const
-  { return min(MAX_REF_PARTS, max_supported_key_parts()); }
+  { return std::min(MAX_REF_PARTS, max_supported_key_parts()); }
   uint max_key_length() const
-  { return min(MAX_KEY_LENGTH, max_supported_key_length()); }
+  { return std::min(MAX_KEY_LENGTH, max_supported_key_length()); }
   uint max_key_part_length() const
-  { return min(MAX_KEY_LENGTH, max_supported_key_part_length()); }
+  { return std::min(MAX_KEY_LENGTH, max_supported_key_part_length()); }
 
   virtual uint max_supported_record_length() const { return HA_MAX_REC_LENGTH; }
   virtual uint max_supported_keys() const { return 0; }

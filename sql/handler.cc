@@ -42,6 +42,9 @@
 #include "ha_partition.h"
 #endif
 
+using std::min;
+using std::max;
+
 // This is a temporary backporting fix.
 #ifndef HAVE_LOG2
 /*
@@ -5284,9 +5287,9 @@ bool DsMrr_impl::get_disk_sweep_mrr_cost(uint keynr, ha_rows rows, uint flags,
   else
   {
     cost->zero();
-    *buffer_size= max(*buffer_size, 
-                      (size_t)(1.2*rows_in_last_step) * elem_size + 
-                      h->ref_length + table->key_info[keynr].key_length);
+    *buffer_size= max<ulong>(*buffer_size,
+                             (size_t)(1.2*rows_in_last_step) * elem_size +
+                             h->ref_length + table->key_info[keynr].key_length);
   }
   
   COST_VECT last_step_cost;

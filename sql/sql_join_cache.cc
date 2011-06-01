@@ -27,6 +27,10 @@
 #include "sql_select.h"
 #include "key.h"
 
+#include <algorithm>
+using std::max;
+using std::min;
+
 
 /*****************************************************************************
  *  Join cache module
@@ -418,7 +422,7 @@ void JOIN_CACHE::set_constants()
   uint len= length + fields*sizeof(uint)+blobs*sizeof(uchar *) +
             (prev_cache ? prev_cache->get_size_of_rec_offset() : 0) +
             sizeof(ulong);
-  buff_size= max(join->thd->variables.join_buff_size, 2*len);
+  buff_size= max<size_t>(join->thd->variables.join_buff_size, 2*len);
   size_of_rec_ofs= offset_size(buff_size);
   size_of_rec_len= blobs ? size_of_rec_ofs : offset_size(len); 
   size_of_fld_ofs= size_of_rec_len;
@@ -2549,7 +2553,7 @@ int JOIN_CACHE_BKA_UNIQUE::init()
   pack_length+= get_size_of_rec_offset(); 
  
   /* Calculate the minimal possible value of size_of_key_ofs greater than 1 */
-  uint max_size_of_key_ofs= max(2, get_size_of_rec_offset());  
+  uint max_size_of_key_ofs= max(2U, get_size_of_rec_offset());  
   for (size_of_key_ofs= 2;
        size_of_key_ofs <= max_size_of_key_ofs;
        size_of_key_ofs+= 2)

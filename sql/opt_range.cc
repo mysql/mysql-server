@@ -113,6 +113,9 @@
 #include <m_ctype.h>
 #include "sql_select.h"
 
+using std::min;
+using std::max;
+
 #ifndef EXTRA_DEBUG
 #define test_rb_tree(A,B) {}
 #define test_use_count(A) {}
@@ -970,7 +973,7 @@ SEL_TREE::SEL_TREE(SEL_TREE *arg, RANGE_OPT_PARAM *param): Sql_alloc()
 {
   keys_map= arg->keys_map;
   type= arg->type;
-  for (int idx= 0; idx < MAX_KEY; idx++)
+  for (unsigned int idx= 0; idx < MAX_KEY; idx++)
   {
     if ((keys[idx]= arg->keys[idx]))
       keys[idx]->increment_use_count(1);
@@ -8073,7 +8076,8 @@ walk_up_n_right:
     }
   }
   seq->param->range_count++;
-  seq->param->max_key_part=max(seq->param->max_key_part,key_tree->part);
+  seq->param->max_key_part= max<uint>(seq->param->max_key_part,
+                                      key_tree->part);
   return 0;
 }
 
@@ -10814,7 +10818,7 @@ void cost_group_min_max(TABLE* table, KEY *index_info, uint used_key_parts,
       p_overlap= (blocks_per_group * (keys_per_subgroup - 1)) / keys_per_group;
       p_overlap= min(p_overlap, 1.0);
     }
-    io_cost= (double) min(num_groups * (1 + p_overlap), num_blocks);
+    io_cost= min<double>(num_groups * (1 + p_overlap), num_blocks);
   }
   else
     io_cost= (keys_per_group > keys_per_block) ?

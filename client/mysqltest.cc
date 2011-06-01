@@ -54,6 +54,11 @@
 
 #include <welcome_copyright_notice.h> // ORACLE_WELCOME_COPYRIGHT_NOTICE
 
+#include <algorithm>
+
+using std::min;
+using std::max;
+
 #ifdef __WIN__
 #include <crtdbg.h>
 #define SIGNAL_FMT "exception 0x%x"
@@ -5920,9 +5925,9 @@ int read_line(char *buf, int size)
       }
       else if ((c == '{' &&
                 (!my_strnncoll_simple(charset_info, (const uchar*) "while", 5,
-                                      (uchar*) buf, min(5, p - buf), 0) ||
+                                      (uchar*) buf, min<my_ptrdiff_t>(5, p - buf), 0) ||
                  !my_strnncoll_simple(charset_info, (const uchar*) "if", 2,
-                                      (uchar*) buf, min(2, p - buf), 0))))
+                                      (uchar*) buf, min<my_ptrdiff_t>(2, p - buf), 0))))
       {
         /* Only if and while commands can be terminated by { */
         *p++= c;
