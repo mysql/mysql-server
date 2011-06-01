@@ -2729,8 +2729,6 @@ fts_fetch_doc_by_id(
 
 	/* If we have a match, add the data to doc structure */
 	if (btr_pcur_get_low_match(&pcur) == 1) {
-		ulint			len;
-		const byte*		data;
 		ulint*			offsets = NULL;
 		ulint			doc_len = 0;
 		ulint			num_field;
@@ -2781,30 +2779,31 @@ fts_fetch_doc_by_id(
 			ifield = dict_index_get_nth_field(index, i);
 			col = dict_field_get_col(ifield);
 			clust_pos = dict_col_get_clust_pos(col, clust_index);
-			data = rec_get_nth_field(clust_rec, offsets,
-						 clust_pos, &len);
-			doc_len += len;
+
+			if (rec_offs_nth_extern(offsets, clust_pos)) {
+				doc->text.utf8 =
+					btr_rec_copy_externally_stored_field(
+						clust_rec, offsets, 
+						dict_table_zip_size(table),
+						clust_pos, &doc->text.len,
+						doc->self_heap->arg);
+
+			} else {
+				doc->text.utf8 = (byte*) rec_get_nth_field(
+					clust_rec, offsets, clust_pos,
+					&doc->text.len);
+			}
+
+			doc->found = TRUE;
+
+			if (i == 0) {
+				fts_tokenize_document(doc, NULL);
+			} else {
+				fts_tokenize_document_next(doc, doc_len, NULL);
+			}
+
+			doc_len += doc->text.len + 1;
 		}
-
-		doc->text.utf8 = ib_heap_malloc(doc->self_heap, doc_len + num_field);
-		doc_len = 0;
-
-		for (i = 0; i < num_field; i++) {
-			ifield = dict_index_get_nth_field(index, i);
-			col = dict_field_get_col(ifield);
-			clust_pos = dict_col_get_clust_pos(col, clust_index);
-			data = rec_get_nth_field(clust_rec, offsets,
-						 clust_pos, &len);
-			memcpy(doc->text.utf8 + doc_len, data, len);
-
-			doc_len += len;
-
-			doc->text.utf8[doc_len] = ' ';
-			doc_len++;
-		}
-
-		doc->text.len = doc_len;
-		doc->found = TRUE;
 	}
 
 	mtr_commit(&mtr);
@@ -3745,7 +3744,9 @@ fts_process_token(
 						tokenize */
 	fts_doc_t*	result,			/* out: if provided, save
 						result here */
-	ulint		start_pos)		/* in: start position in text */
+	ulint		start_pos,		/* in: start position in text */
+	ulint		add_pos)		/* in: add this position to all
+						tokens from this tokenization */
 {
 	ulint		ret;
 	fts_string_t	str;
@@ -3785,7 +3786,7 @@ fts_process_token(
 			ut_ad(rbt_validate(result_doc->tokens));
 		}
 
-		offset += start_pos;
+		offset += start_pos + add_pos;
 		token = rbt_value(fts_token_t, parent.last);
 		ib_vector_push(token->positions, &offset);
 	}
@@ -3813,7 +3814,33 @@ fts_tokenize_document(
 
 	for (i = 0; i < doc->text.len; i += inc) {
 
-		inc = fts_process_token(doc, result, i);
+		inc = fts_process_token(doc, result, i, 0);
+
+		ut_a(inc > 0);
+	}
+}
+
+/******************************************************************//**
+Continue to tokenize a document. */
+UNIV_INTERN
+void
+fts_tokenize_document_next(
+/*=======================*/
+	fts_doc_t*	doc,		/*!< in/out: document to
+					tokenize */
+	ulint		add_pos,	/*!< in: add this position to all
+					tokens from this tokenization */
+	fts_doc_t*	result)		/*!< out: if provided, save
+					the result token here */
+{
+	ulint		i;
+	ulint		inc;
+
+	ut_a(doc->tokens);
+
+	for (i = 0; i < doc->text.len; i += inc) {
+
+		inc = fts_process_token(doc, result, i, add_pos);
 
 		ut_a(inc > 0);
 	}
@@ -3838,8 +3865,6 @@ fts_add_doc(
 	fts_fetch_doc_by_id(get_doc, doc_id, &doc);
 
 	if (doc.found) {
-		fts_tokenize_document(&doc, NULL);
-
 		fts_cache_add_doc(
 			table->fts->cache,
 			get_doc->index_cache, doc_id, doc.tokens);
