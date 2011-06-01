@@ -99,12 +99,15 @@ Transporter::~Transporter(){
 }
 
 bool
-Transporter::connect_server(NDB_SOCKET_TYPE sockfd) {
+Transporter::connect_server(NDB_SOCKET_TYPE sockfd,
+                            BaseString& msg) {
   // all initial negotiation is done in TransporterRegistry::connect_server
   DBUG_ENTER("Transporter::connect_server");
 
   if(m_connected)
   {
+    msg.assfmt("line: %u : already connected ??",
+               __LINE__);
     DBUG_RETURN(false); // TODO assert(0);
   }
   
@@ -116,9 +119,15 @@ Transporter::connect_server(NDB_SOCKET_TYPE sockfd) {
   }
 
   bool res = connect_server_impl(sockfd);
-  if(res){
+  if (res)
+  {
     m_connected  = true;
     m_errorCount = 0;
+  }
+  else
+  {
+    msg.assfmt("line: %u : connect_server_impl failed",
+               __LINE__);
   }
 
   DBUG_RETURN(res);

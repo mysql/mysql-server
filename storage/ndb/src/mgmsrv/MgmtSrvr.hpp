@@ -447,7 +447,7 @@ public:
 
   int connect_to_self(const char* bindaddress = 0);
 
-  bool transporter_connect(NDB_SOCKET_TYPE sockfd);
+  bool transporter_connect(NDB_SOCKET_TYPE sockfd, BaseString& errormsg);
 
   ConfigRetriever *get_config_retriever() { return m_config_retriever; };
 
