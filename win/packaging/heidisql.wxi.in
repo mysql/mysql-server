@@ -8,28 +8,31 @@
           Win64="no"
 />
 </Property>
-<Icon Id='heidisql.exe' SourceFile='${THIRD_PARTY_DOWNLOAD_LOCATION}\HeidiSQL\heidisql.exe' />
-<DirectoryRef Id='MariaDBShared'>
-  <Directory Id='D.HeidiSQL' Name='HeidiSQL'>
-   <Component Id='component.HeidiSQL' Guid='96ea3879-5320-4098-8f26-2f655d2f716c'  Win64='no'>
-    <File Id='heidisql.gpl.txt' Name='gpl.txt' Source='${THIRD_PARTY_DOWNLOAD_LOCATION}\HeidiSQL\gpl.txt' />
-    <File Id='heidisql.heidisql.exe' Name='heidisql.exe' Source='${THIRD_PARTY_DOWNLOAD_LOCATION}\HeidiSQL\heidisql.exe' KeyPath='yes'>
-      <Shortcut Id="desktopHeidiSQL" Directory="DesktopFolder" Name="HeidiSQL" Icon='heidisql.exe' Advertise='yes'/>
+<DirectoryRef Id="MariaDBShared">
+  <Directory Id="D.HeidiSQL" Name="HeidiSQL">
+   <Component Id="component.HeidiSQL" Guid="96ea3879-5320-4098-8f26-2f655d2f716c"  Win64="no"> 
+    <RemoveFile Id="PurgeAppFolder" Name="*.*" On="uninstall" />
+    <File Id="heidisql.gpl.txt" Name="gpl.txt" Source="${HEIDISQL_DOWNLOAD_DIR}\gpl.txt" />
+    <File Id="heidisql.heidisql.exe" Name="heidisql.exe" Source="${HEIDISQL_DOWNLOAD_DIR}\heidisql.exe" KeyPath="yes">
+      <Shortcut Id="desktopHeidiSQL" Directory="DesktopFolder" Name="HeidiSQL" Advertise="yes"/>
     </File>
-    <File Id='heidisql.libmysql.dll' Name='libmysql.dll' Source='${THIRD_PARTY_DOWNLOAD_LOCATION}\HeidiSQL\libmysql.dll' />
-    <File Id='heidisql.license.txt' Name='license.txt' Source='${THIRD_PARTY_DOWNLOAD_LOCATION}\HeidiSQL\license.txt' />
-    <File Id='heidisql.portable_settings.txt' Name='portable_settings.txt' Source='${THIRD_PARTY_DOWNLOAD_LOCATION}\HeidiSQL\portable_settings.txt' />
-    <File Id='heidisql.readme.txt' Name='readme.txt' Source='${THIRD_PARTY_DOWNLOAD_LOCATION}\HeidiSQL\readme.txt' />
+    <File Id="heidisql.license.txt" Name="license.txt" Source="${HEIDISQL_DOWNLOAD_DIR}\license.txt" />
+    <File Id="heidisql.readme.txt" Name="readme.txt" Source="${HEIDISQL_DOWNLOAD_DIR}\readme.txt" />
     </Component>
-    <Component Id='component.HeidiSQL_MenuShortcut' Guid='*' Win64='no'>
+    <Component Id="component.HeidiSQL_MenuShortcut" Guid="*" Win64="no">
       <RegistryValue  Root="HKCU" Key="Software\@CPACK_WIX_PACKAGE_NAME@\Uninstall" Name="shortcuts.heidisql" Value="1" Type="string" KeyPath="yes"  />
-      <Shortcut Id="startmenuHeidiSQL" Directory="ShortcutFolder" Name="HeidiSQL"  Target='[D.HeidiSQL]\heidisql.exe'/>
+      <Shortcut Id="startmenuHeidiSQL" Directory="ShortcutFolder" Name="HeidiSQL"  Target="[D.HeidiSQL]\heidisql.exe"/>
+      <RemoveRegistryKey Id="HeidiSQL_RegistryCleanup" Root="HKCU" Key="SOFTWARE\HeidiSQL" Action="removeOnUninstall" />
+    </Component>
+    <Component Id="component.HeidiSQL_libmysql.dll" Guid="*" Win64="no">
+      <File Id="heidisql.libmysql.dll" Name="libmysql.dll" Source="${HEIDISQL_DOWNLOAD_DIR}\libmysql.dll" />
     </Component>
   </Directory>
 </DirectoryRef>
 
-<ComponentGroup Id='HeidiSQL'>
-  <ComponentRef Id='component.HeidiSQL'/>
-  <ComponentRef Id='component.HeidiSQL_MenuShortcut'/>
+<ComponentGroup Id="HeidiSQL">
+  <ComponentRef Id="component.HeidiSQL"/>
+  <ComponentRef Id="component.HeidiSQL_MenuShortcut"/>
+  <ComponentRef Id="component.HeidiSQL_libmysql.dll"/>
 </ComponentGroup>
 </Include>

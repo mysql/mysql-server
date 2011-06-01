@@ -114,6 +114,7 @@ IF(WITH_THIRD_PARTY)
   ENDIF()
 ENDIF()
 
+GET_TARGET_PROPERTY(LIBMYSQL_LOCATION libmysql LOCATION)
 FOREACH(third_party ${WITH_THIRD_PARTY})
   SET(third_party_install_plugin ${CMAKE_CURRENT_SOURCE_DIR}/${third_party}.cmake)
   IF(NOT EXISTS ${third_party_install_plugin})
