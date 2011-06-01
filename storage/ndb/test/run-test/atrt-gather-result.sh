@@ -21,7 +21,7 @@ mkdir -p result
 cd result
 rm -rf *
 
-if [ `uname | grep -ic cygwin` -ne 0 ]
+if [ `uname | grep -ic cygwin || true` -ne 0 ]
 then
   while [ $# -gt 0 ]
   do

@@ -20,7 +20,7 @@ LOCAL_DIR=$2
 REMOTE_DIR=$3
 verbose=
 
-if [ `uname | grep -ic cygwin` -ne 0 ]
+if [ `uname | grep -ic cygwin || true` -ne 0 ]
 then
     verbose=1
 fi
@@ -46,7 +46,7 @@ then
     exit 0;
 fi
 
-if [ `uname | grep -ic cygwin` -ne 0 ]
+if [ `uname | grep -ic cygwin || true` -ne 0 ]
 then
     LOCAL_DIR=`cygpath -u $LOCAL_DIR`
     REMOTE_DIR=`cygpath -u $REMOTE_DIR`
