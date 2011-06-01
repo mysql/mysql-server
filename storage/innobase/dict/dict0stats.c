@@ -1758,12 +1758,13 @@ Called for the rows that are selected by
 SELECT ... FROM mysql.innodb_index_stats WHERE table='...'
 The second argument is a pointer to the table and the fetched stats are
 written to its indexes.
-Let a table has N indexes and each index has Ui unique columns, then
-mysql.innodb_index_stats will have N*SUM(Ui) rows for for that table. So this
-function will be called N*SUM(Ui) times. In each call it searches for the
-currently fetched index into table->indexes linearly,
-assuming this list is not sorted. Thus, overall, fetching all indexes' stats
-from mysql.innodb_index_stats is O(N^2) where N is the number of indexes.
+Let a table has N indexes and each index has Ui unique columns for i=1..N,
+then mysql.innodb_index_stats will have SUM(Ui) i=1..N rows for that table.
+So this function will be called SUM(Ui) times where SUM(Ui) is of magnitude
+N*AVG(Ui). In each call it searches for the currently fetched index into
+table->indexes linearly, assuming this list is not sorted. Thus, overall,
+fetching all indexes' stats from mysql.innodb_index_stats is O(N^2) where N
+is the number of indexes.
 This can be improved if we sort table->indexes in a temporary area just once
 and then search in that sorted list. Then the complexity will be O(N*log(N)).
 We assume a table will not have more than 100 indexes, so we go with the
