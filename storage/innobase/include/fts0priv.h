@@ -182,6 +182,18 @@ fts_tokenize_document(
 					tokenize */
 	fts_doc_t*	result);	/*!< out: if provided, save
 					result tokens here */
+/*******************************************************************//**
+Continue to tokenize a document. */
+UNIV_INTERN
+void
+fts_tokenize_document_next(
+/*=======================*/
+	fts_doc_t*	doc,		/*!< in/out: document to
+					tokenize */
+	ulint		add_pos,	/*!< in: add this position to all
+					tokens from this tokenization */
+	fts_doc_t*	result);	/*!< out: if provided, save
+					result tokens here */
 /********************************************************************
 Create a new empty document. */
 
