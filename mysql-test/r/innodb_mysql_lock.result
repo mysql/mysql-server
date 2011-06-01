@@ -153,6 +153,7 @@ DROP VIEW v1;
 #              KEY NO 0 FOR TABLE IN ERROR LOG 
 #
 DROP TABLE IF EXISTS t1;
+# Test 1: Secondary index
 # Connection default
 CREATE TABLE t1 (id INT PRIMARY KEY, value INT) ENGINE = InnoDB;
 INSERT INTO t1 VALUES (1, 12345);
@@ -164,11 +165,30 @@ id	value
 SET lock_wait_timeout=1;
 ALTER TABLE t1 ADD INDEX idx(value);
 ERROR HY000: Lock wait timeout exceeded; try restarting transaction
+ALTER TABLE t1 ADD INDEX idx(value);
+ERROR HY000: Lock wait timeout exceeded; try restarting transaction
 # Connection default
 SELECT * FROM t1;
 id	value
 1	12345
 COMMIT;
+DROP TABLE t1;
+# Test 2: Primary index
+CREATE TABLE t1(a INT NOT NULL, b INT NOT NULL) engine=innodb;
+INSERT INTO t1 VALUES (1, 12345), (2, 23456);
+# Connection con1
+SET SESSION debug= "+d,alter_table_rollback_new_index";
+ALTER TABLE t1 ADD PRIMARY KEY(a);
+ERROR HY000: Unknown error
+SELECT * FROM t1;
+a	b
+1	12345
+2	23456
+# Connection default
+SELECT * FROM t1;
+a	b
+1	12345
+2	23456
 DROP TABLE t1;
 #
 # Bug#11747690 33650: MYSQL_ALTER_TABLE() UNNECESSARILY DOES
