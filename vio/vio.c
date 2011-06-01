@@ -166,7 +166,7 @@ static void vio_init(Vio *vio, enum enum_vio_type type,
 */
 
 my_bool vio_reset(Vio* vio, enum enum_vio_type type,
-                  my_socket sd, void *ssl, uint flags)
+                  my_socket sd, void *ssl __attribute__((unused)), uint flags)
 {
   int ret= FALSE;
   Vio old_vio= *vio;
