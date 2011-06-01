@@ -60,6 +60,9 @@
 
 #include "debug_sync.h"
 
+using std::min;
+using std::max;
+
 #define PAR_FILE_ENGINE_OFFSET 12
 static const char *ha_par_ext= ".par";
 
@@ -6459,7 +6462,7 @@ const key_map *ha_partition::keys_to_use_for_scanning()
   DBUG_RETURN(m_file[first_used_partition]->keys_to_use_for_scanning());
 }
 
-#define MAX_PARTS_FOR_OPTIMIZER_CALLS 10
+#define MAX_PARTS_FOR_OPTIMIZER_CALLS 10U
 /*
   Prepare start variables for estimating optimizer costs.
 
@@ -6473,7 +6476,8 @@ void ha_partition::partitions_optimizer_call_preparations(uint *first,
 {
   *first= bitmap_get_first_set(&(m_part_info->read_partitions));
   *num_used_parts= bitmap_bits_set(&(m_part_info->read_partitions));
-  *check_min_num= min(MAX_PARTS_FOR_OPTIMIZER_CALLS, *num_used_parts);
+  *check_min_num= min<uint>(MAX_PARTS_FOR_OPTIMIZER_CALLS,
+                            *num_used_parts);
 }
 
 

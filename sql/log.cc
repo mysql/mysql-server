@@ -44,6 +44,9 @@
 #include "message.h"
 #endif
 
+using std::min;
+using std::max;
+
 /* max size of the log message */
 #define MAX_LOG_BUFFER_SIZE 1024
 #define MAX_TIME_SIZE 32
@@ -618,11 +621,11 @@ bool Log_to_csv_event_handler::
     t.neg= 0;
 
     /* fill in query_time field */
-    calc_time_from_sec(&t, (long) min(query_time, (longlong) TIME_MAX_VALUE_SECONDS), 0);
+    calc_time_from_sec(&t, min<long>(query_time, (longlong) TIME_MAX_VALUE_SECONDS), 0);
     if (table->field[SQLT_FIELD_QUERY_TIME]->store_time(&t, MYSQL_TIMESTAMP_TIME))
       goto err;
     /* lock_time */
-    calc_time_from_sec(&t, (long) min(lock_time, (longlong) TIME_MAX_VALUE_SECONDS), 0);
+    calc_time_from_sec(&t, min<long>(lock_time, (longlong) TIME_MAX_VALUE_SECONDS), 0);
     if (table->field[SQLT_FIELD_LOCK_TIME]->store_time(&t, MYSQL_TIMESTAMP_TIME))
       goto err;
     /* rows_sent */
@@ -2020,7 +2023,7 @@ const char *MYSQL_LOG::generate_name(const char *log_name,
   {
     char *p= fn_ext(log_name);
     uint length= (uint) (p - log_name);
-    strmake(buff, log_name, min(length, FN_REFLEN-1));
+    strmake(buff, log_name, min<size_t>(length, FN_REFLEN-1));
     return (const char*)buff;
   }
   return log_name;

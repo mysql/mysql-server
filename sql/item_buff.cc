@@ -30,6 +30,9 @@
 #include "sql_class.h"          // THD
 #include "set_var.h"            // Cached_item, Cached_item_field, ...
 
+using std::min;
+using std::max;
+
 /**
   Create right type of Cached_item for an item.
 */
@@ -71,7 +74,7 @@ Cached_item::~Cached_item() {}
 
 Cached_item_str::Cached_item_str(THD *thd, Item *arg)
   :item(arg),
-   value_max_length(min(arg->max_length, thd->variables.max_sort_length)),
+   value_max_length(min<uint32>(arg->max_length, thd->variables.max_sort_length)),
    value(value_max_length)
 {}
 

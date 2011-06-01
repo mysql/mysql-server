@@ -29,6 +29,9 @@
 #include "sql_analyse.h"
 #include <m_ctype.h>
 
+using std::min;
+using std::max;
+
 #define MAX_TREEMEM	  8192
 #define MAX_TREE_ELEMENTS 256
 
@@ -276,16 +279,16 @@ bool get_ev_num_info(EV_NUM_INFO *ev_info, NUM_INFO *info, const char *num)
   {
     if (((longlong) info->ullval) < 0)
       return 0; // Impossible to store as a negative number
-    ev_info->llval =  -(longlong) max((ulonglong) -ev_info->llval, 
-				      info->ullval);
-    ev_info->min_dval = (double) -max(-ev_info->min_dval, info->dval);
+    ev_info->llval =  - max<longlong>((ulonglong) -ev_info->llval, 
+                                           info->ullval);
+    ev_info->min_dval = - max<double>(-ev_info->min_dval, info->dval);
   }
   else		// ulonglong is as big as bigint in MySQL
   {
     if ((check_ulonglong(num, info->integers) == DECIMAL_NUM))
       return 0;
-    ev_info->ullval = (ulonglong) max(ev_info->ullval, info->ullval);
-    ev_info->max_dval =  (double) max(ev_info->max_dval, info->dval);
+    ev_info->ullval = max<ulonglong>(ev_info->ullval, info->ullval);
+    ev_info->max_dval = max<double>(ev_info->max_dval, info->dval);
   }
   return 1;
 } // get_ev_num_info
@@ -1176,7 +1179,7 @@ bool analyse::change_columns(List<Item> &field_list)
   func_items[8] = new Item_proc_string("Std", 255);
   func_items[8]->maybe_null = 1;
   func_items[9] = new Item_proc_string("Optimal_fieldtype",
-				       max(64, output_str_length));
+				       max(64U, output_str_length));
 
   for (uint i = 0; i < array_elements(func_items); i++)
     field_list.push_back(func_items[i]);

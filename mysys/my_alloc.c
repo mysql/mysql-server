@@ -212,7 +212,7 @@ void *alloc_root(MEM_ROOT *mem_root, size_t length)
   {						/* Time to alloc new block */
     block_size= mem_root->block_size * (mem_root->block_num >> 2);
     get_size= length+ALIGN_SIZE(sizeof(USED_MEM));
-    get_size= max(get_size, block_size);
+    get_size= MY_MAX(get_size, block_size);
 
     if (!(next = (USED_MEM*) my_malloc(get_size,MYF(MY_WME | ME_FATALERROR))))
     {

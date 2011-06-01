@@ -39,6 +39,11 @@
 #include <signal.h>
 #include <violite.h>
 
+#include <algorithm>
+
+using std::min;
+using std::max;
+
 #if defined(USE_LIBEDIT_INTERFACE) && defined(HAVE_LOCALE_H)
 #include <locale.h>
 #endif
@@ -3354,9 +3359,9 @@ print_table_data(MYSQL_RES *result)
   {
     uint length= column_names ? field->name_length : 0;
     if (quick)
-      length=max(length,field->length);
+      length= max<size_t>(length, field->length);
     else
-      length=max(length,field->max_length);
+      length= max<size_t>(length, field->max_length);
     if (length < 4 && !IS_NOT_NULL(field->flags))
       length=4;					// Room for "NULL"
     field->max_length=length;
@@ -3376,8 +3381,8 @@ print_table_data(MYSQL_RES *result)
                                                   field->name,
                                                   field->name + name_length);
       uint display_length= field->max_length + name_length - numcells;
-      tee_fprintf(PAGER, " %-*s |",(int) min(display_length,
-                                            MAX_COLUMN_LENGTH),
+      tee_fprintf(PAGER, " %-*s |",
+                  min<int>(display_length, MAX_COLUMN_LENGTH),
                   field->name);
       num_flag[off]= IS_NUM(field->type);
     }
@@ -3466,9 +3471,9 @@ static int get_field_disp_length(MYSQL_FIELD *field)
   uint length= column_names ? field->name_length : 0;
 
   if (quick)
-    length= max(length, field->length);
+    length= max<uint>(length, field->length);
   else
-    length= max(length, field->max_length);
+    length= max<uint>(length, field->max_length);
 
   if (length < 4 && !IS_NOT_NULL(field->flags))
     length= 4;				/* Room for "NULL" */

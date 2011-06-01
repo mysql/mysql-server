@@ -57,6 +57,9 @@
 #include "rpl_tblmap.h"
 #include "debug_sync.h"
 
+using std::min;
+using std::max;
+
 #define FLAGSTR(V,F) ((V)&(F)?#F" ":"")
 
 #define MAX_SLAVE_RETRY_PAUSE 5
@@ -358,8 +361,8 @@ int init_recovery(Master_info* mi, const char** errmsg)
   const char *group_master_log_name=  rli->get_group_master_log_name();
   if (group_master_log_name[0])
   {
-    mi->set_master_log_pos(max(BIN_LOG_HEADER_SIZE,
-                           rli->get_group_master_log_pos()));
+    mi->set_master_log_pos(max<ulonglong>(BIN_LOG_HEADER_SIZE,
+                                               rli->get_group_master_log_pos()));
     mi->set_master_log_name(rli->get_group_master_log_name());
 
     sql_print_warning("Recovery from master pos %ld and file %s.",
@@ -2162,7 +2165,7 @@ bool show_master_info(THD* thd, Master_info* mi)
         special marker to say "consider we have caught up".
       */
       protocol->store((longlong)(mi->rli->last_master_timestamp ?
-                                 max(0, time_diff) : 0));
+                                 max(0L, time_diff) : 0));
     }
     else
     {
@@ -2914,7 +2917,7 @@ static int exec_relay_log_event(THD* thd, Relay_log_info* rli)
             exec_res= 0;
             rli->cleanup_context(thd, 1);
             /* chance for concurrent connection to get more locks */
-            slave_sleep(thd, min(rli->trans_retries, MAX_SLAVE_RETRY_PAUSE),
+            slave_sleep(thd, min<ulong>(rli->trans_retries, MAX_SLAVE_RETRY_PAUSE),
                         sql_slave_killed, rli);
             mysql_mutex_lock(&rli->data_lock); // because of SHOW STATUS
             rli->trans_retries++;
@@ -4873,8 +4876,8 @@ static IO_CACHE *reopen_relay_log(Relay_log_info *rli, const char **errmsg)
     relay_log_pos       Current log pos
     pending             Number of bytes already processed from the event
   */
-  rli->set_event_relay_log_pos(max(rli->get_event_relay_log_pos(),
-                                   BIN_LOG_HEADER_SIZE));
+  rli->set_event_relay_log_pos(max<ulonglong>(rli->get_event_relay_log_pos(),
+                                              BIN_LOG_HEADER_SIZE));
   my_b_seek(cur_log,rli->get_event_relay_log_pos());
   DBUG_RETURN(cur_log);
 }
@@ -5849,8 +5852,8 @@ bool change_master(THD* thd, Master_info* mi)
   if (lex_mi->heartbeat_opt != LEX_MASTER_INFO::LEX_MI_UNCHANGED)
     mi->heartbeat_period = lex_mi->heartbeat_period;
   else
-    mi->heartbeat_period= (float) min(SLAVE_MAX_HEARTBEAT_PERIOD,
-                                      (slave_net_timeout/2.0));
+    mi->heartbeat_period= min<float>(SLAVE_MAX_HEARTBEAT_PERIOD,
+                                     (slave_net_timeout/2.0));
   mi->received_heartbeats= LL(0); // counter lives until master is CHANGEd
   /*
     reset the last time server_id list if the current CHANGE MASTER 
@@ -5950,8 +5953,8 @@ bool change_master(THD* thd, Master_info* mi)
        of replication is not 100% clear, so we guard against problems using
        max().
       */
-     mi->set_master_log_pos(max(BIN_LOG_HEADER_SIZE,
-                           mi->rli->get_group_master_log_pos()));
+     mi->set_master_log_pos(max<ulonglong>(BIN_LOG_HEADER_SIZE,
+                                           mi->rli->get_group_master_log_pos()));
      mi->set_master_log_name(mi->rli->get_group_master_log_name());
   }
   /*

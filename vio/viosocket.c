@@ -142,7 +142,7 @@ size_t vio_read_buff(Vio *vio, uchar* buf, size_t size)
 
   if (vio->read_pos < vio->read_end)
   {
-    rc= min((size_t) (vio->read_end - vio->read_pos), size);
+    rc= MY_MIN((size_t) (vio->read_end - vio->read_pos), size);
     memcpy(buf, vio->read_pos, rc);
     vio->read_pos+= rc;
     /*

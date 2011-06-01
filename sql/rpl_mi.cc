@@ -20,6 +20,9 @@
 #include "rpl_mi.h"
 #include "rpl_slave.h"                          // SLAVE_MAX_HEARTBEAT_PERIOD
 
+using std::min;
+using std::max;
+
 #ifdef HAVE_REPLICATION
 
 enum {
@@ -167,8 +170,8 @@ void Master_info::init_master_log_pos()
     if CHANGE MASTER did not specify it.  (no data loss in conversion
     as hb period has a max)
   */
-  heartbeat_period= (float) min(SLAVE_MAX_HEARTBEAT_PERIOD,
-                                (slave_net_timeout/2.0));
+  heartbeat_period= min<float>(SLAVE_MAX_HEARTBEAT_PERIOD,
+                               (slave_net_timeout/2.0));
   DBUG_ASSERT(heartbeat_period > (float) 0.001
               || heartbeat_period == 0);
 

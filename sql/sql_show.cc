@@ -54,6 +54,10 @@
 #include "debug_sync.h"
 #include "datadict.h"   // dd_frm_type()
 
+#include <algorithm>
+using std::max;
+using std::min;
+
 #define STR_OR_NIL(S) ((S) ? (S) : "<nil>")
 
 #ifdef WITH_PARTITION_STORAGE_ENGINE
@@ -720,7 +724,7 @@ mysqld_show_create(THD *thd, TABLE_LIST *table_list)
   {
     field_list.push_back(new Item_empty_string("View",NAME_CHAR_LEN));
     field_list.push_back(new Item_empty_string("Create View",
-                                               max(buffer.length(),1024)));
+                                               max(buffer.length(), 1024U)));
     field_list.push_back(new Item_empty_string("character_set_client",
                                                MY_CS_NAME_SIZE));
     field_list.push_back(new Item_empty_string("collation_connection",
@@ -731,7 +735,7 @@ mysqld_show_create(THD *thd, TABLE_LIST *table_list)
     field_list.push_back(new Item_empty_string("Table",NAME_CHAR_LEN));
     // 1024 is for not to confuse old clients
     field_list.push_back(new Item_empty_string("Create Table",
-                                               max(buffer.length(),1024)));
+                                               max(buffer.length(), 1024U)));
   }
 
   if (protocol->send_result_set_metadata(&field_list,
@@ -1844,7 +1848,7 @@ void mysqld_list_processes(THD *thd,const char *user, bool verbose)
         /* Lock THD mutex that protects its data when looking at it. */
         if (tmp->query())
         {
-          uint length= min(max_query_length, tmp->query_length());
+          uint length= min<uint>(max_query_length, tmp->query_length());
           char *q= thd->strmake(tmp->query(),length);
           /* Safety: in case strmake failed, we set length to 0. */
           thd_info->query_string=
@@ -1967,9 +1971,9 @@ int fill_schema_processlist(THD* thd, TABLE_LIST* tables, Item* cond)
       mysql_mutex_lock(&tmp->LOCK_thd_data);
       if (tmp->query())
       {
-        table->field[7]->store(tmp->query(),
-                               min(PROCESS_LIST_INFO_WIDTH,
-                                   tmp->query_length()), cs);
+        size_t const width=
+          min<size_t>(PROCESS_LIST_INFO_WIDTH, tmp->query_length());
+        table->field[7]->store(tmp->query(), width, cs);
         table->field[7]->set_notnull();
       }
       mysql_mutex_unlock(&tmp->LOCK_thd_data);
@@ -7822,7 +7826,7 @@ static bool show_create_trigger_impl(THD *thd,
 
     Item_empty_string *stmt_fld=
       new Item_empty_string("SQL Original Statement",
-                            max(trg_sql_original_stmt.length, 1024));
+                            max<size_t>(trg_sql_original_stmt.length, 1024));
 
     stmt_fld->maybe_null= TRUE;
 

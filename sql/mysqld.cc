@@ -92,6 +92,9 @@
 #include <poll.h>
 #endif
 
+using std::min;
+using std::max;
+
 #define mysqld_charset &my_charset_latin1
 
 /* We have HAVE_purify below as this speeds up the shutdown of MySQL */
@@ -2514,7 +2517,7 @@ the thread stack. Please read http://dev.mysql.com/doc/mysql/en/linux.html\n\n",
     fprintf(stderr, "\nTrying to get some variables.\n"
                     "Some pointers may be invalid and cause the dump to abort.\n");
     fprintf(stderr, "Query (%p): ", thd->query());
-    my_safe_print_str(thd->query(), min(1024, thd->query_length()));
+    my_safe_print_str(thd->query(), min(1024U, thd->query_length()));
     fprintf(stderr, "Connection ID (thread ID): %lu\n", (ulong) thd->thread_id);
     fprintf(stderr, "Status: %s\n", kreason);
     fputc('\n', stderr);
@@ -3466,7 +3469,7 @@ int init_common_variables()
       can't get max_connections*5 but still got no less than was
       requested (value of wanted_files).
     */
-    max_open_files= max(max(wanted_files, max_connections*5),
+    max_open_files= max(max<ulong>(wanted_files, max_connections*5),
                         open_files_limit);
     files= my_set_max_open_files(max_open_files);
 
@@ -3478,17 +3481,17 @@ int init_common_variables()
           If we have requested too much file handles than we bring
           max_connections in supported bounds.
         */
-        max_connections= (ulong) min(files-10-TABLE_OPEN_CACHE_MIN*2,
-                                     max_connections);
+        max_connections= min<ulong>(files - 10 - TABLE_OPEN_CACHE_MIN * 2,
+                                    max_connections);
         /*
           Decrease table_cache_size according to max_connections, but
           not below TABLE_OPEN_CACHE_MIN.  Outer min() ensures that we
           never increase table_cache_size automatically (that could
           happen if max_connections is decreased above).
         */
-        table_cache_size= (ulong) min(max((files-10-max_connections)/2,
-                                          TABLE_OPEN_CACHE_MIN),
-                                      table_cache_size);
+        table_cache_size= min<ulong>(max<ulong>((files-10-max_connections)/2,
+                                                TABLE_OPEN_CACHE_MIN),
+                                     table_cache_size);
 	DBUG_PRINT("warning",
 		   ("Changed limits: max_open_files: %u  max_connections: %ld  table_cache: %ld",
 		    files, max_connections, table_cache_size));
@@ -5478,7 +5481,7 @@ void handle_connections_sockets()
   struct pollfd fds[2]; // for ip_sock and unix_sock
 #else
   fd_set readFDs,clientFDs;
-  uint max_used_connection= (uint) (max(ip_sock,unix_sock)+1);
+  uint max_used_connection= max<uint>(ip_sock,unix_sock) + 1;
 #endif
 
   DBUG_ENTER("handle_connections_sockets");

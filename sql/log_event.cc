@@ -47,6 +47,8 @@
 #include <my_bitmap.h>
 #include "rpl_utility.h"
 
+using std::min;
+using std::max;
 
 /**
   BINLOG_CHECKSUM variable.
@@ -1252,8 +1254,8 @@ Log_event* Log_event::read_log_event(IO_CACHE* file,
     of 13 bytes, whereas LOG_EVENT_MINIMAL_HEADER_LEN is 19 bytes (it's
     "minimal" over the set {MySQL >=4.0}).
   */
-  uint header_size= min(description_event->common_header_len,
-                        LOG_EVENT_MINIMAL_HEADER_LEN);
+  uint header_size= min<uint>(description_event->common_header_len,
+                              LOG_EVENT_MINIMAL_HEADER_LEN);
 
   LOCK_MUTEX;
   DBUG_PRINT("info", ("my_b_tell: %lu", (ulong) my_b_tell(file)));
@@ -1278,8 +1280,10 @@ failed my_b_read"));
   uint max_allowed_packet= thd ? thd->variables.max_allowed_packet : ~(ulong)0;
 #endif
 
-  if (data_len > max(max_allowed_packet,
-                     opt_binlog_rows_event_max_size + MAX_LOG_EVENT_HEADER))
+  ulong const max_size=
+    max<ulong>(max_allowed_packet,
+               opt_binlog_rows_event_max_size + MAX_LOG_EVENT_HEADER);
+  if (data_len > max_size)
   {
     error = "Event too big";
     goto err;
@@ -3093,7 +3097,7 @@ Query_log_event::Query_log_event(const char* buf, uint event_len,
       be even bigger, but this will suffice to catch most corruption
       errors that can lead to a crash.
     */
-    if (status_vars_len > min(data_len, MAX_SIZE_LOG_EVENT_STATUS))
+    if (status_vars_len > min<ulong>(data_len, MAX_SIZE_LOG_EVENT_STATUS))
     {
       DBUG_PRINT("info", ("status_vars_len (%u) > data_len (%lu); query= 0",
                           status_vars_len, data_len));
@@ -7921,7 +7925,7 @@ int Rows_log_event::do_add_row_data(uchar *row_data, size_t length)
     trigger false warnings.
    */
 #ifndef HAVE_purify
-  DBUG_DUMP("row_data", row_data, min(length, 32));
+  DBUG_DUMP("row_data", row_data, min<size_t>(length, 32));
 #endif
 
   DBUG_ASSERT(m_rows_buf <= m_rows_cur);

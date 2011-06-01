@@ -69,6 +69,9 @@
 #pragma warning (disable : 4065)
 #endif
 
+using std::min;
+using std::max;
+
 int yylex(void *yylval, void *yythd);
 
 #define yyoverflow(A,B,C,D,E,F)               \
@@ -2035,7 +2038,7 @@ master_file_def:
                from 0" (4 in fact), unspecified means "don't change the position
                (keep the preceding value)").
             */
-            Lex->mi.pos = max(BIN_LOG_HEADER_SIZE, Lex->mi.pos);
+            Lex->mi.pos = max<ulonglong>(BIN_LOG_HEADER_SIZE, Lex->mi.pos);
           }
         | RELAY_LOG_FILE_SYM EQ TEXT_STRING_sys
           {
@@ -2045,7 +2048,8 @@ master_file_def:
           {
             Lex->mi.relay_log_pos = $3;
             /* Adjust if < BIN_LOG_HEADER_SIZE (same comment as Lex->mi.pos) */
-            Lex->mi.relay_log_pos = max(BIN_LOG_HEADER_SIZE, Lex->mi.relay_log_pos);
+            Lex->mi.relay_log_pos = max<ulong>(BIN_LOG_HEADER_SIZE,
+                                               Lex->mi.relay_log_pos);
           }
         ;
 

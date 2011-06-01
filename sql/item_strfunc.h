@@ -792,7 +792,7 @@ public:
     collation.set(args[0]->collation);
     ulonglong max_result_length= (ulonglong) args[0]->max_length * 2 +
                                   2 * collation.collation->mbmaxlen;
-    max_length= (uint32) min(max_result_length, MAX_BLOB_WIDTH);
+    max_length= std::min<uint32>(max_result_length, MAX_BLOB_WIDTH);
   }
 };
 
