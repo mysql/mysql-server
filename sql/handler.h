@@ -1214,6 +1214,27 @@ uint calculate_key_len(TABLE *, uint, const uchar *, key_part_map);
 */
 #define make_prev_keypart_map(N) (((key_part_map)1 << (N)) - 1)
 
+
+/**
+  Index creation context.
+  Created by handler::add_index() and freed by handler::final_add_index().
+*/
+
+class handler_add_index
+{
+public:
+  /* Table where the indexes are added */
+  TABLE* const table;
+  /* Indexes being created */
+  KEY* const key_info;
+  /* Size of key_info[] */
+  const uint num_of_keys;
+  handler_add_index(TABLE *table_arg, KEY *key_info_arg, uint num_of_keys_arg)
+    : table (table_arg), key_info (key_info_arg), num_of_keys (num_of_keys_arg)
+  {}
+  virtual ~handler_add_index() {}
+};
+
 /**
   The handler class is the interface for dynamically loadable
   storage engines. Do not add ifdefs and take care when adding or
@@ -1909,8 +1930,36 @@ public:
 
   virtual ulong index_flags(uint idx, uint part, bool all_parts) const =0;
 
-  virtual int add_index(TABLE *table_arg, KEY *key_info, uint num_of_keys)
+/**
+   First phase of in-place add index.
+   Handlers are supposed to create new indexes here but not make them
+   visible.
+
+   @param table_arg   Table to add index to
+   @param key_info    Information about new indexes
+   @param num_of_key  Number of new indexes
+   @param add[out]    Context of handler specific information needed
+                      for final_add_index().
+
+   @note This function can be called with less than exclusive metadata
+   lock depending on which flags are listed in alter_table_flags.
+*/
+  virtual int add_index(TABLE *table_arg, KEY *key_info, uint num_of_keys,
+                        handler_add_index **add)
   { return (HA_ERR_WRONG_COMMAND); }
+
+/**
+   Second and last phase of in-place add index.
+   Commit or rollback pending new indexes.
+
+   @param add     Context of handler specific information from add_index().
+   @param commit  If true, commit. If false, rollback index changes.
+
+   @note This function is called with exclusive metadata lock.
+*/
+  virtual int final_add_index(handler_add_index *add, bool commit)
+  { return (HA_ERR_WRONG_COMMAND); }
+
   virtual int prepare_drop_index(TABLE *table_arg, uint *key_num,
                                  uint num_of_keys)
   { return (HA_ERR_WRONG_COMMAND); }
