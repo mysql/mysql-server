@@ -1,6 +1,6 @@
 /* -*- mode: C; c-basic-offset: 4 -*- */
 #ident "Copyright (c) 2010 Tokutek Inc.  All rights reserved."
-#ident "$Id: loader-create-close.c 20421 2010-05-19 19:24:57Z bkuszmaul $"
+#ident "$Id$"
 
 // Verify that the loader grabs references on the DB's
 
