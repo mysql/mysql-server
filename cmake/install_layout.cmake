@@ -103,7 +103,7 @@ ENDIF()
 # just use if(INSTALL_PLUGINTESTDIR).
 # The plugin must set its own install path for tests
 #
-FILE(GLOB plugin_tests plugin/*/tests)
+FILE(GLOB plugin_tests ${CMAKE_SOURCE_DIR}/plugin/*/tests)
 
 #
 # STANDALONE layout
