@@ -1753,6 +1753,14 @@ dict_stats_fetch_table_stats_step(
 }
 /* @} */
 
+/** Aux struct used to pass a table and a boolean to
+dict_stats_fetch_index_stats_step(). */
+typedef struct index_fetch_struct {
+	dict_table_t*	table;	/*!< table whose indexes are to be modified */
+	ibool		stats_were_modified; /*!< will be set to TRUE if at
+				least one index stats were modified */
+} index_fetch_t;
+
 /*********************************************************************//**
 Called for the rows that are selected by
 SELECT ... FROM mysql.innodb_index_stats WHERE table='...'
@@ -1776,10 +1784,12 @@ void*
 dict_stats_fetch_index_stats_step(
 /*==============================*/
 	void*	node_void,	/*!< in: select node */
-	void*	table_void)	/*!< out: table */
+	void*	arg_void)	/*!< out: table + a flag that tells if we
+				modified anything */
 {
 	sel_node_t*	node = (sel_node_t*) node_void;
-	dict_table_t*	table = (dict_table_t*) table_void;
+	index_fetch_t*	arg = (index_fetch_t*) arg_void;
+	dict_table_t*	table = arg->table;
 	dict_index_t*	index = NULL;
 	que_common_t*	cnode;
 	const char*	stat_name = NULL;
@@ -1900,9 +1910,11 @@ dict_stats_fetch_index_stats_step(
 
 	if (strncasecmp("size", stat_name, stat_name_len) == 0) {
 		index->stat_index_size = (ulint) stat_value;
+		arg->stats_were_modified = TRUE;
 	} else if (strncasecmp("n_leaf_pages", stat_name, stat_name_len)
 		   == 0) {
 		index->stat_n_leaf_pages = (ulint) stat_value;
+		arg->stats_were_modified = TRUE;
 	} else if (strncasecmp(PFX, stat_name,
 			       ut_min(strlen(PFX), stat_name_len)) == 0) {
 
@@ -1975,6 +1987,8 @@ dict_stats_fetch_index_stats_step(
 			table manually and SET sample_size = NULL */
 			index->stat_n_sample_sizes[n_pfx] = 0;
 		}
+
+		arg->stats_were_modified = TRUE;
 	} else {
 		/* silently ignore rows with unknown stat_name, the
 		user may have developed her own stats */
@@ -1997,6 +2011,7 @@ dict_stats_fetch_from_ps(
 	ibool		caller_has_dict_sys_mutex)/*!< in: TRUE if the caller
 					owns dict_sys->mutex */
 {
+	index_fetch_t	index_fetch_arg;
 	trx_t*		trx;
 	pars_info_t*	pinfo;
 	ulint		ret;
@@ -2027,10 +2042,12 @@ dict_stats_fetch_from_ps(
 			       dict_stats_fetch_table_stats_step,
 			       table);
 
+	index_fetch_arg.table = table;
+	index_fetch_arg.stats_were_modified = FALSE;
 	pars_info_add_function(pinfo,
 			       "fetch_index_stats_step",
 			       dict_stats_fetch_index_stats_step,
-			       table);
+			       &index_fetch_arg);
 
 	ret = que_eval_sql(pinfo,
 			   "PROCEDURE FETCH_STATS () IS\n"
@@ -2102,6 +2119,10 @@ dict_stats_fetch_from_ps(
 	trx_commit_for_mysql(trx);
 
 	trx_free_for_background(trx);
+
+	if (!index_fetch_arg.stats_were_modified) {
+		return(DB_STATS_DO_NOT_EXIST);
+	}
 
 	return(ret);
 }
