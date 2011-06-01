@@ -53,6 +53,9 @@ C_MODE_START
 #include "../mysys/my_static.h"			// For soundex_map
 C_MODE_END
 
+using std::min;
+using std::max;
+
 /**
    @todo Remove this. It is not safe to use a shared String object.
  */
@@ -3508,7 +3511,7 @@ void Item_func_export_set::fix_length_and_dec()
   uint32 sep_length= (arg_count > 3 ? args[3]->max_char_length() : 1);
 
   if (agg_arg_charsets_for_string_result(collation,
-                                         args + 1, min(4, arg_count) - 1))
+                                         args + 1, min(4U, arg_count) - 1))
     return;
   fix_char_length(length * 64 + sep_length * 63);
 }
@@ -3929,7 +3932,7 @@ String *Item_func_uuid::val_str(String *str)
       /*
         -1 so we won't make tv= uuid_time for nanoseq >= (tv - uuid_time)
       */
-      ulong delta= min(nanoseq, (ulong) (tv - uuid_time -1));
+      ulong delta= min<ulong>(nanoseq, (ulong) (tv - uuid_time -1));
       tv-= delta;
       nanoseq-= delta;
     }

@@ -37,6 +37,9 @@
 #include "sql_select.h"
 #include "debug_sync.h"
 
+using std::min;
+using std::max;
+
 	/* functions defined in this file */
 
 static void make_char_array(FILESORT_INFO *info, uint fields, uint length);
@@ -240,11 +243,11 @@ ha_rows filesort(THD *thd, TABLE *table, SORT_FIELD *sortorder, uint s_length,
     DBUG_PRINT("info", ("filesort PQ is not applicable"));
 
     const ulong min_sort_memory=
-      max(MIN_SORT_MEMORY, param.sort_length*MERGEBUFF2);
+      max<uint>(MIN_SORT_MEMORY, param.sort_length * MERGEBUFF2);
     while (memory_available >= min_sort_memory)
     {
       ulong keys= memory_available / (param.rec_length + sizeof(char*));
-      param.max_keys_per_buffer= (uint) min(num_rows, keys);
+      param.max_keys_per_buffer= min<uint>(num_rows, keys);
       make_char_array(&table_sort, param.max_keys_per_buffer, param.rec_length);
       if (table_sort.sort_keys)
         break;
@@ -1334,7 +1337,7 @@ uint read_to_buffer(IO_CACHE *fromfile, BUFFPEK *buffpek,
   register uint count;
   uint length;
 
-  if ((count=(uint) min((ha_rows) buffpek->max_keys,buffpek->count)))
+  if ((count= min<uint>((ha_rows) buffpek->max_keys,buffpek->count)))
   {
     if (mysql_file_pread(fromfile->file, (uchar*) buffpek->base,
                          (length= rec_length*count),

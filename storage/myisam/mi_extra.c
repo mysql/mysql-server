@@ -99,8 +99,8 @@ int mi_extra(MI_INFO *info, enum ha_extra_function function, void *extra_arg)
       cache_size= (extra_arg ? *(ulong*) extra_arg :
 		   my_default_record_cache_size);
       if (!(init_io_cache(&info->rec_cache,info->dfile,
-			 (uint) min(info->state->data_file_length+1,
-				    cache_size),
+			 (uint) MY_MIN(info->state->data_file_length + 1,
+                                       cache_size),
 			  READ_CACHE,0L,(pbool) (info->lock_type != F_UNLCK),
 			  MYF(share->write_flag & MY_WAIT_IF_FULL))))
       {

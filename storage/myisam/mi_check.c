@@ -2170,7 +2170,7 @@ int filecopy(MI_CHECK *param, File to,File from,my_off_t start,
   ulong buff_length;
   DBUG_ENTER("filecopy");
 
-  buff_length=(ulong) min(param->write_buffer_length,length);
+  buff_length=(ulong) MY_MIN(param->write_buffer_length,length);
   if (!(buff=my_malloc(buff_length,MYF(0))))
   {
     buff=tmp_buff; buff_length=IO_SIZE;
@@ -2324,7 +2324,7 @@ int mi_repair_by_sort(MI_CHECK *param, register MI_INFO *info,
   init_alloc_root(&sort_param.wordroot, FTPARSER_MEMROOT_ALLOC_SIZE, 0);
 
   if (share->data_file_type == DYNAMIC_RECORD)
-    length=max(share->base.min_pack_length+1,share->base.min_block_length);
+    length= MY_MAX(share->base.min_pack_length + 1, share->base.min_block_length);
   else if (share->data_file_type == COMPRESSED_RECORD)
     length=share->base.min_block_length;
   else
@@ -2413,7 +2413,7 @@ int mi_repair_by_sort(MI_CHECK *param, register MI_INFO *info,
           (see _create_index_by_sort)
         */
         sort_info.max_records= 10 *
-                               max(param->sort_buffer_length, MIN_SORT_BUFFER) /
+                               MY_MAX(param->sort_buffer_length, MIN_SORT_BUFFER) /
                                sort_param.key_length;
       }
 
@@ -2770,7 +2770,7 @@ int mi_repair_parallel(MI_CHECK *param, register MI_INFO *info,
     mysql_file_seek(param->read_cache.file, 0L, MY_SEEK_END, MYF(0));
 
   if (share->data_file_type == DYNAMIC_RECORD)
-    rec_length=max(share->base.min_pack_length+1,share->base.min_block_length);
+    rec_length= MY_MAX(share->base.min_pack_length + 1, share->base.min_block_length);
   else if (share->data_file_type == COMPRESSED_RECORD)
     rec_length=share->base.min_block_length;
   else
@@ -4322,7 +4322,7 @@ int recreate_table(MI_CHECK *param, MI_INFO **org_info, char *filename)
 
   (void) mi_close(*org_info);
   bzero((char*) &create_info,sizeof(create_info));
-  create_info.max_rows=max(max_records,share.base.records);
+  create_info.max_rows= MY_MAX(max_records, share.base.records);
   create_info.reloc_rows=share.base.reloc;
   create_info.old_options=(share.options |
 			   (unpack ? HA_OPTION_TEMP_COMPRESS_RECORD : 0));

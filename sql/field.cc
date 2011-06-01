@@ -37,6 +37,9 @@
 #include <m_ctype.h>
 #include <errno.h>
 
+using std::max;
+using std::min;
+
 // Maximum allowed exponent value for converting string to decimal
 #define MAX_EXPONENT 1024
 
@@ -50,7 +53,7 @@ const char field_separator=',';
 #define LONGLONG_TO_STRING_CONVERSION_BUFFER_SIZE 128
 #define DECIMAL_TO_STRING_CONVERSION_BUFFER_SIZE 128
 #define BLOB_PACK_LENGTH_TO_MAX_LENGH(arg) \
-((ulong) ((LL(1) << min(arg, 4) * 8) - LL(1)))
+((ulong) ((LL(1) << MY_MIN(arg, 4) * 8) - LL(1)))
 
 #define ASSERT_COLUMN_MARKED_FOR_READ DBUG_ASSERT(!table || (!table->read_set || bitmap_is_set(table->read_set, field_index)))
 #define ASSERT_COLUMN_MARKED_FOR_WRITE DBUG_ASSERT(!table || (!table->write_set || bitmap_is_set(table->write_set, field_index)))
@@ -1054,7 +1057,7 @@ static void push_numerical_conversion_warning(THD* thd, const char* str,
                                               const char* field_name="UNKNOWN",
                                               ulong row_num=0)
 {
-    char buf[max(max(DOUBLE_TO_STRING_CONVERSION_BUFFER_SIZE,
+    char buf[MY_MAX(MY_MAX(DOUBLE_TO_STRING_CONVERSION_BUFFER_SIZE,
       LONGLONG_TO_STRING_CONVERSION_BUFFER_SIZE), 
       DECIMAL_TO_STRING_CONVERSION_BUFFER_SIZE)];
 
@@ -2514,7 +2517,7 @@ Field *Field_new_decimal::create_from_item (Item *item)
   {
     signed int overflow;
 
-    dec= min(dec, DECIMAL_MAX_SCALE);
+    dec= min<int>(dec, DECIMAL_MAX_SCALE);
 
     /*
       If the value still overflows the field with the corrected dec,
@@ -8718,7 +8721,7 @@ String *Field_bit::val_str(String *val_buffer,
 {
   ASSERT_COLUMN_MARKED_FOR_READ;
   char buff[sizeof(longlong)];
-  uint length= min(pack_length(), sizeof(longlong));
+  uint length= min<uint>(pack_length(), sizeof(longlong));
   ulonglong bits= val_int();
   mi_int8store(buff,bits);
 
@@ -9493,7 +9496,7 @@ bool Create_field::init(THD *thd, char *fld_name, enum_field_types fld_type,
       DBUG_ASSERT(MAX_DATETIME_COMPRESSED_WIDTH < UINT_MAX);
       if (length != UINT_MAX)  /* avoid overflow; is safe because of min() */
         length= ((length+1)/2)*2;
-      length= min(length, MAX_DATETIME_COMPRESSED_WIDTH);
+      length= min<ulong>(length, MAX_DATETIME_COMPRESSED_WIDTH);
     }
     flags|= ZEROFILL_FLAG | UNSIGNED_FLAG;
     /*

@@ -329,6 +329,9 @@
 #include "sql_priv.h"
 #include "sql_parse.h"
 
+using std::max;
+using std::min;
+
 /*
   Action to perform at a synchronization point.
   NOTE: This structure is moved around in memory by realloc(), qsort(),

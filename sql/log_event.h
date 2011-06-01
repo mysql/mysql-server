@@ -216,8 +216,8 @@ struct sql_ex_info
 
  ****************************************************************************/
 
-#define LOG_EVENT_HEADER_LEN 19     /* the fixed header length */
-#define OLD_HEADER_LEN       13     /* the fixed header length in 3.23 */
+#define LOG_EVENT_HEADER_LEN 19U    /* the fixed header length */
+#define OLD_HEADER_LEN       13U    /* the fixed header length in 3.23 */
 /*
    Fixed header length, where 4.x and 5.0 agree. That is, 5.0 may have a longer
    header (it will for sure when we have the unique event's ID), but at least
@@ -225,7 +225,7 @@ struct sql_ex_info
    event's ID, LOG_EVENT_HEADER_LEN will be something like 26, but
    LOG_EVENT_MINIMAL_HEADER_LEN will remain 19.
 */
-#define LOG_EVENT_MINIMAL_HEADER_LEN 19
+#define LOG_EVENT_MINIMAL_HEADER_LEN 19U
 
 /* event-specific post-header sizes */
 // where 3.23, 4.x and 5.0 agree
@@ -259,17 +259,17 @@ struct sql_ex_info
   packet (i.e. a query) sent from client to master;
   First, an auxiliary log_event status vars estimation:
 */
-#define MAX_SIZE_LOG_EVENT_STATUS (1 + 4          /* type, flags2 */   + \
-                                   1 + 8          /* type, sql_mode */ + \
-                                   1 + 1 + 255    /* type, length, catalog */ + \
-                                   1 + 4          /* type, auto_increment */ + \
-                                   1 + 6          /* type, charset */ + \
-                                   1 + 1 + 255    /* type, length, time_zone */ + \
-                                   1 + 2          /* type, lc_time_names_number */ + \
-                                   1 + 2          /* type, charset_database_number */ + \
-                                   1 + 8          /* type, table_map_for_update */ + \
-                                   1 + 4          /* type, master_data_written */ + \
-                                   1 + 16 + 1 + 60/* type, user_len, user, host_len, host */)
+#define MAX_SIZE_LOG_EVENT_STATUS (1U + 4          /* type, flags2 */   + \
+                                   1U + 8          /* type, sql_mode */ + \
+                                   1U + 1 + 255    /* type, length, catalog */ + \
+                                   1U + 4          /* type, auto_increment */ + \
+                                   1U + 6          /* type, charset */ + \
+                                   1U + 1 + 255    /* type, length, time_zone */ + \
+                                   1U + 2          /* type, lc_time_names_number */ + \
+                                   1U + 2          /* type, charset_database_number */ + \
+                                   1U + 8          /* type, table_map_for_update */ + \
+                                   1U + 4          /* type, master_data_written */ + \
+                                   1U + 16 + 1 + 60/* type, user_len, user, host_len, host */)
 #define MAX_LOG_EVENT_HEADER   ( /* in order of Query_log_event::write */ \
   LOG_EVENT_HEADER_LEN + /* write_header */ \
   QUERY_HEADER_LEN     + /* write_data */   \

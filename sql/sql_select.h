@@ -30,6 +30,7 @@
 #include "records.h"                          /* READ_RECORD */
 #include "opt_range.h"                /* SQL_SELECT, QUICK_SELECT_I */
 
+#include <algorithm>
 
 /* Values in optimize */
 #define KEY_OPTIMIZE_EXISTS		1
@@ -868,7 +869,7 @@ protected:
   /* Shall calculate how much space is remaining in the join buffer */ 
   virtual ulong rem_space() 
   { 
-    return max(buff_size-(end_pos-buff)-aux_buff_size,0);
+    return std::max(buff_size-(end_pos-buff)-aux_buff_size, 0UL);
   }
 
   /* Shall skip record from the join buffer if its match flag is on */
@@ -1350,7 +1351,7 @@ protected:
   */ 
   ulong rem_space() 
   { 
-    return max(last_key_entry-end_pos-aux_buff_size,0);
+    return std::max(last_key_entry-end_pos-aux_buff_size, 0UL);
   }
 
   /* 

@@ -45,6 +45,11 @@
 #include <errno.h>
 #include "probes_mysql.h"
 
+#include <algorithm>
+
+using std::min;
+using std::max;
+
 #ifdef EMBEDDED_LIBRARY
 #undef MYSQL_SERVER
 #undef MYSQL_CLIENT
@@ -961,7 +966,7 @@ my_real_read(NET *net, size_t *complen)
 	len=uint3korr(net->buff+net->where_b);
 	if (!len)				/* End of big multi-packet */
 	  goto end;
-	helping = max(len,*complen) + net->where_b;
+	helping = max<ulonglong>(len,*complen) + net->where_b;
 	/* The necessary size of net->buff */
 	if (helping >= net->max_packet)
 	{

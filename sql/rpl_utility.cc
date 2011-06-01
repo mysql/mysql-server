@@ -20,6 +20,11 @@
 #include "rpl_rli.h"
 #include "sql_select.h"
 
+#include <algorithm>
+
+using std::min;
+using std::max;
+
 /**
    Function to compare two size_t integers for their relative
    order. Used below.
@@ -780,7 +785,7 @@ table_def::compatible_with(THD *thd, Relay_log_info *rli,
   /*
     We only check the initial columns for the tables.
   */
-  uint const cols_to_check= min(table->s->fields, size());
+  uint const cols_to_check= min<ulong>(table->s->fields, size());
   TABLE *tmp_table= NULL;
 
   for (uint col= 0 ; col < cols_to_check ; ++col)

@@ -56,6 +56,10 @@
 #include <io.h>
 #endif
 
+#include <algorithm>
+using std::max;
+using std::min;
+
 const char *primary_key_name="PRIMARY";
 
 static bool check_if_keyname_exists(const char *name,KEY *start, KEY *end);

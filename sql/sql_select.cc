@@ -51,6 +51,11 @@
 
 #define PREV_BITS(type,A)	((type) (((type) 1 << (A)) -1))
 
+#include <algorithm>
+using std::max;
+using std::min;
+
+
 const char *join_type_str[]={ "UNKNOWN","system","const","eq_ref","ref",
 			      "MAYBE_REF","ALL","range","index","fulltext",
 			      "ref_or_null","unique_subquery","index_subquery",
@@ -6320,7 +6325,7 @@ update_ref_and_keys(THD *thd, DYNAMIC_ARRAY *keyuse,JOIN_TAB *join_tab,
   uint	and_level,i,found_eq_constant;
   KEY_FIELD *key_fields, *end, *field;
   uint sz;
-  uint m= max(select_lex->max_equal_elems,1);
+  uint m= max(select_lex->max_equal_elems, 1U);
   
   /* 
     We use the same piece of memory to store both  KEY_FIELD 
@@ -6514,7 +6519,7 @@ static void optimize_keyuse(JOIN *join, DYNAMIC_ARRAY *keyuse_array)
       if (map == 1)			// Only one table
       {
 	TABLE *tmp_table=join->all_tables[tablenr];
-	keyuse->ref_table_rows= max(tmp_table->file->stats.records, 100);
+	keyuse->ref_table_rows= max<ha_rows>(tmp_table->file->stats.records, 100);
       }
     }
     /*
@@ -8540,7 +8545,7 @@ void calc_used_field_length(THD *thd, JOIN_TAB *join_tab)
   {
     uint blob_length=(uint) (join_tab->table->file->stats.mean_rec_length-
 			     (join_tab->table->s->reclength- rec_length));
-    rec_length+=(uint) max(4,blob_length);
+    rec_length+= max<uint>(4U, blob_length);
   }
   /**
     @todo why don't we count the rowids that we might need to store

@@ -129,7 +129,7 @@ int _create_index_by_sort(MI_SORT_PARAM *info,my_bool no_messages,
   sort_keys= (uchar **) NULL; error= 1;
   maxbuffer=1;
 
-  memavl= max(sortbuff_size, MIN_SORT_BUFFER);
+  memavl= MY_MAX(sortbuff_size, MIN_SORT_BUFFER);
   records=	info->sort_info->max_records;
   sort_length=	info->key_length;
   LINT_INIT(keys);
@@ -344,7 +344,7 @@ pthread_handler_t thr_find_all_keys(void *arg)
     bzero((char*) &sort_param->unique,  sizeof(sort_param->unique));
     sort_keys= (uchar **) NULL;
 
-    memavl=       max(sort_param->sortbuff_size, MIN_SORT_BUFFER);
+    memavl=       MY_MAX(sort_param->sortbuff_size, MIN_SORT_BUFFER);
     idx=          (uint)sort_param->sort_info->max_records;
     sort_length=  sort_param->key_length;
     maxbuffer=    1;
@@ -813,7 +813,7 @@ static uint read_to_buffer(IO_CACHE *fromfile, BUFFPEK *buffpek,
   register uint count;
   uint length;
 
-  if ((count=(uint) min((ha_rows) buffpek->max_keys,buffpek->count)))
+  if ((count=(uint) MY_MIN((ha_rows) buffpek->max_keys,buffpek->count)))
   {
     if (mysql_file_pread(fromfile->file, (uchar*) buffpek->base,
                          (length= sort_length*count),
@@ -835,7 +835,7 @@ static uint read_to_buffer_varlen(IO_CACHE *fromfile, BUFFPEK *buffpek,
   uint idx;
   uchar *buffp;
 
-  if ((count=(uint) min((ha_rows) buffpek->max_keys,buffpek->count)))
+  if ((count=(uint) MY_MIN((ha_rows) buffpek->max_keys, buffpek->count)))
   {
     buffp = buffpek->base;
 
