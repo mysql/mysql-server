@@ -21,7 +21,8 @@ mkdir -p result
 cd result
 rm -rf *
 
-if uname | grep -iq cygwin; then
+if [ `uname | grep -ic cygwin` -ne 0 ]
+then
   while [ $# -gt 0 ]
   do
     SAVE_IFS=$IFS

@@ -31,7 +31,7 @@ VERSION="autotest-run.sh version 1.00"
 DATE=`date '+%Y-%m-%d'`
 if [ `uname -s` != "SunOS" ]
 then
-  if uname | grep -iq cygwin
+  if [ `uname | grep -ic cygwin` -ne 0 ]
   then
     HOST=`hostname`
     # Returns windows CRLF
@@ -278,7 +278,7 @@ rm -rf $res_dir/* $run_dir/*
 cd $run_dir
 mkdir run
 
-if uname | grep -iq cygwin
+if [ `uname | grep -ic cygwin` -ne 0 ]
 then
   run_dir=`cygpath -m $run_dir`
   install_dir0=`cygpath -u $install_dir0`
