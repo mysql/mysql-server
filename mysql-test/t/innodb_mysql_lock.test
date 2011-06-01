@@ -290,8 +290,6 @@ DROP TABLE IF EXISTS t1;
 
 --connect (con1,localhost,root)
 
---echo # Test 1: Secondary index
-
 --echo # Connection default
 connection default;
 CREATE TABLE t1 (id INT PRIMARY KEY, value INT) ENGINE = InnoDB;
@@ -313,22 +311,6 @@ ALTER TABLE t1 ADD INDEX idx(value);
 --connection default
 SELECT * FROM t1;
 COMMIT;
-DROP TABLE t1;
-
---echo # Test 2: Primary index
-CREATE TABLE t1(a INT NOT NULL, b INT NOT NULL) engine=innodb;
-INSERT INTO t1 VALUES (1, 12345), (2, 23456);
-
---echo # Connection con1
---connection con1
-SET SESSION debug= "+d,alter_table_rollback_new_index";
---error ER_UNKNOWN_ERROR
-ALTER TABLE t1 ADD PRIMARY KEY(a);
-SELECT * FROM t1;
-
---echo # Connection default
---connection default
-SELECT * FROM t1;
 DROP TABLE t1;
 disconnect con1;
 
