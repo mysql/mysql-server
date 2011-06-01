@@ -3160,11 +3160,13 @@ MgmtSrvr::getConnectionDbParameter(int node1,
 }
 
 
-bool MgmtSrvr::transporter_connect(NDB_SOCKET_TYPE sockfd)
+bool
+MgmtSrvr::transporter_connect(NDB_SOCKET_TYPE sockfd,
+                                   BaseString& errormsg)
 {
   DBUG_ENTER("MgmtSrvr::transporter_connect");
   TransporterRegistry* tr= theFacade->get_registry();
-  if (!tr->connect_server(sockfd))
+  if (!tr->connect_server(sockfd, errormsg))
     DBUG_RETURN(false);
 
   /*
@@ -3179,7 +3181,6 @@ bool MgmtSrvr::transporter_connect(NDB_SOCKET_TYPE sockfd)
 
   DBUG_RETURN(true);
 }
-
 
 int MgmtSrvr::connect_to_self(const char * bindaddress)
 {

@@ -118,7 +118,7 @@ public:
   /**
    * after a connect from client, perform connection using correct transporter
    */
-  bool connect_server(NDB_SOCKET_TYPE sockfd);
+  bool connect_server(NDB_SOCKET_TYPE sockfd, BaseString& errormsg);
 
   bool connect_client(NdbMgmHandle *h);
 

@@ -48,7 +48,7 @@ public:
    */
   bool connect_client();
   bool connect_client(NDB_SOCKET_TYPE sockfd);
-  bool connect_server(NDB_SOCKET_TYPE socket);
+  bool connect_server(NDB_SOCKET_TYPE socket, BaseString& errormsg);
 
   /**
    * Blocking
