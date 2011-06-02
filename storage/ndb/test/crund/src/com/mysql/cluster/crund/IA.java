@@ -21,14 +21,12 @@
 package com.mysql.cluster.crund;
 
 import com.mysql.clusterj.annotation.PersistenceCapable;
-import com.mysql.clusterj.annotation.PrimaryKey;
 
 /**
  * An Entity test interface for use with ClusterJ.
  */
 @PersistenceCapable(table="a")
 public interface IA {
-    @PrimaryKey
     public int getId();
     public void setId(int id);
 

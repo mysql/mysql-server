@@ -46,6 +46,10 @@ public class TwsDriver extends Driver {
     protected TwsLoad clusterjLoad;
     protected TwsLoad ndbjtieLoad;
 
+    static {
+        System.setProperty("java.util.logging.config.file", "run.properties");
+    }
+
     static public void main(String[] args) throws Exception {
         parseArguments(args);
         TwsDriver main = new TwsDriver();

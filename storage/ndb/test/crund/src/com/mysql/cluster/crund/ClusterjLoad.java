@@ -25,15 +25,12 @@ import com.mysql.clusterj.Query;
 import com.mysql.clusterj.Session;
 import com.mysql.clusterj.SessionFactory;
 import com.mysql.clusterj.query.QueryDomainType;
-import com.mysql.clusterj.query.Predicate;
 import com.mysql.clusterj.query.QueryBuilder;
+
 import java.util.Collection;
 import java.util.Iterator;
-import java.util.ArrayList;
 import java.util.Arrays;
-import java.util.List;
 import java.util.Map;
-import java.util.Set;
 
 /**
  * A benchmark implementation against a ClusterJ database.
@@ -58,7 +55,6 @@ public class ClusterjLoad extends CrundDriver {
         out.print("setting clusterj properties ...");
 
         final StringBuilder msg = new StringBuilder();
-        final String eol = System.getProperty("line.separator");
 
         // check required properties
         mgmdConnect
@@ -454,6 +450,7 @@ public class ClusterjLoad extends CrundDriver {
                         b0.setId(i);
                         assert b0 != null;
                         b0.setAid(0);
+                        session.updatePersistent(b0);
                     }
                     commitTransaction();
                 }
@@ -617,7 +614,6 @@ public class ClusterjLoad extends CrundDriver {
 
     // ----------------------------------------------------------------------
 
-    @SuppressWarnings("unchecked")
     static public void main(String[] args) {
         System.out.println("ClusterjLoad.main()");
         parseArguments(args);

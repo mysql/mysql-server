@@ -20,11 +20,8 @@
 
 package com.mysql.cluster.crund;
 
-import com.mysql.clusterj.annotation.NotPersistent;
-import com.mysql.clusterj.annotation.PersistenceCapable;
-import com.mysql.clusterj.annotation.PrimaryKey;
 import com.mysql.clusterj.annotation.Column;
-import com.mysql.clusterj.annotation.Index;
+import com.mysql.clusterj.annotation.PersistenceCapable;
 
 /**
  * An Entity test interface for ClusterJ.
@@ -32,7 +29,6 @@ import com.mysql.clusterj.annotation.Index;
 @PersistenceCapable(table="b0")
 public interface IB0 {
 
-    @PrimaryKey
     public int getId();
     public void setId(int id);
 
@@ -68,7 +64,6 @@ public interface IB0 {
     public void setCvarchar_def(String cvarchar_def);
 
     @Column(name="a_id") // or change name of attr
-    @Index(name="I_B0_FK")
     public int getAid();
     public void setAid(int aid);
 }
