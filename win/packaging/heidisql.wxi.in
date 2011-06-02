@@ -11,11 +11,19 @@
 <DirectoryRef Id="MariaDBShared">
   <Directory Id="D.HeidiSQL" Name="HeidiSQL">
    <Component Id="component.HeidiSQL" Guid="96ea3879-5320-4098-8f26-2f655d2f716c"  Win64="no"> 
-    <RemoveFile Id="PurgeAppFolder" Name="*.*" On="uninstall" />
+
     <File Id="heidisql.gpl.txt" Name="gpl.txt" Source="${HEIDISQL_DOWNLOAD_DIR}\gpl.txt" />
     <File Id="heidisql.heidisql.exe" Name="heidisql.exe" Source="${HEIDISQL_DOWNLOAD_DIR}\heidisql.exe" KeyPath="yes">
       <Shortcut Id="desktopHeidiSQL" Directory="DesktopFolder" Name="HeidiSQL" Advertise="yes"/>
     </File>
+    <!-- 
+      Forced file removal for heidisql.exe might be required. 
+      HeidiSQL is self-updating, thus the version that was installed by MSI not necessarily matches
+      the version of the file on uninstall. MSI would not touch such file by default and leave it after 
+      uninstallation. We use RemoveFile to force delete in any case.
+    -->
+    <RemoveFile Id="Remove_HeidiSQL_exe" Name="heidisql.exe" On="uninstall" />
+
     <File Id="heidisql.license.txt" Name="license.txt" Source="${HEIDISQL_DOWNLOAD_DIR}\license.txt" />
     <File Id="heidisql.readme.txt" Name="readme.txt" Source="${HEIDISQL_DOWNLOAD_DIR}\readme.txt" />
     </Component>
@@ -25,7 +33,7 @@
       <RemoveRegistryKey Id="HeidiSQL_RegistryCleanup" Root="HKCU" Key="SOFTWARE\HeidiSQL" Action="removeOnUninstall" />
     </Component>
     <Component Id="component.HeidiSQL_libmysql.dll" Guid="*" Win64="no">
-      <File Id="heidisql.libmysql.dll" Name="libmysql.dll" Source="${HEIDISQL_DOWNLOAD_DIR}\libmysql.dll" />
+      <File Id="heidisql.libmysql.dll" Name="libmysql.dll" Source="${LIBMYSQLDLL_SOURCE}" />
     </Component>
   </Directory>
 </DirectoryRef>
