@@ -1850,7 +1850,7 @@ srv_master_do_purge(void)
 			/* Nothing to purge. */
 			n_pages_purged = 0;
 		} else {
-			n_pages_purged = trx_purge(0, srv_purge_batch_size);
+			n_pages_purged = trx_purge(1, srv_purge_batch_size);
 		}
 
 		total_pages_purged += n_pages_purged;
@@ -2303,8 +2303,6 @@ srv_task_execute(void)
 
 	ut_a(srv_force_recovery < SRV_FORCE_NO_BACKGROUND);
 
-	os_atomic_inc_ulint(&purge_sys->bh_mutex, &purge_sys->n_executing, 1);
-
 	mutex_enter(&srv_sys->tasks_mutex);
 
 	if (UT_LIST_GET_LEN(srv_sys->tasks) > 0) {
@@ -2325,8 +2323,6 @@ srv_task_execute(void)
 		os_atomic_inc_ulint(
 			&purge_sys->bh_mutex, &purge_sys->n_completed, 1);
 	}
-
-	os_atomic_dec_ulint(&purge_sys->bh_mutex, &purge_sys->n_executing, 1);
 
 	return(thr != NULL);
 }
@@ -2404,50 +2400,62 @@ void
 srv_do_purge(
 /*=========*/
 	ulint		n_threads,	/*!< in: number of threads to use */
-	ulint		batch_size,	/*!< in: purge batch size */
 	ulint*		n_total_purged)	/*!< in/out: total pages purged */
 {
-	if (n_threads <= 1) {
-		ulint	n_pages_purged;
+	ulint		n_pages_purged;
+	static ulint	n_use_threads = 0;
+	static ulint	rseg_history_len = 0;
 
-		/* Purge until there are no more records to
-		purge and there is no change in configuration
-		or server state. */
+	ut_a(n_threads > 0);
 
-		do {
-			n_pages_purged = trx_purge(0, batch_size);
+	/* Purge until there are no more records to purge and there is
+	no change in configuration or server state. If the user has
+	configured more than one purge thread then we treat that as a
+	pool of threads and only use the extra threads if purge can't
+	keep up with updates. */
 
-			*n_total_purged += n_pages_purged;
+	if (n_use_threads == 0) {
+		n_use_threads = n_threads;
+	}
 
-		} while (n_pages_purged > 0 && !srv_fast_shutdown);
+	do {
+		if (trx_sys->rseg_history_len > rseg_history_len) {
 
-	} else {
-		ulint	n_pages_purged;
+			/* History length is now longer than what it was
+			when we took the last snapshot. Use more threads. */
 
-		do {
-			n_pages_purged = trx_purge(n_threads, batch_size);
-
-			*n_total_purged += n_pages_purged;
-
-			/* During shutdown the worker threads can
-			exit when they detect a change in state.
-			Force the coordinator thread to do the purge
-			tasks from the work queue. */
-
-			while (srv_get_task_queue_length() > 0) {
-
-				ibool	success;
-
-				ut_a(srv_shutdown_state);
-
-				success = srv_task_execute();
-				ut_a(success);
+			if (n_use_threads < n_threads) {
+				++n_use_threads;
 			}
 
-		} while (trx_sys->rseg_history_len > 100
-			 && srv_shutdown_state == SRV_SHUTDOWN_NONE
-			 && srv_fast_shutdown == 0);
-	}
+		} else if (n_use_threads > 1) {
+			/* History length same or smaller since last snapshot,
+			use fewer threads. */
+
+			--n_use_threads;
+		}
+
+		/* Ensure that the purge threads are less than what
+		was configured. */
+
+		ut_a(n_use_threads > 0);
+		ut_a(n_use_threads <= n_threads);
+
+		/* Take a snapshot of the history list before purge. */
+		rseg_history_len = trx_sys->rseg_history_len;
+#if 0
+		fprintf(stderr, "%lu:%lu %lu\n",
+			rseg_history_len, trx_sys->rseg_history_len,
+			n_use_threads);
+#endif
+		n_pages_purged = trx_purge(n_use_threads, srv_purge_batch_size);
+
+		*n_total_purged += n_pages_purged;
+
+	} while (srv_shutdown_state == SRV_SHUTDOWN_NONE
+		 && srv_fast_shutdown == 0
+		 && n_pages_purged > 0);
+
 }
 
 /*********************************************************************//**
@@ -2488,31 +2496,14 @@ srv_purge_coordinator_thread(
 
 	while (srv_shutdown_state != SRV_SHUTDOWN_EXIT_THREADS) {
 
-		ulint	n_threads = srv_n_purge_threads;
-		ulint	batch_size = srv_purge_batch_size;
-
-		if (srv_shutdown_state != SRV_SHUTDOWN_NONE) {
-
-			/* If shutdown is signalled, then switch
-			to single threaded purge. There are no user
-			threads to contended with and secondly purge
-			worker threads can exit silently, causing a
-			potential hang. We try and avoid that as much
-			as we can until the underlying problem is fixed
-			properly. */
-
-			n_threads = 1;
-		}
-
 		/* If there are very few records to purge or the last
 		purge didn't purge any records then wait for activity.
 	        We peek at the history len without holding any mutex
 		because in the worst case we will end up waiting for
 		the next purge event. */
 
-		if (trx_sys->rseg_history_len < batch_size
-		    || (n_total_purged == 0
-			&& retries >= TRX_SYS_N_RSEGS)) {
+		if (trx_sys->rseg_history_len == 0
+		    || (n_total_purged == 0 && retries >= TRX_SYS_N_RSEGS)) {
 
 			srv_suspend_thread(slot);
 
@@ -2535,7 +2526,7 @@ srv_purge_coordinator_thread(
 			n_total_purged = 0;
 		}
 
-		srv_do_purge(n_threads, batch_size, &n_total_purged);
+		srv_do_purge(srv_n_purge_threads, &n_total_purged);
 	}
 
 	/* The task queue should always be empty, independent of fast
