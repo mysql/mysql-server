@@ -328,15 +328,15 @@ ID	Name	Country	Population
 EXPLAIN
 SELECT * FROM City WHERE (ID < 10) OR (ID BETWEEN 100 AND 110);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	City	range	PRIMARY	PRIMARY	4	NULL	20	Using where
+1	SIMPLE	City	range	PRIMARY	PRIMARY	4	NULL	20	Using index condition
 EXPLAIN
 SELECT * FROM City WHERE (ID < 200) OR (ID BETWEEN 100 AND 200);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	City	range	PRIMARY	PRIMARY	4	NULL	199	Using where
+1	SIMPLE	City	range	PRIMARY	PRIMARY	4	NULL	199	Using index condition
 EXPLAIN
 SELECT * FROM City WHERE (ID < 600) OR (ID BETWEEN 900 AND 1500);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	City	range	PRIMARY	PRIMARY	4	NULL	2006	Using where
+1	SIMPLE	City	range	PRIMARY	PRIMARY	4	NULL	2006	Using index condition
 EXPLAIN
 SELECT * FROM City WHERE Country > 'A' AND Country < 'ARG';
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
@@ -355,7 +355,7 @@ WHERE ((ID < 10) AND (Name LIKE 'H%' OR (Country > 'A' AND Country < 'ARG')))
 OR ((ID BETWEEN 100 AND 110) AND 
 (Name LIKE 'P%' OR (Population > 103000 AND Population < 104000)));
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	City	range	PRIMARY,Population,Country,Name	PRIMARY	4	NULL	20	Using where
+1	SIMPLE	City	range	PRIMARY,Population,Country,Name	PRIMARY	4	NULL	20	Using index condition; Using where
 EXPLAIN
 SELECT * FROM City
 WHERE ((ID < 800) AND (Name LIKE 'Ha%' OR (Country > 'A' AND Country < 'ARG')))
@@ -369,7 +369,7 @@ WHERE ((ID < 200) AND (Name LIKE 'Ha%' OR (Country > 'A' AND Country < 'ARG')))
 OR ((ID BETWEEN 100 AND 200) AND 
 (Name LIKE 'Pa%' OR (Population > 103000 AND Population < 104000)));
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	City	range	PRIMARY,Population,Country,Name	PRIMARY	4	NULL	199	Using where
+1	SIMPLE	City	range	PRIMARY,Population,Country,Name	PRIMARY	4	NULL	199	Using index condition; Using where
 SELECT * FROM City USE INDEX ()
 WHERE ((ID < 10) AND (Name LIKE 'H%' OR (Country > 'A' AND Country < 'ARG')))
 OR ((ID BETWEEN 100 AND 110) AND 
@@ -601,11 +601,11 @@ id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 EXPLAIN 
 SELECT * FROM City WHERE ID BETWEEN 3400 AND 3800;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	City	range	PRIMARY	PRIMARY	4	NULL	944	Using where
+1	SIMPLE	City	range	PRIMARY	PRIMARY	4	NULL	944	Using index condition
 EXPLAIN 
 SELECT * FROM City WHERE ID BETWEEN 3790 AND 3800;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	City	range	PRIMARY	PRIMARY	4	NULL	11	Using where
+1	SIMPLE	City	range	PRIMARY	PRIMARY	4	NULL	11	Using index condition
 EXPLAIN 
 SELECT * FROM City WHERE Name LIKE 'P%';
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
@@ -765,27 +765,27 @@ id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 EXPLAIN
 SELECT * FROM City WHERE ID BETWEEN 3790 AND 3800;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	City	range	PRIMARY	PRIMARY	4	NULL	11	Using where
+1	SIMPLE	City	range	PRIMARY	PRIMARY	4	NULL	11	Using index condition
 EXPLAIN
 SELECT * FROM City WHERE ID BETWEEN 4025 AND 4035;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	City	range	PRIMARY	PRIMARY	4	NULL	11	Using where
+1	SIMPLE	City	range	PRIMARY	PRIMARY	4	NULL	11	Using index condition
 EXPLAIN
 SELECT * FROM City WHERE ID BETWEEN 4028 AND 4032;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	City	range	PRIMARY	PRIMARY	4	NULL	5	Using where
+1	SIMPLE	City	range	PRIMARY	PRIMARY	4	NULL	5	Using index condition
 EXPLAIN
 SELECT * FROM City WHERE ID BETWEEN 3500 AND 3800;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	City	range	PRIMARY	PRIMARY	4	NULL	300	Using where
+1	SIMPLE	City	range	PRIMARY	PRIMARY	4	NULL	300	Using index condition
 EXPLAIN
 SELECT * FROM City WHERE ID BETWEEN 4000 AND 4300;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	City	range	PRIMARY	PRIMARY	4	NULL	80	Using where
+1	SIMPLE	City	range	PRIMARY	PRIMARY	4	NULL	80	Using index condition
 EXPLAIN
 SELECT * FROM City WHERE ID BETWEEN 250 and 260 ;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	City	range	PRIMARY	PRIMARY	4	NULL	11	Using where
+1	SIMPLE	City	range	PRIMARY	PRIMARY	4	NULL	11	Using index condition
 EXPLAIN
 SELECT * FROM City WHERE (Population > 101000 AND Population < 102000);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra

@@ -87,6 +87,152 @@ SELECT * FROM t1 WHERE c2 <=> NULL ORDER BY c1,c2 LIMIT 2;
 DROP TABLE t1;
 
 --echo #
+--echo # Bug#43617 - Innodb returns wrong results with timestamp's range value 
+--echo #             in IN clause
+--echo # (Note: Fixed by patch for BUG#42580)
+--echo #
+
+CREATE TABLE t1(
+  c1 TIMESTAMP NOT NULL, 
+  c2 TIMESTAMP NULL, 
+  c3 DATE, 
+  c4 DATETIME, 
+  PRIMARY KEY(c1), 
+  UNIQUE INDEX(c2)
+);
+
+INSERT INTO t1 VALUES
+  ('0000-00-00 00:00:00','0000-00-00 00:00:00','2008-01-04','2008-01-05 00:00:00'),
+  ('1971-01-01 00:00:01','1980-01-01 00:00:01','2009-01-01','2009-01-02 00:00:00'),
+  ('1999-01-01 00:00:00','1999-01-01 00:00:00', NULL,        NULL),
+  ('2007-05-23 09:15:28','2007-05-23 09:15:28','2007-05-24','2007-05-24 09:15:28'),
+  ('2007-05-27 00:00:00','2007-05-25 00:00:00','2007-05-26','2007-05-26 00:00:00'),
+  ('2008-01-01 00:00:00', NULL,                '2008-01-02','2008-01-03 00:00:00'),
+  ('2009-01-29 11:11:27','2009-01-29 11:11:27','2009-01-29','2009-01-29 11:11:27'),
+  ('2038-01-09 03:14:07','2038-01-09 03:14:07','2009-01-05','2009-01-06 00:00:00');
+
+--echo
+SELECT * 
+FROM t1 
+WHERE c2 IN ('1971-01-01 00:00:01','2038-01-09 03:14:07') 
+ORDER BY c2;
+
+--echo
+SELECT * 
+FROM t1 
+WHERE c2 IN ('1971-01-01 00:00:01','2038-01-09 03:14:07') 
+ORDER BY c2 LIMIT 2;
+
+--echo
+SELECT * 
+FROM t1 
+WHERE c2 IN ('1971-01-01 00:00:01','2038-01-09 03:14:07') 
+ORDER BY c2 DESC;
+
+--echo
+SELECT * 
+FROM t1 
+WHERE c2 IN ('1971-01-01 00:00:01','2038-01-09 03:14:07') 
+ORDER BY c2 DESC LIMIT 2;
+
+--echo
+DROP TABLE t1;
+
+--echo #
+--echo # BUG#43618: MyISAM&Maria returns wrong results with 'between' 
+--echo #            on timestamp
+--echo #
+
+CREATE TABLE t1(
+   ts TIMESTAMP NOT NULL, 
+   c char NULL,
+   PRIMARY KEY(ts)
+);
+
+INSERT INTO t1 VALUES
+   ('1971-01-01','a'),
+   ('2007-05-25','b'),
+   ('2008-01-01','c'),
+   ('2038-01-09','d');
+
+--disable_warnings
+
+--echo
+--echo # Execute select with invalid timestamp, desc ordering
+SELECT *
+FROM t1 
+WHERE ts BETWEEN '0000-00-00' AND '2010-00-01 00:00:00' 
+ORDER BY ts DESC
+LIMIT 2; 
+
+--echo
+--echo # Should use index condition
+EXPLAIN
+SELECT *
+FROM t1 
+WHERE ts BETWEEN '0000-00-00' AND '2010-00-01 00:00:00' 
+ORDER BY ts DESC
+LIMIT 2; 
+--echo
+
+--enable_warnings
+
+DROP TABLE t1;
+
+--echo #
+--echo # BUG#49906: Assertion failed - Field_varstring::val_str in field.cc
+--echo # (Note: Fixed by patch for LP BUG#625841)
+--echo #
+
+CREATE TABLE t1 ( 
+  f1 VARCHAR(1024),
+  f2 VARCHAR(10),
+  INDEX test_idx USING BTREE (f2,f1(5))
+);
+
+INSERT INTO t1 VALUES  ('a','c'), ('b','d');  
+
+SELECT f1
+FROM t1 
+WHERE f2 LIKE 'd' 
+ORDER BY f1;
+
+DROP TABLE t1;
+
+--echo #
+--echo # Bug#52660 - "Perf. regr. using ICP for MyISAM on range queries on 
+--echo #              an index containing TEXT"
+--echo #
+
+CREATE TABLE t1 (a INT);
+INSERT INTO t1 VALUES (0),(1),(2),(3),(4),(5),(6),(7),(8),(9);
+
+CREATE TABLE t2 (a INT);
+INSERT INTO t2 SELECT A.a + 10*(B.a) FROM t1 A, t1 B;
+
+CREATE TABLE t3 (
+  c1 TINYTEXT NOT NULL,
+  i1 INT NOT NULL,
+  KEY (c1(6),i1)
+);
+
+INSERT INTO t3 SELECT CONCAT('c-',1000+t2.a,'=w'), 1 FROM t2;
+
+EXPLAIN
+SELECT c1 FROM t3 WHERE c1 >= 'c-1004=w' and c1 <= 'c-1006=w';
+SELECT c1 FROM t3 WHERE c1 >= 'c-1004=w' and c1 <= 'c-1006=w';
+
+EXPLAIN
+SELECT c1 FROM t3 WHERE c1 >= 'c-1004=w' and c1 <= 'c-1006=w' and i1 > 2;
+SELECT c1 FROM t3 WHERE c1 >= 'c-1004=w' and c1 <= 'c-1006=w' and i1 > 2;
+
+EXPLAIN
+SELECT c1 FROM t3 WHERE c1 >= 'c-1004=w' and c1 <= 'c-1006=w' or i1 > 2;
+SELECT c1 FROM t3 WHERE c1 >= 'c-1004=w' and c1 <= 'c-1006=w' or i1 > 2;
+
+DROP TABLE t1, t2, t3;
+
+--echo #
 --echo # Bug#40992 - InnoDB: Crash when engine_condition_pushdown is on
 --echo #
 
@@ -101,6 +247,7 @@ INSERT INTO t VALUES (1,1,1),(3,3,3),(5,5,5);
 SELECT * FROM t WHERE a > 2 FOR UPDATE;
 
 DROP TABLE t;
+
 
 --echo #
 --echo # Bug#35080 - Innodb crash at mem_block_get_len line 72
@@ -225,3 +372,98 @@ SELECT COUNT(*) FROM t3;
 
 DROP PROCEDURE insert_data;
 DROP TABLE t1, t2, t3;
+
+--echo #
+--echo # Bug#57372 "Multi-table updates and deletes fail when running with ICP 
+--echo #            against InnoDB"
+--echo #
+
+CREATE TABLE t1 (
+  a INT KEY, 
+  b INT
+);
+
+CREATE TABLE t2 (
+  a INT KEY, 
+  b INT
+);
+
+INSERT INTO t1 VALUES (1, 101), (2, 102), (3, 103), (4, 104), (5, 105);
+INSERT INTO t2 VALUES (1, 1), (2, 2), (3, 3), (4, 4), (5, 5);
+
+UPDATE t1, t2 
+SET t1.a = t1.a + 100, t2.b = t1.a + 10 
+WHERE t1.a BETWEEN 2 AND 4 AND t2.a = t1.b - 100;
+
+--sorted_result
+SELECT * FROM t1;
+--sorted_result
+SELECT * FROM t2;
+
+DROP TABLE t1, t2;
+
+--echo #
+--echo # Bug#52605 - "Adding LIMIT 1 clause to query with complex range 
+--echo #              predicate causes wrong results"
+--echo #
+
+CREATE TABLE t1 (
+  pk INT NOT NULL,
+  c1 INT,
+  PRIMARY KEY (pk),
+  KEY k1 (c1)
+);
+
+INSERT INTO t1 VALUES (1,NULL);
+INSERT INTO t1 VALUES (2,6);
+INSERT INTO t1 VALUES (3,NULL);
+INSERT INTO t1 VALUES (4,6);
+INSERT INTO t1 VALUES (5,NULL);
+INSERT INTO t1 VALUES (6,NULL);
+INSERT INTO t1 VALUES (7,9);
+INSERT INTO t1 VALUES (8,0);
+
+SELECT pk, c1
+FROM t1  
+WHERE (pk BETWEEN 4 AND 5 OR pk < 2) AND c1 < 240
+ORDER BY c1
+LIMIT 1;
+
+EXPLAIN SELECT pk, c1
+FROM t1  
+WHERE (pk BETWEEN 4 AND 5 OR pk < 2) AND c1 < 240
+ORDER BY c1
+LIMIT 1;
+
+DROP TABLE t1;
+
+--echo #
+--echo # Bug#59259 "Incorrect rows returned for a correlated subquery
+--echo #            when ICP is on"
+--echo #
+
+CREATE TABLE t1 (pk INTEGER PRIMARY KEY, i INTEGER NOT NULL) ENGINE=InnoDB;
+
+INSERT INTO t1 VALUES (11,0);
+INSERT INTO t1 VALUES (12,5);
+INSERT INTO t1 VALUES (15,0);
+
+CREATE TABLE t2 (pk INTEGER PRIMARY KEY, i INTEGER NOT NULL) ENGINE=InnoDB;
+
+INSERT INTO t2 VALUES (11,1);
+INSERT INTO t2 VALUES (12,2);
+INSERT INTO t2 VALUES (15,4);
+
+set @save_optimizer_switch= @@optimizer_switch;
+set optimizer_switch='semijoin=off';
+
+EXPLAIN
+SELECT * FROM t1
+WHERE pk IN (SELECT it.pk FROM t2 JOIN t2 AS it ON it.i=it.i WHERE it.pk-t1.i<10);
+SELECT * FROM t1
+WHERE pk IN (SELECT it.pk FROM t2 JOIN t2 AS it ON it.i=it.i WHERE it.pk-t1.i<10);
+
+set optimizer_switch=@save_optimizer_switch;
+
+DROP TABLE t1, t2;
+

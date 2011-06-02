@@ -546,12 +546,11 @@ static ha_rows find_all_keys(SORTPARAM *param, SQL_SELECT *select,
   /* Temporary set for register_used_fields and register_field_in_read_map */
   sort_form->read_set= &sort_form->tmp_set;
   register_used_fields(param);
-  if (select && select->cond)
-    select->cond->walk(&Item::register_field_in_read_map, 1,
-                       (uchar*) sort_form);
-  if (select && select->pre_idx_push_select_cond)
-    select->pre_idx_push_select_cond->walk(&Item::register_field_in_read_map,
-                                           1, (uchar*) sort_form);
+  Item *sort_cond= !select ?  
+                     0 : !select->pre_idx_push_select_cond ? 
+                           select->cond : select->pre_idx_push_select_cond;
+  if (sort_cond)
+    sort_cond->walk(&Item::register_field_in_read_map, 1, (uchar*) sort_form);
   sort_form->column_bitmaps_set(&sort_form->tmp_set, &sort_form->tmp_set, 
                                 &sort_form->tmp_set);
 

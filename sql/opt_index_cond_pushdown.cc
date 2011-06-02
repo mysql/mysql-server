@@ -83,15 +83,44 @@ bool uses_index_fields_only(Item *item, TABLE *tbl, uint keyno,
   case Item::FIELD_ITEM:
     {
       Item_field *item_field= (Item_field*)item;
-      if (item_field->field->table != tbl) 
+      Field *field= item_field->field;
+      if (field->table != tbl)
         return TRUE;
       /*
         The below is probably a repetition - the first part checks the
         other two, but let's play it safe:
       */
-      return item_field->field->part_of_key.is_set(keyno) &&
-             item_field->field->type() != MYSQL_TYPE_GEOMETRY &&
-             item_field->field->type() != MYSQL_TYPE_BLOB;
+      if(!field->part_of_key.is_set(keyno) ||
+         field->type() == MYSQL_TYPE_GEOMETRY ||
+         field->type() == MYSQL_TYPE_BLOB)
+        return FALSE;
+      KEY *key_info= tbl->key_info + keyno;
+      KEY_PART_INFO *key_part= key_info->key_part;
+      KEY_PART_INFO *key_part_end= key_part + key_info->key_parts;
+      for ( ; key_part < key_part_end; key_part++)
+      {
+        if (field->eq(key_part->field))
+	  return !(key_part->key_part_flag & HA_PART_KEY_SEG);          
+      }
+      if ((tbl->file->ha_table_flags() & HA_PRIMARY_KEY_IN_READ_INDEX) &&
+          tbl->s->primary_key != MAX_KEY &&
+	  tbl->s->primary_key != keyno)
+      {
+        key_info= tbl->key_info + tbl->s->primary_key;
+        key_part= key_info->key_part;
+        key_part_end= key_part + key_info->key_parts;
+        for ( ; key_part < key_part_end; key_part++)
+        {
+          /* 
+            It does not make sense to use the fact that the engine can read in
+            a full field if the key if the index is built only over a part
+            of this field.
+	  */
+          if (field->eq(key_part->field))
+	    return !(key_part->key_part_flag & HA_PART_KEY_SEG);          
+        }
+      }  
+      return FALSE;
     }
   case Item::REF_ITEM:
     return uses_index_fields_only(item->real_item(), tbl, keyno,
@@ -288,30 +317,12 @@ void push_index_cond(JOIN_TAB *tab, uint keyno)
 {
   DBUG_ENTER("push_index_cond");
   Item *idx_cond;
-  bool do_index_cond_pushdown=
-    ((tab->table->file->index_flags(keyno, 0, 1) &
+
+  if ((tab->table->file->index_flags(keyno, 0, 1) &
       HA_DO_INDEX_COND_PUSHDOWN) &&
-     optimizer_flag(tab->join->thd, OPTIMIZER_SWITCH_INDEX_COND_PUSHDOWN));
-
-  /*
-    Do not try index condition pushdown on indexes which have partially-covered
-    columns. Unpacking from a column prefix into index tuple is not a supported 
-    operation in some engines, see e.g. MySQL BUG#42991.
-    TODO: a better solution would be not to consider partially-covered columns
-    as parts of the index and still produce/check index condition for
-    fully-covered index columns.
-  */
-  KEY *key_info= tab->table->key_info + keyno;
-  for (uint kp= 0; kp < key_info->key_parts; kp++)
-  {
-    if ((key_info->key_part[kp].key_part_flag & HA_PART_KEY_SEG))
-    {
-      do_index_cond_pushdown= FALSE;
-      break;
-    }
-  }
-
-  if (do_index_cond_pushdown)
+     optimizer_flag(tab->join->thd, OPTIMIZER_SWITCH_INDEX_COND_PUSHDOWN) &&
+     tab->join->thd->lex->sql_command != SQLCOM_UPDATE_MULTI &&
+     tab->join->thd->lex->sql_command != SQLCOM_DELETE_MULTI)
   {
     DBUG_EXECUTE("where",
                  print_where(tab->select_cond, "full cond", QT_ORDINARY););
