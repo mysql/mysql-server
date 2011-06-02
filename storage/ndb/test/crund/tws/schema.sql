@@ -44,4 +44,4 @@ CREATE  TABLE IF NOT EXISTS testdb.mytable (
 --        UNIQUE INDEX c2_UNIQUE (c2 ASC),
 --        UNIQUE INDEX c7_UNIQUE (c7 ASC),
 --        UNIQUE INDEX c8_UNIQUE (c8 ASC)
-);
+) ENGINE=NDB;
