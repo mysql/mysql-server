@@ -81,7 +81,12 @@ class ScanFilterImpl implements ScanFilter {
     }
 
     public void cmpBytes(BinaryCondition condition, Column storeColumn, byte[] value) {
-        ByteBuffer buffer = Utility.convertValue(storeColumn, value);
+        ByteBuffer buffer;
+        if (condition == BinaryCondition.COND_LIKE) {
+            buffer = Utility.convertValueForLikeFilter(storeColumn, value);
+        } else {
+            buffer = Utility.convertValue(storeColumn, value);
+        }
         int returnCode = ndbScanFilter.cmp(convertCondition(condition),
                 storeColumn.getColumnId(), buffer, buffer.capacity());
         handleError(returnCode, ndbScanFilter);

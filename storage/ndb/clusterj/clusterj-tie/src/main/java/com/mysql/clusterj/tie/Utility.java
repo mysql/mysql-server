@@ -97,6 +97,8 @@ public class Utility {
         }
     }
 
+    static final byte[] EMPTY_BYTE_ARRAY = new byte[0];
+
     // TODO: change this to a weak reference so we can call delete on it when not needed
     /** Note that mysql refers to charset number and charset name, but the number is
     * actually a collation number. The CharsetMap interface thus has methods like
@@ -974,6 +976,23 @@ public class Utility {
         }
         CharSequence chars = value;
         ByteBuffer byteBuffer = encodeToByteBuffer(chars, storeColumn.getCharsetNumber(), 0);
+        if (logger.isDetailEnabled()) dumpBytesToLog(byteBuffer, byteBuffer.limit());
+        return byteBuffer;
+    }
+
+    /** Encode a byte[] as a ByteBuffer that can be passed to ndbjtie in a COND_LIKE filter.
+     * There is no length information in the beginning of the buffer.
+     * @param storeColumn the column definition
+     * @param value the value to be converted
+     * @return the ByteBuffer
+     */
+    protected static ByteBuffer convertValueForLikeFilter(Column storeColumn, byte[] value) {
+        if (value == null) {
+            value = EMPTY_BYTE_ARRAY;
+        }
+        ByteBuffer byteBuffer = ByteBuffer.allocateDirect(value.length);
+        byteBuffer.put(value);
+        byteBuffer.flip();
         if (logger.isDetailEnabled()) dumpBytesToLog(byteBuffer, byteBuffer.limit());
         return byteBuffer;
     }
