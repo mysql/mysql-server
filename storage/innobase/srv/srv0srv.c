@@ -2496,7 +2496,7 @@ srv_purge_coordinator_thread(
 
 	while (srv_shutdown_state != SRV_SHUTDOWN_EXIT_THREADS) {
 
-		/* If there are very few records to purge or the last
+		/* If there are no records to purge or the last
 		purge didn't purge any records then wait for activity.
 	        We peek at the history len without holding any mutex
 		because in the worst case we will end up waiting for
