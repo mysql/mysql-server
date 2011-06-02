@@ -584,6 +584,8 @@ typedef struct st_position
    */
   table_map firstmatch_need_tables;
 
+  bool in_firstmatch_prefix() { return (first_firstmatch_table != MAX_TABLES); }
+  void invalidate_firstmatch_prefix() { first_firstmatch_table= MAX_TABLES; }
 
 /* Duplicate Weedout strategy */
   /* The first table that the strategy will need to handle */
