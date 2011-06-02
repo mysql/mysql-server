@@ -17,7 +17,6 @@
 
 package com.mysql.clusterj.core.query;
 
-import com.mysql.clusterj.ClusterJFatalInternalException;
 import com.mysql.clusterj.ClusterJUserException;
 
 import com.mysql.clusterj.core.spi.DomainFieldHandler;
@@ -53,12 +52,6 @@ public class PropertyImpl implements PredicateOperand {
 
     public void operationSetBounds(Object value, IndexScanOperation.BoundType type, IndexScanOperation op) {
         fmd.operationSetBounds(value, type, op);
-    }
-
-    public void operationSetLikeBounds(Object value, IndexScanOperation op, boolean lastColumn) {
-        // not currently implemented
-//        fmd.operationSetBounds(value, type, op);
-        throw new ClusterJFatalInternalException(local.message("ERR_NotImplemented"));
     }
 
     public void operationEqual(Object value, Operation op) {
@@ -155,90 +148,6 @@ public class PropertyImpl implements PredicateOperand {
 
     public void markInBound(CandidateIndexImpl[] candidateIndices, InPredicateImpl predicate) {
         fmd.markInBounds(candidateIndices, predicate);
-    }
-
-    public void markLikeBound(CandidateIndexImpl[] candidateIndices, Object value, LikePredicateImpl predicate) {
-        // not currently implemented
-//        if (isSuitableForLikeIndex(value)) {
-//            fmd.markLikeBounds(candidateIndices, predicate);
-//        }
-    }
-
-    /** Determine whether the value is suitable for use as bounds for an index scan.
-     * Used to create bounds for "like" queries. 
-     * This method should just delegate to the DomainFieldHandler...
-     * @param value the value
-     * @return true if the value can be used to create lower and upper bounds
-     */
-    @SuppressWarnings("unused")
-    private boolean isSuitableForLikeIndex(Object value) {
-        boolean result = false;
-        if (value instanceof String) {
-            String stringValue = (String)value;
-            int firstPercent = stringValue.indexOf('%');
-            int firstUnderbar = stringValue.indexOf('_');
-            if (firstPercent != 0 && firstUnderbar != 0) {
-                 // neither % or _ is the first character so index can be used
-                result = true;
-            }
-        }
-        if (logger.isDebugEnabled()) logger.debug(
-                "" + value + (result?" is suitable for index.":" is not suitable for index."));
-        return result;
-    }
-
-    /** Create a lower bound from a "like" parameter.
-     * This method should just delegate to the DomainFieldHandler...
-     * @param parameterValue the value whence to create a lower bound
-     * @return the lower bound
-     */
-    @SuppressWarnings("unused")
-    private String getLowerBound(String parameterValue) {
-        String result = parameterValue;
-        int firstPercent = parameterValue.indexOf('%');
-        int firstUnderbar = parameterValue.indexOf('_');
-        int firstWildCard = 0;
-        if (firstPercent == -1) {
-            firstWildCard = firstUnderbar;
-        } else if (firstUnderbar == -1) {
-            firstWildCard = firstPercent;
-        } else {
-            firstWildCard = Math.min(firstPercent, firstUnderbar);
-        }
-        if (firstWildCard != -1) {
-            // either % or _ appears in the string
-            result = parameterValue.substring(0, firstWildCard);
-        }
-        if (logger.isDebugEnabled()) logger.debug("lower bound for " + parameterValue + " is " + result);
-        return result;
-    }
-
-    /** Create an upper bound from a "like" parameter.
-     * This method should just delegate to the DomainFieldHandler...
-     * @param parameterValue the "like" parameter
-     * @return the upper bound
-     */
-    @SuppressWarnings("unused")
-    private String getUpperBound(String parameterValue) {
-        int firstPercent = parameterValue.indexOf('%');
-        int firstUnderbar = parameterValue.indexOf('_');
-        int firstWildCard = 0;
-        if (firstPercent == -1) {
-            firstWildCard = firstUnderbar;
-        } else if (firstUnderbar == -1) {
-            firstWildCard = firstPercent;
-        } else {
-            firstWildCard = Math.min(firstPercent, firstUnderbar);
-        }
-        if (firstWildCard == -1) {
-            // neither % nor _ appears in the string
-            firstWildCard = parameterValue.length();
-        }
-        StringBuilder builder = new StringBuilder(parameterValue.subSequence(0, firstWildCard - 1));
-        builder.append((char)(parameterValue.charAt(firstWildCard - 1) + 1));
-        String result = builder.toString();
-        if (logger.isDebugEnabled()) logger.debug("upper bound for " + parameterValue + " is " + result);
-        return result;
     }
 
 }

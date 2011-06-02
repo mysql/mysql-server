@@ -17,7 +17,6 @@
 
 package com.mysql.clusterj.core.query;
 
-import com.mysql.clusterj.core.store.IndexScanOperation;
 import com.mysql.clusterj.core.store.ScanFilter;
 import com.mysql.clusterj.core.store.ScanOperation;
 
@@ -32,15 +31,7 @@ public class LikePredicateImpl extends ComparativePredicateImpl {
 
     @Override
     public void markBoundsForCandidateIndices(QueryExecutionContextImpl context, CandidateIndexImpl[] candidateIndices) {
-        Object value = param.getParameterValue(context);
-        property.markLikeBound(candidateIndices, value, this);
-    }
-
-    @Override
-    public void operationSetBounds(QueryExecutionContextImpl context, IndexScanOperation op, boolean lastColumn) {
-        // set lower and upper bounds
-        String parameterValue = (String)param.getParameterValue(context);
-        property.operationSetLikeBounds(parameterValue, op, lastColumn);
+        // like does not support index bounds
     }
 
     /** Set the condition into the filter.
