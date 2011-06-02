@@ -1137,5 +1137,18 @@ WHERE
                 WHERE C.t2field IN (SELECT D.t2field FROM t2 D));
 drop table t1,t2;
 
+--echo # 
+--echo # BUG#787299: Valgrind complains on a join query with two IN subqueries
+--echo #
+create table t1 (a int);
+insert into t1 values (1), (2), (3);
+create table t2 as select * from t1;
+select * from t1 A, t1 B
+ where A.a = B.a and A.a in (select a from t2 C) and B.a in (select a from t2 D);
+explain
+select * from t1 A, t1 B
+ where A.a = B.a and A.a in (select a from t2 C) and B.a in (select a from t2 D);
+drop table t1, t2;
+
 # The following command must be the last one the file 
 set @@optimizer_switch=@save_optimizer_switch;

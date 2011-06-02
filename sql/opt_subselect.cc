@@ -2042,7 +2042,7 @@ void advance_sj_state(JOIN *join, table_map remaining_tables,
   /* Initialize the state or copy it from prev. tables */
   if (idx == join->const_tables)
   {
-    pos->first_firstmatch_table= MAX_TABLES;
+    pos->invalidate_firstmatch_prefix();
     pos->first_loosescan_table= MAX_TABLES; 
     pos->dupsweedout_tables= 0;
     pos->sjm_scan_need_tables= 0;
@@ -2107,7 +2107,7 @@ void advance_sj_state(JOIN *join, table_map remaining_tables,
       pos->first_firstmatch_rtbl= remaining_tables;
     }
 
-    if (pos->first_firstmatch_table != MAX_TABLES)
+    if (pos->in_firstmatch_prefix())
     {
       if (outer_corr_tables & pos->first_firstmatch_rtbl)
       {
@@ -2115,7 +2115,7 @@ void advance_sj_state(JOIN *join, table_map remaining_tables,
           Trying to add an sj-inner table whose sj-nest has an outer correlated 
           table that was not in the prefix. This means FirstMatch can't be used.
         */
-        pos->first_firstmatch_table= MAX_TABLES;
+        pos->invalidate_firstmatch_prefix();
       }
       else
       {
@@ -2123,7 +2123,8 @@ void advance_sj_state(JOIN *join, table_map remaining_tables,
         pos->firstmatch_need_tables|= sj_inner_tables;
       }
     
-      if (!(pos->firstmatch_need_tables & remaining_tables))
+      if (pos->in_firstmatch_prefix() && 
+          !(pos->firstmatch_need_tables & remaining_tables))
       {
         /*
           Got a complete FirstMatch range.
