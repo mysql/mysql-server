@@ -605,6 +605,42 @@ fts_cache_create(
 }
 
 /****************************************************************//**
+Free the query graph but check whether dict_sys->mutex is already
+held */
+UNIV_INTERN
+void
+fts_que_graph_free_check_lock(
+/*==========================*/
+	fts_table_t*		fts_table,	/*!< in: FTS table */
+	const fts_index_cache_t*index_cache,	/*!< in: FTS index cache */
+	que_t*			graph)		/*!< in: query graph */
+{
+	ibool	has_dict = FALSE;
+
+	if (fts_table && fts_table->table) {
+		ut_ad(fts_table->table->fts);
+
+		has_dict = fts_table->table->fts->fts_status
+			   & TABLE_DICT_LOCKED;
+	} else if (index_cache) {
+		ut_ad(index_cache->index->table->fts);
+
+		has_dict = index_cache->index->table->fts->fts_status
+			   & TABLE_DICT_LOCKED;
+	}
+
+        if (!has_dict) {
+                mutex_enter(&dict_sys->mutex);
+        }
+
+        que_graph_free(graph);
+
+        if (!has_dict) {
+                mutex_exit(&dict_sys->mutex);
+        }
+}
+
+/****************************************************************//**
 Create an FTS index cache. */
 UNIV_INTERN
 void
@@ -714,13 +750,17 @@ fts_cache_clear(
 
 			if (index_cache->ins_graph[j] != NULL) {
 
-				fts_que_graph_free(index_cache->ins_graph[j]);
+				fts_que_graph_free_check_lock(
+					NULL, index_cache,
+					index_cache->ins_graph[j]);
 				index_cache->ins_graph[j] = NULL;
 			}
 
 			if (index_cache->sel_graph[j] != NULL) {
 
-				fts_que_graph_free(index_cache->sel_graph[j]);
+				fts_que_graph_free_check_lock(
+					NULL, index_cache,
+					index_cache->sel_graph[j]);
 				index_cache->sel_graph[j] = NULL;
 			}
 		}
@@ -1011,6 +1051,10 @@ fts_cache_add_doc(
 	/* Add the doc stats memory usage too. */
 	cache->total_size += sizeof(*doc_stats);
 
+	if (doc_id > cache->sync->max_doc_id) {
+		cache->sync->max_doc_id = doc_id;
+	}
+
 	if (cache->total_size > fts_max_cache_size) {
 		fts_sync(cache->sync);
 	}
@@ -1111,11 +1155,7 @@ fts_drop_index_split_tables(
 	fts_table_t	fts_table;
 	ulint		error = DB_SUCCESS;
 
-	fts_table.suffix = NULL;
-	fts_table.type = FTS_INDEX_TABLE;
-	fts_table.index_id = index->id;
-	fts_table.table_id = index->table->id;
-	fts_table.parent = index->table->name;
+	FTS_INIT_INDEX_TABLE(&fts_table, NULL, FTS_INDEX_TABLE, index);
 
 	for (i = 0; fts_index_selector[i].ch; ++i) {
 		ulint	err;
@@ -1165,11 +1205,7 @@ fts_drop_index_tables(
 		error = err;
 	}
 
-	fts_table.suffix = NULL;
-	fts_table.type = FTS_INDEX_TABLE;
-	fts_table.index_id = index->id;
-	fts_table.table_id = index->table->id;
-	fts_table.parent = index->table->name;
+	FTS_INIT_INDEX_TABLE(&fts_table, NULL, FTS_INDEX_TABLE, index);
 
 	for (j = 0; index_tables[j] != NULL; ++j) {
 		ulint	err;
@@ -1239,10 +1275,7 @@ fts_drop_tables(
 	ulint		error;
 	fts_table_t	fts_table;
 
-	fts_table.suffix = NULL;
-	fts_table.table_id = table->id;
-	fts_table.parent = table->name;
-	fts_table.type = FTS_COMMON_TABLE;
+	FTS_INIT_FTS_TABLE(&fts_table, NULL, FTS_COMMON_TABLE, table);
 
 	error = fts_drop_common_tables(trx, &fts_table);
 
@@ -1296,11 +1329,7 @@ fts_create_common_tables(
 	fts_table_t	fts_table;
 	mem_heap_t*	heap = mem_heap_create(1024);
 
-	fts_table.suffix = NULL;
-	fts_table.parent = table->name;
-	fts_table.table_id = table->id;
-	fts_table.parent = table->name;
-	fts_table.type = FTS_COMMON_TABLE;
+	FTS_INIT_FTS_TABLE(&fts_table, NULL, FTS_COMMON_TABLE, table);
 
 	error = fts_drop_common_tables(trx, &fts_table);
 
@@ -1396,6 +1425,7 @@ fts_create_index_tables_low(
 	fts_table.index_id = index->id;
 	fts_table.table_id = table_id;
 	fts_table.parent = table_name;
+	fts_table.table = NULL;
 
 	/* Create the FTS auxiliary tables that are specific
 	to an FTS index. */
@@ -1990,7 +2020,7 @@ retry:
 	fts_table.suffix = "CONFIG";
 	fts_table.table_id = table->id;
 	fts_table.type = FTS_COMMON_TABLE;
-
+	fts_table.table = table;
 	if (table_name) {
 		fts_table.parent = table_name;
 	} else {
@@ -2103,7 +2133,7 @@ fts_update_last_doc_id(
 	fts_table.suffix = "CONFIG";
 	fts_table.table_id = table->id;
 	fts_table.type = FTS_COMMON_TABLE;
-
+	fts_table.table = table;
 	if (table_name) {
 		fts_table.parent = table_name;
 	} else {
@@ -2257,10 +2287,8 @@ fts_add(
 	if  (!graph) {
 		fts_table_t	fts_table;
 
-		fts_table.suffix = "ADDED";
-		fts_table.type = FTS_COMMON_TABLE;
-		fts_table.table_id = ftt->table->id;
-		fts_table.parent = ftt->table->name;
+		FTS_INIT_FTS_TABLE(&fts_table, "ADDED", FTS_COMMON_TABLE,
+				   ftt->table);
 
 		graph = fts_parse_sql(
 			&fts_table,
@@ -2310,10 +2338,7 @@ fts_delete(
 
 	trx->op_info = "deleting doc id from FTS ADDED";
 
-	fts_table.suffix = "ADDED";
-	fts_table.table_id = table->id;
-	fts_table.type = FTS_COMMON_TABLE;
-	fts_table.parent = table->name;
+	FTS_INIT_FTS_TABLE(&fts_table, "ADDED", FTS_COMMON_TABLE, table);
 
 	/* Convert to "storage" byte order. */
 	fts_write_doc_id((byte*) &write_doc_id, doc_id);
@@ -2992,15 +3017,10 @@ fts_sync_delete_from_added(
 	fts_write_doc_id((byte*) &write_last, sync->max_doc_id);
 	fts_bind_doc_id(info, "last", &write_last);
 
-	fts_table.suffix = "ADDED";
-	fts_table.type = FTS_COMMON_TABLE;
-	fts_table.table_id = sync->table->id;
-	fts_table.parent = sync->table->name;
+	FTS_INIT_FTS_TABLE(&fts_table, "ADDED", FTS_COMMON_TABLE, sync->table);
 
-	/*
 	printf("Deleting %lu -> %lu\n",
 	       (ulint) sync->min_doc_id, (ulint) sync->max_doc_id);
-	*/
 
 	graph = fts_parse_sql(
 		&fts_table,
@@ -3010,7 +3030,7 @@ fts_sync_delete_from_added(
 
 	error = fts_eval_sql(sync->trx, graph);
 
-	fts_que_graph_free(graph);
+	fts_que_graph_free_check_lock(&fts_table, NULL, graph);
 
 	return(error);
 }
@@ -3042,10 +3062,8 @@ fts_sync_add_deleted_cache(
 
 	fts_bind_doc_id(info, "doc_id", &dummy);
 
-	fts_table.type = FTS_COMMON_TABLE;
-	fts_table.suffix = "DELETED_CACHE";
-	fts_table.table_id = sync->table->id;
-	fts_table.parent = sync->table->name;
+	FTS_INIT_FTS_TABLE(&fts_table, "DELETED_CACHE", FTS_COMMON_TABLE,
+			   sync->table);
 
 	graph = fts_parse_sql(
 		&fts_table,
@@ -3089,10 +3107,8 @@ fts_sync_write_words(
 	ibool		print_error = FALSE;
 	dict_table_t*	table = index_cache->index->table;
 
-	fts_table.type = FTS_INDEX_TABLE;
-	fts_table.index_id = index_cache->index->id;
-	fts_table.table_id = index_cache->index->table->id;
-	fts_table.parent = index_cache->index->table->name;
+	FTS_INIT_INDEX_TABLE(&fts_table, NULL, FTS_INDEX_TABLE,
+			     index_cache->index);
 
 	n_words = rbt_size(index_cache->words);
 
@@ -3165,10 +3181,7 @@ fts_sync_write_words(
 	if (error == DB_SUCCESS) {
 		fts_table_t	fts_table;
 
-		fts_table.suffix = NULL;
-		fts_table.table_id = table->id;
-		fts_table.type = FTS_COMMON_TABLE;
-		fts_table.parent = table->name;
+		FTS_INIT_FTS_TABLE(&fts_table, NULL, FTS_COMMON_TABLE, table);
 
 		/* Increment the total number of words in the FTS index */
 		error = fts_config_increment_index_value(
@@ -3220,11 +3233,8 @@ fts_sync_write_doc_stat(
 	if (!*graph) {
 		fts_table_t	fts_table;
 
-		fts_table.suffix = "DOC_ID";
-		fts_table.index_id = index->id;
-		fts_table.type = FTS_INDEX_TABLE;
-		fts_table.table_id = index->table->id;
-		fts_table.parent = index->table->name;
+		FTS_INIT_INDEX_TABLE(&fts_table, "DOC_ID", FTS_INDEX_TABLE,
+				     index);
 
 		*graph = fts_parse_sql(
 			&fts_table,
@@ -3288,7 +3298,7 @@ fts_sync_write_doc_stats(
 	}
 
 	if (graph != NULL) {
-		fts_que_graph_free(graph);
+		fts_que_graph_free_check_lock(NULL, index_cache, graph);
 	}
 
 	return(error);
@@ -4372,9 +4382,7 @@ fts_load_from_added(
 	/* Read the doc ids that have not been parsed and added to our
 	internal auxiliary ADDED table. */
 
-	fts_table.type = FTS_COMMON_TABLE;
-	fts_table.table_id = sync->table->id;
-	fts_table.parent = sync->table->name;
+	FTS_INIT_FTS_TABLE(&fts_table, NULL, FTS_COMMON_TABLE, sync->table);
 
 	/* Since we will be creating a transaction, we piggy back reading
 	of the config value, max_cache_size. */
@@ -4449,10 +4457,7 @@ fts_update_max_cache_size(
 
 	trx = trx_allocate_for_background();
 
-	fts_table.suffix = "CONFIG";
-	fts_table.type = FTS_COMMON_TABLE;
-	fts_table.table_id = sync->table->id;
-	fts_table.parent = sync->table->name;
+	FTS_INIT_FTS_TABLE(&fts_table, "CONFIG", FTS_COMMON_TABLE, sync->table);
 
 	/* The size returned is in bytes. */
 	sync->max_cache_size = fts_get_max_cache_size(trx, &fts_table);
@@ -5746,10 +5751,7 @@ fts_load_stopword(
 	trx_t*		trx;
 	byte		str_buffer[FTS_MAX_UTF8_WORD_LEN + 1];
 
-        fts_table.suffix = "CONFIG";
-        fts_table.type = FTS_COMMON_TABLE;
-        fts_table.table_id = table->id;
-        fts_table.parent = table->name;
+	FTS_INIT_FTS_TABLE(&fts_table, "CONFIG", FTS_COMMON_TABLE, table);
 
 	cache = table->fts->cache;
 
@@ -5839,17 +5841,16 @@ fts_init_index(
 /*===========*/
 	dict_table_t*	table)		/*!< in: Table with FTS */
 {
-	fts_sync_t	sync;
+	fts_sync_t*	sync;
 	ulint		error;
 
-	memset(&sync, 0, sizeof(sync));
-	sync.table = table;
+	sync = table->fts->cache->sync;
 
-	fts_update_max_cache_size(&sync);
+	fts_update_max_cache_size(sync);
 
 	/* Load Doc IDs in the ADDED table, parse them and add to
 	index cache */	
-	error = fts_load_from_added(&sync);
+	error = fts_load_from_added(sync);
 
 	if (error == DB_SUCCESS
 	    && (table->fts->cache->stopword_info.status & STOPWORD_NOT_INIT)) {

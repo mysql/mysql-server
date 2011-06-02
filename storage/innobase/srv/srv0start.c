@@ -2112,6 +2112,42 @@ innobase_start_or_create_for_mysql(void)
 	return((int) DB_SUCCESS);
 }
 
+/********************************************************************
+Sync all FTS cache before shutdown */
+static
+void
+srv_fts_close(void)
+/*===============*/
+{
+	dict_table_t*	table;
+
+	mutex_enter(&dict_sys->mutex);
+
+	for (table = UT_LIST_GET_FIRST(dict_sys->table_LRU);
+	     table; table = UT_LIST_GET_NEXT(table_LRU, table)) {
+		fts_t*          fts = table->fts;
+
+		if (fts != NULL) {
+			fts->fts_status |= TABLE_DICT_LOCKED;
+			fts_sync_table(table);
+			fts->fts_status &= ~TABLE_DICT_LOCKED;
+		}
+	}
+
+	for (table = UT_LIST_GET_FIRST(dict_sys->table_non_LRU);
+	     table; table = UT_LIST_GET_NEXT(table_LRU, table)) {
+		fts_t*          fts = table->fts;
+
+		if (fts != NULL) {
+			fts->fts_status |= TABLE_DICT_LOCKED;
+			fts_sync_table(table);
+			fts->fts_status &= ~TABLE_DICT_LOCKED;
+		}
+	}
+
+	mutex_exit(&dict_sys->mutex);
+}
+
 /****************************************************************//**
 Shuts down the InnoDB database.
 @return	DB_SUCCESS or error code */
@@ -2135,6 +2171,7 @@ innobase_shutdown_for_mysql(void)
 
 	/* Shutdown the FTS optimize sub system. */
 	fts_optimize_start_shutdown();
+	srv_fts_close();
 
 	/* 1. Flush the buffer pool to disk, write the current lsn to
 	the tablespace header(s), and copy all log data to archive.

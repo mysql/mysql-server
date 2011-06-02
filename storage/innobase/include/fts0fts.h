@@ -121,6 +121,28 @@ typedef struct fts_trx_table_struct fts_trx_table_t;
 typedef	struct fts_savepoint_struct fts_savepoint_t;
 typedef struct fts_index_cache_struct fts_index_cache_t;
 
+
+/** Initialize the "fts_table" for internal query into FTS auxiliary
+tables */ 
+#define FTS_INIT_FTS_TABLE(fts_table, m_suffix, m_type, m_table)\
+do {								\
+	(fts_table)->suffix = m_suffix;				\
+        (fts_table)->type = m_type;				\
+        (fts_table)->table_id = m_table->id;			\
+        (fts_table)->parent = m_table->name;			\
+        (fts_table)->table = m_table;				\
+} while (0);
+
+#define FTS_INIT_INDEX_TABLE(fts_table, m_suffix, m_type, m_index)\
+do {								\
+	(fts_table)->suffix = m_suffix;				\
+        (fts_table)->type = m_type;				\
+        (fts_table)->table_id = m_index->table->id;		\
+        (fts_table)->parent = m_index->table->name;		\
+        (fts_table)->table = m_index->table;			\
+        (fts_table)->index_id = m_index->id;			\
+} while (0);
+
 /********************************************************************
 Create a FTS cache. */
 
@@ -521,6 +543,17 @@ fts_sync_table(
 /*===========*/
 	dict_table_t*	table);		/*!< in: table */
 
+/****************************************************************//**
+Free the query graph but check whether dict_sys->mutex is already
+held */
+UNIV_INTERN
+void
+fts_que_graph_free_check_lock(
+/*==========================*/
+	fts_table_t*		fts_table,	/*!< in: FTS table */
+	const fts_index_cache_t*index_cache,	/*!< in: FTS index cache */
+	que_t*			graph);		/*!< in: query graph */
+
 /********************************************************************
 Fetch COUNT(*) from specified table. */
 ulint
@@ -641,6 +674,8 @@ struct fts_table_struct {
 	const char*	suffix;		/* The suffix of the fts auxiliary
 					table name, can be NULL, not used
 					everywhere (yet) */
+	const dict_table_t*
+			table;		/* Parent table */
 };
 
 enum	fts_status {
@@ -653,6 +688,7 @@ enum	fts_status {
 	ADD_THREAD_STARTED = 4,	/* TRUE if the FTS add thread started */
 	ADDED_TABLE_SYNCED = 8,	/* TRUE if the ADDED table record is sync-ed
 				after crash recovery */
+	TABLE_DICT_LOCKED = 16,	/* Set if the table has dict_sys->mutex */
 };
 
 typedef	enum fts_status	fts_status_t;
