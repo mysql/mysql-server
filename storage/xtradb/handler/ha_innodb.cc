@@ -4674,9 +4674,10 @@ build_template_needs_field(
 					primary key columns */
 	dict_index_t*	index,		/*!< in: InnoDB index to use */
 	const TABLE*	table,		/*!< in: MySQL table object */
-	ulint		i)		/*!< in: field index in InnoDB table */
+	ulint		i,		/*!< in: field index in InnoDB table */
+	ulint		sql_idx)	/*!< in: field index in SQL table */
 {
-	const Field*	field	= table->field[i];
+	const Field*	field	= table->field[sql_idx];
 
 	ut_ad(index_contains == dict_index_contains_col_or_prefix(index, i));
 
@@ -4693,8 +4694,8 @@ build_template_needs_field(
 		return(field);
 	}
 
-	if (bitmap_is_set(table->read_set, i)
-	    || bitmap_is_set(table->write_set, i)) {
+	if (bitmap_is_set(table->read_set, sql_idx)
+	    || bitmap_is_set(table->write_set, sql_idx)) {
 		/* This field is needed in the query */
 
 		return(field);
@@ -4802,10 +4803,10 @@ ha_innobase::build_template(
 {
 	dict_index_t*	index;
 	dict_index_t*	clust_index;
- 	ulint		n_fields;
+	ulint		n_fields, n_stored_fields;
 	ibool		fetch_all_in_key	= FALSE;
 	ibool		fetch_primary_key_cols	= FALSE;
- 	ulint		i;
+	ulint		i, sql_idx;
        
 	if (prebuilt->select_lock_type == LOCK_X) {
 		/* We always retrieve the whole clustered index record if we
@@ -4855,10 +4856,11 @@ ha_innobase::build_template(
 	the clustered index. */
 
 	n_fields = (ulint)table->s->fields; /* number of columns */
+	n_stored_fields= (ulint)table->s->stored_fields; /* number of stored columns */
 
 	if (!prebuilt->mysql_template) {
 		prebuilt->mysql_template = (mysql_row_templ_t*)
-			mem_alloc(n_fields * sizeof(mysql_row_templ_t));
+			mem_alloc(n_stored_fields * sizeof(mysql_row_templ_t));
 	}
 
 	prebuilt->template_type = whole_row
@@ -4876,7 +4878,12 @@ ha_innobase::build_template(
 
 	if (active_index != MAX_KEY && active_index == pushed_idx_cond_keyno) {
 		/* Push down an index condition or an end_range check. */
-		for (i = 0; i < n_fields; i++) {
+	  for (i = 0, sql_idx = 0; i < n_stored_fields; i++, sql_idx++) {
+
+	                while (!table->field[sql_idx]->stored_in_db) {
+			        sql_idx++;     
+                        }
+                       
 			const ibool		index_contains
 				= dict_index_contains_col_or_prefix(index, i);
 
@@ -4903,14 +4910,14 @@ ha_innobase::build_template(
 				mysql_row_templ_t*	templ;
 
 				if (whole_row) {
-					field = table->field[i];
+					field = table->field[sql_idx];
 				} else {
 					field = build_template_needs_field(
 						index_contains,
 						prebuilt->read_just_key,
 						fetch_all_in_key,
 						fetch_primary_key_cols,
-						index, table, i);
+						index, table, i, sql_idx);
 					if (!field) {
 						continue;
 					}
@@ -4982,7 +4989,12 @@ ha_innobase::build_template(
 
 		/* Include the fields that are not needed in index condition
 		pushdown. */
-		for (i = 0; i < n_fields; i++) {
+                for (i = 0, sql_idx = 0; i < n_stored_fields; i++, sql_idx++) {
+
+		        while (!table->field[sql_idx]->stored_in_db) {
+			        sql_idx++;     
+                        }
+                       
 			const ibool		index_contains
 				= dict_index_contains_col_or_prefix(index, i);
 
@@ -4994,14 +5006,14 @@ ha_innobase::build_template(
 				const Field*	field;
 
 				if (whole_row) {
-					field = table->field[i];
+					field = table->field[sql_idx];
 				} else {
 					field = build_template_needs_field(
 						index_contains,
 						prebuilt->read_just_key,
 						fetch_all_in_key,
 						fetch_primary_key_cols,
-						index, table, i);
+						index, table, i, sql_idx);
 					if (!field) {
 						continue;
 					}
@@ -5018,11 +5030,15 @@ ha_innobase::build_template(
 		/* No index condition pushdown */
 		prebuilt->idx_cond = NULL;
 
-		for (i = 0; i < n_fields; i++) {
+                for (i = 0, sql_idx = 0; i < n_stored_fields; i++, sql_idx++) {
 			const Field*	field;
 
+	                while (!table->field[sql_idx]->stored_in_db) {
+			        sql_idx++;     
+                        }
+
 			if (whole_row) {
-				field = table->field[i];
+				field = table->field[sql_idx];
 			} else {
 				field = build_template_needs_field(
 					dict_index_contains_col_or_prefix(
@@ -5030,7 +5046,7 @@ ha_innobase::build_template(
 					prebuilt->read_just_key,
 					fetch_all_in_key,
 					fetch_primary_key_cols,
-					index, table, i);
+					index, table, i, sql_idx);
 				if (!field) {
 					continue;
 				}
