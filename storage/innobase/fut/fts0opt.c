@@ -2118,10 +2118,8 @@ fts_optimize_being_deleted_count(
 	fts_table_t	fts_table;
 	ulint		count;
 
-        fts_table.type = FTS_COMMON_TABLE;
-        fts_table.table_id = optim->table->id;
-        fts_table.parent = optim->table->name;
-	fts_table.suffix = "BEING_DELETED";
+	FTS_INIT_FTS_TABLE(&fts_table, "BEING_DELETED", FTS_COMMON_TABLE,
+			   optim->table);
 
 	count = fts_get_rows_count(&fts_table);
 

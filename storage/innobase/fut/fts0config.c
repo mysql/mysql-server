@@ -178,10 +178,8 @@ fts_config_get_index_value(
 	ulint		error;
 	fts_table_t	fts_table;
 
-	fts_table.suffix = "CONFIG";
-	fts_table.type = FTS_COMMON_TABLE;
-	fts_table.table_id = index->table->id;
-	fts_table.parent = index->table->name;
+	FTS_INIT_FTS_TABLE(&fts_table, "CONFIG", FTS_COMMON_TABLE,
+			   index->table);
 
 	/* We are responsible for free'ing name. */
 	name = fts_config_create_index_param_name(param, index);
@@ -222,9 +220,7 @@ fts_config_set_value(
 
 	fts_table->suffix = "CONFIG";
 
-	row_mysql_lock_data_dictionary(trx);
-
-	graph = fts_parse_sql_no_dict_lock(
+	graph = fts_parse_sql(
 		fts_table, info,
 		"BEGIN UPDATE %s SET value = :value WHERE key = :name;");
 
@@ -234,7 +230,7 @@ fts_config_set_value(
 
 	error = fts_eval_sql(trx, graph);
 
-	que_graph_free(graph);
+	fts_que_graph_free_check_lock(fts_table, NULL, graph);
 
 	n_rows_updated = trx->undo_no - undo_no;
 
@@ -248,7 +244,7 @@ fts_config_set_value(
 		pars_info_bind_varchar_literal(
 			info, "value", value->utf8, value->len);
 
-		graph = fts_parse_sql_no_dict_lock(
+		graph = fts_parse_sql(
 			fts_table, info,
 			"BEGIN\n"
 			"INSERT INTO %s VALUES(:name, :value);");
@@ -257,10 +253,8 @@ fts_config_set_value(
 
 		error = fts_eval_sql(trx, graph);
 
-		que_graph_free(graph);
+		fts_que_graph_free_check_lock(fts_table, NULL, graph);
 	}
-
-	row_mysql_unlock_data_dictionary(trx);
 
 	return(error);
 }
@@ -284,10 +278,8 @@ fts_config_set_index_value(
 	ulint		error;
 	fts_table_t	fts_table;
 
-	fts_table.suffix = "CONFIG";
-	fts_table.type = FTS_COMMON_TABLE;
-	fts_table.table_id = index->table->id;
-	fts_table.parent = index->table->name;
+	FTS_INIT_FTS_TABLE(&fts_table, "CONFIG", FTS_COMMON_TABLE,
+			   index->table);
 
 	/* We are responsible for free'ing name. */
 	name = fts_config_create_index_param_name(param, index);
@@ -509,9 +501,7 @@ fts_config_increment_value(
 
 	error = fts_eval_sql(trx, graph);
 
-	mutex_enter(&dict_sys->mutex);
-	que_graph_free(graph);
-	mutex_exit(&dict_sys->mutex);
+	fts_que_graph_free_check_lock(fts_table, NULL, graph);
 
 	if (UNIV_UNLIKELY(error == DB_SUCCESS)) {
 		ulint		int_value;
@@ -560,10 +550,8 @@ fts_config_increment_index_value(
 	ulint		error;
 	fts_table_t	fts_table;
 
-	fts_table.suffix = "CONFIG";
-	fts_table.type = FTS_COMMON_TABLE;
-	fts_table.table_id = index->table->id;
-	fts_table.parent = index->table->name;
+	FTS_INIT_FTS_TABLE(&fts_table, "CONFIG", FTS_COMMON_TABLE,
+			   index->table);
 
 	/* We are responsible for free'ing name. */
 	name = fts_config_create_index_param_name(param, index);

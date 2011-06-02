@@ -2031,10 +2031,7 @@ row_merge_insert_index_tuples(
 		ins_graph = mem_heap_alloc(fts_heap, n_bytes);
 		memset(ins_graph, 0x0, n_bytes);
 
-		fts_table.type = FTS_INDEX_TABLE;
-		fts_table.index_id = index->id;
-		fts_table.table_id = table->id;
-		fts_table.parent = index->table->name;
+		FTS_INIT_INDEX_TABLE(&fts_table, NULL, FTS_INDEX_TABLE, index);
 	}
 
 	if (!row_merge_read(fd, foffs, block)) {

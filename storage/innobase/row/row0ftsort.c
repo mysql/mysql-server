@@ -1106,6 +1106,7 @@ row_fts_merge_insert(
 	fts_table.index_id = index->id;
 	fts_table.table_id = table->id;
 	fts_table.parent = index->table->name;
+	fts_table.table = NULL;
 
 	for (i = 0; i < FTS_PARALLEL_DEGREE; i++) {
 		if (psort_info[i].merge_file[id]->n_rec == 0) {

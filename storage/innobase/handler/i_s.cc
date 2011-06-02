@@ -2561,16 +2561,9 @@ i_s_fts_deleted_generic_fill(
 	trx = trx_allocate_for_background();
 	trx->op_info = "Select for FTS DELETE TABLE";
 
-	fts_table.table_id = user_table->id;
-	fts_table.parent = user_table->name;
-	fts_table.parent = fts_internal_tbl_name;
-	fts_table.type = FTS_COMMON_TABLE;
-
-	if (being_deleted) {
-		fts_table.suffix = "BEING_DELETED";
-	} else {
-		fts_table.suffix = "DELETED";
-	}
+	FTS_INIT_FTS_TABLE(&fts_table,
+			   (being_deleted) ? "BEING_DELETED" : "DELETED",
+			   FTS_COMMON_TABLE, user_table);
 
 	fts_table_fetch_doc_ids(trx, &fts_table, deleted);
 
@@ -2797,10 +2790,7 @@ i_s_fts_inserted_fill(
 	trx = trx_allocate_for_background();
 	trx->op_info = "Select for FTS ADDED Table";
 
-	fts_table.table_id = user_table->id;
-	fts_table.parent = user_table->name;
-	fts_table.suffix = "ADDED";
-	fts_table.type = FTS_COMMON_TABLE;
+	FTS_INIT_FTS_TABLE(&fts_table, "ADDED", FTS_COMMON_TABLE, user_table);
 
 	fts_table_fetch_doc_ids(trx, &fts_table, inserted);
 
@@ -3181,12 +3171,8 @@ i_s_fts_index_table_fill_selected(
 
 	pars_info_bind_function(info, "my_func", fetch.read_record, &fetch);
 
-	fts_table.type = FTS_INDEX_TABLE;
-	fts_table.parent = index->table->name;
-	fts_table.table_id = index->table->id;
-	fts_table.index_id = index->id;
-
-	fts_table.suffix = fts_get_suffix(selected);
+	FTS_INIT_INDEX_TABLE(&fts_table, fts_get_suffix(selected),
+			     FTS_INDEX_TABLE, index);
 
 	graph = fts_parse_sql(
 		&fts_table, info,
@@ -3520,12 +3506,7 @@ i_s_fts_config_fill(
 	trx = trx_allocate_for_background();
 	trx->op_info = "Select for FTS DELETE TABLE";
 
-	fts_table.table_id = user_table->id;
-	fts_table.parent = user_table->name;
-	fts_table.parent = fts_internal_tbl_name;
-	fts_table.type = FTS_COMMON_TABLE;
-
-	fts_table.suffix = "CONFIG";
+	FTS_INIT_FTS_TABLE(&fts_table, "CONFIG", FTS_COMMON_TABLE, user_table);
 
 	if (!ib_vector_is_empty(user_table->fts->indexes)) {
 		index = (dict_index_t*) ib_vector_getp_const(

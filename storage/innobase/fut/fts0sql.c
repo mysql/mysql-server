@@ -157,6 +157,7 @@ fts_parse_sql(
 	char*		str;
 	que_t*		graph;
 	char*		str_tmp;
+	ibool		dict_locked;
 
 	if (fts_table != NULL) {
 		char*	table_name;
@@ -174,13 +175,21 @@ fts_parse_sql(
 	str = ut_str3cat(fts_sql_begin, str_tmp, fts_sql_end);
 	mem_free(str_tmp);
 
-	/* The InnoDB SQL parser is not re-entrant. */
-	mutex_enter(&dict_sys->mutex);
+	dict_locked = (fts_table && fts_table->table
+		       && (fts_table->table->fts->fts_status
+			   & TABLE_DICT_LOCKED));
+
+	if (!dict_locked) {
+		/* The InnoDB SQL parser is not re-entrant. */
+		mutex_enter(&dict_sys->mutex);
+	}
 
 	graph = pars_sql(info, str);
 	ut_a(graph);
 
-	mutex_exit(&dict_sys->mutex);
+	if (!dict_locked) {
+		mutex_exit(&dict_sys->mutex);
+	}
 
 	mem_free(str);
 
