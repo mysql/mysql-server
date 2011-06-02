@@ -12089,7 +12089,7 @@ static MYSQL_SYSVAR_ULONG(purge_batch_size, srv_purge_batch_size,
   PLUGIN_VAR_OPCMDARG,
   "Number of UNDO log pages to purge in one batch from the history list.",
   NULL, NULL,
-  20,			/* Default setting */
+  300,			/* Default setting */
   1,			/* Minimum value */
   5000, 0);		/* Maximum value */
 
