@@ -340,6 +340,8 @@ static const char *optimizer_switch_names[]=
   "partial_match_rowid_merge",
   "partial_match_table_scan",
   "subquery_cache",
+  "mrr",
+  "mrr_cost_based",
   "mrr_sort_keys",
   "outer_join_with_cache",
   "semijoin_with_cache",
@@ -370,6 +372,8 @@ static const unsigned int optimizer_switch_names_len[]=
   sizeof("partial_match_rowid_merge") - 1,
   sizeof("partial_match_table_scan") - 1,
   sizeof("subquery_cache") - 1,
+  sizeof("mrr") - 1,
+  sizeof("mrr_cost_based") - 1,
   sizeof("mrr_sort_keys") - 1,
   sizeof("outer_join_with_cache") - 1,
   sizeof("semijoin_with_cache") - 1,
@@ -487,6 +491,8 @@ static const char *optimizer_switch_str="index_merge=on,index_merge_union=on,"
                                         "partial_match_rowid_merge=on,"
                                         "partial_match_table_scan=on,"
                                         "subquery_cache=on,"
+                                        "mrr=on,"
+                                        "mrr_cost_based=off,"
                                         "mrr_sort_keys=on,"
                                         "join_cache_incremental=on,"
                                         "join_cache_hashed=on,"
@@ -3730,8 +3736,6 @@ static int init_common_variables(const char *conf_file_name, int argc,
   global_system_variables.collation_connection=  default_charset_info;
   global_system_variables.character_set_results= default_charset_info;
   global_system_variables.character_set_client= default_charset_info;
-
-  global_system_variables.optimizer_use_mrr= 1;
 
   if (!(character_set_filesystem=
         get_charset_by_csname(character_set_filesystem_name,

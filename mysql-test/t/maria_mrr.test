@@ -92,7 +92,6 @@ DROP TABLE t1,t2,t3;
 --echo # (works only on Maria because we need 1024-byte long key)
 --echo #
 
-SET SESSION optimizer_use_mrr = 'force';
 SET SESSION join_cache_level = 6;
 SET SESSION join_buffer_size = 1024;
 CREATE TABLE t1 (

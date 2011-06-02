@@ -408,14 +408,6 @@ struct system_variables
   ulong optimizer_search_depth;
   /* A bitmap for switching optimizations on/off */
   ulong optimizer_switch;
-  /*
-    Controls use of Engine-MRR:
-      0 - auto, based on cost
-      1 - force MRR when the storage engine is capable of doing it
-      2 - disable MRR.
-  */
-  ulong optimizer_use_mrr; 
-
   ulong preload_buff_size;
   ulong profiling_history_size;
   ulong query_cache_type;

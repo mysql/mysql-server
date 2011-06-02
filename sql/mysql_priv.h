@@ -575,18 +575,27 @@ protected:
 #define OPTIMIZER_SWITCH_PARTIAL_MATCH_ROWID_MERGE  (1<<11)
 #define OPTIMIZER_SWITCH_PARTIAL_MATCH_TABLE_SCAN (1<<12)
 #define OPTIMIZER_SWITCH_SUBQUERY_CACHE (1<<13)
-#define OPTIMIZER_SWITCH_MRR_SORT_KEYS (1<<14)
-#define OPTIMIZER_SWITCH_OUTER_JOIN_WITH_CACHE (1<<15)
-#define OPTIMIZER_SWITCH_SEMIJOIN_WITH_CACHE (1<<16)
-#define OPTIMIZER_SWITCH_JOIN_CACHE_INCREMENTAL (1<<17)
-#define OPTIMIZER_SWITCH_JOIN_CACHE_HASHED (1<<18)
-#define OPTIMIZER_SWITCH_JOIN_CACHE_BKA (1<<19)
-#define OPTIMIZER_SWITCH_OPTIMIZE_JOIN_BUFFER_SIZE (1<<20)
+/** If this is off, MRR is never used. */
+#define OPTIMIZER_SWITCH_MRR                       (1ULL << 14)
+/**
+   If OPTIMIZER_SWITCH_MRR is on and this is on, MRR is used depending on a
+   cost-based choice ("automatic"). If OPTIMIZER_SWITCH_MRR is on and this is
+   off, MRR is "forced" (i.e. used as long as the storage engine is capable of
+   doing it).
+*/
+#define OPTIMIZER_SWITCH_MRR_COST_BASED            (1ULL << 15)
+#define OPTIMIZER_SWITCH_MRR_SORT_KEYS             (1ULL << 16)
+#define OPTIMIZER_SWITCH_OUTER_JOIN_WITH_CACHE     (1ULL << 17)
+#define OPTIMIZER_SWITCH_SEMIJOIN_WITH_CACHE       (1ULL << 18)
+#define OPTIMIZER_SWITCH_JOIN_CACHE_INCREMENTAL    (1ULL << 19)
+#define OPTIMIZER_SWITCH_JOIN_CACHE_HASHED         (1ULL << 20)
+#define OPTIMIZER_SWITCH_JOIN_CACHE_BKA            (1ULL << 21)
+#define OPTIMIZER_SWITCH_OPTIMIZE_JOIN_BUFFER_SIZE (1ULL << 22)
 #ifdef DBUG_OFF
-#  define OPTIMIZER_SWITCH_LAST (1<<21)
+#  define OPTIMIZER_SWITCH_LAST                    (1ULL << 23)
 #else
-#  define OPTIMIZER_SWITCH_TABLE_ELIMINATION (1<<21)
-#  define OPTIMIZER_SWITCH_LAST (1<<22)
+#  define OPTIMIZER_SWITCH_TABLE_ELIMINATION       (1ULL << 23)
+#  define OPTIMIZER_SWITCH_LAST                    (1ULL << 24)
 #endif
 
 #ifdef DBUG_OFF 
@@ -608,6 +617,7 @@ enabled by default, add OPTIMIZER_SWITCH_MATERIALIZATION
                                     OPTIMIZER_SWITCH_PARTIAL_MATCH_ROWID_MERGE|\
                                     OPTIMIZER_SWITCH_PARTIAL_MATCH_TABLE_SCAN|\
                                     OPTIMIZER_SWITCH_SUBQUERY_CACHE|\
+                                    OPTIMIZER_SWITCH_MRR|\
                                     OPTIMIZER_SWITCH_MRR_SORT_KEYS|\
                                     OPTIMIZER_SWITCH_SUBQUERY_CACHE | \
                                     OPTIMIZER_SWITCH_JOIN_CACHE_INCREMENTAL | \
@@ -628,6 +638,7 @@ enabled by default, add OPTIMIZER_SWITCH_MATERIALIZATION
                                     OPTIMIZER_SWITCH_PARTIAL_MATCH_ROWID_MERGE|\
                                     OPTIMIZER_SWITCH_PARTIAL_MATCH_TABLE_SCAN|\
                                     OPTIMIZER_SWITCH_SUBQUERY_CACHE|\
+                                    OPTIMIZER_SWITCH_MRR|\
                                     OPTIMIZER_SWITCH_MRR_SORT_KEYS|\
                                     OPTIMIZER_SWITCH_JOIN_CACHE_INCREMENTAL | \
                                     OPTIMIZER_SWITCH_JOIN_CACHE_HASHED | \
