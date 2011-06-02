@@ -6407,7 +6407,7 @@ find_field_in_tables(THD *thd, Item_ident *item,
       find_field_in_table even in the case of information schema tables
       when table_ref->field_translation != NULL.
       */
-    if (table_ref->table && 
+    if (table_ref->table && !table_ref->view &&
         (!table_ref->is_merged_derived() ||
          (!table_ref->is_multitable() && table_ref->merged_for_insert)))
     {
