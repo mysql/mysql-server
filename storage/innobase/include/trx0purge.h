@@ -117,11 +117,9 @@ struct trx_purge_struct{
 					obtaining an s-latch here. */
 	read_view_t*	view;		/*!< The purge will not remove undo logs
 					which are >= this view (purge view) */
-	ulint		n_submitted;	/*!< Count of total tasks submitted
+	volatile ulint	n_submitted;	/*!< Count of total tasks submitted
 					to the task queue */
-	ulint		n_executing;	/*!< Count of currently executing purge
-					worker threads */
-	ulint		n_completed;	/*!< Count of total tasks completed */
+	volatile ulint	n_completed;	/*!< Count of total tasks completed */
 
 	/*------------------------------*/
 	/* The following two fields form the 'purge pointer' which advances

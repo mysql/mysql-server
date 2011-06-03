@@ -561,7 +561,6 @@ typedef struct system_status_var
   ulong key_cache_write;
   /* END OF KEY_CACHE parts */
 
-  ulong net_big_packet_count;
   ulong opened_tables;
   ulong opened_shares;
   ulong select_full_join_count;
@@ -708,7 +707,7 @@ public:
   {
     void *ptr;
     if ((ptr=alloc_root(mem_root,size)))
-      bzero(ptr, size);
+      memset(ptr, 0, size);
     return ptr;
   }
   inline char *strdup(const char *str)
@@ -1851,8 +1850,6 @@ public:
   /*
     Public interface to write RBR events to the binlog
   */
-  void binlog_start_trans_and_stmt();
-  void binlog_set_stmt_begin();
   int binlog_write_table_map(TABLE *table, bool is_transactional,
                              bool binlog_rows_query);
   int binlog_write_row(TABLE* table, bool is_transactional,
@@ -1976,7 +1973,7 @@ public:
     }
     st_transactions()
     {
-      bzero((char*)this, sizeof(*this));
+      memset(this, 0, sizeof(*this));
       xid_state.xid.null();
       init_sql_alloc(&mem_root, ALLOC_ROOT_MIN_BLOCK_SIZE, 0);
     }

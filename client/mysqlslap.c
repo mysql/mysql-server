@@ -434,7 +434,7 @@ void concurrency_loop(MYSQL *mysql, uint current, option_string *eptr)
   head_sptr= (stats *)my_malloc(sizeof(stats) * iterations, 
                                 MYF(MY_ZEROFILL|MY_FAE|MY_WME));
 
-  bzero(&conclusion, sizeof(conclusions));
+  memset(&conclusion, 0, sizeof(conclusions));
 
   if (auto_actual_queries)
     client_limit= auto_actual_queries;

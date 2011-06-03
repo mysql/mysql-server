@@ -69,7 +69,6 @@ include/stop_slave.inc
 CREATE TABLE t1(a LONGBLOB) ENGINE=INNODB;
 # Test case3: Set DEBUG POINT in the middle of binlog to
 #             make the master crash for transaction.
-SET SESSION debug="d,half_binlogged_transaction";
 BEGIN;
 INSERT INTO t1 (a) VALUES (REPEAT('a',6144));
 INSERT INTO t1 (a) VALUES (REPEAT('a',6144));
@@ -95,6 +94,7 @@ INSERT INTO t1 (a) VALUES (REPEAT('a',6144));
 INSERT INTO t1 (a) VALUES (REPEAT('a',6144));
 INSERT INTO t1 (a) VALUES (REPEAT('a',6144));
 INSERT INTO t1 (a) VALUES (REPEAT('a',6144));
+SET SESSION debug="d,half_binlogged_transaction";
 COMMIT;
 ERROR HY000: Lost connection to MySQL server during query
 # Restart the master server
@@ -110,8 +110,8 @@ COUNT(*)
 0
 # Test case4: Set DEBUG POINT in the middle of binlog to
 #             make the master crash for non-transaction.
-SET SESSION debug="d,half_binlogged_transaction";
 CREATE TABLE t2(a LONGBLOB) ENGINE=MYISAM;
+SET SESSION debug="d,half_binlogged_transaction";
 INSERT INTO t2 (a) VALUES (REPEAT('a',16384));
 ERROR HY000: Lost connection to MySQL server during query
 # Restart the master server

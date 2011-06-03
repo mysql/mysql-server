@@ -568,7 +568,7 @@ FT_INFO * ft_init_boolean_search(MI_INFO *info, uint keynr, uchar *query,
   DBUG_ASSERT(keynr==NO_SUCH_KEY || cs == info->s->keyinfo[keynr].seg->charset);
   ftb->with_scan=0;
   ftb->lastpos=HA_OFFSET_ERROR;
-  bzero(& ftb->no_dupes, sizeof(TREE));
+  memset(&ftb->no_dupes, 0, sizeof(TREE));
   ftb->last_word= 0;
 
   init_alloc_root(&ftb->mem_root, 1024, 1024);

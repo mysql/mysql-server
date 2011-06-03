@@ -19,7 +19,7 @@
 
 WOPool::WOPool() 
 {
-  bzero(this, sizeof(* this));
+  memset(this, 0, sizeof(* this));
   m_current_pos = WOPage::WOPAGE_WORDS;
 }
 

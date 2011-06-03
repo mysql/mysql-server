@@ -34,7 +34,7 @@ void radixsort_for_str_ptr(uchar **base, uint number_of_elements, size_t size_of
   end=base+number_of_elements; count_end=count+256;
   for (pass=(int) size_of_element-1 ; pass >= 0 ; pass--)
   {
-    bzero((uchar*) count,sizeof(uint32)*256);
+    memset(count, 0, sizeof(uint32)*256);
     for (ptr= base ; ptr < end ; ptr++)
       count[ptr[0][pass]]++;
     if (count[0] == number_of_elements)

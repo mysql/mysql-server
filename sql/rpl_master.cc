@@ -655,7 +655,7 @@ void mysql_binlog_send(THD* thd, char* log_ident, my_off_t pos,
   DBUG_ENTER("mysql_binlog_send");
   DBUG_PRINT("enter",("log_ident: '%s'  pos: %ld", log_ident, (long) pos));
 
-  bzero((char*) &log,sizeof(log));
+  memset(&log, 0, sizeof(log));
   /* 
      heartbeat_period from @master_heartbeat_period user variable
   */
