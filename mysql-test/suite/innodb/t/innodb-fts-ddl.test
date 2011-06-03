@@ -95,7 +95,24 @@ INSERT INTO fts_test (title,body) VALUES
 # Create the FTS index
 CREATE FULLTEXT INDEX idx on fts_test (title, body);
 
-# "the" is in the default stopword, it would not be selected
+SELECT * FROM fts_test WHERE MATCH (title, body)
+        AGAINST ('Tutorial' IN NATURAL LANGUAGE MODE);
+
+# Drop and recreate
+drop index idx on fts_test;
+
+CREATE FULLTEXT INDEX idx on fts_test (title, body);
+
+SELECT * FROM fts_test WHERE MATCH (title, body)
+        AGAINST ('Tutorial' IN NATURAL LANGUAGE MODE);
+
+# Drop the FTS_DOC_ID_INDEX and try again
+drop index idx on fts_test;
+
+drop index FTS_DOC_ID_INDEX on fts_test;
+
+CREATE FULLTEXT INDEX idx on fts_test (title, body);
+
 SELECT * FROM fts_test WHERE MATCH (title, body)
         AGAINST ('Tutorial' IN NATURAL LANGUAGE MODE);
 

@@ -80,4 +80,19 @@ AGAINST ('Tutorial' IN NATURAL LANGUAGE MODE);
 FTS_DOC_ID	title	body
 1	MySQL Tutorial	DBMS stands for DataBase ...
 3	Optimizing MySQL	In this tutorial we will show ...
+drop index idx on fts_test;
+CREATE FULLTEXT INDEX idx on fts_test (title, body);
+SELECT * FROM fts_test WHERE MATCH (title, body)
+AGAINST ('Tutorial' IN NATURAL LANGUAGE MODE);
+FTS_DOC_ID	title	body
+1	MySQL Tutorial	DBMS stands for DataBase ...
+3	Optimizing MySQL	In this tutorial we will show ...
+drop index idx on fts_test;
+drop index FTS_DOC_ID_INDEX on fts_test;
+CREATE FULLTEXT INDEX idx on fts_test (title, body);
+SELECT * FROM fts_test WHERE MATCH (title, body)
+AGAINST ('Tutorial' IN NATURAL LANGUAGE MODE);
+FTS_DOC_ID	title	body
+1	MySQL Tutorial	DBMS stands for DataBase ...
+3	Optimizing MySQL	In this tutorial we will show ...
 drop table fts_test;
