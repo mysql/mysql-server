@@ -3051,8 +3051,7 @@ begin
 set @x = @x + 1;
 return @x;
 end|
-set @qcs1 = @@query_cache_size|
-set global query_cache_size = 100000|
+# Set query cache size, if we have query cache
 set @x = 1|
 insert into t1 values ("qc", 42)|
 select bug9902() from t1|
@@ -3064,6 +3063,7 @@ bug9902()
 select @x|
 @x
 3
+# Restore the old query cache size
 set global query_cache_size = @qcs1|
 delete from t1|
 drop function bug9902|

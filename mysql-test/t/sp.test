@@ -3748,15 +3748,23 @@ begin
   return @x;
 end|
 
-set @qcs1 = @@query_cache_size|
-set global query_cache_size = 100000|
+--disable_query_log
+--echo # Set query cache size, if we have query cache
+if (`select @@have_query_cache='YES'`) {
+  set @qcs1 = @@query_cache_size|
+  set global query_cache_size = 100000|
+}
+--enable_query_log
 set @x = 1|
 insert into t1 values ("qc", 42)|
 select bug9902() from t1|
 select bug9902() from t1|
 select @x|
 
-set global query_cache_size = @qcs1|
+--echo # Restore the old query cache size
+if (`select @@have_query_cache='YES'`) {
+  set global query_cache_size = @qcs1|
+}
 delete from t1|
 drop function bug9902|
 
