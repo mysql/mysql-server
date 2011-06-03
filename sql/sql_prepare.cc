@@ -4150,7 +4150,7 @@ bool Protocol_local::store_null()
   if (m_current_column == NULL)
     return TRUE; /* prepare_for_resend() failed to allocate memory. */
 
-  bzero(m_current_column, sizeof(*m_current_column));
+  memset(m_current_column, 0, sizeof(*m_current_column));
   ++m_current_column;
   return FALSE;
 }

@@ -392,7 +392,7 @@ bool st_select_lex_unit::prepare(THD *thd_arg, select_result *sel_result,
     if (union_result->create_result_table(thd, &types, test(union_distinct),
                                           create_options, "", FALSE))
       goto err;
-    bzero((char*) &result_table_list, sizeof(result_table_list));
+    memset(&result_table_list, 0, sizeof(result_table_list));
     result_table_list.db= (char*) "";
     result_table_list.table_name= result_table_list.alias= (char*) "union";
     result_table_list.table= table= union_result->table;

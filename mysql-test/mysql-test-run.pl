@@ -449,6 +449,11 @@ sub main {
   #
   read_plugin_defs("include/plugin.defs");
 
+  # Also read from any plugin local plugin.defs
+  for (glob "$basedir/plugin/*/tests/mtr/plugin.defs") {
+    read_plugin_defs($_);
+  }
+
   # Simplify reference to semisync plugins
   $ENV{'SEMISYNC_PLUGIN_OPT'}= $ENV{'SEMISYNC_MASTER_PLUGIN_OPT'};
 

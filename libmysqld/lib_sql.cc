@@ -687,7 +687,7 @@ void *create_embedded_thd(int client_flag)
   thd->cur_data= 0;
   thd->first_data= 0;
   thd->data_tail= &thd->first_data;
-  bzero((char*) &thd->net, sizeof(thd->net));
+  memset(&thd->net, 0, sizeof(thd->net));
 
   thread_count++;
   threads.append(thd);

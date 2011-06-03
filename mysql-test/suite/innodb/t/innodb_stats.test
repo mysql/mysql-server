@@ -62,4 +62,6 @@ CREATE TABLE test_innodb_stats (
 
 -- disable_query_log
 DROP TABLE test_innodb_stats;
-DROP DATABASE innodb;
+
+DROP TABLE mysql.innodb_index_stats;
+DROP TABLE mysql.innodb_table_stats;

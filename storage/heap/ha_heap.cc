@@ -648,7 +648,7 @@ heap_prepare_hp_create_info(TABLE *table_arg, bool internal_table,
   TABLE_SHARE *share= table_arg->s;
   bool found_real_auto_increment= 0;
 
-  bzero(hp_create_info, sizeof(*hp_create_info));
+  memset(hp_create_info, 0, sizeof(*hp_create_info));
 
   for (key= parts= 0; key < keys; key++)
     parts+= table_arg->key_info[key].key_parts;
