@@ -259,17 +259,14 @@ KEY `varchar_key` (`varchar_key`)
 ) AUTO_INCREMENT=12 DEFAULT CHARSET=latin1;
 INSERT INTO `t1` VALUES (10,'00:00:00','i','i'),(11,'00:00:00','','');
 set @old_optimizer_switch          = @@session.optimizer_switch,
-@old_optimizer_use_mrr         = @@session.optimizer_use_mrr,
 @old_engine_condition_pushdown = @@session.engine_condition_pushdown;
-SET SESSION OPTIMIZER_SWITCH = 'materialization=off,semijoin=off,loosescan=off,firstmatch=off';
-SET SESSION optimizer_use_mrr = 'force';
+SET SESSION OPTIMIZER_SWITCH = 'materialization=off,semijoin=off,loosescan=off,firstmatch=off,mrr=on';
 SET SESSION engine_condition_pushdown = 1;
 SELECT `time_nokey` G1  FROM t1  WHERE ( `varchar_nokey`  , `varchar_key`  )  IN ( 
 SELECT `varchar_nokey`  , `varchar_nokey`  )  AND `varchar_key`  >= 'c' HAVING G1  ORDER 
 BY `pk`   ;
 G1
 set @@session.optimizer_switch          = @old_optimizer_switch,
-@@session.optimizer_use_mrr         = @old_optimizer_use_mrr,
 @@session.engine_condition_pushdown = @old_engine_condition_pushdown;
 DROP TABLE t1;
 #

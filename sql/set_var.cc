@@ -527,17 +527,6 @@ static sys_var_thd_ulong        sys_optimizer_search_depth(&vars, "optimizer_sea
 static sys_var_thd_optimizer_switch   sys_optimizer_switch(&vars, "optimizer_switch",
                                      &SV::optimizer_switch);
 
-const char *optimizer_use_mrr_names[] = {"auto", "force", "disable", NullS};
-TYPELIB optimizer_use_mrr_typelib= {
-  array_elements(optimizer_use_mrr_names) - 1, "",
-  optimizer_use_mrr_names, NULL
-};
-
-static sys_var_thd_enum        sys_optimizer_use_mrr(&vars, "optimizer_use_mrr",
-                                              &SV::optimizer_use_mrr,
-                                              &optimizer_use_mrr_typelib,
-                                              NULL);
-
 static sys_var_const            sys_pid_file(&vars, "pid_file",
                                              OPT_GLOBAL, SHOW_CHAR,
                                              (uchar*) pidfile_name);
