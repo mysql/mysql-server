@@ -19,8 +19,7 @@ let $MYSQLD_DATADIR= `select @@datadir`;
 let collation=utf8_unicode_ci;
 --source include/have_collation.inc
 
-set optimizer_switch='index_condition_pushdown=off';
-set @@optimizer_use_mrr=disable;
+set optimizer_switch='index_condition_pushdown=off,mrr=off';
 
 # Save the original values of some variables in order to be able to
 # estimate how much they have changed during the tests. Previously this
@@ -2555,8 +2554,7 @@ SET GLOBAL innodb_thread_concurrency = @innodb_thread_concurrency_orig;
 
 -- enable_query_log
 
-set optimizer_switch='index_condition_pushdown=default';
-set @@optimizer_use_mrr=default;
+set optimizer_switch=default;
 # Clean up after the Bug#55284/Bug#58912 test case.
 DROP TABLE bug58912;
 

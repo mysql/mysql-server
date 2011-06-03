@@ -1,5 +1,4 @@
-set optimizer_switch='index_condition_pushdown=off';
-set @@optimizer_use_mrr=disable;
+set optimizer_switch='index_condition_pushdown=off,mrr=off';
 drop table if exists t1,t2,t3,t4;
 drop database if exists mysqltest;
 CREATE TABLE bug58912 (a BLOB, b TEXT, PRIMARY KEY(a(1))) ENGINE=InnoDB;
@@ -3244,6 +3243,5 @@ Variable_name	Value
 Handler_update	1
 Variable_name	Value
 Handler_delete	1
-set optimizer_switch='index_condition_pushdown=default';
-set @@optimizer_use_mrr=default;
+set optimizer_switch=default;
 DROP TABLE bug58912;
