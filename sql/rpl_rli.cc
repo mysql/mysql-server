@@ -90,7 +90,7 @@ Relay_log_info::Relay_log_info(bool is_slave_recovery
   group_relay_log_name[0]= event_relay_log_name[0]=
     group_master_log_name[0]= 0;
   until_log_name[0]= ign_master_log_name_end[0]= 0;
-  bzero((char*) &cache_buf, sizeof(cache_buf));
+  memset(&cache_buf, 0, sizeof(cache_buf));
   cached_charset_invalidate();
   mysql_mutex_init(key_relay_log_info_log_space_lock,
                    &log_space_lock, MY_MUTEX_INIT_FAST);
@@ -878,7 +878,7 @@ void Relay_log_info::cached_charset_invalidate()
   DBUG_ENTER("Relay_log_info::cached_charset_invalidate");
 
   /* Full of zeroes means uninitialized. */
-  bzero(cached_charset, sizeof(cached_charset));
+  memset(cached_charset, 0, sizeof(cached_charset));
   DBUG_VOID_RETURN;
 }
 

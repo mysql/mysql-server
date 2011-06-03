@@ -57,7 +57,7 @@ int safe_mutex_init(safe_mutex_t *mp,
 		    const char *file,
 		    uint line)
 {
-  bzero((char*) mp,sizeof(*mp));
+  memset(mp, 0, sizeof(*mp));
   pthread_mutex_init(&mp->global,MY_MUTEX_INIT_ERRCHK);
   pthread_mutex_init(&mp->mutex,attr);
   /* Mark that mutex is initialized */

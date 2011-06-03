@@ -1557,5 +1557,23 @@ SELECT FROM_BASE64(TO_BASE64(dt1)) FROM t1;
 DROP TABLE t1;
 
 --echo #
+--echo # Bug#11765562 58545:
+--echo # EXPORT_SET() CAN BE USED TO MAKE ENTIRE SERVER COMPLETELY UNRESPONSIVE
+--echo #
+
+SELECT @tmp_max:= @@global.max_allowed_packet;
+SET @@global.max_allowed_packet=1024*1024*1024;
+# switching connection to allow the new max_allowed_packet take effect
+--connect (newconn, localhost, root,,)
+
+SELECT @@global.max_allowed_packet;
+SELECT CHAR_LENGTH(EXPORT_SET(1,1,1,REPEAT(1,100000000))); 
+
+--connection default
+SET @@global.max_allowed_packet:= @tmp_max;
+--disconnect newconn
+
+
+--echo #
 --echo # End of 5.6 tests
 --echo #

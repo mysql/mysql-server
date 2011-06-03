@@ -226,7 +226,7 @@ public:
       {
         my_free(ptr->fname);
         delete ptr->event;
-        bzero((char *)ptr, sizeof(File_name_record));
+        memset(ptr, 0, sizeof(File_name_record));
       }
     }
 
@@ -257,7 +257,7 @@ public:
         return 0;
       ptr= dynamic_element(&file_names, file_id, File_name_record*);
       if ((res= ptr->event))
-        bzero((char *)ptr, sizeof(File_name_record));
+        memset(ptr, 0, sizeof(File_name_record));
       return res;
     }
 
@@ -287,7 +287,7 @@ public:
       if (!ptr->event)
       {
         res= ptr->fname;
-        bzero((char *)ptr, sizeof(File_name_record));
+        memset(ptr, 0, sizeof(File_name_record));
       }
       return res;
     }

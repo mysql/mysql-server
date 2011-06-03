@@ -1735,36 +1735,63 @@ dict_index_too_big_for_undo(
 		ulint			fixed_size
 			= dict_col_get_fixed_size(col,
 						  dict_table_is_comp(table));
+		ulint			max_prefix
+			= col->max_prefix;
 
 		if (fixed_size) {
 			/* Fixed-size columns are stored locally. */
 			max_size = fixed_size;
 		} else if (max_size <= BTR_EXTERN_FIELD_REF_SIZE * 2) {
 			/* Short columns are stored locally. */
-		} else if (!col->ord_part) {
+		} else if (!col->ord_part
+			   || (col->max_prefix
+			       < (ulint) DICT_MAX_FIELD_LEN_BY_FORMAT(table))) {
 			/* See if col->ord_part would be set
-			because of new_index. */
+			because of new_index. Also check if the new
+			index could have longer prefix on columns
+			that already had ord_part set  */
 			ulint	j;
 
 			for (j = 0; j < new_index->n_uniq; j++) {
 				if (dict_index_get_nth_col(
 					    new_index, j) == col) {
+					const dict_field_t*     field
+						= dict_index_get_nth_field(
+							new_index, j);
+
+					if (field->prefix_len
+					    > col->max_prefix) {
+						max_prefix =
+							 field->prefix_len;
+					}
 
 					goto is_ord_part;
 				}
+			}
+
+			if (col->ord_part) {
+				goto is_ord_part;
 			}
 
 			/* This is not an ordering column in any index.
 			Thus, it can be stored completely externally. */
 			max_size = BTR_EXTERN_FIELD_REF_SIZE;
 		} else {
+			ulint	max_field_len;
 is_ord_part:
+			max_field_len = DICT_MAX_FIELD_LEN_BY_FORMAT(table);
+
 			/* This is an ordering column in some index.
 			A long enough prefix must be written to the
 			undo log.  See trx_undo_page_fetch_ext(). */
+			max_size = ut_min(max_size, max_field_len);
 
-			if (max_size > REC_MAX_INDEX_COL_LEN) {
-				max_size = REC_MAX_INDEX_COL_LEN;
+			/* We only store the needed prefix length in undo log */
+			if (max_prefix) {
+			     ut_ad(dict_table_get_format(table)
+				   >= UNIV_FORMAT_B);
+
+				max_size = ut_min(max_prefix, max_size);
 			}
 
 			max_size += BTR_EXTERN_FIELD_REF_SIZE;
@@ -2018,15 +2045,16 @@ too_big:
 		/* In dtuple_convert_big_rec(), variable-length columns
 		that are longer than BTR_EXTERN_FIELD_REF_SIZE * 2
 		may be chosen for external storage.  If the column appears
-		in an ordering column of an index, a longer prefix of
-		REC_MAX_INDEX_COL_LEN will be copied to the undo log
-		by trx_undo_page_report_modify() and
+		in an ordering column of an index, a longer prefix determined
+		by dict_max_field_len_store_undo() will be copied to the undo
+		log by trx_undo_page_report_modify() and
 		trx_undo_page_fetch_ext().  It suffices to check the
 		capacity of the undo log whenever new_index includes
 		a column prefix on a column that may be stored externally. */
 
 		if (field->prefix_len /* prefix index */
-		    && !col->ord_part /* not yet ordering column */
+		    && (!col->ord_part /* not yet ordering column */
+			|| field->prefix_len > col->max_prefix)
 		    && !dict_col_get_fixed_size(col, TRUE) /* variable-length */
 		    && dict_col_get_max_size(col)
 		    > BTR_EXTERN_FIELD_REF_SIZE * 2 /* long enough */) {
@@ -2043,11 +2071,17 @@ too_big:
 	}
 
 undo_size_ok:
-	/* Flag the ordering columns */
+	/* Flag the ordering columns and also set column max_prefix */
 
 	for (i = 0; i < n_ord; i++) {
+		const dict_field_t*	field
+			= dict_index_get_nth_field(new_index, i);
 
-		dict_index_get_nth_field(new_index, i)->col->ord_part = 1;
+		field->col->ord_part = 1;
+
+		if (field->prefix_len > field->col->max_prefix) {
+			field->col->max_prefix = field->prefix_len;
+		}
 	}
 
 	/* Add the new index as the last index for the table */
@@ -2271,14 +2305,14 @@ dict_index_add_col(
 	variable-length fields, so that the extern flag can be embedded in
 	the length word. */
 
-	if (field->fixed_len > DICT_MAX_INDEX_COL_LEN) {
+	if (field->fixed_len > DICT_MAX_FIXED_COL_LEN) {
 		field->fixed_len = 0;
 	}
-#if DICT_MAX_INDEX_COL_LEN != 768
+#if DICT_MAX_FIXED_COL_LEN != 768
 	/* The comparison limit above must be constant.  If it were
 	changed, the disk format of some fixed-length columns would
 	change, which would be a disaster. */
-# error "DICT_MAX_INDEX_COL_LEN != 768"
+# error "DICT_MAX_FIXED_COL_LEN != 768"
 #endif
 
 	if (!(col->prtype & DATA_NOT_NULL)) {

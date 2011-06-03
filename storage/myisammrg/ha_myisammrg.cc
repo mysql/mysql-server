@@ -1317,8 +1317,8 @@ int ha_myisammrg::info(uint flag)
         It's safe though, because even if opimizer will decide to use a key
         with such a number, it'll be an error later anyway.
       */
-      bzero((char*) table->key_info[0].rec_per_key,
-            sizeof(table->key_info[0].rec_per_key[0]) * table->s->key_parts);
+      memset(table->key_info[0].rec_per_key, 0,
+             sizeof(table->key_info[0].rec_per_key[0]) * table->s->key_parts);
 #endif
       memcpy((char*) table->key_info[0].rec_per_key,
 	     (char*) mrg_info.rec_per_key,

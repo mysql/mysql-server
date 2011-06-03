@@ -47,6 +47,8 @@ mtr_start(
 /*======*/
 	mtr_t*	mtr)	/*!< out: mini-transaction */
 {
+	UNIV_MEM_INVALID(mtr, sizeof *mtr);
+
 	dyn_array_create(&(mtr->memo));
 	dyn_array_create(&(mtr->log));
 

@@ -971,7 +971,7 @@ table_def::table_def(unsigned char *types, ulong size,
                                      &m_null_bits, (size + 7) / 8,
                                      NULL);
 
-  bzero(m_field_metadata, size * sizeof(uint16));
+  memset(m_field_metadata, 0, size * sizeof(uint16));
 
   if (m_type)
     memcpy(m_type, types, size);

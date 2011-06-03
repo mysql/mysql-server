@@ -37,7 +37,7 @@ row_ext_lookup_ith(
 	const row_ext_t*	ext,	/*!< in/out: column prefix cache */
 	ulint			i,	/*!< in: index of ext->ext[] */
 	ulint*			len)	/*!< out: length of prefix, in bytes,
-					at most REC_MAX_INDEX_COL_LEN */
+					at most ext->max_len */
 {
 	ut_ad(ext);
 	ut_ad(len);
@@ -45,11 +45,14 @@ row_ext_lookup_ith(
 
 	*len = ext->len[i];
 
+	ut_ad(*len <= ext->max_len);
+	ut_ad(ext->max_len > 0);
+
 	if (UNIV_UNLIKELY(*len == 0)) {
 		/* The BLOB could not be fetched to the cache. */
 		return(field_ref_zero);
 	} else {
-		return(ext->buf + i * REC_MAX_INDEX_COL_LEN);
+		return(ext->buf + i * ext->max_len);
 	}
 }
 
@@ -67,7 +70,7 @@ row_ext_lookup(
 					dict_col_get_no(); NOT relative to the
 					records in the clustered index */
 	ulint*			len)	/*!< out: length of prefix, in bytes,
-					at most REC_MAX_INDEX_COL_LEN */
+					at most ext->max_len */
 {
 	ulint	i;
 

@@ -152,7 +152,7 @@ load_unidata(MY_UNIDATA_PARAM *prm, MY_UNIDATA_CHAR *chr)
     size_t n;
     char *s, *e;
     MY_UNIDATA_CHAR ch;
-    bzero(&ch, sizeof(ch));
+    memset(&ch, 0, sizeof(ch));
 
     for(n= 0, s= str; s; n++)
     {
@@ -536,7 +536,7 @@ int main(int ac, char ** av)
   static MY_UNIDATA_CHAR unidata[MAX_CHAR + 1];
 
   process_options(&prm, ac, av);
-  bzero(unidata, sizeof(unidata));
+  memset(unidata, 0, sizeof(unidata));
   fill_implicit_ctype(&prm, unidata);
   load_unidata(&prm, unidata);
 
