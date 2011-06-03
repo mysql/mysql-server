@@ -1904,6 +1904,11 @@ JOIN::optimize()
       thd->restore_active_arena(arena, &backup);
   }
 
+  /*
+    Note: optimize_cond() makes changes to conds. Since
+    select_lex->where and conds points to the same condition, this
+    function call effectively changes select_lex->where as well.
+  */
   conds= optimize_cond(this, conds, join_list, TRUE, &select_lex->cond_value);
   if (thd->is_error())
   {
@@ -1913,6 +1918,7 @@ JOIN::optimize()
   }
 
   {
+    // Note above about optimize_cond() also applies to selec_lex->having
     having= optimize_cond(this, having, join_list, FALSE,
                           &select_lex->having_value);
     if (thd->is_error())
@@ -4767,7 +4773,7 @@ make_join_statistics(JOIN *join, TABLE_LIST *tables_arg, Item *conds,
     table->quick_keys.clear_all();
     table->reginfo.join_tab=s;
     table->reginfo.not_exists_optimize=0;
-    bzero((char*) table->const_key_parts, sizeof(key_part_map)*table->s->keys);
+    memset(table->const_key_parts, 0, sizeof(key_part_map)*table->s->keys);
     join->all_table_map|= table->map;
     s->join=join;
 
@@ -14711,7 +14717,8 @@ optimize_cond(JOIN *join, Item *conds, List<TABLE_LIST> *join_list,
   SYNPOSIS
     remove_eq_conds()
     thd 			THD environment
-    cond                        the condition to handle
+    cond                        the condition to handle. Note that cond
+                                is changed by this function
     cond_value                  the resulting value of the condition
 
   RETURN
@@ -14773,9 +14780,34 @@ internal_remove_eq_conds(THD *thd, Item *cond, Item::cond_result *cond_value)
 	*cond_value != Item::COND_OK)
       return (Item*) 0;
     if (((Item_cond*) cond)->argument_list()->elements == 1)
-    {						// Remove list
+    {
+      /*
+        BUG#11765699:
+        We're dealing with an AND or OR item that has only one
+        argument. However, it is not an option to empty the list
+        because:
+
+         - this function is called for either JOIN::conds or
+           JOIN::having, but these point to the same condition as
+           SELECT_LEX::where and SELECT_LEX::having do.
+
+         - The return value of remove_eq_conds() is assigned to
+           JOIN::conds and JOIN::having, so emptying the list and
+           returning the only remaining item "replaces" the AND or OR
+           with item for the variables in JOIN. However, the return
+           value is not assigned to the SELECT_LEX counterparts. Thus,
+           if argument_list is emptied, SELECT_LEX forgets the item in
+           argument_list()->head().
+
+        item is therefore returned, but argument_list is not emptied.
+      */
       item= ((Item_cond*) cond)->argument_list()->head();
-      ((Item_cond*) cond)->argument_list()->empty();
+      /*
+        Consider reenabling the line below when the optimizer has been
+        split into properly separated phases.
+ 
+        ((Item_cond*) cond)->argument_list()->empty();
+      */
       return item;
     }
   }
@@ -15615,10 +15647,10 @@ create_tmp_table(THD *thd,TMP_TABLE_PARAM *param,List<Item> &fields,
   strmov(tmpname,path);
   /* make table according to fields */
 
-  bzero((char*) table,sizeof(*table));
-  bzero((char*) reg_field,sizeof(Field*)*(field_count+1));
-  bzero((char*) default_field, sizeof(Field*) * (field_count));
-  bzero((char*) from_field,sizeof(Field*)*field_count);
+  memset(table, 0, sizeof(*table));
+  memset(reg_field, 0, sizeof(Field*)*(field_count+1));
+  memset(default_field, 0, sizeof(Field*) * (field_count));
+  memset(from_field, 0, sizeof(Field*)*field_count);
 
   table->mem_root= own_root;
   mem_root_save= thd->mem_root;
@@ -15888,11 +15920,11 @@ create_tmp_table(THD *thd,TMP_TABLE_PARAM *param,List<Item> &fields,
   pos=table->record[0]+ null_pack_length;
   if (null_pack_length)
   {
-    bzero((uchar*) recinfo,sizeof(*recinfo));
+    memset(recinfo, 0, sizeof(*recinfo));
     recinfo->type=FIELD_NORMAL;
     recinfo->length=null_pack_length;
     recinfo++;
-    bfill(null_flags,null_pack_length,255);	// Set null fields
+    memset(null_flags, 255, null_pack_length);	// Set null fields
 
     table->null_flags= (uchar*) table->record[0];
     share->null_fields= null_count+ hidden_null_count;
@@ -15904,7 +15936,7 @@ create_tmp_table(THD *thd,TMP_TABLE_PARAM *param,List<Item> &fields,
   {
     Field *field= *reg_field;
     uint length;
-    bzero((uchar*) recinfo,sizeof(*recinfo));
+    memset(recinfo, 0, sizeof(*recinfo));
 
     if (!(field->flags & NOT_NULL_FLAG))
     {
@@ -15918,7 +15950,7 @@ create_tmp_table(THD *thd,TMP_TABLE_PARAM *param,List<Item> &fields,
 	recinfo->length=1;
 	recinfo->type=FIELD_NORMAL;
 	recinfo++;
-	bzero((uchar*) recinfo,sizeof(*recinfo));
+	memset(recinfo, 0, sizeof(*recinfo));
       }
       else
       {
@@ -16106,7 +16138,7 @@ create_tmp_table(THD *thd,TMP_TABLE_PARAM *param,List<Item> &fields,
           alloc_root(&table->mem_root,
                      keyinfo->key_parts * sizeof(KEY_PART_INFO))))
       goto err;
-    bzero((void*) key_part_info, keyinfo->key_parts * sizeof(KEY_PART_INFO));
+    memset(key_part_info, 0, keyinfo->key_parts * sizeof(KEY_PART_INFO));
     table->key_info=keyinfo;
     keyinfo->key_part=key_part_info;
     keyinfo->flags=HA_NOSAME | HA_NULL_ARE_EQUAL;
@@ -16305,8 +16337,8 @@ TABLE *create_duplicate_weedout_tmp_table(THD *thd,
   
 
   /* STEP 4: Create TABLE description */
-  bzero((char*) table,sizeof(*table));
-  bzero((char*) reg_field,sizeof(Field*)*2);
+  memset(table, 0, sizeof(*table));
+  memset(reg_field, 0, sizeof(Field*)*2);
 
   table->mem_root= own_root;
   mem_root_save= thd->mem_root;
@@ -16402,11 +16434,11 @@ TABLE *create_duplicate_weedout_tmp_table(THD *thd,
   pos=table->record[0]+ null_pack_length;
   if (null_pack_length)
   {
-    bzero((uchar*) recinfo,sizeof(*recinfo));
+    memset(recinfo, 0, sizeof(*recinfo));
     recinfo->type=FIELD_NORMAL;
     recinfo->length=null_pack_length;
     recinfo++;
-    bfill(null_flags,null_pack_length,255);	// Set null fields
+    memset(null_flags, 255, null_pack_length);	// Set null fields
 
     table->null_flags= (uchar*) table->record[0];
     share->null_fields= null_count;
@@ -16417,7 +16449,7 @@ TABLE *create_duplicate_weedout_tmp_table(THD *thd,
   {
     //Field *field= *reg_field;
     uint length;
-    bzero((uchar*) recinfo,sizeof(*recinfo));
+    memset(recinfo, 0, sizeof(*recinfo));
     field->move_field(pos,(uchar*) 0,0);
 
     field->reset();
@@ -16426,7 +16458,7 @@ TABLE *create_duplicate_weedout_tmp_table(THD *thd,
       'offset' fields generated by initalize_tables
     */
     // Initialize the table field:
-    bzero(field->ptr, field->pack_length());
+    memset(field->ptr, 0, field->pack_length());
 
     length=field->pack_length();
     pos+= length;
@@ -16562,8 +16594,8 @@ TABLE *create_virtual_tmp_table(THD *thd, List<Create_field> &field_list)
                         NullS))
     return 0;
 
-  bzero(table, sizeof(*table));
-  bzero(share, sizeof(*share));
+  memset(table, 0, sizeof(*table));
+  memset(share, 0, sizeof(*share));
   table->field= field;
   table->s= share;
   table->temp_pool_slot= MY_BIT_NONE;
@@ -16724,7 +16756,7 @@ static bool create_myisam_tmp_table(TABLE *table, KEY *keyinfo,
     if (!seg)
       goto err;
 
-    bzero(seg, sizeof(*seg) * keyinfo->key_parts);
+    memset(seg, 0, sizeof(*seg) * keyinfo->key_parts);
     if (keyinfo->key_length >= table->file->max_key_length() ||
 	keyinfo->key_parts > table->file->max_key_parts() ||
 	share->uniques)
@@ -16733,13 +16765,13 @@ static bool create_myisam_tmp_table(TABLE *table, KEY *keyinfo,
       share->keys=    0;
       share->uniques= 1;
       using_unique_constraint=1;
-      bzero((char*) &uniquedef,sizeof(uniquedef));
+      memset(&uniquedef, 0, sizeof(uniquedef));
       uniquedef.keysegs=keyinfo->key_parts;
       uniquedef.seg=seg;
       uniquedef.null_are_equal=1;
 
       /* Create extra column for hash value */
-      bzero((uchar*) *recinfo,sizeof(**recinfo));
+      memset(*recinfo, 0, sizeof(**recinfo));
       (*recinfo)->type= FIELD_CHECK;
       (*recinfo)->length=MI_UNIQUE_HASH_LENGTH;
       (*recinfo)++;
@@ -16748,7 +16780,7 @@ static bool create_myisam_tmp_table(TABLE *table, KEY *keyinfo,
     else
     {
       /* Create an unique key */
-      bzero((char*) &keydef,sizeof(keydef));
+      memset(&keydef, 0, sizeof(keydef));
       keydef.flag=HA_NOSAME | HA_BINARY_PACK_KEY | HA_PACK_KEY;
       keydef.keysegs=  keyinfo->key_parts;
       keydef.seg= seg;
@@ -16792,7 +16824,7 @@ static bool create_myisam_tmp_table(TABLE *table, KEY *keyinfo,
     }
   }
   MI_CREATE_INFO create_info;
-  bzero((char*) &create_info,sizeof(create_info));
+  memset(&create_info, 0, sizeof(create_info));
 
   if (big_tables && !(options & SELECT_SMALL_RESULT))
     create_info.data_file_length= ~(ulonglong) 0;
@@ -17718,7 +17750,7 @@ int do_sj_dups_weedout(THD *thd, SJ_TMP_TABLE *sjtbl)
   // 2. Zero the null bytes 
   if (sjtbl->null_bytes)
   {
-    bzero(ptr, sjtbl->null_bytes);
+    memset(ptr, 0, sjtbl->null_bytes);
     ptr += sjtbl->null_bytes; 
   }
 
@@ -17730,7 +17762,7 @@ int do_sj_dups_weedout(THD *thd, SJ_TMP_TABLE *sjtbl)
     {
       /* It's a NULL-complemented row */
       *(nulls_ptr + tab->null_byte) |= tab->null_bit;
-      bzero(ptr + tab->rowid_offset, h->ref_length);
+      memset(ptr + tab->rowid_offset, 0, h->ref_length);
     }
     else
     {

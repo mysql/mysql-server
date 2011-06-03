@@ -184,8 +184,8 @@ static bool compare_table_with_partition(THD *thd, TABLE *table,
   DBUG_ENTER("compare_table_with_partition");
 
   alter_change_level= ALTER_TABLE_METADATA_ONLY;
-  bzero(&part_create_info, sizeof(HA_CREATE_INFO));
-  bzero(&table_create_info, sizeof(HA_CREATE_INFO));
+  memset(&part_create_info, 0, sizeof(HA_CREATE_INFO));
+  memset(&table_create_info, 0, sizeof(HA_CREATE_INFO));
 
   update_create_info_from_table(&table_create_info, table);
   /* get the current auto_increment value */

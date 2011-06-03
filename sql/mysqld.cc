@@ -1787,7 +1787,7 @@ static void network_init(void)
     int error;
     DBUG_PRINT("general",("IP Socket is %d",mysqld_port));
 
-    bzero(&hints, sizeof (hints));
+    memset(&hints, 0, sizeof (hints));
     hints.ai_flags= AI_PASSIVE;
     hints.ai_socktype= SOCK_STREAM;
     hints.ai_family= AF_UNSPEC;
@@ -1883,8 +1883,8 @@ static void network_init(void)
   {
     strxnmov(pipe_name, sizeof(pipe_name)-1, "\\\\.\\pipe\\",
 	     mysqld_unix_port, NullS);
-    bzero((char*) &saPipeSecurity, sizeof(saPipeSecurity));
-    bzero((char*) &sdPipeDescriptor, sizeof(sdPipeDescriptor));
+    memset(&saPipeSecurity, 0, sizeof(saPipeSecurity));
+    memset(&sdPipeDescriptor, 0, sizeof(sdPipeDescriptor));
     if (!InitializeSecurityDescriptor(&sdPipeDescriptor,
 				      SECURITY_DESCRIPTOR_REVISION))
     {
@@ -1942,7 +1942,7 @@ static void network_init(void)
       sql_perror("Can't start server : UNIX Socket "); /* purecov: inspected */
       unireg_abort(1);				/* purecov: inspected */
     }
-    bzero((char*) &UNIXaddr, sizeof(UNIXaddr));
+    memset(&UNIXaddr, 0, sizeof(UNIXaddr));
     UNIXaddr.sun_family = AF_UNIX;
     strmov(UNIXaddr.sun_path, mysqld_unix_port);
     (void) unlink(mysqld_unix_port);
@@ -2081,6 +2081,12 @@ void unlink_thd(THD *thd)
   thd_cleanup(thd);
   dec_connection_count();
   mysql_mutex_lock(&LOCK_thread_count);
+  /*
+    Used by binlog_reset_master.  It would be cleaner to use
+    DEBUG_SYNC here, but that's not possible because the THD's debug
+    sync feature has been shut down at this point.
+  */
+  DBUG_EXECUTE_IF("sleep_after_lock_thread_count_before_delete_thd", sleep(5););
   delete_thd(thd);
   DBUG_VOID_RETURN;
 }
@@ -7212,8 +7218,8 @@ static int mysql_init_variables(void)
   mysqld_user= mysqld_chroot= opt_init_file= opt_bin_logname = 0;
   prepared_stmt_count= 0;
   mysqld_unix_port= opt_mysql_tmpdir= my_bind_addr_str= NullS;
-  bzero((uchar*) &mysql_tmpdir_list, sizeof(mysql_tmpdir_list));
-  bzero((char *) &global_status_var, sizeof(global_status_var));
+  memset(&mysql_tmpdir_list, 0, sizeof(mysql_tmpdir_list));
+  memset(&global_status_var, 0, sizeof(global_status_var));
   opt_large_pages= 0;
   opt_super_large_pages= 0;
 #if defined(ENABLED_DEBUG_SYNC)
@@ -7559,7 +7565,7 @@ mysqld_get_one_option(int optid,
     {
       struct addrinfo *res_lst, hints;    
 
-      bzero(&hints, sizeof(struct addrinfo));
+      memset(&hints, 0, sizeof(struct addrinfo));
       hints.ai_socktype= SOCK_STREAM;
       hints.ai_protocol= IPPROTO_TCP;
 
@@ -8126,7 +8132,7 @@ void refresh_status(THD *thd)
   add_to_status(&global_status_var, &thd->status_var);
 
   /* Reset thread's status variables */
-  bzero((uchar*) &thd->status_var, sizeof(thd->status_var));
+  memset(&thd->status_var, 0, sizeof(thd->status_var));
 
   /* Reset some global variables */
   reset_status_vars();

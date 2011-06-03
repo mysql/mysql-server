@@ -1891,6 +1891,67 @@ bool sp_process_definer(THD *thd)
 
 
 /**
+  Auxiliary call that opens and locks tables for LOCK TABLES statement
+  and initializes the list of locked tables.
+
+  @param thd     Thread context.
+  @param tables  List of tables to be locked.
+
+  @return FALSE in case of success, TRUE in case of error.
+*/
+
+static bool lock_tables_open_and_lock_tables(THD *thd, TABLE_LIST *tables)
+{
+  Lock_tables_prelocking_strategy lock_tables_prelocking_strategy;
+  uint counter;
+  TABLE_LIST *table;
+
+  thd->in_lock_tables= 1;
+
+  if (open_tables(thd, &tables, &counter, 0, &lock_tables_prelocking_strategy))
+    goto err;
+
+  /*
+    We allow to change temporary tables even if they were locked for read
+    by LOCK TABLES. To avoid a discrepancy between lock acquired at LOCK
+    TABLES time and by the statement which is later executed under LOCK TABLES
+    we ensure that for temporary tables we always request a write lock (such
+    discrepancy can cause problems for the storage engine).
+    We don't set TABLE_LIST::lock_type in this case as this might result in
+    extra warnings from THD::decide_logging_format() even though binary logging
+    is totally irrelevant for LOCK TABLES.
+  */
+  for (table= tables; table; table= table->next_global)
+    if (!table->placeholder() && table->table->s->tmp_table)
+      table->table->reginfo.lock_type= TL_WRITE;
+
+  if (lock_tables(thd, tables, counter, 0) ||
+      thd->locked_tables_list.init_locked_tables(thd))
+    goto err;
+
+  thd->in_lock_tables= 0;
+
+  return FALSE;
+
+err:
+  thd->in_lock_tables= 0;
+
+  trans_rollback_stmt(thd);
+  /*
+    Need to end the current transaction, so the storage engine (InnoDB)
+    can free its locks if LOCK TABLES locked some tables before finding
+    that it can't lock a table in its list
+  */
+  trans_commit_implicit(thd);
+  /* Close tables and release metadata locks. */
+  close_thread_tables(thd);
+  DBUG_ASSERT(!thd->locked_tables_mode);
+  thd->mdl_context.release_transactional_locks();
+  return TRUE;
+}
+
+
+/**
   Execute command saved in thd and lex->sql_command.
 
   @param thd                       Thread handle
@@ -2633,7 +2694,7 @@ end_with_restore_list:
     */
     thd->enable_slow_log= opt_log_slow_admin_statements;
 
-    bzero((char*) &create_info, sizeof(create_info));
+    memset(&create_info, 0, sizeof(create_info));
     create_info.db_type= 0;
     create_info.row_type= ROW_TYPE_NOT_USED;
     create_info.default_table_charset= thd->variables.collation_database;
@@ -2929,8 +2990,7 @@ end_with_restore_list:
       if (incident)
       {
         Incident_log_event ev(thd, incident);
-        (void) mysql_bin_log.write(&ev);        /* error is ignored */
-        if (mysql_bin_log.rotate_and_purge(RP_FORCE_ROTATE))
+        if (mysql_bin_log.write_incident(&ev, TRUE))
         {
           res= 1;
           break;
@@ -3265,31 +3325,11 @@ end_with_restore_list:
       goto error;
 
     thd->variables.option_bits|= OPTION_TABLE_LOCK;
-    thd->in_lock_tables=1;
 
-    {
-      Lock_tables_prelocking_strategy lock_tables_prelocking_strategy;
-
-      res= (open_and_lock_tables(thd, all_tables, FALSE, 0,
-                                 &lock_tables_prelocking_strategy) ||
-            thd->locked_tables_list.init_locked_tables(thd));
-    }
-
-    thd->in_lock_tables= 0;
+    res= lock_tables_open_and_lock_tables(thd, all_tables);
 
     if (res)
     {
-      trans_rollback_stmt(thd);
-      /*
-        Need to end the current transaction, so the storage engine (InnoDB)
-        can free its locks if LOCK TABLES locked some tables before finding
-        that it can't lock a table in its list
-      */
-      trans_commit_implicit(thd);
-      /* Close tables and release metadata locks. */
-      close_thread_tables(thd);
-      DBUG_ASSERT(!thd->locked_tables_mode);
-      thd->mdl_context.release_transactional_locks();
       thd->variables.option_bits&= ~(OPTION_TABLE_LOCK);
     }
     else
@@ -5112,7 +5152,7 @@ check_routine_access(THD *thd, ulong want_access,char *db, char *name,
 {
   TABLE_LIST tables[1];
   
-  bzero((char *)tables, sizeof(TABLE_LIST));
+  memset(tables, 0, sizeof(TABLE_LIST));
   tables->db= db;
   tables->table_name= tables->alias= name;
   
@@ -5545,7 +5585,7 @@ void create_select_for_variable(const char *var_name)
   lex->sql_command= SQLCOM_SELECT;
   tmp.str= (char*) var_name;
   tmp.length=strlen(var_name);
-  bzero((char*) &null_lex_string.str, sizeof(null_lex_string));
+  memset(&null_lex_string, 0, sizeof(null_lex_string));
   /*
     We set the name of Item to @@session.var_name because that then is used
     as the column name in the output.

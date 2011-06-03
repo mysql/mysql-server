@@ -22,11 +22,11 @@ ANALYZE TABLE innodb_stats_drop_locked;
 
 SET autocommit=0;
 
-SELECT table_name FROM innodb.table_stats
+SELECT table_name FROM mysql.innodb_table_stats
 WHERE table_name='innodb_stats_drop_locked'
 FOR UPDATE;
 
-SELECT table_name FROM innodb.index_stats
+SELECT table_name FROM mysql.innodb_index_stats
 WHERE table_name='innodb_stats_drop_locked'
 FOR UPDATE;
 
@@ -52,11 +52,12 @@ COMMIT;
 
 # the stats should be there
 
-SELECT table_name FROM innodb.table_stats
+SELECT table_name FROM mysql.innodb_table_stats
 WHERE table_name='innodb_stats_drop_locked';
 
-SELECT table_name FROM innodb.index_stats
+SELECT table_name FROM mysql.innodb_index_stats
 WHERE table_name='innodb_stats_drop_locked';
 
 -- disable_query_log
-DROP DATABASE innodb;
+DROP TABLE mysql.innodb_index_stats;
+DROP TABLE mysql.innodb_table_stats;

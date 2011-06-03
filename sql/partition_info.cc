@@ -1518,7 +1518,7 @@ void partition_info::print_no_partition_found(TABLE *table_arg)
   char *buf_ptr= (char*)&buf;
   TABLE_LIST table_list;
 
-  bzero(&table_list, sizeof(table_list));
+  memset(&table_list, 0, sizeof(table_list));
   table_list.db= table_arg->s->db.str;
   table_list.table_name= table_arg->s->table_name.str;
 

@@ -64,7 +64,7 @@ int main(int argc, char *argv[])
   file=file2=0;
   get_options(argc,argv);
 
-  bzero(&hp_create_info, sizeof(hp_create_info));
+  memset(&hp_create_info, 0, sizeof(hp_create_info));
   hp_create_info.max_table_size= 1024L*1024L;
   hp_create_info.keys= keys;
   hp_create_info.keydef= keyinfo;
@@ -118,8 +118,8 @@ int main(int argc, char *argv[])
   keyinfo[3].seg[0].null_pos=38;
   keyinfo[3].seg[0].charset=cs;
 
-  bzero((char*) key1,sizeof(key1));
-  bzero((char*) key3,sizeof(key3));
+  memset(key1, 0, sizeof(key1));
+  memset(key3, 0, sizeof(key3));
 
   printf("- Creating heap-file\n");
   if (heap_create(filename, &hp_create_info, &tmp_share, &unused) ||
@@ -676,7 +676,7 @@ static int calc_check(uchar *buf, uint length)
 static void make_record(uchar *record, uint n1, uint n2, uint n3,
 			const char *mark, uint count)
 {
-  bfill(record,reclength,' ');
+  memset(record, ' ', reclength);
   sprintf((char*) record,"%6d:%4d:%8d:%3.3s: %4d",
 	  n1,n2,n3,mark,count);
   record[37]='A';				/* Store A in null key */

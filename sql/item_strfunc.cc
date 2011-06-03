@@ -763,7 +763,7 @@ String *Item_func_des_encrypt::val_str(String *str)
     key_number=127;				// User key string
 
     /* We make good 24-byte (168 bit) key from given plaintext key with MD5 */
-    bzero((char*) &ivec,sizeof(ivec));
+    memset(&ivec, 0, sizeof(ivec));
     EVP_BytesToKey(EVP_des_ede3_cbc(),EVP_md5(),NULL,
 		   (uchar*) keystr->ptr(), (int) keystr->length(),
 		   1, (uchar*) &keyblock,ivec);
@@ -795,7 +795,7 @@ String *Item_func_des_encrypt::val_str(String *str)
   tmp_value.set_charset(&my_charset_bin);
   tmp_value[0]=(char) (128 | key_number);
   // Real encryption
-  bzero((char*) &ivec,sizeof(ivec));
+  memset(&ivec, 0, sizeof(ivec));
   DES_ede3_cbc_encrypt((const uchar*) (tmp_arg.ptr()),
 		       (uchar*) (tmp_value.ptr()+1),
 		       res_length,
@@ -855,7 +855,7 @@ String *Item_func_des_decrypt::val_str(String *str)
     if (!keystr)
       goto error;
 
-    bzero((char*) &ivec,sizeof(ivec));
+    memset(&ivec, 0, sizeof(ivec));
     EVP_BytesToKey(EVP_des_ede3_cbc(),EVP_md5(),NULL,
 		   (uchar*) keystr->ptr(),(int) keystr->length(),
 		   1,(uchar*) &keyblock,ivec);
@@ -868,7 +868,7 @@ String *Item_func_des_decrypt::val_str(String *str)
   if (tmp_value.alloc(length-1))
     goto error;
 
-  bzero((char*) &ivec,sizeof(ivec));
+  memset(&ivec, 0, sizeof(ivec));
   DES_ede3_cbc_encrypt((const uchar*) res->ptr()+1,
 		       (uchar*) (tmp_value.ptr()),
 		       length-1,
@@ -3437,23 +3437,21 @@ err:
 String* Item_func_export_set::val_str(String* str)
 {
   DBUG_ASSERT(fixed == 1);
-  ulonglong the_set = (ulonglong) args[0]->val_int();
-  String yes_buf, *yes;
-  yes = args[1]->val_str(&yes_buf);
-  String no_buf, *no;
-  no = args[2]->val_str(&no_buf);
-  String *sep = NULL, sep_buf ;
+  String yes_buf, no_buf, sep_buf;
+  const ulonglong the_set = (ulonglong) args[0]->val_int();
+  const String *yes= args[1]->val_str(&yes_buf);
+  const String *no= args[2]->val_str(&no_buf);
+  const String *sep= NULL;
 
   uint num_set_values = 64;
-  ulonglong mask = 0x1;
   str->length(0);
   str->set_charset(collation.collation);
 
   /* Check if some argument is a NULL value */
   if (args[0]->null_value || args[1]->null_value || args[2]->null_value)
   {
-    null_value=1;
-    return 0;
+    null_value= true;
+    return NULL;
   }
   /*
     Arg count can only be 3, 4 or 5 here. This is guaranteed from the
@@ -3466,37 +3464,56 @@ String* Item_func_export_set::val_str(String* str)
       num_set_values=64;
     if (args[4]->null_value)
     {
-      null_value=1;
-      return 0;
+      null_value= true;
+      return NULL;
     }
     /* Fall through */
   case 4:
     if (!(sep = args[3]->val_str(&sep_buf)))	// Only true if NULL
     {
-      null_value=1;
-      return 0;
+      null_value= true;
+      return NULL;
     }
     break;
   case 3:
     {
       /* errors is not checked - assume "," can always be converted */
       uint errors;
-      sep_buf.copy(STRING_WITH_LEN(","), &my_charset_bin, collation.collation, &errors);
+      sep_buf.copy(STRING_WITH_LEN(","), &my_charset_bin,
+                   collation.collation, &errors);
       sep = &sep_buf;
     }
     break;
   default:
     DBUG_ASSERT(0); // cannot happen
   }
-  null_value=0;
+  null_value= false;
 
-  for (uint i = 0; i < num_set_values; i++, mask = (mask << 1))
+  const ulong max_allowed_packet= current_thd->variables.max_allowed_packet;
+  const uint num_separators= num_set_values > 0 ? num_set_values - 1 : 0;
+  const ulonglong max_total_length=
+    num_set_values * max(yes->length(), no->length()) +
+    num_separators * sep->length();
+
+  if (unlikely(max_total_length > max_allowed_packet))
+  {
+    push_warning_printf(current_thd, MYSQL_ERROR::WARN_LEVEL_WARN,
+                        ER_WARN_ALLOWED_PACKET_OVERFLOWED,
+                        ER(ER_WARN_ALLOWED_PACKET_OVERFLOWED),
+                        func_name(), max_allowed_packet);
+    null_value= true;
+    return NULL;
+  }
+
+  uint ix;
+  ulonglong mask;
+  for (ix= 0, mask=0x1; ix < num_set_values; ++ix, mask = (mask << 1))
   {
     if (the_set & mask)
       str->append(*yes);
     else
       str->append(*no);
-    if (i != num_set_values - 1)
+    if (ix != num_separators)
       str->append(*sep);
   }
   return str;

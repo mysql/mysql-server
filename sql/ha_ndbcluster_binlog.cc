@@ -264,7 +264,7 @@ static void run_query(THD *thd, char *buf, char *end,
   DBUG_ASSERT(sizeof(save_thd_options) == sizeof(thd->variables.option_bits));
   NET save_thd_net= thd->net;
 
-  bzero((char*) &thd->net, sizeof(NET));
+  memset(&thd->net, 0, sizeof(NET));
   thd->set_query(buf, (uint) (end - buf));
   thd->variables.pseudo_thread_id= thread_id;
   thd->transaction.stmt.reset_unsafe_rollback_flags();
@@ -1357,7 +1357,7 @@ int ndbcluster_log_schema_op(THD *thd, NDB_SHARE *share,
   MY_BITMAP schema_subscribers;
   uint32 bitbuf[sizeof(ndb_schema_object->slock)/4];
   char bitbuf_e[sizeof(bitbuf)];
-  bzero(bitbuf_e, sizeof(bitbuf_e));
+  memset(bitbuf_e, 0, sizeof(bitbuf_e));
   {
     int i, updated= 0;
     int no_storage_nodes= g_ndb_cluster_connection->no_db_nodes();
@@ -1734,7 +1734,7 @@ ndb_handle_schema_change(THD *thd, Ndb *ndb, NdbEventOperation *pOp,
       ndbcluster_binlog_close_table(thd, share);
 
       TABLE_LIST table_list;
-      bzero((char*) &table_list,sizeof(table_list));
+      memset(&table_list, 0, sizeof(table_list));
       table_list.db= (char *)dbname;
       table_list.alias= table_list.table_name= (char *)tabname;
       close_cached_tables(thd, &table_list, FALSE, LONG_TIMEOUT);
@@ -1838,7 +1838,7 @@ ndb_handle_schema_change(THD *thd, Ndb *ndb, NdbEventOperation *pOp,
   if (do_close_cached_tables)
   {
     TABLE_LIST table_list;
-    bzero((char*) &table_list,sizeof(table_list));
+    memset(&table_list, 0, sizeof(table_list));
     table_list.db= (char *)dbname;
     table_list.alias= table_list.table_name= (char *)tabname;
     close_cached_tables(thd, &table_list, FALSE, LONG_TIMEOUT);
@@ -1959,7 +1959,7 @@ ndb_binlog_thread_handle_schema_event(THD *thd, Ndb *ndb,
               ndbtab_g.invalidate();
             }
             TABLE_LIST table_list;
-            bzero((char*) &table_list,sizeof(table_list));
+            memset(&table_list, 0, sizeof(table_list));
             table_list.db= schema->db;
             table_list.alias= table_list.table_name= schema->name;
             close_cached_tables(thd, &table_list, FALSE, LONG_TIMEOUT);
@@ -2231,7 +2231,7 @@ ndb_binlog_thread_handle_schema_event_post_epoch(THD *thd,
             ndbtab_g.invalidate();
           }
           TABLE_LIST table_list;
-          bzero((char*) &table_list,sizeof(table_list));
+          memset(&table_list, 0, sizeof(table_list));
           table_list.db= schema->db;
           table_list.alias= table_list.table_name= schema->name;
           close_cached_tables(thd, &table_list, FALSE, LONG_TIMEOUT);
@@ -4031,7 +4031,7 @@ restart:
           setReportThreshEventGCISlip(opt_ndb_report_thresh_binlog_epoch_slip);
         i_ndb->setReportThreshEventFreeMem(opt_ndb_report_thresh_binlog_mem_usage);
 
-        bzero((char*) &row, sizeof(row));
+        memset(&row, 0, sizeof(row));
         thd->variables.character_set_client= &my_charset_latin1;
         injector::transaction trans;
         // pass table map before epoch

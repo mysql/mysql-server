@@ -202,7 +202,7 @@ my_bool set_dynamic(DYNAMIC_ARRAY *array, const void *element, uint idx)
   {
     if (idx >= array->max_element && allocate_dynamic(array, idx))
       return TRUE;
-    bzero((uchar*) (array->buffer+array->elements*array->size_of_element),
+    memset((array->buffer+array->elements*array->size_of_element), 0, 
 	  (idx - array->elements)*array->size_of_element);
     array->elements=idx+1;
   }
@@ -279,7 +279,7 @@ void get_dynamic(DYNAMIC_ARRAY *array, uchar* element, uint idx)
   {
     DBUG_PRINT("warning",("To big array idx: %d, array size is %d",
                           idx,array->elements));
-    bzero(element,array->size_of_element);
+    memset(element, 0, array->size_of_element);
     return;
   }
   memcpy(element,array->buffer+idx*array->size_of_element,
