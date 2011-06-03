@@ -3762,9 +3762,11 @@ select bug9902() from t1|
 select @x|
 
 --echo # Restore the old query cache size
+--disable_query_log
 if (`select @@have_query_cache='YES'`) {
   set global query_cache_size = @qcs1|
 }
+--enable_query_log
 delete from t1|
 drop function bug9902|
 

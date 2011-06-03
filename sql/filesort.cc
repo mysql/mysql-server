@@ -875,7 +875,7 @@ static void make_sortkey(register SORTPARAM *param,
       case INT_RESULT:
       case TIME_RESULT:
 	{
-          longlong value;
+          longlong UNINIT_VAR(value);
           if (sort_field->result_type == INT_RESULT)
             value= item->val_int_result();
           else

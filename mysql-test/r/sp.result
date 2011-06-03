@@ -3064,7 +3064,6 @@ select @x|
 @x
 3
 # Restore the old query cache size
-set global query_cache_size = @qcs1|
 delete from t1|
 drop function bug9902|
 drop function if exists bug9102|
