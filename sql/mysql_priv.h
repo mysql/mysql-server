@@ -872,7 +872,7 @@ public:
   Lazy_string_str(const char *str_arg, size_t len_arg)
     : Lazy_string(), str(str_arg), len(len_arg) {}
   void copy_to(String *dst) const
-  { dst->copy(str, len, system_charset_info); }
+  { dst->copy(str, (uint32)len, system_charset_info); }
 };
 
 class Lazy_string_num : public Lazy_string
