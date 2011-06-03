@@ -1,4 +1,5 @@
-set optimizer_use_mrr='disable';
+set @bug41996_extra1_tmp=@@optimizer_switch;
+set optimizer_switch='mrr=off';
 DROP DATABASE IF EXISTS d1;
 DROP DATABASE IF EXISTS d2;
 DROP DATABASE IF EXISTS d3;
@@ -1106,3 +1107,4 @@ c1	c2
 DROP DATABASE d1;
 DROP DATABASE d2;
 DROP DATABASE d3;
+set optimizer_switch=@bug41996_extra1_tmp;
