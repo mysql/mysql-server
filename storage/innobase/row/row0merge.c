@@ -2533,7 +2533,6 @@ row_merge_create_temporary_table(
 	if (DICT_TF2_FLAG_IS_SET(table, DICT_TF_FTS_ADD_DOC_ID)) {
 		fts_add_doc_id_column(new_table);
 		new_table->fts->doc_col = n_cols;
-		DICT_TF2_FLAG_SET(new_table, DICT_TF_FTS_HAS_DOC_ID);
 	}
 
 	error = row_create_table_for_mysql(new_table, trx);

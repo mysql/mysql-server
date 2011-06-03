@@ -413,7 +413,7 @@ Free the FTS resources. */
 void
 fts_free(
 /*=====*/
-	fts_t*		fts);		/* out: fts_t instance */
+	dict_table_t*   table);		/* in/out: table with FTS indexes */
 /**********************************************************************//**
 Startup the optimize thread and create the work queue. */
 UNIV_INTERN
@@ -722,6 +722,7 @@ struct fts_struct {
 
 	ib_vector_t*	indexes;	/* Vector of FTS indexes, this is
 					mainly for caching purposes. */
+	mem_heap_t*	fts_heap;	/* heap for fts_struct allocation */
 };
 
 #endif /* INNOBASE_FTS0FTS_H */

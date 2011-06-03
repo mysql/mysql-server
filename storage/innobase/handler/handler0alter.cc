@@ -492,15 +492,50 @@ innobase_copy_index_def(
 }
 
 /*******************************************************************//**
-Check whether the table has the FTS_DOC_ID column, and a unique
-index with FTS_DOC_ID_INDEX_NAME on the column.
-TODO: should support index named different with FTS_DOC_ID_INDEX_NAME,
-such as "primary" index.
-@return	TRUE if there exists the FTS_DOC_ID index */
+Check whether the table has the FTS_DOC_ID column
+@return TRUE if there exists the FTS_DOC_ID column */
 static
 ibool
 innobase_fts_check_doc_id_col(
 /*==========================*/
+        dict_table_t*	table,		/*!< in: table with FTS index */
+	ulint*		fts_doc_col_no)	/*!< out: The column number for
+					Doc ID */
+{
+	ulint   i;
+
+	for (i = 0; i + DATA_N_SYS_COLS < (ulint) table->n_cols; i++) {
+		const char*     name = dict_table_get_col_name(table, i);
+
+		if (innobase_strcasecmp(name, FTS_DOC_ID_COL_NAME) == 0) {
+			const dict_col_t*       col;
+
+			col = dict_table_get_nth_col(table, i);
+
+			if (col->mtype == DATA_INT && col->len == 8
+			    && col->prtype & DATA_NOT_NULL) {
+				*fts_doc_col_no = i;
+			} else {
+				/* Tell caller there exist a DOC ID column
+				but it is not the right type */
+				*fts_doc_col_no = ULINT_UNDEFINED;
+			}
+
+			return(TRUE);
+		}
+	}
+
+	return(FALSE);
+}
+
+/*******************************************************************//**
+Check whether the table has a unique index with FTS_DOC_ID_INDEX_NAME
+on the Doc ID column.
+@return	TRUE if there exists the FTS_DOC_ID index */
+UNIV_INTERN
+ibool
+innobase_fts_check_doc_id_index(
+/*============================*/
 	dict_table_t*	table,		/*!< in: table definition */
 	ulint*		fts_doc_col_no)	/*!< out: The column number for
 					Doc ID */
@@ -527,7 +562,9 @@ innobase_fts_check_doc_id_col(
 		    && field->col->mtype == DATA_INT
 		    && field->col->len == 8
 		    && field->col->prtype & DATA_NOT_NULL) {
-			*fts_doc_col_no = dict_col_get_no(field->col);
+			if (fts_doc_col_no) {
+				*fts_doc_col_no = dict_col_get_no(field->col);
+			}
 			return(TRUE);
 		}
 	}
@@ -564,8 +601,10 @@ innobase_create_key_def(
 	ulint&		n_keys,		/*!< in/out: Number of indexes to
 					be created */
 	ulint*		num_fts_index,	/*!< out: Number of FTS indexes */
-	ibool*		add_fts_doc_id)	/*!< out: Whether we need to add
+	ibool*		add_fts_doc_id,	/*!< out: Whether we need to add
 					new DOC ID column for FTS index */
+	ibool*		add_fts_doc_id_idx)/*!< out: Whether we need to add
+					new index on DOC ID column */
 {
 	ulint			i = 0;
 	merge_index_def_t*	indexdef;
@@ -580,6 +619,7 @@ innobase_create_key_def(
 			       * (n_keys + UT_LIST_GET_LEN(table->indexes)));
 
 	*add_fts_doc_id = FALSE;
+	*add_fts_doc_id_idx = FALSE;
 
 	/* If there is a primary key, it is always the first index
 	defined for the table. */
@@ -622,13 +662,33 @@ innobase_create_key_def(
 	if (*num_fts_index) {
 		if (!innobase_fts_check_doc_id_col(table, &fts_doc_col_no)) {
 			*add_fts_doc_id = TRUE;
+			*add_fts_doc_id_idx = TRUE;
 
 			ut_print_timestamp(stderr);
 			fprintf(stderr, "  InnoDB: Rebuild table %s to add "
 					"DOC_ID column\n", table->name);
-		} else if (!table->fts) {
-			table->fts = fts_create(table);
+		} else if (fts_doc_col_no == ULINT_UNDEFINED) {
+			fprintf(stderr, "  InnoDB: There exist a column %s"
+					" in table %s, but of the wrong format."
+					" Create FTS index failed.\n",
+					FTS_DOC_ID_COL_NAME, table->name);
+			return(NULL);
+		} else {
+			ulint	doc_col_no;
+
+			 if (!table->fts) {
+				table->fts = fts_create(table);
+			}
+
 			table->fts->doc_col = fts_doc_col_no;
+
+			if (!innobase_fts_check_doc_id_index(table,
+							     &doc_col_no)) {
+				*add_fts_doc_id_idx = TRUE;
+			} else {
+				ut_ad(doc_col_no == fts_doc_col_no);
+			}
+
 		}
 	}
 
@@ -830,6 +890,7 @@ ha_innobase::add_index(
 	ulint		num_fts_index	= 0;
 	ulint		num_idx_create;
 	ibool		fts_add_doc_id	= FALSE;
+	ibool		fts_add_doc_idx	= FALSE;
 
 	DBUG_ENTER("ha_innobase::add_index");
 	ut_a(table);
@@ -902,7 +963,7 @@ err_exit:
 
 	index_defs = innobase_create_key_def(
 		trx, innodb_table, heap, key_info, num_of_idx,
-		&num_fts_index, &fts_add_doc_id);
+		&num_fts_index, &fts_add_doc_id, &fts_add_doc_idx);
 
 	/* We do not support create more than one FT index on the
 	table yet.
@@ -917,7 +978,7 @@ err_exit:
 
 	/* If a new FTS Doc ID column is to be added, there will be
 	one additional index to be built on the Doc ID column itself. */
-	num_idx_create = (fts_add_doc_id) ? num_of_idx + 1 : num_of_idx;
+	num_idx_create = (fts_add_doc_idx) ? num_of_idx + 1 : num_of_idx;
 
 	/* Allocate memory for dictionary index definitions */
 	index = (dict_index_t**) mem_heap_alloc(
@@ -1010,7 +1071,7 @@ err_exit:
 	}
 
 	/* create FTS_DOC_ID_INDEX on the Doc ID column on the table */
-	if (fts_add_doc_id) {
+	if (fts_add_doc_idx) {
 		index[num_of_idx] = innobase_create_fts_doc_id_idx(
 					       indexed_table, trx, heap);
 		/* FTS_DOC_ID_INDEX is internal defined new index */
@@ -1239,17 +1300,25 @@ innobase_drop_fts_index(
 
 	ut_a(indexes);
 
+	/* We only support one FTS index per table */
 	if (ib_vector_size(indexes) == 1) {
 
 		fts_optimize_remove_table(table);
 
 		DICT_TF2_FLAG_UNSET(table, DICT_TF_FTS);
 
+		/* If Doc ID column is not added internally by FTS index,
+		we can drop all FTS auxiliary tables. Otherwise, we will
+		need to keep some common table such as CONFIG table, so
+		as to keep track of incrementing Doc IDs */
 		if (!DICT_TF2_FLAG_IS_SET(table,
 				    DICT_TF_FTS_HAS_DOC_ID)) {
 			err = fts_drop_tables(trx, table);
 
-			fts_free(table->fts);
+			err = fts_drop_index_tables(trx, index);
+
+			fts_free(table);
+
 			return(err);
 		}
 

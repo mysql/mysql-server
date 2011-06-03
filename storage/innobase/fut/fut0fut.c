@@ -817,6 +817,7 @@ fts_cache_destroy(
 	rw_lock_free(&cache->lock);
 	mutex_free(&cache->optimize_lock);
 	mutex_free(&cache->deleted_lock);
+	rbt_free(cache->stopword_info.cached_stopword);
 	mem_heap_free(cache->cache_heap);
 }
 
@@ -5023,17 +5024,22 @@ fts_create(
 {
 	fts_t*		fts;
 	ib_alloc_t*	heap_alloc;
+	mem_heap_t*	heap;
 
-	fts = mem_heap_alloc(table->heap, sizeof(*fts));
+	heap = mem_heap_create(512);
+
+	fts = mem_heap_alloc(heap, sizeof(*fts));
 
 	memset(fts, 0x0, sizeof(*fts));
+
+	fts->fts_heap = heap;
 
 	fts->doc_col = ULINT_UNDEFINED;
 
 	mutex_create(fts_bg_threads_mutex_key, &fts->bg_threads_mutex,
 		     SYNC_FTS_BG_THREADS);
 
-	heap_alloc = ib_heap_allocator_create(table->heap);
+	heap_alloc = ib_heap_allocator_create(heap);
 	fts->indexes = ib_vector_create(heap_alloc, sizeof(dict_index_t*), 4);
 	dict_table_get_all_fts_indexes(table, fts->indexes);
 
@@ -5046,8 +5052,10 @@ Free the FTS resources. */
 void
 fts_free(
 /*=====*/
-	fts_t*		fts)	/* out: fts_t instance */
+	dict_table_t*	table)	/* in/out: table with FTS indexes */
 {
+	fts_t*		fts = table->fts;
+
 	mutex_free(&fts->bg_threads_mutex);
 
 	if (fts->add_wq) {
@@ -5071,7 +5079,12 @@ fts_free(
 
 	if (fts->cache) {
 		fts_cache_destroy(fts->cache);
+		fts->cache = NULL;
 	}
+
+	mem_heap_free(fts->fts_heap);
+
+	table->fts = NULL;
 }
 
 /********************************************************************

@@ -1674,7 +1674,7 @@ dict_table_remove_from_cache_low(
 			fts_optimize_remove_table(table);
 		}
 
-		fts_free(table->fts);
+		fts_free(table);
 	}
 
 	/* Remove table from the hash tables of tables */
