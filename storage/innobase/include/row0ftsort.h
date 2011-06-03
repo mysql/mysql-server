@@ -172,6 +172,7 @@ row_merge_fts_doc_tokenize(
 	ulint		zip_size,	/*!< in: Table zip size */
 	mem_heap_t*	blob_heap,	/*!< in: Heap used when fetch externally
 					stored record */
+	ib_rbt_t*	cached_stopword,/*!< in: Cached stopword */
 	ulint*		init_pos,	/*!< in/out: doc start position */
 	ulint*		buf_used,	/*!< in/out: sort buffer used */
 	ulint*		rows_added,	/*!< in/out: num rows added */

@@ -346,7 +346,7 @@ row_merge_buf_add(
 
 				n_row_added += row_merge_fts_doc_tokenize(
 					&buf, row_field, *doc_id, NULL, NULL,
-					0, NULL, &init_pos,
+					0, NULL, NULL, &init_pos,
 					NULL, NULL, NULL);
 
 				if (!n_row_added) {
@@ -1215,6 +1215,7 @@ row_merge_read_clustered_index(
 	doc_id_t		max_doc_id = 0;
 	ibool			add_doc_id = FALSE;
 	os_event_t		fts_parallel_sort_event = NULL;
+	ibool			fts_pll_sort = FALSE;
 
 	trx->op_info = "reading clustered index";
 
@@ -1256,6 +1257,7 @@ row_merge_read_clustered_index(
 			}
 
 			if (FTS_PLL_ENABLED) {
+				fts_pll_sort = TRUE;
 				row_fts_start_psort(psort_info);
 				fts_parallel_sort_event =
 					 psort_info[0].psort_common->sort_event;
@@ -1485,7 +1487,7 @@ err_exit:
 
 func_exit:
 	DEBUG_FTS_SORT_PRINT("FTS_SORT: Complete Scan Table\n");
-	if (fts_sort_idx && FTS_PLL_ENABLED) {
+	if (fts_pll_sort) {
 		for (i = 0; i < FTS_PARALLEL_DEGREE; i++) {
 			psort_info[i].state = FTS_PARENT_COMPLETE;
 		}

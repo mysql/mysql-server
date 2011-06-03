@@ -445,3 +445,18 @@ void
 innobase_fts_close_ranking(
 /*==========================*/
 	FT_INFO*	fts_hdl);	/*!< in: FTS handler */
+/*********************************************************************//**
+Free the memory for the FTS handler */
+void
+innobase_fts_close_ranking(
+/*==========================*/
+	FT_INFO*	fts_hdl);	/*!< in: FTS handler */
+/*****************************************************************//**
+Initialize the table FTS stopword list */
+extern "C"
+void
+innobase_fts_load_stopword(
+/*=======================*/
+	dict_table_t*	table,		/*!< Table has the FTS */
+	THD*		thd);		/*!< current thread */
+

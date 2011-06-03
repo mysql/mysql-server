@@ -272,6 +272,7 @@ row_merge_fts_doc_tokenize(
 	ulint		zip_size,	/*!< in: Table zip size */
 	mem_heap_t*	blob_heap,	/*!< in: Heap used when fetch external
 					stored record */
+	ib_rbt_t*	cached_stopword,/*!< in: Cached stopword */
 	ulint*		init_pos,	/*!< in/out: doc start position */
 	ulint*		buf_used,	/*!< in/out: sort buffer used */
 	ulint*		rows_added,	/*!< in/out: num rows added */
@@ -337,6 +338,7 @@ row_merge_fts_doc_tokenize(
 		ulint           offset = 0;
 		ulint		idx = 0;
 		ulint		cur_len = 0;
+		ib_rbt_bound_t	parent;
 
 		inc = fts_get_next_token(
 			doc->text.utf8 + i,
@@ -344,8 +346,12 @@ row_merge_fts_doc_tokenize(
 
 		ut_a(inc > 0);
 
-		/* Ignore string len smaller thane FTS_MIN_TOKEN_SIZE */
-		if (str.len < FTS_MIN_TOKEN_SIZE) {
+		/* Ignore string len smaller thane FTS_MIN_TOKEN_SIZE, or
+		if "cached_stopword" is defined, ingore words in the
+		stopword list */
+		if (str.len < FTS_MIN_TOKEN_SIZE
+		    || (cached_stopword
+			&& rbt_search(cached_stopword, &parent, &str) == 0)) {
 			*processed_len += inc;
 			continue;
 		}
@@ -475,6 +481,7 @@ fts_parallel_tokenization(
 	mem_heap_t*		blob_heap = NULL;
 	fts_doc_t		doc;
 	ulint			processed_len = 0;
+	dict_table_t*		table = psort_info->psort_common->new_table;
 
 	ut_ad(psort_info);
 
@@ -489,7 +496,7 @@ fts_parallel_tokenization(
 	}
 
 	block = psort_info->merge_block;
-	zip_size = dict_table_zip_size(psort_info->psort_common->new_table);
+	zip_size = dict_table_zip_size(table);
 
 	doc_item = UT_LIST_GET_FIRST(psort_info->fts_doc_list);
 
@@ -499,10 +506,11 @@ loop:
 		last_doc_id = doc_item->doc_id;
 
 		processed = row_merge_fts_doc_tokenize(
-					buf, processed ? doc_item->field : NULL,
-					doc_item->doc_id, &doc, &processed_len,
-					zip_size, blob_heap, &init_pos,
-					&buf_used, rows_added, merge_file);
+				buf, processed ? doc_item->field : NULL,
+				doc_item->doc_id, &doc, &processed_len,
+				zip_size, blob_heap,
+				table->fts->cache->stopword_info.cached_stopword,
+				&init_pos, &buf_used, rows_added, merge_file);
 
 		/* Current sort buffer full, need to recycle */
 		if (!processed) {
