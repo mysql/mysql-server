@@ -24,16 +24,7 @@
 
 #define MYSQL_AUDIT_CLASS_MASK_SIZE 1
 
-#define MYSQL_AUDIT_INTERFACE_VERSION 0x0200
-
-/*
-  The first word in every event class struct indicates the specific
-  class of the event.
-*/
-struct mysql_event
-{
-  unsigned int event_class;
-};
+#define MYSQL_AUDIT_INTERFACE_VERSION 0x0300
 
 
 /*************************************************************************
@@ -55,7 +46,6 @@ struct mysql_event
 
 struct mysql_event_general
 {
-  unsigned int event_class;
   unsigned int event_subclass;
   int general_error_code;
   unsigned long general_thread_id;
@@ -87,7 +77,6 @@ struct mysql_event_general
 
 struct mysql_event_connection
 {
-  unsigned int event_class;
   unsigned int event_subclass;
   int status;
   unsigned long thread_id;
@@ -118,9 +107,9 @@ struct mysql_event_connection
   waiting for the next query from the client.
   
   event_notify() is invoked whenever an event occurs which is of any
-  class for which the plugin has interest. The first word of the
-  mysql_event argument indicates the specific event class and the
-  remainder of the structure is as required for that class.
+  class for which the plugin has interest. The second argument
+  indicates the specific event class and the third argument is data
+  as required for that class.
   
   class_mask is an array of bits used to indicate what event classes
   that this plugin wants to receive.
@@ -130,7 +119,7 @@ struct st_mysql_audit
 {
   int interface_version;
   void (*release_thd)(MYSQL_THD);
-  void (*event_notify)(MYSQL_THD, const struct mysql_event *);
+  void (*event_notify)(MYSQL_THD, unsigned int, const void *);
   unsigned long class_mask[MYSQL_AUDIT_CLASS_MASK_SIZE];
 };
 
