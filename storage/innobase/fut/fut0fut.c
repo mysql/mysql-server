@@ -5755,6 +5755,11 @@ fts_load_stopword(
 
 	cache = table->fts->cache;
 
+	if (!reload && !(cache->stopword_info.status
+			 & STOPWORD_NOT_INIT)) {
+		return(TRUE);
+	}
+
         trx = trx_allocate_for_background();
         trx->op_info = "upload FTS stopword";
 
@@ -5854,7 +5859,7 @@ fts_init_index(
 
 	if (error == DB_SUCCESS
 	    && (table->fts->cache->stopword_info.status & STOPWORD_NOT_INIT)) {
-		fts_load_stopword(table, NULL, NULL, TRUE, TRUE);
+		fts_load_stopword(table, NULL, NULL, TRUE, FALSE);
 	}
 
 	/* Register the table with the optimize thread. */

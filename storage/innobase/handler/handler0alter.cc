@@ -831,7 +831,6 @@ ha_innobase::add_index(
 	ulint		num_idx_create;
 	ibool		fts_add_doc_id	= FALSE;
 
-
 	DBUG_ENTER("ha_innobase::add_index");
 	ut_a(table);
 	ut_a(key_info);
@@ -1025,6 +1024,10 @@ err_exit:
 
 		fts_create_common_tables(trx, indexed_table,
 					 innodb_table->name, TRUE);
+
+		indexed_table->fts->fts_status |= TABLE_DICT_LOCKED;
+		innobase_fts_load_stopword(indexed_table, ha_thd());
+		indexed_table->fts->fts_status &= ~TABLE_DICT_LOCKED;
 	}
 
 	ut_ad(error == DB_SUCCESS);

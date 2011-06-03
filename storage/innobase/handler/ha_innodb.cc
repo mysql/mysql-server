@@ -7511,6 +7511,20 @@ ha_innobase::update_create_info(
 }
 
 /*****************************************************************//**
+Initialize the table FTS stopword list */
+UNIV_INTERN
+void
+innobase_fts_load_stopword(
+/*=======================*/
+	dict_table_t*	table,	/*!< Table has the FTS */
+	 THD*		thd)	/*!< current thread */
+{
+	fts_load_stopword(table,
+			  fts_server_stopword_table,
+			  THDVAR(thd, user_stopword_table),
+			  THDVAR(thd, use_stopword), FALSE);
+}
+/*****************************************************************//**
 Creates a new table to an InnoDB database.
 @return	error number */
 UNIV_INTERN
