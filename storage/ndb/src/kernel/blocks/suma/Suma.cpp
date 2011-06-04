@@ -906,6 +906,7 @@ void Suma::execAPI_FAILREQ(Signal* signal)
   c_failedApiNodes.set(failedApiNode);
   c_subscriber_nodes.clear(failedApiNode);
   c_subscriber_per_node[failedApiNode] = 0;
+  c_failedApiNodesState[failedApiNode] = __LINE__;
   
   check_start_handover(signal);
 
@@ -924,6 +925,8 @@ CONF:
   signal->theData[0] = failedApiNode;
   signal->theData[1] = reference();
   sendSignal(QMGR_REF, GSN_API_FAILCONF, signal, 2, JBB);
+
+  c_failedApiNodesState[failedApiNode] = 0;
 
   DBUG_VOID_RETURN;
 }//execAPI_FAILREQ()
@@ -946,6 +949,7 @@ Suma::api_fail_block_cleanup_callback(Signal* signal,
   signal->theData[1] = reference();
   sendSignal(QMGR_REF, GSN_API_FAILCONF, signal, 2, JBB);
   c_failedApiNodes.clear(failedNodeId);
+  c_failedApiNodesState[failedNodeId] = 0;
 }
 
 void
@@ -953,9 +957,11 @@ Suma::api_fail_block_cleanup(Signal* signal, Uint32 failedNode)
 {
   jam();
 
+  c_failedApiNodesState[failedNode] = __LINE__;
+
   Callback cb = {safe_cast(&Suma::api_fail_block_cleanup_callback),
                  failedNode};
-  
+
   simBlockNodeFailure(signal, failedNode, cb);
 }
 
@@ -984,6 +990,7 @@ Suma::api_fail_gci_list(Signal* signal, Uint32 nodeId)
 
       c_gcp_list.release(gcp);
 
+      c_failedApiNodesState[nodeId] = __LINE__;
       signal->theData[0] = SumaContinueB::API_FAIL_GCI_LIST;
       signal->theData[1] = nodeId;
       sendSignal(SUMA_REF, GSN_CONTINUEB, signal, 2, JBB);
@@ -1006,11 +1013,13 @@ Suma::api_fail_gci_list(Signal* signal, Uint32 nodeId)
   Ptr<SubOpRecord> subOpPtr;
   if (c_subOpPool.seize(subOpPtr))
   {
+    c_failedApiNodesState[nodeId] = __LINE__;
     signal->theData[2] = subOpPtr.i;
     sendSignal(SUMA_REF, GSN_CONTINUEB, signal, 6, JBB);
   }
   else
   {
+    c_failedApiNodesState[nodeId] = __LINE__;
     sendSignal(SUMA_REF, GSN_CONTINUEB, signal, 3, JBB);
   }
 
@@ -1046,6 +1055,7 @@ Suma::api_fail_subscriber_list(Signal* signal, Uint32 nodeId)
     {
       jam();
       sendSignal(SUMA_REF, GSN_CONTINUEB, signal, 3, JBB);
+      c_failedApiNodesState[nodeId] = __LINE__;
       return;
     }
   }
@@ -1064,6 +1074,7 @@ Suma::api_fail_subscriber_list(Signal* signal, Uint32 nodeId)
   {
     jam();
     c_subscriptions.first(iter);
+    c_failedApiNodesState[nodeId] = __LINE__;
   }
   else
   {
@@ -1079,6 +1090,7 @@ Suma::api_fail_subscriber_list(Signal* signal, Uint32 nodeId)
        * We restart from this bucket :-(
        */
       c_subscriptions.next(bucket, iter);
+      c_failedApiNodesState[nodeId] = __LINE__;
     }
     else
     {
@@ -1090,6 +1102,7 @@ Suma::api_fail_subscriber_list(Signal* signal, Uint32 nodeId)
   {
     jam();
     api_fail_block_cleanup(signal, nodeId);
+    c_failedApiNodesState[nodeId] = __LINE__;
     return;
   }
 
@@ -1104,10 +1117,17 @@ Suma::api_fail_subscriber_list(Signal* signal, Uint32 nodeId)
 
   if (empty)
   {
+    jam();
+    c_failedApiNodesState[nodeId] = __LINE__;
     signal->theData[0] = SumaContinueB::API_FAIL_SUBSCRIPTION;
     signal->theData[1] = subOpPtr.i;
     signal->theData[2] = RNIL;
     sendSignal(SUMA_REF, GSN_CONTINUEB, signal, 3, JBB);
+  }
+  else
+  {
+    jam();
+    c_failedApiNodesState[nodeId] = __LINE__;
   }
 }
 
@@ -1169,6 +1189,7 @@ Suma::api_fail_subscription(Signal* signal)
   if (!ptr.isNull())
   {
     jam();
+    c_failedApiNodesState[nodeId] = __LINE__;
     signal->theData[0] = SumaContinueB::API_FAIL_SUBSCRIPTION;
     signal->theData[1] = subOpPtr.i;
     signal->theData[2] = ptr.i;
@@ -1187,6 +1208,8 @@ Suma::api_fail_subscription(Signal* signal)
 
   if (c_subscriptions.next(iter))
   {
+    jam();
+    c_failedApiNodesState[nodeId] = __LINE__;
     signal->theData[0] = SumaContinueB::API_FAIL_SUBSCRIBER_LIST;
     signal->theData[1] = nodeId;
     signal->theData[2] = subOpPtr.i;
@@ -1747,6 +1770,29 @@ Suma::execDUMP_STATE_ORD(Signal* signal){
     signal->theData[1] = it.bucket;
     sendSignalWithDelay(reference(), GSN_DUMP_STATE_ORD, signal, 100, 2);
     return;
+  }
+
+  if (tCase == 7019 && signal->getLength() == 2)
+  {
+    jam();
+    Uint32 nodeId = signal->theData[1];
+    if (nodeId < MAX_NODES)
+    {
+      warningEvent(" Suma 7019 %u line: %u", nodeId,
+                   c_failedApiNodesState[nodeId]);
+      warningEvent("   c_connected_nodes.get(): %u",
+                   c_connected_nodes.get(nodeId));
+      warningEvent("   c_failedApiNodes.get(): %u",
+                   c_failedApiNodes.get(nodeId));
+      warningEvent("   c_subscriber_nodes.get(): %u",
+                   c_subscriber_nodes.get(nodeId));
+      warningEvent(" c_subscriber_per_node[%u]: %u",
+                   nodeId, c_subscriber_per_node[nodeId]);
+    }
+    else
+    {
+      warningEvent(" SUMP: dump-7019 to unknown node: %u", nodeId);
+    }
   }
 }
 
