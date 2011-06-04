@@ -183,6 +183,10 @@ log. */
 #define OS_WIN95	2	/*!< Microsoft Windows 95 */
 #define OS_WINNT	3	/*!< Microsoft Windows NT 3.x */
 #define OS_WIN2000	4	/*!< Microsoft Windows 2000 */
+#define OS_WINXP	5	/*!< Microsoft Windows XP */
+#define OS_WINVISTA	6	/*!< Microsoft Windows Vista */
+#define OS_WIN7		7	/*!< Microsoft Windows 7 */
+
 
 extern ulint	os_n_file_reads;
 extern ulint	os_n_file_writes;

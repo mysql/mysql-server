@@ -1132,19 +1132,25 @@ innobase_start_or_create_for_mysql(void)
 	case OS_WIN95:
 	case OS_WIN31:
 	case OS_WINNT:
-		/* On Win 95, 98, ME, Win32 subsystem for Windows 3.1,
-		and NT use simulated aio. In NT Windows provides async i/o,
-		but when run in conjunction with InnoDB Hot Backup, it seemed
-		to corrupt the data files. */
+		srv_use_native_conditions = FALSE;
+		break;
 
-		os_aio_use_native_aio = FALSE;
-		break;
-	default:
-		/* On Win 2000 and XP use async i/o */
+	case OS_WIN2000:
+	case OS_WINXP:
+		/* On 2000 and XP, async IO is available, but no condition variables. */
 		os_aio_use_native_aio = TRUE;
-		break;
-	}
+		srv_use_native_conditions = FALSE;
+ 		break;
+
+ 	default:
+		/* On Win 2000 and XP use async i/o */
+		/* Vista and later have both async IO and condition variables */
+ 		os_aio_use_native_aio = TRUE;
+		srv_use_native_conditions = TRUE;
+ 		break;
+ 	}
 #endif
+
 	if (srv_file_flush_method_str == NULL) {
 		/* These are the default options */
 
