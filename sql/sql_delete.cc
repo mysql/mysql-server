@@ -63,13 +63,15 @@ bool mysql_delete(THD *thd, TABLE_LIST *table_list, COND *conds,
 
   if (mysql_handle_list_of_derived(thd->lex, table_list, DT_MERGE_FOR_INSERT) ||
       mysql_handle_list_of_derived(thd->lex, table_list, DT_PREPARE))
-    DBUG_RETURN(TRUE);  
+    DBUG_RETURN(TRUE);
 
+  if (!table_list->updatable)
+  {
+     my_error(ER_NON_UPDATABLE_TABLE, MYF(0), table_list->alias, "DELETE");
+     DBUG_RETURN(TRUE);
+  }
   if (!(table= table_list->table) || !table->created)
   {
-    if (!table_list->updatable)
-      my_error(ER_NON_UPDATABLE_TABLE, MYF(0), table_list->alias, "DELETE");
-    else
       my_error(ER_VIEW_DELETE_MERGE_VIEW, MYF(0),
 	       table_list->view_db.str, table_list->view_name.str);
     DBUG_RETURN(TRUE);

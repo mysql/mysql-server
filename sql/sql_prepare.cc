@@ -1346,7 +1346,12 @@ static bool mysql_test_delete(Prepared_statement *stmt,
       mysql_handle_list_of_derived(thd->lex, table_list, DT_PREPARE))
     goto error;
 
-  if (!table_list->table)
+  if (!table_list->updatable)
+  {
+    my_error(ER_NON_UPDATABLE_TABLE, MYF(0), table_list->alias, "DELETE");
+    goto error;
+  }
+  if (!table_list->table || !table_list->table->created)
   {
     my_error(ER_VIEW_DELETE_MERGE_VIEW, MYF(0),
              table_list->view_db.str, table_list->view_name.str);
