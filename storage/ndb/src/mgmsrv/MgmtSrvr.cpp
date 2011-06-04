@@ -3763,11 +3763,12 @@ MgmtSrvr::getConnectionDbParameter(int node1, int node2,
 }
 
 
-bool MgmtSrvr::transporter_connect(NDB_SOCKET_TYPE sockfd)
+bool
+MgmtSrvr::transporter_connect(NDB_SOCKET_TYPE sockfd, BaseString& msg)
 {
   DBUG_ENTER("MgmtSrvr::transporter_connect");
   TransporterRegistry* tr= theFacade->get_registry();
-  if (!tr->connect_server(sockfd))
+  if (!tr->connect_server(sockfd, msg))
     DBUG_RETURN(false);
 
   /*

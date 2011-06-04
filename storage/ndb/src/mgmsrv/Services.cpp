@@ -1786,13 +1786,14 @@ void
 MgmApiSession::transporter_connect(Parser_t::Context &ctx,
 				   Properties const &args)
 {
-  if (!m_mgmsrv.transporter_connect(m_socket))
+  BaseString errormsg;
+  if (!m_mgmsrv.transporter_connect(m_socket, errormsg))
   {
     // Connection not allowed or failed
     g_eventLogger->warning("Failed to convert connection "
-                           "from '%s' to transporter",
-                           name());
-
+                           "from '%s' to transporter: %s",
+                           name(),
+                           errormsg.c_str());
     // Close the socket to indicate failure to other side
   }
   else
