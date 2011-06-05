@@ -1288,8 +1288,7 @@ id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	tables	ALL	NULL	NULL	NULL	NULL	NULL	Open_frm_only; Scanned all databases; Using filesort
 explain select * from (select table_name from information_schema.tables) as a;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	PRIMARY	<derived2>	system	NULL	NULL	NULL	NULL	0	const row not found
-2	DERIVED	tables	ALL	NULL	NULL	NULL	NULL	NULL	Skip_open_table; Scanned all databases
+1	SIMPLE	tables	ALL	NULL	NULL	NULL	NULL	NULL	Skip_open_table; Scanned all databases
 drop view v1;
 create table t1 (f1 int(11));
 create table t2 (f1 int(11), f2 int(11));

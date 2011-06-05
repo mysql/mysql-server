@@ -52,8 +52,6 @@ DROP TABLE test.t_processlist;
 CREATE VIEW test.v_processlist (ID, USER, HOST, DB, COMMAND, TIME, STATE, INFO, TIME_MS) AS SELECT * FROM processlist WITH CHECK OPTION;
 ERROR HY000: CHECK OPTION on non-updatable view 'test.v_processlist'
 CREATE VIEW test.v_processlist (ID, USER, HOST, DB, COMMAND, TIME, STATE, INFO, TIME_MS) AS SELECT * FROM processlist;
-UPDATE test.v_processlist SET TIME=NOW() WHERE id = 1;
-ERROR 42000: Access denied for user 'root'@'localhost' to database 'information_schema'
 DROP VIEW test.v_processlist;
 UPDATE processlist SET user='any_user'  WHERE id=1 ;
 ERROR 42000: Access denied for user 'root'@'localhost' to database 'information_schema'
@@ -120,8 +118,6 @@ DROP TABLE test.t_processlist;
 CREATE VIEW test.v_processlist (ID, USER, HOST, DB, COMMAND, TIME, STATE, INFO, TIME_MS) AS SELECT * FROM processlist WITH CHECK OPTION;
 ERROR HY000: CHECK OPTION on non-updatable view 'test.v_processlist'
 CREATE VIEW test.v_processlist (ID, USER, HOST, DB, COMMAND, TIME, STATE, INFO, TIME_MS) AS SELECT * FROM processlist;
-UPDATE test.v_processlist SET TIME=NOW() WHERE id = 1;
-ERROR 42000: Access denied for user 'ddicttestuser1'@'localhost' to database 'information_schema'
 DROP VIEW test.v_processlist;
 UPDATE processlist SET user='any_user'  WHERE id=1 ;
 ERROR 42000: Access denied for user 'ddicttestuser1'@'localhost' to database 'information_schema'

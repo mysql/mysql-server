@@ -57,9 +57,8 @@ a	b	a	b
 3	c	3	c
 explain select * from t1 as x1, (select * from t1) as x2;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	PRIMARY	x1	ALL	NULL	NULL	NULL	NULL	4	
-1	PRIMARY	<derived2>	ALL	NULL	NULL	NULL	NULL	4	Using join buffer (flat, BNL join)
-2	DERIVED	t1	ALL	NULL	NULL	NULL	NULL	4	
+1	SIMPLE	x1	ALL	NULL	NULL	NULL	NULL	4	
+1	SIMPLE	t1	ALL	NULL	NULL	NULL	NULL	4	Using join buffer (flat, BNL join)
 drop table if exists  t2,t3;
 select * from (select 1) as a;
 1
@@ -91,7 +90,7 @@ a	b
 2	b
 explain select * from (select * from t1 union select * from t1) a;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	PRIMARY	<derived2>	ALL	NULL	NULL	NULL	NULL	3	
+1	PRIMARY	<derived2>	ALL	NULL	NULL	NULL	NULL	8	
 2	DERIVED	t1	ALL	NULL	NULL	NULL	NULL	4	
 3	UNION	t1	ALL	NULL	NULL	NULL	NULL	4	
 NULL	UNION RESULT	<union2,3>	ALL	NULL	NULL	NULL	NULL	NULL	
@@ -113,9 +112,8 @@ a	b
 3	c
 explain select * from (select t1.*, t2.a as t2a from t1,t2 where t1.a=t2.a) t1;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	PRIMARY	<derived2>	system	NULL	NULL	NULL	NULL	1	
-2	DERIVED	t2	system	NULL	NULL	NULL	NULL	1	
-2	DERIVED	t1	ALL	NULL	NULL	NULL	NULL	4	Using where
+1	SIMPLE	t2	system	NULL	NULL	NULL	NULL	1	
+1	SIMPLE	t1	ALL	NULL	NULL	NULL	NULL	4	Using where
 drop table t1, t2;
 create table t1(a int not null, t char(8), index(a));
 SELECT * FROM (SELECT * FROM t1) as b ORDER BY a  ASC LIMIT 0,20;
@@ -142,8 +140,7 @@ a	t
 20	20
 explain select count(*) from t1 as tt1, (select * from t1) as tt2;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	PRIMARY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Select tables optimized away
-2	DERIVED	t1	ALL	NULL	NULL	NULL	NULL	10000	
+1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Select tables optimized away
 drop table t1;
 SELECT * FROM (SELECT (SELECT * FROM (SELECT 1 as a) as a )) as b;
 (SELECT * FROM (SELECT 1 as a) as a )
@@ -172,30 +169,30 @@ insert into t1 values (NULL, 'a', 1), (NULL, 'b', 2), (NULL, 'c', 3), (NULL, 'd'
 insert into t2 values (1, 100), (1, 101), (1, 102), (2, 100), (2, 103), (2, 104), (3, 101), (3, 102), (3, 105);
 SELECT STRAIGHT_JOIN d.pla_id, m2.mat_id FROM t1 m2 INNER JOIN (SELECT mp.pla_id, MIN(m1.matintnum) AS matintnum FROM t2 mp INNER JOIN t1 m1 ON mp.mat_id=m1.mat_id GROUP BY mp.pla_id) d ON d.matintnum=m2.matintnum;
 pla_id	mat_id
-100	1
-101	1
 102	1
-103	2
+101	1
+100	1
 104	2
+103	2
 105	3
 SELECT STRAIGHT_JOIN d.pla_id, m2.test FROM t1 m2  INNER JOIN (SELECT mp.pla_id, MIN(m1.matintnum) AS matintnum FROM t2 mp INNER JOIN t1 m1 ON mp.mat_id=m1.mat_id GROUP BY mp.pla_id) d ON d.matintnum=m2.matintnum;
 pla_id	test
-100	1
-101	1
 102	1
-103	2
+101	1
+100	1
 104	2
+103	2
 105	3
 explain SELECT STRAIGHT_JOIN d.pla_id, m2.mat_id FROM t1 m2 INNER JOIN (SELECT mp.pla_id, MIN(m1.matintnum) AS matintnum FROM t2 mp INNER JOIN t1 m1 ON mp.mat_id=m1.mat_id GROUP BY mp.pla_id) d ON d.matintnum=m2.matintnum;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	PRIMARY	m2	ALL	NULL	NULL	NULL	NULL	9	
-1	PRIMARY	<derived2>	ALL	NULL	NULL	NULL	NULL	6	Using where; Using join buffer (flat, BNL join)
+1	PRIMARY	<derived2>	ref	key0	key0	7	test.m2.matintnum	2	
 2	DERIVED	mp	ALL	NULL	NULL	NULL	NULL	9	Using temporary; Using filesort
 2	DERIVED	m1	eq_ref	PRIMARY	PRIMARY	3	test.mp.mat_id	1	
 explain SELECT STRAIGHT_JOIN d.pla_id, m2.test FROM t1 m2  INNER JOIN (SELECT mp.pla_id, MIN(m1.matintnum) AS matintnum FROM t2 mp INNER JOIN t1 m1 ON mp.mat_id=m1.mat_id GROUP BY mp.pla_id) d ON d.matintnum=m2.matintnum;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	PRIMARY	m2	ALL	NULL	NULL	NULL	NULL	9	
-1	PRIMARY	<derived2>	ALL	NULL	NULL	NULL	NULL	6	Using where; Using join buffer (flat, BNL join)
+1	PRIMARY	<derived2>	ref	key0	key0	7	test.m2.matintnum	2	
 2	DERIVED	mp	ALL	NULL	NULL	NULL	NULL	9	Using temporary; Using filesort
 2	DERIVED	m1	eq_ref	PRIMARY	PRIMARY	3	test.mp.mat_id	1	
 drop table t1,t2;
@@ -230,9 +227,8 @@ count(*)
 2
 explain select count(*) from t1 INNER JOIN (SELECT A.E1, A.E2, A.E3 FROM t1 AS A WHERE A.E3 = (SELECT MAX(B.E3) FROM t1 AS B WHERE A.E2 = B.E2)) AS THEMAX ON t1.E1 = THEMAX.E2 AND t1.E1 = t1.E2;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	PRIMARY	<derived2>	ALL	NULL	NULL	NULL	NULL	2	
-1	PRIMARY	t1	eq_ref	PRIMARY	PRIMARY	4	THEMAX.E2	1	Using where
-2	DERIVED	A	ALL	NULL	NULL	NULL	NULL	2	Using where
+1	SIMPLE	A	ALL	NULL	NULL	NULL	NULL	2	Using where
+1	SIMPLE	t1	eq_ref	PRIMARY	PRIMARY	4	test.A.E2	1	Using where
 3	DEPENDENT SUBQUERY	B	ALL	NULL	NULL	NULL	NULL	2	Using where
 drop table t1;
 create table t1 (a int);
@@ -245,8 +241,8 @@ a	a
 2	2
 explain select * from ( select * from t1 union select * from t1) a,(select * from t1 union select * from t1) b;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	PRIMARY	<derived2>	ALL	NULL	NULL	NULL	NULL	2	
-1	PRIMARY	<derived4>	ALL	NULL	NULL	NULL	NULL	2	Using join buffer (flat, BNL join)
+1	PRIMARY	<derived2>	ALL	NULL	NULL	NULL	NULL	4	
+1	PRIMARY	<derived4>	ALL	NULL	NULL	NULL	NULL	4	Using join buffer (flat, BNL join)
 4	DERIVED	t1	ALL	NULL	NULL	NULL	NULL	2	
 5	UNION	t1	ALL	NULL	NULL	NULL	NULL	2	
 NULL	UNION RESULT	<union4,5>	ALL	NULL	NULL	NULL	NULL	NULL	
@@ -311,7 +307,7 @@ a	7.0000
 b	3.5000
 explain SELECT s.name, AVG(s.val) AS median FROM (SELECT x.name, x.val FROM t1 x, t1 y WHERE x.name=y.name GROUP BY x.name, x.val HAVING SUM(y.val <= x.val) >= COUNT(*)/2 AND SUM(y.val >= x.val) >= COUNT(*)/2) AS s GROUP BY s.name;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	PRIMARY	<derived2>	ALL	NULL	NULL	NULL	NULL	3	Using temporary; Using filesort
+1	PRIMARY	<derived2>	ALL	NULL	NULL	NULL	NULL	289	Using temporary; Using filesort
 2	DERIVED	x	ALL	NULL	NULL	NULL	NULL	17	Using temporary; Using filesort
 2	DERIVED	y	ALL	NULL	NULL	NULL	NULL	17	Using where; Using join buffer (flat, BNL join)
 drop table t1;
@@ -322,8 +318,7 @@ id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	t2	index	PRIMARY	PRIMARY	4	NULL	2	Using where; Using index
 explain select a from (select a from t2 where a>1) tt;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	PRIMARY	<derived2>	system	NULL	NULL	NULL	NULL	1	
-2	DERIVED	t2	index	PRIMARY	PRIMARY	4	NULL	2	Using where; Using index
+1	SIMPLE	t2	index	PRIMARY	PRIMARY	4	NULL	2	Using where; Using index
 drop table t2;
 CREATE TABLE `t1` ( `itemid` int(11) NOT NULL default '0', `grpid` varchar(15) NOT NULL default '', `vendor` int(11) NOT NULL default '0', `date_` date NOT NULL default '0000-00-00', `price` decimal(12,2) NOT NULL default '0.00', PRIMARY KEY  (`itemid`,`grpid`,`vendor`,`date_`), KEY `itemid` (`itemid`,`vendor`), KEY `itemid_2` (`itemid`,`date_`));
 insert into t1 values (128, 'rozn', 2, curdate(), 10),

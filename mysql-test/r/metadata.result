@@ -205,7 +205,7 @@ CREATE TABLE t1 (f1 INT);
 CREATE VIEW v1 AS SELECT f1 FROM t1;
 SELECT f1 FROM v1 va;
 Catalog	Database	Table	Table_alias	Column	Column_alias	Type	Length	Max length	Is_null	Flags	Decimals	Charsetnr
-def	test	v1	va	f1	f1	3	11	0	Y	32768	0	63
+def	test	va	va	f1	f1	3	11	0	Y	32768	0	63
 f1
 DROP VIEW v1;
 DROP TABLE t1;

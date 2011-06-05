@@ -265,6 +265,8 @@ public:
       prev= &node->next;
       node= node->next;
       elements++;
+      if (node == &end_of_list)
+        return;
     }
     *prev= *last;
     last= prev;
