@@ -215,8 +215,7 @@ Vio *mysql_socket_vio_new(MYSQL_SOCKET mysql_socket, enum enum_vio_type type, ui
   {
     vio_init(vio, type, sd, flags);
     sprintf(vio->desc,
-	    (vio->type == VIO_TYPE_SOCKET ? "socket (%d)" : "TCP/IP (%d)"),
-	    vio->sd);
+	    (vio->type == VIO_TYPE_SOCKET ? "socket (%d)" : "TCP/IP (%d)"), sd);
     vio->mysql_socket= mysql_socket;
   }
   DBUG_RETURN(vio);
