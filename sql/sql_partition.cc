@@ -6571,7 +6571,7 @@ void set_key_field_ptr(KEY *key_info, const uchar *new_buf,
 
 void mem_alloc_error(size_t size)
 {
-  my_error(ER_OUTOFMEMORY, MYF(0), size);
+  my_error(ER_OUTOFMEMORY, MYF(0), static_cast<int>(size));
 }
 
 #ifdef WITH_PARTITION_STORAGE_ENGINE

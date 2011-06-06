@@ -604,18 +604,21 @@ Event_db_repository::open_event_table(THD *thd, enum thr_lock_type lock_type,
   only creates a record on disk.
   @pre The thread handle has no open tables.
 
-  @param[in,out] thd           THD
-  @param[in]     parse_data    Parsed event definition
-  @param[in]     create_if_not TRUE if IF NOT EXISTS clause was provided
-                               to CREATE EVENT statement
-
+  @param[in,out] thd                   THD
+  @param[in]     parse_data            Parsed event definition
+  @param[in]     create_if_not         TRUE if IF NOT EXISTS clause was provided
+                                       to CREATE EVENT statement
+  @param[out]    event_already_exists  When method is completed successfully
+                                       set to true if event already exists else
+                                       set to false
   @retval FALSE  success
   @retval TRUE   error
 */
 
 bool
 Event_db_repository::create_event(THD *thd, Event_parse_data *parse_data,
-                                  my_bool create_if_not)
+                                  bool create_if_not,
+                                  bool *event_already_exists)
 {
   int ret= 1;
   TABLE *table= NULL;
@@ -641,6 +644,7 @@ Event_db_repository::create_event(THD *thd, Event_parse_data *parse_data,
   {
     if (create_if_not)
     {
+      *event_already_exists= true;
       push_warning_printf(thd, MYSQL_ERROR::WARN_LEVEL_NOTE,
                           ER_EVENT_ALREADY_EXISTS, ER(ER_EVENT_ALREADY_EXISTS),
                           parse_data->name.str);
@@ -648,8 +652,10 @@ Event_db_repository::create_event(THD *thd, Event_parse_data *parse_data,
     }
     else
       my_error(ER_EVENT_ALREADY_EXISTS, MYF(0), parse_data->name.str);
+
     goto end;
-  }
+  } else
+    *event_already_exists= false;
 
   DBUG_PRINT("info", ("non-existent, go forward"));
 
