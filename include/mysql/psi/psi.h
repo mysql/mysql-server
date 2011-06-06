@@ -410,7 +410,9 @@ enum PSI_socket_operation
   /** Socket status, as in @c sockatmark() and @c isfdtype(). */
   PSI_SOCKET_STAT= 12,
   /** Socket shutdown, as in @c shutdown(). */
-  PSI_SOCKET_SHUTDOWN= 13
+  PSI_SOCKET_SHUTDOWN= 13,
+  /** Socket select, as in @c select() and @c poll(). */
+  PSI_SOCKET_SELECT= 14
 };
 
 /**
