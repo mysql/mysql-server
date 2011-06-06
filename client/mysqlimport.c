@@ -93,7 +93,7 @@ static struct my_option my_long_options[] =
    0, GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0},
   {"default_auth", OPT_DEFAULT_AUTH,
    "Default authentication client-side plugin to use.",
-   (uchar**) &opt_default_auth, (uchar**) &opt_default_auth, 0,
+   &opt_default_auth, &opt_default_auth, 0,
    GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
   {"delete", 'd', "First delete all rows from table.", &opt_delete,
    &opt_delete, 0, GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0},
@@ -145,7 +145,7 @@ static struct my_option my_long_options[] =
    NO_ARG, 0, 0, 0, 0, 0, 0},
 #endif
   {"plugin_dir", OPT_PLUGIN_DIR, "Directory for client-side plugins.",
-   (uchar**) &opt_plugin_dir, (uchar**) &opt_plugin_dir, 0,
+   &opt_plugin_dir, &opt_plugin_dir, 0,
    GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
   {"port", 'P', "Port number to use for connection or 0 for default to, in "
    "order of preference, my.cnf, $MYSQL_TCP_PORT, "
