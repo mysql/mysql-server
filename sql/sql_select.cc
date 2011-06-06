@@ -10118,7 +10118,7 @@ static bool uses_index_fields_only(Item *item, TABLE *tbl, uint keyno,
       contains a subquery. If this is the case we do not include this
       part of the condition.
     */
-    return !item->with_subselect;
+    return !item->has_subquery();
   }
 
   const Item::Type item_type= item->type();
@@ -11971,7 +11971,7 @@ remove_const(JOIN *join,ORDER *first_order, Item *cond,
       *simple_order=0;				// Must do a temp table to sort
     else if (!(order_tables & not_const_tables))
     {
-      if (order->item[0]->with_subselect && 
+      if (order->item[0]->has_subquery() && 
           !(join->select_lex->options & SELECT_DESCRIBE))
         order->item[0]->val_str(&order->item[0]->str_value);
       DBUG_PRINT("info",("removing: %s", order->item[0]->full_name()));
