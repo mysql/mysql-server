@@ -182,3 +182,26 @@ insert into t1 (a) values (1),(3);
 select * from t1;
 select * from t1;
 drop table t1;
+
+#
+# Test output of show columns
+#
+
+CREATE TABLE `t1` (
+  `a` int(11) NOT NULL,
+  `b` varchar(32) DEFAULT NULL,
+  `c` int(11) AS (a MOD 10) VIRTUAL,
+  `d` varchar(5) AS (LEFT(b,5)) PERSISTENT
+) ENGINE=MyISAM;
+show create table t1;
+show columns from t1;
+show full columns from t1;
+INSERT INTO `test`.`t1`(`a`,`b`,`c`,`d`) VALUES ( '1','a',NULL,NULL);
+UPDATE `test`.`t1` SET `d`='b' WHERE `a`='1' AND `b`='a' AND `c`='1' AND  `d`='a';
+INSERT INTO `test`.`t1`(`a`,`b`,`c`,`d`) VALUES ( '1','a',NULL,'a');
+set sql_mode='strict_all_tables';
+--error ER_WARNING_NON_DEFAULT_VALUE_FOR_VIRTUAL_COLUMN
+UPDATE `test`.`t1` SET `d`='b' WHERE `a`='1' AND `b`='a' AND `c`='1' AND  `d`='a';
+--error ER_WARNING_NON_DEFAULT_VALUE_FOR_VIRTUAL_COLUMN
+INSERT INTO `test`.`t1`(`a`,`b`,`c`,`d`) VALUES ( '1','a',NULL,'a');
+drop table t1;

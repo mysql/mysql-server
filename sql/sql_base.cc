@@ -8394,12 +8394,10 @@ fill_record(THD * thd, List<Item> &fields, List<Item> &values,
         value->type() != Item::NULL_ITEM &&
         table->s->table_category != TABLE_CATEGORY_TEMPORARY)
     {
-      thd->abort_on_warning= FALSE;
       push_warning_printf(thd, MYSQL_ERROR::WARN_LEVEL_WARN,
                           ER_WARNING_NON_DEFAULT_VALUE_FOR_VIRTUAL_COLUMN,
                           ER(ER_WARNING_NON_DEFAULT_VALUE_FOR_VIRTUAL_COLUMN),
                           rfield->field_name, table->s->table_name.str);
-      thd->abort_on_warning= abort_on_warning_saved;
     }
     if ((value->save_in_field(rfield, 0) < 0) && !ignore_errors)
     {
@@ -8549,12 +8547,10 @@ fill_record(THD *thd, Field **ptr, List<Item> &values, bool ignore_errors,
         value->type() != Item::NULL_ITEM &&
         table->s->table_category != TABLE_CATEGORY_TEMPORARY)
     {
-      thd->abort_on_warning= FALSE;
       push_warning_printf(thd, MYSQL_ERROR::WARN_LEVEL_WARN,
                           ER_WARNING_NON_DEFAULT_VALUE_FOR_VIRTUAL_COLUMN,
                           ER(ER_WARNING_NON_DEFAULT_VALUE_FOR_VIRTUAL_COLUMN),
                           field->field_name, table->s->table_name.str);
-      thd->abort_on_warning= abort_on_warning_saved;
     }
 
     if (use_value)

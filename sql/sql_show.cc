@@ -4474,8 +4474,12 @@ static int get_schema_column_record(THD *thd, TABLE_LIST *tables,
       table->field[17]->store(STRING_WITH_LEN("on update CURRENT_TIMESTAMP"),
                               cs);
     if (field->vcol_info)
-      table->field[17]->store(STRING_WITH_LEN("VIRTUAL"), cs);
-
+    {
+      if (field->stored_in_db)
+        table->field[17]->store(STRING_WITH_LEN("PERSISTENT"), cs);
+      else
+        table->field[17]->store(STRING_WITH_LEN("VIRTUAL"), cs);
+    }
     table->field[19]->store(field->comment.str, field->comment.length, cs);
     if (schema_table_store_record(thd, table))
       DBUG_RETURN(1);
