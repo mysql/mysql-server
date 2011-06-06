@@ -563,7 +563,7 @@ db_find_routine(THD *thd, int type, sp_name *name, sp_head **sphp)
     goto done;
   }
 
-  bzero((char *)&chistics, sizeof(chistics));
+  memset(&chistics, 0, sizeof(chistics));
   if ((ptr= get_field(thd->mem_root,
 		      table->field[MYSQL_PROC_FIELD_ACCESS])) == NULL)
   {
@@ -870,8 +870,8 @@ sp_returns_type(THD *thd, String &result, sp_head *sp)
   TABLE table;
   TABLE_SHARE share;
   Field *field;
-  bzero((char*) &table, sizeof(table));
-  bzero((char*) &share, sizeof(share));
+  memset(&table, 0, sizeof(table));
+  memset(&share, 0, sizeof(share));
   table.in_use= thd;
   table.s = &share;
   field= sp->create_result_field(0, 0, &table);
@@ -2201,7 +2201,7 @@ sp_load_for_information_schema(THD *thd, TABLE *proc_table, String *db,
   Stored_program_creation_ctx *creation_ctx= 
     Stored_routine_creation_ctx::load_from_db(thd, &sp_name_obj, proc_table);
   sp_body= (type == TYPE_ENUM_FUNCTION ? "RETURN NULL" : "BEGIN END");
-  bzero((char*) &sp_chistics, sizeof(sp_chistics));
+  memset(&sp_chistics, 0, sizeof(sp_chistics));
   defstr.set_charset(creation_ctx->get_client_cs());
   if (!create_string(thd, &defstr, type, 
                      sp_db_str.str, sp_db_str.length, 

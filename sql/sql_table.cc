@@ -1650,7 +1650,7 @@ void execute_ddl_log_recovery()
   /*
     Initialise global_ddl_log struct
   */
-  bzero(global_ddl_log.file_entry_buf, sizeof(global_ddl_log.file_entry_buf));
+  memset(global_ddl_log.file_entry_buf, 0, sizeof(global_ddl_log.file_entry_buf));
   global_ddl_log.inited= FALSE;
   global_ddl_log.recovery_phase= TRUE;
   global_ddl_log.io_size= IO_SIZE;
@@ -2475,6 +2475,11 @@ err:
       trans_tmp_table_deleted || non_tmp_table_deleted)
   {
     query_cache_invalidate3(thd, tables, 0);
+
+    if (non_trans_tmp_table_deleted ||
+        trans_tmp_table_deleted)
+      thd->transaction.stmt.mark_dropped_temp_table();
+
     if (!dont_log_query && mysql_bin_log.is_open())
     {
       if (non_trans_tmp_table_deleted)
@@ -2807,7 +2812,8 @@ int prepare_create_field(Create_field *sql_field,
           MAX_FIELD_CHARLENGTH)
       {
         my_printf_error(ER_TOO_BIG_FIELDLENGTH, ER(ER_TOO_BIG_FIELDLENGTH),
-                        MYF(0), sql_field->field_name, MAX_FIELD_CHARLENGTH);
+                        MYF(0), sql_field->field_name,
+                        static_cast<ulong>(MAX_FIELD_CHARLENGTH));
         DBUG_RETURN(1);
       }
     }
@@ -3803,12 +3809,12 @@ mysql_prepare_create_table(THD *thd, HA_CREATE_INFO *create_info,
            (MODE_STRICT_TRANS_TABLES | MODE_STRICT_ALL_TABLES)))
       {
         my_error(ER_TOO_LONG_INDEX_COMMENT, MYF(0),
-                 key_info->name, (uint) INDEX_COMMENT_MAXLEN);
+                 key_info->name, static_cast<ulong>(INDEX_COMMENT_MAXLEN));
         DBUG_RETURN(-1);
       }
       char warn_buff[MYSQL_ERRMSG_SIZE];
       my_snprintf(warn_buff, sizeof(warn_buff), ER(ER_TOO_LONG_INDEX_COMMENT),
-                  key_info->name, (uint) INDEX_COMMENT_MAXLEN);
+                  key_info->name, static_cast<ulong>(INDEX_COMMENT_MAXLEN));
       /* do not push duplicate warnings */
       if (!check_duplicate_warning(thd, warn_buff, strlen(warn_buff)))
         push_warning(thd, MYSQL_ERROR::WARN_LEVEL_WARN,
@@ -3936,7 +3942,8 @@ static bool prepare_blob_field(THD *thd, Create_field *sql_field)
                                                       MODE_STRICT_ALL_TABLES)))
     {
       my_error(ER_TOO_BIG_FIELDLENGTH, MYF(0), sql_field->field_name,
-               MAX_FIELD_VARCHARLENGTH / sql_field->charset->mbmaxlen);
+               static_cast<ulong>(MAX_FIELD_VARCHARLENGTH /
+                                  sql_field->charset->mbmaxlen));
       DBUG_RETURN(1);
     }
     sql_field->sql_type= MYSQL_TYPE_BLOB;
@@ -4554,19 +4561,27 @@ bool mysql_create_table(THD *thd, TABLE_LIST *create_table,
   result= mysql_create_table_no_lock(thd, create_table->db,
                                      create_table->table_name, create_info,
                                      alter_info, FALSE, 0, &is_trans);
-
   /*
     Don't write statement if:
     - Table creation has failed
     - Row-based logging is used and we are creating a temporary table
     Otherwise, the statement shall be binlogged.
   */
-  if (!result &&
-      (!thd->is_current_stmt_binlog_format_row() ||
-       (thd->is_current_stmt_binlog_format_row() &&
-        !(create_info->options & HA_LEX_CREATE_TMP_TABLE))))
-    result= write_bin_log(thd, TRUE, thd->query(), thd->query_length(), is_trans);
+  if (!result)
+  {
+    /*
+      CREATE TEMPORARY TABLE doesn't terminate a transaction. Calling
+      stmt.mark_created_temp_table() guarantees the transaction can be binlogged
+      correctly.
+    */
+    if (create_info->options & HA_LEX_CREATE_TMP_TABLE)
+      thd->transaction.stmt.mark_created_temp_table();
 
+    if (!thd->is_current_stmt_binlog_format_row() ||
+        (thd->is_current_stmt_binlog_format_row() &&
+         !(create_info->options & HA_LEX_CREATE_TMP_TABLE)))
+      result= write_bin_log(thd, TRUE, thd->query(), thd->query_length(), is_trans);
+  }
 end:
   DBUG_RETURN(result);
 }
@@ -4743,7 +4758,7 @@ bool mysql_create_like_table(THD* thd, TABLE_LIST* table, TABLE_LIST* src_table,
   src_table->table->use_all_columns();
 
   /* Fill HA_CREATE_INFO and Alter_info with description of source table. */
-  bzero((char*) &local_create_info, sizeof(local_create_info));
+  memset(&local_create_info, 0, sizeof(local_create_info));
   local_create_info.db_type= src_table->table->s->db_type();
   local_create_info.row_type= src_table->table->s->row_type;
   if (mysql_prepare_alter_table(thd, src_table->table, &local_create_info,
@@ -4785,6 +4800,14 @@ bool mysql_create_like_table(THD* thd, TABLE_LIST* table, TABLE_LIST* src_table,
               thd->mdl_context.is_lock_owner(MDL_key::TABLE, table->db,
                                              table->table_name,
                                              MDL_EXCLUSIVE));
+  /*
+    CREATE TEMPORARY TABLE doesn't terminate a transaction. Calling
+    stmt.mark_created_temp_table() guarantees the transaction can be binlogged
+    correctly.
+  */
+  if (create_info->options & HA_LEX_CREATE_TMP_TABLE)
+    thd->transaction.stmt.mark_created_temp_table();
+
   /*
     We have to write the query before we unlock the tables.
   */
@@ -4952,41 +4975,48 @@ err:
 
 /**
   @brief Check if both DROP and CREATE are present for an index in ALTER TABLE
- 
-  @details Checks if any index is being modified (present as both DROP INDEX 
-    and ADD INDEX) in the current ALTER TABLE statement. Needed for disabling 
+
+  @details Checks if any index is being modified (present as both DROP INDEX
+    and ADD INDEX) in the current ALTER TABLE statement. Needed for disabling
     in-place ALTER TABLE.
-  
-  @param table       The table being altered
-  @param alter_info  The ALTER TABLE structure
-  @return presence of index being altered  
+
+  @param table              The table being altered.
+  @param key_info_buffer    Array of KEY structs for new indexes.
+  @param index_drop_buffer  Array of offsets into table->key_info for indexes
+                            to be dropped.
+  @param index_drop_count   Number of indexes to be dropped.
+  @param index_add_buffer   Array of offsets into key_info_buffer representing
+                            new indexes.
+  @param index_add_count    Number of indexes to add.
+  @return presence of index being both dropped and added
   @retval FALSE  No such index
   @retval TRUE   Have at least 1 index modified
 */
 
 static bool
-is_index_maintenance_unique (TABLE *table, Alter_info *alter_info)
+is_index_maintenance_unique (const TABLE *table, const KEY *key_info_buffer,
+                             const uint *index_drop_buffer,
+                             uint index_drop_count,
+                             const uint *index_add_buffer, uint index_add_count)
 {
-  List_iterator<Key> key_it(alter_info->key_list);
-  List_iterator<Alter_drop> drop_it(alter_info->drop_list);
-  Key *key;
+  const KEY *add_key;
+  const KEY *drop_key;
+  const uint *idx_add_p;
+  const uint *idx_drop_p;
 
-  while ((key= key_it++))
+  for (idx_add_p= index_add_buffer;
+       idx_add_p < index_add_buffer + index_add_count; idx_add_p++)
   {
-    if (key->name.str)
+    add_key= key_info_buffer + *idx_add_p;
+    for (idx_drop_p= index_drop_buffer;
+         idx_drop_p < index_drop_buffer + index_drop_count; idx_drop_p++)
     {
-      Alter_drop *drop;
-
-      drop_it.rewind();
-      while ((drop= drop_it++))
-      {
-        if (drop->type == Alter_drop::KEY &&
-            !my_strcasecmp(system_charset_info, key->name.str, drop->name))
-          return TRUE;
-      }
+      drop_key= table->key_info + *idx_drop_p;
+      if (!my_strcasecmp(system_charset_info, add_key->name, drop_key->name))
+        return true;
     }
   }
-  return FALSE;
+  return false;
 }
 
 
@@ -5742,7 +5772,7 @@ mysql_prepare_alter_table(THD *thd, TABLE *table,
       KEY_CREATE_INFO key_create_info;
       Key *key;
       enum Key::Keytype key_type;
-      bzero((char*) &key_create_info, sizeof(key_create_info));
+      memset(&key_create_info, 0, sizeof(key_create_info));
 
       key_create_info.algorithm= key_info->algorithm;
       if (key_info->flags & HA_USES_BLOCK_SIZE)
@@ -5901,6 +5931,8 @@ bool mysql_alter_table(THD *thd,char *new_db, char *new_name,
   uint index_drop_count= 0;
   uint *index_drop_buffer= NULL;
   uint index_add_count= 0;
+  handler_add_index *add= NULL;
+  bool pending_inplace_add_index= false;
   uint *index_add_buffer= NULL;
   uint candidate_key_count= 0;
   bool no_pk;
@@ -6277,14 +6309,8 @@ bool mysql_alter_table(THD *thd,char *new_db, char *new_name,
   */
   new_db_type= create_info->db_type;
 
-  if (is_index_maintenance_unique (table, alter_info))
-    need_copy_table= ALTER_TABLE_DATA_CHANGED;
-
   if (mysql_prepare_alter_table(thd, table, create_info, alter_info))
     goto err;
-
-  if (need_copy_table == ALTER_TABLE_METADATA_ONLY)
-    need_copy_table= alter_info->change_level;
 
   set_table_default_charset(thd, create_info, db);
 
@@ -6297,6 +6323,8 @@ bool mysql_alter_table(THD *thd,char *new_db, char *new_name,
     need_copy_table= ALTER_TABLE_DATA_CHANGED;
   else
   {
+    need_copy_table= alter_info->change_level;
+
     Alter_table_change_level need_copy_table_res;
     /* Check how much the tables differ. */
     if (mysql_compare_tables(table, alter_info,
@@ -6307,16 +6335,24 @@ bool mysql_alter_table(THD *thd,char *new_db, char *new_name,
                              &index_add_buffer, &index_add_count,
                              &candidate_key_count, FALSE))
       goto err;
-   
+
     DBUG_EXECUTE_IF("alter_table_only_metadata_change", {
       if (need_copy_table_res != ALTER_TABLE_METADATA_ONLY)
         goto err; });
     DBUG_EXECUTE_IF("alter_table_only_index_change", {
       if (need_copy_table_res != ALTER_TABLE_INDEX_CHANGED)
         goto err; });
-   
+
     if (need_copy_table == ALTER_TABLE_METADATA_ONLY)
       need_copy_table= need_copy_table_res;
+
+    if (need_copy_table == ALTER_TABLE_INDEX_CHANGED)
+    {
+      if (is_index_maintenance_unique(table, key_info_buffer,
+                                      index_drop_buffer, index_drop_count,
+                                      index_add_buffer, index_add_count))
+        need_copy_table= ALTER_TABLE_DATA_CHANGED;
+    }
   }
 
   /*
@@ -6653,6 +6689,9 @@ bool mysql_alter_table(THD *thd,char *new_db, char *new_name,
   }
   thd->count_cuted_fields= CHECK_FIELD_IGNORE;
 
+  if (error)
+    goto err_new_table_cleanup;
+
   /* If we did not need to copy, we might still need to add/drop indexes. */
   if (! new_table)
   {
@@ -6684,7 +6723,8 @@ bool mysql_alter_table(THD *thd,char *new_db, char *new_name,
           key_part->field= table->field[key_part->fieldnr];
       }
       /* Add the indexes. */
-      if ((error= table->file->add_index(table, key_info, index_add_count)))
+      if ((error= table->file->add_index(table, key_info, index_add_count,
+                                         &add)))
       {
         /*
           Exchange the key_info for the error message. If we exchange
@@ -6696,11 +6736,27 @@ bool mysql_alter_table(THD *thd,char *new_db, char *new_name,
         table->key_info= save_key_info;
         goto err_new_table_cleanup;
       }
+      pending_inplace_add_index= true;
     }
     /*end of if (index_add_count)*/
 
     if (index_drop_count)
     {
+      /* Currently we must finalize add index if we also drop indexes */
+      if (pending_inplace_add_index)
+      {
+        /* Committing index changes needs exclusive metadata lock. */
+        DBUG_ASSERT(thd->mdl_context.is_lock_owner(MDL_key::TABLE,
+                                                   table_list->db,
+                                                   table_list->table_name,
+                                                   MDL_EXCLUSIVE));
+        if ((error= table->file->final_add_index(add, true)))
+        {
+          table->file->print_error(error, MYF(0));
+          goto err_new_table_cleanup;
+        }
+        pending_inplace_add_index= false;
+      }
       /* The prepare_drop_index() method takes an array of key numbers. */
       key_numbers= (uint*) thd->alloc(sizeof(uint) * index_drop_count);
       keyno_p= key_numbers;
@@ -6741,11 +6797,14 @@ bool mysql_alter_table(THD *thd,char *new_db, char *new_name,
   }
   /*end of if (! new_table) for add/drop index*/
 
-  if (error)
-    goto err_new_table_cleanup;
-
   if (table->s->tmp_table != NO_TMP_TABLE)
   {
+    /*
+      In-place operations are not supported for temporary tables, so
+      we don't have to call final_add_index() in this case. The assert
+      verifies that in-place add index has not been done.
+    */
+    DBUG_ASSERT(!pending_inplace_add_index);
     /* Close lock if this is a transactional table */
     if (thd->lock)
     {
@@ -6812,8 +6871,30 @@ bool mysql_alter_table(THD *thd,char *new_db, char *new_name,
     my_casedn_str(files_charset_info, old_name);
 
   if (wait_while_table_is_used(thd, table, HA_EXTRA_PREPARE_FOR_RENAME))
+  {
+    if (pending_inplace_add_index)
+    {
+      pending_inplace_add_index= false;
+      table->file->final_add_index(add, false);
+    }
+    // Mark this TABLE instance as stale to avoid out-of-sync index information.
+    table->m_needs_reopen= true;
     goto err_new_table_cleanup;
-
+  }
+  if (pending_inplace_add_index)
+  {
+    pending_inplace_add_index= false;
+    DBUG_EXECUTE_IF("alter_table_rollback_new_index", {
+      table->file->final_add_index(add, false);
+      my_error(ER_UNKNOWN_ERROR, MYF(0));
+      goto err_new_table_cleanup;
+    });
+    if ((error= table->file->final_add_index(add, true)))
+    {
+      table->file->print_error(error, MYF(0));
+      goto err_new_table_cleanup;
+    }
+  }
 
   close_all_tables_for_name(thd, table->s,
                             new_name != table_name || new_db != db);
@@ -7180,7 +7261,7 @@ copy_data_between_tables(TABLE *from,TABLE *to,
     {
       from->sort.io_cache=(IO_CACHE*) my_malloc(sizeof(IO_CACHE),
                                                 MYF(MY_FAE | MY_ZEROFILL));
-      bzero((char *) &tables, sizeof(tables));
+      memset(&tables, 0, sizeof(tables));
       tables.table= from;
       tables.alias= tables.table_name= from->s->table_name.str;
       tables.db= from->s->db.str;
@@ -7317,7 +7398,7 @@ bool mysql_recreate_table(THD *thd, TABLE_LIST *table_list)
   /* Same applies to MDL request. */
   table_list->mdl_request.set_type(MDL_SHARED_NO_WRITE);
 
-  bzero((char*) &create_info, sizeof(create_info));
+  memset(&create_info, 0, sizeof(create_info));
   create_info.row_type=ROW_TYPE_NOT_USED;
   create_info.default_table_charset=default_charset_info;
   /* Force alter table to recreate table */

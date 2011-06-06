@@ -164,6 +164,8 @@ id	value
 SET lock_wait_timeout=1;
 ALTER TABLE t1 ADD INDEX idx(value);
 ERROR HY000: Lock wait timeout exceeded; try restarting transaction
+ALTER TABLE t1 ADD INDEX idx(value);
+ERROR HY000: Lock wait timeout exceeded; try restarting transaction
 # Connection default
 SELECT * FROM t1;
 id	value

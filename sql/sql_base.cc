@@ -822,7 +822,7 @@ OPEN_TABLE_LIST *list_open_tables(THD *thd, const char *db, const char *wild)
   DBUG_ENTER("list_open_tables");
 
   mysql_mutex_lock(&LOCK_open);
-  bzero((char*) &table_list,sizeof(table_list));
+  memset(&table_list, 0, sizeof(table_list));
   start_list= &open_list;
   open_list=0;
 
@@ -1169,7 +1169,7 @@ bool close_cached_connection_tables(THD *thd, LEX_STRING *connection)
   DBUG_ENTER("close_cached_connections");
   DBUG_ASSERT(thd);
 
-  bzero(&tmp, sizeof(TABLE_LIST));
+  memset(&tmp, 0, sizeof(TABLE_LIST));
 
   mysql_mutex_lock(&LOCK_open);
 
@@ -3849,7 +3849,7 @@ static bool auto_repair_table(THD *thd, TABLE_LIST *table_list)
   {
     /* Give right error message */
     thd->clear_error();
-    my_error(ER_NOT_KEYFILE, MYF(0), share->table_name.str, my_errno);
+    my_error(ER_NOT_KEYFILE, MYF(0), share->table_name.str);
     sql_print_error("Couldn't repair table: %s.%s", share->db.str,
                     share->table_name.str);
     if (entry->file)
@@ -6876,9 +6876,29 @@ find_field_in_tables(THD *thd, Item_ident *item,
   if (last_table)
     last_table= last_table->next_name_resolution_table;
 
+#ifndef DBUG_OFF
+  uint loop_count= 0;
+  TABLE_LIST *one_node;
+#endif
   for (; cur_table != last_table ;
        cur_table= cur_table->next_name_resolution_table)
   {
+#ifndef DBUG_OFF
+    ++loop_count;
+    if (loop_count == 1000) // not normal, record one node we meet
+      one_node= cur_table;
+    if ((loop_count > 1000) && (one_node == cur_table))
+    {
+      /*
+        Meeting same node again: cycle, infinite loop. Raise an error which
+        doesn't stop RQG, so that Roel can continue working while we fix the
+        bug. We cannot continue the statement though.
+      */
+      my_error(ER_WRONG_FIELD_WITH_GROUP, MYF(0),
+               "HITTING BUG#12567331 INFINITE LOOP DETECTED - ASK GUILHEM AND ROEL");
+      return NULL;
+    }
+#endif
     Field *cur_field= find_field_in_table_ref(thd, cur_table, name, length,
                                               item->name, db, table_name, ref,
                                               (thd->lex->sql_command ==
@@ -8033,7 +8053,7 @@ bool setup_fields(THD *thd, Item **ref_pointer_array,
     ref_pointer_array
   */
   if (ref_pointer_array)
-    bzero(ref_pointer_array, sizeof(Item *) * fields.elements);
+    memset(ref_pointer_array, 0, sizeof(Item *) * fields.elements);
 
   /*
     We call set_entry() there (before fix_fields() of the whole list of field
@@ -8179,7 +8199,7 @@ bool setup_tables(THD *thd, Name_resolution_context *context,
   }
   if (tablenr > MAX_TABLES)
   {
-    my_error(ER_TOO_MANY_TABLES,MYF(0),MAX_TABLES);
+    my_error(ER_TOO_MANY_TABLES,MYF(0), static_cast<int>(MAX_TABLES));
     DBUG_RETURN(1);
   }
   for (table_list= tables;

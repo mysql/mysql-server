@@ -1124,7 +1124,7 @@ void Field_num::prepend_zeros(String *value)
     bmove_upp((uchar*) value->ptr()+field_length,
               (uchar*) value->ptr()+value->length(),
 	      value->length());
-    bfill((uchar*) value->ptr(),diff,'0');
+    memset(const_cast<char*>(value->ptr()), '0', diff);
     value->length(field_length);
     (void) value->c_ptr_quick();		// Avoid warnings in purify
   }
@@ -1885,14 +1885,14 @@ void Field_decimal::overflow(bool negative)
 	*/
 	uint whole_part=field_length- (dec ? dec+2 : 1);
 	// Fill with spaces up to the first digit
-	bfill(to, whole_part, ' ');
+	memset(to, ' ', whole_part);
 	to+=  whole_part;
 	len-= whole_part;
 	// The main code will also handle the 0 before the decimal point
       }
     }
   }
-  bfill(to, len, filler);
+  memset(to, filler, len);
   if (dec)
     ptr[field_length-dec-1]='.';
   return;
@@ -2335,7 +2335,7 @@ int Field_decimal::store(longlong nr, bool unsigned_val)
   if (dec)
   {
     to[length]='.';
-    bfill(to+length+1,dec,'0');
+    memset(to + length + 1, '0', dec);
   }
   return 0;
 }
@@ -4263,7 +4263,7 @@ void Field_float::sort_string(uchar *to,uint length __attribute__((unused)))
   if (nr == (float) 0.0)
   {						/* Change to zero string */
     tmp[0]=(uchar) 128;
-    bzero((char*) tmp+1,sizeof(nr)-1);
+    memset(tmp+1, 0, sizeof(nr)-1);
   }
   else
   {
@@ -4961,7 +4961,7 @@ bool Field_timestamp::get_date(MYSQL_TIME *ltime, uint fuzzydate)
   {				      /* Zero time is "000000" */
     if (fuzzydate & TIME_NO_ZERO_DATE)
       return 1;
-    bzero((char*) ltime,sizeof(*ltime));
+    memset(ltime, 0, sizeof(*ltime));
   }
   else
   {
@@ -5578,7 +5578,7 @@ String *Field_date::val_str(String *val_buffer,
 
 bool Field_date::get_time(MYSQL_TIME *ltime)
 {
-  bzero((char *)ltime, sizeof(MYSQL_TIME));
+  memset(ltime, 0, sizeof(MYSQL_TIME));
   return 0;
 }
 
@@ -7132,7 +7132,7 @@ uint Field_varstring::get_key_image(uchar *buff, uint length, imagetype type)
       Must clear this as we do a memcmp in opt_range.cc to detect
       identical keys
     */
-    bzero(buff+HA_KEY_BLOB_LENGTH+f_length, (length-f_length));
+    memset(buff+HA_KEY_BLOB_LENGTH+f_length, 0, (length-f_length));
   }
   return HA_KEY_BLOB_LENGTH+f_length;
 }
@@ -7364,7 +7364,7 @@ int Field_blob::store(const char *from,uint length,const CHARSET_INFO *cs)
 
   if (!length)
   {
-    bzero(ptr,Field_blob::pack_length());
+    memset(ptr, 0, Field_blob::pack_length());
     return 0;
   }
 
@@ -7432,7 +7432,7 @@ int Field_blob::store(const char *from,uint length,const CHARSET_INFO *cs)
 
 oom_error:
   /* Fatal OOM error */
-  bzero(ptr,Field_blob::pack_length());
+  memset(ptr, 0, Field_blob::pack_length());
   return -1; 
 }
 
@@ -7575,13 +7575,13 @@ uint Field_blob::get_key_image(uchar *buff,uint length, imagetype type_arg)
 
     if (blob_length < SRID_SIZE)
     {
-      bzero(buff, image_length);
+      memset(buff, 0, image_length);
       return image_length;
     }
     get_ptr(&blob);
     gobj= Geometry::construct(&buffer, (char*) blob, blob_length);
     if (!gobj || gobj->get_mbr(&mbr, &dummy))
-      bzero(buff, image_length);
+      memset(buff, 0, image_length);
     else
     {
       float8store(buff,    mbr.xmin);
@@ -7605,7 +7605,7 @@ uint Field_blob::get_key_image(uchar *buff,uint length, imagetype type_arg)
       Must clear this as we do a memcmp in opt_range.cc to detect
       identical keys
     */
-    bzero(buff+HA_KEY_BLOB_LENGTH+blob_length, (length-blob_length));
+    memset(buff+HA_KEY_BLOB_LENGTH+blob_length, 0, (length-blob_length));
     length=(uint) blob_length;
   }
   int2store(buff,length);
@@ -7676,7 +7676,7 @@ void Field_blob::sort_string(uchar *to,uint length)
   uint blob_length=get_length();
 
   if (!blob_length)
-    bzero(to,length);
+    memset(to, 0, length);
   else
   {
     if (field_charset == &my_charset_bin)
@@ -7890,7 +7890,7 @@ int Field_geom::store_decimal(const my_decimal *)
 int Field_geom::store(const char *from, uint length, const CHARSET_INFO *cs)
 {
   if (!length)
-    bzero(ptr, Field_blob::pack_length());
+    memset(ptr, 0, Field_blob::pack_length());
   else
   {
     if (from == Geometry::bad_geometry_data.ptr())
@@ -7914,7 +7914,7 @@ int Field_geom::store(const char *from, uint length, const CHARSET_INFO *cs)
   return 0;
 
 err:
-  bzero(ptr, Field_blob::pack_length());  
+  memset(ptr, 0, Field_blob::pack_length());  
   my_message(ER_CANT_CREATE_GEOMETRY_OBJECT,
              ER(ER_CANT_CREATE_GEOMETRY_OBJECT), MYF(0));
   return -1;
@@ -8638,7 +8638,7 @@ int Field_bit::store(const char *from, uint length, const CHARSET_INFO *cs)
   {
     if (bit_len)
       clr_rec_bits(bit_ptr, bit_ofs, bit_len);
-    bzero(ptr, delta);
+    memset(ptr, 0, delta);
     memcpy(ptr + delta, from, length);
   }
   else if (delta == 0)
@@ -9006,7 +9006,7 @@ Field_bit::unpack(uchar *to, const uchar *from, uint param_data,
   */
   uint new_len= (field_length + 7) / 8;
   char *value= (char *)my_alloca(new_len);
-  bzero(value, new_len);
+  memset(value, 0, new_len);
   uint len= from_len + ((from_bit_len > 0) ? 1 : 0);
   memcpy(value + (new_len - len), from, len);
   /*
@@ -9073,7 +9073,7 @@ int Field_bit_as_char::store(const char *from, uint length,
       set_warning(MYSQL_ERROR::WARN_LEVEL_WARN, ER_WARN_DATA_OUT_OF_RANGE, 1);
     return 1;
   }
-  bzero(ptr, delta);
+  memset(ptr, 0, delta);
   memcpy(ptr + delta, from, length);
   return 0;
 }
@@ -9296,7 +9296,7 @@ bool Create_field::init(THD *thd, char *fld_name, enum_field_types fld_type,
   if (decimals >= NOT_FIXED_DEC)
   {
     my_error(ER_TOO_BIG_SCALE, MYF(0), decimals, fld_name,
-             NOT_FIXED_DEC-1);
+             static_cast<ulong>(NOT_FIXED_DEC - 1));
     DBUG_RETURN(TRUE);
   }
 
@@ -9366,8 +9366,8 @@ bool Create_field::init(THD *thd, char *fld_name, enum_field_types fld_type,
     my_decimal_trim(&length, &decimals);
     if (length > DECIMAL_MAX_PRECISION)
     {
-      my_error(ER_TOO_BIG_PRECISION, MYF(0), length, fld_name,
-               DECIMAL_MAX_PRECISION);
+      my_error(ER_TOO_BIG_PRECISION, MYF(0), static_cast<int>(length),
+               fld_name, static_cast<ulong>(DECIMAL_MAX_PRECISION));
       DBUG_RETURN(TRUE);
     }
     if (length < decimals)
@@ -9591,7 +9591,7 @@ bool Create_field::init(THD *thd, char *fld_name, enum_field_types fld_type,
       if (length > MAX_BIT_FIELD_LENGTH)
       {
         my_error(ER_TOO_BIG_DISPLAYWIDTH, MYF(0), fld_name,
-                 MAX_BIT_FIELD_LENGTH);
+                 static_cast<ulong>(MAX_BIT_FIELD_LENGTH));
         DBUG_RETURN(TRUE);
       }
       pack_length= (length + 7) / 8;

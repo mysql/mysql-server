@@ -1,4 +1,4 @@
-/* Copyright (c) 2006, 2010, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2006, 2011, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -229,17 +229,6 @@ void injector::free_instance()
   }
 }
 
-
-injector::transaction injector::new_trans(THD *thd)
-{
-   DBUG_ENTER("injector::new_trans(THD*)");
-   /*
-     Currently, there is no alternative to using 'mysql_bin_log' since that
-     is hardcoded into the way the handler is using the binary log.
-   */
-   DBUG_RETURN(transaction(&mysql_bin_log, thd));
-}
-
 void injector::new_trans(THD *thd, injector::transaction *ptr)
 {
    DBUG_ENTER("injector::new_trans(THD *, transaction *)");
@@ -256,15 +245,11 @@ void injector::new_trans(THD *thd, injector::transaction *ptr)
 int injector::record_incident(THD *thd, Incident incident)
 {
   Incident_log_event ev(thd, incident);
-  if (int error= mysql_bin_log.write(&ev))
-    return error;
-  return mysql_bin_log.rotate_and_purge(RP_FORCE_ROTATE);
+  return mysql_bin_log.write_incident(&ev, TRUE);
 }
 
 int injector::record_incident(THD *thd, Incident incident, LEX_STRING const message)
 {
   Incident_log_event ev(thd, incident, message);
-  if (int error= mysql_bin_log.write(&ev))
-    return error;
-  return mysql_bin_log.rotate_and_purge(RP_FORCE_ROTATE);
+  return mysql_bin_log.write_incident(&ev, TRUE);
 }
