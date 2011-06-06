@@ -2950,7 +2950,6 @@ loop:
 			buf_pool, space, offset, fold);
 	}
 
-loop2:
 	if (!block || buf_pool_watch_is_sentinel(buf_pool, &block->page)) {
 		rw_lock_s_unlock(hash_lock);
 		block = NULL;
@@ -3096,15 +3095,10 @@ wait_until_unfixed:
 			buf_LRU_block_free_non_file_page(block);
 			buf_pool_mutex_exit(buf_pool);
 			mutex_exit(&block->mutex);
-
-			block = (buf_block_t*) hash_bpage;
-
 			rw_lock_x_unlock(hash_lock);
-			rw_lock_s_lock(hash_lock);
-			/* Note that we are still holding the
-			hash_lock which is fine as this is what
-			we expect when we move to loop2 above. */
-			goto loop2;
+
+			block = NULL;
+			goto loop;
 		}
 
 		if (UNIV_UNLIKELY
