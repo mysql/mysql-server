@@ -89,7 +89,8 @@ enum PSI_socket_operation
   PSI_SOCKET_SEEK= 10,
   PSI_SOCKET_OPT= 11,
   PSI_SOCKET_STAT= 12,
-  PSI_SOCKET_SHUTDOWN= 13
+  PSI_SOCKET_SHUTDOWN= 13,
+  PSI_SOCKET_SELECT= 14
 };
 typedef unsigned int PSI_mutex_key;
 typedef unsigned int PSI_rwlock_key;

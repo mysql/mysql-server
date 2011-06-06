@@ -101,7 +101,6 @@ size_t vio_read(Vio *vio, uchar *buf, size_t size)
 {
   ssize_t ret;
   int flags= 0;
-  size_t bytes_read= 0;
   DBUG_ENTER("vio_read");
 
   /* Ensure nobody uses vio_read_buff and vio_read simultaneously. */
@@ -317,7 +316,6 @@ int vio_socket_timeout(Vio *vio,
 int vio_fastsend(Vio * vio __attribute__((unused)))
 {
   int r=0;
-  my_socket sd= mysql_socket_getfd(vio->mysql_socket);
   DBUG_ENTER("vio_fastsend");
 
 #if defined(IPTOS_THROUGHPUT)
