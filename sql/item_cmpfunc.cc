@@ -412,7 +412,8 @@ static bool convert_constant_item(THD *thd, Item_field *field_item,
     LINT_INIT(old_maps[0]);
     LINT_INIT(old_maps[1]);
 
-    if (table)
+    /* table->read_set may not be set if we come here from a CREATE TABLE */
+    if (table && table->read_set)
       dbug_tmp_use_all_columns(table, old_maps, 
                                table->read_set, table->write_set);
     /* For comparison purposes allow invalid dates like 2000-01-32 */
@@ -448,7 +449,7 @@ static bool convert_constant_item(THD *thd, Item_field *field_item,
     }
     thd->variables.sql_mode= orig_sql_mode;
     thd->count_cuted_fields= orig_count_cuted_fields;
-    if (table)
+    if (table && table->read_set)
       dbug_tmp_restore_column_maps(table->read_set, table->write_set, old_maps);
   }
   return result;
