@@ -5869,8 +5869,9 @@ bool TABLE_LIST::init_derived(THD *thd, bool init_view)
   {
     /* A subquery might be forced to be materialized due to a side-effect. */
     if (!is_materialized_derived() && first_select->is_mergeable() &&
+        optimizer_flag(thd, OPTIMIZER_SWITCH_DERIVED_MERGE) &&
         !(thd->lex->sql_command == SQLCOM_UPDATE_MULTI ||
-          thd->lex->sql_command == SQLCOM_UPDATE))
+          thd->lex->sql_command == SQLCOM_DELETE_MULTI))
       set_merged_derived();
     else
       set_materialized_derived();

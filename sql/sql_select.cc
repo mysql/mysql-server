@@ -57,7 +57,7 @@ static bool update_ref_and_keys(THD *thd, DYNAMIC_ARRAY *keyuse,
                                 uint tables, COND *conds,
                                 table_map table_map, SELECT_LEX *select_lex,
                                 st_sargable_param **sargables);
-static bool sort_and_filter_keyuse(DYNAMIC_ARRAY *keyuse,
+static bool sort_and_filter_keyuse(THD *thd, DYNAMIC_ARRAY *keyuse,
                                    bool skip_unprefixed_keyparts);
 static int sort_keyuse(KEYUSE *a,KEYUSE *b);
 static bool create_ref_for_key(JOIN *join, JOIN_TAB *j, KEYUSE *org_keyuse,
@@ -1103,7 +1103,8 @@ JOIN::optimize()
     DBUG_RETURN(1);
   }
 
-  drop_unused_derived_keys();
+  if (optimizer_flag(thd, OPTIMIZER_SWITCH_DERIVED_WITH_KEYS))
+    drop_unused_derived_keys();
 
   if (rollup.state != ROLLUP::STATE_NONE)
   {
@@ -3152,7 +3153,8 @@ make_join_statistics(JOIN *join, List<TABLE_LIST> &tables_list,
         ((Item_in_subselect*)join->unit->item)->in_strategy & SUBS_IN_TO_EXISTS);
 
     if (keyuse_array->elements &&
-        sort_and_filter_keyuse(keyuse_array, skip_unprefixed_keyparts))
+        sort_and_filter_keyuse(join->thd, keyuse_array,
+                               skip_unprefixed_keyparts))
       goto error;
     DBUG_EXECUTE("opt", print_keyuse_array(keyuse_array););
   }
@@ -4654,7 +4656,7 @@ update_ref_and_keys(THD *thd, DYNAMIC_ARRAY *keyuse,JOIN_TAB *join_tab,
   Special treatment for ft-keys.
 */
 
-static bool sort_and_filter_keyuse(DYNAMIC_ARRAY *keyuse, 
+static bool sort_and_filter_keyuse(THD *thd, DYNAMIC_ARRAY *keyuse, 
                                    bool skip_unprefixed_keyparts)
 {
   KEYUSE key_end, *prev, *save_pos, *use;
@@ -4669,7 +4671,8 @@ static bool sort_and_filter_keyuse(DYNAMIC_ARRAY *keyuse,
   if (insert_dynamic(keyuse, (uchar*) &key_end))
     return TRUE;
 
-  generate_derived_keys(keyuse);
+  if (optimizer_flag(thd, OPTIMIZER_SWITCH_DERIVED_WITH_KEYS))
+    generate_derived_keys(keyuse);
 
   use= save_pos= dynamic_element(keyuse,0,KEYUSE*);
   prev= &key_end;
@@ -21432,7 +21435,7 @@ JOIN::reoptimize(Item *added_where, table_map join_tables,
   /* added_keyuse contents is copied, and it is no longer needed. */
   delete_dynamic(&added_keyuse);
 
-  if (sort_and_filter_keyuse(&keyuse, true))
+  if (sort_and_filter_keyuse(thd, &keyuse, true))
     return REOPT_ERROR;
   optimize_keyuse(this, &keyuse);
 

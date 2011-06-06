@@ -393,6 +393,20 @@ partition	b	a	length(c)
 6	34	6 row 2	64
 6	83	 	64
 6	97	zzzzzZzzzzz	64
+SET @save_optimizer_switch= @@optimizer_switch;
+SET @@optimizer_switch='derived_merge=off';
+SELECT (b % 7) AS partition, b, a FROM (SELECT b,a FROM t1_will_crash) q
+WHERE (b % 7) = 6
+ORDER BY partition, b, a;
+partition	b	a
+6	6	jkl
+6	13	ooo
+6	34	6 row 2
+6	48	6 row 4
+6	62	6 row 6
+6	83	 
+6	97	zzzzzZzzzzz
+SET @@optimizer_switch=@save_optimizer_switch;
 ALTER TABLE t1_will_crash CHECK PARTITION p6;
 Table	Op	Msg_type	Msg_text
 test.t1_will_crash	check	warning	Size of datafile is: 868       Should be: 604
