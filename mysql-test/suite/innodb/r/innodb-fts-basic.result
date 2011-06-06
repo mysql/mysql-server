@@ -142,8 +142,20 @@ id	title	body
 1	MySQL Tutorial	DBMS stands for DataBase ...
 2	How To Use MySQL Well	After you went through a ...
 3	Optimizing MySQL	In this tutorial we will show ...
+SELECT COUNT(*) FROM articles
+WHERE MATCH (title,body)
+AGAINST ('database' WITH QUERY EXPANSION);
+COUNT(*)
+6
 INSERT INTO articles (title,body) VALUES
 ('test query expansion','for database ...');
+SELECT * FROM articles
+WHERE MATCH (title,body)
+AGAINST ('test' WITH QUERY EXPANSION);
+id	title	body
+1	MySQL Tutorial	DBMS stands for DataBase ...
+5	MySQL vs. YourSQL	In the following database comparison ...
+7	test query expansion	for database ...
 SELECT * FROM articles
 WHERE MATCH (title,body)
 AGAINST ('"following comparison"@19' IN BOOLEAN MODE);

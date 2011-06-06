@@ -2920,6 +2920,10 @@ fts_doc_fetch_by_doc_id(
 
 	trx_free_for_background(trx);
 
+	if (!get_doc) {
+		fts_que_graph_free(graph);
+	}
+
 	return(error);
 }
 

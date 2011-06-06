@@ -282,9 +282,11 @@ row_merge_buf_add(
 		ulint			col_no;
 		const dfield_t*		row_field;
 		ulint			len;
+		ibool			col_adjusted;
 
 		col = ifield->col;
 		col_no = dict_col_get_no(col);
+		col_adjusted = FALSE;
 
 		/* If we are creating a FTS index, a new Doc
 		ID column is being added, so we need to adjust
@@ -297,10 +299,12 @@ row_merge_buf_add(
 			ut_ad(index->table->fts);
 
 			col_no--;
+			col_adjusted = TRUE;
 		}
 
 		/* Process the Doc ID column */
-		if (*doc_id > 0 && col_no == index->table->fts->doc_col) {
+		if (*doc_id > 0 && col_no == index->table->fts->doc_col
+		    && !col_adjusted) {
 			doc_id_t	write_doc_id;
 			fts_write_doc_id((byte*) &write_doc_id, *doc_id);
 			dfield_set_data(field, &write_doc_id,
@@ -2962,6 +2966,10 @@ wait_again:
 			trx->error_key_num = i;
 			goto func_exit;
 		}
+
+		/* FIXME: Diagnostic printout, will be removed later */
+		ut_print_timestamp(stderr);
+		fprintf(stderr, "Finish build index %s\n", indexes[i]->name);
 	}
 
 func_exit:
