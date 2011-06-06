@@ -1473,7 +1473,8 @@ buf_LRU_free_block(
 	if (!buf_page_can_relocate(bpage)) {
 
 		/* Do not free buffer-fixed or I/O-fixed blocks. */
-		goto no_free_exit;
+		ret = BUF_LRU_NOT_FREED;
+		goto func_exit;
 	}
 
 #ifdef UNIV_IBUF_COUNT_DEBUG
@@ -1485,7 +1486,8 @@ buf_LRU_free_block(
 		/* Do not completely free dirty blocks. */
 
 		if (bpage->oldest_modification) {
-			goto no_free_exit;
+			ret = BUF_LRU_NOT_FREED;
+			goto func_exit;
 		}
 	} else if ((bpage->oldest_modification)
 		   && (buf_page_get_state(bpage)
@@ -1494,7 +1496,8 @@ buf_LRU_free_block(
 		ut_ad(buf_page_get_state(bpage)
 		      == BUF_BLOCK_ZIP_DIRTY);
 
-		goto no_free_exit;
+		ret = BUF_LRU_NOT_FREED;
+		goto func_exit;
 
 	} else if (buf_page_get_state(bpage) == BUF_BLOCK_FILE_PAGE) {
 
@@ -1512,24 +1515,29 @@ buf_LRU_free_block(
 		the block mutex. In that case we free the newly
 		allocated descriptor and return */
 		if (!buf_page_can_relocate(bpage)) {
+
+			rw_lock_x_unlock(hash_lock);
+			mutex_exit(block_mutex);
+
 			if (b) {
 				buf_buddy_free(buf_pool, b, sizeof(*b));
 			}
-no_free_exit:
-			ret = BUF_LRU_NOT_FREED;
-func_exit:
-			rw_lock_x_unlock(hash_lock);
-			mutex_exit(block_mutex);
-			return(ret);
+
+			return(BUF_LRU_NOT_FREED);
 		}
 
 		if (UNIV_UNLIKELY(!b)) {
 			ret = BUF_LRU_CANNOT_RELOCATE;
-			goto func_exit;
+func_exit:
+			rw_lock_x_unlock(hash_lock);
+			mutex_exit(block_mutex);
+			return(ret);
+
 		}
 
 		memcpy(b, bpage, sizeof *b);
 	}
+
 	ut_ad(buf_pool_mutex_own(buf_pool));
 	ut_ad(buf_page_in_file(bpage));
 	ut_ad(bpage->in_LRU_list);
