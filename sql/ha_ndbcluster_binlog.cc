@@ -1,4 +1,4 @@
-/* Copyright (C) 2000-2003 MySQL AB, 2008-2009 Sun Microsystems, Inc
+/* Copyright (c) 2000, 2011, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -11,8 +11,7 @@
 
   You should have received a copy of the GNU General Public License
   along with this program; if not, write to the Free Software
-  Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
-*/
+  Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
 #include "sql_priv.h"
 #include "unireg.h"         // REQUIRED: for other includes
@@ -1225,12 +1224,14 @@ ndbcluster_update_slock(THD *thd,
   }
 
   if (ndb_error)
+  {
+    char buf[1024];
+    my_snprintf(buf, sizeof(buf), "Could not release lock on '%s.%s'",
+                db, table_name);
     push_warning_printf(thd, MYSQL_ERROR::WARN_LEVEL_WARN,
                         ER_GET_ERRMSG, ER(ER_GET_ERRMSG),
-                        ndb_error->code,
-                        ndb_error->message,
-                        "Could not release lock on '%s.%s'",
-                        db, table_name);
+                        ndb_error->code, ndb_error->message, buf);
+  }
   if (trans)
     ndb->closeTransaction(trans);
   ndb->setDatabaseName(save_db);

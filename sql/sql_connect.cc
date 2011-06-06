@@ -1,4 +1,4 @@
-/* Copyright (C) 2007 MySQL AB, 2008-2009 Sun Microsystems, Inc
+/* Copyright (c) 2007, 2011, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -11,8 +11,7 @@
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
-   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
-
+   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA */
 
 /*
   Functions to autenticate and handle reqests for a connection
@@ -466,7 +465,7 @@ static int check_connection(THD *thd)
 
     if (vio_peer_addr(net->vio, ip, &thd->peer_port, NI_MAXHOST))
     {
-      my_error(ER_BAD_HOST_ERROR, MYF(0), thd->main_security_ctx.host_or_ip);
+      my_error(ER_BAD_HOST_ERROR, MYF(0));
       return 1;
     }
     if (!(thd->main_security_ctx.ip= my_strdup(ip,MYF(MY_WME))))
@@ -477,7 +476,7 @@ static int check_connection(THD *thd)
       if (ip_to_hostname(&net->vio->remote, thd->main_security_ctx.ip,
                          &thd->main_security_ctx.host, &connect_errors))
       {
-        my_error(ER_BAD_HOST_ERROR, MYF(0), ip);
+        my_error(ER_BAD_HOST_ERROR, MYF(0));
         return 1;
       }
 
@@ -708,6 +707,32 @@ pthread_handler_t handle_one_connection(void *arg)
   return 0;
 }
 
+bool thd_prepare_connection(THD *thd)
+{
+  bool rc;
+  lex_start(thd);
+  rc= login_connection(thd);
+  MYSQL_AUDIT_NOTIFY_CONNECTION_CONNECT(thd);
+  if (rc)
+    return rc;
+
+  MYSQL_CONNECTION_START(thd->thread_id, &thd->security_ctx->priv_user[0],
+                         (char *) thd->security_ctx->host_or_ip);
+
+  prepare_new_connection_state(thd);
+  return FALSE;
+}
+
+bool thd_is_connection_alive(THD *thd)
+{
+  NET *net= &thd->net;
+  if (!net->error &&
+      net->vio != 0 &&
+      !(thd->killed == THD::KILL_CONNECTION))
+    return TRUE;
+  return FALSE;
+}
+
 void do_handle_one_connection(THD *thd_arg)
 {
   THD *thd= thd_arg;
@@ -750,22 +775,13 @@ void do_handle_one_connection(THD *thd_arg)
 
   for (;;)
   {
-    NET *net= &thd->net;
     bool rc;
 
-    lex_start(thd);
-    rc= login_connection(thd);
-    MYSQL_AUDIT_NOTIFY_CONNECTION_CONNECT(thd);
+    rc= thd_prepare_connection(thd);
     if (rc)
       goto end_thread;
 
-    MYSQL_CONNECTION_START(thd->thread_id, &thd->security_ctx->priv_user[0],
-                           (char *) thd->security_ctx->host_or_ip);
-
-    prepare_new_connection_state(thd);
-
-    while (!net->error && net->vio != 0 &&
-           !(thd->killed == THD::KILL_CONNECTION))
+    while (thd_is_connection_alive(thd))
     {
       mysql_audit_release(thd);
       if (do_command(thd))
