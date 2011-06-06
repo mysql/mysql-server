@@ -164,9 +164,10 @@ enum enum_operation_type
   OPERATION_TYPE_SOCKETOPT = 52,
   OPERATION_TYPE_SOCKETSTAT = 53,
   OPERATION_TYPE_SOCKETSHUTDOWN = 54,
+  OPERATION_TYPE_SOCKETSELECT = 55,
 
   /* Idle operation */
-  OPERATION_TYPE_IDLE= 55
+  OPERATION_TYPE_IDLE= 56
 };
 /** Integer, first value of @sa enum_operation_type. */
 #define FIRST_OPERATION_TYPE (static_cast<int> (OPERATION_TYPE_LOCK))
