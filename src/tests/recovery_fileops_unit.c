@@ -285,23 +285,23 @@ fcreate(void) {
     DBT key, val;
     dbt_init(&key, choices, sizeof(choices));
     dbt_init(&val, NULL, 0);
-    r = db->put(db, txn, &key, &val, DB_YESOVERWRITE);
+    r = db->put(db, txn, &key, &val, 0);
     CKERR(r);
     dbt_init(&key, "name", sizeof("name"));
     dbt_init(&val, (void*)oldname, strlen(oldname)+1);
-    r = db->put(db, txn, &key, &val, DB_YESOVERWRITE);
+    r = db->put(db, txn, &key, &val, 0);
     CKERR(r);
 
     dbt_init(&key, "to_delete", sizeof("to_delete"));
     dbt_init(&val, "delete_me", sizeof("delete_me"));
-    r = db->put(db, txn, &key, &val, DB_YESOVERWRITE);
+    r = db->put(db, txn, &key, &val, 0);
     CKERR(r);
     r = db->del(db, txn, &key, DB_DELETE_ANY);
     CKERR(r);
 
     dbt_init(&key, "to_delete2", sizeof("to_delete2"));
     dbt_init(&val, "delete_me2", sizeof("delete_me2"));
-    r = db->put(db, txn, &key, &val, DB_YESOVERWRITE);
+    r = db->put(db, txn, &key, &val, 0);
     CKERR(r);
     r = db->del(db, txn, &key, 0);
     CKERR(r);
@@ -328,7 +328,7 @@ frename(void) {
         CKERR(r);
         dbt_init(&key, "name", sizeof("name"));
         dbt_init(&val, (void*)newname, strlen(newname)+1);
-        r = db->put(db, txn, &key, &val, DB_YESOVERWRITE);
+        r = db->put(db, txn, &key, &val, 0);
         CKERR(r);
         r = db->close(db, 0);
         CKERR(r);
@@ -529,7 +529,7 @@ verify_file_exists(const char *name, int should_exist) {
         DBT key, val;
         dbt_init(&key, choices, sizeof(choices));
         dbt_init(&val, NULL, 0);
-        r = db->get(db, txn, &key, &val, DB_YESOVERWRITE);
+        r = db->get(db, txn, &key, &val, 0);
         r = db->getf_set(db, txn, 0, &key, getf_do_nothing, NULL);
         CKERR(r);
         dbt_init(&key, "name", sizeof("name"));

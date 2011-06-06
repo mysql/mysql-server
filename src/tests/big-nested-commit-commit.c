@@ -26,7 +26,7 @@ static void insert (int i) {
     int r = db->put(db, xchild,
 		    dbt_init(&key,  hello, strlen(hello)+1),
 		    dbt_init(&data, there, strlen(there)+1),
-		    DB_YESOVERWRITE);
+		    0);
     CKERR(r);
 }
 

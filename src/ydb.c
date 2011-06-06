@@ -537,13 +537,13 @@ maybe_upgrade_persistent_environment_dictionary(DB_ENV * env, DB_TXN * txn, LSN 
         const uint32_t curr_env_ver_d = toku_htod32(BRT_LAYOUT_VERSION);
         toku_fill_dbt(&key, curr_env_ver_key, strlen(curr_env_ver_key));
         toku_fill_dbt(&val, &curr_env_ver_d, sizeof(curr_env_ver_d));
-        r = toku_db_put(persistent_environment, txn, &key, &val, DB_YESOVERWRITE);
+        r = toku_db_put(persistent_environment, txn, &key, &val, 0);
         assert(r==0);
 	
 	uint64_t last_lsn_of_v13_d = toku_htod64(last_lsn_of_clean_shutdown_read_from_log.lsn);
 	toku_fill_dbt(&key, last_lsn_of_v13_key, strlen(last_lsn_of_v13_key));
 	toku_fill_dbt(&val, &last_lsn_of_v13_d, sizeof(last_lsn_of_v13_d));
-	r = toku_db_put(persistent_environment, txn, &key, &val, DB_YESOVERWRITE);
+	r = toku_db_put(persistent_environment, txn, &key, &val, 0);
         assert(r==0);
 	
 	time_t upgrade_v14_time_d = toku_htod64(time(NULL));
@@ -4504,11 +4504,11 @@ toku_db_open(DB * db, DB_TXN * txn, const char *fname, const char *dbname, DBTYP
         iname = create_iname(db->dbenv, id, hint, NULL, -1);  // allocated memory for iname
         toku_fill_dbt(&iname_dbt, iname, strlen(iname) + 1);
         //
-        // DB_YESOVERWRITE for performance only, avoid unnecessary query
+        // 0 for performance only, avoid unnecessary query
         // if we are creating a hot index, per #3166, we do not want the write lock  in directory grabbed.
         // directory read lock is grabbed in toku_db_get above
         //
-        u_int32_t put_flags = DB_YESOVERWRITE | ((is_db_hot_index) ? DB_PRELOCKED_WRITE : 0); 
+        u_int32_t put_flags = 0 | ((is_db_hot_index) ? DB_PRELOCKED_WRITE : 0); 
         r = toku_db_put(db->dbenv->i->directory, child, &dname_dbt, &iname_dbt, put_flags);  
     }
 
@@ -4659,25 +4659,20 @@ db_put_check_overwrite_constraint(DB *db, DB_TXN *txn, DBT *key,
                                   u_int32_t lock_flags, u_int32_t overwrite_flag) {
     int r;
 
-    //DB_YESOVERWRITE does not impose constraints.
-    if (overwrite_flag==DB_YESOVERWRITE) r = 0;
-    else if (overwrite_flag==DB_NOOVERWRITE) {
+    if (overwrite_flag == 0) { // 0 does not impose constraints.
+        r = 0;
+    } else if (overwrite_flag == DB_NOOVERWRITE) {
         //Check if (key,anything) exists in dictionary.
         //If exists, fail.  Otherwise, do insert.
         r = db_getf_set(db, txn, lock_flags|DB_SERIALIZABLE, key, ydb_getf_do_nothing, NULL);
-        if (r==DB_NOTFOUND) r = 0;
-        else if (r==0)      r = DB_KEYEXIST;
+        if (r == DB_NOTFOUND) 
+            r = 0;
+        else if (r == 0)      
+            r = DB_KEYEXIST;
         //Any other error is passed through.
-    }
-    else if (overwrite_flag==0) {
-        //in a nodup db:   overwrite_flag==0 is an alias for DB_YESOVERWRITE
-        //in a dupsort db: overwrite_flag==0 is an error
-	r = 0;
-    }
-    else if (overwrite_flag==DB_NOOVERWRITE_NO_ERROR) {
+    } else if (overwrite_flag == DB_NOOVERWRITE_NO_ERROR) {
         r = 0;
-    }
-    else {
+    } else {
         //Other flags are not (yet) supported.
         r = EINVAL;
     }
@@ -5083,7 +5078,7 @@ env_update_multiple(DB_ENV *env, DB *src_db, DB_TXN *txn,
             if (!key_eq) {
                 //Check overwrite constraints only in the case where 
                 // the keys are not equal.
-                // If the keys are equal, then we do not care of the flag is DB_NOOVERWRITE or DB_YESOVERWRITE
+                // If the keys are equal, then we do not care of the flag is DB_NOOVERWRITE or 0
                 r = db_put_check_overwrite_constraint(db, txn,
                                                       &curr_new_key,
                                                       lock_flags[which_db], remaining_flags[which_db]);
@@ -5341,7 +5336,7 @@ toku_env_dbrename(DB_ENV *env, DB_TXN *txn, const char *fname, const char *dbnam
 	    // remove old (dname,iname) and insert (newname,iname) in directory
 	    r = toku_db_del(env->i->directory, child, &old_dname_dbt, DB_DELETE_ANY);
 	    if (r == 0)
-		r = toku_db_put(env->i->directory, child, &new_dname_dbt, &iname_dbt, DB_YESOVERWRITE);
+		r = toku_db_put(env->i->directory, child, &new_dname_dbt, &iname_dbt, 0);
             //Now that we have writelocks on both dnames, verify that there are still no handles open. (to prevent race conditions)
             if (r==0 && env_is_db_with_dname_open(env, dname))
                 r = toku_ydb_do_error(env, EINVAL, "Cannot rename dictionary with an open handle.\n");
@@ -6393,7 +6388,7 @@ ydb_load_inames(DB_ENV * env, DB_TXN * txn, int N, DB * dbs[N], char * new_iname
 	char * new_iname = create_iname(env, xid, hint, mark, i);               // allocates memory for iname_in_env
 	new_inames_in_env[i] = new_iname;
         toku_fill_dbt(&iname_dbt, new_iname, strlen(new_iname) + 1);      // iname_in_env goes in directory
-        rval = toku_db_put(env->i->directory, child, &dname_dbt, &iname_dbt, DB_YESOVERWRITE);  // DB_YESOVERWRITE necessary
+        rval = toku_db_put(env->i->directory, child, &dname_dbt, &iname_dbt, 0);
 	if (rval) break;
     }
 

@@ -30,7 +30,7 @@ test_cursor_delete2 (void) {
     r = txn->commit(txn, 0);                                                                 CKERR(r);
 
     r = dbenv->txn_begin(dbenv, 0, &txn, 0);                                                 CKERR(r);
-    r = db->put(db, txn, dbt_init(&key, "a", 2), dbt_init(&val, "b", 2), DB_YESOVERWRITE);   CKERR(r);
+    r = db->put(db, txn, dbt_init(&key, "a", 2), dbt_init(&val, "b", 2), 0);   CKERR(r);
     r = txn->commit(txn, 0);                                                                 CKERR(r);
 
     r = dbenv->txn_begin(dbenv, 0, &txn, 0);                                                 CKERR(r);
@@ -42,12 +42,12 @@ test_cursor_delete2 (void) {
     r = txn->commit(txn, 0);                                                                 CKERR(r);
 
     r = dbenv->txn_begin(dbenv, 0, &txn, 0);                                                 CKERR(r);
-    r = db->put(db, txn, dbt_init(&key, "a", 2), dbt_init(&val, "c", 2), DB_YESOVERWRITE);   CKERR(r);
+    r = db->put(db, txn, dbt_init(&key, "a", 2), dbt_init(&val, "c", 2), 0);   CKERR(r);
     r = db->del(db, txn, dbt_init(&key, "a", 2), 0);                                         CKERR(r);
     r = txn->commit(txn, 0);                                                                 CKERR(r);
 
     r = dbenv->txn_begin(dbenv, 0, &txn, 0);                                                 CKERR(r);
-    r = db->put(db, txn, dbt_init(&key, "a", 2), dbt_init(&val, "c", 2), DB_YESOVERWRITE);   CKERR(r);
+    r = db->put(db, txn, dbt_init(&key, "a", 2), dbt_init(&val, "c", 2), 0);   CKERR(r);
     r = txn->commit(txn, 0);                                                                 CKERR(r);
 
     r = dbenv->txn_begin(dbenv, 0, &txn, 0);                                                 CKERR(r);

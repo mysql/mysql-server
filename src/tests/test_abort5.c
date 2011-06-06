@@ -87,10 +87,6 @@ abort_txn(int type) {
     txn = NULL;
 }
 
-#ifndef DB_YESOVERWRITE
-#define DB_YESOVERWRITE 0
-#endif
-
 static void
 put(u_int32_t k, u_int32_t v) {
     int r;
@@ -102,7 +98,7 @@ put(u_int32_t k, u_int32_t v) {
     vvec[0] = v;
     dbt_init(&key, &kvec[0], sizeof(kvec));
     dbt_init(&val, &vvec[0], sizeof(vvec));
-    r = db->put(db, childtxn ? childtxn : txn, &key, &val, DB_YESOVERWRITE); CKERR(r);
+    r = db->put(db, childtxn ? childtxn : txn, &key, &val, 0); CKERR(r);
 }
 
 static void

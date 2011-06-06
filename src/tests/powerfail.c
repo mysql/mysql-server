@@ -67,14 +67,14 @@ static void do_write (void) {
     for (long N=0; 1; N++) {
 	DB_TXN *txn = 0;
 	r = env->txn_begin(env, 0, &txn, 0); CKERR(r);
-	put(dbs[0], txn, N, N, DB_YESOVERWRITE);
+	put(dbs[0], txn, N, N, 0);
 	int sum=0;
 	for (int i=1; i+1<N_DBS; i++) {
 	    int rval = (random()%2048)-1024;
 	    sum+=rval;
-	    put(dbs[i], txn, shuffle(N, i), rval, (i%2==0) ? DB_YESOVERWRITE : 0); // even numbered databases are overwritten
+	    put(dbs[i], txn, shuffle(N, i), rval, (i%2==0) ? 0 : 0); // even numbered databases are overwritten
 	}
-	put(dbs[N_DBS-1],txn,  N, sum, DB_YESOVERWRITE);
+	put(dbs[N_DBS-1],txn,  N, sum, 0);
 	r = txn->commit(txn, 0); CKERR(r);
 	printf("%ld\n", N);
     }

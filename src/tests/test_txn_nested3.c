@@ -172,7 +172,7 @@ start_txn_and_maybe_insert_or_delete(u_int8_t nest) {
     }
     switch (types[nest]) {
         case TYPE_INSERT:
-            r = db->put(db, txns[nest], &key, &vals[nest], DB_YESOVERWRITE);
+            r = db->put(db, txns[nest], &key, &vals[nest], 0);
                 CKERR(r);
             break;
         case TYPE_DELETE:

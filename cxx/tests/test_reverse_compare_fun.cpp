@@ -86,7 +86,7 @@ void test_reverse_compare(int n) {
         Dbt key(&k, sizeof k);
         v = htonl(i);
         Dbt val(&v, sizeof v);
-        r = db->put(null_txn, &key, &val, DB_YESOVERWRITE);
+        r = db->put(null_txn, &key, &val, 0);
         assert(r == 0);
     }
 
@@ -109,7 +109,7 @@ void test_reverse_compare(int n) {
         Dbt key(&k, sizeof k);
         v = htonl(i);
         Dbt val(&v, sizeof v);
-        r = db->put(null_txn, &key, &val, DB_YESOVERWRITE);
+        r = db->put(null_txn, &key, &val, 0);
         assert(r == 0);
     }
 

@@ -38,7 +38,7 @@ test_insert_delete_insert (void) {
     int k = htonl(1), v = 2;
     DBT key, val;
 
-    r = db->put(db, null_txn, dbt_init(&key, &k, sizeof k), dbt_init(&val, &v, sizeof v), DB_YESOVERWRITE); 
+    r = db->put(db, null_txn, dbt_init(&key, &k, sizeof k), dbt_init(&val, &v, sizeof v), 0); 
     assert(r == 0);
 
     r = cursor->c_get(cursor, dbt_init(&key, &k, sizeof k), dbt_init_malloc(&val), DB_SET); 
@@ -53,7 +53,7 @@ test_insert_delete_insert (void) {
     if (key.data) toku_free(key.data);
     if (val.data) toku_free(val.data);
 
-    r = db->put(db, null_txn, dbt_init(&key, &k, sizeof k), dbt_init(&val, &v, sizeof v), DB_YESOVERWRITE); 
+    r = db->put(db, null_txn, dbt_init(&key, &k, sizeof k), dbt_init(&val, &v, sizeof v), 0); 
     assert(r == 0);
 
     r = cursor->c_get(cursor, dbt_init_malloc(&key), dbt_init_malloc(&val), DB_CURRENT);

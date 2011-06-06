@@ -35,7 +35,7 @@ static void run_test (void) {
 
     DBT k={.data="a", .size=2};
     DBT v={.data="a", .size=2};
-    r = db->put(db, btxn, &k, &v, DB_YESOVERWRITE);                                     CKERR(r);
+    r = db->put(db, btxn, &k, &v, 0);                                     CKERR(r);
     r = btxn->commit(btxn, 0);                                                          CKERR(r);
 
     r = atxn->abort(atxn);                                                              CKERR(r);

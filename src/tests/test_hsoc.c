@@ -10,15 +10,10 @@
 #include <sys/stat.h>
 #include <db.h>
 
-
-#ifdef USE_BDB
-#define DB_YESOVERWRITE 0
-#endif
-
 static int
 db_put (DB *db, DB_TXN *txn, int k, int v) {
     DBT key, val;
-    int r = db->put(db, txn, dbt_init(&key, &k, sizeof k), dbt_init(&val, &v, sizeof v), DB_YESOVERWRITE);
+    int r = db->put(db, txn, dbt_init(&key, &k, sizeof k), dbt_init(&val, &v, sizeof v), 0);
     return r;
 }
 

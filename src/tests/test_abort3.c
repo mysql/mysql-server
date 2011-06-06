@@ -12,10 +12,6 @@ static DB_ENV *env;
 static DB *db;
 static DB_TXN *txn;
 
-#ifndef TOKUDB
-#define DB_YESOVERWRITE 0
-#endif
-
 static void insert (int i, int j) {
     char hello[30], there[30];
     DBT key,data;
@@ -25,7 +21,7 @@ static void insert (int i, int j) {
     int r = db->put(db, txn,
 		    dbt_init(&key,  hello, strlen(hello)+1),
 		    dbt_init(&data, there, strlen(there)+1),
-		    DB_YESOVERWRITE);
+		    0);
     CKERR(r);
 }
 

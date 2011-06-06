@@ -79,7 +79,7 @@ static int inserter(struct keygen *keygen, DB_ENV *env, DB *db) {
         uint64_t kk = bswap_64(k);
         DBT key = { .data = &kk, .size = sizeof kk };
         DBT val = { .data = &k, .size = sizeof k };
-        r = db->put(db, txn, &key, &val, DB_YESOVERWRITE);
+        r = db->put(db, txn, &key, &val, 0);
         assert(r == 0);
 
         r = txn->commit(txn, commit_flag);

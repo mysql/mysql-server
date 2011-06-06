@@ -56,7 +56,7 @@ static void table_init(struct table *t, int ndbs, DB **dbs, size_t key_length, s
         table_init_dbt(&t->mult_vals[i], val_length);
     t->mult_flags = calloc(ndbs, sizeof (uint32_t));
     for (i = 0; i < ndbs; i++) 
-        t->mult_flags[i] = DB_YESOVERWRITE;
+        t->mult_flags[i] = 0;
 #endif
 }
 
@@ -72,10 +72,6 @@ static void table_destroy(struct table *t) {
     free(t->mult_flags);
 #endif
 }
-
-#if defined(BDB)
-#define DB_YESOVERWRITE 0
-#endif
 
 static int verbose = 0;
 

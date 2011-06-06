@@ -54,7 +54,7 @@ run_test(void) {
         r = env->txn_begin(env, NULL, &txn, 0);                                         CKERR(r);
 	DBT k={.data="a", .size=2};
 	DBT v={.data="a", .size=2};
-	r = db->put(db, txn, &k, &v, DB_YESOVERWRITE);                                  CKERR(r);
+	r = db->put(db, txn, &k, &v, 0);                                  CKERR(r);
         r = txn->commit(txn, 0);                                                            CKERR(r);
     }
 
@@ -66,7 +66,7 @@ run_test(void) {
         r = env->txn_begin(env, NULL, &txn, 0);                                         CKERR(r);
 	DBT k={.data="b", .size=2};
 	DBT v={.data="b", .size=2};
-	r = db->put(db, txn, &k, &v, DB_YESOVERWRITE);                                  CKERR(r);
+	r = db->put(db, txn, &k, &v, 0);                                  CKERR(r);
     }
 
     // cause crash at next checkpoint, after xstillopen written, before checkpoint_end is written

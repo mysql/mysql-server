@@ -32,7 +32,7 @@ put (int _key, int _data) {
         data.size = 0;
     }
     
-    r = db->put(db, null_txn, &key, &data, DB_YESOVERWRITE);
+    r = db->put(db, null_txn, &key, &data, 0);
     CKERR(r);
 }
 

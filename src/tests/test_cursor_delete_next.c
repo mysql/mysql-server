@@ -51,11 +51,11 @@ insert (void) {
 
     dbt_init(&key, "key", sizeof("key"));
     dbt_init(&value, "value1", sizeof("value1"));
-    r = db->put(db, null_txn, &key, &value, DB_YESOVERWRITE);     CKERR(r);
+    r = db->put(db, null_txn, &key, &value, 0);     CKERR(r);
 
     dbt_init(&key, "key2", sizeof("key2"));
     dbt_init(&value, "value2", sizeof("value2"));
-    r = db->put(db, null_txn, &key, &value, DB_YESOVERWRITE);     CKERR(r);
+    r = db->put(db, null_txn, &key, &value, 0);     CKERR(r);
 }
 
 static void

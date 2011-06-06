@@ -74,7 +74,7 @@ static void run_test (void) {
     r = env->txn_checkpoint(env, 0, 0, 0); CKERR(r);
 
     DB *dbs[num_dbs] = {dba, dbb};
-    uint32_t flags[num_dbs] = {DB_YESOVERWRITE, DB_YESOVERWRITE};
+    uint32_t flags[num_dbs] = {0, 0};
     // txn_begin; insert <a,a>; txn_abort
     {
         DB_TXN *txn;

@@ -65,7 +65,7 @@ doit (void) {
 	dbt_init(&key, str, 1+strlen(str));
 	dbt_init(&data, str, 1+strlen(str));
 	for (i=0; i<NFILES; i++) {
-	    r = dbs[i]->put(dbs[i], txn, &key, &data, DB_YESOVERWRITE);
+	    r = dbs[i]->put(dbs[i], txn, &key, &data, 0);
 	    CKERR(r);
 	}
     }

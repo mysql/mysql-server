@@ -113,7 +113,7 @@ initialize_db(void) {
     which_expected = -1;
     verify_val();
     //Put in a 'committed value'
-    r = db->put(db, NULL, &key, &vals[0], DB_YESOVERWRITE);
+    r = db->put(db, NULL, &key, &vals[0], 0);
         CKERR(r);
     txns[0] = NULL;
 
@@ -123,7 +123,7 @@ initialize_db(void) {
         r = env->txn_begin(env, txns[i-1], &txns[i], 0);
             CKERR(r);
         verify_val();
-        r = db->put(db, txns[i], &key, &vals[i], DB_YESOVERWRITE);
+        r = db->put(db, txns[i], &key, &vals[i], 0);
             CKERR(r);
         which_expected = i;
         verify_val();

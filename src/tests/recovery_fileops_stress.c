@@ -472,7 +472,7 @@ static void insert_n(DB *db, DB_TXN *txn, int firstkey, int n) {
 	v = generate_val(k);
 	dbt_init(&key, &k, sizeof(k));
 	dbt_init(&val, &v, sizeof(v));
-        r = db->put(db, txn, &key, &val, DB_YESOVERWRITE);
+        r = db->put(db, txn, &key, &val, 0);
         CKERR(r);
     }
 }

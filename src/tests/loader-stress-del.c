@@ -389,7 +389,7 @@ static void test_loader(DB **dbs)
     uint32_t db_flags[MAX_DBS];
     uint32_t dbt_flags[MAX_DBS];
     uint32_t flags = DB_NOOVERWRITE;
-    if ( (USE_PUTS == 1) && (ALLOW_DUPS == 1) ) flags = DB_YESOVERWRITE;
+    if ( (USE_PUTS == 1) && (ALLOW_DUPS == 1) ) flags = 0;
     for(int i=0;i<MAX_DBS;i++) { 
         db_flags[i] = flags;
         dbt_flags[i] = 0;

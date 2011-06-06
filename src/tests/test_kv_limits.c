@@ -56,7 +56,7 @@ static void test_key_size_limit (void) {
         memset(v, 0, vs);
         memcpy(v, &vs, sizeof vs);
         DBT key, val;
-        r = db->put(db, null_txn, dbt_init(&key, k, ks), dbt_init(&val, v, vs), DB_YESOVERWRITE);
+        r = db->put(db, null_txn, dbt_init(&key, k, ks), dbt_init(&val, v, vs), 0);
         if (r == 0) {
             bigest = mi;
             lo = mi+1;
@@ -115,7 +115,7 @@ static void test_data_size_limit (void) {
         memset(v, 0, vs);
         memcpy(v, &vs, sizeof vs);
         DBT key, val;
-        r = db->put(db, null_txn, dbt_init(&key, k, ks), dbt_init(&val, v, vs), DB_YESOVERWRITE);
+        r = db->put(db, null_txn, dbt_init(&key, k, ks), dbt_init(&val, v, vs), 0);
         if (r == 0) {
             bigest = mi;
             lo = mi+1;

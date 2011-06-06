@@ -50,7 +50,7 @@ run (int choice) {
 	    char key[2]={25,v[i]};
 	    char val=v[i];
 	    //printf("put %d %d\n", key, val);
-	    r=db->put(db, txn, dbt_init(&kdbt, &key, 2), dbt_init(&vdbt, &val, 1), DB_YESOVERWRITE); CKERR(r);
+	    r=db->put(db, txn, dbt_init(&kdbt, &key, 2), dbt_init(&vdbt, &val, 1), 0); CKERR(r);
 	}
 	r=txn->commit(txn, DB_TXN_NOSYNC);                                        CKERR(r);
     }

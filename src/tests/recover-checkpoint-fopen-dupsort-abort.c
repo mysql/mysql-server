@@ -32,8 +32,8 @@ static void run_test (BOOL do_commit, BOOL do_abort) {
     {
 	DBT a={.data="a", .size=2};
 	DBT b={.data="b", .size=2};
-	r = dba->put(dba, txn, &a, &b, DB_YESOVERWRITE);                                CKERR(r);
-	r = dbb->put(dbb, txn, &b, &a, DB_YESOVERWRITE);                                CKERR(r);
+	r = dba->put(dba, txn, &a, &b, 0);                                CKERR(r);
+	r = dbb->put(dbb, txn, &b, &a, 0);                                CKERR(r);
     }
     //printf("opened\n");
     if (do_commit) {

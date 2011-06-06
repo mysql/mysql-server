@@ -83,7 +83,7 @@ test_zombie_db(void) {
 	r=env->txn_begin(env, 0, &txn_a, 0); CKERR(r);
 	r=db_create(&db, env, 0); CKERR(r);
 	r=db->open(db, txn_a, "foo.db", 0, DB_BTREE, DB_CREATE, S_IRWXU|S_IRWXG|S_IRWXO); CKERR(r);
-	r=db->put(db, txn_a, &key, &val, DB_YESOVERWRITE); CKERR(r);
+	r=db->put(db, txn_a, &key, &val, 0); CKERR(r);
 	r=txn_a->commit(txn_a, 0); CKERR(r);
     }
 
@@ -93,7 +93,7 @@ test_zombie_db(void) {
 	dbt_init(&key, "key2", 4);
 	dbt_init(&val, "val2", 4);
 
-	r = db->put(db, txn_b, &key, &val, DB_YESOVERWRITE); CKERR(r);
+	r = db->put(db, txn_b, &key, &val, 0); CKERR(r);
 	r=db->close(db, 0); CKERR(r);
     }
     

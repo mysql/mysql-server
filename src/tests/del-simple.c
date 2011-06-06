@@ -70,7 +70,7 @@ test_del(int nrows) {
         int v = i;
         DBT key; dbt_init(&key, &k, sizeof k);
         DBT val; dbt_init(&val, &v, sizeof v);
-        r = db->put(db, txn, &key, &val, DB_YESOVERWRITE); assert_zero(r);
+        r = db->put(db, txn, &key, &val, 0); assert_zero(r);
     }
 
     r = txn->commit(txn, 0); assert_zero(r);

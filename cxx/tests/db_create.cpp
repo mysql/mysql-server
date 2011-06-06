@@ -1,10 +1,6 @@
 #include <assert.h>
 #include <db_cxx.h>
 
-#ifndef DB_YESOVERWRITE
-#define DB_YESOVERWRITE 0
-#endif
-
 char *data_dir, *env_dir=NULL;
 
 static int dbcreate(char *dbfile, char *dbname, int dbflags, int argc, char *argv[]) {
@@ -32,7 +28,7 @@ static int dbcreate(char *dbfile, char *dbname, int dbflags, int argc, char *arg
         if (i < argc) {
             char *v = argv[i++];
             Dbt key(k, strlen(k)); Dbt val(v, strlen(v));
-            r = db->put(0, &key, &val, DB_YESOVERWRITE); assert(r == 0);
+            r = db->put(0, &key, &val, 0); assert(r == 0);
         }
     }
             

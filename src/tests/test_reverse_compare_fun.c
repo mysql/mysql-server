@@ -95,7 +95,7 @@ test_reverse_compare (int n) {
         dbt_init(&key, &k, sizeof k);
         v = htonl(i);
         dbt_init(&val, &v, sizeof v);
-        r = db->put(db, null_txn, &key, &val, DB_YESOVERWRITE);
+        r = db->put(db, null_txn, &key, &val, 0);
         CKERR(r);
     }
 
@@ -121,7 +121,7 @@ test_reverse_compare (int n) {
         dbt_init(&key, &k, sizeof k);
         v = htonl(i);
         dbt_init(&val, &v, sizeof v);
-        r = db->put(db, null_txn, &key, &val, DB_YESOVERWRITE);
+        r = db->put(db, null_txn, &key, &val, 0);
         CKERR(r);
     }
 

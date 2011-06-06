@@ -37,8 +37,8 @@ insert_row(DB_ENV *env UU(), DB_TXN *txn, DB *db, uint64_t rowi) {
 
     DBT key = { .data = key_buffer, .size = sizeof key_buffer };
     DBT value = { .data = val_buffer, .size = sizeof val_buffer };
-    //uint32_t put_flags = DB_YESOVERWRITE | (txn ? (DB_PRELOCKED_FILE_READ | DB_PRELOCKED_WRITE) : 0);
-    uint32_t put_flags = DB_YESOVERWRITE;
+    //uint32_t put_flags = 0 | (txn ? (DB_PRELOCKED_FILE_READ | DB_PRELOCKED_WRITE) : 0);
+    uint32_t put_flags = 0;
     r = db->put(db, txn, &key, &value, put_flags); assert_zero(r);
 }
 

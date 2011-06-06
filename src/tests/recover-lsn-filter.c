@@ -36,7 +36,7 @@ static void run_test (void) {
         r = env->txn_begin(env, NULL, &txn, 0);                                         CKERR(r);
 	DBT k={.data="a", .size=2};
 	DBT v={.data="a", .size=2};
-	r = db->put(db, txn, &k, &v, DB_YESOVERWRITE);                                  CKERR(r);
+	r = db->put(db, txn, &k, &v, 0);                                  CKERR(r);
         r = txn->abort(txn);                                                            CKERR(r);
     }
 
@@ -46,7 +46,7 @@ static void run_test (void) {
         r = env->txn_begin(env, NULL, &txn, 0);                                         CKERR(r);
 	DBT k={.data="a", .size=2};
 	DBT v={.data="b", .size=2};
-	r = db->put(db, txn, &k, &v, DB_YESOVERWRITE);                                  CKERR(r);
+	r = db->put(db, txn, &k, &v, 0);                                  CKERR(r);
     }
 
     // checkpoint

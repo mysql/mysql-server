@@ -26,10 +26,6 @@ static inline float toku_tdiff (struct timeval *a, struct timeval *b) {
     return (a->tv_sec - b->tv_sec) +1e-6*(a->tv_usec - b->tv_usec);
 }
 
-#if !defined(DB_YESOVERWRITE)
-#define DB_YESOVERWRITE 0
-#endif
-
 #if !defined(DB_PRELOCKED_WRITE)
 #define NO_DB_PRELOCKED
 #define DB_PRELOCKED_WRITE 0
@@ -69,7 +65,7 @@ int if_transactions_do_logging = DB_INIT_LOG; // set this to zero if we want no 
 int do_abort = 0;
 int n_insertions_since_txn_began=0;
 int env_open_flags = DB_CREATE|DB_PRIVATE|DB_INIT_MPOOL;
-u_int32_t put_flags = DB_YESOVERWRITE;
+u_int32_t put_flags = 0;
 double compressibility = -1; // -1 means make it very compressible.  1 means use random bits everywhere.  2 means half the bits are random.
 int do_append = 0;
 int do_checkpoint_period = 0;
@@ -472,7 +468,7 @@ int main (int argc, const char *argv[]) {
             if (unique_checks)
                 put_flags = DB_NOOVERWRITE;
             else
-                put_flags = DB_YESOVERWRITE;
+                put_flags = 0;
         } else {
 	    return print_usage(argv[0]);
 	}

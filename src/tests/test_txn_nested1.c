@@ -94,7 +94,7 @@ test_txn_nesting (int depth) {
 	r = env->txn_begin(env, parent, &this_txn, 0);   CKERR(r);
 	txns[i] = this_txn;
 	parent = this_txn;  // will be parent in next iteration
-	r = db->put(db, this_txn, &key, &val, DB_YESOVERWRITE);          CKERR(r);
+	r = db->put(db, this_txn, &key, &val, 0);          CKERR(r);
 
         r = db->get(db, this_txn, &key, &observed_val, 0); CKERR(r);
 	assert(int_dbt_cmp(db, &val, &observed_val) == 0);

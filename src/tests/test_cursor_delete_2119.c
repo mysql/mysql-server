@@ -35,7 +35,7 @@ test_cursor_delete_2119 (u_int32_t c_del_flags, u_int32_t txn_isolation_flags) {
     r = txn->commit(txn, 0);                                                                 CKERR(r);
 
     r = dbenv->txn_begin(dbenv, 0, &txn, txn_isolation_flags);                               CKERR(r);
-    r = db->put(db, txn, dbt_init(&key, "a", 2), dbt_init(&val, "b", 2), DB_YESOVERWRITE);   CKERR(r);
+    r = db->put(db, txn, dbt_init(&key, "a", 2), dbt_init(&val, "b", 2), 0);   CKERR(r);
     r = txn->commit(txn, 0);                                                                 CKERR(r);
 
     r = dbenv->txn_begin(dbenv, 0, &txn, txn_isolation_flags);                               CKERR(r);
@@ -43,7 +43,7 @@ test_cursor_delete_2119 (u_int32_t c_del_flags, u_int32_t txn_isolation_flags) {
     r = txn->commit(txn, 0);                                                                 CKERR(r);
 
     r = dbenv->txn_begin(dbenv, 0, &txn, txn_isolation_flags);                               CKERR(r);
-    r = db->put(db, txn, dbt_init(&key, "a", 2), dbt_init(&val, "c", 2), DB_YESOVERWRITE);   CKERR(r);
+    r = db->put(db, txn, dbt_init(&key, "a", 2), dbt_init(&val, "c", 2), 0);   CKERR(r);
 
     cursor=cursor;
 

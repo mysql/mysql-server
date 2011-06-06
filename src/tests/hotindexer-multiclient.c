@@ -252,7 +252,7 @@ static void test_indexer(DB *src, DB **dbs)
 
     if ( verbose ) printf("test_indexer\n");
     for(int i=0;i<NUM_DBS;i++) { 
-        db_flags[i] = DB_YESOVERWRITE; 
+        db_flags[i] = 0; 
     }
     clients_init(dbs, db_flags);
 

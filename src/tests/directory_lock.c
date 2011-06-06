@@ -28,7 +28,7 @@ static int update_fun(DB *UU(db),
 static void verify_shared_ops_fail(DB_ENV* env, DB* db) {
     int r;
     DB_TXN* txn = NULL;
-    u_int32_t flags = DB_YESOVERWRITE;
+    u_int32_t flags = 0;
     DBC* c = NULL;
     DBT key,val;
     DBT in_key,in_val;
@@ -111,7 +111,7 @@ static void verify_shared_ops_fail(DB_ENV* env, DB* db) {
     CKERR2(r, DB_LOCK_NOTGRANTED);
     r = txn->commit(txn,0); CKERR(r);
 
-    flags = DB_YESOVERWRITE;
+    flags = 0;
 
     r = env->txn_begin(env, NULL, &txn, 0); CKERR(r);
     r = env->update_multiple(
@@ -338,7 +338,7 @@ int test_main (int argc, char * const argv[]) {
 
 
 
-    u_int32_t flags = DB_YESOVERWRITE;
+    u_int32_t flags = 0;
 
 
     r = env->txn_begin(env, NULL, &txna, 0); CKERR(r);
@@ -382,7 +382,7 @@ int test_main (int argc, char * const argv[]) {
     r = txna->abort(txna); CKERR(r);
     r = txnb->abort(txnb); CKERR(r);
 
-    flags = DB_YESOVERWRITE;
+    flags = 0;
     DBT in_keys[2];
     memset(&in_keys, 0, sizeof(in_keys));
     r = env->txn_begin(env, NULL, &txna, 0); CKERR(r);
