@@ -761,9 +761,12 @@ bool mysql_derived_optimize(THD *thd, LEX *lex, TABLE_LIST *derived)
   {
     if (!derived->is_merged_derived())
     {
+      JOIN *join= first_select->join;
       unit->optimized= TRUE;
-      if ((res= first_select->join->optimize()))
+      if ((res= join->optimize()))
         goto err;
+      if (join->table_count == join->const_tables)
+        derived->fill_me= TRUE;
     }
   }
   /*

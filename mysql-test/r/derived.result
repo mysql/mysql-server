@@ -407,3 +407,21 @@ MIN(i)
 1
 DROP TABLE t1;
 # End of 5.0 tests
+#
+#  LP bug #793436: query with a derived table for which optimizer proves
+#                  that it contains not more than 1 row
+#
+CREATE TABLE t1 (a int, KEY (a)) ;
+INSERT INTO t1 VALUES (3), (1);
+CREATE TABLE t2 (a int);
+INSERT INTO t2 VALUES (3);
+EXPLAIN
+SELECT * FROM (SELECT DISTINCT * FROM t2) t, t1  WHERE t1.a = t.a;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	<derived2>	system	NULL	NULL	NULL	NULL	1	
+1	PRIMARY	t1	ref	a	a	5	const	1	Using index
+2	DERIVED	t2	system	NULL	NULL	NULL	NULL	1	
+SELECT * FROM (SELECT DISTINCT * FROM t2) t, t1  WHERE t1.a = t.a;
+a	a
+3	3
+DROP TABLE t1,t2;
