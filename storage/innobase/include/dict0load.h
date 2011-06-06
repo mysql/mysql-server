@@ -155,7 +155,12 @@ dict_load_field_low(
 	byte*		last_index_id,	/*!< in: last index id */
 	mem_heap_t*	heap,		/*!< in/out: memory heap
 					for temporary storage */
-	const rec_t*	rec);		/*!< in: SYS_FIELDS record */
+	const rec_t*	rec,		/*!< in: SYS_FIELDS record */
+	char*		addition_err_str,/*!< out: additional error message
+					that requires information to be
+					filled, or NULL */
+	ulint		err_str_len);	/*!< in: length of addition_err_str
+					in bytes */
 /********************************************************************//**
 Loads a table definition and also all its index definitions, and also
 the cluster definition if the table is a member in a cluster. Also loads

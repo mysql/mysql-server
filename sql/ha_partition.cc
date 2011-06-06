@@ -11,7 +11,7 @@
 
   You should have received a copy of the GNU General Public License
   along with this program; if not, write to the Free Software
-  Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
+  Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
 /*
   This handler was developed by Mikael Ronstrom for version 5.1 of MySQL.
@@ -1066,6 +1066,10 @@ static int handle_opt_part(THD *thd, HA_CHECK_OPT *check_opt,
    (modelled after mi_check_print_msg)
    TODO: move this into the handler, or rewrite mysql_admin_table.
 */
+static bool print_admin_msg(THD* thd, const char* msg_type,
+                            const char* db_name, const char* table_name,
+                            const char* op_name, const char *fmt, ...)
+  ATTRIBUTE_FORMAT(printf, 6, 7);
 static bool print_admin_msg(THD* thd, const char* msg_type,
                             const char* db_name, const char* table_name,
                             const char* op_name, const char *fmt, ...)
@@ -6652,22 +6656,29 @@ bool ha_partition::check_if_incompatible_data(HA_CREATE_INFO *create_info,
 
 
 /**
-  Support of fast or online add/drop index
+  Support of in-place add/drop index
 */
-int ha_partition::add_index(TABLE *table_arg, KEY *key_info, uint num_of_keys)
+int ha_partition::add_index(TABLE *table_arg, KEY *key_info, uint num_of_keys,
+                            handler_add_index **add)
 {
   handler **file;
   int ret= 0;
 
   DBUG_ENTER("ha_partition::add_index");
+  *add= new handler_add_index(table, key_info, num_of_keys);
   /*
     There has already been a check in fix_partition_func in mysql_alter_table
     before this call, which checks for unique/primary key violations of the
     partitioning function. So no need for extra check here.
   */
   for (file= m_file; *file; file++)
-    if ((ret=  (*file)->add_index(table_arg, key_info, num_of_keys)))
+  {
+    handler_add_index *add_index;
+    if ((ret= (*file)->add_index(table_arg, key_info, num_of_keys, &add_index)))
       goto err;
+    if ((ret= (*file)->final_add_index(add_index, true)))
+      goto err;
+  }
   DBUG_RETURN(ret);
 err:
   if (file > m_file)
@@ -6691,6 +6702,42 @@ err:
   DBUG_RETURN(ret);
 }
 
+
+/**
+   Second phase of in-place add index.
+
+   @note If commit is false, index changes are rolled back by dropping the
+         added indexes. If commit is true, nothing is done as the indexes
+         were already made active in ::add_index()
+ */
+
+int ha_partition::final_add_index(handler_add_index *add, bool commit)
+{
+  DBUG_ENTER("ha_partition::final_add_index");
+  // Rollback by dropping indexes.
+  if (!commit)
+  {
+    TABLE *table_arg= add->table;
+    uint num_of_keys= add->num_of_keys;
+    handler **file;
+    uint *key_numbers= (uint*) ha_thd()->alloc(sizeof(uint) * num_of_keys);
+    uint old_num_of_keys= table_arg->s->keys;
+    uint i;
+    /* The newly created keys have the last id's */
+    for (i= 0; i < num_of_keys; i++)
+      key_numbers[i]= i + old_num_of_keys;
+    if (!table_arg->key_info)
+      table_arg->key_info= add->key_info;
+    for (file= m_file; *file; file++)
+    {
+      (void) (*file)->prepare_drop_index(table_arg, key_numbers, num_of_keys);
+      (void) (*file)->final_drop_index(table_arg);
+    }
+    if (table_arg->key_info == add->key_info)
+      table_arg->key_info= NULL;
+  }
+  DBUG_RETURN(0);
+}
 
 int ha_partition::prepare_drop_index(TABLE *table_arg, uint *key_num,
                                  uint num_of_keys)

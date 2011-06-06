@@ -2011,6 +2011,61 @@ Item_field::Item_field(THD *thd, Item_field *item)
   collation.set(DERIVATION_IMPLICIT);
 }
 
+
+/**
+  Calculate the max column length not taking into account the
+  limitations over integer types.
+
+  When storing data into fields the server currently just ignores the
+  limits specified on integer types, e.g. 1234 can safely be stored in
+  an int(2) and will not cause an error.
+  Thus when creating temporary tables and doing transformations
+  we must adjust the maximum field length to reflect this fact.
+  We take the un-restricted maximum length and adjust it similarly to
+  how the declared length is adjusted wrt unsignedness etc.
+  TODO: this all needs to go when we disable storing 1234 in int(2).
+
+  @param field_par   Original field the use to calculate the lengths
+  @param max_length  Item's calculated explicit max length
+  @return            The adjusted max length
+*/
+
+inline static uint32
+adjust_max_effective_column_length(Field *field_par, uint32 max_length)
+{
+  uint32 new_max_length= field_par->max_display_length();
+  uint32 sign_length= (field_par->flags & UNSIGNED_FLAG) ? 0 : 1;
+
+  switch (field_par->type())
+  {
+  case MYSQL_TYPE_INT24:
+    /*
+      Compensate for MAX_MEDIUMINT_WIDTH being 1 too long (8)
+      compared to the actual number of digits that can fit into
+      the column.
+    */
+    new_max_length+= 1;
+    /* fall through */
+  case MYSQL_TYPE_LONG:
+  case MYSQL_TYPE_TINY:
+  case MYSQL_TYPE_SHORT:
+
+    /* Take out the sign and add a conditional sign */
+    new_max_length= new_max_length - 1 + sign_length;
+    break;
+
+  /* BINGINT is always 20 no matter the sign */
+  case MYSQL_TYPE_LONGLONG:
+  /* make gcc happy */
+  default:
+    break;
+  }
+
+  /* Adjust only if the actual precision based one is bigger than specified */
+  return new_max_length > max_length ? new_max_length : max_length;
+}
+
+
 void Item_field::set_field(Field *field_par)
 {
   field=result_field=field_par;			// for easy coding with fields
@@ -2024,6 +2079,9 @@ void Item_field::set_field(Field *field_par)
   collation.set(field_par->charset(), field_par->derivation(),
                 field_par->repertoire());
   fix_char_length(field_par->char_length());
+
+  max_length= adjust_max_effective_column_length(field_par, max_length);
+
   fixed= 1;
   if (field->table->s->tmp_table == SYSTEM_TMP_TABLE)
     any_privileges= 0;
