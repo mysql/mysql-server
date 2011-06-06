@@ -58,7 +58,7 @@
 # define bfill(A,B,C)           memset((A),(C),(B))
 #endif
 
-#if !defined(bzero) && !defined(HAVE_BZERO)
+#if !defined(bzero) && (!defined(HAVE_BZERO) || !defined(HAVE_DECL_BZERO))
 # define bzero(A,B)             memset((A),0,(B))
 #endif
 

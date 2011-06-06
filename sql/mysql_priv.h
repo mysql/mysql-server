@@ -1,4 +1,4 @@
-/* Copyright 2000-2008 MySQL AB, 2008 Sun Microsystems, Inc.
+/* Copyright (c) 2000, 2011, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -11,7 +11,7 @@
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
-   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
+   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
 /**
   @file
@@ -670,6 +670,10 @@ enum enum_check_fields
 extern "C" THD *_current_thd_noinline();
 #define _current_thd() _current_thd_noinline()
 #else
+/*
+  THR_THD is a key which will be used to set/get THD* for a thread,
+  using my_pthread_setspecific_ptr()/my_thread_getspecific_ptr().
+*/
 extern pthread_key(THD*, THR_THD);
 inline THD *_current_thd(void)
 {
@@ -829,7 +833,7 @@ void sql_print_warning(const char *format, ...) ATTRIBUTE_FORMAT(printf, 1, 2);
 void sql_print_information(const char *format, ...)
   ATTRIBUTE_FORMAT(printf, 1, 2);
 typedef void (*sql_print_message_func)(const char *format, ...)
-  ATTRIBUTE_FORMAT(printf, 1, 2);
+  ATTRIBUTE_FORMAT_FPTR(printf, 1, 2);
 extern sql_print_message_func sql_print_message_handlers[];
 
 int error_log_print(enum loglevel level, const char *format,
@@ -2015,6 +2019,10 @@ extern TABLE_LIST general_log, slow_log;
 extern FILE *bootstrap_file;
 extern int bootstrap_error;
 extern FILE *stderror_file;
+/*
+  THR_MALLOC is a key which will be used to set/get MEM_ROOT** for a thread,
+  using my_pthread_setspecific_ptr()/my_thread_getspecific_ptr().
+*/
 extern pthread_key(MEM_ROOT**,THR_MALLOC);
 extern pthread_mutex_t LOCK_mysql_create_db,LOCK_Acl,LOCK_open, LOCK_lock_db,
        LOCK_mapped_file,LOCK_user_locks, LOCK_status,

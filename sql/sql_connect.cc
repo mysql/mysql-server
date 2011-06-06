@@ -1,4 +1,4 @@
-/* Copyright (C) 2007 MySQL AB
+/* Copyright (c) 2007, 2011, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -11,8 +11,7 @@
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
-   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
-
+   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA */
 
 /*
   Functions to autenticate and handle reqests for a connection
@@ -328,7 +327,7 @@ check_user(THD *thd, enum enum_server_command command,
       passwd_len != SCRAMBLE_LENGTH &&
       passwd_len != SCRAMBLE_LENGTH_323)
   {
-    my_error(ER_HANDSHAKE_ERROR, MYF(0), thd->main_security_ctx.host_or_ip);
+    my_error(ER_HANDSHAKE_ERROR, MYF(0));
     DBUG_RETURN(1);
   }
 
@@ -359,7 +358,7 @@ check_user(THD *thd, enum enum_server_command command,
         my_net_read(net) != SCRAMBLE_LENGTH_323 + 1)
     {
       inc_host_errors(&thd->remote.sin_addr);
-      my_error(ER_HANDSHAKE_ERROR, MYF(0), thd->main_security_ctx.host_or_ip);
+      my_error(ER_HANDSHAKE_ERROR, MYF(0));
       DBUG_RETURN(1);
     }
     /* Final attempt to check the user based on reply */
@@ -640,13 +639,20 @@ bool init_new_connection_handler_thread()
 }
 
 #ifndef EMBEDDED_LIBRARY
-/**
-  Get a null character terminated string from a user-supplied buffer.
 
-  @param buffer[in, out]    Pointer to the buffer to be scanned.
+/** Get a string according to the protocol of the underlying buffer. */
+typedef char * (*get_proto_string_func_t) (char **, size_t *, size_t *);
+
+/**
+  Get a string formatted according to the 4.1 version of the MySQL protocol.
+
+  @param buffer[in, out]    Pointer to the user-supplied buffer to be scanned.
   @param max_bytes_available[in, out]  Limit the bytes to scan.
   @param string_length[out] The number of characters scanned not including
                             the null character.
+
+  @remark Strings are always null character terminated in this version of the
+          protocol.
 
   @remark The string_length does not include the terminating null character.
           However, after the call, the buffer is increased by string_length+1
@@ -658,9 +664,9 @@ bool init_new_connection_handler_thread()
 */
 
 static
-char *get_null_terminated_string(char **buffer,
-                                 size_t *max_bytes_available,
-                                 size_t *string_length)
+char *get_41_protocol_string(char **buffer,
+                             size_t *max_bytes_available,
+                             size_t *string_length)
 {
   char *str= (char *)memchr(*buffer, '\0', *max_bytes_available);
 
@@ -670,7 +676,60 @@ char *get_null_terminated_string(char **buffer,
   *string_length= (size_t)(str - *buffer);
   *max_bytes_available-= *string_length + 1;
   str= *buffer;
-  *buffer += *string_length + 1;  
+  *buffer += *string_length + 1;
+
+  return str;
+}
+
+
+/**
+  Get a string formatted according to the 4.0 version of the MySQL protocol.
+
+  @param buffer[in, out]    Pointer to the user-supplied buffer to be scanned.
+  @param max_bytes_available[in, out]  Limit the bytes to scan.
+  @param string_length[out] The number of characters scanned not including
+                            the null character.
+
+  @remark If there are not enough bytes left after the current position of
+          the buffer to satisfy the current string, the string is considered
+          to be empty and a pointer to empty_c_string is returned.
+
+  @remark A string at the end of the packet is not null terminated.
+
+  @return Pointer to beginning of the string scanned, or a pointer to a empty
+          string.
+*/
+static
+char *get_40_protocol_string(char **buffer,
+                             size_t *max_bytes_available,
+                             size_t *string_length)
+{
+  char *str;
+  size_t len;
+
+  /* No bytes to scan left, treat string as empty. */
+  if ((*max_bytes_available) == 0)
+  {
+    *string_length= 0;
+    return empty_c_string;
+  }
+
+  str= (char *) memchr(*buffer, '\0', *max_bytes_available);
+
+  /*
+    If the string was not null terminated by the client,
+    the remainder of the packet is the string. Otherwise,
+    advance the buffer past the end of the null terminated
+    string.
+  */
+  if (str == NULL)
+    len= *string_length= *max_bytes_available;
+  else
+    len= (*string_length= (size_t)(str - *buffer)) + 1;
+
+  str= *buffer;
+  *buffer+= len;
+  *max_bytes_available-= len;
 
   return str;
 }
@@ -682,7 +741,7 @@ char *get_null_terminated_string(char **buffer,
   @param buffer[in, out] The buffer to scan; updates position after scan.
   @param max_bytes_available[in, out] Limit the number of bytes to scan
   @param string_length[out] Number of characters scanned
-  
+
   @remark In case the length is zero, then the total size of the string is
     considered to be 1 byte; the size byte.
 
@@ -767,7 +826,7 @@ static int check_connection(THD *thd)
 
     if (vio_peer_addr(net->vio, ip, &thd->peer_port))
     {
-      my_error(ER_BAD_HOST_ERROR, MYF(0), thd->main_security_ctx.host_or_ip);
+      my_error(ER_BAD_HOST_ERROR, MYF(0));
       return 1;
     }
     if (!(thd->main_security_ctx.ip= my_strdup(ip,MYF(MY_WME))))
@@ -849,7 +908,7 @@ static int check_connection(THD *thd)
       part at the end of packet.
     */
     end= strmake(end, thd->scramble, SCRAMBLE_LENGTH_323) + 1;
-   
+
     int2store(end, server_capabilites);
     /* write server characteristics: up to 16 bytes allowed */
     end[2]=(char) default_charset_info->number;
@@ -866,8 +925,7 @@ static int check_connection(THD *thd)
 	(pkt_len= my_net_read(net)) == packet_error)
     {
       inc_host_errors(&thd->remote.sin_addr);
-      my_error(ER_HANDSHAKE_ERROR, MYF(0),
-               thd->main_security_ctx.host_or_ip);
+      my_error(ER_HANDSHAKE_ERROR, MYF(0));
       return 1;
     }
   }
@@ -1009,9 +1067,21 @@ static int check_connection(THD *thd)
   if ((thd->client_capabilities & CLIENT_TRANSACTIONS) &&
       opt_using_transactions)
     net->return_status= &thd->server_status;
- 
-  user= get_null_terminated_string(&end, &bytes_remaining_in_packet,
-                                   &user_len);
+
+  /*
+    The 4.0 and 4.1 versions of the protocol differ on how strings
+    are terminated. In the 4.0 version, if a string is at the end
+    of the packet, the string is not null terminated. Do not assume
+    that the returned string is always null terminated.
+  */
+  get_proto_string_func_t get_string;
+
+  if (thd->client_capabilities & CLIENT_PROTOCOL_41)
+    get_string= get_41_protocol_string;
+  else
+    get_string= get_40_protocol_string;
+
+  user= get_string(&end, &bytes_remaining_in_packet, &user_len);
   if (user == NULL)
     goto error;
 
@@ -1036,8 +1106,7 @@ static int check_connection(THD *thd)
     /*
       Old passwords are zero terminated strings.
     */
-    passwd= get_null_terminated_string(&end, &bytes_remaining_in_packet,
-                                       &passwd_len);
+    passwd= get_string(&end, &bytes_remaining_in_packet, &passwd_len);
   }
 
   if (passwd == NULL)
@@ -1048,8 +1117,7 @@ static int check_connection(THD *thd)
 
   if (thd->client_capabilities & CLIENT_CONNECT_WITH_DB)
   {
-    db= get_null_terminated_string(&end, &bytes_remaining_in_packet,
-                                   &db_len);
+    db= get_string(&end, &bytes_remaining_in_packet, &db_len);
     if (db == NULL)
       goto error;
   }
@@ -1058,19 +1126,24 @@ static int check_connection(THD *thd)
   char user_buff[USERNAME_LENGTH + 1];	// buffer to store user in utf8
   uint dummy_errors;
 
-  /* Since 4.1 all database names are stored in utf8 */
+  /*
+    Copy and convert the user and database names to the character set used
+    by the server. Since 4.1 all database names are stored in UTF-8. Also,
+    ensure that the names are properly null-terminated as this is relied
+    upon later.
+  */
   if (db)
   {
-    db_buff[copy_and_convert(db_buff, sizeof(db_buff)-1,
-                             system_charset_info,
-                             db, db_len,
-                             thd->charset(), &dummy_errors)]= 0;
+    db_len= copy_and_convert(db_buff, sizeof(db_buff)-1, system_charset_info,
+                             db, db_len, thd->charset(), &dummy_errors);
+    db_buff[db_len]= '\0';
     db= db_buff;
   }
 
-  user_buff[user_len= copy_and_convert(user_buff, sizeof(user_buff)-1,
-                                       system_charset_info, user, user_len,
-                                       thd->charset(), &dummy_errors)]= '\0';
+  user_len= copy_and_convert(user_buff, sizeof(user_buff)-1,
+                             system_charset_info, user, user_len,
+                             thd->charset(), &dummy_errors);
+  user_buff[user_len]= '\0';
   user= user_buff;
 
   /* If username starts and ends in "'", chop them off */
@@ -1100,7 +1173,7 @@ static int check_connection(THD *thd)
   
 error:
   inc_host_errors(&thd->remote.sin_addr);
-  my_error(ER_HANDSHAKE_ERROR, MYF(0), thd->main_security_ctx.host_or_ip);
+  my_error(ER_HANDSHAKE_ERROR, MYF(0));
   return 1;
 }
 
