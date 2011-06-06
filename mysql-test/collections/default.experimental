@@ -46,6 +46,3 @@ parts.partition_mgm_lc1_ndb              # joro : NDB tests marked as experiment
 parts.partition_mgm_lc2_ndb              # joro : NDB tests marked as experimental as agreed with bochklin
 parts.partition_syntax_ndb               # joro : NDB tests marked as experimental as agreed with bochklin
 parts.partition_value_ndb                # joro : NDB tests marked as experimental as agreed with bochklin
-main.gis-rtree                           # svoj: due to BUG#11749418
-main.type_float                          # svoj: due to BUG#11749418
-main.type_newdecimal                     # svoj: due to BUG#11749418
