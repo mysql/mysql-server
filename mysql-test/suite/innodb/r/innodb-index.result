@@ -885,31 +885,31 @@ create table t1(a blob,b blob,c blob,d blob,e blob,f blob,g blob,h blob,
 i blob,j blob,k blob,l blob,m blob,n blob,o blob,p blob,
 q blob,r blob,s blob,t blob,u blob)
 engine=innodb row_format=dynamic;
-create index t1a on t1 (a(1));
-create index t1b on t1 (b(1));
-create index t1c on t1 (c(1));
-create index t1d on t1 (d(1));
-create index t1e on t1 (e(1));
-create index t1f on t1 (f(1));
-create index t1g on t1 (g(1));
-create index t1h on t1 (h(1));
-create index t1i on t1 (i(1));
-create index t1j on t1 (j(1));
-create index t1k on t1 (k(1));
-create index t1l on t1 (l(1));
-create index t1m on t1 (m(1));
-create index t1n on t1 (n(1));
-create index t1o on t1 (o(1));
-create index t1p on t1 (p(1));
-create index t1q on t1 (q(1));
-create index t1r on t1 (r(1));
-create index t1s on t1 (s(1));
-create index t1t on t1 (t(1));
-create index t1u on t1 (u(1));
+create index t1a on t1 (a(767));
+create index t1b on t1 (b(767));
+create index t1c on t1 (c(767));
+create index t1d on t1 (d(767));
+create index t1e on t1 (e(767));
+create index t1f on t1 (f(767));
+create index t1g on t1 (g(767));
+create index t1h on t1 (h(767));
+create index t1i on t1 (i(767));
+create index t1j on t1 (j(767));
+create index t1k on t1 (k(767));
+create index t1l on t1 (l(767));
+create index t1m on t1 (m(767));
+create index t1n on t1 (n(767));
+create index t1o on t1 (o(767));
+create index t1p on t1 (p(767));
+create index t1q on t1 (q(767));
+create index t1r on t1 (r(767));
+create index t1s on t1 (s(767));
+create index t1t on t1 (t(767));
+create index t1u on t1 (u(767));
 ERROR HY000: Too big row
-create index t1ut on t1 (u(1), t(1));
+create index t1ut on t1 (u(767), t(767));
 ERROR HY000: Too big row
-create index t1st on t1 (s(1), t(1));
+create index t1st on t1 (s(767), t(767));
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
@@ -934,32 +934,32 @@ t1	CREATE TABLE `t1` (
   `s` blob,
   `t` blob,
   `u` blob,
-  KEY `t1a` (`a`(1)),
-  KEY `t1b` (`b`(1)),
-  KEY `t1c` (`c`(1)),
-  KEY `t1d` (`d`(1)),
-  KEY `t1e` (`e`(1)),
-  KEY `t1f` (`f`(1)),
-  KEY `t1g` (`g`(1)),
-  KEY `t1h` (`h`(1)),
-  KEY `t1i` (`i`(1)),
-  KEY `t1j` (`j`(1)),
-  KEY `t1k` (`k`(1)),
-  KEY `t1l` (`l`(1)),
-  KEY `t1m` (`m`(1)),
-  KEY `t1n` (`n`(1)),
-  KEY `t1o` (`o`(1)),
-  KEY `t1p` (`p`(1)),
-  KEY `t1q` (`q`(1)),
-  KEY `t1r` (`r`(1)),
-  KEY `t1s` (`s`(1)),
-  KEY `t1t` (`t`(1)),
-  KEY `t1st` (`s`(1),`t`(1))
+  KEY `t1a` (`a`(767)),
+  KEY `t1b` (`b`(767)),
+  KEY `t1c` (`c`(767)),
+  KEY `t1d` (`d`(767)),
+  KEY `t1e` (`e`(767)),
+  KEY `t1f` (`f`(767)),
+  KEY `t1g` (`g`(767)),
+  KEY `t1h` (`h`(767)),
+  KEY `t1i` (`i`(767)),
+  KEY `t1j` (`j`(767)),
+  KEY `t1k` (`k`(767)),
+  KEY `t1l` (`l`(767)),
+  KEY `t1m` (`m`(767)),
+  KEY `t1n` (`n`(767)),
+  KEY `t1o` (`o`(767)),
+  KEY `t1p` (`p`(767)),
+  KEY `t1q` (`q`(767)),
+  KEY `t1r` (`r`(767)),
+  KEY `t1s` (`s`(767)),
+  KEY `t1t` (`t`(767)),
+  KEY `t1st` (`s`(767),`t`(767))
 ) ENGINE=InnoDB DEFAULT CHARSET=latin1 ROW_FORMAT=DYNAMIC
-create index t1u on t1 (u(1));
+create index t1u on t1 (u(767));
 ERROR HY000: Too big row
 alter table t1 row_format=compact;
-create index t1u on t1 (u(1));
+create index t1u on t1 (u(767));
 drop table t1;
 set global innodb_file_per_table=0;
 set global innodb_file_format=Antelope;

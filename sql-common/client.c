@@ -1840,6 +1840,8 @@ mysql_get_ssl_cipher(MYSQL *mysql __attribute__((unused)))
   ssl_verify_server_cert()
     vio              pointer to a SSL connected vio
     server_hostname  name of the server that we connected to
+    errptr           if we fail, we'll return (a pointer to a string
+                     describing) the reason here
 
   RETURN VALUES
    0 Success
@@ -1849,7 +1851,7 @@ mysql_get_ssl_cipher(MYSQL *mysql __attribute__((unused)))
 
 #if defined(HAVE_OPENSSL) && !defined(EMBEDDED_LIBRARY)
 
-static int ssl_verify_server_cert(Vio *vio, const char* server_hostname)
+static int ssl_verify_server_cert(Vio *vio, const char* server_hostname, const char **errptr)
 {
   SSL *ssl;
   X509 *server_cert;
@@ -1860,19 +1862,19 @@ static int ssl_verify_server_cert(Vio *vio, const char* server_hostname)
 
   if (!(ssl= (SSL*)vio->ssl_arg))
   {
-    DBUG_PRINT("error", ("No SSL pointer found"));
+    *errptr= "No SSL pointer found";
     DBUG_RETURN(1);
   }
 
   if (!server_hostname)
   {
-    DBUG_PRINT("error", ("No server hostname supplied"));
+    *errptr= "No server hostname supplied";
     DBUG_RETURN(1);
   }
 
   if (!(server_cert= SSL_get_peer_certificate(ssl)))
   {
-    DBUG_PRINT("error", ("Could not get server certificate"));
+    *errptr= "Could not get server certificate";
     DBUG_RETURN(1);
   }
 
@@ -1901,7 +1903,7 @@ static int ssl_verify_server_cert(Vio *vio, const char* server_hostname)
       DBUG_RETURN(0);
     }
   }
-  DBUG_PRINT("error", ("SSL certificate validation failure"));
+  *errptr= "SSL certificate validation failure";
   DBUG_RETURN(1);
 }
 
@@ -2507,6 +2509,9 @@ static int send_client_reply_packet(MCPVIO_EXT *mpvio,
     /* Do the SSL layering. */
     struct st_mysql_options *options= &mysql->options;
     struct st_VioSSLFd *ssl_fd;
+    enum enum_ssl_init_error ssl_init_error;
+    const char *cert_error;
+    unsigned long ssl_error;
 
     /*
       Send mysql->client_flag, max_packet_size - unencrypted otherwise
@@ -2526,9 +2531,11 @@ static int send_client_reply_packet(MCPVIO_EXT *mpvio,
                                         options->ssl_cert,
                                         options->ssl_ca,
                                         options->ssl_capath,
-                                        options->ssl_cipher)))
+                                        options->ssl_cipher,
+                                        &ssl_init_error)))
     {
-      set_mysql_error(mysql, CR_SSL_CONNECTION_ERROR, unknown_sqlstate);
+      set_mysql_extended_error(mysql, CR_SSL_CONNECTION_ERROR, unknown_sqlstate,
+                               ER(CR_SSL_CONNECTION_ERROR), sslGetErrString(ssl_init_error));
       goto error;
     }
     mysql->connector_fd= (unsigned char *) ssl_fd;
@@ -2536,18 +2543,24 @@ static int send_client_reply_packet(MCPVIO_EXT *mpvio,
     /* Connect to the server */
     DBUG_PRINT("info", ("IO layer change in progress..."));
     if (sslconnect(ssl_fd, net->vio,
-                   (long) (mysql->options.connect_timeout)))
+                   (long) (mysql->options.connect_timeout), &ssl_error))
     {    
-      set_mysql_error(mysql, CR_SSL_CONNECTION_ERROR, unknown_sqlstate);
+      char buf[512];
+      ERR_error_string_n(ssl_error, buf, 512);
+      buf[511]= 0;
+      set_mysql_extended_error(mysql, CR_SSL_CONNECTION_ERROR, unknown_sqlstate,
+                               ER(CR_SSL_CONNECTION_ERROR),
+                               buf);
       goto error;
     }    
     DBUG_PRINT("info", ("IO layer change done!"));
 
     /* Verify server cert */
     if ((mysql->client_flag & CLIENT_SSL_VERIFY_SERVER_CERT) &&
-        ssl_verify_server_cert(net->vio, mysql->host))
+        ssl_verify_server_cert(net->vio, mysql->host, &cert_error))
     {
-      set_mysql_error(mysql, CR_SSL_CONNECTION_ERROR, unknown_sqlstate);
+      set_mysql_extended_error(mysql, CR_SSL_CONNECTION_ERROR, unknown_sqlstate,
+                               ER(CR_SSL_CONNECTION_ERROR), cert_error);
       goto error;
     }
   }
