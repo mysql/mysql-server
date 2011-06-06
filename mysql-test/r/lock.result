@@ -194,3 +194,13 @@ ERROR HY000: Table 't2' was locked with a READ lock and can't be updated
 UNLOCK TABLES;
 DROP TABLE t1,t2;
 End of 5.1 tests.
+create table t1 (a int) engine=myisam;
+lock tables t1 write concurrent, t1 as t2 read;
+lock tables t1 read local;
+unlock tables;
+unlock tables;
+lock tables t1 read local;
+lock tables t1 write concurrent, t1 as t2 read;
+unlock tables;
+unlock tables;
+drop table t1;

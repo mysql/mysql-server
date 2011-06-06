@@ -245,3 +245,28 @@ UNLOCK TABLES;
 DROP TABLE t1,t2;
 
 --echo End of 5.1 tests.
+
+#
+# Test concurrent lock and read locks
+# This gave a warning:
+# Warning at 'read lock with old write lock' for lock: 5:
+# Found lock of type 8 that is write and read locked. Read_no_write_count: 1
+#
+create table t1 (a int) engine=myisam;
+lock tables t1 write concurrent, t1 as t2 read;
+connect (con1,localhost,root,,);
+connection con1;
+lock tables t1 read local;
+unlock tables;
+connection default;
+unlock tables;
+connection con1;
+lock tables t1 read local;
+connection default;
+lock tables t1 write concurrent, t1 as t2 read;
+unlock tables;
+connection con1;
+unlock tables;
+disconnect con1;
+connection default;
+drop table t1;
