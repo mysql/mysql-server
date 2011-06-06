@@ -2452,7 +2452,8 @@ int prepare_create_field(Create_field *sql_field,
           MAX_FIELD_CHARLENGTH)
       {
         my_printf_error(ER_TOO_BIG_FIELDLENGTH, ER(ER_TOO_BIG_FIELDLENGTH),
-                        MYF(0), sql_field->field_name, MAX_FIELD_CHARLENGTH);
+                        MYF(0), sql_field->field_name,
+                        static_cast<ulong>(MAX_FIELD_CHARLENGTH));
         DBUG_RETURN(1);
       }
     }
@@ -3504,7 +3505,8 @@ static bool prepare_blob_field(THD *thd, Create_field *sql_field)
                                                       MODE_STRICT_ALL_TABLES)))
     {
       my_error(ER_TOO_BIG_FIELDLENGTH, MYF(0), sql_field->field_name,
-               MAX_FIELD_VARCHARLENGTH / sql_field->charset->mbmaxlen);
+               static_cast<ulong>(MAX_FIELD_VARCHARLENGTH /
+                                  sql_field->charset->mbmaxlen));
       DBUG_RETURN(1);
     }
     sql_field->sql_type= MYSQL_TYPE_BLOB;
