@@ -539,13 +539,23 @@ void MD5_Final(unsigned char*, MD5_CTX*);
 #define SSL_DEFAULT_CIPHER_LIST ""   /* default all */
 
 
-/* yaSSL adds */
+/* yaSSL extensions */
 int SSL_set_compression(SSL*);   /* turn on yaSSL zlib compression */
 char *yaSSL_ASN1_TIME_to_string(ASN1_TIME *time, char *buf, size_t len);
 
+#include "transport_types.h"
 
+/*
+  Set functions for yaSSL to use in order to send and receive data.
 
+  These hooks are offered in order to enable non-blocking I/O. If
+  not set, yaSSL defaults to using send() and recv().
 
+  @todo Remove hooks and accompanying code when yaSSL is fixed.
+*/
+void yaSSL_transport_set_ptr(SSL *, void *);
+void yaSSL_transport_set_recv_function(SSL *, yaSSL_recv_func_t);
+void yaSSL_transport_set_send_function(SSL *, yaSSL_send_func_t);
 
 #if defined(__cplusplus) && !defined(YASSL_MYSQL_COMPATIBLE)
 }      /* namespace  */

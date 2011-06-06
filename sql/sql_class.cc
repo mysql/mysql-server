@@ -3287,12 +3287,6 @@ void thd_increment_bytes_received(ulong length)
 }
 
 
-void thd_increment_net_big_packet_count(ulong length)
-{
-  current_thd->status_var.net_big_packet_count+= length;
-}
-
-
 void THD::set_status_var_init()
 {
   memset(&status_var, 0, sizeof(status_var));

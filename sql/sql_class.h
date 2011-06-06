@@ -561,7 +561,6 @@ typedef struct system_status_var
   ulong key_cache_write;
   /* END OF KEY_CACHE parts */
 
-  ulong net_big_packet_count;
   ulong opened_tables;
   ulong opened_shares;
   ulong select_full_join_count;
@@ -1851,8 +1850,6 @@ public:
   /*
     Public interface to write RBR events to the binlog
   */
-  void binlog_start_trans_and_stmt();
-  void binlog_set_stmt_begin();
   int binlog_write_table_map(TABLE *table, bool is_transactional,
                              bool binlog_rows_query);
   int binlog_write_row(TABLE* table, bool is_transactional,

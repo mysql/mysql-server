@@ -101,10 +101,12 @@ row_sel_sec_rec_is_for_blob(
 	ulint		clust_len,	/*!< in: length of clust_field */
 	const byte*	sec_field,	/*!< in: column in secondary index */
 	ulint		sec_len,	/*!< in: length of sec_field */
-	ulint		zip_size)	/*!< in: compressed page size, or 0 */
+	dict_table_t*	table)		/*!< in: table */
 {
 	ulint	len;
-	byte	buf[DICT_MAX_INDEX_COL_LEN];
+	byte	buf[REC_VERSION_56_MAX_INDEX_COL_LEN];
+	ulint	zip_size = dict_table_flags_to_zip_size(table->flags);
+	ulint	max_prefix_len = DICT_MAX_FIELD_LEN_BY_FORMAT(table);
 
 	ut_a(clust_len >= BTR_EXTERN_FIELD_REF_SIZE);
 
@@ -118,7 +120,7 @@ row_sel_sec_rec_is_for_blob(
 		return(FALSE);
 	}
 
-	len = btr_copy_externally_stored_field_prefix(buf, sizeof buf,
+	len = btr_copy_externally_stored_field_prefix(buf, max_prefix_len,
 						      zip_size,
 						      clust_field, clust_len);
 
@@ -224,8 +226,7 @@ row_sel_sec_rec_is_for_clust_rec(
 					    col->mbminmaxlen,
 					    clust_field, clust_len,
 					    sec_field, sec_len,
-					    dict_table_zip_size(
-						    clust_index->table))) {
+					    clust_index->table)) {
 					goto inequal;
 				}
 

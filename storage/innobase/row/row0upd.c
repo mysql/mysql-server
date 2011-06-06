@@ -1209,8 +1209,8 @@ row_upd_replace(
 	}
 
 	if (n_ext_cols) {
-		*ext = row_ext_create(n_ext_cols, ext_cols, row,
-				      dict_table_zip_size(table), heap);
+		*ext = row_ext_create(n_ext_cols, ext_cols, table->flags, row,
+				      heap);
 	} else {
 		*ext = NULL;
 	}
