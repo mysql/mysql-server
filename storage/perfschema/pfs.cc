@@ -1141,7 +1141,8 @@ static enum_operation_type socket_operation_map[]=
   OPERATION_TYPE_SOCKETSEEK,
   OPERATION_TYPE_SOCKETOPT,
   OPERATION_TYPE_SOCKETSTAT,
-  OPERATION_TYPE_SOCKETSHUTDOWN
+  OPERATION_TYPE_SOCKETSHUTDOWN,
+  OPERATION_TYPE_SOCKETSELECT
 };
 
 /**
@@ -2843,6 +2844,7 @@ get_thread_socket_locker_v1(PSI_socket_locker_state *state,
       case PSI_SOCKET_STAT:
       case PSI_SOCKET_SHUTDOWN:
       case PSI_SOCKET_CLOSE:
+      case PSI_SOCKET_SELECT:
         {
         PFS_socket *pfs_socket= reinterpret_cast<PFS_socket *>(socket);
         pfs_socket->m_socket_stat.m_io_stat.m_misc.aggregate_counted();
@@ -4593,6 +4595,7 @@ static void end_socket_wait_v1(PSI_socket_locker *locker, size_t byte_count)
   case PSI_SOCKET_OPT:
   case PSI_SOCKET_STAT:
   case PSI_SOCKET_SHUTDOWN:
+  case PSI_SOCKET_SELECT:
     byte_stat= &socket->m_socket_stat.m_io_stat.m_misc;
     break;
   case PSI_SOCKET_CLOSE:

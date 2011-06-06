@@ -555,6 +555,7 @@ static const LEX_STRING operation_names_map[]=
   { C_STRING_WITH_LEN("opt") },
   { C_STRING_WITH_LEN("stat") },
   { C_STRING_WITH_LEN("shutdown") },
+  { C_STRING_WITH_LEN("select") },
 
   /* Idle operations */
   { C_STRING_WITH_LEN("idle") }
