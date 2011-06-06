@@ -393,8 +393,8 @@ NdbIndexStat::get_cache_info(CacheInfo& info, CacheType type) const
     info.m_valid += c->m_valid;
     info.m_sampleCount += c->m_sampleCount;
     info.m_totalBytes += c->m_keyBytes + c->m_valueBytes + c->m_addrBytes;
-    info.m_save_time += (Uint64)c->m_save_time;
-    info.m_sort_time += (Uint64)c->m_sort_time;
+    info.m_save_time += c->m_save_time;
+    info.m_sort_time += c->m_sort_time;
     c = c->m_nextClean;
   }
   // build and query cache have at most one instance
