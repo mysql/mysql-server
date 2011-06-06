@@ -68,10 +68,10 @@ static const NdbDictionary::Index* g_ind = 0;
     break; \
   }
 
-static const NdbError&
+static NdbError
 getNdbError(Ndb_cluster_connection* ncc)
 {
-  static NdbError err;
+  NdbError err;
   err.code = g_ncc->get_latest_error();
   err.message = g_ncc->get_latest_error_msg();
   return err;
