@@ -19692,10 +19692,10 @@ static struct my_option client_test_long_options[] =
    &opt_getopt_ll_test, &opt_getopt_ll_test, 0,
    GET_LL, REQUIRED_ARG, 0, 0, LONGLONG_MAX, 0, 0, 0},
   {"plugin_dir", 0, "Directory for client-side plugins.",
-   (uchar**) &opt_plugin_dir, (uchar**) &opt_plugin_dir, 0,
+   &opt_plugin_dir, &opt_plugin_dir, 0,
    GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
   {"default_auth", 0, "Default authentication client-side plugin to use.",
-   (uchar**) &opt_default_auth, (uchar**) &opt_default_auth, 0,
+   &opt_default_auth, &opt_default_auth, 0,
    GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
   { 0, 0, 0, 0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0}
 };
