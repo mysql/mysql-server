@@ -86,7 +86,7 @@ my_hrtime_t my_hrtime()
 #elif defined(HAVE_CLOCK_GETTIME)
   struct timespec tp;
   clock_gettime(CLOCK_REALTIME, &tp);
-  return tp.tv_sec*1000000ULL+tp.tv_nsec/1000ULL;
+  hrtime.val= tp.tv_sec*1000000ULL+tp.tv_nsec/1000ULL;
 #else
   struct timeval t;
   /* The following loop is here because gettimeofday may fail on some systems */

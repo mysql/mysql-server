@@ -464,7 +464,7 @@ Event_queue_element::load_from_row(THD *thd, TABLE *table)
     DBUG_RETURN(TRUE);
 
   starts_null= table->field[ET_FIELD_STARTS]->is_null();
-  my_bool not_used= FALSE;
+  uint not_used;
   if (!starts_null)
   {
     table->field[ET_FIELD_STARTS]->get_date(&time, TIME_NO_ZERO_DATE);
@@ -646,7 +646,7 @@ add_interval(MYSQL_TIME *ltime, const Time_zone *time_zone,
   if (date_add_interval(ltime, scale, interval))
     return 0;
 
-  my_bool not_used;
+  uint not_used;
   return time_zone->TIME_to_gmt_sec(ltime, &not_used);
 }
 

@@ -2715,15 +2715,19 @@ int set_var_collation_client::update(THD *thd)
 
 bool sys_var_timestamp::check(THD *thd, set_var *var)
 {
-  double val= var->value->val_real();
-  if (val < 0 || val > MY_TIME_T_MAX)
+  ulonglong sec;
+  ulong sec_part;
+  if (var->value->get_seconds(&sec, &sec_part))
+    return TRUE;
+
+  if (sec > TIMESTAMP_MAX_VALUE)
   {
     my_message(ER_UNKNOWN_ERROR, 
                "This version of MySQL doesn't support dates later than 2038",
                MYF(0));
     return TRUE;
   }
-  var->save_result.ulonglong_value= hrtime_from_time(var->value->val_real());
+  var->save_result.ulonglong_value= hrtime_from_time(sec)+sec_part;
   return FALSE;
 }
 

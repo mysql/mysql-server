@@ -950,7 +950,8 @@ public:
   virtual int cmp(Item *item)= 0;
   // for optimized IN with row
   virtual int compare(cmp_item *item)= 0;
-  static cmp_item* get_comparator(Item_result type, CHARSET_INFO *cs);
+  static cmp_item* get_comparator(Item_result type, Item * warn_item,
+                                  CHARSET_INFO *cs);
   virtual cmp_item *make_same()= 0;
   virtual void store_value_by_template(cmp_item *tmpl, Item *item)
   {
@@ -1146,7 +1147,7 @@ class Item_func_case :public Item_func
   Item_result cmp_type;
   DTCollation cmp_collation;
   enum_field_types cached_field_type;
-  cmp_item *cmp_items[5]; /* For all result types */
+  cmp_item *cmp_items[6]; /* For all result types */
   cmp_item *case_item;
 public:
   Item_func_case(List<Item> &list, Item *first_expr_arg, Item *else_expr_arg)
@@ -1236,7 +1237,7 @@ public:
     Item_int_func::cleanup();
     delete array;
     array= 0;
-    for (i= 0; i <= (uint)DECIMAL_RESULT + 1; i++)
+    for (i= 0; i <= (uint)TIME_RESULT; i++)
     {
       delete cmp_items[i];
       cmp_items[i]= 0;

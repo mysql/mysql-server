@@ -73,6 +73,30 @@ static void agg_result_type(Item_result *type, Item **items, uint nitems)
 }
 
 
+/**
+  find an temporal type (item) that others will be converted to
+  for the purpose of comparison.
+
+  this is the type that will be used in warnings like
+  "Incorrect <<TYPE>> value".
+*/
+Item *find_date_time_item(Item **args, uint nargs, uint col)
+{
+  Item *date_arg= 0, **arg, **arg_end;
+  for (arg= args, arg_end= args + nargs; arg != arg_end ; arg++)
+  {
+    Item *item= arg[0]->element_index(col);
+    if (item->cmp_type() != TIME_RESULT)
+      continue;
+    if (item->field_type() == MYSQL_TYPE_DATETIME)
+      return item;
+    if (!date_arg)
+      date_arg= item;
+  }
+  return date_arg;
+}
+
+
 /*
   Compare row signature of two expressions
 
@@ -204,7 +228,7 @@ static uint collect_cmp_types(Item **items, uint nitems, bool skip_nulls= FALSE)
 {
   uint i;
   uint found_types;
-  Item_result left_result= items[0]->result_type();
+  Item_result left_result= items[0]->cmp_type();
   DBUG_ASSERT(nitems > 1);
   found_types= 0;
   for (i= 1; i < nitems ; i++)
@@ -212,11 +236,11 @@ static uint collect_cmp_types(Item **items, uint nitems, bool skip_nulls= FALSE)
     if (skip_nulls && items[i]->type() == Item::NULL_ITEM)
       continue; // Skip NULL constant items
     if ((left_result == ROW_RESULT || 
-         items[i]->result_type() == ROW_RESULT) &&
+         items[i]->cmp_type() == ROW_RESULT) &&
         cmp_row_type(items[0], items[i]))
       return 0;
     found_types|= 1<< (uint)item_cmp_type(left_result,
-                                           items[i]->result_type());
+                                           items[i]->cmp_type());
   }
   /*
    Even if all right-hand items are NULLs and we are skipping them all, we need
@@ -677,36 +701,6 @@ bool get_mysql_time_from_str(THD *thd, String *str, timestamp_type warn_type,
 
 
 /**
-  @brief Convert date provided in a string to the int representation.
-
-  @param[in]   thd        thread handle
-  @param[in]   str        a string to convert
-  @param[in]   warn_type  type of the timestamp for issuing the warning
-  @param[in]   warn_name  field name for issuing the warning
-  @param[out]  error_arg  could not extract a DATE or DATETIME
-
-  @details Convert date provided in the string str to the int
-    representation.  If the string contains wrong date or doesn't
-    contain it at all then a warning is issued.  The warn_type and
-    the warn_name arguments are used as the name and the type of the
-    field when issuing the warning.
-
-  @return
-    converted value. 0 on error and on zero-dates -- check 'failure'
-*/
-static ulonglong get_date_from_str(THD *thd, String *str, 
-                                   timestamp_type warn_type, 
-                                   const char *warn_name, bool *error_arg)
-{
-  MYSQL_TIME l_time;
-  *error_arg= get_mysql_time_from_str(thd, str, warn_type, warn_name, &l_time);
-
-  if (*error_arg)
-    return 0;
-  return pack_time(&l_time);
-}
-
-/**
   Prepare the comparator (set the comparison function) for comparing
   items *a1 and *a2 in the context of 'type'.
 
@@ -838,100 +832,28 @@ get_datetime_value(THD *thd, Item ***item_arg, Item **cache_arg,
 {
   longlong UNINIT_VAR(value);
   Item *item= **item_arg;
-  enum_field_types f_type= warn_item->field_type();
+  enum_field_types f_type= item->cmp_type() == TIME_RESULT ?
+                           item->field_type() : warn_item->field_type();
 
-  switch (item->cmp_type()) {
-  case TIME_RESULT:
-    /* if it's our Item_cache_int, as created below, we simply use the value */
-    if (item->result_type() == INT_RESULT)
-    {
-      value= item->val_int();
-      cache_arg= 0;
-    }
-    else
-    {
-      MYSQL_TIME buf;
-      if (item->get_date_result(&buf, TIME_FUZZY_DATE | TIME_INVALID_DATES))
-        DBUG_ASSERT(item->null_value);
-      else
-        value= pack_time(&buf);
-      f_type= item->field_type(); // for Item_cache_int below.
-    }
-    break;
-  case INT_RESULT:
+  if (item->result_type() == INT_RESULT && item->cmp_type() == TIME_RESULT)
+  {
+    /* it's our Item_cache_int, as created below */
     value= item->val_int();
-
-    if (item->field_type() == MYSQL_TYPE_YEAR)
-    {
-      Item *real_item= item->real_item();
-      if (!(real_item->type() == Item::FIELD_ITEM &&
-            ((Item_field *)real_item)->field->type() == MYSQL_TYPE_YEAR &&
-            ((Item_field *)real_item)->field->field_length == 4))
-      {
-        if (value < 70)
-          value+= 100;
-        if (value <= 1900)
-          value+= 1900;
-      }
-      value*= 13ULL * 32ULL * 24ULL * 60ULL * 60ULL * 1000000ULL;
-    }
+  }
+  else
+  {
+    MYSQL_TIME ltime;
+    uint fuzzydate= TIME_FUZZY_DATE | TIME_INVALID_DATES;
+    if (f_type == MYSQL_TYPE_TIME)
+      fuzzydate|= TIME_TIME_ONLY;
+    if (item->get_date(&ltime, fuzzydate))
+      value= 0; /* invalid date */
     else
-    {
-      MYSQL_TIME buf;
-      int was_cut;
-      longlong res;
-
-      if (f_type == MYSQL_TYPE_TIME)
-        res= number_to_time((double)value, &buf, &was_cut);
-      else
-        res= number_to_datetime(value, &buf, TIME_INVALID_DATES|TIME_FUZZY_DATE,
-                                &was_cut);
-      if (res == -1)
-      {
-        const Lazy_string_num str(value);
-        make_truncated_value_warning(thd, MYSQL_ERROR::WARN_LEVEL_WARN, &str,
-                                     mysql_type_to_time_type(f_type),
-                                     warn_item->field_name_or_null());
-        value= 0;
-      }
-      else
-        value= pack_time(&buf);
-    }
-    break;
-  case STRING_RESULT:
-  case DECIMAL_RESULT:
-  case REAL_RESULT:
-    {
-      char strbuf[MAX_DATETIME_FULL_WIDTH];
-      String buf(strbuf, sizeof(strbuf), &my_charset_bin), *str;
-      if ((str= item->val_str(&buf)))
-      {
-        /*
-          Convert strings to the integer DATE/DATETIME representation.
-          Even if both dates provided in strings we can't compare them directly as
-          strings as there is no warranty that they are correct and do not miss
-          some insignificant zeros.
-        */
-        bool error;
-        value= (longlong) get_date_from_str(thd, str,
-                                            mysql_type_to_time_type(f_type),
-                                            warn_item->field_name_or_null(),
-                                            &error);
-        /*
-          If str did not contain a valid date according to the current
-          SQL_MODE, get_date_from_str() has already thrown a warning,
-          and we don't want to throw NULL on invalid date (see 5.2.6
-          "SQL modes" in the manual), so we're done here.
-        */
-      }
-      break;
-    }
-  case ROW_RESULT:
-    DBUG_ASSERT(0);
+      value= pack_time(&ltime);
   }
   if ((*is_null= item->null_value))
     return ~(ulonglong) 0;
-  if (cache_arg && item->const_item())
+  if (cache_arg && item->const_item() && item->type() != Item::CACHE_ITEM)
   {
     /*
       cache the packed datetime value in the Item_cache object.
@@ -940,8 +862,8 @@ get_datetime_value(THD *thd, Item ***item_arg, Item **cache_arg,
       But we create it to have field_type() == MYSQL_TYPE_TIME (or
       MYSQL_TIMESTAMP_DATE or MYSQL_TYPE_DATETIME), and thus it will have
       cmp_type() == TIME_RESULT.
-      As no other item can have this combination of cmp_type() and result_type(),
-      it allows us to identify our cache items, see 'case TIME_RESULT:' above.
+      As no other item can have this combination of cmp_type() and
+      result_type(), it allows us to identify our cache items.
     */
     Item_cache_int *cache= new Item_cache_int(f_type);
     cache->store(item, value);
@@ -2007,18 +1929,7 @@ void Item_func_between::fix_length_and_dec()
     strings as.
   */
   if (cmp_type ==  TIME_RESULT)
-  {
-    for (int i= 0; i < 3; i++)
-    {
-      if (args[i]->cmp_type() == TIME_RESULT)
-      {
-        if (args[i]->field_type() != MYSQL_TYPE_TIME ||
-            (args[i]->field_type() == MYSQL_TYPE_TIME && compare_as_dates==0))
-            compare_as_dates= args[i];
-        continue;
-      }
-    }
-  }
+    compare_as_dates= find_date_time_item(args, 3, 0);
 
   /* See the comment about the similar block in Item_bool_func2 */
   if (args[0]->real_item()->type() == FIELD_ITEM &&
@@ -2780,16 +2691,17 @@ void Item_func_case::fix_length_and_dec()
     if (!(found_types= collect_cmp_types(agg, nagg)))
       return;
 
-    for (i= 0; i <= (uint)DECIMAL_RESULT; i++)
+    for (i= 0; i <= (uint)TIME_RESULT; i++)
     {
       if (found_types & (1 << i) && !cmp_items[i])
       {
         DBUG_ASSERT((Item_result)i != ROW_RESULT);
+        DBUG_ASSERT((Item_result)i != TIME_RESULT);
         if ((Item_result)i == STRING_RESULT &&
             agg_arg_charsets(cmp_collation, agg, nagg, MY_COLL_CMP_CONV, 1))
           return;
         if (!(cmp_items[i]=
-            cmp_item::get_comparator((Item_result)i,
+            cmp_item::get_comparator((Item_result)i, 0,
                                      cmp_collation.collation)))
           return;
       }
@@ -2870,7 +2782,7 @@ void Item_func_case::cleanup()
   uint i;
   DBUG_ENTER("Item_func_case::cleanup");
   Item_func::cleanup();
-  for (i= 0; i <= (uint)DECIMAL_RESULT; i++)
+  for (i= 0; i <= (uint)TIME_RESULT; i++)
   {
     delete cmp_items[i];
     cmp_items[i]= 0;
@@ -3300,7 +3212,7 @@ uchar *in_decimal::get_value(Item *item)
 }
 
 
-cmp_item* cmp_item::get_comparator(Item_result type,
+cmp_item* cmp_item::get_comparator(Item_result type, Item *warn_item,
                                    CHARSET_INFO *cs)
 {
   switch (type) {
@@ -3315,7 +3227,8 @@ cmp_item* cmp_item::get_comparator(Item_result type,
   case DECIMAL_RESULT:
     return new cmp_item_decimal;
   case TIME_RESULT:
-    DBUG_ASSERT(0);
+    DBUG_ASSERT(warn_item);
+    return new cmp_item_datetime(warn_item);
     break;
   }
   return 0; // to satisfy compiler :)
@@ -3379,7 +3292,7 @@ void cmp_item_row::store_value(Item *item)
     {
       if (!comparators[i])
         if (!(comparators[i]=
-              cmp_item::get_comparator(item->element_index(i)->result_type(),
+              cmp_item::get_comparator(item->element_index(i)->result_type(), 0,
                                        item->element_index(i)->collation.collation)))
 	  break;					// new failed
       comparators[i]->store_value(item->element_index(i));
@@ -3580,20 +3493,17 @@ static int srtcmp_in(CHARSET_INFO *cs, const String *x,const String *y)
                                (uchar *) y->ptr(),y->length(), 0);
 }
 
-
 void Item_func_in::fix_length_and_dec()
 {
   Item **arg, **arg_end;
   bool const_itm= 1;
   THD *thd= current_thd;
-  bool datetime_found= FALSE;
   /* TRUE <=> arguments values will be compared as DATETIMEs. */
-  bool compare_as_datetime= FALSE;
   Item *date_arg= 0;
   uint found_types= 0;
   uint type_cnt= 0, i;
   Item_result cmp_type= STRING_RESULT;
-  left_result_type= args[0]->result_type();
+  left_result_type= args[0]->cmp_type();
   if (!(found_types= collect_cmp_types(args, arg_count, true)))
     return;
   
@@ -3605,7 +3515,7 @@ void Item_func_in::fix_length_and_dec()
       break;
     }
   }
-  for (i= 0; i <= (uint)DECIMAL_RESULT; i++)
+  for (i= 0; i <= (uint)TIME_RESULT; i++)
   {
     if (found_types & 1 << i)
     {
@@ -3620,16 +3530,12 @@ void Item_func_in::fix_length_and_dec()
         agg_arg_charsets(cmp_collation, args, arg_count, MY_COLL_CMP_CONV, 1))
       return;
     arg_types_compatible= TRUE;
-  }
-  if (type_cnt == 1)
-  {
-    /*
-      When comparing rows create the row comparator object beforehand to ease
-      the DATETIME comparison detection procedure.
-    */
+
     if (cmp_type == ROW_RESULT)
     {
+      uint cols= args[0]->cols();
       cmp_item_row *cmp= 0;
+
       if (const_itm && !nulls_in_row())
       {
         array= new in_row(arg_count-1, 0);
@@ -3641,66 +3547,20 @@ void Item_func_in::fix_length_and_dec()
           return;
         cmp_items[ROW_RESULT]= cmp;
       }
-      cmp->n= args[0]->cols();
+      cmp->n= cols;
       cmp->alloc_comparators();
-    }
-    /* All DATE/DATETIME fields/functions has the STRING result type. */
-    if (cmp_type == STRING_RESULT || cmp_type == ROW_RESULT)
-    {
-      uint col, cols= args[0]->cols();
 
-      for (col= 0; col < cols; col++)
+      for (uint col= 0; col < cols; col++)
       {
-        bool skip_column= FALSE;
-        /*
-          Check that all items to be compared has the STRING result type and at
-          least one of them is a DATE/DATETIME item.
-        */
-        for (arg= args, arg_end= args + arg_count; arg != arg_end ; arg++)
+        date_arg= find_date_time_item(args, arg_count, col);
+        if (date_arg)
         {
-          Item *itm= ((cmp_type == STRING_RESULT) ? arg[0] :
-                      arg[0]->element_index(col));
-          if (itm->result_type() != STRING_RESULT)
-          {
-            skip_column= TRUE;
-            break;
-          }
-          else if (itm->cmp_type() == TIME_RESULT)
-          {
-            datetime_found= TRUE;
-            /*
-              Internally all DATE/DATETIME values are converted to the DATETIME
-              type. So try to find a DATETIME item to issue correct warnings.
-            */
-            if (!date_arg)
-              date_arg= itm;
-            else if (itm->field_type() == MYSQL_TYPE_DATETIME)
-            {
-              date_arg= itm;
-              /* All arguments are already checked to have the STRING result. */
-              if (cmp_type == STRING_RESULT)
-                break;
-            }
-          }
-        }
-        if (skip_column)
-          continue;
-        if (datetime_found)
-        {
-          if (cmp_type == ROW_RESULT)
-          {
-            cmp_item **cmp= 0;
-            if (array)
-              cmp= ((in_row*)array)->tmp.comparators + col;
-            else
-              cmp= ((cmp_item_row*)cmp_items[ROW_RESULT])->comparators + col;
-            *cmp= new cmp_item_datetime(date_arg);
-            /* Reset variables for the next column. */
-            date_arg= 0;
-            datetime_found= FALSE;
-          }
+          cmp_item **cmp= 0;
+          if (array)
+            cmp= ((in_row*)array)->tmp.comparators + col;
           else
-            compare_as_datetime= TRUE;
+            cmp= ((cmp_item_row*)cmp_items[ROW_RESULT])->comparators + col;
+          *cmp= new cmp_item_datetime(date_arg);
         }
       }
     }
@@ -3711,61 +3571,57 @@ void Item_func_in::fix_length_and_dec()
   */
   if (type_cnt == 1 && const_itm && !nulls_in_row())
   {
-    if (compare_as_datetime)
-      array= new in_datetime(date_arg, arg_count - 1);
-    else
-    {
-      /*
-        IN must compare INT columns and constants as int values (the same
-        way as equality does).
-        So we must check here if the column on the left and all the constant 
-        values on the right can be compared as integers and adjust the 
-        comparison type accordingly.
+    /*
+      IN must compare INT columns and constants as int values (the same
+      way as equality does).
+      So we must check here if the column on the left and all the constant 
+      values on the right can be compared as integers and adjust the 
+      comparison type accordingly.
 
-        See the comment about the similar block in Item_bool_func2
-      */  
-      if (args[0]->real_item()->type() == FIELD_ITEM &&
-          !thd->is_context_analysis_only() && cmp_type != INT_RESULT)
+      See the comment about the similar block in Item_bool_func2
+    */  
+    if (args[0]->real_item()->type() == FIELD_ITEM &&
+        !thd->is_context_analysis_only() && cmp_type != INT_RESULT)
+    {
+      Item_field *field_item= (Item_field*) (args[0]->real_item());
+      if (field_item->cmp_type() == INT_RESULT)
       {
-        Item_field *field_item= (Item_field*) (args[0]->real_item());
-        if (field_item->cmp_type() == INT_RESULT)
+        bool all_converted= TRUE;
+        for (arg=args+1, arg_end=args+arg_count; arg != arg_end ; arg++)
         {
-          bool all_converted= TRUE;
-          for (arg=args+1, arg_end=args+arg_count; arg != arg_end ; arg++)
-          {
-            if (!convert_constant_item (thd, field_item, &arg[0]))
-              all_converted= FALSE;
-          }
-          if (all_converted)
-            cmp_type= INT_RESULT;
+          if (!convert_constant_item (thd, field_item, &arg[0]))
+            all_converted= FALSE;
         }
+        if (all_converted)
+          cmp_type= INT_RESULT;
       }
-      switch (cmp_type) {
-      case STRING_RESULT:
-        array=new in_string(arg_count-1,(qsort2_cmp) srtcmp_in, 
-                            cmp_collation.collation);
-        break;
-      case INT_RESULT:
-        array= new in_longlong(arg_count-1);
-        break;
-      case REAL_RESULT:
-        array= new in_double(arg_count-1);
-        break;
-      case ROW_RESULT:
-        /*
-          The row comparator was created at the beginning but only DATETIME
-          items comparators were initialized. Call store_value() to setup
-          others.
-        */
-        ((in_row*)array)->tmp.store_value(args[0]);
-        break;
-      case DECIMAL_RESULT:
-        array= new in_decimal(arg_count - 1);
-        break;
-      case TIME_RESULT:
-        DBUG_ASSERT(0);
-        break;
-      }
+    }
+    switch (cmp_type) {
+    case STRING_RESULT:
+      array=new in_string(arg_count-1,(qsort2_cmp) srtcmp_in, 
+                          cmp_collation.collation);
+      break;
+    case INT_RESULT:
+      array= new in_longlong(arg_count-1);
+      break;
+    case REAL_RESULT:
+      array= new in_double(arg_count-1);
+      break;
+    case ROW_RESULT:
+      /*
+        The row comparator was created at the beginning but only DATETIME
+        items comparators were initialized. Call store_value() to setup
+        others.
+      */
+      ((in_row*)array)->tmp.store_value(args[0]);
+      break;
+    case DECIMAL_RESULT:
+      array= new in_decimal(arg_count - 1);
+      break;
+    case TIME_RESULT:
+      date_arg= find_date_time_item(args, arg_count, 0);
+      array= new in_datetime(date_arg, arg_count - 1);
+      break;
     }
     if (array && !(thd->is_fatal_error))		// If not EOM
     {
@@ -3786,23 +3642,21 @@ void Item_func_in::fix_length_and_dec()
   }
   else
   {
-    if (compare_as_datetime)
-      cmp_items[STRING_RESULT]= new cmp_item_datetime(date_arg);
-    else
+    for (i= 0; i <= (uint) TIME_RESULT; i++)
     {
-      for (i= 0; i <= (uint) DECIMAL_RESULT; i++)
+      if (found_types & (1 << i) && !cmp_items[i])
       {
-        if (found_types & (1 << i) && !cmp_items[i])
-        {
-          if ((Item_result)i == STRING_RESULT &&
-              agg_arg_charsets(cmp_collation, args, arg_count,
-                               MY_COLL_CMP_CONV, 1))
-            return;
-          if (!cmp_items[i] && !(cmp_items[i]=
-              cmp_item::get_comparator((Item_result)i,
-                                       cmp_collation.collation)))
-            return;
-        }
+        if ((Item_result)i == STRING_RESULT &&
+            agg_arg_charsets(cmp_collation, args, arg_count,
+                             MY_COLL_CMP_CONV, 1))
+          return;
+        if ((Item_result)i == TIME_RESULT)
+          date_arg= find_date_time_item(args, arg_count, 0);
+
+        if (!cmp_items[i] && !(cmp_items[i]=
+            cmp_item::get_comparator((Item_result)i, date_arg,
+                                     cmp_collation.collation)))
+          return;
       }
     }
   }
@@ -3870,7 +3724,7 @@ longlong Item_func_in::val_int()
       have_null= TRUE;
       continue;
     }
-    Item_result cmp_type= item_cmp_type(left_result_type, args[i]->result_type());
+    Item_result cmp_type= item_cmp_type(left_result_type, args[i]->cmp_type());
     in_item= cmp_items[(uint)cmp_type];
     DBUG_ASSERT(in_item);
     if (!(value_added_map & (1 << (uint)cmp_type)))
@@ -5398,7 +5252,7 @@ longlong Item_equal::val_int()
 void Item_equal::fix_length_and_dec()
 {
   Item *item= get_first();
-  eval_item= cmp_item::get_comparator(item->result_type(),
+  eval_item= cmp_item::get_comparator(item->result_type(), 0,
                                       item->collation.collation);
 }
 

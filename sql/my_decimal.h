@@ -294,6 +294,11 @@ int my_decimal2string(uint mask, const my_decimal *d, uint fixed_prec,
 		      uint fixed_dec, char filler, String *str);
 #endif
 
+bool my_decimal2seconds(const my_decimal *d, ulonglong *sec, ulong *microsec);
+
+my_decimal *seconds2my_decimal(bool sign, ulonglong sec, ulong microsec,
+                               my_decimal *d);
+
 inline
 int my_decimal2int(uint mask, const my_decimal *d, my_bool unsigned_flag,
 		   longlong *l)

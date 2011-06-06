@@ -16,6 +16,10 @@
 #include "mysql_priv.h"
 #include <time.h>
 
+#define DIG_BASE     1000000000
+#define DIG_PER_DEC1 9
+#define ROUND_UP(X)  (((X)+DIG_PER_DEC1-1)/DIG_PER_DEC1)
+
 
 #ifndef MYSQL_CLIENT
 /**
@@ -208,20 +212,69 @@ int str2my_decimal(uint mask, const char *from, uint length,
 }
 
 
+/**
+  converts a decimal into a pair of integers - for integer and fractional parts
+
+  special version, for decimals representing number of seconds.
+  integer part cannot be larger that 1e18 (otherwise it's an overflow).
+  fractional part is microseconds.
+*/
+bool my_decimal2seconds(const my_decimal *d, ulonglong *sec, ulong *microsec)
+{
+  int pos;
+  
+  if (d->intg)
+  {
+    pos= (d->intg-1)/DIG_PER_DEC1;
+    *sec= d->buf[pos];
+    if (pos > 0)
+      *sec+= static_cast<longlong>(d->buf[pos-1]) * DIG_BASE;
+  }
+  else
+  {
+    *sec=0;
+    pos= -1;
+  }
+
+  *microsec= d->frac ? static_cast<longlong>(d->buf[pos+1]) / (DIG_BASE/1000000) : 0;
+
+  if (pos > 1)
+  {
+    for (int i=0; i < pos-1; i++)
+      if (d->buf[i])
+      {
+        *sec= LONGLONG_MAX;
+        break;
+      }
+  }
+  return d->sign();
+}
+
+
+/**
+  converts a pair of integers (seconds, microseconds) into a decimal
+*/
+my_decimal *seconds2my_decimal(bool sign,
+                               ulonglong sec, ulong microsec, my_decimal *d)
+{
+  d->init();
+  longlong2decimal(sec, d); // cannot fail
+  if (microsec)
+  {
+    d->buf[(d->intg-1) / DIG_PER_DEC1 + 1]= microsec * (DIG_BASE/1000000);
+    d->frac= 6;
+  }
+  ((decimal_t *)d)->sign= sign;
+  return d;
+}
+
+
 my_decimal *date2my_decimal(MYSQL_TIME *ltime, my_decimal *dec)
 {
-  longlong date;
-  date = (ltime->year*100L + ltime->month)*100L + ltime->day;
+  longlong date= (ltime->year*100L + ltime->month)*100L + ltime->day;
   if (ltime->time_type > MYSQL_TIMESTAMP_DATE)
     date= ((date*100L + ltime->hour)*100L+ ltime->minute)*100L + ltime->second;
-  if (int2my_decimal(E_DEC_FATAL_ERROR, ltime->neg ? -date : date, FALSE, dec))
-    return dec;
-  if (ltime->second_part)
-  {
-    dec->buf[(dec->intg-1) / 9 + 1]= ltime->second_part * 1000;
-    dec->frac= 6;
-  }
-  return dec;
+  return seconds2my_decimal(ltime->neg, date, ltime->second_part, dec);
 }
 
 
@@ -235,12 +288,8 @@ void my_decimal_trim(ulong *precision, uint *scale)
   }
 }
 
-
 #ifndef DBUG_OFF
 /* routines for debugging print */
-
-#define DIG_PER_DEC1 9
-#define ROUND_UP(X)  (((X)+DIG_PER_DEC1-1)/DIG_PER_DEC1)
 
 /* print decimal */
 void

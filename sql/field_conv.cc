@@ -369,7 +369,7 @@ static void do_field_temporal(Copy_field *copy)
 {
   MYSQL_TIME ltime;
   copy->from_field->get_date(&ltime, TIME_FUZZY_DATE);
-  copy->to_field->store_time(&ltime, ltime.time_type);
+  copy->to_field->store_time_dec(&ltime, copy->from_field->decimals());
 }
 
 
@@ -664,7 +664,25 @@ Copy_field::get_copy_func(Field *to,Field *from)
     if (to->result_type() == DECIMAL_RESULT)
       return do_field_decimal;
     if (to->cmp_type() == TIME_RESULT)
-      return do_field_temporal;
+    {
+      if (from->cmp_type() == TIME_RESULT)
+        return do_field_temporal;
+      if (from->result_type() == STRING_RESULT)
+        return do_field_string;
+      if (from->result_type() == INT_RESULT)
+        return do_field_int;
+      if (from->result_type() == DECIMAL_RESULT)
+        return do_field_decimal;
+      return do_field_real;
+    }
+    if (from->cmp_type() == TIME_RESULT)
+    {
+      if (to->result_type() == STRING_RESULT)
+        return do_field_string;
+      if (to->result_type() == INT_RESULT)
+        return do_field_int;
+      return do_field_real;
+    }
     // Check if identical fields
     if (from->result_type() == STRING_RESULT)
     {
@@ -677,15 +695,7 @@ Copy_field::get_copy_func(Field *to,Field *from)
           to->type() == MYSQL_TYPE_VARCHAR && !to->has_charset())
         return do_field_varbinary_pre50;
 
-      /*
-        If we are copying date or datetime's we have to check the dates
-        if we don't allow 'all' dates.
-      */
-      if (to->real_type() != from->real_type() ||
-          (((to->table->in_use->variables.sql_mode &
-            (MODE_NO_ZERO_IN_DATE | MODE_NO_ZERO_DATE | MODE_INVALID_DATES)) &&
-           to->type() == MYSQL_TYPE_DATE) ||
-           to->type() == MYSQL_TYPE_DATETIME))
+      if (to->real_type() != from->real_type())
       {
 	if (from->real_type() == MYSQL_TYPE_ENUM ||
 	    from->real_type() == MYSQL_TYPE_SET)
@@ -818,7 +828,22 @@ int field_conv(Field *to,Field *from)
     ((Field_enum *)(to))->store_type(0);
     return 0;
   }
-  else if ((from->result_type() == STRING_RESULT &&
+  if (from->result_type() == REAL_RESULT)
+    return to->store(from->val_real());
+  if (from->result_type() == DECIMAL_RESULT)
+  {
+    my_decimal buff;
+    return to->store_decimal(from->val_decimal(&buff));
+  }
+  if (from->cmp_type() == TIME_RESULT)
+  {
+    MYSQL_TIME ltime;
+    if (from->get_date(&ltime, TIME_FUZZY_DATE))
+      return to->reset();
+    else
+      return to->store_time_dec(&ltime, from->decimals());
+  }
+  if ((from->result_type() == STRING_RESULT &&
             (to->result_type() == STRING_RESULT ||
              (from->real_type() != MYSQL_TYPE_ENUM &&
               from->real_type() != MYSQL_TYPE_SET))) ||
@@ -835,13 +860,5 @@ int field_conv(Field *to,Field *from)
     */
     return to->store(result.c_ptr_quick(),result.length(),from->charset());
   }
-  else if (from->result_type() == REAL_RESULT)
-    return to->store(from->val_real());
-  else if (from->result_type() == DECIMAL_RESULT)
-  {
-    my_decimal buff;
-    return to->store_decimal(from->val_decimal(&buff));
-  }
-  else
-    return to->store(from->val_int(), test(from->flags & UNSIGNED_FLAG));
+  return to->store(from->val_int(), test(from->flags & UNSIGNED_FLAG));
 }

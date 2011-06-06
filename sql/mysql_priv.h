@@ -781,6 +781,18 @@ mysql_type_to_time_type(enum enum_field_types mysql_type)
 #include "sql_profile.h"
 #include "sql_partition.h"
 
+class Lazy_string_decimal: public Lazy_string
+{
+  const my_decimal *d;
+public:
+  Lazy_string_decimal(const my_decimal *d_arg)
+    : Lazy_string(), d(d_arg) {}
+  void copy(String *dst) const {
+    my_decimal2string(E_DEC_FATAL_ERROR, d,
+                      0, 0, ' ', dst);
+  }
+};
+
 class user_var_entry;
 class Security_context;
 enum enum_var_type
@@ -1883,6 +1895,7 @@ void flush_thread_cache();
 /* item_func.cc */
 extern bool check_reserved_words(LEX_STRING *name);
 extern enum_field_types agg_field_type(Item **items, uint nitems);
+Item *find_date_time_item(Item **args, uint nargs, uint col);
 
 /* strfunc.cc */
 ulonglong find_set(TYPELIB *lib, const char *x, uint length, CHARSET_INFO *cs,
@@ -2235,6 +2248,18 @@ void make_truncated_value_warning(THD *thd, MYSQL_ERROR::enum_warning_level leve
                                   const Lazy_string *str_val,
                                   timestamp_type time_type,
                                   const char *field_name);
+bool double_to_datetime_with_warn(double value, MYSQL_TIME *ltime,
+                                  ulong fuzzydate,
+                                  enum_field_types f_type,
+                                  const char *name);
+bool decimal_to_datetime_with_warn(const my_decimal *value, MYSQL_TIME *ltime,
+                                   ulong fuzzydate,
+                                   enum_field_types f_type,
+                                   const char *name);
+bool int_to_datetime_with_warn(longlong value, MYSQL_TIME *ltime,
+                               ulong fuzzydate,
+                               enum_field_types f_type,
+                               const char *name);
 
 static inline void make_truncated_value_warning(THD *thd,
                 MYSQL_ERROR::enum_warning_level level, const char *str_val,

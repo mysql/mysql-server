@@ -2332,11 +2332,7 @@ mysql_execute_command(THD *thd)
       goto error;
     }
     it= new Item_func_unix_timestamp(it);
-    /*
-      it is OK only emulate fix_fieds, because we need only
-      value of constant
-    */
-    it->quick_fix_field();
+    it->fix_fields(thd, &it);
     res = purge_master_logs_before_date(thd, (ulong)it->val_int());
     break;
   }

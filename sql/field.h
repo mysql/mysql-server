@@ -115,7 +115,9 @@ public:
   virtual int  store(double nr)=0;
   virtual int  store(longlong nr, bool unsigned_val)=0;
   virtual int  store_decimal(const my_decimal *d)=0;
-  virtual int store_time(MYSQL_TIME *ltime, timestamp_type t_type);
+  virtual int  store_time_dec(MYSQL_TIME *ltime, uint dec);
+  int store_time(MYSQL_TIME *ltime)
+  { return store_time_dec(ltime, TIME_SECOND_PART_DIGITS); }
   int store(const char *to, uint length, CHARSET_INFO *cs,
             enum_check_fields check_level);
   virtual double val_real(void)=0;
@@ -441,7 +443,7 @@ public:
   { return DERIVATION_IMPLICIT; }
   virtual void set_derivation(enum Derivation derivation_arg) { }
   virtual int set_time() { return 1; }
-  bool set_warning(MYSQL_ERROR::enum_warning_level, unsigned int code,
+  void set_warning(MYSQL_ERROR::enum_warning_level, unsigned int code,
                    int cuted_increment);
   void set_datetime_warning(MYSQL_ERROR::enum_warning_level, uint code, 
                             const Lazy_string *str, timestamp_type ts_type,
@@ -529,49 +531,26 @@ private:
   { return 0; }
 
 protected:
-  /*
-    Helper function to pack()/unpack() int32 values
-  */
-  static void handle_int32(uchar *to, const uchar *from)
+  uchar *pack_int(uchar *to, const uchar *from, size_t size)
   {
-    int32 val;
-    val = sint4korr(from);
-    int4store(to, val);
+    memcpy(to, from, size);
+    return to + size;
   }
 
-  /*
-    Helper function to pack()/unpack() int64 values
-  */
-  static void handle_int64(uchar* to, const uchar *from)
+  const uchar *unpack_int(uchar* to, const uchar *from, size_t size)
   {
-    int64 val;
-    val = sint8korr(from);
-    int8store(to, val);
+    memcpy(to, from, size);
+    return from + size;
   }
 
   uchar *pack_int32(uchar *to, const uchar *from)
-  {
-    handle_int32(to, from);
-    return to  + sizeof(int32);
-  }
-
+  { return pack_int(to, from, 4); }
   const uchar *unpack_int32(uchar* to, const uchar *from)
-  {
-    handle_int32(to, from);
-    return from + sizeof(int32);
-  }
-
+  { return unpack_int(to, from, 4); }
   uchar *pack_int64(uchar* to, const uchar *from)
-  {
-    handle_int64(to, from);
-    return to + sizeof(int64);
-  }
-
+  { return pack_int(to, from, 8); }
   const uchar *unpack_int64(uchar* to, const uchar *from)
-  {
-    handle_int64(to, from);
-    return from + sizeof(int64);
-  }
+  { return unpack_int(to, from, 8); }
 
   bool field_flags_are_binary()
   {
@@ -589,7 +568,7 @@ public:
 	    uchar null_bit_arg, utype unireg_check_arg,
 	    const char *field_name_arg,
             uint8 dec_arg, bool zero_arg, bool unsigned_arg);
-  Item_result result_type () const { return REAL_RESULT; }
+  enum Item_result result_type () const { return INT_RESULT; }
   void prepend_zeros(String *value);
   void add_zerofill_and_unsigned(String &res) const;
   friend class Create_field;
@@ -600,6 +579,7 @@ public:
   int store_decimal(const my_decimal *);
   my_decimal *val_decimal(my_decimal *);
   uint is_equal(Create_field *new_field);
+  int  store_time_dec(MYSQL_TIME *ltime, uint dec);
   int check_int(CHARSET_INFO *cs, const char *str, int length,
                 const char *int_end, int error);
   bool get_int(CHARSET_INFO *cs, const char *from, uint len, 
@@ -668,7 +648,10 @@ public:
                field_name_arg, dec_arg, zero_arg, unsigned_arg),
     not_fixed(dec_arg >= NOT_FIXED_DEC)
     {}
+  Item_result result_type () const { return REAL_RESULT; }
   int store_decimal(const my_decimal *);
+  int  store_time_dec(MYSQL_TIME *ltime, uint dec);
+  bool get_date(MYSQL_TIME *ltime,uint fuzzydate);
   my_decimal *val_decimal(my_decimal *);
   int truncate(double *nr, double max_length);
   uint32 max_display_length() { return field_length; }
@@ -742,7 +725,7 @@ public:
   int  store(const char *to, uint length, CHARSET_INFO *charset);
   int  store(double nr);
   int  store(longlong nr, bool unsigned_val);
-  int store_time(MYSQL_TIME *ltime, timestamp_type t_type);
+  int  store_time_dec(MYSQL_TIME *ltime, uint dec);
   int  store_decimal(const my_decimal *);
   double val_real(void);
   longlong val_int(void);
@@ -775,7 +758,6 @@ public:
 	       unireg_check_arg, field_name_arg,
 	       0, zero_arg,unsigned_arg)
     {}
-  enum Item_result result_type () const { return INT_RESULT; }
   enum_field_types type() const { return MYSQL_TYPE_TINY;}
   enum ha_base_keytype key_type() const
     { return unsigned_flag ? HA_KEYTYPE_BINARY : HA_KEYTYPE_INT8; }
@@ -822,7 +804,6 @@ public:
     :Field_num((uchar*) 0, len_arg, maybe_null_arg ? (uchar*) "": 0,0,
 	       NONE, field_name_arg, 0, 0, unsigned_arg)
     {}
-  enum Item_result result_type () const { return INT_RESULT; }
   enum_field_types type() const { return MYSQL_TYPE_SHORT;}
   enum ha_base_keytype key_type() const
     { return unsigned_flag ? HA_KEYTYPE_USHORT_INT : HA_KEYTYPE_SHORT_INT;}
@@ -867,7 +848,6 @@ public:
 	       unireg_check_arg, field_name_arg,
 	       0, zero_arg,unsigned_arg)
     {}
-  enum Item_result result_type () const { return INT_RESULT; }
   enum_field_types type() const { return MYSQL_TYPE_INT24;}
   enum ha_base_keytype key_type() const
     { return unsigned_flag ? HA_KEYTYPE_UINT24 : HA_KEYTYPE_INT24; }
@@ -912,7 +892,6 @@ public:
     :Field_num((uchar*) 0, len_arg, maybe_null_arg ? (uchar*) "": 0,0,
 	       NONE, field_name_arg,0,0,unsigned_arg)
     {}
-  enum Item_result result_type () const { return INT_RESULT; }
   enum_field_types type() const { return MYSQL_TYPE_LONG;}
   enum ha_base_keytype key_type() const
     { return unsigned_flag ? HA_KEYTYPE_ULONG_INT : HA_KEYTYPE_LONG_INT; }
@@ -958,7 +937,6 @@ public:
     :Field_num((uchar*) 0, len_arg, maybe_null_arg ? (uchar*) "": 0,0,
 	       NONE, field_name_arg,0,0,unsigned_arg)
     {}
-  enum Item_result result_type () const { return INT_RESULT; }
   enum_field_types type() const { return MYSQL_TYPE_LONGLONG;}
   enum ha_base_keytype key_type() const
     { return unsigned_flag ? HA_KEYTYPE_ULONGLONG : HA_KEYTYPE_LONGLONG; }
@@ -1101,6 +1079,7 @@ public:
 
 
 class Field_timestamp :public Field_str {
+protected:
   int store_TIME_with_warning(THD *, MYSQL_TIME *, const Lazy_string *,
                               bool, bool);
 public:
@@ -1116,7 +1095,7 @@ public:
   int  store(const char *to,uint length,CHARSET_INFO *charset);
   int  store(double nr);
   int  store(longlong nr, bool unsigned_val);
-  int  store_time(MYSQL_TIME *ltime, timestamp_type type);
+  int  store_time_dec(MYSQL_TIME *ltime, uint dec);
   double val_real(void);
   longlong val_int(void);
   String *val_str(String*,String *);
@@ -1175,6 +1154,7 @@ public:
   my_time_t get_timestamp(ulong *sec_part) const;
   void store_TIME(my_time_t timestamp, ulong sec_part);
   int store_decimal(const my_decimal *d);
+  my_decimal* val_decimal(my_decimal*);
   double val_real(void);
   String *val_str(String*,String *);
   bool send_binary(Protocol *protocol);
@@ -1205,9 +1185,11 @@ public:
   int  store(const char *to,uint length,CHARSET_INFO *charset);
   int  store(double nr);
   int  store(longlong nr, bool unsigned_val);
+  int  store_time_dec(MYSQL_TIME *ltime, uint dec);
   double val_real(void);
   longlong val_int(void);
   String *val_str(String*,String *);
+  bool get_date(MYSQL_TIME *ltime,uint fuzzydate);
   bool send_binary(Protocol *protocol);
   void sql_type(String &str) const;
 };
@@ -1229,7 +1211,8 @@ public:
   int  store(const char *to,uint length,CHARSET_INFO *charset);
   int  store(double nr);
   int  store(longlong nr, bool unsigned_val);
-  int  store_time(MYSQL_TIME *ltime, timestamp_type type);
+  int  store_time_dec(MYSQL_TIME *ltime, uint dec);
+  my_decimal *val_decimal(my_decimal*);
 };
 
 class Field_date :public Field_temporal {
@@ -1310,7 +1293,7 @@ public:
     {}
   enum_field_types type() const { return MYSQL_TYPE_TIME;}
   enum ha_base_keytype key_type() const { return HA_KEYTYPE_INT24; }
-  int store_time(MYSQL_TIME *ltime, timestamp_type type);
+  int store_time_dec(MYSQL_TIME *ltime, uint dec);
   int store(const char *to,uint length,CHARSET_INFO *charset);
   int store(double nr);
   int store(longlong nr, bool unsigned_val);
@@ -1343,7 +1326,8 @@ public:
   }
   enum ha_base_keytype key_type() const { return HA_KEYTYPE_BINARY; }
   uint decimals() const { return dec; }
-  longlong val_int(void) { return (longlong)floor(val_real()); }
+  int store_decimal(const my_decimal *d);
+  longlong val_int(void);
   double val_real(void);
   String *val_str(String*,String *);
   bool get_date(MYSQL_TIME *ltime, uint fuzzydate);
@@ -1409,9 +1393,9 @@ public:
     DBUG_ASSERT(dec <= TIME_SECOND_PART_DIGITS);
   }
   enum ha_base_keytype key_type() const { return HA_KEYTYPE_BINARY; }
-  int store_decimal(const my_decimal *d);
   uint decimals() const { return dec; }
   void make_field(Send_field *field);
+  int store_decimal(const my_decimal *d);
   double val_real(void);
   longlong val_int(void);
   String *val_str(String*,String *);

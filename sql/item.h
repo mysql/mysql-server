@@ -815,6 +815,7 @@ public:
                        Item **ref, bool skip_registered);
   virtual bool get_date(MYSQL_TIME *ltime,uint fuzzydate);
   bool get_time(MYSQL_TIME *ltime);
+  bool get_seconds(ulonglong *sec, ulong *sec_part);
   virtual bool get_date_result(MYSQL_TIME *ltime,uint fuzzydate)
   { return get_date(ltime,fuzzydate); }
   /*

@@ -65,6 +65,8 @@ create table t1 select CAST(@a AS DATETIME) as dauto,
 show create table t1;
 --query_vertical select * from t1
 drop table t1;
+explain extended select cast(cast(@a as datetime(4)) as time(0));
+select cast(cast(@a as time(2)) as time(6));
 
 --error ER_TOO_BIG_PRECISION
 select CAST(@a AS DATETIME(7));

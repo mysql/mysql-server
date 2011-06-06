@@ -280,7 +280,7 @@ mysql_event_fill_row(THD *thd,
       my_tz_OFFSET0->gmt_sec_to_TIME(&time, et->starts);
 
       fields[ET_FIELD_STARTS]->set_notnull();
-      fields[ET_FIELD_STARTS]->store_time(&time, MYSQL_TIMESTAMP_DATETIME);
+      fields[ET_FIELD_STARTS]->store_time(&time);
     }
 
     if (!et->ends_null)
@@ -289,7 +289,7 @@ mysql_event_fill_row(THD *thd,
       my_tz_OFFSET0->gmt_sec_to_TIME(&time, et->ends);
 
       fields[ET_FIELD_ENDS]->set_notnull();
-      fields[ET_FIELD_ENDS]->store_time(&time, MYSQL_TIMESTAMP_DATETIME);
+      fields[ET_FIELD_ENDS]->store_time(&time);
     }
   }
   else if (et->execute_at)
@@ -308,8 +308,7 @@ mysql_event_fill_row(THD *thd,
     my_tz_OFFSET0->gmt_sec_to_TIME(&time, et->execute_at);
 
     fields[ET_FIELD_EXECUTE_AT]->set_notnull();
-    fields[ET_FIELD_EXECUTE_AT]->
-                        store_time(&time, MYSQL_TIMESTAMP_DATETIME);
+    fields[ET_FIELD_EXECUTE_AT]->store_time(&time);
   }
   else
   {
@@ -1077,8 +1076,7 @@ update_timing_fields_for_event(THD *thd,
     my_tz_OFFSET0->gmt_sec_to_TIME(&time, last_executed);
 
     fields[ET_FIELD_LAST_EXECUTED]->set_notnull();
-    fields[ET_FIELD_LAST_EXECUTED]->store_time(&time,
-                                               MYSQL_TIMESTAMP_DATETIME);
+    fields[ET_FIELD_LAST_EXECUTED]->store_time(&time);
   }
   if (update_status)
   {

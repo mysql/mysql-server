@@ -12501,7 +12501,7 @@ static void test_datetime_ranges()
 
   rc= mysql_stmt_execute(stmt);
   check_execute(stmt, rc);
-  DIE_UNLESS(mysql_warning_count(mysql) != 6);
+  DIE_UNLESS(mysql_warning_count(mysql) == 6);
 
   verify_col_data("t1", "year", "0000-00-00 00:00:00");
   verify_col_data("t1", "month", "0000-00-00 00:00:00");
@@ -12532,7 +12532,7 @@ static void test_datetime_ranges()
 
   rc= mysql_stmt_execute(stmt);
   check_execute(stmt, rc);
-  DIE_UNLESS(mysql_warning_count(mysql) != 3);
+  DIE_UNLESS(mysql_warning_count(mysql) == 3);
 
   verify_col_data("t1", "year", "0000-00-00 00:00:00");
   verify_col_data("t1", "month", "0000-00-00 00:00:00");

@@ -306,12 +306,11 @@ public:
   {
     if (arg_count)
       decimals= args[0]->decimals;
-    if (decimals != NOT_FIXED_DEC)
-      set_if_smaller(decimals, TIME_SECOND_PART_DIGITS);
+    set_if_smaller(decimals, TIME_SECOND_PART_DIGITS);
     max_length=17 + (decimals ? decimals + 1 : 0);
   }
-  void find_num_type() { hybrid_type= decimals ? REAL_RESULT : INT_RESULT; }
-  my_decimal *decimal_op(my_decimal* buf) { DBUG_ASSERT(0); return 0; }
+  void find_num_type() { hybrid_type= decimals ? DECIMAL_RESULT : INT_RESULT; }
+  double real_op() { DBUG_ASSERT(0); return 0; }
   String *str_op(String *str) { DBUG_ASSERT(0); return 0; }
 };
 
@@ -338,7 +337,7 @@ public:
     return !has_timestamp_args();
   }
   longlong int_op();
-  double real_op();
+  my_decimal *decimal_op(my_decimal* buf);
 };
 
 
@@ -354,7 +353,7 @@ public:
   }
   bool check_partition_func_processor(uchar *int_arg) {return FALSE;}
   longlong int_op();
-  double real_op();
+  my_decimal *decimal_op(my_decimal* buf);
 };
 
 
@@ -383,6 +382,7 @@ public:
     { MAX_DATETIME_WIDTH, MAX_DATETIME_WIDTH, MAX_DATE_WIDTH,
       MAX_DATETIME_WIDTH, MIN_TIME_WIDTH };
 
+    maybe_null= true;
     max_length= max_time_type_width[mysql_type_to_time_type(field_type())+2];
     if (decimals)
     {
@@ -403,9 +403,6 @@ public:
   Item_datefunc() :Item_temporal_func() { }
   Item_datefunc(Item *a) :Item_temporal_func(a) { }
   enum_field_types field_type() const { return MYSQL_TYPE_DATE; }
-  const char *func_name() const { return "date"; }
-  bool get_date(MYSQL_TIME *res, uint fuzzy_date)
-  { return get_arg0_date(res, fuzzy_date); }
 };
 
 
@@ -432,6 +429,7 @@ public:
   {
     store_now_in_TIME(&ltime);
     Item_timefunc::fix_length_and_dec();
+    maybe_null= false;
   }
   bool get_date(MYSQL_TIME *res, uint fuzzy_date);
   /* 
@@ -504,6 +502,7 @@ public:
   {
     store_now_in_TIME(&ltime);
     Item_temporal_func::fix_length_and_dec();
+    maybe_null= false;
   }
   bool get_date(MYSQL_TIME *res, uint fuzzy_date);
   virtual void store_now_in_TIME(MYSQL_TIME *now_time)=0;
@@ -623,13 +622,12 @@ class Item_func_convert_tz :public Item_temporal_func
 
 class Item_func_sec_to_time :public Item_timefunc
 {
-  bool sec_to_time(double seconds, MYSQL_TIME *ltime);
+  bool sec_to_time(longlong seconds, ulong sec_part, MYSQL_TIME *ltime);
 public:
   Item_func_sec_to_time(Item *item) :Item_timefunc(item) {}
   bool get_date(MYSQL_TIME *res, uint fuzzy_date);
   void fix_length_and_dec()
   {
-    maybe_null=1;
     decimals= args[0]->decimals;
     Item_timefunc::fix_length_and_dec();
   }
@@ -699,7 +697,6 @@ public:
   void print(String *str, enum_query_type query_type);
   void fix_length_and_dec()
   {
-    maybe_null= 1;
     if (decimals == NOT_FIXED_DEC)
       decimals= args[0]->decimals;
     Item_temporal_func::fix_length_and_dec();
@@ -746,12 +743,6 @@ public:
   Item_func_makedate(Item *a,Item *b) :Item_temporal_func(a,b) {}
   const char *func_name() const { return "makedate"; }
   enum_field_types field_type() const { return MYSQL_TYPE_DATE; }
-  void fix_length_and_dec()
-  { 
-    /* It returns NULL when the second argument is less or equal to 0 */
-    maybe_null= 1;
-    Item_temporal_func::fix_length_and_dec();
-  }
   bool get_date(MYSQL_TIME *ltime, uint fuzzy_date);
 };
 
@@ -782,7 +773,6 @@ public:
   {
     decimals= max(args[0]->decimals, args[1]->decimals);
     Item_timefunc::fix_length_and_dec();
-    maybe_null= 1;
   }
   bool get_date(MYSQL_TIME *ltime, uint fuzzy_date);
 };
@@ -792,9 +782,7 @@ class Item_func_maketime :public Item_timefunc
 public:
   Item_func_maketime(Item *a, Item *b, Item *c)
     :Item_timefunc(a, b, c) 
-  {
-    maybe_null= TRUE;
-  }
+  {}
   const char *func_name() const { return "maketime"; }
   bool get_date(MYSQL_TIME *ltime, uint fuzzy_date);
 };
@@ -877,9 +865,4 @@ public:
   Item_func_last_day(Item *a) :Item_datefunc(a) {}
   const char *func_name() const { return "last_day"; }
   bool get_date(MYSQL_TIME *res, uint fuzzy_date);
-  void fix_length_and_dec()
-  { 
-    maybe_null=1;
-    Item_datefunc::fix_length_and_dec();
-  }
 };

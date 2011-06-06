@@ -47,7 +47,7 @@ typedef long my_time_t;
 #define TIMESTAMP_MAX_YEAR 2038
 #define TIMESTAMP_MIN_YEAR (1900 + YY_PART_YEAR - 1)
 #define TIMESTAMP_MAX_VALUE INT_MAX32
-#define TIMESTAMP_MIN_VALUE 1
+#define TIMESTAMP_MIN_VALUE 0
 
 /* two-digit years < this are 20..; >= this are 19.. */
 #define YY_PART_YEAR	   70
@@ -72,8 +72,7 @@ typedef long my_time_t;
 #define TIME_MAX_SECOND_PART 999999
 #define TIME_SECOND_PART_FACTOR (TIME_MAX_SECOND_PART+1)
 #define TIME_SECOND_PART_DIGITS 6
-#define TIME_MAX_VALUE (TIME_MAX_HOUR*10000 + TIME_MAX_MINUTE*100 + \
-                        TIME_MAX_SECOND + TIME_MAX_SECOND_PART/(double)TIME_SECOND_PART_FACTOR)
+#define TIME_MAX_VALUE (TIME_MAX_HOUR*10000 + TIME_MAX_MINUTE*100 + TIME_MAX_SECOND)
 #define TIME_MAX_VALUE_SECONDS (TIME_MAX_HOUR * 3600L + \
                                 TIME_MAX_MINUTE * 60L + TIME_MAX_SECOND)
 
@@ -84,9 +83,10 @@ str_to_time(const char *str, uint length, MYSQL_TIME *l_time, int *warning);
 enum enum_mysql_timestamp_type
 str_to_datetime(const char *str, uint length, MYSQL_TIME *l_time,
                 uint flags, int *was_cut);
-longlong number_to_datetime(longlong nr, MYSQL_TIME *time_res,
+longlong number_to_datetime(longlong nr, ulong sec_part, MYSQL_TIME *time_res,
                             uint flags, int *was_cut);
-int number_to_time(double nr, MYSQL_TIME *ltime, int *was_cut);
+int number_to_time(my_bool neg, longlong nr, ulong sec_part,
+                   MYSQL_TIME *ltime, int *was_cut);
 ulonglong TIME_to_ulonglong_datetime(const MYSQL_TIME *);
 ulonglong TIME_to_ulonglong_date(const MYSQL_TIME *);
 ulonglong TIME_to_ulonglong_time(const MYSQL_TIME *);
@@ -129,8 +129,7 @@ static inline my_bool validate_timestamp_range(const MYSQL_TIME *t)
 }
 
 my_time_t 
-my_system_gmt_sec(const MYSQL_TIME *t, long *my_timezone,
-                  my_bool *in_dst_time_gap);
+my_system_gmt_sec(const MYSQL_TIME *t, long *my_timezone, uint *error_code);
 
 void set_zero_time(MYSQL_TIME *tm, enum enum_mysql_timestamp_type time_type);
 

@@ -132,10 +132,10 @@ select year(@d), month(@d), day(@d), cast(@d as date);
 year(@d)	month(@d)	day(@d)	cast(@d as date)
 NULL	NULL	NULL	NULL
 Warnings:
-Warning	1292	Incorrect datetime value: '1311'
-Warning	1292	Incorrect datetime value: '1311'
-Warning	1292	Incorrect datetime value: '1311'
-Warning	1292	Incorrect datetime value: '1311'
+Warning	1292	Truncated incorrect datetime value: '1311'
+Warning	1292	Truncated incorrect datetime value: '1311'
+Warning	1292	Truncated incorrect datetime value: '1311'
+Warning	1292	Truncated incorrect datetime value: '1311'
 create table t1 (d  date , dt datetime , ts timestamp);
 insert into t1 values (9912101,9912101,9912101);
 Warnings:
@@ -208,10 +208,14 @@ SELECT * FROM t1 WHERE a = '0000-00-00';
 a
 0000-00-00
 0000-00-00
+Warnings:
+Warning	1292	Incorrect datetime value: '0000-00-00'
 SELECT * FROM t2 WHERE a = '0000-00-00';
 a
 0000-00-00
 0000-00-00
+Warnings:
+Warning	1292	Incorrect datetime value: '0000-00-00'
 INSERT INTO t1 VALUES ('0000-00-00');
 ERROR 22007: Incorrect date value: '0000-00-00' for column 'a' at row 1
 SET SQL_MODE=DEFAULT;

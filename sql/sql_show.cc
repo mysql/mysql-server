@@ -3804,21 +3804,21 @@ static int get_schema_tables_record(THD *thd, TABLE_LIST *tables,
       {
         thd->variables.time_zone->gmt_sec_to_TIME(&time,
                                                   (my_time_t) file->stats.create_time);
-        table->field[14]->store_time(&time, MYSQL_TIMESTAMP_DATETIME);
+        table->field[14]->store_time(&time);
         table->field[14]->set_notnull();
       }
       if (file->stats.update_time)
       {
         thd->variables.time_zone->gmt_sec_to_TIME(&time,
                                                   (my_time_t) file->stats.update_time);
-        table->field[15]->store_time(&time, MYSQL_TIMESTAMP_DATETIME);
+        table->field[15]->store_time(&time);
         table->field[15]->set_notnull();
       }
       if (file->stats.check_time)
       {
         thd->variables.time_zone->gmt_sec_to_TIME(&time,
                                                   (my_time_t) file->stats.check_time);
-        table->field[16]->store_time(&time, MYSQL_TIMESTAMP_DATETIME);
+        table->field[16]->store_time(&time);
         table->field[16]->set_notnull();
       }
       if (file->ha_table_flags() & (ulong) HA_HAS_CHECKSUM)
@@ -4286,10 +4286,10 @@ bool store_schema_proc(THD *thd, TABLE *table, TABLE *proc_table,
 
       bzero((char *)&time, sizeof(time));
       ((Field_timestamp *) proc_table->field[12])->get_time(&time);
-      table->field[15]->store_time(&time, MYSQL_TIMESTAMP_DATETIME);
+      table->field[15]->store_time(&time);
       bzero((char *)&time, sizeof(time));
       ((Field_timestamp *) proc_table->field[13])->get_time(&time);
-      table->field[16]->store_time(&time, MYSQL_TIMESTAMP_DATETIME);
+      table->field[16]->store_time(&time);
       copy_field_as_string(table->field[17], proc_table->field[14]);
       copy_field_as_string(table->field[18], proc_table->field[15]);
       table->field[19]->store(definer.ptr(), definer.length(), cs);
@@ -4925,21 +4925,21 @@ static void store_schema_partitions_record(THD *thd, TABLE *schema_table,
   {
     thd->variables.time_zone->gmt_sec_to_TIME(&time,
                                               (my_time_t)stat_info.create_time);
-    table->field[18]->store_time(&time, MYSQL_TIMESTAMP_DATETIME);
+    table->field[18]->store_time(&time);
     table->field[18]->set_notnull();
   }
   if (stat_info.update_time)
   {
     thd->variables.time_zone->gmt_sec_to_TIME(&time,
                                               (my_time_t)stat_info.update_time);
-    table->field[19]->store_time(&time, MYSQL_TIMESTAMP_DATETIME);
+    table->field[19]->store_time(&time);
     table->field[19]->set_notnull();
   }
   if (stat_info.check_time)
   {
     thd->variables.time_zone->gmt_sec_to_TIME(&time,
                                               (my_time_t)stat_info.check_time);
-    table->field[20]->store_time(&time, MYSQL_TIMESTAMP_DATETIME);
+    table->field[20]->store_time(&time);
     table->field[20]->set_notnull();
   }
   if (file->ha_table_flags() & (ulong) HA_HAS_CHECKSUM)
@@ -5321,15 +5321,13 @@ copy_event_to_schema_table(THD *thd, TABLE *sch_table, TABLE *event_table)
     /* starts & ends . STARTS is always set - see sql_yacc.yy */
     et.time_zone->gmt_sec_to_TIME(&time, et.starts);
     sch_table->field[ISE_STARTS]->set_notnull();
-    sch_table->field[ISE_STARTS]->
-                                store_time(&time, MYSQL_TIMESTAMP_DATETIME);
+    sch_table->field[ISE_STARTS]->store_time(&time);
 
     if (!et.ends_null)
     {
       et.time_zone->gmt_sec_to_TIME(&time, et.ends);
       sch_table->field[ISE_ENDS]->set_notnull();
-      sch_table->field[ISE_ENDS]->
-                                store_time(&time, MYSQL_TIMESTAMP_DATETIME);
+      sch_table->field[ISE_ENDS]->store_time(&time);
     }
   }
   else
@@ -5339,8 +5337,7 @@ copy_event_to_schema_table(THD *thd, TABLE *sch_table, TABLE *event_table)
 
     et.time_zone->gmt_sec_to_TIME(&time, et.execute_at);
     sch_table->field[ISE_EXECUTE_AT]->set_notnull();
-    sch_table->field[ISE_EXECUTE_AT]->
-                          store_time(&time, MYSQL_TIMESTAMP_DATETIME);
+    sch_table->field[ISE_EXECUTE_AT]->store_time(&time);
   }
 
   /* status */
@@ -5370,21 +5367,19 @@ copy_event_to_schema_table(THD *thd, TABLE *sch_table, TABLE *event_table)
     sch_table->field[ISE_ON_COMPLETION]->
                                 store(STRING_WITH_LEN("PRESERVE"), scs);
     
-  number_to_datetime(et.created, &time, 0, &not_used);
+  number_to_datetime(et.created, 0, &time, 0, &not_used);
   DBUG_ASSERT(not_used==0);
-  sch_table->field[ISE_CREATED]->store_time(&time, MYSQL_TIMESTAMP_DATETIME);
+  sch_table->field[ISE_CREATED]->store_time(&time);
 
-  number_to_datetime(et.modified, &time, 0, &not_used);
+  number_to_datetime(et.modified, 0, &time, 0, &not_used);
   DBUG_ASSERT(not_used==0);
-  sch_table->field[ISE_LAST_ALTERED]->
-                                store_time(&time, MYSQL_TIMESTAMP_DATETIME);
+  sch_table->field[ISE_LAST_ALTERED]->store_time(&time);
 
   if (et.last_executed)
   {
     et.time_zone->gmt_sec_to_TIME(&time, et.last_executed);
     sch_table->field[ISE_LAST_EXECUTED]->set_notnull();
-    sch_table->field[ISE_LAST_EXECUTED]->
-                       store_time(&time, MYSQL_TIMESTAMP_DATETIME);
+    sch_table->field[ISE_LAST_EXECUTED]->store_time(&time);
   }
 
   sch_table->field[ISE_EVENT_COMMENT]->

@@ -72,7 +72,7 @@
 #define MAX_BIT_FIELD_LENGTH    64      /* Max length in bits for bit fields */
 
 #define MAX_DATE_WIDTH		10	/* YYYY-MM-DD */
-#define MIN_TIME_WIDTH           9      /* HHH:MM:SS */
+#define MIN_TIME_WIDTH          10      /* -HHH:MM:SS */
 #define MAX_TIME_WIDTH          16      /* -DDDDDD HH:MM:SS */
 #define MAX_TIME_FULL_WIDTH     23      /* -DDDDDD HH:MM:SS.###### */
 #define MAX_DATETIME_FULL_WIDTH 29	/* YYYY-MM-DD HH:MM:SS.###### AM */
