@@ -30,7 +30,8 @@ class NdbIndexScanOperation;
 class NdbRecAttr;
 class NdbOperation;
 
-struct NdbIndexStatImpl : public NdbIndexStat {
+class NdbIndexStatImpl : public NdbIndexStat {
+public:
   friend class NdbIndexStat;
   struct Con;
   struct Cache;
@@ -174,8 +175,8 @@ struct NdbIndexStatImpl : public NdbIndexStat {
     Uint8* m_valueArray;
     Cache* m_nextClean;
     // performance
-    mutable int m_save_time;
-    mutable int m_sort_time;
+    mutable Uint64 m_save_time;
+    mutable Uint64 m_sort_time;
     Cache();
     // pos is index < sampleCount, addr is offset in keyArray
     uint get_keyaddr(uint pos) const;
@@ -284,7 +285,7 @@ struct NdbIndexStatImpl : public NdbIndexStat {
     enum { MemMagic = 0xf1f2f3f4 };
     struct Item {
       Uint32 m_magic;
-      Uint32 m_size;
+      size_t m_size;
     };
     size_t m_used;
   };

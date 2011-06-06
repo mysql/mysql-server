@@ -583,7 +583,6 @@ Key::Key()
 
 static Key* g_keys = 0;
 static uint* g_sortkeys = 0;
-static uint g_sortcount = 0;
 
 static void
 freekeys()
