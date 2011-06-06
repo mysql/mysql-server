@@ -23,357 +23,23 @@
 #include "NdbDictionaryImpl.hpp"
 #include <NdbInterpretedCode.hpp>
 #include <NdbRecord.hpp>
+#include "NdbIndexStatImpl.hpp"
 
-NdbIndexStat::NdbIndexStat(const NdbDictionary::Index* index) :
-  m_index(index->m_impl),
-  m_cache(NULL)
+NdbIndexStat::NdbIndexStat() :
+  m_impl(*new NdbIndexStatImpl(*this))
+{
+}
+
+NdbIndexStat::NdbIndexStat(NdbIndexStatImpl& impl) :
+  m_impl(impl)
 {
 }
 
 NdbIndexStat::~NdbIndexStat()
 {
-  delete [] m_cache;
-  m_cache = NULL;
-}
-
-int
-NdbIndexStat::alloc_cache(Uint32 entries)
-{
-  delete [] m_cache;
-  m_cache = NULL;
-  if (entries == 0) {
-    return 0;
-  }
-  Uint32 i;
-  Uint32 keysize = 0;
-  for (i = 0; i < m_index.m_columns.size(); i++) {
-    NdbColumnImpl* c = m_index.m_columns[i];
-    keysize += 2;       // counting extra headers
-    keysize += (c->m_attrSize * c->m_arraySize + 3 ) / 4;
-  }
-  Uint32 areasize = entries * (PointerSize + EntrySize + keysize);
-  if (areasize > (1 << 16))
-    areasize = (1 << 16);
-  Uint32 cachesize = 2 * areasize;
-  m_cache = new Uint32 [cachesize];
-  if (m_cache == NULL) {
-    set_error(4000);
-    return -1;
-  }
-  m_areasize = areasize;
-  m_seq = 0;
-  Uint32 idir;
-  for (idir = 0; idir <= 1; idir++) {
-    Area& a = m_area[idir];
-    a.m_data = &m_cache[idir * areasize];
-    a.m_offset = Uint32(a.m_data - &m_cache[0]);
-    a.m_free = areasize;
-    a.m_entries = 0;
-    a.m_idir = idir;
-    a.pad1 = 0;
-  }
-#ifdef VM_TRACE
-  memset(&m_cache[0], 0x3f, cachesize << 2);
-#endif
-  return 0;
-}
-
-#ifndef VM_TRACE
-#define stat_verify()
-#else
-void
-NdbIndexStat::stat_verify()
-{
-  Uint32 idir;
-  for (idir = 0; idir <= 1; idir++) {
-    Uint32 i;
-    const Area& a = m_area[idir];
-    assert(a.m_offset == idir * m_areasize);
-    assert(a.m_data == &m_cache[a.m_offset]);
-    Uint32 pointerwords = PointerSize * a.m_entries;
-    Uint32 entrywords = 0;
-    for (i = 0; i < a.m_entries; i++) {
-      const Pointer& p = a.get_pointer(i);
-      const Entry& e = a.get_entry(i);
-      assert(a.get_pos(e) == p.m_pos);
-      entrywords += EntrySize + e.m_keylen;
-    }
-    assert(a.m_free <= m_areasize);
-    assert(pointerwords + a.m_free + entrywords == m_areasize);
-    Uint32 off = pointerwords + a.m_free;
-    for (i = 0; i < a.m_entries; i++) {
-      assert(off < m_areasize);
-      const Entry& e = *(const Entry*)&a.m_data[off];
-      off += EntrySize + e.m_keylen;
-    }
-    assert(off == m_areasize);
-    for (i = 0; i < a.m_entries; i++) {
-      const Entry& e = a.get_entry(i);
-      const Uint32* entrykey = (const Uint32*)&e + EntrySize;
-      Uint32 n = 0;
-      while (n + 2 <= e.m_keylen) {
-        Uint32 t = entrykey[n++];
-        assert(t == 2 * idir || t == 2 * idir + 1 || t == 4);
-        AttributeHeader ah = *(const AttributeHeader*)&entrykey[n++];
-        n += ah.getDataSize();
-      }
-      assert(n == e.m_keylen);
-    }
-    for (i = 0; i + 1 < a.m_entries; i++) {
-      const Entry& e1 = a.get_entry(i);
-      const Entry& e2 = a.get_entry(i + 1);
-      const Uint32* entrykey1 = (const Uint32*)&e1 + EntrySize;
-      const Uint32* entrykey2 = (const Uint32*)&e2 + EntrySize;
-      int ret = stat_cmpkey(a, entrykey1, e1.m_keylen, entrykey2, e2.m_keylen);
-      assert(ret < 0);
-    }
-  }
-}
-#endif
-
-// compare keys
-int
-NdbIndexStat::stat_cmpkey(const Area& a, const Uint32* key1, Uint32 keylen1, const Uint32* key2, Uint32 keylen2)
-{
-  const Uint32 idir = a.m_idir;
-  const int jdir = 1 - 2 * int(idir);
-  Uint32 i1 = 0, i2 = 0;
-  Uint32 t1 = 4, t2 = 4; //BoundEQ
-  int ret = 0;
-  Uint32 k = 0;
-  while (k < m_index.m_columns.size()) {
-    NdbColumnImpl* c = m_index.m_columns[k];
-    Uint32 n = c->m_attrSize * c->m_arraySize;
-    // absence of keypart is treated specially
-    bool havekp1 = (i1 + 2 <= keylen1);
-    bool havekp2 = (i2 + 2 <= keylen2);
-    AttributeHeader ah1;
-    AttributeHeader ah2;
-    if (havekp1) {
-      t1 = key1[i1++];
-      assert(t1 == 2 * idir || t1 == 2 * idir + 1 || t1 == 4);
-      ah1 = *(const AttributeHeader*)&key1[i1++];
-    }
-    if (havekp2) {
-      t2 = key2[i2++];
-      assert(t2 == 2 * idir || t2 == 2 * idir + 1 || t2 == 4);
-      ah2 = *(const AttributeHeader*)&key2[i2++];
-    }
-    if (havekp1) {
-      if (havekp2) {
-        if (! ah1.isNULL()) {
-          if (! ah2.isNULL()) {
-            const NdbSqlUtil::Type& sqlType = NdbSqlUtil::getType(c->m_type);
-            ret = (*sqlType.m_cmp)(c->m_cs, &key1[i1], n, &key2[i2], n);
-            if (ret != 0)
-              break;
-          } else {
-            ret = +1;
-            break;
-          }
-        } else if (! ah2.isNULL()) {
-          ret = -1;
-          break;
-        }
-      } else {
-        ret = +jdir;
-        break;
-      }
-    } else {
-      if (havekp2) {
-        ret = -jdir;
-        break;
-      } else {
-        // no more keyparts on either side
-        break;
-      }
-    }
-    i1 += ah1.getDataSize();
-    i2 += ah2.getDataSize();
-    k++;
-  }
-  if (ret == 0) {
-    // strict bound is greater as start key and less as end key
-    int s1 = t1 & 1;
-    int s2 = t2 & 1;
-    ret = (s1 - s2) * jdir;
-  }
-  return ret;
-}
-
-// find first key >= given key
-int
-NdbIndexStat::stat_search(const Area& a, const Uint32* key, Uint32 keylen, Uint32* idx, bool* match)
-{
-  // points at minus/plus infinity
-  int lo = -1;
-  int hi = a.m_entries;
-  // loop invariant: key(lo) < key < key(hi)
-  while (hi - lo > 1) {
-    // observe lo < j < hi
-    int j = (hi + lo) / 2;
-    Entry& e = a.get_entry(j);
-    const Uint32* key2 = (Uint32*)&e + EntrySize;
-    Uint32 keylen2 = e.m_keylen;
-    int ret = stat_cmpkey(a, key, keylen, key2, keylen2);
-    // observe the loop invariant if ret != 0
-    if (ret < 0)
-      hi = j;
-    else if (ret > 0)
-      lo = j;
-    else {
-      *idx = j;
-      *match = true;
-      return 0;
-    }
-  }
-  // hi - lo == 1 and key(lo) < key < key(hi)
-  *idx = hi;
-  *match = false;
-  return 0;
-}
-
-// find oldest entry
-int
-NdbIndexStat::stat_oldest(const Area& a)
-{
-  Uint32 i, k= 0, m;
-  bool found = false;
-  m = ~(Uint32)0;     // shut up incorrect CC warning
-  for (i = 0; i < a.m_entries; i++) {
-    Pointer& p = a.get_pointer(i);
-    Uint32 m2 = m_seq >= p.m_seq ? m_seq - p.m_seq : p.m_seq - m_seq;
-    if (! found || m < m2) {
-      m = m2;
-      k = i;
-      found = true;
-    }
-  }
-  assert(found);
-  return k;
-}
-
-// delete entry
-int
-NdbIndexStat::stat_delete(Area& a, Uint32 k)
-{
-  Uint32 i;
-  NdbIndexStat::Entry& e = a.get_entry(k);
-  Uint32 entrylen = EntrySize + e.m_keylen;
-  Uint32 pos = a.get_pos(e);
-  // adjust pointers to entries after
-  for (i = 0; i < a.m_entries; i++) {
-    Pointer& p = a.get_pointer(i);
-    if (p.m_pos < pos) {
-      p.m_pos += entrylen;
-    }
-  }
-  // compact entry area
-  unsigned firstpos = a.get_firstpos();
-  for (i = pos; i > firstpos; i--) {
-    a.m_data[i + entrylen - 1] = a.m_data[i - 1];
-  }
-  // compact pointer area
-  for (i = k; i + 1 < a.m_entries; i++) {
-    NdbIndexStat::Pointer& p = a.get_pointer(i);
-    NdbIndexStat::Pointer& q = a.get_pointer(i + 1);
-    p = q;
-  }
-  a.m_free += PointerSize + entrylen;
-  a.m_entries--;
-  stat_verify();
-  return 0;
-}
-
-// update or insert stat values
-int
-NdbIndexStat::stat_update(const Uint32* key1, Uint32 keylen1, const Uint32* key2, Uint32 keylen2, const float pct[2])
-{
-  const Uint32* const key[2] = { key1, key2 };
-  const Uint32 keylen[2] = { keylen1, keylen2 };
-  Uint32 idir;
-  for (idir = 0; idir <= 1; idir++) {
-    Area& a = m_area[idir];
-    Uint32 k;
-    bool match;
-    stat_search(a, key[idir], keylen[idir], &k, &match);
-    Uint16 seq = m_seq++;
-    if (match) {
-      // update old entry
-      NdbIndexStat::Pointer& p = a.get_pointer(k);
-      NdbIndexStat::Entry& e = a.get_entry(k);
-      e.m_pct = pct[idir];
-      p.m_seq = seq;
-    } else {
-      Uint32 entrylen = NdbIndexStat::EntrySize + keylen[idir];
-      Uint32 need = NdbIndexStat::PointerSize + entrylen;
-      while (need > a.m_free) {
-        Uint32 j = stat_oldest(a);
-        if (j < k)
-          k--;
-        stat_delete(a, j);
-      }
-      // insert pointer
-      Uint32 i;
-      for (i = a.m_entries; i > k; i--) {
-        NdbIndexStat::Pointer& p1 = a.get_pointer(i);
-        NdbIndexStat::Pointer& p2 = a.get_pointer(i - 1);
-        p1 = p2;
-      }
-      NdbIndexStat::Pointer& p = a.get_pointer(k);
-      // insert entry
-      Uint32 firstpos = a.get_firstpos();
-      p.m_pos = firstpos - entrylen;
-      NdbIndexStat::Entry& e = a.get_entry(k);
-      e.m_pct = pct[idir];
-      e.m_keylen = keylen[idir];
-      Uint32* entrykey = (Uint32*)&e + EntrySize;
-      for (i = 0; i < keylen[idir]; i++) {
-        entrykey[i] = key[idir][i];
-      }
-      p.m_seq = seq;
-      // total
-      a.m_free -= PointerSize + entrylen;
-      a.m_entries++;
-    }
-  }
-  stat_verify();
-  return 0;
-}
-
-int
-NdbIndexStat::stat_select(const Uint32* key1, Uint32 keylen1, const Uint32* key2, Uint32 keylen2, float pct[2])
-{
-  const Uint32* const key[2] = { key1, key2 };
-  const Uint32 keylen[2] = { keylen1, keylen2 };
-  Uint32 idir;
-  for (idir = 0; idir <= 1; idir++) {
-    Area& a = m_area[idir];
-    Uint32 k;
-    bool match;
-    stat_search(a, key[idir], keylen[idir], &k, &match);
-    if (match) {
-      NdbIndexStat::Entry& e = a.get_entry(k);
-      pct[idir] = e.m_pct;
-    } else if (k == 0) {
-      NdbIndexStat::Entry& e = a.get_entry(k);
-      if (idir == 0)
-        pct[idir] = e.m_pct / 2;
-      else
-        pct[idir] = e.m_pct + (1 - e.m_pct) / 2;
-    } else if (k == a.m_entries) {
-      NdbIndexStat::Entry& e = a.get_entry(k - 1);
-      if (idir == 0)
-        pct[idir] = e.m_pct + (1 - e.m_pct) / 2;
-      else
-        pct[idir] = e.m_pct / 2;
-    } else {
-      NdbIndexStat::Entry& e1 = a.get_entry(k - 1);
-      NdbIndexStat::Entry& e2 = a.get_entry(k);
-      pct[idir] = (e1.m_pct + e2.m_pct) / 2;
-    }
-  }
-  return 0;
+  NdbIndexStatImpl* impl = &m_impl;
+  if (this != impl)
+    delete impl;
 }
 
 /** 
@@ -424,7 +90,7 @@ NdbIndexStat::addKeyPartInfo(const NdbRecord* record,
       len_ok= column->get_var_length(keyRecordData, len);
     }
     if (!len_ok) {
-      set_error(4209);
+      m_impl.setError(4209, __LINE__);
       return -1;
     }
   }
@@ -439,7 +105,7 @@ NdbIndexStat::addKeyPartInfo(const NdbRecord* record,
   {
     /* Something wrong, key data would be too big */
     /* Key size is limited to 4092 bytes */
-    set_error(4207);
+    m_impl.setError(4207, __LINE__);
     return -1;
   }
 
@@ -470,12 +136,8 @@ NdbIndexStat::records_in_range(const NdbDictionary::Index* index,
   Uint32 key1[BoundBufWords], keylen1;
   Uint32 key2[BoundBufWords], keylen2;
 
-  if (m_cache == NULL)
-    flags |= RR_UseDb | RR_NoUpdate;
-  else if (m_area[0].m_entries == 0 || m_area[1].m_entries == 0)
-    flags |= RR_UseDb;
-
-  if ((flags & (RR_UseDb | RR_NoUpdate)) != (RR_UseDb | RR_NoUpdate)) {
+  if (true)
+  {
     // get start and end key from NdbIndexBound, using NdbRecord to 
     // get values into a standard format.
     Uint32 maxBoundParts= (ib->low_key_count > ib->high_key_count) ? 
@@ -527,7 +189,8 @@ NdbIndexStat::records_in_range(const NdbDictionary::Index* index,
     }
   }
 
-  if (flags & RR_UseDb) {
+  if (true)
+  {
     Uint32 out[4] = { 0, 0, 0, 0 };  // rows, in, before, after
     float tot[4] = { 0, 0, 0, 0 };   // totals of above
     int cnt, ret;
@@ -540,8 +203,8 @@ NdbIndexStat::records_in_range(const NdbDictionary::Index* index,
     if ((code.interpret_exit_last_row() != 0) ||
         (code.finalise() != 0))
     {
-      m_error= code.getNdbError();
-      DBUG_PRINT("error", ("code: %d", m_error.code));
+      m_impl.setError(code.getNdbError().code, __LINE__);
+      DBUG_PRINT("error", ("code: %d", code.getNdbError().code));
       DBUG_RETURN(-1);
     }
 
@@ -577,14 +240,14 @@ NdbIndexStat::records_in_range(const NdbDictionary::Index* index,
                               &options,
                               sizeof(NdbScanOperation::ScanOptions))))
     {
-      m_error= trans->getNdbError();
-      DBUG_PRINT("error", ("scanIndex : %d", m_error.code));
+      m_impl.setError(trans->getNdbError().code, __LINE__);
+      DBUG_PRINT("error", ("scanIndex : %d", trans->getNdbError().code));
       DBUG_RETURN(-1);
     }
 
     if (trans->execute(NdbTransaction::NoCommit,
                        NdbOperation::AbortOnError, forceSend) == -1) {
-      m_error = trans->getNdbError();
+      m_impl.setError(trans->getNdbError().code, __LINE__);
       DBUG_PRINT("error", ("trans:%d op:%d", trans->getNdbError().code,
                            op->getNdbError().code));
       DBUG_RETURN(-1);
@@ -602,35 +265,13 @@ NdbIndexStat::records_in_range(const NdbDictionary::Index* index,
       cnt++;
     }
     if (ret == -1) {
-      m_error = op->getNdbError();
+      m_impl.setError(op->getNdbError().code, __LINE__);
       DBUG_PRINT("error nextResult ", ("trans:%d op:%d", trans->getNdbError().code,
                            op->getNdbError().code));
       DBUG_RETURN(-1);
     }
     op->close(forceSend);
     rows = (Uint64)tot[1];
-    if (cnt != 0 && ! (flags & RR_NoUpdate)) {
-      float pct[2];
-      pct[0] = 100 * tot[2] / tot[0];
-      pct[1] = 100 * tot[3] / tot[0];
-      DBUG_PRINT("info", ("update stat pct"
-                          " before=%.2f after=%.2f",
-                          pct[0], pct[1]));
-      stat_update(key1, keylen1, key2, keylen2, pct);
-    }
-  } else {
-      float pct[2];
-      stat_select(key1, keylen1, key2, keylen2, pct);
-      float diff = (float)100.0 - (pct[0] + pct[1]);
-      float trows = (float)table_rows;
-      DBUG_PRINT("info", ("select stat pct"
-                          " before=%.2f after=%.2f in=%.2f table_rows=%.2f",
-                          pct[0], pct[1], diff, trows));
-      rows = 0;
-      if (diff >= 0)
-        rows = (Uint64)(diff * trows / 100);
-      if (rows == 0)
-        rows = 1;
   }
 
   *count = rows;
@@ -639,14 +280,424 @@ NdbIndexStat::records_in_range(const NdbDictionary::Index* index,
   DBUG_RETURN(0);
 }
 
-void
-NdbIndexStat::set_error(int code)
+// stored stats
+
+int
+NdbIndexStat::create_systables(Ndb* ndb)
 {
-  m_error.code = code;
+  DBUG_ENTER("NdbIndexStat::create_systables");
+  if (m_impl.create_systables(ndb) == -1)
+    DBUG_RETURN(-1);
+  DBUG_RETURN(0);
 }
 
-const NdbError&
+int
+NdbIndexStat::drop_systables(Ndb* ndb)
+{
+  DBUG_ENTER("NdbIndexStat::drop_systables");
+  if (m_impl.drop_systables(ndb) == -1)
+    DBUG_RETURN(-1);
+  DBUG_RETURN(0);
+}
+
+int
+NdbIndexStat::check_systables(Ndb* ndb)
+{
+  DBUG_ENTER("NdbIndexStat::check_systables");
+  if (m_impl.check_systables(ndb) == -1)
+    DBUG_RETURN(-1);
+  DBUG_RETURN(0);
+}
+
+int
+NdbIndexStat::set_index(const NdbDictionary::Index& index,
+                        const NdbDictionary::Table& table)
+{
+  DBUG_ENTER("NdbIndexStat::set_index");
+  if (m_impl.set_index(index, table) == -1)
+    DBUG_RETURN(-1);
+  m_impl.m_facadeHead.m_indexId = index.getObjectId();
+  m_impl.m_facadeHead.m_indexVersion = index.getObjectVersion();
+  m_impl.m_facadeHead.m_tableId = table.getObjectId();
+  DBUG_RETURN(0);
+}
+
+void
+NdbIndexStat::reset_index()
+{
+  DBUG_ENTER("NdbIndexStat::reset_index");
+  m_impl.reset_index();
+  DBUG_VOID_RETURN;
+}
+
+int
+NdbIndexStat::update_stat(Ndb* ndb)
+{
+  DBUG_ENTER("NdbIndexStat::update_stat");
+  if (m_impl.update_stat(ndb, m_impl.m_facadeHead) == -1)
+    DBUG_RETURN(-1);
+  DBUG_RETURN(0);
+}
+
+int
+NdbIndexStat::delete_stat(Ndb* ndb)
+{
+  DBUG_ENTER("NdbIndexStat::delete_stat");
+  if (m_impl.delete_stat(ndb, m_impl.m_facadeHead) == -1)
+    DBUG_RETURN(-1);
+  DBUG_RETURN(0);
+}
+
+// cache
+
+void
+NdbIndexStat::move_cache()
+{
+  DBUG_ENTER("NdbIndexStat::move_cache");
+  m_impl.move_cache();
+  DBUG_VOID_RETURN;
+}
+
+void
+NdbIndexStat::clean_cache()
+{
+  DBUG_ENTER("NdbIndexStat::clean_cache");
+  m_impl.clean_cache();
+  DBUG_VOID_RETURN;
+}
+
+void
+NdbIndexStat::get_cache_info(CacheInfo& info, CacheType type) const
+{
+  const NdbIndexStatImpl::Cache* c = 0;
+  switch (type) {
+  case CacheBuild:
+    c = m_impl.m_cacheBuild;
+    break;
+  case CacheQuery:
+    c = m_impl.m_cacheQuery;
+    break;
+  case CacheClean:
+    c = m_impl.m_cacheClean;
+    break;
+  }
+  info.m_count = 0;
+  info.m_valid = 0;
+  info.m_sampleCount = 0;
+  info.m_totalBytes = 0;
+  info.m_save_time = 0;
+  info.m_sort_time = 0;
+  while (c != 0)
+  {
+    info.m_count += 1;
+    info.m_valid += c->m_valid;
+    info.m_sampleCount += c->m_sampleCount;
+    info.m_totalBytes += c->m_keyBytes + c->m_valueBytes + c->m_addrBytes;
+    info.m_save_time += (Uint64)c->m_save_time;
+    info.m_sort_time += (Uint64)c->m_sort_time;
+    c = c->m_nextClean;
+  }
+  // build and query cache have at most one instance
+  require(type == CacheClean || info.m_count <= 1);
+}
+
+// read
+
+void
+NdbIndexStat::get_head(Head& head) const
+{
+  head = m_impl.m_facadeHead;
+}
+
+int
+NdbIndexStat::read_head(Ndb* ndb)
+{
+  DBUG_ENTER("NdbIndexStat::read_head");
+  if (m_impl.read_head(ndb, m_impl.m_facadeHead) == -1)
+    DBUG_RETURN(-1);
+  DBUG_RETURN(0);
+}
+
+int
+NdbIndexStat::read_stat(Ndb* ndb)
+{
+  DBUG_ENTER("NdbIndexStat::read_stat");
+  if (m_impl.read_stat(ndb, m_impl.m_facadeHead) == -1)
+    DBUG_RETURN(-1);
+  DBUG_RETURN(0);
+}
+
+// bound
+
+NdbIndexStat::Bound::Bound(const NdbIndexStat* is, void* buffer)
+{
+  DBUG_ENTER("NdbIndexStat::Bound::Bound");
+  require(is != 0 && is->m_impl.m_indexSet);
+  require(buffer != 0);
+  Uint8* buf = (Uint8*)buffer;
+  // bound impl
+  Uint8* buf1 = buf;
+  UintPtr ubuf1 = (UintPtr)buf1;
+  if (ubuf1 % 8 != 0)
+    buf1 += (8 - ubuf1 % 8);
+  new (buf1) NdbIndexStatImpl::Bound(is->m_impl.m_keySpec);
+  m_impl = (void*)buf1;
+  NdbIndexStatImpl::Bound& bound = *(NdbIndexStatImpl::Bound*)m_impl;
+  // bound data
+  Uint8* buf2 = buf1 + sizeof(NdbIndexStatImpl::Bound);
+  uint used = (uint)(buf2 - buf);
+  uint bytes = BoundBufferBytes - used;
+  bound.m_data.set_buf(buf2, bytes);
+  DBUG_VOID_RETURN;
+}
+
+int
+NdbIndexStat::add_bound(Bound& bound_f, const void* value)
+{
+  DBUG_ENTER("NdbIndexStat::add_bound");
+  NdbIndexStatImpl::Bound& bound =
+    *(NdbIndexStatImpl::Bound*)bound_f.m_impl;
+  Uint32 len_out;
+  if (value == 0)
+  {
+    m_impl.setError(UsageError, __LINE__);
+    DBUG_RETURN(-1);
+  }
+  if (bound.m_data.add(value, &len_out) == -1)
+  {
+    m_impl.setError(UsageError, __LINE__);
+    DBUG_RETURN(-1);
+  }
+  DBUG_RETURN(0);
+}
+
+int
+NdbIndexStat::add_bound_null(Bound& bound_f)
+{
+  DBUG_ENTER("NdbIndexStat::add_bound_null");
+  NdbIndexStatImpl::Bound& bound =
+    *(NdbIndexStatImpl::Bound*)bound_f.m_impl;
+  Uint32 len_out;
+  if (bound.m_data.add_null(&len_out) == -1)
+  {
+    m_impl.setError(UsageError, __LINE__);
+    DBUG_RETURN(-1);
+  }
+  DBUG_RETURN(0);
+}
+
+void
+NdbIndexStat::set_bound_strict(Bound& bound_f, int strict)
+{
+  DBUG_ENTER("NdbIndexStat::set_bound_strict");
+  NdbIndexStatImpl::Bound& bound =
+    *(NdbIndexStatImpl::Bound*)bound_f.m_impl;
+  bound.m_strict = strict;
+  DBUG_VOID_RETURN;
+}
+
+void
+NdbIndexStat::reset_bound(Bound& bound_f)
+{
+  DBUG_ENTER("NdbIndexStat::reset_bound");
+  NdbIndexStatImpl::Bound& bound =
+    *(NdbIndexStatImpl::Bound*)bound_f.m_impl;
+  bound.m_bound.reset();
+  bound.m_type = -1;
+  bound.m_strict = -1;
+  DBUG_VOID_RETURN;
+}
+
+// range
+
+NdbIndexStat::Range::Range(Bound& bound1, Bound& bound2) :
+  m_bound1(bound1),
+  m_bound2(bound2)
+{
+  DBUG_ENTER("NdbIndexStat::Range::Range");
+  DBUG_VOID_RETURN;
+}
+
+int
+NdbIndexStat::finalize_range(Range& range_f)
+{
+  DBUG_ENTER("NdbIndexStat::finalize_range");
+  Bound& bound1_f = range_f.m_bound1;
+  Bound& bound2_f = range_f.m_bound2;
+  NdbIndexStatImpl::Bound& bound1 =
+    *(NdbIndexStatImpl::Bound*)bound1_f.m_impl;
+  NdbIndexStatImpl::Bound& bound2 =
+    *(NdbIndexStatImpl::Bound*)bound2_f.m_impl;
+  NdbIndexStatImpl::Range range(bound1, bound2);
+  if (m_impl.finalize_range(range) == -1)
+    DBUG_RETURN(-1);
+  DBUG_RETURN(0);
+}
+
+void
+NdbIndexStat::reset_range(Range& range)
+{
+  DBUG_ENTER("NdbIndexStat::reset_range");
+  reset_bound(range.m_bound1);
+  reset_bound(range.m_bound2);
+  DBUG_VOID_RETURN;
+}
+
+int
+NdbIndexStat::convert_range(Range& range_f,
+                            const NdbRecord* key_record,
+                            const NdbIndexScanOperation::IndexBound* ib)
+{
+  DBUG_ENTER("NdbIndexStatImpl::convert_range");
+  Bound& bound1_f = range_f.m_bound1;
+  Bound& bound2_f = range_f.m_bound2;
+  NdbIndexStatImpl::Bound& bound1 =
+    *(NdbIndexStatImpl::Bound*)bound1_f.m_impl;
+  NdbIndexStatImpl::Bound& bound2 =
+    *(NdbIndexStatImpl::Bound*)bound2_f.m_impl;
+  NdbIndexStatImpl::Range range(bound1, bound2);
+  if (m_impl.convert_range(range, key_record, ib) == -1)
+    DBUG_RETURN(-1);
+  DBUG_RETURN(0);
+}
+
+// stat
+
+NdbIndexStat::Stat::Stat(void* buffer)
+{
+  DBUG_ENTER("NdbIndexStat::Stat::Stat");
+  require(buffer != 0);
+  Uint8* buf = (Uint8*)buffer;
+  // stat impl
+  Uint8* buf1 = buf;
+  UintPtr ubuf1 = (UintPtr)buf1;
+  if (ubuf1 % 8 != 0)
+    buf1 += (8 - ubuf1 % 8);
+  new (buf1) NdbIndexStatImpl::Stat;
+  m_impl = (void*)buf1;
+  DBUG_VOID_RETURN;
+}
+
+int
+NdbIndexStat::query_stat(const Range& range_f, Stat& stat_f)
+{
+  DBUG_ENTER("NdbIndexStat::query_stat");
+  Bound& bound1_f = range_f.m_bound1;
+  Bound& bound2_f = range_f.m_bound2;
+  NdbIndexStatImpl::Bound& bound1 =
+    *(NdbIndexStatImpl::Bound*)bound1_f.m_impl;
+  NdbIndexStatImpl::Bound& bound2 =
+    *(NdbIndexStatImpl::Bound*)bound2_f.m_impl;
+  NdbIndexStatImpl::Range range(bound1, bound2);
+#ifndef DBUG_OFF
+  const uint sz = 8000;
+  char buf[sz];
+  DBUG_PRINT("index_stat", ("lo: %s", bound1.m_bound.print(buf, sz)));
+  DBUG_PRINT("index_stat", ("hi: %s", bound2.m_bound.print(buf, sz)));
+#endif
+  NdbIndexStatImpl::Stat& stat =
+    *(NdbIndexStatImpl::Stat*)stat_f.m_impl;
+  if (m_impl.query_stat(range, stat) == -1)
+    DBUG_RETURN(-1);
+  DBUG_RETURN(0);
+}
+
+void
+NdbIndexStat::get_empty(const Stat& stat_f, bool* empty)
+{
+  DBUG_ENTER("NdbIndexStat::get_empty");
+  const NdbIndexStatImpl::Stat& stat =
+    *(const NdbIndexStatImpl::Stat*)stat_f.m_impl;
+  require(empty != 0);
+  *empty = stat.m_value.m_empty;
+  DBUG_PRINT("index_stat", ("empty:%d", *empty));
+  DBUG_VOID_RETURN;
+}
+
+void
+NdbIndexStat::get_rir(const Stat& stat_f, double* rir)
+{
+  DBUG_ENTER("NdbIndexStat::get_rir");
+  const NdbIndexStatImpl::Stat& stat =
+    *(const NdbIndexStatImpl::Stat*)stat_f.m_impl;
+  double x = stat.m_value.m_rir;
+  if (x < 1.0)
+    x = 1.0;
+  require(rir != 0);
+  *rir = x;
+  DBUG_PRINT("index_stat", ("rir:%.2f", *rir));
+  DBUG_VOID_RETURN;
+}
+
+void
+NdbIndexStat::get_rpk(const Stat& stat_f, Uint32 k, double* rpk)
+{
+  DBUG_ENTER("NdbIndexStat::get_rpk");
+  const NdbIndexStatImpl::Stat& stat =
+    *(const NdbIndexStatImpl::Stat*)stat_f.m_impl;
+  double x = stat.m_value.m_rir / stat.m_value.m_unq[k];
+  if (x < 1.0)
+    x = 1.0;
+  require(rpk != 0);
+  *rpk = x;
+  DBUG_PRINT("index_stat", ("rpk[%u]:%.2f", k, *rpk));
+  DBUG_VOID_RETURN;
+}
+
+void
+NdbIndexStat::get_rule(const Stat& stat_f, char* buffer)
+{
+  DBUG_ENTER("NdbIndexStat::get_rule");
+  const NdbIndexStatImpl::Stat& stat =
+    *(const NdbIndexStatImpl::Stat*)stat_f.m_impl;
+  require(buffer != 0);
+  BaseString::snprintf(buffer, RuleBufferBytes, "%s/%s/%s",
+                       stat.m_rule[0], stat.m_rule[1], stat.m_rule[2]);
+  DBUG_VOID_RETURN;
+}
+
+// mem
+
+NdbIndexStat::Mem::Mem()
+{
+}
+
+NdbIndexStat::Mem::~Mem()
+{
+}
+
+void
+NdbIndexStat::set_mem_handler(Mem* mem)
+{
+  m_impl.m_mem_handler = mem;
+}
+
+// get impl
+
+NdbIndexStatImpl&
+NdbIndexStat::getImpl()
+{
+  return m_impl;
+}
+
+// error
+
+NdbIndexStat::Error::Error()
+{
+  line = 0;
+  extra = 0;
+}
+
+const NdbIndexStat::Error&
 NdbIndexStat::getNdbError() const
 {
-  return m_error;
+  return m_impl.getNdbError();
+}
+
+class NdbOut&
+operator<<(class NdbOut& out, const NdbIndexStat::Error& error)
+{
+  out << static_cast<const NdbError&>(error);
+  out << " (line " << error.line << ", extra " << error.extra << ")";
+  return out;
 }

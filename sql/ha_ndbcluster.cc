@@ -2248,7 +2248,7 @@ int ha_ndbcluster::add_index_handle(THD *thd, NDBDICT *dict, KEY *key_info,
     d.index_stat=NULL;
     if (THDVAR(thd, index_stat_enable))
     {
-      d.index_stat=new NdbIndexStat(index);
+      d.index_stat=new NdbIndexStat();
       d.index_stat_cache_entries= THDVAR(thd, index_stat_cache_entries);
       d.index_stat_update_freq= THDVAR(thd, index_stat_update_freq);
       d.index_stat_query_count=0;
