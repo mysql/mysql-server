@@ -3895,19 +3895,6 @@ select_create::prepare(List<Item> &values, SELECT_LEX_UNIT *u)
   hook_ptr= &hooks;
 
   unit= u;
-
-  /*
-    Start a statement transaction before the create if we are using
-    row-based replication for the statement.  If we are creating a
-    temporary table, we need to start a statement transaction.
-  */
-  if ((thd->lex->create_info.options & HA_LEX_CREATE_TMP_TABLE) == 0 &&
-      thd->is_current_stmt_binlog_format_row() &&
-      mysql_bin_log.is_open())
-  {
-    thd->binlog_start_trans_and_stmt();
-  }
-
   DBUG_ASSERT(create_table->table == NULL);
 
   DBUG_EXECUTE_IF("sleep_create_select_before_check_if_exists", my_sleep(6000000););

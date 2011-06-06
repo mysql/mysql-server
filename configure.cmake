@@ -52,6 +52,10 @@ IF(NOT SYSTEM_TYPE)
   ENDIF()
 ENDIF()
 
+# As a consequence of ALARMs no longer being used, thread
+# notification for KILL must close the socket to wake up
+# other threads.
+SET(SIGNAL_WITH_VIO_CLOSE 1)
 
 # Always enable -Wall for gnu C/C++
 IF(CMAKE_COMPILER_IS_GNUCXX)
@@ -913,52 +917,6 @@ CHECK_CXX_SOURCE_COMPILES("
     }
   "
   HAVE_SOLARIS_STYLE_GETHOST)
-
-# Use of ALARMs to wakeup on timeout on sockets
-#
-# This feature makes use of a mutex and is a scalability hog we
-# try to avoid using. However we need support for SO_SNDTIMEO and
-# SO_RCVTIMEO socket options for this to work. So we will check
-# if this feature is supported by a simple TRY_RUN macro. However
-# on some OS's there is support for setting those variables but
-# they are silently ignored. For those OS's we will not attempt
-# to use SO_SNDTIMEO and SO_RCVTIMEO even if it is said to work.
-# See Bug#29093 for the problem with SO_SND/RCVTIMEO on HP/UX.
-# To use alarm is simple, simply avoid setting anything.
-
-IF(WIN32)
-  SET(HAVE_SOCKET_TIMEOUT 1)
-ELSEIF(CMAKE_SYSTEM MATCHES "HP-UX")
-  SET(HAVE_SOCKET_TIMEOUT 0)
-ELSEIF(CMAKE_CROSSCOMPILING)
-  SET(HAVE_SOCKET_TIMEOUT 0)
-ELSE()
-SET(CMAKE_REQUIRED_LIBRARIES ${LIBNSL} ${LIBSOCKET}) 
-CHECK_C_SOURCE_RUNS(
-"
- #include <sys/types.h>
- #include <sys/socket.h>
- #include <sys/time.h>
- 
- int main()
- {    
-   int fd = socket(AF_INET, SOCK_STREAM, 0);
-   struct timeval tv;
-   int ret= 0;
-   tv.tv_sec= 2;
-   tv.tv_usec= 0;
-   ret|= setsockopt(fd, SOL_SOCKET, SO_SNDTIMEO, &tv, sizeof(tv));
-   ret|= setsockopt(fd, SOL_SOCKET, SO_RCVTIMEO, &tv, sizeof(tv));
-   return !!ret;
- }
-" HAVE_SOCKET_TIMEOUT)
-ENDIF()
-
-SET(NO_ALARM "${HAVE_SOCKET_TIMEOUT}" CACHE BOOL 
-   "No need to use alarm to implement socket timeout")
-SET(SIGNAL_WITH_VIO_CLOSE "${HAVE_SOCKET_TIMEOUT}")
-MARK_AS_ADVANCED(NO_ALARM)
-
 
 IF(CMAKE_COMPILER_IS_GNUCXX)
 IF(WITH_ATOMIC_OPS STREQUAL "up")

@@ -300,6 +300,10 @@ SELECT * FROM t1;
 --echo # Connection con1
 --connection con1
 SET lock_wait_timeout=1;
+# Test with two timeouts, as the first version of this patch
+# only worked with one timeout.
+--error ER_LOCK_WAIT_TIMEOUT
+ALTER TABLE t1 ADD INDEX idx(value);
 --error ER_LOCK_WAIT_TIMEOUT
 ALTER TABLE t1 ADD INDEX idx(value);
 

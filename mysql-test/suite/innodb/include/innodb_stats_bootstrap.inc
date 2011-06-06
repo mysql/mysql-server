@@ -1,9 +1,8 @@
 -- disable_warnings
 -- disable_query_log
-DROP DATABASE IF EXISTS innodb;
-CREATE DATABASE innodb;
 
-CREATE TABLE innodb.table_stats (
+DROP TABLE IF EXISTS mysql.innodb_table_stats;
+CREATE TABLE mysql.innodb_table_stats (
 	database_name			VARCHAR(64) NOT NULL,
 	table_name			VARCHAR(64) NOT NULL,
 	stats_timestamp			TIMESTAMP NOT NULL,
@@ -13,7 +12,8 @@ CREATE TABLE innodb.table_stats (
 	PRIMARY KEY (database_name, table_name)
 ) ENGINE=INNODB DEFAULT CHARSET=utf8;
 
-CREATE TABLE innodb.index_stats (
+DROP TABLE IF EXISTS mysql.innodb_index_stats;
+CREATE TABLE mysql.innodb_index_stats (
 	database_name			VARCHAR(64) NOT NULL,
 	table_name			VARCHAR(64) NOT NULL,
 	index_name			VARCHAR(64) NOT NULL,
@@ -28,7 +28,7 @@ CREATE TABLE innodb.index_stats (
 	stat_description		VARCHAR(1024) NOT NULL,
 	PRIMARY KEY (database_name, table_name, index_name, stat_name),
 	FOREIGN KEY (database_name, table_name)
-	  REFERENCES table_stats (database_name, table_name)
+	  REFERENCES mysql.innodb_table_stats (database_name, table_name)
 ) ENGINE=INNODB DEFAULT CHARSET=utf8;
 
 -- enable_warnings

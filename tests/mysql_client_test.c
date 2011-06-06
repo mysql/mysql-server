@@ -19594,6 +19594,46 @@ static void test_bug11766854()
 }
 
 
+/**
+  Bug#54790: Use of non-blocking mode for sockets limits performance
+*/
+
+static void test_bug54790()
+{
+  int rc;
+  MYSQL *lmysql;
+  uint timeout= 2;
+
+  DBUG_ENTER("test_bug54790");
+  myheader("test_bug54790");
+
+  lmysql= mysql_client_init(NULL);
+  DIE_UNLESS(lmysql);
+
+  rc= mysql_options(lmysql, MYSQL_OPT_READ_TIMEOUT, &timeout);
+  DIE_UNLESS(!rc);
+
+  if (!mysql_real_connect(lmysql, opt_host, opt_user, opt_password,
+                          opt_db ? opt_db : "test", opt_port,
+                          opt_unix_socket, 0))
+  {
+    mysql= lmysql;
+    myerror("mysql_real_connect failed");
+    mysql_close(lmysql);
+    exit(1);
+  }
+
+  rc= mysql_query(lmysql, "SELECT SLEEP(100);");
+  myquery_r(rc);
+
+  /* A timeout error (ER_NET_READ_INTERRUPTED) would be more appropriate. */
+  DIE_UNLESS(mysql_errno(lmysql) == CR_SERVER_LOST);
+
+  mysql_close(lmysql);
+
+  DBUG_VOID_RETURN;
+}
+
 /*
   Read and parse arguments and MySQL options from my.cnf
 */
@@ -19938,6 +19978,7 @@ static struct my_tests_st my_tests[]= {
   { "test_bug57058", test_bug57058 },
   { "test_bug56976", test_bug56976 },
   { "test_bug11766854", test_bug11766854 },
+  { "test_bug54790", test_bug54790 },
   { 0, 0 }
 };
 

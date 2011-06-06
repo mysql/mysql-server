@@ -783,7 +783,6 @@ int vio_io_wait(Vio *vio, enum enum_vio_io_event event, int timeout)
   }
 
   MYSQL_END_SOCKET_WAIT(locker, 0);
-
   DBUG_RETURN(ret);
 }
 

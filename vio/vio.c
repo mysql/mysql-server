@@ -237,7 +237,6 @@ Vio *vio_new(my_socket sd, enum enum_vio_type type, uint flags)
   DBUG_RETURN(vio);
 }
 
-
 #ifdef _WIN32
 
 Vio *vio_new_win32pipe(HANDLE hPipe)

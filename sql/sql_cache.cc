@@ -275,14 +275,14 @@ functions:
        - Called before parsing and used to match a statement with the stored
          queries hash.
          If a match is found the cached result set is sent through repeated
-         calls to net_real_write. (note: calling thread doesn't have a regis-
+         calls to net_write_packet. (note: calling thread doesn't have a regis-
          tered result set writer: thd->net.query_cache_query=0)
  2. Query_cache::store_query
        - Called just before handle_select() and is used to register a result
          set writer to the statement currently being processed
          (thd->net.query_cache_query).
  3. query_cache_insert
-       - Called from net_real_write to append a result set to a cached query
+       - Called from net_write_packet to append a result set to a cached query
          if (and only if) this query has a registered result set writer
          (thd->net.query_cache_query).
  4. Query_cache::invalidate
@@ -1407,12 +1407,12 @@ send_data_in_chunks(NET *net, const uchar *packet, ulong len)
 
   while (len > MAX_CHUNK_LENGTH)
   {
-    if (net_real_write(net, packet, MAX_CHUNK_LENGTH))
+    if (net_write_packet(net, packet, MAX_CHUNK_LENGTH))
       return TRUE;
     packet+= MAX_CHUNK_LENGTH;
     len-= MAX_CHUNK_LENGTH;
   }
-  if (len && net_real_write(net, packet, len))
+  if (len && net_write_packet(net, packet, len))
     return TRUE;
 
   return FALSE;
