@@ -226,7 +226,7 @@ public:
       {
         my_free(ptr->fname);
         delete ptr->event;
-        bzero((char *)ptr, sizeof(File_name_record));
+        memset(ptr, 0, sizeof(File_name_record));
       }
     }
 
@@ -257,7 +257,7 @@ public:
         return 0;
       ptr= dynamic_element(&file_names, file_id, File_name_record*);
       if ((res= ptr->event))
-        bzero((char *)ptr, sizeof(File_name_record));
+        memset(ptr, 0, sizeof(File_name_record));
       return res;
     }
 
@@ -287,7 +287,7 @@ public:
       if (!ptr->event)
       {
         res= ptr->fname;
-        bzero((char *)ptr, sizeof(File_name_record));
+        memset(ptr, 0, sizeof(File_name_record));
       }
       return res;
     }
@@ -1037,7 +1037,7 @@ static struct my_option my_long_options[] =
    0, GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0},
   {"default_auth", OPT_DEFAULT_AUTH,
    "Default authentication client-side plugin to use.",
-   (uchar**) &opt_default_auth, (uchar**) &opt_default_auth, 0,
+   &opt_default_auth, &opt_default_auth, 0,
    GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
   {"disable-log-bin", 'D', "Disable binary log. This is useful, if you "
     "enabled --to-last-log and are sending the output to the same MySQL server. "
@@ -1065,7 +1065,7 @@ static struct my_option my_long_options[] =
   {"password", 'p', "Password to connect to remote server.",
    0, 0, 0, GET_STR, OPT_ARG, 0, 0, 0, 0, 0, 0},
   {"plugin_dir", OPT_PLUGIN_DIR, "Directory for client-side plugins.",
-   (uchar**) &opt_plugin_dir, (uchar**) &opt_plugin_dir, 0,
+    &opt_plugin_dir, &opt_plugin_dir, 0,
    GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
   {"port", 'P', "Port number to use for connection or 0 for default to, in "
    "order of preference, my.cnf, $MYSQL_TCP_PORT, "

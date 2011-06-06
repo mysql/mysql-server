@@ -303,8 +303,8 @@ main(int argc, char **argv  __attribute__((unused)))
     exit(EXIT_FAILURE);
   }
   
-  bzero((void*)&ncs,sizeof(ncs));
-  bzero((void*)&all_charsets,sizeof(all_charsets));
+  memset(&ncs, 0, sizeof(ncs));
+  memset(&all_charsets, 0, sizeof(all_charsets));
   
   sprintf(filename,"%s/%s",argv[1],"Index.xml");
   my_read_charset_file(filename);

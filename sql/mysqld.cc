@@ -159,12 +159,12 @@ extern int memcntl(caddr_t, size_t, int, caddr_t, int, int);
 int initgroups(const char *,unsigned int);
 #endif
 
-#if defined(__FreeBSD__) && defined(HAVE_IEEEFP_H)
+#if defined(__FreeBSD__) && defined(HAVE_IEEEFP_H) && !defined(HAVE_FEDISABLEEXCEPT)
 #include <ieeefp.h>
 #ifdef HAVE_FP_EXCEPT				// Fix type conflict
 typedef fp_except fp_except_t;
 #endif
-#endif /* __FreeBSD__ && HAVE_IEEEFP_H */
+#endif /* __FreeBSD__ && HAVE_IEEEFP_H && !HAVE_FEDISABLEEXCEPT */
 #ifdef HAVE_SYS_FPU_H
 /* for IRIX to use set_fpc_csr() */
 #include <sys/fpu.h>
@@ -190,19 +190,24 @@ extern "C" my_bool reopen_fstreams(const char *filename,
 
 inline void setup_fpu()
 {
-#if defined(__FreeBSD__) && defined(HAVE_IEEEFP_H)
+#if defined(__FreeBSD__) && defined(HAVE_IEEEFP_H) && !defined(HAVE_FEDISABLEEXCEPT)
   /* We can't handle floating point exceptions with threads, so disable
      this on freebsd
-     Don't fall for overflow, underflow,divide-by-zero or loss of precision
+     Don't fall for overflow, underflow,divide-by-zero or loss of precision.
+     fpsetmask() is deprecated in favor of fedisableexcept() in C99.
   */
-#if defined(__i386__)
+#if defined(FP_X_DNML)
   fpsetmask(~(FP_X_INV | FP_X_DNML | FP_X_OFL | FP_X_UFL | FP_X_DZ |
 	      FP_X_IMP));
 #else
   fpsetmask(~(FP_X_INV |             FP_X_OFL | FP_X_UFL | FP_X_DZ |
               FP_X_IMP));
-#endif /* __i386__ */
-#endif /* __FreeBSD__ && HAVE_IEEEFP_H */
+#endif /* FP_X_DNML */
+#endif /* __FreeBSD__ && HAVE_IEEEFP_H && !HAVE_FEDISABLEEXCEPT */
+
+#ifdef HAVE_FEDISABLEEXCEPT
+  fedisableexcept(FE_ALL_EXCEPT);
+#endif
 
 #ifdef HAVE_FESETROUND
     /* Set FPU rounding mode to "round-to-nearest" */
@@ -417,7 +422,7 @@ my_bool opt_super_large_pages= 0;
 my_bool opt_myisam_use_mmap= 0;
 uint   opt_large_page_size= 0;
 #if defined(ENABLED_DEBUG_SYNC)
-uint    opt_debug_sync_timeout= 0;
+MYSQL_PLUGIN_IMPORT uint    opt_debug_sync_timeout= 0;
 #endif /* defined(ENABLED_DEBUG_SYNC) */
 my_bool opt_old_style_user_limits= 0, trust_function_creators= 0;
 /*
@@ -1787,7 +1792,7 @@ static void network_init(void)
     int error;
     DBUG_PRINT("general",("IP Socket is %d",mysqld_port));
 
-    bzero(&hints, sizeof (hints));
+    memset(&hints, 0, sizeof (hints));
     hints.ai_flags= AI_PASSIVE;
     hints.ai_socktype= SOCK_STREAM;
     hints.ai_family= AF_UNSPEC;
@@ -1883,8 +1888,8 @@ static void network_init(void)
   {
     strxnmov(pipe_name, sizeof(pipe_name)-1, "\\\\.\\pipe\\",
 	     mysqld_unix_port, NullS);
-    bzero((char*) &saPipeSecurity, sizeof(saPipeSecurity));
-    bzero((char*) &sdPipeDescriptor, sizeof(sdPipeDescriptor));
+    memset(&saPipeSecurity, 0, sizeof(saPipeSecurity));
+    memset(&sdPipeDescriptor, 0, sizeof(sdPipeDescriptor));
     if (!InitializeSecurityDescriptor(&sdPipeDescriptor,
 				      SECURITY_DESCRIPTOR_REVISION))
     {
@@ -1942,7 +1947,7 @@ static void network_init(void)
       sql_perror("Can't start server : UNIX Socket "); /* purecov: inspected */
       unireg_abort(1);				/* purecov: inspected */
     }
-    bzero((char*) &UNIXaddr, sizeof(UNIXaddr));
+    memset(&UNIXaddr, 0, sizeof(UNIXaddr));
     UNIXaddr.sun_family = AF_UNIX;
     strmov(UNIXaddr.sun_path, mysqld_unix_port);
     (void) unlink(mysqld_unix_port);
@@ -2020,6 +2025,49 @@ extern "C" sig_handler end_thread_signal(int sig __attribute__((unused)))
 
 
 /*
+  Cleanup THD object
+
+  SYNOPSIS
+    thd_cleanup()
+    thd		 Thread handler
+*/
+
+void thd_cleanup(THD *thd)
+{
+  thd->cleanup();
+}
+
+/*
+  Decrease number of connections
+
+  SYNOPSIS
+    dec_connection_count()
+*/
+
+void dec_connection_count()
+{
+  mysql_mutex_lock(&LOCK_connection_count);
+  --connection_count;
+  mysql_mutex_unlock(&LOCK_connection_count);
+}
+
+
+/*
+  Delete the THD object and decrease number of threads
+
+  SYNOPSIS
+    delete_thd()
+    thd		 Thread handler
+*/
+
+void delete_thd(THD *thd)
+{
+  thread_count--;
+  delete thd;
+}
+
+
+/*
   Unlink thd from global list of available connections and free thd
 
   SYNOPSIS
@@ -2034,15 +2082,17 @@ void unlink_thd(THD *thd)
 {
   DBUG_ENTER("unlink_thd");
   DBUG_PRINT("enter", ("thd: 0x%lx", (long) thd));
-  thd->cleanup();
 
-  mysql_mutex_lock(&LOCK_connection_count);
-  --connection_count;
-  mysql_mutex_unlock(&LOCK_connection_count);
-
+  thd_cleanup(thd);
+  dec_connection_count();
   mysql_mutex_lock(&LOCK_thread_count);
-  thread_count--;
-  delete thd;
+  /*
+    Used by binlog_reset_master.  It would be cleaner to use
+    DEBUG_SYNC here, but that's not possible because the THD's debug
+    sync feature has been shut down at this point.
+  */
+  DBUG_EXECUTE_IF("sleep_after_lock_thread_count_before_delete_thd", sleep(5););
+  delete_thd(thd);
   DBUG_VOID_RETURN;
 }
 
@@ -5250,6 +5300,14 @@ static bool read_init_file(char *file_name)
 }
 
 
+/**
+  Increment number of created threads
+*/
+void inc_thread_created(void)
+{
+  thread_created++;
+}
+
 #ifndef EMBEDDED_LIBRARY
 
 /*
@@ -7165,8 +7223,8 @@ static int mysql_init_variables(void)
   mysqld_user= mysqld_chroot= opt_init_file= opt_bin_logname = 0;
   prepared_stmt_count= 0;
   mysqld_unix_port= opt_mysql_tmpdir= my_bind_addr_str= NullS;
-  bzero((uchar*) &mysql_tmpdir_list, sizeof(mysql_tmpdir_list));
-  bzero((char *) &global_status_var, sizeof(global_status_var));
+  memset(&mysql_tmpdir_list, 0, sizeof(mysql_tmpdir_list));
+  memset(&global_status_var, 0, sizeof(global_status_var));
   opt_large_pages= 0;
   opt_super_large_pages= 0;
 #if defined(ENABLED_DEBUG_SYNC)
@@ -7512,7 +7570,7 @@ mysqld_get_one_option(int optid,
     {
       struct addrinfo *res_lst, hints;    
 
-      bzero(&hints, sizeof(struct addrinfo));
+      memset(&hints, 0, sizeof(struct addrinfo));
       hints.ai_socktype= SOCK_STREAM;
       hints.ai_protocol= IPPROTO_TCP;
 
@@ -8095,7 +8153,7 @@ void refresh_status(THD *thd)
   add_to_status(&global_status_var, &thd->status_var);
 
   /* Reset thread's status variables */
-  bzero((uchar*) &thd->status_var, sizeof(thd->status_var));
+  memset(&thd->status_var, 0, sizeof(thd->status_var));
 
   /* Reset some global variables */
   reset_status_vars();
@@ -8379,7 +8437,7 @@ PSI_stage_info stage_end= { 0, "end", 0};
 PSI_stage_info stage_executing= { 0, "executing", 0};
 PSI_stage_info stage_execution_of_init_command= { 0, "Execution of init_command", 0};
 PSI_stage_info stage_finished_reading_one_binlog_switching_to_next_binlog= { 0, "Finished reading one binlog; switching to next binlog", 0};
-PSI_stage_info stage_flushing_relay_log_and_master_info_files= { 0, "Flushing relay log and master info files.", 0};
+PSI_stage_info stage_flushing_relay_log_and_master_info_repository= { 0, "Flushing relay log and master info repository.", 0};
 PSI_stage_info stage_flushing_relay_log_info_file= { 0, "Flushing relay-log info file.", 0};
 PSI_stage_info stage_freeing_items= { 0, "freeing items", 0};
 PSI_stage_info stage_fulltext_initialization= { 0, "FULLTEXT initialization", 0};
@@ -8391,6 +8449,8 @@ PSI_stage_info stage_invalidating_query_cache_entries_table= { 0, "invalidating 
 PSI_stage_info stage_invalidating_query_cache_entries_table_list= { 0, "invalidating query cache entries (table list)", 0};
 PSI_stage_info stage_killing_slave= { 0, "Killing slave", 0};
 PSI_stage_info stage_logging_slow_query= { 0, "logging slow query", 0};
+PSI_stage_info stage_making_temp_file_append_before_load_data= { 0, "Making temporary file (append) before replaying LOAD DATA INFILE.", 0};
+PSI_stage_info stage_making_temp_file_create_before_load_data= { 0, "Making temporary file (create) before replaying LOAD DATA INFILE.", 0};
 PSI_stage_info stage_manage_keys= { 0, "manage keys", 0};
 PSI_stage_info stage_opening_tables= { 0, "Opening tables", 0};
 PSI_stage_info stage_optimizing= { 0, "optimizing", 0};
@@ -8415,6 +8475,7 @@ PSI_stage_info stage_sorting_for_group= { 0, "Sorting for group", 0};
 PSI_stage_info stage_sorting_for_order= { 0, "Sorting for order", 0};
 PSI_stage_info stage_sorting_result= { 0, "Sorting result", 0};
 PSI_stage_info stage_statistics= { 0, "statistics", 0};
+PSI_stage_info stage_sql_thd_waiting_until_delay= { 0, "Waiting until MASTER_DELAY seconds after master executed event", 0 };
 PSI_stage_info stage_storing_result_in_query_cache= { 0, "storing result in query cache", 0};
 PSI_stage_info stage_storing_row_into_queue= { 0, "storing row into queue", 0};
 PSI_stage_info stage_system_lock= { 0, "System lock", 0};
@@ -8468,7 +8529,7 @@ PSI_stage_info *all_server_stages[]=
   & stage_executing,
   & stage_execution_of_init_command,
   & stage_finished_reading_one_binlog_switching_to_next_binlog,
-  & stage_flushing_relay_log_and_master_info_files,
+  & stage_flushing_relay_log_and_master_info_repository,
   & stage_flushing_relay_log_info_file,
   & stage_freeing_items,
   & stage_fulltext_initialization,
@@ -8480,6 +8541,8 @@ PSI_stage_info *all_server_stages[]=
   & stage_invalidating_query_cache_entries_table_list,
   & stage_killing_slave,
   & stage_logging_slow_query,
+  & stage_making_temp_file_append_before_load_data,
+  & stage_making_temp_file_create_before_load_data,
   & stage_manage_keys,
   & stage_opening_tables,
   & stage_optimizing,
@@ -8503,6 +8566,7 @@ PSI_stage_info *all_server_stages[]=
   & stage_sorting_for_group,
   & stage_sorting_for_order,
   & stage_sorting_result,
+  & stage_sql_thd_waiting_until_delay,
   & stage_statistics,
   & stage_storing_result_in_query_cache,
   & stage_storing_row_into_queue,

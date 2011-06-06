@@ -773,7 +773,7 @@ bool mysql_insert(THD *thd,TABLE_LIST *table_list,
   /*
     Fill in the given fields and dump it to the table file
   */
-  bzero((char*) &info,sizeof(info));
+  memset(&info, 0, sizeof(info));
   info.ignore= ignore;
   info.handle_duplicates=duplic;
   info.update_fields= &update_fields;
@@ -979,11 +979,8 @@ bool mysql_insert(THD *thd,TABLE_LIST *table_list,
       query_cache_invalidate3(thd, table_list, 1);
     }
 
-    if (thd->transaction.stmt.modified_non_trans_table)
-      thd->transaction.all.modified_non_trans_table= TRUE;
-
     if (error <= 0 ||
-        thd->transaction.stmt.modified_non_trans_table ||
+        thd->transaction.stmt.cannot_safely_rollback() ||
         was_insert_delayed)
     {
       if (mysql_bin_log.is_open())
@@ -1044,7 +1041,7 @@ bool mysql_insert(THD *thd,TABLE_LIST *table_list,
       }
     }
     DBUG_ASSERT(transactional_table || !changed || 
-                thd->transaction.stmt.modified_non_trans_table);
+                thd->transaction.stmt.cannot_safely_rollback());
   }
   THD_STAGE_INFO(thd, stage_end);
   /*
@@ -1484,8 +1481,8 @@ static int last_uniq_key(TABLE *table,uint keynr)
     then both on update triggers will work instead. Similarly both on
     delete triggers will be invoked if we will delete conflicting records.
 
-    Sets thd->transaction.stmt.modified_non_trans_table to TRUE if table which is updated didn't have
-    transactions.
+    Call thd->transaction.stmt.mark_modified_non_trans_table() if table is a
+    non-transactional table.
 
   RETURN VALUE
     0     - success
@@ -1702,7 +1699,7 @@ int write_record(THD *thd, TABLE *table,COPY_INFO *info)
             goto err;
           info->deleted++;
           if (!table->file->has_transactions())
-            thd->transaction.stmt.modified_non_trans_table= TRUE;
+            thd->transaction.stmt.mark_modified_non_trans_table();
           if (table->triggers &&
               table->triggers->process_triggers(thd, TRG_EVENT_DELETE,
                                                 TRG_ACTION_AFTER, TRUE))
@@ -1754,7 +1751,7 @@ ok_or_after_trg_err:
   if (key)
     my_safe_afree(key,table->s->max_unique_length,MAX_KEY_LENGTH);
   if (!table->file->has_transactions())
-    thd->transaction.stmt.modified_non_trans_table= TRUE;
+    thd->transaction.stmt.mark_modified_non_trans_table();
   DBUG_RETURN(trg_error);
 
 err:
@@ -1917,11 +1914,11 @@ public:
     */
     thd.variables.lock_wait_timeout= LONG_TIMEOUT;
 
-    bzero((char*) &thd.net, sizeof(thd.net));		// Safety
-    bzero((char*) &table_list, sizeof(table_list));	// Safety
+    memset(&thd.net, 0, sizeof(thd.net));           // Safety
+    memset(&table_list, 0, sizeof(table_list));     // Safety
     thd.system_thread= SYSTEM_THREAD_DELAYED_INSERT;
     thd.security_ctx->host_or_ip= "";
-    bzero((char*) &info,sizeof(info));
+    memset(&info, 0, sizeof(info));
     mysql_mutex_init(key_delayed_insert_mutex, &mutex, MY_MUTEX_INIT_FAST);
     mysql_cond_init(key_delayed_insert_cond, &cond, NULL);
     mysql_cond_init(key_delayed_insert_cond_client, &cond_client, NULL);
@@ -1948,7 +1945,7 @@ public:
     mysql_cond_destroy(&cond);
     mysql_cond_destroy(&cond_client);
     thd.unlink();				// Must be unlinked under lock
-    my_free(thd.query());
+    my_free(table_list.table_name);
     thd.security_ctx->user= thd.security_ctx->host=0;
     thread_count--;
     delayed_insert_threads--;
@@ -2090,20 +2087,19 @@ bool delayed_get_table(THD *thd, MDL_request *grl_protection_request,
       mysql_mutex_lock(&LOCK_thread_count);
       thread_count++;
       mysql_mutex_unlock(&LOCK_thread_count);
+      di->table_list= *table_list;			// Needed to open table
+      /* Replace volatile strings with local copies */
       di->thd.set_db(table_list->db, (uint) strlen(table_list->db));
-      di->thd.set_query(my_strdup(table_list->table_name,
-                                  MYF(MY_WME | ME_FATALERROR)),
-                        0, system_charset_info);
+      di->table_list.alias= di->table_list.table_name=
+        my_strdup(table_list->table_name, MYF(MY_WME | ME_FATALERROR));
+      di->table_list.db= di->thd.db;
+      di->thd.set_query(di->table_list.table_name, 0, system_charset_info);
       if (di->thd.db == NULL || di->thd.query() == NULL)
       {
         /* The error is reported */
 	delete di;
         goto end_create;
       }
-      di->table_list= *table_list;			// Needed to open table
-      /* Replace volatile strings with local copies */
-      di->table_list.alias= di->table_list.table_name= di->thd.query();
-      di->table_list.db= di->thd.db;
       /* We need the tickets so that they can be cloned in handle_delayed_insert */
       di->grl_protection.init(MDL_key::GLOBAL, "", "",
                               MDL_INTENTION_EXCLUSIVE, MDL_STATEMENT);
@@ -2318,7 +2314,7 @@ TABLE *Delayed_insert::get_local_table(THD* client_thd)
   copy->def_write_set.bitmap= ((my_bitmap_map*)
                                (bitmap + share->column_bitmap_size));
   copy->tmp_set.bitmap= 0;                      // To catch errors
-  bzero((char*) bitmap, share->column_bitmap_size*2);
+  memset(bitmap, 0, share->column_bitmap_size*2);
   copy->read_set=  &copy->def_read_set;
   copy->write_set= &copy->def_write_set;
 
@@ -3205,7 +3201,7 @@ select_insert::select_insert(TABLE_LIST *table_list_par, TABLE *table_par,
    autoinc_value_of_last_inserted_row(0),
    insert_into_view(table_list_par && table_list_par->view != 0)
 {
-  bzero((char*) &info,sizeof(info));
+  memset(&info, 0, sizeof(info));
   info.handle_duplicates= duplic;
   info.ignore= ignore_check_option_errors;
   info.update_fields= update_fields;
@@ -3538,11 +3534,8 @@ bool select_insert::send_eof()
     query_cache_invalidate3(thd, table, 1);
   }
 
-  if (thd->transaction.stmt.modified_non_trans_table)
-    thd->transaction.all.modified_non_trans_table= TRUE;
-
   DBUG_ASSERT(trans_table || !changed || 
-              thd->transaction.stmt.modified_non_trans_table);
+              thd->transaction.stmt.cannot_safely_rollback());
 
   /*
     Write to binlog before commiting transaction.  No statement will
@@ -3551,7 +3544,7 @@ bool select_insert::send_eof()
     ha_autocommit_or_rollback() is issued below.
   */
   if (mysql_bin_log.is_open() &&
-      (!error || thd->transaction.stmt.modified_non_trans_table))
+      (!error || thd->transaction.stmt.cannot_safely_rollback()))
   {
     int errcode= 0;
     if (!error)
@@ -3629,11 +3622,8 @@ void select_insert::abort_result_set() {
     */
     changed= (info.copied || info.deleted || info.updated);
     transactional_table= table->file->has_transactions();
-    if (thd->transaction.stmt.modified_non_trans_table)
+    if (thd->transaction.stmt.cannot_safely_rollback())
     {
-        if (!can_rollback_data())
-          thd->transaction.all.modified_non_trans_table= TRUE;
-
         if (mysql_bin_log.is_open())
         {
           int errcode= query_error_code(thd, thd->killed == THD::NOT_KILLED);
@@ -3646,7 +3636,7 @@ void select_insert::abort_result_set() {
 	  query_cache_invalidate3(thd, table, 1);
     }
     DBUG_ASSERT(transactional_table || !changed ||
-		thd->transaction.stmt.modified_non_trans_table);
+		thd->transaction.stmt.cannot_safely_rollback());
     table->file->ha_release_auto_increment();
   }
 
@@ -3905,19 +3895,6 @@ select_create::prepare(List<Item> &values, SELECT_LEX_UNIT *u)
   hook_ptr= &hooks;
 
   unit= u;
-
-  /*
-    Start a statement transaction before the create if we are using
-    row-based replication for the statement.  If we are creating a
-    temporary table, we need to start a statement transaction.
-  */
-  if ((thd->lex->create_info.options & HA_LEX_CREATE_TMP_TABLE) == 0 &&
-      thd->is_current_stmt_binlog_format_row() &&
-      mysql_bin_log.is_open())
-  {
-    thd->binlog_start_trans_and_stmt();
-  }
-
   DBUG_ASSERT(create_table->table == NULL);
 
   DBUG_EXECUTE_IF("sleep_create_select_before_check_if_exists", my_sleep(6000000););
@@ -3942,7 +3919,7 @@ select_create::prepare(List<Item> &values, SELECT_LEX_UNIT *u)
 
   if (table->s->fields < values.elements)
   {
-    my_error(ER_WRONG_VALUE_COUNT_ON_ROW, MYF(0), 1);
+    my_error(ER_WRONG_VALUE_COUNT_ON_ROW, MYF(0), 1L);
     DBUG_RETURN(-1);
   }
 
@@ -4067,6 +4044,14 @@ void select_create::send_error(uint errcode,const char *err)
 
 bool select_create::send_eof()
 {
+  /*
+    The routine that writes the statement in the binary log
+    is in select_insert::send_eof(). For that reason, we
+    mark the flag at this point.
+  */
+  if (create_info->options & HA_LEX_CREATE_TMP_TABLE)
+    thd->transaction.stmt.mark_created_temp_table();
+
   bool tmp=select_insert::send_eof();
   if (tmp)
     abort_result_set();
@@ -4117,7 +4102,7 @@ void select_create::abort_result_set()
   */
   tmp_disable_binlog(thd);
   select_insert::abort_result_set();
-  thd->transaction.stmt.modified_non_trans_table= FALSE;
+  thd->transaction.stmt.reset_unsafe_rollback_flags();
   reenable_binlog(thd);
   /* possible error of writing binary log is ignored deliberately */
   (void) thd->binlog_flush_pending_rows_event(TRUE, TRUE);

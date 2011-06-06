@@ -1,7 +1,6 @@
 include/master-slave.inc
 [connection master]
-stop slave;
-include/wait_for_slave_to_stop.inc
+include/stop_slave.inc
 create table t1 (a int);
 drop table t1;
 create table t1 (a int);
@@ -9,10 +8,8 @@ drop table t1;
 reset slave;
 start slave io_thread;
 include/wait_for_slave_param.inc [Slave_IO_State]
-stop slave io_thread;
+include/stop_slave_io.inc
 reset slave;
-start slave;
-select master_pos_wait('master-bin.001',200,6)=-1;
-master_pos_wait('master-bin.001',200,6)=-1
-0
+include/start_slave.inc
+include/assert.inc [Assert that master_pos_wait does not timeout nor it returns NULL]
 include/rpl_end.inc

@@ -377,3 +377,36 @@ eval EXPLAIN $query;
 eval $query;
 
 DROP TABLE t1, t2;
+
+--echo #
+--echo # Bug#12321461: CRASH IN DSMRR_IMPL::DSMRR_INIT ON SELECT STRAIGHT_JOIN
+--echo #
+
+# This test should run with join cache level 0
+set @save_join_cache_level= @@optimizer_join_cache_level;
+set optimizer_join_cache_level=0;
+
+CREATE TABLE t1 (
+  pk INTEGER,
+  c1 VARCHAR(1) NOT NULL,
+  PRIMARY KEY (pk)
+);
+
+CREATE TABLE t2 (
+  c1 VARCHAR(1) NOT NULL
+);
+
+INSERT INTO t2 VALUES ('v'), ('c');
+
+let query=
+SELECT STRAIGHT_JOIN t1.c1
+FROM t1 RIGHT OUTER JOIN t2 ON t1.c1 = t2.c1
+WHERE t1.pk > 176;
+
+eval EXPLAIN $query;
+eval $query;
+
+DROP TABLE t1,t2;
+
+# Restore join cache level to its original value
+set optimizer_join_cache_level= @save_join_cache_level;

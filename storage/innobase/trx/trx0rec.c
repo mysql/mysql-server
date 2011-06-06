@@ -36,6 +36,7 @@ Created 3/26/1996 Heikki Tuuri
 #ifndef UNIV_HOTBACKUP
 #include "dict0dict.h"
 #include "ut0mem.h"
+#include "read0read.h"
 #include "row0ext.h"
 #include "row0upd.h"
 #include "que0que.h"
@@ -351,10 +352,11 @@ trx_undo_rec_get_col_val(
 		ut_ad(*orig_len >= BTR_EXTERN_FIELD_REF_SIZE);
 		ut_ad(*len > *orig_len);
 		/* @see dtuple_convert_big_rec() */
-		ut_ad(*len >= BTR_EXTERN_FIELD_REF_SIZE * 2);
+		ut_ad(*len >= BTR_EXTERN_FIELD_REF_SIZE);
+
 		/* we do not have access to index->table here
 		ut_ad(dict_table_get_format(index->table) >= UNIV_FORMAT_B
-		      || *len >= REC_MAX_INDEX_COL_LEN
+		      || *len >= col->max_prefix
 		      + BTR_EXTERN_FIELD_REF_SIZE);
 		*/
 
@@ -456,9 +458,10 @@ static
 byte*
 trx_undo_page_fetch_ext(
 /*====================*/
-	byte*		ext_buf,	/*!< in: a buffer of
-					REC_MAX_INDEX_COL_LEN
-					+ BTR_EXTERN_FIELD_REF_SIZE */
+	byte*		ext_buf,	/*!< in: buffer to hold the prefix
+					data and BLOB pointer */
+	ulint		prefix_len,	/*!< in: prefix size to store
+					in the undo log */
 	ulint		zip_size,	/*!< compressed page size in bytes,
 					or 0 for uncompressed BLOB  */
 	const byte*	field,		/*!< in: an externally stored column */
@@ -467,7 +470,7 @@ trx_undo_page_fetch_ext(
 {
 	/* Fetch the BLOB. */
 	ulint	ext_len = btr_copy_externally_stored_field_prefix(
-		ext_buf, REC_MAX_INDEX_COL_LEN, zip_size, field, *len);
+		ext_buf, prefix_len, zip_size, field, *len);
 	/* BLOBs should always be nonempty. */
 	ut_a(ext_len);
 	/* Append the BLOB pointer to the prefix. */
@@ -488,10 +491,11 @@ trx_undo_page_report_modify_ext(
 	byte*		ptr,		/*!< in: undo log position,
 					at least 15 bytes must be available */
 	byte*		ext_buf,	/*!< in: a buffer of
-					REC_MAX_INDEX_COL_LEN
-					+ BTR_EXTERN_FIELD_REF_SIZE,
+					DICT_MAX_FIELD_LEN_BY_FORMAT() size,
 					or NULL when should not fetch
 					a longer prefix */
+	ulint		prefix_len,	/*!< prefix size to store in the
+					undo log */
 	ulint		zip_size,	/*!< compressed page size in bytes,
 					or 0 for uncompressed BLOB  */
 	const byte**	field,		/*!< in/out: the locally stored part of
@@ -499,6 +503,8 @@ trx_undo_page_report_modify_ext(
 	ulint*		len)		/*!< in/out: length of field, in bytes */
 {
 	if (ext_buf) {
+		ut_a(prefix_len > 0);
+
 		/* If an ordering column is externally stored, we will
 		have to store a longer prefix of the field.  In this
 		case, write to the log a marker followed by the
@@ -507,7 +513,7 @@ trx_undo_page_report_modify_ext(
 
 		ptr += mach_write_compressed(ptr, *len);
 
-		*field = trx_undo_page_fetch_ext(ext_buf, zip_size,
+		*field = trx_undo_page_fetch_ext(ext_buf, prefix_len, zip_size,
 						 *field, len);
 
 		ptr += mach_write_compressed(ptr, *len);
@@ -553,7 +559,7 @@ trx_undo_page_report_modify(
 	ulint		i;
 	trx_id_t	trx_id;
 	ibool		ignore_prefix = FALSE;
-	byte		ext_buf[REC_MAX_INDEX_COL_LEN
+	byte		ext_buf[REC_VERSION_56_MAX_INDEX_COL_LEN
 				+ BTR_EXTERN_FIELD_REF_SIZE];
 
 	ut_a(dict_index_is_clust(index));
@@ -665,6 +671,7 @@ trx_undo_page_report_modify(
 	/* Save to the undo log the old values of the columns to be updated. */
 
 	if (update) {
+
 		if (trx_undo_left(undo_page, ptr) < 5) {
 
 			return(0);
@@ -693,13 +700,21 @@ trx_undo_page_report_modify(
 			}
 
 			if (rec_offs_nth_extern(offsets, pos)) {
+				const dict_col_t*	col
+					= dict_index_get_nth_col(index, pos);
+				ulint			prefix_len
+					= dict_max_field_len_store_undo(
+						table, col);
+
+				ut_ad(prefix_len + BTR_EXTERN_FIELD_REF_SIZE
+				      <= sizeof ext_buf);
+
 				ptr = trx_undo_page_report_modify_ext(
 					ptr,
-					dict_index_get_nth_col(index, pos)
-					->ord_part
+					col->ord_part
 					&& !ignore_prefix
-					&& flen < REC_MAX_INDEX_COL_LEN
-					? ext_buf : NULL,
+					&& flen < REC_ANTELOPE_MAX_INDEX_COL_LEN
+					? ext_buf : NULL, prefix_len,
 					dict_table_zip_size(table),
 					&field, &flen);
 
@@ -778,11 +793,20 @@ trx_undo_page_report_modify(
 							  &flen);
 
 				if (rec_offs_nth_extern(offsets, pos)) {
+					const dict_col_t*	col =
+						dict_index_get_nth_col(
+							index, pos);
+					ulint			prefix_len =
+						dict_max_field_len_store_undo(
+							table, col);
+
+					ut_a(prefix_len < sizeof ext_buf);
+
 					ptr = trx_undo_page_report_modify_ext(
 						ptr,
-						flen < REC_MAX_INDEX_COL_LEN
+						flen < REC_ANTELOPE_MAX_INDEX_COL_LEN
 						&& !ignore_prefix
-						? ext_buf : NULL,
+						? ext_buf : NULL, prefix_len,
 						dict_table_zip_size(table),
 						&field, &flen);
 				} else {
@@ -1082,11 +1106,11 @@ trx_undo_rec_get_partial_row(
 			undo log record. */
 			if (!ignore_prefix && col->ord_part) {
 				ut_a(dfield_get_len(dfield)
-				     >= 2 * BTR_EXTERN_FIELD_REF_SIZE);
+				     >= BTR_EXTERN_FIELD_REF_SIZE);
 				ut_a(dict_table_get_format(index->table)
 				     >= UNIV_FORMAT_B
 				     || dfield_get_len(dfield)
-				     >= REC_MAX_INDEX_COL_LEN
+				     >= REC_ANTELOPE_MAX_INDEX_COL_LEN
 				     + BTR_EXTERN_FIELD_REF_SIZE);
 			}
 		}
@@ -1383,11 +1407,13 @@ trx_undo_get_undo_rec(
 	trx_undo_rec_t** undo_rec,	/*!< out, own: copy of the record */
 	mem_heap_t*	heap)		/*!< in: memory heap where copied */
 {
-#ifdef UNIV_SYNC_DEBUG
-	ut_ad(rw_lock_own(&(purge_sys->latch), RW_LOCK_SHARED));
-#endif /* UNIV_SYNC_DEBUG */
+	ibool		missing_history;
 
-	if (!trx_purge_update_undo_must_exist(trx_id)) {
+	rw_lock_s_lock(&purge_sys->latch);
+	missing_history = read_view_sees_trx_id(purge_sys->view, trx_id);
+	rw_lock_s_unlock(&purge_sys->latch);
+
+	if (UNIV_UNLIKELY(missing_history)) {
 
 		/* It may be that the necessary undo log has already been
 		deleted */
@@ -1407,10 +1433,10 @@ trx_undo_get_undo_rec(
 #endif /* UNIV_DEBUG */
 
 /*******************************************************************//**
-Build a previous version of a clustered index record. This function checks
-that the caller has a latch on the index page of the clustered index record
-and an s-latch on the purge_view. This guarantees that the stack of versions
-is locked all the way down to the purge_view.
+Build a previous version of a clustered index record. The caller must
+hold a latch on the index page of the clustered index record, to
+guarantee that the stack of versions is locked all the way down to the
+purge_sys->view.
 @return DB_SUCCESS, or DB_MISSING_HISTORY if the previous version is
 earlier than purge_view, which means that it may have been removed */
 UNIV_INTERN
@@ -1451,7 +1477,7 @@ trx_undo_prev_version_build(
 	byte*		buf;
 	ulint		err;
 #ifdef UNIV_SYNC_DEBUG
-	ut_ad(rw_lock_own(&(purge_sys->latch), RW_LOCK_SHARED));
+	ut_ad(!rw_lock_own(&purge_sys->latch, RW_LOCK_SHARED));
 #endif /* UNIV_SYNC_DEBUG */
 	ut_ad(mtr_memo_contains_page(index_mtr, index_rec, MTR_MEMO_PAGE_S_FIX)
 	      || mtr_memo_contains_page(index_mtr, index_rec,

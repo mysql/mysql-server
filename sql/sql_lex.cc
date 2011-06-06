@@ -3183,7 +3183,7 @@ bool LEX::is_partition_management() const
 */
 void st_lex_master_info::set_unspecified()
 {
-  bzero((char*) this, sizeof(*this));
+  memset(this, 0, sizeof(*this));
   sql_delay= -1;
 }
 

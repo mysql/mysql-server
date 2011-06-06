@@ -465,7 +465,7 @@ page_zip_fields_encode(
 
 			if (fixed_sum && UNIV_UNLIKELY
 			    (fixed_sum + field->fixed_len
-			     > DICT_MAX_INDEX_COL_LEN)) {
+			     > DICT_MAX_FIXED_COL_LEN)) {
 				/* Write out the length of the
 				preceding non-nullable fields,
 				to avoid exceeding the maximum

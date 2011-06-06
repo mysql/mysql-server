@@ -467,7 +467,7 @@ Warning_info::Warning_info(ulonglong warn_id_arg, bool allow_unlimited_warnings)
   /* Initialize sub structures */
   init_sql_alloc(&m_warn_root, WARN_ALLOC_BLOCK_SIZE, WARN_ALLOC_PREALLOC_SIZE);
   m_warn_list.empty();
-  bzero((char*) m_warn_count, sizeof(m_warn_count));
+  memset(m_warn_count, 0, sizeof(m_warn_count));
 }
 
 
@@ -485,7 +485,7 @@ void Warning_info::clear_warning_info(ulonglong warn_id_arg)
 {
   m_warn_id= warn_id_arg;
   free_root(&m_warn_root, MYF(0));
-  bzero((char*) m_warn_count, sizeof(m_warn_count));
+  memset(m_warn_count, 0, sizeof(m_warn_count));
   m_warn_list.empty();
   m_statement_warn_count= 0;
   m_current_row_for_warning= 1; /* Start counting from the first row */

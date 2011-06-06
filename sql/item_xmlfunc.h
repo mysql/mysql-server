@@ -19,12 +19,6 @@
 
 /* This file defines all XML functions */
 
-
-#ifdef __GNUC__
-#pragma interface			/* gcc class implementation */
-#endif
-
-
 class Item_xml_str_func: public Item_str_func
 {
 protected:

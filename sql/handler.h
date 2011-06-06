@@ -828,145 +828,6 @@ struct handlerton
 */
 #define HTON_NO_BINLOG_ROW_OPT       (1 << 9)
 
-class Ha_trx_info;
-
-struct THD_TRANS
-{
-  /* true is not all entries in the ht[] support 2pc */
-  bool        no_2pc;
-  /* storage engines that registered in this transaction */
-  Ha_trx_info *ha_list;
-  /* 
-    The purpose of this flag is to keep track of non-transactional
-    tables that were modified in scope of:
-    - transaction, when the variable is a member of
-    THD::transaction.all
-    - top-level statement or sub-statement, when the variable is a
-    member of THD::transaction.stmt
-    This member has the following life cycle:
-    * stmt.modified_non_trans_table is used to keep track of
-    modified non-transactional tables of top-level statements. At
-    the end of the previous statement and at the beginning of the session,
-    it is reset to FALSE.  If such functions
-    as mysql_insert, mysql_update, mysql_delete etc modify a
-    non-transactional table, they set this flag to TRUE.  At the
-    end of the statement, the value of stmt.modified_non_trans_table 
-    is merged with all.modified_non_trans_table and gets reset.
-    * all.modified_non_trans_table is reset at the end of transaction
-    
-    * Since we do not have a dedicated context for execution of a
-    sub-statement, to keep track of non-transactional changes in a
-    sub-statement, we re-use stmt.modified_non_trans_table. 
-    At entrance into a sub-statement, a copy of the value of
-    stmt.modified_non_trans_table (containing the changes of the
-    outer statement) is saved on stack. Then 
-    stmt.modified_non_trans_table is reset to FALSE and the
-    substatement is executed. Then the new value is merged with the
-    saved value.
-  */
-  bool modified_non_trans_table;
-
-  void reset() { no_2pc= FALSE; modified_non_trans_table= FALSE; }
-  bool is_empty() const { return ha_list == NULL; }
-};
-
-
-/**
-  Either statement transaction or normal transaction - related
-  thread-specific storage engine data.
-
-  If a storage engine participates in a statement/transaction,
-  an instance of this class is present in
-  thd->transaction.{stmt|all}.ha_list. The addition to
-  {stmt|all}.ha_list is made by trans_register_ha().
-
-  When it's time to commit or rollback, each element of ha_list
-  is used to access storage engine's prepare()/commit()/rollback()
-  methods, and also to evaluate if a full two phase commit is
-  necessary.
-
-  @sa General description of transaction handling in handler.cc.
-*/
-
-class Ha_trx_info
-{
-public:
-  /** Register this storage engine in the given transaction context. */
-  void register_ha(THD_TRANS *trans, handlerton *ht_arg)
-  {
-    DBUG_ASSERT(m_flags == 0);
-    DBUG_ASSERT(m_ht == NULL);
-    DBUG_ASSERT(m_next == NULL);
-
-    m_ht= ht_arg;
-    m_flags= (int) TRX_READ_ONLY; /* Assume read-only at start. */
-
-    m_next= trans->ha_list;
-    trans->ha_list= this;
-  }
-
-  /** Clear, prepare for reuse. */
-  void reset()
-  {
-    m_next= NULL;
-    m_ht= NULL;
-    m_flags= 0;
-  }
-
-  Ha_trx_info() { reset(); }
-
-  void set_trx_read_write()
-  {
-    DBUG_ASSERT(is_started());
-    m_flags|= (int) TRX_READ_WRITE;
-  }
-  bool is_trx_read_write() const
-  {
-    DBUG_ASSERT(is_started());
-    return m_flags & (int) TRX_READ_WRITE;
-  }
-  bool is_started() const { return m_ht != NULL; }
-  /** Mark this transaction read-write if the argument is read-write. */
-  void coalesce_trx_with(const Ha_trx_info *stmt_trx)
-  {
-    /*
-      Must be called only after the transaction has been started.
-      Can be called many times, e.g. when we have many
-      read-write statements in a transaction.
-    */
-    DBUG_ASSERT(is_started());
-    if (stmt_trx->is_trx_read_write())
-      set_trx_read_write();
-  }
-  Ha_trx_info *next() const
-  {
-    DBUG_ASSERT(is_started());
-    return m_next;
-  }
-  handlerton *ht() const
-  {
-    DBUG_ASSERT(is_started());
-    return m_ht;
-  }
-private:
-  enum { TRX_READ_ONLY= 0, TRX_READ_WRITE= 1 };
-  /** Auxiliary, used for ha_list management */
-  Ha_trx_info *m_next;
-  /**
-    Although a given Ha_trx_info instance is currently always used
-    for the same storage engine, 'ht' is not-NULL only when the
-    corresponding storage is a part of a transaction.
-  */
-  handlerton *m_ht;
-  /**
-    Transaction flags related to this engine.
-    Not-null only if this instance is a part of transaction.
-    May assume a combination of enum values above.
-  */
-  uchar       m_flags;
-};
-
-
 enum enum_tx_isolation { ISO_READ_UNCOMMITTED, ISO_READ_COMMITTED,
 			 ISO_REPEATABLE_READ, ISO_SERIALIZABLE};
 
@@ -1352,6 +1213,27 @@ uint calculate_key_len(TABLE *, uint, const uchar *, key_part_map);
   (keypart_map for a key prefix of [0..N-1] keyparts)
 */
 #define make_prev_keypart_map(N) (((key_part_map)1 << (N)) - 1)
+
+
+/**
+  Index creation context.
+  Created by handler::add_index() and freed by handler::final_add_index().
+*/
+
+class handler_add_index
+{
+public:
+  /* Table where the indexes are added */
+  TABLE* const table;
+  /* Indexes being created */
+  KEY* const key_info;
+  /* Size of key_info[] */
+  const uint num_of_keys;
+  handler_add_index(TABLE *table_arg, KEY *key_info_arg, uint num_of_keys_arg)
+    : table (table_arg), key_info (key_info_arg), num_of_keys (num_of_keys_arg)
+  {}
+  virtual ~handler_add_index() {}
+};
 
 /**
   The handler class is the interface for dynamically loadable
@@ -2048,8 +1930,36 @@ public:
 
   virtual ulong index_flags(uint idx, uint part, bool all_parts) const =0;
 
-  virtual int add_index(TABLE *table_arg, KEY *key_info, uint num_of_keys)
+/**
+   First phase of in-place add index.
+   Handlers are supposed to create new indexes here but not make them
+   visible.
+
+   @param table_arg   Table to add index to
+   @param key_info    Information about new indexes
+   @param num_of_key  Number of new indexes
+   @param add[out]    Context of handler specific information needed
+                      for final_add_index().
+
+   @note This function can be called with less than exclusive metadata
+   lock depending on which flags are listed in alter_table_flags.
+*/
+  virtual int add_index(TABLE *table_arg, KEY *key_info, uint num_of_keys,
+                        handler_add_index **add)
   { return (HA_ERR_WRONG_COMMAND); }
+
+/**
+   Second and last phase of in-place add index.
+   Commit or rollback pending new indexes.
+
+   @param add     Context of handler specific information from add_index().
+   @param commit  If true, commit. If false, rollback index changes.
+
+   @note This function is called with exclusive metadata lock.
+*/
+  virtual int final_add_index(handler_add_index *add, bool commit)
+  { return (HA_ERR_WRONG_COMMAND); }
+
   virtual int prepare_drop_index(TABLE *table_arg, uint *key_num,
                                  uint num_of_keys)
   { return (HA_ERR_WRONG_COMMAND); }

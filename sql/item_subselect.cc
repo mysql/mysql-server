@@ -3190,23 +3190,24 @@ bool subselect_hash_sj_engine::setup(List<Item> *tmp_columns)
     - here we initialize only those members that are used by
       subselect_uniquesubquery_engine, so these objects are incomplete.
   */ 
-  if (!(tab= new (thd->mem_root) JOIN_TAB))
+  JOIN_TAB * const tmp_tab= new (thd->mem_root) JOIN_TAB;
+  if (tmp_tab == NULL)
     DBUG_RETURN(TRUE);
-  tab->table= tmp_table;
-  tab->ref.key= 0; /* The only temp table index. */
-  tab->ref.key_length= tmp_key->key_length;
-  if (!(tab->ref.key_buff=
+  tmp_tab->table= tmp_table;
+  tmp_tab->ref.key= 0; /* The only temp table index. */
+  tmp_tab->ref.key_length= tmp_key->key_length;
+  if (!(tmp_tab->ref.key_buff=
         (uchar*) thd->calloc(ALIGN_SIZE(tmp_key->key_length) * 2)) ||
-      !(tab->ref.key_copy=
+      !(tmp_tab->ref.key_copy=
         (store_key**) thd->alloc((sizeof(store_key*) *
                                   (tmp_key_parts + 1)))) ||
-      !(tab->ref.items=
+      !(tmp_tab->ref.items=
         (Item**) thd->alloc(sizeof(Item*) * tmp_key_parts)))
     DBUG_RETURN(TRUE);
 
   KEY_PART_INFO *cur_key_part= tmp_key->key_part;
-  store_key **ref_key= tab->ref.key_copy;
-  uchar *cur_ref_buff= tab->ref.key_buff;
+  store_key **ref_key= tmp_tab->ref.key_copy;
+  uchar *cur_ref_buff= tmp_tab->ref.key_buff;
 
   /*
     Create an artificial condition to post-filter those rows matched by index
@@ -3244,10 +3245,10 @@ bool subselect_hash_sj_engine::setup(List<Item> *tmp_columns)
     /* Item for the corresponding field from the materialized temp table. */
     Item_field *right_col_item;
     int null_count= test(cur_key_part->field->real_maybe_null());
-    tab->ref.items[i]= item_in->left_expr->element_index(i);
+    tmp_tab->ref.items[i]= item_in->left_expr->element_index(i);
 
     if (!(right_col_item= new Item_field(thd, context, cur_key_part->field)) ||
-        !(eq_cond= new Item_func_eq(tab->ref.items[i], right_col_item)) ||
+        !(eq_cond= new Item_func_eq(tmp_tab->ref.items[i], right_col_item)) ||
         ((Item_cond_and*)cond)->add(eq_cond))
     {
       delete cond;
@@ -3264,15 +3265,18 @@ bool subselect_hash_sj_engine::setup(List<Item> *tmp_columns)
                                  */
                                  cur_ref_buff + null_count,
                                  null_count ? cur_ref_buff : 0,
-                                 cur_key_part->length, tab->ref.items[i]);
+                                 cur_key_part->length, tmp_tab->ref.items[i]);
     cur_ref_buff+= cur_key_part->store_length;
   }
   *ref_key= NULL; /* End marker. */
-  tab->ref.key_err= 1;
-  tab->ref.key_parts= tmp_key_parts;
+  tmp_tab->ref.key_err= 1;
+  tmp_tab->ref.key_parts= tmp_key_parts;
 
   if (cond->fix_fields(thd, &cond))
     DBUG_RETURN(TRUE);
+
+  // Set 'tab' only when function cannot fail, because of assert in destructor
+  tab= tmp_tab;
 
   /*
     Create and optimize the JOIN that will be used to materialize
