@@ -1150,5 +1150,24 @@ select * from t1 A, t1 B
  where A.a = B.a and A.a in (select a from t2 C) and B.a in (select a from t2 D);
 drop table t1, t2;
 
+--echo # 
+--echo # BUG#784441: Abort on semijoin with a view as the inner table
+--echo #
+
+CREATE TABLE t1 (a int) ;
+INSERT INTO t1 VALUES (1), (1);
+
+CREATE TABLE t2 (a int) ;
+INSERT INTO t2 VALUES (1), (1);
+
+CREATE VIEW v1 AS SELECT 1;
+
+EXPLAIN
+SELECT * FROM t1 INNER JOIN t2 ON t2.a != 0 AND t2.a IN (SELECT * FROM v1);
+SELECT * FROM t1 INNER JOIN t2 ON t2.a != 0 AND t2.a IN (SELECT * FROM v1);
+
+DROP VIEW v1;
+DROP TABLE t1,t2;
+
 # The following command must be the last one the file 
 set @@optimizer_switch=@save_optimizer_switch;

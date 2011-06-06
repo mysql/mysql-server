@@ -831,7 +831,8 @@ inject_jtbm_conds(JOIN *join, List<TABLE_LIST> *join_list, Item **join_where)
       Item *sj_conds= hash_sj_engine->semi_join_conds;
 
       (*join_where)= and_items(*join_where, sj_conds);
-      (*join_where)->fix_fields(join->thd, join_where);
+      if (!(*join_where)->fixed)
+        (*join_where)->fix_fields(join->thd, join_where);
       //parent_join->select_lex->where= parent_join->conds;
     }
 
