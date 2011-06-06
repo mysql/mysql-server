@@ -180,6 +180,8 @@ fts_parse_sql(
 			   & TABLE_DICT_LOCKED));
 
 	if (!dict_locked) {
+		ut_ad(!mutex_own(&(dict_sys->mutex)));
+
 		/* The InnoDB SQL parser is not re-entrant. */
 		mutex_enter(&dict_sys->mutex);
 	}

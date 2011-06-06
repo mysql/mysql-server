@@ -112,9 +112,9 @@ SELECT * FROM articles WHERE MATCH (title,body)
 	AGAINST ('(+MySQL - (Tricks Security)) - YourSQL' IN BOOLEAN MODE);
 
 # Test query expansion
-#SELECT COUNT(*) FROM articles
-#        WHERE MATCH (title,body)
-#        AGAINST ('database' WITH QUERY EXPANSION);
+SELECT COUNT(*) FROM articles
+        WHERE MATCH (title,body)
+        AGAINST ('database' WITH QUERY EXPANSION);
 
 INSERT INTO articles (title,body) VALUES
 	('test query expansion','for database ...');
@@ -122,9 +122,9 @@ INSERT INTO articles (title,body) VALUES
 # This query will return result containing word "database" as
 # the query expand from "test" to words in document just
 # inserted above
-#SELECT * FROM articles
-#        WHERE MATCH (title,body)
-#        AGAINST ('test' WITH QUERY EXPANSION);
+SELECT * FROM articles
+        WHERE MATCH (title,body)
+        AGAINST ('test' WITH QUERY EXPANSION);
 
 # This is to test the proximity search, search two word
 # "following" and "comparison" within 19 character space

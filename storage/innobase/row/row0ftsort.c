@@ -1219,6 +1219,8 @@ exit:
 		}
 	}
 
+	/* FIXME: Diagnostic printout, will be removed later */
+	ut_print_timestamp(stderr);
 	fprintf(stderr, "FTS: inserted %lu record and final record %lu\n", (ulong)count, (ulong)counta);
 	return(error);
 }
