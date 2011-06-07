@@ -1744,6 +1744,73 @@ runMixed2(NDBT_Context* ctx, NDBT_Step* step){
   return NDBT_FAILED;
 }
 
+#define check(b, e)                                                     \
+  if (!(b)) { g_err << "ERR: " << step->getName() << " failed on line " << __LINE__ << ": " << e.getNdbError() << endl; return NDBT_FAILED; }
+
+int runRefreshTupleAbort(NDBT_Context* ctx, NDBT_Step* step){
+  int records = ctx->getNumRecords();
+  int loops = ctx->getNumLoops();
+
+  Ndb* ndb = GETNDB(step);
+
+  const NdbDictionary::Table& tab = *ctx->getTab();
+
+  for (int i=0; i < tab.getNoOfColumns(); i++)
+  {
+    if (tab.getColumn(i)->getStorageType() == NDB_STORAGETYPE_DISK)
+    {
+      g_err << "Table has disk column(s) skipping." << endl;
+      return NDBT_OK;
+    }
+  }
+
+
+  g_err << "Loading table." << endl;
+  HugoTransactions hugoTrans(*ctx->getTab());
+  check(hugoTrans.loadTable(ndb, records) == 0, hugoTrans);
+
+  HugoOperations hugoOps(*ctx->getTab());
+
+  /* Check refresh, abort sequence with an ordered index
+   * Previously this gave bugs due to corruption of the
+   * tuple version
+   */
+  while (loops--)
+  {
+    Uint32 numRefresh = 2 + rand() % 10;
+
+    g_err << "Refresh, rollback * " << numRefresh << endl;
+
+    while (--numRefresh)
+    {
+      /* Refresh, rollback */
+      check(hugoOps.startTransaction(ndb) == 0, hugoOps);
+      check(hugoOps.pkRefreshRecord(ndb, 0, records, 0) == 0, hugoOps);
+      check(hugoOps.execute_NoCommit(ndb) == 0, hugoOps);
+      check(hugoOps.execute_Rollback(ndb) == 0, hugoOps);
+      check(hugoOps.closeTransaction(ndb) == 0, hugoOps);
+    }
+
+    g_err << "Refresh, commit" << endl;
+    /* Refresh, commit */
+    check(hugoOps.startTransaction(ndb) == 0, hugoOps);
+    check(hugoOps.pkRefreshRecord(ndb, 0, records, 0) == 0, hugoOps);
+    check(hugoOps.execute_NoCommit(ndb) == 0, hugoOps);
+    check(hugoOps.execute_Commit(ndb) == 0, hugoOps);
+    check(hugoOps.closeTransaction(ndb) == 0, hugoOps);
+
+    g_err << "Update, commit" << endl;
+    /* Update */
+    check(hugoOps.startTransaction(ndb) == 0, hugoOps);
+    check(hugoOps.pkUpdateRecord(ndb, 0, records, 2 + loops) == 0, hugoOps);
+    check(hugoOps.execute_NoCommit(ndb) == 0, hugoOps);
+    check(hugoOps.execute_Commit(ndb) == 0, hugoOps);
+    check(hugoOps.closeTransaction(ndb) == 0, hugoOps);
+  }
+
+  return NDBT_OK;
+}
+
 
 int
 runBuildDuring(NDBT_Context* ctx, NDBT_Step* step){
@@ -3618,6 +3685,16 @@ TESTCASE("Bug60851", "")
   INITIALIZER(runLoadTable);
   INITIALIZER(runBug60851);
   FINALIZER(createPkIndex_Drop);
+}
+TESTCASE("RefreshWithOrderedIndex",
+         "Refresh tuples with ordered index(es)")
+{
+  TC_PROPERTY("OrderedIndex", 1);
+  TC_PROPERTY("LoggedIndexes", Uint32(0));
+  INITIALIZER(createPkIndex);
+  INITIALIZER(runRefreshTupleAbort);
+  FINALIZER(createPkIndex_Drop);
+  FINALIZER(runClearTable);
 }
 NDBT_TESTSUITE_END(testIndex);
 

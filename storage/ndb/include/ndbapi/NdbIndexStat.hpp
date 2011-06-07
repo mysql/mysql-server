@@ -19,147 +19,350 @@
 #ifndef NdbIndexStat_H
 #define NdbIndexStat_H
 
-#include <ndb_global.h>
+#include <ndb_types.h>
 #include "NdbDictionary.hpp"
 #include "NdbError.hpp"
 #include "NdbIndexScanOperation.hpp"
-class NdbIndexImpl;
+class NdbIndexStatImpl;
 
 /*
- * Statistics for an ordered index.
+ * Ordered index stats "v4".  Includes 1) the old records_in_range in
+ * simplified form 2) the new scanned and stored stats.  These are
+ * completely different.  1) makes a one-round-trip query directly to
+ * the index while 2) reads more extensive stats from sys tables where
+ * they were stored previously by NDB kernel.
+ *
+ * Methods in general return 0 on success and -1 on error.  The error
+ * details are available via getNdbError().
  */
+
 class NdbIndexStat {
 public:
-  NdbIndexStat(const NdbDictionary::Index* index);
+  NdbIndexStat();
   ~NdbIndexStat();
+
+  // dummy defs to make handler compile at "ndb api" patch level
+  int alloc_cache(Uint32 entries) { return 0; }
+  enum { RR_UseDb = 1, RR_NoUpdate = 2 };
+
   /*
-   * Allocate memory for cache.  Argument is minimum number of stat
-   * entries and applies to lower and upper bounds separately.  More
-   * entries may fit (keys have variable size).  If not used, db is
-   * contacted always.
+   * Get latest error.  Can be printed like any NdbError instance and
+   * includes some extras.
    */
-  int alloc_cache(Uint32 entries);
-  /*
-   * Flags for records_in_range.
-   */
-  enum {
-    RR_UseDb = 1,       // contact db
-    RR_NoUpdate = 2     // but do not update cache
+  struct Error : public NdbError {
+    int line;  // source code line number
+    int extra; // extra error code
+    Error();
   };
+  const Error& getNdbError() const;
+
   /*
-   * Estimate how many index records need to be scanned.  The scan
-   * operation must be prepared with lock mode LM_CommittedRead and must
-   * have the desired bounds set.  The routine may use local cache or
-   * may contact db by executing the operation.
+   * Estimate how many records exist in given range.  Does a single
+   * tree-dive on each index fragment, estimates the count from tree
+   * properties, and sums up the results.
    *
-   * If returned count is zero then db was contacted and the count is
-   * exact.  Otherwise the count is approximate.  If cache is used then
-   * caller must provide estimated number of table rows.  It will be
-   * multiplied by a percentage obtained from the cache (result zero is
-   * returned as 1).
+   * Caller provides index and scan transaction and range bounds.
+   * A scan operation is created and executed.  The result is returned
+   * in out-parameter "count".  The result is not transactional.  Value
+   * zero is exact (range was empty when checked).
+   *
+   * This is basically a static method.  The class instance is used only
+   * to return errors.
    */
   int records_in_range(const NdbDictionary::Index* index,
                        NdbTransaction* trans,
                        const NdbRecord* key_record,
                        const NdbRecord* result_record,
                        const NdbIndexScanOperation::IndexBound* ib,
-                       Uint64 table_rows,
+                       Uint64 table_rows, // not used
                        Uint64* count,
-                       int flags);
+                       int flags); // not used
 
   /*
-   * Get latest error.
+   * Methods for stored stats.
+   *
+   * There are two distinct users: 1) writer reads samples from sys
+   * tables and creates a new query cache 2) readers make concurrent
+   * stats queries on current query cache.
+   *
+   * Writer provides any Ndb object required.  Its database name must be
+   * "mysql".  No reference to it is kept.
+   *
+   * Readers provide structs such as Bound on stack or in TLS.  The
+   * structs are opaque.  With source code the structs can be cast to
+   * NdbIndexStatImpl structs.
    */
-  const NdbError& getNdbError() const;
+
+  enum {
+    NoSysTables = 4714,   // all sys tables missing
+    NoIndexStats = 4715,  // given index has no stored stats
+    UsageError = 4716,    // wrong state, invalid input
+    NoMemError = 4717,
+    InvalidCache = 4718,
+    InternalError = 4719,
+    BadSysTables = 4720,  // sys tables partly missing or invalid
+    HaveSysTables = 4244  // create error if all sys tables exist
+  };
+
+  /*
+   * Methods for sys tables.
+   *
+   * Create fails if any objects exist.  Specific errors are
+   * BadSysTables (drop required) and HaveSysTables.
+   *
+   * Drop always succeeds and drops any objects that exist.
+   *
+   * Check succeeds if all correct objects exist.  Specific errors are
+   * BadSysTables (drop required) and NoSysTables.
+   *
+   * Database of the Ndb object is used and must be "mysql" for kernel
+   * to see the tables.
+   */
+  int create_systables(Ndb* ndb);
+  int drop_systables(Ndb* ndb);
+  int check_systables(Ndb* ndb);
+
+  /*
+   * Set index operated on.  Allocates internal structs.  Makes no
+   * database access and keeps no references to the objects.
+   */
+  int set_index(const NdbDictionary::Index& index,
+                const NdbDictionary::Table& table);
+
+  /*
+   * Release index.  Required only if re-used for another index.
+   */
+  void reset_index();
+
+  /*
+   * Trivial invocation of NdbDictionary::Dictionary::updateIndexStat.
+   */
+  int update_stat(Ndb* ndb);
+
+  /*
+   * Trivial invocation of NdbDictionary::Dictionary::deleteIndexStat.
+   */
+  int delete_stat(Ndb* ndb);
+
+  /*
+   * Cache types.
+   */
+  enum CacheType {
+    CacheBuild = 1,     // new cache under construction
+    CacheQuery = 2,     // cache used to answer queries
+    CacheClean = 3      // old caches waiting to be deleted
+  };
+
+  /*
+   * Move CacheQuery (if any) to CacheClean and CacheBuild (if any) to
+   * CacheQuery.  The CacheQuery switch is atomic.
+   */
+  void move_cache();
+
+  /*
+   * Delete all CacheClean instances.  This can be safely done after old
+   * cache queries have finished.  Cache queries are fast since they do
+   * binary searches in memory.
+   */
+  void clean_cache();
+
+  /*
+   * Cache info.  CacheClean may have several instances and the values
+   * for them are summed up.
+   */
+  struct CacheInfo {
+    Uint32 m_count;       // number of instances
+    Uint32 m_valid;       // should be except for incomplete CacheBuild
+    Uint32 m_sampleCount; // number of samples
+    Uint32 m_totalBytes;  // total bytes memory used
+    Uint64 m_save_time;   // microseconds to read stats into cache
+    Uint64 m_sort_time;   // microseconds to sort the cache
+    // end v4 fields
+  };
+
+  /*
+   * Get info about a cache type.
+   */
+  void get_cache_info(CacheInfo& info, CacheType type) const;
+
+  /*
+   * Saved head record retrieved with get_head().  The database fields
+   * are updated by any method which reads stats tables.  Stats exist if
+   * sampleVersion is not zero.
+   */
+  struct Head {
+    Int32 m_found;        // -1 no read done, 0 = no record, 1 = exists
+    Uint32 m_indexId;
+    Uint32 m_indexVersion;
+    Uint32 m_tableId;
+    Uint32 m_fragCount;
+    Uint32 m_valueFormat;
+    Uint32 m_sampleVersion;
+    Uint32 m_loadTime;
+    Uint32 m_sampleCount;
+    Uint32 m_keyBytes;
+    // end v4 fields
+  };
+
+  /*
+   * Get latest saved head record.  Makes no database access.
+   */
+  void get_head(Head& head) const;
+
+  /*
+   * Read stats head record for the index.  Returns error and sets code
+   * to NoIndexStats if head record does not exist or sample version is
+   * zero.  Use get_head() to retrieve the results.
+   */
+  int read_head(Ndb* ndb);
+
+  /*
+   * Read current version of stats into CacheBuild.  A move_cache() is
+   * required before it is available for queries.
+   */
+  int read_stat(Ndb* ndb);
+
+  /*
+   * Reader provides bounds for cache query.  The struct must be
+   * initialized from a thread-local byte buffer of the given size.
+   * NdbIndexStat instance is used and must have index set.  Note that
+   * a bound becomes low or high only as part of Range.
+   */
+  enum { BoundBufferBytes = 8192 };
+  struct Bound {
+    Bound(const NdbIndexStat* is, void* buffer);
+    void* m_impl;
+  };
+
+  /*
+   * Add non-NULL attribute value to the bound.  May return error for
+   * invalid data.
+   */
+  int add_bound(Bound& bound, const void* value);
+
+  /*
+   * Add NULL attribute value to the bound.
+   */
+  int add_bound_null(Bound& bound);
+
+  /*
+   * A non-empty bound must be set strict (true) or non-strict (false).
+   * For empty bound this must remain unset (-1).
+   */
+  void set_bound_strict(Bound& bound, int strict);
+
+  /*
+   * To re-use same bound instance, a reset is required.
+   */
+  void reset_bound(Bound& bound);
+
+  /*
+   * Queries take a range consisting of low and high bound (start key
+   * and end key in mysql).
+   */
+  struct Range {
+    Range(Bound& bound1, Bound& bound2);
+    Bound& m_bound1;
+    Bound& m_bound2;
+  };
+
+  /*
+   * After defining bounds, the range must be finalized.  This updates
+   * internal info.  Usage error is possible.
+   */
+  int finalize_range(Range& range);
+
+  /*
+   * Reset the bounds.
+   */
+  void reset_range(Range& range);
+
+  /*
+   * Convert NdbRecord index bound to Range.  Invokes reset and finalize
+   * and cannot be mixed with the other methods.
+   */
+  int convert_range(Range& range,
+                    const NdbRecord* key_record,
+                    const NdbIndexScanOperation::IndexBound* ib);
+
+  /*
+   * Reader provides storage for stats values.  The struct must be
+   * initialized from a thread-local byte buffer of the given size.
+   */
+  enum { StatBufferBytes = 2048 };
+  struct Stat {
+    Stat(void* buffer);
+    void* m_impl;
+  };
+
+  /*
+   * Compute Stat for a Range from the query cache.  Returns error
+   * if there is no valid query cache.  The Stat is used to get
+   * stats values without further reference to the Range.
+   */
+  int query_stat(const Range& range, Stat& stat);
+
+  /*
+   * Check if range is empty i.e. bound1 >= bound2 (for bounds this
+   * means empty) or the query cache is empty.  The RIR and RPK return
+   * 1.0 if range is empty.
+   */
+  static void get_empty(const Stat& stat, bool* empty);
+
+  /*
+   * Get estimated RIR (records in range).  Value is always >= 1.0 since
+   * no exact 0 rows can be returned.
+   */
+  static void get_rir(const Stat& stat, double* rir);
+
+  /*
+   * Get estimated RPK (records per key) at given level k (from 0 to
+   * NK-1 where NK = number of index keys).  Value is >= 1.0.
+   */
+  static void get_rpk(const Stat& stat, Uint32 k, double* rpk);
+
+  /*
+   * Get a short string summarizing the rules used.
+   */
+  enum { RuleBufferBytes = 80 };
+  static void get_rule(const Stat& stat, char* buffer);
+
+  /*
+   * Memory allocator for the stats caches.  By default each instance
+   * uses its own malloc-based implementation.
+   */
+  struct Mem {
+    Mem();
+    virtual ~Mem();
+    virtual void* mem_alloc(size_t size) = 0;
+    virtual void mem_free(void* ptr) = 0;
+    virtual size_t mem_used() const = 0;
+  };
+
+  /*
+   * Set a non-default memory allocator.
+   */
+  void set_mem_handler(Mem* mem);
+
+  // get impl class for use in NDB API programs
+  NdbIndexStatImpl& getImpl();
 
 private:
-  /*
-   * There are 2 areas: start keys and end keys.  An area has pointers
-   * at beginning and entries at end.  Pointers are sorted by key.
-   *
-   * A pointer contains entry offset and also entry timestamp.  An entry
-   * contains the key and percentage of rows _not_ satisfying the bound
-   * i.e. less than start key or greater than end key.
-   *
-   * A key is an array of index key bounds.  Each has type (0-4) in
-   * first word followed by data with AttributeHeader.
-   *
-   * Stat update comes as pair of start and end key and associated
-   * percentages.  Stat query takes best match of start and end key from
-   * each area separately.  Rows in range percentage is then computed by
-   * excluding the two i.e. as 100 - (start key pct + end key pct).
-   *
-   * TODO use more compact key format
-   */
-  struct Pointer;
-  friend struct Pointer;
-  struct Entry;
-  friend struct Entry;
-  struct Area;
-  friend struct Area;
-  struct Pointer {
-    Uint16 m_pos;
-    Uint16 m_seq;
-  };
-  struct Entry {
-    float m_pct;
-    Uint32 m_keylen;
-  };
-  STATIC_CONST( EntrySize = sizeof(Entry) >> 2 );
-  STATIC_CONST( PointerSize = sizeof(Pointer) >> 2 );
-  /* Need 2 words per column in a bound plus space for the
-   * bound data.
-   * Worst case is 32 cols in key and max key size used.
-   */
-  STATIC_CONST( BoundBufWords = (2 * NDB_MAX_NO_OF_ATTRIBUTES_IN_KEY)
-                + NDB_MAX_KEYSIZE_IN_WORDS );
-  struct Area {
-    Uint32* m_data;
-    Uint32 m_offset;
-    Uint32 m_free;
-    Uint16 m_entries;
-    Uint8 m_idir;
-    Uint8 pad1;
-    Area() {}
-    Pointer& get_pointer(unsigned i) const {
-      return *(Pointer*)&m_data[i];
-    }
-    Entry& get_entry(unsigned i) const {
-      return *(Entry*)&m_data[get_pointer(i).m_pos];
-    }
-    Uint32 get_pos(const Entry& e) const {
-      return (const Uint32*)&e - m_data;
-    }
-    unsigned get_firstpos() const {
-      return PointerSize * m_entries + m_free;
-    }
-  };
-  const NdbIndexImpl& m_index;
-  Uint32 m_areasize;
-  Uint16 m_seq;
-  Area m_area[2];
-  Uint32* m_cache;
-  NdbError m_error;
-#ifdef VM_TRACE
-  void stat_verify();
-#endif
-  int stat_cmpkey(const Area& a, const Uint32* key1, Uint32 keylen1,
-                  const Uint32* key2, Uint32 keylen2);
-  int stat_search(const Area& a, const Uint32* key, Uint32 keylen,
-                  Uint32* idx, bool* match);
-  int stat_oldest(const Area& a);
-  int stat_delete(Area& a, Uint32 k);
-  int stat_update(const Uint32* key1, Uint32 keylen1,
-                  const Uint32* key2, Uint32 keylen2, const float pct[2]);
-  int stat_select(const Uint32* key1, Uint32 keylen1,
-                  const Uint32* key2, Uint32 keylen2, float pct[2]);
-  void set_error(int code);
   int addKeyPartInfo(const NdbRecord* record,
                      const char* keyRecordData,
                      Uint32 keyPartNum,
                      const NdbIndexScanOperation::BoundType boundType,
                      Uint32* keyStatData,
                      Uint32& keyLength);
+
+  // stored stats
+
+  friend class NdbIndexStatImpl;
+  NdbIndexStat(NdbIndexStatImpl& impl);
+  NdbIndexStatImpl& m_impl;
 };
+
+class NdbOut&
+operator<<(class NdbOut& out, const NdbIndexStat::Error&);
 
 #endif

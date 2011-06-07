@@ -137,6 +137,9 @@ printSCHEMA_TRANS_IMPL_REQ(FILE* output, const Uint32* theData,
     case GSN_BUILD_INDX_IMPL_REQ:
       printBUILD_INDX_IMPL_REQ(output, pb_data, pb_len, rbn);
       break;
+    case GSN_INDEX_STAT_IMPL_REQ:
+      printINDEX_STAT_IMPL_REQ(output, pb_data, pb_len, rbn);
+      break;
     default:
     {
       Uint32 i;

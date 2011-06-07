@@ -345,7 +345,7 @@ public:
   int getConnectionDbParameter(int node1, int node2, int param,
 			       int *value, BaseString& msg);
 
-  bool transporter_connect(NDB_SOCKET_TYPE sockfd);
+  bool transporter_connect(NDB_SOCKET_TYPE sockfd, BaseString& errormsg);
 
   const char *get_connect_address(Uint32 node_id);
   void get_connected_nodes(NodeBitmask &connected_nodes) const;

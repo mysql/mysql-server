@@ -87,6 +87,11 @@ public:
 		     int recordNo,
 		     int numRecords = 1);
   
+  int pkRefreshRecord(Ndb*,
+                      int recordNo,
+                      int numRecords = 1,
+                      int anyValueInfo = 0); /* 0 - none, 1+ Val | record */
+
   int execute_Commit(Ndb*, 
 		     AbortOption ao = AbortOnError);
   int execute_NoCommit(Ndb*,
@@ -147,6 +152,10 @@ public:
   const NdbError& getNdbError() const;
   void setQuiet() { m_quiet = true; }
 
+  typedef Uint32 (*AnyValueCallback)(Ndb*, NdbTransaction*, int rowid, int updVal);
+
+  void setAnyValueCallback(AnyValueCallback);
+
 protected:
   void allocRows(int rows);
   void deallocRows();
@@ -165,10 +174,13 @@ protected:
   int m_async_return;
   friend void HugoOperations_async_callback(int, NdbTransaction*, void*);
   void callback(int res, NdbTransaction*);
+  Uint32 getAnyValueForRowUpd(int row, int update);
+
 
   void setNdbError(const NdbError& error);
   NdbError m_error;
   bool m_quiet;
+  AnyValueCallback avCallback;
 };
 
 #endif

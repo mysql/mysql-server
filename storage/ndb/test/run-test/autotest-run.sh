@@ -31,7 +31,7 @@ VERSION="autotest-run.sh version 1.00"
 DATE=`date '+%Y-%m-%d'`
 if [ `uname -s` != "SunOS" ]
 then
-  if uname | grep -iq cygwin
+  if [ `uname | grep -ic cygwin || true` -ne 0 ]
   then
     HOST=`hostname`
     # Returns windows CRLF
@@ -245,8 +245,8 @@ choose_conf(){
 
 count_hosts(){
     ch="CHOOSE_host"
-    cnt=$(for i in `grep $ch $1 | sed 's!,! !g'` ; do echo $i; done\
-          | grep $ch | sort | uniq | wc -l)
+    list=`grep $ch $1 | sed 's!,! !g'`
+    cnt=`for i in $list; do echo $i; done | grep $ch | sort | uniq | wc -l`
     echo $cnt
 }
 
@@ -278,7 +278,7 @@ rm -rf $res_dir/* $run_dir/*
 cd $run_dir
 mkdir run
 
-if uname | grep -iq cygwin
+if [ `uname | grep -ic cygwin || true` -ne 0 ]
 then
   run_dir=`cygpath -m $run_dir`
   install_dir0=`cygpath -u $install_dir0`

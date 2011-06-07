@@ -31,7 +31,7 @@ VERSION="autotest-boot.sh version 1.01"
 DATE=`date '+%Y-%m-%d'`
 if [ `uname -s` != "SunOS" ]
 then
-  if uname | grep -iq cygwin
+  if [ `uname | grep -ic cygwin || true` -ne 0 ]
   then
     HOST=`hostname`
   else
@@ -247,7 +247,7 @@ then
 	if [ -z "$clone1" ]
 	then
         cd $dst_place0
-        if uname | grep -iq cygwin
+        if [ `uname | grep -ic cygwin || true` -ne 0 ]
         then
             install_dir_dos=`cygpath -w $install_dir`
             cmd /c cscript win/configure.js WITH_NDBCLUSTER_STORAGE_ENGINE --without-plugins=archive,blackhole,example,federated
