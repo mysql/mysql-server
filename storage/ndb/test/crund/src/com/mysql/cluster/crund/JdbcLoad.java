@@ -39,7 +39,6 @@ public class JdbcLoad extends CrundDriver {
     protected String url;
     protected String user;
     protected String password;
-    protected boolean autoCommit;
 
     // JDBC resources
     protected Connection conn;
@@ -80,13 +79,6 @@ public class JdbcLoad extends CrundDriver {
         user = props.getProperty("jdbc.user");
         password = props.getProperty("jdbc.password");
 
-        // single ops not supported yet
-        autoCommit = parseBoolean("jdbc.autoCommit", false);
-        if (autoCommit) {
-            msg.append("[ignored] autoCommit:           " + autoCommit + eol);
-            autoCommit = false;
-        }
-
         if (msg.length() == 0) {
             out.println("     [ok]");
         } else {
@@ -107,7 +99,6 @@ public class JdbcLoad extends CrundDriver {
         out.println("jdbc.url:                       " + url);
         out.println("jdbc.user:                      \"" + user + "\"");
         out.println("jdbc.password:                  \"" + password + "\"");
-        out.println("jdbc.autoCommit:                " + autoCommit);
     }
 
     protected void initLoad() throws Exception {
@@ -169,62 +160,65 @@ public class JdbcLoad extends CrundDriver {
         out.print("initializing statements ...");
         out.flush();
 
-        for (boolean f = false, done = false; !done; done = f, f = true) {
+        for (CrundDriver.XMode m : xMode) {
             // inner classes can only refer to a constant
-            final boolean batch = f;
-            final boolean ignore = f;
-            final boolean setAttrs = true;
+            final CrundDriver.XMode mode = m;
 
             ops.add(
-                new JdbcOp("insA" + (batch ? "_batch" : ""),
+                new JdbcOp("insA_" + mode.toString().toLowerCase(),
                            "INSERT INTO a (id) VALUES (?)") {
                     public void run(int nOps) throws SQLException {
+                        conn.setAutoCommit(mode == CrundDriver.XMode.INDY);
                         for (int i = 1; i <= nOps; i++) {
                             stmt.setInt(1, i);
-                            if (batch) {
+                            if (mode == CrundDriver.XMode.BULK) {
                                 stmt.addBatch();
                             } else {
                                 int cnt = stmt.executeUpdate();
                                 verify(cnt == 1);
                             }
                         }
-                        if (batch) {
+                        if (mode == CrundDriver.XMode.BULK) {
                             int[] cnts = stmt.executeBatch();
                             for (int i = 0; i < cnts.length; i++) {
                                 verify(cnts[i] == 1);
                             }
                         }
-                        conn.commit();
+                        if (mode != CrundDriver.XMode.INDY)
+                            conn.commit();
                     }
                 });
 
             ops.add(
-                new JdbcOp("insB0" + (batch ? "_batch" : ""),
+                new JdbcOp("insB0_" + mode.toString().toLowerCase(),
                            "INSERT INTO b0 (id) VALUES (?)") {
                     public void run(int nOps) throws SQLException {
+                        conn.setAutoCommit(mode == CrundDriver.XMode.INDY);
                         for (int i = 1; i <= nOps; i++) {
                             stmt.setInt(1, i);
-                            if (batch) {
+                            if (mode == CrundDriver.XMode.BULK) {
                                 stmt.addBatch();
                             } else {
                                 int cnt = stmt.executeUpdate();
                                 verify(cnt == 1);
                             }
                         }
-                        if (batch) {
+                        if (mode == CrundDriver.XMode.BULK) {
                             int[] cnts = stmt.executeBatch();
                             for (int i = 0; i < cnts.length; i++) {
                                 verify(cnts[i] == 1);
                             }
                         }
-                        conn.commit();
+                        if (mode != CrundDriver.XMode.INDY)
+                            conn.commit();
                     }
                 });
 
             ops.add(
-                new JdbcOp("setAByPK" + (batch ? "_batch" : ""),
+                new JdbcOp("setAByPK_" + mode.toString().toLowerCase(),
                            "UPDATE a a SET a.cint = ?, a.clong = ?, a.cfloat = ?, a.cdouble = ? WHERE (a.id = ?)") {
                     public void run(int nOps) throws SQLException {
+                        conn.setAutoCommit(mode == CrundDriver.XMode.INDY);
                         for (int i = 1; i <= nOps; i++) {
                             // refactor by numbered args
                             stmt.setInt(1, i);
@@ -232,27 +226,29 @@ public class JdbcLoad extends CrundDriver {
                             stmt.setInt(3, i);
                             stmt.setInt(4, i);
                             stmt.setInt(5, i);
-                            if (batch) {
+                            if (mode == CrundDriver.XMode.BULK) {
                                 stmt.addBatch();
                             } else {
                                 int cnt = stmt.executeUpdate();
                                 verify(cnt == 1);
                             }
                         }
-                        if (batch) {
+                        if (mode == CrundDriver.XMode.BULK) {
                             int[] cnts = stmt.executeBatch();
                             for (int i = 0; i < cnts.length; i++) {
                                 verify(cnts[i] == 1);
                             }
                         }
-                        conn.commit();
+                        if (mode != CrundDriver.XMode.INDY)
+                            conn.commit();
                     }
                 });
 
             ops.add(
-                new JdbcOp("setB0ByPK" + (batch ? "_batch" : ""),
+                new JdbcOp("setB0ByPK_" + mode.toString().toLowerCase(),
                            "UPDATE b0 b0 SET b0.cint = ?, b0.clong = ?, b0.cfloat = ?, b0.cdouble = ? WHERE (b0.id = ?)") {
                     public void run(int nOps) throws SQLException {
+                        conn.setAutoCommit(mode == CrundDriver.XMode.INDY);
                         for (int i = 1; i <= nOps; i++) {
                             // refactor by numbered args
                             stmt.setInt(1, i);
@@ -260,86 +256,63 @@ public class JdbcLoad extends CrundDriver {
                             stmt.setInt(3, i);
                             stmt.setInt(4, i);
                             stmt.setInt(5, i);
-                            if (batch) {
+                            if (mode == CrundDriver.XMode.BULK) {
                                 stmt.addBatch();
                             } else {
                                 int cnt = stmt.executeUpdate();
                                 verify(cnt == 1);
                             }
                         }
-                        if (batch) {
+                        if (mode == CrundDriver.XMode.BULK) {
                             int[] cnts = stmt.executeBatch();
                             for (int i = 0; i < cnts.length; i++) {
                                 verify(cnts[i] == 1);
                             }
                         }
-                        conn.commit();
+                        if (mode != CrundDriver.XMode.INDY)
+                            conn.commit();
                     }
                 });
 
             ops.add(
-                new JdbcOp((batch ? "getAllA_asc" : "getAByPK"),
-                           "SELECT id, cint, clong, cfloat, cdouble FROM a "
-                           + (batch ? "ORDER BY id ASC" : "WHERE (id = ?)")) {
+                new JdbcOp("getAByPK_" + mode.toString().toLowerCase(),
+                           "SELECT id, cint, clong, cfloat, cdouble FROM a WHERE (id = ?)") {
                     public void run(int nOps) throws SQLException {
-                        if (batch) {
+                        conn.setAutoCommit(mode == CrundDriver.XMode.INDY);
+                        for (int i = 1; i <= nOps; i++) {
+                            stmt.setInt(1, i);
                             ResultSet rs = stmt.executeQuery();
-                            for (int i = 1; i <= nOps; i++) {
-                                rs.next();
-                                final int id = rs.getInt(1);
-                                verify(id == i);
-                                final int j = getCommonAttributes(rs);
-                                verify(j == id);
-                            }
+                            rs.next();
+                            final int id = rs.getInt(1);
+                            verify(id == i);
+                            final int j = getCommonAttributes(rs);
+                            verify(j == id);
                             verify(!rs.next());
                             rs.close();
-                        } else {
-                            for (int i = 1; i <= nOps; i++) {
-                                stmt.setInt(1, i);
-                                ResultSet rs = stmt.executeQuery();
-                                rs.next();
-                                final int id = rs.getInt(1);
-                                verify(id == i);
-                                final int j = getCommonAttributes(rs);
-                                verify(j == id);
-                                verify(!rs.next());
-                                rs.close();
-                            }
                         }
-                        conn.commit();
+                        if (mode != CrundDriver.XMode.INDY)
+                            conn.commit();
                     }
                 });
 
             ops.add(
-                new JdbcOp((batch ? "getAllB0_asc" : "getB0ByPK"),
-                           "SELECT id, cint, clong, cfloat, cdouble FROM b0 "
-                           + (batch ? "ORDER BY id ASC" : "WHERE (id = ?)")) {
+                new JdbcOp("getB0ByPK_" + mode.toString().toLowerCase(),
+                           "SELECT id, cint, clong, cfloat, cdouble FROM b0 WHERE (id = ?)") {
                     public void run(int nOps) throws SQLException {
-                        if (batch) {
+                        conn.setAutoCommit(mode == CrundDriver.XMode.INDY);
+                        for (int i = 1; i <= nOps; i++) {
+                            stmt.setInt(1, i);
                             ResultSet rs = stmt.executeQuery();
-                            for (int i = 1; i <= nOps; i++) {
-                                rs.next();
-                                final int id = rs.getInt(1);
-                                verify(id == i);
-                                final int j = getCommonAttributes(rs);
-                                verify(j == id);
-                            }
+                            rs.next();
+                            final int id = rs.getInt(1);
+                            verify(id == i);
+                            final int j = getCommonAttributes(rs);
+                            verify(j == id);
                             verify(!rs.next());
                             rs.close();
-                        } else {
-                            for (int i = 1; i <= nOps; i++) {
-                                stmt.setInt(1, i);
-                                ResultSet rs = stmt.executeQuery();
-                                rs.next();
-                                final int id = rs.getInt(1);
-                                verify(id == i);
-                                final int j = getCommonAttributes(rs);
-                                verify(j == id);
-                                verify(!rs.next());
-                                rs.close();
-                            }
                         }
-                        conn.commit();
+                        if (mode != CrundDriver.XMode.INDY)
+                            conn.commit();
                     }
                 });
 
@@ -348,35 +321,36 @@ public class JdbcLoad extends CrundDriver {
                 assert l == b.length;
 
                 ops.add(
-                    new JdbcOp("setVarbinary" + l + (batch ? "_batch" : ""),
+                    new JdbcOp("setVarbinary" + l + "_" + mode.toString().toLowerCase(),
                                "UPDATE b0 b0 SET b0.cvarbinary_def = ? WHERE (b0.id = ?)") {
-                        public void run(int nOps)
-                            throws SQLException {
+                        public void run(int nOps) throws SQLException {
+                            conn.setAutoCommit(mode == CrundDriver.XMode.INDY);
                             for (int i = 1; i <= nOps; i++) {
                                 stmt.setBytes(1, b);
                                 stmt.setInt(2, i);
-                                if (batch) {
+                                if (mode == CrundDriver.XMode.BULK) {
                                     stmt.addBatch();
                                 } else {
                                     int cnt = stmt.executeUpdate();
                                     verify(cnt == 1);
                                 }
                             }
-                            if (batch) {
+                            if (mode == CrundDriver.XMode.BULK) {
                                 int[] cnts = stmt.executeBatch();
                                 for (int i = 0; i < cnts.length; i++) {
                                     verify(cnts[i] == 1);
                                 }
                             }
-                            conn.commit();
+                            if (mode != CrundDriver.XMode.INDY)
+                                conn.commit();
                         }
                     });
 
                 ops.add(
-                    new JdbcOp("getVarbinary" + l,
+                    new JdbcOp("getVarbinary" + l + "_" + mode.toString().toLowerCase(),
                                "SELECT cvarbinary_def FROM b0 WHERE (id = ?)") {
-                        public void run(int nOps)
-                            throws SQLException {
+                        public void run(int nOps) throws SQLException {
+                            conn.setAutoCommit(mode == CrundDriver.XMode.INDY);
                             for (int i = 1; i <= nOps; i++) {
                                 stmt.setInt(1, i);
                                 ResultSet rs = stmt.executeQuery();
@@ -386,31 +360,33 @@ public class JdbcLoad extends CrundDriver {
                                 verify(!rs.next());
                                 rs.close();
                             }
-                            conn.commit();
+                            if (mode != CrundDriver.XMode.INDY)
+                                conn.commit();
                         }
                     });
 
                 ops.add(
-                    new JdbcOp("clearVarbinary" + l + (batch ? "_batch" : ""),
+                    new JdbcOp("clearVarbinary" + l + "_" + mode.toString().toLowerCase(),
                                "UPDATE b0 b0 SET b0.cvarbinary_def = NULL WHERE (b0.id = ?)") {
-                        public void run(int nOps)
-                            throws SQLException {
+                        public void run(int nOps) throws SQLException {
+                            conn.setAutoCommit(mode == CrundDriver.XMode.INDY);
                             for (int i = 1; i <= nOps; i++) {
                                 stmt.setInt(1, i);
-                                if (batch) {
+                                if (mode == CrundDriver.XMode.BULK) {
                                     stmt.addBatch();
                                 } else {
                                     int cnt = stmt.executeUpdate();
                                     verify(cnt == 1);
                                 }
                             }
-                            if (batch) {
+                            if (mode == CrundDriver.XMode.BULK) {
                                 int[] cnts = stmt.executeBatch();
                                 for (int i = 0; i < cnts.length; i++) {
                                     verify(cnts[i] == 1);
                                 }
                             }
-                            conn.commit();
+                            if (mode != CrundDriver.XMode.INDY)
+                                conn.commit();
                         }
                     });
             }
@@ -420,35 +396,36 @@ public class JdbcLoad extends CrundDriver {
                 assert l == s.length();
 
                 ops.add(
-                    new JdbcOp("setVarchar" + l + (batch ? "_batch" : ""),
+                    new JdbcOp("setVarchar" + l + "_" + mode.toString().toLowerCase(),
                                "UPDATE b0 b0 SET b0.cvarchar_def = ? WHERE (b0.id = ?)") {
-                        public void run(int nOps)
-                            throws SQLException {
+                        public void run(int nOps) throws SQLException {
+                            conn.setAutoCommit(mode == CrundDriver.XMode.INDY);
                             for (int i = 1; i <= nOps; i++) {
                                 stmt.setString(1, s);
                                 stmt.setInt(2, i);
-                                if (batch) {
+                                if (mode == CrundDriver.XMode.BULK) {
                                     stmt.addBatch();
                                 } else {
                                     int cnt = stmt.executeUpdate();
                                     verify(cnt == 1);
                                 }
                             }
-                            if (batch) {
+                            if (mode == CrundDriver.XMode.BULK) {
                                 int[] cnts = stmt.executeBatch();
                                 for (int i = 0; i < cnts.length; i++) {
                                     verify(cnts[i] == 1);
                                 }
                             }
-                            conn.commit();
+                            if (mode != CrundDriver.XMode.INDY)
+                                conn.commit();
                         }
                     });
 
                 ops.add(
-                    new JdbcOp("getVarchar" + l,
+                    new JdbcOp("getVarchar" + l + "_" + mode.toString().toLowerCase(),
                                "SELECT cvarchar_def FROM b0 WHERE (id = ?)") {
-                        public void run(int nOps)
-                            throws SQLException {
+                        public void run(int nOps) throws SQLException {
+                            conn.setAutoCommit(mode == CrundDriver.XMode.INDY);
                             for (int i = 1; i <= nOps; i++) {
                                 stmt.setInt(1, i);
                                 ResultSet rs = stmt.executeQuery();
@@ -458,31 +435,33 @@ public class JdbcLoad extends CrundDriver {
                                 verify(!rs.next());
                                 rs.close();
                             }
-                            conn.commit();
+                            if (mode != CrundDriver.XMode.INDY)
+                                conn.commit();
                         }
                     });
 
                 ops.add(
-                    new JdbcOp("clearVarchar" + l + (batch ? "_batch" : ""),
+                    new JdbcOp("clearVarchar" + l + "_" + mode.toString().toLowerCase(),
                                "UPDATE b0 b0 SET b0.cvarchar_def = NULL WHERE (b0.id = ?)") {
-                        public void run(int nOps)
-                            throws SQLException {
+                        public void run(int nOps) throws SQLException {
+                            conn.setAutoCommit(mode == CrundDriver.XMode.INDY);
                             for (int i = 1; i <= nOps; i++) {
                                 stmt.setInt(1, i);
-                                if (batch) {
+                                if (mode == CrundDriver.XMode.BULK) {
                                     stmt.addBatch();
                                 } else {
                                     int cnt = stmt.executeUpdate();
                                     verify(cnt == 1);
                                 }
                             }
-                            if (batch) {
+                            if (mode == CrundDriver.XMode.BULK) {
                                 int[] cnts = stmt.executeBatch();
                                 for (int i = 0; i < cnts.length; i++) {
                                     verify(cnts[i] == 1);
                                 }
                             }
-                            conn.commit();
+                            if (mode != CrundDriver.XMode.INDY)
+                                conn.commit();
                         }
                     });
             }
@@ -493,35 +472,36 @@ public class JdbcLoad extends CrundDriver {
                 assert l == b.length;
 
                 ops.add(
-                    new JdbcOp("setBlob" + l + (batch ? "_batch" : ""),
+                    new JdbcOp("setBlob" + l + "_" + mode.toString().toLowerCase(),
                                "UPDATE b0 b0 SET b0.cblob_def = ? WHERE (b0.id = ?)") {
-                        public void run(int nOps)
-                            throws SQLException {
+                        public void run(int nOps) throws SQLException {
+                            conn.setAutoCommit(mode == CrundDriver.XMode.INDY);
                             for (int i = 1; i <= nOps; i++) {
                                 stmt.setBytes(1, b);
                                 stmt.setInt(2, i);
-                                if (batch) {
+                                if (mode == CrundDriver.XMode.BULK) {
                                     stmt.addBatch();
                                 } else {
                                     int cnt = stmt.executeUpdate();
                                     verify(cnt == 1);
                                 }
                             }
-                            if (batch) {
+                            if (mode == CrundDriver.XMode.BULK) {
                                 int[] cnts = stmt.executeBatch();
                                 for (int i = 0; i < cnts.length; i++) {
                                     verify(cnts[i] == 1);
                                 }
                             }
-                            conn.commit();
+                            if (mode != CrundDriver.XMode.INDY)
+                                conn.commit();
                         }
                     });
 
                 ops.add(
-                    new JdbcOp("getBlob" + l,
+                    new JdbcOp("getBlob" + l + "_" + mode.toString().toLowerCase(),
                                "SELECT cblob_def FROM b0 WHERE (id = ?)") {
-                        public void run(int nOps)
-                            throws SQLException {
+                        public void run(int nOps) throws SQLException {
+                            conn.setAutoCommit(mode == CrundDriver.XMode.INDY);
                             for (int i = 1; i <= nOps; i++) {
                                 stmt.setInt(1, i);
                                 ResultSet rs = stmt.executeQuery();
@@ -531,7 +511,8 @@ public class JdbcLoad extends CrundDriver {
                                 verify(!rs.next());
                                 rs.close();
                             }
-                            conn.commit();
+                            if (mode != CrundDriver.XMode.INDY)
+                                conn.commit();
                         }
                     });
             }
@@ -543,35 +524,36 @@ public class JdbcLoad extends CrundDriver {
                 assert l == s.length();
 
                 ops.add(
-                    new JdbcOp("setText" + l + (batch ? "_batch" : ""),
+                    new JdbcOp("setText" + l + "_" + mode.toString().toLowerCase(),
                                "UPDATE b0 b0 SET b0.ctext_def = ? WHERE (b0.id = ?)") {
-                        public void run(int nOps)
-                            throws SQLException {
+                        public void run(int nOps) throws SQLException {
+                            conn.setAutoCommit(mode == CrundDriver.XMode.INDY);
                             for (int i = 1; i <= nOps; i++) {
                                 stmt.setString(1, s);
                                 stmt.setInt(2, i);
-                                if (batch) {
+                                if (mode == CrundDriver.XMode.BULK) {
                                     stmt.addBatch();
                                 } else {
                                     int cnt = stmt.executeUpdate();
                                     verify(cnt == 1);
                                 }
                             }
-                            if (batch) {
+                            if (mode == CrundDriver.XMode.BULK) {
                                 int[] cnts = stmt.executeBatch();
                                 for (int i = 0; i < cnts.length; i++) {
                                     verify(cnts[i] == 1);
                                 }
                             }
-                            conn.commit();
+                            if (mode != CrundDriver.XMode.INDY)
+                                conn.commit();
                         }
                     });
 
                 ops.add(
-                    new JdbcOp("getText" + l,
+                    new JdbcOp("getText" + l + "_" + mode.toString().toLowerCase(),
                                "SELECT ctext_def FROM b0 WHERE (id = ?)") {
-                        public void run(int nOps)
-                            throws SQLException {
+                        public void run(int nOps) throws SQLException {
+                            conn.setAutoCommit(mode == CrundDriver.XMode.INDY);
                             for (int i = 1; i <= nOps; i++) {
                                 stmt.setInt(1, i);
                                 ResultSet rs = stmt.executeQuery();
@@ -581,41 +563,45 @@ public class JdbcLoad extends CrundDriver {
                                 verify(!rs.next());
                                 rs.close();
                             }
-                            conn.commit();
+                            if (mode != CrundDriver.XMode.INDY)
+                                conn.commit();
                         }
                     });
             }
             }
             
             ops.add(
-                new JdbcOp("setB0->A" + (batch ? "_batch" : ""),
+                new JdbcOp("setB0->A_" + mode.toString().toLowerCase(),
                            "UPDATE b0 b0 SET b0.a_id = ? WHERE (b0.id = ?)") {
                     public void run(int nOps) throws SQLException {
+                        conn.setAutoCommit(mode == CrundDriver.XMode.INDY);
                         for (int i = 1; i <= nOps; i++) {
                             int aId = ((i - 1) % nOps) + 1;
                             stmt.setInt(1, aId);
                             stmt.setInt(2, i);
-                            if (batch) {
+                            if (mode == CrundDriver.XMode.BULK) {
                                 stmt.addBatch();
                             } else {
                                 int cnt = stmt.executeUpdate();
                                 verify(cnt == 1);
                             }
                         }
-                        if (batch) {
+                        if (mode == CrundDriver.XMode.BULK) {
                             int[] cnts = stmt.executeBatch();
                             for (int i = 0; i < cnts.length; i++) {
                                 verify(cnts[i] == 1);
                             }
                         }
-                        conn.commit();
+                        if (mode != CrundDriver.XMode.INDY)
+                            conn.commit();
                     }
                 });
 
             ops.add(
-                new JdbcOp("navB0->A_subsel",
+                new JdbcOp("navB0->A_subsel_" + mode.toString().toLowerCase(),
                            "SELECT id, cint, clong, cfloat, cdouble FROM a WHERE id = (SELECT b0.a_id FROM b0 b0 WHERE b0.id = ?)") {
                     public void run(int nOps) throws SQLException {
+                        conn.setAutoCommit(mode == CrundDriver.XMode.INDY);
                         for (int i = 1; i <= nOps; i++) {
                             stmt.setInt(1, i);
                             ResultSet rs = stmt.executeQuery();
@@ -627,14 +613,16 @@ public class JdbcLoad extends CrundDriver {
                             verify(!rs.next());
                             rs.close();
                         }
-                        conn.commit();
+                        if (mode != CrundDriver.XMode.INDY)
+                            conn.commit();
                     }
                 });
 
             ops.add(
-                new JdbcOp("navB0->A_joinproj",
+                new JdbcOp("navB0->A_joinproj_" + mode.toString().toLowerCase(),
                            "SELECT a.id, a.cint, a.clong, a.cfloat, a.cdouble FROM a a, b0 b0 WHERE (a.id = b0.a_id AND b0.id = ?)") {
                     public void run(int nOps) throws SQLException {
+                        conn.setAutoCommit(mode == CrundDriver.XMode.INDY);
                         for (int i = 1; i <= nOps; i++) {
                             stmt.setInt(1, i);
                             ResultSet rs = stmt.executeQuery();
@@ -646,12 +634,13 @@ public class JdbcLoad extends CrundDriver {
                             verify(!rs.next());
                             rs.close();
                         }
-                        conn.commit();
+                        if (mode != CrundDriver.XMode.INDY)
+                            conn.commit();
                     }
                 });
 
             ops.add(
-                new JdbcOp("navB0->A_2stmts",
+                new JdbcOp("navB0->A_2stmts_" + mode.toString().toLowerCase(),
                            "SELECT id, cint, clong, cfloat, cdouble FROM a WHERE id = ?") {
 
                     protected PreparedStatement stmt0;
@@ -668,6 +657,7 @@ public class JdbcLoad extends CrundDriver {
                     }
 
                     public void run(int nOps) throws SQLException {
+                        conn.setAutoCommit(mode == CrundDriver.XMode.INDY);
                         for (int i = 1; i <= nOps; i++) {
                             // fetch a.id
                             stmt0.setInt(1, i);
@@ -688,14 +678,16 @@ public class JdbcLoad extends CrundDriver {
                             verify(!rs.next());
                             rs.close();
                         }
-                        conn.commit();
+                        if (mode != CrundDriver.XMode.INDY)
+                            conn.commit();
                     }
                 });
 
             ops.add(
-                new JdbcOp("navA->B0",
+                new JdbcOp("navA->B0_" + mode.toString().toLowerCase(),
                            "SELECT id, cint, clong, cfloat, cdouble FROM b0 WHERE (a_id = ?)") {
                     public void run(int nOps) throws SQLException {
+                        conn.setAutoCommit(mode == CrundDriver.XMode.INDY);
                         int cnt = 0;
                         for (int i = 1; i <= nOps; i++) {
                             stmt.setInt(1, i);
@@ -710,146 +702,161 @@ public class JdbcLoad extends CrundDriver {
                             rs.close();
                         }
                         verify(cnt == nOps);
-                        conn.commit();
+                        if (mode != CrundDriver.XMode.INDY)
+                            conn.commit();
                     }
                 });
 
             ops.add(
-                new JdbcOp("nullB0->A" + (batch ? "_batch" : ""),
+                new JdbcOp("nullB0->A_" + mode.toString().toLowerCase(),
                            "UPDATE b0 b0 SET b0.a_id = NULL WHERE (b0.id = ?)") {
                     public void run(int nOps) throws SQLException {
+                        conn.setAutoCommit(mode == CrundDriver.XMode.INDY);
                         for (int i = 1; i <= nOps; i++) {
                             stmt.setInt(1, i);
-                            if (batch) {
+                            if (mode == CrundDriver.XMode.BULK) {
                                 stmt.addBatch();
                             } else {
                                 int cnt = stmt.executeUpdate();
                                 verify(cnt == 1);
                             }
                         }
-                        if (batch) {
+                        if (mode == CrundDriver.XMode.BULK) {
                             int[] cnts = stmt.executeBatch();
                             for (int i = 0; i < cnts.length; i++) {
                                 verify(cnts[i] == 1);
                             }
                         }
-                        conn.commit();
+                        if (mode != CrundDriver.XMode.INDY)
+                            conn.commit();
                     }
                 });
 
             ops.add(
                 // MySQL rejects this syntax: "DELETE FROM b0 b0 WHERE b0.id = ?"
-                new JdbcOp("delB0ByPK" + (batch ? "_batch" : ""),
+                new JdbcOp("delB0ByPK_" + mode.toString().toLowerCase(),
                            "DELETE FROM b0 WHERE id = ?") {
                     public void run(int nOps) throws SQLException {
+                        conn.setAutoCommit(mode == CrundDriver.XMode.INDY);
                         for (int i = 1; i <= nOps; i++) {
                             stmt.setInt(1, i);
-                            if (batch) {
+                            if (mode == CrundDriver.XMode.BULK) {
                                 stmt.addBatch();
                             } else {
                                 int cnt = stmt.executeUpdate();
                                 verify(cnt == 1);
                             }
                         }
-                        if (batch) {
+                        if (mode == CrundDriver.XMode.BULK) {
                             int[] cnts = stmt.executeBatch();
                             for (int i = 0; i < cnts.length; i++) {
                                 verify(cnts[i] == 1);
                             }
                         }
-                        conn.commit();
+                        if (mode != CrundDriver.XMode.INDY)
+                            conn.commit();
                     }
                 });
 
             ops.add(
                 // MySQL rejects this syntax: "DELETE FROM a a WHERE a.id = ?"
-                new JdbcOp("delAByPK" + (batch ? "_batch" : ""),
+                new JdbcOp("delAByPK_" + mode.toString().toLowerCase(),
                            "DELETE FROM a WHERE id = ?") {
                     public void run(int nOps) throws SQLException {
+                        conn.setAutoCommit(mode == CrundDriver.XMode.INDY);
                         for (int i = 1; i <= nOps; i++) {
                             stmt.setInt(1, i);
-                            if (batch) {
+                            if (mode == CrundDriver.XMode.BULK) {
                                 stmt.addBatch();
                             } else {
                                 int cnt = stmt.executeUpdate();
                                 verify(cnt == 1);
                             }
                         }
-                        if (batch) {
+                        if (mode == CrundDriver.XMode.BULK) {
                             int[] cnts = stmt.executeBatch();
                             for (int i = 0; i < cnts.length; i++) {
                                 verify(cnts[i] == 1);
                             }
                         }
-                        conn.commit();
+                        if (mode != CrundDriver.XMode.INDY)
+                            conn.commit();
                     }
                 });
 
             ops.add(
-                new JdbcOp("insA_attr" + (batch ? "_batch" : ""),
+                new JdbcOp("insA_attr_" + mode.toString().toLowerCase(),
                            "INSERT INTO a (id, cint, clong, cfloat, cdouble) VALUES (?, ?, ?, ?, ?)") {
                     public void run(int nOps) throws SQLException {
+                        conn.setAutoCommit(mode == CrundDriver.XMode.INDY);
                         for (int i = 1; i <= nOps; i++) {
                             stmt.setInt(1, i);
                             setCommonAttributes(stmt, -i);
-                            if (batch) {
+                            if (mode == CrundDriver.XMode.BULK) {
                                 stmt.addBatch();
                             } else {
                                 int cnt = stmt.executeUpdate();
                                 verify(cnt == 1);
                             }
                         }
-                        if (batch) {
+                        if (mode == CrundDriver.XMode.BULK) {
                             int[] cnts = stmt.executeBatch();
                             for (int i = 0; i < cnts.length; i++) {
                                 verify(cnts[i] == 1);
                             }
                         }
-                        conn.commit();
+                        if (mode != CrundDriver.XMode.INDY)
+                            conn.commit();
                     }
                 });
 
             ops.add(
-                new JdbcOp("insB0_attr" + (batch ? "_batch" : ""),
+                new JdbcOp("insB0_attr_" + mode.toString().toLowerCase(),
                            "INSERT INTO b0 (id, cint, clong, cfloat, cdouble) VALUES (?, ?, ?, ?, ?)") {
                     public void run(int nOps) throws SQLException {
+                        conn.setAutoCommit(mode == CrundDriver.XMode.INDY);
                         for (int i = 1; i <= nOps; i++) {
                             stmt.setInt(1, i);
                             setCommonAttributes(stmt, -i);
-                            if (batch) {
+                            if (mode == CrundDriver.XMode.BULK) {
                                 stmt.addBatch();
                             } else {
                                 int cnt = stmt.executeUpdate();
                                 verify(cnt == 1);
                             }
                         }
-                        if (batch) {
+                        if (mode == CrundDriver.XMode.BULK) {
                             int[] cnts = stmt.executeBatch();
                             for (int i = 0; i < cnts.length; i++) {
                                 verify(cnts[i] == 1);
                             }
                         }
-                        conn.commit();
+                        if (mode != CrundDriver.XMode.INDY)
+                            conn.commit();
                     }
                 });
 
             ops.add(
-                new JdbcOp("delAllB0",
+                new JdbcOp("delAllB0_" + mode.toString().toLowerCase(),
                            "DELETE FROM b0") {
                     public void run(int nOps) throws SQLException {
+                        conn.setAutoCommit(mode == CrundDriver.XMode.INDY);
                         int cnt = stmt.executeUpdate();
                         verify(cnt == nOps);
-                        conn.commit();
+                        if (mode != CrundDriver.XMode.INDY)
+                            conn.commit();
                     }
                 });
 
             ops.add(
-                new JdbcOp("delAllA",
+                new JdbcOp("delAllA_" + mode.toString().toLowerCase(),
                            "DELETE FROM a") {
                     public void run(int nOps) throws SQLException {
+                        conn.setAutoCommit(mode == CrundDriver.XMode.INDY);
                         int cnt = stmt.executeUpdate();
                         verify(cnt == nOps);
-                        conn.commit();
+                        if (mode != CrundDriver.XMode.INDY)
+                            conn.commit();
                     }
                 });
         }
@@ -877,19 +884,54 @@ public class JdbcLoad extends CrundDriver {
     // ----------------------------------------------------------------------
 
     protected void initConnection() throws SQLException {
+        assert (conn == null);
+
         out.println();
-        out.print("creating JDBC connection ...");
+        out.println("initializing jdbc resources ...");
+
+        out.println();
+        out.print("creating jdbc connection ...");
         out.flush();
         conn = DriverManager.getConnection(url, user, password);
-        conn.setAutoCommit(autoCommit);
+        // XXX remove this default when fully implemented all of XMode
+        conn.setAutoCommit(false);
         delAllA = conn.prepareStatement("DELETE FROM a");
         delAllB0 = conn.prepareStatement("DELETE FROM b0");
-        out.println("    [Conn: 1]");
+        out.println("    [ok: " + url + "]");
+
+        out.print("setting isolation level ...");
+        out.flush();
+        // ndb storage engine only supports READ_COMMITTED
+        final int il = Connection.TRANSACTION_READ_COMMITTED;
+        conn.setTransactionIsolation(il);
+        out.print("     [ok: ");
+        switch (conn.getTransactionIsolation()) {
+        case Connection.TRANSACTION_READ_UNCOMMITTED:
+            out.print("READ_UNCOMMITTED");
+            break;
+        case Connection.TRANSACTION_READ_COMMITTED:
+            out.print("READ_COMMITTED");
+            break;
+        case Connection.TRANSACTION_REPEATABLE_READ:
+            out.print("REPEATABLE_READ");
+            break;
+        case Connection.TRANSACTION_SERIALIZABLE:
+            out.print("SERIALIZABLE");
+            break;
+        default:
+            assert false;
+        }
+        out.println("]");
     }
 
     protected void closeConnection() throws SQLException {
+        assert (conn != null);
+
         out.println();
-        out.print("closing JDBC connection ...");
+        out.println("releasing jdbc resources ...");
+
+        out.println();
+        out.print("closing jdbc connection ...");
         out.flush();
         if (delAllB0 != null)
             delAllB0.close();
@@ -908,6 +950,7 @@ public class JdbcLoad extends CrundDriver {
     }
 
     protected void clearData() throws SQLException {
+        conn.setAutoCommit(false);
         out.print("deleting all rows ...");
         out.flush();
         int delB0 = delAllB0.executeUpdate();
