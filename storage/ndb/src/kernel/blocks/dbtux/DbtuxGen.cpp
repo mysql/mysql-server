@@ -229,18 +229,30 @@ Dbtux::execREAD_CONFIG_REQ(Signal* signal)
   ndbrequire(!ndb_mgm_get_int_parameter(p, CFG_TUX_ATTRIBUTE, &nAttribute));
   ndbrequire(!ndb_mgm_get_int_parameter(p, CFG_TUX_SCAN_OP, &nScanOp));
   ndbrequire(!ndb_mgm_get_int_parameter(p, CFG_DB_BATCH_SIZE, &nScanBatch));
-  ndbrequire(!ndb_mgm_get_int_parameter(p, CFG_DB_INDEX_STAT_AUTO_UPDATE,
-                                        &nStatAutoUpdate));
-  ndbrequire(!ndb_mgm_get_int_parameter(p, CFG_DB_INDEX_STAT_SAVE_SIZE,
-                                        &nStatSaveSize));
-  ndbrequire(!ndb_mgm_get_int_parameter(p, CFG_DB_INDEX_STAT_SAVE_SCALE,
-                                        &nStatSaveScale));
-  ndbrequire(!ndb_mgm_get_int_parameter(p, CFG_DB_INDEX_STAT_TRIGGER_PCT,
-                                        &nStatTriggerPct));
-  ndbrequire(!ndb_mgm_get_int_parameter(p, CFG_DB_INDEX_STAT_TRIGGER_SCALE,
-                                        &nStatTriggerScale));
-  ndbrequire(!ndb_mgm_get_int_parameter(p, CFG_DB_INDEX_STAT_UPDATE_DELAY,
-                                        &nStatUpdateDelay));
+
+  nStatAutoUpdate = 0;
+  ndb_mgm_get_int_parameter(p, CFG_DB_INDEX_STAT_AUTO_UPDATE,
+                            &nStatAutoUpdate);
+
+  nStatSaveSize = 32768;
+  ndb_mgm_get_int_parameter(p, CFG_DB_INDEX_STAT_SAVE_SIZE,
+                            &nStatSaveSize);
+
+  nStatSaveScale = 100;
+  ndb_mgm_get_int_parameter(p, CFG_DB_INDEX_STAT_SAVE_SCALE,
+                            &nStatSaveScale);
+
+  nStatTriggerPct = 100;
+  ndb_mgm_get_int_parameter(p, CFG_DB_INDEX_STAT_TRIGGER_PCT,
+                            &nStatTriggerPct);
+
+  nStatTriggerScale = 100;
+  ndb_mgm_get_int_parameter(p, CFG_DB_INDEX_STAT_TRIGGER_SCALE,
+                            &nStatTriggerScale);
+
+  nStatUpdateDelay = 60;
+  ndb_mgm_get_int_parameter(p, CFG_DB_INDEX_STAT_UPDATE_DELAY,
+                            &nStatUpdateDelay);
 
   const Uint32 nDescPage = (nIndex * DescHeadSize + nAttribute * KeyTypeSize + nAttribute * AttributeHeaderSize + DescPageSize - 1) / DescPageSize;
   const Uint32 nScanBoundWords = nScanOp * ScanBoundSegmentSize * 4;
