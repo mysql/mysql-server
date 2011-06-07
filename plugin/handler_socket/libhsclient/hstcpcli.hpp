@@ -37,13 +37,16 @@ struct hstcpcli_i {
   virtual void close() = 0;
   virtual int reconnect() = 0;
   virtual bool stable_point() = 0;
+  virtual void request_buf_auth(const char *secret, const char *typ) = 0;
   virtual void request_buf_open_index(size_t pst_id, const char *dbn,
     const char *tbl, const char *idx, const char *retflds,
     const char *filflds = 0) = 0;
   virtual void request_buf_exec_generic(size_t pst_id, const string_ref& op,
     const string_ref *kvs, size_t kvslen, uint32_t limit, uint32_t skip,
     const string_ref& mod_op, const string_ref *mvs, size_t mvslen,
-    const hstcpcli_filter *fils = 0, size_t filslen = 0) = 0;
+    const hstcpcli_filter *fils = 0, size_t filslen = 0,
+    int invalues_keypart = -1, const string_ref *invalues = 0,
+    size_t invalueslen = 0) = 0; // FIXME: too long
   virtual int request_send() = 0;
   virtual int response_recv(size_t& num_flds_r) = 0;
   virtual const string_ref *get_next_row() = 0;

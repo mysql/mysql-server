@@ -92,7 +92,7 @@ namespace {
 double
 gettimeofday_double()
 {
-  struct timeval tv = { };
+  struct timeval tv;
   if (gettimeofday(&tv, 0) != 0) {
     fatal_abort("gettimeofday");
   }
@@ -552,7 +552,8 @@ hstest_thread::test_9(int test_num)
     "moreflds_prefix", "column0123456789_");
   const int use_handler = arg.sh.conf.get_int("handler", 0);
   const int sched_flag = arg.sh.conf.get_int("sched", 0);
-  const int ssps = arg.sh.conf.get_int("ssps", 0);
+  const int use_in = arg.sh.conf.get_int("in", 0);
+  const int ssps = use_in ? 0 : arg.sh.conf.get_int("ssps", 0);
   std::string flds = "v";
   for (int i = 0; i < moreflds; ++i) {
     char buf[1024];
@@ -561,6 +562,7 @@ hstest_thread::test_9(int test_num)
   }
   int connected = 0;
   std::auto_ptr<auto_mysql_stmt> stmt;
+  string_buffer wbuf;
   for (int i = 0; i < num; ++i) {
     const double tm1 = gettimeofday_double();
     const int flags = 0;
@@ -623,6 +625,20 @@ hstest_thread::test_9(int test_num)
 	    // TODO: moreflds
 	} else if (ssps) {
 	    //
+	} else if (use_in) {
+	  wbuf.clear();
+	  char *p = wbuf.make_space(1024);
+	  int len = snprintf(p, 1024, "select %s from hstest_table1 where k in ('%d'", flds.c_str(), k);
+	  wbuf.space_wrote(len);
+	  for (int j = 1; j < use_in; ++j) {
+	    /* generate more key */
+	    drand48_r(&randbuf, &kf);
+	    k = int(kf * tablesize);
+	    p = wbuf.make_space(1024);
+	    int len = snprintf(p, 1024, ", '%d'", k);
+	    wbuf.space_wrote(len);
+	  }
+	  wbuf.append_literal(")");
 	} else {
 	  buf_query_len = snprintf(buf_query, sizeof(buf_query),
 	    "select %s from hstest_table1 where k = '%d'", flds.c_str(), k);
@@ -651,6 +667,8 @@ hstest_thread::test_9(int test_num)
 	}
 	r = mysql_stmt_execute(*stmt);
 	// fprintf(stderr, "stmt exec\n");
+      } else if (use_in) {
+	r = mysql_real_query(db, wbuf.begin(), wbuf.size());
       } else {
 	r = mysql_real_query(db, buf_query, buf_query_len);
 	// fprintf(stderr, "real query\n");
@@ -694,7 +712,7 @@ hstest_thread::test_9(int test_num)
 	  num_flds = mysql_num_fields(res);
 	  MYSQL_ROW row = 0;
 	  while ((row = mysql_fetch_row(res)) != 0) {
-	    got_data = 1;
+	    got_data += 1;
 	    unsigned long *const lengths = mysql_fetch_lengths(res);
 	    if (verbose >= 2) {
 	      for (unsigned int i = 0; i < num_flds; ++i) {
@@ -706,7 +724,10 @@ hstest_thread::test_9(int test_num)
 	    }
 	  }
 	} else {
-	  got_data = 1;
+	  MYSQL_ROW row = 0;
+	  while ((row = mysql_fetch_row(res)) != 0) {
+	    got_data += 1;
+	  }
 	}
       } else {
 	if (mysql_field_count(db) == 0) {
@@ -730,7 +751,7 @@ hstest_thread::test_9(int test_num)
     if (err == 0) {
       ++io_success_count;
       if (num_affected_rows > 0 || got_data > 0) {
-	++op_success_count;
+	op_success_count += got_data;
       } else {
 	if (verbose >= 1) {
 	  fprintf(stderr, "k=%d numaff=%u gotdata=%d\n",
@@ -779,6 +800,7 @@ hstest_thread::test_10(int test_num)
   const std::string table = arg.sh.conf.get_str("table", "hstest_table1");
   const std::string index = arg.sh.conf.get_str("index", "PRIMARY");
   const std::string field = arg.sh.conf.get_str("field", "v");
+  const int use_in = arg.sh.conf.get_int("in", 0);
   const std::string moreflds_prefix = arg.sh.conf.get_str(
     "moreflds_prefix", "column0123456789_");
   const int dump = arg.sh.dump;
@@ -789,8 +811,8 @@ hstest_thread::test_10(int test_num)
     snprintf(sbuf, sizeof(sbuf), ",%s%d", moreflds_prefix.c_str(), i);
     moreflds_str += std::string(sbuf);
   }
-  char wbuf[16384], rbuf[16384];
-  int wbuflen = 0;
+  string_buffer wbuf;
+  char rbuf[16384];
   for (size_t i = 0; i < arg.sh.loop; ++i) {
     int len = 0, rlen = 0, wlen = 0;
     #if 0
@@ -801,15 +823,18 @@ hstest_thread::test_10(int test_num)
 	fprintf(stderr, "connect: %d %s\n", errno, strerror(errno));
 	return;
       }
-      len = snprintf(wbuf, sizeof(wbuf),
+      char *wp = wbuf.make_space(1024);
+      len = snprintf(wp, 1024,
 	"P\t1\t%s\t%s\tPRIMARY\t%s%s\n", dbname.c_str(), table.c_str(),
 	  field.c_str(), moreflds_str.c_str());
 	/* pst_num, db, table, index, retflds */
-      wlen = write(fd.get(), wbuf, len);
+      wbuf.space_wrote(len);
+      wlen = write(fd.get(), wbuf.begin(), len);
       if (len != wlen) {
 	fprintf(stderr, "write: %d %d\n", len, wlen);
 	return;
       }
+      wbuf.clear();
       rlen = read(fd.get(), rbuf, sizeof(rbuf));
       if (rlen <= 0 || rbuf[rlen - 1] != '\n') {
 	fprintf(stderr, "read: rlen=%d errno=%d\n", rlen, errno);
@@ -824,7 +849,6 @@ hstest_thread::test_10(int test_num)
     const double tm1 = gettimeofday_double();
     for (size_t j = 0; j < arg.sh.pipe; ++j) {
       int k = 0, v = 0;
-      wbuflen = 0;
       {
 	while (true) {
 	  double kf = 0, vf = 0;
@@ -832,19 +856,6 @@ hstest_thread::test_10(int test_num)
 	  drand48_r(&randbuf, &vf);
 	  k = int(kf * tablesize) + firstkey;
 	  v = int(vf * tablesize) + firstkey;
-	  // k = rand_r(&seed);
-	  // v = rand_r(&seed); /* unused */
-	  #if 0
-	  if (tablesize != 0) {
-	    k &= tablesize;
-	  }
-	  #endif
-	  if (op == 'G') {
-	    wbuflen = snprintf(wbuf, sizeof(wbuf), "1\t=\t1\t%d\n", k);
-	  } else if (op == 'U') {
-	    wbuflen = snprintf(wbuf, sizeof(wbuf),
-	      "1\t=\t1\t%d\t1\t0\tU\t%d_%d%s\n", k, v, k, suffix.c_str());
-	  }
 	  if (k - firstkey < arg.sh.keygen_size) {
 	    volatile char *const ptr = arg.sh.keygen + (k - firstkey);
 	    // int oldv = __sync_fetch_and_or(ptr, 1);
@@ -864,15 +875,42 @@ hstest_thread::test_10(int test_num)
 	      continue;
 	    }
 	  }
+	  size_t len = 0;
+	  if (op == 'G') {
+	    if (use_in) {
+	      char *wp = wbuf.make_space(1024);
+	      len = snprintf(wp, 1024, "1\t=\t1\t\t%d\t0\t@\t0\t%d\t%d",
+		use_in, use_in, k);
+	      wbuf.space_wrote(len);
+	      for (int j = 1; j < use_in; ++j) {
+		drand48_r(&randbuf, &kf);
+		k = int(kf * tablesize) + firstkey;
+		char *wp = wbuf.make_space(1024);
+		len = snprintf(wp, 1024, "\t%d", k);
+		wbuf.space_wrote(len);
+	      }
+	      wbuf.append_literal("\n");
+	    } else {
+	      char *wp = wbuf.make_space(1024);
+	      len = snprintf(wp, 1024, "1\t=\t1\t%d\n", k);
+	      wbuf.space_wrote(len);
+	    }
+	  } else if (op == 'U') {
+	    char *wp = wbuf.make_space(1024);
+	    len = snprintf(wp, 1024,
+	      "1\t=\t1\t%d\t1\t0\tU\t%d_%d%s\n", k, v, k, suffix.c_str());
+	    wbuf.space_wrote(len);
+	  }
 	  break;
 	}
       }
-      wlen = write(fd.get(), wbuf, wbuflen);
-      if (wlen != wbuflen) {
-	fprintf(stderr, "write: %d %d\n", wbuflen, wlen);
-	return;
-      }
     }
+    wlen = write(fd.get(), wbuf.begin(), wbuf.size());
+    if ((size_t) wlen != wbuf.size()) {
+      fprintf(stderr, "write: %d %d\n", (int)wbuf.size(), wlen);
+      return;
+    }
+    wbuf.clear();
     size_t read_cnt = 0;
     size_t read_pos = 0;
     while (read_cnt < arg.sh.pipe) {
@@ -922,7 +960,7 @@ hstest_thread::test_10(int test_num)
 	      ++op_success_count;
 	      arg.sh.increment_count();
 	      if (arg.sh.dump && arg.sh.pipe == 1) {
-		fwrite(wbuf, wbuflen, 1, stderr);
+		fwrite(wbuf.begin(), wbuf.size(), 1, stderr);
 	      }
 	    }
 	  }

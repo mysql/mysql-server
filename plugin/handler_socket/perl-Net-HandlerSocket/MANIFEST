@@ -5,4 +5,4 @@ MANIFEST
 ppport.h
 README
 t/HandlerSocket.t
-lib/HandlerSocket.pm
+lib/Net/HandlerSocket.pm

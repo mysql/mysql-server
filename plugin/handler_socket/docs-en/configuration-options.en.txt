@@ -80,8 +80,20 @@ handlersocket_accept_balance (default = 0, min = 0, max = 10000)
 handlersocket_wrlock_timeout (default = 12, min = 0, max = 3600)
 
   Specify the lock timeout in seconds. When a write request is
-  performed, handlersocket locks an advisory lock named
+  performed, handlersocket acquires an advisory lock named
   'handlersocket_wr'. This option sets the timeout for the
   locking.
 
+-----------------------------------------------------------------
+handlersocket_plain_secret (default = '')
+
+  When this option is specified, a plain-text authentication is
+  enabled for the listener for read requests. This option
+  specifies the secret key for the authentication.
+
+-----------------------------------------------------------------
+handlersocket_plain_secret_wr (default = '')
+
+  This option specifies the secret key for the listener for write
+  requests.
 

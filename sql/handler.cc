@@ -2687,6 +2687,7 @@ void handler::get_auto_increment(ulonglong offset, ulonglong increment,
 
 void handler::ha_release_auto_increment()
 {
+  DBUG_ENTER("ha_release_auto_increment");
   release_auto_increment();
   insert_id_for_cur_row= 0;
   auto_inc_interval_for_cur_row.replace(0, 0, 0);
@@ -2700,6 +2701,7 @@ void handler::ha_release_auto_increment()
     */
     table->in_use->auto_inc_intervals_forced.empty();
   }
+  DBUG_VOID_RETURN;
 }
 
 

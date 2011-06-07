@@ -62,6 +62,7 @@ struct dbcallback_i {
   virtual const prep_stmt *dbcb_get_prep_stmt(size_t pst_id) const = 0;
   virtual void dbcb_resp_short(uint32_t code, const char *msg) = 0;
   virtual void dbcb_resp_short_num(uint32_t code, uint32_t value) = 0;
+  virtual void dbcb_resp_short_num64(uint32_t code, uint64_t value) = 0;
   virtual void dbcb_resp_begin(size_t num_flds) = 0;
   virtual void dbcb_resp_entry(const char *fld, size_t fldlen) = 0;
   virtual void dbcb_resp_end() = 0;
@@ -81,6 +82,17 @@ struct record_filter {
   record_filter() : filter_type(record_filter_type_skip), ff_offset(0) { }
 };
 
+struct cmd_open_args {
+  size_t pst_id;
+  const char *dbn;
+  const char *tbl;
+  const char *idx;
+  const char *retflds;
+  const char *filflds;
+  cmd_open_args() : pst_id(0), dbn(0), tbl(0), idx(0), retflds(0),
+    filflds(0) { }
+};
+
 struct cmd_exec_args {
   const prep_stmt *pst;
   string_ref op;
@@ -91,8 +103,11 @@ struct cmd_exec_args {
   string_ref mod_op;
   const string_ref *uvals; /* size must be pst->retfieelds.size() */
   const record_filter *filters;
+  int invalues_keypart;
+  const string_ref *invalues;
+  size_t invalueslen;
   cmd_exec_args() : pst(0), kvals(0), kvalslen(0), limit(0), skip(0),
-    uvals(0), filters(0) { }
+    uvals(0), filters(0), invalues_keypart(-1), invalues(0), invalueslen(0) { }
 };
 
 struct dbcontext_i {
@@ -108,11 +123,8 @@ struct dbcontext_i {
   virtual void close_tables_if() = 0;
   virtual void table_addref(size_t tbl_id) = 0; /* TODO: hide */
   virtual void table_release(size_t tbl_id) = 0; /* TODO: hide */
-  virtual void cmd_open_index(dbcallback_i& cb, size_t pst_id, const char *dbn,
-    const char *tbl, const char *idx, const char *retflds,
-    const char *filflds) = 0;
-  virtual void cmd_exec_on_index(dbcallback_i& cb, const cmd_exec_args& args)
-    = 0;
+  virtual void cmd_open(dbcallback_i& cb, const cmd_open_args& args) = 0;
+  virtual void cmd_exec(dbcallback_i& cb, const cmd_exec_args& args) = 0;
   virtual void set_statistics(size_t num_conns, size_t num_active) = 0;
 };
 
