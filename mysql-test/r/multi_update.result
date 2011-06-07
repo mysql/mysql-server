@@ -667,7 +667,7 @@ CREATE TABLE t1 (f1 DATE);
 INSERT INTO t1 VALUES('2001-01-01');
 UPDATE (SELECT 1 FROM t1 WHERE f1 = (SELECT f1() FROM t1)) x, t1 SET f1 = 1;
 Warnings:
-Warning	1292	Truncated incorrect date value: '1'
+Warning	1292	Incorrect datetime value: '1'
 DROP FUNCTION f1;
 DROP TABLE t1;
 end of tests

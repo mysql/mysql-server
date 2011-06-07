@@ -80,7 +80,7 @@ const char field_separator=',';
 #define FIELDTYPE_TEAR_FROM (MYSQL_TYPE_BIT + 1)
 #define FIELDTYPE_TEAR_TO   (MYSQL_TYPE_NEWDECIMAL - 1)
 #define FIELDTYPE_NUM (FIELDTYPE_TEAR_FROM + (255 - FIELDTYPE_TEAR_TO))
-inline int field_type2index (enum_field_types field_type)
+static inline int field_type2index (enum_field_types field_type)
 {
   return (field_type < FIELDTYPE_TEAR_FROM ?
           field_type :
@@ -1749,11 +1749,11 @@ bool Field::get_date(MYSQL_TIME *ltime,uint fuzzydate)
     Needs to be changed if/when we want to support different time formats.
 */
 
-int Field::store_time(MYSQL_TIME *ltime, timestamp_type type_arg)
+int Field::store_time_dec(MYSQL_TIME *ltime, uint dec)
 {
   ASSERT_COLUMN_MARKED_FOR_WRITE_OR_COMPUTED;
   char buff[MAX_DATE_STRING_REP_LENGTH];
-  uint length= (uint) my_TIME_to_str(ltime, buff, decimals());
+  uint length= (uint) my_TIME_to_str(ltime, buff, dec);
   return store(buff, length, &my_charset_bin);
 }
 
@@ -2743,10 +2743,10 @@ int Field_new_decimal::store_decimal(const my_decimal *decimal_value)
 }
 
 
-int Field_new_decimal::store_time(MYSQL_TIME *ltime, timestamp_type t_type)
+int Field_new_decimal::store_time_dec(MYSQL_TIME *ltime, uint dec)
 {
-    my_decimal decimal_value;
-    return store_value(date2my_decimal(ltime, &decimal_value));
+  my_decimal decimal_value;
+  return store_value(date2my_decimal(ltime, &decimal_value));
 }
 
 
@@ -2950,6 +2950,15 @@ Field_new_decimal::unpack(uchar* to, const uchar *from, uint param_data)
     memcpy(to, from, len); // Sizes are the same, just copy the data.
   return from+len;
 }
+
+int Field_num::store_time_dec(MYSQL_TIME *ltime, uint dec)
+{
+  longlong v= TIME_to_ulonglong(ltime);
+  if (ltime->neg == 0)
+    return store(v, true);
+  return store(-v, false);
+}
+
 
 /****************************************************************************
 ** tiny int
@@ -4240,6 +4249,12 @@ int Field_real::store_decimal(const my_decimal *dm)
   return store(dbl);
 }
 
+int Field_real::store_time_dec(MYSQL_TIME *ltime, uint dec)
+{
+  return store(TIME_to_double(ltime));
+}
+
+
 double Field_double::val_real(void)
 {
   ASSERT_COLUMN_MARKED_FOR_READ;
@@ -4276,6 +4291,14 @@ my_decimal *Field_real::val_decimal(my_decimal *decimal_value)
   ASSERT_COLUMN_MARKED_FOR_READ;
   double2my_decimal(E_DEC_FATAL_ERROR, val_real(), decimal_value);
   return decimal_value;
+}
+
+
+bool Field_real::get_date(MYSQL_TIME *ltime,uint fuzzydate)
+{
+  ASSERT_COLUMN_MARKED_FOR_READ;
+  double nr= val_real();
+  return double_to_datetime_with_warn(nr, ltime, fuzzydate, field_name);
 }
 
 
@@ -4543,6 +4566,8 @@ int Field_timestamp::store_TIME_with_warning(THD *thd, MYSQL_TIME *l_time,
   {
     uint conversion_error;
     timestamp= TIME_to_timestamp(thd, l_time, &conversion_error);
+    if (timestamp == 0 && l_time->second_part == 0)
+      conversion_error= ER_WARN_DATA_OUT_OF_RANGE;
     if (conversion_error)
     {
       set_datetime_warning(MYSQL_ERROR::WARN_LEVEL_WARN, conversion_error,
@@ -4560,7 +4585,7 @@ int Field_timestamp::store_TIME_with_warning(THD *thd, MYSQL_TIME *l_time,
 }
 
 
-int Field_timestamp::store_time(MYSQL_TIME *ltime,timestamp_type time_type)
+int Field_timestamp::store_time_dec(MYSQL_TIME *ltime, uint dec)
 {
   THD *thd= table->in_use;
   int unused;
@@ -4598,16 +4623,15 @@ int Field_timestamp::store(double nr)
   int error;
   Lazy_string_double str(nr);
   THD *thd= table->in_use;
-  longlong tmp;
 
   /* We don't want to store invalid or fuzzy datetime values in TIMESTAMP */
   if (nr < 0 || nr > LONGLONG_MAX)
-    nr= (double)LONGLONG_MAX;
-  tmp= number_to_datetime((longlong) floor(nr),
-                          &l_time, (thd->variables.sql_mode &
-                                    MODE_NO_ZERO_DATE) |
-                          MODE_NO_ZERO_IN_DATE, &error);
-  l_time.second_part= (ulong)((nr-floor(nr))*TIME_SECOND_PART_FACTOR);
+    nr= static_cast<double>(LONGLONG_MAX);
+  longlong tmp= number_to_datetime((longlong) floor(nr),
+                                   (nr-floor(nr))*TIME_SECOND_PART_FACTOR,
+                                   &l_time, (thd->variables.sql_mode &
+                                                 MODE_NO_ZERO_DATE) |
+                                   MODE_NO_ZERO_IN_DATE, &error);
   return store_TIME_with_warning(thd, &l_time, &str, error, tmp != -1);
 }
 
@@ -4620,7 +4644,7 @@ int Field_timestamp::store(longlong nr, bool unsigned_val)
   THD *thd= table->in_use;
 
   /* We don't want to store invalid or fuzzy datetime values in TIMESTAMP */
-  longlong tmp= number_to_datetime(nr, &l_time, (thd->variables.sql_mode &
+  longlong tmp= number_to_datetime(nr, 0, &l_time, (thd->variables.sql_mode &
                                                  MODE_NO_ZERO_DATE) |
                                    MODE_NO_ZERO_IN_DATE, &error);
   return store_TIME_with_warning(thd, &l_time, &str, error, tmp != LL(-1));
@@ -4923,14 +4947,35 @@ String *Field_timestamp_hires::val_str(String *val_buffer, String *val_ptr)
 }
 
 
+my_decimal *Field_timestamp_hires::val_decimal(my_decimal *d)
+{
+  MYSQL_TIME ltime;
+  get_date(&ltime, 0);
+  longlong intg= TIME_to_ulonglong(&ltime);
+  return seconds2my_decimal(ltime.neg, intg, ltime.second_part, d);
+}
+ 
 int Field_timestamp_hires::store_decimal(const my_decimal *d)
 {
-  char buff[DECIMAL_MAX_STR_LENGTH+1];
-  String str(buff, sizeof(buff), &my_charset_bin);
-  my_decimal2string(E_DEC_FATAL_ERROR, d,
-                    MAX_DATETIME_COMPRESSED_WIDTH + MAX_DATETIME_PRECISION,
-                    6, '0', &str);
-  return store(str.ptr(), str.length(), str.charset());
+  ulonglong nr;
+  ulong sec_part;
+  int error;
+  MYSQL_TIME ltime;
+  longlong tmp;
+  THD *thd= table->in_use;
+  Lazy_string_decimal str(d);
+
+  if (my_decimal2seconds(d, &nr, &sec_part))
+  {
+    tmp= -1;
+    error= 2;
+  }
+  else
+    tmp= number_to_datetime(nr, sec_part, &ltime, TIME_NO_ZERO_IN_DATE |
+                                                  (thd->variables.sql_mode &
+                                                   MODE_NO_ZERO_DATE), &error);
+
+  return store_TIME_with_warning(thd, &ltime, &str, error, tmp != -1);
 }
 
 int Field_timestamp_hires::set_time()
@@ -5075,14 +5120,15 @@ int Field_temporal::store(double nr)
   Lazy_string_double str(nr);
 
   if (nr < 0 || nr > LONGLONG_MAX)
-    nr= (double)LONGLONG_MAX;
-  longlong tmp= number_to_datetime((longlong) floor(nr), &ltime,
-                                   (TIME_FUZZY_DATE |
+    nr= static_cast<double>(LONGLONG_MAX);
+  longlong tmp= number_to_datetime((longlong) floor(nr),
+                                    ((nr-floor(nr))*TIME_SECOND_PART_FACTOR),
+                                    &ltime,
+                                    (TIME_FUZZY_DATE |
                                        (thd->variables.sql_mode &
                                         (MODE_NO_ZERO_IN_DATE |
                                          MODE_NO_ZERO_DATE |
                                          MODE_INVALID_DATES))), &error);
-  ltime.second_part= (ulong)((nr-floor(nr))*TIME_SECOND_PART_FACTOR);
   return store_TIME_with_warning(&ltime, &str, error, tmp != -1);
 }
 
@@ -5095,7 +5141,7 @@ int Field_temporal::store(longlong nr, bool unsigned_val)
   THD *thd= table->in_use;
   Lazy_string_num str(nr);
 
-  tmp= number_to_datetime(nr, &ltime, (TIME_FUZZY_DATE |
+  tmp= number_to_datetime(nr, 0, &ltime, (TIME_FUZZY_DATE |
                                       (thd->variables.sql_mode &
                                        (MODE_NO_ZERO_IN_DATE |
                                         MODE_NO_ZERO_DATE |
@@ -5105,7 +5151,7 @@ int Field_temporal::store(longlong nr, bool unsigned_val)
 }
 
 
-int Field_temporal::store_time(MYSQL_TIME *ltime,timestamp_type time_type)
+int Field_temporal::store_time_dec(MYSQL_TIME *ltime, uint dec)
 {
   int error = 0, have_smth_to_conv= 1;
   MYSQL_TIME l_time= *ltime;
@@ -5114,21 +5160,24 @@ int Field_temporal::store_time(MYSQL_TIME *ltime,timestamp_type time_type)
     We don't perform range checking here since values stored in TIME
     structure always fit into DATETIME range.
   */
-  if (time_type == MYSQL_TIMESTAMP_DATE ||
-      time_type == MYSQL_TIMESTAMP_DATETIME)
-  {
-    have_smth_to_conv= !check_date(&l_time, pack_time(&l_time) != 0,
-                                   (TIME_FUZZY_DATE |
-                                    (current_thd->variables.sql_mode &
-                                     (MODE_NO_ZERO_IN_DATE | MODE_NO_ZERO_DATE |
-                                      MODE_INVALID_DATES))), &error);
-  }
-  else
-  {
-    error= 1;
-    have_smth_to_conv= 0;
-  }
+  have_smth_to_conv= !check_date(&l_time, pack_time(&l_time) != 0,
+                                 (TIME_FUZZY_DATE |
+                                  (current_thd->variables.sql_mode &
+                                   (MODE_NO_ZERO_IN_DATE | MODE_NO_ZERO_DATE |
+                                    MODE_INVALID_DATES))), &error);
   return store_TIME_with_warning(&l_time, &str, error, have_smth_to_conv);
+}
+
+my_decimal *Field_temporal::val_decimal(my_decimal *d)
+{
+  MYSQL_TIME ltime;
+  if (get_date(&ltime, TIME_FUZZY_DATE))
+  {
+    bzero(&ltime, sizeof(ltime));
+    ltime.time_type= mysql_type_to_time_type(type());
+  }
+  longlong intg= TIME_to_ulonglong(&ltime);
+  return seconds2my_decimal(ltime.neg, intg, ltime.second_part, d);
 }
 
 /****************************************************************************
@@ -5163,7 +5212,7 @@ int Field_time::store(const char *from,uint len,CHARSET_INFO *cs)
 }
 
 
-int Field_time::store_time(MYSQL_TIME *ltime, timestamp_type time_type)
+int Field_time::store_time_dec(MYSQL_TIME *ltime, uint dec)
 {
   MYSQL_TIME l_time= *ltime;
   Lazy_string_time str(ltime);
@@ -5179,7 +5228,12 @@ int Field_time::store(double nr)
   MYSQL_TIME ltime;
   Lazy_string_double str(nr);
   int was_cut;
-  int have_smth_to_conv= !number_to_time(nr, &ltime, &was_cut);
+  bool neg= nr < 0;
+  if (neg)
+    nr= -nr;
+  int have_smth_to_conv= !number_to_time(neg, nr,
+                                         (nr - trunc(nr)) * TIME_SECOND_PART_FACTOR,
+                                         &ltime, &was_cut);
 
   return store_TIME_with_warning(&ltime, &str, was_cut, have_smth_to_conv);
 }
@@ -5190,7 +5244,8 @@ int Field_time::store(longlong nr, bool unsigned_val)
   MYSQL_TIME ltime;
   Lazy_string_num str(nr);
   int was_cut;
-  int have_smth_to_conv= !number_to_time((double)nr, &ltime, &was_cut);
+  int have_smth_to_conv= !number_to_time(nr < 0, nr < 0 ? -nr : nr,
+                                         0, &ltime, &was_cut);
 
   return store_TIME_with_warning(&ltime, &str, was_cut, have_smth_to_conv);
 }
@@ -5303,15 +5358,40 @@ void Field_time::sql_type(String &res) const
   res.set_ascii(STRING_WITH_LEN("time"));
 }
 
+static const longlong t_shift= ((TIME_MAX_VALUE_SECONDS+1)*TIME_SECOND_PART_FACTOR);
 void Field_time_hires::store_TIME(MYSQL_TIME *ltime)
 {
-  ulonglong packed= sec_part_shift(pack_time(ltime), dec);
+  ulonglong packed= sec_part_shift(pack_time(ltime), dec) +
+                    sec_part_shift(t_shift, dec);
   store_bigendian(packed, ptr, Field_time_hires::pack_length());
+}
+
+int Field_time_hires::store_decimal(const my_decimal *d)
+{
+  ulonglong nr;
+  ulong sec_part;
+  Lazy_string_decimal str(d);
+  MYSQL_TIME ltime;
+  int was_cut;
+  bool neg= my_decimal2seconds(d, &nr, &sec_part);
+
+  int have_smth_to_conv= !number_to_time(neg, nr, sec_part, &ltime, &was_cut);
+
+  return store_TIME_with_warning(&ltime, &str, was_cut, have_smth_to_conv);
 }
 
 uint32 Field_time_hires::pack_length() const
 {
   return time_hires_bytes[dec];
+}
+
+longlong Field_time_hires::val_int(void)
+{
+  ASSERT_COLUMN_MARKED_FOR_READ;
+  MYSQL_TIME ltime;
+  Field_time_hires::get_date(&ltime, TIME_TIME_ONLY);
+  longlong val= TIME_to_ulonglong_time(&ltime);
+  return ltime.neg ? -val : val;
 }
 
 double Field_time_hires::val_real(void)
@@ -5339,20 +5419,18 @@ bool Field_time_hires::get_date(MYSQL_TIME *ltime, uint fuzzydate)
   uint32 len= pack_length();
   longlong packed= read_bigendian(ptr, len);
 
-  /* sign extension */
-  longlong mask= 1LL << (len*8 - 1);
-  if (packed & mask)
-    packed|= ~(mask-1);
+  if (packed)
+    packed= sec_part_unshift(packed - sec_part_shift(t_shift, dec), dec);
 
-  unpack_time(sec_part_unshift(packed, dec), ltime);
+  unpack_time(packed, ltime);
   /*
     unpack_time() returns MYSQL_TIMESTAMP_DATETIME.
-    To get MYSQL_TIMESTAMP_TIME we few some adjustments
+    To get MYSQL_TIMESTAMP_TIME we few adjustments
   */
   ltime->time_type= MYSQL_TIMESTAMP_TIME;
   ltime->hour+= (ltime->month*32+ltime->day)*24;
   ltime->month= ltime->day= 0;
-  return fuzzydate & (TIME_FUZZY_DATE|TIME_TIME_ONLY) ? 0 : 1;
+  return fuzzydate & (TIME_FUZZY_DATE | TIME_TIME_ONLY) ? 0 : 1;
 }
 
 
@@ -5466,6 +5544,17 @@ int Field_year::store(longlong nr, bool unsigned_val)
 }
 
 
+int Field_year::store_time_dec(MYSQL_TIME *ltime, uint dec)
+{
+  Lazy_string_time str(ltime);
+  if (Field_year::store(ltime->year, 0))
+    return 1;
+
+  set_datetime_warning(MYSQL_ERROR::WARN_LEVEL_WARN, WARN_DATA_TRUNCATED,
+                       &str, ltime->time_type, 1);
+  return 0;
+}
+
 bool Field_year::send_binary(Protocol *protocol)
 {
   ASSERT_COLUMN_MARKED_FOR_READ;
@@ -5502,6 +5591,15 @@ String *Field_year::val_str(String *val_buffer,
   char *to=(char*) val_buffer->ptr();
   sprintf(to,field_length == 2 ? "%02d" : "%04d",(int) Field_year::val_int());
   return val_buffer;
+}
+
+
+bool Field_year::get_date(MYSQL_TIME *ltime,uint fuzzydate)
+{
+  int tmp= (int) ptr[0];
+  if (tmp || field_length != 4)
+    tmp+= 1900;
+  return int_to_datetime_with_warn(tmp * 10000, ltime, fuzzydate, field_name);
 }
 
 
@@ -5837,12 +5935,27 @@ void Field_datetime_hires::store_TIME(MYSQL_TIME *ltime)
 
 int Field_datetime_hires::store_decimal(const my_decimal *d)
 {
-  char buff[DECIMAL_MAX_STR_LENGTH+1];
-  String str(buff, sizeof(buff), &my_charset_bin);
-  my_decimal2string(E_DEC_FATAL_ERROR, d,
-                    MAX_DATETIME_COMPRESSED_WIDTH + MAX_DATETIME_PRECISION,
-                    6, '0', &str);
-  return store(str.ptr(), str.length(), str.charset());
+  ulonglong nr;
+  ulong sec_part;
+  int error;
+  MYSQL_TIME ltime;
+  longlong tmp;
+  THD *thd= table->in_use;
+  Lazy_string_decimal str(d);
+
+  if (my_decimal2seconds(d, &nr, &sec_part))
+  {
+    tmp= -1;
+    error= 2;
+  }
+  else
+    tmp= number_to_datetime(nr, sec_part, &ltime, (TIME_FUZZY_DATE |
+                                          (thd->variables.sql_mode &
+                                           (MODE_NO_ZERO_IN_DATE |
+                                            MODE_NO_ZERO_DATE |
+                                            MODE_INVALID_DATES))), &error);
+
+  return store_TIME_with_warning(&ltime, &str, error, tmp != -1);
 }
 
 bool Field_datetime_hires::send_binary(Protocol *protocol)
@@ -9854,7 +9967,7 @@ uint32 Field_blob::max_display_length()
     0 otherwise
 */
 
-bool 
+void 
 Field::set_warning(MYSQL_ERROR::enum_warning_level level, uint code,
                    int cuted_increment)
 {
@@ -9862,15 +9975,13 @@ Field::set_warning(MYSQL_ERROR::enum_warning_level level, uint code,
     If this field was created only for type conversion purposes it
     will have table == NULL.
   */
-  THD *thd= table->in_use;
+  THD *thd= table ? table->in_use : current_thd;
   if (thd->count_cuted_fields)
   {
     thd->cuted_fields+= cuted_increment;
     push_warning_printf(thd, level, code, ER(code), field_name,
                         thd->row_count);
-    return 0;
   }
-  return level >= MYSQL_ERROR::WARN_LEVEL_WARN;
 }
 
 
@@ -9897,8 +10008,8 @@ void Field::set_datetime_warning(MYSQL_ERROR::enum_warning_level level,
                                  timestamp_type ts_type, int cuted_increment)
 {
   THD *thd= table->in_use;
-  if ((thd->really_abort_on_warning() &&
-       level >= MYSQL_ERROR::WARN_LEVEL_WARN) ||
-      set_warning(level, code, cuted_increment))
+  if (thd->really_abort_on_warning() && level >= MYSQL_ERROR::WARN_LEVEL_WARN)
     make_truncated_value_warning(thd, level, str, ts_type, field_name);
+  else
+    set_warning(level, code, cuted_increment);
 }

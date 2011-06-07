@@ -56,8 +56,37 @@ create table t3 like t1;
 
 show create table t2;
 show create table t3;
+drop table t2, t3;
+
+# math, aggregation
+insert t1 values ('2010-12-13 14:15:16.222222');
+select a, a+0, a-1, a*1, a/2 from t1;
+select max(a), min(a), sum(a), avg(a) from t1;
+create table t2 select a, a+0, a-1, a*1, a/2 from t1;
+create table t3 select max(a), min(a), sum(a), avg(a) from t1;
+show create table t2;
+show create table t3;
 
 drop table t1, t2, t3;
+
+# insert, alter with conversion
+--vertical_results
+eval create table t1 (f0_$type $type(0), f1_$type $type(1), f2_$type $type(2), f3_$type $type(3), f4_$type $type(4), f5_$type $type(5), f6_$type $type(6));
+insert t1 values ( '2010-11-12 11:14:17.765432', '2010-11-12 11:14:17.765432', '2010-11-12 11:14:17.765432', '2010-11-12 11:14:17.765432', '2010-11-12 11:14:17.765432', '2010-11-12 11:14:17.765432', '2010-11-12 11:14:17.765432');
+select * from t1;
+eval select cast(f0_$type as time(4)) time4_f0_$type, cast(f1_$type as datetime(3)) datetime3_f1_$type, cast(f2_$type as date) date_f2_$type, cast(f4_$type as double) double_f3_$type, cast(f4_$type as decimal(40,5)) decimal5_f4_$type, cast(f5_$type as signed) bigint_f5_$type, cast(f6_$type as char(255)) varchar_f6_$type from t1;
+eval create table t2 (time4_f0_$type time(4), datetime3_f1_$type datetime(3), date_f2_$type date, double_f3_$type double, decimal5_f4_$type decimal(40,5), bigint_f5_$type bigint, varchar_f6_$type varchar(255));
+insert t2 select * from t1;
+select * from t2;
+eval alter table t1 change f0_$type time4_f0_$type time(4), change f1_$type datetime3_f1_$type datetime(3), change f2_$type date_f2_$type date, change f3_$type double_f3_$type double, change f4_$type decimal5_f4_$type decimal(40,5), change f5_$type bigint_f5_$type bigint, change f6_$type varchar_f6_$type varchar(255);
+select * from t1;
+eval alter table t1 modify time4_f0_$type $type(0), modify datetime3_f1_$type $type(1), modify date_f2_$type $type(2), modify double_f3_$type $type(3), modify decimal5_f4_$type $type(4), modify bigint_f5_$type $type(5), modify varchar_f6_$type $type(6);
+select * from t1;
+delete from t1;
+insert t1 select * from t2;
+select * from t1;
+drop table t1, t2;
+--horizontal_results
 
 #
 # SP

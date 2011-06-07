@@ -4033,8 +4033,11 @@ longlong Item_dyncol_get::val_int()
   case DYN_COL_DATETIME:
   case DYN_COL_DATE:
   case DYN_COL_TIME:
-    unsigned_flag= 1;
-    return TIME_to_ulonglong(&val.time_value);
+    unsigned_flag= !val.time_value.neg;
+    if (unsigned_flag)
+      return TIME_to_ulonglong(&val.time_value);
+    else
+      return -(longlong)TIME_to_ulonglong(&val.time_value);
   }
 
 null:
@@ -4091,8 +4094,7 @@ double Item_dyncol_get::val_real()
   case DYN_COL_DATETIME:
   case DYN_COL_DATE:
   case DYN_COL_TIME:
-    return (ulonglong2double(TIME_to_ulonglong(&val.time_value)) +
-            val.time_value.second_part / (double) TIME_SECOND_PART_FACTOR);
+    return TIME_to_double(&val.time_value);
   }
 
 null:
@@ -4140,25 +4142,16 @@ my_decimal *Item_dyncol_get::val_decimal(my_decimal *decimal_value)
     break;
   }
   case DYN_COL_DECIMAL:
-  {
-    int length= STRING_BUFFER_USUAL_SIZE;
-    decimal2string(&val.decimal_value, buff, &length, 0,0, 0);
     decimal2my_decimal(&val.decimal_value, decimal_value);
-
     break;
-  }
   case DYN_COL_DATETIME:
   case DYN_COL_DATE:
   case DYN_COL_TIME:
-  {
-    my_decimal time_part, sub_second, fractions;
-    longlong2decimal(TIME_to_ulonglong(&val.time_value), &time_part);
-    longlong2decimal(val.time_value.second_part, &sub_second);
-    my_decimal_div(E_DEC_FATAL_ERROR, &fractions, &sub_second,
-                   &time_second_part_factor, TIME_SECOND_PART_DIGITS);
-    my_decimal_add(E_DEC_FATAL_ERROR, decimal_value, &time_part, &fractions);
+    decimal_value= seconds2my_decimal(val.time_value.neg,
+                                      TIME_to_ulonglong(&val.time_value),
+                                      val.time_value.second_part,
+                                      decimal_value);
     break;
-  }
   }
   return decimal_value;
 
@@ -4185,43 +4178,32 @@ bool Item_dyncol_get::get_date(MYSQL_TIME *ltime, uint fuzzy_date)
     signed_value= 1;                                  // For error message
     /* fall_trough */
   case DYN_COL_UINT:
-  {
-    ulonglong num;
-    int error;
-
-    num= val.ulong_value;
-    number_to_datetime(num, ltime, fuzzy_date, &error);
-    if (error)
+    if (signed_value || val.ulong_value <= LONGLONG_MAX)
     {
-      char buff[65];
-      int errnum= error == 2 ? ER_DATA_OVERFLOW : ER_BAD_DATA;
-      longlong2str(num, buff, signed_value ? -10 : 10, 1);
-      push_warning_printf(current_thd, MYSQL_ERROR::WARN_LEVEL_WARN,
-                          errnum,
-                          ER(errnum),
-                          buff, "DATE or DATETIME");
-      goto null;
+      if (int_to_datetime_with_warn(val.ulong_value, ltime, fuzzy_date,
+                                   0 /* TODO */))
+        goto null;
+      return 0;
     }
-    return 0;
-  }
+    /* let double_to_datetime_with_warn() issue the warning message */
+    val.double_value= ULONGLONG_MAX;
+    /* fall_trough */
   case DYN_COL_DOUBLE:
-  {
-    if (double_to_datetime_with_warn(val.double_value, ltime, fuzzy_date))
+    if (double_to_datetime_with_warn(val.double_value, ltime, fuzzy_date,
+                                     0 /* TODO */))
       goto null;
     return 0;
-  }
   case DYN_COL_DECIMAL:
-    if (decimal_to_datetime_with_warn(&val.decimal_value, ltime, fuzzy_date))
+    if (decimal_to_datetime_with_warn((my_decimal*)&val.decimal_value, ltime,
+                                      fuzzy_date, 0 /* TODO */))
       goto null;
     return 0;
   case DYN_COL_STRING:
-  {
     if (str_to_datetime_with_warn(val.string_value.str,
                                   val.string_value.length,
                                   ltime, fuzzy_date) <= MYSQL_TIMESTAMP_ERROR)
       goto null;
     return 0;
-  }
   case DYN_COL_DATETIME:
   case DYN_COL_DATE:
   case DYN_COL_TIME:

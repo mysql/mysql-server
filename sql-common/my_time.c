@@ -18,6 +18,7 @@
 #include <m_ctype.h>
 /* Windows version of localtime_r() is declared in my_ptrhead.h */
 #include <my_pthread.h>
+#include <mysqld_error.h>
 
 ulonglong log_10_int[20]=
 {
@@ -732,7 +733,7 @@ void my_init_time(void)
   time_t seconds;
   struct tm *l_time,tm_tmp;
   MYSQL_TIME my_time;
-  my_bool not_used;
+  uint not_used;
 
   seconds= (time_t) time((time_t*) 0);
   localtime_r(&seconds,&tm_tmp);
@@ -818,7 +819,11 @@ long calc_daynr(uint year,uint month,uint day)
       t               - time value to be converted
       my_timezone     - pointer to long where offset of system time zone
                         from UTC will be stored for caching
-      in_dst_time_gap - set to true if time falls into spring time-gap
+      error_code      - 0, if the conversion was successful;
+                        ER_WARN_DATA_OUT_OF_RANGE, if t contains datetime value
+                           which is out of TIMESTAMP range;
+                        ER_WARN_INVALID_TIMESTAMP, if t represents value which
+                           doesn't exists (falls into the spring time-gap).
 
   NOTES
     The idea is to cache the time zone offset from UTC (including daylight 
@@ -832,8 +837,7 @@ long calc_daynr(uint year,uint month,uint day)
     Time in UTC seconds since Unix Epoch representation.
 */
 my_time_t
-my_system_gmt_sec(const MYSQL_TIME *t_src, long *my_timezone,
-                  my_bool *in_dst_time_gap)
+my_system_gmt_sec(const MYSQL_TIME *t_src, long *my_timezone, uint *error_code)
 {
   uint loop;
   time_t tmp= 0;
@@ -843,8 +847,6 @@ my_system_gmt_sec(const MYSQL_TIME *t_src, long *my_timezone,
   struct tm *l_time,tm_tmp;
   long diff, current_timezone;
 
-  *in_dst_time_gap= 0;                          /* Reset */
-
   /*
     Use temp variable to avoid trashing input data, which could happen in
     case of shift required for boundary dates processing.
@@ -853,9 +855,10 @@ my_system_gmt_sec(const MYSQL_TIME *t_src, long *my_timezone,
 
   if (!validate_timestamp_range(t))
   {
-    *in_dst_time_gap= 1;
+    *error_code= ER_WARN_DATA_OUT_OF_RANGE;
     return 0;
   }
+  *error_code= 0;
 
   /*
     Calculate the gmt time based on current time and timezone
@@ -1001,7 +1004,7 @@ my_system_gmt_sec(const MYSQL_TIME *t_src, long *my_timezone,
     else if (diff == -3600)
       tmp-=t->minute*60 + t->second;		/* Move to previous hour */
 
-    *in_dst_time_gap= 1;
+    *error_code= ER_WARN_INVALID_TIMESTAMP;
   }
   *my_timezone= current_timezone;
 
@@ -1022,7 +1025,7 @@ my_system_gmt_sec(const MYSQL_TIME *t_src, long *my_timezone,
   if (!IS_TIME_T_VALID_FOR_TIMESTAMP(tmp))
   {
     tmp= 0;
-    *in_dst_time_gap= 1;
+    *error_code= ER_WARN_DATA_OUT_OF_RANGE;
   }
 
   return (my_time_t) tmp;
@@ -1150,7 +1153,7 @@ int my_TIME_to_str(const MYSQL_TIME *l_time, char *to, uint digits)
     Datetime value in YYYYMMDDHHMMSS format.
 */
 
-longlong number_to_datetime(longlong nr, MYSQL_TIME *time_res,
+longlong number_to_datetime(longlong nr, ulong sec_part, MYSQL_TIME *time_res,
                             uint flags, int *was_cut)
 {
   long part1,part2;
@@ -1158,7 +1161,7 @@ longlong number_to_datetime(longlong nr, MYSQL_TIME *time_res,
   *was_cut= 0;
   time_res->time_type=MYSQL_TIMESTAMP_DATE;
 
-  if (nr == LL(0) || nr >= LL(10000101000000))
+  if (nr == 0 || nr >= 10000101000000LL || sec_part)
   {
     time_res->time_type=MYSQL_TIMESTAMP_DATETIME;
     goto ok;
@@ -1208,13 +1211,14 @@ longlong number_to_datetime(longlong nr, MYSQL_TIME *time_res,
   time_res->hour=  (int) (part2/10000L);  part2%=10000L;
   time_res->minute=(int) part2 / 100;
   time_res->second=(int) part2 % 100;
-  time_res->second_part=  0;
+  time_res->second_part= sec_part;
   time_res->neg= 0;
 
   if (time_res->year <= 9999 && time_res->month <= 12 &&
       time_res->day <= 31 && time_res->hour <= 23 &&
       time_res->minute <= 59 && time_res->second <= 59 &&
-      !check_date(time_res, (nr != 0), flags, was_cut))
+      sec_part <= TIME_MAX_SECOND_PART &&
+      !check_date(time_res, nr || sec_part, flags, was_cut))
     return nr;
 
   /* Don't want to have was_cut get set if NO_ZERO_DATE was violated. */
@@ -1234,7 +1238,7 @@ longlong number_to_datetime(longlong nr, MYSQL_TIME *time_res,
 }
 
 /*
-  Convert a double to a MYSQL_TIME struct.
+  Convert a pair of integers to a MYSQL_TIME struct.
 
   @param[in]  nr             a number to convert
   @param[out] ltime          Date to check.
@@ -1242,79 +1246,51 @@ longlong number_to_datetime(longlong nr, MYSQL_TIME *time_res,
                              modified to fit in the valid range. Otherwise 0.
 
   @details
-    Takes a number in the [-]HHHMMSS.uuuuuu format.
- 
-    number_to_datetime() cannot take a double, because double precision is not
-    enough for YYYYMMDDHHMMSS.uuuuuu
+    Takes a number in the [-]HHHMMSS.uuuuuu,
+    YYMMDDHHMMSS.uuuuuu, or in the YYYYMMDDHHMMSS.uuuuuu formats.
  
   @return
     0        time value is valid, but was possibly truncated
-    1        time value is invalid
+    -1       time value is invalid
 */
-int number_to_time(double nr, MYSQL_TIME *ltime, int *was_cut)
+int number_to_time(my_bool neg, longlong nr, ulong sec_part,
+                   MYSQL_TIME *ltime, int *was_cut)
 {
-  ulong tmp;
+  if (nr > 9999999 && neg == 0)
+  {
+    if (number_to_datetime(nr, sec_part, ltime,
+                           TIME_FUZZY_DATE |  TIME_INVALID_DATES, was_cut) < 0)
+      return -1;
+
+    ltime->year= ltime->month= ltime->day= 0;
+    ltime->time_type= MYSQL_TIMESTAMP_TIME;
+    *was_cut= MYSQL_TIME_WARN_TRUNCATED;
+    return 0;
+  }
+
   *was_cut= 0;
   ltime->year= ltime->month= ltime->day= 0;
   ltime->time_type= MYSQL_TIMESTAMP_TIME;
 
-  if ((ltime->neg= nr < 0))
-    nr= -nr;
+  ltime->neg= neg;
 
   if (nr > TIME_MAX_VALUE)
   {
     nr= TIME_MAX_VALUE;
+    sec_part= TIME_MAX_SECOND_PART;
     *was_cut= MYSQL_TIME_WARN_OUT_OF_RANGE;
   }
-  tmp=(ulong)floor(nr);
-  ltime->hour  = tmp/100/100;
-  ltime->minute= tmp/100%100;
-  ltime->second= tmp%100;
-  ltime->second_part= (ulong)((nr-tmp)*TIME_SECOND_PART_FACTOR);
+  ltime->hour  = nr/100/100;
+  ltime->minute= nr/100%100;
+  ltime->second= nr%100;
+  ltime->second_part= sec_part;
 
-  if (ltime->minute < 60 && ltime->second < 60)
+  if (ltime->minute < 60 && ltime->second < 60 && sec_part <= TIME_MAX_SECOND_PART)
     return 0;
 
   *was_cut= MYSQL_TIME_WARN_TRUNCATED;
-  return 1;
+  return -1;
 }
-
-
-/*
-  Convert a double to a date/datetime
-
-  Note that for sub seconds, the precision of double is not good enough!
-
-  RESULT:
-    0  ok
-    1  error ;  ltime is zeroed
-*/
-
-my_bool double_to_datetime(double value, MYSQL_TIME *ltime,
-                           uint fuzzydate)
-{
-  double datepart_value;
-  int was_cut;
-
-  if (value < 0 || value >  99991231235959.0)
-  {
-    bzero((char*) ltime, sizeof(*ltime));
-    return 1;
-  }
-
-  datepart_value= floor(value);
-  if (number_to_datetime((longlong) datepart_value, ltime, fuzzydate,
-                         &was_cut) == LL(-1))
-    return 1;
-  if (ltime->time_type == MYSQL_TIMESTAMP_DATETIME ||
-      ltime->time_type == MYSQL_TIMESTAMP_TIME)
-  {
-    /* Add sub seconds to results */
-    ltime->second_part= (ulong) (floor((value - datepart_value) *
-                                       TIME_SECOND_PART_FACTOR));
-  }
-  return 0;
-}  
 
 
 /* Convert time value to integer in YYYYMMDDHHMMSS format */

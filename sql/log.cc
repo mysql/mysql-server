@@ -640,11 +640,11 @@ bool Log_to_csv_event_handler::
 
   /* fill in query_time field */
   calc_time_from_sec(&t, query_time, query_time_micro);
-  if (table->field[2]->store_time(&t, MYSQL_TIMESTAMP_TIME))
+  if (table->field[2]->store_time(&t))
     goto err;
   /* lock_time */
   calc_time_from_sec(&t, lock_time, lock_time_micro);
-  if (table->field[3]->store_time(&t, MYSQL_TIMESTAMP_TIME))
+  if (table->field[3]->store_time(&t))
     goto err;
   /* rows_sent */
   if (table->field[4]->store((longlong) thd->sent_row_count, TRUE))

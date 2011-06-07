@@ -502,7 +502,8 @@ Field *Item_sum::create_tmp_field(bool group, TABLE *table,
     field= Field_new_decimal::create_from_item(this);
     break;
   case ROW_RESULT:
-  default:
+  case TIME_RESULT:
+  case IMPOSSIBLE_RESULT:
     // This case should never be choosen
     DBUG_ASSERT(0);
     return 0;
@@ -617,7 +618,8 @@ Item_sum_hybrid::fix_fields(THD *thd, Item **ref)
     max_length= float_length(decimals);
     break;
   case ROW_RESULT:
-  default:
+  case TIME_RESULT:
+  case IMPOSSIBLE_RESULT:
     DBUG_ASSERT(0);
   };
   setup_hybrid(args[0], NULL);
@@ -770,13 +772,14 @@ void Item_sum_sum::fix_length_and_dec()
   DBUG_ENTER("Item_sum_sum::fix_length_and_dec");
   maybe_null=null_value=1;
   decimals= args[0]->decimals;
-  switch (args[0]->result_type()) {
+  switch (args[0]->cast_to_int_type()) {
   case REAL_RESULT:
   case STRING_RESULT:
     hybrid_type= REAL_RESULT;
     sum= 0.0;
     break;
   case INT_RESULT:
+  case TIME_RESULT:
   case DECIMAL_RESULT:
   {
     /* SUM result can't be longer than length(arg) + length(MAX_ROWS) */
@@ -790,7 +793,7 @@ void Item_sum_sum::fix_length_and_dec()
     break;
   }
   case ROW_RESULT:
-  default:
+  case IMPOSSIBLE_RESULT:
     DBUG_ASSERT(0);
   }
   DBUG_PRINT("info", ("Type: %s (%d, %d)",
@@ -979,7 +982,8 @@ void Item_sum_distinct::fix_length_and_dec()
       table_field_type= MYSQL_TYPE_NEWDECIMAL;
     break;
   case ROW_RESULT:
-  default:
+  case TIME_RESULT:
+  case IMPOSSIBLE_RESULT:
     DBUG_ASSERT(0);
   }
   val.traits->fix_length_and_dec(this, args[0]);
@@ -1431,7 +1435,8 @@ void Item_sum_variance::fix_length_and_dec()
     break;
   }
   case ROW_RESULT:
-  default:
+  case TIME_RESULT:
+  case IMPOSSIBLE_RESULT:
     DBUG_ASSERT(0);
   }
   DBUG_PRINT("info", ("Type: REAL_RESULT (%d, %d)", max_length, (int)decimals));
@@ -1856,7 +1861,8 @@ void Item_sum_hybrid::reset_field()
     break;
   }
   case ROW_RESULT:
-  default:
+  case TIME_RESULT:
+  case IMPOSSIBLE_RESULT:
     DBUG_ASSERT(0);
   }
 }

@@ -16100,7 +16100,7 @@ bool test_if_ref(Item *root_cond, Item_field *left_item,Item *right_item)
       {
 	/*
 	  We can remove binary fields and numerical fields except float,
-	  as float comparison isn't 100 % secure
+	  as float comparison isn't 100 % safe
 	  We have to keep normal strings to be able to check for end spaces
 	*/
 	if (field->binary() &&

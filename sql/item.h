@@ -913,7 +913,9 @@ public:
   void split_sum_func2(THD *thd, Item **ref_pointer_array, List<Item> &fields,
                        Item **ref, bool skip_registered);
   virtual bool get_date(MYSQL_TIME *ltime,uint fuzzydate);
-  bool get_time(MYSQL_TIME *ltime);
+  bool get_time(MYSQL_TIME *ltime)
+  { return get_date(ltime, TIME_TIME_ONLY | TIME_FUZZY_DATE); }
+  bool get_seconds(ulonglong *sec, ulong *sec_part);
   virtual bool get_date_result(MYSQL_TIME *ltime,uint fuzzydate)
   { return get_date(ltime,fuzzydate); }
   /*
@@ -2757,7 +2759,6 @@ public:
   bool val_bool();
   bool is_null();
   bool get_date(MYSQL_TIME *ltime, uint fuzzydate);
-  bool get_time(MYSQL_TIME *ltime);
   bool send(Protocol *protocol, String *buffer)
   {
     if (result_field)

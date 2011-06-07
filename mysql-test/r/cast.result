@@ -65,10 +65,10 @@ cast(cast("20:01:01" as time) as datetime)
 0000-00-00 20:01:01
 select cast(cast("8:46:06.23434" AS time) as decimal(32,10));
 cast(cast("8:46:06.23434" AS time) as decimal(32,10))
-84606.2343400000
+84606.0000000000
 select cast(cast("2011-04-05 8:46:06.23434" AS datetime) as decimal(32,6));
 cast(cast("2011-04-05 8:46:06.23434" AS datetime) as decimal(32,6))
-20110405084606.234340
+20110405084606.000000
 #
 # Check handling of cast with microseconds
 #
@@ -77,7 +77,7 @@ cast(cast(20010203101112.121314 as double) as datetime)
 2001-02-03 10:11:12
 select cast(cast(010203101112.12 as double) as datetime);
 cast(cast(010203101112.12 as double) as datetime)
-2001-02-03 10:11:12
+0001-02-03 10:11:12
 select cast(cast(20010203101112.121314 as decimal(32,6)) as datetime);
 cast(cast(20010203101112.121314 as decimal(32,6)) as datetime)
 2001-02-03 10:11:12
@@ -86,10 +86,10 @@ cast(20010203101112.121314 as datetime)
 2001-02-03 10:11:12
 select cast(110203101112.121314 as datetime);
 cast(110203101112.121314 as datetime)
-2011-02-03 10:11:12
+0011-02-03 10:11:12
 select cast(cast(010203101112.12 as double) as datetime);
 cast(cast(010203101112.12 as double) as datetime)
-2001-02-03 10:11:12
+0001-02-03 10:11:12
 select cast("2011-02-03 10:11:12.123456" as datetime);
 cast("2011-02-03 10:11:12.123456" as datetime)
 2011-02-03 10:11:12
@@ -110,7 +110,7 @@ cast(cast(20010203101112.1 as double) as datetime(1))
 2001-02-03 10:11:12.1
 select cast(cast(010203101112.12 as double) as datetime(2));
 cast(cast(010203101112.12 as double) as datetime(2))
-2001-02-03 10:11:12.12
+0001-02-03 10:11:12.12
 select cast(cast(20010203101112.121314 as decimal(32,6)) as datetime(6));
 cast(cast(20010203101112.121314 as decimal(32,6)) as datetime(6))
 2001-02-03 10:11:12.121314
@@ -119,10 +119,10 @@ cast(20010203101112.121314 as datetime(6))
 2001-02-03 10:11:12.121314
 select cast(110203101112.121314 as datetime(6));
 cast(110203101112.121314 as datetime(6))
-2011-02-03 10:11:12.121314
+0011-02-03 10:11:12.121314
 select cast(cast(010203101112.12 as double) as datetime(6));
 cast(cast(010203101112.12 as double) as datetime(6))
-2001-02-03 10:11:12.120000
+0001-02-03 10:11:12.120000
 select cast("2011-02-03 10:11:12.123456" as time);
 cast("2011-02-03 10:11:12.123456" as time)
 10:11:12
@@ -149,7 +149,7 @@ cast(cast("2011-04-05 8:46:06.123456" AS datetime) as time)
 08:46:06
 select cast(cast("2011-04-05 8:46:06.123456" AS datetime) as time(6));
 cast(cast("2011-04-05 8:46:06.123456" AS datetime) as time(6))
-08:46:06.123456
+08:46:06.000000
 select cast(cast("2011-04-05 8:46:06.123456" AS datetime(6)) as time);
 cast(cast("2011-04-05 8:46:06.123456" AS datetime(6)) as time)
 08:46:06
@@ -265,9 +265,7 @@ Warnings:
 Warning	1264	Out of range value for column 'cast(-1000 as double(5,2))' at row 1
 select cast(010203101112.121314 as datetime);
 cast(010203101112.121314 as datetime)
-NULL
-Warnings:
-Warning	1292	Incorrect datetime value: '10203101112.121314'
+0001-02-03 10:11:12
 select cast(120010203101112.121314 as datetime);
 cast(120010203101112.121314 as datetime)
 NULL
@@ -328,10 +326,10 @@ cast(cast(120010203101112.121314 as double) as datetime)
 NULL
 select cast(cast(1.1 as double) as datetime);
 cast(cast(1.1 as double) as datetime)
-NULL
+0000-00-00 00:00:01
 select cast(cast(-1.1 as double) as datetime);
 cast(cast(-1.1 as double) as datetime)
-NULL
+0000-00-00 00:00:01
 explain extended select cast(10 as double(5,2));
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	No tables used

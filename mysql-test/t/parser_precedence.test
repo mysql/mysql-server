@@ -3,6 +3,8 @@
 drop table if exists t1_30237_bool;
 --enable_warnings
 
+set sql_mode=NO_UNSIGNED_SUBTRACTION;
+
 create table t1_30237_bool(A boolean, B boolean, C boolean);
 
 insert into t1_30237_bool values

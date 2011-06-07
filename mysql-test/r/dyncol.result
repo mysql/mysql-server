@@ -295,6 +295,9 @@ column_get(column_create(1, "8:46:06.23434" AS time), 1 as int)
 select column_get(column_create(1, "8:46:06.23434" AS time(6)), 1 as int);
 column_get(column_create(1, "8:46:06.23434" AS time(6)), 1 as int)
 84606
+select column_get(column_create(1, "-808:46:06.23434" AS time(6)), 1 as int);
+column_get(column_create(1, "-808:46:06.23434" AS time(6)), 1 as int)
+-8084606
 select column_get(column_create(1, "2011-04-05 8:46:06.23434" AS datetime(6)), 1 as int);
 column_get(column_create(1, "2011-04-05 8:46:06.23434" AS datetime(6)), 1 as int)
 20110405084606
@@ -402,6 +405,9 @@ column_get(column_create(1, "8:46:06.23434" AS time(0)), 1 as char charset utf8)
 select column_get(column_create(1, "8:46:06.23434" AS time(6)), 1 as char charset utf8);
 column_get(column_create(1, "8:46:06.23434" AS time(6)), 1 as char charset utf8)
 08:46:06.234340
+select column_get(column_create(1, "-808:46:06.23434" AS time(6)), 1 as char charset utf8);
+column_get(column_create(1, "-808:46:06.23434" AS time(6)), 1 as char charset utf8)
+-808:46:06.234340
 select column_get(column_create(1, "2011-04-05 8:46:06.23434" AS datetime), 1 as char charset utf8);
 column_get(column_create(1, "2011-04-05 8:46:06.23434" AS datetime), 1 as char charset utf8)
 2011-04-05 08:46:06.234340
@@ -465,6 +471,9 @@ column_get(column_create(1, "8:46:06.23434" AS time), 1 as double)
 select column_get(column_create(1, "8:46:06.23434" AS time(6)), 1 as double);
 column_get(column_create(1, "8:46:06.23434" AS time(6)), 1 as double)
 84606.23434
+select column_get(column_create(1, "-808:46:06.23434" AS time(6)), 1 as double);
+column_get(column_create(1, "-808:46:06.23434" AS time(6)), 1 as double)
+-8084606.23434
 select column_get(column_create(1, "2011-04-05 8:46:06.23434" AS datetime), 1 as double);
 column_get(column_create(1, "2011-04-05 8:46:06.23434" AS datetime), 1 as double)
 20110405084606.2
@@ -540,6 +549,9 @@ column_get(column_create(1, "8:46:06.23434" AS time), 1 as decimal(32,6))
 select column_get(column_create(1, "8:46:06.23434" AS time(6)), 1 as decimal(32,6));
 column_get(column_create(1, "8:46:06.23434" AS time(6)), 1 as decimal(32,6))
 84606.234340
+select column_get(column_create(1, "-808:46:06.23434" AS time(6)), 1 as decimal(32,6));
+column_get(column_create(1, "-808:46:06.23434" AS time(6)), 1 as decimal(32,6))
+-8084606.234340
 select column_get(column_create(1, "2011-04-05 8:46:06.123456" AS datetime), 1 as decimal(32,6));
 column_get(column_create(1, "2011-04-05 8:46:06.123456" AS datetime), 1 as decimal(32,6))
 20110405084606.123456
@@ -688,6 +700,11 @@ column_get(column_create(1, "2001021"), 1 as datetime)
 select column_get(column_create(1, "8:46:06.23434" AS time), 1 as datetime);
 column_get(column_create(1, "8:46:06.23434" AS time), 1 as datetime)
 0000-00-00 08:46:06
+select column_get(column_create(1, "-808:46:06.23434" AS time), 1 as datetime);
+column_get(column_create(1, "-808:46:06.23434" AS time), 1 as datetime)
+NULL
+Warnings:
+Warning	1292	Truncated incorrect datetime value: '-808:46:06'
 set @@sql_mode="allow_invalid_dates";
 select column_get(column_create(1, "2011-02-30 18:46:06.23434" AS CHAR), 1 as datetime);
 column_get(column_create(1, "2011-02-30 18:46:06.23434" AS CHAR), 1 as datetime)
@@ -709,17 +726,17 @@ select column_get(column_create(1, 18446744073709551615 AS unsigned int), 1 as d
 column_get(column_create(1, 18446744073709551615 AS unsigned int), 1 as datetime)
 NULL
 Warnings:
-Warning	1918	Encountered illegal value '18446744073709551615' when converting to DATE or DATETIME
+Warning	1292	Incorrect datetime value: '1.84467440737096e+19'
 select column_get(column_create(1, 9223372036854775807 AS int), 1 as datetime);
 column_get(column_create(1, 9223372036854775807 AS int), 1 as datetime)
 NULL
 Warnings:
-Warning	1918	Encountered illegal value '9223372036854775807' when converting to DATE or DATETIME
+Warning	1292	Incorrect datetime value: '9223372036854775807'
 select column_get(column_create(1, -9223372036854775808 AS int), 1 as datetime);
 column_get(column_create(1, -9223372036854775808 AS int), 1 as datetime)
 NULL
 Warnings:
-Warning	1918	Encountered illegal value '-9223372036854775808' when converting to DATE or DATETIME
+Warning	1292	Incorrect datetime value: '-9223372036854775808'
 select column_get(column_create(1, 99999999999999999999999999999 AS decimal(32,10)), 1 as datetime);
 column_get(column_create(1, 99999999999999999999999999999 AS decimal(32,10)), 1 as datetime)
 NULL
@@ -729,7 +746,7 @@ select column_get(column_create(1, 99999999999999999999999999999 AS double), 1 a
 column_get(column_create(1, 99999999999999999999999999999 AS double), 1 as datetime)
 NULL
 Warnings:
-Warning	1292	Truncated incorrect datetime value: '9.99999999999999914332e+28    '
+Warning	1292	Incorrect datetime value: '1e+29'
 select column_get(column_create(1, "2011-02-32 8:46:06.23434" AS CHAR), 1 as datetime);
 column_get(column_create(1, "2011-02-32 8:46:06.23434" AS CHAR), 1 as datetime)
 NULL
@@ -839,17 +856,17 @@ select column_get(column_create(1, 18446744073709551615 AS unsigned int), 1 as d
 column_get(column_create(1, 18446744073709551615 AS unsigned int), 1 as date)
 NULL
 Warnings:
-Warning	1918	Encountered illegal value '18446744073709551615' when converting to DATE or DATETIME
+Warning	1292	Incorrect datetime value: '1.84467440737096e+19'
 select column_get(column_create(1, 9223372036854775807 AS int), 1 as date);
 column_get(column_create(1, 9223372036854775807 AS int), 1 as date)
 NULL
 Warnings:
-Warning	1918	Encountered illegal value '9223372036854775807' when converting to DATE or DATETIME
+Warning	1292	Incorrect datetime value: '9223372036854775807'
 select column_get(column_create(1, -9223372036854775808 AS int), 1 as date);
 column_get(column_create(1, -9223372036854775808 AS int), 1 as date)
 NULL
 Warnings:
-Warning	1918	Encountered illegal value '-9223372036854775808' when converting to DATE or DATETIME
+Warning	1292	Incorrect datetime value: '-9223372036854775808'
 select column_get(column_create(1, 99999999999999999999999999999 AS decimal(32,10)), 1 as date);
 column_get(column_create(1, 99999999999999999999999999999 AS decimal(32,10)), 1 as date)
 NULL
@@ -859,7 +876,7 @@ select column_get(column_create(1, 99999999999999999999999999999 AS double), 1 a
 column_get(column_create(1, 99999999999999999999999999999 AS double), 1 as date)
 NULL
 Warnings:
-Warning	1292	Truncated incorrect datetime value: '9.99999999999999914332e+28    '
+Warning	1292	Incorrect datetime value: '1e+29'
 select column_get(column_create(1, "2011-02-32 8:46:06.23434" AS CHAR), 1 as date);
 column_get(column_create(1, "2011-02-32 8:46:06.23434" AS CHAR), 1 as date)
 NULL
@@ -897,9 +914,15 @@ column_get(column_create(1, 20010203101112.121314 as decimal), 1 as time)
 select column_get(column_create(1, 20010203101112 as unsigned int), 1 as time);
 column_get(column_create(1, 20010203101112 as unsigned int), 1 as time)
 10:11:12
+select column_get(column_create(1, 8080102 as unsigned int), 1 as time);
+column_get(column_create(1, 8080102 as unsigned int), 1 as time)
+808:01:02
 select column_get(column_create(1, 20010203101112 as int), 1 as time);
 column_get(column_create(1, 20010203101112 as int), 1 as time)
 10:11:12
+select column_get(column_create(1, -8080102 as int), 1 as time);
+column_get(column_create(1, -8080102 as int), 1 as time)
+-808:01:02
 select column_get(column_create(1, "20010203101112" as char), 1 as time);
 column_get(column_create(1, "20010203101112" as char), 1 as time)
 10:11:12
@@ -980,27 +1003,27 @@ select column_get(column_create(1, 18446744073709551615 AS unsigned int), 1 as t
 column_get(column_create(1, 18446744073709551615 AS unsigned int), 1 as time)
 NULL
 Warnings:
-Warning	1292	Truncated incorrect time value: '18446744073709551615'
+Warning	1292	Incorrect datetime value: '1.84467440737096e+19'
 select column_get(column_create(1, 9223372036854775807 AS int), 1 as time);
 column_get(column_create(1, 9223372036854775807 AS int), 1 as time)
 NULL
 Warnings:
-Warning	1292	Truncated incorrect time value: '9223372036854775807'
+Warning	1292	Incorrect datetime value: '9223372036854775807'
 select column_get(column_create(1, -9223372036854775808 AS int), 1 as time);
 column_get(column_create(1, -9223372036854775808 AS int), 1 as time)
 NULL
 Warnings:
-Warning	1292	Truncated incorrect time value: '-9223372036854775808'
+Warning	1292	Incorrect datetime value: '-9223372036854775808'
 select column_get(column_create(1, 99999999999999999999999999999 AS decimal(32,10)), 1 as time);
 column_get(column_create(1, 99999999999999999999999999999 AS decimal(32,10)), 1 as time)
 NULL
 Warnings:
-Warning	1292	Truncated incorrect time value: '99999999999999999999999999999'
+Warning	1292	Incorrect datetime value: '99999999999999999999999999999'
 select column_get(column_create(1, 99999999999999999999999999999 AS double), 1 as time);
 column_get(column_create(1, 99999999999999999999999999999 AS double), 1 as time)
 NULL
 Warnings:
-Warning	1292	Truncated incorrect time value: '1e+29'
+Warning	1292	Incorrect datetime value: '1e+29'
 select column_get(column_create(1, "2011-02-32 8:46:06.23434" AS CHAR), 1 as time);
 column_get(column_create(1, "2011-02-32 8:46:06.23434" AS CHAR), 1 as time)
 NULL

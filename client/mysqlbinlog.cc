@@ -1445,7 +1445,7 @@ static my_time_t convert_str_to_timestamp(const char* str)
   int was_cut;
   MYSQL_TIME l_time;
   long dummy_my_timezone;
-  my_bool dummy_in_dst_time_gap;
+  uint dummy_in_dst_time_gap;
   /* We require a total specification (date AND time) */
   if (str_to_datetime(str, (uint) strlen(str), &l_time, 0, &was_cut) !=
       MYSQL_TIMESTAMP_DATETIME || was_cut)
