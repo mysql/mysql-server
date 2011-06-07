@@ -2240,7 +2240,7 @@ extern uint thread_handling;
 extern uint connection_count, extra_connection_count;
 extern my_bool opt_sql_bin_update, opt_safe_user_create, opt_no_mix_types;
 extern my_bool opt_safe_show_db, opt_local_infile, opt_myisam_use_mmap;
-extern my_bool opt_slave_compressed_protocol, use_temp_pool;
+extern my_bool opt_slave_compressed_protocol, use_temp_pool, opt_help;
 extern ulong slave_exec_mode_options;
 extern my_bool opt_readonly, lower_case_file_system;
 extern my_bool opt_userstat_running;

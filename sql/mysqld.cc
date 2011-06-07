@@ -436,7 +436,7 @@ bool opt_large_files= sizeof(my_off_t) > 4;
 /*
   Used with --help for detailed option
 */
-static my_bool opt_help= 0, opt_verbose= 0;
+static my_bool opt_verbose= 0;
 
 arg_cmp_func Arg_comparator::comparator_matrix[6][2] =
 {{&Arg_comparator::compare_string,     &Arg_comparator::compare_e_string},
@@ -521,7 +521,7 @@ static pthread_cond_t COND_thread_cache, COND_flush_thread_cache;
 /* Global variables */
 
 bool opt_update_log, opt_bin_log, opt_ignore_builtin_innodb= 0;
-my_bool opt_log, opt_slow_log, debug_assert_if_crashed_table;
+my_bool opt_log, opt_slow_log, debug_assert_if_crashed_table, opt_help= 0;
 my_bool opt_userstat_running;
 ulong log_output_options;
 my_bool opt_log_queries_not_using_indexes= 0;
@@ -3829,8 +3829,7 @@ You should consider changing lower_case_table_names to 1 or 2",
     }
   }
   else if (lower_case_table_names == 2 &&
-           !(lower_case_file_system=
-             (test_if_case_insensitive(mysql_real_data_home) == 1)))
+           !(lower_case_file_system= (lower_case_file_system == 1)))
   {
     if (global_system_variables.log_warnings)
       sql_print_warning("lower_case_table_names was set to 2, even though your "
@@ -3841,8 +3840,7 @@ You should consider changing lower_case_table_names to 1 or 2",
   }
   else
   {
-    lower_case_file_system=
-      (test_if_case_insensitive(mysql_real_data_home) == 1);
+    lower_case_file_system= (lower_case_file_system == 1);
   }
 
   /* Reset table_alias_charset, now that lower_case_table_names is set. */
@@ -4744,7 +4742,7 @@ int main(int argc, char **argv)
     We have enough space for fiddling with the argv, continue
   */
   check_data_home(mysql_real_data_home);
-  if (my_setwd(mysql_real_data_home,MYF(MY_WME)) && !opt_help)
+  if (my_setwd(mysql_real_data_home, opt_help ? 0 : MYF(MY_WME)) && !opt_help)
     unireg_abort(1);				/* purecov: inspected */
   mysql_data_home= mysql_data_home_buff;
   mysql_data_home[0]=FN_CURLIB;		// all paths are relative from here
@@ -9920,7 +9918,8 @@ static int test_if_case_insensitive(const char *dir_name)
   (void) my_delete(buff2, MYF(0));
   if ((file= my_create(buff, 0666, O_RDWR, MYF(0))) < 0)
   {
-    sql_print_warning("Can't create test file %s", buff);
+    if (!opt_help)
+      sql_print_warning("Can't create test file %s", buff);
     DBUG_RETURN(-1);
   }
   my_close(file, MYF(0));
