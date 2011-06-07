@@ -2588,6 +2588,62 @@ NdbDictionary::Dictionary::dropIndexGlobal(const Index &ind)
   return ret;
 }
 
+int
+NdbDictionary::Dictionary::updateIndexStat(const Index& index,
+                                           const Table& table)
+{
+  int ret;
+  DO_TRANS(
+    ret,
+    m_impl.updateIndexStat(NdbIndexImpl::getImpl(index),
+                           NdbTableImpl::getImpl(table))
+  );
+  return ret;
+}
+
+int
+NdbDictionary::Dictionary::updateIndexStat(Uint32 indexId,
+                                           Uint32 indexVersion,
+                                           Uint32 tableId)
+{
+  int ret;
+  DO_TRANS(
+    ret,
+    m_impl.updateIndexStat(indexId,
+                           indexVersion,
+                           tableId)
+  );
+  return ret;
+}
+
+int
+NdbDictionary::Dictionary::deleteIndexStat(const Index& index,
+                                           const Table& table)
+{
+  int ret;
+  DO_TRANS(
+    ret,
+    m_impl.deleteIndexStat(NdbIndexImpl::getImpl(index),
+                           NdbTableImpl::getImpl(table))
+  );
+  return ret;
+}
+
+int
+NdbDictionary::Dictionary::deleteIndexStat(Uint32 indexId,
+                                           Uint32 indexVersion,
+                                           Uint32 tableId)
+{
+  int ret;
+  DO_TRANS(
+    ret,
+    m_impl.deleteIndexStat(indexId,
+                           indexVersion,
+                           tableId)
+  );
+  return ret;
+}
+
 const NdbDictionary::Index * 
 NdbDictionary::Dictionary::getIndex(const char * indexName,
 				    const char * tableName) const
@@ -2755,7 +2811,6 @@ NdbDictionary::Dictionary::listIndexes(List& list,
 {
   return m_impl.listIndexes(list, table.getTableId());
 }
-
 
 const struct NdbError & 
 NdbDictionary::Dictionary::getNdbError() const {
