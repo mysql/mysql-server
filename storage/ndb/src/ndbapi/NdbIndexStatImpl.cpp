@@ -2212,7 +2212,7 @@ NdbIndexStatImpl::MemDefault::mem_free(void* ptr)
   {
     Item* item = (Item*)ptr - 1;
     assert(item->m_magic == MemMagic);
-    Uint32 size = item->m_size;
+    size_t size = item->m_size;
     item->m_magic = 0;
     my_free(item, MYF(0));
     assert(m_used >= size);
