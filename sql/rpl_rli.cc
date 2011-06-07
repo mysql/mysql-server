@@ -417,7 +417,7 @@ int Relay_log_info::wait_for_pos(THD* thd, String* log_name,
     DBUG_RETURN(-2);
 
   DBUG_PRINT("enter",("log_name: '%s'  log_pos: %lu  timeout: %lu",
-                      log_name->c_ptr(), (ulong) log_pos, (ulong) timeout));
+                      log_name->c_ptr_safe(), (ulong) log_pos, (ulong) timeout));
 
   set_timespec(abstime,timeout);
   mysql_mutex_lock(&data_lock);
