@@ -22,6 +22,7 @@ package com.mysql.cluster.crund;
 import java.util.Properties;
 import java.util.List;
 import java.util.Set;
+import java.util.EnumSet;
 import java.util.HashSet;
 import java.util.ArrayList;
 import java.util.Date;
@@ -32,7 +33,6 @@ import java.io.FileWriter;
 import java.io.IOException;
 import java.io.PrintWriter;
 import java.io.InputStream;
-
 
 /**
  * This class benchmarks standard database operations over a series
@@ -55,7 +55,10 @@ import java.io.InputStream;
  */
 abstract public class CrundDriver extends Driver {
 
+    enum XMode { INDY, EACH, BULK }
+
     // benchmark settings
+    protected final EnumSet< XMode > xMode = EnumSet.noneOf(XMode.class);
     protected boolean renewConnection;
     protected boolean renewOperations;
     protected boolean logSumOfOps;
@@ -140,6 +143,13 @@ abstract public class CrundDriver extends Driver {
         final StringBuilder msg = new StringBuilder();
         final String eol = System.getProperty("line.separator");
 
+        // parse execution modes
+        final String[] xm = props.getProperty("xMode", "").split(",");
+        for (int i = 0; i < xm.length; i++) {
+            if (!"".equals(xm[i]))
+                xMode.add(XMode.valueOf(XMode.class, xm[i]));
+        }
+
         renewConnection = parseBoolean("renewConnection", false);
         renewOperations = parseBoolean("renewOperations", false);
         logSumOfOps = parseBoolean("logSumOfOps", true);
@@ -207,6 +217,7 @@ abstract public class CrundDriver extends Driver {
 
         out.println();
         out.println("crund settings ...");
+        out.println("xMode:                          " + xMode);
         out.println("renewConnection:                " + renewConnection);
         out.println("renewOperations:                " + renewOperations);
         out.println("logSumOfOps:                    " + logSumOfOps);
