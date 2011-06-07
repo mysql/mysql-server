@@ -312,8 +312,8 @@ int decimal_actual_fraction(decimal_t *from)
       from            - value to convert
       to              - points to buffer where string representation
                         should be stored
-      *to_len         - in:  size of to buffer
-                        out: length of the actually written string
+      *to_len         - in:  size of to buffer (incl. terminating '\0')
+                        out: length of the actually written string (excl. '\0')
       fixed_precision - 0 if representation can be variable length and
                         fixed_decimals will not be checked in this case.
                         Put number as with fixed point position with this
@@ -330,6 +330,7 @@ int decimal2string(const decimal_t *from, char *to, int *to_len,
                    int fixed_precision, int fixed_decimals,
                    char filler)
 {
+  /* {intg_len, frac_len} output widths; {intg, frac} places in input */
   int len, intg, frac= from->frac, i, intg_len, frac_len, fill;
   /* number digits before decimal point */
   int fixed_intg= (fixed_precision ?
@@ -368,20 +369,28 @@ int decimal2string(const decimal_t *from, char *to, int *to_len,
   }
   else if (unlikely(len > --*to_len)) /* reserve one byte for \0 */
   {
-    int j= len-*to_len;
+    int j= len - *to_len;             /* excess printable chars */
     error= (frac && j <= frac + 1) ? E_DEC_TRUNCATED : E_DEC_OVERFLOW;
-    if (frac && j >= frac + 1) j--;
+
+    /*
+      If we need to cut more places than frac is wide, we'll end up
+      dropping the decimal point as well.  Account for this.
+    */
+    if (frac && j >= frac + 1)
+      j--;
+
     if (j > frac)
     {
-      intg-= j-frac;
+      intg_len= intg-= j-frac;
       frac= 0;
     }
     else
       frac-=j;
+    frac_len= frac;
     len= from->sign + intg_len + test(frac) + frac_len;
   }
-  *to_len=len;
-  s[len]=0;
+  *to_len= len;
+  s[len]= 0;
 
   if (from->sign)
     *s++='-';
@@ -403,14 +412,14 @@ int decimal2string(const decimal_t *from, char *to, int *to_len,
         x*=10;
       }
     }
-    for(; fill; fill--)
+    for(; fill > 0; fill--)
       *s1++=filler;
   }
 
   fill= intg_len - intg;
   if (intg == 0)
     fill--; /* symbol 0 before digital point */
-  for(; fill; fill--)
+  for(; fill > 0; fill--)
     *s++=filler;
   if (intg)
   {
@@ -428,6 +437,7 @@ int decimal2string(const decimal_t *from, char *to, int *to_len,
   }
   else
     *s= '0';
+
   return error;
 }
 
@@ -668,7 +678,7 @@ int decimal_shift(decimal_t *dec, int shift)
     if (do_left)
     {
       do_mini_left_shift(dec, l_mini_shift, beg, end);
-      mini_shift=- l_mini_shift;
+      mini_shift= -l_mini_shift;
     }
     else
     {
@@ -2022,7 +2032,7 @@ int decimal_mul(const decimal_t *from1, const decimal_t *from2, decimal_t *to)
   stop1=buf1-intg1;
   stop2=buf2-intg2;
 
-  bzero(to->buf, (intg0+frac0)*sizeof(dec1));
+  memset(to->buf, 0, (intg0+frac0)*sizeof(dec1));
 
   for (buf1+=frac1-1; buf1 >= stop1; buf1--, start0--)
   {
@@ -2193,7 +2203,7 @@ static int do_div_mod(const decimal_t *from1, const decimal_t *from2,
   if (!(tmp1=(dec1 *)my_alloca(len1*sizeof(dec1))))
     return E_DEC_OOM;
   memcpy(tmp1, buf1, i*sizeof(dec1));
-  bzero(tmp1+i, (len1-i)*sizeof(dec1));
+  memset(tmp1+i, 0, (len1-i)*sizeof(dec1));
 
   start1=tmp1;
   stop1=start1+len1;

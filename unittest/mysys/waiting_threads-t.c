@@ -52,7 +52,7 @@ struct my_rnd_struct {
 static void my_rnd_init(struct my_rnd_struct *rand_st, ulong seed1, ulong seed2)
 {
 #ifdef HAVE_purify
-  bzero((char*) rand_st,sizeof(*rand_st));      /* Avoid UMC varnings */
+  memset((char*) rand_st, 0, sizeof(*rand_st));      /* Avoid UMC varnings */
 #endif
   rand_st->max_value= 0x3FFFFFFFL;
   rand_st->max_value_dbl=(double) rand_st->max_value;
@@ -84,7 +84,7 @@ pthread_cond_t thread_sync;
 ulong wt_timeout_short=100, wt_deadlock_search_depth_short=4;
 ulong wt_timeout_long=10000, wt_deadlock_search_depth_long=15;
 
-#define reset(ARRAY) bzero(ARRAY, sizeof(ARRAY))
+#define reset(ARRAY) memset(ARRAY, 0, sizeof(ARRAY))
 
 /* see explanation of the kill strategies in waiting_threads.h */
 enum { LATEST, RANDOM, YOUNGEST, LOCKS } kill_strategy;

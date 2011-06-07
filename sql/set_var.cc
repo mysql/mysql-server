@@ -113,7 +113,8 @@ void sys_var_end()
   sys_var constructor
 
   @param chain     variables are linked into chain for mysql_add_sys_var_chain()
-  @param name_arg  the name of the variable. @sa my_option::name
+  @param name_arg  the name of the variable. Must be 0-terminated and exist
+                   for the liftime of the sys_var object. @sa my_option::name
   @param comment   shown in mysqld --help, @sa my_option::comment
   @param flags_arg or'ed flag_enum values
   @param off       offset of the global variable value from the
@@ -158,11 +159,11 @@ sys_var::sys_var(sys_var_chain *chain, const char *name_arg,
   */
   DBUG_ASSERT(parse_flag == PARSE_NORMAL || getopt_id <= 0 || getopt_id >= 255);
 
-  name.str= name_arg;
-  name.length= strlen(name_arg);
+  name.str= name_arg;     // ER_NO_DEFAULT relies on 0-termination of name_arg
+  name.length= strlen(name_arg);                // and so does this.
   DBUG_ASSERT(name.length <= NAME_CHAR_LEN);
 
-  bzero(&option, sizeof(option));
+  memset(&option, 0, sizeof(option));
   option.name= name_arg;
   option.id= getopt_id;
   option.comment= comment;
@@ -500,7 +501,7 @@ SHOW_VAR* enumerate_sys_vars(THD *thd, bool sorted, enum enum_var_type type)
                (qsort_cmp) show_cmp);
 
     /* make last element empty */
-    bzero(show, sizeof(SHOW_VAR));
+    memset(show, 0, sizeof(SHOW_VAR));
   }
   return result;
 }

@@ -121,9 +121,9 @@ public:
   Table_triggers_list(TABLE *table_arg):
     record1_field(0), trigger_table(table_arg)
   {
-    bzero((char *)bodies, sizeof(bodies));
-    bzero((char *)trigger_fields, sizeof(trigger_fields));
-    bzero((char *)&subject_table_grants, sizeof(subject_table_grants));
+    memset(bodies, 0, sizeof(bodies));
+    memset(trigger_fields, 0, sizeof(trigger_fields));
+    memset(&subject_table_grants, 0, sizeof(subject_table_grants));
   }
   ~Table_triggers_list();
 

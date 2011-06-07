@@ -85,6 +85,7 @@ SHOW CREATE TABLE mysqltest1.t1;
 connection master;
 INSERT INTO mysqltest1.t1 SET f1= 1;
 DROP TEMPORARY TABLE mysqltest1.tmp;
+--replace_column 2 #
 ROLLBACK;
 --error ER_NO_SUCH_TABLE
 SHOW CREATE TABLE mysqltest1.tmp;
@@ -93,6 +94,7 @@ SELECT COUNT(*) FROM mysqltest1.t1;
 
 INSERT INTO mysqltest1.t1 SET f1= 2;
 CREATE TEMPORARY TABLE mysqltest1.tmp2(a INT);
+--replace_column 2 #
 ROLLBACK;
 SHOW CREATE TABLE mysqltest1.tmp2;
 --echo ######### Must return no rows here #########

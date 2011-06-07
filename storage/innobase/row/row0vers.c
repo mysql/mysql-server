@@ -113,8 +113,6 @@ row_vers_impl_x_locked_low(
 	modify rec, and does not necessarily have an implicit x-lock
 	on rec. */
 
-	mtr_s_lock(&purge_sys->latch, mtr);
-
 	for (version = clust_rec;; version = prev_version) {
 		ulint		err;
 		row_ext_t*	ext;
@@ -189,9 +187,9 @@ row_vers_impl_x_locked_low(
 		would require rec to be in a different state. */
 
 		/* The previous version of clust_rec must be
-		accessible, because clust_rec was not a fresh insert
-		and we are holding purge_sys->latch. There is no
-		guarantee that the transaction is still active. */
+		accessible, because clust_rec was not a fresh insert.
+		There is no guarantee that the transaction is still
+		active. */
 
 		ut_ad(err == DB_SUCCESS);
 
@@ -285,8 +283,10 @@ row_vers_impl_x_locked(
 
 	/* Search for the clustered index record. The latch on the
 	page of clust_rec locks the top of the stack of versions. The
-	bottom of the version stack will be locked by
-	purge_sys->latch. */
+	bottom of the version stack is not locked; oldest versions may
+	disappear by the fact that transactions may be committed and
+	collected by the purge. This is not a problem, because we are
+	only interested in active transactions. */
 
 	clust_rec = row_get_clust_rec(
 		BTR_SEARCH_LEAF, rec, index, &clust_index, &mtr);
@@ -334,15 +334,7 @@ row_vers_must_preserve_del_marked(
 
 	mtr_s_lock(&(purge_sys->latch), mtr);
 
-	if (trx_purge_update_undo_must_exist(trx_id)) {
-
-		/* A purge operation is not yet allowed to remove this
-		delete marked record */
-
-		return(TRUE);
-	}
-
-	return(FALSE);
+	return(!read_view_sees_trx_id(purge_sys->view, trx_id));
 }
 
 /*****************************************************************//**
@@ -382,7 +374,6 @@ row_vers_old_has_index_entry(
 #ifdef UNIV_SYNC_DEBUG
 	ut_ad(!rw_lock_own(&(purge_sys->latch), RW_LOCK_SHARED));
 #endif /* UNIV_SYNC_DEBUG */
-	mtr_s_lock(&(purge_sys->latch), mtr);
 
 	clust_index = dict_table_get_first_index(index->table);
 
@@ -395,7 +386,11 @@ row_vers_old_has_index_entry(
 	if (also_curr && !rec_get_deleted_flag(rec, comp)) {
 		row_ext_t*	ext;
 
-		/* The stack of versions is locked by mtr.
+		/* The top of the stack of versions is locked by the
+		mtr holding a latch on the page containing the
+		clustered index record. The bottom of the stack is
+		locked by the fact that the purge_sys->view must
+		'overtake' any read view of an active transaction.
 		Thus, it is safe to fetch the prefixes for
 		externally stored columns. */
 		row = row_build(ROW_COPY_POINTERS, clust_index,
@@ -535,7 +530,6 @@ row_vers_build_for_consistent_read(
 
 	ut_ad(!read_view_sees_trx_id(view, trx_id));
 
-	rw_lock_s_lock(&(purge_sys->latch));
 	version = rec;
 
 	for (;;) {
@@ -615,7 +609,6 @@ row_vers_build_for_consistent_read(
 	}/* for (;;) */
 
 	mem_heap_free(heap);
-	rw_lock_s_unlock(&(purge_sys->latch));
 
 	return(err);
 }
@@ -660,12 +653,6 @@ row_vers_build_for_semi_consistent_read(
 #endif /* UNIV_SYNC_DEBUG */
 
 	ut_ad(rec_offs_validate(rec, index, *offsets));
-
-	rw_lock_s_lock(&(purge_sys->latch));
-	/* The S-latch on purge_sys prevents the purge view from
-	changing.  Thus, if we have an uncommitted transaction at
-	this point, then purge cannot remove its undo log even if
-	the transaction could commit now. */
 
 	version = rec;
 
@@ -759,7 +746,6 @@ row_vers_build_for_semi_consistent_read(
 	if (heap) {
 		mem_heap_free(heap);
 	}
-	rw_lock_s_unlock(&(purge_sys->latch));
 
 	return(err);
 }

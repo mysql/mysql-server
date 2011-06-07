@@ -833,9 +833,9 @@ static void make_sortkey(register Sort_param *param,
 	if (field->is_null())
 	{
 	  if (sort_field->reverse)
-	    bfill(to,sort_field->length+1,(char) 255);
+	    memset(to, 255, sort_field->length+1);
 	  else
-	    bzero((char*) to,sort_field->length+1);
+	    memset(to, 0, sort_field->length+1);
 	  to+= sort_field->length+1;
 	  continue;
 	}
@@ -864,7 +864,7 @@ static void make_sortkey(register Sort_param *param,
         if (!res)
         {
           if (maybe_null)
-            bzero((char*) to-1,sort_field->length+1);
+            memset(to-1, 0, sort_field->length+1);
           else
           {
             /* purecov: begin deadcode */
@@ -876,7 +876,7 @@ static void make_sortkey(register Sort_param *param,
             DBUG_ASSERT(0);
             DBUG_PRINT("warning",
                        ("Got null on something that shouldn't be null"));
-            bzero((char*) to,sort_field->length);	// Avoid crash
+            memset(to, 0, sort_field->length);	// Avoid crash
             /* purecov: end */
           }
           break;
@@ -928,12 +928,12 @@ static void make_sortkey(register Sort_param *param,
             if (item->null_value)
             {
               if (maybe_null)
-                bzero((char*) to-1,sort_field->length+1);
+                memset(to-1, 0, sort_field->length+1);
               else
               {
                 DBUG_PRINT("warning",
                            ("Got null on something that shouldn't be null"));
-                bzero((char*) to,sort_field->length);
+                memset(to, 0, sort_field->length);
               }
               break;
             }
@@ -968,7 +968,7 @@ static void make_sortkey(register Sort_param *param,
           {
             if (item->null_value)
             { 
-              bzero((char*)to, sort_field->length+1);
+              memset(to, 0, sort_field->length+1);
               to++;
               break;
             }
@@ -986,7 +986,7 @@ static void make_sortkey(register Sort_param *param,
           {
             if (item->null_value)
             {
-              bzero((char*) to,sort_field->length+1);
+              memset(to, 0, sort_field->length+1);
               to++;
               break;
             }
@@ -1028,7 +1028,7 @@ static void make_sortkey(register Sort_param *param,
     SORT_ADDON_FIELD *addonf= param->addon_field;
     uchar *nulls= to;
     DBUG_ASSERT(addonf != 0);
-    bzero((char *) nulls, addonf->offset);
+    memset(nulls, 0, addonf->offset);
     to+= addonf->offset;
     for ( ; (field= addonf->field) ; addonf++)
     {
@@ -1036,7 +1036,7 @@ static void make_sortkey(register Sort_param *param,
       {
         nulls[addonf->null_offset]|= addonf->null_bit;
 #ifdef HAVE_purify
-	bzero(to, addonf->length);
+	memset(to, 0, addonf->length);
 #endif
       }
       else
@@ -1046,7 +1046,7 @@ static void make_sortkey(register Sort_param *param,
 	uint length= (uint) ((to + addonf->length) - end);
 	DBUG_ASSERT((int) length >= 0);
 	if (length)
-	  bzero(end, length);
+	  memset(end, 0, length);
 #else
         (void) field->pack(to, field->ptr);
 #endif
@@ -1226,7 +1226,7 @@ bool check_if_pq_applicable(Sort_param *param,
                                        row_length);
       /*
         PQ has cost:
-        (insert + qsort) * log(queue size) / TIME_FOR_COMPARE_ROWID +
+        (insert + qsort) * log(queue size) * ROWID_COMPARE_COST +
         cost of file lookup afterwards.
         The lookup cost is a bit pessimistic: we take scan_time and assume
         that on average we find the row after scanning half of the file.
@@ -1235,7 +1235,7 @@ bool check_if_pq_applicable(Sort_param *param,
       */
       const double pq_cpu_cost= 
         (PQ_slowness * num_rows + param->max_keys_per_buffer) *
-        log((double) param->max_keys_per_buffer) / TIME_FOR_COMPARE_ROWID;
+        log((double) param->max_keys_per_buffer) * ROWID_COMPARE_COST;
       const double pq_io_cost=
         param->max_rows * table->file->scan_time() / 2.0;
       const double pq_cost= pq_cpu_cost + pq_io_cost;
@@ -1881,7 +1881,7 @@ void change_double_for_sort(double nr,uchar *to)
   if (nr == 0.0)
   {						/* Change to zero string */
     tmp[0]=(uchar) 128;
-    bzero((char*) tmp+1,sizeof(nr)-1);
+    memset(tmp+1, 0, sizeof(nr)-1);
   }
   else
   {

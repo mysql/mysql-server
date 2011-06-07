@@ -47,6 +47,8 @@
 #include "sp.h"
 #include "set_var.h"
 #include "debug_sync.h"
+#include <mysql/plugin.h>
+#include <mysql/service_thd_wait.h>
 
 #ifdef NO_EMBEDDED_ACCESS_CHECKS
 #define sp_restore_security_context(A,B) while (0) {}
@@ -216,7 +218,7 @@ Item_func::fix_fields(THD *thd, Item **ref)
       used_tables_cache|=     item->used_tables();
       not_null_tables_cache|= item->not_null_tables();
       const_item_cache&=      item->const_item();
-      with_subselect|=        item->with_subselect;
+      with_subselect|=        item->has_subquery();
     }
   }
   fix_length_and_dec();
@@ -314,7 +316,7 @@ void Item_func::traverse_cond(Cond_traverser traverser,
 
 Item *Item_func::transform(Item_transformer transformer, uchar *argument)
 {
-  DBUG_ASSERT(!current_thd->is_stmt_prepare());
+  DBUG_ASSERT(!current_thd->stmt_arena->is_stmt_prepare());
 
   if (arg_count)
   {
@@ -1107,7 +1109,7 @@ err:
   push_warning_printf(current_thd, MYSQL_ERROR::WARN_LEVEL_WARN,
                       ER_WARN_DATA_OUT_OF_RANGE,
                       ER(ER_WARN_DATA_OUT_OF_RANGE),
-                      name, 1);
+                      name, 1L);
   return dec;
 }
 
@@ -2271,6 +2273,9 @@ void Item_func_round::fix_length_and_dec()
   }
 
   val1= args[1]->val_int();
+  if ((null_value= args[1]->is_null()))
+    return;
+
   val1_unsigned= args[1]->unsigned_flag;
   if (val1 < 0)
     decimals_to_set= val1_unsigned ? INT_MAX : 0;
@@ -3165,7 +3170,7 @@ udf_handler::fix_fields(THD *thd, Item_result_field *func,
 
   if (!tmp_udf)
   {
-    my_error(ER_CANT_FIND_UDF, MYF(0), u_d->name.str, errno);
+    my_error(ER_CANT_FIND_UDF, MYF(0), u_d->name.str);
     DBUG_RETURN(TRUE);
   }
   u_d=tmp_udf;
@@ -3899,6 +3904,7 @@ longlong Item_func_get_lock::val_int()
   timed_cond.set_timeout(timeout * ULL(1000000000));
 
   error= 0;
+  thd_wait_begin(thd, THD_WAIT_USER_LOCK);
   while (ull->locked && !thd->killed)
   {
     DBUG_PRINT("info", ("waiting on lock"));
@@ -3910,6 +3916,7 @@ longlong Item_func_get_lock::val_int()
     }
     error= 0;
   }
+  thd_wait_end(thd);
 
   if (ull->locked)
   {
@@ -4126,6 +4133,7 @@ longlong Item_func_sleep::val_int()
   thd->mysys_var->current_cond=  &cond;
 
   error= 0;
+  thd_wait_begin(thd, THD_WAIT_SLEEP);
   while (!thd->killed)
   {
     error= timed_cond.wait(&cond, &LOCK_user_locks);
@@ -4133,6 +4141,7 @@ longlong Item_func_sleep::val_int()
       break;
     error= 0;
   }
+  thd_wait_end(thd);
   mysql_mutex_unlock(&LOCK_user_locks);
   mysql_mutex_lock(&thd->mysys_var->mutex);
   thd->mysys_var->current_mutex= 0;

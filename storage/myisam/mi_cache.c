@@ -26,7 +26,7 @@
   expected to hit the cache again.
 
   Allows "partial read" errors in the record header (when READING_HEADER flag
-  is set) - unread part is bzero'ed
+  is set) - unread part is zerofilled.
 
   Note: out-of-cache reads are enabled for shared IO_CACHE's too,
   as these reads will be cached by OS cache (and mysql_file_pread is always atomic)
@@ -102,7 +102,7 @@ int _mi_read_cache(IO_CACHE *info, uchar *buff, my_off_t pos, uint length,
       my_errno=HA_ERR_WRONG_IN_RECORD;
     DBUG_RETURN(1);
   }
-  bzero(buff+read_length,MI_BLOCK_INFO_HEADER_LENGTH - in_buff_length -
-        read_length);
+  memset(buff+read_length, 0,
+         MI_BLOCK_INFO_HEADER_LENGTH - in_buff_length - read_length);
   DBUG_RETURN(0);
 } /* _mi_read_cache */

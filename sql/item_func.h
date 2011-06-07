@@ -37,7 +37,11 @@ protected:
   uint allowed_arg_cols;
 public:
   uint arg_count;
-  table_map used_tables_cache, not_null_tables_cache;
+  /// Value used in calculation of result of used_tables()
+  table_map used_tables_cache;
+  /// Value used in calculation of result of not_null_tables()
+  table_map not_null_tables_cache;
+  /// Value used in calculation of result of const_item()
   bool const_item_cache;
   enum Functype { UNKNOWN_FUNC,EQ_FUNC,EQUAL_FUNC,NE_FUNC,LT_FUNC,LE_FUNC,
 		  GE_FUNC,GT_FUNC,FT_FUNC,

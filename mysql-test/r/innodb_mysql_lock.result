@@ -164,9 +164,23 @@ id	value
 SET lock_wait_timeout=1;
 ALTER TABLE t1 ADD INDEX idx(value);
 ERROR HY000: Lock wait timeout exceeded; try restarting transaction
+ALTER TABLE t1 ADD INDEX idx(value);
+ERROR HY000: Lock wait timeout exceeded; try restarting transaction
 # Connection default
 SELECT * FROM t1;
 id	value
 1	12345
 COMMIT;
+DROP TABLE t1;
+#
+# Bug#11747690 33650: MYSQL_ALTER_TABLE() UNNECESSARILY DOES
+#              FULL TABLE COPY 
+#
+DROP TABLE IF EXISTS t1;
+CREATE TABLE t1(a INT, b VARCHAR(255), PRIMARY KEY(a,b))
+engine=innodb default charset=utf8;
+INSERT INTO t1 VALUES (1, 'a'), (2, 'b');
+CREATE INDEX t1ba ON t1(b,a);
+affected rows: 0
+info: Records: 0  Duplicates: 0  Warnings: 0
 DROP TABLE t1;

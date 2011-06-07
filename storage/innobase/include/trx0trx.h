@@ -455,10 +455,10 @@ struct trx_lock_struct {
 					wait_lock==NULL */
 	ib_uint64_t	deadlock_mark;	/*!< A mark field that is initialized
 					to and checked against lock_mark_counter
-				       	by lock_deadlock_recursive(). */
+					by lock_deadlock_recursive(). */
 	ibool		was_chosen_as_deadlock_victim;
 					/*!< when the transaction decides to
-				       	wait for a lock, it sets this to FALSE;
+					wait for a lock, it sets this to FALSE;
 					if another transaction chooses this
 					transaction as a victim in deadlock
 					resolution, it sets this to TRUE.
@@ -468,7 +468,7 @@ struct trx_lock_struct {
 
 	que_thr_t*	wait_thr;	/*!< query thread belonging to this
 					trx that is in QUE_THR_LOCK_WAIT
-				       	state. For threads suspended in a
+					state. For threads suspended in a
 					lock wait, this is protected by
 					lock_sys->mutex. Otherwise, this may
 					only be modified by the thread that is
@@ -486,6 +486,18 @@ struct trx_lock_struct {
 
 	ib_vector_t*	table_locks;	/*!< All table locks requested by this
 					transaction, including AUTOINC locks */
+
+	ibool		cancel;		/*!< TRUE if the transaction is being
+					rolled back either via deadlock
+					detection or due to lock timeout. The
+					caller has to acquire the trx_t::mutex
+					in order to cancel the locks. In
+					lock_trx_table_locks_remove() we
+					check for this cancel of a transaction's
+					locks and avoid reacquiring the trx
+					mutex to prevent recursive deadlocks.
+					Protected by both the lock sys mutex
+					and the trx_t::mutex. */
 };
 
 #define TRX_MAGIC_N	91118598
@@ -537,10 +549,9 @@ struct trx_struct{
 	ulint		magic_n;
 
 	mutex_t		mutex;		/*!< Mutex protecting the fields
-				       	state and lock
+					state and lock
 					(except some fields of lock, which
 					are protected by lock_sys->mutex) */
-
 	trx_state_t	state;		/*!< State of the trx from the point
 					of view of concurrency control:
 					TRX_STATE_NOT_STARTED (!in_trx_list),
@@ -584,13 +595,13 @@ struct trx_struct{
 					set this FALSE */
 	/*------------------------------*/
 	/* MySQL has a transaction coordinator to coordinate two phase
-       	commit between multiple storage engines and the binary log. When
-       	an engine participates in a transaction, it's responsible for
-       	registering itself using the trans_register_ha() API. */
+	commit between multiple storage engines and the binary log. When
+	an engine participates in a transaction, it's responsible for
+	registering itself using the trans_register_ha() API. */
 	unsigned	is_registered:1;/* This flag is set to 1 after the
-				       	transaction has been registered with
-				       	the coordinator using the XA API, and
-				       	is set to 0 after commit or rollback. */
+					transaction has been registered with
+					the coordinator using the XA API, and
+					is set to 0 after commit or rollback. */
 	unsigned	owns_prepare_mutex:1;/* 1 if owns prepare mutex, if
 					this is set to 1 then registered should
 					also be set to 1. This is used in the
@@ -616,10 +627,10 @@ struct trx_struct{
 					mutex. */
 	ulint		must_flush_log_later;/*!< this flag is set to TRUE in
 					trx_commit() if flush_log_later was
-				       	TRUE, and there were modifications by
-				       	the transaction; in that case we must
-				       	flush the log in
-				       	trx_commit_complete_for_mysql() */
+					TRUE, and there were modifications by
+					the transaction; in that case we must
+					flush the log in
+					trx_commit_complete_for_mysql() */
 	ulint		duplicates;	/*!< TRX_DUP_IGNORE | TRX_DUP_REPLACE */
 	ulint		has_search_latch;
 					/*!< TRUE if this trx has latched the

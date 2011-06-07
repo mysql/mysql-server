@@ -385,7 +385,7 @@ static udf_func *add_udf(LEX_STRING *name, Item_result ret, char *dl,
   udf_func *tmp= (udf_func*) alloc_root(&mem, sizeof(udf_func));
   if (!tmp)
     return 0;
-  bzero((char*) tmp,sizeof(*tmp));
+  memset(tmp, 0, sizeof(*tmp));
   tmp->name = *name; //dup !!
   tmp->dl = dl;
   tmp->returns = ret;

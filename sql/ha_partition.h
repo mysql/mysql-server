@@ -16,15 +16,11 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
-#ifdef __GNUC__
-#pragma interface				/* gcc class implementation */
-#endif
-
 #include "sql_partition.h"      /* part_id_range, partition_element */
 #include "queues.h"             /* QUEUE */
 
 enum partition_keywords
-{ 
+{
   PKW_HASH= 0, PKW_RANGE, PKW_LIST, PKW_KEY, PKW_MAXVALUE, PKW_LINEAR,
   PKW_COLUMNS
 };
@@ -1056,7 +1052,9 @@ public:
     They are used for on-line/fast alter table add/drop index:
     -------------------------------------------------------------------------
   */
-  virtual int add_index(TABLE *table_arg, KEY *key_info, uint num_of_keys);
+  virtual int add_index(TABLE *table_arg, KEY *key_info, uint num_of_keys,
+                        handler_add_index **add);
+  virtual int final_add_index(handler_add_index *add, bool commit);
   virtual int prepare_drop_index(TABLE *table_arg, uint *key_num,
                                  uint num_of_keys);
   virtual int final_drop_index(TABLE *table_arg);

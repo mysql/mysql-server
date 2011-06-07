@@ -450,7 +450,7 @@ static st_plugin_dl *plugin_dl_add(const LEX_STRING *dl, int report)
     tmp->ref_count++;
     DBUG_RETURN(tmp);
   }
-  bzero(&plugin_dl, sizeof(plugin_dl));
+  memset(&plugin_dl, 0, sizeof(plugin_dl));
   /* Compile dll path */
   dlpathlen=
     strxnmov(dlpath, sizeof(dlpath) - 1, opt_plugin_dir, "/", dl->str, NullS) -
@@ -548,7 +548,8 @@ static st_plugin_dl *plugin_dl_add(const LEX_STRING *dl, int report)
     if (!cur)
     {
       free_plugin_mem(&plugin_dl);
-      report_error(report, ER_OUTOFMEMORY, plugin_dl.dl.length);
+      report_error(report, ER_OUTOFMEMORY,
+                   static_cast<int>(plugin_dl.dl.length));
       DBUG_RETURN(0);
     }
     /*
@@ -570,7 +571,8 @@ static st_plugin_dl *plugin_dl_add(const LEX_STRING *dl, int report)
   if (! (plugin_dl.dl.str= (char*) my_malloc(plugin_dl.dl.length, MYF(0))))
   {
     free_plugin_mem(&plugin_dl);
-    report_error(report, ER_OUTOFMEMORY, plugin_dl.dl.length);
+    report_error(report, ER_OUTOFMEMORY,
+                 static_cast<int>(plugin_dl.dl.length));
     DBUG_RETURN(0);
   }
   plugin_dl.dl.length= copy_and_convert(plugin_dl.dl.str, plugin_dl.dl.length,
@@ -581,7 +583,8 @@ static st_plugin_dl *plugin_dl_add(const LEX_STRING *dl, int report)
   if (! (tmp= plugin_dl_insert_or_reuse(&plugin_dl)))
   {
     free_plugin_mem(&plugin_dl);
-    report_error(report, ER_OUTOFMEMORY, sizeof(struct st_plugin_dl));
+    report_error(report, ER_OUTOFMEMORY,
+                 static_cast<int>(sizeof(struct st_plugin_dl)));
     DBUG_RETURN(0);
   }
   DBUG_RETURN(tmp);
@@ -614,7 +617,7 @@ static void plugin_dl_del(const LEX_STRING *dl)
       if (! --tmp->ref_count)
       {
         free_plugin_mem(tmp);
-        bzero(tmp, sizeof(struct st_plugin_dl));
+        memset(tmp, 0, sizeof(struct st_plugin_dl));
       }
       break;
     }
@@ -790,7 +793,7 @@ static bool plugin_add(MEM_ROOT *tmp_root,
     DBUG_RETURN(TRUE);
   }
   /* Clear the whole struct to catch future extensions. */
-  bzero((char*) &tmp, sizeof(tmp));
+  memset(&tmp, 0, sizeof(tmp));
   if (! (tmp.plugin_dl= plugin_dl_add(dl, report)))
     DBUG_RETURN(TRUE);
   /* Find plugin by name */
@@ -1261,7 +1264,7 @@ int plugin_init(int *argc, char **argv, int flags)
           !my_strnncoll(&my_charset_latin1, (const uchar*) plugin->name,
                         6, (const uchar*) "InnoDB", 6))
         continue;
-      bzero(&tmp, sizeof(tmp));
+      memset(&tmp, 0, sizeof(tmp));
       tmp.plugin= plugin;
       tmp.name.str= (char *)plugin->name;
       tmp.name.length= strlen(plugin->name);
@@ -1433,7 +1436,7 @@ static void plugin_load(MEM_ROOT *tmp_root, int *argc, char **argv)
   new_thd->store_globals();
   new_thd->db= my_strdup("mysql", MYF(0));
   new_thd->db_length= 5;
-  bzero((char*) &thd.net, sizeof(thd.net));
+  memset(&thd.net, 0, sizeof(thd.net));
   tables.init_one_table("mysql", 5, "plugin", 6, "plugin", TL_READ);
 
 #ifdef EMBEDDED_LIBRARY
@@ -2431,12 +2434,12 @@ static st_bookmark *register_var(const char *plugin, const char *name,
         variables. If their value is non-NULL, it must point to a valid
         string.
       */
-      bzero(global_system_variables.dynamic_variables_ptr +
-            global_variables_dynamic_size,
-            new_size - global_variables_dynamic_size);
-      bzero(max_system_variables.dynamic_variables_ptr +
-            global_variables_dynamic_size,
-            new_size - global_variables_dynamic_size);
+      memset(global_system_variables.dynamic_variables_ptr +
+             global_variables_dynamic_size, 0, 
+             new_size - global_variables_dynamic_size);
+      memset(max_system_variables.dynamic_variables_ptr +
+             global_variables_dynamic_size, 0,
+             new_size - global_variables_dynamic_size);
       global_variables_dynamic_size= new_size;
     }
 
@@ -3316,7 +3319,7 @@ static my_option *construct_help_options(MEM_ROOT *mem_root,
   if (!(opts= (my_option*) alloc_root(mem_root, sizeof(my_option) * count)))
     DBUG_RETURN(NULL);
 
-  bzero(opts, sizeof(my_option) * count);
+  memset(opts, 0, sizeof(my_option) * count);
 
   /**
     some plugin variables (those that don't have PLUGIN_VAR_NOSYSVAR flag)
@@ -3390,7 +3393,7 @@ static int test_plugin_options(MEM_ROOT *tmp_root, struct st_plugin_int *tmp,
       sql_print_error("Out of memory for plugin '%s'.", tmp->name.str);
       DBUG_RETURN(-1);
     }
-    bzero(opts, sizeof(my_option) * count);
+    memset(opts, 0, sizeof(my_option) * count);
 
     if (construct_options(tmp_root, tmp, opts))
     {

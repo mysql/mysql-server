@@ -2950,7 +2950,6 @@ loop:
 			buf_pool, space, offset, fold);
 	}
 
-loop2:
 	if (!block || buf_pool_watch_is_sentinel(buf_pool, &block->page)) {
 		rw_lock_s_unlock(hash_lock);
 		block = NULL;
@@ -3096,15 +3095,10 @@ wait_until_unfixed:
 			buf_LRU_block_free_non_file_page(block);
 			buf_pool_mutex_exit(buf_pool);
 			mutex_exit(&block->mutex);
-
-			block = (buf_block_t*) hash_bpage;
-
 			rw_lock_x_unlock(hash_lock);
-			rw_lock_s_lock(hash_lock);
-			/* Note that we are still holding the
-			hash_lock which is fine as this is what
-			we expect when we move to loop2 above. */
-			goto loop2;
+
+			block = NULL;
+			goto loop;
 		}
 
 		if (UNIV_UNLIKELY
@@ -5136,25 +5130,18 @@ buf_get_latched_pages_number(void)
 #endif /* UNIV_DEBUG */
 
 /*********************************************************************//**
-Returns the number of pending buf pool ios.
-@return	number of pending I/O operations */
+Returns the number of pending buf pool read ios.
+@return	number of pending read I/O operations */
 UNIV_INTERN
 ulint
-buf_get_n_pending_ios(void)
-/*=======================*/
+buf_get_n_pending_read_ios(void)
+/*============================*/
 {
 	ulint	i;
 	ulint	pend_ios = 0;
 
 	for (i = 0; i < srv_buf_pool_instances; i++) {
-		buf_pool_t*	buf_pool;
-
-		buf_pool = buf_pool_from_array(i);
-
-		pend_ios +=
-			buf_pool->n_pend_reads
-			+ buf_pool->n_flush[BUF_FLUSH_LRU]
-			+ buf_pool->n_flush[BUF_FLUSH_LIST];
+		pend_ios += buf_pool_from_array(i)->n_pend_reads;
 	}
 
 	return(pend_ios);
