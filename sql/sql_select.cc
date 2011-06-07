@@ -1270,14 +1270,8 @@ static void save_index_subquery_explain_info(JOIN_TAB *join_tab, Item* where)
     join_tab->packed_info |= TAB_INFO_USING_INDEX;
   if (where)
     join_tab->packed_info |= TAB_INFO_USING_WHERE;
-  for (uint i = 0; i < join_tab->ref.key_parts; i++)
-  {
-    if (join_tab->ref.cond_guards[i])
-    {
-      join_tab->packed_info |= TAB_INFO_FULL_SCAN_ON_NULL;
-      break;
-    }
-  }
+  if (join_tab->has_guarded_conds())
+    join_tab->packed_info|= TAB_INFO_FULL_SCAN_ON_NULL;
 }
 
 
@@ -19722,27 +19716,23 @@ static Item *
 part_of_refkey(TABLE *table,Field *field)
 {
   if (!table->reginfo.join_tab)
-    return (Item*) 0;             // field from outer non-select (UPDATE,...)
+    return NULL;                  // field from outer non-select (UPDATE,...)
 
   uint ref_parts=table->reginfo.join_tab->ref.key_parts;
   if (ref_parts)
   {
-    KEY_PART_INFO *key_part=
+    if (table->reginfo.join_tab->has_guarded_conds())
+      return NULL;
+
+    const KEY_PART_INFO *key_part=
       table->key_info[table->reginfo.join_tab->ref.key].key_part;
-    uint part;
 
-    for (part=0 ; part < ref_parts ; part++)
-    {
-      if (table->reginfo.join_tab->ref.cond_guards[part])
-        return 0;
-    }
-
-    for (part=0 ; part < ref_parts ; part++,key_part++)
+    for (uint part=0 ; part < ref_parts ; part++,key_part++)
       if (field->eq(key_part->field) &&
 	  !(key_part->key_part_flag & HA_PART_KEY_SEG))
 	return table->reginfo.join_tab->ref.items[part];
   }
-  return (Item*) 0;
+  return NULL;
 }
 
 
@@ -23479,14 +23469,8 @@ void select_describe(JOIN *join, bool need_tmp_table, bool need_order,
           extra.append(STRING_WITH_LEN("; End materialize"));
         }
 
-        for (uint part= 0; part < tab->ref.key_parts; part++)
-        {
-          if (tab->ref.cond_guards[part])
-          {
-            extra.append(STRING_WITH_LEN("; Full scan on NULL key"));
-            break;
-          }
-        }
+        if (tab->has_guarded_conds())
+          extra.append(STRING_WITH_LEN("; Full scan on NULL key"));
 
         if (i > 0 && tab[-1].next_select == sub_select_cache)
         {
