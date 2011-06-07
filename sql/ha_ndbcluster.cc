@@ -5007,6 +5007,8 @@ int ha_ndbcluster::end_bulk_delete()
 {
   DBUG_ENTER("end_bulk_delete");
   assert(m_is_bulk_delete); // Don't allow end() without start()
+  m_is_bulk_delete = false;
+
   if (m_thd_ndb->m_unsent_bytes &&
       !thd_allow_batch(table->in_use) &&
       !m_thd_ndb->m_handler)
@@ -5017,13 +5019,11 @@ int ha_ndbcluster::end_bulk_delete()
                           &ignore_count) != 0)
     {
       no_uncommitted_rows_execute_failure();
-      m_is_bulk_delete = false;
       DBUG_RETURN(ndb_err(m_thd_ndb->trans));
     }
     assert(m_rows_deleted >= ignore_count);
     m_rows_deleted-= ignore_count;
   }
-  m_is_bulk_delete = false;
   DBUG_RETURN(0);
 }
 
