@@ -22,6 +22,7 @@ package com.mysql.cluster.crund;
 import java.util.Properties;
 import java.util.List;
 import java.util.Set;
+import java.util.EnumSet;
 import java.util.HashSet;
 import java.util.ArrayList;
 import java.util.Date;
@@ -32,7 +33,6 @@ import java.io.FileWriter;
 import java.io.IOException;
 import java.io.PrintWriter;
 import java.io.InputStream;
-
 
 /**
  * This class benchmarks standard database operations over a series
@@ -55,7 +55,10 @@ import java.io.InputStream;
  */
 abstract public class CrundDriver extends Driver {
 
+    enum XMode { INDY, EACH, BULK }
+
     // benchmark settings
+    protected final EnumSet< XMode > xMode = EnumSet.noneOf(XMode.class);
     protected boolean renewConnection;
     protected boolean renewOperations;
     protected boolean logSumOfOps;
@@ -74,12 +77,61 @@ abstract public class CrundDriver extends Driver {
     // ----------------------------------------------------------------------
 
     protected void init() throws Exception {
+        out.println();
+        out.println("++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++");
+        out.println("initializing benchmark ...");
+        out.println("++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++");
         super.init();
-        // do work here
+
+/*
+        // XXX support multiple load instances
+        // initialize load classes
+        if (doJdbc) {
+            assert (jdbcLoad == null);
+            jdbcLoad = new JdbcLoad(this);
+            jdbcLoad.init();
+        }
+        if (doClusterj) {
+            assert (clusterjLoad == null);
+            clusterjLoad = new ClusterjLoad(this);
+            clusterjLoad.init();
+        }
+        if (doNdbjtie) {
+            assert (ndbjtieLoad == null);
+            ndbjtieLoad = new NdbjtieLoad(this);
+            ndbjtieLoad.init();
+        }
+*/
+        initLoad();
     }    
 
     protected void close() throws Exception {
-        // do work here
+        out.println();
+        out.println("++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++");
+        out.println("closing benchmark ...");
+        out.println("++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++");
+
+/*
+        // XXX support multiple load instances
+        // close load classes
+        if (doJdbc) {
+            assert (jdbcLoad != null);
+            jdbcLoad.close();
+            jdbcLoad = null;
+        }
+        if (doClusterj) {
+            assert (clusterjLoad != null);
+            clusterjLoad.close();
+            clusterjLoad = null;
+        }
+        if (doNdbjtie) {
+            assert (ndbjtieLoad != null);
+            ndbjtieLoad.close();
+            ndbjtieLoad = null;
+        }
+*/
+        closeLoad();
+
         super.close();
     }
 
@@ -90,6 +142,13 @@ abstract public class CrundDriver extends Driver {
 
         final StringBuilder msg = new StringBuilder();
         final String eol = System.getProperty("line.separator");
+
+        // parse execution modes
+        final String[] xm = props.getProperty("xMode", "").split(",");
+        for (int i = 0; i < xm.length; i++) {
+            if (!"".equals(xm[i]))
+                xMode.add(XMode.valueOf(XMode.class, xm[i]));
+        }
 
         renewConnection = parseBoolean("renewConnection", false);
         renewOperations = parseBoolean("renewOperations", false);
@@ -158,6 +217,7 @@ abstract public class CrundDriver extends Driver {
 
         out.println();
         out.println("crund settings ...");
+        out.println("xMode:                          " + xMode);
         out.println("renewConnection:                " + renewConnection);
         out.println("renewOperations:                " + renewOperations);
         out.println("logSumOfOps:                    " + logSumOfOps);
@@ -176,6 +236,7 @@ abstract public class CrundDriver extends Driver {
     // benchmark operations
     // ----------------------------------------------------------------------
 
+    // XXX move to generic load class
     // a database operation to be benchmarked
     protected abstract class Op {
         final protected String name;
@@ -187,6 +248,7 @@ abstract public class CrundDriver extends Driver {
         public abstract void run(int nOps) throws Exception;
     };
 
+    // XXX move to generic load class
     // the list of database operations to be benchmarked
     protected final List<Op> ops = new ArrayList<Op>();
 
@@ -195,36 +257,63 @@ abstract public class CrundDriver extends Driver {
     abstract protected void closeOperations() throws Exception;
 
     protected void runTests() throws Exception {
-        out.println();
-        initConnection();
-        initOperations();
-
+        initConnections();
+        runLoads();
+        closeConnections();
+    }
+    
+    protected void runLoads() throws Exception {
+/*
+        // XXX support multiple load instances
+        if (doJdbc)
+            runLoads(jdbcLoad);
+        if (doClusterj)
+            runLoads(clusterjLoad);
+        if (doNdbjtie)
+            runLoads(ndbjtieLoad);
+*/
+        runLoad();
+    }
+    
+    protected void runLoad() throws Exception {
         assert (nOpsStart <= nOpsEnd && nOpsScale > 1);
         for (int i = nOpsStart; i <= nOpsEnd; i *= nOpsScale) {
             try {
-                runLoads(i);
+                out.println();
+                out.println("++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++");
+                // XXX support multiple load instances
+                //out.print("running load nOps = " + i + " on "
+                //          + load.getDescriptor());
+                out.println("running load [" + i + " nOps] on " + descr);
+                out.println("++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++");
+                runSeries(i);
             } catch (Exception ex) {
                 // already in rollback for database/orm exceptions
                 throw ex;
             }
         }
-
-        out.println();
-        out.println("------------------------------------------------------------");
-        out.println();
-
-        clearData();
-        closeOperations();
-        closeConnection();
     }
 
-    protected void runLoads(int nOps) throws Exception {
-        out.println();
-        out.println("------------------------------------------------------------");
+    protected void runSeries(int nOps) throws Exception {
+        if (nRuns == 0)
+            return; // nothing to do
 
-        out.println("running operations ..."
-                    + "          [nOps=" + nOps + "]");
+        for (int i = 1; i <= nRuns; i++) {
+            out.println();
+            out.println("------------------------------------------------------------");
+            out.println("run " + i + " of " + nRuns + " [" + nOps + " nOps]");
+            out.println("------------------------------------------------------------");
+            // XXX runLoad(load);
+            runLoad(nOps);
+        }
 
+        // XXX support multiple load instances
+        //writeLogBuffers(load.getDescriptor());
+        writeLogBuffers(descr);
+        clearLogBuffers();
+    }
+
+    protected void runLoad(int nOps) throws Exception {
         // log buffers
         if (logRealTime) {
             rtimes.append(nOps);
@@ -237,6 +326,7 @@ abstract public class CrundDriver extends Driver {
 
         // pre-run cleanup
         if (renewConnection) {
+            // XXX move to generic load class?
             closeOperations();
             closeConnection();
             initConnection();
@@ -247,7 +337,7 @@ abstract public class CrundDriver extends Driver {
         }
         clearData();
 
-        runOperations(nOps);
+        runSequence(nOps);
 
         if (logSumOfOps) {
             out.println();
@@ -284,7 +374,8 @@ abstract public class CrundDriver extends Driver {
         }
     }
 
-    protected void runOperations(int nOps) throws Exception {
+    // XXX move to generic load class
+    protected void runSequence(int nOps) throws Exception {
         for (Op op : ops) {
             // pre-tx cleanup
             if (!allowExtendedPC) {
@@ -292,11 +383,12 @@ abstract public class CrundDriver extends Driver {
                 // any data/result caches before the next transaction
                 clearPersistenceContext();
             }
-            runOp(op, nOps);
+            runOperation(op, nOps);
         }
     }
 
-    protected void runOp(Op op, int nOps) throws Exception {
+    // XXX move to generic load class
+    protected void runOperation(Op op, int nOps) throws Exception {
         final String name = op.getName();
         if (!exclude.contains(name)) {
             begin(name);
@@ -305,6 +397,7 @@ abstract public class CrundDriver extends Driver {
         }
     }
 
+    // XXX move to generic load class
     // reports an error if a condition is not met
     static protected final void verify(boolean cond) {
         //assert (cond);
@@ -312,6 +405,7 @@ abstract public class CrundDriver extends Driver {
             throw new RuntimeException("data verification failed.");
     }
 
+    // XXX move to generic load class
     static protected final void verify(int exp, int act) {
         if (exp != act)
             throw new RuntimeException("data verification failed:"
@@ -319,6 +413,7 @@ abstract public class CrundDriver extends Driver {
                                        + ", actual = " + act);
     }
 
+    // XXX move to generic load class
     static protected final void verify(String exp, String act) {
         if ((exp == null && act != null)
             || (exp != null && !exp.equals(act)))
@@ -331,6 +426,7 @@ abstract public class CrundDriver extends Driver {
     // helpers
     // ----------------------------------------------------------------------
 
+    // XXX move to generic load class
     static final protected String myString(int n) {
         final StringBuilder s = new StringBuilder();
         switch (n) {
@@ -361,6 +457,7 @@ abstract public class CrundDriver extends Driver {
         return s.toString();
     }
 
+    // XXX move to generic load class
     static final protected byte[] myBytes(String s) {
         final char[] c = s.toCharArray();
         final int n = c.length;
@@ -369,6 +466,7 @@ abstract public class CrundDriver extends Driver {
         return b;
     }
 
+    // XXX move to generic load class
     // some string and byte constants
     static final protected String string1 = myString(1);
     static final protected String string2 = myString(2);
@@ -393,6 +491,63 @@ abstract public class CrundDriver extends Driver {
     // datastore operations
     // ----------------------------------------------------------------------
 
+    protected void initConnections() throws Exception {
+        out.println();
+        out.println("++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++");
+        out.println("initializing connections ...");
+        out.println("++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++");
+
+/*
+        // XXX support multiple load instances
+        if (doJdbc) {
+            assert (jdbcLoad != null);
+            jdbcLoad.initConnection();
+        }
+        if (doClusterj) {
+            assert (clusterjLoad != null);
+            clusterjLoad.initConnection();
+        }
+        if (doNdbjtie) {
+            assert (ndbjtieLoad != null);
+            ndbjtieLoad.initConnection();
+        }
+*/
+        initConnection();
+
+        // XXX move to generic load class
+        initOperations();
+    }
+
+    protected void closeConnections() throws Exception {
+        out.println();
+        out.println("++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++");
+        out.println("closing connections ...");
+        out.println("++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++");
+
+        // XXX move to generic load class
+        clearData();
+        closeOperations();
+
+        closeConnection();
+/*
+        // XXX support multiple load instances
+        if (doJdbc) {
+            assert (jdbcLoad != null);
+            jdbcLoad.closeConnection();
+        }
+        if (doClusterj) {
+            assert (clusterjLoad != null);
+            clusterjLoad.closeConnection();
+        }
+        if (doNdbjtie) {
+            assert (ndbjtieLoad != null);
+            ndbjtieLoad.closeConnection();
+        }
+*/
+    }
+
+    abstract protected void initLoad() throws Exception;
+    abstract protected void closeLoad() throws Exception;
     abstract protected void initConnection() throws Exception;
     abstract protected void closeConnection() throws Exception;
     abstract protected void clearPersistenceContext() throws Exception;

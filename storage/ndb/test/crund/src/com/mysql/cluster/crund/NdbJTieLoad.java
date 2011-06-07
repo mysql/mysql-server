@@ -78,8 +78,9 @@ public class NdbJTieLoad extends NdbBase {
         descr = "->ndbjtie(" + mgmdConnect + ")";
     }
 
-    protected void init() throws Exception {
-        super.init();
+    protected void initLoad() throws Exception {
+        // XXX support generic load class
+        //super.init();
 
         // load native library (better diagnostics doing it explicitely)
         out.println();
@@ -109,14 +110,17 @@ public class NdbJTieLoad extends NdbBase {
         out.println("          [ok: " + mgmdConnect + "]");
     }
 
-    protected void close() throws Exception {
-        out.print("closing mgmd conn ...");
+    protected void closeLoad() throws Exception {
+        out.println();
+        out.print("closing mgmd connection ...");
         out.flush();
         if (mgmd != null)
             Ndb_cluster_connection.delete(mgmd);
         mgmd = null;
-        out.println("           [ok]");
-        super.close();
+        out.println("     [ok]");
+
+        // XXX support generic load class
+        //super.close();
     }
 
     // ----------------------------------------------------------------------
@@ -895,8 +899,10 @@ public class NdbJTieLoad extends NdbBase {
     // ----------------------------------------------------------------------
 
     protected void initConnection() {
+        out.println();
+
         // optionally, connect and wait for reaching the data nodes (ndbds)
-        out.print("waiting for data nodes...");
+        out.print("waiting for ndbd ...");
         out.flush();
         final int initial_wait = 10; // secs to wait until first node detected
         final int final_wait = 0;    // secs to wait after first node detected
@@ -907,10 +913,10 @@ public class NdbJTieLoad extends NdbBase {
             out.println(msg);
             throw new RuntimeException(msg);
         }
-        out.println("       [ok]");
+        out.println("            [ok]");
 
         // connect to database
-        out.print("connecting to database...");
+        out.print("connecting to ndbd ...");
         out.flush();
         ndb = Ndb.create(mgmd, catalog, schema);
         final int max_no_tx = 10; // maximum number of parallel tx (<=1024)
@@ -919,19 +925,20 @@ public class NdbJTieLoad extends NdbBase {
             String msg = "Error caught: " + ndb.getNdbError().message();
             throw new RuntimeException(msg);
         }
-        out.println("       [ok]");
+        out.println("          [ok]");
 
         // initialize the schema shortcuts
         model = new Model(ndb);
     }
 
     protected void closeConnection() {
-        out.print("closing database conn ...");
+        out.println();
+        out.print("closing ndbd connection ...");
         out.flush();
         model = null;
         Ndb.delete(ndb);
         ndb = null;
-        out.println("       [ok]");
+        out.println("     [ok]");
     }
 
     protected void clearData() {

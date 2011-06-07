@@ -71,8 +71,7 @@ protected:
     Properties props;
     bool logRealTime;
     bool logCpuTime;
-    int warmupRuns;
-    int hotRuns;
+    int nRuns;
 
     // driver resources
     ofstream log;
