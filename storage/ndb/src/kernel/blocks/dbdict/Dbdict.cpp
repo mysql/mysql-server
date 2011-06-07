@@ -2748,10 +2748,12 @@ void Dbdict::execREAD_CONFIG_REQ(Signal* signal)
 					&c_maxNoOfTriggers));
   ndbrequire(!ndb_mgm_get_int_parameter(p, CFG_DICT_ATTRIBUTE,&attributesize));
   ndbrequire(!ndb_mgm_get_int_parameter(p, CFG_DICT_TABLE, &tablerecSize));
-  ndbrequire(!ndb_mgm_get_int_parameter(p, CFG_DB_INDEX_STAT_AUTO_CREATE,
-                                        &c_indexStatAutoCreate));
-  ndbrequire(!ndb_mgm_get_int_parameter(p, CFG_DB_INDEX_STAT_AUTO_UPDATE,
-                                        &c_indexStatAutoUpdate));
+  c_indexStatAutoCreate = 0;
+  ndb_mgm_get_int_parameter(p, CFG_DB_INDEX_STAT_AUTO_CREATE,
+                            &c_indexStatAutoCreate);
+  c_indexStatAutoUpdate = 0;
+  ndb_mgm_get_int_parameter(p, CFG_DB_INDEX_STAT_AUTO_UPDATE,
+                            &c_indexStatAutoUpdate);
 
   c_attributeRecordPool.setSize(attributesize);
   c_attributeRecordHash.setSize(64);
