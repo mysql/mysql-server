@@ -101,7 +101,7 @@ NdbIndexStat::addKeyPartInfo(const NdbRecord* record,
   AttributeHeader ah(tIndexAttrId, sizeInWords << 2);
   const Uint32 ahValue= ah.m_value;
 
-  if (keyLength + (2 + len) > BoundBufWords )
+  if (keyLength + (2 + len) > NdbIndexStatImpl::BoundBufWords )
   {
     /* Something wrong, key data would be too big */
     /* Key size is limited to 4092 bytes */
@@ -133,8 +133,8 @@ NdbIndexStat::records_in_range(const NdbDictionary::Index* index,
 {
   DBUG_ENTER("NdbIndexStat::records_in_range");
   Uint64 rows;
-  Uint32 key1[BoundBufWords], keylen1;
-  Uint32 key2[BoundBufWords], keylen2;
+  Uint32 key1[NdbIndexStatImpl::BoundBufWords], keylen1;
+  Uint32 key2[NdbIndexStatImpl::BoundBufWords], keylen2;
 
   if (true)
   {

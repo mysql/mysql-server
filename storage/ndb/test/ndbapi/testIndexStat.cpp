@@ -132,6 +132,7 @@ static NdbScanOperation* g_scan_op = 0;
 static NdbIndexScanOperation* g_rangescan_op = 0;
 
 static NdbIndexStat* g_is = 0;
+static bool g_has_created_stat_tables = false;
 
 static uint
 urandom()
@@ -2106,6 +2107,30 @@ checkoptions()
   return 0;
 }
 
+static
+int
+docreate_stat_tables()
+{
+  if (g_is->check_systables(g_ndb_sys) == 0)
+    return 0;
+
+  if (g_is->create_systables(g_ndb_sys) == 0)
+  {
+    g_has_created_stat_tables = true;
+    return 0;
+  }
+  return -1;
+}
+
+static
+void
+dodrop_stat_tables()
+{
+  if (g_has_created_stat_tables == false)
+    return;
+  g_is->drop_systables(g_ndb_sys);
+}
+
 int
 main(int argc, char** argv)
 {
@@ -2131,11 +2156,17 @@ main(int argc, char** argv)
     ll0("connect failed");
     return NDBT_ProgramExit(NDBT_FAILED);
   }
+  if (docreate_stat_tables() == -1){
+    ll0("failed to create stat tables");
+    return NDBT_ProgramExit(NDBT_FAILED);
+  }
   if (runtest() == -1) {
     ll0("test failed");
+    dodrop_stat_tables();
     dodisconnect();
     return NDBT_ProgramExit(NDBT_FAILED);
   }
+  dodrop_stat_tables();
   dodisconnect();
   return NDBT_ProgramExit(NDBT_OK);
 }

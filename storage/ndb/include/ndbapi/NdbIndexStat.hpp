@@ -19,7 +19,7 @@
 #ifndef NdbIndexStat_H
 #define NdbIndexStat_H
 
-#include <ndb_global.h>
+#include <ndb_types.h>
 #include "NdbDictionary.hpp"
 #include "NdbError.hpp"
 #include "NdbIndexScanOperation.hpp"
@@ -348,12 +348,6 @@ public:
   NdbIndexStatImpl& getImpl();
 
 private:
-  /* Need 2 words per column in a bound plus space for the
-   * bound data.
-   * Worst case is 32 cols in key and max key size used.
-   */
-  STATIC_CONST( BoundBufWords = (2 * NDB_MAX_NO_OF_ATTRIBUTES_IN_KEY)
-                + NDB_MAX_KEYSIZE_IN_WORDS );
   int addKeyPartInfo(const NdbRecord* record,
                      const char* keyRecordData,
                      Uint32 keyPartNum,

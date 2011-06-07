@@ -29,9 +29,9 @@
 #define min(a, b) ((a) <= (b) ? (a) : (b))
 #define max(a, b) ((a) >= (b) ? (a) : (b))
 
-static const char* const g_headtable_name = "NDB$IS_HEAD";
-static const char* const g_sampletable_name = "NDB$IS_SAMPLE";
-static const char* const g_sampleindex1_name = "NDB$IS_SAMPLE_X1";
+static const char* const g_headtable_name = NDB_INDEX_STAT_HEAD_TABLE;
+static const char* const g_sampletable_name = NDB_INDEX_STAT_SAMPLE_TABLE;
+static const char* const g_sampleindex1_name = NDB_INDEX_STAT_SAMPLE_INDEX1;
 
 const int ERR_NoSuchObject[] = { 709, 723, 4243, 0 };
 const int ERR_TupleNotFound[] = { 626, 0 };
@@ -1034,7 +1034,7 @@ NdbIndexStatImpl::read_stat(Ndb* ndb, Head& head)
 int
 NdbIndexStatImpl::read_start(Con& con)
 {
-  Head& head = con.m_head;
+  //UNUSED Head& head = con.m_head;
   if (!m_indexSet)
   {
     setError(UsageError, __LINE__);

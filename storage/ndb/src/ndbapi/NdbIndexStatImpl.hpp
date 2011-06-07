@@ -296,6 +296,15 @@ public:
   void setError(int code, int line, int extra = 0);
   void setError(const Con& con, int line);
   void mapError(const int* map, int code);
+
+// moved from NdbIndexStat.hpp by jonas
+
+  /* Need 2 words per column in a bound plus space for the
+   * bound data.
+   * Worst case is 32 cols in key and max key size used.
+   */
+  STATIC_CONST( BoundBufWords = (2 * NDB_MAX_NO_OF_ATTRIBUTES_IN_KEY)
+                + NDB_MAX_KEYSIZE_IN_WORDS );
 };
 
 inline
