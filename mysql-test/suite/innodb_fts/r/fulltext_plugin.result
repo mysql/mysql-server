@@ -1,0 +1,5 @@
+INSTALL PLUGIN simple_parser SONAME 'mypluglib.so';
+CREATE TABLE t1(a TEXT, b TEXT, FULLTEXT(a) WITH PARSER simple_parser);
+ALTER TABLE t1 ADD FULLTEXT(b) WITH PARSER simple_parser;
+DROP TABLE t1;
+UNINSTALL PLUGIN simple_parser;
