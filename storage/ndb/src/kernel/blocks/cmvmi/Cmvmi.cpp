@@ -1436,6 +1436,11 @@ void Cmvmi::execTAMPER_ORD(Signal* signal)
     jam();
     tuserblockref = DBSPJ_REF;
   }
+  else if (errNo < 19000)
+  {
+    jam();
+    tuserblockref = TRIX_REF;
+  }
   else if (errNo < 30000)
   {
     /*--------------------------------------------------------------------*/

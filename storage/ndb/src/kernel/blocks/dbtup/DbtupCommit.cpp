@@ -485,12 +485,14 @@ Dbtup::disk_page_commit_callback(Signal* signal,
 {
   Uint32 hash_value;
   Uint32 gci_hi, gci_lo;
+  Uint32 transId1, transId2;
   OperationrecPtr regOperPtr;
 
   jamEntry();
   
   c_operation_pool.getPtr(regOperPtr, opPtrI);
-  c_lqh->get_op_info(regOperPtr.p->userpointer, &hash_value, &gci_hi, &gci_lo);
+  c_lqh->get_op_info(regOperPtr.p->userpointer, &hash_value, &gci_hi, &gci_lo,
+                     &transId1, &transId2);
 
   TupCommitReq * const tupCommitReq= (TupCommitReq *)signal->getDataPtr();
   
@@ -499,6 +501,8 @@ Dbtup::disk_page_commit_callback(Signal* signal,
   tupCommitReq->gci_hi= gci_hi;
   tupCommitReq->gci_lo= gci_lo;
   tupCommitReq->diskpage = page_id;
+  tupCommitReq->transId1 = transId1;
+  tupCommitReq->transId2 = transId2;
 
   regOperPtr.p->op_struct.m_load_diskpage_on_commit= 0;
   regOperPtr.p->m_commit_disk_callback_page= page_id;
@@ -526,12 +530,14 @@ Dbtup::disk_page_log_buffer_callback(Signal* signal,
 {
   Uint32 hash_value;
   Uint32 gci_hi, gci_lo;
+  Uint32 transId1, transId2;
   OperationrecPtr regOperPtr;
 
   jamEntry();
   
   c_operation_pool.getPtr(regOperPtr, opPtrI);
-  c_lqh->get_op_info(regOperPtr.p->userpointer, &hash_value, &gci_hi, &gci_lo);
+  c_lqh->get_op_info(regOperPtr.p->userpointer, &hash_value, &gci_hi, &gci_lo,
+                     &transId1, &transId2);
   Uint32 page= regOperPtr.p->m_commit_disk_callback_page;
 
   TupCommitReq * const tupCommitReq= (TupCommitReq *)signal->getDataPtr();
@@ -541,6 +547,8 @@ Dbtup::disk_page_log_buffer_callback(Signal* signal,
   tupCommitReq->gci_hi= gci_hi;
   tupCommitReq->gci_lo= gci_lo;
   tupCommitReq->diskpage = page;
+  tupCommitReq->transId1 = transId1;
+  tupCommitReq->transId2 = transId2;
 
   ndbassert(regOperPtr.p->op_struct.m_load_diskpage_on_commit == 0);
   regOperPtr.p->op_struct.m_wait_log_buffer= 0;
@@ -667,6 +675,8 @@ void Dbtup::execTUP_COMMITREQ(Signal* signal)
   Uint32 hash_value= tupCommitReq->hashValue;
   Uint32 gci_hi = tupCommitReq->gci_hi;
   Uint32 gci_lo = tupCommitReq->gci_lo;
+  Uint32 transId1 = tupCommitReq->transId1;
+  Uint32 transId2 = tupCommitReq->transId2;
 
   jamEntry();
 
@@ -687,6 +697,9 @@ void Dbtup::execTUP_COMMITREQ(Signal* signal)
   req_struct.hash_value= hash_value;
   req_struct.gci_hi = gci_hi;
   req_struct.gci_lo = gci_lo;
+  /* Put transid in req_struct, so detached triggers can access it */
+  req_struct.trans_id1 = transId1;
+  req_struct.trans_id2 = transId2;
   regOperPtr.p->m_commit_disk_callback_page = tupCommitReq->diskpage;
 
 #ifdef VM_TRACE
@@ -849,7 +862,17 @@ skip_disk:
     
     tuple_ptr->m_operation_ptr_i = RNIL;
     
-    if(regOperPtr.p->op_struct.op_type != ZDELETE)
+    if (regOperPtr.p->op_struct.op_type == ZDELETE)
+    {
+      jam();
+      if (get_page)
+      {
+        ndbassert(tuple_ptr->m_header_bits & Tuple_header::DISK_PART);
+      }
+      dealloc_tuple(signal, gci_hi, gci_lo, page.p, tuple_ptr,
+                    &req_struct, regOperPtr.p, regFragPtr.p, regTabPtr.p);
+    }
+    else if(regOperPtr.p->op_struct.op_type != ZREFRESH)
     {
       jam();
       commit_operation(signal, gci_hi, gci_lo, tuple_ptr, page,
@@ -858,14 +881,10 @@ skip_disk:
     else
     {
       jam();
-      if (get_page)
-      {
-	ndbassert(tuple_ptr->m_header_bits & Tuple_header::DISK_PART);
-      }
-      dealloc_tuple(signal, gci_hi, gci_lo, page.p, tuple_ptr,
-		    &req_struct, regOperPtr.p, regFragPtr.p, regTabPtr.p);
+      commit_refresh(signal, gci_hi, gci_lo, tuple_ptr, page,
+                     &req_struct, regOperPtr.p, regFragPtr.p, regTabPtr.p);
     }
-  } 
+  }
 
   if (nextOp != RNIL)
   {
@@ -916,4 +935,49 @@ Dbtup::set_commit_change_mask_info(const Tablerec* regTabPtr,
                                       regTabPtr->m_no_of_attributes - cols);
     }
   }
+}
+
+void
+Dbtup::commit_refresh(Signal* signal,
+                      Uint32 gci_hi,
+                      Uint32 gci_lo,
+                      Tuple_header* tuple_ptr,
+                      PagePtr pagePtr,
+                      KeyReqStruct * req_struct,
+                      Operationrec* regOperPtr,
+                      Fragrecord* regFragPtr,
+                      Tablerec* regTabPtr)
+{
+  /* Committing a refresh operation.
+   * Refresh of an existing row looks like an update
+   * and can commit normally.
+   * Refresh of a non-existing row looks like an Insert which
+   * is 'undone' at commit time.
+   * This is achieved by making special calls to ACC to get
+   * it to forget, before deallocating the tuple locally.
+   */
+  switch(regOperPtr->m_copy_tuple_location.m_file_no){
+  case Operationrec::RF_SINGLE_NOT_EXIST:
+  case Operationrec::RF_MULTI_NOT_EXIST:
+    break;
+  case Operationrec::RF_SINGLE_EXIST:
+  case Operationrec::RF_MULTI_EXIST:
+    // "Normal" update
+    commit_operation(signal, gci_hi, gci_lo, tuple_ptr, pagePtr,
+                     regOperPtr, regFragPtr, regTabPtr);
+    return;
+
+  default:
+    ndbrequire(false);
+  }
+
+  Local_key key = regOperPtr->m_tuple_location;
+  key.m_page_no = pagePtr.p->frag_page_id;
+
+  /**
+   * Tell ACC to delete
+   */
+  c_lqh->accremoverow(signal, regOperPtr->userpointer, &key);
+  dealloc_tuple(signal, gci_hi, gci_lo, pagePtr.p, tuple_ptr,
+                req_struct, regOperPtr, regFragPtr, regTabPtr);
 }

@@ -3682,10 +3682,11 @@ Dbspj::getNodes(Signal* signal, BuildKeyReq& dst, Uint32 tableId)
   req->tableId = tableId;
   req->hashValue = dst.hashInfo[1];
   req->distr_key_indicator = 0; // userDefinedPartitioning not supported!
+  * (EmulatedJamBuffer**)req->jamBuffer = jamBuffer();
 
 #if 1
   EXECUTE_DIRECT(DBDIH, GSN_DIGETNODESREQ, signal,
-                 DiGetNodesReq::SignalLength);
+                 DiGetNodesReq::SignalLength, 0);
 #else
   sendSignal(DBDIH_REF, GSN_DIGETNODESREQ, signal,
              DiGetNodesReq::SignalLength, JBB);
@@ -4878,12 +4879,6 @@ Dbspj::scanIndex_parent_row(Signal* signal,
     }
 
     Uint32 ptrI = fragPtr.p->m_rangePtrI;
-    if (ptrI == RNIL)
-    {
-      jam();
-      data.m_frags_not_complete++;
-    }
-
     bool hasNull;
     if (treeNodePtr.p->m_bits & TreeNode::T_KEYINFO_CONSTRUCTED)
     {
@@ -4971,6 +4966,39 @@ Dbspj::scanIndex_parent_batch_complete(Signal* signal,
   data.m_rows_received = 0;
   data.m_rows_expecting = 0;
   ndbassert(data.m_frags_outstanding == 0);
+  ndbassert(data.m_frags_not_complete == 0);
+
+  Ptr<ScanFragHandle> fragPtr;
+  {
+    Local_ScanFragHandle_list list(m_scanfraghandle_pool, data.m_fragments);
+    list.first(fragPtr);
+
+    if ((treeNodePtr.p->m_bits & TreeNode::T_PRUNE_PATTERN) == 0)
+    {
+      if (fragPtr.p->m_rangePtrI != RNIL)
+      {
+        // No pruning, so we must scan all fragments.
+        jam();
+        data.m_frags_not_complete = data.m_fragCount;
+      }
+    }
+    else
+    {
+      while(!fragPtr.isNull())
+      {
+        if (fragPtr.p->m_rangePtrI != RNIL)
+        {
+          jam();
+          /**
+           * This is a pruned scan, so we must scan those fragments that
+           * some distribution key hashed to.
+           */
+          data.m_frags_not_complete++;
+        }
+        list.next(fragPtr);
+      }
+    }
+  }
 
   if (data.m_frags_not_complete == 0)
   {
@@ -4979,11 +5007,6 @@ Dbspj::scanIndex_parent_batch_complete(Signal* signal,
      * No keys was produced...
      */
     return;
-  }
-  else if ((treeNodePtr.p->m_bits & TreeNode::T_PRUNE_PATTERN) == 0)
-  {
-    jam();
-    data.m_frags_not_complete = data.m_fragCount;
   }
 
   /**
@@ -5013,7 +5036,6 @@ Dbspj::scanIndex_parent_batch_repeat(Signal* signal,
     DEBUG("Register TreeNode for restart, m_node_no: " << treeNodePtr.p->m_node_no);
     ndbrequire(treeNodePtr.p->m_state != TreeNode::TN_ACTIVE);
     registerActiveCursor(requestPtr, treeNodePtr);
-    data.m_frags_not_complete = 1;
     data.m_batch_chunks = 0;
   }
 }

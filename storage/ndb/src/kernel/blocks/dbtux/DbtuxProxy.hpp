@@ -19,6 +19,7 @@
 #include <LocalProxy.hpp>
 #include <signaldata/AlterIndxImpl.hpp>
 #include <signaldata/DropTab.hpp>
+#include <signaldata/IndexStatSignal.hpp>
 
 class DbtuxProxy : public LocalProxy {
 public:
@@ -47,6 +48,41 @@ protected:
   void execALTER_INDX_IMPL_CONF(Signal*);
   void execALTER_INDX_IMPL_REF(Signal*);
   void sendALTER_INDX_IMPL_CONF(Signal*, Uint32 ssId);
+
+  // GSN_INDEX_STAT_IMPL_REQ
+  struct Ss_INDEX_STAT_IMPL_REQ : SsParallel {
+    IndexStatImplReq m_req;
+    Ss_INDEX_STAT_IMPL_REQ() {
+      m_sendREQ = (SsFUNCREQ)&DbtuxProxy::sendINDEX_STAT_IMPL_REQ;
+      m_sendCONF = (SsFUNCREP)&DbtuxProxy::sendINDEX_STAT_IMPL_CONF;
+    }
+    enum { poolSize = 1 };
+    static SsPool<Ss_INDEX_STAT_IMPL_REQ>& pool(LocalProxy* proxy) {
+      return ((DbtuxProxy*)proxy)->c_ss_INDEX_STAT_IMPL_REQ;
+    }
+  };
+  SsPool<Ss_INDEX_STAT_IMPL_REQ> c_ss_INDEX_STAT_IMPL_REQ;
+  void execINDEX_STAT_IMPL_REQ(Signal*);
+  void sendINDEX_STAT_IMPL_REQ(Signal*, Uint32 ssId, SectionHandle*);
+  void execINDEX_STAT_IMPL_CONF(Signal*);
+  void execINDEX_STAT_IMPL_REF(Signal*);
+  void sendINDEX_STAT_IMPL_CONF(Signal*, Uint32 ssId);
+
+  // GSN_INDEX_STAT_REP
+  struct Ss_INDEX_STAT_REP : SsParallel {
+    IndexStatRep m_rep;
+    Ss_INDEX_STAT_REP() {
+      m_sendREQ = (SsFUNCREQ)&DbtuxProxy::sendINDEX_STAT_REP;
+      m_sendCONF = 0;
+    }
+    enum { poolSize = 1 };
+    static SsPool<Ss_INDEX_STAT_REP>& pool(LocalProxy* proxy) {
+      return ((DbtuxProxy*)proxy)->c_ss_INDEX_STAT_REP;
+    }
+  };
+  SsPool<Ss_INDEX_STAT_REP> c_ss_INDEX_STAT_REP;
+  void execINDEX_STAT_REP(Signal*);
+  void sendINDEX_STAT_REP(Signal*, Uint32 ssId, SectionHandle*);
 };
 
 #endif

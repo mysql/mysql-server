@@ -866,15 +866,6 @@ extern const GlobalSignalNumber NO_OF_SIGNAL_NAMES;
 #define GSN_648
 #define GSN_649
 
-#define GSN_650
-#define GSN_651
-#define GSN_652
-#define GSN_653
-#define GSN_654
-#define GSN_655
-
-#define GSN_656
-
 #define GSN_UTIL_CREATE_LOCK_REQ        132
 #define GSN_UTIL_CREATE_LOCK_REF        133
 #define GSN_UTIL_CREATE_LOCK_CONF       188
@@ -1078,5 +1069,13 @@ extern const GlobalSignalNumber NO_OF_SIGNAL_NAMES;
 
 #define GSN_RELEASE_PAGES_REQ           680
 #define GSN_RELEASE_PAGES_CONF          681
+
+#define GSN_INDEX_STAT_REQ              650
+#define GSN_INDEX_STAT_CONF             651
+#define GSN_INDEX_STAT_REF              652
+#define GSN_INDEX_STAT_IMPL_REQ         653
+#define GSN_INDEX_STAT_IMPL_CONF        654
+#define GSN_INDEX_STAT_IMPL_REF         655
+#define GSN_INDEX_STAT_REP              656
 
 #endif
