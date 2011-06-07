@@ -20,6 +20,16 @@
 
 #include "common.h"
 
+/*
+  The following MS C++ specific pragma embeds a comment in the resulting
+  object file. A "lib" comment tells the linker to use the specified 
+  library, thus the dependency is handled automagically.
+*/
+
+#ifdef _MSC_VER
+#pragma comment(lib, "Secur32")
+#endif
+
 static int win_auth_client_plugin_init(char*, size_t, int, va_list)
 {
   return 0;

@@ -655,7 +655,7 @@ void mysql_binlog_send(THD* thd, char* log_ident, my_off_t pos,
   DBUG_ENTER("mysql_binlog_send");
   DBUG_PRINT("enter",("log_ident: '%s'  pos: %ld", log_ident, (long) pos));
 
-  bzero((char*) &log,sizeof(log));
+  memset(&log, 0, sizeof(log));
   /* 
      heartbeat_period from @master_heartbeat_period user variable
   */
@@ -1252,7 +1252,7 @@ end:
   end_io_cache(&log);
   mysql_file_close(file, MYF(MY_WME));
 
-  RUN_HOOK(binlog_transmit, transmit_stop, (thd, flags));
+  (void) RUN_HOOK(binlog_transmit, transmit_stop, (thd, flags));
   my_eof(thd);
   THD_STAGE_INFO(thd, stage_waiting_to_finalize_termination);
   mysql_mutex_lock(&LOCK_thread_count);
@@ -1264,7 +1264,7 @@ end:
 err:
   THD_STAGE_INFO(thd, stage_waiting_to_finalize_termination);
   end_io_cache(&log);
-  RUN_HOOK(binlog_transmit, transmit_stop, (thd, flags));
+  (void) RUN_HOOK(binlog_transmit, transmit_stop, (thd, flags));
   /*
     Exclude  iteration through thread list
     this is needed for purge_logs() - it will iterate through
@@ -1387,7 +1387,7 @@ int reset_master(THD* thd)
 
   if (mysql_bin_log.reset_logs(thd))
     return 1;
-  RUN_HOOK(binlog_transmit, after_reset_master, (thd, 0 /* flags */));
+  (void) RUN_HOOK(binlog_transmit, after_reset_master, (thd, 0 /* flags */));
   return 0;
 }
 

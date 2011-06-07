@@ -704,13 +704,9 @@ void build_certHashes(SSL& ssl, Hashes& hashes)
 // do process input requests, return 0 is done, 1 is call again to complete
 int DoProcessReply(SSL& ssl)
 {
-    // wait for input if blocking
-    if (!ssl.useSocket().wait()) {
-      ssl.SetError(receive_error);
-        return 0;
-    }
     uint ready = ssl.getSocket().get_ready();
-    if (!ready) return 1; 
+    if (!ready)
+      ready= 64;
 
     // add buffered data if its there
     input_buffer* buffered = ssl.useBuffers().TakeRawInput();

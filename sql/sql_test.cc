@@ -239,7 +239,7 @@ TEST_join(JOIN *join)
 
 #define FT_KEYPART   (MAX_REF_PARTS+10)
 
-void print_keyuse(Key_use *keyuse)
+void print_keyuse(const Key_use *keyuse)
 {
   char buff[256];
   char buf2[64]; 
@@ -266,14 +266,14 @@ void print_keyuse(Key_use *keyuse)
 
 
 /* purecov: begin inspected */
-void print_keyuse_array(DYNAMIC_ARRAY *keyuse_array)
+void print_keyuse_array(const Key_use_array *keyuse_array)
 {
   DBUG_LOCK_FILE;
-  fprintf(DBUG_FILE, "Key_use array (%d elements)\n", keyuse_array->elements);
+  fprintf(DBUG_FILE, "Key_use array (%d elements)\n",
+          (int) keyuse_array->size());
   DBUG_UNLOCK_FILE;
-  for(uint i=0; i < keyuse_array->elements; i++)
-    print_keyuse(reinterpret_cast<Key_use *>
-                 (dynamic_array_ptr(keyuse_array, i)));
+  for(uint i=0; i < keyuse_array->size(); i++)
+    print_keyuse(&keyuse_array->at(i));
 }
 
 

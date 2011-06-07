@@ -1462,7 +1462,7 @@ static int mysql_test_select(Prepared_statement *stmt,
 
   if (!lex->result && !(lex->result= new (stmt->mem_root) select_send))
   {
-    my_error(ER_OUTOFMEMORY, MYF(0), sizeof(select_send));
+    my_error(ER_OUTOFMEMORY, MYF(0), static_cast<int>(sizeof(select_send)));
     goto error;
   }
 
@@ -2552,7 +2552,7 @@ void mysqld_stmt_execute(THD *thd, char *packet_arg, uint packet_length)
   if (!(stmt= find_prepared_statement(thd, stmt_id)))
   {
     char llbuf[22];
-    my_error(ER_UNKNOWN_STMT_HANDLER, MYF(0), sizeof(llbuf),
+    my_error(ER_UNKNOWN_STMT_HANDLER, MYF(0), static_cast<int>(sizeof(llbuf)),
              llstr(stmt_id, llbuf), "mysqld_stmt_execute");
     DBUG_VOID_RETURN;
   }
@@ -2606,7 +2606,7 @@ void mysql_sql_stmt_execute(THD *thd)
   if (!(stmt= (Prepared_statement*) thd->stmt_map.find_by_name(name)))
   {
     my_error(ER_UNKNOWN_STMT_HANDLER, MYF(0),
-             name->length, name->str, "EXECUTE");
+             static_cast<int>(name->length), name->str, "EXECUTE");
     DBUG_VOID_RETURN;
   }
 
@@ -2648,7 +2648,7 @@ void mysqld_stmt_fetch(THD *thd, char *packet, uint packet_length)
   if (!(stmt= find_prepared_statement(thd, stmt_id)))
   {
     char llbuf[22];
-    my_error(ER_UNKNOWN_STMT_HANDLER, MYF(0), sizeof(llbuf),
+    my_error(ER_UNKNOWN_STMT_HANDLER, MYF(0), static_cast<int>(sizeof(llbuf)),
              llstr(stmt_id, llbuf), "mysqld_stmt_fetch");
     DBUG_VOID_RETURN;
   }
@@ -2708,7 +2708,7 @@ void mysqld_stmt_reset(THD *thd, char *packet)
   if (!(stmt= find_prepared_statement(thd, stmt_id)))
   {
     char llbuf[22];
-    my_error(ER_UNKNOWN_STMT_HANDLER, MYF(0), sizeof(llbuf),
+    my_error(ER_UNKNOWN_STMT_HANDLER, MYF(0), static_cast<int>(sizeof(llbuf)),
              llstr(stmt_id, llbuf), "mysqld_stmt_reset");
     DBUG_VOID_RETURN;
   }
@@ -2721,7 +2721,7 @@ void mysqld_stmt_reset(THD *thd, char *packet)
   */
   reset_stmt_params(stmt);
 
-  stmt->state= Query_arena::PREPARED;
+  stmt->state= Query_arena::STMT_PREPARED;
 
   general_log_print(thd, thd->get_command(), NullS);
 
@@ -2783,7 +2783,7 @@ void mysql_sql_stmt_close(THD *thd)
 
   if (! (stmt= (Prepared_statement*) thd->stmt_map.find_by_name(name)))
     my_error(ER_UNKNOWN_STMT_HANDLER, MYF(0),
-             name->length, name->str, "DEALLOCATE PREPARE");
+             static_cast<int>(name->length), name->str, "DEALLOCATE PREPARE");
   else if (stmt->is_in_use())
     my_error(ER_PS_NO_RECURSION, MYF(0));
   else
@@ -2840,7 +2840,7 @@ void mysql_stmt_get_longdata(THD *thd, char *packet, ulong packet_length)
   if (param_number >= stmt->param_count)
   {
     /* Error will be sent in execute call */
-    stmt->state= Query_arena::ERROR;
+    stmt->state= Query_arena::STMT_ERROR;
     stmt->last_errno= ER_WRONG_ARGUMENTS;
     sprintf(stmt->last_error, ER(ER_WRONG_ARGUMENTS),
             "mysqld_stmt_send_long_data");
@@ -2864,7 +2864,7 @@ void mysql_stmt_get_longdata(THD *thd, char *packet, ulong packet_length)
 #endif
   if (thd->stmt_da->is_error())
   {
-    stmt->state= Query_arena::ERROR;
+    stmt->state= Query_arena::STMT_ERROR;
     stmt->last_errno= thd->stmt_da->sql_errno();
     strncpy(stmt->last_error, thd->stmt_da->message(), MYSQL_ERRMSG_SIZE);
   }
@@ -3023,7 +3023,7 @@ end:
 
 Prepared_statement::Prepared_statement(THD *thd_arg)
   :Statement(NULL, &main_mem_root,
-             INITIALIZED, ++thd_arg->statement_id_counter),
+             STMT_INITIALIZED, ++thd_arg->statement_id_counter),
   thd(thd_arg),
   result(thd_arg),
   param_array(0),
@@ -3296,7 +3296,7 @@ bool Prepared_statement::prepare(const char *packet, uint packet_len)
   {
     setup_set_params();
     lex->context_analysis_only&= ~CONTEXT_ANALYSIS_ONLY_PREPARE;
-    state= Query_arena::PREPARED;
+    state= Query_arena::STMT_PREPARED;
     flags&= ~ (uint) IS_IN_USE;
 
     /* 
@@ -3414,7 +3414,7 @@ Prepared_statement::execute_loop(String *expanded_query,
   int reprepare_attempt= 0;
 
   /* Check if we got an error when sending long data */
-  if (state == Query_arena::ERROR)
+  if (state == Query_arena::STMT_ERROR)
   {
     my_message(last_errno, last_error, MYF(0));
     return TRUE;
@@ -3477,7 +3477,7 @@ Prepared_statement::execute_server_runnable(Server_runnable *server_runnable)
   Item_change_list save_change_list;
   thd->change_list.move_elements_to(&save_change_list);
 
-  state= CONVENTIONAL_EXECUTION;
+  state= STMT_CONVENTIONAL_EXECUTION;
 
   if (!(lex= new (mem_root) st_lex_local))
     return TRUE;
@@ -3816,8 +3816,8 @@ bool Prepared_statement::execute(String *expanded_query, bool open_cursor)
   thd->set_statement(&stmt_backup);
   thd->stmt_arena= old_stmt_arena;
 
-  if (state == Query_arena::PREPARED)
-    state= Query_arena::EXECUTED;
+  if (state == Query_arena::STMT_PREPARED)
+    state= Query_arena::STMT_EXECUTED;
 
   if (error == 0 && this->lex->sql_command == SQLCOM_CALL)
   {
@@ -4150,7 +4150,7 @@ bool Protocol_local::store_null()
   if (m_current_column == NULL)
     return TRUE; /* prepare_for_resend() failed to allocate memory. */
 
-  bzero(m_current_column, sizeof(*m_current_column));
+  memset(m_current_column, 0, sizeof(*m_current_column));
   ++m_current_column;
   return FALSE;
 }

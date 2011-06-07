@@ -2393,8 +2393,10 @@ buf_flush_page_cleaner_thread(
 	while (srv_shutdown_state == SRV_SHUTDOWN_NONE) {
 
 		/* The page_cleaner skips sleep if the server is
-		idle and there is work to do. */
+		idle and there are no pending IOs in the buffer pool
+		and there is work to do. */
 		if (srv_check_activity(last_activity)
+		    || buf_get_n_pending_read_ios()
 		    || n_flushed == 0) {
 			page_cleaner_sleep_if_needed(next_loop_time);
 		}

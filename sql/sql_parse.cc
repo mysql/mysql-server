@@ -1891,6 +1891,67 @@ bool sp_process_definer(THD *thd)
 
 
 /**
+  Auxiliary call that opens and locks tables for LOCK TABLES statement
+  and initializes the list of locked tables.
+
+  @param thd     Thread context.
+  @param tables  List of tables to be locked.
+
+  @return FALSE in case of success, TRUE in case of error.
+*/
+
+static bool lock_tables_open_and_lock_tables(THD *thd, TABLE_LIST *tables)
+{
+  Lock_tables_prelocking_strategy lock_tables_prelocking_strategy;
+  uint counter;
+  TABLE_LIST *table;
+
+  thd->in_lock_tables= 1;
+
+  if (open_tables(thd, &tables, &counter, 0, &lock_tables_prelocking_strategy))
+    goto err;
+
+  /*
+    We allow to change temporary tables even if they were locked for read
+    by LOCK TABLES. To avoid a discrepancy between lock acquired at LOCK
+    TABLES time and by the statement which is later executed under LOCK TABLES
+    we ensure that for temporary tables we always request a write lock (such
+    discrepancy can cause problems for the storage engine).
+    We don't set TABLE_LIST::lock_type in this case as this might result in
+    extra warnings from THD::decide_logging_format() even though binary logging
+    is totally irrelevant for LOCK TABLES.
+  */
+  for (table= tables; table; table= table->next_global)
+    if (!table->placeholder() && table->table->s->tmp_table)
+      table->table->reginfo.lock_type= TL_WRITE;
+
+  if (lock_tables(thd, tables, counter, 0) ||
+      thd->locked_tables_list.init_locked_tables(thd))
+    goto err;
+
+  thd->in_lock_tables= 0;
+
+  return FALSE;
+
+err:
+  thd->in_lock_tables= 0;
+
+  trans_rollback_stmt(thd);
+  /*
+    Need to end the current transaction, so the storage engine (InnoDB)
+    can free its locks if LOCK TABLES locked some tables before finding
+    that it can't lock a table in its list
+  */
+  trans_commit_implicit(thd);
+  /* Close tables and release metadata locks. */
+  close_thread_tables(thd);
+  DBUG_ASSERT(!thd->locked_tables_mode);
+  thd->mdl_context.release_transactional_locks();
+  return TRUE;
+}
+
+
+/**
   Execute command saved in thd and lex->sql_command.
 
   @param thd                       Thread handle
@@ -2099,7 +2160,7 @@ mysql_execute_command(THD *thd)
 
   status_var_increment(thd->status_var.com_stat[lex->sql_command]);
 
-  DBUG_ASSERT(thd->transaction.stmt.modified_non_trans_table == FALSE);
+  DBUG_ASSERT(thd->transaction.stmt.cannot_safely_rollback() == FALSE);
 
   /*
     End a active transaction so that this command will have it's
@@ -2559,10 +2620,6 @@ case SQLCOM_PREPARE:
             goto end_with_restore_list;
           }
 
-        /* So that CREATE TEMPORARY TABLE gets to binlog at commit/rollback */
-        if (create_info.options & HA_LEX_CREATE_TMP_TABLE)
-          thd->variables.option_bits|= OPTION_KEEP_LOG;
-
         /*
           select_create is currently not re-execution friendly and
           needs to be created for every execution of a PS/SP.
@@ -2588,9 +2645,6 @@ case SQLCOM_PREPARE:
     }
     else
     {
-      /* So that CREATE TEMPORARY TABLE gets to binlog at commit/rollback */
-      if (create_info.options & HA_LEX_CREATE_TMP_TABLE)
-        thd->variables.option_bits|= OPTION_KEEP_LOG;
       /* regular create */
       if (create_info.options & HA_LEX_CREATE_TABLE_LIKE)
       {
@@ -2640,7 +2694,7 @@ end_with_restore_list:
     */
     thd->enable_slow_log= opt_log_slow_admin_statements;
 
-    bzero((char*) &create_info, sizeof(create_info));
+    memset(&create_info, 0, sizeof(create_info));
     create_info.db_type= 0;
     create_info.row_type= ROW_TYPE_NOT_USED;
     create_info.default_table_charset= thd->variables.collation_database;
@@ -2936,8 +2990,7 @@ end_with_restore_list:
       if (incident)
       {
         Incident_log_event ev(thd, incident);
-        (void) mysql_bin_log.write(&ev);        /* error is ignored */
-        if (mysql_bin_log.rotate_and_purge(RP_FORCE_ROTATE))
+        if (mysql_bin_log.write_incident(&ev, TRUE))
         {
           res= 1;
           break;
@@ -3122,11 +3175,6 @@ end_with_restore_list:
       if (check_table_access(thd, DROP_ACL, all_tables, FALSE, UINT_MAX, FALSE))
 	goto error;				/* purecov: inspected */
     }
-    else
-    {
-      /* So that DROP TEMPORARY TABLE gets to binlog at commit/rollback */
-      thd->variables.option_bits|= OPTION_KEEP_LOG;
-    }
     /* DDL and binlog write order are protected by metadata locks. */
     res= mysql_rm_table(thd, first_table, lex->drop_if_exists,
 			lex->drop_temporary);
@@ -3277,31 +3325,11 @@ end_with_restore_list:
       goto error;
 
     thd->variables.option_bits|= OPTION_TABLE_LOCK;
-    thd->in_lock_tables=1;
 
-    {
-      Lock_tables_prelocking_strategy lock_tables_prelocking_strategy;
-
-      res= (open_and_lock_tables(thd, all_tables, FALSE, 0,
-                                 &lock_tables_prelocking_strategy) ||
-            thd->locked_tables_list.init_locked_tables(thd));
-    }
-
-    thd->in_lock_tables= 0;
+    res= lock_tables_open_and_lock_tables(thd, all_tables);
 
     if (res)
     {
-      trans_rollback_stmt(thd);
-      /*
-        Need to end the current transaction, so the storage engine (InnoDB)
-        can free its locks if LOCK TABLES locked some tables before finding
-        that it can't lock a table in its list
-      */
-      trans_commit_implicit(thd);
-      /* Close tables and release metadata locks. */
-      close_thread_tables(thd);
-      DBUG_ASSERT(!thd->locked_tables_mode);
-      thd->mdl_context.release_transactional_locks();
       thd->variables.option_bits&= ~(OPTION_TABLE_LOCK);
     }
     else
@@ -3588,8 +3616,7 @@ end_with_restore_list:
             hostname_requires_resolving(user->host.str))
           push_warning_printf(thd, MYSQL_ERROR::WARN_LEVEL_WARN,
                               ER_WARN_HOSTNAME_WONT_WORK,
-                              ER(ER_WARN_HOSTNAME_WONT_WORK),
-                              user->host.str);
+                              ER(ER_WARN_HOSTNAME_WONT_WORK));
         // Are we trying to change a password of another user
         DBUG_ASSERT(user->host.str != 0);
 
@@ -4494,7 +4521,6 @@ finish:
   DBUG_ASSERT(!thd->in_active_multi_stmt_transaction() ||
                thd->in_multi_stmt_transaction_mode());
 
-
   if (! thd->in_sub_stmt)
   {
     /* report error issued during command execution */
@@ -5126,7 +5152,7 @@ check_routine_access(THD *thd, ulong want_access,char *db, char *name,
 {
   TABLE_LIST tables[1];
   
-  bzero((char *)tables, sizeof(TABLE_LIST));
+  memset(tables, 0, sizeof(TABLE_LIST));
   tables->db= db;
   tables->table_name= tables->alias= name;
   
@@ -5395,14 +5421,17 @@ void THD::reset_for_next_command()
   */
   thd->server_status&= ~SERVER_STATUS_CLEAR_SET;
   /*
-    If in autocommit mode and not in a transaction, reset
-    OPTION_STATUS_NO_TRANS_UPDATE | OPTION_KEEP_LOG to not get warnings
-    in ha_rollback_trans() about some tables couldn't be rolled back.
+    If in autocommit mode and not in a transaction, reset flag
+    that identifies if a transaction has done some operations
+    that cannot be safely rolled back.
+
+    If the flag is set an warning message is printed out in
+    ha_rollback_trans() saying that some tables couldn't be
+    rolled back.
   */
   if (!thd->in_multi_stmt_transaction_mode())
   {
-    thd->variables.option_bits&= ~OPTION_KEEP_LOG;
-    thd->transaction.all.modified_non_trans_table= FALSE;
+    thd->transaction.all.reset_unsafe_rollback_flags();
   }
   DBUG_ASSERT(thd->security_ctx== &thd->main_security_ctx);
   thd->thread_specific_used= FALSE;
@@ -5480,7 +5509,7 @@ mysql_new_select(LEX *lex, bool move_down)
   lex->nest_level++;
   if (lex->nest_level > (int) MAX_SELECT_NESTING)
   {
-    my_error(ER_TOO_HIGH_LEVEL_OF_NESTING_FOR_SELECT,MYF(0),MAX_SELECT_NESTING);
+    my_error(ER_TOO_HIGH_LEVEL_OF_NESTING_FOR_SELECT, MYF(0));
     DBUG_RETURN(1);
   }
   select_lex->nest_level= lex->nest_level;
@@ -5556,7 +5585,7 @@ void create_select_for_variable(const char *var_name)
   lex->sql_command= SQLCOM_SELECT;
   tmp.str= (char*) var_name;
   tmp.length=strlen(var_name);
-  bzero((char*) &null_lex_string.str, sizeof(null_lex_string));
+  memset(&null_lex_string, 0, sizeof(null_lex_string));
   /*
     We set the name of Item to @@session.var_name because that then is used
     as the column name in the output.

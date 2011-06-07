@@ -73,7 +73,7 @@ void _myisam_log(enum myisam_log_commands command, MI_INFO *info,
   int error,old_errno;
   ulong pid=(ulong) GETPID();
   old_errno=my_errno;
-  bzero(buff,sizeof(buff));
+  memset(buff, 0, sizeof(buff));
   buff[0]=(char) command;
   mi_int2store(buff+1,info->dfile);
   mi_int4store(buff+3,pid);

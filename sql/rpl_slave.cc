@@ -114,7 +114,7 @@ static const char *reconnect_messages[SLAVE_RECON_ACT_MAX][SLAVE_RECON_MSG_MAX]=
 registration on master",
     "Reconnecting after a failed registration on master",
     "failed registering on master, reconnecting to try again, \
-log '%s' at postion %s",
+log '%s' at position %s",
     "COM_REGISTER_SLAVE",
     "Slave I/O thread killed during or after reconnect"
   },
@@ -122,7 +122,7 @@ log '%s' at postion %s",
     "Waiting to reconnect after a failed binlog dump request",
     "Slave I/O thread killed while retrying master dump",
     "Reconnecting after a failed binlog dump request",
-    "failed dump request, reconnecting to try again, log '%s' at postion %s",
+    "failed dump request, reconnecting to try again, log '%s' at position %s",
     "COM_BINLOG_DUMP",
     "Slave I/O thread killed during or after reconnect"
   },
@@ -131,7 +131,7 @@ log '%s' at postion %s",
     "Slave I/O thread killed while waiting to reconnect after a failed read",
     "Reconnecting after a failed master event read",
     "Slave I/O thread: Failed reading log event, reconnecting to retry, \
-log '%s' at postion %s",
+log '%s' at position %s",
     "",
     "Slave I/O thread killed during or after a reconnect done to recover from \
 failed read"
@@ -634,7 +634,7 @@ int terminate_slave_threads(Master_info* mi,int thread_mask,bool skip_lock)
 
     DBUG_PRINT("info",("Flushing relay-log info file."));
     if (current_thd)
-      thd_proc_info(current_thd, "Flushing relay-log info file.");
+      THD_STAGE_INFO(current_thd, stage_flushing_relay_log_info_file);
 
     /*
       Flushes the relay log info regardles of the sync_relay_log_info option.
@@ -659,7 +659,7 @@ int terminate_slave_threads(Master_info* mi,int thread_mask,bool skip_lock)
 
     DBUG_PRINT("info",("Flushing relay log and master info repository."));
     if (current_thd)
-      thd_proc_info(current_thd, "Flushing relay log and master info repository.");
+      THD_STAGE_INFO(current_thd, stage_flushing_relay_log_and_master_info_repository);
 
     /*
       Flushes the master info regardles of the sync_master_info option.
@@ -1008,17 +1008,7 @@ static bool sql_slave_killed(THD* thd, Relay_log_info* rli)
   DBUG_ASSERT(rli->slave_running == 1);// tracking buffer overrun
   if (abort_loop || thd->killed || rli->abort_slave)
   {
-    /*
-      The transaction should always be binlogged if OPTION_KEEP_LOG is set
-      (it implies that something can not be rolled back). And such case
-      should be regarded similarly as modifing a non-transactional table
-      because retrying of the transaction will lead to an error or inconsistency
-      as well.
-      Example: OPTION_KEEP_LOG is set if a temporary table is created or dropped.
-    */
-    if ((thd->transaction.all.modified_non_trans_table ||
-         (thd->variables.option_bits & OPTION_KEEP_LOG))
-        && rli->is_in_group())
+    if (thd->transaction.all.cannot_safely_rollback() && rli->is_in_group())
     {
       char msg_stopped[]=
         "... Slave SQL Thread stopped with incomplete event group "
@@ -2080,6 +2070,10 @@ bool show_master_info(THD* thd, Master_info* mi)
     protocol->store(mi->info_thd ? mi->info_thd->proc_info : "", &my_charset_bin);
     mysql_mutex_unlock(&mi->run_lock);
 
+    mysql_mutex_lock(&mi->rli->run_lock);
+    const char *slave_sql_running_state= mi->rli->info_thd ? mi->rli->info_thd->proc_info : "";
+    mysql_mutex_unlock(&mi->rli->run_lock);
+
     mysql_mutex_lock(&mi->data_lock);
     mysql_mutex_lock(&mi->rli->data_lock);
     mysql_mutex_lock(&mi->err_lock);
@@ -2216,10 +2210,7 @@ bool show_master_info(THD* thd, Master_info* mi)
     // SQL_Delay
     protocol->store((uint32) mi->rli->get_sql_delay());
     // SQL_Remaining_Delay
-    // THD::proc_info is not protected by any lock, so we read it once
-    // to ensure that we use the same value throughout this function.
-    const char *slave_sql_running_state= mi->rli->info_thd ? mi->rli->info_thd->proc_info : "";
-    if (slave_sql_running_state == Relay_log_info::state_delaying_string)
+    if (slave_sql_running_state == stage_sql_thd_waiting_until_delay.m_name)
     {
       time_t t= my_time(0), sql_delay_end= mi->rli->get_sql_delay_end();
       protocol->store((uint32)(t < sql_delay_end ? sql_delay_end - t : 0));
@@ -2848,7 +2839,7 @@ static int exec_relay_log_event(THD* thd, Relay_log_info* rli)
                           ((ev->get_type_code() == QUERY_EVENT) &&
                            strcmp("COMMIT", ((Query_log_event *) ev)->query) == 0))
                       {
-                        DBUG_ASSERT(thd->transaction.all.modified_non_trans_table);
+                        DBUG_ASSERT(thd->transaction.all.cannot_safely_rollback());
                         rli->abort_slave= 1;
                         mysql_mutex_unlock(&rli->data_lock);
                         delete ev;
@@ -2887,7 +2878,8 @@ static int exec_relay_log_event(THD* thd, Relay_log_info* rli)
     if (slave_trans_retries)
     {
       int UNINIT_VAR(temp_err);
-      if (exec_res && (temp_err= rli->has_temporary_error(thd)))
+      if (exec_res && (temp_err= rli->has_temporary_error(thd)) &&
+          !thd->transaction.all.cannot_safely_rollback())
       {
         const char *errmsg;
         /*
@@ -3399,7 +3391,7 @@ err:
   // print the current replication position
   sql_print_information("Slave I/O thread exiting, read up to log '%s', position %s",
                   mi->get_io_rpl_log_name(), llstr(mi->get_master_log_pos(), llbuff));
-  RUN_HOOK(binlog_relay_io, thread_stop, (thd, mi));
+  (void) RUN_HOOK(binlog_relay_io, thread_stop, (thd, mi));
   thd->reset_query();
   thd->reset_db(NULL, 0);
   if (mysql)
@@ -3693,7 +3685,7 @@ log '%s' at position %s, relay log '%s' position: %s", rli->get_rpl_log_name(),
 
   while (!sql_slave_killed(thd,rli))
   {
-    thd_proc_info(thd, "Reading event from the relay log");
+    THD_STAGE_INFO(thd, stage_reading_event_from_the_relay_log);
     DBUG_ASSERT(rli->info_thd == thd);
     THD_CHECK_SENTRY(thd);
 
@@ -5732,7 +5724,7 @@ int reset_slave(THD *thd, Master_info* mi)
     goto err;
   }
 
-  RUN_HOOK(binlog_relay_io, after_reset_slave, (thd, mi));
+  (void) RUN_HOOK(binlog_relay_io, after_reset_slave, (thd, mi));
 err:
   unlock_slave_threads(mi);
   if (error)
@@ -5872,7 +5864,7 @@ bool change_master(THD* thd, Master_info* mi)
     get_dynamic(&lex_mi->repl_ignore_server_ids, (uchar*) &s_id, i);
     if (s_id == ::server_id && replicate_same_server_id)
     {
-      my_error(ER_SLAVE_IGNORE_SERVER_IDS, MYF(0), s_id);
+      my_error(ER_SLAVE_IGNORE_SERVER_IDS, MYF(0), static_cast<int>(s_id));
       ret= TRUE;
       goto err;
     }
@@ -5975,7 +5967,7 @@ bool change_master(THD* thd, Master_info* mi)
   if (need_relay_log_purge)
   {
     relay_log_purge= 1;
-    thd_proc_info(thd, "Purging old relay logs");
+    THD_STAGE_INFO(thd, stage_purging_old_relay_logs);
     if (mi->rli->purge_relay_logs(thd,
                                   0 /* not only reset, but also reinit */,
                                   &errmsg))

@@ -483,7 +483,8 @@ typedef struct st_io_cache		/* Used when cacheing files */
 
 typedef int (*qsort2_cmp)(const void *, const void *, const void *);
 
-typedef void (*my_error_reporter)(enum loglevel level, const char *format, ...);
+typedef void (*my_error_reporter)(enum loglevel level, const char *format, ...)
+  ATTRIBUTE_FORMAT_FPTR(printf, 2, 3);
 
 extern my_error_reporter my_charset_error_reporter;
 
@@ -625,6 +626,8 @@ extern FILE *my_freopen(const char *path, const char *mode, FILE *stream);
 extern int my_fclose(FILE *fd,myf MyFlags);
 extern File my_fileno(FILE *fd);
 extern int my_chsize(File fd,my_off_t newlength, int filler, myf MyFlags);
+extern void thr_set_sync_wait_callback(void (*before_sync)(void),
+                                       void (*after_sync)(void));
 extern int my_sync(File fd, myf my_flags);
 extern int my_sync_dir(const char *dir_name, myf my_flags);
 extern int my_sync_dir_by_file(const char *file_name, myf my_flags);
@@ -933,7 +936,6 @@ extern size_t escape_quotes_for_mysql(CHARSET_INFO *charset_info,
 
 extern void thd_increment_bytes_sent(ulong length);
 extern void thd_increment_bytes_received(ulong length);
-extern void thd_increment_net_big_packet_count(ulong length);
 
 #ifdef __WIN__
 extern my_bool have_tcpip;		/* Is set if tcpip is used */

@@ -47,10 +47,6 @@
   if this file.
 */
 
-#ifdef __GNUC__
-#pragma implementation				// gcc: Class implementation
-#endif
-
 #include "sql_priv.h"
 #include "sql_parse.h"                          // append_file_to_dir
 #include "binlog.h"                             // mysql_bin_log
@@ -1137,6 +1133,10 @@ static int handle_opt_part(THD *thd, HA_CHECK_OPT *check_opt,
    (modelled after mi_check_print_msg)
    TODO: move this into the handler, or rewrite mysql_admin_table.
 */
+static bool print_admin_msg(THD* thd, const char* msg_type,
+                            const char* db_name, const char* table_name,
+                            const char* op_name, const char *fmt, ...)
+  ATTRIBUTE_FORMAT(printf, 6, 7);
 static bool print_admin_msg(THD* thd, const char* msg_type,
                             const char* db_name, const char* table_name,
                             const char* op_name, const char *fmt, ...)
@@ -2337,7 +2337,7 @@ bool ha_partition::create_handlers(MEM_ROOT *mem_root)
   if (!(m_file= (handler **) alloc_root(mem_root, alloc_len)))
     DBUG_RETURN(TRUE);
   m_file_tot_parts= m_tot_parts;
-  bzero((char*) m_file, alloc_len);
+  memset(m_file, 0, alloc_len);
   for (i= 0; i < m_tot_parts; i++)
   {
     handlerton *hton= plugin_data(m_engine_array[i], handlerton*);
@@ -2389,7 +2389,7 @@ bool ha_partition::new_handlers_from_part_info(MEM_ROOT *mem_root)
     goto error_end;
   }
   m_file_tot_parts= m_tot_parts;
-  bzero((char*) m_file, alloc_len);
+  memset(m_file, 0, alloc_len);
   DBUG_ASSERT(m_part_info->num_parts > 0);
 
   i= 0;
@@ -2928,7 +2928,7 @@ int ha_partition::open(const char *name, int mode, uint test_if_locked)
     DBUG_PRINT("info", ("table_share->ha_part_data 0x%p",
                         table_share->ha_part_data));
     /* zeros both auto_increment variables and partition_name_hash.records */
-    bzero(table_share->ha_part_data, sizeof(HA_DATA_PARTITION));
+    memset(table_share->ha_part_data, 0, sizeof(HA_DATA_PARTITION));
     table_share->ha_part_data_destroy= ha_data_partition_destroy;
     mysql_mutex_init(key_PARTITION_LOCK_auto_inc,
                      &table_share->ha_part_data->LOCK_auto_inc,
@@ -6875,22 +6875,29 @@ bool ha_partition::check_if_incompatible_data(HA_CREATE_INFO *create_info,
 
 
 /**
-  Support of fast or online add/drop index
+  Support of in-place add/drop index
 */
-int ha_partition::add_index(TABLE *table_arg, KEY *key_info, uint num_of_keys)
+int ha_partition::add_index(TABLE *table_arg, KEY *key_info, uint num_of_keys,
+                            handler_add_index **add)
 {
   handler **file;
   int ret= 0;
 
   DBUG_ENTER("ha_partition::add_index");
+  *add= new handler_add_index(table, key_info, num_of_keys);
   /*
     There has already been a check in fix_partition_func in mysql_alter_table
     before this call, which checks for unique/primary key violations of the
     partitioning function. So no need for extra check here.
   */
   for (file= m_file; *file; file++)
-    if ((ret=  (*file)->add_index(table_arg, key_info, num_of_keys)))
+  {
+    handler_add_index *add_index;
+    if ((ret= (*file)->add_index(table_arg, key_info, num_of_keys, &add_index)))
       goto err;
+    if ((ret= (*file)->final_add_index(add_index, true)))
+      goto err;
+  }
   DBUG_RETURN(ret);
 err:
   if (file > m_file)
@@ -6914,6 +6921,42 @@ err:
   DBUG_RETURN(ret);
 }
 
+
+/**
+   Second phase of in-place add index.
+
+   @note If commit is false, index changes are rolled back by dropping the
+         added indexes. If commit is true, nothing is done as the indexes
+         were already made active in ::add_index()
+ */
+
+int ha_partition::final_add_index(handler_add_index *add, bool commit)
+{
+  DBUG_ENTER("ha_partition::final_add_index");
+  // Rollback by dropping indexes.
+  if (!commit)
+  {
+    TABLE *table_arg= add->table;
+    uint num_of_keys= add->num_of_keys;
+    handler **file;
+    uint *key_numbers= (uint*) ha_thd()->alloc(sizeof(uint) * num_of_keys);
+    uint old_num_of_keys= table_arg->s->keys;
+    uint i;
+    /* The newly created keys have the last id's */
+    for (i= 0; i < num_of_keys; i++)
+      key_numbers[i]= i + old_num_of_keys;
+    if (!table_arg->key_info)
+      table_arg->key_info= add->key_info;
+    for (file= m_file; *file; file++)
+    {
+      (void) (*file)->prepare_drop_index(table_arg, key_numbers, num_of_keys);
+      (void) (*file)->final_drop_index(table_arg);
+    }
+    if (table_arg->key_info == add->key_info)
+      table_arg->key_info= NULL;
+  }
+  DBUG_RETURN(0);
+}
 
 int ha_partition::prepare_drop_index(TABLE *table_arg, uint *key_num,
                                  uint num_of_keys)

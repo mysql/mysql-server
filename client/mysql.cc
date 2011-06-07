@@ -1096,9 +1096,31 @@ static void end_timer(ulong start_time,char *buff);
 static void mysql_end_timer(ulong start_time,char *buff);
 static void nice_time(double sec,char *buff,bool part_second);
 extern "C" sig_handler mysql_end(int sig);
-extern "C" sig_handler handle_sigint(int sig);
+extern "C" sig_handler handle_kill_signal(int sig);
 #if defined(HAVE_TERMIOS_H) && defined(GWINSZ_IN_SYS_IOCTL)
 static sig_handler window_resize(int sig);
+#endif
+
+
+#ifdef _WIN32
+BOOL windows_ctrl_handler(DWORD fdwCtrlType)
+{
+  switch (fdwCtrlType)
+  {
+  case CTRL_C_EVENT:
+  case CTRL_BREAK_EVENT:
+    if (!opt_sigint_ignore)
+      handle_kill_signal(SIGINT);
+    /* Indicate that signal has beed handled. */  
+    return TRUE;
+  case CTRL_CLOSE_EVENT:
+  case CTRL_LOGOFF_EVENT:
+  case CTRL_SHUTDOWN_EVENT:
+    handle_kill_signal(SIGINT + 1);
+  }
+  /* Pass signal to the next control handler function. */
+  return FALSE;
+}
 #endif
 
 
@@ -1187,7 +1209,7 @@ int main(int argc,char *argv[])
   glob_buffer.realloc(512);
   completion_hash_init(&ht, 128);
   init_alloc_root(&hash_mem_root, 16384, 0);
-  bzero((char*) &mysql, sizeof(mysql));
+  memset(&mysql, 0, sizeof(mysql));
   if (sql_connect(current_host,current_db,current_user,opt_password,
 		  opt_silent))
   {
@@ -1198,11 +1220,17 @@ int main(int argc,char *argv[])
   if (!status.batch)
     ignore_errors=1;				// Don't abort monitor
 
+#ifndef _WIN32
   if (opt_sigint_ignore)
     signal(SIGINT, SIG_IGN);
   else
-    signal(SIGINT, handle_sigint);              // Catch SIGINT to clean up
+    signal(SIGINT, handle_kill_signal);         // Catch SIGINT to clean up
   signal(SIGQUIT, mysql_end);			// Catch SIGQUIT to clean up
+  signal(SIGHUP, handle_kill_signal);         // Catch SIGHUP to clean up
+#else
+  SetConsoleCtrlHandler((PHANDLER_ROUTINE) windows_ctrl_handler, TRUE);
+#endif
+
 
 #if defined(HAVE_TERMIOS_H) && defined(GWINSZ_IN_SYS_IOCTL)
   /* Readline will call this if it installs a handler */
@@ -1329,16 +1357,17 @@ sig_handler mysql_end(int sig)
   If query is in process, kill query
   no query in process, terminate like previous behavior
  */
-sig_handler handle_sigint(int sig)
+sig_handler handle_kill_signal(int sig)
 {
   char kill_buffer[40];
   MYSQL *kill_mysql= NULL;
+  const char *reason = sig == SIGINT ? "Ctrl-C" : "Terminal close";
 
   /* terminate if no query being executed, or we already tried interrupting */
   /* terminate if no query being executed, or we already tried interrupting */
   if (!executing_query || (interrupted_query == 2))
   {
-    tee_fprintf(stdout, "Ctrl-C -- exit!\n");
+    tee_fprintf(stdout, "%s -- exit!\n", reason);
     goto err;
   }
 
@@ -1346,7 +1375,7 @@ sig_handler handle_sigint(int sig)
   if (!mysql_real_connect(kill_mysql,current_host, current_user, opt_password,
                           "", opt_mysql_port, opt_mysql_unix_port,0))
   {
-    tee_fprintf(stdout, "Ctrl-C -- sorry, cannot connect to server to kill query, giving up ...\n");
+    tee_fprintf(stdout, "%s -- sorry, cannot connect to server to kill query, giving up ...\n", reason);
     goto err;
   }
 
@@ -1360,10 +1389,11 @@ sig_handler handle_sigint(int sig)
   sprintf(kill_buffer, "KILL %s%lu",
           (interrupted_query == 1) ? "QUERY " : "",
           mysql_thread_id(&mysql));
-  tee_fprintf(stdout, "Ctrl-C -- sending \"%s\" to server ...\n", kill_buffer);
+  tee_fprintf(stdout, "%s -- sending \"%s\" to server ...\n", 
+              reason, kill_buffer);
   mysql_real_query(kill_mysql, kill_buffer, (uint) strlen(kill_buffer));
   mysql_close(kill_mysql);
-  tee_fprintf(stdout, "Ctrl-C -- query aborted.\n");
+  tee_fprintf(stdout, "%s -- query aborted.\n", reason);
 
   return;
 
@@ -1610,11 +1640,11 @@ static struct my_option my_long_options[] =
     &show_warnings, &show_warnings, 0, GET_BOOL, NO_ARG,
     0, 0, 0, 0, 0, 0},
   {"plugin_dir", OPT_PLUGIN_DIR, "Directory for client-side plugins.",
-   (uchar**) &opt_plugin_dir, (uchar**) &opt_plugin_dir, 0,
+    &opt_plugin_dir, &opt_plugin_dir, 0,
    GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
   {"default_auth", OPT_DEFAULT_AUTH,
     "Default authentication client-side plugin to use.",
-   (uchar**) &opt_default_auth, (uchar**) &opt_default_auth, 0,
+    &opt_default_auth, &opt_default_auth, 0,
    GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
   { 0, 0, 0, 0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0}
 };
@@ -3734,8 +3764,6 @@ com_tee(String *buffer __attribute__((unused)),
 {
   char file_name[FN_REFLEN], *end, *param;
 
-  if (status.batch)
-    return 0;
   while (my_isspace(charset_info,*line))
     line++;
   if (!(param = strchr(line, ' '))) // if outfile wasn't given, use the default
@@ -3961,7 +3989,7 @@ com_connect(String *buffer, char *line)
   bool save_rehash= opt_rehash;
   int error;
 
-  bzero(buff, sizeof(buff));
+  memset(buff, 0, sizeof(buff));
   if (buffer)
   {
     /*
@@ -4047,7 +4075,7 @@ static int com_source(String *buffer __attribute__((unused)),
 
   /* Save old status */
   old_status=status;
-  bfill((char*) &status,sizeof(status),(char) 0);
+  memset(&status, 0, sizeof(status));
 
   status.batch=old_status.batch;		// Run in batch mode
   status.line_buff=line_buff;
@@ -4097,7 +4125,7 @@ com_use(String *buffer __attribute__((unused)), char *line)
   char *tmp, buff[FN_REFLEN + 1];
   int select_db;
 
-  bzero(buff, sizeof(buff));
+  memset(buff, 0, sizeof(buff));
   strmake(buff, line, sizeof(buff) - 1);
   tmp= get_arg(buff, 0);
   if (!tmp || !*tmp)

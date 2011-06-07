@@ -103,7 +103,7 @@ int run_test(const char *filename)
   if (!silent)
     printf("- Creating isam-file\n");
   
-  bzero((char*) &create_info,sizeof(create_info));
+  memset(&create_info, 0, sizeof(create_info));
   create_info.max_rows=10000000;
   
   if (mi_create(filename,
@@ -146,7 +146,7 @@ int run_test(const char *filename)
   for (i=0; i < nrecords/4; i++)
   {
     my_errno=0;
-    bzero((char*) read_record,MAX_REC_LENGTH);
+    memset(read_record, 0, MAX_REC_LENGTH);
     error=mi_rrnd(file,read_record,i == 0 ? 0L : HA_OFFSET_ERROR);
     if (error)
     {
@@ -167,7 +167,7 @@ int run_test(const char *filename)
   for (i=0; i < nrecords/2 ; i++)
   {
     my_errno=0;
-    bzero((char*) read_record,MAX_REC_LENGTH);
+    memset(read_record, 0, MAX_REC_LENGTH);
     error=mi_rrnd(file,read_record,i == 0 ? 0L : HA_OFFSET_ERROR);
     if (error)
     {
@@ -280,7 +280,7 @@ static int read_with_pos (MI_INFO * file,int silent)
   for (i=0;;i++)
   {
     my_errno=0;
-    bzero((char*) read_record,MAX_REC_LENGTH);
+    memset(read_record, 0, MAX_REC_LENGTH);
     error=mi_rrnd(file,read_record,i == 0 ? 0L : HA_OFFSET_ERROR);
     if (error)
     {
@@ -333,7 +333,7 @@ static void create_linestring(uchar *record,uint rownr)
      for(i=0;i<SPDIMS;i++)
        x[i+j*SPDIMS]=rownr*j;
 
-   bzero((char*) record,MAX_REC_LENGTH);
+   memset(record, 0, MAX_REC_LENGTH);
    *pos=0x01; /* DEL marker */
    pos++;
 
@@ -354,7 +354,7 @@ static void create_key(uchar *key,uint rownr)
    uchar *pos;
    uint i;
 
-   bzero(key,MAX_REC_LENGTH);
+   memset(key, 0, MAX_REC_LENGTH);
    for (pos=key, i=0; i<2*SPDIMS; i++)
    {
      float8store(pos,c);

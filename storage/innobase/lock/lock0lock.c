@@ -368,13 +368,8 @@ static
 ibool
 lock_rec_validate_page(
 /*===================*/
-	ibool	locked_lock_trx_sys,	/*!< in: if the caller holds
-					both the lock mutex and
-					trx_sys_t->lock. */
-	ulint	space,			/*!< in: space id */
-	ulint	zip_size,		/*!< in: compressed page size
-					in bytes or 0 for uncompressed pages */
-	ulint	page_no);		/*!< in: page number */
+	const buf_block_t*	block)	/*!< in: buffer block */
+	__attribute__((nonnull, warn_unused_result));
 #endif /* UNIV_DEBUG */
 
 /* The lock system */
@@ -1135,10 +1130,10 @@ lock_rec_reset_nth_bit(
 Gets the first or next record lock on a page.
 @return	next lock, NULL if none exists */
 UNIV_INLINE
-lock_t*
-lock_rec_get_next_on_page(
-/*======================*/
-	lock_t*	lock)	/*!< in: a record lock */
+const lock_t*
+lock_rec_get_next_on_page_const(
+/*============================*/
+	const lock_t*	lock)	/*!< in: a record lock */
 {
 	ulint	space;
 	ulint	page_no;
@@ -1171,12 +1166,12 @@ lock_rec_get_next_on_page(
 Gets the first or next record lock on a page.
 @return	next lock, NULL if none exists */
 UNIV_INLINE
-const lock_t*
-lock_rec_get_next_on_page_const(
-/*============================*/
-	const lock_t*	lock)	/*!< in: a record lock */
+lock_t*
+lock_rec_get_next_on_page(
+/*======================*/
+	lock_t*	lock)	/*!< in: a record lock */
 {
-	return(lock_rec_get_next_on_page((lock_t*) lock));
+	return((lock_t*) lock_rec_get_next_on_page_const(lock));
 }
 
 /*********************************************************************//**
@@ -2780,10 +2775,7 @@ lock_move_reorganize_page(
 	mem_heap_free(heap);
 
 #ifdef UNIV_DEBUG_LOCK_VALIDATE
-	ut_ad(lock_rec_validate_page(FALSE,
-				     buf_block_get_space(block),
-				     buf_block_get_zip_size(block),
-				     buf_block_get_page_no(block)));
+	ut_ad(lock_rec_validate_page(block));
 #endif
 }
 
@@ -2871,14 +2863,8 @@ lock_move_rec_list_end(
 	lock_mutex_exit();
 
 #ifdef UNIV_DEBUG_LOCK_VALIDATE
-	ut_ad(lock_rec_validate_page(FALSE,
-				     buf_block_get_space(block),
-				     buf_block_get_zip_size(block),
-				     buf_block_get_page_no(block)));
-	ut_ad(lock_rec_validate_page(FALSE,
-				     buf_block_get_space(new_block),
-				     buf_block_get_zip_size(block),
-				     buf_block_get_page_no(new_block)));
+	ut_ad(lock_rec_validate_page(block));
+	ut_ad(lock_rec_validate_page(new_block));
 #endif
 }
 
@@ -2987,10 +2973,7 @@ lock_move_rec_list_start(
 	lock_mutex_exit();
 
 #ifdef UNIV_DEBUG_LOCK_VALIDATE
-	ut_ad(lock_rec_validate_page(FALSE,
-				     buf_block_get_space(block),
-				     buf_block_get_zip_size(block),
-				     buf_block_get_page_no(block)));
+	ut_ad(lock_rec_validate_page(block));
 #endif
 }
 
@@ -4075,17 +4058,18 @@ Checks if other transactions have an incompatible mode lock request in
 the lock queue.
 @return	lock or NULL */
 UNIV_INLINE
-lock_t*
+const lock_t*
 lock_table_other_has_incompatible(
 /*==============================*/
-	trx_t*		trx,	/*!< in: transaction, or NULL if all
-				transactions should be included */
-	ulint		wait,	/*!< in: LOCK_WAIT if also waiting locks are
-				taken into account, or 0 if not */
-	dict_table_t*	table,	/*!< in: table */
-	enum lock_mode	mode)	/*!< in: lock mode */
+	const trx_t*		trx,	/*!< in: transaction, or NULL if all
+					transactions should be included */
+	ulint			wait,	/*!< in: LOCK_WAIT if also
+					waiting locks are taken into
+					account, or 0 if not */
+	const dict_table_t*	table,	/*!< in: table */
+	enum lock_mode		mode)	/*!< in: lock mode */
 {
-	lock_t*		lock;
+	const lock_t*	lock;
 
 	ut_ad(lock_mutex_own());
 
@@ -4121,7 +4105,7 @@ lock_table(
 {
 	trx_t*		trx;
 	ulint		err;
-	lock_t*		lock;
+	const lock_t*	lock;
 
 	ut_ad(table && thr);
 
@@ -4409,7 +4393,12 @@ lock_trx_table_locks_remove(
 
 	ut_ad(lock_mutex_own());
 
-	trx_mutex_enter(trx);
+	/* It is safe to read this because we are holding the lock mutex */
+	if (!trx->lock.cancel) {
+		trx_mutex_enter(trx);
+	} else {
+		ut_ad(trx_mutex_own(trx));
+	}
 
 	for (i = ib_vector_size(trx->lock.table_locks) - 1; i >= 0; --i) {
 		const lock_t*	lock;
@@ -4426,12 +4415,18 @@ lock_trx_table_locks_remove(
 
 		if (lock == lock_to_remove) {
 			ib_vector_set(trx->lock.table_locks, i, NULL);
-			trx_mutex_exit(trx);
+
+			if (!trx->lock.cancel) {
+				trx_mutex_exit(trx);
+			}
+
 			return;
 		}
 	}
 
-	trx_mutex_exit(trx);
+	if (!trx->lock.cancel) {
+		trx_mutex_exit(trx);
+	}
 
 	/* Lock must exist in the vector. */
 	ut_error;
@@ -5080,9 +5075,9 @@ static
 ibool
 lock_table_queue_validate(
 /*======================*/
-	dict_table_t*	table)	/*!< in: table */
+	const dict_table_t*	table)	/*!< in: table */
 {
-	lock_t*		lock;
+	const lock_t*	lock;
 
 	ut_ad(lock_mutex_own());
 #ifdef UNIV_SYNC_DEBUG
@@ -5128,7 +5123,7 @@ lock_rec_queue_validate(
 					trx_sys_t->lock. */
 	const buf_block_t*	block,	/*!< in: buffer block containing rec */
 	const rec_t*		rec,	/*!< in: record to look at */
-	dict_index_t*		index,	/*!< in: index, or NULL if not known */
+	const dict_index_t*	index,	/*!< in: index, or NULL if not known */
 	const ulint*		offsets)/*!< in: rec_get_offsets(rec, index) */
 {
 	const trx_t*	impl_trx;
@@ -5239,33 +5234,17 @@ static
 ibool
 lock_rec_validate_page(
 /*===================*/
-	ibool	locked_lock_trx_sys,	/*!< in: if the caller holds
-					both the lock mutex and
-					trx_sys_t->lock. */
-	ulint	space,			/*!< in: space id */
-	ulint	zip_size,		/*!< in: compressed page size
-					in bytes or 0 for uncompressed pages */
-	ulint	page_no)		/*!< in: page number */
+	const buf_block_t*	block)	/*!< in: buffer block */
 {
-	dict_index_t*	index;
-	buf_block_t*	block;
-	const page_t*	page;
 	const lock_t*	lock;
 	const rec_t*	rec;
 	ulint		nth_lock	= 0;
 	ulint		nth_bit		= 0;
 	ulint		i;
-	mtr_t		mtr;
 	mem_heap_t*	heap		= NULL;
 	ulint		offsets_[REC_OFFS_NORMAL_SIZE];
 	ulint*		offsets		= offsets_;
 	rec_offs_init(offsets_);
-
-	/* This is to preserve latching order. */
-	if (locked_lock_trx_sys) {
-		lock_mutex_exit();
-		rw_lock_s_unlock(&trx_sys->lock);
-	}
 
 	ut_ad(!lock_mutex_own());
 #ifdef UNIV_SYNC_DEBUG
@@ -5273,25 +5252,19 @@ lock_rec_validate_page(
 	ut_ad(!rw_lock_own(&trx_sys->lock, RW_LOCK_EX));
 #endif /* UNIV_SYNC_DEBUG */
 
-	mtr_start(&mtr);
-
-	ut_ad(zip_size != ULINT_UNDEFINED);
-	block = buf_page_get(space, zip_size, page_no, RW_X_LATCH, &mtr);
-	buf_block_dbg_add_level(block, SYNC_NO_ORDER_CHECK);
-
-	page = block->frame;
-
-	/* Either way we need to (re)acquire the mutexes. */
 	lock_mutex_enter();
-
 	rw_lock_s_lock(&trx_sys->lock);
-
 loop:
-	lock = lock_rec_get_first_on_page_addr(space, page_no);
+	lock = lock_rec_get_first_on_page_addr(buf_block_get_space(block),
+					       buf_block_get_page_no(block));
 
 	if (!lock) {
 		goto function_exit;
 	}
+
+#if defined UNIV_DEBUG_FILE_ACCESSES || defined UNIV_DEBUG
+	ut_a(!block->page.file_page_was_freed);
+#endif
 
 	for (i = 0; i < nth_lock; i++) {
 
@@ -5315,15 +5288,14 @@ loop:
 
 		if (i == 1 || lock_rec_get_nth_bit(lock, i)) {
 
-			index = lock->index;
-			rec = page_find_rec_with_heap_no(page, i);
+			rec = page_find_rec_with_heap_no(block->frame, i);
 			ut_a(rec);
-			offsets = rec_get_offsets(rec, index, offsets,
+			offsets = rec_get_offsets(rec, lock->index, offsets,
 						  ULINT_UNDEFINED, &heap);
 #if 0
 			fprintf(stderr,
-				"Validating %lu %lu\n",
-				(ulong) space, (ulong) page_no);
+				"Validating %u %u\n",
+				block->page.space, block->page.offset);
 #endif
 			/* If this thread is holding the file space
 			latch (fil_space_t::latch), the following
@@ -5331,7 +5303,7 @@ loop:
 			cause a deadlock of threads. */
 
 			lock_rec_queue_validate(
-				TRUE, block, rec, index, offsets);
+				TRUE, block, rec, lock->index, offsets);
 
 			nth_bit = i + 1;
 
@@ -5345,13 +5317,8 @@ loop:
 	goto loop;
 
 function_exit:
-
-	mtr_commit(&mtr);
-
-	if (!locked_lock_trx_sys) {
-		lock_mutex_exit();
-		rw_lock_s_unlock(&trx_sys->lock);
-	}
+	lock_mutex_exit();
+	rw_lock_s_unlock(&trx_sys->lock);
 
 	if (UNIV_LIKELY_NULL(heap)) {
 		mem_heap_free(heap);
@@ -5369,8 +5336,6 @@ lock_validate(void)
 {
 	const lock_t*	lock;
 	const trx_t*	trx;
-	ulint		space;
-	ulint		page_no;
 	ulint		i;
 
 	lock_mutex_enter();
@@ -5396,9 +5361,13 @@ lock_validate(void)
 	}
 
 	for (i = 0; i < hash_get_n_cells(lock_sys->rec_hash); i++) {
-		ib_uint64_t	limit = 0; 
+		ulint		space;
+		ulint		page_no;
+		ib_uint64_t	limit	= 0;
 
 		for (;;) {
+			mtr_t		mtr;
+			buf_block_t*	block;
 
 			for (lock = HASH_GET_FIRST(lock_sys->rec_hash, i);
 			     lock != NULL;
@@ -5419,11 +5388,30 @@ lock_validate(void)
 				break;
 			}
 
-			lock_rec_validate_page(
-				TRUE, space,
-				fil_space_get_zip_size(space), page_no);
+			lock_mutex_exit();
+			rw_lock_s_unlock(&trx_sys->lock);
 
-			limit = ut_ull_create(space, page_no + 1);
+			/* The lock and the block that it is referring
+			to may be freed at this point. We pass
+			BUF_GET_POSSIBLY_FREED to skip a debug check.
+			If the lock exists in lock_rec_validate_page()
+			we assert !block->page.file_page_was_freed. */
+
+			mtr_start(&mtr);
+			block = buf_page_get_gen(
+				space, fil_space_get_zip_size(space),
+				page_no, RW_X_LATCH, NULL,
+				BUF_GET_POSSIBLY_FREED,
+				__FILE__, __LINE__, &mtr);
+			buf_block_dbg_add_level(block, SYNC_NO_ORDER_CHECK);
+
+			ut_ad(lock_rec_validate_page(block));
+			mtr_commit(&mtr);
+
+			limit++;
+
+			lock_mutex_enter();
+			rw_lock_s_lock(&trx_sys->lock);
 		}
 	}
 
@@ -6259,6 +6247,8 @@ lock_cancel_waiting_and_release(
 	ut_ad(lock_mutex_own());
 	ut_ad(trx_mutex_own(lock->trx));
 
+	lock->trx->lock.cancel = TRUE;
+
 	if (lock_get_type_low(lock) == LOCK_REC) {
 
 		lock_rec_dequeue_from_page(lock);
@@ -6284,6 +6274,8 @@ lock_cancel_waiting_and_release(
 	if (thr != NULL) {
 		lock_wait_release_thread_if_suspended(thr);
 	}
+
+	lock->trx->lock.cancel = FALSE;
 }
 
 /*********************************************************************//**

@@ -637,7 +637,7 @@ static int compress(PACK_MRG_INFO *mrg,char *result_table)
   if (!error && !test_only)
   {
     uchar buff[MEMMAP_EXTRA_MARGIN];		/* End marginal for memmap */
-    bzero(buff,sizeof(buff));
+    memset(buff, 0, sizeof(buff));
     error=my_write(file_buffer.file,buff,sizeof(buff),
 		   MYF(MY_WME | MY_NABP | MY_WAIT_IF_FULL)) != 0;
   }
@@ -1192,7 +1192,7 @@ static void check_counts(HUFF_COUNTS *huff_counts, uint trees,
   my_off_t old_length,new_length,length;
   DBUG_ENTER("check_counts");
 
-  bzero((uchar*) field_count,sizeof(field_count));
+  memset(field_count, 0, sizeof(field_count));
   space_fields=fill_zero_fields=0;
 
   for (; trees-- ; huff_counts++)
@@ -2039,7 +2039,7 @@ static int write_header(PACK_MRG_INFO *mrg,uint head_length,uint trees,
 {
   uchar *buff= (uchar*) file_buffer.pos;
 
-  bzero(buff,HEAD_LENGTH);
+  memset(buff, 0, HEAD_LENGTH);
   memcpy(buff,myisam_pack_file_magic,4);
   int4store(buff+4,head_length);
   int4store(buff+8, mrg->min_pack_length);
