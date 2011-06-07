@@ -219,4 +219,19 @@
  */
 #define NDB_SPJ_MAX_TREE_NODES 32
 
+/*
+ * Stored ordered index stats uses 2 Longvarbinary pseudo-columns: the
+ * packed index keys and the packed values.  Key size is limited by
+ * SAMPLES table which has 3 other PK attributes.  Also length bytes is
+ * counted as 1 word.  Values currently contain RIR (one word) and RPK
+ * (one word for each key level).  The SAMPLEs table STAT_VALUE column
+ * is longer to allow future changes.
+ */
+#define MAX_INDEX_STAT_KEY_COUNT    MAX_ATTRIBUTES_IN_INDEX
+#define MAX_INDEX_STAT_KEY_SIZE     (MAX_KEY_SIZE_IN_WORDS - 3 - 1)
+#define MAX_INDEX_STAT_VALUE_COUNT  (1 + MAX_INDEX_STAT_KEY_COUNT)
+#define MAX_INDEX_STAT_VALUE_SIZE   MAX_INDEX_STAT_VALUE_COUNT
+#define MAX_INDEX_STAT_VALUE_CSIZE  512 /* Longvarbinary(2048) */
+#define MAX_INDEX_STAT_VALUE_FORMAT 1
+
 #endif

@@ -44,5 +44,6 @@ ADD_LIBRARY(ndbsignaldata STATIC
         LqhTrans.cpp ReadNodesConf.cpp CntrStart.cpp
         ScanFrag.cpp ApiVersion.cpp
         LocalRouteOrd.cpp
-	DbinfoScan.cpp NodePing.cpp)
+	DbinfoScan.cpp NodePing.cpp
+	IndexStatSignal.cpp)
 

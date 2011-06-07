@@ -354,7 +354,7 @@ DbUtil::execTCSEIZECONF(Signal* signal){
 void
 DbUtil::execCONTINUEB(Signal* signal){
   jamEntry();
-  const Uint32 Tdata0 = signal->theData[0];
+  //const Uint32 Tdata0 = signal->theData[0];
 
   ndbrequire(0);
 }

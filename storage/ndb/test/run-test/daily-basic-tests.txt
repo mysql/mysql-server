@@ -1719,3 +1719,20 @@ max-time: 600
 cmd: testNodeRestart
 args: -n ClusterSplitLatency T1
 
+# Refresh tuple
+max-time: 300
+cmd: testBasic
+args: -n RefreshTuple T6 D1
+
+max-time: 300
+cmd: testIndex
+args: -n RefreshWithOrderedIndex T2 D2
+
+max-time: 300
+cmd: testBasic
+args: -n RefreshLocking D1
+
+max-time: 300
+cmd: testIndexStat
+args:
+

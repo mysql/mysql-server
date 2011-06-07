@@ -116,7 +116,7 @@ int runInsertRememberGci(NDBT_Context* ctx, NDBT_Step* step){
   int i = 0;
 
   ndbout_c("Inserting %u records", records);
-  Uint64 minGci = 0xffffffffffffffff;
+  Uint64 minGci = ~Uint64(0);
   Uint64 maxGci = 0;
   Uint32 numAuthorBits = ctx->getTab()->getExtraRowAuthorBits();
   Uint32 authorMask = (1 << numAuthorBits) -1;

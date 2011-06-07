@@ -1204,11 +1204,16 @@ void Dbtc::handleApiFailState(Signal* signal, UintR TapiConnectptr)
   capiConnectClosing[TfailedApiNode]--;
   releaseApiCon(signal, TapiConnectptr);
   TlocalApiConnectptr.p->apiFailState = ZFALSE;
-  if (capiConnectClosing[TfailedApiNode] == 0) {
+  if (capiConnectClosing[TfailedApiNode] == 0)
+  {
     jam();
-    signal->theData[0] = TfailedApiNode;
-    signal->theData[1] = cownref;
-    sendSignal(capiFailRef, GSN_API_FAILCONF, signal, 2, JBB);
+
+    /**
+     * Perform block-level cleanups (e.g assembleFragments...)
+     */
+    Callback cb = {safe_cast(&Dbtc::apiFailBlockCleanupCallback),
+                   TfailedApiNode};
+    simBlockNodeFailure(signal, TfailedApiNode, cb);
   }//if
 }//Dbtc::handleApiFailState()
 
@@ -5118,9 +5123,6 @@ void Dbtc::linkApiToGcp(Ptr<GcpRecord> regGcpPtr,
 void
 Dbtc::crash_gcp(Uint32 line)
 {
-  UintR Tfirstgcp = cfirstgcp;
-  UintR TgcpFilesize = cgcpFilesize;
-  GcpRecord *localGcpRecord = gcpRecord;
   GcpRecordPtr localGcpPointer;
 
   localGcpPointer.i = cfirstgcp;
@@ -7802,10 +7804,10 @@ void Dbtc::sendAbortedAfterTimeout(Signal* signal, int Tcheck)
 	for(Uint32 i = 0; i<TloopCount; i++)
 	{
 	  BaseString::snprintf(buf2, sizeof(buf2), "%s %d", buf, tmp[i]);
-	  BaseString::snprintf(buf, sizeof(buf), buf2);
+	  BaseString::snprintf(buf, sizeof(buf), "%s", buf2);
 	}
-	warningEvent(buf);
-	ndbout_c(buf);
+	warningEvent("%s", buf);
+	ndbout_c("%s", buf);
 	ndbrequire(false);
 	releaseAbortResources(signal);
 	return;
@@ -8632,7 +8634,7 @@ Dbtc::apiFailBlockCleanupCallback(Signal* signal,
   jamEntry();
   
   signal->theData[0] = failedNodeId;
-  signal->theData[1] = cownref;
+  signal->theData[1] = reference();
   sendSignal(capiFailRef, GSN_API_FAILCONF, signal, 2, JBB);
 }
 
@@ -13139,6 +13141,21 @@ Dbtc::execDUMP_STATE_ORD(Signal* signal)
     return;
   }
 #endif
+
+  if (arg == 7019 && signal->getLength() == 2)
+  {
+    jam();
+    Uint32 nodeId = signal->theData[1];
+    if (nodeId < MAX_NODES && nodeId < NDB_ARRAY_SIZE(capiConnectClosing))
+    {
+      warningEvent(" DBTC: capiConnectClosing[%u]: %u",
+                   nodeId, capiConnectClosing[nodeId]);
+    }
+    else
+    {
+      warningEvent(" DBTC: dump-7019 to unknown node: %u", nodeId);
+    }
+  }
 }//Dbtc::execDUMP_STATE_ORD()
 
 void Dbtc::execDBINFO_SCANREQ(Signal *signal)
@@ -13438,7 +13455,7 @@ Dbtc::match_and_print(Signal* signal, ApiConnectRecordPtr apiPtr)
 		       apiTimer ? (ctcTimer - apiTimer) / 100 : 0,
 		       c_apiConTimer_line[apiPtr.i],
 		       stateptr);
-  infoEvent(buf);
+  infoEvent("%s", buf);
   
   memcpy(signal->theData, temp, 4*len);
   return true;
