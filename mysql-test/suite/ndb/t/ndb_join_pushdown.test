@@ -996,6 +996,17 @@ select count(*) from tx as x1
   left join tx as x2 on x1.c=x2.a and x1.d=x2.d;
 
 drop table tx;
+
+# Test bushy join with pruned scan.
+alter table t1 partition by key(a);
+
+explain select count(*) from t1 
+  join t1 as t2 on t2.a = t1.c 
+  join t1 as t3 on t3.a = t1.c;
+select count(*) from t1 
+  join t1 as t2 on t2.a = t1.c 
+  join t1 as t3 on t3.a = t1.c;
+
 drop table t1;
 
 
