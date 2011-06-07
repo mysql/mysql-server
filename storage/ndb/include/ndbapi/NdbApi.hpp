@@ -28,6 +28,7 @@
 #include "NdbScanOperation.hpp"
 #include "NdbIndexOperation.hpp"
 #include "NdbIndexScanOperation.hpp"
+#include "NdbIndexStat.hpp"
 #include "NdbInterpretedCode.hpp"
 #include "NdbScanFilter.hpp"
 #include "NdbRecAttr.hpp"

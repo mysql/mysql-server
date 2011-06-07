@@ -174,7 +174,12 @@ Suma::execREAD_CONFIG_REQ(Signal* signal)
     c_subOpPool.setSize(256);
   
   c_syncPool.setSize(2);
-  c_dataBufferPool.setSize(noAttrs);
+
+  // Trix: max 5 concurrent index stats ops with max 9 words bounds
+  Uint32 noOfBoundWords = 5 * 9;
+
+  // XXX multiplies number of words by 15 ???
+  c_dataBufferPool.setSize(noAttrs + noOfBoundWords);
 
   c_maxBufferedEpochs = maxBufferedEpochs;
 
@@ -901,6 +906,7 @@ void Suma::execAPI_FAILREQ(Signal* signal)
   c_failedApiNodes.set(failedApiNode);
   c_subscriber_nodes.clear(failedApiNode);
   c_subscriber_per_node[failedApiNode] = 0;
+  c_failedApiNodesState[failedApiNode] = __LINE__;
   
   check_start_handover(signal);
 
@@ -919,6 +925,8 @@ CONF:
   signal->theData[0] = failedApiNode;
   signal->theData[1] = reference();
   sendSignal(QMGR_REF, GSN_API_FAILCONF, signal, 2, JBB);
+
+  c_failedApiNodesState[failedApiNode] = 0;
 
   DBUG_VOID_RETURN;
 }//execAPI_FAILREQ()
@@ -941,6 +949,7 @@ Suma::api_fail_block_cleanup_callback(Signal* signal,
   signal->theData[1] = reference();
   sendSignal(QMGR_REF, GSN_API_FAILCONF, signal, 2, JBB);
   c_failedApiNodes.clear(failedNodeId);
+  c_failedApiNodesState[failedNodeId] = 0;
 }
 
 void
@@ -948,9 +957,11 @@ Suma::api_fail_block_cleanup(Signal* signal, Uint32 failedNode)
 {
   jam();
 
+  c_failedApiNodesState[failedNode] = __LINE__;
+
   Callback cb = {safe_cast(&Suma::api_fail_block_cleanup_callback),
                  failedNode};
-  
+
   simBlockNodeFailure(signal, failedNode, cb);
 }
 
@@ -979,6 +990,7 @@ Suma::api_fail_gci_list(Signal* signal, Uint32 nodeId)
 
       c_gcp_list.release(gcp);
 
+      c_failedApiNodesState[nodeId] = __LINE__;
       signal->theData[0] = SumaContinueB::API_FAIL_GCI_LIST;
       signal->theData[1] = nodeId;
       sendSignal(SUMA_REF, GSN_CONTINUEB, signal, 2, JBB);
@@ -1001,11 +1013,13 @@ Suma::api_fail_gci_list(Signal* signal, Uint32 nodeId)
   Ptr<SubOpRecord> subOpPtr;
   if (c_subOpPool.seize(subOpPtr))
   {
+    c_failedApiNodesState[nodeId] = __LINE__;
     signal->theData[2] = subOpPtr.i;
     sendSignal(SUMA_REF, GSN_CONTINUEB, signal, 6, JBB);
   }
   else
   {
+    c_failedApiNodesState[nodeId] = __LINE__;
     sendSignal(SUMA_REF, GSN_CONTINUEB, signal, 3, JBB);
   }
 
@@ -1041,6 +1055,7 @@ Suma::api_fail_subscriber_list(Signal* signal, Uint32 nodeId)
     {
       jam();
       sendSignal(SUMA_REF, GSN_CONTINUEB, signal, 3, JBB);
+      c_failedApiNodesState[nodeId] = __LINE__;
       return;
     }
   }
@@ -1059,6 +1074,7 @@ Suma::api_fail_subscriber_list(Signal* signal, Uint32 nodeId)
   {
     jam();
     c_subscriptions.first(iter);
+    c_failedApiNodesState[nodeId] = __LINE__;
   }
   else
   {
@@ -1074,6 +1090,7 @@ Suma::api_fail_subscriber_list(Signal* signal, Uint32 nodeId)
        * We restart from this bucket :-(
        */
       c_subscriptions.next(bucket, iter);
+      c_failedApiNodesState[nodeId] = __LINE__;
     }
     else
     {
@@ -1085,6 +1102,7 @@ Suma::api_fail_subscriber_list(Signal* signal, Uint32 nodeId)
   {
     jam();
     api_fail_block_cleanup(signal, nodeId);
+    c_failedApiNodesState[nodeId] = __LINE__;
     return;
   }
 
@@ -1099,10 +1117,17 @@ Suma::api_fail_subscriber_list(Signal* signal, Uint32 nodeId)
 
   if (empty)
   {
+    jam();
+    c_failedApiNodesState[nodeId] = __LINE__;
     signal->theData[0] = SumaContinueB::API_FAIL_SUBSCRIPTION;
     signal->theData[1] = subOpPtr.i;
     signal->theData[2] = RNIL;
     sendSignal(SUMA_REF, GSN_CONTINUEB, signal, 3, JBB);
+  }
+  else
+  {
+    jam();
+    c_failedApiNodesState[nodeId] = __LINE__;
   }
 }
 
@@ -1164,6 +1189,7 @@ Suma::api_fail_subscription(Signal* signal)
   if (!ptr.isNull())
   {
     jam();
+    c_failedApiNodesState[nodeId] = __LINE__;
     signal->theData[0] = SumaContinueB::API_FAIL_SUBSCRIPTION;
     signal->theData[1] = subOpPtr.i;
     signal->theData[2] = ptr.i;
@@ -1182,6 +1208,8 @@ Suma::api_fail_subscription(Signal* signal)
 
   if (c_subscriptions.next(iter))
   {
+    jam();
+    c_failedApiNodesState[nodeId] = __LINE__;
     signal->theData[0] = SumaContinueB::API_FAIL_SUBSCRIBER_LIST;
     signal->theData[1] = nodeId;
     signal->theData[2] = subOpPtr.i;
@@ -1743,6 +1771,29 @@ Suma::execDUMP_STATE_ORD(Signal* signal){
     sendSignalWithDelay(reference(), GSN_DUMP_STATE_ORD, signal, 100, 2);
     return;
   }
+
+  if (tCase == 7019 && signal->getLength() == 2)
+  {
+    jam();
+    Uint32 nodeId = signal->theData[1];
+    if (nodeId < MAX_NODES)
+    {
+      warningEvent(" Suma 7019 %u line: %u", nodeId,
+                   c_failedApiNodesState[nodeId]);
+      warningEvent("   c_connected_nodes.get(): %u",
+                   c_connected_nodes.get(nodeId));
+      warningEvent("   c_failedApiNodes.get(): %u",
+                   c_failedApiNodes.get(nodeId));
+      warningEvent("   c_subscriber_nodes.get(): %u",
+                   c_subscriber_nodes.get(nodeId));
+      warningEvent(" c_subscriber_per_node[%u]: %u",
+                   nodeId, c_subscriber_per_node[nodeId]);
+    }
+    else
+    {
+      warningEvent(" SUMP: dump-7019 to unknown node: %u", nodeId);
+    }
+  }
 }
 
 void Suma::execDBINFO_SCANREQ(Signal *signal)
@@ -2292,6 +2343,7 @@ Suma::execSUB_SYNC_REQ(Signal* signal)
   syncPtr.p->m_error            = 0;
   syncPtr.p->m_requestInfo      = req->requestInfo;
   syncPtr.p->m_frag_cnt         = req->fragCount;
+  syncPtr.p->m_frag_id          = req->fragId;
   syncPtr.p->m_tableId          = subPtr.p->m_tableId;
 
   {
@@ -2302,8 +2354,17 @@ Suma::execSUB_SYNC_REQ(Signal* signal)
       handle.getSection(ptr, SubSyncReq::ATTRIBUTE_LIST);
       LocalDataBuffer<15> attrBuf(c_dataBufferPool, syncPtr.p->m_attributeList);
       append(attrBuf, ptr, getSectionSegmentPool());
-      releaseSections(handle);
     }
+    if (req->requestInfo & SubSyncReq::RangeScan)
+    {
+      jam();
+      ndbrequire(handle.m_cnt > 1)
+      SegmentedSectionPtr ptr;
+      handle.getSection(ptr, SubSyncReq::TUX_BOUND_INFO);
+      LocalDataBuffer<15> boundBuf(c_dataBufferPool, syncPtr.p->m_boundInfo);
+      append(boundBuf, ptr, getSectionSegmentPool());
+    }
+    releaseSections(handle);
   }
 
   /**
@@ -2432,8 +2493,30 @@ Suma::execDIH_SCAN_GET_NODES_CONF(Signal* signal)
     fd.m_fragDesc.m_nodeId = conf->nodes[0];
     fd.m_fragDesc.m_fragmentNo = fragNo;
     fd.m_fragDesc.m_lqhInstanceKey = conf->instanceKey;
-    signal->theData[2] = fd.m_dummy;
-    fragBuf.append(&signal->theData[2], 1);
+    if (ptr.p->m_frag_id == ZNIL)
+    {
+      signal->theData[2] = fd.m_dummy;
+      fragBuf.append(&signal->theData[2], 1);
+    }
+    else if (ptr.p->m_frag_id == fragNo)
+    {
+      /*
+       * Given fragment must have a replica on this node.
+       */
+      const Uint32 ownNodeId = getOwnNodeId();
+      Uint32 i = 0;
+      for (i = 0; i < nodeCount; i++)
+        if (conf->nodes[i] == ownNodeId)
+          break;
+      if (i == nodeCount)
+      {
+        sendSubSyncRef(signal, 1428);
+        return;
+      }
+      fd.m_fragDesc.m_nodeId = ownNodeId;
+      signal->theData[2] = fd.m_dummy;
+      fragBuf.append(&signal->theData[2], 1);
+    }
   }
 
   const Uint32 nextFrag = fragNo + 1;
@@ -2708,7 +2791,7 @@ Suma::SyncRecord::nextScan(Signal* signal)
   
   ScanFragReq * req = (ScanFragReq *)signal->getDataPtrSend();
   const Uint32 parallelism = 16;
-  const Uint32 attrLen = 5 + attrBuf.getSize();
+  //const Uint32 attrLen = 5 + attrBuf.getSize();
 
   req->senderData = ptrI;
   req->resultRef = suma.reference();
@@ -2740,6 +2823,21 @@ Suma::SyncRecord::nextScan(Signal* signal)
     ScanFragReq::setTupScanFlag(req->requestInfo, 1);
   }
 
+  if (m_requestInfo & SubSyncReq::LM_CommittedRead)
+  {
+    ScanFragReq::setReadCommittedFlag(req->requestInfo, 1);
+  }
+
+  if (m_requestInfo & SubSyncReq::RangeScan)
+  {
+    ScanFragReq::setRangeScanFlag(req->requestInfo, 1);
+  }
+
+  if (m_requestInfo & SubSyncReq::StatScan)
+  {
+    ScanFragReq::setStatScanFlag(req->requestInfo, 1);
+  }
+
   req->fragmentNoKeyLen = fd.m_fragDesc.m_fragmentNo;
   req->schemaVersion = tabPtr.p->m_schemaVersion;
   req->transId1 = 0;
@@ -2763,10 +2861,25 @@ Suma::SyncRecord::nextScan(Signal* signal)
     AttributeHeader::init(&attrInfo[pos++], * it.data, 0);
   }
   LinearSectionPtr ptr[3];
+  Uint32 noOfSections;
   ptr[0].p = attrInfo;
   ptr[0].sz = pos;
+  noOfSections = 1;
+  if (m_requestInfo & SubSyncReq::RangeScan)
+  {
+    jam();
+    Uint32 oldpos = pos; // after attrInfo
+    LocalDataBuffer<15> boundBuf(suma.c_dataBufferPool, m_boundInfo);
+    for (boundBuf.first(it); !it.curr.isNull(); boundBuf.next(it))
+    {
+      attrInfo[pos++] = *it.data;
+    }
+    ptr[1].p = &attrInfo[oldpos];
+    ptr[1].sz = pos - oldpos;
+    noOfSections = 2;
+  }
   suma.sendSignal(lqhRef, GSN_SCAN_FRAGREQ, signal, 
-		  ScanFragReq::SignalLength, JBB, ptr, 1);
+		  ScanFragReq::SignalLength, JBB, ptr, noOfSections);
   
   m_currentNoOfAttributes = attrBuf.getSize();        
 
@@ -5305,6 +5418,9 @@ Suma::SyncRecord::release(){
 
   LocalDataBuffer<15> attrBuf(suma.c_dataBufferPool, m_attributeList);
   attrBuf.release();  
+
+  LocalDataBuffer<15> boundBuf(suma.c_dataBufferPool, m_boundInfo);
+  boundBuf.release();  
 }
 
 

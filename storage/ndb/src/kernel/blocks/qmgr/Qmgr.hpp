@@ -77,6 +77,7 @@
 
 #endif
 
+#define QMGR_MAX_FAIL_STATE_BLOCKS 5
 
 class Qmgr : public SimulatedBlock {
 public:
@@ -90,10 +91,7 @@ public:
     NORMAL = 0,
     WAITING_FOR_CLOSECOMCONF_ACTIVE = 1,     /* Node had phase ZAPI_ACTIVE */
     WAITING_FOR_CLOSECOMCONF_NOTACTIVE = 2,  /* Node had phase != ZAPI_ACTIVE */
-    WAITING_FOR_FAILCONF1 = 3,
-    WAITING_FOR_FAILCONF2 = 4,
-    WAITING_FOR_FAILCONF3 = 5,
-    WAITING_FOR_FAILCONF4 = 7,
+    WAITING_FOR_API_FAILCONF = 3,
     WAITING_FOR_NDB_FAILCONF = 6
   };
 
@@ -215,8 +213,9 @@ public:
     BlockReference blockRef;
     Uint64 m_secret;
     Uint64 m_alloc_timeout;
+    Uint16 m_failconf_blocks[QMGR_MAX_FAIL_STATE_BLOCKS];
 
-    NodeRec() { }
+    NodeRec() { bzero(m_failconf_blocks, sizeof(m_failconf_blocks)); }
   }; /* p2c: size = 52 bytes */
   
   typedef Ptr<NodeRec> NodeRecPtr;
@@ -484,7 +483,9 @@ private:
 			  const NodeId theNodes[]);
 
   void handleApiCloseComConf(Signal* signal);
-
+  void add_failconf_block(NodeRecPtr, Uint32 block);
+  bool remove_failconf_block(NodeRecPtr, Uint32 block);
+  bool is_empty_failconf_block(NodeRecPtr) const;
   
   /* Wait this time until we try to join the       */
   /* cluster again                                 */
