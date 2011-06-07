@@ -110,6 +110,16 @@ public class JdbcLoad extends CrundDriver {
         out.println("jdbc.autoCommit:                " + autoCommit);
     }
 
+    protected void initLoad() throws Exception {
+        // XXX support generic load class
+        //super.init();
+    }
+
+    protected void closeLoad() throws Exception {
+        // XXX support generic load class
+        //super.close();
+    }
+
     // ----------------------------------------------------------------------
     // JDBC operations
     // ----------------------------------------------------------------------
@@ -867,17 +877,19 @@ public class JdbcLoad extends CrundDriver {
     // ----------------------------------------------------------------------
 
     protected void initConnection() throws SQLException {
-        out.print("initializing connection ...");
+        out.println();
+        out.print("creating JDBC connection ...");
         out.flush();
         conn = DriverManager.getConnection(url, user, password);
         conn.setAutoCommit(autoCommit);
         delAllA = conn.prepareStatement("DELETE FROM a");
         delAllB0 = conn.prepareStatement("DELETE FROM b0");
-        out.println("     [Conn: 1]");
+        out.println("    [Conn: 1]");
     }
 
     protected void closeConnection() throws SQLException {
-        out.print("closing connection ...");
+        out.println();
+        out.print("closing JDBC connection ...");
         out.flush();
         if (delAllB0 != null)
             delAllB0.close();
@@ -888,7 +900,7 @@ public class JdbcLoad extends CrundDriver {
         if (conn != null)
             conn.close();
         conn = null;
-        out.println("          [ok]");
+        out.println("     [ok]");
     }
 
     protected void clearPersistenceContext() {

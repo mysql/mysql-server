@@ -92,14 +92,9 @@ public class ClusterjLoad extends CrundDriver {
     }
 
     @Override
-    protected void init() throws Exception {
-        super.init();
-
-        // load native library (better diagnostics doing it explicitely)
-        out.println();
-        //loadSystemLibrary("ndbj");
-
-        // instantiate NDB cluster singleton
+    protected void initLoad() throws Exception {
+        // XXX support generic load class
+        //super.init();
 
         out.println();
         out.print("creating SessionFactory ...");
@@ -109,7 +104,8 @@ public class ClusterjLoad extends CrundDriver {
     }
 
     @Override
-    protected void close() throws Exception {
+    protected void closeLoad() throws Exception {
+        out.println();
         out.print("closing SessionFactory ...");
         out.flush();
         if (sessionFactory != null)
@@ -117,7 +113,8 @@ public class ClusterjLoad extends CrundDriver {
         sessionFactory = null;
         out.println("      [ok]");
 
-        super.close();
+        // XXX support generic load class
+        //super.close();
     }
 
     // ----------------------------------------------------------------------
@@ -577,19 +574,21 @@ public class ClusterjLoad extends CrundDriver {
     // ----------------------------------------------------------------------
 
     protected void initConnection() {
-        out.print("creating Session ...");
+        out.println();
+        out.print("creating ClusterJ Session ...");
         out.flush();
         session = sessionFactory.getSession();
-        out.println("            [Session: 1]");
+        out.println("   [Session: 1]");
     }
 
     protected void closeConnection() {
-        out.print("closing Session ...");
+        out.println();
+        out.print("closing ClusterJ Session ...");
         out.flush();
         if (session != null)
             session.close();
         session = null;
-        out.println("             [ok]");
+        out.println("    [ok]");
     }
 
     protected void clearPersistenceContext() {
