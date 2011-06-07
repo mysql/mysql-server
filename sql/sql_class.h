@@ -2334,7 +2334,11 @@ public:
   {
     if (!stmt_arena->is_conventional())
       check_and_register_item_tree_change(place, new_value, mem_root);
-    *place= *new_value;
+    /*
+      We have to use memcpy instead of  *place= *new_value merge to
+      avoid problems with strict aliasing.
+    */
+    memcpy((char*) place, new_value, sizeof(*new_value));
   }
   void nocheck_register_item_tree_change(Item **place, Item *old_value,
                                          MEM_ROOT *runtime_memroot);
