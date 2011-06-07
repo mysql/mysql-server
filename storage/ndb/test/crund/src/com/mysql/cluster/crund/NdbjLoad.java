@@ -73,8 +73,9 @@ public class NdbjLoad extends NdbBase {
         descr = "->ndbj->ndbapi(" + mgmdConnect + ")";
     }
 
-    protected void init() throws Exception {
-        super.init();
+    protected void initLoad() throws Exception {
+        // XXX support generic load class
+        //super.init();
 
         // load native library (better diagnostics doing it explicitely)
         out.println();
@@ -102,17 +103,20 @@ public class NdbjLoad extends NdbBase {
             out.println(msg);
             throw new RuntimeException("!!! " + msg);
         }
-        out.println("      [ok: " + mgmdConnect + "]");
+        out.println("          [ok: " + mgmdConnect + "]");
     }
 
-    protected void close() throws Exception {
-        out.print("closing mgmd conn ...");
+    protected void closeLoad() throws Exception {
+        out.println();
+        out.print("closing mgmd connection ...");
         out.flush();
         if (mgmd != null)
             mgmd.close();
         mgmd = null;
-        out.println("       [ok]");
-        super.close();
+        out.println("     [ok]");
+
+        // XXX support generic load class
+        //super.close();
     }
 
     // ----------------------------------------------------------------------
@@ -1189,8 +1193,10 @@ public class NdbjLoad extends NdbBase {
     // ----------------------------------------------------------------------
 
     protected void initConnection() throws NdbApiException {
+        out.println();
+
         // optionally, connect and wait for reaching the data nodes (ndbds)
-        out.print("waiting for data nodes...");
+        out.print("waiting for ndbd ...");
         out.flush();
         final int initial_wait = 10; // secs to wait until first node detected
         final int final_wait = 0;    // secs to wait after first node detected
@@ -1204,10 +1210,10 @@ public class NdbjLoad extends NdbBase {
                         + (initial_wait + final_wait) + "s.");
             throw e;
         }
-        out.println("   [ok]");
+        out.println("            [ok]");
 
         // connect to database
-        out.print("connecting to database...");
+        out.print("connecting to ndbd ...");
         out.flush();
         try {
             // XXX where to set schema?
@@ -1223,26 +1229,27 @@ public class NdbjLoad extends NdbBase {
             out.println("!!! failed to connect: " + e);
             throw e;
         }
-        out.println("   [ok]");
+        out.println("          [ok]");
 
         // initialize the schema shortcuts
         model = new Model(ndb);
     }
 
     protected void closeConnection() {
-        out.print("closing database conn ...");
+        out.println();
+        out.print("closing ndbd connection ...");
         out.flush();
         model = null;
         ndb.close();
         ndb = null;
-        out.println("   [ok]");
+        out.println("     [ok]");
     }
 
     protected void clearData() throws NdbApiException {
         out.print("deleting all rows ...");
         out.flush();
         final int delB0 = delByScan(model.table_B0);
-        out.print("       [B0: " + delB0);
+        out.print("           [B0: " + delB0);
         out.flush();
         final int delA = delByScan(model.table_A);
         out.print(", A: " + delA);

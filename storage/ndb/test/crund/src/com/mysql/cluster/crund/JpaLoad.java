@@ -137,26 +137,29 @@ public class JpaLoad extends CrundDriver {
         out.println("openjpa.ndb.database:           " + ndbDatabase);
     }
 
-    protected void init() throws Exception {
-        super.init();
+    protected void initLoad() throws Exception {
+        // XXX support generic load class
+        //super.init();
 
         out.println();
-        out.print("creating EMFactory ...");
+        out.print("creating JPA EMFactory ...");
         out.flush();
         // create EMF by standard API, which allows vendors to pool factories
         emf = Persistence.createEntityManagerFactory("crundjpa", props);
-        out.println("          [EMF: 1]");
+        out.println("      [EMF: 1]");
     }
 
-    protected void close() throws Exception {
-        out.print("closing EMFactory ...");
+    protected void closeLoad() throws Exception {
+        out.println();
+        out.print("closing JPA EMFactory ...");
         out.flush();
         if (emf != null)
             emf.close();
         emf = null;
-        out.println("           [ok]");
+        out.println("       [ok]");
 
-        super.close();
+        // XXX support generic load class
+        //super.close();
     }
 
     // ----------------------------------------------------------------------
@@ -602,7 +605,8 @@ public class JpaLoad extends CrundDriver {
     // ----------------------------------------------------------------------
 
     protected void initConnection() {
-        out.print("creating EntityManager ...");
+        out.println();
+        out.print("creating JPA EntityManager ...");
         out.flush();
         // See: clearPersistenceContext() for !allowExtendedPC
         // Tx-scope EM supported by JPA only by container injection:
@@ -619,18 +623,19 @@ public class JpaLoad extends CrundDriver {
         //query.setHint("eclipselink.join-fetch", "e.address");
         delAllA = em.createQuery("DELETE FROM A");
         delAllB0 = em.createQuery("DELETE FROM B0");
-        out.println("      [EM: 1]");
+        out.println("  [EM: 1]");
     }
 
     protected void closeConnection() {
-        out.print("closing EntityManager ...");
+        out.println();
+        out.print("closing JPA EntityManager ...");
         out.flush();
         delAllB0 = null;
         delAllA = null;
         if (em != null)
             em.close();
         em = null;
-        out.println("       [ok]");
+        out.println("   [ok]");
     }
 
     protected void clearPersistenceContext() {
