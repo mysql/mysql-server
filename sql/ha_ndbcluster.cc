@@ -2248,7 +2248,7 @@ int ha_ndbcluster::add_index_handle(THD *thd, NDBDICT *dict, KEY *key_info,
     d.index_stat=NULL;
     if (THDVAR(thd, index_stat_enable))
     {
-      d.index_stat=new NdbIndexStat(index);
+      d.index_stat=new NdbIndexStat();
       d.index_stat_cache_entries= THDVAR(thd, index_stat_cache_entries);
       d.index_stat_update_freq= THDVAR(thd, index_stat_update_freq);
       d.index_stat_query_count=0;
@@ -5007,6 +5007,8 @@ int ha_ndbcluster::end_bulk_delete()
 {
   DBUG_ENTER("end_bulk_delete");
   assert(m_is_bulk_delete); // Don't allow end() without start()
+  m_is_bulk_delete = false;
+
   if (m_thd_ndb->m_unsent_bytes &&
       !thd_allow_batch(table->in_use) &&
       !m_thd_ndb->m_handler)
@@ -5017,13 +5019,11 @@ int ha_ndbcluster::end_bulk_delete()
                           &ignore_count) != 0)
     {
       no_uncommitted_rows_execute_failure();
-      m_is_bulk_delete = false;
       DBUG_RETURN(ndb_err(m_thd_ndb->trans));
     }
     assert(m_rows_deleted >= ignore_count);
     m_rows_deleted-= ignore_count;
   }
-  m_is_bulk_delete = false;
   DBUG_RETURN(0);
 }
 

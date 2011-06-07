@@ -1760,7 +1760,8 @@ Trix::g_statMetaSample = {
 
 const Trix::SysIndex
 Trix::g_statMetaSampleX1 = {
-  NDB_INDEX_STAT_DB "/" NDB_INDEX_STAT_SCHEMA "/%u/" NDB_INDEX_STAT_SAMPLE_INDEX1,
+  // indexes are always in "sys"
+  "sys" "/" NDB_INDEX_STAT_SCHEMA "/%u/" NDB_INDEX_STAT_SAMPLE_INDEX1,
   ~(Uint32)0,
   ~(Uint32)0
 };
