@@ -584,8 +584,7 @@ int Gcalc_operation_reducer::start_couple(active_thread *t0, active_thread *t1,
   t1->rp= rp1;
   if (prev_range)
   {
-    rp0->outer_poly= prev_range->thread_start;
-    t1->thread_start= rp1;
+    rp0->outer_poly= t1->thread_start= prev_range->thread_start;
   }
   else
   {
@@ -617,8 +616,7 @@ int Gcalc_operation_reducer::start_i_couple(active_thread *t0, active_thread *t1
   t1->rp= rp1;
   if (prev_range)
   {
-    rp0->outer_poly= prev_range->thread_start;
-    t1->thread_start= rp1;
+    rp0->outer_poly= t1->thread_start= prev_range->thread_start;
   }
   else
   {
