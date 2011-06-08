@@ -320,8 +320,16 @@ row_merge_buf_add(
 
 			/* Tokenize and process data for FTS */
 			if (index->type & DICT_FTS) {
-				fts_doc_item_t*	doc_item = mem_heap_alloc(
+				fts_doc_item_t*	doc_item;
+
+				if (dfield_is_null(field)) {
+					n_row_added = 1;
+					continue;
+				}
+
+				doc_item = mem_heap_alloc(
 					buf->heap, sizeof(fts_doc_item_t));
+
 				/* fetch Doc ID if it already exists
 				in the row, and not supplied by the caller */
 				if (*doc_id == 0) {
@@ -333,6 +341,7 @@ row_merge_buf_add(
 						dfield_get_data(doc_field));
 					ut_a(*doc_id > 0);
 				}
+
 				if (FTS_PLL_ENABLED) {
 					dfield_dup(field, buf->heap);
 					doc_item->field = field;

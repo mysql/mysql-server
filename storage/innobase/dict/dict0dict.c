@@ -1669,14 +1669,6 @@ dict_table_remove_from_cache_low(
 		dict_index_remove_from_cache_low(table, index, lru_evict);
 	}
 
-	if (table->fts) {
-		if (fts_optimize_is_init()) {
-			fts_optimize_remove_table(table);
-		}
-
-		fts_free(table);
-	}
-
 	/* Remove table from the hash tables of tables */
 
 	HASH_DELETE(dict_table_t, name_hash, dict_sys->table_hash,

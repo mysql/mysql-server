@@ -2234,6 +2234,12 @@ fts_query_phrase_search(
 			    && !(query->flags & FTS_PROXIMITY)) {
 				break;
 			}
+
+			/* If any of the token can't be found,
+			no need to continue match */
+			if (ib_vector_is_empty(query->match_array[i])) {
+				goto func_exit;
+			}
 		}
 
 		/* If we are doing proximity search, verify the distance
@@ -2265,6 +2271,7 @@ fts_query_phrase_search(
 		query->oper = oper;
 	}
 
+func_exit:
 	free(utf8);
 	mem_heap_free(heap);
 

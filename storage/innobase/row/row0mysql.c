@@ -3371,7 +3371,7 @@ retry:
 		goto funct_exit;
 	}
 
-	if (table->fts && table->fts->add_wq && (!fts_bg_thread_exited)) {
+	if (table->fts) {
 		fts_t*          fts = table->fts;
 
 		/* It is possible that background 'Add' thread fts_add_thread()
@@ -3383,22 +3383,27 @@ retry:
 		avoid undetected deadlocks */
 		row_mysql_unlock_data_dictionary(trx);
 
-		/* Wait for any background threads accessing the table
-		to exit. */
-		mutex_enter(&fts->bg_threads_mutex);
-		fts->fts_status |= BG_THREAD_STOP;
+		if (fts->add_wq && (!fts_bg_thread_exited)) {
+			/* Wait for any background threads accessing the table
+			to exit. */
+			mutex_enter(&fts->bg_threads_mutex);
+			fts->fts_status |= BG_THREAD_STOP;
 
-		if (fts->add_wq) {
-			dict_table_wakeup_bg_threads(table);
+			if (fts->add_wq) {
+				dict_table_wakeup_bg_threads(table);
+			}
+
+			dict_table_wait_for_bg_threads_to_exit(table, 250000);
+
+			mutex_exit(&fts->bg_threads_mutex);
+
+			row_mysql_lock_data_dictionary(trx);
+			fts_bg_thread_exited = TRUE;
+			goto retry;
+		} else {
+			fts_optimize_remove_table(table);
+			row_mysql_lock_data_dictionary(trx);
 		}
-
-		dict_table_wait_for_bg_threads_to_exit(table, 250000);
-
-		mutex_exit(&fts->bg_threads_mutex);
-
-		row_mysql_lock_data_dictionary(trx);
-		fts_bg_thread_exited = TRUE;
-		goto retry;
 	}
 
 	/* Move the table the the non-LRU list so that it isn't
@@ -3655,6 +3660,7 @@ check_next_foreign:
 
 				goto funct_exit;
 			}
+			fts_free(table);
 		}
 
 		dict_table_remove_from_cache(table);
