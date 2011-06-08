@@ -8367,19 +8367,6 @@ int ha_ndbcluster::create(const char *name,
     else
       tab.setTablespaceName("DEFAULT-TS");
   }
-  else if (create_info->tablespace && 
-           create_info->storage_media == HA_SM_MEMORY)
-  {
-    push_warning_printf(thd, MYSQL_ERROR::WARN_LEVEL_WARN,
-                        ER_ILLEGAL_HA_CREATE_OPTION,
-                        ER(ER_ILLEGAL_HA_CREATE_OPTION),
-                        ndbcluster_hton_name,
-                        "TABLESPACE currently only supported for "
-                        "STORAGE DISK"); 
-    result= HA_ERR_UNSUPPORTED;
-    goto abort_return;
-  }
-
   DBUG_PRINT("info", ("Table %s is %s stored with tablespace %s",
                       m_tabname,
                       (use_disk) ? "disk" : "memory",
