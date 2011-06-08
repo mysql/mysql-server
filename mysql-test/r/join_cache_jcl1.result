@@ -1444,7 +1444,6 @@ create table t2 (p int, a int, INDEX i_a(a));
 insert into t2 values
 (103, 7), (109, 3), (102, 3), (108, 1), (106, 3),
 (107, 7), (105, 1), (101, 3), (100, 7), (110, 1);
-The following must not show "using join cache":
 explain
 select t1.a, count(t2.p) as count
 from t1 left join t2 on t1.a=t2.a and t2.p % 2 = 1 group by t1.a;

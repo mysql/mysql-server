@@ -361,7 +361,11 @@ public:
   */ 
   ha_rows       limit; 
   TABLE_REF	ref;
-  /** Join cache type (same as return code of check_join_cache_level() */
+  /**
+    Join buffering strategy (same as return code of check_join_cache_level().
+    During optimization, this contains allowed join buffering strategies,
+    after optimization it contains chosen join buffering strategy (if any).
+   */
   uint          use_join_cache;
   JOIN_CACHE	*cache;
   /*
@@ -556,7 +560,7 @@ st_join_table::st_join_table()
 
     limit(0),
     ref(),
-    use_join_cache(FALSE),
+    use_join_cache(0),
     cache(NULL),
 
     cache_idx_cond(NULL),
