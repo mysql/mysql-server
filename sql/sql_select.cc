@@ -339,6 +339,7 @@ private:
                            const JOIN_TAB *tab);
   void optimize_straight_join(table_map join_tables);
   bool greedy_search(table_map remaining_tables);
+  void set_join_buffer_properties();
   bool best_extension_by_limited_search(table_map remaining_tables,
                                         uint idx,
                                         double record_count,
@@ -1621,11 +1622,10 @@ bool setup_semijoin_dups_elimination(JOIN *join, ulonglong options,
         {
           /*
             The final decision on whether or not join buffering will
-            be used is taken in check_join_cache_usage(), which is
+            be used is taken in setup_join_buffering(), which is
             called from make_join_readinfo()'s main loop.
-            check_join_cache_usage() needs to know if duplicate
-            weedout is used, so moving
-            setup_semijoin_dups_elimination() from before the main
+            setup_join_buffering() needs to know if duplicate weedout is used,
+            so moving setup_semijoin_dups_elimination() from before the main
             loop to after it is not possible. I.e.,
             join->best_positions[sj_tableno].use_join_buffer is not
             trustworthy at this point.
@@ -7083,6 +7083,14 @@ best_access_path(JOIN      *join,
   table_map best_ref_depends_map= 0;
   double tmp;
   bool best_uses_jbuf= false;
+  /*
+    Cannot use join buffering if either
+     1. This is the first table in the join sequence, or
+     2. Join buffering impossible for this table
+  */
+  disable_jbuf= disable_jbuf ||
+      idx == join->const_tables ||                                     // 1
+      s->use_join_cache == JOIN_CACHE::ALG_NONE;                       // 2
 
   Loose_scan_opt loose_scan_opt;
   DBUG_ENTER("best_access_path");
@@ -7553,7 +7561,7 @@ best_access_path(JOIN      *join,
       else
         tmp= s->table->file->scan_time();
 
-      if ((s->table->map & join->outer_join) || disable_jbuf)     // Can't use join cache
+      if (disable_jbuf)
       {
         /*
           For each record we have to:
@@ -7602,8 +7610,7 @@ best_access_path(JOIN      *join,
       best_key= 0;
       /* range/index_merge/ALL/index access method are "independent", so: */
       best_ref_depends_map= 0;
-      best_uses_jbuf= test(!disable_jbuf && !((s->table->map & 
-                                               join->outer_join)));
+      best_uses_jbuf= test(!disable_jbuf);
     }
   }
   
@@ -7661,6 +7668,8 @@ bool Optimize_table_order::choose_table_order()
   reset_nj_counters(join->join_list);
   qsort2_cmp jtab_sort_func;
 
+  set_join_buffer_properties();
+
   const bool straight_join= test(join->select_options & SELECT_STRAIGHT_JOIN);
   table_map join_tables;      ///< The tables involved in order selection
 
@@ -7710,6 +7719,48 @@ bool Optimize_table_order::choose_table_order()
     thd->status_var.last_query_cost= join->best_read;
 
   DBUG_RETURN(false);
+}
+
+
+/**
+  Set static join buffer properties for the tables involved in a join,
+  regardless of access methods and join order.
+  The property is pre-computed here and later used in best_access_path().
+*/
+
+void Optimize_table_order::set_join_buffer_properties()
+{
+  const bool force_unlinked_cache=
+    test(thd->variables.optimizer_join_cache_level & 1);
+
+  for (uint tableno= 0; tableno < join->tables; tableno++)
+  {
+    JOIN_TAB   *const tab= join->join_tab + tableno;
+    TABLE_LIST *const tl=  tab->table->pos_in_table_list;
+    /*
+      Cannot use join buffering if either
+       1. Join buffering is disabled by the user, or
+       2. Outer joined table, and join buffering disabled for outer join, or
+       3. Semi-joined table, and join buffering disabled for semi-join, or
+       4. Unlinked cache is forced and there are multiple inner tables of
+          this outer join.
+    */
+    if (thd->variables.optimizer_join_cache_level == 0 ||              // 1
+        ((tab->table->map & join->outer_join) &&                       // 2
+         thd->variables.optimizer_join_cache_level <= 2) ||            // 2
+        (tab->emb_sj_nest != NULL &&                                   // 3
+         thd->variables.optimizer_join_cache_level <= 2) ||            // 3
+        (force_unlinked_cache &&                                       // 4
+         tl->in_outer_join_nest() &&                                   // 4
+         tl->embedding->nested_join->join_list.elements > 1))          // 4
+      tab->use_join_cache= JOIN_CACHE::ALG_NONE;
+    else if (thd->variables.optimizer_join_cache_level <= 4)
+      tab->use_join_cache= JOIN_CACHE::ALG_BNL;
+    else if (thd->variables.optimizer_join_cache_level <= 6)
+      tab->use_join_cache= JOIN_CACHE::ALG_BNL | JOIN_CACHE::ALG_BKA;
+    else if (thd->variables.optimizer_join_cache_level <= 8)
+      tab->use_join_cache= JOIN_CACHE::ALG_BNL | JOIN_CACHE::ALG_BKA_UNIQUE;
+  }
 }
 
 
@@ -8357,14 +8408,14 @@ bool Optimize_table_order::best_extension_by_limited_search(
   const bool has_sj=
     !(join->select_lex->sj_nests.is_empty() || join->emb_sjm_nest);
 
-  JOIN_TAB *s;
   JOIN_TAB *saved_refs[MAX_TABLES];
   // Save 'best_ref[]' as we has to restore before return.
   memcpy(saved_refs, join->best_ref + idx, 
          sizeof(JOIN_TAB*) * (join->tables - idx));
 
-  for (JOIN_TAB **pos= join->best_ref + idx ; (s= *pos) ; pos++)
+  for (JOIN_TAB **pos= join->best_ref + idx; *pos; pos++)
   {
+    JOIN_TAB *const s= *pos;
     const table_map real_table_bit= s->table->map;
 
     /*
@@ -8959,6 +9010,13 @@ static bool get_best_combination(JOIN *join)
     if (j->type == JT_CONST)
       continue;					// Handled in make_join_stat..
 
+    /*
+      Assign preliminary join cache setting based on decision from
+      greedy optimizer.
+    */
+    j->use_join_cache= join->best_positions[tableno].use_join_buffer ?
+                         JOIN_CACHE::ALG_BNL : JOIN_CACHE::ALG_NONE;
+
     j->loosescan_match_tab= NULL;  //non-nulls will be set later
     j->ref.key = -1;
     j->ref.key_parts=0;
@@ -9006,7 +9064,7 @@ static bool get_best_combination(JOIN *join)
     case SJ_OPT_FIRST_MATCH:
       /*
         Remember the first and last semijoin inner tables; this serves to tell
-        a JOIN_TAB's semijoin strategy (like in check_join_cache_usage()).
+        a JOIN_TAB's semijoin strategy (like in setup_join_buffering()).
       */
       JOIN_TAB *last_sj_tab= tab + pos->n_sj_tables - 1;
       JOIN_TAB *last_sj_inner=
@@ -10416,7 +10474,7 @@ static void push_index_cond(JOIN_TAB *tab, uint keyno, bool other_tbls_ok)
       if (tab->use_join_cache &&
           /*
             if cache is used then the value is TRUE only 
-            for BKA[_UNIQUE] cache (see check_join_cache_usage func).
+            for BKA[_UNIQUE] cache (see setup_join_buffering() func).
             In this case other_tbls_ok is an equivalent of
             cache->is_key_access().
           */
@@ -10661,7 +10719,7 @@ void revise_cache_usage(JOIN_TAB *join_tab)
 
 
 /**
-  Check whether a join buffer can be used to join the specified table   
+  Set up join buffering for a specified table, if possible.
 
   @param tab             joined table to check join buffer usage for
   @param join            join for which the check is performed
@@ -10670,12 +10728,29 @@ void revise_cache_usage(JOIN_TAB *join_tab)
   @param icp_other_tables_ok[out] TRUE if condition pushdown supports
                                   other tables presence
 
+  @return false if successful, true if error.
+          Currently, allocation errors for join cache objects are ignored,
+          and regular execution is chosen silently.
+
   @details
     The function finds out whether the table 'tab' can be joined using a join
     buffer. This check is performed after the best execution plan for 'join'
     has been chosen. If the function decides that a join buffer can be employed
     then it selects the most appropriate join cache object that contains this
     join buffer.
+    If it has already been decided to not use join buffering for this table,
+    no action is taken.
+
+    Often it is already decided that join buffering will be used earlier in
+    the optimization process, and this will also ensure that the most correct
+    cost for the operation is calculated, and hence the probability of
+    choosing an optimal join plan is higher. However, some join buffering
+    decisions cannot currently be taken before this stage, hence we need this
+    function to decide the most accurate join buffering strategy.
+
+    @todo Long-term it is the goal that join buffering strategy is decided
+    when the plan is selected.
+
     The result of the check and the type of the the join buffer to be used
     depend on:
       - the access method to access rows of the joined table
@@ -10705,6 +10780,12 @@ void revise_cache_usage(JOIN_TAB *join_tab)
     If the function creates a join cache object it tries to initialize it. The
     failure to do this results in an invocation of the function that destructs
     the created object.
+
+    Bitmap describing the chosen cache's properties is assigned to
+    tab->use_join_cache:
+    1) the algorithm (JOIN_CACHE::ALG_NONE, JOIN_CACHE::ALG_BNL,
+    JOIN_CACHE::ALG_BKA, JOIN_CACHE::ALG_BKA_UNIQUE)
+    2) the buffer's type (JOIN_CACHE::NON_INCREMENTAL_BUFFER or not).
  
   @note
     An inner table of a nested outer join or a nested semi-join can be currently
@@ -10742,34 +10823,29 @@ void revise_cache_usage(JOIN_TAB *join_tab)
         }
 #endif
 
-  @return
-    Bitmap describing the chosen cache's properties:
-    1) the algorithm (JOIN_CACHE::ALG_NONE, JOIN_CACHE::ALG_BNL,
-    JOIN_CACHE::ALG_BKA, JOIN_CACHE::ALG_BKA_UNIQUE)
-    2) the buffer's type (JOIN_CACHE::NON_INCREMENTAL_BUFFER or not).
 */
 
-static
-uint check_join_cache_usage(JOIN_TAB *tab,
-                            JOIN *join, ulonglong options,
-                            uint no_jbuf_after,
-                            bool *icp_other_tables_ok)
+static bool setup_join_buffering(JOIN_TAB *tab, JOIN *join,
+                                 ulonglong options, uint no_jbuf_after,
+                                 bool *icp_other_tables_ok)
 {
   uint flags;
   COST_VECT cost;
   ha_rows rows;
   uint bufsz= 4096;
   JOIN_CACHE *prev_cache=0;
-  uint cache_level= join->thd->variables.optimizer_join_cache_level;
-  uint force_unlinked_cache= (cache_level & 1) ?
+  const uint cache_level= join->thd->variables.optimizer_join_cache_level;
+  const uint force_unlinked_cache= (cache_level & 1) ?
     JOIN_CACHE::NON_INCREMENTAL_BUFFER : 0;
-  uint i= tab-join->join_tab;
+  const uint tableno= tab - join->join_tab;
   const uint tab_sj_strategy= tab->get_sj_strategy();
   *icp_other_tables_ok= TRUE;
-  
-  if (cache_level == 0 || i == join->const_tables)
-    return JOIN_CACHE::ALG_NONE;
 
+  if (cache_level == 0 || tableno == join->const_tables)
+  {
+    DBUG_ASSERT(tab->use_join_cache == JOIN_CACHE::ALG_NONE);
+    return false;
+  }
   if (options & SELECT_NO_JOIN_CACHE)
     goto no_join_cache;
   /* 
@@ -10778,80 +10854,81 @@ uint check_join_cache_usage(JOIN_TAB *tab,
   */
   if (tab->use_quick == QS_DYNAMIC_RANGE)
     goto no_join_cache;
-  
+
+  /* No join buffering if prevented by no_jbuf_after */
+  if (tableno > no_jbuf_after)
+  {
+    DBUG_ASSERT(tab->use_join_cache == JOIN_CACHE::ALG_NONE);
+    goto no_join_cache;
+  }
+  /* Non-linked join buffers can't guarantee one match */
+  if (force_unlinked_cache &&
+      tab->is_inner_table_of_outer_join() &&
+      !tab->is_single_inner_of_outer_join())
+  {
+    DBUG_ASSERT(tab->use_join_cache == JOIN_CACHE::ALG_NONE);
+    goto no_join_cache;
+  }
+  /*
+    An inner table of an outer join nest must not use join buffering if
+    the first inner table of that outer join nest does not use join buffering.
+    This condition is not handled by earlier optimizer stages.
+  */
+  if (tab->first_inner != NULL &&
+      tab->first_inner != tab &&
+      !tab->first_inner->use_join_cache)
+    goto no_join_cache;
+  /*
+    The first inner table of an outer join nest must not use join buffering
+    if the tables in the embedding outer join nest do not use join buffering.
+    This condition is not handled by earlier optimizer stages.
+  */
+  if (tab->first_upper != NULL &&
+      !tab->first_upper->use_join_cache)
+    goto no_join_cache;
   /*
     Use join cache with FirstMatch semi-join strategy only when semi-join
     contains only one table.
   */
   if (tab_sj_strategy == SJ_OPT_FIRST_MATCH &&
       !tab->is_single_inner_of_semi_join())
+  {
+    DBUG_ASSERT(tab->use_join_cache == JOIN_CACHE::ALG_NONE);
     goto no_join_cache;
-  /*
-    Non-linked join buffers can't guarantee one match
-  */
-  if (force_unlinked_cache &&
-      tab->is_inner_table_of_outer_join() &&
-      !tab->is_single_inner_of_outer_join())
-    goto no_join_cache;
-
-  /* No join buffering if prevented by no_jbuf_after */
-  if (i > no_jbuf_after)
-    goto no_join_cache;
-
+  }
   /* No join buffering if this semijoin nest is handled by loosescan */
   if (tab_sj_strategy == SJ_OPT_LOOSE_SCAN)
+  {
+    DBUG_ASSERT(tab->use_join_cache == JOIN_CACHE::ALG_NONE);
     goto no_join_cache;
-      
-  /* Neither if semijoin Materialization */
+  }      
+  /*
+    No join buffering if this semijoin nest is handled by materialization.
+    This condition is not handled by earlier optimizer stages.
+  */
   if (sj_is_materialize_strategy(tab_sj_strategy))
     goto no_join_cache;
-
-  for (JOIN_TAB *first_inner= tab->first_inner; first_inner;
-       first_inner= first_inner->first_upper)
-  {
-    if (first_inner != tab && !first_inner->use_join_cache)
-      goto no_join_cache;
-  }
-  if (tab_sj_strategy == SJ_OPT_FIRST_MATCH &&
-      tab->first_sj_inner_tab != tab &&
-      !tab->first_sj_inner_tab->use_join_cache)
-    goto no_join_cache;
-  if (!tab[-1].use_join_cache)
-  {
-    /* 
-      Check whether table tab and the previous one belong to the same nest of
-      inner tables and if so do not use join buffer when joining table tab. 
-    */
-    if (tab->first_inner)
-    {
-      for (JOIN_TAB *first_inner= tab[-1].first_inner;
-           first_inner;
-           first_inner= first_inner->first_upper)
-      {
-        if (first_inner == tab->first_inner)
-          goto no_join_cache;
-      }
-    }
-    else if (tab_sj_strategy == SJ_OPT_FIRST_MATCH &&
-             tab->first_sj_inner_tab == tab[-1].first_sj_inner_tab)
-      goto no_join_cache; 
-  }       
 
   if (!force_unlinked_cache)
     prev_cache= tab[-1].cache;
 
   switch (tab->type) {
   case JT_ALL:
+    /* Outer joined and semi-joined tables require join cache level > 2 */
     if (cache_level <= 2 &&
         (tab->first_inner || tab_sj_strategy == SJ_OPT_FIRST_MATCH))
+    {
+      DBUG_ASSERT(tab->use_join_cache == JOIN_CACHE::ALG_NONE);
       goto no_join_cache;
+    }
     if ((options & SELECT_DESCRIBE) ||
         ((tab->cache= new JOIN_CACHE_BNL(join, tab, prev_cache)) &&
          !tab->cache->init()))
     {
       *icp_other_tables_ok= FALSE;
       DBUG_ASSERT(might_do_join_buffering(cache_level, tab));
-      return JOIN_CACHE::ALG_BNL | force_unlinked_cache;
+      tab->use_join_cache= JOIN_CACHE::ALG_BNL | force_unlinked_cache;
+      return false;
     }
     goto no_join_cache;
   case JT_SYSTEM:
@@ -10859,7 +10936,10 @@ uint check_join_cache_usage(JOIN_TAB *tab,
   case JT_REF:
   case JT_EQ_REF:
     if (cache_level <= 4)
+    {
+      DBUG_ASSERT(tab->use_join_cache == JOIN_CACHE::ALG_NONE);
       goto no_join_cache;
+    }
     flags= HA_MRR_NO_NULL_ENDPOINTS;
     if (tab->table->covering_keys.is_set(tab->ref.key))
       flags|= HA_MRR_INDEX_ONLY;
@@ -10876,17 +10956,20 @@ uint check_join_cache_usage(JOIN_TAB *tab,
     {
       DBUG_ASSERT(might_do_join_buffering(cache_level, tab));
       if (cache_level <= 6)
-        return JOIN_CACHE::ALG_BKA | force_unlinked_cache;
-      return JOIN_CACHE::ALG_BKA_UNIQUE | force_unlinked_cache;
+        tab->use_join_cache= JOIN_CACHE::ALG_BKA | force_unlinked_cache;
+      else
+        tab->use_join_cache= JOIN_CACHE::ALG_BKA_UNIQUE | force_unlinked_cache;
+      return false;
     }
     goto no_join_cache;
   default : ;
   }
 
 no_join_cache:
-  if (cache_level>2)
-    revise_cache_usage(tab); 
-  return JOIN_CACHE::ALG_NONE;
+  if (cache_level > 2)
+    revise_cache_usage(tab);
+  tab->use_join_cache= JOIN_CACHE::ALG_NONE;
+  return false;
 }
 
 /*
@@ -11280,12 +11363,10 @@ make_join_readinfo(JOIN *join, ulonglong options, uint no_jbuf_after)
     JOIN_TAB *const tab= join->join_tab+i;
     TABLE    *const table= tab->table;
     bool icp_other_tables_ok;
-    uint jcl;
     tab->read_record.table= table;
     tab->read_record.file=table->file;
     tab->read_record.unlock_row= rr_unlock_row;
     tab->next_select=sub_select;		/* normal select */
-    tab->use_join_cache= JOIN_CACHE::ALG_NONE;
     tab->cache_idx_cond= 0;
     tab->sorted= sorted;
     sorted= false;                              // only first must be sorted
@@ -11325,12 +11406,12 @@ make_join_readinfo(JOIN *join, ulonglong options, uint no_jbuf_after)
     case JT_SYSTEM: 
     case JT_CONST:
       /* Only happens with outer joins */
-      if ((jcl= check_join_cache_usage(tab, join, options, no_jbuf_after,
-                                       &icp_other_tables_ok)))
-      {
-        tab->use_join_cache= jcl;
+      if (setup_join_buffering(tab, join, options, no_jbuf_after,
+                               &icp_other_tables_ok))
+        DBUG_RETURN(true);
+      if (tab->use_join_cache != JOIN_CACHE::ALG_NONE)
         tab[-1].next_select= sub_select_cache;
-      }
+
       if (table->covering_keys.is_set(tab->ref.key) &&
 	  !table->no_keyread)
         table->set_keyread(TRUE);
@@ -11338,12 +11419,12 @@ make_join_readinfo(JOIN *join, ulonglong options, uint no_jbuf_after)
         push_index_cond(tab, tab->ref.key, icp_other_tables_ok);
       break;
     case JT_ALL:
-      if ((jcl= check_join_cache_usage(tab, join, options, no_jbuf_after,
-                                       &icp_other_tables_ok)))
-      {
-        tab->use_join_cache= jcl;
+      if (setup_join_buffering(tab, join, options, no_jbuf_after,
+                               &icp_other_tables_ok))
+        DBUG_RETURN(true);
+      if (tab->use_join_cache != JOIN_CACHE::ALG_NONE)
         tab[-1].next_select=sub_select_cache;
-      }
+
       /* These init changes read_record */
       if (tab->use_quick == QS_DYNAMIC_RANGE)
       {
@@ -11434,7 +11515,7 @@ make_join_readinfo(JOIN *join, ulonglong options, uint no_jbuf_after)
   for (uint i= join->const_tables; i < join->tables; i++)
   {
     JOIN_TAB *const tab=join->join_tab + i;
-    if (tab->use_join_cache)
+    if (tab->use_join_cache != JOIN_CACHE::ALG_NONE)
     {
       JOIN_TAB *const sort_by_tab= join->get_sort_by_join_tab();
       if (sort_by_tab)
