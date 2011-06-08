@@ -143,9 +143,8 @@ Ndb_local_connection::execute_query_iso(MYSQL_LEX_STRING sql_text,
   THD_TRANS save_thd_transaction_all= m_thd->transaction.all;
   THD_TRANS save_thd_transaction_stmt= m_thd->transaction.stmt;
 
-  /* Set modified_non_trans_table to false(check if actually needed) */
-  assert(m_thd->transaction.stmt.modified_non_trans_table == FALSE);
-  m_thd->transaction.stmt.modified_non_trans_table= FALSE;
+  /* Check modified_non_trans_table is false(check if actually needed) */
+  assert(!m_thd->transaction.stmt.has_modified_non_trans_table());
 
 #if 0
   /*

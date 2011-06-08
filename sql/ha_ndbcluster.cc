@@ -6301,8 +6301,8 @@ ha_ndbcluster::flush_bulk_insert(bool allow_batch)
       be rolled back
     */
     THD *thd= table->in_use;
-    thd->transaction.all.modified_non_trans_table=
-      thd->transaction.stmt.modified_non_trans_table= TRUE;
+    thd->transaction.all.mark_modified_non_trans_table();
+    thd->transaction.stmt.mark_modified_non_trans_table();
     if (execute_commit(m_thd_ndb, trans, m_thd_ndb->m_force_send,
                        m_ignore_no_key) != 0)
     {
