@@ -130,18 +130,25 @@ Transporter::configure(const TransporterConfiguration* conf)
 
 
 bool
-Transporter::connect_server(NDB_SOCKET_TYPE sockfd) {
+Transporter::connect_server(NDB_SOCKET_TYPE sockfd,
+                            BaseString& msg) {
   // all initial negotiation is done in TransporterRegistry::connect_server
   DBUG_ENTER("Transporter::connect_server");
 
-  if(m_connected)
+  if (m_connected)
+  {
+    msg.assfmt("line: %u : already connected ??", __LINE__);
     DBUG_RETURN(false);
+  }
 
   // Cache the connect address
   my_socket_connect_address(sockfd, &m_connect_address);
 
   if (!connect_server_impl(sockfd))
+  {
+    msg.assfmt("line: %u : connect_server_impl failed", __LINE__);
     DBUG_RETURN(false);
+  }
 
   m_connected  = true;
 

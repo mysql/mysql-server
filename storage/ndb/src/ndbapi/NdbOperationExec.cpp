@@ -1120,7 +1120,8 @@ NdbOperation::buildSignalsNdbRecord(Uint32 aTC_ConnectPtr,
   /* Final update signal words */
   if ((tOpType == InsertRequest) || 
       (tOpType == WriteRequest) ||
-      (tOpType == UpdateRequest))
+      (tOpType == UpdateRequest) ||
+      (tOpType == RefreshRequest))
   {
     updRow= m_attribute_row;
     NdbBlob *currentBlob= theBlobList;
@@ -1333,7 +1334,8 @@ NdbOperation::buildSignalsNdbRecord(Uint32 aTC_ConnectPtr,
 
   if ((tOpType == InsertRequest) ||
       (tOpType == WriteRequest) ||
-      (tOpType == UpdateRequest))
+      (tOpType == UpdateRequest) ||
+      (tOpType == RefreshRequest))
   {
     /* Handle setAnyValue() for all cases except delete */
     if ((m_flags & OF_USE_ANY_VALUE) != 0)

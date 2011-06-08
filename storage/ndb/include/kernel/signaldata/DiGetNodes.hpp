@@ -58,10 +58,13 @@ class DiGetNodesReq {
    */
   friend class Dbdih;
 public:
-  STATIC_CONST( SignalLength = 3 );
+  STATIC_CONST( SignalLength = 4 + (sizeof(void*) / sizeof(Uint32)) );
 private:
   Uint32 tableId;
   Uint32 hashValue;
   Uint32 distr_key_indicator;
+  Uint32 unused;
+  Uint32 jamBuffer[2];
 };
+
 #endif

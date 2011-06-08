@@ -51,8 +51,11 @@ printSCAN_FRAGREQ(FILE * output, const Uint32 * theData,
           ScanFragReq::getAttrLen(sig->requestInfo));
   fprintf(output, " reorg: %u",
           ScanFragReq::getReorgFlag(sig->requestInfo));
-  fprintf(output, " corr: %u\n",
+  fprintf(output, " corr: %u",
           ScanFragReq::getCorrFactorFlag(sig->requestInfo));
+  fprintf(output, " stat: %u",
+          ScanFragReq::getStatScanFlag(sig->requestInfo));
+  fprintf(output, "\n");
 
   fprintf(output, " tableId: %u\n", sig->tableId);
   fprintf(output, " fragmentNo: %u\n", sig->fragmentNoKeyLen & 0xFFFF);

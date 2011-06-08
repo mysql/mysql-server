@@ -66,31 +66,18 @@ Dbtux::execTUX_MAINT_REQ(Signal* signal)
   findFrag(*indexPtr.p, fragId, fragPtr);
   ndbrequire(fragPtr.i != RNIL);
   Frag& frag = *fragPtr.p;
-  // set up index keys for this operation
-  setKeyAttrs(c_ctx, frag);
   // set up search entry
   TreeEnt ent;
   ent.m_tupLoc = TupLoc(req->pageId, req->pageIndex);
   ent.m_tupVersion = req->tupVersion;
-  // read search key
-  readKeyAttrs(c_ctx, frag, ent, 0, c_ctx.c_searchKey);
-  if (! frag.m_storeNullKey) {
-    // check if all keys are null
-    const unsigned numAttrs = frag.m_numAttrs;
-    bool allNull = true;
-    for (unsigned i = 0; i < numAttrs; i++) {
-      if (c_ctx.c_searchKey[i] != 0) {
-        jam();
-        allNull = false;
-        break;
-      }
-    }
-    if (allNull) {
-      jam();
-      req->errorCode = 0;
-      *sig = *req;
-      return;
-    }
+  // set up and read search key
+  KeyData searchKey(indexPtr.p->m_keySpec, false, 0);
+  searchKey.set_buf(c_ctx.c_searchKey, MaxAttrDataSize << 2);
+  readKeyAttrs(c_ctx, frag, ent, searchKey, indexPtr.p->m_numAttrs);
+  if (unlikely(! indexPtr.p->m_storeNullKey) &&
+      searchKey.get_null_cnt() == indexPtr.p->m_numAttrs) {
+    jam();
+    return;
   }
 #ifdef VM_TRACE
   if (debugFlags & DebugMaint) {
@@ -110,7 +97,7 @@ Dbtux::execTUX_MAINT_REQ(Signal* signal)
   switch (opCode) {
   case TuxMaintReq::OpAdd:
     jam();
-    ok = searchToAdd(c_ctx, frag, c_ctx.c_searchKey, ent, treePos);
+    ok = searchToAdd(c_ctx, frag, searchKey, ent, treePos);
 #ifdef VM_TRACE
     if (debugFlags & DebugMaint) {
       debugOut << treePos << (! ok ? " - error" : "") << endl;
@@ -141,10 +128,13 @@ Dbtux::execTUX_MAINT_REQ(Signal* signal)
       ndbrequire(frag.m_freeLoc != NullTupLoc);
     }
     treeAdd(c_ctx, frag, treePos, ent);
+    frag.m_entryCount++;
+    frag.m_entryBytes += searchKey.get_data_len();
+    frag.m_entryOps++;
     break;
   case TuxMaintReq::OpRemove:
     jam();
-    ok = searchToRemove(c_ctx, frag, c_ctx.c_searchKey, ent, treePos);
+    ok = searchToRemove(c_ctx, frag, searchKey, ent, treePos);
 #ifdef VM_TRACE
     if (debugFlags & DebugMaint) {
       debugOut << treePos << (! ok ? " - error" : "") << endl;
@@ -160,6 +150,10 @@ Dbtux::execTUX_MAINT_REQ(Signal* signal)
       break;
     }
     treeRemove(frag, treePos);
+    ndbrequire(frag.m_entryCount != 0);
+    frag.m_entryCount--;
+    frag.m_entryBytes -= searchKey.get_data_len();
+    frag.m_entryOps++;
     break;
   default:
     ndbrequire(false);

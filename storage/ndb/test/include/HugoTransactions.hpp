@@ -110,6 +110,9 @@ public:
 		   int batch = 1,
 		   bool allowConstraintViolation = true,
 		   int doSleep = 0);
+
+  int pkRefreshRecords(Ndb*, int startFrom, int count = 1, int batch = 1);
+
   int lockRecords(Ndb*,
 		  int records,
 		  int percentToLock = 1,

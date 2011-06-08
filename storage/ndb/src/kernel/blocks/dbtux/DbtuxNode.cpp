@@ -148,16 +148,26 @@ Dbtux::freePreallocatedNode(Frag& frag)
 }
 
 /*
- * Set prefix.  Copies the number of words that fits.  Includes
- * attribute headers for now.  XXX use null mask instead
+ * Set prefix.  Copies the defined number of attributes.
  */
 void
 Dbtux::setNodePref(TuxCtx & ctx, NodeHandle& node)
 {
   const Frag& frag = node.m_frag;
-  const TreeHead& tree = frag.m_tree;
-  readKeyAttrs(ctx, frag, node.getEnt(0), 0, ctx.c_entryKey);
-  copyAttrs(ctx, frag, ctx.c_entryKey, node.getPref(), tree.m_prefSize);
+  const Index& index = *c_indexPool.getPtr(frag.m_indexId);
+  KeyData prefKey(index.m_keySpec, false, 0);
+  prefKey.set_buf(node.getPref(), index.m_prefBytes);
+  if (index.m_prefAttrs > 0) {
+    jam();
+    readKeyAttrs(ctx, frag, node.getEnt(0), prefKey, index.m_prefAttrs);
+  }
+#ifdef VM_TRACE
+  if (debugFlags & DebugMaint) {
+    debugOut << "setNodePref: " << node;
+    debugOut << " " << prefKey.print(ctx.c_debugBuffer, DebugBufferBytes);
+    debugOut << endl;
+  }
+#endif
 }
 
 // node operations

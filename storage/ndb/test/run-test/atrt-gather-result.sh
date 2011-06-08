@@ -21,12 +21,13 @@ mkdir -p result
 cd result
 rm -rf *
 
-if uname | grep -iq cygwin; then
+if [ `uname | grep -ic cygwin || true` -ne 0 ]
+then
   while [ $# -gt 0 ]
   do
     SAVE_IFS=$IFS
     IFS=":"
-    declare -a ARR=($1)
+    declare -a ARR="($1)"
     IFS=$SAVE_IFS
     DIR=`dirname "${ARR[1]}"`
     REMOTE_DIR=`cygpath -u $DIR`

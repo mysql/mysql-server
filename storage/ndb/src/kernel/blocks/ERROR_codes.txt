@@ -29,6 +29,8 @@ Next DBTUX 12010
 Next SUMA 13047
 Next LGMAN 15001
 Next TSMAN 16001
+Next DBSPJ 17000
+Next TRIX 18000
 
 TESTING NODE FAILURE, ARBITRATION
 ---------------------------------
@@ -720,3 +722,15 @@ ACC bug#34348
 3002: limit frags to 2 directory pages (instead of 256)
       print (if VM_TRACE) LH variables at expand and shrink
       apply before mass data load, reset with error insert 0
+
+TRIX
+----
+Index stats:
+18001: fail to seize statOp
+18002: fail to seize associated subRec
+18011: fail HEAD read - simulate UtilExecuteRef::AllocationError
+18012: fail HEAD insert/update/delete - as in 18011
+18021: fail RT_CLEAN_NEW - simulate TC error 626
+18022: fail RT_CLEAN_OLD (non-fatal) - as in 18021
+18023: fail RT_CLEAN_ALL (non-fatal) - as in 18021
+18024: fail RT_SCAN_FRAG - simulate TC error 630

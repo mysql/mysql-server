@@ -64,7 +64,8 @@ SocketServer::Session * TransporterService::newSession(NDB_SOCKET_TYPE sockfd)
     DBUG_RETURN(0);
   }
 
-  if (!m_transporter_registry->connect_server(sockfd))
+  BaseString msg;
+  if (!m_transporter_registry->connect_server(sockfd, msg))
   {
     NDB_CLOSE_SOCKET(sockfd);
     DBUG_RETURN(0);
@@ -305,7 +306,8 @@ TransporterRegistry::init(NodeId nodeId) {
 }
 
 bool
-TransporterRegistry::connect_server(NDB_SOCKET_TYPE sockfd) const
+TransporterRegistry::connect_server(NDB_SOCKET_TYPE sockfd,
+                                    BaseString & msg) const
 {
   DBUG_ENTER("TransporterRegistry::connect_server(sockfd)");
 
@@ -314,6 +316,7 @@ TransporterRegistry::connect_server(NDB_SOCKET_TYPE sockfd) const
   SocketInputStream s_input(sockfd);
   char buf[11+1+11+1]; // <int> <int>
   if (s_input.gets(buf, sizeof(buf)) == 0) {
+    msg.assfmt("line: %u : Failed to get nodeid from client", __LINE__);
     DBUG_PRINT("error", ("Failed to read 'hello' from client"));
     DBUG_RETURN(false);
   }
@@ -328,6 +331,7 @@ TransporterRegistry::connect_server(NDB_SOCKET_TYPE sockfd) const
     // ok, but with no checks on transporter configuration compatability
     break;
   default:
+    msg.assfmt("line: %u : Incorrect reply from client: >%s<", __LINE__, buf);
     DBUG_PRINT("error", ("Failed to parse 'hello' from client, buf: '%.*s'",
                          (int)sizeof(buf), buf));
     DBUG_RETURN(false);
@@ -341,6 +345,7 @@ TransporterRegistry::connect_server(NDB_SOCKET_TYPE sockfd) const
   if (nodeId < 0 ||
       nodeId >= (int)maxTransporters)
   {
+    msg.assfmt("line: %u : Incorrect reply from client: >%s<", __LINE__, buf);
     DBUG_PRINT("error", ("Out of range nodeId: %d from client",
                          nodeId));
     DBUG_RETURN(false);
@@ -350,6 +355,8 @@ TransporterRegistry::connect_server(NDB_SOCKET_TYPE sockfd) const
   Transporter *t= theTransporters[nodeId];
   if (t == 0)
   {
+    msg.assfmt("line: %u : Incorrect reply from client: >%s<, node: %u",
+               __LINE__, buf, nodeId);
     DBUG_PRINT("error", ("No transporter available for node id %d", nodeId));
     DBUG_RETURN(false);
   }
@@ -357,6 +364,11 @@ TransporterRegistry::connect_server(NDB_SOCKET_TYPE sockfd) const
   // Check that the transporter should be connecting
   if (performStates[nodeId] != TransporterRegistry::CONNECTING)
   {
+    msg.assfmt("line: %u : Incorrect state for node %u state: %s (%u)",
+               __LINE__, nodeId,
+               getPerformStateString(performStates[nodeId]),
+               performStates[nodeId]);
+
     DBUG_PRINT("error", ("Transporter for node id %d in wrong state",
                          nodeId));
     DBUG_RETURN(false);
@@ -376,15 +388,21 @@ TransporterRegistry::connect_server(NDB_SOCKET_TYPE sockfd) const
   SocketOutputStream s_output(sockfd);
   if (s_output.println("%d %d", t->getLocalNodeId(), t->m_type) < 0)
   {
+    msg.assfmt("line: %u : Failed to reply to connecting socket (node: %u)",
+               __LINE__, nodeId);
     DBUG_PRINT("error", ("Send of reply failed"));
     DBUG_RETURN(false);
   }
 
   // Setup transporter (transporter responsible for closing sockfd)
-  bool res = t->connect_server(sockfd);
+  bool res = t->connect_server(sockfd, msg);
 
   if (res && performStates[nodeId] != TransporterRegistry::CONNECTING)
   {
+    msg.assfmt("line: %u : Incorrect state for node %u state: %s (%u)",
+               __LINE__, nodeId,
+               getPerformStateString(performStates[nodeId]),
+               performStates[nodeId]);
     // Connection suceeded, but not connecting anymore, return
     // false to close the connection
     DBUG_RETURN(false);

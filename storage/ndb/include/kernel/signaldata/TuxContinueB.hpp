@@ -25,7 +25,8 @@ class TuxContinueB {
   friend class Dbtux;
 private:
   enum {
-    DropIndex =                 1
+    DropIndex = 1, // unused
+    StatMon = 2
   };
 };
 

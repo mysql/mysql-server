@@ -148,6 +148,7 @@ operator<<(NdbOut& out, Operation_t op)
   case ZDELETE: out << "DELETE"; break;
   case ZWRITE: out << "WRITE"; break;
   case ZUNLOCK: out << "UNLOCK"; break;
+  case ZREFRESH: out << "REFRESH"; break;
   }
   return out;
 }
@@ -3396,6 +3397,8 @@ Dblqh::execREAD_PSEUDO_REQ(Signal* signal){
     break;
   }
   case AttributeHeader::RECORDS_IN_RANGE:
+  case AttributeHeader::INDEX_STAT_KEY:
+  case AttributeHeader::INDEX_STAT_VALUE:
   {
     jam();
     // scanptr gets reset somewhere within the timeslice
@@ -4364,8 +4367,8 @@ void Dblqh::execLQHKEYREQ(Signal* signal)
 
   {
     const NodeBitmask& all = globalTransporterRegistry.get_status_overloaded();
-    if (unlikely(!all.isclear() &&
-                 checkTransporterOverloaded(signal, all, lqhKeyReq)) ||
+    if (unlikely((!all.isclear() &&
+                  checkTransporterOverloaded(signal, all, lqhKeyReq))) ||
         ERROR_INSERTED_CLEAR(5047)) {
       jam();
       releaseSections(handle);
@@ -4533,6 +4536,7 @@ void Dblqh::execLQHKEYREQ(Signal* signal)
     regTcPtr->lockType = 
       op == ZREAD_EX ? ZUPDATE : 
       (Operation_t) op == ZWRITE ? ZINSERT : 
+      (Operation_t) op == ZREFRESH ? ZINSERT :
       (Operation_t) op == ZUNLOCK ? ZREAD : // lockType not relevant for unlock req
       (Operation_t) op;
   }
@@ -5072,6 +5076,7 @@ void Dblqh::prepareContinueAfterBlockedLab(Signal* signal)
     case ZINSERT: TRACENR("INSERT"); break;
     case ZDELETE: TRACENR("DELETE"); break;
     case ZUNLOCK: TRACENR("UNLOCK"); break;
+    case ZREFRESH: TRACENR("REFRESH"); break;
     default: TRACENR("<Unknown: " << regTcPtr->operation << ">"); break;
     }
     
@@ -5121,7 +5126,6 @@ Dblqh::exec_acckeyreq(Signal* signal, TcConnectionrecPtr regTcPtr)
   Uint32 taccreq;
   regTcPtr.p->transactionState = TcConnectionrec::WAIT_ACC;
   taccreq = regTcPtr.p->operation;
-  taccreq = taccreq + (regTcPtr.p->opSimple << 3);
   taccreq = taccreq + (regTcPtr.p->lockType << 4);
   taccreq = taccreq + (regTcPtr.p->dirtyOp << 6);
   taccreq = taccreq + (regTcPtr.p->replicaType << 7);
@@ -5286,15 +5290,17 @@ Dblqh::handle_nr_copy(Signal* signal, Ptr<TcConnectionrec> regTcPtr)
     if (match)
     {
       jam();
-      if (op != ZDELETE)
+      if (op != ZDELETE && op != ZREFRESH)
       {
 	if (TRACENR_FLAG)
-	  TRACENR(" Changing from to ZWRITE" << endl);
+	  TRACENR(" Changing from INSERT/UPDATE to ZWRITE" << endl);
 	regTcPtr.p->operation = ZWRITE;
       }
       goto run;
     }
-    
+
+    ndbassert(!match && op == ZINSERT);
+
     /**
      * 1) Delete row at specified rowid (if len > 0)
      * 2) Delete specified row at different rowid (if exists)
@@ -6006,7 +6012,7 @@ Dblqh::acckeyconf_tupkeyreq(Signal* signal, TcConnectionrec* regTcPtr,
   
   TRACE_OP(regTcPtr, "TUPKEYREQ");
   
-  regTcPtr->m_use_rowid |= (op == ZINSERT);
+  regTcPtr->m_use_rowid |= (op == ZINSERT || op == ZREFRESH);
   regTcPtr->m_row_id.m_page_no = page_no;
   regTcPtr->m_row_id.m_page_idx = page_idx;
   
@@ -8066,6 +8072,8 @@ void Dblqh::commitContinueAfterBlockedLab(Signal* signal)
       tupCommitReq->hashValue = regTcPtr.p->hashValue;
       tupCommitReq->diskpage = RNIL;
       tupCommitReq->gci_lo = regTcPtr.p->gci_lo;
+      tupCommitReq->transId1 = regTcPtr.p->transid[0];
+      tupCommitReq->transId2 = regTcPtr.p->transid[1];
       EXECUTE_DIRECT(tup, GSN_TUP_COMMITREQ, signal, 
 		     TupCommitReq::SignalLength);
 
@@ -10125,7 +10133,11 @@ Dblqh::seize_acc_ptr_list(ScanRecord* scanP,
   Uint32 segments= (new_batch_size + (SectionSegment::DataLength -2 )) / 
     SectionSegment::DataLength;
 
-  ndbassert(segments >= scanP->scan_acc_segments);
+  if (segments <= scanP->scan_acc_segments)
+  {
+    // No need to allocate more segments.
+    return true;
+  }
 
   if (new_batch_size > 1)
   {
@@ -10448,6 +10460,7 @@ void Dblqh::continueAfterReceivingAllAiLab(Signal* signal)
   AccScanReq::setLockMode(req->requestInfo, scanptr.p->scanLockMode);
   AccScanReq::setReadCommittedFlag(req->requestInfo, scanptr.p->readCommitted);
   AccScanReq::setDescendingFlag(req->requestInfo, scanptr.p->descending);
+  AccScanReq::setStatScanFlag(req->requestInfo, scanptr.p->statScan);
 
   if (refToMain(tcConnectptr.p->clientBlockref) == BACKUP)
   {
@@ -11519,6 +11532,7 @@ Uint32 Dblqh::initScanrec(const ScanFragReq* scanFragReq,
   scanptr.p->descending = descending;
   scanptr.p->tupScan = tupScan;
   scanptr.p->lcpScan = ScanFragReq::getLcpScanFlag(reqinfo);
+  scanptr.p->statScan = ScanFragReq::getStatScanFlag(reqinfo);
   scanptr.p->scanState = ScanRecord::SCAN_FREE;
   scanptr.p->scanFlag = ZFALSE;
   scanptr.p->m_row_id.setNull();

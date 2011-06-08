@@ -89,8 +89,6 @@ public:
   bool init(void);
   ~NdbInfo();
 
-  void flush_tables();
-
   int openTable(const char* table_name, const Table**);
   int openTable(Uint32 tableId, const Table**);
   void closeTable(const Table* table);
@@ -103,6 +101,7 @@ public:
 private:
   static const size_t NUM_HARDCODED_TABLES = 2;
   unsigned m_connect_count;
+  unsigned m_min_db_version;
   class Ndb_cluster_connection* m_connection;
   pthread_mutex_t m_mutex;
   HashMap<BaseString, Table, BaseString_get_key> m_tables;
@@ -119,6 +118,7 @@ private:
   bool load_hardcoded_tables(void);
   bool load_tables();
   bool check_tables();
+  void flush_tables();
 
   BaseString mysql_table_name(const char* table_name) const;
 

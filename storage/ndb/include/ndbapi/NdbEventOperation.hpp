@@ -221,6 +221,17 @@ public:
   Uint64 getLatestGCI() const;
 
   /**
+   * Retrieve the TransId of the latest retrieved event
+   *
+   * Only valid for data events.  If the kernel does not
+   * support transaction ids with events, the max Uint64
+   * value is returned.
+   *
+   * @return TransId
+   */
+  Uint64 getTransId() const;
+
+  /**
    * Get the latest error
    *
    * @return   Error object.
