@@ -63,9 +63,9 @@ maybeExtraBits(Ndb* ndb, NdbDictionary::Table& tab, int when, void* arg)
     return 0;
   }
 
-  bool useExtendedBits = ((rand() % 5) != 0);
-  Uint32 numGciBits= rand() % 32;      /* 0 -> 31 */
-  Uint32 numAuthorBits = rand() % 32;  /* 0 -> 31 */
+  bool useExtendedBits = ((ndb_rand() % 5) != 0);
+  Uint32 numGciBits= ndb_rand() % 32;      /* 0 -> 31 */
+  Uint32 numAuthorBits = ndb_rand() % 32;  /* 0 -> 31 */
 
   if (useExtendedBits && (numGciBits || numAuthorBits))
   {
@@ -116,7 +116,7 @@ int runInsertRememberGci(NDBT_Context* ctx, NDBT_Step* step){
   int i = 0;
 
   ndbout_c("Inserting %u records", records);
-  Uint64 minGci = 0xffffffffffffffff;
+  Uint64 minGci = ~Uint64(0);
   Uint64 maxGci = 0;
   Uint32 numAuthorBits = ctx->getTab()->getExtraRowAuthorBits();
   Uint32 authorMask = (1 << numAuthorBits) -1;
@@ -136,7 +136,7 @@ int runInsertRememberGci(NDBT_Context* ctx, NDBT_Step* step){
     Uint32 authorVal = 0;
     if (ctx->getTab()->getExtraRowAuthorBits() > 0)
     {
-      authorVal = (rand() & authorMask);
+      authorVal = (ndb_rand() & authorMask);
       /* Pain here due to need to use NdbRecord */
       char rowBuff[NDB_MAX_TUPLE_SIZE];
       const NdbDictionary::Table* tab = ctx->getTab();
@@ -378,7 +378,7 @@ int runVerifyInserts(NDBT_Context* ctx, NDBT_Step* step){
 	ndbout << "ERR: Record "<<i<<" should not have existed" << endl;
 	result = NDBT_FAILED;
       }
-      bool expectRounding = (expectedRecordGci && 0xffffffff) >= firstSaturatedValue;
+      bool expectRounding = (expectedRecordGci & 0xffffffff) >= firstSaturatedValue;
       Uint64 expectedRoundedGci = (expectedRecordGci | 0xffffffff);
       Uint64 readGci = rowGci->u_64_value();
       Uint64 expectedRead = (expectRounding)?expectedRoundedGci :

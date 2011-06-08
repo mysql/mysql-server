@@ -54,6 +54,7 @@ ADD_LIBRARY(ndbgeneral STATIC
 	    SparseBitmask.cpp
             require.c
             Vector.cpp
+            NdbPack.cpp
 )
 TARGET_LINK_LIBRARIES(ndbgeneral ndbtrace ${ZLIB_LIBRARY} mysys)
 
@@ -81,4 +82,9 @@ ADD_EXECUTABLE(ndb_version-t version.cpp)
 SET_TARGET_PROPERTIES(ndb_version-t
                       PROPERTIES COMPILE_FLAGS "-DTEST_VERSION")
 TARGET_LINK_LIBRARIES(ndb_version-t ndbgeneral)
+
+ADD_EXECUTABLE(NdbPack-t NdbPack.cpp)
+SET_TARGET_PROPERTIES(NdbPack-t
+                      PROPERTIES COMPILE_FLAGS "-DTEST_NDB_PACK")
+TARGET_LINK_LIBRARIES(NdbPack-t ndbgeneral ndbportlib)
 

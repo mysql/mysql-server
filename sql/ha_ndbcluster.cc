@@ -2226,7 +2226,7 @@ int ha_ndbcluster::add_index_handle(THD *thd, NDBDICT *dict, KEY *key_info,
     d.index_stat=NULL;
     if (THDVAR(thd, index_stat_enable))
     {
-      d.index_stat=new NdbIndexStat(index);
+      d.index_stat=new NdbIndexStat();
       d.index_stat_cache_entries= THDVAR(thd, index_stat_cache_entries);
       d.index_stat_update_freq= THDVAR(thd, index_stat_update_freq);
       d.index_stat_query_count=0;
@@ -4985,6 +4985,8 @@ int ha_ndbcluster::end_bulk_delete()
 {
   DBUG_ENTER("end_bulk_delete");
   assert(m_is_bulk_delete); // Don't allow end() without start()
+  m_is_bulk_delete = false;
+
   if (m_thd_ndb->m_unsent_bytes &&
       !thd_allow_batch(table->in_use) &&
       !m_thd_ndb->m_handler)
@@ -4995,13 +4997,11 @@ int ha_ndbcluster::end_bulk_delete()
                           &ignore_count) != 0)
     {
       no_uncommitted_rows_execute_failure();
-      m_is_bulk_delete = false;
       DBUG_RETURN(ndb_err(m_thd_ndb->trans));
     }
     assert(m_rows_deleted >= ignore_count);
     m_rows_deleted-= ignore_count;
   }
-  m_is_bulk_delete = false;
   DBUG_RETURN(0);
 }
 
@@ -8373,6 +8373,20 @@ int ha_ndbcluster::create(const char *name,
     goto abort_return;
   }
 
+  // Save the table level storage media setting
+  switch(create_info->storage_media)
+  {
+    case HA_SM_DISK:
+      tab.setStorageType(NdbDictionary::Column::StorageTypeDisk);
+      break;
+    case HA_SM_DEFAULT:
+      tab.setStorageType(NdbDictionary::Column::StorageTypeDefault);
+      break;
+    case HA_SM_MEMORY:
+      tab.setStorageType(NdbDictionary::Column::StorageTypeMemory);
+      break;
+  }
+
   DBUG_PRINT("info", ("Table %s is %s stored with tablespace %s",
                       m_tabname,
                       (use_disk) ? "disk" : "memory",
@@ -10342,10 +10356,11 @@ int ndbcluster_find_all_files(THD *thd)
   DBUG_RETURN(-(skipped + unhandled));
 }
 
-int ndbcluster_find_files(handlerton *hton, THD *thd,
-                          const char *db,
-                          const char *path,
-                          const char *wild, bool dir, List<LEX_STRING> *files)
+
+static int
+ndbcluster_find_files(handlerton *hton, THD *thd,
+                      const char *db, const char *path,
+                      const char *wild, bool dir, List<LEX_STRING> *files)
 {
   DBUG_ENTER("ndbcluster_find_files");
   DBUG_PRINT("enter", ("db: %s", db));
@@ -10714,7 +10729,7 @@ static int ndbcluster_init(void *p)
     ndbcluster_binlog_init_handlerton();
     h->flags=            HTON_CAN_RECREATE | HTON_TEMPORARY_NOT_SUPPORTED;
     h->discover=         ndbcluster_discover;
-    h->find_files= ndbcluster_find_files;
+    h->find_files=       ndbcluster_find_files;
     h->table_exists_in_engine= ndbcluster_table_exists_in_engine;
   }
 

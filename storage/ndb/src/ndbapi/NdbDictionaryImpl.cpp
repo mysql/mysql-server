@@ -26,6 +26,7 @@
 #include <NdbMem.h>
 #include <util/version.h>
 #include <NdbSleep.h>
+#include <signaldata/IndexStatSignal.hpp>
 
 #include <signaldata/GetTabInfo.hpp>
 #include <signaldata/DictTabInfo.hpp>
@@ -2190,6 +2191,12 @@ NdbDictInterface::execSignal(void* dictImpl,
   case GSN_DROP_INDX_CONF:
     tmp->execDROP_INDX_CONF(signal, ptr);
     break;
+  case GSN_INDEX_STAT_CONF:
+    tmp->execINDEX_STAT_CONF(signal, ptr);
+    break;
+  case GSN_INDEX_STAT_REF:
+    tmp->execINDEX_STAT_REF(signal, ptr);
+    break;
   case GSN_CREATE_EVNT_REF:
     tmp->execCREATE_EVNT_REF(signal, ptr);
     break;
@@ -4327,6 +4334,100 @@ NdbDictInterface::execCREATE_INDX_REF(const NdbApiSignal * sig,
 				      const LinearSectionPtr ptr[3])
 {
   const CreateIndxRef* ref = CAST_CONSTPTR(CreateIndxRef, sig->getDataPtr());
+  m_error.code = ref->errorCode;
+  if (m_error.code == ref->NotMaster)
+    m_masterNodeId = ref->masterNodeId;
+  m_impl->theWaiter.signal(NO_WAIT);
+}
+
+// INDEX_STAT
+
+int
+NdbDictionaryImpl::updateIndexStat(const NdbIndexImpl& index,
+                                   const NdbTableImpl& table)
+{
+  Uint32 rt = IndexStatReq::RT_UPDATE_STAT;
+  return m_receiver.doIndexStatReq(m_ndb, index, table, rt);
+}
+
+int
+NdbDictionaryImpl::updateIndexStat(Uint32 indexId,
+                                   Uint32 indexVersion,
+                                   Uint32 tableId)
+{
+  Uint32 rt = IndexStatReq::RT_UPDATE_STAT;
+  return m_receiver.doIndexStatReq(m_ndb, indexId, indexVersion, tableId, rt);
+}
+
+int
+NdbDictionaryImpl::deleteIndexStat(const NdbIndexImpl& index,
+                                   const NdbTableImpl& table)
+{
+  Uint32 rt = IndexStatReq::RT_DELETE_STAT;
+  return m_receiver.doIndexStatReq(m_ndb, index, table, rt);
+}
+
+int
+NdbDictionaryImpl::deleteIndexStat(Uint32 indexId,
+                                   Uint32 indexVersion,
+                                   Uint32 tableId)
+{
+  Uint32 rt = IndexStatReq::RT_DELETE_STAT;
+  return m_receiver.doIndexStatReq(m_ndb, indexId, indexVersion, tableId, rt);
+}
+
+int
+NdbDictInterface::doIndexStatReq(Ndb& ndb,
+                                 const NdbIndexImpl& index,
+                                 const NdbTableImpl& table,
+                                 Uint32 rt)
+{
+  return doIndexStatReq(ndb, index.m_id, index.m_version, table.m_id, rt);
+}
+
+int
+NdbDictInterface::doIndexStatReq(Ndb& ndb,
+                                 Uint32 indexId,
+                                 Uint32 indexVersion,
+                                 Uint32 tableId,
+                                 Uint32 requestType)
+{
+  NdbApiSignal tSignal(m_reference);
+  tSignal.theReceiversBlockNumber = DBDICT;
+  tSignal.theVerId_signalNumber = GSN_INDEX_STAT_REQ;
+  tSignal.theLength = IndexStatReq::SignalLength;
+
+  IndexStatReq* req = CAST_PTR(IndexStatReq, tSignal.getDataPtrSend());
+  req->clientRef = m_reference;
+  req->clientData = 0;
+  req->transId = m_tx.transId();
+  req->transKey = m_tx.transKey();
+  req->requestInfo = requestType;
+  req->requestFlag = 0;
+  req->indexId = indexId;
+  req->indexVersion = indexVersion;
+  req->tableId = tableId;
+
+  int errCodes[] = { IndexStatRef::Busy, IndexStatRef::NotMaster, 0 };
+  return dictSignal(&tSignal, 0, 0,
+                    0,
+                    WAIT_CREATE_INDX_REQ,
+                    DICT_WAITFOR_TIMEOUT, 100,
+                    errCodes);
+}
+
+void
+NdbDictInterface::execINDEX_STAT_CONF(const NdbApiSignal * signal,
+				      const LinearSectionPtr ptr[3])
+{
+  m_impl->theWaiter.signal(NO_WAIT);
+}
+
+void
+NdbDictInterface::execINDEX_STAT_REF(const NdbApiSignal * signal,
+				     const LinearSectionPtr ptr[3])
+{
+  const IndexStatRef* ref = CAST_CONSTPTR(IndexStatRef, signal->getDataPtr());
   m_error.code = ref->errorCode;
   if (m_error.code == ref->NotMaster)
     m_masterNodeId = ref->masterNodeId;

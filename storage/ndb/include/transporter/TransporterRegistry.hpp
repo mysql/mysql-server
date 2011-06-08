@@ -118,7 +118,7 @@ public:
      NOTE! Connection should be closed if function
      returns false
   */
-  bool connect_server(NDB_SOCKET_TYPE sockfd) const;
+  bool connect_server(NDB_SOCKET_TYPE sockfd, BaseString& errormsg) const;
 
   bool connect_client(NdbMgmHandle *h);
 

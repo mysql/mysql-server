@@ -31,7 +31,13 @@ Dbtux::Dbtux(Block_context& ctx, Uint32 instanceNumber) :
   debugFlags(0),
 #endif
   c_internalStartPhase(0),
-  c_typeOfStart(NodeState::ST_ILLEGAL_TYPE)
+  c_typeOfStart(NodeState::ST_ILLEGAL_TYPE),
+  c_indexStatAutoUpdate(false),
+  c_indexStatSaveSize(0),
+  c_indexStatSaveScale(0),
+  c_indexStatTriggerPct(0),
+  c_indexStatTriggerScale(0),
+  c_indexStatUpdateDelay(0)
 {
   BLOCK_CONSTRUCTOR(Dbtux);
   // verify size assumptions (also when release-compiled)
@@ -39,7 +45,7 @@ Dbtux::Dbtux(Block_context& ctx, Uint32 instanceNumber) :
       (sizeof(TreeEnt) & 0x3) == 0 &&
       (sizeof(TreeNode) & 0x3) == 0 &&
       (sizeof(DescHead) & 0x3) == 0 &&
-      (sizeof(DescAttr) & 0x3) == 0
+      (sizeof(KeyType) & 0x3) == 0
   );
   /*
    * DbtuxGen.cpp
@@ -73,6 +79,8 @@ Dbtux::Dbtux(Block_context& ctx, Uint32 instanceNumber) :
    * DbtuxStat.cpp
    */
   addRecSignal(GSN_READ_PSEUDO_REQ, &Dbtux::execREAD_PSEUDO_REQ);
+  addRecSignal(GSN_INDEX_STAT_REP, &Dbtux::execINDEX_STAT_REP);
+  addRecSignal(GSN_INDEX_STAT_IMPL_REQ, &Dbtux::execINDEX_STAT_IMPL_REQ);
   /*
    * DbtuxDebug.cpp
    */
@@ -100,6 +108,13 @@ Dbtux::execCONTINUEB(Signal* signal)
       IndexPtr indexPtr;
       c_indexPool.getPtr(indexPtr, data[1]);
       dropIndex(signal, indexPtr, data[2], data[3]);
+    }
+    break;
+  case TuxContinueB::StatMon:
+    {
+      Uint32 id = data[1];
+      ndbrequire(id == c_statMon.m_loopIndexId);
+      statMonExecContinueB(signal);
     }
     break;
   default:
@@ -143,8 +158,16 @@ Dbtux::execSTTOR(Signal* signal)
     jam();
     c_typeOfStart = signal->theData[7];
     break;
+    return;
   case 7:
     c_internalStartPhase = 6;
+    /*
+     * config cannot yet be changed dynamically but we start the
+     * loop always anyway because the cost is minimal
+     */
+    c_statMon.m_loopIndexId = 0;
+    statMonSendContinueB(signal);
+    break;
   default:
     jam();
     break;
@@ -190,6 +213,12 @@ Dbtux::execREAD_CONFIG_REQ(Signal* signal)
   Uint32 nAttribute;
   Uint32 nScanOp; 
   Uint32 nScanBatch;
+  Uint32 nStatAutoUpdate;
+  Uint32 nStatSaveSize;
+  Uint32 nStatSaveScale;
+  Uint32 nStatTriggerPct;
+  Uint32 nStatTriggerScale;
+  Uint32 nStatUpdateDelay;
 
   const ndb_mgm_configuration_iterator * p = 
     m_ctx.m_config.getOwnConfigIterator();
@@ -201,9 +230,34 @@ Dbtux::execREAD_CONFIG_REQ(Signal* signal)
   ndbrequire(!ndb_mgm_get_int_parameter(p, CFG_TUX_SCAN_OP, &nScanOp));
   ndbrequire(!ndb_mgm_get_int_parameter(p, CFG_DB_BATCH_SIZE, &nScanBatch));
 
-  const Uint32 nDescPage = (nIndex * DescHeadSize + nAttribute * DescAttrSize + DescPageSize - 1) / DescPageSize;
+  nStatAutoUpdate = 0;
+  ndb_mgm_get_int_parameter(p, CFG_DB_INDEX_STAT_AUTO_UPDATE,
+                            &nStatAutoUpdate);
+
+  nStatSaveSize = 32768;
+  ndb_mgm_get_int_parameter(p, CFG_DB_INDEX_STAT_SAVE_SIZE,
+                            &nStatSaveSize);
+
+  nStatSaveScale = 100;
+  ndb_mgm_get_int_parameter(p, CFG_DB_INDEX_STAT_SAVE_SCALE,
+                            &nStatSaveScale);
+
+  nStatTriggerPct = 100;
+  ndb_mgm_get_int_parameter(p, CFG_DB_INDEX_STAT_TRIGGER_PCT,
+                            &nStatTriggerPct);
+
+  nStatTriggerScale = 100;
+  ndb_mgm_get_int_parameter(p, CFG_DB_INDEX_STAT_TRIGGER_SCALE,
+                            &nStatTriggerScale);
+
+  nStatUpdateDelay = 60;
+  ndb_mgm_get_int_parameter(p, CFG_DB_INDEX_STAT_UPDATE_DELAY,
+                            &nStatUpdateDelay);
+
+  const Uint32 nDescPage = (nIndex * DescHeadSize + nAttribute * KeyTypeSize + nAttribute * AttributeHeaderSize + DescPageSize - 1) / DescPageSize;
   const Uint32 nScanBoundWords = nScanOp * ScanBoundSegmentSize * 4;
   const Uint32 nScanLock = nScanOp * nScanBatch;
+  const Uint32 nStatOp = 8;
   
   c_indexPool.setSize(nIndex);
   c_fragPool.setSize(nFragment);
@@ -212,6 +266,14 @@ Dbtux::execREAD_CONFIG_REQ(Signal* signal)
   c_scanOpPool.setSize(nScanOp);
   c_scanBoundPool.setSize(nScanBoundWords);
   c_scanLockPool.setSize(nScanLock);
+  c_statOpPool.setSize(nStatOp);
+  c_indexStatAutoUpdate = nStatAutoUpdate;
+  c_indexStatSaveSize = nStatSaveSize;
+  c_indexStatSaveScale = nStatSaveScale;
+  c_indexStatTriggerPct = nStatTriggerPct;
+  c_indexStatTriggerScale = nStatTriggerScale;
+  c_indexStatUpdateDelay = nStatUpdateDelay;
+
   /*
    * Index id is physical array index.  We seize and initialize all
    * index records now.
@@ -229,12 +291,14 @@ Dbtux::execREAD_CONFIG_REQ(Signal* signal)
   }
   // allocate buffers
   c_ctx.jamBuffer = jamBuffer();
-  c_ctx.c_keyAttrs = (Uint32*)allocRecord("c_keyAttrs", sizeof(Uint32), MaxIndexAttributes);
-  c_ctx.c_sqlCmp = (NdbSqlUtil::Cmp**)allocRecord("c_sqlCmp", sizeof(NdbSqlUtil::Cmp*), MaxIndexAttributes);
   c_ctx.c_searchKey = (Uint32*)allocRecord("c_searchKey", sizeof(Uint32), MaxAttrDataSize);
   c_ctx.c_entryKey = (Uint32*)allocRecord("c_entryKey", sizeof(Uint32), MaxAttrDataSize);
 
-  c_dataBuffer = (Uint32*)allocRecord("c_dataBuffer", sizeof(Uint64), (MaxAttrDataSize + 1) >> 1);
+  c_ctx.c_dataBuffer = (Uint32*)allocRecord("c_dataBuffer", sizeof(Uint64), (MaxXfrmDataSize + 1) >> 1);
+
+#ifdef VM_TRACE
+  c_ctx.c_debugBuffer = (char*)allocRecord("c_debugBuffer", sizeof(char), DebugBufferBytes);
+#endif
 
   // ack
   ReadConfigConf * conf = (ReadConfigConf*)signal->getDataPtrSend();
@@ -247,123 +311,79 @@ Dbtux::execREAD_CONFIG_REQ(Signal* signal)
 // utils
 
 void
-Dbtux::setKeyAttrs(TuxCtx& ctx, const Frag& frag)
+Dbtux::readKeyAttrs(TuxCtx& ctx, const Frag& frag, TreeEnt ent, KeyData& keyData, Uint32 count)
 {
-  Data keyAttrs = ctx.c_keyAttrs;
-  NdbSqlUtil::Cmp** sqlCmp = ctx.c_sqlCmp; // global
-  const unsigned numAttrs = frag.m_numAttrs;
-  const DescEnt& descEnt = getDescEnt(frag.m_descPage, frag.m_descOff);
-  for (unsigned i = 0; i < numAttrs; i++) {
-    thrjam(ctx.jamBuffer);
-    const DescAttr& descAttr = descEnt.m_descAttr[i];
-    Uint32 size = AttributeDescriptor::getSizeInWords(descAttr.m_attrDesc);
-    // set attr id and fixed size
-    ah(keyAttrs) = AttributeHeader(descAttr.m_primaryAttrId, size);
-    keyAttrs += 1;
-    // set comparison method pointer
-    const NdbSqlUtil::Type& sqlType = NdbSqlUtil::getTypeBinary(descAttr.m_typeId);
-    ndbrequire(sqlType.m_cmp != 0);
-    *(sqlCmp++) = sqlType.m_cmp;
-  }
-}
+  const Index& index = *c_indexPool.getPtr(frag.m_indexId);
+  const DescHead& descHead = getDescHead(index);
+  const AttributeHeader* keyAttrs = getKeyAttrs(descHead);
+  Uint32* const outputBuffer = ctx.c_dataBuffer;
 
-void
-Dbtux::readKeyAttrs(TuxCtx& ctx, const Frag& frag, TreeEnt ent, unsigned start, Data keyData)
-{
-  ConstData keyAttrs = ctx.c_keyAttrs;
-  const Uint32 tableFragPtrI = frag.m_tupTableFragPtrI;
+#ifdef VM_TRACE
+  ndbrequire(&keyData.get_spec() == &index.m_keySpec);
+  ndbrequire(keyData.get_spec().validate() == 0);
+  ndbrequire(count <= index.m_numAttrs);
+#endif
+
   const TupLoc tupLoc = ent.m_tupLoc;
+  const Uint32 pageId = tupLoc.getPageId();
+  const Uint32 pageOffset = tupLoc.getPageOffset();
   const Uint32 tupVersion = ent.m_tupVersion;
-  ndbrequire(start < frag.m_numAttrs);
-  const Uint32 numAttrs = frag.m_numAttrs - start;
-  // skip to start position in keyAttrs only
-  keyAttrs += start;
-  int ret = c_tup->tuxReadAttrs(ctx.jamBuffer,
-                                tableFragPtrI, tupLoc.getPageId(), tupLoc.getPageOffset(),
-                                tupVersion, keyAttrs, numAttrs, keyData);
-  thrjamEntry(ctx.jamBuffer);
-  // TODO handle error
+  const Uint32 tableFragPtrI = frag.m_tupTableFragPtrI;
+  const Uint32* keyAttrs32 = (const Uint32*)&keyAttrs[0];
+
+  int ret;
+  ret = c_tup->tuxReadAttrs(ctx.jamBuffer, tableFragPtrI, pageId, pageOffset, tupVersion, keyAttrs32, count, outputBuffer, false);
+  jamEntry();
   ndbrequire(ret > 0);
+  keyData.reset();
+  Uint32 len;
+  ret = keyData.add_poai(outputBuffer, count, &len);
+  ndbrequire(ret == 0);
+  ret = keyData.finalize();
+  ndbrequire(ret == 0);
+
 #ifdef VM_TRACE
   if (debugFlags & (DebugMaint | DebugScan)) {
-    debugOut << "readKeyAttrs:" << endl;
-    ConstData data = keyData;
-    Uint32 totalSize = 0;
-    for (Uint32 i = start; i < frag.m_numAttrs; i++) {
-      Uint32 attrId = ah(data).getAttributeId();
-      Uint32 dataSize = ah(data).getDataSize();
-      debugOut << i << " attrId=" << attrId << " size=" << dataSize;
-      data += 1;
-      for (Uint32 j = 0; j < dataSize; j++) {
-        debugOut << " " << hex << data[0];
-        data += 1;
-      }
-      debugOut << endl;
-      totalSize += 1 + dataSize;
-    }
-    ndbassert((int)totalSize == ret);
+    debugOut << "readKeyAttrs: ";
+    debugOut << " ent:" << ent << " count:" << count;
+    debugOut << " data:" << keyData.print(ctx.c_debugBuffer, DebugBufferBytes);
+    debugOut << endl;
   }
 #endif
 }
 
 void
-Dbtux::readTablePk(const Frag& frag, TreeEnt ent, Data pkData, unsigned& pkSize)
+Dbtux::readTablePk(const Frag& frag, TreeEnt ent, Uint32* pkData, unsigned& pkSize)
 {
   const Uint32 tableFragPtrI = frag.m_tupTableFragPtrI;
   const TupLoc tupLoc = ent.m_tupLoc;
   int ret = c_tup->tuxReadPk(tableFragPtrI, tupLoc.getPageId(), tupLoc.getPageOffset(), pkData, true);
   jamEntry();
-  // TODO handle error
   ndbrequire(ret > 0);
   pkSize = ret;
 }
 
-/*
- * Copy attribute data with headers.  Input is all index key data.
- * Copies whatever fits.
- */
 void
-Dbtux::copyAttrs(TuxCtx& ctx, const Frag& frag, ConstData data1, Data data2, unsigned maxlen2)
+Dbtux::unpackBound(TuxCtx& ctx, const ScanBound& scanBound, KeyBoundC& searchBound)
 {
-  unsigned n = frag.m_numAttrs;
-  unsigned len2 = maxlen2;
-  while (n != 0) {
-    thrjam(ctx.jamBuffer);
-    const unsigned dataSize = ah(data1).getDataSize();
-    // copy header
-    if (len2 == 0)
-      return;
-    data2[0] = data1[0];
-    data1 += 1;
-    data2 += 1;
-    len2 -= 1;
-    // copy data
-    for (unsigned i = 0; i < dataSize; i++) {
-      if (len2 == 0)
-        return;
-      data2[i] = data1[i];
-      len2 -= 1;
-    }
-    data1 += dataSize;
-    data2 += dataSize;
-    n -= 1;
+  // there is no const version of LocalDataBuffer
+  DataBuffer<ScanBoundSegmentSize>::Head head = scanBound.m_head;
+  LocalDataBuffer<ScanBoundSegmentSize> b(c_scanBoundPool, head);
+  DataBuffer<ScanBoundSegmentSize>::ConstDataBufferIterator iter;
+  // always use searchKey buffer
+  Uint32* const outputBuffer = ctx.c_searchKey;
+  b.first(iter);
+  const Uint32 n = b.getSize();
+  ndbrequire(n <= MaxAttrDataSize);
+  for (Uint32 i = 0; i < n; i++) {
+    outputBuffer[i] = *iter.data;
+    b.next(iter);
   }
-#ifdef VM_TRACE
-  memset(data2, DataFillByte, len2 << 2);
-#endif
-}
-
-void
-Dbtux::unpackBound(const ScanBound& bound, Data dest)
-{
-  ScanBoundIterator iter;
-  bound.first(iter);
-  const unsigned n = bound.getSize();
-  unsigned j;
-  for (j = 0; j < n; j++) {
-    dest[j] = *iter.data;
-    bound.next(iter);
-  }
+  // set bound to the unpacked data buffer
+  KeyDataC& searchBoundData = searchBound.get_data();
+  searchBoundData.set_buf(outputBuffer, MaxAttrDataSize << 2, scanBound.m_cnt);
+  int ret = searchBound.finalize(scanBound.m_side);
+  ndbrequire(ret == 0);
 }
 
 void

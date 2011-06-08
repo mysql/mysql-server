@@ -53,6 +53,7 @@
 #include <signaldata/AlterIndxImpl.hpp>
 #include <signaldata/BuildIndx.hpp>
 #include <signaldata/BuildIndxImpl.hpp>
+#include <signaldata/IndexStatSignal.hpp>
 #include <signaldata/UtilPrepare.hpp>
 #include <signaldata/CreateEvnt.hpp>
 #include <signaldata/CreateTrig.hpp>
@@ -94,6 +95,7 @@
 #define ZDICT_TAKEOVER_REQ 5
 
 #define ZCOMMIT_WAIT_GCI   6
+#define ZINDEX_STAT_BG_PROCESS 7
 
 /*--------------------------------------------------------------*/
 // Other constants in alphabetical order
@@ -222,10 +224,6 @@ public:
       }
       return false;
     }
-
-    /** Singly linked in internal (attributeId) order */
-    // TODO use DL template when possible to have more than 1
-    Uint32 nextAttributeIdPtrI;
   };
   typedef Ptr<AttributeRecord> AttributeRecordPtr;
   ArrayPool<AttributeRecord> c_attributeRecordPool;
@@ -409,6 +407,18 @@ public:
      * Access rights to table during single user mode
      */
     Uint8 singleUserMode;
+
+    /*
+     * Fragment and node to use for index statistics.  Not part of
+     * DICTTABINFO.  Computed locally by each DICT.  If the node is
+     * down, no automatic stats update takes place.  This is not
+     * critical and is not worth fixing.
+     */
+    Uint16 indexStatFragId;
+    Uint16 indexStatNodeId;
+
+    // pending background request (IndexStatRep::RequestType)
+    Uint32 indexStatBgRequest;
   };
 
   typedef Ptr<TableRecord> TableRecordPtr;
@@ -923,6 +933,14 @@ private:
   void execDICT_TAKEOVER_REQ(Signal* signal);
   void execDICT_TAKEOVER_REF(Signal* signal);
   void execDICT_TAKEOVER_CONF(Signal* signal);
+
+  // ordered index statistics
+  void execINDEX_STAT_REQ(Signal* signal);
+  void execINDEX_STAT_CONF(Signal* signal);
+  void execINDEX_STAT_REF(Signal* signal);
+  void execINDEX_STAT_IMPL_CONF(Signal* signal);
+  void execINDEX_STAT_IMPL_REF(Signal* signal);
+  void execINDEX_STAT_REP(Signal* signal);
 
   /*
    *  2.4 COMMON STORED VARIABLES
@@ -2619,10 +2637,12 @@ private:
       return dict->c_alterIndexRecPool;
     }
 
-    // sub-operation counters
+    // sub-operation counters (true = done or skip)
     const TriggerTmpl* m_triggerTmpl;
     bool m_sub_trigger;
     bool m_sub_build_index;
+    bool m_sub_index_stat_dml;
+    bool m_sub_index_stat_mon;
 
     // prepare phase
     bool m_tc_index_done;
@@ -2637,9 +2657,11 @@ private:
       memset(&m_attrList, 0, sizeof(m_attrList));
       m_attrMask.clear();
       m_triggerTmpl = 0;
-      m_sub_build_index = false;
-      m_tc_index_done = false;
       m_sub_trigger = false;
+      m_sub_build_index = false;
+      m_sub_index_stat_dml = false;
+      m_sub_index_stat_mon = false;
+      m_tc_index_done = false;
     }
 
 #ifdef VM_TRACE
@@ -2666,6 +2688,9 @@ private:
   void alterIndex_abortParse(Signal*, SchemaOpPtr);
   void alterIndex_abortPrepare(Signal*, SchemaOpPtr);
 
+  // parse phase sub-routine
+  void set_index_stat_frag(Signal*, TableRecordPtr indexPtr);
+
   // sub-ops
   void alterIndex_toCreateTrigger(Signal*, SchemaOpPtr);
   void alterIndex_atCreateTrigger(Signal*, SchemaOpPtr);
@@ -2675,6 +2700,8 @@ private:
   void alterIndex_fromDropTrigger(Signal*, Uint32 op_key, Uint32 ret);
   void alterIndex_toBuildIndex(Signal*, SchemaOpPtr);
   void alterIndex_fromBuildIndex(Signal*, Uint32 op_key, Uint32 ret);
+  void alterIndex_toIndexStat(Signal*, SchemaOpPtr);
+  void alterIndex_fromIndexStat(Signal*, Uint32 op_key, Uint32 ret);
 
   // prepare phase
   void alterIndex_toCreateLocal(Signal*, SchemaOpPtr);
@@ -2765,6 +2792,69 @@ private:
   // commit phase
   void buildIndex_toLocalOnline(Signal*, SchemaOpPtr);
   void buildIndex_fromLocalOnline(Signal*, Uint32 op_key, Uint32 ret);
+
+  // MODULE: IndexStat
+
+  struct IndexStatRec : public OpRec {
+    static const OpInfo g_opInfo;
+
+    static ArrayPool<Dbdict::IndexStatRec>&
+    getPool(Dbdict* dict) {
+      return dict->c_indexStatRecPool;
+    }
+
+    IndexStatImplReq m_request;
+
+    // sub-operation counters
+    const TriggerTmpl* m_triggerTmpl;
+    Uint32 m_subOpCount;
+    Uint32 m_subOpIndex;
+
+    IndexStatRec() :
+      OpRec(g_opInfo, (Uint32*)&m_request) {
+      memset(&m_request, 0, sizeof(m_request));
+      m_subOpCount = 0;
+      m_subOpIndex = 0;
+    }
+  };
+
+  typedef Ptr<IndexStatRec> IndexStatRecPtr;
+  ArrayPool<IndexStatRec> c_indexStatRecPool;
+
+  Uint32 c_indexStatAutoCreate;
+  Uint32 c_indexStatAutoUpdate;
+  Uint32 c_indexStatBgId;
+
+  // OpInfo
+  bool indexStat_seize(SchemaOpPtr);
+  void indexStat_release(SchemaOpPtr);
+  //
+  void indexStat_parse(Signal*, bool master,
+                        SchemaOpPtr, SectionHandle&, ErrorInfo&);
+  bool indexStat_subOps(Signal*, SchemaOpPtr);
+  void indexStat_reply(Signal*, SchemaOpPtr, ErrorInfo);
+  //
+  void indexStat_prepare(Signal*, SchemaOpPtr);
+  void indexStat_commit(Signal*, SchemaOpPtr);
+  void indexStat_complete(Signal*, SchemaOpPtr);
+  //
+  void indexStat_abortParse(Signal*, SchemaOpPtr);
+  void indexStat_abortPrepare(Signal*, SchemaOpPtr);
+
+  // parse phase
+  void indexStat_toIndexStat(Signal*, SchemaOpPtr, Uint32 requestType);
+  void indexStat_fromIndexStat(Signal*, Uint32 op_key, Uint32 ret);
+
+  // prepare phase
+  void indexStat_toLocalStat(Signal*, SchemaOpPtr);
+  void indexStat_fromLocalStat(Signal*, Uint32 op_key, Uint32 ret);
+
+  // background processing of stat requests
+  void indexStatBg_process(Signal*);
+  void indexStatBg_fromBeginTrans(Signal*, Uint32 tx_key, Uint32 ret);
+  void indexStatBg_fromIndexStat(Signal*, Uint32 tx_key, Uint32 ret);
+  void indexStatBg_fromEndTrans(Signal*, Uint32 tx_key, Uint32 ret);
+  void indexStatBg_sendContinueB(Signal*);
 
   // MODULE: CreateHashMap
 

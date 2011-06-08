@@ -98,17 +98,35 @@ SELECT count(*) >= 20 FROM blocks;
 DROP TABLE ndb$test;
 CREATE TABLE ndb$test (node_id int unsigned) ENGINE = ndbinfo;
 SELECT node_id != 0 FROM ndb$test LIMIT 1;
-
-## 2) Column does not exist in NDB -> error, with warning
 DROP TABLE ndb$test;
+
+## 2) Column does not exist in NDB -> allowed, with warning, non existing
+##    column(s) return NULL
+## 2a) Extra column at end
 CREATE TABLE ndb$test (node_id int, non_existing int) ENGINE = ndbinfo;
---error ER_GET_ERRMSG
-SELECT * FROM ndb$test;
-SHOW WARNINGS;
+SELECT DISTINCT node_id, non_existing FROM ndb$test;
+DROP TABLE ndb$test;
+
+## 2b) Extra column(s) in middle
+CREATE TABLE ndb$test (
+  node_id int unsigned,
+  non_existing int unsigned,
+  block_number int unsigned,
+  block_instance int unsigned,
+  counter int unsigned,
+  counter2 bigint unsigned
+) ENGINE = ndbinfo;
+SELECT DISTINCT node_id, non_existing, block_number FROM ndb$test;
+DROP TABLE ndb$test;
+
+## 2c) Extra column first
+CREATE TABLE ndb$test (non_existing int, node_id int) ENGINE = ndbinfo;
+SELECT DISTINCT node_id, non_existing FROM ndb$test;
+SELECT DISTINCT non_existing, node_id FROM ndb$test;
+DROP TABLE ndb$test;
 
 ## 3) Incompatible column type -> error, with warning
 ## 3a) int instead of bigint
-DROP TABLE ndb$test;
 CREATE TABLE ndb$test (counter2 int) ENGINE = ndbinfo;
 --error ER_GET_ERRMSG
 SELECT * FROM ndb$test;
@@ -126,6 +144,21 @@ CREATE TABLE ndb$test (node_id varchar(255)) ENGINE = ndbinfo;
 SELECT * FROM ndb$test;
 SHOW WARNINGS;
 DROP TABLE ndb$test;
+## 3d) column which is NOT NULL
+CREATE TABLE ndb$test (node_id int unsigned NOT NULL) ENGINE = ndbinfo;
+--error ER_GET_ERRMSG
+SELECT * FROM ndb$test;
+SHOW WARNINGS;
+DROP TABLE ndb$test;
+## 3e) non existing column which is NOT NULL
+CREATE TABLE ndb$test (
+  block_number int unsigned,
+  non_existing int NOT NULL) ENGINE = ndbinfo;
+--error ER_GET_ERRMSG
+SELECT * FROM ndb$test;
+SHOW WARNINGS;
+DROP TABLE ndb$test;
+
 
 ## 4) Table with primary key/indexes not supported
 --error ER_TOO_MANY_KEYS
@@ -147,5 +180,53 @@ CREATE TABLE ndb$test (node_id int AUTO_INCREMENT) ENGINE = ndbinfo;
 --sorted_result
 select distinct node_id
 from ndbinfo.diskpagebuffer;
+
+
+#
+# BUG#11885602
+# - It was allowed to CREATE TABLE which was not in NDB, but
+#   creating a view on that table failed. Implement ndbinfo_offline
+#   mode which allows tables to be created and opened although they
+#   don't exists or have different table definition.
+#   This is exactly the same behaviour as when NDBCLUSTER
+#   is disabled
+#
+
+# Check ndbinfo_offline is GLOBAL variable
+--error ER_GLOBAL_VARIABLE
+set @@ndbinfo_offline=1;
+
+# Query used to check that open tables are closed
+# when offline mode is turned on and off
+let $q1 = SELECT DISTINCT(node_id) FROM ndbinfo.counters ORDER BY node_id;
+eval $q1;
+
+# Turn on ndbinfo_offline
+set @@global.ndbinfo_offline=TRUE;
+select @@ndbinfo_offline;
+
+CREATE TABLE ndb$does_not_exist_in_ndb(
+  node_id int,
+  message varchar(255)
+) ENGINE = ndbinfo;
+
+CREATE VIEW view_on_table_which_does_not_exist_in_ndb AS
+  SELECT node_id, message
+  FROM ndbinfo.ndb$does_not_exist_in_ndb;
+
+SHOW CREATE TABLE ndb$does_not_exist_in_ndb;
+
+# SELECTs return no rows in offline mode
+SELECT * FROM view_on_table_which_does_not_exist_in_ndb;
+SELECT * FROM ndb$does_not_exist_in_ndb;
+eval $q1;
+
+DROP VIEW view_on_table_which_does_not_exist_in_ndb;
+DROP TABLE ndb$does_not_exist_in_ndb;
+
+# Restore original value
+set @@global.ndbinfo_offline = FALSE;
+
+eval $q1;
 
 --source ndbinfo_drop.inc

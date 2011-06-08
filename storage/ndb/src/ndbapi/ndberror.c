@@ -449,6 +449,13 @@ ErrorBundle ErrorCodes[] = {
   { 908,  DMEC, IS, "Invalid ordered index tree node size" },
   { 909,  DMEC, IE, "No free index scan op" },
   { 910, HA_ERR_NO_SUCH_TABLE, SE, "Index is being dropped" },
+  { 913,  DMEC, AE, "Invalid index for index state update" },
+  { 914,  DMEC, IE, "Invalid index stats request" },
+  { 915,  DMEC, TR, "No free index stats op" },
+  { 916,  DMEC, IE, "Invalid index stats sys tables" },
+  { 917,  DMEC, IE, "Invalid index stats sys tables data" },
+  { 918,  DMEC, TR, "Cannot prepare index stats update" },
+  { 919,  DMEC, TR, "Cannot execute index stats update" },
   { 1224, HA_WRONG_CREATE_OPTION, SE, "Too many fragments" },
   { 1225, DMEC, SE, "Table not defined in local query handler" },
   { 1226, DMEC, SE, "Table is being dropped" },
@@ -529,6 +536,17 @@ ErrorBundle ErrorCodes[] = {
   { 1702, DMEC, AE, "Node already connected" },
   { 1703, DMEC, IT, "Node failure handling not completed" },
   { 1704, DMEC, AE, "Node type mismatch" },
+
+  /*
+   * Index stats error codes
+   */
+  { 4714, DMEC, AE, "Index stats sys tables " NDB_INDEX_STAT_PREFIX " do not exist" },
+  { 4715, DMEC, AE, "Index stats for specified index do not exist" },
+  { 4716, DMEC, AE, "Index stats methods usage error" },
+  { 4717, DMEC, AE, "Index stats cannot allocate memory" },
+  { 4718, DMEC, IE, "Index stats memory cache is corrupted" },
+  { 4719, DMEC, IE, "Index stats internal error" },
+  { 4720, DMEC, AE, "Index stats sys tables " NDB_INDEX_STAT_PREFIX " partly missing or invalid" },
   
   /**
    * Still uncategorized
@@ -554,6 +572,7 @@ ErrorBundle ErrorCodes[] = {
   { 1425, DMEC, SE, "Subscription being defined...while trying to stop subscriber" },
   { 1426, DMEC, SE, "No such subscriber" },
   { 1427, DMEC, NR, "Api node died, when SUB_START_REQ reached node "},
+  { 1428, DMEC, IE, "No replica to scan on this node (internal index stats error)" },
 
   { 4004, DMEC, AE, "Attribute name or id not found in the table" },
   
@@ -750,6 +769,7 @@ ErrorBundle ErrorCodes[] = {
   { 2810, DMEC, TR, "No space left on the device" },
   { 2811, DMEC, TR, "Error with file permissions, please check file system" },
   { 2815, DMEC, TR, "Error in reading files, please check file system" },
+  {  920, DMEC, AE, "Row operation defined after refreshTuple()" },
 
   /**
    * NdbQueryBuilder API errors

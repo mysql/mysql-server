@@ -79,6 +79,7 @@ public:
   static Uint32 getScanPrio(const Uint32 & requestInfo);
   static Uint32 getNoDiskFlag(const Uint32 & requestInfo);
   static Uint32 getLcpScanFlag(const Uint32 & requestInfo);
+  static Uint32 getStatScanFlag(const Uint32 & requestInfo);
 
   static void setLockMode(Uint32 & requestInfo, Uint32 lockMode);
   static void setHoldLockFlag(Uint32 & requestInfo, Uint32 holdLock);
@@ -91,6 +92,7 @@ public:
   static void setScanPrio(Uint32& requestInfo, Uint32 prio);
   static void setNoDiskFlag(Uint32& requestInfo, Uint32 val);
   static void setLcpScanFlag(Uint32 & requestInfo, Uint32 val);
+  static void setStatScanFlag(Uint32 & requestInfo, Uint32 val);
 
   static void setReorgFlag(Uint32 & requestInfo, Uint32 val);
   static Uint32 getReorgFlag(const Uint32 & requestInfo);
@@ -270,11 +272,12 @@ public:
  * p = Scan prio             - 4  Bits (12-15) -> max 15
  * r = Reorg flag            - 2  Bits (1-2)
  * C = corr value flag       - 1  Bit  (16)
+ * s = Stat scan             - 1  Bit 17
  *
  *           1111111111222222222233
  * 01234567890123456789012345678901
  *  rrcdlxhkrztppppaaaaaaaaaaaaaaaa   Short variant ( < 6.4.0)
- *  rrcdlxhkrztppppA                  Long variant (6.4.0 +)
+ *  rrcdlxhkrztppppAs                 Long variant (6.4.0 +)
  */
 #define SF_LOCK_MODE_SHIFT   (5)
 #define SF_LOCK_MODE_MASK    (1)
@@ -298,6 +301,8 @@ public:
 #define SF_REORG_MASK       (3)
 
 #define SF_CORR_FACTOR_SHIFT  (16)
+
+#define SF_STAT_SCAN_SHIFT  (17)
 
 inline 
 Uint32
@@ -486,6 +491,19 @@ void
 ScanFragReq::setCorrFactorFlag(UintR & requestInfo, UintR val){
   ASSERT_BOOL(val, "ScanFragReq::setCorrFactorFlag");
   requestInfo |= (val << SF_CORR_FACTOR_SHIFT);
+}
+
+inline
+Uint32
+ScanFragReq::getStatScanFlag(const Uint32 & requestInfo){
+  return (requestInfo >> SF_STAT_SCAN_SHIFT) & 1;
+}
+
+inline
+void
+ScanFragReq::setStatScanFlag(UintR & requestInfo, UintR val){
+  ASSERT_BOOL(val, "ScanFragReq::setStatScanFlag");
+  requestInfo |= (val << SF_STAT_SCAN_SHIFT);
 }
 
 /**

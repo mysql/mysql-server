@@ -182,6 +182,11 @@ printSUB_TABLE_DATA(FILE * output, const Uint32 * theData,
   fprintf(output, " tableId: %x\n", sig->tableId);
   fprintf(output, " operation: %x\n", 
 	  SubTableData::getOperation(sig->requestInfo));
+  if (len == SubTableData::SignalLengthWithTransId)
+  {
+    fprintf(output, " TransId : %x %x\n",
+            sig->transId1, sig->transId2);
+  }
   return false;
 }
 

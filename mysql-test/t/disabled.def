@@ -17,3 +17,4 @@ sum_distinct-big         : Bug#56927 2010-11-15 mattiasj was not tested
 alter_table-big          : Bug#37248 2010-11-15 mattiasj was not tested
 create-big               : Bug#37248 2010-11-15 mattiasj was not tested
 archive-big              : Bug#11817185 2011-03-10 Anitha Disabled since this leads to timeout on Solaris Sparc
+file_contents            : Bug#12585902 file_contents.test fails when building from "bzr export"
