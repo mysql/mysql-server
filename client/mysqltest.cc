@@ -4202,7 +4202,9 @@ int do_save_master_pos()
   */
   {
     ulong have_ndbcluster;
-    if (mysql_query(mysql, query= "show variables like 'have_ndbcluster'"))
+    if (mysql_query(mysql, query= "select support "
+                                  "from information_schema.engines "
+                                  "where engine='ndbcluster'"))
       die("'%s' failed: %d %s", query,
           mysql_errno(mysql), mysql_error(mysql));
     if (!(res= mysql_store_result(mysql)))
@@ -4210,7 +4212,7 @@ int do_save_master_pos()
     if (!(row= mysql_fetch_row(res)))
       die("Query '%s' returned empty result", query);
 
-    have_ndbcluster= strcmp("YES", row[1]) == 0;
+    have_ndbcluster= strcmp("YES", row[0]) == 0;
     mysql_free_result(res);
 
     if (have_ndbcluster)
