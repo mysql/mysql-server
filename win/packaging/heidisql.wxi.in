@@ -33,7 +33,7 @@
       <RemoveRegistryKey Id="HeidiSQL_RegistryCleanup" Root="HKCU" Key="SOFTWARE\HeidiSQL" Action="removeOnUninstall" />
     </Component>
     <Component Id="component.HeidiSQL_libmysql.dll" Guid="*" Win64="no">
-      <File Id="heidisql.libmysql.dll" Name="libmysql.dll" Source="${LIBMYSQLDLL_SOURCE}" />
+      <File Id="heidisql.libmysql.dll" Name="libmysql.dll" Source="${HEIDISQL_DOWNLOAD_DIR}\libmysql.dll" />
     </Component>
   </Directory>
 </DirectoryRef>
