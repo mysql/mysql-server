@@ -21,12 +21,8 @@ ndb_update_no_read	 : SEAGULL rbwr
 
 ndb_condition_pushdown	 : SEAGULL
 
-ndb_dd_disk2memory	 : SEAGULL alter
-ndb_dd_alter		 : SEAGULL alter
-
 ndb_index_ordered	 : SEAGULL alter in second connection deadlocks
 
-ndb_index_unique	 : SEAGULL different error with copying alter
 
 ndb_read_multi_range      : SEAGULL "total length of the partitioning fields is too large"
 
