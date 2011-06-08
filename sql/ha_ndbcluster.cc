@@ -11116,14 +11116,11 @@ ha_ndbcluster::records_in_range(uint inx, key_range *min_key,
       else
       {
         // Has an equality range on a leading part of 'key_length':
-        // - Null indicator, and HA_KEY_BLOB_LENGTH bytes in
-        //   'extra_length' are removed from key_fraction calculations.
         // - Assume reduced selectivity for non-unique indexes
         //   by decreasing 'eq_fraction' by 20%
         // - Assume equal selectivity for all eq_parts in key.
 
-        double eq_fraction = (double)(eq_bound_len) / 
-                                     (key_length - key_info->extra_length);
+        double eq_fraction = (double)(eq_bound_len) / key_length;
         if (idx_type == ORDERED_INDEX) // Non-unique index -> less selectivity
           eq_fraction/= 1.20;
         if (eq_fraction >= 1.0)        // Exact match -> 1 row
