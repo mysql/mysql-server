@@ -40,8 +40,12 @@ public class KeyValueHandlerImpl implements ValueHandler {
 
     private Object[] values;
 
+    /** The number of fields */
+    private int numberOfFields;
+    
     public KeyValueHandlerImpl(Object[] keyValues) {
         this.values = keyValues;
+        this.numberOfFields = keyValues.length;
         if (logger.isDetailEnabled()) {
             StringBuffer buffer = new StringBuffer();
             for (int i = 0; i < values.length; ++i) {

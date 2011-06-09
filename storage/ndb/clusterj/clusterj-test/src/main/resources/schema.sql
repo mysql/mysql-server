@@ -367,7 +367,7 @@ drop table if exists dn2id;
 create table dn2id (
  eid bigint(20) unsigned NOT NULL,
  object_classes varchar(100) NOT NULL,
- x_object_classes varchar(100) NOT NULL,
+ x_object_classes varchar(100) NOT NULL DEFAULT '',
  a0 varchar(128) NOT NULL DEFAULT '',
  a1 varchar(128) NOT NULL DEFAULT '',
  a2 varchar(128) NOT NULL DEFAULT '',
