@@ -676,8 +676,11 @@ get_table_share_with_discover(THD *thd, TABLE_LIST *table_list,
 
     @todo Rework alternative ways to deal with ER_NO_SUCH TABLE.
   */
-  if (share || (thd->is_error() && thd->stmt_da->sql_errno() != ER_NO_SUCH_TABLE))
+  if (share || (thd->is_error() &&
+      thd->get_stmt_da()->sql_errno() != ER_NO_SUCH_TABLE))
+  {
     DBUG_RETURN(share);
+  }
 
   *error= 0;
 
@@ -1728,14 +1731,14 @@ bool close_temporary_tables(THD *thd)
       qinfo.db_len= db.length();
       thd->variables.character_set_client= cs_save;
 
-      thd->stmt_da->can_overwrite_status= TRUE;
+      thd->get_stmt_da()->can_overwrite_status= TRUE;
       if ((error= (mysql_bin_log.write(&qinfo) || error)))
       {
         /*
           If we're here following THD::cleanup, thence the connection
           has been closed already. So lets print a message to the
           error log instead of pushing yet another error into the
-          stmt_da.
+          Diagnostics_area.
 
           Also, we keep the error flag so that we propagate the error
           up in the stack. This way, if we're the SQL thread we notice
@@ -1746,7 +1749,7 @@ bool close_temporary_tables(THD *thd)
         sql_print_error("Failed to write the DROP statement for "
                         "temporary tables to binary log");
       }
-      thd->stmt_da->can_overwrite_status= FALSE;
+      thd->get_stmt_da()->can_overwrite_status= FALSE;
 
       thd->variables.pseudo_thread_id= save_pseudo_thread_id;
       thd->thread_specific_used= save_thread_specific_used;
@@ -4013,7 +4016,7 @@ recover_from_failed_open(THD *thd)
         ha_create_table_from_engine(thd, m_failed_table->db,
                                     m_failed_table->table_name);
 
-        thd->warning_info->clear_warning_info(thd->query_id);
+        thd->get_warning_info()->clear_warning_info(thd->query_id);
         thd->clear_error();                 // Clear error message
         thd->mdl_context.release_transactional_locks();
         break;

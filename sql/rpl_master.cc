@@ -649,8 +649,8 @@ void mysql_binlog_send(THD* thd, char* log_ident, my_off_t pos,
     Diagnostics_area.
   */
   Diagnostics_area temp_da;
-  Diagnostics_area *saved_da= thd->stmt_da;
-  thd->stmt_da= &temp_da;
+  Diagnostics_area *saved_da= thd->get_stmt_da();
+  thd->set_stmt_da(&temp_da);
 
   DBUG_ENTER("mysql_binlog_send");
   DBUG_PRINT("enter",("log_ident: '%s'  pos: %ld", log_ident, (long) pos));
@@ -1248,7 +1248,7 @@ impossible position";
   }
 
 end:
-  thd->stmt_da= saved_da;
+  thd->set_stmt_da(saved_da);
   end_io_cache(&log);
   mysql_file_close(file, MYF(MY_WME));
 
@@ -1279,7 +1279,7 @@ err:
     mysql_file_close(file, MYF(MY_WME));
   thd->variables.max_allowed_packet= old_max_allowed_packet;
 
-  thd->stmt_da= saved_da;
+  thd->set_stmt_da(saved_da);
   my_message(my_errno, errmsg, MYF(0));
   DBUG_VOID_RETURN;
 }

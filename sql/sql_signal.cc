@@ -467,9 +467,9 @@ bool Sql_cmd_signal::execute(THD *thd)
     This has roots in the SQL standard specification for SIGNAL.
   */
 
-  thd->stmt_da->reset_diagnostics_area();
+  thd->get_stmt_da()->reset_diagnostics_area();
   thd->set_row_count_func(0);
-  thd->warning_info->clear_warning_info(thd->query_id);
+  thd->get_warning_info()->clear_warning_info(thd->query_id);
 
   result= raise_condition(thd, &cond);
 
@@ -484,7 +484,7 @@ bool Sql_cmd_resignal::execute(THD *thd)
 
   DBUG_ENTER("Sql_cmd_resignal::execute");
 
-  thd->warning_info->m_warn_id= thd->query_id;
+  thd->get_warning_info()->m_warn_id= thd->query_id;
 
   if (! thd->spcont || ! (signaled= thd->spcont->raised_condition()))
   {

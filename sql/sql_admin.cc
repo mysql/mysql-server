@@ -352,16 +352,16 @@ static bool mysql_admin_table(THD* thd, TABLE_LIST* tables,
         */
 
         Warning_info wi(thd->query_id, false);
-        Warning_info *wi_saved= thd->warning_info;
+        Warning_info *wi_saved= thd->get_warning_info();
 
-        thd->warning_info= &wi;
+        thd->set_warning_info(&wi);
 
         open_error= open_temporary_tables(thd, table);
 
         if (!open_error)
           open_error= open_and_lock_tables(thd, table, TRUE, 0);
 
-        thd->warning_info= wi_saved;
+        thd->set_warning_info(wi_saved);
       }
       else
       {
@@ -479,7 +479,7 @@ static bool mysql_admin_table(THD* thd, TABLE_LIST* tables,
     if (!table->table)
     {
       DBUG_PRINT("admin", ("open table failed"));
-      if (thd->warning_info->is_empty())
+      if (thd->get_warning_info()->is_empty())
         push_warning(thd, MYSQL_ERROR::WARN_LEVEL_WARN,
                      ER_CHECK_NO_SUCH_TABLE, ER(ER_CHECK_NO_SUCH_TABLE));
       /* if it was a view will check md5 sum */
@@ -487,8 +487,8 @@ static bool mysql_admin_table(THD* thd, TABLE_LIST* tables,
           view_checksum(thd, table) == HA_ADMIN_WRONG_CHECKSUM)
         push_warning(thd, MYSQL_ERROR::WARN_LEVEL_WARN,
                      ER_VIEW_CHECKSUM, ER(ER_VIEW_CHECKSUM));
-      if (thd->stmt_da->is_error() &&
-          table_not_corrupt_error(thd->stmt_da->sql_errno()))
+      if (thd->get_stmt_da()->is_error() &&
+          table_not_corrupt_error(thd->get_stmt_da()->sql_errno()))
         result_code= HA_ADMIN_FAILED;
       else
         /* Default failure code is corrupt table */
@@ -536,7 +536,7 @@ static bool mysql_admin_table(THD* thd, TABLE_LIST* tables,
       table->table=0;				// For query cache
       if (protocol->write())
 	goto err;
-      thd->stmt_da->reset_diagnostics_area();
+      thd->get_stmt_da()->reset_diagnostics_area();
       continue;
       /* purecov: end */
     }
@@ -621,8 +621,8 @@ static bool mysql_admin_table(THD* thd, TABLE_LIST* tables,
           we will store the error message in a result set row 
           and then clear.
         */
-        if (thd->stmt_da->is_ok())
-          thd->stmt_da->reset_diagnostics_area();
+        if (thd->get_stmt_da()->is_ok())
+          thd->get_stmt_da()->reset_diagnostics_area();
         table->table= NULL;
         result_code= result_code ? HA_ADMIN_FAILED : HA_ADMIN_OK;
         goto send_result;
@@ -638,7 +638,7 @@ send_result:
     lex->cleanup_after_one_table_open();
     thd->clear_error();  // these errors shouldn't get client
     {
-      List_iterator_fast<MYSQL_ERROR> it(thd->warning_info->warn_list());
+      List_iterator_fast<MYSQL_ERROR> it(thd->get_warning_info()->warn_list());
       MYSQL_ERROR *err;
       while ((err= it++))
       {
@@ -652,7 +652,7 @@ send_result:
         if (protocol->write())
           goto err;
       }
-      thd->warning_info->clear_warning_info(thd->query_id);
+      thd->get_warning_info()->clear_warning_info(thd->query_id);
     }
     protocol->prepare_for_resend();
     protocol->store(table_name, system_charset_info);
@@ -767,8 +767,8 @@ send_result_message:
         we will store the error message in a result set row 
         and then clear.
       */
-      if (thd->stmt_da->is_ok())
-        thd->stmt_da->reset_diagnostics_area();
+      if (thd->get_stmt_da()->is_ok())
+        thd->get_stmt_da()->reset_diagnostics_area();
       trans_commit_stmt(thd);
       trans_commit(thd);
       close_thread_tables(thd);
@@ -801,7 +801,7 @@ send_result_message:
         DBUG_ASSERT(thd->is_error() || thd->killed);
         if (thd->is_error())
         {
-          const char *err_msg= thd->stmt_da->message();
+          const char *err_msg= thd->get_stmt_da()->message();
           if (!thd->vio_ok())
           {
             sql_print_error("%s", err_msg);
