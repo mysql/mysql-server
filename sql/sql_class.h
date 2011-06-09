@@ -2836,10 +2836,6 @@ public:
   Warning_info *get_warning_info()
   { return m_warning_info; }
 
-  /// Returns Warning-information-area for the current statement.
-  const Warning_info *get_warning_info() const
-  { return const_cast<THD *> (this)->get_warning_info(); }
-
   /// Sets Warning-information-area for the current statement.
   void set_warning_info(Warning_info *wi)
   { m_warning_info= wi; }
@@ -2850,7 +2846,7 @@ public:
 
   /// Returns Diagnostics-area for the current statement.
   const Diagnostics_area *get_stmt_da() const
-  { return const_cast<THD *> (this)->get_stmt_da(); }
+  { return m_stmt_da; }
 
   /// Sets Diagnostics-area for the current statement.
   void set_stmt_da(Diagnostics_area *da)
