@@ -11014,16 +11014,17 @@ static bool create_internal_tmp_table(TABLE *table,TMP_TABLE_PARAM *param,
     The STATIC_RECORD format is the fastest one, because it's so simple,
     so we use this by default for short rows.
     BLOCK_RECORD caches both row and data, so this is generally faster than
-    DYNAMIC_RECORD. The one exception is when we write to tmp table
-    (no updates == no sum fields) in which case BLOCK RECORD is slower as
+    DYNAMIC_RECORD. The one exception is when we write to tmp table and
+    want to use keys for duplicate elimination as with BLOCK RECORD
     we first write the row, then check for key conflicts and then we have to
-    delete the row.
+    delete the row.  The cases when this can happen is when there is
+    a group by and no sum functions or if distinct is used.
   */
   if ((error= maria_create(share->table_name.str,
                            (share->reclength < 64 &&
                             !share->blob_fields ? STATIC_RECORD :
-                            !param->sum_func_count ? DYNAMIC_RECORD :
-                            BLOCK_RECORD),
+                            ((!param->sum_func_count && table->group) ||
+                             table->distinct) ? DYNAMIC_RECORD : BLOCK_RECORD),
                            share->keys, &keydef,
                            (uint) (param->recinfo-param->start_recinfo),
                            param->start_recinfo,
