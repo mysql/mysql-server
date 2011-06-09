@@ -1415,7 +1415,7 @@ row_fts_update_or_delete(
 	} else {
 		doc_id_t	new_doc_id;
 
-		new_doc_id = mach_read_from_4((byte*) &trx->fts_next_doc_id);
+		new_doc_id = fts_read_doc_id((byte*) &trx->fts_next_doc_id);
 
 		row_fts_do_update(trx, table, node, old_doc_id, new_doc_id);
 	}
@@ -3220,7 +3220,7 @@ next_rec:
 		if (dict_table_has_fts_index(table)
 		    && table->fts->cache) {
 			fts_update_next_doc_id(table, NULL, 0, FALSE);
-			fts_cache_clear(table->fts->cache, FALSE);
+			fts_cache_clear(table->fts->cache, TRUE);
 			fts_cache_init(table->fts->cache);
 		}
 	}
@@ -4432,6 +4432,12 @@ row_check_index_for_mysql(
 	rec_offs_init(offsets_);
 
 	*n_rows = 0;
+
+	/* Full Text index are implemented by auxiliary tables,
+	not the B-tree */
+	if (index->type & DICT_FTS) {
+		return(TRUE);
+	}
 
 	buf = mem_alloc(UNIV_PAGE_SIZE);
 	heap = mem_heap_create(100);

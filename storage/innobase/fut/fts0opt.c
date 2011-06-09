@@ -49,9 +49,11 @@ static const ulint FTS_QUEUE_WAIT_IN_USECS = 5000000;
 /* Default optimize interval in secs. */
 static const ulint FTS_OPTIMIZE_INTERVAL_IN_SECS = 300;
 
+#if 0
 /* Check each table in round robin to see whether they'd
 need to be "optimized" */
 static	ulint	fts_optimize_sync_iterator = 0;
+#endif
 
 /* State of a table within the optimization sub system. */
 enum fts_state_enum {
@@ -2709,6 +2711,7 @@ fts_optimize_how_many(
 	return(n_tables);
 }
 
+#if 0
 /*********************************************************************//**
 Check whether a table needs to be optimized. */
 static
@@ -2757,6 +2760,7 @@ fts_optimize_need_sync(
 
 	return;
 }
+#endif
 
 /********************************************************************
 Optimize all FTS tables. */
@@ -2821,7 +2825,6 @@ fts_optimize_thread(
 
 			/* Timeout ? */
 			if (msg == NULL) {
-				fts_optimize_need_sync(tables);
 				continue;
 			}
 

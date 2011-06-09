@@ -824,6 +824,97 @@ fts_query_check_node(
 	}
 }
 
+/*****************************************************************//**
+Search index cache for word with wildcard match.
+@return number of words matched */
+static
+ulint
+fts_cache_find_wildcard(
+/*====================*/
+	fts_query_t*		query,		/* !< in: query instance */
+	const fts_index_cache_t*index_cache,	/* !< in: cache to search */
+	const fts_string_t*	token)		/*!< in: token to search */
+{
+	ib_rbt_bound_t		parent;
+	const ib_vector_t*	nodes = NULL;
+	fts_string_t		srch_text;
+	byte			term[FTS_MAX_UTF8_WORD_LEN];
+	ulint			num_word = 0;
+
+	srch_text.len = (token->utf8[token->len - 1] == '%')
+			? token->len - 1
+			: token->len;
+
+	strncpy((char*) term, (char*) token->utf8, srch_text.len);
+	term[srch_text.len] = '\0';
+	srch_text.utf8 = term;
+
+	/* Lookup the word in the rb tree */
+	if (rbt_search_cmp(index_cache->words, &parent, &srch_text,
+			   fts_utf8_string_cmp_prefix) == 0) {
+		const fts_tokenizer_word_t*     word;
+		ulint				i;
+		const ib_rbt_node_t*		cur_node;
+		ibool				forward = FALSE;
+
+		word = rbt_value(fts_tokenizer_word_t, parent.last);
+		cur_node = parent.last;
+
+		while (fts_utf8_string_cmp_prefix(&srch_text,
+						  &word->text) == 0) {
+
+			nodes = word->nodes;
+
+			for (i = 0; nodes && i < ib_vector_size(nodes); ++i) {
+				int                     ret;
+				const fts_node_t*       node;
+				ib_rbt_bound_t          freq_parent;
+				ib_rbt_t*		doc_freqs;
+
+				node = ib_vector_get_const(nodes, i);
+
+				ret = rbt_search(query->word_freqs,
+						 &freq_parent,
+						 srch_text.utf8);
+
+				ut_a(ret == 0);
+
+				doc_freqs = rbt_value(
+					fts_word_freq_t,
+					freq_parent.last)->doc_freqs;
+
+				fts_query_filter_doc_ids(
+					query, srch_text.utf8,
+					doc_freqs, node,
+					node->ilist, node->ilist_size);
+			}
+
+			num_word++;
+
+			if (!forward) {
+				cur_node = rbt_prev(index_cache->words, cur_node);
+			} else {
+cont_search:
+				cur_node = rbt_next(index_cache->words, cur_node);
+			}
+
+			if (!cur_node) {
+				break;
+			}
+
+			word = rbt_value(fts_tokenizer_word_t, cur_node);
+		}
+
+		if (!forward) {
+			forward = TRUE;
+			cur_node = parent.last;
+			goto cont_search;
+		}
+	}
+
+	return(num_word);
+}
+
 /********************************************************************
 Set difference. */
 static
@@ -974,14 +1065,19 @@ fts_query_intersect(
 		/* Must find the index cache. */
 		ut_a(index_cache != NULL);
 
-		nodes = fts_cache_find_word(index_cache, token);
+		if (query->cur_node->term.wildcard) {
+			/* Wildcard search the index cache */
+			fts_cache_find_wildcard(query, index_cache, token);
+		} else {
+			nodes = fts_cache_find_word(index_cache, token);
 
-		for (i = 0; nodes && i < ib_vector_size(nodes); ++i) {
-			const fts_node_t*	node;
+			for (i = 0; nodes && i < ib_vector_size(nodes); ++i) {
+				const fts_node_t*	node;
 
-			node = ib_vector_get_const(nodes, i);
+				node = ib_vector_get_const(nodes, i);
 
-			fts_query_check_node(query, token, node);
+				fts_query_check_node(query, token, node);
+			}
 		}
 
 		rw_lock_x_unlock(&cache->lock);
@@ -1017,79 +1113,6 @@ fts_query_intersect(
 	}
 
 	return(query->error);
-}
-
-/*****************************************************************//**
-Search index cache for word with wildcard match.
-@return number of words matched */
-static
-ulint
-fts_cache_find_wildcard(
-/*====================*/
-	fts_query_t*		query,		/* !< in: query instance */
-	const fts_index_cache_t*index_cache,	/* !< in: cache to search */
-	const fts_string_t*	token)		/*!< in: token to search */
-{
-	ib_rbt_bound_t		parent;
-	const ib_vector_t*	nodes = NULL;
-	fts_string_t		srch_text;
-	byte			term[FTS_MAX_UTF8_WORD_LEN];
-	ulint			num_word = 0;
-
-	srch_text.len = (token->utf8[token->len - 1] == '%')
-			? token->len - 1
-			: token->len;
-
-	strncpy((char*) term, (char*) token->utf8, srch_text.len);
-	term[srch_text.len] = '\0';
-	srch_text.utf8 = term;
-
-	/* Lookup the word in the rb tree */
-	if (rbt_search_cmp(index_cache->words, &parent, &srch_text,
-			   fts_utf8_string_cmp_prefix) == 0) {
-		const fts_tokenizer_word_t*     word;
-		ulint				i;
-		const ib_rbt_node_t*		cur_node;
-
-		word = rbt_value(fts_tokenizer_word_t, parent.last);
-		cur_node = parent.last;
-
-		while (fts_utf8_string_cmp_prefix(&srch_text,
-						  &word->text) == 0) {
-
-			nodes = word->nodes;
-
-			for (i = 0; nodes && i < ib_vector_size(nodes); ++i) {
-				int                     ret;
-				const fts_node_t*       node;
-				ib_rbt_bound_t          freq_parent;
-				ib_rbt_t*		doc_freqs;
-
-				node = ib_vector_get_const(nodes, i);
-
-				ret = rbt_search(query->word_freqs,
-						 &freq_parent,
-						 srch_text.utf8);
-
-				ut_a(ret == 0);
-
-				doc_freqs = rbt_value(
-					fts_word_freq_t,
-					freq_parent.last)->doc_freqs;
-
-				fts_query_filter_doc_ids(
-					query, srch_text.utf8,
-					doc_freqs, node,
-					node->ilist, node->ilist_size);
-			}
-
-			cur_node = rbt_prev(index_cache->words, cur_node);
-			word = rbt_value(fts_tokenizer_word_t, cur_node);
-			num_word++;
-		}
-	}
-
-	return(num_word);
 }
 
 /*****************************************************************//**
@@ -2923,6 +2946,10 @@ fts_retrieve_ranking(
 	ib_rbt_bound_t		parent;
 	fts_ranking_t		new_ranking;
 
+	if (!result || !result->rankings) {
+		return(-1);
+	}
+
 	new_ranking.doc_id = doc_id;
 
 	/* Lookup the ranking in our rb tree */
@@ -3231,14 +3258,22 @@ fts_query(
 		}
 
 		error = query.error;
+	} else {
+		/* still return an empty result set */
+		*result = ut_malloc(sizeof(**result));
+		memset(*result, 0, sizeof(**result));
 	}
 
 	ut_free(lc_query_str);
 
-	fprintf(stderr, "Processing time: %ld secs: row(s) %d: error: %lu\n",
-		ut_time() - start_time,
-		(*result)->rankings ? (int) rbt_size((*result)->rankings) : -1,
-		error);
+	if (*result) {
+		fprintf(stderr, "Processing time: %ld secs: row(s) %d:"
+				" error: %lu\n",
+			ut_time() - start_time,
+			(*result)->rankings
+				? (int) rbt_size((*result)->rankings) : -1,
+			error);
+	}
 
 func_exit:
 	fts_query_free(&query);
@@ -3470,7 +3505,8 @@ fts_check_phrase_proximity(
 		for (j = 1; j < num_token; j++) {
 			match[j] = ib_vector_get(query->match_array[j], k);
 
-			while (match[j]->doc_id < match[0]->doc_id) {
+			while (match[j]->doc_id < match[0]->doc_id
+			       && k < ib_vector_size(query->match_array[j])) {
 				 match[j] = ib_vector_get(
 					query->match_array[j], k);
 				k++;

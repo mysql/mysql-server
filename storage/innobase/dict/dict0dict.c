@@ -5320,6 +5320,11 @@ dict_table_get_index_on_name(
 {
 	dict_index_t*	index;
 
+	/* If name is NULL, just return */
+	if (!name) {
+		return NULL;
+	}
+
 	index = dict_table_get_first_index(table);
 
 	while (index != NULL) {

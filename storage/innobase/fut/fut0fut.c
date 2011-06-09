@@ -680,7 +680,7 @@ fts_cache_index_cache_create(
 }
 
 /********************************************************************
-Release all resoruces help by the words rb tree e.g., the node ilist. */
+Release all resources help by the words rb tree e.g., the node ilist. */
 static
 void
 fts_words_free(
@@ -717,12 +717,13 @@ fts_words_free(
 Clear cache. If the shutdown flag is TRUE then the cache can contain
 data that needs to be freed. For regular clear as part of normal
 working we assume the caller has freed all resources. */
+UNIV_INTERN
 void
 fts_cache_clear(
 /*============*/
 	fts_cache_t*	cache,			/*!< in: cache */
-	ibool		shutdown)		/*!< in: TRUE if shutdown of
-						add thread. */
+	ibool		free_words)		/*!< in: TRUE if free
+						in memory word cache. */
 {
 	ulint		i;
 
@@ -736,7 +737,7 @@ fts_cache_clear(
 
 		index_cache = ib_vector_get(cache->indexes, i);
 
-		if (shutdown) {
+		if (free_words) {
 			fts_words_free(index_cache->words);
 		}
 
@@ -1002,6 +1003,10 @@ fts_cache_add_doc(
 	const ib_rbt_node_t*	node;
 	ulint			n_words;
 	fts_doc_stats_t*	doc_stats;
+
+	if (!tokens) {
+		return;
+	}
 
 	rw_lock_x_lock(&cache->lock);
 
@@ -2822,6 +2827,11 @@ fts_fetch_doc_by_id(
 
 			doc->found = TRUE;
 
+			/* Null Field */
+			if (doc->text.len == UNIV_SQL_NULL) {
+				continue;
+			}
+
 			if (i == 0) {
 				fts_tokenize_document(doc, NULL);
 			} else {
@@ -4214,8 +4224,6 @@ fts_sync_doc_ids(
 
 			/* Note that all doc ids have been processed. */
 			sync->lower_index = sync->upper_index;
-
-			ut_a(sync->max_doc_id == 0);
 
 			sync->max_doc_id =
 				*(doc_id_t*) ib_vector_last_const(doc_ids);

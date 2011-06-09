@@ -2893,16 +2893,6 @@ row_sel_store_mysql_field_func(
 	return(TRUE);
 }
 
-#ifdef UNIV_DEBUG
-/** Convert a record from Innobase format to MySQL format. */
-# define row_sel_store_mysql_rec(m,p,r,c,i,o) \
-	row_sel_store_mysql_rec_func(m,p,r,c,i,o)
-#else /* UNIV_DEBUG */
-/** Convert a record from Innobase format to MySQL format. */
-# define row_sel_store_mysql_rec(m,p,r,c,i,o) \
-	row_sel_store_mysql_rec_func(m,p,r,c,o)
-#endif /* UNIV_DEBUG */
-
 /**************************************************************//**
 Convert a row in the Innobase format to a row in the MySQL format.
 Note that the template in prebuilt may advise us to copy only a few
@@ -2911,8 +2901,8 @@ be needed in the query.
 @return TRUE on success, FALSE if not all columns could be retrieved */
 static __attribute__((warn_unused_result))
 ibool
-row_sel_store_mysql_rec_func(
-/*=========================*/
+row_sel_store_mysql_rec(
+/*====================*/
 	byte*		mysql_rec,	/*!< out: row in the MySQL format */
 	row_prebuilt_t*	prebuilt,	/*!< in: prebuilt struct */
 	const rec_t*	rec,		/*!< in: Innobase record in the index
@@ -2922,9 +2912,7 @@ row_sel_store_mysql_rec_func(
 	ibool		rec_clust,	/*!< in: TRUE if rec is in the
 					clustered index instead of
 					prebuilt->index */
-#ifdef UNIV_DEBUG
 	const dict_index_t* index,	/*!< in: index of rec */
-#endif
 	const ulint*	offsets)	/*!< in: array returned by
 					rec_get_offsets(rec) */
 {
@@ -2957,8 +2945,12 @@ row_sel_store_mysql_rec_func(
 	}
 
 	/* FIXME: We only need to read the doc_id if an FTS indexed
-	column is being updated. */
-	if (dict_table_has_fts_index(prebuilt->table)) {
+	column is being updated.
+	NOTE, the record must be cluster index record. Secondary index
+	might not have the Doc ID */
+	if (dict_table_has_fts_index(prebuilt->table)
+	    && dict_index_is_clust(index)) {
+
 		prebuilt->fts_doc_id = fts_get_doc_id_from_rec(
 			prebuilt->table,
 			rec,
