@@ -231,7 +231,11 @@ row_build(
 		ut_ad(rec_offs_validate(rec, index, offsets));
 	}
 
-#if defined UNIV_DEBUG || defined UNIV_BLOB_LIGHT_DEBUG
+#if 0 /* defined UNIV_DEBUG || defined UNIV_BLOB_LIGHT_DEBUG */
+	/* This one can fail in trx_rollback_active() if
+	the server crashed during an insert before the
+	btr_store_big_rec_extern_fields() did mtr_commit()
+	all BLOB pointers to the clustered index record. */
 	ut_a(!rec_offs_any_null_extern(rec, offsets));
 #endif /* UNIV_DEBUG || UNIV_BLOB_LIGHT_DEBUG */
 
