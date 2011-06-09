@@ -4628,26 +4628,79 @@ int ha_ndbcluster::bulk_update_row(const uchar *old_data, uchar *new_data,
 
 int ha_ndbcluster::exec_bulk_update(uint *dup_key_found)
 {
+  NdbTransaction* trans= m_thd_ndb->trans;
   DBUG_ENTER("ha_ndbcluster::exec_bulk_update");
   *dup_key_found= 0;
-  if (m_thd_ndb->m_unsent_bytes &&
-      !thd_allow_batch(table->in_use) &&
-      (!m_thd_ndb->m_handler ||
-       m_blobs_pending))
+
+  // m_handler must be NULL or point to _this_ handler instance
+  assert(m_thd_ndb->m_handler == NULL || m_thd_ndb->m_handler == this);
+
+  if (m_thd_ndb->m_handler &&
+      m_read_before_write_removal_possible)
   {
+    /*
+      This is an autocommit involving only one table and rbwr is on
+
+      Commit the autocommit transaction early(before the usual place
+      in ndbcluster_commit) in order to:
+      1) save one round trip, "no-commit+commit" converted to "commit"
+      2) return the correct number of updated and affected rows
+         to the update loop(which will ask handler in rbwr mode)
+    */
+    DBUG_PRINT("info", ("committing auto-commit+rbwr early"));
     uint ignore_count= 0;
-    if (execute_no_commit(m_thd_ndb, m_thd_ndb->trans,
-                          m_ignore_no_key || m_read_before_write_removal_used,
-                          &ignore_count) != 0)
+    const int ignore_error= 1;
+    if (execute_commit(m_thd_ndb, trans,
+                       m_thd_ndb->m_force_send, ignore_error,
+                       &ignore_count) != 0)
     {
       no_uncommitted_rows_execute_failure();
-      DBUG_RETURN(ndb_err(m_thd_ndb->trans));
+      DBUG_RETURN(ndb_err(trans));
     }
+    DBUG_PRINT("info", ("ignore_count: %u", ignore_count));
     assert(m_rows_changed >= ignore_count);
     assert(m_rows_updated >= ignore_count);
     m_rows_changed-= ignore_count;
     m_rows_updated-= ignore_count;
+    DBUG_RETURN(0);
   }
+
+  if (m_thd_ndb->m_unsent_bytes == 0)
+  {
+    DBUG_PRINT("exit", ("skip execute - no unsent bytes"));
+    DBUG_RETURN(0);
+  }
+
+  if (thd_allow_batch(table->in_use))
+  {
+    /*
+      Turned on by @@transaction_allow_batching=ON
+      or implicitly by slave exec thread
+    */
+    DBUG_PRINT("exit", ("skip execute - transaction_allow_batching is ON"));
+    DBUG_RETURN(0);
+  }
+
+  if (m_thd_ndb->m_handler &&
+      !m_blobs_pending)
+  {
+    // Execute at commit time(in 'ndbcluster_commit') to save a round trip
+    DBUG_PRINT("exit", ("skip execute - simple autocommit"));
+    DBUG_RETURN(0);
+  }
+
+  uint ignore_count= 0;
+  if (execute_no_commit(m_thd_ndb, trans,
+                        m_ignore_no_key || m_read_before_write_removal_used,
+                        &ignore_count) != 0)
+  {
+    no_uncommitted_rows_execute_failure();
+    DBUG_RETURN(ndb_err(trans));
+  }
+  assert(m_rows_changed >= ignore_count);
+  assert(m_rows_updated >= ignore_count);
+  m_rows_changed-= ignore_count;
+  m_rows_updated-= ignore_count;
   DBUG_RETURN(0);
 }
 
@@ -4983,25 +5036,76 @@ bool ha_ndbcluster::start_bulk_delete()
 
 int ha_ndbcluster::end_bulk_delete()
 {
+  NdbTransaction* trans= m_thd_ndb->trans;
   DBUG_ENTER("end_bulk_delete");
   assert(m_is_bulk_delete); // Don't allow end() without start()
   m_is_bulk_delete = false;
 
-  if (m_thd_ndb->m_unsent_bytes &&
-      !thd_allow_batch(table->in_use) &&
-      !m_thd_ndb->m_handler)
+  // m_handler must be NULL or point to _this_ handler instance
+  assert(m_thd_ndb->m_handler == NULL || m_thd_ndb->m_handler == this);
+
+  if (m_thd_ndb->m_handler &&
+      m_read_before_write_removal_possible)
   {
+    /*
+      This is an autocommit involving only one table and rbwr is on
+
+      Commit the autocommit transaction early(before the usual place
+      in ndbcluster_commit) in order to:
+      1) save one round trip, "no-commit+commit" converted to "commit"
+      2) return the correct number of updated and affected rows
+         to the delete loop(which will ask handler in rbwr mode)
+    */
+    DBUG_PRINT("info", ("committing auto-commit+rbwr early"));
     uint ignore_count= 0;
-    if (execute_no_commit(m_thd_ndb, m_thd_ndb->trans,
-                          m_ignore_no_key || m_read_before_write_removal_used,
-                          &ignore_count) != 0)
+    const int ignore_error= 1;
+    if (execute_commit(m_thd_ndb, trans,
+                       m_thd_ndb->m_force_send, ignore_error,
+                       &ignore_count) != 0)
     {
       no_uncommitted_rows_execute_failure();
-      DBUG_RETURN(ndb_err(m_thd_ndb->trans));
+      DBUG_RETURN(ndb_err(trans));
     }
+    DBUG_PRINT("info", ("ignore_count: %u", ignore_count));
     assert(m_rows_deleted >= ignore_count);
     m_rows_deleted-= ignore_count;
+    DBUG_RETURN(0);
   }
+
+  if (m_thd_ndb->m_unsent_bytes == 0)
+  {
+    DBUG_PRINT("exit", ("skip execute - no unsent bytes"));
+    DBUG_RETURN(0);
+  }
+
+  if (thd_allow_batch(table->in_use))
+  {
+    /*
+      Turned on by @@transaction_allow_batching=ON
+      or implicitly by slave exec thread
+    */
+    DBUG_PRINT("exit", ("skip execute - transaction_allow_batching is ON"));
+    DBUG_RETURN(0);
+  }
+
+  if (m_thd_ndb->m_handler)
+  {
+    // Execute at commit time(in 'ndbcluster_commit') to save a round trip
+    DBUG_PRINT("exit", ("skip execute - simple autocommit"));
+    DBUG_RETURN(0);
+  }
+
+  uint ignore_count= 0;
+  if (execute_no_commit(m_thd_ndb, trans,
+                        m_ignore_no_key || m_read_before_write_removal_used,
+                        &ignore_count) != 0)
+  {
+    no_uncommitted_rows_execute_failure();
+    DBUG_RETURN(ndb_err(trans));
+  }
+
+  assert(m_rows_deleted >= ignore_count);
+  m_rows_deleted-= ignore_count;
   DBUG_RETURN(0);
 }
 
@@ -7075,58 +7179,18 @@ int ndbcluster_commit(handlerton *hton, THD *thd, bool all)
     if (thd_ndb->m_handler &&
         thd_ndb->m_handler->m_read_before_write_removal_possible)
     {
-#ifndef NDB_WITHOUT_READ_BEFORE_WRITE_REMOVAL
-      /* Autocommit with read-before-write removal
-       * Some operations in this autocommitted statement have not
-       * yet been executed
-       * They will be executed here as part of commit, and the results
-       * (rowcount, message) sent back to the client will then be modified 
-       * according to how the execution went.
-       * This saves a single roundtrip in the autocommit case
-       */
-      uint ignore_count= 0;
-      res= execute_commit(thd_ndb, trans, THDVAR(thd, force_send),
-                          TRUE, &ignore_count);
-      if (!res && ignore_count)
+      /*
+        This is an autocommit involving only one table and
+        rbwr is on, thus the transaction has already been
+        committed in exec_bulk_update() or end_bulk_delete()
+      */
+      DBUG_PRINT("info", ("autocommit+rbwr, transaction already comitted"));
+      if (trans->commitStatus() != NdbTransaction::Committed)
       {
-        DBUG_PRINT("info", ("AutoCommit + RBW removal, ignore_count=%u",
-                            ignore_count));
-        /* We have some rows to ignore, modify recorded results,
-         * regenerate result message as required.
-         */
-        thd->row_count_func-= ignore_count;
-
-        ha_rows affected= 0;
-        char buff[ STRING_BUFFER_USUAL_SIZE ];
-        const char* msg= NULL;
-        if (thd->lex->sql_command == SQLCOM_DELETE)
-        {
-          assert(thd_ndb->m_handler->m_rows_deleted >= ignore_count);
-          affected= (thd_ndb->m_handler->m_rows_deleted-= ignore_count);
-        }
-        else
-        {
-          DBUG_PRINT("info", ("Update : message was %s", 
-                              thd->main_da.message()));
-          assert(thd_ndb->m_handler->m_rows_updated >= ignore_count);
-          affected= (thd_ndb->m_handler->m_rows_updated-= ignore_count);
-          /* For update in this scenario, we set found and changed to be 
-           * the same as affected
-           * Regenerate the update message
-           */
-          sprintf(buff, ER(ER_UPDATE_INFO), (ulong)affected, (ulong)affected,
-                  (ulong) thd->cuted_fields);
-          msg= buff;
-          DBUG_PRINT("info", ("Update : message changed to %s",
-                              msg));
-        }
-
-        /* Modify execution result + optionally message */
-        thd->main_da.modify_affected_rows(affected, msg);
+        sql_print_error("found uncomitted autocommit+rbwr transaction, "
+                        "commit status: %d", trans->commitStatus());
+        abort();
       }
-#else
-      abort(); // Should never come here without rbwr support
-#endif
     }
     else
       res= execute_commit(thd_ndb, trans, THDVAR(thd, force_send), FALSE);
