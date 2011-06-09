@@ -4786,6 +4786,11 @@ bool mysql_create_like_table(THD* thd, TABLE_LIST* table, TABLE_LIST* src_table,
   local_create_info.options|= create_info->options & HA_LEX_CREATE_TMP_TABLE;
   /* Reset auto-increment counter for the new table. */
   local_create_info.auto_increment_value= 0;
+  /*
+    Do not inherit values of DATA and INDEX DIRECTORY options from
+    the original table. This is documented behavior.
+  */
+  local_create_info.data_file_name= local_create_info.index_file_name= NULL;
 
   if ((res= mysql_create_table_no_lock(thd, table->db, table->table_name,
                                        &local_create_info, &local_alter_info,
