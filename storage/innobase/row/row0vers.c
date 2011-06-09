@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1997, 2009, Innobase Oy. All Rights Reserved.
+Copyright (c) 1997, 2011, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -550,6 +550,11 @@ row_vers_build_for_consistent_read(
 				/* The view already sees this version: we can
 				copy it to in_heap and return */
 
+#if defined UNIV_DEBUG || defined UNIV_BLOB_LIGHT_DEBUG
+				ut_a(!rec_offs_any_null_extern(
+					     version, *offsets));
+#endif /* UNIV_DEBUG || UNIV_BLOB_LIGHT_DEBUG */
+
 				buf = mem_heap_alloc(in_heap,
 						     rec_offs_size(*offsets));
 				*old_vers = rec_copy(buf, version, *offsets);
@@ -582,6 +587,10 @@ row_vers_build_for_consistent_read(
 
 		*offsets = rec_get_offsets(prev_version, index, *offsets,
 					   ULINT_UNDEFINED, offset_heap);
+
+#if defined UNIV_DEBUG || defined UNIV_BLOB_LIGHT_DEBUG
+		ut_a(!rec_offs_any_null_extern(prev_version, *offsets));
+#endif /* UNIV_DEBUG || UNIV_BLOB_LIGHT_DEBUG */
 
 		trx_id = row_get_rec_trx_id(prev_version, index, *offsets);
 
@@ -682,6 +691,10 @@ row_vers_build_for_semi_consistent_read(
 			/* We found a version that belongs to a
 			committed transaction: return it. */
 
+#if defined UNIV_DEBUG || defined UNIV_BLOB_LIGHT_DEBUG
+			ut_a(!rec_offs_any_null_extern(version, *offsets));
+#endif /* UNIV_DEBUG || UNIV_BLOB_LIGHT_DEBUG */
+
 			if (rec == version) {
 				*old_vers = rec;
 				err = DB_SUCCESS;
@@ -739,6 +752,9 @@ row_vers_build_for_semi_consistent_read(
 		version = prev_version;
 		*offsets = rec_get_offsets(version, index, *offsets,
 					   ULINT_UNDEFINED, offset_heap);
+#if defined UNIV_DEBUG || defined UNIV_BLOB_LIGHT_DEBUG
+		ut_a(!rec_offs_any_null_extern(version, *offsets));
+#endif /* UNIV_DEBUG || UNIV_BLOB_LIGHT_DEBUG */
 	}/* for (;;) */
 
 	if (heap) {
