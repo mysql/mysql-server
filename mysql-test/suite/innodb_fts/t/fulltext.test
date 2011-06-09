@@ -7,7 +7,7 @@ drop table if exists t1,t2,t3;
 --enable_warnings
 
 let $default_engine = `select @@SESSION.default_storage_engine`;
---replace_result $default_engine <default_engine>
+# --replace_result $default_engine <default_engine>
 CREATE TABLE t1 (a VARCHAR(200), b TEXT, FULLTEXT (a,b)) ENGINE = InnoDB;
 INSERT INTO t1 VALUES('MySQL has now support', 'for full-text search'),
                        ('Full-text indexes', 'are called collections'),
@@ -118,7 +118,7 @@ drop table t1;
 # Check bug reported by Matthias Urlichs
 #
 
---replace_result $default_engine <default_engine>
+# --replace_result $default_engine <default_engine>
 CREATE TABLE t1 (
   id int(11),
   ticket int(11),
@@ -127,7 +127,7 @@ CREATE TABLE t1 (
 ) ENGINE = InnoDB;
 INSERT INTO t1 VALUES (2,3),(1,2);
 
---replace_result $default_engine <default_engine>
+# --replace_result $default_engine <default_engine>
 CREATE TABLE t2 (
   ticket int(11),
   inhalt text,
@@ -178,7 +178,7 @@ CREATE TABLE t3 (t int(11),i text,
                  j varchar(200) CHARACTER SET latin2,
                  fulltext tix (i,j));
 
---replace_result $default_engine <default_engine>
+# --replace_result $default_engine <default_engine>
 CREATE TABLE t3 (
   ticket int(11),
   inhalt text,
@@ -199,7 +199,7 @@ drop table t1,t2,t3;
 # three more bugtests
 #
 
---replace_result $default_engine <default_engine>
+# --replace_result $default_engine <default_engine>
 CREATE TABLE t1 (
   id int(11)  auto_increment,
   title varchar(100)  default '',
@@ -222,7 +222,7 @@ drop table t1;
 
 # one more bug - const_table related
 
---replace_result $default_engine <default_engine>
+# --replace_result $default_engine <default_engine>
 CREATE TABLE t1 (a int(11), b text, FULLTEXT KEY (b)) ENGINE = InnoDB;
 insert into t1 values (1,"I wonder why the fulltext index doesnt work?");
 SELECT * from t1 where MATCH (b) AGAINST ('apples');
@@ -231,7 +231,7 @@ insert into t1 values (2,"fullaaa fullzzz");
 select * from t1 where match b against ('full*' in boolean mode);
 
 drop table t1;
---replace_result $default_engine <default_engine>
+# --replace_result $default_engine <default_engine>
 CREATE TABLE t1 ( id int(11) NOT NULL auto_increment primary key, mytext text NOT NULL, FULLTEXT KEY mytext (mytext)) ENGINE = InnoDB;
 INSERT INTO t1 VALUES (1,'my small mouse'),(2,'la-la-la'),(3,'It is so funny'),(4,'MySQL Tutorial');
 select 8 from t1;
@@ -242,7 +242,7 @@ drop table t1;
 # ERROR 1030: Got error 127 from table handler
 #
 
---replace_result $default_engine <default_engine>
+# --replace_result $default_engine <default_engine>
 create table t1 (a text, fulltext key (a)) ENGINE = InnoDB;
 insert into t1 values ('aaaa');
 
@@ -256,7 +256,7 @@ drop table t1;
 # FULLTEXT index on a TEXT filed converted to a CHAR field doesn't work anymore
 # 
 
---replace_result $default_engine <default_engine>
+# --replace_result $default_engine <default_engine>
 create table t1 ( ref_mag text not null, fulltext (ref_mag)) ENGINE = InnoDB;
 insert into t1 values ('test');
 select ref_mag from t1 where match ref_mag against ('+test' in boolean mode);
@@ -268,11 +268,11 @@ drop table t1;
 # bug #942: JOIN
 # NOTE: Not related to FTS, no FTS index created
 
---replace_result $default_engine <default_engine>
+# --replace_result $default_engine <default_engine>
 create table t1 (t1_id int(11) primary key, name varchar(32)) ENGINE = InnoDB;
 insert into t1 values (1, 'data1');
 insert into t1 values (2, 'data2');
---replace_result $default_engine <default_engine>
+# --replace_result $default_engine <default_engine>
 create table t2 (t2_id int(11) primary key, t1_id int(11), name varchar(32)) ENGINE = InnoDB;
 insert into t2 values (1, 1, 'xxfoo');
 insert into t2 values (2, 1, 'xxbar');
@@ -291,7 +291,7 @@ drop table t1,t2;
 # bug with repair-by-sort and incorrect records estimation
 #
 
---replace_result $default_engine <default_engine>
+# --replace_result $default_engine <default_engine>
 create table t1 (a text, fulltext key (a)) ENGINE = InnoDB;
 insert into t1 select "xxxx yyyy zzzz";
 drop table t1;
@@ -300,7 +300,7 @@ drop table t1;
 # UTF8
 # INNODB_FTS: FIX
 SET NAMES latin1;
---replace_result $default_engine <default_engine>
+# --replace_result $default_engine <default_engine>
 CREATE TABLE t1 (t text character set utf8 not null, fulltext(t)) ENGINE = InnoDB;
 INSERT t1 VALUES ('Mit freundlichem Grüß'), ('aus Osnabrück');
 SET NAMES koi8r;
@@ -324,7 +324,7 @@ DROP TABLE t1;
 # bug#3964
 #
 
---replace_result $default_engine <default_engine>
+# --replace_result $default_engine <default_engine>
 CREATE TABLE t1 (s varchar(255), FULLTEXT (s)) ENGINE = InnoDB DEFAULT CHARSET=utf8;
 insert into t1 (s) values ('pära para para'),('para para para');
 select * from t1 where match(s) against('para' in boolean mode);
@@ -335,7 +335,7 @@ DROP TABLE t1;
 # icc -ip bug (ip = interprocedural optimization)
 # bug#5528
 #
---replace_result $default_engine <default_engine>
+# --replace_result $default_engine <default_engine>
 CREATE TABLE t1 (h text, FULLTEXT (h)) ENGINE = InnoDB;
 INSERT INTO t1 VALUES ('Jesses Hasse Ling and his syncopators of Swing');
 
@@ -348,7 +348,7 @@ drop table t1;
 # testing out of bounds memory access in ft_nlq_find_relevance()
 # (bug#8522); visible in valgrind.
 #
---replace_result $default_engine <default_engine>
+# --replace_result $default_engine <default_engine>
 CREATE TABLE t1 ( a TEXT, FULLTEXT (a) ) ENGINE = InnoDB;
 INSERT INTO t1 VALUES ('testing ft_nlq_find_relevance');
 SELECT MATCH(a) AGAINST ('nosuchword') FROM t1;
@@ -359,9 +359,9 @@ DROP TABLE t1;
 # was mangling info->dupp_key_pos
 #
 
---replace_result $default_engine <default_engine>
+# --replace_result $default_engine <default_engine>
 create table t1 (a int primary key, b text, fulltext(b)) ENGINE = InnoDB;
---replace_result $default_engine <default_engine>
+# --replace_result $default_engine <default_engine>
 create table t2 (a int, b text) ENGINE = InnoDB;
 insert t1 values (1, "aaaa"), (2, "bbbb");
 insert t2 values (10, "aaaa"), (2, "cccc");
@@ -371,7 +371,7 @@ drop table t1, t2;
 #
 # bug#8351
 #
---replace_result $default_engine <default_engine>
+# --replace_result $default_engine <default_engine>
 # INNODB_FTS: FIX
 CREATE TABLE t1 (t VARCHAR(200) CHARACTER SET utf8 COLLATE utf8_unicode_ci, FULLTEXT (t)) ENGINE = InnoDB;
 SET NAMES latin1;
@@ -383,7 +383,7 @@ DROP TABLE t1;
 # BUG#11684 - repair crashes mysql when table has fulltext index
 #
 
---replace_result $default_engine <default_engine>
+# --replace_result $default_engine <default_engine>
 CREATE TABLE t1 (a VARCHAR(30), FULLTEXT(a)) ENGINE = InnoDB;
 INSERT INTO t1 VALUES('bbbbbbbbbbbbbbbbbbbbbbbbbbbbbb');
 
@@ -411,7 +411,7 @@ DROP TABLE t1;
 # BUG#13835: max key length is 1000 bytes when trying to create
 #            a fulltext index
 #
---replace_result $default_engine <default_engine>
+# --replace_result $default_engine <default_engine>
 CREATE TABLE t1 (a VARCHAR(10000), FULLTEXT(a)) ENGINE = InnoDB;
 SHOW CREATE TABLE t1;
 DROP TABLE t1;
@@ -420,7 +420,7 @@ DROP TABLE t1;
 # BUG#14496: Crash or strange results with prepared statement,
 #            MATCH and FULLTEXT
 #
---replace_result $default_engine <default_engine>
+# --replace_result $default_engine <default_engine>
 CREATE TABLE t1 (a TEXT, FULLTEXT KEY(a)) ENGINE = InnoDB;
 INSERT INTO t1 VALUES('test'),('test1'),('test');
 PREPARE stmt from "SELECT a, FORMAT(MATCH(a) AGAINST('test1 test'),6) FROM t1 WHERE MATCH(a) AGAINST('test1 test')";
@@ -434,7 +434,7 @@ DROP TABLE t1;
 #
 # BUG#25951 - ignore/use index does not work with fulltext
 #
---replace_result $default_engine <default_engine>
+# --replace_result $default_engine <default_engine>
 CREATE TABLE t1 (a VARCHAR(255), FULLTEXT(a)) ENGINE = InnoDB;
 SELECT * FROM t1 IGNORE INDEX(a) WHERE MATCH(a) AGAINST('test');
 # INNODB_FTS: InnoDB do have have this option
@@ -446,7 +446,7 @@ DROP TABLE t1;
 #
 # BUG#11392 - fulltext search bug
 #
---replace_result $default_engine <default_engine>
+# --replace_result $default_engine <default_engine>
 CREATE TABLE t1(a TEXT) ENGINE = InnoDB;
 INSERT INTO t1 VALUES(' aaaaa aaaa');
 SELECT * FROM t1 WHERE MATCH(a) AGAINST ('"aaaa"' IN BOOLEAN MODE);
@@ -455,7 +455,7 @@ DROP TABLE t1;
 #
 # BUG#29445 - match ... against () never returns
 #
---replace_result $default_engine <default_engine>
+# --replace_result $default_engine <default_engine>
 CREATE TABLE t1(a VARCHAR(20), FULLTEXT(a)) ENGINE = InnoDB;
 INSERT INTO t1 VALUES('Offside'),('City Of God');
 
@@ -470,7 +470,7 @@ DROP TABLE t1;
 #
 # bug#34374 - mysql generates incorrect warning
 #
---replace_result $default_engine <default_engine>
+# --replace_result $default_engine <default_engine>
 create table t1(a text,b date,fulltext index(a)) ENGINE = InnoDB;
 insert into t1 set a='water',b='2008-08-04';
 select 1 from t1 where match(a) against ('water' in boolean mode) and b>='2008-08-01';
@@ -480,7 +480,7 @@ show warnings;
 #
 # BUG#38842 - Fix for 25951 seems incorrect
 #
---replace_result $default_engine <default_engine>
+# --replace_result $default_engine <default_engine>
 CREATE TABLE t1 (a VARCHAR(255), b INT, FULLTEXT(a), KEY(b)) ENGINE = InnoDB;
 INSERT INTO t1 VALUES('test', 1),('test', 1),('test', 1),('test', 1),
                      ('test', 1),('test', 2),('test', 3),('test', 4);
@@ -508,7 +508,7 @@ DROP TABLE t1;
 #
 # BUG#37245 - Full text search problem
 #
---replace_result $default_engine <default_engine>
+# --replace_result $default_engine <default_engine>
 CREATE TABLE t1(a CHAR(10)) ENGINE = InnoDB;
 INSERT INTO t1 VALUES('aaa15');
 
@@ -520,7 +520,7 @@ DROP TABLE t1;
 #
 # BUG#36737 - having + full text operator crashes mysql
 #
---replace_result $default_engine <default_engine>
+# --replace_result $default_engine <default_engine>
 CREATE TABLE t1(a TEXT) ENGINE = InnoDB;
 --error ER_WRONG_ARGUMENTS
 SELECT GROUP_CONCAT(a) AS st FROM t1 HAVING MATCH(st) AGAINST('test' IN BOOLEAN MODE);
@@ -530,7 +530,7 @@ DROP TABLE t1;
 # BUG#42907 - Multi-term boolean fulltext query containing a single
 #             quote fails in 5.1.x
 #
---replace_result $default_engine <default_engine>
+# --replace_result $default_engine <default_engine>
 CREATE TABLE t1(a VARCHAR(64), FULLTEXT(a)) ENGINE = InnoDB;
 INSERT INTO t1 VALUES('awrd bwrd cwrd'),('awrd bwrd cwrd'),('awrd bwrd cwrd');
 SELECT * FROM t1 WHERE MATCH(a) AGAINST('+awrd bwrd* +cwrd*' IN BOOLEAN MODE);
@@ -539,7 +539,7 @@ DROP TABLE t1;
 #
 # BUG#37740 Server crashes on execute statement with full text search and match against
 #
---replace_result $default_engine <default_engine>
+# --replace_result $default_engine <default_engine>
 CREATE TABLE t1 (col text, FULLTEXT KEY full_text (col)) ENGINE = InnoDB;
 
 PREPARE s FROM 
@@ -559,7 +559,7 @@ DROP TABLE t1;
 --error ER_PARSE_ERROR
 CREATE TABLE t1(col1 TEXT,
   FULLTEXT INDEX USING BTREE (col1));
---replace_result $default_engine <default_engine>
+# --replace_result $default_engine <default_engine>
 CREATE TABLE t2(col1 TEXT) ENGINE = InnoDB;
 --error ER_PARSE_ERROR
 CREATE FULLTEXT INDEX USING BTREE ON t2(col);
@@ -577,15 +577,15 @@ DROP TABLE t2;
 --echo #  inside subquery
 --echo #
 
---replace_result $default_engine <default_engine>
+# --replace_result $default_engine <default_engine>
 CREATE TABLE t1 (a int) ENGINE = InnoDB;
 INSERT INTO t1 VALUES (1), (2);
 
---replace_result $default_engine <default_engine>
+# --replace_result $default_engine <default_engine>
 CREATE TABLE t2 (a int, b2 char(10), FULLTEXT KEY b2 (b2)) ENGINE = InnoDB;
 INSERT INTO t2 VALUES (1,'Scargill');
 
---replace_result $default_engine <default_engine>
+# --replace_result $default_engine <default_engine>
 CREATE TABLE t3 (a int, b int) ENGINE = InnoDB;
 INSERT INTO t3 VALUES (1,1), (2,1);
 
@@ -617,7 +617,7 @@ DROP TABLE t1,t2,t3;
 #
 # BUG#50351 - ft_min_word_len=2 Causes query to hang
 #
---replace_result $default_engine <default_engine>
+# --replace_result $default_engine <default_engine>
 CREATE TABLE t1 (a VARCHAR(4), FULLTEXT(a)) ENGINE = InnoDB;
 INSERT INTO t1 VALUES
 ('cwrd'),('cwrd'),('cwrd'),('cwrd'),('cwrd'),('cwrd'),('cwrd'),('cwrd'),
@@ -642,7 +642,7 @@ DROP TABLE t1;
 --echo #   fulltext search and row op
 --echo #
 
---replace_result $default_engine <default_engine>
+# --replace_result $default_engine <default_engine>
 CREATE TABLE t1(a CHAR(1),FULLTEXT(a)) ENGINE = InnoDB;
 SELECT 1 FROM t1 WHERE MATCH(a) AGAINST ('') AND ROW(a,a) > ROW(1,1);
 DROP TABLE t1;
@@ -650,7 +650,7 @@ DROP TABLE t1;
 --echo #
 --echo # BUG#51866 - crash with repair by sort and fulltext keys
 --echo #
---replace_result $default_engine <default_engine>
+# --replace_result $default_engine <default_engine>
 CREATE TABLE t1(a CHAR(4), FULLTEXT(a)) ENGINE = InnoDB;
 INSERT INTO t1 VALUES('aaaa');
 # INNODB_FTS: Do not support following commands
@@ -663,7 +663,7 @@ DROP TABLE t1;
 --echo # Bug#54484 explain + prepared statement: crash and Got error -1 from storage engine
 --echo #
 
---replace_result $default_engine <default_engine>
+# --replace_result $default_engine <default_engine>
 CREATE TABLE t1(f1 VARCHAR(6) NOT NULL, FULLTEXT KEY(f1), UNIQUE(f1)) ENGINE = InnoDB;
 INSERT INTO t1 VALUES ('test');
 --disable_warnings
