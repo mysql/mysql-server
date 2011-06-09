@@ -494,8 +494,8 @@ void
 fts_cache_clear(
 /*============*/
 	fts_cache_t*	cache,		/*!< in: cache */
-	ibool		shutdown);	/*!< in: TRUE if shutdown of
-					add thread. */
+	ibool		free_words);	/*!< in: TRUE if free
+					in memory word cache. */
 
 /*********************************************************************//**
 Initialize things in cache. */

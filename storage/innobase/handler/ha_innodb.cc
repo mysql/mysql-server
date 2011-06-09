@@ -3444,15 +3444,21 @@ ha_innobase::table_type() const
 }
 
 /****************************************************************//**
-Returns the index type. */
+Returns the index type.
+@return index type */
 UNIV_INTERN
 const char*
 ha_innobase::index_type(
 /*====================*/
-	uint)
-				/*!< out: index type */
+	uint	keynr)		/*!< : index number */
 {
-	return("BTREE");
+	dict_index_t*	index = innobase_get_index(keynr);
+
+	if (index && index->type & DICT_FTS) {
+		return("FULLTEXT");
+	} else {
+		return("BTREE");
+	}
 }
 
 /****************************************************************//**
@@ -6780,6 +6786,7 @@ ha_innobase::ft_init_ext(
 	byte*			query = (byte*) key->ptr();
 	ulint			query_len = key->length();
 	NEW_FT_INFO*		fts_hdl = NULL;
+	dict_index_t*		index;
 
 	fprintf(stderr, "ft_init_ext()\n");
 
@@ -6795,13 +6802,21 @@ ha_innobase::ft_init_ext(
 	trx = prebuilt->trx;
 	table = prebuilt->table;
 
-	dict_index_t* index = innobase_get_index(keynr);
-
-	if (index->type != DICT_FTS) {
-		return NULL;
+	/* Table do not have FTS index */
+	if (!table->fts) {
+		return(NULL);
 	}
 
-	ut_a(table->fts);
+	if (keynr == NO_SUCH_KEY) {
+		/* FIXME: Investigate the NO_SUCH_KEY usage */
+		index = (dict_index_t*) ib_vector_getp(table->fts->indexes, 0);	
+	} else {
+		index = innobase_get_index(keynr);
+	}
+
+	if (!index || index->type != DICT_FTS) {
+		return NULL;
+	}
 
 	if (!(table->fts->fts_status & ADDED_TABLE_SYNCED)) {
 		fts_init_index(table);
