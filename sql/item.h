@@ -571,7 +571,8 @@ public:
  protected:
   my_bool with_subselect;               /* If this item is a subselect or some
                                            of its arguments is or contains a
-                                           subselect. Computed by fix_fields. */
+                                           subselect. Computed by fix_fields
+                                           and updated by update_used_tables. */
 
  public:
   // alloc & destruct is done as start of select using sql_alloc
@@ -2701,6 +2702,14 @@ public:
     return (*ref)->is_outer_field();
   }
 
+  /**
+    Checks if the item tree that ref points to contains a subquery.
+  */
+  virtual bool has_subquery() const 
+  { 
+    DBUG_ASSERT(ref);
+    return (*ref)->has_subquery();
+  }
 };
 
 
