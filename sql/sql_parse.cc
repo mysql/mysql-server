@@ -2697,9 +2697,6 @@ mysql_execute_command(THD *thd)
             }
           }
         }
-        if (mysql_handle_single_derived(thd->lex, create_table,
-            DT_MERGE_FOR_INSERT))
-          DBUG_RETURN(1);
 
         /* So that CREATE TEMPORARY TABLE gets to binlog at commit/rollback */
         if (create_info.options & HA_LEX_CREATE_TMP_TABLE)

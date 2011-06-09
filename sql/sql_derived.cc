@@ -467,6 +467,12 @@ bool mysql_derived_merge_for_insert(THD *thd, LEX *lex, TABLE_LIST *derived)
 
   if (derived->merged_for_insert)
     return FALSE;
+  /* It's a target view for an INSERT, create field translation only. */
+  if (!derived->updatable || derived->is_materialized_derived())
+  {
+    bool res= derived->create_field_translation(thd);
+    return res;
+  }
   if (!derived->is_multitable())
   {
     TABLE_LIST *tl=((TABLE_LIST*)dt_select->table_list.first);
@@ -603,15 +609,8 @@ bool mysql_derived_prepare(THD *thd, LEX *lex, TABLE_LIST *derived)
   bool res= FALSE;
 
   // Skip already prepared views/DT
-  if (!unit || unit->prepared)
+  if (!unit || unit->prepared || derived->merged_for_insert)
     DBUG_RETURN(FALSE);
-
-  /* It's a target view for an INSERT, create field translation only. */
-  if (derived->merged_for_insert)
-  {
-    res= derived->create_field_translation(thd);
-    DBUG_RETURN(res);
-  }
 
   Query_arena *arena= thd->stmt_arena, backup;
   if (arena->is_conventional())

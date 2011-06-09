@@ -4168,3 +4168,19 @@ a	a	b
 2	2	30
 DROP VIEW v2;
 DROP TABLE t1,t2;
+#
+# Bug#794038: crash  with INSERT/UPDATE/DELETE 
+#             over a non-updatable view
+#
+CREATE TABLE t1 (a int);
+CREATE ALGORITHM = TEMPTABLE VIEW v1 AS SELECT * FROM t1;
+CREATE ALGORITHM = MERGE VIEW v2 AS SELECT * FROM v1;
+CREATE ALGORITHM = TEMPTABLE VIEW v3 AS SELECT * FROM v2;
+INSERT INTO v3 VALUES (1);
+ERROR HY000: The target table v3 of the INSERT is not insertable-into
+UPDATE v3 SET a=0;
+ERROR HY000: The target table v3 of the UPDATE is not updatable
+DELETE FROM v3;
+ERROR HY000: The target table v3 of the DELETE is not updatable
+DROP VIEW v1,v2,v3;
+DROP TABLE t1;
