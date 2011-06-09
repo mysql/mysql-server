@@ -29,7 +29,6 @@
 #include "ha_maria.h"
 #include "trnman_public.h"
 #include "trnman.h"
-#include "compat_aliases.h"
 
 C_MODE_START
 #include "maria_def.h"
@@ -3369,7 +3368,6 @@ bool ha_maria::is_changed() const
 static int ha_maria_init(void *p)
 {
   int res;
-  copy_variable_aliases();
   const char *log_dir= maria_data_root;
   maria_hton= (handlerton *)p;
   maria_hton->state= SHOW_OPTION_YES;
@@ -3717,7 +3715,6 @@ struct st_mysql_storage_engine maria_storage_engine=
 { MYSQL_HANDLERTON_INTERFACE_VERSION };
 
 maria_declare_plugin(aria)
-compat_aliases,
 {
   MYSQL_STORAGE_ENGINE_PLUGIN,
   &maria_storage_engine,

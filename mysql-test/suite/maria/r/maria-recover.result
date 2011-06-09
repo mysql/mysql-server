@@ -20,7 +20,7 @@ create table t1 (a varchar(1000), index(a)) engine=aria;
 insert into t1 values("ThursdayMorningsMarket");
 flush table t1;
 insert into t1 select concat(a,'b') from t1 limit 1;
-set global maria_checkpoint_interval=1000;
+set global aria_checkpoint_interval=1000;
 select * from t_corrupted2;
 a
 ThursdayMorningsMarket
