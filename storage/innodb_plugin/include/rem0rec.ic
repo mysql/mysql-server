@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1994, 2009, Innobase Oy. All Rights Reserved.
+Copyright (c) 1994, 2011, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -26,6 +26,7 @@ Created 5/30/1994 Heikki Tuuri
 #include "mach0data.h"
 #include "ut0byte.h"
 #include "dict0dict.h"
+#include "btr0types.h"
 
 /* Compact flag ORed to the extra size returned by rec_get_offsets() */
 #define REC_OFFS_COMPACT	((ulint) 1 << 31)
@@ -1086,6 +1087,44 @@ rec_offs_any_extern(
 	ut_ad(rec_offs_validate(NULL, NULL, offsets));
 	return(UNIV_UNLIKELY(*rec_offs_base(offsets) & REC_OFFS_EXTERNAL));
 }
+
+#if defined UNIV_DEBUG || defined UNIV_BLOB_LIGHT_DEBUG
+/******************************************************//**
+Determine if the offsets are for a record containing null BLOB pointers.
+@return	first field containing a null BLOB pointer, or NULL if none found */
+UNIV_INLINE
+const byte*
+rec_offs_any_null_extern(
+/*=====================*/
+	const rec_t*	rec,		/*!< in: record */
+	const ulint*	offsets)	/*!< in: rec_get_offsets(rec) */
+{
+	ulint	i;
+	ut_ad(rec_offs_validate(rec, NULL, offsets));
+
+	if (!rec_offs_any_extern(offsets)) {
+		return(NULL);
+	}
+
+	for (i = 0; i < rec_offs_n_fields(offsets); i++) {
+		if (rec_offs_nth_extern(offsets, i)) {
+			ulint		len;
+			const byte*	field
+				= rec_get_nth_field(rec, offsets, i, &len);
+
+			ut_a(len >= BTR_EXTERN_FIELD_REF_SIZE);
+			if (!memcmp(field + len
+				    - BTR_EXTERN_FIELD_REF_SIZE,
+				    field_ref_zero,
+				    BTR_EXTERN_FIELD_REF_SIZE)) {
+				return(field);
+			}
+		}
+	}
+
+	return(NULL);
+}
+#endif /* UNIV_DEBUG || UNIV_BLOB_LIGHT_DEBUG */
 
 /******************************************************//**
 Returns nonzero if the extern bit is set in nth field of rec.

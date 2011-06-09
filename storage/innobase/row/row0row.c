@@ -210,6 +210,10 @@ row_build(
 		ut_ad(rec_offs_validate(rec, index, offsets));
 	}
 
+#if defined UNIV_DEBUG || defined UNIV_BLOB_LIGHT_DEBUG
+	ut_a(!rec_offs_any_null_extern(rec, offsets));
+#endif /* UNIV_DEBUG || UNIV_BLOB_LIGHT_DEBUG */
+
 	if (type != ROW_COPY_POINTERS) {
 		/* Take a copy of rec to heap */
 		buf = mem_heap_alloc(heap, rec_offs_size(offsets));
@@ -302,6 +306,10 @@ row_rec_to_index_entry(
 		rec = rec_copy(buf, rec, offsets);
 		/* Avoid a debug assertion in rec_offs_validate(). */
 		rec_offs_make_valid(rec, index, offsets);
+#if defined UNIV_DEBUG || defined UNIV_BLOB_LIGHT_DEBUG
+	} else {
+		ut_a(!rec_offs_any_null_extern(rec, offsets));
+#endif /* UNIV_DEBUG || UNIV_BLOB_LIGHT_DEBUG */
 	}
 
 	rec_len = rec_offs_n_fields(offsets);
