@@ -1,3 +1,8 @@
+2011-06-09	The InnoDB Team
+	* btr/btr0cur.c, include/rem0rec.h, include/rem0rec.ic,
+	* row/row0row.c, row/row0vers.c, trx/trx0rec.c:
+	Instrumentation for Bug#12612184 Race condition in row_upd_clust_rec()
+
 2011-04-07	The InnoDB Team
 
 	* handler/ha_innodb.cc, handler/ha_innodb.h, handler/handler0alter.cc:
