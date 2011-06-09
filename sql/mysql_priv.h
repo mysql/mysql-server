@@ -2503,12 +2503,6 @@ const char *get_date_time_format_str(KNOWN_DATE_TIME_FORMAT *format,
 				     timestamp_type type);
 extern bool make_date_time(DATE_TIME_FORMAT *format, MYSQL_TIME *l_time,
 			   timestamp_type type, String *str);
-void make_datetime(const DATE_TIME_FORMAT *format, const MYSQL_TIME *l_time,
-                   String *str);
-void make_date(const DATE_TIME_FORMAT *format, const MYSQL_TIME *l_time,
-               String *str);
-void make_time(const DATE_TIME_FORMAT *format, const MYSQL_TIME *l_time,
-               String *str);
 int my_time_compare(MYSQL_TIME *a, MYSQL_TIME *b);
 longlong get_datetime_value(THD *thd, Item ***item_arg, Item **cache_arg,
                             Item *warn_item, bool *is_null);

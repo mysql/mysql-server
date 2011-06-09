@@ -5289,7 +5289,13 @@ String *Field_time::val_str(String *val_buffer,
   ltime.minute= (uint) (tmp/100 % 100);
   ltime.second= (uint) (tmp % 100);
   ltime.second_part= 0;
-  make_time((DATE_TIME_FORMAT*) 0, &ltime, val_buffer);
+
+  val_buffer->alloc(MAX_DATE_STRING_REP_LENGTH);
+  uint length= (uint) my_time_to_str(&ltime,
+                                     const_cast<char*>(val_buffer->ptr()), 0);
+  val_buffer->length(length);
+  val_buffer->set_charset(&my_charset_bin);
+
   return val_buffer;
 }
 
@@ -5664,7 +5670,13 @@ String *Field_date::val_str(String *val_buffer,
   ltime.year= (int) ((uint32) tmp/10000L % 10000);
   ltime.month= (int) ((uint32) tmp/100 % 100);
   ltime.day= (int) ((uint32) tmp % 100);
-  make_date((DATE_TIME_FORMAT *) 0, &ltime, val_buffer);
+
+  val_buffer->alloc(MAX_DATE_STRING_REP_LENGTH);
+  uint length= (uint) my_date_to_str(&ltime,
+                                     const_cast<char*>(val_buffer->ptr()));
+  val_buffer->length(length);
+  val_buffer->set_charset(&my_charset_bin);
+
   return val_buffer;
 }
 

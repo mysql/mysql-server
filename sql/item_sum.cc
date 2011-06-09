@@ -670,7 +670,7 @@ void Item_sum_hybrid::setup_hybrid(Item *item, Item *value_arg)
   /* Don't cache value, as it will change */
   if (!item->const_item())
     value->set_used_tables(RAND_TABLE_BIT);
-  if (!(arg_cache= Item_cache::get_cache(item)))
+  if (!(arg_cache= Item_cache::get_cache(item, item->cmp_type())))
     return;
   arg_cache->setup(item);
   /* Don't cache value, as it will change */

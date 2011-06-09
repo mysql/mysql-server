@@ -1317,6 +1317,10 @@ public:
   int  store(longlong nr, bool unsigned_val);
   int  store_time_dec(MYSQL_TIME *ltime, uint dec);
   my_decimal *val_decimal(my_decimal*);
+  bool eq_def(Field *field)
+  {
+    return (Field_str::eq_def(field) && decimals() == field->decimals());
+  }
 };
 
 class Field_date :public Field_temporal {

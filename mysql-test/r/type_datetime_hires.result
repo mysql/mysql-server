@@ -333,4 +333,8 @@ update t1 set b=a;
 select * from t1;
 a	b
 2010-01-02 03:04:05	2010-01-02 03:04:05.000000
+alter table t1 modify b datetime, modify a datetime(6);
+select * from t1;
+a	b
+2010-01-02 03:04:05.000000	2010-01-02 03:04:05
 drop table t1;

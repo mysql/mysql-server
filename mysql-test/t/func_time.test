@@ -1063,3 +1063,5 @@ select greatest(cast("0-0-0" as date), cast("10:20:05" as time));
 select greatest(cast("0-0-0" as date), cast("10:20:05" as time)) = '0000-00-00';
 select cast(greatest(cast("0-0-0" as date), cast("10:20:05" as time)) as datetime(6));
 
+select microsecond('12:00:00.123456'), microsecond('2009-12-31 23:59:59.000010');
+

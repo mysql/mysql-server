@@ -756,49 +756,6 @@ const char *get_date_time_format_str(KNOWN_DATE_TIME_FORMAT *format,
   }
 }
 
-/****************************************************************************
-  Functions to create default time/date/datetime strings
- 
-  NOTE:
-    For the moment the DATE_TIME_FORMAT argument is ignored becasue
-    MySQL doesn't support comparing of date/time/datetime strings that
-    are not in arbutary order as dates are compared as strings in some
-    context)
-    This functions don't check that given MYSQL_TIME structure members are
-    in valid range. If they are not, return value won't reflect any 
-    valid date either.
-****************************************************************************/
-
-void make_time(const DATE_TIME_FORMAT *format __attribute__((unused)),
-               const MYSQL_TIME *l_time, String *str)
-{
-  str->alloc(MAX_DATE_STRING_REP_LENGTH);
-  uint length= (uint) my_time_to_str(l_time, (char*) str->ptr(), 0);
-  str->length(length);
-  str->set_charset(&my_charset_bin);
-}
-
-
-void make_date(const DATE_TIME_FORMAT *format __attribute__((unused)),
-               const MYSQL_TIME *l_time, String *str)
-{
-  str->alloc(MAX_DATE_STRING_REP_LENGTH);
-  uint length= (uint) my_date_to_str(l_time, (char*) str->ptr());
-  str->length(length);
-  str->set_charset(&my_charset_bin);
-}
-
-
-void make_datetime(const DATE_TIME_FORMAT *format __attribute__((unused)),
-                   const MYSQL_TIME *l_time, String *str)
-{
-  str->alloc(MAX_DATE_STRING_REP_LENGTH);
-  uint length= (uint) my_datetime_to_str(l_time, (char*) str->ptr(), 0);
-  str->length(length);
-  str->set_charset(&my_charset_bin);
-}
-
-
 void make_truncated_value_warning(THD *thd,
                                   MYSQL_ERROR::enum_warning_level level,
                                   const Lazy_string *sval,

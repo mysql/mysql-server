@@ -808,6 +808,7 @@ public:
   String *val_string_from_real(String *str);
   String *val_string_from_int(String *str);
   String *val_string_from_decimal(String *str);
+  String *val_string_from_date(String *str);
   my_decimal *val_decimal_from_real(my_decimal *decimal_value);
   my_decimal *val_decimal_from_int(my_decimal *decimal_value);
   my_decimal *val_decimal_from_string(my_decimal *decimal_value);
@@ -3564,16 +3565,31 @@ public:
   Item_cache_int(enum_field_types field_type_arg):
     Item_cache(field_type_arg), value(0) {}
 
-  virtual void store(Item *item){ Item_cache::store(item); }
-  void store_longlong(Item *item, longlong val_arg);
   double val_real();
   longlong val_int();
   String* val_str(String *str);
   my_decimal *val_decimal(my_decimal *);
   enum Item_result result_type() const { return INT_RESULT; }
   bool cache_value();
+  int save_in_field(Field *field, bool no_conversions);
+};
+
+
+class Item_cache_temporal: public Item_cache_int
+{
+public:
+  Item_cache_temporal(enum_field_types field_type_arg):
+    Item_cache_int(field_type_arg)
+  {
+    if (mysql_type_to_time_type(cached_field_type) == MYSQL_TIMESTAMP_ERROR)
+      cached_field_type= MYSQL_TYPE_DATETIME;
+  }
+
+  String* val_str(String *str);
+  bool cache_value();
   bool get_date(MYSQL_TIME *ltime, uint fuzzydate);
   int save_in_field(Field *field, bool no_conversions);
+  void store_packed(longlong val_arg);
   /*
     Having a clone_item method tells optimizer that this object
     is a constant and need not be optimized further.
@@ -3581,12 +3597,11 @@ public:
   */
   Item *clone_item()
   {
-    Item_cache_int *item= new Item_cache_int(cached_field_type);
-    item->store_longlong(this, value);
+    Item_cache_temporal *item= new Item_cache_temporal(cached_field_type);
+    item->store_packed(value);
     return item;
   }
 };
-
 
 class Item_cache_real: public Item_cache
 {

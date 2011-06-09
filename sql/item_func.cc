@@ -2463,41 +2463,14 @@ String *Item_func_min_max::val_str(String *str)
 {
   DBUG_ASSERT(fixed == 1);
   if (compare_as_dates)
-  {
-    MYSQL_TIME ltime;
-    if (get_date(&ltime, TIME_FUZZY_DATE))
-      return 0;
-
-    str->alloc(MAX_DATE_STRING_REP_LENGTH);
-    str->set_charset(collation.collation);
-    str->length(my_TIME_to_str(&ltime, const_cast<char*>(str->ptr()), decimals));
-    return str;
-  }
+    return val_string_from_date(str);
   switch (cmp_type) {
   case INT_RESULT:
-  {
-    longlong nr=val_int();
-    if (null_value)
-      return 0;
-    str->set_int(nr, unsigned_flag, &my_charset_bin);
-    return str;
-  }
+    return val_string_from_int(str);
   case DECIMAL_RESULT:
-  {
-    my_decimal dec_buf, *dec_val= val_decimal(&dec_buf);
-    if (null_value)
-      return 0;
-    my_decimal2string(E_DEC_FATAL_ERROR, dec_val, 0, 0, 0, str);
-    return str;
-  }
+    return val_string_from_decimal(str);
   case REAL_RESULT:
-  {
-    double nr= val_real();
-    if (null_value)
-      return 0; /* purecov: inspected */
-    str->set_real(nr,decimals,&my_charset_bin);
-    return str;
-  }
+    return val_string_from_real(str);
   case STRING_RESULT:
   {
     String *UNINIT_VAR(res);

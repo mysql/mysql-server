@@ -35,16 +35,6 @@
 /** Day number for Dec 31st, 9999. */
 #define MAX_DAY_NUMBER 3652424L
 
-static bool make_datetime(MYSQL_TIME *ltime, String *str, uint decimals)
-{
-  if (str->alloc(MAX_DATE_STRING_REP_LENGTH))
-    return 1;
-  str->length(my_TIME_to_str(ltime, const_cast<char*>(str->ptr()), decimals));
-  str->set_charset(&my_charset_bin);
-  return 0;
-}
-
-
 /*
   Date formats corresponding to compound %r and %T conversion specifiers
 
@@ -1370,15 +1360,7 @@ bool get_interval_value(Item *args,interval_type int_type,
 String *Item_temporal_func::val_str(String *str)
 {
   DBUG_ASSERT(fixed == 1);
-  MYSQL_TIME ltime;
-  if (get_date(&ltime, TIME_FUZZY_DATE))
-    return (String *) 0;
-  if (make_datetime(&ltime, str, decimals))
-  {
-    null_value= 1;
-    return (String *) 0;
-  }
-  return str;
+  return val_string_from_date(str);
 }
 
 
@@ -2672,7 +2654,7 @@ longlong Item_func_microsecond::val_int()
 {
   DBUG_ASSERT(fixed == 1);
   MYSQL_TIME ltime;
-  if (!get_arg0_date(&ltime, TIME_FUZZY_DATE))
+  if (!get_arg0_date(&ltime, TIME_TIME_ONLY))
     return ltime.second_part;
   return 0;
 }

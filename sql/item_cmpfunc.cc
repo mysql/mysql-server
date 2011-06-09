@@ -880,11 +880,11 @@ get_datetime_value(THD *thd, Item ***item_arg, Item **cache_arg,
     */
     Query_arena backup;
     Query_arena *save_arena= thd->switch_to_arena_for_cached_items(&backup);
-    Item_cache_int *cache= new Item_cache_int(f_type);
+    Item_cache_temporal *cache= new Item_cache_temporal(f_type);
     if (save_arena)
       thd->set_query_arena(save_arena);
 
-    cache->store_longlong(item, value);
+    cache->store_packed(value);
     *cache_arg= cache;
     *item_arg= cache_arg;
   }

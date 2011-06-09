@@ -331,6 +331,9 @@ a
 -00:00:01.0900
 -00:00:01.1000
 -00:00:01.1000
+select min(a - interval 1 hour), max(a - interval 1 hour) from t1 where a < 0;
+min(a - interval 1 hour)	max(a - interval 1 hour)
+-01:00:01.1000	-01:00:00.6000
 drop table t1;
 select cast(1e-6 as time(6));
 cast(1e-6 as time(6))
