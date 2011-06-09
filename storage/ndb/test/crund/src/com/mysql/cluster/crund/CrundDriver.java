@@ -19,20 +19,11 @@
 
 package com.mysql.cluster.crund;
 
-import java.util.Properties;
-import java.util.List;
-import java.util.Set;
+import java.util.ArrayList;
 import java.util.EnumSet;
 import java.util.HashSet;
-import java.util.ArrayList;
-import java.util.Date;
-import java.text.SimpleDateFormat;
-
-import java.io.FileInputStream;
-import java.io.FileWriter;
-import java.io.IOException;
-import java.io.PrintWriter;
-import java.io.InputStream;
+import java.util.List;
+import java.util.Set;
 
 /**
  * This class benchmarks standard database operations over a series
@@ -71,6 +62,7 @@ abstract public class CrundDriver extends Driver {
     protected int maxBlobBytes;
     protected int maxTextChars;
     protected final Set<String> exclude = new HashSet<String>();
+    protected final Set<String> include = new HashSet<String>();
 
     // ----------------------------------------------------------------------
     // benchmark intializers/finalizers
@@ -198,9 +190,21 @@ abstract public class CrundDriver extends Driver {
         }
 
         // initialize exclude set
-        final String[] e = props.getProperty("exclude", "").split(",");
-        for (int i = 0; i < e.length; i++) {
-            exclude.add(e[i]);
+        final String[] excludeProperty = props.getProperty("exclude", "").split(",");
+        for (int i = 0; i < excludeProperty.length; i++) {
+            String excludeTest = excludeProperty[i];
+            if (!excludeTest.isEmpty()) {
+                exclude.add(excludeTest);
+            }
+        }
+
+        // initialize include set
+        final String[] includeProperty = props.getProperty("include", "").split(",");
+        for (int i = 0; i < includeProperty.length; ++i) {
+            String includeTest = includeProperty[i];
+            if (!includeTest.isEmpty()) {
+                include.add(includeTest);
+            }
         }
 
         if (msg.length() == 0) {
@@ -230,6 +234,7 @@ abstract public class CrundDriver extends Driver {
         out.println("maxBlobBytes:                   " + maxBlobBytes);
         out.println("maxTextChars:                   " + maxTextChars);
         out.println("exclude:                        " + exclude);
+        out.println("include:                        " + include);
     }
 
     // ----------------------------------------------------------------------
@@ -390,7 +395,10 @@ abstract public class CrundDriver extends Driver {
     // XXX move to generic load class
     protected void runOperation(Op op, int nOps) throws Exception {
         final String name = op.getName();
-        if (!exclude.contains(name)) {
+        // if there is an include list and this test is included, or
+        // there is not an include list and this test is not excluded
+        if ((include.size() != 0 && include.contains(name))
+                || (include.size() == 0 && !exclude.contains(name))) {
             begin(name);
             op.run(nOps);
             finish(name);
