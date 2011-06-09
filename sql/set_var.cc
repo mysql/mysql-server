@@ -1288,7 +1288,7 @@ static void fix_query_cache_type(THD *thd, enum_var_type type)
       fix_query_cache_size(thd, type);
     }
     else if (global_system_variables.query_cache_type == 0)
-      query_cache.disable_query_cache();
+      query_cache.disable_query_cache(thd);
   }
 }
 

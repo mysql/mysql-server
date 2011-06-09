@@ -24,6 +24,7 @@ endif
 INCLUDES =			-I$(top_builddir)/include \
 				-I$(top_srcdir)/include \
 				-I$(top_srcdir)/regex \
+				@ZLIB_INCLUDES@ \
                                 $(openssl_includes)
 
 LIBS =				@CLIENT_LIBS@

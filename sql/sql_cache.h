@@ -499,7 +499,7 @@ protected:
   void lock_and_suspend(void);
   void unlock(void);
 
-  void disable_query_cache(void);
+  void disable_query_cache(THD *thd);
 };
 
 extern Query_cache query_cache;

@@ -1277,7 +1277,8 @@ ulong Query_cache::resize(ulong query_cache_size_arg)
 
   if (global_system_variables.query_cache_type == 0)
   {
-    my_error(ER_QUERY_CACHE_IS_DISABLED, MYF(0));
+    if (query_cache_size_arg != 0)
+      my_error(ER_QUERY_CACHE_IS_DISABLED, MYF(0));
     DBUG_RETURN(0);
   }
 
@@ -2318,7 +2319,7 @@ void Query_cache::destroy()
 }
 
 
-void Query_cache::disable_query_cache(void)
+void Query_cache::disable_query_cache(THD *thd)
 {
   m_cache_status= DISABLE_REQUEST;
   /*
@@ -2326,7 +2327,7 @@ void Query_cache::disable_query_cache(void)
     try_lock(TRY) will exit immediately if there is lock.
     unlock() should free block.
   */
-  if (m_requests_in_progress == 0 && !try_lock(current_thd, TRY))
+  if (m_requests_in_progress == 0 && !try_lock(thd, TRY))
     unlock();
 }
 
@@ -2346,14 +2347,16 @@ void Query_cache::init()
   initialized = 1;
   query_state_map= default_charset_info->state_map;
   /*
-    If we explicitly turn off query cache from the command line query cache will
-    be disabled for the reminder of the server life time. This is because we
-    want to avoid locking the QC specific mutex if query cache isn't going to
-    be used.
+    If we explicitly turn off query cache from the command line query
+    cache will be disabled for the reminder of the server life
+    time. This is because we want to avoid locking the QC specific
+    mutex if query cache isn't going to be used.
   */
   if (global_system_variables.query_cache_type == 0)
-    query_cache.disable_query_cache();
-
+  {
+    free_cache();
+    m_cache_status= DISABLED;
+  }
   DBUG_VOID_RETURN;
 }
 
