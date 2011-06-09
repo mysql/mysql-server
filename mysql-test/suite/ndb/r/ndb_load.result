@@ -127,13 +127,13 @@ Now check bulk insert using create .. as select.
 SHOW VARIABLES LIKE 'storage_engine';
 Variable_name	Value
 storage_engine	MyISAM
-SET storage_engine="ndb";
+SET default_storage_engine="ndb";
 CREATE TABLE t2 AS SELECT * FROM t1;
 SELECT COUNT(*) FROM t2;
 COUNT(*)
 15000
 DROP TABLE t2;
-SET storage_engine="MyIsam";
+SET default_storage_engine="MyIsam";
 Now check Alter table to Ndb
 ALTER TABLE t1 ENGINE= Ndb;
 SELECT COUNT(*) FROM t1;

@@ -39,7 +39,7 @@ CREATE TABLE mysql.ndb_apply_status
 -- connection master
 --disable_query_log
 set new=on;
-set storage_engine=ndbcluster;
+set default_storage_engine=ndbcluster;
 --enable_query_log
 
 --source suite/ndb_rpl/t/ndb_rpl_2multi_eng.inc

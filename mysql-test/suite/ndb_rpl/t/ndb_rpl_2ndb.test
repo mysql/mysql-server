@@ -10,7 +10,7 @@
 
 # On master use NDB as storage engine.
 connection master;
-SET storage_engine=ndb;
+SET default_storage_engine=ndb;
 
 --echo
 --echo === NDB -> NDB ===

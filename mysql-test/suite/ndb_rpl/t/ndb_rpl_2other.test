@@ -12,7 +12,7 @@ let $rpl_skip_start_slave= 1; # Don't start slave automatically
 --source include/master-slave.inc
 
 # On master use NDB as storage engine.
-SET storage_engine=ndb;
+SET default_storage_engine=ndb;
 
 --echo
 --echo === NDB -> MYISAM ===
@@ -37,8 +37,8 @@ CREATE TABLE mysql.ndb_apply_status
                    PRIMARY KEY USING HASH (server_id)) ENGINE=MYISAM;
 
 # Reconfigure slave to use MyISAM as default engine
-SET @old_slave_storage_engine=@@global.storage_engine;
-SET @@global.storage_engine=myisam;
+SET @old_slave_storage_engine=@@global.default_storage_engine;
+SET @@global.default_storage_engine=myisam;
 
 --source include/start_slave.inc
 --source suite/ndb_rpl/t/ndb_rpl_2multi_basic.inc
@@ -53,7 +53,7 @@ SET @@global.storage_engine=myisam;
 --source include/rpl_connection_slave.inc
 
 alter table mysql.ndb_apply_status engine=innodb;
-SET @@global.storage_engine=innodb;
+SET @@global.default_storage_engine=innodb;
 
 --source include/start_slave.inc
 --source suite/ndb_rpl/t/ndb_rpl_2multi_basic.inc
@@ -64,5 +64,5 @@ SET @@global.storage_engine=innodb;
 --source include/rpl_connection_slave.inc
 drop table mysql.ndb_apply_status;
 set @@global.slave_exec_mode= @old_slave_exec_mode;
-SET @@global.storage_engine=@old_slave_storage_engine;
+SET @@global.default_storage_engine=@old_slave_storage_engine;
 

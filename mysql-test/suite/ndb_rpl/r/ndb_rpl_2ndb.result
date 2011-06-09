@@ -1,6 +1,6 @@
 include/master-slave.inc
 [connection master]
-SET storage_engine=ndb;
+SET default_storage_engine=ndb;
 
 === NDB -> NDB ===
 
