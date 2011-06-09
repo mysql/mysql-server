@@ -256,7 +256,9 @@ public abstract class AbstractDomainTypeHandlerImpl<T> implements DomainTypeHand
 
     public void operationSetNonPKValues(ValueHandler handler, Operation op) {
         for (DomainFieldHandler fmd: nonPKFieldHandlers) {
-            fmd.operationSetValue(handler, op);
+            if (handler.isModified(fmd.getFieldNumber())) {
+                fmd.operationSetValue(handler, op);
+            }
         }
     }
 
