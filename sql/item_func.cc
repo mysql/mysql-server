@@ -405,11 +405,13 @@ void Item_func::update_used_tables()
 {
   used_tables_cache=0;
   const_item_cache=1;
+  with_subselect= false;
   for (uint i=0 ; i < arg_count ; i++)
   {
     args[i]->update_used_tables();
     used_tables_cache|=args[i]->used_tables();
     const_item_cache&=args[i]->const_item();
+    with_subselect|= args[i]->has_subquery();
   }
 }
 
