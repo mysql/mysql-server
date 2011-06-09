@@ -3130,7 +3130,7 @@ fill_schema_table_by_open(THD *thd, bool is_show_fields_or_keys,
     of backward compatibility.
   */
   if (!is_show_fields_or_keys && result && thd->is_error() &&
-      thd->stmt_da->sql_errno() == ER_NO_SUCH_TABLE)
+      thd->get_stmt_da()->sql_errno() == ER_NO_SUCH_TABLE)
   {
     /*
       Hide error for a non-existing table.
@@ -3220,7 +3220,7 @@ static int fill_schema_table_names(THD *thd, TABLE *table,
     default:
       DBUG_ASSERT(0);
     }
-    if (thd->is_error() && thd->stmt_da->sql_errno() == ER_NO_SUCH_TABLE)
+    if (thd->is_error() && thd->get_stmt_da()->sql_errno() == ER_NO_SUCH_TABLE)
     {
       thd->clear_error();
       return 0;
@@ -4118,13 +4118,13 @@ err:
       column with the error text, and clear the error so that the operation
       can continue.
     */
-    const char *error= thd->is_error() ? thd->stmt_da->message() : "";
+    const char *error= thd->is_error() ? thd->get_stmt_da()->message() : "";
     table->field[20]->store(error, strlen(error), cs);
 
     if (thd->is_error())
     {
       push_warning(thd, MYSQL_ERROR::WARN_LEVEL_WARN,
-                   thd->stmt_da->sql_errno(), thd->stmt_da->message());
+                   thd->get_stmt_da()->sql_errno(), thd->get_stmt_da()->message());
       thd->clear_error();
     }
   }
@@ -4281,7 +4281,7 @@ static int get_schema_column_record(THD *thd, TABLE_LIST *tables,
       */
       if (thd->is_error())
         push_warning(thd, MYSQL_ERROR::WARN_LEVEL_WARN,
-                     thd->stmt_da->sql_errno(), thd->stmt_da->message());
+                     thd->get_stmt_da()->sql_errno(), thd->get_stmt_da()->message());
       thd->clear_error();
       res= 0;
     }
@@ -4942,7 +4942,7 @@ static int get_schema_stat_record(THD *thd, TABLE_LIST *tables,
       */
       if (thd->is_error())
         push_warning(thd, MYSQL_ERROR::WARN_LEVEL_WARN,
-                     thd->stmt_da->sql_errno(), thd->stmt_da->message());
+                     thd->get_stmt_da()->sql_errno(), thd->get_stmt_da()->message());
       thd->clear_error();
       res= 0;
     }
@@ -5161,7 +5161,7 @@ static int get_schema_views_record(THD *thd, TABLE_LIST *tables,
       DBUG_RETURN(1);
     if (res && thd->is_error())
       push_warning(thd, MYSQL_ERROR::WARN_LEVEL_WARN,
-                   thd->stmt_da->sql_errno(), thd->stmt_da->message());
+                   thd->get_stmt_da()->sql_errno(), thd->get_stmt_da()->message());
   }
   if (res)
     thd->clear_error();
@@ -5195,7 +5195,7 @@ static int get_schema_constraints_record(THD *thd, TABLE_LIST *tables,
   {
     if (thd->is_error())
       push_warning(thd, MYSQL_ERROR::WARN_LEVEL_WARN,
-                   thd->stmt_da->sql_errno(), thd->stmt_da->message());
+                   thd->get_stmt_da()->sql_errno(), thd->get_stmt_da()->message());
     thd->clear_error();
     DBUG_RETURN(0);
   }
@@ -5298,7 +5298,7 @@ static int get_schema_triggers_record(THD *thd, TABLE_LIST *tables,
   {
     if (thd->is_error())
       push_warning(thd, MYSQL_ERROR::WARN_LEVEL_WARN,
-                   thd->stmt_da->sql_errno(), thd->stmt_da->message());
+                   thd->get_stmt_da()->sql_errno(), thd->get_stmt_da()->message());
     thd->clear_error();
     DBUG_RETURN(0);
   }
@@ -5379,7 +5379,7 @@ static int get_schema_key_column_usage_record(THD *thd,
   {
     if (thd->is_error())
       push_warning(thd, MYSQL_ERROR::WARN_LEVEL_WARN,
-                   thd->stmt_da->sql_errno(), thd->stmt_da->message());
+                   thd->get_stmt_da()->sql_errno(), thd->get_stmt_da()->message());
     thd->clear_error();
     DBUG_RETURN(0);
   }
@@ -5666,7 +5666,7 @@ static int get_schema_partitions_record(THD *thd, TABLE_LIST *tables,
   {
     if (thd->is_error())
       push_warning(thd, MYSQL_ERROR::WARN_LEVEL_WARN,
-                   thd->stmt_da->sql_errno(), thd->stmt_da->message());
+                   thd->get_stmt_da()->sql_errno(), thd->get_stmt_da()->message());
     thd->clear_error();
     DBUG_RETURN(0);
   }
@@ -6195,7 +6195,7 @@ get_referential_constraints_record(THD *thd, TABLE_LIST *tables,
   {
     if (thd->is_error())
       push_warning(thd, MYSQL_ERROR::WARN_LEVEL_WARN,
-                   thd->stmt_da->sql_errno(), thd->stmt_da->message());
+                   thd->get_stmt_da()->sql_errno(), thd->get_stmt_da()->message());
     thd->clear_error();
     DBUG_RETURN(0);
   }
@@ -6804,24 +6804,24 @@ static bool do_fill_table(THD *thd,
   // that problem we create a Warning_info instance, which is capable of
   // storing "unlimited" number of warnings.
   Warning_info wi(thd->query_id, true);
-  Warning_info *wi_saved= thd->warning_info;
+  Warning_info *wi_saved= thd->get_warning_info();
 
-  thd->warning_info= &wi;
+  thd->set_warning_info(&wi);
 
   bool res= table_list->schema_table->fill_table(
     thd, table_list, join_table->condition());
 
-  thd->warning_info= wi_saved;
+  thd->set_warning_info(wi_saved);
 
   // Pass an error if any.
 
-  if (thd->stmt_da->is_error())
+  if (thd->get_stmt_da()->is_error())
   {
-    thd->warning_info->push_warning(thd,
-                                    thd->stmt_da->sql_errno(),
-                                    thd->stmt_da->get_sqlstate(),
-                                    MYSQL_ERROR::WARN_LEVEL_ERROR,
-                                    thd->stmt_da->message());
+    thd->get_warning_info()->push_warning(thd,
+                                          thd->get_stmt_da()->sql_errno(),
+                                          thd->get_stmt_da()->get_sqlstate(),
+                                          MYSQL_ERROR::WARN_LEVEL_ERROR,
+                                          thd->get_stmt_da()->message());
   }
 
   // Pass warnings (if any).
@@ -6836,7 +6836,7 @@ static bool do_fill_table(THD *thd,
   while ((err= it++))
   {
     if (err->get_level() != MYSQL_ERROR::WARN_LEVEL_ERROR)
-      thd->warning_info->push_warning(thd, err);
+      thd->get_warning_info()->push_warning(thd, err);
   }
 
   return res;

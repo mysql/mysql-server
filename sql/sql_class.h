@@ -2281,8 +2281,6 @@ public:
   table_map  used_tables;
   USER_CONN *user_connect;
   const CHARSET_INFO *db_charset;
-  Warning_info *warning_info;
-  Diagnostics_area *stmt_da;
 #if defined(ENABLED_PROFILING)
   PROFILING  profiling;
 #endif
@@ -2787,8 +2785,8 @@ public:
   inline void clear_error()
   {
     DBUG_ENTER("clear_error");
-    if (stmt_da->is_error())
-      stmt_da->reset_diagnostics_area();
+    if (get_stmt_da()->is_error())
+      get_stmt_da()->reset_diagnostics_area();
     is_slave_error= 0;
     DBUG_VOID_RETURN;
   }
@@ -2815,7 +2813,7 @@ public:
   */
   inline void fatal_error()
   {
-    DBUG_ASSERT(stmt_da->is_error() || killed);
+    DBUG_ASSERT(get_stmt_da()->is_error() || killed);
     is_fatal_error= 1;
     DBUG_PRINT("error",("Fatal error set"));
   }
@@ -2832,7 +2830,33 @@ public:
 
     To raise this flag, use my_error().
   */
-  inline bool is_error() const { return stmt_da->is_error(); }
+  inline bool is_error() const { return get_stmt_da()->is_error(); }
+
+  /// Returns Warning-information-area for the current statement.
+  Warning_info *get_warning_info()
+  { return m_warning_info; }
+
+  /// Returns Warning-information-area for the current statement.
+  const Warning_info *get_warning_info() const
+  { return const_cast<THD *> (this)->get_warning_info(); }
+
+  /// Sets Warning-information-area for the current statement.
+  void set_warning_info(Warning_info *wi)
+  { m_warning_info= wi; }
+
+  /// Returns Diagnostics-area for the current statement.
+  Diagnostics_area *get_stmt_da()
+  { return m_stmt_da; }
+
+  /// Returns Diagnostics-area for the current statement.
+  const Diagnostics_area *get_stmt_da() const
+  { return const_cast<THD *> (this)->get_stmt_da(); }
+
+  /// Sets Diagnostics-area for the current statement.
+  void set_stmt_da(Diagnostics_area *da)
+  { m_stmt_da= da; }
+
+public:
   inline const CHARSET_INFO *charset()
   { return variables.character_set_client; }
   void update_charset();
@@ -3226,6 +3250,9 @@ private:
   Warning_info main_warning_info;
   Diagnostics_area main_da;
 
+  Warning_info *m_warning_info;
+  Diagnostics_area *m_stmt_da;
+
   /**
     It will be set TURE if CURRENT_USER() is called in account management
     statements or default definer is set in CREATE/ALTER SP, SF, Event,
@@ -3247,24 +3274,24 @@ private:
 };
 
 
-/** A short cut for thd->stmt_da->set_ok_status(). */
+/** A short cut for thd->get_stmt_da()->set_ok_status(). */
 
 inline void
 my_ok(THD *thd, ulonglong affected_rows= 0, ulonglong id= 0,
         const char *message= NULL)
 {
   thd->set_row_count_func(affected_rows);
-  thd->stmt_da->set_ok_status(thd, affected_rows, id, message);
+  thd->get_stmt_da()->set_ok_status(thd, affected_rows, id, message);
 }
 
 
-/** A short cut for thd->stmt_da->set_eof_status(). */
+/** A short cut for thd->get_stmt_da()->set_eof_status(). */
 
 inline void
 my_eof(THD *thd)
 {
   thd->set_row_count_func(-1);
-  thd->stmt_da->set_eof_status(thd);
+  thd->get_stmt_da()->set_eof_status(thd);
 }
 
 #define tmp_disable_binlog(A)       \
