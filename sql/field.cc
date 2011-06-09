@@ -5364,11 +5364,15 @@ void Field_time::sql_type(String &res) const
   res.set_ascii(STRING_WITH_LEN("time"));
 }
 
-static const longlong t_shift= ((TIME_MAX_VALUE_SECONDS+1)*TIME_SECOND_PART_FACTOR);
+int Field_time_hires::reset()
+{
+  store_bigendian(zero_point, ptr, Field_time_hires::pack_length());
+  return 0;
+}
+
 void Field_time_hires::store_TIME(MYSQL_TIME *ltime)
 {
-  ulonglong packed= sec_part_shift(pack_time(ltime), dec) +
-                    sec_part_shift(t_shift, dec);
+  ulonglong packed= sec_part_shift(pack_time(ltime), dec) + zero_point;
   store_bigendian(packed, ptr, Field_time_hires::pack_length());
 }
 
@@ -5425,8 +5429,7 @@ bool Field_time_hires::get_date(MYSQL_TIME *ltime, uint fuzzydate)
   uint32 len= pack_length();
   longlong packed= read_bigendian(ptr, len);
 
-  if (packed)
-    packed= sec_part_unshift(packed - sec_part_shift(t_shift, dec), dec);
+  packed= sec_part_unshift(packed - zero_point, dec);
 
   unpack_time(packed, ltime);
   /*

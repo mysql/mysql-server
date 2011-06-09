@@ -1420,6 +1420,7 @@ public:
 
 class Field_time_hires :public Field_time {
   uint dec;
+  longlong zero_point;
   void store_TIME(MYSQL_TIME *ltime);
 public:
   Field_time_hires(uchar *ptr_arg, uchar *null_ptr_arg, uchar null_bit_arg,
@@ -1431,6 +1432,8 @@ public:
   {
     DBUG_ASSERT(dec);
     DBUG_ASSERT(dec <= TIME_SECOND_PART_DIGITS);
+    zero_point= sec_part_shift(
+                   ((TIME_MAX_VALUE_SECONDS+1)*TIME_SECOND_PART_FACTOR), dec);
   }
   enum ha_base_keytype key_type() const { return HA_KEYTYPE_BINARY; }
   uint decimals() const { return dec; }
@@ -1438,6 +1441,7 @@ public:
   longlong val_int(void);
   double val_real(void);
   String *val_str(String*,String *);
+  int reset(void);
   bool get_date(MYSQL_TIME *ltime, uint fuzzydate);
   bool send_binary(Protocol *protocol);
   int cmp(const uchar *,const uchar *);
