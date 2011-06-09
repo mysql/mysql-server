@@ -215,3 +215,23 @@ select * from t1 join (select * from t2 group by f2) tt on t1.f1=tt.f2 join t1 x
 --echo materialization on tables > MAX_TABLES merge
 drop table t1,t2;
 drop view v1,v2,v3,v4,v6,v7;
+
+--echo #
+--echo #  LP bug #794909: crash when defining possible keys for
+--echo #                  a materialized view/derived_table
+--echo #
+
+CREATE TABLE t1 (f1 int) ;
+INSERT INTO t1 VALUES (149), (150), (224), (29);
+
+CREATE TABLE t2 (f1 int, KEY (f1));
+INSERT INTO t2 VALUES (149), (NULL), (224);
+
+CREATE ALGORITHM=TEMPTABLE VIEW v1 AS SELECT * FROM t1;
+
+EXPLAIN
+SELECT * FROM v1 JOIN t2 ON v1.f1 = t2.f1;
+SELECT * FROM v1 JOIN t2 ON v1.f1 = t2.f1;
+
+DROP VIEW v1;
+DROP TABLE t1,t2;

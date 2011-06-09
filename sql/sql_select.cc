@@ -8328,6 +8328,8 @@ bool generate_derived_keys(DYNAMIC_ARRAY *keyuse_array)
   TABLE *prev_table= 0;
   for (uint i= 0; i < elements; i++, keyuse++)
   {
+    if (!keyuse->table)
+      break;
     KEYUSE *first_table_keyuse= NULL;
     table_map last_used_tables= 0;
     uint count= 0;
@@ -8353,11 +8355,13 @@ bool generate_derived_keys(DYNAMIC_ARRAY *keyuse_array)
       }
       count++;
       keyuse++;
-      if (keyuse->table != prev_table &&
-          generate_derived_keys_for_table(first_table_keyuse, count, ++keys))
-        return TRUE;
-      if (++i == elements)
-        break;
+      if (keyuse->table != prev_table)
+      {
+        if (generate_derived_keys_for_table(first_table_keyuse, count, ++keys))
+          return TRUE;
+        keyuse--;
+	derived= NULL;
+      }
     }
   }
   return FALSE;
