@@ -1545,7 +1545,7 @@ my_strntoull10rnd_8bit(CHARSET_INFO *cs __attribute__((unused)),
     }
   }
   
-  digits= str - beg;
+  digits= (int) (str - beg);
 
   /* Continue to accumulate into ulonglong */
   for (dot= NULL, ull= ul; str < end; str++)
@@ -1582,7 +1582,7 @@ my_strntoull10rnd_8bit(CHARSET_INFO *cs __attribute__((unused)),
       }
       else
       {
-        shift= dot - str;
+        shift= (int) (dot - str);
         for ( ; str < end && (ch= (uchar) (*str - '0')) < 10; str++);
       }
       goto exp;
