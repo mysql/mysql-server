@@ -1,4 +1,4 @@
-/* Copyright (C) 2000 MySQL AB
+/* Copyright 2000, 2011, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -52,7 +52,7 @@ LINE_BUFFER *batch_readline_init(ulong max_size,FILE *file)
 }
 
 
-char *batch_readline(LINE_BUFFER *line_buff)
+char *batch_readline(LINE_BUFFER *line_buff, bool binary_mode)
 {
   char *pos;
   ulong out_length;
@@ -60,10 +60,14 @@ char *batch_readline(LINE_BUFFER *line_buff)
   if (!(pos=intern_read_line(line_buff, &out_length)))
     return 0;
   if (out_length && pos[out_length-1] == '\n')
-    if (--out_length && pos[out_length-1] == '\r')  /* Remove '\n' */
+  {
+    out_length--;                                   /* Remove '\n' */
+    if (!binary_mode && pos[out_length-1] == '\r')
       out_length--;                                 /* Remove '\r' */
+  }
   line_buff->read_length=out_length;
   pos[out_length]=0;
+  DBUG_DUMP("Query: ", (unsigned char *) pos, out_length);
   return pos;
 }
 
@@ -223,7 +227,7 @@ char *intern_read_line(LINE_BUFFER *buffer, ulong *out_length)
   for (;;)
   {
     pos=buffer->end_of_line;
-    while (*pos != '\n' && *pos)
+    while (*pos != '\n' && pos != buffer->end)
       pos++;
     if (pos == buffer->end)
     {
@@ -249,6 +253,8 @@ char *intern_read_line(LINE_BUFFER *buffer, ulong *out_length)
       buffer->truncated= 0;
     buffer->end_of_line=pos+1;
     *out_length=(ulong) (pos + 1 - buffer->eof - buffer->start_of_line);
+
+    DBUG_DUMP("Query: ", (unsigned char *) buffer->start_of_line, *out_length);
     DBUG_RETURN(buffer->start_of_line);
   }
 }

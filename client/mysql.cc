@@ -150,6 +150,7 @@ static uint my_end_arg;
 static char * opt_mysql_unix_port=0;
 static char *opt_bind_addr = NULL;
 static int connect_flag=CLIENT_INTERACTIVE;
+static my_bool opt_binary_mode= FALSE;
 static char *current_host,*current_db,*current_user=0,*opt_password=0,
             *current_prompt=0, *delimiter_str= 0,
             *default_charset= (char*) MYSQL_AUTODETECT_CHARSET_NAME,
@@ -1081,9 +1082,10 @@ static void initialize_readline (char *name);
 static void fix_history(String *final_command);
 #endif
 
-static COMMANDS *find_command(char *name,char cmd_name);
-static bool add_line(String &buffer,char *line,char *in_string,
-                     bool *ml_comment, bool truncated);
+static COMMANDS *find_command(char *name);
+static COMMANDS *find_command(char cmd_name);
+static bool add_line(String &buffer, char *line, ulong line_length,
+                     char *in_string, bool *ml_comment, bool truncated);
 static void remove_cntrl(String &buffer);
 static void print_table_data(MYSQL_RES *result);
 static void print_table_data_html(MYSQL_RES *result);
@@ -1101,6 +1103,43 @@ extern "C" sig_handler handle_kill_signal(int sig);
 static sig_handler window_resize(int sig);
 #endif
 
+const char DELIMITER_NAME[]= "delimiter";
+const uint DELIMITER_NAME_LEN= sizeof(DELIMITER_NAME) - 1;
+inline bool is_delimiter_command(char *name, ulong len)
+{
+  /*
+    Delimiter command has a parameter, so the length of the whole command
+    is larger than DELIMITER_NAME_LEN.  We don't care the parameter, so
+    only name(first DELIMITER_NAME_LEN bytes) is checked.
+  */
+  return (len >= DELIMITER_NAME_LEN &&
+          !my_strnncoll(charset_info, (uchar*) name, DELIMITER_NAME_LEN,
+                        (uchar *) DELIMITER_NAME, DELIMITER_NAME_LEN));
+}
+
+/**
+   Get the index of a command in the commands array.
+
+   @param cmd_char    Short form command.
+
+   @return int
+     The index of the command is returned if it is found, else -1 is returned.
+*/
+inline int get_command_index(char cmd_char)
+{
+  /*
+    All client-specific commands are in the first part of commands array
+    and have a function to implement it.
+  */
+  for (uint i= 0; *commands[i].func; i++)
+    if (commands[i].cmd_char == cmd_char)
+      return i;
+  return -1;
+}
+
+static int delimiter_index= -1;
+static int charset_index= -1;
+static bool real_binary_mode= FALSE;
 
 #ifdef _WIN32
 BOOL windows_ctrl_handler(DWORD fdwCtrlType)
@@ -1131,7 +1170,9 @@ int main(int argc,char *argv[])
   MY_INIT(argv[0]);
   DBUG_ENTER("main");
   DBUG_PROCESS(argv[0]);
-  
+
+  charset_index= get_command_index('C');
+  delimiter_index= get_command_index('d');
   delimiter_str= delimiter;
   default_prompt = my_strdup(getenv("MYSQL_PS1") ? 
 			     getenv("MYSQL_PS1") : 
@@ -1646,6 +1687,13 @@ static struct my_option my_long_options[] =
     "Default authentication client-side plugin to use.",
     &opt_default_auth, &opt_default_auth, 0,
    GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
+  {"binary-mode", OPT_BINARY_MODE,
+   "By default, ASCII '\\0' is disallowed and '\\r\\n' is translated to '\\n'. "
+   "This switch turns off both features, and also turns off parsing of all client"
+   "commands except \\C and DELIMITER, in non-interactive mode (for input "
+   "piped to mysql or loaded using the 'source' command). This is necessary "
+   "when processing output from mysqlbinlog that may contain blobs.",
+   &opt_binary_mode, &opt_binary_mode, 0, GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0},
   { 0, 0, 0, 0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0}
 };
 
@@ -1917,13 +1965,35 @@ static int read_and_execute(bool interactive)
   ulong line_number=0;
   bool ml_comment= 0;  
   COMMANDS *com;
+  ulong line_length= 0;
   status.exit_status=1;
 
+  real_binary_mode= !interactive && opt_binary_mode;
   for (;;)
   {
     if (!interactive)
     {
-      line=batch_readline(status.line_buff);
+      line= batch_readline(status.line_buff, real_binary_mode);
+      line_length= status.line_buff->read_length;
+      /*
+        ASCII 0x00 is not allowed appearing in queries if it is not in binary
+        mode.
+      */
+      if (!real_binary_mode && line && strlen(line) != line_length)
+      {
+        status.exit_status= 1;
+        String msg;
+        msg.append("ASCII '\\0' appeared in the statement, but this is not "
+                   "allowed unless option --binary-mode is enabled and mysql is "
+                   "run in non-interactive mode. Set --binary-mode to 1 if ASCII "
+                   "'\\0' is expected. Query: '");
+        msg.append(glob_buffer);
+        msg.append(line);
+        msg.append("'.");
+        put_info(msg.c_ptr(), INFO_ERROR);
+        break;
+      }
+
       /*
         Skip UTF8 Byte Order Marker (BOM) 0xEFBBBF.
         Editors like "notepad" put this marker in
@@ -1972,6 +2042,8 @@ static int read_and_execute(bool interactive)
       */
       if (opt_outfile && line)
 	fprintf(OUTFILE, "%s\n", line);
+
+      line_length= line ? strlen(line) : 0;
     }
     // End of file or system error
     if (!line)
@@ -1988,7 +2060,7 @@ static int read_and_execute(bool interactive)
       (We want to allow help, print and clear anywhere at line start
     */
     if ((named_cmds || glob_buffer.is_empty())
-	&& !ml_comment && !in_string && (com=find_command(line,0)))
+	&& !ml_comment && !in_string && (com= find_command(line)))
     {
       if ((*com->func)(&glob_buffer,line) > 0)
 	break;
@@ -2000,7 +2072,7 @@ static int read_and_execute(bool interactive)
 #endif
       continue;
     }
-    if (add_line(glob_buffer, line, &in_string, &ml_comment,
+    if (add_line(glob_buffer, line, line_length, &in_string, &ml_comment,
                  status.line_buff ? status.line_buff->truncated : 0))
       break;
   }
@@ -2022,70 +2094,130 @@ static int read_and_execute(bool interactive)
   tmpbuf.free();
 #endif
 
+  /*
+    If the function is called by 'source' command, it will return to interactive
+    mode, so real_binary_mode should be FALSE. Otherwise, it will exit the
+    program, it is safe to set real_binary_mode to FALSE.
+  */
+  real_binary_mode= FALSE;
   return status.exit_status;
 }
 
+/**
+   It checks if the input is a short form command. It returns the command's
+   pointer if a command is found, else return NULL. Note that if binary-mode
+   is set, then only \C is searched for.
 
-static COMMANDS *find_command(char *name,char cmd_char)
+   @param cmd_char    A character of one byte.
+
+   @return
+     the command's pointer or NULL.
+*/
+static COMMANDS *find_command(char cmd_char)
+{
+  DBUG_ENTER("find_command");
+  DBUG_PRINT("enter", ("cmd_char: %d", cmd_char));
+
+  int index= -1;
+
+  /*
+    In binary-mode, we disallow all mysql commands except '\C'
+    and DELIMITER.
+  */
+  if (real_binary_mode)
+  {
+    if (cmd_char == 'C')
+      index= charset_index;
+  }
+  else
+    index= get_command_index(cmd_char);
+
+  if (index >= 0)
+  {
+    DBUG_PRINT("exit",("found command: %s", commands[index].name));
+    DBUG_RETURN(&commands[index]);
+  }
+  else
+    DBUG_RETURN((COMMANDS *) 0);
+}
+
+/**
+   It checks if the input is a long form command. It returns the command's
+   pointer if a command is found, else return NULL. Note that if binary-mode 
+   is set, then only DELIMITER is searched for.
+
+   @param name    A string.
+   @return
+     the command's pointer or NULL.
+*/
+static COMMANDS *find_command(char *name)
 {
   uint len;
   char *end;
   DBUG_ENTER("find_command");
-  DBUG_PRINT("enter",("name: '%s'  char: %d", name ? name : "NULL", cmd_char));
 
-  if (!name)
+  DBUG_ASSERT(name != NULL);
+  DBUG_PRINT("enter", ("name: '%s'", name));
+
+  while (my_isspace(charset_info, *name))
+    name++;
+  /*
+    If there is an \\g in the row or if the row has a delimiter but
+    this is not a delimiter command, let add_line() take care of
+    parsing the row and calling find_command().
+  */
+  if ((!real_binary_mode && strstr(name, "\\g")) ||
+      (strstr(name, delimiter) &&
+       !is_delimiter_command(name, DELIMITER_NAME_LEN)))
+      DBUG_RETURN((COMMANDS *) 0);
+
+  if ((end=strcont(name, " \t")))
   {
-    len=0;
-    end=0;
+    len=(uint) (end - name);
+    while (my_isspace(charset_info, *end))
+      end++;
+    if (!*end)
+      end= 0;					// no arguments to function
+  }
+  else
+    len= (uint) strlen(name);
+
+  int index= -1;
+  if (real_binary_mode)
+  {
+    if (is_delimiter_command(name, len))
+      index= delimiter_index;
   }
   else
   {
-    while (my_isspace(charset_info,*name))
-      name++;
     /*
-      If there is an \\g in the row or if the row has a delimiter but
-      this is not a delimiter command, let add_line() take care of
-      parsing the row and calling find_command()
+      All commands are in the first part of commands array and have a function
+      to implement it.
     */
-    if (strstr(name, "\\g") || (strstr(name, delimiter) &&
-                                !(strlen(name) >= 9 &&
-                                  !my_strnncoll(&my_charset_latin1,
-                                                (uchar*) name, 9,
-                                                (const uchar*) "delimiter",
-                                                9))))
-      DBUG_RETURN((COMMANDS *) 0);
-    if ((end=strcont(name," \t")))
+    for (uint i= 0; commands[i].func; i++)
     {
-      len=(uint) (end - name);
-      while (my_isspace(charset_info,*end))
-	end++;
-      if (!*end)
-	end=0;					// no arguments to function
+      if (commands[i].name[len] == '\0' &&
+          !my_strnncoll(&my_charset_latin1, (uchar*) name, len,
+                        (uchar*) commands[i].name, len) &&
+          (!end || commands[i].takes_params))
+      {
+        index= i;
+        break;
+      }
     }
-    else
-      len=(uint) strlen(name);
   }
 
-  for (uint i= 0; commands[i].name; i++)
+  if (index >= 0)
   {
-    if (commands[i].func &&
-	((name &&
-	  !my_strnncoll(&my_charset_latin1, (uchar*)name, len,
-				     (uchar*)commands[i].name,len) &&
-	  !commands[i].name[len] &&
-	  (!end || (end && commands[i].takes_params))) ||
-	 (!name && commands[i].cmd_char == cmd_char)))
-    {
-      DBUG_PRINT("exit",("found command: %s", commands[i].name));
-      DBUG_RETURN(&commands[i]);
-    }
+    DBUG_PRINT("exit", ("found command: %s", commands[index].name));
+    DBUG_RETURN(&commands[index]);
   }
   DBUG_RETURN((COMMANDS *) 0);
 }
 
 
-static bool add_line(String &buffer,char *line,char *in_string,
-                     bool *ml_comment, bool truncated)
+static bool add_line(String &buffer, char *line, ulong line_length,
+                     char *in_string, bool *ml_comment, bool truncated)
 {
   uchar inchar;
   char buff[80], *pos, *out;
@@ -2100,10 +2232,11 @@ static bool add_line(String &buffer,char *line,char *in_string,
   if (status.add_to_history && line[0] && not_in_history(line))
     add_history(line);
 #endif
-  char *end_of_line=line+(uint) strlen(line);
+  char *end_of_line= line + line_length;
 
-  for (pos=out=line ; (inchar= (uchar) *pos) ; pos++)
+  for (pos= out= line; pos < end_of_line; pos++)
   {
+    inchar= (uchar) *pos;
     if (!preserve_comments)
     {
       // Skip spaces at the beginning of a statement
@@ -2143,7 +2276,7 @@ static bool add_line(String &buffer,char *line,char *in_string,
 	*out++= (char) inchar;
 	continue;
       }
-      if ((com=find_command(NullS,(char) inchar)))
+      if ((com= find_command((char) inchar)))
       {
         // Flush previously accepted characters
         if (out != line)
@@ -2219,7 +2352,7 @@ static bool add_line(String &buffer,char *line,char *in_string,
 
       pos--;
 
-      if ((com= find_command(buffer.c_ptr(), 0)))
+      if ((com= find_command(buffer.c_ptr())))
       {
           
         if ((*com->func)(&buffer, buffer.c_ptr()) > 0)
@@ -2333,10 +2466,7 @@ static bool add_line(String &buffer,char *line,char *in_string,
   {
     uint length=(uint) (out-line);
 
-    if (!truncated &&
-        (length < 9 || 
-         my_strnncoll (charset_info, 
-                       (uchar *)line, 9, (const uchar *) "delimiter", 9)))
+    if (!truncated && !is_delimiter_command(line, length))
     {
       /* 
         Don't add a new line in case there's a DELIMITER command to be 
