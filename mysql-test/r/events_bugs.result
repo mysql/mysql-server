@@ -802,11 +802,11 @@ USE event_test11764334;
 CREATE EVENT ev1 ON SCHEDULE EVERY 3 SECOND DISABLE DO SELECT 1;
 SHOW EVENTS IN event_test11764334 WHERE NAME='ev1';
 Db	Name	Definer	Time zone	Type	Execute at	Interval value	Interval field	Starts	Ends	Status	Originator	character_set_client	collation_connection	Database Collation
-event_test11764334	ev1	root@localhost	SYSTEM	RECURRING	NULL	3	SECOND	2011-06-09 19:59:01	NULL	DISABLED	1	latin1	latin1_swedish_ci	latin1_swedish_ci
+event_test11764334	ev1	root@localhost	SYSTEM	RECURRING	NULL	3	SECOND	#	#	DISABLED	1	latin1	latin1_swedish_ci	latin1_swedish_ci
 ALTER EVENT ev1 ON SCHEDULE EVERY 4 SECOND;
 SHOW EVENTS IN event_test11764334 WHERE NAME='ev1';
 Db	Name	Definer	Time zone	Type	Execute at	Interval value	Interval field	Starts	Ends	Status	Originator	character_set_client	collation_connection	Database Collation
-event_test11764334	ev1	root@localhost	SYSTEM	RECURRING	NULL	4	SECOND	2011-06-09 19:59:01	NULL	DISABLED	1	latin1	latin1_swedish_ci	latin1_swedish_ci
+event_test11764334	ev1	root@localhost	SYSTEM	RECURRING	NULL	4	SECOND	#	#	DISABLED	1	latin1	latin1_swedish_ci	latin1_swedish_ci
 DROP EVENT ev1;
 DROP DATABASE event_test11764334;
 USE test;
