@@ -25,9 +25,13 @@ import java.util.ArrayList;
 import java.util.Date;
 import java.text.SimpleDateFormat;
 
+import java.io.File;
 import java.io.FileInputStream;
+import java.io.FileNotFoundException;
+import java.io.FileOutputStream;
 import java.io.FileWriter;
 import java.io.IOException;
+import java.io.OutputStream;
 import java.io.PrintWriter;
 import java.io.InputStream;
 
@@ -207,6 +211,9 @@ abstract public class Driver {
         loadProperties();
         initProperties();
         printProperties();
+        writeProperties("logging.properties");
+        // setting this property allows implementations under test to use java.util.logging
+        System.setProperty("java.util.logging.config.file", "logging.properties");
         openLogFile();
         clearLogBuffers();
     }
@@ -296,6 +303,21 @@ abstract public class Driver {
         out.println("nRuns:                          " + nRuns);
     }
 
+    protected void writeProperties(String fileName) {
+        File logger = new File(fileName);
+        OutputStream out;
+        try {
+            if (!logger.exists()) {
+                logger.createNewFile();
+            }
+            out = new FileOutputStream(logger);
+            props.store(out, "Consolidated crund properties");
+        } catch (FileNotFoundException e) {
+            throw new RuntimeException("Unexpected exception opening file logger.properties.", e);
+        } catch (IOException e) {
+            throw new RuntimeException("Unexpected exception writing file logger.properties.", e);
+        }
+    }
     // opens the benchmark's data log file
     private void openLogFile() throws IOException {
         out.println();
