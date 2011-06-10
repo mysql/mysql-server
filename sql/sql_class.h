@@ -2832,7 +2832,7 @@ public:
   */
   inline bool is_error() const { return get_stmt_da()->is_error(); }
 
-  /// Returns Warning-information-area for the current statement.
+  /// Returns Warning-information-area for the current diagnostics area.
   Warning_info *get_warning_info()
   { return get_stmt_da()->get_warning_info(); }
 
