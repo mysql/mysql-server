@@ -16,9 +16,6 @@ ndb_partition_error2 : Bug#40989 ndb_partition_error2 needs maintenance
 ndb_cache_trans           : Bug#42197 Query cache and autocommit
 ndb_disconnect_ddl        : Bug#31853 flaky testcase...
 
-ndb_bulk_delete		 : SEAGULL rbwr
-ndb_update_no_read	 : SEAGULL rbwr
-
 ndb_condition_pushdown	 : SEAGULL
 
 ndb_dd_disk2memory	 : SEAGULL alter

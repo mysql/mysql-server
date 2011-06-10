@@ -188,9 +188,6 @@ class ha_ndbcluster: public handler
   ha_ndbcluster(handlerton *hton, TABLE_SHARE *table);
   ~ha_ndbcluster();
 
-#ifndef NDB_WITHOUT_READ_BEFORE_WRITE_REMOVAL
-  void column_bitmaps_signal(uint sig_type);
-#endif
   int open(const char *name, int mode, uint test_if_locked);
   int close(void);
   void local_close(THD *thd, bool release_metadata);
@@ -248,6 +245,7 @@ class ha_ndbcluster: public handler
 #endif
   void get_dynamic_partition_info(PARTITION_STATS *stat_info, uint part_id);
   uint32 calculate_key_hash_value(Field **field_array);
+  bool read_before_write_removal_supported() const { return true; }
   bool read_before_write_removal_possible();
   ha_rows read_before_write_removal_rows_written(void) const;
   int extra(enum ha_extra_function operation);
@@ -637,7 +635,6 @@ private:
   int m_current_range_no;
 
   MY_BITMAP **m_key_fields;
-  MY_BITMAP m_save_read_set;
   // NdbRecAttr has no reference to blob
   NdbValue m_value[NDB_MAX_ATTRIBUTES_IN_TABLE];
   Uint64 m_ref;

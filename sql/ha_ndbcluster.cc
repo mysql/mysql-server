@@ -4628,26 +4628,79 @@ int ha_ndbcluster::bulk_update_row(const uchar *old_data, uchar *new_data,
 
 int ha_ndbcluster::exec_bulk_update(uint *dup_key_found)
 {
+  NdbTransaction* trans= m_thd_ndb->trans;
   DBUG_ENTER("ha_ndbcluster::exec_bulk_update");
   *dup_key_found= 0;
-  if (m_thd_ndb->m_unsent_bytes &&
-      !thd_allow_batch(table->in_use) &&
-      (!m_thd_ndb->m_handler ||
-       m_blobs_pending))
+
+  // m_handler must be NULL or point to _this_ handler instance
+  assert(m_thd_ndb->m_handler == NULL || m_thd_ndb->m_handler == this);
+
+  if (m_thd_ndb->m_handler &&
+      m_read_before_write_removal_possible)
   {
+    /*
+      This is an autocommit involving only one table and rbwr is on
+
+      Commit the autocommit transaction early(before the usual place
+      in ndbcluster_commit) in order to:
+      1) save one round trip, "no-commit+commit" converted to "commit"
+      2) return the correct number of updated and affected rows
+         to the update loop(which will ask handler in rbwr mode)
+    */
+    DBUG_PRINT("info", ("committing auto-commit+rbwr early"));
     uint ignore_count= 0;
-    if (execute_no_commit(m_thd_ndb, m_thd_ndb->trans,
-                          m_ignore_no_key || m_read_before_write_removal_used,
-                          &ignore_count) != 0)
+    const int ignore_error= 1;
+    if (execute_commit(m_thd_ndb, trans,
+                       m_thd_ndb->m_force_send, ignore_error,
+                       &ignore_count) != 0)
     {
       no_uncommitted_rows_execute_failure();
-      DBUG_RETURN(ndb_err(m_thd_ndb->trans));
+      DBUG_RETURN(ndb_err(trans));
     }
+    DBUG_PRINT("info", ("ignore_count: %u", ignore_count));
     assert(m_rows_changed >= ignore_count);
     assert(m_rows_updated >= ignore_count);
     m_rows_changed-= ignore_count;
     m_rows_updated-= ignore_count;
+    DBUG_RETURN(0);
   }
+
+  if (m_thd_ndb->m_unsent_bytes == 0)
+  {
+    DBUG_PRINT("exit", ("skip execute - no unsent bytes"));
+    DBUG_RETURN(0);
+  }
+
+  if (thd_allow_batch(table->in_use))
+  {
+    /*
+      Turned on by @@transaction_allow_batching=ON
+      or implicitly by slave exec thread
+    */
+    DBUG_PRINT("exit", ("skip execute - transaction_allow_batching is ON"));
+    DBUG_RETURN(0);
+  }
+
+  if (m_thd_ndb->m_handler &&
+      !m_blobs_pending)
+  {
+    // Execute at commit time(in 'ndbcluster_commit') to save a round trip
+    DBUG_PRINT("exit", ("skip execute - simple autocommit"));
+    DBUG_RETURN(0);
+  }
+
+  uint ignore_count= 0;
+  if (execute_no_commit(m_thd_ndb, trans,
+                        m_ignore_no_key || m_read_before_write_removal_used,
+                        &ignore_count) != 0)
+  {
+    no_uncommitted_rows_execute_failure();
+    DBUG_RETURN(ndb_err(trans));
+  }
+  assert(m_rows_changed >= ignore_count);
+  assert(m_rows_updated >= ignore_count);
+  m_rows_changed-= ignore_count;
+  m_rows_updated-= ignore_count;
   DBUG_RETURN(0);
 }
 
@@ -4983,25 +5036,76 @@ bool ha_ndbcluster::start_bulk_delete()
 
 int ha_ndbcluster::end_bulk_delete()
 {
+  NdbTransaction* trans= m_thd_ndb->trans;
   DBUG_ENTER("end_bulk_delete");
   assert(m_is_bulk_delete); // Don't allow end() without start()
   m_is_bulk_delete = false;
 
-  if (m_thd_ndb->m_unsent_bytes &&
-      !thd_allow_batch(table->in_use) &&
-      !m_thd_ndb->m_handler)
+  // m_handler must be NULL or point to _this_ handler instance
+  assert(m_thd_ndb->m_handler == NULL || m_thd_ndb->m_handler == this);
+
+  if (m_thd_ndb->m_handler &&
+      m_read_before_write_removal_possible)
   {
+    /*
+      This is an autocommit involving only one table and rbwr is on
+
+      Commit the autocommit transaction early(before the usual place
+      in ndbcluster_commit) in order to:
+      1) save one round trip, "no-commit+commit" converted to "commit"
+      2) return the correct number of updated and affected rows
+         to the delete loop(which will ask handler in rbwr mode)
+    */
+    DBUG_PRINT("info", ("committing auto-commit+rbwr early"));
     uint ignore_count= 0;
-    if (execute_no_commit(m_thd_ndb, m_thd_ndb->trans,
-                          m_ignore_no_key || m_read_before_write_removal_used,
-                          &ignore_count) != 0)
+    const int ignore_error= 1;
+    if (execute_commit(m_thd_ndb, trans,
+                       m_thd_ndb->m_force_send, ignore_error,
+                       &ignore_count) != 0)
     {
       no_uncommitted_rows_execute_failure();
-      DBUG_RETURN(ndb_err(m_thd_ndb->trans));
+      DBUG_RETURN(ndb_err(trans));
     }
+    DBUG_PRINT("info", ("ignore_count: %u", ignore_count));
     assert(m_rows_deleted >= ignore_count);
     m_rows_deleted-= ignore_count;
+    DBUG_RETURN(0);
   }
+
+  if (m_thd_ndb->m_unsent_bytes == 0)
+  {
+    DBUG_PRINT("exit", ("skip execute - no unsent bytes"));
+    DBUG_RETURN(0);
+  }
+
+  if (thd_allow_batch(table->in_use))
+  {
+    /*
+      Turned on by @@transaction_allow_batching=ON
+      or implicitly by slave exec thread
+    */
+    DBUG_PRINT("exit", ("skip execute - transaction_allow_batching is ON"));
+    DBUG_RETURN(0);
+  }
+
+  if (m_thd_ndb->m_handler)
+  {
+    // Execute at commit time(in 'ndbcluster_commit') to save a round trip
+    DBUG_PRINT("exit", ("skip execute - simple autocommit"));
+    DBUG_RETURN(0);
+  }
+
+  uint ignore_count= 0;
+  if (execute_no_commit(m_thd_ndb, trans,
+                        m_ignore_no_key || m_read_before_write_removal_used,
+                        &ignore_count) != 0)
+  {
+    no_uncommitted_rows_execute_failure();
+    DBUG_RETURN(ndb_err(trans));
+  }
+
+  assert(m_rows_deleted >= ignore_count);
+  m_rows_deleted-= ignore_count;
   DBUG_RETURN(0);
 }
 
@@ -6183,39 +6287,49 @@ bool ha_ndbcluster::read_before_write_removal_possible()
 {
   THD *thd= table->in_use;
   DBUG_ENTER("read_before_write_removal_possible");
-  /*
-    We need to verify a large number of things before accepting to remove
-    the read before the update. We cannot avoid read before when primary
-    key is updated, when a unique key is updated, when a BLOB is updated,
-    for deletes on tables with BLOB's it is also not possible to avoid
-    the read before the update and finally it is necessary that the
-    update expressions only contain constant expressions.
-  */
-  if (uses_blob_value(table->write_set) ||
-      (thd->lex->sql_command == SQLCOM_DELETE &&
-       table_share->blob_fields) ||
-      (table_share->primary_key != MAX_KEY &&
-       bitmap_is_overlapping(table->write_set, m_pk_bitmap_p)))
+
+  if (uses_blob_value(table->write_set))
   {
-    DBUG_RETURN(FALSE);
+    DBUG_PRINT("exit", ("No! Blob field in write_set"));
+    DBUG_RETURN(false);
   }
+
+  if (thd->lex->sql_command == SQLCOM_DELETE &&
+      table_share->blob_fields)
+  {
+    DBUG_PRINT("exit", ("No! DELETE from table with blob(s)"));
+    DBUG_RETURN(false);
+  }
+
+  if (table_share->primary_key == MAX_KEY)
+  {
+    DBUG_PRINT("exit", ("No! Table with hidden key"));
+    DBUG_RETURN(false);
+  }
+
+  if (bitmap_is_overlapping(table->write_set, m_pk_bitmap_p))
+  {
+    DBUG_PRINT("exit", ("No! Updating primary key"));
+    DBUG_RETURN(false);
+  }
+
   if (m_has_unique_index)
   {
-    KEY *key;
     for (uint i= 0; i < table_share->keys; i++)
     {
-      key= table->key_info + i;
+      const KEY* key= table->key_info + i;
       if ((key->flags & HA_NOSAME) &&
           bitmap_is_overlapping(table->write_set,
                                 m_key_fields[i]))
       {
-        DBUG_RETURN(FALSE);
+        DBUG_PRINT("exit", ("No! Unique key %d is updated", i));
+        DBUG_RETURN(false);
       }
     }
   }
-  DBUG_PRINT("info", ("read_before_write_removal_possible TRUE"));
   m_read_before_write_removal_possible= TRUE;
-  DBUG_RETURN(TRUE);
+  DBUG_PRINT("exit", ("Yes, rbwr is possible!"));
+  DBUG_RETURN(true);
 }
 
 
@@ -7079,58 +7193,18 @@ int ndbcluster_commit(handlerton *hton, THD *thd, bool all)
     if (thd_ndb->m_handler &&
         thd_ndb->m_handler->m_read_before_write_removal_possible)
     {
-#ifndef NDB_WITHOUT_READ_BEFORE_WRITE_REMOVAL
-      /* Autocommit with read-before-write removal
-       * Some operations in this autocommitted statement have not
-       * yet been executed
-       * They will be executed here as part of commit, and the results
-       * (rowcount, message) sent back to the client will then be modified 
-       * according to how the execution went.
-       * This saves a single roundtrip in the autocommit case
-       */
-      uint ignore_count= 0;
-      res= execute_commit(thd_ndb, trans, THDVAR(thd, force_send),
-                          TRUE, &ignore_count);
-      if (!res && ignore_count)
+      /*
+        This is an autocommit involving only one table and
+        rbwr is on, thus the transaction has already been
+        committed in exec_bulk_update() or end_bulk_delete()
+      */
+      DBUG_PRINT("info", ("autocommit+rbwr, transaction already comitted"));
+      if (trans->commitStatus() != NdbTransaction::Committed)
       {
-        DBUG_PRINT("info", ("AutoCommit + RBW removal, ignore_count=%u",
-                            ignore_count));
-        /* We have some rows to ignore, modify recorded results,
-         * regenerate result message as required.
-         */
-        thd->row_count_func-= ignore_count;
-
-        ha_rows affected= 0;
-        char buff[ STRING_BUFFER_USUAL_SIZE ];
-        const char* msg= NULL;
-        if (thd->lex->sql_command == SQLCOM_DELETE)
-        {
-          assert(thd_ndb->m_handler->m_rows_deleted >= ignore_count);
-          affected= (thd_ndb->m_handler->m_rows_deleted-= ignore_count);
-        }
-        else
-        {
-          DBUG_PRINT("info", ("Update : message was %s", 
-                              thd->main_da.message()));
-          assert(thd_ndb->m_handler->m_rows_updated >= ignore_count);
-          affected= (thd_ndb->m_handler->m_rows_updated-= ignore_count);
-          /* For update in this scenario, we set found and changed to be 
-           * the same as affected
-           * Regenerate the update message
-           */
-          sprintf(buff, ER(ER_UPDATE_INFO), (ulong)affected, (ulong)affected,
-                  (ulong) thd->cuted_fields);
-          msg= buff;
-          DBUG_PRINT("info", ("Update : message changed to %s",
-                              msg));
-        }
-
-        /* Modify execution result + optionally message */
-        thd->main_da.modify_affected_rows(affected, msg);
+        sql_print_error("found uncomitted autocommit+rbwr transaction, "
+                        "commit status: %d", trans->commitStatus());
+        abort();
       }
-#else
-      abort(); // Should never come here without rbwr support
-#endif
     }
     else
       res= execute_commit(thd_ndb, trans, THDVAR(thd, force_send), FALSE);
@@ -9563,19 +9637,6 @@ ha_ndbcluster::~ha_ndbcluster()
   DBUG_VOID_RETURN;
 }
 
-#ifndef NDB_WITHOUT_READ_BEFORE_WRITE_REMOVAL
-void
-ha_ndbcluster::column_bitmaps_signal(uint sig_type)
-{
-  DBUG_ENTER("column_bitmaps_signal");
-  DBUG_PRINT("enter", ("read_set: 0x%lx  write_set: 0x%lx",
-             (long) table->read_set->bitmap[0],
-             (long) table->write_set->bitmap[0]));
-  if (sig_type & HA_COMPLETE_TABLE_READ_BITMAP)
-    bitmap_copy(&m_save_read_set, table->read_set);
-  DBUG_VOID_RETURN;
-}
-#endif
 
 /**
   Open a table for further use
@@ -9598,11 +9659,6 @@ int ha_ndbcluster::open(const char *name, int mode, uint test_if_locked)
   DBUG_ENTER("ha_ndbcluster::open");
   DBUG_PRINT("enter", ("name: %s  mode: %d  test_if_locked: %d",
                        name, mode, test_if_locked));
-
-  if (bitmap_init(&m_save_read_set, NULL, table_share->fields, FALSE))
-  {
-    DBUG_RETURN(1);
-  }
 
   if (table_share->primary_key != MAX_KEY)
   {
@@ -9889,7 +9945,6 @@ void ha_ndbcluster::local_close(THD *thd, bool release_metadata_flag)
     my_free((char*)m_key_fields, MYF(0));
     m_key_fields= NULL;
   }
-  bitmap_free(&m_save_read_set);
   if (m_share)
   {
     /* ndb_share reference handler free */
@@ -12329,40 +12384,20 @@ ha_ndbcluster::null_value_index_search(KEY_MULTI_RANGE *ranges,
 
 void ha_ndbcluster::check_read_before_write_removal()
 {
-  bool use_removal= TRUE;
   DBUG_ENTER("check_read_before_write_removal");
-  DBUG_ASSERT(m_read_before_write_removal_possible);
-  /*
-    We are doing an update or delete and it is possible that we
-    can ignore the read before the update or delete. This is
-    possible here since we are not updating the primary key and
-    if the index used is unique or primary and if the WHERE clause
-    only involves fields from this index we are ok to go. At this
-    moment we can only updates where all SET expressions are
-    constants. Thus no read set will come from SET expressions.
-  */
-  if (table_share->primary_key == active_index)
-  {
-    if (!bitmap_cmp(&m_save_read_set, m_pk_bitmap_p))
-      use_removal= FALSE;
-  }
-  else
-  {
-    KEY *key= table->key_info + active_index;
-    if (!(key->flags & HA_NOSAME))
-    {
-      /* Optimisation not applicable on non-unique indexes */
-      use_removal= FALSE;
-    }
-    else if (!bitmap_cmp(&m_save_read_set,
-                         m_key_fields[active_index]))
-    {
-      use_removal= FALSE;
-    }
-  }
-  m_read_before_write_removal_used= use_removal;
-  DBUG_PRINT("info", ("m_read_before_write_removal_used: %d",
-                      m_read_before_write_removal_used));
+
+  /* Must have determined that rbwr is possible */
+  assert(m_read_before_write_removal_possible);
+  m_read_before_write_removal_used= true;
+
+  /* Can't use on table with hidden primary key */
+  assert(table_share->primary_key != MAX_KEY);
+
+  /* Index must be unique */
+  DBUG_PRINT("info", ("using index %d", active_index));
+  const KEY *key= table->key_info + active_index;
+  assert((key->flags & HA_NOSAME));
+
   DBUG_VOID_RETURN;
 }
 
