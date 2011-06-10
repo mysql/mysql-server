@@ -14815,24 +14815,41 @@ internal_remove_eq_conds(THD *thd, Item *cond, Item::cond_result *cond_value)
       Field *field=((Item_field*) args[0])->field;
       /* fix to replace 'NULL' dates with '0' (shreeve@uci.edu) */
       /*
-        datetime_field IS NULL has to be modified to
-        datetime_field == 0
+        See BUG#12594011
+        Documentation says that
+        SELECT datetime_notnull d FROM t1 WHERE d IS NULL
+        shall return rows where d=='0000-00-00'
+
+        Thus, for DATE and DATETIME columns defined as NOT NULL,
+        "date_notnull IS NULL" has to be modified to
+        "date_notnull IS NULL OR date_notnull == 0" (if outer join)
+        "date_notnull == 0"                         (otherwise)
+
       */
       if (((field->type() == MYSQL_TYPE_DATE) ||
            (field->type() == MYSQL_TYPE_DATETIME)) &&
-          (field->flags & NOT_NULL_FLAG) && !field->table->maybe_null)
+          (field->flags & NOT_NULL_FLAG))
       {
-	Item *new_cond;
-	if ((new_cond= new Item_func_eq(args[0],new Item_int("0", 0, 2))))
-	{
-	  cond=new_cond;
-          /*
-            Item_func_eq can't be fixed after creation so we do not check
-            cond->fixed, also it do not need tables so we use 0 as second
-            argument.
-          */
-	  cond->fix_fields(thd, &cond);
-	}
+        Item *item0= new(thd->mem_root) Item_int((longlong)0, 1);
+        Item *eq_cond= new(thd->mem_root) Item_func_eq(args[0], item0);
+        if (!eq_cond)
+          return cond;
+
+        if (field->table->pos_in_table_list->outer_join)
+        {
+          // outer join: transform "col IS NULL" to "col IS NULL or col=0"
+          Item *or_cond= new(thd->mem_root) Item_cond_or(eq_cond, cond);
+          if (!or_cond)
+            return cond;
+          cond= or_cond;
+        }
+        else
+        {
+          // not outer join: transform "col IS NULL" to "col=0"
+          cond= eq_cond;
+        }
+
+        cond->fix_fields(thd, &cond);
       }
     }
     if (cond->const_item())
