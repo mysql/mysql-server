@@ -7972,10 +7972,14 @@ bool parse_sql(THD *thd,
 
   bool mysql_parse_status= MYSQLparse(thd) != 0;
 
-  /* Check that if MYSQLparse() failed, thd->is_error() is set. */
+  /*
+    Check that if MYSQLparse() failed, thd->is_error() is set (unless
+    we have an error handler installed, which might have silenced error).
+  */
 
   DBUG_ASSERT(!mysql_parse_status ||
-              (mysql_parse_status && thd->is_error()));
+              (mysql_parse_status && thd->is_error()) ||
+              (mysql_parse_status && thd->get_internal_handler()));
 
   /* Reset parser state. */
 
