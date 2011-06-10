@@ -753,8 +753,7 @@ THD::THD(bool enable_plugins)
    debug_sync_control(0),
 #endif /* defined(ENABLED_DEBUG_SYNC) */
    m_enable_plugins(enable_plugins),
-   main_warning_info(0, false),
-   m_warning_info(&main_warning_info),
+   main_da(0, false),
    m_stmt_da(&main_da)
 {
   ulong tmp;

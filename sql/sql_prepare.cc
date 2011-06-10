@@ -2850,12 +2850,10 @@ void mysql_stmt_get_longdata(THD *thd, char *packet, ulong packet_length)
 
   param= stmt->param_array[param_number];
 
-  Diagnostics_area new_stmt_da, *save_stmt_da= thd->get_stmt_da();
-  Warning_info new_warnning_info(thd->query_id, false);
-  Warning_info *save_warinig_info= thd->get_warning_info();
+  Diagnostics_area new_stmt_da(thd->query_id, false);
+  Diagnostics_area *save_stmt_da= thd->get_stmt_da();
 
   thd->set_stmt_da(&new_stmt_da);
-  thd->set_warning_info(&new_warnning_info);
 
 #ifndef EMBEDDED_LIBRARY
   param->set_longdata(packet, (ulong) (packet_end - packet));
@@ -2869,7 +2867,6 @@ void mysql_stmt_get_longdata(THD *thd, char *packet, ulong packet_length)
     strncpy(stmt->last_error, thd->get_stmt_da()->message(), MYSQL_ERRMSG_SIZE);
   }
   thd->set_stmt_da(save_stmt_da);
-  thd->set_warning_info(save_warinig_info);
 
   general_log_print(thd, thd->get_command(), NullS);
 
@@ -3918,7 +3915,7 @@ Ed_result_set::Ed_result_set(List<Ed_row> *rows_arg,
 */
 
 Ed_connection::Ed_connection(THD *thd)
-  :m_warning_info(thd->query_id, false),
+  :m_diagnostics_area(thd->query_id, false),
   m_thd(thd),
   m_rsets(0),
   m_current_rset(0)
@@ -3944,7 +3941,7 @@ Ed_connection::free_old_result()
   }
   m_current_rset= m_rsets;
   m_diagnostics_area.reset_diagnostics_area();
-  m_warning_info.clear_warning_info(m_thd->query_id);
+  m_diagnostics_area.get_warning_info()->clear_warning_info(m_thd->query_id);
 }
 
 
@@ -3982,7 +3979,6 @@ bool Ed_connection::execute_direct(Server_runnable *server_runnable)
   Prepared_statement stmt(m_thd);
   Protocol *save_protocol= m_thd->protocol;
   Diagnostics_area *save_diagnostics_area= m_thd->get_stmt_da();
-  Warning_info *save_warning_info= m_thd->get_warning_info();
 
   DBUG_ENTER("Ed_connection::execute_direct");
 
@@ -3990,14 +3986,12 @@ bool Ed_connection::execute_direct(Server_runnable *server_runnable)
 
   m_thd->protocol= &protocol_local;
   m_thd->set_stmt_da(&m_diagnostics_area);
-  m_thd->set_warning_info(&m_warning_info);
 
   rc= stmt.execute_server_runnable(server_runnable);
   m_thd->protocol->end_statement();
 
   m_thd->protocol= save_protocol;
   m_thd->set_stmt_da(save_diagnostics_area);
-  m_thd->set_warning_info(save_warning_info);
   /*
     Protocol_local makes use of m_current_rset to keep
     track of the last result set, while adding result sets to the end.

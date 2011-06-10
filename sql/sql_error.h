@@ -485,7 +485,19 @@ public:
     return m_statement_warn_count;
   }
 
-  Diagnostics_area() { reset_diagnostics_area(); }
+public:
+  Diagnostics_area();
+  Diagnostics_area(ulonglong warn_id, bool allow_unlimited_warnings);
+
+public:
+  inline Warning_info *get_warning_info()
+  { return m_current_wi; }
+
+  inline const Warning_info *get_warning_info() const
+  { return m_current_wi; }
+
+  inline void set_warning_info(Warning_info *wi)
+  { m_current_wi= wi; }
 
 private:
   /** Message buffer. Can be used by OK or ERROR status. */
@@ -524,6 +536,9 @@ private:
   */
   uint	     m_statement_warn_count;
   enum_diagnostics_status m_status;
+
+  Warning_info m_main_wi;
+  Warning_info *m_current_wi;
 };
 
 ///////////////////////////////////////////////////////////////////////////
