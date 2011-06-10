@@ -340,7 +340,7 @@ static bool send_prep_stmt(Prepared_statement *stmt, uint columns)
   int2store(buff+5, columns);
   int2store(buff+7, stmt->param_count);
   buff[9]= 0;                                   // Guard against a 4.1 client
-  tmp= min(stmt->thd->get_warning_info()->statement_warn_count(), 65535);
+  tmp= min(stmt->thd->get_stmt_wi()->statement_warn_count(), 65535);
   int2store(buff+10, tmp);
 
   /*
@@ -1957,7 +1957,7 @@ static bool check_prepared_statement(Prepared_statement *stmt)
 
   /* Reset warning count for each query that uses tables */
   if (tables)
-    thd->get_warning_info()->opt_clear_warning_info(thd->query_id);
+    thd->get_stmt_wi()->opt_clear_warning_info(thd->query_id);
 
   if (sql_command_flags[sql_command] & CF_HA_CLOSE)
     mysql_ha_rm_tables(thd, tables);
@@ -3561,7 +3561,7 @@ Prepared_statement::reprepare()
       Sic: we can't simply silence warnings during reprepare, because if
       it's failed, we need to return all the warnings to the user.
     */
-    thd->get_warning_info()->clear_warning_info(thd->query_id);
+    thd->get_stmt_wi()->clear_warning_info(thd->query_id);
   }
   return error;
 }

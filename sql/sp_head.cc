@@ -1146,9 +1146,9 @@ find_handler_after_execution(THD *thd, sp_rcontext *ctx)
                       MYSQL_ERROR::WARN_LEVEL_ERROR,
                       thd->get_stmt_da()->message());
   }
-  else if (thd->get_warning_info()->statement_warn_count())
+  else if (thd->get_stmt_wi()->statement_warn_count())
   {
-    List_iterator<MYSQL_ERROR> it(thd->get_warning_info()->warn_list());
+    List_iterator<MYSQL_ERROR> it(thd->get_stmt_wi()->warn_list());
     MYSQL_ERROR *err;
     while ((err= it++))
     {
@@ -1216,7 +1216,7 @@ sp_head::execute(THD *thd, bool merge_da_on_success)
   Object_creation_ctx *saved_creation_ctx;
   Diagnostics_area *da= thd->get_stmt_da();
   Warning_info *saved_warning_info;
-  Warning_info warning_info(thd->get_warning_info()->warn_id(), false);
+  Warning_info warning_info(thd->get_stmt_wi()->warn_id(), false);
 
   /*
     Just reporting a stack overrun error
@@ -1287,8 +1287,8 @@ sp_head::execute(THD *thd, bool merge_da_on_success)
   old_arena= thd->stmt_arena;
 
   /* Push a new warning information area. */
-  warning_info.append_warning_info(thd, thd->get_warning_info());
-  saved_warning_info= thd->get_warning_info();
+  warning_info.append_warning_info(thd, thd->get_stmt_wi());
+  saved_warning_info= thd->get_stmt_wi();
   da->set_warning_info(&warning_info);
 
   /*
@@ -1389,7 +1389,7 @@ sp_head::execute(THD *thd, bool merge_da_on_success)
     }
 
     /* Reset number of warnings for this query. */
-    thd->get_warning_info()->reset_for_next_command();
+    thd->get_stmt_wi()->reset_for_next_command();
 
     DBUG_PRINT("execute", ("Instruction %u", ip));
 
@@ -1497,7 +1497,7 @@ sp_head::execute(THD *thd, bool merge_da_on_success)
         propagated to the caller in any case.
   */
   if (err_status || merge_da_on_success)
-    saved_warning_info->merge_with_routine_info(thd, thd->get_warning_info());
+    saved_warning_info->merge_with_routine_info(thd, thd->get_stmt_wi());
   da->set_warning_info(saved_warning_info);
 
  done:
