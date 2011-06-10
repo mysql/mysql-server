@@ -1214,6 +1214,7 @@ sp_head::execute(THD *thd, bool merge_da_on_success)
   String old_packet;
   Reprepare_observer *save_reprepare_observer= thd->m_reprepare_observer;
   Object_creation_ctx *saved_creation_ctx;
+  Diagnostics_area *da= thd->get_stmt_da();
   Warning_info *saved_warning_info;
   Warning_info warning_info(thd->get_warning_info()->warn_id(), false);
 
@@ -1288,7 +1289,7 @@ sp_head::execute(THD *thd, bool merge_da_on_success)
   /* Push a new warning information area. */
   warning_info.append_warning_info(thd, thd->get_warning_info());
   saved_warning_info= thd->get_warning_info();
-  thd->set_warning_info(&warning_info);
+  da->set_warning_info(&warning_info);
 
   /*
     Switch query context. This has to be done early as this is sometimes
@@ -1497,7 +1498,7 @@ sp_head::execute(THD *thd, bool merge_da_on_success)
   */
   if (err_status || merge_da_on_success)
     saved_warning_info->merge_with_routine_info(thd, thd->get_warning_info());
-  thd->set_warning_info(saved_warning_info);
+  da->set_warning_info(saved_warning_info);
 
  done:
   DBUG_PRINT("info", ("err_status: %d  killed: %d  is_slave_error: %d  report_error: %d",

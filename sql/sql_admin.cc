@@ -351,17 +351,18 @@ static bool mysql_admin_table(THD* thd, TABLE_LIST* tables,
           because it's already known that the table is badly damaged.
         */
 
+        Diagnostics_area *da= thd->get_stmt_da();
         Warning_info wi(thd->query_id, false);
         Warning_info *wi_saved= thd->get_warning_info();
 
-        thd->set_warning_info(&wi);
+        da->set_warning_info(&wi);
 
         open_error= open_temporary_tables(thd, table);
 
         if (!open_error)
           open_error= open_and_lock_tables(thd, table, TRUE, 0);
 
-        thd->set_warning_info(wi_saved);
+        da->set_warning_info(wi_saved);
       }
       else
       {
