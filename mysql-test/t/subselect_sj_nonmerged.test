@@ -95,5 +95,20 @@ WHERE ( f1 ) IN (
 );
 
 DROP TABLE t1, t2;
+
+--echo #
+--echo # BUG#727183: WL#90 does not trigger with non-comma joins
+--echo #
+create table t0 (a int);
+insert into t0 values (0),(1),(2),(3),(4),(5),(6),(7),(8),(9);
+
+create table t1(a int, key(a));
+insert into t1 select A.a + 10*B.a + 100*C.a from t0 A, t0 B, t0 C;
+
+--echo # The following must use non-merged SJ-Materialization:
+explain select * from t1 X join t0 Y on X.a < Y.a where X.a in (select max(a) from t0);
+
+drop table t0, t1;
+
 set optimizer_switch=@save_optimizer_switch;
 

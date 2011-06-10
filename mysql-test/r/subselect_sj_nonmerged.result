@@ -100,4 +100,19 @@ GROUP BY 1
 );
 f1
 DROP TABLE t1, t2;
+#
+# BUG#727183: WL#90 does not trigger with non-comma joins
+#
+create table t0 (a int);
+insert into t0 values (0),(1),(2),(3),(4),(5),(6),(7),(8),(9);
+create table t1(a int, key(a));
+insert into t1 select A.a + 10*B.a + 100*C.a from t0 A, t0 B, t0 C;
+# The following must use non-merged SJ-Materialization:
+explain select * from t1 X join t0 Y on X.a < Y.a where X.a in (select max(a) from t0);
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	<subquery2>	ALL	distinct_key	NULL	NULL	NULL	1	Using where
+1	PRIMARY	X	ref	a	a	5	<subquery2>.max(a)	1	Using index
+1	PRIMARY	Y	ALL	NULL	NULL	NULL	NULL	10	Using where; Using join buffer (flat, BNL join)
+2	SUBQUERY	t0	ALL	NULL	NULL	NULL	NULL	10	
+drop table t0, t1;
 set optimizer_switch=@save_optimizer_switch;
