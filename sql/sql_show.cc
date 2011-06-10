@@ -6803,15 +6803,16 @@ static bool do_fill_table(THD *thd,
   // Warning_info, so "useful warnings" get rejected. In order to avoid
   // that problem we create a Warning_info instance, which is capable of
   // storing "unlimited" number of warnings.
+  Diagnostics_area *da= thd->get_stmt_da();
   Warning_info wi(thd->query_id, true);
   Warning_info *wi_saved= thd->get_warning_info();
 
-  thd->set_warning_info(&wi);
+  da->set_warning_info(&wi);
 
   bool res= table_list->schema_table->fill_table(
     thd, table_list, join_table->condition());
 
-  thd->set_warning_info(wi_saved);
+  da->set_warning_info(wi_saved);
 
   // Pass an error if any.
 

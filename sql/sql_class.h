@@ -2836,10 +2836,6 @@ public:
   Warning_info *get_warning_info()
   { return get_stmt_da()->get_warning_info(); }
 
-  /// Sets Warning-information-area for the current statement.
-  void set_warning_info(Warning_info *wi)
-  { get_stmt_da()->set_warning_info(wi); }
-
   /// Returns Diagnostics-area for the current statement.
   Diagnostics_area *get_stmt_da()
   { return m_stmt_da; }
