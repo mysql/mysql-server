@@ -1269,10 +1269,7 @@ public:
   { return Field::unpack(to, from, param_data); }
   uint size_of() const { return sizeof(*this); }
   bool eq_def(Field *field)
-  {
-    return (Field_str::eq_def(field) &&
-            dec == ((Field_timestamp_hires*) field)->dec);
-  }
+  { return Field_str::eq_def(field) && dec == field->decimals(); }
 };
 
 
@@ -1450,11 +1447,6 @@ public:
   void sql_type(String &str) const;
   void make_field(Send_field *);
   uint size_of() const { return sizeof(*this); }
-  bool eq_def(Field *field)
-  {
-    return (Field_str::eq_def(field) &&
-            dec == ((Field_time_hires*) field)->dec);
-  }
 };
 
 class Field_datetime :public Field_temporal {
@@ -1527,11 +1519,6 @@ public:
   const uchar *unpack(uchar* to, const uchar *from, uint param_data)
   { return Field::unpack(to, from, param_data); }
   uint size_of() const { return sizeof(*this); }
-  bool eq_def(Field *field)
-  {
-    return (Field_str::eq_def(field) &&
-            dec == ((Field_datetime_hires*) field)->dec);
-  }
 };
 
 static inline Field_timestamp *

@@ -87,7 +87,7 @@ select column_get(column_create(1, -1212 AS int), 1 as unsigned int);
 select column_get(column_create(1, 99999999999999999999999999999 AS decimal), 1 as unsigned int);
 select column_get(column_create(1, 999.9999999999999999 AS decimal), 1 as unsigned int);
 select column_get(column_create(1, -1 AS decimal), 1 as unsigned int);
---replace_result 1e+029 1e+29
+--replace_result e+029 e+29
 select column_get(column_create(1, 99999999999999999999999999999 AS double), 1 as unsigned int);
 select column_get(column_create(1, 999.9 AS double), 1 as unsigned int);
 select column_get(column_create(1, -1 AS double), 1 as unsigned int);
@@ -119,7 +119,7 @@ select column_get(column_create(1, 99999999999999999999999999999 AS decimal), 1 
 select column_get(column_create(1, -99999999999999999999999999999 AS decimal), 1 as int);
 select column_get(column_create(1, 999.9999999999999999 AS decimal), 1 as int);
 select column_get(column_create(1, 999.9 AS double), 1 as int);
---replace_result 1e+029 1e+29
+--replace_result e+029 e+29
 select column_get(column_create(1, -99999999999999999999999999999 AS double), 1 as int);
 select column_get(column_create(1, "-1212III" AS char), 1 as int);
 select column_get(column_create(1, "1212III" AS char), 1 as int);
@@ -259,11 +259,12 @@ set @@sql_mode="";
 
 -- echo # column get datetime truncation & warnings
 select column_get(column_create(1, "1223.5aa" AS char), 1 as datetime);
+--replace_result e+019 e+19
 select column_get(column_create(1, 18446744073709551615 AS unsigned int), 1 as datetime);
 select column_get(column_create(1, 9223372036854775807 AS int), 1 as datetime);
 select column_get(column_create(1, -9223372036854775808 AS int), 1 as datetime); 
 select column_get(column_create(1, 99999999999999999999999999999 AS decimal(32,10)), 1 as datetime);
---replace_regex /9.9999999999999991e\+028   /9.99999999999999914332e+28/
+--replace_result e+029 e+29
 select column_get(column_create(1, 99999999999999999999999999999 AS double), 1 as datetime);
 select column_get(column_create(1, "2011-02-32 8:46:06.23434" AS CHAR), 1 as datetime);
 select column_get(column_create(1, "2011-13-01 8:46:06.23434" AS CHAR), 1 as datetime);
@@ -305,11 +306,12 @@ set @@sql_mode="";
 
 -- echo # column get date truncation & warnings
 select column_get(column_create(1, "1223.5aa" AS char), 1 as date);
+--replace_result e+019 e+19
 select column_get(column_create(1, 18446744073709551615 AS unsigned int), 1 as date);
 select column_get(column_create(1, 9223372036854775807 AS int), 1 as date);
 select column_get(column_create(1, -9223372036854775808 AS int), 1 as date); 
 select column_get(column_create(1, 99999999999999999999999999999 AS decimal(32,10)), 1 as date);
---replace_regex /9.9999999999999991e\+028   /9.99999999999999914332e+28/
+--replace_result e+029 e+29
 select column_get(column_create(1, 99999999999999999999999999999 AS double), 1 as date);
 select column_get(column_create(1, "2011-02-32 8:46:06.23434" AS CHAR), 1 as date);
 select column_get(column_create(1, "2011-13-01 8:46:06.23434" AS CHAR), 1 as date);
@@ -355,11 +357,12 @@ set @@sql_mode="";
 -- echo # column get date truncation & warnings
 select column_get(column_create(1, "1223.5aa" AS char), 1 as time);
 select column_get(column_create(1, "1223.5aa" AS char), 1 as time(3));
+--replace_result e+019 e+19
 select column_get(column_create(1, 18446744073709551615 AS unsigned int), 1 as time);
 select column_get(column_create(1, 9223372036854775807 AS int), 1 as time);
 select column_get(column_create(1, -9223372036854775808 AS int), 1 as time); 
 select column_get(column_create(1, 99999999999999999999999999999 AS decimal(32,10)), 1 as time);
---replace_result 1e+029 1e+29
+--replace_result e+029 e+29
 select column_get(column_create(1, 99999999999999999999999999999 AS double), 1 as time);
 select column_get(column_create(1, "2011-02-32 8:46:06.23434" AS CHAR), 1 as time);
 select column_get(column_create(1, "2011-13-01 8:46:06.23434" AS CHAR), 1 as time);
