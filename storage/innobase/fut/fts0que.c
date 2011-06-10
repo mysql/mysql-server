@@ -225,11 +225,12 @@ fts_query_filter_doc_ids(
 					/* out: fts_node_t instance */
 	fts_query_t*	query,		/* in: query instance */
 	const byte*	word,		/* in: the current word */
-	ib_rbt_t*	doc_freq,	/* in/out: rb tree of fts_doc_freq_t */
+	fts_word_freq_t*word_freq,	/* in/out: word frequency */
 	const fts_node_t*
 			node,		/* in: current FTS node */
 	void*		data,		/* in: doc id ilist */
-	ulint		len);		/* in: doc id ilist size */
+	ulint		len,		/* in: doc id ilist size */
+	ibool		calc_doc_count);/* in: whether to remember doc count */
 
 #if 0
 /********************************************************************
@@ -809,18 +810,18 @@ fts_query_check_node(
 	} else {
 		int		ret;
 		ib_rbt_bound_t	parent;
-		ib_rbt_t*	doc_freqs;
 		ulint		ilist_size = node->ilist_size;
+		fts_word_freq_t*word_freqs;
 
 		/* The word must exist. */
 		ret = rbt_search(query->word_freqs, &parent, token->utf8);
 		ut_a(ret == 0);
 
-		doc_freqs = rbt_value(fts_word_freq_t, parent.last)->doc_freqs;
+		word_freqs = rbt_value(fts_word_freq_t, parent.last);
 
 		fts_query_filter_doc_ids(
-			query, token->utf8, doc_freqs, node,
-			node->ilist, ilist_size);
+			query, token->utf8, word_freqs, node,
+			node->ilist, ilist_size, TRUE);
 	}
 }
 
@@ -869,7 +870,7 @@ fts_cache_find_wildcard(
 				int                     ret;
 				const fts_node_t*       node;
 				ib_rbt_bound_t          freq_parent;
-				ib_rbt_t*		doc_freqs;
+				fts_word_freq_t*	word_freqs;
 
 				node = ib_vector_get_const(nodes, i);
 
@@ -879,14 +880,14 @@ fts_cache_find_wildcard(
 
 				ut_a(ret == 0);
 
-				doc_freqs = rbt_value(
+				word_freqs = rbt_value(
 					fts_word_freq_t,
-					freq_parent.last)->doc_freqs;
+					freq_parent.last);
 
 				fts_query_filter_doc_ids(
 					query, srch_text.utf8,
-					doc_freqs, node,
-					node->ilist, node->ilist_size);
+					word_freqs, node,
+					node->ilist, node->ilist_size, TRUE);
 			}
 
 			num_word++;
@@ -1138,7 +1139,9 @@ fts_query_cache(
 	/* Must find the index cache. */
 	ut_a(index_cache != NULL);
 
-	if (query->cur_node->term.wildcard) {
+	if (query->cur_node->term.wildcard
+	    && query->flags != FTS_PROXIMITY 
+	    && query->flags != FTS_PHRASE) {
 		/* Wildcard search the index cache */
 		fts_cache_find_wildcard(query, index_cache, token);
 	} else {
@@ -2098,14 +2101,17 @@ fts_query_search_phrase(
 				match, query->distance, &found);
 
 			if (query->error == DB_SUCCESS && found) {
+				ulint	z;
 
 				fts_query_process_doc_id(query,
 							 match->doc_id, 0);
-			}
-
-			if (found) {
-				fts_query_process_doc_id(query,
-							 match->doc_id, 0);
+				for (z = 0; z < ib_vector_size(tokens); z++) {
+					fts_string_t*   token;
+					token = ib_vector_get(tokens, z);
+					fts_query_add_word_to_document(
+						query, match->doc_id,
+						token->utf8);
+				}
 			}
 		}
 	}
@@ -2595,17 +2601,17 @@ fts_query_filter_doc_ids(
 					/* out: fts_node_t instance */
 	fts_query_t*	query,		/* in: query instance */
 	const byte*	word,		/* in: the current word */
-	ib_rbt_t*	doc_freqs,	/* in: rb tree of fts_doc_freq_t */
-
+	fts_word_freq_t*word_freq,	/* in/out: word frequency */
 	const fts_node_t*
 			node,		/* in: current FTS node */
-
 	void*		data,		/* in: doc id ilist */
-	ulint		len)		/* in: doc id ilist size */
+	ulint		len,		/* in: doc id ilist size */
+	ibool		calc_doc_count)	/* in: whether to remember doc count */
 {
 	byte*		ptr = data;
 	doc_id_t	doc_id = 0;
 	ulint		decoded = 0;
+	ib_rbt_t*	doc_freqs = word_freq->doc_freqs;
 
 	/* Decode the ilist and add the doc ids to the query doc_id set. */
 	while (decoded < len) {
@@ -2623,6 +2629,10 @@ fts_query_filter_doc_ids(
 		/* Add the delta. */
 		doc_id += pos;
 
+		if (calc_doc_count) {
+			word_freq->doc_count++;
+		}
+		
 		/* We simply collect the matching instances here. */
 		if (query->collect_positions) {
 			ib_alloc_t*	heap_alloc;
@@ -2777,8 +2787,8 @@ fts_query_read_node(
 		case 4: /* ILIST */
 
 			fts_query_filter_doc_ids(
-				query, word_freq->word, word_freq->doc_freqs,
-				&node, data, len);
+				query, word_freq->word, word_freq,
+				&node, data, len, FALSE);
 
 			break;
 
@@ -2845,8 +2855,21 @@ fts_query_calculate_idf(
 		word_freq = rbt_value(fts_word_freq_t, node);
 
 		if (word_freq->doc_count > 0) {
-			word_freq->idf = log10(
-				total_docs / (double) word_freq->doc_count);
+			if (total_docs == (double) word_freq->doc_count) {
+				/* QP assume ranking > 0 if we find
+				a match. Since Log10(1) = 0, we cannot
+				make IDF a zero value if do find a
+				word in all documents. So let's make
+				it an very samll number */
+				word_freq->idf = log10(
+					(double) ULINT_MAX
+					/ (double)(ULINT_MAX - 1));
+
+			} else {
+				word_freq->idf = log10(
+					total_docs
+					/ (double) word_freq->doc_count);
+			}
 		}
 
 		printf("'%s' -> %lu/%lu %6.5lf\n",
@@ -2912,15 +2935,13 @@ static
 void
 fts_query_add_ranking(
 /*==================*/
-	fts_result_t*		result,		/* in: this can contain data
-						from a previous search on
-						another FTS index */
+	ib_rbt_t*		ranking_tree,	/* in: ranking tree */
 	const fts_ranking_t*	new_ranking)	/* in: ranking of a document */
 {
 	ib_rbt_bound_t		parent;
 
 	/* Lookup the ranking in our rb tree and add if it doesn't exist. */
-	if (rbt_search(result->rankings, &parent, new_ranking) == 0) {
+	if (rbt_search(ranking_tree, &parent, new_ranking) == 0) {
 		fts_ranking_t*	ranking;
 
 		ranking = rbt_value(fts_ranking_t, parent.last);
@@ -2929,13 +2950,13 @@ fts_query_add_ranking(
 
 		ut_a(ranking->words == NULL);
 	} else {
-		rbt_add_node(result->rankings, &parent, new_ranking);
+		rbt_add_node(ranking_tree, &parent, new_ranking);
 	}
 }
 
 /********************************************************************
 Retrieve the FTS Relevance Ranking result for doc with doc_id
-@return the relevance ranking value, -1 if no ranking value
+@return the relevance ranking value, 0 if no ranking value
 present. */
 float
 fts_retrieve_ranking(
@@ -2946,14 +2967,14 @@ fts_retrieve_ranking(
 	ib_rbt_bound_t		parent;
 	fts_ranking_t		new_ranking;
 
-	if (!result || !result->rankings) {
-		return(-1);
+	if (!result || !result->rankings_by_id) {
+		return(0);
 	}
 
 	new_ranking.doc_id = doc_id;
 
 	/* Lookup the ranking in our rb tree */
-	if (rbt_search(result->rankings, &parent, &new_ranking) == 0) {
+	if (rbt_search(result->rankings_by_id, &parent, &new_ranking) == 0) {
 		fts_ranking_t*  ranking;
 
 		ranking = rbt_value(fts_ranking_t, parent.last);
@@ -2961,7 +2982,7 @@ fts_retrieve_ranking(
 		return (ranking->rank);
 	}
 
-	return (-1);
+	return(0);
 }
 
 /********************************************************************
@@ -2984,7 +3005,7 @@ fts_query_prepare_result(
 
 		memset(result, 0x0, sizeof(*result));
 
-		result->rankings = rbt_create(
+		result->rankings_by_id = rbt_create(
 			sizeof(fts_ranking_t), fts_ranking_doc_id_cmp);
 	}
 
@@ -3006,7 +3027,7 @@ fts_query_prepare_result(
 		rbt_free(ranking->words);
 		ranking->words = NULL;
 
-		fts_query_add_ranking(result, ranking);
+		fts_query_add_ranking(result->rankings_by_id, ranking);
 	}
 
 	return(result);
@@ -3270,8 +3291,8 @@ fts_query(
 		fprintf(stderr, "Processing time: %ld secs: row(s) %d:"
 				" error: %lu\n",
 			ut_time() - start_time,
-			(*result)->rankings
-				? (int) rbt_size((*result)->rankings) : -1,
+			(*result)->rankings_by_id
+				? (int) rbt_size((*result)->rankings_by_id) : -1,
 			error);
 	}
 
@@ -3289,9 +3310,15 @@ fts_query_free_result(
 /*==================*/
 	fts_result_t*	result)		/* in: result instance to free.*/
 {
-	if (result && result->rankings != NULL) {
-		rbt_free(result->rankings);
-		result->rankings = NULL;
+	if (result) {
+		if (result->rankings_by_id != NULL) {
+			rbt_free(result->rankings_by_id);
+			result->rankings_by_id = NULL;
+		}
+		if (result->rankings_by_rank != NULL) {
+			rbt_free(result->rankings_by_rank);
+			result->rankings_by_rank = NULL;
+		}
 	}
 }
 
@@ -3306,15 +3333,15 @@ fts_query_sort_result_on_rank(
 	const ib_rbt_node_t*	node;
 	ib_rbt_t*		ranked;
 
-	ut_a(result->rankings != NULL);
+	ut_a(result->rankings_by_id != NULL);
 
 	ranked = rbt_create(sizeof(fts_ranking_t), fts_query_compare_rank);
 
 	/* We need to free any instances of fts_doc_freq_t that we
 	may have allocated. */
-	for (node = rbt_first(result->rankings);
+	for (node = rbt_first(result->rankings_by_id);
 	     node;
-	     node = rbt_first(result->rankings)) {
+	     node = rbt_next(result->rankings_by_id, node)) {
 
 		fts_ranking_t*	ranking;
 
@@ -3323,17 +3350,11 @@ fts_query_sort_result_on_rank(
 		ut_a(ranking->words == NULL);
 
 		rbt_insert(ranked, ranking, ranking);
-
-		/* We have to explicitly free the node. */
-		ut_free(rbt_remove_node(result->rankings, node));
 	}
-
-	ut_a(rbt_empty(result->rankings));
-	rbt_free(result->rankings);
 
 	/* Reset the current node too. */
 	result->current = NULL;
-	result->rankings = ranked;
+	result->rankings_by_rank = ranked;
 }
 
 #ifdef UNIV_DEBUG
@@ -3536,10 +3557,18 @@ fts_check_phrase_proximity(
 			matched = TRUE;
 		} else if (fts_proximity_check_position(
 			match, num_token, query->distance)) {
+			int	z;
 			/* If so, mark we find a matching doc */
 			fts_query_process_doc_id(query, match[0]->doc_id, 0);
 
 			matched = TRUE;
+			for (z = 0; z < num_token; z++) {
+				fts_string_t*	token;
+				token = ib_vector_get(tokens, z);
+				fts_query_add_word_to_document(
+					query, match[0]->doc_id,
+					token->utf8);
+			}
 		}
 	}
 

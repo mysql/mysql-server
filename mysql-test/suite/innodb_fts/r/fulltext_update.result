@@ -8,7 +8,7 @@ description VARCHAR(80) DEFAULT '' NOT NULL,
 name VARCHAR(80) DEFAULT '' NOT NULL,
 FULLTEXT(url,description,shortdesc,longdesc),
 PRIMARY KEY(gnr)
-) ENGINE = <default_engine>;
+) ENGINE = InnoDB;
 Warnings:
 Warning	1101	BLOB/TEXT column 'longdesc' can't have a default value
 insert into test (url,shortdesc,longdesc,description,name) VALUES 
@@ -18,7 +18,4 @@ insert into test (url,shortdesc,longdesc,description,name) VALUES
 update test set url='test', description='ddd', name='nam' where gnr=2;
 update test set url='test', shortdesc='ggg', longdesc='mmm', 
 description='ddd', name='nam' where gnr=2;
-check table test;
-Table	Op	Msg_type	Msg_text
-test.test	check	status	OK
 drop table test;

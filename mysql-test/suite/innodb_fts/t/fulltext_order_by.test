@@ -2,13 +2,11 @@
 DROP TABLE IF EXISTS t1,t2,t3;
 --enable_warnings
 
-let $default_engine = `select @@SESSION.default_storage_engine`;
---replace_result $default_engine <default_engine>
-EVAL CREATE TABLE t1 (
+CREATE TABLE t1 (
   a INT AUTO_INCREMENT PRIMARY KEY,
   message CHAR(20),
   FULLTEXT(message)
-) ENGINE = $default_engine comment = 'original testcase by sroussey@network54.com';
+) ENGINE = InnoDB comment = 'original testcase by sroussey@network54.com';
 INSERT INTO t1 (message) VALUES ("Testing"),("table"),("testbug"),
         ("steve"),("is"),("cool"),("steve is cool");
 # basic MATCH
@@ -46,45 +44,41 @@ drop table t1;
 #
 # reused boolean scan bug
 #
---replace_result $default_engine <default_engine>
-EVAL CREATE TABLE t1 (
+CREATE TABLE t1 (
   a INT AUTO_INCREMENT PRIMARY KEY,
   message CHAR(20),
   FULLTEXT(message)
-) ENGINE = $default_engine;
+) ENGINE = InnoDB;
 INSERT INTO t1 (message) VALUES ("testbug"),("testbug foobar");
 SELECT a, MATCH (message) AGAINST ('t* f*' IN BOOLEAN MODE) as rel FROM t1;
 SELECT a, MATCH (message) AGAINST ('t* f*' IN BOOLEAN MODE) as rel FROM t1 ORDER BY rel,a;
 drop table t1;
 
 # BUG#11869
---replace_result $default_engine <default_engine>
-EVAL CREATE TABLE t1 (
+CREATE TABLE t1 (
   id int(11) NOT NULL auto_increment,
   thread int(11) NOT NULL default '0',
   beitrag longtext NOT NULL,
   PRIMARY KEY  (id),
   KEY thread (thread),
   FULLTEXT KEY beitrag (beitrag)
-) ENGINE=$default_engine DEFAULT CHARSET=utf8 AUTO_INCREMENT=7923 ;
+) ENGINE =InnoDB DEFAULT CHARSET=utf8 AUTO_INCREMENT=7923 ;
 
---replace_result $default_engine <default_engine>
 CREATE TABLE t2 (
   id int(11) NOT NULL auto_increment,
   text varchar(100) NOT NULL default '',
   PRIMARY KEY  (id),
   KEY text (text)
-) ENGINE=$default_engine DEFAULT CHARSET=utf8 AUTO_INCREMENT=63 ;
+) ENGINE = InnoDB DEFAULT CHARSET=utf8 AUTO_INCREMENT=63 ;
 
---replace_result $default_engine <default_engine>
-EVAL CREATE TABLE t3 (
+CREATE TABLE t3 (
   id int(11) NOT NULL auto_increment,
   forum int(11) NOT NULL default '0',
   betreff varchar(70) NOT NULL default '',
   PRIMARY KEY  (id),
   KEY forum (forum),
   FULLTEXT KEY betreff (betreff)
-) ENGINE=$default_engine DEFAULT CHARSET=utf8 AUTO_INCREMENT=996 ;
+) ENGINE = InnoDB DEFAULT CHARSET=utf8 AUTO_INCREMENT=996 ;
 
 --error ER_CANT_USE_OPTION_HERE
 select a.text, b.id, b.betreff

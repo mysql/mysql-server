@@ -7,7 +7,7 @@ PRIMARY KEY (id),
 KEY kt(tag),
 KEY kv(value(15)),
 FULLTEXT KEY kvf(value)
-) ENGINE=<default_engine>;
+) ENGINE = InnoDB;
 Warnings:
 Warning	1101	BLOB/TEXT column 'value' can't have a default value
 CREATE TABLE t2 (
@@ -16,7 +16,7 @@ id_t1 mediumint unsigned NOT NULL default '0',
 field_number tinyint unsigned NOT NULL default '0',
 PRIMARY KEY (id_t2,id_t1,field_number),
 KEY id_t1(id_t1)
-) ENGINE=<default_engine>;
+) ENGINE = InnoDB;
 INSERT INTO t1 (tag,value) VALUES ('foo123','bar111');
 INSERT INTO t1 (tag,value) VALUES ('foo123','bar222');
 INSERT INTO t1 (tag,value) VALUES ('bar345','baz333 ar');

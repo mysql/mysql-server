@@ -7,23 +7,23 @@ PRIMARY KEY (a),
 FULLTEXT KEY bb(b),
 FULLTEXT KEY cc(c),
 FULLTEXT KEY a(b,c)
-) ENGINE = <default_engine>;
+) ENGINE = InnoDB;
 INSERT INTO t1 VALUES (1,'lala lolo lili','oooo aaaa pppp');
 INSERT INTO t1 VALUES (2,'asdf fdsa','lkjh fghj');
 INSERT INTO t1 VALUES (3,'qpwoei','zmxnvb');
 SELECT a, round(MATCH  b  AGAINST ('lala lkjh'),5) FROM t1;
 a	round(MATCH  b  AGAINST ('lala lkjh'),5)
-1	0.67003
+1	0.22764
 2	0.00000
 3	0.00000
 SELECT a, round(MATCH  c  AGAINST ('lala lkjh'),5) FROM t1;
 a	round(MATCH  c  AGAINST ('lala lkjh'),5)
 1	0.00000
-2	0.67756
+2	0.22764
 3	0.00000
 SELECT a, round(MATCH b,c AGAINST ('lala lkjh'),5) FROM t1;
 a	round(MATCH b,c AGAINST ('lala lkjh'),5)
-1	0.64841
-2	0.66266
+1	0.22764
+2	0.22764
 3	0.00000
 drop table t1;

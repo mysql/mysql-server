@@ -652,8 +652,10 @@ struct fts_ranking_struct {
 struct fts_result_struct {
 	ib_rbt_node_t*	current;	/* Current element */
 
-	ib_rbt_t*	rankings;	/* RB tree of type fts_ranking_t
+	ib_rbt_t*	rankings_by_id;	/* RB tree of type fts_ranking_t
 					indexed by doc id */
+	ib_rbt_t*	rankings_by_rank;/* RB tree of type fts_ranking_t
+					indexed by rank */
 };
 
 /* This is used to generate the FTS auxiliary table name, we need the
