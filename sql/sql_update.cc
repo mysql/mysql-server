@@ -791,7 +791,7 @@ int mysql_update(THD *thd,
     }
     else
       table->file->unlock_row();
-    thd->get_warning_info()->inc_current_row_for_warning();
+    thd->get_stmt_wi()->inc_current_row_for_warning();
     if (thd->is_error())
     {
       error= 1;
@@ -897,7 +897,7 @@ int mysql_update(THD *thd,
     char buff[MYSQL_ERRMSG_SIZE];
     my_snprintf(buff, sizeof(buff), ER(ER_UPDATE_INFO), (ulong) found,
                 (ulong) updated,
-                (ulong) thd->get_warning_info()->statement_warn_count());
+                (ulong) thd->get_stmt_wi()->statement_warn_count());
     my_ok(thd, (thd->client_capabilities & CLIENT_FOUND_ROWS) ? found : updated,
           id, buff);
     DBUG_PRINT("info",("%ld records updated", (long) updated));

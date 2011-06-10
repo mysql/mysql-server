@@ -117,7 +117,7 @@ void mysql_audit_general(THD *thd, uint event_subtype,
       query= thd->query_string;
       user= user_buff;
       userlen= make_user_name(thd, user_buff);
-      rows= thd->get_warning_info()->current_row_for_warning();
+      rows= thd->get_stmt_wi()->current_row_for_warning();
     }
     else
     {

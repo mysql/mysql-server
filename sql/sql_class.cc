@@ -596,7 +596,7 @@ int thd_tx_isolation(const THD *thd)
 extern "C"
 void thd_inc_row_count(THD *thd)
 {
-  thd->get_warning_info()->inc_current_row_for_warning();
+  thd->get_stmt_wi()->inc_current_row_for_warning();
 }
 
 
@@ -1010,7 +1010,7 @@ MYSQL_ERROR* THD::raise_condition(uint sql_errno,
                                   const char* msg)
 {
   Diagnostics_area *da= get_stmt_da();
-  Warning_info *wi= get_warning_info();
+  Warning_info *wi= da->get_warning_info();
   MYSQL_ERROR *cond= NULL;
   DBUG_ENTER("THD::raise_condition");
 

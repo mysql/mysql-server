@@ -353,7 +353,7 @@ static bool mysql_admin_table(THD* thd, TABLE_LIST* tables,
 
         Diagnostics_area *da= thd->get_stmt_da();
         Warning_info wi(thd->query_id, false);
-        Warning_info *wi_saved= thd->get_warning_info();
+        Warning_info *wi_saved= thd->get_stmt_wi();
 
         da->set_warning_info(&wi);
 
@@ -480,7 +480,7 @@ static bool mysql_admin_table(THD* thd, TABLE_LIST* tables,
     if (!table->table)
     {
       DBUG_PRINT("admin", ("open table failed"));
-      if (thd->get_warning_info()->is_empty())
+      if (thd->get_stmt_wi()->is_empty())
         push_warning(thd, MYSQL_ERROR::WARN_LEVEL_WARN,
                      ER_CHECK_NO_SUCH_TABLE, ER(ER_CHECK_NO_SUCH_TABLE));
       /* if it was a view will check md5 sum */
@@ -639,7 +639,7 @@ send_result:
     lex->cleanup_after_one_table_open();
     thd->clear_error();  // these errors shouldn't get client
     {
-      List_iterator_fast<MYSQL_ERROR> it(thd->get_warning_info()->warn_list());
+      List_iterator_fast<MYSQL_ERROR> it(thd->get_stmt_wi()->warn_list());
       MYSQL_ERROR *err;
       while ((err= it++))
       {
@@ -653,7 +653,7 @@ send_result:
         if (protocol->write())
           goto err;
       }
-      thd->get_warning_info()->clear_warning_info(thd->query_id);
+      thd->get_stmt_wi()->clear_warning_info(thd->query_id);
     }
     protocol->prepare_for_resend();
     protocol->store(table_name, system_charset_info);
