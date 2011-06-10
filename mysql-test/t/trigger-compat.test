@@ -106,4 +106,178 @@ DROP TABLE t2;
 DROP USER mysqltest_dfn@localhost;
 DROP USER mysqltest_inv@localhost;
 DROP DATABASE mysqltest_db1;
+USE test;
 
+
+--echo #
+--echo # Bug#45235: 5.1 does not support 5.0-only syntax triggers in any way
+--echo #
+let $MYSQLD_DATADIR=`SELECT @@datadir`;
+
+--disable_warnings
+DROP TABLE IF EXISTS t1, t2, t3;
+--enable_warnings
+
+CREATE TABLE t1 ( a INT );
+CREATE TABLE t2 ( a INT );
+CREATE TABLE t3 ( a INT );
+INSERT INTO t1 VALUES (1), (2), (3);
+INSERT INTO t2 VALUES (1), (2), (3);
+INSERT INTO t3 VALUES (1), (2), (3);
+
+--echo # We simulate importing a trigger from 5.0 by writing a .TRN file for
+--echo # each trigger plus a .TRG file the way MySQL 5.0 would have done it, 
+--echo # with syntax allowed in 5.0 only.
+--echo #
+--echo # Note that in 5.0 the following lines are missing from t1.TRG:
+--echo #
+--echo # client_cs_names='latin1'
+--echo # connection_cl_names='latin1_swedish_ci'
+--echo # db_cl_names='latin1_swedish_ci'
+
+--write_file $MYSQLD_DATADIR/test/tr11.TRN
+TYPE=TRIGGERNAME
+trigger_table=t1
+EOF
+
+--write_file $MYSQLD_DATADIR/test/tr12.TRN
+TYPE=TRIGGERNAME
+trigger_table=t1
+EOF
+
+--write_file $MYSQLD_DATADIR/test/tr13.TRN
+TYPE=TRIGGERNAME
+trigger_table=t1
+EOF
+
+--write_file $MYSQLD_DATADIR/test/tr14.TRN
+TYPE=TRIGGERNAME
+trigger_table=t1
+EOF
+
+--write_file $MYSQLD_DATADIR/test/tr15.TRN
+TYPE=TRIGGERNAME
+trigger_table=t1
+EOF
+
+--write_file $MYSQLD_DATADIR/test/t1.TRG
+TYPE=TRIGGERS
+triggers='CREATE DEFINER=`root`@`localhost` TRIGGER tr11 BEFORE INSERT ON t1 FOR EACH ROW DELETE FROM t3' 'CREATE DEFINER=`root`@`localhost` TRIGGER tr12 AFTER INSERT ON t1 FOR EACH ROW DELETE FROM t3' 'CREATE DEFINER=`root`@`localhost` TRIGGER tr13 BEFORE DELETE ON t1 FOR EACH ROW DELETE FROM t1 a USING t1 a' 'CREATE DEFINER=`root`@`localhost` TRIGGER tr14 AFTER DELETE ON t1 FOR EACH ROW DELETE FROM non_existing_table' 'CREATE DEFINER=`root`@`localhost` TRIGGER tr15 BEFORE UPDATE ON t1 FOR EACH ROW DELETE FROM non_existing_table a USING non_existing_table a'
+sql_modes=0 0 0 0 0
+definers='root@localhost' 'root@localhost' 'root@localhost' 'root@localhost' 'root@localhost'
+EOF
+
+--write_file $MYSQLD_DATADIR/test/t2.TRG
+TYPE=TRIGGERS
+triggers='Not allowed syntax here, and trigger name cant be extracted either.'
+sql_modes=0
+definers='root@localhost'
+EOF
+
+--echo # We will get parse errors for most DDL and DML statements when the table
+--echo # has broken triggers. The parse error refers to the first broken 
+--echo # trigger.
+--error ER_PARSE_ERROR
+CREATE TRIGGER tr16 AFTER UPDATE ON t1 FOR EACH ROW INSERT INTO t1 VALUES (1);
+--error ER_PARSE_ERROR
+CREATE TRIGGER tr22 BEFORE INSERT ON t2 FOR EACH ROW DELETE FROM non_existing_table;
+SHOW TRIGGERS;
+--error ER_PARSE_ERROR
+INSERT INTO t1 VALUES (1);
+--error ER_PARSE_ERROR
+INSERT INTO t2 VALUES (1);
+--error ER_PARSE_ERROR
+DELETE FROM t1;
+--error ER_PARSE_ERROR
+UPDATE t1 SET a = 1 WHERE a = 1;
+SELECT * FROM t1;
+--error ER_PARSE_ERROR
+RENAME TABLE t1 TO t1_2;
+SHOW TRIGGERS;
+
+DROP TRIGGER tr11;
+DROP TRIGGER tr12;
+DROP TRIGGER tr13;
+DROP TRIGGER tr14;
+DROP TRIGGER tr15;
+
+SHOW TRIGGERS;
+
+--echo # Make sure there is no trigger file left.
+--list_files $MYSQLD_DATADIR/test/ tr*
+
+--echo # We write the same trigger files one more time to test DROP TABLE.
+--write_file $MYSQLD_DATADIR/test/tr11.TRN
+TYPE=TRIGGERNAME
+trigger_table=t1
+EOF
+
+--write_file $MYSQLD_DATADIR/test/tr12.TRN
+TYPE=TRIGGERNAME
+trigger_table=t1
+EOF
+
+--write_file $MYSQLD_DATADIR/test/tr13.TRN
+TYPE=TRIGGERNAME
+trigger_table=t1
+EOF
+
+--write_file $MYSQLD_DATADIR/test/tr14.TRN
+TYPE=TRIGGERNAME
+trigger_table=t1
+EOF
+
+--write_file $MYSQLD_DATADIR/test/tr15.TRN
+TYPE=TRIGGERNAME
+trigger_table=t1
+EOF
+
+--write_file $MYSQLD_DATADIR/test/t1.TRG
+TYPE=TRIGGERS
+triggers='CREATE DEFINER=`root`@`localhost` TRIGGER tr11 BEFORE INSERT ON t1 FOR EACH ROW DELETE FROM t3' 'CREATE DEFINER=`root`@`localhost` TRIGGER tr12 AFTER INSERT ON t1 FOR EACH ROW DELETE FROM t3' 'CREATE DEFINER=`root`@`localhost` TRIGGER tr13 BEFORE DELETE ON t1 FOR EACH ROW DELETE FROM t1 a USING t1 a' 'CREATE DEFINER=`root`@`localhost` TRIGGER tr14 AFTER DELETE ON t1 FOR EACH ROW DELETE FROM non_existing_table' 'CREATE DEFINER=`root`@`localhost` TRIGGER tr15 BEFORE UPDATE ON t1 FOR EACH ROW DELETE FROM non_existing_table a USING non_existing_table a'
+sql_modes=0 0 0 0 0
+definers='root@localhost' 'root@localhost' 'root@localhost' 'root@localhost' 'root@localhost'
+EOF
+
+DROP TABLE t1;
+DROP TABLE t2;
+DROP TABLE t3;
+
+--echo # Make sure there is no trigger file left.
+
+--list_files $MYSQLD_DATADIR/test/ tr*
+
+CREATE TABLE t1 ( a INT );
+CREATE TABLE t2 ( a INT );
+INSERT INTO t1 VALUES (1), (2), (3);
+INSERT INTO t2 VALUES (1), (2), (3);
+
+--echo # We write three trigger files. First trigger is syntaxically incorrect, next trigger is correct
+--echo # and last trigger is broken.
+--echo # Next we try to execute SHOW CREATE TRGGIR command for broken trigger and then try to drop one.
+--write_file $MYSQLD_DATADIR/test/tr11.TRN
+TYPE=TRIGGERNAME
+trigger_table=t1
+EOF
+
+--write_file $MYSQLD_DATADIR/test/tr12.TRN
+TYPE=TRIGGERNAME
+trigger_table=t1
+EOF
+
+--write_file $MYSQLD_DATADIR/test/t1.TRG
+TYPE=TRIGGERS
+triggers='CREATE the wrongest trigger_in_the_world' 'CREATE DEFINER=`root`@`localhost` TRIGGER tr11 BEFORE DELETE ON t1 FOR EACH ROW DELETE FROM t1 a USING t1 a' 'CREATE DEFINER=`root`@`localhost` TRIGGER tr12 BEFORE INSERT ON t1 FOR EACH ROW DELETE FROM t2'
+sql_modes=0 0 0
+definers='root@localhost' 'root@localhost' 'root@localhost'
+EOF
+
+FLUSH TABLE t1;
+
+SHOW CREATE TRIGGER tr12;
+SHOW CREATE TRIGGER tr11;
+DROP TRIGGER tr12;
+DROP TRIGGER tr11;
+
+DROP TABLE t1;
+DROP TABLE t2;
