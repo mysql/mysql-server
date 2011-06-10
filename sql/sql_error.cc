@@ -318,6 +318,21 @@ MYSQL_ERROR::set_sqlstate(const char* sqlstate)
   m_returned_sqlstate[SQLSTATE_LENGTH]= '\0';
 }
 
+Diagnostics_area::Diagnostics_area()
+ : m_main_wi(0, false),
+   m_current_wi(&m_main_wi)
+{
+  reset_diagnostics_area();
+}
+
+Diagnostics_area::Diagnostics_area(ulonglong warn_id,
+                                   bool allow_unlimited_warnings)
+ : m_main_wi(warn_id, allow_unlimited_warnings),
+   m_current_wi(&m_main_wi)
+{
+  reset_diagnostics_area();
+}
+
 /**
   Clear this diagnostics area.
 

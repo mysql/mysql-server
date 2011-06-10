@@ -2834,11 +2834,11 @@ public:
 
   /// Returns Warning-information-area for the current statement.
   Warning_info *get_warning_info()
-  { return m_warning_info; }
+  { return get_stmt_da()->get_warning_info(); }
 
   /// Sets Warning-information-area for the current statement.
   void set_warning_info(Warning_info *wi)
-  { m_warning_info= wi; }
+  { get_stmt_da()->set_warning_info(wi); }
 
   /// Returns Diagnostics-area for the current statement.
   Diagnostics_area *get_stmt_da()
@@ -3243,10 +3243,7 @@ private:
     tree itself is reused between executions and thus is stored elsewhere.
   */
   MEM_ROOT main_mem_root;
-  Warning_info main_warning_info;
   Diagnostics_area main_da;
-
-  Warning_info *m_warning_info;
   Diagnostics_area *m_stmt_da;
 
   /**
