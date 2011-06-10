@@ -6804,6 +6804,7 @@ ha_innobase::ft_init_ext(
 
 	/* Table do not have FTS index */
 	if (!table->fts) {
+		my_error(ER_TABLE_CANT_HANDLE_FT, MYF(0));
 		return(NULL);
 	}
 
@@ -6815,6 +6816,7 @@ ha_innobase::ft_init_ext(
 	}
 
 	if (!index || index->type != DICT_FTS) {
+		my_error(ER_TABLE_CANT_HANDLE_FT, MYF(0));
 		return NULL;
 	}
 
@@ -6863,7 +6865,7 @@ ha_innobase::ft_read(
 	if (result->current == NULL) {
 		/* This is the case where the FTS query did not
 		contain and matching documents. */
-		if (result->rankings != NULL) {
+		if (result->rankings_by_id != NULL) {
 			/* Now that we have the complete result, we
 			need to sort the document ids on their rank
 			calculation. */
@@ -6871,13 +6873,13 @@ ha_innobase::ft_read(
 			fts_query_sort_result_on_rank(result);
 
 			result->current = const_cast<ib_rbt_node_t*>(
-				rbt_first(result->rankings));
+				rbt_first(result->rankings_by_rank));
 		} else {
 			ut_a(result->current == NULL);
 		}
 	} else {
 		result->current = const_cast<ib_rbt_node_t*>(
-			rbt_next(result->rankings, result->current));
+			rbt_next(result->rankings_by_rank, result->current));
 	}
 
 	if (result->current != NULL) {
@@ -12728,8 +12730,8 @@ innobase_fts_retrieve_ranking(
 
 	/* Retrieve the ranking value for doc_id with value of
 	prebuilt->fts_doc_id */
-	return fts_retrieve_ranking(ft_prebuilt->result,
-				    ft_prebuilt->fts_doc_id);
+	return(fts_retrieve_ranking(ft_prebuilt->result,
+				    ft_prebuilt->fts_doc_id));
 }
 
 /***********************************************************************

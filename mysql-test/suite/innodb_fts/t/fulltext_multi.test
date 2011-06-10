@@ -3,9 +3,7 @@
 DROP TABLE IF EXISTS t1;
 --enable_warnings
 
-let $default_engine = `select @@SESSION.default_storage_engine`;
---replace_result $default_engine <default_engine>
-EVAL CREATE TABLE t1 (
+CREATE TABLE t1 (
   a int(11) NOT NULL auto_increment,
   b text,
   c varchar(254) default NULL,
@@ -13,7 +11,7 @@ EVAL CREATE TABLE t1 (
   FULLTEXT KEY bb(b),
   FULLTEXT KEY cc(c),
   FULLTEXT KEY a(b,c)
-) ENGINE = $default_engine;
+) ENGINE = InnoDB;
 
 INSERT INTO t1 VALUES (1,'lala lolo lili','oooo aaaa pppp');
 INSERT INTO t1 VALUES (2,'asdf fdsa','lkjh fghj');

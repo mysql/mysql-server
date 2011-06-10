@@ -6,24 +6,23 @@
 drop table if exists t1, t2;
 --enable_warnings
 
-let $default_engine = `select @@SESSION.default_storage_engine`;
-
---replace_result $default_engine <default_engine>
-EVAL CREATE TABLE t1 (
+CREATE TABLE t1 (
   id int(10) unsigned NOT NULL auto_increment,
   q varchar(255) default NULL,
   PRIMARY KEY (id)
-) ENGINE=$default_engine;
+) ENGINE = InnoDB;
+
 INSERT INTO t1 VALUES (1,'aaaaaaaaa dsaass de');
 INSERT INTO t1 VALUES (2,'ssde df s fsda sad er');
---replace_result $default_engine <default_engine>
-EVAL CREATE TABLE t2 (
+
+CREATE TABLE t2 (
   id int(10) unsigned NOT NULL auto_increment,
   id2 int(10) unsigned default NULL,
   item varchar(255) default NULL,
   PRIMARY KEY (id),
   FULLTEXT KEY item(item)
-) ENGINE=$default_engine;
+) ENGINE = InnoDB;
+
 INSERT INTO t2 VALUES (1,1,'sushi');
 INSERT INTO t2 VALUES (2,1,'Bolo de Chocolate');
 INSERT INTO t2 VALUES (3,1,'Feijoada');

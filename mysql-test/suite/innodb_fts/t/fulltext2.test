@@ -6,19 +6,15 @@
 # two-level tree
 #
 
-let $default_engine = `select @@SESSION.default_storage_engine`;
-
 --disable_warnings
 DROP TABLE IF EXISTS t1;
 --enable_warnings
 
-
---replace_result $default_engine <default_engine>
-EVAL CREATE TABLE t1 (
+CREATE TABLE t1 (
   i int(10) unsigned not null auto_increment primary key,
   a varchar(255) not null,
   FULLTEXT KEY (a)
-) ENGINE=$default_engine;
+) ENGINE = INNODB;
 
 # two-level entry, second-level tree with depth 2
 --disable_query_log
@@ -47,10 +43,11 @@ while ($1)
 --enable_query_log
 
 # converting to two-level
-repair table t1 quick;
-check table t1;
-optimize table t1; # BUG#5327 - mi_sort_index() of 2-level tree
-check table t1;
+# INNODB_FTS: Do not support repair, check table
+#repair table t1 quick;
+#check table t1;
+#optimize table t1; # BUG#5327 - mi_sort_index() of 2-level tree
+#check table t1;
 
 select count(*) from t1 where match a against ('aaaxxx');
 select count(*) from t1 where match a against ('aaayyy');
@@ -103,12 +100,11 @@ select count(*) from t1 where match a against ('aaazzz' in boolean mode);
 
 drop table t1;
 
---replace_result $default_engine <default_engine>
-EVAL CREATE TABLE t1 (
+CREATE TABLE t1 (
   i int(10) unsigned not null auto_increment primary key,
   a varchar(255) not null,
   FULLTEXT KEY (a)
-) ENGINE=$default_engine;
+) ENGINE = INNODB;
 
 #
 # now same as about but w/o repair table
@@ -196,8 +192,7 @@ drop table t1;
 #
 
 set names utf8;
---replace_result $default_engine <default_engine>
-eval create table t1(a text,fulltext(a)) ENGINE=$default_engine collate=utf8_swedish_ci;
+eval create table t1(a text,fulltext(a)) ENGINE = INNODB collate=utf8_swedish_ci;
 insert into t1 values('test test '),('test'),('test'),('test'),
 ('test'),('test'),('test'),('test'),('test'),('test'),('test'),('test'),
 ('test'),('test'),('test'),('test'),('test'),('test'),('test'),('test'),
@@ -232,8 +227,7 @@ set names latin1;
 # BUG#19580 - FULLTEXT search produces wrong results on UTF-8 columns
 #
 SET NAMES utf8;
---replace_result $default_engine <default_engine>
-EVAL CREATE TABLE t1(a VARCHAR(255), FULLTEXT(a)) ENGINE=$default_engine DEFAULT CHARSET=utf8;
+CREATE TABLE t1(a VARCHAR(255), FULLTEXT(a)) ENGINE = INNODB DEFAULT CHARSET=utf8;
 INSERT INTO t1 VALUES('„MySQL“');
 SELECT a FROM t1 WHERE MATCH a AGAINST('“MySQL„' IN BOOLEAN MODE);
 DROP TABLE t1;

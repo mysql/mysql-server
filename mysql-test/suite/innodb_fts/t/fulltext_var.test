@@ -6,14 +6,15 @@ drop table if exists t1;
 --enable_warnings
 
 
-let $default_engine = `select @@SESSION.default_storage_engine`;
 # Save ft_boolean_syntax variable
 let $saved_ft_boolean_syntax=`select @@global.ft_boolean_syntax`;
 
 show variables like "ft\_%";
 
---replace_result $default_engine <default_engine>
-eval create table t1 (b text not null) engine = $default_engine;
+# INNODB_FTS: Please note original table do not have fulltext index.
+# InnoDB will return 1214. I added "fulltext(b)" to the create table statement
+# In addition, we do not support MyISAM configure parameter
+create table t1 (b text not null, fulltext(b)) engine = innodb;
 insert t1 values ('aaaaaa bbbbbb cccccc');
 insert t1 values ('bbbbbb cccccc');
 insert t1 values ('aaaaaa cccccc');

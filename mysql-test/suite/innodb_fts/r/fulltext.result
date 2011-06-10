@@ -30,30 +30,30 @@ a	b
 Only MyISAM tables	support collections
 select * from t1 where MATCH(a,b) AGAINST ("collections" WITH QUERY EXPANSION);
 a	b
-MySQL has now support	for full-text search
-Full-text indexes	are called collections
 Only MyISAM tables	support collections
+Full-text indexes	are called collections
+MySQL has now support	for full-text search
 Full-text search in MySQL	implements vector space model
 select * from t1 where MATCH(a,b) AGAINST ("indexes" WITH QUERY EXPANSION);
 a	b
-MySQL has now support	for full-text search
 Full-text indexes	are called collections
 Only MyISAM tables	support collections
+MySQL has now support	for full-text search
 Full-text search in MySQL	implements vector space model
 select * from t1 where MATCH(a,b) AGAINST ("indexes collections" WITH QUERY EXPANSION);
 a	b
-MySQL has now support	for full-text search
-Full-text indexes	are called collections
 Only MyISAM tables	support collections
+Full-text indexes	are called collections
+MySQL has now support	for full-text search
 Full-text search in MySQL	implements vector space model
 select * from t1 where MATCH(a,b) AGAINST ("indexes" IN NATURAL LANGUAGE MODE);
 a	b
 Full-text indexes	are called collections
 select * from t1 where MATCH(a,b) AGAINST ("indexes" IN NATURAL LANGUAGE MODE WITH QUERY EXPANSION);
 a	b
-MySQL has now support	for full-text search
 Full-text indexes	are called collections
 Only MyISAM tables	support collections
+MySQL has now support	for full-text search
 Full-text search in MySQL	implements vector space model
 select * from t1 where MATCH(a,b) AGAINST ("indexes" IN BOOLEAN MODE WITH QUERY EXPANSION);
 ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'QUERY EXPANSION)' at line 1
@@ -97,9 +97,9 @@ Warnings:
 Note	1003	select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b` from `test`.`t1` where (match `test`.`t1`.`a`,`test`.`t1`.`b` against ('support -collections' in boolean mode))
 select * from t1 where MATCH(a,b) AGAINST("support  collections" IN BOOLEAN MODE);
 a	b
+Only MyISAM tables	support collections
 MySQL has now support	for full-text search
 Full-text indexes	are called collections
-Only MyISAM tables	support collections
 select * from t1 where MATCH(a,b) AGAINST("support +collections" IN BOOLEAN MODE);
 a	b
 Only MyISAM tables	support collections
@@ -125,18 +125,18 @@ a	b
 Function MATCH ... AGAINST()	is used to do a search
 select *, MATCH(a,b) AGAINST("support collections" IN BOOLEAN MODE) as x from t1;
 a	b	x
-MySQL has now support	for full-text search	0
-Full-text indexes	are called collections	0
-Only MyISAM tables	support collections	0
-Function MATCH ... AGAINST()	is used to do a search	-1
-Full-text search in MySQL	implements vector space model	-1
+MySQL has now support	for full-text search	0.15835624933242798
+Full-text indexes	are called collections	0.15835624933242798
+Only MyISAM tables	support collections	0.31671249866485596
+Function MATCH ... AGAINST()	is used to do a search	0
+Full-text search in MySQL	implements vector space model	0
 select *, MATCH(a,b) AGAINST("collections support" IN BOOLEAN MODE) as x from t1;
 a	b	x
-MySQL has now support	for full-text search	0
-Full-text indexes	are called collections	0
-Only MyISAM tables	support collections	0
-Function MATCH ... AGAINST()	is used to do a search	-1
-Full-text search in MySQL	implements vector space model	-1
+MySQL has now support	for full-text search	0.15835624933242798
+Full-text indexes	are called collections	0.15835624933242798
+Only MyISAM tables	support collections	0.31671249866485596
+Function MATCH ... AGAINST()	is used to do a search	0
+Full-text search in MySQL	implements vector space model	0
 select * from t1 where MATCH a,b AGAINST ("+call* +coll*" IN BOOLEAN MODE);
 a	b
 Full-text indexes	are called collections
@@ -160,7 +160,6 @@ a	b
 MySQL has now support	for full-text search
 select * from t1 where MATCH a,b AGAINST ('"text i"' IN BOOLEAN MODE);
 a	b
-Full-text indexes	are called collections
 select * from t1 where MATCH a,b AGAINST ('"xt indexes"' IN BOOLEAN MODE);
 a	b
 select * from t1 where MATCH a,b AGAINST ('+(support collections) +foobar*' IN BOOLEAN MODE);
@@ -184,6 +183,9 @@ update t1 set a='some test foobar' where MATCH a,b AGAINST ('model');
 delete from t1 where MATCH(a,b) AGAINST ("indexes");
 select * from t1;
 a	b
+Only MyISAM tables	support collections
+Function MATCH ... AGAINST()	is used to do a search
+some test foobar	implements vector space model
 drop table t1;
 create table t1 (a varchar(200) not null, fulltext (a)) engine = innodb;
 insert t1 values ("aaa10 bbb20"), ("aaa20 bbb15"), ("aaa30 bbb10");
@@ -248,8 +250,7 @@ ticket	inhalt
 3	foobar
 select * from t2 having MATCH inhalt AGAINST ('foobar');
 ticket	inhalt
-1	foo
-2	bar
+3	foobar
 CREATE TABLE t3 (t int(11),i text,fulltext tix (t,i));
 ERROR HY000: Column 't' cannot be part of FULLTEXT index
 CREATE TABLE t3 (t int(11),i text,
@@ -330,15 +331,9 @@ insert into t2 values (1, 1, 'xxfoo');
 insert into t2 values (2, 1, 'xxbar');
 insert into t2 values (3, 1, 'xxbuz');
 select * from t1 join t2 using(`t1_id`) where match (t1.name, t2.name) against('xxfoo' in boolean mode);
-t1_id	name	t2_id	name
-1	data1	1	xxfoo
-1	data1	2	xxbar
-1	data1	3	xxbuz
+ERROR HY000: The used table type doesn't support FULLTEXT indexes
 select * from t2 where match name against ('*a*b*c*d*e*f*' in boolean mode);
-t2_id	t1_id	name
-1	1	xxfoo
-2	1	xxbar
-3	1	xxbuz
+ERROR HY000: The used table type doesn't support FULLTEXT indexes
 drop table t1,t2;
 create table t1 (a text, fulltext key (a)) ENGINE = InnoDB;
 insert into t1 select "xxxx yyyy zzzz";
@@ -352,12 +347,12 @@ CREATE TABLE t1 (s varchar(255), FULLTEXT (s)) ENGINE = InnoDB DEFAULT CHARSET=u
 insert into t1 (s) values ('pära para para'),('para para para');
 select * from t1 where match(s) against('para' in boolean mode);
 s
-pära para para
 para para para
+pära para para
 select * from t1 where match(s) against('par*' in boolean mode);
 s
-pära para para
 para para para
+pära para para
 DROP TABLE t1;
 CREATE TABLE t1 (h text, FULLTEXT (h)) ENGINE = InnoDB;
 INSERT INTO t1 VALUES ('Jesses Hasse Ling and his syncopators of Swing');
@@ -369,7 +364,7 @@ CREATE TABLE t1 ( a TEXT, FULLTEXT (a) ) ENGINE = InnoDB;
 INSERT INTO t1 VALUES ('testing ft_nlq_find_relevance');
 SELECT MATCH(a) AGAINST ('nosuchword') FROM t1;
 MATCH(a) AGAINST ('nosuchword')
--1
+0
 DROP TABLE t1;
 create table t1 (a int primary key, b text, fulltext(b)) ENGINE = InnoDB;
 create table t2 (a int, b text) ENGINE = InnoDB;
@@ -410,14 +405,14 @@ INSERT INTO t1 VALUES('test'),('test1'),('test');
 PREPARE stmt from "SELECT a, FORMAT(MATCH(a) AGAINST('test1 test'),6) FROM t1 WHERE MATCH(a) AGAINST('test1 test')";
 EXECUTE stmt;
 a	FORMAT(MATCH(a) AGAINST('test1 test'),6)
-test	-1.000000
-test1	-1.000000
-test	-1.000000
+test1	0.227645
+test	0.031008
+test	0.031008
 EXECUTE stmt;
 a	FORMAT(MATCH(a) AGAINST('test1 test'),6)
-test	-1.000000
-test1	-1.000000
-test	-1.000000
+test1	0.227645
+test	0.031008
+test	0.031008
 DEALLOCATE PREPARE stmt;
 DROP TABLE t1;
 CREATE TABLE t1 (a VARCHAR(255), FULLTEXT(a)) ENGINE = InnoDB;
@@ -426,7 +421,7 @@ a
 SELECT * FROM t1 WHERE MATCH(a) AGAINST('test');
 a
 DROP TABLE t1;
-CREATE TABLE t1(a TEXT) ENGINE = InnoDB;
+CREATE TABLE t1(a TEXT, fulltext(a)) ENGINE = InnoDB;
 INSERT INTO t1 VALUES(' aaaaa aaaa');
 SELECT * FROM t1 WHERE MATCH(a) AGAINST ('"aaaa"' IN BOOLEAN MODE);
 a
@@ -483,14 +478,14 @@ WHERE MATCH(a) AGAINST('test' IN BOOLEAN MODE) AND b=1;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	t1	ref	b	b	5	const	5	Using where
 DROP TABLE t1;
-CREATE TABLE t1(a CHAR(10)) ENGINE = InnoDB;
+CREATE TABLE t1(a CHAR(10), fulltext(a)) ENGINE = InnoDB;
 INSERT INTO t1 VALUES('aaa15');
 SELECT MATCH(a) AGAINST('aaa1* aaa14 aaa16' IN BOOLEAN MODE) FROM t1;
 MATCH(a) AGAINST('aaa1* aaa14 aaa16' IN BOOLEAN MODE)
--1
+1.0224660806113634e-20
 SELECT MATCH(a) AGAINST('aaa1* aaa14 aaa15 aaa16' IN BOOLEAN MODE) FROM t1;
 MATCH(a) AGAINST('aaa1* aaa14 aaa15 aaa16' IN BOOLEAN MODE)
--1
+2.0449321612227268e-20
 DROP TABLE t1;
 CREATE TABLE t1(a TEXT) ENGINE = InnoDB;
 SELECT GROUP_CONCAT(a) AS st FROM t1 HAVING MATCH(st) AGAINST('test' IN BOOLEAN MODE);
@@ -562,7 +557,7 @@ SELECT 1 FROM t2 IGNORE INDEX (b2), t3
 WHERE t3.a=t1.a AND MATCH(b2) AGAINST('scargill' IN BOOLEAN MODE)
 );
 count(*)
-2
+0
 DROP TABLE t1,t2,t3;
 CREATE TABLE t1 (a VARCHAR(4), FULLTEXT(a)) ENGINE = InnoDB;
 INSERT INTO t1 VALUES
@@ -605,15 +600,15 @@ CREATE TABLE t1(f1 VARCHAR(6) NOT NULL, FULLTEXT KEY(f1), UNIQUE(f1)) ENGINE = I
 INSERT INTO t1 VALUES ('test');
 PREPARE stmt FROM
 'SELECT 1 FROM t1 WHERE 1 >
- ALL((SELECT 1 FROM t1 RIGHT OUTER JOIN t1 a
- ON (MATCH(t1.f1) against (""))
- WHERE t1.f1 GROUP BY t1.f1)) xor f1';
-DEALLOCATE PREPARE stmt;
-PREPARE stmt FROM
-'SELECT 1 FROM t1 WHERE 1 >
  ALL((SELECT 1 FROM t1 JOIN t1 a
  ON (MATCH(t1.f1) against (""))
  WHERE t1.f1 GROUP BY t1.f1))';
+EXECUTE stmt;
+1
+1
+EXECUTE stmt;
+1
+1
 DEALLOCATE PREPARE stmt;
 DROP TABLE t1;
 End of 5.1 tests
