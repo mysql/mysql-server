@@ -6804,25 +6804,25 @@ static bool do_fill_table(THD *thd,
   // that problem we create a Warning_info instance, which is capable of
   // storing "unlimited" number of warnings.
   Diagnostics_area *da= thd->get_stmt_da();
-  Warning_info wi(thd->query_id, true);
-  Warning_info *wi_saved= thd->get_warning_info();
+  Warning_info *wi= da->get_warning_info();
+  Warning_info wi_tmp(thd->query_id, true);
 
-  da->set_warning_info(&wi);
+  da->set_warning_info(&wi_tmp);
 
   bool res= table_list->schema_table->fill_table(
     thd, table_list, join_table->condition());
 
-  da->set_warning_info(wi_saved);
+  da->set_warning_info(wi);
 
   // Pass an error if any.
 
-  if (thd->get_stmt_da()->is_error())
+  if (da->is_error())
   {
-    thd->get_warning_info()->push_warning(thd,
-                                          thd->get_stmt_da()->sql_errno(),
-                                          thd->get_stmt_da()->get_sqlstate(),
-                                          MYSQL_ERROR::WARN_LEVEL_ERROR,
-                                          thd->get_stmt_da()->message());
+    wi->push_warning(thd,
+                     da->sql_errno(),
+                     da->get_sqlstate(),
+                     MYSQL_ERROR::WARN_LEVEL_ERROR,
+                     da->message());
   }
 
   // Pass warnings (if any).
@@ -6831,13 +6831,13 @@ static bool do_fill_table(THD *thd,
   // correspond to the errors which were filtered out in fill_table().
 
 
-  List_iterator_fast<MYSQL_ERROR> it(wi.warn_list());
+  List_iterator_fast<MYSQL_ERROR> it(wi_tmp.warn_list());
   MYSQL_ERROR *err;
 
   while ((err= it++))
   {
     if (err->get_level() != MYSQL_ERROR::WARN_LEVEL_ERROR)
-      thd->get_warning_info()->push_warning(thd, err);
+      wi->push_warning(thd, err);
   }
 
   return res;
