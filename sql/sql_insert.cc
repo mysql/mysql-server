@@ -931,7 +931,7 @@ bool mysql_insert(THD *thd,TABLE_LIST *table_list,
       error=write_record(thd, table ,&info);
     if (error)
       break;
-    thd->get_warning_info()->inc_current_row_for_warning();
+    thd->get_stmt_wi()->inc_current_row_for_warning();
   }
 
   free_underlaid_joins(thd, &thd->lex->select_lex);
@@ -1086,11 +1086,11 @@ bool mysql_insert(THD *thd,TABLE_LIST *table_list,
       sprintf(buff, ER(ER_INSERT_INFO), (ulong) info.records,
 	      (lock_type == TL_WRITE_DELAYED) ? (ulong) 0 :
 	      (ulong) (info.records - info.copied),
-              (ulong) thd->get_warning_info()->statement_warn_count());
+              (ulong) thd->get_stmt_wi()->statement_warn_count());
     else
       sprintf(buff, ER(ER_INSERT_INFO), (ulong) info.records,
 	      (ulong) (info.deleted + updated),
-              (ulong) thd->get_warning_info()->statement_warn_count());
+              (ulong) thd->get_stmt_wi()->statement_warn_count());
     ::my_ok(thd, info.copied + info.deleted + updated, id, buff);
   }
   thd->abort_on_warning= 0;
@@ -3573,11 +3573,11 @@ bool select_insert::send_eof()
   if (info.ignore)
     sprintf(buff, ER(ER_INSERT_INFO), (ulong) info.records,
 	    (ulong) (info.records - info.copied),
-            (ulong) thd->get_warning_info()->statement_warn_count());
+            (ulong) thd->get_stmt_wi()->statement_warn_count());
   else
     sprintf(buff, ER(ER_INSERT_INFO), (ulong) info.records,
 	    (ulong) (info.deleted+info.updated),
-            (ulong) thd->get_warning_info()->statement_warn_count());
+            (ulong) thd->get_stmt_wi()->statement_warn_count());
   row_count= info.copied + info.deleted +
              ((thd->client_capabilities & CLIENT_FOUND_ROWS) ?
               info.touched : info.updated);
