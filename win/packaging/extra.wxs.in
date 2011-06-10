@@ -46,6 +46,9 @@
     <Property Id="CLEANUPDATA" Secure="yes" Value="1"/>
     <!-- Force per machine installation -->
     <Property Id="ALLUSERS" Secure="yes" Value="1"/>
+    <!-- Disable advertised shortcuts weirdness -->
+    <Property Id="DISABLEADVTSHORTCUTS" Secure="yes" Value="1"/>
+
     <?if $(var.HaveInnodb) = "1" ?>
       <!-- Quick configuration : set default storage engine to innodb, use strict sql_mode -->
       <Property Id="STDCONFIG" Secure="yes" Value="1"/>
@@ -567,6 +570,38 @@
      <?endif?>
     </Feature>
 
+    <!-- Optional 3rd party tools -->
+    <DirectoryRef Id='TARGETDIR'>
+     <Directory Id='CommonFilesFolder'>
+       <Directory Id='MariaDBShared' Name='MariaDBShared'/>
+     </Directory>
+     <Directory Id='DesktopFolder'/>
+     </DirectoryRef>
+
+
+    <?if "@WITH_THIRD_PARTY@" != "" ?>
+
+    <!-- Include definition of 3party components -->
+    <?foreach tool in @WITH_THIRD_PARTY@ ?>
+     <?include "${CMAKE_CURRENT_BINARY_DIR}\$(var.tool).wxi" ?>
+    <?endforeach ?>
+
+    <Feature Id="ThirdPartyTools"
+      Title='Third party tools'
+      Description= 'Third party tools'
+      AllowAdvertise='no'
+      Level='1'
+      Display='expand'>
+    @THIRD_PARTY_FEATURE_CONDITION@
+    <!-- Include definition of 3rd party features -->
+    <?foreach tool in @WITH_THIRD_PARTY@ ?>
+     <?include "${CMAKE_CURRENT_BINARY_DIR}\$(var.tool)_feature.wxi" ?>
+    <?endforeach ?>
+
+   </Feature>
+   
+   <?endif ?>
+   
     <!--  Custom action, call mysql_install_db  -->
     <SetProperty  Sequence='execute'  Before='CreateDatabaseCommand' Id="SKIPNETWORKING"  Value="--skip-networking" >SKIPNETWORKING</SetProperty>
     <SetProperty Sequence='execute'  Before='CreateDatabaseCommand'  Id="ALLOWREMOTEROOTACCESS" Value="--allow-remote-root-access">ALLOWREMOTEROOTACCESS</SetProperty>

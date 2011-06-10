@@ -827,7 +827,7 @@ struct st_table {
     See TABLE_LIST::process_index_hints().
   */
   bool force_index_group;
-  bool distinct,const_table,no_rows;
+  bool distinct,const_table,no_rows, used_for_duplicate_elimination;
 
   /**
      If set, the optimizer has found that row retrieval should access index 
