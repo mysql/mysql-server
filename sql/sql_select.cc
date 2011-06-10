@@ -5920,30 +5920,20 @@ greedy_search(JOIN      *join,
 
 
 /**
-  Calculate a cost of given partial join order in join->positions.
+  Get cost of execution and fanout produced by selected tables in the join
+  prefix (where prefix is defined as prefix in depth-first traversal)
  
-  @param n_tables[in]      # tables in the partial join order after the last
-                           constant table
-  @param read_time_arg[out]    store read time here 
-  @param record_count_arg[out] store record count here
+  @param end_tab_idx               The number of last tab to be taken into
+                                   account (in depth-first traversal prefix)
+  @param filter_map                Bitmap of tables whose cost/fanout are to 
+                                   be taken into account.
+  @param read_time_arg     [out]   store read time here 
+  @param record_count_arg  [out]   store record count here
 
   @note
-  end_tab==NULL  means get full join cost and fanout
-
-    When used by semi-join materialization code the idea is that we
-    detect sj-materialization after we've put all sj-inner tables into
-    the join prefix.
-
-      prefix-tables semi-join-inner-tables  tN
-                                             ^--we're here
-
-    and we'll need to get the cost of prefix-tables prefix again.
-
-    When used with non-flattened subqueries, the method computes the
-    total cost of query plan.
 
   @returns
-    read_time_arg and record_count_arg contain the computed cost.
+    read_time_arg and record_count_arg contain the computed cost and fanout
 */
 
 void JOIN::get_partial_cost_and_fanout(uint end_tab_idx,
@@ -5958,6 +5948,22 @@ void JOIN::get_partial_cost_and_fanout(uint end_tab_idx,
   JOIN_TAB *tab;
   uint i;
   uint last_sj_table= MAX_TABLES;
+
+  /* 
+    Handle a special case where the join is degenerate, and produces no
+    records
+  */
+  if (table_count == 0)
+  {
+    *read_time_arg= 0.0;
+    /*
+      We return 1, because 
+       - it is the pessimistic estimate (there might be grouping)
+       - it's safer, as we're less likely to hit the edge cases in
+         calculations.
+    */
+    *record_count_arg=1.0;
+  }
 
   for (tab= first_depth_first_tab(this), i= const_tables;
        tab;
