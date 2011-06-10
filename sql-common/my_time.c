@@ -1280,7 +1280,7 @@ int number_to_time(my_bool neg, longlong nr, ulong sec_part,
     sec_part= TIME_MAX_SECOND_PART;
     *was_cut= MYSQL_TIME_WARN_OUT_OF_RANGE;
   }
-  ltime->hour  = nr/100/100;
+  ltime->hour  = (uint)(nr/100/100);
   ltime->minute= nr/100%100;
   ltime->second= nr%100;
   ltime->second_part= sec_part;

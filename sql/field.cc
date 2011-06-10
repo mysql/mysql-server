@@ -4624,12 +4624,7 @@ int Field_timestamp::store(double nr)
   Lazy_string_double str(nr);
   THD *thd= table->in_use;
 
-  /* We don't want to store invalid or fuzzy datetime values in TIMESTAMP */
-  if (nr < 0 || nr > LONGLONG_MAX)
-    nr= static_cast<double>(LONGLONG_MAX);
-  longlong tmp= number_to_datetime((longlong) floor(nr),
-                                   (nr-floor(nr))*TIME_SECOND_PART_FACTOR,
-                                   &l_time, (thd->variables.sql_mode &
+  longlong tmp= double_to_datetime(nr, &l_time, (thd->variables.sql_mode &
                                                  MODE_NO_ZERO_DATE) |
                                    MODE_NO_ZERO_IN_DATE, &error);
   return store_TIME_with_warning(thd, &l_time, &str, error, tmp != -1);
@@ -5119,11 +5114,7 @@ int Field_temporal::store(double nr)
   THD *thd= table->in_use;
   Lazy_string_double str(nr);
 
-  if (nr < 0 || nr > LONGLONG_MAX)
-    nr= static_cast<double>(LONGLONG_MAX);
-  longlong tmp= number_to_datetime((longlong) floor(nr),
-                                    ((nr-floor(nr))*TIME_SECOND_PART_FACTOR),
-                                    &ltime,
+  longlong tmp= double_to_datetime(nr, &ltime,
                                     (TIME_FUZZY_DATE |
                                        (thd->variables.sql_mode &
                                         (MODE_NO_ZERO_IN_DATE |
@@ -5231,8 +5222,8 @@ int Field_time::store(double nr)
   bool neg= nr < 0;
   if (neg)
     nr= -nr;
-  int have_smth_to_conv= !number_to_time(neg, nr,
-                                         (nr - trunc(nr)) * TIME_SECOND_PART_FACTOR,
+  int have_smth_to_conv= !number_to_time(neg, (longlong)nr,
+                                         (ulong)((nr - floor(nr)) * TIME_SECOND_PART_FACTOR),
                                          &ltime, &was_cut);
 
   return store_TIME_with_warning(&ltime, &str, was_cut, have_smth_to_conv);

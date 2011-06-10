@@ -482,7 +482,7 @@ bool Item_sum::walk (Item_processor processor, bool walk_subquery,
 Field *Item_sum::create_tmp_field(bool group, TABLE *table,
                                   uint convert_blob_length)
 {
-  Field *field;
+  Field *UNINIT_VAR(field);
   switch (result_type()) {
   case REAL_RESULT:
     field= new Field_double(max_length, maybe_null, name, decimals, TRUE);

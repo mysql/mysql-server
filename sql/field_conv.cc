@@ -669,11 +669,9 @@ Copy_field::get_copy_func(Field *to,Field *from)
     {
       /* If types are not 100 % identical then convert trough get_date() */
       if (!to->eq_def(from) ||
-          (((to->table->in_use->variables.sql_mode &
-             (MODE_NO_ZERO_IN_DATE | MODE_NO_ZERO_DATE |
-              MODE_INVALID_DATES))) &&
-           (to->type() == MYSQL_TYPE_DATE ||
-            to->type() == MYSQL_TYPE_DATETIME)))
+          ((to->table->in_use->variables.sql_mode &
+            (MODE_NO_ZERO_IN_DATE | MODE_NO_ZERO_DATE)) &&
+             mysql_type_to_time_type(to->type()) != MYSQL_TIMESTAMP_TIME))
         return do_field_temporal;
       /* Do binary copy */
     }

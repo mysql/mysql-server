@@ -4186,7 +4186,7 @@ bool Item_dyncol_get::get_date(MYSQL_TIME *ltime, uint fuzzy_date)
       return 0;
     }
     /* let double_to_datetime_with_warn() issue the warning message */
-    val.double_value= ULONGLONG_MAX;
+    val.double_value= static_cast<double>(ULONGLONG_MAX);
     /* fall_trough */
   case DYN_COL_DOUBLE:
     if (double_to_datetime_with_warn(val.double_value, ltime, fuzzy_date,

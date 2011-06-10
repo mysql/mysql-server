@@ -1433,7 +1433,7 @@ public:
     DBUG_ASSERT(dec);
     DBUG_ASSERT(dec <= TIME_SECOND_PART_DIGITS);
     zero_point= sec_part_shift(
-                   ((TIME_MAX_VALUE_SECONDS+1)*TIME_SECOND_PART_FACTOR), dec);
+                   ((TIME_MAX_VALUE_SECONDS+1LL)*TIME_SECOND_PART_FACTOR), dec);
   }
   enum ha_base_keytype key_type() const { return HA_KEYTYPE_BINARY; }
   uint decimals() const { return dec; }

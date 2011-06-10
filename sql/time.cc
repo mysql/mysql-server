@@ -290,16 +290,16 @@ bool double_to_datetime_with_warn(double value, MYSQL_TIME *ltime,
                                   ulong fuzzydate, const char *field_name)
 {
   const Lazy_string_double str(value);
-  ulonglong nr;
-  ulong sec_part;
   bool neg= value < 0;
 
   if (neg)
     value= -value;
 
-  nr = value > LONGLONG_MAX ? LONGLONG_MAX
-                            : static_cast<ulonglong>(trunc(value));
-  sec_part= (ulong)((value - nr)*TIME_SECOND_PART_FACTOR);
+  if (value > LONGLONG_MAX)
+    value= static_cast<double>(LONGLONG_MAX);
+
+  longlong nr= static_cast<ulonglong>(floor(value));
+  uint sec_part= static_cast<ulong>((value - floor(value))*TIME_SECOND_PART_FACTOR);
   return number_to_time_with_warn(neg, nr, sec_part, ltime, fuzzydate, &str,
                                   field_name);
 }
@@ -857,7 +857,7 @@ bool date_add_interval(MYSQL_TIME *ltime, interval_type int_type,
     {
       if (usec > TIME_MAX_HOUR)
         goto invalid_date;
-      ltime->hour= usec;
+      ltime->hour= static_cast<uint>(usec);
       ltime->day= 0;
       return 0;
     }

@@ -225,10 +225,10 @@ c	int(11)	YES		NULL	VIRTUAL
 d	varchar(5)	YES		NULL	PERSISTENT
 show full columns from t1;
 Field	Type	Collation	Null	Key	Default	Extra	Privileges	Comment
-a	int(11)	NULL	NO		NULL		select,insert,update,references	
-b	varchar(32)	latin1_swedish_ci	YES		NULL		select,insert,update,references	
-c	int(11)	NULL	YES		NULL	VIRTUAL	select,insert,update,references	
-d	varchar(5)	latin1_swedish_ci	YES		NULL	PERSISTENT	select,insert,update,references	
+a	int(11)	NULL	NO		NULL		#	
+b	varchar(32)	latin1_swedish_ci	YES		NULL		#	
+c	int(11)	NULL	YES		NULL	VIRTUAL	#	
+d	varchar(5)	latin1_swedish_ci	YES		NULL	PERSISTENT	#	
 INSERT INTO `test`.`t1`(`a`,`b`,`c`,`d`) VALUES ( '1','a',NULL,NULL);
 UPDATE `test`.`t1` SET `d`='b' WHERE `a`='1' AND `b`='a' AND `c`='1' AND  `d`='a';
 Warnings:
