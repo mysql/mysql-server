@@ -3557,7 +3557,7 @@ fts_check_phrase_proximity(
 			matched = TRUE;
 		} else if (fts_proximity_check_position(
 			match, num_token, query->distance)) {
-			int	z;
+			ulint	z;
 			/* If so, mark we find a matching doc */
 			fts_query_process_doc_id(query, match[0]->doc_id, 0);
 
