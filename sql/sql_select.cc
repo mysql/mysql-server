@@ -7726,6 +7726,14 @@ make_join_select(JOIN *join,SQL_SELECT *select,COND *cond)
 
         DBUG_EXECUTE("where",print_where(join->exec_const_cond,"constants",
 					 QT_ORDINARY););
+        if (join->exec_const_cond && !join->exec_const_cond->is_expensive() &&
+            !join->exec_const_cond->val_int())
+        {
+          DBUG_PRINT("info",("Found impossible WHERE condition"));
+          join->exec_const_cond= NULL;
+          DBUG_RETURN(1);	 // Impossible const condition
+        }
+
         uint linear_no= join->const_tables;
         for (JOIN_TAB *tab= first_linear_tab(join, WITHOUT_CONST_TABLES); 
              tab; 
@@ -7752,14 +7760,6 @@ make_join_select(JOIN *join,SQL_SELECT *select,COND *cond)
             cond_tab->select_cond->update_used_tables();
             cond_tab->select_cond->quick_fix_field();
           }       
-        }
-
-        if (join->exec_const_cond && !join->exec_const_cond->is_expensive() &&
-            !join->exec_const_cond->val_int())
-        {
-          DBUG_PRINT("info",("Found impossible WHERE condition"));
-          join->exec_const_cond= NULL;
-          DBUG_RETURN(1);	 // Impossible const condition
         }
 
         COND *outer_ref_cond= make_cond_for_table(thd, cond, 
