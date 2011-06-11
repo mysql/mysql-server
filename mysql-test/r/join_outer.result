@@ -1713,3 +1713,30 @@ ON t2.col_int = t1.pk
 WHERE   t1.col_int_key IS NULL OR t4.pk < t3.col_int;
 col_int
 DROP TABLE t1,t2,t3,t4;
+
+# BUG#12567331 - INFINITE LOOP WHEN RESOLVING AN ALIASED COLUMN
+# USED IN GROUP BY
+
+CREATE TABLE t1 (pk int(11));
+PREPARE prep_stmt_9846 FROM '
+SELECT alias1.pk AS field1 FROM
+t1 AS alias1
+LEFT JOIN
+( 
+  t1 AS alias2
+  RIGHT  JOIN
+  ( 
+    t1 AS alias3
+    JOIN t1 AS alias4
+    ON 1
+  )
+  ON 1
+)
+ON 1
+GROUP BY field1';
+execute prep_stmt_9846;
+field1
+execute prep_stmt_9846;
+field1
+deallocate prepare prep_stmt_9846;
+drop table t1;
