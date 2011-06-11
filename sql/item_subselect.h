@@ -43,8 +43,6 @@ class Item_subselect :public Item_result_field
 private:
   bool value_assigned; /* value already assigned to subselect */
 public:
-  /* thread handler, will be assigned in fix_fields only */
-  THD *thd;
   /* 
     Used inside Item_subselect::fix_fields() according to this scenario:
       > Item_subselect::fix_fields
@@ -440,7 +438,6 @@ class subselect_engine: public Sql_alloc
 {
 protected:
   select_result_interceptor *result; /* results storage class */
-  THD *thd; /* pointer to current THD */
   Item_subselect *item; /* item, that use this engine */
   enum Item_result res_type; /* type of results */
   enum_field_types res_field_type; /* column type of the results */
@@ -452,7 +449,7 @@ public:
                          INDEXSUBQUERY_ENGINE, HASH_SJ_ENGINE};
 
   subselect_engine(Item_subselect *si, select_result_interceptor *res)
-    :result(res), thd(NULL), item(si), res_type(STRING_RESULT),
+    :result(res), item(si), res_type(STRING_RESULT),
     res_field_type(MYSQL_TYPE_VAR_STRING), maybe_null(false)
   {}
   virtual ~subselect_engine() {}; // to satisfy compiler
@@ -461,12 +458,8 @@ public:
   */
   virtual void cleanup()= 0;
 
-  /*
-    Also sets "thd" for subselect_engine::result.
-    Should be called before prepare().
-  */
-  void set_thd(THD *thd_arg);
-  THD * get_thd() const { return thd; }
+  /// Sets "thd" for 'result'. Should be called before prepare()
+  void set_thd_for_result();
   virtual bool prepare()= 0;
   virtual void fix_length_and_dec(Item_cache** row)= 0;
   /*
@@ -506,6 +499,13 @@ public:
   /* Check if subquery produced any rows during last query execution */
   virtual bool no_rows() const = 0;
   virtual enum_engine_type engine_type() const { return ABSTRACT_ENGINE; }
+#ifndef DBUG_OFF
+  /**
+     @returns the internal Item. Defined only in debug builds, because should
+     be used only for debug asserts.
+  */
+  const Item_subselect *get_item() const { return item; }
+#endif
 
 protected:
   void set_row(List<Item> &item_list, Item_cache **row);
@@ -609,10 +609,7 @@ public:
   // constructor can assign THD because it will be called after JOIN::prepare
   subselect_uniquesubquery_engine(THD *thd_arg, st_join_table *tab_arg,
 				  Item_subselect *subs, Item *where)
-    :subselect_engine(subs, 0), tab(tab_arg), cond(where)
-  {
-    set_thd(thd_arg);
-  }
+    :subselect_engine(subs, 0), tab(tab_arg), cond(where) {}
   virtual void cleanup() {}
   virtual bool prepare();
   virtual void fix_length_and_dec(Item_cache** row);

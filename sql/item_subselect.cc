@@ -42,7 +42,7 @@ inline Item * and_items(Item* cond, Item *item)
 }
 
 Item_subselect::Item_subselect():
-  Item_result_field(), value_assigned(0), thd(0), substitution(0),
+  Item_result_field(), value_assigned(0), substitution(0),
   engine(0), old_engine(0), used_tables_cache(0), have_to_be_excluded(0),
   const_item_cache(1), engine_changed(0), changed(0),
   is_correlated(FALSE)
@@ -169,14 +169,27 @@ Item_subselect::select_transformer(JOIN *join)
 }
 
 
-bool Item_subselect::fix_fields(THD *thd_param, Item **ref)
+bool Item_subselect::fix_fields(THD *thd, Item **ref)
 {
-  char const *save_where= thd_param->where;
+  char const *save_where= thd->where;
   uint8 uncacheable;
   bool res;
 
   DBUG_ASSERT(fixed == 0);
-  engine->set_thd((thd= thd_param));
+  /*
+    Pointers to THD must match. unit::thd may vary over the lifetime of the
+    item (for example triggers, and thus their Item-s, are in a cache shared
+    by all connections), but reinit_stmt_before_use() keeps it up-to-date,
+    which we check here. subselect_union_engine functions also do sanity
+    checks.
+  */
+  DBUG_ASSERT(thd == unit->thd);
+#ifndef DBUG_OFF
+  // Engine accesses THD via its 'item' pointer, check it:
+  DBUG_ASSERT(engine->get_item() == this);
+#endif
+
+  engine->set_thd_for_result();
 
   if (check_stack_overrun(thd, STACK_MIN_SIZE, (uchar*)&res))
     return TRUE;
@@ -285,6 +298,7 @@ bool Item_subselect::exec()
     Do not execute subselect in case of a fatal error
     or if the query has been killed.
   */
+  THD * const thd= unit->thd;
   if (thd->is_error() || thd->killed)
     DBUG_RETURN(true);
 
@@ -437,7 +451,7 @@ table_map Item_subselect::used_tables() const
 
 bool Item_subselect::const_item() const
 {
-  return thd->lex->context_analysis_only ? FALSE : const_item_cache;
+  return unit->thd->lex->context_analysis_only ? false : const_item_cache;
 }
 
 Item *Item_subselect::get_tmp_table_item(THD *thd_arg)
@@ -521,12 +535,6 @@ Item_maxmin_subselect::Item_maxmin_subselect(THD *thd_param,
   used_tables_cache= parent->get_used_tables_cache();
   const_item_cache= parent->get_const_item_cache();
 
-  /*
-    this subquery always creates during preparation, so we can assign
-    thd here
-  */
-  thd= thd_param;
-
   DBUG_VOID_RETURN;
 }
 
@@ -581,6 +589,7 @@ Item_singlerow_subselect::select_transformer(JOIN *join)
     DBUG_RETURN(RES_OK);
 
   SELECT_LEX *select_lex= join->select_lex;
+  THD * const thd= unit->thd;
   Query_arena *arena= thd->stmt_arena;
  
   if (!select_lex->master_unit()->is_union() &&
@@ -1091,6 +1100,8 @@ Item_in_subselect::single_value_transformer(JOIN *join,
     DBUG_RETURN(RES_ERROR);
   }
 
+  THD * const thd= unit->thd;
+
   /*
     If this is an ALL/ANY single-value subselect, try to rewrite it with
     a MIN/MAX subselect. We can do that if a possible NULL result of the
@@ -1264,6 +1275,7 @@ Item_subselect::trans_res
 Item_in_subselect::single_value_in_to_exists_transformer(JOIN * join, Comp_creator *func)
 {
   SELECT_LEX *select_lex= join->select_lex;
+  THD * const thd= unit->thd;
   DBUG_ENTER("Item_in_subselect::single_value_in_to_exists_transformer");
 
   select_lex->uncacheable|= UNCACHEABLE_DEPENDENT;
@@ -1467,6 +1479,7 @@ Item_in_subselect::row_value_transformer(JOIN *join)
     SELECT_LEX_UNIT *master_unit= select_lex->master_unit();
     substitution= optimizer;
 
+    THD * const thd= unit->thd;
     SELECT_LEX *current= thd->lex->current_select;
     thd->lex->current_select= current->outer_select();
     //optimizer never use Item **ref => we can pass 0 as parameter
@@ -1526,6 +1539,7 @@ Item_subselect::trans_res
 Item_in_subselect::row_value_in_to_exists_transformer(JOIN * join)
 {
   SELECT_LEX *select_lex= join->select_lex;
+  THD * const thd= unit->thd;
   Item *having_item= 0;
   uint cols_num= left_expr->cols();
   bool is_having_used= (join->having || select_lex->with_sum_func ||
@@ -1756,6 +1770,7 @@ Item_subselect::trans_res
 Item_in_subselect::select_in_like_transformer(JOIN *join, Comp_creator *func)
 {
   Query_arena *arena, backup;
+  THD * const thd= unit->thd;
   SELECT_LEX *current= thd->lex->current_select;
   const char *save_where= thd->where;
   Item_subselect::trans_res res= RES_ERROR;
@@ -1911,7 +1926,7 @@ bool Item_in_subselect::setup_engine()
 
   old_engine= engine;
 
-  if (!(engine= new subselect_hash_sj_engine(thd, this,
+  if (!(engine= new subselect_hash_sj_engine(unit->thd, this,
                   static_cast<subselect_single_select_engine*>(old_engine))))
     DBUG_RETURN(true);
   if (((subselect_hash_sj_engine *) engine)
@@ -1987,7 +2002,7 @@ bool Item_in_subselect::init_left_expr_cache()
 
   for (uint i= 0; i < left_expr->cols(); i++)
   {
-    Cached_item *cur_item_cache= new_Cached_item(thd,
+    Cached_item *cur_item_cache= new_Cached_item(unit->thd,
                                                  left_expr->element_index(i),
                                                  use_result_field);
     if (!cur_item_cache || left_expr_cache->push_front(cur_item_cache))
@@ -2043,11 +2058,14 @@ void Item_allany_subselect::print(String *str, enum_query_type query_type)
 }
 
 
-void subselect_engine::set_thd(THD *thd_arg)
+void subselect_engine::set_thd_for_result()
 {
-  thd= thd_arg;
+  /*
+    select_result's constructor sets neither select_result::thd nor
+    select_result::unit.
+  */
   if (result)
-    result->set_thd(thd_arg);
+    result->set_thd(item->unit->thd);
 }
 
 
@@ -2148,6 +2166,7 @@ bool subselect_single_select_engine::prepare()
 {
   if (prepared)
     return 0;
+  THD * const thd= item->unit->thd;
   join= new JOIN(thd, select_lex->item_list,
 		 select_lex->options | SELECT_NO_UNLOCK, result);
   if (!join || !result)
@@ -2174,6 +2193,9 @@ bool subselect_single_select_engine::prepare()
 
 bool subselect_union_engine::prepare()
 {
+  THD * const thd= unit->thd;
+  // We can access THD as above, or via 'item', verify equality:
+  DBUG_ASSERT(thd == item->unit->thd);
   return unit->prepare(thd, result, SELECT_NO_UNLOCK);
 }
 
@@ -2275,6 +2297,7 @@ bool subselect_single_select_engine::exec()
 {
   DBUG_ENTER("subselect_single_select_engine::exec");
   int rc= 0;
+  THD * const thd= item->unit->thd;
   char const *save_where= thd->where;
   SELECT_LEX *save_select= thd->lex->current_select;
   thd->lex->current_select= select_lex;
@@ -2372,6 +2395,8 @@ exit:
 
 bool subselect_union_engine::exec()
 {
+  THD * const thd= unit->thd;
+  DBUG_ASSERT(thd == item->unit->thd);
   char const *save_where= thd->where;
   const bool res= unit->exec();
   thd->where= save_where;
@@ -2830,7 +2855,7 @@ subselect_single_select_engine::save_join_if_explain()
         plan to save will not be replaced anyway.
      4) The Item_subselect is cacheable
   */
-  if (thd->lex->describe &&                              // 1
+  if (item->unit->thd->lex->describe &&                  // 1
       !select_lex->uncacheable &&                        // 2
       !(join->select_options & SELECT_DESCRIBE))         // 3
   {
@@ -2873,7 +2898,7 @@ table_map subselect_union_engine::upper_select_const_tables() const
 void subselect_single_select_engine::print(String *str,
                                            enum_query_type query_type)
 {
-  select_lex->print(thd, str, query_type);
+  select_lex->print(item->unit->thd, str, query_type);
 }
 
 
@@ -3134,6 +3159,7 @@ bool subselect_hash_sj_engine::setup(List<Item> *tmp_columns)
   */
   if (!(tmp_result_sink= new select_union))
     DBUG_RETURN(TRUE);
+  THD * const thd= item->unit->thd;
   if (tmp_result_sink->create_result_table(
                          thd, tmp_columns, TRUE,
                          thd->variables.option_bits | TMP_TABLE_ALL_COLUMNS,
@@ -3302,6 +3328,7 @@ void subselect_hash_sj_engine::cleanup()
   DBUG_ENTER("subselect_hash_sj_engine::cleanup");
   is_materialized= false;
   result->cleanup(); /* Resets the temp table as well. */
+  THD * const thd= item->unit->thd;
   DEBUG_SYNC(thd, "before_index_end_in_subselect");
   if (tab->table->file->inited)
     tab->table->file->ha_index_end();  // Close the scan over the index
@@ -3336,6 +3363,7 @@ bool subselect_hash_sj_engine::exec()
   if (!is_materialized)
   {
     bool res= false;
+    THD * const thd= item->unit->thd;
     SELECT_LEX *save_select= thd->lex->current_select;
     thd->lex->current_select= materialize_engine->select_lex;
     if ((res= materialize_engine->join->optimize()))
