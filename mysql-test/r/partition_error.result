@@ -657,15 +657,16 @@ CREATE TABLE t1 (a INT) PARTITION BY HASH (a);
 FLUSH TABLES;
 CHECK TABLE t1;
 Table	Op	Msg_type	Msg_text
+test.t1	check	Error	File './test/t1.par' not found (Errcode: 2)
 test.t1	check	Error	Failed to read from the .par file
 test.t1	check	Error	Incorrect information in file: './test/t1.frm'
 test.t1	check	error	Corrupt
 SELECT * FROM t1;
-ERROR HY000: Failed to read from the .par file
+ERROR HY000: File './test/t1.par' not found (Errcode: 2)
 # Note that it is currently impossible to drop a partitioned table
 # without the .par file
 DROP TABLE t1;
-ERROR 42S02: Unknown table 't1'
+ERROR HY000: File './test/t1.par' not found (Errcode: 2)
 #
 # Bug#49477: Assertion `0' failed in ha_partition.cc:5530
 # with temporary table and partitions
