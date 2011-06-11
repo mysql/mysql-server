@@ -42,6 +42,9 @@ EXTRA_DIST = build-vs71.bat build-vs8.bat build-vs8_x64.bat build-vs9.bat \
              packaging/ca/CustomAction.rc \
              packaging/WixUIBannerBmp.jpg \
              packaging/WixUIDialogBmp.jpg \
+             packaging/heidisql.cmake \
+             packaging/heidisql.wxi.in \
+             packaging/heidisql_feature.wxi.in\
              upgrade_wizard/resource.h \
              upgrade_wizard/stdafx.h \
              upgrade_wizard/targetver.h \

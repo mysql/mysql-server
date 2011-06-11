@@ -13426,10 +13426,14 @@ create_tmp_table(THD *thd,TMP_TABLE_PARAM *param,List<Item> &fields,
   if (thd->is_fatal_error)				// If end of memory
     goto err;					 /* purecov: inspected */
   share->db_record_offset= 1;
+  table->used_for_duplicate_elimination= (param->sum_func_count == 0 &&
+                                          (table->group || table->distinct));
+
   if (share->db_type() == TMP_ENGINE_HTON)
   {
     if (create_internal_tmp_table(table, param->keyinfo, param->start_recinfo,
-                                  &param->recinfo, select_options))
+                                  &param->recinfo,
+                                  select_options))
       goto err;
   }
   DBUG_PRINT("info", ("skip_create_table: %d", (int)param->skip_create_table));
@@ -13724,11 +13728,23 @@ bool create_internal_tmp_table(TABLE *table, KEY *keyinfo,
       OPTION_BIG_TABLES)
     create_info.data_file_length= ~(ulonglong) 0;
 
+  /*
+    The logic for choosing the record format:
+    The STATIC_RECORD format is the fastest one, because it's so simple,
+    so we use this by default for short rows.
+    BLOCK_RECORD caches both row and data, so this is generally faster than
+    DYNAMIC_RECORD. The one exception is when we write to tmp table and
+    want to use keys for duplicate elimination as with BLOCK RECORD
+    we first write the row, then check for key conflicts and then we have to
+    delete the row.  The cases when this can happen is when there is
+    a group by and no sum functions or if distinct is used.
+  */
   if ((error= maria_create(share->table_name.str,
                            table->no_rows ? NO_RECORD :
                            (share->reclength < 64 &&
                             !share->blob_fields ? STATIC_RECORD :
-                            BLOCK_RECORD),
+                            table->used_for_duplicate_elimination ?
+                            DYNAMIC_RECORD : BLOCK_RECORD),
                            share->keys, &keydef,
                            (uint) (*recinfo-start_recinfo),
                            start_recinfo,
@@ -13973,7 +13989,8 @@ create_internal_tmp_table_from_heap2(THD *thd, TABLE *table,
 
   new_table.no_rows= table->no_rows;
   if (create_internal_tmp_table(&new_table, table->key_info, start_recinfo,
-                                recinfo, thd->lex->select_lex.options | 
+                                recinfo,
+                                thd->lex->select_lex.options | 
                                 thd->options))
     goto err2;
   if (open_tmp_table(&new_table))
