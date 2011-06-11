@@ -260,7 +260,7 @@ check table t1 extended;
 drop table t1;
 
 # Fix if we are using safemalloc
---replace_result 8388572 8388600
+--replace_result 8388572 8388600 134217692 134217720
 select lower(variable_name) as Variable_name, Variable_value as Value from information_schema.session_variables where variable_name like "aria%" and variable_name not like "aria_used_for_temp_tables" order by 1;
 --replace_column 2 #
 show status like 'aria%';

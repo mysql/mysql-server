@@ -212,7 +212,8 @@ static MYSQL_SYSVAR_ULONGLONG(max_sort_file_size,
        maria_max_temp_length, PLUGIN_VAR_RQCMDARG,
        "Don't use the fast sort index method to created index if the "
        "temporary file would get bigger than this.",
-       0, 0, MAX_FILE_SIZE & ~(1*MB-1), 0, MAX_FILE_SIZE, 1*MB);
+       0, 0, MAX_FILE_SIZE & ~((ulonglong) (1*MB-1)),
+       0, MAX_FILE_SIZE, 1*MB);
 
 static MYSQL_SYSVAR_ULONG(pagecache_age_threshold,
        pagecache_age_threshold, PLUGIN_VAR_RQCMDARG,
