@@ -16,7 +16,7 @@
 
 /* By Jani Tolonen, 2001-04-20, MySQL Development Team */
 
-#define CHECK_VERSION "2.6.0"
+#define CHECK_VERSION "2.7.0"
 
 #include "client_priv.h"
 #include <m_ctype.h>
@@ -35,8 +35,8 @@ static my_bool opt_alldbs = 0, opt_check_only_changed = 0, opt_extended = 0,
                opt_medium_check = 0, opt_quick = 0, opt_all_in_1 = 0,
                opt_silent = 0, opt_auto_repair = 0, ignore_errors = 0,
                tty_password= 0, opt_frm= 0, debug_info_flag= 0, debug_check_flag= 0,
-               opt_fix_table_names= 0, opt_fix_db_names= 0, opt_upgrade= 0,
-               opt_write_binlog= 1;
+               opt_fix_table_names= 0, opt_fix_db_names= 0, opt_upgrade= 0;
+static my_bool opt_write_binlog= 1, opt_flush_tables= 0;
 static uint verbose = 0, opt_mysql_port=0;
 static int my_end_arg;
 static char * opt_mysql_unix_port = 0;
@@ -121,6 +121,9 @@ static struct my_option my_long_options[] =
    "If you are using this option with CHECK TABLE, it will ensure that the table is 100 percent consistent, but will take a long time. If you are using this option with REPAIR TABLE, it will force using old slow repair with keycache method, instead of much faster repair by sorting.",
    &opt_extended, &opt_extended, 0, GET_BOOL, NO_ARG, 0, 0, 0,
    0, 0, 0},
+  {"flush", OPT_FLUSH_TABLES, "Flush each table after check. This is useful if you don't want to have the checked tables take up space in the caches after the check",
+   &opt_flush_tables, &opt_flush_tables, 0, GET_BOOL, NO_ARG, 0, 0, 0, 0,
+   0, 0 },
   {"help", '?', "Display this help message and exit.", 0, 0, 0, GET_NO_ARG,
    NO_ARG, 0, 0, 0, 0, 0, 0},
   {"host",'h', "Connect to host.", &current_host,
@@ -685,6 +688,7 @@ static int disable_binlog()
 static int handle_request_for_tables(char *tables, uint length)
 {
   char *query, *end, options[100], message[100];
+  char table_name_buff[NAME_CHAR_LEN*2*2+1], *table_name;
   uint query_length= 0;
   const char *op = 0;
 
@@ -723,13 +727,17 @@ static int handle_request_for_tables(char *tables, uint length)
     /* No backticks here as we added them before */
     query_length= my_sprintf(query,
 			     (query, "%s TABLE %s %s", op, tables, options));
+    table_name= tables;
   }
   else
   {
-    char *ptr;
+    char *ptr, *org;
 
-    ptr= strmov(strmov(query, op), " TABLE ");
+    org= ptr= strmov(strmov(query, op), " TABLE ");
     ptr= fix_table_name(ptr, tables);
+    strmake(table_name_buff, org, min((int) sizeof(table_name_buff)-1,
+                                      (int) (ptr - org)));
+    table_name= table_name_buff;
     ptr= strxmov(ptr, " ", options, NullS);
     query_length= (uint) (ptr - query);
   }
@@ -737,9 +745,21 @@ static int handle_request_for_tables(char *tables, uint length)
   {
     sprintf(message, "when executing '%s TABLE ... %s'", op, options);
     DBerror(sock, message);
+    my_free(query, MYF(0));
     return 1;
   }
   print_result();
+  if (opt_flush_tables)
+  {
+    query_length= my_sprintf(query,
+			     (query, "FLUSH TABLES %s", table_name));
+    if (mysql_real_query(sock, query, query_length))
+    {
+      DBerror(sock, query);
+      my_free(query, MYF(0));
+      return 1;
+    }
+  }
   my_free(query, MYF(0));
   return 0;
 }

@@ -427,7 +427,7 @@ static bool volatile ready_to_exit;
 static my_bool opt_debugging= 0, opt_external_locking= 0, opt_console= 0;
 static my_bool opt_short_log_format= 0;
 static my_bool opt_ignore_wrong_options= 0, opt_expect_abort= 0;
-static my_bool opt_sync= 0;
+static my_bool opt_sync= 0, sf_malloc_trough_check= 0;
 static uint kill_cached_threads, wake_thread;
 ulong thread_created;
 uint thread_handling;
@@ -5944,7 +5944,7 @@ enum options_mysqld
   OPT_NDB_REPORT_THRESH_BINLOG_EPOCH_SLIP,
   OPT_NDB_REPORT_THRESH_BINLOG_MEM_USAGE,
   OPT_NDB_USE_COPYING_ALTER_TABLE,
-  OPT_SKIP_SAFEMALLOC, OPT_MUTEX_DEADLOCK_DETECTOR,
+  OPT_SAFEMALLOC, OPT_MUTEX_DEADLOCK_DETECTOR,
   OPT_TEMP_POOL, OPT_TX_ISOLATION, OPT_COMPLETION_TYPE,
   OPT_SKIP_SYMLINKS,
   OPT_MAX_BINLOG_DUMP_EVENTS, OPT_SPORADIC_BINLOG_DUMP_FAIL,
@@ -6898,12 +6898,11 @@ each time the SQL thread starts.",
   {"skip-networking", OPT_SKIP_NETWORKING,
    "Don't allow connection with TCP/IP.", 0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0,
    0, 0, 0},
-#ifndef DBUG_OFF
-#ifdef SAFEMALLOC
-  {"skip-safemalloc", OPT_SKIP_SAFEMALLOC,
-   "Don't use the memory allocation checking.", 0, 0, 0, GET_NO_ARG, NO_ARG,
-   0, 0, 0, 0, 0, 0},
-#endif
+#if !defined(DBUG_OFF) && defined(SAFEMALLOC)
+  {"safemalloc", OPT_SAFEMALLOC,
+   "Check all memory allocation for every malloc/free call.",
+   &sf_malloc_trough_check, &sf_malloc_trough_check, 0,
+   GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0 },
 #endif
   {"skip-show-database", OPT_SKIP_SHOW_DB,
    "Don't allow 'SHOW DATABASE' commands.", 0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0,
@@ -9238,11 +9237,6 @@ mysqld_get_one_option(int optid,
     }
     strmake(ft_boolean_syntax, argument, sizeof(ft_boolean_syntax)-1);
     break;
-  case OPT_SKIP_SAFEMALLOC:
-#ifdef SAFEMALLOC
-    sf_malloc_quick=1;
-#endif
-    break;
   case OPT_LOWER_CASE_TABLE_NAMES:
     lower_case_table_names= argument ? atoi(argument) : 1;
     lower_case_table_names_used= 1;
@@ -9436,6 +9430,9 @@ static int get_options(int *argc,char **argv)
 				  &global_system_variables.datetime_format))
     return 1;
 
+#ifdef SAFEMALLOC
+  sf_malloc_quick= !sf_malloc_trough_check;
+#endif
 #ifdef EMBEDDED_LIBRARY
   one_thread_scheduler(&thread_scheduler);
   one_thread_scheduler(&extra_thread_scheduler);

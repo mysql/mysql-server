@@ -4943,14 +4943,13 @@ sub mysqld_arguments ($$$) {
 
   if ( $opt_valgrind_mysqld )
   {
-    mtr_add_arg($args, "--skip-safemalloc");
-
     if ( $mysql_version_id < 50100 )
     {
       mtr_add_arg($args, "--skip-bdb");
     }
   }
 
+  mtr_add_arg($args, "--loose-skip-safemalloc");
   mtr_add_arg($args, "%s--disable-sync-frm");
 
   if (!using_extern() and $mysql_version_id >= 50106 && !$opt_user_args)

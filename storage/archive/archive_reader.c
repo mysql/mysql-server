@@ -93,12 +93,16 @@ int main(int argc, char *argv[])
       printf("\tFRM length %u\n", reader_handle.frm_length);
     if (reader_handle.comment_start_pos)
     {
-      char *comment =
-        (char *) malloc(sizeof(char) * reader_handle.comment_length);
-      azread_comment(&reader_handle, comment);
-      printf("\tComment length %u\n\t\t%.*s\n", reader_handle.comment_length, 
-             reader_handle.comment_length, comment);
-      free(comment);
+      char *comment = (char *) my_malloc(reader_handle.comment_length,
+                                         MYF(MY_WME));
+      if (comment)
+      {
+        azread_comment(&reader_handle, comment);
+        printf("\tComment length %u\n\t\t%.*s\n",
+               reader_handle.comment_length, 
+               reader_handle.comment_length, comment);
+        my_free(comment,MYF(0));
+      }
     }
   }
   else
@@ -180,7 +184,7 @@ int main(int argc, char *argv[])
 
     azio_stream writer_handle;
 
-    buffer= (char *)malloc(reader_handle.longest_row);
+    buffer= (char *) my_malloc(reader_handle.longest_row, MYF(0));
     if (buffer == NULL)
     {
       printf("Could not allocate memory for row %llu\n", row_count);
@@ -251,7 +255,7 @@ int main(int argc, char *argv[])
         break;
     }
 
-    free(buffer);
+    my_free(buffer, MYF(0));
 
     azclose(&writer_handle);
   }
