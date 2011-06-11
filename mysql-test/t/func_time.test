@@ -17,6 +17,10 @@ select sec_to_time(9001),sec_to_time(9001)+0,time_to_sec("15:12:22"),
   sec_to_time(time_to_sec("0:30:47")/6.21);
 select sec_to_time(9001.1), time_to_sec('15:12:22.123456'), time_to_sec(15.5566778899);
 select sec_to_time(time_to_sec('-838:59:59'));
+select sec_to_time('9001.1'), sec_to_time('1234567890123.123');
+--replace_result e+042 e+42
+select sec_to_time(90011e-1), sec_to_time(1234567890123e30);
+select sec_to_time(1234567890123), sec_to_time('99999999999999999999999999999');
 select now()-curdate()*1000000-curtime();
 select strcmp(current_timestamp(),concat(current_date()," ",current_time()));
 select strcmp(localtime(),concat(current_date()," ",current_time()));
@@ -68,10 +72,10 @@ select date_format('1999-12-31','%x-%v'),date_format('2000-01-01','%x-%v');
 
 select dayname("1962-03-03"),dayname("1962-03-03")+0;
 select monthname("1972-03-04"),monthname("1972-03-04")+0;
-select time_format(19980131000000,'%H|%I|%k|%l|%i|%p|%r|%S|%T');
-select time_format(19980131010203,'%H|%I|%k|%l|%i|%p|%r|%S|%T');
-select time_format(19980131131415,'%H|%I|%k|%l|%i|%p|%r|%S|%T');
-select time_format(19980131010015,'%H|%I|%k|%l|%i|%p|%r|%S|%T');
+select time_format(000000,'%H|%I|%k|%l|%i|%p|%r|%S|%T'),date_format(19980131000000,'%H|%I|%k|%l|%i|%p|%r|%S|%T');
+select time_format(010203,'%H|%I|%k|%l|%i|%p|%r|%S|%T'),date_format(19980131010203,'%H|%I|%k|%l|%i|%p|%r|%S|%T');
+select time_format(131415,'%H|%I|%k|%l|%i|%p|%r|%S|%T'),date_format(19980131131415,'%H|%I|%k|%l|%i|%p|%r|%S|%T');
+select time_format(010015,'%H|%I|%k|%l|%i|%p|%r|%S|%T'),date_format(19980131010015,'%H|%I|%k|%l|%i|%p|%r|%S|%T');
 select date_format(concat('19980131',131415),'%H|%I|%k|%l|%i|%p|%r|%S|%T| %M|%W|%D|%Y|%y|%a|%b|%j|%m|%d|%h|%s|%w');
 select date_format(19980021000000,'%H|%I|%k|%l|%i|%p|%r|%S|%T| %M|%W|%D|%Y|%y|%a|%b|%j|%m|%d|%h|%s|%w');
 select date_add("1997-12-31 23:59:59",INTERVAL 1 SECOND);
@@ -948,6 +952,9 @@ select time(' 1 02:03:04') - interval 2 day;
 select time('-1 02:03:04') + interval 2 day;
 select time('-1 02:03:04') - interval 2 day;
 
+select time('10 02:03:04') + interval 30 day;
+select time('10 02:03:04') + interval 1 year;
+
 # specially constructed queries to reach obscure places in the code
 # not touched by the more "normal" queries (and to increase the coverage)
 select cast('131415.123e0' as time);
@@ -1056,4 +1063,6 @@ drop table t1;
 select greatest(cast("0-0-0" as date), cast("10:20:05" as time));
 select greatest(cast("0-0-0" as date), cast("10:20:05" as time)) = '0000-00-00';
 select cast(greatest(cast("0-0-0" as date), cast("10:20:05" as time)) as datetime(6));
+
+select microsecond('12:00:00.123456'), microsecond('2009-12-31 23:59:59.000010');
 

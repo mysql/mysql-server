@@ -367,12 +367,11 @@ public:
   {
     if (arg_count)
       decimals= args[0]->decimals;
-    if (decimals != NOT_FIXED_DEC)
-      set_if_smaller(decimals, TIME_SECOND_PART_DIGITS);
+    set_if_smaller(decimals, TIME_SECOND_PART_DIGITS);
     max_length=17 + (decimals ? decimals + 1 : 0);
   }
-  void find_num_type() { hybrid_type= decimals ? REAL_RESULT : INT_RESULT; }
-  my_decimal *decimal_op(my_decimal* buf) { DBUG_ASSERT(0); return 0; }
+  void find_num_type() { hybrid_type= decimals ? DECIMAL_RESULT : INT_RESULT; }
+  double real_op() { DBUG_ASSERT(0); return 0; }
   String *str_op(String *str) { DBUG_ASSERT(0); return 0; }
 };
 
@@ -408,7 +407,7 @@ public:
     return trace_unsupported_by_check_vcol_func_processor(func_name());
   }
   longlong int_op();
-  double real_op();
+  my_decimal *decimal_op(my_decimal* buf);
 };
 
 
@@ -430,7 +429,7 @@ public:
     return !has_time_args();
   }
   longlong int_op();
-  double real_op();
+  my_decimal *decimal_op(my_decimal* buf);
 };
 
 
@@ -447,7 +446,6 @@ public:
   longlong val_int();
   double val_real();
   bool get_date(MYSQL_TIME *res, uint fuzzy_date) { DBUG_ASSERT(0); return 1; }
-  bool get_time(MYSQL_TIME *res);
   my_decimal *val_decimal(my_decimal *decimal_value)
   { return  val_decimal_from_date(decimal_value); }
   Field *tmp_table_field(TABLE *table)
@@ -460,6 +458,7 @@ public:
     { MAX_DATETIME_WIDTH, MAX_DATETIME_WIDTH, MAX_DATE_WIDTH,
       MAX_DATETIME_WIDTH, MIN_TIME_WIDTH };
 
+    maybe_null= true;
     max_length= max_time_type_width[mysql_type_to_time_type(field_type())+2];
     if (decimals)
     {
@@ -486,9 +485,6 @@ public:
   Item_datefunc() :Item_temporal_func() { }
   Item_datefunc(Item *a) :Item_temporal_func(a) { }
   enum_field_types field_type() const { return MYSQL_TYPE_DATE; }
-  const char *func_name() const { return "date"; }
-  bool get_date(MYSQL_TIME *res, uint fuzzy_date)
-  { return get_arg0_date(res, fuzzy_date); }
 };
 
 
@@ -515,7 +511,7 @@ public:
   {
     store_now_in_TIME(&ltime);
     Item_timefunc::fix_length_and_dec();
-    maybe_null= 0;
+    maybe_null= false;
   }
   bool get_date(MYSQL_TIME *res, uint fuzzy_date);
   /* 
@@ -597,7 +593,7 @@ public:
   {
     store_now_in_TIME(&ltime);
     Item_temporal_func::fix_length_and_dec();
-    maybe_null= 0;
+    maybe_null= false;
   }
   bool get_date(MYSQL_TIME *res, uint fuzzy_date);
   virtual void store_now_in_TIME(MYSQL_TIME *now_time)=0;
@@ -726,7 +722,6 @@ class Item_func_convert_tz :public Item_temporal_func
 
 class Item_func_sec_to_time :public Item_timefunc
 {
-  bool sec_to_time(my_decimal *seconds, MYSQL_TIME *ltime);
 public:
   Item_func_sec_to_time(Item *item) :Item_timefunc(item) {}
   bool get_date(MYSQL_TIME *res, uint fuzzy_date);

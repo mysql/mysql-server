@@ -241,31 +241,91 @@ str_to_datetime_with_warn(const char *str, uint length, MYSQL_TIME *l_time,
 }
 
 
-bool double_to_datetime_with_warn(double value, MYSQL_TIME *ltime,
-                                  ulong fuzzydate)
+/**
+  converts a pair of numbers (integer part, microseconds) to MYSQL_TIME
+
+  @param neg           sign of the time value
+  @param nr            integer part of the number to convert
+  @param sec_part      microsecond part of the number
+  @param ltime         converted value will be written here
+  @param fuzzydate     conversion flags (TIME_FUZZY_DATE, etc)
+  @param str           original number, as a Lazy_string. For the warning
+  @param field_name    field name or NULL if not a field. For the warning
+  
+  @returns 0 for success, 1 for a failure
+*/
+static bool number_to_time_with_warn(bool neg, ulonglong nr, ulong sec_part,
+                                     MYSQL_TIME *ltime, ulong fuzzydate,
+                                     const Lazy_string *str,
+                                     const char *field_name)
 {
-  if (double_to_datetime(value, ltime, fuzzydate))
+  int was_cut;
+  longlong res;
+  enum_field_types f_type;
+
+  if (fuzzydate & TIME_TIME_ONLY)
   {
-    char buff[40];
-    uint length= my_sprintf(buff, (buff, "%-30.21g", value));
-    make_truncated_value_warning(current_thd, MYSQL_ERROR::WARN_LEVEL_WARN,
-                                 buff, length, MYSQL_TIMESTAMP_DATETIME,
-                                 NullS);
-    return 1;
+    f_type= MYSQL_TYPE_TIME;
+    res= number_to_time(neg, nr, sec_part, ltime, &was_cut);
   }
-  return 0;
+  else
+  {
+    f_type= MYSQL_TYPE_DATETIME;
+    res= number_to_datetime(nr, sec_part, ltime, fuzzydate, &was_cut);
+  }
+
+  if ((was_cut && !(fuzzydate & TIME_FUZZY_DATE)) || res < 0)
+  {
+    make_truncated_value_warning(current_thd,
+                                 MYSQL_ERROR::WARN_LEVEL_WARN, str,
+                                 res < 0 ? MYSQL_TIMESTAMP_ERROR
+                                         : mysql_type_to_time_type(f_type),
+                                 field_name);
+  }
+  return res < 0;
 }
 
-bool decimal_to_datetime_with_warn(decimal_t *value, MYSQL_TIME *ltime,
-                                  ulong fuzzydate)
+
+bool double_to_datetime_with_warn(double value, MYSQL_TIME *ltime,
+                                  ulong fuzzydate, const char *field_name)
 {
-  char buff[40];
-  int length= sizeof(buff);
+  const Lazy_string_double str(value);
+  bool neg= value < 0;
 
-  decimal2string(value, buff, &length, 0, 0, 0);
-  return (str_to_datetime_with_warn(buff, length, ltime, fuzzydate) <=
-          MYSQL_TIMESTAMP_ERROR);
+  if (neg)
+    value= -value;
+
+  if (value > LONGLONG_MAX)
+    value= static_cast<double>(LONGLONG_MAX);
+
+  longlong nr= static_cast<ulonglong>(floor(value));
+  uint sec_part= static_cast<ulong>((value - floor(value))*TIME_SECOND_PART_FACTOR);
+  return number_to_time_with_warn(neg, nr, sec_part, ltime, fuzzydate, &str,
+                                  field_name);
 }
+
+
+bool decimal_to_datetime_with_warn(const my_decimal *value, MYSQL_TIME *ltime,
+                                   ulong fuzzydate, const char *field_name)
+{
+  const Lazy_string_decimal str(value);
+  ulonglong nr;
+  ulong sec_part;
+  bool neg= my_decimal2seconds(value, &nr, &sec_part);
+  return number_to_time_with_warn(neg, nr, sec_part, ltime, fuzzydate, &str,
+                                  field_name);
+}
+
+
+bool int_to_datetime_with_warn(longlong value, MYSQL_TIME *ltime,
+                               ulong fuzzydate, const char *field_name)
+{
+  const Lazy_string_num str(value);
+  bool neg= value < 0;
+  return number_to_time_with_warn(neg, neg ? -value : value, 0, ltime,
+                                  fuzzydate, &str, field_name);
+}
+
 
 /*
   Convert a datetime from broken-down MYSQL_TIME representation to
@@ -288,25 +348,8 @@ bool decimal_to_datetime_with_warn(decimal_t *value, MYSQL_TIME *ltime,
 
 my_time_t TIME_to_timestamp(THD *thd, const MYSQL_TIME *t, uint *error_code)
 {
-  my_time_t timestamp;
-  my_bool in_dst_time_gap= 0;
-
-  *error_code= 0;
   thd->time_zone_used= 1;
-
-  timestamp= thd->variables.time_zone->TIME_to_gmt_sec(t, &in_dst_time_gap);
-
-  /* In case of error, timestamp == 0 and in_dst_time_gap is != 0 */
-  if (timestamp || ! in_dst_time_gap)
-  {
-    if (in_dst_time_gap)
-      *error_code= ER_WARN_INVALID_TIMESTAMP;
-    return timestamp;
-  }
-
-  /* If we are here we have range error. */
-  *error_code= ER_WARN_DATA_OUT_OF_RANGE;
-  return 0;
+  return thd->variables.time_zone->TIME_to_gmt_sec(t, error_code);
 }
 
 
@@ -697,11 +740,6 @@ KNOWN_DATE_TIME_FORMAT known_date_time_formats[6]=
 };
 
 
-/*
-   Return format string according format name.
-   If name is unknown, result is NULL
-*/
-
 const char *get_date_time_format_str(KNOWN_DATE_TIME_FORMAT *format,
 				     timestamp_type type)
 {
@@ -717,49 +755,6 @@ const char *get_date_time_format_str(KNOWN_DATE_TIME_FORMAT *format,
     return 0;
   }
 }
-
-/****************************************************************************
-  Functions to create default time/date/datetime strings
- 
-  NOTE:
-    For the moment the DATE_TIME_FORMAT argument is ignored becasue
-    MySQL doesn't support comparing of date/time/datetime strings that
-    are not in arbutary order as dates are compared as strings in some
-    context)
-    This functions don't check that given MYSQL_TIME structure members are
-    in valid range. If they are not, return value won't reflect any 
-    valid date either.
-****************************************************************************/
-
-void make_time(const DATE_TIME_FORMAT *format __attribute__((unused)),
-               const MYSQL_TIME *l_time, String *str)
-{
-  str->alloc(MAX_DATE_STRING_REP_LENGTH);
-  uint length= (uint) my_time_to_str(l_time, (char*) str->ptr(), 0);
-  str->length(length);
-  str->set_charset(&my_charset_bin);
-}
-
-
-void make_date(const DATE_TIME_FORMAT *format __attribute__((unused)),
-               const MYSQL_TIME *l_time, String *str)
-{
-  str->alloc(MAX_DATE_STRING_REP_LENGTH);
-  uint length= (uint) my_date_to_str(l_time, (char*) str->ptr());
-  str->length(length);
-  str->set_charset(&my_charset_bin);
-}
-
-
-void make_datetime(const DATE_TIME_FORMAT *format __attribute__((unused)),
-                   const MYSQL_TIME *l_time, String *str)
-{
-  str->alloc(MAX_DATE_STRING_REP_LENGTH);
-  uint length= (uint) my_datetime_to_str(l_time, (char*) str->ptr(), 0);
-  str->length(length);
-  str->set_charset(&my_charset_bin);
-}
-
 
 void make_truncated_value_warning(THD *thd,
                                   MYSQL_ERROR::enum_warning_level level,
@@ -812,6 +807,7 @@ void make_truncated_value_warning(THD *thd,
                (((((X)->day * 24LL + (X)->hour) * 60LL +                \
                    (X)->minute) * 60LL + (X)->second)*1000000LL +       \
                    (X)->second_part)
+#define GET_PART(X, N) X % N ## LL; X/= N ## LL
 
 bool date_add_interval(MYSQL_TIME *ltime, interval_type int_type,
                        INTERVAL interval)
@@ -838,7 +834,7 @@ bool date_add_interval(MYSQL_TIME *ltime, interval_type int_type,
   case INTERVAL_DAY:
   {
     longlong usec, daynr;
-    my_bool neg= ltime->neg;
+    my_bool neg= 0;
     enum enum_mysql_timestamp_type time_type= ltime->time_type;
 
     if (time_type != MYSQL_TIMESTAMP_TIME)
@@ -846,17 +842,31 @@ bool date_add_interval(MYSQL_TIME *ltime, interval_type int_type,
 
     usec= COMBINE(ltime) + sign*COMBINE(&interval);
 
-    unpack_time(usec, ltime);
-    ltime->time_type= time_type;
+    if (usec < 0)
+    {
+      neg= 1;
+      usec= -usec;
+    }
+
+    ltime->second_part= GET_PART(usec, 1000000);
+    ltime->second= GET_PART(usec, 60);
+    ltime->minute= GET_PART(usec, 60);
     ltime->neg^= neg;
 
     if (time_type == MYSQL_TIMESTAMP_TIME)
-      break;
+    {
+      if (usec > TIME_MAX_HOUR)
+        goto invalid_date;
+      ltime->hour= static_cast<uint>(usec);
+      ltime->day= 0;
+      return 0;
+    }
 
     if (int_type != INTERVAL_DAY)
       ltime->time_type= MYSQL_TIMESTAMP_DATETIME; // Return full date
 
-    daynr= usec/1000000/24/60/60;
+    ltime->hour= GET_PART(usec, 24);
+    daynr= usec;
 
     /* Day number from year 0 to 9999-12-31 */
     if ((ulonglong) daynr > MAX_DAY_NUMBER)
@@ -902,13 +912,15 @@ bool date_add_interval(MYSQL_TIME *ltime, interval_type int_type,
     goto null_date;
   }
 
-  return 0;					// Ok
+  if (ltime->time_type != MYSQL_TIMESTAMP_TIME)
+    return 0;                                   // Ok
 
 invalid_date:
   push_warning_printf(current_thd, MYSQL_ERROR::WARN_LEVEL_WARN,
                       ER_DATETIME_FUNCTION_OVERFLOW,
                       ER(ER_DATETIME_FUNCTION_OVERFLOW),
-                      "datetime");
+                      ltime->time_type == MYSQL_TIMESTAMP_TIME ?
+                      "time" : "datetime");
 null_date:
   return 1;
 }

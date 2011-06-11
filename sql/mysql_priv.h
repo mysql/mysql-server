@@ -883,17 +883,14 @@ public:
   void copy_to(String *dst) const { dst->set(num, &my_charset_bin); }
 };
 
-class Lazy_string_decimal : public Lazy_string
+class Lazy_string_decimal: public Lazy_string
 {
-  my_decimal num;
+  const my_decimal *d;
 public:
-  Lazy_string_decimal(my_decimal num_arg) : Lazy_string(), num(num_arg)
-  {
-    num.fix_buffer_pointer();
-  }
-  void copy_to(String *dst) const
-  {
-    my_decimal2string(E_DEC_FATAL_ERROR, &num, 0, 0, '0', dst);
+  Lazy_string_decimal(const my_decimal *d_arg)
+    : Lazy_string(), d(d_arg) {}
+  void copy_to(String *dst) const {
+    my_decimal2string(E_DEC_FATAL_ERROR, d, 0, 0, ' ', dst);
   }
 };
 
@@ -2082,6 +2079,7 @@ void flush_thread_cache();
 /* item_func.cc */
 extern bool check_reserved_words(LEX_STRING *name);
 extern enum_field_types agg_field_type(Item **items, uint nitems);
+Item *find_date_time_item(Item **args, uint nargs, uint col);
 
 /* strfunc.cc */
 ulonglong find_set(TYPELIB *lib, const char *x, uint length, CHARSET_INFO *cs,
@@ -2475,9 +2473,11 @@ void make_truncated_value_warning(THD *thd,
                                   timestamp_type time_type,
                                   const char *field_name);
 bool double_to_datetime_with_warn(double value, MYSQL_TIME *ltime,
-                                  ulong fuzzy_date);
-bool decimal_to_datetime_with_warn(decimal_t *value, MYSQL_TIME *ltime,
-                                   ulong fuzzy_date);
+                                  ulong fuzzydate, const char *field_name);
+bool decimal_to_datetime_with_warn(const my_decimal *value, MYSQL_TIME *ltime,
+                                   ulong fuzzydate, const char *field_name);
+bool int_to_datetime_with_warn(longlong value, MYSQL_TIME *ltime,
+                               ulong fuzzydate, const char *field_name);
 
 static inline void make_truncated_value_warning(THD *thd,
                 MYSQL_ERROR::enum_warning_level level, const char *str_val,
@@ -2503,12 +2503,6 @@ const char *get_date_time_format_str(KNOWN_DATE_TIME_FORMAT *format,
 				     timestamp_type type);
 extern bool make_date_time(DATE_TIME_FORMAT *format, MYSQL_TIME *l_time,
 			   timestamp_type type, String *str);
-void make_datetime(const DATE_TIME_FORMAT *format, const MYSQL_TIME *l_time,
-                   String *str);
-void make_date(const DATE_TIME_FORMAT *format, const MYSQL_TIME *l_time,
-               String *str);
-void make_time(const DATE_TIME_FORMAT *format, const MYSQL_TIME *l_time,
-               String *str);
 int my_time_compare(MYSQL_TIME *a, MYSQL_TIME *b);
 longlong get_datetime_value(THD *thd, Item ***item_arg, Item **cache_arg,
                             Item *warn_item, bool *is_null);

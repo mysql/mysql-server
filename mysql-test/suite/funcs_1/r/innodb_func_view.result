@@ -3540,10 +3540,10 @@ my_year, id FROM t1_values
 WHERE select_id = 58 OR select_id IS NULL order by id;
 CAST(my_year AS TIME)	my_year	id
 NULL	NULL	1
-00:19:01	1901	2
-00:21:55	2155	3
-00:20:00	2000	4
-00:20:05	2005	5
+00:00:00	1901	2
+00:00:00	2155	3
+00:00:00	2000	4
+00:00:00	2005	5
 SHOW CREATE VIEW v1;
 View	Create View	character_set_client	collation_connection
 v1	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v1` AS select cast(`t1_values`.`my_year` as time) AS `CAST(my_year AS TIME)`,`t1_values`.`my_year` AS `my_year`,`t1_values`.`id` AS `id` from `t1_values`	latin1	latin1_swedish_ci
@@ -3552,10 +3552,10 @@ WHERE v1.id IN (SELECT id FROM t1_values
 WHERE select_id = 58 OR select_id IS NULL) order by id;
 CAST(my_year AS TIME)	my_year	id
 NULL	NULL	1
-00:19:01	1901	2
-00:21:55	2155	3
-00:20:00	2000	4
-00:20:05	2005	5
+00:00:00	1901	2
+00:00:00	2155	3
+00:00:00	2000	4
+00:00:00	2005	5
 DROP VIEW v1;
 
 
@@ -3676,8 +3676,8 @@ NULL	1.7976931348623e+308	3
 -00:00:01	-1	5
 00:17:58	1758	25
 Warnings:
-Warning	1292	Truncated incorrect time value: '-1.7976931348623e+308'
-Warning	1292	Truncated incorrect time value: '1.7976931348623e+308'
+Warning	1292	Incorrect datetime value: '-1.7976931348623e+308' for column 'my_double' at row 2
+Warning	1292	Incorrect datetime value: '1.7976931348623e+308' for column 'my_double' at row 3
 SHOW CREATE VIEW v1;
 View	Create View	character_set_client	collation_connection
 v1	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v1` AS select cast(`t1_values`.`my_double` as time) AS `CAST(my_double AS TIME)`,`t1_values`.`my_double` AS `my_double`,`t1_values`.`id` AS `id` from `t1_values`	latin1	latin1_swedish_ci
@@ -3692,8 +3692,8 @@ NULL	1.7976931348623e+308	3
 -00:00:01	-1	5
 00:17:58	1758	25
 Warnings:
-Warning	1292	Truncated incorrect time value: '-1.7976931348623e+308'
-Warning	1292	Truncated incorrect time value: '1.7976931348623e+308'
+Warning	1292	Incorrect datetime value: '-1.7976931348623e+308' for column 'my_double' at row 1
+Warning	1292	Incorrect datetime value: '1.7976931348623e+308' for column 'my_double' at row 1
 DROP VIEW v1;
 
 
@@ -3886,15 +3886,10 @@ my_year, id FROM t1_values
 WHERE select_id = 47 OR select_id IS NULL order by id;
 CAST(my_year AS DATETIME)	my_year	id
 NULL	NULL	1
-NULL	1901	2
-NULL	2155	3
-NULL	2000	4
-NULL	2005	5
-Warnings:
-Warning	1292	Incorrect datetime value: '1901'
-Warning	1292	Incorrect datetime value: '2155'
-Warning	1292	Incorrect datetime value: '2000'
-Warning	1292	Incorrect datetime value: '2005'
+1901-00-00 00:00:00	1901	2
+2155-00-00 00:00:00	2155	3
+2000-00-00 00:00:00	2000	4
+2005-00-00 00:00:00	2005	5
 SHOW CREATE VIEW v1;
 View	Create View	character_set_client	collation_connection
 v1	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v1` AS select cast(`t1_values`.`my_year` as datetime) AS `CAST(my_year AS DATETIME)`,`t1_values`.`my_year` AS `my_year`,`t1_values`.`id` AS `id` from `t1_values`	latin1	latin1_swedish_ci
@@ -3903,15 +3898,10 @@ WHERE v1.id IN (SELECT id FROM t1_values
 WHERE select_id = 47 OR select_id IS NULL) order by id;
 CAST(my_year AS DATETIME)	my_year	id
 NULL	NULL	1
-NULL	1901	2
-NULL	2155	3
-NULL	2000	4
-NULL	2005	5
-Warnings:
-Warning	1292	Incorrect datetime value: '1901'
-Warning	1292	Incorrect datetime value: '2155'
-Warning	1292	Incorrect datetime value: '2000'
-Warning	1292	Incorrect datetime value: '2005'
+1901-00-00 00:00:00	1901	2
+2155-00-00 00:00:00	2155	3
+2000-00-00 00:00:00	2000	4
+2005-00-00 00:00:00	2005	5
 DROP VIEW v1;
 
 
@@ -3923,12 +3913,11 @@ WHERE select_id = 46 OR select_id IS NULL order by id;
 CAST(my_time AS DATETIME)	my_time	id
 NULL	NULL	1
 NULL	-838:59:59	2
-NULL	838:59:59	3
+0000-01-03 22:59:59	838:59:59	3
 0000-00-00 13:00:00	13:00:00	4
 0000-00-00 10:00:00	10:00:00	5
 Warnings:
 Warning	1292	Truncated incorrect datetime value: '-838:59:59'
-Warning	1292	Truncated incorrect datetime value: '838:59:59'
 SHOW CREATE VIEW v1;
 View	Create View	character_set_client	collation_connection
 v1	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v1` AS select cast(`t1_values`.`my_time` as datetime) AS `CAST(my_time AS DATETIME)`,`t1_values`.`my_time` AS `my_time`,`t1_values`.`id` AS `id` from `t1_values`	latin1	latin1_swedish_ci
@@ -3938,12 +3927,11 @@ WHERE select_id = 46 OR select_id IS NULL) order by id;
 CAST(my_time AS DATETIME)	my_time	id
 NULL	NULL	1
 NULL	-838:59:59	2
-NULL	838:59:59	3
+0000-01-03 22:59:59	838:59:59	3
 0000-00-00 13:00:00	13:00:00	4
 0000-00-00 10:00:00	10:00:00	5
 Warnings:
 Warning	1292	Truncated incorrect datetime value: '-838:59:59'
-Warning	1292	Truncated incorrect datetime value: '838:59:59'
 DROP VIEW v1;
 
 
@@ -4034,15 +4022,14 @@ CAST(my_double AS DATETIME)	my_double	id
 NULL	NULL	1
 NULL	-1.7976931348623e+308	2
 NULL	1.7976931348623e+308	3
-NULL	0	4
+0000-00-00 00:00:00	0	4
 NULL	-1	5
 NULL	200506271758	19
 Warnings:
-Warning	1292	Incorrect datetime value: '-1.7976931348623e+308'
-Warning	1292	Incorrect datetime value: '1.7976931348623e+308'
-Warning	1292	Incorrect datetime value: '0'
-Warning	1292	Incorrect datetime value: '-1'
-Warning	1292	Incorrect datetime value: '200506271758'
+Warning	1292	Incorrect datetime value: '-1.7976931348623e+308' for column 'my_double' at row 2
+Warning	1292	Incorrect datetime value: '1.7976931348623e+308' for column 'my_double' at row 3
+Warning	1292	Incorrect datetime value: '-1' for column 'my_double' at row 5
+Warning	1292	Incorrect datetime value: '200506271758' for column 'my_double' at row 19
 SHOW CREATE VIEW v1;
 View	Create View	character_set_client	collation_connection
 v1	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v1` AS select cast(`t1_values`.`my_double` as datetime) AS `CAST(my_double AS DATETIME)`,`t1_values`.`my_double` AS `my_double`,`t1_values`.`id` AS `id` from `t1_values`	latin1	latin1_swedish_ci
@@ -4053,15 +4040,14 @@ CAST(my_double AS DATETIME)	my_double	id
 NULL	NULL	1
 NULL	-1.7976931348623e+308	2
 NULL	1.7976931348623e+308	3
-NULL	0	4
+0000-00-00 00:00:00	0	4
 NULL	-1	5
 NULL	200506271758	19
 Warnings:
-Warning	1292	Incorrect datetime value: '-1.7976931348623e+308'
-Warning	1292	Incorrect datetime value: '1.7976931348623e+308'
-Warning	1292	Incorrect datetime value: '0'
-Warning	1292	Incorrect datetime value: '-1'
-Warning	1292	Incorrect datetime value: '200506271758'
+Warning	1292	Incorrect datetime value: '-1.7976931348623e+308' for column 'my_double' at row 1
+Warning	1292	Incorrect datetime value: '1.7976931348623e+308' for column 'my_double' at row 1
+Warning	1292	Incorrect datetime value: '-1' for column 'my_double' at row 1
+Warning	1292	Incorrect datetime value: '200506271758' for column 'my_double' at row 1
 DROP VIEW v1;
 
 
@@ -4266,15 +4252,10 @@ my_year, id FROM t1_values
 WHERE select_id = 36 OR select_id IS NULL order by id;
 CAST(my_year AS DATE)	my_year	id
 NULL	NULL	1
-NULL	1901	2
-NULL	2155	3
-NULL	2000	4
-NULL	2005	5
-Warnings:
-Warning	1292	Incorrect datetime value: '1901'
-Warning	1292	Incorrect datetime value: '2155'
-Warning	1292	Incorrect datetime value: '2000'
-Warning	1292	Incorrect datetime value: '2005'
+1901-00-00	1901	2
+2155-00-00	2155	3
+2000-00-00	2000	4
+2005-00-00	2005	5
 SHOW CREATE VIEW v1;
 View	Create View	character_set_client	collation_connection
 v1	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v1` AS select cast(`t1_values`.`my_year` as date) AS `CAST(my_year AS DATE)`,`t1_values`.`my_year` AS `my_year`,`t1_values`.`id` AS `id` from `t1_values`	latin1	latin1_swedish_ci
@@ -4283,15 +4264,10 @@ WHERE v1.id IN (SELECT id FROM t1_values
 WHERE select_id = 36 OR select_id IS NULL) order by id;
 CAST(my_year AS DATE)	my_year	id
 NULL	NULL	1
-NULL	1901	2
-NULL	2155	3
-NULL	2000	4
-NULL	2005	5
-Warnings:
-Warning	1292	Incorrect datetime value: '1901'
-Warning	1292	Incorrect datetime value: '2155'
-Warning	1292	Incorrect datetime value: '2000'
-Warning	1292	Incorrect datetime value: '2005'
+1901-00-00	1901	2
+2155-00-00	2155	3
+2000-00-00	2000	4
+2005-00-00	2005	5
 DROP VIEW v1;
 
 
@@ -4408,14 +4384,13 @@ CAST(my_double AS DATE)	my_double	id
 NULL	NULL	1
 NULL	-1.7976931348623e+308	2
 NULL	1.7976931348623e+308	3
-NULL	0	4
+0000-00-00	0	4
 NULL	-1	5
 2005-06-27	20050627	13
 Warnings:
-Warning	1292	Incorrect datetime value: '-1.7976931348623e+308'
-Warning	1292	Incorrect datetime value: '1.7976931348623e+308'
-Warning	1292	Incorrect datetime value: '0'
-Warning	1292	Incorrect datetime value: '-1'
+Warning	1292	Incorrect datetime value: '-1.7976931348623e+308' for column 'my_double' at row 2
+Warning	1292	Incorrect datetime value: '1.7976931348623e+308' for column 'my_double' at row 3
+Warning	1292	Incorrect datetime value: '-1' for column 'my_double' at row 5
 SHOW CREATE VIEW v1;
 View	Create View	character_set_client	collation_connection
 v1	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v1` AS select cast(`t1_values`.`my_double` as date) AS `CAST(my_double AS DATE)`,`t1_values`.`my_double` AS `my_double`,`t1_values`.`id` AS `id` from `t1_values`	latin1	latin1_swedish_ci
@@ -4426,14 +4401,13 @@ CAST(my_double AS DATE)	my_double	id
 NULL	NULL	1
 NULL	-1.7976931348623e+308	2
 NULL	1.7976931348623e+308	3
-NULL	0	4
+0000-00-00	0	4
 NULL	-1	5
 2005-06-27	20050627	13
 Warnings:
-Warning	1292	Incorrect datetime value: '-1.7976931348623e+308'
-Warning	1292	Incorrect datetime value: '1.7976931348623e+308'
-Warning	1292	Incorrect datetime value: '0'
-Warning	1292	Incorrect datetime value: '-1'
+Warning	1292	Incorrect datetime value: '-1.7976931348623e+308' for column 'my_double' at row 1
+Warning	1292	Incorrect datetime value: '1.7976931348623e+308' for column 'my_double' at row 1
+Warning	1292	Incorrect datetime value: '-1' for column 'my_double' at row 1
 DROP VIEW v1;
 
 

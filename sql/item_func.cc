@@ -712,8 +712,8 @@ void Item_num_op::find_num_type(void)
   DBUG_ENTER("Item_num_op::find_num_type");
   DBUG_PRINT("info", ("name %s", func_name()));
   DBUG_ASSERT(arg_count == 2);
-  Item_result r0= args[0]->result_type();
-  Item_result r1= args[1]->result_type();
+  Item_result r0= args[0]->cast_to_int_type();
+  Item_result r1= args[1]->cast_to_int_type();
 
   if (r0 == REAL_RESULT || r1 == REAL_RESULT ||
       r0 == STRING_RESULT || r1 ==STRING_RESULT)
@@ -722,7 +722,8 @@ void Item_num_op::find_num_type(void)
     max_length= float_length(decimals);
     hybrid_type= REAL_RESULT;
   }
-  else if (r0 == DECIMAL_RESULT || r1 == DECIMAL_RESULT)
+  else if (r0 == DECIMAL_RESULT || r1 == DECIMAL_RESULT ||
+           r0 == TIME_RESULT || r1 == TIME_RESULT)
   {
     hybrid_type= DECIMAL_RESULT;
     result_precision();
@@ -753,7 +754,7 @@ void Item_func_num1::find_num_type()
 {
   DBUG_ENTER("Item_func_num1::find_num_type");
   DBUG_PRINT("info", ("name %s", func_name()));
-  switch (hybrid_type= args[0]->result_type()) {
+  switch (hybrid_type= args[0]->cast_to_int_type()) {
   case INT_RESULT:
     unsigned_flag= args[0]->unsigned_flag;
     break;
@@ -762,9 +763,10 @@ void Item_func_num1::find_num_type()
     hybrid_type= REAL_RESULT;
     max_length= float_length(decimals);
     break;
+  case TIME_RESULT:
+    hybrid_type= DECIMAL_RESULT;
   case DECIMAL_RESULT:
     break;
-  case TIME_RESULT:
   case ROW_RESULT:
   case IMPOSSIBLE_RESULT:
     DBUG_ASSERT(0);
@@ -1949,13 +1951,15 @@ void Item_func_int_val::find_num_type()
 {
   DBUG_ENTER("Item_func_int_val::find_num_type");
   DBUG_PRINT("info", ("name %s", func_name()));
-  switch (hybrid_type= args[0]->result_type()) {
+  switch (hybrid_type= args[0]->cast_to_int_type())
+  {
   case STRING_RESULT:
   case REAL_RESULT:
     hybrid_type= REAL_RESULT;
     max_length= float_length(decimals);
     break;
   case INT_RESULT:
+  case TIME_RESULT:
   case DECIMAL_RESULT:
     /*
       -2 because in most high position can't be used any digit for longlong
@@ -1973,7 +1977,6 @@ void Item_func_int_val::find_num_type()
     }
     break;
   case ROW_RESULT:
-  case TIME_RESULT:
   case IMPOSSIBLE_RESULT:
     DBUG_ASSERT(0);
   }
@@ -2374,16 +2377,9 @@ void Item_func_min_max::fix_length_and_dec()
     if (args[i]->maybe_null)
       maybe_null= 1;
     cmp_type= item_cmp_type(cmp_type,args[i]->result_type());
-    if (args[i]->cmp_type() == TIME_RESULT)
-    {
-      if (!compare_as_dates || args[i]->field_type() == MYSQL_TYPE_DATETIME)
-        compare_as_dates= args[i];
-    }
   }
   if (cmp_type == STRING_RESULT)
-  {
     agg_arg_charsets(collation, args, arg_count, MY_COLL_CMP_CONV, 1);
-  }
   else if ((cmp_type == DECIMAL_RESULT) || (cmp_type == INT_RESULT))
     max_length= my_decimal_precision_to_length_no_truncation(max_int_part +
                                                              decimals, decimals,
@@ -2391,8 +2387,15 @@ void Item_func_min_max::fix_length_and_dec()
   else if (cmp_type == REAL_RESULT)
     max_length= float_length(decimals);
 
+  compare_as_dates= find_date_time_item(args, arg_count, 0);
   if (compare_as_dates)
+  {
     cached_field_type= compare_as_dates->field_type();
+    if (mysql_type_to_time_type(cached_field_type) == MYSQL_TIMESTAMP_DATE)
+      decimals= 0;
+    else
+      set_if_smaller(decimals, TIME_SECOND_PART_DIGITS);
+  }
   else
     cached_field_type= agg_field_type(args, arg_count);
 }
@@ -2460,41 +2463,14 @@ String *Item_func_min_max::val_str(String *str)
 {
   DBUG_ASSERT(fixed == 1);
   if (compare_as_dates)
-  {
-    MYSQL_TIME ltime;
-    if (get_date(&ltime, TIME_FUZZY_DATE))
-      return 0;
-
-    str->alloc(MAX_DATE_STRING_REP_LENGTH);
-    str->set_charset(collation.collation);
-    str->length(my_TIME_to_str(&ltime, const_cast<char*>(str->ptr()), decimals));
-    return str;
-  }
+    return val_string_from_date(str);
   switch (cmp_type) {
   case INT_RESULT:
-  {
-    longlong nr=val_int();
-    if (null_value)
-      return 0;
-    str->set_int(nr, unsigned_flag, &my_charset_bin);
-    return str;
-  }
+    return val_string_from_int(str);
   case DECIMAL_RESULT:
-  {
-    my_decimal dec_buf, *dec_val= val_decimal(&dec_buf);
-    if (null_value)
-      return 0;
-    my_decimal2string(E_DEC_FATAL_ERROR, dec_val, 0, 0, 0, str);
-    return str;
-  }
+    return val_string_from_decimal(str);
   case REAL_RESULT:
-  {
-    double nr= val_real();
-    if (null_value)
-      return 0; /* purecov: inspected */
-    str->set_real(nr,decimals,&my_charset_bin);
-    return str;
-  }
+    return val_string_from_real(str);
   case STRING_RESULT:
   {
     String *UNINIT_VAR(res);

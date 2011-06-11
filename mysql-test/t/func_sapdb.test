@@ -91,8 +91,8 @@ select microsecond("1997-12-31 23:59:59.000001");
 
 create table t1 
 select makedate(1997,1) as f1,
-   addtime(cast("1997-12-31 23:59:59.000001" as datetime), "1 1:1:1.000002") as f2,
-   addtime(cast("23:59:59.999999" as time) , "1 1:1:1.000002") as f3,
+   addtime(cast("1997-12-31 23:59:59.000001" as datetime(6)), "1 1:1:1.000002") as f2,
+   addtime(cast("23:59:59.999999" as time(6)) , "1 1:1:1.000002") as f3,
    timediff("1997-12-31 23:59:59.000001","1997-12-30 01:01:01.000002") as f4,
    timediff("1997-12-30 23:59:59.000001","1997-12-31 23:59:59.000002") as f5,
    maketime(10,11,12) as f6,

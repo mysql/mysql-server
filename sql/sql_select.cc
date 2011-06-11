@@ -12178,16 +12178,16 @@ remove_eq_conds(THD *thd, COND *cond, Item::cond_result *cond_value)
   Checks if an equality predicate can be used to take away 
   DISTINCT/GROUP BY because it is known to be true for exactly one 
   distinct value (e.g. <expr> == <const>).
-  Arguments must be of the same type because e.g. 
-  <string_field> = <int_const> may match more than 1 distinct value from 
-  the column.
-  Additionally, strings must have the same collation.
-  Or the *field* must be a datetime - if the constant is a datetime
-  and a field is not - this is not enough, consider:
-    create table t1 (a varchar(100));
-    insert t1 values ('2010-01-02'), ('2010-1-2'), ('20100102');
-    select distinct t1 from t1 where a=date('2010-01-02');
-  
+  Arguments must be compared in the native type of the left argument
+  and (for strings) in the native collation of the left argument.
+  Otherwise, for example,
+  <string_field> = <int_const> may match more than 1 distinct value or
+  the <string_field>.
+
+  @note We don't need to aggregate l and r collations here, because r -
+  the constant item - has already been converted to a proper collation
+  for comparison. We only need to compare this collation with field's collation.
+
   @retval true    can be used
   @retval false   cannot be used
 */
@@ -12195,13 +12195,9 @@ static bool
 test_if_equality_guarantees_uniqueness(Item *l, Item *r)
 {
   return r->const_item() &&
-    /* the field is a date (the const will be converted to a date) */
-     (l->cmp_type() == TIME_RESULT ||
-      /* or arguments are of the same result type */
-      (r->result_type() == l->result_type() &&
-       /* and must have the same collation if compared as strings */
-       (l->result_type() != STRING_RESULT ||
-        l->collation.collation == r->collation.collation)));
+    item_cmp_type(l->cmp_type(), r->cmp_type()) == l->cmp_type() &&
+    (l->cmp_type() != STRING_RESULT ||
+     l->collation.collation == r->collation.collation);
 }
 
 /**
@@ -16124,7 +16120,7 @@ bool test_if_ref(Item *root_cond, Item_field *left_item,Item *right_item)
       {
 	/*
 	  We can remove binary fields and numerical fields except float,
-	  as float comparison isn't 100 % secure
+	  as float comparison isn't 100 % safe
 	  We have to keep normal strings to be able to check for end spaces
 	*/
 	if (field->binary() &&

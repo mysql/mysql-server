@@ -622,6 +622,25 @@ create table t1 (a varchar(100));
 insert t1 values ('2010-10-10'), ('20101010');
 select * from t1 where a = DATE('2010-10-10');
 select distinct a from t1 where a = DATE('2010-10-10');
+explain select distinct a from t1 where a = DATE('2010-10-10');
+drop table t1;
+#
+# test_if_equality_guarantees_uniqueness() and different type combinations
+#
+--echo # date = string
+create table t1 (a date);
+insert t1 values ('2010-10-10'), ('20101010');
+explain select distinct a from t1 where a = '2010-10-10';
+drop table t1;
+--echo # double = string
+create table t1 (a double);
+insert t1 values (2), (2);
+explain select distinct a from t1 where a = '2';
+--echo # double = int
+explain select distinct a from t1 where a = 2;
+--echo # string = double
+alter table t1 modify a varchar(100);
+explain select distinct a from t1 where a = 2e0;
 drop table t1;
 
 #

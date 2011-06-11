@@ -35,86 +35,6 @@
 /** Day number for Dec 31st, 9999. */
 #define MAX_DAY_NUMBER 3652424L
 
-static bool make_datetime(MYSQL_TIME *ltime, String *str, uint decimals)
-{
-  if (str->alloc(MAX_DATE_STRING_REP_LENGTH))
-    return 1;
-  str->length(my_TIME_to_str(ltime, const_cast<char*>(str->ptr()), decimals));
-  str->set_charset(&my_charset_bin);
-  return 0;
-}
-
-
-/*
-  Convert seconds to MYSQL_TIME value with overflow checking
-
-  SYNOPSIS:
-    sec_to_time()
-    seconds          number of seconds
-    ltime            output MYSQL_TIME value
-
-  DESCRIPTION
-    If the 'seconds' argument is inside MYSQL_TIME data range, convert it to a
-    corresponding value.
-    Otherwise, truncate the resulting value to the nearest endpoint, and
-    produce a warning message.
-
-  RETURN
-    1                if the value was truncated during conversion
-    0                otherwise
-*/
-  
-bool Item_func_sec_to_time::sec_to_time(my_decimal *seconds, MYSQL_TIME *ltime)
-{
-  Lazy_string_decimal str(*seconds);
-  uint sec;
-  longlong full_seconds;
-  my_decimal tmp, sub_seconds;
-
-  bzero((char *)ltime, sizeof(*ltime));
-
-  ltime->time_type= MYSQL_TIMESTAMP_TIME;
-  
-  if (seconds->sign())
-  {
-    ltime->neg= 1;
-    seconds->sign(0);
-  }
-  if (my_decimal_cmp(seconds, &max_seconds_for_time_type) > 0)
-    goto overflow;
-
-  /* We don't call my_decimal2int() here as we don't want rounding */
-  (void) decimal2longlong(seconds, &full_seconds);
-  
-  sec= (uint) (full_seconds % 3600);
-  ltime->hour= (uint) (full_seconds/3600);
-  ltime->minute= sec/60;
-  ltime->second= sec % 60;
-
-  /*
-    Calculate second_part
-    ltime->second_part= (seconds - floor(seconds)) * TIME_SECOND_PART_FACTOR
-  */
-  my_decimal_floor(E_DEC_FATAL_ERROR, seconds, &tmp);
-  my_decimal_sub(E_DEC_FATAL_ERROR, &sub_seconds, seconds, &tmp);
-  my_decimal_mul(E_DEC_FATAL_ERROR, &tmp, &sub_seconds,
-                 &time_second_part_factor);
-  (void) decimal2longlong(&tmp, &full_seconds);
-  ltime->second_part= (ulong)full_seconds;
-
-  return 0;
-
-overflow:
-  /* use check_time_range() to set ltime to the max value depending on dec */
-  int unused;
-  ltime->hour= TIME_MAX_HOUR+1;
-  check_time_range(ltime, decimals, &unused);
-  make_truncated_value_warning(current_thd, MYSQL_ERROR::WARN_LEVEL_WARN,
-                               &str, MYSQL_TIMESTAMP_TIME, NullS);
-  return 1;
-}
-
-
 /*
   Date formats corresponding to compound %r and %T conversion specifiers
 
@@ -1243,14 +1163,15 @@ longlong Item_func_unix_timestamp::int_op()
 }
 
 
-double Item_func_unix_timestamp::real_op()
+my_decimal *Item_func_unix_timestamp::decimal_op(my_decimal* buf)
 {
   ulong second_part;
   my_time_t seconds;
   if (get_timestamp_value(&seconds, &second_part))
     return 0;
 
-  return seconds + second_part/(double)TIME_SECOND_PART_FACTOR;
+  return seconds2my_decimal(seconds < 0, seconds < 0 ? -seconds : seconds,
+                            second_part, buf);
 }
 
 
@@ -1258,21 +1179,23 @@ longlong Item_func_time_to_sec::int_op()
 {
   DBUG_ASSERT(fixed == 1);
   MYSQL_TIME ltime;
-  longlong seconds;
-  (void) get_arg0_time(&ltime);
-  seconds=ltime.hour*3600L+ltime.minute*60+ltime.second;
+  if (get_arg0_time(&ltime))
+    return 0;
+
+  longlong seconds=ltime.hour*3600L+ltime.minute*60+ltime.second;
   return ltime.neg ? -seconds : seconds;
 }
 
 
-double Item_func_time_to_sec::real_op()
+my_decimal *Item_func_time_to_sec::decimal_op(my_decimal* buf)
 {
   DBUG_ASSERT(fixed == 1);
   MYSQL_TIME ltime;
-  double seconds;
-  (void) get_arg0_time(&ltime);
-  seconds=ltime.hour*3600L+ltime.minute*60+ltime.second+ltime.second_part/1e6;
-  return ltime.neg ? -seconds : seconds;
+  if (get_arg0_time(&ltime))
+    return 0;
+
+  longlong seconds= ltime.hour*3600L+ltime.minute*60+ltime.second;
+  return seconds2my_decimal(ltime.neg, seconds, ltime.second_part, buf);
 }
 
 
@@ -1437,15 +1360,7 @@ bool get_interval_value(Item *args,interval_type int_type,
 String *Item_temporal_func::val_str(String *str)
 {
   DBUG_ASSERT(fixed == 1);
-  MYSQL_TIME ltime;
-  if (get_date(&ltime, TIME_FUZZY_DATE))
-    return (String *) 0;
-  if (make_datetime(&ltime, str, decimals))
-  {
-    null_value= 1;
-    return (String *) 0;
-  }
-  return str;
+  return val_string_from_date(str);
 }
 
 
@@ -1469,27 +1384,6 @@ double Item_temporal_func::val_real()
 }
 
 
-bool Item_temporal_func::get_time(MYSQL_TIME *ltime)
-{
-  /*
-    All temporal functions have a get_date() function which also
-    returns the time.
-  */
-  if (get_date(ltime, TIME_TIME_ONLY | TIME_FUZZY_DATE |
-               sql_mode_for_dates()))
-    return 1;
-  /* Convert date to time */
-  if (ltime->time_type == MYSQL_TIMESTAMP_DATE ||
-      ltime->time_type == MYSQL_TIMESTAMP_DATETIME)
-  {
-    ltime->year= ltime->month= ltime->day= 0;
-    ltime->time_type= MYSQL_TIMESTAMP_TIME;
-  }
-  return 0;
-}
-
-
-
 bool Item_func_from_days::get_date(MYSQL_TIME *ltime, uint fuzzy_date)
 {
   longlong value=args[0]->val_int();
@@ -1510,7 +1404,7 @@ void Item_func_curdate::fix_length_and_dec()
   ltime.hour= ltime.minute= ltime.second= 0;
   ltime.time_type= MYSQL_TIMESTAMP_DATE;
   Item_datefunc::fix_length_and_dec();
-  maybe_null= 0;
+  maybe_null= false;
 }
 
 /**
@@ -1679,17 +1573,45 @@ bool Item_func_sysdate_local::get_date(MYSQL_TIME *res,
   return 0;
 }
 
-
 bool Item_func_sec_to_time::get_date(MYSQL_TIME *ltime, uint fuzzy_date)
 {
   DBUG_ASSERT(fixed == 1);
-  my_decimal tmp_buff, *tmp= args[0]->val_decimal(&tmp_buff); 
-  
+  bool sign;
+  ulonglong sec;
+  ulong sec_part;
+
+  bzero((char *)ltime, sizeof(*ltime));
+  ltime->time_type= MYSQL_TIMESTAMP_TIME;
+
+  sign= args[0]->get_seconds(&sec, &sec_part);
+
   if ((null_value= args[0]->null_value))
     return 1;
 
-  sec_to_time(tmp, ltime);
+  ltime->neg= sign;
+  if (sec > TIME_MAX_VALUE_SECONDS)
+    goto overflow;
+
+  DBUG_ASSERT(sec_part <= TIME_MAX_SECOND_PART);
   
+  ltime->hour=   (uint) (sec/3600);
+  ltime->minute= (uint) (sec % 3600) /60;
+  ltime->second= (uint) sec % 60;
+  ltime->second_part= sec_part;
+
+  return 0;
+
+overflow:
+  /* use check_time_range() to set ltime to the max value depending on dec */
+  int unused;
+  char buf[100];
+  String tmp(buf, sizeof(buf), &my_charset_bin), *err= args[0]->val_str(&tmp);
+
+  ltime->hour= TIME_MAX_HOUR+1;
+  check_time_range(ltime, decimals, &unused);
+  make_truncated_value_warning(current_thd, MYSQL_ERROR::WARN_LEVEL_WARN,
+                               err->ptr(), err->length(),
+                               MYSQL_TIMESTAMP_TIME, NullS);
   return 0;
 }
 
@@ -1880,13 +1802,21 @@ void Item_func_from_unixtime::fix_length_and_dec()
 bool Item_func_from_unixtime::get_date(MYSQL_TIME *ltime,
 				       uint fuzzy_date __attribute__((unused)))
 {
-  double tmp= args[0]->val_real();
-  if (args[0]->null_value || tmp < 0 || tmp > TIMESTAMP_MAX_VALUE)
+  bool sign;
+  ulonglong sec;
+  ulong sec_part;
+
+  bzero((char *)ltime, sizeof(*ltime));
+  ltime->time_type= MYSQL_TIMESTAMP_TIME;
+
+  sign= args[0]->get_seconds(&sec, &sec_part);
+
+  if (args[0]->null_value || sign || sec > TIMESTAMP_MAX_VALUE)
     return (null_value= 1);
 
-  thd->variables.time_zone->gmt_sec_to_TIME(ltime, (my_time_t)tmp);
+  thd->variables.time_zone->gmt_sec_to_TIME(ltime, (my_time_t)sec);
 
-  ltime->second_part= (ulong)((tmp - floor(tmp))*TIME_SECOND_PART_FACTOR);
+  ltime->second_part= sec_part;
 
   return (null_value= 0);
 }
@@ -1926,7 +1856,7 @@ bool Item_func_convert_tz::get_date(MYSQL_TIME *ltime,
   }
 
   {
-    my_bool not_used;
+    uint not_used;
     my_time_tmp= from_tz->TIME_to_gmt_sec(ltime, &not_used);
     ulong sec_part= ltime->second_part;
     /* my_time_tmp is guranteed to be in the allowed range */
@@ -2186,10 +2116,17 @@ bool Item_char_typecast::eq(const Item *item, bool binary_cmp) const
 
 void Item_temporal_typecast::print(String *str, enum_query_type query_type)
 {
+  char buf[32];
   str->append(STRING_WITH_LEN("cast("));
   args[0]->print(str, query_type);
   str->append(STRING_WITH_LEN(" as "));
   str->append(cast_type());
+  if (decimals)
+  {
+    str->append('(');
+    str->append(llstr(decimals, buf));
+    str->append(')');
+  }
   str->append(')');
 }
 
@@ -2347,6 +2284,8 @@ bool Item_time_typecast::get_date(MYSQL_TIME *ltime, uint fuzzy_date)
 {
   if (get_arg0_time(ltime))
     return 1;
+  if (decimals < TIME_SECOND_PART_DIGITS)
+    ltime->second_part= sec_part_truncate(ltime->second_part, decimals);
   /*
     MYSQL_TIMESTAMP_TIME value can have non-zero day part,
     which we should not lose.
@@ -2373,16 +2312,28 @@ bool Item_datetime_typecast::get_date(MYSQL_TIME *ltime, uint fuzzy_date)
   if (get_arg0_date(ltime, fuzzy_date & ~TIME_TIME_ONLY))
     return 1;
 
+  if (decimals < TIME_SECOND_PART_DIGITS)
+    ltime->second_part= sec_part_truncate(ltime->second_part, decimals);
+
+
   /*
     ltime is valid MYSQL_TYPE_TIME (according to fuzzy_date).
     But not every valid TIME value is a valid DATETIME value!
   */
-  if (ltime->time_type == MYSQL_TIMESTAMP_TIME && ltime->hour >= 24)
+  if (ltime->time_type == MYSQL_TIMESTAMP_TIME)
   {
-    Lazy_string_time str(ltime);
-    make_truncated_value_warning(current_thd, MYSQL_ERROR::WARN_LEVEL_WARN,
-                                 &str, MYSQL_TIMESTAMP_DATETIME, 0);
-    return (null_value= 1);
+    if (ltime->neg)
+    {
+      Lazy_string_time str(ltime);
+      make_truncated_value_warning(current_thd, MYSQL_ERROR::WARN_LEVEL_WARN,
+                                   &str, MYSQL_TIMESTAMP_DATETIME, 0);
+      return (null_value= 1);
+    }
+    
+    uint day= ltime->hour/24;
+    ltime->hour %= 24;
+    ltime->month= day / 31;
+    ltime->day= day % 31;
   }
 
   ltime->time_type= MYSQL_TIMESTAMP_DATETIME;
@@ -2703,7 +2654,7 @@ longlong Item_func_microsecond::val_int()
 {
   DBUG_ASSERT(fixed == 1);
   MYSQL_TIME ltime;
-  if (!get_arg0_time(&ltime))
+  if (!get_arg0_date(&ltime, TIME_TIME_ONLY))
     return ltime.second_part;
   return 0;
 }

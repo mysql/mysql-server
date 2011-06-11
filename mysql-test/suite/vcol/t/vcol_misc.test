@@ -195,6 +195,7 @@ CREATE TABLE `t1` (
 ) ENGINE=MyISAM;
 show create table t1;
 show columns from t1;
+--replace_column 8 #
 show full columns from t1;
 INSERT INTO `test`.`t1`(`a`,`b`,`c`,`d`) VALUES ( '1','a',NULL,NULL);
 UPDATE `test`.`t1` SET `d`='b' WHERE `a`='1' AND `b`='a' AND `c`='1' AND  `d`='a';

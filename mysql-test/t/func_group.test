@@ -1063,7 +1063,8 @@ insert into t1 values
   (02,2002,20020101,"2002-01-01 23:59:59"),
   (60,2060,20600101,"2060-01-01 11:11:11"),
   (70,1970,19700101,"1970-11-11 22:22:22"),
-  (NULL,NULL,NULL,NULL);
+  (NULL,NULL,NULL,NULL),
+  (71,1971,19710101,"1971-11-11 22:22:22");
 select min(f1),max(f1) from t1;
 select min(f2),max(f2) from t1;
 select min(f3),max(f3) from t1;

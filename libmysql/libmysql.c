@@ -3681,7 +3681,8 @@ static void fetch_long_with_conversion(MYSQL_BIND *param, MYSQL_FIELD *field,
   case MYSQL_TYPE_DATETIME:
   {
     int error;
-    value= number_to_datetime(value, (MYSQL_TIME *) buffer, TIME_FUZZY_DATE,
+    value= number_to_datetime(value, 0,
+                              (MYSQL_TIME *) buffer, TIME_FUZZY_DATE,
                               &error);
     *param->error= test(error);
     break;

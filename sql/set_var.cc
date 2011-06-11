@@ -2900,14 +2900,20 @@ int set_var_collation_client::update(THD *thd)
 
 bool sys_var_timestamp::check(THD *thd, set_var *var)
 {
-  double val= var->value->val_real();
-  if (val < 0 || val > MY_TIME_T_MAX)
+  ulonglong sec;
+  ulong sec_part;
+  char buf[64], *errval= 0;
+  if (var->value->get_seconds(&sec, &sec_part))
+    errval= llstr(sec, buf);
+  else if (sec > TIMESTAMP_MAX_VALUE)
+    errval= ullstr(sec, buf);
+
+  if (errval)
   {
-    char buf[64];
-    my_error(ER_WRONG_VALUE_FOR_VAR, MYF(0), "timestamp", llstr((longlong)val, buf));
+    my_error(ER_WRONG_VALUE_FOR_VAR, MYF(0), "timestamp", errval);
     return TRUE;
   }
-  var->save_result.ulonglong_value= hrtime_from_time(val);
+  var->save_result.ulonglong_value= hrtime_from_time(sec)+sec_part;
   return FALSE;
 }
 
