@@ -1637,7 +1637,6 @@ void JOIN_CACHE::restore_last_record()
 
 enum_nested_loop_state JOIN_CACHE::join_records(bool skip_last)
 {
-  JOIN_TAB *tab;
   enum_nested_loop_state rc= NESTED_LOOP_OK;
   bool outer_join_first_inner= join_tab->is_first_inner_for_outer_join();
   DBUG_ENTER("JOIN_CACHE::join_records");
@@ -1667,7 +1666,8 @@ enum_nested_loop_state JOIN_CACHE::join_records(bool skip_last)
       }
       join_tab->not_null_compl= FALSE;
       /* Prepare for generation of null complementing extensions */
-      for (tab= join_tab->first_inner; tab <= join_tab->last_inner; tab++)
+      for (JOIN_TAB *tab= join_tab->first_inner;
+           tab <= join_tab->last_inner; tab++)
         tab->first_unmatched= join_tab->first_inner;
     }
   }
@@ -1697,30 +1697,31 @@ enum_nested_loop_state JOIN_CACHE::join_records(bool skip_last)
     if (rc != NESTED_LOOP_OK && rc != NESTED_LOOP_NO_MORE_ROWS)
       goto finish;
   }
-  if (outer_join_first_inner)
-  {
-    /* 
-      All null complemented rows have been already generated for all
-      outer records from join buffer. Restore the state of the
-      first_unmatched values to 0 to avoid another null complementing.
-    */
-    for (tab= join_tab->first_inner; tab <= join_tab->last_inner; tab++)
-      tab->first_unmatched= 0;
-  } 
- 
+
   if (skip_last)
   {
     DBUG_ASSERT(!is_key_access());
     /*
        Restore the last record from the join buffer to generate
-       all extentions for it.
+       all extensions for it.
     */
     get_record();		               
   }
 
 finish:
+  if (outer_join_first_inner)
+  {
+    /*
+      All null complemented rows have been already generated for all
+      outer records from join buffer. Restore the state of the
+      first_unmatched values to 0 to avoid another null complementing.
+    */
+    for (JOIN_TAB *tab= join_tab->first_inner;
+         tab <= join_tab->last_inner; tab++)
+      tab->first_unmatched= NULL;
+  }
   restore_last_record();
-  reset(TRUE);
+  reset(true);
   DBUG_RETURN(rc);
 }
 

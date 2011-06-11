@@ -5651,4 +5651,32 @@ a
 0
 DROP TABLE t1;
 DROP VIEW v1;
+#
+# Bug#12546542 MISSING ROW WHEN USING OPTIMIZER_JOIN_CACHE_LEVEL>=3
+#
+CREATE TABLE t1 (
+f2 varchar(1024)
+);
+INSERT INTO t1 VALUES ('v'),('we');
+CREATE TABLE t2 (
+col_varchar_1024_utf8 varchar(1024) CHARACTER SET utf8 DEFAULT NULL,
+col_int_key int,
+col_int int
+);
+INSERT INTO t2 VALUES ('we',4,NULL),('v',1305673728,6);
+CREATE TABLE t3 (
+col_int_key int,
+col_int int
+);
+INSERT INTO t3 VALUES (4,4);
+SELECT *
+FROM t1
+WHERE f2 IN (SELECT a1.col_varchar_1024_utf8 AS f2
+FROM t2 AS a1 LEFT JOIN t3 AS a2
+ON a1.col_int_key = a2.col_int_key
+WHERE a1.col_int BETWEEN 1 AND 10 OR a2.col_int IS NOT NULL);
+f2
+v
+we
+DROP TABLE t1,t2,t3;
 set optimizer_switch=default;
