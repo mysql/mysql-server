@@ -101,6 +101,10 @@ NdbIndexStatImpl::Sys::~Sys()
 void
 NdbIndexStatImpl::sys_release(Sys& sys)
 {
+  // close schema trans if any exists
+  NdbDictionary::Dictionary* const dic = sys.m_dic;
+  (void)dic->endSchemaTrans(NdbDictionary::Dictionary::SchemaTransAbort);
+
   if (sys.m_headtable != 0)
   {
     sys.m_dic->removeTableGlobal(*sys.m_headtable, false);
@@ -382,7 +386,13 @@ NdbIndexStatImpl::create_systables(Ndb* ndb)
     return -1;
   }
 
-  NdbDictionary::Dictionary* const dic = ndb->getDictionary();
+  NdbDictionary::Dictionary* const dic = sys.m_dic;
+
+  if (dic->beginSchemaTrans() == -1)
+  {
+    setError(dic->getNdbError().code, __LINE__);
+    return -1;
+  }
 
   {
     NdbDictionary::Table tab;
@@ -406,6 +416,19 @@ NdbIndexStatImpl::create_systables(Ndb* ndb)
     NdbDictionary::Table tab;
     if (make_sampletable(tab) == -1)
       return -1;
+
+#ifdef VM_TRACE
+    // test of schema trans
+    {
+      const char* p = NdbEnv_GetEnv("NDB_INDEX_STAT_ABORT_SYS_CREATE", (char*)0, 0);
+      if (p != 0 && strchr("1Y", p[0]) != 0)
+      {
+        setError(9999, __LINE__);
+        return -1;
+      }
+    }
+#endif
+
     if (dic->createTable(tab) == -1)
     {
       setError(dic->getNdbError().code, __LINE__);
@@ -438,6 +461,12 @@ NdbIndexStatImpl::create_systables(Ndb* ndb)
     }
   }
 
+  if (dic->endSchemaTrans() == -1)
+  {
+    setError(dic->getNdbError().code, __LINE__);
+    return -1;
+  }
+
   return 0;
 }
 
@@ -450,7 +479,13 @@ NdbIndexStatImpl::drop_systables(Ndb* ndb)
       m_error.code != BadSysTables)
     return -1;
 
-  NdbDictionary::Dictionary* const dic = ndb->getDictionary();
+  NdbDictionary::Dictionary* const dic = sys.m_dic;
+
+  if (dic->beginSchemaTrans() == -1)
+  {
+    setError(dic->getNdbError().code, __LINE__);
+    return -1;
+  }
 
   if (sys.m_headtable != 0)
   {
@@ -463,11 +498,30 @@ NdbIndexStatImpl::drop_systables(Ndb* ndb)
 
   if (sys.m_sampletable != 0)
   {
+
+#ifdef VM_TRACE
+    // test of schema trans
+    {
+      const char* p = NdbEnv_GetEnv("NDB_INDEX_STAT_ABORT_SYS_DROP", (char*)0, 0);
+      if (p != 0 && strchr("1Y", p[0]) != 0)
+      {
+        setError(9999, __LINE__);
+        return -1;
+      }
+    }
+#endif
+
     if (dic->dropTableGlobal(*sys.m_sampletable) == -1)
     {
       setError(dic->getNdbError().code, __LINE__);
       return -1;
     }
+  }
+
+  if (dic->endSchemaTrans() == -1)
+  {
+    setError(dic->getNdbError().code, __LINE__);
+    return -1;
   }
     
   return 0;
