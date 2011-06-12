@@ -1266,6 +1266,12 @@ innobase_start_or_create_for_mysql(void)
 	case OS_WIN31:
 	case OS_WINNT:
 		srv_use_native_conditions = FALSE;
+		/* On Win 95, 98, ME, Win32 subsystem for Windows 3.1,
+		and NT use simulated aio. In NT Windows provides async i/o,
+		but when run in conjunction with InnoDB Hot Backup, it seemed
+		to corrupt the data files. */
+
+		os_aio_use_native_aio = FALSE;
 		break;
 
 	case OS_WIN2000:
@@ -1278,16 +1284,11 @@ innobase_start_or_create_for_mysql(void)
  	default:
 		os_aio_use_native_aio = TRUE;
 		srv_use_native_conditions = TRUE;
+	default:
+		/* On Win 2000 and XP use async i/o */
+		os_aio_use_native_aio = TRUE;
 	}
 
-	/* On Win 2000 and XP use async i/o */
-	/* (Broken by Percona patches, needs fixing) */
-	os_aio_use_native_aio = FALSE;
-	fprintf(stderr,
-		"InnoDB: Windows native async i/o is disabled as default.\n"
-		"InnoDB:   It is not applicable for the current"
-		" multi io threads implementation.\n");
-#endif
 	if (srv_file_flush_method_str == NULL) {
 		/* These are the default options */
 
@@ -1325,11 +1326,6 @@ innobase_start_or_create_for_mysql(void)
 				  "async_unbuffered")) {
 		srv_win_file_flush_method = SRV_WIN_IO_UNBUFFERED;
 		os_aio_use_native_aio = TRUE;
-		srv_n_read_io_threads = srv_n_write_io_threads = 1;
-		fprintf(stderr,
-			"InnoDB: 'async_unbuffered' was detected as innodb_flush_method.\n"
-			"InnoDB:   Windows native async i/o is enabled.\n"
-			"InnoDB:   And io threads are restricted.\n");
 #endif
 	} else {
 		fprintf(stderr,
