@@ -427,7 +427,7 @@ static bool volatile ready_to_exit;
 static my_bool opt_debugging= 0, opt_external_locking= 0, opt_console= 0;
 static my_bool opt_short_log_format= 0;
 static my_bool opt_ignore_wrong_options= 0, opt_expect_abort= 0;
-static my_bool opt_sync= 0, sf_malloc_trough_check= 0;
+static my_bool opt_sync= 0;
 static uint kill_cached_threads, wake_thread;
 ulong thread_created;
 uint thread_handling;
@@ -443,6 +443,9 @@ static const char *optimizer_switch_str="index_merge=on,index_merge_union=on,"
                                         ",table_elimination=on";
 #else
                                         ;
+#endif
+#ifdef SAFEMALLOC
+my_bool sf_malloc_trough_check= 0;
 #endif
 static char *mysqld_user, *mysqld_chroot, *log_error_file_ptr;
 static char *opt_init_slave, *language_ptr, *opt_init_connect;
@@ -6898,7 +6901,7 @@ each time the SQL thread starts.",
   {"skip-networking", OPT_SKIP_NETWORKING,
    "Don't allow connection with TCP/IP.", 0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0,
    0, 0, 0},
-#if !defined(DBUG_OFF) && defined(SAFEMALLOC)
+#ifdef SAFEMALLOC
   {"safemalloc", OPT_SAFEMALLOC,
    "Check all memory allocation for every malloc/free call.",
    &sf_malloc_trough_check, &sf_malloc_trough_check, 0,
