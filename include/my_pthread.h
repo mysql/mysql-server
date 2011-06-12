@@ -48,19 +48,30 @@ typedef struct st_pthread_link {
   struct st_pthread_link *next;
 } pthread_link;
 
-typedef struct {
-  uint32 waiting;
-  CRITICAL_SECTION lock_waiting;
- 
-  enum {
-    SIGNAL= 0,
-    BROADCAST= 1,
-    MAX_EVENTS= 2
-  } EVENTS;
+/**
+  Implementation of Windows condition variables.
+  We use native conditions on Vista and later, and fallback to own 
+  implementation on earlier OS version.
+*/
+typedef union
+{
+  /* Native condition (used on Vista and later) */
+  CONDITION_VARIABLE native_cond;
 
-  HANDLE events[MAX_EVENTS];
-  HANDLE broadcast_block_event;
-
+  /* Own implementation (used on XP) */
+  struct
+  { 
+    uint32 waiting;
+    CRITICAL_SECTION lock_waiting;
+    enum 
+    {
+      SIGNAL= 0,
+      BROADCAST= 1,
+      MAX_EVENTS= 2
+    } EVENTS;
+    HANDLE events[MAX_EVENTS];
+    HANDLE broadcast_block_event;
+  };
 } pthread_cond_t;
 
 
@@ -632,6 +643,45 @@ int my_pthread_fastmutex_lock(my_pthread_fastmutex_t *mp);
 #endif
 #define my_rwlock_init(A,B) rwlock_init((A),USYNC_THREAD,0)
 #else
+#ifdef _WIN32
+/**
+  Implementation of Windows rwlock.
+
+  We use native (slim) rwlocks on Win7 and later, and fallback to  portable
+  implementation on earlier Windows.
+
+  slim rwlock are also available on Vista/WS2008, but we do not use it
+  ("trylock" APIs are missing on Vista)
+*/
+typedef union
+{
+  /* Native rwlock (is_srwlock == TRUE) */
+  struct 
+  {
+    SRWLOCK srwlock;             /* native reader writer lock */
+    BOOL have_exclusive_srwlock; /* used for unlock */
+  };
+
+  /*
+    Portable implementation (is_srwlock == FALSE)
+    Fields are identical with Unix my_rw_lock_t fields.
+  */
+  struct 
+  {
+    pthread_mutex_t lock;       /* lock for structure		*/
+    pthread_cond_t  readers;    /* waiting readers		*/
+    pthread_cond_t  writers;    /* waiting writers		*/
+    int state;                  /* -1:writer,0:free,>0:readers	*/
+    int waiters;                /* number of waiting writers	*/
+#ifdef SAFE_MUTEX
+    pthread_t  write_thread;
+#endif
+  };
+} my_rw_lock_t;
+
+
+#else /* _WIN32 */
+
 /* Use our own version of read/write locks */
 typedef struct _my_rw_lock_t {
 	pthread_mutex_t lock;		/* lock for structure		*/
@@ -640,6 +690,8 @@ typedef struct _my_rw_lock_t {
 	int		state;		/* -1:writer,0:free,>0:readers	*/
 	int		waiters;	/* number of waiting writers	*/
 } my_rw_lock_t;
+
+#endif /* _WIN32 */
 
 #define rw_lock_t my_rw_lock_t
 #define rw_rdlock(A) my_rw_rdlock((A))
