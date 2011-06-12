@@ -1284,10 +1284,8 @@ innobase_start_or_create_for_mysql(void)
  	default:
 		os_aio_use_native_aio = TRUE;
 		srv_use_native_conditions = TRUE;
-	default:
-		/* On Win 2000 and XP use async i/o */
-		os_aio_use_native_aio = TRUE;
 	}
+#endif
 
 	if (srv_file_flush_method_str == NULL) {
 		/* These are the default options */

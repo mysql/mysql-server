@@ -2445,8 +2445,7 @@ _os_file_read(
 	DWORD		len;
 	ibool		retry;
 	OVERLAPPED overlapped;
-	overlapped.Offset = (DWORD)offset;
-	overlapped.OffsetHigh = (DWORD)offset_high;
+
 
 	/* On 64-bit Windows, ulint is 64 bits. But offset and n should be
 	no more than 32 bits. */
@@ -2466,8 +2465,8 @@ try_again:
 	os_mutex_exit(os_file_count_mutex);
 
 	memset (&overlapped, 0, sizeof (overlapped));
-	overlapped.Offset = low;
-	overlapped.OffsetHigh = high;
+	overlapped.Offset = (DWORD)offset;
+	overlapped.OffsetHigh = (DWORD)offset_high;
 	overlapped.hEvent = win_get_syncio_event();
 	ret = ReadFile(file, buf, n, NULL, &overlapped);
 	if (ret) {
@@ -2475,7 +2474,7 @@ try_again:
 	}
 	else if(GetLastError() == ERROR_IO_PENDING) {
 		ret = GetOverlappedResult(file, &overlapped, (DWORD *)&len, TRUE);
-
+  }
 	os_mutex_enter(os_file_count_mutex);
 	os_n_pending_reads--;
 	os_mutex_exit(os_file_count_mutex);
@@ -2568,8 +2567,8 @@ try_again:
 	os_mutex_exit(os_file_count_mutex);
 
 	memset (&overlapped, 0, sizeof (overlapped));
-	overlapped.Offset = low;
-	overlapped.OffsetHigh = high;
+	overlapped.Offset = (DWORD)offset;
+	overlapped.OffsetHigh = (DWORD)offset_high;
 	overlapped.hEvent = win_get_syncio_event();
 	ret = ReadFile(file, buf, n, NULL, &overlapped);
 	if (ret) {
@@ -2577,7 +2576,7 @@ try_again:
 	}
 	else if(GetLastError() == ERROR_IO_PENDING) {
 		ret = GetOverlappedResult(file, &overlapped, (DWORD *)&len, TRUE);
-
+  }
 	os_mutex_enter(os_file_count_mutex);
 	os_n_pending_reads--;
 	os_mutex_exit(os_file_count_mutex);
@@ -2654,8 +2653,6 @@ os_file_write(
 	ulint		n_retries	= 0;
 	ulint		err;
 	OVERLAPPED overlapped;
-	overlapped.Offset = (DWORD)offset;
-	overlapped.OffsetHigh = (DWORD)offset_high;
 
 	/* On 64-bit Windows, ulint is 64 bits. But offset and n should be
 	no more than 32 bits. */
@@ -2674,12 +2671,14 @@ retry:
 	os_mutex_exit(os_file_count_mutex);
 
 	memset (&overlapped, 0, sizeof (overlapped));
-	overlapped.Offset = low;
-	overlapped.OffsetHigh = high;
+	overlapped.Offset = (DWORD)offset;
+	overlapped.OffsetHigh = (DWORD)offset_high;
+
 	overlapped.hEvent = win_get_syncio_event();
 	ret = WriteFile(file, buf, n, NULL, &overlapped);
 	if (ret) {
 		ret = GetOverlappedResult(file, &overlapped, (DWORD *)&len, FALSE);
+	}
 	else if(GetLastError() == ERROR_IO_PENDING) {
 		ret = GetOverlappedResult(file, &overlapped, (DWORD *)&len, TRUE);
 	}
@@ -3830,10 +3829,6 @@ os_aio_windows_handle(
 	DWORD		len;
 	BOOL		retry		= FALSE;
 	ULONG_PTR dummy_key;
-
-	if (srv_shutdown_state == SRV_SHUTDOWN_EXIT_THREADS) {
-		os_thread_exit(NULL);
-
 
 	ret = GetQueuedCompletionStatus(completion_port, &len, &dummy_key, 
 		(OVERLAPPED **)&slot, INFINITE);
