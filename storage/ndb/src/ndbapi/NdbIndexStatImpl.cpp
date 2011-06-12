@@ -127,59 +127,67 @@ NdbIndexStatImpl::make_headtable(NdbDictionary::Table& tab)
 {
   tab.setName(g_headtable_name);
   tab.setLogging(true);
+  int ret;
+  ret = tab.setFrm(g_ndb_index_stat_head_frm_data,
+                   g_ndb_index_stat_head_frm_len);
+  if (ret != 0)
+  {
+    setError(ret, __LINE__);
+    return -1;
+  }
   // key must be first
   {
-    NdbDictionary::Column col("INDEX_ID");
+    NdbDictionary::Column col("index_id");
     col.setType(NdbDictionary::Column::Unsigned);
     col.setPrimaryKey(true);
     tab.addColumn(col);
   }
   {
-    NdbDictionary::Column col("INDEX_VERSION");
+    NdbDictionary::Column col("index_version");
     col.setType(NdbDictionary::Column::Unsigned);
     col.setPrimaryKey(true);
     tab.addColumn(col);
   }
   // table
   {
-    NdbDictionary::Column col("TABLE_ID");
+    NdbDictionary::Column col("table_id");
     col.setType(NdbDictionary::Column::Unsigned);
     col.setNullable(false);
     tab.addColumn(col);
   }
   {
-    NdbDictionary::Column col("FRAG_COUNT");
+    NdbDictionary::Column col("frag_count");
     col.setType(NdbDictionary::Column::Unsigned);
     col.setNullable(false);
     tab.addColumn(col);
   }
   // current sample
   {
-    NdbDictionary::Column col("VALUE_FORMAT");
+    NdbDictionary::Column col("value_format");
     col.setType(NdbDictionary::Column::Unsigned);
     col.setNullable(false);
     tab.addColumn(col);
   }
   {
-    NdbDictionary::Column col("SAMPLE_VERSION");
+    NdbDictionary::Column col("sample_version");
     col.setType(NdbDictionary::Column::Unsigned);
     col.setNullable(false);
     tab.addColumn(col);
   }
   {
-    NdbDictionary::Column col("LOAD_TIME");
+    NdbDictionary::Column col("load_time");
     col.setType(NdbDictionary::Column::Unsigned);
     col.setNullable(false);
     tab.addColumn(col);
   }
   {
-    NdbDictionary::Column col("SAMPLE_COUNT");
+    NdbDictionary::Column col("sample_count");
     col.setType(NdbDictionary::Column::Unsigned);
     col.setNullable(false);
     tab.addColumn(col);
   }
   {
-    NdbDictionary::Column col("KEY_BYTES");
+    NdbDictionary::Column col("key_bytes");
     col.setType(NdbDictionary::Column::Unsigned);
     col.setNullable(false);
     tab.addColumn(col);
@@ -197,27 +205,35 @@ NdbIndexStatImpl::make_sampletable(NdbDictionary::Table& tab)
 {
   tab.setName(g_sampletable_name);
   tab.setLogging(true);
+  int ret;
+  ret = tab.setFrm(g_ndb_index_stat_sample_frm_data,
+                   g_ndb_index_stat_sample_frm_len);
+  if (ret != 0)
+  {
+    setError(ret, __LINE__);
+    return -1;
+  }
   // key must be first
   {
-    NdbDictionary::Column col("INDEX_ID");
+    NdbDictionary::Column col("index_id");
     col.setType(NdbDictionary::Column::Unsigned);
     col.setPrimaryKey(true);
     tab.addColumn(col);
   }
   {
-    NdbDictionary::Column col("INDEX_VERSION");
+    NdbDictionary::Column col("index_version");
     col.setType(NdbDictionary::Column::Unsigned);
     col.setPrimaryKey(true);
     tab.addColumn(col);
   }
   {
-    NdbDictionary::Column col("SAMPLE_VERSION");
+    NdbDictionary::Column col("sample_version");
     col.setType(NdbDictionary::Column::Unsigned);
     col.setPrimaryKey(true);
     tab.addColumn(col);
   }
   {
-    NdbDictionary::Column col("STAT_KEY");
+    NdbDictionary::Column col("stat_key");
     col.setType(NdbDictionary::Column::Longvarbinary);
     col.setPrimaryKey(true);
     col.setLength(MaxKeyBytes);
@@ -225,7 +241,7 @@ NdbIndexStatImpl::make_sampletable(NdbDictionary::Table& tab)
   }
   // value
   {
-    NdbDictionary::Column col("STAT_VALUE");
+    NdbDictionary::Column col("stat_value");
     col.setType(NdbDictionary::Column::Longvarbinary);
     col.setNullable(false);
     col.setLength(MaxValueCBytes);
@@ -246,9 +262,9 @@ NdbIndexStatImpl::make_sampleindex1(NdbDictionary::Index& ind)
   ind.setName(g_sampleindex1_name);
   ind.setType(NdbDictionary::Index::OrderedIndex);
   ind.setLogging(false);
-  ind.addColumnName("INDEX_ID");
-  ind.addColumnName("INDEX_VERSION");
-  ind.addColumnName("SAMPLE_VERSION");
+  ind.addColumnName("index_id");
+  ind.addColumnName("index_version");
+  ind.addColumnName("sample_version");
   return 0;
 }
 
@@ -870,12 +886,12 @@ NdbIndexStatImpl::sys_head_setkey(Con& con)
 {
   Head& head = con.m_head;
   NdbOperation* op = con.m_op;
-  if (op->equal("INDEX_ID", (char*)&head.m_indexId) == -1)
+  if (op->equal("index_id", (char*)&head.m_indexId) == -1)
   {
     setError(con, __LINE__);
     return -1;
   }
-  if (op->equal("INDEX_VERSION", (char*)&head.m_indexVersion) == -1)
+  if (op->equal("index_version", (char*)&head.m_indexVersion) == -1)
   {
     setError(con, __LINE__);
     return -1;
@@ -888,37 +904,37 @@ NdbIndexStatImpl::sys_head_getvalue(Con& con)
 {
   Head& head = con.m_head;
   NdbOperation* op = con.m_op;
-  if (op->getValue("TABLE_ID", (char*)&head.m_tableId) == 0)
+  if (op->getValue("table_id", (char*)&head.m_tableId) == 0)
   {
     setError(con, __LINE__);
     return -1;
   }
-  if (op->getValue("FRAG_COUNT", (char*)&head.m_fragCount) == 0)
+  if (op->getValue("frag_count", (char*)&head.m_fragCount) == 0)
   {
     setError(con, __LINE__);
     return -1;
   }
-  if (op->getValue("VALUE_FORMAT", (char*)&head.m_valueFormat) == 0)
+  if (op->getValue("value_format", (char*)&head.m_valueFormat) == 0)
   {
     setError(con, __LINE__);
     return -1;
   }
-  if (op->getValue("SAMPLE_VERSION", (char*)&head.m_sampleVersion) == 0)
+  if (op->getValue("sample_version", (char*)&head.m_sampleVersion) == 0)
   {
     setError(con, __LINE__);
     return -1;
   }
-  if (op->getValue("LOAD_TIME", (char*)&head.m_loadTime) == 0)
+  if (op->getValue("load_time", (char*)&head.m_loadTime) == 0)
   {
     setError(con, __LINE__);
     return -1;
   }
-  if (op->getValue("SAMPLE_COUNT", (char*)&head.m_sampleCount) == 0)
+  if (op->getValue("sample_count", (char*)&head.m_sampleCount) == 0)
   {
     setError(con, __LINE__);
     return -1;
   }
-  if (op->getValue("KEY_BYTES", (char*)&head.m_keyBytes) == 0)
+  if (op->getValue("key_bytes", (char*)&head.m_keyBytes) == 0)
   {
     setError(con, __LINE__);
     return -1;
@@ -931,22 +947,22 @@ NdbIndexStatImpl::sys_sample_setkey(Con& con)
 {
   Head& head = con.m_head;
   NdbIndexScanOperation* op = con.m_scanop;
-  if (op->equal("INDEX_ID", (char*)&head.m_indexId) == -1)
+  if (op->equal("index_id", (char*)&head.m_indexId) == -1)
   {
     setError(con, __LINE__);
     return -1;
   }
-  if (op->equal("INDEX_VERSION", (char*)&head.m_indexVersion) == -1)
+  if (op->equal("index_version", (char*)&head.m_indexVersion) == -1)
   {
     setError(con, __LINE__);
     return -1;
   }
-  if (op->equal("SAMPLE_VERSION", (char*)&head.m_sampleVersion) == -1)
+  if (op->equal("sample_version", (char*)&head.m_sampleVersion) == -1)
   {
     setError(con, __LINE__);
     return -1;
   }
-  if (op->equal("STAT_KEY", (char*)m_keyData.get_full_buf()) == -1)
+  if (op->equal("stat_key", (char*)m_keyData.get_full_buf()) == -1)
   {
     setError(con, __LINE__);
     return -1;
@@ -958,12 +974,12 @@ int
 NdbIndexStatImpl::sys_sample_getvalue(Con& con)
 {
   NdbIndexScanOperation* op = con.m_scanop;
-  if (op->getValue("STAT_KEY", (char*)m_keyData.get_full_buf()) == 0)
+  if (op->getValue("stat_key", (char*)m_keyData.get_full_buf()) == 0)
   {
     setError(con, __LINE__);
     return -1;
   }
-  if (op->getValue("STAT_VALUE", (char*)m_valueData.get_full_buf()) == 0)
+  if (op->getValue("stat_value", (char*)m_valueData.get_full_buf()) == 0)
   {
     setError(con, __LINE__);
     return -1;
@@ -979,19 +995,19 @@ NdbIndexStatImpl::sys_sample_setbound(Con& con, int sv_bound)
   const NdbIndexScanOperation::BoundType eq_bound =
     NdbIndexScanOperation::BoundEQ;
 
-  if (op->setBound("INDEX_ID", eq_bound, &head.m_indexId) == -1)
+  if (op->setBound("index_id", eq_bound, &head.m_indexId) == -1)
   {
     setError(con, __LINE__);
     return -1;
   }
-  if (op->setBound("INDEX_VERSION", eq_bound, &head.m_indexVersion) == -1)
+  if (op->setBound("index_version", eq_bound, &head.m_indexVersion) == -1)
   {
     setError(con, __LINE__);
     return -1;
   }
   if (sv_bound != -1)
   {
-    if (op->setBound("SAMPLE_VERSION", sv_bound, &head.m_sampleVersion) == -1)
+    if (op->setBound("sample_version", sv_bound, &head.m_sampleVersion) == -1)
     {
       setError(con, __LINE__);
       return -1;

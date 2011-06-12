@@ -93,7 +93,7 @@ doconnect()
 
     g_dic = g_ndb->getDictionary();
 
-    g_ndb_sys = new Ndb(g_ncc, "mysql");
+    g_ndb_sys = new Ndb(g_ncc, NDB_INDEX_STAT_DB);
     CHK2(g_ndb_sys->init() == 0, g_ndb_sys->getNdbError());
     CHK2(g_ndb_sys->waitUntilReady(30) == 0, g_ndb_sys->getNdbError());
 
