@@ -3567,3 +3567,31 @@ WHERE f2 IN (SELECT a1.col_varchar_1024_utf8 AS f2
              ON a1.col_int_key = a2.col_int_key
              WHERE a1.col_int BETWEEN 1 AND 10 OR a2.col_int IS NOT NULL);
 DROP TABLE t1,t2,t3;
+
+--echo #
+--echo # BUG#12616344 - JCL: DIFFERENT RESULT SET AND DIFFERENT AMOUNT
+--echo # OF ROWS WHEN JCL>=3
+--echo #
+# duplicate of Bug#12546542 but still tested as query is different
+CREATE TABLE t1 (col_int_nokey int, col_int_key int, col_varchar_key varchar(1));
+INSERT INTO t1 VALUES (0,4,'c'),(1,6,'u');
+CREATE TABLE t2 (pk int, col_int_nokey int, col_varchar_nokey varchar(1));
+INSERT INTO t2 VALUES (1,4,'b'),(94,6,'u');
+CREATE TABLE t3 (pk int, col_int_nokey int, col_varchar_key varchar(1));
+INSERT INTO t3 VALUES (1,4,'j'),(2,6,'v');
+SELECT table2.col_int_key
+from t3 as table1 join t1 as table2 on table2.col_int_nokey 
+where table1.col_int_nokey in 
+( 
+ select subquery2_t2.col_int_nokey 
+ from t3 as subquery2_t1 
+      right join
+        t2 as subquery2_t2
+        join t1 as subquery2_t3
+        on subquery2_t3.col_int_key = subquery2_t2.col_int_nokey
+      on subquery2_t3.col_varchar_key = subquery2_t2.col_varchar_nokey 
+ where subquery2_t1.col_varchar_key != table1.col_varchar_key
+       or subquery2_t2.pk <= table1.pk
+);
+
+DROP TABLE t1,t2,t3;
