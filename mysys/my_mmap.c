@@ -27,17 +27,17 @@ int my_msync(int fd, void *addr, size_t len, int flags)
   return my_sync(fd, MYF(0));
 }
 
-#elif defined(__WIN__)
+#elif defined(_WIN32)
 
 static SECURITY_ATTRIBUTES mmap_security_attributes=
   {sizeof(SECURITY_ATTRIBUTES), 0, TRUE};
 
 void *my_mmap(void *addr, size_t len, int prot,
-               int flags, int fd, my_off_t offset)
+               int flags, File fd, my_off_t offset)
 {
   HANDLE hFileMap;
   LPVOID ptr;
-  HANDLE hFile= (HANDLE)_get_osfhandle(fd);
+  HANDLE hFile= (HANDLE)my_get_osfhandle(fd);
   if (hFile == INVALID_HANDLE_VALUE)
     return MAP_FAILED;
 

@@ -3025,16 +3025,16 @@ String *Item_load_file::val_str(String *str)
 			func_name(), current_thd->variables.max_allowed_packet);
     goto err;
   }
-  if (tmp_value.alloc(stat_info.st_size))
+  if (tmp_value.alloc((size_t)stat_info.st_size))
     goto err;
   if ((file = my_open(file_name->ptr(), O_RDONLY, MYF(0))) < 0)
     goto err;
-  if (my_read(file, (uchar*) tmp_value.ptr(), stat_info.st_size, MYF(MY_NABP)))
+  if (my_read(file, (uchar*) tmp_value.ptr(), (size_t)stat_info.st_size, MYF(MY_NABP)))
   {
     my_close(file, MYF(0));
     goto err;
   }
-  tmp_value.length(stat_info.st_size);
+  tmp_value.length((uint32)stat_info.st_size);
   my_close(file, MYF(0));
   null_value = 0;
   DBUG_RETURN(&tmp_value);

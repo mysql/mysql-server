@@ -52,20 +52,13 @@ int my_chsize(File fd, my_off_t newlength, int filler, myf MyFlags)
 
   if (oldsize > newlength)
   {
-#if defined(HAVE_SETFILEPOINTER)
-  /* This is for the moment only true on windows */
-    long is_success;
-    HANDLE win_file= (HANDLE) _get_osfhandle(fd);
-    long length_low, length_high;
-    length_low= (long) (ulong) newlength;
-    length_high= (long) ((ulonglong) newlength >> 32);
-    is_success= SetFilePointer(win_file, length_low, &length_high, FILE_BEGIN);
-    if (is_success == -1 && (my_errno= GetLastError()) != NO_ERROR)
+#ifdef _WIN32
+    if (my_win_chsize(fd, newlength))
+    {
+      my_errno= errno;
       goto err;
-    if (SetEndOfFile(win_file))
-      DBUG_RETURN(0);
-    my_errno= GetLastError();
-    goto err;
+    }
+    DBUG_RETURN(0);
 #elif defined(HAVE_FTRUNCATE)
     if (ftruncate(fd, (off_t) newlength))
     {

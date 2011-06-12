@@ -415,9 +415,8 @@ int maria_extra(MARIA_HA *info, enum ha_extra_function function,
     if (!share->temporary)
       error= _ma_flush_table_files(info, MARIA_FLUSH_DATA | MARIA_FLUSH_INDEX,
                                    FLUSH_KEEP, FLUSH_KEEP);
-#ifdef HAVE_PREAD
+
     _ma_decrement_open_count(info, 1);
-#endif
     if (share->not_flushed)
     {
       share->not_flushed= 0;
