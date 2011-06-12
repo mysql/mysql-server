@@ -149,7 +149,7 @@ struct os_aio_slot_struct{
 					which pending aio operation was
 					completed */
 #ifdef WIN_ASYNC_IO
-	os_event_t	event;		/*!< event object we need in the
+	HANDLE	handle;		/*!< handle object we need in the
 					OVERLAPPED struct */
 	OVERLAPPED	control;	/*!< Windows control block for the
 					aio request */
@@ -183,7 +183,7 @@ struct os_aio_array_struct{
 				aio array outside the ibuf segment */
 	os_aio_slot_t*	slots;	/*!< Pointer to the slots in the array */
 #ifdef __WIN__
-	os_native_event_t* native_events;
+	HANDLE* handles;
 				/*!< Pointer to an array of OS native
 				event handles where we copied the
 				handles from slots, in the same
@@ -270,10 +270,16 @@ os_get_os_version(void)
 	} else if (os_info.dwPlatformId == VER_PLATFORM_WIN32_WINDOWS) {
 		return(OS_WIN95);
 	} else if (os_info.dwPlatformId == VER_PLATFORM_WIN32_NT) {
-		if (os_info.dwMajorVersion <= 4) {
-			return(OS_WINNT);
-		} else {
-			return(OS_WIN2000);
+		switch(os_info.dwMajorVersion){
+			case 3:
+			case 4:
+				return OS_WINNT;
+			case 5:
+				return (os_info.dwMinorVersion == 0)?OS_WIN2000 : OS_WINXP;
+			case 6:
+				return (os_info.dwMinorVersion == 0)?OS_WINVISTA : OS_WIN7;
+			default:
+				return OS_WIN7;
 		}
 	} else {
 		ut_error;
@@ -2350,13 +2356,12 @@ _os_file_read(
 #ifdef __WIN__
 	BOOL		ret;
 	DWORD		len;
-	DWORD		ret2;
-	DWORD		low;
-	DWORD		high;
 	ibool		retry;
-#ifndef UNIV_HOTBACKUP
-	ulint		i;
-#endif /* !UNIV_HOTBACKUP */
+	OVERLAPPED overlapped;
+
+	memset(&overlapped, 0, sizeof(overlapped));
+	overlapped.Offset = (DWORD)offset;
+	overlapped.OffsetHigh = (DWORD)offset_high;
 
 	/* On 64-bit Windows, ulint is 64 bits. But offset and n should be
 	no more than 32 bits. */
@@ -2371,40 +2376,11 @@ try_again:
 	ut_ad(buf);
 	ut_ad(n > 0);
 
-	low = (DWORD) offset;
-	high = (DWORD) offset_high;
-
 	os_mutex_enter(os_file_count_mutex);
 	os_n_pending_reads++;
 	os_mutex_exit(os_file_count_mutex);
 
-#ifndef UNIV_HOTBACKUP
-	/* Protect the seek / read operation with a mutex */
-	i = ((ulint) file) % OS_FILE_N_SEEK_MUTEXES;
-
-	os_mutex_enter(os_file_seek_mutexes[i]);
-#endif /* !UNIV_HOTBACKUP */
-
-	ret2 = SetFilePointer(file, low, &high, FILE_BEGIN);
-
-	if (ret2 == 0xFFFFFFFF && GetLastError() != NO_ERROR) {
-
-#ifndef UNIV_HOTBACKUP
-		os_mutex_exit(os_file_seek_mutexes[i]);
-#endif /* !UNIV_HOTBACKUP */
-
-		os_mutex_enter(os_file_count_mutex);
-		os_n_pending_reads--;
-		os_mutex_exit(os_file_count_mutex);
-
-		goto error_handling;
-	}
-
-	ret = ReadFile(file, buf, (DWORD) n, &len, NULL);
-
-#ifndef UNIV_HOTBACKUP
-	os_mutex_exit(os_file_seek_mutexes[i]);
-#endif /* !UNIV_HOTBACKUP */
+	ret = ReadFile(file, buf, (DWORD) n, &len, &overlapped);
 
 	os_mutex_enter(os_file_count_mutex);
 	os_n_pending_reads--;
@@ -2433,9 +2409,7 @@ try_again:
 		(ulong)n, (ulong)offset_high,
 		(ulong)offset, (long)ret);
 #endif /* __WIN__ */
-#ifdef __WIN__
-error_handling:
-#endif
+
 	retry = os_file_handle_error(NULL, "read");
 
 	if (retry) {
@@ -2477,13 +2451,13 @@ os_file_read_no_error_handling(
 #ifdef __WIN__
 	BOOL		ret;
 	DWORD		len;
-	DWORD		ret2;
-	DWORD		low;
-	DWORD		high;
 	ibool		retry;
-#ifndef UNIV_HOTBACKUP
-	ulint		i;
-#endif /* !UNIV_HOTBACKUP */
+	OVERLAPPED overlapped;
+
+	memset(&overlapped, 0, sizeof(overlapped));
+	overlapped.Offset = (DWORD)offset;
+	overlapped.OffsetHigh = (DWORD)offset_high;
+
 
 	/* On 64-bit Windows, ulint is 64 bits. But offset and n should be
 	no more than 32 bits. */
@@ -2498,40 +2472,11 @@ try_again:
 	ut_ad(buf);
 	ut_ad(n > 0);
 
-	low = (DWORD) offset;
-	high = (DWORD) offset_high;
-
 	os_mutex_enter(os_file_count_mutex);
 	os_n_pending_reads++;
 	os_mutex_exit(os_file_count_mutex);
 
-#ifndef UNIV_HOTBACKUP
-	/* Protect the seek / read operation with a mutex */
-	i = ((ulint) file) % OS_FILE_N_SEEK_MUTEXES;
-
-	os_mutex_enter(os_file_seek_mutexes[i]);
-#endif /* !UNIV_HOTBACKUP */
-
-	ret2 = SetFilePointer(file, low, &high, FILE_BEGIN);
-
-	if (ret2 == 0xFFFFFFFF && GetLastError() != NO_ERROR) {
-
-#ifndef UNIV_HOTBACKUP
-		os_mutex_exit(os_file_seek_mutexes[i]);
-#endif /* !UNIV_HOTBACKUP */
-
-		os_mutex_enter(os_file_count_mutex);
-		os_n_pending_reads--;
-		os_mutex_exit(os_file_count_mutex);
-
-		goto error_handling;
-	}
-
-	ret = ReadFile(file, buf, (DWORD) n, &len, NULL);
-
-#ifndef UNIV_HOTBACKUP
-	os_mutex_exit(os_file_seek_mutexes[i]);
-#endif /* !UNIV_HOTBACKUP */
+	ret = ReadFile(file, buf, (DWORD) n, &len, &overlapped);
 
 	os_mutex_enter(os_file_count_mutex);
 	os_n_pending_reads--;
@@ -2554,9 +2499,6 @@ try_again:
 		return(TRUE);
 	}
 #endif /* __WIN__ */
-#ifdef __WIN__
-error_handling:
-#endif
 	retry = os_file_handle_error_no_exit(NULL, "read");
 
 	if (retry) {
@@ -2609,14 +2551,13 @@ os_file_write(
 #ifdef __WIN__
 	BOOL		ret;
 	DWORD		len;
-	DWORD		ret2;
-	DWORD		low;
-	DWORD		high;
 	ulint		n_retries	= 0;
 	ulint		err;
-#ifndef UNIV_HOTBACKUP
-	ulint		i;
-#endif /* !UNIV_HOTBACKUP */
+	OVERLAPPED overlapped;
+
+	memset(&overlapped, 0, sizeof(overlapped));
+	overlapped.Offset = (DWORD)offset;
+	overlapped.OffsetHigh = (DWORD)offset_high;
 
 	/* On 64-bit Windows, ulint is 64 bits. But offset and n should be
 	no more than 32 bits. */
@@ -2629,50 +2570,12 @@ os_file_write(
 	ut_ad(buf);
 	ut_ad(n > 0);
 retry:
-	low = (DWORD) offset;
-	high = (DWORD) offset_high;
 
 	os_mutex_enter(os_file_count_mutex);
 	os_n_pending_writes++;
 	os_mutex_exit(os_file_count_mutex);
 
-#ifndef UNIV_HOTBACKUP
-	/* Protect the seek / write operation with a mutex */
-	i = ((ulint) file) % OS_FILE_N_SEEK_MUTEXES;
-
-	os_mutex_enter(os_file_seek_mutexes[i]);
-#endif /* !UNIV_HOTBACKUP */
-
-	ret2 = SetFilePointer(file, low, &high, FILE_BEGIN);
-
-	if (ret2 == 0xFFFFFFFF && GetLastError() != NO_ERROR) {
-
-#ifndef UNIV_HOTBACKUP
-		os_mutex_exit(os_file_seek_mutexes[i]);
-#endif /* !UNIV_HOTBACKUP */
-
-		os_mutex_enter(os_file_count_mutex);
-		os_n_pending_writes--;
-		os_mutex_exit(os_file_count_mutex);
-
-		ut_print_timestamp(stderr);
-
-		fprintf(stderr,
-			"  InnoDB: Error: File pointer positioning to"
-			" file %s failed at\n"
-			"InnoDB: offset %lu %lu. Operating system"
-			" error number %lu.\n"
-			"InnoDB: Some operating system error numbers"
-			" are described at\n"
-			"InnoDB: "
-			REFMAN "operating-system-error-codes.html\n",
-			name, (ulong) offset_high, (ulong) offset,
-			(ulong) GetLastError());
-
-		return(FALSE);
-	}
-
-	ret = WriteFile(file, buf, (DWORD) n, &len, NULL);
+	ret = WriteFile(file, buf, (DWORD) n, &len, &overlapped);
 
 	/* Always do fsync to reduce the probability that when the OS crashes,
 	a database page is only partially physically written to disk. */
@@ -2682,10 +2585,6 @@ retry:
 		ut_a(TRUE == os_file_flush(file));
 	}
 # endif /* UNIV_DO_FLUSH */
-
-#ifndef UNIV_HOTBACKUP
-	os_mutex_exit(os_file_seek_mutexes[i]);
-#endif /* !UNIV_HOTBACKUP */
 
 	os_mutex_enter(os_file_count_mutex);
 	os_n_pending_writes--;
@@ -3090,7 +2989,7 @@ os_aio_array_create(
 	array->n_reserved	= 0;
 	array->slots		= ut_malloc(n * sizeof(os_aio_slot_t));
 #ifdef __WIN__
-	array->native_events	= ut_malloc(n * sizeof(os_native_event_t));
+	array->handles	= ut_malloc(n * sizeof(HANDLE));
 #endif
 	for (i = 0; i < n; i++) {
 		slot = os_aio_array_get_nth_slot(array, i);
@@ -3098,13 +2997,14 @@ os_aio_array_create(
 		slot->pos = i;
 		slot->reserved = FALSE;
 #ifdef WIN_ASYNC_IO
-		slot->event = os_event_create(NULL);
+		slot->handle= CreateEvent(NULL,TRUE, FALSE, NULL);
+
 
 		over = &(slot->control);
 
-		over->hEvent = slot->event->handle;
+		over->hEvent = slot->handle;
 
-		*((array->native_events) + i) = over->hEvent;
+		*((array->handles) + i) = over->hEvent;
 #endif
 	}
 
@@ -3124,12 +3024,12 @@ os_aio_array_free(
 
 	for (i = 0; i < array->n_slots; i++) {
 		os_aio_slot_t*	slot = os_aio_array_get_nth_slot(array, i);
-		os_event_free(slot->event);
+		CloseHandle(slot->handle);
 	}
 #endif /* WIN_ASYNC_IO */
 
 #ifdef __WIN__
-	ut_free(array->native_events);
+	ut_free(array->handles);
 #endif /* __WIN__ */
 	os_mutex_free(array->mutex);
 	os_event_free(array->not_full);
@@ -3255,7 +3155,8 @@ os_aio_array_wake_win_aio_at_shutdown(
 
 	for (i = 0; i < array->n_slots; i++) {
 
-		os_event_set((array->slots + i)->event);
+			SetEvent(array->slots[i].handle);
+
 	}
 }
 #endif
@@ -3480,7 +3381,7 @@ found:
 	control = &(slot->control);
 	control->Offset = (DWORD)offset;
 	control->OffsetHigh = (DWORD)offset_high;
-	os_event_reset(slot->event);
+	ResetEvent(slot->handle);
 #endif
 
 	os_mutex_exit(array->mutex);
@@ -3518,7 +3419,7 @@ os_aio_array_free_slot(
 	}
 
 #ifdef WIN_ASYNC_IO
-	os_event_reset(slot->event);
+	ResetEvent(slot->handle);
 #endif
 	os_mutex_exit(array->mutex);
 }
@@ -3906,14 +3807,17 @@ os_aio_windows_handle(
 	n = array->n_slots;
 
 	if (array == os_aio_sync_array) {
-		os_event_wait(os_aio_array_get_nth_slot(array, pos)->event);
+		WaitForSingleObject(os_aio_array_get_nth_slot(array, pos)->handle,INFINITE);
 		i = pos;
 	} else {
 		srv_set_io_thread_op_info(orig_seg, "wait Windows aio");
-		i = os_event_wait_multiple(n,
-					   (array->native_events)
-					   );
+		i = WaitForMultipleObjects((DWORD) n, array->handles  + segment * n,  FALSE, INFINITE); 
 	}
+
+	if (srv_shutdown_state == SRV_SHUTDOWN_EXIT_THREADS) {
+		os_thread_exit(NULL);
+	}
+
 
 	os_mutex_enter(array->mutex);
 
