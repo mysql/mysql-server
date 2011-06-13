@@ -274,7 +274,7 @@ static Sys_var_ulong Sys_pfs_events_statements_history_size(
 
 static Sys_var_ulong Sys_pfs_digest_size(
        "performance_schema_digests_size",
-       "TBD.",
+       "Size of the statement digest.",
        READ_ONLY GLOBAL_VAR(pfs_param.m_digest_sizing),
        CMD_LINE(REQUIRED_ARG), VALID_RANGE(0, 200),
        DEFAULT(PFS_DIGEST_SIZE),

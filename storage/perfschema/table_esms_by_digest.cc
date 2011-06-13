@@ -267,8 +267,11 @@ int table_esms_by_digest
   if (unlikely(! m_row_exists))
     return HA_ERR_RECORD_DELETED;
 
-  /* Set the null bits */
-  DBUG_ASSERT(table->s->null_bytes == 0);
+  /* 
+     Set the null bits. It indicates how many fields could be null
+     in the table.
+  */
+  DBUG_ASSERT(table->s->null_bytes == 1);
 
   for (; (f= *fields) ; fields++)
   {

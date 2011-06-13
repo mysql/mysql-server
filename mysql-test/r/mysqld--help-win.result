@@ -426,6 +426,8 @@ The following options may be given as the first argument:
  mrr_cost_based} and val is one of {on, off, default}
  --performance-schema 
  Enable the performance schema.
+ --performance-schema-digests-size=#
+ Size of the statement digest.
  --performance-schema-events-stages-history-long-size=# 
  Number of rows in EVENTS_STAGES_HISTORY_LONG.
  --performance-schema-events-stages-history-size=# 
