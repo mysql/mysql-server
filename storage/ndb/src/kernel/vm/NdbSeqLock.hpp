@@ -86,7 +86,7 @@ struct NdbSeqLock
   void write_lock() {}
   void write_unlock() {}
 
-  Uint32 read_lock() {}
+  Uint32 read_lock() { return 0; }
   bool read_unlock(Uint32 val) const { return true;}
 };
 
