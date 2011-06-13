@@ -7734,34 +7734,6 @@ make_join_select(JOIN *join,SQL_SELECT *select,COND *cond)
           DBUG_RETURN(1);	 // Impossible const condition
         }
 
-        uint linear_no= join->const_tables;
-        for (JOIN_TAB *tab= first_linear_tab(join, WITHOUT_CONST_TABLES); 
-             tab; 
-             tab= next_linear_tab(join, tab, WITHOUT_BUSH_ROOTS), linear_no++)
-        {
-          if (*tab->on_expr_ref)
-          {
-            JOIN_TAB *cond_tab= tab->first_inner;
-            COND *tmp= make_cond_for_table(thd, *tab->on_expr_ref,
-                                           join->const_table_map,
-					   (table_map) 0, MAX_TABLES,
-					   FALSE, FALSE);
-            if (!tmp)
-              continue;
-            tmp= new Item_func_trig_cond(tmp, &cond_tab->not_null_compl);
-            if (!tmp)
-              DBUG_RETURN(1);
-            tmp->quick_fix_field();
-            COND *new_cond= !cond_tab->select_cond ? tmp :
-              new Item_cond_and(cond_tab->select_cond, tmp);
-            cond_tab->set_select_cond(new_cond, __LINE__);
-            if (!cond_tab->select_cond)
-	      DBUG_RETURN(1);
-            cond_tab->select_cond->update_used_tables();
-            cond_tab->select_cond->quick_fix_field();
-          }       
-        }
-
         COND *outer_ref_cond= make_cond_for_table(thd, cond, 
                                                   OUTER_REF_TABLE_BIT,
                                                   OUTER_REF_TABLE_BIT,
