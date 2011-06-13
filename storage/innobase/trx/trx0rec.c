@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1996, 2010, Innobase Oy. All Rights Reserved.
+Copyright (c) 1996, 2011, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -1545,6 +1545,10 @@ trx_undo_prev_version_build(
 					     NULL, heap, &update);
 	ut_a(table_id == index->table->id);
 	ut_a(ptr);
+
+# if defined UNIV_DEBUG || defined UNIV_BLOB_LIGHT_DEBUG
+	ut_a(!rec_offs_any_null_extern(rec, offsets));
+# endif /* UNIV_DEBUG || UNIV_BLOB_LIGHT_DEBUG */
 
 	if (row_upd_changes_field_size_or_external(index, offsets, update)) {
 		ulint	n_ext;
