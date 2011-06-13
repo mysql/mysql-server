@@ -42,7 +42,6 @@
 #include <signaldata/SchemaTrans.hpp>
 #include <signaldata/CreateNodegroup.hpp>
 #include <signaldata/DropNodegroup.hpp>
-#include <signaldata/DbinfoScan.hpp>
 #include <signaldata/Sync.hpp>
 #include <NdbSleep.h>
 #include <portlib/NdbDir.hpp>
