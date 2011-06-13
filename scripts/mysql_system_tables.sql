@@ -175,7 +175,7 @@ set @have_pfs= (select count(engine) from information_schema.engines where engin
 
 SET @cmd="CREATE TABLE performance_schema.cond_instances("
   "NAME VARCHAR(128) not null,"
-  "OBJECT_INSTANCE_BEGIN BIGINT not null"
+  "OBJECT_INSTANCE_BEGIN BIGINT unsigned not null"
   ")ENGINE=PERFORMANCE_SCHEMA;";
 
 SET @str = IF(@have_pfs = 1, @cmd, 'SET @dummy = 0');
@@ -200,11 +200,11 @@ SET @cmd="CREATE TABLE performance_schema.events_waits_current("
   "OBJECT_NAME VARCHAR(512),"
   "INDEX_NAME VARCHAR(64),"
   "OBJECT_TYPE VARCHAR(64),"
-  "OBJECT_INSTANCE_BEGIN BIGINT not null,"
+  "OBJECT_INSTANCE_BEGIN BIGINT unsigned not null,"
   "NESTING_EVENT_ID BIGINT unsigned,"
   "NESTING_EVENT_TYPE ENUM('STATEMENT', 'STAGE', 'WAIT'),"
   "OPERATION VARCHAR(32) not null,"
-  "NUMBER_OF_BYTES BIGINT unsigned,"
+  "NUMBER_OF_BYTES BIGINT,"
   "FLAGS INTEGER unsigned"
   ")ENGINE=PERFORMANCE_SCHEMA;";
 
@@ -230,11 +230,11 @@ SET @cmd="CREATE TABLE performance_schema.events_waits_history("
   "OBJECT_NAME VARCHAR(512),"
   "INDEX_NAME VARCHAR(64),"
   "OBJECT_TYPE VARCHAR(64),"
-  "OBJECT_INSTANCE_BEGIN BIGINT not null,"
+  "OBJECT_INSTANCE_BEGIN BIGINT unsigned not null,"
   "NESTING_EVENT_ID BIGINT unsigned,"
   "NESTING_EVENT_TYPE ENUM('STATEMENT', 'STAGE', 'WAIT'),"
   "OPERATION VARCHAR(32) not null,"
-  "NUMBER_OF_BYTES BIGINT unsigned,"
+  "NUMBER_OF_BYTES BIGINT,"
   "FLAGS INTEGER unsigned"
   ")ENGINE=PERFORMANCE_SCHEMA;";
 
@@ -260,11 +260,11 @@ SET @cmd="CREATE TABLE performance_schema.events_waits_history_long("
   "OBJECT_NAME VARCHAR(512),"
   "INDEX_NAME VARCHAR(64),"
   "OBJECT_TYPE VARCHAR(64),"
-  "OBJECT_INSTANCE_BEGIN BIGINT not null,"
+  "OBJECT_INSTANCE_BEGIN BIGINT unsigned not null,"
   "NESTING_EVENT_ID BIGINT unsigned,"
   "NESTING_EVENT_TYPE ENUM('STATEMENT', 'STAGE', 'WAIT'),"
   "OPERATION VARCHAR(32) not null,"
-  "NUMBER_OF_BYTES BIGINT unsigned,"
+  "NUMBER_OF_BYTES BIGINT,"
   "FLAGS INTEGER unsigned"
   ")ENGINE=PERFORMANCE_SCHEMA;";
 
@@ -279,7 +279,7 @@ DROP PREPARE stmt;
 
 SET @cmd="CREATE TABLE performance_schema.events_waits_summary_by_instance("
   "EVENT_NAME VARCHAR(128) not null,"
-  "OBJECT_INSTANCE_BEGIN BIGINT not null,"
+  "OBJECT_INSTANCE_BEGIN BIGINT unsigned not null,"
   "COUNT_STAR BIGINT unsigned not null,"
   "SUM_TIMER_WAIT BIGINT unsigned not null,"
   "MIN_TIMER_WAIT BIGINT unsigned not null,"
@@ -352,8 +352,8 @@ SET @cmd="CREATE TABLE performance_schema.file_summary_by_event_name("
   "EVENT_NAME VARCHAR(128) not null,"
   "COUNT_READ BIGINT unsigned not null,"
   "COUNT_WRITE BIGINT unsigned not null,"
-  "SUM_NUMBER_OF_BYTES_READ BIGINT unsigned not null,"
-  "SUM_NUMBER_OF_BYTES_WRITE BIGINT unsigned not null"
+  "SUM_NUMBER_OF_BYTES_READ BIGINT not null,"
+  "SUM_NUMBER_OF_BYTES_WRITE BIGINT not null"
   ")ENGINE=PERFORMANCE_SCHEMA;";
 
 SET @str = IF(@have_pfs = 1, @cmd, 'SET @dummy = 0');
@@ -370,8 +370,8 @@ SET @cmd="CREATE TABLE performance_schema.file_summary_by_instance("
   "EVENT_NAME VARCHAR(128) not null,"
   "COUNT_READ BIGINT unsigned not null,"
   "COUNT_WRITE BIGINT unsigned not null,"
-  "SUM_NUMBER_OF_BYTES_READ BIGINT unsigned not null,"
-  "SUM_NUMBER_OF_BYTES_WRITE BIGINT unsigned not null"
+  "SUM_NUMBER_OF_BYTES_READ BIGINT not null,"
+  "SUM_NUMBER_OF_BYTES_WRITE BIGINT not null"
   ")ENGINE=PERFORMANCE_SCHEMA;";
 
 SET @str = IF(@have_pfs = 1, @cmd, 'SET @dummy = 0');
@@ -385,7 +385,7 @@ DROP PREPARE stmt;
 
 SET @cmd="CREATE TABLE performance_schema.mutex_instances("
   "NAME VARCHAR(128) not null,"
-  "OBJECT_INSTANCE_BEGIN BIGINT not null,"
+  "OBJECT_INSTANCE_BEGIN BIGINT unsigned not null,"
   "LOCKED_BY_THREAD_ID INTEGER"
   ")ENGINE=PERFORMANCE_SCHEMA;";
 
@@ -436,7 +436,7 @@ DROP PREPARE stmt;
 
 SET @cmd="CREATE TABLE performance_schema.rwlock_instances("
   "NAME VARCHAR(128) not null,"
-  "OBJECT_INSTANCE_BEGIN BIGINT not null,"
+  "OBJECT_INSTANCE_BEGIN BIGINT unsigned not null,"
   "WRITE_LOCKED_BY_THREAD_ID INTEGER,"
   "READ_LOCKED_BY_COUNT INTEGER unsigned not null"
   ")ENGINE=PERFORMANCE_SCHEMA;";
@@ -850,7 +850,7 @@ SET @cmd="CREATE TABLE performance_schema.events_statements_current("
   "OBJECT_TYPE VARCHAR(64),"
   "OBJECT_SCHEMA VARCHAR(64),"
   "OBJECT_NAME VARCHAR(64),"
-  "OBJECT_INSTANCE_BEGIN BIGINT,"
+  "OBJECT_INSTANCE_BEGIN BIGINT unsigned,"
   "MYSQL_ERRNO INTEGER,"
   "RETURNED_SQLSTATE VARCHAR(5),"
   "MESSAGE_TEXT VARCHAR(128),"
@@ -899,7 +899,7 @@ SET @cmd="CREATE TABLE performance_schema.events_statements_history("
   "OBJECT_TYPE VARCHAR(64),"
   "OBJECT_SCHEMA VARCHAR(64),"
   "OBJECT_NAME VARCHAR(64),"
-  "OBJECT_INSTANCE_BEGIN BIGINT,"
+  "OBJECT_INSTANCE_BEGIN BIGINT unsigned,"
   "MYSQL_ERRNO INTEGER,"
   "RETURNED_SQLSTATE VARCHAR(5),"
   "MESSAGE_TEXT VARCHAR(128),"
@@ -948,7 +948,7 @@ SET @cmd="CREATE TABLE performance_schema.events_statements_history_long("
   "OBJECT_TYPE VARCHAR(64),"
   "OBJECT_SCHEMA VARCHAR(64),"
   "OBJECT_NAME VARCHAR(64),"
-  "OBJECT_INSTANCE_BEGIN BIGINT,"
+  "OBJECT_INSTANCE_BEGIN BIGINT unsigned,"
   "MYSQL_ERRNO INTEGER,"
   "RETURNED_SQLSTATE VARCHAR(5),"
   "MESSAGE_TEXT VARCHAR(128),"
