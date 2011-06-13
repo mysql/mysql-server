@@ -1,0 +1,6 @@
+--echo #
+--echo # Bug#12561297 : LIBMYSQLD/EXAMPLE/MYSQL_EMBEDDED IS ABORTING.
+--echo #
+
+--source include/is_embedded.inc
+--exec $MYSQL_TEST_DIR/../libmysqld/examples/mysql_embedded -e 'select 1'
