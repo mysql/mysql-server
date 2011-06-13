@@ -959,6 +959,7 @@ page_get_free_space_of_empty(
 		       - 2 * PAGE_DIR_SLOT_SIZE));
 }
 
+#ifndef UNIV_HOTBACKUP
 /***********************************************************************//**
 Write a 32-bit field in a data dictionary record. */
 UNIV_INLINE
@@ -979,6 +980,7 @@ page_rec_write_field(
 
 	mlog_write_ulint(data, val, MLOG_4BYTES, mtr);
 }
+#endif /* !UNIV_HOTBACKUP */
 
 /************************************************************//**
 Each user record on a page, and also the deleted user records in the heap

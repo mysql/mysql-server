@@ -6505,3 +6505,10 @@ ER_WARNING_NOT_COMPLETE_ROLLBACK_WITH_DROPPED_TEMP_TABLE
 
 ER_INDEX_COLUMN_TOO_LONG
   eng "Index column size too large. The maximum column size is %lu bytes."
+
+ER_ERROR_IN_TRIGGER_BODY
+  eng "Trigger '%-.64s' has an error in its body: '%-.256s'"
+
+ER_ERROR_IN_UNKNOWN_TRIGGER_BODY
+  eng "Unknown trigger has an error in its body: '%-.256s'"
+

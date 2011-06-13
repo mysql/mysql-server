@@ -23,114 +23,6 @@
 
 class THD;
 
-/**
-  Stores status of the currently executed statement.
-  Cleared at the beginning of the statement, and then
-  can hold either OK, ERROR, or EOF status.
-  Can not be assigned twice per statement.
-*/
-
-class Diagnostics_area
-{
-public:
-  enum enum_diagnostics_status
-  {
-    /** The area is cleared at start of a statement. */
-    DA_EMPTY= 0,
-    /** Set whenever one calls my_ok(). */
-    DA_OK,
-    /** Set whenever one calls my_eof(). */
-    DA_EOF,
-    /** Set whenever one calls my_error() or my_message(). */
-    DA_ERROR,
-    /** Set in case of a custom response, such as one from COM_STMT_PREPARE. */
-    DA_DISABLED
-  };
-  /** True if status information is sent to the client. */
-  bool is_sent;
-  /** Set to make set_error_status after set_{ok,eof}_status possible. */
-  bool can_overwrite_status;
-
-  void set_ok_status(THD *thd, ulonglong affected_rows_arg,
-                     ulonglong last_insert_id_arg,
-                     const char *message);
-  void set_eof_status(THD *thd);
-  void set_error_status(THD *thd, uint sql_errno_arg, const char *message_arg,
-                        const char *sqlstate);
-
-  void disable_status();
-
-  void reset_diagnostics_area();
-
-  bool is_set() const { return m_status != DA_EMPTY; }
-  bool is_error() const { return m_status == DA_ERROR; }
-  bool is_eof() const { return m_status == DA_EOF; }
-  bool is_ok() const { return m_status == DA_OK; }
-  bool is_disabled() const { return m_status == DA_DISABLED; }
-  enum_diagnostics_status status() const { return m_status; }
-
-  const char *message() const
-  { DBUG_ASSERT(m_status == DA_ERROR || m_status == DA_OK); return m_message; }
-
-  uint sql_errno() const
-  { DBUG_ASSERT(m_status == DA_ERROR); return m_sql_errno; }
-
-  const char* get_sqlstate() const
-  { DBUG_ASSERT(m_status == DA_ERROR); return m_sqlstate; }
-
-  ulonglong affected_rows() const
-  { DBUG_ASSERT(m_status == DA_OK); return m_affected_rows; }
-
-  ulonglong last_insert_id() const
-  { DBUG_ASSERT(m_status == DA_OK); return m_last_insert_id; }
-
-  uint statement_warn_count() const
-  {
-    DBUG_ASSERT(m_status == DA_OK || m_status == DA_EOF);
-    return m_statement_warn_count;
-  }
-
-  Diagnostics_area() { reset_diagnostics_area(); }
-
-private:
-  /** Message buffer. Can be used by OK or ERROR status. */
-  char m_message[MYSQL_ERRMSG_SIZE];
-  /**
-    SQL error number. One of ER_ codes from share/errmsg.txt.
-    Set by set_error_status.
-  */
-  uint m_sql_errno;
-
-  char m_sqlstate[SQLSTATE_LENGTH+1];
-
-  /**
-    The number of rows affected by the last statement. This is
-    semantically close to thd->row_count_func, but has a different
-    life cycle. thd->row_count_func stores the value returned by
-    function ROW_COUNT() and is cleared only by statements that
-    update its value, such as INSERT, UPDATE, DELETE and few others.
-    This member is cleared at the beginning of the next statement.
-
-    We could possibly merge the two, but life cycle of thd->row_count_func
-    can not be changed.
-  */
-  ulonglong    m_affected_rows;
-  /**
-    Similarly to the previous member, this is a replacement of
-    thd->first_successful_insert_id_in_prev_stmt, which is used
-    to implement LAST_INSERT_ID().
-  */
-  ulonglong   m_last_insert_id;
-  /**
-    Number of warnings of this last statement. May differ from
-    the number of warnings returned by SHOW WARNINGS e.g. in case
-    the statement doesn't clear the warnings, and doesn't generate
-    them.
-  */
-  uint	     m_statement_warn_count;
-  enum_diagnostics_status m_status;
-};
-
 ///////////////////////////////////////////////////////////////////////////
 
 /**
@@ -523,6 +415,133 @@ public:
   ~ErrConvString() { };
   char *ptr() { return err_buffer; }
 };
+
+///////////////////////////////////////////////////////////////////////////
+
+/**
+  Stores status of the currently executed statement.
+  Cleared at the beginning of the statement, and then
+  can hold either OK, ERROR, or EOF status.
+  Can not be assigned twice per statement.
+*/
+
+class Diagnostics_area
+{
+public:
+  enum enum_diagnostics_status
+  {
+    /** The area is cleared at start of a statement. */
+    DA_EMPTY= 0,
+    /** Set whenever one calls my_ok(). */
+    DA_OK,
+    /** Set whenever one calls my_eof(). */
+    DA_EOF,
+    /** Set whenever one calls my_error() or my_message(). */
+    DA_ERROR,
+    /** Set in case of a custom response, such as one from COM_STMT_PREPARE. */
+    DA_DISABLED
+  };
+  /** True if status information is sent to the client. */
+  bool is_sent;
+  /** Set to make set_error_status after set_{ok,eof}_status possible. */
+  bool can_overwrite_status;
+
+  void set_ok_status(THD *thd, ulonglong affected_rows_arg,
+                     ulonglong last_insert_id_arg,
+                     const char *message);
+  void set_eof_status(THD *thd);
+  void set_error_status(THD *thd, uint sql_errno_arg, const char *message_arg,
+                        const char *sqlstate);
+
+  void disable_status();
+
+  void reset_diagnostics_area();
+
+  bool is_set() const { return m_status != DA_EMPTY; }
+  bool is_error() const { return m_status == DA_ERROR; }
+  bool is_eof() const { return m_status == DA_EOF; }
+  bool is_ok() const { return m_status == DA_OK; }
+  bool is_disabled() const { return m_status == DA_DISABLED; }
+  enum_diagnostics_status status() const { return m_status; }
+
+  const char *message() const
+  { DBUG_ASSERT(m_status == DA_ERROR || m_status == DA_OK); return m_message; }
+
+  uint sql_errno() const
+  { DBUG_ASSERT(m_status == DA_ERROR); return m_sql_errno; }
+
+  const char* get_sqlstate() const
+  { DBUG_ASSERT(m_status == DA_ERROR); return m_sqlstate; }
+
+  ulonglong affected_rows() const
+  { DBUG_ASSERT(m_status == DA_OK); return m_affected_rows; }
+
+  ulonglong last_insert_id() const
+  { DBUG_ASSERT(m_status == DA_OK); return m_last_insert_id; }
+
+  uint statement_warn_count() const
+  {
+    DBUG_ASSERT(m_status == DA_OK || m_status == DA_EOF);
+    return m_statement_warn_count;
+  }
+
+public:
+  Diagnostics_area();
+  Diagnostics_area(ulonglong warn_id, bool allow_unlimited_warnings);
+
+public:
+  inline Warning_info *get_warning_info()
+  { return m_current_wi; }
+
+  inline const Warning_info *get_warning_info() const
+  { return m_current_wi; }
+
+  inline void set_warning_info(Warning_info *wi)
+  { m_current_wi= wi; }
+
+private:
+  /** Message buffer. Can be used by OK or ERROR status. */
+  char m_message[MYSQL_ERRMSG_SIZE];
+  /**
+    SQL error number. One of ER_ codes from share/errmsg.txt.
+    Set by set_error_status.
+  */
+  uint m_sql_errno;
+
+  char m_sqlstate[SQLSTATE_LENGTH+1];
+
+  /**
+    The number of rows affected by the last statement. This is
+    semantically close to thd->row_count_func, but has a different
+    life cycle. thd->row_count_func stores the value returned by
+    function ROW_COUNT() and is cleared only by statements that
+    update its value, such as INSERT, UPDATE, DELETE and few others.
+    This member is cleared at the beginning of the next statement.
+
+    We could possibly merge the two, but life cycle of thd->row_count_func
+    can not be changed.
+  */
+  ulonglong    m_affected_rows;
+  /**
+    Similarly to the previous member, this is a replacement of
+    thd->first_successful_insert_id_in_prev_stmt, which is used
+    to implement LAST_INSERT_ID().
+  */
+  ulonglong   m_last_insert_id;
+  /**
+    Number of warnings of this last statement. May differ from
+    the number of warnings returned by SHOW WARNINGS e.g. in case
+    the statement doesn't clear the warnings, and doesn't generate
+    them.
+  */
+  uint	     m_statement_warn_count;
+  enum_diagnostics_status m_status;
+
+  Warning_info m_main_wi;
+  Warning_info *m_current_wi;
+};
+
+///////////////////////////////////////////////////////////////////////////
 
 
 void push_warning(THD *thd, MYSQL_ERROR::enum_warning_level level,

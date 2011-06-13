@@ -596,7 +596,7 @@ int thd_tx_isolation(const THD *thd)
 extern "C"
 void thd_inc_row_count(THD *thd)
 {
-  thd->warning_info->inc_current_row_for_warning();
+  thd->get_stmt_wi()->inc_current_row_for_warning();
 }
 
 
@@ -738,8 +738,6 @@ THD::THD(bool enable_plugins)
    first_successful_insert_id_in_cur_stmt(0),
    stmt_depends_on_first_successful_insert_id_in_prev_stmt(FALSE),
    m_examined_row_count(0),
-   warning_info(&main_warning_info),
-   stmt_da(&main_da),
    m_statement_psi(NULL),
    is_fatal_error(0),
    transaction_rollback_request(0),
@@ -755,7 +753,8 @@ THD::THD(bool enable_plugins)
    debug_sync_control(0),
 #endif /* defined(ENABLED_DEBUG_SYNC) */
    m_enable_plugins(enable_plugins),
-   main_warning_info(0, false)
+   main_da(0, false),
+   m_stmt_da(&main_da)
 {
   ulong tmp;
 
@@ -1010,6 +1009,8 @@ MYSQL_ERROR* THD::raise_condition(uint sql_errno,
                                   MYSQL_ERROR::enum_warning_level level,
                                   const char* msg)
 {
+  Diagnostics_area *da= get_stmt_da();
+  Warning_info *wi= da->get_warning_info();
   MYSQL_ERROR *cond= NULL;
   DBUG_ENTER("THD::raise_condition");
 
@@ -1017,7 +1018,7 @@ MYSQL_ERROR* THD::raise_condition(uint sql_errno,
       (level == MYSQL_ERROR::WARN_LEVEL_NOTE))
     DBUG_RETURN(NULL);
 
-  warning_info->opt_clear_warning_info(query_id);
+  wi->opt_clear_warning_info(query_id);
 
   /*
     TODO: replace by DBUG_ASSERT(sql_errno != 0) once all bugs similar to
@@ -1077,10 +1078,10 @@ MYSQL_ERROR* THD::raise_condition(uint sql_errno,
     }
     else
     {
-      if (! stmt_da->is_error())
+      if (!da->is_error())
       {
         set_row_count_func(-1);
-        stmt_da->set_error_status(this, sql_errno, msg, sqlstate);
+        da->set_error_status(this, sql_errno, msg, sqlstate);
       }
     }
   }
@@ -1090,7 +1091,7 @@ MYSQL_ERROR* THD::raise_condition(uint sql_errno,
   /* When simulating OOM, skip writing to error log to avoid mtr errors */
   DBUG_EXECUTE_IF("simulate_out_of_memory", DBUG_RETURN(NULL););
 
-  cond= warning_info->push_warning(this, sql_errno, sqlstate, level, msg);
+  cond= wi->push_warning(this, sql_errno, sqlstate, level, msg);
   DBUG_RETURN(cond);
 }
 

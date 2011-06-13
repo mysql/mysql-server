@@ -130,7 +130,7 @@ emb_advanced_command(MYSQL *mysql, enum enum_server_command command,
 
   /* Clear result variables */
   thd->clear_error();
-  thd->stmt_da->reset_diagnostics_area();
+  thd->get_stmt_da()->reset_diagnostics_area();
   mysql->affected_rows= ~(my_ulonglong) 0;
   mysql->field_count= 0;
   net_clear_error(net);
@@ -241,7 +241,7 @@ static my_bool emb_read_prepare_result(MYSQL *mysql, MYSQL_STMT *stmt)
   stmt->stmt_id= thd->client_stmt_id;
   stmt->param_count= thd->client_param_count;
   stmt->field_count= 0;
-  mysql->warning_count= thd->warning_info->statement_warn_count();
+  mysql->warning_count= thd->get_stmt_wi()->statement_warn_count();
 
   if (thd->first_data)
   {
@@ -426,7 +426,7 @@ static void emb_free_embedded_thd(MYSQL *mysql)
 static const char * emb_read_statistics(MYSQL *mysql)
 {
   THD *thd= (THD*)mysql->thd;
-  return thd->is_error() ? thd->stmt_da->message() : "";
+  return thd->is_error() ? thd->get_stmt_da()->message() : "";
 }
 
 
@@ -1047,7 +1047,7 @@ bool Protocol::send_result_set_metadata(List<Item> *list, uint flags)
 
   if (flags & SEND_EOF)
     write_eof_packet(thd, thd->server_status,
-                     thd->warning_info->statement_warn_count());
+                     thd->get_stmt_wi()->statement_warn_count());
 
   DBUG_RETURN(prepare_for_send(list->elements));
  err:

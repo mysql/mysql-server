@@ -184,9 +184,9 @@ exit:
     if (orig_table_list->view)
     {
       if (thd->is_error() &&
-          (thd->stmt_da->sql_errno() == ER_BAD_FIELD_ERROR ||
-          thd->stmt_da->sql_errno() == ER_FUNC_INEXISTENT_NAME_COLLISION ||
-          thd->stmt_da->sql_errno() == ER_SP_DOES_NOT_EXIST))
+          (thd->get_stmt_da()->sql_errno() == ER_BAD_FIELD_ERROR ||
+          thd->get_stmt_da()->sql_errno() == ER_FUNC_INEXISTENT_NAME_COLLISION ||
+          thd->get_stmt_da()->sql_errno() == ER_SP_DOES_NOT_EXIST))
       {
         thd->clear_error();
         my_error(ER_VIEW_INVALID, MYF(0), orig_table_list->db,

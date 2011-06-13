@@ -2939,7 +2939,7 @@ static int exec_relay_log_event(THD* thd, Relay_log_info* rli)
         else
         {
           thd->is_fatal_error= 1;
-          rli->report(ERROR_LEVEL, thd->stmt_da->sql_errno(),
+          rli->report(ERROR_LEVEL, thd->get_stmt_da()->sql_errno(),
                       "Slave SQL thread retried transaction %lu time(s) "
                       "in vain, giving up. Consider raising the value of "
                       "the slave_transaction_retries variable.", rli->trans_retries);
@@ -3651,9 +3651,9 @@ log '%s' at position %s, relay log '%s' position: %s", rli->get_rpl_log_name(),
 
   if (check_temp_dir(rli->slave_patternload_file))
   {
-    rli->report(ERROR_LEVEL, thd->stmt_da->sql_errno(), 
+    rli->report(ERROR_LEVEL, thd->get_stmt_da()->sql_errno(), 
                 "Unable to use slave's temporary directory %s - %s", 
-                slave_load_tmpdir, thd->stmt_da->message());
+                slave_load_tmpdir, thd->get_stmt_da()->message());
     goto err;
   }
 
@@ -3663,7 +3663,7 @@ log '%s' at position %s, relay log '%s' position: %s", rli->get_rpl_log_name(),
     execute_init_command(thd, &opt_init_slave, &LOCK_sys_init_slave);
     if (thd->is_slave_error)
     {
-      rli->report(ERROR_LEVEL, thd->stmt_da->sql_errno(),
+      rli->report(ERROR_LEVEL, thd->get_stmt_da()->sql_errno(),
                   "Slave SQL thread aborted. Can't execute init_slave query");
       goto err;
     }
@@ -3730,20 +3730,22 @@ log '%s' at position %s, relay log '%s' position: %s", rli->get_rpl_log_name(),
 
         if (thd->is_error())
         {
-          char const *const errmsg= thd->stmt_da->message();
+          char const *const errmsg= thd->get_stmt_da()->message();
 
           DBUG_PRINT("info",
-                     ("thd->stmt_da->sql_errno()=%d; rli->last_error.number=%d",
-                      thd->stmt_da->sql_errno(), last_errno));
+                     ("thd->get_stmt_da()->sql_errno()=%d; "
+                      "rli->last_error.number=%d",
+                      thd->get_stmt_da()->sql_errno(), last_errno));
           if (last_errno == 0)
           {
             /*
  	      This function is reporting an error which was not reported
  	      while executing exec_relay_log_event().
  	    */ 
-            rli->report(ERROR_LEVEL, thd->stmt_da->sql_errno(), "%s", errmsg);
+            rli->report(ERROR_LEVEL, thd->get_stmt_da()->sql_errno(),
+                        "%s", errmsg);
           }
-          else if (last_errno != thd->stmt_da->sql_errno())
+          else if (last_errno != thd->get_stmt_da()->sql_errno())
           {
             /*
              * An error was reported while executing exec_relay_log_event()
@@ -3752,12 +3754,12 @@ log '%s' at position %s, relay log '%s' position: %s", rli->get_rpl_log_name(),
              * what caused the problem.
              */  
             sql_print_error("Slave (additional info): %s Error_code: %d",
-                            errmsg, thd->stmt_da->sql_errno());
+                            errmsg, thd->get_stmt_da()->sql_errno());
           }
         }
 
         /* Print any warnings issued */
-        List_iterator_fast<MYSQL_ERROR> it(thd->warning_info->warn_list());
+        List_iterator_fast<MYSQL_ERROR> it(thd->get_stmt_wi()->warn_list());
         MYSQL_ERROR *err;
         /*
           Added controlled slave thread cancel for replication
@@ -5497,7 +5499,7 @@ uint sql_slave_skip_counter;
 
   @param mi Pointer to Master_info object for the slave's IO thread.
 
-  @param net_report If true, saves the exit status into thd->stmt_da.
+  @param net_report If true, saves the exit status into Diagnostics_area.
 
   @retval 0 success
   @retval 1 error
@@ -5633,7 +5635,7 @@ int start_slave(THD* thd , Master_info* mi,  bool net_report)
 
   @param mi Pointer to Master_info object for the slave's IO thread.
 
-  @param net_report If true, saves the exit status into thd->stmt_da.
+  @param net_report If true, saves the exit status into Diagnostics_area.
 
   @retval 0 success
   @retval 1 error

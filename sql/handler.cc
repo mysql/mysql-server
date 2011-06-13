@@ -1402,7 +1402,7 @@ int ha_rollback_trans(THD *thd, bool all)
     trans->no_2pc=0;
     if (is_real_trans && thd->transaction_rollback_request &&
         thd->transaction.xid_state.xa_state != XA_NOTR)
-      thd->transaction.xid_state.rm_error= thd->stmt_da->sql_errno();
+      thd->transaction.xid_state.rm_error= thd->get_stmt_da()->sql_errno();
   }
   /* Always cleanup. Even if nht==0. There may be savepoints. */
   if (is_real_trans)

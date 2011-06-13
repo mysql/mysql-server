@@ -1270,14 +1270,8 @@ static void save_index_subquery_explain_info(JOIN_TAB *join_tab, Item* where)
     join_tab->packed_info |= TAB_INFO_USING_INDEX;
   if (where)
     join_tab->packed_info |= TAB_INFO_USING_WHERE;
-  for (uint i = 0; i < join_tab->ref.key_parts; i++)
-  {
-    if (join_tab->ref.cond_guards[i])
-    {
-      join_tab->packed_info |= TAB_INFO_FULL_SCAN_ON_NULL;
-      break;
-    }
-  }
+  if (join_tab->has_guarded_conds())
+    join_tab->packed_info|= TAB_INFO_FULL_SCAN_ON_NULL;
 }
 
 
@@ -10118,7 +10112,7 @@ static bool uses_index_fields_only(Item *item, TABLE *tbl, uint keyno,
       contains a subquery. If this is the case we do not include this
       part of the condition.
     */
-    return !item->with_subselect;
+    return !item->has_subquery();
   }
 
   const Item::Type item_type= item->type();
@@ -11971,7 +11965,7 @@ remove_const(JOIN *join,ORDER *first_order, Item *cond,
       *simple_order=0;				// Must do a temp table to sort
     else if (!(order_tables & not_const_tables))
     {
-      if (order->item[0]->with_subselect && 
+      if (order->item[0]->has_subquery() && 
           !(join->select_lex->options & SELECT_DESCRIBE))
         order->item[0]->val_str(&order->item[0]->str_value);
       DBUG_PRINT("info",("removing: %s", order->item[0]->full_name()));
@@ -14821,24 +14815,41 @@ internal_remove_eq_conds(THD *thd, Item *cond, Item::cond_result *cond_value)
       Field *field=((Item_field*) args[0])->field;
       /* fix to replace 'NULL' dates with '0' (shreeve@uci.edu) */
       /*
-        datetime_field IS NULL has to be modified to
-        datetime_field == 0
+        See BUG#12594011
+        Documentation says that
+        SELECT datetime_notnull d FROM t1 WHERE d IS NULL
+        shall return rows where d=='0000-00-00'
+
+        Thus, for DATE and DATETIME columns defined as NOT NULL,
+        "date_notnull IS NULL" has to be modified to
+        "date_notnull IS NULL OR date_notnull == 0" (if outer join)
+        "date_notnull == 0"                         (otherwise)
+
       */
       if (((field->type() == MYSQL_TYPE_DATE) ||
            (field->type() == MYSQL_TYPE_DATETIME)) &&
-          (field->flags & NOT_NULL_FLAG) && !field->table->maybe_null)
+          (field->flags & NOT_NULL_FLAG))
       {
-	Item *new_cond;
-	if ((new_cond= new Item_func_eq(args[0],new Item_int("0", 0, 2))))
-	{
-	  cond=new_cond;
-          /*
-            Item_func_eq can't be fixed after creation so we do not check
-            cond->fixed, also it do not need tables so we use 0 as second
-            argument.
-          */
-	  cond->fix_fields(thd, &cond);
-	}
+        Item *item0= new(thd->mem_root) Item_int((longlong)0, 1);
+        Item *eq_cond= new(thd->mem_root) Item_func_eq(args[0], item0);
+        if (!eq_cond)
+          return cond;
+
+        if (field->table->pos_in_table_list->outer_join)
+        {
+          // outer join: transform "col IS NULL" to "col IS NULL or col=0"
+          Item *or_cond= new(thd->mem_root) Item_cond_or(eq_cond, cond);
+          if (!or_cond)
+            return cond;
+          cond= or_cond;
+        }
+        else
+        {
+          // not outer join: transform "col IS NULL" to "col=0"
+          cond= eq_cond;
+        }
+
+        cond->fix_fields(thd, &cond);
       }
     }
     if (cond->const_item())
@@ -17661,7 +17672,7 @@ sub_select(JOIN *join,JOIN_TAB *join_tab,bool end_of_records)
     /* Set first_unmatched for the last inner table of this group */
     join_tab->last_inner->first_unmatched= join_tab;
   }
-  join->thd->warning_info->reset_current_row_for_warning();
+  join->thd->get_stmt_wi()->reset_current_row_for_warning();
 
   error= (*join_tab->read_first_record)(join_tab);
 
@@ -17988,7 +17999,7 @@ evaluate_join_record(JOIN *join, JOIN_TAB *join_tab,
       enum enum_nested_loop_state rc;
       /* A match from join_tab is found for the current partial join. */
       rc= (*join_tab->next_select)(join, join_tab+1, 0);
-      join->thd->warning_info->inc_current_row_for_warning();
+      join->thd->get_stmt_wi()->inc_current_row_for_warning();
       if (rc != NESTED_LOOP_OK && rc != NESTED_LOOP_NO_MORE_ROWS)
         DBUG_RETURN(rc);
 
@@ -18020,7 +18031,7 @@ evaluate_join_record(JOIN *join, JOIN_TAB *join_tab,
     }
     else
     {
-      join->thd->warning_info->inc_current_row_for_warning();
+      join->thd->get_stmt_wi()->inc_current_row_for_warning();
       if (join_tab->not_null_compl)
       {
         /* a NULL-complemented row is not in a table so cannot be locked */
@@ -18035,7 +18046,7 @@ evaluate_join_record(JOIN *join, JOIN_TAB *join_tab,
       with the beginning coinciding with the current partial join.
     */
     join->examined_rows++;
-    join->thd->warning_info->inc_current_row_for_warning();
+    join->thd->get_stmt_wi()->inc_current_row_for_warning();
     if (join_tab->not_null_compl)
       join_tab->read_record.unlock_row(join_tab);
   }
@@ -19722,27 +19733,23 @@ static Item *
 part_of_refkey(TABLE *table,Field *field)
 {
   if (!table->reginfo.join_tab)
-    return (Item*) 0;             // field from outer non-select (UPDATE,...)
+    return NULL;                  // field from outer non-select (UPDATE,...)
 
   uint ref_parts=table->reginfo.join_tab->ref.key_parts;
   if (ref_parts)
   {
-    KEY_PART_INFO *key_part=
+    if (table->reginfo.join_tab->has_guarded_conds())
+      return NULL;
+
+    const KEY_PART_INFO *key_part=
       table->key_info[table->reginfo.join_tab->ref.key].key_part;
-    uint part;
 
-    for (part=0 ; part < ref_parts ; part++)
-    {
-      if (table->reginfo.join_tab->ref.cond_guards[part])
-        return 0;
-    }
-
-    for (part=0 ; part < ref_parts ; part++,key_part++)
+    for (uint part=0 ; part < ref_parts ; part++,key_part++)
       if (field->eq(key_part->field) &&
 	  !(key_part->key_part_flag & HA_PART_KEY_SEG))
 	return table->reginfo.join_tab->ref.items[part];
   }
-  return (Item*) 0;
+  return NULL;
 }
 
 
@@ -23479,14 +23486,8 @@ void select_describe(JOIN *join, bool need_tmp_table, bool need_order,
           extra.append(STRING_WITH_LEN("; End materialize"));
         }
 
-        for (uint part= 0; part < tab->ref.key_parts; part++)
-        {
-          if (tab->ref.cond_guards[part])
-          {
-            extra.append(STRING_WITH_LEN("; Full scan on NULL key"));
-            break;
-          }
-        }
+        if (tab->has_guarded_conds())
+          extra.append(STRING_WITH_LEN("; Full scan on NULL key"));
 
         if (i > 0 && tab[-1].next_select == sub_select_cache)
         {
