@@ -28,12 +28,6 @@ static void do_range_test(int (*acquire)(toku_lock_tree*, DB*, TXNID,
         CKERR(r);
         assert(lt);
 
-        if (acquire == toku_lt_acquire_range_write_lock) {
-            r = acquire(lt,  db,  txn,  key_l, key_r);
-            CKERR2(r, ENOSYS);
-        }
-
-
         r = acquire(NULL,   db,  txn,  key_l,  key_r);
         CKERR2(r, EINVAL);
         r = acquire(lt,     db,  txn,  NULL,   key_r);

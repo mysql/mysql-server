@@ -47,8 +47,10 @@ struct __toku_range_tree {
  */
 static inline int toku__rt_p_cmp(toku_range_tree* tree,
                            toku_point* point, toku_interval* interval) {
-    if (tree->end_cmp(point, interval->left) < 0)  return -1;
-    if (tree->end_cmp(point, interval->right) > 0) return 1;
+    if (tree->end_cmp(point, interval->left) < 0)  
+        return -1;
+    if (tree->end_cmp(point, interval->right) > 0) 
+        return 1;
     return 0;
 }
     
@@ -58,9 +60,9 @@ static inline int toku__rt_increase_buffer(toku_range_tree* tree, toku_range** b
     //TODO: SOME ATTRIBUTE TO REMOVE NEVER EXECUTABLE ERROR: assert(buflen);
     if (*buflen < num) {
         u_int32_t temp_len = *buflen;
-        while (temp_len < num) temp_len *= 2;
-        toku_range* temp_buf =
-                             tree->realloc(*buf, temp_len * sizeof(toku_range));
+        while (temp_len < num) 
+            temp_len *= 2;
+        toku_range* temp_buf = tree->realloc(*buf, temp_len * sizeof(toku_range));
         if (!temp_buf) return errno;
         *buf = temp_buf;
         *buflen = temp_len;
@@ -78,10 +80,12 @@ static inline int toku_rt_super_create(toku_range_tree** upperptree,
                    void* (*user_realloc)(void*, size_t)) {
     toku_range_tree* temptree;
     if (!upperptree || !ptree || !end_cmp || !data_cmp ||
-        !user_malloc || !user_free || !user_realloc)              return EINVAL;
+        !user_malloc || !user_free || !user_realloc)              
+        return EINVAL;
     
     temptree = (toku_range_tree*)user_malloc(sizeof(toku_range_tree));
-    if (!temptree) return ENOMEM;
+    if (!temptree) 
+        return ENOMEM;
     
     //Any initializers go here.
     memset(temptree, 0, sizeof(*temptree));

@@ -12,7 +12,7 @@ static int update_fun(DB *UU(db),
                       void UU((*set_val)(const DBT *new_val,
                                          void *set_extra)),
                       void *UU(set_extra)) {
-    assert(0);
+    assert(0); return 0;
 }
 
 static void setup (void) {

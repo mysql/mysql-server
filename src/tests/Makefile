@@ -91,6 +91,8 @@ BDB_DONTRUN_TESTS = \
         checkpoint_stress \
         checkpoint_truncate_1 \
 	cursor-isolation \
+	cursor-set-del-rmw \
+	cursor-set-range-rmw \
 	del-simple \
 	del-multiple \
 	del-multiple-huge-primary-row \
@@ -141,6 +143,10 @@ BDB_DONTRUN_TESTS = \
 	multiprocess \
 	mvcc-create-table \
         mvcc-many-committed \
+	prelock-read-read \
+	prelock-read-write \
+	prelock-write-read \
+	prelock-write-write \
         powerfail \
 	preload-db \
 	preload-db-nested \
@@ -204,6 +210,7 @@ BDB_DONTRUN_TESTS = \
         recovery_fileops_unit \
         recovery_stress \
         redirect \
+	replace-into-write-lock \
         root_fifo_2 \
         root_fifo_32 \
         root_fifo_41 \
