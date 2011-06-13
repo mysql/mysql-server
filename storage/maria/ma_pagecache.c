@@ -1808,7 +1808,14 @@ restart:
     hash_link->requests++;
     DBUG_ASSERT(hash_link->block == 0);
   }
-
+  else
+  {
+    /*
+      We have to copy the flush_log callback, as it may change if the table
+      goes from non_transactional to transactional during recovery
+    */
+    hash_link->file.flush_log_callback= file->flush_log_callback;
+  }
   return hash_link;
 }
 

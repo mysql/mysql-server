@@ -2131,7 +2131,7 @@ c3 VARCHAR(10) NOT NULL,
 KEY (c1),
 KEY (c2)
 ) ENGINE=aria DEFAULT CHARSET=utf8 PACK_KEYS=0;
-Aria file:          MYSQLD_DATADIR/test/t1
+Aria file:           MYSQLD_DATADIR/test/t1
 Record format:       Block
 Crashsafe:           yes
 Character set:       utf8_general_ci (33)

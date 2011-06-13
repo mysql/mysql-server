@@ -166,7 +166,7 @@ err:
 #include "ma_check_standalone.h"
 
 enum options_mc {
-  OPT_CHARSETS_DIR=256
+  OPT_CHARSETS_DIR=256, OPT_FORCE_CRASH
 };
 
 static struct my_option my_long_options[] =
@@ -186,6 +186,9 @@ static struct my_option my_long_options[] =
 #ifndef DBUG_OFF
   {"debug", '#', "Output debug log. Often the argument is 'd:t:o,filename'.",
    0, 0, 0, GET_STR, OPT_ARG, 0, 0, 0, 0, 0, 0},
+  {"force-crash", OPT_FORCE_CRASH, "Force crash after # recovery events",
+   &maria_recovery_force_crash_counter, 0,0, GET_ULONG, REQUIRED_ARG,
+   0, 0, ~(long) 0, 0, 0, 0},
 #endif
   {"help", '?', "Display this help and exit.",
    0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0},
