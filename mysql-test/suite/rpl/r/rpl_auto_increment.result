@@ -320,4 +320,14 @@ SELECT * FROM t1;
 id	data
 0	2
 DROP TABLE t1;
+create table t1(a int auto_increment primary key) engine=innodb;
+insert into t1 values (null),(null),(1025),(null);
+select * from t1;
+a
+1
+2
+1025
+1026
+include/diff_tables.inc [master:t1, slave:t1]
+drop table t1;
 include/rpl_end.inc

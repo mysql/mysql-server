@@ -318,6 +318,21 @@ MYSQL_ERROR::set_sqlstate(const char* sqlstate)
   m_returned_sqlstate[SQLSTATE_LENGTH]= '\0';
 }
 
+Diagnostics_area::Diagnostics_area()
+ : m_main_wi(0, false),
+   m_current_wi(&m_main_wi)
+{
+  reset_diagnostics_area();
+}
+
+Diagnostics_area::Diagnostics_area(ulonglong warn_id,
+                                   bool allow_unlimited_warnings)
+ : m_main_wi(warn_id, allow_unlimited_warnings),
+   m_current_wi(&m_main_wi)
+{
+  reset_diagnostics_area();
+}
+
 /**
   Clear this diagnostics area.
 
@@ -363,7 +378,7 @@ Diagnostics_area::set_ok_status(THD *thd, ulonglong affected_rows_arg,
   if (is_error() || is_disabled())
     return;
 
-  m_statement_warn_count= thd->warning_info->statement_warn_count();
+  m_statement_warn_count= thd->get_stmt_wi()->statement_warn_count();
   m_affected_rows= affected_rows_arg;
   m_last_insert_id= last_insert_id_arg;
   if (message_arg)
@@ -398,7 +413,7 @@ Diagnostics_area::set_eof_status(THD *thd)
     anyway.
   */
   m_statement_warn_count= (thd->spcont ?
-                           0 : thd->warning_info->statement_warn_count());
+                           0 : thd->get_stmt_wi()->statement_warn_count());
 
   m_status= DA_EOF;
   DBUG_VOID_RETURN;
@@ -667,7 +682,7 @@ bool mysqld_show_warnings(THD *thd, ulong levels_to_show)
   List<Item> field_list;
   DBUG_ENTER("mysqld_show_warnings");
 
-  DBUG_ASSERT(thd->warning_info->is_read_only());
+  DBUG_ASSERT(thd->get_stmt_wi()->is_read_only());
 
   field_list.push_back(new Item_empty_string("Level", 7));
   field_list.push_back(new Item_return_int("Code",4, MYSQL_TYPE_LONG));
@@ -685,7 +700,7 @@ bool mysqld_show_warnings(THD *thd, ulong levels_to_show)
 
   unit->set_limit(sel);
 
-  List_iterator_fast<MYSQL_ERROR> it(thd->warning_info->warn_list());
+  List_iterator_fast<MYSQL_ERROR> it(thd->get_stmt_wi()->warn_list());
   while ((err= it++))
   {
     /* Skip levels that the user is not interested in */
@@ -708,7 +723,7 @@ bool mysqld_show_warnings(THD *thd, ulong levels_to_show)
   }
   my_eof(thd);
 
-  thd->warning_info->set_read_only(FALSE);
+  thd->get_stmt_wi()->set_read_only(FALSE);
 
   DBUG_RETURN(FALSE);
 }

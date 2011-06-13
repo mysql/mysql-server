@@ -1141,7 +1141,7 @@ int Gis_polygon::store_shapes(Gcalc_shape_transporter *trn) const
       return 1;
     n_points= uint4korr(data);
     data+= 4;
-    if (no_data(data, POINT_DATA_SIZE * n_points))
+    if (!n_points || no_data(data, POINT_DATA_SIZE * n_points))
       return 1;
 
     trn->start_ring();

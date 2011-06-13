@@ -618,6 +618,7 @@ rec_t*
 page_rec_find_owner_rec(
 /*====================*/
 	rec_t*	rec);	/*!< in: the physical record */
+#ifndef UNIV_HOTBACKUP
 /***********************************************************************//**
 Write a 32-bit field in a data dictionary record. */
 UNIV_INLINE
@@ -626,9 +627,10 @@ page_rec_write_field(
 /*=================*/
 	rec_t*	rec,	/*!< in/out: record to update */
 	ulint	i,	/*!< in: index of the field to update */
-	ulint	page_no,/*!< in: value to write */
+	ulint	val,	/*!< in: value to write */
 	mtr_t*	mtr)	/*!< in/out: mini-transaction */
 	__attribute__((nonnull));
+#endif /* !UNIV_HOTBACKUP */
 /************************************************************//**
 Returns the maximum combined size of records which can be inserted on top
 of record heap.

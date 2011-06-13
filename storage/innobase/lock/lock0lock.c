@@ -4393,7 +4393,8 @@ lock_trx_table_locks_remove(
 
 	ut_ad(lock_mutex_own());
 
-	if (!trx->lock.was_chosen_as_deadlock_victim) {
+	/* It is safe to read this because we are holding the lock mutex */
+	if (!trx->lock.cancel) {
 		trx_mutex_enter(trx);
 	} else {
 		ut_ad(trx_mutex_own(trx));
@@ -4415,7 +4416,7 @@ lock_trx_table_locks_remove(
 		if (lock == lock_to_remove) {
 			ib_vector_set(trx->lock.table_locks, i, NULL);
 
-			if (!trx->lock.was_chosen_as_deadlock_victim) {
+			if (!trx->lock.cancel) {
 				trx_mutex_exit(trx);
 			}
 
@@ -4423,7 +4424,7 @@ lock_trx_table_locks_remove(
 		}
 	}
 
-	if (!trx->lock.was_chosen_as_deadlock_victim) {
+	if (!trx->lock.cancel) {
 		trx_mutex_exit(trx);
 	}
 
@@ -6246,6 +6247,8 @@ lock_cancel_waiting_and_release(
 	ut_ad(lock_mutex_own());
 	ut_ad(trx_mutex_own(lock->trx));
 
+	lock->trx->lock.cancel = TRUE;
+
 	if (lock_get_type_low(lock) == LOCK_REC) {
 
 		lock_rec_dequeue_from_page(lock);
@@ -6271,6 +6274,8 @@ lock_cancel_waiting_and_release(
 	if (thr != NULL) {
 		lock_wait_release_thread_if_suspended(thr);
 	}
+
+	lock->trx->lock.cancel = FALSE;
 }
 
 /*********************************************************************//**

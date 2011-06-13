@@ -1261,9 +1261,9 @@ int query_error_code(THD *thd, bool not_killed)
   
   if (not_killed || (thd->killed == THD::KILL_BAD_DATA))
   {
-    error= thd->is_error() ? thd->stmt_da->sql_errno() : 0;
+    error= thd->is_error() ? thd->get_stmt_da()->sql_errno() : 0;
 
-    /* thd->stmt_da->sql_errno() might be ER_SERVER_SHUTDOWN or
+    /* thd->get_stmt_da()->sql_errno() might be ER_SERVER_SHUTDOWN or
        ER_QUERY_INTERRUPTED, So here we need to make sure that error
        is not set to these errors when specified not_killed by the
        caller.
@@ -2087,7 +2087,7 @@ bool MYSQL_BIN_LOG::check_write_error(THD *thd)
   if (!thd->is_error())
     DBUG_RETURN(checked);
 
-  switch (thd->stmt_da->sql_errno())
+  switch (thd->get_stmt_da()->sql_errno())
   {
     case ER_TRANS_CACHE_FULL:
     case ER_STMT_CACHE_FULL:
