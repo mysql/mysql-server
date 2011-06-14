@@ -1,10 +1,16 @@
+# test that delete only takes write locks when tokudb_use_write_locks is asserted
+# t1 scans all of the rows in a table and deletes 1 of them
+# t1 grabs a write range lock on -infinity +infinity
+# t2 scans all of the rows in a table except the one deleted by t1
+# t2 should hang until t1 commits
+
 set storage_engine='tokudb';
 
 --disable_warnings
 drop table if exists t;
 --enable_warnings
 
-connect(conn1,localhost);
+connect(conn1,localhost,root);
 
 connection default;
 create table t (a int primary key, b int);
