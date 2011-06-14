@@ -85,6 +85,17 @@ SET GLOBAL debug="-d,corrupt_read_log_event_char";
 # that the slave has disconnected, we will inject the corrupt event on
 # the wrong connection, and the test will fail
 # (+d,corrupt_read_log_event2 corrupts only one event).
+# So kill any lingering dump thread (we need to kill; otherwise dump thread
+# could manage to send all events down the socket before seeing it close, and
+# hang forever waiting for new binlog events to be created).
+let $id= `select id from information_schema.processlist where command = "Binlog Dump"`;
+if ($id)
+{
+  --disable_query_log
+  --error 0,1094
+  eval kill $id;
+  --enable_query_log
+}
 let $wait_condition=
   SELECT COUNT(*)=0 FROM INFORMATION_SCHEMA.PROCESSLIST WHERE command = 'Binlog Dump';
 --source include/wait_condition.inc
