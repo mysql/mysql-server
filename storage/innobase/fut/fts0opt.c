@@ -23,14 +23,13 @@ Full Text Search optimize thread
 Created 2007/03/27 Sunny Bains
 ***********************************************************************/
 
-#include <zlib.h>
-
 #include "fts0fts.h"
 #include "row0sel.h"
 #include "que0types.h"
 #include "fts0priv.h"
 #include "fts0types.h"
 #include "ut0wqueue.h"
+#include "zlib.h"
 
 #ifndef UNIV_NONINL
 #include "fts0types.ic"

@@ -215,21 +215,10 @@ struct fts_ast_list_struct {
 /* FTS AST node to store the term, text, operator and sub-expressions.*/
 struct fts_ast_node_struct {
 	fts_ast_type_t	type;			/* The type of node */
-
-	union {
-		fts_ast_text_t
-			text;			/* Text node */
-
-		fts_ast_term_t
-			term;			/* Term node */
-
-		fts_ast_oper_t
-			oper;			/* Operator value */
-
-		fts_ast_list_t			/* Expression list */
-			list;
-	};
-
+	fts_ast_text_t	text;			/* Text node */
+	fts_ast_term_t	term;			/* Term node */
+	fts_ast_oper_t	oper;			/* Operator value */
+	fts_ast_list_t	list;			/* Expression list */
 	fts_ast_node_t*	next;			/* Link for expr list */
 	fts_ast_node_t*	next_alloc;		/* For tracking allocations */
 };
