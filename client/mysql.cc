@@ -2196,9 +2196,9 @@ static COMMANDS *find_command(char *name)
     */
     for (uint i= 0; commands[i].func; i++)
     {
-      if (commands[i].name[len] == '\0' &&
-          !my_strnncoll(&my_charset_latin1, (uchar*) name, len,
+      if (!my_strnncoll(&my_charset_latin1, (uchar*) name, len,
                         (uchar*) commands[i].name, len) &&
+          (commands[i].name[len] == '\0') &&
           (!end || commands[i].takes_params))
       {
         index= i;
