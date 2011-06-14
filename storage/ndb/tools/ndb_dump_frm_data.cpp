@@ -20,7 +20,7 @@
 #include <NdbApi.hpp>
 #include <NDBT.hpp>
 
-static int oi = 1000;
+// UNUSED static int oi = 1000;
 static struct my_option
 my_long_options[] =
 {
