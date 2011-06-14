@@ -25,8 +25,6 @@ Full Text Search functionality.
 Created 2007/03/27 Sunny Bains
 *******************************************************/
 
-#include <ctype.h>
-
 #include "ut0rbt.h"
 #include "row0sel.h"
 #include "fts0fts.h"
@@ -34,6 +32,8 @@ Created 2007/03/27 Sunny Bains
 #include "fts0ast.h"
 #include "fts0pars.h"
 #include "fts0types.h"
+#include <ctype.h>
+
 
 #ifndef UNIV_NONINL
 #include "fts0types.ic"
