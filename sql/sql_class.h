@@ -1571,6 +1571,8 @@ public:
 
   bool prepare_derived_at_open;
 
+  bool save_prep_leaf_list;
+
 #ifndef MYSQL_CLIENT
   int binlog_setup_trx_data();
 

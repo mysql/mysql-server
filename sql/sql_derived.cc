@@ -85,15 +85,18 @@ mysql_handle_derived(LEX *lex, uint phases)
 	   cursor && !res;
 	   cursor= cursor->next_local)
       {
+        if (!cursor->is_view_or_derived() && phases == DT_MERGE_FOR_INSERT)
+          continue;
         uint8 allowed_phases= (cursor->is_merged_derived() ? DT_PHASES_MERGE :
-                               DT_PHASES_MATERIALIZE);
+                               DT_PHASES_MATERIALIZE | DT_MERGE_FOR_INSERT);
         /*
           Skip derived tables to which the phase isn't applicable.
           TODO: mark derived at the parse time, later set it's type
           (merged or materialized)
         */
         if ((phase_flag != DT_PREPARE && !(allowed_phases & phase_flag)) ||
-            (cursor->merged_for_insert && phase_flag != DT_REINIT))
+            (cursor->merged_for_insert && phase_flag != DT_REINIT &&
+             phase_flag != DT_PREPARE))
           continue;
 	res= (*processors[phase])(lex->thd, lex, cursor);
       }
@@ -345,41 +348,43 @@ bool mysql_derived_merge(THD *thd, LEX *lex, TABLE_LIST *derived)
 
   arena= thd->activate_stmt_arena_if_needed(&backup);  // For easier test
   derived->merged= TRUE;
-  /*
-    Check whether there is enough free bits in table map to merge subquery.
-    If not - materialize it. This check isn't cached so when there is a big
-    and small subqueries, and the bigger one can't be merged it wouldn't
-    block the smaller one.
-  */
-  if (parent_lex->get_free_table_map(&map, &tablenr))
-  {
-    /* There is no enough table bits, fall back to materialization. */
-    derived->change_refs_to_fields();
-    derived->set_materialized_derived();
-    goto exit_merge;
-  }
-
-  if (dt_select->leaf_tables.elements + tablenr > MAX_TABLES)
-  {
-    /* There is no enough table bits, fall back to materialization. */
-    derived->change_refs_to_fields();
-    derived->set_materialized_derived();
-    goto exit_merge;
-  }
-
-  if (dt_select->options & OPTION_SCHEMA_TABLE)
-    parent_lex->options |= OPTION_SCHEMA_TABLE;
-
-  parent_lex->cond_count+= dt_select->cond_count;
-
-  if (!derived->get_unit()->prepared)
-  {
-    dt_select->leaf_tables.empty();
-    make_leaves_list(dt_select->leaf_tables, derived, TRUE, 0);
-  } 
 
   if (!derived->merged_for_insert)
-  {  derived->nested_join= (NESTED_JOIN*) thd->calloc(sizeof(NESTED_JOIN));
+  {
+    /*
+      Check whether there is enough free bits in table map to merge subquery.
+      If not - materialize it. This check isn't cached so when there is a big
+      and small subqueries, and the bigger one can't be merged it wouldn't
+      block the smaller one.
+    */
+    if (parent_lex->get_free_table_map(&map, &tablenr))
+    {
+      /* There is no enough table bits, fall back to materialization. */
+      derived->change_refs_to_fields();
+      derived->set_materialized_derived();
+      goto exit_merge;
+    }
+
+    if (dt_select->leaf_tables.elements + tablenr > MAX_TABLES)
+    {
+      /* There is no enough table bits, fall back to materialization. */
+      derived->change_refs_to_fields();
+      derived->set_materialized_derived();
+      goto exit_merge;
+    }
+
+    if (dt_select->options & OPTION_SCHEMA_TABLE)
+      parent_lex->options |= OPTION_SCHEMA_TABLE;
+
+    parent_lex->cond_count+= dt_select->cond_count;
+
+    if (!derived->get_unit()->prepared)
+    {
+      dt_select->leaf_tables.empty();
+      make_leaves_list(dt_select->leaf_tables, derived, TRUE, 0);
+    } 
+
+    derived->nested_join= (NESTED_JOIN*) thd->calloc(sizeof(NESTED_JOIN));
     if (!derived->nested_join)
     {
       res= TRUE;
@@ -467,14 +472,16 @@ bool mysql_derived_merge_for_insert(THD *thd, LEX *lex, TABLE_LIST *derived)
 
   if (derived->merged_for_insert)
     return FALSE;
-  /* It's a target view for an INSERT, create field translation only. */
-  if (!derived->updatable || derived->is_materialized_derived())
+  if (derived->is_materialized_derived())
   {
-    bool res= derived->create_field_translation(thd);
+    bool res=  mysql_derived_prepare(thd, lex, derived);
+    derived->select_lex->leaf_tables.push_back(derived);
     return res;
   }
   if (!derived->is_multitable())
   {
+    if (!derived->updatable)
+      return derived->create_field_translation(thd);
     TABLE_LIST *tl=((TABLE_LIST*)dt_select->table_list.first);
     TABLE *table= tl->table;
     /* preserve old map & tablenr. */
@@ -504,6 +511,9 @@ bool mysql_derived_merge_for_insert(THD *thd, LEX *lex, TABLE_LIST *derived)
   }
   else
   {
+    if (thd->lex->sql_command == SQLCOM_UPDATE_MULTI ||
+        thd->lex->sql_command != SQLCOM_DELETE_MULTI)
+      thd->save_prep_leaf_list= TRUE;
     if (!derived->merged_for_insert && mysql_derived_merge(thd, lex, derived))
       return TRUE;
   }
@@ -609,7 +619,11 @@ bool mysql_derived_prepare(THD *thd, LEX *lex, TABLE_LIST *derived)
   bool res= FALSE;
 
   // Skip already prepared views/DT
-  if (!unit || unit->prepared || derived->merged_for_insert)
+  if (!unit || unit->prepared ||
+      (derived->merged_for_insert && 
+       !(derived->is_multitable() &&
+         (thd->lex->sql_command == SQLCOM_UPDATE_MULTI ||
+          thd->lex->sql_command == SQLCOM_DELETE_MULTI))))
     DBUG_RETURN(FALSE);
 
   Query_arena *arena= thd->stmt_arena, backup;

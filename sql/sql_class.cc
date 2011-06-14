@@ -814,6 +814,7 @@ THD::THD()
   memset(&invoker_user, 0, sizeof(invoker_user));
   memset(&invoker_host, 0, sizeof(invoker_host));
   prepare_derived_at_open= FALSE;
+  save_prep_leaf_list= FALSE;
 }
 
 

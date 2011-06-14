@@ -5372,7 +5372,7 @@ void TABLE::use_index(int key_to_save)
   DBUG_ASSERT(!created && key_to_save < (int)s->keys);
   if (key_to_save >= 0)
     /* Save the given key. */
-    memcpy(key_info, key_info + key_to_save, sizeof(KEY));
+    memmove(key_info, key_info + key_to_save, sizeof(KEY));
   else
     /* Drop all keys; */
     i= 0;
