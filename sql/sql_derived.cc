@@ -512,7 +512,7 @@ bool mysql_derived_merge_for_insert(THD *thd, LEX *lex, TABLE_LIST *derived)
   else
   {
     if (thd->lex->sql_command == SQLCOM_UPDATE_MULTI ||
-        thd->lex->sql_command != SQLCOM_DELETE_MULTI)
+        thd->lex->sql_command == SQLCOM_DELETE_MULTI)
       thd->save_prep_leaf_list= TRUE;
     if (!derived->merged_for_insert && mysql_derived_merge(thd, lex, derived))
       return TRUE;
