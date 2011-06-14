@@ -271,10 +271,10 @@ static bool number_to_time_with_warn(bool neg, ulonglong nr, ulong sec_part,
   else
   {
     f_type= MYSQL_TYPE_DATETIME;
-    res= number_to_datetime(nr, sec_part, ltime, fuzzydate, &was_cut);
+    res= neg ? -1 : number_to_datetime(nr, sec_part, ltime, fuzzydate, &was_cut);
   }
 
-  if ((was_cut && !(fuzzydate & TIME_FUZZY_DATE)) || res < 0)
+  if (res < 0 || (was_cut && !(fuzzydate & TIME_FUZZY_DATE)))
   {
     make_truncated_value_warning(current_thd,
                                  MYSQL_ERROR::WARN_LEVEL_WARN, str,

@@ -329,7 +329,7 @@ cast(cast(1.1 as double) as datetime)
 0000-00-00 00:00:01
 select cast(cast(-1.1 as double) as datetime);
 cast(cast(-1.1 as double) as datetime)
-0000-00-00 00:00:01
+NULL
 explain extended select cast(10 as double(5,2));
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	No tables used
