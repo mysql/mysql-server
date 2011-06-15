@@ -36,6 +36,7 @@
 
 #define KEY_INTERNAL 0
 #define MAX_INT_RNIL 0xfffffeff
+#define MAX_INT32 0xffffffff
 #define MAX_PORT_NO 65535
 
 #define _STR_VALUE(x) #x
@@ -769,6 +770,19 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
     "32k",
     "32",
     STR_VALUE(MAX_INT_RNIL) },
+
+  {
+    CFG_DB_MAX_DML_OPERATIONS_PER_TRANSACTION,
+    "MaxDMLOperationsPerTransaction",
+    DB_TOKEN,
+    "Max DML-operations in one transaction (0 == no limit)",
+    ConfigInfo::CI_USED,
+    false,
+    ConfigInfo::CI_INT,
+    STR_VALUE(MAX_INT32),
+    "32",
+    STR_VALUE(MAX_INT32)
+  },
 
   {
     CFG_DB_NO_LOCAL_OPS,
