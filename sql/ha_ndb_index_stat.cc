@@ -115,7 +115,7 @@ ndb_index_stat_allow(int flag= -1)
 
 /* Options in string format buffer size */
 static const uint ndb_index_stat_option_sz= 512;
-void ndb_index_stat_opt2str(const class Ndb_index_stat_opt&, char*);
+void ndb_index_stat_opt2str(const struct Ndb_index_stat_opt&, char*);
 
 struct Ndb_index_stat_opt {
   enum Unit {
@@ -253,13 +253,13 @@ ndb_index_stat_opt2str(const Ndb_index_stat_opt& opt, char* str)
         if (v.val == 0)
           my_snprintf(ptr, sz, "%s%s=0", sep, v.name);
         else if (v.val % (m= 60*60*24) == 0)
-          snprintf(ptr, sz, "%s%s=%ud", sep, v.name, v.val / m);
+          my_snprintf(ptr, sz, "%s%s=%ud", sep, v.name, v.val / m);
         else if (v.val % (m= 60*60) == 0)
-          snprintf(ptr, sz, "%s%s=%uh", sep, v.name, v.val / m);
+          my_snprintf(ptr, sz, "%s%s=%uh", sep, v.name, v.val / m);
         else if (v.val % (m= 60) == 0)
-          snprintf(ptr, sz, "%s%s=%um", sep, v.name, v.val / m);
+          my_snprintf(ptr, sz, "%s%s=%um", sep, v.name, v.val / m);
         else
-          snprintf(ptr, sz, "%s%s=%us", sep, v.name, v.val);
+          my_snprintf(ptr, sz, "%s%s=%us", sep, v.name, v.val);
       }
       break;
 
@@ -268,7 +268,7 @@ ndb_index_stat_opt2str(const Ndb_index_stat_opt& opt, char* str)
         if (v.val == 0)
           my_snprintf(ptr, sz, "%s%s=0", sep, v.name);
         else
-          snprintf(ptr, sz, "%s%s=%ums", sep, v.name, v.val);
+          my_snprintf(ptr, sz, "%s%s=%ums", sep, v.name, v.val);
       }
       break;
 
@@ -324,7 +324,7 @@ ndb_index_stat_option_parse(char* p, Ndb_index_stat_opt& opt)
           val= 1;
         else
           DBUG_RETURN(-1);
-        v.val= val;
+        v.val= (uint)val;
       }
       break;
 
@@ -344,7 +344,7 @@ ndb_index_stat_option_parse(char* p, Ndb_index_stat_opt& opt)
           DBUG_RETURN(-1);
         if (val < v.minval || val > v.maxval)
           DBUG_RETURN(-1);
-        v.val= val;
+        v.val= (uint)val;
       }
       break;
 
@@ -366,7 +366,7 @@ ndb_index_stat_option_parse(char* p, Ndb_index_stat_opt& opt)
           DBUG_RETURN(-1);
         if (val < v.minval || val > v.maxval)
           DBUG_RETURN(-1);
-        v.val= val;
+        v.val= (uint)val;
       }
       break;
 
@@ -382,7 +382,7 @@ ndb_index_stat_option_parse(char* p, Ndb_index_stat_opt& opt)
           DBUG_RETURN(-1);
         if (val < v.minval || val > v.maxval)
           DBUG_RETURN(-1);
-        v.val= val;
+        v.val= (uint)val;
       }
       break;
 
@@ -782,7 +782,7 @@ ndb_index_stat_add_share(NDB_SHARE *share,
     st->index_id= index->getObjectId();
     st->index_version= index->getObjectVersion();
 #ifndef DBUG_OFF
-    snprintf(st->id, sizeof(st->id), "%d.%d", st->index_id, st->index_version);
+    my_snprintf(st->id, sizeof(st->id), "%d.%d", st->index_id, st->index_version);
 #endif
     if (st->is->set_index(*index, *table) == -1)
     {
@@ -833,6 +833,7 @@ ndb_index_stat_get_share(NDB_SHARE *share,
   pthread_mutex_unlock(&share->mutex);
   return st;
 }
+
 void
 ndb_index_stat_free(Ndb_index_stat *st)
 {
@@ -1130,7 +1131,6 @@ ndb_index_stat_proc_check(Ndb_index_stat_proc &pr, Ndb_index_stat *st)
 {
   pr.now= ndb_index_stat_time();
   st->check_time= pr.now;
-  const Ndb_index_stat_opt &opt= ndb_index_stat_opt;
   NdbIndexStat::Head head;
   if (st->is->read_head(pr.ndb) == -1)
   {
@@ -1177,8 +1177,6 @@ ndb_index_stat_proc_check(Ndb_index_stat_proc &pr)
 void
 ndb_index_stat_proc_evict(Ndb_index_stat_proc &pr, Ndb_index_stat *st)
 {
-  const Ndb_index_stat_opt &opt= ndb_index_stat_opt;
-
   NdbIndexStat::Head head;
   NdbIndexStat::CacheInfo infoBuild;
   NdbIndexStat::CacheInfo infoQuery;
@@ -1637,6 +1635,7 @@ ndb_index_stat_thread_func(void *arg __attribute__((unused)))
                                       &LOCK_ndb_index_stat_thread,
                                       &abstime);
       const char* reason= ret == ETIMEDOUT ? "timed out" : "wake up";
+      (void*)&reason; //USED
       DBUG_PRINT("index_stat", ("loop: %s", reason));
     }
     if (ndbcluster_terminating) /* Shutting down server */
@@ -1681,7 +1680,7 @@ ndb_index_stat_thread_func(void *arg __attribute__((unused)))
     /* Calculate new time to wake up */
 
     const Ndb_index_stat_opt &opt= ndb_index_stat_opt;
-    int msecs= 0;
+    uint msecs= 0;
     if (!enable_ok)
       msecs= opt.get(Ndb_index_stat_opt::Iloop_checkon);
     else if (!pr.busy)
@@ -1690,25 +1689,7 @@ ndb_index_stat_thread_func(void *arg __attribute__((unused)))
       msecs= opt.get(Ndb_index_stat_opt::Iloop_busy);
     DBUG_PRINT("index_stat", ("sleep %dms", msecs));
 
-    struct timeval tick_time;
-    gettimeofday(&tick_time, 0);
-    abstime.tv_sec=  tick_time.tv_sec;
-    abstime.tv_nsec= tick_time.tv_usec * 1000;
-
-    int secs= 0;
-    if (msecs >= 1000)
-    {
-      secs=  msecs / 1000;
-      msecs= msecs % 1000;
-    }
-
-    abstime.tv_sec+=  secs;
-    abstime.tv_nsec+= msecs * 1000000;
-    if (abstime.tv_nsec >= 1000000000)
-    {
-      abstime.tv_sec+=  1;
-      abstime.tv_nsec-= 1000000000;
-    }
+    set_timespec_nsec(abstime, msecs * 1000000ULL);
   }
 
 ndb_index_stat_thread_end:
@@ -1743,7 +1724,8 @@ ndb_index_stat_round(double x)
   char buf[100];
   if (x < 0.0)
     x= 0.0;
-  snprintf(buf, sizeof(buf), "%.0f", x);
+  // my_snprintf has no float and windows has no snprintf
+  sprintf(buf, "%.0f", x);
   /* mysql provides strtoull */
   ulonglong n= strtoull(buf, 0, 10);
   return n;
@@ -1757,8 +1739,8 @@ ha_ndbcluster::ndb_index_stat_wait(Ndb_index_stat *st,
 
   pthread_mutex_lock(&ndb_index_stat_stat_mutex);
   int err= 0;
-  NdbIndexStat::Head head;
   uint count= 0;
+  (void*)&count; //USED
   struct timespec abstime;
   while (true) {
     int ret= 0;
@@ -1810,8 +1792,6 @@ ha_ndbcluster::ndb_index_stat_query(uint inx,
   const NDBINDEX *index= data.index;
   DBUG_PRINT("index_stat", ("index: %s", index->getName()));
 
-  THD *thd= current_thd;
-  Ndb *ndb= get_thd_ndb(thd)->ndb;
   int err= 0;
 
   /* Create an IndexBound struct for the keys */
@@ -1909,7 +1889,7 @@ ha_ndbcluster::ndb_index_stat_set_rpk(uint inx)
       double rpk= -1.0;
       NdbIndexStat::get_rpk(stat, k, &rpk);
       ulonglong recs= ndb_index_stat_round(rpk);
-      key_info->rec_per_key[k]= recs;
+      key_info->rec_per_key[k]= (ulong)recs;
       DBUG_PRINT("index_stat", ("rpk[%u]: %u", k, (uint)recs));
     }
     DBUG_RETURN(0);
@@ -1923,7 +1903,6 @@ ha_ndbcluster::ndb_index_stat_analyze(Ndb *ndb,
                                       uint inx_count)
 {
   DBUG_ENTER("ha_ndbcluster::ndb_index_stat_analyze");
-  const Ndb_index_stat_opt &opt= ndb_index_stat_opt;
 
   struct {
     uint sample_version;
