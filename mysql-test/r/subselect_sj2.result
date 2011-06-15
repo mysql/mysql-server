@@ -721,3 +721,26 @@ id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	PRIMARY	t2	ALL	NULL	NULL	NULL	NULL	1	Using where
 1	PRIMARY	t3	ALL	NULL	NULL	NULL	NULL	2	FirstMatch(t2)
 drop table t2, t3;
+#
+# BUG#761598: InnoDB: Error: row_search_for_mysql() is called without ha_innobase::external_lock() in maria-5.3
+#
+CREATE TABLE t1 ( f1 int NOT NULL , f10 int) ;
+INSERT IGNORE INTO t1 VALUES (25,0),(29,0);
+CREATE TABLE t2 ( f10 int) ENGINE=InnoDB;
+CREATE TABLE t3 ( f11 int) ;
+INSERT IGNORE INTO t3 VALUES (0);
+SELECT alias1.f10 AS field2
+FROM t2 AS alias1
+JOIN (
+t3 AS alias2
+JOIN t1 AS alias3
+ON alias3.f10
+) ON alias3.f1
+WHERE alias2.f11 IN (
+SELECT SQ4_alias1.f10
+FROM t1 AS SQ4_alias1
+LEFT JOIN t2 AS SQ4_alias3 ON SQ4_alias3.f10
+)
+GROUP BY field2;
+field2
+drop table t1, t2, t3;
