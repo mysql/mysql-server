@@ -1289,4 +1289,20 @@ a	a
 1	1
 DROP VIEW v1;
 DROP TABLE t1,t2;
+#
+# BUG#751439 Assertion `!table->file || table->file->inited == handler::NONE' failed with subquery
+#
+CREATE TABLE t1 ( f10 int, f11 int) ;
+INSERT IGNORE INTO t1 VALUES (0,0),(0,0);
+CREATE TABLE t2 ( f11 int);
+INSERT IGNORE INTO t2 VALUES (0),(0);
+CREATE TABLE t3 ( f11 int) ;
+INSERT IGNORE INTO t3 VALUES (0);
+SELECT alias1.f11 AS field2
+FROM ( t3 AS alias2 JOIN t1 AS alias3 ON alias3.f10 = 1)
+LEFT JOIN ( t2 AS alias1 ) ON alias3.f11 = 1
+WHERE alias2.f11 IN ( SELECT f11 FROM t2 )
+GROUP BY field2 ;
+field2
+drop table t1, t2, t3;
 set @@optimizer_switch=@save_optimizer_switch;
