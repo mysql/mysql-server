@@ -250,11 +250,12 @@ err:
   return res;
 }
 
-
-bool Item_subselect::walk(Item_processor processor, bool walk_subquery,
-                          uchar *argument)
+/**
+  Workaround for bug in gcc 4.1. @See Item_in_subselect::walk()
+*/
+bool Item_subselect::walk_body(Item_processor processor, bool walk_subquery,
+                               uchar *argument)
 {
-
   if (walk_subquery)
   {
     for (SELECT_LEX *lex= unit->first_select(); lex; lex= lex->next_select())
@@ -287,6 +288,12 @@ bool Item_subselect::walk(Item_processor processor, bool walk_subquery,
     }
   }
   return (this->*processor)(argument);
+}
+
+bool Item_subselect::walk(Item_processor processor, bool walk_subquery,
+                          uchar *argument)
+{
+  return walk_body(processor, walk_subquery, argument);
 }
 
 
@@ -383,6 +390,18 @@ void Item_subselect::fix_after_pullout(st_select_lex *parent_select,
   }
 }
 
+bool Item_in_subselect::walk(Item_processor processor, bool walk_subquery,
+                             uchar *argument)
+{
+  if (left_expr->walk(processor, walk_subquery, argument))
+    return true;
+  /*
+    Cannot call "Item_subselect::walk(...)" because with gcc 4.1
+    Item_in_subselect::walk() was incorrectly called instead.
+    Using Item_subselect::walk_body() instead is a workaround.
+  */
+  return walk_body(processor, walk_subquery, argument);
+}
 
 /*
   Compute the IN predicate if the left operand's cache changed.
