@@ -2942,8 +2942,8 @@ const CHARSET_INFO* get_sql_field_charset(Create_field *sql_field,
 
 bool check_duplicate_warning(THD *thd, char *msg, ulong length)
 {
-  Warning_info::Const_iterator it= thd->get_stmt_wi()->iterator();
-  const MYSQL_ERROR *err;
+  List_iterator_fast<MYSQL_ERROR> it(thd->get_stmt_wi()->warn_list());
+  MYSQL_ERROR *err;
   while ((err= it++))
   {
     if (strncmp(msg, err->get_message_text(), length) == 0)

@@ -75,7 +75,7 @@ struct scheduler_param {
 void
 Event_worker_thread::print_warnings(THD *thd, Event_job_data *et)
 {
-  const MYSQL_ERROR *err;
+  MYSQL_ERROR *err;
   DBUG_ENTER("evex_print_warnings");
   if (thd->get_stmt_wi()->is_empty())
     DBUG_VOID_RETURN;
@@ -93,7 +93,7 @@ Event_worker_thread::print_warnings(THD *thd, Event_job_data *et)
   prefix.append(et->name.str, et->name.length, system_charset_info);
   prefix.append("] ", 2);
 
-  Warning_info::Const_iterator it= thd->get_stmt_wi()->iterator();
+  List_iterator_fast<MYSQL_ERROR> it(thd->get_stmt_wi()->warn_list());
   while ((err= it++))
   {
     String err_msg(msg_buf, sizeof(msg_buf), system_charset_info);
