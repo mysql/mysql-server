@@ -1189,5 +1189,28 @@ GROUP BY field2 ;
 
 drop table t1, t2, t3;
 
+--echo #
+--echo # BUG#778406 Crash in hp_movelink with Aria engine and subqueries
+--echo #
+CREATE TABLE t4 (f10 varchar(32) , KEY (f10)) ENGINE=Aria;
+INSERT INTO t4 VALUES ('x'),('m'),('c');
+
+CREATE TABLE t1 (f11 int) ENGINE=Aria;
+INSERT INTO t1 VALUES (0),(0),(0);
+
+CREATE TABLE t2 ( f10 int) ENGINE=Aria;
+INSERT INTO t2 VALUES (0),(0),(0);
+
+CREATE TABLE t3 ( f10 int, f11 int) ENGINE=Aria;
+
+SELECT *
+FROM t4
+WHERE f10 IN
+( SELECT t1.f11
+FROM t1
+LEFT JOIN t2 JOIN t3 ON t3.f10 = t2.f10 ON t3.f11 != 0 );
+
+drop table t1,t2,t3,t4;
+
 # The following command must be the last one the file 
 set @@optimizer_switch=@save_optimizer_switch;
