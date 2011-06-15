@@ -1811,7 +1811,7 @@ ha_ndbcluster::ndb_index_stat_query(uint inx,
   DBUG_PRINT("index_stat", ("index: %s", index->getName()));
 
   THD *thd= current_thd;
-  Ndb *ndb= get_ndb(thd);
+  Ndb *ndb= get_thd_ndb(thd)->ndb;
   int err= 0;
 
   /* Create an IndexBound struct for the keys */
