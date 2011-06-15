@@ -1021,7 +1021,7 @@ rec_offs_any_extern(
 	return(FALSE);
 }
 
-#if defined UNIV_DEBUG || defined UNIV_BLOB_LIGHT_DEBUG
+#ifdef UNIV_BLOB_NULL_DEBUG
 /********************************************************
 Determine if the offsets are for a record containing null BLOB pointers. */
 UNIV_INLINE
@@ -1055,7 +1055,7 @@ rec_offs_any_null_extern(
 
 	return(NULL);
 }
-#endif /* UNIV_DEBUG || UNIV_BLOB_LIGHT_DEBUG */
+#endif /* UNIV_BLOB_NULL_DEBUG */
 
 /***************************************************************
 Sets the value of the ith field extern storage bit. */
