@@ -1148,8 +1148,8 @@ find_handler_after_execution(THD *thd, sp_rcontext *ctx)
   }
   else if (thd->get_stmt_wi()->statement_warn_count())
   {
-    List_iterator<MYSQL_ERROR> it(thd->get_stmt_wi()->warn_list());
-    MYSQL_ERROR *err;
+    Warning_info::Const_iterator it= thd->get_stmt_wi()->iterator();
+    const MYSQL_ERROR *err;
     while ((err= it++))
     {
       if (err->get_level() != MYSQL_ERROR::WARN_LEVEL_WARN &&
