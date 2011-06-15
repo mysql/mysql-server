@@ -112,25 +112,17 @@ namespace AQP
   class Equal_set_iterator
   {
   public:
+    explicit Equal_set_iterator(Item_equal& item_equal)
+    : m_iterator(item_equal) {}
 
-    explicit Equal_set_iterator(const Join_plan* plan,
-				const Item_field* field_item);
-
-    ~Equal_set_iterator();
-
-    const Item_field* next();
+    const Item_field* next()
+    { return m_iterator++; }
 
   private:
-
-    /**
-      The next Item_field, or NULL if end has been reached.
-     */
-    const Item_field* m_next;
-
     /**
       This class is implemented in terms of this mysqld internal class.
      */
-    Item_equal_iterator* m_iterator;
+    Item_equal_iterator m_iterator;
 
     // No copying.
     Equal_set_iterator(const Equal_set_iterator&);
@@ -210,6 +202,8 @@ namespace AQP
     int get_index_no() const;
 
     st_table* get_table() const;
+
+    Item_equal* get_item_equal(const Item_field* field_item) const;
 
     void dbug_print() const;
 
