@@ -317,6 +317,8 @@ ErrorBundle ErrorCodes[] = {
    */
   { 281,  HA_ERR_NO_CONNECTION, AE, "Operation not allowed due to cluster shutdown in progress" },
   { 299,  DMEC, AE, "Operation not allowed or aborted due to single user mode" },
+  { 261,  DMEC, AE,
+    "DML count in transaction exceeds config parameter MaxDMLOperationsPerTransaction" },
   { 763,  DMEC, AE, "DDL is not supported with mixed data-node versions" },
   { 823,  DMEC, AE, "Too much attrinfo from application in tuple manager" },
   { 829,  DMEC, AE, "Corrupt data received for insert/update" },
