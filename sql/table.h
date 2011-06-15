@@ -600,8 +600,9 @@ struct TABLE_SHARE
     Doubly-linked (back-linked) lists of used and unused TABLE objects
     for this share.
   */
-  I_P_List <TABLE, TABLE_share> used_tables;
-  I_P_List <TABLE, TABLE_share> free_tables;
+  typedef I_P_List <TABLE, TABLE_share> TABLE_list;
+  TABLE_list used_tables;
+  TABLE_list free_tables;
 
   /* The following is copied to each TABLE on OPEN */
   Field **field;
