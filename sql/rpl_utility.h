@@ -21,7 +21,7 @@
 #endif
 
 #include "sql_priv.h"
-#include "m_string.h"                           /* bzero, memcpy */
+#include "m_string.h"
 #ifdef MYSQL_SERVER
 #include "table.h"                              /* TABLE_LIST */
 #endif

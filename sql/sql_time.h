@@ -1,4 +1,4 @@
-/* Copyright (c) 2006, 2010, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2006, 2011, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -11,7 +11,7 @@
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
-   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA */
+   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
 #ifndef SQL_TIME_INCLUDED
 #define SQL_TIME_INCLUDED
@@ -35,11 +35,11 @@ ulong convert_period_to_month(ulong period);
 ulong convert_month_to_period(ulong month);
 void get_date_from_daynr(long daynr,uint *year, uint *month, uint *day);
 my_time_t TIME_to_timestamp(THD *thd, const MYSQL_TIME *t, my_bool *not_exist);
-bool str_to_time_with_warn(CHARSET_INFO *cs, const char *str, uint length,
-                           MYSQL_TIME *l_time);
-timestamp_type str_to_datetime_with_warn(CHARSET_INFO *cs, const char *str,
-                                         uint length, MYSQL_TIME *l_time,
-                                         uint flags);
+bool str_to_time_with_warn(const CHARSET_INFO *cs, const char *str,
+                           uint length, MYSQL_TIME *l_time);
+timestamp_type str_to_datetime_with_warn(const CHARSET_INFO *cs,
+                                         const char *str, uint length,
+                                         MYSQL_TIME *l_time, uint flags);
 void make_truncated_value_warning(THD *thd,
                                   MYSQL_ERROR::enum_warning_level level,
                                   const char *str_val, uint str_length,
@@ -74,10 +74,10 @@ bool parse_date_time_format(timestamp_type format_type,
                             const char *format, uint format_length,
                             DATE_TIME_FORMAT *date_time_format);
 /* Character set-aware version of str_to_time() */
-bool str_to_time(CHARSET_INFO *cs, const char *str,uint length,
+bool str_to_time(const CHARSET_INFO *cs, const char *str,uint length,
                  MYSQL_TIME *l_time, int *warning);
 /* Character set-aware version of str_to_datetime() */
-timestamp_type str_to_datetime(CHARSET_INFO *cs,
+timestamp_type str_to_datetime(const CHARSET_INFO *cs,
                                const char *str, uint length,
                                MYSQL_TIME *l_time, uint flags, int *was_cut);
 

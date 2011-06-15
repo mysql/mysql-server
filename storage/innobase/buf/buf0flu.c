@@ -295,7 +295,7 @@ buf_flush_insert_into_flush_list(
 /*=============================*/
 	buf_pool_t*	buf_pool,	/*!< buffer pool instance */
 	buf_block_t*	block,		/*!< in/out: block which is modified */
-	ib_uint64_t	lsn)		/*!< in: oldest modification */
+	lsn_t		lsn)		/*!< in: oldest modification */
 {
 	ut_ad(!buf_pool_mutex_own(buf_pool));
 	ut_ad(log_flush_order_mutex_own());
@@ -350,7 +350,7 @@ buf_flush_insert_sorted_into_flush_list(
 /*====================================*/
 	buf_pool_t*	buf_pool,	/*!< in: buffer pool instance */
 	buf_block_t*	block,		/*!< in/out: block which is modified */
-	ib_uint64_t	lsn)		/*!< in: oldest modification */
+	lsn_t		lsn)		/*!< in: oldest modification */
 {
 	buf_page_t*	prev_b;
 	buf_page_t*	b;
@@ -1009,10 +1009,10 @@ UNIV_INTERN
 void
 buf_flush_init_for_writing(
 /*=======================*/
-	byte*		page,		/*!< in/out: page */
-	void*		page_zip_,	/*!< in/out: compressed page, or NULL */
-	ib_uint64_t	newest_lsn)	/*!< in: newest modification lsn
-					to the page */
+	byte*	page,		/*!< in/out: page */
+	void*	page_zip_,	/*!< in/out: compressed page, or NULL */
+	lsn_t	newest_lsn)	/*!< in: newest modification lsn
+				to the page */
 {
 	ut_ad(page);
 
@@ -1021,7 +1021,7 @@ buf_flush_init_for_writing(
 		ulint		zip_size = page_zip_get_size(page_zip);
 		ut_ad(zip_size);
 		ut_ad(ut_is_2pow(zip_size));
-		ut_ad(zip_size <= UNIV_PAGE_SIZE);
+		ut_ad(zip_size <= UNIV_ZIP_SIZE_MAX);
 
 		switch (UNIV_EXPECT(fil_page_get_type(page), FIL_PAGE_INDEX)) {
 		case FIL_PAGE_TYPE_ALLOCATED:
@@ -1620,7 +1620,7 @@ buf_flush_flush_list_batch(
 					of blocks flushed (it is not
 					guaranteed that the actual
 					number is that big, though) */
-	ib_uint64_t	lsn_limit)	/*!< all blocks whose
+	lsn_t		lsn_limit)	/*!< all blocks whose
 					oldest_modification is smaller
 					than this should be flushed (if
 					their number does not exceed
@@ -1733,7 +1733,7 @@ buf_flush_batch(
 	ulint		min_n,		/*!< in: wished minimum mumber of blocks
 					flushed (it is not guaranteed that the
 					actual number is that big, though) */
-	ib_uint64_t	lsn_limit)	/*!< in: in the case of BUF_FLUSH_LIST
+	lsn_t		lsn_limit)	/*!< in: in the case of BUF_FLUSH_LIST
 					all blocks whose oldest_modification is
 					smaller than this should be flushed
 					(if their number does not exceed
@@ -1744,7 +1744,7 @@ buf_flush_batch(
 	ut_ad(flush_type == BUF_FLUSH_LRU || flush_type == BUF_FLUSH_LIST);
 #ifdef UNIV_SYNC_DEBUG
 	ut_ad((flush_type != BUF_FLUSH_LIST)
-	      || sync_thread_levels_empty_gen(TRUE));
+	      || sync_thread_levels_empty_except_dict());
 #endif /* UNIV_SYNC_DEBUG */
 
 	buf_pool_mutex_enter(buf_pool);
@@ -1940,7 +1940,7 @@ buf_flush_list(
 	ulint		min_n,		/*!< in: wished minimum mumber of blocks
 					flushed (it is not guaranteed that the
 					actual number is that big, though) */
-	ib_uint64_t	lsn_limit)	/*!< in the case BUF_FLUSH_LIST all
+	lsn_t		lsn_limit)	/*!< in the case BUF_FLUSH_LIST all
 					blocks whose oldest_modification is
 					smaller than this should be flushed
 					(if their number does not exceed
@@ -1998,7 +1998,7 @@ buf_flush_list(
 				page_count);
 	}
 
-	return(lsn_limit != IB_ULONGLONG_MAX && skipped
+	return(lsn_limit != LSN_MAX && skipped
 	       ? ULINT_UNDEFINED : total_page_count);
 }
  
@@ -2119,8 +2119,8 @@ buf_flush_stat_update(void)
 /*=======================*/
 {
 	buf_flush_stat_t*	item;
-	ib_uint64_t		lsn_diff;
-	ib_uint64_t		lsn;
+	lsn_t			lsn_diff;
+	lsn_t			lsn;
 	ulint			n_flushed;
 
 	lsn = log_get_lsn();
@@ -2168,14 +2168,13 @@ ulint
 buf_flush_get_desired_flush_rate(void)
 /*==================================*/
 {
-	lint		rate;
 	ulint		i;
-	ulint		redo_avg;
+	lsn_t		redo_avg;
 	ulint		n_dirty = 0;
-	ulint		n_flush_req;
-	ulint		lru_flush_avg;
-	ib_uint64_t	lsn = log_get_lsn();
-	ulint		log_capacity = log_get_capacity();
+	ib_uint64_t	n_flush_req;
+	ib_uint64_t	lru_flush_avg;
+	lsn_t		lsn = log_get_lsn();
+	lsn_t		log_capacity = log_get_capacity();
 
 	/* log_capacity should never be zero after the initialization
 	of log subsystem. */
@@ -2198,9 +2197,8 @@ buf_flush_get_desired_flush_rate(void)
 	/* redo_avg below is average at which redo is generated in
 	past BUF_FLUSH_STAT_N_INTERVAL + redo generated in the current
 	interval. */
-	redo_avg = (ulint) (buf_flush_stat_sum.redo
-			    / BUF_FLUSH_STAT_N_INTERVAL
-			    + (lsn - buf_flush_stat_cur.redo));
+	redo_avg = buf_flush_stat_sum.redo / BUF_FLUSH_STAT_N_INTERVAL
+		+ (lsn - buf_flush_stat_cur.redo);
 
 	/* An overflow can happen possibly if we flush more than 2^32
 	pages in BUF_FLUSH_STAT_N_INTERVAL. This is a very very
@@ -2221,11 +2219,14 @@ buf_flush_get_desired_flush_rate(void)
 	list is the difference between the required rate and the
 	number of pages that we are historically flushing from the
 	LRU list */
-	rate = n_flush_req - lru_flush_avg;
-	if (rate <= 0) {
+	if (n_flush_req <= lru_flush_avg) {
 		return(0);
 	} else {
-		return(ut_min(rate, PCT_IO(100)));
+		ib_uint64_t	rate;
+
+		rate = n_flush_req - lru_flush_avg;
+
+		return((ulint) (rate < PCT_IO(100) ? rate : PCT_IO(100)));
 	}
 }
 
@@ -2241,12 +2242,12 @@ page_cleaner_do_flush_batch(
 					we should attempt to flush. If
 					an lsn_limit is provided then
 					this value will have no affect */
-	ib_uint64_t	lsn_limit)	/*!< in: LSN up to which flushing
+	lsn_t		lsn_limit)	/*!< in: LSN up to which flushing
 					must happen */
 {
 	ulint n_flushed;
 
-	ut_ad(n_to_flush == ULINT_MAX || lsn_limit == IB_ULONGLONG_MAX);
+	ut_ad(n_to_flush == ULINT_MAX || lsn_limit == LSN_MAX);
 
 	n_flushed = buf_flush_list(n_to_flush, lsn_limit);
 	if (n_flushed == ULINT_UNDEFINED) {
@@ -2273,8 +2274,8 @@ ulint
 page_cleaner_flush_pages_if_needed(void)
 /*====================================*/
 {
-	ulint		n_pages_flushed = 0;
-	ib_uint64_t	lsn_limit = log_async_flush_lsn();
+	ulint	n_pages_flushed = 0;
+	lsn_t	lsn_limit = log_async_flush_lsn();
 
 	/* Currently we decide whether or not to flush and how much to
 	flush based on three factors.
@@ -2294,7 +2295,7 @@ page_cleaner_flush_pages_if_needed(void)
 	or 2 has occurred above then we flush a batch based on our
 	heuristics. */
 
-	if (lsn_limit != IB_ULONGLONG_MAX) {
+	if (lsn_limit != LSN_MAX) {
 
 		/* async flushing is requested */
 		n_pages_flushed = page_cleaner_do_flush_batch(ULINT_MAX,
@@ -2312,7 +2313,7 @@ page_cleaner_flush_pages_if_needed(void)
 		buffer pool under the limit wished by the user */
 
 		n_pages_flushed += page_cleaner_do_flush_batch(PCT_IO(100),
-							 IB_ULONGLONG_MAX);
+							       LSN_MAX);
 		MONITOR_INC(MONITOR_NUM_MAX_DIRTY_FLUSHES);
 		MONITOR_SET(MONITOR_FLUSH_MAX_DIRTY_PAGES, n_pages_flushed);
 	}
@@ -2328,7 +2329,7 @@ page_cleaner_flush_pages_if_needed(void)
 		if (n_flush) {
 			n_pages_flushed = page_cleaner_do_flush_batch(
 							n_flush,
-							IB_ULONGLONG_MAX);
+							LSN_MAX);
 
 			MONITOR_INC(MONITOR_NUM_ADAPTIVE_FLUSHES);
 			MONITOR_SET(MONITOR_FLUSH_ADAPTIVE_PAGES,
@@ -2392,8 +2393,10 @@ buf_flush_page_cleaner_thread(
 	while (srv_shutdown_state == SRV_SHUTDOWN_NONE) {
 
 		/* The page_cleaner skips sleep if the server is
-		idle and there is work to do. */
+		idle and there are no pending IOs in the buffer pool
+		and there is work to do. */
 		if (srv_check_activity(last_activity)
+		    || buf_get_n_pending_read_ios()
 		    || n_flushed == 0) {
 			page_cleaner_sleep_if_needed(next_loop_time);
 		}
@@ -2406,7 +2409,7 @@ buf_flush_page_cleaner_thread(
 		} else {
 			n_flushed = page_cleaner_do_flush_batch(
 							PCT_IO(100),
-							IB_ULONGLONG_MAX);
+							LSN_MAX);
 		}
 	}
 
@@ -2430,8 +2433,7 @@ buf_flush_page_cleaner_thread(
 	dirtied until we enter SRV_SHUTDOWN_FLUSH_PHASE phase. */
 
 	do {
-		n_flushed = page_cleaner_do_flush_batch(PCT_IO(100),
-							IB_ULONGLONG_MAX);
+		n_flushed = page_cleaner_do_flush_batch(PCT_IO(100), LSN_MAX);
 
 		/* We sleep only if there are no pages to flush */
 		if (n_flushed == 0) {
@@ -2454,8 +2456,7 @@ buf_flush_page_cleaner_thread(
 	buf_flush_wait_batch_end(NULL, BUF_FLUSH_LIST);
 	do {
 
-		n_flushed = buf_flush_list(PCT_IO(100),
-						 IB_ULONGLONG_MAX);
+		n_flushed = buf_flush_list(PCT_IO(100), LSN_MAX);
 		buf_flush_wait_batch_end(NULL, BUF_FLUSH_LIST);
 
 	} while (n_flushed > 0);
@@ -2508,7 +2509,7 @@ buf_flush_validate_low(
 	}
 
 	while (bpage != NULL) {
-		const ib_uint64_t om = bpage->oldest_modification;
+		const lsn_t	om = bpage->oldest_modification;
 
 		ut_ad(buf_pool_from_bpage(bpage) == buf_pool);
 

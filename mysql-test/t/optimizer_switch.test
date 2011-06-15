@@ -280,8 +280,6 @@ eval $query;
 
 set @@optimizer_switch='materialization=off,semijoin=on';
 
---echo # The query result with semijoin is WRONG
-
 eval EXPLAIN $query;
 eval $query;
 
@@ -302,8 +300,6 @@ eval EXPLAIN $query;
 eval $query;
 
 set @@optimizer_switch='materialization=off,semijoin=on';
-
---echo # The query result with semijoin is WRONG
 
 eval EXPLAIN $query;
 eval $query;

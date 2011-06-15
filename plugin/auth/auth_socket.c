@@ -17,7 +17,7 @@
 /**
   @file
 
-  socket_peercred authentication plugin.
+  auth_socket authentication plugin.
 
   Authentication is successful if the connection is done via a unix socket and
   the owner of the client process matches the user name that was used when
@@ -79,7 +79,7 @@ mysql_declare_plugin(socket_auth)
 {
   MYSQL_AUTHENTICATION_PLUGIN,
   &socket_auth_handler,
-  "socket_peercred",
+  "auth_socket",
   "Sergei Golubchik",
   "Unix Socket based authentication",
   PLUGIN_LICENSE_GPL,

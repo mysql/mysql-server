@@ -1,4 +1,5 @@
 #include <mysql/plugin.h>
+typedef void * MYSQL_PLUGIN;
 #include <mysql/services.h>
 #include <mysql/service_my_snprintf.h>
 extern struct my_snprintf_service_st {
@@ -33,16 +34,23 @@ MYSQL_LEX_STRING *thd_make_lex_string(void* thd, MYSQL_LEX_STRING *lex_str,
                                       int allocate_lex_string);
 #include <mysql/service_thd_wait.h>
 typedef enum _thd_wait_type_e {
-  THD_WAIT_MUTEX= 1,
+  THD_WAIT_SLEEP= 1,
   THD_WAIT_DISKIO= 2,
-  THD_WAIT_ROW_TABLE_LOCK= 3,
-  THD_WAIT_GLOBAL_LOCK= 4
+  THD_WAIT_ROW_LOCK= 3,
+  THD_WAIT_GLOBAL_LOCK= 4,
+  THD_WAIT_META_DATA_LOCK= 5,
+  THD_WAIT_TABLE_LOCK= 6,
+  THD_WAIT_USER_LOCK= 7,
+  THD_WAIT_BINLOG= 8,
+  THD_WAIT_GROUP_COMMIT= 9,
+  THD_WAIT_SYNC= 10,
+  THD_WAIT_LAST= 11
 } thd_wait_type;
 extern struct thd_wait_service_st {
-  void (*thd_wait_begin_func)(void*, thd_wait_type);
+  void (*thd_wait_begin_func)(void*, int);
   void (*thd_wait_end_func)(void*);
 } *thd_wait_service;
-void thd_wait_begin(void* thd, thd_wait_type wait_type);
+void thd_wait_begin(void* thd, int wait_type);
 void thd_wait_end(void* thd);
 #include <mysql/service_thread_scheduler.h>
 struct scheduler_functions;
@@ -52,6 +60,19 @@ extern struct my_thread_scheduler_service {
 } *my_thread_scheduler_service;
 int my_thread_scheduler_set(struct scheduler_functions *scheduler);
 int my_thread_scheduler_reset();
+#include <mysql/service_my_plugin_log.h>
+enum plugin_log_level
+{
+  MY_ERROR_LEVEL,
+  MY_WARNING_LEVEL,
+  MY_INFORMATION_LEVEL
+};
+extern struct my_plugin_log_service
+{
+  int (*my_plugin_log_message)(MYSQL_PLUGIN *, enum plugin_log_level, const char *, ...);
+} *my_plugin_log_service;
+int my_plugin_log_message(MYSQL_PLUGIN *plugin, enum plugin_log_level level,
+                          const char *format, ...);
 struct st_mysql_xid {
   long formatID;
   long gtrid_length;
@@ -88,8 +109,8 @@ struct st_mysql_plugin
   const char *author;
   const char *descr;
   int license;
-  int (*init)(void *);
-  int (*deinit)(void *);
+  int (*init)(MYSQL_PLUGIN);
+  int (*deinit)(MYSQL_PLUGIN);
   unsigned int version;
   struct st_mysql_show_var *status_vars;
   struct st_mysql_sys_var **system_vars;
@@ -130,7 +151,7 @@ typedef struct st_mysql_ftparser_param
                         MYSQL_FTPARSER_BOOLEAN_INFO *boolean_info);
   void *ftparser_state;
   void *mysql_ftparam;
-  struct charset_info_st *cs;
+  const struct charset_info_st *cs;
   char *doc;
   int length;
   int flags;

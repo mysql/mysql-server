@@ -11,8 +11,8 @@ ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
 FOR A PARTICULAR PURPOSE. See the GNU General Public License for more details.
 
 You should have received a copy of the GNU General Public License along with
-this program; if not, write to the Free Software Foundation, Inc., 59 Temple
-Place, Suite 330, Boston, MA 02111-1307 USA
+this program; if not, write to the Free Software Foundation, Inc.,
+51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA
 
 *****************************************************************************/
 
@@ -137,6 +137,19 @@ dict_col_copy_type(
 /*===============*/
 	const dict_col_t*	col,	/*!< in: column */
 	dtype_t*		type);	/*!< out: data type */
+/**********************************************************************//**
+Determine bytes of column prefix to be stored in the undo log. Please
+note if the table format is UNIV_FORMAT_A (< UNIV_FORMAT_B), no prefix
+needs to be stored in the undo log.
+@return bytes of column prefix to be stored in the undo log */
+UNIV_INLINE
+ulint
+dict_max_field_len_store_undo(
+/*==========================*/
+	dict_table_t*		table,	/*!< in: table */
+	const dict_col_t*	col);	/*!< in: column which index prefix
+					is based on */
+
 #endif /* !UNIV_HOTBACKUP */
 #ifdef UNIV_DEBUG
 /*********************************************************************//**
@@ -708,6 +721,7 @@ ulint
 dict_table_zip_size(
 /*================*/
 	const dict_table_t*	table);	/*!< in: table */
+#ifndef UNIV_HOTBACKUP
 /*********************************************************************//**
 Obtain exclusive locks on all index trees of the table. This is to prevent
 accessing index trees while InnoDB is updating internal metadata for
@@ -734,15 +748,14 @@ dict_table_col_in_clustered_key(
 /*============================*/
 	const dict_table_t*	table,	/*!< in: table */
 	ulint			n);	/*!< in: column number */
-/************************************************************************
-Check if the table has an FTS index. */
+/*******************************************************************//**
+Check if the table has an FTS index.
+@return TRUE if table has an FTS index */
 UNIV_INLINE
 ibool
 dict_table_has_fts_index(
 /*=====================*/
-				/* out: TRUE if table has an FTS index */
-	dict_table_t*   table); /* in: table */
-#ifndef UNIV_HOTBACKUP
+	dict_table_t*   table);		/*!< in: table */
 /*******************************************************************//**
 Copies types of columns contained in table to tuple and sets all
 fields of the tuple to the SQL NULL value.  This function should

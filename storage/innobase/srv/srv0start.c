@@ -85,14 +85,13 @@ Created 2/16/1996 Heikki Tuuri
 # include "row0row.h"
 # include "row0mysql.h"
 # include "btr0pcur.h"
-# include "thr0loc.h"
 # include "os0sync.h" /* for INNODB_RW_LOCKS_USE_ATOMICS */
 # include "zlib.h" /* for ZLIB_VERSION */
 
 /** Log sequence number immediately after startup */
-UNIV_INTERN ib_uint64_t	srv_start_lsn;
+UNIV_INTERN lsn_t	srv_start_lsn;
 /** Log sequence number at shutdown */
-UNIV_INTERN ib_uint64_t	srv_shutdown_lsn;
+UNIV_INTERN lsn_t	srv_shutdown_lsn;
 
 #ifdef HAVE_DARWIN_THREADS
 # include <sys/utsname.h>
@@ -521,32 +520,6 @@ srv_normalize_path_for_win(
 
 #ifndef UNIV_HOTBACKUP
 /*********************************************************************//**
-Calculates the low 32 bits when a file size which is given as a number
-database pages is converted to the number of bytes.
-@return	low 32 bytes of file size when expressed in bytes */
-static
-ulint
-srv_calc_low32(
-/*===========*/
-	ulint	file_size)	/*!< in: file size in database pages */
-{
-	return(0xFFFFFFFFUL & (file_size << UNIV_PAGE_SIZE_SHIFT));
-}
-
-/*********************************************************************//**
-Calculates the high 32 bits when a file size which is given as a number
-database pages is converted to the number of bytes.
-@return	high 32 bytes of file size when expressed in bytes */
-static
-ulint
-srv_calc_high32(
-/*============*/
-	ulint	file_size)	/*!< in: file size in database pages */
-{
-	return(file_size >> (32 - UNIV_PAGE_SIZE_SHIFT));
-}
-
-/*********************************************************************//**
 Creates or opens the log files and closes them.
 @return	DB_SUCCESS or error code */
 static
@@ -563,11 +536,10 @@ open_or_create_log_file(
 	ulint	k,			/*!< in: log group number */
 	ulint	i)			/*!< in: log file number in group */
 {
-	ibool	ret;
-	ulint	size;
-	ulint	size_high;
-	char	name[10000];
-	ulint	dirnamelen;
+	ibool		ret;
+	os_offset_t	size;
+	char		name[10000];
+	ulint		dirnamelen;
 
 	UT_NOT_USED(create_new_db);
 
@@ -615,20 +587,20 @@ open_or_create_log_file(
 			return(DB_ERROR);
 		}
 
-		ret = os_file_get_size(files[i], &size, &size_high);
-		ut_a(ret);
+		size = os_file_get_size(files[i]);
+		ut_a(size != (os_offset_t) -1);
 
-		if (size != srv_calc_low32(srv_log_file_size)
-		    || size_high != srv_calc_high32(srv_log_file_size)) {
+		if (UNIV_UNLIKELY(size != (os_offset_t) srv_log_file_size
+				  << UNIV_PAGE_SIZE_SHIFT)) {
 
 			fprintf(stderr,
 				"InnoDB: Error: log file %s is"
-				" of different size %lu %lu bytes\n"
+				" of different size %llu bytes\n"
 				"InnoDB: than specified in the .cnf"
-				" file %lu %lu bytes!\n",
-				name, (ulong) size_high, (ulong) size,
-				(ulong) srv_calc_high32(srv_log_file_size),
-				(ulong) srv_calc_low32(srv_log_file_size));
+				" file %llu bytes!\n",
+				name, size,
+				(os_offset_t) srv_log_file_size
+				<< UNIV_PAGE_SIZE_SHIFT);
 
 			return(DB_ERROR);
 		}
@@ -655,8 +627,8 @@ open_or_create_log_file(
 			" full: wait...\n");
 
 		ret = os_file_set_size(name, files[i],
-				       srv_calc_low32(srv_log_file_size),
-				       srv_calc_high32(srv_log_file_size));
+				       (os_offset_t) srv_log_file_size
+				       << UNIV_PAGE_SIZE_SHIFT);
 		if (!ret) {
 			fprintf(stderr,
 				"InnoDB: Error in creating %s:"
@@ -680,7 +652,11 @@ open_or_create_log_file(
 
 	ut_a(fil_validate());
 
-	fil_node_create(name, srv_log_file_size,
+	/* srv_log_file_size is measured in pages; if page size is 16KB,
+	then we have a limit of 64TB on 32 bit systems */
+	ut_a(srv_log_file_size <= ULINT_MAX);
+
+	fil_node_create(name, (ulint) srv_log_file_size,
 			2 * k + SRV_LOG_SPACE_FIRST_ID, FALSE);
 #ifdef UNIV_LOG_ARCHIVE
 	/* If this is the first log group, create the file space object
@@ -721,21 +697,20 @@ open_or_create_data_files(
 	ulint*		max_arch_log_no,/*!< out: max of archived log
 					numbers in data files */
 #endif /* UNIV_LOG_ARCHIVE */
-	ib_uint64_t*	min_flushed_lsn,/*!< out: min of flushed lsn
+	lsn_t*		min_flushed_lsn,/*!< out: min of flushed lsn
 					values in data files */
-	ib_uint64_t*	max_flushed_lsn,/*!< out: max of flushed lsn
+	lsn_t*		max_flushed_lsn,/*!< out: max of flushed lsn
 					values in data files */
 	ulint*		sum_of_new_sizes)/*!< out: sum of sizes of the
 					new files added */
 {
-	ibool	ret;
-	ulint	i;
-	ibool	one_opened	= FALSE;
-	ibool	one_created	= FALSE;
-	ulint	size;
-	ulint	size_high;
-	ulint	rounded_size_pages;
-	char	name[10000];
+	ibool		ret;
+	ulint		i;
+	ibool		one_opened	= FALSE;
+	ibool		one_created	= FALSE;
+	os_offset_t	size;
+	ulint		rounded_size_pages;
+	char		name[10000];
 
 	if (srv_n_data_files >= 1000) {
 		fprintf(stderr, "InnoDB: can only have < 1000 data files\n"
@@ -861,13 +836,12 @@ open_or_create_data_files(
 				goto skip_size_check;
 			}
 
-			ret = os_file_get_size(files[i], &size, &size_high);
-			ut_a(ret);
+			size = os_file_get_size(files[i]);
+			ut_a(size != (os_offset_t) -1);
 			/* Round size downward to megabytes */
 
-			rounded_size_pages
-				= (size / (1024 * 1024) + 4096 * size_high)
-					<< (20 - UNIV_PAGE_SIZE_SHIFT);
+			rounded_size_pages = (ulint)
+				(size >> UNIV_PAGE_SIZE_SHIFT);
 
 			if (i == srv_n_data_files - 1
 			    && srv_auto_extend_last_data_file) {
@@ -956,8 +930,8 @@ skip_size_check:
 
 			ret = os_file_set_size(
 				name, files[i],
-				srv_calc_low32(srv_data_file_sizes[i]),
-				srv_calc_high32(srv_data_file_sizes[i]));
+				(os_offset_t) srv_data_file_sizes[i]
+				<< UNIV_PAGE_SIZE_SHIFT);
 
 			if (!ret) {
 				fprintf(stderr,
@@ -967,8 +941,7 @@ skip_size_check:
 				return(DB_ERROR);
 			}
 
-			*sum_of_new_sizes = *sum_of_new_sizes
-				+ srv_data_file_sizes[i];
+			*sum_of_new_sizes += srv_data_file_sizes[i];
 		}
 
 		ret = os_file_close(files[i]);
@@ -1000,8 +973,8 @@ innobase_start_or_create_for_mysql(void)
 	ibool		log_file_created;
 	ibool		log_created	= FALSE;
 	ibool		log_opened	= FALSE;
-	ib_uint64_t	min_flushed_lsn;
-	ib_uint64_t	max_flushed_lsn;
+	lsn_t		min_flushed_lsn;
+	lsn_t		max_flushed_lsn;
 #ifdef UNIV_LOG_ARCHIVE
 	ulint		min_arch_log_no;
 	ulint		max_arch_log_no;
@@ -1422,11 +1395,18 @@ innobase_start_or_create_for_mysql(void)
 	}
 #endif /* UNIV_LOG_ARCHIVE */
 
-	if (srv_n_log_files * srv_log_file_size >= 262144) {
+	if (srv_n_log_files * srv_log_file_size >= ULINT_MAX) {
+		/* fil_io() takes ulint as an argument and we are passing
+		(next_offset / UNIV_PAGE_SIZE) to it in log_group_write_buf().
+		So (next_offset / UNIV_PAGE_SIZE) must be less than ULINT_MAX.
+		So next_offset must be < ULINT_MAX * UNIV_PAGE_SIZE. This
+		means that we are limited to ULINT_MAX * UNIV_PAGE_SIZE which
+		is 64 TB on 32 bit systems. */
 		ut_print_timestamp(stderr);
 		fprintf(stderr,
 			" InnoDB: Error: combined size of log files"
-			" must be < 4 GB\n");
+			" must be < %lu GB\n",
+			ULINT_MAX / 1073741824 * UNIV_PAGE_SIZE);
 
 		return(DB_ERROR);
 	}
@@ -1454,7 +1434,7 @@ innobase_start_or_create_for_mysql(void)
 	if (sum_of_new_sizes < 10485760 / UNIV_PAGE_SIZE) {
 		ut_print_timestamp(stderr);
 		fprintf(stderr,
-			" InnoDB: Error: tablespace size must be"
+			" InnoDB: Error: tablesapce size must be"
 			" at least 10 MB\n");
 
 		return(DB_ERROR);
@@ -1576,7 +1556,7 @@ innobase_start_or_create_for_mysql(void)
 			return(DB_ERROR);
 		}
 
-		if (max_flushed_lsn < (ib_uint64_t) 1000) {
+		if (max_flushed_lsn < (lsn_t) 1000) {
 			ut_print_timestamp(stderr);
 			fprintf(stderr,
 				" InnoDB: Cannot initialize created"
@@ -1668,10 +1648,6 @@ innobase_start_or_create_for_mysql(void)
 
 		srv_startup_is_before_trx_rollback_phase = FALSE;
 
-		/* Initialize the fsp free limit global variable in the log
-		system */
-		fsp_header_get_free_limit();
-
 		recv_recovery_from_archive_finish();
 #endif /* UNIV_LOG_ARCHIVE */
 	} else {
@@ -1728,10 +1704,6 @@ innobase_start_or_create_for_mysql(void)
 		therefore requires that the trx_sys is inited. */
 
 		trx_purge_sys_create(srv_n_purge_threads, ib_bh);
-
-		/* Initialize the fsp free limit global variable in the log
-		system */
-		fsp_header_get_free_limit();
 
 		/* recv_recovery_from_checkpoint_finish needs trx lists which
 		are initialized in trx_sys_init_at_db_start(). */
@@ -1859,7 +1831,8 @@ innobase_start_or_create_for_mysql(void)
 
 	/* If the user has requested a separate purge thread then
 	start the purge thread. */
-	if (srv_n_purge_threads >= 1) {
+	if (srv_n_purge_threads >= 1
+	    && srv_force_recovery < SRV_FORCE_NO_BACKGROUND) {
 
 		os_thread_create(
 			&srv_purge_coordinator_thread, NULL,
@@ -1880,7 +1853,9 @@ innobase_start_or_create_for_mysql(void)
 
 	/* Wait for the purge coordinator and master thread to startup. */
 
-	while (srv_shutdown_state == SRV_SHUTDOWN_NONE) {
+	while (srv_shutdown_state == SRV_SHUTDOWN_NONE
+	       && srv_force_recovery < SRV_FORCE_NO_BACKGROUND) {
+
 		if (srv_thread_has_reserved_slot(SRV_MASTER) == ULINT_UNDEFINED
 		    || (srv_n_purge_threads > 0
 			&& srv_thread_has_reserved_slot(SRV_PURGE)
@@ -2017,7 +1992,7 @@ innobase_start_or_create_for_mysql(void)
 		ut_print_timestamp(stderr);
 		fprintf(stderr,
 			" InnoDB: %s started; "
-			"log sequence number %llu\n",
+			"log sequence number " LSN_PF "\n",
 			INNODB_VERSION_STR, srv_start_lsn);
 	}
 
@@ -2178,17 +2153,6 @@ innobase_shutdown_for_mysql(void)
 	The step 1 is the real InnoDB shutdown. The remaining steps 2 - ...
 	just free data structures after the shutdown. */
 
-
-	if (srv_fast_shutdown == 2) {
-		ut_print_timestamp(stderr);
-		fprintf(stderr,
-			"  InnoDB: MySQL has requested a very fast shutdown"
-			" without flushing "
-			"the InnoDB buffer pool to data files."
-			" At the next mysqld startup "
-			"InnoDB will do a crash recovery!\n");
-	}
-
 	logs_empty_and_mark_files_at_shutdown();
 
 	if (srv_conc_n_threads != 0) {
@@ -2203,17 +2167,9 @@ innobase_shutdown_for_mysql(void)
 
 	srv_shutdown_state = SRV_SHUTDOWN_EXIT_THREADS;
 
-	/* In a 'very fast' shutdown, we do not need to wait for these threads
-	to die; all which counts is that we flushed the log; a 'very fast'
-	shutdown is essentially a crash. */
-
-	if (srv_fast_shutdown == 2) {
-		return(DB_SUCCESS);
-	}
-
 	/* All threads end up waiting for certain events. Put those events
-	to the signaled state. Then the threads will exit themselves in
-	os_thread_event_wait(). */
+	to the signaled state. Then the threads will exit themselves after
+	os_event_wait(). */
 
 	for (i = 0; i < 1000; i++) {
 		/* NOTE: IF YOU CREATE THREADS IN INNODB, YOU MUST EXIT THEM
@@ -2295,7 +2251,6 @@ innobase_shutdown_for_mysql(void)
 	ibuf_close();
 	log_shutdown();
 	lock_sys_close();
-	thr_local_close();
 	trx_sys_file_format_close();
 	trx_sys_close();
 
@@ -2351,7 +2306,7 @@ innobase_shutdown_for_mysql(void)
 		ut_print_timestamp(stderr);
 		fprintf(stderr,
 			"  InnoDB: Shutdown completed;"
-			" log sequence number %llu\n",
+			" log sequence number " LSN_PF "\n",
 			srv_shutdown_lsn);
 	}
 

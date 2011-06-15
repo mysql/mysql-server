@@ -23,6 +23,8 @@ insert into tm set a=null; # to simulate killed status on the slave
 commit;
 
 connection slave;
+call mtr.add_suppression("Slave SQL.*Request to stop slave SQL Thread received while applying a group that has non-transactional changes; waiting for completion of the group");
+call mtr.add_suppression("Slave SQL.*Slave SQL Thread stopped with incomplete event group having non-transactional changes");
 
 # slave will catch the killed status but won't shut down immediately
 # only after the whole group has done (commit)
@@ -31,17 +33,21 @@ source include/wait_for_slave_sql_to_stop.inc;
 
 # checking: no error and the group is finished
 
-let $error= query_get_value("SHOW SLAVE STATUS", Last_SQL_Error, 1);
-let $read = query_get_value("SHOW SLAVE STATUS", Read_Master_Log_Pos, 1);
-let $exec = query_get_value("SHOW SLAVE STATUS", Exec_Master_Log_Pos, 1);
---disable_query_log
-eval SELECT $read = $exec into @check;
-let $error= `SELECT SUBSTRING("$error" FROM 17)`;
---enable_query_log
-eval SELECT "NO$error" AS Last_SQL_Error, @check as `true`;
-select count(*) as one from tm;
-select count(*) as one from ti;
+--source include/check_slave_no_error.inc
 
+--let $assert_text= Everything that was read, was executed
+--let $assert_cond= [SHOW SLAVE STATUS, Read_Master_Log_Pos, 1] = [SHOW SLAVE STATUS, Exec_Master_Log_Pos, 1]
+--source include/assert.inc
+
+--let $assert_text= There is one row in table tm
+--let $assert_cond= [SELECT COUNT(*) AS Val FROM tm, Val, 1] = 1
+--source include/assert.inc
+
+--let $assert_text= There is one row in table ti
+--let $assert_cond= [SELECT COUNT(*) AS Val FROM ti, Val, 1] = 1
+--source include/assert.inc
+
+--source include/stop_slave.inc
 set @@global.debug="-d";
 
 #
@@ -81,27 +87,33 @@ connection slave;
 # slave will catch the killed status, won't shut down immediately
 # but does it eventually having the whole group unfinished (not committed)
 
-source include/wait_for_slave_sql_to_stop.inc;
+let $slave_sql_errno= 1593; # ER_SLAVE_FATAL_ERROR
+--let $show_slave_sql_error= 1
+--source include/wait_for_slave_sql_error.inc
 
 # checking: the error and group unfinished
 
-let $error= query_get_value("SHOW SLAVE STATUS", Last_SQL_Error, 1);
-let $read = query_get_value("SHOW SLAVE STATUS", Read_Master_Log_Pos, 1);
-let $exec = query_get_value("SHOW SLAVE STATUS", Exec_Master_Log_Pos, 1);
---disable_query_log
-eval SELECT $read - $exec > 0 into @check;
-let $error= `SELECT SUBSTRING("$error" FROM 17)`;
---enable_query_log
-eval SELECT "$error" AS Last_SQL_Error, @check as `true`;
-select count(*) as one  from tm;
-select count(*) as zero from ti;
+--let $assert_text= Not everything that was read, was executed
+--let $assert_cond= [SHOW SLAVE STATUS, Read_Master_Log_Pos, 1] > [SHOW SLAVE STATUS, Exec_Master_Log_Pos, 1]
+--source include/assert.inc
 
+--let $assert_text= There is one row in table tm
+--let $assert_cond= [SELECT COUNT(*) AS Val FROM tm, Val, 1] = 1
+--source include/assert.inc
+
+--let $assert_text= There is no row in table ti
+--let $assert_cond= [SELECT COUNT(*) AS Val FROM ti, Val, 1] = 0
+--source include/assert.inc
+
+--source include/stop_slave.inc
 set @@global.debug="-d";
 
 #
 # The mixed multi-table update
 #
-stop slave;
+
+# above tests for Bug#11765758 - 58754 made sure slave is down
+
 truncate table tm;
 source include/start_slave.inc;
 
@@ -121,21 +133,24 @@ connection slave;
 # but does it eventually having the whole group unfinished (not committed)
 # 
 
-source include/wait_for_slave_sql_to_stop.inc;
-
 # checking: the error and group unfinished 
+let $slave_sql_errno= 1593; # ER_SLAVE_FATAL_ERROR
+--let $show_slave_sql_error= 1
+--source include/wait_for_slave_sql_error.inc
 
-let $error= query_get_value("SHOW SLAVE STATUS", Last_SQL_Error, 1);
-let $read = query_get_value("SHOW SLAVE STATUS", Read_Master_Log_Pos, 1);
-let $exec = query_get_value("SHOW SLAVE STATUS", Exec_Master_Log_Pos, 1);
---disable_query_log
-eval SELECT $read - $exec > 0 into @check;
-let $error= `SELECT SUBSTRING("$error" FROM 17)`;
---enable_query_log
-eval SELECT "$error" AS Last_SQL_Error, @check as `true`;
-select max(a) as two from tm;
-select max(a) as one from ti;
+--let $assert_text= Not everything that was read, was executed
+--let $assert_cond= [SHOW SLAVE STATUS, Read_Master_Log_Pos, 1] > [SHOW SLAVE STATUS, Exec_Master_Log_Pos, 1]
+--source include/assert.inc
 
+--let $assert_text= The max value for field 'a' is 2
+--let $assert_cond= [SELECT MAX(a) AS Val FROM tm, Val, 1] = 2
+--source include/assert.inc
+
+--let $assert_text= The max value for field 'a' is 1
+--let $assert_cond= [SELECT MAX(a) AS Val FROM ti, Val, 1] = 1
+--source include/assert.inc
+
+--source include/stop_slave.inc
 set @@global.debug="-d";
 
 #

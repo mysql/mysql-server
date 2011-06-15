@@ -10,6 +10,7 @@
 *.core
 *.d
 *.da
+*.dir
 *.dll
 *.dylib
 *.exe
@@ -32,6 +33,7 @@
 *.pdb
 *.reject
 *.res
+*.rule
 *.sbr
 *.so
 *.so.*
@@ -39,7 +41,13 @@
 *.user
 *.vcproj
 *.vcproj.cmake
+*.vcxproj
+*.vcxproj.filters
 */*.dir/*
+*.dir
+Debug
+MySql.sdf
+Win32
 */*_pure_*warnings
 */.deps
 */.libs/*
@@ -47,7 +55,7 @@
 */debug/*
 */minsizerel/*
 */release/*
-*/relwithdebinfo/*
+RelWithDebInfo
 *~
 .*.swp
 ./CMakeCache.txt
@@ -612,6 +620,7 @@ include/mysql_h.ic
 include/mysql_version.h
 include/mysqld_ername.h
 include/mysqld_error.h
+include/mysqld_error.h.rule
 include/openssl
 include/probes_mysql_dtrace.h
 include/readline
@@ -1895,7 +1904,9 @@ scripts/mysql_find_rows
 scripts/mysql_fix_extensions
 scripts/mysql_fix_privilege_tables
 scripts/mysql_fix_privilege_tables.sql
+scripts/mysql_fix_privilege_tables.sql.rule
 scripts/mysql_fix_privilege_tables_sql.c
+scripts/mysql_fix_privilege_tables_sql.c.rule
 scripts/mysql_install_db
 scripts/mysql_secure_installation
 scripts/mysql_setpermission
@@ -2136,6 +2147,7 @@ sql/handlerton.cc
 sql/html
 sql/latex
 sql/lex_hash.h
+sql/lex_hash.h.rule
 sql/link_sources
 sql/max/*
 sql/message.h
@@ -2167,6 +2179,7 @@ sql/sql_builtin.cc
 sql/sql_select.cc.orig
 sql/sql_yacc.cc
 sql/sql_yacc.h
+sql/sql_yacc.h.rule
 sql/sql_yacc.output
 sql/sql_yacc.yy.orig
 sql/test_time
@@ -3032,7 +3045,6 @@ unittest/examples/.deps/skip_all-t.Po
 unittest/examples/.deps/todo-t.Po
 unittest/mysys/*.t
 unittest/mysys/.deps/base64-t.Po
-unittest/mysys/.deps/bitmap-t.Po
 unittest/mysys/.deps/my_atomic-t.Po
 unittest/mytap/.deps/tap.Po
 unittest/mytap/t/*.t
@@ -3137,9 +3149,15 @@ libmysqld/examples/mysql_embedded
 sql/.empty
 libmysqld/sql_bootstrap.cc
 mysys/thr_lock
+mysys/queues
 libmysqld/binlog.cc
 libmysqld/sql_alter.cc
 libmysqld/sql_partition_admin.cc
 generated
 doxyerror.log
 VERSION.dep
+info_macros.cmake
+Docs/INFO_BIN
+Docs/INFO_SRC
+Testing
+source_downloads

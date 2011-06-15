@@ -1,0 +1,6 @@
+include/master-slave.inc
+[connection master]
+include/assert.inc [Logged query must match the one issued.]
+include/assert.inc [Logged query must match the one issued.]
+include/assert.inc [Logged query must match the one issued but properly escaped.]
+include/rpl_end.inc

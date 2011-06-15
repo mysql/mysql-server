@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2010 Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2011, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -10,8 +10,8 @@
    GNU General Public License for more details.
 
    You should have received a copy of the GNU General Public License
-   along with this program; if not, write to the Free Software Foundation,
-   51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA */
+   along with this program; if not, write to the Free Software
+   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
 /**
   @file
@@ -30,6 +30,7 @@
 #include "set_var.h"
 #include "sp_head.h"
 #include "sp.h"
+#include "item_inetfunc.h"
 
 /*
 =============================================================================
@@ -1200,6 +1201,84 @@ public:
 protected:
   Create_func_inet_aton() {}
   virtual ~Create_func_inet_aton() {}
+};
+
+
+class Create_func_inet6_aton : public Create_func_arg1
+{
+public:
+  virtual Item *create(THD *thd, Item *arg1);
+
+  static Create_func_inet6_aton s_singleton;
+
+protected:
+  Create_func_inet6_aton() {}
+  virtual ~Create_func_inet6_aton() {}
+};
+
+
+class Create_func_inet6_ntoa : public Create_func_arg1
+{
+public:
+  virtual Item *create(THD *thd, Item *arg1);
+
+  static Create_func_inet6_ntoa s_singleton;
+
+protected:
+  Create_func_inet6_ntoa() {}
+  virtual ~Create_func_inet6_ntoa() {}
+};
+
+
+class Create_func_is_ipv4 : public Create_func_arg1
+{
+public:
+  virtual Item *create(THD *thd, Item *arg1);
+
+  static Create_func_is_ipv4 s_singleton;
+
+protected:
+  Create_func_is_ipv4() {}
+  virtual ~Create_func_is_ipv4() {}
+};
+
+
+class Create_func_is_ipv6 : public Create_func_arg1
+{
+public:
+  virtual Item *create(THD *thd, Item *arg1);
+
+  static Create_func_is_ipv6 s_singleton;
+
+protected:
+  Create_func_is_ipv6() {}
+  virtual ~Create_func_is_ipv6() {}
+};
+
+
+class Create_func_is_ipv4_compat : public Create_func_arg1
+{
+public:
+  virtual Item *create(THD *thd, Item *arg1);
+
+  static Create_func_is_ipv4_compat s_singleton;
+
+protected:
+  Create_func_is_ipv4_compat() {}
+  virtual ~Create_func_is_ipv4_compat() {}
+};
+
+
+class Create_func_is_ipv4_mapped : public Create_func_arg1
+{
+public:
+  virtual Item *create(THD *thd, Item *arg1);
+
+  static Create_func_is_ipv4_mapped s_singleton;
+
+protected:
+  Create_func_is_ipv4_mapped() {}
+  virtual ~Create_func_is_ipv4_mapped() {}
 };
 
 
@@ -3903,12 +3982,66 @@ Create_func_inet_ntoa::create(THD *thd, Item *arg1)
 }
 
 
+Create_func_inet6_aton Create_func_inet6_aton::s_singleton;
+
+Item*
+Create_func_inet6_aton::create(THD *thd, Item *arg1)
+{
+  return new (thd->mem_root) Item_func_inet6_aton(arg1);
+}
+
+
+Create_func_inet6_ntoa Create_func_inet6_ntoa::s_singleton;
+
+Item*
+Create_func_inet6_ntoa::create(THD *thd, Item *arg1)
+{
+  return new (thd->mem_root) Item_func_inet6_ntoa(arg1);
+}
+
+
 Create_func_inet_aton Create_func_inet_aton::s_singleton;
 
 Item*
 Create_func_inet_aton::create(THD *thd, Item *arg1)
 {
   return new (thd->mem_root) Item_func_inet_aton(arg1);
+}
+
+
+Create_func_is_ipv4 Create_func_is_ipv4::s_singleton;
+
+Item*
+Create_func_is_ipv4::create(THD *thd, Item *arg1)
+{
+  return new (thd->mem_root) Item_func_is_ipv4(arg1);
+}
+
+
+Create_func_is_ipv6 Create_func_is_ipv6::s_singleton;
+
+Item*
+Create_func_is_ipv6::create(THD *thd, Item *arg1)
+{
+  return new (thd->mem_root) Item_func_is_ipv6(arg1);
+}
+
+
+Create_func_is_ipv4_compat Create_func_is_ipv4_compat::s_singleton;
+
+Item*
+Create_func_is_ipv4_compat::create(THD *thd, Item *arg1)
+{
+  return new (thd->mem_root) Item_func_is_ipv4_compat(arg1);
+}
+
+
+Create_func_is_ipv4_mapped Create_func_is_ipv4_mapped::s_singleton;
+
+Item*
+Create_func_is_ipv4_mapped::create(THD *thd, Item *arg1)
+{
+  return new (thd->mem_root) Item_func_is_ipv4_mapped(arg1);
 }
 
 
@@ -4780,7 +4913,7 @@ Create_func_space::create(THD *thd, Item *arg1)
     The parsed item tree should not depend on
     <code>thd->variables.collation_connection</code>.
   */
-  CHARSET_INFO *cs= thd->variables.collation_connection;
+  const CHARSET_INFO *cs= thd->variables.collation_connection;
   Item *sp;
 
   if (cs->mbminlen > 1)
@@ -5278,6 +5411,12 @@ static Native_func_registry func_array[] =
   { { C_STRING_WITH_LEN("IFNULL") }, BUILDER(Create_func_ifnull)},
   { { C_STRING_WITH_LEN("INET_ATON") }, BUILDER(Create_func_inet_aton)},
   { { C_STRING_WITH_LEN("INET_NTOA") }, BUILDER(Create_func_inet_ntoa)},
+  { { C_STRING_WITH_LEN("INET6_ATON") }, BUILDER(Create_func_inet6_aton)},
+  { { C_STRING_WITH_LEN("INET6_NTOA") }, BUILDER(Create_func_inet6_ntoa)},
+  { { C_STRING_WITH_LEN("IS_IPV4") }, BUILDER(Create_func_is_ipv4)},
+  { { C_STRING_WITH_LEN("IS_IPV6") }, BUILDER(Create_func_is_ipv6)},
+  { { C_STRING_WITH_LEN("IS_IPV4_COMPAT") }, BUILDER(Create_func_is_ipv4_compat)},
+  { { C_STRING_WITH_LEN("IS_IPV4_MAPPED") }, BUILDER(Create_func_is_ipv4_mapped)},
   { { C_STRING_WITH_LEN("INSTR") }, BUILDER(Create_func_instr)},
   { { C_STRING_WITH_LEN("INTERIORRINGN") }, GEOM_BUILDER(Create_func_interiorringn)},
   { { C_STRING_WITH_LEN("INTERSECTS") }, GEOM_BUILDER(Create_func_mbr_intersects)},
@@ -5559,7 +5698,7 @@ find_qualified_function_builder(THD *thd)
 Item *
 create_func_cast(THD *thd, Item *a, Cast_target cast_type,
                  const char *c_len, const char *c_dec,
-                 CHARSET_INFO *cs)
+                 const CHARSET_INFO *cs)
 {
   Item *UNINIT_VAR(res);
 
@@ -5594,8 +5733,8 @@ create_func_cast(THD *thd, Item *a, Cast_target cast_type,
       decoded_size= strtoul(c_len, NULL, 10);
       if (errno != 0)
       {
-        my_error(ER_TOO_BIG_PRECISION, MYF(0), c_len, a->name,
-                 DECIMAL_MAX_PRECISION);
+        my_error(ER_TOO_BIG_PRECISION, MYF(0), INT_MAX, a->name,
+                 static_cast<ulong>(DECIMAL_MAX_PRECISION));
         return NULL;
       }
       len= decoded_size;
@@ -5608,8 +5747,8 @@ create_func_cast(THD *thd, Item *a, Cast_target cast_type,
       decoded_size= strtoul(c_dec, NULL, 10);
       if ((errno != 0) || (decoded_size > UINT_MAX))
       {
-        my_error(ER_TOO_BIG_SCALE, MYF(0), c_dec, a->name,
-                 DECIMAL_MAX_SCALE);
+        my_error(ER_TOO_BIG_SCALE, MYF(0), INT_MAX, a->name,
+                 static_cast<ulong>(DECIMAL_MAX_SCALE));
         return NULL;
       }
       dec= decoded_size;
@@ -5622,14 +5761,14 @@ create_func_cast(THD *thd, Item *a, Cast_target cast_type,
     }
     if (len > DECIMAL_MAX_PRECISION)
     {
-      my_error(ER_TOO_BIG_PRECISION, MYF(0), len, a->name,
-               DECIMAL_MAX_PRECISION);
+      my_error(ER_TOO_BIG_PRECISION, MYF(0), static_cast<int>(len), a->name,
+               static_cast<ulong>(DECIMAL_MAX_PRECISION));
       return 0;
     }
     if (dec > DECIMAL_MAX_SCALE)
     {
       my_error(ER_TOO_BIG_SCALE, MYF(0), dec, a->name,
-               DECIMAL_MAX_SCALE);
+               static_cast<ulong>(DECIMAL_MAX_SCALE));
       return 0;
     }
     res= new (thd->mem_root) Item_decimal_typecast(a, len, dec);
@@ -5638,7 +5777,8 @@ create_func_cast(THD *thd, Item *a, Cast_target cast_type,
   case ITEM_CAST_CHAR:
   {
     int len= -1;
-    CHARSET_INFO *real_cs= (cs ? cs : thd->variables.collation_connection);
+    const CHARSET_INFO *real_cs=
+      (cs ? cs : thd->variables.collation_connection);
     if (c_len)
     {
       ulong decoded_size;

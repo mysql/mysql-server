@@ -11,7 +11,7 @@
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
-   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
+   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
 /*
    Shared, independent copyright: (C) 2001 Jan Pazdziora.
@@ -435,7 +435,8 @@ static struct wordvalue doubles[] = {
 
 #define IS_END(p, src, len)	(((char *)p - (char *)src) >= (len))
 
-static int my_strnncoll_win1250ch(CHARSET_INFO *cs __attribute__((unused)), 
+static int my_strnncoll_win1250ch(const CHARSET_INFO *cs
+                                  __attribute__((unused)),
 				  const uchar *s1, size_t len1,
                                   const uchar *s2, size_t len2,
                                   my_bool s2_is_prefix)
@@ -466,7 +467,7 @@ static int my_strnncoll_win1250ch(CHARSET_INFO *cs __attribute__((unused)),
 */
 
 static
-int my_strnncollsp_win1250ch(CHARSET_INFO * cs, 
+int my_strnncollsp_win1250ch(const CHARSET_INFO *cs, 
 			     const uchar *s, size_t slen, 
 			     const uchar *t, size_t tlen,
                              my_bool diff_if_only_endspace_difference
@@ -479,7 +480,7 @@ int my_strnncollsp_win1250ch(CHARSET_INFO * cs,
 
 
 static size_t
-my_strnxfrm_win1250ch(CHARSET_INFO * cs  __attribute__((unused)),
+my_strnxfrm_win1250ch(const CHARSET_INFO *cs  __attribute__((unused)),
                       uchar *dest, size_t len,
                       uint nweights_arg __attribute__((unused)),
                       const uchar *src, size_t srclen, uint flags)
@@ -503,7 +504,7 @@ my_strnxfrm_win1250ch(CHARSET_INFO * cs  __attribute__((unused)),
   }
   if ((flags & MY_STRXFRM_PAD_TO_MAXLEN) && len > totlen)
   {
-    bfill(dest + totlen, len - totlen, 0x00);
+    memset(dest + totlen, 0x00, len - totlen);
     totlen= len;
   }
   return totlen;
@@ -613,7 +614,7 @@ static uchar like_range_prefix_max_win1250ch[]=
 */
 
 static my_bool
-my_like_range_win1250ch(CHARSET_INFO *cs __attribute__((unused)),
+my_like_range_win1250ch(const CHARSET_INFO *cs __attribute__((unused)),
 			const char *ptr, size_t ptr_length,
 			pbool escape, pbool w_one, pbool w_many,
 			size_t res_length,

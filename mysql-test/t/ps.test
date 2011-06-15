@@ -2305,40 +2305,6 @@ execute abc;
 deallocate prepare abc;
 
 
-create procedure proc_1() flush slave;
-call proc_1();
-call proc_1();
-call proc_1();
-delimiter |;
---error ER_STMT_NOT_ALLOWED_IN_SF_OR_TRG
-create function func_1() returns int begin flush slave; return 1; end|
-create function func_1() returns int begin call proc_1(); return 1; end|
-delimiter ;|
---error ER_STMT_NOT_ALLOWED_IN_SF_OR_TRG
-select func_1(), func_1(), func_1() from dual;
-drop function func_1;
-drop procedure proc_1;
-prepare abc from "flush slave";
-execute abc;
-execute abc;
-execute abc;
-deallocate prepare abc;
-
-
-create procedure proc_1() flush master;
-delimiter |;
---error ER_STMT_NOT_ALLOWED_IN_SF_OR_TRG
-create function func_1() returns int begin flush master; return 1; end|
-create function func_1() returns int begin call proc_1(); return 1; end|
-delimiter ;|
---error ER_STMT_NOT_ALLOWED_IN_SF_OR_TRG
-select func_1(), func_1(), func_1() from dual;
-drop function func_1;
-drop procedure proc_1;
-prepare abc from "flush master";
-deallocate prepare abc;
-
-
 create procedure proc_1() flush des_key_file;
 call proc_1();
 call proc_1();
@@ -3344,7 +3310,21 @@ connection default;
 DROP TABLE t1;
 disconnect con1;
 
+--echo
 --echo #
---echo # End of 6.0 tests.
+--echo # Bug#56115: invalid memory reads when PS selecting from
+--echo #            information_schema tables
+--echo # Bug#58701: crash in Field::make_field, cursor-protocol
+--echo #
+--echo # NOTE: MTR should be run both with --ps-protocol and --cursor-protocol.
+--echo #
+--echo
+
+SELECT *
+FROM (SELECT 1 UNION SELECT 2) t;
+
+
+--echo #
+--echo # End of 5.5 tests.
 
 ###########################################################################

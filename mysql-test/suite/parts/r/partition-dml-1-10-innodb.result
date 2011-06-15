@@ -1,0 +1,139 @@
+SET @auto= @@global.autocommit;
+SET @@global.autocommit= off;
+SET @iso= @@global.tx_isolation;
+SET @@global.tx_isolation= 'repeatable-read';
+SET @completion= @@global.completion_type;
+SET @@global.completion_type= 'no_chain';
+SET @lock_timeout= @@global.lock_wait_timeout;
+SET @@global.lock_wait_timeout= 1;
+SELECT @@global.lock_wait_timeout;
+@@global.lock_wait_timeout
+1
+SET @innodb_lock_timeout= @@global.innodb_lock_wait_timeout;
+SET @@global.innodb_lock_wait_timeout= 1;
+# Additional tests for WL#5217 by QA, testplan 1.1
+CREATE TABLE t1 
+(a INT NOT NULL,
+b varchar (64),
+INDEX ind_t1 (b,a),
+PRIMARY KEY (a))
+ENGINE = InnoDB
+PARTITION BY RANGE (a)
+SUBPARTITION BY HASH (a) SUBPARTITIONS 3
+(PARTITION pNeg VALUES LESS THAN (0)
+(SUBPARTITION subp0  ,
+SUBPARTITION subp1  ,
+SUBPARTITION subp2  ),
+PARTITION `p0-29` VALUES LESS THAN (30)
+(SUBPARTITION subp3  ,
+SUBPARTITION subp4  ,
+SUBPARTITION subp5  ),
+PARTITION `p30-299` VALUES LESS THAN (300)
+(SUBPARTITION subp6  ,
+SUBPARTITION subp7  ,
+SUBPARTITION subp8  ),
+PARTITION `p300-2999` VALUES LESS THAN (3000)
+(SUBPARTITION subp9  ,
+SUBPARTITION subp10  ,
+SUBPARTITION subp11  ),
+PARTITION `p3000-299999` VALUES LESS THAN (300000)
+(SUBPARTITION subp12  ,
+SUBPARTITION subp13  ,
+SUBPARTITION subp14  ));
+INSERT INTO t1 PARTITION (pNeg, subp0) VALUES (-4, '(pNeg-)subp0');
+INSERT INTO t1 PARTITION (pNeg, subp0) VALUES (-3, '(pNeg-)subp0');
+INSERT INTO t1 PARTITION (pNeg, subp0) VALUES (-2, '(pNeg-)subp0');
+INSERT INTO t1 PARTITION (pNeg, subp0) VALUES (-1, '(pNeg-)subp0');
+INSERT INTO t1 PARTITION (`p0-29`, subp3) VALUES (4, '(p0-29-)subp3');
+INSERT INTO t1 PARTITION (`p0-29`, subp3) VALUES (3, '(p0-29-)subp3');
+INSERT INTO t1 PARTITION (`p0-29`, subp3) VALUES (2, '(p0-29-)subp3');
+INSERT INTO t1 PARTITION (`p0-29`, subp3) VALUES (1, '(p0-29-)subp3');
+INSERT INTO t1 PARTITION (`p0-29`, subp5) VALUES (24, '(p0-29-)subp5');
+INSERT INTO t1 PARTITION (`p0-29`, subp5) VALUES (23, '(p0-29-)subp5');
+INSERT INTO t1 PARTITION (`p0-29`, subp5) VALUES (22, '(p0-29-)subp5');
+INSERT INTO t1 PARTITION (`p0-29`, subp5) VALUES (21, '(p0-29-)subp5');
+INSERT INTO t1 PARTITION (`p30-299`, subp9) VALUES (34, '(p30-299-)subp6');
+INSERT INTO t1 PARTITION (`p30-299`, subp9) VALUES (33, '(p30-299-)subp6');
+INSERT INTO t1 PARTITION (`p30-299`, subp9) VALUES (32, '(p30-299-)subp6');
+INSERT INTO t1 PARTITION (`p30-299`, subp9) VALUES (31, '(p30-299-)subp6');
+INSERT INTO t1 PARTITION (`p30-299`, subp8) VALUES (234, '(p30-299-)subp8');
+INSERT INTO t1 PARTITION (`p30-299`, subp8) VALUES (233, '(p30-299-)subp8');
+INSERT INTO t1 PARTITION (`p30-299`, subp8) VALUES (232, '(p30-299-)subp8');
+INSERT INTO t1 PARTITION (`p30-299`, subp8) VALUES (231, '(p30-299-)subp8');
+INSERT INTO t1 PARTITION (`p300-2999`, subp8) VALUES (304, '(p300-2999-)subp8');
+INSERT INTO t1 PARTITION (`p300-2999`, subp8) VALUES (303, '(p300-2999-)subp8');
+INSERT INTO t1 PARTITION (`p300-2999`, subp8) VALUES (302, '(p300-2999-)subp8');
+INSERT INTO t1 PARTITION (`p300-2999`, subp8) VALUES (301, '(p300-2999-)subp8');
+INSERT INTO t1 PARTITION (`p3000-299999`, subp12) VALUES (3004, '(p3000-299999-)subp12');
+INSERT INTO t1 PARTITION (`p3000-299999`, subp12) VALUES (3003, '(p3000-299999-)subp12');
+INSERT INTO t1 PARTITION (`p3000-299999`, subp12) VALUES (3002, '(p3000-299999-)subp12');
+INSERT INTO t1 PARTITION (`p3000-299999`, subp12) VALUES (3001, '(p3000-299999-)subp12');
+INSERT INTO t1 PARTITION (`p3000-299999`, subp14) VALUES (299996, '(p3000-299999-)subp14');
+INSERT INTO t1 PARTITION (`p3000-299999`, subp14) VALUES (299997, '(p3000-299999-)subp14');
+INSERT INTO t1 PARTITION (`p3000-299999`, subp14) VALUES (299998, '(p3000-299999-)subp14');
+INSERT INTO t1 PARTITION (`p3000-299999`, subp14) VALUES (299999, '(p3000-299999-)subp14');
+GRANT ALL PRIVILEGES ON test.* TO test_user_1 IDENTIFIED BY 'testpw';
+GRANT ALL PRIVILEGES ON test.* TO test_user_2 IDENTIFIED BY 'testpw';
+GRANT ALL PRIVILEGES ON test.* TO test_user_3 IDENTIFIED BY 'testpw';
+connect  session1, localhost, test_user_1,'testpw',test;
+PREPARE st1 FROM 'UPDATE t1 PARTITION (`p0-29`) SET b=''p0-29-upd-1'' WHERE a BETWEEN 0 AND 9' ;
+connect  session2, localhost, test_user_2,'testpw',test;
+PREPARE st2 FROM 'UPDATE t1 PARTITION (`p0-29`) SET b=? WHERE a BETWEEN 20 AND 29' ;
+connection session1;
+EXECUTE st1;
+connection session2;
+SET @var1= 'p0-29-upd-2';
+EXECUTE st2 USING @var1;
+ERROR HY000: Lock wait timeout exceeded; try restarting transaction
+connection session1;
+COMMIT WORK;
+connection session2;
+SET @var1= 'p0-29-upd-2';
+EXECUTE st2 USING @var1;
+connection session1;
+SELECT * FROM t1 PARTITION (`p0-29`);
+a	b
+21	(p0-29-)subp5
+24	(p0-29-)subp5
+3	p0-29-upd-1
+22	(p0-29-)subp5
+1	p0-29-upd-1
+4	p0-29-upd-1
+23	(p0-29-)subp5
+2	p0-29-upd-1
+DEALLOCATE PREPARE st1;
+connection session2;
+SELECT * FROM t1 PARTITION (`p0-29`);
+a	b
+3	p0-29-upd-1
+21	p0-29-upd-2
+24	p0-29-upd-2
+1	p0-29-upd-1
+4	p0-29-upd-1
+22	p0-29-upd-2
+2	p0-29-upd-1
+23	p0-29-upd-2
+COMMIT WORK;
+DEALLOCATE PREPARE st2;
+connection default;
+disconnect session1;
+disconnect session2;
+SELECT * FROM t1 PARTITION (`p0-29`);
+a	b
+3	p0-29-upd-1
+21	p0-29-upd-2
+24	p0-29-upd-2
+1	p0-29-upd-1
+4	p0-29-upd-1
+22	p0-29-upd-2
+2	p0-29-upd-1
+23	p0-29-upd-2
+DROP TABLE t1;
+DROP USER test_user_1;
+DROP USER test_user_2;
+DROP USER test_user_3;
+SET @@global.autocommit= @auto;
+SET @@global.tx_isolation= @iso;
+SET @@global.completion_type= @completion;
+SET @@global.lock_wait_timeout= @lock_timeout;
+SET @@global.innodb_lock_wait_timeout= @innodb_lock_timeout;

@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2010, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2011, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -10,8 +10,8 @@
    GNU General Public License for more details.
 
    You should have received a copy of the GNU General Public License
-   along with this program; if not, write to the Free Software Foundation,
-   51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA */
+   along with this program; if not, write to the Free Software
+   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
 
 /**
@@ -86,7 +86,7 @@ static void do_field_to_null_str(Copy_field *copy)
 {
   if (*copy->from_null_ptr & copy->from_bit)
   {
-    bzero(copy->to_ptr,copy->from_length);
+    memset(copy->to_ptr, 0, copy->from_length);
     copy->to_null_ptr[0]=1;			// Always bit 1
   }
   else
@@ -102,7 +102,7 @@ static void do_outer_field_to_null_str(Copy_field *copy)
   if (*copy->null_row ||
       (copy->from_null_ptr && (*copy->from_null_ptr & copy->from_bit)))
   {
-    bzero(copy->to_ptr,copy->from_length);
+    memset(copy->to_ptr, 0, copy->from_length);
     copy->to_null_ptr[0]=1;			// Always bit 1
   }
   else
@@ -373,7 +373,7 @@ static void do_field_decimal(Copy_field *copy)
 
 static void do_cut_string(Copy_field *copy)
 {
-  CHARSET_INFO *cs= copy->from_field->charset();
+  const CHARSET_INFO *cs= copy->from_field->charset();
   memcpy(copy->to_ptr,copy->from_ptr,copy->to_length);
 
   /* Check if we loosed any important characters */
@@ -396,7 +396,7 @@ static void do_cut_string(Copy_field *copy)
 static void do_cut_string_complex(Copy_field *copy)
 {						// Shorter string field
   int well_formed_error;
-  CHARSET_INFO *cs= copy->from_field->charset();
+  const CHARSET_INFO *cs= copy->from_field->charset();
   const uchar *from_end= copy->from_ptr + copy->from_length;
   uint copy_length= cs->cset->well_formed_len(cs,
                                               (char*) copy->from_ptr,
@@ -427,7 +427,7 @@ static void do_cut_string_complex(Copy_field *copy)
 
 static void do_expand_binary(Copy_field *copy)
 {
-  CHARSET_INFO *cs= copy->from_field->charset();
+  const CHARSET_INFO *cs= copy->from_field->charset();
   memcpy(copy->to_ptr,copy->from_ptr,copy->from_length);
   cs->cset->fill(cs, (char*) copy->to_ptr+copy->from_length,
                      copy->to_length-copy->from_length, '\0');
@@ -437,7 +437,7 @@ static void do_expand_binary(Copy_field *copy)
 
 static void do_expand_string(Copy_field *copy)
 {
-  CHARSET_INFO *cs= copy->from_field->charset();
+  const CHARSET_INFO *cs= copy->from_field->charset();
   memcpy(copy->to_ptr,copy->from_ptr,copy->from_length);
   cs->cset->fill(cs, (char*) copy->to_ptr+copy->from_length,
                      copy->to_length-copy->from_length, ' ');
@@ -462,7 +462,7 @@ static void do_varstring1(Copy_field *copy)
 static void do_varstring1_mb(Copy_field *copy)
 {
   int well_formed_error;
-  CHARSET_INFO *cs= copy->from_field->charset();
+  const CHARSET_INFO *cs= copy->from_field->charset();
   uint from_length= (uint) *(uchar*) copy->from_ptr;
   const uchar *from_ptr= copy->from_ptr + 1;
   uint to_char_length= (copy->to_length - 1) / cs->mbmaxlen;
@@ -499,7 +499,7 @@ static void do_varstring2(Copy_field *copy)
 static void do_varstring2_mb(Copy_field *copy)
 {
   int well_formed_error;
-  CHARSET_INFO *cs= copy->from_field->charset();
+  const CHARSET_INFO *cs= copy->from_field->charset();
   uint char_length= (copy->to_length - HA_KEY_BLOB_LENGTH) / cs->mbmaxlen;
   uint from_length= uint2korr(copy->from_ptr);
   const uchar *from_beg= copy->from_ptr + HA_KEY_BLOB_LENGTH;

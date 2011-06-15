@@ -77,6 +77,7 @@ FLUSH LOGS;
 -- remove_file $datadir/master-bin.000001
 
 -- echo ### assertion: index file contains renamed binlog and the new one
+-- chmod 0644 $index
 -- replace_result $MYSQLTEST_VARDIR MYSQLTEST_VARDIR
 -- eval SET @index=LOAD_FILE('$index')
 -- replace_regex /\.[\\\/]master/master/
@@ -106,6 +107,7 @@ DROP TABLE t1;
 -- file_exists $datadir/$current_binlog
 
 -- echo ### assertion: show index file contents and these should match show binary logs issued above
+-- chmod 0644 $index
 -- replace_result $MYSQLTEST_VARDIR MYSQLTEST_VARDIR
 -- eval SET @index=LOAD_FILE('$index')
 -- replace_regex /\.[\\\/]master/master/

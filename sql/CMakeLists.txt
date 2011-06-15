@@ -1,4 +1,4 @@
-# Copyright (c) 2006, 2010, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2006, 2011, Oracle and/or its affiliates. All rights reserved.
 # 
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -14,19 +14,19 @@
 # Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301 USA
 
 INCLUDE_DIRECTORIES(
-${CMAKE_SOURCE_DIR}/include 
-${CMAKE_SOURCE_DIR}/sql 
-${CMAKE_SOURCE_DIR}/regex 
-${ZLIB_INCLUDE_DIR}
-${SSL_INCLUDE_DIRS}
-${CMAKE_BINARY_DIR}/sql
+  ${CMAKE_SOURCE_DIR}/include 
+  ${CMAKE_SOURCE_DIR}/sql 
+  ${CMAKE_SOURCE_DIR}/regex 
+  ${ZLIB_INCLUDE_DIR}
+  ${SSL_INCLUDE_DIRS}
+  ${CMAKE_BINARY_DIR}/sql
 )
 
 SET(GEN_SOURCES
-${CMAKE_CURRENT_BINARY_DIR}/sql_yacc.h 
-${CMAKE_CURRENT_BINARY_DIR}/sql_yacc.cc
-${CMAKE_CURRENT_BINARY_DIR}/sql_builtin.cc
-${CMAKE_CURRENT_BINARY_DIR}/lex_hash.h 
+  ${CMAKE_CURRENT_BINARY_DIR}/sql_yacc.h 
+  ${CMAKE_CURRENT_BINARY_DIR}/sql_yacc.cc
+  ${CMAKE_CURRENT_BINARY_DIR}/sql_builtin.cc
+  ${CMAKE_CURRENT_BINARY_DIR}/lex_hash.h 
 )
 
 SET_SOURCE_FILES_PROPERTIES(${GEN_SOURCES} PROPERTIES GENERATED 1)
@@ -36,52 +36,143 @@ IF(SSL_DEFINES)
  ADD_DEFINITIONS(${SSL_DEFINES})
 ENDIF()
 
+SET(SQL_SHARED_SOURCES
+  datadict.cc
+  debug_sync.cc
+  derror.cc
+  des_key_file.cc
+  discover.cc
+  field.cc
+  field_conv.cc 
+  filesort.cc
+  filesort_utils.cc
+  gcalc_slicescan.cc
+  gcalc_tools.cc
+  gstream.cc
+  handler.cc
+  hostname.cc
+  init.cc
+  item.cc
+  item_buff.cc
+  item_cmpfunc.cc 
+  item_create.cc
+  item_func.cc
+  item_geofunc.cc
+  item_row.cc 
+  item_strfunc.cc
+  item_subselect.cc
+  item_sum.cc
+  item_timefunc.cc 
+  item_xmlfunc.cc 
+  item_inetfunc.cc
+  key.cc
+  keycaches.cc
+  lock.cc
+  log.cc
+  mdl.cc
+  mf_iocache.cc
+  my_decimal.cc
+  net_serv.cc
+  opt_range.cc
+  opt_sum.cc 
+  parse_file.cc
+  partition_info.cc
+  password.c
+  procedure.cc 
+  protocol.cc
+  records.cc
+  rpl_handler.cc
+  scheduler.cc 
+  set_var.cc 
+  sha2.cc
+  sp.cc
+  sp_cache.cc
+  sp_head.cc
+  sp_pcontext.cc 
+  sp_rcontext.cc
+  spatial.cc
+  sql_acl.cc
+  sql_admin.cc
+  sql_alloc_error_handler.cc
+  sql_alter.cc
+  sql_analyse.cc
+  sql_audit.cc
+  sql_base.cc 
+  sql_bootstrap.cc
+  sql_cache.cc
+  sql_class.cc
+  sql_connect.cc
+  sql_crypt.cc
+  sql_cursor.cc
+  sql_db.cc
+  sql_delete.cc
+  sql_derived.cc
+  sql_do.cc 
+  sql_error.cc
+  sql_handler.cc
+  sql_help.cc
+  sql_insert.cc
+  sql_join_cache.cc
+  sql_lex.cc 
+  sql_list.cc
+  sql_load.cc
+  sql_locale.cc
+  sql_manager.cc
+  sql_parse.cc
+  sql_partition.cc
+  sql_partition_admin.cc
+  sql_plugin.cc
+  sql_prepare.cc
+  sql_profile.cc
+  sql_reload.cc
+  sql_rename.cc 
+  sql_select.cc
+  sql_servers.cc
+  sql_show.cc
+  sql_signal.cc
+  sql_state.c
+  sql_string.cc 
+  sql_table.cc
+  sql_tablespace.cc
+  sql_test.cc
+  sql_time.cc
+  sql_trigger.cc
+  sql_truncate.cc
+  sql_udf.cc
+  sql_union.cc
+  sql_update.cc
+  sql_view.cc
+  strfunc.cc
+  sys_vars.cc
+  table.cc
+  thr_malloc.cc 
+  transaction.cc
+  tztime.cc
+  uniques.cc
+  unireg.cc
+)
 
-SET (SQL_SOURCE
-              ../sql-common/client.c derror.cc des_key_file.cc
-               discover.cc ../libmysql/errmsg.c field.cc  field_conv.cc 
-               filesort_utils.cc
-               filesort.cc gstream.cc sha2.cc
-               handler.cc hash_filo.h sql_plugin_services.h
-               hostname.cc init.cc item.cc item_buff.cc item_cmpfunc.cc 
-               item_create.cc item_func.cc item_geofunc.cc item_row.cc 
-               item_strfunc.cc item_subselect.cc item_sum.cc item_timefunc.cc 
-               key.cc log.cc lock.cc
-               message.h mf_iocache.cc my_decimal.cc ../sql-common/my_time.c
-               mysqld.cc net_serv.cc  keycaches.cc
-               ../sql-common/client_plugin.c
-               opt_range.cc opt_range.h opt_sum.cc 
-               ../sql-common/pack.c parse_file.cc password.c procedure.cc 
-               protocol.cc records.cc set_var.cc 
-               sp.cc sp_cache.cc sp_head.cc sp_pcontext.cc 
-               sp_rcontext.cc spatial.cc sql_acl.cc sql_analyse.cc sql_base.cc 
-               sql_cache.cc sql_class.cc sql_client.cc sql_crypt.cc sql_crypt.h 
-               sql_cursor.cc sql_db.cc sql_delete.cc sql_derived.cc sql_do.cc 
-               sql_error.cc sql_handler.cc sql_help.cc sql_insert.cc sql_lex.cc 
-               sql_list.cc sql_load.cc sql_manager.cc sql_parse.cc
-               sql_partition.cc sql_plugin.cc sql_prepare.cc sql_rename.cc 
-               sql_join_cache.cc debug_sync.cc debug_sync.h
-               sql_select.cc sql_show.cc sql_state.c sql_string.cc 
-               sql_table.cc sql_test.cc sql_trigger.cc sql_udf.cc sql_union.cc
-               sql_update.cc sql_view.cc strfunc.cc table.cc thr_malloc.cc 
-               sql_time.cc tztime.cc uniques.cc unireg.cc item_xmlfunc.cc 
-               event_scheduler.cc event_data_objects.cc
-               event_queue.cc event_db_repository.cc 
-               sql_tablespace.cc events.cc ../sql-common/my_user.c 
-               partition_info.cc sql_locale.cc
-               sql_servers.cc sql_audit.cc
-               sql_connect.cc scheduler.cc 
-               sql_profile.cc event_parse_data.cc
-               sql_bootstrap.cc
-               sql_signal.cc mdl.cc
-               gcalc_slicescan.cc gcalc_tools.cc
-               sql_alloc_error_handler.cc
-               transaction.cc sys_vars.cc  rpl_handler.cc sql_truncate.cc
-               datadict.cc sql_reload.cc
-               sql_partition_admin.cc
-               sql_admin.cc sql_alter.cc
-               ${GEN_SOURCES}
-               ${MYSYS_LIBWRAP_SOURCE})
+SET(SQL_EXPORTED_SOURCES ${SQL_SHARED_SOURCES} PARENT_SCOPE)
+
+SET(SQL_SOURCE
+  ${GEN_SOURCES}
+  ${MYSYS_LIBWRAP_SOURCE}
+  ${SQL_SHARED_SOURCES}
+  ../libmysql/errmsg.c
+  ../sql-common/client.c
+  ../sql-common/client_plugin.c
+  ../sql-common/my_time.c
+  ../sql-common/my_user.c 
+  ../sql-common/pack.c
+  event_data_objects.cc
+  event_db_repository.cc 
+  event_parse_data.cc
+  event_queue.cc
+  event_scheduler.cc
+  events.cc
+  mysqld.cc
+  sql_client.cc
+  )
 
 MYSQL_ADD_PLUGIN(partition ha_partition.cc STORAGE_ENGINE DEFAULT STATIC_ONLY
 RECOMPILE_FOR_EMBEDDED)

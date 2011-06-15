@@ -184,15 +184,14 @@ ib_vector_size(
 	return(vec->used);
 }
 
-/********************************************************************
+/****************************************************************//**
 Get n'th element. */
 UNIV_INLINE
 void*
 ib_vector_get(
 /*==========*/
-					/* out: n'th element */
-	ib_vector_t*		vec,	/* in: vector */
-	ulint			n)	/* in: element index to get */
+	ib_vector_t*	vec,	/*!< in: vector */
+	ulint		n)	/*!< in: element index to get */
 {
 	ut_a(n < vec->used);
 
@@ -200,12 +199,12 @@ ib_vector_get(
 }
 
 /********************************************************************
-Const version of the get n'th element. */
+Const version of the get n'th element.
+@return n'th element */
 UNIV_INLINE
 const void*
 ib_vector_get_const(
 /*================*/
-					/* out: n'th element */
 	const ib_vector_t*	vec,	/* in: vector */
 	ulint			n)	/* in: element index to get */
 {
@@ -213,16 +212,29 @@ ib_vector_get_const(
 
 	return((byte*)vec->data + IB_VEC_OFFSET(vec, n));
 }
+/****************************************************************//**
+Get last element. The vector must not be empty.
+@return	last element */
+UNIV_INLINE
+void*
+ib_vector_get_last(
+/*===============*/
+	ib_vector_t*	vec)	/*!< in: vector */
+{
+	ut_a(vec->used > 0);
 
-/********************************************************************
+	return((byte*)ib_vector_get(vec, vec->used - 1));
+}
+
+/****************************************************************//**
 Set the n'th element. */
 UNIV_INLINE
 void
 ib_vector_set(
 /*==========*/
-	ib_vector_t*	vec,		/* in/out: vector */
-	ulint		n,		/* in: element index to set */
-	const void*	elem)		/* in: value to set */
+	ib_vector_t*	vec,	/*!< in/out: vector */
+	ulint		n,	/*!< in: element index to set */
+	void*		elem)	/*!< in: data element */
 {
 	void*		slot;
 
@@ -272,8 +284,9 @@ ib_vector_last_const(
 	return(ib_vector_get_const(vec, ib_vector_size(vec) - 1));
 }
 
-/********************************************************************
-Pop and return the last element of the vector. */
+/****************************************************************//**
+Remove the last element from the vector.
+@return	last vector element */
 UNIV_INLINE
 void*
 ib_vector_pop(

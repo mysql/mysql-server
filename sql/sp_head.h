@@ -1,5 +1,5 @@
 /* -*- C++ -*- */
-/* Copyright (c) 2002, 2010, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2002, 2011, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -11,15 +11,11 @@
    GNU General Public License for more details.
 
    You should have received a copy of the GNU General Public License
-   along with this program; if not, write to the Free Software Foundation,
-   51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA */
+   along with this program; if not, write to the Free Software
+   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
 #ifndef _SP_HEAD_H_
 #define _SP_HEAD_H_
-
-#ifdef USE_PRAGMA_INTERFACE
-#pragma interface			/* gcc class implementation */
-#endif
 
 /*
   It is necessary to include set_var.h instead of item.h because there
@@ -70,7 +66,7 @@ struct sp_variable;
 class Stored_program_creation_ctx :public Default_object_creation_ctx
 {
 public:
-  CHARSET_INFO *get_db_cl()
+  const CHARSET_INFO *get_db_cl()
   {
     return m_db_cl;
   }
@@ -84,9 +80,9 @@ protected:
       m_db_cl(thd->variables.collation_database)
   { }
 
-  Stored_program_creation_ctx(CHARSET_INFO *client_cs,
-                              CHARSET_INFO *connection_cl,
-                              CHARSET_INFO *db_cl)
+  Stored_program_creation_ctx(const CHARSET_INFO *client_cs,
+                              const CHARSET_INFO *connection_cl,
+                              const CHARSET_INFO *db_cl)
     : Default_object_creation_ctx(client_cs, connection_cl),
       m_db_cl(db_cl)
   { }
@@ -107,7 +103,7 @@ protected:
     Database collation is included into the context because it defines the
     default collation for stored-program variables.
   */
-  CHARSET_INFO *m_db_cl;
+  const CHARSET_INFO *m_db_cl;
 };
 
 /*************************************************************************/
@@ -560,7 +556,7 @@ public:
 
   /// Should give each a name or type code for debugging purposes?
   sp_instr(uint ip, sp_pcontext *ctx)
-    :Query_arena(0, INITIALIZED_FOR_SP), marked(0), m_ip(ip), m_ctx(ctx)
+    :Query_arena(0, STMT_INITIALIZED_FOR_SP), marked(0), m_ip(ip), m_ctx(ctx)
   {}
 
   virtual ~sp_instr()

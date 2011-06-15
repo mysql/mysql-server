@@ -118,6 +118,6 @@ ERROR HY000: Lock wait timeout exceeded; try restarting transaction
 ERROR HY000: Lock wait timeout exceeded; try restarting transaction
 ERROR HY000: Lock wait timeout exceeded; try restarting transaction
 ERROR HY000: Lock wait timeout exceeded; try restarting transaction
-ERROR HY000: Lock wait timeout exceeded; try restarting transaction
+ERROR HY000: Can't update table 't2' while 't10' is being created.
 commit;
 drop table t1, t2, t3, t5, t6, t8, t9;

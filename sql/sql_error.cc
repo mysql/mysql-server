@@ -1,4 +1,4 @@
-/* Copyright (c) 1995, 2010, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 1995, 2011, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -10,8 +10,8 @@
    GNU General Public License for more details.
 
    You should have received a copy of the GNU General Public License
-   along with this program; if not, write to the Free Software Foundation,
-   51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA */
+   along with this program; if not, write to the Free Software
+   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
 /**********************************************************************
 This file contains the implementation of error and warnings related
@@ -318,6 +318,21 @@ MYSQL_ERROR::set_sqlstate(const char* sqlstate)
   m_returned_sqlstate[SQLSTATE_LENGTH]= '\0';
 }
 
+Diagnostics_area::Diagnostics_area()
+ : m_main_wi(0, false),
+   m_current_wi(&m_main_wi)
+{
+  reset_diagnostics_area();
+}
+
+Diagnostics_area::Diagnostics_area(ulonglong warn_id,
+                                   bool allow_unlimited_warnings)
+ : m_main_wi(warn_id, allow_unlimited_warnings),
+   m_current_wi(&m_main_wi)
+{
+  reset_diagnostics_area();
+}
+
 /**
   Clear this diagnostics area.
 
@@ -363,7 +378,7 @@ Diagnostics_area::set_ok_status(THD *thd, ulonglong affected_rows_arg,
   if (is_error() || is_disabled())
     return;
 
-  m_statement_warn_count= thd->warning_info->statement_warn_count();
+  m_statement_warn_count= thd->get_stmt_wi()->statement_warn_count();
   m_affected_rows= affected_rows_arg;
   m_last_insert_id= last_insert_id_arg;
   if (message_arg)
@@ -398,7 +413,7 @@ Diagnostics_area::set_eof_status(THD *thd)
     anyway.
   */
   m_statement_warn_count= (thd->spcont ?
-                           0 : thd->warning_info->statement_warn_count());
+                           0 : thd->get_stmt_wi()->statement_warn_count());
 
   m_status= DA_EOF;
   DBUG_VOID_RETURN;
@@ -457,16 +472,17 @@ Diagnostics_area::disable_status()
   m_status= DA_DISABLED;
 }
 
-Warning_info::Warning_info(ulonglong warn_id_arg)
+Warning_info::Warning_info(ulonglong warn_id_arg, bool allow_unlimited_warnings)
   :m_statement_warn_count(0),
   m_current_row_for_warning(1),
   m_warn_id(warn_id_arg),
+  m_allow_unlimited_warnings(allow_unlimited_warnings),
   m_read_only(FALSE)
 {
   /* Initialize sub structures */
   init_sql_alloc(&m_warn_root, WARN_ALLOC_BLOCK_SIZE, WARN_ALLOC_PREALLOC_SIZE);
   m_warn_list.empty();
-  bzero((char*) m_warn_count, sizeof(m_warn_count));
+  memset(m_warn_count, 0, sizeof(m_warn_count));
 }
 
 
@@ -484,7 +500,7 @@ void Warning_info::clear_warning_info(ulonglong warn_id_arg)
 {
   m_warn_id= warn_id_arg;
   free_root(&m_warn_root, MYF(0));
-  bzero((char*) m_warn_count, sizeof(m_warn_count));
+  memset(m_warn_count, 0, sizeof(m_warn_count));
   m_warn_list.empty();
   m_statement_warn_count= 0;
   m_current_row_for_warning= 1; /* Start counting from the first row */
@@ -542,7 +558,8 @@ MYSQL_ERROR *Warning_info::push_warning(THD *thd,
 
   if (! m_read_only)
   {
-    if (m_warn_list.elements < thd->variables.max_error_count)
+    if (m_allow_unlimited_warnings ||
+        m_warn_list.elements < thd->variables.max_error_count)
     {
       cond= new (& m_warn_root) MYSQL_ERROR(& m_warn_root);
       if (cond)
@@ -556,6 +573,20 @@ MYSQL_ERROR *Warning_info::push_warning(THD *thd,
 
   m_statement_warn_count++;
   return cond;
+}
+
+MYSQL_ERROR *Warning_info::push_warning(THD *thd, const MYSQL_ERROR *sql_condition)
+{
+  MYSQL_ERROR *new_condition= push_warning(thd,
+                                           sql_condition->get_sql_errno(),
+                                           sql_condition->get_sqlstate(),
+                                           sql_condition->get_level(),
+                                           sql_condition->get_message_text());
+
+  if (new_condition)
+    new_condition->copy_opt_attributes(sql_condition);
+
+  return new_condition;
 }
 
 /*
@@ -651,7 +682,7 @@ bool mysqld_show_warnings(THD *thd, ulong levels_to_show)
   List<Item> field_list;
   DBUG_ENTER("mysqld_show_warnings");
 
-  DBUG_ASSERT(thd->warning_info->is_read_only());
+  DBUG_ASSERT(thd->get_stmt_wi()->is_read_only());
 
   field_list.push_back(new Item_empty_string("Level", 7));
   field_list.push_back(new Item_return_int("Code",4, MYSQL_TYPE_LONG));
@@ -669,7 +700,7 @@ bool mysqld_show_warnings(THD *thd, ulong levels_to_show)
 
   unit->set_limit(sel);
 
-  List_iterator_fast<MYSQL_ERROR> it(thd->warning_info->warn_list());
+  List_iterator_fast<MYSQL_ERROR> it(thd->get_stmt_wi()->warn_list());
   while ((err= it++))
   {
     /* Skip levels that the user is not interested in */
@@ -692,7 +723,7 @@ bool mysqld_show_warnings(THD *thd, ulong levels_to_show)
   }
   my_eof(thd);
 
-  thd->warning_info->set_read_only(FALSE);
+  thd->get_stmt_wi()->set_read_only(FALSE);
 
   DBUG_RETURN(FALSE);
 }
@@ -712,7 +743,7 @@ bool mysqld_show_warnings(THD *thd, ulong levels_to_show)
 */
 
 char *err_conv(char *buff, uint to_length, const char *from,
-               uint from_length, CHARSET_INFO *from_cs)
+               uint from_length, const CHARSET_INFO *from_cs)
 {
   char *to= buff;
   const char *from_start= from;
@@ -779,9 +810,10 @@ char *err_conv(char *buff, uint to_length, const char *from,
    length of converted string
 */
 
-uint32 convert_error_message(char *to, uint32 to_length, CHARSET_INFO *to_cs,
+uint32 convert_error_message(char *to, uint32 to_length,
+                             const CHARSET_INFO *to_cs,
                              const char *from, uint32 from_length,
-                             CHARSET_INFO *from_cs, uint *errors)
+                             const CHARSET_INFO *from_cs, uint *errors)
 {
   int         cnvres;
   my_wc_t     wc;

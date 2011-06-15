@@ -391,11 +391,11 @@ DROP VIEW v1_func;
 
 # FUNCTION in CREATE TABLE ... AS SELECT
 CREATE TABLE t1_fail AS SELECT f1_two_inserts() FROM t1_select;
-ERROR 23000: Column 'f2' cannot be null
+ERROR HY000: Can't update table 't1_not_null' while 't1_fail' is being created.
 SELECT * FROM t1_not_null ORDER BY f1,f2;
 f1	f2
 CREATE TABLE t1_fail AS SELECT * FROM t1_select WHERE 1 = f1_two_inserts();
-ERROR 23000: Column 'f2' cannot be null
+ERROR HY000: Can't update table 't1_not_null' while 't1_fail' is being created.
 SELECT * FROM t1_not_null ORDER BY f1,f2;
 f1	f2
 

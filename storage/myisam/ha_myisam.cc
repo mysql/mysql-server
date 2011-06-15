@@ -14,10 +14,6 @@
    Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
 
 
-#ifdef USE_PRAGMA_IMPLEMENTATION
-#pragma implementation				// gcc: Class implementation
-#endif
-
 #define MYSQL_SERVER 1
 #include "sql_priv.h"
 #include "probes_mysql.h"
@@ -339,7 +335,7 @@ int table2myisam(TABLE *table_arg, MI_KEYDEF **keydef_out,
                         (long) found, recpos, minpos, length));
     if (recpos != minpos)
     { // Reserved space (Null bits?)
-      bzero((char*) recinfo_pos, sizeof(*recinfo_pos));
+      memset(recinfo_pos, 0, sizeof(*recinfo_pos));
       recinfo_pos->type= (int) FIELD_NORMAL;
       recinfo_pos++->length= (uint16) (minpos - recpos);
     }
@@ -639,13 +635,14 @@ ha_myisam::ha_myisam(handlerton *hton, TABLE_SHARE *table_arg)
                   HA_DUPLICATE_POS | HA_CAN_INDEX_BLOBS | HA_AUTO_PART_KEY |
                   HA_FILE_BASED | HA_CAN_GEOMETRY | HA_NO_TRANSACTIONS |
                   HA_CAN_INSERT_DELAYED | HA_CAN_BIT_FIELD | HA_CAN_RTREEKEYS |
-                  HA_HAS_RECORDS | HA_STATS_RECORDS_IS_EXACT),
+                  HA_HAS_RECORDS | HA_STATS_RECORDS_IS_EXACT | HA_CAN_REPAIR),
    can_enable_indexes(1)
 {}
 
-handler *ha_myisam::clone(MEM_ROOT *mem_root)
+handler *ha_myisam::clone(const char *name, MEM_ROOT *mem_root)
 {
-  ha_myisam *new_handler= static_cast <ha_myisam *>(handler::clone(mem_root));
+  ha_myisam *new_handler= static_cast <ha_myisam *>(handler::clone(name,
+                                                                   mem_root));
   if (new_handler)
     new_handler->file->state= file->state;
   return new_handler;
@@ -1916,7 +1913,7 @@ int ha_myisam::create(const char *name, register TABLE *table_arg,
   }
   if ((error= table2myisam(table_arg, &keydef, &recinfo, &records)))
     DBUG_RETURN(error); /* purecov: inspected */
-  bzero((char*) &create_info, sizeof(create_info));
+  memset(&create_info, 0, sizeof(create_info));
   create_info.max_rows= share->max_rows;
   create_info.reloc_rows= share->min_rows;
   create_info.with_auto_increment= share->next_number_key_offset == 0;

@@ -88,7 +88,7 @@ int my_chsize(File fd, my_off_t newlength, int filler, myf MyFlags)
   }
 
   /* Full file with 'filler' until it's as big as requested */
-  bfill(buff, IO_SIZE, filler);
+  memset(buff, filler, IO_SIZE);
   while (newlength-oldsize > IO_SIZE)
   {
     if (my_write(fd, buff, IO_SIZE, MYF(MY_NABP)))

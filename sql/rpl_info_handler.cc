@@ -35,10 +35,7 @@ Rpl_info_handler::Rpl_info_handler(const int nparam)
 
 Rpl_info_handler::~Rpl_info_handler()
 {
-  if (field_values)
-  {
-    delete field_values;
-  }
+  delete field_values;
 }
 
 void Rpl_info_handler::set_sync_period(uint period)

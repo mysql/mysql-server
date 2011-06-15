@@ -87,10 +87,6 @@
     -Brian
 */
 
-#ifdef USE_PRAGMA_IMPLEMENTATION
-#pragma implementation        // gcc: Class implementation
-#endif
-
 #include "sql_priv.h"
 #include "sql_class.h"           // MYSQL_HANDLERTON_INTERFACE_VERSION
 #include "ha_example.h"
@@ -140,11 +136,8 @@ static void init_example_psi_keys()
   const char* category= "example";
   int count;
 
-  if (PSI_server == NULL)
-    return;
-
   count= array_elements(all_example_mutexes);
-  PSI_server->register_mutex(category, all_example_mutexes, count);
+  mysql_mutex_register(category, all_example_mutexes, count);
 }
 #endif
 
@@ -984,7 +977,7 @@ static int show_func_example(MYSQL_THD thd, struct st_mysql_show_var *var,
   var->type= SHOW_CHAR;
   var->value= buf; // it's of SHOW_VAR_FUNC_BUFF_SIZE bytes
   my_snprintf(buf, SHOW_VAR_FUNC_BUFF_SIZE,
-              "enum_var is %u, ulong_var is %lu, %.6b", // %b is MySQL extension
+              "enum_var is %lu, ulong_var is %lu, %.6b", // %b is MySQL extension
               srv_enum_var, srv_ulong_var, "really");
   return 0;
 }

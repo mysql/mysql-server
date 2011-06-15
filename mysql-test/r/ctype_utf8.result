@@ -4268,7 +4268,7 @@ create table t2 as select concat(a) from t1;
 show create table t2;
 Table	Create Table
 t2	CREATE TABLE `t2` (
-  `concat(a)` varchar(2) CHARACTER SET utf8 DEFAULT NULL
+  `concat(a)` varchar(4) CHARACTER SET utf8 DEFAULT NULL
 ) ENGINE=MyISAM DEFAULT CHARSET=latin1
 drop table t1, t2;
 create table t1 (a year);
@@ -4577,7 +4577,7 @@ insert into t1 values (1);
 create view v1(a) as select concat(a) from t1;
 show columns from v1;
 Field	Type	Null	Key	Default	Extra
-a	varchar(2)	YES		NULL	
+a	varchar(4)	YES		NULL	
 select hex(a) from v1;
 hex(a)
 3031
@@ -5012,6 +5012,72 @@ id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	t1	range	date_column	date_column	9	NULL	1	Using index condition
 DROP TABLE t1;
 #
+# Bug #31384 	DATE_ADD() and DATE_SUB() return binary data
+#
+SELECT @@collation_connection, @@character_set_results;
+@@collation_connection	@@character_set_results
+utf8_general_ci	utf8
+CREATE TABLE t1 AS
+SELECT
+DATE_SUB('2007-08-03', INTERVAL 1 MINUTE) AS field_str1,
+DATE_SUB('2007-08-03 17:33:00', INTERVAL 1 MINUTE) AS field1_str2,
+DATE_SUB(DATE('2007-08-03'), INTERVAL 1 DAY) AS field_date,
+DATE_SUB(CAST('2007-08-03 17:33:00' AS DATETIME), INTERVAL 1 MINUTE) AS field_datetime;
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `field_str1` varchar(29) CHARACTER SET utf8 DEFAULT NULL,
+  `field1_str2` varchar(29) CHARACTER SET utf8 DEFAULT NULL,
+  `field_date` date DEFAULT NULL,
+  `field_datetime` datetime DEFAULT NULL
+) ENGINE=MyISAM DEFAULT CHARSET=latin1
+DROP TABLE t1;
+SELECT
+DATE_SUB('2007-08-03', INTERVAL 1 DAY) AS field_str1,
+DATE_SUB('2007-08-03 17:33:00', INTERVAL 1 MINUTE) AS field1_str2,
+DATE_SUB(DATE('2007-08-03'), INTERVAL 1 DAY) AS field_date,
+DATE_SUB(CAST('2007-08-03 17:33:00' AS DATETIME), INTERVAL 1 MINUTE) AS field_datetime;
+Catalog	Database	Table	Table_alias	Column	Column_alias	Type	Length	Max length	Is_null	Flags	Decimals	Charsetnr
+def					field_str1	254	87	10	Y	0	31	33
+def					field1_str2	254	87	19	Y	0	31	33
+def					field_date	10	29	10	Y	128	31	63
+def					field_datetime	12	29	19	Y	128	31	63
+field_str1	field1_str2	field_date	field_datetime
+2007-08-02	2007-08-03 17:32:00	2007-08-02	2007-08-03 17:32:00
+SELECT
+HEX(DATE_SUB('2007-08-03', INTERVAL 1 MINUTE)) AS field_str1,
+HEX(DATE_SUB('2007-08-03 17:33:00', INTERVAL 1 MINUTE)) AS field1_str2,
+HEX(DATE_SUB(DATE('2007-08-03'), INTERVAL 1 DAY)) AS field_date,
+HEX(DATE_SUB(CAST('2007-08-03 17:33:00' AS DATETIME), INTERVAL 1 MINUTE)) AS field_datetime;
+field_str1	field1_str2	field_date	field_datetime
+323030372D30382D30322032333A35393A3030	323030372D30382D30332031373A33323A3030	323030372D30382D3032	323030372D30382D30332031373A33323A3030
+#
+# Bug#11926811 / Bug#60625 Illegal mix of collations
+#
+SELECT @@collation_connection;
+@@collation_connection
+utf8_general_ci
+CREATE PROCEDURE p1()
+BEGIN
+DECLARE v_LastPaymentDate DATETIME DEFAULT NULL;
+SELECT v_LastPaymentDate < NOW();
+EXPLAIN EXTENDED SELECT v_LastPaymentDate < NOW();
+SHOW WARNINGS;
+EXPLAIN EXTENDED SELECT CONCAT(v_LastPaymentDate, NOW());
+END//
+CALL p1;
+v_LastPaymentDate < NOW()
+NULL
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	No tables used
+Level	Code	Message
+Note	1003	select (v_LastPaymentDate@0 < now()) AS `v_LastPaymentDate < NOW()`
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	No tables used
+Warnings:
+Note	1003	select concat(convert(v_LastPaymentDate@0 using utf8),now()) AS `CONCAT(v_LastPaymentDate, NOW())`
+DROP PROCEDURE p1;
+#
 # Bug#52159 returning time type from function and empty left join causes debug assertion
 #
 CREATE FUNCTION f1() RETURNS TIME RETURN 1;
@@ -5042,6 +5108,21 @@ SELECT COUNT(*) FROM t1, t1 t2
 GROUP BY INSERT('', t2.a, t1.a, (@@global.max_binlog_size));
 ERROR 23000: Duplicate entry '107374182410737418241' for key 'group_key'
 DROP TABLE t1;
+#
+# Bug#11764503 (Bug#57341) Query in EXPLAIN EXTENDED shows wrong characters
+#
+SET NAMES latin1;
+EXPLAIN EXTENDED SELECT 'abcdÁÂÃÄÅ', _latin1'abcdÁÂÃÄÅ', _utf8'abcdÁÂÃÄÅ' AS u;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	No tables used
+Warnings:
+Note	1003	select 'abcdÁÂÃÄÅ' AS `abcdÁÂÃÄÅ`,_latin1'abcd\xC3\x81\xC3\x82\xC3\x83\xC3\x84\xC3\x85' AS `abcdÁÂÃÄÅ`,_utf8'abcd\xC3\x81\xC3\x82\xC3\x83\xC3\x84\xC3\x85' AS `u`
+SET NAMES utf8;
+EXPLAIN EXTENDED SELECT 'abcdÁÂÃÄÅ', _latin1'abcdÁÂÃÄÅ', _utf8'abcdÁÂÃÄÅ';
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	No tables used
+Warnings:
+Note	1003	select 'abcdÁÂÃÄÅ' AS `abcdÁÂÃÄÅ`,_latin1'abcd\xC3\x81\xC3\x82\xC3\x83\xC3\x84\xC3\x85' AS `abcdÃÃ‚ÃƒÃ„Ã…`,_utf8'abcd\xC3\x81\xC3\x82\xC3\x83\xC3\x84\xC3\x85' AS `abcdÁÂÃÄÅ`
 #
 # End of 5.5 tests
 #

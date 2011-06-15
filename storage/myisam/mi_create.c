@@ -61,7 +61,7 @@ int mi_create(const char *name,uint keys,MI_KEYDEF *keydefs,
 
   if (!ci)
   {
-    bzero((char*) &tmp_create_info,sizeof(tmp_create_info));
+    memset(&tmp_create_info, 0, sizeof(tmp_create_info));
     ci=&tmp_create_info;
   }
 
@@ -72,7 +72,7 @@ int mi_create(const char *name,uint keys,MI_KEYDEF *keydefs,
 
   errpos=0;
   options=0;
-  bzero((uchar*) &share,sizeof(share));
+  memset(&share, 0, sizeof(share));
 
   if (flags & HA_DONT_TOUCH_DATA)
   {
@@ -269,7 +269,7 @@ int mi_create(const char *name,uint keys,MI_KEYDEF *keydefs,
             keyseg->type != HA_KEYTYPE_VARBINARY2)
         {
           my_errno=HA_WRONG_CREATE_OPTION;
-          goto err;
+          goto err_no_lock;
         }
       }
       keydef->keysegs+=sp_segs;
@@ -278,7 +278,7 @@ int mi_create(const char *name,uint keys,MI_KEYDEF *keydefs,
       min_key_length_skip+=SPLEN*2*SPDIMS;
 #else
       my_errno= HA_ERR_UNSUPPORTED;
-      goto err;
+      goto err_no_lock;
 #endif /*HAVE_SPATIAL*/
     }
     else if (keydef->flag & HA_FULLTEXT)
@@ -294,7 +294,7 @@ int mi_create(const char *name,uint keys,MI_KEYDEF *keydefs,
             keyseg->type != HA_KEYTYPE_VARTEXT2)
         {
           my_errno=HA_WRONG_CREATE_OPTION;
-          goto err;
+          goto err_no_lock;
         }
         if (!(keyseg->flag & HA_BLOB_PART) &&
 	    (keyseg->type == HA_KEYTYPE_VARTEXT1 ||
@@ -419,7 +419,7 @@ int mi_create(const char *name,uint keys,MI_KEYDEF *keydefs,
     if (keydef->keysegs > MI_MAX_KEY_SEG)
     {
       my_errno=HA_WRONG_CREATE_OPTION;
-      goto err;
+      goto err_no_lock;
     }
     /*
       key_segs may be 0 in the case when we only want to be able to
@@ -444,7 +444,7 @@ int mi_create(const char *name,uint keys,MI_KEYDEF *keydefs,
         length >= MI_MAX_KEY_BUFF)
     {
       my_errno=HA_WRONG_CREATE_OPTION;
-      goto err;
+      goto err_no_lock;
     }
     set_if_bigger(max_key_block_length,keydef->block_length);
     keydef->keylength= (uint16) key_length;
@@ -491,7 +491,7 @@ int mi_create(const char *name,uint keys,MI_KEYDEF *keydefs,
                     "indexes and/or unique constraints.",
                     MYF(0), name + dirname_length(name));
     my_errno= HA_WRONG_CREATE_OPTION;
-    goto err;
+    goto err_no_lock;
   }
 
   bmove(share.state.header.file_version,(uchar*) myisam_file_magic,4);
@@ -727,8 +727,8 @@ int mi_create(const char *name,uint keys,MI_KEYDEF *keydefs,
   }
   /* Create extra keys for unique definitions */
   offset=reclength-uniques*MI_UNIQUE_HASH_LENGTH;
-  bzero((char*) &tmp_keydef,sizeof(tmp_keydef));
-  bzero((char*) &tmp_keyseg,sizeof(tmp_keyseg));
+  memset(&tmp_keydef, 0, sizeof(tmp_keydef));
+  memset(&tmp_keyseg, 0, sizeof(tmp_keyseg));
   for (i=0; i < uniques ; i++)
   {
     tmp_keydef.keysegs=1;
@@ -810,12 +810,14 @@ int mi_create(const char *name,uint keys,MI_KEYDEF *keydefs,
   errpos=0;
   mysql_mutex_unlock(&THR_LOCK_myisam);
   if (mysql_file_close(file, MYF(0)))
-    goto err;
+    goto err_no_lock;
   my_free(rec_per_key_part);
   DBUG_RETURN(0);
 
 err:
   mysql_mutex_unlock(&THR_LOCK_myisam);
+
+err_no_lock:
   save_errno=my_errno;
   switch (errpos) {
   case 3:

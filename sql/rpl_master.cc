@@ -75,14 +75,10 @@ static PSI_mutex_info all_slave_list_mutexes[]=
 
 static void init_all_slave_list_mutexes(void)
 {
-  const char* category= "sql";
   int count;
 
-  if (PSI_server == NULL)
-    return;
-
   count= array_elements(all_slave_list_mutexes);
-  PSI_server->register_mutex(category, all_slave_list_mutexes, count);
+  mysql_mutex_register("sql", all_slave_list_mutexes, count);
 }
 #endif /* HAVE_PSI_INTERFACE */
 
@@ -653,13 +649,13 @@ void mysql_binlog_send(THD* thd, char* log_ident, my_off_t pos,
     Diagnostics_area.
   */
   Diagnostics_area temp_da;
-  Diagnostics_area *saved_da= thd->stmt_da;
-  thd->stmt_da= &temp_da;
+  Diagnostics_area *saved_da= thd->get_stmt_da();
+  thd->set_stmt_da(&temp_da);
 
   DBUG_ENTER("mysql_binlog_send");
   DBUG_PRINT("enter",("log_ident: '%s'  pos: %ld", log_ident, (long) pos));
 
-  bzero((char*) &log,sizeof(log));
+  memset(&log, 0, sizeof(log));
   /* 
      heartbeat_period from @master_heartbeat_period user variable
   */
@@ -900,9 +896,12 @@ impossible position";
        file */
     if (reset_transmit_packet(thd, flags, &ev_offset, &errmsg))
       goto err;
+
+    my_off_t prev_pos= pos;
     while (!(error = Log_event::read_log_event(&log, packet, log_lock,
                                                current_checksum_alg)))
     {
+      prev_pos= my_b_tell(&log);
 #ifndef DBUG_OFF
       if (max_binlog_dump_events && !left_events--)
       {
@@ -1010,8 +1009,13 @@ impossible position";
       of a crash ?). treat any corruption as EOF
     */
     if (binlog_can_be_corrupted &&
-        (error != LOG_READ_MEM && error != LOG_READ_CHECKSUM_FAILURE))
+        error != LOG_READ_MEM &&
+        error != LOG_READ_CHECKSUM_FAILURE &&
+        error != LOG_READ_EOF)
+    {
+      my_b_seek(&log, prev_pos);
       error=LOG_READ_EOF;
+    }
     /*
       TODO: now that we are logging the offset, check to make sure
       the recorded offset and the actual match.
@@ -1152,7 +1156,7 @@ impossible position";
 
 	if (read_packet)
         {
-          thd_proc_info(thd, "Sending binlog event to slave");
+          THD_STAGE_INFO(thd, stage_sending_binlog_event_to_slave);
           pos = my_b_tell(&log);
           if (RUN_HOOK(binlog_transmit, before_send_event,
                        (thd, flags, packet, log_file_name, pos)))
@@ -1195,7 +1199,7 @@ impossible position";
       bool loop_breaker = 0;
       /* need this to break out of the for loop from switch */
 
-      thd_proc_info(thd, "Finished reading one binlog; switching to next binlog");
+      THD_STAGE_INFO(thd, stage_finished_reading_one_binlog_switching_to_next_binlog);
       switch (mysql_bin_log.find_next_log(&linfo, 1)) {
       case 0:
 	break;
@@ -1244,13 +1248,13 @@ impossible position";
   }
 
 end:
-  thd->stmt_da= saved_da;
+  thd->set_stmt_da(saved_da);
   end_io_cache(&log);
   mysql_file_close(file, MYF(MY_WME));
 
-  RUN_HOOK(binlog_transmit, transmit_stop, (thd, flags));
+  (void) RUN_HOOK(binlog_transmit, transmit_stop, (thd, flags));
   my_eof(thd);
-  thd_proc_info(thd, "Waiting to finalize termination");
+  THD_STAGE_INFO(thd, stage_waiting_to_finalize_termination);
   mysql_mutex_lock(&LOCK_thread_count);
   thd->current_linfo = 0;
   mysql_mutex_unlock(&LOCK_thread_count);
@@ -1258,9 +1262,9 @@ end:
   DBUG_VOID_RETURN;
 
 err:
-  thd_proc_info(thd, "Waiting to finalize termination");
+  THD_STAGE_INFO(thd, stage_waiting_to_finalize_termination);
   end_io_cache(&log);
-  RUN_HOOK(binlog_transmit, transmit_stop, (thd, flags));
+  (void) RUN_HOOK(binlog_transmit, transmit_stop, (thd, flags));
   /*
     Exclude  iteration through thread list
     this is needed for purge_logs() - it will iterate through
@@ -1275,7 +1279,7 @@ err:
     mysql_file_close(file, MYF(MY_WME));
   thd->variables.max_allowed_packet= old_max_allowed_packet;
 
-  thd->stmt_da= saved_da;
+  thd->set_stmt_da(saved_da);
   my_message(my_errno, errmsg, MYF(0));
   DBUG_VOID_RETURN;
 }
@@ -1383,25 +1387,8 @@ int reset_master(THD* thd)
 
   if (mysql_bin_log.reset_logs(thd))
     return 1;
-  RUN_HOOK(binlog_transmit, after_reset_master, (thd, 0 /* flags */));
+  (void) RUN_HOOK(binlog_transmit, after_reset_master, (thd, 0 /* flags */));
   return 0;
-}
-
-int cmp_master_pos(const char* log_file_name1, ulonglong log_pos1,
-		   const char* log_file_name2, ulonglong log_pos2)
-{
-  int res;
-  size_t log_file_name1_len=  strlen(log_file_name1);
-  size_t log_file_name2_len=  strlen(log_file_name2);
-
-  //  We assume that both log names match up to '.'
-  if (log_file_name1_len == log_file_name2_len)
-  {
-    if ((res= strcmp(log_file_name1, log_file_name2)))
-      return res;
-    return (log_pos1 < log_pos2) ? -1 : (log_pos1 == log_pos2) ? 0 : 1;
-  }
-  return ((log_file_name1_len < log_file_name2_len) ? -1 : 1);
 }
 
 

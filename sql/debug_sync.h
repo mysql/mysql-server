@@ -22,10 +22,6 @@
   Declarations for the Debug Sync Facility. See debug_sync.cc for details.
 */
 
-#ifdef USE_PRAGMA_INTERFACE
-#pragma interface                      /* gcc class implementation */
-#endif
-
 #include <my_global.h>
 
 class THD;
@@ -39,7 +35,7 @@ class THD;
              } while (0)
 
 /* Command line option --debug-sync-timeout. See mysqld.cc. */
-extern uint opt_debug_sync_timeout;
+extern MYSQL_PLUGIN_IMPORT uint opt_debug_sync_timeout;
 
 /* Default WAIT_FOR timeout if command line option is given without argument. */
 #define DEBUG_SYNC_DEFAULT_WAIT_TIMEOUT 300

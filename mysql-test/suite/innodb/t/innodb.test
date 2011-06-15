@@ -452,8 +452,6 @@ alter table t1 add index sca_pic (cat_code, sca_pic);
 select count(*) from t1 where sca_code='PD' and sca_pic is null;
 select count(*) from t1 where cat_code='E';
 
-# this should be fixed by MySQL (see Bug #51451)
---error ER_WRONG_NAME_FOR_INDEX
 alter table t1 drop index sca_pic, add index (sca_pic, cat_code);
 alter table t1 drop index sca_pic;
 alter table t1 add index (sca_pic, cat_code);
@@ -2248,7 +2246,7 @@ connection i;
 reap;
 
 connection j;
---error 1205
+--error ER_CANT_UPDATE_TABLE_IN_CREATE_TABLE_SELECT
 reap;
 
 connection a;

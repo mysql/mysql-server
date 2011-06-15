@@ -1,5 +1,4 @@
-/* Copyright (C) 2000, 2011, Oracle and/or its affiliates. All rights 
-   reserved
+/* Copyright (c) 2000, 2011, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -12,7 +11,7 @@
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
-   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
+   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
 /* This file includes constants used with all databases */
 
@@ -446,7 +445,10 @@ enum ha_base_keytype {
 #define HA_ERR_FILE_TOO_SHORT	  175	 /* File too short */
 #define HA_ERR_WRONG_CRC	  176	 /* Wrong CRC on page */
 #define HA_ERR_TOO_MANY_CONCURRENT_TRXS 177 /*Too many active concurrent transactions */
-#define HA_ERR_LAST               177    /* Copy of last error nr */
+/* There's no explicitly listed partition in table for the given value */
+#define HA_ERR_NOT_IN_LOCK_PARTITIONS 178
+#define HA_ERR_INDEX_COL_TOO_LONG 179	 /* Index column length exceeds limit */
+#define HA_ERR_LAST               179    /* Copy of last error nr */
 
 /* Number of different errors */
 #define HA_ERR_ERRORS            (HA_ERR_LAST - HA_ERR_FIRST + 1)

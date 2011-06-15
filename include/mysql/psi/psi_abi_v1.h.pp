@@ -9,6 +9,7 @@ struct PSI_table;
 struct PSI_thread;
 struct PSI_file;
 struct PSI_table_locker;
+struct PSI_statement_locker;
 struct PSI_bootstrap
 {
   void* (*get_interface)(int version);
@@ -71,6 +72,8 @@ typedef unsigned int PSI_rwlock_key;
 typedef unsigned int PSI_cond_key;
 typedef unsigned int PSI_thread_key;
 typedef unsigned int PSI_file_key;
+typedef unsigned int PSI_stage_key;
+typedef unsigned int PSI_statement_key;
 struct PSI_mutex_info_v1
 {
   PSI_mutex_key *m_key;
@@ -98,6 +101,18 @@ struct PSI_thread_info_v1
 struct PSI_file_info_v1
 {
   PSI_file_key *m_key;
+  const char *m_name;
+  int m_flags;
+};
+struct PSI_stage_info_v1
+{
+  PSI_stage_key m_key;
+  const char *m_name;
+  int m_flags;
+};
+struct PSI_statement_info_v1
+{
+  PSI_statement_key m_key;
   const char *m_name;
   int m_flags;
 };
@@ -165,6 +180,34 @@ struct PSI_table_locker_state_v1
   int m_src_line;
   void *m_wait;
 };
+struct PSI_statement_locker_state_v1
+{
+  uint m_flags;
+  void *m_class;
+  struct PSI_thread *m_thread;
+  ulonglong m_timer_start;
+  ulonglong (*m_timer)(void);
+  const char* m_src_file;
+  int m_src_line;
+  void *m_statement;
+  my_bool m_discarded;
+  ulonglong m_lock_time;
+  ulonglong m_rows_sent;
+  ulonglong m_rows_examined;
+  ulonglong m_created_tmp_disk_tables;
+  ulonglong m_created_tmp_tables;
+  ulonglong m_select_full_join;
+  ulonglong m_select_full_range_join;
+  ulonglong m_select_range;
+  ulonglong m_select_range_check;
+  ulonglong m_select_scan;
+  ulonglong m_sort_merge_passes;
+  ulonglong m_sort_range;
+  ulonglong m_sort_rows;
+  ulonglong m_sort_scan;
+  ulonglong m_no_index_used;
+  ulonglong m_no_good_index_used;
+};
 typedef void (*register_mutex_v1_t)
   (const char *category, struct PSI_mutex_info_v1 *info, int count);
 typedef void (*register_rwlock_v1_t)
@@ -175,6 +218,10 @@ typedef void (*register_thread_v1_t)
   (const char *category, struct PSI_thread_info_v1 *info, int count);
 typedef void (*register_file_v1_t)
   (const char *category, struct PSI_file_info_v1 *info, int count);
+typedef void (*register_stage_v1_t)
+  (const char *category, struct PSI_stage_info_v1 **info, int count);
+typedef void (*register_statement_v1_t)
+  (const char *category, struct PSI_statement_info_v1 *info, int count);
 typedef struct PSI_mutex* (*init_mutex_v1_t)
   (PSI_mutex_key key, const void *identity);
 typedef void (*destroy_mutex_v1_t)(struct PSI_mutex *mutex);
@@ -283,6 +330,56 @@ typedef void (*start_file_wait_v1_t)
    const char *src_file, uint src_line);
 typedef void (*end_file_wait_v1_t)
   (struct PSI_file_locker *locker, size_t count);
+typedef void (*start_stage_v1_t)
+  (PSI_stage_key key, const char *src_file, int src_line);
+typedef void (*end_stage_v1_t) (void);
+typedef struct PSI_statement_locker* (*get_thread_statement_locker_v1_t)
+  (struct PSI_statement_locker_state_v1 *state,
+   PSI_statement_key key);
+typedef struct PSI_statement_locker* (*refine_statement_v1_t)
+  (struct PSI_statement_locker *locker,
+   PSI_statement_key key);
+typedef void (*start_statement_v1_t)
+  (struct PSI_statement_locker *locker,
+   const char *db, uint db_length,
+   const char *src_file, uint src_line);
+typedef void (*set_statement_text_v1_t)
+  (struct PSI_statement_locker *locker,
+   const char *text, uint text_len);
+typedef void (*set_statement_lock_time_t)
+  (struct PSI_statement_locker *locker, ulonglong lock_time);
+typedef void (*set_statement_rows_sent_t)
+  (struct PSI_statement_locker *locker, ulonglong count);
+typedef void (*set_statement_rows_examined_t)
+  (struct PSI_statement_locker *locker, ulonglong count);
+typedef void (*inc_statement_created_tmp_disk_tables_t)
+  (struct PSI_statement_locker *locker, ulonglong count);
+typedef void (*inc_statement_created_tmp_tables_t)
+  (struct PSI_statement_locker *locker, ulonglong count);
+typedef void (*inc_statement_select_full_join_t)
+  (struct PSI_statement_locker *locker, ulonglong count);
+typedef void (*inc_statement_select_full_range_join_t)
+  (struct PSI_statement_locker *locker, ulonglong count);
+typedef void (*inc_statement_select_range_t)
+  (struct PSI_statement_locker *locker, ulonglong count);
+typedef void (*inc_statement_select_range_check_t)
+  (struct PSI_statement_locker *locker, ulonglong count);
+typedef void (*inc_statement_select_scan_t)
+  (struct PSI_statement_locker *locker, ulonglong count);
+typedef void (*inc_statement_sort_merge_passes_t)
+  (struct PSI_statement_locker *locker, ulonglong count);
+typedef void (*inc_statement_sort_range_t)
+  (struct PSI_statement_locker *locker, ulonglong count);
+typedef void (*inc_statement_sort_rows_t)
+  (struct PSI_statement_locker *locker, ulonglong count);
+typedef void (*inc_statement_sort_scan_t)
+  (struct PSI_statement_locker *locker, ulonglong count);
+typedef void (*set_statement_no_index_used_t)
+  (struct PSI_statement_locker *locker);
+typedef void (*set_statement_no_good_index_used_t)
+  (struct PSI_statement_locker *locker);
+typedef void (*end_statement_v1_t)
+  (struct PSI_statement_locker *locker, void *stmt_da);
 struct PSI_v1
 {
   register_mutex_v1_t register_mutex;
@@ -290,6 +387,8 @@ struct PSI_v1
   register_cond_v1_t register_cond;
   register_thread_v1_t register_thread;
   register_file_v1_t register_file;
+  register_stage_v1_t register_stage;
+  register_statement_v1_t register_statement;
   init_mutex_v1_t init_mutex;
   destroy_mutex_v1_t destroy_mutex;
   init_rwlock_v1_t init_rwlock;
@@ -346,6 +445,29 @@ struct PSI_v1
     end_file_open_wait_and_bind_to_descriptor;
   start_file_wait_v1_t start_file_wait;
   end_file_wait_v1_t end_file_wait;
+  start_stage_v1_t start_stage;
+  end_stage_v1_t end_stage;
+  get_thread_statement_locker_v1_t get_thread_statement_locker;
+  refine_statement_v1_t refine_statement;
+  start_statement_v1_t start_statement;
+  set_statement_text_v1_t set_statement_text;
+  set_statement_lock_time_t set_statement_lock_time;
+  set_statement_rows_sent_t set_statement_rows_sent;
+  set_statement_rows_examined_t set_statement_rows_examined;
+  inc_statement_created_tmp_disk_tables_t inc_statement_created_tmp_disk_tables;
+  inc_statement_created_tmp_tables_t inc_statement_created_tmp_tables;
+  inc_statement_select_full_join_t inc_statement_select_full_join;
+  inc_statement_select_full_range_join_t inc_statement_select_full_range_join;
+  inc_statement_select_range_t inc_statement_select_range;
+  inc_statement_select_range_check_t inc_statement_select_range_check;
+  inc_statement_select_scan_t inc_statement_select_scan;
+  inc_statement_sort_merge_passes_t inc_statement_sort_merge_passes;
+  inc_statement_sort_range_t inc_statement_sort_range;
+  inc_statement_sort_rows_t inc_statement_sort_rows;
+  inc_statement_sort_scan_t inc_statement_sort_scan;
+  set_statement_no_index_used_t set_statement_no_index_used;
+  set_statement_no_good_index_used_t set_statement_no_good_index_used;
+  end_statement_v1_t end_statement;
 };
 typedef struct PSI_v1 PSI;
 typedef struct PSI_mutex_info_v1 PSI_mutex_info;
@@ -353,10 +475,13 @@ typedef struct PSI_rwlock_info_v1 PSI_rwlock_info;
 typedef struct PSI_cond_info_v1 PSI_cond_info;
 typedef struct PSI_thread_info_v1 PSI_thread_info;
 typedef struct PSI_file_info_v1 PSI_file_info;
+typedef struct PSI_stage_info_v1 PSI_stage_info;
+typedef struct PSI_statement_info_v1 PSI_statement_info;
 typedef struct PSI_mutex_locker_state_v1 PSI_mutex_locker_state;
 typedef struct PSI_rwlock_locker_state_v1 PSI_rwlock_locker_state;
 typedef struct PSI_cond_locker_state_v1 PSI_cond_locker_state;
 typedef struct PSI_file_locker_state_v1 PSI_file_locker_state;
 typedef struct PSI_table_locker_state_v1 PSI_table_locker_state;
+typedef struct PSI_statement_locker_state_v1 PSI_statement_locker_state;
 extern MYSQL_PLUGIN_IMPORT PSI *PSI_server;
 C_MODE_END

@@ -65,7 +65,5 @@ include/wait_for_slave_io_error.inc [errno=1236]
 Last_IO_Error = 'Got fatal error 1236 from master when reading data from binary log: 'log event entry exceeded max_allowed_packet; Increase max_allowed_packet on master''
 ==== clean up ====
 include/stop_slave_sql.inc
-Warnings:
-Note	1255	Slave already has been stopped
 RESET SLAVE;
 include/rpl_end.inc

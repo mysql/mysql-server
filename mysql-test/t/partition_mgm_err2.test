@@ -11,8 +11,9 @@
 #
 # BUG: 14354 Partitions: data directory clause fails
 #
---system rm -rf $MYSQLTEST_VARDIR/tmp/bug14354
---system mkdir $MYSQLTEST_VARDIR/tmp/bug14354
+--error 0,1
+--remove_files_wildcard $MYSQLTEST_VARDIR/tmp/bug14354
+--mkdir $MYSQLTEST_VARDIR/tmp/bug14354
 disable_query_log;
 eval CREATE TABLE t1 (id int) PARTITION BY RANGE(id) (
 PARTITION p1 VALUES LESS THAN (20) ENGINE=myisam
@@ -20,7 +21,8 @@ DATA DIRECTORY="$MYSQLTEST_VARDIR/tmp/bug14354"
 INDEX DIRECTORY="$MYSQLTEST_VARDIR/tmp/bug14354");
 enable_query_log;
 INSERT INTO t1 VALUES (15);
---system test -f $MYSQLTEST_VARDIR/tmp/bug14354/t1#P#p1.MYD
---system test -f $MYSQLTEST_VARDIR/tmp/bug14354/t1#P#p1.MYI
+--file_exists $MYSQLTEST_VARDIR/tmp/bug14354/t1#P#p1.MYD
+--file_exists $MYSQLTEST_VARDIR/tmp/bug14354/t1#P#p1.MYI
 DROP TABLE t1;
---system rm -rf $MYSQLTEST_VARDIR/tmp/bug14354
+--remove_files_wildcard $MYSQLTEST_VARDIR/tmp/bug14354
+--rmdir $MYSQLTEST_VARDIR/tmp/bug14354

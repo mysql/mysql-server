@@ -142,6 +142,127 @@ struct PFS_file_stat
   PFS_file_io_stat m_io_stat;
 };
 
+/** Statistics for stage usage. */
+struct PFS_stage_stat
+{
+  PFS_single_stat m_timer1_stat;
+
+  inline void reset(void)
+  { m_timer1_stat.reset(); }
+
+  inline void aggregate_counted()
+  { m_timer1_stat.aggregate_counted(); }
+
+  inline void aggregate_timed(ulonglong value)
+  { m_timer1_stat.aggregate_timed(value); }
+
+  inline void aggregate(PFS_stage_stat *stat)
+  { m_timer1_stat.aggregate(& stat->m_timer1_stat); }
+};
+
+/** Statistics for statement usage. */
+struct PFS_statement_stat
+{
+  PFS_single_stat m_timer1_stat;
+  ulonglong m_error_count;
+  ulonglong m_warning_count;
+  ulonglong m_rows_affected;
+  ulonglong m_lock_time;
+  ulonglong m_rows_sent;
+  ulonglong m_rows_examined;
+  ulonglong m_created_tmp_disk_tables;
+  ulonglong m_created_tmp_tables;
+  ulonglong m_select_full_join;
+  ulonglong m_select_full_range_join;
+  ulonglong m_select_range;
+  ulonglong m_select_range_check;
+  ulonglong m_select_scan;
+  ulonglong m_sort_merge_passes;
+  ulonglong m_sort_range;
+  ulonglong m_sort_rows;
+  ulonglong m_sort_scan;
+  ulonglong m_no_index_used;
+  ulonglong m_no_good_index_used;
+
+  PFS_statement_stat()
+  {
+    m_error_count= 0;
+    m_warning_count= 0;
+    m_rows_affected= 0;
+    m_lock_time= 0;
+    m_rows_sent= 0;
+    m_rows_examined= 0;
+    m_created_tmp_disk_tables= 0;
+    m_created_tmp_tables= 0;
+    m_select_full_join= 0;
+    m_select_full_range_join= 0;
+    m_select_range= 0;
+    m_select_range_check= 0;
+    m_select_scan= 0;
+    m_sort_merge_passes= 0;
+    m_sort_range= 0;
+    m_sort_rows= 0;
+    m_sort_scan= 0;
+    m_no_index_used= 0;
+    m_no_good_index_used= 0;
+  }
+
+  inline void reset(void)
+  {
+    m_timer1_stat.reset();
+    m_error_count= 0;
+    m_warning_count= 0;
+    m_rows_affected= 0;
+    m_lock_time= 0;
+    m_rows_sent= 0;
+    m_rows_examined= 0;
+    m_created_tmp_disk_tables= 0;
+    m_created_tmp_tables= 0;
+    m_select_full_join= 0;
+    m_select_full_range_join= 0;
+    m_select_range= 0;
+    m_select_range_check= 0;
+    m_select_scan= 0;
+    m_sort_merge_passes= 0;
+    m_sort_range= 0;
+    m_sort_rows= 0;
+    m_sort_scan= 0;
+    m_no_index_used= 0;
+    m_no_good_index_used= 0;
+  }
+
+  inline void aggregate_counted()
+  { m_timer1_stat.aggregate_counted(); }
+
+  inline void aggregate_timed(ulonglong value)
+  { m_timer1_stat.aggregate_timed(value); }
+
+  inline void aggregate(PFS_statement_stat *stat)
+  {
+    m_timer1_stat.aggregate(& stat->m_timer1_stat);
+
+    m_error_count+= stat->m_error_count;
+    m_warning_count+= stat->m_warning_count;
+    m_rows_affected+= stat->m_rows_affected;
+    m_lock_time+= stat->m_lock_time;
+    m_rows_sent+= stat->m_rows_sent;
+    m_rows_examined+= stat->m_rows_examined;
+    m_created_tmp_disk_tables+= stat->m_created_tmp_disk_tables;
+    m_created_tmp_tables+= stat->m_created_tmp_tables;
+    m_select_full_join+= stat->m_select_full_join;
+    m_select_full_range_join+= stat->m_select_full_range_join;
+    m_select_range+= stat->m_select_range;
+    m_select_range_check+= stat->m_select_range_check;
+    m_select_scan+= stat->m_select_scan;
+    m_sort_merge_passes+= stat->m_sort_merge_passes;
+    m_sort_range+= stat->m_sort_range;
+    m_sort_rows+= stat->m_sort_rows;
+    m_sort_scan+= stat->m_sort_scan;
+    m_no_index_used+= stat->m_no_index_used;
+    m_no_good_index_used+= stat->m_no_good_index_used;
+  }
+};
+
 /** Single table io statistic. */
 struct PFS_table_io_stat
 {
@@ -199,6 +320,7 @@ enum PFS_TL_LOCK_TYPE
 
 #define COUNT_PFS_TL_LOCK_TYPE 11
 
+/** Statistics for table locks. */
 struct PFS_table_lock_stat
 {
   PFS_single_stat m_stat[COUNT_PFS_TL_LOCK_TYPE];

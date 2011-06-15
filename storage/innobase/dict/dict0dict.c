@@ -57,7 +57,6 @@ UNIV_INTERN dict_index_t*	dict_ind_compact;
 #include "fts0fts.h"
 #include "fts0types.h"
 #include "row0merge.h"
-#include "srv0srv.h" /* srv_lower_case_table_names */
 #include "m_ctype.h" /* my_isspace() */
 #include "ha_prototypes.h" /* innobase_strcasecmp(), innobase_casedn_str() */
 #include "srv0mon.h"
@@ -1370,7 +1369,7 @@ dict_table_rename_in_cache(
 	dict_foreign_t*	foreign;
 	dict_index_t*	index;
 	ulint		fold;
-	char		old_name[MAX_TABLE_NAME_LEN + 1];
+	char		old_name[MAX_FULL_NAME_LEN + 1];
 
 	ut_ad(table);
 	ut_ad(mutex_own(&(dict_sys->mutex)));
@@ -1382,7 +1381,7 @@ dict_table_rename_in_cache(
 		ut_print_timestamp(stderr);
 		fprintf(stderr, "InnoDB: too long table name: '%s', "
 			"max length is %d\n", table->name,
-			MAX_TABLE_NAME_LEN);
+			MAX_FULL_NAME_LEN);
 		ut_error;
 	}
 
@@ -1432,11 +1431,11 @@ dict_table_rename_in_cache(
 		    ut_fold_string(old_name), table);
 
 	if (strlen(new_name) > strlen(table->name)) {
-		/* We allocate MAX_TABLE_NAME_LEN+1 bytes here to avoid
+		/* We allocate MAX_FULL_NAME_LEN + 1 bytes here to avoid
 		memory fragmentation, we assume a repeated calls of
 		ut_realloc() with the same size do not cause fragmentation */
-		ut_a(strlen(new_name) <= MAX_TABLE_NAME_LEN);
-		table->name = ut_realloc(table->name, MAX_TABLE_NAME_LEN + 1);
+		ut_a(strlen(new_name) <= MAX_FULL_NAME_LEN);
+		table->name = ut_realloc(table->name, MAX_FULL_NAME_LEN + 1);
 	}
 	memcpy(table->name, new_name, strlen(new_name) + 1);
 
@@ -1801,36 +1800,63 @@ dict_index_too_big_for_undo(
 		ulint			fixed_size
 			= dict_col_get_fixed_size(col,
 						  dict_table_is_comp(table));
+		ulint			max_prefix
+			= col->max_prefix;
 
 		if (fixed_size) {
 			/* Fixed-size columns are stored locally. */
 			max_size = fixed_size;
 		} else if (max_size <= BTR_EXTERN_FIELD_REF_SIZE * 2) {
 			/* Short columns are stored locally. */
-		} else if (!col->ord_part) {
+		} else if (!col->ord_part
+			   || (col->max_prefix
+			       < (ulint) DICT_MAX_FIELD_LEN_BY_FORMAT(table))) {
 			/* See if col->ord_part would be set
-			because of new_index. */
+			because of new_index. Also check if the new
+			index could have longer prefix on columns
+			that already had ord_part set  */
 			ulint	j;
 
 			for (j = 0; j < new_index->n_uniq; j++) {
 				if (dict_index_get_nth_col(
 					    new_index, j) == col) {
+					const dict_field_t*     field
+						= dict_index_get_nth_field(
+							new_index, j);
+
+					if (field->prefix_len
+					    > col->max_prefix) {
+						max_prefix =
+							 field->prefix_len;
+					}
 
 					goto is_ord_part;
 				}
+			}
+
+			if (col->ord_part) {
+				goto is_ord_part;
 			}
 
 			/* This is not an ordering column in any index.
 			Thus, it can be stored completely externally. */
 			max_size = BTR_EXTERN_FIELD_REF_SIZE;
 		} else {
+			ulint	max_field_len;
 is_ord_part:
+			max_field_len = DICT_MAX_FIELD_LEN_BY_FORMAT(table);
+
 			/* This is an ordering column in some index.
 			A long enough prefix must be written to the
 			undo log.  See trx_undo_page_fetch_ext(). */
+			max_size = ut_min(max_size, max_field_len);
 
-			if (max_size > REC_MAX_INDEX_COL_LEN) {
-				max_size = REC_MAX_INDEX_COL_LEN;
+			/* We only store the needed prefix length in undo log */
+			if (max_prefix) {
+			     ut_ad(dict_table_get_format(table)
+				   >= UNIV_FORMAT_B);
+
+				max_size = ut_min(max_prefix, max_size);
 			}
 
 			max_size += BTR_EXTERN_FIELD_REF_SIZE;
@@ -2055,14 +2081,14 @@ too_big:
 	}
 
 	switch (dict_table_get_format(table)) {
-	case DICT_TF_FORMAT_51:
+	case UNIV_FORMAT_A:
 		/* ROW_FORMAT=REDUNDANT and ROW_FORMAT=COMPACT store
 		prefixes of externally stored columns locally within
 		the record.  There are no special considerations for
 		the undo log record size. */
 		goto undo_size_ok;
 
-	case DICT_TF_FORMAT_ZIP:
+	case UNIV_FORMAT_B:
 		/* In ROW_FORMAT=DYNAMIC and ROW_FORMAT=COMPRESSED,
 		column prefix indexes require that prefixes of
 		externally stored columns are written to the undo log.
@@ -2072,8 +2098,8 @@ too_big:
 		checked for below. */
 		break;
 
-#if DICT_TF_FORMAT_ZIP != DICT_TF_FORMAT_MAX
-# error "DICT_TF_FORMAT_ZIP != DICT_TF_FORMAT_MAX"
+#if UNIV_FORMAT_B != UNIV_FORMAT_MAX
+# error "UNIV_FORMAT_B != UNIV_FORMAT_MAX"
 #endif
 	}
 
@@ -2086,15 +2112,16 @@ too_big:
 		/* In dtuple_convert_big_rec(), variable-length columns
 		that are longer than BTR_EXTERN_FIELD_REF_SIZE * 2
 		may be chosen for external storage.  If the column appears
-		in an ordering column of an index, a longer prefix of
-		REC_MAX_INDEX_COL_LEN will be copied to the undo log
-		by trx_undo_page_report_modify() and
+		in an ordering column of an index, a longer prefix determined
+		by dict_max_field_len_store_undo() will be copied to the undo
+		log by trx_undo_page_report_modify() and
 		trx_undo_page_fetch_ext().  It suffices to check the
 		capacity of the undo log whenever new_index includes
 		a column prefix on a column that may be stored externally. */
 
 		if (field->prefix_len /* prefix index */
-		    && !col->ord_part /* not yet ordering column */
+		    && (!col->ord_part /* not yet ordering column */
+			|| field->prefix_len > col->max_prefix)
 		    && !dict_col_get_fixed_size(col, TRUE) /* variable-length */
 		    && dict_col_get_max_size(col)
 		    > BTR_EXTERN_FIELD_REF_SIZE * 2 /* long enough */) {
@@ -2111,11 +2138,17 @@ too_big:
 	}
 
 undo_size_ok:
-	/* Flag the ordering columns */
+	/* Flag the ordering columns and also set column max_prefix */
 
 	for (i = 0; i < n_ord; i++) {
+		const dict_field_t*	field
+			= dict_index_get_nth_field(new_index, i);
 
-		dict_index_get_nth_field(new_index, i)->col->ord_part = 1;
+		field->col->ord_part = 1;
+
+		if (field->prefix_len > field->col->max_prefix) {
+			field->col->max_prefix = field->prefix_len;
+		}
 	}
 
 	/* Add the new index as the last index for the table */
@@ -2339,14 +2372,14 @@ dict_index_add_col(
 	variable-length fields, so that the extern flag can be embedded in
 	the length word. */
 
-	if (field->fixed_len > DICT_MAX_INDEX_COL_LEN) {
+	if (field->fixed_len > DICT_MAX_FIXED_COL_LEN) {
 		field->fixed_len = 0;
 	}
-#if DICT_MAX_INDEX_COL_LEN != 768
+#if DICT_MAX_FIXED_COL_LEN != 768
 	/* The comparison limit above must be constant.  If it were
 	changed, the disk format of some fixed-length columns would
 	change, which would be a disaster. */
-# error "DICT_MAX_INDEX_COL_LEN != 768"
+# error "DICT_MAX_FIXED_COL_LEN != 768"
 #endif
 
 	if (!(col->prtype & DATA_NOT_NULL)) {
@@ -3606,14 +3639,14 @@ dict_scan_table_name(
 	/* Values;  0 = Store and compare as given; case sensitive
 	            1 = Store and compare in lower; case insensitive
 	            2 = Store as given, compare in lower; case semi-sensitive */
-	if (srv_lower_case_table_names == 2) {
+	if (innobase_get_lower_case_table_names() == 2) {
 		innobase_casedn_str(ref);
 		*table = dict_table_get_low(ref);
 		memcpy(ref, database_name, database_name_len);
 		ref[database_name_len] = '/';
 		memcpy(ref + database_name_len + 1, table_name, table_name_len + 1);
 	} else {
-		if (srv_lower_case_table_names == 1) {
+		if (innobase_get_lower_case_table_names() == 1) {
 			innobase_casedn_str(ref);
 		}
 		*table = dict_table_get_low(ref);
@@ -5262,7 +5295,7 @@ dict_ind_init(void)
 	dict_table_t*		table;
 
 	/* create dummy table and index for REDUNDANT infimum and supremum */
-	table = dict_mem_table_create("SYS_DUMMY1", DICT_HDR_SPACE, 1, 0);
+	table = dict_mem_table_create("SYS_DUMMY1", DICT_HDR_SPACE, 1, 0, 0);
 	dict_mem_table_add_col(table, NULL, NULL, DATA_CHAR,
 			       DATA_ENGLISH | DATA_NOT_NULL, 8);
 
@@ -5274,7 +5307,8 @@ dict_ind_init(void)
 
 	/* create dummy table and index for COMPACT infimum and supremum */
 	table = dict_mem_table_create("SYS_DUMMY2",
-				      DICT_HDR_SPACE, 1, DICT_TF_COMPACT);
+				      DICT_HDR_SPACE, 1,
+				      DICT_TF_COMPACT, 0);
 	dict_mem_table_add_col(table, NULL, NULL, DATA_CHAR,
 			       DATA_ENGLISH | DATA_NOT_NULL, 8);
 	dict_ind_compact = dict_mem_index_create("SYS_DUMMY2", "SYS_DUMMY2",
@@ -5287,6 +5321,7 @@ dict_ind_init(void)
 	dict_ind_redundant->cached = dict_ind_compact->cached = TRUE;
 }
 
+#ifndef UNIV_HOTBACKUP
 /**********************************************************************//**
 Frees dict_ind_redundant and dict_ind_compact. */
 static
@@ -5307,7 +5342,6 @@ dict_ind_free(void)
 	dict_mem_table_free(table);
 }
 
-#ifndef UNIV_HOTBACKUP
 /**********************************************************************//**
 Get index by name
 @return	index, NULL if does not exist */
@@ -5654,9 +5688,8 @@ dict_close(void)
 		rw_lock_free(&dict_table_stats_latches[i]);
 	}
 }
-#endif /* !UNIV_HOTBACKUP */
 
-#ifdef UNIV_DEBUG
+# ifdef UNIV_DEBUG
 /**********************************************************************//**
 Validate the dictionary table LRU list.
 @return TRUE if valid  */
@@ -5741,4 +5774,5 @@ dict_non_lru_find_table(
 
 	return(FALSE);
 }
-#endif /* UNIV_DEBUG */
+# endif /* UNIV_DEBUG */
+#endif /* !UNIV_HOTBACKUP */

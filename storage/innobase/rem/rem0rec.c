@@ -1176,7 +1176,7 @@ rec_convert_dtuple_to_rec_comp(
 		} else if (dfield_is_ext(field)) {
 			ut_ad(ifield->col->len >= 256
 			      || ifield->col->mtype == DATA_BLOB);
-			ut_ad(len <= REC_MAX_INDEX_COL_LEN
+			ut_ad(len <= REC_ANTELOPE_MAX_INDEX_COL_LEN
 			      + BTR_EXTERN_FIELD_REF_SIZE);
 			*lens-- = (byte) (len >> 8) | 0xc0;
 			*lens-- = (byte) len;

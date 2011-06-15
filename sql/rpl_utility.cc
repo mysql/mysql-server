@@ -1,4 +1,4 @@
-/* Copyright (c) 2006, 2010, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2006, 2011, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -11,7 +11,7 @@
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
-   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA */
+   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
 #include "rpl_utility.h"
 
@@ -343,7 +343,8 @@ uint32 table_def::calc_field_size(uint col, uchar *master_data) const
 
 /**
  */
-void show_sql_type(enum_field_types type, uint16 metadata, String *str, CHARSET_INFO *field_cs)
+void show_sql_type(enum_field_types type, uint16 metadata, String *str,
+                   const CHARSET_INFO *field_cs)
 {
   DBUG_ENTER("show_sql_type");
   DBUG_PRINT("enter", ("type: %d, metadata: 0x%x", type, metadata));
@@ -406,7 +407,7 @@ void show_sql_type(enum_field_types type, uint16 metadata, String *str, CHARSET_
   case MYSQL_TYPE_VAR_STRING:
   case MYSQL_TYPE_VARCHAR:
     {
-      CHARSET_INFO *cs= str->charset();
+      const CHARSET_INFO *cs= str->charset();
       uint32 length=
         cs->cset->snprintf(cs, (char*) str->ptr(), str->alloced_length(),
                            "varchar(%u)", metadata);
@@ -416,7 +417,7 @@ void show_sql_type(enum_field_types type, uint16 metadata, String *str, CHARSET_
 
   case MYSQL_TYPE_BIT:
     {
-      CHARSET_INFO *cs= str->charset();
+      const CHARSET_INFO *cs= str->charset();
       int bit_length= 8 * (metadata >> 8) + (metadata & 0xFF);
       uint32 length=
         cs->cset->snprintf(cs, (char*) str->ptr(), str->alloced_length(),
@@ -427,7 +428,7 @@ void show_sql_type(enum_field_types type, uint16 metadata, String *str, CHARSET_
 
   case MYSQL_TYPE_DECIMAL:
     {
-      CHARSET_INFO *cs= str->charset();
+      const CHARSET_INFO *cs= str->charset();
       uint32 length=
         cs->cset->snprintf(cs, (char*) str->ptr(), str->alloced_length(),
                            "decimal(%d,?)", metadata);
@@ -437,7 +438,7 @@ void show_sql_type(enum_field_types type, uint16 metadata, String *str, CHARSET_
 
   case MYSQL_TYPE_NEWDECIMAL:
     {
-      CHARSET_INFO *cs= str->charset();
+      const CHARSET_INFO *cs= str->charset();
       uint32 length=
         cs->cset->snprintf(cs, (char*) str->ptr(), str->alloced_length(),
                            "decimal(%d,%d)", metadata >> 8, metadata & 0xff);
@@ -488,7 +489,7 @@ void show_sql_type(enum_field_types type, uint16 metadata, String *str, CHARSET_
       /*
         This is taken from Field_string::unpack.
       */
-      CHARSET_INFO *cs= str->charset();
+      const CHARSET_INFO *cs= str->charset();
       uint bytes= (((metadata >> 4) & 0x300) ^ 0x300) + (metadata & 0x00ff);
       uint32 length=
         cs->cset->snprintf(cs, (char*) str->ptr(), str->alloced_length(),
@@ -970,7 +971,7 @@ table_def::table_def(unsigned char *types, ulong size,
                                      &m_null_bits, (size + 7) / 8,
                                      NULL);
 
-  bzero(m_field_metadata, size * sizeof(uint16));
+  memset(m_field_metadata, 0, size * sizeof(uint16));
 
   if (m_type)
     memcpy(m_type, types, size);

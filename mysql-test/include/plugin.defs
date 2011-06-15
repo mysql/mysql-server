@@ -27,7 +27,7 @@
 # with name1, name2 etc from the comma separated list of plugin names
 # in the optional 4th argument.
 
-auth_test_plugin   plugin/auth        PLUGIN_AUTH      test_plugin_server
+auth_test_plugin   plugin/auth        PLUGIN_AUTH      test_plugin_server,cleartext_plugin_server
 qa_auth_interface  plugin/auth        PLUGIN_AUTH_INTERFACE qa_auth_interface
 qa_auth_server     plugin/auth        PLUGIN_AUTH_SERVER    qa_auth_server
 qa_auth_client     plugin/auth        PLUGIN_AUTH_CLIENT    qa_auth_client

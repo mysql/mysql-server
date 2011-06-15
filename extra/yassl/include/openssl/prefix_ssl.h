@@ -178,6 +178,7 @@
 #define SSL_get1_session yaSSL_get1_session
 #define X509_get_notBefore yaX509_get_notBefore
 #define X509_get_notAfter yaX509_get_notAfter
+#define yaSSL_ASN1_TIME_to_string ya_SSL_ASN1_TIME_to_string
 #define MD4_Init yaMD4_Init
 #define MD4_Update yaMD4_Update
 #define MD4_Final yaMD4_Final

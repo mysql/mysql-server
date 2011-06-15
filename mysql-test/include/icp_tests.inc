@@ -821,3 +821,146 @@ SELECT * FROM t1 WHERE i2 IN (3, 6) LIMIT 2 FOR UPDATE;
 INSERT INTO t1 (i2) VALUES (1);
 
 DROP TABLE t1;
+
+--echo #
+--echo # Bug #11766678 - 59843:
+--echo # USING UNINITIALISED VALUE IN USES_INDEX_FIELDS_ONLY
+--echo #
+
+CREATE TABLE t1 (
+  col999 FLOAT NOT NULL,
+  COL1000 VARBINARY(179) NOT NULL,
+  col1003 DATE DEFAULT NULL,
+  KEY idx4267 (col1000, col1003)
+);
+
+INSERT INTO t1 VALUES (),();
+SELECT col999 FROM t1 WHERE col1000 = "3" AND col1003 <=> sysdate();
+
+DROP TABLE t1;
+
+--echo #
+--echo # Bug#11873324 "WRONG RESULT WITH ICP AND STRAIGHT_JOIN"
+--echo #
+
+CREATE TABLE t1 (  
+  pk INTEGER NOT NULL,
+  i1 INTEGER,
+  PRIMARY KEY (pk),
+  KEY col_int_key (i1)
+);
+
+INSERT INTO t1 VALUES (14,NULL), (18,133);
+
+CREATE TABLE t2 (  
+   pk INTEGER NOT NULL,
+   i1 INTEGER,
+   c1 VARCHAR(1),
+   PRIMARY KEY (pk),
+   KEY col_int_key (i1)
+);
+
+INSERT INTO t2 VALUES (1,7,'f');
+
+let query=
+SELECT t1.i1
+FROM t1
+WHERE t1.i1 NOT IN
+( SELECT STRAIGHT_JOIN SUBQUERY_t1.pk
+  FROM t1 AS SUBQUERY_t1
+    JOIN t2 AS SUBQUERY_t2
+    ON SUBQUERY_t2.i1 = SUBQUERY_t1.pk
+  WHERE SUBQUERY_t1.i1 > 0
+    OR SUBQUERY_t2.c1 = 'a'
+);
+
+eval EXPLAIN $query;
+eval $query;
+
+DROP TABLE t1,t2;
+
+--echo #
+--echo # Bug#11876420 "MISSING ROW IN RESULT WITH SUBQUERY + IN + XOR + 
+--echo #               NULL VALUES AND ICP ENABLED"
+--echo # 
+
+CREATE TABLE t1 (  
+   i1 INTEGER,
+   c1 VARCHAR(1),
+   KEY col_varchar_key (c1)
+);
+
+INSERT INTO t1 VALUES (1,'j'), (0,'e'), (210,'f'), (8,'v'), (7,'x'),
+                      (5,'m'), (NULL,'c');
+
+CREATE TABLE t2 (  
+   i1 INTEGER,
+   c1 VARCHAR(1),
+   KEY col_varchar_key (c1)
+);
+
+INSERT INTO t2 VALUES (8,NULL);
+
+CREATE TABLE t3 (  
+   i1 INTEGER,
+   c1 VARCHAR(1),
+   KEY col_varchar_key (c1)
+) ENGINE=InnoDB;
+
+INSERT INTO t3 VALUES (NULL,'w'), (1,NULL), (2,'d');
+
+let query=
+SELECT i1
+FROM t3
+WHERE c1 IN
+  ( SELECT t1.c1
+    FROM t2 JOIN t1
+      ON t2.i1 >= t1.i1
+    WHERE t1.c1 > t2.c1
+  )
+  XOR i1;
+
+eval EXPLAIN $query;
+eval $query;
+
+DROP TABLE t1, t2, t3;
+
+--echo #
+--echo # Bug#12355958 "FAILING ASSERTION: TRX->LOCK.N_ACTIVE_THRS == 1"
+--echo #
+
+CREATE TABLE t1 (
+  pk INTEGER PRIMARY KEY, 
+  a INTEGER NOT NULL, 
+  b CHAR(1), 
+  KEY(b)
+);
+
+INSERT INTO t1 VALUES (23,5,'d');
+
+let query=
+SELECT a1.pk 
+FROM t1 AS a1 JOIN (SELECT * FROM t1 LIMIT 1) AS a2 ON a2.b = a1.b
+WHERE a1.a = (SELECT pk FROM t1 LIMIT 1) 
+      AND (a1.a != a2.a OR a1.b IS NULL);
+
+eval EXPLAIN $query;
+eval $query;
+
+# Re-run the same query using a view. This will test the code with
+# an Item_ref object in the condition tree (note: in order for this
+# to trigger the bug the patch for Bug#59696 needs to be applied first).
+
+CREATE VIEW v1 AS SELECT * FROM t1;
+
+let query=
+SELECT a1.pk 
+FROM v1 AS a1 JOIN (SELECT * FROM v1 LIMIT 1) AS a2 ON a2.b = a1.b
+WHERE a1.a = (SELECT pk FROM v1 LIMIT 1) 
+      AND (a1.a != a2.a OR a1.b IS NULL);
+
+eval EXPLAIN $query;
+eval $query;
+
+DROP VIEW v1;
+DROP TABLE t1;

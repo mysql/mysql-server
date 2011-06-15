@@ -59,6 +59,29 @@ ERROR HY000: Error dropping database (can't rmdir './testing_1/', errno: 17)
 # Remove the fake file.
 # Now we can drop the database.
 DROP DATABASE testing_1;
+#
+# Bug#11765416 58381: FAILED DROP DATABASE CAN BREAK STATEMENT
+#              BASED REPLICATION
+#
+USE test;
+DROP DATABASE IF EXISTS db1;
+DROP TABLE IF EXISTS t3;
+CREATE DATABASE db1;
+CREATE TABLE db1.t1 (a INT);
+CREATE TABLE db1.t2 (b INT, KEY(b)) engine=innodb;
+CREATE TABLE t3 (a INT, KEY (a), FOREIGN KEY(a) REFERENCES db1.t2(b))
+engine=innodb;
+RESET MASTER;
+DROP DATABASE db1;
+ERROR 23000: Cannot delete or update a parent row: a foreign key constraint fails
+SHOW TABLES FROM db1;
+Tables_in_db1
+t2
+show binlog events from <binlog_start>;
+Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+master-bin.000001	#	Query	#	#	use `db1`; DROP TABLE IF EXISTS `t1`
+DROP TABLE t3;
+DROP DATABASE db1;
 set binlog_format=mixed;
 reset master;
 create database testing_1;
@@ -120,6 +143,29 @@ ERROR HY000: Error dropping database (can't rmdir './testing_1/', errno: 17)
 # Remove the fake file.
 # Now we can drop the database.
 DROP DATABASE testing_1;
+#
+# Bug#11765416 58381: FAILED DROP DATABASE CAN BREAK STATEMENT
+#              BASED REPLICATION
+#
+USE test;
+DROP DATABASE IF EXISTS db1;
+DROP TABLE IF EXISTS t3;
+CREATE DATABASE db1;
+CREATE TABLE db1.t1 (a INT);
+CREATE TABLE db1.t2 (b INT, KEY(b)) engine=innodb;
+CREATE TABLE t3 (a INT, KEY (a), FOREIGN KEY(a) REFERENCES db1.t2(b))
+engine=innodb;
+RESET MASTER;
+DROP DATABASE db1;
+ERROR 23000: Cannot delete or update a parent row: a foreign key constraint fails
+SHOW TABLES FROM db1;
+Tables_in_db1
+t2
+show binlog events from <binlog_start>;
+Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+master-bin.000001	#	Query	#	#	use `db1`; DROP TABLE IF EXISTS `t1`
+DROP TABLE t3;
+DROP DATABASE db1;
 set binlog_format=row;
 reset master;
 create database testing_1;
@@ -182,6 +228,29 @@ ERROR HY000: Error dropping database (can't rmdir './testing_1/', errno: 17)
 # Remove the fake file.
 # Now we can drop the database.
 DROP DATABASE testing_1;
+#
+# Bug#11765416 58381: FAILED DROP DATABASE CAN BREAK STATEMENT
+#              BASED REPLICATION
+#
+USE test;
+DROP DATABASE IF EXISTS db1;
+DROP TABLE IF EXISTS t3;
+CREATE DATABASE db1;
+CREATE TABLE db1.t1 (a INT);
+CREATE TABLE db1.t2 (b INT, KEY(b)) engine=innodb;
+CREATE TABLE t3 (a INT, KEY (a), FOREIGN KEY(a) REFERENCES db1.t2(b))
+engine=innodb;
+RESET MASTER;
+DROP DATABASE db1;
+ERROR 23000: Cannot delete or update a parent row: a foreign key constraint fails
+SHOW TABLES FROM db1;
+Tables_in_db1
+t2
+show binlog events from <binlog_start>;
+Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+master-bin.000001	#	Query	#	#	use `db1`; DROP TABLE IF EXISTS `t1`
+DROP TABLE t3;
+DROP DATABASE db1;
 show databases;
 Database
 information_schema

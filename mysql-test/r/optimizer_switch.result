@@ -293,14 +293,13 @@ a	b
 3	20
 2	30
 set @@optimizer_switch='materialization=off,semijoin=on';
-# The query result with semijoin is WRONG
 EXPLAIN SELECT * FROM t1 AS ta
 WHERE ta.a IN (SELECT c FROM t2 AS tb
 WHERE tb.d >= SOME(SELECT SUM(g) FROM t4 as tc
 GROUP BY f
 HAVING ta.a=tc.f));
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	PRIMARY	tb	ALL	NULL	NULL	NULL	NULL	6	Using where; Start temporary
+1	PRIMARY	tb	ALL	NULL	NULL	NULL	NULL	6	Start temporary
 1	PRIMARY	ta	ALL	NULL	NULL	NULL	NULL	7	Using where; End temporary; Using join buffer (BNL, incremental buffers)
 3	DEPENDENT SUBQUERY	tc	ALL	NULL	NULL	NULL	NULL	6	Using temporary; Using filesort
 SELECT * FROM t1 AS ta
@@ -309,6 +308,10 @@ WHERE tb.d >= SOME(SELECT SUM(g) FROM t4 as tc
 GROUP BY f
 HAVING ta.a=tc.f));
 a	b
+2	10
+2	20
+3	20
+2	30
 # Subquery with ORDER BY and LIMIT
 set @@optimizer_switch='materialization=off,semijoin=off';
 # NOTE: The ordered subquery should have a LIMIT clause to make sense
@@ -332,7 +335,6 @@ a	b
 2	30
 4	40
 set @@optimizer_switch='materialization=off,semijoin=on';
-# The query result with semijoin is WRONG
 EXPLAIN SELECT * FROM t1 AS ta
 WHERE ta.a IN (SELECT c FROM t2 AS tb
 WHERE tb.d IN (SELECT g FROM t4 as tc

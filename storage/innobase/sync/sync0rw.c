@@ -39,6 +39,7 @@ Created 9/11/1995 Heikki Tuuri
 #include "mem0mem.h"
 #include "srv0srv.h"
 #include "os0sync.h" /* for INNODB_RW_LOCKS_USE_ATOMICS */
+#include "ha_prototypes.h"
 
 /*
 	IMPLEMENTATION OF THE RW_LOCK
@@ -380,8 +381,9 @@ rw_lock_s_lock_spin(
 	const char*	file_name, /*!< in: file name where lock requested */
 	ulint		line)	/*!< in: line where requested */
 {
-	ulint	 index;	/* index of the reserved wait cell */
-	ulint	 i = 0;	/* spin round count */
+	ulint		index;	/* index of the reserved wait cell */
+	ulint		i = 0;	/* spin round count */
+	sync_array_t*	sync_arr;
 
 	ut_ad(rw_lock_validate(lock));
 
@@ -424,17 +426,18 @@ lock_loop:
 
 		rw_s_spin_round_count += i;
 
-		sync_array_reserve_cell(sync_primary_wait_array,
-					lock, RW_LOCK_SHARED,
-					file_name, line,
-					&index);
+		sync_arr = sync_array_get();
+
+		sync_array_reserve_cell(
+			sync_arr, lock, RW_LOCK_SHARED,
+			file_name, line, &index);
 
 		/* Set waiters before checking lock_word to ensure wake-up
                 signal is sent. This may lead to some unnecessary signals. */
 		rw_lock_set_waiter_flag(lock);
 
 		if (TRUE == rw_lock_s_lock_low(lock, pass, file_name, line)) {
-			sync_array_free_cell(sync_primary_wait_array, index);
+			sync_array_free_cell(sync_arr, index);
 			return; /* Success */
 		}
 
@@ -452,7 +455,7 @@ lock_loop:
 		lock->count_os_wait++;
 		rw_s_os_wait_count++;
 
-		sync_array_wait_event(sync_primary_wait_array, index);
+		sync_array_wait_event(sync_arr, index);
 
 		i = 0;
 		goto lock_loop;
@@ -494,8 +497,9 @@ rw_lock_x_lock_wait(
 	const char*	file_name,/*!< in: file name where lock requested */
 	ulint		line)	/*!< in: line where requested */
 {
-	ulint index;
-	ulint i = 0;
+	ulint		index;
+	ulint		i = 0;
+	sync_array_t*	sync_arr;
 
 	ut_ad(lock->lock_word <= 0);
 
@@ -510,14 +514,17 @@ rw_lock_x_lock_wait(
 
 		/* If there is still a reader, then go to sleep.*/
 		rw_x_spin_round_count += i;
+
+		sync_arr = sync_array_get();
+
+		sync_array_reserve_cell(
+			sync_arr, lock, RW_LOCK_WAIT_EX,
+			file_name, line, &index);
+
 		i = 0;
-		sync_array_reserve_cell(sync_primary_wait_array,
-					lock,
-					RW_LOCK_WAIT_EX,
-					file_name, line,
-					&index);
+
 		/* Check lock_word to ensure wake-up isn't missed.*/
-		if(lock->lock_word < 0) {
+		if (lock->lock_word < 0) {
 
 			/* these stats may not be accurate */
 			lock->count_os_wait++;
@@ -531,8 +538,7 @@ rw_lock_x_lock_wait(
 					       file_name, line);
 #endif
 
-			sync_array_wait_event(sync_primary_wait_array,
-					      index);
+			sync_array_wait_event(sync_arr, index);
 #ifdef UNIV_SYNC_DEBUG
 			rw_lock_remove_debug_info(lock, pass,
 					       RW_LOCK_WAIT_EX);
@@ -540,8 +546,7 @@ rw_lock_x_lock_wait(
                         /* It is possible to wake when lock_word < 0.
                         We must pass the while-loop check to proceed.*/
 		} else {
-			sync_array_free_cell(sync_primary_wait_array,
-					     index);
+			sync_array_free_cell(sync_arr, index);
 		}
 	}
 	rw_x_spin_round_count += i;
@@ -578,14 +583,14 @@ rw_lock_x_lock_low(
 #ifdef UNIV_SYNC_DEBUG
 				    pass,
 #endif
-                                    file_name, line);
+				    file_name, line);
 
 	} else {
 		/* Decrement failed: relock or failed lock */
 		if (!pass && lock->recursive
 		    && os_thread_eq(lock->writer_thread, curr_thread)) {
 			/* Relock */
-                        lock->lock_word -= X_LOCK_DECR;
+			lock->lock_word -= X_LOCK_DECR;
 		} else {
 			/* Another thread locked before us */
 			return(FALSE);
@@ -620,9 +625,10 @@ rw_lock_x_lock_func(
 	const char*	file_name,/*!< in: file name where lock requested */
 	ulint		line)	/*!< in: line where requested */
 {
-	ulint	index;	/*!< index of the reserved wait cell */
-	ulint	i;	/*!< spin round count */
-	ibool	spinning = FALSE;
+	ulint		i;	/*!< spin round count */
+	ulint		index;	/*!< index of the reserved wait cell */
+	sync_array_t*	sync_arr;
+	ibool		spinning = FALSE;
 
 	ut_ad(rw_lock_validate(lock));
 
@@ -670,18 +676,17 @@ lock_loop:
 			(ulong) lock->cline, (ulong) i);
 	}
 
-	sync_array_reserve_cell(sync_primary_wait_array,
-				lock,
-				RW_LOCK_EX,
-				file_name, line,
-				&index);
+	sync_arr = sync_array_get();
+
+	sync_array_reserve_cell(
+		sync_arr, lock, RW_LOCK_EX, file_name, line, &index);
 
 	/* Waiters must be set before checking lock_word, to ensure signal
 	is sent. This could lead to a few unnecessary wake-up signals. */
 	rw_lock_set_waiter_flag(lock);
 
 	if (rw_lock_x_lock_low(lock, pass, file_name, line)) {
-		sync_array_free_cell(sync_primary_wait_array, index);
+		sync_array_free_cell(sync_arr, index);
 		return; /* Locking succeeded */
 	}
 
@@ -698,7 +703,7 @@ lock_loop:
 	lock->count_os_wait++;
 	rw_x_os_wait_count++;
 
-	sync_array_wait_event(sync_primary_wait_array, index);
+	sync_array_wait_event(sync_arr, index);
 
 	i = 0;
 	goto lock_loop;

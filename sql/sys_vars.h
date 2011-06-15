@@ -1,4 +1,4 @@
-/* Copyright (c) 2002, 2010, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2002, 2011, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -10,8 +10,8 @@
    GNU General Public License for more details.
 
    You should have received a copy of the GNU General Public License
-   along with this program; if not, write to the Free Software Foundation,
-   51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA */
+   along with this program; if not, write to the Free Software
+   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
 /**
   @file
@@ -842,6 +842,35 @@ public:
 };
 
 /**
+  The class for @test_flags (core_file for now).
+  It's derived from Sys_var_mybool.
+
+  Class specific constructor arguments:
+    Caller need not pass in a variable as we make up the value on the
+    fly, that is, we derive it from the global test_flags bit vector.
+
+  Backing store: my_bool
+*/
+class Sys_var_test_flag: public Sys_var_mybool
+{
+private:
+  my_bool test_flag_value;
+  uint    test_flag_mask;
+public:
+  Sys_var_test_flag(const char *name_arg, const char *comment, uint mask)
+  : Sys_var_mybool(name_arg, comment, READ_ONLY GLOBAL_VAR(test_flag_value),
+          NO_CMD_LINE, DEFAULT(FALSE))
+  {
+    test_flag_mask= mask;
+  }
+  uchar *global_value_ptr(THD *thd, LEX_STRING *base)
+  {
+    test_flag_value= ((test_flags & test_flag_mask) > 0);
+    return (uchar*) &test_flag_value;
+  }
+};
+
+/**
   The class for the @max_user_connections.
   It's derived from Sys_var_uint, but non-standard session value
   requires a new class.
@@ -1546,12 +1575,12 @@ public:
   { return false; }
   bool session_update(THD *thd, set_var *var)
   {
-    session_var(thd, void*)= var->save_result.ptr;
+    session_var(thd, const void*)= var->save_result.ptr;
     return false;
   }
   bool global_update(THD *thd, set_var *var)
   {
-    global_var(void*)= var->save_result.ptr;
+    global_var(const void*)= var->save_result.ptr;
     return false;
   }
   void session_save_default(THD *thd, set_var *var)
@@ -1695,17 +1724,4 @@ public:
   {}
   virtual bool global_update(THD *thd, set_var *var);
 };
-
-/****************************************************************************
-  Used templates
-****************************************************************************/
-
-#ifdef HAVE_EXPLICIT_TEMPLATE_INSTANTIATION
-template class List<set_var_base>;
-template class List_iterator_fast<set_var_base>;
-template class Sys_var_unsigned<uint, GET_UINT, SHOW_INT>;
-template class Sys_var_unsigned<ulong, GET_ULONG, SHOW_LONG>;
-template class Sys_var_unsigned<ha_rows, GET_HA_ROWS, SHOW_HA_ROWS>;
-template class Sys_var_unsigned<ulonglong, GET_ULL, SHOW_LONGLONG>;
-#endif
 

@@ -201,7 +201,7 @@ int main(int argc, char *argv[])
   /*  DBUG_PUSH(""); */
   /* my_delete(filename,MYF(0)); */	/* Remove old locks under gdb */
   file= 0;
-  bzero((char*) &create_info,sizeof(create_info));
+  memset(&create_info, 0, sizeof(create_info));
   create_info.max_rows=(ha_rows) (rec_pointer_size ?
 				  (1L << (rec_pointer_size*8))/
 				  reclength : 0);
@@ -503,7 +503,7 @@ int main(int argc, char *argv[])
     key2[i]=0;
 
     /* The following row is just to catch some bugs in the key code */
-    bzero((char*) file->lastkey,file->s->base.max_key_length*2);
+    memset(file->lastkey, 0, file->s->base.max_key_length*2);
     if (mi_rkey(file,read_record,0,key2,(uint) i,HA_READ_PREFIX))
       goto err;
     if (memcmp(read_record+start,key,(uint) i))

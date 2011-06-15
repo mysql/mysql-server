@@ -98,6 +98,12 @@ void test_bootstrap()
   param.m_events_waits_history_long_sizing= 0;
   param.m_setup_actor_sizing= 0;
   param.m_setup_object_sizing= 0;
+  param.m_stage_class_sizing= 0;
+  param.m_events_stages_history_sizing= 0;
+  param.m_events_stages_history_long_sizing= 0;
+  param.m_statement_class_sizing= 0;
+  param.m_events_statements_history_sizing= 0;
+  param.m_events_statements_history_long_sizing= 0;
 
   boot= initialize_performance_schema(& param);
   ok(boot != NULL, "boot");
@@ -142,6 +148,12 @@ PSI * load_perfschema()
   param.m_events_waits_history_long_sizing= 10;
   param.m_setup_actor_sizing= 0;
   param.m_setup_object_sizing= 0;
+  param.m_stage_class_sizing= 0;
+  param.m_events_stages_history_sizing= 0;
+  param.m_events_stages_history_long_sizing= 0;
+  param.m_statement_class_sizing= 0;
+  param.m_events_statements_history_sizing= 0;
+  param.m_events_statements_history_long_sizing= 0;
 
   /* test_bootstrap() covered this, assuming it just works */
   boot= initialize_performance_schema(& param);
@@ -1278,6 +1290,12 @@ void test_event_name_index()
   param.m_table_share_sizing= 160;
 
   param.m_thread_class_sizing= 0;
+  param.m_stage_class_sizing= 0;
+  param.m_events_stages_history_sizing= 0;
+  param.m_events_stages_history_long_sizing= 0;
+  param.m_statement_class_sizing= 0;
+  param.m_events_statements_history_sizing= 0;
+  param.m_events_statements_history_long_sizing= 0;
 
   param.m_mutex_sizing= 0;
   param.m_rwlock_sizing= 0;
@@ -1365,11 +1383,14 @@ void test_event_name_index()
   ok(file_class->m_event_name_index == 71, "index 71");
 
   ok(global_table_io_class.m_event_name_index == 150, "index 150");
-  ok(max_instrument_class= 151, "151 event names");
+  ok(global_table_lock_class.m_event_name_index == 151, "index 151");
+  ok(wait_class_max= 152, "152 event names");
 }
 
 void do_all_tests()
 {
+  /* Using initialize_performance_schema(), no partial init needed. */
+
   test_bootstrap();
   test_bad_registration();
   test_init_disabled();
@@ -1380,7 +1401,7 @@ void do_all_tests()
 
 int main(int, char **)
 {
-  plan(179);
+  plan(180);
   MY_INIT("pfs-t");
   do_all_tests();
   return 0;

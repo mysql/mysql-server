@@ -11,8 +11,8 @@ ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
 FOR A PARTICULAR PURPOSE. See the GNU General Public License for more details.
 
 You should have received a copy of the GNU General Public License along with
-this program; if not, write to the Free Software Foundation, Inc., 59 Temple
-Place, Suite 330, Boston, MA 02111-1307 USA
+this program; if not, write to the Free Software Foundation, Inc.,
+51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA
 
 *****************************************************************************/
 
@@ -144,7 +144,7 @@ ulint
 dict_col_get_fixed_size(
 /*====================*/
 	const dict_col_t*	col,	/*!< in: column */
-	ulint			comp)	/*!< in: nonzero=ROW_FORMAT=COMPACT  */
+	ulint			comp)	/*!< in: nonzero=ROW_FORMAT=COMPACT */
 {
 	return(dtype_get_fixed_size_low(col->mtype, col->prtype, col->len,
 					col->mbminmaxlen, comp));
@@ -437,7 +437,7 @@ dict_table_has_fts_index(
 {
 	ut_ad(table);
 
-	return(DICT_TF2_FLAG_IS_SET(table, DICT_TF_FTS));
+	return(DICT_TF2_FLAG_IS_SET(table, DICT_TF2_FTS));
 }
 
 /********************************************************************//**
@@ -481,10 +481,10 @@ dict_table_flags_to_zip_size(
 	ulint	zip_size = flags & DICT_TF_ZSSIZE_MASK;
 
 	if (UNIV_UNLIKELY(zip_size)) {
-		zip_size = ((PAGE_ZIP_MIN_SIZE >> 1)
+		zip_size = ((UNIV_ZIP_SIZE_MIN >> 1)
 			 << (zip_size >> DICT_TF_ZSSIZE_SHIFT));
 
-		ut_ad(zip_size <= UNIV_PAGE_SIZE);
+		ut_ad(zip_size <= UNIV_ZIP_SIZE_MAX);
 	}
 
 	return(zip_size);
@@ -504,6 +504,7 @@ dict_table_zip_size(
 	return(dict_table_flags_to_zip_size(table->flags));
 }
 
+#ifndef UNIV_HOTBACKUP
 /*********************************************************************//**
 Obtain exclusive locks on all index trees of the table. This is to prevent
 accessing index trees while InnoDB is updating internal metadata for
@@ -546,6 +547,8 @@ dict_table_x_unlock_indexes(
 		rw_lock_x_unlock(dict_index_get_lock(index));
 	}
 }
+#endif /* !UNIV_HOTBACKUP */
+
 /********************************************************************//**
 Gets the number of fields in the internal representation of an index,
 including fields added by the dictionary system.
@@ -831,16 +834,16 @@ dict_index_get_space_reserve(void)
 	return(UNIV_PAGE_SIZE / 16);
 }
 
-/***************************************************************
-Check whether a column exists in an FTS index. */
+/**********************************************************************//**
+Check whether a column exists in an FTS index.
+@return ULINT_UNDEFINED if no match else the offset within the vector */
 UNIV_INLINE
 ulint
 dict_table_is_fts_column(
 /*=====================*/
-				/* out: ULINT_UNDEFINED if no match else
-				the offset within the vector */
-	ib_vector_t*	indexes,/* in: vector containing only FTS indexes */
-	ulint		col_no)	/* in: col number to search for */
+	ib_vector_t*	indexes,/*!< in: vector containing only FTS indexes */
+	ulint		col_no)	/*!< in: col number to search for */
+
 {
 	ulint		i;
 
@@ -856,6 +859,31 @@ dict_table_is_fts_column(
 	}
 
 	return(ULINT_UNDEFINED);
+}
+
+/**********************************************************************//**
+Determine bytes of column prefix to be stored in the undo log. Please
+note if the table format is UNIV_FORMAT_A (< UNIV_FORMAT_B), no prefix
+needs to be stored in the undo log.
+@return bytes of column prefix to be stored in the undo log */
+UNIV_INLINE
+ulint
+dict_max_field_len_store_undo(
+/*==========================*/
+	dict_table_t*		table,	/*!< in: table */
+	const dict_col_t*	col)	/*!< in: column which index prefix
+					is based on */
+{
+	ulint	prefix_len = 0;
+
+	if (dict_table_get_format(table) >= UNIV_FORMAT_B)
+	{
+		prefix_len = col->max_prefix
+			? col->max_prefix
+			: DICT_MAX_FIELD_LEN_BY_FORMAT(table);
+	}
+
+	return(prefix_len);
 }
 
 #endif /* !UNIV_HOTBACKUP */

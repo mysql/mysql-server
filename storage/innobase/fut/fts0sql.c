@@ -336,5 +336,5 @@ fts_sql_rollback(
 					/* out: DB_SUCCESS or error code */
 	trx_t*		trx)		/* in: transaction */
 {
-	return(trx_general_rollback_for_mysql(trx, NULL));
+	return(trx_rollback_to_savepoint(trx, NULL));
 }

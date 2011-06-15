@@ -159,12 +159,12 @@ trx_rollback_last_sql_stat_for_mysql(
 /*=================================*/
 	trx_t*	trx);	/*!< in/out: transaction */
 /*******************************************************************//**
-Rollback a transaction used in MySQL.
+Rollback a transaction to a given savepoint or do a complete rollback.
 @return	error code or DB_SUCCESS */
 UNIV_INTERN
 int
-trx_general_rollback_for_mysql(
-/*===========================*/
+trx_rollback_to_savepoint(
+/*======================*/
 	trx_t*		trx,	/*!< in: transaction handle */
 	trx_savept_t*	savept);/*!< in: pointer to savepoint undo number, if
 				partial rollback requested, or NULL for

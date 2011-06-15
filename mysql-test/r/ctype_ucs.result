@@ -1056,8 +1056,8 @@ old_password(name)
 14e500b131773991
 select quote(name) from bug20536;
 quote(name)
-????????
-????????????????
+'test1'
+'\'test\\_2\''
 drop table bug20536;
 set names ucs2;
 ERROR 42000: Variable 'character_set_client' can't be set to the value of 'ucs2'
@@ -1304,6 +1304,17 @@ CREATE VIEW v1 AS SELECT 1 from t1
 WHERE t1.b <=> (SELECT a FROM t1 WHERE a < SOME(SELECT '1'));
 DROP VIEW v1;
 DROP TABLE t1;
+#
+# Bug#59648 my_strtoll10_mb2: Assertion `(*endptr - s) % 2 == 0' failed.
+#
+SELECT HEX(CHAR(COALESCE(NULL, CHAR(COUNT('%s') USING ucs2), 1, @@global.license, NULL) USING cp850));
+HEX(CHAR(COALESCE(NULL, CHAR(COUNT('%s') USING ucs2), 1, @@global.license, NULL) USING cp850))
+00
+SELECT CONVERT(QUOTE(CHAR(0xf5 using ucs2)), SIGNED);
+CONVERT(QUOTE(CHAR(0xf5 using ucs2)), SIGNED)
+0
+Warnings:
+Warning	1292	Truncated incorrect INTEGER value: ''õ''
 End of 5.0 tests
 #
 # Start of 5.5 tests
@@ -3354,7 +3365,7 @@ create table t2 as select concat(a) from t1;
 show create table t2;
 Table	Create Table
 t2	CREATE TABLE `t2` (
-  `concat(a)` varchar(2) CHARACTER SET ucs2 DEFAULT NULL
+  `concat(a)` varchar(4) CHARACTER SET ucs2 DEFAULT NULL
 ) ENGINE=MyISAM DEFAULT CHARSET=latin1
 drop table t1, t2;
 create table t1 (a year);
@@ -3663,7 +3674,7 @@ insert into t1 values (1);
 create view v1(a) as select concat(a) from t1;
 show columns from v1;
 Field	Type	Null	Key	Default	Extra
-a	varchar(2)	YES		NULL	
+a	varchar(4)	YES		NULL	
 select hex(a) from v1;
 hex(a)
 00300031
@@ -4097,6 +4108,72 @@ EXPLAIN SELECT * FROM t1 WHERE date_column BETWEEN '2010-09-01' AND '2010-10-01'
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	t1	ALL	NULL	NULL	NULL	NULL	2	Using where
 DROP TABLE t1;
+#
+# Bug #31384 	DATE_ADD() and DATE_SUB() return binary data
+#
+SELECT @@collation_connection, @@character_set_results;
+@@collation_connection	@@character_set_results
+ucs2_general_ci	latin1
+CREATE TABLE t1 AS
+SELECT
+DATE_SUB('2007-08-03', INTERVAL 1 MINUTE) AS field_str1,
+DATE_SUB('2007-08-03 17:33:00', INTERVAL 1 MINUTE) AS field1_str2,
+DATE_SUB(DATE('2007-08-03'), INTERVAL 1 DAY) AS field_date,
+DATE_SUB(CAST('2007-08-03 17:33:00' AS DATETIME), INTERVAL 1 MINUTE) AS field_datetime;
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `field_str1` varchar(29) CHARACTER SET ucs2 DEFAULT NULL,
+  `field1_str2` varchar(29) CHARACTER SET ucs2 DEFAULT NULL,
+  `field_date` date DEFAULT NULL,
+  `field_datetime` datetime DEFAULT NULL
+) ENGINE=MyISAM DEFAULT CHARSET=latin1
+DROP TABLE t1;
+SELECT
+DATE_SUB('2007-08-03', INTERVAL 1 DAY) AS field_str1,
+DATE_SUB('2007-08-03 17:33:00', INTERVAL 1 MINUTE) AS field1_str2,
+DATE_SUB(DATE('2007-08-03'), INTERVAL 1 DAY) AS field_date,
+DATE_SUB(CAST('2007-08-03 17:33:00' AS DATETIME), INTERVAL 1 MINUTE) AS field_datetime;
+Catalog	Database	Table	Table_alias	Column	Column_alias	Type	Length	Max length	Is_null	Flags	Decimals	Charsetnr
+def					field_str1	254	29	10	Y	0	31	8
+def					field1_str2	254	29	19	Y	0	31	8
+def					field_date	10	29	10	Y	128	31	63
+def					field_datetime	12	29	19	Y	128	31	63
+field_str1	field1_str2	field_date	field_datetime
+2007-08-02	2007-08-03 17:32:00	2007-08-02	2007-08-03 17:32:00
+SELECT
+HEX(DATE_SUB('2007-08-03', INTERVAL 1 MINUTE)) AS field_str1,
+HEX(DATE_SUB('2007-08-03 17:33:00', INTERVAL 1 MINUTE)) AS field1_str2,
+HEX(DATE_SUB(DATE('2007-08-03'), INTERVAL 1 DAY)) AS field_date,
+HEX(DATE_SUB(CAST('2007-08-03 17:33:00' AS DATETIME), INTERVAL 1 MINUTE)) AS field_datetime;
+field_str1	field1_str2	field_date	field_datetime
+0032003000300037002D00300038002D00300032002000320033003A00350039003A00300030	0032003000300037002D00300038002D00300033002000310037003A00330032003A00300030	323030372D30382D3032	323030372D30382D30332031373A33323A3030
+#
+# Bug#11926811 / Bug#60625 Illegal mix of collations
+#
+SELECT @@collation_connection;
+@@collation_connection
+ucs2_general_ci
+CREATE PROCEDURE p1()
+BEGIN
+DECLARE v_LastPaymentDate DATETIME DEFAULT NULL;
+SELECT v_LastPaymentDate < NOW();
+EXPLAIN EXTENDED SELECT v_LastPaymentDate < NOW();
+SHOW WARNINGS;
+EXPLAIN EXTENDED SELECT CONCAT(v_LastPaymentDate, NOW());
+END//
+CALL p1;
+v_LastPaymentDate < NOW()
+NULL
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	No tables used
+Level	Code	Message
+Note	1003	select (v_LastPaymentDate@0 < now()) AS `v_LastPaymentDate < NOW()`
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	No tables used
+Warnings:
+Note	1003	select concat(convert(v_LastPaymentDate@0 using ucs2),convert(now() using ucs2)) AS `CONCAT(v_LastPaymentDate, NOW())`
+DROP PROCEDURE p1;
 #
 # Bug#52159 returning time type from function and empty left join causes debug assertion
 #

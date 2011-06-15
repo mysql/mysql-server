@@ -1,4 +1,4 @@
-/* Copyright (c) 2008, 2010, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2008, 2011, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -41,6 +41,15 @@
 /** Size of the INDEX_NAME columns. */
 #define COL_INDEX_NAME_SIZE 64
 
+/**
+  Size of INFO columns.
+  Size in bytes of:
+  - performance_schema.events_statement_current (INFO)
+  - performance_schema.events_statement_history (INFO)
+  - performance_schema.events_statement_history_long (INFO)
+*/
+#define COL_INFO_SIZE 1024
+
 /** Size of the SOURCE columns. */
 #define COL_SOURCE_SIZE 64
 
@@ -59,8 +68,11 @@ enum enum_timer_name
   TIMER_NAME_TICK= 5
 };
 
+/** Integer, first value of @sa enum_timer_name. */
 #define FIRST_TIMER_NAME (static_cast<int> (TIMER_NAME_CYCLE))
+/** Integer, last value of @sa enum_timer_name. */
 #define LAST_TIMER_NAME (static_cast<int> (TIMER_NAME_TICK))
+/** Integer, number of values of @sa enum_timer_name. */
 #define COUNT_TIMER_NAME (LAST_TIMER_NAME - FIRST_TIMER_NAME + 1)
 
 /**
@@ -137,18 +149,48 @@ enum enum_operation_type
   OPERATION_TYPE_TL_READ_EXTERNAL= 39,
   OPERATION_TYPE_TL_WRITE_EXTERNAL= 40
 };
+/** Integer, first value of @sa enum_operation_type. */
 #define FIRST_OPERATION_TYPE (static_cast<int> (OPERATION_TYPE_LOCK))
+/** Integer, last value of @sa enum_operation_type. */
 #define LAST_OPERATION_TYPE (static_cast<int> (OPERATION_TYPE_TL_WRITE_EXTERNAL))
+/** Integer, number of values of @sa enum_operation_type. */
 #define COUNT_OPERATION_TYPE (LAST_OPERATION_TYPE - FIRST_OPERATION_TYPE + 1)
 
+/**
+  Enum values for the various OBJECT_TYPE columns.
+*/
 enum enum_object_type
 {
   OBJECT_TYPE_TABLE= 1,
   OBJECT_TYPE_TEMPORARY_TABLE= 2
 };
+/** Integer, first value of @sa enum_object_type. */
 #define FIRST_OBJECT_TYPE (static_cast<int> (OBJECT_TYPE_TABLE))
+/** Integer, last value of @sa enum_object_type. */
 #define LAST_OBJECT_TYPE (static_cast<int> (OBJECT_TYPE_TEMPORARY_TABLE))
+/** Integer, number of values of @sa enum_object_type. */
 #define COUNT_OBJECT_TYPE (LAST_OBJECT_TYPE - FIRST_OBJECT_TYPE + 1)
+
+/**
+  Enum values for the NESTING_EVENT_TYPE columns.
+  This enum is found in the following tables:
+  - performance_schema.events_waits_current (NESTING_EVENT_TYPE)
+  - performance_schema.events_stages_current (NESTING_EVENT_TYPE)
+  - performance_schema.events_statements_current (NESTING_EVENT_TYPE)
+*/
+enum enum_event_type
+{
+  EVENT_TYPE_STATEMENT= 1,
+  EVENT_TYPE_STAGE= 2,
+  EVENT_TYPE_WAIT= 3
+};
+
+/** Integer, first value of @sa enum_event_type. */
+#define FIRST_EVENT_TYPE (static_cast<int> (EVENT_TYPE_STATEMENT))
+/** Integer, last value of @sa enum_event_type. */
+#define LAST_EVENT_TYPE (static_cast<int> (EVENT_TYPE_WAIT))
+/** Integer, number of values of @sa enum_event_type. */
+#define COUNT_EVENT_TYPE (LAST_EVENT_TYPE - FIRST_EVENT_TYPE + 1)
 
 #endif
 

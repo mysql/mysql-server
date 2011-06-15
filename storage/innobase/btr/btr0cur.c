@@ -18,8 +18,8 @@ ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
 FOR A PARTICULAR PURPOSE. See the GNU General Public License for more details.
 
 You should have received a copy of the GNU General Public License along with
-this program; if not, write to the Free Software Foundation, Inc., 59 Temple
-Place, Suite 330, Boston, MA 02111-1307 USA
+this program; if not, write to the Free Software Foundation, Inc.,
+51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA
 
 *****************************************************************************/
 
@@ -402,7 +402,7 @@ btr_cur_search_to_nth_level(
 
 	ut_ad(level == 0 || mode == PAGE_CUR_LE);
 	ut_ad(dict_index_check_search_tuple(index, tuple));
-	ut_ad(!dict_index_is_ibuf(index) || ibuf_inside());
+	ut_ad(!dict_index_is_ibuf(index) || ibuf_inside(mtr));
 	ut_ad(dtuple_check_typed(tuple));
 
 #ifdef UNIV_DEBUG
@@ -1105,29 +1105,27 @@ btr_cur_ins_lock_and_undo(
 					     btr_cur_get_block(cursor),
 					     index, thr, mtr, inherit);
 
+	if (err != DB_SUCCESS
+	    || !dict_index_is_clust(index) || dict_index_is_ibuf(index)) {
+
+		return(err);
+	}
+
+	err = trx_undo_report_row_operation(flags, TRX_UNDO_INSERT_OP,
+					    thr, index, entry,
+					    NULL, 0, NULL,
+					    &roll_ptr);
 	if (err != DB_SUCCESS) {
 
 		return(err);
 	}
 
-	if (dict_index_is_clust(index) && !dict_index_is_ibuf(index)) {
+	/* Now we can fill in the roll ptr field in entry */
 
-		err = trx_undo_report_row_operation(flags, TRX_UNDO_INSERT_OP,
-						    thr, index, entry,
-						    NULL, 0, NULL,
-						    &roll_ptr);
-		if (err != DB_SUCCESS) {
+	if (!(flags & BTR_KEEP_SYS_FLAG)) {
 
-			return(err);
-		}
-
-		/* Now we can fill in the roll ptr field in entry */
-
-		if (!(flags & BTR_KEEP_SYS_FLAG)) {
-
-			row_upd_index_entry_sys_field(entry, index,
-						      DATA_ROLL_PTR, roll_ptr);
-		}
+		row_upd_index_entry_sys_field(entry, index,
+					      DATA_ROLL_PTR, roll_ptr);
 	}
 
 	return(DB_SUCCESS);
@@ -1920,8 +1918,8 @@ btr_cur_update_in_place(
 				    trx, roll_ptr, mtr);
 
 	if (was_delete_marked
-	    && !rec_get_deleted_flag(rec, page_is_comp(
-					     buf_block_get_frame(block)))) {
+	    && !rec_get_deleted_flag(
+		    rec, page_is_comp(buf_block_get_frame(block)))) {
 		/* The new updated record owns its possible externally
 		stored fields */
 
@@ -1989,6 +1987,9 @@ btr_cur_optimistic_update(
 
 	heap = mem_heap_create(1024);
 	offsets = rec_get_offsets(rec, index, NULL, ULINT_UNDEFINED, &heap);
+#if defined UNIV_DEBUG || defined UNIV_BLOB_LIGHT_DEBUG
+	ut_a(!rec_offs_any_null_extern(rec, offsets));
+#endif /* UNIV_DEBUG || UNIV_BLOB_LIGHT_DEBUG */
 
 #ifdef UNIV_DEBUG
 	if (btr_cur_print_record_ops && thr) {
@@ -2429,8 +2430,8 @@ make_external:
 	record on its page? */
 	was_first = page_cur_is_before_first(page_cursor);
 
-	/* The first parameter means that no lock checking and undo logging
-	is made in the insert */
+	/* Lock checks and undo logging were already performed by
+	btr_cur_upd_lock_and_undo(). */
 
 	err = btr_cur_pessimistic_insert(BTR_NO_UNDO_LOG_FLAG
 					 | BTR_NO_LOCKING_FLAG
@@ -3264,9 +3265,14 @@ btr_estimate_n_rows_in_range_on_level(
 
 		mtr_start(&mtr);
 
-		/* fetch the page */
-		block = buf_page_get(space, zip_size, page_no, RW_S_LATCH,
-				     &mtr);
+		/* Fetch the page. Because we are not holding the
+		index->lock, the tree may have changed and we may be
+		attempting to read a page that is no longer part of
+		the B-tree. We pass BUF_GET_POSSIBLY_FREED in order to
+		silence a debug assertion about this. */
+		block = buf_page_get_gen(space, zip_size, page_no, RW_S_LATCH,
+					 NULL, BUF_GET_POSSIBLY_FREED,
+					 __FILE__, __LINE__, &mtr);
 
 		page = buf_block_get_frame(block);
 
@@ -3284,6 +3290,13 @@ btr_estimate_n_rows_in_range_on_level(
 			mtr_commit(&mtr);
 			goto inexact;
 		}
+
+		/* It is possible but highly unlikely that the page was
+		originally written by an old version of InnoDB that did
+		not initialize FIL_PAGE_TYPE on other than B-tree pages.
+		For example, this could be an almost-empty BLOB page
+		that happens to contain the magic values in the fields
+		that we checked above. */
 
 		n_pages_read++;
 
@@ -4534,8 +4547,8 @@ btr_check_blob_fil_page_type(
 		ulint	flags = fil_space_get_flags(space_id);
 
 #ifndef UNIV_DEBUG /* Improve debug test coverage */
-		if (UNIV_LIKELY
-		    ((flags & DICT_TF_FORMAT_MASK) == DICT_TF_FORMAT_51)) {
+		if (UNIV_LIKELY((flags & DICT_TF_FORMAT_MASK)
+				== (UNIV_FORMAT_A << DICT_TF_FORMAT_SHIFT))) {
 			/* Old versions of InnoDB did not initialize
 			FIL_PAGE_TYPE on BLOB pages.  Do not print
 			anything about the type mismatch when reading
@@ -4905,27 +4918,45 @@ btr_copy_blob_prefix(
 
 /*******************************************************************//**
 Copies the prefix of a compressed BLOB.  The clustered index record
-that points to this BLOB must be protected by a lock or a page latch. */
+that points to this BLOB must be protected by a lock or a page latch.
+@return	number of bytes written to buf */
 static
-void
+ulint
 btr_copy_zblob_prefix(
 /*==================*/
-	z_stream*	d_stream,/*!< in/out: the decompressing stream */
+	byte*		buf,	/*!< out: the externally stored part of
+				the field, or a prefix of it */
+	ulint		len,	/*!< in: length of buf, in bytes */
 	ulint		zip_size,/*!< in: compressed BLOB page size */
 	ulint		space_id,/*!< in: space id of the BLOB pages */
 	ulint		page_no,/*!< in: page number of the first BLOB page */
 	ulint		offset)	/*!< in: offset on the first BLOB page */
 {
-	ulint	page_type = FIL_PAGE_TYPE_ZBLOB;
+	ulint		page_type = FIL_PAGE_TYPE_ZBLOB;
+	mem_heap_t*	heap;
+	int		err;
+	z_stream	d_stream;
+
+	d_stream.next_out = buf;
+	d_stream.avail_out = len;
+	d_stream.next_in = Z_NULL;
+	d_stream.avail_in = 0;
+
+	/* Zlib inflate needs 32 kilobytes for the default
+	window size, plus a few kilobytes for small objects. */
+	heap = mem_heap_create(40000);
+	page_zip_set_alloc(&d_stream, heap);
 
 	ut_ad(ut_is_2pow(zip_size));
-	ut_ad(zip_size >= PAGE_ZIP_MIN_SIZE);
-	ut_ad(zip_size <= UNIV_PAGE_SIZE);
+	ut_ad(zip_size >= UNIV_ZIP_SIZE_MIN);
+	ut_ad(zip_size <= UNIV_ZIP_SIZE_MAX);
 	ut_ad(space_id);
+
+	err = inflateInit(&d_stream);
+	ut_a(err == Z_OK);
 
 	for (;;) {
 		buf_page_t*	bpage;
-		int		err;
 		ulint		next_page_no;
 
 		/* There is no latch on bpage directly.  Instead,
@@ -4941,7 +4972,7 @@ btr_copy_zblob_prefix(
 				" compressed BLOB"
 				" page %lu space %lu\n",
 				(ulong) page_no, (ulong) space_id);
-			return;
+			goto func_exit;
 		}
 
 		if (UNIV_UNLIKELY
@@ -4967,13 +4998,13 @@ btr_copy_zblob_prefix(
 			offset += 4;
 		}
 
-		d_stream->next_in = bpage->zip.data + offset;
-		d_stream->avail_in = zip_size - offset;
+		d_stream.next_in = bpage->zip.data + offset;
+		d_stream.avail_in = zip_size - offset;
 
-		err = inflate(d_stream, Z_NO_FLUSH);
+		err = inflate(&d_stream, Z_NO_FLUSH);
 		switch (err) {
 		case Z_OK:
-			if (!d_stream->avail_out) {
+			if (!d_stream.avail_out) {
 				goto end_of_blob;
 			}
 			break;
@@ -4990,13 +5021,13 @@ inflate_error:
 				" compressed BLOB"
 				" page %lu space %lu returned %d (%s)\n",
 				(ulong) page_no, (ulong) space_id,
-				err, d_stream->msg);
+				err, d_stream.msg);
 		case Z_BUF_ERROR:
 			goto end_of_blob;
 		}
 
 		if (next_page_no == FIL_NULL) {
-			if (!d_stream->avail_in) {
+			if (!d_stream.avail_in) {
 				ut_print_timestamp(stderr);
 				fprintf(stderr,
 					"  InnoDB: unexpected end of"
@@ -5005,7 +5036,7 @@ inflate_error:
 					(ulong) page_no,
 					(ulong) space_id);
 			} else {
-				err = inflate(d_stream, Z_FINISH);
+				err = inflate(&d_stream, Z_FINISH);
 				switch (err) {
 				case Z_STREAM_END:
 				case Z_BUF_ERROR:
@@ -5017,7 +5048,7 @@ inflate_error:
 
 end_of_blob:
 			buf_page_release_zip(bpage);
-			return;
+			goto func_exit;
 		}
 
 		buf_page_release_zip(bpage);
@@ -5029,6 +5060,12 @@ end_of_blob:
 		offset = FIL_PAGE_NEXT;
 		page_type = FIL_PAGE_TYPE_ZBLOB2;
 	}
+
+func_exit:
+	inflateEnd(&d_stream);
+	mem_heap_free(heap);
+	UNIV_MEM_ASSERT_RW(buf, d_stream.total_out);
+	return(d_stream.total_out);
 }
 
 /*******************************************************************//**
@@ -5054,28 +5091,8 @@ btr_copy_externally_stored_field_prefix_low(
 	}
 
 	if (UNIV_UNLIKELY(zip_size)) {
-		int		err;
-		z_stream	d_stream;
-		mem_heap_t*	heap;
-
-		/* Zlib inflate needs 32 kilobytes for the default
-		window size, plus a few kilobytes for small objects. */
-		heap = mem_heap_create(40000);
-		page_zip_set_alloc(&d_stream, heap);
-
-		err = inflateInit(&d_stream);
-		ut_a(err == Z_OK);
-
-		d_stream.next_out = buf;
-		d_stream.avail_out = len;
-		d_stream.avail_in = 0;
-
-		btr_copy_zblob_prefix(&d_stream, zip_size,
-				      space_id, page_no, offset);
-		inflateEnd(&d_stream);
-		mem_heap_free(heap);
-		UNIV_MEM_ASSERT_RW(buf, d_stream.total_out);
-		return(d_stream.total_out);
+		return(btr_copy_zblob_prefix(buf, len, zip_size,
+					     space_id, page_no, offset));
 	} else {
 		return(btr_copy_blob_prefix(buf, len, space_id,
 					    page_no, offset));

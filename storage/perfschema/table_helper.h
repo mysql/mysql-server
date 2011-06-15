@@ -32,6 +32,7 @@
   @{
 */
 
+/** Namespace, internal views used within table setup_instruments. */
 struct PFS_instrument_view_constants
 {
   static const uint FIRST_VIEW= 1;
@@ -43,6 +44,7 @@ struct PFS_instrument_view_constants
   static const uint LAST_VIEW= 5;
 };
 
+/** Namespace, internal views used within object summaries. */
 struct PFS_object_view_constants
 {
   static const uint FIRST_VIEW= 1;
@@ -270,6 +272,78 @@ struct PFS_table_lock_stat_row
     m_all_write.set(normalizer, & all_write);
     m_all.set(normalizer, & all);
   }
+};
+
+/** Row fragment for stage statistics columns. */
+struct PFS_stage_stat_row
+{
+  PFS_stat_row m_timer1_row;
+
+  /** Build a row from a memory buffer. */
+  inline void set(time_normalizer *normalizer, const PFS_stage_stat *stat)
+  {
+    m_timer1_row.set(normalizer, & stat->m_timer1_stat);
+  }
+
+  /** Set a table field from the row. */
+  void set_field(uint index, Field *f)
+  {
+     m_timer1_row.set_field(index, f);
+  }
+};
+
+/** Row fragment for statement statistics columns. */
+struct PFS_statement_stat_row
+{
+  PFS_stat_row m_timer1_row;
+  ulonglong m_error_count;
+  ulonglong m_warning_count;
+  ulonglong m_rows_affected;
+  ulonglong m_lock_time;
+  ulonglong m_rows_sent;
+  ulonglong m_rows_examined;
+  ulonglong m_created_tmp_disk_tables;
+  ulonglong m_created_tmp_tables;
+  ulonglong m_select_full_join;
+  ulonglong m_select_full_range_join;
+  ulonglong m_select_range;
+  ulonglong m_select_range_check;
+  ulonglong m_select_scan;
+  ulonglong m_sort_merge_passes;
+  ulonglong m_sort_range;
+  ulonglong m_sort_rows;
+  ulonglong m_sort_scan;
+  ulonglong m_no_index_used;
+  ulonglong m_no_good_index_used;
+
+  /** Build a row from a memory buffer. */
+  inline void set(time_normalizer *normalizer, const PFS_statement_stat *stat)
+  {
+    m_timer1_row.set(normalizer, & stat->m_timer1_stat);
+
+    m_error_count= stat->m_error_count;
+    m_warning_count= stat->m_warning_count;
+    m_lock_time= stat->m_lock_time * MICROSEC_TO_PICOSEC;
+    m_rows_affected= stat->m_rows_affected;
+    m_rows_sent= stat->m_rows_sent;
+    m_rows_examined= stat->m_rows_examined;
+    m_created_tmp_disk_tables= stat->m_created_tmp_disk_tables;
+    m_created_tmp_tables= stat->m_created_tmp_tables;
+    m_select_full_join= stat->m_select_full_join;
+    m_select_full_range_join= stat->m_select_full_range_join;
+    m_select_range= stat->m_select_range;
+    m_select_range_check= stat->m_select_range_check;
+    m_select_scan= stat->m_select_scan;
+    m_sort_merge_passes= stat->m_sort_range;
+    m_sort_range= stat->m_sort_range;
+    m_sort_rows= stat->m_sort_rows;
+    m_sort_scan= stat->m_sort_scan;
+    m_no_index_used= stat->m_no_index_used;
+    m_no_good_index_used= stat->m_no_good_index_used;
+  }
+
+  /** Set a table field from the row. */
+  void set_field(uint index, Field *f);
 };
 
 void set_field_object_type(Field *f, enum_object_type object_type);
