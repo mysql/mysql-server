@@ -544,12 +544,10 @@ private:
 ///////////////////////////////////////////////////////////////////////////
 
 
-void raise_warning(THD *thd, uint code, const char *msg, uint flags);
-void raise_warning_printf(THD *thd,
-                          uint code,
-                          const char *format,
-                          uint flags, ...) ATTRIBUTE_FORMAT(3, 4);
-
+void push_warning(THD *thd, MYSQL_ERROR::enum_warning_level level,
+                  uint code, const char *msg);
+void push_warning_printf(THD *thd, MYSQL_ERROR::enum_warning_level level,
+                         uint code, const char *format, ...);
 bool mysqld_show_warnings(THD *thd, ulong levels_to_show);
 uint32 convert_error_message(char *to, uint32 to_length,
                              const CHARSET_INFO *to_cs,
