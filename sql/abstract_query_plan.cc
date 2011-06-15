@@ -271,6 +271,22 @@ namespace AQP
     return m_join_plan->get_join_tab(m_tab_no);
   }
 
+  /** Get the Item_equal's set relevant for the specified 'Item_field' */
+  Item_equal*
+  Table_access::get_item_equal(const Item_field* field_item) const
+  {
+    DBUG_ASSERT(field_item->type() == Item::FIELD_ITEM);
+
+    COND_EQUAL* const cond_equal = get_join_tab()->join->cond_equal;
+    if (cond_equal!=NULL)
+    {
+      return (field_item->item_equal != NULL)
+               ? field_item->item_equal
+               : const_cast<Item_field*>(field_item)->find_item_equal(cond_equal);
+    }
+    return NULL;
+  }
+
   /**
     Write an entry in the trace file about the contents of this object.
   */
@@ -541,68 +557,6 @@ namespace AQP
   bool Table_access::uses_join_cache() const
   {
     return get_join_tab()->next_select == sub_select_cache;
-  }
-
-  /**
-    @param plan Iterate over fields within this plan.
-    @param field_item Iterate over Item_fields equal to this.
-  */
-  Equal_set_iterator::Equal_set_iterator(const Join_plan* plan,
-                                         const Item_field* field_item)
-    :m_next(NULL),
-     m_iterator(NULL)
-  {
-    DBUG_ASSERT(field_item->type() == Item::FIELD_ITEM);
-
-    COND_EQUAL* const cond_equal=
-      plan->get_join_tab(0)->join->cond_equal;
-
-    if (cond_equal!=NULL)
-    {
-      Item_equal* item_equal= NULL;
-      if (field_item->item_equal == NULL)
-        item_equal=
-          const_cast<Item_field*>(field_item)->find_item_equal(cond_equal);
-      else
-        item_equal= field_item->item_equal;
-
-      if (item_equal != NULL)
-      {
-        m_iterator= new Item_equal_iterator(*item_equal);
-        m_next=     (*m_iterator)++;
-      }
-    }
-  }
-
-
-  Equal_set_iterator::~Equal_set_iterator()
-  {
-    delete m_iterator;
-  }
-
-
-  /**
-    Get the next Item_field and advance the iterator.
-    @return A pointer to the next Item_field, or NULL if the end has been
-    reached.
-  */
-  const Item_field*
-  Equal_set_iterator::next()
-  {
-    const Item_field* result= m_next;
-    if (m_next != NULL)
-    {
-      if (m_iterator == NULL)
-        m_next= NULL;
-      else
-      {
-        if (m_iterator->is_last())
-          m_next= NULL;
-        else
-          m_next= (*m_iterator)++;
-      }
-    }
-    return result;
   }
 
 };

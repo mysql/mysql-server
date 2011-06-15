@@ -739,29 +739,31 @@ bool ndb_pushed_builder_ctx::is_field_item_pushable(
   // 2) Use the equality set to possibly find more parent candidates
   //    usable by substituting existing 'key_item_field'
   //
-  AQP::Equal_set_iterator equal_iter(&m_plan, key_item_field);
-  const Item_field* substitute_field= equal_iter.next();
-  while (substitute_field != NULL)
+  Item_equal* item_equal= table->get_item_equal(key_item_field);
+  if (item_equal)
   {
-    if (substitute_field != key_item_field)
+    AQP::Equal_set_iterator equal_iter(*item_equal);
+    const Item_field* substitute_field;
+    while ((substitute_field= equal_iter.next()) != NULL)
     {
-      const uint substitute_table_no= get_table_no(substitute_field);
-      if (m_join_scope.contain(substitute_table_no))
+      if (substitute_field != key_item_field)
       {
-        DBUG_PRINT("info", 
-                   (" join_items[%d] %s.%s can be replaced with %s.%s",
-                    (int)(key_item - table->get_key_field(0)),
-                    get_referred_table_access_name(key_item_field),
-                    get_referred_field_name(key_item_field),
-                    get_referred_table_access_name(substitute_field),
-                    get_referred_field_name(substitute_field)));
+        const uint substitute_table_no= get_table_no(substitute_field);
+        if (m_join_scope.contain(substitute_table_no))
+        {
+          DBUG_PRINT("info", 
+                     (" join_items[%d] %s.%s can be replaced with %s.%s",
+                      (int)(key_item - table->get_key_field(0)),
+                      get_referred_table_access_name(key_item_field),
+                      get_referred_field_name(key_item_field),
+                      get_referred_table_access_name(substitute_field),
+                      get_referred_field_name(substitute_field)));
 
-        field_parents.add(substitute_table_no);
+          field_parents.add(substitute_table_no);
+        }
       }
-    }
-    substitute_field= equal_iter.next();
-  } // while(substitute_field != NULL)
-
+    } // while(substitute_field != NULL)
+  }
   if (!field_parents.is_clear_all())
   {
     DBUG_RETURN(true);
@@ -963,12 +965,14 @@ ndb_pushed_builder_ctx::collect_key_refs(
     {
       const Item_field* join_item= static_cast<const Item_field*>(key_item);
       uint referred_table_no= get_table_no(join_item);
+      Item_equal* item_equal;
 
-      if (referred_table_no != parent_no)
+      if (referred_table_no != parent_no && 
+          (item_equal= table->get_item_equal(join_item)) != NULL)
       {
-        AQP::Equal_set_iterator iter(&m_plan, join_item);
-        const Item_field* substitute_field= iter.next();
-        while (substitute_field != NULL)
+        AQP::Equal_set_iterator iter(*item_equal);
+        const Item_field* substitute_field;
+        while ((substitute_field= iter.next()) != NULL)
         {
           ///////////////////////////////////////////////////////////
           // Prefer to replace join_item with ref. to selected parent.
@@ -1014,7 +1018,6 @@ ndb_pushed_builder_ctx::collect_key_refs(
               key_refs[key_part_no]= join_item= substitute_field;
             }
           }
-          substitute_field= iter.next();
         } // while (substitute...
 
         DBUG_ASSERT (referred_table_no == parent_no ||
