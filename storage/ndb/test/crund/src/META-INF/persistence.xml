@@ -1,0 +1,381 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+ Licensed to the Apache Software Foundation (ASF) under one
+ or more contributor license agreements.  See the NOTICE file
+ distributed with this work for additional information
+ regarding copyright ownership.  The ASF licenses this file
+ to you under the Apache License, Version 2.0 (the
+ "License"); you may not use this file except in compliance
+ with the License.  You may obtain a copy of the License at
+ 
+ http://www.apache.org/licenses/LICENSE-2.0
+ 
+ Unless required by applicable law or agreed to in writing,
+ software distributed under the License is distributed on an
+ "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+ KIND, either express or implied.  See the License for the
+ specific language governing permissions and limitations
+ under the License.   
+-->
+<persistence xmlns="http://java.sun.com/xml/ns/persistence"
+    xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+    version="1.0">
+
+    <!--
+        We need to enumerate each persistent class first in the persistence.xml
+        See: http://issues.apache.org/jira/browse/OPENJPA-78
+    -->
+    <persistence-unit name="none" transaction-type="RESOURCE_LOCAL">
+        <class>com.mysql.cluster.crund.A</class>
+        <class>com.mysql.cluster.crund.B0</class>
+    </persistence-unit>
+
+    <!--
+        A persistence unit is a set of listed persistent entities as well
+        the configuration of an EntityManagerFactory.
+    -->
+    <persistence-unit name="crundjpa" transaction-type="RESOURCE_LOCAL">
+        <!--
+            The default provider can be OpenJPA, or some other product.
+            This element is optional if OpenJPA is the only JPA provider
+            in the current classloading environment, but can be specified
+            in cases where there are multiple JPA implementations available.
+        -->
+
+        <!--
+        <provider>
+            org.apache.openjpa.persistence.PersistenceProviderImpl
+        </provider>
+        -->
+
+        <!--
+        <provider>
+            org.eclipse.persistence.jpa.PersistenceProvider
+        </provider>
+        -->
+
+        <!--
+        <provider>
+            org.hibernate.ejb.HibernatePersistence
+        </provider> 
+        -->
+
+        <!-- We must enumerate each entity in the persistence unit -->
+        <class>com.mysql.cluster.crund.A</class>
+        <class>com.mysql.cluster.crund.B0</class>
+
+        <!-- From the EclipseLink JPA documentation, not sure what this does
+        <exclude-unlisted-classes>false</exclude-unlisted-classes>
+        -->
+
+        <properties>
+            <!-- OpenJPA properties if not provided as System properties -->
+            <!--
+            <property name="openjpa.ConnectionURL" 
+                value="jdbc:derby:openjpa-database;create=true"/>
+            <property name="openjpa.ConnectionDriverName" 
+                value="org.apache.derby.jdbc.EmbeddedDriver"/>
+            <property name="openjpa.ConnectionUserName" 
+                value="user"/>
+            <property name="openjpa.ConnectionPassword" 
+                value="secret"/>
+            <property name="openjpa.Log" value="DefaultLevel=WARN, Tool=INFO"/>
+
+            -->
+            <!-- OpenJPA tunings
+              OpenJPA data cache is an optional cache of persistent
+              object data that operates at the EntityManagerFactory level.
+              Accessed by: Standard relation traversal, Query, Lookups by
+              object id
+              Not used with: Large result set relation traversa, Iteration
+              over an Extent
+
+              The maximum cache size can be adjusted by setting the
+              CacheSize property in your plugin string. Objects that are
+              pinned into the cache are not counted when determining if the
+              cache size exceeds its maximum size.  Expired objects are
+              moved to a soft reference map, so they may stick around for a
+              little while longer. You can control the number of soft
+              references OpenJPA keeps with the SoftReferenceSize
+              property. Soft references are unlimited by default. Set to 0
+              to disable soft references completely.
+
+              In addition to the data cache, the
+              org.apache.openjpa.datacache package defines service provider
+              interfaces for a query cache. The query cache is enabled by
+              default when the data cache is enabled. The query cache
+              stores the object ids returned by query executions. When you
+              run a query, OpenJPA assembles a key based on the query
+              properties and the parameters used at execution time, and
+              checks for a cached query result. If one is found, the object
+              ids in the cached result are looked up, and the resultant
+              persistence-capable objects are returned. Otherwise, the
+              query is executed against the database, and the object ids
+              loaded by the query are put into the cache. The object id
+              list is not cached until the list returned at query execution
+              time is fully traversed.
+
+              The query compilation cache is a Map used to cache parsed
+              query strings. As a result, most queries are only parsed once
+              in OpenJPA, and cached thereafter.
+
+              The query SQL cache is a Map used to cache pushed-down SQL
+              query strings for the find operation. As a result, the SQL
+              queries are only generated once in OpenJPA, and cached
+              thereafter. This query SQL cache is shared across entity
+              managers and the fetch plan is part of the cache key.
+
+              openjpa.jdbc.DriverDataSource 
+              The alias or full class name of the
+              org.apache.openjpa.jdbc.schema.DriverDataSource
+              implementation to use to wrap JDBC Driver classes with
+              javax.sql.DataSource instances.  Default: pooling
+
+              openjpa.ConnectionRetainMode
+              Controls how OpenJPA uses datastore connections. This
+              property can also be specified for individual sessions
+              In its default configuration, OpenJPA obtains JDBC
+              connections on an as-needed basis. OpenJPA EntityManagers do
+              not retain a connection to the database unless they are in a
+              datastore transaction or there are open Query results that
+              are using a live JDBC result set. At all other times,
+              including during optimistic transactions, EntityManagers
+              request a connection for each query, then immediately release
+              the connection back to the pool.
+              In some cases, it may be more efficient to retain connections
+              for longer periods of time. You can configure OpenJPA's use
+              of JDBC connections through the openjpa.ConnectionRetainMode
+              configuration property. The property accepts the following
+              values:
+              * always: Each EntityManager obtains a single connection and
+                uses it until the EntityManager closes.
+              * transaction: A connection is obtained when each transaction
+                begins (optimistic or datastore), and is released when the
+                transaction completes. Non-transactional connections are
+                obtained on-demand.
+              * on-demand: Connections are obtained only when needed. This
+                option is equivalent to the transaction option when
+                datastore transactions are used. For optimistic transactions,
+                though, it means that a connection will be retained only for
+                the duration of the datastore flush and commit process.
+
+	      The openjpa.FlushBeforeQueries configuration property
+	      controls another aspect of connection usage: whether to flush
+	      transactional changes before executing object queries. This
+	      setting only applies to queries that would otherwise have to
+	      be executed in-memory because the IgnoreChanges property is
+	      set to false and the query may involve objects that have been
+	      changed in the current transaction. Legal values are:
+	      * true: Always flush rather than executing the query
+	        in-memory. If the current transaction is optimistic,
+	        OpenJPA will begin a non-locking datastore
+	        transaction. This is the default.
+	      * false: Never flush before a query.
+	      * with-connection: Flush only if the EntityManager has
+	        already established a dedicated connection to the
+	        datastore, otherwise execute the query in-memory. This
+	        option is useful if you use long-running optimistic
+	        transactions and want to ensure that these transactions do
+	        not consume database resources until commit. OpenJPA's
+	        behavior with this option is dependent on the transaction
+	        status and mode, as well as the configured connection
+	        retain mode described earlier in this section.
+
+IgnoreChanges
+
+              In addition to connection pooling and prepared statement
+	      caching, OpenJPA employs statement batching to speed up JDBC
+	      updates. Statement batching is enabled by default for any
+	      JDBC driver that supports it. When batching is on, OpenJPA
+	      automatically orders its SQL statements to maximize the size
+	      of each batch. This can result in large performance gains for
+	      transactions that modify a lot of data.
+
+	      You configure statement batching through the system
+	      DBDictionary, which is controlled by the
+	      openjpa.jdbc.DBDictionary configuration property. You can
+	      enable the statement batching by setting the batchLimit in
+	      the value. The batch limit is the maximum number of
+	      statements OpenJPA will ever batch together.
+	      * -1: Unlimited number of statements for a batch.
+	      *  0: Disable batch support. This is the default for most
+	            dictionaries. 
+	      * any positive number: Maximum number of statements for a
+ 	        batch.
+	      By default, the batch support is based on each Dictionary to
+	      define the default batch limit. Currently only DB2 and Oracle
+	      dictionaries are set the default batch limit to 100. The
+	      default batch limit for the rest of the dictionaries is set
+	      to zero (disabled).
+	      
+	      10.  Large Result Sets ...
+
+              for a basic single-factory cache:
+              <property name="openjpa.DataCache" value="true"/>
+              <property name="openjpa.RemoteCommitProvider" value="sjvm"/>
+              <property name="openjpa.DataCache"
+                        value="true(CacheSize=5000, SoftReferenceSize=0)"/>
+
+              <property name="openjpa.QueryCache"
+                        value="false"/>
+              <property name="openjpa.openjpa.QueryCompilationCache"
+                        value="true"/>
+              <property name="openjpa.jdbc.QuerySQLCache"
+                        value="true"/>
+
+	      <property name="openjpa.jdbc.DBDictionary"
+			value="batchLimit=-1"/>
+
+              <property name="openjpa.jdbc.DriverDataSource"
+                        value="pooling"/>
+              <property name="openjpa.FlushBeforeQueries"
+                        value="transaction"/>
+              <property name="openjpa.ConnectionRetainMode"
+                        value="true"/>
+            -->
+
+            <!-- EclipseLink properties, can define as System properties?
+
+              or in the code:
+              Map properties = new HashMap();
+              properties.put(PersistenceUnitProperties.CACHE_TYPE_DEFAULT,
+                             CacheType.Full);
+              EntityManagerFactory emf =
+                Persistence.createEntityManagerFactory("default", properties);
+            -->
+            <!-- EclipseLink properties
+            <property name="eclipselink.logging.level" value="INFO"/>
+            <property name="eclipselink.jdbc.driver"
+            value="oracle.jdbc.OracleDriver"/>
+            <property name="eclipselink.jdbc.url"
+            value="jdbc:oracle:thin:@myhost:1521:MYSID"/>
+            <property name="eclipselink.jdbc.password" value="tiger"/>
+            <property name="eclipselink.jdbc.user" value="scott"/>
+            -->
+            <!-- EclipseLink properties
+              By default, EclipseLink interprets zero as null for primitive
+              types that cannot be null (such as int and long) causing zero
+              to be an invalid value for primary keys. You can modify this
+              setting by using the allow-zero-id property in the
+              persistence.xml file. Valid values are:
+              * true – EclipseLink interprets zero values as zero.
+                This permits primary keys to use a value of zero.
+              * false (default) – EclipseLink interprets zero as null.
+            -->
+            <!-- EclipseLink properties, tunings
+
+              To configure the EclipseLink cache, see:
+                http://wiki.eclipse.org/Using_EclipseLink_JPA_Extensions_(ELUG)#How_to_Use_the_Persistence_Unit_Properties_for_Caching
+
+              eclipselink.cache.type.default
+              The default type of session cache. Default: SoftWeak 
+
+              eclipselink.cache.size.default
+              The default maximum number of objects allowed in an
+              EclipseLink cache.  Default: 100
+
+              eclipselink.cache.shared.default
+              The default for whether or not the EclipseLink session cache
+              is shared by multiple client sessions. Default: true
+
+              eclipselink.flush-clear.cache
+              Defines the EntityManager cache behaviour after a call to the
+              flush method followed by a call to the clear method. 
+              Default: DropInvalidate
+
+              eclipselink.persistence.context.reference-mode
+              Specify whether or not the Java VM is allowed to manage the
+              number of objects within the persistence context using Java’s
+              weak references.  In cases where your application cannot use
+              the EntityManager clear method to clear an extended
+              persistence context, use this setting to enable the VM to
+              remove unreferenced and unchanged objects from the
+              persistence context, resulting in making resources available
+              for other uses.  Default: WEAK
+
+              eclipselink.jdbc.batch-writing
+              Specify the use of batch writing to optimize transactions
+              with multiple write operations. Default: None
+
+              eclipselink.jdbc.cache-statements
+              Enable or disable EclipseLink internal statement caching.
+              Note: we recommend enabling this functionality if you are
+              using EclipseLink connection pooling. Default: false
+
+              eclipselink.jdbc.cache-statements.size
+              The number of statements held when using internal statement
+              caching. Default: 50
+
+              eclipselink.jdbc.read-connections.max
+              The maximum number of connections allowed in the JDBC read
+              connection pool. Default: 2
+
+              eclipselink.jdbc.read-connections.min
+              The minimum number of connections allowed in the JDBC read
+              connection pool. Default: 2
+
+              eclipselink.jdbc.write-connections.max
+              The maximum number of connections allowed in the JDBC write
+              connection pool. Default: 10
+
+              eclipselink.jdbc.write-connections.min
+              The maximum number of connections allowed in the JDBC write
+              connection pool. Default: 5
+
+              eclipselink.logging.level
+              Control the amount and detail of log output by configuring
+              the log level (in ascending order of information).
+              Default: Level.INFO
+
+              eclipselink.target-database
+              Specify the type of database that your JPA application uses. 
+              Default: AUTO
+
+            <property name="eclipselink.cache.type.default" value="NONE"/>
+            <property name="eclipselink.cache.size.default" value="5000"/>
+            <property name="eclipselink.cache.shared.default" value="false"/>
+            <property name="eclipselink.flush-clear.cache" value="Drop"/>
+            <property name="eclipselink.persistence-context.reference-mode"
+             value="FORCE_WEAK"/>
+            <property name="eclipselink.jdbc.batch-writing"
+             value="Oracle-JDBC"/>
+            <property name="eclipselink.jdbc.cache-statements" value="false"/>
+            <property name="eclipselink.jdbc.cache-statements.size" value="2"/>
+            <property name="eclipselink.jdbc.read-connections.max" value="3"/>
+            <property name="eclipselink.jdbc.read-connections.min" value="1"/>
+            <property name="eclipselink.jdbc.write-connections.max" value="5"/>
+            <property name="eclipselink.jdbc.write-connections.min" value="2"/>
+            <property name="eclipselink.logging.level" value="OFF" />
+            <property name="eclipselink.target-database" value="MySQL"/>
+            -->
+
+            <!-- Hibernate properties, from Hello World example
+            <property name="hibernate.archive.autodetection" 
+                value="class, hbm"/> 
+            <property name="hibernate.show_sql" value="true"/> 
+            <property name="hibernate.format_sql" value="true"/> 
+            <property name="hibernate.connection.driver_class" 
+                      value="org.hsqldb.jdbcDriver"/> 
+            <property name="hibernate.connection.url" 
+                      value="jdbc:hsqldb:hsql://localhost"/> 
+            <property name="hibernate.connection.username" 
+                      value="sa"/> 
+            <property name="hibernate.c3p0.min_size" 
+                      value="5"/> 
+            <property name="hibernate.c3p0.max_size" 
+                      value="20"/> 
+            <property name="hibernate.c3p0.timeout" 
+                      value="300"/> 
+            <property name="hibernate.c3p0.max_statements" 
+                      value="50"/> 
+            <property name="hibernate.c3p0.idle_test_period" 
+                      value="3000"/> 
+            <property name="hibernate.dialect" 
+                      value="org.hibernate.dialect.HSQLDialect"/> 
+            <property name="hibernate.hbm2ddl.auto" value="create"/> 
+            -->
+
+        </properties>
+
+    </persistence-unit>
+</persistence>

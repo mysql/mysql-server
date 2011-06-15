@@ -1,0 +1,24 @@
+$ which hwprefs 
+/usr/bin/hwprefs
+
+[ preferred: ]
+$ hwprefs -v cpu_count
+ * 2 processors available *
+$ hwprefs cpu_count
+2
+$ hwprefs cpu_disable=2
+1
+$ hwprefs cpu_count
+1
+$ hwprefs cpu_enable=2
+2
+
+[ alternatively: ]
+$ hwprefs cpu_count=1
+1
+$ hwprefs cpu_count
+1
+$ hwprefs cpu_count=3
+ERROR: insufficient number of physical processors available (2)
+$ hwprefs cpu_count=2
+2

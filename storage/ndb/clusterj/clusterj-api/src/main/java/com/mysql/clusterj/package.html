@@ -1,0 +1,150 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 3.2 Final//EN">
+<!--
+   Copyright (c) 2010, Oracle and/or its affiliates. All rights reserved.
+
+   This program is free software; you can redistribute it and/or modify
+   it under the terms of the GNU General Public License as published by
+   the Free Software Foundation; version 2 of the License.
+
+   This program is distributed in the hope that it will be useful,
+   but WITHOUT ANY WARRANTY; without even the implied warranty of
+   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+   GNU General Public License for more details.
+
+   You should have received a copy of the GNU General Public License
+   along with this program; if not, write to the Free Software
+   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
+-->
+
+<html>
+<head>
+<title>com.mysql.clusterj</title>
+</head>
+<body bgcolor="white">
+
+Provides classes and interfaces for using MySQL Cluster directly from Java.
+<p>
+This package contains three main groups of classes and interfaces:
+<ul>
+<li>A class for bootstrapping
+<li>Interfaces for use in application programs
+<li>Classes to define exceptions
+</ul>
+
+<h3>Major Interfaces</h3>
+ClusterJ provides these major interfaces for use by application programs:
+{@link com.mysql.clusterj.SessionFactory},
+{@link com.mysql.clusterj.Session},
+{@link com.mysql.clusterj.Transaction},
+{@link com.mysql.clusterj.query.QueryBuilder},
+and
+{@link com.mysql.clusterj.Query}.
+
+<h3>Bootstrapping</h3>
+
+The helper class {@link com.mysql.clusterj.ClusterJHelper} contains methods
+for creating the {@link com.mysql.clusterj.SessionFactory}.
+<em>Bootstrapping</em> is the process of identifying a MySQL Cluster and
+obtaining the SessionFactory for use with the cluster. There is one
+SessionFactory per cluster per Java VM.
+<p>
+<h3>SessionFactory</h3>
+
+The {@link com.mysql.clusterj.SessionFactory} is configured via properties, which identify the
+MySQL Cluster that the application connects to:
+<ul>
+<li>com.mysql.clusterj.connectstring identifies the ndb_mgmd host name and port</li>
+<li>com.mysql.clusterj.connect.retries is the number of retries when connecting</li>
+<li>com.mysql.clusterj.connect.delay is the delay in seconds between connection retries</li>
+<li>com.mysql.clusterj.connect.verbose tells whether to display a message
+to System.out while connecting</li>
+<li>com.mysql.clusterj.connect.timeout.before is the number of seconds to wait
+until the first node responds to a connect request</li>
+<li>com.mysql.clusterj.connect.timeout.after is the number of seconds to wait
+until the last node responds to a connect request</li>
+<li>com.mysql.clusterj.connect.database is the name of the database to use</li>
+</ul>
+
+<pre>
+    File propsFile = new File("clusterj.properties");
+    InputStream inStream = new FileInputStream(propsFile);
+    Properties props = new Properties();
+    props.load(inStream);
+    SessionFactory sessionFactory = ClusterJHelper.getSessionFactory(props);
+</pre>
+
+<h3>Session</h3>
+
+The {@link com.mysql.clusterj.Session} represents the user's individual connection to
+the cluster. It contains methods for:
+<ul>
+<li>finding persistent instances by primary key</li>
+<li>persistent instance factory (newInstance)</li>
+<li>persistent instance life cycle management (persist, remove)</li>
+<li>getting the QueryBuilder</li>
+<li>getting the Transaction (currentTransaction)</li>
+</ul>
+<pre>
+    Session session = sessionFactory.getSession();
+    Employee existing = session.find(Employee.class, 1);
+    if (existing != null) {
+        session.remove(existing);
+    }
+    Employee newemp = session.newInstance(Employee.class);
+    newemp.initialize(2, "Craig", 15, 146000.00);
+    session.persist(newemp);
+</pre>
+
+<h3>Transaction</h3>
+
+The {@link com.mysql.clusterj.Transaction} allows users to combine multiple operations
+into a single database transaction. It contains methods to:
+<ul>
+<li>begin a unit of work</li>
+<li>commit changes from a unit of work</li>
+<li>roll back all changes made since the unit of work was begun</li>
+<li>mark a unit of work for rollback only</li>
+<li>get the rollback status of the current unit of work</li>
+</ul>
+<pre>
+    Transaction tx = session.currentTransaction();
+    tx.begin();
+    Employee existing = session.find(Employee.class, 1);
+    Employee newemp = session.newInstance(Employee.class);
+    newemp.initialize(2, "Craig", 146000.00);
+    session.persist(newemp);
+    tx.commit();
+</pre>
+
+<h3>QueryBuilder</h3>
+
+The {@link com.mysql.clusterj.query.QueryBuilder} allows users to build queries.
+It contains methods to:
+<ul>
+<li>define the Domain Object Model to query</li>
+<li>compare properties with parameters using:
+<ul>
+<li>equal</li>
+<li>lessThan</li>
+<li>greaterThan</li>
+<li>lessEqual</li>
+<li>greaterEqual</li>
+<li>between</li>
+<li>in</li>
+</ul>
+</li>
+<li>combine comparisons using "and", "or", and "not" operators</li>
+</ul>
+<pre>
+    QueryBuilder builder = session.getQueryBuilder();
+    QueryDomainType&lt;Employee&gt; qemp = builder.createQueryDefinition(Employee.class);
+    Predicate service = qemp.get("yearsOfService").greaterThan(qemp.param("service"));
+    Predicate salary = qemp.get("salary").lessEqual(qemp.param("salaryCap"));
+    qemp.where(service.and(salary));
+    Query&lt;Employee&gt; query = session.createQuery(qemp);
+    query.setParameter("service", 10);
+    query.setParameter("salaryCap", 180000.00);
+    List&lt;Employee&gt; results = query.getResultList();
+</pre>
+</body>
+</html>

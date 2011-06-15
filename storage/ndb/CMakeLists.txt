@@ -127,6 +127,30 @@ ELSE()
       SET(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -DERROR_INSERT")
     ENDIF()
   ENDIF()
+  
+  # Check for Java and JDK needed by ndbjtie and clusterj
+  INCLUDE(FindJava)
+  INCLUDE(FindJNI)
+  INCLUDE("${CMAKE_SOURCE_DIR}/storage/ndb/config/type_JAVA.cmake")
+
+  IF(JAVA_COMPILE AND JAVA_ARCHIVE)
+    MESSAGE(STATUS "Found Java")
+    SET(HAVE_JAVA TRUE)
+  ELSE()
+    MESSAGE(STATUS "Could not find Java")
+    SET(HAVE_JAVA FALSE)
+  ENDIF()
+
+  IF(JAVA_INCLUDE_PATH AND JAVA_INCLUDE_PATH2)
+    MESSAGE(STATUS "Found JDK")
+    SET(HAVE_JDK TRUE)
+  ELSE()
+    MESSAGE(STATUS "Could not find JDK")
+    SET(HAVE_JDK FALSE)
+  ENDIF()
+
+  SET(WITH_CLASSPATH ${WITH_CLASSPATH} CACHE STRING
+    "Enable the classpath for MySQL Cluster Java Connector")
 
   ADD_SUBDIRECTORY(include)
   ADD_SUBDIRECTORY(src)
@@ -135,7 +159,10 @@ ELSE()
   IF(WITH_NDB_TEST)
     ADD_SUBDIRECTORY(src/cw/cpcd)
   ENDIF()
+  ADD_SUBDIRECTORY(clusterj)
+
 ENDIF()
+
 
 IF(WITHOUT_PARTITION_STORAGE_ENGINE)
   MESSAGE(FATAL_ERROR "NDBCLUSTER can't be compiled without PARTITION")
