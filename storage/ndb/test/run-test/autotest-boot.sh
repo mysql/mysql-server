@@ -243,9 +243,9 @@ fi
 if [ "$build" ]
 then
     rm -rf $install_dir
-    
-	if [ -z "$clone1" ]
-	then
+    p=`pwd`
+    if [ -z "$clone1" ]
+    then
         cd $dst_place0
         if [ `uname | grep -ic cygwin || true` -ne 0 ]
         then
@@ -255,18 +255,19 @@ then
             cmd /c devenv.com MySql.sln /Build RelWithDebInfo
             cmd /c devenv.com MySql.sln /Project INSTALL /Build
         else
-	        BUILD/compile-ndb-autotest --prefix=$install_dir0
-	        make install
-        fi
-	else
-	    cd $dst_place0
 	    BUILD/compile-ndb-autotest --prefix=$install_dir0
 	    make install
-	    
-	    cd $dst_place1
-	    BUILD/compile-ndb-autotest --prefix=$install_dir1
-	    make install
-	fi
+        fi
+    else
+	cd $dst_place0
+	BUILD/compile-ndb-autotest --prefix=$install_dir0
+	make install
+	
+	cd $dst_place1
+	BUILD/compile-ndb-autotest --prefix=$install_dir1
+	make install
+    fi
+    cd $p
 fi
 
 

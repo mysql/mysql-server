@@ -596,6 +596,7 @@ NdbEventOperationImpl::execute_nolock()
     {
       switch(myDict->getNdbError().code){
       case 711:
+      case 763:
         // ignore;
         break;
       default:
