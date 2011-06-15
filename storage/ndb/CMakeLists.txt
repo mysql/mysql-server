@@ -146,6 +146,7 @@ SET(NDBCLUSTER_SOURCES
   ../../sql/ha_ndbcluster_cond.cc
   ../../sql/ha_ndbcluster_connection.cc
   ../../sql/ha_ndbcluster_binlog.cc
+  ../../sql/ha_ndb_index_stat.cc
   ../../sql/ha_ndbinfo.cc)
 INCLUDE_DIRECTORIES(${CMAKE_SOURCE_DIR}/storage/ndb/include)
 
