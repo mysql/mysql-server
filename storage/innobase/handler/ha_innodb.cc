@@ -6943,11 +6943,6 @@ ha_innobase::ft_read(
 		return (error);
 	}
 
-	if (prebuilt->result) {
-		fts_query_free_result(prebuilt->result);
-		prebuilt->result = NULL;
-	}
-
 	return(HA_ERR_END_OF_FILE);
 }
 
@@ -9232,7 +9227,8 @@ ha_innobase::check(
 
 		if (index == dict_table_get_first_index(prebuilt->table)) {
 			n_rows_in_table = n_rows;
-		} else if (n_rows != n_rows_in_table) {
+		} else if (!(index->type & DICT_FTS)
+			   && (n_rows != n_rows_in_table)) {
 			push_warning_printf(thd, MYSQL_ERROR::WARN_LEVEL_WARN,
 					    ER_NOT_KEYFILE,
 					    "InnoDB: Index '%-.200s'"
@@ -10006,6 +10002,11 @@ ha_innobase::external_lock(
 			each consistent read set its own snapshot */
 
 			read_view_close_for_mysql(trx);
+		}
+
+		if (prebuilt->result) {
+			fts_query_free_result(prebuilt->result);
+			prebuilt->result = NULL;
 		}
 	}
 

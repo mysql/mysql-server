@@ -43,9 +43,9 @@ while ($1)
 --enable_query_log
 
 # converting to two-level
-# INNODB_FTS: Do not support repair, check table
+# INNODB_FTS: Do not support repair
 #repair table t1 quick;
-#check table t1;
+check table t1;
 #optimize table t1; # BUG#5327 - mi_sort_index() of 2-level tree
 #check table t1;
 

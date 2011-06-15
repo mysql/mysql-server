@@ -91,10 +91,10 @@ create table t1 (mytext text, FULLTEXT (mytext)) ENGINE = InnoDB;
 insert t1 values ('aaabbb');
 
 # INNODB_FTS: These variables are not support in InnoDB
-# check table t1;
+check table t1;
 # set @my_key_cache_block_size= @@global.key_cache_block_size;
 # set GLOBAL key_cache_block_size=2048;
-# check table t1;
+check table t1;
 drop table t1;
 # Restore the changed variable value
 #set global key_cache_block_size= @my_key_cache_block_size;

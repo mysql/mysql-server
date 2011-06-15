@@ -27,8 +27,7 @@ update test set url='test', description='ddd', name='nam' where gnr=2;
 update test set url='test', shortdesc='ggg', longdesc='mmm', 
 description='ddd', name='nam' where gnr=2;
 
-#INNODB_FTS: Do not support check table
-#check table test;
+check table test;
 drop table test;
 
 # End of 4.1 tests
