@@ -639,8 +639,8 @@ send_result:
     lex->cleanup_after_one_table_open();
     thd->clear_error();  // these errors shouldn't get client
     {
-      Warning_info::Const_iterator it= thd->get_stmt_wi()->iterator();
-      const MYSQL_ERROR *err;
+      List_iterator_fast<MYSQL_ERROR> it(thd->get_stmt_wi()->warn_list());
+      MYSQL_ERROR *err;
       while ((err= it++))
       {
         protocol->prepare_for_resend();

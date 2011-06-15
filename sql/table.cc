@@ -3215,7 +3215,7 @@ bool TABLE_SHARE::visit_subgraph(Wait_for_flush *wait_for_flush,
   if (gvisitor->m_lock_open_count++ == 0)
     mysql_mutex_lock(&LOCK_open);
 
-  TABLE_SHARE::TABLE_list::Iterator tables_it(used_tables);
+  I_P_List_iterator <TABLE, TABLE_share> tables_it(used_tables);
 
   /*
     In case of multiple searches running in parallel, avoid going

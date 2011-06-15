@@ -3747,8 +3747,8 @@ log '%s' at position %s, relay log '%s' position: %s", rli->get_rpl_log_name(),
         }
 
         /* Print any warnings issued */
-        Warning_info::Const_iterator it= thd->get_stmt_wi()->iterator();
-        const MYSQL_ERROR *err;
+        List_iterator_fast<MYSQL_ERROR> it(thd->get_stmt_wi()->warn_list());
+        MYSQL_ERROR *err;
         /*
           Added controlled slave thread cancel for replication
           of user-defined variables.

@@ -6830,8 +6830,9 @@ static bool do_fill_table(THD *thd,
   // Filter out warnings with WARN_LEVEL_ERROR level, because they
   // correspond to the errors which were filtered out in fill_table().
 
-  Warning_info::Const_iterator it= wi_tmp.iterator();
-  const MYSQL_ERROR *err;
+
+  List_iterator_fast<MYSQL_ERROR> it(wi_tmp.warn_list());
+  MYSQL_ERROR *err;
 
   while ((err= it++))
   {
