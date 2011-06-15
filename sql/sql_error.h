@@ -19,6 +19,7 @@
 #include "sql_list.h" /* Sql_alloc, MEM_ROOT */
 #include "m_string.h" /* LEX_STRING */
 #include "sql_string.h"                        /* String */
+#include "sql_plist.h" /* I_P_List */
 #include "mysql_com.h" /* MYSQL_ERRMSG_SIZE */
 
 class THD;
@@ -200,6 +201,11 @@ private:
   /** Severity (error, warning, note) of this condition. */
   MYSQL_ERROR::enum_warning_level m_level;
 
+
+  /** Pointers for participating in the list of conditions. */
+  MYSQL_ERROR *next_in_wi;
+  MYSQL_ERROR **prev_in_wi;
+
   /** Memory root to use to hold condition item values. */
   MEM_ROOT *m_mem_root;
 };
@@ -212,11 +218,20 @@ private:
 
 class Warning_info
 {
+  /** The type of the counted and doubly linked list of conditions. */
+  typedef I_P_List<MYSQL_ERROR,
+                   I_P_List_adapter<MYSQL_ERROR,
+                                    &MYSQL_ERROR::next_in_wi,
+                                    &MYSQL_ERROR::prev_in_wi>,
+                   I_P_List_counter,
+                   I_P_List_fast_push_back<MYSQL_ERROR> >
+          MYSQL_ERROR_list;
+
   /** A memory root to allocate warnings and errors */
   MEM_ROOT           m_warn_root;
 
   /** List of warnings of all severities (levels). */
-  List <MYSQL_ERROR> m_warn_list;
+  MYSQL_ERROR_list   m_warn_list;
 
   /** A break down of the number of warnings per severity (level). */
   uint	             m_warn_count[(uint) MYSQL_ERROR::WARN_LEVEL_END];
@@ -249,6 +264,15 @@ public:
   Warning_info(ulonglong warn_id_arg, bool allow_unlimited_warnings);
   ~Warning_info();
 
+  /** Type of the warning list. */
+  typedef MYSQL_ERROR_list List;
+
+  /** Iterator used to iterate through the warning list. */
+  typedef List::Iterator Iterator;
+
+  /** Const iterator used to iterate through the warning list. */
+  typedef List::Const_Iterator Const_iterator;
+
   /**
     Reset the warning information. Clear all warnings,
     the number of warnings, reset current row counter
@@ -273,17 +297,17 @@ public:
 
   void append_warning_info(THD *thd, Warning_info *source)
   {
-    append_warnings(thd, & source->warn_list());
+    append_warnings(thd, & source->m_warn_list);
   }
 
   /**
     Concatenate the list of warnings.
     It's considered tolerable to lose a warning.
   */
-  void append_warnings(THD *thd, List<MYSQL_ERROR> *src)
+  void append_warnings(THD *thd, List *src)
   {
     MYSQL_ERROR *err;
-    List_iterator_fast<MYSQL_ERROR> it(*src);
+    Iterator it(*src);
     /*
       Don't use ::push_warning() to avoid invocation of condition
       handlers or escalation of warnings to errors.
@@ -311,7 +335,7 @@ public:
   ulong warn_count() const
   {
     /*
-      This may be higher than warn_list.elements if we have
+      This may be higher than warn_list.elements() if we have
       had more warnings than thd->variables.max_error_count.
     */
     return (m_warn_count[(uint) MYSQL_ERROR::WARN_LEVEL_NOTE] +
@@ -320,10 +344,9 @@ public:
   }
 
   /**
-    This is for iteration purposes. We return a non-constant reference
-    since List doesn't have constant iterators.
+    Returns a const iterator pointing to the beginning of the warning list.
   */
-  List<MYSQL_ERROR> &warn_list() { return m_warn_list; }
+  Const_iterator iterator() const { return m_warn_list; }
 
   /**
     The number of errors, or number of rows returned by SHOW ERRORS,
@@ -338,7 +361,7 @@ public:
   ulonglong warn_id() const { return m_warn_id; }
 
   /** Do we have any errors and warnings that we can *show*? */
-  bool is_empty() const { return m_warn_list.elements == 0; }
+  bool is_empty() const { return m_warn_list.is_empty(); }
 
   /** Increment the current row counter to point at the next row. */
   void inc_current_row_for_warning() { m_current_row_for_warning++; }
