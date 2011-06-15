@@ -18,4 +18,7 @@ insert into test (url,shortdesc,longdesc,description,name) VALUES
 update test set url='test', description='ddd', name='nam' where gnr=2;
 update test set url='test', shortdesc='ggg', longdesc='mmm', 
 description='ddd', name='nam' where gnr=2;
+check table test;
+Table	Op	Msg_type	Msg_text
+test.test	check	status	OK
 drop table test;

@@ -282,6 +282,9 @@ select * from t1 where match title against ('test' in boolean mode);
 id	title
 1	this is a test
 update t1 set title='this is A test' where id=1;
+check table t1;
+Table	Op	Msg_type	Msg_text
+test.t1	check	status	OK
 update t1 set title='this test once revealed a bug' where id=1;
 select * from t1;
 id	title
