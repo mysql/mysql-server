@@ -42,7 +42,7 @@ static char *opt_password = 0, *current_user = 0,
 	    *default_charset= 0, *current_host= 0;
 static char *opt_plugin_dir= 0, *opt_default_auth= 0;
 static int first_error = 0;
-DYNAMIC_ARRAY tables4repair;
+DYNAMIC_ARRAY tables4repair, tables4rebuild;
 #ifdef HAVE_SMEM
 static char *shared_memory_base_name=0;
 #endif
@@ -106,7 +106,7 @@ static struct my_option my_long_options[] =
    &default_charset, 0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
   {"default_auth", OPT_DEFAULT_AUTH,
    "Default authentication client-side plugin to use.",
-   (uchar**) &opt_default_auth, (uchar**) &opt_default_auth, 0,
+   &opt_default_auth, &opt_default_auth, 0,
    GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
   {"fast",'F', "Check only tables that haven't been closed properly.",
    &opt_fast, &opt_fast, 0, GET_BOOL, NO_ARG, 0, 0, 0, 0, 0,
@@ -146,7 +146,7 @@ static struct my_option my_long_options[] =
    NO_ARG, 0, 0, 0, 0, 0, 0},
 #endif
   {"plugin_dir", OPT_PLUGIN_DIR, "Directory for client-side plugins.",
-   (uchar**) &opt_plugin_dir, (uchar**) &opt_plugin_dir, 0,
+   &opt_plugin_dir, &opt_plugin_dir, 0,
    GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
   {"port", 'P', "Port number to use for connection or 0 for default to, in "
    "order of preference, my.cnf, $MYSQL_TCP_PORT, "
@@ -630,6 +630,27 @@ static int fix_database_storage_name(const char *name)
   return rc;
 }
 
+static int rebuild_table(char *name)
+{
+  char *query, *ptr;
+  int rc= 0;
+  query= (char*)my_malloc(sizeof(char) * (12 + fixed_name_length(name) + 6 + 1),
+                          MYF(MY_WME));
+  if (!query)
+    return 1;
+  ptr= strmov(query, "ALTER TABLE ");
+  ptr= fix_table_name(ptr, name);
+  ptr= strxmov(ptr, " FORCE", NullS);
+  if (mysql_real_query(sock, query, (uint)(ptr - query)))
+  {
+    fprintf(stderr, "Failed to %s\n", query);
+    fprintf(stderr, "Error: %s\n", mysql_error(sock));
+    rc= 1;
+  }
+  my_free(query);
+  return rc;
+}
+
 static int process_one_db(char *database)
 {
   if (what_to_do == DO_UPGRADE)
@@ -743,7 +764,7 @@ static void print_result()
   MYSQL_ROW row;
   char prev[NAME_LEN*2+2];
   uint i;
-  my_bool found_error=0;
+  my_bool found_error=0, table_rebuild=0;
 
   res = mysql_use_result(sock);
 
@@ -762,8 +783,14 @@ static void print_result()
       */
       if (found_error && opt_auto_repair && what_to_do != DO_REPAIR &&
 	  strcmp(row[3],"OK"))
-	insert_dynamic(&tables4repair, prev);
+      {
+        if (table_rebuild)
+          insert_dynamic(&tables4rebuild, prev);
+        else
+          insert_dynamic(&tables4repair, prev);
+      }
       found_error=0;
+      table_rebuild=0;
       if (opt_silent)
 	continue;
     }
@@ -773,7 +800,11 @@ static void print_result()
     {
       printf("%s\n%-9s: %s", row[0], row[2], row[3]);
       if (strcmp(row[2],"note"))
+      {
 	found_error=1;
+        if (opt_auto_repair && strstr(row[3], "ALTER TABLE") != NULL)
+          table_rebuild=1;
+      }
     }
     else
       printf("%-9s: %s", row[2], row[3]);
@@ -782,7 +813,12 @@ static void print_result()
   }
   /* add the last table to be repaired to the list */
   if (found_error && opt_auto_repair && what_to_do != DO_REPAIR)
-    insert_dynamic(&tables4repair, prev);
+  {
+    if (table_rebuild)
+      insert_dynamic(&tables4rebuild, prev);
+    else
+      insert_dynamic(&tables4repair, prev);
+  }
   mysql_free_result(res);
 }
 
@@ -882,7 +918,8 @@ int main(int argc, char **argv)
   }
 
   if (opt_auto_repair &&
-      my_init_dynamic_array(&tables4repair, sizeof(char)*(NAME_LEN*2+2),16,64))
+      (my_init_dynamic_array(&tables4repair, sizeof(char)*(NAME_LEN*2+2),16,64) ||
+       my_init_dynamic_array(&tables4rebuild, sizeof(char)*(NAME_LEN*2+2),16,64)))
   {
     first_error = 1;
     goto end;
@@ -900,7 +937,7 @@ int main(int argc, char **argv)
   {
     uint i;
 
-    if (!opt_silent && tables4repair.elements)
+    if (!opt_silent && (tables4repair.elements || tables4rebuild.elements))
       puts("\nRepairing tables");
     what_to_do = DO_REPAIR;
     for (i = 0; i < tables4repair.elements ; i++)
@@ -908,11 +945,16 @@ int main(int argc, char **argv)
       char *name= (char*) dynamic_array_ptr(&tables4repair, i);
       handle_request_for_tables(name, fixed_name_length(name));
     }
+    for (i = 0; i < tables4rebuild.elements ; i++)
+      rebuild_table((char*) dynamic_array_ptr(&tables4rebuild, i));
   }
  end:
   dbDisconnect(current_host);
   if (opt_auto_repair)
+  {
     delete_dynamic(&tables4repair);
+    delete_dynamic(&tables4rebuild);
+  }
   my_free(opt_password);
 #ifdef HAVE_SMEM
   my_free(shared_memory_base_name);

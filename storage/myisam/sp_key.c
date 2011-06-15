@@ -69,7 +69,7 @@ uint sp_make_key(register MI_INFO *info, uint keynr, uchar *key,
 #ifdef HAVE_ISNAN
     if (isnan(val))
     {
-      bzero(key, length);
+      memset(key, 0, length);
       key+= length;
       len+= length;
       continue;

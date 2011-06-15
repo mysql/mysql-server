@@ -36,11 +36,14 @@ Created 11/5/1995 Heikki Tuuri
 #ifndef UNIV_HOTBACKUP
 #include "ut0rbt.h"
 #include "os0proc.h"
+#include "log0log.h"
 
 /** @name Modes for buf_page_get_gen */
 /* @{ */
 #define BUF_GET			10	/*!< get always */
 #define	BUF_GET_IF_IN_POOL	11	/*!< get if in pool */
+#define BUF_PEEK_IF_IN_POOL	12	/*!< get if in pool, do not make
+					the block young in the LRU list */
 #define BUF_GET_NO_LATCH	14	/*!< get and bufferfix, but
 					set no latch; we have
 					separated this case, because
@@ -51,6 +54,9 @@ Created 11/5/1995 Heikki Tuuri
 					/*!< Get the page only if it's in the
 					buffer pool, if not then set a watch
 					on the page. */
+#define BUF_GET_POSSIBLY_FREED		16
+					/*!< Like BUF_GET, but do not mind
+					if the file page has been freed. */
 /* @} */
 /** @name Modes for buf_page_get_known_nowait */
 /* @{ */
@@ -271,7 +277,7 @@ Gets the smallest oldest_modification lsn for any page in the pool. Returns
 zero if all modified pages have been flushed to disk.
 @return	oldest modification in pool, zero if none */
 UNIV_INTERN
-ib_uint64_t
+lsn_t
 buf_pool_get_oldest_modification(void);
 /*==================================*/
 
@@ -329,8 +335,7 @@ buf_page_optimistic_get(
 /*====================*/
 	ulint		rw_latch,/*!< in: RW_S_LATCH, RW_X_LATCH */
 	buf_block_t*	block,	/*!< in: guessed block */
-	ib_uint64_t	modify_clock,/*!< in: modify clock value if mode is
-				..._GUESS_ON_CLOCK */
+	ib_uint64_t	modify_clock,/*!< in: modify clock value */
 	const char*	file,	/*!< in: file name */
 	ulint		line,	/*!< in: line where called */
 	mtr_t*		mtr);	/*!< in: mini-transaction */
@@ -402,7 +407,7 @@ buf_page_get_gen(
 	ulint		rw_latch,/*!< in: RW_S_LATCH, RW_X_LATCH, RW_NO_LATCH */
 	buf_block_t*	guess,	/*!< in: guessed block or NULL */
 	ulint		mode,	/*!< in: BUF_GET, BUF_GET_IF_IN_POOL,
-				BUF_GET_NO_LATCH or
+				BUF_PEEK_IF_IN_POOL, BUF_GET_NO_LATCH or
 				BUF_GET_IF_IN_POOL_OR_WATCH */
 	const char*	file,	/*!< in: file name */
 	ulint		line,	/*!< in: line where called */
@@ -557,7 +562,7 @@ Gets the youngest modification log sequence number for a frame.
 Returns zero if not file page or no modification occurred yet.
 @return	newest modification to page */
 UNIV_INLINE
-ib_uint64_t
+lsn_t
 buf_page_get_newest_modification(
 /*=============================*/
 	const buf_page_t*	bpage);	/*!< in: block containing the
@@ -707,12 +712,12 @@ buf_get_latched_pages_number(void);
 /*==============================*/
 #endif /* UNIV_DEBUG */
 /*********************************************************************//**
-Returns the number of pending buf pool ios.
-@return	number of pending I/O operations */
+Returns the number of pending buf pool read ios.
+@return	number of pending read I/O operations */
 UNIV_INTERN
 ulint
-buf_get_n_pending_ios(void);
-/*=======================*/
+buf_get_n_pending_read_ios(void);
+/*============================*/
 /*********************************************************************//**
 Prints info of the buffer i/o. */
 UNIV_INTERN
@@ -1457,13 +1462,13 @@ struct buf_page_struct{
 					should hold: in_free_list
 					== (state == BUF_BLOCK_NOT_USED) */
 #endif /* UNIV_DEBUG */
-	ib_uint64_t	newest_modification;
+	lsn_t		newest_modification;
 					/*!< log sequence number of
 					the youngest modification to
 					this block, zero if not
 					modified. Protected by block
 					mutex */
-	ib_uint64_t	oldest_modification;
+	lsn_t		oldest_modification;
 					/*!< log sequence number of
 					the START of the log entry
 					written of the oldest
@@ -1505,8 +1510,10 @@ struct buf_page_struct{
 	/* @} */
 # if defined UNIV_DEBUG_FILE_ACCESSES || defined UNIV_DEBUG
 	ibool		file_page_was_freed;
-					/*!< this is set to TRUE when fsp
-					frees a page in buffer pool */
+					/*!< this is set to TRUE when
+					fsp frees a page in buffer pool;
+					protected by buf_pool->zip_mutex
+					or buf_block_struct::mutex. */
 # endif /* UNIV_DEBUG_FILE_ACCESSES || UNIV_DEBUG */
 #endif /* !UNIV_HOTBACKUP */
 };
@@ -1847,8 +1854,8 @@ struct buf_pool_struct{
 #if BUF_BUDDY_HIGH != UNIV_PAGE_SIZE
 # error "BUF_BUDDY_HIGH != UNIV_PAGE_SIZE"
 #endif
-#if BUF_BUDDY_LOW > PAGE_ZIP_MIN_SIZE
-# error "BUF_BUDDY_LOW > PAGE_ZIP_MIN_SIZE"
+#if BUF_BUDDY_LOW > UNIV_ZIP_SIZE_MIN
+# error "BUF_BUDDY_LOW > UNIV_ZIP_SIZE_MIN"
 #endif
 	/* @} */
 };

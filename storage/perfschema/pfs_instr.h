@@ -32,8 +32,11 @@ struct PFS_thread_class;
 #include "pfs_stat.h"
 #include "pfs_instr_class.h"
 #include "pfs_events_waits.h"
+#include "pfs_events_stages.h"
+#include "pfs_events_statements.h"
 #include "pfs_server.h"
 #include "lf.h"
+#include "pfs_con_slice.h"
 
 /**
   @addtogroup Performance_schema_buffers
@@ -42,6 +45,7 @@ struct PFS_thread_class;
 
 struct PFS_thread;
 
+/** Base structure for wait instruments. */
 struct PFS_instr
 {
   /** Internal lock. */
@@ -188,10 +192,25 @@ private:
 };
 
 /**
-  @def WAIT_STACK_SIZE
+  @def WAIT_STACK_LOGICAL_SIZE
   Maximum number of nested waits.
 */
-#define WAIT_STACK_SIZE 3
+#define WAIT_STACK_LOGICAL_SIZE 3
+/**
+  @def WAIT_STACK_BOTTOM
+  Maximum number dummy waits records.
+  One dummy record is reserved for the parent stage / statement,
+  at the bottom of the wait stack.
+*/
+#define WAIT_STACK_BOTTOM 1
+/**
+  @def WAIT_STACK_SIZE
+  Physical size of the waits stack
+*/
+#define WAIT_STACK_SIZE (WAIT_STACK_BOTTOM + WAIT_STACK_LOGICAL_SIZE)
+
+/** Max size of the statements stack. */
+extern uint statement_stack_max;
 
 /**
   @def PFS_MAX_ALLOC_RETRY
@@ -200,6 +219,7 @@ private:
 */
 #define PFS_MAX_ALLOC_RETRY 1000
 
+/** The maximun number of passes in @sa PFS_scan. */
 #define PFS_MAX_SCAN_PASS 2
 
 /**
@@ -213,30 +233,48 @@ private:
 struct PFS_scan
 {
 public:
+  /**
+    Initialize a new scan.
+    @param random a random index to start from
+    @param max_size the max size of the interval to scan
+  */
   void init(uint random, uint max_size);
 
+  /**
+    Predicate, has a next pass.
+    @return true if there is a next pass to perform.
+  */
   bool has_pass() const
   { return (m_pass < m_pass_max); }
 
+  /**
+    Iterator, proceed to the next pass.
+  */
   void next_pass()
   { m_pass++; }
   
+  /** First index for this pass. */
   uint first() const
   { return m_first[m_pass]; }
 
+  /** Last index for this pass. */
   uint last() const
   { return m_last[m_pass]; }
 
 private:
+  /** Current pass. */
   uint m_pass;
+  /** Maximum number of passes. */
   uint m_pass_max;
+  /** First element for each pass. */
   uint m_first[PFS_MAX_SCAN_PASS];
+  /** Last element for each pass. */
   uint m_last[PFS_MAX_SCAN_PASS];
 };
 
 
 /** Instrumented thread implementation. @see PSI_thread. */
-struct PFS_thread
+struct PFS_thread : PFS_connection_slice
 {
   static PFS_thread* get_current_thread(void);
 
@@ -266,12 +304,32 @@ struct PFS_thread
   uint m_events_waits_count;
   /**
     Stack of events waits.
-    This member holds the data for the table
-    PERFORMANCE_SCHEMA.EVENTS_WAITS_CURRENT.
-    For most locks, only 1 wait locker is used at a given time.
-    For composite locks, several records are needed:
-    - 1 for a 'logical' wait (for example on the GLOBAL READ LOCK state)
-    - 1 for a 'physical' wait (for example on COND_refresh)
+    This member holds the data for the table PERFORMANCE_SCHEMA.EVENTS_WAITS_CURRENT.
+    Note that stack[0] is a dummy record that represents the parent stage/statement.
+    For example, assuming the following tree:
+    - STAGE ID 100
+      - WAIT ID 101, parent STAGE 100
+        - WAIT ID 102, parent wait 101
+    the data in the stack will be:
+    stack[0].m_event_id= 100, set by the stage instrumentation
+    stack[0].m_event_type= STAGE, set by the stage instrumentation
+    stack[0].m_nesting_event_id= unused
+    stack[0].m_nesting_event_type= unused
+    stack[1].m_event_id= 101
+    stack[1].m_event_type= WAIT
+    stack[1].m_nesting_event_id= stack[0].m_event_id= 100
+    stack[1].m_nesting_event_type= stack[0].m_event_type= STAGE
+    stack[2].m_event_id= 102
+    stack[2].m_event_type= WAIT
+    stack[2].m_nesting_event_id= stack[1].m_event_id= 101
+    stack[2].m_nesting_event_type= stack[1].m_event_type= WAIT
+
+    The whole point of the stack[0] record is to allow this optimization
+    in the code, in the instrumentation for wait events:
+      wait->m_nesting_event_id= (wait-1)->m_event_id;
+      wait->m_nesting_event_type= (wait-1)->m_event_type;
+    This code works for both the top level wait, and nested waits,
+    and works without if conditions, which helps performances.
   */
   PFS_events_waits m_events_waits_stack[WAIT_STACK_SIZE];
   /** True if the circular buffer @c m_waits_history is full. */
@@ -284,12 +342,28 @@ struct PFS_thread
     PERFORMANCE_SCHEMA.EVENTS_WAITS_HISTORY.
   */
   PFS_events_waits *m_waits_history;
+
+  /** True if the circular buffer @c m_stages_history is full. */
+  bool m_stages_history_full;
+  /** Current index in the circular buffer @c m_stages_history. */
+  uint m_stages_history_index;
   /**
-    Per thread waits aggregated statistics.
+    Stages history circular buffer.
     This member holds the data for the table
-    PERFORMANCE_SCHEMA.EVENTS_WAITS_SUMMARY_BY_THREAD_BY_EVENT_NAME.
+    PERFORMANCE_SCHEMA.EVENTS_STAGES_HISTORY.
   */
-  PFS_single_stat *m_instr_class_wait_stats;
+  PFS_events_stages *m_stages_history;
+
+  /** True if the circular buffer @c m_statements_history is full. */
+  bool m_statements_history_full;
+  /** Current index in the circular buffer @c m_statements_history. */
+  uint m_statements_history_index;
+  /**
+    Statements history circular buffer.
+    This member holds the data for the table
+    PERFORMANCE_SCHEMA.EVENTS_STATEMENTS_HISTORY.
+  */
+  PFS_events_statements *m_statements_history;
 
   /** User name. */
   char m_username[USERNAME_LENGTH];
@@ -315,9 +389,17 @@ struct PFS_thread
   const char *m_processlist_info_ptr;
   /** Length of @c m_processlist_info_length. */
   uint m_processlist_info_length;
+
+  PFS_events_stages m_stage_current;
+
+  /** Size of @c m_events_statements_stack. */
+  uint m_events_statements_count;
+  PFS_events_statements *m_statement_stack;
 };
 
 extern PFS_single_stat *global_instr_class_waits_array;
+extern PFS_stage_stat *global_instr_class_stages_array;
+extern PFS_statement_stat *global_instr_class_statements_array;
 
 PFS_mutex *sanitize_mutex(PFS_mutex *unsafe);
 PFS_rwlock *sanitize_rwlock(PFS_rwlock *unsafe);
@@ -368,7 +450,10 @@ extern ulong file_handle_lost;
 extern ulong table_max;
 extern ulong table_lost;
 extern ulong events_waits_history_per_thread;
+extern ulong events_stages_history_per_thread;
+extern ulong events_statements_history_per_thread;
 extern ulong locker_lost;
+extern ulong statement_lost;
 
 /* Exposing the data directly, for iterators. */
 
@@ -381,10 +466,7 @@ extern PFS_file **file_handle_array;
 extern PFS_table *table_array;
 
 void reset_events_waits_by_instance();
-void reset_per_thread_wait_stat();
 void reset_file_instance_io();
-
-void reset_global_wait_stat(void);
 
 void aggregate_all_event_names(PFS_single_stat *from_array,
                                PFS_single_stat *to_array);
@@ -392,7 +474,16 @@ void aggregate_all_event_names(PFS_single_stat *from_array,
                                PFS_single_stat *to_array_1,
                                PFS_single_stat *to_array_2);
 
+void aggregate_all_stages(PFS_stage_stat *from_array,
+                          PFS_stage_stat *to_array);
+
+void aggregate_all_statements(PFS_statement_stat *from_array,
+                              PFS_statement_stat *to_array);
+
 void aggregate_thread(PFS_thread *thread);
+void aggregate_thread_waits(PFS_thread *thread);
+void aggregate_thread_stages(PFS_thread *thread);
+void aggregate_thread_statements(PFS_thread *thread);
 
 /** @} */
 #endif

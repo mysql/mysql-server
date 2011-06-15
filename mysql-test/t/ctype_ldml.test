@@ -347,5 +347,24 @@ FROM t1 GROUP BY a ORDER BY a;
 DROP TABLE t1;
 
 --echo #
+--echo # WL#5624, shift after, using expansion
+--echo #
+SET NAMES utf8 COLLATE utf8_5624_5;
+CREATE TABLE t1 AS SELECT REPEAT(' ', 10) AS a LIMIT 0;
+INSERT INTO t1 VALUES ('0'),('1'),('0z'),(_ucs2 0x0030FF9D);
+INSERT INTO t1 VALUES ('a'),('b'),('c'),('d'),('e'),('f'),('g'),('h'),('i');
+INSERT INTO t1 VALUES ('j'),('k'),('l'),('m'),('n'),('o'),('p'),('q'),('r');
+INSERT INTO t1 VALUES ('s'),('t'),('u'),('v'),('w'),('x'),('y'),('z');
+INSERT INTO t1 VALUES ('aa'),('aaa');
+INSERT INTO t1 VALUES ('A'),('B'),('C'),('D'),('E'),('F'),('G'),('H'),('I');
+INSERT INTO t1 VALUES ('J'),('K'),('L'),('M'),('N'),('O'),('P'),('Q'),('R');
+INSERT INTO t1 VALUES ('S'),('T'),('U'),('V'),('W'),('X'),('Y'),('Z');
+INSERT INTO t1 VALUES ('AA'),('AAA');
+
+SELECT a, HEX(WEIGHT_STRING(a)) FROM t1 ORDER BY a, LENGTH(a), BINARY(a);
+DROP TABLE t1;
+
+
+--echo #
 --echo # End of WL#5624
 --echo #

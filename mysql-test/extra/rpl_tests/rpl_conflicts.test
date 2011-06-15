@@ -93,11 +93,11 @@ if (`SELECT @@global.binlog_format != 'ROW' OR @@global.slave_exec_mode = 'STRIC
   source include/wait_for_slave_sql_error.inc;
 
   --let $err= query_get_value("SHOW SLAVE STATUS", Last_SQL_Error, 1)
-  --let $err= `SELECT SUBSTRING("$err" FROM 17)`
   --replace_regex /end_log_pos [0-9]+/end_log_pos END_LOG_POS/
   --disable_query_log
   --eval SELECT "$err" as 'Last_SQL_Error (expected "duplicate key" error)'
   --enable_query_log
+  call mtr.add_suppression("Slave SQL.*Duplicate entry .1. for key .PRIMARY.* Error_code: 1062");
 
   SELECT * FROM t1;
 
@@ -109,9 +109,7 @@ if (`SELECT @@global.binlog_format != 'ROW' OR @@global.slave_exec_mode = 'STRIC
 
 --echo ---- Sync slave and verify that there is no error ----
 sync_with_master;
-let $err= query_get_value("SHOW SLAVE STATUS", Last_SQL_Error, 1);
-let $err= `SELECT SUBSTRING("$err" FROM 17)`;
---echo Last_SQL_Error = '$err' (expected no error)
+--source include/check_slave_no_error.inc
 SELECT * FROM t1;
 
 
@@ -144,11 +142,11 @@ connection slave;
 # replication continues.
 if (`SELECT @@global.binlog_format = 'ROW' AND @@global.slave_exec_mode = 'STRICT'`) {
   --echo ---- Wait until slave stops with an error ----
+  call mtr.add_suppression("Slave SQL.*Can.t find record in .t1., Error_code: 1032");
   let $slave_sql_errno= 1032; # ER_KEY_NOT_FOUND
   source include/wait_for_slave_sql_error.inc;
 
   --let $err= query_get_value("SHOW SLAVE STATUS", Last_SQL_Error, 1)
-  --let $err= `SELECT SUBSTRING("$err" FROM 17)`
   --replace_regex /end_log_pos [0-9]+/end_log_pos END_LOG_POS/
   --disable_query_log
   --eval SELECT "$err" as 'Last_SQL_Error (expected "duplicate key" error)'
@@ -166,9 +164,7 @@ if (`SELECT @@global.binlog_format = 'ROW' AND @@global.slave_exec_mode = 'STRIC
 # The slave should sync ok, and SHOW SLAVE STATUS should give no
 # error.
 sync_with_master;
-let $err= query_get_value("SHOW SLAVE STATUS", Last_SQL_Error, 1);
-let $err= `SELECT SUBSTRING("$err" FROM 17)`;
---echo Last_SQL_Error = $err (expected no error)
+--source include/check_slave_no_error.inc
 SELECT * FROM t1;
 
 

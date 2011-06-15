@@ -17,10 +17,6 @@
    51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA */
 
 
-#ifdef USE_PRAGMA_INTERFACE
-#pragma interface			/* gcc class interface */
-#endif
-
 #include "my_time.h"                            /* my_time_t */
 #include "mysql_time.h"                         /* MYSQL_TIME */
 #include "sql_list.h"                           /* Sql_alloc */

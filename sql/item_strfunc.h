@@ -1,7 +1,7 @@
 #ifndef ITEM_STRFUNC_INCLUDED
 #define ITEM_STRFUNC_INCLUDED
 
-/* Copyright (c) 2000, 2010, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2011, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -13,15 +13,11 @@
    GNU General Public License for more details.
 
    You should have received a copy of the GNU General Public License
-   along with this program; if not, write to the Free Software Foundation,
-   51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA */
+   along with this program; if not, write to the Free Software
+   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
 
 /* This file defines all string functions */
-
-#ifdef USE_PRAGMA_INTERFACE
-#pragma interface			/* gcc class implementation */
-#endif
 
 class MY_LOCALE;
 
@@ -51,6 +47,7 @@ public:
   enum Item_result result_type () const { return STRING_RESULT; }
   void left_right_max_length();
   bool fix_fields(THD *thd, Item **ref);
+  String *val_str_from_val_str_ascii(String *str, String *str2);
 };
 
 
@@ -66,8 +63,10 @@ public:
   Item_str_ascii_func(Item *a) :Item_str_func(a) {}
   Item_str_ascii_func(Item *a,Item *b) :Item_str_func(a,b) {}
   Item_str_ascii_func(Item *a,Item *b,Item *c) :Item_str_func(a,b,c) {}
-  String *val_str_convert_from_ascii(String *str, String *ascii_buf);
-  String *val_str(String *str);
+  String *val_str(String *str)
+  {
+    return val_str_from_val_str_ascii(str, &ascii_buf);
+  }
   virtual String *val_str_ascii(String *)= 0;
 };
 
@@ -382,7 +381,9 @@ public:
   {
     maybe_null=1;
     /* 9 = MAX ((8- (arg_len % 8)) + 1) */
-    max_length = args[0]->max_length - 9;
+    max_length= args[0]->max_length;
+    if (max_length >= 9U)
+      max_length-= 9U;
   }
   const char *func_name() const { return "des_decrypt"; }
 };
@@ -449,7 +450,7 @@ class Item_func_sysconst :public Item_str_func
 public:
   Item_func_sysconst()
   { collation.set(system_charset_info,DERIVATION_SYSCONST); }
-  Item *safe_charset_converter(CHARSET_INFO *tocs);
+  Item *safe_charset_converter(const CHARSET_INFO *tocs);
   /*
     Used to create correct Item name in new converted item in
     safe_charset_converter, return string representation of this function
@@ -592,7 +593,8 @@ class Item_func_char :public Item_str_func
 public:
   Item_func_char(List<Item> &list) :Item_str_func(list)
   { collation.set(&my_charset_bin); }
-  Item_func_char(List<Item> &list, CHARSET_INFO *cs) :Item_str_func(list)
+  Item_func_char(List<Item> &list, const CHARSET_INFO *cs) :
+  Item_str_func(list)
   { collation.set(cs); }  
   String *val_str(String *);
   void fix_length_and_dec() 
@@ -778,22 +780,6 @@ class Item_func_export_set: public Item_str_func
   const char *func_name() const { return "export_set"; }
 };
 
-class Item_func_inet_ntoa : public Item_str_func
-{
-public:
-  Item_func_inet_ntoa(Item *a) :Item_str_func(a)
-    {
-    }
-  String* val_str(String* str);
-  const char *func_name() const { return "inet_ntoa"; }
-  void fix_length_and_dec() 
-  { 
-    decimals= 0; 
-    fix_length_and_charset(3 * 8 + 7, default_charset()); 
-    maybe_null= 1;
-  }
-};
-
 class Item_func_quote :public Item_str_func
 {
   String tmp_value;
@@ -803,9 +789,10 @@ public:
   String *val_str(String *);
   void fix_length_and_dec()
   {
-    ulonglong max_result_length= (ulonglong) args[0]->max_length * 2 + 2;
-    max_length= (uint32) min(max_result_length, MAX_BLOB_WIDTH);
     collation.set(args[0]->collation);
+    ulonglong max_result_length= (ulonglong) args[0]->max_length * 2 +
+                                  2 * collation.collation->mbmaxlen;
+    max_length= (uint32) min(max_result_length, MAX_BLOB_WIDTH);
   }
 };
 
@@ -815,11 +802,11 @@ class Item_func_conv_charset :public Item_str_func
   String tmp_value;
 public:
   bool safe;
-  CHARSET_INFO *conv_charset; // keep it public
-  Item_func_conv_charset(Item *a, CHARSET_INFO *cs) :Item_str_func(a) 
+  const CHARSET_INFO *conv_charset; // keep it public
+  Item_func_conv_charset(Item *a, const CHARSET_INFO *cs) :Item_str_func(a) 
   { conv_charset= cs; use_cached_value= 0; safe= 0; }
-  Item_func_conv_charset(Item *a, CHARSET_INFO *cs, bool cache_if_const) 
-    :Item_str_func(a) 
+  Item_func_conv_charset(Item *a, const CHARSET_INFO *cs,
+                         bool cache_if_const) :Item_str_func(a)
   {
     DBUG_ASSERT(args[0]->fixed);
     conv_charset= cs;

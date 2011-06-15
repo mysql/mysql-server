@@ -1,4 +1,4 @@
-/* Copyright (C) 2000 MySQL AB
+/* Copyright (c) 2000, 2011, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -11,7 +11,7 @@
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
-   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
+   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
 /*
   Code for handling red-black (balanced) binary trees.
@@ -85,7 +85,7 @@ static int test_rb_tree(TREE_ELEMENT *element);
 
 void init_tree(TREE *tree, ulong default_alloc_size, ulong memory_limit,
                int size, qsort_cmp2 compare, my_bool with_delete,
-	       tree_element_free free_element, void *custom_arg)
+	       tree_element_free free_element, const void *custom_arg)
 {
   DBUG_ENTER("init_tree");
   DBUG_PRINT("enter",("tree: 0x%lx  size: %d", (long) tree, size));
@@ -93,7 +93,7 @@ void init_tree(TREE *tree, ulong default_alloc_size, ulong memory_limit,
   if (default_alloc_size < DEFAULT_ALLOC_SIZE)
     default_alloc_size= DEFAULT_ALLOC_SIZE;
   default_alloc_size= MY_ALIGN(default_alloc_size, DEFAULT_ALIGN_SIZE);
-  bzero((uchar*) &tree->null_element,sizeof(tree->null_element));
+  memset(&tree->null_element, 0, sizeof(tree->null_element));
   tree->root= &tree->null_element;
   tree->compare=compare;
   tree->size_of_element=size > 0 ? (uint) size : 0;
@@ -197,7 +197,7 @@ static void delete_tree_element(TREE *tree, TREE_ELEMENT *element)
 */
 
 TREE_ELEMENT *tree_insert(TREE *tree, void *key, uint key_size, 
-                          void* custom_arg)
+                          const void* custom_arg)
 {
   int cmp;
   TREE_ELEMENT *element,***parent;
@@ -270,7 +270,7 @@ TREE_ELEMENT *tree_insert(TREE *tree, void *key, uint key_size,
   return element;
 }
 
-int tree_delete(TREE *tree, void *key, uint key_size, void *custom_arg)
+int tree_delete(TREE *tree, void *key, uint key_size, const void *custom_arg)
 {
   int cmp,remove_colour;
   TREE_ELEMENT *element,***parent, ***org_parent, *nod;
@@ -332,7 +332,7 @@ int tree_delete(TREE *tree, void *key, uint key_size, void *custom_arg)
 }
 
 
-void *tree_search(TREE *tree, void *key, void *custom_arg)
+void *tree_search(TREE *tree, void *key, const void *custom_arg)
 {
   int cmp;
   TREE_ELEMENT *element=tree->root;
@@ -353,7 +353,7 @@ void *tree_search(TREE *tree, void *key, void *custom_arg)
 
 void *tree_search_key(TREE *tree, const void *key, 
                       TREE_ELEMENT **parents, TREE_ELEMENT ***last_pos,
-                      enum ha_rkey_function flag, void *custom_arg)
+                      enum ha_rkey_function flag, const void *custom_arg)
 {
   int cmp;
   TREE_ELEMENT *element= tree->root;
@@ -476,7 +476,7 @@ void *tree_search_next(TREE *tree, TREE_ELEMENT ***last_pos, int l_offs,
   (each path from root to leaf has the same length)
 */
 ha_rows tree_record_pos(TREE *tree, const void *key, 
-			enum ha_rkey_function flag, void *custom_arg)
+			enum ha_rkey_function flag, const void *custom_arg)
 {
   int cmp;
   TREE_ELEMENT *element= tree->root;

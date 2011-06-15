@@ -1,4 +1,4 @@
-/* Copyright (c) 2005, 2010, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2005, 2011, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -10,8 +10,8 @@
    GNU General Public License for more details.
 
    You should have received a copy of the GNU General Public License
-   along with this program; if not, write to the Free Software Foundation,
-   51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA */
+   along with this program; if not, write to the Free Software
+   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
 #include <my_global.h>
 #include "sql_priv.h"
@@ -99,13 +99,14 @@ int my_decimal2string(uint mask, const my_decimal *d,
     UNSIGNED. Hence the buffer for a ZEROFILLed value is the length
     the user requested, plus one for a possible decimal point, plus
     one if the user only wanted decimal places, but we force a leading
-    zero on them. Because the type is implicitly UNSIGNED, we do not
-    need to reserve a character for the sign. For all other cases,
-    fixed_prec will be 0, and my_decimal_string_length() will be called
-    instead to calculate the required size of the buffer.
+    zero on them, plus one for the '\0' terminator. Because the type
+    is implicitly UNSIGNED, we do not need to reserve a character for
+    the sign. For all other cases, fixed_prec will be 0, and
+    my_decimal_string_length() will be called instead to calculate the
+    required size of the buffer.
   */
   int length= (fixed_prec
-               ? (fixed_prec + ((fixed_prec == fixed_dec) ? 1 : 0) + 1)
+               ? (fixed_prec + ((fixed_prec == fixed_dec) ? 1 : 0) + 1 + 1)
                : my_decimal_string_length(d));
   int result;
   if (str->alloc(length))
@@ -145,7 +146,7 @@ int my_decimal2string(uint mask, const my_decimal *d,
 bool
 str_set_decimal(uint mask, const my_decimal *val,
                 uint fixed_prec, uint fixed_dec, char filler,
-                String *str, CHARSET_INFO *cs)
+                String *str, const CHARSET_INFO *cs)
 {
   if (!(cs->state & MY_CS_NONASCII))
   {
@@ -232,7 +233,7 @@ int my_decimal2binary(uint mask, const my_decimal *d, uchar *bin, int prec,
 */
 
 int str2my_decimal(uint mask, const char *from, uint length,
-                   CHARSET_INFO *charset, my_decimal *decimal_value)
+                   const CHARSET_INFO *charset, my_decimal *decimal_value)
 {
   char *end, *from_end;
   int err;
@@ -332,7 +333,7 @@ print_decimal_buff(const my_decimal *dec, const uchar* ptr, int length)
 
 const char *dbug_decimal_as_string(char *buff, const my_decimal *val)
 {
-  int length= DECIMAL_MAX_STR_LENGTH;
+  int length= DECIMAL_MAX_STR_LENGTH + 1;     /* minimum size for buff */
   if (!val)
     return "NULL";
   (void)decimal2string((decimal_t*) val, buff, &length, 0,0,0);

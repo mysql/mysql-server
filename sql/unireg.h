@@ -1,7 +1,7 @@
 #ifndef UNIREG_INCLUDED
 #define UNIREG_INCLUDED
 
-/* Copyright (c) 2000, 2010, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2011, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -56,8 +56,6 @@ typedef struct st_ha_create_information HA_CREATE_INFO;
 #define ER_THD_OR_DEFAULT(thd,X) ((thd) ? ER_THD(thd, X) : ER_DEFAULT(X))
 
 
-#define ERRMAPP 1				/* Errormap f|r my_error */
-
 #define ME_INFO (ME_HOLDTANG+ME_OLDWIN+ME_NOREFRESH)
 #define ME_ERROR (ME_BELL+ME_OLDWIN+ME_NOREFRESH)
 #define MYF_RW MYF(MY_WME+MY_NABP)		/* Vid my_read & my_write */
@@ -82,7 +80,7 @@ typedef struct st_ha_create_information HA_CREATE_INFO;
 #define cmp_record(A,B) memcmp((A)->record[0],(A)->B,(size_t) (A)->s->reclength)
 #define empty_record(A) { \
                           restore_record((A),s->default_values); \
-                          bfill((A)->null_flags,(A)->s->null_bytes,255);\
+                          memset((A)->null_flags, 255, (A)->s->null_bytes);\
                         }
 
 	/* Defines for use with openfrm, openprt and openfrd */

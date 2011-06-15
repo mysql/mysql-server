@@ -90,7 +90,7 @@ FILE *d;
  */
 static void
 s_print(charset, g, d)
-CHARSET_INFO *charset;
+const CHARSET_INFO *charset;
 register struct re_guts *g;
 FILE *d;
 {
@@ -233,7 +233,7 @@ FILE *d;
  */
 static char *			/* -> representation */
 regchar(charset,ch,buf)
-CHARSET_INFO *charset;
+const CHARSET_INFO *charset;
 int ch;
 char *buf;
 {

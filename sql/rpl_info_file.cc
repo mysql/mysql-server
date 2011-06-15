@@ -33,7 +33,7 @@ Rpl_info_file::Rpl_info_file(const int nparam, const char* param_info_fname)
 {
   DBUG_ENTER("Rpl_info_file::Rpl_info_file");
 
-  bzero((char*) &info_file, sizeof(info_file));
+  memset(&info_file, 0, sizeof(info_file));
   fn_format(info_fname, param_info_fname, mysql_data_home, "", 4 + 32);
 
   DBUG_VOID_RETURN;
@@ -54,7 +54,11 @@ int Rpl_info_file::do_init_info()
       the old descriptor and re-create the old file
     */
     if (info_fd >= 0)
+    {
+      if (my_b_inited(&info_file))
+        end_io_cache(&info_file);
       my_close(info_fd, MYF(MY_WME));
+    }
     if ((info_fd = my_open(info_fname, O_CREAT|O_RDWR|O_BINARY, MYF(MY_WME))) < 0)
     {
       sql_print_error("Failed to create a new info file (\
@@ -122,7 +126,26 @@ int Rpl_info_file::do_prepare_info_for_write()
 
 int Rpl_info_file::do_check_info()
 {
-  return (access(info_fname,F_OK));
+  /*
+    This function checks if the file exists and in other modules
+    further actions are taken based on this. If the file exists
+    but users do not have the appropriated rights to access it,
+    other modules will assume that the file does not exist and
+    will take the appropriate actions and most likely will fail
+    safely after trying to create it. 
+
+    This is behavior is not a problem. However, in other modules,
+    it is not possible to print out what is the root of the
+    failure as a detailed error code is not returned. For that
+    reason, we print out such information in here.
+  */
+  if (my_access(info_fname, F_OK | R_OK | W_OK))
+    sql_print_information("Info file %s cannot be accessed (errno %d)."
+                          " Most likely this is a new slave or you are "
+                          " changing the repository type.", info_fname,
+                          errno);
+  
+  return my_access(info_fname, F_OK);
 }
 
 int Rpl_info_file::do_flush_info(const bool force)
@@ -151,7 +174,8 @@ void Rpl_info_file::do_end_info()
 
   if (info_fd >= 0)
   {
-    end_io_cache(&info_file);
+    if (my_b_inited(&info_file))
+      end_io_cache(&info_file);
     my_close(info_fd, MYF(MY_WME));
     info_fd = -1;
   }
@@ -291,6 +315,11 @@ char* Rpl_info_file::do_get_description_info()
 }
 
 bool Rpl_info_file::do_is_transactional()
+{
+  return FALSE;
+}
+
+bool Rpl_info_file::do_update_is_transactional()
 {
   return FALSE;
 }

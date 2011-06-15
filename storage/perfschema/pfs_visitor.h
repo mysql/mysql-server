@@ -205,6 +205,44 @@ public:
 };
 
 /**
+  A concrete connection visitor that aggregates
+  stage statistics.
+*/
+class PFS_connection_stage_visitor : public PFS_connection_visitor
+{
+public:
+  /** Constructor. */
+  PFS_connection_stage_visitor(PFS_stage_class *klass);
+  virtual ~PFS_connection_stage_visitor();
+  virtual void visit_global();
+  virtual void visit_thread(PFS_thread *pfs);
+
+  /** EVENT_NAME instrument index. */
+  uint m_index;
+  /** Stage statistic collected. */
+  PFS_stage_stat m_stat;
+};
+
+/**
+  A concrete connection visitor that aggregates
+  statement statistics.
+*/
+class PFS_connection_statement_visitor : public PFS_connection_visitor
+{
+public:
+  /** Constructor. */
+  PFS_connection_statement_visitor(PFS_statement_class *klass);
+  virtual ~PFS_connection_statement_visitor();
+  virtual void visit_global();
+  virtual void visit_thread(PFS_thread *pfs);
+
+  /** EVENT_NAME instrument index. */
+  uint m_index;
+  /** Statement statistic collected. */
+  PFS_statement_stat m_stat;
+};
+
+/**
   A concrete instance visitor that aggregates
   wait statistics.
 */

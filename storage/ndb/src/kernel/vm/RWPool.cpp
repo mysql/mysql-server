@@ -21,7 +21,7 @@
 
 RWPool::RWPool() 
 {
-  bzero(this, sizeof(* this));
+  memset(this, 0, sizeof(* this));
   m_current_pos = RWPage::RWPAGE_WORDS;
   m_current_first_free = REC_NIL;
   m_first_free_page = RNIL;

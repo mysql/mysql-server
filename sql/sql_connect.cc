@@ -1,4 +1,4 @@
-/* Copyright (c) 2007, 2010, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2007, 2011, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -20,9 +20,6 @@
 
 #include "my_global.h"
 #include "sql_priv.h"
-#ifndef __WIN__
-#include <netdb.h>        // getservbyname, servent
-#endif
 #include "sql_audit.h"
 #include "sql_connect.h"
 #include "my_global.h"
@@ -370,8 +367,23 @@ void reset_mqh(LEX_USER *lu, bool get_them= 0)
 }
 
 
-void thd_init_client_charset(THD *thd, uint cs_number)
+/**
+  Set thread character set variables from the given ID
+
+  @param  thd         thread handle
+  @param  cs_number   character set and collation ID
+
+  @retval  0  OK; character_set_client, collation_connection and
+              character_set_results are set to the new value,
+              or to the default global values.
+
+  @retval  1  error, e.g. the given ID is not supported by parser.
+              Corresponding SQL error is sent.
+*/
+
+bool thd_init_client_charset(THD *thd, uint cs_number)
 {
+  CHARSET_INFO *cs;
   /*
    Use server character set and collation if
    - opt_character_set_client_handshake is not set
@@ -380,10 +392,10 @@ void thd_init_client_charset(THD *thd, uint cs_number)
    - client character set doesn't exists in server
   */
   if (!opt_character_set_client_handshake ||
-      !(thd->variables.character_set_client= get_charset(cs_number, MYF(0))) ||
+      !(cs= get_charset(cs_number, MYF(0))) ||
       !my_strcasecmp(&my_charset_latin1,
                      global_system_variables.character_set_client->name,
-                     thd->variables.character_set_client->name))
+                     cs->name))
   {
     thd->variables.character_set_client=
       global_system_variables.character_set_client;
@@ -394,10 +406,18 @@ void thd_init_client_charset(THD *thd, uint cs_number)
   }
   else
   {
+    if (!is_supported_parser_charset(cs))
+    {
+      /* Disallow non-supported parser character sets: UCS2, UTF16, UTF32 */
+      my_error(ER_WRONG_VALUE_FOR_VAR, MYF(0), "character_set_client",
+               cs->csname);
+      return true;
+    }    
     thd->variables.character_set_results=
       thd->variables.collation_connection= 
-      thd->variables.character_set_client;
+      thd->variables.character_set_client= cs;
   }
+  return false;
 }
 
 
@@ -443,7 +463,7 @@ static int check_connection(THD *thd)
 
     if (vio_peer_addr(net->vio, ip, &thd->peer_port, NI_MAXHOST))
     {
-      my_error(ER_BAD_HOST_ERROR, MYF(0), thd->main_security_ctx.host_or_ip);
+      my_error(ER_BAD_HOST_ERROR, MYF(0));
       return 1;
     }
     if (!(thd->main_security_ctx.ip= my_strdup(ip,MYF(MY_WME))))
@@ -454,7 +474,7 @@ static int check_connection(THD *thd)
       if (ip_to_hostname(&net->vio->remote, thd->main_security_ctx.ip,
                          &thd->main_security_ctx.host, &connect_errors))
       {
-        my_error(ER_BAD_HOST_ERROR, MYF(0), ip);
+        my_error(ER_BAD_HOST_ERROR, MYF(0));
         return 1;
       }
 
@@ -490,7 +510,7 @@ static int check_connection(THD *thd)
     thd->main_security_ctx.host_or_ip= thd->main_security_ctx.host;
     thd->main_security_ctx.ip= 0;
     /* Reset sin_addr */
-    bzero((char*) &net->vio->remote, sizeof(net->vio->remote));
+    memset(&net->vio->remote, 0, sizeof(net->vio->remote));
   }
   vio_keepalive(net->vio, TRUE);
   
@@ -611,7 +631,8 @@ void end_connection(THD *thd)
                         thd->thread_id,(thd->db ? thd->db : "unconnected"),
                         sctx->user ? sctx->user : "unauthenticated",
                         sctx->host_or_ip,
-                        (thd->stmt_da->is_error() ? thd->stmt_da->message() :
+                        (thd->get_stmt_da()->is_error() ?
+                         thd->get_stmt_da()->message() :
                          ER(ER_UNKNOWN_ERROR)));
     }
   }
@@ -649,7 +670,7 @@ void prepare_new_connection_state(THD* thd)
                         thd->thread_id,(thd->db ? thd->db : "unconnected"),
                         sctx->user ? sctx->user : "unauthenticated",
                         sctx->host_or_ip, "init_connect command failed");
-      sql_print_warning("%s", thd->stmt_da->message());
+      sql_print_warning("%s", thd->get_stmt_da()->message());
     }
     thd->proc_info=0;
     thd->set_time();
@@ -683,6 +704,32 @@ pthread_handler_t handle_one_connection(void *arg)
 
   do_handle_one_connection(thd);
   return 0;
+}
+
+bool thd_prepare_connection(THD *thd)
+{
+  bool rc;
+  lex_start(thd);
+  rc= login_connection(thd);
+  MYSQL_AUDIT_NOTIFY_CONNECTION_CONNECT(thd);
+  if (rc)
+    return rc;
+
+  MYSQL_CONNECTION_START(thd->thread_id, &thd->security_ctx->priv_user[0],
+                         (char *) thd->security_ctx->host_or_ip);
+
+  prepare_new_connection_state(thd);
+  return FALSE;
+}
+
+bool thd_is_connection_alive(THD *thd)
+{
+  NET *net= &thd->net;
+  if (!net->error &&
+      net->vio != 0 &&
+      !(thd->killed == THD::KILL_CONNECTION))
+    return TRUE;
+  return FALSE;
 }
 
 void do_handle_one_connection(THD *thd_arg)
@@ -727,22 +774,13 @@ void do_handle_one_connection(THD *thd_arg)
 
   for (;;)
   {
-    NET *net= &thd->net;
     bool rc;
 
-    lex_start(thd);
-    rc= login_connection(thd);
-    MYSQL_AUDIT_NOTIFY_CONNECTION_CONNECT(thd);
+    rc= thd_prepare_connection(thd);
     if (rc)
       goto end_thread;
 
-    MYSQL_CONNECTION_START(thd->thread_id, &thd->security_ctx->priv_user[0],
-                           (char *) thd->security_ctx->host_or_ip);
-
-    prepare_new_connection_state(thd);
-
-    while (!net->error && net->vio != 0 &&
-           !(thd->killed == THD::KILL_CONNECTION))
+    while (thd_is_connection_alive(thd))
     {
       mysql_audit_release(thd);
       if (do_command(thd))

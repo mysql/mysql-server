@@ -618,18 +618,19 @@ rec_t*
 page_rec_find_owner_rec(
 /*====================*/
 	rec_t*	rec);	/*!< in: the physical record */
+#ifndef UNIV_HOTBACKUP
 /***********************************************************************//**
-This is a low-level operation which is used in a database index creation
-to update the page number of a created B-tree to a data dictionary
-record. */
-UNIV_INTERN
+Write a 32-bit field in a data dictionary record. */
+UNIV_INLINE
 void
-page_rec_write_index_page_no(
-/*=========================*/
-	rec_t*	rec,	/*!< in: record to update */
+page_rec_write_field(
+/*=================*/
+	rec_t*	rec,	/*!< in/out: record to update */
 	ulint	i,	/*!< in: index of the field to update */
-	ulint	page_no,/*!< in: value to write */
-	mtr_t*	mtr);	/*!< in: mtr */
+	ulint	val,	/*!< in: value to write */
+	mtr_t*	mtr)	/*!< in/out: mini-transaction */
+	__attribute__((nonnull));
+#endif /* !UNIV_HOTBACKUP */
 /************************************************************//**
 Returns the maximum combined size of records which can be inserted on top
 of record heap.
@@ -952,7 +953,7 @@ UNIV_INTERN
 ibool
 page_rec_validate(
 /*==============*/
-	rec_t*		rec,	/*!< in: physical record */
+	const rec_t*	rec,	/*!< in: physical record */
 	const ulint*	offsets);/*!< in: array returned by rec_get_offsets() */
 /***************************************************************//**
 Checks that the first directory slot points to the infimum record and
@@ -972,7 +973,7 @@ UNIV_INTERN
 ibool
 page_simple_validate_old(
 /*=====================*/
-	page_t*	page);	/*!< in: old-style index page */
+	const page_t*	page);	/*!< in: index page in ROW_FORMAT=REDUNDANT */
 /***************************************************************//**
 This function checks the consistency of an index page when we do not
 know the index. This is also resilient so that this should never crash
@@ -982,7 +983,7 @@ UNIV_INTERN
 ibool
 page_simple_validate_new(
 /*=====================*/
-	page_t*	block);	/*!< in: new-style index page */
+	const page_t*	page);	/*!< in: index page in ROW_FORMAT!=REDUNDANT */
 /***************************************************************//**
 This function checks the consistency of an index page.
 @return	TRUE if ok */
@@ -990,7 +991,7 @@ UNIV_INTERN
 ibool
 page_validate(
 /*==========*/
-	page_t*		page,	/*!< in: index page */
+	const page_t*	page,	/*!< in: index page */
 	dict_index_t*	index);	/*!< in: data dictionary index containing
 				the page record type definition */
 /***************************************************************//**

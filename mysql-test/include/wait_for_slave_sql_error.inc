@@ -61,7 +61,7 @@ if ($show_slave_sql_error)
 {
   --let $_wait_for_slave_sql_error_error= query_get_value("SHOW SLAVE STATUS", Last_SQL_Error, 1)
   # remove timestamp and mask absolute path
-  --let $_wait_for_slave_sql_error_error= `SELECT REPLACE(SUBSTR("$_wait_for_slave_sql_error_error", 17), '$MYSQL_TEST_DIR', 'MYSQL_TEST_DIR')`
+  --let $_wait_for_slave_sql_error_error= `SELECT REPLACE("$_wait_for_slave_sql_error_error", '$MYSQL_TEST_DIR', 'MYSQL_TEST_DIR')`
   --echo Last_SQL_Error = '$_wait_for_slave_sql_error_error'
 }
 

@@ -817,3 +817,68 @@ DROP TABLE t1, t2;
 
 --echo # End BUG#56367
 
+--echo #
+--echo # Bug#59833 - materialization=on/off leads to different result set
+--echo #             when using IN
+--echo #
+
+CREATE TABLE t1 (
+  pk int NOT NULL,
+  f1 int DEFAULT NULL,
+  PRIMARY KEY (pk)
+) ENGINE=MyISAM;
+
+CREATE TABLE t2 (
+  pk int NOT NULL,
+  f1 int DEFAULT NULL,
+  PRIMARY KEY (pk)
+) ENGINE=MyISAM;
+
+INSERT INTO t1 VALUES (10,0);
+INSERT INTO t2 VALUES (10,0),(11,0);
+
+let $query=
+SELECT * FROM t1 JOIN t2 USING (f1)
+WHERE t1.f1 IN (SELECT t1.pk FROM t1 ORDER BY t1.f1);
+
+eval explain $query;
+eval $query;
+
+DROP TABLE t1, t2;
+
+--echo # End Bug#59833
+
+--echo #
+--echo # Bug#11852644 - CRASH IN ITEM_REF::SAVE_IN_FIELD ON SELECT DISTINCT
+--echo #
+
+CREATE TABLE t1 (
+  col_varchar_key varchar(1) DEFAULT NULL,
+  col_varchar_nokey varchar(1) DEFAULT NULL,
+  KEY col_varchar_key (col_varchar_key)) 
+;
+
+INSERT INTO t1 VALUES
+('v','v'),('r','r');
+
+CREATE TABLE t2 (
+  col_varchar_key varchar(1) DEFAULT NULL,
+  col_varchar_nokey varchar(1) DEFAULT NULL,
+  KEY col_varchar_key(col_varchar_key)) 
+;
+
+INSERT INTO t2 VALUES
+('r','r'),('c','c');
+
+CREATE VIEW v3 AS SELECT * FROM t2;
+
+SELECT DISTINCT alias2.col_varchar_key 
+FROM t1 AS alias1 JOIN v3 AS alias2 
+ON alias2.col_varchar_key = alias1.col_varchar_key
+HAVING col_varchar_key IN (SELECT col_varchar_nokey FROM t2)
+;
+
+DROP TABLE t1, t2;
+DROP VIEW v3;
+
+--echo # End Bug#11852644

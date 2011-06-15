@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2010 Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2011, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -11,7 +11,7 @@
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
-   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
+   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
 /* sql_yacc.yy */
 
@@ -55,6 +55,7 @@
 #include "sql_truncate.h"                      // Sql_cmd_truncate_table
 #include "sql_admin.h"                         // Sql_cmd_analyze/Check..._table
 #include "sql_partition_admin.h"               // Sql_cmd_alter_table_*_part.
+#include "sql_handler.h"                       // Sql_cmd_handler_*
 #include "sql_signal.h"
 #include "event_parse_data.h"
 #include <myisam.h>
@@ -752,10 +753,11 @@ static bool add_create_index (LEX *lex, Key::Keytype type,
   handlerton *db_type;
   enum row_type row_type;
   enum ha_rkey_function ha_rkey_mode;
+  enum enum_ha_read_modes ha_read_mode;
   enum enum_tx_isolation tx_isolation;
   enum Cast_target cast_type;
   enum Item_udftype udf_type;
-  CHARSET_INFO *charset;
+  const CHARSET_INFO *charset;
   thr_lock_type lock_type;
   interval_type interval, interval_time_st;
   timestamp_type date_time_type;
@@ -780,10 +782,10 @@ bool my_yyoverflow(short **a, YYSTYPE **b, ulong *yystacksize);
 
 %pure_parser                                    /* We have threads */
 /*
-  Currently there are 167 shift/reduce conflicts.
+  Currently there are 164 shift/reduce conflicts.
   We should not introduce new conflicts any more.
 */
-%expect 167
+%expect 164
 
 /*
    Comments for TOKENS.
@@ -1171,9 +1173,9 @@ bool my_yyoverflow(short **a, YYSTYPE **b, ulong *yystacksize);
 %token  PARAM_MARKER
 %token  PARSER_SYM
 %token  PARTIAL                       /* SQL-2003-N */
-%token  PARTITIONING_SYM
-%token  PARTITIONS_SYM
 %token  PARTITION_SYM                 /* SQL-2003-R */
+%token  PARTITIONS_SYM
+%token  PARTITIONING_SYM
 %token  PASSWORD
 %token  PHASE_SYM
 %token  PLUGINS_SYM
@@ -1507,7 +1509,7 @@ bool my_yyoverflow(short **a, YYSTYPE **b, ulong *yystacksize);
         btree_or_rtree
 
 %type <string_list>
-        using_list
+        using_list opt_use_partition use_partition
 
 %type <key_part>
         key_part
@@ -1530,6 +1532,9 @@ bool my_yyoverflow(short **a, YYSTYPE **b, ulong *yystacksize);
 %type <tx_isolation> isolation_types
 
 %type <ha_rkey_mode> handler_rkey_mode
+  
+%type <ha_read_mode> handler_read_or_scan handler_scan_function
+        handler_rkey_function
 
 %type <cast_type> cast_type
 
@@ -1586,7 +1591,6 @@ bool my_yyoverflow(short **a, YYSTYPE **b, ulong *yystacksize);
         equal optional_braces
         opt_mi_check_type opt_to mi_check_types normal_join
         table_to_table_list table_to_table opt_table_list opt_as
-        handler_rkey_function handler_read_or_scan
         single_multi table_wild_list table_wild_one opt_wild
         union_clause union_list
         precision subselect_start opt_and charset
@@ -1874,7 +1878,7 @@ change:
             /*
               Clear LEX_MASTER_INFO struct and allocate memory for
               repl_ignore_server_ids. repl_ignore_server_ids is freed
-              at the end of change_master. So it is guaranteed to be
+              in THD::cleanup_after_query.  So it is guaranteed to be
               uninitialized before here.
             */
             lex->mi.set_unspecified();
@@ -1925,7 +1929,7 @@ master_def:
             if ($3 > MASTER_DELAY_MAX)
             {
               my_error(ER_MASTER_DELAY_VALUE_OUT_OF_RANGE, MYF(0),
-                       $3, MASTER_DELAY_MAX);
+                       static_cast<uint>($3), MASTER_DELAY_MAX);
             }
             else
               Lex->mi.sql_delay = $3;
@@ -2066,7 +2070,7 @@ create:
             lex->alter_info.reset();
             lex->col_list.empty();
             lex->change=NullS;
-            bzero((char*) &lex->create_info,sizeof(lex->create_info));
+            memset(&lex->create_info, 0, sizeof(lex->create_info));
             lex->create_info.options=$2 | $4;
             lex->create_info.db_type= ha_default_handlerton(thd);
             lex->create_info.default_table_charset= NULL;
@@ -2258,16 +2262,19 @@ opt_ev_status:
         | ENABLE_SYM
           {
             Lex->event_parse_data->status= Event_parse_data::ENABLED;
+            Lex->event_parse_data->status_changed= true;
             $$= 1;
           }
         | DISABLE_SYM ON SLAVE
           {
             Lex->event_parse_data->status= Event_parse_data::SLAVESIDE_DISABLED;
+            Lex->event_parse_data->status_changed= true; 
             $$= 1;
           }
         | DISABLE_SYM
           {
             Lex->event_parse_data->status= Event_parse_data::DISABLED;
+            Lex->event_parse_data->status_changed= true;
             $$= 1;
           }
         ;
@@ -2361,7 +2368,7 @@ ev_sql_stmt:
 
             lex->sphead->m_type= TYPE_ENUM_PROCEDURE;
 
-            bzero((char *)&lex->sp_chistics, sizeof(st_sp_chistics));
+            memset(&lex->sp_chistics, 0, sizeof(st_sp_chistics));
             lex->sphead->m_chistics= &lex->sp_chistics;
 
             lex->sphead->set_body_start(thd, lip->get_cpp_ptr());
@@ -2408,7 +2415,7 @@ clear_privileges:
            lex->select_lex.db= 0;
            lex->ssl_type= SSL_TYPE_NOT_SPECIFIED;
            lex->ssl_cipher= lex->x509_subject= lex->x509_issuer= 0;
-           bzero((char *)&(lex->mqh),sizeof(lex->mqh));
+           memset(&(lex->mqh), 0, sizeof(lex->mqh));
          }
         ;
 
@@ -6258,7 +6265,7 @@ alter:
             lex->col_list.empty();
             lex->select_lex.init_order();
             lex->select_lex.db= (lex->select_lex.table_list.first)->db;
-            bzero((char*) &lex->create_info,sizeof(lex->create_info));
+            memset(&lex->create_info, 0, sizeof(lex->create_info));
             lex->create_info.db_type= 0;
             lex->create_info.default_table_charset= NULL;
             lex->create_info.row_type= ROW_TYPE_NOT_USED;
@@ -6314,7 +6321,7 @@ alter:
               my_error(ER_SP_NO_DROP_SP, MYF(0), "PROCEDURE");
               MYSQL_YYABORT;
             }
-            bzero((char *)&lex->sp_chistics, sizeof(st_sp_chistics));
+            memset(&lex->sp_chistics, 0, sizeof(st_sp_chistics));
           }
           sp_a_chistics
           {
@@ -6332,7 +6339,7 @@ alter:
               my_error(ER_SP_NO_DROP_SP, MYF(0), "FUNCTION");
               MYSQL_YYABORT;
             }
-            bzero((char *)&lex->sp_chistics, sizeof(st_sp_chistics));
+            memset(&lex->sp_chistics, 0, sizeof(st_sp_chistics));
           }
           sp_a_chistics
           {
@@ -6860,7 +6867,7 @@ alter_list_item:
           }
         | FORCE_SYM
           {
-            Lex->alter_info.flags|= ALTER_FORCE;
+            Lex->alter_info.flags|= ALTER_RECREATE;
           }
         | alter_order_clause
           {
@@ -7619,7 +7626,7 @@ expr:
         | expr XOR expr %prec XOR
           {
             /* XOR is a proprietary extension */
-            $$ = new (YYTHD->mem_root) Item_cond_xor($1, $3);
+            $$ = new (YYTHD->mem_root) Item_func_xor($1, $3);
             if ($$ == NULL)
               MYSQL_YYABORT;
           }
@@ -9411,6 +9418,22 @@ normal_join:
         | CROSS JOIN_SYM {}
         ;
 
+/*
+  table PARTITION (list of partitions), reusing using_list instead of creating
+  a new rule for partition_list.
+*/
+opt_use_partition:
+          /* empty */ { $$= 0;}
+        | use_partition
+        ;
+        
+use_partition:
+          PARTITION_SYM '(' using_list ')' have_partitioning
+          {
+            $$= $3;
+          }
+        ;
+  
 /* 
    This is a flattening of the rules <table factor> and <table primary>
    in the SQL:2003 standard, since we don't have <sample clause>
@@ -9424,13 +9447,14 @@ table_factor:
             SELECT_LEX *sel= Select;
             sel->table_join_options= 0;
           }
-          table_ident opt_table_alias opt_key_definition
+          table_ident opt_use_partition opt_table_alias opt_key_definition
           {
-            if (!($$= Select->add_table_to_list(YYTHD, $2, $3,
+            if (!($$= Select->add_table_to_list(YYTHD, $2, $4,
                                                 Select->get_table_join_options(),
                                                 YYPS->m_lock_type,
                                                 YYPS->m_mdl_type,
-                                                Select->pop_index_hints())))
+                                                Select->pop_index_hints(),
+                                                $3)))
               MYSQL_YYABORT;
             Select->add_joined_table($$);
           }
@@ -9500,7 +9524,7 @@ table_factor:
               if (ti == NULL)
                 MYSQL_YYABORT;
               if (!($$= sel->add_table_to_list(lex->thd,
-                                               new Table_ident(unit), $5, 0,
+                                               ti, $5, 0,
                                                TL_READ, MDL_SHARED_READ)))
 
                 MYSQL_YYABORT;
@@ -10488,6 +10512,19 @@ table_name:
           }
         ;
 
+table_name_with_opt_use_partition:
+          table_ident opt_use_partition
+          {
+            if (!Select->add_table_to_list(YYTHD, $1, NULL,
+                                           TL_OPTION_UPDATING,
+                                           YYPS->m_lock_type,
+                                           YYPS->m_mdl_type,
+                                           NULL,
+                                           $2))
+              MYSQL_YYABORT;
+          }
+        ;
+
 table_alias_ref_list:
           table_alias_ref
         | table_alias_ref_list ',' table_alias_ref
@@ -10611,7 +10648,7 @@ insert2:
         ;
 
 insert_table:
-          table_name
+          table_name_with_opt_use_partition
           {
             LEX *lex=Lex;
             lex->field_list.empty();
@@ -10811,11 +10848,13 @@ delete:
         ;
 
 single_multi:
-          FROM table_ident
+          FROM table_ident opt_use_partition
           {
             if (!Select->add_table_to_list(YYTHD, $2, NULL, TL_OPTION_UPDATING,
                                            YYPS->m_lock_type,
-                                           YYPS->m_mdl_type))
+                                           YYPS->m_mdl_type,
+                                           NULL,
+                                           $3))
               MYSQL_YYABORT;
             YYPS->m_lock_type= TL_READ_DEFAULT;
             YYPS->m_mdl_type= MDL_SHARED_READ;
@@ -10991,7 +11030,7 @@ show:
             lex->wild=0;
             mysql_init_select(lex);
             lex->current_select->parsing_place= SELECT_LIST;
-            bzero((char*) &lex->create_info,sizeof(lex->create_info));
+            memset(&lex->create_info, 0, sizeof(lex->create_info));
           }
           show_param
           {}
@@ -11064,19 +11103,6 @@ show_param:
               $4->change_db($5);
             if (prepare_schema_table(YYTHD, lex, $4, SCH_COLUMNS))
               MYSQL_YYABORT;
-          }
-        | NEW_SYM MASTER_SYM FOR_SYM SLAVE
-          WITH MASTER_LOG_FILE_SYM EQ
-          TEXT_STRING_sys /* $8 */
-          AND_SYM MASTER_LOG_POS_SYM EQ
-          ulonglong_num /* $12 */
-          AND_SYM MASTER_SERVER_ID_SYM EQ
-          ulong_num /* $16 */
-          {
-            Lex->sql_command = SQLCOM_SHOW_NEW_MASTER;
-            Lex->mi.log_file_name = $8.str;
-            Lex->mi.pos = $12;
-            Lex->mi.server_id = $16;
           }
         | master_or_binary LOGS_SYM
           {
@@ -11183,7 +11209,7 @@ show_param:
             LEX_USER *curr_user;
             if (!(curr_user= (LEX_USER*) lex->thd->alloc(sizeof(st_lex_user))))
               MYSQL_YYABORT;
-            bzero(curr_user, sizeof(st_lex_user));
+            memset(curr_user, 0, sizeof(st_lex_user));
             lex->grant_user= curr_user;
           }
         | GRANTS FOR_SYM user
@@ -11458,10 +11484,6 @@ flush_option:
           { Lex->type|= REFRESH_LOG; }
         | STATUS_SYM
           { Lex->type|= REFRESH_STATUS; }
-        | SLAVE
-          { Lex->type|= REFRESH_SLAVE; }
-        | MASTER_SYM
-          { Lex->type|= REFRESH_MASTER; }
         | DES_KEY_FILE
           { Lex->type|= REFRESH_DES_KEY_FILE; }
         | RESOURCES
@@ -11577,18 +11599,18 @@ load:
             if (!(lex->exchange= new sql_exchange($7.str, 0, $2)))
               MYSQL_YYABORT;
           }
-          opt_duplicate INTO TABLE_SYM table_ident
+          opt_duplicate INTO TABLE_SYM table_ident opt_use_partition
           {
             LEX *lex=Lex;
             if (!Select->add_table_to_list(YYTHD, $12, NULL, TL_OPTION_UPDATING,
-                                           $4, MDL_SHARED_WRITE))
+                                           $4, MDL_SHARED_WRITE, NULL, $13))
               MYSQL_YYABORT;
             lex->field_list.empty();
             lex->update_list.empty();
             lex->value_list.empty();
           }
           opt_load_data_charset
-          { Lex->exchange->cs= $14; }
+          { Lex->exchange->cs= $15; }
           opt_xml_rows_identified_by
           opt_field_term opt_line_term opt_ignore_lines opt_field_or_var_spec
           opt_load_data_set_spec
@@ -11731,7 +11753,23 @@ field_or_var:
 
 opt_load_data_set_spec:
           /* empty */ {}
-        | SET insert_update_list {}
+        | SET load_data_set_list {}
+        ;
+
+load_data_set_list:
+          load_data_set_list ',' load_data_set_elem
+        | load_data_set_elem
+        ;
+
+load_data_set_elem:
+          simple_ident_nospvar equal remember_name expr_or_default remember_end
+          {
+            LEX *lex= Lex;
+            if (lex->update_list.push_back($1) || 
+                lex->value_list.push_back($4))
+                MYSQL_YYABORT;
+            $4->set_name($3, (uint) ($5 - $3), YYTHD->charset());
+          }
         ;
 
 /* Common definitions */
@@ -11741,8 +11779,8 @@ text_literal:
           {
             LEX_STRING tmp;
             THD *thd= YYTHD;
-            CHARSET_INFO *cs_con= thd->variables.collation_connection;
-            CHARSET_INFO *cs_cli= thd->variables.character_set_client;
+            const CHARSET_INFO *cs_con= thd->variables.collation_connection;
+            const CHARSET_INFO *cs_cli= thd->variables.character_set_client;
             uint repertoire= thd->lex->text_string_is_7bit &&
                              my_charset_is_ascii_based(cs_cli) ?
                              MY_REPERTOIRE_ASCII : MY_REPERTOIRE_UNICODE30;
@@ -11794,7 +11832,7 @@ text_literal:
                  If the string has been pure ASCII so far,
                  check the new part.
               */
-              CHARSET_INFO *cs= YYTHD->variables.collation_connection;
+              const CHARSET_INFO *cs= YYTHD->variables.collation_connection;
               item->collation.repertoire|= my_string_repertoire(cs,
                                                                 $2.str,
                                                                 $2.length);
@@ -12342,7 +12380,7 @@ IDENT_sys:
 
             if (thd->charset_is_system_charset)
             {
-              CHARSET_INFO *cs= system_charset_info;
+              const CHARSET_INFO *cs= system_charset_info;
               int dummy_error;
               uint wlen= cs->cset->well_formed_len(cs, $1.str,
                                                    $1.str+$1.length,
@@ -12493,7 +12531,7 @@ user:
               will be handled in the  get_current_user() function
               later
             */
-            bzero($$, sizeof(LEX_USER));
+            memset($$, 0, sizeof(LEX_USER));
           }
         ;
 
@@ -12526,7 +12564,6 @@ keyword:
         | OPTIONS_SYM           {}
         | OWNER_SYM             {}
         | PARSER_SYM            {}
-        | PARTITION_SYM         {}
         | PORT_SYM              {}
         | PREPARE_SYM           {}
         | REMOVE_SYM            {}
@@ -13071,7 +13108,7 @@ option_value:
           {
             THD *thd= YYTHD;
             LEX *lex= thd->lex;
-            CHARSET_INFO *cs2;
+            const CHARSET_INFO *cs2;
             cs2= $2 ? $2: global_system_variables.character_set_client;
             set_var_collation_client *var;
             var= new set_var_collation_client(cs2,
@@ -13099,8 +13136,8 @@ option_value:
         | NAMES_SYM charset_name_or_default opt_collate
           {
             LEX *lex= Lex;
-            CHARSET_INFO *cs2;
-            CHARSET_INFO *cs3;
+            const CHARSET_INFO *cs2;
+            const CHARSET_INFO *cs3;
             cs2= $2 ? $2 : global_system_variables.character_set_client;
             cs3= $3 ? $3 : cs2;
             if (!my_charset_same(cs2, cs3))
@@ -13361,6 +13398,7 @@ unlock:
 handler:
           HANDLER_SYM table_ident OPEN_SYM opt_table_alias
           {
+            THD *thd= YYTHD;
             LEX *lex= Lex;
             if (lex->sphead)
             {
@@ -13368,11 +13406,15 @@ handler:
               MYSQL_YYABORT;
             }
             lex->sql_command = SQLCOM_HA_OPEN;
-            if (!lex->current_select->add_table_to_list(lex->thd, $2, $4, 0))
+            if (!lex->current_select->add_table_to_list(thd, $2, $4, 0))
+              MYSQL_YYABORT;
+            lex->m_sql_cmd= new (thd->mem_root) Sql_cmd_handler_open();
+            if (lex->m_sql_cmd == NULL)
               MYSQL_YYABORT;
           }
         | HANDLER_SYM table_ident_nodb CLOSE_SYM
           {
+            THD *thd= YYTHD;
             LEX *lex= Lex;
             if (lex->sphead)
             {
@@ -13380,7 +13422,10 @@ handler:
               MYSQL_YYABORT;
             }
             lex->sql_command = SQLCOM_HA_CLOSE;
-            if (!lex->current_select->add_table_to_list(lex->thd, $2, 0, 0))
+            if (!lex->current_select->add_table_to_list(thd, $2, 0, 0))
+              MYSQL_YYABORT;
+            lex->m_sql_cmd= new (thd->mem_root) Sql_cmd_handler_close();
+            if (lex->m_sql_cmd == NULL)
               MYSQL_YYABORT;
           }
         | HANDLER_SYM table_ident_nodb READ_SYM
@@ -13393,7 +13438,6 @@ handler:
             }
             lex->expr_allows_subselect= FALSE;
             lex->sql_command = SQLCOM_HA_READ;
-            lex->ha_rkey_mode= HA_READ_KEY_EXACT; /* Avoid purify warnings */
             Item *one= new (YYTHD->mem_root) Item_int((int32) 1);
             if (one == NULL)
               MYSQL_YYABORT;
@@ -13404,42 +13448,50 @@ handler:
           }
           handler_read_or_scan where_clause opt_limit_clause
           {
+            THD *thd= YYTHD;
+            LEX *lex= Lex;
             Lex->expr_allows_subselect= TRUE;
             /* Stored functions are not supported for HANDLER READ. */
-            if (Lex->uses_stored_routines())
+            if (lex->uses_stored_routines())
             {
               my_error(ER_NOT_SUPPORTED_YET, MYF(0),
                        "stored functions in HANDLER ... READ");
               MYSQL_YYABORT;
             }
+            lex->m_sql_cmd= new (thd->mem_root) Sql_cmd_handler_read($5,
+                                  lex->ident.str, lex->insert_list,
+                                  thd->m_parser_state->m_yacc.m_ha_rkey_mode);
+            if (lex->m_sql_cmd == NULL)
+              MYSQL_YYABORT;
           }
         ;
 
 handler_read_or_scan:
-          handler_scan_function       { Lex->ident= null_lex_str; }
-        | ident handler_rkey_function { Lex->ident= $1; }
+          handler_scan_function       { Lex->ident= null_lex_str; $$=$1; }
+        | ident handler_rkey_function { Lex->ident= $1; $$=$2; }
         ;
 
 handler_scan_function:
-          FIRST_SYM { Lex->ha_read_mode = RFIRST; }
-        | NEXT_SYM  { Lex->ha_read_mode = RNEXT;  }
+          FIRST_SYM { $$= RFIRST; }
+        | NEXT_SYM  { $$= RNEXT;  }
         ;
 
 handler_rkey_function:
-          FIRST_SYM { Lex->ha_read_mode = RFIRST; }
-        | NEXT_SYM  { Lex->ha_read_mode = RNEXT;  }
-        | PREV_SYM  { Lex->ha_read_mode = RPREV;  }
-        | LAST_SYM  { Lex->ha_read_mode = RLAST;  }
+          FIRST_SYM { $$= RFIRST; }
+        | NEXT_SYM  { $$= RNEXT;  }
+        | PREV_SYM  { $$= RPREV;  }
+        | LAST_SYM  { $$= RLAST;  }
         | handler_rkey_mode
           {
-            LEX *lex=Lex;
-            lex->ha_read_mode = RKEY;
-            lex->ha_rkey_mode=$1;
-            if (!(lex->insert_list = new List_item))
+            YYTHD->m_parser_state->m_yacc.m_ha_rkey_mode= $1;
+            Lex->insert_list= new List_item;
+            if (! Lex->insert_list)
               MYSQL_YYABORT;
           }
           '(' values ')'
-          {}
+          {
+            $$= RKEY;
+          }
         ;
 
 handler_rkey_mode:
@@ -14390,7 +14442,7 @@ trigger_tail:
             lex->sphead= sp;
             lex->spname= $3;
 
-            bzero((char *)&lex->sp_chistics, sizeof(st_sp_chistics));
+            memset(&lex->sp_chistics, 0, sizeof(st_sp_chistics));
             lex->sphead->m_chistics= &lex->sp_chistics;
             lex->sphead->set_body_start(thd, lip->get_cpp_ptr());
           }
@@ -14534,7 +14586,7 @@ sf_tail:
                                           &sp->m_return_field_def))
               MYSQL_YYABORT;
 
-            bzero((char *)&lex->sp_chistics, sizeof(st_sp_chistics));
+            memset(&lex->sp_chistics, 0, sizeof(st_sp_chistics));
           }
           sp_c_chistics /* $13 */
           { /* $14 */
@@ -14640,7 +14692,7 @@ sp_tail:
             LEX *lex= thd->lex;
 
             lex->sphead->m_param_end= YYLIP->get_cpp_tok_start();
-            bzero((char *)&lex->sp_chistics, sizeof(st_sp_chistics));
+            memset(&lex->sp_chistics, 0, sizeof(st_sp_chistics));
           }
           sp_c_chistics
           {

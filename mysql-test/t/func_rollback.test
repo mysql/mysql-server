@@ -409,11 +409,11 @@ DROP VIEW v1_func;
 
 --echo
 --echo # FUNCTION in CREATE TABLE ... AS SELECT
---error ER_BAD_NULL_ERROR
+--error ER_CANT_UPDATE_TABLE_IN_CREATE_TABLE_SELECT
 CREATE TABLE t1_fail AS SELECT f1_two_inserts() FROM t1_select;
 SELECT * FROM t1_not_null ORDER BY f1,f2;
 #
---error ER_BAD_NULL_ERROR
+--error ER_CANT_UPDATE_TABLE_IN_CREATE_TABLE_SELECT
 CREATE TABLE t1_fail AS SELECT * FROM t1_select WHERE 1 = f1_two_inserts();
 SELECT * FROM t1_not_null ORDER BY f1,f2;
 #

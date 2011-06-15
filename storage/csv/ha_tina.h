@@ -106,7 +106,8 @@ public:
   ulonglong table_flags() const
   {
     return (HA_NO_TRANSACTIONS | HA_REC_NOT_IN_SEQ | HA_NO_AUTO_INCREMENT |
-            HA_BINLOG_ROW_CAPABLE | HA_BINLOG_STMT_CAPABLE);
+            HA_BINLOG_ROW_CAPABLE | HA_BINLOG_STMT_CAPABLE |
+            HA_CAN_REPAIR);
   }
   ulong index_flags(uint idx, uint part, bool all_parts) const
   {

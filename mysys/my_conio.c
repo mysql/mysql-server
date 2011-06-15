@@ -18,205 +18,260 @@
 
 #ifdef __WIN__
 
-static HANDLE my_coninpfh= 0;     /* console input */
 
-/*
-  functions my_pthread_auto_mutex_lock & my_pthread_auto_mutex_free
-  are experimental at this moment, they are intended to bring
-  ability of protecting code sections without necessity to explicitly
-  initialize synchronization object in one of threads
+/* Windows console handling */
 
-  if found useful they are to be exported in mysys
+/* Maximum line length on Windows console */
+#define MAX_CONSOLE_LINE_SIZE 65535
+
+/**
+  Determine if a file is a windows console
+
+  @param file Input stream
+
+  @return
+  @retval  0 if file is not Windows console
+  @retval  1 if file is Windows console
 */
-
-
-/*
-  int my_pthread_auto_mutex_lock(HANDLE* ph, const char* name, 
-                                 int id, int time)
-  NOTES
-    creates a mutex with given name and tries to lock it time msec.
-    mutex name is appended with id to allow system wide or process wide
-    locks. Handle to created mutex returned in ph argument.
-
-  RETURN
-    0	              thread owns mutex
-    <>0	            error
-*/
-
-static
-int my_pthread_auto_mutex_lock(HANDLE* ph, const char* name, int id, int time)
+my_bool
+my_win_is_console(FILE *file)
 {
-  int res;
-  char tname[FN_REFLEN];
-  
-  sprintf(tname, "%s-%08X", name, id);
-  
-  *ph= CreateMutex(NULL, FALSE, tname);
-  if (*ph == NULL)
-    return GetLastError();
-
-  res= WaitForSingleObject(*ph, time);
-  
-  if (res == WAIT_TIMEOUT)
-    return ERROR_SEM_TIMEOUT;
-
-  if (res == WAIT_FAILED)
-    return GetLastError();
-
-  return 0;
-}
-
-/*
-  int my_pthread_auto_mutex_free(HANDLE* ph)
-
-  NOTES
-    releases a mutex.
-
-  RETURN
-    0	              thread released mutex
-    <>0	            error
-
-*/
-static
-int my_pthread_auto_mutex_free(HANDLE* ph)
-{
-  if (*ph)
-  {
-    ReleaseMutex(*ph);
-    CloseHandle(*ph);
-    *ph= NULL;
-  }
-
+  DWORD mode;
+  if (GetConsoleMode((HANDLE) _get_osfhandle(_fileno(file)), &mode))
+    return 1;
   return 0;
 }
 
 
-#define pthread_auto_mutex_decl(name)                           \
-  HANDLE __h##name= NULL;
+/**
+  Read line from Windows console using Unicode API
+  and translate input to session character set.
+  Note, as Windows API breaks supplementary characters
+  into two wchar_t pieces, we cannot read and convert individual
+  wchar_t values separately. So let's use a buffer for
+  Unicode console input, and then convert it to "cs" in a single shot.
+  String is terminated with '\0' character.
 
-#define pthread_auto_mutex_lock(name, proc, time)               \
-  my_pthread_auto_mutex_lock(&__h##name, #name, (proc), (time))
+  @param cs         Character string to convert to.
+  @param mbbuf      Write input data here.
+  @param mbbufsize  Number of bytes available in mbbuf.
 
-#define pthread_auto_mutex_free(name)                           \
-  my_pthread_auto_mutex_free(&__h##name)
-
-
-/*
-  char* my_cgets()
-
-  NOTES
-    Replaces _cgets from libc to support input of more than 255 chars.
-    Reads from the console via ReadConsole into buffer which 
-    should be at least clen characters.
-    Actual length of string returned in plen.
-
-  WARNING
-    my_cgets() does NOT check the pushback character buffer (i.e., _chbuf).
-    Thus, my_cgets() will not return any character that is pushed back by 
-    the _ungetch() call.
-
-  RETURN
-    string pointer	ok
-    NULL	          Error
-
+  @rerval           Pointer to mbbuf, or NULL on I/0 error.
 */
-
-char* my_cgets(char *buffer, size_t clen, size_t* plen)
+char *
+my_win_console_readline(const CHARSET_INFO *cs, char *mbbuf, size_t mbbufsize)
 {
-  ULONG state;
-  char *result;
-  DWORD plen_res;
-  CONSOLE_SCREEN_BUFFER_INFO csbi;
-  
-  pthread_auto_mutex_decl(my_conio_cs);
- 
-  /* lock the console for the current process*/
-  if (pthread_auto_mutex_lock(my_conio_cs, GetCurrentProcessId(), INFINITE))
+  uint dummy_errors;
+  static wchar_t u16buf[MAX_CONSOLE_LINE_SIZE + 1], *pos;
+  size_t mblen;
+  DWORD console_mode;
+  HANDLE console= GetStdHandle(STD_INPUT_HANDLE);
+
+  DBUG_ASSERT(mbbufsize > 0); /* Need space for at least trailing '\0' */
+  GetConsoleMode(console, &console_mode);
+  SetConsoleMode(console, ENABLE_LINE_INPUT |
+                          ENABLE_PROCESSED_INPUT | ENABLE_ECHO_INPUT);
+  for(pos= u16buf; pos < &u16buf[MAX_CONSOLE_LINE_SIZE] ; )
   {
-    /* can not lock console */
-    pthread_auto_mutex_free(my_conio_cs);  
-    return NULL;
-  }
-
-  /* init console input */
-  if (my_coninpfh == 0)
-  {
-    /* same handle will be used until process termination */
-    my_coninpfh= CreateFile("CONIN$", GENERIC_READ | GENERIC_WRITE,
-                            FILE_SHARE_READ | FILE_SHARE_WRITE,
-                            NULL, OPEN_EXISTING, 0, NULL);
-  }
-
-  if (my_coninpfh == INVALID_HANDLE_VALUE) 
-  {
-    /* unlock the console */
-    pthread_auto_mutex_free(my_conio_cs);  
-    return(NULL);
-  }
-
-  GetConsoleMode((HANDLE)my_coninpfh, &state);
-  SetConsoleMode((HANDLE)my_coninpfh, ENABLE_LINE_INPUT | 
-                 ENABLE_PROCESSED_INPUT | ENABLE_ECHO_INPUT);
-
-  GetConsoleScreenBufferInfo(GetStdHandle(STD_OUTPUT_HANDLE), &csbi);
-
-  /* 
-    there is no known way to determine allowed buffer size for input
-    though it is known it should not be more than 64K               
-    so we cut 64K and try first size of screen buffer               
-    if it is still to large we cut half of it and try again         
-    later we may want to cycle from min(clen, 65535) to allowed size
-    with small decrement to determine exact allowed buffer           
-  */
-  clen= min(clen, 65535);
-  do
-  {
-    clen= min(clen, (size_t) csbi.dwSize.X*csbi.dwSize.Y);
-    if (!ReadConsole((HANDLE)my_coninpfh, (LPVOID)buffer, (DWORD) clen - 1, &plen_res,
-                     NULL))
+    DWORD nchars;
+    if (!ReadConsoleW(console, pos, 1, &nchars, NULL) || nchars == 0)
     {
-      result= NULL;
-      clen>>= 1;
+      SetConsoleMode(console, console_mode);
+      return NULL;
+    }
+    if (*pos == L'\r') /* We don't need '\r' in the result string, skip it */
+      continue;
+    if (*pos == L'\n')
+      break;
+    pos++;
+  }
+  SetConsoleMode(console, console_mode);
+  /* Convert Unicode to session character set */
+  mblen= my_convert(mbbuf, mbbufsize - 1, cs,
+                    (const char *) u16buf, (pos - u16buf) * sizeof(wchar_t),
+                    &my_charset_utf16le_bin, &dummy_errors);
+  DBUG_ASSERT(mblen < mbbufsize); /* Safety */
+  mbbuf[mblen]= 0;
+  return mbbuf;
+}
+
+
+/**
+  Translate client charset to Windows wchars for console I/O.
+  Unlike copy_and_convert(), in case of a wrong multi-byte sequence
+  we don't print '?' character, we fallback to ISO-8859-1 instead.
+  This gives a better idea how binary data (e.g. BLOB) look like.
+
+  @param cs           Character set of the input string
+  @param from         Input string
+  @param from_length  Length of the input string
+  @param to[OUT]      Write Unicode data here
+  @param to_chars     Number of characters available in "to"
+*/
+static size_t
+my_mbstou16s(const CHARSET_INFO *cs, const uchar * from, size_t from_length,
+             wchar_t *to, size_t to_chars)
+{
+  const CHARSET_INFO *to_cs= &my_charset_utf16le_bin;
+  const uchar *from_end= from + from_length;
+  wchar_t *to_orig= to, *to_end= to + to_chars;
+  my_charset_conv_mb_wc mb_wc= cs->cset->mb_wc;
+  my_charset_conv_wc_mb wc_mb= to_cs->cset->wc_mb;
+  while (from < from_end)
+  {
+    int cnvres;
+    my_wc_t wc;
+    if ((cnvres= (*mb_wc)(cs, &wc, from, from_end)) > 0)
+    {
+      if (!wc)
+        break;
+      from+= cnvres;
+    }
+    else if (cnvres == MY_CS_ILSEQ)
+    {
+      wc= (my_wc_t) (uchar) *from; /* Fallback to ISO-8859-1 */
+      from+= 1;
+    }
+    else if (cnvres > MY_CS_TOOSMALL)
+    {
+      /*
+        A correct multibyte sequence detected
+        But it doesn't have Unicode mapping. 
+      */
+      wc= '?';
+      from+= (-cnvres); /* Note: cnvres is negative here */
+    }
+    else /* Incomplete character */
+    {
+      wc= (my_wc_t) (uchar) *from; /* Fallback to ISO-8859-1 */
+      from+= 1;
+    }
+outp:
+    if ((cnvres= (*wc_mb)(to_cs, wc, (uchar *) to, (uchar *) to_end)) > 0)
+    {
+      /* We can never convert only a part of wchar_t */
+      DBUG_ASSERT((cnvres % sizeof(wchar_t)) == 0);
+      /* cnvres returns number of bytes, convert to number of wchar_t's */
+      to+= cnvres / sizeof(wchar_t);
+    }
+    else if (cnvres == MY_CS_ILUNI && wc != '?')
+    {
+      wc= '?';
+      goto outp;
     }
     else
-    {
-      result= buffer;
-      break;
-    }
+      break; /* Not enough space */
   }
-  while (GetLastError() == ERROR_NOT_ENOUGH_MEMORY);
-  *plen= plen_res;
+  return to - to_orig;
+}
 
-  /* We go here on error reading the string (Ctrl-C for example) */
-  if (!*plen)
-    result= NULL;                              /* purecov: inspected */
 
-  if (result != NULL)
+/**
+  Write a string in the given character set to Windows console. 
+  As Window breaks supplementary characters into two parts,
+  we cannot use a simple loop sending the result of
+  cs->cset->mb_wc() to console.
+  So we converts string from client charset to an array of wchar_t,
+  then write the array to console in a single shot.
+
+  @param cs       Character set of the string
+  @param data     String to print
+  @param datalen  Length of input string in bytes
+*/
+void
+my_win_console_write(const CHARSET_INFO *cs, const char *data, size_t datalen)
+{
+  static wchar_t u16buf[MAX_CONSOLE_LINE_SIZE + 1];
+  size_t nchars= my_mbstou16s(cs, (const uchar *) data, datalen,
+                              u16buf, sizeof(u16buf));
+  DWORD nwritten;
+  WriteConsoleW(GetStdHandle(STD_OUTPUT_HANDLE),
+                u16buf, (DWORD) nchars, &nwritten, NULL);
+}
+
+
+/**
+  Write a single-byte character to console.
+  Note: one should not send parts of the same multi-byte character
+  in separate consequent my_win_console_putc() calls.
+  For multi-byte characters use my_win_colsole_write() instead.
+
+  @param cs  Character set of the input character
+  @param c   Character (single byte)
+*/
+void
+my_win_console_putc(const CHARSET_INFO *cs, int c)
+{
+  char ch= (char) c;
+  my_win_console_write(cs, &ch, 1);
+}
+
+
+/**
+  Write a 0-terminated string to Windows console.
+
+  @param cs    Character set of the string to print
+  @param data  String to print
+*/
+void
+my_win_console_fputs(const CHARSET_INFO *cs, const char *data)
+{
+  my_win_console_write(cs, data, strlen(data));
+}
+
+
+/*
+  Handle formatted output on the Windows console.
+*/
+void
+my_win_console_vfprintf(const CHARSET_INFO *cs, const char *fmt, va_list args)
+{
+  static char buff[MAX_CONSOLE_LINE_SIZE + 1];
+  size_t len= vsnprintf(buff, sizeof(buff) - 1, fmt, args);
+  my_win_console_write(cs, buff, len);
+}
+
+
+#include <shellapi.h>
+
+/**
+  Translate Unicode command line parameters to the given character set
+  (Typically to utf8mb4).
+  Translated parameters are allocated using my_once_alloc().
+
+  @param      tocs    Character set to convert parameters to.
+  @param[OUT] argc    Write number of parameters here
+  @param[OUT] argv    Write pointer to allocated parameters here.
+*/
+int
+my_win_translate_command_line_args(const CHARSET_INFO *cs, int *argc, char ***argv)
+{
+  int i, ac;
+  char **av;
+  wchar_t *command_line= GetCommandLineW();
+  wchar_t **wargs= CommandLineToArgvW(command_line, &ac);
+  size_t nbytes= (ac + 1) * sizeof(char *);
+
+  /* Allocate new command line parameter */
+  av= (char **) my_once_alloc(nbytes, MYF(MY_ZEROFILL));
+
+  for(i= 0; i < *argc; i++)
   {
-    if (*plen > 1 && buffer[*plen - 2] == '\r')
-    {
-      *plen= *plen - 2;
-    }
-    else 
-    {
-      if (*plen > 0 && buffer[*plen - 1] == '\r')
-      {
-        char tmp[3];
-        int  tmplen= sizeof(tmp);
-
-        *plen= *plen - 1;
-        /* read /n left in the buffer */
-        ReadConsole((HANDLE)my_coninpfh, (LPVOID)tmp, tmplen, &tmplen, NULL);
-      }
-    }
-    buffer[*plen]= '\0';
+    uint dummy_errors;
+    size_t arg_len= wcslen(wargs[i]);
+    size_t len, alloced_len= arg_len * cs->mbmaxlen + 1;
+    av[i]= (char *) my_once_alloc(alloced_len, MYF(0));
+    len= my_convert(av[i], alloced_len, cs,
+                    (const char *) wargs[i], arg_len * sizeof(wchar_t),
+                    &my_charset_utf16le_bin, &dummy_errors);
+    DBUG_ASSERT(len < alloced_len);
+    av[i][len]= '\0';
   }
-
-  SetConsoleMode((HANDLE)my_coninpfh, state);
-  /* unlock the console */
-  pthread_auto_mutex_free(my_conio_cs);  
-
-  return result;
+  *argv= av;
+  *argc= ac;
+  /* Cleanup on exit */
+  LocalFree((HLOCAL) wargs);
+  return 0;
 }
 
 #endif /* __WIN__ */

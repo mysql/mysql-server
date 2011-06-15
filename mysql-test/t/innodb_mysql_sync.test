@@ -2,6 +2,7 @@
 # Test file for InnoDB tests that require the debug sync facility
 #
 --source include/have_innodb.inc
+--source include/have_debug.inc
 --source include/have_debug_sync.inc
 # Save the initial number of concurrent sessions.
 --source include/count_sessions.inc
@@ -253,31 +254,54 @@ connection con1;
 --reap
 
 --echo # Test 4: Secondary unique index, should not block reads.
-# This requires HA_INPLACE_ADD_UNIQUE_INDEX_NO_WRITE to be supported
-# by InnoDB. Adding this flag currently introduces a regression so
-# this test is disabled until the regression has been fixed.
 
 --echo # Connection default
 connection default;
-#SET DEBUG_SYNC= "alter_table_manage_keys SIGNAL manage WAIT_FOR query";
-#--echo # Sending:
-#--send ALTER TABLE t1 ADD UNIQUE (b)
+SET DEBUG_SYNC= "alter_table_manage_keys SIGNAL manage WAIT_FOR query";
+--echo # Sending:
+--send ALTER TABLE t1 ADD UNIQUE (b)
 
-#--echo # Connection con1
-#connection con1;
-#SET DEBUG_SYNC= "now WAIT_FOR manage";
-#SELECT * FROM t1;
-#SET DEBUG_SYNC= "now SIGNAL query";
+--echo # Connection con1
+connection con1;
+SET DEBUG_SYNC= "now WAIT_FOR manage";
+SELECT * FROM t1;
+SET DEBUG_SYNC= "now SIGNAL query";
 
-#--echo # Connection default
-#connection default;
-#--echo # Reaping: ALTER TABLE t1 ADD UNIQUE (b)
-#--reap
+--echo # Connection default
+connection default;
+--echo # Reaping: ALTER TABLE t1 ADD UNIQUE (b)
+--reap
 
 disconnect con1;
 disconnect con2;
 SET DEBUG_SYNC= "RESET";
 DROP TABLE t1;
+
+
+--echo #
+--echo # Bug#11853126 RE-ENABLE CONCURRENT READS WHILE CREATING SECONDARY INDEX
+--echo #              IN INNODB
+--echo #
+
+--disable_warnings
+DROP TABLE IF EXISTS t1;
+--enable_warnings
+
+CREATE TABLE t1(a INT NOT NULL, b INT NOT NULL) engine=innodb;
+INSERT INTO t1 VALUES (1, 12345), (2, 23456);
+
+--echo # Connection con1
+--connect (con1,localhost,root)
+SET SESSION debug= "+d,alter_table_rollback_new_index";
+--error ER_UNKNOWN_ERROR
+ALTER TABLE t1 ADD PRIMARY KEY(a);
+SELECT * FROM t1;
+
+--echo # Connection default
+--connection default
+SELECT * FROM t1;
+DROP TABLE t1;
+disconnect con1;
 
 
 # Check that all connections opened by test cases in this file are really

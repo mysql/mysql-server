@@ -1,4 +1,4 @@
-/* Copyright (C) 2000 MySQL AB
+/* Copyright (c) 2000, 2011, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -11,7 +11,7 @@
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
-   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
+   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
 /*
   This file is also used to make handling of sockets and ioctl()
@@ -27,18 +27,23 @@
 C_MODE_START
 
 #include <errno.h>
+
 #ifdef HAVE_SYS_SOCKET_H
 #include <sys/socket.h>
 #endif
+
 #ifdef HAVE_NETINET_IN_H
 #include <netinet/in.h>
 #endif
+
 #ifdef HAVE_ARPA_INET_H
 #include <arpa/inet.h>
 #endif
+
 #ifdef HAVE_POLL
 #include <sys/poll.h>
 #endif
+
 #ifdef HAVE_SYS_IOCTL_H
 #include <sys/ioctl.h>
 #endif
@@ -47,9 +52,9 @@ C_MODE_START
 #include <netinet/in_systm.h>
 #include <netinet/in.h>
 #include <netinet/ip.h>
-#if !defined(alpha_linux_port)
-#include <netinet/tcp.h>
-#endif
+# if !defined(alpha_linux_port)
+#   include <netinet/tcp.h>
+# endif
 #endif
 
 #if defined(__WIN__)
@@ -61,7 +66,8 @@ C_MODE_START
   #define SD_BOTH 0x02
 */
 #define SHUT_RDWR 0x02
-
+#else
+#include <netdb.h>     /* getaddrinfo() & co */
 #endif
 
 /*
@@ -73,38 +79,6 @@ C_MODE_START
 #define in_addr_t uint32
 #endif
 
-/*
-  Handling of gethostbyname_r()
-*/
-
-#if !defined(HAVE_GETHOSTBYNAME_R)
-struct hostent *my_gethostbyname_r(const char *name,
-				   struct hostent *result, char *buffer,
-				   int buflen, int *h_errnop);
-void my_gethostbyname_r_free();
-#elif defined(HAVE_PTHREAD_ATTR_CREATE) || defined(_AIX) || defined(HAVE_GETHOSTBYNAME_R_GLIBC2_STYLE)
-struct hostent *my_gethostbyname_r(const char *name,
-				   struct hostent *result, char *buffer,
-				   int buflen, int *h_errnop);
-#define my_gethostbyname_r_free()
-#if !defined(HAVE_GETHOSTBYNAME_R_GLIBC2_STYLE) && !defined(HPUX10)
-#define GETHOSTBYNAME_BUFF_SIZE sizeof(struct hostent_data)
-#endif /* !defined(HAVE_GETHOSTBYNAME_R_GLIBC2_STYLE) */
-
-#elif defined(HAVE_GETHOSTBYNAME_R_RETURN_INT)
-#define GETHOSTBYNAME_BUFF_SIZE sizeof(struct hostent_data)
-struct hostent *my_gethostbyname_r(const char *name,
-				   struct hostent *result, char *buffer,
-				   int buflen, int *h_errnop);
-#define my_gethostbyname_r_free()
-#else
-#define my_gethostbyname_r(A,B,C,D,E) gethostbyname_r((A),(B),(C),(D),(E))
-#define my_gethostbyname_r_free()
-#endif /* !defined(HAVE_GETHOSTBYNAME_R) */
-
-#ifndef GETHOSTBYNAME_BUFF_SIZE
-#define GETHOSTBYNAME_BUFF_SIZE 2048
-#endif
 
 C_MODE_END
 #endif

@@ -1,4 +1,4 @@
-/* Copyright (C) 2000-2003 MySQL AB, 2008-2009 Sun Microsystems, Inc
+/* Copyright (c) 2000, 2011, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -140,7 +140,7 @@ static int search_default_file_with_ext(Process_option_func func,
   - Unix:        /etc/
   - Unix:        /etc/mysql/
   - Unix:        --sysconfdir=<path> (compile-time option)
-  - ALL:         getenv(DEFAULT_HOME_ENV)
+  - ALL:         getenv("MYSQL_HOME")
   - ALL:         --defaults-extra-file=<path> (run-time option)
   - Unix:        ~/
 
@@ -378,7 +378,7 @@ static int handle_default_option(void *in_ctx, const char *group_name,
   if (!option)
     return 0;
 
-  if (find_type((char *)group_name, ctx->group, 3))
+  if (find_type((char *)group_name, ctx->group, FIND_TYPE_NO_PREFIX))
   {
     if (!(tmp= alloc_root(ctx->alloc, strlen(option) + 1)))
       return 1;
@@ -1068,7 +1068,11 @@ void my_print_default_files(const char *conf_file)
           end= convert_dirname(name, pos, NullS);
           if (name[0] == FN_HOMELIB)	/* Add . to filenames in home */
             *end++= '.';
-          strxmov(end, conf_file, *ext, " ", NullS);
+
+          if (my_defaults_extra_file == pos)
+            end[(strlen(end)-1)] = ' ';
+          else
+            strxmov(end, conf_file, *ext , " ",  NullS);
           fputs(name, stdout);
         }
       }
@@ -1204,7 +1208,7 @@ static const char **init_default_directories(MEM_ROOT *alloc)
   dirs= (const char **)alloc_root(alloc, DEFAULT_DIRS_SIZE * sizeof(char *));
   if (dirs == NULL)
     return NULL;
-  bzero((char *) dirs, DEFAULT_DIRS_SIZE * sizeof(char *));
+  memset(dirs, 0, DEFAULT_DIRS_SIZE * sizeof(char *));
 
 #ifdef __WIN__
 
@@ -1234,7 +1238,7 @@ static const char **init_default_directories(MEM_ROOT *alloc)
 
 #endif
 
-  if ((env= getenv(STRINGIFY_ARG(DEFAULT_HOME_ENV))))
+  if ((env= getenv("MYSQL_HOME")))
     errors += add_directory(alloc, env, dirs);
 
   /* Placeholder for --defaults-extra-file=<path> */

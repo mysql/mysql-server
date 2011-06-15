@@ -10,9 +10,8 @@
    GNU General Public License for more details.
 
    You should have received a copy of the GNU General Public License
-   along with this program; if not, write to the Free Software Foundation,
-   51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA */
-
+   along with this program; if not, write to the Free Software
+   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
 /**
   @file
@@ -20,10 +19,6 @@
   @brief
   This file defines all numerical functions
 */
-
-#ifdef USE_PRAGMA_IMPLEMENTATION
-#pragma implementation				// gcc: Class implementation
-#endif
 
 #include "my_global.h"                          /* NO_EMBEDDED_ACCESS_CHECKS */
 #include "sql_priv.h"
@@ -52,6 +47,8 @@
 #include "sp.h"
 #include "set_var.h"
 #include "debug_sync.h"
+#include <mysql/plugin.h>
+#include <mysql/service_thd_wait.h>
 
 #ifdef NO_EMBEDDED_ACCESS_CHECKS
 #define sp_restore_security_context(A,B) while (0) {}
@@ -221,7 +218,7 @@ Item_func::fix_fields(THD *thd, Item **ref)
       used_tables_cache|=     item->used_tables();
       not_null_tables_cache|= item->not_null_tables();
       const_item_cache&=      item->const_item();
-      with_subselect|=        item->with_subselect;
+      with_subselect|=        item->has_subquery();
     }
   }
   fix_length_and_dec();
@@ -319,7 +316,7 @@ void Item_func::traverse_cond(Cond_traverser traverser,
 
 Item *Item_func::transform(Item_transformer transformer, uchar *argument)
 {
-  DBUG_ASSERT(!current_thd->is_stmt_prepare());
+  DBUG_ASSERT(!current_thd->stmt_arena->is_stmt_prepare());
 
   if (arg_count)
   {
@@ -408,11 +405,13 @@ void Item_func::update_used_tables()
 {
   used_tables_cache=0;
   const_item_cache=1;
+  with_subselect= false;
   for (uint i=0 ; i < arg_count ; i++)
   {
     args[i]->update_used_tables();
     used_tables_cache|=args[i]->used_tables();
     const_item_cache&=args[i]->const_item();
+    with_subselect|= args[i]->has_subquery();
   }
 }
 
@@ -525,7 +524,10 @@ Field *Item_func::tmp_table_field(TABLE *table)
 my_decimal *Item_func::val_decimal(my_decimal *decimal_value)
 {
   DBUG_ASSERT(fixed);
-  int2my_decimal(E_DEC_FATAL_ERROR, val_int(), unsigned_flag, decimal_value);
+  longlong nr= val_int();
+  if (null_value)
+    return 0; /* purecov: inspected */
+  int2my_decimal(E_DEC_FATAL_ERROR, nr, unsigned_flag, decimal_value);
   return decimal_value;
 }
 
@@ -886,7 +888,7 @@ longlong Item_func_numhybrid::val_int()
       return 0;
 
     char *end= (char*) res->ptr() + res->length();
-    CHARSET_INFO *cs= str_value.charset();
+    const CHARSET_INFO *cs= res->charset();
     return (*(cs->cset->strtoll10))(cs, res->ptr(), &end, &err_not_used);
   }
   default:
@@ -949,7 +951,7 @@ longlong Item_func_signed::val_int_from_str(int *error)
   uint32 length;
   String tmp(buff,sizeof(buff), &my_charset_bin), *res;
   longlong value;
-  CHARSET_INFO *cs;
+  const CHARSET_INFO *cs;
 
   /*
     For a string result, we must first get the string and then convert it
@@ -1109,7 +1111,7 @@ err:
   push_warning_printf(current_thd, MYSQL_ERROR::WARN_LEVEL_WARN,
                       ER_WARN_DATA_OUT_OF_RANGE,
                       ER(ER_WARN_DATA_OUT_OF_RANGE),
-                      name, 1);
+                      name, 1L);
   return dec;
 }
 
@@ -2106,9 +2108,10 @@ void Item_func_integer::fix_length_and_dec()
 
 void Item_func_int_val::fix_num_length_and_dec()
 {
-  max_length= args[0]->max_length - (args[0]->decimals ?
-                                     args[0]->decimals + 1 :
-                                     0) + 2;
+  ulonglong tmp_max_length= (ulonglong ) args[0]->max_length - 
+    (args[0]->decimals ? args[0]->decimals + 1 : 0) + 2;
+  max_length= tmp_max_length > (ulonglong) 4294967295U ?
+    (uint32) 4294967295U : (uint32) tmp_max_length;
   uint tmp= float_length(decimals);
   set_if_smaller(max_length,tmp);
   decimals= 0;
@@ -2272,6 +2275,9 @@ void Item_func_round::fix_length_and_dec()
   }
 
   val1= args[1]->val_int();
+  if ((null_value= args[1]->is_null()))
+    return;
+
   val1_unsigned= args[1]->unsigned_flag;
   if (val1 < 0)
     decimals_to_set= val1_unsigned ? INT_MAX : 0;
@@ -2421,10 +2427,7 @@ my_decimal *Item_func_round::decimal_op(my_decimal *decimal_value)
   if (!(null_value= (args[0]->null_value || args[1]->null_value ||
                      my_decimal_round(E_DEC_FATAL_ERROR, value, (int) dec,
                                       truncate, decimal_value) > 1))) 
-  {
-    decimal_value->frac= decimals;
     return decimal_value;
-  }
   return 0;
 }
 
@@ -2551,7 +2554,8 @@ void Item_func_min_max::fix_length_and_dec()
   }
   if (cmp_type == STRING_RESULT)
   {
-    agg_arg_charsets_for_comparison(collation, args, arg_count);
+    agg_arg_charsets_for_string_result_with_comparison(collation,
+                                                       args, arg_count);
     if (datetime_found)
     {
       thd= current_thd;
@@ -3021,6 +3025,8 @@ void Item_func_find_in_set::fix_length_and_dec()
       String *find=args[0]->val_str(&value);
       if (find)
       {
+        // find is not NULL pointer so args[0] is not a null-value
+        DBUG_ASSERT(!args[0]->null_value);
 	enum_value= find_type(((Field_enum*) field)->typelib,find->ptr(),
 			      find->length(), 0);
 	enum_bit=0;
@@ -3039,11 +3045,22 @@ longlong Item_func_find_in_set::val_int()
   DBUG_ASSERT(fixed == 1);
   if (enum_value)
   {
-    ulonglong tmp=(ulonglong) args[1]->val_int();
-    if (!(null_value=args[1]->null_value || args[0]->null_value))
+    // enum_value is set iff args[0]->const_item() in fix_length_and_dec().
+    DBUG_ASSERT(args[0]->const_item());
+
+    ulonglong tmp= (ulonglong) args[1]->val_int();
+    null_value= args[1]->null_value;
+    /* 
+      No need to check args[0]->null_value since enum_value is set iff
+      args[0] is a non-null const item. Note: no DBUG_ASSERT on
+      args[0]->null_value here because args[0] may have been replaced
+      by an Item_cache on which val_int() has not been called. See
+      BUG#11766317
+    */
+    if (!null_value)
     {
       if (tmp & enum_bit)
-	return enum_value;
+        return enum_value;
     }
     return 0L;
   }
@@ -3061,7 +3078,7 @@ longlong Item_func_find_in_set::val_int()
   if ((diff=buffer->length() - find->length()) >= 0)
   {
     my_wc_t wc= 0;
-    CHARSET_INFO *cs= cmp_collation.collation;
+    const CHARSET_INFO *cs= cmp_collation.collation;
     const char *str_begin= buffer->ptr();
     const char *str_end= buffer->ptr();
     const char *real_end= str_end+buffer->length();
@@ -3155,7 +3172,7 @@ udf_handler::fix_fields(THD *thd, Item_result_field *func,
 
   if (!tmp_udf)
   {
-    my_error(ER_CANT_FIND_UDF, MYF(0), u_d->name.str, errno);
+    my_error(ER_CANT_FIND_UDF, MYF(0), u_d->name.str);
     DBUG_RETURN(TRUE);
   }
   u_d=tmp_udf;
@@ -3648,14 +3665,10 @@ static PSI_mutex_info all_user_mutexes[]=
 
 static void init_user_lock_psi_keys(void)
 {
-  const char* category= "sql";
   int count;
 
-  if (PSI_server == NULL)
-    return;
-
   count= array_elements(all_user_mutexes);
-  PSI_server->register_mutex(category, all_user_mutexes, count);
+  mysql_mutex_register("sql", all_user_mutexes, count);
 }
 #endif
 
@@ -3886,13 +3899,14 @@ longlong Item_func_get_lock::val_int()
     Structure is now initialized.  Try to get the lock.
     Set up control struct to allow others to abort locks.
   */
-  thd_proc_info(thd, "User lock");
+  THD_STAGE_INFO(thd, stage_user_lock);
   thd->mysys_var->current_mutex= &LOCK_user_locks;
   thd->mysys_var->current_cond=  &ull->cond;
 
   timed_cond.set_timeout(timeout * ULL(1000000000));
 
   error= 0;
+  thd_wait_begin(thd, THD_WAIT_USER_LOCK);
   while (ull->locked && !thd->killed)
   {
     DBUG_PRINT("info", ("waiting on lock"));
@@ -3904,6 +3918,7 @@ longlong Item_func_get_lock::val_int()
     }
     error= 0;
   }
+  thd_wait_end(thd);
 
   if (ull->locked)
   {
@@ -3930,7 +3945,6 @@ longlong Item_func_get_lock::val_int()
   mysql_mutex_unlock(&LOCK_user_locks);
 
   mysql_mutex_lock(&thd->mysys_var->mutex);
-  thd_proc_info(thd, 0);
   thd->mysys_var->current_mutex= 0;
   thd->mysys_var->current_cond=  0;
   mysql_mutex_unlock(&thd->mysys_var->mutex);
@@ -4116,11 +4130,12 @@ longlong Item_func_sleep::val_int()
   mysql_cond_init(key_item_func_sleep_cond, &cond, NULL);
   mysql_mutex_lock(&LOCK_user_locks);
 
-  thd_proc_info(thd, "User sleep");
+  THD_STAGE_INFO(thd, stage_user_sleep);
   thd->mysys_var->current_mutex= &LOCK_user_locks;
   thd->mysys_var->current_cond=  &cond;
 
   error= 0;
+  thd_wait_begin(thd, THD_WAIT_SLEEP);
   while (!thd->killed)
   {
     error= timed_cond.wait(&cond, &LOCK_user_locks);
@@ -4128,7 +4143,7 @@ longlong Item_func_sleep::val_int()
       break;
     error= 0;
   }
-  thd_proc_info(thd, 0);
+  thd_wait_end(thd);
   mysql_mutex_unlock(&LOCK_user_locks);
   mysql_mutex_lock(&thd->mysys_var->mutex);
   thd->mysys_var->current_mutex= 0;
@@ -4266,6 +4281,7 @@ Item_func_set_user_var::fix_length_and_dec()
     fix_length_and_charset(args[0]->max_char_length(),
                            args[0]->collation.collation);
   }
+  unsigned_flag= args[0]->unsigned_flag;
 }
 
 
@@ -4311,7 +4327,7 @@ bool Item_func_set_user_var::register_field_in_read_map(uchar *arg)
 
 static bool
 update_hash(user_var_entry *entry, bool set_null, void *ptr, uint length,
-            Item_result type, CHARSET_INFO *cs, Derivation dv,
+            Item_result type, const CHARSET_INFO *cs, Derivation dv,
             bool unsigned_arg)
 {
   if (set_null)
@@ -4372,7 +4388,7 @@ update_hash(user_var_entry *entry, bool set_null, void *ptr, uint length,
 bool
 Item_func_set_user_var::update_hash(void *ptr, uint length,
                                     Item_result res_type,
-                                    CHARSET_INFO *cs, Derivation dv,
+                                    const CHARSET_INFO *cs, Derivation dv,
                                     bool unsigned_arg)
 {
   /*
@@ -4496,7 +4512,7 @@ my_decimal *user_var_entry::val_decimal(my_bool *null_value, my_decimal *val)
     int2my_decimal(E_DEC_FATAL_ERROR, *(longlong*) value, 0, val);
     break;
   case DECIMAL_RESULT:
-    val= (my_decimal *)value;
+    my_decimal2decimal((my_decimal *) value, val);
     break;
   case STRING_RESULT:
     str2my_decimal(E_DEC_FATAL_ERROR, value, length, collation.collation, val);
@@ -4854,7 +4870,7 @@ int Item_func_set_user_var::save_in_field(Field *field, bool no_conversions,
       field->result_type() == STRING_RESULT))
   {
     String *result;
-    CHARSET_INFO *cs= collation.collation;
+    const CHARSET_INFO *cs= collation.collation;
     char buff[MAX_FIELD_WIDTH];		// Alloc buffer for small columns
     str_value.set_quick(buff, sizeof(buff), cs);
     result= entry->val_str(&null_value, &str_value, decimals);
@@ -5196,7 +5212,7 @@ bool Item_user_var_as_out_param::fix_fields(THD *thd, Item **ref)
 }
 
 
-void Item_user_var_as_out_param::set_null_value(CHARSET_INFO* cs)
+void Item_user_var_as_out_param::set_null_value(const CHARSET_INFO* cs)
 {
   ::update_hash(entry, TRUE, 0, 0, STRING_RESULT, cs,
                 DERIVATION_IMPLICIT, 0 /* unsigned_arg */);
@@ -5204,7 +5220,7 @@ void Item_user_var_as_out_param::set_null_value(CHARSET_INFO* cs)
 
 
 void Item_user_var_as_out_param::set_value(const char *str, uint length,
-                                           CHARSET_INFO* cs)
+                                           const CHARSET_INFO* cs)
 {
   ::update_hash(entry, FALSE, (void*)str, length, STRING_RESULT, cs,
                 DERIVATION_IMPLICIT, 0 /* unsigned_arg */);
@@ -5696,61 +5712,6 @@ void Item_func_get_system_var::cleanup()
   cache_present= 0;
   var_type= orig_var_type;
   cached_strval.free();
-}
-
-
-longlong Item_func_inet_aton::val_int()
-{
-  DBUG_ASSERT(fixed == 1);
-  uint byte_result = 0;
-  ulonglong result = 0;			// We are ready for 64 bit addresses
-  const char *p,* end;
-  char c = '.'; // we mark c to indicate invalid IP in case length is 0
-  char buff[36];
-  int dot_count= 0;
-
-  String *s, tmp(buff, sizeof(buff), &my_charset_latin1);
-  if (!(s = args[0]->val_str_ascii(&tmp)))       // If null value
-    goto err;
-  null_value=0;
-
-  end= (p = s->ptr()) + s->length();
-  while (p < end)
-  {
-    c = *p++;
-    int digit = (int) (c - '0');
-    if (digit >= 0 && digit <= 9)
-    {
-      if ((byte_result = byte_result * 10 + digit) > 255)
-	goto err;				// Wrong address
-    }
-    else if (c == '.')
-    {
-      dot_count++;
-      result= (result << 8) + (ulonglong) byte_result;
-      byte_result = 0;
-    }
-    else
-      goto err;					// Invalid character
-  }
-  if (c != '.')					// IP number can't end on '.'
-  {
-    /*
-      Handle short-forms addresses according to standard. Examples:
-      127		-> 0.0.0.127
-      127.1		-> 127.0.0.1
-      127.2.1		-> 127.2.0.1
-    */
-    switch (dot_count) {
-    case 1: result<<= 8; /* Fall through */
-    case 2: result<<= 8; /* Fall through */
-    }
-    return (result << 8) + (ulonglong) byte_result;
-  }
-
-err:
-  null_value=1;
-  return 0;
 }
 
 

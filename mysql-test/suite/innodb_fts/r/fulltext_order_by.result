@@ -49,18 +49,18 @@ a	rel
 1	0.000000
 2	0.000000
 3	0.000000
+4	0.296010
 5	0.000000
 6	0.000000
-4	0.296010
 7	0.296010
 SELECT a, MATCH (message) AGAINST ('steve' IN BOOLEAN MODE) as rel FROM t1 ORDER BY rel;
 a	rel
 1	0
 2	0
 3	0
+4	0.2960100471973419
 5	0
 6	0
-4	0.2960100471973419
 7	0.2960100471973419
 alter table t1 add key m (message);
 explain SELECT message FROM t1 WHERE MATCH (message) AGAINST ('steve') ORDER BY message;

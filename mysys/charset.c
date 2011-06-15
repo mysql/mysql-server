@@ -1,4 +1,4 @@
-/* Copyright (C) 2000 MySQL AB, 2008-2009 Sun Microsystems, Inc
+/* Copyright (c) 2000, 2011, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -11,7 +11,7 @@
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
-   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
+   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
 #include "mysys_priv.h"
 #include "mysys_err.h"
@@ -31,7 +31,7 @@
     - Setting server default character set
 */
 
-my_bool my_charset_same(CHARSET_INFO *cs1, CHARSET_INFO *cs2)
+my_bool my_charset_same(const CHARSET_INFO *cs1, const CHARSET_INFO *cs2)
 {
   return ((cs1 == cs2) || !strcmp(cs1->csname,cs2->csname));
 }
@@ -230,7 +230,7 @@ static int add_collation(CHARSET_INFO *cs)
       if (!(all_charsets[cs->number]=
          (CHARSET_INFO*) my_once_alloc(sizeof(CHARSET_INFO),MYF(0))))
         return MY_XML_ERROR;
-      bzero((void*)all_charsets[cs->number],sizeof(CHARSET_INFO));
+      memset(all_charsets[cs->number], 0, sizeof(CHARSET_INFO));
     }
     
     if (cs->primary_number == cs->number)
@@ -472,6 +472,7 @@ CHARSET_INFO *default_charset_info = &my_charset_latin1;
 
 void add_compiled_collation(CHARSET_INFO *cs)
 {
+  DBUG_ASSERT(cs->number < array_elements(all_charsets));
   all_charsets[cs->number]= cs;
   cs->state|= MY_CS_AVAILABLE;
 }
@@ -486,7 +487,7 @@ static void init_available_charsets(void)
   CHARSET_INFO **cs;
   MY_CHARSET_LOADER loader;
 
-  bzero(&all_charsets,sizeof(all_charsets));
+  memset(&all_charsets, 0, sizeof(all_charsets));
   init_compiled_charsets(MYF(0));
 
   /* Copy compiled charsets */
@@ -579,14 +580,17 @@ uint get_charset_number(const char *charset_name, uint cs_flags)
 
 const char *get_charset_name(uint charset_number)
 {
-  CHARSET_INFO *cs;
   my_pthread_once(&charsets_initialized, init_available_charsets);
 
-  cs=all_charsets[charset_number];
-  if (cs && (cs->number == charset_number) && cs->name )
-    return (char*) cs->name;
+  if (charset_number < array_elements(all_charsets))
+  {
+    CHARSET_INFO *cs= all_charsets[charset_number];
+
+    if (cs && (cs->number == charset_number) && cs->name)
+      return (char*) cs->name;
+  }
   
-  return (char*) "?";   /* this mimics find_type() */
+  return "?";   /* this mimics find_type() */
 }
 
 
@@ -595,6 +599,8 @@ get_internal_charset(MY_CHARSET_LOADER *loader, uint cs_number, myf flags)
 {
   char  buf[FN_REFLEN];
   CHARSET_INFO *cs;
+
+  DBUG_ASSERT(cs_number < array_elements(all_charsets));
 
   if ((cs= all_charsets[cs_number]))
   {
@@ -646,8 +652,8 @@ CHARSET_INFO *get_charset(uint cs_number, myf flags)
     return default_charset_info;
 
   my_pthread_once(&charsets_initialized, init_available_charsets);
-  
-  if (!cs_number || cs_number > array_elements(all_charsets))
+ 
+  if (cs_number >= array_elements(all_charsets)) 
     return NULL;
 
   my_charset_loader_init_mysys(&loader);
@@ -764,8 +770,8 @@ get_charset_by_csname(const char *cs_name, uint cs_flags, myf flags)
 */
 
 my_bool resolve_charset(const char *cs_name,
-                        CHARSET_INFO *default_cs,
-                        CHARSET_INFO **cs)
+                        const CHARSET_INFO *default_cs,
+                        const CHARSET_INFO **cs)
 {
   *cs= get_charset_by_csname(cs_name, MY_CS_PRIMARY, MYF(0));
 
@@ -796,8 +802,8 @@ my_bool resolve_charset(const char *cs_name,
 */
 
 my_bool resolve_collation(const char *cl_name,
-                          CHARSET_INFO *default_cl,
-                          CHARSET_INFO **cl)
+                          const CHARSET_INFO *default_cl,
+                          const CHARSET_INFO **cl)
 {
   *cl= get_charset_by_name(cl_name, MYF(0));
 
@@ -836,7 +842,7 @@ my_bool resolve_collation(const char *cl_name,
     #           The length of the escaped string
 */
 
-size_t escape_string_for_mysql(CHARSET_INFO *charset_info,
+size_t escape_string_for_mysql(const CHARSET_INFO *charset_info,
                                char *to, size_t to_length,
                                const char *from, size_t length)
 {
@@ -944,8 +950,11 @@ CHARSET_INFO *fs_character_set()
       As we're now interested in cp932 only,
       let's just detect it using strcmp().
     */
-    fs_cset_cache= !strcmp(buf, "cp932") ?
-                   &my_charset_cp932_japanese_ci : &my_charset_bin;
+    fs_cset_cache= 
+                #ifdef HAVE_CHARSET_cp932
+                        !strcmp(buf, "cp932") ? &my_charset_cp932_japanese_ci : 
+                #endif
+                        &my_charset_bin;
   }
   return fs_cset_cache;
 }

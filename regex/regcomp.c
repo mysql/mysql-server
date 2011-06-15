@@ -28,8 +28,11 @@ struct parse {
 #	define	NPAREN	10	/* we need to remember () 1-9 for back refs */
 	sopno pbegin[NPAREN];	/* -> ( ([0] unused) */
 	sopno pend[NPAREN];	/* -> ) ([0] unused) */
-	CHARSET_INFO *charset;	/* for ctype things  */
+	const CHARSET_INFO *charset; /* for ctype things  */
 };
+
+/* Check if there is enough stack space for recursion. */
+my_regex_stack_check_t my_regex_enough_mem_in_stack= NULL;
 
 #include "regcomp.ih"
 
@@ -104,7 +107,7 @@ my_regcomp(preg, pattern, cflags, charset)
 my_regex_t *preg;
 const char *pattern;
 int cflags;
-CHARSET_INFO *charset;
+const CHARSET_INFO *charset;
 {
 	struct parse pa;
 	register struct re_guts *g;
@@ -117,7 +120,7 @@ CHARSET_INFO *charset;
 #	define	GOODFLAGS(f)	((f)&~MY_REG_DUMP)
 #endif
 
-	my_regex_init(charset);	/* Init cclass if neaded */
+	my_regex_init(charset, NULL);	/* Init cclass if neaded */
 	preg->charset=charset;
 	cflags = GOODFLAGS(cflags);
 	if ((cflags&MY_REG_EXTENDED) && (cflags&MY_REG_NOSPEC))
@@ -222,7 +225,15 @@ int stop;			/* character this ERE should end at */
 		/* do a bunch of concatenated expressions */
 		conc = HERE();
 		while (MORE() && (c = PEEK()) != '|' && c != stop)
-			p_ere_exp(p);
+		{
+		  if (my_regex_enough_mem_in_stack &&
+		      my_regex_enough_mem_in_stack())
+		  {
+		    SETERROR(MY_REG_ESPACE);
+		    return;
+		  }
+		  p_ere_exp(p);
+		}
 		if(REQUIRE(HERE() != conc, MY_REG_EMPTY)) {}/* require nonempty */
 
 		if (!EAT('|'))
@@ -844,7 +855,7 @@ int endc;			/* name ended by endc,']' */
  */
 static char			/* if no counterpart, return ch */
 othercase(charset,ch)
-CHARSET_INFO *charset;
+const CHARSET_INFO *charset;
 int ch;
 {
 	/*

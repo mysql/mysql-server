@@ -1,4 +1,4 @@
-/* Copyright (C) 2000 MySQL AB, 2008-2009 Sun Microsystems, Inc
+/* Copyright (c) 2000, 2011, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -260,7 +260,7 @@ void thr_end_alarm(thr_alarm_t *alarmed)
   {
     if ((ALARM*) queue_element(&alarm_queue,i) == alarm_data)
     {
-      queue_remove(&alarm_queue,i),MYF(0);
+      queue_remove(&alarm_queue,i);
       if (alarm_data->malloced)
 	my_free(alarm_data);
       found++;
@@ -591,7 +591,7 @@ static void *alarm_handler(void *arg __attribute__((unused)))
     }
     process_alarm(0);
   }
-  bzero((char*) &alarm_thread,sizeof(alarm_thread)); /* For easy debugging */
+  memset(&alarm_thread, 0, sizeof(alarm_thread)); /* For easy debugging */
   alarm_thread_running= 0;
   mysql_cond_signal(&COND_alarm);
   mysql_mutex_unlock(&LOCK_alarm);
@@ -677,7 +677,7 @@ void init_thr_alarm(uint max_alarm)
 
 void thr_alarm_info(ALARM_INFO *info)
 {
-  bzero((char*) info, sizeof(*info));
+  memset(info, 0, sizeof(*info));
 }
 
 void resize_thr_alarm(uint max_alarms)

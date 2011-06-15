@@ -1,4 +1,4 @@
-/* Copyright (c) 2002, 2010, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2002, 2011, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -10,12 +10,8 @@
    GNU General Public License for more details.
 
    You should have received a copy of the GNU General Public License
-   along with this program; if not, write to the Free Software Foundation,
-   51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA */
-
-#ifdef USE_PRAGMA_IMPLEMENTATION
-#pragma implementation
-#endif
+   along with this program; if not, write to the Free Software
+   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
 /* variable declarations are in sys_vars.cc now !!! */
 
@@ -117,7 +113,8 @@ void sys_var_end()
   sys_var constructor
 
   @param chain     variables are linked into chain for mysql_add_sys_var_chain()
-  @param name_arg  the name of the variable. @sa my_option::name
+  @param name_arg  the name of the variable. Must be 0-terminated and exist
+                   for the liftime of the sys_var object. @sa my_option::name
   @param comment   shown in mysqld --help, @sa my_option::comment
   @param flags_arg or'ed flag_enum values
   @param off       offset of the global variable value from the
@@ -162,11 +159,11 @@ sys_var::sys_var(sys_var_chain *chain, const char *name_arg,
   */
   DBUG_ASSERT(parse_flag == PARSE_NORMAL || getopt_id <= 0 || getopt_id >= 255);
 
-  name.str= name_arg;
-  name.length= strlen(name_arg);
+  name.str= name_arg;     // ER_NO_DEFAULT relies on 0-termination of name_arg
+  name.length= strlen(name_arg);                // and so does this.
   DBUG_ASSERT(name.length <= NAME_CHAR_LEN);
 
-  bzero(&option, sizeof(option));
+  memset(&option, 0, sizeof(option));
   option.name= name_arg;
   option.id= getopt_id;
   option.comment= comment;
@@ -348,7 +345,7 @@ bool throw_bounds_warning(THD *thd, const char *name, bool fixed, double v)
   return false;
 }
 
-CHARSET_INFO *sys_var::charset(THD *thd)
+const CHARSET_INFO *sys_var::charset(THD *thd)
 {
   return is_os_charset ? thd->variables.character_set_filesystem :
     system_charset_info;
@@ -375,7 +372,7 @@ static my_old_conv old_conv[]=
   {     NULL                    ,       NULL            }
 };
 
-CHARSET_INFO *get_old_charset_by_name(const char *name)
+const CHARSET_INFO *get_old_charset_by_name(const char *name)
 {
   my_old_conv *conv;
 
@@ -504,7 +501,7 @@ SHOW_VAR* enumerate_sys_vars(THD *thd, bool sorted, enum enum_var_type type)
                (qsort_cmp) show_cmp);
 
     /* make last element empty */
-    bzero(show, sizeof(SHOW_VAR));
+    memset(show, 0, sizeof(SHOW_VAR));
   }
   return result;
 }
@@ -774,7 +771,7 @@ int set_var_password::update(THD *thd)
 int set_var_collation_client::check(THD *thd)
 {
   /* Currently, UCS-2 cannot be used as a client character set */
-  if (character_set_client->mbminlen > 1)
+  if (!is_supported_parser_charset(character_set_client))
   {
     my_error(ER_WRONG_VALUE_FOR_VAR, MYF(0), "character_set_client",
              character_set_client->csname);

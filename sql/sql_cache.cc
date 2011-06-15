@@ -275,14 +275,14 @@ functions:
        - Called before parsing and used to match a statement with the stored
          queries hash.
          If a match is found the cached result set is sent through repeated
-         calls to net_real_write. (note: calling thread doesn't have a regis-
+         calls to net_write_packet. (note: calling thread doesn't have a regis-
          tered result set writer: thd->net.query_cache_query=0)
  2. Query_cache::store_query
        - Called just before handle_select() and is used to register a result
          set writer to the statement currently being processed
          (thd->net.query_cache_query).
  3. query_cache_insert
-       - Called from net_real_write to append a result set to a cached query
+       - Called from net_write_packet to append a result set to a cached query
          if (and only if) this query has a registered result set writer
          (thd->net.query_cache_query).
  4. Query_cache::invalidate
@@ -966,7 +966,7 @@ Query_cache::abort(Query_cache_tls *query_cache_tls)
   Query_cache_block *query_block= query_cache_tls->first_query_block;
   if (query_block)
   {
-    thd_proc_info(thd, "storing result in query cache");
+    THD_STAGE_INFO(thd, stage_storing_result_in_query_cache);
     DUMP(this);
     BLOCK_LOCK_WR(query_block);
     // The following call will remove the lock on query_block
@@ -993,7 +993,7 @@ void Query_cache::end_of_result(THD *thd)
     DBUG_VOID_RETURN;
 
   /* Ensure that only complete results are cached. */
-  DBUG_ASSERT(thd->stmt_da->is_eof());
+  DBUG_ASSERT(thd->get_stmt_da()->is_eof());
 
   if (thd->killed)
   {
@@ -1017,7 +1017,7 @@ void Query_cache::end_of_result(THD *thd)
       suitable size if needed and setting block type. Since this is the last
       block, the writer should be dropped.
     */
-    thd_proc_info(thd, "storing result in query cache");
+    THD_STAGE_INFO(thd, stage_storing_result_in_query_cache);
     DUMP(this);
     BLOCK_LOCK_WR(query_block);
     Query_cache_query *header= query_block->query();
@@ -1186,7 +1186,7 @@ void Query_cache::store_query(THD *thd, TABLE_LIST *tables_used)
     NET *net= &thd->net;
     Query_cache_query_flags flags;
     // fill all gaps between fields with 0 to get repeatable key
-    bzero(&flags, QUERY_CACHE_FLAGS_SIZE);
+    memset(&flags, 0, QUERY_CACHE_FLAGS_SIZE);
     flags.client_long_flag= test(thd->client_capabilities & CLIENT_LONG_FLAG);
     flags.client_protocol_41= test(thd->client_capabilities &
                                    CLIENT_PROTOCOL_41);
@@ -1407,12 +1407,12 @@ send_data_in_chunks(NET *net, const uchar *packet, ulong len)
 
   while (len > MAX_CHUNK_LENGTH)
   {
-    if (net_real_write(net, packet, MAX_CHUNK_LENGTH))
+    if (net_write_packet(net, packet, MAX_CHUNK_LENGTH))
       return TRUE;
     packet+= MAX_CHUNK_LENGTH;
     len-= MAX_CHUNK_LENGTH;
   }
-  if (len && net_real_write(net, packet, len))
+  if (len && net_write_packet(net, packet, len))
     return TRUE;
 
   return FALSE;
@@ -1534,10 +1534,10 @@ Query_cache::send_result_to_client(THD *thd, char *sql, uint query_length)
     DBUG_PRINT("qcache", ("No active database"));
   }
 
-  thd_proc_info(thd, "checking query cache for query");
+  THD_STAGE_INFO(thd, stage_checking_query_cache_for_query);
 
   // fill all gaps between fields with 0 to get repeatable key
-  bzero(&flags, QUERY_CACHE_FLAGS_SIZE);
+  memset(&flags, 0, QUERY_CACHE_FLAGS_SIZE);
   flags.client_long_flag= test(thd->client_capabilities & CLIENT_LONG_FLAG);
   flags.client_protocol_41= test(thd->client_capabilities &
                                  CLIENT_PROTOCOL_41);
@@ -1625,7 +1625,7 @@ def_week_frmt: %lu, in_trans: %d, autocommit: %d",
   }
       
   // Check access;
-  thd_proc_info(thd, "checking privileges on cached query");
+  THD_STAGE_INFO(thd, stage_checking_privileges_on_cached_query);
   block_table= query_block->table(0);
   block_table_end= block_table+query_block->n_tables;
   for (; block_table != block_table_end; block_table++)
@@ -1662,7 +1662,7 @@ def_week_frmt: %lu, in_trans: %d, autocommit: %d",
       }
     }
 
-    bzero((char*) &table_list,sizeof(table_list));
+    memset(&table_list, 0, sizeof(table_list));
     table_list.db = table->db();
     table_list.alias= table_list.table_name= table->table();
 #ifndef NO_EMBEDDED_ACCESS_CHECKS
@@ -1722,7 +1722,7 @@ def_week_frmt: %lu, in_trans: %d, autocommit: %d",
     Send cached result to client
   */
 #ifndef EMBEDDED_LIBRARY
-  thd_proc_info(thd, "sending cached result to client");
+  THD_STAGE_INFO(thd, stage_sending_cached_result_to_client);
   do
   {
     DBUG_PRINT("qcache", ("Results  (len: %lu  used: %lu  headers: %lu)",
@@ -1756,8 +1756,8 @@ def_week_frmt: %lu, in_trans: %d, autocommit: %d",
     response, we can't handle it anyway.
   */
   (void) trans_commit_stmt(thd);
-  if (!thd->stmt_da->is_set())
-    thd->stmt_da->disable_status();
+  if (!thd->get_stmt_da()->is_set())
+    thd->get_stmt_da()->disable_status();
 
   BLOCK_UNLOCK_RD(query_block);
   MYSQL_QUERY_CACHE_HIT(thd->query(), (ulong) thd->limit_found_rows);
@@ -1815,7 +1815,7 @@ void Query_cache::invalidate(CHANGED_TABLE_LIST *tables_used)
   THD *thd= current_thd;
   for (; tables_used; tables_used= tables_used->next)
   {
-    thd_proc_info(thd, "invalidating query cache entries (table list)");
+    THD_STAGE_INFO(thd, stage_invalidating_query_cache_entries_table_list);
     invalidate_table(thd, (uchar*) tables_used->key, tables_used->key_length);
     DBUG_PRINT("qcache", ("db: %s  table: %s", tables_used->key,
                           tables_used->key+
@@ -1844,7 +1844,7 @@ void Query_cache::invalidate_locked_for_write(TABLE_LIST *tables_used)
   THD *thd= current_thd;
   for (; tables_used; tables_used= tables_used->next_local)
   {
-    thd_proc_info(thd, "invalidating query cache entries (table)");
+    THD_STAGE_INFO(thd, stage_invalidating_query_cache_entries_table);
     if (tables_used->lock_type >= TL_WRITE_ALLOW_WRITE &&
         tables_used->table)
     {

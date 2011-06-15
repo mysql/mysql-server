@@ -1,5 +1,5 @@
 # -*- cperl -*-
-# Copyright (c) 2004, 2010, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2004, 2011, Oracle and/or its affiliates. All rights reserved.
 #
 # This program is free software; you can redistribute it and/or
 # modify it under the terms of the GNU Library General Public
@@ -31,11 +31,13 @@ sub mtr_script_exists(@);
 sub mtr_file_exists(@);
 sub mtr_exe_exists(@);
 sub mtr_exe_maybe_exists(@);
+sub mtr_compress_file($);
 sub mtr_milli_sleep($);
 sub start_timer($);
 sub has_expired($);
 sub init_timers();
 sub mark_time_used($);
+sub mark_time_idle();
 sub add_total_times($);
 sub print_times_used($$);
 sub print_total_times($);
@@ -198,6 +200,40 @@ sub mtr_exe_exists (@) {
   }
 }
 
+#
+# Try to compress file using tools that might be available.
+# If zip/gzip is not available, just silently ignore.
+#
+
+sub mtr_compress_file ($) {
+  my ($filename)= @_;
+
+  mtr_error ("File to compress not found: $filename") unless -f $filename;
+
+  my $did_compress= 0;
+
+  if (IS_WINDOWS)
+  {
+    # Capture stderr
+    my $ziperr= `zip $filename.zip $filename 2>&1`;
+    if ($?) {
+      print "$ziperr\n" if $ziperr !~ /recognized as an internal or external/;
+    } else {
+      unlink($filename);
+      $did_compress=1;
+    }
+  }
+  else
+  {
+    my $gzres= system("gzip $filename");
+    $did_compress= ! $gzres;
+    if ($gzres && $gzres != -1) {
+      mtr_error ("Error: have gzip but it fails to compress core file");
+    }
+  }
+  mtr_print("Compressed file $filename") if $did_compress;
+}
+
 
 sub mtr_milli_sleep ($) {
   die "usage: mtr_milli_sleep(milliseconds)" unless @_ == 1;
@@ -224,6 +260,7 @@ my %time_used= (
   'ch-warn' => 0,
   'test'    => 0,
   'init'    => 0,
+  'admin'   => 0,
 );
 
 my %time_text= (
@@ -232,7 +269,8 @@ my %time_text= (
  'check'   => "Check-testcase",
  'ch-warn' => "Check for warnings",
  'test'    => "Test execution",
- 'init'    => "Initialization etc.",
+ 'init'    => "Initialization/cleanup",
+ 'admin'   => "Test administration",
 );
 
 # Counts number of reports from workers
@@ -253,6 +291,10 @@ sub mark_time_used($) {
   my $curr_time= gettimeofday();
   $time_used{$name}+= int (($curr_time - $last_timer_set) * 1000 + .5);
   $last_timer_set= $curr_time;
+}
+
+sub mark_time_idle() {
+  $last_timer_set= gettimeofday() if $opt_report_times;
 }
 
 sub add_total_times($) {

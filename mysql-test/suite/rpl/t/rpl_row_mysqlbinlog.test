@@ -293,8 +293,11 @@ connection master;
 
 create table t4 (f text character set utf8);
 create table t5 (f text character set cp932); 
---exec $MYSQL --default-character-set=utf8 test -e "insert into t4 values(_utf8'ã‚½')"
---exec $MYSQL --default-character-set=cp932 test -e "insert into t5 values(_cp932'ƒ\');"
+--character_set utf8
+--execw $MYSQL --default-character-set=utf8 test -e "insert into t4 values(_utf8'ã‚½')"
+--character_set cp932
+--execw $MYSQL --default-character-set=cp932 test -e "insert into t5 values(_cp932'ƒ\');"
+--character_set latin1
 let $MYSQLD_DATADIR= `select @@datadir;`;
 flush logs;
 rename table t4 to t04, t5 to t05;

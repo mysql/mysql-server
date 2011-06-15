@@ -32,6 +32,7 @@ struct PFS_global_param;
   @{
 */
 
+/** Hash key for @sa PFS_setup_object. */
 struct PFS_setup_object_key
 {
   /**
@@ -43,6 +44,7 @@ struct PFS_setup_object_key
   uint m_key_length;
 };
 
+/** A setup_object record. */
 struct PFS_setup_object
 {
   enum_object_type get_object_type()
@@ -68,6 +70,20 @@ struct PFS_setup_object
   bool m_timed;
 };
 
+/**
+  Version number of the SETUP_OBJECTS cache.
+  The content of the SETUP_OBJECTS table,
+  and the content of SETUP_INSTRUMENTS table for instruments that apply to objects :
+  - wait/io/table/sql/handler
+  - wait/lock/table/sql/handler
+  is cached once for each object,
+  to avoid evaluating the object ENABLED and TIMED flags too frequently.
+  Incrementing @c setup_objects_version invalidates the cache.
+  @sa global_table_io_class
+  @sa global_table_lock_class
+  @sa PFS_table_share::refresh_setup_objects_flags
+  @sa PFS_table_share::m_setup_objects_version
+*/
 extern uint setup_objects_version;
 
 int init_setup_object(const PFS_global_param *param);

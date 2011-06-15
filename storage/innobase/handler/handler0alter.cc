@@ -635,7 +635,7 @@ innobase_create_key_def(
 	if (!new_primary && (key_info->flags & HA_NOSAME)
 	    && (!(key_info->flags & HA_KEY_HAS_PART_KEY_SEG))
 	    && row_table_got_default_clust_index(table)) {
-		uint    key_part = key_info->key_parts;
+		uint	key_part = key_info->key_parts;
 
 		new_primary = TRUE;
 
@@ -692,7 +692,7 @@ innobase_create_key_def(
 		}
 	}
 
-	/* If DICT_TF_FTS_ADD_DOC_ID is set, we will need to rebuild
+	/* If DICT_TF2_FTS_ADD_DOC_ID is set, we will need to rebuild
 	the table to add the unique Doc ID column for FTS index. And
 	thus the primary index would required to be rebuilt. Copy all
 	the index definitions */
@@ -733,7 +733,7 @@ innobase_create_key_def(
 		is just copied from old table and stored in indexdefs[0] */
 		if (*add_fts_doc_id) {
 			indexdefs[0].ind_type |= DICT_CLUSTERED;
-			DICT_TF2_FLAG_SET(table, DICT_TF_FTS_ADD_DOC_ID);
+			DICT_TF2_FLAG_SET(table, DICT_TF2_FTS_ADD_DOC_ID);
 		}
 
 		row_mysql_unlock_data_dictionary(trx);
@@ -749,6 +749,27 @@ innobase_create_key_def(
 	n_keys = indexdef - indexdefs;
 
 	DBUG_RETURN(indexdefs);
+}
+
+/*******************************************************************//**
+Check each index column size, make sure they do not exceed the max limit
+@return	HA_ERR_INDEX_COL_TOO_LONG if index column size exceeds limit */
+static
+int
+innobase_check_column_length(
+/*=========================*/
+	const dict_table_t*table,	/*!< in: table definition */
+	const KEY*	key_info)	/*!< in: Indexes to be created */
+{
+	ulint	max_col_len = DICT_MAX_FIELD_LEN_BY_FORMAT(table);
+
+	for (ulint key_part = 0; key_part < key_info->key_parts; key_part++) {
+		if (key_info->key_part[key_part].length > max_col_len) {
+			my_error(ER_INDEX_COLUMN_TOO_LONG, MYF(0), max_col_len);
+			return(HA_ERR_INDEX_COL_TOO_LONG);
+		}
+	}
+	return(0);
 }
 
 /*******************************************************************//**
@@ -775,6 +796,18 @@ innobase_create_temporary_tablename(
 
 	return(name);
 }
+
+class ha_innobase_add_index : public handler_add_index
+{
+public:
+	/** table where the indexes are being created */
+	dict_table_t* indexed_table;
+	ha_innobase_add_index(TABLE* table, KEY* key_info, uint num_of_keys,
+			      dict_table_t* indexed_table_arg) :
+		handler_add_index(table, key_info, num_of_keys),
+		indexed_table (indexed_table_arg) {}
+	~ha_innobase_add_index() {}
+};
 
 /*******************************************************************//**
 This is to create FTS_DOC_ID_INDEX definition on the newly added Doc ID for
@@ -821,21 +854,15 @@ innobase_add_index_cleanup(
 /*=======================*/
 	row_prebuilt_t*	prebuilt,		/*!< in/out: prebuilt */
 	trx_t*		trx,			/*!< in/out: transaction */
-	dict_table_t*	table,			/*!< in/out: table on which
+	dict_table_t*	table)			/*!< in/out: table on which
 						the indexes were going to be
 						created */
-	mem_heap_t*	heap)			/*!< in/own: heap that was
-						going to be used for the index
-						creation */
 {
-	mem_heap_free(heap);
-
-	trx_general_rollback_for_mysql(trx, NULL);
+	trx_rollback_to_savepoint(trx, NULL);
 
 	ut_a(trx != prebuilt->trx);
 
 	trx_free_for_mysql(trx);
-	trx = NULL;
 
 	trx_commit_for_mysql(prebuilt->trx);
 
@@ -845,9 +872,9 @@ innobase_add_index_cleanup(
 
 		dict_mutex_enter_for_mysql();
 
-		/* Note: This check exludes the system tables. However, we
+		/* Note: This check excludes the system tables. However, we
 		should be safe because users cannot add indexes to system
-	        tables. */
+		tables. */
 
 		if (UT_LIST_GET_LEN(table->foreign_list) == 0
 		    && UT_LIST_GET_LEN(table->referenced_list) == 0
@@ -871,16 +898,19 @@ UNIV_INTERN
 int
 ha_innobase::add_index(
 /*===================*/
-	TABLE*	table,		/*!< in: Table where indexes are created */
-	KEY*	key_info,	/*!< in: Indexes to be created */
-	uint	num_of_keys)	/*!< in: Number of indexes to be created */
+	TABLE*			table,		/*!< in: Table where indexes
+						are created */
+	KEY*			key_info,	/*!< in: Indexes
+						to be created */
+	uint			num_of_keys,	/*!< in: Number of indexes
+						to be created */
+	handler_add_index**	add)		/*!< out: context */
 {
 	dict_index_t**	index;		/*!< Index to be created */
 	dict_index_t*	fts_index = NULL;/*!< FTS Index to be created */
-	dict_table_t*	innodb_table;	/*!< InnoDB table in dictionary */
 	dict_table_t*	indexed_table;	/*!< Table where indexes are created */
 	merge_index_def_t* index_defs;	/*!< Index definitions */
-	mem_heap_t*     heap;		/*!< Heap for index definitions */
+	mem_heap_t*     heap = NULL;	/*!< Heap for index definitions */
 	trx_t*		trx;		/*!< Transaction */
 	ulint		num_of_idx;
 	ulint		num_created	= 0;
@@ -897,49 +927,59 @@ ha_innobase::add_index(
 	ut_a(key_info);
 	ut_a(num_of_keys);
 
+	*add = NULL;
+
 	if (srv_created_new_raw || srv_force_recovery) {
 		DBUG_RETURN(HA_ERR_WRONG_COMMAND);
 	}
 
 	update_thd();
 
-	heap = mem_heap_create(1024);
-
 	/* In case MySQL calls this in the middle of a SELECT query, release
 	possible adaptive hash latch to avoid deadlocks of threads. */
 	trx_search_latch_release_if_reserved(prebuilt->trx);
-	trx_start_if_not_started_xa(prebuilt->trx);
+
+	/* Check if the index name is reserved. */
+	if (innobase_index_name_is_reserved(user_thd, key_info, num_of_keys)) {
+		DBUG_RETURN(-1);
+	}
+
+	indexed_table = dict_table_open_on_name(prebuilt->table->name, FALSE);
+
+	if (UNIV_UNLIKELY(!indexed_table)) {
+		DBUG_RETURN(HA_ERR_NO_SUCH_TABLE);
+	}
+
+	ut_a(indexed_table == prebuilt->table);
+
+	/* Check that index keys are sensible */
+	error = innobase_check_index_keys(key_info, num_of_keys, prebuilt->table);
+
+	if (UNIV_UNLIKELY(error)) {
+err_exit:
+		dict_table_close(prebuilt->table, FALSE);
+		DBUG_RETURN(error);
+	}
+
+	/* Check each index's column length to make sure they do not
+	exceed limit */
+	for (ulint i = 0; i < num_of_keys; i++) {
+		error = innobase_check_column_length(prebuilt->table,
+						     &key_info[i]);
+
+		if (error) {
+			dict_table_close(prebuilt->table, FALSE);
+			DBUG_RETURN(error);
+		}
+	}
+
+	heap = mem_heap_create(1024);
+	trx_start_if_not_started(prebuilt->trx);
 
 	/* Create a background transaction for the operations on
 	the data dictionary tables. */
 	trx = innobase_trx_allocate(user_thd);
-	trx_start_if_not_started_xa(trx);
-
-	indexed_table = dict_table_open_on_name(prebuilt->table->name, FALSE);
-
-	innodb_table = indexed_table;
-
-	if (UNIV_UNLIKELY(!innodb_table)) {
-		innobase_add_index_cleanup(prebuilt, trx, NULL, heap);
-
-		DBUG_RETURN(HA_ERR_NO_SUCH_TABLE);
-	}
-
-	/* Check if the index name is reserved. */
-	if (innobase_index_name_is_reserved(trx, key_info, num_of_keys)) {
-		error = -1;
-	} else {
-		/* Check that index keys are sensible */
-		error = innobase_check_index_keys(key_info, num_of_keys,
-						  innodb_table);
-	}
-
-	if (UNIV_UNLIKELY(error)) {
-err_exit:
-		innobase_add_index_cleanup(prebuilt, trx, innodb_table, heap);
-
-		DBUG_RETURN(error);
-	}
+	trx_start_if_not_started(trx);
 
 	/* We don't want this table to be evicted from the cache while we
 	are building an index on it. Another issue is that while we are
@@ -949,8 +989,8 @@ err_exit:
 
 	row_mysql_lock_data_dictionary(trx);
 
-	if (innodb_table->can_be_evicted) {
-		dict_table_move_from_lru_to_non_lru(innodb_table);
+	if (prebuilt->table->can_be_evicted) {
+		dict_table_move_from_lru_to_non_lru(prebuilt->table);
 	}
 
 	row_mysql_unlock_data_dictionary(trx);
@@ -962,13 +1002,13 @@ err_exit:
 	num_of_idx = num_of_keys;
 
 	index_defs = innobase_create_key_def(
-		trx, innodb_table, heap, key_info, num_of_idx,
+		trx, prebuilt->table, heap, key_info, num_of_idx,
 		&num_fts_index, &fts_add_doc_id, &fts_add_doc_idx);
 
 	/* We do not support create more than one FT index on the
 	table yet.
 	TODO: this restriction will be removed */
-	if ((dict_table_has_fts_index(innodb_table) && num_fts_index > 0)
+	if ((dict_table_has_fts_index(prebuilt->table) && num_fts_index > 0)
 	    || num_fts_index > 1) {
 		error = -1;
 		goto err_exit;
@@ -989,7 +1029,7 @@ err_exit:
 	trx_set_dict_operation(trx, TRX_DICT_OP_INDEX);
 
 	/* Acquire a lock on the table before creating any indexes. */
-	error = row_merge_lock_table(prebuilt->trx, innodb_table,
+	error = row_merge_lock_table(prebuilt->trx, prebuilt->table,
 				     new_primary ? LOCK_X : LOCK_S);
 
 	if (UNIV_UNLIKELY(error != DB_SUCCESS)) {
@@ -1003,7 +1043,7 @@ err_exit:
 	row_mysql_lock_data_dictionary(trx);
 	dict_locked = TRUE;
 
-	ut_d(dict_table_check_for_dup_indexes(innodb_table, FALSE));
+	ut_d(dict_table_check_for_dup_indexes(prebuilt->table, FALSE));
 
 	/* If a new primary key is defined for the table we need
 	to drop the original table and rebuild all indexes. */
@@ -1012,15 +1052,15 @@ err_exit:
 		/* This transaction should be the only one
 		operating on the table. The table get above
 		would have incremented the ref count to 2. */
-		ut_a(innodb_table->n_ref_count == 2);
+		ut_a(prebuilt->table->n_ref_count == 2);
 
 		char*	new_table_name = innobase_create_temporary_tablename(
-			heap, '1', innodb_table->name);
+			heap, '1', prebuilt->table->name);
 
 		/* Clone the table. */
 		trx_set_dict_operation(trx, TRX_DICT_OP_TABLE);
 		indexed_table = row_merge_create_temporary_table(
-			new_table_name, index_defs, innodb_table, trx);
+			new_table_name, index_defs, prebuilt->table, trx);
 
 		if (!indexed_table) {
 
@@ -1034,16 +1074,18 @@ err_exit:
 				break;
 			default:
 				error = convert_error_code_to_mysql(
-					trx->error_state, innodb_table->flags,
+					trx->error_state,
+					prebuilt->table->flags,
 					user_thd);
 			}
 
-			ut_d(dict_table_check_for_dup_indexes(innodb_table,
+			ut_d(dict_table_check_for_dup_indexes(prebuilt->table,
 							      FALSE));
 			row_mysql_unlock_data_dictionary(trx);
+			mem_heap_free(heap);
 
 			innobase_add_index_cleanup(
-				prebuilt, trx, innodb_table, heap);
+				prebuilt, trx, prebuilt->table);
 
 			DBUG_RETURN(error);
 		}
@@ -1053,21 +1095,19 @@ err_exit:
 
 	/* Create the indexes in SYS_INDEXES and load into dictionary. */
 
-	for (ulint i = 0; i < num_of_idx; i++) {
+	for (num_created = 0; num_created < num_of_idx; num_created++) {
 
-		index[i] = row_merge_create_index(trx, indexed_table,
-						  &index_defs[i]);
+		index[num_created] = row_merge_create_index(
+			trx, indexed_table, &index_defs[num_created]);
 
-		if (!index[i]) {
+		if (!index[num_created]) {
 			error = trx->error_state;
 			goto error_handling;
 		}
 
-		if (index[i]->type & DICT_FTS) {
-			fts_index = index[i];
+		if (index[num_created]->type & DICT_FTS) {
+			fts_index = index[num_created];
 		}
-	
-		num_created++;
 	}
 
 	/* create FTS_DOC_ID_INDEX on the Doc ID column on the table */
@@ -1079,12 +1119,12 @@ err_exit:
 	}
 
 	if (num_fts_index) {
-		DICT_TF2_FLAG_SET(indexed_table, DICT_TF_FTS);
+		DICT_TF2_FLAG_SET(indexed_table, DICT_TF2_FTS);
 
 		fts_create_index_tables(trx, fts_index);
 
 		fts_create_common_tables(trx, indexed_table,
-					 innodb_table->name, TRUE);
+					 prebuilt->table->name, TRUE);
 
 		indexed_table->fts->fts_status |= TABLE_DICT_LOCKED;
 		innobase_fts_load_stopword(indexed_table, ha_thd());
@@ -1109,7 +1149,7 @@ err_exit:
 	if (UNIV_UNLIKELY(new_primary)) {
 		/* A primary key is to be built.  Acquire an exclusive
 		table lock also on the table that is being created. */
-		ut_ad(indexed_table != innodb_table);
+		ut_ad(indexed_table != prebuilt->table);
 
 		error = row_merge_lock_table(prebuilt->trx, indexed_table,
 					     LOCK_X);
@@ -1123,7 +1163,7 @@ err_exit:
 	/* Read the clustered index of the table and build indexes
 	based on this information using temporary files and merge sort. */
 	error = row_merge_build_indexes(prebuilt->trx,
-					innodb_table, indexed_table,
+					prebuilt->table, indexed_table,
 					index, num_of_idx, table);
 
 error_handling:
@@ -1132,85 +1172,19 @@ error_handling:
 	dictionary which were defined. */
 
 	switch (error) {
-		const char*	old_name;
-		char*		tmp_name;
 	case DB_SUCCESS:
 		ut_a(!dict_locked);
-		row_mysql_lock_data_dictionary(trx);
-		dict_locked = TRUE;
 
+		ut_d(mutex_enter(&dict_sys->mutex));
 		ut_d(dict_table_check_for_dup_indexes(prebuilt->table, TRUE));
+		ut_d(mutex_exit(&dict_sys->mutex));
 
-		/* If we are creating second index, or create full
-		text index, we will need to rename the temp
-		index name to their official index name. */
-		if (!new_primary || fts_add_doc_id) {
-			error = row_merge_rename_indexes(trx, indexed_table);
+		*add = new ha_innobase_add_index(table, key_info, num_of_keys,
+                                                 indexed_table);
 
-			if (error != DB_SUCCESS) {
-				row_merge_drop_indexes(trx, indexed_table,
-						       index, num_created);
-			}
+		dict_table_close(prebuilt->table, dict_locked);
 
-			/* If a new Doc ID is added when rebuilding FTS,
-			the primary index would be rebuilt, so do not
-			exit and continue to rename the temp table. */
-			if (!fts_add_doc_id) {
-				dict_table_close(innodb_table, dict_locked);
-				goto convert_error;
-			}
-		}
-
-		/* If a new primary key was defined for the table and
-		there was no error at this point, we can now rename
-		the old table as a temporary table, rename the new
-		temporary table as the old table and drop the old table. */
-		old_name = innodb_table->name;
-		tmp_name = innobase_create_temporary_tablename(heap, '2',
-							       old_name);
-
-		error = row_merge_rename_tables(innodb_table, indexed_table,
-						tmp_name, trx);
-
-		if (error != DB_SUCCESS) {
-
-			dict_table_close(innodb_table, dict_locked);
-
-			ut_a(innodb_table->n_ref_count == 1);
-			ut_a(indexed_table->n_ref_count == 0);
-
-			row_merge_drop_table(trx, indexed_table);
-
-			switch (error) {
-			case DB_TABLESPACE_ALREADY_EXISTS:
-			case DB_DUPLICATE_KEY:
-				innobase_convert_tablename(tmp_name);
-				my_error(HA_ERR_TABLE_EXIST, MYF(0), tmp_name);
-				error = HA_ERR_TABLE_EXIST;
-				break;
-			default:
-				goto convert_error;
-			}
-			break;
-		}
-
-		trx_commit_for_mysql(prebuilt->trx);
-
-		dict_table_close(innodb_table, dict_locked);
-
-		ut_a(innodb_table->n_ref_count == 1);
-
-		row_prebuilt_free(prebuilt, TRUE);
-
-		ut_a(innodb_table->n_ref_count == 0);
-
-		error = row_merge_drop_table(trx, innodb_table);
-
-		prebuilt = row_create_prebuilt(indexed_table);
-
-		innodb_table = indexed_table;
-
-		goto convert_error;
+		break;
 
 	case DB_TOO_BIG_RECORD:
 		my_error(HA_ERR_TO_BIG_ROW, MYF(0));
@@ -1223,12 +1197,12 @@ error:
 		prebuilt->trx->error_info = NULL;
 		/* fall through */
 	default:
-		dict_table_close(innodb_table, dict_locked);
+		dict_table_close(prebuilt->table, dict_locked);
 
 		trx->error_state = DB_SUCCESS;
 
 		if (new_primary) {
-			if (indexed_table != innodb_table) {
+			if (indexed_table != prebuilt->table) {
 				dict_table_close(indexed_table, dict_locked);
 				row_merge_drop_table(trx, indexed_table);
 			}
@@ -1241,47 +1215,183 @@ error:
 			row_merge_drop_indexes(trx, indexed_table,
 					       index, num_created);
 		}
-
-convert_error:
-		if (error == DB_SUCCESS) {
-			/* Build index is successful. We will need to
-			rebuild index translation table.  Reset the
-			index entry count in the translation table
-			to zero, so that translation table will be rebuilt */
-			share->idx_trans_tbl.index_count = 0;
-
-			if (num_fts_index) {
-				dict_table_get_all_fts_indexes(
-					innodb_table, innodb_table->fts->indexes);
-			}
-		}
-
-		DICT_TF2_FLAG_UNSET(innodb_table, DICT_TF_FTS_ADD_DOC_ID);
-
-		error = convert_error_code_to_mysql(error,
-						    innodb_table->flags,
-						    user_thd);
 	}
 
-	ut_a(!new_primary || innodb_table->n_ref_count == 1);
+	ut_a(!new_primary || prebuilt->table->n_ref_count == 1);
 
-	mem_heap_free(heap);
 	trx_commit_for_mysql(trx);
 	if (prebuilt->trx) {
 		trx_commit_for_mysql(prebuilt->trx);
 	}
 
 	if (dict_locked) {
-		ut_d(dict_table_check_for_dup_indexes(innodb_table, FALSE));
 		row_mysql_unlock_data_dictionary(trx);
 	}
+
+	trx_free_for_mysql(trx);
+	mem_heap_free(heap);
+
+	/* There might be work for utility threads.*/
+	srv_active_wake_master_thread();
+
+	DBUG_RETURN(convert_error_code_to_mysql(error, prebuilt->table->flags,
+						user_thd));
+}
+
+/*******************************************************************//**
+Finalize or undo add_index().
+@return	0 or error number */
+UNIV_INTERN
+int
+ha_innobase::final_add_index(
+/*=========================*/
+	handler_add_index*	add_arg,/*!< in: context from add_index() */
+	bool			commit)	/*!< in: true=commit, false=rollback */
+{
+	ha_innobase_add_index*	add;
+	trx_t*			trx;
+	int			err	= 0;
+
+	DBUG_ENTER("ha_innobase::final_add_index");
+
+	ut_ad(add_arg);
+	add = static_cast<class ha_innobase_add_index*>(add_arg);
+
+	/* Create a background transaction for the operations on
+	the data dictionary tables. */
+	trx = innobase_trx_allocate(user_thd);
+	trx_start_if_not_started(trx);
+
+	/* Flag this transaction as a dictionary operation, so that
+	the data dictionary will be locked in crash recovery. */
+	trx_set_dict_operation(trx, TRX_DICT_OP_INDEX);
+
+	/* Latch the InnoDB data dictionary exclusively so that no deadlocks
+	or lock waits can happen in it during an index create operation. */
+	row_mysql_lock_data_dictionary(trx);
+
+	if (add->indexed_table != prebuilt->table) {
+		ulint	error;
+
+		/* We copied the table (new_primary). */
+		if (commit) {
+			mem_heap_t*	heap;
+			char*		tmp_name;
+
+			heap = mem_heap_create(1024);
+
+			/* A new primary key was defined for the table
+			and there was no error at this point. We can
+			now rename the old table as a temporary table,
+			rename the new temporary table as the old
+			table and drop the old table. */
+			tmp_name = innobase_create_temporary_tablename(
+				heap, '2', prebuilt->table->name);
+
+			error = row_merge_rename_tables(
+				prebuilt->table, add->indexed_table,
+				tmp_name, trx);
+
+			ut_a(prebuilt->table->n_ref_count == 1);
+
+			switch (error) {
+			case DB_TABLESPACE_ALREADY_EXISTS:
+			case DB_DUPLICATE_KEY:
+				ut_a(add->indexed_table->n_ref_count == 0);
+				innobase_convert_tablename(tmp_name);
+				my_error(HA_ERR_TABLE_EXIST, MYF(0), tmp_name);
+				err = HA_ERR_TABLE_EXIST;
+				break;
+			default:
+				err = convert_error_code_to_mysql(
+					error, prebuilt->table->flags,
+					user_thd);
+				break;
+			}
+
+			mem_heap_free(heap);
+		}
+
+		if (!commit || err) {
+			dict_table_close(add->indexed_table, TRUE);
+			error = row_merge_drop_table(trx, add->indexed_table);
+			trx_commit_for_mysql(prebuilt->trx);
+		} else {
+			dict_table_t*	old_table = prebuilt->table;
+			trx_commit_for_mysql(prebuilt->trx);
+			row_prebuilt_free(prebuilt, TRUE);
+			error = row_merge_drop_table(trx, old_table);
+			prebuilt = row_create_prebuilt(add->indexed_table);
+		}
+
+		err = convert_error_code_to_mysql(
+			error, prebuilt->table->flags, user_thd);
+	}
+ 
+	if (add->indexed_table == prebuilt->table
+	    || DICT_TF2_FLAG_IS_SET(prebuilt->table, DICT_TF2_FTS_ADD_DOC_ID)) { 
+		/* We created secondary indexes (!new_primary) or create full
+                text index and added a new Doc ID column, we will need to
+		rename the secondary index on the Doc ID column to its
+		official index name.. */
+
+		if (commit) {
+			err = convert_error_code_to_mysql(
+				row_merge_rename_indexes(trx, prebuilt->table),
+				prebuilt->table->flags, user_thd);
+		}
+
+		if (!commit || err) {
+			dict_index_t*	index;
+			dict_index_t*	next_index;
+
+			for (index = dict_table_get_first_index(
+				     prebuilt->table);
+			     index; index = next_index) {
+
+				next_index = dict_table_get_next_index(index);
+
+				if (*index->name == TEMP_INDEX_PREFIX) {
+					row_merge_drop_index(
+						index, prebuilt->table, trx);
+				}
+			}
+		}
+
+		DICT_TF2_FLAG_UNSET(prebuilt->table, DICT_TF2_FTS_ADD_DOC_ID);
+	}
+
+	/* If index is successfully built, we will need to rebuild index
+	translation table. Set valid index entry count in the translation
+	table to zero. */
+	if (err == 0 && commit) {
+		ulint	i;
+		share->idx_trans_tbl.index_count = 0;
+
+		for (i = 0; i < add->num_of_keys; i++) {
+			if (add->key_info[0].flags & HA_FULLTEXT) {
+				dict_table_get_all_fts_indexes(
+					prebuilt->table,
+					prebuilt->table->fts->indexes);
+			}
+		}
+	}
+
+	trx_commit_for_mysql(trx);
+	if (prebuilt->trx) {
+		trx_commit_for_mysql(prebuilt->trx);
+	}
+
+	ut_d(dict_table_check_for_dup_indexes(prebuilt->table, FALSE));
+	row_mysql_unlock_data_dictionary(trx);
 
 	trx_free_for_mysql(trx);
 
 	/* There might be work for utility threads.*/
 	srv_active_wake_master_thread();
 
-	DBUG_RETURN(error);
+	delete add;
+	DBUG_RETURN(err);
 }
 
 /*******************************************************************//**
@@ -1305,14 +1415,14 @@ innobase_drop_fts_index(
 
 		fts_optimize_remove_table(table);
 
-		DICT_TF2_FLAG_UNSET(table, DICT_TF_FTS);
+		DICT_TF2_FLAG_UNSET(table, DICT_TF2_FTS);
 
 		/* If Doc ID column is not added internally by FTS index,
 		we can drop all FTS auxiliary tables. Otherwise, we will
 		need to keep some common table such as CONFIG table, so
 		as to keep track of incrementing Doc IDs */
 		if (!DICT_TF2_FLAG_IS_SET(table,
-				    DICT_TF_FTS_HAS_DOC_ID)) {
+				    DICT_TF2_FTS_HAS_DOC_ID)) {
 			err = fts_drop_tables(trx, table);
 
 			err = fts_drop_index_tables(trx, index);

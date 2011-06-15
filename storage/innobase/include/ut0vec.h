@@ -115,35 +115,42 @@ ib_vector_is_empty(
 /*===============*/
 	const ib_vector_t*	vec);    /*!< in: vector */
 
-/********************************************************************
-Get the n'th element. */
+/****************************************************************//**
+Get the n'th element.
+@return	n'th element */
 UNIV_INLINE
 void*
 ib_vector_get(
 /*==========*/
-					/* out: n'th element */
-	ib_vector_t*	vec,		/* in/out: vector */
-	ulint		n);		/* in: element index to get */
+	ib_vector_t*	vec,	/*!< in: vector */
+	ulint		n);	/*!< in: element index to get */
 
 /********************************************************************
-Const version of the get n'th element. */
+Const version of the get n'th element.
+@return n'th element */
 UNIV_INLINE
 const void*
 ib_vector_get_const(
 /*================*/
-					/* out: n'th element */
 	const ib_vector_t*	vec,	/* in: vector */
 	ulint			n);	/* in: element index to get */
-
-/********************************************************************
+/****************************************************************//**
+Get last element. The vector must not be empty.
+@return	last element */
+UNIV_INLINE
+void*
+ib_vector_get_last(
+/*===============*/
+	ib_vector_t*	vec);	/*!< in: vector */
+/****************************************************************//**
 Set the n'th element. */
 UNIV_INLINE
 void
 ib_vector_set(
 /*==========*/
-	ib_vector_t*	vec,		/* in/out: vector */
-	ulint		n,		/* in: element index to set */
-	const void*	elem);		/* in: value to set */
+	ib_vector_t*	vec,	/*!< in/out: vector */
+	ulint		n,	/*!< in: element index to set */
+	void*		elem);	/*!< in: data element */
 
 /********************************************************************
 Reset the vector size to 0 elements. */

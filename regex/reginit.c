@@ -4,10 +4,12 @@
 #include <m_ctype.h>
 #include <m_string.h>
 #include "cclass.h"
+#include "my_regex.h"
 
 static my_bool regex_inited=0;
+extern my_regex_stack_check_t my_regex_enough_mem_in_stack;
 
-void my_regex_init(CHARSET_INFO *cs)
+void my_regex_init(const CHARSET_INFO *cs, my_regex_stack_check_t func)
 {
   char buff[CCLASS_LAST][256];
   int  count[CCLASS_LAST];
@@ -16,7 +18,8 @@ void my_regex_init(CHARSET_INFO *cs)
   if (!regex_inited)
   {
     regex_inited=1;
-    bzero((uchar*) &count,sizeof(count));
+    my_regex_enough_mem_in_stack= func;
+    memset(&count, 0, sizeof(count));
 
     for (i=1 ; i<= 255; i++)
     {
@@ -74,6 +77,7 @@ void my_regex_end()
     int i;
     for (i=0; i < CCLASS_LAST ; i++)
       free((char*) cclasses[i].chars);
+    my_regex_enough_mem_in_stack= NULL;
     regex_inited=0;
   }
 }

@@ -106,17 +106,14 @@ extern mysql_pfs_key_t	srv_innodb_monitor_mutex_key;
 extern mysql_pfs_key_t	srv_misc_tmpfile_mutex_key;
 extern mysql_pfs_key_t	srv_threads_mutex_key;
 extern mysql_pfs_key_t	srv_monitor_file_mutex_key;
-extern mysql_pfs_key_t	syn_arr_mutex_key;
 # ifdef UNIV_SYNC_DEBUG
 extern mysql_pfs_key_t	sync_thread_mutex_key;
 # endif /* UNIV_SYNC_DEBUG */
 extern mysql_pfs_key_t	trx_doublewrite_mutex_key;
-extern mysql_pfs_key_t	thr_local_mutex_key;
 extern mysql_pfs_key_t	trx_undo_mutex_key;
 extern mysql_pfs_key_t	trx_mutex_key;
 extern mysql_pfs_key_t	lock_sys_mutex_key;
 extern mysql_pfs_key_t	lock_sys_wait_mutex_key;
-extern mysql_pfs_key_t	trx_sys_rw_lock_key;
 extern mysql_pfs_key_t	read_view_mutex_key;
 extern mysql_pfs_key_t	srv_sys_mutex_key;
 extern mysql_pfs_key_t	srv_sys_tasks_mutex_key;
@@ -124,7 +121,6 @@ extern mysql_pfs_key_t	srv_conc_mutex_key;
 extern mysql_pfs_key_t	event_os_mutex_key;
 extern mysql_pfs_key_t	ut_list_mutex_key;
 extern mysql_pfs_key_t	os_mutex_key;
-
 #endif /* UNIV_PFS_MUTEX */
 
 /******************************************************************//**
@@ -427,13 +423,6 @@ sync_thread_reset_level(
 /*====================*/
 	void*	latch);	/*!< in: pointer to a mutex or an rw-lock */
 /******************************************************************//**
-Checks that the level array for the current thread is empty.
-@return	TRUE if empty */
-UNIV_INTERN
-ibool
-sync_thread_levels_empty(void);
-/*==========================*/
-/******************************************************************//**
 Checks if the level array for the current thread contains a
 mutex or rw-latch at the specified level.
 @return	a matching latch, or NULL if not found */
@@ -444,17 +433,33 @@ sync_thread_levels_contains(
 	ulint	level);			/*!< in: latching order level
 					(SYNC_DICT, ...)*/
 /******************************************************************//**
-Checks if the level array for the current thread is empty.
+Checks that the level array for the current thread is empty.
 @return	a latch, or NULL if empty except the exceptions specified below */
 UNIV_INTERN
 void*
 sync_thread_levels_nonempty_gen(
 /*============================*/
-	ibool	dict_mutex_allowed);	/*!< in: TRUE if dictionary mutex is
-					allowed to be owned by the thread,
-					also purge_is_running mutex is
-					allowed */
-#define sync_thread_levels_empty_gen(d) (!sync_thread_levels_nonempty_gen(d))
+	ibool	dict_mutex_allowed)	/*!< in: TRUE if dictionary mutex is
+					allowed to be owned by the thread */
+	__attribute__((warn_unused_result));
+/******************************************************************//**
+Checks if the level array for the current thread is empty,
+except for data dictionary latches. */
+#define sync_thread_levels_empty_except_dict()		\
+	(!sync_thread_levels_nonempty_gen(TRUE))
+/******************************************************************//**
+Checks if the level array for the current thread is empty,
+except for the btr_search_latch.
+@return	a latch, or NULL if empty except the exceptions specified below */
+UNIV_INTERN
+void*
+sync_thread_levels_nonempty_trx(
+/*============================*/
+	ibool	has_search_latch)
+				/*!< in: TRUE if and only if the thread
+				is supposed to hold btr_search_latch */
+	__attribute__((warn_unused_result));
+
 /******************************************************************//**
 Gets the debug information for a reserved mutex. */
 UNIV_INTERN
@@ -775,11 +780,6 @@ struct mutex_struct {
 #endif
 };
 
-/** The global array of wait cells for implementation of the databases own
-mutexes and read-write locks. */
-extern sync_array_t*	sync_primary_wait_array;/* Appears here for
-						debugging purposes only! */
-
 /** Constant determining how long spin wait is continued before suspending
 the thread. A value 600 rounds on a 1995 100 MHz Pentium seems to correspond
 to 20 microseconds. */
@@ -814,7 +814,7 @@ os_atomic_dec_ulint_func(
 /*=====================*/
 	mutex_t*		mutex,		/*!< in: mutex guarding the
 						decrement */
-	ulint*			var,		/*!< in/out: variable to
+	volatile ulint*		var,		/*!< in/out: variable to
 						decrement */
 	ulint			delta);		/*!< in: delta to decrement */
 /**********************************************************//**
@@ -825,7 +825,7 @@ os_atomic_inc_ulint_func(
 /*=====================*/
 	mutex_t*		mutex,		/*!< in: mutex guarding the
 						increment */
-	ulint*			var,		/*!< in/out: variable to
+	volatile ulint*		var,		/*!< in/out: variable to
 						increment */
 	ulint			delta);		/*!< in: delta to increment */
 #endif /* !HAVE_ATOMIC_BUILTINS */

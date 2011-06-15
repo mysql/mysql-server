@@ -1393,7 +1393,7 @@ func_exit:
 
 		trx->error_state = DB_SUCCESS;
 
-		trx_general_rollback_for_mysql(trx, NULL);
+		trx_rollback_to_savepoint(trx, NULL);
 
 		row_drop_table_for_mysql(table->name, trx, FALSE);
 
@@ -1467,7 +1467,7 @@ fts_create_index_tables_low(
 
 		trx->error_state = DB_SUCCESS;
 
-		trx_general_rollback_for_mysql(trx, NULL);
+		trx_rollback_to_savepoint(trx, NULL);
 
 		row_drop_table_for_mysql(table_name, trx, FALSE);
 
@@ -4969,7 +4969,7 @@ fts_add_doc_id_column(
 		dtype_form_prtype(DATA_NOT_NULL | DATA_UNSIGNED
 				  | DATA_BINARY_TYPE | DATA_FTS_DOC_ID, 0),
 		sizeof(doc_id_t));
-	DICT_TF2_FLAG_SET(table, DICT_TF_FTS_HAS_DOC_ID);
+	DICT_TF2_FLAG_SET(table, DICT_TF2_FTS_HAS_DOC_ID);
 }
 
 /********************************************************************

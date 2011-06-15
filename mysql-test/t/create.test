@@ -2017,3 +2017,69 @@ create table if not exists t1 (a int unique, b int)
 select * from t1;
 drop table t1;
 --echo #
+
+--echo #
+--echo # WL#5576 Prohibit CREATE TABLE ... SELECT to modify other tables
+--echo #
+
+delimiter |;
+create function f()
+returns int
+begin
+insert into t2 values(1);
+return 1;
+end|
+delimiter ;|
+
+--echo #
+--echo # 1. The function updates a base table
+--echo #
+create table t2(c1 int);
+
+--error ER_CANT_UPDATE_TABLE_IN_CREATE_TABLE_SELECT
+create table t1 select f();
+--error ER_CANT_UPDATE_TABLE_IN_CREATE_TABLE_SELECT
+create temporary table t1 select f();
+
+
+drop table t2;
+
+--echo #
+--echo # 2. The function updates a view which derives from a base table
+--echo #
+create table t3(c1 int);
+create view t2 as select c1 from t3;
+
+--error ER_CANT_UPDATE_TABLE_IN_CREATE_TABLE_SELECT
+create table t1 select f();
+--error ER_CANT_UPDATE_TABLE_IN_CREATE_TABLE_SELECT
+create temporary table t1 select f();
+
+drop view t2;
+
+--echo #
+--echo # 3. The function updates a view which derives from two base tables
+--echo #
+create table t4(c1 int);
+create view t2 as select t3.c1 as c1 from t3, t4;
+
+--error ER_CANT_UPDATE_TABLE_IN_CREATE_TABLE_SELECT
+create table t1 select f();
+--error ER_CANT_UPDATE_TABLE_IN_CREATE_TABLE_SELECT
+create temporary table t1 select f();
+
+drop view t2;
+drop tables t3, t4;
+
+--echo #
+--echo # 4. The function updates a view which selects a constant number
+--echo #
+create view t2 as select 1;
+
+--error ER_CANT_UPDATE_TABLE_IN_CREATE_TABLE_SELECT
+create table t1 select f();
+--error ER_CANT_UPDATE_TABLE_IN_CREATE_TABLE_SELECT
+create temporary table t1 select f();
+
+drop view t2;
+drop function f;

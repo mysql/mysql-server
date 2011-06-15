@@ -1097,4 +1097,59 @@ SELECT t1.* FROM t1 LEFT JOIN t2 ON t1.a > 3 OR t2.b IN (SELECT a FROM t1)
 a
 DROP TABLE t1, t2;
 # End BUG#56367
+#
+# Bug#59833 - materialization=on/off leads to different result set
+#             when using IN
+#
+CREATE TABLE t1 (
+pk int NOT NULL,
+f1 int DEFAULT NULL,
+PRIMARY KEY (pk)
+) ENGINE=MyISAM;
+CREATE TABLE t2 (
+pk int NOT NULL,
+f1 int DEFAULT NULL,
+PRIMARY KEY (pk)
+) ENGINE=MyISAM;
+INSERT INTO t1 VALUES (10,0);
+INSERT INTO t2 VALUES (10,0),(11,0);
+explain SELECT * FROM t1 JOIN t2 USING (f1)
+WHERE t1.f1 IN (SELECT t1.pk FROM t1 ORDER BY t1.f1);
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	t1	system	NULL	NULL	NULL	NULL	1	
+1	PRIMARY	t2	ALL	NULL	NULL	NULL	NULL	2	Using where
+2	SUBQUERY	t1	system	NULL	NULL	NULL	NULL	1	
+SELECT * FROM t1 JOIN t2 USING (f1)
+WHERE t1.f1 IN (SELECT t1.pk FROM t1 ORDER BY t1.f1);
+f1	pk	pk
+DROP TABLE t1, t2;
+# End Bug#59833
+#
+# Bug#11852644 - CRASH IN ITEM_REF::SAVE_IN_FIELD ON SELECT DISTINCT
+#
+CREATE TABLE t1 (
+col_varchar_key varchar(1) DEFAULT NULL,
+col_varchar_nokey varchar(1) DEFAULT NULL,
+KEY col_varchar_key (col_varchar_key)) 
+;
+INSERT INTO t1 VALUES
+('v','v'),('r','r');
+CREATE TABLE t2 (
+col_varchar_key varchar(1) DEFAULT NULL,
+col_varchar_nokey varchar(1) DEFAULT NULL,
+KEY col_varchar_key(col_varchar_key)) 
+;
+INSERT INTO t2 VALUES
+('r','r'),('c','c');
+CREATE VIEW v3 AS SELECT * FROM t2;
+SELECT DISTINCT alias2.col_varchar_key 
+FROM t1 AS alias1 JOIN v3 AS alias2 
+ON alias2.col_varchar_key = alias1.col_varchar_key
+HAVING col_varchar_key IN (SELECT col_varchar_nokey FROM t2)
+;
+col_varchar_key
+r
+DROP TABLE t1, t2;
+DROP VIEW v3;
+# End Bug#11852644
 set optimizer_switch=default;

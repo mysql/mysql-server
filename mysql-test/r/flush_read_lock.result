@@ -431,6 +431,7 @@ Success: Was able to run 'execute stmt1' under FTWRL.
 Success: Was able to run 'execute stmt1' with FTWRL active in another connection.
 Success: Was able to run FTWRL while 'execute stmt1' was active in another connection.
 deallocate prepare stmt1;
+call mtr.add_suppression("Slave SQL.*Can.t execute the query because you have a conflicting read lock., Error_code: 1223");
 #
 # 9.2.b) EXECUTE for statement which is incompatible with FTWRL
 #        should be also incompatible.
@@ -543,11 +544,10 @@ Success: Was not able to run 'drop table t2_base' under FTWRL.
 Success: 'drop table t2_base' is blocked by FTWRL active in another connection.
 Success: FTWRL is blocked when 'drop table t2_base' is active in another connection.
 # 13.1.b) DROP TABLES which affects only temporary tables
-#         in theory can be compatible with FTWRL.
-#         In practice it is not yet.
-Success: Was not able to run 'drop table t2_temp' under FTWRL.
-Success: 'drop table t2_temp' is blocked by FTWRL active in another connection.
-Success: FTWRL is blocked when 'drop table t2_temp' is active in another connection.
+#         is compatible with FTWRL.
+Success: Was able to run 'drop table t2_temp' under FTWRL.
+Success: Was able to run 'drop table t2_temp' with FTWRL active in another connection.
+Success: Was able to run FTWRL while 'drop table t2_temp' was active in another connection.
 #
 # 13.1.c) DROP TEMPORARY TABLES should be compatible with FTWRL.
 Success: Was able to run 'drop temporary table t2_temp' under FTWRL.

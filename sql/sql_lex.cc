@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2010, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2011, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -10,8 +10,8 @@
    GNU General Public License for more details.
 
    You should have received a copy of the GNU General Public License
-   along with this program; if not, write to the Free Software Foundation,
-   51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA */
+   along with this program; if not, write to the Free Software
+   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
 
 /* A lexical scanner on a temporary buffer with a yacc interface */
@@ -311,7 +311,7 @@ void Lex_input_stream::body_utf8_append(const char *ptr)
 
 void Lex_input_stream::body_utf8_append_literal(THD *thd,
                                                 const LEX_STRING *txt,
-                                                CHARSET_INFO *txt_cs,
+                                                const CHARSET_INFO *txt_cs,
                                                 const char *end_ptr)
 {
   if (!m_cpp_utf8_processed_ptr)
@@ -380,6 +380,8 @@ void lex_start(THD *thd)
   lex->select_lex.sql_cache= SELECT_LEX::SQL_CACHE_UNSPECIFIED;
   lex->select_lex.init_order();
   lex->select_lex.group_list.empty();
+  if (lex->select_lex.group_list_ptrs)
+    lex->select_lex.group_list_ptrs->clear();
   lex->describe= DESCRIBE_NONE;
   lex->subqueries= FALSE;
   lex->context_analysis_only= 0;
@@ -583,7 +585,7 @@ static char *get_text(Lex_input_stream *lip, int pre_skip, int post_skip)
 {
   reg1 uchar c,sep;
   uint found_escape=0;
-  CHARSET_INFO *cs= lip->m_thd->charset();
+  const CHARSET_INFO *cs= lip->m_thd->charset();
 
   lip->tok_bitmap= 0;
   sep= lip->yyGetLast();                        // String should end with this
@@ -916,7 +918,7 @@ int lex_one_token(void *arg, void *yythd)
   Lex_input_stream *lip= & thd->m_parser_state->m_lip;
   LEX *lex= thd->lex;
   YYSTYPE *yylval=(YYSTYPE*) arg;
-  CHARSET_INFO *cs= thd->charset();
+  const CHARSET_INFO *cs= thd->charset();
   uchar *state_map= cs->state_map;
   uchar *ident_map= cs->ident_map;
 
@@ -1669,7 +1671,7 @@ Alter_info::Alter_info(const Alter_info &rhs, MEM_ROOT *mem_root)
 }
 
 
-void trim_whitespace(CHARSET_INFO *cs, LEX_STRING *str)
+void trim_whitespace(const CHARSET_INFO *cs, LEX_STRING *str)
 {
   /*
     TODO:
@@ -1776,6 +1778,8 @@ void st_select_lex::init_select()
   st_select_lex_node::init_select();
   sj_nests.empty();
   group_list.empty();
+  if (group_list_ptrs)
+    group_list_ptrs->clear();
   type= db= 0;
   having= 0;
   table_join_options= 0;
@@ -2013,12 +2017,13 @@ bool st_select_lex_node::inc_in_sum_expr()           { return 1; }
 uint st_select_lex_node::get_in_sum_expr()           { return 0; }
 TABLE_LIST* st_select_lex_node::get_table_list()     { return 0; }
 List<Item>* st_select_lex_node::get_item_list()      { return 0; }
-TABLE_LIST *st_select_lex_node::add_table_to_list (THD *thd, Table_ident *table,
+TABLE_LIST *st_select_lex_node::add_table_to_list(THD *thd, Table_ident *table,
 						  LEX_STRING *alias,
 						  ulong table_join_options,
 						  thr_lock_type flags,
                                                   enum_mdl_type mdl_type,
 						  List<Index_hint> *hints,
+                                                  List<String> *partition_names,
                                                   LEX_STRING *option)
 {
   return 0;
@@ -2195,7 +2200,7 @@ void st_select_lex::print_order(String *str,
     }
     else
       (*order->item)->print(str, query_type);
-    if (!order->asc)
+    if (order->direction == ORDER::ORDER_DESC)
       str->append(STRING_WITH_LEN(" desc"));
     if (order->next)
       str->append(',');
@@ -2366,6 +2371,7 @@ LEX::LEX()
                          plugins_static_buffer,
                          INITIAL_LEX_PLUGIN_LIST_SIZE, 
                          INITIAL_LEX_PLUGIN_LIST_SIZE);
+  memset(&mi, 0, sizeof(LEX_MASTER_INFO));
   reset_query_tables_list(TRUE);
 }
 
@@ -3057,6 +3063,8 @@ static void fix_prepare_info_in_table_list(THD *thd, TABLE_LIST *tbl)
     The passed WHERE and HAVING are to be saved for the future executions.
     This function saves it, and returns a copy which can be thrashed during
     this execution of the statement. By saving/thrashing here we mean only
+    We also save the chain of ORDER::next in group_list, in case
+    the list is modified by remove_const().
     AND/OR trees.
     The function also calls fix_prepare_info_in_table_list that saves all
     ON expressions.    
@@ -3068,6 +3076,19 @@ void st_select_lex::fix_prepare_information(THD *thd, Item **conds,
   if (!thd->stmt_arena->is_conventional() && first_execution)
   {
     first_execution= 0;
+    if (group_list.first)
+    {
+      if (!group_list_ptrs)
+      {
+        void *mem= thd->stmt_arena->alloc(sizeof(Group_list_ptrs));
+        group_list_ptrs= new (mem) Group_list_ptrs(thd->stmt_arena->mem_root);
+      }
+      group_list_ptrs->reserve(group_list.elements);
+      for (ORDER *order= group_list.first; order; order= order->next)
+      {
+        group_list_ptrs->push_back(order);
+      }
+    }
     if (*conds)
     {
       prep_where= *conds;
@@ -3178,7 +3199,7 @@ bool LEX::is_partition_management() const
 */
 void st_lex_master_info::set_unspecified()
 {
-  bzero((char*) this, sizeof(*this));
+  memset(this, 0, sizeof(*this));
   sql_delay= -1;
 }
 

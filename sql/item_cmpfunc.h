@@ -1,7 +1,7 @@
 #ifndef ITEM_CMPFUNC_INCLUDED
 #define ITEM_CMPFUNC_INCLUDED
 
-/* Copyright (c) 2000, 2010, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2011, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -13,15 +13,11 @@
    GNU General Public License for more details.
 
    You should have received a copy of the GNU General Public License
-   along with this program; if not, write to the Free Software Foundation,
-   51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA */
+   along with this program; if not, write to the Free Software
+   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
 
 /* compare and test functions */
-
-#ifdef USE_PRAGMA_INTERFACE
-#pragma interface			/* gcc class implementation */
-#endif
 
 #include "thr_malloc.h"                         /* sql_calloc */
 #include "item_func.h"             /* Item_int_func, Item_bool_func */
@@ -387,7 +383,8 @@ public:
 
   bool is_null() { return test(args[0]->is_null() || args[1]->is_null()); }
   bool is_bool_func() { return 1; }
-  CHARSET_INFO *compare_collation() { return cmp.cmp_collation.collation; }
+  const CHARSET_INFO *compare_collation()
+  { return cmp.cmp_collation.collation; }
   uint decimal_precision() const { return 1; }
   void top_level_item() { abort_on_null= TRUE; }
   void cleanup()
@@ -409,6 +406,22 @@ public:
   Item *neg_transformer(THD *thd);
   virtual Item *negated_item();
   bool subst_argument_checker(uchar **arg) { return TRUE; }
+};
+
+/**
+  XOR inherits from Item_bool_func2 because it is not optimized yet.
+  Later, when XOR is optimized, it needs to inherit from
+  Item_cond instead. See WL#5800. 
+*/
+class Item_func_xor :public Item_bool_func2
+{
+public:
+  Item_func_xor(Item *i1, Item *i2) :Item_bool_func2(i1, i2) {}
+  enum Functype functype() const { return XOR_FUNC; }
+  const char *func_name() const { return "xor"; }
+  longlong val_int();
+  void top_level_item() {}
+  Item *neg_transformer(THD *thd);
 };
 
 class Item_func_not :public Item_bool_func
@@ -659,7 +672,7 @@ public:
   void fix_length_and_dec();
   virtual void print(String *str, enum_query_type query_type);
   bool is_bool_func() { return 1; }
-  CHARSET_INFO *compare_collation() { return cmp_collation.collation; }
+  const CHARSET_INFO *compare_collation() { return cmp_collation.collation; }
   uint decimal_precision() const { return 1; }
 };
 
@@ -805,12 +818,12 @@ public:
   char *base;
   uint size;
   qsort2_cmp compare;
-  CHARSET_INFO *collation;
+  const CHARSET_INFO *collation;
   uint count;
   uint used_count;
   in_vector() {}
   in_vector(uint elements,uint element_length,qsort2_cmp cmp_func, 
-  	    CHARSET_INFO *cmp_coll)
+  	    const CHARSET_INFO *cmp_coll)
     :base((char*) sql_calloc(elements*element_length)),
      size(element_length), compare(cmp_func), collation(cmp_coll),
      count(elements), used_count(elements) {}
@@ -856,7 +869,7 @@ class in_string :public in_vector
   char buff[STRING_BUFFER_USUAL_SIZE];
   String tmp;
 public:
-  in_string(uint elements,qsort2_cmp cmp_func, CHARSET_INFO *cs);
+  in_string(uint elements,qsort2_cmp cmp_func, const CHARSET_INFO *cs);
   ~in_string();
   void set(uint pos,Item *item);
   uchar *get_value(Item *item);
@@ -983,14 +996,14 @@ public:
 class cmp_item :public Sql_alloc
 {
 public:
-  CHARSET_INFO *cmp_charset;
+  const CHARSET_INFO *cmp_charset;
   cmp_item() { cmp_charset= &my_charset_bin; }
   virtual ~cmp_item() {}
   virtual void store_value(Item *item)= 0;
   virtual int cmp(Item *item)= 0;
   // for optimized IN with row
   virtual int compare(cmp_item *item)= 0;
-  static cmp_item* get_comparator(Item_result type, CHARSET_INFO *cs);
+  static cmp_item* get_comparator(Item_result type, const CHARSET_INFO *cs);
   virtual cmp_item *make_same()= 0;
   virtual void store_value_by_template(cmp_item *tmpl, Item *item)
   {
@@ -1004,8 +1017,8 @@ protected:
   String *value_res;
 public:
   cmp_item_string () {}
-  cmp_item_string (CHARSET_INFO *cs) { cmp_charset= cs; }
-  void set_charset(CHARSET_INFO *cs) { cmp_charset= cs; }
+  cmp_item_string (const CHARSET_INFO *cs) { cmp_charset= cs; }
+  void set_charset(const CHARSET_INFO *cs) { cmp_charset= cs; }
   friend class cmp_item_sort_string;
   friend class cmp_item_sort_string_in_static;
 };
@@ -1018,7 +1031,7 @@ protected:
 public:
   cmp_item_sort_string():
     cmp_item_string() {}
-  cmp_item_sort_string(CHARSET_INFO *cs):
+  cmp_item_sort_string(const CHARSET_INFO *cs):
     cmp_item_string(cs),
     value(value_buff, sizeof(value_buff), cs) {}
   void store_value(Item *item)
@@ -1039,7 +1052,7 @@ public:
     return sortcmp(value_res, l_cmp->value_res, cmp_charset);
   } 
   cmp_item *make_same();
-  void set_charset(CHARSET_INFO *cs)
+  void set_charset(const CHARSET_INFO *cs)
   {
     cmp_charset= cs;
     value.set_quick(value_buff, sizeof(value_buff), cs);
@@ -1135,7 +1148,7 @@ class cmp_item_sort_string_in_static :public cmp_item_string
  protected:
   String value;
 public:
-  cmp_item_sort_string_in_static(CHARSET_INFO *cs):
+  cmp_item_sort_string_in_static(const CHARSET_INFO *cs):
     cmp_item_string(cs) {}
   void store_value(Item *item)
   {
@@ -1205,7 +1218,7 @@ public:
       list.push_back(else_expr_arg);
     }
     set_arguments(list);
-    bzero(&cmp_items, sizeof(cmp_items));
+    memset(&cmp_items, 0, sizeof(cmp_items));
   }
   double val_real();
   longlong val_int();
@@ -1220,7 +1233,7 @@ public:
   const char *func_name() const { return "case"; }
   virtual void print(String *str, enum_query_type query_type);
   Item *find_item(String *str);
-  CHARSET_INFO *compare_collation() { return cmp_collation.collation; }
+  const CHARSET_INFO *compare_collation() { return cmp_collation.collation; }
   void cleanup();
   void agg_str_lengths(Item *arg);
   void agg_num_lengths(Item *arg);
@@ -1262,7 +1275,7 @@ public:
     :Item_func_opt_neg(list), array(0), have_null(0),
     arg_types_compatible(FALSE)
   {
-    bzero(&cmp_items, sizeof(cmp_items));
+    memset(&cmp_items, 0, sizeof(cmp_items));
     allowed_arg_cols= 0;  // Fetch this value from first argument
   }
   longlong val_int();
@@ -1290,7 +1303,7 @@ public:
   const char *func_name() const { return " IN "; }
   bool nulls_in_row();
   bool is_bool_func() { return 1; }
-  CHARSET_INFO *compare_collation() { return cmp_collation.collation; }
+  const CHARSET_INFO *compare_collation() { return cmp_collation.collation; }
 };
 
 class cmp_item_row :public cmp_item
@@ -1350,6 +1363,8 @@ public:
     else
     {
       args[0]->update_used_tables();
+      with_subselect= args[0]->has_subquery();
+
       if ((const_item_cache= !(used_tables_cache= args[0]->used_tables()) &&
           !with_subselect))
       {
@@ -1361,7 +1376,8 @@ public:
   table_map not_null_tables() const { return 0; }
   optimize_type select_optimize() const { return OPTIMIZE_NULL; }
   Item *neg_transformer(THD *thd);
-  CHARSET_INFO *compare_collation() { return args[0]->collation.collation; }
+  const CHARSET_INFO *compare_collation()
+  { return args[0]->collation.collation; }
 };
 
 /* Functions used by HAVING for rewriting IN subquery */
@@ -1408,7 +1424,8 @@ public:
   { return abort_on_null ? not_null_tables_cache : 0; }
   Item *neg_transformer(THD *thd);
   virtual void print(String *str, enum_query_type query_type);
-  CHARSET_INFO *compare_collation() { return args[0]->collation.collation; }
+  const CHARSET_INFO *compare_collation()
+  { return args[0]->collation.collation; }
   void top_level_item() { abort_on_null=1; }
 };
 
@@ -1458,7 +1475,7 @@ class Item_func_regex :public Item_bool_func
   bool regex_is_const;
   String prev_regexp;
   DTCollation cmp_collation;
-  CHARSET_INFO *regex_lib_charset;
+  const CHARSET_INFO *regex_lib_charset;
   int regex_lib_flags;
   String conv;
   int regcomp(bool send_error);
@@ -1475,7 +1492,7 @@ public:
     print_op(str, query_type);
   }
 
-  CHARSET_INFO *compare_collation() { return cmp_collation.collation; }
+  const CHARSET_INFO *compare_collation() { return cmp_collation.collation; }
 };
 
 
@@ -1658,7 +1675,7 @@ public:
   bool walk(Item_processor processor, bool walk_subquery, uchar *arg);
   Item *transform(Item_transformer transformer, uchar *arg);
   virtual void print(String *str, enum_query_type query_type);
-  CHARSET_INFO *compare_collation() 
+  const CHARSET_INFO *compare_collation() 
   { return fields.head()->collation.collation; }
   friend bool setup_sj_materialization(struct st_join_table *tab);
 }; 
@@ -1758,45 +1775,6 @@ inline bool is_cond_or(Item *item)
   Item_cond *cond_item= (Item_cond*) item;
   return (cond_item->functype() == Item_func::COND_OR_FUNC);
 }
-
-/*
-  XOR is Item_cond, not an Item_int_func because we could like to
-  optimize (a XOR b) later on. It's low prio, though
-*/
-
-class Item_cond_xor :public Item_cond
-{
-public:
-  Item_cond_xor(Item *i1,Item *i2) :Item_cond(i1,i2) 
-  {
-    /* 
-      Items must be stored in args[] as well because this Item_cond is
-      treated as a FUNC_ITEM (see type()). I.e., users of it will get
-      it's children by calling arguments(), not argument_list(). This
-      is a temporary solution until XOR is optimized and treated like
-      a full Item_cond citizen.
-     */
-    arg_count= 2;
-    args= tmp_arg;
-    args[0]= i1; 
-    args[1]= i2;
-  }
-  enum Functype functype() const { return COND_XOR_FUNC; }
-  /* TODO: remove the next line when implementing XOR optimization */
-  enum Type type() const { return FUNC_ITEM; }
-  longlong val_int();
-  const char *func_name() const { return "xor"; }
-  void top_level_item() {}
-  /* Since child Items are stored in args[], Items cannot be added.
-     However, since Item_cond_xor is treated as a FUNC_ITEM (see
-     type()), the methods below should never be called. 
-  */
-  bool add(Item *item) { DBUG_ASSERT(FALSE); return FALSE; }
-  bool add_at_head(Item *item) { DBUG_ASSERT(FALSE); return FALSE; }
-  bool add_at_head(List<Item> *nlist) { DBUG_ASSERT(FALSE); return FALSE; }
-  void copy_andor_arguments(THD *thd, Item_cond *item) { DBUG_ASSERT(FALSE); }
-};
-
 
 /* Some useful inline functions */
 

@@ -2245,32 +2245,6 @@ execute abc;
 execute abc;
 execute abc;
 deallocate prepare abc;
-create procedure proc_1() flush slave;
-call proc_1();
-call proc_1();
-call proc_1();
-create function func_1() returns int begin flush slave; return 1; end|
-ERROR 0A000: FLUSH is not allowed in stored function or trigger
-create function func_1() returns int begin call proc_1(); return 1; end|
-select func_1(), func_1(), func_1() from dual;
-ERROR 0A000: FLUSH is not allowed in stored function or trigger
-drop function func_1;
-drop procedure proc_1;
-prepare abc from "flush slave";
-execute abc;
-execute abc;
-execute abc;
-deallocate prepare abc;
-create procedure proc_1() flush master;
-create function func_1() returns int begin flush master; return 1; end|
-ERROR 0A000: FLUSH is not allowed in stored function or trigger
-create function func_1() returns int begin call proc_1(); return 1; end|
-select func_1(), func_1(), func_1() from dual;
-ERROR 0A000: FLUSH is not allowed in stored function or trigger
-drop function func_1;
-drop procedure proc_1;
-prepare abc from "flush master";
-deallocate prepare abc;
 create procedure proc_1() flush des_key_file;
 call proc_1();
 call proc_1();
@@ -3731,5 +3705,19 @@ CREATE TABLE t1 (a INT);
 BEGIN;
 PREPARE stmt1 FROM "SELECT * FROM t1";
 DROP TABLE t1;
+
 #
-# End of 6.0 tests.
+# Bug#56115: invalid memory reads when PS selecting from
+#            information_schema tables
+# Bug#58701: crash in Field::make_field, cursor-protocol
+#
+# NOTE: MTR should be run both with --ps-protocol and --cursor-protocol.
+#
+
+SELECT *
+FROM (SELECT 1 UNION SELECT 2) t;
+1
+1
+2
+#
+# End of 5.5 tests.

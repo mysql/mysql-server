@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1996, 2010, Innobase Oy. All Rights Reserved.
+Copyright (c) 1996, 2011, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -11,8 +11,8 @@ ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
 FOR A PARTICULAR PURPOSE. See the GNU General Public License for more details.
 
 You should have received a copy of the GNU General Public License along with
-this program; if not, write to the Free Software Foundation, Inc., 59 Temple
-Place, Suite 330, Boston, MA 02111-1307 USA
+this program; if not, write to the Free Software Foundation, Inc.,
+51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA
 
 *****************************************************************************/
 
@@ -46,35 +46,6 @@ Created 4/20/1996 Heikki Tuuri
 #include "rem0cmp.h"
 #include "read0read.h"
 #include "ut0mem.h"
-
-/*********************************************************************//**
-Gets the offset of trx id field, in bytes relative to the origin of
-a clustered index record.
-@return	offset of DATA_TRX_ID */
-UNIV_INTERN
-ulint
-row_get_trx_id_offset(
-/*==================*/
-	const rec_t*	rec __attribute__((unused)),
-				/*!< in: record */
-	dict_index_t*	index,	/*!< in: clustered index */
-	const ulint*	offsets)/*!< in: rec_get_offsets(rec, index) */
-{
-	ulint	pos;
-	ulint	offset;
-	ulint	len;
-
-	ut_ad(dict_index_is_clust(index));
-	ut_ad(rec_offs_validate(rec, index, offsets));
-
-	pos = dict_index_get_sys_col_pos(index, DATA_TRX_ID);
-
-	offset = rec_get_nth_field_offs(offsets, pos, &len);
-
-	ut_ad(len == DATA_TRX_ID_LEN);
-
-	return(offset);
-}
 
 /*****************************************************************//**
 When an insert or purge to a table is performed, this function builds
@@ -151,8 +122,6 @@ row_build_index_entry(
 		} else if (dfield_is_ext(dfield)) {
 			ut_a(len >= BTR_EXTERN_FIELD_REF_SIZE);
 			len -= BTR_EXTERN_FIELD_REF_SIZE;
-			ut_a(ind_field->prefix_len <= len
-			     || dict_index_is_clust(index));
 		}
 
 		len = dtype_get_at_most_n_mbchars(
@@ -231,6 +200,14 @@ row_build(
 		ut_ad(rec_offs_validate(rec, index, offsets));
 	}
 
+#if 0 /* defined UNIV_DEBUG || defined UNIV_BLOB_LIGHT_DEBUG */
+	/* This one can fail in trx_rollback_active() if
+	the server crashed during an insert before the
+	btr_store_big_rec_extern_fields() did mtr_commit()
+	all BLOB pointers to the clustered index record. */
+	ut_a(!rec_offs_any_null_extern(rec, offsets));
+#endif /* UNIV_DEBUG || UNIV_BLOB_LIGHT_DEBUG */
+
 	if (type != ROW_COPY_POINTERS) {
 		/* Take a copy of rec to heap */
 		buf = mem_heap_alloc(heap, rec_offs_size(offsets));
@@ -299,10 +276,9 @@ row_build(
 		768-byte prefix of each externally stored
 		column. No cache is needed. */
 		ut_ad(dict_table_get_format(index->table)
-		      < DICT_TF_FORMAT_ZIP);
+		      < UNIV_FORMAT_B);
 	} else if (j) {
-		*ext = row_ext_create(j, ext_cols, row,
-				      dict_table_zip_size(index->table),
+		*ext = row_ext_create(j, ext_cols, index->table->flags, row,
 				      heap);
 	} else {
 		*ext = NULL;
@@ -415,6 +391,10 @@ row_rec_to_index_entry(
 		rec = rec_copy(buf, rec, offsets);
 		/* Avoid a debug assertion in rec_offs_validate(). */
 		rec_offs_make_valid(rec, index, offsets);
+#if defined UNIV_DEBUG || defined UNIV_BLOB_LIGHT_DEBUG
+	} else {
+		ut_a(!rec_offs_any_null_extern(rec, offsets));
+#endif /* UNIV_DEBUG || UNIV_BLOB_LIGHT_DEBUG */
 	}
 
 	entry = row_rec_to_index_entry_low(rec, index, offsets, n_ext, heap);

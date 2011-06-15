@@ -10,8 +10,8 @@
    GNU General Public License for more details.
 
    You should have received a copy of the GNU General Public License
-   along with this program; if not, write to the Free Software Foundation,
-   51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA */
+   along with this program; if not, write to the Free Software
+   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
 
 /**
@@ -20,10 +20,6 @@
   @brief
   This file defines all compare functions
 */
-
-#ifdef USE_PRAGMA_IMPLEMENTATION
-#pragma implementation				// gcc: Class implementation
-#endif
 
 #include "sql_priv.h"
 #include <m_ctype.h>
@@ -430,7 +426,8 @@ static bool convert_constant_item(THD *thd, Item_field *field_item,
     */
     bool save_field_value= (field_item->depended_from &&
                             (field_item->const_item() ||
-                             !(field->table->status & STATUS_NO_RECORD)));
+                             !(field->table->status &
+                               (STATUS_GARBAGE | STATUS_NOT_FOUND))));
     if (save_field_value)
       orig_field_val= field->val_int();
     if (!(*item)->is_null() && !(*item)->save_in_field(field, 1))
@@ -1208,9 +1205,12 @@ get_year_value(THD *thd, Item ***item_arg, Item **cache_arg,
          value of 2000.
   */
   Item *real_item= item->real_item();
-  if (!(real_item->type() == Item::FIELD_ITEM &&
-        ((Item_field *)real_item)->field->type() == MYSQL_TYPE_YEAR &&
-        ((Item_field *)real_item)->field->field_length == 4))
+  Field *field= NULL;
+  if (real_item->type() == Item::FIELD_ITEM)
+    field= ((Item_field *)real_item)->field;
+  else if (real_item->type() == Item::CACHE_ITEM)
+    field= ((Item_cache *)real_item)->field();
+  if (!(field && field->type() == MYSQL_TYPE_YEAR && field->field_length == 4))
   {
     if (value < 70)
       value+= 100;
@@ -1764,6 +1764,17 @@ bool Item_in_optimizer::fix_fields(THD *thd, Item **ref)
   with_sum_func= with_sum_func || args[1]->with_sum_func;
   used_tables_cache|= args[1]->used_tables();
   not_null_tables_cache|= args[1]->not_null_tables();
+
+  if (!sub->is_top_level_item())
+  {
+    /*
+      This is a NOT IN subquery predicate (or equivalent). Null values passed
+      from outer tables and used in the left-hand expression of the predicate
+      must be considered in the evaluation, hence filter out these tables
+      from the set of null-rejecting tables.
+    */
+    not_null_tables_cache&= ~args[0]->not_null_tables();
+  }
   const_item_cache&= args[1]->const_item();
   fixed= 1;
   return FALSE;
@@ -1790,6 +1801,7 @@ void Item_in_optimizer::fix_after_pullout(st_select_lex *parent_select,
   not_null_tables_cache|= args[1]->not_null_tables();
   const_item_cache&= args[1]->const_item();
 }
+
 
 /**
    The implementation of optimized \<outer expression\> [NOT] IN \<subquery\>
@@ -2000,7 +2012,7 @@ Item *Item_in_optimizer::transform(Item_transformer transformer, uchar *argument
 {
   Item *new_item;
 
-  DBUG_ASSERT(!current_thd->is_stmt_prepare());
+  DBUG_ASSERT(!current_thd->stmt_arena->is_stmt_prepare());
   DBUG_ASSERT(arg_count == 2);
 
   /* Transform the left IN operand. */
@@ -2723,7 +2735,7 @@ Item_func_if::fix_length_and_dec()
   if (null1)
   {
     cached_result_type= arg2_type;
-    collation.set(args[2]->collation.collation);
+    collation.set(args[2]->collation);
     cached_field_type= args[2]->field_type();
     max_length= args[2]->max_length;
     return;
@@ -2732,7 +2744,7 @@ Item_func_if::fix_length_and_dec()
   if (null2)
   {
     cached_result_type= arg1_type;
-    collation.set(args[1]->collation.collation);
+    collation.set(args[1]->collation);
     cached_field_type= args[1]->field_type();
     max_length= args[1]->max_length;
     return;
@@ -3137,20 +3149,59 @@ void Item_func_case::fix_length_and_dec()
     agg[0]= args[first_expr_num];
     left_result_type= agg[0]->result_type();
 
+    /*
+      As the first expression and WHEN expressions
+      are intermixed in args[] array THEN and ELSE items,
+      extract the first expression and all WHEN expressions into 
+      a temporary array, to process them easier.
+    */
     for (nagg= 0; nagg < ncases/2 ; nagg++)
       agg[nagg+1]= args[nagg*2];
     nagg++;
     if (!(found_types= collect_cmp_types(agg, nagg)))
       return;
+    if (found_types & (1 << STRING_RESULT))
+    {
+      /*
+        If we'll do string comparison, we also need to aggregate
+        character set and collation for first/WHEN items and
+        install converters for some of them to cmp_collation when necessary.
+        This is done because cmp_item compatators cannot compare
+        strings in two different character sets.
+        Some examples when we install converters:
 
+        1. Converter installed for the first expression:
+
+           CASE         latin1_item              WHEN utf16_item THEN ... END
+
+        is replaced to:
+
+           CASE CONVERT(latin1_item USING utf16) WHEN utf16_item THEN ... END
+
+        2. Converter installed for the left WHEN item:
+
+          CASE utf16_item WHEN         latin1_item              THEN ... END
+
+        is replaced to:
+
+           CASE utf16_item WHEN CONVERT(latin1_item USING utf16) THEN ... END
+      */
+      if (agg_arg_charsets_for_comparison(cmp_collation, agg, nagg))
+        return;
+      /*
+        Now copy first expression and all WHEN expressions back to args[]
+        arrray, because some of the items might have been changed to converters
+        (e.g. Item_func_conv_charset, or Item_string for constants).
+      */
+      args[first_expr_num]= agg[0];
+      for (nagg= 0; nagg < ncases / 2; nagg++)
+        args[nagg * 2]= agg[nagg + 1];
+    }
     for (i= 0; i <= (uint)DECIMAL_RESULT; i++)
     {
       if (found_types & (1 << i) && !cmp_items[i])
       {
         DBUG_ASSERT((Item_result)i != ROW_RESULT);
-        if ((Item_result)i == STRING_RESULT &&
-            agg_arg_charsets_for_comparison(cmp_collation, agg, nagg))
-          return;
         if (!(cmp_items[i]=
             cmp_item::get_comparator((Item_result)i,
                                      cmp_collation.collation)))
@@ -3476,7 +3527,8 @@ int in_vector::find(Item *item)
   return (int) ((*compare)(collation, base+start*size, result) == 0);
 }
 
-in_string::in_string(uint elements,qsort2_cmp cmp_func, CHARSET_INFO *cs)
+in_string::in_string(uint elements,qsort2_cmp cmp_func,
+                     const CHARSET_INFO *cs)
   :in_vector(elements, sizeof(String), cmp_func, cs),
    tmp(buff, sizeof(buff), &my_charset_bin)
 {}
@@ -3506,7 +3558,7 @@ void in_string::set(uint pos,Item *item)
   }
   if (!str->charset())
   {
-    CHARSET_INFO *cs;
+    const CHARSET_INFO *cs;
     if (!(cs= item->collation.collation))
       cs= &my_charset_bin;		// Should never happen for STR items
     str->set_charset(cs);
@@ -3642,7 +3694,7 @@ uchar *in_decimal::get_value(Item *item)
 
 
 cmp_item* cmp_item::get_comparator(Item_result type,
-                                   CHARSET_INFO *cs)
+                                   const CHARSET_INFO *cs)
 {
   switch (type) {
   case STRING_RESULT:
@@ -4113,13 +4165,11 @@ void Item_func_in::fix_length_and_dec()
       uint j=0;
       for (uint i=1 ; i < arg_count ; i++)
       {
-	if (!args[i]->null_value)			// Skip NULL values
-        {
-          array->set(j,args[i]);
-	  j++;
-        }
-	else
-	  have_null= 1;
+        array->set(j,args[i]);
+        if (!args[i]->null_value)                      // Skip NULL values
+          j++;
+        else
+          have_null= 1;
       }
       if ((array->used_count= j))
 	array->sort();
@@ -4354,7 +4404,7 @@ Item_cond::fix_fields(THD *thd, Item **ref)
       const_item_cache= FALSE;
     }  
     with_sum_func=	    with_sum_func || item->with_sum_func;
-    with_subselect|=        item->with_subselect;
+    with_subselect|=        item->has_subquery();
     if (item->maybe_null)
       maybe_null=1;
   }
@@ -4431,7 +4481,7 @@ bool Item_cond::walk(Item_processor processor, bool walk_subquery, uchar *arg)
 
 Item *Item_cond::transform(Item_transformer transformer, uchar *arg)
 {
-  DBUG_ASSERT(!current_thd->is_stmt_prepare());
+  DBUG_ASSERT(!current_thd->stmt_arena->is_stmt_prepare());
 
   List_iterator<Item> li(list);
   Item *item;
@@ -4565,11 +4615,13 @@ void Item_cond::update_used_tables()
 
   used_tables_cache=0;
   const_item_cache=1;
+  with_subselect= false;
   while ((item=li++))
   {
     item->update_used_tables();
     used_tables_cache|= item->used_tables();
     const_item_cache&= item->const_item();
+    with_subselect|= item->has_subquery();
   }
 }
 
@@ -4753,6 +4805,8 @@ void Item_is_not_null_test::update_used_tables()
   else
   {
     args[0]->update_used_tables();
+    with_subselect= args[0]->has_subquery();
+
     if (!(used_tables_cache=args[0]->used_tables()) && !with_subselect)
     {
       /* Remember if the value is always NULL or never NULL */
@@ -4857,7 +4911,7 @@ bool Item_func_like::fix_fields(THD *thd, Item **ref)
 
       if (use_mb(cmp.cmp_collation.collation))
       {
-        CHARSET_INFO *cs= escape_str->charset();
+        const CHARSET_INFO *cs= escape_str->charset();
         my_wc_t wc;
         int rc= cs->cset->mb_wc(cs, &wc,
                                 (const uchar*) escape_str_ptr,
@@ -4872,7 +4926,7 @@ bool Item_func_like::fix_fields(THD *thd, Item **ref)
           code instead of Unicode code as "escape" argument.
           Convert to "cs" if charset of escape differs.
         */
-        CHARSET_INFO *cs= cmp.cmp_collation.collation;
+        const CHARSET_INFO *cs= cmp.cmp_collation.collation;
         uint32 unused;
         if (escape_str->needs_conversion(escape_str->length(),
                                          escape_str->charset(), cs, &unused))
@@ -5111,7 +5165,7 @@ void Item_func_like::turboBM_compute_suffixes(int *suff)
   int            f = 0;
   int            g = plm1;
   int *const splm1 = suff + plm1;
-  CHARSET_INFO	*cs= cmp.cmp_collation.collation;
+  const CHARSET_INFO	*cs= cmp.cmp_collation.collation;
 
   *splm1 = pattern_len;
 
@@ -5211,7 +5265,7 @@ void Item_func_like::turboBM_compute_bad_character_shifts()
   int *end = bmBc + alphabet_size;
   int j;
   const int plm1 = pattern_len - 1;
-  CHARSET_INFO	*cs= cmp.cmp_collation.collation;
+  const CHARSET_INFO	*cs= cmp.cmp_collation.collation;
 
   for (i = bmBc; i < end; i++)
     *i = pattern_len;
@@ -5243,7 +5297,7 @@ bool Item_func_like::turboBM_matches(const char* text, int text_len) const
   int shift = pattern_len;
   int j     = 0;
   int u     = 0;
-  CHARSET_INFO	*cs= cmp.cmp_collation.collation;
+  const CHARSET_INFO	*cs= cmp.cmp_collation.collation;
 
   const int plm1=  pattern_len - 1;
   const int tlmpl= text_len - pattern_len;
@@ -5330,23 +5384,21 @@ bool Item_func_like::turboBM_matches(const char* text, int text_len) const
     very fast to use.
 */
 
-longlong Item_cond_xor::val_int()
+longlong Item_func_xor::val_int()
 {
   DBUG_ASSERT(fixed == 1);
-  List_iterator<Item> li(list);
-  Item *item;
-  int result=0;	
-  null_value=0;
-  while ((item=li++))
+  int result= 0;
+  null_value= false;
+  for (uint i= 0; i < arg_count; i++)
   {
-    result^= (item->val_int() != 0);
-    if (item->null_value)
+    result^= (args[i]->val_int() != 0);
+    if (args[i]->null_value)
     {
-      null_value=1;
+      null_value= true;
       return 0;
     }
   }
-  return (longlong) result;
+  return result;
 }
 
 /**
@@ -5385,6 +5437,33 @@ Item *Item_bool_rowready_func2::neg_transformer(THD *thd)
 {
   Item *item= negated_item();
   return item;
+}
+
+/**
+  XOR can be negated by negating one of the operands:
+
+  NOT (a XOR b)  => (NOT a) XOR b
+                 => a       XOR (NOT b)
+
+  @param thd     Thread handle
+  @return        New negated item
+*/
+Item *Item_func_xor::neg_transformer(THD *thd)
+{
+  Item *neg_operand;
+  Item_func_xor *new_item;
+  if ((neg_operand= args[0]->neg_transformer(thd)))
+    // args[0] has neg_tranformer
+    new_item= new(thd->mem_root) Item_func_xor(neg_operand, args[1]);
+  else if ((neg_operand= args[1]->neg_transformer(thd)))
+    // args[1] has neg_tranformer
+    new_item= new(thd->mem_root) Item_func_xor(args[0], neg_operand);
+  else
+  {
+    neg_operand= new(thd->mem_root) Item_func_not(args[0]);
+    new_item= new(thd->mem_root) Item_func_xor(neg_operand, args[1]);
+  }
+  return new_item;
 }
 
 
@@ -5752,12 +5831,14 @@ void Item_equal::update_used_tables()
   not_null_tables_cache= used_tables_cache= 0;
   if ((const_item_cache= cond_false))
     return;
+  with_subselect= false;
   while ((item=li++))
   {
     item->update_used_tables();
     used_tables_cache|= item->used_tables();
     /* see commentary at Item_equal::update_const() */
     const_item_cache&= item->const_item() && !item->is_outer_field();
+    with_subselect|= item->has_subquery();
   }
 }
 
@@ -5804,7 +5885,7 @@ bool Item_equal::walk(Item_processor processor, bool walk_subquery, uchar *arg)
 
 Item *Item_equal::transform(Item_transformer transformer, uchar *arg)
 {
-  DBUG_ASSERT(!current_thd->is_stmt_prepare());
+  DBUG_ASSERT(!current_thd->stmt_arena->is_stmt_prepare());
 
   List_iterator<Item_field> it(fields);
   Item *item;

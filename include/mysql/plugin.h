@@ -48,6 +48,8 @@ class Item;
 #define MYSQL_THD void*
 #endif
 
+typedef void * MYSQL_PLUGIN;
+
 #include <mysql/services.h>
 
 #define MYSQL_XIDDATASIZE 128
@@ -409,8 +411,8 @@ struct st_mysql_plugin
   const char *author;   /* plugin author (for I_S.PLUGINS)              */
   const char *descr;    /* general descriptive text (for I_S.PLUGINS)   */
   int license;          /* the plugin license (PLUGIN_LICENSE_XXX)      */
-  int (*init)(void *);  /* the function to invoke when plugin is loaded */
-  int (*deinit)(void *);/* the function to invoke when plugin is unloaded */
+  int (*init)(MYSQL_PLUGIN);  /* the function to invoke when plugin is loaded */
+  int (*deinit)(MYSQL_PLUGIN);/* the function to invoke when plugin is unloaded */
   unsigned int version; /* plugin version (for I_S.PLUGINS)             */
   struct st_mysql_show_var *status_vars;
   struct st_mysql_sys_var **system_vars;

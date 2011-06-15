@@ -163,6 +163,7 @@ add_plugin(MYSQL *mysql, struct st_mysql_client_plugin *plugin, void *dlhandle,
 
   p->next= plugin_list[plugin->type];
   plugin_list[plugin->type]= p;
+  net_clear_error(&mysql->net);
 
   return plugin;
 
@@ -231,12 +232,12 @@ int mysql_client_plugin_init()
   if (initialized)
     return 0;
 
-  bzero(&mysql, sizeof(mysql)); /* dummy mysql for set_mysql_extended_error */
+  memset(&mysql, 0, sizeof(mysql)); /* dummy mysql for set_mysql_extended_error */
 
   pthread_mutex_init(&LOCK_load_client_plugin, MY_MUTEX_INIT_SLOW);
   init_alloc_root(&mem_root, 128, 128);
 
-  bzero(&plugin_list, sizeof(plugin_list));
+  memset(&plugin_list, 0, sizeof(plugin_list));
 
   initialized= 1;
 
@@ -274,7 +275,7 @@ void mysql_client_plugin_deinit()
         dlclose(p->dlhandle);
     }
 
-  bzero(&plugin_list, sizeof(plugin_list));
+  memset(&plugin_list, 0, sizeof(plugin_list));
   initialized= 0;
   free_root(&mem_root, MYF(0));
   pthread_mutex_destroy(&LOCK_load_client_plugin);
@@ -459,7 +460,7 @@ mysql_client_find_plugin(MYSQL *mysql, const char *name, int type)
 
 
 /* see <mysql/client_plugin.h> for a full description */
-int STDCALL mysql_plugin_options(struct st_mysql_client_plugin *plugin,
+int mysql_plugin_options(struct st_mysql_client_plugin *plugin,
                                  const char *option,
                                  const void *value)
 {

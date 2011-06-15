@@ -13,15 +13,11 @@
    GNU General Public License for more details.
 
    You should have received a copy of the GNU General Public License
-   along with this program; if not, write to the Free Software Foundation,
-   51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA */
+   along with this program; if not, write to the Free Software
+   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
 
 /* Function items used by mysql */
-
-#ifdef USE_PRAGMA_INTERFACE
-#pragma interface			/* gcc class implementation */
-#endif
 
 class MY_LOCALE;
 
@@ -144,8 +140,11 @@ public:
   { DBUG_ASSERT(fixed == 1); return (double) Item_func_month::val_int(); }
   String *val_str(String *str) 
   {
-    str->set(val_int(), collation.collation);
-    return null_value ? 0 : str;
+    longlong nr= val_int();
+    if (null_value)
+      return 0;
+    str->set(nr, collation.collation);
+    return str;
   }
   const char *func_name() const { return "month"; }
   enum Item_result result_type () const { return INT_RESULT; }
@@ -163,16 +162,19 @@ public:
 };
 
 
-class Item_func_monthname :public Item_func_month
+class Item_func_monthname :public Item_str_func
 {
   MY_LOCALE *locale;
 public:
-  Item_func_monthname(Item *a) :Item_func_month(a) {}
+  Item_func_monthname(Item *a) :Item_str_func(a) {}
   const char *func_name() const { return "monthname"; }
   String *val_str(String *str);
-  enum Item_result result_type () const { return STRING_RESULT; }
   void fix_length_and_dec();
   bool check_partition_func_processor(uchar *int_arg) {return TRUE;}
+  bool check_valid_arguments_processor(uchar *int_arg)
+  {
+    return !has_date_args();
+  }
 };
 
 
@@ -385,6 +387,8 @@ public:
   Item_func_unix_timestamp(Item *a) :Item_int_func(a) {}
   longlong val_int();
   const char *func_name() const { return "unix_timestamp"; }
+  enum_monotonicity_info get_monotonicity_info() const;
+  longlong val_int_endpoint(bool left_endp, bool *incl_endp);
   bool check_partition_func_processor(uchar *int_arg) {return FALSE;}
   /*
     UNIX_TIMESTAMP() depends on the current timezone
@@ -469,7 +473,8 @@ public:
   Item_date_func(Item *a,Item *b) :Item_str_func(a,b) {}
   Item_date_func(Item *a,Item *b, Item *c) :Item_str_func(a,b,c) {}
   enum_field_types field_type() const { return MYSQL_TYPE_DATETIME; }
-  CHARSET_INFO *charset_for_protocol(void) const { return &my_charset_bin; }
+  const CHARSET_INFO *charset_for_protocol(void) const
+  { return &my_charset_bin; }
   Field *tmp_table_field(TABLE *table)
   {
     return tmp_table_field_from_field_type(table, 0);
@@ -773,16 +778,32 @@ class Item_date_add_interval :public Item_date_func
 {
   String value;
   enum_field_types cached_field_type;
-
+  String ascii_buf;
 public:
   const interval_type int_type; // keep it public
   const bool date_sub_interval; // keep it public
   Item_date_add_interval(Item *a,Item *b,interval_type type_arg,bool neg_arg)
     :Item_date_func(a,b),int_type(type_arg), date_sub_interval(neg_arg) {}
-  String *val_str(String *);
+  String *val_str_ascii(String *str);
+  String *val_str(String *str)
+  {
+    return val_str_from_val_str_ascii(str, &ascii_buf);
+  }
   const char *func_name() const { return "date_add_interval"; }
   void fix_length_and_dec();
   enum_field_types field_type() const { return cached_field_type; }
+  const CHARSET_INFO *charset_for_protocol(void) const
+  {
+    /*
+      DATE_ADD() can return DATE, DATETIME or VARCHAR depending on arguments.
+      Send using "binary" when DATE or DATETIME,
+      or using collation.collation when VARCHAR
+      (which was fixed from @collation_connection in fix_length_and_dec).
+    */
+    DBUG_ASSERT(fixed == 1);
+    return cached_field_type == MYSQL_TYPE_STRING ?
+                                collation.collation : &my_charset_bin;
+  }
   longlong val_int();
   bool get_date(MYSQL_TIME *res, uint fuzzy_date);
   bool eq(const Item *item, bool binary_cmp) const;
@@ -876,11 +897,11 @@ public:
 class Item_char_typecast :public Item_typecast
 {
   int cast_length;
-  CHARSET_INFO *cast_cs, *from_cs;
+  const CHARSET_INFO *cast_cs, *from_cs;
   bool charset_conversion;
   String tmp_value;
 public:
-  Item_char_typecast(Item *a, int length_arg, CHARSET_INFO *cs_arg)
+  Item_char_typecast(Item *a, int length_arg, const CHARSET_INFO *cs_arg)
     :Item_typecast(a), cast_length(length_arg), cast_cs(cs_arg) {}
   enum Functype functype() const { return CHAR_TYPECAST_FUNC; }
   bool eq(const Item *item, bool binary_cmp) const;

@@ -640,10 +640,6 @@ create trigger t1_ai after insert on t1 for each row flush logs;
 ERROR 0A000: FLUSH is not allowed in stored function or trigger
 create trigger t1_ai after insert on t1 for each row flush status;
 ERROR 0A000: FLUSH is not allowed in stored function or trigger
-create trigger t1_ai after insert on t1 for each row flush slave;
-ERROR 0A000: FLUSH is not allowed in stored function or trigger
-create trigger t1_ai after insert on t1 for each row flush master;
-ERROR 0A000: FLUSH is not allowed in stored function or trigger
 create trigger t1_ai after insert on t1 for each row flush des_key_file;
 ERROR 0A000: FLUSH is not allowed in stored function or trigger
 create trigger t1_ai after insert on t1 for each row flush user_resources;
@@ -691,14 +687,6 @@ insert into t1 values (0);
 ERROR 0A000: FLUSH is not allowed in stored function or trigger
 drop procedure p1;
 create procedure p1() flush status;
-insert into t1 values (0);
-ERROR 0A000: FLUSH is not allowed in stored function or trigger
-drop procedure p1;
-create procedure p1() flush slave;
-insert into t1 values (0);
-ERROR 0A000: FLUSH is not allowed in stored function or trigger
-drop procedure p1;
-create procedure p1() flush master;
 insert into t1 values (0);
 ERROR 0A000: FLUSH is not allowed in stored function or trigger
 drop procedure p1;
@@ -821,7 +809,6 @@ drop trigger t1_bi;
 create trigger t1_bi after insert on t1 for each row insert into t3 values (new.id);
 execute stmt1;
 call p1();
-ERROR 42S02: Table 'test.t3' doesn't exist
 deallocate prepare stmt1;
 drop procedure p1;
 drop table t1, t2, t3;
@@ -2119,7 +2106,7 @@ CREATE TRIGGER trg1 BEFORE INSERT ON t2 FOR EACH ROW INSERT/*!INTO*/t1 VALUES (1
 SHOW TRIGGERS IN db1;
 Trigger	Event	Table	Statement	Timing	Created	sql_mode	Definer	character_set_client	collation_connection	Database Collation
 INSERT INTO t2 VALUES (1);
-ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 't1 VALUES (1)' at line 1
+ERROR 42000: Trigger 'trg1' has an error in its body: 'You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 't1 VALUES (1)' at line 1'
 SELECT * FROM t1;
 b
 # Work around Bug#45235
@@ -2209,6 +2196,26 @@ trigger_name
 # Clean-up.
 drop temporary table t1;
 drop table t1;
+
+#
+# Bug #12362125: SP INOUT HANDLING IS BROKEN FOR TEXT TYPE.
+#
+DROP TABLE IF EXISTS t1;
+CREATE TABLE t1(c TEXT);
+CREATE TRIGGER t1_bi BEFORE INSERT ON t1 FOR EACH ROW
+BEGIN
+DECLARE v TEXT;
+SET v = 'aaa';
+SET NEW.c = v;
+END|
+INSERT INTO t1 VALUES('qazwsxedc');
+SELECT c FROM t1;
+c
+aaa
+DROP TABLE t1;
+
+End of 5.5 tests.
+
 #
 # Bug#34432 Wrong lock type passed to the engine if pre-locking + 
 #           multi-update in a trigger

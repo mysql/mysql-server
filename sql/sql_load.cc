@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2010 Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2011, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -10,8 +10,8 @@
    GNU General Public License for more details.
 
    You should have received a copy of the GNU General Public License
-   along with this program; if not, write to the Free Software Foundation,
-   51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA */
+   along with this program; if not, write to the Free Software
+   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
 
 /* Copy data from a textfile to table */
@@ -75,9 +75,9 @@ public:
   bool error,line_cuted,found_null,enclosed;
   uchar	*row_start,			/* Found row starts here */
 	*row_end;			/* Found row ends here */
-  CHARSET_INFO *read_charset;
+  const CHARSET_INFO *read_charset;
 
-  READ_INFO(File file,uint tot_length,CHARSET_INFO *cs,
+  READ_INFO(File file,uint tot_length,const CHARSET_INFO *cs,
 	    String &field_term,String &line_start,String &line_term,
 	    String &enclosed,int escape,bool get_it_from_net, bool is_fifo);
   ~READ_INFO();
@@ -363,63 +363,63 @@ int mysql_load(THD *thd,sql_exchange *ex,TABLE_LIST *table_list,
       (void) fn_format(name, ex->file_name, mysql_real_data_home, "",
                        MY_RELATIVE_PATH | MY_UNPACK_FILENAME |
                        MY_RETURN_REAL_PATH);
-#if !defined(__WIN__)
-      MY_STAT stat_info;
-      if (!mysql_file_stat(key_file_load, name, &stat_info, MYF(MY_WME)))
-	DBUG_RETURN(TRUE);
+    }
 
-      // if we are not in slave thread, the file must be:
-      if (!thd->slave_thread &&
-	  !((stat_info.st_mode & S_IROTH) == S_IROTH &&  // readable by others
-	    (stat_info.st_mode & S_IFLNK) != S_IFLNK && // and not a symlink
-	    ((stat_info.st_mode & S_IFREG) == S_IFREG ||
-	     (stat_info.st_mode & S_IFIFO) == S_IFIFO)))
-      {
-	my_error(ER_TEXTFILE_NOT_READABLE, MYF(0), name);
-	DBUG_RETURN(TRUE);
-      }
-      if ((stat_info.st_mode & S_IFIFO) == S_IFIFO)
-	is_fifo = 1;
-#endif
-
-      if (thd->slave_thread)
-      {
+    if (thd->slave_thread)
+    {
 #if defined(HAVE_REPLICATION) && !defined(MYSQL_CLIENT)
-        if (strncmp(active_mi->rli->slave_patternload_file, name,
-            active_mi->rli->slave_patternload_file_size))
-        {
-          /*
-            LOAD DATA INFILE in the slave SQL Thread can only read from
-            --slave-load-tmpdir". This should never happen. Please, report a bug.
-           */
-
-          sql_print_error("LOAD DATA INFILE in the slave SQL Thread can only read from --slave-load-tmpdir. " \
-                          "Please, report a bug.");
-          my_error(ER_OPTION_PREVENTS_STATEMENT, MYF(0), "--slave-load-tmpdir");
-          DBUG_RETURN(TRUE);
-        }
-#else
-        /*
-          This is impossible and should never happen.
-        */
-        DBUG_ASSERT(FALSE); 
-#endif
-      }
-      else if (!is_secure_file_path(name))
+      if (strncmp(active_mi->rli->slave_patternload_file, name,
+                  active_mi->rli->slave_patternload_file_size))
       {
-        /* Read only allowed from within dir specified by secure_file_priv */
-        my_error(ER_OPTION_PREVENTS_STATEMENT, MYF(0), "--secure-file-priv");
+        /*
+          LOAD DATA INFILE in the slave SQL Thread can only read from 
+          --slave-load-tmpdir". This should never happen. Please, report a bug.
+        */
+
+        sql_print_error("LOAD DATA INFILE in the slave SQL Thread can only read from --slave-load-tmpdir. " \
+                        "Please, report a bug.");
+        my_error(ER_OPTION_PREVENTS_STATEMENT, MYF(0), "--slave-load-tmpdir");
         DBUG_RETURN(TRUE);
       }
-
+#else
+      /*
+        This is impossible and should never happen.
+      */
+      DBUG_ASSERT(FALSE); 
+#endif
     }
+    else if (!is_secure_file_path(name))
+    {
+      /* Read only allowed from within dir specified by secure_file_priv */
+      my_error(ER_OPTION_PREVENTS_STATEMENT, MYF(0), "--secure-file-priv");
+      DBUG_RETURN(TRUE);
+    }
+
+#if !defined(__WIN__) && ! defined(__NETWARE__)
+    MY_STAT stat_info;
+    if (!my_stat(name,&stat_info,MYF(MY_WME)))
+	    DBUG_RETURN(TRUE);
+
+    // if we are not in slave thread, the file must be:
+    if (!thd->slave_thread &&
+        !((stat_info.st_mode & S_IFLNK) != S_IFLNK &&   // symlink
+          ((stat_info.st_mode & S_IFREG) == S_IFREG ||  // regular file
+           (stat_info.st_mode & S_IFIFO) == S_IFIFO)))  // named pipe
+    {
+	    my_error(ER_TEXTFILE_NOT_READABLE, MYF(0), name);
+	    DBUG_RETURN(TRUE);
+    }
+    if ((stat_info.st_mode & S_IFIFO) == S_IFIFO)
+            is_fifo = 1;
+#endif
     if ((file= mysql_file_open(key_file_load,
                                name, O_RDONLY, MYF(MY_WME))) < 0)
+
       DBUG_RETURN(TRUE);
   }
 
   COPY_INFO info;
-  bzero((char*) &info,sizeof(info));
+  memset(&info, 0, sizeof(info));
   info.ignore= ignore;
   info.handle_duplicates=handle_duplicates;
   info.escape_char= (escaped->length() && (ex->escaped_given() ||
@@ -568,7 +568,7 @@ int mysql_load(THD *thd,sql_exchange *ex,TABLE_LIST *table_list,
 
           /* since there is already an error, the possible error of
              writing binary log will be ignored */
-	  if (thd->transaction.stmt.modified_non_trans_table)
+	  if (thd->transaction.stmt.cannot_safely_rollback())
             (void) write_execute_load_query_log_event(thd, ex,
                                                       table_list->db, 
                                                       table_list->table_name,
@@ -590,10 +590,8 @@ int mysql_load(THD *thd,sql_exchange *ex,TABLE_LIST *table_list,
   }
   sprintf(name, ER(ER_LOAD_INFO), (ulong) info.records, (ulong) info.deleted,
 	  (ulong) (info.records - info.copied),
-          (ulong) thd->warning_info->statement_warn_count());
+          (ulong) thd->get_stmt_wi()->statement_warn_count());
 
-  if (thd->transaction.stmt.modified_non_trans_table)
-    thd->transaction.all.modified_non_trans_table= TRUE;
 #ifndef EMBEDDED_LIBRARY
   if (mysql_bin_log.is_open())
   {
@@ -642,7 +640,7 @@ int mysql_load(THD *thd,sql_exchange *ex,TABLE_LIST *table_list,
   my_ok(thd, info.copied + info.deleted, 0L, name);
 err:
   DBUG_ASSERT(transactional_table || !(info.copied || info.deleted) ||
-              thd->transaction.stmt.modified_non_trans_table);
+              thd->transaction.stmt.cannot_safely_rollback());
   table->file->ha_release_auto_increment();
   table->auto_increment_field_not_null= FALSE;
   thd->abort_on_warning= 0;
@@ -743,8 +741,7 @@ static bool write_execute_load_query_log_event(THD *thd, sql_exchange* ex,
       pfields.append("`");
       pfields.append(item->name);
       pfields.append("`");
-      pfields.append("=");
-      val->print(&pfields, QT_ORDINARY);
+      pfields.append(val->name);
     }
   }
 
@@ -836,7 +833,7 @@ read_fixed_length(THD *thd, COPY_INFO &info, TABLE_LIST *table_list,
         push_warning_printf(thd, MYSQL_ERROR::WARN_LEVEL_WARN,
                             ER_WARN_TOO_FEW_RECORDS,
                             ER(ER_WARN_TOO_FEW_RECORDS),
-                            thd->warning_info->current_row_for_warning());
+                            thd->get_stmt_wi()->current_row_for_warning());
         if (!field->maybe_null() && field->type() == FIELD_TYPE_TIMESTAMP)
             ((Field_timestamp*) field)->set_time();
       }
@@ -860,7 +857,7 @@ read_fixed_length(THD *thd, COPY_INFO &info, TABLE_LIST *table_list,
       push_warning_printf(thd, MYSQL_ERROR::WARN_LEVEL_WARN,
                           ER_WARN_TOO_MANY_RECORDS,
                           ER(ER_WARN_TOO_MANY_RECORDS),
-                          thd->warning_info->current_row_for_warning());
+                          thd->get_stmt_wi()->current_row_for_warning());
     }
 
     if (thd->killed ||
@@ -896,9 +893,9 @@ read_fixed_length(THD *thd, COPY_INFO &info, TABLE_LIST *table_list,
       push_warning_printf(thd, MYSQL_ERROR::WARN_LEVEL_WARN,
                           ER_WARN_TOO_MANY_RECORDS,
                           ER(ER_WARN_TOO_MANY_RECORDS),
-                          thd->warning_info->current_row_for_warning());
+                          thd->get_stmt_wi()->current_row_for_warning());
     }
-    thd->warning_info->inc_current_row_for_warning();
+    thd->get_stmt_wi()->inc_current_row_for_warning();
 continue_loop:;
   }
   DBUG_RETURN(test(read_info.error));
@@ -962,7 +959,7 @@ read_sep_field(THD *thd, COPY_INFO &info, TABLE_LIST *table_list,
           if (field->reset())
           {
             my_error(ER_WARN_NULL_TO_NOTNULL, MYF(0), field->field_name,
-                     thd->warning_info->current_row_for_warning());
+                     thd->get_stmt_wi()->current_row_for_warning());
             DBUG_RETURN(1);
           }
           field->set_null();
@@ -1034,7 +1031,7 @@ read_sep_field(THD *thd, COPY_INFO &info, TABLE_LIST *table_list,
           if (field->reset())
           {
             my_error(ER_WARN_NULL_TO_NOTNULL, MYF(0),field->field_name,
-                     thd->warning_info->current_row_for_warning());
+                     thd->get_stmt_wi()->current_row_for_warning());
             DBUG_RETURN(1);
           }
           if (!field->maybe_null() && field->type() == FIELD_TYPE_TIMESTAMP)
@@ -1049,7 +1046,7 @@ read_sep_field(THD *thd, COPY_INFO &info, TABLE_LIST *table_list,
           push_warning_printf(thd, MYSQL_ERROR::WARN_LEVEL_WARN,
                               ER_WARN_TOO_FEW_RECORDS,
                               ER(ER_WARN_TOO_FEW_RECORDS),
-                              thd->warning_info->current_row_for_warning());
+                              thd->get_stmt_wi()->current_row_for_warning());
         }
         else if (item->type() == Item::STRING_ITEM)
         {
@@ -1095,11 +1092,11 @@ read_sep_field(THD *thd, COPY_INFO &info, TABLE_LIST *table_list,
       thd->cuted_fields++;			/* To long row */
       push_warning_printf(thd, MYSQL_ERROR::WARN_LEVEL_WARN,
                           ER_WARN_TOO_MANY_RECORDS, ER(ER_WARN_TOO_MANY_RECORDS),
-                          thd->warning_info->current_row_for_warning());
+                          thd->get_stmt_wi()->current_row_for_warning());
       if (thd->killed)
         DBUG_RETURN(1);
     }
-    thd->warning_info->inc_current_row_for_warning();
+    thd->get_stmt_wi()->inc_current_row_for_warning();
 continue_loop:;
   }
   DBUG_RETURN(test(read_info.error));
@@ -1120,7 +1117,7 @@ read_xml_field(THD *thd, COPY_INFO &info, TABLE_LIST *table_list,
   Item *item;
   TABLE *table= table_list->table;
   bool no_trans_update_stmt;
-  CHARSET_INFO *cs= read_info.read_charset;
+  const CHARSET_INFO *cs= read_info.read_charset;
   DBUG_ENTER("read_xml_field");
   
   no_trans_update_stmt= !table->file->has_transactions();
@@ -1233,7 +1230,7 @@ read_xml_field(THD *thd, COPY_INFO &info, TABLE_LIST *table_list,
           push_warning_printf(thd, MYSQL_ERROR::WARN_LEVEL_WARN,
                               ER_WARN_TOO_FEW_RECORDS,
                               ER(ER_WARN_TOO_FEW_RECORDS),
-                              thd->warning_info->current_row_for_warning());
+                              thd->get_stmt_wi()->current_row_for_warning());
         }
         else
           ((Item_user_var_as_out_param *)item)->set_null_value(cs);
@@ -1263,8 +1260,7 @@ read_xml_field(THD *thd, COPY_INFO &info, TABLE_LIST *table_list,
       We don't need to reset auto-increment field since we are restoring
       its default value at the beginning of each loop iteration.
     */
-    thd->transaction.stmt.modified_non_trans_table= no_trans_update_stmt;
-    thd->warning_info->inc_current_row_for_warning();
+    thd->get_stmt_wi()->inc_current_row_for_warning();
     continue_loop:;
   }
   DBUG_RETURN(test(read_info.error) || thd->is_error());
@@ -1298,13 +1294,14 @@ READ_INFO::unescape(char chr)
 */
 
 
-READ_INFO::READ_INFO(File file_par, uint tot_length, CHARSET_INFO *cs,
+READ_INFO::READ_INFO(File file_par, uint tot_length, const CHARSET_INFO *cs,
 		     String &field_term, String &line_start, String &line_term,
 		     String &enclosed_par, int escape, bool get_it_from_net,
 		     bool is_fifo)
-  :file(file_par),escape_char(escape)
+  :file(file_par), buff_length(tot_length), escape_char(escape),
+   found_end_of_line(false), eof(false), need_end_io_cache(false),
+   error(false), line_cuted(false), found_null(false), read_charset(cs)
 {
-  read_charset= cs;
   field_term_ptr=(char*) field_term.ptr();
   field_term_length= field_term.length();
   line_term_ptr=(char*) line_term.ptr();
@@ -1332,12 +1329,10 @@ READ_INFO::READ_INFO(File file_par, uint tot_length, CHARSET_INFO *cs,
     (uchar) enclosed_par[0] : INT_MAX;
   field_term_char= field_term_length ? (uchar) field_term_ptr[0] : INT_MAX;
   line_term_char= line_term_length ? (uchar) line_term_ptr[0] : INT_MAX;
-  error=eof=found_end_of_line=found_null=line_cuted=0;
-  buff_length=tot_length;
 
 
   /* Set of a stack for unget if long terminators */
-  uint length=max(field_term_length,line_term_length)+1;
+  uint length= max(cs->mbmaxlen, max(field_term_length, line_term_length)) + 1;
   set_if_bigger(length,line_start.length());
   stack=stack_pos=(int*) sql_alloc(sizeof(int)*length);
 
@@ -1379,7 +1374,7 @@ READ_INFO::READ_INFO(File file_par, uint tot_length, CHARSET_INFO *cs,
 
 READ_INFO::~READ_INFO()
 {
-  if (!error && need_end_io_cache)
+  if (need_end_io_cache)
     ::end_io_cache(&cache);
 
   if (buffer != NULL)

@@ -114,6 +114,10 @@ enum enum_server_command
 #define FIELD_IN_PART_FUNC_FLAG (1 << 19)/* Field part of partition func */
 #define FIELD_IN_ADD_INDEX (1<< 20)	/* Intern: Field used in ADD INDEX */
 #define FIELD_IS_RENAMED (1<< 21)       /* Intern: Field is being renamed */
+#define FIELD_FLAGS_STORAGE_MEDIA 22    /* Field storage media, bit 22-23,
+                                           reserved by MySQL Cluster */
+#define FIELD_FLAGS_COLUMN_FORMAT 24    /* Field column format, bit 24-25,
+                                           reserved by MySQL Cluster */
 
 #define REFRESH_GRANT		1	/* Refresh grant tables */
 #define REFRESH_LOG		2	/* Start on new log file */
@@ -320,16 +324,6 @@ typedef struct st_net {
   /** Client library sqlstate buffer. Set along with the error message. */
   char sqlstate[SQLSTATE_LENGTH+1];
   void *extension;
-#if defined(MYSQL_SERVER) && !defined(EMBEDDED_LIBRARY)
-  /*
-    Controls whether a big packet should be skipped.
-
-    Initially set to FALSE by default. Unauthenticated sessions must have
-    this set to FALSE so that the server can't be tricked to read packets
-    indefinitely.
-  */
-  my_bool skip_big_packet;
-#endif
 } NET;
 
 
@@ -445,26 +439,22 @@ extern "C" {
 #endif
 
 my_bool	my_net_init(NET *net, Vio* vio);
-void	my_net_local_init(NET *net);
-void	net_end(NET *net);
-  void	net_clear(NET *net, my_bool clear_buffer);
+void my_net_local_init(NET *net);
+void net_end(NET *net);
+void net_clear(NET *net, my_bool check_buffer);
 my_bool net_realloc(NET *net, size_t length);
 my_bool	net_flush(NET *net);
 my_bool	my_net_write(NET *net,const unsigned char *packet, size_t len);
 my_bool	net_write_command(NET *net,unsigned char command,
 			  const unsigned char *header, size_t head_len,
 			  const unsigned char *packet, size_t len);
-int	net_real_write(NET *net,const unsigned char *packet, size_t len);
+my_bool net_write_packet(NET *net, const unsigned char *packet, size_t length);
 unsigned long my_net_read(NET *net);
 
 #ifdef _global_h
 void my_net_set_write_timeout(NET *net, uint timeout);
 void my_net_set_read_timeout(NET *net, uint timeout);
 #endif
-
-struct sockaddr;
-int my_connect(my_socket s, const struct sockaddr *name, unsigned int namelen,
-	       unsigned int timeout);
 
 struct rand_struct {
   unsigned long seed1,seed2,max_value;

@@ -114,3 +114,24 @@ explain select 1 from t2 where
   c2 in (select 1 from t3, t2) and
   c1 in (select convert(c6,char(1)) from t2);
 drop table t2, t3;
+--echo # 
+--echo # BUG#57431: subquery returns wrong result (semijoin=on) with pred AND
+--echo # 
+CREATE TABLE t1 (
+   i INT
+) ENGINE=InnoDB;
+INSERT INTO t1 VALUES (2),(4);
+
+CREATE TABLE t2 (
+   i INT,
+   vc VARCHAR(1)
+) ENGINE=InnoDB;
+INSERT INTO t2 VALUES (8,NULL);
+
+SELECT i
+FROM t1
+WHERE i IN (SELECT innr.i
+             FROM t2 LEFT JOIN t2 innr ON innr.vc)
+   AND i = 2;
+
+DROP TABLE t1, t2;

@@ -11,8 +11,8 @@ ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
 FOR A PARTICULAR PURPOSE. See the GNU General Public License for more details.
 
 You should have received a copy of the GNU General Public License along with
-this program; if not, write to the Free Software Foundation, Inc., 59 Temple
-Place, Suite 330, Boston, MA 02111-1307 USA
+this program; if not, write to the Free Software Foundation, Inc.,
+51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA
 
 *****************************************************************************/
 
@@ -365,8 +365,8 @@ fsp_get_space_header(
 	fsp_header_t*	header;
 
 	ut_ad(ut_is_2pow(zip_size));
-	ut_ad(zip_size <= UNIV_PAGE_SIZE);
-	ut_ad(!zip_size || zip_size >= PAGE_ZIP_MIN_SIZE);
+	ut_ad(zip_size <= UNIV_ZIP_SIZE_MAX);
+	ut_ad(!zip_size || zip_size >= UNIV_ZIP_SIZE_MIN);
 	ut_ad(id || !zip_size);
 
 	block = buf_page_get(id, zip_size, 0, RW_X_LATCH, mtr);
@@ -656,8 +656,8 @@ xdes_calc_descriptor_page(
 		+ (UNIV_PAGE_SIZE / FSP_EXTENT_SIZE) * XDES_SIZE
 #  error
 # endif
-# if PAGE_ZIP_MIN_SIZE <= XDES_ARR_OFFSET \
-		+ (PAGE_ZIP_MIN_SIZE / FSP_EXTENT_SIZE) * XDES_SIZE
+# if UNIV_ZIP_SIZE_MIN <= XDES_ARR_OFFSET \
+		+ (UNIV_ZIP_SIZE_MIN / FSP_EXTENT_SIZE) * XDES_SIZE
 #  error
 # endif
 #endif /* !DOXYGEN */
@@ -1097,38 +1097,6 @@ fsp_header_inc_size(
 }
 
 /**********************************************************************//**
-Gets the current free limit of the system tablespace.  The free limit
-means the place of the first page which has never been put to the
-free list for allocation.  The space above that address is initialized
-to zero.  Sets also the global variable log_fsp_current_free_limit.
-@return	free limit in megabytes */
-UNIV_INTERN
-ulint
-fsp_header_get_free_limit(void)
-/*===========================*/
-{
-	fsp_header_t*	header;
-	ulint		limit;
-	mtr_t		mtr;
-
-	mtr_start(&mtr);
-
-	mtr_x_lock(fil_space_get_latch(0, NULL), &mtr);
-
-	header = fsp_get_space_header(0, 0, &mtr);
-
-	limit = mtr_read_ulint(header + FSP_FREE_LIMIT, MLOG_4BYTES, &mtr);
-
-	limit /= ((1024 * 1024) / UNIV_PAGE_SIZE);
-
-	log_fsp_current_free_limit_set_and_checkpoint(limit);
-
-	mtr_commit(&mtr);
-
-	return(limit);
-}
-
-/**********************************************************************//**
 Gets the size of the system tablespace from the tablespace header.  If
 we do not have an auto-extending data file, this should be equal to
 the size of the data files.  If there is an auto-extending data file,
@@ -1361,8 +1329,8 @@ fsp_fill_free_list(
 	zip_size = dict_table_flags_to_zip_size(
 		mach_read_from_4(FSP_SPACE_FLAGS + header));
 	ut_a(ut_is_2pow(zip_size));
-	ut_a(zip_size <= UNIV_PAGE_SIZE);
-	ut_a(!zip_size || zip_size >= PAGE_ZIP_MIN_SIZE);
+	ut_a(zip_size <= UNIV_ZIP_SIZE_MAX);
+	ut_a(!zip_size || zip_size >= UNIV_ZIP_SIZE_MIN);
 
 	if (space == 0 && srv_auto_extend_last_data_file
 	    && size < limit + FSP_EXTENT_SIZE * FSP_FREE_ADD) {
@@ -1394,15 +1362,6 @@ fsp_fill_free_list(
 
 		mlog_write_ulint(header + FSP_FREE_LIMIT, i + FSP_EXTENT_SIZE,
 				 MLOG_4BYTES, mtr);
-
-		/* Update the free limit info in the log system and make
-		a checkpoint */
-		if (space == 0) {
-			ut_a(!zip_size);
-			log_fsp_current_free_limit_set_and_checkpoint(
-				(i + FSP_EXTENT_SIZE)
-				/ ((1024 * 1024) / UNIV_PAGE_SIZE));
-		}
 
 		if (UNIV_UNLIKELY(init_xdes)) {
 
@@ -1456,8 +1415,8 @@ fsp_fill_free_list(
 #if UNIV_PAGE_SIZE % FSP_EXTENT_SIZE
 # error "UNIV_PAGE_SIZE % FSP_EXTENT_SIZE != 0"
 #endif
-#if PAGE_ZIP_MIN_SIZE % FSP_EXTENT_SIZE
-# error "PAGE_ZIP_MIN_SIZE % FSP_EXTENT_SIZE != 0"
+#if UNIV_ZIP_SIZE_MIN % FSP_EXTENT_SIZE
+# error "UNIV_ZIP_SIZE_MIN % FSP_EXTENT_SIZE != 0"
 #endif
 
 		if (UNIV_UNLIKELY(init_xdes)) {
@@ -3935,8 +3894,8 @@ fsp_validate(
 	latch = fil_space_get_latch(space, &flags);
 	zip_size = dict_table_flags_to_zip_size(flags);
 	ut_a(ut_is_2pow(zip_size));
-	ut_a(zip_size <= UNIV_PAGE_SIZE);
-	ut_a(!zip_size || zip_size >= PAGE_ZIP_MIN_SIZE);
+	ut_a(zip_size <= UNIV_ZIP_SIZE_MAX);
+	ut_a(!zip_size || zip_size >= UNIV_ZIP_SIZE_MIN);
 
 	/* Start first a mini-transaction mtr2 to lock out all other threads
 	from the fsp system */

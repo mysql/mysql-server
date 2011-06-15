@@ -21,7 +21,7 @@ typedef struct {
 	size_t re_nsub;		/* number of parenthesized subexpressions */
 	const char *re_endp;	/* end pointer for MY_REG_PEND */
 	struct re_guts *re_g;	/* none of your business :-) */
-	CHARSET_INFO *charset;	/* For ctype things */
+	const CHARSET_INFO *charset;	/* For ctype things */
 } my_regex_t;
 typedef struct {
 	my_regoff_t rm_so;		/* start of match */
@@ -30,7 +30,9 @@ typedef struct {
 
 
 /* === regcomp.c === */
-extern int my_regcomp(my_regex_t *, const char *, int, CHARSET_INFO *charset);
+typedef int (*my_regex_stack_check_t)();
+extern int my_regcomp(my_regex_t *, const char *, int,
+                      const CHARSET_INFO *charset);
 #define	MY_REG_BASIC	0000
 #define	MY_REG_EXTENDED	0001
 #define	MY_REG_ICASE	0002
@@ -78,7 +80,9 @@ extern void my_regfree(my_regex_t *);
 
 /* === reginit.c === */
 
-extern void my_regex_init(CHARSET_INFO *cs);	/* Should be called for multithread progs */
+/* Should be called for multithread progs */
+extern void my_regex_init(const CHARSET_INFO *cs,
+                          my_regex_stack_check_t func);
 extern void my_regex_end(void);	/* If one wants a clean end */
 
 #ifdef __cplusplus

@@ -14,10 +14,6 @@
   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
 
 
-#ifdef USE_PRAGMA_IMPLEMENTATION
-#pragma implementation				// gcc: Class implementation
-#endif
-
 #define MYSQL_SERVER 1
 #include "sql_priv.h"
 #include "unireg.h"
@@ -178,7 +174,7 @@ int ha_blackhole::info(uint flag)
 {
   DBUG_ENTER("ha_blackhole::info");
 
-  bzero((char*) &stats, sizeof(stats));
+  memset(&stats, 0, sizeof(stats));
   if (flag & HA_STATUS_AUTO)
     stats.auto_increment_value= 1;
   DBUG_RETURN(0);
@@ -393,11 +389,8 @@ void init_blackhole_psi_keys()
   const char* category= "blackhole";
   int count;
 
-  if (PSI_server == NULL)
-    return;
-
   count= array_elements(all_blackhole_mutexes);
-  PSI_server->register_mutex(category, all_blackhole_mutexes, count);
+  mysql_mutex_register(category, all_blackhole_mutexes, count);
 }
 #endif
 

@@ -1,4 +1,4 @@
-/* Copyright (C) 2000-2003 MySQL AB
+/* Copyright (c) 2000, 2011, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -673,7 +673,8 @@ get_one_option(int optid,
     int method;
     enum_mi_stats_method UNINIT_VAR(method_conv);
     myisam_stats_method_str= argument;
-    if ((method=find_type(argument, &myisam_stats_method_typelib, 2)) <= 0)
+    if ((method= find_type(argument, &myisam_stats_method_typelib,
+                           FIND_TYPE_BASIC)) <= 0)
     {
       fprintf(stderr, "Invalid value of stats_method: %s.\n", argument);
       exit(1);
@@ -1446,8 +1447,8 @@ static int mi_sort_records(MI_CHECK *param,
   MI_SORT_PARAM sort_param;
   DBUG_ENTER("sort_records");
 
-  bzero((char*)&sort_info,sizeof(sort_info));
-  bzero((char*)&sort_param,sizeof(sort_param));
+  memset(&sort_info, 0, sizeof(sort_info));
+  memset(&sort_param, 0, sizeof(sort_param));
   sort_param.sort_info=&sort_info;
   sort_info.param=param;
   keyinfo= &share->keyinfo[sort_key];
@@ -1676,7 +1677,7 @@ static int sort_record_index(MI_SORT_PARAM *sort_param,MI_INFO *info,
       goto err;
   }
   /* Clear end of block to get better compression if the table is backuped */
-  bzero((uchar*) buff+used_length,keyinfo->block_length-used_length);
+  memset(buff+used_length, 0, keyinfo->block_length-used_length);
   if (my_pwrite(info->s->kfile,(uchar*) buff,(uint) keyinfo->block_length,
 		page,param->myf_rw))
   {
