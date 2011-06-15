@@ -2193,7 +2193,7 @@ NdbIndexStatImpl::MemDefault::mem_alloc(size_t size)
   {
     size += 4 - size % 4;
   }
-  Item* item = (Item*)my_malloc(sizeof(Item) + size, MYF(0));
+  Item* item = (Item*)malloc(sizeof(Item) + size);
   if (item != 0)
   {
     item->m_magic = MemMagic;
@@ -2212,9 +2212,9 @@ NdbIndexStatImpl::MemDefault::mem_free(void* ptr)
   {
     Item* item = (Item*)ptr - 1;
     assert(item->m_magic == MemMagic);
-    Uint32 size = item->m_size;
+    size_t size = item->m_size;
     item->m_magic = 0;
-    my_free(item, MYF(0));
+    free(item);
     assert(m_used >= size);
     m_used -= size;
   }
