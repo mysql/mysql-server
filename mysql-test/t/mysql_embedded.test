@@ -3,4 +3,10 @@
 --echo #
 
 --source include/is_embedded.inc
---exec $MYSQL_TEST_DIR/../libmysqld/examples/mysql_embedded -e 'select 1'
+
+# Test case require mysql_embedded to be present
+if(!$MYSQL_EMBEDDED)
+{
+  --skip Test requires mysql_embedded executable
+}
+--exec $MYSQL_EMBEDDED -e 'select 1'
