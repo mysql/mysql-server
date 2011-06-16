@@ -20,10 +20,18 @@
 #ifdef WITH_NDBCLUSTER_STORAGE_ENGINE
 
 #include "ha_ndbcluster.h"
-#include "ha_ndbcluster_binlog.h"
 #include "ha_ndb_index_stat.h"
 #include <mysql/plugin.h>
 #include <ctype.h>
+
+// copied from ha_ndbcluster_binlog.h
+
+extern handlerton *ndbcluster_hton;
+
+inline
+void
+set_thd_ndb(THD *thd, Thd_ndb *thd_ndb)
+{ thd_set_ha_data(thd, ndbcluster_hton, thd_ndb); }
 
 // Typedefs for long names 
 typedef NdbDictionary::Table NDBTAB;
@@ -1530,7 +1538,7 @@ ndb_index_stat_thread_func(void *arg __attribute__((unused)))
 {
   THD *thd; /* needs to be first for thread_stack */
   struct timespec abstime;
-  Thd_ndb *thd_ndb;
+  Thd_ndb *thd_ndb= NULL;
 
   my_thread_init();
   DBUG_ENTER("ndb_index_stat_thread_func");
@@ -1635,7 +1643,7 @@ ndb_index_stat_thread_func(void *arg __attribute__((unused)))
                                       &LOCK_ndb_index_stat_thread,
                                       &abstime);
       const char* reason= ret == ETIMEDOUT ? "timed out" : "wake up";
-      (void*)&reason; //USED
+      (void)reason; // USED
       DBUG_PRINT("index_stat", ("loop: %s", reason));
     }
     if (ndbcluster_terminating) /* Shutting down server */
@@ -1740,7 +1748,7 @@ ha_ndbcluster::ndb_index_stat_wait(Ndb_index_stat *st,
   pthread_mutex_lock(&ndb_index_stat_stat_mutex);
   int err= 0;
   uint count= 0;
-  (void*)&count; //USED
+  (void)count; // USED
   struct timespec abstime;
   while (true) {
     int ret= 0;
