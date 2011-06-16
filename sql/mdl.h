@@ -152,11 +152,24 @@ enum enum_mdl_type {
 
 /** Duration of metadata lock. */
 
-enum enum_mdl_duration { MDL_STATEMENT= 0,
-                         MDL_TRANSACTION,
-                         MDL_EXPLICIT,
-                         /* This should be the last ! */
-                         MDL_DURATION_END };
+enum enum_mdl_duration {
+  /**
+    Locks with statement duration are automatically released at the end
+    of statement or transaction.
+  */
+  MDL_STATEMENT= 0,
+  /**
+    Locks with transaction duration are automatically released at the end
+    of transaction.
+  */
+  MDL_TRANSACTION,
+  /**
+    Locks with explicit duration survive the end of statement and transaction.
+    They have to be released explicitly by calling MDL_context::release_lock().
+  */
+  MDL_EXPLICIT,
+  /* This should be the last ! */
+  MDL_DURATION_END };
 
 
 /** Maximal length of key for metadata locking subsystem. */
