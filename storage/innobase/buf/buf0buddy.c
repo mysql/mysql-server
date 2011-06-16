@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2006, 2010, Innobase Oy. All Rights Reserved.
+Copyright (c) 2006, 2011, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -352,7 +352,9 @@ buf_buddy_relocate_block(
 	buf_page_t*	bpage,	/*!< in: block to relocate */
 	buf_page_t*	dpage)	/*!< in: free block to relocate to */
 {
+#if defined UNIV_DEBUG || defined UNIV_BUF_DEBUG
 	buf_page_t*	b;
+#endif /* UNIV_DEBUG || UNIV_BUF_DEBUG */
 	buf_pool_t*	buf_pool = buf_pool_from_bpage(bpage);
 
 	ut_ad(buf_pool_mutex_own(buf_pool));
@@ -382,7 +384,7 @@ buf_buddy_relocate_block(
 
 	buf_relocate(bpage, dpage);
 	ut_d(bpage->state = BUF_BLOCK_ZIP_FREE);
-
+#if defined UNIV_DEBUG || defined UNIV_BUF_DEBUG
 	/* relocate buf_pool->zip_clean */
 	b = UT_LIST_GET_PREV(list, dpage);
 	UT_LIST_REMOVE(list, buf_pool->zip_clean, dpage);
@@ -392,6 +394,7 @@ buf_buddy_relocate_block(
 	} else {
 		UT_LIST_ADD_FIRST(list, buf_pool->zip_clean, dpage);
 	}
+#endif /* UNIV_DEBUG || UNIV_BUF_DEBUG */
 
 	UNIV_MEM_INVALID(bpage, sizeof *bpage);
 
