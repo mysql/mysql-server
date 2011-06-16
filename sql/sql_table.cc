@@ -7445,7 +7445,8 @@ bool mysql_alter_table(THD *thd,char *new_db, char *new_name,
       altered_table->part_info= NULL;;
 #endif
       close_temporary_table(thd, altered_table, 1, 1);
-
+      if (!error && thd->stmt_da->is_error())
+	error= thd->stmt_da->sql_errno();
       if (error)
       {
         switch (error) {
