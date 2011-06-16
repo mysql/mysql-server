@@ -347,6 +347,11 @@ ndbcluster_alter_table_flags(uint flags)
 
 #define NDB_AUTO_INCREMENT_RETRIES 100
 #define BATCH_FLUSH_SIZE (32768)
+/*
+  Room for 10 instruction words, two labels (@ 2words/label)
+  + 2 extra words for the case of resolve_size == 8
+*/
+#define MAX_CONFLICT_INTERPRETED_PROG_SIZE 16
 
 static void set_ndb_err(THD *thd, const NdbError &err);
 
@@ -432,8 +437,6 @@ extern void ndb_index_stat_end();
 /* Status variables shown with 'show status like 'Ndb%' */
 
 struct st_ndb_status g_ndb_status;
-static long g_ndb_status_conflict_fn_max= 0;
-static long g_ndb_status_conflict_fn_old= 0;
 
 long g_ndb_status_index_stat_cache_query = 0;
 long g_ndb_status_index_stat_cache_clean = 0;
@@ -451,6 +454,37 @@ update_slave_api_stats(Ndb* ndb)
 {
   for (Uint32 i=0; i < Ndb::NumClientStatistics; i++)
     g_slave_api_client_stats[i] = ndb->getClientStat(i);
+}
+
+st_ndb_slave_state g_ndb_slave_state;
+
+st_ndb_slave_state::st_ndb_slave_state()
+  : current_conflict_defined_op_count(0)
+{
+  memset(current_violation_count, 0, sizeof(current_violation_count));
+  memset(total_violation_count, 0, sizeof(total_violation_count));
+};
+
+void
+st_ndb_slave_state::atTransactionAbort()
+{
+  /* Reset current-transaction counters + state */
+  memset(current_violation_count, 0, sizeof(current_violation_count));
+  current_conflict_defined_op_count = 0;
+}
+
+void
+st_ndb_slave_state::atTransactionCommit()
+{
+  /* Merge committed transaction counters into total state
+   * Then reset current transaction counters
+   */
+  for (int i=0; i < CFT_NUMBER_OF_CFTS; i++)
+  {
+    total_violation_count[i]+= current_violation_count[i];
+    current_violation_count[i] = 0;
+  }
+  current_conflict_defined_op_count = 0;
 }
 
 static int update_status_variables(Thd_ndb *thd_ndb,
@@ -567,8 +601,9 @@ SHOW_VAR ndb_status_variables_dynamic[]= {
 };
 
 SHOW_VAR ndb_status_conflict_variables[]= {
-  {"fn_max",     (char*) &g_ndb_status_conflict_fn_max, SHOW_LONG},
-  {"fn_old",     (char*) &g_ndb_status_conflict_fn_old, SHOW_LONG},
+  {"fn_max",       (char*) &g_ndb_slave_state.total_violation_count[CFT_NDB_MAX], SHOW_LONG},
+  {"fn_old",       (char*) &g_ndb_slave_state.total_violation_count[CFT_NDB_OLD], SHOW_LONG},
+  {"fn_max_del_win", (char*) &g_ndb_slave_state.total_violation_count[CFT_NDB_MAX_DEL_WIN], SHOW_LONG},
   {NullS, NullS, SHOW_LONG}
 };
 
@@ -733,6 +768,24 @@ static int write_conflict_row(NDB_SHARE *share,
 }
 #endif
 
+#ifdef HAVE_NDB_BINLOG
+int
+handle_conflict_op_error(Thd_ndb* thd_ndb,
+                         NdbTransaction* trans,
+                         const NdbError& err,
+                         const NdbOperation* op);
+
+int
+handle_row_conflict(NDB_CONFLICT_FN_SHARE* cfn_share,
+                    const NdbRecord* key_rec,
+                    const uchar* pk_row,
+                    enum_conflicting_op_type op_type,
+                    enum_conflict_cause conflict_cause,
+                    const NdbError& conflict_error,
+                    NdbTransaction* conflict_trans,
+                    NdbError& err);
+#endif
+
 inline int
 check_completed_operations_pre_commit(Thd_ndb *thd_ndb, NdbTransaction *trans,
                                       const NdbOperation *first,
@@ -753,102 +806,42 @@ check_completed_operations_pre_commit(Thd_ndb *thd_ndb, NdbTransaction *trans,
     or exceptions to report
   */
 #ifdef HAVE_NDB_BINLOG
-  uint conflict_rows_written= 0;
+  const NdbOperation* lastUserOp = trans->getLastDefinedOperation();
 #endif
   while (true)
   {
     const NdbError &err= first->getNdbError();
-    if (err.classification != NdbError::NoError
-#ifndef HAVE_NDB_BINLOG
-        && err.classification != NdbError::ConstraintViolation
-        && err.classification != NdbError::NoDataFound
-#endif
-        )
+    const bool op_has_conflict_detection = (first->getCustomData() != NULL);
+    if (!op_has_conflict_detection)
     {
-#ifdef HAVE_NDB_BINLOG
-      DBUG_PRINT("info", ("ndb error: %d", err.code));
-      if (err.code == (int) error_conflict_fn_max_violation)
+      /* 'Normal path' - ignore key (not) present, others are errors */
+      if (err.classification != NdbError::NoError &&
+          err.classification != NdbError::ConstraintViolation &&
+          err.classification != NdbError::NoDataFound)
       {
-        DBUG_PRINT("info", ("err.code == (int) error_conflict_fn_max_violation"));
-        thd_ndb->m_max_violation_count++;
-      }
-      else if (err.code == (int) error_conflict_fn_old_violation ||
-               err.classification == NdbError::ConstraintViolation ||
-               err.classification == NdbError::NoDataFound)
-      {
-        DBUG_PRINT("info",
-                   ("err.code %s (int) error_conflict_fn_old_violation, "
-                    "err.classification %s",
-                    err.code == (int) error_conflict_fn_old_violation ? "==" : "!=",
-                    err.classification
-                    == NdbError::ConstraintViolation
-                    ? "== NdbError::ConstraintViolation"
-                    : (err.classification == NdbError::NoDataFound
-                       ? "== NdbError::NoDataFound" : "!=")));
-        thd_ndb->m_old_violation_count++;
-        const void* buffer= first->getCustomData();
-        if (buffer != NULL)
-        {
-          Ndb_exceptions_data ex_data;
-          memcpy(&ex_data, buffer, sizeof(ex_data));
-          NDB_SHARE *share= ex_data.share;
-          const uchar* row= ex_data.row;
-          DBUG_ASSERT(share != NULL && row != NULL);
-
-          NDB_CONFLICT_FN_SHARE* cfn_share= share->m_cfn_share;
-          if (cfn_share && cfn_share->m_ex_tab)
-          {
-            NdbError ex_err;
-            if (write_conflict_row(share, trans, row, ex_err))
-            {
-              char msg[FN_REFLEN];
-              my_snprintf(msg, sizeof(msg), "table %s NDB error %d '%s'",
-                          cfn_share->m_ex_tab->getName(),
-                          ex_err.code, ex_err.message);
-
-              NdbDictionary::Dictionary* dict= thd_ndb->ndb->getDictionary();
-
-              if (ex_err.classification == NdbError::SchemaError)
-              {
-                dict->removeTableGlobal(*(cfn_share->m_ex_tab), false);
-                cfn_share->m_ex_tab= NULL;
-              }
-              else if (ex_err.status == NdbError::TemporaryError)
-              {
-                /* Slave will roll back and retry entire transaction. */
-                ERR_RETURN(ex_err);
-              }
-              else
-              {
-                push_warning_printf(current_thd, MYSQL_ERROR::WARN_LEVEL_ERROR,
-                                    ER_EXCEPTIONS_WRITE_ERROR,
-                                    ER(ER_EXCEPTIONS_WRITE_ERROR), msg);
-                /* Slave will stop replication. */
-                DBUG_RETURN(ER_EXCEPTIONS_WRITE_ERROR);
-              }
-            }
-            else
-            {
-              conflict_rows_written++;
-            }
-          }
-          else
-          {
-            DBUG_PRINT("info", ("missing %s", !cfn_share ? "cfn_share" : "ex_tab"));
-          }
-        }
-        else
-        {
-          DBUG_PRINT("info", ("missing custom data"));
-        }
-      }
-      else
-#endif
-      {
+        /* Non ignored error, report it */
         DBUG_PRINT("info", ("err.code == %u", err.code));
         DBUG_RETURN(err.code);
       }
     }
+#ifdef HAVE_NDB_BINLOG
+    else
+    {
+      /*
+         Op with conflict detection, use special error handling method
+       */
+
+      if (err.classification != NdbError::NoError)
+      {
+        int res = handle_conflict_op_error(thd_ndb,
+                                           trans,
+                                           err,
+                                           first);
+        if (res != 0)
+          DBUG_RETURN(res);
+      }
+    } // if (!op_has_conflict_detection)
+#endif
     if (err.classification != NdbError::NoError)
       ignores++;
 
@@ -860,7 +853,11 @@ check_completed_operations_pre_commit(Thd_ndb *thd_ndb, NdbTransaction *trans,
   if (ignore_count)
     *ignore_count= ignores;
 #ifdef HAVE_NDB_BINLOG
-  if (conflict_rows_written)
+  /*
+     Conflict detection related error handling above may have defined
+     new operations on the transaction.  If so, execute them now
+  */
+  if (trans->getLastDefinedOperation() != lastUserOp)
   {
     if (trans->execute(NdbTransaction::NoCommit,
                        NdbOperation::AO_IgnoreError,
@@ -964,10 +961,10 @@ int execute_no_commit(Thd_ndb *thd_ndb, NdbTransaction *trans,
                                                     ignore_count));
 }
 
-int execute_commit(Thd_ndb *thd_ndb, NdbTransaction *trans,
+int execute_commit(THD* thd, Thd_ndb *thd_ndb, NdbTransaction *trans,
                    int force_send, int ignore_error, uint *ignore_count= 0);
 inline
-int execute_commit(Thd_ndb *thd_ndb, NdbTransaction *trans,
+int execute_commit(THD* thd, Thd_ndb *thd_ndb, NdbTransaction *trans,
                    int force_send, int ignore_error, uint *ignore_count)
 {
   DBUG_ENTER("execute_commit");
@@ -984,19 +981,19 @@ int execute_commit(Thd_ndb *thd_ndb, NdbTransaction *trans,
   const NdbOperation *first= trans->getFirstDefinedOperation();
   const NdbOperation *last= trans->getLastDefinedOperation();
   thd_ndb->m_execute_count++;
-  thd_ndb->m_conflict_fn_usage_count= 0;
   thd_ndb->m_unsent_bytes= 0;
   DBUG_PRINT("info", ("execute_count: %u", thd_ndb->m_execute_count));
   if (trans->execute(NdbTransaction::Commit, ao, force_send))
   {
-    thd_ndb->m_max_violation_count= 0;
-    thd_ndb->m_old_violation_count= 0;
+    if (thd->slave_thread)
+      g_ndb_slave_state.atTransactionAbort();
     DBUG_RETURN(-1);
   }
-  g_ndb_status_conflict_fn_max+= thd_ndb->m_max_violation_count;
-  g_ndb_status_conflict_fn_old+= thd_ndb->m_old_violation_count;
-  thd_ndb->m_max_violation_count= 0;
-  thd_ndb->m_old_violation_count= 0;
+  /* Success of some sort */
+  if (thd->slave_thread)
+  {
+    g_ndb_slave_state.atTransactionCommit();
+  }
   if (!ignore_error || trans->getNdbError().code == 0)
     DBUG_RETURN(trans->getNdbError().code);
   DBUG_RETURN(check_completed_operations(thd_ndb, trans, first, last,
@@ -1052,9 +1049,6 @@ Thd_ndb::Thd_ndb()
   m_execute_count= 0;
   m_scan_count= 0;
   m_pruned_scan_count= 0;
-  m_max_violation_count= 0;
-  m_old_violation_count= 0;
-  m_conflict_fn_usage_count= 0;
   bzero(m_transaction_no_hint_count, sizeof(m_transaction_no_hint_count));
   bzero(m_transaction_hint_count, sizeof(m_transaction_hint_count));
   global_schema_lock_trans= NULL;
@@ -3000,9 +2994,8 @@ int ha_ndbcluster::ndb_pk_update_row(THD *thd,
     DBUG_PRINT("info", ("insert failed"));
     if (trans->commitStatus() == NdbConnection::Started)
     {
-      m_thd_ndb->m_max_violation_count= 0;
-      m_thd_ndb->m_old_violation_count= 0;
-      m_thd_ndb->m_conflict_fn_usage_count= 0;
+      if (thd->slave_thread)
+        g_ndb_slave_state.atTransactionAbort();
       m_thd_ndb->m_unsent_bytes= 0;
       m_thd_ndb->m_execute_count++;
       DBUG_PRINT("info", ("execute_count: %u", m_thd_ndb->m_execute_count));
@@ -3940,6 +3933,239 @@ thd_allow_batch(const THD* thd)
 #endif
 }
 
+#ifdef HAVE_NDB_BINLOG
+/**
+   prepare_conflict_detection
+
+   This method is called during operation definition by the slave,
+   when writing to a table with conflict detection defined.
+
+   It is responsible for defining and adding any operation filtering
+   required, and for saving any operation definition state required
+   for post-execute analysis
+*/
+int
+ha_ndbcluster::prepare_conflict_detection(enum_conflicting_op_type op_type,
+                                          const NdbRecord* key_rec,
+                                          const uchar* old_data,
+                                          const uchar* new_data,
+                                          NdbInterpretedCode* code,
+                                          NdbOperation::OperationOptions* options)
+{
+  DBUG_ENTER("prepare_conflict_detection");
+
+  int res = 0;
+  const st_conflict_fn_def* conflict_fn = m_share->m_cfn_share->m_conflict_fn;
+  assert( conflict_fn != NULL );
+
+
+  /*
+     Prepare interpreted code for operation (update + delete only) according
+     to algorithm used
+  */
+  if (op_type != WRITE_ROW)
+  {
+    res = conflict_fn->prep_func(m_share->m_cfn_share,
+                                 op_type,
+                                 old_data,
+                                 new_data,
+                                 table->write_set,
+                                 code);
+
+    if (!res)
+    {
+      /* Attach conflict detecting filter program to operation */
+      options->optionsPresent|=NdbOperation::OperationOptions::OO_INTERPRETED;
+      options->interpretedCode= code;
+    }
+  } // if (op_type != WRITE_ROW)
+
+  g_ndb_slave_state.current_conflict_defined_op_count++;
+
+  /* Now save data for potential insert to exceptions table... */
+  const uchar* row_to_save = (op_type == DELETE_ROW)? old_data : new_data;
+  Ndb_exceptions_data ex_data;
+  ex_data.share= m_share;
+  ex_data.key_rec= key_rec;
+  ex_data.op_type= op_type;
+  /*
+    We need to save the row data for possible conflict resolution after
+    execute().
+  */
+  ex_data.row= copy_row_to_buffer(m_thd_ndb, row_to_save);
+  uchar* ex_data_buffer= get_buffer(m_thd_ndb, sizeof(ex_data));
+  if (ex_data.row == NULL || ex_data_buffer == NULL)
+  {
+    DBUG_RETURN(HA_ERR_OUT_OF_MEM);
+  }
+  memcpy(ex_data_buffer, &ex_data, sizeof(ex_data));
+
+  /* Store ptr to exceptions data in operation 'customdata' ptr */
+  options->optionsPresent|= NdbOperation::OperationOptions::OO_CUSTOMDATA;
+  options->customData= (void*)ex_data_buffer;
+
+  DBUG_RETURN(0);
+}
+
+/**
+   handle_conflict_op_error
+
+   This method is called when an error is detected after executing an
+   operation with conflict detection active.
+
+   If the operation error is related to conflict detection, handling
+   starts.
+
+   Handling involves incrementing the relevant counter, and optionally
+   refreshing the row and inserting an entry into the exceptions table
+*/
+
+int
+handle_conflict_op_error(Thd_ndb* thd_ndb,
+                         NdbTransaction* trans,
+                         const NdbError& err,
+                         const NdbOperation* op)
+{
+  DBUG_ENTER("handle_conflict_op_error");
+  DBUG_PRINT("info", ("ndb error: %d", err.code));
+
+  if ((err.code == (int) error_conflict_fn_violation) ||
+      (err.classification == NdbError::ConstraintViolation) ||
+      (err.classification == NdbError::NoDataFound))
+  {
+    DBUG_PRINT("info",
+               ("err.code %s (int) error_conflict_fn_violation, "
+                "err.classification %s",
+                err.code == (int) error_conflict_fn_violation ? "==" : "!=",
+                err.classification
+                == NdbError::ConstraintViolation
+                ? "== NdbError::ConstraintViolation"
+                : (err.classification == NdbError::NoDataFound
+                   ? "== NdbError::NoDataFound" : "!=")));
+
+    enum_conflict_cause conflict_cause;
+
+    if (err.code == (int) error_conflict_fn_violation)
+    {
+      conflict_cause= ROW_IN_CONFLICT;
+    }
+    else if (err.classification == NdbError::ConstraintViolation)
+    {
+      conflict_cause= ROW_ALREADY_EXISTS;
+    }
+    else
+    {
+      assert(err.classification == NdbError::NoDataFound);
+      conflict_cause= ROW_DOES_NOT_EXIST;
+    }
+
+    const void* buffer=op->getCustomData();
+    assert(buffer);
+    Ndb_exceptions_data ex_data;
+    memcpy(&ex_data, buffer, sizeof(ex_data));
+    NDB_SHARE *share= ex_data.share;
+    const NdbRecord* key_rec= ex_data.key_rec;
+    const uchar* row= ex_data.row;
+    enum_conflicting_op_type op_type = ex_data.op_type;
+    DBUG_ASSERT(share != NULL && row != NULL);
+
+    NDB_CONFLICT_FN_SHARE* cfn_share= share->m_cfn_share;
+    if (cfn_share)
+    {
+      enum_conflict_fn_type cft = cfn_share->m_conflict_fn->type;
+      bool haveExTable = cfn_share->m_ex_tab != NULL;
+
+      g_ndb_slave_state.current_violation_count[cft]++;
+
+      {
+        NdbError handle_error;
+        if (handle_row_conflict(cfn_share,
+                                key_rec,
+                                row,
+                                op_type,
+                                conflict_cause,
+                                err,
+                                trans,
+                                handle_error))
+        {
+          /* Error with handling of row conflict */
+          char msg[FN_REFLEN];
+          my_snprintf(msg, sizeof(msg), "Row conflict handling "
+                      "on table %s hit Ndb error %d '%s'",
+                      share->table_name,
+                      handle_error.code,
+                      handle_error.message);
+
+          if (handle_error.status == NdbError::TemporaryError)
+          {
+            /* Slave will roll back and retry entire transaction. */
+            ERR_RETURN(handle_error);
+          }
+          else
+          {
+            push_warning_printf(current_thd, MYSQL_ERROR::WARN_LEVEL_ERROR,
+                                ER_EXCEPTIONS_WRITE_ERROR,
+                                ER(ER_EXCEPTIONS_WRITE_ERROR), msg);
+            /* Slave will stop replication. */
+            DBUG_RETURN(ER_EXCEPTIONS_WRITE_ERROR);
+          }
+        }
+      }
+
+
+      if (haveExTable)
+      {
+        NdbError ex_err;
+        if (write_conflict_row(share, trans, row, ex_err))
+        {
+          char msg[FN_REFLEN];
+          my_snprintf(msg, sizeof(msg), "table %s NDB error %d '%s'",
+                      cfn_share->m_ex_tab->getName(),
+                      ex_err.code, ex_err.message);
+
+          NdbDictionary::Dictionary* dict= thd_ndb->ndb->getDictionary();
+
+          if (ex_err.classification == NdbError::SchemaError)
+          {
+            dict->removeTableGlobal(*(cfn_share->m_ex_tab), false);
+            cfn_share->m_ex_tab= NULL;
+          }
+          else if (ex_err.status == NdbError::TemporaryError)
+          {
+            /* Slave will roll back and retry entire transaction. */
+            ERR_RETURN(ex_err);
+          }
+          else
+          {
+            push_warning_printf(current_thd, MYSQL_ERROR::WARN_LEVEL_ERROR,
+                                ER_EXCEPTIONS_WRITE_ERROR,
+                                ER(ER_EXCEPTIONS_WRITE_ERROR), msg);
+            /* Slave will stop replication. */
+            DBUG_RETURN(ER_EXCEPTIONS_WRITE_ERROR);
+          }
+        }
+      } // if (haveExTable)
+
+      DBUG_RETURN(0);
+    }
+    else
+    {
+      DBUG_PRINT("info", ("missing cfn_share"));
+      DBUG_RETURN(0); // TODO : Correct?
+    }
+  }
+  else
+  {
+    /* Non conflict related error */
+    DBUG_PRINT("info", ("err.code == %u", err.code));
+    DBUG_RETURN(err.code);
+  }
+
+  DBUG_RETURN(0); // Reachable?
+}
+#endif /* HAVE_NDB_BINLOG */
+
+
 int ha_ndbcluster::write_row(uchar *record)
 {
   DBUG_ENTER("ha_ndbcluster::write_row");
@@ -4124,14 +4350,16 @@ int ha_ndbcluster::ndb_write_row(uchar *record,
   MY_BITMAP tmpBitmap;
   MY_BITMAP *user_cols_written_bitmap;
 #ifdef HAVE_NDB_BINLOG
-  uchar* ex_data_buffer= NULL;
+  bool haveConflictFunction =
+    (thd->slave_thread &&
+     m_share->m_cfn_share &&
+     m_share->m_cfn_share->m_conflict_fn);
 #endif
   
   if (m_use_write
 #ifdef HAVE_NDB_BINLOG
-      && !(thd->slave_thread &&
-           m_share->m_cfn_share &&
-           m_share->m_cfn_share->m_resolve_cft != CFT_NDB_UNDEF)
+      /* Conflict detection must use normal Insert */
+      && !haveConflictFunction
 #endif
       )
   {
@@ -4163,52 +4391,7 @@ int ha_ndbcluster::ndb_write_row(uchar *record,
       user_cols_written_bitmap= NULL;
       mask= NULL;
     }
-
-#if 0 /* NOT YET, interpeted function not supported for write */
-#ifdef HAVE_NDB_BINLOG
-    /*
-      Room for 10 instruction words, two labels (@ 2words/label)
-      + 2 extra words for the case of resolve_size == 8
-    */
-    Uint32 buffer[16];
-    NdbInterpretedCode code(m_table, buffer,
-                            sizeof(buffer)/sizeof(buffer[0]));
-    if (useWriteSet)
-    {
-      /* Conflict resolution in slave thread. */
-      enum_conflict_fn_type cft= m_share->m_cfn_share ? m_share->m_cfn_share->m_resolve_cft : CFT_NDB_UNDEF;
-      if (cft != CFT_NDB_UNDEF)
-      {
-        if (!write_row_conflict_fn(cft, record, &code))
-        {
-          options.optionsPresent|=NdbOperation::OperationOptions::OO_INTERPRETED;
-          options.interpretedCode= &code;
-          thd_ndb->m_conflict_fn_usage_count++;
-        }
-        
-        Ndb_exceptions_data ex_data;
-        ex_data.share= m_share;
-        /*
-          We need to save the row data for possible conflict resolution after
-          execute().
-        */
-        ex_data.row= copy_row_to_buffer(thd_ndb, record);
-        ex_data_buffer= get_buffer(thd_ndb, sizeof(ex_data));
-        if (ex_data.row == NULL || ex_data_buffer == NULL)
-        {
-          DBUG_RETURN(HA_ERR_OUT_OF_MEM);
-        }
-        memcpy(ex_data_buffer, &ex_data, sizeof(ex_data));
-
-        options.optionsPresent|= NdbOperation::OperationOptions::OO_CUSTOMDATA;
-        options.customData= (void*)ex_data_buffer;
-        if (options.optionsPresent != 0)
-          poptions=&options;
-      }
-    }
-#endif  /* HAVE_NDB_BINLOG */
-#endif  /* NOT YET */
-
+    /* TODO : Add conflict detection etc when interpreted write supported */
     op= trans->writeTuple(key_rec, (const char *)key_row, m_ndb_record,
                           (char *)record, mask,
                           poptions, sizeof(NdbOperation::OperationOptions));
@@ -4216,27 +4399,16 @@ int ha_ndbcluster::ndb_write_row(uchar *record,
   else
   {
 #ifdef HAVE_NDB_BINLOG
-    if (m_use_write)
+    if (haveConflictFunction)
     {
-      thd_ndb->m_conflict_fn_usage_count++;
-
-      Ndb_exceptions_data ex_data;
-      ex_data.share= m_share;
-      /*
-        We need to save the row data for possible conflict resolution after
-        execute().
-      */
-      ex_data.row= copy_row_to_buffer(thd_ndb, record);
-      ex_data_buffer= get_buffer(thd_ndb, sizeof(ex_data));
-      if (ex_data.row == NULL || ex_data_buffer == NULL)
-      {
-        DBUG_RETURN(HA_ERR_OUT_OF_MEM);
-      }
-      memcpy(ex_data_buffer, &ex_data, sizeof(ex_data));
-
-      options.optionsPresent|= NdbOperation::OperationOptions::OO_CUSTOMDATA;
-      options.customData= (void*)ex_data_buffer;
-      poptions=&options;
+      /* Conflict detection in slave thread */
+      if (unlikely((error = prepare_conflict_detection(WRITE_ROW,
+                                                       key_rec,
+                                                       NULL,    /* old_data */
+                                                       record,  /* new_data */
+                                                       NULL,    /* code */
+                                                       &options))))
+        DBUG_RETURN(error);
     }
 #endif
     uchar *mask;
@@ -4386,248 +4558,20 @@ int ha_ndbcluster::primary_key_cmp(const uchar * old_row, const uchar * new_row)
 
 #ifdef HAVE_NDB_BINLOG
 
-/**
-  CFT_NDB_NEW
-
-  To perform conflict resolution, an interpreted program is used to read
-  the timestamp stored locally and compare to what is going to be applied.
-  If timestamp is lower, an error for this operation (9999) will be raised,
-  and new row will not be applied. The error codes for the operations will
-  be checked on return.  For this to work is is vital that the operation
-  is run with ignore error option.
-*/
-
 int
-ha_ndbcluster::row_conflict_fn_max(const uchar *new_data,
-                                   NdbInterpretedCode *code)
+handle_row_conflict(NDB_CONFLICT_FN_SHARE* cfn_share,
+                    const NdbRecord* key_rec,
+                    const uchar* pk_row,
+                    enum_conflicting_op_type op_type,
+                    enum_conflict_cause conflict_cause,
+                    const NdbError& conflict_error,
+                    NdbTransaction* conflict_trans,
+                    NdbError& err)
 {
-  uint32 resolve_column= m_share->m_cfn_share->m_resolve_column;
-  uint32 resolve_size= m_share->m_cfn_share->m_resolve_size;
+  DBUG_ENTER("handle_row_conflict");
 
-  DBUG_PRINT("info", ("interpreted update pre equal on column %u",
-                      resolve_column));
-
-  DBUG_ASSERT(resolve_size == 4 || resolve_size == 8);
-
-  if (!bitmap_is_set(table->write_set, resolve_column))
-  {
-    sql_print_information("NDB Slave: missing data for NDB_MAX");
-    return 1;
-  }
-
-  const uint label_0= 0;
-  const Uint32 RegNewValue= 1, RegCurrentValue= 2;
-  int r;
-  Field *field= table->field[resolve_column];
-  DBUG_PRINT("info", ("interpreted update post equal"));
-  /*
-   * read new value from record
-   */
-  union {
-    uint32 new_value_32;
-    uint64 new_value_64;
-  };
-  {
-    const uchar *field_ptr= field->ptr + (new_data - table->record[0]);
-    if (resolve_size == 4)
-    {
-      memcpy(&new_value_32, field_ptr, resolve_size);
-      DBUG_PRINT("info", ("new_value_32: %u", new_value_32));
-    }
-    else
-    {
-      memcpy(&new_value_64, field_ptr, resolve_size);
-      DBUG_PRINT("info", ("new_value_64: %llu",
-                          (unsigned long long) new_value_64));
-    }
-  }
-  /*
-   * Load registers RegNewValue and RegCurrentValue
-   */
-  if (resolve_size == 4)
-    r= code->load_const_u32(RegNewValue, new_value_32);
-  else
-    r= code->load_const_u64(RegNewValue, new_value_64);
-  DBUG_ASSERT(r == 0);
-  r= code->read_attr(RegCurrentValue, resolve_column);
-  DBUG_ASSERT(r == 0);
-  /*
-   * if RegNewValue > RegCurrentValue goto label_0
-   * else raise error for this row
-   */
-  r= code->branch_gt(RegNewValue, RegCurrentValue, label_0);
-  DBUG_ASSERT(r == 0);
-  r= code->interpret_exit_nok(error_conflict_fn_max_violation);
-  DBUG_ASSERT(r == 0);
-  r= code->def_label(label_0);
-  DBUG_ASSERT(r == 0);
-  r= code->interpret_exit_ok();
-  DBUG_ASSERT(r == 0);
-  r= code->finalise();
-  DBUG_ASSERT(r == 0);
-  return r;
-}
-
-/**
-  CFT_NDB_OLD
-
-  To perform conflict detection, an interpreted program is used to read
-  the timestamp stored locally and compare to what was on the master.
-  If timestamp is not equal, an error for this operation (9998) will be raised,
-  and new row will not be applied. The error codes for the operations will
-  be checked on return.  For this to work is is vital that the operation
-  is run with ignore error option.
-
-  As an independent feature, phase 2 also saves the
-  conflicts into the table's exceptions table.
-*/
-
-int
-ha_ndbcluster::row_conflict_fn_old(const uchar *old_data,
-                                   NdbInterpretedCode *code)
-{
-  uint32 resolve_column= m_share->m_cfn_share->m_resolve_column;
-  uint32 resolve_size= m_share->m_cfn_share->m_resolve_size;
-
-  DBUG_PRINT("info", ("interpreted update pre equal on column %u",
-                      resolve_column));
-
-  DBUG_ASSERT(resolve_size == 4 || resolve_size == 8);
-
-  if (!bitmap_is_set(table->write_set, resolve_column))
-  {
-    sql_print_information("NDB Slave: missing data for NDB_OLD");
-    return -1;
-  }
-
-  const uint label_0= 0;
-  const Uint32 RegOldValue= 1, RegCurrentValue= 2;
-  int r;
-  Field *field= table->field[resolve_column];
-  DBUG_PRINT("info", ("interpreted update post equal"));
-  /*
-   * read old value from record
-   */
-  union {
-    uint32 old_value_32;
-    uint64 old_value_64;
-  };
-  {
-    const uchar *field_ptr= field->ptr + (old_data - table->record[0]);
-    if (resolve_size == 4)
-    {
-      memcpy(&old_value_32, field_ptr, resolve_size);
-      DBUG_PRINT("info", ("old_value_32: %u", old_value_32));
-    }
-    else
-    {
-      memcpy(&old_value_64, field_ptr, resolve_size);
-      DBUG_PRINT("info", ("old_value_64: %llu",
-                          (unsigned long long) old_value_64));
-    }
-  }
-  /*
-   * Load registers RegOldValue and RegCurrentValue
-   */
-  if (resolve_size == 4)
-    r= code->load_const_u32(RegOldValue, old_value_32);
-  else
-    r= code->load_const_u64(RegOldValue, old_value_64);
-  DBUG_ASSERT(r == 0);
-  r= code->read_attr(RegCurrentValue, resolve_column);
-  DBUG_ASSERT(r == 0);
-  /*
-   * if RegOldValue == RegCurrentValue goto label_0
-   * else raise error for this row
-   */
-  r= code->branch_eq(RegOldValue, RegCurrentValue, label_0);
-  DBUG_ASSERT(r == 0);
-  r= code->interpret_exit_nok(error_conflict_fn_old_violation);
-  DBUG_ASSERT(r == 0);
-  r= code->def_label(label_0);
-  DBUG_ASSERT(r == 0);
-  r= code->interpret_exit_ok();
-  DBUG_ASSERT(r == 0);
-  r= code->finalise();
-  DBUG_ASSERT(r == 0);
-  return r;
-}
-
-int
-ha_ndbcluster::update_row_conflict_fn(enum_conflict_fn_type cft,
-                                      const uchar *old_data,
-                                      uchar *new_data,
-                                      NdbInterpretedCode *code)
-{
-  switch (cft) {
-  case CFT_NDB_MAX:
-  case CFT_NDB_MAX_DEL_WIN:
-    return row_conflict_fn_max(new_data, code);
-  case CFT_NDB_OLD:
-    return row_conflict_fn_old(old_data, code);
-  case CFT_NDB_UNDEF:
-    abort();
-  }
-  DBUG_ASSERT(false);
-  return 1;
-}
-
-#if 0 /* NOT YET, interpeted function not supported for write */
-int
-ha_ndbcluster::write_row_conflict_fn(enum_conflict_fn_type cft,
-                                     uchar *data,
-                                     NdbInterpretedCode *code)
-{
-  switch (cft) {
-  case CFT_NDB_MAX:
-  case CFT_NDB_MAX_DEL_WIN:
-    return row_conflict_fn_max(data, code);
-  case CFT_NDB_OLD:
-    /*
-      No conflict function here, instead detect if tuple
-      already exists
-     */
-    return 1;
-  case CFT_NDB_UNDEF:
-    abort();
-  }
-  DBUG_ASSERT(false);
-  return 1;
-}
-#endif
-
-int
-ha_ndbcluster::delete_row_conflict_fn(enum_conflict_fn_type cft,
-                                      const uchar *old_data,
-                                      NdbInterpretedCode *code)
-{
-  switch (cft) {
-  case CFT_NDB_MAX:
-    /*
-      As we do not have a timestamp for the actual delete,
-      the best we can do is to detect a possible conflict
-      on the old data.
-    */
-    return row_conflict_fn_old(old_data, code);
-  case CFT_NDB_MAX_DEL_WIN:
-  {
-    /**
-     * let delete always win
-     */
-    int r = code->interpret_exit_ok();
-    DBUG_ASSERT(r == 0);
-    r = code->finalise();
-    DBUG_ASSERT(r == 0);
-    return r;
-  }
-  case CFT_NDB_OLD:
-    return row_conflict_fn_old(old_data, code);
-  case CFT_NDB_UNDEF:
-    abort();
-  }
-  DBUG_ASSERT(false);
-  return 1;
-}
+  DBUG_RETURN(0);
+};
 #endif /* HAVE_NDB_BINLOG */
 
 /**
@@ -4656,26 +4600,79 @@ int ha_ndbcluster::bulk_update_row(const uchar *old_data, uchar *new_data,
 
 int ha_ndbcluster::exec_bulk_update(uint *dup_key_found)
 {
+  NdbTransaction* trans= m_thd_ndb->trans;
   DBUG_ENTER("ha_ndbcluster::exec_bulk_update");
   *dup_key_found= 0;
-  if (m_thd_ndb->m_unsent_bytes &&
-      !thd_allow_batch(table->in_use) &&
-      (!m_thd_ndb->m_handler ||
-       m_blobs_pending))
+
+  // m_handler must be NULL or point to _this_ handler instance
+  assert(m_thd_ndb->m_handler == NULL || m_thd_ndb->m_handler == this);
+
+  if (m_thd_ndb->m_handler &&
+      m_read_before_write_removal_possible)
   {
+    /*
+      This is an autocommit involving only one table and rbwr is on
+
+      Commit the autocommit transaction early(before the usual place
+      in ndbcluster_commit) in order to:
+      1) save one round trip, "no-commit+commit" converted to "commit"
+      2) return the correct number of updated and affected rows
+         to the update loop(which will ask handler in rbwr mode)
+    */
+    DBUG_PRINT("info", ("committing auto-commit+rbwr early"));
     uint ignore_count= 0;
-    if (execute_no_commit(m_thd_ndb, m_thd_ndb->trans,
-                          m_ignore_no_key || m_read_before_write_removal_used,
-                          &ignore_count) != 0)
+    const int ignore_error= 1;
+    if (execute_commit(table->in_use, m_thd_ndb, trans,
+                       m_thd_ndb->m_force_send, ignore_error,
+                       &ignore_count) != 0)
     {
       no_uncommitted_rows_execute_failure();
-      DBUG_RETURN(ndb_err(m_thd_ndb->trans));
+      DBUG_RETURN(ndb_err(trans));
     }
+    DBUG_PRINT("info", ("ignore_count: %u", ignore_count));
     assert(m_rows_changed >= ignore_count);
     assert(m_rows_updated >= ignore_count);
     m_rows_changed-= ignore_count;
     m_rows_updated-= ignore_count;
+    DBUG_RETURN(0);
   }
+
+  if (m_thd_ndb->m_unsent_bytes == 0)
+  {
+    DBUG_PRINT("exit", ("skip execute - no unsent bytes"));
+    DBUG_RETURN(0);
+  }
+
+  if (thd_allow_batch(table->in_use))
+  {
+    /*
+      Turned on by @@transaction_allow_batching=ON
+      or implicitly by slave exec thread
+    */
+    DBUG_PRINT("exit", ("skip execute - transaction_allow_batching is ON"));
+    DBUG_RETURN(0);
+  }
+
+  if (m_thd_ndb->m_handler &&
+      !m_blobs_pending)
+  {
+    // Execute at commit time(in 'ndbcluster_commit') to save a round trip
+    DBUG_PRINT("exit", ("skip execute - simple autocommit"));
+    DBUG_RETURN(0);
+  }
+
+  uint ignore_count= 0;
+  if (execute_no_commit(m_thd_ndb, trans,
+                        m_ignore_no_key || m_read_before_write_removal_used,
+                        &ignore_count) != 0)
+  {
+    no_uncommitted_rows_execute_failure();
+    DBUG_RETURN(ndb_err(trans));
+  }
+  assert(m_rows_changed >= ignore_count);
+  assert(m_rows_updated >= ignore_count);
+  m_rows_changed-= ignore_count;
+  m_rows_updated-= ignore_count;
   DBUG_RETURN(0);
 }
 
@@ -4904,42 +4901,21 @@ int ha_ndbcluster::ndb_update_row(const uchar *old_data, uchar *new_data,
 				 m_read_before_write_removal_used);
 
 #ifdef HAVE_NDB_BINLOG
-    uchar* ex_data_buffer= NULL;
-    /*
-      Room for 10 instruction words, two labels (@ 2words/label)
-      + 2 extra words for the case of resolve_size == 8
-    */
-    Uint32 buffer[16];
+    Uint32 buffer[ MAX_CONFLICT_INTERPRETED_PROG_SIZE ];
     NdbInterpretedCode code(m_table, buffer,
                             sizeof(buffer)/sizeof(buffer[0]));
+
     if (thd->slave_thread && m_share->m_cfn_share &&
-        (m_share->m_cfn_share->m_resolve_cft != CFT_NDB_UNDEF))
+        m_share->m_cfn_share->m_conflict_fn)
     {
-      /* Conflict resolution in slave thread. */
-      enum_conflict_fn_type cft= m_share->m_cfn_share->m_resolve_cft;
-      if (!update_row_conflict_fn(cft, old_data, new_data, &code))
-      {
-        options.optionsPresent|=NdbOperation::OperationOptions::OO_INTERPRETED;
-        options.interpretedCode= &code;
-        thd_ndb->m_conflict_fn_usage_count++;
-      }
-
-      Ndb_exceptions_data ex_data;
-      ex_data.share= m_share;
-      /*
-        We need to save the row data for possible conflict resolution after
-        execute().
-      */
-      ex_data.row= copy_row_to_buffer(thd_ndb, new_data);
-      ex_data_buffer= get_buffer(thd_ndb, sizeof(ex_data));
-      if (ex_data.row == NULL || ex_data_buffer == NULL)
-      {
-        DBUG_RETURN(HA_ERR_OUT_OF_MEM);
-      }
-      memcpy(ex_data_buffer, &ex_data, sizeof(ex_data));
-
-      options.optionsPresent|= NdbOperation::OperationOptions::OO_CUSTOMDATA;
-      options.customData= (void*)ex_data_buffer;
+       /* Conflict resolution in slave thread. */
+      if (unlikely((error = prepare_conflict_detection(UPDATE_ROW,
+                                                       key_rec,
+                                                       old_data,
+                                                       new_data,
+                                                       &code,
+                                                       &options))))
+        DBUG_RETURN(error);
     }
 #endif /* HAVE_NDB_BINLOG */
     if (options.optionsPresent !=0)
@@ -5011,25 +4987,76 @@ bool ha_ndbcluster::start_bulk_delete()
 
 int ha_ndbcluster::end_bulk_delete()
 {
+  NdbTransaction* trans= m_thd_ndb->trans;
   DBUG_ENTER("end_bulk_delete");
   assert(m_is_bulk_delete); // Don't allow end() without start()
-  if (m_thd_ndb->m_unsent_bytes &&
-      !thd_allow_batch(table->in_use) &&
-      !m_thd_ndb->m_handler)
+  m_is_bulk_delete = false;
+
+  // m_handler must be NULL or point to _this_ handler instance
+  assert(m_thd_ndb->m_handler == NULL || m_thd_ndb->m_handler == this);
+
+  if (m_thd_ndb->m_handler &&
+      m_read_before_write_removal_possible)
   {
+    /*
+      This is an autocommit involving only one table and rbwr is on
+
+      Commit the autocommit transaction early(before the usual place
+      in ndbcluster_commit) in order to:
+      1) save one round trip, "no-commit+commit" converted to "commit"
+      2) return the correct number of updated and affected rows
+         to the delete loop(which will ask handler in rbwr mode)
+    */
+    DBUG_PRINT("info", ("committing auto-commit+rbwr early"));
     uint ignore_count= 0;
-    if (execute_no_commit(m_thd_ndb, m_thd_ndb->trans,
-                          m_ignore_no_key || m_read_before_write_removal_used,
-                          &ignore_count) != 0)
+    const int ignore_error= 1;
+    if (execute_commit(table->in_use, m_thd_ndb, trans,
+                       m_thd_ndb->m_force_send, ignore_error,
+                       &ignore_count) != 0)
     {
       no_uncommitted_rows_execute_failure();
-      m_is_bulk_delete = false;
-      DBUG_RETURN(ndb_err(m_thd_ndb->trans));
+      DBUG_RETURN(ndb_err(trans));
     }
+    DBUG_PRINT("info", ("ignore_count: %u", ignore_count));
     assert(m_rows_deleted >= ignore_count);
     m_rows_deleted-= ignore_count;
+    DBUG_RETURN(0);
   }
-  m_is_bulk_delete = false;
+
+  if (m_thd_ndb->m_unsent_bytes == 0)
+  {
+    DBUG_PRINT("exit", ("skip execute - no unsent bytes"));
+    DBUG_RETURN(0);
+  }
+
+  if (thd_allow_batch(table->in_use))
+  {
+    /*
+      Turned on by @@transaction_allow_batching=ON
+      or implicitly by slave exec thread
+    */
+    DBUG_PRINT("exit", ("skip execute - transaction_allow_batching is ON"));
+    DBUG_RETURN(0);
+  }
+
+  if (m_thd_ndb->m_handler)
+  {
+    // Execute at commit time(in 'ndbcluster_commit') to save a round trip
+    DBUG_PRINT("exit", ("skip execute - simple autocommit"));
+    DBUG_RETURN(0);
+  }
+
+  uint ignore_count= 0;
+  if (execute_no_commit(m_thd_ndb, trans,
+                        m_ignore_no_key || m_read_before_write_removal_used,
+                        &ignore_count) != 0)
+  {
+    no_uncommitted_rows_execute_failure();
+    DBUG_RETURN(ndb_err(trans));
+  }
+
+  assert(m_rows_deleted >= ignore_count);
+  m_rows_deleted-= ignore_count;
   DBUG_RETURN(0);
 }
 
@@ -5149,42 +5176,20 @@ int ha_ndbcluster::ndb_delete_row(const uchar *record,
 				 m_read_before_write_removal_used);
 
 #ifdef HAVE_NDB_BINLOG
-    uchar* ex_data_buffer= NULL;
-    /*
-      Room for 10 instruction words, two labels (@ 2words/label)
-      + 2 extra words for the case of resolve_size == 8
-    */
-    Uint32 buffer[16];
+    Uint32 buffer[ MAX_CONFLICT_INTERPRETED_PROG_SIZE ];
     NdbInterpretedCode code(m_table, buffer,
                             sizeof(buffer)/sizeof(buffer[0]));
     if (thd->slave_thread && m_share->m_cfn_share &&
-        (m_share->m_cfn_share->m_resolve_cft != CFT_NDB_UNDEF))
+        m_share->m_cfn_share->m_conflict_fn)
     {
       /* Conflict resolution in slave thread. */
-      enum_conflict_fn_type cft= m_share->m_cfn_share->m_resolve_cft;
-      if (!delete_row_conflict_fn(cft, record, &code))
-      {
-        options.optionsPresent|=NdbOperation::OperationOptions::OO_INTERPRETED;
-        options.interpretedCode= &code;
-        thd_ndb->m_conflict_fn_usage_count++;
-      }
-
-      Ndb_exceptions_data ex_data;
-      ex_data.share= m_share;
-      /*
-        We need to save the row data for possible conflict resolution after
-        execute().
-      */
-      ex_data.row= copy_row_to_buffer(thd_ndb, record);
-      ex_data_buffer= get_buffer(thd_ndb, sizeof(ex_data));
-      if (ex_data.row == NULL || ex_data_buffer == NULL)
-      {
-        DBUG_RETURN(HA_ERR_OUT_OF_MEM);
-      }
-      memcpy(ex_data_buffer, &ex_data, sizeof(ex_data));
-
-      options.optionsPresent|= NdbOperation::OperationOptions::OO_CUSTOMDATA;
-      options.customData= (void*)ex_data_buffer;
+      if (unlikely((error = prepare_conflict_detection(DELETE_ROW,
+                                                       key_rec,
+                                                       key_row, /* old_data */
+                                                       NULL,    /* new_data */
+                                                       &code,
+                                                       &options))))
+        DBUG_RETURN(error);
     }
 #endif /* HAVE_NDB_BINLOG */
     if (options.optionsPresent != 0)
@@ -6329,7 +6334,7 @@ ha_ndbcluster::flush_bulk_insert(bool allow_batch)
     THD *thd= table->in_use;
     thd->transaction.all.modified_non_trans_table=
       thd->transaction.stmt.modified_non_trans_table= TRUE;
-    if (execute_commit(m_thd_ndb, trans, m_thd_ndb->m_force_send,
+    if (execute_commit(thd, m_thd_ndb, trans, m_thd_ndb->m_force_send,
                        m_ignore_no_key) != 0)
     {
       no_uncommitted_rows_execute_failure();
@@ -7094,9 +7099,10 @@ int ndbcluster_commit(handlerton *hton, THD *thd, bool all)
 
   if (thd->slave_thread)
   {
-    if (!thd_ndb->m_conflict_fn_usage_count || !thd_ndb->m_unsent_bytes ||
+    if (!g_ndb_slave_state.current_conflict_defined_op_count ||
+        !thd_ndb->m_unsent_bytes ||
         !(res= execute_no_commit(thd_ndb, trans, TRUE)))
-      res= execute_commit(thd_ndb, trans, 1, TRUE);
+      res= execute_commit(thd, thd_ndb, trans, 1, TRUE);
 
     update_slave_api_stats(thd_ndb->ndb);
   }
@@ -7105,61 +7111,21 @@ int ndbcluster_commit(handlerton *hton, THD *thd, bool all)
     if (thd_ndb->m_handler &&
         thd_ndb->m_handler->m_read_before_write_removal_possible)
     {
-#ifndef NDB_WITHOUT_READ_BEFORE_WRITE_REMOVAL
-      /* Autocommit with read-before-write removal
-       * Some operations in this autocommitted statement have not
-       * yet been executed
-       * They will be executed here as part of commit, and the results
-       * (rowcount, message) sent back to the client will then be modified 
-       * according to how the execution went.
-       * This saves a single roundtrip in the autocommit case
-       */
-      uint ignore_count= 0;
-      res= execute_commit(thd_ndb, trans, THDVAR(thd, force_send),
-                          TRUE, &ignore_count);
-      if (!res && ignore_count)
+      /*
+        This is an autocommit involving only one table and
+        rbwr is on, thus the transaction has already been
+        committed in exec_bulk_update() or end_bulk_delete()
+      */
+      DBUG_PRINT("info", ("autocommit+rbwr, transaction already comitted"));
+      if (trans->commitStatus() != NdbTransaction::Committed)
       {
-        DBUG_PRINT("info", ("AutoCommit + RBW removal, ignore_count=%u",
-                            ignore_count));
-        /* We have some rows to ignore, modify recorded results,
-         * regenerate result message as required.
-         */
-        thd->row_count_func-= ignore_count;
-
-        ha_rows affected= 0;
-        char buff[ STRING_BUFFER_USUAL_SIZE ];
-        const char* msg= NULL;
-        if (thd->lex->sql_command == SQLCOM_DELETE)
-        {
-          assert(thd_ndb->m_handler->m_rows_deleted >= ignore_count);
-          affected= (thd_ndb->m_handler->m_rows_deleted-= ignore_count);
-        }
-        else
-        {
-          DBUG_PRINT("info", ("Update : message was %s", 
-                              thd->main_da.message()));
-          assert(thd_ndb->m_handler->m_rows_updated >= ignore_count);
-          affected= (thd_ndb->m_handler->m_rows_updated-= ignore_count);
-          /* For update in this scenario, we set found and changed to be 
-           * the same as affected
-           * Regenerate the update message
-           */
-          sprintf(buff, ER(ER_UPDATE_INFO), (ulong)affected, (ulong)affected,
-                  (ulong) thd->cuted_fields);
-          msg= buff;
-          DBUG_PRINT("info", ("Update : message changed to %s",
-                              msg));
-        }
-
-        /* Modify execution result + optionally message */
-        thd->main_da.modify_affected_rows(affected, msg);
+        sql_print_error("found uncomitted autocommit+rbwr transaction, "
+                        "commit status: %d", trans->commitStatus());
+        abort();
       }
-#else
-      abort(); // Should never come here without rbwr support
-#endif
     }
     else
-      res= execute_commit(thd_ndb, trans, THDVAR(thd, force_send), FALSE);
+      res= execute_commit(thd, thd_ndb, trans, THDVAR(thd, force_send), FALSE);
   }
 
   if (res != 0)
@@ -7233,9 +7199,8 @@ static int ndbcluster_rollback(handlerton *hton, THD *thd, bool all)
     DBUG_RETURN(0);
   }
   thd_ndb->save_point_count= 0;
-  thd_ndb->m_max_violation_count= 0;
-  thd_ndb->m_old_violation_count= 0;
-  thd_ndb->m_conflict_fn_usage_count= 0;
+  if (thd->slave_thread)
+    g_ndb_slave_state.atTransactionAbort();
   thd_ndb->m_unsent_bytes= 0;
   thd_ndb->m_execute_count++;
   DBUG_PRINT("info", ("execute_count: %u", thd_ndb->m_execute_count));
@@ -8316,6 +8281,34 @@ int ha_ndbcluster::create(const char *name,
                         create_info->comment.length);
   const NDB_Modifier * mod_nologging = table_modifiers.get("NOLOGGING");
 
+#ifdef HAVE_NDB_BINLOG
+  /* Read ndb_replication entry for this table, if any */
+  Uint32 binlog_flags;
+  const st_conflict_fn_def* conflict_fn= NULL;
+  st_conflict_fn_arg args[MAX_CONFLICT_ARGS];
+  Uint32 num_args = MAX_CONFLICT_ARGS;
+
+  int rep_read_rc= ndbcluster_get_binlog_replication_info(thd,
+                                                          ndb,
+                                                          m_dbname,
+                                                          m_tabname,
+                                                          ::server_id,
+                                                          form,
+                                                          &binlog_flags,
+                                                          &conflict_fn,
+                                                          args,
+                                                          &num_args);
+  if (rep_read_rc != 0)
+  {
+    DBUG_RETURN(rep_read_rc);
+  }
+
+  /* Reset database name */
+  ndb->setDatabaseName(m_dbname);
+
+  /* Use ndb_replication information as required */
+#endif
+
   if ((dict->beginSchemaTrans() == -1))
   {
     DBUG_PRINT("info", ("Failed to start schema transaction"));
@@ -8443,6 +8436,20 @@ int ha_ndbcluster::create(const char *name,
                         "STORAGE DISK"); 
     result= HA_ERR_UNSUPPORTED;
     goto abort_return;
+  }
+
+  // Save the table level storage media setting
+  switch(create_info->storage_media)
+  {
+    case HA_SM_DISK:
+      tab.setStorageType(NdbDictionary::Column::StorageTypeDisk);
+      break;
+    case HA_SM_DEFAULT:
+      tab.setStorageType(NdbDictionary::Column::StorageTypeDefault);
+      break;
+    case HA_SM_MEMORY:
+      tab.setStorageType(NdbDictionary::Column::StorageTypeMemory);
+      break;
   }
 
   DBUG_PRINT("info", ("Table %s is %s stored with tablespace %s",
@@ -8730,8 +8737,18 @@ cleanup_failed:
     {
 #ifdef HAVE_NDB_BINLOG
       if (share)
-        ndbcluster_read_binlog_replication(thd, ndb, share, m_table,
-                                           ::server_id, form, TRUE);
+      {
+        /* Set the Binlogging information we retrieved above */
+        ndbcluster_apply_binlog_replication_info(thd,
+                                                 share,
+                                                 m_table,
+                                                 form,
+                                                 conflict_fn,
+                                                 args,
+                                                 num_args,
+                                                 TRUE, /* Do set binlog flags */
+                                                 binlog_flags);
+      }
 #endif
       String event_name(INJECTOR_EVENT_LEN);
       ndb_rep_event_name(&event_name, m_dbname, m_tabname,
@@ -10585,10 +10602,11 @@ int ndbcluster_find_all_files(THD *thd)
   DBUG_RETURN(-(skipped + unhandled));
 }
 
-int ndbcluster_find_files(handlerton *hton, THD *thd,
-                          const char *db,
-                          const char *path,
-                          const char *wild, bool dir, List<LEX_STRING> *files)
+
+static int
+ndbcluster_find_files(handlerton *hton, THD *thd,
+                      const char *db, const char *path,
+                      const char *wild, bool dir, List<LEX_STRING> *files)
 {
   DBUG_ENTER("ndbcluster_find_files");
   DBUG_PRINT("enter", ("db: %s", db));
@@ -10962,7 +10980,7 @@ static int ndbcluster_init(void *p)
     ndbcluster_binlog_init_handlerton();
     h->flags=            HTON_CAN_RECREATE | HTON_TEMPORARY_NOT_SUPPORTED;
     h->discover=         ndbcluster_discover;
-    h->find_files= ndbcluster_find_files;
+    h->find_files=       ndbcluster_find_files;
     h->table_exists_in_engine= ndbcluster_table_exists_in_engine;
   }
 

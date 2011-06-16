@@ -338,6 +338,7 @@ Dbtc::Dbtc(Block_context& ctx, Uint32 instanceNo):
   c_apiConTimer_line = 0;
   csystemStart = SSS_FALSE;
   m_deferred_enabled = ~Uint32(0);
+  m_max_writes_per_trans = ~Uint32(0);
 }//Dbtc::Dbtc()
 
 Dbtc::~Dbtc() 

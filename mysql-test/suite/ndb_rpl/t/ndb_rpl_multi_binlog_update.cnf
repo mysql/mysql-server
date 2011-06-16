@@ -58,7 +58,6 @@ binlog_format=row
 [mysqld.1.slave]
 # Note no binlog on this slave
 server-id= 4
-init-rpl-role= slave
 skip-slave-start
 loose-skip-innodb
 slave-load-tmpdir= ../../../tmp
@@ -69,7 +68,6 @@ ndb_connectstring= @mysql_cluster.slave.ndb_connectstring
 [mysqld.2.slave]
 # Note binlog on this slave, but not logging slave updates
 server-id= 5
-init-rpl-role= slave
 skip-slave-start
 loose-skip-innodb
 slave-load-tmpdir= ../../../tmp
@@ -82,7 +80,6 @@ binlog_format=row
 [mysqld.3.slave]
 # Note binlog on this slave, with slave updates logged
 server-id= 6
-init-rpl-role= slave
 skip-slave-start
 loose-skip-innodb
 slave-load-tmpdir= ../../../tmp
