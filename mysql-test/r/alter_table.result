@@ -1345,4 +1345,33 @@ DROP TABLE t1;
 CREATE TABLE t1 (a TEXT, id INT, b INT);
 ALTER TABLE t1 DROP COLUMN a, ADD COLUMN c TEXT FIRST;
 DROP TABLE t1;
+#
+# Test for bug #12652385 - "61493: REORDERING COLUMNS TO POSITION
+#                           FIRST CAN CAUSE DATA TO BE CORRUPTED".
+#
+drop table if exists t1;
+# Use MyISAM engine as the fact that InnoDB doesn't support
+# in-place ALTER TABLE in cases when columns are being renamed
+# hides some bugs.
+create table t1 (i int, j int) engine=myisam;
+insert into t1 value (1, 2);
+# First, test for original problem described in the bug report.
+select * from t1;
+i	j
+1	2
+# Change of column order by the below ALTER TABLE statement should
+# affect both column names and column contents.
+alter table t1 modify column j int first;
+select * from t1;
+j	i
+2	1
+# Now test for similar problem with the same root.
+# The below ALTER TABLE should change not only the name but
+# also the value for the last column of the table.
+alter table t1 drop column i, add column k int default 0;
+select * from t1;
+j	k
+2	0
+# Clean-up.
+drop table t1;
 End of 5.1 tests
