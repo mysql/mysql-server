@@ -1397,6 +1397,10 @@ trx_undo_prev_version_build(
 		return(DB_ERROR);
 	}
 
+# ifdef UNIV_BLOB_NULL_DEBUG
+	ut_a(!rec_offs_any_null_extern(rec, offsets));
+# endif /* UNIV_BLOB_NULL_DEBUG */
+
 	if (row_upd_changes_field_size_or_external(index, offsets, update)) {
 		ulint*	ext_vect;
 		ulint	n_ext_vect;

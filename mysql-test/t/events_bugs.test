@@ -1286,6 +1286,23 @@ DROP EVENT IF EXISTS event_Bug12546938;
 DROP TABLE table_bug12546938;
 SET GLOBAL EVENT_SCHEDULER = OFF;
 
+#
+# Bug#11764334 - 57156: ALTER EVENT CHANGES THE EVENT STATUS
+#
+--disable_warnings
+DROP DATABASE IF EXISTS event_test11764334;
+--enable_warnings
+CREATE DATABASE event_test11764334;
+USE event_test11764334;
+CREATE EVENT ev1 ON SCHEDULE EVERY 3 SECOND DISABLE DO SELECT 1;
+--replace_column 9 # 10 #
+SHOW EVENTS IN event_test11764334 WHERE NAME='ev1';
+ALTER EVENT ev1 ON SCHEDULE EVERY 4 SECOND;
+--replace_column 9 # 10 #
+SHOW EVENTS IN event_test11764334 WHERE NAME='ev1';
+DROP EVENT ev1;
+DROP DATABASE event_test11764334;
+USE test; 
 ###########################################################################
 #
 # End of tests

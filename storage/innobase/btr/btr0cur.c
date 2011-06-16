@@ -73,6 +73,13 @@ this many index pages */
 	  + not_empty)							\
 	 / (BTR_KEY_VAL_ESTIMATE_N_PAGES + ext_size))
 
+#if defined UNIV_DEBUG || defined UNIV_BLOB_LIGHT_DEBUG
+/* A BLOB field reference full of zero, for use in assertions and tests.
+Initially, BLOB field references are set to zero, in
+dtuple_convert_big_rec(). */
+const byte field_ref_zero[BTR_EXTERN_FIELD_REF_SIZE];
+#endif /* UNIV_DEBUG || UNIV_BLOB_LIGHT_DEBUG */
+
 /***********************************************************************
 Marks all extern fields in a record as owned by the record. This function
 should be called if the delete mark of a record is removed: a not delete
@@ -1585,6 +1592,9 @@ btr_cur_optimistic_update(
 
 	heap = mem_heap_create(1024);
 	offsets = rec_get_offsets(rec, index, NULL, ULINT_UNDEFINED, &heap);
+#ifdef UNIV_BLOB_NULL_DEBUG
+	ut_a(!rec_offs_any_null_extern(rec, offsets));
+#endif /* UNIV_BLOB_NULL_DEBUG */
 
 #ifdef UNIV_DEBUG
 	if (btr_cur_print_record_ops && thr) {
