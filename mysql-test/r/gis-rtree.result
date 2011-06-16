@@ -1549,3 +1549,30 @@ HANDLER t1 READ a NEXT;
 HANDLER t1 CLOSE;
 DROP TABLE t1;
 End of 5.0 tests.
+#
+# Bug #57323/11764487: myisam corruption with insert ignore 
+# and invalid spatial data
+#
+CREATE TABLE t1(a LINESTRING NOT NULL, b GEOMETRY NOT NULL,
+SPATIAL KEY(a), SPATIAL KEY(b)) ENGINE=MyISAM;
+INSERT INTO t1 VALUES(GEOMFROMTEXT("point (0 0)"), GEOMFROMTEXT("point (1 1)"));
+INSERT IGNORE INTO t1 SET a=GEOMFROMTEXT("point (-6 0)"), b=GEOMFROMTEXT("error");
+ERROR 22003: Cannot get geometry object from data you send to the GEOMETRY field
+INSERT IGNORE INTO t1 SET a=GEOMFROMTEXT("point (-6 0)"), b=NULL;
+ERROR 22003: Cannot get geometry object from data you send to the GEOMETRY field
+SELECT ASTEXT(a), ASTEXT(b) FROM t1;
+ASTEXT(a)	ASTEXT(b)
+POINT(0 0)	POINT(1 1)
+DROP TABLE t1;
+CREATE TABLE t1(a INT NOT NULL, b GEOMETRY NOT NULL,
+KEY(a), SPATIAL KEY(b)) ENGINE=MyISAM;
+INSERT INTO t1 VALUES(0, GEOMFROMTEXT("point (1 1)"));
+INSERT IGNORE INTO t1 SET a=0, b=GEOMFROMTEXT("error");
+ERROR 22003: Cannot get geometry object from data you send to the GEOMETRY field
+INSERT IGNORE INTO t1 SET a=1, b=NULL;
+ERROR 22003: Cannot get geometry object from data you send to the GEOMETRY field
+SELECT a, ASTEXT(b) FROM t1;
+a	ASTEXT(b)
+0	POINT(1 1)
+DROP TABLE t1;
+End of 5.1 tests
