@@ -1007,8 +1007,28 @@ select count(*) from t1
   join t1 as t2 on t2.a = t1.c 
   join t1 as t3 on t3.a = t1.c;
 
-drop table t1;
+# Test bushy join with pruned scan and larger result set.
 
+CREATE TABLE tx (
+  a int NOT NULL,
+  PRIMARY KEY (`a`)
+);
+
+delete from t1;
+
+insert into tx values (0), (1), (2), (3), (4), (5), (6), (7), (8), (9);
+
+insert into t1 select 1, x1.a * 10+x2.a, 1, 0 from tx as x1 cross join tx as x2;
+
+explain select count(*) from t1 as x1
+  join t1 as x2 on x2.a = x1.c and x1.b < 2 
+  join t1 as x3 on x3.a = x1.c;
+select count(*) from t1 as x1
+  join t1 as x2 on x2.a = x1.c and x1.b < 2 
+  join t1 as x3 on x3.a = x1.c;
+
+drop table t1;
+drop table tx;
 
 # pushed mrr does not yet handle multiple PK operations in same transaction
 # Need 6.0 result handling stuff to simplify result handling
