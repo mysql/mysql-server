@@ -2063,7 +2063,7 @@ btr_compress(
 	rec_t*		node_ptr;
 	ulint		data_size;
 	ulint		n_recs;
-	ulint		nth_rec;
+	ulint		nth_rec = 0; /* remove bogus warning */
 	ulint		max_ins_size;
 	ulint		max_ins_size_reorg;
 	ulint		comp;
