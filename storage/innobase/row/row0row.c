@@ -202,6 +202,7 @@ row_build(
 
 	ut_ad(index && rec && heap);
 	ut_ad(index->type & DICT_CLUSTERED);
+	ut_ad(!mutex_own(&kernel_mutex));
 
 	if (!offsets) {
 		offsets = rec_get_offsets(rec, index, offsets_,
@@ -210,13 +211,37 @@ row_build(
 		ut_ad(rec_offs_validate(rec, index, offsets));
 	}
 
-#if 0 && defined UNIV_BLOB_NULL_DEBUG
-	/* This one can fail in trx_rollback_or_clean_all_without_sess()
-	if the server crashed during an insert before the
-	btr_store_big_rec_extern_fields() did mtr_commit()
-	all BLOB pointers to the clustered index record. */
-	ut_a(!rec_offs_any_null_extern(rec, offsets));
-#endif /* 0 && UNIV_BLOB_NULL_DEBUG */
+#if defined UNIV_DEBUG || defined UNIV_BLOB_LIGHT_DEBUG
+	if (UNIV_LIKELY_NULL(rec_offs_any_null_extern(rec, offsets))) {
+		/* This condition can occur during crash recovery before
+		trx_rollback_or_clean_all_without_sess() has completed
+		execution.
+
+		This condition is possible if the server crashed
+		during an insert or update before
+		btr_store_big_rec_extern_fields() did mtr_commit() all
+		BLOB pointers to the clustered index record.
+
+		Look up the transaction that holds the implicit lock
+		on this record, and assert that it was recovered (and
+		will soon be rolled back). */
+
+		ulint	trx_id_pos	= dict_index_get_sys_col_pos(
+			index, DATA_TRX_ID);
+		ulint	len;
+		dulint	trx_id		= trx_read_trx_id(
+			rec_get_nth_field(rec, offsets, trx_id_pos, &len));
+		trx_t*	trx;
+		ut_a(len == 6);
+
+		mutex_enter(&kernel_mutex);
+		trx = trx_get_on_id(trx_id);
+		ut_a(trx);
+		/* This field does not exist in this version of InnoDB. */
+		/* ut_a(trx->is_recovered); */
+		mutex_exit(&kernel_mutex);
+	}
+#endif /* UNIV_DEBUG || UNIV_BLOB_LIGHT_DEBUG */
 
 	if (type != ROW_COPY_POINTERS) {
 		/* Take a copy of rec to heap */
@@ -310,10 +335,10 @@ row_rec_to_index_entry(
 		rec = rec_copy(buf, rec, offsets);
 		/* Avoid a debug assertion in rec_offs_validate(). */
 		rec_offs_make_valid(rec, index, offsets);
-#ifdef UNIV_BLOB_NULL_DEBUG
+#if defined UNIV_DEBUG || defined UNIV_BLOB_LIGHT_DEBUG
 	} else {
 		ut_a(!rec_offs_any_null_extern(rec, offsets));
-#endif /* UNIV_BLOB_NULL_DEBUG */
+#endif /* UNIV_DEBUG || UNIV_BLOB_LIGHT_DEBUG */
 	}
 
 	rec_len = rec_offs_n_fields(offsets);
