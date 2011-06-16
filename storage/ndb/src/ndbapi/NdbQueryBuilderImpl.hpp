@@ -631,7 +631,7 @@ class NdbQueryBuilderImpl
 
 public:
   ~NdbQueryBuilderImpl();
-  explicit NdbQueryBuilderImpl(Ndb& ndb);
+  explicit NdbQueryBuilderImpl();
 
   const NdbQueryDefImpl* prepare();
 
@@ -665,7 +665,6 @@ private:
   bool contains(const NdbQueryOperationDefImpl*);
 
   NdbQueryBuilder m_interface;
-  Ndb& m_ndb;
   NdbError m_error;
 
   Vector<NdbQueryOperationDefImpl*> m_operations;
