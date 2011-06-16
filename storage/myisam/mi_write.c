@@ -211,7 +211,7 @@ err:
         else
 	{
 	  uint key_length=_mi_make_key(info,i,buff,record,filepos);
-	  if (_mi_ck_delete(info,i,buff,key_length))
+	  if (share->keyinfo[i].ck_delete(info, i, buff, key_length))
 	  {
 	    if (local_lock_tree)
 	      rw_unlock(&share->key_root_lock[i]);
