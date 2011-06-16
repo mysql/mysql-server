@@ -5174,7 +5174,7 @@ PRUNED_RANGE_SCANS_RECEIVED	21
 RANGE_SCANS_RECEIVED	720
 READS_NOT_FOUND	6616
 READS_RECEIVED	52
-SCAN_ROWS_RETURNED	94353
+SCAN_ROWS_RETURNED	94389
 TABLE_SCANS_RECEIVED	234
 select sum(spj_counts_at_end.val - spj_counts_at_startup.val) as 'LOCAL+REMOTE READS_SENT'
        from spj_counts_at_end, spj_counts_at_startup 
