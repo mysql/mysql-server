@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2005, 2009, Innobase Oy. All Rights Reserved.
+Copyright (c) 2005, 2011, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -3912,17 +3912,9 @@ page_zip_write_trx_id_and_roll_ptr(
 	UNIV_MEM_ASSERT_RW(page_zip->data, page_zip_get_size(page_zip));
 }
 
-#ifdef UNIV_ZIP_DEBUG
-/** Set this variable in a debugger to disable page_zip_clear_rec().
-The only observable effect should be the compression ratio due to
-deleted records not being zeroed out.  In rare cases, there can be
-page_zip_validate() failures on the node_ptr, trx_id and roll_ptr
-columns if the space is reallocated for a smaller record. */
-UNIV_INTERN ibool	page_zip_clear_rec_disable;
-#endif /* UNIV_ZIP_DEBUG */
-
 /**********************************************************************//**
-Clear an area on the uncompressed and compressed page, if possible. */
+Clear an area on the uncompressed and compressed page.
+Do not clear the data payload, as that would grow the modification log. */
 static
 void
 page_zip_clear_rec(
@@ -3934,6 +3926,9 @@ page_zip_clear_rec(
 {
 	ulint	heap_no;
 	page_t*	page	= page_align(rec);
+	byte*	storage;
+	byte*	field;
+	ulint	len;
 	/* page_zip_validate() would fail here if a record
 	containing externally stored columns is being deleted. */
 	ut_ad(rec_offs_validate(rec, index, offsets));
@@ -3949,60 +3944,46 @@ page_zip_clear_rec(
 	UNIV_MEM_ASSERT_RW(rec - rec_offs_extra_size(offsets),
 			   rec_offs_extra_size(offsets));
 
-	if (
-#ifdef UNIV_ZIP_DEBUG
-	    !page_zip_clear_rec_disable &&
-#endif /* UNIV_ZIP_DEBUG */
-	    page_zip->m_end
-	    + 1 + ((heap_no - 1) >= 64)/* size of the log entry */
-	    + page_zip_get_trailer_len(page_zip,
-				       dict_index_is_clust(index), NULL)
-	    < page_zip_get_size(page_zip)) {
-		byte*	data;
+	if (!page_is_leaf(page)) {
+		/* Clear node_ptr. On the compressed page,
+		there is an array of node_ptr immediately before the
+		dense page directory, at the very end of the page. */
+		storage	= page_zip->data
+			+ page_zip_get_size(page_zip)
+			- (page_dir_get_n_heap(page)
+			   - PAGE_HEAP_NO_USER_LOW)
+			* PAGE_ZIP_DIR_SLOT_SIZE;
+		ut_ad(dict_index_get_n_unique_in_tree(index) ==
+		      rec_offs_n_fields(offsets) - 1);
+		field	= rec_get_nth_field(rec, offsets,
+					    rec_offs_n_fields(offsets) - 1,
+					    &len);
+		ut_ad(len == REC_NODE_PTR_SIZE);
 
-		/* Clear only the data bytes, because the allocator and
-		the decompressor depend on the extra bytes. */
-		memset(rec, 0, rec_offs_data_size(offsets));
+		ut_ad(!rec_offs_any_extern(offsets));
+		memset(field, 0, REC_NODE_PTR_SIZE);
+		memset(storage - (heap_no - 1) * REC_NODE_PTR_SIZE,
+		       0, REC_NODE_PTR_SIZE);
+	} else if (dict_index_is_clust(index)) {
+		/* Clear trx_id and roll_ptr. On the compressed page,
+		there is an array of these fields immediately before the
+		dense page directory, at the very end of the page. */
+		const ulint	trx_id_pos
+			= dict_col_get_clust_pos(
+			dict_table_get_sys_col(
+				index->table, DATA_TRX_ID), index);
+		storage	= page_zip->data
+			+ page_zip_get_size(page_zip)
+			- (page_dir_get_n_heap(page)
+			   - PAGE_HEAP_NO_USER_LOW)
+			* PAGE_ZIP_DIR_SLOT_SIZE;
+		field	= rec_get_nth_field(rec, offsets, trx_id_pos, &len);
+		ut_ad(len == DATA_TRX_ID_LEN);
 
-		if (!page_is_leaf(page)) {
-			/* Clear node_ptr on the compressed page. */
-			byte*	storage	= page_zip->data
-				+ page_zip_get_size(page_zip)
-				- (page_dir_get_n_heap(page)
-				   - PAGE_HEAP_NO_USER_LOW)
-				* PAGE_ZIP_DIR_SLOT_SIZE;
-
-			memset(storage - (heap_no - 1) * REC_NODE_PTR_SIZE,
-			       0, REC_NODE_PTR_SIZE);
-		} else if (dict_index_is_clust(index)) {
-			/* Clear trx_id and roll_ptr on the compressed page. */
-			byte*	storage	= page_zip->data
-				+ page_zip_get_size(page_zip)
-				- (page_dir_get_n_heap(page)
-				   - PAGE_HEAP_NO_USER_LOW)
-				* PAGE_ZIP_DIR_SLOT_SIZE;
-
-			memset(storage - (heap_no - 1)
-			       * (DATA_TRX_ID_LEN + DATA_ROLL_PTR_LEN),
-			       0, DATA_TRX_ID_LEN + DATA_ROLL_PTR_LEN);
-		}
-
-		/* Log that the data was zeroed out. */
-		data = page_zip->data + page_zip->m_end;
-		ut_ad(!*data);
-		if (UNIV_UNLIKELY(heap_no - 1 >= 64)) {
-			*data++ = (byte) (0x80 | (heap_no - 1) >> 7);
-			ut_ad(!*data);
-		}
-		*data++ = (byte) ((heap_no - 1) << 1 | 1);
-		ut_ad(!*data);
-		ut_ad((ulint) (data - page_zip->data)
-		      < page_zip_get_size(page_zip));
-		page_zip->m_end = data - page_zip->data;
-		page_zip->m_nonempty = TRUE;
-	} else if (page_is_leaf(page) && dict_index_is_clust(index)) {
-		/* Do not clear the record, because there is not enough space
-		to log the operation. */
+		memset(field, 0, DATA_TRX_ID_LEN + DATA_ROLL_PTR_LEN);
+		memset(storage - (heap_no - 1)
+		       * (DATA_TRX_ID_LEN + DATA_ROLL_PTR_LEN),
+		       0, DATA_TRX_ID_LEN + DATA_ROLL_PTR_LEN);
 
 		if (rec_offs_any_extern(offsets)) {
 			ulint	i;
@@ -4011,15 +3992,18 @@ page_zip_clear_rec(
 				/* Clear all BLOB pointers in order to make
 				page_zip_validate() pass. */
 				if (rec_offs_nth_extern(offsets, i)) {
-					ulint	len;
-					byte*	field = rec_get_nth_field(
+					field = rec_get_nth_field(
 						rec, offsets, i, &len);
+					ut_ad(len
+					      == BTR_EXTERN_FIELD_REF_SIZE);
 					memset(field + len
 					       - BTR_EXTERN_FIELD_REF_SIZE,
 					       0, BTR_EXTERN_FIELD_REF_SIZE);
 				}
 			}
 		}
+	} else {
+		ut_ad(!rec_offs_any_extern(offsets));
 	}
 
 #ifdef UNIV_ZIP_DEBUG
