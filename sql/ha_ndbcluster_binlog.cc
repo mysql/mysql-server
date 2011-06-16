@@ -5966,6 +5966,13 @@ ndb_binlog_thread_func(void *arg)
   uint incident_id= 0;
   Binlog_thread_state do_ndbcluster_binlog_close_connection;
 
+  /**
+   * If we get error after having reported incident
+   *   but before binlog started...we do "Restarting Cluster Binlog"
+   *   in that case, don't report incident again
+   */
+  bool do_incident = true;
+
 #ifdef RUN_NDB_BINLOG_TIMER
   Timer main_timer;
 #endif
@@ -6106,7 +6113,7 @@ restart_cluster_failure:
   /*
     Main NDB Injector loop
   */
-  while (ndb_binlog_running)
+  while (do_incident && ndb_binlog_running)
   {
     /*
       check if it is the first log, if so we do not insert a GAP event
@@ -6138,6 +6145,7 @@ restart_cluster_failure:
     int ret = inj->record_incident(thd, INCIDENT_LOST_EVENTS,
                                    msg[incident_id]);
     assert(ret == 0);
+    do_incident = false; // Don't report incident again, unless we get started
     break;
   }
   incident_id= 1;
@@ -6263,6 +6271,7 @@ restart_cluster_failure:
     static char db[]= "";
     thd->db= db;
   }
+  do_incident = true; // If we get disconnected again...do incident report
   do_ndbcluster_binlog_close_connection= BCCC_running;
   for ( ; !((ndbcluster_binlog_terminating ||
              do_ndbcluster_binlog_close_connection) &&
