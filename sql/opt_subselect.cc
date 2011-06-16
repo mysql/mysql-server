@@ -183,8 +183,6 @@ static bool convert_subq_to_sj(JOIN *parent_join, Item_in_subselect *subq_pred);
 static bool convert_subq_to_jtbm(JOIN *parent_join, 
                                  Item_in_subselect *subq_pred, bool *remove);
 static TABLE_LIST *alloc_join_nest(THD *thd);
-static 
-void fix_list_after_tbl_changes(SELECT_LEX *new_parent, List<TABLE_LIST> *tlist);
 static uint get_tmp_table_rec_length(List<Item> &items);
 static double get_tmp_table_lookup_cost(THD *thd, double row_count,
                                         uint row_size);
@@ -344,9 +342,9 @@ int check_and_do_in_subquery_rewrites(JOIN *join)
         !join->having && !select_lex->with_sum_func &&                // 4
         thd->thd_marker.emb_on_expr_nest &&                           // 5
         select_lex->outer_select()->join &&                           // 6
-        parent_unit->first_select()->leaf_tables &&                   // 7
+        parent_unit->first_select()->leaf_tables.elements &&          // 7
         !in_subs->in_strategy &&                                      // 8
-        select_lex->outer_select()->leaf_tables &&                    // 9
+        select_lex->outer_select()->leaf_tables.elements &&           // 9
         !((join->select_options |                                     // 10
            select_lex->outer_select()->join->select_options)          // 10
           & SELECT_STRAIGHT_JOIN))                                    // 10
@@ -412,9 +410,9 @@ int check_and_do_in_subquery_rewrites(JOIN *join)
         */
         if (optimizer_flag(thd, OPTIMIZER_SWITCH_MATERIALIZATION) &&      // 0
             !select_lex->is_part_of_union() &&                            // 1
-            parent_unit->first_select()->leaf_tables &&                   // 2
+            parent_unit->first_select()->leaf_tables.elements &&          // 2
             thd->lex->sql_command == SQLCOM_SELECT &&                     // *
-            select_lex->outer_select()->leaf_tables &&                    // 2A
+            select_lex->outer_select()->leaf_tables.elements &&           // 2A
             subquery_types_allow_materialization(in_subs) &&
             (in_subs->is_top_level_item() ||                               //3
              optimizer_flag(thd,
@@ -422,7 +420,7 @@ int check_and_do_in_subquery_rewrites(JOIN *join)
              optimizer_flag(thd,
                             OPTIMIZER_SWITCH_PARTIAL_MATCH_TABLE_SCAN)) && //3
             !in_subs->is_correlated)                                       //4
-        {
+       {
           in_subs->in_strategy|= SUBS_MATERIALIZATION;
 
           /*
@@ -736,10 +734,24 @@ bool convert_join_subqueries_to_semijoins(JOIN *join)
   Item_in_subselect **in_subq;
   Item_in_subselect **in_subq_end;
   THD *thd= join->thd;
+  List_iterator<TABLE_LIST> ti(join->select_lex->leaf_tables);
   DBUG_ENTER("convert_join_subqueries_to_semijoins");
 
   if (join->sj_subselects.elements() == 0)
     DBUG_RETURN(FALSE);
+
+  for (in_subq= join->sj_subselects.front(), 
+       in_subq_end= join->sj_subselects.back(); 
+       in_subq != in_subq_end; 
+       in_subq++)
+  {
+    SELECT_LEX *subq_sel= (*in_subq)->get_select_lex();
+    if (subq_sel->handle_derived(thd->lex, DT_OPTIMIZE))
+      DBUG_RETURN(1);
+    if (subq_sel->handle_derived(thd->lex, DT_MERGE))
+      DBUG_RETURN(TRUE);
+    subq_sel->update_used_tables();
+  }
 
   /* First, convert child join's subqueries. We proceed bottom-up here */
   for (in_subq= join->sj_subselects.front(), 
@@ -1149,7 +1161,7 @@ static bool convert_subq_to_sj(JOIN *parent_join, Item_in_subselect *subq_pred)
   st_select_lex *subq_lex= subq_pred->unit->first_select();
   nested_join->join_list.empty();
   List_iterator_fast<TABLE_LIST> li(subq_lex->top_join_list);
-  TABLE_LIST *tl, *last_leaf;
+  TABLE_LIST *tl;
   while ((tl= li++))
   {
     tl->embedding= sj_nest;
@@ -1164,17 +1176,15 @@ static bool convert_subq_to_sj(JOIN *parent_join, Item_in_subselect *subq_pred)
     NOTE: We actually insert them at the front! That's because the order is
           reversed in this list.
   */
-  for (tl= parent_lex->leaf_tables; tl->next_leaf; tl= tl->next_leaf) ;
-  tl->next_leaf= subq_lex->leaf_tables;
-  last_leaf= tl;
+  parent_lex->leaf_tables.concat(&subq_lex->leaf_tables);
 
   /*
     Same as above for next_local chain
     (a theory: a next_local chain always starts with ::leaf_tables
      because view's tables are inserted after the view)
   */
-  for (tl= parent_lex->leaf_tables; tl->next_local; tl= tl->next_local) ;
-  tl->next_local= subq_lex->leaf_tables;
+  for (tl= parent_lex->leaf_tables.head(); tl->next_local; tl= tl->next_local) ;
+  tl->next_local= subq_lex->leaf_tables.head();
 
   /* A theory: no need to re-connect the next_global chain */
 
@@ -1187,7 +1197,8 @@ static bool convert_subq_to_sj(JOIN *parent_join, Item_in_subselect *subq_pred)
   /* n. Adjust the parent_join->table_count counter */
   uint table_no= parent_join->table_count;
   /* n. Walk through child's tables and adjust table->map */
-  for (tl= subq_lex->leaf_tables; tl; tl= tl->next_leaf, table_no++)
+  List_iterator_fast<TABLE_LIST> si(subq_lex->leaf_tables);
+  while ((tl= si++))
   {
     tl->table->tablenr= table_no;
     tl->table->map= ((table_map)1) << table_no;
@@ -1197,6 +1208,7 @@ static bool convert_subq_to_sj(JOIN *parent_join, Item_in_subselect *subq_pred)
          emb && emb->select_lex == old_sl;
          emb= emb->embedding)
       emb->select_lex= parent_join->select_lex;
+    table_no++;
   }
   parent_join->table_count += subq_lex->join->table_count;
 
@@ -1385,16 +1397,14 @@ static bool convert_subq_to_jtbm(JOIN *parent_join,
     Inject the jtbm table into TABLE_LIST::next_leaf list, so that 
     make_join_statistics() and co. can find it.
   */
-  for (tl= parent_lex->leaf_tables; tl->next_leaf; tl= tl->next_leaf)
-  {}
-  tl->next_leaf= jtbm;
+  parent_lex->leaf_tables.push_back(jtbm);
 
   /*
     Same as above for TABLE_LIST::next_local chain
     (a theory: a next_local chain always starts with ::leaf_tables
      because view's tables are inserted after the view)
   */
-  for (tl= parent_lex->leaf_tables; tl->next_local; tl= tl->next_local)
+  for (tl= parent_lex->leaf_tables.head(); tl->next_local; tl= tl->next_local)
   {}
   tl->next_local= jtbm;
 
@@ -1455,7 +1465,6 @@ static TABLE_LIST *alloc_join_nest(THD *thd)
 }
 
 
-static
 void fix_list_after_tbl_changes(SELECT_LEX *new_parent, List<TABLE_LIST> *tlist)
 {
   List_iterator<TABLE_LIST> it(*tlist);
@@ -2037,6 +2046,7 @@ void advance_sj_state(JOIN *join, table_map remaining_tables,
   TABLE_LIST *emb_sj_nest;
   POSITION *pos= join->positions + idx;
   remaining_tables &= ~new_join_tab->table->map;
+  bool disable_jbuf= join->thd->variables.join_cache_level == 0;
 
   pos->prefix_cost.convert_from_cost(*current_read_time);
   pos->prefix_record_count= *current_record_count;
@@ -2204,7 +2214,8 @@ void advance_sj_state(JOIN *join, table_map remaining_tables,
       optimize_wo_join_buffering(join, pos->first_loosescan_table, idx,
                                  remaining_tables, 
                                  TRUE,  //first_alt
-                                 pos->first_loosescan_table + n_tables,
+                                 disable_jbuf ? join->table_count :
+                                   pos->first_loosescan_table + n_tables,
                                  current_record_count,
                                  current_read_time);
       /*
@@ -2343,8 +2354,8 @@ void advance_sj_state(JOIN *join, table_map remaining_tables,
     /* Need to re-run best-access-path as we prefix_rec_count has changed */
     for (i= first_tab + mat_info->tables; i <= idx; i++)
     {
-      best_access_path(join, join->positions[i].table, rem_tables, i, FALSE,
-                       prefix_rec_count, &curpos, &dummy);
+      best_access_path(join, join->positions[i].table, rem_tables, i,
+                       disable_jbuf, prefix_rec_count, &curpos, &dummy);
       prefix_rec_count *= curpos.records_read;
       prefix_cost += curpos.read_time;
     }
@@ -2703,8 +2714,9 @@ void fix_semijoin_strategies_for_picked_join_order(JOIN *join)
       join->cur_sj_inner_tables= 0;
       for (i= first + sjm->tables; i <= tablenr; i++)
       {
-        best_access_path(join, join->best_positions[i].table, rem_tables, i, FALSE,
-                         prefix_rec_count, join->best_positions + i, &dummy);
+        best_access_path(join, join->best_positions[i].table, rem_tables, i, 
+                         FALSE, prefix_rec_count,
+                         join->best_positions + i, &dummy);
         prefix_rec_count *= join->best_positions[i].records_read;
         rem_tables &= ~join->best_positions[i].table->table->map;
       }

@@ -3219,6 +3219,10 @@ end_with_restore_list:
 
     if (!(res= open_and_lock_tables(thd, all_tables)))
     {
+      /*
+        Only the INSERT table should be merged. Other will be handled by
+        select.
+      */
       /* Skip first table, which is the table we are inserting in */
       TABLE_LIST *second_table= first_table->next_local;
       select_lex->table_list.first= second_table;

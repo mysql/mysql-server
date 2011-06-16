@@ -74,10 +74,12 @@ static int maxmin_in_range(bool max_fl, Field* field, COND *cond);
     #			Multiplication of number of rows in all tables
 */
 
-static ulonglong get_exact_record_count(TABLE_LIST *tables)
+static ulonglong get_exact_record_count(List<TABLE_LIST> &tables)
 {
   ulonglong count= 1;
-  for (TABLE_LIST *tl= tables; tl; tl= tl->next_leaf)
+  TABLE_LIST *tl;
+  List_iterator<TABLE_LIST> ti(tables);
+  while ((tl= ti++))
   {
     ha_rows tmp= tl->table->file->records();
     if ((tmp == HA_POS_ERROR))
@@ -234,9 +236,11 @@ static int get_index_max_value(TABLE *table, TABLE_REF *ref, uint range_fl)
 */
 
 int opt_sum_query(THD *thd,
-                  TABLE_LIST *tables, List<Item> &all_fields, COND *conds)
+                  List<TABLE_LIST> &tables, List<Item> &all_fields, COND *conds)
 {
   List_iterator_fast<Item> it(all_fields);
+  List_iterator<TABLE_LIST> ti(tables);
+  TABLE_LIST *tl;
   int const_result= 1;
   bool recalc_const_item= 0;
   ulonglong count= 1;
@@ -244,7 +248,7 @@ int opt_sum_query(THD *thd,
   table_map removed_tables= 0, outer_tables= 0, used_tables= 0;
   table_map where_tables= 0;
   Item *item;
-  int error;
+  int error= 0;
   DBUG_ENTER("opt_sum_query");
 
   if (conds)
@@ -254,7 +258,7 @@ int opt_sum_query(THD *thd,
     Analyze outer join dependencies, and, if possible, compute the number
     of returned rows.
   */
-  for (TABLE_LIST *tl= tables; tl; tl= tl->next_leaf)
+  while ((tl= ti++))
   {
     TABLE_LIST *embedded;
     for (embedded= tl ; embedded; embedded= embedded->embedding)
@@ -294,6 +298,14 @@ int opt_sum_query(THD *thd,
                                 HA_HAS_RECORDS));
       is_exact_count= FALSE;
       count= 1;                                 // ensure count != 0
+    }
+    else if (tl->is_materialized_derived())
+    {
+      /*
+        Can't remove a derived table as it's number of rows is just an
+        estimate.
+      */
+      DBUG_RETURN(0);
     }
     else
     {

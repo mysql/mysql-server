@@ -2609,8 +2609,9 @@ int handler::update_auto_increment()
 void handler::column_bitmaps_signal()
 {
   DBUG_ENTER("column_bitmaps_signal");
-  DBUG_PRINT("info", ("read_set: 0x%lx  write_set: 0x%lx", (long) table->read_set,
-                      (long) table->write_set));
+  if (table)
+    DBUG_PRINT("info", ("read_set: 0x%lx  write_set: 0x%lx",
+                        (long) table->read_set, (long) table->write_set));
   DBUG_VOID_RETURN;
 }
 

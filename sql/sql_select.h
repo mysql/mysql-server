@@ -369,6 +369,8 @@ typedef struct st_join_table {
 
   uint n_sj_tables;
 
+  bool preread_init_done;
+
   void cleanup();
   inline bool is_using_loose_index_scan()
   {
@@ -474,6 +476,8 @@ typedef struct st_join_table {
   {
     return (is_hash_join_key_no(key) ? hj_key : table->key_info+key);
   }
+  double scan_time();
+  bool preread_init();
 } JOIN_TAB;
 
 
@@ -1121,6 +1125,7 @@ public:
   {
     return (table_map(1) << table_count) - 1;
   }
+  void drop_unused_derived_keys();
   /* 
     Return the table for which an index scan can be used to satisfy 
     the sort order needed by the ORDER BY/(implicit) GROUP BY clause 
@@ -1203,7 +1208,7 @@ Field* create_tmp_field_from_field(THD *thd, Field* org_field,
 /* functions from opt_sum.cc */
 bool simple_pred(Item_func *func_item, Item **args, bool *inv_order);
 int opt_sum_query(THD* thd,
-                  TABLE_LIST *tables, List<Item> &all_fields, COND *conds);
+                  List<TABLE_LIST> &tables, List<Item> &all_fields, COND *conds);
 
 /* from sql_delete.cc, used by opt_range.cc */
 extern "C" int refpos_order_cmp(void* arg, const void *a,const void *b);
@@ -1466,7 +1471,7 @@ void push_index_cond(JOIN_TAB *tab, uint keyno);
 TABLE *create_tmp_table(THD *thd,TMP_TABLE_PARAM *param,List<Item> &fields,
 			ORDER *group, bool distinct, bool save_sum_fields,
 			ulonglong select_options, ha_rows rows_limit,
-			char* alias);
+                        char* alias, bool do_not_open=FALSE);
 void free_tmp_table(THD *thd, TABLE *entry);
 bool create_internal_tmp_table_from_heap(THD *thd, TABLE *table,
                                          ENGINE_COLUMNDEF *start_recinfo,
@@ -1479,5 +1484,6 @@ bool create_internal_tmp_table(TABLE *table, KEY *keyinfo,
 bool open_tmp_table(TABLE *table);
 void setup_tmp_table_column_bitmaps(TABLE *table, uchar *bitmaps);
 double prev_record_reads(POSITION *positions, uint idx, table_map found_ref);
+void fix_list_after_tbl_changes(SELECT_LEX *new_parent, List<TABLE_LIST> *tlist);
 
 #endif /* SQL_SELECT_INCLUDED */
