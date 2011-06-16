@@ -8639,6 +8639,11 @@ function_call_generic:
             Create_func *builder;
             Item *item= NULL;
 
+            if (check_routine_name(&$1))
+            {
+              MYSQL_YYABORT;
+            }
+
             /*
               Implementation note:
               names are resolved with the following order:
@@ -8701,6 +8706,16 @@ function_call_generic:
               - MySQL.version() is the SQL 2003 syntax for the native function
               version() (a vendor can specify any schema).
             */
+
+            if (!$1.str || check_db_name(&$1))
+            {
+              my_error(ER_WRONG_DB_NAME, MYF(0), $1.str);
+              MYSQL_YYABORT;
+            }
+            if (check_routine_name(&$3))
+            {
+              MYSQL_YYABORT;
+            }
 
             builder= find_qualified_function_builder(thd);
             DBUG_ASSERT(builder);

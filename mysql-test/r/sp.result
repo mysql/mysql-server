@@ -7161,6 +7161,21 @@ init_connect
 SET @@GLOBAL.init_connect= @old_init_connect;
 DROP PROCEDURE p2;
 DROP PROCEDURE p5;
+#
+# Bug#11840395 (formerly known as bug#60347):
+# The string "versiondata" seems to be 'leaking' into the schema name space
+# to be 'leaking' into the schema name space
+#
+DROP DATABASE IF EXISTS mixedCaseDbName;
+CREATE DATABASE mixedCaseDbName;
+CREATE PROCEDURE mixedCaseDbName.tryMyProc() begin end|
+CREATE FUNCTION mixedCaseDbName.tryMyFunc() returns text begin return 'IT WORKS'; end
+|
+call mixedCaseDbName.tryMyProc();
+select mixedCaseDbName.tryMyFunc();
+mixedCaseDbName.tryMyFunc()
+IT WORKS
+DROP DATABASE mixedCaseDbName;
 # ------------------------------------------------------------------
 # -- End of 5.1 tests
 # ------------------------------------------------------------------
