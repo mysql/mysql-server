@@ -1413,8 +1413,6 @@ try_again:
 #endif
 #ifdef UNIV_NON_BUFFERED_IO
 # ifndef UNIV_HOTBACKUP
-		if (type == OS_LOG_FILE)
-			attributes = attributes | FILE_FLAG_SEQUENTIAL_SCAN;
 		if (type == OS_LOG_FILE && srv_flush_log_at_trx_commit == 2) {
 			/* Do not use unbuffered i/o to log files because
 			value 2 denotes that we do not flush the log at every
@@ -1446,6 +1444,16 @@ try_again:
 	} else {
 		attributes = 0;
 		ut_error;
+	}
+
+	if (type == OS_LOG_FILE) {
+		if (srv_unix_file_flush_method == SRV_UNIX_O_DSYNC) {
+			/* Map O_DSYNC to WRITE_THROUGH */
+			attributes |= FILE_FLAG_WRITE_THROUGH;
+		} else if (srv_unix_file_flush_method == SRV_UNIX_ALL_O_DIRECT) {
+			/* Open log file without buffering */
+			attributes |= FILE_FLAG_NO_BUFFERING;
+		}
 	}
 
 	file = CreateFile((LPCTSTR) name,

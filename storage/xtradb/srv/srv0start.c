@@ -1293,7 +1293,6 @@ innobase_start_or_create_for_mysql(void)
 		srv_unix_file_flush_method = SRV_UNIX_FSYNC;
 
 		srv_win_file_flush_method = SRV_WIN_IO_UNBUFFERED;
-#ifndef __WIN__
 	} else if (0 == ut_strcmp(srv_file_flush_method_str, "fsync")) {
 		srv_unix_file_flush_method = SRV_UNIX_FSYNC;
 
@@ -1311,7 +1310,7 @@ innobase_start_or_create_for_mysql(void)
 
 	} else if (0 == ut_strcmp(srv_file_flush_method_str, "nosync")) {
 		srv_unix_file_flush_method = SRV_UNIX_NOSYNC;
-#else
+#ifdef _WIN32
 	} else if (0 == ut_strcmp(srv_file_flush_method_str, "normal")) {
 		srv_win_file_flush_method = SRV_WIN_IO_NORMAL;
 		os_aio_use_native_aio = FALSE;
@@ -1319,7 +1318,6 @@ innobase_start_or_create_for_mysql(void)
 	} else if (0 == ut_strcmp(srv_file_flush_method_str, "unbuffered")) {
 		srv_win_file_flush_method = SRV_WIN_IO_UNBUFFERED;
 		os_aio_use_native_aio = FALSE;
-
 	} else if (0 == ut_strcmp(srv_file_flush_method_str,
 				  "async_unbuffered")) {
 		srv_win_file_flush_method = SRV_WIN_IO_UNBUFFERED;
