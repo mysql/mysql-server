@@ -23,7 +23,6 @@
 #include <Vector.hpp>
 #include "signaldata/QueryTree.hpp"
 
-#include <Ndb.hpp>
 #include "NdbDictionaryImpl.hpp"
 #include <NdbRecord.hpp>
 #include "AttributeHeader.hpp"
@@ -575,16 +574,15 @@ NdbQueryIndexScanOperationDef::~NdbQueryIndexScanOperationDef()
 
 NdbQueryOperationDefImpl::~NdbQueryOperationDefImpl()
 {
+  // Unlink any parent and child refering this object
   if (m_parent != NULL)
   {
     m_parent->removeChild(this);
   }
-  // Delete children recursively also.
   for (Uint32 i = 0; i<m_children.size(); i++)
   {
     assert(m_children[i]->m_parent == this);
     m_children[i]->m_parent = NULL;
-    delete m_children[i];
   }
 }
 
@@ -686,9 +684,9 @@ NdbQueryOperationDef::getIndex() const
  * Implementation of NdbQueryBuilder factory
  ******************************************/
 // Static method.
-NdbQueryBuilder* NdbQueryBuilder::create(Ndb& ndb)
+NdbQueryBuilder* NdbQueryBuilder::create()
 {
-  NdbQueryBuilderImpl* const impl = new NdbQueryBuilderImpl(ndb);
+  NdbQueryBuilderImpl* const impl = new NdbQueryBuilderImpl();
   if (likely (impl != NULL))
   {
     if (likely(impl->getNdbError().code == 0))
@@ -1045,9 +1043,9 @@ NdbQueryBuilder::prepare()
 // The (hidden) Impl of NdbQueryBuilder
 ////////////////////////////////////////
 
-NdbQueryBuilderImpl::NdbQueryBuilderImpl(Ndb& ndb)
+NdbQueryBuilderImpl::NdbQueryBuilderImpl()
 : m_interface(*this),
-  m_ndb(ndb), m_error(),
+  m_error(),
   m_operations(),
   m_operands(),
   m_paramCnt(0),
@@ -1063,12 +1061,13 @@ NdbQueryBuilderImpl::NdbQueryBuilderImpl(Ndb& ndb)
 NdbQueryBuilderImpl::~NdbQueryBuilderImpl()
 {
   // Delete all operand and operator in Vector's
-  if (m_operations.size() > 0)
+  for (Uint32 i=0; i<m_operations.size(); ++i)
   {
-    delete m_operations[0];
+    delete m_operations[i];
   }
   for (Uint32 i=0; i<m_operands.size(); ++i)
-  { delete m_operands[i];
+  {
+    delete m_operands[i];
   }
 }
 
@@ -1231,12 +1230,13 @@ NdbQueryDefImpl(const Vector<NdbQueryOperationDefImpl*>& operations,
 NdbQueryDefImpl::~NdbQueryDefImpl()
 {
   // Release all NdbQueryOperations
-  if (m_operations.size() > 0)
+  for (Uint32 i=0; i<m_operations.size(); ++i)
   {
-    delete m_operations[0];
+    delete m_operations[i];
   }
   for (Uint32 i=0; i<m_operands.size(); ++i)
-  { delete m_operands[i];
+  {
+    delete m_operands[i];
   }
 }
 
@@ -2799,15 +2799,14 @@ main(int argc, const char** argv)
   assert (sizeof(NdbParamOperand) == sizeof(NdbQueryOperandImpl*));
   assert (sizeof(NdbLinkedOperand) == sizeof(NdbQueryOperandImpl*));
 
-  Ndb *myNdb = 0;
-  NdbQueryBuilder myBuilder(*myNdb);
+  NdbQueryBuilder* const myBuilder= NdbQueryBuilder::create();
 
   const NdbDictionary::Table *manager = (NdbDictionary::Table*)0xDEADBEAF;
 //  const NdbDictionary::Index *ix = (NdbDictionary::Index*)0x11223344;
 
-  NdbQueryDef* q1 = 0;
+  const NdbQueryDef* q1 = 0;
   {
-    NdbQueryBuilder* qb = &myBuilder; //myDict->getQueryBuilder();
+    NdbQueryBuilder* qb = myBuilder;
 
     const NdbQueryOperand* managerKey[] =  // Manager is indexed om {"dept_no", "emp_no"}
     {  qb->constValue("d005"),             // dept_no = "d005"

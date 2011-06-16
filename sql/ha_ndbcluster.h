@@ -120,30 +120,98 @@ typedef enum {
   NSS_ALTERED 
 } NDB_SHARE_STATE;
 
-#ifdef HAVE_NDB_BINLOG
 enum enum_conflict_fn_type
 {
   CFT_NDB_UNDEF = 0
   ,CFT_NDB_MAX
   ,CFT_NDB_OLD
   ,CFT_NDB_MAX_DEL_WIN
+  ,CFT_NUMBER_OF_CFTS /* End marker */
+};
+
+#ifdef HAVE_NDB_BINLOG
+static const Uint32 MAX_CONFLICT_ARGS= 8;
+
+enum enum_conflict_fn_arg_type
+{
+  CFAT_END
+  ,CFAT_COLUMN_NAME
+};
+
+struct st_conflict_fn_arg
+{
+  enum_conflict_fn_arg_type type;
+  const char *ptr;
+  uint32 len;
+  uint32 fieldno; // CFAT_COLUMN_NAME
+};
+
+struct st_conflict_fn_arg_def
+{
+  enum enum_conflict_fn_arg_type arg_type;
+  bool optional;
+};
+
+/* What type of operation was issued */
+enum enum_conflicting_op_type
+{                /* NdbApi          */
+  WRITE_ROW,     /* insert (!write) */
+  UPDATE_ROW,    /* update          */
+  DELETE_ROW     /* delete          */
+};
+
+/*
+  prepare_detect_func
+
+  Type of function used to prepare for conflict detection on
+  an NdbApi operation
+*/
+typedef int (* prepare_detect_func) (struct st_ndbcluster_conflict_fn_share* cfn_share,
+                                     enum_conflicting_op_type op_type,
+                                     const uchar* old_data,
+                                     const uchar* new_data,
+                                     const MY_BITMAP* write_set,
+                                     NdbInterpretedCode* code);
+
+struct st_conflict_fn_def
+{
+  const char *name;
+  enum_conflict_fn_type type;
+  const st_conflict_fn_arg_def* arg_defs;
+  prepare_detect_func prep_func;
+};
+
+/* What sort of conflict was found */
+enum enum_conflict_cause
+{
+  ROW_ALREADY_EXISTS,
+  ROW_DOES_NOT_EXIST,
+  ROW_IN_CONFLICT
 };
 
 /* NdbOperation custom data which points out handler and record. */
 struct Ndb_exceptions_data {
   struct st_ndbcluster_share *share;
+  const NdbRecord* key_rec;
   const uchar* row;
+  enum_conflicting_op_type op_type;
+};
+
+enum enum_conflict_fn_flags
+{
+  CFF_NONE = 0
 };
 
 typedef struct st_ndbcluster_conflict_fn_share {
-  enum_conflict_fn_type m_resolve_cft;
+  const st_conflict_fn_def* m_conflict_fn;
 
   /* info about original table */
   uint8 m_pk_cols;
   uint8 m_resolve_column;
   uint8 m_resolve_size;
-  uint8 unused;
+  uint8 m_flags;
   uint16 m_offset[16];
+  uint16 m_resolve_offset;
 
   const NdbDictionary::Table *m_ex_tab;
   uint32 m_count;
@@ -269,6 +337,26 @@ inline my_bool get_binlog_use_update(NDB_SHARE *share)
 { return (share->flags & NSF_BINLOG_USE_UPDATE) != 0; }
 
 /*
+  State associated with the Slave thread
+  (From the Ndb handler's point of view)
+*/
+struct st_ndb_slave_state
+{
+  /* Counter values for current slave transaction */
+  Uint32 current_conflict_defined_op_count;
+  Uint32 current_violation_count[CFT_NUMBER_OF_CFTS];
+
+  /* Cumulative counter values */
+  Uint64 total_violation_count[CFT_NUMBER_OF_CFTS];
+
+  /* Methods */
+  void atTransactionCommit();
+  void atTransactionAbort();
+
+  st_ndb_slave_state();
+};
+
+/*
   Place holder for ha_ndbcluster thread specific data
 */
 
@@ -342,9 +430,6 @@ class Thd_ndb
   uint m_batch_size;
 
   uint m_execute_count;
-  uint m_max_violation_count;
-  uint m_old_violation_count;
-  uint m_conflict_fn_usage_count;
 
   uint m_scan_count;
   uint m_pruned_scan_count;
@@ -596,20 +681,12 @@ static void set_tabname(const char *pathname, char *tabname);
 
 private:
 #ifdef HAVE_NDB_BINLOG
-  int delete_row_conflict_fn(enum_conflict_fn_type cft,
-                             const uchar *old_data,
-                             NdbInterpretedCode *);
-  int write_row_conflict_fn(enum_conflict_fn_type cft,
-                            uchar *data,
-                            NdbInterpretedCode *);
-  int update_row_conflict_fn(enum_conflict_fn_type cft,
-                             const uchar *old_data,
-                             uchar *new_data,
-                             NdbInterpretedCode *);
-  int row_conflict_fn_max(const uchar *new_data,
-                          NdbInterpretedCode *);
-  int row_conflict_fn_old(const uchar *old_data,
-                          NdbInterpretedCode *);
+  int prepare_conflict_detection(enum_conflicting_op_type op_type,
+                                 const NdbRecord* key_rec,
+                                 const uchar* old_data,
+                                 const uchar* new_data,
+                                 NdbInterpretedCode* code,
+                                 NdbOperation::OperationOptions* options);
 #endif
   void setup_key_ref_for_ndb_record(const NdbRecord **key_rec,
                                     const uchar **key_row,
@@ -913,8 +990,6 @@ private:
 
 int ndbcluster_discover(THD* thd, const char* dbname, const char* name,
                         const void** frmblob, uint* frmlen);
-int ndbcluster_find_files(THD *thd,const char *db,const char *path,
-                          const char *wild, bool dir, List<LEX_STRING> *files);
 int ndbcluster_table_exists_in_engine(THD* thd,
                                       const char *db, const char *name);
 void ndbcluster_print_error(int error, const NdbOperation *error_op);

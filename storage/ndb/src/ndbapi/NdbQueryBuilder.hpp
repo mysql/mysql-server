@@ -24,7 +24,6 @@
 // skip includes...and require them to be included first
 // BUH!
 
-class Ndb;
 class NdbQueryDef;
 class NdbQueryDefImpl;
 class NdbQueryBuilderImpl;
@@ -358,9 +357,8 @@ private:
  *   build phase.
  *
  * - The NdbQueryDef produced by the ::prepare() method has a lifetime 
- *   determined by the Ndb object, or until it is explicit released by
- *   NdbQueryDef::release()
- *  
+ *   until it is explicit released by NdbQueryDef::release()
+ *
  */
 class NdbQueryBuilder 
 {
@@ -380,7 +378,7 @@ public:
    * Allocate an instance.
    * @return New instance, or NULL if allocation failed.
    */
-  static NdbQueryBuilder* create(Ndb& ndb);
+  static NdbQueryBuilder* create();
 
   /**
    * Release this object and any resources held by it.
@@ -478,8 +476,7 @@ private:
  * NdbQueryDef represents a ::prepare()'d object from NdbQueryBuilder.
  *
  * The NdbQueryDef is reusable in the sense that it may be executed multiple
- * times. Its lifetime is defined by the Ndb object which it was created with,
- * or it may be explicitely released() when no longer required.
+ * times. It is valid until it is explicitely released().
  *
  * The NdbQueryDef *must* be keept alive until the last thread
  * which executing a query based on this NdbQueryDef has completed execution 
