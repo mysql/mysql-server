@@ -4418,7 +4418,7 @@ Dbspj::scanIndex_build(Build_context& ctx,
     if (requestPtr.p->m_bits & Request::RT_REPEAT_SCAN_RESULT &&
        !treeNodePtr.p->m_ancestors.contains(ctx.m_scans))
     {
-      nodePtr.p->m_bits |= TreeNode::T_SCAN_REPEATABLE;
+      treeNodePtr.p->m_bits |= TreeNode::T_SCAN_REPEATABLE;
     }
 
     ctx.m_scan_cnt++;
@@ -5025,6 +5025,8 @@ Dbspj::scanIndex_parent_batch_repeat(Signal* signal,
 
   DEBUG("scanIndex_parent_batch_repeat(), m_node_no: " << treeNodePtr.p->m_node_no
         << ", m_batch_chunks: " << data.m_batch_chunks);
+  
+  ndbassert(treeNodePtr.p->m_bits & TreeNode::T_SCAN_REPEATABLE);
 
   /**
    * Register index-scans to be restarted if we didn't get all
