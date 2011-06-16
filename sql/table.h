@@ -670,8 +670,8 @@ struct TABLE_SHARE
   uint db_options_in_use;		/* Options in use */
   uint db_record_offset;		/* if HA_REC_IN_SEQ */
   uint rowid_field_offset;		/* Field_nr +1 to rowid field */
-  /* Index of auto-updated TIMESTAMP field in field array */
-  uint primary_key;
+  /* Primary key index number, used in TABLE::key_info[] */
+  uint primary_key;                     
   uint next_number_index;               /* autoincrement key number */
   uint next_number_key_offset;          /* autoinc keypart offset in a key */
   uint next_number_keypart;             /* autoinc keypart number in a key */
