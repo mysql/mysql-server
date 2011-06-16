@@ -1144,9 +1144,9 @@ my_bool acl_reload(THD *thd)
       Execution might have been interrupted; only print the error message
       if an error condition has been raised.
     */
-    if (thd->stmt_da->is_error())
+    if (thd->get_stmt_da()->is_error())
       sql_print_error("Fatal error: Can't open and lock privilege tables: %s",
-                      thd->stmt_da->message());
+                      thd->get_stmt_da()->message());
     goto end;
   }
 
@@ -9536,7 +9536,7 @@ acl_authenticate(THD *thd, uint connect_errors, uint com_change_user_pkt_len)
     sctx->external_user= my_strdup(mpvio.auth_info.external_user, MYF(0));
 
   if (res == CR_OK_HANDSHAKE_COMPLETE)
-    thd->stmt_da->disable_status();
+    thd->get_stmt_da()->disable_status();
   else
     my_ok(thd);
 

@@ -571,7 +571,8 @@ public:
  protected:
   my_bool with_subselect;               /* If this item is a subselect or some
                                            of its arguments is or contains a
-                                           subselect. Computed by fix_fields. */
+                                           subselect. Computed by fix_fields
+                                           and updated by update_used_tables. */
 
  public:
   // alloc & destruct is done as start of select using sql_alloc
@@ -1738,6 +1739,8 @@ public:
   String *val_str(String *str) { return field->val_str(str); }
   my_decimal *val_decimal(my_decimal *dec) { return field->val_decimal(dec); }
   void make_field(Send_field *tmp_field);
+  CHARSET_INFO *charset_for_protocol(void) const
+  { return (CHARSET_INFO *)field->charset_for_protocol(); }
 };
 
 
@@ -2701,6 +2704,14 @@ public:
     return (*ref)->is_outer_field();
   }
 
+  /**
+    Checks if the item tree that ref points to contains a subquery.
+  */
+  virtual bool has_subquery() const 
+  { 
+    DBUG_ASSERT(ref);
+    return (*ref)->has_subquery();
+  }
 };
 
 

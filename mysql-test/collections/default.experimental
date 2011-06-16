@@ -19,6 +19,7 @@ rpl.rpl_heartbeat_basic                  # BUG#12403008 2011-04-27 sven fails sp
 rpl.rpl_row_sp011  @solaris              # Bug#11755949 2010-01-20 alik Several test cases fail on Solaris with error Thread stack overrun
 rpl.rpl_seconds_behind_master            # BUG#11765124 2010-11-24 luis fails sporadically on pb2
 rpl.rpl_show_slave_running               # BUG#12346048 2011-04-11 sven fails sporadically on pb2
+rpl.rpl_change_master_dbug               # BUG#11933491 2011-06-13 Anitha  Test fails on redhat 
 
 sys_vars.max_sp_recursion_depth_func @solaris # Bug#11755949 2010-01-20 alik Several test cases fail on Solaris with error Thread stack overrun
 sys_vars.wait_timeout_func                    # Bug#11750645 2010-04-26 alik wait_timeout_func fails

@@ -1363,6 +1363,8 @@ public:
     else
     {
       args[0]->update_used_tables();
+      with_subselect= args[0]->has_subquery();
+
       if ((const_item_cache= !(used_tables_cache= args[0]->used_tables()) &&
           !with_subselect))
       {

@@ -1987,6 +1987,9 @@ btr_cur_optimistic_update(
 
 	heap = mem_heap_create(1024);
 	offsets = rec_get_offsets(rec, index, NULL, ULINT_UNDEFINED, &heap);
+#ifdef UNIV_BLOB_NULL_DEBUG
+	ut_a(!rec_offs_any_null_extern(rec, offsets));
+#endif /* UNIV_BLOB_NULL_DEBUG */
 
 #ifdef UNIV_DEBUG
 	if (btr_cur_print_record_ops && thr) {

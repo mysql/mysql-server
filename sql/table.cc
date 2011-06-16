@@ -3215,7 +3215,7 @@ bool TABLE_SHARE::visit_subgraph(Wait_for_flush *wait_for_flush,
   if (gvisitor->m_lock_open_count++ == 0)
     mysql_mutex_lock(&LOCK_open);
 
-  I_P_List_iterator <TABLE, TABLE_share> tables_it(used_tables);
+  TABLE_SHARE::TABLE_list::Iterator tables_it(used_tables);
 
   /*
     In case of multiple searches running in parallel, avoid going
@@ -3841,26 +3841,32 @@ void TABLE_LIST::hide_view_error(THD *thd)
   /* Hide "Unknown column" or "Unknown function" error */
   DBUG_ASSERT(thd->is_error());
 
-  if (thd->stmt_da->sql_errno() == ER_BAD_FIELD_ERROR ||
-      thd->stmt_da->sql_errno() == ER_SP_DOES_NOT_EXIST ||
-      thd->stmt_da->sql_errno() == ER_FUNC_INEXISTENT_NAME_COLLISION ||
-      thd->stmt_da->sql_errno() == ER_PROCACCESS_DENIED_ERROR ||
-      thd->stmt_da->sql_errno() == ER_COLUMNACCESS_DENIED_ERROR ||
-      thd->stmt_da->sql_errno() == ER_TABLEACCESS_DENIED_ERROR ||
-      thd->stmt_da->sql_errno() == ER_TABLE_NOT_LOCKED ||
-      thd->stmt_da->sql_errno() == ER_NO_SUCH_TABLE)
-  {
-    TABLE_LIST *top= top_table();
-    thd->clear_error();
-    my_error(ER_VIEW_INVALID, MYF(0), top->view_db.str, top->view_name.str);
-  }
-  else if (thd->stmt_da->sql_errno() == ER_NO_DEFAULT_FOR_FIELD)
-  {
-    TABLE_LIST *top= top_table();
-    thd->clear_error();
-    // TODO: make correct error message
-    my_error(ER_NO_DEFAULT_FOR_VIEW_FIELD, MYF(0),
-             top->view_db.str, top->view_name.str);
+  switch (thd->get_stmt_da()->sql_errno()) {
+    case ER_BAD_FIELD_ERROR:
+    case ER_SP_DOES_NOT_EXIST:
+    case ER_FUNC_INEXISTENT_NAME_COLLISION:
+    case ER_PROCACCESS_DENIED_ERROR:
+    case ER_COLUMNACCESS_DENIED_ERROR:
+    case ER_TABLEACCESS_DENIED_ERROR:
+    case ER_TABLE_NOT_LOCKED:
+    case ER_NO_SUCH_TABLE:
+    {
+      TABLE_LIST *top= top_table();
+      thd->clear_error();
+      my_error(ER_VIEW_INVALID, MYF(0),
+               top->view_db.str, top->view_name.str);
+      break;
+    }
+
+    case ER_NO_DEFAULT_FOR_FIELD:
+    {
+      TABLE_LIST *top= top_table();
+      thd->clear_error();
+      // TODO: make correct error message
+      my_error(ER_NO_DEFAULT_FOR_VIEW_FIELD, MYF(0),
+               top->view_db.str, top->view_name.str);
+      break;
+    }
   }
 }
 
