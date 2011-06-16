@@ -358,7 +358,7 @@ private:
  *
  * - The NdbQueryDef produced by the ::prepare() method has a lifetime 
  *   until it is explicit released by NdbQueryDef::release()
- *  
+ *
  */
 class NdbQueryBuilder 
 {
