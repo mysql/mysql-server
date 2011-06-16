@@ -1546,9 +1546,9 @@ trx_undo_prev_version_build(
 	ut_a(table_id == index->table->id);
 	ut_a(ptr);
 
-# ifdef UNIV_BLOB_NULL_DEBUG
+# if defined UNIV_DEBUG || defined UNIV_BLOB_LIGHT_DEBUG
 	ut_a(!rec_offs_any_null_extern(rec, offsets));
-# endif /* UNIV_BLOB_NULL_DEBUG */
+# endif /* UNIV_DEBUG || UNIV_BLOB_LIGHT_DEBUG */
 
 	if (row_upd_changes_field_size_or_external(index, offsets, update)) {
 		ulint	n_ext;
