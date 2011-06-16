@@ -358,7 +358,8 @@ private:
   { copy_shallow(&other); }
 
 public:
-  Discrete_intervals_list() : head(NULL), current(NULL), elements(0) {};
+  Discrete_intervals_list()
+    : head(NULL), tail(NULL), current(NULL), elements(0) {}
   void empty()
   {
     if (head)

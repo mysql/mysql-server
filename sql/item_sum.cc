@@ -529,10 +529,12 @@ void Item_sum::update_used_tables ()
   if (!forced_const)
   {
     used_tables_cache= 0;
+    with_subselect= false;
     for (uint i=0 ; i < arg_count ; i++)
     {
       args[i]->update_used_tables();
       used_tables_cache|= args[i]->used_tables();
+      with_subselect|= args[i]->has_subquery();
     }
 
     used_tables_cache&= PSEUDO_TABLE_BITS;

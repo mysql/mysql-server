@@ -104,6 +104,34 @@ CREATE TABLE IF NOT EXISTS slave_relay_log_info (Master_id INTEGER UNSIGNED NOT 
 
 CREATE TABLE IF NOT EXISTS slave_master_info (Master_id INTEGER UNSIGNED NOT NULL, Number_of_lines INTEGER UNSIGNED NOT NULL COMMENT 'Number of lines in the file.', Master_log_name TEXT CHARACTER SET utf8 COLLATE utf8_bin NOT NULL COMMENT 'The name of the master binary log currently being read from the master.', Master_log_pos BIGINT UNSIGNED NOT NULL COMMENT 'The master log position of the last read event.', Host TEXT CHARACTER SET utf8 COLLATE utf8_bin COMMENT 'The host name of the master.', User_name TEXT CHARACTER SET utf8 COLLATE utf8_bin COMMENT 'The user name used to connect to the master.', User_password TEXT CHARACTER SET utf8 COLLATE utf8_bin COMMENT 'The password used to connect to the master.', Port INTEGER UNSIGNED NOT NULL COMMENT 'The network port used to connect to the master.', Connect_retry INTEGER UNSIGNED NOT NULL COMMENT 'The period (in seconds) that the slave will wait before trying to reconnect to the master.', Enabled_ssl BOOLEAN NOT NULL COMMENT 'Indicates whether the server supports SSL connections.', Ssl_ca TEXT CHARACTER SET utf8 COLLATE utf8_bin COMMENT 'The file used for the Certificate Authority (CA) certificate.', Ssl_capath TEXT CHARACTER SET utf8 COLLATE utf8_bin COMMENT 'The path to the Certificate Authority (CA) certificates.', Ssl_cert TEXT CHARACTER SET utf8 COLLATE utf8_bin COMMENT 'The name of the SSL certificate file.', Ssl_cipher TEXT CHARACTER SET utf8 COLLATE utf8_bin COMMENT 'The name of the cipher in use for the SSL connection.', Ssl_key TEXT CHARACTER SET utf8 COLLATE utf8_bin COMMENT 'The name of the SSL key file.', Ssl_verify_server_cert BOOLEAN NOT NULL COMMENT 'Whether to verify the server certificate.', Heartbeat FLOAT NOT NULL COMMENT '', Bind TEXT CHARACTER SET utf8 COLLATE utf8_bin COMMENT 'Displays which interface is employed when connecting to the MySQL server', Ignored_server_ids TEXT CHARACTER SET utf8 COLLATE utf8_bin COMMENT 'The number of server IDs to be ignored, followed by the actual server IDs', Uuid TEXT CHARACTER SET utf8 COLLATE utf8_bin COMMENT 'The master server uuid.', Retry_count BIGINT UNSIGNED NOT NULL COMMENT 'Number of reconnect attempts, to the master, before giving up.', PRIMARY KEY(Master_id)) ENGINE=MYISAM DEFAULT CHARSET=utf8 COMMENT 'Master Information';
 
+CREATE TABLE IF NOT EXISTS innodb_table_stats (
+	database_name			VARCHAR(64) NOT NULL,
+	table_name			VARCHAR(64) NOT NULL,
+	stats_timestamp			TIMESTAMP NOT NULL,
+	n_rows				BIGINT UNSIGNED NOT NULL,
+	clustered_index_size		BIGINT UNSIGNED NOT NULL,
+	sum_of_other_index_sizes	BIGINT UNSIGNED NOT NULL,
+	PRIMARY KEY (database_name, table_name)
+) ENGINE=INNODB DEFAULT CHARSET=utf8;
+
+CREATE TABLE IF NOT EXISTS innodb_index_stats (
+	database_name			VARCHAR(64) NOT NULL,
+	table_name			VARCHAR(64) NOT NULL,
+	index_name			VARCHAR(64) NOT NULL,
+	stat_timestamp			TIMESTAMP NOT NULL,
+	/* there are at least:
+	stat_name='size'
+	stat_name='n_leaf_pages'
+	stat_name='n_diff_pfx%' */
+	stat_name			VARCHAR(64) NOT NULL,
+	stat_value			BIGINT UNSIGNED NOT NULL,
+	sample_size			BIGINT UNSIGNED,
+	stat_description		VARCHAR(1024) NOT NULL,
+	PRIMARY KEY (database_name, table_name, index_name, stat_name),
+	FOREIGN KEY (database_name, table_name)
+	  REFERENCES innodb_table_stats (database_name, table_name)
+) ENGINE=INNODB DEFAULT CHARSET=utf8;
+
 --
 -- PERFORMANCE SCHEMA INSTALLATION
 -- Note that this script is also reused by mysql_upgrade,
@@ -175,7 +203,7 @@ set @have_pfs= (select count(engine) from information_schema.engines where engin
 
 SET @cmd="CREATE TABLE performance_schema.cond_instances("
   "NAME VARCHAR(128) not null,"
-  "OBJECT_INSTANCE_BEGIN BIGINT not null"
+  "OBJECT_INSTANCE_BEGIN BIGINT unsigned not null"
   ")ENGINE=PERFORMANCE_SCHEMA;";
 
 SET @str = IF(@have_pfs = 1, @cmd, 'SET @dummy = 0');
@@ -200,11 +228,11 @@ SET @cmd="CREATE TABLE performance_schema.events_waits_current("
   "OBJECT_NAME VARCHAR(512),"
   "INDEX_NAME VARCHAR(64),"
   "OBJECT_TYPE VARCHAR(64),"
-  "OBJECT_INSTANCE_BEGIN BIGINT not null,"
+  "OBJECT_INSTANCE_BEGIN BIGINT unsigned not null,"
   "NESTING_EVENT_ID BIGINT unsigned,"
   "NESTING_EVENT_TYPE ENUM('STATEMENT', 'STAGE', 'WAIT'),"
   "OPERATION VARCHAR(32) not null,"
-  "NUMBER_OF_BYTES BIGINT unsigned,"
+  "NUMBER_OF_BYTES BIGINT,"
   "FLAGS INTEGER unsigned"
   ")ENGINE=PERFORMANCE_SCHEMA;";
 
@@ -230,11 +258,11 @@ SET @cmd="CREATE TABLE performance_schema.events_waits_history("
   "OBJECT_NAME VARCHAR(512),"
   "INDEX_NAME VARCHAR(64),"
   "OBJECT_TYPE VARCHAR(64),"
-  "OBJECT_INSTANCE_BEGIN BIGINT not null,"
+  "OBJECT_INSTANCE_BEGIN BIGINT unsigned not null,"
   "NESTING_EVENT_ID BIGINT unsigned,"
   "NESTING_EVENT_TYPE ENUM('STATEMENT', 'STAGE', 'WAIT'),"
   "OPERATION VARCHAR(32) not null,"
-  "NUMBER_OF_BYTES BIGINT unsigned,"
+  "NUMBER_OF_BYTES BIGINT,"
   "FLAGS INTEGER unsigned"
   ")ENGINE=PERFORMANCE_SCHEMA;";
 
@@ -260,11 +288,11 @@ SET @cmd="CREATE TABLE performance_schema.events_waits_history_long("
   "OBJECT_NAME VARCHAR(512),"
   "INDEX_NAME VARCHAR(64),"
   "OBJECT_TYPE VARCHAR(64),"
-  "OBJECT_INSTANCE_BEGIN BIGINT not null,"
+  "OBJECT_INSTANCE_BEGIN BIGINT unsigned not null,"
   "NESTING_EVENT_ID BIGINT unsigned,"
   "NESTING_EVENT_TYPE ENUM('STATEMENT', 'STAGE', 'WAIT'),"
   "OPERATION VARCHAR(32) not null,"
-  "NUMBER_OF_BYTES BIGINT unsigned,"
+  "NUMBER_OF_BYTES BIGINT,"
   "FLAGS INTEGER unsigned"
   ")ENGINE=PERFORMANCE_SCHEMA;";
 
@@ -279,7 +307,7 @@ DROP PREPARE stmt;
 
 SET @cmd="CREATE TABLE performance_schema.events_waits_summary_by_instance("
   "EVENT_NAME VARCHAR(128) not null,"
-  "OBJECT_INSTANCE_BEGIN BIGINT not null,"
+  "OBJECT_INSTANCE_BEGIN BIGINT unsigned not null,"
   "COUNT_STAR BIGINT unsigned not null,"
   "SUM_TIMER_WAIT BIGINT unsigned not null,"
   "MIN_TIMER_WAIT BIGINT unsigned not null,"
@@ -352,8 +380,8 @@ SET @cmd="CREATE TABLE performance_schema.file_summary_by_event_name("
   "EVENT_NAME VARCHAR(128) not null,"
   "COUNT_READ BIGINT unsigned not null,"
   "COUNT_WRITE BIGINT unsigned not null,"
-  "SUM_NUMBER_OF_BYTES_READ BIGINT unsigned not null,"
-  "SUM_NUMBER_OF_BYTES_WRITE BIGINT unsigned not null"
+  "SUM_NUMBER_OF_BYTES_READ BIGINT not null,"
+  "SUM_NUMBER_OF_BYTES_WRITE BIGINT not null"
   ")ENGINE=PERFORMANCE_SCHEMA;";
 
 SET @str = IF(@have_pfs = 1, @cmd, 'SET @dummy = 0');
@@ -370,8 +398,8 @@ SET @cmd="CREATE TABLE performance_schema.file_summary_by_instance("
   "EVENT_NAME VARCHAR(128) not null,"
   "COUNT_READ BIGINT unsigned not null,"
   "COUNT_WRITE BIGINT unsigned not null,"
-  "SUM_NUMBER_OF_BYTES_READ BIGINT unsigned not null,"
-  "SUM_NUMBER_OF_BYTES_WRITE BIGINT unsigned not null"
+  "SUM_NUMBER_OF_BYTES_READ BIGINT not null,"
+  "SUM_NUMBER_OF_BYTES_WRITE BIGINT not null"
   ")ENGINE=PERFORMANCE_SCHEMA;";
 
 SET @str = IF(@have_pfs = 1, @cmd, 'SET @dummy = 0');
@@ -385,7 +413,7 @@ DROP PREPARE stmt;
 
 SET @cmd="CREATE TABLE performance_schema.mutex_instances("
   "NAME VARCHAR(128) not null,"
-  "OBJECT_INSTANCE_BEGIN BIGINT not null,"
+  "OBJECT_INSTANCE_BEGIN BIGINT unsigned not null,"
   "LOCKED_BY_THREAD_ID INTEGER"
   ")ENGINE=PERFORMANCE_SCHEMA;";
 
@@ -436,7 +464,7 @@ DROP PREPARE stmt;
 
 SET @cmd="CREATE TABLE performance_schema.rwlock_instances("
   "NAME VARCHAR(128) not null,"
-  "OBJECT_INSTANCE_BEGIN BIGINT not null,"
+  "OBJECT_INSTANCE_BEGIN BIGINT unsigned not null,"
   "WRITE_LOCKED_BY_THREAD_ID INTEGER,"
   "READ_LOCKED_BY_COUNT INTEGER unsigned not null"
   ")ENGINE=PERFORMANCE_SCHEMA;";
@@ -850,7 +878,7 @@ SET @cmd="CREATE TABLE performance_schema.events_statements_current("
   "OBJECT_TYPE VARCHAR(64),"
   "OBJECT_SCHEMA VARCHAR(64),"
   "OBJECT_NAME VARCHAR(64),"
-  "OBJECT_INSTANCE_BEGIN BIGINT,"
+  "OBJECT_INSTANCE_BEGIN BIGINT unsigned,"
   "MYSQL_ERRNO INTEGER,"
   "RETURNED_SQLSTATE VARCHAR(5),"
   "MESSAGE_TEXT VARCHAR(128),"
@@ -899,7 +927,7 @@ SET @cmd="CREATE TABLE performance_schema.events_statements_history("
   "OBJECT_TYPE VARCHAR(64),"
   "OBJECT_SCHEMA VARCHAR(64),"
   "OBJECT_NAME VARCHAR(64),"
-  "OBJECT_INSTANCE_BEGIN BIGINT,"
+  "OBJECT_INSTANCE_BEGIN BIGINT unsigned,"
   "MYSQL_ERRNO INTEGER,"
   "RETURNED_SQLSTATE VARCHAR(5),"
   "MESSAGE_TEXT VARCHAR(128),"
@@ -948,7 +976,7 @@ SET @cmd="CREATE TABLE performance_schema.events_statements_history_long("
   "OBJECT_TYPE VARCHAR(64),"
   "OBJECT_SCHEMA VARCHAR(64),"
   "OBJECT_NAME VARCHAR(64),"
-  "OBJECT_INSTANCE_BEGIN BIGINT,"
+  "OBJECT_INSTANCE_BEGIN BIGINT unsigned,"
   "MYSQL_ERRNO INTEGER,"
   "RETURNED_SQLSTATE VARCHAR(5),"
   "MESSAGE_TEXT VARCHAR(128),"
