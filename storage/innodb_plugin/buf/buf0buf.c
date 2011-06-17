@@ -1358,7 +1358,7 @@ err_exit:
 		mutex_enter(block_mutex);
 
 		/* Discard the uncompressed page frame if possible. */
-		if (buf_LRU_free_block(bpage, FALSE) == BUF_LRU_FREED) {
+		if (buf_LRU_free_block(bpage, FALSE)) {
 
 			mutex_exit(block_mutex);
 			goto lookup;
@@ -1699,13 +1699,8 @@ loop:
 
 	if (block) {
 		/* If the guess is a compressed page descriptor that
-		has been allocated by buf_buddy_alloc(), it may have
-		been invalidated by buf_buddy_relocate().  In that
-		case, block could point to something that happens to
-		contain the expected bits in block->page.  Similarly,
-		the guess may be pointing to a buffer pool chunk that
-		has been released when resizing the buffer pool. */
-
+		has been allocated by buf_page_alloc_descriptor(),
+		it may have been freed by buf_relocate(). */
 		if (!buf_block_is_uncompressed(block)
 		    || offset != block->page.offset
 		    || space != block->page.space
@@ -1889,10 +1884,9 @@ wait_until_unfixed:
 		mutex_exit(&buf_pool_zip_mutex);
 		buf_pool->n_pend_unzip++;
 
-		bpage->state = BUF_BLOCK_ZIP_FREE;
-		buf_buddy_free(bpage, sizeof *bpage);
-
 		buf_pool_mutex_exit();
+
+		buf_page_free_descriptor(bpage);
 
 		/* Decompress the page and apply buffered operations
 		while not holding buf_pool_mutex or block->mutex. */
@@ -1937,7 +1931,7 @@ wait_until_unfixed:
 		/* Try to evict the block from the buffer pool, to use the
 		insert buffer as much as possible. */
 
-		if (buf_LRU_free_block(&block->page, TRUE) == BUF_LRU_FREED) {
+		if (buf_LRU_free_block(&block->page, TRUE)) {
 			buf_pool_mutex_exit();
 			mutex_exit(&block->mutex);
 			fprintf(stderr,
@@ -2551,17 +2545,12 @@ err_exit:
 
 		mutex_exit(&block->mutex);
 	} else {
-		/* Defer buf_buddy_alloc() until after the block has
-		been found not to exist.  The buf_buddy_alloc() and
-		buf_buddy_free() calls may be expensive because of
-		buf_buddy_relocate(). */
 
 		/* The compressed page must be allocated before the
 		control block (bpage), in order to avoid the
 		invocation of buf_buddy_relocate_block() on
 		uninitialized data. */
 		data = buf_buddy_alloc(zip_size, &lru);
-		bpage = buf_buddy_alloc(sizeof *bpage, &lru);
 
 		/* If buf_buddy_alloc() allocated storage from the LRU list,
 		it released and reacquired buf_pool_mutex.  Thus, we must
@@ -2569,14 +2558,12 @@ err_exit:
 		if (UNIV_UNLIKELY(lru)
 		    && UNIV_LIKELY_NULL(buf_page_hash_get(space, offset))) {
 
-			/* The block was added by some other thread. */
-			bpage->state = BUF_BLOCK_ZIP_FREE;
-			buf_buddy_free(bpage, sizeof *bpage);
 			buf_buddy_free(data, zip_size);
-
 			bpage = NULL;
 			goto func_exit;
 		}
+
+		bpage = buf_page_alloc_descriptor();
 
 		page_zip_des_init(&bpage->zip);
 		page_zip_set_size(&bpage->zip, zip_size);
