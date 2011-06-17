@@ -448,530 +448,6 @@ struct st_ndb_status {
   long long api_client_stats[Ndb::NumClientStatistics];
 };
 
-/**
- * This is a list of NdbQueryDef objects that have been created within a 
- * transaction. This list is kept to make sure that they are all released 
- * when the transaction ends.
- * An NdbQueryDef object is required to live longer than any NdbQuery object
- * instantiated from it. Since NdbQueryObjects may be kept until the 
- * transaction ends, this list is necessary.
- */
-class ndb_query_def_list
-{
-public:
-  ndb_query_def_list(const NdbQueryDef* def, const ndb_query_def_list* next):
-    m_def(def), m_next(next){}
-
-  const NdbQueryDef* get_def() const
-  { return m_def; }
-
-  const ndb_query_def_list* get_next() const
-  { return m_next; }
-
-private:
-  const NdbQueryDef* const m_def;
-  const ndb_query_def_list* const m_next;
-};
-
-
-/**
- * Try to find pushable subsets of a join plan.
- * @param hton unused (maybe useful for other engines).
- * @param thd Thread.
- * @param plan The join plan to examine.
- * @return Possible error code.
- */
-static
-int ndbcluster_make_pushed_join(handlerton *hton,
-                                THD* thd,
-                                AQP::Join_plan* plan)
-{
-  DBUG_ENTER("ndbcluster_make_pushed_join");
-  (void)ha_ndb_ext; // prevents compiler warning.
-
-  if (THDVAR(thd, join_pushdown))
-  {
-    ndb_pushed_builder_ctx pushed_builder(*plan);
-
-    for (uint i= 0; i < plan->get_access_count()-1; i++)
-    {
-      const AQP::Table_access* const join_root= plan->get_table_access(i);
-      const ndb_pushed_join* pushed_join= NULL;
-
-      // Try to build a ndb_pushed_join starting from 'join_root'
-      int error= pushed_builder.make_pushed_join(join_root, pushed_join);
-      if (unlikely(error))
-      {
-        if (error < 0)  // getNdbError() gives us the error code
-        {
-          ERR_SET(pushed_builder.getNdbError(),error);
-        }
-        join_root->get_table()->file->print_error(error, MYF(0));
-        DBUG_RETURN(error);
-      }
-
-      // Assign any produced pushed_join definitions to 
-      // the ha_ndbcluster instance representing its root.
-      if (pushed_join != NULL)
-      {
-        ha_ndbcluster* const handler=
-          static_cast<ha_ndbcluster*>(join_root->get_table()->file);
-
-        error= handler->assign_pushed_join(pushed_join);
-        if (unlikely(error))
-        {
-          delete pushed_join;
-          handler->print_error(error, MYF(0));
-          DBUG_RETURN(error);
-        }
-      }
-    }
-  }
-  DBUG_RETURN(0);
-} // ndbcluster_make_pushed_join
-  
-/**
- * In case a pushed join having the table for this handler as its root
- * has been produced. ::assign_pushed_join() is responsible for setting
- * up this ha_ndbcluster instance such that the prepared NdbQuery 
- * might be instantiated at execution time.
- */
-int
-ha_ndbcluster::assign_pushed_join(const ndb_pushed_join* pushed_join)
-{
-  DBUG_ENTER("assign_pushed_join");
-  const NdbQueryDef* const query_def= &pushed_join->get_query_def();
-
-  m_thd_ndb->m_pushed_queries_defined++;
-  /* 
-   * Append query definition to transaction specific list, so that it can be
-   * released when the transaction ends.  
-   */
-  const ndb_query_def_list* const list_item= 
-    new ndb_query_def_list(query_def, m_thd_ndb->m_query_defs);
-  if (unlikely(list_item == NULL))
-  {
-    DBUG_RETURN(HA_ERR_OUT_OF_MEM);
-  }
-  m_thd_ndb->m_query_defs = list_item;
-
-  for (uint i = 0; i < pushed_join->get_operation_count(); i++)
-  {
-    const TABLE* const tab= pushed_join->get_table(i);
-    DBUG_ASSERT(tab->file->ht == ht);
-    ha_ndbcluster* child= static_cast<ha_ndbcluster*>(tab->file);
-    child->m_pushed_join_member= pushed_join;
-    child->m_pushed_join_operation= i;
-  }
-
-  DBUG_PRINT("info", ("Assigned pushed join with %d child operations", 
-                      pushed_join->get_operation_count()-1));
-
-  DBUG_RETURN(0);
-} // ha_ndbcluster::assign_pushed_join()
-
-
-/*
-  Map from thr_lock_type to NdbOperation::LockMode
-*/
-static inline
-NdbOperation::LockMode get_ndb_lock_mode(enum thr_lock_type type)
-{
-  if (type >= TL_WRITE_ALLOW_WRITE)
-    return NdbOperation::LM_Exclusive;
-  if (type ==  TL_READ_WITH_SHARED_LOCKS)
-    return NdbOperation::LM_Read;
-  return NdbOperation::LM_CommittedRead;
-}
-
-/**
- * First level of filtering tables which *maybe* may be part of
- * a pushed query: Returning 'false' will eliminate this table
- * from being a part of a pushed join.
- * A 'reason' for rejecting this table is required if 'false'
- * is returned.
- */
-bool
-ha_ndbcluster::maybe_pushable_join(const char*& reason) const
-{
-  reason= "";
-  if (uses_blob_value(table->read_set))
-  {
-    reason= "select list can't contain BLOB columns";
-    return false;
-  }
-  if (m_user_defined_partitioning)
-  {
-    reason= "has user defined partioning";
-    return false;
-  }
-
-  // Pushed operations may not set locks.
-  const NdbOperation::LockMode lockMode= get_ndb_lock_mode(m_lock.type);
-  switch (lockMode)
-  {
-  case NdbOperation::LM_CommittedRead:
-    return true;
-
-  case NdbOperation::LM_Read:
-  case NdbOperation::LM_Exclusive:
-    reason= "lock modes other than 'read committed' not implemented";
-    return false;
-        
-  default: // Other lock modes not used by handler.
-    assert(false);
-    return false;
-  }
-
-  return true;
-} // ha_ndbcluster::is_pushable()
-
-
-/**
- * C++98 does not allow forward declarations of enum types. By using this 
- * class instead of using NdbQueryOperationDef::Type directly, 
- * ha_ndbcluster.h avoids including NdbQueryBuilder.h.
- */
-class NdbQueryOperationTypeWrapper
-{
-public:
-  /** Implcit conversion from NdbQueryOperationDef::Type.*/
-  NdbQueryOperationTypeWrapper(NdbQueryOperationDef::Type type)
-    :m_type(type)
-  {}
-
-  /** Implcit conversion to NdbQueryOperationDef::Type.*/
-  operator NdbQueryOperationDef::Type() const
-  { return m_type; }
-
-private:
-  const NdbQueryOperationDef::Type m_type;
-};
-
-
-/**
- * Check if this table access operation (and a number of succeding operation)
- * can be pushed to the cluster and executed there. This requires that there
- * is an NdbQueryDefiniton and that it still matches the corresponds to the 
- * type of operation that we intend to execute. (The MySQL server will 
- * sometimes change its mind and replace a scan with a lookup or vice versa
- * as it works its way into the nested loop join.)
- *
- * @param type This is the operation type that the server want to execute.
- * @param idx  Index used whenever relevant for operation type
- * @param rootSorted True if the root operation is an ordered index scan 
- * with sorted results.
- * @return True if the operation may be pushed.
- */
-bool 
-ha_ndbcluster::check_if_pushable(const NdbQueryOperationTypeWrapper& type, 
-                                 uint idx, bool needSorted) const
-{
-  if (m_pushed_join_operation != PUSHED_ROOT)
-  {
-    return FALSE;
-  }
-
-  const NdbQueryOperationDef* const root_operation= 
-    m_pushed_join_member->get_query_def().getQueryOperation((uint)PUSHED_ROOT);
-
-  const NdbQueryOperationTypeWrapper& query_def_type=  
-    root_operation->getType();
-
-  if (m_disable_pushed_join)
-  {
-    DBUG_PRINT("info", ("Push disabled (HA_EXTRA_KEYREAD)"));
-    return FALSE;
-  }
-
-  if (query_def_type != type)
-  {
-    DBUG_PRINT("info", 
-               ("Cannot execute push join. Root operation prepared as %s "
-                "not executable as %s w/ index %d",
-                NdbQueryOperationDef::getTypeName(query_def_type),
-                NdbQueryOperationDef::getTypeName(type), idx));
-    return FALSE;
-  }
-
-  const NdbDictionary::Index* const expected_index= root_operation->getIndex();
-
-  // Check that we still use the same index as when the query was prepared.
-  switch (type)
-  {
-  case NdbQueryOperationDef::PrimaryKeyAccess:
-    DBUG_ASSERT(idx==table->s->primary_key);
-    break;
-
-  case NdbQueryOperationDef::UniqueIndexAccess:
-    DBUG_ASSERT(idx<MAX_KEY);
-    //          DBUG_ASSERT(m_index[idx].unique_index == expected_index);
-    if (m_index[idx].unique_index != expected_index)
-    {
-      DBUG_PRINT("info", ("Actual index %s differs from expected index %s."
-                          "Therefore, join cannot be pushed.", 
-                          m_index[idx].unique_index->getName(),
-                          expected_index->getName()));
-      return FALSE;
-    }
-    break;
-
-  case NdbQueryOperationDef::TableScan:
-    DBUG_ASSERT (idx==0);
-    if (needSorted)
-    {
-      DBUG_PRINT("info", 
-                 ("TableScan access not not be provied as sorted result. " 
-                  "Therefore, join cannot be pushed."));
-      return FALSE;
-    }
-    break;
-
-  case NdbQueryOperationDef::OrderedIndexScan:
-    DBUG_ASSERT(idx<MAX_KEY);
-    //          DBUG_ASSERT(m_index[idx].index == expected_index);
-    if (m_index[idx].index != expected_index)
-    {
-      DBUG_PRINT("info", ("Actual index %s differs from expected index %s. "
-                          "Therefore, join cannot be pushed.", 
-                          m_index[idx].index->getName(),
-                          expected_index->getName()));
-      return FALSE;
-    }
-    break;
-
-  default:
-    DBUG_ASSERT(false);
-    break;
-  }
-
-  // There may be referrences to Field values from tables outside the scope of
-  // our pushed join which are supplied as paramValues().
-  // If any of these are NULL values, join can't be pushed
-  for (uint i= 0; i < m_pushed_join_member->get_field_referrences_count(); i++)
-  {
-    Field* field= m_pushed_join_member->get_field_ref(i);
-    if (field->is_real_null())
-    {
-      DBUG_PRINT("info", 
-                 ("paramValue is NULL, can not execute as pushed join"));
-      return FALSE;
-    }
-  }
-
-  return TRUE;
-}
-
-
-static
-bool
-is_shrinked_varchar(const Field *field)
-{
-  if (field->real_type() ==  MYSQL_TYPE_VARCHAR)
-  {
-    if (((Field_varstring*)field)->length_bytes == 1)
-      return true;
-  }
-  
-  return false;
-}
-
-
-int
-ha_ndbcluster::create_pushed_join(NdbQueryParamValue* paramValues, uint paramOffs)
-{
-  DBUG_ENTER("create_pushed_join");
-  DBUG_ASSERT(m_pushed_join_operation == PUSHED_ROOT);
-  DBUG_PRINT("info", 
-             ("executing chain of %d pushed joins."
-              " First table is %s, accessed as %s.", 
-              m_pushed_join_member->get_operation_count(),
-              m_pushed_join_member->get_table(0)->alias,
-              NdbQueryOperationDef::getTypeName(
-                m_pushed_join_member->get_query_def().getQueryOperation((uint)PUSHED_ROOT)->getType()))
-             );
-
-  // There may be referrences to Field values from tables outside the scope of
-  // our pushed join: These are expected to be supplied as paramValues()
-  for (uint i= 0; i < m_pushed_join_member->get_field_referrences_count(); i++)
-  {
-    Field* field= m_pushed_join_member->get_field_ref(i);
-    DBUG_ASSERT(!field->is_real_null());  // Checked by ::check_if_pushable()
-    paramValues[paramOffs+i]= NdbQueryParamValue(field->ptr, false);
-  }
-
-  NdbQuery* const query= m_thd_ndb->trans->createQuery(&m_pushed_join_member->get_query_def(), paramValues);
-  if (unlikely(query==NULL))
-    ERR_RETURN(m_thd_ndb->trans->getNdbError());
-
-  // Bind to instantiated NdbQueryOperations.
-  for (uint i= 0; i < m_pushed_join_member->get_operation_count(); i++)
-  {
-    const TABLE* const tab= m_pushed_join_member->get_table(i);
-    ha_ndbcluster* handler= static_cast<ha_ndbcluster*>(tab->file);
-
-    DBUG_ASSERT(handler->m_pushed_join_operation==(int)i);
-    NdbQueryOperation* const op= query->getQueryOperation(i);
-    handler->m_pushed_operation= op;
-
-    // Bind to result buffers
-    const NdbRecord* const resultRec= handler->m_ndb_record;
-    int res= op->setResultRowRef(
-                        resultRec,
-                        handler->_m_next_row,
-                        (uchar *)(tab->read_set->bitmap));
-    if (unlikely(res))
-      ERR_RETURN(query->getNdbError());
-    
-    // We clear 'm_next_row' to say that no row was fetched from the query yet.
-    handler->_m_next_row= 0;
-  }
-
-  DBUG_ASSERT(m_active_query==NULL);
-  m_active_query= query;
-  m_thd_ndb->m_pushed_queries_executed++;
-
-  DBUG_RETURN(0);
-} // ha_ndbcluster::create_pushed_join
-
-
-/**
- * Check if this table access operation is part of a pushed join operation
- * which is actively executing.
- */
-bool 
-ha_ndbcluster::check_is_pushed() const
-{
-  if (m_pushed_join_member == NULL)
-    return false;
-
-  handler *root= m_pushed_join_member->get_table(PUSHED_ROOT)->file;
-  return (static_cast<ha_ndbcluster*>(root)->m_active_query);
-}
-
-uint 
-ha_ndbcluster::number_of_pushed_joins() const
-{
-  if (m_pushed_join_member == NULL)
-    return 0;
-  else
-    return m_pushed_join_member->get_operation_count();
-}
-
-const TABLE*
-ha_ndbcluster::root_of_pushed_join() const
-{
-  if (m_pushed_join_member == NULL)
-    return NULL;
-  else
-    return m_pushed_join_member->get_table(PUSHED_ROOT);
-}
-
-const TABLE*
-ha_ndbcluster::parent_of_pushed_join() const
-{
-  if (m_pushed_join_operation > PUSHED_ROOT)
-  {
-    DBUG_ASSERT(m_pushed_join_member!=NULL);
-    uint parent_ix= m_pushed_join_member
-                    ->get_query_def().getQueryOperation(m_pushed_join_operation)
-                    ->getParentOperation(0)
-                    ->getQueryOperationIx();
-    return m_pushed_join_member->get_table(parent_ix);
-  }
-  return NULL;
-}
-
-bool
-ha_ndbcluster::test_push_flag(enum ha_push_flag flag) const
-{
-  DBUG_ENTER("test_push_flag");
-  switch (flag) {
-  case HA_PUSH_BLOCK_CONST_TABLE:
-  {
-    /**
-     * We don't support join push down if...
-     *   - not LM_CommittedRead
-     *   - uses blobs
-     */
-    THD *thd= current_thd;
-    if (unlikely(!THDVAR(thd, join_pushdown)))
-      DBUG_RETURN(false);
-
-    if (table->read_set != NULL && uses_blob_value(table->read_set))
-    {
-      DBUG_RETURN(false);
-    }
-
-    NdbOperation::LockMode lm= get_ndb_lock_mode(m_lock.type);
-
-    if (lm != NdbOperation::LM_CommittedRead)
-    {
-      DBUG_RETURN(false);
-    }
-
-    DBUG_RETURN(true);
-  }
-  case HA_PUSH_MULTIPLE_DEPENDENCY:
-    /**
-     * If any child operation within this pushed join refer 
-     * column values (paramValues), the pushed join has dependencies
-     * in addition to the root operation itself.
-     */
-    if (m_pushed_join_operation==PUSHED_ROOT &&
-        m_pushed_join_member->get_field_referrences_count() > 0)  // Childs has field refs
-    {
-      DBUG_RETURN(true);
-    }
-    DBUG_RETURN(false);
-
-  case HA_PUSH_NO_ORDERED_INDEX:
-  {
-    if (m_pushed_join_operation != PUSHED_ROOT)
-    {
-      DBUG_RETURN(true);
-    }
-    const NdbQueryDef& query_def = m_pushed_join_member->get_query_def();
-    const NdbQueryOperationTypeWrapper& root_type=
-      query_def.getQueryOperation((uint)PUSHED_ROOT)->getType();
-
-    /**
-     * Primary key/ unique key lookup is always 'ordered' wrt. itself.
-     */
-    if (root_type == NdbQueryOperationDef::PrimaryKeyAccess  ||
-        root_type == NdbQueryOperationDef::UniqueIndexAccess)
-    {
-      DBUG_RETURN(false);
-    }
-
-    /**
-     * Ordered index scan can be provided as an ordered resultset iff
-     * it has no child scans.
-     */
-    if (root_type == NdbQueryOperationDef::OrderedIndexScan)
-    {
-      for (uint i= 1; i < query_def.getNoOfOperations(); i++)
-      {
-        const NdbQueryOperationTypeWrapper& child_type=
-          query_def.getQueryOperation(i)->getType();
-        if (child_type == NdbQueryOperationDef::TableScan ||
-            child_type == NdbQueryOperationDef::OrderedIndexScan)
-        {
-          DBUG_RETURN(true);
-        }
-      }
-      DBUG_RETURN(false);
-    }
-    DBUG_RETURN(true);
-  }
-
-  default:
-    DBUG_ASSERT(0);
-    DBUG_RETURN(false);
-  }
-  DBUG_RETURN(false);
-}
-
 static struct st_ndb_status g_ndb_status;
 static long g_ndb_status_conflict_fn_max= 0;
 static long g_ndb_status_conflict_fn_old= 0;
@@ -1166,6 +642,32 @@ static int show_ndb_server_api_stats(THD *thd, SHOW_VAR *var, char *buff)
   return 0;
 }
 
+#ifndef NO_PUSHED_JOIN
+
+/**
+ * C++98 does not allow forward declarations of enum types. By using this 
+ * class instead of using NdbQueryOperationDef::Type directly, 
+ * ha_ndbcluster.h avoids including NdbQueryBuilder.h.
+ */
+class NdbQueryOperationTypeWrapper
+{
+public:
+  /** Implcit conversion from NdbQueryOperationDef::Type.*/
+  NdbQueryOperationTypeWrapper(NdbQueryOperationDef::Type type)
+    :m_type(type)
+  {}
+
+  /** Implcit conversion to NdbQueryOperationDef::Type.*/
+  operator NdbQueryOperationDef::Type() const
+  { return m_type; }
+
+private:
+  const NdbQueryOperationDef::Type m_type;
+};
+
+static int ndbcluster_make_pushed_join(handlerton *, THD*,AQP::Join_plan*);
+
+#endif
 
 /*
   Error handling functions
@@ -1654,21 +1156,6 @@ Thd_ndb::init_open_tables()
   m_error= FALSE;
   m_error_code= 0;
   my_hash_reset(&open_tables);
-}
-
-void
-Thd_ndb::release_query_defs()
-{
-  // DBUG_PRINT("info", ("release_query_defs() this=%p.", this));
-  const ndb_query_def_list* current = m_query_defs;
-  while (current != NULL)
-  {
-    current->get_def()->destroy();
-    const ndb_query_def_list* const previous = current;
-    current = current->get_next();
-    delete previous;
-  }
-  m_query_defs = NULL;
 }
 
 inline
@@ -3337,6 +2824,20 @@ void ha_ndbcluster::release_metadata(THD *thd, Ndb *ndb)
 }
 
 
+/*
+  Map from thr_lock_type to NdbOperation::LockMode
+*/
+static inline
+NdbOperation::LockMode get_ndb_lock_mode(enum thr_lock_type type)
+{
+  if (type >= TL_WRITE_ALLOW_WRITE)
+    return NdbOperation::LM_Exclusive;
+  if (type ==  TL_READ_WITH_SHARED_LOCKS)
+    return NdbOperation::LM_Read;
+  return NdbOperation::LM_CommittedRead;
+}
+
+
 static const ulong index_type_flags[]=
 {
   /* UNDEFINED_INDEX */
@@ -4267,6 +3768,19 @@ ha_ndbcluster::pk_unique_index_read_key(uint idx, const uchar *key, uchar *buf,
 }
 
 extern void sql_print_information(const char *format, ...);
+
+static
+bool
+is_shrinked_varchar(const Field *field)
+{
+  if (field->real_type() ==  MYSQL_TYPE_VARCHAR)
+  {
+    if (((Field_varstring*)field)->length_bytes == 1)
+      return true;
+  }
+
+  return false;
+}
 
 int
 ha_ndbcluster::pk_unique_index_read_key_pushed(uint idx, 
@@ -14366,6 +13880,497 @@ ha_ndbcluster::read_multi_range_fetch_next()
   }
   DBUG_RETURN(0);
 }
+#endif
+
+#ifndef NO_PUSHED_JOIN
+
+/**
+ * This is a list of NdbQueryDef objects that have been created within a 
+ * transaction. This list is kept to make sure that they are all released 
+ * when the transaction ends.
+ * An NdbQueryDef object is required to live longer than any NdbQuery object
+ * instantiated from it. Since NdbQueryObjects may be kept until the 
+ * transaction ends, this list is necessary.
+ */
+class ndb_query_def_list
+{
+public:
+  ndb_query_def_list(const NdbQueryDef* def, const ndb_query_def_list* next):
+    m_def(def), m_next(next){}
+
+  const NdbQueryDef* get_def() const
+  { return m_def; }
+
+  const ndb_query_def_list* get_next() const
+  { return m_next; }
+
+private:
+  const NdbQueryDef* const m_def;
+  const ndb_query_def_list* const m_next;
+};
+
+void
+Thd_ndb::release_query_defs()
+{
+  // DBUG_PRINT("info", ("release_query_defs() this=%p.", this));
+  const ndb_query_def_list* current = m_query_defs;
+  while (current != NULL)
+  {
+    current->get_def()->destroy();
+    const ndb_query_def_list* const previous = current;
+    current = current->get_next();
+    delete previous;
+  }
+  m_query_defs = NULL;
+}
+
+/**
+ * Try to find pushable subsets of a join plan.
+ * @param hton unused (maybe useful for other engines).
+ * @param thd Thread.
+ * @param plan The join plan to examine.
+ * @return Possible error code.
+ */
+static
+int ndbcluster_make_pushed_join(handlerton *hton,
+                                THD* thd,
+                                AQP::Join_plan* plan)
+{
+  DBUG_ENTER("ndbcluster_make_pushed_join");
+  (void)ha_ndb_ext; // prevents compiler warning.
+
+  if (THDVAR(thd, join_pushdown))
+  {
+    ndb_pushed_builder_ctx pushed_builder(*plan);
+
+    for (uint i= 0; i < plan->get_access_count()-1; i++)
+    {
+      const AQP::Table_access* const join_root= plan->get_table_access(i);
+      const ndb_pushed_join* pushed_join= NULL;
+
+      // Try to build a ndb_pushed_join starting from 'join_root'
+      int error= pushed_builder.make_pushed_join(join_root, pushed_join);
+      if (unlikely(error))
+      {
+        if (error < 0)  // getNdbError() gives us the error code
+        {
+          ERR_SET(pushed_builder.getNdbError(),error);
+        }
+        join_root->get_table()->file->print_error(error, MYF(0));
+        DBUG_RETURN(error);
+      }
+
+      // Assign any produced pushed_join definitions to 
+      // the ha_ndbcluster instance representing its root.
+      if (pushed_join != NULL)
+      {
+        ha_ndbcluster* const handler=
+          static_cast<ha_ndbcluster*>(join_root->get_table()->file);
+
+        error= handler->assign_pushed_join(pushed_join);
+        if (unlikely(error))
+        {
+          delete pushed_join;
+          handler->print_error(error, MYF(0));
+          DBUG_RETURN(error);
+        }
+      }
+    }
+  }
+  DBUG_RETURN(0);
+} // ndbcluster_make_pushed_join
+  
+/**
+ * In case a pushed join having the table for this handler as its root
+ * has been produced. ::assign_pushed_join() is responsible for setting
+ * up this ha_ndbcluster instance such that the prepared NdbQuery 
+ * might be instantiated at execution time.
+ */
+int
+ha_ndbcluster::assign_pushed_join(const ndb_pushed_join* pushed_join)
+{
+  DBUG_ENTER("assign_pushed_join");
+  const NdbQueryDef* const query_def= &pushed_join->get_query_def();
+
+  m_thd_ndb->m_pushed_queries_defined++;
+  /* 
+   * Append query definition to transaction specific list, so that it can be
+   * released when the transaction ends.  
+   */
+  const ndb_query_def_list* const list_item= 
+    new ndb_query_def_list(query_def, m_thd_ndb->m_query_defs);
+  if (unlikely(list_item == NULL))
+  {
+    DBUG_RETURN(HA_ERR_OUT_OF_MEM);
+  }
+  m_thd_ndb->m_query_defs = list_item;
+
+  for (uint i = 0; i < pushed_join->get_operation_count(); i++)
+  {
+    const TABLE* const tab= pushed_join->get_table(i);
+    DBUG_ASSERT(tab->file->ht == ht);
+    ha_ndbcluster* child= static_cast<ha_ndbcluster*>(tab->file);
+    child->m_pushed_join_member= pushed_join;
+    child->m_pushed_join_operation= i;
+  }
+
+  DBUG_PRINT("info", ("Assigned pushed join with %d child operations", 
+                      pushed_join->get_operation_count()-1));
+
+  DBUG_RETURN(0);
+} // ha_ndbcluster::assign_pushed_join()
+
+
+/**
+ * First level of filtering tables which *maybe* may be part of
+ * a pushed query: Returning 'false' will eliminate this table
+ * from being a part of a pushed join.
+ * A 'reason' for rejecting this table is required if 'false'
+ * is returned.
+ */
+bool
+ha_ndbcluster::maybe_pushable_join(const char*& reason) const
+{
+  reason= "";
+  if (uses_blob_value(table->read_set))
+  {
+    reason= "select list can't contain BLOB columns";
+    return false;
+  }
+  if (m_user_defined_partitioning)
+  {
+    reason= "has user defined partioning";
+    return false;
+  }
+
+  // Pushed operations may not set locks.
+  const NdbOperation::LockMode lockMode= get_ndb_lock_mode(m_lock.type);
+  switch (lockMode)
+  {
+  case NdbOperation::LM_CommittedRead:
+    return true;
+
+  case NdbOperation::LM_Read:
+  case NdbOperation::LM_Exclusive:
+    reason= "lock modes other than 'read committed' not implemented";
+    return false;
+        
+  default: // Other lock modes not used by handler.
+    assert(false);
+    return false;
+  }
+
+  return true;
+} // ha_ndbcluster::is_pushable()
+
+/**
+ * Check if this table access operation (and a number of succeding operation)
+ * can be pushed to the cluster and executed there. This requires that there
+ * is an NdbQueryDefiniton and that it still matches the corresponds to the 
+ * type of operation that we intend to execute. (The MySQL server will 
+ * sometimes change its mind and replace a scan with a lookup or vice versa
+ * as it works its way into the nested loop join.)
+ *
+ * @param type This is the operation type that the server want to execute.
+ * @param idx  Index used whenever relevant for operation type
+ * @param rootSorted True if the root operation is an ordered index scan 
+ * with sorted results.
+ * @return True if the operation may be pushed.
+ */
+bool 
+ha_ndbcluster::check_if_pushable(const NdbQueryOperationTypeWrapper& type, 
+                                 uint idx, bool needSorted) const
+{
+  if (m_pushed_join_operation != PUSHED_ROOT)
+  {
+    return FALSE;
+  }
+
+  const NdbQueryOperationDef* const root_operation= 
+    m_pushed_join_member->get_query_def().getQueryOperation((uint)PUSHED_ROOT);
+
+  const NdbQueryOperationTypeWrapper& query_def_type=  
+    root_operation->getType();
+
+  if (m_disable_pushed_join)
+  {
+    DBUG_PRINT("info", ("Push disabled (HA_EXTRA_KEYREAD)"));
+    return FALSE;
+  }
+
+  if (query_def_type != type)
+  {
+    DBUG_PRINT("info", 
+               ("Cannot execute push join. Root operation prepared as %s "
+                "not executable as %s w/ index %d",
+                NdbQueryOperationDef::getTypeName(query_def_type),
+                NdbQueryOperationDef::getTypeName(type), idx));
+    return FALSE;
+  }
+
+  const NdbDictionary::Index* const expected_index= root_operation->getIndex();
+
+  // Check that we still use the same index as when the query was prepared.
+  switch (type)
+  {
+  case NdbQueryOperationDef::PrimaryKeyAccess:
+    DBUG_ASSERT(idx==table->s->primary_key);
+    break;
+
+  case NdbQueryOperationDef::UniqueIndexAccess:
+    DBUG_ASSERT(idx<MAX_KEY);
+    //          DBUG_ASSERT(m_index[idx].unique_index == expected_index);
+    if (m_index[idx].unique_index != expected_index)
+    {
+      DBUG_PRINT("info", ("Actual index %s differs from expected index %s."
+                          "Therefore, join cannot be pushed.", 
+                          m_index[idx].unique_index->getName(),
+                          expected_index->getName()));
+      return FALSE;
+    }
+    break;
+
+  case NdbQueryOperationDef::TableScan:
+    DBUG_ASSERT (idx==0);
+    if (needSorted)
+    {
+      DBUG_PRINT("info", 
+                 ("TableScan access not not be provied as sorted result. " 
+                  "Therefore, join cannot be pushed."));
+      return FALSE;
+    }
+    break;
+
+  case NdbQueryOperationDef::OrderedIndexScan:
+    DBUG_ASSERT(idx<MAX_KEY);
+    //          DBUG_ASSERT(m_index[idx].index == expected_index);
+    if (m_index[idx].index != expected_index)
+    {
+      DBUG_PRINT("info", ("Actual index %s differs from expected index %s. "
+                          "Therefore, join cannot be pushed.", 
+                          m_index[idx].index->getName(),
+                          expected_index->getName()));
+      return FALSE;
+    }
+    break;
+
+  default:
+    DBUG_ASSERT(false);
+    break;
+  }
+
+  // There may be referrences to Field values from tables outside the scope of
+  // our pushed join which are supplied as paramValues().
+  // If any of these are NULL values, join can't be pushed
+  for (uint i= 0; i < m_pushed_join_member->get_field_referrences_count(); i++)
+  {
+    Field* field= m_pushed_join_member->get_field_ref(i);
+    if (field->is_real_null())
+    {
+      DBUG_PRINT("info", 
+                 ("paramValue is NULL, can not execute as pushed join"));
+      return FALSE;
+    }
+  }
+
+  return TRUE;
+}
+
+int
+ha_ndbcluster::create_pushed_join(NdbQueryParamValue* paramValues, uint paramOffs)
+{
+  DBUG_ENTER("create_pushed_join");
+  DBUG_ASSERT(m_pushed_join_operation == PUSHED_ROOT);
+  DBUG_PRINT("info", 
+             ("executing chain of %d pushed joins."
+              " First table is %s, accessed as %s.", 
+              m_pushed_join_member->get_operation_count(),
+              m_pushed_join_member->get_table(0)->alias,
+              NdbQueryOperationDef::getTypeName(
+                m_pushed_join_member->get_query_def().getQueryOperation((uint)PUSHED_ROOT)->getType()))
+             );
+
+  // There may be referrences to Field values from tables outside the scope of
+  // our pushed join: These are expected to be supplied as paramValues()
+  for (uint i= 0; i < m_pushed_join_member->get_field_referrences_count(); i++)
+  {
+    Field* field= m_pushed_join_member->get_field_ref(i);
+    DBUG_ASSERT(!field->is_real_null());  // Checked by ::check_if_pushable()
+    paramValues[paramOffs+i]= NdbQueryParamValue(field->ptr, false);
+  }
+
+  NdbQuery* const query= m_thd_ndb->trans->createQuery(&m_pushed_join_member->get_query_def(), paramValues);
+  if (unlikely(query==NULL))
+    ERR_RETURN(m_thd_ndb->trans->getNdbError());
+
+  // Bind to instantiated NdbQueryOperations.
+  for (uint i= 0; i < m_pushed_join_member->get_operation_count(); i++)
+  {
+    const TABLE* const tab= m_pushed_join_member->get_table(i);
+    ha_ndbcluster* handler= static_cast<ha_ndbcluster*>(tab->file);
+
+    DBUG_ASSERT(handler->m_pushed_join_operation==(int)i);
+    NdbQueryOperation* const op= query->getQueryOperation(i);
+    handler->m_pushed_operation= op;
+
+    // Bind to result buffers
+    const NdbRecord* const resultRec= handler->m_ndb_record;
+    int res= op->setResultRowRef(
+                        resultRec,
+                        handler->_m_next_row,
+                        (uchar *)(tab->read_set->bitmap));
+    if (unlikely(res))
+      ERR_RETURN(query->getNdbError());
+    
+    // We clear 'm_next_row' to say that no row was fetched from the query yet.
+    handler->_m_next_row= 0;
+  }
+
+  DBUG_ASSERT(m_active_query==NULL);
+  m_active_query= query;
+  m_thd_ndb->m_pushed_queries_executed++;
+
+  DBUG_RETURN(0);
+} // ha_ndbcluster::create_pushed_join
+
+
+/**
+ * Check if this table access operation is part of a pushed join operation
+ * which is actively executing.
+ */
+bool 
+ha_ndbcluster::check_is_pushed() const
+{
+  if (m_pushed_join_member == NULL)
+    return false;
+
+  handler *root= m_pushed_join_member->get_table(PUSHED_ROOT)->file;
+  return (static_cast<ha_ndbcluster*>(root)->m_active_query);
+}
+
+uint 
+ha_ndbcluster::number_of_pushed_joins() const
+{
+  if (m_pushed_join_member == NULL)
+    return 0;
+  else
+    return m_pushed_join_member->get_operation_count();
+}
+
+const TABLE*
+ha_ndbcluster::root_of_pushed_join() const
+{
+  if (m_pushed_join_member == NULL)
+    return NULL;
+  else
+    return m_pushed_join_member->get_table(PUSHED_ROOT);
+}
+
+const TABLE*
+ha_ndbcluster::parent_of_pushed_join() const
+{
+  if (m_pushed_join_operation > PUSHED_ROOT)
+  {
+    DBUG_ASSERT(m_pushed_join_member!=NULL);
+    uint parent_ix= m_pushed_join_member
+                    ->get_query_def().getQueryOperation(m_pushed_join_operation)
+                    ->getParentOperation(0)
+                    ->getQueryOperationIx();
+    return m_pushed_join_member->get_table(parent_ix);
+  }
+  return NULL;
+}
+
+bool
+ha_ndbcluster::test_push_flag(enum ha_push_flag flag) const
+{
+  DBUG_ENTER("test_push_flag");
+  switch (flag) {
+  case HA_PUSH_BLOCK_CONST_TABLE:
+  {
+    /**
+     * We don't support join push down if...
+     *   - not LM_CommittedRead
+     *   - uses blobs
+     */
+    THD *thd= current_thd;
+    if (unlikely(!THDVAR(thd, join_pushdown)))
+      DBUG_RETURN(false);
+
+    if (table->read_set != NULL && uses_blob_value(table->read_set))
+    {
+      DBUG_RETURN(false);
+    }
+
+    NdbOperation::LockMode lm= get_ndb_lock_mode(m_lock.type);
+
+    if (lm != NdbOperation::LM_CommittedRead)
+    {
+      DBUG_RETURN(false);
+    }
+
+    DBUG_RETURN(true);
+  }
+  case HA_PUSH_MULTIPLE_DEPENDENCY:
+    /**
+     * If any child operation within this pushed join refer 
+     * column values (paramValues), the pushed join has dependencies
+     * in addition to the root operation itself.
+     */
+    if (m_pushed_join_operation==PUSHED_ROOT &&
+        m_pushed_join_member->get_field_referrences_count() > 0)  // Childs has field refs
+    {
+      DBUG_RETURN(true);
+    }
+    DBUG_RETURN(false);
+
+  case HA_PUSH_NO_ORDERED_INDEX:
+  {
+    if (m_pushed_join_operation != PUSHED_ROOT)
+    {
+      DBUG_RETURN(true);
+    }
+    const NdbQueryDef& query_def = m_pushed_join_member->get_query_def();
+    const NdbQueryOperationTypeWrapper& root_type=
+      query_def.getQueryOperation((uint)PUSHED_ROOT)->getType();
+
+    /**
+     * Primary key/ unique key lookup is always 'ordered' wrt. itself.
+     */
+    if (root_type == NdbQueryOperationDef::PrimaryKeyAccess  ||
+        root_type == NdbQueryOperationDef::UniqueIndexAccess)
+    {
+      DBUG_RETURN(false);
+    }
+
+    /**
+     * Ordered index scan can be provided as an ordered resultset iff
+     * it has no child scans.
+     */
+    if (root_type == NdbQueryOperationDef::OrderedIndexScan)
+    {
+      for (uint i= 1; i < query_def.getNoOfOperations(); i++)
+      {
+        const NdbQueryOperationTypeWrapper& child_type=
+          query_def.getQueryOperation(i)->getType();
+        if (child_type == NdbQueryOperationDef::TableScan ||
+            child_type == NdbQueryOperationDef::OrderedIndexScan)
+        {
+          DBUG_RETURN(true);
+        }
+      }
+      DBUG_RETURN(false);
+    }
+    DBUG_RETURN(true);
+  }
+
+  default:
+    DBUG_ASSERT(0);
+    DBUG_RETURN(false);
+  }
+  DBUG_RETURN(false);
+}
+
 #endif
 
 /**
