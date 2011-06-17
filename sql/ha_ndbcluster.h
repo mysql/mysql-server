@@ -71,12 +71,6 @@ typedef struct ndb_index_data {
   const NdbDictionary::Index *unique_index;
   unsigned char *unique_index_attrid_map;
   bool null_in_unique_index;
-  // In this version stats are not shared between threads
-  NdbIndexStat* index_stat;
-  uint index_stat_cache_entries;
-  // Simple counter mechanism to decide when to connect to db
-  uint index_stat_update_freq;
-  uint index_stat_query_count;
   /*
     In mysqld, keys and rows are stored differently (using KEY_PART_INFO for
     keys and Field for rows).
@@ -251,6 +245,7 @@ typedef struct st_ndbcluster_share {
   char *table_name;
   Ndb::TupleIdRange tuple_id_range;
   struct Ndb_statistics stat;
+  struct Ndb_index_stat *index_stat_list;
   bool util_thread; // if opened by util thread
   uint32 connect_count;
   uint32 flags;
@@ -451,6 +446,23 @@ class Thd_ndb
   bool recycle_ndb(THD* thd);
 };
 
+struct st_ndb_status {
+  st_ndb_status() { bzero(this, sizeof(struct st_ndb_status)); }
+  long cluster_node_id;
+  const char * connected_host;
+  long connected_port;
+  long number_of_replicas;
+  long number_of_data_nodes;
+  long number_of_ready_data_nodes;
+  long connect_count;
+  long execute_count;
+  long scan_count;
+  long pruned_scan_count;
+  long transaction_no_hint_count[MAX_NDB_NODES];
+  long transaction_hint_count[MAX_NDB_NODES];
+  long long api_client_stats[Ndb::NumClientStatistics];
+};
+
 int ndbcluster_commit(handlerton *hton, THD *thd, bool all);
 class ha_ndbcluster: public handler
 {
@@ -467,6 +479,7 @@ class ha_ndbcluster: public handler
 
   int optimize(THD* thd, HA_CHECK_OPT* check_opt);
   int analyze(THD* thd, HA_CHECK_OPT* check_opt);
+  int analyze_index(THD* thd);
 
   int write_row(uchar *buf);
   int update_row(const uchar *old_data, uchar *new_data);
@@ -826,6 +839,21 @@ private:
   void no_uncommitted_rows_update(int);
   void no_uncommitted_rows_reset(THD *);
 
+  /* Ordered index statistics v4 */
+  int ndb_index_stat_get_rir(uint inx,
+                             key_range *min_key,
+                             key_range *max_key,
+                             ha_rows *rows_out);
+  int ndb_index_stat_set_rpk(uint inx);
+  int ndb_index_stat_wait(Ndb_index_stat *st,
+                          uint sample_version);
+  int ndb_index_stat_query(uint inx,
+                           const key_range *min_key,
+                           const key_range *max_key,
+                           NdbIndexStat::Stat& stat);
+  int ndb_index_stat_analyze(Ndb *ndb,
+                             uint *inx_list,
+                             uint inx_count);
 
   NdbTransaction *start_transaction_part_id(uint32 part_id, int &error);
   inline NdbTransaction *get_transaction_part_id(uint32 part_id, int &error)
@@ -971,3 +999,5 @@ static const int ndbcluster_hton_name_length=sizeof(ndbcluster_hton_name)-1;
 extern int ndbcluster_terminating;
 extern int ndb_util_thread_running;
 extern pthread_cond_t COND_ndb_util_ready;
+extern int ndb_index_stat_thread_running;
+extern pthread_cond_t COND_ndb_index_stat_ready;
