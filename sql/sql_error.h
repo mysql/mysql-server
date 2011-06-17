@@ -295,20 +295,15 @@ public:
       clear_warning_info(query_id);
   }
 
-  void append_warning_info(THD *thd, const Warning_info *source)
-  {
-    append_warnings(thd, & source->m_warn_list);
-  }
-
-private:
   /**
     Concatenate the list of warnings.
     It's considered tolerable to lose a warning.
   */
-  void append_warnings(THD *thd, const List *src)
+  void append_warning_info(THD *thd, const Warning_info *source)
   {
-    MYSQL_ERROR *err;
-    Iterator it(*src);
+    const MYSQL_ERROR *err;
+    Const_iterator it(source->m_warn_list);
+
     /*
       Don't use ::push_warning() to avoid invocation of condition
       handlers or escalation of warnings to errors.
@@ -317,7 +312,6 @@ private:
       Warning_info::push_warning(thd, err);
   }
 
-public:
   /**
     Conditional merge of related warning information areas.
   */
