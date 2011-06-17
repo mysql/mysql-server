@@ -63,6 +63,7 @@ noinst_HEADERS =	item.h item_func.h item_sum.h item_cmpfunc.h \
 			ha_ndbcluster_connection.h ha_ndbcluster_connection.h \
 			ha_ndbcluster_lock_ext.h ha_ndbinfo.h \
 			ha_ndbcluster_glue.h \
+			ha_ndb_index_stat.h \
 			ha_partition.h rpl_constants.h \
 			debug_sync.h \
 			opt_range.h protocol.h rpl_tblmap.h rpl_utility.h \
@@ -139,6 +140,7 @@ libndb_la_SOURCES=	ha_ndbcluster.cc \
 			ha_ndbcluster_connection.cc \
 			ha_ndbcluster_cond.cc \
 			ha_ndbcluster_push.cc \
+			ha_ndb_index_stat.cc \
 			ha_ndbinfo.cc
 
 gen_lex_hash_SOURCES =	gen_lex_hash.cc
