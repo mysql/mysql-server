@@ -20,6 +20,7 @@
 #include <NdbApi.hpp>
 #include <NDBT.hpp>
 #include <NdbIndexStatImpl.hpp>
+#include <ndb_rand.h>
 
 // stats options
 static const char* _dbname = 0;
@@ -93,7 +94,7 @@ doconnect()
 
     g_dic = g_ndb->getDictionary();
 
-    g_ndb_sys = new Ndb(g_ncc, "mysql");
+    g_ndb_sys = new Ndb(g_ncc, NDB_INDEX_STAT_DB);
     CHK2(g_ndb_sys->init() == 0, g_ndb_sys->getNdbError());
     CHK2(g_ndb_sys->waitUntilReady(30) == 0, g_ndb_sys->getNdbError());
 
@@ -207,18 +208,18 @@ doquery()
         NdbIndexStat::Bound& b = (i == 0 ? b_lo : b_hi);
 
         bool strict = false;
-        if (random() % 3 != 0)
+        if (ndb_rand() % 3 != 0)
         {
-          if (random() % 3 != 0)
+          if (ndb_rand() % 3 != 0)
           {
-            Uint32 x = random();
+            Uint32 x = ndb_rand();
             CHK2(g_is->add_bound(b, &x) == 0, g_is->getNdbError());
           }
           else
           {
             CHK2(g_is->add_bound_null(b) == 0, g_is->getNdbError());
           }
-          bool strict = (random() % 2 == 0);
+          bool strict = (ndb_rand() % 2 == 0);
           g_is->set_bound_strict(b, strict);
         }
       }
@@ -251,7 +252,7 @@ dostats(int i)
     if (_delete)
     {
       g_info << g_indname << ": delete stats" << endl;
-      if (random() % 2 == 0)
+      if (ndb_rand() % 2 == 0)
       {
         CHK2(g_dic->deleteIndexStat(*g_ind, *g_tab) == 0, g_dic->getNdbError());
       }
@@ -264,7 +265,7 @@ dostats(int i)
     if (_update)
     {
       g_info << g_indname << ": update stats" << endl;
-      if (random() % 2 == 0)
+      if (ndb_rand() % 2 == 0)
       {
         CHK2(g_dic->updateIndexStat(*g_ind, *g_tab) == 0, g_dic->getNdbError());
       }
@@ -615,8 +616,6 @@ main(int argc, char** argv)
   my_progname = "ndb_index_stat";
   int ret;
 
-  srandom((unsigned)time(0));
-
   ndb_init();
   ndb_opt_set_usage_funcs(short_usage_sub, usage);
   ret = handle_options(&argc, &argv, my_long_options, ndb_std_get_one_option);
@@ -624,6 +623,10 @@ main(int argc, char** argv)
     return NDBT_ProgramExit(NDBT_WRONGARGS);
 
   setOutputLevel(_verbose ? 2 : 0);
+
+  unsigned seed = (unsigned)time(0);
+  g_info << "random seed " << seed << endl;
+  ndb_srand(seed);
 
   ret = doall();
   if (ret == -1)
