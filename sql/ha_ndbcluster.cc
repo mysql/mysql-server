@@ -11303,7 +11303,15 @@ ha_ndbcluster::records_in_range(uint inx, key_range *min_key,
       ha_rows rows= HA_POS_ERROR;
       int err= ndb_index_stat_get_rir(inx, min_key, max_key, &rows);
       if (err == 0)
+      {
+        /**
+         * optmizer thinks that all values < 2 are exact...but
+         * but we don't provide exact statistics
+         */
+        if (rows < 2)
+          rows = 2;
         DBUG_RETURN(rows);
+      }
       /*fall through*/
     }
 
