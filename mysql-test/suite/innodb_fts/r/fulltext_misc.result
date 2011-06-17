@@ -97,12 +97,12 @@ insert into t1 values ('a');
 select hex(concat(match (a) against ('a'))) from t1;
 hex(concat(match (a) against ('a')))
 30
-create table t2 as select concat(match (a) against ('a')) as a from t1;
+create table t2 ENGINE = InnoDB as select concat(match (a) against ('a')) as a from t1;
 show create table t2;
 Table	Create Table
 t2	CREATE TABLE `t2` (
   `a` varchar(23) DEFAULT NULL
-) ENGINE=MyISAM DEFAULT CHARSET=latin1
+) ENGINE=InnoDB DEFAULT CHARSET=latin1
 drop table t1, t2;
 CREATE TABLE t1(a TEXT CHARSET ucs2 COLLATE ucs2_unicode_ci) ENGINE = InnoDB;
 INSERT INTO t1 VALUES('abcd');

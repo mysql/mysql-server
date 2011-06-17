@@ -286,19 +286,19 @@ AND t2.id=t1.id);
 #------------------------------------------------------------------------------
 # create table AS SELECT from fts indexed table
 #------------------------------------------------------------------------------
-CREATE TABLE t2 AS SELECT * FROM t1 WHERE
-MATCH a,b AGAINST ('support');
+CREATE TABLE t2 ENGINE = InnoDB AS SELECT * FROM t1 WHERE
+MATCH a,b AGAINST ('support') ;
 SHOW CREATE TABLE t2;
 SELECT * FROM t2;
 DROP TABLE t2;
 
-CREATE TABLE t2 AS SELECT * FROM t1 WHERE
+CREATE TABLE t2 ENGINE = InnoDB AS SELECT * FROM t1 WHERE
 MATCH a,b AGAINST("+support +collections" IN BOOLEAN MODE);
 SHOW CREATE TABLE t2;
 SELECT * FROM t2;
 DROP TABLE t2;
 
-CREATE TABLE t2 AS SELECT * FROM t1 WHERE
+CREATE TABLE t2 ENGINE = InnoDB AS SELECT * FROM t1 WHERE
 MATCH a,b AGAINST ('"proximity search"@10' IN BOOLEAN MODE);
 SHOW CREATE TABLE t2;
 SELECT * FROM t2;

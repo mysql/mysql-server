@@ -292,21 +292,21 @@ SELECT * FROM t1 WHERE EXISTS (SELECT * FROM t1 AS t2 WHERE
 MATCH t2.a,t2.b AGAINST ('"more test proximity"@5' IN BOOLEAN MODE) 
 AND t2.id=t1.id);
 id	a	b
-CREATE TABLE t2 AS SELECT * FROM t1 WHERE
-MATCH a,b AGAINST ('support');
+CREATE TABLE t2 ENGINE = InnoDB AS SELECT * FROM t1 WHERE
+MATCH a,b AGAINST ('support') ;
 SHOW CREATE TABLE t2;
 Table	Create Table
 t2	CREATE TABLE `t2` (
   `id` int(10) unsigned NOT NULL DEFAULT '0',
   `a` varchar(200) DEFAULT NULL,
   `b` text
-) ENGINE=MyISAM DEFAULT CHARSET=latin1
+) ENGINE=InnoDB DEFAULT CHARSET=latin1
 SELECT * FROM t2;
 id	a	b
 1	MySQL has now support	for full-text search
 3	Only MyISAM tables	support collections
 DROP TABLE t2;
-CREATE TABLE t2 AS SELECT * FROM t1 WHERE
+CREATE TABLE t2 ENGINE = InnoDB AS SELECT * FROM t1 WHERE
 MATCH a,b AGAINST("+support +collections" IN BOOLEAN MODE);
 SHOW CREATE TABLE t2;
 Table	Create Table
@@ -314,12 +314,12 @@ t2	CREATE TABLE `t2` (
   `id` int(10) unsigned NOT NULL DEFAULT '0',
   `a` varchar(200) DEFAULT NULL,
   `b` text
-) ENGINE=MyISAM DEFAULT CHARSET=latin1
+) ENGINE=InnoDB DEFAULT CHARSET=latin1
 SELECT * FROM t2;
 id	a	b
 3	Only MyISAM tables	support collections
 DROP TABLE t2;
-CREATE TABLE t2 AS SELECT * FROM t1 WHERE
+CREATE TABLE t2 ENGINE = InnoDB AS SELECT * FROM t1 WHERE
 MATCH a,b AGAINST ('"proximity search"@10' IN BOOLEAN MODE);
 SHOW CREATE TABLE t2;
 Table	Create Table
@@ -327,7 +327,7 @@ t2	CREATE TABLE `t2` (
   `id` int(10) unsigned NOT NULL DEFAULT '0',
   `a` varchar(200) DEFAULT NULL,
   `b` text
-) ENGINE=MyISAM DEFAULT CHARSET=latin1
+) ENGINE=InnoDB DEFAULT CHARSET=latin1
 SELECT * FROM t2;
 id	a	b
 7	test proximity search, test, proximity and phrase	search, with proximity innodb
