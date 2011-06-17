@@ -754,6 +754,35 @@ buf_block_get_lock_hash_val(
 }
 
 /********************************************************************//**
+Allocates a buf_page_t descriptor. This function must succeed. In case
+of failure we assert in this function.
+@return: the allocated descriptor. */
+UNIV_INLINE
+buf_page_t*
+buf_page_alloc_descriptor(void)
+/*===========================*/
+{
+	buf_page_t*	bpage;
+
+	bpage = (buf_page_t*) ut_malloc(sizeof *bpage);
+	ut_d(memset(bpage, 0, sizeof *bpage));
+	UNIV_MEM_ALLOC(bpage, sizeof *bpage);
+
+	return(bpage);
+}
+
+/********************************************************************//**
+Free a buf_page_t descriptor. */
+UNIV_INLINE
+void
+buf_page_free_descriptor(
+/*=====================*/
+	buf_page_t*	bpage)	/*!< in: bpage descriptor to free. */
+{
+	ut_free(bpage);
+}
+
+/********************************************************************//**
 Frees a buffer block which does not contain a file page. */
 UNIV_INLINE
 void
