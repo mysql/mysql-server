@@ -1259,7 +1259,6 @@ row_merge_read_clustered_index(
 			if (add_doc_id) {
 				fts_get_next_doc_id(
 					(dict_table_t*)new_table,
-					old_table->name,
 					 &doc_id);
 				ut_ad(doc_id > 0);
 			}
@@ -1533,8 +1532,7 @@ wait_again:
 	/* Update the next Doc ID we used. Table should be locked, so
 	no concurrent DML */
 	if (max_doc_id) {
-		fts_update_next_doc_id(new_table, old_table->name,
-					max_doc_id, TRUE);
+		fts_update_next_doc_id(new_table, old_table->name, max_doc_id);
 	}
 
 	trx->op_info = "";

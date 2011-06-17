@@ -3,7 +3,7 @@ CREATE TABLE t1 (
 id INT UNSIGNED AUTO_INCREMENT NOT NULL PRIMARY KEY,
 a VARCHAR(200),
 b TEXT
-) ENGINE= <default_engine>;
+) ENGINE = InnoDB;
 INSERT INTO t1 (a,b) VALUES
 ('MySQL Tutorial','DBMS stands for DataBase ...')  ,
 ('How To Use MySQL Well','After you went through a ...'),
@@ -17,7 +17,7 @@ t1	CREATE TABLE `t1` (
   `b` text,
   PRIMARY KEY (`id`),
   FULLTEXT KEY `idx` (`a`,`b`)
-) ENGINE=<default_engine> AUTO_INCREMENT=4 DEFAULT CHARSET=latin1
+) ENGINE=InnoDB AUTO_INCREMENT=4 DEFAULT CHARSET=latin1
 INSERT INTO t1 (a,b) VALUES
 ('1001 MySQL Tricks','1. Never run mysqld as root. 2. ...'),
 ('MySQL vs. YourSQL','In the following database comparison ...'),
@@ -156,7 +156,7 @@ CREATE TABLE t1 (
 id INT UNSIGNED AUTO_INCREMENT NOT NULL PRIMARY KEY,
 a VARCHAR(200),
 b TEXT
-) ENGINE= <default_engine>;
+) ENGINE = InnoDB;
 CREATE FULLTEXT INDEX idx on t1 (a,b);
 INSERT INTO t1 (a,b) VALUES
 ('MySQL Tutorial','DBMS stands for DataBase ...')  ,
@@ -230,7 +230,7 @@ id INT UNSIGNED AUTO_INCREMENT NOT NULL PRIMARY KEY,
 a VARCHAR(200),
 b TEXT ,
 FULLTEXT (a,b)
-) ENGINE= <default_engine>;
+) ENGINE = InnoDB;
 INSERT INTO t1(a,b) VALUES('MySQL has now support', 'for full-text search'),
 ('Full-text indexes', 'are called collections'),
 ('Only MyISAM tables','support collections'),
@@ -300,7 +300,7 @@ t2	CREATE TABLE `t2` (
   `id` int(10) unsigned NOT NULL DEFAULT '0',
   `a` varchar(200) DEFAULT NULL,
   `b` text
-) ENGINE=<default_engine> DEFAULT CHARSET=latin1
+) ENGINE=MyISAM DEFAULT CHARSET=latin1
 SELECT * FROM t2;
 id	a	b
 1	MySQL has now support	for full-text search
@@ -314,7 +314,7 @@ t2	CREATE TABLE `t2` (
   `id` int(10) unsigned NOT NULL DEFAULT '0',
   `a` varchar(200) DEFAULT NULL,
   `b` text
-) ENGINE=<default_engine> DEFAULT CHARSET=latin1
+) ENGINE=MyISAM DEFAULT CHARSET=latin1
 SELECT * FROM t2;
 id	a	b
 3	Only MyISAM tables	support collections
@@ -327,7 +327,7 @@ t2	CREATE TABLE `t2` (
   `id` int(10) unsigned NOT NULL DEFAULT '0',
   `a` varchar(200) DEFAULT NULL,
   `b` text
-) ENGINE=<default_engine> DEFAULT CHARSET=latin1
+) ENGINE=MyISAM DEFAULT CHARSET=latin1
 SELECT * FROM t2;
 id	a	b
 7	test proximity search, test, proximity and phrase	search, with proximity innodb
@@ -337,7 +337,7 @@ CREATE TABLE t1 (
 id INT UNSIGNED AUTO_INCREMENT NOT NULL PRIMARY KEY,
 a VARCHAR(200),
 b TEXT
-) ENGINE= <default_engine>;
+) ENGINE = InnoDB;
 CREATE FULLTEXT INDEX idx on t1 (a,b);
 INSERT INTO t1 (a,b) VALUES
 ('MySQL from Tutorial','DBMS stands for DataBase ...');

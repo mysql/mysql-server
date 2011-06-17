@@ -29,6 +29,7 @@ Created 2007/03/27 Sunny Bains
 #include "fts0priv.h"
 #include "fts0types.h"
 #include "ut0wqueue.h"
+#include "srv0start.h"
 #include "zlib.h"
 
 #ifndef UNIV_NONINL
@@ -2488,6 +2489,11 @@ fts_optimize_do_table(
 {
 	fts_msg_t*	msg;
 
+	/* Optimizer thread could be shutdown */
+	if (!fts_optimize_wq) {
+		return;
+	}
+
 	msg = fts_optimize_create_msg(FTS_MSG_OPTIMIZE_TABLE, table);
 
 	ib_wqueue_add(fts_optimize_wq, msg, msg->heap);
@@ -2779,6 +2785,10 @@ fts_optimize_thread(
 	ulint		n_tables = 0;
 	ulint		n_optimize = 0;
 	ib_wqueue_t*	wq = (ib_wqueue_t*) arg;
+	ulint		i;
+	os_event_t	exit_event;
+	fts_slot_t*	slot;
+
 
 	heap = mem_heap_create(sizeof(dict_table_t*) * 64);
 	heap_alloc = ib_heap_allocator_create(heap);
@@ -2786,15 +2796,14 @@ fts_optimize_thread(
 	tables = ib_vector_create(
 		heap_alloc, sizeof(fts_slot_t), 4);
 
-	while(!done || n_tables > 0) {
+	while((!done)
+	      && srv_shutdown_state == SRV_SHUTDOWN_NONE) {
 		/* If there is no message in the queue and we have tables
 		to optimize then optimize the tables. */
 		if (!done
 		    && ib_wqueue_is_empty(wq)
 		    && n_tables > 0
 		    && n_optimize > 0) {
-
-			fts_slot_t*	slot;
 
 			ut_a(ib_vector_size(tables) > 0);
 
@@ -2836,6 +2845,7 @@ fts_optimize_thread(
 
 			case FTS_MSG_STOP:
 				done = TRUE;
+				exit_event = (os_event_t) msg->ptr;
 				break;
 
 			case FTS_MSG_ADD_TABLE:
@@ -2877,12 +2887,26 @@ fts_optimize_thread(
 		}
 	}
 
+
+	if (n_tables > 0) {
+		for (i = 0; i < ib_vector_size(tables);
+		     i++) {
+			slot = ib_vector_get(tables, i);
+
+			if (slot->state != FTS_STATE_EMPTY) {
+				fts_sync_table(slot->table);
+			}
+		}
+	}
+
 	ib_vector_free(tables);
 
 	ut_print_timestamp(stderr);
 	fprintf(stderr, "  InnoDB: FTS optimize thread exiting.\n");
 
 	ib_wqueue_free(wq);
+
+	os_event_set(exit_event);
 
 	/* We count the number of threads in os_thread_exit(). A created
 	thread should always use that to exit and not use return() to exit. */
@@ -2926,13 +2950,20 @@ fts_optimize_start_shutdown(void)
 /*=============================*/
 {
 	fts_msg_t*	msg;
+	os_event_t	event;
 
 	/* We tell the OPTIMIZE thread to switch to state done, we
 	can't delete the work queue here because the add thread needs
 	deregister the FTS tables. */
+	event = os_event_create(NULL);
+
 	msg = fts_optimize_create_msg(FTS_MSG_STOP, NULL);
+	msg->ptr = event;
 
 	ib_wqueue_add(fts_optimize_wq, msg, msg->heap);
+
+	os_event_wait(event);
+	os_event_free(event);
 }
 
 /********************************************************************

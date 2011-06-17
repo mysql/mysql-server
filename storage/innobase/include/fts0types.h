@@ -158,6 +158,8 @@ struct fts_cache_struct {
 
 	doc_id_t	last_doc_id;	/* Upper limit of allocation */
 
+	doc_id_t	first_doc_id;	/* first doc id since this table opened */
+
 	ulint		deleted;	/* Number of doc ids deleted since last
 					optimized. This variable is covered
 					by deleted_lock */

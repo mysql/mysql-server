@@ -167,19 +167,19 @@ fts_get_next_doc_id(
 /*================*/
 						/* out: DB_SUCCESS if OK */
 	const dict_table_t*	table,		/* in: table */
-	const char*		table_name,	/* in: table name */
 	doc_id_t*		doc_id);	/* out: new document id */
 
 /*********************************************************************//**
-Get the next available document id. */
+Update the next and last Doc ID in the CONFIG table to be the input 
+"doc_id" value (+ 1). We would do so after each FTS index build or
+table truncate */
 UNIV_INTERN
 void
 fts_update_next_doc_id(
 /*===================*/
 	const dict_table_t*	table,		/*!< in: table */
 	const char*		table_name,	/*!< in: table name */
-	doc_id_t		doc_id,		/*!< in: DOC ID to set */
-	ibool			need_dict_lock);/*!< in: Need dict_sys mutex */
+	doc_id_t		doc_id);	/*!< in: DOC ID to set */
 /********************************************************************
 Update the last document id. This function could create a new
 transaction to update the last document id. */
@@ -553,6 +553,15 @@ fts_que_graph_free_check_lock(
 	fts_table_t*		fts_table,	/*!< in: FTS table */
 	const fts_index_cache_t*index_cache,	/*!< in: FTS index cache */
 	que_t*			graph);		/*!< in: query graph */
+
+/*********************************************************************//**
+Get the initial Doc ID by consulting the ADDED and the CONFIG table
+@return initial Doc ID */
+UNIV_INTERN
+doc_id_t
+fts_init_doc_id(
+/*============*/
+        const dict_table_t*     table);		/*!< in: table */
 
 /********************************************************************
 Fetch COUNT(*) from specified table. */
