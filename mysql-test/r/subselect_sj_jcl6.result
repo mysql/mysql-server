@@ -1313,6 +1313,27 @@ WHERE alias2.f11 IN ( SELECT f11 FROM t2 )
 GROUP BY field2 ;
 field2
 drop table t1, t2, t3;
+#
+# BUG#778406 Crash in hp_movelink with Aria engine and subqueries
+#
+CREATE TABLE t4 (f10 varchar(32) , KEY (f10)) ENGINE=Aria;
+INSERT INTO t4 VALUES ('x'),('m'),('c');
+CREATE TABLE t1 (f11 int) ENGINE=Aria;
+INSERT INTO t1 VALUES (0),(0),(0);
+CREATE TABLE t2 ( f10 int) ENGINE=Aria;
+INSERT INTO t2 VALUES (0),(0),(0);
+CREATE TABLE t3 ( f10 int, f11 int) ENGINE=Aria;
+SELECT *
+FROM t4
+WHERE f10 IN
+( SELECT t1.f11
+FROM t1
+LEFT JOIN t2 JOIN t3 ON t3.f10 = t2.f10 ON t3.f11 != 0 );
+f10
+x
+m
+c
+drop table t1,t2,t3,t4;
 set @@optimizer_switch=@save_optimizer_switch;
 #
 # BUG#49129: Wrong result with IN-subquery with join_cache_level=6 and firstmatch=off

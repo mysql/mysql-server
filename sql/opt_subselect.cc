@@ -3527,7 +3527,6 @@ int do_sj_dups_weedout(THD *thd, SJ_TMP_TABLE *sjtbl)
   }
 
   ptr= sjtbl->tmp_table->record[0] + 1;
-  nulls_ptr= ptr;
 
   /* Put the the rowids tuple into table->record[0]: */
 
@@ -3543,6 +3542,7 @@ int do_sj_dups_weedout(THD *thd, SJ_TMP_TABLE *sjtbl)
     ptr += 2;
   }
 
+  nulls_ptr= ptr;
   // 2. Zero the null bytes 
   if (sjtbl->null_bytes)
   {
