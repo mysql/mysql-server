@@ -510,7 +510,7 @@ void Warning_info::clear_warning_info(ulonglong warn_id_arg)
   Append warnings only if the original contents of the routine
   warning info was replaced.
 */
-void Warning_info::merge_with_routine_info(THD *thd, Warning_info *source)
+void Warning_info::merge_with_routine_info(THD *thd, const Warning_info *source)
 {
   /*
     If a routine body is empty or if a routine did not

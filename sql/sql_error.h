@@ -259,8 +259,8 @@ class Warning_info
 private:
   Warning_info(const Warning_info &rhs); /* Not implemented */
   Warning_info& operator=(const Warning_info &rhs); /* Not implemented */
-public:
 
+public:
   Warning_info(ulonglong warn_id_arg, bool allow_unlimited_warnings);
   ~Warning_info();
 
@@ -295,16 +295,17 @@ public:
       clear_warning_info(query_id);
   }
 
-  void append_warning_info(THD *thd, Warning_info *source)
+  void append_warning_info(THD *thd, const Warning_info *source)
   {
     append_warnings(thd, & source->m_warn_list);
   }
 
+private:
   /**
     Concatenate the list of warnings.
     It's considered tolerable to lose a warning.
   */
-  void append_warnings(THD *thd, List *src)
+  void append_warnings(THD *thd, const List *src)
   {
     MYSQL_ERROR *err;
     Iterator it(*src);
@@ -316,10 +317,11 @@ public:
       Warning_info::push_warning(thd, err);
   }
 
+public:
   /**
     Conditional merge of related warning information areas.
   */
-  void merge_with_routine_info(THD *thd, Warning_info *source);
+  void merge_with_routine_info(THD *thd, const Warning_info *source);
 
   /**
     Reset between two COM_ commands. Warnings are preserved
