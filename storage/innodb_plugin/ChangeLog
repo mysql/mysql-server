@@ -1,5 +1,12 @@
 2011-06-16	The InnoDB Team
 
+	* btr/btr0cur.c, buf/buf0buddy.c, buf/buf0buf.c, buf/buf0lru.c,
+	include/buf0buddy.h, include/buf0buddy.ic, include/buf0buf.h,
+	include/buf0buf.ic, include/buf0lru.h, include/buf0types.h:
+	Fix Bug#61188 DROP TABLE extremely slow
+
+2011-06-16	The InnoDB Team
+
 	* buf/buf0buddy.c, buf/buf0buf.c, buf/buf0flu.c, buf/buf0lru.c,
 	include/buf0buf.h, include/buf0lru.h:
 	Fix Bug#61341 buf_LRU_insert_zip_clean can be O(N) on LRU length
