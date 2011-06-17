@@ -1110,6 +1110,7 @@ Thd_ndb::Thd_ndb()
   m_execute_count= 0;
   m_scan_count= 0;
   m_pruned_scan_count= 0;
+  m_sorted_scan_count= 0;
   m_pushed_queries_defined= 0;
   m_pushed_queries_dropped= 0;
   m_pushed_queries_executed= 0;
