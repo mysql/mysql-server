@@ -1,0 +1,405 @@
+
+#------------------------------------------------------------------------------
+# Test With alter/create/drop index
+#------------------------------------------------------------------------------
+--disable_warnings
+drop table if exists t1;
+--enable_warnings
+
+let $default_engine = `select @@SESSION.default_storage_engine`;
+--replace_result $default_engine <default_engine>
+
+# Create FTS table
+--replace_result $default_engine <default_engine>
+EVAL CREATE TABLE t1 (
+        id INT UNSIGNED AUTO_INCREMENT NOT NULL PRIMARY KEY,
+        a VARCHAR(200),
+        b TEXT
+        ) ENGINE= $default_engine;
+
+# Insert rows
+INSERT INTO t1 (a,b) VALUES
+        ('MySQL Tutorial','DBMS stands for DataBase ...')  ,
+        ('How To Use MySQL Well','After you went through a ...'),
+        ('Optimizing MySQL','In this tutorial we will show ...');
+
+# Create the FTS index Using Alter Table
+ALTER TABLE t1 ADD FULLTEXT INDEX idx (a,b);
+--replace_result $default_engine <default_engine>
+EVAL SHOW CREATE TABLE t1;
+
+# Insert rows
+INSERT INTO t1 (a,b) VALUES
+        ('1001 MySQL Tricks','1. Never run mysqld as root. 2. ...'),
+        ('MySQL vs. YourSQL','In the following database comparison ...'),
+        ('MySQL Security','When configured properly, MySQL ...');
+
+# Select word "tutorial" in the table
+SELECT * FROM t1 WHERE MATCH (a,b)
+        AGAINST ('Tutorial' IN NATURAL LANGUAGE MODE);
+
+# boolean mode
+select * from t1 where MATCH(a,b) AGAINST("+support +collections" IN BOOLEAN MODE);
+select * from t1 where MATCH(a,b) AGAINST("+search" IN BOOLEAN MODE);
+select * from t1 where MATCH(a,b) AGAINST("+search +(support vector)" IN BOOLEAN MODE);
+select * from t1 where MATCH(a,b) AGAINST("+search -(support vector)" IN BOOLEAN MODE);
+select *, MATCH(a,b) AGAINST("support collections" IN BOOLEAN MODE) as x from t1;
+select *, MATCH(a,b) AGAINST("collections support" IN BOOLEAN MODE) as x from t1;
+select * from t1 where MATCH a,b AGAINST ("+call* +coll*" IN BOOLEAN MODE);
+select * from t1 where MATCH a,b AGAINST ('"support now"' IN BOOLEAN MODE);
+select * from t1 where MATCH a,b AGAINST ('"Now sUPPort"' IN BOOLEAN MODE);
+
+# query expansion
+select * from t1 where MATCH(a,b) AGAINST ("collections" WITH QUERY EXPANSION);
+select * from t1 where MATCH(a,b) AGAINST ("indexes" WITH QUERY EXPANSION);
+select * from t1 where MATCH(a,b) AGAINST ("indexes collections" WITH QUERY EXPANSION);
+
+# Drop index 
+ALTER TABLE t1 DROP INDEX idx;
+
+# Create the FTS index again
+CREATE FULLTEXT INDEX idx on t1 (a,b);
+
+# Select word "tutorial" in the table
+SELECT * FROM t1 WHERE MATCH (a,b)
+        AGAINST ('Tutorial' IN NATURAL LANGUAGE MODE);
+
+# boolean mode
+select * from t1 where MATCH(a,b) AGAINST("+support +collections" IN BOOLEAN MODE);
+select * from t1 where MATCH(a,b) AGAINST("+search" IN BOOLEAN MODE);
+select * from t1 where MATCH(a,b) AGAINST("+search +(support vector)" IN BOOLEAN MODE);
+select * from t1 where MATCH(a,b) AGAINST("+search -(support vector)" IN BOOLEAN MODE);
+select *, MATCH(a,b) AGAINST("support collections" IN BOOLEAN MODE) as x from t1;
+select *, MATCH(a,b) AGAINST("collections support" IN BOOLEAN MODE) as x from t1;
+select * from t1 where MATCH a,b AGAINST ("+call* +coll*" IN BOOLEAN MODE);
+select * from t1 where MATCH a,b AGAINST ('"support now"' IN BOOLEAN MODE);
+select * from t1 where MATCH a,b AGAINST ('"Now sUPPort"' IN BOOLEAN MODE);
+
+# query expansion
+select * from t1 where MATCH(a,b) AGAINST ("collections" WITH QUERY EXPANSION);
+select * from t1 where MATCH(a,b) AGAINST ("indexes" WITH QUERY EXPANSION);
+select * from t1 where MATCH(a,b) AGAINST ("indexes collections" WITH QUERY EXPANSION);
+
+# insert for proximity search 
+INSERT INTO t1 (a,b) VALUES ('test query expansion','for database ...');
+# Insert into table with similar word of different distances
+INSERT INTO t1 (a,b) VALUES
+        ('test proximity search, test, proximity and phrase',
+         'search, with proximity innodb');
+
+INSERT INTO t1 (a,b) VALUES
+        ('test proximity fts search, test, proximity and phrase',
+         'search, with proximity innodb');
+
+INSERT INTO t1 (a,b) VALUES
+        ('test more proximity fts search, test, more proximity and phrase',
+         'search, with proximity innodb');
+
+# This should only return the first document
+SELECT * FROM t1
+        WHERE MATCH (a,b)
+        AGAINST ('"proximity search"@10' IN BOOLEAN MODE);
+
+# This would return no document
+SELECT * FROM t1
+        WHERE MATCH (a,b)
+        AGAINST ('"proximity search"@9' IN BOOLEAN MODE);
+
+# This give you all three documents
+SELECT * FROM t1
+        WHERE MATCH (a,b)
+        AGAINST ('"proximity search"@14' IN BOOLEAN MODE);
+
+# Similar boundary testing for the words
+SELECT * FROM t1
+        WHERE MATCH (a,b)
+        AGAINST ('"test proximity"@5' IN BOOLEAN MODE);
+
+# Test with more word The last document will return, please notice there
+# is no ordering requirement for proximity search.
+SELECT * FROM t1
+        WHERE MATCH (a,b)
+        AGAINST ('"more test proximity"@10' IN BOOLEAN MODE);
+
+SELECT * FROM t1
+        WHERE MATCH (a,b)
+        AGAINST ('"more test proximity"@9' IN BOOLEAN MODE);
+
+# The phrase search will not require exact word ordering
+SELECT * FROM t1
+        WHERE MATCH (a,b)
+        AGAINST ('"more fts proximity"@09' IN BOOLEAN MODE);
+
+DROP TABLE t1;
+
+
+
+#------------------------------------------------------------------------------
+# Test with FTS condition in subquery
+#------------------------------------------------------------------------------
+
+# Create FTS table
+--replace_result $default_engine <default_engine>
+EVAL CREATE TABLE t1 (
+        id INT UNSIGNED AUTO_INCREMENT NOT NULL PRIMARY KEY,
+        a VARCHAR(200),
+        b TEXT
+        ) ENGINE= $default_engine;
+
+# Create the FTS index again
+CREATE FULLTEXT INDEX idx on t1 (a,b);
+
+# Insert rows
+INSERT INTO t1 (a,b) VALUES
+        ('MySQL Tutorial','DBMS stands for DataBase ...')  ,
+        ('How To Use MySQL Well','After you went through a ...'),
+        ('Optimizing MySQL','In this tutorial we will show ...');
+
+# Insert rows
+INSERT INTO t1 (a,b) VALUES
+        ('1001 MySQL Tricks','1. Never run mysqld as root. 2. ...'),
+        ('MySQL vs. YourSQL','In the following database comparison ...'),
+        ('MySQL Security','When configured properly, MySQL ...');
+
+
+# Select word "tutorial" in the table
+SELECT * FROM t1 WHERE MATCH (a,b)
+AGAINST ('Tutorial' IN NATURAL LANGUAGE MODE);
+
+# Select word "tutorial" in the table
+SELECT * FROM t1 WHERE id = (SELECT MAX(id) FROM t1 WHERE MATCH (a,b)
+AGAINST ('Tutorial' IN NATURAL LANGUAGE MODE));
+
+# Select word "tutorial" in the table
+SELECT * FROM t1 WHERE id = (SELECT MIN(id) FROM t1 WHERE MATCH (a,b)
+AGAINST ('Tutorial' IN NATURAL LANGUAGE MODE));
+
+# Select word "tutorial" in the table
+SELECT * FROM t1 WHERE id = (SELECT MIN(id) FROM t1 WHERE MATCH (a,b)
+AGAINST ('Tutorial' IN NATURAL LANGUAGE MODE)) OR id = 3 ;
+
+
+# Select word "tutorial" in the table - innodb crash
+SELECT * FROM t1 WHERE CONCAT(t1.a,t1.b) IN (
+SELECT CONCAT(a,b) FROM t1 AS t2 WHERE 
+MATCH (t2.a,t2.b) AGAINST ('Tutorial' IN NATURAL LANGUAGE MODE)
+) OR t1.id = 3 ;
+
+
+# Select word "tutorial" in the table  - innodb crash
+SELECT * FROM t1 WHERE CONCAT(t1.a,t1.b) IN (
+SELECT CONCAT(a,b) FROM t1 AS t2 
+WHERE MATCH (t2.a,t2.b) AGAINST ('Tutorial' IN NATURAL LANGUAGE MODE) 
+AND t2.id != 3) ;
+
+# Select word "tutorial" in the table
+SELECT * FROM t1 WHERE id IN (SELECT MIN(id) FROM t1 WHERE 
+MATCH (a,b) AGAINST ('Tutorial' IN NATURAL LANGUAGE MODE)) OR id = 3 ;
+
+# Select word except  "tutorial" in the table
+SELECT * FROM t1 WHERE id NOT IN (SELECT MIN(id) FROM t1 
+WHERE MATCH (a,b) AGAINST ('Tutorial' IN NATURAL LANGUAGE MODE)) ;
+
+
+# Select word "tutorial" in the table
+SELECT * FROM t1 WHERE EXISTS (SELECT t2.id FROM t1 AS t2 WHERE 
+MATCH (t2.a,t2.b) AGAINST ('Tutorial' IN NATURAL LANGUAGE MODE) 
+AND t1.id = t2.id) ;
+
+
+# Select not word like "tutorial" using subquery
+SELECT * FROM t1 WHERE NOT EXISTS (SELECT t2.id FROM t1 AS t2 WHERE 
+MATCH (t2.a,t2.b) AGAINST ('Tutorial' IN NATURAL LANGUAGE MODE) 
+AND t1.id = t2.id) ;
+
+DROP TABLE t1;
+
+# boolean search 
+--replace_result $default_engine <default_engine>
+EVAL CREATE TABLE t1 (
+        id INT UNSIGNED AUTO_INCREMENT NOT NULL PRIMARY KEY,
+        a VARCHAR(200),
+        b TEXT ,
+        FULLTEXT (a,b)
+        ) ENGINE= $default_engine;
+
+INSERT INTO t1(a,b) VALUES('MySQL has now support', 'for full-text search'),
+('Full-text indexes', 'are called collections'),
+('Only MyISAM tables','support collections'),
+('Function MATCH ... AGAINST()','is used to do a search'),
+('Full-text search in MySQL', 'implements vector space model');
+
+# Select word "tutorial" in the table
+SELECT * FROM t1 WHERE t1.id = (SELECT MAX(t2.id) FROM t1 AS t2 WHERE 
+        MATCH(t2.a,t2.b) AGAINST("+support +collections" IN BOOLEAN MODE));
+SELECT * FROM t1 WHERE t1.id != (SELECT MIN(t2.id) FROM t1 AS t2 WHERE 
+        MATCH(t2.a,t2.b) AGAINST("+search" IN BOOLEAN MODE));
+
+SELECT * FROM t1 WHERE t1.id IN (SELECT t2.id FROM t1 AS t2 WHERE 
+MATCH (t2.a,t2.b) AGAINST ("+call* +coll*" IN BOOLEAN MODE));
+
+SELECT * FROM t1 WHERE EXISTS (SELECT * FROM t1 AS t2 WHERE 
+MATCH t2.a,t2.b AGAINST ('"Now sUPPort"' IN BOOLEAN MODE) AND t2.id=t1.id);
+
+
+#query expansion search
+# result differ for query expansion search even wo subquery
+#SELECT * FROM t1 WHERE t1.id = ( SELECT  MAX(t2.id) FROM t1 AS t2 WHERE 
+#MATCH(a,b) AGAINST ("collections" WITH QUERY EXPANSION));
+#SELECT * FROM t1 WHERE t1.id IN ( SELECT t2.id FROM t1 AS t2 WHERE
+#MATCH(a,b) AGAINST ("indexes" WITH QUERY EXPANSION));
+#SELECT * FROM t1 WHERE ( SELECT COUNT(*) FROM t1 AS t2 WHERE
+#MATCH(t2.a,t2.b) AGAINST ("indexes collections" WITH QUERY EXPANSION)) >= 1 
+#AND t1.id <=3 ;
+
+# proximity search 
+# insert for proximity search 
+INSERT INTO t1 (a,b) VALUES ('test query expansion','for database ...');
+# Insert into table with similar word of different distances
+INSERT INTO t1 (a,b) VALUES
+        ('test proximity search, test, proximity and phrase',
+         'search, with proximity innodb');
+
+INSERT INTO t1 (a,b) VALUES
+        ('test proximity fts search, test, proximity and phrase',
+         'search, with proximity innodb');
+
+INSERT INTO t1 (a,b) VALUES
+        ('test more proximity fts search, test, more proximity and phrase',
+         'search, with proximity innodb');
+
+
+SELECT * FROM t1 WHERE t1.id = (SELECT MAX(t2.id) FROM t1 AS t2 WHERE
+MATCH(t2.a,t2.b) AGAINST ('"proximity search"@10' IN BOOLEAN MODE));
+SELECT * FROM t1 WHERE t1.id > (SELECT MIN(t2.id) FROM t1 AS t2 WHERE
+MATCH(t2.a,t2.b) AGAINST ('"proximity search"@10' IN BOOLEAN MODE));
+
+SELECT * FROM t1 WHERE t1.id IN (SELECT t2.id FROM t1 AS t2 WHERE
+MATCH (t2.a,t2.b) AGAINST ('"proximity search"@10' IN BOOLEAN MODE));
+
+SELECT * FROM t1 WHERE EXISTS (SELECT * FROM t1 AS t2 WHERE
+MATCH t2.a,t2.b AGAINST ('"proximity search"@10' IN BOOLEAN MODE) 
+AND t2.id=t1.id);
+
+SELECT * FROM t1 WHERE EXISTS (SELECT * FROM t1 AS t2 WHERE
+MATCH t2.a,t2.b AGAINST ('"more test proximity"@10' IN BOOLEAN MODE) 
+AND t2.id=t1.id);
+
+SELECT * FROM t1 WHERE EXISTS (SELECT * FROM t1 AS t2 WHERE
+MATCH t2.a,t2.b AGAINST ('"more test proximity"@5' IN BOOLEAN MODE) 
+AND t2.id=t1.id);
+
+
+#------------------------------------------------------------------------------
+# create table AS SELECT from fts indexed table
+#------------------------------------------------------------------------------
+CREATE TABLE t2 AS SELECT * FROM t1 WHERE
+MATCH a,b AGAINST ('support');
+--replace_result $default_engine <default_engine>
+SHOW CREATE TABLE t2;
+SELECT * FROM t2;
+DROP TABLE t2;
+
+CREATE TABLE t2 AS SELECT * FROM t1 WHERE
+MATCH a,b AGAINST("+support +collections" IN BOOLEAN MODE);
+--replace_result $default_engine <default_engine>
+SHOW CREATE TABLE t2;
+SELECT * FROM t2;
+DROP TABLE t2;
+
+CREATE TABLE t2 AS SELECT * FROM t1 WHERE
+MATCH a,b AGAINST ('"proximity search"@10' IN BOOLEAN MODE);
+--replace_result $default_engine <default_engine>
+SHOW CREATE TABLE t2;
+SELECT * FROM t2;
+DROP TABLE t2;
+
+DROP TABLE t1;
+
+
+#------------------------------------------------------------------------------
+# Verift FTS with NULL records
+#------------------------------------------------------------------------------
+# Create FTS table
+--replace_result $default_engine <default_engine>
+EVAL CREATE TABLE t1 (
+        id INT UNSIGNED AUTO_INCREMENT NOT NULL PRIMARY KEY,
+        a VARCHAR(200),
+        b TEXT
+        ) ENGINE= $default_engine;
+
+# Create the FTS index again
+CREATE FULLTEXT INDEX idx on t1 (a,b);
+
+
+# Insert rows
+INSERT INTO t1 (a,b) VALUES
+('MySQL from Tutorial','DBMS stands for DataBase ...');
+
+let $counter = 50;
+--disable_query_log
+WHILE ($counter > 0) {
+   INSERT INTO t1 (a,b) VALUES (NULL,NULL);
+   dec $counter;
+}
+--enable_query_log
+INSERT INTO t1 (a,b) VALUES
+('when To Use MySQL Well','After that you went through a ...');
+
+let $counter = 50;
+--disable_query_log
+WHILE ($counter > 0) {
+   INSERT INTO t1 (a,b) VALUES (NULL,NULL);
+   dec $counter;
+}
+--enable_query_log
+INSERT INTO t1 (a,b) VALUES
+('where will Optimizing MySQL','what In this tutorial we will show ...');
+
+INSERT INTO t1 (a,b) VALUES
+('1001 MySQL Tricks','1. Never run mysqld as root. 2. ...'),
+('MySQL vs. YourSQL','In the following database comparison ...'),
+('MySQL Security','When configured properly, MySQL null...');
+
+SELECT COUNT(*) FROM t1;
+SELECT COUNT(*) FROM t1 WHERE a IS NULL;
+SELECT COUNT(*) FROM t1 WHERE b IS NOT NULL;
+
+SELECT * FROM t1
+     WHERE MATCH (a,b)
+     AGAINST ('Tutorial' IN NATURAL LANGUAGE MODE);
+
+SELECT * FROM t1
+     WHERE MATCH (a,b)
+     AGAINST (NULL IN NATURAL LANGUAGE MODE);
+SELECT * FROM t1
+     WHERE MATCH (a,b)
+     AGAINST (NULL WITH QUERY EXPANSION);
+SELECT * FROM t1
+     WHERE MATCH (a,b)
+     AGAINST ('null' IN NATURAL LANGUAGE MODE);
+# Boolean search
+# Select rows contain "MySQL" but not "YourSQL"
+SELECT * FROM t1 WHERE MATCH (a,b)
+AGAINST ('+MySQL -YourSQL' IN BOOLEAN MODE);
+SELECT * FROM t1 WHERE MATCH (a,b)
+AGAINST ('+MySQL -YourSQL' IN BOOLEAN MODE) AND (a IS NOT NULL OR b IS NOT NULL);
+SELECT * FROM t1 WHERE MATCH (a,b)
+AGAINST ('+MySQL -YourSQL' IN BOOLEAN MODE) AND (a IS NULL AND b IS NOT NULL);
+
+# Select rows contain at least one of the two words
+SELECT * FROM t1 WHERE MATCH (a,b)
+AGAINST ('DBMS Security' IN BOOLEAN MODE);
+
+# Test query expansion
+SELECT COUNT(*) FROM t1
+WHERE MATCH (a,b)
+AGAINST ('database' WITH QUERY EXPANSION);
+
+# proximity
+SELECT * FROM t1
+WHERE MATCH (a,b)
+AGAINST ('"following database"@10' IN BOOLEAN MODE);
+
+
+DROP TABLE t1;
