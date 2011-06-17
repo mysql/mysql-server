@@ -67,9 +67,6 @@ const ulint UTF8_ERROR = 0xFFFFFFFF;
 /* The minimum length of token that is supported */
 static const ulint FTS_MIN_TOKEN_LENGTH = 0;
 
-/* The number of doc ids to reserve */
-static const ulint FTS_DOC_ID_STEP = 100;
-
 /* The cache size permissible lower limit (1K) */
 static const ulint FTS_CACHE_SIZE_LOWER_LIMIT_IN_MB = 1;
 
@@ -559,11 +556,11 @@ fts_cache_create(
 	dict_table_t*		table)	/*!< table owns the FTS cache */
 {
 	mem_heap_t*	heap;
-	fts_cache_t*	cache; 
+	fts_cache_t*	cache;
 
 	heap = mem_heap_create(512);
 
-	cache = mem_heap_alloc(heap, sizeof(*cache));
+	cache = mem_heap_zalloc(heap, sizeof(*cache));
 
 	memset(cache, 0, sizeof(*cache));
 
@@ -1975,44 +1972,75 @@ fts_get_total_word_count(
 }
 
 /*********************************************************************//**
-Update the next Doc ID */
+Update the next and last Doc ID in the CONFIG table to be the input
+"doc_id" value (+ 1). We would do so after each FTS index build or
+table truncate */
 UNIV_INTERN
 void
 fts_update_next_doc_id(
 /*===================*/
 	const dict_table_t*	table,		/*!< in: table */
 	const char*		table_name,	/*!< in: table name */
-	doc_id_t		doc_id,		/*!< in: DOC ID to set */
-	ibool			need_dict_lock)	/*!< in: Need dict_sys mutex */
+	doc_id_t		doc_id)		/*!< in: DOC ID to set */
 {
 	table->fts->cache->next_doc_id = doc_id + 1;
-	table->fts->cache->last_doc_id = table->fts->cache->next_doc_id
-					 + FTS_DOC_ID_STEP;
-
-	if (need_dict_lock) {
-		mutex_enter(&(dict_sys->mutex));	
-	}
+	table->fts->cache->last_doc_id = table->fts->cache->next_doc_id;
 
 	fts_update_last_doc_id(table, table_name, 
 			       table->fts->cache->last_doc_id, NULL);
 
-	if (need_dict_lock) {
-		mutex_exit(&(dict_sys->mutex));
-	}
-
 }
 
 /*********************************************************************//**
-Get the next available document id. This function creates a new
-transaction to generate the document id.
+Get the next available document id.
 @return DB_SUCCESS if OK */
 UNIV_INTERN
 ulint
 fts_get_next_doc_id(
 /*================*/
 	const dict_table_t*	table,		/*!< in: table */
-	const char*		table_name,	/*!< in: table name */
 	doc_id_t*		doc_id)		/*!< out: new document id */
+{
+	fts_cache_t*	cache = table->fts->cache;
+
+	/* If the Doc ID system has not yet been initialized, we
+	will consult the CONFIG table and ADDED table to establish
+	the initial value of the Doc ID */
+	if (cache->first_doc_id == 0) {
+		doc_id_t	init_doc_id;
+		init_doc_id = fts_init_doc_id(table);
+		cache->next_doc_id = init_doc_id;
+		cache->first_doc_id = init_doc_id;
+	} else {
+		/* Otherwise, simply increment the value in cache
+		FIXME: We might need a mutex here. */
+		++cache->next_doc_id;
+	}
+
+	/* FIXME: we will get rid of last_doc_id if possible */
+	if (cache->next_doc_id > cache->last_doc_id) {
+		cache->last_doc_id = cache->next_doc_id;
+	}
+
+	*doc_id = cache->next_doc_id;
+
+	return(DB_SUCCESS);
+}
+
+/*********************************************************************//**
+This function fetch the Doc ID from CONFIG table, and compare with
+the Doc ID supplied. And store the larger one to the CONFIG table.
+@return DB_SUCCESS if OK */
+UNIV_INTERN
+ulint
+fts_cmp_set_last_doc_id(
+/*====================*/
+	const dict_table_t*	table,		/*!< in: table */
+	doc_id_t		doc_id_cmp,	/*!< in: Doc ID to compare */
+	doc_id_t*		doc_id)		/*!< out: larger document id
+						after comparing "doc_id_cmp"
+						to the one stored in CONFIG
+						table */
 {
 	trx_t*		trx;
 	pars_info_t*	info;
@@ -2027,34 +2055,19 @@ retry:
 	fts_table.table_id = table->id;
 	fts_table.type = FTS_COMMON_TABLE;
 	fts_table.table = table;
-	if (table_name) {
-		fts_table.parent = table_name;
-	} else {
-		fts_table.parent = table->name;
-	}
 
-	// FIXME: We will need a mutex here!
-	/* Try and allocate from the reserved block. */
-	if (cache->next_doc_id < cache->last_doc_id) {
-
-		++cache->next_doc_id;
-		*doc_id = cache->next_doc_id;
-
-		return(DB_SUCCESS);
-	}
+	fts_table.parent = table->name;
 
 	trx = trx_allocate_for_background();
 
-	trx->op_info = "getting next FTS document id";
+	trx->op_info = "update the next FTS document id";
 
 	info = pars_info_create();
 
 	pars_info_bind_function(
 		info, "my_func", fts_fetch_store_doc_id, doc_id);
 
-	row_mysql_lock_data_dictionary(trx);
-
-	graph = fts_parse_sql_no_dict_lock(
+	graph = fts_parse_sql(
 		&fts_table, info,
 		"DECLARE FUNCTION my_func;\n"
 		"DECLARE CURSOR c IS SELECT value FROM %s"
@@ -2071,9 +2084,10 @@ retry:
 		"CLOSE c;");
 
 	*doc_id = 0;
+
 	error = fts_eval_sql(trx, graph);
 
-	que_graph_free(graph);
+	fts_que_graph_free_check_lock(&fts_table, NULL, graph);
 
 	// FIXME: We need to retry deadlock errors
 	if (error != DB_SUCCESS) {
@@ -2083,14 +2097,14 @@ retry:
 	ut_a(*doc_id > 0);
 
 	/* The column has to be stored in text format. */
-	cache->next_doc_id = *doc_id;
-	cache->last_doc_id = cache->next_doc_id + FTS_DOC_ID_STEP;
+	cache->next_doc_id = ut_max(doc_id_cmp, *doc_id) + 1;
+	cache->last_doc_id = cache->next_doc_id;
+	*doc_id = cache->next_doc_id;
 
-	error = fts_update_last_doc_id(table, table_name,
+	error = fts_update_last_doc_id(table, table->name,
 				       cache->last_doc_id, trx);
 
 func_exit:
-	row_mysql_unlock_data_dictionary(trx);
 
 	if (error == DB_SUCCESS) {
 		fts_sql_commit(trx);
@@ -2161,7 +2175,7 @@ fts_update_last_doc_id(
 
 	pars_info_bind_varchar_literal(info, "doc_id", id, id_len);
 
-	graph = fts_parse_sql_no_dict_lock(
+	graph = fts_parse_sql(
 		&fts_table, info,
 		"BEGIN "
 		"UPDATE %s SET value = :doc_id"
@@ -2169,7 +2183,7 @@ fts_update_last_doc_id(
 
 	error = fts_eval_sql(trx, graph);
 
-	que_graph_free(graph);
+	fts_que_graph_free_check_lock(&fts_table, NULL, graph);
 
 	if (local_trx) {
 		if (error == DB_SUCCESS) {
@@ -2374,9 +2388,20 @@ fts_delete(
 		fts_cache_t*	cache = table->fts->cache;
 
 		mutex_enter(&table->fts->cache->deleted_lock);
-		ut_a(table->fts->cache->added > 0);
 
-		--table->fts->cache->added;
+		/* It is possible we update record that has
+		not yet be sync-ed from last crash. */
+		if (table->fts->fts_status & ADDED_TABLE_SYNCED) {
+			ut_a(table->fts->cache->added > 0);
+		}
+
+		/* The Doc ID could belong to those left in ADDED table from
+		last crash. So need to check if it is less than first_doc_id
+		when we initialize the Doc ID system after reboot */
+		if (doc_id >= table->fts->cache->first_doc_id) {
+			--table->fts->cache->added;
+		}
+
 		mutex_exit(&table->fts->cache->deleted_lock);
 
 		/* Only if the row was really deleted. */
@@ -2420,20 +2445,11 @@ fts_delete(
 	/* Increment the total deleted count, this is used to calculate the
 	number of documents indexed. */
 	if (error == DB_SUCCESS) {
+		mutex_enter(&table->fts->cache->deleted_lock);
 
-		error = fts_config_increment_value(
-			trx,
-			&fts_table,
-			FTS_TOTAL_DELETED_COUNT,
-			1);
+		++table->fts->cache->deleted;
 
-		if (error == DB_SUCCESS) {
-			mutex_enter(&table->fts->cache->deleted_lock);
-
-			++table->fts->cache->deleted;
-
-			mutex_exit(&table->fts->cache->deleted_lock);
-		}
+		mutex_exit(&table->fts->cache->deleted_lock);
 	}
 
 	return(error);
@@ -2483,7 +2499,7 @@ fts_create_doc_id(
 
 	ut_a(table->fts->doc_col != ULINT_UNDEFINED);
 
-	error = fts_get_next_doc_id(table, NULL, &doc_id);
+	error = fts_get_next_doc_id(table, &doc_id);
 
 	if (error == DB_SUCCESS) {
 		dfield_t*	dfield;
@@ -2772,10 +2788,11 @@ fts_fetch_doc_by_id(
 
 		rec = btr_pcur_get_rec(&pcur);
 
-		/* This row should not be deleted */
+		/* Doc could be deleted */
 		if (rec_get_deleted_flag(
 			rec, dict_table_is_comp(table))) {
-			 ut_error;
+			doc->found = FALSE;
+			goto func_exit;
 		}
 
 		if (is_id_cluster) {
@@ -2841,7 +2858,7 @@ fts_fetch_doc_by_id(
 			doc_len += doc->text.len + 1;
 		}
 	}
-
+func_exit:
 	mtr_commit(&mtr);
 
 	mem_heap_free(heap);
@@ -3019,6 +3036,7 @@ fts_sync_delete_from_added(
 	fts_table_t	fts_table;
 	doc_id_t	write_last;
 	doc_id_t	write_first;
+	doc_id_t	last_doc_id;
 
 	ut_a(sync->max_doc_id >= sync->min_doc_id);
 
@@ -3046,6 +3064,10 @@ fts_sync_delete_from_added(
 	error = fts_eval_sql(sync->trx, graph);
 
 	fts_que_graph_free_check_lock(&fts_table, NULL, graph);
+
+	/* After each Sync, update the CONFIG table about the max doc id
+	we just sync-ed to index table */
+	fts_cmp_set_last_doc_id(sync->table, sync->max_doc_id, &last_doc_id);
 
 	return(error);
 }
@@ -3286,7 +3308,7 @@ fts_sync_write_doc_stat(
 }
 
 /********************************************************************
-Write document statistics to disk.*/
+Write document statistics to disk. */
 static
 ulint
 fts_sync_write_doc_stats(
@@ -3295,9 +3317,9 @@ fts_sync_write_doc_stats(
 	trx_t*			trx,		/* in: transaction */
 	const fts_index_cache_t*index_cache)	/* in: index cache */
 {
+	ulint		error = DB_SUCCESS;
 	ulint		i;
 	que_t*		graph = NULL;
-	ulint		error = DB_SUCCESS;
 
 	for (i = 0; i < ib_vector_size(index_cache->doc_stats); ++i) {
 		const fts_doc_stats_t*	doc_stat;
@@ -4002,16 +4024,17 @@ fts_get_docs_clear(
 	}
 }
 
-/********************************************************************
-Read the doc ids that are pending in the added table. */
+/********************************************************************//**
+Read the doc ids that are pending in the added table.
+@return DB_SUCCESS for OK else error code */
 static
 ulint
 fts_pending_read_doc_ids(
 /*=====================*/
-						/* out: DB_SUCCESS for OK else
-						error code */
-	fts_table_t*	fts_table,		/* in: aux table */
-	ib_vector_t*	doc_ids)		/* out: pending doc ids */
+	fts_table_t*	fts_table,	/*!< in: aux table */
+	ibool		read_max,	/*!< in: if we just want to fetch the
+					max doc id value */
+	ib_vector_t*	doc_ids)	/*!< out: pending doc ids */
 {
 	que_t*		graph;
 	ibool		docs_read = FALSE;
@@ -4026,22 +4049,41 @@ fts_pending_read_doc_ids(
 
 	fts_table->suffix = "ADDED";
 
-	graph = fts_parse_sql(
-		fts_table,
-		info,
-		"DECLARE FUNCTION my_func;\n"
-		"DECLARE CURSOR c IS SELECT doc_id FROM %s"
-		" ORDER BY doc_id;\n"
-		"BEGIN\n"
-		""
-		"OPEN c;\n"
-		"WHILE 1 = 1 LOOP\n"
-		"  FETCH c INTO my_func();\n"
-		"  IF c % NOTFOUND THEN\n"
-		"    EXIT;\n"
-		"  END IF;\n"
-		"END LOOP;\n"
-		"CLOSE c;");
+	if (read_max) {
+		graph = fts_parse_sql(
+			fts_table,
+			info,
+			"DECLARE FUNCTION my_func;\n"
+			"DECLARE CURSOR c IS SELECT doc_id FROM %s"
+			" ORDER BY doc_id DESC;\n"
+			"BEGIN\n"
+			""
+			"OPEN c;\n"
+			"WHILE 1 = 1 LOOP\n"
+			"  FETCH c INTO my_func();\n"
+			"  IF c % NOTFOUND THEN\n"
+			"    EXIT;\n"
+			"  END IF;\n"
+			"END LOOP;\n"
+			"CLOSE c;");
+	} else {
+		graph = fts_parse_sql(
+			fts_table,
+			info,
+			"DECLARE FUNCTION my_func;\n"
+			"DECLARE CURSOR c IS SELECT doc_id FROM %s"
+			" ORDER BY doc_id;\n"
+			"BEGIN\n"
+			""
+			"OPEN c;\n"
+			"WHILE 1 = 1 LOOP\n"
+			"  FETCH c INTO my_func();\n"
+			"  IF c % NOTFOUND THEN\n"
+			"    EXIT;\n"
+			"  END IF;\n"
+			"END LOOP;\n"
+			"CLOSE c;");
+	}
 
 	while (!docs_read) {
 		error = fts_eval_sql(trx, graph);
@@ -4076,6 +4118,43 @@ fts_pending_read_doc_ids(
 	return(error);
 }
 
+/*********************************************************************//**
+Get the initial Doc ID by consulting the ADDED and the CONFIG table
+@return initial Doc ID */
+UNIV_INTERN
+doc_id_t
+fts_init_doc_id(
+/*============*/
+	const dict_table_t*	table)		/*!< in: table */
+{
+	fts_table_t     fts_table;
+	ib_vector_t*	doc_ids;
+	doc_id_t	max_doc_id = 0;
+	doc_id_t	doc_id_added = 0;
+	ib_alloc_t*	heap_alloc;
+	mem_heap_t*	heap = mem_heap_create(1024);
+
+	heap_alloc = ib_heap_allocator_create(heap);
+
+	/* First consult the ADDED table */
+	FTS_INIT_FTS_TABLE(&fts_table, "ADDED", FTS_COMMON_TABLE, table);
+
+	doc_ids = ib_vector_create(heap_alloc, sizeof(fts_update_t), 1);
+
+	fts_pending_read_doc_ids(&fts_table, TRUE, doc_ids);
+
+	if (ib_vector_size(doc_ids) > 0) {
+		doc_id_added =  *(doc_id_t*) ib_vector_get_const(doc_ids, 0);
+	}
+
+	/* Then compare this value with the ID value stored in the CONFIG
+	table. The larger one will be our new initial Doc ID */
+	fts_cmp_set_last_doc_id(table, doc_id_added, &max_doc_id);
+
+	mem_heap_free(heap);
+
+	return(max_doc_id);
+}
 /********************************************************************
 Check if the index is in the affected set. */
 static
@@ -4399,7 +4478,7 @@ fts_load_from_added(
 
 	/* Since we will be creating a transaction, we piggy back reading
 	of the config value, max_cache_size. */
-	error = fts_pending_read_doc_ids(&fts_table, doc_ids);
+	error = fts_pending_read_doc_ids(&fts_table, FALSE, doc_ids);
 
 	/* Set the state of the FTS subsystem for this table to READY. */
 	if (error == DB_SUCCESS) {
@@ -4987,7 +5066,7 @@ fts_update_doc_id(
 	doc_id_t	doc_id;
 
 	/* Get the new document id that will be added. */
-	error = fts_get_next_doc_id(table, NULL, &doc_id);
+	error = fts_get_next_doc_id(table, &doc_id);
 
 	if (error == DB_SUCCESS) {
 		dict_index_t*	clust_index;
@@ -5004,6 +5083,8 @@ fts_update_doc_id(
 			&table->cols[table->fts->doc_col], clust_index);
 
 		// FIXME: Testing/debugging (Need to address endian issues).
+		/* It is possible we update record that has
+		not yet be sync-ed from last crash. */
 		/* Convert to storage byte order. */
 		fts_write_doc_id((byte*) next_doc_id, doc_id);
 		ufield->new_val.data = next_doc_id;
@@ -5037,6 +5118,8 @@ fts_create(
 	fts_t*		fts;
 	ib_alloc_t*	heap_alloc;
 	mem_heap_t*	heap;
+
+	ut_a(!table->fts);
 
 	heap = mem_heap_create(512);
 

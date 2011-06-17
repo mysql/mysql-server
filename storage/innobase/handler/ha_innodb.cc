@@ -5699,6 +5699,7 @@ calc_row_difference(
 	uint		i;
 	ulint		error = DB_SUCCESS;
 	ibool		changes_fts_column = FALSE;
+	trx_t*          trx = thd_to_trx(thd);
 
 	n_fields = table->s->fields;
 	clust_index = dict_table_get_first_index(prebuilt->table);
@@ -5834,7 +5835,6 @@ calc_row_difference(
 	other changes. We piggy back our changes on the normal UPDATE
 	to reduce processing and IO overhead. */
 	if (prebuilt->table->fts != NULL && changes_fts_column) {
-		trx_t*          trx = thd_to_trx(thd);
 		dict_table_t*   innodb_table = prebuilt->table;
 
 		ufield = uvect->fields + n_changed;
@@ -5849,7 +5849,9 @@ calc_row_difference(
 			fprintf(stderr, " InnoDB: Error (%lu) while updating "
 				"doc id in calc_row_difference().\n", error);
 		}
-        }
+        } else {
+		trx->fts_next_doc_id = 0;
+	}
 
 	uvect->n_fields = n_changed;
 	uvect->info_bits = 0;

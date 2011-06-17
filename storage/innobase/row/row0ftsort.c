@@ -552,7 +552,7 @@ loop:
 
 	/* Parent done scanning, and if we process all the docs, exit */
 	if (psort_info->state == FTS_PARENT_COMPLETE
-	    && num_doc_processed == UT_LIST_GET_LEN(psort_info->fts_doc_list)) {
+	    && num_doc_processed >= UT_LIST_GET_LEN(psort_info->fts_doc_list)) {
 		goto exit;
 	}
 

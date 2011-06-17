@@ -1377,20 +1377,17 @@ row_fts_do_update(
 /*==============*/
 	trx_t*		trx,		/* in: transaction */
 	dict_table_t*	table,		/* in: Table with FTS index */
-	upd_node_t*	node,		/* in: update node */
 	doc_id_t	old_doc_id,	/* in: old document id */
 	doc_id_t	new_doc_id)	/* in: new document id */
 {
-	ib_vector_t*	updated_fts_indexes;
-
 	/* Now we know we're dealing with an update. Check which
-	FTS indexes need to be updated. */
-	updated_fts_indexes = row_upd_changes_fts_columns(table, node->update);
+	FTS indexes need to be updated.
+	FIXME: We only support single FTS index on a table. So
+	skip this check for now
+	updated_fts_indexes = row_upd_changes_fts_columns(
+					table, node->update); */
 
-	if (updated_fts_indexes) {
-		// FTS-FIXME: For now we rebuild all FTS indexes even if only
-		// one FTS indexed column is updated.
-		ib_vector_free(updated_fts_indexes);
+	if (trx->fts_next_doc_id) {
 
 		fts_trx_add_op(trx, table, old_doc_id, FTS_DELETE, NULL);
 		fts_trx_add_op(trx, table, new_doc_id, FTS_INSERT, NULL);
@@ -1423,7 +1420,7 @@ row_fts_update_or_delete(
 
 		new_doc_id = fts_read_doc_id((byte*) &trx->fts_next_doc_id);
 
-		row_fts_do_update(trx, table, node, old_doc_id, new_doc_id);
+		row_fts_do_update(trx, table, old_doc_id, new_doc_id);
 	}
 }
 /*********************************************************************//**
@@ -3214,9 +3211,11 @@ next_rec:
 		/* Reset the Doc ID in cache to 0 */
 		if (dict_table_has_fts_index(table)
 		    && table->fts->cache) {
-			fts_update_next_doc_id(table, NULL, 0, FALSE);
+			table->fts->fts_status |= TABLE_DICT_LOCKED;
+			fts_update_next_doc_id(table, NULL, 0);
 			fts_cache_clear(table->fts->cache, TRUE);
 			fts_cache_init(table->fts->cache);
+			table->fts->fts_status &= ~TABLE_DICT_LOCKED;
 		}
 	}
 

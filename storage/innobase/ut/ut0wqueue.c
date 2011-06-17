@@ -53,8 +53,6 @@ ib_wqueue_free(
 /*===========*/
 	ib_wqueue_t*	wq)	/*!< in: work queue */
 {
-	ut_a(!ib_list_get_first(wq->items));
-
 	mutex_free(&wq->mutex);
 	ib_list_free(wq->items);
 	os_event_free(wq->event);
