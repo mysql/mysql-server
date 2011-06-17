@@ -1,0 +1,414 @@
+drop table if exists t1;
+CREATE TABLE t1 (
+id INT UNSIGNED AUTO_INCREMENT NOT NULL PRIMARY KEY,
+a VARCHAR(200),
+b TEXT
+) ENGINE= <default_engine>;
+INSERT INTO t1 (a,b) VALUES
+('MySQL Tutorial','DBMS stands for DataBase ...')  ,
+('How To Use MySQL Well','After you went through a ...'),
+('Optimizing MySQL','In this tutorial we will show ...');
+ALTER TABLE t1 ADD FULLTEXT INDEX idx (a,b);
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `id` int(10) unsigned NOT NULL AUTO_INCREMENT,
+  `a` varchar(200) DEFAULT NULL,
+  `b` text,
+  PRIMARY KEY (`id`),
+  FULLTEXT KEY `idx` (`a`,`b`)
+) ENGINE=<default_engine> AUTO_INCREMENT=4 DEFAULT CHARSET=latin1
+INSERT INTO t1 (a,b) VALUES
+('1001 MySQL Tricks','1. Never run mysqld as root. 2. ...'),
+('MySQL vs. YourSQL','In the following database comparison ...'),
+('MySQL Security','When configured properly, MySQL ...');
+SELECT * FROM t1 WHERE MATCH (a,b)
+AGAINST ('Tutorial' IN NATURAL LANGUAGE MODE);
+id	a	b
+1	MySQL Tutorial	DBMS stands for DataBase ...
+3	Optimizing MySQL	In this tutorial we will show ...
+select * from t1 where MATCH(a,b) AGAINST("+support +collections" IN BOOLEAN MODE);
+id	a	b
+select * from t1 where MATCH(a,b) AGAINST("+search" IN BOOLEAN MODE);
+id	a	b
+select * from t1 where MATCH(a,b) AGAINST("+search +(support vector)" IN BOOLEAN MODE);
+id	a	b
+select * from t1 where MATCH(a,b) AGAINST("+search -(support vector)" IN BOOLEAN MODE);
+id	a	b
+select *, MATCH(a,b) AGAINST("support collections" IN BOOLEAN MODE) as x from t1;
+id	a	b	x
+1	MySQL Tutorial	DBMS stands for DataBase ...	0
+2	How To Use MySQL Well	After you went through a ...	0
+3	Optimizing MySQL	In this tutorial we will show ...	0
+4	1001 MySQL Tricks	1. Never run mysqld as root. 2. ...	0
+5	MySQL vs. YourSQL	In the following database comparison ...	0
+6	MySQL Security	When configured properly, MySQL ...	0
+select *, MATCH(a,b) AGAINST("collections support" IN BOOLEAN MODE) as x from t1;
+id	a	b	x
+1	MySQL Tutorial	DBMS stands for DataBase ...	0
+2	How To Use MySQL Well	After you went through a ...	0
+3	Optimizing MySQL	In this tutorial we will show ...	0
+4	1001 MySQL Tricks	1. Never run mysqld as root. 2. ...	0
+5	MySQL vs. YourSQL	In the following database comparison ...	0
+6	MySQL Security	When configured properly, MySQL ...	0
+select * from t1 where MATCH a,b AGAINST ("+call* +coll*" IN BOOLEAN MODE);
+id	a	b
+select * from t1 where MATCH a,b AGAINST ('"support now"' IN BOOLEAN MODE);
+id	a	b
+select * from t1 where MATCH a,b AGAINST ('"Now sUPPort"' IN BOOLEAN MODE);
+id	a	b
+select * from t1 where MATCH(a,b) AGAINST ("collections" WITH QUERY EXPANSION);
+id	a	b
+select * from t1 where MATCH(a,b) AGAINST ("indexes" WITH QUERY EXPANSION);
+id	a	b
+select * from t1 where MATCH(a,b) AGAINST ("indexes collections" WITH QUERY EXPANSION);
+id	a	b
+ALTER TABLE t1 DROP INDEX idx;
+CREATE FULLTEXT INDEX idx on t1 (a,b);
+SELECT * FROM t1 WHERE MATCH (a,b)
+AGAINST ('Tutorial' IN NATURAL LANGUAGE MODE);
+id	a	b
+1	MySQL Tutorial	DBMS stands for DataBase ...
+3	Optimizing MySQL	In this tutorial we will show ...
+select * from t1 where MATCH(a,b) AGAINST("+support +collections" IN BOOLEAN MODE);
+id	a	b
+select * from t1 where MATCH(a,b) AGAINST("+search" IN BOOLEAN MODE);
+id	a	b
+select * from t1 where MATCH(a,b) AGAINST("+search +(support vector)" IN BOOLEAN MODE);
+id	a	b
+select * from t1 where MATCH(a,b) AGAINST("+search -(support vector)" IN BOOLEAN MODE);
+id	a	b
+select *, MATCH(a,b) AGAINST("support collections" IN BOOLEAN MODE) as x from t1;
+id	a	b	x
+1	MySQL Tutorial	DBMS stands for DataBase ...	0
+2	How To Use MySQL Well	After you went through a ...	0
+3	Optimizing MySQL	In this tutorial we will show ...	0
+4	1001 MySQL Tricks	1. Never run mysqld as root. 2. ...	0
+5	MySQL vs. YourSQL	In the following database comparison ...	0
+6	MySQL Security	When configured properly, MySQL ...	0
+select *, MATCH(a,b) AGAINST("collections support" IN BOOLEAN MODE) as x from t1;
+id	a	b	x
+1	MySQL Tutorial	DBMS stands for DataBase ...	0
+2	How To Use MySQL Well	After you went through a ...	0
+3	Optimizing MySQL	In this tutorial we will show ...	0
+4	1001 MySQL Tricks	1. Never run mysqld as root. 2. ...	0
+5	MySQL vs. YourSQL	In the following database comparison ...	0
+6	MySQL Security	When configured properly, MySQL ...	0
+select * from t1 where MATCH a,b AGAINST ("+call* +coll*" IN BOOLEAN MODE);
+id	a	b
+select * from t1 where MATCH a,b AGAINST ('"support now"' IN BOOLEAN MODE);
+id	a	b
+select * from t1 where MATCH a,b AGAINST ('"Now sUPPort"' IN BOOLEAN MODE);
+id	a	b
+select * from t1 where MATCH(a,b) AGAINST ("collections" WITH QUERY EXPANSION);
+id	a	b
+select * from t1 where MATCH(a,b) AGAINST ("indexes" WITH QUERY EXPANSION);
+id	a	b
+select * from t1 where MATCH(a,b) AGAINST ("indexes collections" WITH QUERY EXPANSION);
+id	a	b
+INSERT INTO t1 (a,b) VALUES ('test query expansion','for database ...');
+INSERT INTO t1 (a,b) VALUES
+('test proximity search, test, proximity and phrase',
+'search, with proximity innodb');
+INSERT INTO t1 (a,b) VALUES
+('test proximity fts search, test, proximity and phrase',
+'search, with proximity innodb');
+INSERT INTO t1 (a,b) VALUES
+('test more proximity fts search, test, more proximity and phrase',
+'search, with proximity innodb');
+SELECT * FROM t1
+WHERE MATCH (a,b)
+AGAINST ('"proximity search"@10' IN BOOLEAN MODE);
+id	a	b
+8	test proximity search, test, proximity and phrase	search, with proximity innodb
+SELECT * FROM t1
+WHERE MATCH (a,b)
+AGAINST ('"proximity search"@9' IN BOOLEAN MODE);
+id	a	b
+SELECT * FROM t1
+WHERE MATCH (a,b)
+AGAINST ('"proximity search"@14' IN BOOLEAN MODE);
+id	a	b
+8	test proximity search, test, proximity and phrase	search, with proximity innodb
+9	test proximity fts search, test, proximity and phrase	search, with proximity innodb
+10	test more proximity fts search, test, more proximity and phrase	search, with proximity innodb
+SELECT * FROM t1
+WHERE MATCH (a,b)
+AGAINST ('"test proximity"@5' IN BOOLEAN MODE);
+id	a	b
+8	test proximity search, test, proximity and phrase	search, with proximity innodb
+9	test proximity fts search, test, proximity and phrase	search, with proximity innodb
+SELECT * FROM t1
+WHERE MATCH (a,b)
+AGAINST ('"more test proximity"@10' IN BOOLEAN MODE);
+id	a	b
+10	test more proximity fts search, test, more proximity and phrase	search, with proximity innodb
+SELECT * FROM t1
+WHERE MATCH (a,b)
+AGAINST ('"more test proximity"@9' IN BOOLEAN MODE);
+id	a	b
+SELECT * FROM t1
+WHERE MATCH (a,b)
+AGAINST ('"more fts proximity"@09' IN BOOLEAN MODE);
+id	a	b
+DROP TABLE t1;
+CREATE TABLE t1 (
+id INT UNSIGNED AUTO_INCREMENT NOT NULL PRIMARY KEY,
+a VARCHAR(200),
+b TEXT
+) ENGINE= <default_engine>;
+CREATE FULLTEXT INDEX idx on t1 (a,b);
+INSERT INTO t1 (a,b) VALUES
+('MySQL Tutorial','DBMS stands for DataBase ...')  ,
+('How To Use MySQL Well','After you went through a ...'),
+('Optimizing MySQL','In this tutorial we will show ...');
+INSERT INTO t1 (a,b) VALUES
+('1001 MySQL Tricks','1. Never run mysqld as root. 2. ...'),
+('MySQL vs. YourSQL','In the following database comparison ...'),
+('MySQL Security','When configured properly, MySQL ...');
+SELECT * FROM t1 WHERE MATCH (a,b)
+AGAINST ('Tutorial' IN NATURAL LANGUAGE MODE);
+id	a	b
+1	MySQL Tutorial	DBMS stands for DataBase ...
+3	Optimizing MySQL	In this tutorial we will show ...
+SELECT * FROM t1 WHERE id = (SELECT MAX(id) FROM t1 WHERE MATCH (a,b)
+AGAINST ('Tutorial' IN NATURAL LANGUAGE MODE));
+id	a	b
+3	Optimizing MySQL	In this tutorial we will show ...
+SELECT * FROM t1 WHERE id = (SELECT MIN(id) FROM t1 WHERE MATCH (a,b)
+AGAINST ('Tutorial' IN NATURAL LANGUAGE MODE));
+id	a	b
+1	MySQL Tutorial	DBMS stands for DataBase ...
+SELECT * FROM t1 WHERE id = (SELECT MIN(id) FROM t1 WHERE MATCH (a,b)
+AGAINST ('Tutorial' IN NATURAL LANGUAGE MODE)) OR id = 3 ;
+id	a	b
+1	MySQL Tutorial	DBMS stands for DataBase ...
+3	Optimizing MySQL	In this tutorial we will show ...
+SELECT * FROM t1 WHERE CONCAT(t1.a,t1.b) IN (
+SELECT CONCAT(a,b) FROM t1 AS t2 WHERE 
+MATCH (t2.a,t2.b) AGAINST ('Tutorial' IN NATURAL LANGUAGE MODE)
+) OR t1.id = 3 ;
+id	a	b
+1	MySQL Tutorial	DBMS stands for DataBase ...
+3	Optimizing MySQL	In this tutorial we will show ...
+SELECT * FROM t1 WHERE CONCAT(t1.a,t1.b) IN (
+SELECT CONCAT(a,b) FROM t1 AS t2 
+WHERE MATCH (t2.a,t2.b) AGAINST ('Tutorial' IN NATURAL LANGUAGE MODE) 
+AND t2.id != 3) ;
+id	a	b
+1	MySQL Tutorial	DBMS stands for DataBase ...
+SELECT * FROM t1 WHERE id IN (SELECT MIN(id) FROM t1 WHERE 
+MATCH (a,b) AGAINST ('Tutorial' IN NATURAL LANGUAGE MODE)) OR id = 3 ;
+id	a	b
+1	MySQL Tutorial	DBMS stands for DataBase ...
+3	Optimizing MySQL	In this tutorial we will show ...
+SELECT * FROM t1 WHERE id NOT IN (SELECT MIN(id) FROM t1 
+WHERE MATCH (a,b) AGAINST ('Tutorial' IN NATURAL LANGUAGE MODE)) ;
+id	a	b
+2	How To Use MySQL Well	After you went through a ...
+3	Optimizing MySQL	In this tutorial we will show ...
+4	1001 MySQL Tricks	1. Never run mysqld as root. 2. ...
+5	MySQL vs. YourSQL	In the following database comparison ...
+6	MySQL Security	When configured properly, MySQL ...
+SELECT * FROM t1 WHERE EXISTS (SELECT t2.id FROM t1 AS t2 WHERE 
+MATCH (t2.a,t2.b) AGAINST ('Tutorial' IN NATURAL LANGUAGE MODE) 
+AND t1.id = t2.id) ;
+id	a	b
+1	MySQL Tutorial	DBMS stands for DataBase ...
+3	Optimizing MySQL	In this tutorial we will show ...
+SELECT * FROM t1 WHERE NOT EXISTS (SELECT t2.id FROM t1 AS t2 WHERE 
+MATCH (t2.a,t2.b) AGAINST ('Tutorial' IN NATURAL LANGUAGE MODE) 
+AND t1.id = t2.id) ;
+id	a	b
+2	How To Use MySQL Well	After you went through a ...
+4	1001 MySQL Tricks	1. Never run mysqld as root. 2. ...
+5	MySQL vs. YourSQL	In the following database comparison ...
+6	MySQL Security	When configured properly, MySQL ...
+DROP TABLE t1;
+CREATE TABLE t1 (
+id INT UNSIGNED AUTO_INCREMENT NOT NULL PRIMARY KEY,
+a VARCHAR(200),
+b TEXT ,
+FULLTEXT (a,b)
+) ENGINE= <default_engine>;
+INSERT INTO t1(a,b) VALUES('MySQL has now support', 'for full-text search'),
+('Full-text indexes', 'are called collections'),
+('Only MyISAM tables','support collections'),
+('Function MATCH ... AGAINST()','is used to do a search'),
+('Full-text search in MySQL', 'implements vector space model');
+SELECT * FROM t1 WHERE t1.id = (SELECT MAX(t2.id) FROM t1 AS t2 WHERE 
+MATCH(t2.a,t2.b) AGAINST("+support +collections" IN BOOLEAN MODE));
+id	a	b
+3	Only MyISAM tables	support collections
+SELECT * FROM t1 WHERE t1.id != (SELECT MIN(t2.id) FROM t1 AS t2 WHERE 
+MATCH(t2.a,t2.b) AGAINST("+search" IN BOOLEAN MODE));
+id	a	b
+2	Full-text indexes	are called collections
+3	Only MyISAM tables	support collections
+4	Function MATCH ... AGAINST()	is used to do a search
+5	Full-text search in MySQL	implements vector space model
+SELECT * FROM t1 WHERE t1.id IN (SELECT t2.id FROM t1 AS t2 WHERE 
+MATCH (t2.a,t2.b) AGAINST ("+call* +coll*" IN BOOLEAN MODE));
+id	a	b
+2	Full-text indexes	are called collections
+SELECT * FROM t1 WHERE EXISTS (SELECT * FROM t1 AS t2 WHERE 
+MATCH t2.a,t2.b AGAINST ('"Now sUPPort"' IN BOOLEAN MODE) AND t2.id=t1.id);
+id	a	b
+1	MySQL has now support	for full-text search
+INSERT INTO t1 (a,b) VALUES ('test query expansion','for database ...');
+INSERT INTO t1 (a,b) VALUES
+('test proximity search, test, proximity and phrase',
+'search, with proximity innodb');
+INSERT INTO t1 (a,b) VALUES
+('test proximity fts search, test, proximity and phrase',
+'search, with proximity innodb');
+INSERT INTO t1 (a,b) VALUES
+('test more proximity fts search, test, more proximity and phrase',
+'search, with proximity innodb');
+SELECT * FROM t1 WHERE t1.id = (SELECT MAX(t2.id) FROM t1 AS t2 WHERE
+MATCH(t2.a,t2.b) AGAINST ('"proximity search"@10' IN BOOLEAN MODE));
+id	a	b
+7	test proximity search, test, proximity and phrase	search, with proximity innodb
+SELECT * FROM t1 WHERE t1.id > (SELECT MIN(t2.id) FROM t1 AS t2 WHERE
+MATCH(t2.a,t2.b) AGAINST ('"proximity search"@10' IN BOOLEAN MODE));
+id	a	b
+8	test proximity fts search, test, proximity and phrase	search, with proximity innodb
+9	test more proximity fts search, test, more proximity and phrase	search, with proximity innodb
+SELECT * FROM t1 WHERE t1.id IN (SELECT t2.id FROM t1 AS t2 WHERE
+MATCH (t2.a,t2.b) AGAINST ('"proximity search"@10' IN BOOLEAN MODE));
+id	a	b
+7	test proximity search, test, proximity and phrase	search, with proximity innodb
+SELECT * FROM t1 WHERE EXISTS (SELECT * FROM t1 AS t2 WHERE
+MATCH t2.a,t2.b AGAINST ('"proximity search"@10' IN BOOLEAN MODE) 
+AND t2.id=t1.id);
+id	a	b
+7	test proximity search, test, proximity and phrase	search, with proximity innodb
+SELECT * FROM t1 WHERE EXISTS (SELECT * FROM t1 AS t2 WHERE
+MATCH t2.a,t2.b AGAINST ('"more test proximity"@10' IN BOOLEAN MODE) 
+AND t2.id=t1.id);
+id	a	b
+9	test more proximity fts search, test, more proximity and phrase	search, with proximity innodb
+SELECT * FROM t1 WHERE EXISTS (SELECT * FROM t1 AS t2 WHERE
+MATCH t2.a,t2.b AGAINST ('"more test proximity"@5' IN BOOLEAN MODE) 
+AND t2.id=t1.id);
+id	a	b
+CREATE TABLE t2 AS SELECT * FROM t1 WHERE
+MATCH a,b AGAINST ('support');
+SHOW CREATE TABLE t2;
+Table	Create Table
+t2	CREATE TABLE `t2` (
+  `id` int(10) unsigned NOT NULL DEFAULT '0',
+  `a` varchar(200) DEFAULT NULL,
+  `b` text
+) ENGINE=<default_engine> DEFAULT CHARSET=latin1
+SELECT * FROM t2;
+id	a	b
+1	MySQL has now support	for full-text search
+3	Only MyISAM tables	support collections
+DROP TABLE t2;
+CREATE TABLE t2 AS SELECT * FROM t1 WHERE
+MATCH a,b AGAINST("+support +collections" IN BOOLEAN MODE);
+SHOW CREATE TABLE t2;
+Table	Create Table
+t2	CREATE TABLE `t2` (
+  `id` int(10) unsigned NOT NULL DEFAULT '0',
+  `a` varchar(200) DEFAULT NULL,
+  `b` text
+) ENGINE=<default_engine> DEFAULT CHARSET=latin1
+SELECT * FROM t2;
+id	a	b
+3	Only MyISAM tables	support collections
+DROP TABLE t2;
+CREATE TABLE t2 AS SELECT * FROM t1 WHERE
+MATCH a,b AGAINST ('"proximity search"@10' IN BOOLEAN MODE);
+SHOW CREATE TABLE t2;
+Table	Create Table
+t2	CREATE TABLE `t2` (
+  `id` int(10) unsigned NOT NULL DEFAULT '0',
+  `a` varchar(200) DEFAULT NULL,
+  `b` text
+) ENGINE=<default_engine> DEFAULT CHARSET=latin1
+SELECT * FROM t2;
+id	a	b
+7	test proximity search, test, proximity and phrase	search, with proximity innodb
+DROP TABLE t2;
+DROP TABLE t1;
+CREATE TABLE t1 (
+id INT UNSIGNED AUTO_INCREMENT NOT NULL PRIMARY KEY,
+a VARCHAR(200),
+b TEXT
+) ENGINE= <default_engine>;
+CREATE FULLTEXT INDEX idx on t1 (a,b);
+INSERT INTO t1 (a,b) VALUES
+('MySQL from Tutorial','DBMS stands for DataBase ...');
+INSERT INTO t1 (a,b) VALUES
+('when To Use MySQL Well','After that you went through a ...');
+INSERT INTO t1 (a,b) VALUES
+('where will Optimizing MySQL','what In this tutorial we will show ...');
+INSERT INTO t1 (a,b) VALUES
+('1001 MySQL Tricks','1. Never run mysqld as root. 2. ...'),
+('MySQL vs. YourSQL','In the following database comparison ...'),
+('MySQL Security','When configured properly, MySQL null...');
+SELECT COUNT(*) FROM t1;
+COUNT(*)
+106
+SELECT COUNT(*) FROM t1 WHERE a IS NULL;
+COUNT(*)
+100
+SELECT COUNT(*) FROM t1 WHERE b IS NOT NULL;
+COUNT(*)
+6
+SELECT * FROM t1
+WHERE MATCH (a,b)
+AGAINST ('Tutorial' IN NATURAL LANGUAGE MODE);
+id	a	b
+1	MySQL from Tutorial	DBMS stands for DataBase ...
+103	where will Optimizing MySQL	what In this tutorial we will show ...
+SELECT * FROM t1
+WHERE MATCH (a,b)
+AGAINST (NULL IN NATURAL LANGUAGE MODE);
+id	a	b
+SELECT * FROM t1
+WHERE MATCH (a,b)
+AGAINST (NULL WITH QUERY EXPANSION);
+id	a	b
+SELECT * FROM t1
+WHERE MATCH (a,b)
+AGAINST ('null' IN NATURAL LANGUAGE MODE);
+id	a	b
+106	MySQL Security	When configured properly, MySQL null...
+SELECT * FROM t1 WHERE MATCH (a,b)
+AGAINST ('+MySQL -YourSQL' IN BOOLEAN MODE);
+id	a	b
+106	MySQL Security	When configured properly, MySQL null...
+1	MySQL from Tutorial	DBMS stands for DataBase ...
+52	when To Use MySQL Well	After that you went through a ...
+103	where will Optimizing MySQL	what In this tutorial we will show ...
+104	1001 MySQL Tricks	1. Never run mysqld as root. 2. ...
+SELECT * FROM t1 WHERE MATCH (a,b)
+AGAINST ('+MySQL -YourSQL' IN BOOLEAN MODE) AND (a IS NOT NULL OR b IS NOT NULL);
+id	a	b
+106	MySQL Security	When configured properly, MySQL null...
+1	MySQL from Tutorial	DBMS stands for DataBase ...
+52	when To Use MySQL Well	After that you went through a ...
+103	where will Optimizing MySQL	what In this tutorial we will show ...
+104	1001 MySQL Tricks	1. Never run mysqld as root. 2. ...
+SELECT * FROM t1 WHERE MATCH (a,b)
+AGAINST ('+MySQL -YourSQL' IN BOOLEAN MODE) AND (a IS NULL AND b IS NOT NULL);
+id	a	b
+SELECT * FROM t1 WHERE MATCH (a,b)
+AGAINST ('DBMS Security' IN BOOLEAN MODE);
+id	a	b
+1	MySQL from Tutorial	DBMS stands for DataBase ...
+106	MySQL Security	When configured properly, MySQL null...
+SELECT COUNT(*) FROM t1
+WHERE MATCH (a,b)
+AGAINST ('database' WITH QUERY EXPANSION);
+COUNT(*)
+6
+SELECT * FROM t1
+WHERE MATCH (a,b)
+AGAINST ('"following database"@10' IN BOOLEAN MODE);
+id	a	b
+105	MySQL vs. YourSQL	In the following database comparison ...
+DROP TABLE t1;
