@@ -39,7 +39,7 @@ size_t my_write(int Filedes, const uchar *Buffer, size_t Count, myf MyFlags)
     if(Filedes < 0)
     {
       errno = EINVAL;
-      return -1;
+      DBUG_RETURN(-1);
     }
     writtenbytes= my_win_write(Filedes, Buffer, Count);
 #else
