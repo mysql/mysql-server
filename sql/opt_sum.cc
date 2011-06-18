@@ -450,7 +450,7 @@ int opt_sum_query(THD *thd,
   }
 
   if (thd->is_error())
-    DBUG_RETURN(thd->stmt_da->sql_errno());
+    DBUG_RETURN(thd->get_stmt_da()->sql_errno());
 
   /*
     If we have a where clause, we can only ignore searching in the

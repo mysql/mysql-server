@@ -19593,6 +19593,81 @@ static void test_bug11766854()
   DBUG_VOID_RETURN;
 }
 
+/**
+  Bug#12337762: 60075: MYSQL_LIST_FIELDS() RETURNS WRONG CHARSET FOR 
+                       CHAR/VARCHAR/TEXT COLUMNS IN VIEWS 
+*/
+static void test_bug12337762()
+{
+  int rc,i=0;
+  MYSQL_RES *result;
+  MYSQL_FIELD *field;
+  unsigned int tab_charsetnr[3]= {0};
+
+  DBUG_ENTER("test_bug12337762");
+  myheader("test_bug12337762");
+
+  /*
+    Creating table with specific charset.
+  */
+  rc= mysql_query(mysql, "drop table if exists charset_tab");
+  rc= mysql_query(mysql, "create table charset_tab("\
+                         "txt1 varchar(32) character set Latin1,"\
+                         "txt2 varchar(32) character set Latin1 collate latin1_bin,"\
+                         "txt3 varchar(32) character set utf8 collate utf8_bin"\
+						 ")");
+  
+  DIE_UNLESS(rc == 0);
+  DIE_IF(mysql_errno(mysql));
+
+  /*
+    Creating view from table created earlier.
+  */
+  rc= mysql_query(mysql, "drop view if exists charset_view");
+  rc= mysql_query(mysql, "create view charset_view as "\
+                         "select * from charset_tab;");
+  DIE_UNLESS(rc == 0);
+  DIE_IF(mysql_errno(mysql));
+
+  /*
+    Checking field information for table.
+  */
+  result= mysql_list_fields(mysql, "charset_tab", NULL);
+  DIE_IF(mysql_errno(mysql));
+  i=0;
+  while((field= mysql_fetch_field(result)))
+  {
+    printf("field name %s\n", field->name);
+    printf("field table %s\n", field->table);
+    printf("field type %d\n", field->type);
+    printf("field charset %d\n", field->charsetnr);
+    tab_charsetnr[i++]= field->charsetnr;
+    printf("\n");
+  }
+  mysql_free_result(result);
+
+  /*
+    Checking field information for view.
+  */
+  result= mysql_list_fields(mysql, "charset_view", NULL);
+  DIE_IF(mysql_errno(mysql));
+  i=0;
+  while((field= mysql_fetch_field(result)))
+  {
+    printf("field name %s\n", field->name);
+    printf("field table %s\n", field->table);
+    printf("field type %d\n", field->type);
+    printf("field charset %d\n", field->charsetnr);
+    printf("\n");
+    /* 
+      charset value for field must be same for both, view and table.
+    */
+    DIE_UNLESS(field->charsetnr == tab_charsetnr[i++]);
+  }
+  mysql_free_result(result);
+
+  DBUG_VOID_RETURN;
+}
 
 /**
   Bug#54790: Use of non-blocking mode for sockets limits performance
@@ -19692,10 +19767,10 @@ static struct my_option client_test_long_options[] =
    &opt_getopt_ll_test, &opt_getopt_ll_test, 0,
    GET_LL, REQUIRED_ARG, 0, 0, LONGLONG_MAX, 0, 0, 0},
   {"plugin_dir", 0, "Directory for client-side plugins.",
-   (uchar**) &opt_plugin_dir, (uchar**) &opt_plugin_dir, 0,
+   &opt_plugin_dir, &opt_plugin_dir, 0,
    GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
   {"default_auth", 0, "Default authentication client-side plugin to use.",
-   (uchar**) &opt_default_auth, (uchar**) &opt_default_auth, 0,
+   &opt_default_auth, &opt_default_auth, 0,
    GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
   { 0, 0, 0, 0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0}
 };
@@ -19979,6 +20054,7 @@ static struct my_tests_st my_tests[]= {
   { "test_bug56976", test_bug56976 },
   { "test_bug11766854", test_bug11766854 },
   { "test_bug54790", test_bug54790 },
+  { "test_bug12337762", test_bug12337762 },
   { 0, 0 }
 };
 
@@ -20117,29 +20193,29 @@ int main(int argc, char **argv)
     if (!argc)
     {
       for (fptr= my_tests; fptr->name; fptr++)
-	(*fptr->function)();	
+        (*fptr->function)();	
     }
     else
     {
       for ( ; *argv ; argv++)
       {
-	for (fptr= my_tests; fptr->name; fptr++)
-	{
-	  if (!strcmp(fptr->name, *argv))
-	  {
-	    (*fptr->function)();
-	    break;
-	  }
-	}
-	if (!fptr->name)
-	{
-	  fprintf(stderr, "\n\nGiven test not found: '%s'\n", *argv);
-	  fprintf(stderr, "See legal test names with %s -T\n\nAborting!\n",
-		  my_progname);
-	  client_disconnect(mysql, 1);
-	  free_defaults(defaults_argv);
-	  exit(1);
-	}
+        for (fptr= my_tests; fptr->name; fptr++)
+        {
+          if (!strcmp(fptr->name, *argv))
+          {
+            (*fptr->function)();
+            break;
+          }
+        }
+        if (!fptr->name)
+        {
+          fprintf(stderr, "\n\nGiven test not found: '%s'\n", *argv);
+          fprintf(stderr, "See legal test names with %s -T\n\nAborting!\n",
+                  my_progname);
+          client_disconnect(mysql, 1);
+          free_defaults(defaults_argv);
+          exit(1);
+        }
       }
     }
 

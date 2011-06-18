@@ -70,8 +70,8 @@ longlong Item_func_inet_aton::val_int()
   if (c != '.')                                 // IP number can't end on '.'
   {
     /*
-      Attempt to support short-form addresses (i.e. classful addresses).
-      The current code does not support full range of classful addresses.
+      Attempt to support short forms of IP-addresses. It's however pretty
+      basic one comparing to the BSD support.
       Examples:
         127     -> 0.0.0.127
         127.255 -> 127.0.0.255
@@ -310,7 +310,7 @@ static bool str_to_ipv4(const char *str, int str_length, in_addr *ipv4_address)
   if (dot_count != 3)
   {
     DBUG_PRINT("error", ("str_to_ipv4(%.*s): invalid IPv4 address: "
-                         "classful address (too few groups).",
+                         "too few groups.",
                          str_length, str));
     return false;
   }

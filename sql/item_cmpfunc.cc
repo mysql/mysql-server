@@ -4404,7 +4404,7 @@ Item_cond::fix_fields(THD *thd, Item **ref)
       const_item_cache= FALSE;
     }  
     with_sum_func=	    with_sum_func || item->with_sum_func;
-    with_subselect|=        item->with_subselect;
+    with_subselect|=        item->has_subquery();
     if (item->maybe_null)
       maybe_null=1;
   }
@@ -4615,11 +4615,13 @@ void Item_cond::update_used_tables()
 
   used_tables_cache=0;
   const_item_cache=1;
+  with_subselect= false;
   while ((item=li++))
   {
     item->update_used_tables();
     used_tables_cache|= item->used_tables();
     const_item_cache&= item->const_item();
+    with_subselect|= item->has_subquery();
   }
 }
 
@@ -4803,6 +4805,8 @@ void Item_is_not_null_test::update_used_tables()
   else
   {
     args[0]->update_used_tables();
+    with_subselect= args[0]->has_subquery();
+
     if (!(used_tables_cache=args[0]->used_tables()) && !with_subselect)
     {
       /* Remember if the value is always NULL or never NULL */
@@ -5827,12 +5831,14 @@ void Item_equal::update_used_tables()
   not_null_tables_cache= used_tables_cache= 0;
   if ((const_item_cache= cond_false))
     return;
+  with_subselect= false;
   while ((item=li++))
   {
     item->update_used_tables();
     used_tables_cache|= item->used_tables();
     /* see commentary at Item_equal::update_const() */
     const_item_cache&= item->const_item() && !item->is_outer_field();
+    with_subselect|= item->has_subquery();
   }
 }
 

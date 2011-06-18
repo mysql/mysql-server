@@ -797,7 +797,7 @@ bool do_command(THD *thd)
     Consider moving to init_connect() instead.
   */
   thd->clear_error();				// Clear error message
-  thd->stmt_da->reset_diagnostics_area();
+  thd->get_stmt_da()->reset_diagnostics_area();
 
   net_new_transaction(net);
 
@@ -1189,7 +1189,7 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
       }
 
 /* PSI end */
-      MYSQL_END_STATEMENT(thd->m_statement_psi, thd->stmt_da);
+      MYSQL_END_STATEMENT(thd->m_statement_psi, thd->get_stmt_da());
 
 /* DTRACE end */
       if (MYSQL_QUERY_DONE_ENABLED())
@@ -1335,7 +1335,7 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
     /* We don't calculate statistics for this command */
     general_log_print(thd, command, NullS);
     net->error=0;				// Don't give 'abort' message
-    thd->stmt_da->disable_status();              // Don't send anything back
+    thd->get_stmt_da()->disable_status();              // Don't send anything back
     error=TRUE;					// End server
     break;
 #ifndef EMBEDDED_LIBRARY
@@ -1475,7 +1475,7 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
 #else
     (void) my_net_write(net, (uchar*) buff, length);
     (void) net_flush(net);
-    thd->stmt_da->disable_status();
+    thd->get_stmt_da()->disable_status();
 #endif
     break;
   }
@@ -1550,7 +1550,8 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
     mysql_audit_general(thd, MYSQL_AUDIT_GENERAL_RESULT, 0, 0);
 
   mysql_audit_general(thd, MYSQL_AUDIT_GENERAL_STATUS,
-                      thd->stmt_da->is_error() ? thd->stmt_da->sql_errno() : 0,
+                      thd->get_stmt_da()->is_error() ?
+                      thd->get_stmt_da()->sql_errno() : 0,
                       command_name[command].str);
 
   log_slow_statement(thd);
@@ -1563,7 +1564,7 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
   free_root(thd->mem_root,MYF(MY_KEEP_PREALLOC));
 
   /* Performance Schema Interface instrumentation, end */
-  MYSQL_END_STATEMENT(thd->m_statement_psi, thd->stmt_da);
+  MYSQL_END_STATEMENT(thd->m_statement_psi, thd->get_stmt_da());
   thd->m_statement_psi= NULL;
 
   /* DTRACE instrumentation, end */
@@ -2040,12 +2041,12 @@ mysql_execute_command(THD *thd)
     variables, but for now this is probably good enough.
   */
   if ((sql_command_flags[lex->sql_command] & CF_DIAGNOSTIC_STMT) != 0)
-    thd->warning_info->set_read_only(TRUE);
+    thd->get_stmt_wi()->set_read_only(TRUE);
   else
   {
-    thd->warning_info->set_read_only(FALSE);
+    thd->get_stmt_wi()->set_read_only(FALSE);
     if (all_tables)
-      thd->warning_info->opt_clear_warning_info(thd->query_id);
+      thd->get_stmt_wi()->opt_clear_warning_info(thd->query_id);
   }
 
 #ifdef HAVE_REPLICATION
@@ -2186,6 +2187,11 @@ mysql_execute_command(THD *thd)
   */
   if (stmt_causes_implicit_commit(thd, CF_IMPLICT_COMMIT_BEGIN))
   {
+    /*
+      Note that this should never happen inside of stored functions
+      or triggers as all such statements prohibited there.
+    */
+    DBUG_ASSERT(! thd->in_sub_stmt);
     /* Commit or rollback the statement transaction. */
     thd->is_error() ? trans_rollback_stmt(thd) : trans_commit_stmt(thd);
     /* Commit the normal transaction if one is active. */
@@ -4542,7 +4548,7 @@ finish:
     /* report error issued during command execution */
     if (thd->killed_errno())
     {
-      if (! thd->stmt_da->is_set())
+      if (! thd->get_stmt_da()->is_set())
         thd->send_kill_message();
     }
     if (thd->killed == THD::KILL_QUERY || thd->killed == THD::KILL_BAD_DATA)
@@ -4555,9 +4561,9 @@ finish:
     else
     {
       /* If commit fails, we should be able to reset the OK status. */
-      thd->stmt_da->can_overwrite_status= TRUE;
+      thd->get_stmt_da()->can_overwrite_status= TRUE;
       trans_commit_stmt(thd);
-      thd->stmt_da->can_overwrite_status= FALSE;
+      thd->get_stmt_da()->can_overwrite_status= FALSE;
     }
   }
 
@@ -4576,10 +4582,10 @@ finish:
     /* No transaction control allowed in sub-statements. */
     DBUG_ASSERT(! thd->in_sub_stmt);
     /* If commit fails, we should be able to reset the OK status. */
-    thd->stmt_da->can_overwrite_status= TRUE;
+    thd->get_stmt_da()->can_overwrite_status= TRUE;
     /* Commit the normal transaction if one is active. */
     trans_commit_implicit(thd);
-    thd->stmt_da->can_overwrite_status= FALSE;
+    thd->get_stmt_da()->can_overwrite_status= FALSE;
     thd->mdl_context.release_transactional_locks();
   }
   else if (! thd->in_sub_stmt && ! thd->in_multi_stmt_transaction_mode())
@@ -5458,8 +5464,8 @@ void THD::reset_for_next_command()
     thd->user_var_events_alloc= thd->mem_root;
   }
   thd->clear_error();
-  thd->stmt_da->reset_diagnostics_area();
-  thd->warning_info->reset_for_next_command();
+  thd->get_stmt_da()->reset_diagnostics_area();
+  thd->get_stmt_wi()->reset_for_next_command();
   thd->rand_used= 0;
   thd->m_sent_row_count= thd->m_examined_row_count= 0;
   thd->thd_marker.emb_on_expr_nest= NULL;
