@@ -252,12 +252,6 @@ buf_relocate(
 				BUF_BLOCK_ZIP_DIRTY or BUF_BLOCK_ZIP_PAGE */
 	buf_page_t*	dpage)	/*!< in/out: destination control block */
 	__attribute__((nonnull));
-/********************************************************************//**
-Resizes the buffer pool. */
-UNIV_INTERN
-void
-buf_pool_resize(void);
-/*=================*/
 /*********************************************************************//**
 Gets the current size of buffer buf_pool in bytes.
 @return	size in bytes */
@@ -280,6 +274,22 @@ UNIV_INTERN
 lsn_t
 buf_pool_get_oldest_modification(void);
 /*==================================*/
+/********************************************************************//**
+Allocates a buf_page_t descriptor. This function must succeed. In case
+of failure we assert in this function. */
+UNIV_INLINE
+buf_page_t*
+buf_page_alloc_descriptor(void)
+/*===========================*/
+	__attribute__((malloc));
+/********************************************************************//**
+Free a buf_page_t descriptor. */
+UNIV_INLINE
+void
+buf_page_free_descriptor(
+/*=====================*/
+	buf_page_t*	bpage)	/*!< in: bpage descriptor to free. */
+	__attribute__((nonnull));
 /********************************************************************//**
 Allocates a buffer block.
 @return	own: the allocated block, in state BUF_BLOCK_MEMORY */
@@ -587,6 +597,31 @@ buf_block_get_modify_clock(
 #else /* !UNIV_HOTBACKUP */
 # define buf_block_modify_clock_inc(block) ((void) 0)
 #endif /* !UNIV_HOTBACKUP */
+/*******************************************************************//**
+Increments the bufferfix count. */
+UNIV_INLINE
+void
+buf_block_buf_fix_inc_func(
+/*=======================*/
+#ifdef UNIV_SYNC_DEBUG
+	const char*	file,	/*!< in: file name */
+	ulint		line,	/*!< in: line */
+#endif /* UNIV_SYNC_DEBUG */
+	buf_block_t*	block)	/*!< in/out: block to bufferfix */
+	__attribute__((nonnull));
+#ifdef UNIV_SYNC_DEBUG
+/** Increments the bufferfix count.
+@param b	in/out: block to bufferfix
+@param f	in: file name where requested
+@param l	in: line number where requested */
+# define buf_block_buf_fix_inc(b,f,l) buf_block_buf_fix_inc_func(f,l,b)
+#else /* UNIV_SYNC_DEBUG */
+/** Increments the bufferfix count.
+@param b	in/out: block to bufferfix
+@param f	in: file name where requested
+@param l	in: line number where requested */
+# define buf_block_buf_fix_inc(b,f,l) buf_block_buf_fix_inc_func(b)
+#endif /* UNIV_SYNC_DEBUG */
 /********************************************************************//**
 Calculates a page checksum which is stored to the page when it is written
 to a file. Note that we must be careful to calculate the same value
@@ -1261,7 +1296,7 @@ ulint
 buf_get_free_list_len(void);
 /*=======================*/
 
-/********************************************************************
+/********************************************************************//**
 Determine if a block is a sentinel for a buffer pool watch.
 @return	TRUE if a sentinel for a buffer pool watch, FALSE if not */
 UNIV_INTERN
@@ -1829,8 +1864,10 @@ struct buf_pool_struct{
 	frames and buf_page_t descriptors of blocks that exist
 	in the buffer pool only in compressed form. */
 	/* @{ */
+#if defined UNIV_DEBUG || defined UNIV_BUF_DEBUG
 	UT_LIST_BASE_NODE_T(buf_page_t)	zip_clean;
 					/*!< unmodified compressed pages */
+#endif /* UNIV_DEBUG || UNIV_BUF_DEBUG */
 	UT_LIST_BASE_NODE_T(buf_page_t) zip_free[BUF_BUDDY_SIZES];
 					/*!< buddy free lists */
 

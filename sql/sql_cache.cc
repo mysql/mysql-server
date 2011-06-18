@@ -993,7 +993,7 @@ void Query_cache::end_of_result(THD *thd)
     DBUG_VOID_RETURN;
 
   /* Ensure that only complete results are cached. */
-  DBUG_ASSERT(thd->stmt_da->is_eof());
+  DBUG_ASSERT(thd->get_stmt_da()->is_eof());
 
   if (thd->killed)
   {
@@ -1756,8 +1756,8 @@ def_week_frmt: %lu, in_trans: %d, autocommit: %d",
     response, we can't handle it anyway.
   */
   (void) trans_commit_stmt(thd);
-  if (!thd->stmt_da->is_set())
-    thd->stmt_da->disable_status();
+  if (!thd->get_stmt_da()->is_set())
+    thd->get_stmt_da()->disable_status();
 
   BLOCK_UNLOCK_RD(query_block);
   MYSQL_QUERY_CACHE_HIT(thd->query(), (ulong) thd->limit_found_rows);

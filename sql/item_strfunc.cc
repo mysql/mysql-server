@@ -2571,6 +2571,7 @@ void Item_func_make_set::update_used_tables()
   item->update_used_tables();
   used_tables_cache|=item->used_tables();
   const_item_cache&=item->const_item();
+  with_subselect= item->has_subquery();
 }
 
 

@@ -182,7 +182,7 @@ static void check_unused(void)
   {
     share= (TABLE_SHARE*) my_hash_element(&table_def_cache, idx);
 
-    I_P_List_iterator<TABLE, TABLE_share> it(share->free_tables);
+    TABLE_SHARE::TABLE_list::Iterator it(share->free_tables);
     while ((entry= it++))
     {
       /* We must not have TABLEs in the free list that have their file closed. */
@@ -676,8 +676,11 @@ get_table_share_with_discover(THD *thd, TABLE_LIST *table_list,
 
     @todo Rework alternative ways to deal with ER_NO_SUCH TABLE.
   */
-  if (share || (thd->is_error() && thd->stmt_da->sql_errno() != ER_NO_SUCH_TABLE))
+  if (share || (thd->is_error() &&
+      thd->get_stmt_da()->sql_errno() != ER_NO_SUCH_TABLE))
+  {
     DBUG_RETURN(share);
+  }
 
   *error= 0;
 
@@ -854,7 +857,7 @@ OPEN_TABLE_LIST *list_open_tables(THD *thd, const char *db, const char *wild)
 		  share->db.str)+1,
 	   share->table_name.str);
     (*start_list)->in_use= 0;
-    I_P_List_iterator<TABLE, TABLE_share> it(share->used_tables);
+    TABLE_SHARE::TABLE_list::Iterator it(share->used_tables);
     while (it++)
       ++(*start_list)->in_use;
     (*start_list)->locked= 0;                   /* Obsolete. */
@@ -935,7 +938,7 @@ void free_io_cache(TABLE *table)
 
 static void kill_delayed_threads_for_table(TABLE_SHARE *share)
 {
-  I_P_List_iterator<TABLE, TABLE_share> it(share->used_tables);
+  TABLE_SHARE::TABLE_list::Iterator it(share->used_tables);
   TABLE *tab;
 
   mysql_mutex_assert_owner(&LOCK_open);
@@ -1728,14 +1731,14 @@ bool close_temporary_tables(THD *thd)
       qinfo.db_len= db.length();
       thd->variables.character_set_client= cs_save;
 
-      thd->stmt_da->can_overwrite_status= TRUE;
+      thd->get_stmt_da()->can_overwrite_status= TRUE;
       if ((error= (mysql_bin_log.write(&qinfo) || error)))
       {
         /*
           If we're here following THD::cleanup, thence the connection
           has been closed already. So lets print a message to the
           error log instead of pushing yet another error into the
-          stmt_da.
+          Diagnostics_area.
 
           Also, we keep the error flag so that we propagate the error
           up in the stack. This way, if we're the SQL thread we notice
@@ -1746,7 +1749,7 @@ bool close_temporary_tables(THD *thd)
         sql_print_error("Failed to write the DROP statement for "
                         "temporary tables to binary log");
       }
-      thd->stmt_da->can_overwrite_status= FALSE;
+      thd->get_stmt_da()->can_overwrite_status= FALSE;
 
       thd->variables.pseudo_thread_id= save_pseudo_thread_id;
       thd->thread_specific_used= save_thread_specific_used;
@@ -4013,7 +4016,7 @@ recover_from_failed_open(THD *thd)
         ha_create_table_from_engine(thd, m_failed_table->db,
                                     m_failed_table->table_name);
 
-        thd->warning_info->clear_warning_info(thd->query_id);
+        thd->get_stmt_wi()->clear_warning_info(thd->query_id);
         thd->clear_error();                 // Clear error message
         thd->mdl_context.release_transactional_locks();
         break;
@@ -9012,7 +9015,7 @@ void tdc_remove_table(THD *thd, enum_tdc_remove_table_type remove_type,
   {
     if (share->ref_count)
     {
-      I_P_List_iterator<TABLE, TABLE_share> it(share->free_tables);
+      TABLE_SHARE::TABLE_list::Iterator it(share->free_tables);
 #ifndef DBUG_OFF
       if (remove_type == TDC_RT_REMOVE_ALL)
       {
@@ -9020,7 +9023,7 @@ void tdc_remove_table(THD *thd, enum_tdc_remove_table_type remove_type,
       }
       else if (remove_type == TDC_RT_REMOVE_NOT_OWN)
       {
-        I_P_List_iterator<TABLE, TABLE_share> it2(share->used_tables);
+        TABLE_SHARE::TABLE_list::Iterator it2(share->used_tables);
         while ((table= it2++))
           if (table->in_use != thd)
           {

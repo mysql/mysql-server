@@ -372,7 +372,7 @@ void
 os_atomic_dec_ulint_func(
 /*=====================*/
 	mutex_t*	mutex,		/*!< in: mutex guarding the dec */
-	ulint*		var,		/*!< in/out: variable to decrement */
+	volatile ulint*	var,		/*!< in/out: variable to decrement */
 	ulint		delta)		/*!< in: delta to decrement */
 {
 	mutex_enter(mutex);
@@ -393,7 +393,7 @@ void
 os_atomic_inc_ulint_func(
 /*=====================*/
 	mutex_t*	mutex,		/*!< in: mutex guarding the increment */
-	ulint*		var,		/*!< in/out: variable to increment */
+	volatile ulint*	var,		/*!< in/out: variable to increment */
 	ulint		delta)		/*!< in: delta to increment */
 {
 	mutex_enter(mutex);

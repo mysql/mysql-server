@@ -972,7 +972,7 @@ trx_purge_fetch_next_rec(
 /*******************************************************************//**
 This function runs a purge batch.
 @return	number of undo log pages handled in the batch */
-UNIV_INTERN
+static
 ulint
 trx_purge_attach_undo_recs(
 /*=======================*/
@@ -986,11 +986,13 @@ trx_purge_attach_undo_recs(
 	ulint		n_pages_handled = 0;
 	ulint		n_thrs = UT_LIST_GET_LEN(purge_sys->query->thrs);
 
+	ut_a(n_purge_threads > 0);
+
 	*limit = purge_sys->iter;
 
 	/* Debug code to validate some pre-requisites and reset done flag. */
 	for (thr = UT_LIST_GET_FIRST(purge_sys->query->thrs);
-	     thr != NULL;
+	     thr != NULL && i < n_purge_threads;
 	     thr = UT_LIST_GET_NEXT(thrs, thr), ++i) {
 
 		purge_node_t*		node;
@@ -1005,7 +1007,9 @@ trx_purge_attach_undo_recs(
 		node->done = FALSE;
 	}
 
-	ut_a(i == n_purge_threads || (n_purge_threads == 0 && i == 1));
+	/* There should never be fewer nodes than threads, the inverse
+	however is allowed because we only use purge threads as needed. */
+	ut_a(i == n_purge_threads);
 
 	/* Fetch and parse the UNDO records. The UNDO records are added
 	to a per purge node vector. */
@@ -1014,7 +1018,9 @@ trx_purge_attach_undo_recs(
 
 	ut_ad(trx_purge_check_limit());
 
-	do {
+	i = 0;
+
+	for (;;) {
 		purge_node_t*		node;
 		trx_purge_rec_t*	purge_rec;
 
@@ -1061,10 +1067,12 @@ trx_purge_attach_undo_recs(
 
 		thr = UT_LIST_GET_NEXT(thrs, thr);
 
-		if (thr == NULL) {
+		if (!(++i % n_purge_threads)) {
 			thr = UT_LIST_GET_FIRST(purge_sys->query->thrs);
 		}
-	} while (thr);
+
+		ut_a(thr != NULL);
+	}
 
 	ut_ad(trx_purge_check_limit());
 
@@ -1116,55 +1124,45 @@ static
 void
 trx_purge_wait_for_workers_to_complete(
 /*===================================*/
-	trx_purge_t*	purge_sys)	/*!< in: purge instance */ 
+	trx_purge_t*	purge_sys)	/*!< in: purge instance */
 {
-	/* Ensure that the work queue empties out. Note, we are doing
-	a dirty read of purge_sys->n_completed and purge_sys->n_executing. */
-	while (purge_sys->n_submitted > purge_sys->n_completed
-	       || purge_sys->n_executing > 0) {
+	ulint		n_submitted = purge_sys->n_submitted;
 
-		if (srv_get_task_queue_length() == 0
-		    && purge_sys->n_executing == 0) {
+#ifdef HAVE_ATOMIC_BUILTINS
+	/* Ensure that the work queue empties out. */
+	while (!os_compare_and_swap_ulint(
+			&purge_sys->n_completed, n_submitted, n_submitted)) {
+#else
+	mutex_enter(&purge_sys->bh_mutex);
 
-			ut_a(purge_sys->n_submitted == purge_sys->n_completed);
-			break;
+	while (purge_sys->n_completed < n_submitted) {
+#endif /* HAVE_ATOMIC_BUILTINS */
 
-		} else if (srv_shutdown_state != SRV_SHUTDOWN_NONE) {
-			/* This is problematic because the worker threads can
-			simply exit via os_event_wait(). We could end up
-			looping here forever waiting for the task queue to
-			drain. Another problem is that a worker thread can
-			be active but it hasn't incrementd the n_executing
-			field yet. Our only hope is to poll here for a fixed
-			time interval.  Given that the server is shutting down,
-			a few microseconds waiting to check the worker threads
-			should be acceptable. */
+#ifndef HAVE_ATOMIC_BUILTINS
+		mutex_exit(&purge_sys->bh_mutex);
+#endif /* !HAVE_ATOMIC_BUILTINS */
 
-			os_thread_sleep(500000);
-
-			if (srv_get_task_queue_length() > 0) {
-				break;
-			}
+		if (srv_get_task_queue_length() > 0) {
+			srv_release_threads(SRV_WORKER, 1);
 		}
 
-		srv_release_threads(SRV_WORKER, 1);
+		os_thread_yield();
 
-		/* This is an arbitrary choice. */
-		os_thread_sleep(4000);
+#ifndef HAVE_ATOMIC_BUILTINS
+		mutex_enter(&purge_sys->bh_mutex);
+#endif /* !HAVE_ATOMIC_BUILTINS */
 	}
 
-	/* If shutdown is signalled then the worker threads can
-	simply exit via os_event_wait(). The thread initiating the
-	purge should be prepared to handle this case. */
-	if (srv_shutdown_state == SRV_SHUTDOWN_NONE) {
+#ifndef HAVE_ATOMIC_BUILTINS
+	mutex_exit(&purge_sys->bh_mutex);
+#endif /* !HAVE_ATOMIC_BUILTINS */
 
-		/* None of the worker threads should be doing any work. */
-		ut_a(purge_sys->n_executing == 0);
+	/* None of the worker threads should be doing any work. */
+	ut_a(purge_sys->n_submitted == purge_sys->n_completed);
 
-		/* There should be no outstanding tasks as long
-		as the worker threads are active. */
-		ut_a(srv_get_task_queue_length() == 0);
-	}
+	/* There should be no outstanding tasks as long
+	as the worker threads are active. */
+	ut_a(srv_get_task_queue_length() == 0);
 }
 
 /******************************************************************//**
@@ -1204,6 +1202,8 @@ trx_purge(
 	que_thr_t*	thr = NULL;
 	ulint		n_pages_handled;
 
+	ut_a(n_purge_threads > 0);
+
 	srv_dml_needed_delay = trx_purge_dml_delay();
 
 	/* The number of tasks submitted should be completed. */
@@ -1226,7 +1226,7 @@ trx_purge(
 		n_purge_threads, purge_sys, &purge_sys->limit, batch_size);
 
 	/* Do we do an asynchronous purge or not ? */
-	if (n_purge_threads > 0) {
+	if (n_purge_threads > 1) {
 		ulint	i = 0;
 
 		/* Submit the tasks to the work queue. */
