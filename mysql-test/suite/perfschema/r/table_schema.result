@@ -326,6 +326,60 @@ def	performance_schema	setup_objects	OBJECT_NAME	3	%	NO	varchar	64	192	NULL	NULL
 def	performance_schema	setup_objects	TIMED	4	YES	NO	enum	3	9	NULL	NULL	utf8	utf8_general_ci	enum('YES','NO')			select,insert,update,references	
 def	performance_schema	setup_timers	NAME	1	NULL	NO	varchar	64	192	NULL	NULL	utf8	utf8_general_ci	varchar(64)			select,insert,update,references	
 def	performance_schema	setup_timers	TIMER_NAME	2	NULL	NO	enum	11	33	NULL	NULL	utf8	utf8_general_ci	enum('CYCLE','NANOSECOND','MICROSECOND','MILLISECOND','TICK')			select,insert,update,references	
+def	performance_schema	socket_instances	EVENT_NAME	1	NULL	NO	varchar	128	384	NULL	NULL	utf8	utf8_general_ci	varchar(128)			select,insert,update,references	
+def	performance_schema	socket_instances	OBJECT_INSTANCE_BEGIN	2	NULL	NO	bigint	NULL	NULL	20	0	NULL	NULL	bigint(20) unsigned			select,insert,update,references	
+def	performance_schema	socket_instances	THREAD_ID	3	NULL	YES	int	NULL	NULL	10	0	NULL	NULL	int(11)			select,insert,update,references	
+def	performance_schema	socket_instances	SOCKET_ID	4	NULL	NO	int	NULL	NULL	10	0	NULL	NULL	int(11)			select,insert,update,references	
+def	performance_schema	socket_instances	IP	5	NULL	NO	varchar	64	192	NULL	NULL	utf8	utf8_general_ci	varchar(64)			select,insert,update,references	
+def	performance_schema	socket_instances	PORT	6	NULL	NO	int	NULL	NULL	10	0	NULL	NULL	int(11)			select,insert,update,references	
+def	performance_schema	socket_instances	STATE	7	NULL	NO	enum	6	18	NULL	NULL	utf8	utf8_general_ci	enum('IDLE','ACTIVE')			select,insert,update,references	
+def	performance_schema	socket_summary_by_event_name	EVENT_NAME	1	NULL	NO	varchar	128	384	NULL	NULL	utf8	utf8_general_ci	varchar(128)			select,insert,update,references	
+def	performance_schema	socket_summary_by_event_name	COUNT_STAR	2	NULL	NO	bigint	NULL	NULL	20	0	NULL	NULL	bigint(20) unsigned			select,insert,update,references	
+def	performance_schema	socket_summary_by_event_name	SUM_TIMER_WAIT	3	NULL	NO	bigint	NULL	NULL	20	0	NULL	NULL	bigint(20) unsigned			select,insert,update,references	
+def	performance_schema	socket_summary_by_event_name	MIN_TIMER_WAIT	4	NULL	NO	bigint	NULL	NULL	20	0	NULL	NULL	bigint(20) unsigned			select,insert,update,references	
+def	performance_schema	socket_summary_by_event_name	AVG_TIMER_WAIT	5	NULL	NO	bigint	NULL	NULL	20	0	NULL	NULL	bigint(20) unsigned			select,insert,update,references	
+def	performance_schema	socket_summary_by_event_name	MAX_TIMER_WAIT	6	NULL	NO	bigint	NULL	NULL	20	0	NULL	NULL	bigint(20) unsigned			select,insert,update,references	
+def	performance_schema	socket_summary_by_event_name	COUNT_READ	7	NULL	NO	bigint	NULL	NULL	20	0	NULL	NULL	bigint(20) unsigned			select,insert,update,references	
+def	performance_schema	socket_summary_by_event_name	SUM_TIMER_READ	8	NULL	NO	bigint	NULL	NULL	20	0	NULL	NULL	bigint(20) unsigned			select,insert,update,references	
+def	performance_schema	socket_summary_by_event_name	MIN_TIMER_READ	9	NULL	NO	bigint	NULL	NULL	20	0	NULL	NULL	bigint(20) unsigned			select,insert,update,references	
+def	performance_schema	socket_summary_by_event_name	AVG_TIMER_READ	10	NULL	NO	bigint	NULL	NULL	20	0	NULL	NULL	bigint(20) unsigned			select,insert,update,references	
+def	performance_schema	socket_summary_by_event_name	MAX_TIMER_READ	11	NULL	NO	bigint	NULL	NULL	20	0	NULL	NULL	bigint(20) unsigned			select,insert,update,references	
+def	performance_schema	socket_summary_by_event_name	SUM_NUMBER_OF_BYTES_READ	12	NULL	NO	bigint	NULL	NULL	20	0	NULL	NULL	bigint(20) unsigned			select,insert,update,references	
+def	performance_schema	socket_summary_by_event_name	COUNT_WRITE	13	NULL	NO	bigint	NULL	NULL	20	0	NULL	NULL	bigint(20) unsigned			select,insert,update,references	
+def	performance_schema	socket_summary_by_event_name	SUM_TIMER_WRITE	14	NULL	NO	bigint	NULL	NULL	20	0	NULL	NULL	bigint(20) unsigned			select,insert,update,references	
+def	performance_schema	socket_summary_by_event_name	MIN_TIMER_WRITE	15	NULL	NO	bigint	NULL	NULL	20	0	NULL	NULL	bigint(20) unsigned			select,insert,update,references	
+def	performance_schema	socket_summary_by_event_name	AVG_TIMER_WRITE	16	NULL	NO	bigint	NULL	NULL	20	0	NULL	NULL	bigint(20) unsigned			select,insert,update,references	
+def	performance_schema	socket_summary_by_event_name	MAX_TIMER_WRITE	17	NULL	NO	bigint	NULL	NULL	20	0	NULL	NULL	bigint(20) unsigned			select,insert,update,references	
+def	performance_schema	socket_summary_by_event_name	SUM_NUMBER_OF_BYTES_WRITE	18	NULL	NO	bigint	NULL	NULL	20	0	NULL	NULL	bigint(20) unsigned			select,insert,update,references	
+def	performance_schema	socket_summary_by_event_name	COUNT_MISC	19	NULL	NO	bigint	NULL	NULL	20	0	NULL	NULL	bigint(20) unsigned			select,insert,update,references	
+def	performance_schema	socket_summary_by_event_name	SUM_TIMER_MISC	20	NULL	NO	bigint	NULL	NULL	20	0	NULL	NULL	bigint(20) unsigned			select,insert,update,references	
+def	performance_schema	socket_summary_by_event_name	MIN_TIMER_MISC	21	NULL	NO	bigint	NULL	NULL	20	0	NULL	NULL	bigint(20) unsigned			select,insert,update,references	
+def	performance_schema	socket_summary_by_event_name	AVG_TIMER_MISC	22	NULL	NO	bigint	NULL	NULL	20	0	NULL	NULL	bigint(20) unsigned			select,insert,update,references	
+def	performance_schema	socket_summary_by_event_name	MAX_TIMER_MISC	23	NULL	NO	bigint	NULL	NULL	20	0	NULL	NULL	bigint(20) unsigned			select,insert,update,references	
+def	performance_schema	socket_summary_by_instance	EVENT_NAME	1	NULL	NO	varchar	128	384	NULL	NULL	utf8	utf8_general_ci	varchar(128)			select,insert,update,references	
+def	performance_schema	socket_summary_by_instance	OBJECT_INSTANCE_BEGIN	2	NULL	NO	bigint	NULL	NULL	20	0	NULL	NULL	bigint(20) unsigned			select,insert,update,references	
+def	performance_schema	socket_summary_by_instance	COUNT_STAR	3	NULL	NO	bigint	NULL	NULL	20	0	NULL	NULL	bigint(20) unsigned			select,insert,update,references	
+def	performance_schema	socket_summary_by_instance	SUM_TIMER_WAIT	4	NULL	NO	bigint	NULL	NULL	20	0	NULL	NULL	bigint(20) unsigned			select,insert,update,references	
+def	performance_schema	socket_summary_by_instance	MIN_TIMER_WAIT	5	NULL	NO	bigint	NULL	NULL	20	0	NULL	NULL	bigint(20) unsigned			select,insert,update,references	
+def	performance_schema	socket_summary_by_instance	AVG_TIMER_WAIT	6	NULL	NO	bigint	NULL	NULL	20	0	NULL	NULL	bigint(20) unsigned			select,insert,update,references	
+def	performance_schema	socket_summary_by_instance	MAX_TIMER_WAIT	7	NULL	NO	bigint	NULL	NULL	20	0	NULL	NULL	bigint(20) unsigned			select,insert,update,references	
+def	performance_schema	socket_summary_by_instance	COUNT_READ	8	NULL	NO	bigint	NULL	NULL	20	0	NULL	NULL	bigint(20) unsigned			select,insert,update,references	
+def	performance_schema	socket_summary_by_instance	SUM_TIMER_READ	9	NULL	NO	bigint	NULL	NULL	20	0	NULL	NULL	bigint(20) unsigned			select,insert,update,references	
+def	performance_schema	socket_summary_by_instance	MIN_TIMER_READ	10	NULL	NO	bigint	NULL	NULL	20	0	NULL	NULL	bigint(20) unsigned			select,insert,update,references	
+def	performance_schema	socket_summary_by_instance	AVG_TIMER_READ	11	NULL	NO	bigint	NULL	NULL	20	0	NULL	NULL	bigint(20) unsigned			select,insert,update,references	
+def	performance_schema	socket_summary_by_instance	MAX_TIMER_READ	12	NULL	NO	bigint	NULL	NULL	20	0	NULL	NULL	bigint(20) unsigned			select,insert,update,references	
+def	performance_schema	socket_summary_by_instance	SUM_NUMBER_OF_BYTES_READ	13	NULL	NO	bigint	NULL	NULL	20	0	NULL	NULL	bigint(20) unsigned			select,insert,update,references	
+def	performance_schema	socket_summary_by_instance	COUNT_WRITE	14	NULL	NO	bigint	NULL	NULL	20	0	NULL	NULL	bigint(20) unsigned			select,insert,update,references	
+def	performance_schema	socket_summary_by_instance	SUM_TIMER_WRITE	15	NULL	NO	bigint	NULL	NULL	20	0	NULL	NULL	bigint(20) unsigned			select,insert,update,references	
+def	performance_schema	socket_summary_by_instance	MIN_TIMER_WRITE	16	NULL	NO	bigint	NULL	NULL	20	0	NULL	NULL	bigint(20) unsigned			select,insert,update,references	
+def	performance_schema	socket_summary_by_instance	AVG_TIMER_WRITE	17	NULL	NO	bigint	NULL	NULL	20	0	NULL	NULL	bigint(20) unsigned			select,insert,update,references	
+def	performance_schema	socket_summary_by_instance	MAX_TIMER_WRITE	18	NULL	NO	bigint	NULL	NULL	20	0	NULL	NULL	bigint(20) unsigned			select,insert,update,references	
+def	performance_schema	socket_summary_by_instance	SUM_NUMBER_OF_BYTES_WRITE	19	NULL	NO	bigint	NULL	NULL	20	0	NULL	NULL	bigint(20) unsigned			select,insert,update,references	
+def	performance_schema	socket_summary_by_instance	COUNT_MISC	20	NULL	NO	bigint	NULL	NULL	20	0	NULL	NULL	bigint(20) unsigned			select,insert,update,references	
+def	performance_schema	socket_summary_by_instance	SUM_TIMER_MISC	21	NULL	NO	bigint	NULL	NULL	20	0	NULL	NULL	bigint(20) unsigned			select,insert,update,references	
+def	performance_schema	socket_summary_by_instance	MIN_TIMER_MISC	22	NULL	NO	bigint	NULL	NULL	20	0	NULL	NULL	bigint(20) unsigned			select,insert,update,references	
+def	performance_schema	socket_summary_by_instance	AVG_TIMER_MISC	23	NULL	NO	bigint	NULL	NULL	20	0	NULL	NULL	bigint(20) unsigned			select,insert,update,references	
+def	performance_schema	socket_summary_by_instance	MAX_TIMER_MISC	24	NULL	NO	bigint	NULL	NULL	20	0	NULL	NULL	bigint(20) unsigned			select,insert,update,references	
 def	performance_schema	table_io_waits_summary_by_index_usage	OBJECT_TYPE	1	NULL	YES	varchar	64	192	NULL	NULL	utf8	utf8_general_ci	varchar(64)			select,insert,update,references	
 def	performance_schema	table_io_waits_summary_by_index_usage	OBJECT_SCHEMA	2	NULL	YES	varchar	64	192	NULL	NULL	utf8	utf8_general_ci	varchar(64)			select,insert,update,references	
 def	performance_schema	table_io_waits_summary_by_index_usage	OBJECT_NAME	3	NULL	YES	varchar	64	192	NULL	NULL	utf8	utf8_general_ci	varchar(64)			select,insert,update,references	
