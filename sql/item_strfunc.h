@@ -22,6 +22,23 @@
 
 class Item_str_func :public Item_func
 {
+protected:
+  /**
+     Sets the result value of the function an empty string, using the current
+     character set. No memory is allocated.
+     @retval A pointer to the str_value member.
+   */
+  String *make_empty_result()
+  {
+    /*
+      Reset string length to an empty string. We don't use str_value.set() as
+      we don't want to free and potentially have to reallocate the buffer
+      for each call.
+    */
+    str_value.length(0);
+    str_value.set_charset(collation.collation);
+    return &str_value; 
+  }
 public:
   Item_str_func() :Item_func() { decimals=NOT_FIXED_DEC; }
   Item_str_func(Item *a) :Item_func(a) {decimals=NOT_FIXED_DEC; }
@@ -707,15 +724,17 @@ public:
   String *val_str(String *);
   void fix_length_and_dec()
   {
-    ulonglong max_result_length= (ulonglong) args[0]->max_length * 2 + 2;
-    max_length= (uint32) min(max_result_length, MAX_BLOB_WIDTH);
     collation.set(args[0]->collation);
+    ulonglong max_result_length= (ulonglong) args[0]->max_length * 2 +
+                                  2 * collation.collation->mbmaxlen;
+    max_length= (uint32) min(max_result_length, MAX_BLOB_WIDTH);
   }
 };
 
 class Item_func_conv_charset :public Item_str_func
 {
   bool use_cached_value;
+  String tmp_value;
 public:
   bool safe;
   CHARSET_INFO *conv_charset; // keep it public
@@ -871,3 +890,71 @@ public:
   }
 };
 
+
+class Item_func_dyncol_create: public Item_str_func
+{
+protected:
+  DYNCALL_CREATE_DEF *defs;
+  DYNAMIC_COLUMN_VALUE *vals;
+  uint *nums;
+  void prepare_arguments();
+  void cleanup_arguments();
+  void print_arguments(String *str, enum_query_type query_type);
+public:
+  Item_func_dyncol_create(List<Item> &args, DYNCALL_CREATE_DEF *dfs);
+  bool fix_fields(THD *thd, Item **ref);
+  void fix_length_and_dec();
+  const char *func_name() const{ return "column_create"; }
+  String *val_str(String *);
+  virtual void print(String *str, enum_query_type query_type);
+};
+
+
+class Item_func_dyncol_add: public Item_func_dyncol_create
+{
+public:
+  Item_func_dyncol_add(List<Item> &args, DYNCALL_CREATE_DEF *dfs)
+    :Item_func_dyncol_create(args, dfs)
+  {}
+  const char *func_name() const{ return "column_add"; }
+  String *val_str(String *);
+  virtual void print(String *str, enum_query_type query_type);
+};
+
+
+/*
+  The following functions is always called from an Item_cast function
+*/
+
+class Item_dyncol_get: public Item_str_func
+{
+public:
+  Item_dyncol_get(Item *str, Item *num)
+    :Item_str_func(str, num)
+  {
+    max_length= MAX_DYNAMIC_COLUMN_LENGTH;
+  }
+  void fix_length_and_dec()
+  { maybe_null= 1; }
+  /* Mark that collation can change between calls */
+  bool dynamic_result() { return 1; }
+
+  const char *func_name() const { return "column_get"; }
+  String *val_str(String *);
+  longlong val_int();
+  double val_real();
+  my_decimal *val_decimal(my_decimal *);
+  bool get_dyn_value(DYNAMIC_COLUMN_VALUE *val, String *tmp);
+  bool get_date(MYSQL_TIME *ltime,uint fuzzydate);
+  void print(String *str, enum_query_type query_type);
+};
+
+
+class Item_func_dyncol_list: public Item_str_func
+{
+public:
+  Item_func_dyncol_list(Item *str) :Item_str_func(str) {};
+  void fix_length_and_dec() { maybe_null= 1; max_length= MAX_BLOB_WIDTH; };
+  const char *func_name() const{ return "column_list"; }
+  String *val_str(String *);
+};

@@ -1538,7 +1538,7 @@ static void test_prepare_field_result()
   myquery(rc);
 
   rc= mysql_query(mysql, "CREATE TABLE test_prepare_field_result(int_c int, "
-                         "var_c varchar(50), ts_c timestamp(14), "
+                         "var_c varchar(50), ts_c timestamp, "
                          "char_c char(4), date_c date, extra tinyint)");
   myquery(rc);
 
@@ -4333,11 +4333,11 @@ static void test_fetch_date()
   myquery(rc);
 
   rc= mysql_query(mysql, "CREATE TABLE test_bind_result(c1 date, c2 time, \
-                                                        c3 timestamp(14), \
+                                                        c3 timestamp, \
                                                         c4 year, \
                                                         c5 datetime, \
-                                                        c6 timestamp(4), \
-                                                        c7 timestamp(6))");
+                                                        c6 timestamp, \
+                                                        c7 timestamp)");
   myquery(rc);
 
   rc= mysql_query(mysql, "SET SQL_MODE=''");
@@ -4651,7 +4651,7 @@ static void test_prepare_ext()
                " c12 numeric(8, 4),"
                " c13 date,"
                " c14 datetime,"
-               " c15 timestamp(14),"
+               " c15 timestamp,"
                " c16 time,"
                " c17 year,"
                " c18 bit,"
@@ -5685,7 +5685,7 @@ static void test_manual_sample()
   }
   if (mysql_query(mysql, "CREATE TABLE test_table(col1 int, col2 varchar(50), \
                                                  col3 smallint, \
-                                                 col4 timestamp(14))"))
+                                                 col4 timestamp)"))
   {
     fprintf(stderr, "\n create table failed");
     fprintf(stderr, "\n %s", mysql_error(mysql));
@@ -6595,7 +6595,7 @@ static void test_date()
   rc= mysql_query(mysql, "DROP TABLE IF EXISTS test_date");
   myquery(rc);
 
-  rc= mysql_query(mysql, "CREATE TABLE test_date(c1 TIMESTAMP(14), \
+  rc= mysql_query(mysql, "CREATE TABLE test_date(c1 TIMESTAMP, \
                                                  c2 TIME, \
                                                  c3 DATETIME, \
                                                  c4 DATE)");
@@ -6661,10 +6661,10 @@ static void test_date_ts()
   rc= mysql_query(mysql, "DROP TABLE IF EXISTS test_date");
   myquery(rc);
 
-  rc= mysql_query(mysql, "CREATE TABLE test_date(c1 TIMESTAMP(10), \
-                                                 c2 TIMESTAMP(14), \
+  rc= mysql_query(mysql, "CREATE TABLE test_date(c1 TIMESTAMP, \
+                                                 c2 TIMESTAMP, \
                                                  c3 TIMESTAMP, \
-                                                 c4 TIMESTAMP(6))");
+                                                 c4 TIMESTAMP)");
 
   myquery(rc);
 
@@ -8353,7 +8353,7 @@ static void test_fetch_seek()
 
   myquery(rc);
 
-  rc= mysql_query(mysql, "create table t1(c1 int primary key auto_increment, c2 char(10), c3 timestamp(14))");
+  rc= mysql_query(mysql, "create table t1(c1 int primary key auto_increment, c2 char(10), c3 timestamp)");
   myquery(rc);
 
   rc= mysql_query(mysql, "insert into t1(c2) values('venu'), ('mysql'), ('open'), ('source')");
@@ -9123,7 +9123,7 @@ static void test_ts()
   char       name;
   char query[MAX_TEST_QUERY_LENGTH];
   const char *queries [3]= {"SELECT a, b, c FROM test_ts WHERE %c=?",
-                            "SELECT a, b, c FROM test_ts WHERE %c=?",
+                            "SELECT a, b, c FROM test_ts WHERE %c=CAST(? AS TIME)",
                             "SELECT a, b, c FROM test_ts WHERE %c=CAST(? AS DATE)"};
   myheader("test_ts");
 
@@ -12542,7 +12542,7 @@ static void test_datetime_ranges()
 
   rc= mysql_stmt_execute(stmt);
   check_execute(stmt, rc);
-  DIE_UNLESS(mysql_warning_count(mysql) != 6);
+  DIE_UNLESS(mysql_warning_count(mysql) == 6);
 
   verify_col_data("t1", "year", "0000-00-00 00:00:00");
   verify_col_data("t1", "month", "0000-00-00 00:00:00");
@@ -12573,7 +12573,7 @@ static void test_datetime_ranges()
 
   rc= mysql_stmt_execute(stmt);
   check_execute(stmt, rc);
-  DIE_UNLESS(mysql_warning_count(mysql) != 3);
+  DIE_UNLESS(mysql_warning_count(mysql) == 3);
 
   verify_col_data("t1", "year", "0000-00-00 00:00:00");
   verify_col_data("t1", "month", "0000-00-00 00:00:00");
@@ -18443,6 +18443,123 @@ static void test_bug47485()
 
 
 /*
+  Bug#58036 client utf32, utf16, ucs2 should be disallowed, they crash server
+*/
+static void test_bug58036()
+{
+  MYSQL *conn;
+  DBUG_ENTER("test_bug47485");
+  myheader("test_bug58036");
+
+  /* Part1: try to connect with ucs2 client character set */
+  conn= mysql_client_init(NULL);
+  mysql_options(conn, MYSQL_SET_CHARSET_NAME, "ucs2");
+  if (mysql_real_connect(conn, opt_host, opt_user,
+                         opt_password,  opt_db ? opt_db : "test",
+                         opt_port, opt_unix_socket, 0))
+  {
+    if (!opt_silent)
+      printf("mysql_real_connect() succeeded (failure expected)\n");
+    mysql_close(conn);
+    DIE("");
+  }
+
+  if (!opt_silent)
+    printf("Got mysql_real_connect() error (expected): %s (%d)\n",
+           mysql_error(conn), mysql_errno(conn));  
+  DIE_UNLESS(mysql_errno(conn) == ER_WRONG_VALUE_FOR_VAR ||
+             mysql_errno(conn)== CR_CANT_READ_CHARSET);
+  mysql_close(conn);
+
+
+  /*
+    Part2:
+    - connect with latin1
+    - then change client character set to ucs2
+    - then try mysql_change_user()
+  */
+  conn= mysql_client_init(NULL);
+  mysql_options(conn, MYSQL_SET_CHARSET_NAME, "latin1");
+  if (!mysql_real_connect(conn, opt_host, opt_user,
+                         opt_password, opt_db ? opt_db : "test",
+                         opt_port, opt_unix_socket, 0))
+  {
+    if (!opt_silent)
+      printf("mysql_real_connect() failed: %s (%d)\n",
+             mysql_error(conn), mysql_errno(conn));
+    mysql_close(conn);
+    DIE("");
+  }
+
+  mysql_options(conn, MYSQL_SET_CHARSET_NAME, "ucs2");
+  if (!mysql_change_user(conn, opt_user, opt_password, NULL))
+  {
+    if (!opt_silent)
+      printf("mysql_change_user() succedded, error expected!");
+    mysql_close(conn);
+    DIE("");
+  }
+
+  if (!opt_silent)
+    printf("Got mysql_change_user() error (expected): %s (%d)\n",
+           mysql_error(conn), mysql_errno(conn));
+  mysql_close(conn);
+
+  DBUG_VOID_RETURN;
+}
+
+
+/*
+  Bug #56976:   Severe Denial Of Service in prepared statements
+*/
+static void test_bug56976()
+{
+  MYSQL_STMT   *stmt;
+  MYSQL_BIND    bind[1];
+  int           rc;
+  const char*   query = "SELECT LENGTH(?)";
+  char *long_buffer;
+  unsigned long i, packet_len = 256 * 1024L;
+  unsigned long dos_len    = 2 * 1024 * 1024L;
+
+  DBUG_ENTER("test_bug56976");
+  myheader("test_bug56976");
+
+  stmt= mysql_stmt_init(mysql);
+  check_stmt(stmt);
+
+  rc= mysql_stmt_prepare(stmt, query, strlen(query));
+  check_execute(stmt, rc);
+
+  memset(bind, 0, sizeof(bind));
+  bind[0].buffer_type = MYSQL_TYPE_TINY_BLOB;
+
+  rc= mysql_stmt_bind_param(stmt, bind);
+  check_execute(stmt, rc);
+
+  long_buffer= (char*) my_malloc(packet_len, MYF(0));
+  DIE_UNLESS(long_buffer);
+
+  memset(long_buffer, 'a', packet_len);
+
+  for (i= 0; i < dos_len / packet_len; i++)
+  {
+    rc= mysql_stmt_send_long_data(stmt, 0, long_buffer, packet_len);
+    check_execute(stmt, rc);
+  }
+
+  my_free(long_buffer, MYF(0));
+  rc= mysql_stmt_execute(stmt);
+
+  DIE_UNLESS(rc && mysql_stmt_errno(stmt) == ER_UNKNOWN_ERROR);
+
+  mysql_stmt_close(stmt);
+
+  DBUG_VOID_RETURN;
+}
+
+
+/*
   Read and parse arguments and MySQL options from my.cnf
 */
 
@@ -18767,6 +18884,8 @@ static struct my_tests_st my_tests[]= {
   { "test_bug42373", test_bug42373 },
   { "test_bug54041", test_bug54041 },
   { "test_bug47485", test_bug47485 },
+  { "test_bug58036", test_bug58036 },
+  { "test_bug56976", test_bug56976 },
   { 0, 0 }
 };
 

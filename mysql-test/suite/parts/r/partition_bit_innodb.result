@@ -1,7 +1,7 @@
 SET @max_row = 20;
 drop table if exists t1;
 create table t1 (a bit(65), primary key (a)) engine='INNODB' partition by key (a);
-ERROR 42000: Display width out of range for column 'a' (max = 64)
+ERROR 42000: Display width out of range for 'a' (max = 64)
 create table t1 (a bit(0), primary key (a)) engine='INNODB' partition by key (a);
 show create table t1;
 Table	Create Table

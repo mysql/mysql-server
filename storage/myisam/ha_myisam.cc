@@ -20,12 +20,8 @@
 
 #define MYSQL_SERVER 1
 #include "mysql_priv.h"
-#include <mysql/plugin.h>
-#include <m_ctype.h>
 #include <my_bit.h>
-#include <myisampack.h>
 #include "ha_myisam.h"
-#include <stdarg.h>
 #include "myisamdef.h"
 #include "rt_index.h"
 
@@ -297,6 +293,8 @@ int table2myisam(TABLE *table_arg, MI_KEYDEF **keydef_out,
 
     if (found->flags & BLOB_FLAG)
       recinfo_pos->type= FIELD_BLOB;
+    else if (found->type() == MYSQL_TYPE_TIMESTAMP)
+      recinfo_pos->type= FIELD_NORMAL;
     else if (found->type() == MYSQL_TYPE_VARCHAR)
       recinfo_pos->type= FIELD_VARCHAR;
     else if (!(options & HA_OPTION_PACK_RECORD))
@@ -560,9 +558,10 @@ ha_myisam::ha_myisam(handlerton *hton, TABLE_SHARE *table_arg)
    can_enable_indexes(1)
 {}
 
-handler *ha_myisam::clone(MEM_ROOT *mem_root)
+handler *ha_myisam::clone(const char *name, MEM_ROOT *mem_root)
 {
-  ha_myisam *new_handler= static_cast <ha_myisam *>(handler::clone(mem_root));
+  ha_myisam *new_handler= static_cast <ha_myisam *>(handler::clone(name,
+                                                                   mem_root));
   if (new_handler)
     new_handler->file->state= file->state;
   return new_handler;
@@ -1867,6 +1866,9 @@ int ha_myisam::info(uint flag)
 {
   MI_ISAMINFO misam_info;
   char name_buff[FN_REFLEN];
+
+  if (!table)
+    return 1;
 
   (void) mi_status(file,&misam_info,flag);
   if (flag & HA_STATUS_VARIABLE)

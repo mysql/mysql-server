@@ -108,3 +108,27 @@ SET @@session.slave_skip_errors= 7;
 ERROR HY000: Variable 'slave_skip_errors' is a read only variable
 SET @@global.slave_skip_errors= 7;
 ERROR HY000: Variable 'slave_skip_errors' is a read only variable
+#
+# Bug #11766769 : 59959: SMALL VALUES OF --MAX-ALLOWED-PACKET 
+#   ARE NOT BEING HONORED
+#
+CREATE TABLE t1 (a MEDIUMTEXT);
+SET GLOBAL max_allowed_packet=2048;
+Warnings:
+Warning	1105	The value of 'max_allowed_packet' should be no less than the value of 'net_buffer_length'
+SET GLOBAL net_buffer_length=4096;
+Warnings:
+Warning	1105	The value of 'max_allowed_packet' should be no less than the value of 'net_buffer_length'
+SHOW SESSION VARIABLES LIKE 'max_allowed_packet';
+Variable_name	Value
+max_allowed_packet	2048
+SHOW SESSION VARIABLES LIKE 'net_buffer_length';
+Variable_name	Value
+net_buffer_length	4096
+ERROR 08S01: Got a packet bigger than 'max_allowed_packet' bytes
+SELECT LENGTH(a) FROM t1;
+LENGTH(a)
+SET GLOBAL max_allowed_packet=default;
+SET GLOBAL net_buffer_length=default;
+DROP TABLE t1;
+End of 5.1 tests

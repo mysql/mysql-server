@@ -127,11 +127,17 @@ delimiter ;|
 
 ############ Test Section ###################
 
+begin;
 CALL p1();
+commit;
 SELECT count(*) as "Master regular" FROM t1;
+begin;
 CALL p2();
+commit;
 SELECT count(*) as "Master bykey" FROM t2;
+begin;
 CALL p3();
+commit;
 SELECT count(*) as "Master byrange" FROM t3;
 
 --sync_slave_with_master

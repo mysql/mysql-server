@@ -446,7 +446,8 @@ enum ha_base_keytype {
 #define HA_ERR_ROW_NOT_VISIBLE    177
 #define HA_ERR_TOO_MANY_CONCURRENT_TRXS 178 /*Too many active concurrent transactions */
 #define HA_ERR_ABORTED_BY_USER    179
-#define HA_ERR_LAST               179    /* Copy of last error nr */
+#define HA_ERR_DISK_FULL          180
+#define HA_ERR_LAST               180    /* Copy of last error nr */
 
 /* Number of different errors */
 #define HA_ERR_ERRORS            (HA_ERR_LAST - HA_ERR_FIRST + 1)

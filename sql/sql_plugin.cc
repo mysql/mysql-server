@@ -1638,8 +1638,11 @@ static void plugin_load(MEM_ROOT *tmp_root, int *argc, char **argv)
   if (simple_open_n_lock_tables(new_thd, &tables))
   {
     DBUG_PRINT("error",("Can't open plugin table"));
-    sql_print_error("Can't open the mysql.plugin table. Please "
-                    "run mysql_upgrade to create it.");
+    if (!opt_help)
+      sql_print_error("Can't open the mysql.plugin table. Please "
+                      "run mysql_upgrade to create it.");
+    else
+      sql_print_warning("Could not open mysql.plugin table. Some options may be missing from the help text");
     goto end;
   }
   table= tables.table;

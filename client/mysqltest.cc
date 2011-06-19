@@ -1,4 +1,5 @@
-/* Copyright (C) 2000 MySQL AB
+/* Copyright (c) 2000, 2011, Oracle and/or its affiliates.
+   Copyright (c) 2009-2011 Monty Program Ab.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -11,7 +12,7 @@
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
-   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
+   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA */
 
 /*
   mysqltest
@@ -111,7 +112,7 @@ static my_bool display_result_vertically= FALSE, display_result_lower= FALSE,
   display_metadata= FALSE, display_result_sorted= FALSE;
 static my_bool disable_query_log= 0, disable_result_log= 0;
 static my_bool disable_connect_log= 1;
-static my_bool disable_warnings= 0;
+static my_bool disable_warnings= 0, disable_column_names= 0;
 static my_bool prepare_warnings_enabled= 0;
 static my_bool disable_info= 1;
 static my_bool abort_on_error= 1;
@@ -297,6 +298,7 @@ enum enum_commands {
   Q_ENABLE_WARNINGS, Q_DISABLE_WARNINGS,
   Q_ENABLE_INFO, Q_DISABLE_INFO,
   Q_ENABLE_METADATA, Q_DISABLE_METADATA,
+  Q_ENABLE_COLUMN_NAMES, Q_DISABLE_COLUMN_NAMES,
   Q_EXEC, Q_DELIMITER,
   Q_DISABLE_ABORT_ON_ERROR, Q_ENABLE_ABORT_ON_ERROR,
   Q_DISPLAY_VERTICAL_RESULTS, Q_DISPLAY_HORIZONTAL_RESULTS,
@@ -370,6 +372,8 @@ const char *command_names[]=
   "disable_info",
   "enable_metadata",
   "disable_metadata",
+  "enable_column_names",
+  "disable_column_names",
   "exec",
   "delimiter",
   "disable_abort_on_error",
@@ -490,7 +494,7 @@ VAR* var_init(VAR* v, const char *name, int name_len, const char *val,
 void var_free(void* v);
 VAR* var_get(const char *var_name, const char** var_name_end,
              my_bool raw, my_bool ignore_not_existing);
-void eval_expr(VAR* v, const char *p, const char** p_end, bool backtick= true);
+void eval_expr(VAR* v, const char *p, const char** p_end, bool do_eval= true);
 my_bool match_delimiter(int c, const char *delim, uint length);
 void dump_result_to_reject_file(char *buf, int size);
 void dump_warning_messages();
@@ -599,6 +603,10 @@ public:
     if (ds->length == 0)
       DBUG_VOID_RETURN;
     DBUG_ASSERT(ds->str);
+
+#ifdef EXTRA_DEBUG
+    DBUG_PRINT("QQ", ("str: %*s", (int) ds->length, ds->str));
+#endif
 
     if (fwrite(ds->str, 1, ds->length, m_file) != ds->length)
       die("Failed to write %lu bytes to '%s', errno: %d",
@@ -1269,6 +1277,22 @@ static void cleanup_and_exit(int exit_code)
   exit(exit_code);
 }
 
+void print_file_stack()
+{
+  struct st_test_file* err_file= cur_file;
+  if (err_file == file_stack)
+    return;
+
+  for (;;)
+  {
+    err_file--;
+    fprintf(stderr, "included from %s at line %d:\n",
+            err_file->file_name, err_file->lineno);
+    if (err_file == file_stack)
+      break;
+  }
+}
+
 void die(const char *fmt, ...)
 {
   static int dying= 0;
@@ -1276,11 +1300,15 @@ void die(const char *fmt, ...)
   DBUG_ENTER("die");
   DBUG_PRINT("enter", ("start_lineno: %d", start_lineno));
 
+  fflush(stdout);
   /* Print the error message */
   fprintf(stderr, "mysqltest: ");
   if (cur_file && cur_file != file_stack)
-    fprintf(stderr, "In included file \"%s\": ",
+  {
+    fprintf(stderr, "In included file \"%s\": \n",
             cur_file->file_name);
+    print_file_stack();
+  }
   if (start_lineno > 0)
     fprintf(stderr, "At line %u: ", start_lineno);
   if (fmt)
@@ -1319,7 +1347,6 @@ void die(const char *fmt, ...)
 void abort_not_supported_test(const char *fmt, ...)
 {
   va_list args;
-  struct st_test_file* err_file= cur_file;
   DBUG_ENTER("abort_not_supported_test");
 
   /* Print include filestack */
@@ -1327,13 +1354,8 @@ void abort_not_supported_test(const char *fmt, ...)
   fprintf(stderr, "The test '%s' is not supported by this installation\n",
           file_stack->file_name);
   fprintf(stderr, "Detected in file %s at line %d\n",
-          err_file->file_name, err_file->lineno);
-  while (err_file != file_stack)
-  {
-    err_file--;
-    fprintf(stderr, "included from %s at line %d\n",
-            err_file->file_name, err_file->lineno);
-  }
+          cur_file->file_name, cur_file->lineno);
+  print_file_stack();
 
   /* Print error message */
   va_start(args, fmt);
@@ -1365,6 +1387,7 @@ void verbose_msg(const char *fmt, ...)
   if (!verbose)
     DBUG_VOID_RETURN;
 
+  fflush(stdout);
   va_start(args, fmt);
   fprintf(stderr, "mysqltest: ");
   if (cur_file && cur_file != file_stack)
@@ -1375,6 +1398,7 @@ void verbose_msg(const char *fmt, ...)
   vfprintf(stderr, fmt, args);
   fprintf(stderr, "\n");
   va_end(args);
+  fflush(stderr);
 
   DBUG_VOID_RETURN;
 }
@@ -1459,6 +1483,8 @@ static int run_command(char* cmd,
   char buf[512]= {0};
   FILE *res_file;
   int error;
+  DBUG_ENTER("run_command");
+  DBUG_PRINT("enter", ("cmd: %s", cmd));
 
   if (!(res_file= popen(cmd, "r")))
     die("popen(\"%s\", \"r\") failed", cmd);
@@ -1479,7 +1505,7 @@ static int run_command(char* cmd,
   }
 
   error= pclose(res_file);
-  return WEXITSTATUS(error);
+  DBUG_RETURN(WEXITSTATUS(error));
 }
 
 
@@ -2418,7 +2444,7 @@ void var_set_query_get_value(struct st_command *command, VAR *var)
         break;
       }
     }
-    eval_expr(var, value, 0);
+    eval_expr(var, value, 0, false);
   }
   dynstr_free(&ds_query);
   mysql_free_result(res);
@@ -2448,12 +2474,16 @@ void var_copy(VAR *dest, VAR *src)
 }
 
 
-void eval_expr(VAR *v, const char *p, const char **p_end, bool backtick)
+void eval_expr(VAR *v, const char *p, const char **p_end, bool do_eval)
 {
 
   DBUG_ENTER("eval_expr");
   DBUG_PRINT("enter", ("p: '%s'", p));
 
+  /* Skip to treat as pure string if no evaluation */
+  if (! do_eval)
+    goto NO_EVAL;
+  
   if (*p == '$')
   {
     VAR *vp;
@@ -2473,7 +2503,7 @@ void eval_expr(VAR *v, const char *p, const char **p_end, bool backtick)
     DBUG_VOID_RETURN;
   }
 
-  if (*p == '`' && backtick)
+  if (*p == '`')
   {
     var_query_set(v, p, p_end);
     DBUG_VOID_RETURN;
@@ -2496,6 +2526,7 @@ void eval_expr(VAR *v, const char *p, const char **p_end, bool backtick)
     }
   }
 
+ NO_EVAL:
   {
     int new_val_len = (p_end && *p_end) ?
       (int) (*p_end - p) : (int) strlen(p);
@@ -6673,6 +6704,7 @@ void append_stmt_result(DYNAMIC_STRING *ds, MYSQL_STMT *stmt,
   my_bool *is_null;
   ulong *length;
   uint i;
+  int error;
 
   /* Allocate array with bind structs, lengths and NULL flags */
   my_bind= (MYSQL_BIND*) my_malloc(num_fields * sizeof(MYSQL_BIND),
@@ -6700,7 +6732,7 @@ void append_stmt_result(DYNAMIC_STRING *ds, MYSQL_STMT *stmt,
     die("mysql_stmt_bind_result failed: %d: %s",
 	mysql_stmt_errno(stmt), mysql_stmt_error(stmt));
 
-  while (mysql_stmt_fetch(stmt) == 0)
+  while ((error=mysql_stmt_fetch(stmt)) == 0)
   {
     for (i= 0; i < num_fields; i++)
       append_field(ds, i, &fields[i], (char*)my_bind[i].buffer,
@@ -6709,8 +6741,11 @@ void append_stmt_result(DYNAMIC_STRING *ds, MYSQL_STMT *stmt,
       dynstr_append_mem(ds, "\n", 1);
   }
 
+  if (error != MYSQL_NO_DATA)
+    die("mysql_fetch didn't end with MYSQL_NO_DATA from statement: error: %d",
+        error);
   if (mysql_stmt_fetch(stmt) != MYSQL_NO_DATA)
-    die("fetch didn't end with MYSQL_NO_DATA from statement: %d %s",
+    die("mysql_fetch didn't end with MYSQL_NO_DATA from statement: %d %s",
 	mysql_stmt_errno(stmt), mysql_stmt_error(stmt));
 
   for (i= 0; i < num_fields; i++)
@@ -6805,6 +6840,8 @@ void append_table_headings(DYNAMIC_STRING *ds,
                            uint num_fields)
 {
   uint col_idx;
+  if (disable_column_names)
+    return;
   for (col_idx= 0; col_idx < num_fields; col_idx++)
   {
     if (col_idx)
@@ -7450,7 +7487,8 @@ int util_query(MYSQL* org_mysql, const char* query){
     cur_con->util_mysql= mysql;
   }
 
-  return mysql_query(mysql, query);
+  int ret= mysql_query(mysql, query);
+  DBUG_RETURN(ret);
 }
 
 
@@ -7530,6 +7568,15 @@ void run_query(struct st_connection *cn, struct st_command *command, int flags)
     dynstr_append_mem(ds, delimiter, delimiter_length);
     dynstr_append_mem(ds, "\n", 1);
   }
+
+  /*
+    Write the command to the result file before we execute the query
+    This is needed to be able to analyse the log if something goes
+    wrong
+  */
+  log_file.write(&ds_res);
+  log_file.flush();
+  dynstr_set(&ds_res, 0);
 
   if (view_protocol_enabled &&
       complete_query &&
@@ -8121,13 +8168,15 @@ int main(int argc, char **argv)
     cur_file->lineno= 1;
   }
   init_re();
+
+  /* Cursor protcol implies ps protocol */
+  if (cursor_protocol)
+    ps_protocol= 1;
+
   ps_protocol_enabled= ps_protocol;
   sp_protocol_enabled= sp_protocol;
   view_protocol_enabled= view_protocol;
   cursor_protocol_enabled= cursor_protocol;
-  /* Cursor protcol implies ps protocol */
-  if (cursor_protocol_enabled)
-    ps_protocol_enabled= 1;
 
   st_connection *con= connections;
   if (! (con->mysql= mysql_init(0)))
@@ -8305,6 +8354,14 @@ int main(int argc, char **argv)
       case Q_DISABLE_METADATA:
         display_metadata= 0;
         var_set_int("$ENABLED_METADATA", 0);
+        break;
+      case Q_ENABLE_COLUMN_NAMES:
+        disable_column_names= 0;
+        var_set_int("$ENABLED_COLUMN_NAMES", 0);
+        break;
+      case Q_DISABLE_COLUMN_NAMES:
+        disable_column_names= 1;
+        var_set_int("$ENABLED_COLUMN_NAMES", 1);
         break;
       case Q_SOURCE: do_source(command); break;
       case Q_SLEEP: do_sleep(command, 0); break;
@@ -8693,7 +8750,7 @@ void timer_output(void)
 
 ulonglong timer_now(void)
 {
-  return my_micro_time() / 1000;
+  return my_interval_timer() / 1000000;
 }
 
 

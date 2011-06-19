@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1995, 2010, Innobase Oy. All Rights Reserved.
+Copyright (c) 1995, 2011, Oracle and/or its affiliates. All Rights Reserved.
 Copyright (c) 2008, Google Inc.
 
 Portions of this file contain modifications contributed and copyrighted by
@@ -113,14 +113,14 @@ is necessary only if the memory block containing it is freed. */
 #ifdef UNIV_DEBUG
 # ifdef UNIV_SYNC_DEBUG
 #  define rw_lock_create(L, level) 					\
-	rw_lock_create_func((L), (level), #L, __FILE__, __LINE__)
+	rw_lock_create_func((L), (level), __FILE__, __LINE__, #L)
 # else /* UNIV_SYNC_DEBUG */
 #  define rw_lock_create(L, level) 					\
-	rw_lock_create_func((L), #L, __FILE__, __LINE__)
+	rw_lock_create_func((L), __FILE__, __LINE__, #L)
 # endif /* UNIV_SYNC_DEBUG */
 #else /* UNIV_DEBUG */
 # define rw_lock_create(L, level) 					\
-	rw_lock_create_func((L), #L, NULL, 0)
+	rw_lock_create_func((L), #L)
 #endif /* UNIV_DEBUG */
 
 /******************************************************************//**
@@ -137,10 +137,10 @@ rw_lock_create_func(
 # ifdef UNIV_SYNC_DEBUG
 	ulint		level,		/*!< in: level */
 # endif /* UNIV_SYNC_DEBUG */
-#endif /* UNIV_DEBUG */
-	const char*	cmutex_name, 	/*!< in: mutex name */
 	const char*	cfile_name,	/*!< in: file name where created */
-	ulint 		cline);		/*!< in: file line where created */
+	ulint		cline,		/*!< in: file line where created */
+#endif /* UNIV_DEBUG */
+	const char*	cmutex_name);	/*!< in: mutex name */
 /******************************************************************//**
 Calling this function is obligatory only if the memory buffer containing
 the rw-lock is freed. Removes an rw-lock object from the global list. The
@@ -490,6 +490,7 @@ UNIV_INTERN
 void
 rw_lock_debug_print(
 /*================*/
+	FILE*			f,	/*!< in: output stream */
 	rw_lock_debug_t*	info);	/*!< in: debug struct */
 #endif /* UNIV_SYNC_DEBUG */
 

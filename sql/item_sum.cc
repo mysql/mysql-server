@@ -482,7 +482,7 @@ bool Item_sum::walk (Item_processor processor, bool walk_subquery,
 Field *Item_sum::create_tmp_field(bool group, TABLE *table,
                                   uint convert_blob_length)
 {
-  Field *field;
+  Field *UNINIT_VAR(field);
   switch (result_type()) {
   case REAL_RESULT:
     field= new Field_double(max_length, maybe_null, name, decimals, TRUE);
@@ -502,7 +502,8 @@ Field *Item_sum::create_tmp_field(bool group, TABLE *table,
     field= Field_new_decimal::create_from_item(this);
     break;
   case ROW_RESULT:
-  default:
+  case TIME_RESULT:
+  case IMPOSSIBLE_RESULT:
     // This case should never be choosen
     DBUG_ASSERT(0);
     return 0;
@@ -609,19 +610,16 @@ Item_sum_hybrid::fix_fields(THD *thd, Item **ref)
 
   switch (hybrid_type= item->result_type()) {
   case INT_RESULT:
-    max_length= 20;
-    break;
   case DECIMAL_RESULT:
+  case STRING_RESULT:
     max_length= item->max_length;
     break;
   case REAL_RESULT:
     max_length= float_length(decimals);
     break;
-  case STRING_RESULT:
-    max_length= item->max_length;
-    break;
   case ROW_RESULT:
-  default:
+  case TIME_RESULT:
+  case IMPOSSIBLE_RESULT:
     DBUG_ASSERT(0);
   };
   setup_hybrid(args[0], NULL);
@@ -656,17 +654,31 @@ Item_sum_hybrid::fix_fields(THD *thd, Item **ref)
     Setup cache/comparator of MIN/MAX functions. When called by the
     copy_or_same function value_arg parameter contains calculated value
     of the original MIN/MAX object and it is saved in this object's cache.
+
+    We mark the value and arg_cache with 'RAND_TABLE_BIT' to ensure
+    that Arg_comparator::compare_datetime() doesn't allocate new
+    item inside of Arg_comparator.  This would cause compare_datetime()
+    and Item_sum_min::add() to use different values!
 */
 
 void Item_sum_hybrid::setup_hybrid(Item *item, Item *value_arg)
 {
-  value= Item_cache::get_cache(item);
+  if (!(value= Item_cache::get_cache(item)))
+    return;
   value->setup(item);
   value->store(value_arg);
-  arg_cache= Item_cache::get_cache(item);
+  /* Don't cache value, as it will change */
+  if (!item->const_item())
+    value->set_used_tables(RAND_TABLE_BIT);
+  if (!(arg_cache= Item_cache::get_cache(item, item->cmp_type())))
+    return;
   arg_cache->setup(item);
+  /* Don't cache value, as it will change */
+  if (!item->const_item())
+    arg_cache->set_used_tables(RAND_TABLE_BIT);
   cmp= new Arg_comparator();
-  cmp->set_cmp_func(this, (Item**)&arg_cache, (Item**)&value, FALSE);
+  if (cmp)
+    cmp->set_cmp_func(this, (Item**)&arg_cache, (Item**)&value, FALSE);
   collation.set(item->collation);
 }
 
@@ -691,14 +703,17 @@ Field *Item_sum_hybrid::create_tmp_field(bool group, TABLE *table,
   */
   switch (args[0]->field_type()) {
   case MYSQL_TYPE_DATE:
-    field= new Field_newdate(maybe_null, name, collation.collation);
+    field= new Field_newdate(0, maybe_null ? (uchar*)"" : 0, 0, Field::NONE,
+                             name, collation.collation);
     break;
   case MYSQL_TYPE_TIME:
-    field= new Field_time(maybe_null, name, collation.collation);
+    field= new_Field_time(0, maybe_null ? (uchar*)"" : 0, 0, Field::NONE,
+                          name, decimals, collation.collation);
     break;
   case MYSQL_TYPE_TIMESTAMP:
   case MYSQL_TYPE_DATETIME:
-    field= new Field_datetime(maybe_null, name, collation.collation);
+    field= new_Field_datetime(0, maybe_null ? (uchar*)"" : 0, 0, Field::NONE,
+                              name, decimals, collation.collation);
     break;
   default:
     return Item_sum::create_tmp_field(group, table, convert_blob_length);
@@ -757,13 +772,14 @@ void Item_sum_sum::fix_length_and_dec()
   DBUG_ENTER("Item_sum_sum::fix_length_and_dec");
   maybe_null=null_value=1;
   decimals= args[0]->decimals;
-  switch (args[0]->result_type()) {
+  switch (args[0]->cast_to_int_type()) {
   case REAL_RESULT:
   case STRING_RESULT:
     hybrid_type= REAL_RESULT;
     sum= 0.0;
     break;
   case INT_RESULT:
+  case TIME_RESULT:
   case DECIMAL_RESULT:
   {
     /* SUM result can't be longer than length(arg) + length(MAX_ROWS) */
@@ -777,7 +793,7 @@ void Item_sum_sum::fix_length_and_dec()
     break;
   }
   case ROW_RESULT:
-  default:
+  case IMPOSSIBLE_RESULT:
     DBUG_ASSERT(0);
   }
   DBUG_PRINT("info", ("Type: %s (%d, %d)",
@@ -966,7 +982,8 @@ void Item_sum_distinct::fix_length_and_dec()
       table_field_type= MYSQL_TYPE_NEWDECIMAL;
     break;
   case ROW_RESULT:
-  default:
+  case TIME_RESULT:
+  case IMPOSSIBLE_RESULT:
     DBUG_ASSERT(0);
   }
   val.traits->fix_length_and_dec(this, args[0]);
@@ -1053,9 +1070,10 @@ bool Item_sum_distinct::unique_walk_function(void *element)
 void Item_sum_distinct::clear()
 {
   DBUG_ENTER("Item_sum_distinct::clear");
-  DBUG_ASSERT(tree != 0);                        /* we always have a tree */
+  /* During EXPLAIN there is no tree because it is created during execution. */
+  if (tree != 0)
+    tree->reset();
   null_value= 1;
-  tree->reset();
   is_evaluated= FALSE;
   DBUG_VOID_RETURN;
 }
@@ -1417,7 +1435,8 @@ void Item_sum_variance::fix_length_and_dec()
     break;
   }
   case ROW_RESULT:
-  default:
+  case TIME_RESULT:
+  case IMPOSSIBLE_RESULT:
     DBUG_ASSERT(0);
   }
   DBUG_PRINT("info", ("Type: REAL_RESULT (%d, %d)", max_length, (int)decimals));
@@ -1842,7 +1861,8 @@ void Item_sum_hybrid::reset_field()
     break;
   }
   case ROW_RESULT:
-  default:
+  case TIME_RESULT:
+  case IMPOSSIBLE_RESULT:
     DBUG_ASSERT(0);
   }
 }

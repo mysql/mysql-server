@@ -648,7 +648,14 @@ Event_scheduler::stop()
     /* thd could be 0x0, when shutting down */
     sql_print_information("Event Scheduler: "
                           "Waiting for the scheduler thread to reply");
-    COND_STATE_WAIT(thd, NULL, "Waiting scheduler to stop");
+
+    /*
+      Wait only 2 seconds, as there is a small chance the thread missed the
+      above awake() call and we may have to do it again
+    */
+    struct timespec top_time;
+    set_timespec(top_time, 2);
+    COND_STATE_WAIT(thd, &top_time, "Waiting scheduler to stop");
   } while (state == STOPPING);
   DBUG_PRINT("info", ("Scheduler thread has cleaned up. Set state to INIT"));
   sql_print_information("Event Scheduler: Stopped");

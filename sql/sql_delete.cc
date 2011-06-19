@@ -60,10 +60,20 @@ bool mysql_delete(THD *thd, TABLE_LIST *table_list, COND *conds,
 
   if (open_and_lock_tables(thd, table_list))
     DBUG_RETURN(TRUE);
-  if (!(table= table_list->table))
+
+  if (mysql_handle_list_of_derived(thd->lex, table_list, DT_MERGE_FOR_INSERT) ||
+      mysql_handle_list_of_derived(thd->lex, table_list, DT_PREPARE))
+    DBUG_RETURN(TRUE);
+
+  if (!table_list->updatable)
   {
-    my_error(ER_VIEW_DELETE_MERGE_VIEW, MYF(0),
-	     table_list->view_db.str, table_list->view_name.str);
+     my_error(ER_NON_UPDATABLE_TABLE, MYF(0), table_list->alias, "DELETE");
+     DBUG_RETURN(TRUE);
+  }
+  if (!(table= table_list->table) || !table->created)
+  {
+      my_error(ER_VIEW_DELETE_MERGE_VIEW, MYF(0),
+	       table_list->view_db.str, table_list->view_name.str);
     DBUG_RETURN(TRUE);
   }
   thd_proc_info(thd, "init");
@@ -72,6 +82,11 @@ bool mysql_delete(THD *thd, TABLE_LIST *table_list, COND *conds,
   if (mysql_prepare_delete(thd, table_list, &conds))
     DBUG_RETURN(TRUE);
 
+  if (thd->lex->current_select->first_cond_optimization)
+  {
+    thd->lex->current_select->save_leaf_tables(thd);
+    thd->lex->current_select->first_cond_optimization= 0;
+  }
   /* check ORDER BY even if it can be ignored */
   if (order && order->elements)
   {
@@ -92,6 +107,10 @@ bool mysql_delete(THD *thd, TABLE_LIST *table_list, COND *conds,
       DBUG_RETURN(TRUE);
     }
   }
+
+  /* Apply the IN=>EXISTS transformation to all subqueries and optimize them. */
+  if (select_lex->optimize_unflattened_subqueries())
+    DBUG_RETURN(TRUE);
 
   const_cond= (!conds || conds->const_item());
   safe_update=test(thd->options & OPTION_SAFE_UPDATES);
@@ -401,6 +420,12 @@ cleanup:
     query_cache_invalidate3(thd, table_list, 1);
   }
 
+  if (thd->lex->current_select->first_cond_optimization)
+  {
+    thd->lex->current_select->save_leaf_tables(thd);
+    thd->lex->current_select->first_cond_optimization= 0;
+  }
+
   delete select;
   transactional_table= table->file->has_transactions();
 
@@ -502,8 +527,8 @@ int mysql_prepare_delete(THD *thd, TABLE_LIST *table_list, Item **conds)
   if (setup_tables_and_check_access(thd, &thd->lex->select_lex.context,
                                     &thd->lex->select_lex.top_join_list,
                                     table_list, 
-                                    &select_lex->leaf_tables, FALSE, 
-                                    DELETE_ACL, SELECT_ACL) ||
+                                    select_lex->leaf_tables, FALSE, 
+                                    DELETE_ACL, SELECT_ACL, TRUE) ||
       setup_conds(thd, table_list, select_lex->leaf_tables, conds) ||
       setup_ftfuncs(select_lex))
     DBUG_RETURN(TRUE);
@@ -561,6 +586,11 @@ int mysql_multi_delete_prepare(THD *thd)
   TABLE_LIST *target_tbl;
   DBUG_ENTER("mysql_multi_delete_prepare");
 
+  TABLE_LIST *tables= lex->query_tables;
+  if (mysql_handle_derived(lex, DT_INIT) ||
+      mysql_handle_list_of_derived(lex, tables, DT_MERGE_FOR_INSERT) ||
+      mysql_handle_list_of_derived(lex, tables, DT_PREPARE))
+    DBUG_RETURN(TRUE);
   /*
     setup_tables() need for VIEWs. JOIN::prepare() will not do it second
     time.
@@ -570,8 +600,8 @@ int mysql_multi_delete_prepare(THD *thd)
   if (setup_tables_and_check_access(thd, &thd->lex->select_lex.context,
                                     &thd->lex->select_lex.top_join_list,
                                     lex->query_tables,
-                                    &lex->select_lex.leaf_tables, FALSE, 
-                                    DELETE_ACL, SELECT_ACL))
+                                    lex->select_lex.leaf_tables, FALSE, 
+                                    DELETE_ACL, SELECT_ACL, TRUE))
     DBUG_RETURN(TRUE);
 
 
@@ -585,16 +615,13 @@ int mysql_multi_delete_prepare(THD *thd)
        target_tbl;
        target_tbl= target_tbl->next_local)
   {
+
     if (!(target_tbl->table= target_tbl->correspondent_table->table))
     {
-      DBUG_ASSERT(target_tbl->correspondent_table->view &&
-                  target_tbl->correspondent_table->merge_underlying_list &&
-                  target_tbl->correspondent_table->merge_underlying_list->
-                  next_local);
-      my_error(ER_VIEW_DELETE_MERGE_VIEW, MYF(0),
-               target_tbl->correspondent_table->view_db.str,
-               target_tbl->correspondent_table->view_name.str);
-      DBUG_RETURN(TRUE);
+       my_error(ER_VIEW_DELETE_MERGE_VIEW, MYF(0),
+                target_tbl->correspondent_table->view_db.str,
+                target_tbl->correspondent_table->view_name.str);
+       DBUG_RETURN(TRUE);
     }
 
     if (!target_tbl->correspondent_table->updatable ||
@@ -644,6 +671,12 @@ multi_delete::prepare(List<Item> &values, SELECT_LEX_UNIT *u)
   unit= u;
   do_delete= 1;
   thd_proc_info(thd, "deleting from main table");
+  SELECT_LEX *select_lex= u->first_select();
+  if (select_lex->first_cond_optimization)
+  {
+    if (select_lex->handle_derived(thd->lex, DT_MERGE))
+      DBUG_RETURN(TRUE);
+  }
   DBUG_RETURN(0);
 }
 
@@ -677,9 +710,10 @@ multi_delete::initialize_tables(JOIN *join)
 
 
   walk= delete_tables;
-  for (JOIN_TAB *tab=join->join_tab, *end=join->join_tab+join->tables;
-       tab < end;
-       tab++)
+
+  for (JOIN_TAB *tab= first_linear_tab(join, WITH_CONST_TABLES); 
+       tab; 
+       tab= next_linear_tab(join, tab, WITH_BUSH_ROOTS))
   {
     if (tab->table->map & tables_to_delete_from)
     {
@@ -758,7 +792,7 @@ multi_delete::~multi_delete()
 }
 
 
-bool multi_delete::send_data(List<Item> &values)
+int multi_delete::send_data(List<Item> &values)
 {
   int secure_counter= delete_while_scanning ? -1 : 0;
   TABLE_LIST *del_table;

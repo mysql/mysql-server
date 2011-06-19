@@ -137,7 +137,7 @@ Old_rows_log_event::do_apply_event(Old_rows_log_event *ev, const Relay_log_info 
       const_cast<Relay_log_info*>(rli)->m_table_map.set_table(ptr->table_id, ptr->table);
     }
 #ifdef HAVE_QUERY_CACHE
-    query_cache.invalidate_locked_for_write(rli->tables_to_lock);
+    query_cache.invalidate_locked_for_write(thd, rli->tables_to_lock);
 #endif
   }
 
@@ -159,7 +159,7 @@ Old_rows_log_event::do_apply_event(Old_rows_log_event *ev, const Relay_log_info 
       TIMESTAMP column to a table with one.
       So we call set_time(), like in SBR. Presently it changes nothing.
     */
-    ev_thd->set_time((time_t)ev->when);
+    ev_thd->set_time(ev->when, ev->when_sec_part);
     /*
       There are a few flags that are replicated with each row event.
       Make sure to set/clear them before executing the main body of
@@ -1636,7 +1636,7 @@ int Old_rows_log_event::do_apply_event(Relay_log_info const *rli)
       const_cast<Relay_log_info*>(rli)->m_table_map.set_table(ptr->table_id, ptr->table);
     }
 #ifdef HAVE_QUERY_CACHE
-    query_cache.invalidate_locked_for_write(rli->tables_to_lock);
+    query_cache.invalidate_locked_for_write(thd, rli->tables_to_lock);
 #endif
   }
 
@@ -1660,7 +1660,7 @@ int Old_rows_log_event::do_apply_event(Relay_log_info const *rli)
       TIMESTAMP column to a table with one.
       So we call set_time(), like in SBR. Presently it changes nothing.
     */
-    thd->set_time((time_t)when);
+    thd->set_time(when, when_sec_part);
     /*
       There are a few flags that are replicated with each row event.
       Make sure to set/clear them before executing the main body of

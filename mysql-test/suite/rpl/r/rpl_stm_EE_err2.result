@@ -8,6 +8,7 @@ insert into t1 values(1),(2);
 ERROR 23000: Duplicate entry '2' for key 'a'
 drop table t1;
 include/wait_for_slave_sql_to_stop.inc
+call mtr.add_suppression("Slave SQL.*Query caused different errors on master and slave.*Error on master:.* error code=1062.*Error on slave:.* Error_code: 0");
 Error: "Query caused different errors on master and slave.     Error on master: message (format)='Duplicate entry '%-.192s' for key %d' error code=1062 ; Error on slave: actual message='no error', error code=0. Default database: 'test'. Query: 'insert into t1 values(1),(2)'" (expected different error codes on master and slave)
 Errno: "0" (expected 0)
 drop table t1;

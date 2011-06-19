@@ -170,7 +170,6 @@ id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	t1	range	g	g	34	NULL	8	Using where
 SELECT fid, AsText(g) FROM t1 WHERE Within(g, GeomFromText('Polygon((140 140,160 140,160 160,140 160,140 140))'));
 fid	AsText(g)
-11	LINESTRING(140 140,160 160)
 DROP TABLE t1;
 CREATE TABLE t2 (
 fid INT NOT NULL AUTO_INCREMENT PRIMARY KEY, 
@@ -698,7 +697,7 @@ count(*)
 DROP TABLE t2;
 drop table if exists t1;
 Warnings:
-Note	1051	Unknown table 'test.t1'
+Note	1051	Unknown table 't1'
 CREATE TABLE t1 (a geometry NOT NULL, SPATIAL (a));
 INSERT INTO t1 VALUES (GeomFromText("LINESTRING(100 100, 200 200, 300 300)"));
 INSERT INTO t1 VALUES (GeomFromText("LINESTRING(100 100, 200 200, 300 300)"));

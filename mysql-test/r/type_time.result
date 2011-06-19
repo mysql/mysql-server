@@ -1,6 +1,8 @@
 drop table if exists t1;
 create table t1 (t time);
 insert into t1 values("10:22:33"),("12:34:56.78"),(10),(1234),(123456.78),(1234559.99),("1"),("1:23"),("1:23:45"), ("10.22"), ("-10  1:22:33.45"),("20 10:22:33"),("1999-02-03 20:33:34");
+Warnings:
+Note	1265	Data truncated for column 't' at row 13
 insert t1 values (30),(1230),("1230"),("12:30"),("12:30:35"),("1 12:30:31.32");
 select * from t1;
 t
@@ -26,9 +28,9 @@ t
 insert into t1 values("10.22.22"),(1234567),(123456789),(123456789.10),("10 22:22"),("12.45a");
 Warnings:
 Warning	1265	Data truncated for column 't' at row 1
-Warning	1264	Out of range value for column 't' at row 2
-Warning	1264	Out of range value for column 't' at row 3
-Warning	1264	Out of range value for column 't' at row 4
+Warning	1265	Data truncated for column 't' at row 2
+Warning	1265	Data truncated for column 't' at row 3
+Warning	1265	Data truncated for column 't' at row 4
 Warning	1265	Data truncated for column 't' at row 6
 select * from t1;
 t
@@ -53,8 +55,8 @@ t
 36:30:31
 00:00:10
 00:00:00
-838:59:59
-838:59:59
+00:00:00
+00:00:00
 262:22:00
 00:00:12
 drop table t1;
@@ -148,3 +150,26 @@ TIMESTAMP(f1,'1')
 NULL
 DROP TABLE t1;
 End of 5.1 tests
+create table t1 (a time);
+insert t1 values (-131415);
+select * from t1;
+a
+-13:14:15
+drop table t1;
+create table t1 (f1 time , f2 varchar(5), key(f1));
+insert into t1 values ('00:20:01','a'),('00:20:03','b');
+select * from t1 force key (f1) where f1 < curdate();
+f1	f2
+00:20:01	a
+00:20:03	b
+select * from t1 ignore key (f1) where f1 < curdate();
+f1	f2
+00:20:01	a
+00:20:03	b
+drop table t1;
+create table t1(f1 time);
+insert into t1 values ('23:38:57');
+select f1, f1 = '2010-10-11 23:38:57' from t1;
+f1	f1 = '2010-10-11 23:38:57'
+23:38:57	0
+drop table t1;

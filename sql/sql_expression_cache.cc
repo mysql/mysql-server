@@ -109,7 +109,8 @@ void Expression_cache_tmptable::init()
                                        ~(OPTION_BIG_TABLES |
                                          TMP_TABLE_FORCE_MYISAM)),
                                       HA_POS_ERROR,
-                                      (char *)"subquery-cache-table")))
+                                      (char *)"subquery-cache-table",
+                                      TRUE)))
   {
     DBUG_PRINT("error", ("create_tmp_table failed, caching switched off"));
     DBUG_VOID_RETURN;

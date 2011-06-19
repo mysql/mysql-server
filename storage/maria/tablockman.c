@@ -607,7 +607,7 @@ void tablockman_init(TABLOCKMAN *lm, loid_to_tlo_func *func, uint timeout)
   lm->loid_to_tlo= func;
   lm->lock_timeout= timeout;
   pthread_mutex_init(& lm->pool_mutex, MY_MUTEX_INIT_FAST);
-  my_getsystime(); /* ensure that my_getsystime() is initialized */
+  my_interval_timer(); /* ensure that my_interval_timer() is initialized */
 }
 
 void tablockman_destroy(TABLOCKMAN *lm)

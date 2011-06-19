@@ -458,7 +458,9 @@ void translog_lock_handler_assert_owner()
   @param num             how many records should be filled
 */
 
-static void check_translog_description_table(int num)
+static uint max_allowed_translog_type= 0;
+
+void check_translog_description_table(int num)
 {
   int i;
   DBUG_ENTER("check_translog_description_table");
@@ -467,6 +469,7 @@ static void check_translog_description_table(int num)
   /* last is reserved for extending the table */
   DBUG_ASSERT(num < LOGREC_NUMBER_OF_TYPES - 1);
   DBUG_ASSERT(log_record_type_descriptor[0].rclass == LOGRECTYPE_NOT_ALLOWED);
+  max_allowed_translog_type= num;
 
   for (i= 0; i <= num; i++)
   {
@@ -1078,7 +1081,7 @@ static my_bool translog_write_file_header()
   memcpy(page, maria_trans_file_magic, sizeof(maria_trans_file_magic));
   page+= sizeof(maria_trans_file_magic);
   /* timestamp */
-  timestamp= my_getsystime();
+  timestamp= my_hrtime().val;
   int8store(page, timestamp);
   page+= 8;
   /* maria version */
@@ -3583,6 +3586,7 @@ my_bool translog_init_with_table(const char *directory,
   log_descriptor.flush_no= 0;
   log_descriptor.next_pass_max_lsn= LSN_IMPOSSIBLE;
 
+  /* Normally in Aria this this calls translog_table_init() */
   (*init_table_func)();
   compile_time_assert(sizeof(log_descriptor.dirty_buffer_mask) * 8 >=
                       TRANSLOG_BUFFERS_NO);
@@ -6224,6 +6228,8 @@ my_bool translog_write_record(LSN *lsn,
                        (uint) short_trid, (ulong) rec_len));
   DBUG_ASSERT(translog_status == TRANSLOG_OK ||
               translog_status == TRANSLOG_READONLY);
+  DBUG_ASSERT(type != 0);
+  DBUG_ASSERT((uint)type <= max_allowed_translog_type);
   if (unlikely(translog_status != TRANSLOG_OK))
   {
     DBUG_PRINT("error", ("Transaction log is write protected"));
@@ -6322,9 +6328,9 @@ my_bool translog_write_record(LSN *lsn,
 
   /* process this parts */
   if (!(rc= (log_record_type_descriptor[type].prewrite_hook &&
-             (*log_record_type_descriptor[type].prewrite_hook) (type, trn,
-                                                                tbl_info,
-                                                                hook_arg))))
+             (*log_record_type_descriptor[type].prewrite_hook)(type, trn,
+                                                               tbl_info,
+                                                               hook_arg))))
   {
     switch (log_record_type_descriptor[type].rclass) {
     case LOGRECTYPE_VARIABLE_LENGTH:
@@ -6337,6 +6343,7 @@ my_bool translog_write_record(LSN *lsn,
                                       short_trid, &parts, trn, hook_arg);
       break;
     case LOGRECTYPE_NOT_ALLOWED:
+      DBUG_ASSERT(0);
     default:
       DBUG_ASSERT(0);
       rc= 1;
@@ -7712,7 +7719,7 @@ static my_bool translog_sync_files(uint32 min, uint32 max,
 
   flush_interval= group_commit_wait;
   if (flush_interval)
-    flush_start= my_micro_time();
+    flush_start= microsecond_interval_timer();
   for (fn= min; fn <= max; fn++)
   {
     TRANSLOG_FILE *file= get_logfile_by_number(fn);
@@ -7979,7 +7986,8 @@ retest:
     /*
       We do not check time here because pthread_mutex_lock rarely takes
       a lot of time so we can sacrifice a bit precision to performance
-      (taking into account that my_micro_time() might be expensive call).
+      (taking into account that microsecond_interval_timer() might be
+      expensive call).
     */
     if (flush_interval == 0)
       break;  /* flush pass is ended */
@@ -7988,7 +7996,8 @@ retest:
     if (log_descriptor.next_pass_max_lsn == LSN_IMPOSSIBLE)
     {
       if (flush_interval == 0 ||
-          (time_spent= (my_micro_time() - flush_start)) >= flush_interval)
+          (time_spent= (microsecond_interval_timer() - flush_start)) >=
+          flush_interval)
       {
         pthread_mutex_unlock(&log_descriptor.log_flush_lock);
         break;
@@ -8779,7 +8788,7 @@ ma_soft_sync_background( void *arg __attribute__((unused)))
     DBUG_ENTER("ma_soft_sync_background");
     for(;;)
     {
-      ulonglong prev_loop= my_micro_time();
+      ulonglong prev_loop= microsecond_interval_timer();
       ulonglong time, sleep;
       uint32 min, max, sync_request;
       min= soft_sync_min;
@@ -8791,7 +8800,7 @@ ma_soft_sync_background( void *arg __attribute__((unused)))
       sleep= group_commit_wait;
       if (sync_request)
         translog_sync_files(min, max, FALSE);
-      time= my_micro_time() - prev_loop;
+      time= microsecond_interval_timer() - prev_loop;
       if (time > sleep)
         sleep= 0;
       else

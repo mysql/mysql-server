@@ -36,6 +36,7 @@ IF(NOT SOURCE_SUBLIBS)
     #Create a DLL.The name of the dll is ha_<storage_engine>.dll
     #The dll is linked to the mysqld executable
     SET(dyn_libname ha_${libname})
+    ADD_VERSION_INFO(${dyn_libname} SHARED ${engine}_SOURCES)
     ADD_LIBRARY(${dyn_libname} MODULE ${${engine}_SOURCES})
     TARGET_LINK_LIBRARIES (${dyn_libname}  mysqlservices mysqld)
     IF(${engine}_LIBS)

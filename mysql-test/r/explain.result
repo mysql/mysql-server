@@ -64,7 +64,7 @@ explain extended select * from v1 where f2=1;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t1	system	NULL	NULL	NULL	NULL	1	100.00	
 Warnings:
-Note	1003	select '1' AS `f1`,'1' AS `f2` from `test`.`t1` where 1
+Note	1003	select 1 AS `f1`,1 AS `f2` from `test`.`t1` where 1
 explain extended select * from t1 where 0;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE
@@ -74,7 +74,7 @@ explain extended select * from t1 where 1;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t1	system	NULL	NULL	NULL	NULL	1	100.00	
 Warnings:
-Note	1003	select '1' AS `f1`,'1' AS `f2` from `test`.`t1` where 1
+Note	1003	select 1 AS `f1`,1 AS `f2` from `test`.`t1` where 1
 explain extended select * from t1 having 0;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible HAVING
@@ -84,7 +84,7 @@ explain extended select * from t1 having 1;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t1	system	NULL	NULL	NULL	NULL	1	100.00	
 Warnings:
-Note	1003	select '1' AS `f1`,'1' AS `f2` from `test`.`t1` having 1
+Note	1003	select 1 AS `f1`,1 AS `f2` from `test`.`t1` having 1
 drop view v1;
 drop table t1;
 CREATE TABLE t1(c INT);
@@ -102,7 +102,7 @@ INSERT INTO t2 VALUES (),(),();
 EXPLAIN SELECT 1 FROM
 (SELECT 1 FROM t2,t1 WHERE b < c GROUP BY 1 LIMIT 1) AS d2;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-X	X	X	X	X	X	X	X	X	const row not found
+X	X	X	X	X	X	X	X	X	
 X	X	X	X	X	X	X	X	X	
 X	X	X	X	X	X	X	X	X	Range checked for each record (index map: 0xFFFFFFFFFF)
 DROP TABLE t2;
@@ -114,7 +114,7 @@ INSERT INTO t2 VALUES (1),(2);
 EXPLAIN EXTENDED SELECT 1
 FROM (SELECT COUNT(DISTINCT t1.a) FROM t1,t2 GROUP BY t1.a) AS s1;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	PRIMARY	<derived2>	ALL	NULL	NULL	NULL	NULL	2	100.00	
+1	PRIMARY	<derived2>	ALL	NULL	NULL	NULL	NULL	4	100.00	
 2	DERIVED	t1	ALL	NULL	NULL	NULL	NULL	2	100.00	Using temporary; Using filesort
 2	DERIVED	t2	ALL	NULL	NULL	NULL	NULL	2	100.00	Using join buffer (flat, BNL join)
 Warnings:
@@ -122,7 +122,7 @@ Note	1003	select 1 AS `1` from (select count(distinct `test`.`t1`.`a`) AS `COUNT
 EXPLAIN EXTENDED SELECT 1
 FROM (SELECT COUNT(DISTINCT t1.a) FROM t1,t2 GROUP BY t1.a) AS s1;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	PRIMARY	<derived2>	ALL	NULL	NULL	NULL	NULL	2	100.00	
+1	PRIMARY	<derived2>	ALL	NULL	NULL	NULL	NULL	4	100.00	
 2	DERIVED	t1	ALL	NULL	NULL	NULL	NULL	2	100.00	Using temporary; Using filesort
 2	DERIVED	t2	ALL	NULL	NULL	NULL	NULL	2	100.00	Using join buffer (flat, BNL join)
 Warnings:
@@ -132,7 +132,7 @@ prepare s1 from
  FROM (SELECT COUNT(DISTINCT t1.a) FROM t1,t2 GROUP BY t1.a) AS s1';
 execute s1;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	PRIMARY	<derived2>	ALL	NULL	NULL	NULL	NULL	2	100.00	
+1	PRIMARY	<derived2>	ALL	NULL	NULL	NULL	NULL	4	100.00	
 2	DERIVED	t1	ALL	NULL	NULL	NULL	NULL	2	100.00	Using temporary; Using filesort
 2	DERIVED	t2	ALL	NULL	NULL	NULL	NULL	2	100.00	Using join buffer (flat, BNL join)
 Warnings:
@@ -142,14 +142,14 @@ prepare s1 from
  FROM (SELECT COUNT(DISTINCT t1.a) FROM t1,t2 GROUP BY t1.a) AS s1';
 execute s1;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	PRIMARY	<derived2>	ALL	NULL	NULL	NULL	NULL	2	100.00	
+1	PRIMARY	<derived2>	ALL	NULL	NULL	NULL	NULL	4	100.00	
 2	DERIVED	t1	ALL	NULL	NULL	NULL	NULL	2	100.00	Using temporary; Using filesort
 2	DERIVED	t2	ALL	NULL	NULL	NULL	NULL	2	100.00	Using join buffer (flat, BNL join)
 Warnings:
 Note	1003	select 1 AS `1` from (select count(distinct `test`.`t1`.`a`) AS `COUNT(DISTINCT t1.a)` from `test`.`t1` join `test`.`t2` group by `test`.`t1`.`a`) `s1`
 execute s1;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	PRIMARY	<derived2>	ALL	NULL	NULL	NULL	NULL	2	100.00	
+1	PRIMARY	<derived2>	ALL	NULL	NULL	NULL	NULL	4	100.00	
 2	DERIVED	t1	ALL	NULL	NULL	NULL	NULL	2	100.00	Using temporary; Using filesort
 2	DERIVED	t2	ALL	NULL	NULL	NULL	NULL	2	100.00	Using join buffer (flat, BNL join)
 Warnings:
@@ -176,11 +176,15 @@ SELECT @@session.sql_mode INTO @old_sql_mode;
 SET SESSION sql_mode='ONLY_FULL_GROUP_BY';
 EXPLAIN EXTENDED SELECT 1 FROM t1
 WHERE f1 > ALL( SELECT t.f1 FROM t1,t1 AS t );
-ERROR 42000: Mixing of GROUP columns (MIN(),MAX(),COUNT(),...) with no GROUP columns is illegal if there is no GROUP BY clause
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	PRIMARY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE noticed after reading const tables
+2	SUBQUERY	t1	system	NULL	NULL	NULL	NULL	0	0.00	const row not found
+2	SUBQUERY	t	system	NULL	NULL	NULL	NULL	0	0.00	const row not found
+Warnings:
+Note	1003	select 1 AS `1` from `test`.`t1` where 0
 SHOW WARNINGS;
 Level	Code	Message
-Error	1140	Mixing of GROUP columns (MIN(),MAX(),COUNT(),...) with no GROUP columns is illegal if there is no GROUP BY clause
-Note	1003	select 1 AS `1` from `test`.`t1` where <not>(<exists>(...))
+Note	1003	select 1 AS `1` from `test`.`t1` where 0
 SET SESSION sql_mode=@old_sql_mode;
 DROP TABLE t1;
 End of 5.0 tests.
@@ -262,7 +266,7 @@ WHERE 1 > ALL((SELECT 1 FROM t1 JOIN t1 a ON (MATCH(t1.f1) AGAINST (""))
 WHERE t1.f1 GROUP BY t1.f1));
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	PRIMARY	t1	system	NULL	NULL	NULL	NULL	1	
-2	SUBQUERY	a	system	NULL	NULL	NULL	NULL	1	Using filesort
+2	SUBQUERY	a	system	NULL	NULL	NULL	NULL	1	
 2	SUBQUERY	t1	fulltext	f1	f1	0		1	Using where
 PREPARE stmt FROM
 'EXPLAIN SELECT 1 FROM t1
@@ -272,12 +276,12 @@ PREPARE stmt FROM
 EXECUTE stmt;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	PRIMARY	t1	system	NULL	NULL	NULL	NULL	1	
-2	SUBQUERY	a	system	NULL	NULL	NULL	NULL	1	Using filesort
+2	SUBQUERY	a	system	NULL	NULL	NULL	NULL	1	
 2	SUBQUERY	t1	fulltext	f1	f1	0		1	Using where
 EXECUTE stmt;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	PRIMARY	t1	system	NULL	NULL	NULL	NULL	1	
-2	SUBQUERY	a	system	NULL	NULL	NULL	NULL	1	Using filesort
+2	SUBQUERY	a	system	NULL	NULL	NULL	NULL	1	
 2	SUBQUERY	t1	fulltext	f1	f1	0		1	Using where
 DEALLOCATE PREPARE stmt;
 PREPARE stmt FROM
@@ -288,13 +292,27 @@ PREPARE stmt FROM
 EXECUTE stmt;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	PRIMARY	t1	system	NULL	NULL	NULL	NULL	1	
-2	SUBQUERY	a	system	NULL	NULL	NULL	NULL	1	Using filesort
+2	SUBQUERY	a	system	NULL	NULL	NULL	NULL	1	
 2	SUBQUERY	t1	fulltext	f1	f1	0		1	Using where
 EXECUTE stmt;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	PRIMARY	t1	system	NULL	NULL	NULL	NULL	1	
-2	SUBQUERY	a	system	NULL	NULL	NULL	NULL	1	Using filesort
+2	SUBQUERY	a	system	NULL	NULL	NULL	NULL	1	
 2	SUBQUERY	t1	fulltext	f1	f1	0		1	Using where
 DEALLOCATE PREPARE stmt;
 DROP TABLE t1;
 End of 5.1 tests.
+#
+# Bug#776295: EXPLAIN EXTENDED with always false multiple equality
+#             in the WHERE condition of a derived table
+#
+CREATE TABLE t1 (a int) ;
+CREATE TABLE t2 (a int) ;
+INSERT INTO t2 VALUES (8);
+EXPLAIN EXTENDED
+SELECT * FROM ( SELECT t1.a FROM t1,t2 WHERE t2.a = t1.a ) AS t;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE noticed after reading const tables
+Warnings:
+Note	1003	select NULL AS `a` from `test`.`t1` join `test`.`t2` where 0
+DROP TABLE t1,t2;

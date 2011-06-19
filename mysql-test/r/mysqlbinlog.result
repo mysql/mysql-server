@@ -657,3 +657,15 @@ master-bin.000002	#	Query	#	#	CREATE DATABASE test1
 master-bin.000002	#	Query	#	#	use `test1`; CREATE TABLE t1(id int)
 master-bin.000002	#	Query	#	#	use `test1`; DROP TABLE t1
 master-bin.000002	#	Query	#	#	DROP DATABASE test1
+RESET MASTER;
+USE test;
+CREATE TABLE t1 (a INT);
+SET GLOBAL SERVER_ID = 2;
+DROP TABLE t1;
+FLUSH LOGS;
+SHOW TABLES IN test;
+Tables_in_test
+t1
+SHOW TABLES IN test;
+Tables_in_test
+SET GLOBAL SERVER_ID = 1;

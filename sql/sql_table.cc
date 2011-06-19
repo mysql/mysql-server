@@ -36,17 +36,15 @@ const char *primary_key_name="PRIMARY";
 
 static bool check_if_keyname_exists(const char *name,KEY *start, KEY *end);
 static char *make_unique_key_name(const char *field_name,KEY *start,KEY *end);
-static int copy_data_between_tables(TABLE *from,TABLE *to,
-                                    List<Create_field> &create, bool ignore,
-				    uint order_num, ORDER *order,
-				    ha_rows *copied,ha_rows *deleted,
-                                    enum enum_enable_or_disable keys_onoff,
-                                    bool error_if_not_empty);
+static int copy_data_between_tables(TABLE *,TABLE *, List<Create_field> &, bool,
+				    uint, ORDER *, ha_rows *,ha_rows *,
+                                    enum enum_enable_or_disable, bool);
 
 static bool prepare_blob_field(THD *thd, Create_field *sql_field);
 static bool check_engine(THD *, const char *, HA_CREATE_INFO *);
 static int mysql_prepare_create_table(THD *, HA_CREATE_INFO *, Alter_info *,
-                              bool, uint *, handler *, KEY **, uint *, int);
+                                      bool, uint *, handler *, KEY **, uint *,
+                                      int);
 static bool mysql_prepare_alter_table(THD *, TABLE *, HA_CREATE_INFO *,
                                       Alter_info *);
 static bool admin_recreate_table(THD *thd, TABLE_LIST *table_list);
@@ -3217,11 +3215,19 @@ mysql_prepare_create_table(THD *thd, HA_CREATE_INFO *create_info,
       {
 	column->length*= sql_field->charset->mbmaxlen;
 
-        if (key->type == Key::SPATIAL && column->length)
+        if (key->type == Key::SPATIAL)
         {
-          my_error(ER_WRONG_SUB_KEY, MYF(0));
-	  DBUG_RETURN(TRUE);
-	}
+          if (column->length)
+          {
+            my_error(ER_WRONG_SUB_KEY, MYF(0));
+            DBUG_RETURN(TRUE);
+          }
+          if (!f_is_geom(sql_field->pack_flag))
+          {
+            my_error(ER_SPATIAL_MUST_HAVE_GEOM_COL, MYF(0));
+            DBUG_RETURN(TRUE);
+          }
+        }
 
 	if (f_is_blob(sql_field->pack_flag) ||
             (f_is_geom(sql_field->pack_flag) && key->type != Key::SPATIAL))
@@ -3659,6 +3665,68 @@ static inline int write_create_table_bin_log(THD *thd,
 }
 
 
+/**
+  Check that there is no frm file for given table
+
+  @param old_path        path to the old frm file
+  @param path            path to the frm file in new encoding
+  @param db              database name
+  @param table_name      table name
+  @param alias           table name for error message (for new encoding)
+  @param issue_error     should we issue error messages
+
+  @retval FALSE there is no frm file
+  @retval TRUE  there is frm file
+*/
+
+bool check_table_file_presence(char *old_path,
+                               char *path,
+                               const char *db,
+                               const char *table_name,
+                               const char *alias,
+                               bool issue_error)
+{
+  if (!access(path,F_OK))
+  {
+    if (issue_error)
+      my_error(ER_TABLE_EXISTS_ERROR,MYF(0),alias);
+    return TRUE;
+  }
+  {
+    /*
+      Check if file of the table in 5.0 file name encoding exists.
+
+      Except case when it is the same table.
+    */
+    char tbl50[FN_REFLEN];
+#ifdef _WIN32
+    if (check_if_legal_tablename(table_name) != 0)
+    {
+      /*
+       Check for reserved device names for which access() returns 0
+       (CON, AUX etc).
+      */
+      return FALSE;
+    }
+#endif
+    strxmov(tbl50, mysql_data_home, "/", db, "/", table_name, NullS);
+    fn_format(tbl50, tbl50, "", reg_ext, MY_UNPACK_FILENAME);
+    if (!access(tbl50, F_OK) &&
+        (old_path == NULL ||
+         strcmp(old_path, tbl50) != 0))
+    {
+      if (issue_error)
+      {
+        strxmov(tbl50, MYSQL50_TABLE_NAME_PREFIX, table_name, NullS);
+        my_error(ER_TABLE_EXISTS_ERROR, MYF(0), tbl50);
+      }
+      return TRUE;
+    }
+  }
+  return FALSE;
+}
+
+
 /*
   Create a table
 
@@ -3944,11 +4012,12 @@ bool mysql_create_table_no_lock(THD *thd,
   VOID(pthread_mutex_lock(&LOCK_open));
   if (!internal_tmp_table && !(create_info->options & HA_LEX_CREATE_TMP_TABLE))
   {
-    if (!access(path,F_OK))
+    if (check_table_file_presence(NULL, path, db, table_name, table_name,
+                                  !(create_info->options &
+                                    HA_LEX_CREATE_IF_NOT_EXISTS)))
     {
       if (create_info->options & HA_LEX_CREATE_IF_NOT_EXISTS)
         goto warn;
-      my_error(ER_TABLE_EXISTS_ERROR,MYF(0),table_name);
       goto unlock_and_end;
     }
     /*
@@ -4668,8 +4737,13 @@ static bool mysql_admin_table(THD* thd, TABLE_LIST* tables,
       thd->no_warnings_for_error= no_warnings_for_error;
       if (view_operator_func == NULL)
         table->required_type=FRMTYPE_TABLE;
-
+      if (lex->sql_command == SQLCOM_CHECK ||
+          lex->sql_command == SQLCOM_REPAIR ||
+          lex->sql_command == SQLCOM_ANALYZE ||
+          lex->sql_command == SQLCOM_OPTIMIZE)
+	thd->prepare_derived_at_open= TRUE;
       open_and_lock_tables(thd, table);
+      thd->prepare_derived_at_open= FALSE;
       thd->no_warnings_for_error= 0;
       table->next_global= save_next_global;
       table->next_local= save_next_local;
@@ -4767,7 +4841,7 @@ static bool mysql_admin_table(THD* thd, TABLE_LIST* tables,
       else
         /* Default failure code is corrupt table */
         result_code= HA_ADMIN_CORRUPT;
-      goto send_result;
+     goto send_result;
     }
 
     if (table->view)
@@ -5856,10 +5930,10 @@ compare_tables(TABLE *table,
     DBUG_RETURN(0);
   }
 
-  if ((create_info->fileds_option_struct=
-       (void**)thd->calloc(sizeof(void*) * table->s->fields)) == NULL ||
-      (create_info->indexes_option_struct=
-       (void**)thd->calloc(sizeof(void*) * table->s->keys)) == NULL)
+  if ((create_info->fields_option_struct= (ha_field_option_struct**)
+         thd->calloc(sizeof(void*) * table->s->fields)) == NULL ||
+      (create_info->indexes_option_struct= (ha_index_option_struct**)
+         thd->calloc(sizeof(void*) * table->s->keys)) == NULL)
     DBUG_RETURN(1);
 
   /*
@@ -5880,7 +5954,7 @@ compare_tables(TABLE *table,
        tmp_new_field= tmp_new_field_it++)
   {
     DBUG_ASSERT(i < table->s->fields);
-    create_info->fileds_option_struct[i]= tmp_new_field->option_struct;
+    create_info->fields_option_struct[i]= tmp_new_field->option_struct;
 
     /* reset common markers of how field changed */
     field->flags&= ~(FIELD_IS_RENAMED | FIELD_IN_ADD_INDEX);
@@ -6607,6 +6681,7 @@ bool mysql_alter_table(THD *thd,char *new_db, char *new_name,
   TABLE *table, *new_table= 0, *name_lock= 0;
   int error= 0;
   char tmp_name[80],old_name[32],new_name_buff[FN_REFLEN + 1];
+  char old_name_buff[FN_REFLEN + 1];
   char new_alias_buff[FN_REFLEN], *table_name, *db, *new_alias, *alias;
   char index_file[FN_REFLEN], data_file[FN_REFLEN];
   char path[FN_REFLEN + 1];
@@ -6836,10 +6911,12 @@ view_err:
 
         build_table_filename(new_name_buff, sizeof(new_name_buff) - 1,
                              new_db, new_name_buff, reg_ext, 0);
-        if (!access(new_name_buff, F_OK))
+        build_table_filename(old_name_buff, sizeof(old_name_buff) - 1,
+                             db, table_name, reg_ext, 0);
+        if (check_table_file_presence(old_name_buff, new_name_buff, new_db,
+                                      new_name, new_alias, TRUE))
 	{
 	  /* Table will be closed in do_command() */
-	  my_error(ER_TABLE_EXISTS_ERROR, MYF(0), new_alias);
           goto err;
 	}
       }
@@ -7917,7 +7994,8 @@ copy_data_between_tables(TABLE *from,TABLE *to,
 
   if (order)
   {
-    if (to->s->primary_key != MAX_KEY && to->file->primary_key_is_clustered())
+    if (to->s->primary_key != MAX_KEY &&
+        to->file->ha_table_flags() & HA_TABLE_SCAN_ON_INDEX)
     {
       char warn_buff[MYSQL_ERRMSG_SIZE];
       my_snprintf(warn_buff, sizeof(warn_buff), 

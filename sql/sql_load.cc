@@ -172,12 +172,15 @@ int mysql_load(THD *thd,sql_exchange *ex,TABLE_LIST *table_list,
 
   if (open_and_lock_tables(thd, table_list))
     DBUG_RETURN(TRUE);
+  if (mysql_handle_single_derived(thd->lex, table_list, DT_MERGE_FOR_INSERT) ||
+      mysql_handle_single_derived(thd->lex, table_list, DT_PREPARE))
+    DBUG_RETURN(TRUE);
   if (setup_tables_and_check_access(thd, &thd->lex->select_lex.context,
                                     &thd->lex->select_lex.top_join_list,
                                     table_list,
-                                    &thd->lex->select_lex.leaf_tables, FALSE,
+                                    thd->lex->select_lex.leaf_tables, FALSE,
                                     INSERT_ACL | UPDATE_ACL,
-                                    INSERT_ACL | UPDATE_ACL))
+                                    INSERT_ACL | UPDATE_ACL, FALSE))
      DBUG_RETURN(-1);
   if (!table_list->table ||               // do not suport join view
       !table_list->updatable ||           // and derived tables
@@ -1079,9 +1082,10 @@ READ_INFO::READ_INFO(File file_par, uint tot_length, CHARSET_INFO *cs,
 		     String &field_term, String &line_start, String &line_term,
 		     String &enclosed_par, int escape, bool get_it_from_net,
 		     bool is_fifo)
-  :file(file_par),buffer(0),escape_char(escape)
+  :file(file_par), buff_length(tot_length), escape_char(escape),
+   found_end_of_line(false), eof(false), need_end_io_cache(false),
+   error(false), line_cuted(false), found_null(false), read_charset(cs)
 {
-  read_charset= cs;
   field_term_ptr=(char*) field_term.ptr();
   field_term_length= field_term.length();
   line_term_ptr=(char*) line_term.ptr();
@@ -1108,12 +1112,9 @@ READ_INFO::READ_INFO(File file_par, uint tot_length, CHARSET_INFO *cs,
     (uchar) enclosed_par[0] : INT_MAX;
   field_term_char= field_term_length ? (uchar) field_term_ptr[0] : INT_MAX;
   line_term_char= line_term_length ? (uchar) line_term_ptr[0] : INT_MAX;
-  error=eof=found_end_of_line=found_null=line_cuted=0;
-  buff_length=tot_length;
-
 
   /* Set of a stack for unget if long terminators */
-  uint length=max(field_term_length,line_term_length)+1;
+  uint length= max(cs->mbmaxlen, max(field_term_length, line_term_length)) + 1;
   set_if_bigger(length,line_start.length());
   stack=stack_pos=(int*) sql_alloc(sizeof(int)*length);
 
@@ -1155,11 +1156,8 @@ READ_INFO::READ_INFO(File file_par, uint tot_length, CHARSET_INFO *cs,
 
 READ_INFO::~READ_INFO()
 {
-  if (!error)
-  {
-    if (need_end_io_cache)
-      ::end_io_cache(&cache);
-  }
+  if (need_end_io_cache)
+    ::end_io_cache(&cache);
   my_free(buffer, MYF(MY_ALLOW_ZERO_PTR));
 }
 

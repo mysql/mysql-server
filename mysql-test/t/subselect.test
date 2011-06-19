@@ -260,6 +260,7 @@ INSERT INTO t1 (numeropost,maxnumrep) VALUES (1,0),(2,1);
 select numeropost as a FROM t1 GROUP BY (SELECT 1 FROM t1 HAVING a=1);
 -- error ER_SUBQUERY_NO_1_ROW
 select numeropost as a FROM t1 ORDER BY (SELECT 1 FROM t1 HAVING a=1);
+show warnings;
 drop table t1;
 
 create table t1 (a int);
@@ -322,7 +323,7 @@ insert into t2 values (1, 21),(2, 12),(3, 23);
 select * from t1;
 select * from t1 where b = (select b from t2 where t1.a = t2.a);
 -- error ER_UPDATE_TABLE_USED
-delete from t1 where b = (select b from t1);
+delete from t1 where b in (select b from t1);
 -- error ER_SUBQUERY_NO_1_ROW
 delete from t1 where b = (select b from t2);
 delete from t1 where b = (select b from t2 where t1.a = t2.a);
@@ -2078,7 +2079,7 @@ SELECT b, MAX(c) FROM t2 GROUP BY b, (SELECT c FROM t2 WHERE b > 2);
 --error ER_SUBQUERY_NO_1_ROW
 SELECT b, MAX(c) FROM t2 GROUP BY b, (SELECT c FROM t2 WHERE b > 1);
 
-
+--sorted_result
 SELECT a FROM t1 GROUP BY a
   HAVING IFNULL((SELECT b FROM t2 WHERE b > 2),
                 (SELECT c FROM t2 WHERE c=a AND b > 2 ORDER BY b)) > 3;
@@ -2086,7 +2087,7 @@ SELECT a FROM t1 GROUP BY a
 SELECT a FROM t1 GROUP BY a
   HAVING IFNULL((SELECT b FROM t2 WHERE b > 1),
                 (SELECT c FROM t2 WHERE c=a AND b > 2 ORDER BY b)) > 3;
-
+--sorted_result
 SELECT a FROM t1 GROUP BY a
   HAVING IFNULL((SELECT b FROM t2 WHERE b > 4),
                 (SELECT c FROM t2 WHERE c=a AND b > 2 ORDER BY b)) > 3;
@@ -2094,7 +2095,7 @@ SELECT a FROM t1 GROUP BY a
 SELECT a FROM t1 GROUP BY a
   HAVING IFNULL((SELECT b FROM t2 WHERE b > 4),
                 (SELECT c FROM t2 WHERE c=a AND b > 1 ORDER BY b)) > 3;
-
+--sorted_result
 SELECT a FROM t1
   ORDER BY IFNULL((SELECT b FROM t2 WHERE b > 2),
                   (SELECT c FROM t2 WHERE c=a AND b > 2 ORDER BY b));
@@ -2102,7 +2103,7 @@ SELECT a FROM t1
 SELECT a FROM t1
   ORDER BY IFNULL((SELECT b FROM t2 WHERE b > 1),
                   (SELECT c FROM t2 WHERE c=a AND b > 1 ORDER BY b));
-
+--sorted_result
 SELECT a FROM t1
   ORDER BY IFNULL((SELECT b FROM t2 WHERE b > 4),
                   (SELECT c FROM t2 WHERE c=a AND b > 2 ORDER BY b));
@@ -4333,3 +4334,71 @@ EXPLAIN SELECT * FROM t1 WHERE pk IN (SELECT it.pk FROM t2 JOIN t2 AS it ON 1);
 SELECT * FROM t1 WHERE pk IN (SELECT it.pk FROM t2 JOIN t2 AS it ON 1);
 
 DROP table t1,t2;
+
+--echo #
+--echo # Bug#751350: crash with pushed condition for outer references when
+--echo #             there should be none of such conditions
+--echo #
+
+CREATE TABLE t1 (a int, b int) ;
+INSERT INTO t1 VALUES (0,0),(0,0);
+
+EXPLAIN
+SELECT b FROM t1
+  WHERE ('0') IN ( SELECT a  FROM t1 GROUP BY a )
+    GROUP BY b;
+
+SELECT b FROM t1
+  WHERE ('0') IN ( SELECT a  FROM t1 GROUP BY a )
+    GROUP BY b;
+
+DROP TABLE t1;
+
+--echo #
+--echo # Bug #11765713 58705:
+--echo # OPTIMIZER LET ENGINE DEPEND ON UNINITIALIZED VALUES
+--echo # CREATED BY OPT_SUM_QUERY
+--echo #
+
+CREATE TABLE t1(a INT NOT NULL, KEY (a));
+INSERT INTO t1 VALUES (0), (1);
+
+--error ER_SUBQUERY_NO_1_ROW
+SELECT 1 as foo FROM t1 WHERE a < SOME
+  (SELECT a FROM t1 WHERE a <=>
+    (SELECT a FROM t1)
+  );
+
+SELECT 1 as foo FROM t1 WHERE a < SOME
+  (SELECT a FROM t1 WHERE a <=>
+    (SELECT a FROM t1 where a is null)
+  ); 
+
+DROP TABLE t1;
+
+--echo #
+--echo # BUG#779885: Crash in eliminate_item_equal with materialization=on in
+--echo # maria-5.3
+--echo #
+
+CREATE TABLE t1 ( f1 int );
+INSERT INTO t1 VALUES (19), (20);
+
+CREATE TABLE t2 ( f10 varchar(32) );
+INSERT INTO t2 VALUES ('c'),('d');
+
+CREATE TABLE t3 ( f10 varchar(32) );
+INSERT INTO t3 VALUES ('a'),('b');
+
+SELECT *
+FROM t1
+WHERE
+( 't' ) IN (
+        SELECT t3.f10
+        FROM t3
+        JOIN t2
+        ON t2.f10 = t3.f10
+);
+DROP TABLE t1,t2,t3;
+
+--echo End of 5.3 tests

@@ -61,12 +61,15 @@ class Parser_state;
 
   QT_ORDINARY -- ordinary SQL query.
   QT_IS -- SQL query to be shown in INFORMATION_SCHEMA (in utf8 and without
-  character set introducers).
+           character set introducers).
+  QT_VIEW_INTERNAL -- view internal representation (like QT_ORDINARY except
+                      ORDER BY clause)
 */
 enum enum_query_type
 {
   QT_ORDINARY,
-  QT_IS
+  QT_IS,
+  QT_VIEW_INTERNAL
 };
 
 /* TODO convert all these three maps to Bitmap classes */
@@ -515,7 +518,6 @@ protected:
 #define OPTION_PROFILING                (ULL(1) << 33)
 
 
-
 /**
   Maximum length of time zone name that we support
   (Time zone name is char(64) in db). mysqlbinlog needs it.
@@ -566,42 +568,61 @@ protected:
 #define OPTIMIZER_SWITCH_INDEX_MERGE_INTERSECT 8
 #define OPTIMIZER_SWITCH_INDEX_MERGE_SORT_INTERSECT 16
 #define OPTIMIZER_SWITCH_INDEX_COND_PUSHDOWN 32
-
-#define OPTIMIZER_SWITCH_FIRSTMATCH 64
-#define OPTIMIZER_SWITCH_LOOSE_SCAN 128
-#define OPTIMIZER_SWITCH_MATERIALIZATION 256
-#define OPTIMIZER_SWITCH_SEMIJOIN 512
-#define OPTIMIZER_SWITCH_PARTIAL_MATCH_ROWID_MERGE 1024
-#define OPTIMIZER_SWITCH_PARTIAL_MATCH_TABLE_SCAN (1<<11)
-#define OPTIMIZER_SWITCH_SUBQUERY_CACHE (1<<12)
-#define OPTIMIZER_SWITCH_MRR_SORT_KEYS (1<<13)
-#define OPTIMIZER_SWITCH_OUTER_JOIN_WITH_CACHE (1<<14)
-#define OPTIMIZER_SWITCH_SEMIJOIN_WITH_CACHE (1<<15)
-#define OPTIMIZER_SWITCH_JOIN_CACHE_INCREMENTAL (1<<16)
-#define OPTIMIZER_SWITCH_JOIN_CACHE_HASHED (1<<17)
-#define OPTIMIZER_SWITCH_JOIN_CACHE_BKA (1<<18)
-#define OPTIMIZER_SWITCH_OPTIMIZE_JOIN_BUFFER_SIZE (1<<19)
+#define OPTIMIZER_SWITCH_DERIVED_MERGE 64
+#define OPTIMIZER_SWITCH_DERIVED_WITH_KEYS 128
+#define OPTIMIZER_SWITCH_FIRSTMATCH 256
+#define OPTIMIZER_SWITCH_LOOSE_SCAN 512
+#define OPTIMIZER_SWITCH_MATERIALIZATION 1024
+#define OPTIMIZER_SWITCH_IN_TO_EXISTS (1<<11)
+#define OPTIMIZER_SWITCH_SEMIJOIN (1<<12)
+#define OPTIMIZER_SWITCH_PARTIAL_MATCH_ROWID_MERGE  (1<<13)
+#define OPTIMIZER_SWITCH_PARTIAL_MATCH_TABLE_SCAN (1<<14)
+#define OPTIMIZER_SWITCH_SUBQUERY_CACHE (1<<15)
+/** If this is off, MRR is never used. */
+#define OPTIMIZER_SWITCH_MRR                       (1ULL << 16)
+/**
+   If OPTIMIZER_SWITCH_MRR is on and this is on, MRR is used depending on a
+   cost-based choice ("automatic"). If OPTIMIZER_SWITCH_MRR is on and this is
+   off, MRR is "forced" (i.e. used as long as the storage engine is capable of
+   doing it).
+*/
+#define OPTIMIZER_SWITCH_MRR_COST_BASED            (1ULL << 17)
+#define OPTIMIZER_SWITCH_MRR_SORT_KEYS             (1ULL << 18)
+#define OPTIMIZER_SWITCH_OUTER_JOIN_WITH_CACHE     (1ULL << 19)
+#define OPTIMIZER_SWITCH_SEMIJOIN_WITH_CACHE       (1ULL << 20)
+#define OPTIMIZER_SWITCH_JOIN_CACHE_INCREMENTAL    (1ULL << 21)
+#define OPTIMIZER_SWITCH_JOIN_CACHE_HASHED         (1ULL << 22)
+#define OPTIMIZER_SWITCH_JOIN_CACHE_BKA            (1ULL << 23)
+#define OPTIMIZER_SWITCH_OPTIMIZE_JOIN_BUFFER_SIZE (1ULL << 24)
 #ifdef DBUG_OFF
-#  define OPTIMIZER_SWITCH_LAST (1<<20)
+#  define OPTIMIZER_SWITCH_LAST                    (1ULL << 25)
 #else
-#  define OPTIMIZER_SWITCH_TABLE_ELIMINATION (1<<20)
-#  define OPTIMIZER_SWITCH_LAST (1<<21)
+#  define OPTIMIZER_SWITCH_TABLE_ELIMINATION       (1ULL << 25)
+#  define OPTIMIZER_SWITCH_LAST                    (1ULL << 26)
 #endif
 
 #ifdef DBUG_OFF 
 /* The following must be kept in sync with optimizer_switch_str in mysqld.cc */
+/*
+TODO: Materialization is off by default to mimic 5.1/5.2 behavior.
+Once cost based choice between materialization and in-to-exists should be
+enabled by default, add OPTIMIZER_SWITCH_MATERIALIZATION
+*/
 #  define OPTIMIZER_SWITCH_DEFAULT (OPTIMIZER_SWITCH_INDEX_MERGE | \
                                     OPTIMIZER_SWITCH_INDEX_MERGE_UNION | \
                                     OPTIMIZER_SWITCH_INDEX_MERGE_SORT_UNION | \
                                     OPTIMIZER_SWITCH_INDEX_MERGE_INTERSECT | \
                                     OPTIMIZER_SWITCH_INDEX_COND_PUSHDOWN | \
+                                    OPTIMIZER_SWITCH_DERIVED_MERGE | \
+                                    OPTIMIZER_SWITCH_DERIVED_WITH_KEYS | \
                                     OPTIMIZER_SWITCH_FIRSTMATCH | \
                                     OPTIMIZER_SWITCH_LOOSE_SCAN | \
-                                    OPTIMIZER_SWITCH_MATERIALIZATION | \
+                                    OPTIMIZER_SWITCH_IN_TO_EXISTS | \
                                     OPTIMIZER_SWITCH_SEMIJOIN | \
                                     OPTIMIZER_SWITCH_PARTIAL_MATCH_ROWID_MERGE|\
                                     OPTIMIZER_SWITCH_PARTIAL_MATCH_TABLE_SCAN|\
                                     OPTIMIZER_SWITCH_SUBQUERY_CACHE|\
+                                    OPTIMIZER_SWITCH_MRR|\
                                     OPTIMIZER_SWITCH_MRR_SORT_KEYS|\
                                     OPTIMIZER_SWITCH_SUBQUERY_CACHE | \
                                     OPTIMIZER_SWITCH_JOIN_CACHE_INCREMENTAL | \
@@ -614,14 +635,17 @@ protected:
                                     OPTIMIZER_SWITCH_INDEX_MERGE_SORT_UNION | \
                                     OPTIMIZER_SWITCH_INDEX_MERGE_INTERSECT | \
                                     OPTIMIZER_SWITCH_INDEX_COND_PUSHDOWN | \
+                                    OPTIMIZER_SWITCH_DERIVED_MERGE | \
+                                    OPTIMIZER_SWITCH_DERIVED_WITH_KEYS | \
                                     OPTIMIZER_SWITCH_TABLE_ELIMINATION | \
                                     OPTIMIZER_SWITCH_FIRSTMATCH | \
                                     OPTIMIZER_SWITCH_LOOSE_SCAN | \
-                                    OPTIMIZER_SWITCH_MATERIALIZATION | \
+                                    OPTIMIZER_SWITCH_IN_TO_EXISTS | \
                                     OPTIMIZER_SWITCH_SEMIJOIN | \
                                     OPTIMIZER_SWITCH_PARTIAL_MATCH_ROWID_MERGE|\
                                     OPTIMIZER_SWITCH_PARTIAL_MATCH_TABLE_SCAN|\
                                     OPTIMIZER_SWITCH_SUBQUERY_CACHE|\
+                                    OPTIMIZER_SWITCH_MRR|\
                                     OPTIMIZER_SWITCH_MRR_SORT_KEYS|\
                                     OPTIMIZER_SWITCH_JOIN_CACHE_INCREMENTAL | \
                                     OPTIMIZER_SWITCH_JOIN_CACHE_HASHED | \
@@ -672,15 +696,36 @@ protected:
 */
 #define CONTEXT_ANALYSIS_ONLY_DERIVED 4
 
-// uncachable cause
-#define UNCACHEABLE_DEPENDENT   1
-#define UNCACHEABLE_RAND        2
-#define UNCACHEABLE_SIDEEFFECT	4
-/// forcing to save JOIN for explain
-#define UNCACHEABLE_EXPLAIN     8
+/*
+  Don't evaluate constant sub-expressions of virtual column
+  expressions when opening tables
+*/ 
+#define CONTEXT_ANALYSIS_ONLY_VCOL_EXPR 8
+
+/*
+  Uncachable causes:
+
+This subquery has fields from outer query (put by user)
+*/
+#define UNCACHEABLE_DEPENDENT_GENERATED 1
+/* This subquery contains functions with random result */
+#define UNCACHEABLE_RAND                2
+/* This subquery contains functions with side effect */
+#define UNCACHEABLE_SIDEEFFECT	        4
+/* Forcing to save JOIN tables for explain */
+#define UNCACHEABLE_EXPLAIN             8
 /* For uncorrelated SELECT in an UNION with some correlated SELECTs */
-#define UNCACHEABLE_UNITED     16
-#define UNCACHEABLE_CHECKOPTION 32
+#define UNCACHEABLE_UNITED              16
+#define UNCACHEABLE_CHECKOPTION         32
+/*
+  This subquery has fields from outer query injected during
+  transformation process
+*/
+#define UNCACHEABLE_DEPENDENT_INJECTED  64
+
+/* This subquery has fields from outer query (any nature) */
+#define UNCACHEABLE_DEPENDENT (UNCACHEABLE_DEPENDENT_GENERATED | \
+                               UNCACHEABLE_DEPENDENT_INJECTED)
 
 /* Used to check GROUP BY list in the MODE_ONLY_FULL_GROUP_BY mode */
 #define UNDEF_POS (-1)
@@ -809,9 +854,92 @@ typedef my_bool (*qc_engine_callback)(THD *thd, char *table_key,
                                       uint key_length,
                                       ulonglong *engine_data);
 #include "sql_string.h"
+#include "my_decimal.h"
+
+/*
+  to unify the code that differs only in the argument passed to the
+  error message (string vs. number)
+
+  We pass this container around, and only convert the number
+  to a string when necessary.
+*/
+class Lazy_string
+{
+public:
+  Lazy_string() {}
+  virtual ~Lazy_string() {}
+  virtual void copy_to(String *str) const = 0;
+};
+
+class Lazy_string_str : public Lazy_string
+{
+  const char *str;
+  size_t len;
+public:
+  Lazy_string_str(const char *str_arg, size_t len_arg)
+    : Lazy_string(), str(str_arg), len(len_arg) {}
+  void copy_to(String *dst) const
+  { dst->copy(str, (uint32)len, system_charset_info); }
+};
+
+class Lazy_string_num : public Lazy_string
+{
+  longlong num;
+public:
+  Lazy_string_num(longlong num_arg) : Lazy_string(), num(num_arg) {}
+  void copy_to(String *dst) const { dst->set(num, &my_charset_bin); }
+};
+
+class Lazy_string_decimal: public Lazy_string
+{
+  const my_decimal *d;
+public:
+  Lazy_string_decimal(const my_decimal *d_arg)
+    : Lazy_string(), d(d_arg) {}
+  void copy_to(String *dst) const {
+    my_decimal2string(E_DEC_FATAL_ERROR, d, 0, 0, ' ', dst);
+  }
+};
+
+class Lazy_string_double: public Lazy_string
+{
+  double num;
+public:
+  Lazy_string_double(double num_arg) : Lazy_string(), num(num_arg) {}
+  void copy_to(String *dst) const
+  { dst->set_real(num, NOT_FIXED_DEC, &my_charset_bin); }
+};
+
+class Lazy_string_time : public Lazy_string
+{
+  const MYSQL_TIME *ltime;
+public:
+  Lazy_string_time(const MYSQL_TIME *ltime_arg)
+    : Lazy_string(), ltime(ltime_arg) {}
+  void copy_to(String *dst) const
+  {
+    dst->alloc(MAX_DATETIME_FULL_WIDTH);
+    dst->length((uint) my_TIME_to_str(ltime, (char*) dst->ptr(),
+                                      AUTO_SEC_PART_DIGITS));
+    dst->set_charset(&my_charset_bin);
+  }
+};
+
+static inline enum enum_mysql_timestamp_type
+mysql_type_to_time_type(enum enum_field_types mysql_type)
+{
+  switch (mysql_type) {
+  case MYSQL_TYPE_TIME: return MYSQL_TIMESTAMP_TIME;
+  case MYSQL_TYPE_TIMESTAMP:
+  case MYSQL_TYPE_DATETIME: return MYSQL_TIMESTAMP_DATETIME;
+  case MYSQL_TYPE_NEWDATE:
+  case MYSQL_TYPE_DATE: return MYSQL_TIMESTAMP_DATE;
+  default: return MYSQL_TIMESTAMP_ERROR;
+  }
+}
+
 #include "sql_list.h"
 #include "sql_map.h"
-#include "my_decimal.h"
 #include "handler.h"
 #include "parse_file.h"
 #include "table.h"
@@ -835,6 +963,7 @@ typedef Comp_creator* (*chooser_compare_func_creator)(bool invert);
 #endif
 #include "item.h"
 extern my_decimal decimal_zero;
+extern my_decimal max_seconds_for_time_type, time_second_part_factor;
 
 /* sql_parse.cc */
 void free_items(Item *item);
@@ -968,7 +1097,7 @@ struct Query_cache_query_flags
 #define query_cache_resize(A) query_cache.resize(A)
 #define query_cache_set_min_res_unit(A) query_cache.set_min_res_unit(A)
 #define query_cache_invalidate3(A, B, C) query_cache.invalidate(A, B, C)
-#define query_cache_invalidate1(A) query_cache.invalidate(A)
+#define query_cache_invalidate1(A,B) query_cache.invalidate(A,B)
 #define query_cache_send_result_to_client(A, B, C) \
   query_cache.send_result_to_client(A, B, C)
 #define query_cache_invalidate_by_MyISAM_filename_ref \
@@ -980,19 +1109,18 @@ struct Query_cache_query_flags
   (((L)->sql_command == SQLCOM_SELECT) && (L)->safe_to_cache_query)
 #else
 #define QUERY_CACHE_FLAGS_SIZE 0
-#define query_cache_store_query(A, B)
-#define query_cache_destroy()
-#define query_cache_result_size_limit(A)
-#define query_cache_init()
-#define query_cache_resize(A)
-#define query_cache_set_min_res_unit(A)
-#define query_cache_invalidate3(A, B, C)
-#define query_cache_invalidate1(A)
+#define query_cache_store_query(A, B)     do { } while(0)
+#define query_cache_destroy()             do { } while(0)
+#define query_cache_result_size_limit(A)  do { } while(0)
+#define query_cache_init()                do { } while(0)
+#define query_cache_resize(A)             do { } while(0)
+#define query_cache_set_min_res_unit(A)   do { } while(0)
+#define query_cache_invalidate3(A, B, C)  do { } while(0)
+#define query_cache_invalidate1(A,B)      do { } while(0)
 #define query_cache_send_result_to_client(A, B, C) 0
 #define query_cache_invalidate_by_MyISAM_filename_ref NULL
-
-#define query_cache_abort(A)
-#define query_cache_end_of_result(A)
+#define query_cache_abort(A)              do { } while(0)
+#define query_cache_end_of_result(A)      do { } while(0)
 #define query_cache_maybe_disabled(T) 1
 #define query_cache_is_cacheable_query(L) 0
 #endif /*HAVE_QUERY_CACHE*/
@@ -1101,7 +1229,11 @@ void reset_mqh(LEX_USER *lu, bool get_them);
 bool check_mqh(THD *thd, uint check_command);
 void time_out_user_resource_limits(THD *thd, USER_CONN *uc);
 void decrease_user_connections(USER_CONN *uc);
-void thd_init_client_charset(THD *thd, uint cs_number);
+bool thd_init_client_charset(THD *thd, uint cs_number);
+inline bool is_supported_parser_charset(CHARSET_INFO *cs)
+{
+  return test(cs->mbminlen == 1);
+}
 bool setup_connection_thread_globals(THD *thd);
 bool login_connection(THD *thd);
 void end_connection(THD *thd);
@@ -1280,11 +1412,14 @@ int mysql_explain_select(THD *thd, SELECT_LEX *sl, char const *type,
 			 select_result *result);
 bool mysql_union(THD *thd, LEX *lex, select_result *result,
                  SELECT_LEX_UNIT *unit, ulong setup_tables_done_option);
-bool mysql_handle_derived(LEX *lex, bool (*processor)(THD *thd,
-                                                      LEX *lex,
-                                                      TABLE_LIST *table));
-bool mysql_derived_prepare(THD *thd, LEX *lex, TABLE_LIST *t);
-bool mysql_derived_filling(THD *thd, LEX *lex, TABLE_LIST *t);
+bool mysql_handle_derived(LEX *lex, uint phases);
+bool mysql_handle_single_derived(LEX *lex, TABLE_LIST *derived, uint phases);
+bool mysql_handle_list_of_derived(LEX *lex, TABLE_LIST *dt_list, uint phases);
+bool check_table_file_presence(char *old_path, char *path,
+                               const char *db,
+                               const char *table_name,
+                               const char *alias,
+                               bool issue_error);
 Field *create_tmp_field(THD *thd, TABLE *table,Item *item, Item::Type type,
 			Item ***copy_func, Field **from_field,
                         Field **def_field,
@@ -1293,6 +1428,11 @@ Field *create_tmp_field(THD *thd, TABLE *table,Item *item, Item::Type type,
                         bool make_copy_field,
                         uint convert_blob_length);
 bool open_tmp_table(TABLE *table);
+bool create_internal_tmp_table(TABLE *table, KEY *keyinfo, 
+                                      ENGINE_COLUMNDEF *start_recinfo,
+                                      ENGINE_COLUMNDEF **recinfo,
+                                      ulonglong options);
+
 void sp_prepare_create_field(THD *thd, Create_field *sql_field);
 int prepare_create_field(Create_field *sql_field, 
 			 uint *blob_columns, 
@@ -1412,6 +1552,7 @@ find_field_in_table(THD *thd, TABLE *table, const char *name, uint length,
 Field *
 find_field_in_table_sef(TABLE *table, const char *name);
 int update_virtual_fields(THD *thd, TABLE *table, bool ignore_stored= FALSE);
+int dynamic_column_error_message(enum_dyncol_func_result rc);
 
 #endif /* MYSQL_SERVER */
 
@@ -1599,17 +1740,21 @@ bool get_key_map_from_key_list(key_map *map, TABLE *table,
 bool insert_fields(THD *thd, Name_resolution_context *context,
 		   const char *db_name, const char *table_name,
                    List_iterator<Item> *it, bool any_privileges);
+void make_leaves_list(List<TABLE_LIST> &list, TABLE_LIST *tables,
+                      bool full_table_list, TABLE_LIST *boundary);
 bool setup_tables(THD *thd, Name_resolution_context *context,
                   List<TABLE_LIST> *from_clause, TABLE_LIST *tables,
-                  TABLE_LIST **leaves, bool select_insert);
+                  List<TABLE_LIST> &leaves, bool select_insert,
+                  bool full_table_list);
 bool setup_tables_and_check_access(THD *thd, 
                                    Name_resolution_context *context,
                                    List<TABLE_LIST> *from_clause, 
                                    TABLE_LIST *tables, 
-                                   TABLE_LIST **leaves, 
+                                   List<TABLE_LIST> &leaves, 
                                    bool select_insert,
                                    ulong want_access_first,
-                                   ulong want_access);
+                                   ulong want_access,
+                                   bool full_table_list);
 int setup_wild(THD *thd, TABLE_LIST *tables, List<Item> &fields,
 	       List<Item> *sum_func_list, uint wild_num);
 bool setup_fields(THD *thd, Item** ref_pointer_array,
@@ -1628,8 +1773,9 @@ inline bool setup_fields_with_no_wrap(THD *thd, Item **ref_pointer_array,
   thd->lex->select_lex.no_wrap_view_item= FALSE;
   return res;
 }
-int setup_conds(THD *thd, TABLE_LIST *tables, TABLE_LIST *leaves,
+int setup_conds(THD *thd, TABLE_LIST *tables, List<TABLE_LIST> &leaves,
 		COND **conds);
+void wrap_ident(THD *thd, Item **conds);
 int setup_ftfuncs(SELECT_LEX* select);
 int init_ftfuncs(THD *thd, SELECT_LEX* select, bool no_order);
 void wait_for_condition(THD *thd, pthread_mutex_t *mutex,
@@ -1650,7 +1796,8 @@ inline int open_and_lock_tables(THD *thd, TABLE_LIST *tables)
 /* simple open_and_lock_tables without derived handling for single table */
 TABLE *open_n_lock_single_table(THD *thd, TABLE_LIST *table_l,
                                 thr_lock_type lock_type);
-bool open_normal_and_derived_tables(THD *thd, TABLE_LIST *tables, uint flags);
+bool open_normal_and_derived_tables(THD *thd, TABLE_LIST *tables, uint flags,
+                                    uint dt_phases);
 int lock_tables(THD *thd, TABLE_LIST *tables, uint counter, bool *need_reopen);
 int decide_logging_format(THD *thd, TABLE_LIST *tables);
 TABLE *open_temporary_table(THD *thd, const char *path, const char *db,
@@ -1680,6 +1827,7 @@ void flush_tables();
 bool is_equal(const LEX_STRING *a, const LEX_STRING *b);
 char *make_default_log_name(char *buff,const char* log_ext);
 char *make_once_alloced_filename(const char *basename, const char *ext);
+void unfix_fields(List<Item> &items);
 
 #ifdef WITH_PARTITION_STORAGE_ENGINE
 uint fast_alter_partition_table(THD *thd, TABLE *table,
@@ -1947,6 +2095,7 @@ void flush_thread_cache();
 /* item_func.cc */
 extern bool check_reserved_words(LEX_STRING *name);
 extern enum_field_types agg_field_type(Item **items, uint nitems);
+Item *find_date_time_item(Item **args, uint nargs, uint col);
 
 /* strfunc.cc */
 ulonglong find_set(TYPELIB *lib, const char *x, uint length, CHARSET_INFO *cs,
@@ -2056,6 +2205,8 @@ extern ulong binlog_cache_size, open_files_limit;
 extern ulonglong max_binlog_cache_size;
 extern ulong max_binlog_size, max_relay_log_size;
 extern ulong opt_binlog_rows_event_max_size;
+extern my_bool opt_master_verify_checksum;
+extern my_bool opt_slave_sql_verify_checksum;
 extern ulong rpl_recovery_rank, thread_cache_size, thread_pool_size;
 extern ulong back_log;
 #endif /* MYSQL_SERVER */
@@ -2065,12 +2216,14 @@ extern ulong MYSQL_PLUGIN_IMPORT specialflag;
 #ifdef MYSQL_SERVER
 extern ulong current_pid;
 extern ulong expire_logs_days, sync_binlog_period, sync_binlog_counter;
+extern ulong binlog_checksum_options;
 extern ulong opt_tc_log_size, tc_log_max_pages_used, tc_log_page_size;
 extern ulong tc_log_page_waits;
 extern my_bool relay_log_purge, opt_innodb_safe_binlog, opt_innodb;
 extern uint test_flags,select_errors,ha_open_options;
 extern uint protocol_version, mysqld_port, mysqld_extra_port, dropping_tables;
 extern uint delay_key_write_options;
+extern ulong max_long_data_size;
 #endif /* MYSQL_SERVER */
 #if defined MYSQL_SERVER || defined INNODB_COMPATIBILITY_HOOKS
 extern MYSQL_PLUGIN_IMPORT uint lower_case_table_names;
@@ -2101,7 +2254,7 @@ extern uint thread_handling;
 extern uint connection_count, extra_connection_count;
 extern my_bool opt_sql_bin_update, opt_safe_user_create, opt_no_mix_types;
 extern my_bool opt_safe_show_db, opt_local_infile, opt_myisam_use_mmap;
-extern my_bool opt_slave_compressed_protocol, use_temp_pool;
+extern my_bool opt_slave_compressed_protocol, use_temp_pool, opt_help;
 extern ulong slave_exec_mode_options;
 extern my_bool opt_readonly, lower_case_file_system;
 extern my_bool opt_userstat_running;
@@ -2109,6 +2262,7 @@ extern my_bool opt_enable_named_pipe, opt_sync_frm, opt_allow_suspicious_udfs;
 extern my_bool opt_secure_auth, debug_assert_if_crashed_table;
 extern char* opt_secure_file_priv;
 extern my_bool opt_log_slow_admin_statements, opt_log_slow_slave_statements;
+extern my_bool opt_query_cache_strip_comments;
 extern my_bool sp_automatic_privileges, opt_noacl;
 extern my_bool opt_old_style_user_limits, trust_function_creators;
 extern uint opt_crash_binlog_innodb;
@@ -2321,17 +2475,34 @@ ulong convert_period_to_month(ulong period);
 ulong convert_month_to_period(ulong month);
 void get_date_from_daynr(long daynr,uint *year, uint *month,
 			 uint *day);
-my_time_t TIME_to_timestamp(THD *thd, const MYSQL_TIME *t, my_bool *not_exist);
-bool str_to_time_with_warn(const char *str,uint length,MYSQL_TIME *l_time);
+my_time_t TIME_to_timestamp(THD *thd, const MYSQL_TIME *t, uint *error);
+bool str_to_time_with_warn(const char *str,uint length,MYSQL_TIME *l_time,
+                           ulong fuzzydate);
 timestamp_type str_to_datetime_with_warn(const char *str, uint length,
-                                         MYSQL_TIME *l_time, uint flags);
+                                         MYSQL_TIME *l_time, ulong flags);
 void localtime_to_TIME(MYSQL_TIME *to, struct tm *from);
 void calc_time_from_sec(MYSQL_TIME *to, long seconds, long microseconds);
 
-void make_truncated_value_warning(THD *thd, MYSQL_ERROR::enum_warning_level level,
-                                  const char *str_val,
-				  uint str_length, timestamp_type time_type,
+void make_truncated_value_warning(THD *thd,
+                                  MYSQL_ERROR::enum_warning_level level,
+                                  const Lazy_string *str_val,
+                                  timestamp_type time_type,
                                   const char *field_name);
+bool double_to_datetime_with_warn(double value, MYSQL_TIME *ltime,
+                                  ulong fuzzydate, const char *field_name);
+bool decimal_to_datetime_with_warn(const my_decimal *value, MYSQL_TIME *ltime,
+                                   ulong fuzzydate, const char *field_name);
+bool int_to_datetime_with_warn(longlong value, MYSQL_TIME *ltime,
+                               ulong fuzzydate, const char *field_name);
+
+static inline void make_truncated_value_warning(THD *thd,
+                MYSQL_ERROR::enum_warning_level level, const char *str_val,
+                uint str_length, timestamp_type time_type,
+                const char *field_name)
+{
+  const Lazy_string_str str(str_val, str_length);
+  make_truncated_value_warning(thd, level, &str, time_type, field_name);
+}
 
 bool date_add_interval(MYSQL_TIME *ltime, interval_type int_type, INTERVAL interval);
 bool calc_time_diff(MYSQL_TIME *l_time1, MYSQL_TIME *l_time2, int l_sign,
@@ -2348,12 +2519,6 @@ const char *get_date_time_format_str(KNOWN_DATE_TIME_FORMAT *format,
 				     timestamp_type type);
 extern bool make_date_time(DATE_TIME_FORMAT *format, MYSQL_TIME *l_time,
 			   timestamp_type type, String *str);
-void make_datetime(const DATE_TIME_FORMAT *format, const MYSQL_TIME *l_time,
-                   String *str);
-void make_date(const DATE_TIME_FORMAT *format, const MYSQL_TIME *l_time,
-               String *str);
-void make_time(const DATE_TIME_FORMAT *format, const MYSQL_TIME *l_time,
-               String *str);
 int my_time_compare(MYSQL_TIME *a, MYSQL_TIME *b);
 longlong get_datetime_value(THD *thd, Item ***item_arg, Item **cache_arg,
                             Item *warn_item, bool *is_null);
@@ -2554,7 +2719,7 @@ Item * all_any_subquery_creator(Item *left_expr,
 inline void setup_table_map(TABLE *table, TABLE_LIST *table_list, uint tablenr)
 {
   table->used_fields= 0;
-  table->const_table= 0;
+  table_list->reset_const_table();
   table->null_row= 0;
   table->status= STATUS_NO_RECORD;
   table->maybe_null= table_list->outer_join;
@@ -2570,6 +2735,14 @@ inline void setup_table_map(TABLE *table, TABLE_LIST *table_list, uint tablenr)
   table->force_index_order= table->force_index_group= 0;
   table->covering_keys= table->s->keys_for_keyread;
   table->merge_keys.clear_all();
+  TABLE_LIST *orig= table_list->select_lex ?
+    table_list->select_lex->master_unit()->derived : 0;
+  if (!orig || !orig->is_merged_derived())
+  {
+    /* Tables merged from derived were set up already.*/
+    table->covering_keys= table->s->keys_for_keyread;
+    table->merge_keys.clear_all();
+  }
 }
 
 

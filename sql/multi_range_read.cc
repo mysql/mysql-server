@@ -998,7 +998,9 @@ int DsMrr_impl::setup_two_handlers()
       DBUG_RETURN(1);
 
     /* Create a separate handler object to do rnd_pos() calls. */
-    if (!(new_h2= primary_file->clone(thd->mem_root)) || 
+    if (!(new_h2= primary_file->clone(primary_file->get_table()->s->
+                                      normalized_path.str,
+                                      thd->mem_root)) || 
         new_h2->ha_external_lock(thd, F_RDLCK))
     {
       delete new_h2;
@@ -1414,7 +1416,7 @@ ha_rows DsMrr_impl::dsmrr_info_const(uint keyno, RANGE_SEQ_IF *seq,
   /*
     If HA_MRR_USE_DEFAULT_IMPL has been passed to us, that is an order to
     use the default MRR implementation (we need it for UPDATE/DELETE).
-    Otherwise, make a choice based on cost and @@optimizer_use_mrr.
+    Otherwise, make a choice based on cost and @@optimizer_switch settings
   */
   if ((*flags & HA_MRR_USE_DEFAULT_IMPL) ||
       choose_mrr_impl(keyno, rows, flags, bufsz, cost))
@@ -1518,7 +1520,8 @@ bool DsMrr_impl::choose_mrr_impl(uint keyno, ha_rows rows, uint *flags,
   bool using_cpk= test(keyno == table->s->primary_key &&
                        primary_file->primary_key_is_clustered());
   *flags &= ~HA_MRR_IMPLEMENTATION_FLAGS;
-  if (thd->variables.optimizer_use_mrr == 2 || *flags & HA_MRR_INDEX_ONLY ||
+  if (!optimizer_flag(thd, OPTIMIZER_SWITCH_MRR) ||
+      *flags & HA_MRR_INDEX_ONLY ||
       (using_cpk && !doing_cpk_scan) || key_uses_partial_cols(table, keyno))
   {
     /* Use the default implementation */
@@ -1535,12 +1538,12 @@ bool DsMrr_impl::choose_mrr_impl(uint keyno, ha_rows rows, uint *flags,
   
   bool force_dsmrr;
   /* 
-    If @@optimizer_use_mrr==force, then set cost of DS-MRR to be minimum of
+    If mrr_cost_based flag is not set, then set cost of DS-MRR to be minimum of
     DS-MRR and Default implementations cost. This allows one to force use of
     DS-MRR whenever it is applicable without affecting other cost-based
     choices.
   */
-  if ((force_dsmrr= (thd->variables.optimizer_use_mrr == 1)) &&
+  if ((force_dsmrr= !optimizer_flag(thd, OPTIMIZER_SWITCH_MRR_COST_BASED)) &&
       dsmrr_cost.total_cost() > cost->total_cost())
     dsmrr_cost= *cost;
 

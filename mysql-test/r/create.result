@@ -1890,5 +1890,24 @@ create table t3 (a int) row_format=page;
 drop table t1,t2,t3;
 
 # -- End of Bug#45829
+# new table creation/renaming blocked if old encoded table present
+create table `t-1` (a int) engine=myisam;
+insert into `t-1` values (1);
+show tables;
+Tables_in_test
+t-1
+flush tables;
+convert table files in mysql 5.0 file name encoding
+show tables;
+Tables_in_test
+#mysql50#t-1
+create table `t-1` (a int);
+ERROR 42S01: Table '#mysql50#t-1' already exists
+create table t1 (a int);
+alter table t1 rename `t-1`;
+ERROR 42S01: Table '#mysql50#t-1' already exists
+rename table t1 to `t-1`;
+ERROR 42S01: Table '#mysql50#t-1' already exists
+drop table `#mysql50#t-1`, t1;
 
 End of 5.1 tests

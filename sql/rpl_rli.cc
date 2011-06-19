@@ -176,6 +176,9 @@ a file name for --relay-log-index option", opt_relaylog_index_name);
                         "this problem.", ln);
       name_warning_sent= 1;
     }
+
+    rli->relay_log.is_relay_log= TRUE;
+
     /*
       note, that if open() fails, we'll still have index file open
       but a destructor will take care of that
@@ -189,7 +192,6 @@ a file name for --relay-log-index option", opt_relaylog_index_name);
       sql_print_error("Failed in open_log() called from init_relay_log_info()");
       DBUG_RETURN(1);
     }
-    rli->relay_log.is_relay_log= TRUE;
   }
 
   /* if file does not exist */
@@ -535,8 +537,9 @@ int init_relay_log_pos(Relay_log_info* rli,const char* log,
         Because of we have rli->data_lock and log_lock, we can safely read an
         event
       */
-      if (!(ev=Log_event::read_log_event(rli->cur_log,0,
-                                         rli->relay_log.description_event_for_exec)))
+      if (!(ev= Log_event::read_log_event(rli->cur_log, 0,
+                                          rli->relay_log.description_event_for_exec,
+                                          opt_slave_sql_verify_checksum)))
       {
         DBUG_PRINT("info",("could not read event, rli->cur_log->error=%d",
                            rli->cur_log->error));
@@ -1172,11 +1175,7 @@ void Relay_log_info::stmt_done(my_off_t event_master_log_pos,
       is that value may take some time to display in
       Seconds_Behind_Master - not critical).
     */
-#ifndef DBUG_OFF
-    if (!(event_creation_time == 0 && debug_not_change_ts_if_art_event > 0))
-#else
-      if (event_creation_time != 0)
-#endif
+    if (!(event_creation_time == 0 IF_DBUG(&& debug_not_change_ts_if_art_event > 0)))
         last_master_timestamp= event_creation_time;
   }
 }

@@ -384,6 +384,7 @@ buf_block_set_file_page(
 	buf_block_set_state(block, BUF_BLOCK_FILE_PAGE);
 	block->page.space = space;
 	block->page.offset = page_no;
+	block->page.space_was_being_deleted = FALSE;
 }
 
 /*********************************************************************//**
@@ -757,14 +758,12 @@ Allocates a buffer block.
 @return	own: the allocated block, in state BUF_BLOCK_MEMORY */
 UNIV_INLINE
 buf_block_t*
-buf_block_alloc(
-/*============*/
-	ulint	zip_size)	/*!< in: compressed page size in bytes,
-				or 0 if uncompressed tablespace */
+buf_block_alloc(void)
+/*=================*/
 {
 	buf_block_t*	block;
 
-	block = buf_LRU_get_free_block(zip_size);
+	block = buf_LRU_get_free_block();
 
 	buf_block_set_state(block, BUF_BLOCK_MEMORY);
 

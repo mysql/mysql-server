@@ -36,6 +36,7 @@ drop table temp_table, t3;
 insert into t2 values(1234);
 set insert_id=1234;
 insert into t2 values(NULL);
+call mtr.add_suppression("Slave SQL.*Error .Duplicate entry .1234. for key .PRIMARY.. on query.* Error_code: 1062");
 include/wait_for_slave_sql_error_and_skip.inc [errno=1062]
 purge master logs to 'master-bin.000002';
 show master logs;
@@ -69,7 +70,7 @@ insert into temp_table values ("testing temporary tables part 2");
 create table t3 (n int);
 select count(*) from t3 where n >= 4;
 count(*)
-100
+90
 create table t4 select * from temp_table;
 show binary logs;
 Log_name	File_size
@@ -88,7 +89,7 @@ include/check_slave_is_running.inc
 lock tables t3 read;
 select count(*) from t3 where n >= 4;
 count(*)
-100
+90
 unlock tables;
 drop table if exists t1,t2,t3,t4;
 End of 4.1 tests

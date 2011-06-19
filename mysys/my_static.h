@@ -66,8 +66,6 @@ extern struct st_irem *sf_malloc_root;
 
 extern struct st_my_file_info my_file_info_default[MY_NFILE];
 
-extern ulonglong query_performance_frequency, query_performance_offset;
-
 #if defined(THREAD) && !defined(__WIN__)
 extern sigset_t my_signals;		/* signals blocked by mf_brkhant */
 #endif

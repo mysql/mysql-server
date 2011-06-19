@@ -1,0 +1,340 @@
+drop table if exists t1, t2, t3;
+create table t1 (a time(7));
+ERROR 42000: Too big precision 7 specified for 'a'. Maximum is 6.
+create table t1 (a time(3), key(a));
+insert t1 values ('2010-12-11 00:20:03.1234');
+Warnings:
+Note	1265	Data truncated for column 'a' at row 1
+insert t1 values ('2010-12-11 15:47:11.1234');
+Warnings:
+Note	1265	Data truncated for column 'a' at row 1
+insert t1 values (20101211010203.45678);
+Warnings:
+Warning	1265	Data truncated for column 'a' at row 1
+insert t1 values (20101211030405.789e0);
+Warnings:
+Warning	1265	Data truncated for column 'a' at row 1
+insert t1 values (99991231235959e1);
+Warnings:
+Warning	1265	Data truncated for column 'a' at row 1
+select * from t1;
+a
+00:00:00.000
+00:20:03.123
+01:02:03.456
+03:04:05.789
+15:47:11.123
+select truncate(a, 6) from t1;
+truncate(a, 6)
+0.000000
+2003.123000
+10203.456000
+30405.789062
+154711.123000
+select a DIV 1 from t1;
+a DIV 1
+0
+2003
+10203
+30405
+154711
+select group_concat(distinct a) from t1;
+group_concat(distinct a)
+00:00:00.000,00:20:03.123,01:02:03.456,03:04:05.789,15:47:11.123
+alter table t1 engine=innodb;
+select * from t1 order by a;
+a
+00:00:00.000
+00:20:03.123
+01:02:03.456
+03:04:05.789
+15:47:11.123
+select * from t1 order by a+0;
+a
+00:00:00.000
+00:20:03.123
+01:02:03.456
+03:04:05.789
+15:47:11.123
+drop table t1;
+create table t1 (a time(4)) engine=innodb;
+insert t1 values ('2010-12-11 01:02:03.456789');
+Warnings:
+Note	1265	Data truncated for column 'a' at row 1
+select * from t1;
+a
+01:02:03.4567
+select extract(microsecond from a + interval 100 microsecond) from t1 where a>'2010-11-12 01:02:03.456';
+extract(microsecond from a + interval 100 microsecond)
+select a from t1 where a>'2010-11-12 01:02:03.456' group by a;
+a
+show create table t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `a` time(4) DEFAULT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=latin1
+show columns from t1;
+Field	Type	Null	Key	Default	Extra
+a	time(4)	YES		NULL	
+select table_name, column_name, column_default, is_nullable, data_type, character_maximum_length, character_octet_length, numeric_precision, numeric_scale, datetime_precision, character_set_name, collation_name, column_type, column_key, extra from information_schema.columns where table_name='t1';
+table_name	t1
+column_name	a
+column_default	NULL
+is_nullable	YES
+data_type	time
+character_maximum_length	NULL
+character_octet_length	NULL
+numeric_precision	NULL
+numeric_scale	NULL
+datetime_precision	4
+character_set_name	NULL
+collation_name	NULL
+column_type	time(4)
+column_key	
+extra	
+select a, a+interval 9876543 microsecond from t1;
+a	a+interval 9876543 microsecond
+01:02:03.4567	01:02:13.333243
+update t1 set a=a+interval 9876543 microsecond;
+select * from t1;
+a
+01:02:13.3332
+select a, a + interval 2 year from t1;
+a	a + interval 2 year
+01:02:13.3332	NULL
+Warnings:
+Warning	1441	Datetime function: time field overflow
+insert t1 select a + interval 2 year from t1;
+Warnings:
+Warning	1441	Datetime function: time field overflow
+select * from t1;
+a
+01:02:13.3332
+NULL
+delete from t1 where a < 20110101;
+select * from t1;
+a
+01:02:13.3332
+NULL
+create table t2 select * from t1;
+create table t3 like t1;
+show create table t2;
+Table	Create Table
+t2	CREATE TABLE `t2` (
+  `a` time(4) DEFAULT NULL
+) ENGINE=MyISAM DEFAULT CHARSET=latin1
+show create table t3;
+Table	Create Table
+t3	CREATE TABLE `t3` (
+  `a` time(4) DEFAULT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=latin1
+drop table t2, t3;
+insert t1 values ('2010-12-13 14:15:16.222222');
+Warnings:
+Note	1265	Data truncated for column 'a' at row 1
+select a, a+0, a-1, a*1, a/2 from t1;
+a	a+0	a-1	a*1	a/2
+01:02:13.3332	10213.3332	10212.3332	10213.3332	5106.66660000
+NULL	NULL	NULL	NULL	NULL
+14:15:16.2222	141516.2222	141515.2222	141516.2222	70758.11110000
+select max(a), min(a), sum(a), avg(a) from t1;
+max(a)	min(a)	sum(a)	avg(a)
+14:15:16.2222	01:02:13.3332	151729.5554	75864.77770000
+create table t2 select a, a+0, a-1, a*1, a/2 from t1;
+create table t3 select max(a), min(a), sum(a), avg(a) from t1;
+show create table t2;
+Table	Create Table
+t2	CREATE TABLE `t2` (
+  `a` time(4) DEFAULT NULL,
+  `a+0` decimal(16,4) DEFAULT NULL,
+  `a-1` decimal(16,4) DEFAULT NULL,
+  `a*1` decimal(16,4) DEFAULT NULL,
+  `a/2` decimal(19,8) DEFAULT NULL
+) ENGINE=MyISAM DEFAULT CHARSET=latin1
+show create table t3;
+Table	Create Table
+t3	CREATE TABLE `t3` (
+  `max(a)` time(4) DEFAULT NULL,
+  `min(a)` time(4) DEFAULT NULL,
+  `sum(a)` decimal(37,4) DEFAULT NULL,
+  `avg(a)` decimal(19,8) DEFAULT NULL
+) ENGINE=MyISAM DEFAULT CHARSET=latin1
+drop table t1, t2, t3;
+create table t1 (f0_time time(0), f1_time time(1), f2_time time(2), f3_time time(3), f4_time time(4), f5_time time(5), f6_time time(6));
+insert t1 values ( '2010-11-12 11:14:17.765432', '2010-11-12 11:14:17.765432', '2010-11-12 11:14:17.765432', '2010-11-12 11:14:17.765432', '2010-11-12 11:14:17.765432', '2010-11-12 11:14:17.765432', '2010-11-12 11:14:17.765432');
+Warnings:
+Level	Note
+Code	1265
+Message	Data truncated for column 'f0_time' at row 1
+Level	Note
+Code	1265
+Message	Data truncated for column 'f1_time' at row 1
+Level	Note
+Code	1265
+Message	Data truncated for column 'f2_time' at row 1
+Level	Note
+Code	1265
+Message	Data truncated for column 'f3_time' at row 1
+Level	Note
+Code	1265
+Message	Data truncated for column 'f4_time' at row 1
+Level	Note
+Code	1265
+Message	Data truncated for column 'f5_time' at row 1
+Level	Note
+Code	1265
+Message	Data truncated for column 'f6_time' at row 1
+select * from t1;
+f0_time	11:14:17
+f1_time	11:14:17.7
+f2_time	11:14:17.76
+f3_time	11:14:17.765
+f4_time	11:14:17.7654
+f5_time	11:14:17.76543
+f6_time	11:14:17.765432
+select cast(f0_time as time(4)) time4_f0_time, cast(f1_time as datetime(3)) datetime3_f1_time, cast(f2_time as date) date_f2_time, cast(f4_time as double) double_f3_time, cast(f4_time as decimal(40,5)) decimal5_f4_time, cast(f5_time as signed) bigint_f5_time, cast(f6_time as char(255)) varchar_f6_time from t1;
+time4_f0_time	11:14:17.0000
+datetime3_f1_time	0000-00-00 11:14:17.700
+date_f2_time	0000-00-00
+double_f3_time	111417.7654
+decimal5_f4_time	111417.76540
+bigint_f5_time	111417
+varchar_f6_time	11:14:17.765432
+create table t2 (time4_f0_time time(4), datetime3_f1_time datetime(3), date_f2_time date, double_f3_time double, decimal5_f4_time decimal(40,5), bigint_f5_time bigint, varchar_f6_time varchar(255));
+insert t2 select * from t1;
+Warnings:
+Level	Note
+Code	1265
+Message	Data truncated for column 'date_f2_time' at row 1
+select * from t2;
+time4_f0_time	11:14:17.0000
+datetime3_f1_time	0000-00-00 11:14:17.700
+date_f2_time	0000-00-00
+double_f3_time	111417.765
+decimal5_f4_time	111417.76540
+bigint_f5_time	111417
+varchar_f6_time	11:14:17.765432
+alter table t1 change f0_time time4_f0_time time(4), change f1_time datetime3_f1_time datetime(3), change f2_time date_f2_time date, change f3_time double_f3_time double, change f4_time decimal5_f4_time decimal(40,5), change f5_time bigint_f5_time bigint, change f6_time varchar_f6_time varchar(255);
+Warnings:
+Level	Note
+Code	1265
+Message	Data truncated for column 'date_f2_time' at row 1
+select * from t1;
+time4_f0_time	11:14:17.0000
+datetime3_f1_time	0000-00-00 11:14:17.700
+date_f2_time	0000-00-00
+double_f3_time	111417.765
+decimal5_f4_time	111417.76540
+bigint_f5_time	111417
+varchar_f6_time	11:14:17.765432
+alter table t1 modify time4_f0_time time(0), modify datetime3_f1_time time(1), modify date_f2_time time(2), modify double_f3_time time(3), modify decimal5_f4_time time(4), modify bigint_f5_time time(5), modify varchar_f6_time time(6);
+select * from t1;
+time4_f0_time	11:14:17
+datetime3_f1_time	11:14:17.7
+date_f2_time	00:00:00.00
+double_f3_time	11:14:17.765
+decimal5_f4_time	11:14:17.7654
+bigint_f5_time	11:14:17.00000
+varchar_f6_time	11:14:17.765432
+delete from t1;
+insert t1 select * from t2;
+select * from t1;
+time4_f0_time	11:14:17
+datetime3_f1_time	11:14:17.7
+date_f2_time	00:00:00.00
+double_f3_time	11:14:17.764
+decimal5_f4_time	11:14:17.7654
+bigint_f5_time	11:14:17.00000
+varchar_f6_time	11:14:17.765432
+drop table t1, t2;
+create table t1 (a time(6), b time(6));
+create procedure foo(x time, y time(4)) insert into t1 values (x, y);
+call foo('2010-02-03 4:5:6.789123', '2010-02-03 4:5:6.789123');
+Warnings:
+Note	1265	Data truncated for column 'x' at row 1
+Note	1265	Data truncated for column 'y' at row 1
+select * from t1;
+a	b
+04:05:06.000000	04:05:06.789100
+create procedure bar(a int, c time(5))
+begin
+declare b time(4);
+set b = c + interval a microsecond;
+insert t1 values (b, c + interval a microsecond);
+end|
+call bar(1111111, '2011-01-02 3:4:5.123456');
+Warnings:
+Note	1265	Data truncated for column 'c' at row 1
+select * from t1;
+a	b
+04:05:06.000000	04:05:06.789100
+03:04:06.234500	03:04:06.234561
+drop procedure foo;
+drop procedure bar;
+create function xyz(s char(20)) returns time(4)
+return addtime('2010-10-10 10:10:10.101010', s);
+select xyz('1:1:1.010101');
+xyz('1:1:1.010101')
+11:11:11.1111
+Warnings:
+Note	1265	Data truncated for column 'xyz('1:1:1.010101')' at row 1
+drop function xyz;
+create view v1 as select * from t1 group by a,b;
+select * from v1;
+a	b
+03:04:06.234500	03:04:06.234561
+04:05:06.000000	04:05:06.789100
+show columns from v1;
+Field	Type	Null	Key	Default	Extra
+a	time(6)	YES		NULL	
+b	time(6)	YES		NULL	
+create table t2 select * from v1;
+show create table t2;
+Table	Create Table
+t2	CREATE TABLE `t2` (
+  `a` time(6) DEFAULT NULL,
+  `b` time(6) DEFAULT NULL
+) ENGINE=MyISAM DEFAULT CHARSET=latin1
+select * from t2;
+a	b
+03:04:06.234500	03:04:06.234561
+04:05:06.000000	04:05:06.789100
+drop view v1;
+drop table t1, t2;
+create table t1 (a time(4) not null, key(a));
+insert into t1 values ('1:2:3.001'),('1:2:3'), ('-00:00:00.6'),('-00:00:00.7'),('-00:00:00.8'),('-00:00:00.9'),('-00:00:01.0'),('-00:00:01.1'),('-00:00:01.000000'),('-00:00:01.100001'),('-00:00:01.000002'),('-00:00:01.090000');
+select * from t1 order by a;
+a
+-00:00:01.1000
+-00:00:01.1000
+-00:00:01.0900
+-00:00:01.0000
+-00:00:01.0000
+-00:00:01.0000
+-00:00:00.9000
+-00:00:00.8000
+-00:00:00.7000
+-00:00:00.6000
+01:02:03.0000
+01:02:03.0010
+select * from t1 order by a desc;
+a
+01:02:03.0010
+01:02:03.0000
+-00:00:00.6000
+-00:00:00.7000
+-00:00:00.8000
+-00:00:00.9000
+-00:00:01.0000
+-00:00:01.0000
+-00:00:01.0000
+-00:00:01.0900
+-00:00:01.1000
+-00:00:01.1000
+select min(a - interval 1 hour), max(a - interval 1 hour) from t1 where a < 0;
+min(a - interval 1 hour)	max(a - interval 1 hour)
+-01:00:01.1000	-01:00:00.6000
+drop table t1;
+select cast(1e-6 as time(6));
+cast(1e-6 as time(6))
+00:00:00.000001

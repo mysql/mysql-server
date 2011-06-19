@@ -158,7 +158,10 @@ SELECT @@session.sql_mode INTO @old_sql_mode;
 SET SESSION sql_mode='ONLY_FULL_GROUP_BY';
 
 # EXPLAIN EXTENDED (with subselect). used to crash. should give NOTICE.
---error ER_MIX_OF_GROUP_FUNC_AND_FIELDS
+# Before moving max/min optimization to optimize phase this statement
+# generated error, but as far as original query do not contain aggregate
+# function user should not see error
+#  --error ER_MIX_OF_GROUP_FUNC_AND_FIELDS
 EXPLAIN EXTENDED SELECT 1 FROM t1
                           WHERE f1 > ALL( SELECT t.f1 FROM t1,t1 AS t );
 SHOW WARNINGS;
@@ -265,3 +268,19 @@ DEALLOCATE PREPARE stmt;
 DROP TABLE t1;
 
 --echo End of 5.1 tests.
+
+--echo #
+--echo # Bug#776295: EXPLAIN EXTENDED with always false multiple equality
+--echo #             in the WHERE condition of a derived table
+--echo #
+
+CREATE TABLE t1 (a int) ;
+
+CREATE TABLE t2 (a int) ;
+INSERT INTO t2 VALUES (8);
+
+EXPLAIN EXTENDED
+SELECT * FROM ( SELECT t1.a FROM t1,t2 WHERE t2.a = t1.a ) AS t;
+
+DROP TABLE t1,t2;
+

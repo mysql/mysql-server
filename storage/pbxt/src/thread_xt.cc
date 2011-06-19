@@ -54,6 +54,9 @@ void xt_db_exit_thread(XTThreadPtr self);
 
 static void thr_accumulate_statistics(XTThreadPtr self);
 
+#ifdef _WIN32
+#include <my_sys.h>
+#endif
 /*
  * -----------------------------------------------------------------------
  * THREAD GLOBALS
@@ -1962,18 +1965,7 @@ xtPublic xtBool xt_timed_wait_cond(XTThreadPtr self, xt_cond_type *cond, xt_mute
 	XTThreadPtr		me = self ? self : xt_get_self();
 
 #ifdef XT_WIN
-	union ft64		now;
-  
-	GetSystemTimeAsFileTime(&now.ft);
-
-	/* System time is measured in 100ns units.
-	 * This calculation will be reversed by the Windows implementation
-	 * of pthread_cond_timedwait(), in order to extract the
-	 * milli-second timeout!
-	 */
-	abstime.tv.i64 = now.i64 + (milli_sec * 10000);
-  
-	abstime.max_timeout_msec = milli_sec;
+	set_timespec_nsec(abstime, 1000000ULL* milli_sec);
 #else
 	struct timeval	now;
 	u_llong			micro_sec;

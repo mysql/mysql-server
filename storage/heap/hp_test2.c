@@ -21,9 +21,6 @@
 #ifdef DBUG_OFF
 #undef DBUG_OFF
 #endif
-#ifndef SAFEMALLOC
-#define SAFEMALLOC
-#endif
 
 #include "heapdef.h"		/* Because of hp_find_block */
 #include <signal.h>
@@ -319,7 +316,8 @@ int main(int argc, char *argv[])
     if (!silent)
       printf("- Read last key - delete - prev - prev - opt_delete - prev -> first\n");
 
-    if (heap_rlast(file,record3,0)) goto err;
+    if (heap_rprev(file,record))
+      goto err;
     if (heap_delete(file,record3)) goto err;
     key_check-=atoi((char*) record3);
     key1[atoi((char*) record+keyinfo[0].seg[0].start)]--;
@@ -526,7 +524,7 @@ int main(int argc, char *argv[])
   }
 
   ant=0;
-  for (error=heap_rlast(file,record,0) ;
+  for (error=heap_rprev(file,record) ;
       ! error ;
       error=heap_rprev(file,record))
   {

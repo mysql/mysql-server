@@ -1,0 +1,108 @@
+#
+# Test of timestamp with hires resolution;
+
+set time_zone='+03:00';
+set timestamp=unix_timestamp('2011-01-01 01:01:01.123456');
+
+--vertical_results
+select sec_to_time(12345), sec_to_time(12345.6789), sec_to_time(1234567e-2);
+select now(), curtime(0), utc_timestamp(1), utc_time(2), current_time(3),
+       current_timestamp(4), localtime(5), localtimestamp(6), time_to_sec('12:34:56'),
+       time_to_sec('12:34:56.789');
+select sec_to_time(time_to_sec('1:2:3')), sec_to_time(time_to_sec('2:3:4.567890'));
+select time_to_sec(sec_to_time(11111)), time_to_sec(sec_to_time(11111.22222));
+--horizontal_results
+--error ER_TOO_BIG_PRECISION
+select current_timestamp(7);
+--error ER_TOO_BIG_PRECISION
+select curtime(7);
+
+--disable_warnings
+drop table if exists t1;
+--enable_warnings
+
+create table t1 select sec_to_time(12345), sec_to_time(12345.6789),
+                       sec_to_time(1234567e-2), now(), curtime(0),
+                       utc_timestamp(1), utc_time(2), current_time(3),
+                       current_timestamp(4), localtime(5), localtimestamp(6),
+                       time_to_sec(123456), time_to_sec('12:34:56.789');
+show create table t1;
+--query_vertical select * from t1
+drop table t1;
+
+--query_vertical select unix_timestamp('2011-01-01 01:01:01'), unix_timestamp('2011-01-01 01:01:01.123456'), unix_timestamp(cast('2011-01-01 01:01:01.123456' as datetime(0))), unix_timestamp(cast('2011-01-01 01:01:01.123456' as datetime(4)));
+--query_vertical select from_unixtime(unix_timestamp('2011/1/1 1:1:1')), from_unixtime(unix_timestamp('2011/1/1 1:1:1.123456')), from_unixtime(unix_timestamp(cast('2011/1/1 1:1:1.123456' as datetime(0)))), from_unixtime(unix_timestamp(cast('2011/1/1 1:1:1.123456' as datetime(4))));
+
+select sec_to_time(3020399.99999), sec_to_time(3020399.999999), sec_to_time(3020399.9999999);
+select sec_to_time(-3020399.99999), sec_to_time(-3020399.999999), sec_to_time(-3020399.9999999);
+select 20010101000203.000000004 + interval 1 day;
+select 20010101000203.4 + interval 1 day;
+#
+# precision of expressions
+#
+set @a=cast('2011-01-02 12:13:14' as datetime);
+select @a + interval 1 minute;
+select @a + interval 10 microsecond;
+select @a + interval 10 microsecond + interval 999990 microsecond;
+
+#
+# CAST
+#
+set @a='2011-01-02 12:13:14.123456';
+create table t1 select CAST(@a AS DATETIME) as dauto,
+                       CAST(@a AS DATETIME(0)) as d0,
+                       CAST(@a AS DATETIME(1)) as d1,
+                       CAST(@a AS DATETIME(2)) as d2,
+                       CAST(@a AS DATETIME(3)) as d3,
+                       CAST(@a AS DATETIME(4)) as d4,
+                       CAST(@a AS DATETIME(5)) as d5,
+                       CAST(@a AS DATETIME(6)) as d6,
+                       CAST(@a AS TIME) as tauto,
+                       CAST(@a AS TIME(0)) as t0,
+                       CAST(@a AS TIME(1)) as t1,
+                       CAST(@a AS TIME(2)) as t2,
+                       CAST(@a AS TIME(3)) as t3,
+                       CAST(@a AS TIME(4)) as t4,
+                       CAST(@a AS TIME(5)) as t5,
+                       CAST(@a AS TIME(6)) as t6;
+show create table t1;
+--query_vertical select * from t1
+drop table t1;
+explain extended select cast(cast(@a as datetime(4)) as time(0));
+select cast(cast(@a as time(2)) as time(6));
+
+--error ER_TOO_BIG_PRECISION
+select CAST(@a AS DATETIME(7));
+
+#
+# CONVERT_TZ
+#
+SELECT CONVERT_TZ('2011-01-02 12:00:00', '+00:00', '+03:00');
+SELECT CONVERT_TZ('2011-01-02 12:00:00.123', '+00:00', '+03:00');
+SELECT CONVERT_TZ('2011-01-02 12:00:00.123456', '+00:00', '+03:00');
+SELECT CONVERT_TZ(CAST('2010-10-10 10:10:10.123456' AS DATETIME(4)), '+00:00', '+03:00');
+
+#
+# Field::store_time()
+#
+create table t1 (a varchar(200));
+insert t1 values (now(6));
+select * from t1;
+drop table t1;
+
+#
+# lp:736358 Unexpected increased timestamp resolution with UNION
+#
+# timestamp(6) case is fixed:
+create table t1 (f1 timestamp(6));
+insert into t1 values ('2002-07-15 21:00:00');
+select time(f1) from t1;
+select time(f1) from t1 union all select time(f1 + interval 1 second) from t1;
+alter table t1 modify f1 timestamp;
+select time(f1) from t1;
+select time(f1) from t1 union all select time(f1 + interval 1 second) from t1;
+# but the effect cannot be eliminated completely:
+alter table t1 modify f1 varchar(100);
+select time(f1) from t1;
+select time(f1) from t1 union all select time(f1 + interval 1 second) from t1;
+drop table t1;

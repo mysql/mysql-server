@@ -47,6 +47,9 @@ for (my $i = 0; $i < $tablesize; ++$i) {
   if ($err != 0) {
     my $err_str = $r->[1];
     print "$err $err_str\n";
+  } else {
+    my $id = $r->[1];
+    print "$id $v1\n";
   }
 }
 # make sure that it works even when inserts are pipelined. these requests
@@ -63,8 +66,11 @@ for (my $i = 0; $i < $tablesize; ++$i) {
   for (my $i = 0; $i < 3; ++$i) {
     my $err = $r->[$i]->[0];
     if ($err != 0) {
-      my $err_str = $r->[1];
+      my $err_str = $r->[$i]->[1];
       print "$err $err_str\n";
+    } else {
+      my $id = $r->[$i]->[1];
+      print "$id $v1\n";
     }
   }
 }

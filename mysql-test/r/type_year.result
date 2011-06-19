@@ -353,6 +353,9 @@ c1
 SELECT COUNT(*) AS total_rows, MIN(c1) AS min_value, MAX(c1) FROM t1;
 total_rows	min_value	MAX(c1)
 3	0	2155
+SELECT COUNT(*) AS total_rows, MIN(c1+0) AS min_value, MAX(c1+0) FROM t1;
+total_rows	min_value	MAX(c1+0)
+3	0	2155
 DROP TABLE t1;
 #
 End of 5.1 tests

@@ -530,9 +530,10 @@ Event_queue::empty_queue()
 */
 
 void
-Event_queue::dbug_dump_queue(time_t now)
+Event_queue::dbug_dump_queue(my_time_t when)
 {
 #ifndef DBUG_OFF
+  my_time_t now= when;
   Event_queue_element *et;
   uint i;
   DBUG_ENTER("Event_queue::dbug_dump_queue");
@@ -618,9 +619,9 @@ Event_queue::get_top_for_execution_if_time(THD *thd,
         time or until signaled. Release LOCK_queue while waiting.
       */
       struct timespec top_time;
-      set_timespec(top_time, next_activation_at - thd->query_start());
-      cond_wait(thd, &top_time, queue_wait_msg, SCHED_FUNC, __LINE__);
+      set_timespec_time_nsec(top_time, next_activation_at*1000000000ULL);
 
+      cond_wait(thd, &top_time, queue_wait_msg, SCHED_FUNC, __LINE__);
       continue;
     }
 
@@ -748,12 +749,14 @@ Event_queue::cond_wait(THD *thd, struct timespec *abstime, const char* msg,
 
   thd->enter_cond(&COND_queue_state, &LOCK_event_queue, msg);
 
-  DBUG_PRINT("info", ("pthread_cond_%swait", abstime? "timed":""));
-  if (!abstime)
-    pthread_cond_wait(&COND_queue_state, &LOCK_event_queue);
-  else
-    pthread_cond_timedwait(&COND_queue_state, &LOCK_event_queue, abstime);
-
+  if (!thd->killed)
+  {
+    DBUG_PRINT("info", ("pthread_cond_%swait", abstime ? "timed" : ""));
+    if (!abstime)
+      pthread_cond_wait(&COND_queue_state, &LOCK_event_queue);
+    else
+      pthread_cond_timedwait(&COND_queue_state, &LOCK_event_queue, abstime);
+  }
   mutex_last_locked_in_func= func;
   mutex_last_locked_at_line= line;
   mutex_queue_data_locked= TRUE;

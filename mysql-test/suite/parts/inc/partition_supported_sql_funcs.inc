@@ -113,6 +113,7 @@ $part_t6;
 --echo ---  Access tables with $sqlfunc 
 --echo -------------------------------------------------------------------------
 
+begin;
 eval insert into t1 values ($val1);
 eval insert into t1 values ($val2);
 
@@ -123,6 +124,7 @@ eval insert into t2 values ($val3);
 eval insert into t3 values ($val1);
 eval insert into t3 values ($val2);
 eval insert into t3 values ($val3);
+commit;
 
 --replace_result $MYSQLTEST_VARDIR MYSQLTEST_VARDIR
 eval load data infile '$MYSQLTEST_VARDIR/std_data/parts/$infile' into table t4;
@@ -142,12 +144,14 @@ select * from t6 order by colint;
 
 if ($do_long_tests)
 {
+        begin;
 	eval update t1 set col1=$val4 where col1=$val1;
 	eval update t2 set col1=$val4 where col1=$val1;
 	eval update t3 set col1=$val4 where col1=$val1;
 	eval update t4 set col1=$val4 where col1=$val1;
 	eval update t5 set col1=$val4 where col1=$val1;
 	eval update t6 set col1=$val4 where col1=$val1;
+        commit;
 
 	select * from t1 order by col1;
 	select * from t2 order by col1;

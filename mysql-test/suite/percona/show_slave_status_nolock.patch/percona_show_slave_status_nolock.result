@@ -1,9 +1,5 @@
-stop slave;
-drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9;
-reset master;
-reset slave;
-drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9;
-start slave;
+include/master-slave.inc
+[connection master]
 DROP TABLE IF EXISTS t;
 CREATE TABLE t(id INT);
 INSERT INTO t SELECT SLEEP(10);
@@ -15,7 +11,11 @@ master	1
 slave	count(*)
 slave	0
 SHOW SLAVE STATUS NOLOCK;
+include/wait_for_slave_to_stop.inc
 START SLAVE;
+include/wait_for_slave_to_start.inc
 slave	count(*)
 slave	1
 DROP TABLE t;
+STOP SLAVE;
+include/wait_for_slave_to_stop.inc

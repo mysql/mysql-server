@@ -260,11 +260,13 @@ public:
     list_node *node= first;
     list_node *list_first= list->first;
     elements=0;
-    while (node && node != list_first)
+    while (node != &end_of_list && node != list_first)
     {
       prev= &node->next;
       node= node->next;
       elements++;
+      if (node == &end_of_list)
+        return;
     }
     *prev= *last;
     last= prev;

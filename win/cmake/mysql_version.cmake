@@ -25,7 +25,7 @@ MACRO(GET_MYSQL_VERSION)
         STRING(REGEX MATCH "[0-9]+\\.[0-9]+\\.[0-9]+" VERSION_STRING "${str}")
         IF(NOT VERSION_STRING)
           FILE(STRINGS  configure.in  str REGEX "AC_INIT\\(")
-          STRING(REGEX MATCH "[0-9]+\\.[0-9]+\\.[0-9]+[-][a-zA-Z0-9]+" VERSION_STRING "${str}")
+          STRING(REGEX MATCH "[0-9]+\\.[0-9]+\\.[0-9]+[-][a-zA-Z0-9-]+" VERSION_STRING "${str}")
           IF(NOT VERSION_STRING)
             STRING(REGEX MATCH "[0-9]+\\.[0-9]+\\.[0-9]+" VERSION_STRING "${str}")
           ENDIF()
@@ -33,6 +33,16 @@ MACRO(GET_MYSQL_VERSION)
       ENDIF()
     ENDIF()
   ENDIF()
+  
+  SET(VERSION_EXTRA) #alpha beta gamma delta epsilon, etc
+  
+  FOREACH(suffix alpha beta gamma)
+    IF(VERSION_STRING MATCHES "${suffix}")
+      SET(VERSION_EXTRA "-${suffix}")
+    ENDIF()
+  ENDFOREACH()
+  
+  STRING(REGEX MATCH "[0-9]+\\.[0-9]+\\.[0-9]+[-][a-zA-Z0-9]+" VERSION_STRING "${str}")
   
   IF(NOT VERSION_STRING)
     MESSAGE(FATAL_ERROR 
@@ -91,9 +101,9 @@ IF(NOT CPACK_PACKAGE_FILE_NAME)
 ENDIF()
 
 IF(NOT CPACK_SOURCE_PACKAGE_FILE_NAME)
-  SET(CPACK_SOURCE_PACKAGE_FILE_NAME "mariadb-${VERSION}")
+  SET(CPACK_SOURCE_PACKAGE_FILE_NAME "mariadb-${VERSION_STRING}${VERSION_EXTRA}")
 ENDIF()
-SET(CPACK_PACKAGE_CONTACT "MariaDB team <build@mysql.com>")
+SET(CPACK_PACKAGE_CONTACT "MariaDB team <info@montyprogram.com>")
 SET(CPACK_PACKAGE_VENDOR "Monty Program AB")
 SET(CPACK_SOURCE_GENERATOR "TGZ")
 INCLUDE(cpack_source_ignore_files)

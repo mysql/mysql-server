@@ -204,7 +204,8 @@ int maria_create(const char *name, enum data_file_type datafile_type,
 	pack_reclength++;
         not_block_record_extra_length++;
         max_field_lengths++;
-        packed++;
+        if (datafile_type != DYNAMIC_RECORD)
+          packed++;
         column->fill_length= 1;
         options|= HA_OPTION_NULL_FIELDS;        /* Use ma_checksum() */
 

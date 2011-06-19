@@ -151,6 +151,7 @@ static event_handle_t eh;
 static Report_t ref;
 static void *refneb= NULL;
 my_bool event_flag= FALSE;
+
 static int volumeid= -1;
 
   /* NEB event callback */
@@ -335,10 +336,13 @@ static const char *optimizer_switch_names[]=
   "index_merge","index_merge_union","index_merge_sort_union",
   "index_merge_intersection","index_merge_sort_intersection",
   "index_condition_pushdown",
-  "firstmatch","loosescan","materialization", "semijoin",
+  "derived_merge", "derived_with_keys",
+  "firstmatch","loosescan","materialization","in_to_exists","semijoin",
   "partial_match_rowid_merge",
   "partial_match_table_scan",
   "subquery_cache",
+  "mrr",
+  "mrr_cost_based",
   "mrr_sort_keys",
   "outer_join_with_cache",
   "semijoin_with_cache",
@@ -361,13 +365,18 @@ static const unsigned int optimizer_switch_names_len[]=
   sizeof("index_merge_intersection") - 1,
   sizeof("index_merge_sort_intersection") - 1,
   sizeof("index_condition_pushdown") - 1,
+  sizeof("derived_merge") - 1,
+  sizeof("derived_with_keys") - 1,
   sizeof("firstmatch") - 1,
   sizeof("loosescan") - 1,
   sizeof("materialization") - 1,
+  sizeof("in_to_exists") - 1,
   sizeof("semijoin") - 1,
   sizeof("partial_match_rowid_merge") - 1,
   sizeof("partial_match_table_scan") - 1,
   sizeof("subquery_cache") - 1,
+  sizeof("mrr") - 1,
+  sizeof("mrr_cost_based") - 1,
   sizeof("mrr_sort_keys") - 1,
   sizeof("outer_join_with_cache") - 1,
   sizeof("semijoin_with_cache") - 1,
@@ -430,14 +439,15 @@ bool opt_large_files= sizeof(my_off_t) > 4;
 /*
   Used with --help for detailed option
 */
-static my_bool opt_help= 0, opt_verbose= 0;
+static my_bool opt_verbose= 0;
 
-arg_cmp_func Arg_comparator::comparator_matrix[5][2] =
+arg_cmp_func Arg_comparator::comparator_matrix[6][2] =
 {{&Arg_comparator::compare_string,     &Arg_comparator::compare_e_string},
  {&Arg_comparator::compare_real,       &Arg_comparator::compare_e_real},
  {&Arg_comparator::compare_int_signed, &Arg_comparator::compare_e_int},
  {&Arg_comparator::compare_row,        &Arg_comparator::compare_e_row},
- {&Arg_comparator::compare_decimal,    &Arg_comparator::compare_e_decimal}};
+ {&Arg_comparator::compare_decimal,    &Arg_comparator::compare_e_decimal},
+ {&Arg_comparator::compare_datetime,   &Arg_comparator::compare_e_datetime}};
 
 const char *log_output_names[] = { "NONE", "FILE", "TABLE", NullS};
 static const unsigned int log_output_names_len[]= { 4, 4, 5, 0 };
@@ -449,12 +459,20 @@ TYPELIB log_output_typelib= {array_elements(log_output_names)-1,"",
 
 /* the default log output is log tables */
 static bool lower_case_table_names_used= 0;
+static bool max_long_data_size_used= false;
 static bool volatile select_thread_in_use, signal_thread_in_use;
 static bool volatile ready_to_exit;
 static my_bool opt_debugging= 0, opt_external_locking= 0, opt_console= 0;
 static my_bool opt_short_log_format= 0;
 static my_bool opt_ignore_wrong_options= 0, opt_expect_abort= 0;
 static my_bool opt_sync= 0, opt_thread_alarm;
+/*
+  Set this to 1 if you want to that 'strict mode' should affect all date
+  operations. If this is 0, then date checking is only done when storing
+  dates into a table.
+*/
+my_bool strict_date_checking= 0;
+
 static uint kill_cached_threads, wake_thread;
 ulong thread_created;
 uint thread_handling;
@@ -468,13 +486,18 @@ static const char *optimizer_switch_str="index_merge=on,index_merge_union=on,"
                                         "index_merge_intersection=on,"
                                         "index_merge_sort_intersection=off,"
                                         "index_condition_pushdown=on,"
+                                        "derived_merge=on,"
+                                        "derived_with_keys=on,"
                                         "firstmatch=on,"
                                         "loosescan=on,"
-                                        "materialization=on,"
+                                        "materialization=off,"
+                                        "in_to_exists=on,"
                                         "semijoin=on,"
                                         "partial_match_rowid_merge=on,"
                                         "partial_match_table_scan=on,"
                                         "subquery_cache=on,"
+                                        "mrr=on,"
+                                        "mrr_cost_based=off,"
                                         "mrr_sort_keys=on,"
                                         "join_cache_incremental=on,"
                                         "join_cache_hashed=on,"
@@ -503,7 +526,7 @@ static pthread_cond_t COND_thread_cache, COND_flush_thread_cache;
 /* Global variables */
 
 bool opt_update_log, opt_bin_log, opt_ignore_builtin_innodb= 0;
-my_bool opt_log, opt_slow_log, debug_assert_if_crashed_table;
+my_bool opt_log, opt_slow_log, debug_assert_if_crashed_table, opt_help= 0;
 my_bool opt_userstat_running;
 ulong log_output_options;
 my_bool opt_log_queries_not_using_indexes= 0;
@@ -584,6 +607,7 @@ my_bool opt_secure_auth= 0;
 char* opt_secure_file_priv= 0;
 my_bool opt_log_slow_admin_statements= 0;
 my_bool opt_log_slow_slave_statements= 0;
+my_bool opt_query_cache_strip_comments = 0;
 my_bool lower_case_file_system= 0;
 my_bool opt_large_pages= 0;
 my_bool opt_myisam_use_mmap= 0;
@@ -602,6 +626,8 @@ my_bool opt_noacl;
 my_bool sp_automatic_privileges= 1;
 
 ulong opt_binlog_rows_event_max_size;
+my_bool opt_master_verify_checksum= 0;
+my_bool opt_slave_sql_verify_checksum= 1;
 const char *binlog_format_names[]= {"MIXED", "STATEMENT", "ROW", NullS};
 TYPELIB binlog_format_typelib=
   { array_elements(binlog_format_names) - 1, "",
@@ -641,6 +667,12 @@ ulong specialflag=0;
 ulong binlog_cache_use= 0, binlog_cache_disk_use= 0;
 ulong max_connections, max_connect_errors;
 ulong extra_max_connections;
+/*
+  Maximum length of parameter value which can be set through
+  mysql_send_long_data() call.
+*/
+ulong max_long_data_size;
+
 uint  max_user_connections= 0;
 ulonglong denied_connections;
 /**
@@ -698,6 +730,8 @@ const char *in_additional_cond= "<IN COND>";
 const char *in_having_cond= "<IN HAVING>";
 
 my_decimal decimal_zero;
+my_decimal max_seconds_for_time_type, time_second_part_factor;
+
 /* classes for comparation parsing/processing */
 Eq_creator eq_creator;
 Ne_creator ne_creator;
@@ -1528,6 +1562,7 @@ static void wait_for_signal_thread_to_end()
 #endif
 }
 
+#endif /*EMBEDDED_LIBRARY*/
 
 static void clean_up_mutexes()
 {
@@ -1555,19 +1590,21 @@ static void clean_up_mutexes()
   (void) pthread_mutex_destroy(&LOCK_global_table_stats);
   (void) pthread_mutex_destroy(&LOCK_global_index_stats);
 
+#ifndef EMBEDDED_LIBRARY
   Events::destroy_mutexes();
+#endif /* !EMBEDDED_LIBRARY */
 #ifdef HAVE_OPENSSL
   (void) pthread_mutex_destroy(&LOCK_des_key_file);
 #ifndef HAVE_YASSL
   for (int i= 0; i < CRYPTO_num_locks(); ++i)
     (void) rwlock_destroy(&openssl_stdlocks[i].lock);
   OPENSSL_free(openssl_stdlocks);
-#endif
-#endif
+#endif /* HAVE_YASSL */
+#endif /* HAVE_OPENSSL */
 #ifdef HAVE_REPLICATION
   (void) pthread_mutex_destroy(&LOCK_rpl_status);
   (void) pthread_cond_destroy(&COND_rpl_status);
-#endif
+#endif /* HAVE_REPLICATION */
   (void) pthread_mutex_destroy(&LOCK_server_started);
   (void) pthread_cond_destroy(&COND_server_started);
   (void) pthread_mutex_destroy(&LOCK_active_mi);
@@ -1586,8 +1623,6 @@ static void clean_up_mutexes()
   (void) pthread_cond_destroy(&COND_manager);
   DBUG_VOID_RETURN;
 }
-
-#endif /*EMBEDDED_LIBRARY*/
 
 
 /**
@@ -2099,7 +2134,7 @@ static bool cache_thread()
         this thread for handling of new THD object/connection.
       */
       thd->mysys_var->abort= 0;
-      thd->thr_create_utime= my_micro_time();
+      thd->thr_create_utime= microsecond_interval_timer();
       threads.append(thd);
       return(1);
     }
@@ -3243,6 +3278,19 @@ sizeof(load_default_groups)/sizeof(load_default_groups[0]);
 #endif
 
 
+#ifndef EMBEDDED_LIBRARY
+static
+int
+check_enough_stack_size()
+{
+  uchar stack_top;
+
+  return check_stack_overrun(current_thd, STACK_MIN_SIZE,
+                             &stack_top);
+}
+#endif
+
+
 /**
   Initialize one of the global date/time format variables.
 
@@ -3441,18 +3489,12 @@ static int init_common_variables(const char *conf_file_name, int argc,
 				 char **argv, const char **groups)
 {
   char buff[FN_REFLEN], *s;
+  const char *basename;
   umask(((~my_umask) & 0666));
-  my_decimal_set_zero(&decimal_zero); // set decimal_zero constant;
   tzset();			// Set tzname
 
   max_system_variables.pseudo_thread_id= (ulong)~0;
   server_start_time= flush_status_time= my_time(0);
-  /* TODO: remove this when my_time_t is 64 bit compatible */
-  if (server_start_time >= (time_t) MY_TIME_T_MAX)
-  {
-    sql_print_error("This MySQL server doesn't support dates later then 2038");
-    return 1;
-  }
 
   rpl_filter= new Rpl_filter;
   binlog_filter= new Rpl_filter;
@@ -3491,21 +3533,29 @@ static int init_common_variables(const char *conf_file_name, int argc,
   */
   mysql_bin_log.init_pthread_objects();
 
+  /* TODO: remove this when my_time_t is 64 bit compatible */
+  if (!IS_TIME_T_VALID_FOR_TIMESTAMP(server_start_time))
+  {
+    sql_print_error("This MySQL server doesn't support dates later then 2038");
+    return 1;
+  }
+
+  if (gethostname(glob_hostname,sizeof(glob_hostname)) < 0)
   {
     /*
       Get hostname of computer (used by 'show variables') and as default
       basename for the pid file if --log-basename is not given.
     */
-    const char *basename= glob_hostname;
-    if (gethostname(glob_hostname,sizeof(glob_hostname)) < 0)
-    {
-      strmake(glob_hostname, STRING_WITH_LEN("localhost"));
-      sql_print_warning("gethostname failed, using '%s' as hostname",
+    strmake(glob_hostname, STRING_WITH_LEN("localhost"));
+    sql_print_warning("gethostname failed, using '%s' as hostname",
                         glob_hostname);
-      basename= "mysql";
-    }
-    strmake(pidfile_name, basename, sizeof(pidfile_name)-5);
+    basename= "mysql";
   }
+  else
+  {
+    basename= glob_hostname;
+  }
+  strmake(pidfile_name, basename, sizeof(pidfile_name)-5);
   strmov(fn_ext(pidfile_name),".pid");		// Add proper extension
 
   /*
@@ -3634,7 +3684,11 @@ static int init_common_variables(const char *conf_file_name, int argc,
 #endif
   mysys_uses_curses=0;
 #ifdef USE_REGEX
-  my_regex_init(&my_charset_latin1);
+#ifndef EMBEDDED_LIBRARY
+  my_regex_init(&my_charset_latin1, check_enough_stack_size);
+#else
+  my_regex_init(&my_charset_latin1, NULL);
+#endif
 #endif
   /*
     Process a comma-separated character set list and choose
@@ -3687,8 +3741,6 @@ static int init_common_variables(const char *conf_file_name, int argc,
   global_system_variables.collation_connection=  default_charset_info;
   global_system_variables.character_set_results= default_charset_info;
   global_system_variables.character_set_client= default_charset_info;
-
-  global_system_variables.optimizer_use_mrr= 1;
 
   if (!(character_set_filesystem=
         get_charset_by_csname(character_set_filesystem_name,
@@ -3782,8 +3834,7 @@ You should consider changing lower_case_table_names to 1 or 2",
     }
   }
   else if (lower_case_table_names == 2 &&
-           !(lower_case_file_system=
-             (test_if_case_insensitive(mysql_real_data_home) == 1)))
+           !(lower_case_file_system= (lower_case_file_system == 1)))
   {
     if (global_system_variables.log_warnings)
       sql_print_warning("lower_case_table_names was set to 2, even though your "
@@ -3794,8 +3845,7 @@ You should consider changing lower_case_table_names to 1 or 2",
   }
   else
   {
-    lower_case_file_system=
-      (test_if_case_insensitive(mysql_real_data_home) == 1);
+    lower_case_file_system= (lower_case_file_system == 1);
   }
 
   /* Reset table_alias_charset, now that lower_case_table_names is set. */
@@ -4004,6 +4054,32 @@ static void end_ssl()
 
 #endif /* EMBEDDED_LIBRARY */
 
+#ifdef _WIN32
+/**
+  Registers a file to be collected when Windows Error Reporting creates a crash 
+  report.
+
+  @note only works on Vista and later, since WerRegisterFile() is not available
+  on earlier Windows.
+*/
+#include <werapi.h>
+static void add_file_to_crash_report(char *file)
+{
+  /* Load WerRegisterFile function dynamically.*/
+  HRESULT (WINAPI *pWerRegisterFile)(PCWSTR, WER_REGISTER_FILE_TYPE, DWORD)
+    =(HRESULT (WINAPI *) (PCWSTR, WER_REGISTER_FILE_TYPE, DWORD))
+    GetProcAddress(GetModuleHandle("kernel32"),"WerRegisterFile");
+
+  if (pWerRegisterFile)
+  {
+    wchar_t wfile[MAX_PATH+1]= {0};
+    if (mbstowcs(wfile, file, MAX_PATH) != (size_t)-1)
+    {
+      pWerRegisterFile(wfile, WerRegFileTypeOther, WER_FILE_ANONYMOUS_DATA);
+    }
+  }
+}
+#endif
 
 static int init_server_components()
 {
@@ -4056,6 +4132,11 @@ static int init_server_components()
 
       if (!res)
         setbuf(stderr, NULL);
+
+#ifdef _WIN32
+      /* Add error log to windows crash reporting. */
+      add_file_to_crash_report(log_error_file);
+#endif
     }
   }
 
@@ -4659,13 +4740,14 @@ int main(int argc, char **argv)
 
 #ifndef DBUG_OFF
   test_lc_time_sz();
+  srand((uint) time(NULL)); 
 #endif
 
   /*
     We have enough space for fiddling with the argv, continue
   */
   check_data_home(mysql_real_data_home);
-  if (my_setwd(mysql_real_data_home,MYF(MY_WME)) && !opt_help)
+  if (my_setwd(mysql_real_data_home, opt_help ? 0 : MYF(MY_WME)) && !opt_help)
     unireg_abort(1);				/* purecov: inspected */
   mysql_data_home= mysql_data_home_buff;
   mysql_data_home[0]=FN_CURLIB;		// all paths are relative from here
@@ -5149,9 +5231,9 @@ void handle_connection_in_main_thread(THD *thd)
   safe_mutex_assert_owner(&LOCK_thread_count);
   thread_cache_size=0;			// Safety
   threads.append(thd);
-  thd->start_utime= my_micro_time();
+  thd->set_time(my_hrtime());
   pthread_mutex_unlock(&LOCK_thread_count);
-  thd->start_utime= my_micro_time();
+  thd->start_utime= microsecond_interval_timer();
   handle_one_connection(thd);
 }
 
@@ -5177,7 +5259,7 @@ void create_thread_to_handle_connection(THD *thd)
     thread_created++;
     threads.append(thd);
     DBUG_PRINT("info",(("creating thread %lu"), thd->thread_id));
-    thd->prior_thr_create_utime= thd->start_utime= my_micro_time();
+    thd->prior_thr_create_utime= thd->start_utime= microsecond_interval_timer();
     if ((error=pthread_create(&thd->real_id,&connection_attrib,
                               handle_one_connection,
                               (void*) thd)))
@@ -6077,7 +6159,11 @@ enum options_mysqld
   OPT_SLOW_QUERY_LOG_FILE,
   OPT_IGNORE_BUILTIN_INNODB,
   OPT_BINLOG_DIRECT_NON_TRANS_UPDATE,
-  OPT_DEFAULT_CHARACTER_SET_OLD
+  OPT_DEFAULT_CHARACTER_SET_OLD,
+  OPT_MAX_LONG_DATA_SIZE,
+  OPT_MASTER_VERIFY_CHECKSUM,
+  OPT_SLAVE_SQL_VERIFY_CHECKSUM,
+  OPT_QUERY_CACHE_STRIP_COMMENTS
 };
 
 
@@ -6940,6 +7026,19 @@ each time the SQL thread starts.",
    "not stop for operations that are idempotent. In STRICT mode, replication "
    "will stop on any unexpected difference between the master and the slave.",
    &slave_exec_mode_str, &slave_exec_mode_str, 0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
+  {"master-verify-checksum", OPT_MASTER_VERIFY_CHECKSUM,
+   "Force checksum verification of logged events in binary log before "
+   "sending them to slaves or printing them in output of SHOW BINLOG EVENTS. "
+   "Disabled by default.",
+   &opt_master_verify_checksum, &opt_master_verify_checksum,
+   0, GET_BOOL, OPT_ARG, 0, 0, 0, 0, 0, 0},
+  {"slave-sql-verify-checksum", OPT_SLAVE_SQL_VERIFY_CHECKSUM,
+   "Force checksum verification of replication events after reading them "
+   "from relay log. Note: Events are always checksum-verified by slave on "
+   "receiving them from the network before writing them to the relay "
+   "log. Enabled by default.",
+   &opt_slave_sql_verify_checksum, &opt_slave_sql_verify_checksum,
+   0, GET_BOOL, OPT_ARG, 1, 0, 0, 0, 0, 0},
 #endif
   {"slow-query-log", OPT_SLOW_LOG,
    "Enable/disable slow query log. See also '--log-slow-queries'",
@@ -7287,6 +7386,12 @@ each time the SQL thread starts.",
     &global_system_variables.max_length_for_sort_data,
     &max_system_variables.max_length_for_sort_data, 0, GET_ULONG,
     REQUIRED_ARG, 1024, 4, 8192*1024L, 0, 1, 0},
+  {"max_long_data_size", OPT_MAX_LONG_DATA_SIZE,
+   "The maximum size of prepared statement parameter which can be provided "
+   "through mysql_send_long_data() API call.  To be used when limit of "
+   "max_allowed_packet is too small",
+   &max_long_data_size, &max_long_data_size, 0, GET_ULONG,
+   REQUIRED_ARG, 1024*1024L, 1024, UINT_MAX32, MALLOC_OVERHEAD, 1, 0},
   {"max_prepared_stmt_count", OPT_MAX_PREPARED_STMT_COUNT,
    "Maximum number of prepared statements in the server.",
    &max_prepared_stmt_count, &max_prepared_stmt_count,
@@ -7443,8 +7548,9 @@ each time the SQL thread starts.",
   {"optimizer_switch", OPT_OPTIMIZER_SWITCH,
    "optimizer_switch=option=val[,option=val...], where option={index_merge, "
    "index_merge_union, index_merge_sort_union, index_merge_intersection, "
-   "index_merge_sort_intersection, "
-   "index_condition_pushdown, firstmatch, loosescan, materialization, "
+   "index_merge_sort_intersection, index_condition_pushdown, "
+   "derived_merge, derived_with_keys, "
+   "firstmatch, loosescan, materialization, in_to_exists, "
    "semijoin, partial_match_rowid_merge, partial_match_table_scan, "
    "subquery_cache, outer_join_with_cache, semijoin_with_cache, "
    "join_cache_incremental, join_cache_hashed, join_cache_bka, "
@@ -7497,6 +7603,13 @@ each time the SQL thread starts.",
    &query_cache_size, &query_cache_size, 0, GET_ULONG,
    REQUIRED_ARG, 0, 0, (longlong) ULONG_MAX, 0, 1024, 0},
 #ifdef HAVE_QUERY_CACHE
+  {"query_cache_strip_comments", OPT_QUERY_CACHE_STRIP_COMMENTS,
+   "Enable and disable optimisation \"strip comment for query cache\" - "
+   "optimisation strip all comments from query while search query result "
+   "in query cache",
+   (uchar**) &opt_query_cache_strip_comments,
+   (uchar**) &opt_query_cache_strip_comments,
+   0, GET_BOOL, REQUIRED_ARG, 0, 0, 1, 0, 1, 0},
   {"query_cache_type", OPT_QUERY_CACHE_TYPE,
    "0 = OFF = Don't cache or retrieve results. 1 = ON = Cache all results "
    "except SELECT SQL_NO_CACHE ... queries. 2 = DEMAND = Cache only SELECT "
@@ -8268,6 +8381,7 @@ static void usage(void)
   puts("\
 Copyright (C) 2000-2008 MySQL AB, by Monty and others.\n\
 Copyright (C) 2008 Sun Microsystems, Inc.\n\
+Copyright (C) 2009-2011 Monty Program Ab.\n\
 This software comes with ABSOLUTELY NO WARRANTY. This is free software,\n\
 and you are welcome to modify and redistribute it under the GPL license\n\n\
 Starts the MySQL database server.\n");
@@ -8437,6 +8551,13 @@ static int mysql_init_variables(void)
 
   /* set key_cache_hash.default_value = dflt_key_cache */
   multi_keycache_init();
+
+  /* Useful MariaDB variables */
+  double2decimal((double) TIME_MAX_VALUE_SECONDS +
+                 TIME_MAX_SECOND_PART/(double)TIME_SECOND_PART_FACTOR,
+                 &max_seconds_for_time_type);
+  longlong2decimal(TIME_SECOND_PART_FACTOR, &time_second_part_factor);
+  my_decimal_set_zero(&decimal_zero); // set decimal_zero constant;
 
   /* Set directory paths */
   strmake(language, LANGUAGE, sizeof(language)-1);
@@ -8929,7 +9050,7 @@ mysqld_get_one_option(int optid,
   }
   case OPT_EVENT_SCHEDULER:
 #ifndef HAVE_EVENT_SCHEDULER
-    sql_perror("Event scheduler is not supported in embedded build.");
+    sql_print_error("Event scheduler is not supported in embedded build.");
 #else
     if (Events::set_opt_event_scheduler(argument))
       return 1;
@@ -9302,6 +9423,9 @@ mysqld_get_one_option(int optid,
     }
     break;
 #endif /* defined(ENABLED_DEBUG_SYNC) */
+  case OPT_MAX_LONG_DATA_SIZE:
+    max_long_data_size_used= true;
+    break;
   }
   return 0;
 }
@@ -9394,6 +9518,14 @@ static int get_options(int *argc,char **argv)
        opt_log_slow_slave_statements) &&
       !opt_slow_log)
     sql_print_warning("options --log-slow-admin-statements, --log-queries-not-using-indexes and --log-slow-slave-statements have no effect if --log_slow_queries is not set");
+  if (global_system_variables.net_buffer_length > 
+      global_system_variables.max_allowed_packet)
+  {
+    sql_print_warning("net_buffer_length (%lu) is set to be larger "
+                      "than max_allowed_packet (%lu). Please rectify.",
+                      global_system_variables.net_buffer_length, 
+                      global_system_variables.max_allowed_packet);
+  }
 
 #if defined(HAVE_BROKEN_REALPATH)
   my_use_symdir=0;
@@ -9476,6 +9608,14 @@ static int get_options(int *argc,char **argv)
                                       &extra_max_connections,
                                       &extra_connection_count);
 #endif
+
+  /*
+    If max_long_data_size is not specified explicitly use
+    value of max_allowed_packet.
+  */
+  if (!max_long_data_size_used)
+    max_long_data_size= global_system_variables.max_allowed_packet;
+
   return 0;
 }
 
@@ -9784,7 +9924,8 @@ static int test_if_case_insensitive(const char *dir_name)
   (void) my_delete(buff2, MYF(0));
   if ((file= my_create(buff, 0666, O_RDWR, MYF(0))) < 0)
   {
-    sql_print_warning("Can't create test file %s", buff);
+    if (!opt_help)
+      sql_print_warning("Can't create test file %s", buff);
     DBUG_RETURN(-1);
   }
   my_close(file, MYF(0));

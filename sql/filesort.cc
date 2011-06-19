@@ -231,7 +231,7 @@ ha_rows filesort(THD *thd, TABLE *table, SORT_FIELD *sortorder, uint s_length,
     goto err;
   }
   if (open_cached_file(&buffpek_pointers,mysql_tmpdir,TEMP_PREFIX,
-		       DISK_BUFFER_SIZE, MYF(MY_WME)))
+		       DISK_BUFFER_SIZE, MYF(ME_ERROR | MY_WME)))
     goto err;
 
   param.keys--;  			/* TODO: check why we do this */
@@ -266,7 +266,7 @@ ha_rows filesort(THD *thd, TABLE *table, SORT_FIELD *sortorder, uint s_length,
 	/* Open cached file if it isn't open */
     if (! my_b_inited(outfile) &&
 	open_cached_file(outfile,mysql_tmpdir,TEMP_PREFIX,READ_RECORD_BUFFER,
-			  MYF(MY_WME)))
+			  MYF(ME_ERROR | MY_WME)))
       goto err;
     if (reinit_io_cache(outfile,WRITE_CACHE,0L,0,0))
       goto err;
@@ -318,8 +318,7 @@ ha_rows filesort(THD *thd, TABLE *table, SORT_FIELD *sortorder, uint s_length,
     }
   }
   if (error)
-    my_message(ER_FILSORT_ABORT, ER(ER_FILSORT_ABORT),
-               MYF(ME_ERROR+ME_WAITTANG));
+    my_message(ER_FILSORT_ABORT, ER(ER_FILSORT_ABORT), MYF(0));
   else
     statistic_add(thd->status_var.filesort_rows,
 		  (ulong) records, &LOCK_status);
@@ -612,10 +611,34 @@ static ha_rows find_all_keys(SORTPARAM *param, SQL_SELECT *select,
       }
       DBUG_RETURN(HA_POS_ERROR);		/* purecov: inspected */
     }
+
+    bool write_record= false;
     if (error == 0)
+    {
       param->examined_rows++;
-   
-    if (error == 0 && (!select || select->skip_record(thd) > 0))
+      if (select && select->cond)
+      {
+        /*
+          If the condition 'select->cond' contains a subquery, restore the
+          original read/write sets of the table 'sort_form' because when
+          SQL_SELECT::skip_record evaluates this condition. it may include a
+          correlated subquery predicate, such that some field in the subquery
+          refers to 'sort_form'.
+        */
+        if (select->cond->with_subselect)
+          sort_form->column_bitmaps_set(save_read_set, save_write_set,
+                                        save_vcol_set);
+        write_record= (select->skip_record(thd) > 0);
+        if (select->cond->with_subselect)
+          sort_form->column_bitmaps_set(&sort_form->tmp_set,
+                                        &sort_form->tmp_set,
+                                        &sort_form->tmp_set);
+      }
+      else
+        write_record= true;
+    }
+
+    if (write_record)
     {
       if (idx == param->keys)
       {
@@ -628,7 +651,7 @@ static ha_rows find_all_keys(SORTPARAM *param, SQL_SELECT *select,
     }
     else
       file->unlock_row();
-      
+
     /* It does not make sense to read more keys in case of a fatal error */
     if (thd->is_error())
       break;
@@ -850,25 +873,28 @@ static void make_sortkey(register SORTPARAM *param,
         break;
       }
       case INT_RESULT:
+      case TIME_RESULT:
 	{
-          longlong value= item->val_int_result();
+          longlong UNINIT_VAR(value);
+          if (sort_field->result_type == INT_RESULT)
+            value= item->val_int_result();
+          else
+          {
+            MYSQL_TIME buf;
+            if (item->get_date_result(&buf, TIME_FUZZY_DATE | TIME_INVALID_DATES))
+              DBUG_ASSERT(maybe_null && item->null_value);
+            else
+              value= pack_time(&buf);
+          }
           if (maybe_null)
           {
-	    *to++=1;				/* purecov: inspected */
             if (item->null_value)
             {
-              if (maybe_null)
-                bzero((char*) to-1,sort_field->length+1);
-              else
-              {
-                DBUG_PRINT("warning",
-                           ("Got null on something that shouldn't be null"));
-                bzero((char*) to,sort_field->length);
-              }
+              bzero((char*) to++, sort_field->length+1);
               break;
             }
+	    *to++=1;				/* purecov: inspected */
           }
-#if SIZEOF_LONG_LONG > 4
 	  to[7]= (uchar) value;
 	  to[6]= (uchar) (value >> 8);
 	  to[5]= (uchar) (value >> 16);
@@ -880,15 +906,6 @@ static void make_sortkey(register SORTPARAM *param,
             to[0]= (uchar) (value >> 56);
           else
             to[0]= (uchar) (value >> 56) ^ 128;	/* Reverse signbit */
-#else
-	  to[3]= (uchar) value;
-	  to[2]= (uchar) (value >> 8);
-	  to[1]= (uchar) (value >> 16);
-          if (item->unsigned_flag)                    /* Fix sign */
-            to[0]= (uchar) (value >> 24);
-          else
-            to[0]= (uchar) (value >> 24) ^ 128;	/* Reverse signbit */
-#endif
 	  break;
 	}
       case DECIMAL_RESULT:
@@ -898,8 +915,7 @@ static void make_sortkey(register SORTPARAM *param,
           {
             if (item->null_value)
             { 
-              bzero((char*)to, sort_field->length+1);
-              to++;
+              bzero((char*) to++, sort_field->length+1);
               break;
             }
             *to++=1;
@@ -1543,9 +1559,7 @@ sortlength(THD *thd, SORT_FIELD *sortorder, uint s_length,
     }
     else
     {
-      sortorder->result_type= sortorder->item->result_type();
-      if (sortorder->item->result_as_longlong())
-        sortorder->result_type= INT_RESULT;
+      sortorder->result_type= sortorder->item->cmp_type();
       switch (sortorder->result_type) {
       case STRING_RESULT:
 	sortorder->length=sortorder->item->max_length;
@@ -1563,12 +1577,9 @@ sortlength(THD *thd, SORT_FIELD *sortorder, uint s_length,
           sortorder->length+= sortorder->suffix_length;
         }
 	break;
+      case TIME_RESULT:
       case INT_RESULT:
-#if SIZEOF_LONG_LONG > 4
 	sortorder->length=8;			// Size of intern longlong
-#else
-	sortorder->length=4;
-#endif
 	break;
       case DECIMAL_RESULT:
         sortorder->length=
@@ -1643,6 +1654,7 @@ get_addon_fields(THD *thd, Field **ptabfield, uint sortlength, uint *plength)
     Actually we need only the fields referred in the
     result set. And for some of them it makes sense to use 
     the values directly from sorted fields.
+    But beware the case when item->cmp_type() != item->result_type()
   */
   *plength= 0;
 

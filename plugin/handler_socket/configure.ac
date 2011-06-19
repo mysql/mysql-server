@@ -13,6 +13,12 @@ AC_PROG_CXX
 AC_PROG_CPP
 AC_PROG_LIBTOOL
 
+ac_mysql_debug=
+AC_ARG_ENABLE(mysql-debug,
+  [AS_HELP_STRING([--enable-mysql-debug], [specify whether MySQL is build with DBUG_ON])],[ac_mysql_debug="$enableval"],[ac_mysql_debug=no])
+AC_MSG_CHECKING([if --enable-mysql-debug is specified])
+AC_MSG_RESULT($ac_mysql_debug)
+
 AC_DEFUN([CONFIG_OPTION_MYSQL],[
   AC_MSG_CHECKING([mysql source])
 
@@ -66,8 +72,12 @@ AC_DEFUN([CONFIG_OPTION_MYSQL],[
   fi
 
   MYSQL_CFLAGS_ADD=`"$ac_mysql_config" --cflags`
-  MYSQL_CFLAGS="$MYSQL_CFLAGS $MYSQL_CFLAGS_ADD -DFORCE_DBUG_OFF"
-    # FIXME
+  MYSQL_CFLAGS="$MYSQL_CFLAGS $MYSQL_CFLAGS_ADD"
+  if test "$ac_mysql_debug" = "yes"; then
+    MYSQL_CFLAGS="$MYSQL_CFLAGS -DDBUG_ON -DENABLED_DEBUG_SYNC"
+  else
+    MYSQL_CFLAGS="$MYSQL_CFLAGS -DDBUG_OFF"
+  fi
   AC_SUBST(MYSQL_CFLAGS)
 
   MYSQL_BIN_VERSION=`"$ac_mysql_config" --version`

@@ -1,4 +1,5 @@
 /* Copyright (c) 2002, 2010, Oracle and/or its affiliates.
+   Copyright (c) 2009-2011, Monty Program Ab
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -107,7 +108,7 @@ class Select_fetch_protocol_binary: public select_send
 public:
   Select_fetch_protocol_binary(THD *thd);
   virtual bool send_fields(List<Item> &list, uint flags);
-  virtual bool send_data(List<Item> &items);
+  virtual int send_data(List<Item> &items);
   virtual bool send_eof();
 #ifdef EMBEDDED_LIBRARY
   void begin_dataset()
@@ -490,8 +491,7 @@ static void set_param_time(Item_param *param, uchar **pos, ulong len)
   }
   else
     set_zero_time(&tm, MYSQL_TIMESTAMP_TIME);
-  param->set_time(&tm, MYSQL_TIMESTAMP_TIME,
-                  MAX_TIME_WIDTH * MY_CHARSET_BIN_MB_MAXLEN);
+  param->set_time(&tm, MYSQL_TIMESTAMP_TIME, MAX_TIME_FULL_WIDTH);
   *pos+= length;
 }
 
@@ -1168,7 +1168,7 @@ static bool mysql_test_insert(Prepared_statement *stmt,
     If we would use locks, then we have to ensure we are not using
     TL_WRITE_DELAYED as having two such locks can cause table corruption.
   */
-  if (open_normal_and_derived_tables(thd, table_list, 0))
+  if (open_normal_and_derived_tables(thd, table_list, 0, DT_INIT)) 
     goto error;
 
   if ((values= its++))
@@ -1252,7 +1252,10 @@ static int mysql_test_update(Prepared_statement *stmt,
       open_tables(thd, &table_list, &table_count, 0))
     goto error;
 
-  if (table_list->multitable_view)
+  if (mysql_handle_derived(thd->lex, DT_INIT))
+    goto error;
+
+  if (table_list->is_multitable())
   {
     DBUG_ASSERT(table_list->view != 0);
     DBUG_PRINT("info", ("Switch to multi-update"));
@@ -1266,8 +1269,15 @@ static int mysql_test_update(Prepared_statement *stmt,
     thd->fill_derived_tables() is false here for sure (because it is
     preparation of PS, so we even do not check it).
   */
-  if (mysql_handle_derived(thd->lex, &mysql_derived_prepare))
+  if (table_list->handle_derived(thd->lex, DT_MERGE_FOR_INSERT) ||
+      table_list->handle_derived(thd->lex, DT_PREPARE))
     goto error;
+
+  if (!table_list->updatable)
+  {
+    my_error(ER_NON_UPDATABLE_TABLE, MYF(0), table_list->alias, "UPDATE");
+    goto error;
+  }
 
 #ifndef NO_EMBEDDED_ACCESS_CHECKS
   /* Force privilege re-checking for views after they have been opened. */
@@ -1321,15 +1331,26 @@ error:
 static bool mysql_test_delete(Prepared_statement *stmt,
                               TABLE_LIST *table_list)
 {
+  uint table_count= 0;
   THD *thd= stmt->thd;
   LEX *lex= stmt->lex;
   DBUG_ENTER("mysql_test_delete");
 
   if (delete_precheck(thd, table_list) ||
-      open_normal_and_derived_tables(thd, table_list, 0))
+      open_tables(thd, &table_list, &table_count, 0))
     goto error;
 
-  if (!table_list->table)
+  if (mysql_handle_derived(thd->lex, DT_INIT) ||
+      mysql_handle_list_of_derived(thd->lex, table_list, DT_MERGE_FOR_INSERT) ||
+      mysql_handle_list_of_derived(thd->lex, table_list, DT_PREPARE))
+    goto error;
+
+  if (!table_list->updatable)
+  {
+    my_error(ER_NON_UPDATABLE_TABLE, MYF(0), table_list->alias, "DELETE");
+    goto error;
+  }
+  if (!table_list->table || !table_list->table->created)
   {
     my_error(ER_VIEW_DELETE_MERGE_VIEW, MYF(0),
              table_list->view_db.str, table_list->view_name.str);
@@ -1384,7 +1405,8 @@ static int mysql_test_select(Prepared_statement *stmt,
     goto error;
   }
 
-  if (open_normal_and_derived_tables(thd, tables, 0))
+  if (open_normal_and_derived_tables(thd, tables, 0,
+                                     DT_PREPARE | DT_CREATE))
     goto error;
 
   thd->used_tables= 0;                        // Updated by setup_fields
@@ -1445,7 +1467,8 @@ static bool mysql_test_do_fields(Prepared_statement *stmt,
   if (tables && check_table_access(thd, SELECT_ACL, tables, UINT_MAX, FALSE))
     DBUG_RETURN(TRUE);
 
-  if (open_normal_and_derived_tables(thd, tables, 0))
+  if (open_normal_and_derived_tables(thd, tables, 0,
+                                     DT_PREPARE | DT_CREATE))
     DBUG_RETURN(TRUE);
   DBUG_RETURN(setup_fields(thd, 0, *values, MARK_COLUMNS_NONE, 0, 0));
 }
@@ -1475,7 +1498,8 @@ static bool mysql_test_set_fields(Prepared_statement *stmt,
 
   if ((tables &&
        check_table_access(thd, SELECT_ACL, tables, UINT_MAX, FALSE)) ||
-      open_normal_and_derived_tables(thd, tables, 0))
+      open_normal_and_derived_tables(thd, tables, 0,
+                                     DT_PREPARE | DT_CREATE))
     goto error;
 
   while ((var= it++))
@@ -1512,7 +1536,7 @@ static bool mysql_test_call_fields(Prepared_statement *stmt,
 
   if ((tables &&
        check_table_access(thd, SELECT_ACL, tables, UINT_MAX, FALSE)) ||
-      open_normal_and_derived_tables(thd, tables, 0))
+      open_normal_and_derived_tables(thd, tables, 0, DT_PREPARE))
     goto err;
 
   while ((item= it++))
@@ -1587,6 +1611,7 @@ select_like_stmt_test_with_open(Prepared_statement *stmt,
                                 int (*specific_prepare)(THD *thd),
                                 ulong setup_tables_done_option)
 {
+  uint table_count= 0;
   DBUG_ENTER("select_like_stmt_test_with_open");
 
   /*
@@ -1595,7 +1620,8 @@ select_like_stmt_test_with_open(Prepared_statement *stmt,
     prepared EXPLAIN yet so derived tables will clean up after
     themself.
   */
-  if (open_normal_and_derived_tables(stmt->thd, tables, 0))
+  THD *thd= stmt->thd;
+  if (open_tables(thd, &tables, &table_count, 0))
     DBUG_RETURN(TRUE);
 
   DBUG_RETURN(select_like_stmt_test(stmt, specific_prepare,
@@ -1640,7 +1666,8 @@ static bool mysql_test_create_table(Prepared_statement *stmt)
       create_table->skip_temporary= true;
     }
 
-    if (open_normal_and_derived_tables(stmt->thd, lex->query_tables, 0))
+    if (open_normal_and_derived_tables(stmt->thd, lex->query_tables, 0,
+                                       DT_PREPARE | DT_CREATE))
       DBUG_RETURN(TRUE);
 
     if (!(lex->create_info.options & HA_LEX_CREATE_TMP_TABLE))
@@ -1658,7 +1685,8 @@ static bool mysql_test_create_table(Prepared_statement *stmt)
       we validate metadata of all CREATE TABLE statements,
       which keeps metadata validation code simple.
     */
-    if (open_normal_and_derived_tables(stmt->thd, lex->query_tables, 0))
+    if (open_normal_and_derived_tables(stmt->thd, lex->query_tables, 0,
+                                       DT_PREPARE))
       DBUG_RETURN(TRUE);
   }
 
@@ -1693,7 +1721,7 @@ static bool mysql_test_create_view(Prepared_statement *stmt)
   if (create_view_precheck(thd, tables, view, lex->create_view_mode))
     goto err;
 
-  if (open_normal_and_derived_tables(thd, tables, 0))
+  if (open_normal_and_derived_tables(thd, tables, 0, DT_PREPARE))
     goto err;
 
   lex->context_analysis_only|=  CONTEXT_ANALYSIS_ONLY_VIEW;
@@ -2429,6 +2457,7 @@ void reinit_stmt_before_use(THD *thd, LEX *lex)
       /* Fix ORDER list */
       for (order= sl->order_list.first; order; order= order->next)
         order->item= &order->item_ptr;
+      sl->handle_derived(lex, DT_REINIT);
 
       /* clear the no_error flag for INSERT/UPDATE IGNORE */
       sl->no_error= FALSE;
@@ -2472,9 +2501,6 @@ void reinit_stmt_before_use(THD *thd, LEX *lex)
   }
   lex->current_select= &lex->select_lex;
 
-  /* restore original list used in INSERT ... SELECT */
-  if (lex->leaf_tables_insert)
-    lex->select_lex.leaf_tables= lex->leaf_tables_insert;
 
   if (lex->result)
   {
@@ -2793,6 +2819,32 @@ void mysql_sql_stmt_close(THD *thd)
   }
 }
 
+
+class Set_longdata_error_handler : public Internal_error_handler
+{
+public:
+  Set_longdata_error_handler(Prepared_statement *statement)
+    : stmt(statement)
+  { }
+
+public:
+  bool handle_error(uint sql_errno,
+                    const char *message,
+                    MYSQL_ERROR::enum_warning_level level,
+                    THD *)
+  {
+    stmt->state= Query_arena::ERROR;
+    stmt->last_errno= sql_errno;
+    strnmov(stmt->last_error, message, MYSQL_ERRMSG_SIZE);
+
+    return TRUE;
+  }
+
+private:
+  Prepared_statement *stmt;
+};
+
+
 /**
   Handle long data in pieces from client.
 
@@ -2849,16 +2901,19 @@ void mysql_stmt_get_longdata(THD *thd, char *packet, ulong packet_length)
 
   param= stmt->param_array[param_number];
 
+  Set_longdata_error_handler err_handler(stmt);
+  /*
+    Install handler that will catch any errors that can be generated
+    during execution of Item_param::set_longdata() and propagate
+    them to Statement::last_error.
+  */
+  thd->push_internal_handler(&err_handler);
 #ifndef EMBEDDED_LIBRARY
-  if (param->set_longdata(packet, (ulong) (packet_end - packet)))
+  param->set_longdata(packet, (ulong) (packet_end - packet));
 #else
-  if (param->set_longdata(thd->extra_data, thd->extra_length))
+  param->set_longdata(thd->extra_data, thd->extra_length);
 #endif
-  {
-    stmt->state= Query_arena::ERROR;
-    stmt->last_errno= ER_OUTOFMEMORY;
-    sprintf(stmt->last_error, ER(ER_OUTOFMEMORY), 0);
-  }
+  thd->pop_internal_handler();
 
   general_log_print(thd, thd->command, NullS);
 
@@ -2899,11 +2954,11 @@ bool Select_fetch_protocol_binary::send_eof()
 }
 
 
-bool
+int
 Select_fetch_protocol_binary::send_data(List<Item> &fields)
 {
   Protocol *save_protocol= thd->protocol;
-  bool rc;
+  int rc;
 
   thd->protocol= &protocol;
   rc= select_send::send_data(fields);
@@ -3320,6 +3375,13 @@ Prepared_statement::execute_loop(String *expanded_query,
   bool error;
   int reprepare_attempt= 0;
 
+  /* Check if we got an error when sending long data */
+  if (state == Query_arena::ERROR)
+  {
+    my_message(last_errno, last_error, MYF(0));
+    return TRUE;
+  }
+
   if (set_parameters(expanded_query, packet, packet_end))
     return TRUE;
 
@@ -3560,12 +3622,6 @@ bool Prepared_statement::execute(String *expanded_query, bool open_cursor)
 
   status_var_increment(thd->status_var.com_stmt_execute);
 
-  /* Check if we got an error when sending long data */
-  if (state == Query_arena::ERROR)
-  {
-    my_message(last_errno, last_error, MYF(0));
-    return TRUE;
-  }
   if (flags & (uint) IS_IN_USE)
   {
     my_error(ER_PS_NO_RECURSION, MYF(0));

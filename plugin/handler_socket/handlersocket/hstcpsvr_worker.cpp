@@ -6,6 +6,7 @@
  * See COPYRIGHT.txt for details.
  */
 
+#include <my_config.h>
 #include <netinet/in.h>
 #include <errno.h>
 #include <poll.h>
@@ -17,6 +18,9 @@
 #if __linux__
 #include <sys/epoll.h>
 #endif
+#ifdef HAVE_ALLOCA_H
+#include <alloca.h>
+#endif
 
 #include "hstcpsvr_worker.hpp"
 #include "string_buffer.hpp"
@@ -27,6 +31,7 @@
 #define DBG_FD(x)
 #define DBG_TR(x)
 #define DBG_EP(x)
+#define DBG_MULTI(x)
 
 /* TODO */
 #if !defined(__linux__) && !defined(__FreeBSD__) && !defined(MSG_NOSIGNAL)
@@ -40,13 +45,15 @@ struct dbconnstate {
   string_buffer writebuf;
   std::vector<prep_stmt> prep_stmts;
   size_t resp_begin_pos;
+  size_t find_nl_pos;
   void reset() {
     readbuf.clear();
     writebuf.clear();
     prep_stmts.clear();
     resp_begin_pos = 0;
+    find_nl_pos = 0;
   }
-  dbconnstate() : resp_begin_pos(0) { }
+  dbconnstate() : resp_begin_pos(0), find_nl_pos(0) { }
 };
 
 struct hstcpsvr_conn;
@@ -78,6 +85,7 @@ struct hstcpsvr_conn : public dbcallback_i {
   virtual const prep_stmt *dbcb_get_prep_stmt(size_t pst_id) const;
   virtual void dbcb_resp_short(uint32_t code, const char *msg);
   virtual void dbcb_resp_short_num(uint32_t code, uint32_t value);
+  virtual void dbcb_resp_short_num64(uint32_t code, uint64_t value);
   virtual void dbcb_resp_begin(size_t num_flds);
   virtual void dbcb_resp_entry(const char *fld, size_t fldlen);
   virtual void dbcb_resp_end();
@@ -206,6 +214,15 @@ hstcpsvr_conn::dbcb_resp_short_num(uint32_t code, uint32_t value)
 }
 
 void
+hstcpsvr_conn::dbcb_resp_short_num64(uint32_t code, uint64_t value)
+{
+  write_ui32(cstate.writebuf, code);
+  cstate.writebuf.append_literal("\t1\t");
+  write_ui64(cstate.writebuf, value);
+  cstate.writebuf.append_literal("\n");
+}
+
+void
 hstcpsvr_conn::dbcb_resp_begin(size_t num_flds)
 {
   cstate.resp_begin_pos = cstate.writebuf.size();
@@ -256,6 +273,7 @@ struct hstcpsvr_worker : public hstcpsvr_worker_i, private noncopyable {
   #endif
   bool accept_enabled;
   int accept_balance;
+  std::vector<string_ref> invalues_work;
   std::vector<record_filter> filters_work;
  private:
   int run_one_nb();
@@ -385,6 +403,7 @@ hstcpsvr_worker::run_one_nb()
 	  vshared.shutdown = 1;
 	} else if (ch == '/') {
 	  conn.cstate.readbuf.clear();
+	  conn.cstate.find_nl_pos = 0;
 	  conn.cstate.writebuf.clear();
 	  conn.read_finished = true;
 	  conn.write_finished = true;
@@ -533,6 +552,7 @@ hstcpsvr_worker::run_one_ep()
       vshared.shutdown = 1;
     } else if (ch == '/') {
       conn->cstate.readbuf.clear();
+      conn->cstate.find_nl_pos = 0;
       conn->cstate.writebuf.clear();
       conn->read_finished = true;
       conn->write_finished = true;
@@ -641,19 +661,24 @@ hstcpsvr_worker::run_one_ep()
 void
 hstcpsvr_worker::execute_lines(hstcpsvr_conn& conn)
 {
+  DBG_MULTI(int cnt = 0);
   dbconnstate& cstate = conn.cstate;
   char *buf_end = cstate.readbuf.end();
   char *line_begin = cstate.readbuf.begin();
+  char *find_pos = line_begin + cstate.find_nl_pos;
   while (true) {
-    char *const nl = memchr_char(line_begin, '\n', buf_end - line_begin);
+    char *const nl = memchr_char(find_pos, '\n', buf_end - find_pos);
     if (nl == 0) {
       break;
     }
     char *const lf = (line_begin != nl && nl[-1] == '\r') ? nl - 1 : nl;
+    DBG_MULTI(cnt++);
     execute_line(line_begin, lf, conn);
-    line_begin = nl + 1;
+    find_pos = line_begin = nl + 1;
   }
   cstate.readbuf.erase_front(line_begin - cstate.readbuf.begin());
+  cstate.find_nl_pos = cstate.readbuf.size();
+  DBG_MULTI(fprintf(stderr, "cnt=%d\n", cnt));
 }
 
 void
@@ -721,8 +746,14 @@ hstcpsvr_worker::do_open_index(char *start, char *finish, hstcpsvr_conn& conn)
   idxname_end[0] = 0;
   retflds_end[0] = 0;
   filflds_end[0] = 0;
-  return dbctx->cmd_open_index(conn, pst_id, dbname_begin, tblname_begin,
-    idxname_begin, retflds_begin, filflds_begin);
+  cmd_open_args args;
+  args.pst_id = pst_id;
+  args.dbn = dbname_begin;
+  args.tbl = tblname_begin;
+  args.idx = idxname_begin;
+  args.retflds = retflds_begin;
+  args.filflds = filflds_begin;
+  return dbctx->cmd_open(conn, args);
 }
 
 void
@@ -741,7 +772,8 @@ hstcpsvr_worker::do_exec_on_index(char *cmd_begin, char *cmd_end, char *start,
   args.op = string_ref(op_begin, op_end);
   skip_one(start, finish);
   const uint32_t fldnum = read_ui32(start, finish);
-  string_ref flds[fldnum]; /* GNU */
+  string_ref *const flds = DENA_ALLOCA_ALLOCATE(string_ref, fldnum);
+  auto_alloca_free<string_ref> flds_autofree(flds);
   args.kvals = flds;
   args.kvalslen = fldnum;
   for (size_t i = 0; i < fldnum; ++i) {
@@ -765,10 +797,39 @@ hstcpsvr_worker::do_exec_on_index(char *cmd_begin, char *cmd_end, char *start,
   args.skip = read_ui32(start, finish);
   if (start == finish) {
     /* simple query */
-    return dbctx->cmd_exec_on_index(conn, args);
+    return dbctx->cmd_exec(conn, args);
   }
-  /* has filters or modops */
+  /* has more options */
   skip_one(start, finish);
+  /* in-clause */
+  if (start[0] == '@') {
+    read_token(start, finish); /* '@' */
+    skip_one(start, finish);
+    args.invalues_keypart = read_ui32(start, finish);
+    skip_one(start, finish);
+    args.invalueslen = read_ui32(start, finish);
+    if (args.invalueslen <= 0) {
+      return conn.dbcb_resp_short(2, "invalueslen");
+    }
+    if (invalues_work.size() < args.invalueslen) {
+      invalues_work.resize(args.invalueslen);
+    }
+    args.invalues = &invalues_work[0];
+    for (uint32_t i = 0; i < args.invalueslen; ++i) {
+      skip_one(start, finish);
+      char *const invalue_begin = start;
+      read_token(start, finish);
+      char *const invalue_end = start;
+      char *wp = invalue_begin;
+      unescape_string(wp, invalue_begin, invalue_end);
+      invalues_work[i] = string_ref(invalue_begin, wp - invalue_begin);
+    }
+    skip_one(start, finish);
+  }
+  if (start == finish) {
+    /* no more options */
+    return dbctx->cmd_exec(conn, args);
+  }
   /* filters */
   size_t filters_count = 0;
   while (start != finish && (start[0] == 'W' || start[0] == 'F')) {
@@ -823,7 +884,7 @@ hstcpsvr_worker::do_exec_on_index(char *cmd_begin, char *cmd_end, char *start,
   }
   if (start == finish) {
     /* no modops */
-    return dbctx->cmd_exec_on_index(conn, args);
+    return dbctx->cmd_exec(conn, args);
   }
   /* has modops */
   char *const mod_op_begin = start;
@@ -831,7 +892,8 @@ hstcpsvr_worker::do_exec_on_index(char *cmd_begin, char *cmd_end, char *start,
   char *const mod_op_end = start;
   args.mod_op = string_ref(mod_op_begin, mod_op_end);
   const size_t num_uvals = args.pst->get_ret_fields().size();
-  string_ref uflds[num_uvals]; /* GNU */
+  string_ref *const uflds = DENA_ALLOCA_ALLOCATE(string_ref, num_uvals);
+  auto_alloca_free<string_ref> uflds_autofree(uflds);
   for (size_t i = 0; i < num_uvals; ++i) {
     skip_one(start, finish);
     char *const f_begin = start;
@@ -848,7 +910,7 @@ hstcpsvr_worker::do_exec_on_index(char *cmd_begin, char *cmd_end, char *start,
     }
   }
   args.uvals = uflds;
-  return dbctx->cmd_exec_on_index(conn, args);
+  return dbctx->cmd_exec(conn, args);
 }
 
 void
@@ -871,7 +933,7 @@ hstcpsvr_worker::do_authorization(char *start, char *finish,
   char *wp = key_begin;
   unescape_string(wp, key_begin, key_end);
   if (authtype_len != 1 || authtype_begin[0] != '1') {
-    return conn.dbcb_resp_short(2, "authtype");
+    return conn.dbcb_resp_short(3, "authtype");
   }
   if (cshared.plain_secret.size() == key_len &&
     memcmp(cshared.plain_secret.data(), key_begin, key_len) == 0) {

@@ -657,9 +657,9 @@ buf_block_init(
 
 	block->modify_clock = 0;
 
-#ifdef UNIV_DEBUG_FILE_ACCESSES
+#if defined UNIV_DEBUG_FILE_ACCESSES || defined UNIV_DEBUG
 	block->page.file_page_was_freed = FALSE;
-#endif /* UNIV_DEBUG_FILE_ACCESSES */
+#endif /* UNIV_DEBUG_FILE_ACCESSES || UNIV_DEBUG */
 
 	block->check_index_page_at_flush = FALSE;
 	block->index = NULL;
@@ -1283,7 +1283,7 @@ shrink_again:
 
 				buf_LRU_make_block_old(&block->page);
 				dirty++;
-			} else if (buf_LRU_free_block(&block->page, TRUE, NULL)
+			} else if (buf_LRU_free_block(&block->page, TRUE)
 				   != BUF_LRU_FREED) {
 				nonfree++;
 			}
@@ -1600,7 +1600,7 @@ buf_page_peek_if_search_hashed(
 	return(is_hashed);
 }
 
-#ifdef UNIV_DEBUG_FILE_ACCESSES
+#if defined UNIV_DEBUG_FILE_ACCESSES || defined UNIV_DEBUG
 /********************************************************************//**
 Sets file_page_was_freed TRUE if the page is found in the buffer pool.
 This function should be called when we free a file page and want the
@@ -1621,6 +1621,8 @@ buf_page_set_file_page_was_freed(
 	bpage = buf_page_hash_get(space, offset);
 
 	if (bpage) {
+		/* bpage->file_page_was_freed can already hold
+		when this code is invoked from dict_drop_index_tree() */
 		bpage->file_page_was_freed = TRUE;
 	}
 
@@ -1656,7 +1658,7 @@ buf_page_reset_file_page_was_freed(
 
 	return(bpage);
 }
-#endif /* UNIV_DEBUG_FILE_ACCESSES */
+#endif /* UNIV_DEBUG_FILE_ACCESSES || UNIV_DEBUG */
 
 /********************************************************************//**
 Get read access to a compressed page (usually of type
@@ -1729,8 +1731,7 @@ err_exit:
 		mutex_enter(block_mutex);
 
 		/* Discard the uncompressed page frame if possible. */
-		if (buf_LRU_free_block(bpage, FALSE, NULL)
-		    == BUF_LRU_FREED) {
+		if (buf_LRU_free_block(bpage, FALSE) == BUF_LRU_FREED) {
 
 			mutex_exit(block_mutex);
 			goto lookup;
@@ -1754,7 +1755,7 @@ got_block:
 
 	buf_page_set_accessed_make_young(bpage, access_time);
 
-#ifdef UNIV_DEBUG_FILE_ACCESSES
+#if defined UNIV_DEBUG_FILE_ACCESSES || defined UNIV_DEBUG
 	ut_a(!bpage->file_page_was_freed);
 #endif
 
@@ -1892,16 +1893,19 @@ buf_block_align(
 	/* TODO: protect buf_pool->chunks with a mutex (it will
 	currently remain constant after buf_pool_init()) */
 	for (chunk = buf_pool->chunks, i = buf_pool->n_chunks; i--; chunk++) {
-		lint	offs = ptr - chunk->blocks->frame;
+		ulint	offs;
 
-		if (UNIV_UNLIKELY(offs < 0)) {
+		if (UNIV_UNLIKELY(ptr < chunk->blocks->frame)) {
 
 			continue;
 		}
+		/* else */
+
+		offs = ptr - chunk->blocks->frame;
 
 		offs >>= UNIV_PAGE_SIZE_SHIFT;
 
-		if (UNIV_LIKELY((ulint) offs < chunk->size)) {
+		if (UNIV_LIKELY(offs < chunk->size)) {
 			buf_block_t*	block = &chunk->blocks[offs];
 
 			/* The function buf_chunk_init() invokes
@@ -2027,7 +2031,7 @@ buf_page_get_gen(
 	ulint		rw_latch,/*!< in: RW_S_LATCH, RW_X_LATCH, RW_NO_LATCH */
 	buf_block_t*	guess,	/*!< in: guessed block or NULL */
 	ulint		mode,	/*!< in: BUF_GET, BUF_GET_IF_IN_POOL,
-				BUF_GET_NO_LATCH */
+				BUF_PEEK_IF_IN_POOL, BUF_GET_NO_LATCH */
 	const char*	file,	/*!< in: file name */
 	ulint		line,	/*!< in: line where called */
 	mtr_t*		mtr)	/*!< in: mini-transaction */
@@ -2043,9 +2047,19 @@ buf_page_get_gen(
 	ut_ad((rw_latch == RW_S_LATCH)
 	      || (rw_latch == RW_X_LATCH)
 	      || (rw_latch == RW_NO_LATCH));
-	ut_ad((mode != BUF_GET_NO_LATCH) || (rw_latch == RW_NO_LATCH));
-	ut_ad((mode == BUF_GET) || (mode == BUF_GET_IF_IN_POOL)
-	      || (mode == BUF_GET_NO_LATCH));
+#ifdef UNIV_DEBUG
+	switch (mode) {
+	case BUF_GET_NO_LATCH:
+		ut_ad(rw_latch == RW_NO_LATCH);
+		break;
+	case BUF_GET:
+	case BUF_GET_IF_IN_POOL:
+	case BUF_PEEK_IF_IN_POOL:
+		break;
+	default:
+		ut_error;
+	}
+#endif /* UNIV_DEBUG */
 	ut_ad(zip_size == fil_space_get_zip_size(space));
 	ut_ad(ut_is_2pow(zip_size));
 #ifndef UNIV_LOG_DEBUG
@@ -2087,7 +2101,8 @@ loop2:
 
 		buf_pool_mutex_exit();
 
-		if (mode == BUF_GET_IF_IN_POOL) {
+		if (mode == BUF_GET_IF_IN_POOL
+		    || mode == BUF_PEEK_IF_IN_POOL) {
 
 			return(NULL);
 		}
@@ -2126,7 +2141,8 @@ loop2:
 
 	must_read = buf_block_get_io_fix(block) == BUF_IO_READ;
 
-	if (must_read && mode == BUF_GET_IF_IN_POOL) {
+	if (must_read && (mode == BUF_GET_IF_IN_POOL
+			  || mode == BUF_PEEK_IF_IN_POOL)) {
 		/* The page is only being read to buffer */
 		buf_pool_mutex_exit();
 
@@ -2165,7 +2181,7 @@ wait_until_unfixed:
 		buf_pool_mutex_exit();
 		mutex_exit(&buf_pool_zip_mutex);
 
-		block = buf_LRU_get_free_block(0);
+		block = buf_LRU_get_free_block();
 		ut_a(block);
 
 		buf_pool_mutex_enter();
@@ -2244,6 +2260,7 @@ wait_until_unfixed:
 		mutex_exit(&buf_pool_zip_mutex);
 		buf_pool->n_pend_unzip++;
 
+		bpage->state = BUF_BLOCK_ZIP_FREE;
 		buf_buddy_free(bpage, sizeof *bpage);
 
 		buf_pool_mutex_exit();
@@ -2291,8 +2308,7 @@ wait_until_unfixed:
 		/* Try to evict the block from the buffer pool, to use the
 		insert buffer as much as possible. */
 
-		if (buf_LRU_free_block(&block->page, TRUE, NULL)
-		    == BUF_LRU_FREED) {
+		if (buf_LRU_free_block(&block->page, TRUE) == BUF_LRU_FREED) {
 			buf_pool_mutex_exit();
 			mutex_exit(&block->mutex);
 			fprintf(stderr,
@@ -2321,9 +2337,11 @@ wait_until_unfixed:
 
 	buf_pool_mutex_exit();
 
-	buf_page_set_accessed_make_young(&block->page, access_time);
+	if (UNIV_LIKELY(mode != BUF_PEEK_IF_IN_POOL)) {
+		buf_page_set_accessed_make_young(&block->page, access_time);
+	}
 
-#ifdef UNIV_DEBUG_FILE_ACCESSES
+#if defined UNIV_DEBUG_FILE_ACCESSES || defined UNIV_DEBUG
 	ut_a(!block->page.file_page_was_freed);
 #endif
 
@@ -2374,7 +2392,7 @@ wait_until_unfixed:
 
 	mtr_memo_push(mtr, block, fix_type);
 
-	if (!access_time) {
+	if (UNIV_LIKELY(mode != BUF_PEEK_IF_IN_POOL) && !access_time) {
 		/* In the case of a first access, try to apply linear
 		read-ahead */
 
@@ -2481,7 +2499,7 @@ buf_page_optimistic_get(
 	ut_a(buf_block_get_state(block) == BUF_BLOCK_FILE_PAGE);
 #endif /* UNIV_DEBUG || UNIV_BUF_DEBUG */
 
-#ifdef UNIV_DEBUG_FILE_ACCESSES
+#if defined UNIV_DEBUG_FILE_ACCESSES || defined UNIV_DEBUG
 	ut_a(block->page.file_page_was_freed == FALSE);
 #endif
 	if (UNIV_UNLIKELY(!access_time)) {
@@ -2589,7 +2607,7 @@ buf_page_get_known_nowait(
 	ut_a(block->page.buf_fix_count > 0);
 	ut_a(buf_block_get_state(block) == BUF_BLOCK_FILE_PAGE);
 #endif /* UNIV_DEBUG || UNIV_BUF_DEBUG */
-#ifdef UNIV_DEBUG_FILE_ACCESSES
+#if defined UNIV_DEBUG_FILE_ACCESSES || defined UNIV_DEBUG
 	ut_a(block->page.file_page_was_freed == FALSE);
 #endif
 
@@ -2672,9 +2690,9 @@ buf_page_try_get_func(
 	ut_a(block->page.buf_fix_count > 0);
 	ut_a(buf_block_get_state(block) == BUF_BLOCK_FILE_PAGE);
 #endif /* UNIV_DEBUG || UNIV_BUF_DEBUG */
-#ifdef UNIV_DEBUG_FILE_ACCESSES
+#if defined UNIV_DEBUG_FILE_ACCESSES || defined UNIV_DEBUG
 	ut_a(block->page.file_page_was_freed == FALSE);
-#endif /* UNIV_DEBUG_FILE_ACCESSES */
+#endif /* UNIV_DEBUG_FILE_ACCESSES || UNIV_DEBUG */
 	buf_block_dbg_add_level(block, SYNC_NO_ORDER_CHECK);
 
 	buf_pool->stat.n_page_gets++;
@@ -2703,9 +2721,9 @@ buf_page_init_low(
 	bpage->newest_modification = 0;
 	bpage->oldest_modification = 0;
 	HASH_INVALIDATE(bpage, hash);
-#ifdef UNIV_DEBUG_FILE_ACCESSES
+#if defined UNIV_DEBUG_FILE_ACCESSES || defined UNIV_DEBUG
 	bpage->file_page_was_freed = FALSE;
-#endif /* UNIV_DEBUG_FILE_ACCESSES */
+#endif /* UNIV_DEBUG_FILE_ACCESSES || UNIV_DEBUG */
 }
 
 /********************************************************************//**
@@ -2829,7 +2847,7 @@ buf_page_init_for_read(
 	    && UNIV_LIKELY(!recv_recovery_is_on())) {
 		block = NULL;
 	} else {
-		block = buf_LRU_get_free_block(0);
+		block = buf_LRU_get_free_block();
 		ut_ad(block);
 	}
 
@@ -2923,6 +2941,7 @@ err_exit:
 		    && UNIV_LIKELY_NULL(buf_page_hash_get(space, offset))) {
 
 			/* The block was added by some other thread. */
+			bpage->state = BUF_BLOCK_ZIP_FREE;
 			buf_buddy_free(bpage, sizeof *bpage);
 			buf_buddy_free(data, zip_size);
 
@@ -3001,7 +3020,7 @@ buf_page_create(
 	ut_ad(mtr->state == MTR_ACTIVE);
 	ut_ad(space || !zip_size);
 
-	free_block = buf_LRU_get_free_block(0);
+	free_block = buf_LRU_get_free_block();
 
 	buf_pool_mutex_enter();
 
@@ -3011,9 +3030,9 @@ buf_page_create(
 #ifdef UNIV_IBUF_COUNT_DEBUG
 		ut_a(ibuf_count_get(space, offset) == 0);
 #endif
-#ifdef UNIV_DEBUG_FILE_ACCESSES
+#if defined UNIV_DEBUG_FILE_ACCESSES || defined UNIV_DEBUG
 		block->page.file_page_was_freed = FALSE;
-#endif /* UNIV_DEBUG_FILE_ACCESSES */
+#endif /* UNIV_DEBUG_FILE_ACCESSES || UNIV_DEBUG */
 
 		/* Page can be found in buf_pool */
 		buf_pool_mutex_exit();

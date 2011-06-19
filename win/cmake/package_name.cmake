@@ -123,7 +123,7 @@ IF(NOT VERSION)
     SET(PRODUCT_TAG)
   ENDIF()
 
-  SET(package_name "mariadb${PRODUCT_TAG}-${MYSQL_NO_DASH_VERSION}-${SYSTEM_NAME_AND_PROCESSOR}")
+  SET(package_name "mariadb${PRODUCT_TAG}-${MYSQL_NO_DASH_VERSION}${VERSION_EXTRA}-${SYSTEM_NAME_AND_PROCESSOR}")
   
   # Sometimes package suffix is added (something like "-icc-glibc23")
   IF(PACKAGE_SUFFIX)

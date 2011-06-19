@@ -1021,18 +1021,6 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
   thd->query_plan_flags= QPLAN_INIT;
   thd->lex->sql_command= SQLCOM_END; /* to avoid confusing VIEW detectors */
   thd->set_time();
-  if (!thd->is_valid_time())
-  {
-    /*
-     If the time has got past 2038 we need to shut this server down
-     We do this by making sure every command is a shutdown and we 
-     have enough privileges to shut the server down
-
-     TODO: remove this when we have full 64 bit my_time_t support
-    */
-    thd->security_ctx->master_access|= SHUTDOWN_ACL;
-    command= COM_SHUTDOWN;
-  }
 
   VOID(pthread_mutex_lock(&LOCK_thread_count));
   thd->query_id= global_query_id;
@@ -1055,7 +1043,6 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
   }
 
   thread_running++;
-  /* TODO: set thd->lex->sql_command to SQLCOM_END here */
   VOID(pthread_mutex_unlock(&LOCK_thread_count));
 
   /**
@@ -1133,7 +1120,7 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
     uint save_db_length= thd->db_length;
     char *save_db= thd->db;
     USER_CONN *save_user_connect= thd->user_connect;
-  Security_context save_security_ctx= *thd->security_ctx;
+    Security_context save_security_ctx= *thd->security_ctx;
     CHARSET_INFO *save_character_set_client=
       thd->variables.character_set_client;
     CHARSET_INFO *save_collation_connection=
@@ -1141,8 +1128,12 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
     CHARSET_INFO *save_character_set_results=
       thd->variables.character_set_results;
 
+    /* Ensure we don't free security_ctx->user in case we have to revert */
+    thd->security_ctx->user= 0;
+
     if (acl_authenticate(thd, 0, packet_length))
     {
+      /* Free user if allocated by acl_authenticate */
       x_free(thd->security_ctx->user);
       *thd->security_ctx= save_security_ctx;
       thd->user_connect= save_user_connect;
@@ -1248,15 +1239,15 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
 #endif
 
       thd->set_query(beginning_of_next_stmt, length);
-      VOID(pthread_mutex_lock(&LOCK_thread_count));
       /*
         Count each statement from the client.
       */
       statistic_increment(thd->status_var.questions, &LOCK_status);
+      thd->set_time(); /* Reset the query start time for next query. */
+      VOID(pthread_mutex_lock(&LOCK_thread_count));
       thd->query_id= next_query_id();
-      thd->set_time(); /* Reset the query start time. */
-      /* TODO: set thd->lex->sql_command to SQLCOM_END here */
       VOID(pthread_mutex_unlock(&LOCK_thread_count));
+      /* TODO: set thd->lex->sql_command to SQLCOM_END here */
       mysql_parse(thd, beginning_of_next_stmt, length, &end_of_stmt);
     }
 
@@ -1432,10 +1423,7 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
       packet[0].
     */
     enum mysql_enum_shutdown_level level;
-    if (!thd->is_valid_time())
-      level= SHUTDOWN_DEFAULT;
-    else
-      level= (enum mysql_enum_shutdown_level) (uchar) packet[0];
+    level= (enum mysql_enum_shutdown_level) (uchar) packet[0];
     if (level == SHUTDOWN_DEFAULT)
       level= SHUTDOWN_WAIT_ALL_BUFFERS; // soon default will be configurable
     else if (level != SHUTDOWN_WAIT_ALL_BUFFERS)
@@ -2293,11 +2281,7 @@ mysql_execute_command(THD *thd)
       goto error;
     }
     it= new Item_func_unix_timestamp(it);
-    /*
-      it is OK only emulate fix_fieds, because we need only
-      value of constant
-    */
-    it->quick_fix_field();
+    it->fix_fields(thd, &it);
     res = purge_master_logs_before_date(thd, (ulong)it->val_int());
     break;
   }
@@ -3235,6 +3219,10 @@ end_with_restore_list:
 
     if (!(res= open_and_lock_tables(thd, all_tables)))
     {
+      /*
+        Only the INSERT table should be merged. Other will be handled by
+        select.
+      */
       /* Skip first table, which is the table we are inserting in */
       TABLE_LIST *second_table= first_table->next_local;
       select_lex->table_list.first= second_table;
@@ -3548,7 +3536,7 @@ end_with_restore_list:
     {
 #ifdef HAVE_QUERY_CACHE
       if (thd->variables.query_cache_wlock_invalidate)
-	query_cache.invalidate_locked_for_write(first_table);
+	query_cache.invalidate_locked_for_write(thd, first_table);
 #endif /*HAVE_QUERY_CACHE*/
       thd->locked_tables=thd->lock;
       thd->lock=0;
@@ -5789,6 +5777,7 @@ void mysql_reset_thd_for_next_command(THD *thd, my_bool calculate_userstat)
   thd->stmt_depends_on_first_successful_insert_id_in_prev_stmt= 0;
 
   thd->query_start_used= 0;
+  thd->query_start_sec_part_used= 0;
   thd->is_fatal_error= thd->time_zone_used= 0;
   /*
     Clear the status flag that are expected to be cleared at the
@@ -6246,17 +6235,6 @@ bool add_field_to_list(THD *thd, LEX_STRING *field_name, enum_field_types type,
   {
     my_error(ER_INVALID_ON_UPDATE, MYF(0), field_name->str);
     DBUG_RETURN(1);
-  }
-
-  if (type == MYSQL_TYPE_TIMESTAMP && length)
-  {
-    /* Display widths are no longer supported for TIMSTAMP as of MySQL 4.1.
-       In other words, for declarations such as TIMESTAMP(2), TIMESTAMP(4),
-       and so on, the display width is ignored.
-    */
-    char buf[32];
-    my_snprintf(buf, sizeof(buf), "TIMESTAMP(%s)", length);
-    WARN_DEPRECATED(thd, "6.0", buf, "'TIMESTAMP'");
   }
 
   if (!(new_field= new Create_field()) ||
@@ -7006,7 +6984,7 @@ bool reload_acl_and_cache(THD *thd, ulong options, TABLE_LIST *tables,
 #ifdef HAVE_QUERY_CACHE
   if (options & REFRESH_QUERY_CACHE_FREE)
   {
-    query_cache.pack();				// FLUSH QUERY CACHE
+    query_cache.pack(thd);				// FLUSH QUERY CACHE
     options &= ~REFRESH_QUERY_CACHE;    // Don't flush cache, just free memory
   }
   if (options & (REFRESH_TABLES | REFRESH_QUERY_CACHE))

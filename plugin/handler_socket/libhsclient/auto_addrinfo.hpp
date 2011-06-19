@@ -12,7 +12,7 @@
 #include <sys/types.h>
 #include <sys/socket.h>
 #include <netdb.h>
-#include <string.h>
+
 #include "util.hpp"
 
 namespace dena {
@@ -33,7 +33,6 @@ struct auto_addrinfo : private noncopyable {
     int family = AF_UNSPEC, int socktype = SOCK_STREAM, int protocol = 0) {
     reset();
     addrinfo hints;
-    memset(&hints, 0, sizeof(hints));
     hints.ai_flags = flags;
     hints.ai_family = family;
     hints.ai_socktype = socktype;

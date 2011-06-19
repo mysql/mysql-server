@@ -1,4 +1,5 @@
 /* Copyright (c) 2000, 2010, Oracle and/or its affiliates.
+   Copyright (c) 2009-2011, Monty Program Ab
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -33,32 +34,22 @@ class Arg_comparator: public Sql_alloc
   Item **a, **b;
   arg_cmp_func func;
   Item_result_field *owner;
+  bool set_null;                   // TRUE <=> set owner->null_value
   Arg_comparator *comparators;   // used only for compare_row()
   double precision;
   /* Fields used in DATE/DATETIME comparison. */
   THD *thd;
-  enum_field_types a_type, b_type; // Types of a and b items
   Item *a_cache, *b_cache;         // Cached values of a and b items
-  bool is_nulls_eq;                // TRUE <=> compare for the EQUAL_FUNC
-  bool set_null;                   // TRUE <=> set owner->null_value
                                    //   when one of arguments is NULL.
-  enum enum_date_cmp_type { CMP_DATE_DFLT= 0, CMP_DATE_WITH_DATE,
-                            CMP_DATE_WITH_STR, CMP_STR_WITH_DATE };
-  longlong (*get_value_a_func)(THD *thd, Item ***item_arg, Item **cache_arg,
-                               Item *warn_item, bool *is_null);
-  longlong (*get_value_b_func)(THD *thd, Item ***item_arg, Item **cache_arg,
-                               Item *warn_item, bool *is_null);
-  bool try_year_cmp_func(Item_result type);
 public:
   DTCollation cmp_collation;
   /* Allow owner function to use string buffers. */
   String value1, value2;
 
-  Arg_comparator(): comparators(0), thd(0), a_cache(0), b_cache(0), set_null(TRUE),
-    get_value_a_func(0), get_value_b_func(0) {};
-  Arg_comparator(Item **a1, Item **a2): a(a1), b(a2), comparators(0), thd(0),
-    a_cache(0), b_cache(0), set_null(TRUE),
-    get_value_a_func(0), get_value_b_func(0) {};
+  Arg_comparator():  set_null(TRUE), comparators(0), thd(0),
+    a_cache(0), b_cache(0) {};
+  Arg_comparator(Item **a1, Item **a2): a(a1), b(a2),  set_null(TRUE),
+    comparators(0), thd(0), a_cache(0), b_cache(0) {};
 
   int set_compare_func(Item_result_field *owner, Item_result type);
   inline int set_compare_func(Item_result_field *owner_arg)
@@ -75,8 +66,8 @@ public:
   {
     set_null= set_null_arg;
     return set_cmp_func(owner_arg, a1, a2,
-                        item_cmp_type((*a1)->result_type(),
-                                      (*a2)->result_type()));
+                        item_cmp_type((*a1)->cmp_type(),
+                                      (*a2)->cmp_type()));
   }
   inline int compare() { return (this->*func)(); }
 
@@ -99,14 +90,12 @@ public:
   int compare_real_fixed();
   int compare_e_real_fixed();
   int compare_datetime();        // compare args[0] & args[1] as DATETIMEs
-
-  static enum enum_date_cmp_type can_compare_as_dates(Item *a, Item *b,
-                                                      ulonglong *const_val_arg);
+  int compare_e_datetime();
 
   Item** cache_converted_constant(THD *thd, Item **value, Item **cache,
                                   Item_result type);
   void set_datetime_cmp_func(Item_result_field *owner_arg, Item **a1, Item **b1);
-  static arg_cmp_func comparator_matrix [5][2];
+  static arg_cmp_func comparator_matrix [6][2];
   inline bool is_owner_equal_func()
   {
     return (owner->type() == Item::FUNC_ITEM &&
@@ -266,6 +255,10 @@ public:
   void keep_top_level_cache();
   Item *transform(Item_transformer transformer, uchar *arg);
   virtual Item *expr_cache_insert_transformer(uchar *thd_arg);
+  bool is_expensive_processor(uchar *arg);
+  bool is_expensive();
+  void set_join_tab_idx(uint join_tab_idx_arg)
+  { args[1]->set_join_tab_idx(join_tab_idx_arg); }
 };
 
 class Comp_creator
@@ -392,7 +385,10 @@ public:
   }
   Item *neg_transformer(THD *thd);
   virtual Item *negated_item();
-  bool subst_argument_checker(uchar **arg) { return TRUE; }
+  bool subst_argument_checker(uchar **arg)
+  {
+    return (*arg != NULL);     
+  }
 };
 
 class Item_func_not :public Item_bool_func
@@ -628,9 +624,7 @@ public:
   Item_result cmp_type;
   String value0,value1,value2;
   /* TRUE <=> arguments will be compared as dates. */
-  bool compare_as_dates;
-  /* Comparators used for DATE/DATETIME comparison. */
-  Arg_comparator ge_cmp, le_cmp;
+  Item *compare_as_dates;
   Item_func_between(Item *a, Item *b, Item *c)
     :Item_func_opt_neg(a, b, c), compare_as_dates(FALSE) {}
   longlong val_int();
@@ -643,6 +637,7 @@ public:
   bool is_bool_func() { return 1; }
   CHARSET_INFO *compare_collation() { return cmp_collation.collation; }
   uint decimal_precision() const { return 1; }
+  bool eval_not_null_tables(uchar *opt_arg);
 };
 
 
@@ -703,6 +698,7 @@ public:
   const char *func_name() const { return "coalesce"; }
   table_map not_null_tables() const { return 0; }
   enum_field_types field_type() const { return cached_field_type; }
+  bool get_date(MYSQL_TIME *ltime,uint fuzzydate);
 };
 
 
@@ -742,6 +738,7 @@ public:
   void fix_length_and_dec();
   uint decimal_precision() const;
   const char *func_name() const { return "if"; }
+  bool eval_not_null_tables(uchar *opt_arg);
 };
 
 
@@ -908,6 +905,16 @@ public:
      lval_cache(0) {};
   void set(uint pos,Item *item);
   uchar *get_value(Item *item);
+  Item* create_item()
+  { 
+    return new Item_datetime();
+  }
+  void value_to_item(uint pos, Item *item)
+  {
+    packed_longlong *val= reinterpret_cast<packed_longlong*>(base)+pos;
+    Item_datetime *dt= reinterpret_cast<Item_datetime*>(item);
+    dt->set(val->val);
+  }
   friend int cmp_longlong(void *cmp_arg, packed_longlong *a,packed_longlong *b);
 };
 
@@ -967,7 +974,8 @@ public:
   virtual int cmp(Item *item)= 0;
   // for optimized IN with row
   virtual int compare(cmp_item *item)= 0;
-  static cmp_item* get_comparator(Item_result type, CHARSET_INFO *cs);
+  static cmp_item* get_comparator(Item_result type, Item * warn_item,
+                                  CHARSET_INFO *cs);
   virtual cmp_item *make_same()= 0;
   virtual void store_value_by_template(cmp_item *tmpl, Item *item)
   {
@@ -1163,7 +1171,7 @@ class Item_func_case :public Item_func
   Item_result cmp_type;
   DTCollation cmp_collation;
   enum_field_types cached_field_type;
-  cmp_item *cmp_items[5]; /* For all result types */
+  cmp_item *cmp_items[6]; /* For all result types */
   cmp_item *case_item;
 public:
   Item_func_case(List<Item> &list, Item *first_expr_arg, Item *else_expr_arg)
@@ -1253,7 +1261,7 @@ public:
     Item_int_func::cleanup();
     delete array;
     array= 0;
-    for (i= 0; i <= (uint)DECIMAL_RESULT + 1; i++)
+    for (i= 0; i <= (uint)TIME_RESULT; i++)
     {
       delete cmp_items[i];
       cmp_items[i]= 0;
@@ -1268,6 +1276,7 @@ public:
   bool nulls_in_row();
   bool is_bool_func() { return 1; }
   CHARSET_INFO *compare_collation() { return cmp_collation.collation; }
+  bool eval_not_null_tables(uchar *opt_arg);
 };
 
 class cmp_item_row :public cmp_item
@@ -1303,8 +1312,6 @@ public:
 
 class Item_func_isnull :public Item_bool_func
 {
-protected:
-  longlong cached_value;
 public:
   Item_func_isnull(Item *a) :Item_bool_func(a) {}
   longlong val_int();
@@ -1322,18 +1329,9 @@ public:
     {
       used_tables_cache= 0;			/* is always false */
       const_item_cache= 1;
-      cached_value= (longlong) 0;
     }
     else
-    {
       args[0]->update_used_tables();
-      if ((const_item_cache= !(used_tables_cache= args[0]->used_tables()) &&
-          !with_subselect))
-      {
-	/* Remember if the value is always NULL or never NULL */
-	cached_value= (longlong) args[0]->is_null();
-      }
-    }
   }
   table_map not_null_tables() const { return 0; }
   optimize_type select_optimize() const { return OPTIMIZE_NULL; }
@@ -1534,6 +1532,7 @@ public:
   bool subst_argument_checker(uchar **arg) { return TRUE; }
   Item *compile(Item_analyzer analyzer, uchar **arg_p,
                 Item_transformer transformer, uchar *arg_t);
+  bool eval_not_null_tables(uchar *opt_arg);
 };
 
 
@@ -1869,3 +1868,11 @@ Item *and_expressions(Item *a, Item *b, Item **org_item);
 
 bool get_mysql_time_from_str(THD *thd, String *str, timestamp_type warn_type, 
                              const char *warn_name, MYSQL_TIME *l_time);
+
+class Item_func_dyncol_exists :public Item_bool_func
+{
+public:
+  Item_func_dyncol_exists(Item *str, Item *num) :Item_bool_func(str, num) {}
+  longlong val_int();
+  const char *func_name() const { return "column_exists"; }
+};

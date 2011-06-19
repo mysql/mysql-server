@@ -188,7 +188,7 @@ typedef struct st_user_var_events
 
 #define RP_LOCK_LOG_IS_ALREADY_LOCKED 1
 #define RP_FORCE_ROTATE               2
-
+#define RP_BINLOG_CHECKSUM_ALG_CHANGE 4
 /*
   The COPY_INFO structure is used by INSERT/REPLACE code.
   The schema of the row counting by the INSERT/INSERT ... ON DUPLICATE KEY
@@ -408,14 +408,6 @@ struct system_variables
   ulong optimizer_search_depth;
   /* A bitmap for switching optimizations on/off */
   ulong optimizer_switch;
-  /*
-    Controls use of Engine-MRR:
-      0 - auto, based on cost
-      1 - force MRR when the storage engine is capable of doing it
-      2 - disable MRR.
-  */
-  ulong optimizer_use_mrr; 
-
   ulong preload_buff_size;
   ulong profiling_history_size;
   ulong query_cache_type;
@@ -767,8 +759,12 @@ public:
     ENGINE INNODB STATUS.
   */
   LEX_STRING query_string;
+  /*
+    If opt_query_cache_strip_comments is set, this contains query without
+    comments. If not set, it contains pointer to query_string.
+  */
+  String base_query;
   Server_side_cursor *cursor;
-
   inline char *query() { return query_string.str; }
   inline uint32 query_length() { return (uint32)query_string.length; }
   void set_query_inner(char *query_arg, uint32 query_length_arg);
@@ -789,7 +785,8 @@ public:
   char *db;
   size_t db_length;
 
-public:
+  /* This is set to 1 of last call to send_result_to_client() was ok */
+  my_bool query_cache_is_applicable;
 
   /* This constructor is called for backup statements */
   Statement() {}
@@ -1520,7 +1517,6 @@ public:
   */
   const char *where;
 
-  double tmp_double_value;                    /* Used in set_var.cc */
   ulong client_capabilities;		/* What the client supports */
   ulong max_client_packet_length;
 
@@ -1544,7 +1540,9 @@ public:
   uint32     file_id;			// for LOAD DATA INFILE
   /* remote (peer) port */
   uint16     peer_port;
-  time_t     start_time, user_time;
+  my_time_t  start_time;             // start_time and its sec_part 
+  ulong      start_time_sec_part;    // are almost always used separately
+  my_hrtime_t user_time;
   // track down slow pthread_create
   ulonglong  prior_thr_create_utime, thr_create_utime;
   ulonglong  start_utime, utime_after_lock;
@@ -1570,6 +1568,9 @@ public:
     */
     TABLE_LIST *emb_on_expr_nest;
   } thd_marker;
+
+  bool prepare_derived_at_open;
+
 #ifndef MYSQL_CLIENT
   int binlog_setup_trx_data();
 
@@ -1979,6 +1980,7 @@ public:
   */
   bool       is_fatal_sub_stmt_error;
   bool	     query_start_used, rand_used, time_zone_used;
+  bool       query_start_sec_part_used;
   /* for IS NULL => = last_insert_id() fix in remove_eq_conds() */
   bool       substitute_null_with_insert_id;
   bool	     in_lock_tables;
@@ -2039,6 +2041,7 @@ public:
     long      long_value;
     ulong     ulong_value;
     ulonglong ulonglong_value;
+    double    double_value;
   } sys_var_tmp;
 
   struct {
@@ -2177,30 +2180,41 @@ public:
     proc_info = old_msg;
     pthread_mutex_unlock(&mysys_var->mutex);
   }
-  inline time_t query_start() { query_start_used=1; return start_time; }
+  inline my_time_t query_start() { query_start_used=1; return start_time; }
+  inline ulong query_start_sec_part()
+  { query_start_sec_part_used=1; return start_time_sec_part; }
+  inline void set_current_time()
+  {
+    my_hrtime_t hrtime= my_hrtime();
+    start_time= hrtime_to_my_time(hrtime);
+    start_time_sec_part= hrtime_sec_part(hrtime);
+  }
   inline void set_time()
   {
-    if (user_time)
+    if (user_time.val)
     {
-      start_time= user_time;
-      start_utime= utime_after_lock= my_micro_time();
+      start_time= hrtime_to_my_time(user_time);
+      start_time_sec_part= hrtime_sec_part(user_time);
     }
     else
-      start_utime= utime_after_lock= my_micro_time_and_time(&start_time);
+      set_current_time();
+    start_utime= utime_after_lock= microsecond_interval_timer();
   }
-  inline void	set_current_time()    { start_time= my_time(MY_WME); }
-  inline void	set_time(time_t t)
+  inline void	set_time(my_hrtime_t t)
   {
-    start_time= user_time= t;
-    start_utime= utime_after_lock= my_micro_time();
+    user_time= t;
+    start_time= hrtime_to_my_time(user_time);
+    start_time_sec_part= hrtime_sec_part(user_time);
+    start_utime= utime_after_lock= microsecond_interval_timer();
   }
-  /*TODO: this will be obsolete when we have support for 64 bit my_time_t */
-  inline bool	is_valid_time() 
-  { 
-    return (start_time < (time_t) MY_TIME_T_MAX); 
+  inline void	set_time(my_time_t t, ulong sec_part)
+  {
+    my_hrtime_t hrtime= { hrtime_from_time(t) + sec_part };
+    set_time(hrtime);
   }
-  void set_time_after_lock()  { utime_after_lock= my_micro_time(); }
-  ulonglong current_utime()  { return my_micro_time(); }
+  void set_time_after_lock()  { utime_after_lock= microsecond_interval_timer(); }
+  ulonglong current_utime()  { return microsecond_interval_timer(); }
+
   inline ulonglong found_rows(void)
   {
     return limit_found_rows;
@@ -2323,7 +2337,11 @@ public:
   {
     if (!stmt_arena->is_conventional())
       check_and_register_item_tree_change(place, new_value, mem_root);
-    *place= *new_value;
+    /*
+      We have to use memcpy instead of  *place= *new_value merge to
+      avoid problems with strict aliasing.
+    */
+    memcpy((char*) place, new_value, sizeof(*new_value));
   }
   void nocheck_register_item_tree_change(Item **place, Item *old_value,
                                          MEM_ROOT *runtime_memroot);
@@ -2637,6 +2655,27 @@ my_eof(THD *thd)
 
 
 /*
+  These functions are for making it later easy to add strict
+  checking for all date handling.
+*/
+
+extern my_bool strict_date_checking;
+
+inline ulong sql_mode_for_dates(THD *thd)
+{
+  if (unlikely(strict_date_checking))
+    return (thd->variables.sql_mode &
+            (MODE_NO_ZERO_DATE | MODE_NO_ZERO_IN_DATE |
+             MODE_INVALID_DATES));
+  return (thd->variables.sql_mode & MODE_INVALID_DATES);
+}
+
+inline ulong sql_mode_for_dates()
+{
+  return sql_mode_for_dates(current_thd);
+}
+
+/*
   Used to hold information about file and file structure in exchange
   via non-DB file (...INTO OUTFILE..., ...LOAD DATA...)
   XXX: We never call destructor for objects of this class.
@@ -2685,7 +2724,11 @@ public:
   virtual uint field_count(List<Item> &fields) const
   { return fields.elements; }
   virtual bool send_fields(List<Item> &list, uint flags)=0;
-  virtual bool send_data(List<Item> &items)=0;
+  /*
+    send_data returns 0 on ok, 1 on error and -1 if data was ignored, for
+    example for a duplicate row entry written to a temp table.
+  */
+  virtual int send_data(List<Item> &items)=0;
   virtual bool initialize_tables (JOIN *join=0) { return 0; }
   virtual void send_error(uint errcode,const char *err);
   virtual bool send_eof()=0;
@@ -2727,7 +2770,12 @@ public:
 class select_result_interceptor: public select_result
 {
 public:
-  select_result_interceptor() {}              /* Remove gcc warning */
+  select_result_interceptor()
+  {
+    DBUG_ENTER("select_result_interceptor::select_result_interceptor");
+    DBUG_PRINT("enter", ("this 0x%lx", (ulong) this));
+    DBUG_VOID_RETURN;
+  }              /* Remove gcc warning */
   uint field_count(List<Item> &fields) const { return 0; }
   bool send_fields(List<Item> &fields, uint flag) { return FALSE; }
 };
@@ -2743,7 +2791,7 @@ class select_send :public select_result {
 public:
   select_send() :is_result_set_started(FALSE) {}
   bool send_fields(List<Item> &list, uint flags);
-  bool send_data(List<Item> &items);
+  int send_data(List<Item> &items);
   bool send_eof();
   virtual bool check_simple_select() const { return FALSE; }
   void abort();
@@ -2814,7 +2862,7 @@ public:
   }
   ~select_export();
   int prepare(List<Item> &list, SELECT_LEX_UNIT *u);
-  bool send_data(List<Item> &items);
+  int send_data(List<Item> &items);
 };
 
 
@@ -2831,7 +2879,7 @@ public:
     nest_level= nest_level_arg;
   }
   int prepare(List<Item> &list, SELECT_LEX_UNIT *u);
-  bool send_data(List<Item> &items);
+  int send_data(List<Item> &items);
 };
 
 
@@ -2852,7 +2900,7 @@ public:
   ~select_insert();
   int prepare(List<Item> &list, SELECT_LEX_UNIT *u);
   virtual int prepare2(void);
-  bool send_data(List<Item> &items);
+  virtual int send_data(List<Item> &items);
   virtual void store_values(List<Item> &values);
   virtual bool can_rollback_data() { return 0; }
   void send_error(uint errcode,const char *err);
@@ -2970,6 +3018,8 @@ public:
   uint  convert_blob_length;
   CHARSET_INFO *table_charset;
   bool schema_table;
+  /* TRUE if the temp table is created for subquery materialization. */
+  bool materialized_subquery;
   /*
     True if GROUP BY and its aggregate functions are already computed
     by a table access method (e.g. by loose index scan). In this case
@@ -2993,8 +3043,8 @@ public:
   TMP_TABLE_PARAM()
     :copy_field(0), group_parts(0),
      group_length(0), group_null_parts(0), convert_blob_length(0),
-     schema_table(0), precomputed_group_by(0), force_copy_fields(0),
-     bit_fields_as_long(0), skip_create_table(0)
+    schema_table(0), materialized_subquery(0), precomputed_group_by(0),
+    force_copy_fields(0), bit_fields_as_long(0), skip_create_table(0)
   {}
   ~TMP_TABLE_PARAM()
   {
@@ -3013,21 +3063,25 @@ public:
 
 class select_union :public select_result_interceptor
 {
-protected:
+public:
   TMP_TABLE_PARAM tmp_table_param;
   int write_err; /* Error code from the last send_data->ha_write_row call. */
 public:
   TABLE *table;
+  ha_rows records;
 
-  select_union() :write_err(0),table(0) { tmp_table_param.init(); }
+  select_union() :write_err(0), table(0), records(0) { tmp_table_param.init(); }
   int prepare(List<Item> &list, SELECT_LEX_UNIT *u);
-  bool send_data(List<Item> &items);
+  int send_data(List<Item> &items);
   bool send_eof();
   bool flush();
   void cleanup();
   virtual bool create_result_table(THD *thd, List<Item> *column_types,
                                    bool is_distinct, ulonglong options,
-                                   const char *alias, bool bit_fields_as_long);
+                                   const char *alias, 
+                                   bool bit_fields_as_long,
+                                   bool create_table);
+  TMP_TABLE_PARAM *get_tmp_table_param() { return &tmp_table_param; }
 };
 
 /* Base subselect interface class */
@@ -3037,7 +3091,7 @@ protected:
   Item_subselect *item;
 public:
   select_subselect(Item_subselect *item);
-  bool send_data(List<Item> &items)=0;
+  int send_data(List<Item> &items)=0;
   bool send_eof() { return 0; };
 };
 
@@ -3048,7 +3102,7 @@ public:
   select_singlerow_subselect(Item_subselect *item_arg)
     :select_subselect(item_arg)
   {}
-  bool send_data(List<Item> &items);
+  int send_data(List<Item> &items);
 };
 
 
@@ -3091,12 +3145,14 @@ protected:
   void reset();
 
 public:
-  select_materialize_with_stats() {}
-  virtual bool create_result_table(THD *thd, List<Item> *column_types,
-                                   bool is_distinct, ulonglong options,
-                                   const char *alias, bool bit_fields_as_long);
+  select_materialize_with_stats() { tmp_table_param.init(); }
+  bool create_result_table(THD *thd, List<Item> *column_types,
+                           bool is_distinct, ulonglong options,
+                           const char *alias, 
+                           bool bit_fields_as_long,
+                           bool create_table);
   bool init_result_table(ulonglong select_options);
-  bool send_data(List<Item> &items);
+  int send_data(List<Item> &items);
   void cleanup();
   ha_rows get_null_count_of_col(uint idx)
   {
@@ -3128,7 +3184,7 @@ public:
     :select_subselect(item_arg), cache(0), fmax(mx)
   {}
   void cleanup();
-  bool send_data(List<Item> &items);
+  int send_data(List<Item> &items);
   bool cmp_real();
   bool cmp_int();
   bool cmp_decimal();
@@ -3141,7 +3197,7 @@ class select_exists_subselect :public select_subselect
 public:
   select_exists_subselect(Item_subselect *item_arg)
     :select_subselect(item_arg){}
-  bool send_data(List<Item> &items);
+  int send_data(List<Item> &items);
 };
 
 
@@ -3389,7 +3445,7 @@ public:
   multi_delete(TABLE_LIST *dt, uint num_of_tables);
   ~multi_delete();
   int prepare(List<Item> &list, SELECT_LEX_UNIT *u);
-  bool send_data(List<Item> &items);
+  int send_data(List<Item> &items);
   bool initialize_tables (JOIN *join);
   void send_error(uint errcode,const char *err);
   int do_deletes();
@@ -3402,7 +3458,7 @@ public:
 class multi_update :public select_result_interceptor
 {
   TABLE_LIST *all_tables; /* query/update command tables */
-  TABLE_LIST *leaves;     /* list of leves of join table tree */
+  List<TABLE_LIST> *leaves;     /* list of leves of join table tree */
   TABLE_LIST *update_tables, *table_being_updated;
   TABLE **tmp_tables, *main_table, *table_to_update;
   TMP_TABLE_PARAM *tmp_table_param;
@@ -3428,12 +3484,12 @@ class multi_update :public select_result_interceptor
   bool error_handled;
 
 public:
-  multi_update(TABLE_LIST *ut, TABLE_LIST *leaves_list,
+  multi_update(TABLE_LIST *ut, List<TABLE_LIST> *leaves_list,
 	       List<Item> *fields, List<Item> *values,
 	       enum_duplicates handle_duplicates, bool ignore);
   ~multi_update();
   int prepare(List<Item> &list, SELECT_LEX_UNIT *u);
-  bool send_data(List<Item> &items);
+  int send_data(List<Item> &items);
   bool initialize_tables (JOIN *join);
   void send_error(uint errcode,const char *err);
   int  do_updates();
@@ -3477,7 +3533,7 @@ public:
   }
   ~select_dumpvar() {}
   int prepare(List<Item> &list, SELECT_LEX_UNIT *u);
-  bool send_data(List<Item> &items);
+  int send_data(List<Item> &items);
   bool send_eof();
   virtual bool check_simple_select() const;
   void cleanup();

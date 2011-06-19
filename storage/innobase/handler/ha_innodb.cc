@@ -130,6 +130,25 @@ static my_bool	innobase_adaptive_hash_index	= TRUE;
 
 static char*	internal_innobase_data_file_path	= NULL;
 
+/* Possible values for system variable "innodb_stats_method". The values
+are defined the same as its corresponding MyISAM system variable
+"myisam_stats_method"(see "myisam_stats_method_names"), for better usability */
+static const char* innodb_stats_method_names[] = {
+	"nulls_equal",
+	"nulls_unequal",
+	"nulls_ignored",
+	NullS
+};
+
+/* Used to define an enumerate type of the system variable innodb_stats_method.
+This is the same as "myisam_stats_method_typelib" */
+static TYPELIB innodb_stats_method_typelib = {
+	array_elements(innodb_stats_method_names) - 1,
+	"innodb_stats_method_typelib",
+	innodb_stats_method_names,
+	NULL
+};
+
 /* The following counter is used to convey information to InnoDB
 about server activity: in selects it is not sensible to call
 srv_active_wake_master_thread after each fetch or search, we only do
@@ -3184,90 +3203,64 @@ get_innobase_type_from_mysql_type(
 	8 bits: this is used in ibuf and also when DATA_NOT_NULL is ORed to
 	the type */
 
-	DBUG_ASSERT((ulint)MYSQL_TYPE_STRING < 256);
-	DBUG_ASSERT((ulint)MYSQL_TYPE_VAR_STRING < 256);
-	DBUG_ASSERT((ulint)MYSQL_TYPE_DOUBLE < 256);
-	DBUG_ASSERT((ulint)MYSQL_TYPE_FLOAT < 256);
-	DBUG_ASSERT((ulint)MYSQL_TYPE_DECIMAL < 256);
+	compile_time_assert((ulint)MYSQL_TYPE_STRING < 256);
+	compile_time_assert((ulint)MYSQL_TYPE_VAR_STRING < 256);
+	compile_time_assert((ulint)MYSQL_TYPE_DOUBLE < 256);
+	compile_time_assert((ulint)MYSQL_TYPE_FLOAT < 256);
+	compile_time_assert((ulint)MYSQL_TYPE_DECIMAL < 256);
 
-	if (field->flags & UNSIGNED_FLAG) {
+	*unsigned_flag = 0;
 
+	switch (field->key_type()) {
+	case HA_KEYTYPE_USHORT_INT:
+	case HA_KEYTYPE_ULONG_INT:
+	case HA_KEYTYPE_UINT24:
+	case HA_KEYTYPE_ULONGLONG:
 		*unsigned_flag = DATA_UNSIGNED;
-	} else {
-		*unsigned_flag = 0;
-	}
-
-	if (field->real_type() == MYSQL_TYPE_ENUM
-		|| field->real_type() == MYSQL_TYPE_SET) {
-
-		/* MySQL has field->type() a string type for these, but the
-		data is actually internally stored as an unsigned integer
-		code! */
-
-		*unsigned_flag = DATA_UNSIGNED; /* MySQL has its own unsigned
-						flag set to zero, even though
-						internally this is an unsigned
-						integer type */
+		/* fall through */
+	case HA_KEYTYPE_SHORT_INT:
+	case HA_KEYTYPE_LONG_INT:
+	case HA_KEYTYPE_INT24:
+	case HA_KEYTYPE_INT8:
+	case HA_KEYTYPE_LONGLONG:
 		return(DATA_INT);
-	}
-
-	switch (field->type()) {
-		/* NOTE that we only allow string types in DATA_MYSQL and
-		DATA_VARMYSQL */
-	case MYSQL_TYPE_VAR_STRING: /* old <= 4.1 VARCHAR */
-	case MYSQL_TYPE_VARCHAR:    /* new >= 5.0.3 true VARCHAR */
-		if (field->binary()) {
-			return(DATA_BINARY);
-		} else if (strcmp(
-				   field->charset()->name,
-				   "latin1_swedish_ci") == 0) {
+	case HA_KEYTYPE_FLOAT:
+		return(DATA_FLOAT);
+	case HA_KEYTYPE_DOUBLE:
+		return(DATA_DOUBLE);
+	case HA_KEYTYPE_BINARY:
+                if (field->type() == MYSQL_TYPE_TINY)
+                { // compatibility workaround
+                	*unsigned_flag= DATA_UNSIGNED ;
+                	return DATA_INT;
+                }
+		return(DATA_FIXBINARY);
+	case HA_KEYTYPE_VARBINARY2:
+		if (field->type() != MYSQL_TYPE_VARCHAR)
+			return(DATA_BLOB);
+		/* fall through */
+	case HA_KEYTYPE_VARBINARY1:
+		return(DATA_BINARY);
+	case HA_KEYTYPE_VARTEXT2:
+		if (field->type() != MYSQL_TYPE_VARCHAR)
+			return(DATA_BLOB);
+		/* fall through */
+	case HA_KEYTYPE_VARTEXT1:
+		if (field->charset() == &my_charset_latin1) {
 			return(DATA_VARCHAR);
 		} else {
 			return(DATA_VARMYSQL);
 		}
-	case MYSQL_TYPE_BIT:
-	case MYSQL_TYPE_STRING: if (field->binary()) {
-
-			return(DATA_FIXBINARY);
-		} else if (strcmp(
-				   field->charset()->name,
-				   "latin1_swedish_ci") == 0) {
+	case HA_KEYTYPE_TEXT:
+		if (field->charset() == &my_charset_latin1) {
 			return(DATA_CHAR);
 		} else {
 			return(DATA_MYSQL);
 		}
-	case MYSQL_TYPE_NEWDECIMAL:
-		return(DATA_FIXBINARY);
-	case MYSQL_TYPE_LONG:
-	case MYSQL_TYPE_LONGLONG:
-	case MYSQL_TYPE_TINY:
-	case MYSQL_TYPE_SHORT:
-	case MYSQL_TYPE_INT24:
-	case MYSQL_TYPE_DATE:
-	case MYSQL_TYPE_DATETIME:
-	case MYSQL_TYPE_YEAR:
-	case MYSQL_TYPE_NEWDATE:
-	case MYSQL_TYPE_TIME:
-	case MYSQL_TYPE_TIMESTAMP:
-		return(DATA_INT);
-	case MYSQL_TYPE_FLOAT:
-		return(DATA_FLOAT);
-	case MYSQL_TYPE_DOUBLE:
-		return(DATA_DOUBLE);
-	case MYSQL_TYPE_DECIMAL:
+	case HA_KEYTYPE_NUM:
 		return(DATA_DECIMAL);
-	case MYSQL_TYPE_GEOMETRY:
-	case MYSQL_TYPE_TINY_BLOB:
-	case MYSQL_TYPE_MEDIUM_BLOB:
-	case MYSQL_TYPE_BLOB:
-	case MYSQL_TYPE_LONG_BLOB:
-		return(DATA_BLOB);
-	case MYSQL_TYPE_NULL:
-		/* MySQL currently accepts "NULL" datatype, but will
-		reject such datatype in the next release. We will cope
-		with it and not trigger assertion failure in 5.1 */
-		break;
-	default:
+	case HA_KEYTYPE_BIT:
+	case HA_KEYTYPE_END:
 		assert(0);
 	}
 
@@ -6363,6 +6356,65 @@ ha_innobase::read_time(
 }
 
 /*************************************************************************
+Calculate Record Per Key value. Need to exclude the NULL value if
+innodb_stats_method is set to "nulls_ignored" */
+static
+ha_rows
+innodb_rec_per_key(
+/*===============*/
+					/* out: estimated record per key
+					value */
+	dict_index_t*	index,		/* in: dict_index_t structure */
+	ulint		i,		/* in: the column we are
+					calculating rec per key */
+	ha_rows		records)	/* in: estimated total records */
+{
+	ha_rows		rec_per_key;
+
+	ut_ad(i < dict_index_get_n_unique(index));
+
+	/* Note the stat_n_diff_key_vals[] stores the diff value with
+	n-prefix indexing, so it is always stat_n_diff_key_vals[i + 1] */
+	if (index->stat_n_diff_key_vals[i + 1] == 0) {
+
+		rec_per_key = records;
+	} else if (srv_innodb_stats_method == SRV_STATS_NULLS_IGNORED) {
+		ib_longlong	num_null;
+
+		/* Number of rows with NULL value in this
+		field */
+		num_null = records - index->stat_n_non_null_key_vals[i];
+
+		/* In theory, index->stat_n_non_null_key_vals[i]
+		should always be less than the number of records.
+		Since this is statistics value, the value could
+		have slight discrepancy. But we will make sure
+		the number of null values is not a negative number. */
+		num_null = (num_null < 0) ? 0 : num_null;
+
+		/* If the number of NULL values is the same as or
+		large than that of the distinct values, we could
+		consider that the table consists mostly of NULL value.
+		Set rec_per_key to 1. */
+		if (index->stat_n_diff_key_vals[i + 1] <= num_null) {
+			rec_per_key = 1;
+		} else {
+			/* Need to exclude rows with NULL values from
+			rec_per_key calculation */
+			rec_per_key = (ha_rows)(
+				(records - num_null)
+				/ (index->stat_n_diff_key_vals[i + 1]
+				   - num_null));
+		}
+	} else {
+		rec_per_key = (ha_rows)
+			 (records / index->stat_n_diff_key_vals[i + 1]);
+	}
+
+	return(rec_per_key);
+}
+
+/*************************************************************************
 Returns statistics information of the table to the MySQL interpreter,
 in various fields of the handle object. */
 
@@ -6569,13 +6621,8 @@ ha_innobase::info_low(
 					break;
 				}
 
-				if (index->stat_n_diff_key_vals[j + 1] == 0) {
-
-					rec_per_key = stats.records;
-				} else {
-					rec_per_key = (ha_rows)(stats.records /
-					 index->stat_n_diff_key_vals[j + 1]);
-				}
+				rec_per_key = innodb_rec_per_key(
+					index, j, stats.records);
 
 				/* Since MySQL seems to favor table scans
 				too much over index searches, we pretend
@@ -8991,6 +9038,13 @@ static MYSQL_SYSVAR_LONG(autoinc_lock_mode, innobase_autoinc_lock_mode,
   AUTOINC_OLD_STYLE_LOCKING,	/* Minimum value */
   AUTOINC_NO_LOCKING, 0);	/* Maximum value */
 
+static MYSQL_SYSVAR_ENUM(stats_method, srv_innodb_stats_method,
+   PLUGIN_VAR_RQCMDARG,
+  "Specifies how InnoDB index statistics collection code should "
+  "treat NULLs. Possible values are NULLS_EQUAL (default), "
+  "NULLS_UNEQUAL and NULLS_IGNORED",
+   NULL, NULL, SRV_STATS_NULLS_EQUAL, &innodb_stats_method_typelib);
+
 #if defined UNIV_DEBUG || defined UNIV_IBUF_DEBUG
 static MYSQL_SYSVAR_UINT(change_buffering_debug, ibuf_debug,
   PLUGIN_VAR_RQCMDARG,
@@ -9032,6 +9086,7 @@ static struct st_mysql_sys_var* innobase_system_variables[]= {
   MYSQL_SYSVAR(stats_on_metadata),
   MYSQL_SYSVAR(use_legacy_cardinality_algorithm),
   MYSQL_SYSVAR(adaptive_hash_index),
+  MYSQL_SYSVAR(stats_method),
   MYSQL_SYSVAR(status_file),
   MYSQL_SYSVAR(support_xa),
   MYSQL_SYSVAR(sync_spin_loops),

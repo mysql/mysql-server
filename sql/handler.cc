@@ -345,6 +345,7 @@ int ha_init_errors(void)
   SETMSG(HA_ERR_AUTOINC_READ_FAILED,    ER(ER_AUTOINC_READ_FAILED));
   SETMSG(HA_ERR_AUTOINC_ERANGE,         ER(ER_WARN_DATA_OUT_OF_RANGE));
   SETMSG(HA_ERR_TOO_MANY_CONCURRENT_TRXS, ER(ER_TOO_MANY_CONCURRENT_TRXS));
+  SETMSG(HA_ERR_DISK_FULL,              ER(ER_DISK_FULL));
 
   /* Register the error messages for use with my_error(). */
   return my_error_register(errmsgs, HA_ERR_FIRST, HA_ERR_LAST);
@@ -1311,7 +1312,7 @@ commit_one_phase_2(THD *thd, bool all, THD_TRANS *trans, bool is_real_trans)
     {
 #ifdef HAVE_QUERY_CACHE
       if (thd->transaction.changed_tables)
-        query_cache.invalidate(thd->transaction.changed_tables);
+        query_cache.invalidate(thd, thd->transaction.changed_tables);
 #endif
       thd->variables.tx_isolation=thd->session_tx_isolation;
     }
@@ -2099,11 +2100,10 @@ int ha_delete_table(THD *thd, handlerton *table_type, const char *path,
 /****************************************************************************
 ** General handler functions
 ****************************************************************************/
-handler *handler::clone(MEM_ROOT *mem_root)
+handler *handler::clone(const char *name, MEM_ROOT *mem_root)
 {
-  handler *new_handler= get_new_handler(table->s, mem_root, table->s->db_type());
-
-  if (!new_handler)
+  handler *new_handler= get_new_handler(table->s, mem_root, ht);
+  if (! new_handler)
     return NULL;
 
   /*
@@ -2111,16 +2111,26 @@ handler *handler::clone(MEM_ROOT *mem_root)
     on this->table->mem_root and we will not be able to reclaim that memory 
     when the clone handler object is destroyed.
   */
-  if (!(new_handler->ref= (uchar*) alloc_root(mem_root, ALIGN_SIZE(ref_length)*2)))
+
+  if (!(new_handler->ref= (uchar*) alloc_root(mem_root,
+                                              ALIGN_SIZE(ref_length)*2)))
     return NULL;
-  if (new_handler->ha_open(table,
-                           table->s->normalized_path.str,
-                           table->db_stat,
+
+  /*
+    TODO: Implement a more efficient way to have more than one index open for
+    the same table instance. The ha_open call is not cachable for clone.
+
+    This is not critical as the engines already have the table open
+    and should be able to use the original instance of the table.
+  */
+  if (new_handler->ha_open(table, name, table->db_stat,
                            HA_OPEN_IGNORE_IF_LOCKED))
     return NULL;
+
   new_handler->cloned= 1;                      // Marker for debugging
   return new_handler;
 }
+
 
 double handler::keyread_time(uint index, uint ranges, ha_rows rows)
 {
@@ -2599,8 +2609,9 @@ int handler::update_auto_increment()
 void handler::column_bitmaps_signal()
 {
   DBUG_ENTER("column_bitmaps_signal");
-  DBUG_PRINT("info", ("read_set: 0x%lx  write_set: 0x%lx", (long) table->read_set,
-                      (long) table->write_set));
+  if (table)
+    DBUG_PRINT("info", ("read_set: 0x%lx  write_set: 0x%lx",
+                        (long) table->read_set, (long) table->write_set));
   DBUG_VOID_RETURN;
 }
 
@@ -2677,6 +2688,7 @@ void handler::get_auto_increment(ulonglong offset, ulonglong increment,
 
 void handler::ha_release_auto_increment()
 {
+  DBUG_ENTER("ha_release_auto_increment");
   release_auto_increment();
   insert_id_for_cur_row= 0;
   auto_inc_interval_for_cur_row.replace(0, 0, 0);
@@ -2690,6 +2702,7 @@ void handler::ha_release_auto_increment()
     */
     table->in_use->auto_inc_intervals_forced.empty();
   }
+  DBUG_VOID_RETURN;
 }
 
 
@@ -2749,6 +2762,11 @@ void handler::print_error(int error, myf errflag)
     break;
   case ENOENT:
     textno=ER_FILE_NOT_FOUND;
+    break;
+  case ENOSPC:
+  case HA_ERR_DISK_FULL:
+    textno= ER_DISK_FULL;
+    SET_FATAL_ERROR;                            // Ensure error is logged
     break;
   case HA_ERR_KEY_NOT_FOUND:
   case HA_ERR_NO_ACTIVE_RECORD:

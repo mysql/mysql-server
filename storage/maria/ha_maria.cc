@@ -29,7 +29,6 @@
 #include "ha_maria.h"
 #include "trnman_public.h"
 #include "trnman.h"
-#include "compat_aliases.h"
 
 C_MODE_START
 #include "maria_def.h"
@@ -213,7 +212,8 @@ static MYSQL_SYSVAR_ULONGLONG(max_sort_file_size,
        maria_max_temp_length, PLUGIN_VAR_RQCMDARG,
        "Don't use the fast sort index method to created index if the "
        "temporary file would get bigger than this.",
-       0, 0, MAX_FILE_SIZE & ~(1*MB-1), 0, MAX_FILE_SIZE, 1*MB);
+       0, 0, MAX_FILE_SIZE & ~((ulonglong) (1*MB-1)),
+       0, MAX_FILE_SIZE, 1*MB);
 
 static MYSQL_SYSVAR_ULONG(pagecache_age_threshold,
        pagecache_age_threshold, PLUGIN_VAR_RQCMDARG,
@@ -500,6 +500,8 @@ static int table2maria(TABLE *table_arg, data_file_type row_type,
 
     if (found->flags & BLOB_FLAG)
       recinfo_pos->type= FIELD_BLOB;
+    else if (found->type() == MYSQL_TYPE_TIMESTAMP)
+      recinfo_pos->type= FIELD_NORMAL;
     else if (found->type() == MYSQL_TYPE_VARCHAR)
       recinfo_pos->type= FIELD_VARCHAR;
     else if (!(options & HA_OPTION_PACK_RECORD) ||
@@ -832,9 +834,10 @@ can_enable_indexes(1), bulk_insert_single_undo(BULK_INSERT_NONE)
 {}
 
 
-handler *ha_maria::clone(MEM_ROOT *mem_root)
+handler *ha_maria::clone(const char *name, MEM_ROOT *mem_root)
 {
-  ha_maria *new_handler= static_cast <ha_maria *>(handler::clone(mem_root));
+  ha_maria *new_handler= static_cast <ha_maria *>(handler::clone(name,
+                                                                 mem_root));
   if (new_handler)
   {
     new_handler->file->state= file->state;
@@ -2354,7 +2357,7 @@ void ha_maria::position(const uchar *record)
 
 int ha_maria::info(uint flag)
 {
-  return info(flag, table->s->tmp_table == NO_TMP_TABLE);
+  return (!table ? 1 : info(flag, table->s->tmp_table == NO_TMP_TABLE));
 }
 
 int ha_maria::info(uint flag, my_bool lock_table_share)
@@ -3366,7 +3369,6 @@ bool ha_maria::is_changed() const
 static int ha_maria_init(void *p)
 {
   int res;
-  copy_variable_aliases();
   const char *log_dir= maria_data_root;
   maria_hton= (handlerton *)p;
   maria_hton->state= SHOW_OPTION_YES;
@@ -3714,7 +3716,6 @@ struct st_mysql_storage_engine maria_storage_engine=
 { MYSQL_HANDLERTON_INTERFACE_VERSION };
 
 maria_declare_plugin(aria)
-compat_aliases,
 {
   MYSQL_STORAGE_ENGINE_PLUGIN,
   &maria_storage_engine,

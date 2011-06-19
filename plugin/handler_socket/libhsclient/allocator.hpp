@@ -33,5 +33,32 @@ typedef std::allocator<int> allocator_type;
 typedef std::allocator<int> allocator_type;
 #endif
 
+#if 1
+#define DENA_ALLOCA_ALLOCATE(typ, len) \
+	static_cast<typ *>(alloca((len) * sizeof(typ)))
+#define DENA_ALLOCA_FREE(x)
+#else
+#define DENA_ALLOCA_ALLOCATE(typ, len) \
+	static_cast<typ *>(malloc((len) * sizeof(typ)))
+#define DENA_ALLOCA_FREE(x) free(x)
+#endif
+
+namespace dena {
+
+template <typename T> struct auto_alloca_free {
+  auto_alloca_free(T *value) : value(value) { }
+  ~auto_alloca_free() {
+    /* no-op if alloca() is used */
+    DENA_ALLOCA_FREE(value);
+  }
+ private:
+  auto_alloca_free(const auto_alloca_free&);
+  auto_alloca_free& operator =(const auto_alloca_free&);
+ private:
+  T *value;
+};
+
+};
+
 #endif
 

@@ -1,4 +1,5 @@
-/* Copyright (c) 2000, 2010, Oracle and/or its affiliates.
+/* Copyright (c) 2000, 2011, Oracle and/or its affiliates.
+   Copyright (c) 2009-2011 Monty Program Ab
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -190,6 +191,7 @@ public:
                 Item_transformer transformer, uchar *arg_t);
   void traverse_cond(Cond_traverser traverser,
                      void * arg, traverse_order order);
+  bool eval_not_null_tables(uchar *opt_arg);
  // bool is_expensive_processor(uchar *arg);
  // virtual bool is_expensive() { return 0; }
   inline double fix_result(double value)
@@ -251,6 +253,21 @@ public:
   }
 
   /*
+    By default only substitution for a field whose two different values
+    are never equal is allowed in the arguments of a function.
+    This is overruled for the direct arguments of comparison functions.
+  */ 
+  bool subst_argument_checker(uchar **arg) 
+  { 
+    if (*arg)
+    {
+      *arg= (uchar *) Item::IDENTITY_SUBST;
+      return TRUE;
+    }
+    return FALSE;
+  }
+
+  /*
     We assume the result of any function that has a TIMESTAMP argument to be
     timezone-dependent, since a TIMESTAMP value in both numeric and string
     contexts is interpreted according to the current timezone.
@@ -307,6 +324,8 @@ class Item_func_numhybrid: public Item_func
 protected:
   Item_result hybrid_type;
 public:
+  Item_func_numhybrid() :Item_func(), hybrid_type(REAL_RESULT)
+  {}
   Item_func_numhybrid(Item *a) :Item_func(a), hybrid_type(REAL_RESULT)
   {}
   Item_func_numhybrid(Item *a,Item *b)
@@ -460,7 +479,7 @@ class Item_decimal_typecast :public Item_func
 public:
   Item_decimal_typecast(Item *a, int len, int dec) :Item_func(a)
   {
-    decimals= dec;
+    decimals= (uint8) dec;
     max_length= my_decimal_precision_to_length_no_truncation(len, dec,
                                                              unsigned_flag);
   }
@@ -470,10 +489,27 @@ public:
   my_decimal *val_decimal(my_decimal*);
   enum Item_result result_type () const { return DECIMAL_RESULT; }
   enum_field_types field_type() const { return MYSQL_TYPE_NEWDECIMAL; }
-  void fix_length_and_dec() {};
+  void fix_length_and_dec() {}
   const char *func_name() const { return "decimal_typecast"; }
   virtual void print(String *str, enum_query_type query_type);
 };
+
+
+class Item_double_typecast :public Item_real_func
+{
+public:
+  Item_double_typecast(Item *a, int len, int dec) :Item_real_func(a)
+  {
+    decimals=   (uint8)  dec;
+    max_length= (uint32) len;
+  }
+  double val_real();
+  enum_field_types field_type() const { return MYSQL_TYPE_DOUBLE; }
+  void fix_length_and_dec() { maybe_null= 1; }
+  const char *func_name() const { return "double_typecast"; }
+  virtual void print(String *str, enum_query_type query_type);
+};
+
 
 
 class Item_func_additive_op :public Item_num_op
@@ -835,25 +871,21 @@ class Item_func_min_max :public Item_func
   Item_result cmp_type;
   String tmp_value;
   int cmp_sign;
-  /* TRUE <=> arguments should be compared in the DATETIME context. */
-  bool compare_as_dates;
   /* An item used for issuing warnings while string to DATETIME conversion. */
-  Item *datetime_item;
+  Item *compare_as_dates;
   THD *thd;
 protected:
   enum_field_types cached_field_type;
 public:
   Item_func_min_max(List<Item> &list,int cmp_sign_arg) :Item_func(list),
-    cmp_type(INT_RESULT), cmp_sign(cmp_sign_arg), compare_as_dates(FALSE),
-    datetime_item(0) {}
+    cmp_type(INT_RESULT), cmp_sign(cmp_sign_arg), compare_as_dates(FALSE) {}
   double val_real();
   longlong val_int();
   String *val_str(String *);
   my_decimal *val_decimal(my_decimal *);
+  bool get_date(MYSQL_TIME *res, uint fuzzy_date);
   void fix_length_and_dec();
   enum Item_result result_type () const { return cmp_type; }
-  bool result_as_longlong() { return compare_as_dates; };
-  uint cmp_datetimes(ulonglong *value);
   enum_field_types field_type() const { return cached_field_type; }
 };
 
@@ -1682,14 +1714,7 @@ public:
   void fix_length_and_dec() { decimals=0; max_length=1; maybe_null=1;}
   bool check_vcol_func_processor(uchar *int_arg) 
   {
-#if 0
-    DBUG_ENTER("Item_func_is_free_lock::check_vcol_func_processor");
-    DBUG_PRINT("info",
-      ("check_vcol_func_processor returns TRUE: unsupported function"));
-    DBUG_RETURN(TRUE);
-#else
     return trace_unsupported_by_check_vcol_func_processor(func_name());
-#endif
   }
 };
 
@@ -1713,7 +1738,7 @@ enum Cast_target
 {
   ITEM_CAST_BINARY, ITEM_CAST_SIGNED_INT, ITEM_CAST_UNSIGNED_INT,
   ITEM_CAST_DATE, ITEM_CAST_TIME, ITEM_CAST_DATETIME, ITEM_CAST_CHAR,
-  ITEM_CAST_DECIMAL
+  ITEM_CAST_DECIMAL, ITEM_CAST_DOUBLE
 };
 
 
@@ -1877,4 +1902,3 @@ public:
     return trace_unsupported_by_check_vcol_func_processor(func_name());
   }
 };
-

@@ -1,4 +1,5 @@
-/* Copyright (C) 2000 MySQL AB
+/* Copyright (c) 2000, 2011, Oracle and/or its affiliates.
+   Copyright (c) 2011 Monty Program Ab
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -105,6 +106,13 @@ static void my_xml_norm_text(MY_XML_ATTR *a)
 }
 
 
+static inline my_bool
+my_xml_parser_prefix_cmp(MY_XML_PARSER *p, const char *s, size_t slen)
+{
+  return (p->cur + slen > p->end) || memcmp(p->cur, s, slen);
+}
+
+
 static int my_xml_scan(MY_XML_PARSER *p,MY_XML_ATTR *a)
 {
   int lex;
@@ -122,16 +130,20 @@ static int my_xml_scan(MY_XML_PARSER *p,MY_XML_ATTR *a)
   a->beg=p->cur;
   a->end=p->cur;
   
-  if ((p->end - p->cur > 3) && !bcmp((uchar*) p->cur, (uchar*) "<!--",4))
+  if (!my_xml_parser_prefix_cmp(p, C_STRING_WITH_LEN("<!--")))
   {
-    for (; (p->cur < p->end) && bcmp((uchar*) p->cur, (uchar*) "-->", 3); p->cur++)
-    {}
-    if (!bcmp((uchar*) p->cur, (uchar*) "-->", 3))
-      p->cur+=3;
+    for (; p->cur < p->end; p->cur++)
+    {
+      if (!my_xml_parser_prefix_cmp(p, C_STRING_WITH_LEN("-->")))
+      {
+        p->cur+= 3;
+        break;
+      }
+    }
     a->end=p->cur;
     lex=MY_XML_COMMENT;
   }
-  else if (!bcmp((uchar*) p->cur, (uchar*) "<![CDATA[",9))
+  else if (!my_xml_parser_prefix_cmp(p, C_STRING_WITH_LEN("<![CDATA[")))
   {
     p->cur+= 9;
     for (; p->cur < p->end - 2 ; p->cur++)
@@ -153,11 +165,16 @@ static int my_xml_scan(MY_XML_PARSER *p,MY_XML_ATTR *a)
   }
   else if ( (p->cur[0] == '"') || (p->cur[0] == '\'') )
   {
+    /*
+      "string" or 'string' found.
+      Scan until the closing quote/doublequote, or until the END-OF-INPUT.
+    */
     p->cur++;
     for (; ( p->cur < p->end ) && (p->cur[0] != a->beg[0]); p->cur++)
     {}
     a->end=p->cur;
-    if (a->beg[0] == p->cur[0])p->cur++;
+    if (p->cur < p->end) /* Closing quote or doublequote has been found */
+      p->cur++;
     a->beg++;
     if (!(p->flags & MY_XML_FLAG_SKIP_TEXT_NORMALIZATION))
       my_xml_norm_text(a);

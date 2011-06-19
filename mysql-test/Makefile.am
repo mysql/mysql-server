@@ -1,4 +1,5 @@
-# Copyright (C) 2000-2006 MySQL AB
+# Copyright (c) 2000, 2010, Oracle and/or its affiliates.
+# Copyright (c) 2009-2011, Monty Program Ab
 #
 # This program is free software; you can redistribute it and/or
 # modify it under the terms of the GNU Library General Public
@@ -10,10 +11,9 @@
 # MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
 # Library General Public License for more details.
 #
-# You should have received a copy of the GNU Library General Public
-# License along with this library; if not, write to the Free
-# Software Foundation, Inc., 59 Temple Place - Suite 330, Boston,
-# MA 02111-1307, USA
+# You should have received a copy of the GNU General Public License
+# along with this program; if not, write to the Free Software
+# Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 
 ## Process this file with automake to create Makefile.in
 
@@ -84,7 +84,6 @@ TEST_DIRS = t r include std_data std_data/parts collections \
 	std_data/funcs_1 \
 	extra/binlog_tests/ extra/rpl_tests \
 	suite/binlog suite/binlog/t suite/binlog/r suite/binlog/std_data \
-	suite/bugs suite/bugs/data suite/bugs/t suite/bugs/r \
 	suite/federated \
 	suite/pbxt/t suite/pbxt/r suite/pbxt \
 	suite/vcol suite/vcol/t suite/vcol/r suite/vcol/inc \

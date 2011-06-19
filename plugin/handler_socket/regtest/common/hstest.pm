@@ -21,6 +21,7 @@ sub init_conf {
   $conf{user} = get_conf_env("MYSQLUSER", "root");
   $conf{pass} = get_conf_env("MYSQLPASS", "");
   $conf{hsport} = get_conf_env("HSPORT", 9998);
+  $conf{hspass} = get_conf_env("HSPASS", undef);
 }
 
 sub get_dbi_connection {
@@ -52,6 +53,9 @@ sub get_hs_connection {
   $port ||= $conf{hsport};
   my $hsargs = { 'host' => $host, 'port' => $port };
   my $conn = new Net::HandlerSocket($hsargs);
+  if (defined($conn) && defined($conf{hspass})) {
+    $conn->auth($conf{hspass});
+  }
   return $conn;
 }
 

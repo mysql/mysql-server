@@ -106,8 +106,18 @@ read_ui32(char *& start, char *finish)
 void
 write_ui32(string_buffer& buf, uint32_t v)
 {
-  char *wp = buf.make_space(32);
-  int len = snprintf(wp, 32, "%u", v);
+  char *wp = buf.make_space(12);
+  int len = snprintf(wp, 12, "%u", v);
+  if (len > 0) {
+    buf.space_wrote(len);
+  }
+}
+
+void
+write_ui64(string_buffer& buf, uint64_t v)
+{
+  char *wp = buf.make_space(22);
+  int len = snprintf(wp, 22, "%llu", static_cast<unsigned long long>(v));
   if (len > 0) {
     buf.space_wrote(len);
   }

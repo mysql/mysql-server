@@ -25,8 +25,8 @@ Warnings:
 Warning	1265	Data truncated for column 'a' at row 1
 Warning	1265	Data truncated for column 'c' at row 1
 Warning	1265	Data truncated for column 'd' at row 1
-Warning	1265	Data truncated for column 'a' at row 2
-Warning	1265	Data truncated for column 'b' at row 2
+Warning	1264	Out of range value for column 'a' at row 2
+Warning	1264	Out of range value for column 'b' at row 2
 Warning	1265	Data truncated for column 'd' at row 2
 load data infile '../../std_data/loaddata1.dat' into table t1 fields terminated by ',' IGNORE 2 LINES;
 select * from rewrite.t1;
@@ -40,7 +40,7 @@ load data infile '../../std_data/loaddata1.dat' into table t1 fields terminated 
 Warnings:
 Warning	1265	Data truncated for column 'c' at row 1
 Warning	1265	Data truncated for column 'd' at row 1
-Warning	1265	Data truncated for column 'b' at row 2
+Warning	1264	Out of range value for column 'b' at row 2
 Warning	1265	Data truncated for column 'd' at row 2
 select * from rewrite.t1;
 a	b	c	d

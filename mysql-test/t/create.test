@@ -1534,5 +1534,30 @@ drop table t1,t2,t3;
 --echo
 --echo # -- End of Bug#45829
 
+#
+--echo # new table creation/renaming blocked if old encoded table present
+#
+let $MYSQLD_DATADIR= `select @@datadir`;
+create table `t-1` (a int) engine=myisam;
+insert into `t-1` values (1);
+show tables;
+flush tables;
+--echo convert table files in mysql 5.0 file name encoding
+--copy_file $MYSQLD_DATADIR/test/t@002d1.MYD $MYSQLD_DATADIR/test/t-1.MYD
+--copy_file $MYSQLD_DATADIR/test/t@002d1.MYI $MYSQLD_DATADIR/test/t-1.MYI
+--copy_file $MYSQLD_DATADIR/test/t@002d1.frm $MYSQLD_DATADIR/test/t-1.frm
+--remove_file $MYSQLD_DATADIR/test/t@002d1.MYD
+--remove_file $MYSQLD_DATADIR/test/t@002d1.MYI
+--remove_file $MYSQLD_DATADIR/test/t@002d1.frm
+show tables;
+--error ER_TABLE_EXISTS_ERROR
+create table `t-1` (a int);
+create table t1 (a int);
+--error ER_TABLE_EXISTS_ERROR
+alter table t1 rename `t-1`;
+--error ER_TABLE_EXISTS_ERROR
+rename table t1 to `t-1`;
+drop table `#mysql50#t-1`, t1;
+
 --echo
 --echo End of 5.1 tests

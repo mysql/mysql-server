@@ -1,0 +1,12 @@
+
+let type=time;
+--source include/type_hrtime.inc
+
+create table t1 (a time(4) not null, key(a));
+insert into t1 values ('1:2:3.001'),('1:2:3'), ('-00:00:00.6'),('-00:00:00.7'),('-00:00:00.8'),('-00:00:00.9'),('-00:00:01.0'),('-00:00:01.1'),('-00:00:01.000000'),('-00:00:01.100001'),('-00:00:01.000002'),('-00:00:01.090000');
+select * from t1 order by a;
+select * from t1 order by a desc;
+select min(a - interval 1 hour), max(a - interval 1 hour) from t1 where a < 0;
+drop table t1;
+
+select cast(1e-6 as time(6));

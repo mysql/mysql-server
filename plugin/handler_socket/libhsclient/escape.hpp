@@ -25,6 +25,7 @@ bool unescape_string(string_buffer& ar, const char *start, const char *finish);
 
 uint32_t read_ui32(char *& start, char *finish);
 void write_ui32(string_buffer& buf, uint32_t v);
+void write_ui64(string_buffer& buf, uint64_t v);
 
 inline bool
 is_null_expression(const char *start, const char *finish)

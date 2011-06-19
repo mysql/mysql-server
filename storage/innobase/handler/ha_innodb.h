@@ -98,10 +98,14 @@ class ha_innobase: public handler
 	Table_flags table_flags() const;
 	ulong index_flags(uint idx, uint part, bool all_parts) const
 	{
+          ulong extra_flag= 0;
+          if (table && idx == table->s->primary_key)
+             extra_flag= HA_CLUSTERED_INDEX;
 	  return (HA_READ_NEXT |
 		  HA_READ_PREV |
 		  HA_READ_ORDER |
 		  HA_READ_RANGE |
+                  extra_flag |
 		  HA_KEYREAD_ONLY);
 	}
 	uint max_supported_keys()	   const { return MAX_KEY; }

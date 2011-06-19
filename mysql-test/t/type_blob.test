@@ -535,10 +535,10 @@ DROP TABLE b15776;
 CREATE TABLE b15776 (a year(-2));
 
 ## For timestamp, we silently rewrite widths to 14 or 19.
+--error ER_TOO_BIG_PRECISION
 CREATE TABLE b15776 (a timestamp(4294967294));
-DROP TABLE b15776;
+--error ER_TOO_BIG_PRECISION
 CREATE TABLE b15776 (a timestamp(4294967295));
-DROP TABLE b15776;
 --error ER_TOO_BIG_DISPLAYWIDTH
 CREATE TABLE b15776 (a timestamp(4294967296));
 --error ER_PARSE_ERROR
@@ -628,3 +628,11 @@ DROP TABLE t1;
 
 --echo End of 5.1 tests
 
+#
+# Problem when comparing blobs #778901
+#
+
+CREATE TABLE t1 ( f1 blob, f2 blob );
+INSERT INTO t1 VALUES ('','');
+SELECT f1,f2,"found row" FROM t1 WHERE f1 = f2 ;
+DROP TABLE t1;

@@ -18,18 +18,28 @@
 #include <my_global.h>
 #include <my_sys.h>
 #include <m_string.h>
+#include <my_dir.h>
 #include "my_readline.h"
 
 static bool init_line_buffer(LINE_BUFFER *buffer,File file,ulong size,
 			    ulong max_size);
 static bool init_line_buffer_from_string(LINE_BUFFER *buffer,char * str);
 static size_t fill_buffer(LINE_BUFFER *buffer);
-static char *intern_read_line(LINE_BUFFER *buffer, ulong *out_length, bool *truncated);
+static char *intern_read_line(LINE_BUFFER *buffer, ulong *out_length);
 
 
 LINE_BUFFER *batch_readline_init(ulong max_size,FILE *file)
 {
   LINE_BUFFER *line_buff;
+
+#ifndef __WIN__
+  MY_STAT input_file_stat;
+  if (my_fstat(fileno(file), &input_file_stat, MYF(MY_WME)) ||
+      MY_S_ISDIR(input_file_stat.st_mode) ||
+      MY_S_ISBLK(input_file_stat.st_mode))
+    return 0;
+#endif
+
   if (!(line_buff=(LINE_BUFFER*)
         my_malloc(sizeof(*line_buff),MYF(MY_WME | MY_ZEROFILL))))
     return 0;
@@ -42,14 +52,13 @@ LINE_BUFFER *batch_readline_init(ulong max_size,FILE *file)
 }
 
 
-char *batch_readline(LINE_BUFFER *line_buff, bool *truncated)
+char *batch_readline(LINE_BUFFER *line_buff)
 {
   char *pos;
   ulong out_length;
-  DBUG_ASSERT(truncated != NULL);
   LINT_INIT(out_length);
 
-  if (!(pos=intern_read_line(line_buff,&out_length, truncated)))
+  if (!(pos=intern_read_line(line_buff, &out_length)))
     return 0;
   if (out_length && pos[out_length-1] == '\n')
     if (--out_length && pos[out_length-1] == '\r')  /* Remove '\n' */
@@ -163,7 +172,10 @@ static size_t fill_buffer(LINE_BUFFER *buffer)
     if (!(buffer->buffer = (char*) my_realloc(buffer->buffer,
 					      buffer->bufread+1,
 					      MYF(MY_WME | MY_FAE))))
-      return (uint) -1;
+    {
+      buffer->error= my_errno;
+      return (size_t) -1;
+    }
     buffer->start_of_line=buffer->buffer+start_offset;
     buffer->end=buffer->buffer+bufbytes;
   }
@@ -178,7 +190,10 @@ static size_t fill_buffer(LINE_BUFFER *buffer)
   /* Read in new stuff. */
   if ((read_count= my_read(buffer->file, (uchar*) buffer->end, read_count,
 			   MYF(MY_WME))) == MY_FILE_ERROR)
+  {
+    buffer->error= my_errno;
     return (size_t) -1;
+  }
 
   DBUG_PRINT("fill_buff", ("Got %lu bytes", (ulong) read_count));
 
@@ -199,8 +214,7 @@ static size_t fill_buffer(LINE_BUFFER *buffer)
 }
 
 
-
-char *intern_read_line(LINE_BUFFER *buffer, ulong *out_length, bool *truncated)
+char *intern_read_line(LINE_BUFFER *buffer, ulong *out_length)
 {
   char *pos;
   size_t length;
@@ -215,22 +229,25 @@ char *intern_read_line(LINE_BUFFER *buffer, ulong *out_length, bool *truncated)
     if (pos == buffer->end)
     {
       /*
-        fill_buffer() can return 0 either on EOF in which case we abort
-        or when the internal buffer has hit the size limit. In the latter case
-        return what we have read so far and signal string truncation.
+        fill_buffer() can return NULL on EOF (in which case we abort),
+        on error, or when the internal buffer has hit the size limit.
+        In the latter case return what we have read so far and signal
+        string truncation.
       */
-      if (!(length=fill_buffer(buffer)) || length == (uint) -1)
+      if (!(length= fill_buffer(buffer)))
       {
         if (buffer->eof)
           DBUG_RETURN(0);
       }
+      else if (length == (size_t) -1)
+        DBUG_RETURN(NULL);
       else
         continue;
       pos--;					/* break line here */
-      *truncated= 1;
+      buffer->truncated= 1;
     }
     else
-      *truncated= 0;
+      buffer->truncated= 0;
     buffer->end_of_line=pos+1;
     *out_length=(ulong) (pos + 1 - buffer->eof - buffer->start_of_line);
     DBUG_RETURN(buffer->start_of_line);

@@ -516,10 +516,15 @@ public:
   { chain_sys_var(chain); }
   bool check(THD *thd, set_var *var)
   {
-    int ret= 0;
-    if (check_func)
-      ret= (*check_func)(thd, var);
-    return ret ? ret : check_enum(thd, var, enum_names);
+    /*
+      check_enum fails if the character representation supplied was wrong
+      or that the integer value was wrong or missing.
+    */
+    if (check_enum(thd, var, enum_names))
+      return TRUE;
+    if ((check_func && (*check_func)(thd, var)))
+      return TRUE;
+    return FALSE;
   }
   bool update(THD *thd, set_var *var);
   void set_default(THD *thd, enum_var_type type);
@@ -675,8 +680,12 @@ public:
   void set_default(THD *thd, enum_var_type type);
   bool check_type(enum_var_type type)    { return type == OPT_GLOBAL; }
   bool check_default(enum_var_type type) { return 0; }
-  SHOW_TYPE show_type() { return SHOW_LONG; }
+  SHOW_TYPE show_type() { return SHOW_DOUBLE; }
   uchar *value_ptr(THD *thd, enum_var_type type, LEX_STRING *base);
+  virtual bool check_update_type(Item_result type)
+  {
+    return type != INT_RESULT && type != REAL_RESULT && type != DECIMAL_RESULT;
+  }
 };
 
 

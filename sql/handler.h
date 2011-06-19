@@ -23,7 +23,6 @@
 #pragma interface			/* gcc class implementation */
 #endif
 
-#include <my_handler.h>
 #include <ft_global.h>
 #include <keycache.h>
 
@@ -162,8 +161,11 @@
 */
 #define HA_KEY_SCAN_NOT_ROR     128 
 #define HA_DO_INDEX_COND_PUSHDOWN  256 /* Supports Index Condition Pushdown */
-
-
+/*
+  Data is clustered on this key. This means that when you read the key
+  you also get the row data without any additional disk reads.
+*/
+#define HA_CLUSTERED_INDEX      512
 
 /*
   bits in alter_table_flags:
@@ -600,6 +602,11 @@ struct handler_log_file_data {
 
   See ha_example.cc for an example.
 */
+
+struct ha_table_option_struct;
+struct ha_field_option_struct;
+struct ha_index_option_struct;
+
 enum ha_option_type { HA_OPTION_TYPE_ULL,    /* unsigned long long */
                       HA_OPTION_TYPE_STRING, /* char * */
                       HA_OPTION_TYPE_ENUM,   /* uint */
@@ -1168,9 +1175,9 @@ typedef struct st_ha_create_information
   enum ha_choice page_checksum;         ///< If we have page_checksums
   engine_option_value *option_list;     ///< list of table create options
   /* the following three are only for ALTER TABLE, check_if_incompatible_data() */
-  void *option_struct;           ///< structure with parsed table options
-  void **fileds_option_struct;   ///< array of field option structures
-  void **indexes_option_struct;  ///< array of index option structures
+  ha_table_option_struct *option_struct;           ///< structure with parsed table options
+  ha_field_option_struct **fields_option_struct;   ///< array of field option structures
+  ha_index_option_struct **indexes_option_struct;  ///< array of index option structures
 } HA_CREATE_INFO;
 
 
@@ -1670,7 +1677,7 @@ public:
     DBUG_ASSERT(locked == FALSE);
     /* TODO: DBUG_ASSERT(inited == NONE); */
   }
-  virtual handler *clone(MEM_ROOT *mem_root);
+  virtual handler *clone(const char *name, MEM_ROOT *mem_root);
   /** This is called after create to allow us to set up cached variables */
   void init()
   {
@@ -2227,7 +2234,6 @@ public:
   virtual uint max_supported_key_part_length() const { return 255; }
   virtual uint min_record_length(uint options) const { return 1; }
 
-  virtual bool low_byte_first() const { return 1; }
   virtual uint checksum() const { return 0; }
   virtual bool is_crashed() const  { return 0; }
   virtual bool auto_repair() const { return 0; }
@@ -2307,9 +2313,28 @@ public:
 
 
  /*
-   @retval TRUE   Primary key (if there is one) is clustered
-                  key covering all fields
-   @retval FALSE  otherwise
+   Check if the primary key (if there is one) is a clustered and a
+   reference key. This means:
+
+   - Data is stored together with the primary key (no secondary lookup
+     needed to find the row data). The optimizer uses this to find out
+     the cost of fetching data.
+   - The primary key is part of each secondary key and is used
+     to find the row data in the primary index when reading trough
+     secondary indexes.
+   - When doing a HA_KEYREAD_ONLY we get also all the primary key parts
+     into the row. This is critical property used by index_merge.
+
+   All the above is usually true for engines that store the row
+   data in the primary key index (e.g. in a b-tree), and use the primary
+   key value as a position().  InnoDB is an example of such an engine.
+
+   For such a clustered primary key, the following should also hold:
+   index_flags() should contain HA_CLUSTERED_INDEX
+   table_flags() should contain HA_TABLE_SCAN_ON_INDEX
+
+   @retval TRUE   yes
+   @retval FALSE  No.
  */
  virtual bool primary_key_is_clustered() { return FALSE; }
  virtual int cmp_ref(const uchar *ref1, const uchar *ref2)

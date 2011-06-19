@@ -479,9 +479,9 @@ void wt_end()
   (or even most) of them will never be used for deadlock detection.
 
   @param ds     a pointer to deadlock search depth short value
-  @param ts     a pointer to deadlock timeout short value
+  @param ts     a pointer to deadlock timeout short value (microseconds)
   @param dl     a pointer to deadlock search depth long value
-  @param tl     a pointer to deadlock timeout long value
+  @param tl     a pointer to deadlock timeout long value (microseconds)
 
   @note these are pointers to values, and WT_THD stores them as pointers.
   It allows one later to change search depths and timeouts for existing
@@ -1037,8 +1037,9 @@ int wt_thd_cond_timedwait(WT_THD *thd, pthread_mutex_t *mutex)
 {
   int ret= WT_TIMEOUT;
   struct timespec timeout;
-  ulonglong before, after, starttime;
+  my_hrtime_t before, after, starttime;
   WT_RESOURCE *rc= thd->waiting_for;
+  ulonglong end_wait_time;
   DBUG_ENTER("wt_thd_cond_timedwait");
   DBUG_PRINT("wt", ("enter: thd=%s, rc=%p", thd->name, rc));
 
@@ -1050,29 +1051,15 @@ int wt_thd_cond_timedwait(WT_THD *thd, pthread_mutex_t *mutex)
   safe_mutex_assert_owner(mutex);
 #endif
 
-  before= starttime= my_getsystime();
-
-#ifdef __WIN__
-  /*
-    only for the sake of Windows we distinguish between
-    'before' and 'starttime':
-
-    my_getsystime() returns high-resolution value, that cannot be used for
-    waiting (it doesn't follow system clock changes), but is good for time
-    intervals.
-
-    GetSystemTimeAsFileTime() follows system clock, but is low-resolution
-    and will result in lousy intervals.
-  */
-  GetSystemTimeAsFileTime((PFILETIME)&starttime);
-#endif
+  before= starttime= my_hrtime();
 
   rc_wrlock(rc);
   if (rc->owners.elements == 0)
     ret= WT_OK;
   rc_unlock(rc);
 
-  set_timespec_time_nsec(timeout, starttime, (*thd->timeout_short)*ULL(1000));
+  end_wait_time= starttime.val *1000 + (*thd->timeout_short)*ULL(1000000);
+  set_timespec_time_nsec(timeout, end_wait_time);
   if (ret == WT_TIMEOUT && !thd->killed)
     ret= pthread_cond_timedwait(&rc->cond, mutex, &timeout);
   if (ret == WT_TIMEOUT && !thd->killed)
@@ -1084,15 +1071,16 @@ int wt_thd_cond_timedwait(WT_THD *thd, pthread_mutex_t *mutex)
       ret= WT_DEADLOCK;
     else if (*thd->timeout_long > *thd->timeout_short)
     {
-      set_timespec_time_nsec(timeout, starttime, (*thd->timeout_long)*ULL(1000));
+      end_wait_time= starttime.val *1000 + (*thd->timeout_long)*ULL(1000000);
+      set_timespec_time_nsec(timeout, end_wait_time);
       if (!thd->killed)
         ret= pthread_cond_timedwait(&rc->cond, mutex, &timeout);
     }
   }
-  after= my_getsystime();
+  after= my_hrtime();
   if (stop_waiting(thd) == WT_DEADLOCK) /* if we're killed */
     ret= WT_DEADLOCK;
-  increment_wait_stats(after-before, ret);
+  increment_wait_stats(after.val-before.val, ret);
   if (ret == WT_OK)
     increment_success_stats();
   DBUG_RETURN(ret);

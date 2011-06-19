@@ -12,7 +12,7 @@ create table t1(n int);
 sync_slave_with_master;
 stop slave;
 connection master;
-let $1=5000;
+let $1=2500;
 disable_query_log;
 while ($1)
 {

@@ -1,4 +1,5 @@
-/* Copyright (C) 2000 MySQL AB
+/* Copyright (c) 2000, 2011, Oracle and/or its affiliates.
+   Copyright (c) 2009-2011, Monty Program Ab
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -633,4 +634,3 @@ size_t my_snprintf(char* to, size_t n, const char* fmt, ...)
   va_end(args);
   return result;
 }
-

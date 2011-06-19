@@ -1,7 +1,7 @@
 /******************************************************
 The wait array used in synchronization primitives
 
-(c) 1995 Innobase Oy
+Copyright (c) 1995, 2011, Oracle and/or its affiliates. All Rights Reserved.
 
 Created 9/5/1995 Heikki Tuuri
 *******************************************************/
@@ -709,7 +709,7 @@ print:
 					fprintf(stderr, "rw-lock %p ",
 						(void*) lock);
 					sync_array_cell_print(stderr, cell);
-					rw_lock_debug_print(debug);
+					rw_lock_debug_print(stderr, debug);
 					return(TRUE);
 				}
 			}
@@ -916,10 +916,12 @@ sync_arr_wake_threads_if_sema_free(void)
 Prints warnings of long semaphore waits to stderr. */
 
 ibool
-sync_array_print_long_waits(void)
-/*=============================*/
-			/* out: TRUE if fatal semaphore wait threshold
-			was exceeded */
+sync_array_print_long_waits(
+/*========================*/
+				/* out: TRUE if fatal semaphore wait threshold
+				was exceeded */
+	os_thread_id_t*	waiter,	/* out: longest waiting thread */
+	const void**	sema)	/* out: longest-waited-for semaphore */
 {
 	sync_cell_t*	cell;
 	ibool		old_val;
@@ -927,23 +929,39 @@ sync_array_print_long_waits(void)
 	ulint		i;
 	ulint		fatal_timeout = srv_fatal_semaphore_wait_threshold;
 	ibool		fatal = FALSE;
+	double		longest_diff = 0;
 
 	for (i = 0; i < sync_primary_wait_array->n_cells; i++) {
 
+		double	diff;
+		void*	wait_object;
+
 		cell = sync_array_get_nth_cell(sync_primary_wait_array, i);
 
-		if (cell->wait_object != NULL && cell->waiting
-		    && difftime(time(NULL), cell->reservation_time) > 240) {
+		wait_object = cell->wait_object;
+
+		if (wait_object == NULL || !cell->waiting) {
+
+			continue;
+		}
+
+		diff = difftime(time(NULL), cell->reservation_time);
+
+		if (diff > 240) {
 			fputs("InnoDB: Warning: a long semaphore wait:\n",
 			      stderr);
 			sync_array_cell_print(stderr, cell);
 			noticed = TRUE;
 		}
 
-		if (cell->wait_object != NULL && cell->waiting
-		    && difftime(time(NULL), cell->reservation_time)
-		    > fatal_timeout) {
+		if (diff > fatal_timeout) {
 			fatal = TRUE;
+		}
+
+		if (diff > longest_diff) {
+			longest_diff = diff;
+			*sema = wait_object;
+			*waiter = cell->thread;
 		}
 	}
 

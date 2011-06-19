@@ -68,6 +68,7 @@ SET(CLIENT_SOURCES   ../mysys/array.c ../strings/bchange.c ../strings/bmove.c
                      ../strings/ctype-simple.c ../strings/ctype-sjis.c ../strings/ctype-tis620.c 
                      ../strings/ctype-uca.c ../strings/ctype-ucs2.c ../strings/ctype-ujis.c 
                      ../strings/ctype-utf8.c ../strings/ctype-win1250ch.c ../strings/ctype.c 
+                     ../strings/decimal.c
                      ../mysys/default.c errmsg.c ../mysys/errors.c ../mysys/my_sync.c
                      ../mysys/hash.c ../mysys/my_sleep.c ../mysys/default_modify.c
                      get_password.c ../strings/int2str.c ../strings/is_prefix.c 
@@ -79,12 +80,13 @@ SET(CLIENT_SOURCES   ../mysys/array.c ../strings/bchange.c ../strings/bmove.c
                      ../mysys/mf_wcomp.c ../mysys/mulalloc.c ../mysys/my_access.c ../mysys/my_alloc.c 
                      ../mysys/my_chsize.c ../mysys/my_compress.c ../mysys/my_create.c
                      ../mysys/my_delete.c ../mysys/my_div.c ../mysys/my_error.c ../mysys/my_file.c 
-                     ../mysys/my_fopen.c ../mysys/my_fstream.c  ../mysys/my_gethostbyname.c 
+                     ../mysys/my_fopen.c ../mysys/my_fstream.c
                      ../mysys/my_getopt.c ../mysys/my_getwd.c ../mysys/my_init.c ../mysys/my_lib.c
                      ../mysys/my_malloc.c ../mysys/my_messnc.c ../mysys/my_net.c ../mysys/my_once.c 
                      ../mysys/my_open.c ../mysys/my_pread.c  ../mysys/my_pthread.c ../mysys/my_read.c 
                      ../mysys/my_realloc.c ../mysys/my_rename.c ../mysys/my_seek.c  
                      ../mysys/my_static.c ../strings/my_strtoll10.c ../mysys/my_symlink.c 
+                     ../mysys/ma_dyncol.c
                      ../mysys/my_symlink2.c ../mysys/my_thr_init.c  ../sql-common/my_time.c 
                      ../strings/my_vsnprintf.c ../mysys/my_wincond.c ../mysys/my_winthread.c 
                      ../mysys/my_write.c ../sql/net_serv.cc ../sql-common/pack.c ../sql/password.c 
@@ -110,18 +112,16 @@ SET(CLIENT_SOURCES   ../mysys/array.c ../strings/bchange.c ../strings/bmove.c
 
 ADD_LIBRARY(mysqlclient       STATIC ${CLIENT_SOURCES})
 ADD_DEPENDENCIES(mysqlclient GenError)
-TARGET_LINK_LIBRARIES(mysqlclient)
 
-ADD_LIBRARY(mysqlclient_notls STATIC ${CLIENT_SOURCES})
-ADD_DEPENDENCIES(mysqlclient_notls GenError)
-TARGET_LINK_LIBRARIES(mysqlclient_notls)
+SET(SHARED_SOURCES dll.c libmysql.def)
+ADD_VERSION_INFO(libmysql SHARED SHARED_SOURCES)
+ADD_LIBRARY(libmysql SHARED ${SHARED_SOURCES})
 
-ADD_LIBRARY(libmysql          SHARED ${CLIENT_SOURCES} dll.c libmysql.def)
 IF(WIN32)
   SET_TARGET_PROPERTIES(libmysql mysqlclient PROPERTIES COMPILE_FLAGS "-DUSE_TLS")
 ENDIF(WIN32)
 ADD_DEPENDENCIES(libmysql GenError)
-TARGET_LINK_LIBRARIES(libmysql wsock32)
+TARGET_LINK_LIBRARIES(libmysql mysqlclient ws2_32)
 ADD_DEFINITIONS(-DHAVE_DLOPEN)
 
 MYSQL_INSTALL_TARGETS(mysqlclient DESTINATION lib COMPONENT Development)

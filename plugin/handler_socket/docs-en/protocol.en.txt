@@ -11,7 +11,7 @@ Basic syntax
   distinguish NULL from an empty string, as most DBMs does so.
 - NULL is expressed as a single NUL(0x00).
 - An encoded string is a string with the following encoding rules.
-  	- Characters in the range [0x10 - 0xff] are not encoded.
+  	- Characters in the range [0x10 - 0xff] are encoded as itselves.
 	- A character in the range [0x00 - 0x0f] is prefixed by 0x01 and
 	  shifted by 0x40. For example, 0x03 is encoded as 0x01 0x43.
 - Note that a string can be empty. A continuation of 0x09 0x09 means that
@@ -33,12 +33,14 @@ Request and Response
 
 The 'open_index' request has the following syntax.
 
-    P <indexid> <dbname> <tablename> <indexname> <columns>
+    P <indexid> <dbname> <tablename> <indexname> <columns> [<fcolumns>]
 
 - <indexid> is a number in decimal.
 - <dbname>, <tablename>, and <indexname> are strings. To open the primary
   key, use PRIMARY as <indexname>.
 - <columns> is a comma-separated list of column names.
+- <fcolumns> is a comma-separated list of column names. This parameter is
+  optional.
 
 Once an 'open_index' request is issued, the HandlerSocket plugin opens the
 specified index and keep it open until the client connection is closed. Each
@@ -51,8 +53,20 @@ For efficiency, keep <indexid> small as far as possible.
 Getting data
 
 The 'find' request has the following syntax.
+ 
+    <indexid> <op> <vlen> <v1> ... <vn> [LIM] [IN] [FILTER ...]
 
-    <indexid> <op> <vlen> <v1> ... <vn> <limit> <offset>
+LIM is a sequence of the following parameters.
+
+    <limit> <offset>
+
+IN is a sequence of the following parameters.
+    
+    @ <icol> <ivlen> <iv1> ... <ivn>
+
+FILETER is a sequence of the following parameters.
+
+    <ftyp> <fop> <fcol> <fval>
 
 - <indexid> is a number. This number must be an <indexid> specified by a
   'open_index' request executed previously on the same connection.
@@ -60,36 +74,72 @@ The 'find' request has the following syntax.
   HandlerSocket supports '=', '>', '>=', '<', and '<='.
 - <vlen> indicates the length of the trailing parameters <v1> ... <vn>. This
   must be smaller than or equal to the number of index columns specified by
-  specified by the corresponding 'open_index' request.
+  the <columns> parameter of the corresponding 'open_index' request.
 - <v1> ... <vn> specify the index column values to fetch.
-- <limit> and <offset> are numbers. These parameters can be omitted. When
-  omitted, it works as if 1 and 0 are specified.
+- LIM is optional. <limit> and <offset> are numbers. When omitted, it works
+  as if 1 and 0 are specified. These parameter works like LIMIT of SQL.
+  These values don't include the number of records skipped by a filter.
+- IN is optional. It works like WHERE ... IN syntax of SQL. <icol> must be
+  smaller than or equal to the number of index columns specified by the
+  <columns> parameter of the corresponding 'open_index' request. If IN is
+  specified in a find request, the <icol>-th parameter value of <v1> ...
+  <vn> is ignored.
+  smaller than or equal to the number of index columns specified by the
+- FILTERs are optional. A FILTER specifies a filter. <ftyp> is either 'F'
+  (filter) or 'W' (while). <fop> specifies the comparison operation to use.
+  <fcol> must be smaller than or equal to the number of columns specified by
+  the <fcolumns> parameter of the corresponding 'open_index' request.
+  Multiple filters can be specified, and work as the logical AND of them.
+  The difference of 'F' and 'W' is that, when a record does not meet the
+  specified condition, 'F' simply skips the record, and 'W' stops the loop.
 
 ----------------------------------------------------------------------------
 Updating/Deleting data
 
 The 'find_modify' request has the following syntax.
 
-    <indexid> <op> <vlen> <v1> ... <vn> <limit> <offset> <mop> <m1> ... <mk>
+    <indexid> <op> <vlen> <v1> ... <vn> [LIM] [IN] [FILTER ...] MOD
 
-- <mop> is either 'U' (update) or 'D' (delete).
+MOD is a sequence of the following parameters.
+
+    <mop> <m1> ... <mk>
+
+- <mop> is 'U' (update), '+' (increment), '-' (decrement), 'D' (delete),
+  'U?', '+?', '-?', or 'D?'. If the '?' suffix is specified, it returns
+  the contents of the records before modification (as if it's a 'find'
+  request), instead of the number of modified records.
 - <m1> ... <mk> specifies the column values to set. The length of <m1> ...
   <mk> must be smaller than or equal to the length of <columns> specified by
   the corresponding 'open_index' request. If <mop> is 'D', these parameters
-  are ignored.
+  are ignored. If <mop> is '+' or '-', values must be numeric. If <mop> is
+  '-' and it attempts to change column values from negative to positive or
+  positive to negative, it is not modified.
 
 ----------------------------------------------------------------------------
 Inserting data
 
 The 'insert' request has the following syntax.
 
-    <indexid> '+' <vlen> <v1> ... <vn>
+    <indexid> + <vlen> <v1> ... <vn>
 
 - <vlen> indicates the length of the trailing parameters <v1> ... <vn>. This
   must be smaller than or equal to the length of <columns> specified by the
   corresponding 'open_index' request.
 - <v1> ... <vn> specify the column values to set. For columns not in
   <columns>, the default values for each column are set.
+
+----------------------------------------------------------------------------
+Authentication
+
+The 'auth' request has the following syntax.
+
+    A <atyp> <akey>
+
+- <atyp> must be '1'
+- An 'auth' request succeeds iff <akey> is the correct secret specified by
+  the 'handlersocket_plain_secret' or 'handlersocket_plain_secret_rw'.
+- If an authentication is enabled for a listener, any other requests on a
+  connection fail before an 'auth' request succeeded on the connection.
 
 ----------------------------------------------------------------------------
 Response syntax

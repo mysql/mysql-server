@@ -34,7 +34,7 @@ class ha_heap: public handler
 public:
   ha_heap(handlerton *hton, TABLE_SHARE *table);
   ~ha_heap() {}
-  handler *clone(MEM_ROOT *mem_root);
+  handler *clone(const char *name, MEM_ROOT *mem_root);
   const char *table_type() const
   {
     return (table->in_use->variables.sql_mode & MODE_MYSQL323) ?

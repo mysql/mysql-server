@@ -47,6 +47,7 @@ partition p1 values less than maxvalue);
 -------------------------------------------------------------------------
 ---  Access tables with abs(col1) 
 -------------------------------------------------------------------------
+begin;
 insert into t1 values (5 );
 insert into t1 values (13 );
 insert into t2 values (5 );
@@ -55,6 +56,7 @@ insert into t2 values (17 );
 insert into t3 values (5 );
 insert into t3 values (13 );
 insert into t3 values (17 );
+commit;
 load data infile 'MYSQLTEST_VARDIR/std_data/parts/part_supported_sql_funcs_int_int.inc' into table t4;
 load data infile 'MYSQLTEST_VARDIR/std_data/parts/part_supported_sql_funcs_int_int.inc' into table t5;
 load data infile 'MYSQLTEST_VARDIR/std_data/parts/part_supported_sql_funcs_int_int.inc' into table t6;
@@ -217,12 +219,14 @@ colint	col1
 50	56
 51	34
 55	123
+begin;
 update t1 set col1=15  where col1=5 ;
 update t2 set col1=15  where col1=5 ;
 update t3 set col1=15  where col1=5 ;
 update t4 set col1=15  where col1=5 ;
 update t5 set col1=15  where col1=5 ;
 update t6 set col1=15  where col1=5 ;
+commit;
 select * from t1 order by col1;
 col1
 13
@@ -877,12 +881,14 @@ colint	col1
 -------------------------------------------------------------------------
 ---  Delete rows and partitions of tables with abs(col1)
 -------------------------------------------------------------------------
+begin;
 delete from t1 where col1=13 ;
 delete from t2 where col1=13 ;
 delete from t3 where col1=13 ;
 delete from t4 where col1=13 ;
 delete from t5 where col1=13 ;
 delete from t6 where col1=13 ;
+commit;
 select * from t1 order by col1;
 col1
 15
@@ -986,12 +992,14 @@ colint	col1
 50	56
 51	34
 55	123
+begin;
 insert into t1 values (13 );
 insert into t2 values (13 );
 insert into t3 values (13 );
 insert into t4 values (60,13 );
 insert into t5 values (60,13 );
 insert into t6 values (60,13 );
+commit;
 select * from t1 order by col1;
 col1
 13
@@ -1274,12 +1282,14 @@ colint	col1
 -------------------------------------------------------------------------
 ---  Delete rows and partitions of tables with abs(col1)
 -------------------------------------------------------------------------
+begin;
 delete from t11 where col1=13 ;
 delete from t22 where col1=13 ;
 delete from t33 where col1=13 ;
 delete from t44 where col1=13 ;
 delete from t55 where col1=13 ;
 delete from t66 where col1=13 ;
+commit;
 select * from t11 order by col1;
 col1
 15
@@ -1383,12 +1393,14 @@ colint	col1
 50	56
 51	34
 55	123
+begin;
 insert into t11 values (13 );
 insert into t22 values (13 );
 insert into t33 values (13 );
 insert into t44 values (60,13 );
 insert into t55 values (60,13 );
 insert into t66 values (60,13 );
+commit;
 select * from t11 order by col1;
 col1
 13
@@ -1732,6 +1744,7 @@ partition p1 values less than maxvalue);
 -------------------------------------------------------------------------
 ---  Access tables with mod(col1,10) 
 -------------------------------------------------------------------------
+begin;
 insert into t1 values (5);
 insert into t1 values (19);
 insert into t2 values (5);
@@ -1740,6 +1753,7 @@ insert into t2 values (17);
 insert into t3 values (5);
 insert into t3 values (19);
 insert into t3 values (17);
+commit;
 load data infile 'MYSQLTEST_VARDIR/std_data/parts/part_supported_sql_funcs_int_int.inc' into table t4;
 load data infile 'MYSQLTEST_VARDIR/std_data/parts/part_supported_sql_funcs_int_int.inc' into table t5;
 load data infile 'MYSQLTEST_VARDIR/std_data/parts/part_supported_sql_funcs_int_int.inc' into table t6;
@@ -1902,12 +1916,14 @@ colint	col1
 50	56
 51	34
 55	123
+begin;
 update t1 set col1=15  where col1=5;
 update t2 set col1=15  where col1=5;
 update t3 set col1=15  where col1=5;
 update t4 set col1=15  where col1=5;
 update t5 set col1=15  where col1=5;
 update t6 set col1=15  where col1=5;
+commit;
 select * from t1 order by col1;
 col1
 15
@@ -2562,12 +2578,14 @@ colint	col1
 -------------------------------------------------------------------------
 ---  Delete rows and partitions of tables with mod(col1,10)
 -------------------------------------------------------------------------
+begin;
 delete from t1 where col1=19;
 delete from t2 where col1=19;
 delete from t3 where col1=19;
 delete from t4 where col1=19;
 delete from t5 where col1=19;
 delete from t6 where col1=19;
+commit;
 select * from t1 order by col1;
 col1
 15
@@ -2673,12 +2691,14 @@ colint	col1
 50	56
 51	34
 55	123
+begin;
 insert into t1 values (19);
 insert into t2 values (19);
 insert into t3 values (19);
 insert into t4 values (60,19);
 insert into t5 values (60,19);
 insert into t6 values (60,19);
+commit;
 select * from t1 order by col1;
 col1
 15
@@ -2970,12 +2990,14 @@ colint	col1
 -------------------------------------------------------------------------
 ---  Delete rows and partitions of tables with mod(col1,10)
 -------------------------------------------------------------------------
+begin;
 delete from t11 where col1=19;
 delete from t22 where col1=19;
 delete from t33 where col1=19;
 delete from t44 where col1=19;
 delete from t55 where col1=19;
 delete from t66 where col1=19;
+commit;
 select * from t11 order by col1;
 col1
 15
@@ -3081,12 +3103,14 @@ colint	col1
 50	56
 51	34
 55	123
+begin;
 insert into t11 values (19);
 insert into t22 values (19);
 insert into t33 values (19);
 insert into t44 values (60,19);
 insert into t55 values (60,19);
 insert into t66 values (60,19);
+commit;
 select * from t11 order by col1;
 col1
 15
@@ -3439,6 +3463,7 @@ partition p1 values less than maxvalue);
 -------------------------------------------------------------------------
 ---  Access tables with day(col1) 
 -------------------------------------------------------------------------
+begin;
 insert into t1 values ('2006-02-03');
 insert into t1 values ('2006-01-17');
 insert into t2 values ('2006-02-03');
@@ -3447,6 +3472,7 @@ insert into t2 values ('2006-01-25');
 insert into t3 values ('2006-02-03');
 insert into t3 values ('2006-01-17');
 insert into t3 values ('2006-01-25');
+commit;
 load data infile 'MYSQLTEST_VARDIR/std_data/parts/part_supported_sql_funcs_int_date.inc' into table t4;
 load data infile 'MYSQLTEST_VARDIR/std_data/parts/part_supported_sql_funcs_int_date.inc' into table t5;
 load data infile 'MYSQLTEST_VARDIR/std_data/parts/part_supported_sql_funcs_int_date.inc' into table t6;
@@ -3486,12 +3512,14 @@ colint	col1
 2	2006-01-17
 3	2006-01-25
 4	2006-02-05
+begin;
 update t1 set col1='2006-02-05' where col1='2006-02-03';
 update t2 set col1='2006-02-05' where col1='2006-02-03';
 update t3 set col1='2006-02-05' where col1='2006-02-03';
 update t4 set col1='2006-02-05' where col1='2006-02-03';
 update t5 set col1='2006-02-05' where col1='2006-02-03';
 update t6 set col1='2006-02-05' where col1='2006-02-03';
+commit;
 select * from t1 order by col1;
 col1
 2006-01-17
@@ -3695,12 +3723,14 @@ colint	col1
 -------------------------------------------------------------------------
 ---  Delete rows and partitions of tables with day(col1)
 -------------------------------------------------------------------------
+begin;
 delete from t1 where col1='2006-01-17';
 delete from t2 where col1='2006-01-17';
 delete from t3 where col1='2006-01-17';
 delete from t4 where col1='2006-01-17';
 delete from t5 where col1='2006-01-17';
 delete from t6 where col1='2006-01-17';
+commit;
 select * from t1 order by col1;
 col1
 2006-02-05
@@ -3722,12 +3752,14 @@ colint	col1
 1	2006-02-05
 3	2006-01-25
 4	2006-02-05
+begin;
 insert into t1 values ('2006-01-17');
 insert into t2 values ('2006-01-17');
 insert into t3 values ('2006-01-17');
 insert into t4 values (60,'2006-01-17');
 insert into t5 values (60,'2006-01-17');
 insert into t6 values (60,'2006-01-17');
+commit;
 select * from t1 order by col1;
 col1
 2006-01-17
@@ -3789,12 +3821,14 @@ colint	col1
 -------------------------------------------------------------------------
 ---  Delete rows and partitions of tables with day(col1)
 -------------------------------------------------------------------------
+begin;
 delete from t11 where col1='2006-01-17';
 delete from t22 where col1='2006-01-17';
 delete from t33 where col1='2006-01-17';
 delete from t44 where col1='2006-01-17';
 delete from t55 where col1='2006-01-17';
 delete from t66 where col1='2006-01-17';
+commit;
 select * from t11 order by col1;
 col1
 2006-02-05
@@ -3816,12 +3850,14 @@ colint	col1
 1	2006-02-05
 3	2006-01-25
 4	2006-02-05
+begin;
 insert into t11 values ('2006-01-17');
 insert into t22 values ('2006-01-17');
 insert into t33 values ('2006-01-17');
 insert into t44 values (60,'2006-01-17');
 insert into t55 values (60,'2006-01-17');
 insert into t66 values (60,'2006-01-17');
+commit;
 select * from t11 order by col1;
 col1
 2006-01-17
@@ -3944,6 +3980,7 @@ partition p1 values less than maxvalue);
 -------------------------------------------------------------------------
 ---  Access tables with dayofmonth(col1) 
 -------------------------------------------------------------------------
+begin;
 insert into t1 values ('2006-02-03');
 insert into t1 values ('2006-01-17');
 insert into t2 values ('2006-02-03');
@@ -3952,6 +3989,7 @@ insert into t2 values ('2006-01-25');
 insert into t3 values ('2006-02-03');
 insert into t3 values ('2006-01-17');
 insert into t3 values ('2006-01-25');
+commit;
 load data infile 'MYSQLTEST_VARDIR/std_data/parts/part_supported_sql_funcs_int_date.inc' into table t4;
 load data infile 'MYSQLTEST_VARDIR/std_data/parts/part_supported_sql_funcs_int_date.inc' into table t5;
 load data infile 'MYSQLTEST_VARDIR/std_data/parts/part_supported_sql_funcs_int_date.inc' into table t6;
@@ -3991,12 +4029,14 @@ colint	col1
 2	2006-01-17
 3	2006-01-25
 4	2006-02-05
+begin;
 update t1 set col1='2006-02-05' where col1='2006-02-03';
 update t2 set col1='2006-02-05' where col1='2006-02-03';
 update t3 set col1='2006-02-05' where col1='2006-02-03';
 update t4 set col1='2006-02-05' where col1='2006-02-03';
 update t5 set col1='2006-02-05' where col1='2006-02-03';
 update t6 set col1='2006-02-05' where col1='2006-02-03';
+commit;
 select * from t1 order by col1;
 col1
 2006-01-17
@@ -4200,12 +4240,14 @@ colint	col1
 -------------------------------------------------------------------------
 ---  Delete rows and partitions of tables with dayofmonth(col1)
 -------------------------------------------------------------------------
+begin;
 delete from t1 where col1='2006-01-17';
 delete from t2 where col1='2006-01-17';
 delete from t3 where col1='2006-01-17';
 delete from t4 where col1='2006-01-17';
 delete from t5 where col1='2006-01-17';
 delete from t6 where col1='2006-01-17';
+commit;
 select * from t1 order by col1;
 col1
 2006-02-05
@@ -4227,12 +4269,14 @@ colint	col1
 1	2006-02-05
 3	2006-01-25
 4	2006-02-05
+begin;
 insert into t1 values ('2006-01-17');
 insert into t2 values ('2006-01-17');
 insert into t3 values ('2006-01-17');
 insert into t4 values (60,'2006-01-17');
 insert into t5 values (60,'2006-01-17');
 insert into t6 values (60,'2006-01-17');
+commit;
 select * from t1 order by col1;
 col1
 2006-01-17
@@ -4294,12 +4338,14 @@ colint	col1
 -------------------------------------------------------------------------
 ---  Delete rows and partitions of tables with dayofmonth(col1)
 -------------------------------------------------------------------------
+begin;
 delete from t11 where col1='2006-01-17';
 delete from t22 where col1='2006-01-17';
 delete from t33 where col1='2006-01-17';
 delete from t44 where col1='2006-01-17';
 delete from t55 where col1='2006-01-17';
 delete from t66 where col1='2006-01-17';
+commit;
 select * from t11 order by col1;
 col1
 2006-02-05
@@ -4321,12 +4367,14 @@ colint	col1
 1	2006-02-05
 3	2006-01-25
 4	2006-02-05
+begin;
 insert into t11 values ('2006-01-17');
 insert into t22 values ('2006-01-17');
 insert into t33 values ('2006-01-17');
 insert into t44 values (60,'2006-01-17');
 insert into t55 values (60,'2006-01-17');
 insert into t66 values (60,'2006-01-17');
+commit;
 select * from t11 order by col1;
 col1
 2006-01-17
@@ -4449,6 +4497,7 @@ partition p1 values less than maxvalue);
 -------------------------------------------------------------------------
 ---  Access tables with dayofweek(col1) 
 -------------------------------------------------------------------------
+begin;
 insert into t1 values ('2006-01-03');
 insert into t1 values ('2006-02-17');
 insert into t2 values ('2006-01-03');
@@ -4457,6 +4506,7 @@ insert into t2 values ('2006-01-25');
 insert into t3 values ('2006-01-03');
 insert into t3 values ('2006-02-17');
 insert into t3 values ('2006-01-25');
+commit;
 load data infile 'MYSQLTEST_VARDIR/std_data/parts/part_supported_sql_funcs_int_date.inc' into table t4;
 load data infile 'MYSQLTEST_VARDIR/std_data/parts/part_supported_sql_funcs_int_date.inc' into table t5;
 load data infile 'MYSQLTEST_VARDIR/std_data/parts/part_supported_sql_funcs_int_date.inc' into table t6;
@@ -4496,12 +4546,14 @@ colint	col1
 2	2006-01-17
 3	2006-01-25
 4	2006-02-05
+begin;
 update t1 set col1='2006-02-05' where col1='2006-01-03';
 update t2 set col1='2006-02-05' where col1='2006-01-03';
 update t3 set col1='2006-02-05' where col1='2006-01-03';
 update t4 set col1='2006-02-05' where col1='2006-01-03';
 update t5 set col1='2006-02-05' where col1='2006-01-03';
 update t6 set col1='2006-02-05' where col1='2006-01-03';
+commit;
 select * from t1 order by col1;
 col1
 2006-02-05
@@ -4705,12 +4757,14 @@ colint	col1
 -------------------------------------------------------------------------
 ---  Delete rows and partitions of tables with dayofweek(col1)
 -------------------------------------------------------------------------
+begin;
 delete from t1 where col1='2006-02-17';
 delete from t2 where col1='2006-02-17';
 delete from t3 where col1='2006-02-17';
 delete from t4 where col1='2006-02-17';
 delete from t5 where col1='2006-02-17';
 delete from t6 where col1='2006-02-17';
+commit;
 select * from t1 order by col1;
 col1
 2006-02-05
@@ -4734,12 +4788,14 @@ colint	col1
 2	2006-01-17
 3	2006-01-25
 4	2006-02-05
+begin;
 insert into t1 values ('2006-02-17');
 insert into t2 values ('2006-02-17');
 insert into t3 values ('2006-02-17');
 insert into t4 values (60,'2006-02-17');
 insert into t5 values (60,'2006-02-17');
 insert into t6 values (60,'2006-02-17');
+commit;
 select * from t1 order by col1;
 col1
 2006-02-05
@@ -4805,12 +4861,14 @@ colint	col1
 -------------------------------------------------------------------------
 ---  Delete rows and partitions of tables with dayofweek(col1)
 -------------------------------------------------------------------------
+begin;
 delete from t11 where col1='2006-02-17';
 delete from t22 where col1='2006-02-17';
 delete from t33 where col1='2006-02-17';
 delete from t44 where col1='2006-02-17';
 delete from t55 where col1='2006-02-17';
 delete from t66 where col1='2006-02-17';
+commit;
 select * from t11 order by col1;
 col1
 2006-02-05
@@ -4834,12 +4892,14 @@ colint	col1
 2	2006-01-17
 3	2006-01-25
 4	2006-02-05
+begin;
 insert into t11 values ('2006-02-17');
 insert into t22 values ('2006-02-17');
 insert into t33 values ('2006-02-17');
 insert into t44 values (60,'2006-02-17');
 insert into t55 values (60,'2006-02-17');
 insert into t66 values (60,'2006-02-17');
+commit;
 select * from t11 order by col1;
 col1
 2006-02-05
@@ -4966,6 +5026,7 @@ partition p1 values less than maxvalue);
 -------------------------------------------------------------------------
 ---  Access tables with dayofyear(col1) 
 -------------------------------------------------------------------------
+begin;
 insert into t1 values ('2006-01-03');
 insert into t1 values ('2006-01-17');
 insert into t2 values ('2006-01-03');
@@ -4974,6 +5035,7 @@ insert into t2 values ('2006-02-25');
 insert into t3 values ('2006-01-03');
 insert into t3 values ('2006-01-17');
 insert into t3 values ('2006-02-25');
+commit;
 load data infile 'MYSQLTEST_VARDIR/std_data/parts/part_supported_sql_funcs_int_date.inc' into table t4;
 load data infile 'MYSQLTEST_VARDIR/std_data/parts/part_supported_sql_funcs_int_date.inc' into table t5;
 load data infile 'MYSQLTEST_VARDIR/std_data/parts/part_supported_sql_funcs_int_date.inc' into table t6;
@@ -5013,12 +5075,14 @@ colint	col1
 2	2006-01-17
 3	2006-01-25
 4	2006-02-05
+begin;
 update t1 set col1='2006-02-05' where col1='2006-01-03';
 update t2 set col1='2006-02-05' where col1='2006-01-03';
 update t3 set col1='2006-02-05' where col1='2006-01-03';
 update t4 set col1='2006-02-05' where col1='2006-01-03';
 update t5 set col1='2006-02-05' where col1='2006-01-03';
 update t6 set col1='2006-02-05' where col1='2006-01-03';
+commit;
 select * from t1 order by col1;
 col1
 2006-01-17
@@ -5222,12 +5286,14 @@ colint	col1
 -------------------------------------------------------------------------
 ---  Delete rows and partitions of tables with dayofyear(col1)
 -------------------------------------------------------------------------
+begin;
 delete from t1 where col1='2006-01-17';
 delete from t2 where col1='2006-01-17';
 delete from t3 where col1='2006-01-17';
 delete from t4 where col1='2006-01-17';
 delete from t5 where col1='2006-01-17';
 delete from t6 where col1='2006-01-17';
+commit;
 select * from t1 order by col1;
 col1
 2006-02-05
@@ -5249,12 +5315,14 @@ colint	col1
 1	2006-02-03
 3	2006-01-25
 4	2006-02-05
+begin;
 insert into t1 values ('2006-01-17');
 insert into t2 values ('2006-01-17');
 insert into t3 values ('2006-01-17');
 insert into t4 values (60,'2006-01-17');
 insert into t5 values (60,'2006-01-17');
 insert into t6 values (60,'2006-01-17');
+commit;
 select * from t1 order by col1;
 col1
 2006-01-17
@@ -5317,12 +5385,14 @@ colint	col1
 -------------------------------------------------------------------------
 ---  Delete rows and partitions of tables with dayofyear(col1)
 -------------------------------------------------------------------------
+begin;
 delete from t11 where col1='2006-01-17';
 delete from t22 where col1='2006-01-17';
 delete from t33 where col1='2006-01-17';
 delete from t44 where col1='2006-01-17';
 delete from t55 where col1='2006-01-17';
 delete from t66 where col1='2006-01-17';
+commit;
 select * from t11 order by col1;
 col1
 2006-02-05
@@ -5344,12 +5414,14 @@ colint	col1
 1	2006-02-03
 3	2006-01-25
 4	2006-02-05
+begin;
 insert into t11 values ('2006-01-17');
 insert into t22 values ('2006-01-17');
 insert into t33 values ('2006-01-17');
 insert into t44 values (60,'2006-01-17');
 insert into t55 values (60,'2006-01-17');
 insert into t66 values (60,'2006-01-17');
+commit;
 select * from t11 order by col1;
 col1
 2006-01-17
@@ -5473,6 +5545,7 @@ partition p1 values less than maxvalue);
 -------------------------------------------------------------------------
 ---  Access tables with extract(month from col1) 
 -------------------------------------------------------------------------
+begin;
 insert into t1 values ('2006-01-03');
 insert into t1 values ('2006-02-17');
 insert into t2 values ('2006-01-03');
@@ -5481,6 +5554,7 @@ insert into t2 values ('2006-01-25');
 insert into t3 values ('2006-01-03');
 insert into t3 values ('2006-02-17');
 insert into t3 values ('2006-01-25');
+commit;
 load data infile 'MYSQLTEST_VARDIR/std_data/parts/part_supported_sql_funcs_int_date.inc' into table t4;
 load data infile 'MYSQLTEST_VARDIR/std_data/parts/part_supported_sql_funcs_int_date.inc' into table t5;
 load data infile 'MYSQLTEST_VARDIR/std_data/parts/part_supported_sql_funcs_int_date.inc' into table t6;
@@ -5520,12 +5594,14 @@ colint	col1
 2	2006-01-17
 3	2006-01-25
 4	2006-02-05
+begin;
 update t1 set col1='2006-02-05' where col1='2006-01-03';
 update t2 set col1='2006-02-05' where col1='2006-01-03';
 update t3 set col1='2006-02-05' where col1='2006-01-03';
 update t4 set col1='2006-02-05' where col1='2006-01-03';
 update t5 set col1='2006-02-05' where col1='2006-01-03';
 update t6 set col1='2006-02-05' where col1='2006-01-03';
+commit;
 select * from t1 order by col1;
 col1
 2006-02-05
@@ -5729,12 +5805,14 @@ colint	col1
 -------------------------------------------------------------------------
 ---  Delete rows and partitions of tables with extract(month from col1)
 -------------------------------------------------------------------------
+begin;
 delete from t1 where col1='2006-02-17';
 delete from t2 where col1='2006-02-17';
 delete from t3 where col1='2006-02-17';
 delete from t4 where col1='2006-02-17';
 delete from t5 where col1='2006-02-17';
 delete from t6 where col1='2006-02-17';
+commit;
 select * from t1 order by col1;
 col1
 2006-02-05
@@ -5758,12 +5836,14 @@ colint	col1
 2	2006-01-17
 3	2006-01-25
 4	2006-02-05
+begin;
 insert into t1 values ('2006-02-17');
 insert into t2 values ('2006-02-17');
 insert into t3 values ('2006-02-17');
 insert into t4 values (60,'2006-02-17');
 insert into t5 values (60,'2006-02-17');
 insert into t6 values (60,'2006-02-17');
+commit;
 select * from t1 order by col1;
 col1
 2006-02-05
@@ -5824,12 +5904,14 @@ colint	col1
 -------------------------------------------------------------------------
 ---  Delete rows and partitions of tables with extract(month from col1)
 -------------------------------------------------------------------------
+begin;
 delete from t11 where col1='2006-02-17';
 delete from t22 where col1='2006-02-17';
 delete from t33 where col1='2006-02-17';
 delete from t44 where col1='2006-02-17';
 delete from t55 where col1='2006-02-17';
 delete from t66 where col1='2006-02-17';
+commit;
 select * from t11 order by col1;
 col1
 2006-02-05
@@ -5853,12 +5935,14 @@ colint	col1
 2	2006-01-17
 3	2006-01-25
 4	2006-02-05
+begin;
 insert into t11 values ('2006-02-17');
 insert into t22 values ('2006-02-17');
 insert into t33 values ('2006-02-17');
 insert into t44 values (60,'2006-02-17');
 insert into t55 values (60,'2006-02-17');
 insert into t66 values (60,'2006-02-17');
+commit;
 select * from t11 order by col1;
 col1
 2006-02-05
@@ -5980,6 +6064,7 @@ partition p1 values less than maxvalue);
 -------------------------------------------------------------------------
 ---  Access tables with hour(col1) 
 -------------------------------------------------------------------------
+begin;
 insert into t1 values ('09:09');
 insert into t1 values ('14:30');
 insert into t2 values ('09:09');
@@ -5988,6 +6073,7 @@ insert into t2 values ('21:59');
 insert into t3 values ('09:09');
 insert into t3 values ('14:30');
 insert into t3 values ('21:59');
+commit;
 load data infile 'MYSQLTEST_VARDIR/std_data/parts/part_supported_sql_funcs_int_time.inc' into table t4;
 load data infile 'MYSQLTEST_VARDIR/std_data/parts/part_supported_sql_funcs_int_time.inc' into table t5;
 load data infile 'MYSQLTEST_VARDIR/std_data/parts/part_supported_sql_funcs_int_time.inc' into table t6;
@@ -6027,12 +6113,14 @@ colint	col1
 2	04:30:01
 3	00:59:22
 4	05:30:34
+begin;
 update t1 set col1='10:30' where col1='09:09';
 update t2 set col1='10:30' where col1='09:09';
 update t3 set col1='10:30' where col1='09:09';
 update t4 set col1='10:30' where col1='09:09';
 update t5 set col1='10:30' where col1='09:09';
 update t6 set col1='10:30' where col1='09:09';
+commit;
 select * from t1 order by col1;
 col1
 10:30:00
@@ -6236,12 +6324,14 @@ colint	col1
 -------------------------------------------------------------------------
 ---  Delete rows and partitions of tables with hour(col1)
 -------------------------------------------------------------------------
+begin;
 delete from t1 where col1='14:30';
 delete from t2 where col1='14:30';
 delete from t3 where col1='14:30';
 delete from t4 where col1='14:30';
 delete from t5 where col1='14:30';
 delete from t6 where col1='14:30';
+commit;
 select * from t1 order by col1;
 col1
 10:30:00
@@ -6265,12 +6355,14 @@ colint	col1
 2	04:30:01
 3	00:59:22
 4	05:30:34
+begin;
 insert into t1 values ('14:30');
 insert into t2 values ('14:30');
 insert into t3 values ('14:30');
 insert into t4 values (60,'14:30');
 insert into t5 values (60,'14:30');
 insert into t6 values (60,'14:30');
+commit;
 select * from t1 order by col1;
 col1
 10:30:00
@@ -6334,12 +6426,14 @@ colint	col1
 -------------------------------------------------------------------------
 ---  Delete rows and partitions of tables with hour(col1)
 -------------------------------------------------------------------------
+begin;
 delete from t11 where col1='14:30';
 delete from t22 where col1='14:30';
 delete from t33 where col1='14:30';
 delete from t44 where col1='14:30';
 delete from t55 where col1='14:30';
 delete from t66 where col1='14:30';
+commit;
 select * from t11 order by col1;
 col1
 10:30:00
@@ -6363,12 +6457,14 @@ colint	col1
 2	04:30:01
 3	00:59:22
 4	05:30:34
+begin;
 insert into t11 values ('14:30');
 insert into t22 values ('14:30');
 insert into t33 values ('14:30');
 insert into t44 values (60,'14:30');
 insert into t55 values (60,'14:30');
 insert into t66 values (60,'14:30');
+commit;
 select * from t11 order by col1;
 col1
 10:30:00
@@ -6445,7 +6541,7 @@ drop table if exists t44 ;
 drop table if exists t55 ;
 drop table if exists t66 ;
 -------------------------------------------------------------------------
----  microsecond(col1)  in partition with coltype  time
+---  microsecond(col1)  in partition with coltype  time(6)
 -------------------------------------------------------------------------
 drop table if exists t1 ;
 drop table if exists t2 ;
@@ -6456,11 +6552,11 @@ drop table if exists t6 ;
 -------------------------------------------------------------------------
 ---  Create tables with microsecond(col1)
 -------------------------------------------------------------------------
-create table t1 (col1 time) engine='INNODB' 
+create table t1 (col1 time(6)) engine='INNODB' 
 partition by range(microsecond(col1)) 
 (partition p0 values less than (15),
 partition p1 values less than maxvalue);
-create table t2 (col1 time) engine='INNODB' 
+create table t2 (col1 time(6)) engine='INNODB' 
 partition by list(microsecond(col1)) 
 (partition p0 values in (0,1,2,3,4,5,6,7,8,9,10),
 partition p1 values in (11,12,13,14,15,16,17,18,19,20),
@@ -6469,14 +6565,14 @@ partition p3 values in (31,32,33,34,35,36,37,38,39,40),
 partition p4 values in (41,42,43,44,45,46,47,48,49,50),
 partition p5 values in (51,52,53,54,55,56,57,58,59,60)
 );
-create table t3 (col1 time) engine='INNODB' 
+create table t3 (col1 time(6)) engine='INNODB' 
 partition by hash(microsecond(col1));
-create table t4 (colint int, col1 time) engine='INNODB' 
+create table t4 (colint int, col1 time(6)) engine='INNODB' 
 partition by range(colint) 
 subpartition by hash(microsecond(col1)) subpartitions 2 
 (partition p0 values less than (15),
 partition p1 values less than maxvalue);
-create table t5 (colint int, col1 time) engine='INNODB' 
+create table t5 (colint int, col1 time(6)) engine='INNODB' 
 partition by list(colint)
 subpartition by hash(microsecond(col1)) subpartitions 2 
 (partition p0 values in (1,2,3,4,5,6,7,8,9,10),
@@ -6486,13 +6582,14 @@ partition p3 values in (31,32,33,34,35,36,37,38,39,40),
 partition p4 values in (41,42,43,44,45,46,47,48,49,50),
 partition p5 values in (51,52,53,54,55,56,57,58,59,60)
 );
-create table t6 (colint int, col1 time) engine='INNODB' 
+create table t6 (colint int, col1 time(6)) engine='INNODB' 
 partition by range(colint) 
 (partition p0 values less than (microsecond('10:30:10.000010')),
 partition p1 values less than maxvalue);
 -------------------------------------------------------------------------
 ---  Access tables with microsecond(col1) 
 -------------------------------------------------------------------------
+begin;
 insert into t1 values ('09:09:15.000002');
 insert into t1 values ('04:30:01.000018');
 insert into t2 values ('09:09:15.000002');
@@ -6501,83 +6598,86 @@ insert into t2 values ('00:59:22.000024');
 insert into t3 values ('09:09:15.000002');
 insert into t3 values ('04:30:01.000018');
 insert into t3 values ('00:59:22.000024');
+commit;
 load data infile 'MYSQLTEST_VARDIR/std_data/parts/part_supported_sql_funcs_int_time.inc' into table t4;
 load data infile 'MYSQLTEST_VARDIR/std_data/parts/part_supported_sql_funcs_int_time.inc' into table t5;
 load data infile 'MYSQLTEST_VARDIR/std_data/parts/part_supported_sql_funcs_int_time.inc' into table t6;
 select microsecond(col1) from t1 order by col1;
 microsecond(col1)
-0
-0
+18
+2
 select * from t1 order by col1;
 col1
-04:30:01
-09:09:15
+04:30:01.000018
+09:09:15.000002
 select * from t2 order by col1;
 col1
-00:59:22
-04:30:01
-09:09:15
+00:59:22.000024
+04:30:01.000018
+09:09:15.000002
 select * from t3 order by col1;
 col1
-00:59:22
-04:30:01
-09:09:15
+00:59:22.000024
+04:30:01.000018
+09:09:15.000002
 select * from t4 order by colint;
 colint	col1
-1	09:09:15
-2	04:30:01
-3	00:59:22
-4	05:30:34
+1	09:09:15.000002
+2	04:30:01.000018
+3	00:59:22.000024
+4	05:30:34.000037
 select * from t5 order by colint;
 colint	col1
-1	09:09:15
-2	04:30:01
-3	00:59:22
-4	05:30:34
+1	09:09:15.000002
+2	04:30:01.000018
+3	00:59:22.000024
+4	05:30:34.000037
 select * from t6 order by colint;
 colint	col1
-1	09:09:15
-2	04:30:01
-3	00:59:22
-4	05:30:34
+1	09:09:15.000002
+2	04:30:01.000018
+3	00:59:22.000024
+4	05:30:34.000037
+begin;
 update t1 set col1='05:30:34.000037' where col1='09:09:15.000002';
 update t2 set col1='05:30:34.000037' where col1='09:09:15.000002';
 update t3 set col1='05:30:34.000037' where col1='09:09:15.000002';
 update t4 set col1='05:30:34.000037' where col1='09:09:15.000002';
 update t5 set col1='05:30:34.000037' where col1='09:09:15.000002';
 update t6 set col1='05:30:34.000037' where col1='09:09:15.000002';
+commit;
 select * from t1 order by col1;
 col1
-04:30:01
-05:30:34
+04:30:01.000018
+05:30:34.000037
 select * from t2 order by col1;
 col1
-00:59:22
-04:30:01
-05:30:34
+00:59:22.000024
+04:30:01.000018
+05:30:34.000037
 select * from t3 order by col1;
 col1
-00:59:22
-04:30:01
-05:30:34
+00:59:22.000024
+04:30:01.000018
+05:30:34.000037
 select * from t4 order by colint;
 colint	col1
-1	05:30:34
-2	04:30:01
-3	00:59:22
-4	05:30:34
+1	05:30:34.000037
+2	04:30:01.000018
+3	00:59:22.000024
+4	05:30:34.000037
 select * from t5 order by colint;
 colint	col1
-1	05:30:34
-2	04:30:01
-3	00:59:22
-4	05:30:34
+1	05:30:34.000037
+2	04:30:01.000018
+3	00:59:22.000024
+4	05:30:34.000037
 select * from t6 order by colint;
 colint	col1
-1	05:30:34
-2	04:30:01
-3	00:59:22
-4	05:30:34
+1	05:30:34.000037
+2	04:30:01.000018
+3	00:59:22.000024
+4	05:30:34.000037
 -------------------------------------------------------------------------
 ---  Alter tables with microsecond(col1)
 -------------------------------------------------------------------------
@@ -6629,36 +6729,36 @@ partition by range(colint)
 partition p1 values less than maxvalue);
 select * from t11 order by col1;
 col1
-04:30:01
-05:30:34
+04:30:01.000018
+05:30:34.000037
 select * from t22 order by col1;
 col1
-00:59:22
-04:30:01
-05:30:34
+00:59:22.000024
+04:30:01.000018
+05:30:34.000037
 select * from t33 order by col1;
 col1
-00:59:22
-04:30:01
-05:30:34
+00:59:22.000024
+04:30:01.000018
+05:30:34.000037
 select * from t44 order by colint;
 colint	col1
-1	05:30:34
-2	04:30:01
-3	00:59:22
-4	05:30:34
+1	05:30:34.000037
+2	04:30:01.000018
+3	00:59:22.000024
+4	05:30:34.000037
 select * from t55 order by colint;
 colint	col1
-1	05:30:34
-2	04:30:01
-3	00:59:22
-4	05:30:34
+1	05:30:34.000037
+2	04:30:01.000018
+3	00:59:22.000024
+4	05:30:34.000037
 select * from t66 order by colint;
 colint	col1
-1	05:30:34
-2	04:30:01
-3	00:59:22
-4	05:30:34
+1	05:30:34.000037
+2	04:30:01.000018
+3	00:59:22.000024
+4	05:30:34.000037
 ---------------------------
 ---- some alter table begin
 ---------------------------
@@ -6667,16 +6767,16 @@ reorganize partition p0,p1 into
 (partition s1 values less than maxvalue);
 select * from t11 order by col1;
 col1
-04:30:01
-05:30:34
+04:30:01.000018
+05:30:34.000037
 alter table t11
 reorganize partition s1 into
 (partition p0 values less than (15),
 partition p1 values less than maxvalue);
 select * from t11 order by col1;
 col1
-04:30:01
-05:30:34
+04:30:01.000018
+05:30:34.000037
 alter table t55
 partition by list(colint)
 subpartition by hash(microsecond(col1)) subpartitions 5 
@@ -6691,7 +6791,7 @@ show create table t55;
 Table	Create Table
 t55	CREATE TABLE `t55` (
   `colint` int(11) DEFAULT NULL,
-  `col1` time DEFAULT NULL
+  `col1` time(6) DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=latin1
 /*!50100 PARTITION BY LIST (colint)
 SUBPARTITION BY HASH (microsecond(col1))
@@ -6704,116 +6804,120 @@ SUBPARTITIONS 5
  PARTITION p5 VALUES IN (51,52,53,54,55,56,57,58,59,60) ENGINE = InnoDB) */
 select * from t55 order by colint;
 colint	col1
-1	05:30:34
-2	04:30:01
-3	00:59:22
-4	05:30:34
+1	05:30:34.000037
+2	04:30:01.000018
+3	00:59:22.000024
+4	05:30:34.000037
 alter table t66
 reorganize partition p0,p1 into
 (partition s1 values less than maxvalue);
 select * from t66 order by colint;
 colint	col1
-1	05:30:34
-2	04:30:01
-3	00:59:22
-4	05:30:34
+1	05:30:34.000037
+2	04:30:01.000018
+3	00:59:22.000024
+4	05:30:34.000037
 alter table t66
 reorganize partition s1 into
 (partition p0 values less than (microsecond('10:30:10.000010')),
 partition p1 values less than maxvalue);
 select * from t66 order by colint;
 colint	col1
-1	05:30:34
-2	04:30:01
-3	00:59:22
-4	05:30:34
+1	05:30:34.000037
+2	04:30:01.000018
+3	00:59:22.000024
+4	05:30:34.000037
 alter table t66
 reorganize partition p0,p1 into
 (partition s1 values less than maxvalue);
 select * from t66 order by colint;
 colint	col1
-1	05:30:34
-2	04:30:01
-3	00:59:22
-4	05:30:34
+1	05:30:34.000037
+2	04:30:01.000018
+3	00:59:22.000024
+4	05:30:34.000037
 alter table t66
 reorganize partition s1 into
 (partition p0 values less than (microsecond('10:30:10.000010')),
 partition p1 values less than maxvalue);
 select * from t66 order by colint;
 colint	col1
-1	05:30:34
-2	04:30:01
-3	00:59:22
-4	05:30:34
+1	05:30:34.000037
+2	04:30:01.000018
+3	00:59:22.000024
+4	05:30:34.000037
 -------------------------------------------------------------------------
 ---  Delete rows and partitions of tables with microsecond(col1)
 -------------------------------------------------------------------------
+begin;
 delete from t1 where col1='04:30:01.000018';
 delete from t2 where col1='04:30:01.000018';
 delete from t3 where col1='04:30:01.000018';
 delete from t4 where col1='04:30:01.000018';
 delete from t5 where col1='04:30:01.000018';
 delete from t6 where col1='04:30:01.000018';
+commit;
 select * from t1 order by col1;
 col1
-05:30:34
+05:30:34.000037
 select * from t2 order by col1;
 col1
-00:59:22
-05:30:34
+00:59:22.000024
+05:30:34.000037
 select * from t3 order by col1;
 col1
-00:59:22
-05:30:34
+00:59:22.000024
+05:30:34.000037
 select * from t4 order by colint;
 colint	col1
-1	05:30:34
-3	00:59:22
-4	05:30:34
+1	05:30:34.000037
+3	00:59:22.000024
+4	05:30:34.000037
 select * from t5 order by colint;
 colint	col1
-1	05:30:34
-3	00:59:22
-4	05:30:34
+1	05:30:34.000037
+3	00:59:22.000024
+4	05:30:34.000037
+begin;
 insert into t1 values ('04:30:01.000018');
 insert into t2 values ('04:30:01.000018');
 insert into t3 values ('04:30:01.000018');
 insert into t4 values (60,'04:30:01.000018');
 insert into t5 values (60,'04:30:01.000018');
 insert into t6 values (60,'04:30:01.000018');
+commit;
 select * from t1 order by col1;
 col1
-04:30:01
-05:30:34
+04:30:01.000018
+05:30:34.000037
 select * from t2 order by col1;
 col1
-00:59:22
-04:30:01
-05:30:34
+00:59:22.000024
+04:30:01.000018
+05:30:34.000037
 select * from t3 order by col1;
 col1
-00:59:22
-04:30:01
-05:30:34
+00:59:22.000024
+04:30:01.000018
+05:30:34.000037
 select * from t4 order by colint;
 colint	col1
-1	05:30:34
-3	00:59:22
-4	05:30:34
-60	04:30:01
+1	05:30:34.000037
+3	00:59:22.000024
+4	05:30:34.000037
+60	04:30:01.000018
 select * from t5 order by colint;
 colint	col1
-1	05:30:34
-3	00:59:22
-4	05:30:34
-60	04:30:01
+1	05:30:34.000037
+3	00:59:22.000024
+4	05:30:34.000037
+60	04:30:01.000018
 select * from t6 order by colint;
 colint	col1
-1	05:30:34
-3	00:59:22
-4	05:30:34
-60	04:30:01
+1	05:30:34.000037
+3	00:59:22.000024
+4	05:30:34.000037
+60	04:30:01.000018
 alter table t1 drop partition p0;
 alter table t2 drop partition p0;
 alter table t4 drop partition p0;
@@ -6821,90 +6925,99 @@ alter table t5 drop partition p0;
 alter table t6 drop partition p0;
 select * from t1 order by col1;
 col1
+04:30:01.000018
+05:30:34.000037
 select * from t2 order by col1;
 col1
+00:59:22.000024
+04:30:01.000018
+05:30:34.000037
 select * from t3 order by col1;
 col1
-00:59:22
-04:30:01
-05:30:34
+00:59:22.000024
+04:30:01.000018
+05:30:34.000037
 select * from t4 order by colint;
 colint	col1
-60	04:30:01
+60	04:30:01.000018
 select * from t5 order by colint;
 colint	col1
-60	04:30:01
+60	04:30:01.000018
 select * from t6 order by colint;
 colint	col1
-60	04:30:01
+60	04:30:01.000018
 -------------------------------------------------------------------------
 ---  Delete rows and partitions of tables with microsecond(col1)
 -------------------------------------------------------------------------
+begin;
 delete from t11 where col1='04:30:01.000018';
 delete from t22 where col1='04:30:01.000018';
 delete from t33 where col1='04:30:01.000018';
 delete from t44 where col1='04:30:01.000018';
 delete from t55 where col1='04:30:01.000018';
 delete from t66 where col1='04:30:01.000018';
+commit;
 select * from t11 order by col1;
 col1
-05:30:34
+05:30:34.000037
 select * from t22 order by col1;
 col1
-00:59:22
-05:30:34
+00:59:22.000024
+05:30:34.000037
 select * from t33 order by col1;
 col1
-00:59:22
-05:30:34
+00:59:22.000024
+05:30:34.000037
 select * from t44 order by colint;
 colint	col1
-1	05:30:34
-3	00:59:22
-4	05:30:34
+1	05:30:34.000037
+3	00:59:22.000024
+4	05:30:34.000037
 select * from t55 order by colint;
 colint	col1
-1	05:30:34
-3	00:59:22
-4	05:30:34
+1	05:30:34.000037
+3	00:59:22.000024
+4	05:30:34.000037
+begin;
 insert into t11 values ('04:30:01.000018');
 insert into t22 values ('04:30:01.000018');
 insert into t33 values ('04:30:01.000018');
 insert into t44 values (60,'04:30:01.000018');
 insert into t55 values (60,'04:30:01.000018');
 insert into t66 values (60,'04:30:01.000018');
+commit;
 select * from t11 order by col1;
 col1
-04:30:01
-05:30:34
+04:30:01.000018
+05:30:34.000037
 select * from t22 order by col1;
 col1
-00:59:22
-04:30:01
-05:30:34
+00:59:22.000024
+04:30:01.000018
+05:30:34.000037
 select * from t33 order by col1;
 col1
-00:59:22
-04:30:01
-05:30:34
+00:59:22.000024
+04:30:01.000018
+05:30:34.000037
 select * from t44 order by colint;
 colint	col1
-1	05:30:34
-3	00:59:22
-4	05:30:34
-60	04:30:01
+1	05:30:34.000037
+3	00:59:22.000024
+4	05:30:34.000037
+60	04:30:01.000018
 select * from t55 order by colint;
 colint	col1
-1	05:30:34
-3	00:59:22
-4	05:30:34
-60	04:30:01
+1	05:30:34.000037
+3	00:59:22.000024
+4	05:30:34.000037
+60	04:30:01.000018
 select * from t66 order by colint;
 colint	col1
-1	05:30:34
-3	00:59:22
-4	05:30:34
-60	04:30:01
+1	05:30:34.000037
+3	00:59:22.000024
+4	05:30:34.000037
+60	04:30:01.000018
 alter table t11 drop partition p0;
 alter table t22 drop partition p0;
 alter table t44 drop partition p0;
@@ -6912,22 +7025,27 @@ alter table t55 drop partition p0;
 alter table t66 drop partition p0;
 select * from t11 order by col1;
 col1
+04:30:01.000018
+05:30:34.000037
 select * from t22 order by col1;
 col1
+00:59:22.000024
+04:30:01.000018
+05:30:34.000037
 select * from t33 order by col1;
 col1
-00:59:22
-04:30:01
-05:30:34
+00:59:22.000024
+04:30:01.000018
+05:30:34.000037
 select * from t44 order by colint;
 colint	col1
-60	04:30:01
+60	04:30:01.000018
 select * from t55 order by colint;
 colint	col1
-60	04:30:01
+60	04:30:01.000018
 select * from t66 order by colint;
 colint	col1
-60	04:30:01
+60	04:30:01.000018
 -------------------------
 ---- some alter table end
 -------------------------
@@ -6992,6 +7110,7 @@ partition p1 values less than maxvalue);
 -------------------------------------------------------------------------
 ---  Access tables with minute(col1) 
 -------------------------------------------------------------------------
+begin;
 insert into t1 values ('09:09:15');
 insert into t1 values ('14:30:45');
 insert into t2 values ('09:09:15');
@@ -7000,6 +7119,7 @@ insert into t2 values ('21:59:22');
 insert into t3 values ('09:09:15');
 insert into t3 values ('14:30:45');
 insert into t3 values ('21:59:22');
+commit;
 load data infile 'MYSQLTEST_VARDIR/std_data/parts/part_supported_sql_funcs_int_time.inc' into table t4;
 load data infile 'MYSQLTEST_VARDIR/std_data/parts/part_supported_sql_funcs_int_time.inc' into table t5;
 load data infile 'MYSQLTEST_VARDIR/std_data/parts/part_supported_sql_funcs_int_time.inc' into table t6;
@@ -7039,12 +7159,14 @@ colint	col1
 2	04:30:01
 3	00:59:22
 4	05:30:34
+begin;
 update t1 set col1='10:24:23' where col1='09:09:15';
 update t2 set col1='10:24:23' where col1='09:09:15';
 update t3 set col1='10:24:23' where col1='09:09:15';
 update t4 set col1='10:24:23' where col1='09:09:15';
 update t5 set col1='10:24:23' where col1='09:09:15';
 update t6 set col1='10:24:23' where col1='09:09:15';
+commit;
 select * from t1 order by col1;
 col1
 10:24:23
@@ -7248,12 +7370,14 @@ colint	col1
 -------------------------------------------------------------------------
 ---  Delete rows and partitions of tables with minute(col1)
 -------------------------------------------------------------------------
+begin;
 delete from t1 where col1='14:30:45';
 delete from t2 where col1='14:30:45';
 delete from t3 where col1='14:30:45';
 delete from t4 where col1='14:30:45';
 delete from t5 where col1='14:30:45';
 delete from t6 where col1='14:30:45';
+commit;
 select * from t1 order by col1;
 col1
 10:24:23
@@ -7277,12 +7401,14 @@ colint	col1
 2	04:30:01
 3	00:59:22
 4	05:30:34
+begin;
 insert into t1 values ('14:30:45');
 insert into t2 values ('14:30:45');
 insert into t3 values ('14:30:45');
 insert into t4 values (60,'14:30:45');
 insert into t5 values (60,'14:30:45');
 insert into t6 values (60,'14:30:45');
+commit;
 select * from t1 order by col1;
 col1
 10:24:23
@@ -7349,12 +7475,14 @@ colint	col1
 -------------------------------------------------------------------------
 ---  Delete rows and partitions of tables with minute(col1)
 -------------------------------------------------------------------------
+begin;
 delete from t11 where col1='14:30:45';
 delete from t22 where col1='14:30:45';
 delete from t33 where col1='14:30:45';
 delete from t44 where col1='14:30:45';
 delete from t55 where col1='14:30:45';
 delete from t66 where col1='14:30:45';
+commit;
 select * from t11 order by col1;
 col1
 10:24:23
@@ -7378,12 +7506,14 @@ colint	col1
 2	04:30:01
 3	00:59:22
 4	05:30:34
+begin;
 insert into t11 values ('14:30:45');
 insert into t22 values ('14:30:45');
 insert into t33 values ('14:30:45');
 insert into t44 values (60,'14:30:45');
 insert into t55 values (60,'14:30:45');
 insert into t66 values (60,'14:30:45');
+commit;
 select * from t11 order by col1;
 col1
 10:24:23
@@ -7511,6 +7641,7 @@ partition p1 values less than maxvalue);
 -------------------------------------------------------------------------
 ---  Access tables with second(col1) 
 -------------------------------------------------------------------------
+begin;
 insert into t1 values ('09:09:09');
 insert into t1 values ('14:30:20');
 insert into t2 values ('09:09:09');
@@ -7519,6 +7650,7 @@ insert into t2 values ('21:59:22');
 insert into t3 values ('09:09:09');
 insert into t3 values ('14:30:20');
 insert into t3 values ('21:59:22');
+commit;
 load data infile 'MYSQLTEST_VARDIR/std_data/parts/part_supported_sql_funcs_int_time.inc' into table t4;
 load data infile 'MYSQLTEST_VARDIR/std_data/parts/part_supported_sql_funcs_int_time.inc' into table t5;
 load data infile 'MYSQLTEST_VARDIR/std_data/parts/part_supported_sql_funcs_int_time.inc' into table t6;
@@ -7558,12 +7690,14 @@ colint	col1
 2	04:30:01
 3	00:59:22
 4	05:30:34
+begin;
 update t1 set col1='10:22:33' where col1='09:09:09';
 update t2 set col1='10:22:33' where col1='09:09:09';
 update t3 set col1='10:22:33' where col1='09:09:09';
 update t4 set col1='10:22:33' where col1='09:09:09';
 update t5 set col1='10:22:33' where col1='09:09:09';
 update t6 set col1='10:22:33' where col1='09:09:09';
+commit;
 select * from t1 order by col1;
 col1
 10:22:33
@@ -7767,12 +7901,14 @@ colint	col1
 -------------------------------------------------------------------------
 ---  Delete rows and partitions of tables with second(col1)
 -------------------------------------------------------------------------
+begin;
 delete from t1 where col1='14:30:20';
 delete from t2 where col1='14:30:20';
 delete from t3 where col1='14:30:20';
 delete from t4 where col1='14:30:20';
 delete from t5 where col1='14:30:20';
 delete from t6 where col1='14:30:20';
+commit;
 select * from t1 order by col1;
 col1
 10:22:33
@@ -7796,12 +7932,14 @@ colint	col1
 2	04:30:01
 3	00:59:22
 4	05:30:34
+begin;
 insert into t1 values ('14:30:20');
 insert into t2 values ('14:30:20');
 insert into t3 values ('14:30:20');
 insert into t4 values (60,'14:30:20');
 insert into t5 values (60,'14:30:20');
 insert into t6 values (60,'14:30:20');
+commit;
 select * from t1 order by col1;
 col1
 10:22:33
@@ -7868,12 +8006,14 @@ colint	col1
 -------------------------------------------------------------------------
 ---  Delete rows and partitions of tables with second(col1)
 -------------------------------------------------------------------------
+begin;
 delete from t11 where col1='14:30:20';
 delete from t22 where col1='14:30:20';
 delete from t33 where col1='14:30:20';
 delete from t44 where col1='14:30:20';
 delete from t55 where col1='14:30:20';
 delete from t66 where col1='14:30:20';
+commit;
 select * from t11 order by col1;
 col1
 10:22:33
@@ -7897,12 +8037,14 @@ colint	col1
 2	04:30:01
 3	00:59:22
 4	05:30:34
+begin;
 insert into t11 values ('14:30:20');
 insert into t22 values ('14:30:20');
 insert into t33 values ('14:30:20');
 insert into t44 values (60,'14:30:20');
 insert into t55 values (60,'14:30:20');
 insert into t66 values (60,'14:30:20');
+commit;
 select * from t11 order by col1;
 col1
 10:22:33
@@ -8030,6 +8172,7 @@ partition p1 values less than maxvalue);
 -------------------------------------------------------------------------
 ---  Access tables with month(col1) 
 -------------------------------------------------------------------------
+begin;
 insert into t1 values ('2006-01-03');
 insert into t1 values ('2006-12-17');
 insert into t2 values ('2006-01-03');
@@ -8038,6 +8181,7 @@ insert into t2 values ('2006-05-25');
 insert into t3 values ('2006-01-03');
 insert into t3 values ('2006-12-17');
 insert into t3 values ('2006-05-25');
+commit;
 load data infile 'MYSQLTEST_VARDIR/std_data/parts/part_supported_sql_funcs_int_date.inc' into table t4;
 load data infile 'MYSQLTEST_VARDIR/std_data/parts/part_supported_sql_funcs_int_date.inc' into table t5;
 load data infile 'MYSQLTEST_VARDIR/std_data/parts/part_supported_sql_funcs_int_date.inc' into table t6;
@@ -8077,12 +8221,14 @@ colint	col1
 2	2006-01-17
 3	2006-01-25
 4	2006-02-05
+begin;
 update t1 set col1='2006-11-06' where col1='2006-01-03';
 update t2 set col1='2006-11-06' where col1='2006-01-03';
 update t3 set col1='2006-11-06' where col1='2006-01-03';
 update t4 set col1='2006-11-06' where col1='2006-01-03';
 update t5 set col1='2006-11-06' where col1='2006-01-03';
 update t6 set col1='2006-11-06' where col1='2006-01-03';
+commit;
 select * from t1 order by col1;
 col1
 2006-11-06
@@ -8286,12 +8432,14 @@ colint	col1
 -------------------------------------------------------------------------
 ---  Delete rows and partitions of tables with month(col1)
 -------------------------------------------------------------------------
+begin;
 delete from t1 where col1='2006-12-17';
 delete from t2 where col1='2006-12-17';
 delete from t3 where col1='2006-12-17';
 delete from t4 where col1='2006-12-17';
 delete from t5 where col1='2006-12-17';
 delete from t6 where col1='2006-12-17';
+commit;
 select * from t1 order by col1;
 col1
 2006-11-06
@@ -8315,12 +8463,14 @@ colint	col1
 2	2006-01-17
 3	2006-01-25
 4	2006-02-05
+begin;
 insert into t1 values ('2006-12-17');
 insert into t2 values ('2006-12-17');
 insert into t3 values ('2006-12-17');
 insert into t4 values (60,'2006-12-17');
 insert into t5 values (60,'2006-12-17');
 insert into t6 values (60,'2006-12-17');
+commit;
 select * from t1 order by col1;
 col1
 2006-11-06
@@ -8384,12 +8534,14 @@ colint	col1
 -------------------------------------------------------------------------
 ---  Delete rows and partitions of tables with month(col1)
 -------------------------------------------------------------------------
+begin;
 delete from t11 where col1='2006-12-17';
 delete from t22 where col1='2006-12-17';
 delete from t33 where col1='2006-12-17';
 delete from t44 where col1='2006-12-17';
 delete from t55 where col1='2006-12-17';
 delete from t66 where col1='2006-12-17';
+commit;
 select * from t11 order by col1;
 col1
 2006-11-06
@@ -8413,12 +8565,14 @@ colint	col1
 2	2006-01-17
 3	2006-01-25
 4	2006-02-05
+begin;
 insert into t11 values ('2006-12-17');
 insert into t22 values ('2006-12-17');
 insert into t33 values ('2006-12-17');
 insert into t44 values (60,'2006-12-17');
 insert into t55 values (60,'2006-12-17');
 insert into t66 values (60,'2006-12-17');
+commit;
 select * from t11 order by col1;
 col1
 2006-11-06
@@ -8543,6 +8697,7 @@ partition p1 values less than maxvalue);
 -------------------------------------------------------------------------
 ---  Access tables with quarter(col1) 
 -------------------------------------------------------------------------
+begin;
 insert into t1 values ('2006-01-03');
 insert into t1 values ('2006-12-17');
 insert into t2 values ('2006-01-03');
@@ -8551,6 +8706,7 @@ insert into t2 values ('2006-09-25');
 insert into t3 values ('2006-01-03');
 insert into t3 values ('2006-12-17');
 insert into t3 values ('2006-09-25');
+commit;
 load data infile 'MYSQLTEST_VARDIR/std_data/parts/part_supported_sql_funcs_int_date.inc' into table t4;
 load data infile 'MYSQLTEST_VARDIR/std_data/parts/part_supported_sql_funcs_int_date.inc' into table t5;
 load data infile 'MYSQLTEST_VARDIR/std_data/parts/part_supported_sql_funcs_int_date.inc' into table t6;
@@ -8590,12 +8746,14 @@ colint	col1
 2	2006-01-17
 3	2006-01-25
 4	2006-02-05
+begin;
 update t1 set col1='2006-07-30' where col1='2006-01-03';
 update t2 set col1='2006-07-30' where col1='2006-01-03';
 update t3 set col1='2006-07-30' where col1='2006-01-03';
 update t4 set col1='2006-07-30' where col1='2006-01-03';
 update t5 set col1='2006-07-30' where col1='2006-01-03';
 update t6 set col1='2006-07-30' where col1='2006-01-03';
+commit;
 select * from t1 order by col1;
 col1
 2006-07-30
@@ -8799,12 +8957,14 @@ colint	col1
 -------------------------------------------------------------------------
 ---  Delete rows and partitions of tables with quarter(col1)
 -------------------------------------------------------------------------
+begin;
 delete from t1 where col1='2006-12-17';
 delete from t2 where col1='2006-12-17';
 delete from t3 where col1='2006-12-17';
 delete from t4 where col1='2006-12-17';
 delete from t5 where col1='2006-12-17';
 delete from t6 where col1='2006-12-17';
+commit;
 select * from t1 order by col1;
 col1
 2006-07-30
@@ -8828,12 +8988,14 @@ colint	col1
 2	2006-01-17
 3	2006-01-25
 4	2006-02-05
+begin;
 insert into t1 values ('2006-12-17');
 insert into t2 values ('2006-12-17');
 insert into t3 values ('2006-12-17');
 insert into t4 values (60,'2006-12-17');
 insert into t5 values (60,'2006-12-17');
 insert into t6 values (60,'2006-12-17');
+commit;
 select * from t1 order by col1;
 col1
 2006-07-30
@@ -8896,12 +9058,14 @@ colint	col1
 -------------------------------------------------------------------------
 ---  Delete rows and partitions of tables with quarter(col1)
 -------------------------------------------------------------------------
+begin;
 delete from t11 where col1='2006-12-17';
 delete from t22 where col1='2006-12-17';
 delete from t33 where col1='2006-12-17';
 delete from t44 where col1='2006-12-17';
 delete from t55 where col1='2006-12-17';
 delete from t66 where col1='2006-12-17';
+commit;
 select * from t11 order by col1;
 col1
 2006-07-30
@@ -8925,12 +9089,14 @@ colint	col1
 2	2006-01-17
 3	2006-01-25
 4	2006-02-05
+begin;
 insert into t11 values ('2006-12-17');
 insert into t22 values ('2006-12-17');
 insert into t33 values ('2006-12-17');
 insert into t44 values (60,'2006-12-17');
 insert into t55 values (60,'2006-12-17');
 insert into t66 values (60,'2006-12-17');
+commit;
 select * from t11 order by col1;
 col1
 2006-07-30
@@ -8990,523 +9156,6 @@ select * from t66 order by colint;
 colint	col1
 4	2006-02-05
 60	2006-12-17
--------------------------
----- some alter table end
--------------------------
-drop table if exists t1 ;
-drop table if exists t2 ;
-drop table if exists t3 ;
-drop table if exists t4 ;
-drop table if exists t5 ;
-drop table if exists t6 ;
-drop table if exists t11 ;
-drop table if exists t22 ;
-drop table if exists t33 ;
-drop table if exists t44 ;
-drop table if exists t55 ;
-drop table if exists t66 ;
--------------------------------------------------------------------------
----  time_to_sec(col1)-(time_to_sec(col1)-20)  in partition with coltype  time
--------------------------------------------------------------------------
-drop table if exists t1 ;
-drop table if exists t2 ;
-drop table if exists t3 ;
-drop table if exists t4 ;
-drop table if exists t5 ;
-drop table if exists t6 ;
--------------------------------------------------------------------------
----  Create tables with time_to_sec(col1)-(time_to_sec(col1)-20)
--------------------------------------------------------------------------
-create table t1 (col1 time) engine='INNODB' 
-partition by range(time_to_sec(col1)-(time_to_sec(col1)-20)) 
-(partition p0 values less than (15),
-partition p1 values less than maxvalue);
-create table t2 (col1 time) engine='INNODB' 
-partition by list(time_to_sec(col1)-(time_to_sec(col1)-20)) 
-(partition p0 values in (0,1,2,3,4,5,6,7,8,9,10),
-partition p1 values in (11,12,13,14,15,16,17,18,19,20),
-partition p2 values in (21,22,23,24,25,26,27,28,29,30),
-partition p3 values in (31,32,33,34,35,36,37,38,39,40),
-partition p4 values in (41,42,43,44,45,46,47,48,49,50),
-partition p5 values in (51,52,53,54,55,56,57,58,59,60)
-);
-create table t3 (col1 time) engine='INNODB' 
-partition by hash(time_to_sec(col1)-(time_to_sec(col1)-20));
-create table t4 (colint int, col1 time) engine='INNODB' 
-partition by range(colint) 
-subpartition by hash(time_to_sec(col1)-(time_to_sec(col1)-20)) subpartitions 2 
-(partition p0 values less than (15),
-partition p1 values less than maxvalue);
-create table t5 (colint int, col1 time) engine='INNODB' 
-partition by list(colint)
-subpartition by hash(time_to_sec(col1)-(time_to_sec(col1)-20)) subpartitions 2 
-(partition p0 values in (1,2,3,4,5,6,7,8,9,10),
-partition p1 values in (11,12,13,14,15,16,17,18,19,20),
-partition p2 values in (21,22,23,24,25,26,27,28,29,30),
-partition p3 values in (31,32,33,34,35,36,37,38,39,40),
-partition p4 values in (41,42,43,44,45,46,47,48,49,50),
-partition p5 values in (51,52,53,54,55,56,57,58,59,60)
-);
-create table t6 (colint int, col1 time) engine='INNODB' 
-partition by range(colint) 
-(partition p0 values less than (time_to_sec('18:30:14')-(time_to_sec('17:59:59'))),
-partition p1 values less than maxvalue);
--------------------------------------------------------------------------
----  Access tables with time_to_sec(col1)-(time_to_sec(col1)-20) 
--------------------------------------------------------------------------
-insert into t1 values ('09:09:15');
-insert into t1 values ('14:30:45');
-insert into t2 values ('09:09:15');
-insert into t2 values ('14:30:45');
-insert into t2 values ('21:59:22');
-insert into t3 values ('09:09:15');
-insert into t3 values ('14:30:45');
-insert into t3 values ('21:59:22');
-load data infile 'MYSQLTEST_VARDIR/std_data/parts/part_supported_sql_funcs_int_time.inc' into table t4;
-load data infile 'MYSQLTEST_VARDIR/std_data/parts/part_supported_sql_funcs_int_time.inc' into table t5;
-load data infile 'MYSQLTEST_VARDIR/std_data/parts/part_supported_sql_funcs_int_time.inc' into table t6;
-select time_to_sec(col1)-(time_to_sec(col1)-20) from t1 order by col1;
-time_to_sec(col1)-(time_to_sec(col1)-20)
-20
-20
-select * from t1 order by col1;
-col1
-09:09:15
-14:30:45
-select * from t2 order by col1;
-col1
-09:09:15
-14:30:45
-21:59:22
-select * from t3 order by col1;
-col1
-09:09:15
-14:30:45
-21:59:22
-select * from t4 order by colint;
-colint	col1
-1	09:09:15
-2	04:30:01
-3	00:59:22
-4	05:30:34
-select * from t5 order by colint;
-colint	col1
-1	09:09:15
-2	04:30:01
-3	00:59:22
-4	05:30:34
-select * from t6 order by colint;
-colint	col1
-1	09:09:15
-2	04:30:01
-3	00:59:22
-4	05:30:34
-update t1 set col1='10:33:11' where col1='09:09:15';
-update t2 set col1='10:33:11' where col1='09:09:15';
-update t3 set col1='10:33:11' where col1='09:09:15';
-update t4 set col1='10:33:11' where col1='09:09:15';
-update t5 set col1='10:33:11' where col1='09:09:15';
-update t6 set col1='10:33:11' where col1='09:09:15';
-select * from t1 order by col1;
-col1
-10:33:11
-14:30:45
-select * from t2 order by col1;
-col1
-10:33:11
-14:30:45
-21:59:22
-select * from t3 order by col1;
-col1
-10:33:11
-14:30:45
-21:59:22
-select * from t4 order by colint;
-colint	col1
-1	10:33:11
-2	04:30:01
-3	00:59:22
-4	05:30:34
-select * from t5 order by colint;
-colint	col1
-1	10:33:11
-2	04:30:01
-3	00:59:22
-4	05:30:34
-select * from t6 order by colint;
-colint	col1
-1	10:33:11
-2	04:30:01
-3	00:59:22
-4	05:30:34
--------------------------------------------------------------------------
----  Alter tables with time_to_sec(col1)-(time_to_sec(col1)-20)
--------------------------------------------------------------------------
-drop table if exists t11 ;
-drop table if exists t22 ;
-drop table if exists t33 ;
-drop table if exists t44 ;
-drop table if exists t55 ;
-drop table if exists t66 ;
-create table t11 engine='INNODB' as select * from t1;
-create table t22 engine='INNODB' as select * from t2;
-create table t33 engine='INNODB' as select * from t3;
-create table t44 engine='INNODB' as select * from t4;
-create table t55 engine='INNODB' as select * from t5;
-create table t66 engine='INNODB' as select * from t6;
-alter table t11
-partition by range(time_to_sec(col1)-(time_to_sec(col1)-20)) 
-(partition p0 values less than (15),
-partition p1 values less than maxvalue);
-alter table t22
-partition by list(time_to_sec(col1)-(time_to_sec(col1)-20)) 
-(partition p0 values in (0,1,2,3,4,5,6,7,8,9,10),
-partition p1 values in (11,12,13,14,15,16,17,18,19,20),
-partition p2 values in (21,22,23,24,25,26,27,28,29,30),
-partition p3 values in (31,32,33,34,35,36,37,38,39,40),
-partition p4 values in (41,42,43,44,45,46,47,48,49,50),
-partition p5 values in (51,52,53,54,55,56,57,58,59,60)
-);
-alter table t33
-partition by hash(time_to_sec(col1)-(time_to_sec(col1)-20));
-alter table t44
-partition by range(colint) 
-subpartition by hash(time_to_sec(col1)-(time_to_sec(col1)-20)) subpartitions 2 
-(partition p0 values less than (15),
-partition p1 values less than maxvalue);
-alter table t55
-partition by list(colint)
-subpartition by hash(time_to_sec(col1)-(time_to_sec(col1)-20)) subpartitions 2 
-(partition p0 values in (1,2,3,4,5,6,7,8,9,10),
-partition p1 values in (11,12,13,14,15,16,17,18,19,20),
-partition p2 values in (21,22,23,24,25,26,27,28,29,30),
-partition p3 values in (31,32,33,34,35,36,37,38,39,40),
-partition p4 values in (41,42,43,44,45,46,47,48,49,50),
-partition p5 values in (51,52,53,54,55,56,57,58,59,60)
-);
-alter table t66
-partition by range(colint) 
-(partition p0 values less than (time_to_sec('18:30:14')-(time_to_sec('17:59:59'))),
-partition p1 values less than maxvalue);
-select * from t11 order by col1;
-col1
-10:33:11
-14:30:45
-select * from t22 order by col1;
-col1
-10:33:11
-14:30:45
-21:59:22
-select * from t33 order by col1;
-col1
-10:33:11
-14:30:45
-21:59:22
-select * from t44 order by colint;
-colint	col1
-1	10:33:11
-2	04:30:01
-3	00:59:22
-4	05:30:34
-select * from t55 order by colint;
-colint	col1
-1	10:33:11
-2	04:30:01
-3	00:59:22
-4	05:30:34
-select * from t66 order by colint;
-colint	col1
-1	10:33:11
-2	04:30:01
-3	00:59:22
-4	05:30:34
----------------------------
----- some alter table begin
----------------------------
-alter table t11
-reorganize partition p0,p1 into
-(partition s1 values less than maxvalue);
-select * from t11 order by col1;
-col1
-10:33:11
-14:30:45
-alter table t11
-reorganize partition s1 into
-(partition p0 values less than (15),
-partition p1 values less than maxvalue);
-select * from t11 order by col1;
-col1
-10:33:11
-14:30:45
-alter table t55
-partition by list(colint)
-subpartition by hash(time_to_sec(col1)-(time_to_sec(col1)-20)) subpartitions 5 
-(partition p0 values in (1,2,3,4,5,6,7,8,9,10),
-partition p1 values in (11,12,13,14,15,16,17,18,19,20),
-partition p2 values in (21,22,23,24,25,26,27,28,29,30),
-partition p3 values in (31,32,33,34,35,36,37,38,39,40),
-partition p4 values in (41,42,43,44,45,46,47,48,49,50),
-partition p5 values in (51,52,53,54,55,56,57,58,59,60)
-);
-show create table t55;
-Table	Create Table
-t55	CREATE TABLE `t55` (
-  `colint` int(11) DEFAULT NULL,
-  `col1` time DEFAULT NULL
-) ENGINE=InnoDB DEFAULT CHARSET=latin1
-/*!50100 PARTITION BY LIST (colint)
-SUBPARTITION BY HASH (time_to_sec(col1)-(time_to_sec(col1)-20))
-SUBPARTITIONS 5
-(PARTITION p0 VALUES IN (1,2,3,4,5,6,7,8,9,10) ENGINE = InnoDB,
- PARTITION p1 VALUES IN (11,12,13,14,15,16,17,18,19,20) ENGINE = InnoDB,
- PARTITION p2 VALUES IN (21,22,23,24,25,26,27,28,29,30) ENGINE = InnoDB,
- PARTITION p3 VALUES IN (31,32,33,34,35,36,37,38,39,40) ENGINE = InnoDB,
- PARTITION p4 VALUES IN (41,42,43,44,45,46,47,48,49,50) ENGINE = InnoDB,
- PARTITION p5 VALUES IN (51,52,53,54,55,56,57,58,59,60) ENGINE = InnoDB) */
-select * from t55 order by colint;
-colint	col1
-1	10:33:11
-2	04:30:01
-3	00:59:22
-4	05:30:34
-alter table t66
-reorganize partition p0,p1 into
-(partition s1 values less than maxvalue);
-select * from t66 order by colint;
-colint	col1
-1	10:33:11
-2	04:30:01
-3	00:59:22
-4	05:30:34
-alter table t66
-reorganize partition s1 into
-(partition p0 values less than (time_to_sec('18:30:14')-(time_to_sec('17:59:59'))),
-partition p1 values less than maxvalue);
-select * from t66 order by colint;
-colint	col1
-1	10:33:11
-2	04:30:01
-3	00:59:22
-4	05:30:34
-alter table t66
-reorganize partition p0,p1 into
-(partition s1 values less than maxvalue);
-select * from t66 order by colint;
-colint	col1
-1	10:33:11
-2	04:30:01
-3	00:59:22
-4	05:30:34
-alter table t66
-reorganize partition s1 into
-(partition p0 values less than (time_to_sec('18:30:14')-(time_to_sec('17:59:59'))),
-partition p1 values less than maxvalue);
-select * from t66 order by colint;
-colint	col1
-1	10:33:11
-2	04:30:01
-3	00:59:22
-4	05:30:34
--------------------------------------------------------------------------
----  Delete rows and partitions of tables with time_to_sec(col1)-(time_to_sec(col1)-20)
--------------------------------------------------------------------------
-delete from t1 where col1='14:30:45';
-delete from t2 where col1='14:30:45';
-delete from t3 where col1='14:30:45';
-delete from t4 where col1='14:30:45';
-delete from t5 where col1='14:30:45';
-delete from t6 where col1='14:30:45';
-select * from t1 order by col1;
-col1
-10:33:11
-select * from t2 order by col1;
-col1
-10:33:11
-21:59:22
-select * from t3 order by col1;
-col1
-10:33:11
-21:59:22
-select * from t4 order by colint;
-colint	col1
-1	10:33:11
-2	04:30:01
-3	00:59:22
-4	05:30:34
-select * from t5 order by colint;
-colint	col1
-1	10:33:11
-2	04:30:01
-3	00:59:22
-4	05:30:34
-insert into t1 values ('14:30:45');
-insert into t2 values ('14:30:45');
-insert into t3 values ('14:30:45');
-insert into t4 values (60,'14:30:45');
-insert into t5 values (60,'14:30:45');
-insert into t6 values (60,'14:30:45');
-select * from t1 order by col1;
-col1
-10:33:11
-14:30:45
-select * from t2 order by col1;
-col1
-10:33:11
-14:30:45
-21:59:22
-select * from t3 order by col1;
-col1
-10:33:11
-14:30:45
-21:59:22
-select * from t4 order by colint;
-colint	col1
-1	10:33:11
-2	04:30:01
-3	00:59:22
-4	05:30:34
-60	14:30:45
-select * from t5 order by colint;
-colint	col1
-1	10:33:11
-2	04:30:01
-3	00:59:22
-4	05:30:34
-60	14:30:45
-select * from t6 order by colint;
-colint	col1
-1	10:33:11
-2	04:30:01
-3	00:59:22
-4	05:30:34
-60	14:30:45
-alter table t1 drop partition p0;
-alter table t2 drop partition p0;
-alter table t4 drop partition p0;
-alter table t5 drop partition p0;
-alter table t6 drop partition p0;
-select * from t1 order by col1;
-col1
-10:33:11
-14:30:45
-select * from t2 order by col1;
-col1
-10:33:11
-14:30:45
-21:59:22
-select * from t3 order by col1;
-col1
-10:33:11
-14:30:45
-21:59:22
-select * from t4 order by colint;
-colint	col1
-60	14:30:45
-select * from t5 order by colint;
-colint	col1
-60	14:30:45
-select * from t6 order by colint;
-colint	col1
--------------------------------------------------------------------------
----  Delete rows and partitions of tables with time_to_sec(col1)-(time_to_sec(col1)-20)
--------------------------------------------------------------------------
-delete from t11 where col1='14:30:45';
-delete from t22 where col1='14:30:45';
-delete from t33 where col1='14:30:45';
-delete from t44 where col1='14:30:45';
-delete from t55 where col1='14:30:45';
-delete from t66 where col1='14:30:45';
-select * from t11 order by col1;
-col1
-10:33:11
-select * from t22 order by col1;
-col1
-10:33:11
-21:59:22
-select * from t33 order by col1;
-col1
-10:33:11
-21:59:22
-select * from t44 order by colint;
-colint	col1
-1	10:33:11
-2	04:30:01
-3	00:59:22
-4	05:30:34
-select * from t55 order by colint;
-colint	col1
-1	10:33:11
-2	04:30:01
-3	00:59:22
-4	05:30:34
-insert into t11 values ('14:30:45');
-insert into t22 values ('14:30:45');
-insert into t33 values ('14:30:45');
-insert into t44 values (60,'14:30:45');
-insert into t55 values (60,'14:30:45');
-insert into t66 values (60,'14:30:45');
-select * from t11 order by col1;
-col1
-10:33:11
-14:30:45
-select * from t22 order by col1;
-col1
-10:33:11
-14:30:45
-21:59:22
-select * from t33 order by col1;
-col1
-10:33:11
-14:30:45
-21:59:22
-select * from t44 order by colint;
-colint	col1
-1	10:33:11
-2	04:30:01
-3	00:59:22
-4	05:30:34
-60	14:30:45
-select * from t55 order by colint;
-colint	col1
-1	10:33:11
-2	04:30:01
-3	00:59:22
-4	05:30:34
-60	14:30:45
-select * from t66 order by colint;
-colint	col1
-1	10:33:11
-2	04:30:01
-3	00:59:22
-4	05:30:34
-60	14:30:45
-alter table t11 drop partition p0;
-alter table t22 drop partition p0;
-alter table t44 drop partition p0;
-alter table t55 drop partition p0;
-alter table t66 drop partition p0;
-select * from t11 order by col1;
-col1
-10:33:11
-14:30:45
-select * from t22 order by col1;
-col1
-10:33:11
-14:30:45
-21:59:22
-select * from t33 order by col1;
-col1
-10:33:11
-14:30:45
-21:59:22
-select * from t44 order by colint;
-colint	col1
-60	14:30:45
-select * from t55 order by colint;
-colint	col1
-60	14:30:45
-select * from t66 order by colint;
-colint	col1
 -------------------------
 ---- some alter table end
 -------------------------
@@ -9571,6 +9220,7 @@ partition p1 values less than maxvalue);
 -------------------------------------------------------------------------
 ---  Access tables with weekday(col1) 
 -------------------------------------------------------------------------
+begin;
 insert into t1 values ('2006-12-03');
 insert into t1 values ('2006-11-17');
 insert into t2 values ('2006-12-03');
@@ -9579,6 +9229,7 @@ insert into t2 values ('2006-05-25');
 insert into t3 values ('2006-12-03');
 insert into t3 values ('2006-11-17');
 insert into t3 values ('2006-05-25');
+commit;
 load data infile 'MYSQLTEST_VARDIR/std_data/parts/part_supported_sql_funcs_int_date.inc' into table t4;
 load data infile 'MYSQLTEST_VARDIR/std_data/parts/part_supported_sql_funcs_int_date.inc' into table t5;
 load data infile 'MYSQLTEST_VARDIR/std_data/parts/part_supported_sql_funcs_int_date.inc' into table t6;
@@ -9618,12 +9269,14 @@ colint	col1
 2	2006-01-17
 3	2006-01-25
 4	2006-02-05
+begin;
 update t1 set col1='2006-02-06' where col1='2006-12-03';
 update t2 set col1='2006-02-06' where col1='2006-12-03';
 update t3 set col1='2006-02-06' where col1='2006-12-03';
 update t4 set col1='2006-02-06' where col1='2006-12-03';
 update t5 set col1='2006-02-06' where col1='2006-12-03';
 update t6 set col1='2006-02-06' where col1='2006-12-03';
+commit;
 select * from t1 order by col1;
 col1
 2006-02-06
@@ -9827,12 +9480,14 @@ colint	col1
 -------------------------------------------------------------------------
 ---  Delete rows and partitions of tables with weekday(col1)
 -------------------------------------------------------------------------
+begin;
 delete from t1 where col1='2006-11-17';
 delete from t2 where col1='2006-11-17';
 delete from t3 where col1='2006-11-17';
 delete from t4 where col1='2006-11-17';
 delete from t5 where col1='2006-11-17';
 delete from t6 where col1='2006-11-17';
+commit;
 select * from t1 order by col1;
 col1
 2006-02-06
@@ -9856,12 +9511,14 @@ colint	col1
 2	2006-01-17
 3	2006-01-25
 4	2006-02-05
+begin;
 insert into t1 values ('2006-11-17');
 insert into t2 values ('2006-11-17');
 insert into t3 values ('2006-11-17');
 insert into t4 values (60,'2006-11-17');
 insert into t5 values (60,'2006-11-17');
 insert into t6 values (60,'2006-11-17');
+commit;
 select * from t1 order by col1;
 col1
 2006-02-06
@@ -9923,12 +9580,14 @@ colint	col1
 -------------------------------------------------------------------------
 ---  Delete rows and partitions of tables with weekday(col1)
 -------------------------------------------------------------------------
+begin;
 delete from t11 where col1='2006-11-17';
 delete from t22 where col1='2006-11-17';
 delete from t33 where col1='2006-11-17';
 delete from t44 where col1='2006-11-17';
 delete from t55 where col1='2006-11-17';
 delete from t66 where col1='2006-11-17';
+commit;
 select * from t11 order by col1;
 col1
 2006-02-06
@@ -9952,12 +9611,14 @@ colint	col1
 2	2006-01-17
 3	2006-01-25
 4	2006-02-05
+begin;
 insert into t11 values ('2006-11-17');
 insert into t22 values ('2006-11-17');
 insert into t33 values ('2006-11-17');
 insert into t44 values (60,'2006-11-17');
 insert into t55 values (60,'2006-11-17');
 insert into t66 values (60,'2006-11-17');
+commit;
 select * from t11 order by col1;
 col1
 2006-02-06
@@ -10080,6 +9741,7 @@ partition p1 values less than maxvalue);
 -------------------------------------------------------------------------
 ---  Access tables with year(col1)-1990 
 -------------------------------------------------------------------------
+begin;
 insert into t1 values ('1996-01-03');
 insert into t1 values ('2000-02-17');
 insert into t2 values ('1996-01-03');
@@ -10088,6 +9750,7 @@ insert into t2 values ('2004-05-25');
 insert into t3 values ('1996-01-03');
 insert into t3 values ('2000-02-17');
 insert into t3 values ('2004-05-25');
+commit;
 load data infile 'MYSQLTEST_VARDIR/std_data/parts/part_supported_sql_funcs_int_date.inc' into table t4;
 load data infile 'MYSQLTEST_VARDIR/std_data/parts/part_supported_sql_funcs_int_date.inc' into table t5;
 load data infile 'MYSQLTEST_VARDIR/std_data/parts/part_supported_sql_funcs_int_date.inc' into table t6;
@@ -10127,12 +9790,14 @@ colint	col1
 2	2006-01-17
 3	2006-01-25
 4	2006-02-05
+begin;
 update t1 set col1='2002-02-15' where col1='1996-01-03';
 update t2 set col1='2002-02-15' where col1='1996-01-03';
 update t3 set col1='2002-02-15' where col1='1996-01-03';
 update t4 set col1='2002-02-15' where col1='1996-01-03';
 update t5 set col1='2002-02-15' where col1='1996-01-03';
 update t6 set col1='2002-02-15' where col1='1996-01-03';
+commit;
 select * from t1 order by col1;
 col1
 2000-02-17
@@ -10336,12 +10001,14 @@ colint	col1
 -------------------------------------------------------------------------
 ---  Delete rows and partitions of tables with year(col1)-1990
 -------------------------------------------------------------------------
+begin;
 delete from t1 where col1='2000-02-17';
 delete from t2 where col1='2000-02-17';
 delete from t3 where col1='2000-02-17';
 delete from t4 where col1='2000-02-17';
 delete from t5 where col1='2000-02-17';
 delete from t6 where col1='2000-02-17';
+commit;
 select * from t1 order by col1;
 col1
 2002-02-15
@@ -10365,12 +10032,14 @@ colint	col1
 2	2006-01-17
 3	2006-01-25
 4	2006-02-05
+begin;
 insert into t1 values ('2000-02-17');
 insert into t2 values ('2000-02-17');
 insert into t3 values ('2000-02-17');
 insert into t4 values (60,'2000-02-17');
 insert into t5 values (60,'2000-02-17');
 insert into t6 values (60,'2000-02-17');
+commit;
 select * from t1 order by col1;
 col1
 2000-02-17
@@ -10434,12 +10103,14 @@ colint	col1
 -------------------------------------------------------------------------
 ---  Delete rows and partitions of tables with year(col1)-1990
 -------------------------------------------------------------------------
+begin;
 delete from t11 where col1='2000-02-17';
 delete from t22 where col1='2000-02-17';
 delete from t33 where col1='2000-02-17';
 delete from t44 where col1='2000-02-17';
 delete from t55 where col1='2000-02-17';
 delete from t66 where col1='2000-02-17';
+commit;
 select * from t11 order by col1;
 col1
 2002-02-15
@@ -10463,12 +10134,14 @@ colint	col1
 2	2006-01-17
 3	2006-01-25
 4	2006-02-05
+begin;
 insert into t11 values ('2000-02-17');
 insert into t22 values ('2000-02-17');
 insert into t33 values ('2000-02-17');
 insert into t44 values (60,'2000-02-17');
 insert into t55 values (60,'2000-02-17');
 insert into t66 values (60,'2000-02-17');
+commit;
 select * from t11 order by col1;
 col1
 2000-02-17
@@ -10593,6 +10266,7 @@ partition p1 values less than maxvalue);
 -------------------------------------------------------------------------
 ---  Access tables with yearweek(col1)-200600 
 -------------------------------------------------------------------------
+begin;
 insert into t1 values ('2006-01-03');
 insert into t1 values ('2006-08-17');
 insert into t2 values ('2006-01-03');
@@ -10601,6 +10275,7 @@ insert into t2 values ('2006-03-25');
 insert into t3 values ('2006-01-03');
 insert into t3 values ('2006-08-17');
 insert into t3 values ('2006-03-25');
+commit;
 load data infile 'MYSQLTEST_VARDIR/std_data/parts/part_supported_sql_funcs_int_date.inc' into table t4;
 load data infile 'MYSQLTEST_VARDIR/std_data/parts/part_supported_sql_funcs_int_date.inc' into table t5;
 load data infile 'MYSQLTEST_VARDIR/std_data/parts/part_supported_sql_funcs_int_date.inc' into table t6;
@@ -10640,12 +10315,14 @@ colint	col1
 2	2006-01-17
 3	2006-01-25
 4	2006-02-05
+begin;
 update t1 set col1='2006-11-15' where col1='2006-01-03';
 update t2 set col1='2006-11-15' where col1='2006-01-03';
 update t3 set col1='2006-11-15' where col1='2006-01-03';
 update t4 set col1='2006-11-15' where col1='2006-01-03';
 update t5 set col1='2006-11-15' where col1='2006-01-03';
 update t6 set col1='2006-11-15' where col1='2006-01-03';
+commit;
 select * from t1 order by col1;
 col1
 2006-08-17
@@ -10849,12 +10526,14 @@ colint	col1
 -------------------------------------------------------------------------
 ---  Delete rows and partitions of tables with yearweek(col1)-200600
 -------------------------------------------------------------------------
+begin;
 delete from t1 where col1='2006-08-17';
 delete from t2 where col1='2006-08-17';
 delete from t3 where col1='2006-08-17';
 delete from t4 where col1='2006-08-17';
 delete from t5 where col1='2006-08-17';
 delete from t6 where col1='2006-08-17';
+commit;
 select * from t1 order by col1;
 col1
 2006-11-15
@@ -10878,12 +10557,14 @@ colint	col1
 2	2006-01-17
 3	2006-01-25
 4	2006-02-05
+begin;
 insert into t1 values ('2006-08-17');
 insert into t2 values ('2006-08-17');
 insert into t3 values ('2006-08-17');
 insert into t4 values (60,'2006-08-17');
 insert into t5 values (60,'2006-08-17');
 insert into t6 values (60,'2006-08-17');
+commit;
 select * from t1 order by col1;
 col1
 2006-08-17
@@ -10950,12 +10631,14 @@ colint	col1
 -------------------------------------------------------------------------
 ---  Delete rows and partitions of tables with yearweek(col1)-200600
 -------------------------------------------------------------------------
+begin;
 delete from t11 where col1='2006-08-17';
 delete from t22 where col1='2006-08-17';
 delete from t33 where col1='2006-08-17';
 delete from t44 where col1='2006-08-17';
 delete from t55 where col1='2006-08-17';
 delete from t66 where col1='2006-08-17';
+commit;
 select * from t11 order by col1;
 col1
 2006-11-15
@@ -10979,12 +10662,14 @@ colint	col1
 2	2006-01-17
 3	2006-01-25
 4	2006-02-05
+begin;
 insert into t11 values ('2006-08-17');
 insert into t22 values ('2006-08-17');
 insert into t33 values ('2006-08-17');
 insert into t44 values (60,'2006-08-17');
 insert into t55 values (60,'2006-08-17');
 insert into t66 values (60,'2006-08-17');
+commit;
 select * from t11 order by col1;
 col1
 2006-08-17

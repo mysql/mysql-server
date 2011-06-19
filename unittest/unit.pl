@@ -103,7 +103,8 @@ sub run_cmd (@) {
         # Removing the first './' from the file names
         foreach (@files) { s!^\./!! }
         $ENV{'HARNESS_PERL_SWITCHES'} .= ' -e "exec @ARGV"';
+        $ENV{'HARNESS_OPTIONS'}="j4";
+        $Test::Harness::Timer = 1;
         runtests @files;
     }
 }
-

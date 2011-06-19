@@ -363,7 +363,6 @@ Sensitive_cursor::open(JOIN *join_arg)
   join= join_arg;
   THD *thd= join->thd;
   /* First non-constant table */
-  JOIN_TAB *join_tab= join->join_tab + join->const_tables;
   DBUG_ENTER("Sensitive_cursor::open");
 
   join->change_result(result);
@@ -381,26 +380,29 @@ Sensitive_cursor::open(JOIN *join_arg)
 
   /* Prepare JOIN for reading rows. */
   join->tmp_table= 0;
-  join->join_tab[join->tables-1].next_select= setup_end_select_func(join);
+  join->join_tab[join->top_join_tab_count - 1].next_select= setup_end_select_func(join);
   join->send_records= 0;
   join->fetch_limit= join->unit->offset_limit_cnt;
 
   /* Disable JOIN CACHE as it is not working with cursors yet */
-  for (JOIN_TAB *tab= join_tab;
-       tab != join->join_tab + join->tables - 1;
-       tab++)
+  for (JOIN_TAB *tab= first_linear_tab(join, WITHOUT_CONST_TABLES); 
+       tab != join->join_tab + join->top_join_tab_count - 1;
+       tab= next_linear_tab(join, tab, WITH_BUSH_ROOTS))
   {
     if (tab->next_select == sub_select_cache)
       tab->next_select= sub_select;
   }
 
-  DBUG_ASSERT(join_tab->table->reginfo.not_exists_optimize == 0);
-  DBUG_ASSERT(join_tab->not_used_in_distinct == 0);
+#ifndef DBUG_OFF
+  JOIN_TAB *first_tab= first_linear_tab(join, WITHOUT_CONST_TABLES);
+  DBUG_ASSERT(first_tab->table->reginfo.not_exists_optimize == 0);
+  DBUG_ASSERT(first_tab->not_used_in_distinct == 0);
   /*
     null_row is set only if row not found and it's outer join: should never
     happen for the first table in join_tab list
   */
-  DBUG_ASSERT(join_tab->table->null_row == 0);
+  DBUG_ASSERT(first_tab->table->null_row == 0);
+#endif
   DBUG_RETURN(0);
 }
 
@@ -662,7 +664,7 @@ void Materialized_cursor::fetch(ulong num_rows)
       If network write failed (i.e. due to a closed socked),
       the error has already been set. Just return.
     */
-    if (result->send_data(item_list))
+    if (result->send_data(item_list) > 0)
       return;
   }
 
@@ -720,8 +722,8 @@ bool Select_materialize::send_fields(List<Item> &list, uint flags)
   DBUG_ASSERT(table == 0);
   if (create_result_table(unit->thd, unit->get_unit_column_types(),
                           FALSE, thd->options | TMP_TABLE_ALL_COLUMNS, "",
-                          FALSE))
-    return TRUE;
+                          FALSE, TRUE))
+   return TRUE;
 
   materialized_cursor= new (&table->mem_root)
                        Materialized_cursor(result, table);

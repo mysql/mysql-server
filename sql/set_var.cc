@@ -128,9 +128,11 @@ static void fix_net_read_timeout(THD *thd, enum_var_type type);
 static void fix_net_write_timeout(THD *thd, enum_var_type type);
 static void fix_net_retry_count(THD *thd, enum_var_type type);
 static void fix_max_join_size(THD *thd, enum_var_type type);
-static void fix_query_cache_size(THD *thd, enum_var_type type);
 #ifdef HAVE_QUERY_CACHE
+static void fix_query_cache_size(THD *thd, enum_var_type type);
 static void fix_query_cache_min_res_unit(THD *thd, enum_var_type type);
+static int check_query_cache_type(THD *thd, set_var *var);
+static void fix_query_cache_type(THD *thd, enum_var_type type);
 #endif
 static void fix_myisam_max_sort_file_size(THD *thd, enum_var_type type);
 static void fix_max_binlog_size(THD *thd, enum_var_type type);
@@ -154,6 +156,8 @@ static bool sys_update_slow_log_path(THD *thd, set_var * var);
 static void sys_default_slow_log_path(THD *thd, enum_var_type type);
 static void fix_sys_log_slow_filter(THD *thd, enum_var_type);
 static uchar *get_myisam_mmap_size(THD *thd);
+static int check_max_allowed_packet(THD *thd,  set_var *var);
+static int check_net_buffer_length(THD *thd,  set_var *var);
 
 /*
   Variable definition list
@@ -401,7 +405,8 @@ static sys_var_const    sys_lower_case_table_names(&vars,
                                                    (uchar*)
                                                    &lower_case_table_names);
 static sys_var_thd_ulong_session_readonly sys_max_allowed_packet(&vars, "max_allowed_packet",
-					       &SV::max_allowed_packet);
+					       &SV::max_allowed_packet,
+                                               check_max_allowed_packet);
 static sys_var_ulonglong_ptr sys_max_binlog_cache_size(&vars, "max_binlog_cache_size",
                                                        &max_binlog_cache_size);
 static sys_var_long_ptr	sys_max_binlog_size(&vars, "max_binlog_size",
@@ -435,6 +440,12 @@ static sys_var_thd_ulong	sys_max_seeks_for_key(&vars, "max_seeks_for_key",
 					      &SV::max_seeks_for_key);
 static sys_var_thd_ulong   sys_max_length_for_sort_data(&vars, "max_length_for_sort_data",
                                                  &SV::max_length_for_sort_data);
+static sys_var_const    sys_max_long_data_size(&vars,
+                                               "max_long_data_size",
+                                               OPT_GLOBAL, SHOW_LONG,
+                                               (uchar*)
+                                               &max_long_data_size);
+
 #ifndef TO_BE_DELETED	/* Alias for max_join_size */
 static sys_var_thd_ha_rows	sys_sql_max_join_size(&vars, "sql_max_join_size",
 					      &SV::max_join_size,
@@ -487,7 +498,8 @@ static sys_var_const            sys_named_pipe(&vars, "named_pipe",
 /* purecov: end */
 #endif
 static sys_var_thd_ulong_session_readonly sys_net_buffer_length(&vars, "net_buffer_length",
-					      &SV::net_buffer_length);
+					      &SV::net_buffer_length,
+                                              check_net_buffer_length);
 static sys_var_thd_ulong	sys_net_read_timeout(&vars, "net_read_timeout",
 					     &SV::net_read_timeout,
 					     0, fix_net_read_timeout);
@@ -514,17 +526,6 @@ static sys_var_thd_ulong        sys_optimizer_search_depth(&vars, "optimizer_sea
                                                    &SV::optimizer_search_depth);
 static sys_var_thd_optimizer_switch   sys_optimizer_switch(&vars, "optimizer_switch",
                                      &SV::optimizer_switch);
-
-const char *optimizer_use_mrr_names[] = {"auto", "force", "disable", NullS};
-TYPELIB optimizer_use_mrr_typelib= {
-  array_elements(optimizer_use_mrr_names) - 1, "",
-  optimizer_use_mrr_names, NULL
-};
-
-static sys_var_thd_enum        sys_optimizer_use_mrr(&vars, "optimizer_use_mrr",
-                                              &SV::optimizer_use_mrr,
-                                              &optimizer_use_mrr_typelib,
-                                              NULL);
 
 static sys_var_const            sys_pid_file(&vars, "pid_file",
                                              OPT_GLOBAL, SHOW_CHAR,
@@ -555,9 +556,6 @@ static sys_var_thd_ulong	sys_div_precincrement(&vars, "div_precision_increment",
                                               &SV::div_precincrement);
 static sys_var_long_ptr	sys_rpl_recovery_rank(&vars, "rpl_recovery_rank",
 					      &rpl_recovery_rank);
-static sys_var_long_ptr	sys_query_cache_size(&vars, "query_cache_size",
-					     &query_cache_size,
-					     fix_query_cache_size);
 
 static sys_var_thd_ulong	sys_range_alloc_block_size(&vars, "range_alloc_block_size",
 						   &SV::range_alloc_block_size);
@@ -625,14 +623,20 @@ sys_var_enum_const        sys_thread_handling(&vars, "thread_handling",
                                               &thread_handling_typelib);
 
 #ifdef HAVE_QUERY_CACHE
+static sys_var_long_ptr	sys_query_cache_size(&vars, "query_cache_size",
+                                             &query_cache_size,
+                                             fix_query_cache_size);
 static sys_var_long_ptr	sys_query_cache_limit(&vars, "query_cache_limit",
-					      &query_cache.query_cache_limit);
-static sys_var_long_ptr        sys_query_cache_min_res_unit(&vars, "query_cache_min_res_unit",
-						     &query_cache_min_res_unit,
-						     fix_query_cache_min_res_unit);
+                                              &query_cache.query_cache_limit);
+static sys_var_long_ptr
+  sys_query_cache_min_res_unit(&vars, "query_cache_min_res_unit",
+                               &query_cache_min_res_unit,
+                               fix_query_cache_min_res_unit);
 static sys_var_thd_enum	sys_query_cache_type(&vars, "query_cache_type",
 					     &SV::query_cache_type,
-					     &query_cache_type_typelib);
+					     &query_cache_type_typelib,
+                                             fix_query_cache_type,
+                                             check_query_cache_type);
 static sys_var_thd_bool
 sys_query_cache_wlock_invalidate(&vars, "query_cache_wlock_invalidate",
 				 &SV::query_cache_wlock_invalidate);
@@ -928,6 +932,8 @@ static sys_var_const_str_ptr    sys_log_basename(&vars, "log_basename",
 #ifndef EMBEDDED_LIBRARY
 static sys_var_const_str_ptr    sys_repl_report_host(&vars, "report_host", &report_host);
 static sys_var_const_str_ptr    sys_repl_report_user(&vars, "report_user", &report_user);
+static sys_var_bool_ptr       sys_query_cache_strip_comments(&vars, "query_cache_strip_comments",
+                                                       &opt_query_cache_strip_comments);
 static sys_var_const_str_ptr    sys_repl_report_password(&vars, "report_password", &report_password);
 
 static uchar *slave_get_report_port(THD *thd)
@@ -1217,10 +1223,9 @@ static void fix_net_retry_count(THD *thd __attribute__((unused)),
 {}
 #endif /* HAVE_REPLICATION */
 
-
+#ifdef HAVE_QUERY_CACHE
 static void fix_query_cache_size(THD *thd, enum_var_type type)
 {
-#ifdef HAVE_QUERY_CACHE
   ulong new_cache_size= query_cache.resize(query_cache_size);
 
   /*
@@ -1234,11 +1239,60 @@ static void fix_query_cache_size(THD *thd, enum_var_type type)
 			query_cache_size, new_cache_size);
   
   query_cache_size= new_cache_size;
-#endif
 }
 
 
-#ifdef HAVE_QUERY_CACHE
+/**
+  Trigger before query_cache_type variable is updated.
+  @param thd Thread handler
+  @param var Pointer to the new variable status
+
+  @return Status code
+   @retval TRUE  Failure
+   @retval FALSE Success
+*/
+
+static int check_query_cache_type(THD *thd, set_var *var)
+{
+  /*
+    Don't allow changes of the query_cache_type if the query cache
+    is disabled.
+  */
+  if (query_cache.is_disable_in_progress())
+  {
+    my_error(ER_QUERY_CACHE_IS_DISABLED, MYF(0));
+    return TRUE;
+  }
+  if (var->type != OPT_GLOBAL &&
+      global_system_variables.query_cache_type == 0 &&
+      var->value->val_int() != 0)
+  {
+    my_error(ER_QUERY_CACHE_IS_GLOBALY_DISABLED, MYF(0));
+    return TRUE;
+  }
+
+  return FALSE;
+}
+
+
+static void fix_query_cache_type(THD *thd, enum_var_type type)
+{
+  if (type == OPT_GLOBAL)
+  {
+    if (global_system_variables.query_cache_type != 0 &&
+        query_cache.is_disabled())
+    {
+      /* if disabling in progress variable will not be set */
+      DBUG_ASSERT(!query_cache.is_disable_in_progress());
+      /* Enable query cache because it was disabled */
+      fix_query_cache_size(thd, type);
+    }
+    else if (global_system_variables.query_cache_type == 0)
+      query_cache.disable_query_cache(thd);
+  }
+}
+
+
 static void fix_query_cache_min_res_unit(THD *thd, enum_var_type type)
 {
   query_cache_min_res_unit= 
@@ -1919,7 +1973,7 @@ bool sys_var::check_set(THD *thd, set_var *var, TYPELIB *enum_names)
     }
 
     var->save_result.ulong_value= ((ulong)
-				   find_set(enum_names, res->ptr(),
+				   find_set(enum_names, res->c_ptr_safe(),
 					    res->length(),
                                             NULL,
                                             &error, &error_len,
@@ -2334,7 +2388,7 @@ bool sys_var_character_set_client::check(THD *thd, set_var *var)
   if (sys_var_character_set_sv::check(thd, var))
     return 1;
   /* Currently, UCS-2 cannot be used as a client character set */
-  if (var->save_result.charset->mbminlen > 1)
+  if (!is_supported_parser_charset(var->save_result.charset))
   {
     my_error(ER_WRONG_VALUE_FOR_VAR, MYF(0), name, 
              var->save_result.charset->csname);
@@ -2846,38 +2900,43 @@ int set_var_collation_client::update(THD *thd)
 
 bool sys_var_timestamp::check(THD *thd, set_var *var)
 {
-  time_t val;
-  var->save_result.ulonglong_value= var->value->val_int();
-  val= (time_t) var->save_result.ulonglong_value;
-  if (val < (time_t) MY_TIME_T_MIN || val > (time_t) MY_TIME_T_MAX)
+  ulonglong sec;
+  ulong sec_part;
+  char buf[64], *errval= 0;
+  if (var->value->get_seconds(&sec, &sec_part))
+    errval= llstr(sec, buf);
+  else if (sec > TIMESTAMP_MAX_VALUE)
+    errval= ullstr(sec, buf);
+
+  if (errval)
   {
-    my_message(ER_UNKNOWN_ERROR, 
-               "This version of MySQL doesn't support dates later than 2038",
-               MYF(0));
+    my_error(ER_WRONG_VALUE_FOR_VAR, MYF(0), "timestamp", errval);
     return TRUE;
   }
+  var->save_result.ulonglong_value= hrtime_from_time(sec)+sec_part;
   return FALSE;
 }
 
 
 bool sys_var_timestamp::update(THD *thd,  set_var *var)
 {
-  thd->set_time((time_t) var->save_result.ulonglong_value);
+  my_hrtime_t hrtime = { var->save_result.ulonglong_value };
+  thd->set_time(hrtime);
   return FALSE;
 }
 
 
 void sys_var_timestamp::set_default(THD *thd, enum_var_type type)
 {
-  thd->user_time=0;
+  thd->user_time.val= 0;
 }
 
 
 uchar *sys_var_timestamp::value_ptr(THD *thd, enum_var_type type,
 				   LEX_STRING *base)
 {
-  thd->sys_var_tmp.long_value= (long) thd->start_time;
-  return (uchar*) &thd->sys_var_tmp.long_value;
+  thd->sys_var_tmp.double_value= thd->start_time + thd->start_time_sec_part/1e6;
+  return (uchar*) &thd->sys_var_tmp.double_value;
 }
 
 
@@ -3130,7 +3189,7 @@ void sys_var_thd_lc_time_names::set_default(THD *thd, enum_var_type type)
 }
 
 /*
-  Handling of microseoncds given as seconds.part_seconds
+  Handling of microseconds given as seconds.part_seconds
 
   NOTES
     The argument to long query time is in seconds in decimal
@@ -3176,10 +3235,10 @@ void sys_var_microseconds::set_default(THD *thd, enum_var_type type)
 uchar *sys_var_microseconds::value_ptr(THD *thd, enum_var_type type,
                                           LEX_STRING *base)
 {
-  thd->tmp_double_value= (double) ((type == OPT_GLOBAL) ?
+  thd->sys_var_tmp.double_value= (double) ((type == OPT_GLOBAL) ?
                                    global_system_variables.*offset :
                                    thd->variables.*offset) / 1000000.0;
-  return (uchar*) &thd->tmp_double_value;
+  return (uchar*) &thd->sys_var_tmp.double_value;
 }
 
 
@@ -3661,6 +3720,16 @@ bool not_all_support_one_shot(List<set_var_base> *var_list)
 /*****************************************************************************
   Functions to handle SET mysql_internal_variable=const_expr
 *****************************************************************************/
+
+/**
+  Verify that the supplied value is correct.
+
+  @param thd Thread handler
+
+  @return status code
+    @retval -1 Failure
+    @retval 0 Success
+*/
 
 int set_var::check(THD *thd)
 {
@@ -4431,6 +4500,36 @@ uchar *sys_var_event_scheduler::value_ptr(THD *thd, enum_var_type type,
   return (uchar *) Events::get_opt_event_scheduler_str();
 }
 #endif
+
+
+int 
+check_max_allowed_packet(THD *thd,  set_var *var)
+{
+  longlong val= var->value->val_int();
+  if (val < (longlong) global_system_variables.net_buffer_length)
+  {
+    push_warning(thd, MYSQL_ERROR::WARN_LEVEL_WARN, 
+                        ER_UNKNOWN_ERROR, 
+                        "The value of 'max_allowed_packet' should be no less than "
+                        "the value of 'net_buffer_length'");
+  }
+  return 0;
+}
+
+
+int 
+check_net_buffer_length(THD *thd,  set_var *var)
+{
+  longlong val= var->value->val_int();
+  if (val > (longlong) global_system_variables.max_allowed_packet)
+  {
+    push_warning(thd, MYSQL_ERROR::WARN_LEVEL_WARN, 
+                        ER_UNKNOWN_ERROR, 
+                        "The value of 'max_allowed_packet' should be no less than "
+                        "the value of 'net_buffer_length'");
+  }
+  return 0;
+}
 
 /****************************************************************************
   Used templates

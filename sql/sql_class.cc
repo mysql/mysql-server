@@ -663,7 +663,7 @@ THD::THD()
               /* statement id */ 0),
    Open_tables_state(refresh_version), rli_fake(0),
    lock_id(&main_lock_id),
-   user_time(0), in_sub_stmt(0),
+   in_sub_stmt(0),
    sql_log_bin_toplevel(false),
    binlog_table_maps(0), binlog_flags(0UL),
    table_map_for_update(0),
@@ -705,7 +705,7 @@ THD::THD()
   main_security_ctx.init();
   security_ctx= &main_security_ctx;
   some_tables_deleted=no_errors=password= 0;
-  query_start_used= 0;
+  query_start_used= query_start_sec_part_used= 0;
   count_cuted_fields= CHECK_FIELD_IGNORE;
   killed= NOT_KILLED;
   col_access=0;
@@ -722,7 +722,7 @@ THD::THD()
 #endif
   // Must be reset to handle error with THD's created for init of mysqld
   lex->current_select= 0;
-  start_time=(time_t) 0;
+  user_time.val= start_time= start_time_sec_part= 0;
   start_utime= prior_thr_create_utime= 0L;
   utime_after_lock= 0L;
   current_linfo =  0;
@@ -813,6 +813,7 @@ THD::THD()
   m_binlog_invoker= FALSE;
   memset(&invoker_user, 0, sizeof(invoker_user));
   memset(&invoker_host, 0, sizeof(invoker_host));
+  prepare_derived_at_open= FALSE;
 }
 
 
@@ -986,7 +987,6 @@ void THD::update_stats(void)
 
 void THD::update_all_stats()
 {
-  time_t save_time;
   ulonglong end_cpu_time, end_utime;
   double busy_time, cpu_time;
 
@@ -995,8 +995,8 @@ void THD::update_all_stats()
     return;
 
   end_cpu_time= my_getcputime();
-  end_utime=    my_micro_time_and_time(&save_time);
-  busy_time= (end_utime - start_utime)  / 1000000.0;
+  end_utime=    microsecond_interval_timer();
+  busy_time= (end_utime - start_utime) / 1000000.0;
   cpu_time=  (end_cpu_time - start_cpu_time) / 10000000.0;
   /* In case there are bad values, 2629743 is the #seconds in a month. */
   if (cpu_time > 2629743.0)
@@ -1004,7 +1004,8 @@ void THD::update_all_stats()
   status_var_add(status_var.cpu_time, cpu_time);
   status_var_add(status_var.busy_time, busy_time);
 
-  update_global_user_stats(this, TRUE, save_time);
+  update_global_user_stats(this, TRUE, my_time(0));
+  // Has to be updated after update_global_user_stats()
   userstat_running= 0;
 }
 
@@ -1195,11 +1196,11 @@ void add_to_status(STATUS_VAR *to_var, STATUS_VAR *from_var)
     *(to++)+= *(from++);
 
   /* Handle the not ulong variables. See end of system_status_var */
-  to_var->bytes_received=       from_var->bytes_received;
+  to_var->bytes_received+=      from_var->bytes_received;
   to_var->bytes_sent+=          from_var->bytes_sent;
   to_var->rows_read+=           from_var->rows_read;
   to_var->rows_sent+=           from_var->rows_sent;
-  to_var->binlog_bytes_written= from_var->binlog_bytes_written;
+  to_var->binlog_bytes_written+= from_var->binlog_bytes_written;
   to_var->cpu_time+=            from_var->cpu_time;
   to_var->busy_time+=           from_var->busy_time;
 }
@@ -1890,7 +1891,7 @@ void select_send::cleanup()
 
 /* Send data to client. Returns 0 if ok */
 
-bool select_send::send_data(List<Item> &items)
+int select_send::send_data(List<Item> &items)
 {
   if (unit->offset_limit_cnt)
   {						// using limit offset,count
@@ -2199,7 +2200,7 @@ select_export::prepare(List<Item> &list, SELECT_LEX_UNIT *u)
                           (int) (uchar) (x) == line_sep_char  || \
                           !(x))
 
-bool select_export::send_data(List<Item> &items)
+int select_export::send_data(List<Item> &items)
 {
 
   DBUG_ENTER("select_export::send_data");
@@ -2456,7 +2457,7 @@ select_dump::prepare(List<Item> &list __attribute__((unused)),
 }
 
 
-bool select_dump::send_data(List<Item> &items)
+int select_dump::send_data(List<Item> &items)
 {
   List_iterator_fast<Item> li(items);
   char buff[MAX_FIELD_WIDTH];
@@ -2501,7 +2502,7 @@ select_subselect::select_subselect(Item_subselect *item_arg)
 }
 
 
-bool select_singlerow_subselect::send_data(List<Item> &items)
+int select_singlerow_subselect::send_data(List<Item> &items)
 {
   DBUG_ENTER("select_singlerow_subselect::send_data");
   Item_singlerow_subselect *it= (Item_singlerow_subselect *)item;
@@ -2532,7 +2533,7 @@ void select_max_min_finder_subselect::cleanup()
 }
 
 
-bool select_max_min_finder_subselect::send_data(List<Item> &items)
+int select_max_min_finder_subselect::send_data(List<Item> &items)
 {
   DBUG_ENTER("select_max_min_finder_subselect::send_data");
   Item_maxmin_subselect *it= (Item_maxmin_subselect *)item;
@@ -2564,6 +2565,7 @@ bool select_max_min_finder_subselect::send_data(List<Item> &items)
         op= &select_max_min_finder_subselect::cmp_decimal;
         break;
       case ROW_RESULT:
+      case TIME_RESULT:
       case IMPOSSIBLE_RESULT:
         // This case should never be choosen
 	DBUG_ASSERT(0);
@@ -2636,7 +2638,7 @@ bool select_max_min_finder_subselect::cmp_str()
      sortcmp(val1, val2, cache->collation.collation) < 0);
 }
 
-bool select_exists_subselect::send_data(List<Item> &items)
+int select_exists_subselect::send_data(List<Item> &items)
 {
   DBUG_ENTER("select_exists_subselect::send_data");
   Item_exists_subselect *it= (Item_exists_subselect *)item;
@@ -2697,6 +2699,7 @@ void Query_arena::free_items()
   for (; free_list; free_list= next)
   {
     next= free_list->next;
+    DBUG_ASSERT(free_list != next);
     free_list->delete_self();
   }
   /* Postcondition: free_list is 0 */
@@ -2988,7 +2991,7 @@ Statement_map::~Statement_map()
   hash_free(&st_hash);
 }
 
-bool select_dumpvar::send_data(List<Item> &items)
+int select_dumpvar::send_data(List<Item> &items)
 {
   List_iterator_fast<my_var> var_li(var_list);
   List_iterator<Item> it(items);
@@ -3045,7 +3048,8 @@ bool
 select_materialize_with_stats::
 create_result_table(THD *thd_arg, List<Item> *column_types,
                     bool is_union_distinct, ulonglong options,
-                    const char *table_alias, bool bit_fields_as_long)
+                    const char *table_alias, bool bit_fields_as_long,
+                    bool create_table)
 {
   DBUG_ASSERT(table == 0);
   tmp_table_param.field_count= column_types->elements;
@@ -3091,15 +3095,16 @@ void select_materialize_with_stats::cleanup()
   @return FALSE on success
 */
 
-bool select_materialize_with_stats::send_data(List<Item> &items)
+int select_materialize_with_stats::send_data(List<Item> &items)
 {
   List_iterator_fast<Item> item_it(items);
   Item *cur_item;
   Column_statistics *cur_col_stat= col_stat;
   uint nulls_in_row= 0;
+  int res;
 
-  if (select_union::send_data(items))
-    return 1;
+  if ((res= select_union::send_data(items)))
+    return res;
   /* Skip duplicate rows. */
   if (write_err == HA_ERR_FOUND_DUPP_KEY ||
       write_err == HA_ERR_FOUND_DUPP_UNIQUE)
@@ -3140,6 +3145,7 @@ void TMP_TABLE_PARAM::init()
   table_charset= 0;
   precomputed_group_by= 0;
   bit_fields_as_long= 0;
+  materialized_subquery= 0;
   skip_create_table= 0;
   DBUG_VOID_RETURN;
 }

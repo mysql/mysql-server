@@ -341,8 +341,9 @@ public:
   SEL_ARG(Field *field, uint8 part, uchar *min_value, uchar *max_value,
 	  uint8 min_flag, uint8 max_flag, uint8 maybe_flag);
   SEL_ARG(enum Type type_arg)
-    :min_flag(0),elements(1),use_count(1),left(0),right(0),next_key_part(0),
-    color(BLACK), type(type_arg)
+    :min_flag(0), max_part_no(0) /* first key part means 1. 0 mean 'no parts'*/, 
+     elements(1),use_count(1),left(0),right(0),
+     next_key_part(0), color(BLACK), type(type_arg)
   {}
   inline bool is_same(SEL_ARG *arg)
   {
@@ -1665,7 +1666,7 @@ SQL_SELECT *make_select(TABLE *head, table_map const_tables,
   select->read_tables=read_tables;
   select->const_tables=const_tables;
   select->head=head;
-  select->cond=conds;
+  select->cond= conds;
 
   if (head->sort.io_cache)
   {
@@ -1816,6 +1817,12 @@ QUICK_RANGE_SELECT::~QUICK_RANGE_SELECT()
   DBUG_VOID_RETURN;
 }
 
+/*
+  QUICK_INDEX_SORT_SELECT works as follows:
+  - Do index scans, accumulate rowids in the Unique object 
+    (Unique will also sort and de-duplicate rowids)
+  - Use rowids from unique to run a disk-ordered sweep
+*/
 
 QUICK_INDEX_SORT_SELECT::QUICK_INDEX_SORT_SELECT(THD *thd_param,
                                                  TABLE *table)
@@ -1848,7 +1855,18 @@ QUICK_INDEX_SORT_SELECT::push_quick_back(QUICK_RANGE_SELECT *quick_sel_range)
   if (head->file->primary_key_is_clustered() &&
       quick_sel_range->index == head->s->primary_key)
   {
-   /* A quick_select over a clustered primary key is handled specifically */
+   /*
+     A quick_select over a clustered primary key is handled specifically
+     Here we assume:
+     - PK columns are included in any other merged index
+     - Scan on the PK is disk-ordered.
+       (not meeting #2 will only cause performance degradation)
+
+       We could treat clustered PK as any other index, but that would
+       be inefficient. There is no point in doing scan on
+       CPK, remembering the rowid, then making rnd_pos() call with
+       that rowid.
+    */
     pk_quick_select= quick_sel_range;
     DBUG_RETURN(0);
   }
@@ -1959,7 +1977,7 @@ int QUICK_RANGE_SELECT::init_ror_merged_scan(bool reuse_handler)
   }
 
   thd= head->in_use;
-  if (!(file= head->file->clone(thd->mem_root)))
+  if (!(file= head->file->clone(head->s->normalized_path.str, thd->mem_root)))
   {
     /* 
       Manually set the error flag. Note: there seems to be quite a few
@@ -2909,7 +2927,8 @@ int SQL_SELECT::test_quick_select(THD *thd, key_map keys_to_use,
   quick=0;
   needed_reg.clear_all();
   quick_keys.clear_all();
-  if (keys_to_use.is_clear_all())
+  DBUG_ASSERT(!head->is_filled_at_execution());
+  if (keys_to_use.is_clear_all() || head->is_filled_at_execution())
     DBUG_RETURN(0);
   records= head->file->stats.records;
   if (!records)
@@ -4298,11 +4317,19 @@ double get_sweep_read_cost(const PARAM *param, ha_rows records)
   DBUG_ENTER("get_sweep_read_cost");
   if (param->table->file->primary_key_is_clustered())
   {
+    /*
+      We are using the primary key to find the rows.
+      Calculate the cost for this.
+    */
     result= param->table->file->read_time(param->table->s->primary_key,
                                           (uint)records, records);
   }
   else
   {
+    /*
+      Rows will be retreived with rnd_pos(). Caluclate the expected
+      cost for this.
+    */
     double n_blocks=
       ceil(ulonglong2double(param->table->file->stats.data_file_length) /
            IO_SIZE);
@@ -4319,7 +4346,7 @@ double get_sweep_read_cost(const PARAM *param, ha_rows records)
       return 1;
     */
     JOIN *join= param->thd->lex->select_lex.join;
-    if (!join || join->tables == 1)
+    if (!join || join->table_count == 1)
     {
       /* No join, assume reading is done in one 'sweep' */
       result= busy_blocks*(DISK_SEEK_BASE_COST +
@@ -5013,7 +5040,7 @@ bool prepare_search_best_index_intersect(PARAM *param,
       if ((*index_scan)->keynr == table->s->primary_key)
       {
         common->cpk_scan= cpk_scan= *index_scan;
-          break;
+        break;
       }
     }
   }
@@ -6187,7 +6214,6 @@ TRP_ROR_INTERSECT *get_best_ror_intersect(const PARAM *param, SEL_TREE *tree,
   ROR_SCAN_INFO **cur_ror_scan;
   ROR_SCAN_INFO *cpk_scan= NULL;
   uint cpk_no;
-  bool cpk_scan_used= FALSE;
 
   if (!(tree->ror_scans= (ROR_SCAN_INFO**)alloc_root(param->mem_root,
                                                      sizeof(ROR_SCAN_INFO*)*
@@ -6199,11 +6225,20 @@ TRP_ROR_INTERSECT *get_best_ror_intersect(const PARAM *param, SEL_TREE *tree,
   for (idx= 0, cur_ror_scan= tree->ror_scans; idx < param->keys; idx++)
   {
     ROR_SCAN_INFO *scan;
+    uint key_no;
     if (!tree->ror_scans_map.is_set(idx))
       continue;
+    key_no= param->real_keynr[idx];
+    if (key_no != cpk_no &&
+        param->table->file->index_flags(key_no,0,0) & HA_CLUSTERED_INDEX)
+    {
+      /* Ignore clustering keys */
+      tree->n_ror_scans--;
+      continue;
+    }
     if (!(scan= make_ror_scan(param, idx, tree->keys[idx])))
       return NULL;
-    if (param->real_keynr[idx] == cpk_no)
+    if (key_no == cpk_no)
     {
       cpk_scan= scan;
       tree->n_ror_scans--;
@@ -6289,15 +6324,14 @@ TRP_ROR_INTERSECT *get_best_ror_intersect(const PARAM *param, SEL_TREE *tree,
   {
     if (ror_intersect_add(intersect, cpk_scan, TRUE) && 
         (intersect->total_cost < min_cost))
-    {
-      cpk_scan_used= TRUE;
       intersect_best= intersect; //just set pointer here
-    }
   }
+  else
+    cpk_scan= 0;                                // Don't use cpk_scan
 
   /* Ok, return ROR-intersect plan if we have found one */
   TRP_ROR_INTERSECT *trp= NULL;
-  if (min_cost < read_time && (cpk_scan_used || best_num > 1))
+  if (min_cost < read_time && (cpk_scan || best_num > 1))
   {
     if (!(trp= new (param->mem_root) TRP_ROR_INTERSECT))
       DBUG_RETURN(trp);
@@ -6316,7 +6350,7 @@ TRP_ROR_INTERSECT *get_best_ror_intersect(const PARAM *param, SEL_TREE *tree,
     set_if_smaller(param->table->quick_condition_rows, best_rows);
     trp->records= best_rows;
     trp->index_scan_costs= intersect_best->index_scan_costs;
-    trp->cpk_scan= cpk_scan_used? cpk_scan: NULL;
+    trp->cpk_scan= cpk_scan;
     DBUG_PRINT("info", ("Returning non-covering ROR-intersect plan:"
                         "cost %g, records %lu",
                         trp->read_cost, (ulong) trp->records));
@@ -7360,7 +7394,6 @@ get_mm_leaf(RANGE_OPT_PARAM *param, COND *conf_func, Field *field,
   SEL_ARG *tree= 0;
   MEM_ROOT *alloc= param->mem_root;
   uchar *str;
-  ulong orig_sql_mode;
   int err;
   DBUG_ENTER("get_mm_leaf");
 
@@ -7528,16 +7561,8 @@ get_mm_leaf(RANGE_OPT_PARAM *param, COND *conf_func, Field *field,
     We can't always use indexes when comparing a string index to a number
     cmp_type() is checked to allow compare of dates to numbers
   */
-  if (field->result_type() == STRING_RESULT &&
-      value->result_type() != STRING_RESULT &&
-      field->cmp_type() != value->result_type())
+  if (field->cmp_type() == STRING_RESULT && value->cmp_type() != STRING_RESULT)
     goto end;
-  /* For comparison purposes allow invalid dates like 2000-01-32 */
-  orig_sql_mode= field->table->in_use->variables.sql_mode;
-  if (value->real_item()->type() == Item::STRING_ITEM &&
-      (field->type() == MYSQL_TYPE_DATE ||
-       field->type() == MYSQL_TYPE_DATETIME))
-    field->table->in_use->variables.sql_mode|= MODE_INVALID_DATES;
   err= value->save_in_field_no_warnings(field, 1);
   if (err > 0)
   {
@@ -7549,7 +7574,6 @@ get_mm_leaf(RANGE_OPT_PARAM *param, COND *conf_func, Field *field,
       {
         tree= new (alloc) SEL_ARG(field, 0, 0);
         tree->type= SEL_ARG::IMPOSSIBLE;
-        field->table->in_use->variables.sql_mode= orig_sql_mode;
         goto end;
       }
       else
@@ -7583,10 +7607,7 @@ get_mm_leaf(RANGE_OPT_PARAM *param, COND *conf_func, Field *field,
           */
         }
         else
-        {
-          field->table->in_use->variables.sql_mode= orig_sql_mode;
           goto end;
-        }
       }
     }
 
@@ -7609,12 +7630,10 @@ get_mm_leaf(RANGE_OPT_PARAM *param, COND *conf_func, Field *field,
   }
   else if (err < 0)
   {
-    field->table->in_use->variables.sql_mode= orig_sql_mode;
     /* This happens when we try to insert a NULL field in a not null column */
     tree= &null_element;                        // cmp with NULL is never TRUE
     goto end;
   }
-  field->table->in_use->variables.sql_mode= orig_sql_mode;
 
   /*
     Any sargable predicate except "<=>" involving NULL as a constant is always
@@ -9478,7 +9497,7 @@ ha_rows check_quick_select(PARAM *param, uint idx, bool index_only,
   SEL_ARG_RANGE_SEQ seq;
   RANGE_SEQ_IF seq_if = {NULL, sel_arg_range_seq_init, sel_arg_range_seq_next, 0, 0};
   handler *file= param->table->file;
-  ha_rows rows;
+  ha_rows rows= HA_POS_ERROR;
   uint keynr= param->real_keynr[idx];
   DBUG_ENTER("check_quick_select");
   
@@ -9511,15 +9530,20 @@ ha_rows check_quick_select(PARAM *param, uint idx, bool index_only,
   bool pk_is_clustered= file->primary_key_is_clustered();
   if (index_only && 
       (file->index_flags(keynr, param->max_key_part, 1) & HA_KEYREAD_ONLY) &&
-      !(pk_is_clustered && keynr == param->table->s->primary_key))
+      !(file->index_flags(keynr, param->max_key_part, 1) & HA_CLUSTERED_INDEX))
      *mrr_flags |= HA_MRR_INDEX_ONLY;
   
-  if (current_thd->lex->sql_command != SQLCOM_SELECT)
+  if (param->thd->lex->sql_command != SQLCOM_SELECT)
     *mrr_flags |= HA_MRR_USE_DEFAULT_IMPL;
 
   *bufsize= param->thd->variables.mrr_buff_size;
-  rows= file->multi_range_read_info_const(keynr, &seq_if, (void*)&seq, 0,
-                                          bufsize, mrr_flags, cost);
+  /*
+    Skip materialized derived table/view result table from MRR check as
+    they aren't contain any data yet.
+  */
+  if (param->table->pos_in_table_list->is_non_derived())
+    rows= file->multi_range_read_info_const(keynr, &seq_if, (void*)&seq, 0,
+                                            bufsize, mrr_flags, cost);
   if (rows != HA_POS_ERROR)
   {
     param->quick_rows[keynr]= rows;
@@ -11104,7 +11128,7 @@ static bool get_constant_key_infix(KEY *index_info, SEL_ARG *index_range_tree,
                        uchar *key_infix, uint *key_infix_len,
                        KEY_PART_INFO **first_non_infix_part);
 static bool
-check_group_min_max_predicates(COND *cond, Item_field *min_max_arg_item,
+check_group_min_max_predicates(Item *cond, Item_field *min_max_arg_item,
                                Field::imagetype image_type);
 
 static void
@@ -11270,7 +11294,7 @@ get_best_group_min_max(PARAM *param, SEL_TREE *tree)
   /* Perform few 'cheap' tests whether this access method is applicable. */
   if (!join)
     DBUG_RETURN(NULL);        /* This is not a select statement. */
-  if ((join->tables != 1) ||  /* The query must reference one table. */
+  if ((join->table_count != 1) ||  /* The query must reference one table. */
       ((!join->group_list) && /* Neither GROUP BY nor a DISTINCT query. */
        (!join->select_distinct)) ||
       (join->select_lex->olap == ROLLUP_TYPE)) /* Check (B3) for ROLLUP */
@@ -11678,14 +11702,14 @@ get_best_group_min_max(PARAM *param, SEL_TREE *tree)
 */
 
 static bool
-check_group_min_max_predicates(COND *cond, Item_field *min_max_arg_item,
+check_group_min_max_predicates(Item *cond, Item_field *min_max_arg_item,
                                Field::imagetype image_type)
 {
   DBUG_ENTER("check_group_min_max_predicates");
   DBUG_ASSERT(cond && min_max_arg_item);
 
   cond= cond->real_item();
-  Item::Type cond_type= cond->type();
+  Item::Type cond_type= cond->real_type();
   if (cond_type == Item::COND_ITEM) /* 'AND' or 'OR' */
   {
     DBUG_PRINT("info", ("Analyzing: %s", ((Item_func*) cond)->func_name()));
@@ -11701,16 +11725,25 @@ check_group_min_max_predicates(COND *cond, Item_field *min_max_arg_item,
   }
 
   /*
-    TODO:
-    This is a very crude fix to handle sub-selects in the WHERE clause
-    (Item_subselect objects). With the test below we rule out from the
-    optimization all queries with subselects in the WHERE clause. What has to
-    be done, is that here we should analyze whether the subselect references
-    the MIN/MAX argument field, and disallow the optimization only if this is
-    so.
+    Disallow loose index scan if the MIN/MAX argument field is referenced by
+    a subquery in the WHERE clause.
   */
-  if (cond->real_type() == Item::SUBSELECT_ITEM)
-    DBUG_RETURN(FALSE);
+  if (cond_type == Item::SUBSELECT_ITEM)
+  {
+    Item_subselect *subs_cond= (Item_subselect*) cond;
+    if (subs_cond->is_correlated)
+    {
+      DBUG_ASSERT(subs_cond->depends_on.elements > 0);
+      List_iterator_fast<Item*> li(subs_cond->depends_on);
+      Item **dep;
+      while ((dep= li++))
+      {
+        if ((*dep)->eq(min_max_arg_item, FALSE))
+          DBUG_RETURN(FALSE);
+      }
+    }
+    DBUG_RETURN(TRUE);
+  }
 
   /*
     Condition of the form 'field' is equivalent to 'field <> 0' and thus

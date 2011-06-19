@@ -97,6 +97,9 @@ static my_bool init_state_maps(struct charset_info_st *cs)
   state_map[(uchar)'@']= (uchar) MY_LEX_USER_END;
   state_map[(uchar) '`']= (uchar) MY_LEX_USER_VARIABLE_DELIMITER;
   state_map[(uchar)'"']= (uchar) MY_LEX_STRING_OR_DELIMITER;
+  state_map[(uchar)'-']= (uchar) MY_LEX_MINUS_OR_COMMENT;
+  state_map[(uchar)',']= (uchar) MY_LEX_COMMA;
+  state_map[(uchar)'?']= (uchar) MY_LEX_PLACEHOLDER;
 
   /*
     Create a second map to make it faster to find identifiers

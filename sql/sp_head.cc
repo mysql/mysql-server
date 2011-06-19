@@ -49,19 +49,7 @@ static void reset_start_time_for_sp(THD *thd)
     constant during the execution of those.
   */
   if (!thd->in_sub_stmt)
-  {
-    /*
-      First investigate if there is a cached time stamp
-    */
-    if (thd->user_time)
-    {
-      thd->start_time= thd->user_time;
-    }
-    else
-    {
-      my_micro_time_and_time(&thd->start_time);
-    }
-  }
+    thd->set_time();
 }
 
 Item_result
@@ -2847,6 +2835,9 @@ int sp_instr::exec_open_and_lock_tables(THD *thd, TABLE_LIST *tables)
     result= -1;
   else
     result= 0;
+  /* Prepare all derived tables/views to catch possible errors. */
+  if (!result)
+    result= mysql_handle_derived(thd->lex, DT_PREPARE) ? -1 : 0;
 
   return result;
 }

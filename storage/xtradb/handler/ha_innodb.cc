@@ -206,6 +206,25 @@ static char*	internal_innobase_data_file_path	= NULL;
 
 static char*	innodb_version_str = (char*) INNODB_VERSION_STR;
 
+/** Possible values for system variable "innodb_stats_method". The values
+are defined the same as its corresponding MyISAM system variable
+"myisam_stats_method"(see "myisam_stats_method_names"), for better usability */
+static const char* innodb_stats_method_names[] = {
+	"nulls_equal",
+	"nulls_unequal",
+	"nulls_ignored",
+	NullS
+};
+
+/** Used to define an enumerate type of the system variable innodb_stats_method.
+This is the same as "myisam_stats_method_typelib" */
+static TYPELIB innodb_stats_method_typelib = {
+	array_elements(innodb_stats_method_names) - 1,
+	"innodb_stats_method_typelib",
+	innodb_stats_method_names,
+	NULL
+};
+
 /* The following counter is used to convey information to InnoDB
 about server activity: in selects it is not sensible to call
 srv_active_wake_master_thread after each fetch or search, we only do
@@ -3389,12 +3408,15 @@ UNIV_INTERN
 ulong
 ha_innobase::index_flags(
 /*=====================*/
-	uint,
-	uint,
-	bool)
+	uint index,
+	uint part,
+	bool all_parts)
 const
 {
-	return(HA_READ_NEXT | HA_READ_PREV | HA_READ_ORDER
+       ulong extra_flag= 0;
+       if (table && index == table->s->primary_key)
+             extra_flag= HA_CLUSTERED_INDEX;
+	return(HA_READ_NEXT | HA_READ_PREV | HA_READ_ORDER | extra_flag 
 	       | HA_READ_RANGE | HA_KEYREAD_ONLY | HA_DO_INDEX_COND_PUSHDOWN);
 }
 
@@ -4439,12 +4461,24 @@ get_innobase_type_from_mysql_type(
 	case MYSQL_TYPE_SHORT:
 	case MYSQL_TYPE_INT24:
 	case MYSQL_TYPE_DATE:
-	case MYSQL_TYPE_DATETIME:
 	case MYSQL_TYPE_YEAR:
 	case MYSQL_TYPE_NEWDATE:
+           return(DATA_INT);
+
 	case MYSQL_TYPE_TIME:
+	case MYSQL_TYPE_DATETIME:
 	case MYSQL_TYPE_TIMESTAMP:
-		return(DATA_INT);
+          /*
+            XtraDB should ideally just check field->keytype() and never
+            field->type().  The following check is here to only
+            change the new hires datetime/timestamp/time fields to
+            use DATA_FIXBINARY.  We can't convert this function to
+            just test for field->keytype() as then the check if a
+            table is compatible will fail for old tables.
+          */
+           if (field->key_type() == HA_KEYTYPE_BINARY)
+             return(DATA_FIXBINARY);
+           return(DATA_INT);
 	case MYSQL_TYPE_FLOAT:
 		return(DATA_FLOAT);
 	case MYSQL_TYPE_DOUBLE:
@@ -4458,10 +4492,7 @@ get_innobase_type_from_mysql_type(
 	case MYSQL_TYPE_LONG_BLOB:
 		return(DATA_BLOB);
 	case MYSQL_TYPE_NULL:
-		/* MySQL currently accepts "NULL" datatype, but will
-		reject such datatype in the next release. We will cope
-		with it and not trigger assertion failure in 5.1 */
-		break;
+		return(DATA_FIXBINARY);
 	default:
 		ut_error;
 	}
@@ -6046,6 +6077,11 @@ ha_innobase::index_read(
 	case DB_SUCCESS:
 		error = 0;
 		table->status = 0;
+#ifdef EXTENDED_FOR_USERSTAT
+		rows_read++;
+		if (active_index < MAX_KEY)
+			index_rows_read[active_index]++;
+#endif
 		break;
 	case DB_RECORD_NOT_FOUND:
 		error = HA_ERR_KEY_NOT_FOUND;
@@ -6270,7 +6306,7 @@ ha_innobase::general_fetch(
 		table->status = 0;
 #ifdef EXTENDED_FOR_USERSTAT
 		rows_read++;
-		if (active_index >= 0 && active_index < MAX_KEY)
+		if (active_index < MAX_KEY)
 			index_rows_read[active_index]++;
 #endif
 		break;
@@ -8144,6 +8180,65 @@ innobase_get_mysql_key_number_for_index(
 
         return(0);
 }
+
+/*********************************************************************//**
+Calculate Record Per Key value. Need to exclude the NULL value if
+innodb_stats_method is set to "nulls_ignored"
+@return estimated record per key value */
+static
+ha_rows
+innodb_rec_per_key(
+/*===============*/
+	dict_index_t*	index,		/*!< in: dict_index_t structure */
+	ulint		i,		/*!< in: the column we are
+					calculating rec per key */
+	ha_rows		records)	/*!< in: estimated total records */
+{
+	ha_rows		rec_per_key;
+
+	ut_ad(i < dict_index_get_n_unique(index));
+
+	/* Note the stat_n_diff_key_vals[] stores the diff value with
+	n-prefix indexing, so it is always stat_n_diff_key_vals[i + 1] */
+	if (index->stat_n_diff_key_vals[i + 1] == 0) {
+
+		rec_per_key = records;
+	} else if (srv_innodb_stats_method == SRV_STATS_NULLS_IGNORED) {
+		ib_int64_t	num_null;
+
+		/* Number of rows with NULL value in this
+		field */
+		num_null = records - index->stat_n_non_null_key_vals[i];
+
+		/* In theory, index->stat_n_non_null_key_vals[i]
+		should always be less than the number of records.
+		Since this is statistics value, the value could
+		have slight discrepancy. But we will make sure
+		the number of null values is not a negative number. */
+		num_null = (num_null < 0) ? 0 : num_null;
+
+		/* If the number of NULL values is the same as or
+		large than that of the distinct values, we could
+		consider that the table consists mostly of NULL value. 
+		Set rec_per_key to 1. */
+		if (index->stat_n_diff_key_vals[i + 1] <= num_null) {
+			rec_per_key = 1;
+		} else {
+			/* Need to exclude rows with NULL values from
+			rec_per_key calculation */
+			rec_per_key = (ha_rows)(
+				(records - num_null)
+				/ (index->stat_n_diff_key_vals[i + 1]
+				   - num_null));
+		}
+	} else {
+		rec_per_key = (ha_rows)
+			 (records / index->stat_n_diff_key_vals[i + 1]);
+	}
+
+	return(rec_per_key);
+}
+
 /*********************************************************************//**
 Returns statistics information of the table to the MySQL interpreter,
 in various fields of the handle object. */
@@ -8202,6 +8297,10 @@ ha_innobase::info_low(
 				for (index = dict_table_get_first_index(ib_table);
 				     index != NULL;
 				     index = dict_table_get_next_index(index)) {
+					if (dict_is_older_statistics(index)) {
+						row_delete_stats_for_mysql(index, prebuilt->trx);
+						innobase_commit_low(prebuilt->trx);
+					}
 					row_insert_stats_for_mysql(index, prebuilt->trx);
 					innobase_commit_low(prebuilt->trx);
 				}
@@ -8395,13 +8494,8 @@ ha_innobase::info_low(
 					break;
 				}
 
-				if (index->stat_n_diff_key_vals[j + 1] == 0) {
-
-					rec_per_key = stats.records;
-				} else {
-					rec_per_key = (ha_rows)(stats.records /
-					 index->stat_n_diff_key_vals[j + 1]);
-				}
+				rec_per_key = innodb_rec_per_key(
+					index, j, stats.records);
 
 				/* Since MySQL seems to favor table scans
 				too much over index searches, we pretend
@@ -11540,25 +11634,6 @@ static MYSQL_SYSVAR_ULONGLONG(stats_sample_pages, srv_stats_sample_pages,
   "The number of index pages to sample when calculating statistics (default 8)",
   NULL, NULL, 8, 1, ~0ULL, 0);
 
-const char *innobase_stats_method_names[]=
-{
-  "nulls_equal",
-  "nulls_unequal",
-  "nulls_ignored",
-  NullS
-};
-TYPELIB innobase_stats_method_typelib=
-{
-  array_elements(innobase_stats_method_names) - 1, "innobase_stats_method_typelib",
-  innobase_stats_method_names, NULL
-};
-static MYSQL_SYSVAR_ENUM(stats_method, srv_stats_method,
-  PLUGIN_VAR_RQCMDARG,
-  "Specifies how InnoDB index statistics collection code should threat NULLs. "
-  "Possible values of name are same to for 'myisam_stats_method'. "
-  "This is startup parameter.",
-  NULL, NULL, 0, &innobase_stats_method_typelib);
-
 static MYSQL_SYSVAR_ULONG(stats_auto_update, srv_stats_auto_update,
   PLUGIN_VAR_RQCMDARG,
   "Enable/Disable InnoDB's auto update statistics of indexes. "
@@ -11747,6 +11822,13 @@ static MYSQL_SYSVAR_STR(change_buffering, innobase_change_buffering,
   innodb_change_buffering_validate,
   innodb_change_buffering_update, "inserts"); 
 
+static MYSQL_SYSVAR_ENUM(stats_method, srv_innodb_stats_method,
+   PLUGIN_VAR_RQCMDARG,
+  "Specifies how InnoDB index statistics collection code should "
+  "treat NULLs. Possible values are NULLS_EQUAL (default), "
+  "NULLS_UNEQUAL and NULLS_IGNORED",
+   NULL, NULL, SRV_STATS_NULLS_EQUAL, &innodb_stats_method_typelib);
+
 #if defined UNIV_DEBUG || defined UNIV_IBUF_DEBUG
 static MYSQL_SYSVAR_UINT(change_buffering_debug, ibuf_debug,
   PLUGIN_VAR_RQCMDARG,
@@ -11891,6 +11973,12 @@ static MYSQL_SYSVAR_BOOL(release_locks_early, innobase_release_locks_early,
   "Release row locks in the prepare stage instead of in the commit stage",
   NULL, NULL, FALSE);
 
+static MYSQL_SYSVAR_ULINT(lazy_drop_table, srv_lazy_drop_table,
+  PLUGIN_VAR_RQCMDARG,
+  "At deleting tablespace, only miminum needed processes at the time are done. "
+  "e.g. for http://bugs.mysql.com/51325",
+  NULL, NULL, 0, 0, 1, 0);
+
 static struct st_mysql_sys_var* innobase_system_variables[]= {
   MYSQL_SYSVAR(page_size),
   MYSQL_SYSVAR(log_block_size),
@@ -11940,12 +12028,12 @@ static struct st_mysql_sys_var* innobase_system_variables[]= {
   MYSQL_SYSVAR(overwrite_relay_log_info),
   MYSQL_SYSVAR(rollback_on_timeout),
   MYSQL_SYSVAR(stats_on_metadata),
-  MYSQL_SYSVAR(stats_method),
   MYSQL_SYSVAR(stats_auto_update),
   MYSQL_SYSVAR(stats_update_need_lock),
   MYSQL_SYSVAR(use_sys_stats_table),
   MYSQL_SYSVAR(stats_sample_pages),
   MYSQL_SYSVAR(adaptive_hash_index),
+  MYSQL_SYSVAR(stats_method),
   MYSQL_SYSVAR(replication_delay),
   MYSQL_SYSVAR(status_file),
   MYSQL_SYSVAR(strict_mode),
@@ -11983,6 +12071,7 @@ static struct st_mysql_sys_var* innobase_system_variables[]= {
   MYSQL_SYSVAR(use_purge_thread),
   MYSQL_SYSVAR(pass_corrupt_table),
   MYSQL_SYSVAR(release_locks_early),
+  MYSQL_SYSVAR(lazy_drop_table),
   NULL
 };
 
