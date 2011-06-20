@@ -96,9 +96,6 @@ public:
   uint m_batch_size;
 
   uint m_execute_count;
-  uint m_max_violation_count;
-  uint m_old_violation_count;
-  uint m_conflict_fn_usage_count;
 
   uint m_scan_count;
   uint m_pruned_scan_count;
