@@ -64,6 +64,15 @@ abstract public class CrundDriver extends Driver {
     protected final Set<String> exclude = new HashSet<String>();
     protected final Set<String> include = new HashSet<String>();
 
+    // the name of the test currently being performed
+    protected String operationName;
+
+    /** The errors for the current test */
+    protected StringBuilder errorBuffer;
+
+    /** Throw an exception if an error is reported */
+    protected boolean failOnError;
+
     // ----------------------------------------------------------------------
     // benchmark intializers/finalizers
     // ----------------------------------------------------------------------
@@ -146,6 +155,7 @@ abstract public class CrundDriver extends Driver {
         renewOperations = parseBoolean("renewOperations", false);
         logSumOfOps = parseBoolean("logSumOfOps", true);
         allowExtendedPC = parseBoolean("allowExtendedPC", false);
+        failOnError = parseBoolean("failOnError", false);
 
         nOpsStart = parseInt("nOpsStart", 256);
         if (nOpsStart < 1) {
@@ -389,22 +399,45 @@ abstract public class CrundDriver extends Driver {
                 clearPersistenceContext();
             }
             runOperation(op, nOps);
+            reportErrors();
         }
     }
 
     // XXX move to generic load class
     protected void runOperation(Op op, int nOps) throws Exception {
-        final String name = op.getName();
+        operationName = op.getName();
         // if there is an include list and this test is included, or
         // there is not an include list and this test is not excluded
-        if ((include.size() != 0 && include.contains(name))
-                || (include.size() == 0 && !exclude.contains(name))) {
-            begin(name);
+        if ((include.size() != 0 && include.contains(operationName))
+                || (include.size() == 0 && !exclude.contains(operationName))) {
+            begin(operationName);
             op.run(nOps);
-            finish(name);
+            finish(operationName);
         }
     }
 
+    /** Add an error to the existing errors */
+    protected void appendError(String where) {
+        if (errorBuffer == null) {
+            errorBuffer = new StringBuilder();
+        }
+        errorBuffer.append("Error in operation ");
+        errorBuffer.append(operationName);
+        errorBuffer.append(": ");
+        errorBuffer.append(where);
+        errorBuffer.append('\n');
+    }
+
+    /** Report errors and reset the error buffer */
+    protected void reportErrors() {
+        if (errorBuffer != null) {
+            if (failOnError) {
+                throw new RuntimeException(errorBuffer.toString());
+            }
+            System.out.println(errorBuffer.toString());
+            errorBuffer = null;
+        }
+    }
     // XXX move to generic load class
     // reports an error if a condition is not met
     static protected final void verify(boolean cond) {
@@ -419,6 +452,14 @@ abstract public class CrundDriver extends Driver {
             throw new RuntimeException("data verification failed:"
                                        + " expected = " + exp
                                        + ", actual = " + act);
+    }
+
+    // XXX move to generic load class
+    protected final void verify(String where, int exp, int act) {
+        if (exp != act)
+            appendError(" data verification failed:"
+                    + " expected = " + exp
+                    + ", actual = " + act);
     }
 
     // XXX move to generic load class
@@ -533,7 +574,6 @@ abstract public class CrundDriver extends Driver {
         out.println("++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++");
 
         // XXX move to generic load class
-        clearData();
         closeOperations();
 
         closeConnection();
