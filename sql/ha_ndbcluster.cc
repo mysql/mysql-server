@@ -5057,6 +5057,7 @@ int ha_ndbcluster::end_bulk_delete()
 
   assert(m_rows_deleted >= ignore_count);
   m_rows_deleted-= ignore_count;
+  no_uncommitted_rows_update(ignore_count);
   DBUG_RETURN(0);
 }
 
@@ -5249,6 +5250,7 @@ int ha_ndbcluster::ndb_delete_row(const uchar *record,
   {
     assert(m_rows_deleted >= ignore_count);
     m_rows_deleted-= ignore_count;
+    no_uncommitted_rows_update(ignore_count);
   }
   DBUG_RETURN(0);
 }
