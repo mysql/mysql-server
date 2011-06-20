@@ -236,7 +236,7 @@ public class JdbcLoad extends CrundDriver {
                         if (mode == CrundDriver.XMode.BULK) {
                             int[] cnts = stmt.executeBatch();
                             for (int i = 0; i < cnts.length; i++) {
-                                verify(cnts[i] == 1);
+                                verify(name + " " + i, 1, cnts[i]);
                             }
                         }
                         if (mode != CrundDriver.XMode.INDY)
@@ -662,7 +662,7 @@ public class JdbcLoad extends CrundDriver {
                             // fetch a.id
                             stmt0.setInt(1, i);
                             ResultSet rs0 = stmt0.executeQuery();
-                            rs0.next();
+                            verify(rs0.next());
                             int aId = rs0.getInt(1);
                             verify(aId == ((i - 1) % nOps) + 1);
                             verify(!rs0.next());
@@ -785,7 +785,7 @@ public class JdbcLoad extends CrundDriver {
                 });
 
             ops.add(
-                new JdbcOp("insA_attr_" + mode.toString().toLowerCase(),
+                new JdbcOp("insAattr_" + mode.toString().toLowerCase(),
                            "INSERT INTO a (id, cint, clong, cfloat, cdouble) VALUES (?, ?, ?, ?, ?)") {
                     public void run(int nOps) throws SQLException {
                         conn.setAutoCommit(mode == CrundDriver.XMode.INDY);
@@ -811,7 +811,7 @@ public class JdbcLoad extends CrundDriver {
                 });
 
             ops.add(
-                new JdbcOp("insB0_attr_" + mode.toString().toLowerCase(),
+                new JdbcOp("insB0attr_" + mode.toString().toLowerCase(),
                            "INSERT INTO b0 (id, cint, clong, cfloat, cdouble) VALUES (?, ?, ?, ?, ?)") {
                     public void run(int nOps) throws SQLException {
                         conn.setAutoCommit(mode == CrundDriver.XMode.INDY);
