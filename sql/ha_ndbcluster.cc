@@ -634,9 +634,9 @@ SHOW_VAR ndb_status_variables_dynamic[]= {
 };
 
 SHOW_VAR ndb_status_conflict_variables[]= {
-  {"fn_max",       (char*) &g_ndb_slave_state.total_violation_count[CFT_NDB_MAX], SHOW_LONG},
-  {"fn_old",       (char*) &g_ndb_slave_state.total_violation_count[CFT_NDB_OLD], SHOW_LONG},
-  {"fn_max_del_win", (char*) &g_ndb_slave_state.total_violation_count[CFT_NDB_MAX_DEL_WIN], SHOW_LONG},
+  {"fn_max",       (char*) &g_ndb_slave_state.total_violation_count[CFT_NDB_MAX], SHOW_LONGLONG},
+  {"fn_old",       (char*) &g_ndb_slave_state.total_violation_count[CFT_NDB_OLD], SHOW_LONGLONG},
+  {"fn_max_del_win", (char*) &g_ndb_slave_state.total_violation_count[CFT_NDB_MAX_DEL_WIN], SHOW_LONGLONG},
   {NullS, NullS, SHOW_LONG}
 };
 
@@ -5504,6 +5504,7 @@ int ha_ndbcluster::end_bulk_delete()
 
   assert(m_rows_deleted >= ignore_count);
   m_rows_deleted-= ignore_count;
+  no_uncommitted_rows_update(ignore_count);
   DBUG_RETURN(0);
 }
 
@@ -5696,6 +5697,7 @@ int ha_ndbcluster::ndb_delete_row(const uchar *record,
   {
     assert(m_rows_deleted >= ignore_count);
     m_rows_deleted-= ignore_count;
+    no_uncommitted_rows_update(ignore_count);
   }
   DBUG_RETURN(0);
 }
