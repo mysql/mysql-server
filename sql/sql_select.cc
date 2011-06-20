@@ -17420,6 +17420,7 @@ sub_select_sjm(JOIN *join, JOIN_TAB *join_tab, bool end_of_records)
 
       // Clear possible outer join information from earlier use of this join tab
       last_tab->last_inner= NULL;
+      last_tab->first_unmatched= NULL;
     }
   }
   else

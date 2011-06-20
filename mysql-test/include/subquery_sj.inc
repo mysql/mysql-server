@@ -3617,3 +3617,56 @@ WHERE GRANDPARENT1.i2
 ORDER BY GRANDPARENT1.i2 ;
 
 DROP TABLE t1,t2;
+
+--echo #
+--echo # Bug#12640083: Same query executed as WHERE subquery gives different
+--echo #              results on IN() compare
+--echo #
+
+CREATE TABLE t1 (
+  pk int NOT NULL,
+  col_varchar_1024_utf8_key varchar(1024) CHARACTER SET utf8 DEFAULT NULL,
+  col_varchar_10_latin1_key varchar(10) DEFAULT NULL,
+  PRIMARY KEY (pk),
+  KEY col_varchar_1024_utf8_key(col_varchar_1024_utf8_key(333)),
+  KEY col_varchar_10_latin1_key(col_varchar_10_latin1_key)
+);
+
+INSERT INTO t1 VALUES
+(1, 'a', 'a'),
+(2, 'ab', 'ab'),
+(3, 'abc', 'abc'),
+(4, 'abcd', 'abcd');
+
+CREATE TABLE t2 (
+  pk int NOT NULL AUTO_INCREMENT,
+  PRIMARY KEY (pk)
+) ENGINE=Innodb;
+
+CREATE TABLE t3
+SELECT alias1.col_varchar_10_latin1_key
+FROM t1 AS alias1
+     LEFT JOIN t1 AS alias2
+       JOIN t2 AS alias3
+       ON alias2.col_varchar_10_latin1_key
+     ON alias1.col_varchar_1024_utf8_key
+WHERE alias1.pk AND alias1.pk < 3 OR alias1.pk AND alias3.pk; 
+
+let $query=
+SELECT * 
+FROM t3 
+WHERE col_varchar_10_latin1_key IN (
+    SELECT alias1.col_varchar_10_latin1_key 
+    FROM t1 AS alias1
+         LEFT JOIN t1 AS alias2
+           JOIN t2 AS alias3
+           ON alias2.col_varchar_10_latin1_key
+         ON alias1.col_varchar_1024_utf8_key
+    WHERE alias1.pk AND alias1.pk < 3 OR alias1.pk AND alias3.pk);
+
+eval EXPLAIN $query;
+eval $query;
+
+DROP TABLE t1, t2, t3;
+
+--echo # End of the test for bug#12640083.
