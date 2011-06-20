@@ -25,7 +25,6 @@
 
 #include <ndbapi/Ndb.hpp>    // Ndb::TupleIdRange
 
-
 enum NDB_SHARE_STATE {
   NSS_INITIAL= 0,
   NSS_DROPPED,
@@ -33,32 +32,98 @@ enum NDB_SHARE_STATE {
 };
 
 
-#ifdef HAVE_NDB_BINLOG
 enum enum_conflict_fn_type
 {
   CFT_NDB_UNDEF = 0
   ,CFT_NDB_MAX
   ,CFT_NDB_OLD
   ,CFT_NDB_MAX_DEL_WIN
+  ,CFT_NUMBER_OF_CFTS /* End marker */
 };
 
+#ifdef HAVE_NDB_BINLOG
+static const Uint32 MAX_CONFLICT_ARGS= 8;
+
+enum enum_conflict_fn_arg_type
+{
+  CFAT_END
+  ,CFAT_COLUMN_NAME
+};
+
+struct st_conflict_fn_arg
+{
+  enum_conflict_fn_arg_type type;
+  const char *ptr;
+  uint32 len;
+  uint32 fieldno; // CFAT_COLUMN_NAME
+};
+
+struct st_conflict_fn_arg_def
+{
+  enum enum_conflict_fn_arg_type arg_type;
+  bool optional;
+};
+
+/* What type of operation was issued */
+enum enum_conflicting_op_type
+{                /* NdbApi          */
+  WRITE_ROW,     /* insert (!write) */
+  UPDATE_ROW,    /* update          */
+  DELETE_ROW     /* delete          */
+};
+
+/*
+  prepare_detect_func
+
+  Type of function used to prepare for conflict detection on
+  an NdbApi operation
+*/
+typedef int (* prepare_detect_func) (struct NDB_CONFLICT_FN_SHARE* cfn_share,
+                                     enum_conflicting_op_type op_type,
+                                     const uchar* old_data,
+                                     const uchar* new_data,
+                                     const MY_BITMAP* write_set,
+                                     struct NdbInterpretedCode* code);
+
+struct st_conflict_fn_def
+{
+  const char *name;
+  enum_conflict_fn_type type;
+  const st_conflict_fn_arg_def* arg_defs;
+  prepare_detect_func prep_func;
+};
+
+/* What sort of conflict was found */
+enum enum_conflict_cause
+{
+  ROW_ALREADY_EXISTS,
+  ROW_DOES_NOT_EXIST,
+  ROW_IN_CONFLICT
+};
 
 /* NdbOperation custom data which points out handler and record. */
 struct Ndb_exceptions_data {
   struct NDB_SHARE* share;
+  const NdbRecord* key_rec;
   const uchar* row;
+  enum_conflicting_op_type op_type;
 };
 
+enum enum_conflict_fn_flags
+{
+  CFF_NONE = 0
+};
 
 struct NDB_CONFLICT_FN_SHARE {
-  enum_conflict_fn_type m_resolve_cft;
+  const st_conflict_fn_def* m_conflict_fn;
 
   /* info about original table */
   uint8 m_pk_cols;
   uint8 m_resolve_column;
   uint8 m_resolve_size;
-  uint8 unused;
+  uint8 m_flags;
   uint16 m_offset[16];
+  uint16 m_resolve_offset;
 
   const NdbDictionary::Table *m_ex_tab;
   uint32 m_count;
