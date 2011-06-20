@@ -17,6 +17,7 @@
 
 package com.mysql.clusterj.core.query;
 
+import com.mysql.clusterj.core.spi.QueryExecutionContext;
 import com.mysql.clusterj.core.store.ScanFilter;
 import com.mysql.clusterj.core.store.ScanOperation;
 
@@ -24,13 +25,11 @@ public class LikePredicateImpl extends ComparativePredicateImpl {
 
     public LikePredicateImpl(QueryDomainTypeImpl<?> dobj,
             PropertyImpl property, ParameterImpl param) {
-        super(dobj);
-        this.param = param;
-        this.property = property;
+        super(dobj, property, param);
     }
 
     @Override
-    public void markBoundsForCandidateIndices(QueryExecutionContextImpl context, CandidateIndexImpl[] candidateIndices) {
+    public void markBoundsForCandidateIndices(QueryExecutionContext context, CandidateIndexImpl[] candidateIndices) {
         // like does not support index bounds
     }
 
@@ -40,7 +39,7 @@ public class LikePredicateImpl extends ComparativePredicateImpl {
      * @param filter the filter
      */
     @Override
-    public void filterCmpValue(QueryExecutionContextImpl context, ScanOperation op, ScanFilter filter) {
+    public void filterCmpValue(QueryExecutionContext context, ScanOperation op, ScanFilter filter) {
         property.filterCmpValue(param.getParameterValue(context),
                 ScanFilter.BinaryCondition.COND_LIKE, filter);
     }

@@ -19,6 +19,7 @@ package com.mysql.clusterj.core.query;
 
 import com.mysql.clusterj.ClusterJFatalInternalException;
 import com.mysql.clusterj.ClusterJUserException;
+import com.mysql.clusterj.core.spi.QueryExecutionContext;
 import com.mysql.clusterj.core.spi.SessionSPI;
 import com.mysql.clusterj.core.store.ResultData;
 import com.mysql.clusterj.core.store.ScanFilter;
@@ -27,6 +28,11 @@ import com.mysql.clusterj.core.util.Logger;
 import com.mysql.clusterj.core.util.LoggerFactoryService;
 import com.mysql.clusterj.query.QueryDomainType;
 
+import java.math.BigDecimal;
+import java.math.BigInteger;
+import java.sql.Date;
+import java.sql.Time;
+import java.sql.Timestamp;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
@@ -36,7 +42,7 @@ import java.util.Map;
  * parameter bindings so as to make query execution thread-safe.
  *
  */
-public class QueryExecutionContextImpl {
+public class QueryExecutionContextImpl implements QueryExecutionContext {
 
     /** My message translator */
     static final I18NHelper local = I18NHelper.getInstance(BetweenPredicateImpl.class);
@@ -112,7 +118,7 @@ public class QueryExecutionContextImpl {
      * @param parameterName the name of the parameter
      * @return whether the parameter has a value
      */
-    boolean isBound(String parameterName) {
+    public boolean isBound(String parameterName) {
         return boundParameters.containsKey(parameterName);
     }
 
@@ -146,6 +152,190 @@ public class QueryExecutionContextImpl {
 
     public Map<String, Object> getExplain() {
         return explain;
+    }
+
+    public Byte getByte(String index) {
+        Object result = boundParameters.get(index);
+        if (result == null) {
+            return null;
+        }
+        if (result instanceof Byte) {
+            return (Byte)result;
+        } else {
+            throw new ClusterJUserException(local.message("ERR_Parameter_Wrong_Type", index, result.getClass(), "Byte"));
+        }
+    }
+
+    public BigDecimal getBigDecimal(String index) {
+        Object result = boundParameters.get(index);
+        if (result == null) {
+            return null;
+        }
+        if (result instanceof BigDecimal) {
+            return (BigDecimal)result;
+        } else {
+            throw new ClusterJUserException(local.message("ERR_Parameter_Wrong_Type", index, result.getClass(), "BigDecimal"));
+        }
+    }
+
+    public BigInteger getBigInteger(String index) {
+        Object result = boundParameters.get(index);
+        if (result == null) {
+            return null;
+        }
+        if (result instanceof BigInteger) {
+            return (BigInteger)result;
+        } else {
+            throw new ClusterJUserException(local.message("ERR_Parameter_Wrong_Type", index, result.getClass(), "BigInteger"));
+        }
+    }
+
+    public Boolean getBoolean(String index) {
+        Object result = boundParameters.get(index);
+        if (result == null) {
+            return null;
+        }
+        if (result instanceof Boolean) {
+            return (Boolean)result;
+        } else {
+            throw new ClusterJUserException(local.message("ERR_Parameter_Wrong_Type", index, result.getClass(), "Boolean"));
+        }
+    }
+
+    public byte[] getBytes(String index) {
+        Object result = boundParameters.get(index);
+        if (result == null) {
+            return null;
+        }
+        if (result instanceof byte[]) {
+            return (byte[])result;
+        } else {
+            throw new ClusterJUserException(local.message("ERR_Parameter_Wrong_Type", index, result.getClass(), "byte[]"));
+        }
+    }
+
+    public Double getDouble(String index) {
+        Object result = boundParameters.get(index);
+        if (result == null) {
+            return null;
+        }
+        if (result instanceof Double) {
+            return (Double)result;
+        } else {
+            throw new ClusterJUserException(local.message("ERR_Parameter_Wrong_Type", index, result.getClass(), "Double"));
+        }
+    }
+
+    public Float getFloat(String index) {
+        Object result = boundParameters.get(index);
+        if (result == null) {
+            return null;
+        }
+        if (result instanceof Float) {
+            return (Float)result;
+        } else {
+            throw new ClusterJUserException(local.message("ERR_Parameter_Wrong_Type", index, result.getClass(), "Float"));
+        }
+    }
+
+    public Integer getInt(String index) {
+        Object result = boundParameters.get(index);
+        if (result == null) {
+            return null;
+        }
+        if (result instanceof Integer) {
+            return (Integer)result;
+        } else {
+            throw new ClusterJUserException(local.message("ERR_Parameter_Wrong_Type", index, result.getClass(), "Integer"));
+        }
+    }
+
+    public Date getJavaSqlDate(String index) {
+        Object result = boundParameters.get(index);
+        if (result == null) {
+            return null;
+        }
+        if (result instanceof java.sql.Date) {
+            return (java.sql.Date)result;
+        } else {
+            throw new ClusterJUserException(local.message("ERR_Parameter_Wrong_Type", index, result.getClass(), "java.sql.Date"));
+        }
+    }
+
+    public Time getJavaSqlTime(String index) {
+        Object result = boundParameters.get(index);
+        if (result == null) {
+            return null;
+        }
+        if (result instanceof java.sql.Time) {
+            return (java.sql.Time)result;
+        } else {
+            throw new ClusterJUserException(local.message("ERR_Parameter_Wrong_Type", index, result.getClass(), "java.sql.Time"));
+        }
+    }
+
+    public Timestamp getJavaSqlTimestamp(String index) {
+        Object result = boundParameters.get(index);
+        if (result == null) {
+            return null;
+        }
+        if (result instanceof java.sql.Timestamp) {
+            return (java.sql.Timestamp)result;
+        } else {
+            throw new ClusterJUserException(local.message("ERR_Parameter_Wrong_Type", index, result.getClass(), "java.sql.Timestamp"));
+        }
+    }
+
+    public java.util.Date getJavaUtilDate(String index) {
+        Object result = boundParameters.get(index);
+        if (result == null) {
+            return null;
+        }
+        if (result instanceof java.util.Date) {
+            return (java.util.Date)result;
+        } else {
+            throw new ClusterJUserException(local.message("ERR_Parameter_Wrong_Type", index, result.getClass(), "java.util.Date"));
+        }
+    }
+
+    public Long getLong(String index) {
+        Object result = boundParameters.get(index);
+        if (result == null) {
+            return null;
+        }
+        if (result instanceof Long) {
+            return (Long)result;
+        } else {
+            throw new ClusterJUserException(local.message("ERR_Parameter_Wrong_Type", index, result.getClass(), "Long"));
+        }
+    }
+
+    public Short getShort(String index) {
+        Object result = boundParameters.get(index);
+        if (result == null) {
+            return null;
+        }
+        if (result instanceof Short) {
+            return (Short)result;
+        } else {
+            throw new ClusterJUserException(local.message("ERR_Parameter_Wrong_Type", index, result.getClass(), "Short"));
+        }
+    }
+
+    public String getString(String index) {
+        Object result = boundParameters.get(index);
+        if (result == null) {
+            return null;
+        }
+        if (result instanceof String) {
+            return (String)result;
+        } else {
+            throw new ClusterJUserException(local.message("ERR_Parameter_Wrong_Type", index, result.getClass(), "String"));
+        }
+    }
+
+    public Object getObject(String index) {
+        return boundParameters.get(index);
     }
 
 }

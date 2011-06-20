@@ -21,6 +21,7 @@ import java.util.List;
 
 import com.mysql.clusterj.ClusterJException;
 import com.mysql.clusterj.ClusterJUserException;
+import com.mysql.clusterj.core.spi.QueryExecutionContext;
 import com.mysql.clusterj.core.store.IndexScanOperation;
 import com.mysql.clusterj.core.store.ScanFilter;
 import com.mysql.clusterj.core.store.ScanOperation;
@@ -41,6 +42,9 @@ public class InPredicateImpl extends PredicateImpl {
         super(dobj);
         this.property = property;
         this.parameter = parameter;
+        parameter.setProperty(property);
+        // mark this property as having complex values
+        property.setComplexParameter();
     }
 
     @Override
@@ -53,7 +57,8 @@ public class InPredicateImpl extends PredicateImpl {
         parameter.unmark();
     }
 
-    void markBoundsForCandidateIndices(QueryExecutionContextImpl context,
+    @Override
+    void markBoundsForCandidateIndices(QueryExecutionContext context,
             CandidateIndexImpl[] candidateIndices) {
         if (parameter.getParameterValue(context) == null) {
             // null parameters cannot be used with index scans
@@ -70,7 +75,7 @@ public class InPredicateImpl extends PredicateImpl {
      * @param lastColumn if true, can set strict bound
      */
     public void operationSetBound(
-            QueryExecutionContextImpl context, IndexScanOperation op, int index, boolean lastColumn) {
+            QueryExecutionContext context, IndexScanOperation op, int index, boolean lastColumn) {
         if (lastColumn) {
             // last column can be strict
             operationSetBound(context, op, index, BoundType.BoundEQ);
@@ -81,16 +86,16 @@ public class InPredicateImpl extends PredicateImpl {
         }
     }
 
-    public void operationSetUpperBound(QueryExecutionContextImpl context, IndexScanOperation op, int index) {
+    public void operationSetUpperBound(QueryExecutionContext context, IndexScanOperation op, int index) {
         operationSetBound(context, op, index, BoundType.BoundGE);
     }
 
-    public void operationSetLowerBound(QueryExecutionContextImpl context, IndexScanOperation op, int index) {
+    public void operationSetLowerBound(QueryExecutionContext context, IndexScanOperation op, int index) {
         operationSetBound(context, op, index, BoundType.BoundLE);
     }
 
     private void operationSetBound(
-            QueryExecutionContextImpl context, IndexScanOperation op, int index, BoundType boundType) {
+            QueryExecutionContext context, IndexScanOperation op, int index, BoundType boundType) {
     Object parameterValue = parameter.getParameterValue(context);
         if (parameterValue == null) {
             throw new ClusterJUserException(
@@ -119,7 +124,7 @@ public class InPredicateImpl extends PredicateImpl {
      * @param op the operation to set bounds on
      * @param index the index into the parameter list
      */
-    public void operationSetAllBounds(QueryExecutionContextImpl context,
+    public void operationSetAllBounds(QueryExecutionContext context,
             IndexScanOperation op) {
         Object parameterValue = parameter.getParameterValue(context);
         int index = 0;
@@ -152,7 +157,7 @@ public class InPredicateImpl extends PredicateImpl {
      * @param context the query execution context with the parameter values
      * @param op the operation
      */
-    public void filterCmpValue(QueryExecutionContextImpl context,
+    public void filterCmpValue(QueryExecutionContext context,
             ScanOperation op) {
         try {
             ScanFilter filter = op.getScanFilter(context);
@@ -171,8 +176,7 @@ public class InPredicateImpl extends PredicateImpl {
      * @param op the operation
      * @param filter the existing filter
      */
-    public void filterCmpValue(QueryExecutionContextImpl context,
-            ScanOperation op, ScanFilter filter) {
+    public void filterCmpValue(QueryExecutionContext context, ScanOperation op, ScanFilter filter) {
         try {
             filter.begin(Group.GROUP_OR);
             Object parameterValue = parameter.getParameterValue(context);
@@ -203,7 +207,7 @@ public class InPredicateImpl extends PredicateImpl {
         }
     }
 
-    public int getParameterSize(QueryExecutionContextImpl context) {
+    public int getParameterSize(QueryExecutionContext context) {
         int result = 1;
         Object parameterValue = parameter.getParameterValue(context);
         if (parameterValue instanceof List<?>) {

@@ -176,7 +176,6 @@ public abstract class AbstractResultSetInternalMethods implements
     }
 
     public void close() throws SQLException {
-        throw new SQLException(local.message("ERR_Should_Not_Occur"));
     }
 
     public void deleteRow() throws SQLException {

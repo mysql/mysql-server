@@ -22,6 +22,7 @@ import com.mysql.clusterj.ClusterJException;
 import com.mysql.clusterj.ClusterJFatalInternalException;
 import com.mysql.clusterj.ClusterJUserException;
 
+import com.mysql.clusterj.core.spi.QueryExecutionContext;
 import com.mysql.clusterj.core.store.IndexScanOperation;
 import com.mysql.clusterj.core.store.Operation;
 import com.mysql.clusterj.core.store.ScanFilter;
@@ -79,42 +80,42 @@ public abstract class PredicateImpl implements Predicate {
         return new NotPredicateImpl(this);
     }
 
-    void markBoundsForCandidateIndices(QueryExecutionContextImpl context, CandidateIndexImpl[] candidateIndices) {
+    void markBoundsForCandidateIndices(QueryExecutionContext context, CandidateIndexImpl[] candidateIndices) {
         throw new ClusterJFatalInternalException(
                 local.message("ERR_Implementation_Should_Not_Occur"));
     }
 
-    public void operationSetBounds(QueryExecutionContextImpl context,
+    public void operationSetBounds(QueryExecutionContext context,
             IndexScanOperation op, boolean lastColumn) {
         throw new ClusterJFatalInternalException(
                 local.message("ERR_Implementation_Should_Not_Occur"));
     }
 
-    public void operationSetLowerBound(QueryExecutionContextImpl context,
+    public void operationSetLowerBound(QueryExecutionContext context,
             IndexScanOperation op, boolean lastColumn) {
         throw new ClusterJFatalInternalException(
                 local.message("ERR_Implementation_Should_Not_Occur"));
     }
 
-    public void operationSetUpperBound(QueryExecutionContextImpl context,
+    public void operationSetUpperBound(QueryExecutionContext context,
             IndexScanOperation op, boolean lastColumn){
         throw new ClusterJFatalInternalException(
                 local.message("ERR_Implementation_Should_Not_Occur"));
     }
 
-    public void operationEqual(QueryExecutionContextImpl context,
+    public void operationEqual(QueryExecutionContext context,
             Operation op) {
         throw new ClusterJFatalInternalException(
                 local.message("ERR_Implementation_Should_Not_Occur"));
     }
 
-    public void operationEqualFor(QueryExecutionContextImpl context,
+    public void operationEqualFor(QueryExecutionContext context,
             Operation op, String indexName) {
         throw new ClusterJFatalInternalException(
                 local.message("ERR_Implementation_Should_Not_Occur"));
     }
 
-    public void objectSetValuesFor(QueryExecutionContextImpl context,
+    public void objectSetValuesFor(QueryExecutionContext context,
             Object row, String indexName) {
         throw new ClusterJFatalInternalException(
                 local.message("ERR_Implementation_Should_Not_Occur"));
@@ -125,7 +126,7 @@ public abstract class PredicateImpl implements Predicate {
      * @param context the query execution context with the parameter values
      * @param op the operation
      */
-    public void filterCmpValue(QueryExecutionContextImpl context,
+    public void filterCmpValue(QueryExecutionContext context,
             ScanOperation op) {
         try {
             ScanFilter filter = op.getScanFilter(context);
@@ -140,7 +141,7 @@ public abstract class PredicateImpl implements Predicate {
         }
     }
 
-    public void filterCmpValue(QueryExecutionContextImpl context,
+    public void filterCmpValue(QueryExecutionContext context,
             ScanOperation op, ScanFilter filter) {
         throw new ClusterJFatalInternalException(
                 local.message("ERR_Implementation_Should_Not_Occur"));
@@ -176,7 +177,7 @@ public abstract class PredicateImpl implements Predicate {
         return dobj;
     }
 
-    public CandidateIndexImpl getBestCandidateIndex(QueryExecutionContextImpl context) {
+    public CandidateIndexImpl getBestCandidateIndex(QueryExecutionContext context) {
         return getBestCandidateIndexFor(context, this);
     }
 
@@ -185,7 +186,7 @@ public abstract class PredicateImpl implements Predicate {
      * @param predicates the predicates
      * @return the best index for the query
      */
-    protected CandidateIndexImpl getBestCandidateIndexFor(QueryExecutionContextImpl context,
+    protected CandidateIndexImpl getBestCandidateIndexFor(QueryExecutionContext context,
             PredicateImpl... predicates) {
         // Create CandidateIndexImpl to decide how to scan.
         CandidateIndexImpl[] candidateIndices = dobj.createCandidateIndexes();

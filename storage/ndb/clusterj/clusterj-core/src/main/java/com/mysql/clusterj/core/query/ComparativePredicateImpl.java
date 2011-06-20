@@ -17,6 +17,7 @@
 
 package com.mysql.clusterj.core.query;
 
+import com.mysql.clusterj.core.spi.QueryExecutionContext;
 import com.mysql.clusterj.core.store.IndexScanOperation;
 
 /** This is an abstract superclass for all of the comparison predicates:
@@ -37,6 +38,14 @@ public abstract class ComparativePredicateImpl extends PredicateImpl {
         super(dobj);
     }
 
+    public ComparativePredicateImpl(QueryDomainTypeImpl<?> dobj,
+            PropertyImpl property, ParameterImpl param) {
+        super(dobj);
+        this.property = property;
+        this.param = param;
+        param.setProperty(property);
+    }
+
     public void markParameters() {
         param.mark();
     }
@@ -46,20 +55,20 @@ public abstract class ComparativePredicateImpl extends PredicateImpl {
     }
 
     @Override
-    public void objectSetValuesFor(QueryExecutionContextImpl context,
+    public void objectSetValuesFor(QueryExecutionContext context,
             Object row, String indexName) {
         property.objectSetValuesFor(param.getParameterValue(context), row, indexName);
     }
 
     @Override
-    public void operationSetLowerBound(QueryExecutionContextImpl context,
+    public void operationSetLowerBound(QueryExecutionContext context,
             IndexScanOperation op, boolean lastColumn) {
         // delegate to setBounds for most operations
         operationSetBounds(context, op, lastColumn);
     }
 
     @Override
-    public void operationSetUpperBound(QueryExecutionContextImpl context,
+    public void operationSetUpperBound(QueryExecutionContext context,
             IndexScanOperation op, boolean lastColumn) {
         // delegate to setBounds for most operations
         operationSetBounds(context, op, lastColumn);
