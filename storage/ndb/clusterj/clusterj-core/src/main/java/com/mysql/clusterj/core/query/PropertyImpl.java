@@ -20,6 +20,7 @@ package com.mysql.clusterj.core.query;
 import com.mysql.clusterj.ClusterJUserException;
 
 import com.mysql.clusterj.core.spi.DomainFieldHandler;
+import com.mysql.clusterj.core.spi.QueryExecutionContext;
 import com.mysql.clusterj.core.store.IndexScanOperation;
 import com.mysql.clusterj.core.store.Operation;
 import com.mysql.clusterj.core.store.ScanFilter;
@@ -45,9 +46,16 @@ public class PropertyImpl implements PredicateOperand {
     /** My property */
     protected DomainFieldHandler fmd;
 
+    /** Is this property used with a complex parameter? */
+    private boolean complexParameter = false;
+
     public PropertyImpl(QueryDomainTypeImpl<?> dobj, DomainFieldHandler fmd) {
         this.dobj = dobj;
         this.fmd = fmd;
+    }
+
+    public void setComplexParameter() {
+        complexParameter = true;
     }
 
     public void operationSetBounds(Object value, IndexScanOperation.BoundType type, IndexScanOperation op) {
@@ -148,6 +156,15 @@ public class PropertyImpl implements PredicateOperand {
 
     public void markInBound(CandidateIndexImpl[] candidateIndices, InPredicateImpl predicate) {
         fmd.markInBounds(candidateIndices, predicate);
+    }
+
+    public Object getParameterValue(QueryExecutionContext context, String parameterName) {
+        if (complexParameter) {
+            // the parameter is just an object at this point -- to be checked elsewhere
+            return context.getParameterValue(parameterName);
+        } else {
+            return fmd.getValue(context, parameterName);
+        }
     }
 
 }

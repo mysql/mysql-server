@@ -76,4 +76,6 @@ public interface DomainFieldHandler {
 
     boolean isPrimaryKey();
 
+    Object getValue(QueryExecutionContext context, String parameterName);
+
 }

@@ -24,6 +24,7 @@ import com.mysql.clusterj.ClusterJUserException;
 import com.mysql.clusterj.core.metadata.AbstractDomainFieldHandlerImpl;
 import com.mysql.clusterj.core.query.QueryDomainTypeImpl;
 import com.mysql.clusterj.core.spi.DomainTypeHandler;
+import com.mysql.clusterj.core.spi.QueryExecutionContext;
 import com.mysql.clusterj.core.spi.SessionSPI;
 import com.mysql.clusterj.core.spi.ValueHandler;
 import com.mysql.clusterj.core.store.IndexScanOperation;
@@ -930,6 +931,9 @@ public class NdbOpenJPADomainFieldHandlerImpl extends AbstractDomainFieldHandler
                     local.message("ERR_Operation_Not_Supported","partitionKeySetPart", "non-key fields"));
         }
 
+        public Object getValue(QueryExecutionContext context, String index) {
+            return context.getObject(index);
+        }
     };
 
     static ObjectOperationHandler objectOperationHandlerRelationIntField =
