@@ -2709,6 +2709,11 @@ fts_add_fetch_document(
 		dfield = que_node_get_val(exp);
 		len = dfield_get_len(dfield);
 
+		if (len == UNIV_SQL_NULL) {
+			exp = que_node_get_next(exp);
+			continue;
+		}
+
 		memcpy(doc->text.utf8 + doc_len, dfield_get_data(dfield), len);
 
 		doc->text.utf8[doc_len + len] = 0;
