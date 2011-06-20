@@ -148,6 +148,12 @@ ndb_pushed_join::ndb_pushed_join(
   }
 }
 
+ndb_pushed_join::~ndb_pushed_join()
+{
+  if (m_query_def)
+    m_query_def->destroy();
+}
+
 ndb_pushed_builder_ctx::ndb_pushed_builder_ctx(const AQP::Join_plan& plan)
 :
   m_plan(plan),

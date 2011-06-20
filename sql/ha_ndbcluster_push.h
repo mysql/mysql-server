@@ -94,6 +94,8 @@ public:
   explicit ndb_pushed_join(const ndb_pushed_builder_ctx& builder_ctx,
                            const NdbQueryDef* query_def);
   
+  ~ndb_pushed_join(); 
+
   /** Get the number of pushed table access operations.*/
   uint get_operation_count() const
   { return m_operation_count; }

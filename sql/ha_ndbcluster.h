@@ -53,7 +53,6 @@ class NdbQueryOperation;
 class NdbQueryOperationTypeWrapper;
 class NdbQueryParamValue;
 class ndb_pushed_join;
-class ndb_query_def_list;
 
 typedef enum ndb_index_type {
   UNDEFINED_INDEX = 0,
@@ -477,10 +476,8 @@ class Thd_ndb
     This is a list of NdbQueryDef objects that should be released when the
     transaction ends.
   */
-  const ndb_query_def_list* m_query_defs;
   bool valid_ndb(void);
   bool recycle_ndb(THD* thd);
-  void release_query_defs();
 };
 
 struct st_ndb_status {

@@ -1121,7 +1121,6 @@ Thd_ndb::Thd_ndb()
   global_schema_lock_count= 0;
   global_schema_lock_error= 0;
   init_alloc_root(&m_batch_mem_root, BATCH_FLUSH_SIZE/4, 0);
-  m_query_defs = NULL;
 }
 
 Thd_ndb::~Thd_ndb()
@@ -1144,7 +1143,6 @@ Thd_ndb::~Thd_ndb()
       }
     }
   }
-  release_query_defs();
   if (ndb)
   {
     delete ndb;
@@ -6796,7 +6794,7 @@ int ha_ndbcluster::reset()
   DBUG_ASSERT(m_active_query == NULL);
   if (m_pushed_join_operation==PUSHED_ROOT)  // Root of pushed query
   {
-    delete m_pushed_join_member;
+    delete m_pushed_join_member;             // Also delete QueryDef
   }
   m_pushed_join_member= NULL;
   m_pushed_join_operation= -1;
@@ -7385,7 +7383,6 @@ int ha_ndbcluster::external_lock(THD *thd, int lock_type)
           thd_ndb->ndb->closeTransaction(thd_ndb->trans);
           thd_ndb->trans= NULL;
           thd_ndb->m_handler= NULL;
-          thd_ndb->release_query_defs();
         }
       }
     }
@@ -7396,7 +7393,7 @@ int ha_ndbcluster::external_lock(THD *thd, int lock_type)
       no longer are connected to the active transaction.
 
       And since the handler is no longer part of the transaction 
-      it can't have open cursors, ops or blobs pending.
+      it can't have open cursors, ops, queries or blobs pending.
     */
     m_thd_ndb= NULL;    
 
@@ -7676,7 +7673,6 @@ int ndbcluster_commit(handlerton *hton, THD *thd, bool all)
   ndb->closeTransaction(trans);
   thd_ndb->trans= NULL;
   thd_ndb->m_handler= NULL;
-  thd_ndb->release_query_defs();
 
   /* Clear commit_count for tables changed by transaction */
   NDB_SHARE* share;
@@ -7753,7 +7749,6 @@ static int ndbcluster_rollback(handlerton *hton, THD *thd, bool all)
   ndb->closeTransaction(trans);
   thd_ndb->trans= NULL;
   thd_ndb->m_handler= NULL;
-  thd_ndb->release_query_defs();
 
   /* Clear list of tables changed by transaction */
   NDB_SHARE* share;
@@ -10185,7 +10180,7 @@ ha_ndbcluster::~ha_ndbcluster()
   DBUG_ASSERT(m_active_query == NULL);
   if (m_pushed_join_operation==PUSHED_ROOT)
   {
-    delete m_pushed_join_member;
+    delete m_pushed_join_member;             // Also delete QueryDef
   }
   m_pushed_join_member= NULL;
   DBUG_VOID_RETURN;
@@ -13930,46 +13925,6 @@ ha_ndbcluster::read_multi_range_fetch_next()
 #ifndef NO_PUSHED_JOIN
 
 /**
- * This is a list of NdbQueryDef objects that have been created within a 
- * transaction. This list is kept to make sure that they are all released 
- * when the transaction ends.
- * An NdbQueryDef object is required to live longer than any NdbQuery object
- * instantiated from it. Since NdbQueryObjects may be kept until the 
- * transaction ends, this list is necessary.
- */
-class ndb_query_def_list
-{
-public:
-  ndb_query_def_list(const NdbQueryDef* def, const ndb_query_def_list* next):
-    m_def(def), m_next(next){}
-
-  const NdbQueryDef* get_def() const
-  { return m_def; }
-
-  const ndb_query_def_list* get_next() const
-  { return m_next; }
-
-private:
-  const NdbQueryDef* const m_def;
-  const ndb_query_def_list* const m_next;
-};
-
-void
-Thd_ndb::release_query_defs()
-{
-  // DBUG_PRINT("info", ("release_query_defs() this=%p.", this));
-  const ndb_query_def_list* current = m_query_defs;
-  while (current != NULL)
-  {
-    current->get_def()->destroy();
-    const ndb_query_def_list* const previous = current;
-    current = current->get_next();
-    delete previous;
-  }
-  m_query_defs = NULL;
-}
-
-/**
  * Try to find pushable subsets of a join plan.
  * @param hton unused (maybe useful for other engines).
  * @param thd Thread.
@@ -14035,20 +13990,7 @@ int
 ha_ndbcluster::assign_pushed_join(const ndb_pushed_join* pushed_join)
 {
   DBUG_ENTER("assign_pushed_join");
-  const NdbQueryDef* const query_def= &pushed_join->get_query_def();
-
   m_thd_ndb->m_pushed_queries_defined++;
-  /* 
-   * Append query definition to transaction specific list, so that it can be
-   * released when the transaction ends.  
-   */
-  const ndb_query_def_list* const list_item= 
-    new ndb_query_def_list(query_def, m_thd_ndb->m_query_defs);
-  if (unlikely(list_item == NULL))
-  {
-    DBUG_RETURN(HA_ERR_OUT_OF_MEM);
-  }
-  m_thd_ndb->m_query_defs = list_item;
 
   for (uint i = 0; i < pushed_join->get_operation_count(); i++)
   {
