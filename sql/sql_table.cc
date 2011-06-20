@@ -4978,6 +4978,35 @@ err:
   DBUG_RETURN(-1);
 }
 
+
+/**
+  Check if ALTER TABLE statement changes position of any column
+  in the table or adds new columns.
+
+  @param alter_info  Alter_info object describing structure of new
+                     version of table.
+
+  @retval True  - some column is added or changes its position.
+  @retval False - no columns are added nor their positions change.
+*/
+
+static bool has_new_or_reordered_columns(Alter_info *alter_info)
+{
+  List_iterator_fast<Create_field> new_field_it(alter_info->create_list);
+  Create_field *new_field;
+  uint new_field_idx;
+
+  for (new_field_idx= 0, new_field= new_field_it++; new_field;
+       new_field_idx++, new_field= new_field_it++)
+  {
+    if (! new_field->field ||
+        new_field->field->field_index != new_field_idx)
+      return true;
+  }
+  return false;
+}
+
+
 /**
   @brief Check if both DROP and CREATE are present for an index in ALTER TABLE
 
@@ -5577,12 +5606,6 @@ mysql_prepare_alter_table(THD *thd, TABLE *table,
     if (drop)
     {
       drop_it.remove();
-      /*
-        ALTER TABLE DROP COLUMN always changes table data even in cases
-        when new version of the table has the same structure as the old
-        one.
-      */
-      alter_info->change_level= ALTER_TABLE_DATA_CHANGED;
       continue;
     }
     /* Check if field is changed */
@@ -5662,11 +5685,6 @@ mysql_prepare_alter_table(THD *thd, TABLE *table,
     else if (def->after == first_keyword)
     {
       new_create_list.push_front(def);
-      /*
-        Re-ordering columns in table can't be done using in-place algorithm
-        as it always changes table data.
-      */
-      alter_info->change_level= ALTER_TABLE_DATA_CHANGED;
     }
     else
     {
@@ -5683,11 +5701,6 @@ mysql_prepare_alter_table(THD *thd, TABLE *table,
         goto err;
       }
       find_it.after(def);			// Put element after this
-      /*
-        Re-ordering columns in table can't be done using in-place algorithm
-        as it always changes table data.
-      */
-      alter_info->change_level= ALTER_TABLE_DATA_CHANGED;
     }
   }
   if (alter_info->alter_list.elements)
@@ -6367,6 +6380,17 @@ bool mysql_alter_table(THD *thd,char *new_db, char *new_name,
 
     if (need_copy_table == ALTER_TABLE_METADATA_ONLY)
       need_copy_table= need_copy_table_res;
+
+    if (need_copy_table != ALTER_TABLE_DATA_CHANGED &&
+        has_new_or_reordered_columns(alter_info))
+    {
+      /*
+        ALTER TABLE which adds new columns (e.g. replacing columns being
+        removed) or changes their order can't be executed using in-place
+        algorithm even if table structure stays the same.
+      */
+      need_copy_table= ALTER_TABLE_DATA_CHANGED;
+    }
 
     if (need_copy_table == ALTER_TABLE_INDEX_CHANGED)
     {
