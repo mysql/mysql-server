@@ -17,7 +17,7 @@ INCLUDE_DIRECTORIES(
   ${CMAKE_CURRENT_SOURCE_DIR}
   ${NDB_SOURCE_DIR}/src/mgmapi)
 
-ADD_LIBRARY(ndbapi STATIC
+ADD_CONVENIENCE_LIBRARY(ndbapi
             NdbEventOperation.cpp
             NdbEventOperationImpl.cpp
             NdbIndexStat.cpp
