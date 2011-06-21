@@ -21,7 +21,6 @@ ADD_SUBDIRECTORY(ndbapi)
 ADD_SUBDIRECTORY(kernel)
 ADD_SUBDIRECTORY(mgmclient)
 ADD_SUBDIRECTORY(mgmsrv)
-ADD_SUBDIRECTORY(ndbjtie)
 
 INCLUDE_DIRECTORIES(${CMAKE_SOURCE_DIR}/storage/ndb/include
                     ${CMAKE_SOURCE_DIR}/include)
@@ -33,13 +32,15 @@ SET(NDBCLIENT_LIBS
                 ndbtrace
                 ndbsignaldata
                 ndbmgmapi
-                ndbmgmsrv
+                ndbmgmcommon
                 ndblogger
                 ndbportlib
                 ndbgeneral
                 ndbconf)
 
 IF(HAVE_JDK AND HAVE_JAVA)
+
+  ADD_SUBDIRECTORY(ndbjtie)
 
   SET(NDBCLIENT_LIBS ${NDBCLIENT_LIBS} mysqlutils ndbjtie)
 
