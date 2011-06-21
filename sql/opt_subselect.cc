@@ -4341,8 +4341,6 @@ bool JOIN::choose_subquery_plan(table_map join_tables)
   {
     JOIN *outer_join;
     JOIN *inner_join= this;
-    /* Number of (partial) rows of the outer JOIN filtered by the IN predicate. */
-    double outer_record_count;
     /* Number of unique value combinations filtered by the IN predicate. */
     double outer_lookup_keys;
     /* Cost and row count of the unmodified subquery. */
@@ -4362,38 +4360,37 @@ bool JOIN::choose_subquery_plan(table_map join_tables)
     outer_join= unit->outer_select() ? unit->outer_select()->join : NULL;
     if (outer_join)
     {
-      uint outer_partial_plan_len;
+      /*
+        The index of the last JOIN_TAB in the outer JOIN where in_subs is
+        attached (pushed to).
+      */
+      uint max_outer_join_tab_idx;
       /*
         Make_cond_for_table is called for predicates only in the WHERE/ON
         clauses. In all other cases, predicates are not pushed to any
-        JOIN_TAB, and their joi_tab_idx remains MAX_TABLES. Such predicates
+        JOIN_TAB, and their join_tab_idx remains MAX_TABLES. Such predicates
         are evaluated for each complete row of the outer join.
       */
-      outer_partial_plan_len= (in_subs->get_join_tab_idx() == MAX_TABLES) ?
-                               outer_join->table_count :
-                               in_subs->get_join_tab_idx() + 1;
-      outer_join->get_partial_cost_and_fanout(outer_partial_plan_len,
+      DBUG_ASSERT(outer_join->table_count > 0);
+      max_outer_join_tab_idx= (in_subs->get_join_tab_idx() == MAX_TABLES) ?
+                               outer_join->table_count - 1:
+                               in_subs->get_join_tab_idx();
+      /*
+        TODO:
+        Currently outer_lookup_keys is computed as the number of rows in
+        the partial join including the JOIN_TAB where the IN predicate is
+        pushed to. In the general case this is a gross overestimate because
+        due to caching we are interested only in the number of unique keys.
+        The search key may be formed by columns from much fewer than all
+        tables in the partial join. Example:
+        select * from t1, t2 where t1.c1 = t2.key AND t2.c2 IN (select ...);
+        If the join order: t1, t2, the number of unique lookup keys is ~ to
+        the number of unique values t2.c2 in the partial join t1 join t2.
+      */
+      outer_join->get_partial_cost_and_fanout(max_outer_join_tab_idx,
                                               table_map(-1),
                                               &dummy,
-                                              &outer_record_count);
-
-      if (outer_join->table_count > outer_join->const_tables)
-      {
-        outer_join->get_partial_cost_and_fanout(outer_partial_plan_len,
-                                                in_subs->used_tables(),
-                                                &dummy,
-                                                &outer_lookup_keys);
-        /*
-        outer_lookup_keys= prev_record_reads(outer_join->best_positions,
-                                             outer_partial_plan_len,
-                                             in_subs->used_tables());
-        */
-      }
-      else
-      {
-        /* If all tables are constant, positions is undefined. */
-        outer_lookup_keys= 1;
-      }
+                                              &outer_lookup_keys);
     }
     else
     {
@@ -4401,17 +4398,8 @@ bool JOIN::choose_subquery_plan(table_map join_tables)
         TODO: outer_join can be NULL for DELETE statements.
         How to compute its cost?
       */
-      outer_record_count= 1;
-      outer_lookup_keys=1;
+      outer_lookup_keys= 1;
     }
-    /*
-      There cannot be more lookup keys than the total number of records.
-      TODO: this a temporary solution until we find a better way to compute
-      get_partial_join_cost() and prev_record_reads() in a consitent manner,
-      where it is guaranteed that (outer_lookup_keys <= outer_record_count).
-    */
-    if (outer_lookup_keys > outer_record_count)
-      outer_lookup_keys= outer_record_count;
 
     /*
       B. Estimate the cost and number of records of the subquery both
@@ -4459,7 +4447,7 @@ bool JOIN::choose_subquery_plan(table_map join_tables)
                                  write_cost * inner_record_count_1;
 
     materialize_strategy_cost= materialization_cost +
-                               outer_record_count * lookup_cost;
+                               outer_lookup_keys * lookup_cost;
 
     /* C.2 Compute the cost of the IN=>EXISTS strategy. */
     in_exists_strategy_cost= outer_lookup_keys * inner_read_time_2;
@@ -4469,6 +4457,14 @@ bool JOIN::choose_subquery_plan(table_map join_tables)
       in_subs->in_strategy&= ~SUBS_MATERIALIZATION;
     else
       in_subs->in_strategy&= ~SUBS_IN_TO_EXISTS;
+
+    DBUG_PRINT("info",
+               ("mat_strategy_cost: %.2f, mat_cost: %.2f, write_cost: %.2f, lookup_cost: %.2f",
+                materialize_strategy_cost, materialization_cost, write_cost, lookup_cost));
+    DBUG_PRINT("info",
+               ("inx_strategy_cost: %.2f, inner_read_time_2: %.2f",
+                in_exists_strategy_cost, inner_read_time_2));
+    DBUG_PRINT("info",("outer_lookup_keys: %.2f", outer_lookup_keys));
   }
 
   /*
@@ -4524,9 +4520,9 @@ bool JOIN::choose_subquery_plan(table_map join_tables)
         const_tables != table_count)
     {
       /*
-        The subquery was not reoptimized either because the user allowed only the
-        IN-EXISTS strategy, or because materialization was not possible based on
-        semantic analysis. Clenup the original plan and reoptimize.
+        The subquery was not reoptimized either because the user allowed only
+        the IN-EXISTS strategy, or because materialization was not possible
+        based on semantic analysis. Cleanup the original plan and reoptimize.
       */
       for (uint i= 0; i < table_count; i++)
       {

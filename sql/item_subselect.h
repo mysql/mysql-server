@@ -52,6 +52,17 @@ protected:
   
   bool inside_first_fix_fields;
   bool done_first_fix_fields;
+  Item *expr_cache;
+  /*
+    Set to TRUE if at optimization or execution time we determine that this
+    item's value is a constant. We need this member because it is not possible
+    to substitute 'this' with a constant item.
+  */
+  bool forced_const;
+#ifndef DBUG_OFF
+  /* Count the number of times this subquery predicate has been executed. */
+  uint exec_counter;
+#endif
 public:
   /* 
     Used inside Item_subselect::fix_fields() according to this scenario:
@@ -66,19 +77,13 @@ public:
         substitution= NULL;
       < Item_subselect::fix_fields
   */
+  /* TODO make this protected member again. */
   Item *substitution;
+  /* engine that perform execution of subselect (single select or union) */
+  /* TODO make this protected member again. */
+  subselect_engine *engine;
   /* unit of subquery */
   st_select_lex_unit *unit;
-  Item *expr_cache;
-  /* engine that perform execution of subselect (single select or union) */
-  subselect_engine *engine;
-  /*
-    Set to TRUE if at optimization or execution time we determine that this
-    item's value is a constant. We need this member because it is not possible
-    to substitute 'this' with a constant item.
-  */
-  bool forced_const;
-
   /* A reference from inside subquery predicate to somewhere outside of it */
   class Ref_to_outside : public Sql_alloc
   {
