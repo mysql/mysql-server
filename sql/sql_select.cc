@@ -5969,7 +5969,7 @@ void JOIN::get_partial_cost_and_fanout(uint end_tab_idx,
   }
 
   for (tab= first_depth_first_tab(this), i= const_tables;
-       tab;
+       (i <= end_tab_idx && tab);
        tab= next_depth_first_tab(this, tab), i++)
   {
     /* 

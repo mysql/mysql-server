@@ -38,11 +38,14 @@ Item_subselect::Item_subselect():
   Item_result_field(), value_assigned(0), own_engine(0), thd(0), old_engine(0), 
   used_tables_cache(0), have_to_be_excluded(0), const_item_cache(1),
   inside_first_fix_fields(0), done_first_fix_fields(FALSE), 
-  substitution(0), expr_cache(0), engine(0), forced_const(FALSE), eliminated(FALSE),
+  expr_cache(0), forced_const(FALSE), substitution(0), engine(0), eliminated(FALSE),
   engine_changed(0), changed(0), is_correlated(FALSE)
 {
   DBUG_ENTER("Item_subselect::Item_subselect");
   DBUG_PRINT("enter", ("this: 0x%lx", (ulong) this));
+#ifndef DBUG_OFF
+  exec_counter= 0;
+#endif
   with_subselect= 1;
   reset();
   /*
@@ -130,6 +133,10 @@ void Item_subselect::cleanup()
   value_assigned= 0;
   expr_cache= 0;
   forced_const= FALSE;
+  DBUG_PRINT("info", ("exec_counter: %d", exec_counter));
+#ifndef DBUG_OFF
+  exec_counter= 0;
+#endif
   DBUG_VOID_RETURN;
 }
 
@@ -548,7 +555,9 @@ bool Item_subselect::exec()
   DBUG_EXECUTE_IF("subselect_exec_fail", return 1;);
 
   res= engine->exec();
-
+#ifndef DBUG_OFF
+  ++exec_counter;
+#endif
   if (engine_changed)
   {
     engine_changed= 0;
