@@ -26,4 +26,4 @@ ADD_CONVENIENCE_LIBRARY(ndbtrace
             ${NDB_SOURCE_DIR}/src/kernel/error/ndbd_exit_codes.c
 )
 
-TARGET_LINK_LIBRARIES(ndbtrace ndblogger ndbgeneral)
+TARGET_LINK_LIBRARIES(ndbtrace ndbsignaldata ndblogger ndbgeneral)
