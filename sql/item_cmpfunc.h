@@ -1688,7 +1688,8 @@ public:
   friend class Item_equal_fields_iterator;
   friend Item *eliminate_item_equal(COND *cond, COND_EQUAL *upper_levels,
                            Item_equal *item_equal);
-  friend bool setup_sj_materialization(struct st_join_table *tab);
+  friend bool setup_sj_materialization_part1(struct st_join_table *tab);
+  friend bool setup_sj_materialization_part2(struct st_join_table *tab);
 }; 
 
 class COND_EQUAL: public Sql_alloc

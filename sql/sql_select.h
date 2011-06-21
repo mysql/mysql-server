@@ -204,7 +204,13 @@ typedef struct st_join_table {
     NULL means no index condition pushdown was performed.
   */
   Item          *pre_idx_push_select_cond;
-  Item	       **on_expr_ref;   /**< pointer to the associated on expression   */
+  /*
+    Pointer to the associated ON expression. on_expr_ref=!NULL except for
+    degenerate joins. 
+    *on_expr_ref!=NULL for tables that are first inner tables within an outer
+    join.
+  */
+  Item	       **on_expr_ref;
   COND_EQUAL    *cond_equal;    /**< multiple equalities for the on expression */
   st_join_table *first_inner;   /**< first inner table for including outerjoin */
   bool           found;         /**< true after all matches or null complement */
@@ -478,6 +484,8 @@ typedef struct st_join_table {
   }
   double scan_time();
   bool preread_init();
+
+  bool is_sjm_nest() { return test(bush_children); }
 } JOIN_TAB;
 
 

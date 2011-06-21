@@ -5408,8 +5408,10 @@ bool st_table::is_children_attached(void)
 
 bool st_table::is_filled_at_execution()
 { 
-  return test(pos_in_table_list->jtbm_subselect);
+  return test(pos_in_table_list->jtbm_subselect || 
+              pos_in_table_list->is_active_sjm());
 }
+
 
 /*
   Cleanup this table for re-execution.

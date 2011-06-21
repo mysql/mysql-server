@@ -285,7 +285,9 @@ void restore_prev_sj_state(const table_map remaining_tables,
                                   const JOIN_TAB *tab, uint idx);
 
 void fix_semijoin_strategies_for_picked_join_order(JOIN *join);
-bool setup_sj_materialization(JOIN_TAB *tab);
+
+bool setup_sj_materialization_part1(JOIN_TAB *sjm_tab);
+bool setup_sj_materialization_part2(JOIN_TAB *sjm_tab);
 
 TABLE *create_duplicate_weedout_tmp_table(THD *thd, uint uniq_tuple_length_arg,
                                           SJ_TMP_TABLE *sjtbl);

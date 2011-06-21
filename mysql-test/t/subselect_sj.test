@@ -1212,5 +1212,25 @@ LEFT JOIN t2 JOIN t3 ON t3.f10 = t2.f10 ON t3.f11 != 0 );
 
 drop table t1,t2,t3,t4;
 
+--echo #
+--echo # BUG#795530 Wrong result with subquery semijoin materialization and outer join 
+--echo #  Simplified testcase that uses DuplicateElimination
+--echo #
+create table t1 (a int);
+create table t2 (a int, b char(10));
+
+insert into t1 values (1),(2);
+insert into t2 values (1, 'one'), (3, 'three');
+
+create table t3 (b char(10));
+insert into t3 values('three'),( 'four');
+insert into t3 values('three'),( 'four');
+insert into t3 values('three'),( 'four');
+insert into t3 values('three'),( 'four');
+explain select * from t3 where t3.b in (select t2.b from t1 left join t2 on t1.a=t2.a);
+select * from t3 where t3.b in (select t2.b from t1 left join t2 on t1.a=t2.a);
+
+drop table t1, t2, t3;
+
 # The following command must be the last one the file 
 set @@optimizer_switch=@save_optimizer_switch;

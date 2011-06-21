@@ -90,7 +90,7 @@ static store_key *get_store_key(THD *thd,
 				KEYUSE *keyuse, table_map used_tables,
 				KEY_PART_INFO *key_part, uchar *key_buff,
 				uint maybe_null);
-static void make_outerjoin_info(JOIN *join);
+static bool make_outerjoin_info(JOIN *join);
 static Item*
 make_cond_after_sjm(Item *root_cond, Item *cond, table_map tables, table_map sjm_tables);
 static bool make_join_select(JOIN *join,SQL_SELECT *select,COND *item);
@@ -1164,7 +1164,10 @@ JOIN::optimize()
   }
   
   reset_nj_counters(this, join_list);
-  make_outerjoin_info(this);
+  if (make_outerjoin_info(this))
+  {
+    DBUG_RETURN(1);
+  }
 
   /*
     Among the equal fields belonging to the same multiple equality
@@ -7620,6 +7623,12 @@ static void add_not_null_conds(JOIN *join)
   nested outer join and so on until it reaches root_tab
   (root_tab can be 0).
 
+  In other words:
+  add_found_match_trig_cond(tab->first_inner_tab, y, 0) is the way one should 
+  wrap parts of WHERE.  The idea is that the part of WHERE should be only
+  evaluated after we've finished figuring out whether outer joins.
+  ^^^ is the above correct?
+
   @param tab       the first inner table for most nested outer join
   @param cond      the predicate to be guarded (must be set)
   @param root_tab  the first inner table to stop
@@ -7647,6 +7656,12 @@ add_found_match_trig_cond(JOIN_TAB *tab, COND *cond, JOIN_TAB *root_tab)
 }
 
 
+bool TABLE_LIST::is_active_sjm()
+{ 
+  return sj_mat_info && sj_mat_info->is_used;
+}
+
+
 /**
   Fill in outer join related info for the execution plan structure.
 
@@ -7663,6 +7678,12 @@ add_found_match_trig_cond(JOIN_TAB *tab, COND *cond, JOIN_TAB *root_tab)
     The on expression for the outer join operation is attached to the
     corresponding first inner table through the field t0->on_expr_ref.
     Here ti are structures of the JOIN_TAB type.
+
+    In other words, for each join tab, set
+     - first_inner
+     - last_inner
+     - first_upper
+     - on_expr_ref, cond_equal
 
   EXAMPLE. For the query: 
   @code
@@ -7689,20 +7710,33 @@ add_found_match_trig_cond(JOIN_TAB *tab, COND *cond, JOIN_TAB *root_tab)
     has been chosen.
 */
 
-static void
+static bool
 make_outerjoin_info(JOIN *join)
 {
   DBUG_ENTER("make_outerjoin_info");
-  for (JOIN_TAB *tab= first_linear_tab(join, WITHOUT_CONST_TABLES); tab; 
-       tab= next_linear_tab(join, tab, WITHOUT_BUSH_ROOTS))
+  
+  /*
+    Create temp. tables for merged SJ-Materialization nests. We need to do
+    this now, because further code relies on tab->table and
+    tab->table->pos_in_table_list being set.
+  */
+  JOIN_TAB *tab;
+  for (tab= first_linear_tab(join, WITHOUT_CONST_TABLES); 
+       tab; 
+       tab= next_linear_tab(join, tab, WITH_BUSH_ROOTS))
   {
-    TABLE *table=tab->table;
-    /* 
-      psergey: The following is probably incorrect, fix it when we get 
-      semi+outer joins processing to work: 
-    */
-    if (!table)
-      continue;
+    if (tab->bush_children)
+    {
+      if (setup_sj_materialization_part1(tab))
+        DBUG_RETURN(TRUE);
+      tab->table->reginfo.join_tab= tab;
+    }
+  }
+
+  for (JOIN_TAB *tab= first_linear_tab(join, WITHOUT_CONST_TABLES); tab; 
+       tab= next_linear_tab(join, tab, WITH_BUSH_ROOTS))
+  {
+    TABLE *table= tab->table;
     TABLE_LIST *tbl= table->pos_in_table_list;
     TABLE_LIST *embedding= tbl->embedding;
 
@@ -7716,11 +7750,16 @@ make_outerjoin_info(JOIN *join)
       tab->last_inner= tab->first_inner= tab;
       tab->on_expr_ref= &tbl->on_expr;
       tab->cond_equal= tbl->cond_equal;
-      if (embedding)
+      if (embedding && !embedding->is_active_sjm())
         tab->first_upper= embedding->nested_join->first_nested;
     }    
     for ( ; embedding ; embedding= embedding->embedding)
     {
+      if (embedding->is_active_sjm())
+      {
+        /* We're trying to walk out of an SJ-Materialization nest. Don't do this.  */
+        break;
+      }
       /* Ignore sj-nests: */
       if (!(embedding->on_expr && embedding->outer_join))
         continue;
@@ -7752,7 +7791,7 @@ make_outerjoin_info(JOIN *join)
       } 
     }
   }
-  DBUG_VOID_RETURN;
+  DBUG_RETURN(FALSE);
 }
 
 
@@ -8127,10 +8166,25 @@ make_join_select(JOIN *join,SQL_SELECT *select,COND *cond)
         the null complemented row.
       */ 
 
-      /* First push down constant conditions from on expressions */
-      for (JOIN_TAB *join_tab= first_linear_tab(join, WITHOUT_CONST_TABLES); 
-           join_tab; 
-           join_tab= next_linear_tab(join, join_tab, WITH_BUSH_ROOTS))
+      /* 
+        First push down constant conditions from ON expressions. 
+         - Each pushed-down condition is wrapped into trigger which is 
+           enabled only for non-NULL-complemented record
+         - The condition is attached to the first_inner_table.
+        
+        With regards to join nests:
+         - if we start at top level, don't walk into nests
+         - if we start inside a nest, stay within that nest.
+      */
+      JOIN_TAB *start_from= tab->bush_root_tab? 
+                               tab->bush_root_tab->bush_children->start : 
+                               join->join_tab + join->const_tables;
+      JOIN_TAB *end_with= tab->bush_root_tab? 
+                               tab->bush_root_tab->bush_children->end : 
+                               join->join_tab + join->top_join_tab_count;
+      for (JOIN_TAB *join_tab= start_from;
+           join_tab != end_with;
+           join_tab++)
       {
         if (*join_tab->on_expr_ref)
         {
@@ -8155,9 +8209,14 @@ make_join_select(JOIN *join,SQL_SELECT *select,COND *cond)
         }       
       }
 
+
       /* Push down non-constant conditions from ON expressions */
-      //JOIN_TAB *first_tab= join->join_tab+join->const_tables;
       JOIN_TAB *last_tab= tab;
+
+      /*
+        while we're inside of an outer join and last_tab is 
+        the last of its tables ... 
+      */
       while (first_inner_tab && first_inner_tab->last_inner == last_tab)
       { 
         /* 
@@ -8168,19 +8227,13 @@ make_join_select(JOIN *join,SQL_SELECT *select,COND *cond)
 
         table_map used_tables2= (join->const_table_map |
                                  OUTER_REF_TABLE_BIT | RAND_TABLE_BIT);
-        for (JOIN_TAB *tab= first_linear_tab(join, WITHOUT_CONST_TABLES); 
-             tab; 
-             tab= (tab == last_tab)? NULL: next_linear_tab(join, tab, 
-                                                           WITH_BUSH_ROOTS))
+
+        start_from= tab->bush_root_tab? 
+                      tab->bush_root_tab->bush_children->start : 
+                      join->join_tab + join->const_tables;
+        for (JOIN_TAB *tab= start_from; tab <= last_tab; tab++)
         {
-          if (!tab->table)
-          {
-            /* 
-              psergey-todo: this is probably incorrect, fix this when we get
-              correct processing for outer joins + semi joins 
-            */
-            continue;
-          }
+          DBUG_ASSERT(tab->table);
           current_map= tab->table->map;
           used_tables2|= current_map;
           /*
@@ -9131,7 +9184,7 @@ make_join_readinfo(JOIN *join, ulonglong options, uint no_jbuf_after)
   {
     if (tab->bush_children)
     {
-      if (setup_sj_materialization(tab))
+      if (setup_sj_materialization_part2(tab))
         return TRUE;
     }
 
@@ -20538,8 +20591,7 @@ static void select_describe(JOIN *join, bool need_tmp_table, bool need_order,
             examined_rows= tab->limit;
           else
           {
-            if (!tab->table->pos_in_table_list ||
-                tab->table->is_filled_at_execution()) // temporary, is_filled_at_execution
+            if (tab->table->is_filled_at_execution())
             {
               examined_rows= tab->records;
             }
