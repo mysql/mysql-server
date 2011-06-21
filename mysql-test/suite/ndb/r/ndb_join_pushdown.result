@@ -4,6 +4,8 @@ select counter_name, sum(val) as val
 from ndbinfo.counters 
 where block_name='DBSPJ' 
 group by counter_name;
+create temporary table spj_save_counts like spj_counts_at_startup;
+insert into spj_save_counts values ('SCAN_ROWS_RETURNED', 0);
 set @save_ndb_join_pushdown = @@session.ndb_join_pushdown;
 set ndb_join_pushdown = true;
 create table t1 (
@@ -2057,6 +2059,7 @@ left join tx as x2 on x1.c=x2.a and x1.d=x2.d;
 count(*)
 304
 drop table tx;
+update spj_save_counts set val = (select sum(val) from ndbinfo.counters where block_name='DBSPJ' and counter_name='SCAN_ROWS_RETURNED') where counter_name='SCAN_ROWS_RETURNED';
 alter table t1 partition by key(a);
 explain select count(*) from t1 
 join t1 as t2 on t2.a = t1.c 
@@ -2089,6 +2092,7 @@ join t1 as x2 on x2.a = x1.c and x1.b < 2
 join t1 as x3 on x3.a = x1.c;
 count(*)
 20000
+update spj_counts_at_startup set val = val + (select sum(val) from ndbinfo.counters where block_name='DBSPJ' and counter_name='SCAN_ROWS_RETURNED') - (select val from spj_save_counts where counter_name='SCAN_ROWS_RETURNED') where counter_name='SCAN_ROWS_RETURNED';
 drop table t1;
 drop table tx;
 create table t1 (a int, b int, primary key(a) using hash) engine = ndb;
@@ -4333,6 +4337,7 @@ id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 Warnings:
 Note	1644	Can't push table 'x3' as child of 'x1', outer join of scan-child not implemented
 Note	1003	select straight_join `test`.`x1`.`pk` AS `pk`,`test`.`x1`.`u` AS `u`,`test`.`x1`.`a` AS `a`,`test`.`x1`.`b` AS `b`,`test`.`x2`.`pk` AS `pk`,`test`.`x2`.`u` AS `u`,`test`.`x2`.`a` AS `a`,`test`.`x2`.`b` AS `b`,`test`.`x3`.`pk` AS `pk`,`test`.`x3`.`u` AS `u`,`test`.`x3`.`a` AS `a`,`test`.`x3`.`b` AS `b` from `test`.`t1` `x1` left join (`test`.`t1` `x2` join `test`.`t1` `x3`) on(((`test`.`x2`.`pk` = `test`.`x1`.`a`) and (`test`.`x3`.`b` = `test`.`x2`.`a`))) where 1
+update spj_save_counts set val = (select sum(val) from ndbinfo.counters where block_name='DBSPJ' and counter_name='SCAN_ROWS_RETURNED') where counter_name='SCAN_ROWS_RETURNED';
 explain extended select straight_join count(*) from t1 as x1 
 join t1 as x2 on x2.b = x1.a
 join t1 as x3 on x3.b = x1.b;
@@ -4382,6 +4387,7 @@ join t1 as x7 on x7.b = x1.a
 where x3.a < x2.pk and x4.a < x3.pk;
 count(*)
 632736
+update spj_counts_at_startup set val = val + (select sum(val) from ndbinfo.counters where block_name='DBSPJ' and counter_name='SCAN_ROWS_RETURNED') - (select val from spj_save_counts where counter_name='SCAN_ROWS_RETURNED') where counter_name='SCAN_ROWS_RETURNED';
 explain extended select straight_join count(*) from t1 as x1 
 left join t1 as x2 on x2.b = x1.a
 join t1 as x3 on x3.b = x1.b;
@@ -4426,6 +4432,7 @@ join t1 as x2 on x2.b = x1.a
 left join t1 as x3 on x3.b = x1.b;
 count(*)
 2028
+update spj_save_counts set val = (select sum(val) from ndbinfo.counters where block_name='DBSPJ' and counter_name='SCAN_ROWS_RETURNED') where counter_name='SCAN_ROWS_RETURNED';
 explain extended
 select straight_join count(*) from t1 as x1
 join t1 as x2 on x2.b = x1.a
@@ -4449,6 +4456,7 @@ join t1 as x2 on x2.b = x1.a
 join t1 as x3 on x3.pk = x1.a join t1 as x4 on x4.b = x3.a;
 count(*)
 2028
+update spj_counts_at_startup set val = val + (select sum(val) from ndbinfo.counters where block_name='DBSPJ' and counter_name='SCAN_ROWS_RETURNED') - (select val from spj_save_counts where counter_name='SCAN_ROWS_RETURNED') where counter_name='SCAN_ROWS_RETURNED';
 explain extended select straight_join count(*) from t1 as x1 
 left join t1 as x3 on x3.b = x1.a
 join t1 as x2 on x2.pk = x1.a;
@@ -4554,6 +4562,7 @@ id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	x2	ref	PRIMARY	PRIMARY	4	test.x0.c	1	Child of 'x0' in pushed join@1
 1	SIMPLE	x3	ref	PRIMARY	PRIMARY	4	test.x2.c	1	Child of 'x2' in pushed join@1
 1	SIMPLE	x4	eq_ref	PRIMARY	PRIMARY	8	test.x0.d,test.x3.b	1	Child of 'x3' in pushed join@1
+update spj_save_counts set val = (select sum(val) from ndbinfo.counters where block_name='DBSPJ' and counter_name='SCAN_ROWS_RETURNED') where counter_name='SCAN_ROWS_RETURNED';
 select straight_join count(*) from t1 as x0  
 join t3 as x1 on x0.c=x1.a  
 join t1 as x2 on x0.c=x2.a 
@@ -4561,6 +4570,7 @@ join t3 as x3 on x2.c=x3.a
 join t1 as x4 on x0.d=x4.a and x3.b=x4.b;
 count(*)
 4800
+update spj_counts_at_startup set val = val + (select sum(val) from ndbinfo.counters where block_name='DBSPJ' and counter_name='SCAN_ROWS_RETURNED') - (select val from spj_save_counts where counter_name='SCAN_ROWS_RETURNED') where counter_name='SCAN_ROWS_RETURNED';
 drop table t1;
 drop table t2;
 drop table t3;
@@ -5194,7 +5204,7 @@ PRUNED_RANGE_SCANS_RECEIVED	25
 RANGE_SCANS_RECEIVED	720
 READS_NOT_FOUND	6616
 READS_RECEIVED	52
-SCAN_ROWS_RETURNED	95391
+SCAN_ROWS_RETURNED	76380
 TABLE_SCANS_RECEIVED	236
 select sum(spj_counts_at_end.val - spj_counts_at_startup.val) as 'LOCAL+REMOTE READS_SENT'
        from spj_counts_at_end, spj_counts_at_startup 
@@ -5203,6 +5213,7 @@ and (spj_counts_at_end.counter_name = 'LOCAL_READS_SENT'
        or spj_counts_at_end.counter_name = 'REMOTE_READS_SENT');
 LOCAL+REMOTE READS_SENT
 35288
+drop table spj_save_counts;
 drop table spj_counts_at_startup;
 drop table spj_counts_at_end;
 scan_count
