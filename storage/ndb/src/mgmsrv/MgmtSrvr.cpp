@@ -42,7 +42,6 @@
 #include <signaldata/SchemaTrans.hpp>
 #include <signaldata/CreateNodegroup.hpp>
 #include <signaldata/DropNodegroup.hpp>
-#include <signaldata/DbinfoScan.hpp>
 #include <signaldata/Sync.hpp>
 #include <NdbSleep.h>
 #include <portlib/NdbDir.hpp>
@@ -1461,11 +1460,11 @@ int MgmtSrvr::shutdownMGM(int *stopCount, bool abort, int *stopSelf)
     error= sendStopMgmd(nodeId, abort, true, false,
                         false, false);
     if (error == 0)
-      *stopCount++;
+      (*stopCount)++;
   }
 
   *stopSelf= 1;
-  *stopCount++;
+  (*stopCount)++;
 
   return 0;
 }
