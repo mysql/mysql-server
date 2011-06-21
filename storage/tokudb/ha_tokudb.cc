@@ -5593,7 +5593,7 @@ int ha_tokudb::external_lock(THD * thd, int lock_type) {
     if (lock_type != F_UNLCK) {
         is_fast_alter_running = false;
         use_write_locks = false;
-        if (get_tokudb_use_write_locks(thd) && lock_type == F_WRLCK)
+        if (lock_type == F_WRLCK)
             use_write_locks = true;
         if (!trx->tokudb_lock_count++) {
             DBUG_ASSERT(trx->stmt == 0);
