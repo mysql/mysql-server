@@ -1486,11 +1486,11 @@ int MgmtSrvr::shutdownMGM(int *stopCount, bool abort, int *stopSelf)
     error= sendStopMgmd(nodeId, abort, true, false,
                         false, false);
     if (error == 0)
-      *stopCount++;
+      (*stopCount)++;
   }
 
   *stopSelf= 1;
-  *stopCount++;
+  (*stopCount)++;
 
   return 0;
 }

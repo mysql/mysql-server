@@ -18,7 +18,7 @@ ADD_SUBDIRECTORY(signaldata)
 
 INCLUDE(${CMAKE_SOURCE_DIR}/storage/ndb/config/type_kernel.cmake)
 
-ADD_LIBRARY(ndbtrace STATIC
+ADD_CONVENIENCE_LIBRARY(ndbtrace
             SignalLoggerManager.cpp
             DebuggerNames.cpp
             BlockNames.cpp
