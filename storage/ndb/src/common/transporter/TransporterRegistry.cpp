@@ -1002,7 +1002,7 @@ TransporterRegistry::pollReceive(Uint32 timeOutMillis,
     {
       for (int i = 0; i < num_socket_events; i++)
       {
-        Uint32 trpid = m_epoll_events[i].data.u32;
+        const Uint32 trpid = m_epoll_events[i].data.u32;
 #ifdef ERROR_INSERT
         if (m_blocked.get(trpid))
         {
@@ -1011,7 +1011,7 @@ TransporterRegistry::pollReceive(Uint32 timeOutMillis,
           continue;
         }
 #endif
-        mask.set(m_epoll_events[i].data.u32);
+        mask.set(trpid);
       }
     }
     else if (num_socket_events < 0)

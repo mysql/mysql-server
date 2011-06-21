@@ -19,5 +19,8 @@ INCLUDE_DIRECTORIES(${CMAKE_SOURCE_DIR}/include
 		${CMAKE_SOURCE_DIR}/storage/ndb/include/util 
 		${CMAKE_SOURCE_DIR}/storage/ndb/include/portlib )
 
-ADD_LIBRARY(mysqlutils decimal_utils.cpp CharsetMap.cpp CharsetMapImpl.cpp)
+ADD_CONVENIENCE_LIBRARY(mysqlutils
+  decimal_utils.cpp
+  CharsetMap.cpp
+  CharsetMapImpl.cpp)
 
