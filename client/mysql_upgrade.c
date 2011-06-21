@@ -779,10 +779,42 @@ static int run_sql_fix_privilege_tables(void)
   if (init_dynamic_string(&ds_result, "", 512, 512))
     die("Out of memory");
 
+#ifndef MCP_BUG51828
+  /*
+    The SQL to run are kept in a big array of string in order
+    to avoid hitting compiler limits for max string length,
+    concatenate the strings into dynamic memory before
+    running the SQL. Significant parts of patch for bug#51828
+    backported from trunk
+  */
+  {
+    const char **query_ptr;
+    DYNAMIC_STRING ds_script;
+
+    if (init_dynamic_string(&ds_script, "", 65536, 1024))
+      die("Out of memory");
+
+    for ( query_ptr= &mysql_fix_privilege_tables[0];
+          *query_ptr != NULL;
+          query_ptr++
+          )
+    {
+      dynstr_append(&ds_script, *query_ptr);
+    }
+
+    verbose("Running 'mysql_fix_privilege_tables'...");
+    run_query(ds_script.str,
+              &ds_result, /* Collect result */
+              TRUE);
+
+    dynstr_free(&ds_script);
+  }
+#else
   verbose("Running 'mysql_fix_privilege_tables'...");
   run_query(mysql_fix_privilege_tables,
             &ds_result, /* Collect result */
             TRUE);
+#endif
 
   {
     /*

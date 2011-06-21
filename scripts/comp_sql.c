@@ -71,7 +71,16 @@ int main(int argc, char *argv[])
   if (!(out= fopen(outfile_name, "w")))
     die("Failed to open output file '%s'", outfile_name);
 
+#ifndef MCP_BUG51828
+  /*
+    Print the SQL as an array of strings instead of one
+    large string in order to avoid compiler limit on max string length.
+    Significant parts of patch for bug#51828 backported from trunk.
+  */
+  fprintf(out, "const char* %s[]={\n\"", struct_name);
+#else
   fprintf(out, "const char* %s={\n\"", struct_name);
+#endif
 
   while (fgets(buff, sizeof(buff), in))
   {
@@ -112,9 +121,17 @@ int main(int argc, char *argv[])
       */
       fprintf(out, "\"\n\"");
     }
+#ifndef MCP_BUG51828
+    /* new line -> convert to new entry in array */
+    fprintf(out, "\",\n\"");
+#endif
   }
 
+#ifndef MCP_BUG51828
+  fprintf(out, "\",\nNULL\n};\n");
+#else
   fprintf(out, "\\\n\"};\n");
+#endif
 
   fclose(in);
   fclose(out);
