@@ -1174,7 +1174,7 @@ public:
 
       // special code for storage engines (e.g. to handle historical aliases)
       if (plugin_type == MYSQL_STORAGE_ENGINE_PLUGIN)
-        plugin= ha_resolve_by_name(thd, &pname);
+        plugin= ha_resolve_by_name(thd, &pname, FALSE);
       else
         plugin= my_plugin_lock_by_name(thd, &pname, plugin_type);
       if (!plugin)
@@ -1226,7 +1226,7 @@ public:
 
     plugin_ref plugin;
     if (plugin_type == MYSQL_STORAGE_ENGINE_PLUGIN)
-      plugin= ha_resolve_by_name(thd, &pname);
+      plugin= ha_resolve_by_name(thd, &pname, FALSE);
     else
       plugin= my_plugin_lock_by_name(thd, &pname, plugin_type);
     DBUG_ASSERT(plugin);

@@ -1132,7 +1132,7 @@ static int execute_ddl_log_action(THD *thd, DDL_LOG_ENTRY *ddl_log_entry)
     frm_action= TRUE;
   else
   {
-    plugin_ref plugin= ha_resolve_by_name(thd, &handler_name);
+    plugin_ref plugin= ha_resolve_by_name(thd, &handler_name, FALSE);
     if (!plugin)
     {
       my_error(ER_ILLEGAL_HA, MYF(0), ddl_log_entry->handler_name);

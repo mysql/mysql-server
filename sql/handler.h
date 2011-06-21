@@ -2436,7 +2436,9 @@ extern ulong total_ha, total_ha_2pc;
 
 /* lookups */
 handlerton *ha_default_handlerton(THD *thd);
-plugin_ref ha_resolve_by_name(THD *thd, const LEX_STRING *name);
+handlerton *ha_default_temp_handlerton(THD *thd);
+plugin_ref ha_resolve_by_name(THD *thd, const LEX_STRING *name, 
+                              bool is_temp_table);
 plugin_ref ha_lock_engine(THD *thd, const handlerton *hton);
 handlerton *ha_resolve_by_legacy_type(THD *thd, enum legacy_db_type db_type);
 handler *get_new_handler(TABLE_SHARE *share, MEM_ROOT *alloc,
