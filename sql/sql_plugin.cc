@@ -1232,15 +1232,23 @@ int plugin_init(int *argc, char **argv, int flags)
       if (register_builtin(plugin, &tmp, &plugin_ptr))
         goto err_unlock;
 
-      /* only initialize MyISAM and CSV at this stage */
-      if (!(is_myisam=
-            !my_strcasecmp(&my_charset_latin1, plugin->name, "MyISAM")) &&
-          my_strcasecmp(&my_charset_latin1, plugin->name, "CSV"))
-        continue;
+      is_myisam= !my_strcasecmp(&my_charset_latin1, plugin->name, "MyISAM");
 
-      if (plugin_ptr->state == PLUGIN_IS_UNINITIALIZED &&
-          plugin_initialize(plugin_ptr))
-        goto err_unlock;
+      /*
+        strictly speaking, we should to initialize all plugins,
+        even for mysqld --help, because important subsystems
+        may be disabled otherwise, and the help will be incomplete.
+        For example, if the mysql.plugin table is not MyISAM.
+        But for now it's an unlikely corner case, and to optimize
+        mysqld --help for all other users, we will only initialize
+        MyISAM here.
+      */
+      if (!(flags & PLUGIN_INIT_SKIP_INITIALIZATION) || is_myisam)
+      {
+        if (plugin_ptr->state == PLUGIN_IS_UNINITIALIZED &&
+            plugin_initialize(plugin_ptr))
+          goto err_unlock;
+      }
 
       /*
         initialize the global default storage engine so that it may
@@ -1445,13 +1453,6 @@ static void plugin_load(MEM_ROOT *tmp_root, int *argc, char **argv)
   table= tables.table;
   init_read_record(&read_record_info, new_thd, table, NULL, 1, 0, FALSE);
   table->use_all_columns();
-  /*
-    there're no other threads running yet, so we don't need a mutex.
-    but plugin_add() before is designed to work in multi-threaded
-    environment, and it uses safe_mutex_assert_owner(), so we lock
-    the mutex here to satisfy the assert
-  */
-  pthread_mutex_lock(&LOCK_plugin);
   while (!(error= read_record_info.read_record(&read_record_info)))
   {
     DBUG_PRINT("info", ("init plugin record"));
@@ -1462,12 +1463,19 @@ static void plugin_load(MEM_ROOT *tmp_root, int *argc, char **argv)
     LEX_STRING name= {(char *)str_name.ptr(), str_name.length()};
     LEX_STRING dl= {(char *)str_dl.ptr(), str_dl.length()};
 
+    /*
+      there're no other threads running yet, so we don't need a mutex.
+      but plugin_add() before is designed to work in multi-threaded
+      environment, and it uses safe_mutex_assert_owner(), so we lock
+      the mutex here to satisfy the assert
+    */
+    pthread_mutex_lock(&LOCK_plugin);
     if (plugin_add(tmp_root, &name, &dl, argc, argv, REPORT_TO_LOG))
       sql_print_warning("Couldn't load plugin named '%s' with soname '%s'.",
                         str_name.c_ptr(), str_dl.c_ptr());
     free_root(tmp_root, MYF(MY_MARK_BLOCKS_FREE));
+    pthread_mutex_unlock(&LOCK_plugin);
   }
-  pthread_mutex_unlock(&LOCK_plugin);
   if (error > 0)
     sql_print_error(ER(ER_GET_ERRNO), my_errno);
   end_read_record(&read_record_info);
