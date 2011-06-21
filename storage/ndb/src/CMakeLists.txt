@@ -32,7 +32,7 @@ SET(NDBCLIENT_LIBS
                 ndbtrace
                 ndbsignaldata
                 ndbmgmapi
-                ndbmgmsrv
+                ndbmgmcommon
                 ndblogger
                 ndbportlib
                 ndbgeneral
