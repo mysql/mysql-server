@@ -2891,7 +2891,7 @@ public:
   inline void send_kill_message() const
   {
     int err= killed_errno();
-    if (err)
+    if (err && !get_stmt_da()->is_set())
     {
       if ((err == KILL_CONNECTION) && !shutdown_in_progress)
         err = KILL_QUERY;
