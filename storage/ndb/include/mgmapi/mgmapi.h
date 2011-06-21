@@ -206,11 +206,13 @@ extern "C" {
     NDB_MGM_NODE_STATUS_SINGLEUSER    = 7,
     /** Resume mode*/
     NDB_MGM_NODE_STATUS_RESUME        = 8,
+    /** Node is connected */
+    NDB_MGM_NODE_STATUS_CONNECTED     = 9,
 #ifndef DOXYGEN_SHOULD_SKIP_INTERNAL
     /** Min valid value*/
     NDB_MGM_NODE_STATUS_MIN           = 0,
     /** Max valid value*/
-    NDB_MGM_NODE_STATUS_MAX           = 8
+    NDB_MGM_NODE_STATUS_MAX           = 9
 #endif
   };
 
