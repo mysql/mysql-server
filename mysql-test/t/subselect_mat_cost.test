@@ -1,4 +1,4 @@
-	#
+#
 # Tests of cost-based choice between the materialization and in-to-exists
 # subquery execution strategies (MWL#89)
 #
@@ -113,7 +113,7 @@ SELECT *
 -- echo IN_EXISTS: join order is the same, but the left IN operand refers to
 -- echo only the first table in the join order (Country), so there are much
 -- echo fewer rows to filter by subquery re-execution.
-EXPLAIN extended
+EXPLAIN
 SELECT *
   FROM Country, City
   WHERE City.Country = Country.Code AND

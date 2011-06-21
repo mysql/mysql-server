@@ -145,7 +145,7 @@ Q1.2e:
 IN_EXISTS: join order is the same, but the left IN operand refers to
 only the first table in the join order (Country), so there are much
 fewer rows to filter by subquery re-execution.
-EXPLAIN extended
+EXPLAIN
 SELECT *
 FROM Country, City
 WHERE City.Country = Country.Code AND
@@ -153,12 +153,10 @@ Country.SurfaceArea < 3000 AND Country.SurfaceArea > 10 AND
 (Country.Name IN
 (select Language from CountryLanguage where Percentage > 50) OR
 Country.name LIKE '%Island%');
-id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	PRIMARY	Country	ALL	PRIMARY,SurfaceArea	NULL	NULL	NULL	239	19.67	Using where
-1	PRIMARY	City	ref	Country	Country	3	world.Country.Code	18	100.00	
-2	DEPENDENT SUBQUERY	CountryLanguage	index_subquery	Percentage,Language	Language	30	func	2	100.00	Using where
-Warnings:
-Note	1003	select `world`.`Country`.`Code` AS `Code`,`world`.`Country`.`Name` AS `Name`,`world`.`Country`.`SurfaceArea` AS `SurfaceArea`,`world`.`Country`.`Population` AS `Population`,`world`.`Country`.`Capital` AS `Capital`,`world`.`City`.`ID` AS `ID`,`world`.`City`.`Name` AS `Name`,`world`.`City`.`Country` AS `Country`,`world`.`City`.`population` AS `population` from `world`.`Country` join `world`.`City` where ((`world`.`City`.`Country` = `world`.`Country`.`Code`) and (`world`.`Country`.`SurfaceArea` < 3000) and (`world`.`Country`.`SurfaceArea` > 10) and (<expr_cache><`world`.`Country`.`Name`>(<in_optimizer>(`world`.`Country`.`Name`,<exists>(<index_lookup>(<cache>(`world`.`Country`.`Name`) in CountryLanguage on Language where ((`world`.`CountryLanguage`.`Percentage` > 50) and (<cache>(`world`.`Country`.`Name`) = `world`.`CountryLanguage`.`Language`)))))) or (`world`.`Country`.`Name` like '%Island%')))
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	Country	ALL	PRIMARY,SurfaceArea	NULL	NULL	NULL	239	Using where
+1	PRIMARY	City	ref	Country	Country	3	world.Country.Code	18	
+2	DEPENDENT SUBQUERY	CountryLanguage	index_subquery	Percentage,Language	Language	30	func	2	Using where
 SELECT *
 FROM Country, City
 WHERE City.Country = Country.Code AND
