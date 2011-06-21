@@ -129,6 +129,7 @@ extern my_bool opt_enable_shared_memory;
 extern char *default_tz_name;
 extern Time_zone *default_tz;
 extern char *default_storage_engine;
+extern char *default_temp_storage_engine;
 extern bool opt_endinfo, using_udf_functions;
 extern my_bool locked_in_memory;
 extern bool opt_using_transactions;
