@@ -3728,6 +3728,7 @@ Qmgr::execAPI_VERSION_REQ(Signal * signal) {
   else
   {
     conf->version =  0;
+    conf->mysql_version =  0;
     conf->inet_addr= 0;
   }
   conf->nodeId = nodeId;
