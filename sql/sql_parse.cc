@@ -1527,6 +1527,8 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
 
   /* Finalize server status flags after executing a command. */
   thd->update_server_status();
+  if (thd->killed)
+    thd->send_kill_message();
   thd->protocol->end_statement();
   query_cache_end_of_result(thd);
 
@@ -4531,10 +4533,7 @@ finish:
   {
     /* report error issued during command execution */
     if (thd->killed_errno())
-    {
-      if (! thd->get_stmt_da()->is_set())
-        thd->send_kill_message();
-    }
+      thd->send_kill_message();
     if (thd->killed == THD::KILL_QUERY || thd->killed == THD::KILL_BAD_DATA)
     {
       thd->killed= THD::NOT_KILLED;
