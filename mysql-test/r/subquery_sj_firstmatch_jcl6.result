@@ -5568,6 +5568,87 @@ ab
 DROP TABLE t1, t2, t3;
 # End of the test for bug#12640083.
 #
+# Bug#12603200 - Assert in QUICK_INDEX_MERGE_SELECT::need_sorted_output
+#
+CREATE TABLE t1 (
+pk int NOT NULL,
+col_int_key int NOT NULL,
+col_varchar_nokey varchar(1) NOT NULL,
+col_varchar_key varchar(1) NOT NULL,
+PRIMARY KEY(pk),
+KEY col_int_key(col_int_key),
+KEY col_varchar_key(col_varchar_key, col_int_key)
+) engine=innodb;
+INSERT INTO t1 VALUES
+(1,7,'a','a'),
+(2,0,'v','v'),
+(3,9,'c','c'),
+(4,3,'m','m'),
+(5,2,'a','a'),
+(6,1,'d','d'),
+(7,8,'y','y'),
+(8,6,'t','t'),
+(11,7,'a','x'),
+(12,0,'v','v'),
+(13,9,'c','c'),
+(14,3,'m','m'),
+(15,2,'a','x'),
+(16,1,'d','d'),
+(17,8,'y','y'),
+(18,6,'t','u');
+CREATE TABLE t2 (
+pk int NOT NULL,
+col_int_key int NOT NULL,
+col_varchar_key varchar(1) NOT NULL,
+PRIMARY KEY(pk),
+KEY col_varchar_key(col_varchar_key, col_int_key)
+) engine=innodb;
+INSERT INTO t2(pk,col_int_key,col_varchar_key) VALUES
+(8,7,'c'),
+(11,4,'l'),
+(12,7,'b'),
+(13,0,'c'),
+(14,2,'i'),
+(15,9,'h'),
+(16,4,'q'),
+(17,1,'m'),
+(18,9,'b'),
+(19,2,'e'),
+(20,1,'c'),
+(21,7,'z'),
+(22,4,'l'),
+(23,7,'z'),
+(24,0,'c'),
+(25,2,'i'),
+(26,9,'h'),
+(27,4,'q'),
+(28,0,'a'),
+(29,1,'d');
+EXPLAIN SELECT outr.col_varchar_key AS x, outr.pk AS y
+FROM t1 AS outr
+WHERE outr.col_varchar_key IN (SELECT innr.col_varchar_key
+FROM t2 AS innr
+WHERE innr.col_varchar_key = 'a' OR innr.pk = 8)
+AND outr.col_varchar_nokey < 't'
+ORDER BY outr.col_varchar_key, outr.pk;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	innr	index_merge	PRIMARY,col_varchar_key	col_varchar_key,PRIMARY	3,4	NULL	2	Using sort_union(col_varchar_key,PRIMARY); Using where; Using temporary; Using filesort; Start temporary
+1	PRIMARY	outr	ref	col_varchar_key	col_varchar_key	3	test.innr.col_varchar_key	1	Using where; End temporary
+SELECT outr.col_varchar_key AS x, outr.pk AS y
+FROM t1 AS outr
+WHERE outr.col_varchar_key IN (SELECT innr.col_varchar_key
+FROM t2 AS innr
+WHERE innr.col_varchar_key = 'a' OR innr.pk = 8)
+AND outr.col_varchar_nokey < 't'
+ORDER BY outr.col_varchar_key, outr.pk;
+x	y
+a	1
+a	5
+c	3
+c	13
+DROP TABLE t1, t2;
+# End of bug#12603200
+#
 # Bug#51457 Firstmatch semijoin strategy gives wrong results for
 #           certain query plans
 #
