@@ -2133,21 +2133,21 @@ CREATE TABLE t1 (b int);
 INSERT INTO t1 VALUES (NULL),(3);
 CREATE TABLE t2 (a int, b int, KEY (b));
 INSERT INTO t2 VALUES (100,NULL),(150,200);
-explain SELECT t2.a FROM t1 LEFT JOIN t2 ON t2.b  = t1.b;
+EXPLAIN SELECT t2.a FROM t1 LEFT JOIN t2 FORCE INDEX (b) ON t2.b  = t1.b;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	t1	ALL	NULL	NULL	NULL	NULL	2	
-1	SIMPLE	t2	ALL	b	NULL	NULL	NULL	2	Using where; Using join buffer (BNL, incremental buffers)
-SELECT t2.a FROM t1 LEFT JOIN t2 ON t2.b  = t1.b;
+1	SIMPLE	t2	ref	b	b	5	test.t1.b	2	Using join buffer (BKA, incremental buffers)
+SELECT t2.a FROM t1 LEFT JOIN t2 FORCE INDEX (b) ON t2.b  = t1.b;
 a
 NULL
 NULL
 delete from t1;
 INSERT INTO t1 VALUES (NULL),(NULL);
-explain SELECT t2.a FROM t1 LEFT JOIN t2 ON t2.b  = t1.b;
+EXPLAIN SELECT t2.a FROM t1 LEFT JOIN t2 FORCE INDEX (b) ON t2.b  = t1.b;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	t1	ALL	NULL	NULL	NULL	NULL	2	
-1	SIMPLE	t2	ALL	b	NULL	NULL	NULL	2	Using where; Using join buffer (BNL, incremental buffers)
-SELECT t2.a FROM t1 LEFT JOIN t2 ON t2.b  = t1.b;
+1	SIMPLE	t2	ref	b	b	5	test.t1.b	2	Using join buffer (BKA, incremental buffers)
+SELECT t2.a FROM t1 LEFT JOIN t2 FORCE INDEX (b) ON t2.b  = t1.b;
 a
 NULL
 NULL
@@ -2303,6 +2303,68 @@ left join t8 on t3.col582 <=  1;
 count(*)
 32
 drop table t1,t2,t3,t4,t5,t6,t7,t8;
+#
+# Bug#12616131 - JCL: NULL VS DATE + TWICE AS MANY ROWS 
+#                RETURNED WHEN JCL>=7
+#
+CREATE TABLE t1 (t1a int, t1b int);
+INSERT INTO t1 VALUES (99, NULL),(99, 3),(99,0);
+CREATE TABLE t2 (t2a int, t2b int, KEY idx (t2b));
+INSERT INTO t2 VALUES (100,0),(150,200),(999, 0),(999, NULL);
+
+# t2b is NULL-able
+
+EXPLAIN SELECT * FROM t1 LEFT JOIN t2 force index (idx) ON t2.t2b = t1.t1b;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	ALL	NULL	NULL	NULL	NULL	3	
+1	SIMPLE	t2	ref	idx	idx	5	test.t1.t1b	2	Using join buffer (BKA, incremental buffers)
+SELECT * FROM t1 LEFT JOIN t2 force index (idx) ON t2.t2b = t1.t1b;
+t1a	t1b	t2a	t2b
+99	0	100	0
+99	0	999	0
+99	NULL	NULL	NULL
+99	3	NULL	NULL
+
+EXPLAIN SELECT * FROM t1 LEFT JOIN t2 force index (idx) ON t2.t2b <=> t1.t1b;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	ALL	NULL	NULL	NULL	NULL	3	
+1	SIMPLE	t2	ref	idx	idx	5	test.t1.t1b	2	Using where; Using join buffer (BKA, incremental buffers)
+SELECT * FROM t1 LEFT JOIN t2 force index (idx) ON t2.t2b <=> t1.t1b;
+t1a	t1b	t2a	t2b
+99	0	100	0
+99	0	999	0
+99	NULL	999	NULL
+99	3	NULL	NULL
+
+DROP TABLE t2;
+CREATE TABLE t2 (t2a int, t2b int NOT NULL, KEY idx (t2b));
+INSERT INTO t2 VALUES (100,0),(150,200),(999, 0);
+
+# t2b is NOT NULL
+
+EXPLAIN SELECT * FROM t1 LEFT JOIN t2 force index (idx) ON t2.t2b = t1.t1b;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	ALL	NULL	NULL	NULL	NULL	3	
+1	SIMPLE	t2	ref	idx	idx	4	test.t1.t1b	2	Using join buffer (BKA, incremental buffers)
+SELECT * FROM t1 LEFT JOIN t2 force index (idx) ON t2.t2b = t1.t1b;
+t1a	t1b	t2a	t2b
+99	0	100	0
+99	0	999	0
+99	NULL	NULL	NULL
+99	3	NULL	NULL
+
+EXPLAIN SELECT * FROM t1 LEFT JOIN t2 force index (idx) ON t2.t2b <=> t1.t1b;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	ALL	NULL	NULL	NULL	NULL	3	
+1	SIMPLE	t2	ref	idx	idx	4	test.t1.t1b	2	Using where; Using join buffer (BKA, incremental buffers)
+SELECT * FROM t1 LEFT JOIN t2 force index (idx) ON t2.t2b <=> t1.t1b;
+t1a	t1b	t2a	t2b
+99	0	100	0
+99	0	999	0
+99	NULL	NULL	NULL
+99	3	NULL	NULL
+
+DROP TABLE t1,t2;
 set @@join_buffer_size=default;
 set optimizer_join_cache_level = default;
 set optimizer_switch = default;
