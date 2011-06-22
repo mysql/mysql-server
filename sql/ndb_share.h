@@ -159,6 +159,7 @@ struct NDB_SHARE {
   char *table_name;
   Ndb::TupleIdRange tuple_id_range;
   struct Ndb_statistics stat;
+  struct Ndb_index_stat* index_stat_list;
   bool util_thread; // if opened by util thread
   uint32 connect_count;
   uint32 flags;

@@ -121,6 +121,8 @@ void ndbcluster_global_schema_lock_deinit();
 extern unsigned char g_node_id_map[max_ndb_nodes];
 extern pthread_mutex_t LOCK_ndb_util_thread;
 extern pthread_cond_t COND_ndb_util_thread;
+extern pthread_mutex_t LOCK_ndb_index_stat_thread;
+extern pthread_cond_t COND_ndb_index_stat_thread;
 extern pthread_mutex_t ndbcluster_mutex;
 extern HASH ndbcluster_open_tables;
 
