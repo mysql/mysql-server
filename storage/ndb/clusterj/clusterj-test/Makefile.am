@@ -92,6 +92,7 @@ clusterj_test_java = \
   $(clusterj_test_src)/testsuite/clusterj/QueryLikeTest.java \
   $(clusterj_test_src)/testsuite/clusterj/QueryLikeByteArrayTypesTest.java \
   $(clusterj_test_src)/testsuite/clusterj/QueryMultiColumnIndexInTest.java \
+  $(clusterj_test_src)/testsuite/clusterj/QueryMultipleParameterTest.java \
   $(clusterj_test_src)/testsuite/clusterj/QueryNotNullTest.java \
   $(clusterj_test_src)/testsuite/clusterj/QueryNotTest.java \
   $(clusterj_test_src)/testsuite/clusterj/QueryNullTest.java \
