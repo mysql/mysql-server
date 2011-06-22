@@ -284,7 +284,10 @@ static MYSQL_THDVAR_BOOL(
 */
 bool ndb_index_stat_get_enable(THD *thd)
 {
-  return THDVAR(thd, index_stat_enable);
+  mysql_mutex_lock(&LOCK_global_system_variables);
+  const bool value = THDVAR(thd, index_stat_enable);
+  mysql_mutex_unlock(&LOCK_global_system_variables);
+  return value;
 }
 
 /*
@@ -11593,7 +11596,7 @@ static int ndbcluster_init(void *p)
   if (pthread_create(&tmp2, &connection_attrib, ndb_index_stat_thread_func, 0))
   {
     DBUG_PRINT("error", ("Could not create ndb index statistics thread"));
-    hash_free(&ndbcluster_open_tables);
+    my_hash_free(&ndbcluster_open_tables);
     pthread_mutex_destroy(&ndbcluster_mutex);
     pthread_mutex_destroy(&LOCK_ndb_index_stat_thread);
     pthread_cond_destroy(&COND_ndb_index_stat_thread);
@@ -11614,7 +11617,7 @@ static int ndbcluster_init(void *p)
   if (!ndb_index_stat_thread_running)
   {
     DBUG_PRINT("error", ("ndb index statistics thread exited prematurely"));
-    hash_free(&ndbcluster_open_tables);
+    my_hash_free(&ndbcluster_open_tables);
     pthread_mutex_destroy(&ndbcluster_mutex);
     pthread_mutex_destroy(&LOCK_ndb_index_stat_thread);
     pthread_cond_destroy(&COND_ndb_index_stat_thread);
