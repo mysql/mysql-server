@@ -1474,16 +1474,18 @@ INSERT INTO t1 VALUES (NULL),(3);
 CREATE TABLE t2 (a int, b int, KEY (b));
 INSERT INTO t2 VALUES (100,NULL),(150,200);
 
-explain SELECT t2.a FROM t1 LEFT JOIN t2 ON t2.b  = t1.b;
+let $query= SELECT t2.a FROM t1 LEFT JOIN t2 FORCE INDEX (b) ON t2.b  = t1.b;
+--eval EXPLAIN $query
 --sorted_result
-SELECT t2.a FROM t1 LEFT JOIN t2 ON t2.b  = t1.b;
+--eval $query
 
 # test crash when no key is worth collecting by BKA for t2's ref
 delete from t1;
 INSERT INTO t1 VALUES (NULL),(NULL);
-explain SELECT t2.a FROM t1 LEFT JOIN t2 ON t2.b  = t1.b;
+
+--eval EXPLAIN $query
 --sorted_result
-SELECT t2.a FROM t1 LEFT JOIN t2 ON t2.b  = t1.b;
+--eval $query
 
 DROP TABLE t1,t2;
 
@@ -1645,5 +1647,46 @@ left join t8 on t3.col582 <=  1;
 --enable_warnings
 
 drop table t1,t2,t3,t4,t5,t6,t7,t8;
+
+--echo #
+--echo # Bug#12616131 - JCL: NULL VS DATE + TWICE AS MANY ROWS 
+--echo #                RETURNED WHEN JCL>=7
+--echo #
+
+CREATE TABLE t1 (t1a int, t1b int);
+INSERT INTO t1 VALUES (99, NULL),(99, 3),(99,0);
+
+CREATE TABLE t2 (t2a int, t2b int, KEY idx (t2b));
+INSERT INTO t2 VALUES (100,0),(150,200),(999, 0),(999, NULL);
+
+let $query1= SELECT * FROM t1 LEFT JOIN t2 force index (idx) ON t2.t2b = t1.t1b;
+let $query2= SELECT * FROM t1 LEFT JOIN t2 force index (idx) ON t2.t2b <=> t1.t1b;
+
+--echo
+--echo # t2b is NULL-able
+--echo
+--eval EXPLAIN $query1
+--eval $query1
+--echo
+--eval EXPLAIN $query2
+--eval $query2
+--echo
+
+DROP TABLE t2;
+
+CREATE TABLE t2 (t2a int, t2b int NOT NULL, KEY idx (t2b));
+INSERT INTO t2 VALUES (100,0),(150,200),(999, 0);
+
+--echo
+--echo # t2b is NOT NULL
+--echo
+--eval EXPLAIN $query1
+--eval $query1
+--echo
+--eval EXPLAIN $query2
+--eval $query2
+--echo
+
+DROP TABLE t1,t2;
 
 set @@join_buffer_size=default;
