@@ -45,7 +45,6 @@ class NdbIndexScanOperation;
 class NdbBlob;
 class NdbIndexStat;
 class NdbEventOperation;
-class NdbInterpretedCode;
 class ha_ndbcluster_cond;
 class Ndb_event_data;
 
@@ -171,7 +170,7 @@ typedef int (* prepare_detect_func) (struct st_ndbcluster_conflict_fn_share* cfn
                                      const uchar* old_data,
                                      const uchar* new_data,
                                      const MY_BITMAP* write_set,
-                                     NdbInterpretedCode* code);
+                                     class NdbInterpretedCode* code);
 
 struct st_conflict_fn_def
 {
