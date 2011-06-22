@@ -38,7 +38,6 @@ class NdbIndexScanOperation;
 class NdbBlob;
 class NdbIndexStat;
 class NdbEventOperation;
-class NdbInterpretedCode;
 class ha_ndbcluster_cond;
 class Ndb_event_data;
 

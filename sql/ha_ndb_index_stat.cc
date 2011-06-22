@@ -1590,7 +1590,7 @@ ndb_index_stat_thread_func(void *arg __attribute__((unused)))
   {
     set_timespec(abstime, 1);
     mysql_cond_timedwait(&COND_server_started, &LOCK_server_started,
-                         &abstime);
+	                 &abstime);
     if (ndbcluster_terminating)
     {
       mysql_mutex_unlock(&LOCK_server_started);
@@ -1650,10 +1650,8 @@ ndb_index_stat_thread_func(void *arg __attribute__((unused)))
       goto ndb_index_stat_thread_end;
     pthread_mutex_unlock(&LOCK_ndb_index_stat_thread);
 
-    mysql_mutex_lock(&LOCK_global_system_variables);
     /* const bool enable_ok_new= THDVAR(NULL, index_stat_enable); */
     const bool enable_ok_new= ndb_index_stat_get_enable(NULL);
-    mysql_mutex_unlock(&LOCK_global_system_variables);
 
     Ndb_index_stat_proc pr;
     pr.ndb= thd_ndb->ndb;
