@@ -65,6 +65,7 @@ struct fts_index_cache_struct {
 	que_t**		ins_graph;	/* Insert query graphs */
 
 	que_t**		sel_graph;	/* Select query graphs */
+	CHARSET_INFO*	charset;	/* charset */
 };
 
 /* For supporting the tracking of updates on multiple FTS indexes we need
@@ -156,7 +157,7 @@ struct fts_cache_struct {
 
 	doc_id_t	next_doc_id;	/* Next doc id */
 
-	doc_id_t	last_doc_id;	/* Upper limit of allocation */
+	doc_id_t	synced_doc_id;	/* Doc ID sync-ed to CONFIG table */
 
 	doc_id_t	first_doc_id;	/* first doc id since this table opened */
 
@@ -243,6 +244,7 @@ struct fts_doc_struct {
 					with any objects that have the
 					same lifespan, most notably
 					the vector of token positions */
+	CHARSET_INFO*	charset;	/* Document's charset info */
 };
 
 /* A token and its positions within a document. */

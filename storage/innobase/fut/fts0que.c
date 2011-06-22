@@ -2028,7 +2028,7 @@ fts_query_match_document(
 	*found = phrase.found = FALSE;
 
 	error = fts_doc_fetch_by_doc_id(
-		get_doc, match->doc_id, NULL,
+		get_doc, match->doc_id, NULL, FTS_FETCH_DOC_BY_ID_EQUAL,
 		fts_query_fetch_document, &phrase);
 
 	if (error != DB_SUCCESS) {
@@ -3159,27 +3159,11 @@ fts_query(
 {
 	fts_query_t	query;
 	ulint		error;
-	ibool		started;
 	ib_time_t	start_time;
 	byte*		lc_query_str;
 	ibool		boolean_mode;
 
 	boolean_mode = flags & FTS_BOOL;
-
-	/* Wait for the background add thread to start, this is required to
-	get the cache upto date. However we specify a timeout and if the
-	thread doesn't start by then, the query may return different results
-	from subsequent invocations. */
-	started = fts_wait_for_background_thread_to_start(
-		index->table, FTS_MAX_BACKGROUND_THREAD_WAIT * 10);
-
-	if (!started) {
-		ut_print_timestamp(stderr);
-		/* The thread can always start after we print this message. */
-		fprintf(stderr, " InnoDB: Warning: background FTS add thread "
-			"failed to start, FTS cache data will most likely "
-			"be ignored.\n");
-	}
 
 	*result = NULL;
 	memset(&query, 0x0, sizeof(query));
@@ -3408,6 +3392,7 @@ fts_expand_query(
 	const ib_rbt_node_t*	token_node;
 	fts_doc_t		result_doc;
 	ulint			error = DB_SUCCESS;
+	const fts_index_cache_t*index_cache;
 
 	/* If no doc is found in first search pass, return */
 	if (!rbt_size(query->doc_ids)) {
@@ -3419,6 +3404,8 @@ fts_expand_query(
 
 	result_doc.tokens = rbt_create(
 		sizeof(fts_token_t), fts_utf8_string_cmp);
+
+	index_cache = fts_find_index_cache(index->table->fts->cache, index);
 
 #ifdef UNIV_DEBUG
 	fts_print_doc_id(query->doc_ids);
@@ -3442,7 +3429,9 @@ fts_expand_query(
 		Future optimization could be done here if we
 		support some forms of document-to-word mapping */
 		fts_doc_fetch_by_doc_id(NULL, ranking->doc_id, index,
+					FTS_FETCH_DOC_BY_ID_EQUAL,
 					fts_add_fetch_document, &doc);
+		doc.charset = index_cache->charset;
 
 		fts_tokenize_document(&doc, &result_doc);
 

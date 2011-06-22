@@ -185,7 +185,7 @@ Update the last document id. This function could create a new
 transaction to update the last document id. */
 
 ulint
-fts_update_last_doc_id(
+fts_update_sync_doc_id(
 /*===================*/
 						/* out: DB_SUCCESS if OK */
 	const dict_table_t*	table,		/* in: table */
@@ -561,7 +561,7 @@ UNIV_INTERN
 doc_id_t
 fts_init_doc_id(
 /*============*/
-        const dict_table_t*     table);		/*!< in: table */
+	const dict_table_t*		table);		/*!< in: table */
 
 /********************************************************************
 Fetch COUNT(*) from specified table. */

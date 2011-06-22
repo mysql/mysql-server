@@ -3446,7 +3446,7 @@ static ST_FIELD_INFO	i_s_fts_config_fields_info[] =
 
 static const char* fts_config_key[] = {
 	FTS_OPTIMIZE_LIMIT_IN_SECS,
-	FTS_NEXT_DOC_ID,
+	FTS_SYNCED_DOC_ID,
 	FTS_LAST_OPTIMIZED_WORD,
 	FTS_TOTAL_DELETED_COUNT,
 	FTS_TOTAL_WORD_COUNT,
