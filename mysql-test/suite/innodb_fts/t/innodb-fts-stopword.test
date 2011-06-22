@@ -1,0 +1,118 @@
+# This is the basic function tests for innodb FTS
+
+-- source include/have_innodb.inc
+
+
+select * from information_schema.innodb_default_stopword;
+
+# Create FTS table
+CREATE TABLE articles (
+        id INT UNSIGNED AUTO_INCREMENT NOT NULL PRIMARY KEY,
+        title VARCHAR(200),
+        body TEXT,
+        FULLTEXT (title,body)
+        ) ENGINE=InnoDB;
+
+# Insert six rows
+INSERT INTO articles (title,body) VALUES
+        ('MySQL Tutorial','DBMS stands for DataBase ...')  ,
+        ('How To Use MySQL Well','After you went through a ...'),
+        ('Optimizing MySQL','In this tutorial we will show ...'),
+        ('1001 MySQL Tricks','1. Never run mysqld as root. 2. ...'),
+        ('MySQL vs. YourSQL','In the following database comparison ...'),
+        ('MySQL Security','When configured properly, MySQL ...');
+
+# "the" is in the default stopword, it would not be selected
+SELECT * FROM articles WHERE MATCH (title,body)
+        AGAINST ('the' IN NATURAL LANGUAGE MODE);
+
+let $innodb_server_stopword_table_orig=`select @@innodb_server_stopword_table`;
+let $innodb_use_stopword_orig=`select @@innodb_use_stopword`;
+let $innodb_user_stopword_table_orig=`select @@innodb_user_stopword_table`;
+
+select @@innodb_server_stopword_table;
+select @@innodb_use_stopword;
+select @@innodb_user_stopword_table;
+
+# Provide user defined stopword table, if not (correctly) defined,
+# it will be rejected
+--error 1231
+set global innodb_server_stopword_table = "not_defined";
+
+# Define a correct formated user stopword table
+create table user_stopword(value varchar(30)) engine = innodb;
+
+# The set operation should be successful
+set global innodb_server_stopword_table = "test/user_stopword";
+
+# Nothing inserted into the default stopword, so essentially
+# nothing get screened. The new stopword could only be
+# effective for table created thereafter
+CREATE TABLE articles_2 (
+        id INT UNSIGNED AUTO_INCREMENT NOT NULL PRIMARY KEY,
+        title VARCHAR(200),
+        body TEXT,
+        FULLTEXT (title,body)
+        ) ENGINE=InnoDB;
+
+INSERT INTO articles_2 (title, body)
+        VALUES ('test for stopwords','this is it...');
+
+# Now we can find record with "this"
+SELECT * FROM articles_2 WHERE MATCH (title,body)
+        AGAINST ('this' IN NATURAL LANGUAGE MODE);
+
+# Ok, let's instantiate some value into user supplied stop word
+# table
+insert into user_stopword values("this");
+
+# Ok, let's repeat with the new table again.
+CREATE TABLE articles_3 (
+        id INT UNSIGNED AUTO_INCREMENT NOT NULL PRIMARY KEY,
+        title VARCHAR(200),
+        body TEXT,
+        FULLTEXT (title,body)
+        ) ENGINE=InnoDB;
+
+INSERT INTO articles_3 (title, body)
+        VALUES ('test for stopwords','this is it...');
+
+# Now we should NOT find record with "this"
+SELECT * FROM articles_3 WHERE MATCH (title,body)
+        AGAINST ('this' IN NATURAL LANGUAGE MODE);
+
+# Test session level stopword control "innodb_user_stopword_table"
+create table user_stopword_session(value varchar(30)) engine = innodb;
+
+insert into user_stopword_session values("session");
+
+set session innodb_user_stopword_table="test/user_stopword_session";
+
+CREATE TABLE articles_4 (
+        id INT UNSIGNED AUTO_INCREMENT NOT NULL PRIMARY KEY,
+        title VARCHAR(200),
+        body TEXT,
+        FULLTEXT (title,body)
+        ) ENGINE=InnoDB;
+
+INSERT INTO articles_4 (title, body)
+        VALUES ('test for session stopwords','this should also be excluded...');
+
+# "session" is excluded
+SELECT * FROM articles_4 WHERE MATCH (title,body)
+        AGAINST ('session' IN NATURAL LANGUAGE MODE);
+
+# But we can find record with "this"
+SELECT * FROM articles_4 WHERE MATCH (title,body)
+        AGAINST ('this' IN NATURAL LANGUAGE MODE);
+
+drop table articles;
+drop table articles_2;
+drop table articles_3;
+drop table articles_4;
+drop table user_stopword;
+drop table user_stopword_session;
+
+eval SET GLOBAL innodb_use_stopword=$innodb_use_stopword_orig;
+eval SET GLOBAL innodb_server_stopword_table=default;
+
