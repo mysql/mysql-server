@@ -42,9 +42,9 @@ while ($record_counter < 400) {
 close FH;
 EOF
 
---enable_query_log
-
 EVAL LOAD DATA INFILE '$MYSQLTEST_VARDIR/tmp/fts_input_data.txt' INTO TABLE t1 FIELDS TERMINATED BY ',' (a,b);
+--enable_query_log
+--echo "Loading data using LOAD DATA Command , File <MYSQLTEST_VARDIR>/tmp/fts_input_data.txt"
 
 # Create the FTS index again
 CREATE FULLTEXT INDEX idx on t1 (a,b);
@@ -124,9 +124,10 @@ while ($record_counter < 5001) {
 close FH;
 EOF
 
---enable_query_log
 
 EVAL LOAD DATA INFILE '$MYSQLTEST_VARDIR/tmp/fts_input_data.txt' INTO TABLE t1 FIELDS TERMINATED BY ',' (a,b);
+--enable_query_log
+--echo "Loading data using LOAD DATA Command , File <MYSQLTEST_VARDIR>/tmp/fts_input_data.txt"
 
 # Create the FTS index again
 CREATE FULLTEXT INDEX idx on t1 (a,b);
@@ -215,9 +216,10 @@ while ($record_counter < 5001) {
 close FH;
 EOF
 
---enable_query_log
 
 EVAL LOAD DATA INFILE '$MYSQLTEST_VARDIR/tmp/fts_input_data.txt' INTO TABLE t1 FIELDS TERMINATED BY ',' (a,b);
+--enable_query_log
+--echo "Loading data using LOAD DATA Command , File <MYSQLTEST_VARDIR>/tmp/fts_input_data.txt"
 
 # Create the FTS index again
 CREATE FULLTEXT INDEX idx on t1 (a,b);
@@ -297,9 +299,10 @@ while ($record_counter < 5001) {
 close FH;
 EOF
 
---enable_query_log
 
 EVAL LOAD DATA INFILE '$MYSQLTEST_VARDIR/tmp/fts_input_data.txt' INTO TABLE t1 FIELDS TERMINATED BY ',' (a,b);
+--enable_query_log
+--echo "Loading data using LOAD DATA Command , File <MYSQLTEST_VARDIR>/tmp/fts_input_data.txt"
 
 # Create the FTS index again
 CREATE FULLTEXT INDEX idx on t1 (a,b);
