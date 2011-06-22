@@ -15211,6 +15211,17 @@ evaluate_null_complemented_join_record(JOIN *join, JOIN_TAB *join_tab)
   /*
     The row complemented by nulls satisfies all conditions
     attached to inner tables.
+  */
+  if (join_tab->check_weed_out_table)
+  {
+    int res= do_sj_dups_weedout(join->thd, join_tab->check_weed_out_table);
+    if (res == -1)
+      return NESTED_LOOP_ERROR;
+    else if (res == 1)
+      return NESTED_LOOP_OK;
+  }
+
+  /*
     Send the row complemented by nulls to be joined with the
     remaining tables.
   */
