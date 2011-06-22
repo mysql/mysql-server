@@ -596,6 +596,7 @@ NdbEventOperationImpl::execute_nolock()
     {
       switch(myDict->getNdbError().code){
       case 711:
+      case 763:
         // ignore;
         break;
       default:
@@ -789,6 +790,15 @@ Uint64
 NdbEventOperationImpl::getLatestGCI()
 {
   return m_ndb->theEventBuffer->getLatestGCI();
+}
+
+Uint64
+NdbEventOperationImpl::getTransId() const
+{
+  /* Return 64 bit composite */
+  Uint32 transId1 = m_data_item->sdata->transId1;
+  Uint32 transId2 = m_data_item->sdata->transId2;
+  return Uint64(transId1) << 32 | transId2;
 }
 
 bool
@@ -2763,6 +2773,12 @@ NdbEventBuffer::copy_data(const SubTableData * const sdata, Uint32 len,
   {
     data->sdata->gci_lo = 0;
   }
+  if (len < SubTableData::SignalLengthWithTransId)
+  {
+    /* No TransId, set to uninit value */
+    data->sdata->transId1 = ~Uint32(0);
+    data->sdata->transId2 = ~Uint32(0);
+  }
 
   int i;
   for (i = 0; i <= 2; i++)
@@ -2837,6 +2853,11 @@ NdbEventBuffer::merge_data(const SubTableData * const sdata, Uint32 len,
                            Uint32 * change_sz)
 {
   DBUG_ENTER_EVENT("NdbEventBuffer::merge_data");
+
+  /* TODO : Consider how/if to merge multiple events/key with different
+   * transid
+   * Same consideration probably applies to AnyValue!
+   */
 
   Uint32 nkey = data->m_event_op->m_eventImpl->m_tableImpl->m_noOfKeys;
 

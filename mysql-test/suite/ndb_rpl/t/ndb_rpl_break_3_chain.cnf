@@ -54,8 +54,6 @@ default-storage-engine=myisam
 # test results will vary, thus a relative path is used.
 slave-load-tmpdir=            ../../../tmp
 
-rpl-recovery-rank=            @mysqld.1.cluster2.server-id
-
 [mysqld.1.cluster3]
 log-bin=                      cluster3-bin
 relay-log=                    cluster3-relay-bin
@@ -70,8 +68,6 @@ default-storage-engine=myisam
 # on the server. The path need to have constant length otherwise
 # test results will vary, thus a relative path is used.
 slave-load-tmpdir=            ../../../tmp
-
-rpl-recovery-rank=            @mysqld.1.cluster3.server-id
 
 [ENV]
 SERVER_MYPORT_1=              @mysqld.1.cluster1.port

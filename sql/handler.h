@@ -1669,6 +1669,30 @@ public:
   virtual int extra_opt(enum ha_extra_function operation, ulong cache_size)
   { return extra(operation); }
 
+#ifndef MCP_WL5906
+  /*
+    Informs the handler if this handler support read removal
+    (could use table_flags, but patch is smaller this way)
+   */
+  virtual bool read_before_write_removal_supported(void) const
+  { return false; }
+
+  /*
+    Informs handler that it is possible to optimise away the real read
+    operation from the handler for the current table and instead
+    use a generated read to optimise simple UPDATE and DELETEs.
+  */
+  virtual bool read_before_write_removal_possible(void)
+  { return false; }
+
+  /*
+    Return the number of rows the handler has written while using
+    read before write removal
+   */
+  virtual ha_rows read_before_write_removal_rows_written(void) const
+  { DBUG_ASSERT(0); return (ha_rows) 0; }
+#endif
+
   /**
     In an UPDATE or DELETE, if the row under the cursor was locked by another
     transaction, and the engine used an optimistic read of the last

@@ -1,9 +1,45 @@
 # The NDB version number and status.
 # Should be updated when creating a new NDB version
 NDB_VERSION_MAJOR=7
-NDB_VERSION_MINOR=0
-NDB_VERSION_BUILD=26
+NDB_VERSION_MINOR=1
+NDB_VERSION_BUILD=15
 NDB_VERSION_STATUS=""
+
+dnl ---------------------------------------------------------------------------
+dnl Macro: MYSQL_CHECK_CXX_LINKING
+dnl ---------------------------------------------------------------------------
+AC_DEFUN([MYSQL_CHECK_CXX_LINKING], [
+  # Check if linking need additional C++ libraries since
+  # we are (most likely) linking with gcc
+  ndb_cxx_runtime_libs=""
+
+  AC_MSG_CHECKING(how to link C++ programs)
+
+  LIBS_save="$LIBS"
+  AC_LANG_PUSH(C++)
+
+  for L in "" -lstdc++
+  do
+    LIBS="$LIBS $L"
+    AC_LINK_IFELSE(
+      AC_LANG_PROGRAM([],
+      [char* p=new char;delete p;]),
+      [ linked_ok=yes ], [])
+    LIBS="$LIBS_save"
+
+    if test X$linked_ok = Xyes
+    then
+      ndb_cxx_runtime_libs="$L"
+      ndb_can_link_cxx_program=yes
+      break;
+    fi
+  done
+
+  AC_LANG_POP(C++)
+
+  AC_MSG_RESULT([$ndb_cxx_runtime_libs])
+  AC_SUBST(ndb_cxx_runtime_libs)
+])
 
 dnl for build ndb docs
 
@@ -90,71 +126,104 @@ AC_DEFUN([NDB_CHECK_NDBMTD], [
 ])
 
 
-AC_DEFUN([MYSQL_CHECK_NDB_JTIE], [
+AC_DEFUN([MYSQL_CHECK_JAVA], [
 
-case "$host_os" in
-darwin*)        INC="Headers";;
-*)              INC="include";;
-esac
+  NDB_JAVA_PATHS="$JAVA_HOME $JDK_HOME"
+  NDB_JAVA_TMP_INC="include"
+  NDB_JAVA_TMP_BIN="bin"
 
-dnl
-dnl Search for JAVA_HOME
-dnl
+  case "$host_os" in
+  darwin*)        
+    AC_CHECK_FILE([/usr/libexec/java_home],[found=yes])
+    if test X$found = Xyes
+    then
+      # MaxOS >= 1.5
+      NDB_JAVA_PATHS="$NDB_JAVA_PATHS `/usr/libexec/java_home`"
+    else
+      NDB_JAVA_TMP_INC="Headers"
+      NDB_JAVA_TMP_BIN="Commands"
+      NDB_JAVA_PATHS="$NDB_JAVA_PATHS /System/Library/Frameworks/JavaVM.framework/Versions/CurrentJDK"
+    fi
+    ;;
+  *)
+    NDB_JAVA_PATHS="$NDB_JAVA_PATHS /usr/lib/jvm/java /usr/lib64/jvm/java"
+    NDB_JAVA_PATHS="$NDB_JAVA_PATHS /usr/local/jdk /usr/local/java /usr/local/java/jdk"
+    NDB_JAVA_PATHS="$NDB_JAVA_PATHS /usr/jdk/latest"
+    ;;
+  esac
 
-for D in $JAVA_HOME $JDK_HOME /usr/lib/jvm/java /usr/lib64/jvm/java /usr/local/jdk /usr/local/java /System/Library/Frameworks/JavaVM.framework/Versions/CurrentJDK ; do
-        AC_CHECK_FILE([$D/$INC/jni.h],[found=yes])
-        if test X$found = Xyes
-        then
-                JINC=$D/$INC
-                break;
-        fi
-done
+  dnl
+  dnl Search for JAVA_HOME
+  dnl
 
-if test -f "${JINC}/jni.h"
-then
-        JNI_INCLUDE_DIRS="-I${JINC}"
-else
-        AC_MSG_RESULT([-- Unable to locate jni.h!])
-fi
+  NDB_JAVA_INC=""
+  NDB_JAVA_BIN=""
 
-dnl try to add extra include path
-case "$host_os" in
-bsdi*)    JNI_SUBDIRS="bsdos";;
-linux*)   JNI_SUBDIRS="linux genunix";;
-osf*)     JNI_SUBDIRS="alpha";;
-solaris*) JNI_SUBDIRS="solaris";;
-mingw*)   JNI_SUBDIRS="win32";;
-cygwin*)  JNI_SUBDIRS="win32";;
-*)        JNI_SUBDIRS="genunix";;
-esac
+  for D in $NDB_JAVA_PATHS; do
+    AC_CHECK_FILE([$D/$NDB_JAVA_TMP_INC/jni.h],[found=yes])
+    if test X$found = Xyes
+    then
+      NDB_JAVA_INC=$D/$NDB_JAVA_TMP_INC
+      NDB_JAVA_BIN=$D/$NDB_JAVA_TMP_BIN
+      break;
+    fi
+  done
 
-dnl add any subdirectories that are present
-for S in ${JNI_SUBDIRS}
-do
-        if test -d "${JINC}/${S}"
-        then
-                JNI_INCLUDE_DIRS="${JNI_INCLUDE_DIRS} -I${JINC}/${S}"
-        fi
-done
+  echo "$NDB_JAVA_INC"
 
-CPPFLAGS_save="$CPPFLAGS"
-CPPFLAGS="$CPPFLAGS ${JNI_INCLUDE_DIRS}"
-AC_CHECK_HEADERS(jni.h)
-CPPFLAGS="$CPPFLAGS_save"
+  if test -f "${NDB_JAVA_INC}/jni.h"
+  then
+    JNI_INCLUDE_DIRS="-I${NDB_JAVA_INC}"
+  else
+    AC_MSG_RESULT([-- Unable to locate jni.h!])
+  fi
 
-AC_CHECK_PROG(JAVAC, javac, javac, no)
-AC_CHECK_PROG(JAVAH, javah, javah, no)
-AC_CHECK_PROG(JAR, jar, jar, no)
-AC_SUBST(JNI_INCLUDE_DIRS)
+  dnl try to add extra include path
+  case "$host_os" in
+  bsdi*)    JNI_SUBDIRS="bsdos";;
+  freebsd*) JNI_SUBDIRS="freebsd";;
+  linux*)   JNI_SUBDIRS="linux genunix";;
+  osf*)     JNI_SUBDIRS="alpha";;
+  solaris*) JNI_SUBDIRS="solaris";;
+  mingw*)   JNI_SUBDIRS="win32";;
+  cygwin*)  JNI_SUBDIRS="win32";;
+  *)        JNI_SUBDIRS="genunix";;
+  esac
 
-ndb_jtie_supported=no
-if test "$JAVAC" &&
-   test "$JAVAH" &&
-   test "$JAR" &&
-   test X"$ac_cv_header_jni_h" = Xyes
-then
-        ndb_jtie_supported=yes
-fi
+  dnl add any subdirectories that are present
+  for S in ${JNI_SUBDIRS}
+  do
+    if test -d "${NDB_JAVA_INC}/${S}"
+    then
+      JNI_INCLUDE_DIRS="${JNI_INCLUDE_DIRS} -I${NDB_JAVA_INC}/${S}"
+    fi
+  done
+
+  CPPFLAGS_save="$CPPFLAGS"
+  CPPFLAGS="$CPPFLAGS ${JNI_INCLUDE_DIRS}"
+  AC_CHECK_HEADERS(jni.h)
+  CPPFLAGS="$CPPFLAGS_save"
+
+  ndb_java_supported=no
+
+  if test X$NDB_JAVA_BIN != X
+  then
+
+    AC_PATH_PROG(JAVAC, javac, no, ${NDB_JAVA_BIN})
+    AC_PATH_PROG(JAVAH, javah, no, ${NDB_JAVA_BIN})
+    AC_PATH_PROG(JAR, jar, no, ${NDB_JAVA_BIN})
+    AC_PATH_PROG(JAVA, java, no, ${NDB_JAVA_BIN})
+    AC_SUBST(JNI_INCLUDE_DIRS)
+
+    if test X"$JAVAC" != Xno &&
+      test X"$JAVAH" != Xno && 
+      test X"$JAR" != Xno && 
+      test X"$JAVA" != Xno && 
+      test X"$ac_cv_header_jni_h" = Xyes
+    then
+       ndb_java_supported=yes
+    fi
+  fi
 ])
 
 AC_DEFUN([NDB_COMPILER_FEATURES],
@@ -267,17 +336,6 @@ AC_DEFUN([MYSQL_CHECK_NDB_OPTIONS], [
                               [Extra CFLAGS for ndb compile])],
               [ndb_ccflags=${withval}],
               [ndb_ccflags=""])
-  AC_ARG_WITH([ndb-binlog],
-              [AC_HELP_STRING([--without-ndb-binlog],
-                              [Disable ndb binlog])],
-              [ndb_binlog="$withval"],
-              [ndb_binlog="default"])
-  AC_ARG_WITH([ndb-jtie],
-              [AC_HELP_STRING([--with-ndb-jtie],
-                              [Include the NDB Cluster java-bindings for ClusterJ])],
-              [ndb_jtie="$withval"],
-              [ndb_jtie="no"])
-
   case "$ndb_ccflags" in
     "yes")
         AC_MSG_RESULT([The --ndb-ccflags option requires a parameter (passed to CC for ndb compilation)])
@@ -286,6 +344,29 @@ AC_DEFUN([MYSQL_CHECK_NDB_OPTIONS], [
         ndb_cxxflags_fix="$ndb_cxxflags_fix $ndb_ccflags"
     ;;
   esac
+
+  AC_ARG_WITH([ndb-binlog],
+              [AC_HELP_STRING([--without-ndb-binlog],
+                              [Disable ndb binlog])],
+              [ndb_binlog="$withval"],
+              [ndb_binlog="default"])
+  AC_ARG_WITH([openjpa],
+              [AS_HELP_STRING([--with-openjpa],
+	                      [Include and set path for native
+                               OpenJPA support])],
+              [openjpa="$withval"],
+              [openjpa="default"])
+  AC_ARG_WITH([classpath],
+              [AS_HELP_STRING([--with-classpath=PATH],
+                              [Include and set classpath for Cluster/J,
+                               Cluster/J JPA, and Cluster/J JDBC])],
+              [classpath="$withval"],
+              [classpath="no"])
+  AC_ARG_WITH([javac-target],
+              [AC_HELP_STRING([--with-javac-target],
+                              [Java compiler target version to be used])],
+              [javac_target="$withval"],
+              [javac_target="1.5"])
 
   AC_MSG_CHECKING([for NDB Cluster options])
   AC_MSG_RESULT([])
@@ -330,35 +411,150 @@ AC_DEFUN([MYSQL_CHECK_NDB_OPTIONS], [
       ;;
   esac
 
-  AC_MSG_CHECKING([for java needed for ndb-jtie])
+  MYSQL_CHECK_CXX_LINKING
+
+  AC_MSG_CHECKING([for Java needed for ClusterJ and ClusterJPA])
   AC_MSG_RESULT([])
-  MYSQL_CHECK_NDB_JTIE
-  have_ndb_jtie=no
-  case "$ndb_jtie" in
-    yes )
-      if test X"$ndb_jtie_supported" = Xyes
-      then
-        AC_MSG_RESULT([-- including ndb-jtie])
-        have_ndb_jtie=yes
-      else
-        AC_MSG_ERROR([Unable to locate java needed for ndb-jtie])
-      fi
-      ;;
-    default )
-      if test X"$ndb_jtie_supported" = Xyes
-      then
-         AC_MSG_RESULT([-- including ndbjtie])
-         have_ndb_jtie=yes
-      else
-         AC_MSG_RESULT([-- not including ndb-jtie])
-         have_ndb_jtie=no
-      fi
-      ;;
-    * )
-      AC_MSG_RESULT([-- not including ndb-jtie])
-      ;;
-  esac
+  MYSQL_CHECK_JAVA
+  NDBJTIE_LIBS=""
+
+
+  have_clusterj=no
+  if test X"$ndb_java_supported" = Xyes
+  then
+    if echo $CHARSETS | grep ucs2 >/dev/null
+    then
+      AC_MSG_RESULT([-- including Cluster/J])
+      have_clusterj=yes
+    else
+      AC_MSG_WARN([-- Cluster/J requires ucs2 charset;
+                   use --with-extra-charsets to configure])
+      have_clusterj=yes
+    fi
+  else
+    AC_MSG_RESULT([-- Cluster/J requires Java and JNI: Cluster/J not included])
+  fi
+
+  have_classpath=no
+  if test X"$classpath" != Xyes && test X"$classpath" != Xno && test X"$classpath" != Xdefault
+  then
+    AC_MSG_RESULT([-- including provided classpath])
+    have_classpath=$classpath;
+  fi
+
+  # needed for junit test compile: 
+  #   junit-4.7.jaropenjpa-1.2.1.jar
  
+  # needed for OpenJPA compile:
+  #   openjpa-x.y.z.jar:geronimo-jpa_x.y_spec-x.y.jar
+
+  # needed for ClusterJ JDBC compile:
+  #   antlr-3.2.jar
+  #   antlr-runtime-3.2.jar
+  #   antlr-2.7.7.jar
+  #   stringtemplate-3.2.jar
+
+  # needed for PCEnhancement:
+  #   serp-x.y.z.jar:commons-lang-x.y.jar:geronimo-jta_x.y_spec-x.y.jar:commons-collections-x.y.jar
+  
+  have_junit=no
+  have_openjpa_jar=no
+  TMP_CLASSPATH=`echo $classpath | sed 's/:/ /'`;
+  for i in $TMP_CLASSPATH; do
+    if `echo $i | egrep "junit-(.+)\.jar" 1>/dev/null 2>&1`
+    then
+      AC_MSG_RESULT([-- junit found: activating clusterj tests])
+      have_junit=yes
+    fi
+    if `echo $i | egrep "openjpa-(.+)\.jar" 1>/dev/null 2>&1`
+    then
+      AC_MSG_RESULT([-- openjpa jar found: activating clusterjpa])
+      have_openjpa_jar=yes
+    fi
+    if `echo $i | egrep "(.+)-jpa-(.+)\.jar" 1>/dev/null 2>&1`
+    then
+      AC_MSG_RESULT([-- jpa jar found: activating clusterjpa])
+      have_jpa_jar=yes
+    fi
+  done
+
+  have_openjpa=no
+  if test X"$openjpa" != Xno
+  then
+    if test X"$have_clusterj" = Xyes
+    then
+      if test X"$have_openjpa_jar" != Xno
+      then
+        # no test of actual classpath validity for now
+        AC_MSG_RESULT([-- including OpenJPA])
+        have_openjpa=yes
+      else
+        AC_MSG_RESULT([-- Cluster for OpenJPA requires external
+                       OpenJPA jar set with --with-classpath: not included])
+      fi
+    else
+      AC_MSG_RESULT([-- Cluster for OpenJPA requires Cluster/J and
+                     Java to compile: not included])
+    fi
+  fi
+
+  if test x"$have_clusterj" = xyes
+  then
+    NDBJTIE_OPT="ndbjtie"
+    NDBJTIE_LIBS="ndbjtie/libndbjtie.la ndbjtie/mysql/libmysqlutils.la"
+  fi
+
+  if test x"$have_openjpa" = xyes  
+  then
+    OPENJPA_OPT="clusterj-openjpa"
+  fi
+
+  if test x"$have_junit" == xyes 
+  then
+    CLUSTERJ_TESTS="clusterj-test"
+  fi
+
+  if test X"$have_openjpa" != Xno && test X"$have_junit" = Xyes
+  then
+    CLUSTERJ_TESTS="$CLUSTERJ_TESTS clusterj-jpatest"
+  fi
+
+  # switch to enable experimental support for ClusterJ-JDBC
+  AC_ARG_WITH([clusterj-jdbc],
+              [AS_HELP_STRING([--with-clusterj-jdbc],
+                              [Include experimental support for
+                               ClusterJ JDBC])],
+              [clusterj_jdbc="$withval"],
+              [clusterj_jdbc="no"])
+
+  have_clusterj_jdbc=no
+  if test X"$clusterj_jdbc" != Xno
+  then
+    if test X"$have_clusterj" = Xyes
+    then
+      AC_MSG_RESULT([-- including ClusterJ JDBC])
+      have_clusterj_jdbc=yes
+    else
+      AC_MSG_RESULT([-- ClusterJ for JDBC requires ClusterJ: not included])
+    fi
+  else
+    AC_MSG_RESULT([-- ClusterJ for JDBC is only included
+                   when --with-clusterj-jdbc is specified: not included])
+  fi
+
+  if test x"$have_clusterj_jdbc" = xyes  
+  then
+    CLUSTERJ_JDBC_OPT="clusterj-jdbc"
+  fi
+
+  AC_SUBST(CLUSTERJ_JDBC_OPT)
+
+
+  AC_SUBST(NDBJTIE_OPT)
+  AC_SUBST(NDBJTIE_LIBS)
+  AC_SUBST(CLUSTERJ_TESTS)
+  AC_SUBST(OPENJPA_OPT)
+
   AC_MSG_RESULT([done.])
 ])
 
@@ -555,10 +751,23 @@ AC_DEFUN([MYSQL_SETUP_NDBCLUSTER], [
     ndb_bin_am_ldflags=""
   fi
 
-  if test X"$have_ndb_jtie" = Xyes
+  if test X"$have_clusterj" = Xyes
   then
-    ndb_opt_subdirs="$ndb_opt_subdirs ndbjtie"
+    ndb_opt_subdirs="$ndb_opt_subdirs clusterj"
   fi
+  if test X"$have_openjpa" != Xno
+  then
+    CLUSTERJ_OPENJPA=$have_openjpa
+    AC_SUBST(CLUSTERJ_OPENJPA)
+  fi
+  if test X"$have_classpath" != Xno
+  then
+    CLUSTERJ_CLASSPATH=$have_classpath
+    AC_SUBST(CLUSTERJ_CLASSPATH)
+  fi
+  JAVAC_TARGET=$javac_target
+  AC_SUBST(JAVAC_TARGET)
+  
 
   # building dynamic breaks on AIX. (If you want to try it and get unresolved
   # __vec__delete2 and some such, try linking against libhC.)
@@ -595,6 +804,14 @@ AC_DEFUN([MYSQL_SETUP_NDBCLUSTER], [
 
   # Generate ndb_version.h from ndb_version.h.in
   AC_CONFIG_FILES([storage/ndb/include/ndb_version.h])
+
+  # Build the version string used for creating jars etc.
+  JAVA_NDB_VERSION=$NDB_VERSION_MAJOR.$NDB_VERSION_MINOR.$NDB_VERSION_BUILD
+  if test X"$NDB_VERSION_STATUS" != X
+  then
+    JAVA_NDB_VERSION=$JAVA_NDB_VERSION.$NDB_VERSION_STATUS
+  fi
+  AC_SUBST(JAVA_NDB_VERSION)
 
   AC_SUBST(ndbcluster_includes)
   AC_SUBST(ndbcluster_libs)

@@ -345,7 +345,7 @@ public:
   int getConnectionDbParameter(int node1, int node2, int param,
 			       int *value, BaseString& msg);
 
-  bool transporter_connect(NDB_SOCKET_TYPE sockfd);
+  bool transporter_connect(NDB_SOCKET_TYPE sockfd, BaseString& errormsg);
 
   const char *get_connect_address(Uint32 node_id);
   void get_connected_nodes(NodeBitmask &connected_nodes) const;
@@ -364,8 +364,14 @@ public:
 private:
   int guess_master_node(SignalSender&);
 
-  int versionNode(int nodeId, Uint32 &version,
-                  Uint32 &mysql_version, const char **address);
+  void status_api(int nodeId,
+                  ndb_mgm_node_status& node_status,
+                  Uint32& version, Uint32& mysql_version,
+                  const char **address);
+  void status_mgmd(NodeId node_id,
+                   ndb_mgm_node_status& node_status,
+                   Uint32& version, Uint32& mysql_version,
+                   const char **address);
 
   int sendVersionReq(int processId, Uint32 &version,
                      Uint32& mysql_version, const char **address);

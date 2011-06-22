@@ -685,6 +685,10 @@ void Dbtc::execREAD_CONFIG_REQ(Signal* signal)
   //ndb_mgm_get_int_parameter(p, CFG_DB_PARALLEL_TRANSACTION_TAKEOVER, &val);
   set_no_parallel_takeover(val);
 
+  val = ~(Uint32)0;
+  ndb_mgm_get_int_parameter(p, CFG_DB_MAX_DML_OPERATIONS_PER_TRANSACTION, &val);
+  m_max_writes_per_trans = val;
+
   ctimeOutCheckDelay = 50; // 500ms
 }//Dbtc::execSIZEALT_REP()
 
@@ -1204,11 +1208,16 @@ void Dbtc::handleApiFailState(Signal* signal, UintR TapiConnectptr)
   capiConnectClosing[TfailedApiNode]--;
   releaseApiCon(signal, TapiConnectptr);
   TlocalApiConnectptr.p->apiFailState = ZFALSE;
-  if (capiConnectClosing[TfailedApiNode] == 0) {
+  if (capiConnectClosing[TfailedApiNode] == 0)
+  {
     jam();
-    signal->theData[0] = TfailedApiNode;
-    signal->theData[1] = cownref;
-    sendSignal(capiFailRef, GSN_API_FAILCONF, signal, 2, JBB);
+
+    /**
+     * Perform block-level cleanups (e.g assembleFragments...)
+     */
+    Callback cb = {safe_cast(&Dbtc::apiFailBlockCleanupCallback),
+                   TfailedApiNode};
+    simBlockNodeFailure(signal, TfailedApiNode, cb);
   }//if
 }//Dbtc::handleApiFailState()
 
@@ -1852,6 +1861,13 @@ start_failure:
     abortErrorLab(signal);
     return;
   }
+  case 65:
+  {
+    jam();
+    terrorCode = ZTRANS_TOO_BIG;
+    abortErrorLab(signal);
+    return;
+  }
   default:
     jam();
     systemErrorLab(signal, __LINE__);
@@ -2393,6 +2409,8 @@ void Dbtc::initApiConnectRec(Signal* signal,
 #ifdef ERROR_INSERT
   regApiPtr->continueBCount = 0;
 #endif
+
+  regApiPtr->m_write_count = 0;
 }//Dbtc::initApiConnectRec()
 
 int
@@ -3061,7 +3079,13 @@ void Dbtc::execTCKEYREQ(Signal* signal)
     case ZINSERT:
     case ZDELETE:
     case ZWRITE:
+    case ZREFRESH:
       jam();
+      if (unlikely((++ regApiPtr->m_write_count) > m_max_writes_per_trans))
+      {
+        TCKEY_abort(signal, 65);
+        return;
+      }
       break;
     default:
       TCKEY_abort(signal, 9);
@@ -3142,6 +3166,34 @@ handle_reorg_trigger(DiGetNodesConf * conf)
   }
 }
 
+bool
+Dbtc::isRefreshSupported() const
+{
+  const NodeVersionInfo& nvi = getNodeVersionInfo();
+  const Uint32 minVer = nvi.m_type[NodeInfo::DB].m_min_version;
+  const Uint32 maxVer = nvi.m_type[NodeInfo::DB].m_max_version;
+
+  if (likely (minVer == maxVer))
+  {
+    /* Normal case, use function */
+    return ndb_refresh_tuple(minVer);
+  }
+
+  /* As refresh feature was introduced across three minor versions
+   * we check that all data nodes support it.  This slow path
+   * should only be hit during upgrades between versions
+   */
+  for (Uint32 i=1; i < MAX_NODES; i++)
+  {
+    const NodeInfo& nodeInfo = getNodeInfo(i);
+    if ((nodeInfo.m_type == NODE_TYPE_DB) &&
+        (nodeInfo.m_connected) &&
+        (! ndb_refresh_tuple(nodeInfo.m_version)))
+      return false;
+  }
+  return true;
+}
+
 /**
  * tckeyreq050Lab
  * This method is executed once all KeyInfo has been obtained for
@@ -3188,6 +3240,7 @@ void Dbtc::tckeyreq050Lab(Signal* signal)
   req->tableId = Ttableref;
   req->hashValue = TdistrHashValue;
   req->distr_key_indicator = regCachePtr->distributionKeyIndicator;
+  * (EmulatedJamBuffer**)req->jamBuffer = jamBuffer();
 
   /*-------------------------------------------------------------*/
   /* FOR EFFICIENCY REASONS WE AVOID THE SIGNAL SENDING HERE AND */
@@ -3198,7 +3251,7 @@ void Dbtc::tckeyreq050Lab(Signal* signal)
   /* IS SPENT IN DIH AND EVEN LESS IN REPLICATED NDB.            */
   /*-------------------------------------------------------------*/
   EXECUTE_DIRECT(DBDIH, GSN_DIGETNODESREQ, signal,
-                 DiGetNodesReq::SignalLength);
+                 DiGetNodesReq::SignalLength, 0);
   DiGetNodesConf * conf = (DiGetNodesConf *)&signal->theData[0];
   UintR Tdata2 = conf->reqinfo;
   UintR TerrorIndicator = signal->theData[0];
@@ -3367,6 +3420,14 @@ void Dbtc::tckeyreq050Lab(Signal* signal)
     TlastReplicaNo = tnoOfBackup + tnoOfStandby;
     regTcPtr->lastReplicaNo = (Uint8)TlastReplicaNo;
     regTcPtr->noOfNodes = (Uint8)(TlastReplicaNo + 1);
+
+    if (unlikely((Toperation == ZREFRESH) &&
+                 (! isRefreshSupported())))
+    {
+      /* Function not implemented yet */
+      TCKEY_abort(signal,63);
+      return;
+    }
   }//if
 
   if (regCachePtr->isLongTcKeyReq || 
@@ -4849,6 +4910,7 @@ void Dbtc::diverify010Lab(Signal* signal)
   UintR TfirstfreeApiConnectCopy = cfirstfreeApiConnectCopy;
   ApiConnectRecord * const regApiPtr = apiConnectptr.p;
   signal->theData[0] = apiConnectptr.i;
+  signal->theData[1] = instance() ? instance() - 1 : 0;
   if (ERROR_INSERTED(8022)) {
     jam();
     systemErrorLab(signal, __LINE__);
@@ -4878,7 +4940,9 @@ void Dbtc::diverify010Lab(Signal* signal)
        * CONNECTIONS AND THEN WHEN ALL DIVERIFYCONF HAVE BEEN RECEIVED THE 
        * COMMIT MESSAGE CAN BE SENT TO ALL INVOLVED PARTS.
        *---------------------------------------------------------------------*/
-      EXECUTE_DIRECT(DBDIH, GSN_DIVERIFYREQ, signal, 1);
+      * (EmulatedJamBuffer**)(signal->theData+2) = jamBuffer();
+      EXECUTE_DIRECT(DBDIH, GSN_DIVERIFYREQ, signal,
+                     2 + sizeof(void*)/sizeof(Uint32), 0);
       if (signal->theData[3] == 0) {
         execDIVERIFYCONF(signal);
       }
@@ -5077,9 +5141,6 @@ void Dbtc::linkApiToGcp(Ptr<GcpRecord> regGcpPtr,
 void
 Dbtc::crash_gcp(Uint32 line)
 {
-  UintR Tfirstgcp = cfirstgcp;
-  UintR TgcpFilesize = cgcpFilesize;
-  GcpRecord *localGcpRecord = gcpRecord;
   GcpRecordPtr localGcpPointer;
 
   localGcpPointer.i = cfirstgcp;
@@ -7761,10 +7822,10 @@ void Dbtc::sendAbortedAfterTimeout(Signal* signal, int Tcheck)
 	for(Uint32 i = 0; i<TloopCount; i++)
 	{
 	  BaseString::snprintf(buf2, sizeof(buf2), "%s %d", buf, tmp[i]);
-	  BaseString::snprintf(buf, sizeof(buf), buf2);
+	  BaseString::snprintf(buf, sizeof(buf), "%s", buf2);
 	}
-	warningEvent(buf);
-	ndbout_c(buf);
+	warningEvent("%s", buf);
+	ndbout_c("%s", buf);
 	ndbrequire(false);
 	releaseAbortResources(signal);
 	return;
@@ -8438,11 +8499,23 @@ Dbtc::checkNodeFailComplete(Signal* signal,
     nfRep->blockNo      = DBTC;
     nfRep->nodeId       = cownNodeid;
     nfRep->failedNodeId = hostptr.i;
-    sendSignal(cdihblockref, GSN_NF_COMPLETEREP, signal, 
-	       NFCompleteRep::SignalLength, JBB);
 
-    sendSignal(QMGR_REF, GSN_NF_COMPLETEREP, signal, 
-	       NFCompleteRep::SignalLength, JBB);
+    if (instance() == 0)
+    {
+      jam();
+      sendSignal(cdihblockref, GSN_NF_COMPLETEREP, signal,
+                 NFCompleteRep::SignalLength, JBB);
+      sendSignal(QMGR_REF, GSN_NF_COMPLETEREP, signal,
+                 NFCompleteRep::SignalLength, JBB);
+    }
+    else
+    {
+      /**
+       * Send to proxy
+       */
+      sendSignal(DBTC_REF, GSN_NF_COMPLETEREP, signal,
+                 NFCompleteRep::SignalLength, JBB);
+    }
   }
 
   CRASH_INSERTION(8058);
@@ -8579,7 +8652,7 @@ Dbtc::apiFailBlockCleanupCallback(Signal* signal,
   jamEntry();
   
   signal->theData[0] = failedNodeId;
-  signal->theData[1] = cownref;
+  signal->theData[1] = reference();
   sendSignal(capiFailRef, GSN_API_FAILCONF, signal, 2, JBB);
 }
 
@@ -8592,7 +8665,7 @@ Dbtc::checkScanFragList(Signal* signal,
   DEBUG("checkScanActiveInFailedLqh: scanFragError");
 }
 
-void Dbtc::execTAKE_OVERTCCONF(Signal* signal) 
+void Dbtc::execTAKE_OVERTCCONF(Signal* signal)
 {
   jamEntry();
 
@@ -8672,7 +8745,10 @@ void Dbtc::execTAKE_OVERTCREQ(Signal* signal)
   tcNodeFailptr.i = 0;
   ptrAss(tcNodeFailptr, tcFailRecord);
   if (tcNodeFailptr.p->failStatus != FS_IDLE ||
-      cmasterNodeId != getOwnNodeId())
+      cmasterNodeId != getOwnNodeId() ||
+      (! (instance() == 0 /* single TC */ ||
+          instance() == TAKE_OVER_INSTANCE))) /* in mt-TC case let 1 instance
+                                                 do take-over */
   {
     jam();
     /*------------------------------------------------------------*/
@@ -8687,6 +8763,7 @@ void Dbtc::execTAKE_OVERTCREQ(Signal* signal)
     tcNodeFailptr.p->queueIndex = tcNodeFailptr.p->queueIndex + 1;
     return;
   }//if
+  ndbrequire(instance() == 0 || instance() == TAKE_OVER_INSTANCE);
   startTakeOverLab(signal);
 }//Dbtc::execTAKE_OVERTCREQ()
 
@@ -10871,9 +10948,9 @@ void Dbtc::execDIH_SCAN_TAB_CONF(Signal* signal)
     req->tableId = tabPtr.i;
     req->hashValue = cachePtr.p->distributionKey;
     req->distr_key_indicator = tabPtr.p->get_user_defined_partitioning();
-
+    * (EmulatedJamBuffer**)req->jamBuffer = jamBuffer();
     EXECUTE_DIRECT(DBDIH, GSN_DIGETNODESREQ, signal,
-                   DiGetNodesReq::SignalLength);
+                   DiGetNodesReq::SignalLength, 0);
     UintR TerrorIndicator = signal->theData[0];
     jamEntry();
     if (TerrorIndicator != 0)
@@ -13082,6 +13159,21 @@ Dbtc::execDUMP_STATE_ORD(Signal* signal)
     return;
   }
 #endif
+
+  if (arg == 7019 && signal->getLength() == 2)
+  {
+    jam();
+    Uint32 nodeId = signal->theData[1];
+    if (nodeId < MAX_NODES && nodeId < NDB_ARRAY_SIZE(capiConnectClosing))
+    {
+      warningEvent(" DBTC: capiConnectClosing[%u]: %u",
+                   nodeId, capiConnectClosing[nodeId]);
+    }
+    else
+    {
+      warningEvent(" DBTC: dump-7019 to unknown node: %u", nodeId);
+    }
+  }
 }//Dbtc::execDUMP_STATE_ORD()
 
 void Dbtc::execDBINFO_SCANREQ(Signal *signal)
@@ -13381,7 +13473,7 @@ Dbtc::match_and_print(Signal* signal, ApiConnectRecordPtr apiPtr)
 		       apiTimer ? (ctcTimer - apiTimer) / 100 : 0,
 		       c_apiConTimer_line[apiPtr.i],
 		       stateptr);
-  infoEvent(buf);
+  infoEvent("%s", buf);
   
   memcpy(signal->theData, temp, 4*len);
   return true;

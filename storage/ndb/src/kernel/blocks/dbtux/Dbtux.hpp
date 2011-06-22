@@ -45,6 +45,7 @@
 #include <signaldata/NextScan.hpp>
 #include <signaldata/AccLock.hpp>
 #include <signaldata/DumpStateOrd.hpp>
+#include <signaldata/IndexStatSignal.hpp>
 
 // debug
 #ifdef VM_TRACE
@@ -236,7 +237,6 @@ private:
     Uint8 m_prefSize;           // words in min prefix
     Uint8 m_minOccup;           // min entries in internal node
     Uint8 m_maxOccup;           // max entries in node
-    Uint32 m_entryCount;        // stat: current entries
     TupLoc m_root;              // root node
     TreeHead();
     // methods
@@ -386,6 +386,7 @@ private:
     TreePos m_scanPos;          // position
     TreeEnt m_scanEnt;          // latest entry found
     Uint32 m_nodeScan;          // next scan at node (single-linked)
+    Uint32 m_statOpPtrI;        // RNIL unless this is a statistics scan
     union {
     Uint32 nextPool;
     Uint32 nextList;
@@ -425,6 +426,8 @@ private:
     Uint16 m_prefAttrs;         // attributes in min prefix
     Uint16 m_prefBytes;         // max bytes in min prefix
     KeySpec m_keySpec;
+    Uint32 m_statFragPtrI;      // fragment to monitor if not RNIL
+    Uint32 m_statLoadTime;      // load time of index stats
     union {
     bool m_storeNullKey;
     Uint32 nextPool;
@@ -453,6 +456,9 @@ private:
     Uint32 m_tupIndexFragPtrI;
     Uint32 m_tupTableFragPtrI;
     Uint32 m_accTableFragPtrI;
+    Uint64 m_entryCount;        // current entries
+    Uint64 m_entryBytes;        // sum of index key sizes
+    Uint64 m_entryOps;          // ops since last index stats update
     union {
     Uint32 nextPool;
     };
@@ -518,6 +524,76 @@ private:
     // for ndbrequire and ndbassert
     void progError(int line, int cause, const char* file);
   };
+
+  // stats scan
+  struct StatOp;
+  friend struct StatOp;
+  struct StatOp {
+    // the scan
+    Uint32 m_scanOpPtrI;
+    // parameters
+    Uint32 m_saveSize;
+    Uint32 m_saveScale;
+    Uint32 m_batchSize;
+    Uint32 m_estBytes;
+   // counters
+   Uint32 m_rowCount;
+   Uint32 m_batchCurr;
+   bool m_haveSample;
+   Uint32 m_sampleCount;
+   Uint32 m_keyBytes;
+   bool m_keyChange;
+   bool m_usePrev;
+   // metadata
+   enum { MaxKeyCount = MAX_INDEX_STAT_KEY_COUNT };
+   enum { MaxKeySize = MAX_INDEX_STAT_KEY_SIZE };
+   enum { MaxValueCount = MAX_INDEX_STAT_VALUE_COUNT };
+   enum { MaxValueSize = MAX_INDEX_STAT_VALUE_SIZE };
+   Uint32 m_keyCount;
+   Uint32 m_valueCount;
+   // pack
+   const KeySpec& m_keySpec;
+   NdbPack::Spec m_valueSpec;
+   NdbPack::Type m_valueSpecBuf[MaxValueCount];
+   // data previous current result
+   KeyData m_keyData1;
+   KeyData m_keyData2;
+   KeyData m_keyData;
+   NdbPack::Data m_valueData;
+   // buffers with one word for length bytes
+   Uint32 m_keyDataBuf1[1 + MaxKeySize];
+   Uint32 m_keyDataBuf2[1 + MaxKeySize];
+   Uint32 m_keyDataBuf[1 + MaxKeySize];
+   Uint32 m_valueDataBuf[1 + MaxValueCount];
+   // value collection
+   struct Value {
+     Uint32 m_rir;
+     Uint32 m_unq[MaxKeyCount];
+     Value();
+   };
+   Value m_value1;
+   Value m_value2;
+   union {
+   Uint32 nextPool;
+   };
+   StatOp(const Index&);
+  };
+  typedef Ptr<StatOp> StatOpPtr;
+  ArrayPool<StatOp> c_statOpPool;
+  RSS_AP_SNAPSHOT(c_statOpPool);
+
+  // stats monitor (shared by req data and continueB loop)
+  struct StatMon;
+  friend struct StatMon;
+  struct StatMon {
+    IndexStatImplReq m_req;
+    Uint32 m_requestType;
+    // continueB loop
+    Uint32 m_loopIndexId;
+    Uint32 m_loopDelay;
+    StatMon();
+  };
+  StatMon c_statMon;
 
   // methods
 
@@ -644,9 +720,26 @@ private:
    * DbtuxStat.cpp
    */
   void execREAD_PSEUDO_REQ(Signal* signal);
+  // one-round-trip tree-dive records in range
   void statRecordsInRange(ScanOpPtr scanPtr, Uint32* out);
   Uint32 getEntriesBeforeOrAfter(Frag& frag, TreePos pos, unsigned idir);
   unsigned getPathToNode(NodeHandle node, Uint16* path);
+  // stats scan
+  int statScanInit(StatOpPtr, const Uint32* data, Uint32 len, Uint32* usedLen);
+  int statScanAddRow(StatOpPtr, TreeEnt ent);
+  void statScanReadKey(StatOpPtr, Uint32* out);
+  void statScanReadValue(StatOpPtr, Uint32* out);
+  void execINDEX_STAT_REP(Signal*); // from TRIX
+  // stats monitor request
+  void execINDEX_STAT_IMPL_REQ(Signal*);
+  void statMonStart(Signal*, StatMon&);
+  void statMonStop(Signal*, StatMon&);
+  void statMonConf(Signal*, StatMon&);
+  // stats monitor continueB loop
+  void statMonSendContinueB(Signal*);
+  void statMonExecContinueB(Signal*);
+  void statMonCheck(Signal*, StatMon&);
+  void statMonRep(Signal*, StatMon&);
 
   /*
    * DbtuxDebug.cpp
@@ -676,6 +769,8 @@ private:
   friend class NdbOut& operator<<(NdbOut&, const Frag&);
   friend class NdbOut& operator<<(NdbOut&, const FragOp&);
   friend class NdbOut& operator<<(NdbOut&, const NodeHandle&);
+  friend class NdbOut& operator<<(NdbOut&, const StatOp&);
+  friend class NdbOut& operator<<(NdbOut&, const StatMon&);
   FILE* debugFile;
   NdbOut debugOut;
   unsigned debugFlags;
@@ -684,7 +779,8 @@ private:
     DebugMaint = 2,             // log maintenance ops
     DebugTree = 4,              // log and check tree after each op
     DebugScan = 8,              // log scans
-    DebugLock = 16              // log ACC locks
+    DebugLock = 16,             // log ACC locks
+    DebugStat = 32              // log stats collection
   };
   STATIC_CONST( DataFillByte = 0xa2 );
   STATIC_CONST( NodeFillByte = 0xa4 );
@@ -721,6 +817,14 @@ private:
   };
 
   struct TuxCtx c_ctx; // Global Tux context, for everything build MT-index build
+
+  // index stats
+  bool c_indexStatAutoUpdate;
+  Uint32 c_indexStatSaveSize;
+  Uint32 c_indexStatSaveScale;
+  Uint32 c_indexStatTriggerPct;
+  Uint32 c_indexStatTriggerScale;
+  Uint32 c_indexStatUpdateDelay;
 
   // inlined utils
   Uint32 getDescSize(const Index& index);
@@ -878,7 +982,6 @@ Dbtux::TreeHead::TreeHead() :
   m_prefSize(0),
   m_minOccup(0),
   m_maxOccup(0),
-  m_entryCount(0),
   m_root()
 {
 }
@@ -956,7 +1059,8 @@ Dbtux::ScanOp::ScanOp() :
   m_scanBound(),
   m_scanPos(),
   m_scanEnt(),
-  m_nodeScan(RNIL)
+  m_nodeScan(RNIL),
+  m_statOpPtrI(RNIL)
 {
 }
 
@@ -974,6 +1078,8 @@ Dbtux::Index::Index() :
   m_prefAttrs(0),
   m_prefBytes(0),
   m_keySpec(),
+  m_statFragPtrI(RNIL),
+  m_statLoadTime(0),
   m_storeNullKey(false)
 {
   for (unsigned i = 0; i < MaxIndexFragments; i++) {
@@ -994,7 +1100,10 @@ Dbtux::Frag::Frag(ArrayPool<ScanOp>& scanOpPool) :
   m_scanList(scanOpPool),
   m_tupIndexFragPtrI(RNIL),
   m_tupTableFragPtrI(RNIL),
-  m_accTableFragPtrI(RNIL)
+  m_accTableFragPtrI(RNIL),
+  m_entryCount(0),
+  m_entryBytes(0),
+  m_entryOps(0)
 {
 }
 
@@ -1144,6 +1253,59 @@ Dbtux::NodeHandle::getEnt(unsigned pos)
   const unsigned occup = m_node->m_occup;
   ndbrequire(pos < occup);
   return entList[pos];
+}
+
+// stats
+
+inline
+Dbtux::StatOp::Value::Value()
+{
+  m_rir = 0;
+  Uint32 i;
+  for (i = 0; i < MaxKeyCount; i++)
+    m_unq[i] = 0;
+}
+
+inline
+Dbtux::StatOp::StatOp(const Index& index) :
+  m_scanOpPtrI(RNIL),
+  m_saveSize(0),
+  m_saveScale(0),
+  m_batchSize(0),
+  m_estBytes(0),
+  m_rowCount(0),
+  m_batchCurr(0),
+  m_haveSample(false),
+  m_sampleCount(0),
+  m_keyBytes(0),
+  m_keyChange(false),
+  m_usePrev(false),
+  m_keyCount(0),
+  m_valueCount(0),
+  m_keySpec(index.m_keySpec),
+  m_keyData1(m_keySpec, false, 2),
+  m_keyData2(m_keySpec, false, 2),
+  m_keyData(m_keySpec, false, 2),
+  m_valueData(m_valueSpec, false, 2),
+  m_value1(),
+  m_value2()
+{
+  m_valueSpec.set_buf(m_valueSpecBuf, MaxValueCount);
+  m_keyData1.set_buf(m_keyDataBuf1, sizeof(m_keyDataBuf1));
+  m_keyData2.set_buf(m_keyDataBuf2, sizeof(m_keyDataBuf2));
+  m_keyData.set_buf(m_keyDataBuf, sizeof(m_keyDataBuf));
+  m_valueData.set_buf(m_valueDataBuf, sizeof(m_valueDataBuf));
+}
+
+// Dbtux::StatMon
+
+inline
+Dbtux::StatMon::StatMon() :
+  m_requestType(0),
+  m_loopIndexId(0),
+  m_loopDelay(1000)
+{
+  memset(&m_req, 0, sizeof(m_req));
 }
 
 // parameters for methods

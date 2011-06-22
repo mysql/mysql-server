@@ -382,6 +382,7 @@ public:
   Uint64 getGCI();
   Uint32 getAnyValue() const;
   Uint64 getLatestGCI();
+  Uint64 getTransId() const;
   bool execSUB_TABLE_DATA(const NdbApiSignal * signal,
                           const LinearSectionPtr ptr[3]);
 
