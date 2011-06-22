@@ -125,19 +125,34 @@ MACRO(CREATE_JAR)
     COMMAND echo \"${JAVA_ARCHIVE} cfv ${JAR_DIR}/${TARGET}-${JAVA_NDB_VERSION}.jar -C ${CLASS_DIR} .\"
     COMMAND ${JAVA_ARCHIVE} cfv ${JAR_DIR}/${TARGET}-${JAVA_NDB_VERSION}.jar -C ${CLASS_DIR} .)
 
+  # Concatenate the ARG_CLASSSPATH(a list of strings) into a string
+  # with platform specific separator
+  SET(separator) # Empty separator to start with
+  SET(classpath_str)
+  FOREACH(item ${ARG_CLASSPATH})
+    SET(classpath_str ${classpath_str}${separator}${item})
+    IF (WIN32)
+      SET(separator ";")
+    ELSE()
+      SET(separator ":")
+    ENDIF()
+  ENDFOREACH()
+  # MESSAGE(STATUS "classpath_str: ${classpath_str}")
+
+
   IF(EXISTS ${ARG_ENHANCE})
     MESSAGE(STATUS "enhancing ${TARGET}.jar")
     SET(ENHANCER org.apache.openjpa.enhance.PCEnhancer)
     ADD_CUSTOM_COMMAND( TARGET ${TARGET}.jar PRE_BUILD
-      COMMAND echo \"${JAVA_COMPILE} -d ${TARGET_DIR} -classpath ${ARG_CLASSPATH} ${JAVA_FILES}\"
-      COMMAND ${JAVA_COMPILE} -d ${TARGET_DIR} -classpath "${ARG_CLASSPATH}" ${JAVA_FILES}
-      COMMAND echo \"${JAVA_RUNTIME} -classpath ${ARG_CLASSPATH}:${WITH_CLASSPATH} ${ENHANCER} -p ${ARG_ENHANCE} -d ${TARGET_DIR}\"
-      COMMAND ${JAVA_RUNTIME} -classpath "${ARG_CLASSPATH};${WITH_CLASSPATH}" ${ENHANCER} -p ${ARG_ENHANCE} -d ${TARGET_DIR}
+      COMMAND echo \"${JAVA_COMPILE} -d ${TARGET_DIR} -classpath ${classpath_str} ${JAVA_FILES}\"
+      COMMAND ${JAVA_COMPILE} -d ${TARGET_DIR} -classpath ${classpath_str} ${JAVA_FILES}
+      COMMAND echo \"${JAVA_RUNTIME} -classpath ${classpath_str}${separator}${WITH_CLASSPATH} ${ENHANCER} -p ${ARG_ENHANCE} -d ${TARGET_DIR}\"
+      COMMAND ${JAVA_RUNTIME} -classpath "${classpath_str}${separator}${WITH_CLASSPATH}" ${ENHANCER} -p ${ARG_ENHANCE} -d ${TARGET_DIR}
     )
   ELSE()
     ADD_CUSTOM_COMMAND( TARGET ${TARGET}.jar PRE_BUILD
-      COMMAND echo \"${JAVA_COMPILE} -d ${TARGET_DIR} -classpath ${ARG_CLASSPATH} ${JAVA_FILES}\"
-      COMMAND ${JAVA_COMPILE} -d ${TARGET_DIR} -classpath "${ARG_CLASSPATH}" ${JAVA_FILES}
+      COMMAND echo \"${JAVA_COMPILE} -d ${TARGET_DIR} -classpath ${classpath_str} ${JAVA_FILES}\"
+      COMMAND ${JAVA_COMPILE} -d ${TARGET_DIR} -classpath "${classpath_str}" ${JAVA_FILES}
     )
   ENDIF()
 
