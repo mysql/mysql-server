@@ -1,0 +1,117 @@
+select * from information_schema.innodb_default_stopword;
+value
+a
+about
+an
+are
+as
+at
+be
+by
+com
+de
+en
+for
+from
+how
+i
+in
+is
+it
+la
+of
+on
+or
+that
+the
+this
+to
+was
+what
+when
+where
+who
+will
+with
+und
+the
+www
+CREATE TABLE articles (
+id INT UNSIGNED AUTO_INCREMENT NOT NULL PRIMARY KEY,
+title VARCHAR(200),
+body TEXT,
+FULLTEXT (title,body)
+) ENGINE=InnoDB;
+INSERT INTO articles (title,body) VALUES
+('MySQL Tutorial','DBMS stands for DataBase ...')  ,
+('How To Use MySQL Well','After you went through a ...'),
+('Optimizing MySQL','In this tutorial we will show ...'),
+('1001 MySQL Tricks','1. Never run mysqld as root. 2. ...'),
+('MySQL vs. YourSQL','In the following database comparison ...'),
+('MySQL Security','When configured properly, MySQL ...');
+SELECT * FROM articles WHERE MATCH (title,body)
+AGAINST ('the' IN NATURAL LANGUAGE MODE);
+id	title	body
+select @@innodb_server_stopword_table;
+@@innodb_server_stopword_table
+NULL
+select @@innodb_use_stopword;
+@@innodb_use_stopword
+1
+select @@innodb_user_stopword_table;
+@@innodb_user_stopword_table
+NULL
+set global innodb_server_stopword_table = "not_defined";
+ERROR 42000: Variable 'innodb_server_stopword_table' can't be set to the value of 'not_defined'
+create table user_stopword(value varchar(30)) engine = innodb;
+set global innodb_server_stopword_table = "test/user_stopword";
+CREATE TABLE articles_2 (
+id INT UNSIGNED AUTO_INCREMENT NOT NULL PRIMARY KEY,
+title VARCHAR(200),
+body TEXT,
+FULLTEXT (title,body)
+) ENGINE=InnoDB;
+INSERT INTO articles_2 (title, body)
+VALUES ('test for stopwords','this is it...');
+SELECT * FROM articles_2 WHERE MATCH (title,body)
+AGAINST ('this' IN NATURAL LANGUAGE MODE);
+id	title	body
+1	test for stopwords	this is it...
+insert into user_stopword values("this");
+CREATE TABLE articles_3 (
+id INT UNSIGNED AUTO_INCREMENT NOT NULL PRIMARY KEY,
+title VARCHAR(200),
+body TEXT,
+FULLTEXT (title,body)
+) ENGINE=InnoDB;
+INSERT INTO articles_3 (title, body)
+VALUES ('test for stopwords','this is it...');
+SELECT * FROM articles_3 WHERE MATCH (title,body)
+AGAINST ('this' IN NATURAL LANGUAGE MODE);
+id	title	body
+create table user_stopword_session(value varchar(30)) engine = innodb;
+insert into user_stopword_session values("session");
+set session innodb_user_stopword_table="test/user_stopword_session";
+CREATE TABLE articles_4 (
+id INT UNSIGNED AUTO_INCREMENT NOT NULL PRIMARY KEY,
+title VARCHAR(200),
+body TEXT,
+FULLTEXT (title,body)
+) ENGINE=InnoDB;
+INSERT INTO articles_4 (title, body)
+VALUES ('test for session stopwords','this should also be excluded...');
+SELECT * FROM articles_4 WHERE MATCH (title,body)
+AGAINST ('session' IN NATURAL LANGUAGE MODE);
+id	title	body
+SELECT * FROM articles_4 WHERE MATCH (title,body)
+AGAINST ('this' IN NATURAL LANGUAGE MODE);
+id	title	body
+1	test for session stopwords	this should also be excluded...
+drop table articles;
+drop table articles_2;
+drop table articles_3;
+drop table articles_4;
+drop table user_stopword;
+drop table user_stopword_session;
+SET GLOBAL innodb_use_stopword=1;
+SET GLOBAL innodb_server_stopword_table=default;
