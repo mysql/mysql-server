@@ -17,6 +17,7 @@
 
 package com.mysql.clusterj.core.query;
 
+import com.mysql.clusterj.core.spi.QueryExecutionContext;
 import com.mysql.clusterj.core.store.IndexScanOperation;
 import com.mysql.clusterj.core.store.Operation;
 import com.mysql.clusterj.core.store.ScanFilter;
@@ -26,13 +27,11 @@ public class EqualPredicateImpl extends ComparativePredicateImpl {
 
     public EqualPredicateImpl(QueryDomainTypeImpl<?> dobj,
             PropertyImpl property, ParameterImpl param) {
-        super(dobj);
-        this.param = param;
-        this.property = property;
+        super(dobj, property, param);
     }
 
     @Override
-    public void markBoundsForCandidateIndices(QueryExecutionContextImpl context, CandidateIndexImpl[] candidateIndices) {
+    public void markBoundsForCandidateIndices(QueryExecutionContext context, CandidateIndexImpl[] candidateIndices) {
         if (param.getParameterValue(context) == null) {
             // null parameters cannot be used with indexes
             return;
@@ -41,31 +40,31 @@ public class EqualPredicateImpl extends ComparativePredicateImpl {
     }
 
     @Override
-    public void operationSetBounds(QueryExecutionContextImpl context, IndexScanOperation op, boolean lastColumn) {
+    public void operationSetBounds(QueryExecutionContext context, IndexScanOperation op, boolean lastColumn) {
         // can always set boundEQ
         property.operationSetBounds(param.getParameterValue(context), IndexScanOperation.BoundType.BoundEQ, op);
     }
 
     @Override
-    public void operationSetLowerBound(QueryExecutionContextImpl context, IndexScanOperation op, boolean lastColumn) {
+    public void operationSetLowerBound(QueryExecutionContext context, IndexScanOperation op, boolean lastColumn) {
         // only set lower bound
         property.operationSetBounds(param.getParameterValue(context), IndexScanOperation.BoundType.BoundLE, op);
     }
 
     @Override
-    public void operationSetUpperBound(QueryExecutionContextImpl context, IndexScanOperation op, boolean lastColumn) {
+    public void operationSetUpperBound(QueryExecutionContext context, IndexScanOperation op, boolean lastColumn) {
         // only set upper bound
         property.operationSetBounds(param.getParameterValue(context), IndexScanOperation.BoundType.BoundGE, op);
     }
 
     @Override
-    public void operationEqual(QueryExecutionContextImpl context,
+    public void operationEqual(QueryExecutionContext context,
             Operation op) {
         property.operationEqual(param.getParameterValue(context), op);
     }
 
     @Override
-    public void operationEqualFor(QueryExecutionContextImpl context,
+    public void operationEqualFor(QueryExecutionContext context,
             Operation op, String indexName) {
         property.operationEqualFor(param.getParameterValue(context), op, indexName);
     }
@@ -76,7 +75,7 @@ public class EqualPredicateImpl extends ComparativePredicateImpl {
      * @param filter the filter
      */
     @Override
-    public void filterCmpValue(QueryExecutionContextImpl context, ScanOperation op, ScanFilter filter) {
+    public void filterCmpValue(QueryExecutionContext context, ScanOperation op, ScanFilter filter) {
         property.filterCmpValue(param.getParameterValue(context),
                 ScanFilter.BinaryCondition.COND_EQ, filter);
     }

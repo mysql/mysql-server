@@ -22,6 +22,7 @@ import com.mysql.clusterj.ClusterJFatalInternalException;
 import com.mysql.clusterj.ClusterJUserException;
 import com.mysql.clusterj.ColumnMetadata;
 import com.mysql.clusterj.ColumnType;
+import com.mysql.clusterj.core.spi.QueryExecutionContext;
 import com.mysql.clusterj.core.spi.ValueHandler;
 import com.mysql.clusterj.core.spi.DomainTypeHandler;
 import com.mysql.clusterj.core.query.CandidateIndexImpl;
@@ -245,6 +246,10 @@ public abstract class AbstractDomainFieldHandlerImpl implements DomainFieldHandl
         }
     }
 
+    public Object getValue(QueryExecutionContext context, String index) {
+        return objectOperationHandlerDelegate.getValue(context, index);
+    }
+
     void objectSetDefaultValue(ValueHandler handler) {
         objectOperationHandlerDelegate.objectInitializeJavaDefaultValue(this, handler);
     }
@@ -424,6 +429,8 @@ public abstract class AbstractDomainFieldHandlerImpl implements DomainFieldHandl
 
         boolean isPrimitive();
 
+        Object getValue(QueryExecutionContext context, String index);
+
         void objectInitializeJavaDefaultValue(AbstractDomainFieldHandlerImpl fmd, ValueHandler handler);
 
         void operationGetValue(AbstractDomainFieldHandlerImpl fmd, Operation op);
@@ -511,6 +518,10 @@ public abstract class AbstractDomainFieldHandlerImpl implements DomainFieldHandl
                     local.message("ERR_Operation_Not_Supported","partitionKeySetPart", "non-key fields"));
         }
 
+        public Object getValue(QueryExecutionContext context, String index) {
+            return context.getByte(index);
+        }
+
     };
 
     protected static ObjectOperationHandler objectOperationHandlerBoolean = new ObjectOperationHandler() {
@@ -567,6 +578,10 @@ public abstract class AbstractDomainFieldHandlerImpl implements DomainFieldHandl
                 PartitionKey partitionKey, ValueHandler keyValueHandler) {
             throw new ClusterJFatalInternalException(
                     local.message("ERR_Operation_Not_Supported","partitionKeySetPart", "non-key fields"));
+        }
+
+        public Object getValue(QueryExecutionContext context, String index) {
+            return context.getBoolean(index);
         }
 
     };
@@ -629,6 +644,10 @@ public abstract class AbstractDomainFieldHandlerImpl implements DomainFieldHandl
                 PartitionKey partitionKey, ValueHandler keyValueHandler) {
             throw new ClusterJFatalInternalException(
                     local.message("ERR_Operation_Not_Supported","partitionKeySetPart", "non-key fields"));
+        }
+
+        public Object getValue(QueryExecutionContext context, String index) {
+            return context.getBoolean(index);
         }
 
     };
@@ -704,6 +723,10 @@ public abstract class AbstractDomainFieldHandlerImpl implements DomainFieldHandl
                     local.message("ERR_Operation_Not_Supported","partitionKeySetPart", "non-key fields"));
         }
 
+        public Object getValue(QueryExecutionContext context, String index) {
+            return context.getBytes(index);
+        }
+
     };
 
     protected static ObjectOperationHandler objectOperationHandlerKeyBytes = new ObjectOperationHandler() {
@@ -766,6 +789,10 @@ public abstract class AbstractDomainFieldHandlerImpl implements DomainFieldHandl
         public void partitionKeySetPart(AbstractDomainFieldHandlerImpl fmd,
                 PartitionKey partitionKey, ValueHandler keyValueHandler) {
             partitionKey.addBytesKey(fmd.storeColumn, keyValueHandler.getBytes(fmd.fieldNumber));
+        }
+
+        public Object getValue(QueryExecutionContext context, String index) {
+            return context.getBytes(index);
         }
 
     };
@@ -875,6 +902,10 @@ public abstract class AbstractDomainFieldHandlerImpl implements DomainFieldHandl
                     local.message("ERR_Operation_Not_Supported","partitionKeySetPart", "non-key fields"));
         }
 
+        public Object getValue(QueryExecutionContext context, String index) {
+            return context.getBoolean(index);
+        }
+
     };
 
     protected static ObjectOperationHandler objectOperationHandlerStringLob = new ObjectOperationHandler() {
@@ -982,6 +1013,10 @@ public abstract class AbstractDomainFieldHandlerImpl implements DomainFieldHandl
                     local.message("ERR_Operation_Not_Supported","partitionKeySetPart", "non-key fields"));
         }
 
+        public Object getValue(QueryExecutionContext context, String index) {
+            return context.getString(index);
+        }
+
     };
 
     protected static ObjectOperationHandler objectOperationHandlerDecimal = new ObjectOperationHandler() {
@@ -1044,6 +1079,10 @@ public abstract class AbstractDomainFieldHandlerImpl implements DomainFieldHandl
                 PartitionKey partitionKey, ValueHandler keyValueHandler) {
             throw new ClusterJFatalInternalException(
                     local.message("ERR_Operation_Not_Supported","partitionKeySetPart", "non-key fields"));
+        }
+
+        public Object getValue(QueryExecutionContext context, String index) {
+            return context.getBigDecimal(index);
         }
 
     };
@@ -1110,6 +1149,10 @@ public abstract class AbstractDomainFieldHandlerImpl implements DomainFieldHandl
                     local.message("ERR_Operation_Not_Supported","partitionKeySetPart", "non-key fields"));
         }
 
+        public Object getValue(QueryExecutionContext context, String index) {
+            return context.getBigInteger(index);
+        }
+
     };
 
     protected static ObjectOperationHandler objectOperationHandlerDouble = new ObjectOperationHandler() {
@@ -1168,6 +1211,10 @@ public abstract class AbstractDomainFieldHandlerImpl implements DomainFieldHandl
                     local.message("ERR_Operation_Not_Supported","partitionKeySetPart", "non-key fields"));
         }
 
+        public Object getValue(QueryExecutionContext context, String index) {
+            return context.getDouble(index);
+        }
+
     };
 
     protected static ObjectOperationHandler objectOperationHandlerFloat = new ObjectOperationHandler() {
@@ -1224,6 +1271,10 @@ public abstract class AbstractDomainFieldHandlerImpl implements DomainFieldHandl
                 PartitionKey partitionKey, ValueHandler keyValueHandler) {
             throw new ClusterJFatalInternalException(
                     local.message("ERR_Operation_Not_Supported","partitionKeySetPart", "non-key fields"));
+        }
+
+        public Object getValue(QueryExecutionContext context, String index) {
+            return context.getFloat(index);
         }
 
     };
@@ -1292,6 +1343,10 @@ public abstract class AbstractDomainFieldHandlerImpl implements DomainFieldHandl
                 PartitionKey partitionKey, ValueHandler keyValueHandler) {
             throw new ClusterJFatalInternalException(
                     local.message("ERR_Operation_Not_Supported","partitionKeySetPart", "non-key fields"));
+        }
+
+        public Object getValue(QueryExecutionContext context, String index) {
+            return context.getInt(index);
         }
 
     };
@@ -1364,6 +1419,10 @@ public abstract class AbstractDomainFieldHandlerImpl implements DomainFieldHandl
                     local.message("ERR_Operation_Not_Supported","partitionKeySetPart", "non-key fields"));
         }
 
+        public Object getValue(QueryExecutionContext context, String index) {
+            return context.getJavaSqlDate(index);
+        }
+
     };
 
     protected static ObjectOperationHandler objectOperationHandlerJavaSqlTime = new ObjectOperationHandler() {
@@ -1428,6 +1487,10 @@ public abstract class AbstractDomainFieldHandlerImpl implements DomainFieldHandl
                 PartitionKey partitionKey, ValueHandler keyValueHandler) {
             throw new ClusterJFatalInternalException(
                     local.message("ERR_Operation_Not_Supported","partitionKeySetPart", "non-key fields"));
+        }
+
+        public Object getValue(QueryExecutionContext context, String index) {
+            return context.getJavaSqlTime(index);
         }
 
     };
@@ -1496,6 +1559,10 @@ public abstract class AbstractDomainFieldHandlerImpl implements DomainFieldHandl
                     local.message("ERR_Operation_Not_Supported","partitionKeySetPart", "non-key fields"));
         }
 
+        public Object getValue(QueryExecutionContext context, String index) {
+            return context.getJavaSqlTimestamp(index);
+        }
+
     };
 
     protected static ObjectOperationHandler objectOperationHandlerJavaUtilDate = new ObjectOperationHandler() {
@@ -1560,6 +1627,10 @@ public abstract class AbstractDomainFieldHandlerImpl implements DomainFieldHandl
                 PartitionKey partitionKey, ValueHandler keyValueHandler) {
             throw new ClusterJFatalInternalException(
                     local.message("ERR_Operation_Not_Supported","partitionKeySetPart", "non-key fields"));
+        }
+
+        public Object getValue(QueryExecutionContext context, String index) {
+            return context.getJavaUtilDate(index);
         }
 
     };
@@ -1628,6 +1699,10 @@ public abstract class AbstractDomainFieldHandlerImpl implements DomainFieldHandl
             partitionKey.addIntKey(fmd.storeColumn, keyValueHandler.getInt(fmd.fieldNumber));
         }
 
+        public Object getValue(QueryExecutionContext context, String index) {
+            return context.getInt(index);
+        }
+
     };
     protected static ObjectOperationHandler objectOperationHandlerKeyLong = new ObjectOperationHandler() {
 
@@ -1690,6 +1765,10 @@ public abstract class AbstractDomainFieldHandlerImpl implements DomainFieldHandl
             partitionKey.addLongKey(fmd.storeColumn, keyValueHandler.getLong(fmd.fieldNumber));
         }
 
+        public Object getValue(QueryExecutionContext context, String index) {
+            return context.getLong(index);
+        }
+
     };
     protected static ObjectOperationHandler objectOperationHandlerKeyString = new ObjectOperationHandler() {
 
@@ -1746,6 +1825,10 @@ public abstract class AbstractDomainFieldHandlerImpl implements DomainFieldHandl
         public void partitionKeySetPart(AbstractDomainFieldHandlerImpl fmd,
                 PartitionKey partitionKey, ValueHandler keyValueHandler) {
             partitionKey.addStringKey(fmd.storeColumn, keyValueHandler.getString(fmd.fieldNumber));
+        }
+
+        public Object getValue(QueryExecutionContext context, String index) {
+            return context.getString(index);
         }
 
     };
@@ -1812,6 +1895,10 @@ public abstract class AbstractDomainFieldHandlerImpl implements DomainFieldHandl
                     local.message("ERR_Operation_Not_Supported","partitionKeySetPart", "non-key fields"));
         }
 
+        public Object getValue(QueryExecutionContext context, String index) {
+            return context.getLong(index);
+        }
+
     };
 
     protected static ObjectOperationHandler objectOperationHandlerObjectByte = new ObjectOperationHandler() {
@@ -1876,6 +1963,10 @@ public abstract class AbstractDomainFieldHandlerImpl implements DomainFieldHandl
                     local.message("ERR_Operation_Not_Supported","partitionKeySetPart", "non-key fields"));
         }
 
+        public Object getValue(QueryExecutionContext context, String index) {
+            return context.getByte(index);
+        }
+
     };
 
     protected static ObjectOperationHandler objectOperationHandlerObjectDouble = new ObjectOperationHandler() {
@@ -1937,6 +2028,10 @@ public abstract class AbstractDomainFieldHandlerImpl implements DomainFieldHandl
                     local.message("ERR_Operation_Not_Supported","partitionKeySetPart", "non-key fields"));
         }
 
+        public Object getValue(QueryExecutionContext context, String index) {
+            return context.getDouble(index);
+        }
+
     };
 
     protected static ObjectOperationHandler objectOperationHandlerObjectFloat = new ObjectOperationHandler() {
@@ -1996,6 +2091,10 @@ public abstract class AbstractDomainFieldHandlerImpl implements DomainFieldHandl
                 PartitionKey partitionKey, ValueHandler keyValueHandler) {
             throw new ClusterJFatalInternalException(
                     local.message("ERR_Operation_Not_Supported","partitionKeySetPart", "non-key fields"));
+        }
+
+        public Object getValue(QueryExecutionContext context, String index) {
+            return context.getFloat(index);
         }
 
     };
@@ -2062,6 +2161,10 @@ public abstract class AbstractDomainFieldHandlerImpl implements DomainFieldHandl
                     local.message("ERR_Operation_Not_Supported","partitionKeySetPart", "non-key fields"));
         }
 
+        public Object getValue(QueryExecutionContext context, String index) {
+            return context.getInt(index);
+        }
+
     };
 
     protected static ObjectOperationHandler objectOperationHandlerObjectLong = new ObjectOperationHandler() {
@@ -2124,6 +2227,10 @@ public abstract class AbstractDomainFieldHandlerImpl implements DomainFieldHandl
                 PartitionKey partitionKey, ValueHandler keyValueHandler) {
             throw new ClusterJFatalInternalException(
                     local.message("ERR_Operation_Not_Supported","partitionKeySetPart", "non-key fields"));
+        }
+
+        public Object getValue(QueryExecutionContext context, String index) {
+            return context.getLong(index);
         }
 
     };
@@ -2195,6 +2302,10 @@ public abstract class AbstractDomainFieldHandlerImpl implements DomainFieldHandl
                     local.message("ERR_Operation_Not_Supported","partitionKeySetPart", "non-key fields"));
         }
 
+        public Object getValue(QueryExecutionContext context, String index) {
+            return context.getShort(index);
+        }
+
     };
 
     protected static ObjectOperationHandler objectOperationHandlerShort = new ObjectOperationHandler() {
@@ -2264,6 +2375,10 @@ public abstract class AbstractDomainFieldHandlerImpl implements DomainFieldHandl
                     local.message("ERR_Operation_Not_Supported","partitionKeySetPart", "non-key fields"));
         }
 
+        public Object getValue(QueryExecutionContext context, String index) {
+            return context.getShort(index);
+        }
+
     };
 
     protected static ObjectOperationHandler objectOperationHandlerShortYear = new ObjectOperationHandler() {
@@ -2328,6 +2443,10 @@ public abstract class AbstractDomainFieldHandlerImpl implements DomainFieldHandl
                 PartitionKey partitionKey, ValueHandler keyValueHandler) {
             throw new ClusterJFatalInternalException(
                     local.message("ERR_Operation_Not_Supported","partitionKeySetPart", "non-key fields"));
+        }
+
+        public Object getValue(QueryExecutionContext context, String index) {
+            return context.getShort(index);
         }
 
     };
@@ -2400,6 +2519,10 @@ public abstract class AbstractDomainFieldHandlerImpl implements DomainFieldHandl
                     local.message("ERR_Operation_Not_Supported","partitionKeySetPart", "non-key fields"));
         }
 
+        public Object getValue(QueryExecutionContext context, String index) {
+            return context.getShort(index);
+        }
+
     };
 
     protected static ObjectOperationHandler objectOperationHandlerString = new ObjectOperationHandler() {
@@ -2468,6 +2591,10 @@ public abstract class AbstractDomainFieldHandlerImpl implements DomainFieldHandl
                     local.message("ERR_Operation_Not_Supported","partitionKeySetPart", "non-key fields"));
         }
 
+        public Object getValue(QueryExecutionContext context, String index) {
+            return context.getString(index);
+        }
+
     };
 
     protected static ObjectOperationHandler objectOperationHandlerUnsupportedType = new ObjectOperationHandler() {
@@ -2523,6 +2650,10 @@ public abstract class AbstractDomainFieldHandlerImpl implements DomainFieldHandl
         public void partitionKeySetPart(AbstractDomainFieldHandlerImpl fmd, PartitionKey partitionKey, ValueHandler keyValueHandler) {
             throw new ClusterJUserException(local.message("ERR_Unsupported_Field_Type", fmd.getTypeName(), fmd.getName()));
         }
+
+        public Object getValue(QueryExecutionContext context, String index) {
+            throw new ClusterJFatalInternalException(local.message("ERR_Implementation_Should_Not_Occur"));
+       }
 
     };
 
@@ -2587,9 +2718,13 @@ public abstract class AbstractDomainFieldHandlerImpl implements DomainFieldHandl
                     local.message("ERR_Operation_Not_Supported","partitionKeySetPart", "non-key fields"));
         }
 
+        public Object getValue(QueryExecutionContext context, String index) {
+            throw new ClusterJFatalInternalException(local.message("ERR_Implementation_Should_Not_Occur"));
+       }
+
     };
 
-    protected static abstract class objectOperationHandlerNotPersistent implements ObjectOperationHandler {
+    protected static abstract class ObjectOperationHandlerNotPersistent implements ObjectOperationHandler {
 
         public boolean isPrimitive() {
             return true;
@@ -2638,9 +2773,13 @@ public abstract class AbstractDomainFieldHandlerImpl implements DomainFieldHandl
                     local.message("ERR_Operation_Not_Supported","partitionKeySetPart", "non-key fields"));
         }
 
+        public Object getValue(QueryExecutionContext context, String index) {
+            throw new ClusterJFatalInternalException(local.message("ERR_Implementation_Should_Not_Occur"));
+       }
+
     }
 
-    protected static ObjectOperationHandler objectOperationHandlerNotPersistentByte = new objectOperationHandlerNotPersistent() {
+    protected static ObjectOperationHandler objectOperationHandlerNotPersistentByte = new ObjectOperationHandlerNotPersistent() {
 
         public String handler() {
             return "not persistent primitive byte";
@@ -2650,7 +2789,7 @@ public abstract class AbstractDomainFieldHandlerImpl implements DomainFieldHandl
             handler.setByte(fmd.fieldNumber, (byte) 0);
         }
     };
-    protected static ObjectOperationHandler objectOperationHandlerNotPersistentDouble = new objectOperationHandlerNotPersistent() {
+    protected static ObjectOperationHandler objectOperationHandlerNotPersistentDouble = new ObjectOperationHandlerNotPersistent() {
 
         public String handler() {
             return "not persistent primitive double";
@@ -2660,7 +2799,7 @@ public abstract class AbstractDomainFieldHandlerImpl implements DomainFieldHandl
             handler.setDouble(fmd.fieldNumber, 0.0D);
         }
     };
-    protected static ObjectOperationHandler objectOperationHandlerNotPersistentFloat = new objectOperationHandlerNotPersistent() {
+    protected static ObjectOperationHandler objectOperationHandlerNotPersistentFloat = new ObjectOperationHandlerNotPersistent() {
 
         public String handler() {
             return "not persistent primitive float";
@@ -2670,7 +2809,7 @@ public abstract class AbstractDomainFieldHandlerImpl implements DomainFieldHandl
             handler.setFloat(fmd.fieldNumber, 0.0F);
         }
     };
-    protected static ObjectOperationHandler objectOperationHandlerNotPersistentInt = new objectOperationHandlerNotPersistent() {
+    protected static ObjectOperationHandler objectOperationHandlerNotPersistentInt = new ObjectOperationHandlerNotPersistent() {
 
         public String handler() {
             return "not persistent primitive int";
@@ -2680,7 +2819,7 @@ public abstract class AbstractDomainFieldHandlerImpl implements DomainFieldHandl
             handler.setInt(fmd.fieldNumber, 0);
         }
     };
-    protected static ObjectOperationHandler objectOperationHandlerNotPersistentLong = new objectOperationHandlerNotPersistent() {
+    protected static ObjectOperationHandler objectOperationHandlerNotPersistentLong = new ObjectOperationHandlerNotPersistent() {
 
         public String handler() {
             return "not persistent primitive long";
@@ -2690,7 +2829,7 @@ public abstract class AbstractDomainFieldHandlerImpl implements DomainFieldHandl
             handler.setLong(fmd.fieldNumber, 0L);
         }
     };
-    protected static ObjectOperationHandler objectOperationHandlerNotPersistentObject = new objectOperationHandlerNotPersistent() {
+    protected static ObjectOperationHandler objectOperationHandlerNotPersistentObject = new ObjectOperationHandlerNotPersistent() {
 
         public String handler() {
             return "not persistent Object";
@@ -2704,7 +2843,7 @@ public abstract class AbstractDomainFieldHandlerImpl implements DomainFieldHandl
         public void objectInitializeJavaDefaultValue(AbstractDomainFieldHandlerImpl fmd, ValueHandler handler) {
         }
     };
-    protected static ObjectOperationHandler objectOperationHandlerNotPersistentShort = new objectOperationHandlerNotPersistent() {
+    protected static ObjectOperationHandler objectOperationHandlerNotPersistentShort = new ObjectOperationHandlerNotPersistent() {
 
         public String handler() {
             return "not persistent primitive short";

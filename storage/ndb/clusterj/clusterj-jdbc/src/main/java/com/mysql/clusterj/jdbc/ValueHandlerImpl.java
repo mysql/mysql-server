@@ -235,7 +235,7 @@ public class ValueHandlerImpl implements ValueHandler {
     }
 
     public boolean isModified(int fieldNumber) {
-        throw new ClusterJFatalInternalException(local.message("ERR_Should_Not_Occur"));
+        return fieldNumberMap[fieldNumber] != -1;
     }
 
     public boolean isNull(int fieldNumber) {

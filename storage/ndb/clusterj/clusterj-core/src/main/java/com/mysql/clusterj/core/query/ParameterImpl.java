@@ -18,6 +18,8 @@
 package com.mysql.clusterj.core.query;
 
 
+import com.mysql.clusterj.ClusterJUserException;
+import com.mysql.clusterj.core.spi.QueryExecutionContext;
 import com.mysql.clusterj.core.util.I18NHelper;
 import com.mysql.clusterj.core.util.Logger;
 import com.mysql.clusterj.core.util.LoggerFactoryService;
@@ -39,6 +41,9 @@ public class ParameterImpl implements PredicateOperand {
     /** My domain object. */
     protected QueryDomainTypeImpl<?> dobj;
 
+    /** My property (set when bound) */
+    protected PropertyImpl property;
+
     /** My parameter name */
     protected String parameterName;
 
@@ -57,7 +62,7 @@ public class ParameterImpl implements PredicateOperand {
         marked = true;
     }
 
-    boolean isMarkedAndUnbound(QueryExecutionContextImpl context) {
+    boolean isMarkedAndUnbound(QueryExecutionContext context) {
         return marked && !context.isBound(parameterName);
     }
 
@@ -69,8 +74,8 @@ public class ParameterImpl implements PredicateOperand {
         return parameterName;
     }
 
-    public Object getParameterValue(QueryExecutionContextImpl context) {
-        return context.getParameterValue(parameterName);
+    public Object getParameterValue(QueryExecutionContext context) {
+        return property.getParameterValue(context, parameterName);
     }
 
     public Predicate equal(PredicateOperand predicateOperand) {
@@ -111,6 +116,15 @@ public class ParameterImpl implements PredicateOperand {
     public Predicate like(PredicateOperand other) {
         throw new UnsupportedOperationException(
                 local.message("ERR_NotImplemented"));
+    }
+
+    public void setProperty(PropertyImpl property) {
+        if (this.property != null && this.property.fmd.getType() != property.fmd.getType()) {
+            throw new ClusterJUserException(local.message("ERR_Multiple_Parameter_Usage", parameterName,
+                    this.property.fmd.getType().getName(), property.fmd.getType().getName()));
+        } else {
+            this.property = property;
+        }
     }
 
 }

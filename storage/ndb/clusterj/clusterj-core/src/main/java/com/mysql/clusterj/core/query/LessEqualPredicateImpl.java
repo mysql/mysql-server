@@ -17,6 +17,7 @@
 
 package com.mysql.clusterj.core.query;
 
+import com.mysql.clusterj.core.spi.QueryExecutionContext;
 import com.mysql.clusterj.core.store.IndexScanOperation;
 import com.mysql.clusterj.core.store.ScanFilter;
 import com.mysql.clusterj.core.store.ScanOperation;
@@ -25,13 +26,11 @@ public class LessEqualPredicateImpl extends ComparativePredicateImpl {
 
     public LessEqualPredicateImpl(QueryDomainTypeImpl<?> dobj,
             PropertyImpl property, ParameterImpl param) {
-        super(dobj);
-        this.param = param;
-        this.property = property;
+        super(dobj, property, param);
     }
 
     @Override
-    public void markBoundsForCandidateIndices(QueryExecutionContextImpl context, CandidateIndexImpl[] candidateIndices) {
+    public void markBoundsForCandidateIndices(QueryExecutionContext context, CandidateIndexImpl[] candidateIndices) {
         if (param.getParameterValue(context) == null) {
             // null parameters cannot be used with indexes
             return;
@@ -40,7 +39,7 @@ public class LessEqualPredicateImpl extends ComparativePredicateImpl {
     }
 
     @Override
-    public void operationSetBounds(QueryExecutionContextImpl context, IndexScanOperation op, boolean lastColumn) {
+    public void operationSetBounds(QueryExecutionContext context, IndexScanOperation op, boolean lastColumn) {
         property.operationSetBounds(param.getParameterValue(context), IndexScanOperation.BoundType.BoundGE, op);
     }
 
@@ -50,7 +49,7 @@ public class LessEqualPredicateImpl extends ComparativePredicateImpl {
      * @param filter the filter
      */
     @Override
-    public void filterCmpValue(QueryExecutionContextImpl context, ScanOperation op, ScanFilter filter) {
+    public void filterCmpValue(QueryExecutionContext context, ScanOperation op, ScanFilter filter) {
         property.filterCmpValue(param.getParameterValue(context), ScanFilter.BinaryCondition.COND_LE, filter);
     }
 

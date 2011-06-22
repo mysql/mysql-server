@@ -22,6 +22,7 @@ import java.util.Collection;
 import java.util.List;
 
 import com.mysql.clusterj.ClusterJException;
+import com.mysql.clusterj.core.spi.QueryExecutionContext;
 import com.mysql.clusterj.core.store.ScanFilter;
 import com.mysql.clusterj.core.store.ScanOperation;
 import com.mysql.clusterj.core.store.ScanFilter.Group;
@@ -75,7 +76,7 @@ public class OrPredicateImpl extends PredicateImpl {
         // Nothing to do because "or" can't use indexes
     }
 
-    void markBoundsForCandidateIndices(QueryExecutionContextImpl context,
+    void markBoundsForCandidateIndices(QueryExecutionContext context,
             CandidateIndexImpl[] candidateIndices) {
         // Nothing to do because "or" can't use indexes
     }
@@ -85,7 +86,7 @@ public class OrPredicateImpl extends PredicateImpl {
      * @param context the query execution context with the parameter values
      * @param op the operation
      */
-    public void filterCmpValue(QueryExecutionContextImpl context,
+    public void filterCmpValue(QueryExecutionContext context,
             ScanOperation op) {
         try {
             ScanFilter filter = op.getScanFilter(context);
@@ -108,7 +109,7 @@ public class OrPredicateImpl extends PredicateImpl {
      * @param op the operation
      * @param filter the existing filter
      */
-    public void filterCmpValue(QueryExecutionContextImpl context,
+    public void filterCmpValue(QueryExecutionContext context,
             ScanOperation op, ScanFilter filter) {
         try {
             filter.begin(Group.GROUP_OR);

@@ -108,6 +108,8 @@ public class InterceptorImpl {
 
     private boolean autocommit;
 
+    private static String LOTSOBLANKS = "                                                                          "; 
+
     /** Create the interceptor.
      * 
      * @param connection the connection being intercepted
@@ -219,7 +221,7 @@ public class InterceptorImpl {
         }
     }
 
-    SessionSPI getSession() {
+    public SessionSPI getSession() {
         if (session == null) {
             session = (SessionSPI)sessionFactory.getSession();
         }
@@ -262,8 +264,7 @@ public class InterceptorImpl {
                     }
                 }
             }
-            SessionSPI session = getSession();
-            return sQLExecutor.execute(session, preparedStatement.getParameterBindings());
+            return sQLExecutor.execute(this, preparedStatement.getParameterBindings());
         }
         return null;
     }
@@ -272,6 +273,7 @@ public class InterceptorImpl {
      * @param preparedSql
      */
     private Executor createSQLExecutor(String preparedSql) {
+        if (logger.isDetailEnabled()) logger.detail(preparedSql);
         Executor result = null;
         // parse the sql
         CommonTree root = parse(preparedSql);
@@ -310,8 +312,17 @@ public class InterceptorImpl {
                     result = new SQLExecutor.Noop();
                     break;
                 }
-                tableNode = (CommonTree) fromNode.getFirstChildWithType(MySQL51Parser.TABLE);
-                tableName = getTableName(tableNode);
+                try {
+                    // this currently handles only FROM clauses with a single table
+                    tableNode = (CommonTree) fromNode.getFirstChildWithType(MySQL51Parser.TABLE);
+                    tableName = getTableName(tableNode);
+                } catch (Exception e) {
+                    // trouble with the FROM clause; log the SQL statement and the parser output
+                    logger.info("Problem with FROM clause in SQL statement: " + preparedSql);
+                    logger.info(walk(root));
+                    result = new SQLExecutor.Noop();
+                    break;
+                }
                 getSession();
                 dictionary = session.getDictionary();
                 domainTypeHandler = getDomainTypeHandler(tableName, dictionary);
@@ -346,11 +357,14 @@ public class InterceptorImpl {
                         result = new SQLExecutor.Noop();
                         whereType = "non-clusterj";
                     }
-                    walk(root);
+                    if (logger.isDetailEnabled()) logger.detail(walk(root));
                 }
-                if (logger.isDetailEnabled()) logger.detail(
+                if (logger.isDetailEnabled()) {
+                    logger.detail(
                         "SELECT FROM " + tableName
                         + " COLUMNS " + columnNames + " whereType " + whereType);
+                    logger.detail(walk(root));
+                }
                 break;
             case MySQL51Parser.DELETE:
                 tableNode = (CommonTree)root.getFirstChildWithType(MySQL51Parser.TABLE);
@@ -379,7 +393,7 @@ public class InterceptorImpl {
                         result = new SQLExecutor.Noop();
                         whereType = "non-clusterj";
                     }
-                    walk(root);
+                    if (logger.isDetailEnabled()) logger.detail(walk(root));
                 }
                 if (logger.isDetailEnabled()) logger.detail(
                         "DELETE FROM " + tableName
@@ -388,6 +402,7 @@ public class InterceptorImpl {
                 break;
             default:
                 // return a do-nothing ParsedSQL
+                if (logger.isDetailEnabled()) logger.detail("ClusterJ cannot process this SQL statement: unsupported statement type.");
                 result = new SQLExecutor.Noop();
         }
         return result;
@@ -404,26 +419,38 @@ public class InterceptorImpl {
         return result;
     }
 
+    private String walk(CommonTree tree) {
+        StringBuilder buffer = new StringBuilder();
+        walk(tree, buffer, 0);
+        return buffer.toString();
+    }
+
     @SuppressWarnings("unchecked") // tree.getChildren()
-    private void walk(CommonTree tree) {
-        if (logger.isDetailEnabled()) {
+    private void walk(CommonTree tree, StringBuilder buffer, int level) {
+            String indent = LOTSOBLANKS.substring(0, level);
             Token token = tree.token;
             int tokenType = token.getType();
             String tokenText = token.getText();
             int childCount = tree.getChildCount();
             int childIndex = tree.getChildIndex();
-            logger.detail("StatementInterceptorImpl.walk"
-                    + " class: " + tree.getClass().getName()
-                    + " tokenText: " + tokenText + " tokenType " + tokenType
-                    + " child count " + childCount + " child index " + childIndex);
+            buffer.append('\n');
+            buffer.append(indent);
+            buffer.append(tokenText);
+            buffer.append(" class: ");
+            buffer.append(tree.getClass().getName());
+            buffer.append(" tokenType ");
+            buffer.append(tokenType);
+            buffer.append(" child count ");
+            buffer.append(childCount);
+            buffer.append(" child index ");
+            buffer.append(childIndex);
             List<CommonTree> children = tree.getChildren();
             if (children == null) {
                 return;
             }
             for (CommonTree child: children) {
-                walk(child);
+                walk(child, buffer, level + 2);
             }
-        }
     }
 
     private CommonTree parse(String preparedSql) {
@@ -498,16 +525,19 @@ public class InterceptorImpl {
     /** TODO This needs to be rewritten with a proper state machine. */
     public boolean setAutoCommit(boolean autocommit) throws SQLException {
         assertReady();
-        this.autocommit = autocommit;
         logStatus("setAutoCommit(" + autocommit + ")");
+        this.autocommit = autocommit;
+        getSession();
         if (!autocommit) {
             // start a transaction
-            getSession();
             if (!session.currentTransaction().isActive()) {
                 session.begin();
             }
         } else {
             // roll back the previous transaction if active
+            if (session.currentTransaction().isActive()) {
+                session.rollback();
+            }
         }
         return true; // let the driver perform its own autocommit behavior
     }
