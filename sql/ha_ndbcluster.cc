@@ -265,9 +265,7 @@ static MYSQL_THDVAR_UINT(
 */
 bool ndb_index_stat_get_enable(THD *thd)
 {
-  mysql_mutex_lock(&LOCK_global_system_variables);
   const bool value = THDVAR(thd, index_stat_enable);
-  mysql_mutex_unlock(&LOCK_global_system_variables);
   return value;
 }
 
