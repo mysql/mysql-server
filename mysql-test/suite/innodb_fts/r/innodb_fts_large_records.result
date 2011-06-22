@@ -3,7 +3,7 @@ CREATE TABLE t1 (
 FTS_DOC_ID BIGINT UNSIGNED AUTO_INCREMENT NOT NULL PRIMARY KEY, 
 a TEXT,
 b TEXT
-) ENGINE= <default_engine>;
+) ENGINE = InnoDB;
 create unique index FTS_DOC_ID_INDEX on t1(FTS_DOC_ID);
 "Loading data using LOAD DATA Command , File <MYSQLTEST_VARDIR>/tmp/fts_input_data.txt"
 CREATE FULLTEXT INDEX idx on t1 (a,b);
@@ -68,7 +68,7 @@ CREATE TABLE t1 (
 FTS_DOC_ID BIGINT UNSIGNED AUTO_INCREMENT NOT NULL PRIMARY KEY, 
 a TEXT,
 b TEXT
-) ENGINE= <default_engine>;
+) ENGINE = InnoDB;
 create unique index FTS_DOC_ID_INDEX on t1(FTS_DOC_ID);
 "Loading data using LOAD DATA Command , File <MYSQLTEST_VARDIR>/tmp/fts_input_data.txt"
 CREATE FULLTEXT INDEX idx on t1 (a,b);
@@ -146,7 +146,7 @@ CREATE TABLE t1 (
 FTS_DOC_ID BIGINT UNSIGNED AUTO_INCREMENT NOT NULL PRIMARY KEY, 
 a TEXT,
 b TEXT
-) ENGINE= <default_engine>;
+) ENGINE = InnoDB;
 create unique index FTS_DOC_ID_INDEX on t1(FTS_DOC_ID);
 "Loading data using LOAD DATA Command , File <MYSQLTEST_VARDIR>/tmp/fts_input_data.txt"
 CREATE FULLTEXT INDEX idx on t1 (a,b);
@@ -208,7 +208,7 @@ CREATE TABLE t1 (
 FTS_DOC_ID BIGINT UNSIGNED AUTO_INCREMENT NOT NULL PRIMARY KEY, 
 a TEXT,
 b TEXT
-) ENGINE= <default_engine>;
+) ENGINE = InnoDB;
 create unique index FTS_DOC_ID_INDEX on t1(FTS_DOC_ID);
 "Loading data using LOAD DATA Command , File <MYSQLTEST_VARDIR>/tmp/fts_input_data.txt"
 CREATE FULLTEXT INDEX idx on t1 (a,b);

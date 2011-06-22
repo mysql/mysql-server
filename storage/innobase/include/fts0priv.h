@@ -42,7 +42,7 @@ typedef enum fts_table_state_enum fts_table_state_t;
 #define FTS_OPTIMIZE_LIMIT_IN_SECS	"optimize_checkpoint_limit"
 
 /* The next doc id */
-#define FTS_NEXT_DOC_ID			"next_doc_id"
+#define FTS_SYNCED_DOC_ID		"synced_doc_id"
 
 /* The last word that was OPTIMIZED */
 #define FTS_LAST_OPTIMIZED_WORD		"last_optimized_word"
@@ -135,6 +135,14 @@ fts_get_select_columns_str(
 	dict_index_t*	index,		/* in: FTS index */
 	pars_info_t*	info,		/* in/out: parser info */
 	mem_heap_t*	heap);		/* in: memory heap */
+
+/** define for fts_doc_fetch_by_doc_id() "option" value, defines whether
+we want to get Doc whose ID is equal to or greater or smaller than supplied
+ID */
+#define	FTS_FETCH_DOC_BY_ID_EQUAL	1
+#define	FTS_FETCH_DOC_BY_ID_LARGE	2
+#define	FTS_FETCH_DOC_BY_ID_SMALL	3
+
 /*************************************************************//**
 Fetch document (= a single row's indexed text) with the given
 document id.
@@ -146,6 +154,8 @@ fts_doc_fetch_by_doc_id(
 	fts_get_doc_t*	get_doc,	/*!< in: state */
 	doc_id_t	doc_id,		/*!< in: id of document to fetch */
 	dict_index_t*	index_to_use,	/*!< in: caller supplied FTS index */
+	ulint		option,         /*!< in: search option, if it is
+                                        greater than doc_id or equal */
 	fts_sql_callback
 			callback,	/*!< in: callback to read
 					records */

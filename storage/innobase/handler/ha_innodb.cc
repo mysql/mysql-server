@@ -4460,6 +4460,143 @@ innobase_mysql_cmp(
 	return(0);
 }
 
+/*************************************************************//**
+Get the next token from the given string and store it in *token. */
+extern "C" UNIV_INTERN
+CHARSET_INFO*
+innobase_get_fts_charset(
+/*=====================*/
+	int		mysql_type,	/*!< in: MySQL type */
+	uint		charset_number)	/*!< in: number of the charset */
+{
+	enum_field_types	mysql_tp;
+	CHARSET_INFO*		charset;
+
+	mysql_tp = (enum_field_types) mysql_type;
+
+	switch (mysql_tp) {
+
+	case MYSQL_TYPE_BIT:
+	case MYSQL_TYPE_STRING:
+	case MYSQL_TYPE_VAR_STRING:
+	case MYSQL_TYPE_TINY_BLOB:
+	case MYSQL_TYPE_MEDIUM_BLOB:
+	case MYSQL_TYPE_BLOB:
+	case MYSQL_TYPE_LONG_BLOB:
+	case MYSQL_TYPE_VARCHAR:
+		/* Use the charset number to pick the right charset struct for
+		the comparison. Since the MySQL function get_charset may be
+		slow before Bar removes the mutex operation there, we first
+		look at 2 common charsets directly. */
+
+		if (charset_number == default_charset_info->number) {
+			charset = default_charset_info;
+		} else if (charset_number == my_charset_latin1.number) {
+			charset = &my_charset_latin1;
+		} else {
+			charset = get_charset(charset_number, MYF(MY_WME));
+
+			if (charset == NULL) {
+			  sql_print_error("InnoDB needs charset %lu for doing "
+					  "a comparison, but MySQL cannot "
+					  "find that charset.",
+					  (ulong) charset_number);
+				ut_a(0);
+			}
+		}
+		break;
+	default:
+		ut_error;
+	}
+
+	return(charset);
+}
+
+/******************************************************************//**
+Makes all characters in a string lower case. */
+extern "C" UNIV_INTERN
+void
+innobase_fts_casedn_str(
+/*====================*/
+	CHARSET_INFO*	cs,	/*!< in: Character set */
+	char*		a)	/*!< in/out: string to put in
+				lower case */
+{
+	my_casedn_str(cs, a);
+}
+
+#define true_word_char(ctype, character)			\
+                      ((ctype) & (_MY_U | _MY_L | _MY_NMR) ||	\
+                       (character) == '_')
+
+#define misc_word_char(X)       0
+
+/*************************************************************//**
+Get the next token from the given string and store it in *token.
+It is mostly copied from MyISAM's doc parsing function ft_simple_get_word()
+@return length of string processed */
+extern "C" UNIV_INTERN
+ulint
+innobase_mysql_fts_get_token(
+/*=========================*/
+	CHARSET_INFO*	cs,		/*!< in: Character set */
+	byte*           start,		/*!< in: start of text */
+	byte*		end,		/*!< in: one character past end of
+					text */
+	fts_string_t*	token,		/*!< out: token's text */
+	ulint*		offset)		/*!< out: offset to token,
+					measured as characters from
+					'start' */
+{
+	uchar*			doc = start;
+	uint			mwc;
+	ulint			length;
+	int			mbl;
+	int			ctype;
+
+	do {
+		for (;; doc+= (mbl > 0 ? mbl : (mbl < 0 ? -mbl : 1))) {
+			if (doc >= end) {
+				return(doc - start);
+			}
+
+			mbl= cs->cset->ctype(cs, &ctype, (uchar*)doc,
+					     (uchar*)end);
+
+			if (true_word_char(ctype, *doc)) {
+				break;
+			}
+		}
+
+		mwc= length= 0;
+
+		token->utf8 = doc;
+
+		for (; doc < end; length++,
+		     doc+= (mbl > 0 ? mbl : (mbl < 0 ? -mbl : 1)))
+		{
+			mbl= cs->cset->ctype(cs, &ctype, (uchar*)doc,
+					     (uchar*)end);
+
+			if (true_word_char(ctype, *doc)) {
+				mwc= 0;
+			} else if (!misc_word_char(*doc) || mwc) {
+				break;
+			} else {
+				mwc++;
+			}
+		}
+
+		token->len= (uint)(doc - token->utf8) - mwc;
+
+		return(doc - start);
+	} while (doc < end);
+
+	token->utf8[token->len] = 0;
+
+	return(doc - start);
+}
+
 /**************************************************************//**
 Converts a MySQL type to an InnoDB type. Note that this function returns
 the 'mtype' of InnoDB. InnoDB differentiates between MySQL's old <= 4.1

@@ -6,16 +6,12 @@
 drop table if exists t1;
 --enable_warnings
 
-let $default_engine = `select @@SESSION.default_storage_engine`;
---replace_result $default_engine <default_engine>
-
 # Create FTS table
---replace_result $default_engine <default_engine>
 EVAL CREATE TABLE t1 (
         FTS_DOC_ID BIGINT UNSIGNED AUTO_INCREMENT NOT NULL PRIMARY KEY, 
         a TEXT,
         b TEXT
-        ) ENGINE= $default_engine;
+        ) ENGINE = InnoDB;
 
 create unique index FTS_DOC_ID_INDEX on t1(FTS_DOC_ID); 
 
@@ -92,12 +88,11 @@ DROP TABLE t1;
 
 #--------------------------------------------------------------------------------------------
 # Create FTS table
---replace_result $default_engine <default_engine>
 EVAL CREATE TABLE t1 (
         FTS_DOC_ID BIGINT UNSIGNED AUTO_INCREMENT NOT NULL PRIMARY KEY, 
         a TEXT,
         b TEXT
-        ) ENGINE= $default_engine;
+        ) ENGINE = InnoDB;
 
 create unique index FTS_DOC_ID_INDEX on t1(FTS_DOC_ID); 
 
@@ -185,12 +180,11 @@ DROP TABLE t1;
 
 #--------------------------------------------------------------------------------------------
 # Create FTS table
---replace_result $default_engine <default_engine>
 EVAL CREATE TABLE t1 (
         FTS_DOC_ID BIGINT UNSIGNED AUTO_INCREMENT NOT NULL PRIMARY KEY, 
         a TEXT,
         b TEXT
-        ) ENGINE= $default_engine;
+        ) ENGINE = InnoDB;
 
 create unique index FTS_DOC_ID_INDEX on t1(FTS_DOC_ID); 
 
@@ -267,12 +261,11 @@ DROP TABLE t1;
 
 #--------------------------------------------------------------------------------------------
 # Create FTS with same word and numbers
---replace_result $default_engine <default_engine>
 EVAL CREATE TABLE t1 (
         FTS_DOC_ID BIGINT UNSIGNED AUTO_INCREMENT NOT NULL PRIMARY KEY, 
         a TEXT,
         b TEXT
-        ) ENGINE= $default_engine;
+        ) ENGINE = InnoDB;
 
 create unique index FTS_DOC_ID_INDEX on t1(FTS_DOC_ID); 
 
