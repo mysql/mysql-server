@@ -17,7 +17,7 @@ EXTRA_DIST = CMakeLists.txt ndbinfo.sql
 
 BUILT_SOURCES = ndbinfo.sql
 
-noinst_PROGRAMS = 	ndbinfo_sql
+noinst_PROGRAMS = 	ndbinfo_sql ndb_dump_frm_data
 dist_bin_SCRIPTS =	ndb_size.pl ndb_error_reporter
 dist_pkgdata_DATA = ndbinfo.sql
 
@@ -31,7 +31,8 @@ ndbtools_PROGRAMS = \
   ndb_show_tables \
   ndb_select_all \
   ndb_select_count \
-  ndb_restore ndb_config
+  ndb_restore ndb_config \
+  ndb_index_stat
 
 tools_common_sources = ../test/src/NDBT_ReturnCodes.cpp \
                        ../test/src/NDBT_Table.cpp \
@@ -76,6 +77,9 @@ ndbinfo.sql: $(ndbinfo_sql_SOURCES)
 	./ndbinfo_sql$(EXEEXT) > $@-t
 	$(MV) $@-t $@
 
+ndb_index_stat_SOURCES = ndb_index_stat.cpp $(tools_common_sources)
+ndb_dump_frm_data_SOURCES = ndb_dump_frm_data.cpp
+
 include $(top_srcdir)/storage/ndb/config/common.mk.am
 include $(top_srcdir)/storage/ndb/config/type_ndbapitools.mk.am
 
@@ -91,4 +95,6 @@ ndb_select_count_LDFLAGS = @ndb_bin_am_ldflags@
 ndb_restore_LDFLAGS = @ndb_bin_am_ldflags@
 ndb_config_LDFLAGS = @ndb_bin_am_ldflags@
 ndbinfo_sql_LDFLAGS = @ndb_bin_am_ldflags@
+ndb_index_stat_LDFLAGS = @ndb_bin_am_ldflags@
+ndb_dump_frm_data_LDFLAGS = @ndb_bin_am_ldflags@
 

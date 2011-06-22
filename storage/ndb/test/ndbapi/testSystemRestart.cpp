@@ -35,6 +35,14 @@ int runLoadTable(NDBT_Context* ctx, NDBT_Step* step){
   return NDBT_OK;
 }
 
+int
+clearOldBackups(NDBT_Context* ctx, NDBT_Step* step)
+{
+  NdbBackup backup(GETNDB(step)->getNodeId());
+  backup.clearOldBackups();
+  return NDBT_OK;
+}
+
 #define CHECK(b) if (!(b)) { \
   g_err << "ERR: "<< step->getName() \
          << " failed on line " << __LINE__ << endl; \
@@ -2594,6 +2602,7 @@ TESTCASE("SR_DD_1", "")
 {
   TC_PROPERTY("ALL", 1);
   INITIALIZER(runWaitStarted);
+  INITIALIZER(clearOldBackups);
   STEP(runStopper);
   STEP(runSR_DD_1);
   FINALIZER(runClearTable);
@@ -2601,6 +2610,7 @@ TESTCASE("SR_DD_1", "")
 TESTCASE("SR_DD_1b", "")
 {
   INITIALIZER(runWaitStarted);
+  INITIALIZER(clearOldBackups);
   STEP(runSR_DD_1);
   FINALIZER(runClearTable);
 }
@@ -2609,6 +2619,7 @@ TESTCASE("SR_DD_1_LCP", "")
   TC_PROPERTY("ALL", 1);
   TC_PROPERTY("LCP", 1);
   INITIALIZER(runWaitStarted);
+  INITIALIZER(clearOldBackups);
   STEP(runStopper);
   STEP(runSR_DD_1);
   FINALIZER(runClearTable);
@@ -2617,6 +2628,7 @@ TESTCASE("SR_DD_1b_LCP", "")
 {
   TC_PROPERTY("LCP", 1);
   INITIALIZER(runWaitStarted);
+  INITIALIZER(clearOldBackups);
   STEP(runSR_DD_1);
   FINALIZER(runClearTable);
 }
@@ -2624,6 +2636,7 @@ TESTCASE("SR_DD_2", "")
 {
   TC_PROPERTY("ALL", 1);
   INITIALIZER(runWaitStarted);
+  INITIALIZER(clearOldBackups);
   STEP(runStopper);
   STEP(runSR_DD_2);
   FINALIZER(runClearTable);
@@ -2631,6 +2644,7 @@ TESTCASE("SR_DD_2", "")
 TESTCASE("SR_DD_2b", "")
 {
   INITIALIZER(runWaitStarted);
+  INITIALIZER(clearOldBackups);
   STEP(runSR_DD_2);
   FINALIZER(runClearTable);
 }
@@ -2639,6 +2653,7 @@ TESTCASE("SR_DD_2_LCP", "")
   TC_PROPERTY("ALL", 1);
   TC_PROPERTY("LCP", 1);
   INITIALIZER(runWaitStarted);
+  INITIALIZER(clearOldBackups);
   STEP(runStopper);
   STEP(runSR_DD_2);
   FINALIZER(runClearTable);
@@ -2647,6 +2662,7 @@ TESTCASE("SR_DD_2b_LCP", "")
 {
   TC_PROPERTY("LCP", 1);
   INITIALIZER(runWaitStarted);
+  INITIALIZER(clearOldBackups);
   STEP(runSR_DD_2);
   FINALIZER(runClearTable);
 }
@@ -2654,6 +2670,7 @@ TESTCASE("SR_DD_3", "")
 {
   TC_PROPERTY("ALL", 1);
   INITIALIZER(runWaitStarted);
+  INITIALIZER(clearOldBackups);
   STEP(runStopper);
   STEP(runSR_DD_3);
   FINALIZER(runClearTable);
@@ -2661,6 +2678,7 @@ TESTCASE("SR_DD_3", "")
 TESTCASE("SR_DD_3b", "")
 {
   INITIALIZER(runWaitStarted);
+  INITIALIZER(clearOldBackups);
   STEP(runSR_DD_3);
   FINALIZER(runClearTable);
 }
@@ -2669,6 +2687,7 @@ TESTCASE("SR_DD_3_LCP", "")
   TC_PROPERTY("ALL", 1);
   TC_PROPERTY("LCP", 1);
   INITIALIZER(runWaitStarted);
+  INITIALIZER(clearOldBackups);
   STEP(runStopper);
   STEP(runSR_DD_3);
   FINALIZER(runClearTable);
@@ -2677,6 +2696,7 @@ TESTCASE("SR_DD_3b_LCP", "")
 {
   TC_PROPERTY("LCP", 1);
   INITIALIZER(runWaitStarted);
+  INITIALIZER(clearOldBackups);
   STEP(runSR_DD_3);
   FINALIZER(runClearTable);
 }

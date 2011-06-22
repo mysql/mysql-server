@@ -2415,6 +2415,811 @@ runEnd899(NDBT_Context* ctx, NDBT_Step* step)
 }
 
 
+int initSubscription(NDBT_Context* ctx, NDBT_Step* step){
+  /* Subscribe to events on the table, and put access
+   * to the subscription somewhere handy
+   */
+  Ndb* pNdb = GETNDB(step);
+  const NdbDictionary::Table& tab = *ctx->getTab();
+  bool merge_events = false;
+  bool report = false;
+
+  char eventName[1024];
+  sprintf(eventName,"%s_EVENT",tab.getName());
+
+  NdbDictionary::Dictionary *myDict = pNdb->getDictionary();
+
+  if (!myDict) {
+    g_err << "Dictionary not found "
+	  << pNdb->getNdbError().code << " "
+	  << pNdb->getNdbError().message << endl;
+    return NDBT_FAILED;
+  }
+
+  myDict->dropEvent(eventName);
+
+  NdbDictionary::Event myEvent(eventName);
+  myEvent.setTable(tab.getName());
+  myEvent.addTableEvent(NdbDictionary::Event::TE_ALL);
+  for(int a = 0; a < tab.getNoOfColumns(); a++){
+    myEvent.addEventColumn(a);
+  }
+  myEvent.mergeEvents(merge_events);
+
+  if (report)
+    myEvent.setReport(NdbDictionary::Event::ER_SUBSCRIBE);
+
+  int res = myDict->createEvent(myEvent); // Add event to database
+
+  if (res == 0)
+    myEvent.print();
+  else if (myDict->getNdbError().classification ==
+	   NdbError::SchemaObjectExists)
+  {
+    g_info << "Event creation failed event exists\n";
+    res = myDict->dropEvent(eventName);
+    if (res) {
+      g_err << "Failed to drop event: "
+	    << myDict->getNdbError().code << " : "
+	    << myDict->getNdbError().message << endl;
+      return NDBT_FAILED;
+    }
+    // try again
+    res = myDict->createEvent(myEvent); // Add event to database
+    if (res) {
+      g_err << "Failed to create event (1): "
+	    << myDict->getNdbError().code << " : "
+	    << myDict->getNdbError().message << endl;
+      return NDBT_FAILED;
+    }
+  }
+  else
+  {
+    g_err << "Failed to create event (2): "
+	  << myDict->getNdbError().code << " : "
+	  << myDict->getNdbError().message << endl;
+    return NDBT_FAILED;
+  }
+
+  return NDBT_OK;
+}
+
+int removeSubscription(NDBT_Context* ctx, NDBT_Step* step){
+  /* Remove subscription created above */
+  Ndb* pNdb = GETNDB(step);
+  const NdbDictionary::Table& tab = *ctx->getTab();
+
+  char eventName[1024];
+  sprintf(eventName,"%s_EVENT",tab.getName());
+
+  NdbDictionary::Dictionary *myDict = pNdb->getDictionary();
+
+  if (!myDict) {
+    g_err << "Dictionary not found "
+	  << pNdb->getNdbError().code << " "
+	  << pNdb->getNdbError().message << endl;
+    return NDBT_FAILED;
+  }
+
+  myDict->dropEvent(eventName);
+
+  return NDBT_OK;
+}
+
+int runVerifyRowCount(NDBT_Context* ctx, NDBT_Step* step)
+{
+  Ndb* ndb = GETNDB(step);
+
+  /* Check that number of results returned by a normal scan
+   * and per-fragment rowcount sum are equal
+   */
+  Uint32 rowCountSum = 0;
+  Uint32 rowScanCount = 0;
+
+  int result = NDBT_OK;
+  do
+  {
+    NdbTransaction* trans = ndb->startTransaction();
+    CHECK(trans != NULL);
+
+    NdbScanOperation* scan = trans->getNdbScanOperation(ctx->getTab());
+    CHECK(scan != NULL);
+
+    CHECK(scan->readTuples(NdbScanOperation::LM_CommittedRead) == 0);
+
+    NdbInterpretedCode code;
+
+    CHECK(code.interpret_exit_last_row() == 0);
+    CHECK(code.finalise() == 0);
+
+    NdbRecAttr* rowCountRA = scan->getValue(NdbDictionary::Column::ROW_COUNT);
+    CHECK(rowCountRA != NULL);
+    CHECK(scan->setInterpretedCode(&code) == 0);
+
+    CHECK(trans->execute(NoCommit) == 0);
+
+    while (scan->nextResult() == 0)
+      rowCountSum+= rowCountRA->u_32_value();
+
+    trans->close();
+
+    trans = ndb->startTransaction();
+    CHECK(trans != NULL);
+
+    scan = trans->getNdbScanOperation(ctx->getTab());
+    CHECK(scan != NULL);
+
+    CHECK(scan->readTuples(NdbScanOperation::LM_CommittedRead) == 0);
+
+    rowCountRA = scan->getValue(NdbDictionary::Column::ROW_COUNT);
+    CHECK(rowCountRA != NULL);
+
+    CHECK(trans->execute(NoCommit) == 0);
+
+    while (scan->nextResult() == 0)
+      rowScanCount++;
+
+    trans->close();
+  }
+  while(0);
+
+  if (result == NDBT_OK)
+  {
+    ndbout_c("Sum of fragment row counts : %u  Number rows scanned : %u",
+             rowCountSum,
+             rowScanCount);
+
+    if (rowCountSum != rowScanCount)
+    {
+      ndbout_c("MISMATCH");
+      result = NDBT_FAILED;
+    }
+  }
+
+  return result;
+}
+
+enum ApiEventType { Insert, Update, Delete };
+
+template class Vector<ApiEventType>;
+
+struct EventInfo
+{
+  ApiEventType type;
+  int id;
+  Uint64 gci;
+};
+template class Vector<EventInfo>;
+
+int collectEvents(Ndb* ndb,
+                  HugoCalculator& calc,
+                  const NdbDictionary::Table& tab,
+                  Vector<EventInfo>& receivedEvents,
+                  int idCol,
+                  int updateCol,
+                  Vector<NdbRecAttr*>* beforeAttrs,
+                  Vector<NdbRecAttr*>* afterAttrs)
+{
+  int MaxTimeouts = 5;
+  while (true)
+  {
+    int res = ndb->pollEvents(1000);
+
+    if (res > 0)
+    {
+      NdbEventOperation* pOp;
+      while ((pOp = ndb->nextEvent()))
+      {
+        bool isDelete = (pOp->getEventType() == NdbDictionary::Event::TE_DELETE);
+        Vector<NdbRecAttr*>* whichVersion =
+          isDelete?
+          beforeAttrs :
+          afterAttrs;
+        int id = (*whichVersion)[idCol]->u_32_value();
+        Uint64 gci = pOp->getGCI();
+        Uint32 anyValue = pOp->getAnyValue();
+        Uint32 scenario = ((anyValue >> 24) & 0xff) -1;
+        Uint32 optype = ((anyValue >> 16) & 0xff);
+        Uint32 recNum = (anyValue & 0xffff);
+
+        g_err << "# " << receivedEvents.size()
+              << " GCI : " << (gci >> 32)
+              << "/"
+              << (gci & 0xffffffff)
+              << " id : "
+              << id
+              << " scenario : " << scenario
+              << " optype : " << optype
+              << " record : " << recNum
+              << "  ";
+
+        /* Check event has self-consistent data */
+        int updatesValue = (*whichVersion)[updateCol]->u_32_value();
+
+        if ((*whichVersion)[updateCol]->isNULL() ||
+            (*whichVersion)[idCol]->isNULL())
+        {
+          g_err << "Null update/id cols : REFRESH of !EXISTS  ";
+        }
+
+        g_err << "(Updates val = " << updatesValue << ")";
+
+        for (int i=0; i < (int) whichVersion->size(); i++)
+        {
+          /* Check PK columns and also other columns for non-delete */
+          if (!isDelete ||
+              tab.getColumn(i)->getPrimaryKey())
+          {
+            NdbRecAttr* ra = (*whichVersion)[i];
+            if (calc.verifyRecAttr(recNum, updatesValue, ra) != 0)
+            {
+              g_err << "Verify failed on recNum : " << recNum << " with updates value "
+                    << updatesValue << " for column " << ra->getColumn()->getAttrId()
+                    << endl;
+              return NDBT_FAILED;
+            }
+          }
+        }
+
+        EventInfo ei;
+
+        switch (pOp->getEventType())
+        {
+        case NdbDictionary::Event::TE_INSERT:
+          g_err << " Insert event" << endl;
+          ei.type = Insert;
+          break;
+        case NdbDictionary::Event::TE_DELETE:
+          ei.type = Delete;
+          g_err << " Delete event" << endl;
+          break;
+        case NdbDictionary::Event::TE_UPDATE:
+          ei.type = Update;
+          g_err << " Update event" << endl;
+          break;
+        default:
+          g_err << " Event type : " << pOp->getEventType() << endl;
+          abort();
+          break;
+        }
+
+        ei.id = recNum;
+        ei.gci = gci;
+
+        receivedEvents.push_back(ei);
+      }
+    }
+    else
+    {
+      if (--MaxTimeouts == 0)
+      {
+        break;
+      }
+    }
+  }
+
+  return NDBT_OK;
+}
+
+int verifyEvents(const Vector<EventInfo>& receivedEvents,
+                 const Vector<ApiEventType>& expectedEvents,
+                 int records)
+{
+  /* Now verify received events against expected
+   * This is messy as events occurring in the same epoch are unordered
+   * except via id, so we use id-duplicates to determine which event
+   * sequence we're looking at.
+   */
+  g_err << "Received total of " << receivedEvents.size() << " events" << endl;
+  Vector<Uint32> keys;
+  Vector<Uint64> gcis;
+  Uint32 z = 0;
+  Uint64 z2 = 0;
+  keys.fill(records, z);
+  gcis.fill(records, z2);
+  Uint64 currGci = 0;
+
+  for (Uint32 e=0; e < receivedEvents.size(); e++)
+  {
+    EventInfo ei = receivedEvents[e];
+
+    if (ei.gci != currGci)
+    {
+      if (ei.gci < currGci)
+        abort();
+
+      /* Epoch boundary */
+      /* At this point, all id counts must be equal */
+      for (int i=0; i < records; i++)
+      {
+        if (keys[i] != keys[0])
+        {
+          g_err << "Count for id " << i
+                << " is " << keys[i]
+                << " but should be " << keys[0] << endl;
+          return NDBT_OK;
+        }
+      }
+
+      currGci = ei.gci;
+    }
+
+    Uint32 eventIndex = keys[ei.id];
+    keys[ei.id]++;
+
+    ApiEventType et = expectedEvents[eventIndex];
+
+    if (ei.type != et)
+    {
+      g_err << "Expected event of type " << et
+            << " but found " << ei.type
+            << " at expectedEvent " << eventIndex
+            << " and event num " << e << endl;
+      return NDBT_FAILED;
+    }
+  }
+
+  return NDBT_OK;
+}
+
+int runRefreshTuple(NDBT_Context* ctx, NDBT_Step* step){
+  int records = ctx->getNumRecords();
+  Ndb* ndb = GETNDB(step);
+
+  /* Now attempt to create EventOperation */
+  NdbEventOperation* pOp;
+  const NdbDictionary::Table& tab = *ctx->getTab();
+
+  char eventName[1024];
+  sprintf(eventName,"%s_EVENT",tab.getName());
+
+  pOp = ndb->createEventOperation(eventName);
+  if (pOp == NULL)
+  {
+    g_err << "Failed to create event operation\n";
+    return NDBT_FAILED;
+  }
+
+  HugoCalculator calc(tab);
+  Vector<NdbRecAttr*> eventAfterRecAttr;
+  Vector<NdbRecAttr*> eventBeforeRecAttr;
+  int updateCol = -1;
+  int idCol = -1;
+
+  /* Now request all attributes */
+  for (int a = 0; a < tab.getNoOfColumns(); a++)
+  {
+    eventAfterRecAttr.push_back(pOp->getValue(tab.getColumn(a)->getName()));
+    eventBeforeRecAttr.push_back(pOp->getPreValue(tab.getColumn(a)->getName()));
+    if (calc.isIdCol(a))
+      idCol = a;
+    if (calc.isUpdateCol(a))
+      updateCol = a;
+  }
+
+  /* Now execute the event */
+  if (pOp->execute())
+  {
+    g_err << "Event operation execution failed : " << pOp->getNdbError() << endl;
+    return NDBT_FAILED;
+  }
+
+  HugoOperations hugoOps(*ctx->getTab());
+  int scenario = 0;
+
+  Vector<ApiEventType> expectedEvents;
+
+  for (scenario = 0; scenario < 2; scenario++)
+  {
+    g_err << "Scenario = " << scenario
+          << " ( Refresh "
+          << ((scenario == 0)? "before":"after")
+          << " operations )" << endl;
+    int optype = 0;
+    bool done = false;
+    int expectedError = 0;
+    do
+    {
+      check(hugoOps.startTransaction(ndb) == 0, hugoOps);
+
+      if (scenario == 0)
+      {
+        g_err << "Refresh before operations" << endl;
+        int anyValue =
+          ((1) << 8) |
+          optype;
+        check(hugoOps.pkRefreshRecord(ndb, 0, records, anyValue) == 0, hugoOps);
+      }
+
+      switch(optype)
+      {
+      case 0:
+      {
+        /* Refresh with no data present */
+        g_err << "  Do nothing" << endl;
+        expectedError = 0; /* Single refresh should always be fine */
+        expectedEvents.push_back(Delete);
+        break;
+      }
+      case 1:
+      {
+        /* [Refresh] Insert [Refresh] */
+        g_err << "  Insert" << endl;
+        check(hugoOps.pkInsertRecord(ndb, 0, records, 1) == 0, hugoOps);
+        if (scenario == 0)
+        {
+          /* Tuple already existed error when we insert after refresh */
+          expectedError = 630;
+          expectedEvents.push_back(Delete);
+        }
+        else
+        {
+          expectedError = 0;
+          expectedEvents.push_back(Insert);
+        }
+        /* Tuple already existed error when we insert after refresh */
+        break;
+      }
+      case 2:
+      {
+        /* Refresh */
+        g_err << "  Refresh" << endl;
+        if (scenario == 0)
+        {
+          expectedEvents.push_back(Delete);
+        }
+        else
+        {
+          expectedEvents.push_back(Insert);
+        }
+        expectedError = 0;
+        break;
+      }
+      case 3:
+      {
+        /* [Refresh] Update [Refresh] */
+        g_err << "  Update" << endl;
+        check(hugoOps.pkUpdateRecord(ndb, 0, records, 3) == 0, hugoOps);
+        if (scenario == 0)
+        {
+          expectedError = 920;
+          expectedEvents.push_back(Delete);
+        }
+        else
+        {
+          expectedError = 0;
+          expectedEvents.push_back(Insert);
+        }
+        break;
+      }
+      case 4:
+      {
+        /* [Refresh] Delete [Refresh] */
+        g_err << "  [Refresh] Delete [Refresh]" << endl;
+        if (scenario == 0)
+        {
+          expectedError = 920;
+          expectedEvents.push_back(Delete);
+        }
+        else
+        {
+          expectedError = 0;
+          expectedEvents.push_back(Delete);
+        }
+        check(hugoOps.pkDeleteRecord(ndb, 0, records) == 0, hugoOps);
+        break;
+      }
+      case 5:
+      {
+        g_err << "  Refresh" << endl;
+        expectedError = 0;
+        expectedEvents.push_back(Delete);
+        /* Refresh with no data present */
+        break;
+      }
+      case 6:
+      {
+        g_err << "  Double refresh" << endl;
+        int anyValue =
+          ((2) << 8) |
+          optype;
+        check(hugoOps.pkRefreshRecord(ndb, 0, records, anyValue) == 0, hugoOps);
+        expectedError = 920; /* Row operation defined after refreshTuple() */
+        expectedEvents.push_back(Delete);
+      }
+      default:
+        done = true;
+        break;
+      }
+
+      if (scenario == 1)
+      {
+        g_err << "Refresh after operations" << endl;
+        int anyValue =
+          ((4) << 8) |
+          optype;
+        check(hugoOps.pkRefreshRecord(ndb, 0, records, anyValue) == 0, hugoOps);
+      }
+
+      int rc = hugoOps.execute_Commit(ndb, AO_IgnoreError);
+      check(rc == expectedError, hugoOps);
+
+      check(hugoOps.closeTransaction(ndb) == 0, hugoOps);
+
+      optype++;
+
+
+      /* Now check fragment counts vs findable row counts */
+      if (runVerifyRowCount(ctx, step) != NDBT_OK)
+        return NDBT_FAILED;
+
+    } while (!done);
+  } // for scenario...
+
+  /* Now check fragment counts vs findable row counts */
+  if (runVerifyRowCount(ctx, step) != NDBT_OK)
+    return NDBT_FAILED;
+
+  /* Now let's dump and check the events */
+  g_err << "Expecting the following sequence..." << endl;
+  for (Uint32 i=0; i < expectedEvents.size(); i++)
+  {
+    g_err << i << ".  ";
+    switch(expectedEvents[i])
+    {
+    case Insert:
+      g_err << "Insert" << endl;
+      break;
+    case Update:
+      g_err << "Update" << endl;
+      break;
+    case Delete:
+      g_err << "Delete" << endl;
+      break;
+    default:
+      abort();
+    }
+  }
+
+  Vector<EventInfo> receivedEvents;
+
+  int rc = collectEvents(ndb, calc, tab, receivedEvents, idCol, updateCol,
+                         &eventBeforeRecAttr,
+                         &eventAfterRecAttr);
+  if (rc == NDBT_OK)
+  {
+    rc = verifyEvents(receivedEvents,
+                      expectedEvents,
+                      records);
+  }
+
+  if (ndb->dropEventOperation(pOp) != 0)
+  {
+    g_err << "Drop Event Operation failed : " << ndb->getNdbError() << endl;
+    return NDBT_FAILED;
+  }
+
+  return rc;
+};
+
+enum PreRefreshOps
+{
+  PR_NONE,
+  PR_INSERT,
+  PR_INSERTDELETE,
+  PR_DELETE
+};
+
+struct RefreshScenario
+{
+  const char*   name;
+  bool          preExist;
+  PreRefreshOps preRefreshOps;
+};
+
+static RefreshScenario refreshTests[] = {
+  { "No row, No pre-ops",        false, PR_NONE         },
+  { "No row, Insert pre-op",     false, PR_INSERT       },
+  { "No row, Insert-Del pre-op", false, PR_INSERTDELETE },
+  { "Row exists, No pre-ops",    true,  PR_NONE         },
+  { "Row exists, Delete pre-op", true,  PR_DELETE       }
+};
+
+enum OpTypes
+{
+  OP_READ_C,
+  OP_READ_S,
+  OP_READ_E,
+  OP_INSERT,
+  OP_UPDATE,
+  OP_WRITE,
+  OP_DELETE,
+  OP_LAST
+};
+
+const char* opTypeNames[] =
+{
+  "READ_C",
+  "READ_S",
+  "READ_E",
+  "INSERT",
+  "UPDATE",
+  "WRITE",
+  "DELETE"
+};
+
+
+int
+runRefreshLocking(NDBT_Context* ctx, NDBT_Step* step)
+{
+  /* Check that refresh in various situations has the
+   * locks we expect it to
+   * Scenario combinations :
+   *   Now row pre-existing | Row pre-existing
+   *   Trans1 : Refresh | Insert-Refresh | Insert-Delete-Refresh
+   *            Delete-Refresh
+   *   Trans2 : Read [Committed|Shared|Exclusive] | Insert | Update
+   *            Write | Delete
+   *
+   * Expectations : Read committed  always non-blocking
+   *                Read committed sees pre-existing row
+   *                All other trans2 operations deadlock
+   */
+
+  Ndb* ndb = GETNDB(step);
+  Uint32 numScenarios = sizeof(refreshTests) / sizeof(refreshTests[0]);
+  HugoTransactions hugoTrans(*ctx->getTab());
+
+  for (Uint32 s = 0; s < numScenarios; s++)
+  {
+    RefreshScenario& scenario = refreshTests[s];
+
+    if (scenario.preExist)
+    {
+      /* Create pre-existing tuple */
+      if (hugoTrans.loadTable(ndb, 1) != 0)
+      {
+        g_err << "Pre-exist failed : " << hugoTrans.getNdbError() << endl;
+        return NDBT_FAILED;
+      }
+    }
+
+    if (hugoTrans.startTransaction(ndb) != 0)
+    {
+      g_err << "Start trans failed : " << hugoTrans.getNdbError() << endl;
+      return NDBT_FAILED;
+    }
+
+    g_err << "Scenario : " << scenario.name << endl;
+
+    /* Do pre-refresh ops */
+    switch (scenario.preRefreshOps)
+    {
+    case PR_NONE:
+      break;
+    case PR_INSERT:
+    case PR_INSERTDELETE:
+      if (hugoTrans.pkInsertRecord(ndb, 0) != 0)
+      {
+        g_err << "Pre insert failed : " << hugoTrans.getNdbError() << endl;
+        return NDBT_FAILED;
+      }
+
+      if (scenario.preRefreshOps == PR_INSERT)
+        break;
+    case PR_DELETE:
+      if (hugoTrans.pkDeleteRecord(ndb, 0) != 0)
+      {
+        g_err << "Pre delete failed : " << hugoTrans.getNdbError() << endl;
+        return NDBT_FAILED;
+      }
+      break;
+    }
+
+    /* Then refresh */
+    if (hugoTrans.pkRefreshRecord(ndb, 0) != 0)
+    {
+      g_err << "Refresh failed : " << hugoTrans.getNdbError() << endl;
+      return NDBT_FAILED;
+    }
+
+    /* Now execute */
+    if (hugoTrans.execute_NoCommit(ndb) != 0)
+    {
+      g_err << "Execute failed : " << hugoTrans.getNdbError() << endl;
+      return NDBT_FAILED;
+    }
+
+    {
+      /* Now try ops from another transaction */
+      HugoOperations hugoOps(*ctx->getTab());
+      Uint32 ot = OP_READ_C;
+
+      while (ot < OP_LAST)
+      {
+        if (hugoOps.startTransaction(ndb) != 0)
+        {
+          g_err << "Start trans2 failed : " << hugoOps.getNdbError() << endl;
+          return NDBT_FAILED;
+        }
+
+        g_err << "Operation type : " << opTypeNames[ot] << endl;
+        int res = 0;
+        switch (ot)
+        {
+        case OP_READ_C:
+          res = hugoOps.pkReadRecord(ndb,0,1,NdbOperation::LM_CommittedRead);
+          break;
+        case OP_READ_S:
+          res = hugoOps.pkReadRecord(ndb,0,1,NdbOperation::LM_Read);
+          break;
+        case OP_READ_E:
+          res = hugoOps.pkReadRecord(ndb,0,1,NdbOperation::LM_Exclusive);
+          break;
+        case OP_INSERT:
+          res = hugoOps.pkInsertRecord(ndb, 0);
+          break;
+        case OP_UPDATE:
+          res = hugoOps.pkUpdateRecord(ndb, 0);
+          break;
+        case OP_WRITE:
+          res = hugoOps.pkWriteRecord(ndb, 0);
+          break;
+        case OP_DELETE:
+          res = hugoOps.pkDeleteRecord(ndb, 0);
+          break;
+        case OP_LAST:
+          abort();
+        }
+
+        hugoOps.execute_Commit(ndb);
+
+        if ((ot == OP_READ_C) && (scenario.preExist))
+        {
+          if (hugoOps.getNdbError().code == 0)
+          {
+            g_err << "Read committed succeeded" << endl;
+          }
+          else
+          {
+            g_err << "UNEXPECTED : Read committed failed. " << hugoOps.getNdbError() << endl;
+            return NDBT_FAILED;
+          }
+        }
+        else
+        {
+          if (hugoOps.getNdbError().code == 0)
+          {
+            g_err << opTypeNames[ot] << " succeeded, should not have" << endl;
+            return NDBT_FAILED;
+          }
+        }
+
+        hugoOps.closeTransaction(ndb);
+
+        ot = ot + 1;
+      }
+
+    }
+
+    /* Close refresh transaction */
+    hugoTrans.closeTransaction(ndb);
+
+    if (scenario.preExist)
+    {
+      /* Cleanup pre-existing before next iteration */
+      if (hugoTrans.pkDelRecords(ndb, 0) != 0)
+      {
+        g_err << "Delete pre existing failed : " << hugoTrans.getNdbError() << endl;
+        return NDBT_FAILED;
+      }
+    }
+  }
+
+  return NDBT_OK;
+}
+
+
 NDBT_TESTSUITE(testBasic);
 TESTCASE("PkInsert", 
 	 "Verify that we can insert and delete from this table using PK"
@@ -2746,6 +3551,12 @@ TESTCASE("UnlockUpdateBatch",
   STEP(runPkRead);
   FINALIZER(runClearTable);
 }
+TESTCASE("RefreshTuple",
+         "Test refreshTuple() operation properties"){
+  INITIALIZER(initSubscription);
+  INITIALIZER(runRefreshTuple);
+  FINALIZER(removeSubscription);
+}
 TESTCASE("Bug54986", "")
 {
   INITIALIZER(runBug54986);
@@ -2772,6 +3583,11 @@ TESTCASE("899", "")
   INITIALIZER(runInit899);
   STEP(runTest899);
   FINALIZER(runEnd899);
+}
+TESTCASE("RefreshLocking",
+         "Test Refresh locking properties")
+{
+  INITIALIZER(runRefreshLocking);
 }
 NDBT_TESTSUITE_END(testBasic);
 

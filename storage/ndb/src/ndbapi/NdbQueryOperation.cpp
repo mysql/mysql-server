@@ -1389,7 +1389,7 @@ NdbQueryImpl::NdbQueryImpl(NdbTransaction& trans,
   m_state(Initial),
   m_tcState(Inactive),
   m_next(NULL),
-  m_queryDef(queryDef),
+  m_queryDef(&queryDef),
   m_error(),
   m_transaction(trans),
   m_scanTransaction(NULL),
@@ -1452,9 +1452,13 @@ NdbQueryImpl::NdbQueryImpl(NdbTransaction& trans,
 
 NdbQueryImpl::~NdbQueryImpl()
 {
- 
-  // Do this to check that m_queryDef still exists.
-  assert(getNoOfOperations() == m_queryDef.getNoOfOperations());
+  /** BEWARE:
+   *  Don't refer NdbQueryDef or NdbQueryOperationDefs after 
+   *  NdbQuery::close() as at this stage the appliaction is 
+   *  allowed to destruct the Def's.
+   */
+  assert(m_state==Closed);
+  assert(m_rootFrags==NULL);
 
   // NOTE: m_operations[] was allocated as a single memory chunk with
   // placement new construction of each operation.
@@ -1465,8 +1469,6 @@ NdbQueryImpl::~NdbQueryImpl()
     }
     m_operations = NULL;
   }
-  delete[] m_rootFrags;
-  m_rootFrags = NULL;
   m_state = Destructed;
 }
 
@@ -1478,6 +1480,9 @@ NdbQueryImpl::postFetchRelease()
     { m_operations[i].postFetchRelease();
     }
   }
+  delete[] m_rootFrags;
+  m_rootFrags = NULL;
+
   m_rowBufferAlloc.reset();
   m_tupleSetAlloc.reset();
   m_resultStreamAlloc.reset();
@@ -1957,7 +1962,7 @@ NdbQueryImpl::awaitMoreResults(bool forceSend)
   assert(m_applFrags.getCurrent() == NULL);
 
   /* Check if there are any more completed fragments available.*/
-  if (m_queryDef.isScanQuery())
+  if (getQueryDef().isScanQuery())
   {
     assert (m_scanTransaction);
     assert (m_state==Executing);
@@ -2052,7 +2057,7 @@ NdbQueryImpl::awaitMoreResults(bool forceSend)
     assert(m_pendingFrags == 0);
     assert(m_finalBatchFrags == getRootFragCount());
     return FetchResult_noMoreData;
-  } // if(m_queryDef.isScanQuery())
+  } // if(getQueryDef().isScanQuery())
 
 } //NdbQueryImpl::awaitMoreResults
 
@@ -2131,32 +2136,41 @@ NdbQueryImpl::close(bool forceSend)
   int res = 0;
 
   assert (m_state >= Initial && m_state < Destructed);
-  Ndb* const ndb = m_transaction.getNdb();
-
-  if (m_tcState != Inactive)
+  if (m_state != Closed)
   {
-    /* We have started a scan, but we have not yet received the last batch
-     * for all root fragments. We must therefore close the scan to release 
-     * the scan context at TC.*/
-    res = closeTcCursor(forceSend);
+    if (m_tcState != Inactive)
+    {
+      /* We have started a scan, but we have not yet received the last batch
+       * for all root fragments. We must therefore close the scan to release 
+       * the scan context at TC.*/
+      res = closeTcCursor(forceSend);
+    }
+
+    // Throw any pending results
+    m_fullFrags.clear();
+    m_applFrags.clear();
+
+    Ndb* const ndb = m_transaction.getNdb();
+    if (m_scanTransaction != NULL)
+    {
+      assert (m_state != Closed);
+      assert (m_scanTransaction->m_scanningQuery == this);
+      m_scanTransaction->m_scanningQuery = NULL;
+      ndb->closeTransaction(m_scanTransaction);
+      ndb->theRemainingStartTransactions--;  // Compensate; m_scanTransaction was not a real Txn
+      m_scanTransaction = NULL;
+    }
+
+    postFetchRelease();
+    m_state = Closed;  // Even if it was previously 'Failed' it is closed now!
   }
 
-  // Throw any pending results
-  m_fullFrags.clear();
-  m_applFrags.clear();
+  /** BEWARE:
+   *  Don't refer NdbQueryDef or its NdbQueryOperationDefs after ::close()
+   *  as the application is allowed to destruct the Def's after this point.
+   */
+  m_queryDef= NULL;
 
-  if (m_scanTransaction != NULL)
-  {
-    assert (m_state != Closed);
-    assert (m_scanTransaction->m_scanningQuery == this);
-    m_scanTransaction->m_scanningQuery = NULL;
-    ndb->closeTransaction(m_scanTransaction);
-    ndb->theRemainingStartTransactions--;  // Compensate; m_scanTransaction was not a real Txn
-    m_scanTransaction = NULL;
-  }
-
-  postFetchRelease();
-  m_state = Closed;  // Even if it was previously 'Failed' it is closed now!
   return res;
 } //NdbQueryImpl::close
 
@@ -2819,7 +2833,7 @@ NdbQueryImpl::sendFetchMore(NdbRootFragment& emptyFrag, bool forceSend)
 {
   assert(getRoot().m_resultStreams!=NULL);
   assert(!emptyFrag.finalBatchReceived());
-  assert(m_queryDef.isScanQuery());
+  assert(getQueryDef().isScanQuery());
 
   const Uint32 fragNo = emptyFrag.getFragNo();
   emptyFrag.reset();
@@ -2892,10 +2906,9 @@ NdbQueryImpl::sendFetchMore(NdbRootFragment& emptyFrag, bool forceSend)
 int
 NdbQueryImpl::closeTcCursor(bool forceSend)
 {
-  assert (m_queryDef.isScanQuery());
+  assert (getQueryDef().isScanQuery());
 
   NdbImpl* const ndb = m_transaction.getNdb()->theImpl;
-  NdbImpl* const impl = ndb;
   const Uint32 timeout  = ndb->get_waitfor_timeout();
   const Uint32 nodeId   = m_transaction.getConnectedNodeId();
   const Uint32 seq      = m_transaction.theNodeSequence;
@@ -2905,7 +2918,7 @@ NdbQueryImpl::closeTcCursor(bool forceSend)
    */
   PollGuard poll_guard(*ndb);
 
-  if (unlikely(impl->getNodeSequence(nodeId) != seq))
+  if (unlikely(ndb->getNodeSequence(nodeId) != seq))
   {
     setErrorCode(Err_NodeFailCausedAbort);
     return -1;  // Transporter disconnected and reconnected, no need to close
@@ -2917,7 +2930,7 @@ NdbQueryImpl::closeTcCursor(bool forceSend)
     const FetchResult result = static_cast<FetchResult>
         (poll_guard.wait_scan(3*timeout, nodeId, forceSend));
 
-    if (unlikely(impl->getNodeSequence(nodeId) != seq))
+    if (unlikely(ndb->getNodeSequence(nodeId) != seq))
       setFetchTerminated(Err_NodeFailCausedAbort,false);
     else if (unlikely(result != FetchResult_ok))
     {
@@ -2952,7 +2965,7 @@ NdbQueryImpl::closeTcCursor(bool forceSend)
       const FetchResult result = static_cast<FetchResult>
           (poll_guard.wait_scan(3*timeout, nodeId, forceSend));
 
-      if (unlikely(impl->getNodeSequence(nodeId) != seq))
+      if (unlikely(ndb->getNodeSequence(nodeId) != seq))
         setFetchTerminated(Err_NodeFailCausedAbort,false);
       else if (unlikely(result != FetchResult_ok))
       {
@@ -3186,18 +3199,19 @@ NdbQueryImpl::OrderedFragSet::reorganize()
     while(first<last)
     {
       assert(middle<m_activeFragCount);
-      switch(compare(*m_activeFrags[m_activeFragCount-1], 
-                     *m_activeFrags[middle]))
+      const int cmpRes = compare(*m_activeFrags[m_activeFragCount-1], 
+                                 *m_activeFrags[middle]);
+      if (cmpRes < 0)
       {
-      case -1:
         first = middle + 1;
-        break;
-      case 0:
+      }
+      else if (cmpRes == 0)
+      {
         last = first = middle;
-        break;
-      case 1:
+      }
+      else
+      {
         last = middle;
-        break;
       }
       middle = (first+last)/2;
     }
@@ -3246,7 +3260,7 @@ NdbQueryImpl::OrderedFragSet::add(NdbRootFragment& frag)
       int current = 0;
       // Insert the new frag such that the array remains sorted.
       while(current<m_activeFragCount && 
-            compare(frag, *m_activeFrags[current])==-1)
+            compare(frag, *m_activeFrags[current]) < 0)
       {
         current++;
       }
@@ -3290,7 +3304,7 @@ NdbQueryImpl::OrderedFragSet::verifySortOrder() const
 {
   for(int i = 0; i<m_activeFragCount-2; i++)
   {
-    if(compare(*m_activeFrags[i], *m_activeFrags[i+1])==-1)
+    if(compare(*m_activeFrags[i], *m_activeFrags[i+1]) < 0)
     {
       assert(false);
       return false;
@@ -3303,7 +3317,7 @@ NdbQueryImpl::OrderedFragSet::verifySortOrder() const
 /**
  * Compare frags such that f1<f2 if f1 is empty but f2 is not.
  * - Othewise compare record contents.
- * @return -1 if frag1<frag2, 0 if frag1 == frag2, otherwise 1.
+ * @return negative if frag1<frag2, 0 if frag1 == frag2, otherwise positive.
 */
 int
 NdbQueryImpl::OrderedFragSet::compare(const NdbRootFragment& frag1,

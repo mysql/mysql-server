@@ -2481,27 +2481,9 @@ void Qmgr::findNeighbours(Signal* signal, Uint32 from)
 /*---------------------------------------------------------------------------*/
 void Qmgr::initData(Signal* signal) 
 {
-  cfailureNr = 1;
-  ccommitFailureNr = 1;
-  cprepareFailureNr = 1;
-  cnoFailedNodes = 0;
-  cnoPrepFailedNodes = 0;
-  creadyDistCom = ZFALSE;
-  cpresident = ZNIL;
-  c_start.m_president_candidate = ZNIL;
-  c_start.m_president_candidate_gci = 0;
-  cpdistref = 0;
-  cneighbourh = ZNIL;
-  cneighbourl = ZNIL;
-  cdelayRegreq = ZDELAY_REGREQ;
-  cactivateApiCheck = 0;
-  c_allow_api_connect = 0;
-  ctoStatus = Q_NOT_ACTIVE;
-
   NDB_TICKS now = NdbTick_CurrentMillisecond();
   interface_check_timer.setDelay(1000);
   interface_check_timer.reset(now);
-  clatestTransactionCheck = 0;
 
   // catch-all for missing initializations
   memset(&arbitRec, 0, sizeof(arbitRec));
@@ -2946,23 +2928,71 @@ void Qmgr::checkStartInterface(Signal* signal, Uint64 now)
         if(((getNodeInfo(nodePtr.i).m_heartbeat_cnt + 1) % 60) == 0)
         {
           jam();
-	  char buf[100];
-	  BaseString::snprintf(buf, sizeof(buf), 
-                               "Failure handling of node %d has not completed"
-                               " in %d min - state = %d",
-                               nodePtr.i, 
-                               (getNodeInfo(nodePtr.i).m_heartbeat_cnt + 1)/60,
-                               nodePtr.p->failState);
-	  warningEvent("%s", buf);
-          if (((getNodeInfo(nodePtr.i).m_heartbeat_cnt + 1) % 300) == 0)
+	  char buf[256];
+          if (getNodeInfo(nodePtr.i).m_type == NodeInfo::DB)
           {
             jam();
-            /**
-             * Also dump DIH nf-state
-             */
-            signal->theData[0] = 7019;
-            signal->theData[1] = nodePtr.i;
-            sendSignal(DBDIH_REF, GSN_DUMP_STATE_ORD, signal, 2, JBB);
+            BaseString::snprintf(buf, sizeof(buf),
+                                 "Failure handling of node %d has not completed"
+                                 " in %d min - state = %d",
+                                 nodePtr.i,
+                                 (getNodeInfo(nodePtr.i).m_heartbeat_cnt+1)/60,
+                                 nodePtr.p->failState);
+            warningEvent("%s", buf);
+            if (((getNodeInfo(nodePtr.i).m_heartbeat_cnt + 1) % 300) == 0)
+            {
+              jam();
+              /**
+               * Also dump DIH nf-state
+               */
+              signal->theData[0] = 7019;
+              signal->theData[1] = nodePtr.i;
+              sendSignal(DBDIH_REF, GSN_DUMP_STATE_ORD, signal, 2, JBB);
+            }
+          }
+          else
+          {
+            jam();
+            BaseString::snprintf(buf, sizeof(buf),
+                                 "Failure handling of api %u has not completed"
+                                 " in %d min - state = %d",
+                                 nodePtr.i,
+                                 (getNodeInfo(nodePtr.i).m_heartbeat_cnt+1)/60,
+                                 nodePtr.p->failState);
+            warningEvent("%s", buf);
+            if (nodePtr.p->failState == WAITING_FOR_API_FAILCONF)
+            {
+              jam();
+              compile_time_assert(NDB_ARRAY_SIZE(nodePtr.p->m_failconf_blocks) == 5);
+              BaseString::snprintf(buf, sizeof(buf),
+                                   "  Waiting for blocks: %u %u %u %u %u",
+                                   nodePtr.p->m_failconf_blocks[0],
+                                   nodePtr.p->m_failconf_blocks[1],
+                                   nodePtr.p->m_failconf_blocks[2],
+                                   nodePtr.p->m_failconf_blocks[3],
+                                   nodePtr.p->m_failconf_blocks[4]);
+              warningEvent("%s", buf);
+
+              for (Uint32 i = 0; i<NDB_ARRAY_SIZE(nodePtr.p->m_failconf_blocks);
+                   i++)
+              {
+                jam();
+                if (nodePtr.p->m_failconf_blocks[i] != 0)
+                {
+                  jam();
+                  signal->theData[0] = 7019;
+                  signal->theData[1] = nodePtr.i;
+                  sendSignal(numberToRef(nodePtr.p->m_failconf_blocks[i],
+                                         getOwnNodeId()),
+                             GSN_DUMP_STATE_ORD, signal, 2, JBB);
+                }
+                else
+                {
+                  jam();
+                  break;
+                }
+              }
+            }
           }
 	}
       }
@@ -2987,7 +3017,7 @@ void Qmgr::sendApiFailReq(Signal* signal, Uint16 failedNodeNo, bool sumaOnly)
 {
   jamEntry();
   signal->theData[0] = failedNodeNo;
-  signal->theData[1] = QMGR_REF; 
+  signal->theData[1] = QMGR_REF;
 
   /* We route the ApiFailReq signals via CMVMI
    * This is done to ensure that they are received after
@@ -3000,11 +3030,17 @@ void Qmgr::sendApiFailReq(Signal* signal, Uint16 failedNodeNo, bool sumaOnly)
                              &signal->theData[0],
                              2));
   SectionHandle handle(this, routedSignalSectionI);
-  
+
   /* RouteOrd data */
   RouteOrd* routeOrd = (RouteOrd*) &signal->theData[0];
   routeOrd->srcRef = reference();
   routeOrd->gsn = GSN_API_FAILREQ;
+
+  NodeRecPtr failedNodePtr;
+  failedNodePtr.i = failedNodeNo;
+  ptrCheckGuard(failedNodePtr, MAX_NODES, nodeRec);
+  failedNodePtr.p->failState = WAITING_FOR_API_FAILCONF;
+
 
   /* Send ROUTE_ORD signals to CMVMI via JBA
    * CMVMI will then immediately send the API_FAILREQ
@@ -3015,16 +3051,20 @@ void Qmgr::sendApiFailReq(Signal* signal, Uint16 failedNodeNo, bool sumaOnly)
    */
   if (!sumaOnly)
   {
+    jam();
+    add_failconf_block(failedNodePtr, DBTC);
     routeOrd->dstRef = DBTC_REF;
     sendSignalNoRelease(CMVMI_REF, GSN_ROUTE_ORD, signal,
                         RouteOrd::SignalLength,
                         JBA, &handle);
 
+    add_failconf_block(failedNodePtr, DBDICT);
     routeOrd->dstRef = DBDICT_REF;
     sendSignalNoRelease(CMVMI_REF, GSN_ROUTE_ORD, signal,
                         RouteOrd::SignalLength,
                         JBA, &handle);
 
+    add_failconf_block(failedNodePtr, DBSPJ);
     routeOrd->dstRef = DBSPJ_REF;
     sendSignalNoRelease(CMVMI_REF, GSN_ROUTE_ORD, signal,
                         RouteOrd::SignalLength,
@@ -3032,11 +3072,11 @@ void Qmgr::sendApiFailReq(Signal* signal, Uint16 failedNodeNo, bool sumaOnly)
   }
 
   /* Suma always notified */
+  add_failconf_block(failedNodePtr, SUMA);
   routeOrd->dstRef = SUMA_REF;
   sendSignal(CMVMI_REF, GSN_ROUTE_ORD, signal,
              RouteOrd::SignalLength,
              JBA, &handle);
-
 }//Qmgr::sendApiFailReq()
 
 void Qmgr::execAPI_FAILREQ(Signal* signal)
@@ -3060,35 +3100,118 @@ void Qmgr::execAPI_FAILCONF(Signal* signal)
   failedNodePtr.i = signal->theData[0];  
   ptrCheckGuard(failedNodePtr, MAX_NODES, nodeRec);
 
-  if (failedNodePtr.p->failState == WAITING_FOR_FAILCONF1)
+  Uint32 block = refToMain(signal->theData[1]);
+  if (failedNodePtr.p->failState != WAITING_FOR_API_FAILCONF ||
+      !remove_failconf_block(failedNodePtr, block))
   {
     jam();
-    failedNodePtr.p->failState = WAITING_FOR_FAILCONF2;
-  }
-  else if (failedNodePtr.p->failState == WAITING_FOR_FAILCONF2)
-  {
-    jam();
-    failedNodePtr.p->failState = WAITING_FOR_FAILCONF3;
-  }
-  else if (failedNodePtr.p->failState == WAITING_FOR_FAILCONF3)
-  {
-    jam();
-    failedNodePtr.p->failState = WAITING_FOR_FAILCONF4;
-  }
-  else if (failedNodePtr.p->failState == WAITING_FOR_FAILCONF4)
+    ndbout << "execAPI_FAILCONF from " << block
+           << " failedNodePtr.p->failState = "
+	   << (Uint32)(failedNodePtr.p->failState)
+           << " blocks: ";
+    for (Uint32 i = 0;i<NDB_ARRAY_SIZE(failedNodePtr.p->m_failconf_blocks);i++)
+    {
+      printf("%u ", failedNodePtr.p->m_failconf_blocks[i]);
+    }
+    ndbout << endl;
+    systemErrorLab(signal, __LINE__);
+  }//if
+
+  if (is_empty_failconf_block(failedNodePtr))
   {
     jam();
     failedNodePtr.p->failState = NORMAL;
+
+    /**
+     * When we set this state, connection will later be opened
+     *   in checkStartInterface
+     */
   }
-  else
-  {
-    jam();
-    ndbout << "failedNodePtr.p->failState = "
-	   << (Uint32)(failedNodePtr.p->failState) << endl;
-    systemErrorLab(signal, __LINE__);
-  }//if
   return;
 }//Qmgr::execAPI_FAILCONF()
+
+void
+Qmgr::add_failconf_block(NodeRecPtr nodePtr, Uint32 block)
+{
+  // Check that it does not already exists!!
+  Uint32 pos = 0;
+  for (; pos < NDB_ARRAY_SIZE(nodePtr.p->m_failconf_blocks); pos++)
+  {
+    jam();
+    if (nodePtr.p->m_failconf_blocks[pos] == 0)
+    {
+      jam();
+      break;
+    }
+    else if (nodePtr.p->m_failconf_blocks[pos] == block)
+    {
+      jam();
+      break;
+    }
+  }
+
+  ndbrequire(pos != NDB_ARRAY_SIZE(nodePtr.p->m_failconf_blocks));
+  ndbassert(nodePtr.p->m_failconf_blocks[pos] != block);
+  if (nodePtr.p->m_failconf_blocks[pos] == block)
+  {
+    jam();
+    /**
+     * Already in list!!
+     */
+#ifdef ERROR_INSERT
+    ndbrequire(false);
+#endif
+    return;
+  }
+  ndbrequire(nodePtr.p->m_failconf_blocks[pos] == 0);
+  nodePtr.p->m_failconf_blocks[pos] = block;
+}
+
+bool
+Qmgr::remove_failconf_block(NodeRecPtr nodePtr, Uint32 block)
+{
+  // Check that it does exists!!
+  Uint32 pos = 0;
+  for (; pos < NDB_ARRAY_SIZE(nodePtr.p->m_failconf_blocks); pos++)
+  {
+    jam();
+    if (nodePtr.p->m_failconf_blocks[pos] == 0)
+    {
+      jam();
+      break;
+    }
+    else if (nodePtr.p->m_failconf_blocks[pos] == block)
+    {
+      jam();
+      break;
+    }
+  }
+
+  if (pos == NDB_ARRAY_SIZE(nodePtr.p->m_failconf_blocks) ||
+      nodePtr.p->m_failconf_blocks[pos] != block)
+  {
+    jam();
+    /**
+     * Not found!!
+     */
+    return false;
+  }
+
+  nodePtr.p->m_failconf_blocks[pos] = 0;
+  for (pos++; pos < NDB_ARRAY_SIZE(nodePtr.p->m_failconf_blocks); pos++)
+  {
+    jam();
+    nodePtr.p->m_failconf_blocks[pos - 1] = nodePtr.p->m_failconf_blocks[pos];
+  }
+
+  return true;
+}
+
+bool
+Qmgr::is_empty_failconf_block(NodeRecPtr nodePtr) const
+{
+  return nodePtr.p->m_failconf_blocks[0] == 0;
+}
 
 void Qmgr::execNDB_FAILCONF(Signal* signal) 
 {
@@ -3605,6 +3728,7 @@ Qmgr::execAPI_VERSION_REQ(Signal * signal) {
   else
   {
     conf->version =  0;
+    conf->mysql_version =  0;
     conf->inet_addr= 0;
   }
   conf->nodeId = nodeId;
@@ -3786,7 +3910,7 @@ void Qmgr::failReportLab(Signal* signal, Uint16 aFailedNode,
       msg = "Start timeout";
       break;
     case FailRep::ZHEARTBEAT_FAILURE:
-      msg = "Hearbeat failure";
+      msg = "Heartbeat failure";
       break;
     case FailRep::ZLINK_FAILURE:
       msg = "Connection failure";
@@ -4017,7 +4141,6 @@ void Qmgr::handleApiCloseComConf(Signal* signal)
          */
         jam();
         sendApiFailReq(signal, nodeId, false); // !sumaOnly
-        failedNodePtr.p->failState = WAITING_FOR_FAILCONF1;
         arbitRec.code = ArbitCode::ApiFail;
         handleArbitApiFail(signal, nodeId);
       }
@@ -4028,7 +4151,6 @@ void Qmgr::handleApiCloseComConf(Signal* signal)
          */
         jam();
         sendApiFailReq(signal, nodeId, true); // sumaOnly
-        failedNodePtr.p->failState = WAITING_FOR_FAILCONF4;
       }
       
       if (getNodeInfo(failedNodePtr.i).getType() == NodeInfo::MGM)

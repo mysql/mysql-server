@@ -38,7 +38,6 @@ class NdbIndexScanOperation;
 class NdbBlob;
 class NdbIndexStat;
 class NdbEventOperation;
-class NdbInterpretedCode;
 class ha_ndbcluster_cond;
 class Ndb_event_data;
 
@@ -64,12 +63,6 @@ typedef struct ndb_index_data {
   const NdbDictionary::Index *unique_index;
   unsigned char *unique_index_attrid_map;
   bool null_in_unique_index;
-  // In this version stats are not shared between threads
-  NdbIndexStat* index_stat;
-  uint index_stat_cache_entries;
-  // Simple counter mechanism to decide when to connect to db
-  uint index_stat_update_freq;
-  uint index_stat_query_count;
   /*
     In mysqld, keys and rows are stored differently (using KEY_PART_INFO for
     keys and Field for rows).
@@ -172,6 +165,25 @@ inline void set_binlog_use_update(NDB_SHARE *share)
 inline my_bool get_binlog_use_update(NDB_SHARE *share)
 { return (share->flags & NSF_BINLOG_USE_UPDATE) != 0; }
 
+/*
+  State associated with the Slave thread
+  (From the Ndb handler's point of view)
+*/
+struct st_ndb_slave_state
+{
+  /* Counter values for current slave transaction */
+  Uint32 current_conflict_defined_op_count;
+  Uint32 current_violation_count[CFT_NUMBER_OF_CFTS];
+
+  /* Cumulative counter values */
+  Uint64 total_violation_count[CFT_NUMBER_OF_CFTS];
+
+  /* Methods */
+  void atTransactionCommit();
+  void atTransactionAbort();
+
+  st_ndb_slave_state();
+};
 
 struct Ndb_local_table_statistics {
   int no_uncommitted_rows_count;
@@ -181,6 +193,24 @@ struct Ndb_local_table_statistics {
 
 #include "ndb_thd_ndb.h"
 
+struct st_ndb_status {
+  st_ndb_status() { bzero(this, sizeof(struct st_ndb_status)); }
+  long cluster_node_id;
+  const char * connected_host;
+  long connected_port;
+  long number_of_replicas;
+  long number_of_data_nodes;
+  long number_of_ready_data_nodes;
+  long connect_count;
+  long execute_count;
+  long scan_count;
+  long pruned_scan_count;
+  long schema_locks_count;
+  long transaction_no_hint_count[MAX_NDB_NODES];
+  long transaction_hint_count[MAX_NDB_NODES];
+  long long api_client_stats[Ndb::NumClientStatistics];
+};
+
 int ndbcluster_commit(handlerton *hton, THD *thd, bool all);
 class ha_ndbcluster: public handler
 {
@@ -188,15 +218,13 @@ class ha_ndbcluster: public handler
   ha_ndbcluster(handlerton *hton, TABLE_SHARE *table);
   ~ha_ndbcluster();
 
-#ifndef NDB_WITHOUT_READ_BEFORE_WRITE_REMOVAL
-  void column_bitmaps_signal(uint sig_type);
-#endif
   int open(const char *name, int mode, uint test_if_locked);
   int close(void);
   void local_close(THD *thd, bool release_metadata);
 
   int optimize(THD* thd, HA_CHECK_OPT* check_opt);
   int analyze(THD* thd, HA_CHECK_OPT* check_opt);
+  int analyze_index(THD* thd);
 
   int write_row(uchar *buf);
   int update_row(const uchar *old_data, uchar *new_data);
@@ -248,6 +276,7 @@ class ha_ndbcluster: public handler
 #endif
   void get_dynamic_partition_info(PARTITION_STATS *stat_info, uint part_id);
   uint32 calculate_key_hash_value(Field **field_array);
+  bool read_before_write_removal_supported() const { return true; }
   bool read_before_write_removal_possible();
   ha_rows read_before_write_removal_rows_written(void) const;
   int extra(enum ha_extra_function operation);
@@ -396,20 +425,12 @@ static void set_tabname(const char *pathname, char *tabname);
 
 private:
 #ifdef HAVE_NDB_BINLOG
-  int delete_row_conflict_fn(enum_conflict_fn_type cft,
-                             const uchar *old_data,
-                             NdbInterpretedCode *);
-  int write_row_conflict_fn(enum_conflict_fn_type cft,
-                            uchar *data,
-                            NdbInterpretedCode *);
-  int update_row_conflict_fn(enum_conflict_fn_type cft,
-                             const uchar *old_data,
-                             uchar *new_data,
-                             NdbInterpretedCode *);
-  int row_conflict_fn_max(const uchar *new_data,
-                          NdbInterpretedCode *);
-  int row_conflict_fn_old(const uchar *old_data,
-                          NdbInterpretedCode *);
+  int prepare_conflict_detection(enum_conflicting_op_type op_type,
+                                 const NdbRecord* key_rec,
+                                 const uchar* old_data,
+                                 const uchar* new_data,
+                                 NdbInterpretedCode* code,
+                                 NdbOperation::OperationOptions* options);
 #endif
   void setup_key_ref_for_ndb_record(const NdbRecord **key_rec,
                                     const uchar **key_row,
@@ -562,6 +583,21 @@ private:
   void no_uncommitted_rows_update(int);
   void no_uncommitted_rows_reset(THD *);
 
+  /* Ordered index statistics v4 */
+  int ndb_index_stat_get_rir(uint inx,
+                             key_range *min_key,
+                             key_range *max_key,
+                             ha_rows *rows_out);
+  int ndb_index_stat_set_rpk(uint inx);
+  int ndb_index_stat_wait(struct Ndb_index_stat *st,
+                          uint sample_version);
+  int ndb_index_stat_query(uint inx,
+                           const key_range *min_key,
+                           const key_range *max_key,
+                           NdbIndexStat::Stat& stat);
+  int ndb_index_stat_analyze(Ndb *ndb,
+                             uint *inx_list,
+                             uint inx_count);
 
   NdbTransaction *start_transaction_part_id(uint32 part_id, int &error);
   inline NdbTransaction *get_transaction_part_id(uint32 part_id, int &error)
@@ -638,7 +674,6 @@ private:
   int m_current_range_no;
 
   MY_BITMAP **m_key_fields;
-  MY_BITMAP m_save_read_set;
   // NdbRecAttr has no reference to blob
   NdbValue m_value[NDB_MAX_ATTRIBUTES_IN_TABLE];
   Uint64 m_ref;
@@ -698,8 +733,6 @@ private:
 
 int ndbcluster_discover(THD* thd, const char* dbname, const char* name,
                         const void** frmblob, uint* frmlen);
-int ndbcluster_find_files(THD *thd,const char *db,const char *path,
-                          const char *wild, bool dir, List<LEX_STRING> *files);
 int ndbcluster_table_exists_in_engine(THD* thd,
                                       const char *db, const char *name);
 void ndbcluster_print_error(int error, const NdbOperation *error_op);
@@ -709,3 +742,5 @@ static const int ndbcluster_hton_name_length=sizeof(ndbcluster_hton_name)-1;
 extern int ndbcluster_terminating;
 extern int ndb_util_thread_running;
 extern pthread_cond_t COND_ndb_util_ready;
+extern int ndb_index_stat_thread_running;
+extern pthread_cond_t COND_ndb_index_stat_ready;

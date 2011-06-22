@@ -400,6 +400,8 @@ int HugoOperations::pkUpdateRecord(Ndb* pNdb,
     Uint32 partId;
     if(getPartIdForRow(pOp, r+recordNo, partId))
       pOp->setPartitionId(partId);
+
+    pOp->setAnyValue(getAnyValueForRowUpd(r+recordNo, updatesValue));
     
   }
   return NDBT_OK;
@@ -563,6 +565,47 @@ int HugoOperations::pkDeleteRecord(Ndb* pNdb,
     Uint32 partId;
     if(getPartIdForRow(pOp, r+recordNo, partId))
       pOp->setPartitionId(partId);
+  }
+  return NDBT_OK;
+}
+
+int HugoOperations::pkRefreshRecord(Ndb* pNdb,
+                                    int recordNo,
+                                    int numRecords,
+                                    int anyValueInfo){
+
+  char buffer[NDB_MAX_TUPLE_SIZE];
+  const NdbDictionary::Table * pTab =
+    pNdb->getDictionary()->getTable(tab.getName());
+
+  if (pTab == 0)
+  {
+    return NDBT_FAILED;
+  }
+
+  const NdbRecord * record = pTab->getDefaultRecord();
+  NdbOperation::OperationOptions opts;
+  opts.optionsPresent = NdbOperation::OperationOptions::OO_ANYVALUE;
+  for(int r=0; r < numRecords; r++)
+  {
+    bzero(buffer, sizeof(buffer));
+    if (calc.equalForRow((Uint8*)buffer, record, r + recordNo))
+    {
+      return NDBT_FAILED;
+    }
+
+    opts.anyValue = anyValueInfo?
+      (anyValueInfo << 16) | (r+recordNo) :
+      0;
+
+    const NdbOperation* pOp = pTrans->refreshTuple(record, buffer,
+                                                   &opts, sizeof(opts));
+    if (pOp == NULL)
+    {
+      ERR(pTrans->getNdbError());
+      setNdbError(pTrans->getNdbError());
+      return NDBT_FAILED;
+    }
   }
   return NDBT_OK;
 }
@@ -762,7 +805,8 @@ HugoOperations::HugoOperations(const NdbDictionary::Table& _tab,
   UtilTransactions(_tab, idx),
   pIndexScanOp(NULL),
   calc(_tab),
-  m_quiet(false)
+  m_quiet(false),
+  avCallback(NULL)
 {
 }
 
@@ -1158,6 +1202,22 @@ void
 HugoOperations::setNdbError(const NdbError& error)
 {
   m_error.code = error.code ? error.code : 1;
+}
+
+void
+HugoOperations::setAnyValueCallback(AnyValueCallback avc)
+{
+  avCallback = avc;
+}
+
+Uint32
+HugoOperations::getAnyValueForRowUpd(int row, int update)
+{
+  if (avCallback == NULL)
+    return 0;
+
+  return (avCallback)(pTrans->getNdb(), pTrans,
+                      row, update);
 }
 
 template class Vector<HugoOperations::RsPair>;

@@ -42,7 +42,6 @@
 #include <signaldata/SchemaTrans.hpp>
 #include <signaldata/CreateNodegroup.hpp>
 #include <signaldata/DropNodegroup.hpp>
-#include <signaldata/DbinfoScan.hpp>
 #include <signaldata/Sync.hpp>
 #include <NdbSleep.h>
 #include <portlib/NdbDir.hpp>
@@ -835,59 +834,34 @@ MgmtSrvr::start(int nodeId)
  * Version handling
  *****************************************************************************/
 
-int 
-MgmtSrvr::versionNode(int nodeId, Uint32 &version, Uint32& mysql_version,
-		      const char **address)
+void
+MgmtSrvr::status_api(int nodeId,
+                     ndb_mgm_node_status& node_status,
+                     Uint32& version, Uint32& mysql_version,
+                     const char **address)
 {
-  version= 0;
-  mysql_version = 0;
-  if (getOwnNodeId() == nodeId)
+  assert(getNodeType(nodeId) == NDB_MGM_NODE_TYPE_API);
+  assert(version == 0 && mysql_version == 0);
+
+  if (sendVersionReq(nodeId, version, mysql_version, address) != 0)
   {
-    /**
-     * If we're inquiring about our own node id,
-     * We know what version we are (version implies connected for mgm)
-     * but would like to find out from elsewhere what address they're using
-     * to connect to us. This means that secondary mgm servers
-     * can list ip addresses for mgm servers.
-     *
-     * If we don't get an address (i.e. no db nodes),
-     * we get the address from the configuration.
-     */
-    sendVersionReq(nodeId, version, mysql_version, address);
-    version= NDB_VERSION;
-    mysql_version = NDB_MYSQL_VERSION_D;
-    if(!*address)
-    {
-      Guard g(m_local_config_mutex);
-      ConfigIter iter(m_local_config, CFG_SECTION_NODE);
-      unsigned tmp= 0;
-      for(iter.first();iter.valid();iter.next())
-      {
-	if(iter.get(CFG_NODE_ID, &tmp)) require(false);
-	if((unsigned)nodeId!=tmp)
-	  continue;
-	if(iter.get(CFG_NODE_HOST, address)) require(false);
-	break;
-      }
-    }
-  }
-  else if (getNodeType(nodeId) == NDB_MGM_NODE_TYPE_NDB)
-  {
-    trp_node node = getNodeInfo(nodeId);
-    if(node.is_connected())
-    {
-      version= node.m_info.m_version;
-      mysql_version = node.m_info.m_mysql_version;
-    }
-    *address= get_connect_address(nodeId);
-  }
-  else if (getNodeType(nodeId) == NDB_MGM_NODE_TYPE_API ||
-	   getNodeType(nodeId) == NDB_MGM_NODE_TYPE_MGM)
-  {
-    return sendVersionReq(nodeId, version, mysql_version, address);
+    // Couldn't get version from any NDB node.
+    assert(version == 0);
+    node_status = NDB_MGM_NODE_STATUS_UNKNOWN;
+    return;
   }
 
-  return 0;
+  if (version)
+  {
+    assert(mysql_version);
+    node_status = NDB_MGM_NODE_STATUS_CONNECTED;
+  }
+  else
+  {
+    assert(mysql_version == 0);
+    node_status = NDB_MGM_NODE_STATUS_NO_CONTACT;
+  }
+  return;
 }
 
 
@@ -907,8 +881,8 @@ MgmtSrvr::sendVersionReq(int v_nodeId,
   ssig.set(ss, TestOrd::TraceAPI, QMGR,
            GSN_API_VERSION_REQ, ApiVersionReq::SignalLength);
 
-  NodeId nodeId;
-  int do_send = 1;
+  NodeId nodeId = 0;
+  bool do_send = true;
   while(true)
   {
     if (do_send)
@@ -924,7 +898,7 @@ MgmtSrvr::sendVersionReq(int v_nodeId,
         return SEND_OR_RECEIVE_FAILED;
       }
 
-      do_send = 0;
+      do_send = false;
     }
 
     SimpleSignal *signal = ss.waitFor();
@@ -951,7 +925,7 @@ MgmtSrvr::sendVersionReq(int v_nodeId,
       const NFCompleteRep * const rep =
 	CAST_CONSTPTR(NFCompleteRep, signal->getDataPtr());
       if (rep->failedNodeId == nodeId)
-	do_send = 1; // retry with other node
+	do_send = true; // retry with other node
       continue;
     }
 
@@ -959,7 +933,7 @@ MgmtSrvr::sendVersionReq(int v_nodeId,
       const NodeFailRep * const rep =
 	CAST_CONSTPTR(NodeFailRep, signal->getDataPtr());
       if (NdbNodeBitmask::get(rep->theNodes,nodeId))
-	do_send = 1; // retry with other node
+	do_send = true; // retry with other node
       continue;
     }
     case GSN_API_REGCONF:
@@ -1486,11 +1460,11 @@ int MgmtSrvr::shutdownMGM(int *stopCount, bool abort, int *stopSelf)
     error= sendStopMgmd(nodeId, abort, true, false,
                         false, false);
     if (error == 0)
-      *stopCount++;
+      (*stopCount)++;
   }
 
   *stopSelf= 1;
-  *stopCount++;
+  (*stopCount)++;
 
   return 0;
 }
@@ -1898,6 +1872,75 @@ MgmtSrvr::updateStatus()
   theFacade->ext_forceHB();
 }
 
+
+void
+MgmtSrvr::status_mgmd(NodeId node_id,
+                      ndb_mgm_node_status& node_status,
+                      Uint32& version, Uint32& mysql_version,
+                      const char **address)
+{
+  assert(getNodeType(node_id) == NDB_MGM_NODE_TYPE_MGM);
+
+  if (node_id == getOwnNodeId())
+  {
+    /*
+      Special case to get version of own node
+      - version and mysql_version is hardcoded
+      - address should be the address seen from ndbd(if it's connected)
+        else use HostName from config
+    */
+    Uint32 tmp_version = 0, tmp_mysql_version = 0;
+    sendVersionReq(node_id, tmp_version, tmp_mysql_version, address);
+    // Check that the version returned is equal to compiled in version
+    assert(tmp_version == 0 ||
+           (tmp_version == NDB_VERSION &&
+            tmp_mysql_version == NDB_MYSQL_VERSION_D));
+
+    version = NDB_VERSION;
+    mysql_version = NDB_MYSQL_VERSION_D;
+    if(!*address)
+    {
+      // No address returned from ndbd -> get HostName from config
+      Guard g(m_local_config_mutex);
+      ConfigIter iter(m_local_config, CFG_SECTION_NODE);
+      require(iter.find(CFG_NODE_ID, node_id) == 0);
+      require(iter.get(CFG_NODE_HOST, address) == 0);
+
+      /*
+        Try to convert HostName to numerical ip address
+        (to get same output as if ndbd had replied)
+      */
+      struct in_addr addr;
+      if (Ndb_getInAddr(&addr, *address) == 0)
+        *address = inet_ntoa(addr);
+    }
+
+    node_status = NDB_MGM_NODE_STATUS_CONNECTED;
+    return;
+  }
+
+  /*
+    MGM nodes are connected directly to all other MGM
+    node(s), return status as seen by ClusterMgr
+  */
+  const trp_node node = getNodeInfo(node_id);
+  if(node.is_connected())
+  {
+    version = node.m_info.m_version;
+    mysql_version = node.m_info.m_mysql_version;
+    node_status = NDB_MGM_NODE_STATUS_CONNECTED;
+    *address= get_connect_address(node_id);
+  }
+  else
+  {
+    version = 0;
+    mysql_version = 0;
+    node_status = NDB_MGM_NODE_STATUS_NO_CONTACT;
+  }
+
+  return;
+}
+
 int 
 MgmtSrvr::status(int nodeId, 
                  ndb_mgm_node_status * _status, 
@@ -1910,24 +1953,38 @@ MgmtSrvr::status(int nodeId,
 		 Uint32 * connectCount,
 		 const char **address)
 {
-  if (getNodeType(nodeId) == NDB_MGM_NODE_TYPE_API ||
-      getNodeType(nodeId) == NDB_MGM_NODE_TYPE_MGM) {
-    versionNode(nodeId, *version, *mysql_version, address);
-  } else {
-    *address= get_connect_address(nodeId);
+  switch(getNodeType(nodeId)){
+  case NDB_MGM_NODE_TYPE_API:
+    status_api(nodeId, *_status, *version, *mysql_version, address);
+    return 0;
+    break;
+
+  case NDB_MGM_NODE_TYPE_MGM:
+    status_mgmd(nodeId, *_status, *version, *mysql_version, address);
+    return 0;
+    break;
+
+  case NDB_MGM_NODE_TYPE_NDB:
+    break;
+
+  default:
+    abort();
+    break;
   }
 
   const trp_node node = getNodeInfo(nodeId);
+  assert(getNodeType(nodeId) == NDB_MGM_NODE_TYPE_NDB &&
+         node.m_info.getType() == NodeInfo::DB);
 
   if(!node.is_connected()){
     * _status = NDB_MGM_NODE_STATUS_NO_CONTACT;
     return 0;
   }
-  
-  if (getNodeType(nodeId) == NDB_MGM_NODE_TYPE_NDB) {
-    * version = node.m_info.m_version;
-    * mysql_version = node.m_info.m_mysql_version;
-  }
+
+  * version = node.m_info.m_version;
+  * mysql_version = node.m_info.m_mysql_version;
+
+  *address= get_connect_address(nodeId);
 
   * dynamic = node.m_state.dynamicId;
   * nodegroup = node.m_state.nodeGroup;
@@ -2792,9 +2849,10 @@ MgmtSrvr::getNodeType(NodeId nodeId) const
 
 const char *MgmtSrvr::get_connect_address(Uint32 node_id)
 {
-  if (m_connect_address[node_id].s_addr == 0 &&
-      theFacade &&
-      getNodeType(node_id) == NDB_MGM_NODE_TYPE_NDB) 
+  if (theFacade &&
+      m_connect_address[node_id].s_addr == 0 &&
+      (getNodeType(node_id) == NDB_MGM_NODE_TYPE_MGM ||
+       getNodeType(node_id) == NDB_MGM_NODE_TYPE_NDB))
   {
     const trp_node &node= getNodeInfo(node_id);
     if (node.is_connected())
@@ -3763,11 +3821,12 @@ MgmtSrvr::getConnectionDbParameter(int node1, int node2,
 }
 
 
-bool MgmtSrvr::transporter_connect(NDB_SOCKET_TYPE sockfd)
+bool
+MgmtSrvr::transporter_connect(NDB_SOCKET_TYPE sockfd, BaseString& msg)
 {
   DBUG_ENTER("MgmtSrvr::transporter_connect");
   TransporterRegistry* tr= theFacade->get_registry();
-  if (!tr->connect_server(sockfd))
+  if (!tr->connect_server(sockfd, msg))
     DBUG_RETURN(false);
 
   /*

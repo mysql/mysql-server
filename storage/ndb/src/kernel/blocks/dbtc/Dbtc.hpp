@@ -140,10 +140,18 @@
 #define ZUNLOCKED_IVAL_TOO_HIGH 294
 #define ZUNLOCKED_OP_HAS_BAD_STATE 295 
 #define ZBAD_DIST_KEY 298
+#define ZTRANS_TOO_BIG 261
 #endif
 
 class Dbtc: public SimulatedBlock {
 public:
+
+  /**
+   * Incase of mt-TC...only one instance will perform actual take-over
+   *   let this be TAKE_OVER_INSTANCE
+   */
+  STATIC_CONST( TAKE_OVER_INSTANCE = 1 );
+
   enum ConnectionState {
     CS_CONNECTED = 0,
     CS_DISCONNECTED = 1,
@@ -715,6 +723,7 @@ public:
     };
 
     Uint32 no_commit_ack_markers;
+    Uint32 m_write_count;
     ReturnSignal returnsignal;
     AbortState abortState;
 
@@ -1694,6 +1703,7 @@ private:
   void checkNodeFailComplete(Signal* signal, Uint32 failedNodeId, Uint32 bit);
 
   void apiFailBlockCleanupCallback(Signal* signal, Uint32 failedNodeId, Uint32 ignoredRc);
+  bool isRefreshSupported() const;
   
   // Initialisation
   void initData();
@@ -2094,6 +2104,7 @@ private:
   Uint32 c_lastFailedApi;
 #endif
   Uint32 m_deferred_enabled;
+  Uint32 m_max_writes_per_trans;
 };
 
 #endif

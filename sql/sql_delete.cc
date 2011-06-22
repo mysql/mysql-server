@@ -59,6 +59,9 @@ bool mysql_delete(THD *thd, TABLE_LIST *table_list, COND *conds,
   bool          const_cond_result;
   ha_rows	deleted= 0;
   bool          reverse= FALSE;
+#ifndef MCP_WL5906
+  bool          read_removal= false;
+#endif
   bool          skip_record;
   ORDER *order= (ORDER *) ((order_list && order_list->elements) ?
                            order_list->first : NULL);
@@ -291,6 +294,33 @@ bool mysql_delete(THD *thd, TABLE_LIST *table_list, COND *conds,
   else
     will_batch= !table->file->start_bulk_delete();
 
+#ifndef MCP_WL5906
+  /*
+    Read removal is possible if the selected quick read
+    method is using full unique index
+  */
+  if (select && select->quick &&
+      will_batch &&
+      !using_limit &&
+      table->file->read_before_write_removal_supported())
+  {
+    const uint idx = select->quick->index;
+    DBUG_PRINT("rbwr", ("checking index: %d", idx));
+    const KEY *key= table->key_info + idx;
+    if ((key->flags & HA_NOSAME) == HA_NOSAME)
+    {
+      DBUG_PRINT("rbwr", ("index is unique"));
+      bitmap_clear_all(&table->tmp_set);
+      table->mark_columns_used_by_index_no_reset(idx, &table->tmp_set);
+      if (bitmap_cmp(&table->tmp_set, table->read_set))
+      {
+        DBUG_PRINT("rbwr", ("using whole index, rbwr possible"));
+        read_removal=
+          table->file->read_before_write_removal_possible();
+      }
+    }
+  }
+#endif
 
   table->mark_columns_needed_for_delete();
 
@@ -353,6 +383,15 @@ bool mysql_delete(THD *thd, TABLE_LIST *table_list, COND *conds,
       table->file->print_error(loc_error,MYF(0));
     error=1;
   }
+#ifndef MCP_WL5906
+  if (read_removal)
+  {
+    /* Only handler knows how many records really was written */
+    DBUG_PRINT("rbwr", ("old deleted: %ld", (long)deleted));
+    deleted= table->file->read_before_write_removal_rows_written();
+    DBUG_PRINT("rbwr", ("really deleted: %ld", (long)deleted));
+  }
+#endif
   thd_proc_info(thd, "end");
   end_read_record(&info);
   if (options & OPTION_QUICK)
