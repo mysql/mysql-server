@@ -56,6 +56,7 @@ static ulong opt_ndb_wait_connected;
 ulong opt_ndb_wait_setup;
 static ulong opt_ndb_cache_check_time;
 static uint opt_ndb_cluster_connection_pool;
+static char* opt_ndb_index_stat_option;
 static char* opt_ndb_connectstring;
 static uint opt_ndb_nodeid;
 
@@ -169,7 +170,7 @@ static MYSQL_THDVAR_BOOL(
 static MYSQL_THDVAR_ULONG(
   index_stat_cache_entries,          /* name */
   PLUGIN_VAR_NOCMDARG,
-  "",
+  "Obsolete (ignored and will be removed later).",
   NULL,                              /* check func. */
   NULL,                              /* update func. */
   32,                                /* default */
@@ -182,7 +183,7 @@ static MYSQL_THDVAR_ULONG(
 static MYSQL_THDVAR_ULONG(
   index_stat_update_freq,            /* name */
   PLUGIN_VAR_NOCMDARG,
-  "",
+  "Obsolete (ignored and will be removed later).",
   NULL,                              /* check func. */
   NULL,                              /* update func. */
   20,                                /* default */
@@ -248,6 +249,15 @@ static MYSQL_THDVAR_UINT(
   1,                                 /* max */
   0                                  /* block */
 );
+
+/*
+  Required in index_stat.cc but available only from here
+  thanks to use of top level anonymous structs.
+*/
+bool ndb_index_stat_get_enable(THD *thd)
+{
+  return THDVAR(thd, index_stat_enable);
+}
 
 static int ndbcluster_end(handlerton *hton, ha_panic_function flag);
 static bool ndbcluster_show_status(handlerton *hton, THD*,
@@ -402,27 +412,27 @@ pthread_cond_t COND_ndb_util_thread;
 pthread_cond_t COND_ndb_util_ready;
 pthread_handler_t ndb_util_thread_func(void *arg);
 
+// Index stats thread variables
+pthread_t ndb_index_stat_thread;
+int ndb_index_stat_thread_running= 0;
+pthread_mutex_t LOCK_ndb_index_stat_thread;
+pthread_cond_t COND_ndb_index_stat_thread;
+pthread_cond_t COND_ndb_index_stat_ready;
+pthread_mutex_t ndb_index_stat_glob_mutex;
+pthread_mutex_t ndb_index_stat_list_mutex;
+pthread_mutex_t ndb_index_stat_stat_mutex;
+pthread_cond_t ndb_index_stat_stat_cond;
+pthread_handler_t ndb_index_stat_thread_func(void *arg);
+
+extern void ndb_index_stat_free(NDB_SHARE *share);
+extern void ndb_index_stat_end();
+
 /* Status variables shown with 'show status like 'Ndb%' */
 
-struct st_ndb_status {
-  st_ndb_status() { bzero(this, sizeof(struct st_ndb_status)); }
-  long cluster_node_id;
-  const char * connected_host;
-  long connected_port;
-  long number_of_replicas;
-  long number_of_data_nodes;
-  long number_of_ready_data_nodes;
-  long connect_count;
-  long execute_count;
-  long scan_count;
-  long pruned_scan_count;
-  long schema_locks_count;
-  long transaction_no_hint_count[MAX_NDB_NODES];
-  long transaction_hint_count[MAX_NDB_NODES];
-  long long api_client_stats[Ndb::NumClientStatistics];
-};
+struct st_ndb_status g_ndb_status;
 
-static struct st_ndb_status g_ndb_status;
+long g_ndb_status_index_stat_cache_query = 0;
+long g_ndb_status_index_stat_cache_clean = 0;
 
 long long g_event_data_count = 0;
 long long g_event_nondata_count = 0;
@@ -635,6 +645,11 @@ static int show_ndb_server_api_stats(THD *thd, SHOW_VAR *var, char *buff)
   return 0;
 }
 
+SHOW_VAR ndb_status_index_stat_variables[]= {
+  {"cache_query",     (char*) &g_ndb_status_index_stat_cache_query, SHOW_LONG},
+  {"cache_clean",     (char*) &g_ndb_status_index_stat_cache_clean, SHOW_LONG},
+  {NullS, NullS, SHOW_LONG}
+};
 
 /*
   Error handling functions
@@ -1107,7 +1122,19 @@ void ha_ndbcluster::set_rec_per_key()
     case ORDERED_INDEX:
       // 'Records pr. key' are unknown for non-unique indexes.
       // (May change when we get better index statistics.)
+    {
+      THD *thd= current_thd;
+      const bool index_stat_enable= THDVAR(NULL, index_stat_enable) &&
+                                    THDVAR(thd, index_stat_enable);
+      if (index_stat_enable)
+      {
+        int err= ndb_index_stat_set_rpk(i);
+        if (err == 0)
+          break;
+      }
+      // no fallback method...
       break;
+    }
     default:
       DBUG_ASSERT(false);
     }
@@ -2124,10 +2151,6 @@ static void ndb_init_index(NDB_INDEX_DATA &data)
   data.unique_index= NULL;
   data.index= NULL;
   data.unique_index_attrid_map= NULL;
-  data.index_stat=NULL;
-  data.index_stat_cache_entries=0;
-  data.index_stat_update_freq=0;
-  data.index_stat_query_count=0;
   data.ndb_record_key= NULL;
   data.ndb_unique_record_key= NULL;
   data.ndb_unique_record_row= NULL;
@@ -2138,10 +2161,6 @@ static void ndb_clear_index(NDBDICT *dict, NDB_INDEX_DATA &data)
   if (data.unique_index_attrid_map)
   {
     my_free((char*)data.unique_index_attrid_map, MYF(0));
-  }
-  if (data.index_stat)
-  {
-    delete data.index_stat;
   }
   if (data.ndb_unique_record_key)
     dict->releaseRecord(data.ndb_unique_record_key);
@@ -2214,25 +2233,6 @@ int ha_ndbcluster::add_index_handle(THD *thd, NDBDICT *dict, KEY *key_info,
       break;
     } while (1);
     m_index[index_no].index= index;
-    // ordered index - add stats
-    NDB_INDEX_DATA& d=m_index[index_no];
-    delete d.index_stat;
-    d.index_stat=NULL;
-    if (THDVAR(thd, index_stat_enable))
-    {
-      d.index_stat=new NdbIndexStat();
-      d.index_stat_cache_entries= THDVAR(thd, index_stat_cache_entries);
-      d.index_stat_update_freq= THDVAR(thd, index_stat_update_freq);
-      d.index_stat_query_count=0;
-      d.index_stat->alloc_cache(d.index_stat_cache_entries);
-      DBUG_PRINT("info", ("index %s stat=on cache_entries=%u update_freq=%u",
-                          index->getName(),
-                          d.index_stat_cache_entries,
-                          d.index_stat_update_freq));
-    } else
-    {
-      DBUG_PRINT("info", ("index %s stat=off", index->getName()));
-    }
   }
   if (idx_type == UNIQUE_ORDERED_INDEX || idx_type == UNIQUE_INDEX)
   {
@@ -3450,7 +3450,7 @@ count_key_columns(const KEY *key_info, const key_range *key)
 }
 
 /* Helper method to compute NDB index bounds. Note: does not set range_no. */
-static void
+void
 compute_index_bounds(NdbIndexScanOperation::IndexBound & bound,
                      const KEY *key_info,
                      const key_range *start_key, const key_range *end_key)
@@ -3501,6 +3501,11 @@ compute_index_bounds(NdbIndexScanOperation::IndexBound & bound,
     bound.high_key= NULL;
     bound.high_key_count= 0;
   }
+  DBUG_PRINT("info", ("start_flag=0x%x end_flag=0x%x"
+                      " lo_keys=%d lo_incl=%d hi_keys=%d hi_incl=%d",
+                      start_key?start_key->flag:0, end_key?end_key->flag:0,
+                      bound.low_key_count, bound.low_inclusive,
+                      bound.high_key_count, bound.high_inclusive));
 }
 
 /**
@@ -6051,9 +6056,11 @@ int ha_ndbcluster::info(uint flag)
     result= update_stats(thd, 1);
     break;
   }
-  if (flag & HA_STATUS_CONST)
+  /* RPK moved to variable part */
+  if (flag & HA_STATUS_VARIABLE)
   {
-    DBUG_PRINT("info", ("HA_STATUS_CONST"));
+    /* No meaningful way to return error */
+    DBUG_PRINT("info", ("rec_per_key"));
     set_rec_per_key();
   }
   if (flag & HA_STATUS_ERRKEY)
@@ -9802,7 +9809,51 @@ int ha_ndbcluster::ndb_optimize_table(THD* thd, uint delay)
 
 int ha_ndbcluster::analyze(THD* thd, HA_CHECK_OPT* check_opt)
 {
-  return update_stats(thd, 1);
+  int err;
+  if ((err= update_stats(thd, 1)) != 0)
+    return err;
+  const bool index_stat_enable= THDVAR(NULL, index_stat_enable) &&
+                                THDVAR(thd, index_stat_enable);
+  if (index_stat_enable)
+  {
+    if ((err= analyze_index(thd)) != 0)
+      return err;
+  }
+  return 0;
+}
+
+int
+ha_ndbcluster::analyze_index(THD *thd)
+{
+  DBUG_ENTER("ha_ndbcluster::analyze_index");
+
+  Thd_ndb *thd_ndb= get_thd_ndb(thd);
+  Ndb *ndb= thd_ndb->ndb;
+
+  uint inx_list[MAX_INDEXES];
+  uint inx_count= 0;
+
+  uint inx;
+  for (inx= 0; inx < table_share->keys; inx++)
+  {
+    NDB_INDEX_TYPE idx_type= get_index_type(inx);  
+
+    if ((idx_type == PRIMARY_KEY_ORDERED_INDEX ||
+         idx_type == UNIQUE_ORDERED_INDEX ||
+         idx_type == ORDERED_INDEX))
+    {
+      if (inx_count < MAX_INDEXES)
+        inx_list[inx_count++]= inx;
+    }
+  }
+
+  if (inx_count != 0)
+  {
+    int err= ndb_index_stat_analyze(ndb, inx_list, inx_count);
+    if (err != 0)
+      DBUG_RETURN(err);
+  }
+  DBUG_RETURN(0);
 }
 
 /*
@@ -10685,6 +10736,14 @@ static int ndbcluster_init(void *p)
   pthread_cond_init(&COND_ndb_util_ready, NULL);
   pthread_cond_init(&COND_ndb_setup_complete, NULL);
   ndb_util_thread_running= -1;
+  pthread_mutex_init(&LOCK_ndb_index_stat_thread, MY_MUTEX_INIT_FAST);
+  pthread_cond_init(&COND_ndb_index_stat_thread, NULL);
+  pthread_cond_init(&COND_ndb_index_stat_ready, NULL);
+  pthread_mutex_init(&ndb_index_stat_glob_mutex, MY_MUTEX_INIT_FAST);
+  pthread_mutex_init(&ndb_index_stat_list_mutex, MY_MUTEX_INIT_FAST);
+  pthread_mutex_init(&ndb_index_stat_stat_mutex, MY_MUTEX_INIT_FAST);
+  pthread_cond_init(&ndb_index_stat_stat_cond, NULL);
+  ndb_index_stat_thread_running= -1;
   ndbcluster_terminating= 0;
   ndb_dictionary_is_mysqld= 1;
   ndb_setup_complete= 0;
@@ -10779,6 +10838,44 @@ static int ndbcluster_init(void *p)
     goto ndbcluster_init_error;
   }
 
+  // Create index statistics thread
+  pthread_t tmp2;
+  if (pthread_create(&tmp2, &connection_attrib, ndb_index_stat_thread_func, 0))
+  {
+    DBUG_PRINT("error", ("Could not create ndb index statistics thread"));
+    my_hash_free(&ndbcluster_open_tables);
+    pthread_mutex_destroy(&ndbcluster_mutex);
+    pthread_mutex_destroy(&LOCK_ndb_index_stat_thread);
+    pthread_cond_destroy(&COND_ndb_index_stat_thread);
+    pthread_cond_destroy(&COND_ndb_index_stat_ready);
+    pthread_mutex_destroy(&ndb_index_stat_glob_mutex);
+    pthread_mutex_destroy(&ndb_index_stat_list_mutex);
+    pthread_mutex_destroy(&ndb_index_stat_stat_mutex);
+    pthread_cond_destroy(&ndb_index_stat_stat_cond);
+    goto ndbcluster_init_error;
+  }
+
+  /* Wait for the index statistics thread to start */
+  pthread_mutex_lock(&LOCK_ndb_index_stat_thread);
+  while (ndb_index_stat_thread_running < 0)
+    pthread_cond_wait(&COND_ndb_index_stat_ready, &LOCK_ndb_index_stat_thread);
+  pthread_mutex_unlock(&LOCK_ndb_index_stat_thread);
+  
+  if (!ndb_index_stat_thread_running)
+  {
+    DBUG_PRINT("error", ("ndb index statistics thread exited prematurely"));
+    my_hash_free(&ndbcluster_open_tables);
+    pthread_mutex_destroy(&ndbcluster_mutex);
+    pthread_mutex_destroy(&LOCK_ndb_index_stat_thread);
+    pthread_cond_destroy(&COND_ndb_index_stat_thread);
+    pthread_cond_destroy(&COND_ndb_index_stat_ready);
+    pthread_mutex_destroy(&ndb_index_stat_glob_mutex);
+    pthread_mutex_destroy(&ndb_index_stat_list_mutex);
+    pthread_mutex_destroy(&ndb_index_stat_stat_mutex);
+    pthread_cond_destroy(&ndb_index_stat_stat_cond);
+    goto ndbcluster_init_error;
+  }
+
 #ifndef NDB_NO_WAIT_SETUP
   ndb_wait_setup_func= ndb_wait_setup_func_impl;
 #endif
@@ -10808,6 +10905,15 @@ static int ndbcluster_end(handlerton *hton, ha_panic_function type)
     DBUG_RETURN(0);
   ndbcluster_inited= 0;
 
+  /* wait for index stat thread to finish */
+  sql_print_information("Stopping Cluster Index Statistics thread");
+  pthread_mutex_lock(&LOCK_ndb_index_stat_thread);
+  ndbcluster_terminating= 1;
+  pthread_cond_signal(&COND_ndb_index_stat_thread);
+  while (ndb_index_stat_thread_running > 0)
+    pthread_cond_wait(&COND_ndb_index_stat_ready, &LOCK_ndb_index_stat_thread);
+  pthread_mutex_unlock(&LOCK_ndb_index_stat_thread);
+
   /* wait for util and binlog thread to finish */
   ndbcluster_binlog_end(NULL);
 
@@ -10827,6 +10933,7 @@ static int ndbcluster_end(handlerton *hton, ha_panic_function type)
   }
   my_hash_free(&ndbcluster_open_tables);
 
+  ndb_index_stat_end();
   ndbcluster_disconnect();
 
   ndbcluster_global_schema_lock_deinit();
@@ -10839,6 +10946,10 @@ static int ndbcluster_end(handlerton *hton, ha_panic_function type)
   pthread_cond_destroy(&COND_ndb_util_thread);
   pthread_cond_destroy(&COND_ndb_util_ready);
   pthread_cond_destroy(&COND_ndb_setup_complete);
+  pthread_mutex_destroy(&LOCK_ndb_index_stat_thread);
+  pthread_cond_destroy(&COND_ndb_index_stat_thread);
+  pthread_cond_destroy(&COND_ndb_index_stat_ready);
+
   DBUG_RETURN(0);
 }
 
@@ -10947,6 +11058,12 @@ void ha_ndbcluster::set_tabname(const char *path_name)
 }
 
 
+/*
+  If there are no stored stats, should we do a tree-dive on all db
+  nodes.  The result is fairly good but does mean a round-trip.
+ */
+static const bool g_ndb_records_in_range_tree_dive= false;
+
 /* Determine roughly how many records are in the range specified */
 ha_rows 
 ha_ndbcluster::records_in_range(uint inx, key_range *min_key,
@@ -10972,92 +11089,73 @@ ha_ndbcluster::records_in_range(uint inx, key_range *min_key,
         memcmp(min_key->key, max_key->key, key_length)==0)))
     DBUG_RETURN(1);
   
+  // XXX why this if
   if ((idx_type == PRIMARY_KEY_ORDERED_INDEX ||
        idx_type == UNIQUE_ORDERED_INDEX ||
-       idx_type == ORDERED_INDEX) &&
-      m_index[inx].index_stat != NULL) // --ndb-index-stat-enable=1
+       idx_type == ORDERED_INDEX))
   {
     THD *thd= current_thd;
-    NDB_INDEX_DATA& d=m_index[inx];
-    const NDBINDEX* index= d.index;
-    Ndb *ndb= get_ndb(thd);
-    NdbTransaction* active_trans= m_thd_ndb ? m_thd_ndb->trans : 0;
-    NdbTransaction* trans=NULL;
-    int res=0;
-    Uint64 rows;
+    const bool index_stat_enable= THDVAR(NULL, index_stat_enable) &&
+                                  THDVAR(thd, index_stat_enable);
 
-    do
+    if (index_stat_enable)
     {
-      // We must provide approx table rows
-      Uint64 table_rows=0;
-      if (stats.records != ~(ha_rows)0 && stats.records != 0)
+      ha_rows rows= HA_POS_ERROR;
+      int err= ndb_index_stat_get_rir(inx, min_key, max_key, &rows);
+      if (err == 0)
+        DBUG_RETURN(rows);
+      /*fall through*/
+    }
+
+    if (g_ndb_records_in_range_tree_dive)
+    {
+      NDB_INDEX_DATA& d=m_index[inx];
+      const NDBINDEX* index= d.index;
+      Ndb *ndb= get_ndb(thd);
+      NdbTransaction* active_trans= m_thd_ndb ? m_thd_ndb->trans : 0;
+      NdbTransaction* trans=NULL;
+      int res=0;
+      Uint64 rows;
+
+      do
       {
-        table_rows = stats.records;
-        DBUG_PRINT("info", ("use info->records: %lu", (ulong) table_rows));
-      }
-      else
-      {
-        if (update_stats(thd, 1))
-          break;
-        table_rows= stats.records;
-        DBUG_PRINT("info", ("use db row_count: %lu", (ulong) table_rows));
-        if (table_rows == 0) {
-          // Problem if autocommit=0
-#ifdef ndb_get_table_statistics_uses_active_trans
-          rows=0;
-          break;
-#endif
+        if ((trans=active_trans) == NULL || 
+            trans->commitStatus() != NdbTransaction::Started)
+        {
+          DBUG_PRINT("info", ("no active trans"));
+          if (! (trans=ndb->startTransaction()))
+            ERR_BREAK(ndb->getNdbError(), res);
         }
-      }
+        
+        /* Create an IndexBound struct for the keys */
+        NdbIndexScanOperation::IndexBound ib;
+        compute_index_bounds(ib,
+                             key_info,
+                             min_key, 
+                             max_key);
 
-      /*
-        Query the index statistics for our range.
-      */
-      if ((trans=active_trans) == NULL || 
-	  trans->commitStatus() != NdbTransaction::Started)
-      {
-        DBUG_PRINT("info", ("no active trans"));
-        if (! (trans=ndb->startTransaction()))
-          ERR_BREAK(ndb->getNdbError(), res);
-      }
-      
-      /* Create an IndexBound struct for the keys */
-      NdbIndexScanOperation::IndexBound ib;
-      compute_index_bounds(ib,
-                           key_info,
-                           min_key, 
-                           max_key);
+        ib.range_no= 0;
 
-      ib.range_no= 0;
+        NdbIndexStat is;
+        if (is.records_in_range(index, 
+                                trans, 
+                                d.ndb_record_key,
+                                m_ndb_record,
+                                &ib, 
+                                0, 
+                                &rows, 
+                                0) == -1)
+          ERR_BREAK(is.getNdbError(), res);
+      } while (0);
 
-      // Decide if db should be contacted
-      int flags=0;
-      if (d.index_stat_query_count < d.index_stat_cache_entries ||
-          (d.index_stat_update_freq != 0 &&
-           d.index_stat_query_count % d.index_stat_update_freq == 0))
-      {
-        DBUG_PRINT("info", ("force stat from db"));
-        flags|=NdbIndexStat::RR_UseDb;
-      }
-      if (d.index_stat->records_in_range(index, 
-                                         trans, 
-                                         d.ndb_record_key,
-                                         m_ndb_record,
-                                         &ib, 
-                                         table_rows, 
-                                         &rows, 
-                                         flags) == -1)
-        ERR_BREAK(d.index_stat->getNdbError(), res);
-      d.index_stat_query_count++;
-    } while (0);
-
-    if (trans != active_trans && rows == 0)
-      rows = 1;
-    if (trans != active_trans && trans != NULL)
-      ndb->closeTransaction(trans);
-    if (res != 0)
-      DBUG_RETURN(HA_POS_ERROR);
-    DBUG_RETURN(rows);
+      if (trans != active_trans && rows == 0)
+        rows = 1;
+      if (trans != active_trans && trans != NULL)
+        ndb->closeTransaction(trans);
+      if (res == 0)
+        DBUG_RETURN(rows);
+      /*fall through*/
+    }
   }
 
   /* Use simple heuristics to estimate fraction
@@ -11932,6 +12030,8 @@ void ndbcluster_real_free_share(NDB_SHARE **share)
 
   if (opt_ndb_extra_logging > 9)
     sql_print_information ("ndbcluster_real_free_share: %s use_count: %u", (*share)->key, (*share)->use_count);
+
+  ndb_index_stat_free(*share);
 
   my_hash_delete(&ndbcluster_open_tables, (uchar*) *share);
   thr_lock_delete(&(*share)->lock);
@@ -15146,6 +15246,7 @@ SHOW_VAR ndb_status_variables_export[]= {
   {"Ndb",          (char*) &ndb_status_injector_variables, SHOW_ARRAY},
   {"Ndb",          (char*) &ndb_status_slave_variables,    SHOW_ARRAY},
   {"Ndb",          (char*) &show_ndb_server_api_stats,     SHOW_FUNC},
+  {"Ndb_index_stat", (char*) &ndb_status_index_stat_variables, SHOW_ARRAY},
   {NullS, NullS, SHOW_LONG}
 };
 
@@ -15222,6 +15323,31 @@ static MYSQL_SYSVAR_UINT(
   1,                                 /* min */
   63,                                /* max */
   0                                  /* block */
+);
+
+/* should be in index_stat.h */
+
+extern int
+ndb_index_stat_option_check(MYSQL_THD,
+                            struct st_mysql_sys_var *var,
+                            void *save,
+                            struct st_mysql_value *value);
+extern void
+ndb_index_stat_option_update(MYSQL_THD,
+                             struct st_mysql_sys_var *var,
+                             void *var_ptr,
+                             const void *save);
+
+extern char ndb_index_stat_option_buf[];
+
+static MYSQL_SYSVAR_STR(
+  index_stat_option,                /* name */
+  opt_ndb_index_stat_option,        /* var */
+  PLUGIN_VAR_RQCMDARG,
+  "Comma-separated tunable options for ndb index statistics",
+  ndb_index_stat_option_check,      /* check func. */
+  ndb_index_stat_option_update,     /* update func. */
+  ndb_index_stat_option_buf
 );
 
 
@@ -15418,6 +15544,7 @@ static struct st_mysql_sys_var* system_variables[]= {
   MYSQL_SYSVAR(batch_size),
   MYSQL_SYSVAR(optimization_delay),
   MYSQL_SYSVAR(index_stat_enable),
+  MYSQL_SYSVAR(index_stat_option),
   MYSQL_SYSVAR(index_stat_cache_entries),
   MYSQL_SYSVAR(index_stat_update_freq),
   MYSQL_SYSVAR(table_no_logging),

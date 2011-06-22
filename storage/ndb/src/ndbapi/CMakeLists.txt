@@ -21,7 +21,8 @@ ADD_LIBRARY(ndbapi STATIC
             NdbEventOperation.cpp
             NdbEventOperationImpl.cpp
             NdbIndexStat.cpp
-	    NdbIndexStatImpl.cpp
+            NdbIndexStatImpl.cpp
+            NdbIndexStatFrmData.cpp
             NdbInterpretedCode.cpp
             TransporterFacade.cpp
             ClusterMgr.cpp

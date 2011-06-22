@@ -175,6 +175,7 @@ SET(NDBCLUSTER_SOURCES
   ../../sql/ha_ndbcluster_cond.cc
   ../../sql/ha_ndbcluster_connection.cc
   ../../sql/ha_ndbcluster_binlog.cc
+  ../../sql/ha_ndb_index_stat.cc
   ../../sql/ha_ndbinfo.cc
   ../../sql/ndb_local_connection.cc
   ../../sql/ndb_share.cc
