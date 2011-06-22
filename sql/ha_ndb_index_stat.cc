@@ -70,7 +70,7 @@ struct Ndb_index_stat {
   int lt_old;     /* for info only */
   struct Ndb_index_stat *list_next;
   struct Ndb_index_stat *list_prev;
-  struct st_ndbcluster_share *share;
+  struct NDB_SHARE *share;
   Ndb_index_stat();
 };
 
