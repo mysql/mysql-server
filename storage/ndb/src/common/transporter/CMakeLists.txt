@@ -22,7 +22,7 @@ INCLUDE_DIRECTORIES(${CMAKE_SOURCE_DIR}/storage/ndb/include/mgmapi
                     ${CMAKE_SOURCE_DIR}/storage/ndb/include/transporter
                     ${NDB_SCI_INCLUDES})
 
-ADD_LIBRARY(ndbtransport STATIC
+ADD_CONVENIENCE_LIBRARY(ndbtransport
             Transporter.cpp TCP_Transporter.cpp Loopback_Transporter.cpp
             TransporterRegistry.cpp Packer.cpp)
 
