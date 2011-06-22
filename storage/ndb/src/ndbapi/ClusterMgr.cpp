@@ -651,6 +651,9 @@ ClusterMgr::execAPI_REGREQ(const Uint32 * theData){
 
   if(node.m_info.m_version != apiRegReq->version){
     node.m_info.m_version = apiRegReq->version;
+    node.m_info.m_mysql_version = apiRegReq->mysql_version;
+    if (node.m_info.m_version < NDBD_SPLIT_VERSION)
+      node.m_info.m_mysql_version = 0;
 
     if (getMajor(node.m_info.m_version) < getMajor(NDB_VERSION) ||
 	getMinor(node.m_info.m_version) < getMinor(NDB_VERSION)) {

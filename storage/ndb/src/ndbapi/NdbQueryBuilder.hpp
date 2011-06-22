@@ -479,13 +479,8 @@ private:
  * times. It is valid until it is explicitely released().
  *
  * The NdbQueryDef *must* be keept alive until the last thread
- * which executing a query based on this NdbQueryDef has completed execution 
- * *and* result handling. Used from multiple threads this implies either:
- *
- *  - Keep the NdbQueryDef until all threads terminates.
- *  - Implement reference counting on the NdbQueryDef.
- *  - Use the supplied copy constructor to give each thread its own copy
- *    of the NdbQueryDef.
+ * which executing a query based on this NdbQueryDef has called
+ * NdbQuery::close().
  *
  * A NdbQueryDef is scheduled for execution by appending it to an open 
  * transaction - optionally together with a set of parameters specifying 
