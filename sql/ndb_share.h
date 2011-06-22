@@ -83,7 +83,7 @@ typedef int (* prepare_detect_func) (struct NDB_CONFLICT_FN_SHARE* cfn_share,
                                      const uchar* old_data,
                                      const uchar* new_data,
                                      const MY_BITMAP* write_set,
-                                     struct NdbInterpretedCode* code);
+                                     class NdbInterpretedCode* code);
 
 struct st_conflict_fn_def
 {
