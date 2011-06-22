@@ -15220,6 +15220,15 @@ evaluate_null_complemented_join_record(JOIN *join, JOIN_TAB *join_tab)
     else if (res == 1)
       return NESTED_LOOP_OK;
   }
+  else if (join_tab->do_firstmatch)
+  {
+    /* 
+      We should return to the join_tab->do_firstmatch after we have 
+      enumerated all the suffixes for current prefix row combination
+    */
+    if (join_tab->do_firstmatch < join->return_tab)
+      join->return_tab= join_tab->do_firstmatch;
+  }
 
   /*
     Send the row complemented by nulls to be joined with the

@@ -1291,6 +1291,12 @@ explain
 select * from t0 where a in (select t1.a from t1 left join t2 on t1.a=t2.a);
 select * from t0 where a in (select t1.a from t1 left join t2 on t1.a=t2.a);
 
+
+set optimizer_switch='firstmatch=on';
+explain 
+select * from t0 where a in (select t1.a from t1 left join t2 on t1.a=t2.a);
+select * from t0 where a in (select t1.a from t1 left join t2 on t1.a=t2.a);
+
 set @@join_cache_level=@tmp_jcl_20110622;
 set @@optimizer_switch=@tmp_20110622;
 

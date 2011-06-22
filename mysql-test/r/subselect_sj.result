@@ -1414,6 +1414,17 @@ select * from t0 where a in (select t1.a from t1 left join t2 on t1.a=t2.a);
 a
 1
 2
+set optimizer_switch='firstmatch=on';
+explain 
+select * from t0 where a in (select t1.a from t1 left join t2 on t1.a=t2.a);
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	t0	ALL	NULL	NULL	NULL	NULL	2	
+1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	4	Using where
+1	PRIMARY	t2	ALL	NULL	NULL	NULL	NULL	1	Using where; FirstMatch(t0)
+select * from t0 where a in (select t1.a from t1 left join t2 on t1.a=t2.a);
+a
+1
+2
 set @@join_cache_level=@tmp_jcl_20110622;
 set @@optimizer_switch=@tmp_20110622;
 drop table t0, t1, t2;
