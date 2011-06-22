@@ -191,7 +191,7 @@ enum enum_conflict_cause
 
 /* NdbOperation custom data which points out handler and record. */
 struct Ndb_exceptions_data {
-  struct st_ndbcluster_share *share;
+  struct NDB_SHARE* share;
   const NdbRecord* key_rec;
   const uchar* row;
   enum_conflicting_op_type op_type;
@@ -230,7 +230,7 @@ struct Ndb_statistics {
   Uint64 fragment_extent_free_space;
 };
 
-typedef struct st_ndbcluster_share {
+struct NDB_SHARE {
   NDB_SHARE_STATE state;
   MEM_ROOT mem_root;
   THR_LOCK lock;
@@ -257,7 +257,7 @@ typedef struct st_ndbcluster_share {
   char *old_names; // for rename table
   MY_BITMAP *subscriber_bitmap;
   NdbEventOperation *new_op;
-} NDB_SHARE;
+};
 
 inline
 NDB_SHARE_STATE
