@@ -845,7 +845,7 @@ private:
                              key_range *max_key,
                              ha_rows *rows_out);
   int ndb_index_stat_set_rpk(uint inx);
-  int ndb_index_stat_wait(Ndb_index_stat *st,
+  int ndb_index_stat_wait(struct Ndb_index_stat *st,
                           uint sample_version);
   int ndb_index_stat_query(uint inx,
                            const key_range *min_key,
