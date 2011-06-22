@@ -516,34 +516,34 @@ SHOW CREATE TABLE t2;
 DROP TABLE t2;
 DROP TABLE t1;
 
-# The following tests are disabled because of the introduced timeouts for
-# metadata locks at the MySQL level as part of the fix for
-# Bug#45225 Locking: hang if drop table with no timeout
-# The following CREATE INDEX t1a ON t1(a); causes a lock wait timeout
-# start disabled45225_2
-#connect (a,localhost,root,,);
-#connect (b,localhost,root,,);
-#connection a;
-#CREATE TABLE t1 (a INT, b CHAR(1)) ENGINE=InnoDB;
-#INSERT INTO t1 VALUES (3,'a'),(3,'b'),(1,'c'),(0,'d'),(1,'e');
-#connection b;
-#BEGIN;
-#SELECT * FROM t1;
-#connection a;
-#CREATE INDEX t1a ON t1(a);
-#connection b;
-#SELECT * FROM t1;
-#--error ER_TABLE_DEF_CHANGED
-#SELECT * FROM t1 FORCE INDEX(t1a) ORDER BY a;
-#SELECT * FROM t1;
-#COMMIT;
-#SELECT * FROM t1 FORCE INDEX(t1a) ORDER BY a;
-#connection default;
-#disconnect a;
-#disconnect b;
-#
-#DROP TABLE t1;
-# end disabled45225_2
+connect (a,localhost,root,,);
+connect (b,localhost,root,,);
+connection a;
+CREATE TABLE t1 (a INT, b CHAR(1)) ENGINE=InnoDB;
+INSERT INTO t1 VALUES (3,'a'),(3,'b'),(1,'c'),(0,'d'),(1,'e');
+CREATE TABLE t2 SELECT * FROM t1;
+connection b;
+BEGIN;
+# This acquires a MDL lock on t1 until commit.
+SELECT * FROM t1;
+connection a;
+# This times out before of the MDL lock held by connection b.
+SET lock_wait_timeout=1;
+--error ER_LOCK_WAIT_TIMEOUT
+CREATE INDEX t1a ON t1(a);
+CREATE INDEX t2a ON t2(a);
+connection b;
+SELECT * FROM t2;
+--error ER_TABLE_DEF_CHANGED
+SELECT * FROM t2 FORCE INDEX(t2a) ORDER BY a;
+SELECT * FROM t2;
+COMMIT;
+SELECT * FROM t2 FORCE INDEX(t2a) ORDER BY a;
+connection default;
+disconnect a;
+disconnect b;
+
+DROP TABLE t1,t2;
 
 #
 # restore environment to the state it was before this test execution
