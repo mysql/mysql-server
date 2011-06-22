@@ -70,7 +70,7 @@ struct Ndb_index_stat {
   int lt_old;     /* for info only */
   struct Ndb_index_stat *list_next;
   struct Ndb_index_stat *list_prev;
-  struct st_ndbcluster_share *share;
+  struct NDB_SHARE *share;
   Ndb_index_stat();
 };
 
@@ -1585,20 +1585,20 @@ ndb_index_stat_thread_func(void *arg __attribute__((unused)))
   /*
     wait for mysql server to start
   */
-  pthread_mutex_lock(&LOCK_server_started);
+  mysql_mutex_lock(&LOCK_server_started);
   while (!mysqld_server_started)
   {
     set_timespec(abstime, 1);
-    pthread_cond_timedwait(&COND_server_started, &LOCK_server_started,
-	                       &abstime);
+    mysql_cond_timedwait(&COND_server_started, &LOCK_server_started,
+	                 &abstime);
     if (ndbcluster_terminating)
     {
-      pthread_mutex_unlock(&LOCK_server_started);
+      mysql_mutex_unlock(&LOCK_server_started);
       pthread_mutex_lock(&LOCK_ndb_index_stat_thread);
       goto ndb_index_stat_thread_end;
     }
   }
-  pthread_mutex_unlock(&LOCK_server_started);
+  mysql_mutex_unlock(&LOCK_server_started);
 
   /*
     Wait for cluster to start
@@ -1650,10 +1650,8 @@ ndb_index_stat_thread_func(void *arg __attribute__((unused)))
       goto ndb_index_stat_thread_end;
     pthread_mutex_unlock(&LOCK_ndb_index_stat_thread);
 
-    pthread_mutex_lock(&LOCK_global_system_variables);
     /* const bool enable_ok_new= THDVAR(NULL, index_stat_enable); */
     const bool enable_ok_new= ndb_index_stat_get_enable(NULL);
-    pthread_mutex_unlock(&LOCK_global_system_variables);
 
     Ndb_index_stat_proc pr;
     pr.ndb= thd_ndb->ndb;

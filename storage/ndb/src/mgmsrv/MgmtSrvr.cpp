@@ -881,8 +881,8 @@ MgmtSrvr::sendVersionReq(int v_nodeId,
   ssig.set(ss, TestOrd::TraceAPI, QMGR,
            GSN_API_VERSION_REQ, ApiVersionReq::SignalLength);
 
-  NodeId nodeId;
-  int do_send = 1;
+  NodeId nodeId = 0;
+  bool do_send = true;
   while(true)
   {
     if (do_send)
@@ -898,7 +898,7 @@ MgmtSrvr::sendVersionReq(int v_nodeId,
         return SEND_OR_RECEIVE_FAILED;
       }
 
-      do_send = 0;
+      do_send = false;
     }
 
     SimpleSignal *signal = ss.waitFor();
@@ -925,7 +925,7 @@ MgmtSrvr::sendVersionReq(int v_nodeId,
       const NFCompleteRep * const rep =
 	CAST_CONSTPTR(NFCompleteRep, signal->getDataPtr());
       if (rep->failedNodeId == nodeId)
-	do_send = 1; // retry with other node
+	do_send = true; // retry with other node
       continue;
     }
 
@@ -933,7 +933,7 @@ MgmtSrvr::sendVersionReq(int v_nodeId,
       const NodeFailRep * const rep =
 	CAST_CONSTPTR(NodeFailRep, signal->getDataPtr());
       if (NdbNodeBitmask::get(rep->theNodes,nodeId))
-	do_send = 1; // retry with other node
+	do_send = true; // retry with other node
       continue;
     }
     case GSN_API_REGCONF:
