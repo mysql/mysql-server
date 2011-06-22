@@ -10334,7 +10334,7 @@ static bool check_simple_equality(Item *left_item, Item *right_item,
         !((Item_field*)left_item)->get_depended_from() &&
         right_item->const_item() && !right_item->is_expensive())
     {
-      orig_field_item= left_item;
+      orig_field_item= orig_left_item;
       field_item= (Item_field *) left_item;
       const_item= right_item;
     }
@@ -10342,7 +10342,7 @@ static bool check_simple_equality(Item *left_item, Item *right_item,
              !((Item_field*)right_item)->get_depended_from() &&
              left_item->const_item() && !left_item->is_expensive())
     {
-      orig_field_item= right_item;
+      orig_field_item= orig_right_item;
       field_item= (Item_field *) right_item;
       const_item= left_item;
     }
