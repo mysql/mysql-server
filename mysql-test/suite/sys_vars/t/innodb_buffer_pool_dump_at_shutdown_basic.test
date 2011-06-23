@@ -1,0 +1,42 @@
+#
+# Basic test for innodb_buffer_pool_dump_at_shutdown
+#
+
+-- source include/have_innodb.inc
+# include/restart_mysqld.inc does not work in embedded mode
+-- source include/not_embedded.inc
+
+# Check the default value
+SET @orig = @@global.innodb_buffer_pool_dump_at_shutdown;
+SELECT @orig;
+
+# Confirm that we can change the value
+SET GLOBAL innodb_buffer_pool_dump_at_shutdown = OFF;
+SELECT @@global.innodb_buffer_pool_dump_at_shutdown;
+SET GLOBAL innodb_buffer_pool_dump_at_shutdown = ON;
+SELECT @@global.innodb_buffer_pool_dump_at_shutdown;
+
+# Check the type
+
+-- error ER_WRONG_TYPE_FOR_VAR, ER_WRONG_VALUE_FOR_VAR
+SET GLOBAL innodb_buffer_pool_dump_at_shutdown = 12.34;
+
+-- error ER_WRONG_TYPE_FOR_VAR, ER_WRONG_VALUE_FOR_VAR
+SET GLOBAL innodb_buffer_pool_dump_at_shutdown = "string";
+
+-- error ER_WRONG_TYPE_FOR_VAR, ER_WRONG_VALUE_FOR_VAR
+SET GLOBAL innodb_buffer_pool_dump_at_shutdown = 5;
+
+# Confirm that the dump file is created at shutdown
+
+-- let $file = `SELECT CONCAT(@@datadir, @@global.innodb_buffer_pool_filename)`
+
+-- error 0,1
+-- remove_file $file
+
+-- error 1
+-- file_exists $file
+
+-- source include/restart_mysqld.inc
+
+-- file_exists $file
