@@ -985,6 +985,7 @@ private:
 
   int update_stats(THD *thd, bool do_read_stat, bool have_lock= FALSE,
                    uint part_id= ~(uint)0);
+  int add_handler_to_open_tables(THD*, Thd_ndb*, ha_ndbcluster* handler);
 };
 
 int ndbcluster_discover(THD* thd, const char* dbname, const char* name,
