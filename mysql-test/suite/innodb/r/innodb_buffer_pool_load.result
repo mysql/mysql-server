@@ -13,10 +13,6 @@ SET GLOBAL innodb_buffer_pool_dump_now = ON;
 select count(*) from ib_bp_test where a = 1;
 count(*)
 1
-SELECT COUNT(*) FROM information_schema.innodb_buffer_page_lru
-WHERE table_name LIKE '%ib_bp_test';
-COUNT(*)
-22
 SET GLOBAL innodb_buffer_pool_load_now = ON;
 SELECT variable_value
 FROM information_schema.global_status

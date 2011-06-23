@@ -67,11 +67,6 @@ EOF
 # Load the table so that entries in the I_S table do not appear as NULL
 select count(*) from ib_bp_test where a = 1;
 
-# The actual number does not matter, it is ok to be adjusted if it changes
-# due to some changes in InnoDB internals or depends on the environment
--- replace_result 20 22 21 22
--- eval $check_cnt
-
 # Load
 SET GLOBAL innodb_buffer_pool_load_now = ON;
 
