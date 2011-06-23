@@ -38,7 +38,8 @@ ENDIF()
 
 
 SET (SQL_SOURCE
-              ../sql-common/client.c derror.cc des_key_file.cc
+               ../sql-common/client.c derror.cc abstract_query_plan.cc 
+	       des_key_file.cc
                discover.cc ../libmysql/errmsg.c field.cc  field_conv.cc 
                filesort.cc gstream.cc sha2.cc
                handler.cc hash_filo.h sql_plugin_services.h

@@ -4022,6 +4022,28 @@ int ha_table_exists_in_engine(THD* thd, const char* db, const char* name)
   DBUG_RETURN(args.err);
 }
 
+/**
+  Prepare (sub-) sequences of joins in this statement 
+  which may be pushed to each storage engine for execution.
+*/
+int ha_make_pushed_joins(THD *thd, AQP::Join_plan* plan)
+{
+  Ha_trx_info *info;
+
+  for (info= thd->transaction.stmt.ha_list; info; info= info->next())
+  {
+    handlerton *hton= info->ht();
+    if (hton && hton->make_pushed_join)
+    {
+      const int error= hton->make_pushed_join(hton, thd, plan);
+      if (unlikely(error))
+        return error;
+    }
+  }
+  return 0;
+}
+
+
 #ifdef HAVE_NDB_BINLOG
 /*
   TODO: change this into a dynamic struct

@@ -2284,6 +2284,31 @@ explain select * from t where x not like 'ye%' order by x;
 select * from t where x not like 'ye%' order by x;
 drop table t;
 
+# Bug#58134: Incorrectly condition pushdown inside subquery to NDB engine
+set engine_condition_pushdown = on;
+
+create table t (pk int, i int) engine = ndb;
+insert into t values (1,3), (3,6), (6,9), (9,1);
+create table subq (pk int, i int) engine = ndb;
+insert into subq values (1,3), (3,6), (6,9), (9,1);
+
+# 'Explain extended' to verify that only 'subq.i=3' is pushed
+explain extended 
+select * from t where exists
+  (select * from t as subq where subq.i=3 and t.i=3);
+explain extended 
+  select * from t where exists
+    (select * from subq where subq.i=3 and t.i=3);
+
+--sorted_result
+select * from t where exists
+  (select * from t as subq where subq.i=3 and t.i=3);
+--sorted_result
+select * from t where exists
+  (select * from subq where subq.i=3 and t.i=3);
+
+drop table t,subq;
+
 # Bug#58553 Queries with pushed conditions causes 'explain extended' to crash mysqld
 create table tx (
   a int not null,
@@ -2320,6 +2345,27 @@ group by t2.c;
 
 drop table tx;
 
+# Bug#58791 Incorrect result as Cluster may fail to reject an unpushable condition
+
+create table t (pk1 int, pk2 int, primary key(pk1,pk2)) engine = ndb;
+insert into t values (1,0), (2,0), (3,0), (4,0);
+
+set engine_condition_pushdown=1;
+
+# Multiple instances of same table (t as table<n>, ) confused 
+# ha_ndbcluster::cond_push() which accepted
+# '(table1.pk1 = 7 or table2.pk1 = 3)' as a pushable cond.
+# for 'table2'
+#
+
+--sorted_result
+select table1.pk1, table2.pk1, table1.pk2, table2.pk2
+ from t as table1, t as table2
+ where table2.pk1 in (0,3) and
+   (table1.pk1 = 7 or table2.pk1 = 3);
+
+drop table t;
+
 # Bug#58134: Incorrectly condition pushdown inside subquery to NDB engine
 set engine_condition_pushdown = on;
 
@@ -2344,29 +2390,6 @@ select * from t where exists
   (select * from subq where subq.i=3 and t.i=3);
 
 drop table t,subq;
-
-
-
-# Bug#58791 Incorrect result as Cluster may fail to reject an unpushable condition
-
-create table t (pk1 int, pk2 int, primary key(pk1,pk2)) engine = ndb;
-insert into t values (1,0), (2,0), (3,0), (4,0);
-
-set engine_condition_pushdown=1;
-
-# Multiple instances of same table (t as table<n>, ) confused 
-# ha_ndbcluster::cond_push() which accepted
-# '(table1.pk1 = 7 or table2.pk1 = 3)' as a pushable cond.
-# for 'table2'
-#
-
---sorted_result
-select table1.pk1, table2.pk1, table1.pk2, table2.pk2
- from t as table1, t as table2
- where table2.pk1 in (0,3) and
-   (table1.pk1 = 7 or table2.pk1 = 3);
-
-drop table t;
 
 set engine_condition_pushdown = @old_ecpd;
 DROP TABLE t1,t2,t3,t4,t5;
