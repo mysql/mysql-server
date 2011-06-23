@@ -513,7 +513,7 @@ time_field = '01:01:01' and
 date_time = '1901-01-01 01:01:01' 
 order by auto;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	ALL	NULL	NULL	NULL	NULL	#	Using where with pushed condition; Using filesort
+1	SIMPLE	t1	index	NULL	PRIMARY	4	NULL	#	Using where with pushed condition
 select auto from t1 where 
 string = "aaaa" and 
 vstring = "aaaa" and 
@@ -570,7 +570,7 @@ time_field != '01:01:01' and
 date_time != '1901-01-01 01:01:01' 
 order by auto;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	ALL	NULL	NULL	NULL	NULL	#	Using where with pushed condition; Using filesort
+1	SIMPLE	t1	index	NULL	PRIMARY	4	NULL	#	Using where with pushed condition
 select auto from t1 where 
 string != "aaaa" and 
 vstring != "aaaa" and 
@@ -629,7 +629,7 @@ time_field > '01:01:01' and
 date_time > '1901-01-01 01:01:01'
 order by auto;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	ALL	NULL	NULL	NULL	NULL	#	Using where with pushed condition; Using filesort
+1	SIMPLE	t1	index	NULL	PRIMARY	4	NULL	#	Using where with pushed condition
 select auto from t1 where 
 string > "aaaa" and 
 vstring > "aaaa" and 
@@ -688,7 +688,7 @@ time_field >= '01:01:01' and
 date_time >= '1901-01-01 01:01:01' 
 order by auto;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	ALL	NULL	NULL	NULL	NULL	#	Using where with pushed condition; Using filesort
+1	SIMPLE	t1	index	NULL	PRIMARY	4	NULL	#	Using where with pushed condition
 select auto from t1 where 
 string >= "aaaa" and 
 vstring >= "aaaa" and 
@@ -748,7 +748,7 @@ time_field < '04:04:04' and
 date_time < '1904-04-04 04:04:04' 
 order by auto;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	ALL	NULL	NULL	NULL	NULL	#	Using where with pushed condition; Using filesort
+1	SIMPLE	t1	index	NULL	PRIMARY	4	NULL	#	Using where with pushed condition
 select auto from t1 where 
 string < "dddd" and 
 vstring < "dddd" and 
@@ -807,7 +807,7 @@ time_field <= '04:04:04' and
 date_time <= '1904-04-04 04:04:04' 
 order by auto;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	ALL	NULL	NULL	NULL	NULL	#	Using where with pushed condition; Using filesort
+1	SIMPLE	t1	index	NULL	PRIMARY	4	NULL	#	Using where with pushed condition
 select auto from t1 where 
 string <= "dddd" and 
 vstring <= "dddd" and 
@@ -925,7 +925,7 @@ time_field != '01:01:01' and
 date_time != '1901-01-01 01:01:01' 
 order by auto;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	range	medium_index	medium_index	3	NULL	#	Using where with pushed condition; Using filesort
+1	SIMPLE	t1	index	medium_index	PRIMARY	4	NULL	#	Using where with pushed condition
 select auto from t1 where 
 string != "aaaa" and 
 vstring != "aaaa" and 
@@ -984,7 +984,7 @@ time_field > '01:01:01' and
 date_time > '1901-01-01 01:01:01'
 order by auto;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	range	medium_index	medium_index	3	NULL	#	Using where with pushed condition; Using filesort
+1	SIMPLE	t1	index	medium_index	PRIMARY	4	NULL	#	Using where with pushed condition
 select auto from t1 where 
 string > "aaaa" and 
 vstring > "aaaa" and 
@@ -1043,7 +1043,7 @@ time_field >= '01:01:01' and
 date_time >= '1901-01-01 01:01:01' 
 order by auto;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	range	medium_index	medium_index	3	NULL	#	Using where with pushed condition; Using filesort
+1	SIMPLE	t1	index	medium_index	PRIMARY	4	NULL	#	Using where with pushed condition
 select auto from t1 where 
 string >= "aaaa" and 
 vstring >= "aaaa" and 
@@ -1103,7 +1103,7 @@ time_field < '04:04:04' and
 date_time < '1904-04-04 04:04:04' 
 order by auto;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	range	medium_index	medium_index	3	NULL	#	Using where with pushed condition; Using filesort
+1	SIMPLE	t1	index	medium_index	PRIMARY	4	NULL	#	Using where with pushed condition
 select auto from t1 where 
 string < "dddd" and 
 vstring < "dddd" and 
@@ -1162,7 +1162,7 @@ time_field <= '04:04:04' and
 date_time <= '1904-04-04 04:04:04' 
 order by auto;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	range	medium_index	medium_index	3	NULL	#	Using where with pushed condition; Using filesort
+1	SIMPLE	t1	index	medium_index	PRIMARY	4	NULL	#	Using where with pushed condition
 select auto from t1 where 
 string <= "dddd" and 
 vstring <= "dddd" and 
@@ -1202,7 +1202,7 @@ bin like concat(0xBB, '%') and
 vbin like concat(0xBB, '%')
 order by auto;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	ALL	NULL	NULL	NULL	NULL	#	Using where with pushed condition; Using filesort
+1	SIMPLE	t1	index	NULL	PRIMARY	4	NULL	#	Using where with pushed condition
 select auto from t1 where 
 string like "b%" and
 vstring like "b%" and
@@ -1219,7 +1219,7 @@ bin not like concat(0xBB, '%') and
 vbin not like concat(0xBB, '%')
 order by auto;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	ALL	NULL	NULL	NULL	NULL	#	Using where with pushed condition; Using filesort
+1	SIMPLE	t1	index	NULL	PRIMARY	4	NULL	#	Using where with pushed condition
 select auto from t1 where 
 string not like "b%" and
 vstring not like "b%" and
@@ -1255,7 +1255,7 @@ select auto from t1 where
 (date_time between '1901-01-01 01:01:01' and '1903-03-03 03:03:03') 
 order by auto;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	range	medium_index	medium_index	3	NULL	#	Using where with pushed condition; Using filesort
+1	SIMPLE	t1	index	medium_index	PRIMARY	4	NULL	#	Using where with pushed condition
 select auto from t1 where
 (string between "aaaa" and "cccc") and 
 (vstring between "aaaa" and "cccc") and 
@@ -1358,7 +1358,7 @@ select auto from t1 where
 (date_time not between '1901-01-01 01:01:01' and '1903-03-03 03:03:03') 
 order by auto;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	range	medium_index	medium_index	3	NULL	#	Using where with pushed condition; Using filesort
+1	SIMPLE	t1	index	medium_index	PRIMARY	4	NULL	#	Using where with pushed condition
 select auto from t1 where
 (string not between "aaaa" and "cccc") and 
 (vstring not between "aaaa" and "cccc") and 
@@ -1409,7 +1409,7 @@ select auto from t1 where
 ('1901-01-01 01:01:01' not between date_time and date_time) 
 order by auto;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	range	medium_index	medium_index	3	NULL	#	Using where with pushed condition; Using filesort
+1	SIMPLE	t1	index	medium_index	PRIMARY	4	NULL	#	Using where with pushed condition
 select auto from t1 where
 ("aaaa" not between string and string) and 
 ("aaaa" not between vstring and vstring) and 
@@ -1462,7 +1462,7 @@ time_field in('01:01:01','03:03:03') and
 date_time in('1901-01-01 01:01:01','1903-03-03 03:03:03') 
 order by auto;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	range	medium_index	medium_index	3	NULL	#	Using where with pushed condition; Using filesort
+1	SIMPLE	t1	index	medium_index	PRIMARY	4	NULL	#	Using where with pushed condition
 select auto from t1 where
 string in("aaaa","cccc") and 
 vstring in("aaaa","cccc") and 
@@ -1565,7 +1565,7 @@ time_field not in('01:01:01','03:03:03') and
 date_time not in('1901-01-01 01:01:01','1903-03-03 03:03:03') 
 order by auto;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	range	medium_index	medium_index	3	NULL	#	Using where with pushed condition; Using filesort
+1	SIMPLE	t1	index	medium_index	PRIMARY	4	NULL	#	Using where with pushed condition
 select auto from t1 where
 string not in("aaaa","cccc") and 
 vstring not in("aaaa","cccc") and 
@@ -1617,7 +1617,7 @@ select auto from t1 where
 '1901-01-01 01:01:01' not in(date_time) 
 order by auto;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	ALL	NULL	NULL	NULL	NULL	#	Using where with pushed condition; Using filesort
+1	SIMPLE	t1	index	NULL	PRIMARY	4	NULL	#	Using where with pushed condition
 select auto from t1 where
 "aaaa" not in(string) and 
 "aaaa" not in(vstring) and 
@@ -1704,7 +1704,7 @@ count(*)
 explain 
 select * from t2 where attr3 is null or attr1 > 2 and pk1= 3 order by pk1;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t2	ALL	PRIMARY	NULL	NULL	NULL	#	Using where with pushed condition; Using filesort
+1	SIMPLE	t2	index	PRIMARY	PRIMARY	4	NULL	#	Using where with pushed condition
 select * from t2 where attr3 is null or attr1 > 2 and pk1= 3 order by pk1;
 pk1	attr1	attr2	attr3
 2	2	NULL	NULL
@@ -1712,7 +1712,7 @@ pk1	attr1	attr2	attr3
 explain
 select * from t2 where attr3 is not null and attr1 > 2 order by pk1;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t2	ALL	NULL	NULL	NULL	NULL	#	Using where with pushed condition; Using filesort
+1	SIMPLE	t2	index	NULL	PRIMARY	4	NULL	#	Using where with pushed condition
 select * from t2 where attr3 is not null and attr1 > 2 order by pk1;
 pk1	attr1	attr2	attr3
 3	3	3	d
@@ -1721,7 +1721,7 @@ pk1	attr1	attr2	attr3
 explain
 select * from t3 where attr2 >  9223372036854775803 and attr3 != 3 order by pk1;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t3	ALL	NULL	NULL	NULL	NULL	#	Using where with pushed condition; Using filesort
+1	SIMPLE	t3	index	NULL	PRIMARY	4	NULL	#	Using where with pushed condition
 select * from t3 where attr2 >  9223372036854775803 and attr3 != 3 order by pk1;
 pk1	attr1	attr2	attr3	attr4
 2	2	9223372036854775804	2	c
@@ -1738,7 +1738,7 @@ pk1	attr1	attr2	attr3	pk1	attr1	attr2	attr3	attr4
 explain
 select * from t4 where attr1 < 5 and attr2 > 9223372036854775803 and attr3 != 3 order by t4.pk1;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t4	range	attr1	attr1	4	NULL	#	Using where with pushed condition; Using filesort
+1	SIMPLE	t4	index	attr1	PRIMARY	4	NULL	#	Using where with pushed condition
 select * from t4 where attr1 < 5 and attr2 > 9223372036854775803 and attr3 != 3 order by t4.pk1;
 pk1	attr1	attr2	attr3	attr4
 2	2	9223372036854775804	2	c
@@ -1756,11 +1756,11 @@ pk1	attr1	attr2	attr3	attr4	pk1	attr1	attr2	attr3	attr4
 explain
 select auto from t1 where string = "aaaa" collate latin1_general_ci order by auto;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	ALL	NULL	NULL	NULL	NULL	#	Using where; Using filesort
+1	SIMPLE	t1	index	NULL	PRIMARY	4	NULL	#	Using where
 explain
 select * from t2 where (attr1 < 2) = (attr2 < 2) order by pk1;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t2	ALL	NULL	NULL	NULL	NULL	#	Using where; Using filesort
+1	SIMPLE	t2	index	NULL	PRIMARY	4	NULL	#	Using where
 explain
 select * from t3 left join t4 on t4.attr2 = t3.attr2 where t4.attr1 > 1 and t4.attr3 < 5 or t4.attr1 is null order by t4.pk1;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
@@ -2154,7 +2154,7 @@ insert into t values (0,0),(1,1),(2,2),(3,3),(4,4),(5,5);
 set engine_condition_pushdown = on;
 explain select * from t where 3 between 1+1 and x order by pk;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t	ALL	NULL	NULL	NULL	NULL	6	Using where; Using filesort
+1	SIMPLE	t	index	NULL	PRIMARY	4	NULL	6	Using where
 select * from t where 3 between 1+1 and x order by pk;
 pk	x
 3	3
@@ -2162,7 +2162,7 @@ pk	x
 5	5
 explain select * from t where 3 between -1 and x order by pk;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t	ALL	NULL	NULL	NULL	NULL	6	Using where; Using filesort
+1	SIMPLE	t	index	NULL	PRIMARY	4	NULL	6	Using where
 select * from t where 3 between -1 and x order by pk;
 pk	x
 3	3
@@ -2192,61 +2192,6 @@ select * from t where x not like 'ye%' order by x;
 x
 no
 drop table t;
-create table tx (
-a int not null,
-b int not null,
-c int not null,
-d int not null,
-primary key (`a`,`b`)
-) engine = ndb;
-explain extended select * from tx join tx as t2 on tx.c=1 where t2.c=1;
-id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	tx	ALL	NULL	NULL	NULL	NULL	0	0.00	Using where with pushed condition: (`test`.`tx`.`c` = 1)
-1	SIMPLE	t2	ALL	NULL	NULL	NULL	NULL	0	0.00	Using where with pushed condition: (`test`.`t2`.`c` = 1); Using join buffer
-Warnings:
-Note	1003	select `test`.`tx`.`a` AS `a`,`test`.`tx`.`b` AS `b`,`test`.`tx`.`c` AS `c`,`test`.`tx`.`d` AS `d`,`test`.`t2`.`a` AS `a`,`test`.`t2`.`b` AS `b`,`test`.`t2`.`c` AS `c`,`test`.`t2`.`d` AS `d` from `test`.`tx` join `test`.`tx` `t2` where ((`test`.`tx`.`c` = 1) and (`test`.`t2`.`c` = 1))
-explain extended
-select straight_join *
-from tx
-join tx as t2 on t2.a = tx.a and t2.b = tx.b
-join tx as t3 on t3.a = tx.c and t3.b = tx.d
-join tx as t4 on t4.a = t3.b and t4.b = t2.c;
-id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	tx	ALL	PRIMARY	NULL	NULL	NULL	0	0.00	
-1	SIMPLE	t2	eq_ref	PRIMARY	PRIMARY	8	test.tx.a,test.tx.b	1	100.00	
-1	SIMPLE	t3	eq_ref	PRIMARY	PRIMARY	8	test.tx.c,test.tx.d	1	100.00	
-1	SIMPLE	t4	eq_ref	PRIMARY	PRIMARY	8	test.tx.d,test.t2.c	1	100.00	
-Warnings:
-Note	1003	select straight_join `test`.`tx`.`a` AS `a`,`test`.`tx`.`b` AS `b`,`test`.`tx`.`c` AS `c`,`test`.`tx`.`d` AS `d`,`test`.`t2`.`a` AS `a`,`test`.`t2`.`b` AS `b`,`test`.`t2`.`c` AS `c`,`test`.`t2`.`d` AS `d`,`test`.`t3`.`a` AS `a`,`test`.`t3`.`b` AS `b`,`test`.`t3`.`c` AS `c`,`test`.`t3`.`d` AS `d`,`test`.`t4`.`a` AS `a`,`test`.`t4`.`b` AS `b`,`test`.`t4`.`c` AS `c`,`test`.`t4`.`d` AS `d` from `test`.`tx` join `test`.`tx` `t2` join `test`.`tx` `t3` join `test`.`tx` `t4` where ((`test`.`t2`.`b` = `test`.`tx`.`b`) and (`test`.`t2`.`a` = `test`.`tx`.`a`) and (`test`.`t3`.`a` = `test`.`tx`.`c`) and (`test`.`t4`.`b` = `test`.`t2`.`c`) and (`test`.`t3`.`b` = `test`.`tx`.`d`) and (`test`.`t4`.`a` = `test`.`tx`.`d`))
-explain extended
-select t2.c, count(distinct t2.a)
-from tx
-join tx as t2 on tx.a = t2.c and tx.b = t2.d
-where t2.a = 4
-group by t2.c;
-id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t2	ref	PRIMARY	PRIMARY	4	const	2	100.00	Using where; Using filesort
-1	SIMPLE	tx	eq_ref	PRIMARY	PRIMARY	8	test.t2.c,test.t2.d	1	100.00	
-Warnings:
-Note	1003	select `test`.`t2`.`c` AS `c`,count(distinct `test`.`t2`.`a`) AS `count(distinct t2.a)` from `test`.`tx` join `test`.`tx` `t2` where ((`test`.`tx`.`b` = `test`.`t2`.`d`) and (`test`.`tx`.`a` = `test`.`t2`.`c`) and (`test`.`t2`.`a` = 4)) group by `test`.`t2`.`c`
-explain extended select * from tx join tx as t2 on tx.c=1 where t2.c=1;
-id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	tx	ALL	NULL	NULL	NULL	NULL	0	0.00	Using where with pushed condition: (`test`.`tx`.`c` = 1)
-1	SIMPLE	t2	ALL	NULL	NULL	NULL	NULL	0	0.00	Using where with pushed condition: (`test`.`t2`.`c` = 1); Using join buffer
-Warnings:
-Note	1003	select `test`.`tx`.`a` AS `a`,`test`.`tx`.`b` AS `b`,`test`.`tx`.`c` AS `c`,`test`.`tx`.`d` AS `d`,`test`.`t2`.`a` AS `a`,`test`.`t2`.`b` AS `b`,`test`.`t2`.`c` AS `c`,`test`.`t2`.`d` AS `d` from `test`.`tx` join `test`.`tx` `t2` where ((`test`.`tx`.`c` = 1) and (`test`.`t2`.`c` = 1))
-explain extended
-select t2.c, count(distinct t2.a)
-from tx
-join tx as t2 on tx.a = t2.c and tx.b = t2.d
-where t2.a = 4
-group by t2.c;
-id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t2	ref	PRIMARY	PRIMARY	4	const	2	100.00	Using where; Using filesort
-1	SIMPLE	tx	eq_ref	PRIMARY	PRIMARY	8	test.t2.c,test.t2.d	1	100.00	
-Warnings:
-Note	1003	select `test`.`t2`.`c` AS `c`,count(distinct `test`.`t2`.`a`) AS `count(distinct t2.a)` from `test`.`tx` join `test`.`tx` `t2` where ((`test`.`tx`.`b` = `test`.`t2`.`d`) and (`test`.`tx`.`a` = `test`.`t2`.`c`) and (`test`.`t2`.`a` = 4)) group by `test`.`t2`.`c`
-drop table tx;
 set engine_condition_pushdown = on;
 create table t (pk int, i int) engine = ndb;
 insert into t values (1,3), (3,6), (6,9), (9,1);
@@ -2279,6 +2224,67 @@ select * from t where exists
 pk	i
 1	3
 drop table t,subq;
+create table tx (
+a int not null,
+b int not null,
+c int not null,
+d int not null,
+primary key (`a`,`b`)
+) engine = ndb;
+explain extended select * from tx join tx as t2 on tx.c=1 where t2.c=1;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	tx	ALL	NULL	NULL	NULL	NULL	0	0.00	Using where with pushed condition: (`test`.`tx`.`c` = 1)
+1	SIMPLE	t2	ALL	NULL	NULL	NULL	NULL	0	0.00	Using where with pushed condition: (`test`.`t2`.`c` = 1); Using join buffer
+Warnings:
+Note	1644	Can't push table 't2' as child, 'type' must be a 'ref' access
+Note	1003	select `test`.`tx`.`a` AS `a`,`test`.`tx`.`b` AS `b`,`test`.`tx`.`c` AS `c`,`test`.`tx`.`d` AS `d`,`test`.`t2`.`a` AS `a`,`test`.`t2`.`b` AS `b`,`test`.`t2`.`c` AS `c`,`test`.`t2`.`d` AS `d` from `test`.`tx` join `test`.`tx` `t2` where ((`test`.`tx`.`c` = 1) and (`test`.`t2`.`c` = 1))
+explain extended
+select straight_join *
+from tx
+join tx as t2 on t2.a = tx.a and t2.b = tx.b
+join tx as t3 on t3.a = tx.c and t3.b = tx.d
+join tx as t4 on t4.a = t3.b and t4.b = t2.c;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	tx	ALL	PRIMARY	NULL	NULL	NULL	0	0.00	Parent of 4 pushed join@1
+1	SIMPLE	t2	eq_ref	PRIMARY	PRIMARY	8	test.tx.a,test.tx.b	1	100.00	Child of 'tx' in pushed join@1
+1	SIMPLE	t3	eq_ref	PRIMARY	PRIMARY	8	test.tx.c,test.tx.d	1	100.00	Child of 'tx' in pushed join@1
+1	SIMPLE	t4	eq_ref	PRIMARY	PRIMARY	8	test.tx.d,test.t2.c	1	100.00	Child of 't2' in pushed join@1
+Warnings:
+Note	1003	select straight_join `test`.`tx`.`a` AS `a`,`test`.`tx`.`b` AS `b`,`test`.`tx`.`c` AS `c`,`test`.`tx`.`d` AS `d`,`test`.`t2`.`a` AS `a`,`test`.`t2`.`b` AS `b`,`test`.`t2`.`c` AS `c`,`test`.`t2`.`d` AS `d`,`test`.`t3`.`a` AS `a`,`test`.`t3`.`b` AS `b`,`test`.`t3`.`c` AS `c`,`test`.`t3`.`d` AS `d`,`test`.`t4`.`a` AS `a`,`test`.`t4`.`b` AS `b`,`test`.`t4`.`c` AS `c`,`test`.`t4`.`d` AS `d` from `test`.`tx` join `test`.`tx` `t2` join `test`.`tx` `t3` join `test`.`tx` `t4` where ((`test`.`t2`.`b` = `test`.`tx`.`b`) and (`test`.`t2`.`a` = `test`.`tx`.`a`) and (`test`.`t3`.`a` = `test`.`tx`.`c`) and (`test`.`t4`.`b` = `test`.`t2`.`c`) and (`test`.`t3`.`b` = `test`.`tx`.`d`) and (`test`.`t4`.`a` = `test`.`tx`.`d`))
+explain extended
+select t2.c, count(distinct t2.a)
+from tx
+join tx as t2 on tx.a = t2.c and tx.b = t2.d
+where t2.a = 4
+group by t2.c;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t2	ref	PRIMARY	PRIMARY	4	const	2	100.00	Using where; Using filesort
+1	SIMPLE	tx	eq_ref	PRIMARY	PRIMARY	8	test.t2.c,test.t2.d	1	100.00	
+Warnings:
+Note	1644	Table 't2' is not pushable: GROUP BY cannot be done using index on grouped columns.
+Note	1644	Table 'tx' is not pushable: GROUP BY cannot be done using index on grouped columns.
+Note	1003	select `test`.`t2`.`c` AS `c`,count(distinct `test`.`t2`.`a`) AS `count(distinct t2.a)` from `test`.`tx` join `test`.`tx` `t2` where ((`test`.`tx`.`b` = `test`.`t2`.`d`) and (`test`.`tx`.`a` = `test`.`t2`.`c`) and (`test`.`t2`.`a` = 4)) group by `test`.`t2`.`c`
+explain extended select * from tx join tx as t2 on tx.c=1 where t2.c=1;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	tx	ALL	NULL	NULL	NULL	NULL	0	0.00	Using where with pushed condition: (`test`.`tx`.`c` = 1)
+1	SIMPLE	t2	ALL	NULL	NULL	NULL	NULL	0	0.00	Using where with pushed condition: (`test`.`t2`.`c` = 1); Using join buffer
+Warnings:
+Note	1644	Can't push table 't2' as child, 'type' must be a 'ref' access
+Note	1003	select `test`.`tx`.`a` AS `a`,`test`.`tx`.`b` AS `b`,`test`.`tx`.`c` AS `c`,`test`.`tx`.`d` AS `d`,`test`.`t2`.`a` AS `a`,`test`.`t2`.`b` AS `b`,`test`.`t2`.`c` AS `c`,`test`.`t2`.`d` AS `d` from `test`.`tx` join `test`.`tx` `t2` where ((`test`.`tx`.`c` = 1) and (`test`.`t2`.`c` = 1))
+explain extended
+select t2.c, count(distinct t2.a)
+from tx
+join tx as t2 on tx.a = t2.c and tx.b = t2.d
+where t2.a = 4
+group by t2.c;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t2	ref	PRIMARY	PRIMARY	4	const	2	100.00	Using where; Using filesort
+1	SIMPLE	tx	eq_ref	PRIMARY	PRIMARY	8	test.t2.c,test.t2.d	1	100.00	
+Warnings:
+Note	1644	Table 't2' is not pushable: GROUP BY cannot be done using index on grouped columns.
+Note	1644	Table 'tx' is not pushable: GROUP BY cannot be done using index on grouped columns.
+Note	1003	select `test`.`t2`.`c` AS `c`,count(distinct `test`.`t2`.`a`) AS `count(distinct t2.a)` from `test`.`tx` join `test`.`tx` `t2` where ((`test`.`tx`.`b` = `test`.`t2`.`d`) and (`test`.`tx`.`a` = `test`.`t2`.`c`) and (`test`.`t2`.`a` = 4)) group by `test`.`t2`.`c`
+drop table tx;
 create table t (pk1 int, pk2 int, primary key(pk1,pk2)) engine = ndb;
 insert into t values (1,0), (2,0), (3,0), (4,0);
 set engine_condition_pushdown=1;
@@ -2292,5 +2298,37 @@ pk1	pk1	pk2	pk2
 3	3	0	0
 4	3	0	0
 drop table t;
+set engine_condition_pushdown = on;
+create table t (pk int, i int) engine = ndb;
+insert into t values (1,3), (3,6), (6,9), (9,1);
+create table subq (pk int, i int) engine = ndb;
+insert into subq values (1,3), (3,6), (6,9), (9,1);
+explain extended 
+select * from t where exists
+(select * from t as subq where subq.i=3 and t.i=3);
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	PRIMARY	t	ALL	NULL	NULL	NULL	NULL	4	50.00	Using where
+2	DEPENDENT SUBQUERY	subq	ALL	NULL	NULL	NULL	NULL	4	100.00	Using where with pushed condition: (`test`.`subq`.`i` = 3)
+Warnings:
+Note	1276	Field or reference 'test.t.i' of SELECT #2 was resolved in SELECT #1
+Note	1003	select `test`.`t`.`pk` AS `pk`,`test`.`t`.`i` AS `i` from `test`.`t` where exists(select 1 from `test`.`t` `subq` where ((`test`.`subq`.`i` = 3) and (`test`.`t`.`i` = 3)))
+explain extended 
+select * from t where exists
+(select * from subq where subq.i=3 and t.i=3);
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	PRIMARY	t	ALL	NULL	NULL	NULL	NULL	4	100.00	Using where
+2	DEPENDENT SUBQUERY	subq	ALL	NULL	NULL	NULL	NULL	4	50.00	Using where with pushed condition: (`test`.`subq`.`i` = 3)
+Warnings:
+Note	1276	Field or reference 'test.t.i' of SELECT #2 was resolved in SELECT #1
+Note	1003	select `test`.`t`.`pk` AS `pk`,`test`.`t`.`i` AS `i` from `test`.`t` where exists(select 1 from `test`.`subq` where ((`test`.`subq`.`i` = 3) and (`test`.`t`.`i` = 3)))
+select * from t where exists
+(select * from t as subq where subq.i=3 and t.i=3);
+pk	i
+1	3
+select * from t where exists
+(select * from subq where subq.i=3 and t.i=3);
+pk	i
+1	3
+drop table t,subq;
 set engine_condition_pushdown = @old_ecpd;
 DROP TABLE t1,t2,t3,t4,t5;
