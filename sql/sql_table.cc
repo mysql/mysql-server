@@ -6621,6 +6621,7 @@ bool mysql_alter_table(THD *thd,char *new_db, char *new_name,
   handlerton *old_db_type, *new_db_type, *save_old_db_type;
 #ifndef MCP_WL3749
   bool need_copy_table= TRUE;
+  alter_info->change_level= ALTER_TABLE_METADATA_ONLY;
 #else
   enum_alter_table_change_level need_copy_table= ALTER_TABLE_METADATA_ONLY;
 #endif
@@ -7055,7 +7056,7 @@ bool mysql_alter_table(THD *thd,char *new_db, char *new_name,
     goto err;
 #ifdef MCP_WL3749
   if (need_copy_table == ALTER_TABLE_METADATA_ONLY)
-    need_copy_table= alter_info->change_levels;
+    need_copy_table= alter_info->change_level;
 #endif
   set_table_default_charset(thd, create_info, db);
 
