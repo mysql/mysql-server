@@ -15,7 +15,7 @@
 
 EXTRA_DIST = CMakeLists.txt
 
-ndbtest_PROGRAMS = hugoLoad hugoFill hugoLockRecords hugoPkDelete hugoPkRead hugoPkReadRecord  hugoPkUpdate hugoScanRead hugoScanUpdate restart verify_index copy_tab create_index  ndb_cpcc listen_event eventlog rep_latency ndb_connect hugoJoin
+ndbtest_PROGRAMS = hugoLoad hugoFill hugoLockRecords hugoPkDelete hugoPkRead hugoPkReadRecord  hugoPkUpdate hugoScanRead hugoScanUpdate restart verify_index copy_tab create_index  ndb_cpcc listen_event eventlog rep_latency ndb_connect spj_sanity_test spj_performance_test test_spj hugoJoin
 
 hugoFill_SOURCES = hugoFill.cpp
 hugoLoad_SOURCES = hugoLoad.cpp
@@ -37,6 +37,21 @@ listen_event_SOURCES = listen.cpp
 eventlog_SOURCES = log_listner.cpp
 rep_latency_SOURCES = rep_latency.cpp
 ndb_connect_SOURCES = connect.cpp
+test_spj_SOURCES = test_spj.cpp
+test_spj_CXXFLAGS = -I$(top_srcdir)/storage/ndb/include/kernel \
+	-I$(top_srcdir)/storage/ndb/include/transporter \
+	-I$(top_srcdir)/storage/ndb/include/debugger \
+	-I$(top_srcdir)/storage/ndb/include/mgmapi \
+	-I$(top_srcdir)/storage/ndb/include/mgmcommon \
+        -I$(top_srcdir)/storage/ndb/include/ndbapi \
+        -I$(top_srcdir)/storage/ndb/include/util \
+	-I$(top_srcdir)/storage/ndb/include/portlib \
+	-I$(top_srcdir)/storage/ndb/include/logger
+
+spj_sanity_test_SOURCES = spj_sanity_test.cpp
+spj_sanity_test_LDADD = $(LDADD) $(top_srcdir)/libmysql/libmysqlclient.la
+spj_performance_test_SOURCES = spj_performance_test.cpp
+spj_performance_test_LDADD = $(LDADD) $(top_srcdir)/libmysql/libmysqlclient.la
 
 include $(top_srcdir)/storage/ndb/config/common.mk.am
 include $(top_srcdir)/storage/ndb/config/type_ndbapitest.mk.am
