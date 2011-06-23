@@ -236,7 +236,13 @@
   Index scan will not return records in rowid order. Not guaranteed to be
   set for unordered (e.g. HASH) indexes.
 */
-#define HA_KEY_SCAN_NOT_ROR     128 
+#define HA_KEY_SCAN_NOT_ROR     128
+
+/*
+  no IO if read data when scan index
+  i.e index is covering
+*/
+#define HA_CLUSTERED_INDEX      256
 
 /* operations for disable/enable indexes */
 #define HA_KEY_SWITCH_NONUNIQ      0
@@ -399,6 +405,30 @@ typedef ulonglong my_xid; // this line is the same as in log_event.h
 
 #define COMPATIBLE_DATA_YES 0
 #define COMPATIBLE_DATA_NO  1
+
+namespace AQP {
+  class Join_plan;
+};
+
+/* Flag used for for test_push_flag() */
+enum ha_push_flag {
+
+  /* Handler want to block const table optimization */
+  HA_PUSH_BLOCK_CONST_TABLE
+
+  /* Handler reports a pushed join as having multiple dependencies 
+     if its results does not only depend on the root operation:
+     ie. results from some child operations does not only depend
+     on results from the root operation and/or other child operations
+     within this pushed join 
+   */
+  ,HA_PUSH_MULTIPLE_DEPENDENCY
+
+  /* Handler is unable to return the result in sorted order using an
+     ordered index on the parent operation.
+   */
+  ,HA_PUSH_NO_ORDERED_INDEX
+};
 
 /**
   struct xid_t is binary compatible with the XID structure as
@@ -805,6 +835,10 @@ struct handlerton
                      const char *wild, bool dir, List<LEX_STRING> *files);
    int (*table_exists_in_engine)(handlerton *hton, THD* thd, const char *db,
                                  const char *name);
+
+   int (*make_pushed_join)(handlerton *hton, THD* thd, 
+                           AQP::Join_plan* plan);
+
    uint32 license; /* Flag for Engine License */
    void *data; /* Location for engines to keep personal structures */
 };
@@ -1164,6 +1198,7 @@ uint calculate_key_len(TABLE *, uint, const uchar *, key_part_map);
   (keypart_map for a key prefix of [0..N-1] keyparts)
 */
 #define make_prev_keypart_map(N) (((key_part_map)1 << (N)) - 1)
+
 
 /**
   The handler class is the interface for dynamically loadable
@@ -1902,6 +1937,44 @@ public:
    Pops the top if condition stack, if stack is not empty.
  */
  virtual void cond_pop() { return; };
+
+  /**
+    Reports #tables included in pushed join which this
+    handler instance is part of. ==0 -> Not pushed
+  */
+  virtual uint number_of_pushed_joins() const
+  { return 0; }
+
+  /**
+    If this handler instance is part of a pushed join sequence
+    returned TABLE instance being root of the pushed query?
+  */
+  virtual const TABLE* root_of_pushed_join() const
+  { return NULL; }
+
+  /**
+    If this handler instance is a child in a pushed join sequence
+    returned TABLE instance being my parent?
+  */
+  virtual const TABLE* parent_of_pushed_join() const
+  { return NULL; }
+
+  virtual bool test_push_flag(enum ha_push_flag flag) const
+  {
+    return FALSE;
+  }
+
+  virtual int index_read_pushed(uchar * buf, const uchar * key,
+                             key_part_map keypart_map)
+  { return  HA_ERR_WRONG_COMMAND; }
+
+  virtual int index_next_pushed(uchar * buf)
+  { return  HA_ERR_WRONG_COMMAND; }
+
+
+ /*
+    Part of old fast alter table, to be depricated
+  */
  virtual bool check_if_incompatible_data(HA_CREATE_INFO *create_info,
 					 uint table_changes)
  { return COMPATIBLE_DATA_NO; }
@@ -2249,6 +2322,9 @@ int ha_enable_transaction(THD *thd, bool on);
 int ha_rollback_to_savepoint(THD *thd, SAVEPOINT *sv);
 int ha_savepoint(THD *thd, SAVEPOINT *sv);
 int ha_release_savepoint(THD *thd, SAVEPOINT *sv);
+
+/* Build pushed joins in handlers implementing this feature */
+int ha_make_pushed_joins(THD *thd, AQP::Join_plan* plan);
 
 /* these are called by storage engines */
 void trans_register_ha(THD *thd, bool all, handlerton *ht);
