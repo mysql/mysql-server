@@ -3272,7 +3272,6 @@ err_exit:
 		bpage->space	= space;
 		bpage->offset	= offset;
 
-
 #ifdef UNIV_DEBUG
 		bpage->in_page_hash = FALSE;
 		bpage->in_zip_hash = FALSE;

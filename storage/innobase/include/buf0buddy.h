@@ -37,14 +37,14 @@ Created December 2006 by Marko Makela
 /**********************************************************************//**
 Allocate a block.  The thread calling this function must hold
 buf_pool->mutex and must not hold buf_pool->zip_mutex or any
-block->mutex.  The buf_pool_mutex may be released and reacquired.
+block->mutex.  The buf_pool->mutex may be released and reacquired.
 This function should only be used for allocating compressed page frames.
 @return	allocated block, never NULL */
 UNIV_INLINE
-void*
+byte*
 buf_buddy_alloc(
 /*============*/
-	buf_pool_t*	buf_pool,	/*!< in: buffer pool in which
+	buf_pool_t*	buf_pool,	/*!< in/out: buffer pool in which
 					the page resides */
 	ulint		size,		/*!< in: compressed page size
 					(between PAGE_ZIP_MIN_SIZE and
@@ -57,16 +57,17 @@ buf_buddy_alloc(
 	__attribute__((malloc, nonnull));
 
 /**********************************************************************//**
-Release a block. */
+Deallocate a block. */
 UNIV_INLINE
 void
 buf_buddy_free(
 /*===========*/
-	buf_pool_t*	buf_pool,
-			/*!< buffer pool in which the block resides */
-	void*	buf,	/*!< in: block to be freed, must not be
-			pointed to by the buffer pool */
-	ulint	size)	/*!< in: block size, up to UNIV_PAGE_SIZE */
+	buf_pool_t*	buf_pool,	/*!< in/out: buffer pool in which
+					the block resides */
+	void*		buf,		/*!< in: block to be freed, must not
+					be pointed to by the buffer pool */
+	ulint		size)		/*!< in: block size,
+					up to UNIV_PAGE_SIZE */
 	__attribute__((nonnull));
 
 #ifndef UNIV_NONINL
