@@ -331,3 +331,20 @@ SELECT * FROM (SELECT DISTINCT * FROM t2) t, t1  WHERE t1.a = t.a;
 SELECT * FROM (SELECT DISTINCT * FROM t2) t, t1  WHERE t1.a = t.a;
 
 DROP TABLE t1,t2;
+
+--echo #
+--echo #  LP bug #800518: crash with a query over a derived table
+--echo #                  when a min/max optimization is applied
+--echo #
+
+CREATE TABLE t1 (a int, b int, c varchar(10), INDEX idx(a,b)) ;
+INSERT INTO t1 VALUES 
+  (100, 3, 'xxx'), (200, 7, 'yyyyyyy'), (100, 1, 't'),
+  (200, 4, 'aaaa'), (100, 3, 'eee'), (100, 5, 'zzzzz');
+
+EXPLAIN
+SELECT MAX(b) FROM (SELECT * FROM t1) AS t WHERE a = 100;
+SELECT MAX(b) FROM (SELECT * FROM t1) AS t WHERE a = 100;
+
+DROP TABLE t1;
+

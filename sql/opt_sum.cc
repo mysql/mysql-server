@@ -494,11 +494,13 @@ bool simple_pred(Item_func *func_item, Item **args, bool *inv_order)
     /* MULT_EQUAL_FUNC */
     {
       Item_equal *item_equal= (Item_equal *) func_item;
-      Item_equal_fields_iterator it(*item_equal);
-      args[0]= it++;
-      if (it++)
-        return 0;
       if (!(args[1]= item_equal->get_const()))
+        return 0;
+      Item_equal_fields_iterator it(*item_equal);
+      if (!(item= it++))
+        return 0;
+      args[0]= item->real_item();
+      if (it++)
         return 0;
     }
     break;
