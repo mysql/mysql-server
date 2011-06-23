@@ -614,6 +614,10 @@ uint find_shortest_key(TABLE *table, const key_map *usable_keys);
 Field* create_tmp_field_from_field(THD *thd, Field* org_field,
                                    const char *name, TABLE *table,
                                    Item_field *item, uint convert_blob_length);
+bool test_if_skip_sort_order(JOIN_TAB *tab, ORDER *order,
+                             ha_rows select_limit, bool no_changes,
+                             key_map *map);
+
                                                                       
 bool is_indexed_agg_distinct(JOIN *join, List<Item_field> *out_args);
 
