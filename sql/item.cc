@@ -1489,7 +1489,7 @@ public:
     thd->fatal_error() may be called if we are out of memory
 */
 
-void Item::split_sum_func2(THD *thd, Item **ref_pointer_array,
+void Item::split_sum_func2(THD *thd, Ref_ptr_array ref_pointer_array,
                            List<Item> &fields, Item **ref, 
                            bool skip_registered)
 {
@@ -1526,7 +1526,7 @@ void Item::split_sum_func2(THD *thd, Item **ref_pointer_array,
 
     ref_pointer_array[el]= real_itm;
     if (!(item_ref= new Item_aggregate_ref(&thd->lex->current_select->context,
-                                           ref_pointer_array + el, 0, name)))
+                                           &ref_pointer_array[el], 0, name)))
       return;                                   // fatal_error is set
     if (type() == SUM_FUNC_ITEM)
       item_ref->depended_from= ((Item_sum *) this)->depended_from(); 
@@ -4345,7 +4345,7 @@ resolve_ref_in_select_and_group(THD *thd, Item_ident *ref, SELECT_LEX *select)
         return NULL;
       }
       DBUG_ASSERT((*select_ref)->fixed);
-      return (select->ref_pointer_array + counter);
+      return &select->ref_pointer_array[counter];
     }
     if (group_by_ref)
       return group_by_ref;
@@ -6233,13 +6233,13 @@ Item *Item_field::update_value_transformer(uchar *select_arg)
       type() != Item::TRIGGER_FIELD_ITEM)
   {
     List<Item> *all_fields= &select->join->all_fields;
-    Item **ref_pointer_array= select->ref_pointer_array;
+    Ref_ptr_array &ref_pointer_array= select->ref_pointer_array;
     int el= all_fields->elements;
     Item_ref *ref;
 
     ref_pointer_array[el]= (Item*)this;
     all_fields->push_front((Item*)this);
-    ref= new Item_ref(&select->context, ref_pointer_array + el,
+    ref= new Item_ref(&select->context, &ref_pointer_array[el],
                       table_name, field_name);
     return ref;
   }

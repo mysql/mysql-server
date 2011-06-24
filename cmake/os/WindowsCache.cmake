@@ -1,4 +1,4 @@
-# Copyright (C) 2010 Sun Microsystems, Inc
+# Copyright (c) 2010, 2011, Oracle and/or its affiliates. All rights reserved.
 # 
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -266,7 +266,6 @@ SET(HAVE_SYNCH_H CACHE  INTERNAL "")
 SET(HAVE_SYSENT_H CACHE  INTERNAL "")
 SET(HAVE_SYS_CDEFS_H CACHE  INTERNAL "")
 SET(HAVE_SYS_DIR_H CACHE  INTERNAL "")
-SET(HAVE_SYS_ERRLIST CACHE  INTERNAL "")
 SET(HAVE_SYS_FILE_H CACHE  INTERNAL "")
 SET(HAVE_SYS_FPU_H CACHE  INTERNAL "")
 SET(HAVE_SYS_IOCTL_H CACHE  INTERNAL "")

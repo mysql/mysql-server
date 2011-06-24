@@ -1543,6 +1543,8 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
 
   /* Finalize server status flags after executing a command. */
   thd->update_server_status();
+  if (thd->killed)
+    thd->send_kill_message();
   thd->protocol->end_statement();
   query_cache_end_of_result(thd);
 
@@ -3165,7 +3167,7 @@ end_with_restore_list:
     if (!thd->is_fatal_error &&
         (del_result= new multi_delete(aux_tables, lex->table_count)))
     {
-      res= mysql_select(thd, &select_lex->ref_pointer_array,
+      res= mysql_select(thd,
 			select_lex->get_table_list(),
 			select_lex->with_wild,
 			select_lex->item_list,
@@ -4547,10 +4549,7 @@ finish:
   {
     /* report error issued during command execution */
     if (thd->killed_errno())
-    {
-      if (! thd->get_stmt_da()->is_set())
-        thd->send_kill_message();
-    }
+      thd->send_kill_message();
     if (thd->killed == THD::KILL_QUERY || thd->killed == THD::KILL_BAD_DATA)
     {
       thd->killed= THD::NOT_KILLED;

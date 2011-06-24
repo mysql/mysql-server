@@ -68,6 +68,18 @@ extern os_event_t	srv_timeout_event;
 /* The error monitor thread waits on this event. */
 extern os_event_t	srv_error_event;
 
+/** The buffer pool dump/load thread waits on this event. */
+extern os_event_t	srv_buf_dump_event;
+
+/** The buffer pool dump/load file name */
+#define SRV_BUF_DUMP_FILENAME_DEFAULT	"ib_buffer_pool"
+extern char*		srv_buf_dump_filename;
+
+/** Boolean config knobs that tell InnoDB to dump the buffer pool at shutdown
+and/or load it during startup. */
+extern char		srv_buffer_pool_dump_at_shutdown;
+extern char		srv_buffer_pool_load_at_startup;
+
 /* If the last data file is auto-extended, we add this many pages to it
 at a time */
 #define SRV_AUTO_EXTEND_INCREMENT	\
@@ -229,6 +241,9 @@ extern ibool	srv_print_innodb_table_monitor;
 extern ibool	srv_lock_timeout_active;
 extern ibool	srv_monitor_active;
 extern ibool	srv_error_monitor_active;
+
+/* TRUE during the lifetime of the buffer pool dump/load thread */
+extern ibool	srv_buf_dump_thread_active;
 
 extern ulong	srv_n_spin_wait_rounds;
 extern ulong	srv_n_free_tickets_to_enter;
@@ -697,6 +712,8 @@ struct export_var_struct{
 	ulint innodb_data_writes;		/*!< I/O write requests */
 	ulint innodb_data_written;		/*!< Data bytes written */
 	ulint innodb_data_reads;		/*!< I/O read requests */
+	char  innodb_buffer_pool_dump_status[512];/*!< Buf pool dump status */
+	char  innodb_buffer_pool_load_status[512];/*!< Buf pool load status */
 	ulint innodb_buffer_pool_pages_total;	/*!< Buffer pool size */
 	ulint innodb_buffer_pool_pages_data;	/*!< Data pages */
 	ulint innodb_buffer_pool_pages_dirty;	/*!< Dirty data pages */

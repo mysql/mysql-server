@@ -290,6 +290,7 @@ buf_page_free_descriptor(
 /*=====================*/
 	buf_page_t*	bpage)	/*!< in: bpage descriptor to free. */
 	__attribute__((nonnull));
+
 /********************************************************************//**
 Allocates a buffer block.
 @return	own: the allocated block, in state BUF_BLOCK_MEMORY */
