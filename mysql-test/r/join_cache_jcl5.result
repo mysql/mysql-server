@@ -2237,8 +2237,8 @@ GROUP BY t1.col_int_key
 ORDER BY t1.col_int_key, t1.col_datetime
 LIMIT 2;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	ALL	NULL	NULL	NULL	NULL	3	Using temporary; Using filesort
-1	SIMPLE	t2	ALL	NULL	NULL	NULL	NULL	2	Using where; Using join buffer (BNL, regular buffers)
+1	SIMPLE	t1	index	NULL	col_int_key	5	NULL	3	Using temporary; Using filesort
+1	SIMPLE	t2	ALL	NULL	NULL	NULL	NULL	2	Using where
 SELECT t1.col_int_key, t1.col_datetime 
 FROM t1 force index (col_int_key), t2 ignore index (col_int_key)
 WHERE t2.col_int_key = 1 AND t2.col_int >= 3
@@ -2439,5 +2439,178 @@ c1
 
 DROP TABLE t1, t2, t3;
 set @@join_buffer_size=default;
+
+# BUG#12586926 "EXTRA ROW WITH JOIN + GROUP BY + ORDER BY WITH
+# JCL>=5 AND MRR ENABLED"
+
+SET @old_optimizer_switch=@@optimizer_switch;
+SET optimizer_switch='mrr=on,mrr_cost_based=off';
+CREATE TABLE t1 (  col_int_key int(11) NOT NULL,
+col_varchar_key varchar(1) NOT NULL,    
+KEY col_int_key (col_int_key),
+KEY col_varchar_key (col_varchar_key,col_int_key)
+) ENGINE=innodb;
+INSERT INTO t1 VALUES (0,'j'),(4,'b'),(4,'d');
+CREATE TABLE t2 (
+col_datetime_key datetime NOT NULL,
+col_varchar_key varchar(1) NOT NULL,
+KEY col_varchar_key (col_varchar_key)
+) ENGINE=innodb;
+INSERT INTO t2 VALUES ('2003-08-21 00:00:00','b');
+explain SELECT MIN(t2.col_datetime_key) AS field1,
+t1.col_int_key AS field2  
+FROM t1
+LEFT JOIN t2 force index (col_varchar_key)
+ON t1.col_varchar_key = t2.col_varchar_key  
+GROUP BY field2
+ORDER BY field1;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	index	NULL	col_varchar_key	7	NULL	3	Using index; Using temporary; Using filesort
+1	SIMPLE	t2	ref	col_varchar_key	col_varchar_key	3	test.t1.col_varchar_key	1	Using join buffer (BKA, regular buffers)
+SELECT MIN(t2.col_datetime_key) AS field1,
+t1.col_int_key AS field2  
+FROM t1
+LEFT JOIN t2 force index (col_varchar_key)
+ON t1.col_varchar_key = t2.col_varchar_key  
+GROUP BY field2
+ORDER BY field1;
+field1	field2
+NULL	0
+2003-08-21 00:00:00	4
+DROP TABLE t1,t2;
+SET @@optimizer_switch=@old_optimizer_switch;
+
+# BUG#12619510 "JCL: MORE ROWS AND DIFFERENT OUTPUT WITH JCL>=5"
+
+SET @old_optimizer_switch=@@optimizer_switch;
+SET optimizer_switch='mrr=on,mrr_cost_based=off';
+CREATE TABLE t1 (
+col_int_key int(11) NOT NULL,
+col_datetime_key datetime NOT NULL,
+col_varchar_nokey varchar(1) NOT NULL,
+KEY col_int_key (col_int_key),
+KEY col_datetime_key (col_datetime_key)
+);
+INSERT INTO t1 VALUES (7,'2004-06-06 04:22:12','v');
+INSERT INTO t1 VALUES (0,'2005-11-13 01:12:31','s');
+INSERT INTO t1 VALUES (9,'2002-05-04 01:50:00','l');
+INSERT INTO t1 VALUES (3,'2004-10-27 10:28:45','y');
+INSERT INTO t1 VALUES (4,'2006-07-22 05:24:23','c');
+INSERT INTO t1 VALUES (2,'2002-05-16 21:34:03','i');
+INSERT INTO t1 VALUES (5,'2008-04-17 10:45:30','h');
+INSERT INTO t1 VALUES (3,'2009-04-21 02:58:02','q');
+INSERT INTO t1 VALUES (1,'2008-01-11 11:01:51','a');
+INSERT INTO t1 VALUES (3,'1900-01-01 00:00:00','v');
+INSERT INTO t1 VALUES (6,'2007-05-17 18:24:57','u');
+INSERT INTO t1 VALUES (7,'2007-08-07 00:00:00','s');
+INSERT INTO t1 VALUES (5,'2001-08-28 00:00:00','y');
+INSERT INTO t1 VALUES (1,'2004-04-16 00:27:28','z');
+INSERT INTO t1 VALUES (204,'2005-05-03 07:06:22','h');
+INSERT INTO t1 VALUES (224,'2009-03-11 17:09:50','p');
+INSERT INTO t1 VALUES (9,'2007-12-08 01:54:28','e');
+INSERT INTO t1 VALUES (5,'2009-07-28 18:19:54','i');
+INSERT INTO t1 VALUES (0,'2008-06-08 00:00:00','y');
+INSERT INTO t1 VALUES (3,'2005-02-09 09:20:26','w');
+CREATE TABLE t2 (
+pk int(11) NOT NULL,
+col_varchar_key varchar(1) NOT NULL,
+PRIMARY KEY (pk)
+);
+INSERT INTO t2 VALUES
+(1,'j'),(2,'v'),(3,'c'),(4,'m'),(5,'d'),(6,'d'),(7,'y'),
+(8,'t'),(9,'d'),(10,'s'),(11,'r'),(12,'m'),(13,'b'),(14,'x'),
+(15,'g'),(16,'p'),(17,'q'),(18,'w'),(19,'d'),(20,'e');
+explain SELECT t2.col_varchar_key AS field1 , COUNT(DISTINCT t1.col_varchar_nokey), t2.pk AS field4
+FROM t1
+RIGHT JOIN t2 ON t2.pk = t1.col_int_key 
+GROUP BY field1 , field4 
+ORDER BY t1.col_datetime_key ;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t2	ALL	NULL	NULL	NULL	NULL	20	Using temporary; Using filesort
+1	SIMPLE	t1	ref	col_int_key	col_int_key	4	test.t2.pk	3	Using join buffer (BKA, regular buffers)
+SELECT t2.col_varchar_key AS field1 , COUNT(DISTINCT t1.col_varchar_nokey), t2.pk AS field4
+FROM t1
+RIGHT JOIN t2 ON t2.pk = t1.col_int_key 
+GROUP BY field1 , field4 
+ORDER BY t1.col_datetime_key ;
+field1	COUNT(DISTINCT t1.col_varchar_nokey)	field4
+b	0	13
+c	4	3
+d	0	19
+d	1	6
+d	2	9
+d	3	5
+e	0	20
+g	0	15
+j	2	1
+m	0	12
+m	1	4
+p	0	16
+q	0	17
+r	0	11
+s	0	10
+t	0	8
+v	1	2
+w	0	18
+x	0	14
+y	2	7
+DROP TABLE t1,t2;
+SET @@optimizer_switch=@old_optimizer_switch;
+
+# BUG#12619868 "JCL: MORE ROWS OF OUTPUT WHEN JCL>=5"
+
+SET @old_optimizer_switch=@@optimizer_switch;
+SET optimizer_switch='mrr=on,mrr_cost_based=off';
+CREATE TABLE t1 (col_varchar_key varchar(1));
+CREATE TABLE t2 (
+pk int(11) NOT NULL,
+col_int_nokey int(11) NOT NULL,
+col_int_key int(11) NOT NULL,
+PRIMARY KEY (pk),
+KEY col_int_key (col_int_key)
+);
+INSERT INTO t2 VALUES (5,3,9);
+INSERT INTO t2 VALUES (6,246,24);
+INSERT INTO t2 VALUES (7,2,6);
+INSERT INTO t2 VALUES (8,9,1);
+INSERT INTO t2 VALUES (9,3,6);
+INSERT INTO t2 VALUES (10,8,2);
+INSERT INTO t2 VALUES (11,1,4);
+INSERT INTO t2 VALUES (12,8,8);
+INSERT INTO t2 VALUES (13,8,4);
+INSERT INTO t2 VALUES (14,5,4);
+INSERT INTO t2 VALUES (15,7,7);
+INSERT INTO t2 VALUES (16,5,4);
+INSERT INTO t2 VALUES (17,1,1);
+INSERT INTO t2 VALUES (18,6,9);
+INSERT INTO t2 VALUES (19,2,4);
+INSERT INTO t2 VALUES (20,9,8);
+explain SELECT t1.col_varchar_key AS field1, alias2.col_int_key AS field4 
+FROM t2 AS alias2 STRAIGHT_JOIN t2 AS alias3 ON alias3.pk =
+alias2.col_int_nokey 
+left join t1 
+ON alias3.col_int_nokey 
+GROUP BY field1, field4
+LIMIT 15;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	system	NULL	NULL	NULL	NULL	0	const row not found
+1	SIMPLE	alias2	ALL	NULL	NULL	NULL	NULL	16	Using temporary; Using filesort
+1	SIMPLE	alias3	eq_ref	PRIMARY	PRIMARY	4	test.alias2.col_int_nokey	1	Using join buffer (BKA, regular buffers)
+SELECT t1.col_varchar_key AS field1, alias2.col_int_key AS field4 
+FROM t2 AS alias2 STRAIGHT_JOIN t2 AS alias3 ON alias3.pk =
+alias2.col_int_nokey 
+left join t1 
+ON alias3.col_int_nokey 
+GROUP BY field1, field4
+LIMIT 15;
+field1	field4
+NULL	1
+NULL	2
+NULL	4
+NULL	7
+NULL	8
+NULL	9
+DROP TABLE t1,t2;
+SET @@optimizer_switch=@old_optimizer_switch;
 set optimizer_join_cache_level = default;
 set optimizer_switch = default;
