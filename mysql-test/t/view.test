@@ -4155,3 +4155,24 @@ SELECT * FROM v1 LEFT JOIN t2 ON t2.a = v1.a
 
 DROP VIEW v1;
 DROP TABLE t1,t2;
+
+--echo #
+--echo # Bug#798576: abort on a GROUP BY query over a view with left join 
+--echo #             that can be converted to inner join
+--echo #
+
+CREATE TABLE t1 (a int NOT NULL , b int NOT NULL) ;
+INSERT INTO t1 VALUES (214,0), (6,6), (6,0), (7,0);
+
+CREATE TABLE t2 (b int) ;
+INSERT INTO t2 VALUES (88), (78), (6);
+
+CREATE ALGORITHM=MERGE VIEW v1 AS 
+  SELECT t1.a, t2.b FROM (t2 LEFT JOIN t1 ON t2.b > t1.a) WHERE t1.b <= 0;
+
+SELECT * FROM v1;
+SELECT a, MIN(b) FROM v1 GROUP BY a;
+
+DROP VIEW v1;
+DROP TABLE t1,t2;
+

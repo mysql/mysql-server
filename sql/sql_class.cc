@@ -814,6 +814,7 @@ THD::THD()
   memset(&invoker_user, 0, sizeof(invoker_user));
   memset(&invoker_host, 0, sizeof(invoker_host));
   prepare_derived_at_open= FALSE;
+  create_tmp_table_for_derived= FALSE;
 }
 
 

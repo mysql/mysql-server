@@ -1571,6 +1571,12 @@ public:
 
   bool prepare_derived_at_open;
 
+  /* 
+    To signal that the tmp table to be created is created for materialized
+    derived table or a view.
+  */ 
+  bool create_tmp_table_for_derived;
+
 #ifndef MYSQL_CLIENT
   int binlog_setup_trx_data();
 

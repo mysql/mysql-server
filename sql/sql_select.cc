@@ -12772,8 +12772,9 @@ Field *create_tmp_field(THD *thd, TABLE *table,Item *item, Item::Type type,
       If item have to be able to store NULLs but underlaid field can't do it,
       create_tmp_field_from_field() can't be used for tmp field creation.
     */
-    if (((field->maybe_null && field->in_rollup) ||
-         (orig_item && orig_item->maybe_null)) && /* for outer joined views/dt*/        
+    if (((field->maybe_null && field->in_rollup) ||      
+	(thd->create_tmp_table_for_derived  &&    /* for mat. view/dt */
+	 orig_item && orig_item->maybe_null)) &&         
         !field->field->maybe_null())
     {
       bool save_maybe_null= FALSE;

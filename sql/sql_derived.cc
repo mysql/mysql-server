@@ -659,13 +659,18 @@ bool mysql_derived_prepare(THD *thd, LEX *lex, TABLE_LIST *derived)
     !unit->union_distinct->next_select() (i.e. it is union and last distinct
     SELECT is last SELECT of UNION).
   */
+  thd->create_tmp_table_for_derived= TRUE;
   if (derived->derived_result->create_result_table(thd, &unit->types, FALSE,
                                                 (first_select->options |
                                                  thd->options |
                                                  TMP_TABLE_ALL_COLUMNS),
                                                 derived->alias,
                                                 FALSE, FALSE))
+  { 
+    thd->create_tmp_table_for_derived= FALSE;
     goto exit;
+  }
+  thd->create_tmp_table_for_derived= FALSE;
 
   derived->table= derived->derived_result->table;
   if (derived->is_derived() && derived->is_merged_derived())
