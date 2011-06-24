@@ -243,14 +243,21 @@ int opt_sum_query(THD *thd,
   ulonglong count= 1;
   bool is_exact_count= TRUE, maybe_exact_count= TRUE;
   table_map removed_tables= 0, outer_tables= 0, used_tables= 0;
-  table_map where_tables= 0;
   Item *item;
   int error;
 
   DBUG_ENTER("opt_sum_query");
 
-  if (conds)
-    where_tables= conds->used_tables();
+  const table_map where_tables= conds ? conds->used_tables() : 0;
+  /*
+    opt_sum_query() happens at optimization. A subquery is optimized once but
+    executed possibly multiple times.
+    If the value of the set function depends on the join's emptiness (like
+    MIN() does), and the join's emptiness depends on the outer row, we cannot
+    mark the set function as constant:
+   */
+  if (where_tables & OUTER_REF_TABLE_BIT)
+    DBUG_RETURN(0);
 
   /*
     Analyze outer join dependencies, and, if possible, compute the number
