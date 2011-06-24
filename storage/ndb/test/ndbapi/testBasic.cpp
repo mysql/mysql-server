@@ -3027,14 +3027,14 @@ static RefreshScenario refreshTests[] = {
 
 enum OpTypes
 {
-  READ_C,
-  READ_S,
-  READ_E,
-  INSERT,
-  UPDATE,
-  WRITE,
-  DELETE,
-  LAST
+  OP_READ_C,
+  OP_READ_S,
+  OP_READ_E,
+  OP_INSERT,
+  OP_UPDATE,
+  OP_WRITE,
+  OP_DELETE,
+  OP_LAST
 };
 
 const char* opTypeNames[] =
@@ -3133,9 +3133,9 @@ runRefreshLocking(NDBT_Context* ctx, NDBT_Step* step)
     {
       /* Now try ops from another transaction */
       HugoOperations hugoOps(*ctx->getTab());
-      Uint32 ot = READ_C;
+      Uint32 ot = OP_READ_C;
 
-      while (ot < LAST)
+      while (ot < OP_LAST)
       {
         if (hugoOps.startTransaction(ndb) != 0)
         {
@@ -3147,34 +3147,34 @@ runRefreshLocking(NDBT_Context* ctx, NDBT_Step* step)
         int res = 0;
         switch (ot)
         {
-        case READ_C:
+        case OP_READ_C:
           res = hugoOps.pkReadRecord(ndb,0,1,NdbOperation::LM_CommittedRead);
           break;
-        case READ_S:
+        case OP_READ_S:
           res = hugoOps.pkReadRecord(ndb,0,1,NdbOperation::LM_Read);
           break;
-        case READ_E:
+        case OP_READ_E:
           res = hugoOps.pkReadRecord(ndb,0,1,NdbOperation::LM_Exclusive);
           break;
-        case INSERT:
+        case OP_INSERT:
           res = hugoOps.pkInsertRecord(ndb, 0);
           break;
-        case UPDATE:
+        case OP_UPDATE:
           res = hugoOps.pkUpdateRecord(ndb, 0);
           break;
-        case WRITE:
+        case OP_WRITE:
           res = hugoOps.pkWriteRecord(ndb, 0);
           break;
-        case DELETE:
+        case OP_DELETE:
           res = hugoOps.pkDeleteRecord(ndb, 0);
           break;
-        case LAST:
+        case OP_LAST:
           abort();
         }
 
         hugoOps.execute_Commit(ndb);
 
-        if ((ot == READ_C) && (scenario.preExist))
+        if ((ot == OP_READ_C) && (scenario.preExist))
         {
           if (hugoOps.getNdbError().code == 0)
           {
