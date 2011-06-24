@@ -265,7 +265,8 @@ static MYSQL_THDVAR_UINT(
 */
 bool ndb_index_stat_get_enable(THD *thd)
 {
-  return THDVAR(thd, index_stat_enable);
+  const bool value = THDVAR(thd, index_stat_enable);
+  return value;
 }
 
 /*
@@ -403,6 +404,9 @@ HASH ndbcluster_open_tables;
 
 static uchar *ndbcluster_get_key(NDB_SHARE *share, size_t *length,
                                 my_bool not_used __attribute__((unused)));
+
+static void modify_shared_stats(NDB_SHARE *share,
+                                Ndb_local_table_statistics *local_stat);
 
 static int ndb_get_table_statistics(THD *thd, ha_ndbcluster*, bool, Ndb*,
                                     const NdbRecord *, struct Ndb_statistics *,
@@ -6058,27 +6062,50 @@ int ha_ndbcluster::info(uint flag)
     if (!thd)
       thd= current_thd;
     DBUG_PRINT("info", ("HA_STATUS_VARIABLE"));
-    if ((flag & HA_STATUS_NO_LOCK) &&
-        !THDVAR(thd, use_exact_count))
-    {
-      if (thd->lex->sql_command != SQLCOM_SHOW_TABLE_STATUS &&
-          thd->lex->sql_command != SQLCOM_SHOW_KEYS)
-      {
-        /*
-          just use whatever stats we have however,
-          optimizer behaves strangely if we return few rows
-        */
-        if (stats.records < 2)
-          stats.records= 2;
-        break;
-      }
-    }
+
     if (!m_table_info)
     {
       if ((my_errno= check_ndb_connection(thd)))
         DBUG_RETURN(my_errno);
     }
-    result= update_stats(thd, 1);
+
+    /*
+      May need to update local copy of statistics in
+      'm_table_info', either directly from datanodes,
+      or from shared (mutex protected) cached copy, if:
+       1) 'use_exact_count' has been set (by config or user).
+       2) HA_STATUS_NO_LOCK -> read from shared cached copy.
+       3) Local copy is invalid.
+    */
+    bool exact_count= THDVAR(thd, use_exact_count);
+    if (exact_count                 ||         // 1)
+        !(flag & HA_STATUS_NO_LOCK) ||         // 2)
+        m_table_info == NULL        ||         // 3)
+        m_table_info->records == ~(ha_rows)0)  // 3)
+    {
+      result= update_stats(thd, (exact_count || !(flag & HA_STATUS_NO_LOCK)));
+      if (result)
+        DBUG_RETURN(result);
+    }
+    /* Read from local statistics, fast and fuzzy, wo/ locks */
+    else
+    {
+      DBUG_ASSERT(m_table_info->records != ~(ha_rows)0);
+      stats.records= m_table_info->records +
+                     m_table_info->no_uncommitted_rows_count;
+    }
+
+    if (thd->lex->sql_command != SQLCOM_SHOW_TABLE_STATUS &&
+        thd->lex->sql_command != SQLCOM_SHOW_KEYS)
+    {
+      /*
+        just use whatever stats we have. However,
+        optimizer interprets the values 0 and 1 as EXACT:
+          -> < 2 should not be returned.
+      */
+      if (stats.records < 2)
+        stats.records= 2;
+    }
     break;
   }
   /* RPK moved to variable part */
@@ -6640,7 +6667,18 @@ int ha_ndbcluster::start_statement(THD *thd,
       there is more than one handler involved, execute deferal
       not possible
     */
+    ha_ndbcluster* handler = thd_ndb->m_handler;
     thd_ndb->m_handler= NULL;
+    if (handler != NULL)
+    {
+      /**
+       * If we initially belived that this could be run
+       *  using execute deferal...but changed out mind
+       *  add handler to thd_ndb->open_tables like it would
+       *  have done "normally"
+       */
+      add_handler_to_open_tables(thd, thd_ndb, handler);
+    }
   }
   if (!trans && table_count == 0)
   {
@@ -6686,6 +6724,57 @@ int ha_ndbcluster::start_statement(THD *thd,
   DBUG_RETURN(0);
 }
 
+int
+ha_ndbcluster::add_handler_to_open_tables(THD *thd,
+                                          Thd_ndb *thd_ndb,
+                                          ha_ndbcluster* handler)
+{
+  DBUG_ENTER("ha_ndbcluster::add_handler_to_open_tables");
+  DBUG_PRINT("info", ("Adding %s", handler->m_share->key));
+
+  /**
+   * thd_ndb->open_tables is only used iff thd_ndb->m_handler is not
+   */
+  DBUG_ASSERT(thd_ndb->m_handler == NULL);
+  const void *key= handler->m_share;
+  HASH_SEARCH_STATE state;
+  THD_NDB_SHARE *thd_ndb_share=
+    (THD_NDB_SHARE*)my_hash_first(&thd_ndb->open_tables,
+                                  (const uchar *)&key, sizeof(key),
+                                  &state);
+  while (thd_ndb_share && thd_ndb_share->key != key)
+  {
+    thd_ndb_share=
+      (THD_NDB_SHARE*)my_hash_next(&thd_ndb->open_tables,
+                                   (const uchar *)&key, sizeof(key),
+                                   &state);
+  }
+  if (thd_ndb_share == 0)
+  {
+    thd_ndb_share= (THD_NDB_SHARE *) alloc_root(&thd->transaction.mem_root,
+                                                sizeof(THD_NDB_SHARE));
+    if (!thd_ndb_share)
+    {
+      mem_alloc_error(sizeof(THD_NDB_SHARE));
+      DBUG_RETURN(1);
+    }
+    thd_ndb_share->key= key;
+    thd_ndb_share->stat.last_count= thd_ndb->count;
+    thd_ndb_share->stat.no_uncommitted_rows_count= 0;
+    thd_ndb_share->stat.records= ~(ha_rows)0;
+    my_hash_insert(&thd_ndb->open_tables, (uchar *)thd_ndb_share);
+  }
+  else if (thd_ndb_share->stat.last_count != thd_ndb->count)
+  {
+    thd_ndb_share->stat.last_count= thd_ndb->count;
+    thd_ndb_share->stat.no_uncommitted_rows_count= 0;
+    thd_ndb_share->stat.records= ~(ha_rows)0;
+  }
+
+  handler->m_table_info= &thd_ndb_share->stat;
+  DBUG_RETURN(0);
+}
+
 int ha_ndbcluster::init_handler_for_statement(THD *thd)
 {
   /*
@@ -6719,45 +6808,11 @@ int ha_ndbcluster::init_handler_for_statement(THD *thd)
   }
 #endif
 
-  if (thd_options(thd) & (OPTION_NOT_AUTOCOMMIT | OPTION_BEGIN))
+  int ret = 0;
+  if (thd_ndb->m_handler == 0)
   {
-    const void *key= m_table;
-    HASH_SEARCH_STATE state;
-    THD_NDB_SHARE *thd_ndb_share=
-      (THD_NDB_SHARE*)my_hash_first(&thd_ndb->open_tables,
-                                    (const uchar *)&key, sizeof(key),
-                                    &state);
-    while (thd_ndb_share && thd_ndb_share->key != key)
-    {
-      thd_ndb_share=
-        (THD_NDB_SHARE*)my_hash_next(&thd_ndb->open_tables,
-                                     (const uchar *)&key, sizeof(key),
-                                     &state);
-    }
-    if (thd_ndb_share == 0)
-    {
-      thd_ndb_share= (THD_NDB_SHARE *) alloc_root(&thd->transaction.mem_root,
-                                                  sizeof(THD_NDB_SHARE));
-      if (!thd_ndb_share)
-      {
-        mem_alloc_error(sizeof(THD_NDB_SHARE));
-        DBUG_RETURN(1);
-      }
-      thd_ndb_share->key= key;
-      thd_ndb_share->stat.last_count= thd_ndb->count;
-      thd_ndb_share->stat.no_uncommitted_rows_count= 0;
-      thd_ndb_share->stat.records= ~(ha_rows)0;
-      my_hash_insert(&thd_ndb->open_tables, (uchar *)thd_ndb_share);
-    }
-    else if (thd_ndb_share->stat.last_count != thd_ndb->count)
-    {
-      thd_ndb_share->stat.last_count= thd_ndb->count;
-      thd_ndb_share->stat.no_uncommitted_rows_count= 0;
-      thd_ndb_share->stat.records= ~(ha_rows)0;
-    }
-    DBUG_PRINT("exit", ("thd_ndb_share: 0x%lx  key: 0x%lx",
-                        (long) thd_ndb_share, (long) key));
-    m_table_info= &thd_ndb_share->stat;
+    DBUG_ASSERT(m_share);
+    ret = add_handler_to_open_tables(thd, thd_ndb, this);
   }
   else
   {
@@ -6767,7 +6822,7 @@ int ha_ndbcluster::init_handler_for_statement(THD *thd)
     stat.records= ~(ha_rows)0;
     m_table_info= &stat;
   }
-  DBUG_RETURN(0);
+  DBUG_RETURN(ret);
 }
 
 int ha_ndbcluster::external_lock(THD *thd, int lock_type)
@@ -7139,6 +7194,25 @@ int ndbcluster_commit(handlerton *hton, THD *thd, bool all)
     if (res != -1)
       ndbcluster_print_error(res, error_op);
   }
+  else
+  {
+    /* Update shared statistics for tables inserted into / deleted from*/
+    if (thd_ndb->m_handler &&      // Autocommit Txn
+        thd_ndb->m_handler->m_share &&
+        thd_ndb->m_handler->m_table_info)
+    {
+      modify_shared_stats(thd_ndb->m_handler->m_share, thd_ndb->m_handler->m_table_info);
+    }
+
+    /* Manual commit: Update all affected NDB_SHAREs found in 'open_tables' */
+    for (uint i= 0; i<thd_ndb->open_tables.records; i++)
+    {
+      THD_NDB_SHARE *thd_share=
+        (THD_NDB_SHARE*)my_hash_element(&thd_ndb->open_tables, i);
+      modify_shared_stats((NDB_SHARE*)thd_share->key, &thd_share->stat);
+    }
+  }
+
   ndb->closeTransaction(trans);
   thd_ndb->trans= NULL;
   thd_ndb->m_handler= NULL;
@@ -11049,7 +11123,7 @@ static int ndbcluster_init(void *p)
   if (pthread_create(&tmp2, &connection_attrib, ndb_index_stat_thread_func, 0))
   {
     DBUG_PRINT("error", ("Could not create ndb index statistics thread"));
-    hash_free(&ndbcluster_open_tables);
+    my_hash_free(&ndbcluster_open_tables);
     pthread_mutex_destroy(&ndbcluster_mutex);
     pthread_mutex_destroy(&LOCK_ndb_index_stat_thread);
     pthread_cond_destroy(&COND_ndb_index_stat_thread);
@@ -11070,7 +11144,7 @@ static int ndbcluster_init(void *p)
   if (!ndb_index_stat_thread_running)
   {
     DBUG_PRINT("error", ("ndb index statistics thread exited prematurely"));
-    hash_free(&ndbcluster_open_tables);
+    my_hash_free(&ndbcluster_open_tables);
     pthread_mutex_destroy(&ndbcluster_mutex);
     pthread_mutex_destroy(&LOCK_ndb_index_stat_thread);
     pthread_cond_destroy(&COND_ndb_index_stat_thread);
@@ -12312,8 +12386,22 @@ int ha_ndbcluster::update_stats(THD *thd,
   struct Ndb_statistics stat;
   Thd_ndb *thd_ndb= get_thd_ndb(thd);
   DBUG_ENTER("ha_ndbcluster::update_stats");
-  if (do_read_stat || !m_share)
+  do
   {
+    if (m_share && !do_read_stat)
+    {
+      pthread_mutex_lock(&m_share->mutex);
+      stat= m_share->stat;
+      pthread_mutex_unlock(&m_share->mutex);
+
+      DBUG_ASSERT(stat.row_count != ~(ha_rows)0); // should never be invalid
+
+      /* Accept shared cached statistics if row_count is valid. */
+      if (stat.row_count != ~(ha_rows)0)
+        break;
+    }
+
+    /* Request statistics from datanodes */
     Ndb *ndb= thd_ndb->ndb;
     if (ndb->setDatabaseName(m_dbname))
     {
@@ -12325,25 +12413,25 @@ int ha_ndbcluster::update_stats(THD *thd,
     {
       DBUG_RETURN(err);
     }
+
+    /* Update shared statistics with fresh data */
     if (m_share)
     {
       pthread_mutex_lock(&m_share->mutex);
       m_share->stat= stat;
       pthread_mutex_unlock(&m_share->mutex);
     }
+    break;
   }
-  else
+  while(0);
+
+  int no_uncommitted_rows_count= 0;
+  if (m_table_info && !thd_ndb->m_error)
   {
-    pthread_mutex_lock(&m_share->mutex);
-    stat= m_share->stat;
-    pthread_mutex_unlock(&m_share->mutex);
+    m_table_info->records= stat.row_count;
+    m_table_info->last_count= thd_ndb->count;
+    no_uncommitted_rows_count= m_table_info->no_uncommitted_rows_count;
   }
-  struct Ndb_local_table_statistics *local_info= m_table_info;
-  int no_uncommitted_rows_count;
-  if (thd_ndb->m_error || !local_info)
-    no_uncommitted_rows_count= 0;
-  else
-    no_uncommitted_rows_count= local_info->no_uncommitted_rows_count;
   stats.mean_rec_length= stat.row_size;
   stats.data_file_length= stat.fragment_memory;
   stats.records= stat.row_count + no_uncommitted_rows_count;
@@ -12361,6 +12449,35 @@ int ha_ndbcluster::update_stats(THD *thd,
                       (uint)stat.fragment_extent_space,
                       (uint)stat.fragment_extent_free_space));
   DBUG_RETURN(0);
+}
+
+/**
+  Update 'row_count' in shared table statistcs if any rows where
+  inserted/deleted by the local transaction related to specified
+ 'local_stat'.
+  Should be called when transaction has succesfully commited its changes.
+*/
+static
+void modify_shared_stats(NDB_SHARE *share,
+                         Ndb_local_table_statistics *local_stat)
+{
+  if (local_stat->no_uncommitted_rows_count)
+  {
+    pthread_mutex_lock(&share->mutex);
+    DBUG_ASSERT(share->stat.row_count != ~(ha_rows)0);// should never be invalid
+    if (share->stat.row_count != ~(ha_rows)0)
+    {
+      DBUG_PRINT("info", ("Update row_count for %s, row_count: %lu, with:%d",
+                          share->table_name, (ulong) share->stat.row_count,
+                          local_stat->no_uncommitted_rows_count));
+      share->stat.row_count=
+        ((Int64)share->stat.row_count+local_stat->no_uncommitted_rows_count > 0)
+         ? share->stat.row_count+local_stat->no_uncommitted_rows_count
+         : 0;
+    }
+    pthread_mutex_unlock(&share->mutex);
+    local_stat->no_uncommitted_rows_count= 0;
+  }
 }
 
 /* If part_id contains a legal partition id, ndbstat returns the
