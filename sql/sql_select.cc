@@ -10642,7 +10642,7 @@ create_tmp_table(THD *thd,TMP_TABLE_PARAM *param,List<Item> &fields,
       {
 	cur_group->buff=(char*) group_buff;
 
-        if (maybe_null & !field->null_bit)
+        if (maybe_null && !field->null_bit)
         {
           /*
             This can only happen in the unusual case where an outer join
