@@ -1624,8 +1624,8 @@ static void wait_for_flush(PAGECACHE *pagecache
                            PAGECACHE_BLOCK_LINK *block
                            __attribute__((unused)))
 {
-  DBUG_ENTER("wait_for_flush");
   struct st_my_thread_var *thread= my_thread_var;
+  DBUG_ENTER("wait_for_flush");
   wqueue_add_to_queue(&block->wqueue[COND_FOR_SAVED], thread);
   do
   {
