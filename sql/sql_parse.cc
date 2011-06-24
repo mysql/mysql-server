@@ -3151,7 +3151,7 @@ end_with_restore_list:
     if (!thd->is_fatal_error &&
         (del_result= new multi_delete(aux_tables, lex->table_count)))
     {
-      res= mysql_select(thd, &select_lex->ref_pointer_array,
+      res= mysql_select(thd,
 			select_lex->get_table_list(),
 			select_lex->with_wild,
 			select_lex->item_list,
