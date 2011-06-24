@@ -2365,6 +2365,79 @@ t1a	t1b	t2a	t2b
 99	0	999	0
 
 DROP TABLE t1,t2;
+#
+# BUG#12619399 - JCL: NO ROWS VS 3X NULL QUERY OUTPUT WHEN JCL>=5
+#
+CREATE TABLE t1 (
+c1 INTEGER NOT NULL,
+c2_key INTEGER NOT NULL,
+KEY col_int_key (c2_key)
+) ENGINE=InnoDB;
+INSERT INTO t1 VALUES (24,204);
+CREATE TABLE t2 (  
+pk INTEGER NOT NULL,
+PRIMARY KEY (pk)
+) ENGINE=InnoDB;
+INSERT INTO t2 VALUES (10);
+CREATE TABLE t3 (
+c1 INTEGER,
+KEY k1 (c1)
+) ENGINE=InnoDB;
+INSERT INTO t3 VALUES (NULL), (NULL);
+
+explain SELECT t3.c1 FROM t3
+WHERE t3.c1 = SOME (SELECT t1.c2_key FROM t2 JOIN t1 ON t2.pk < t1.c1)
+XOR TRUE;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	t3	index	NULL	k1	5	NULL	2	Using where; Using index
+2	DEPENDENT SUBQUERY	t2	index	PRIMARY	PRIMARY	4	NULL	1	Using index
+2	DEPENDENT SUBQUERY	t1	ref	col_int_key	col_int_key	4	func	1	Using where; Full scan on NULL key
+explain SELECT t3.c1 FROM t3
+WHERE t3.c1 = ANY (SELECT t1.c2_key FROM t2 JOIN t1 ON t2.pk < t1.c1)
+XOR TRUE;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	t3	index	NULL	k1	5	NULL	2	Using where; Using index
+2	DEPENDENT SUBQUERY	t2	index	PRIMARY	PRIMARY	4	NULL	1	Using index
+2	DEPENDENT SUBQUERY	t1	ref	col_int_key	col_int_key	4	func	1	Using where; Full scan on NULL key
+explain SELECT t3.c1 FROM t3
+WHERE t3.c1 IN (SELECT t1.c2_key FROM t2 JOIN t1 ON t2.pk < t1.c1)
+XOR TRUE;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	t3	index	NULL	k1	5	NULL	2	Using where; Using index
+2	DEPENDENT SUBQUERY	t2	index	PRIMARY	PRIMARY	4	NULL	1	Using index
+2	DEPENDENT SUBQUERY	t1	ref	col_int_key	col_int_key	4	func	1	Using where; Full scan on NULL key
+explain SELECT t3.c1 FROM t3
+WHERE t3.c1 NOT IN (SELECT t1.c2_key FROM t2 JOIN t1 ON t2.pk < t1.c1);
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	t3	index	NULL	k1	5	NULL	2	Using where; Using index
+2	DEPENDENT SUBQUERY	t2	index	PRIMARY	PRIMARY	4	NULL	1	Using index
+2	DEPENDENT SUBQUERY	t1	ref	col_int_key	col_int_key	4	func	1	Using where; Full scan on NULL key
+explain SELECT t3.c1 FROM t3
+WHERE t3.c1 IN (SELECT t1.c2_key FROM t2 JOIN t1 ON t2.pk < t1.c1);
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	t2	index	PRIMARY	PRIMARY	4	NULL	1	Using index; Start temporary
+1	PRIMARY	t1	ALL	col_int_key	NULL	NULL	NULL	1	Using where; Using join buffer (BNL, regular buffers)
+1	PRIMARY	t3	ref	k1	k1	5	test.t1.c2_key	1	Using index; End temporary
+SELECT t3.c1 FROM t3
+WHERE t3.c1 = SOME (SELECT t1.c2_key FROM t2 JOIN t1 ON t2.pk < t1.c1)
+XOR TRUE;
+c1
+SELECT t3.c1 FROM t3
+WHERE t3.c1 = ANY (SELECT t1.c2_key FROM t2 JOIN t1 ON t2.pk < t1.c1)
+XOR TRUE;
+c1
+SELECT t3.c1 FROM t3
+WHERE t3.c1 IN (SELECT t1.c2_key FROM t2 JOIN t1 ON t2.pk < t1.c1)
+XOR TRUE;
+c1
+SELECT t3.c1 FROM t3
+WHERE t3.c1 NOT IN (SELECT t1.c2_key FROM t2 JOIN t1 ON t2.pk < t1.c1);
+c1
+SELECT t3.c1 FROM t3
+WHERE t3.c1 IN (SELECT t1.c2_key FROM t2 JOIN t1 ON t2.pk < t1.c1);
+c1
+
+DROP TABLE t1, t2, t3;
 set @@join_buffer_size=default;
 set optimizer_join_cache_level = default;
 set optimizer_switch = default;

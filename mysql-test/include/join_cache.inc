@@ -1689,4 +1689,71 @@ INSERT INTO t2 VALUES (100,0),(150,200),(999, 0);
 
 DROP TABLE t1,t2;
 
+--echo #
+--echo # BUG#12619399 - JCL: NO ROWS VS 3X NULL QUERY OUTPUT WHEN JCL>=5
+--echo #
+
+CREATE TABLE t1 (
+  c1 INTEGER NOT NULL,
+  c2_key INTEGER NOT NULL,
+  KEY col_int_key (c2_key)
+) ENGINE=InnoDB;
+
+INSERT INTO t1 VALUES (24,204);
+
+CREATE TABLE t2 (  
+  pk INTEGER NOT NULL,
+  PRIMARY KEY (pk)
+) ENGINE=InnoDB;
+
+INSERT INTO t2 VALUES (10);
+
+CREATE TABLE t3 (
+  c1 INTEGER,
+  KEY k1 (c1)
+) ENGINE=InnoDB;
+
+INSERT INTO t3 VALUES (NULL), (NULL);
+
+--echo
+
+let query_in=
+SELECT t3.c1 FROM t3
+WHERE t3.c1 IN (SELECT t1.c2_key FROM t2 JOIN t1 ON t2.pk < t1.c1)
+XOR TRUE;
+
+#BKA is OK for this query
+let query_in_toplevel=
+SELECT t3.c1 FROM t3
+WHERE t3.c1 IN (SELECT t1.c2_key FROM t2 JOIN t1 ON t2.pk < t1.c1);
+
+let query_notin=
+SELECT t3.c1 FROM t3
+WHERE t3.c1 NOT IN (SELECT t1.c2_key FROM t2 JOIN t1 ON t2.pk < t1.c1);
+
+let query_any=
+SELECT t3.c1 FROM t3
+WHERE t3.c1 = ANY (SELECT t1.c2_key FROM t2 JOIN t1 ON t2.pk < t1.c1)
+XOR TRUE;
+
+let query_some=
+SELECT t3.c1 FROM t3
+WHERE t3.c1 = SOME (SELECT t1.c2_key FROM t2 JOIN t1 ON t2.pk < t1.c1)
+XOR TRUE;
+
+eval explain $query_some;
+eval explain $query_any;
+eval explain $query_in;
+eval explain $query_notin;
+eval explain $query_in_toplevel;
+eval $query_some;
+eval $query_any;
+eval $query_in;
+eval $query_notin;
+eval $query_in_toplevel;
+
+
+--echo
+DROP TABLE t1, t2, t3;
+
 set @@join_buffer_size=default;

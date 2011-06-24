@@ -2373,6 +2373,18 @@ bool subselect_single_select_engine::exec()
             bool *cond_guard= tab->ref.cond_guards[i];
             if (cond_guard && !*cond_guard)
             {
+              /*
+                Can't use BKA if switching from ref to "full scan on
+                NULL key" 
+
+                @see Item_in_optimizer::val_int()
+                @see TABLE_REF::cond_guards
+                @see push_index_cond()
+                @see setup_join_buffering()
+              */
+              DBUG_ASSERT(tab->use_join_cache != JOIN_CACHE::ALG_BKA);
+              DBUG_ASSERT(tab->use_join_cache != JOIN_CACHE::ALG_BKA_UNIQUE);
+
               /* Change the access method to full table scan */
               tab->save_read_first_record= tab->read_first_record;
               tab->save_read_record= tab->read_record.read_record;
