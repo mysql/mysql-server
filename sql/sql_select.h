@@ -2029,10 +2029,17 @@ public:
   void clear();
   bool save_join_tab();
   bool init_save_join_tab();
+  /**
+     Send a row even if the join produced no rows if:
+     - there is an aggregate function (sum_func_count!=0), and
+     - the query is not grouped, and
+     - a possible HAVING clause evaluates to TRUE.
+  */
   bool send_row_on_empty_set()
   {
     return (do_send_rows && tmp_table_param.sum_func_count != 0 &&
-	    !group_list && select_lex->having_value != Item::COND_FALSE);
+	    group_list == NULL && !group_optimized_away &&
+            select_lex->having_value != Item::COND_FALSE);
   }
   bool change_result(select_result *result);
   bool is_top_level_join() const

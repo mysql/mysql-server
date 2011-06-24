@@ -882,3 +882,32 @@ DROP TABLE t1, t2;
 DROP VIEW v3;
 
 --echo # End Bug#11852644
+
+--echo
+--echo # Bug#12668294 - GROUP BY ON EMPTY RESULT GIVES EMPTY ROW
+--echo # INSTEAD OF NULL WHEN MATERIALIZATION ON
+--echo
+
+CREATE TABLE t1 (col_int_nokey INT) ENGINE=MEMORY;
+CREATE TABLE t2 (col_int_nokey INT) ENGINE=MEMORY;
+INSERT INTO t2 VALUES (8),(7);
+CREATE TABLE t3 (col_int_nokey INT) ENGINE=MEMORY;
+INSERT INTO t3 VALUES (7);
+
+SELECT MIN(t3.col_int_nokey),t1.col_int_nokey AS field3
+FROM t3
+     LEFT JOIN t1
+     ON t1.col_int_nokey
+WHERE (194, 200) IN (
+                     SELECT SQ4_alias1.col_int_nokey,
+                     SQ4_alias2.col_int_nokey
+                     FROM t2 AS SQ4_alias1
+                          JOIN
+                          t2 AS SQ4_alias2
+                          ON SQ4_alias2.col_int_nokey = 5
+                    )
+GROUP BY field3 ;
+
+DROP TABLE t1;
+DROP TABLE t2;
+DROP TABLE t3; 
