@@ -3048,7 +3048,8 @@ int my_message_sql(uint error, const char *str, myf MyFlags)
   {
     /* At least, prevent new abuse ... */
     DBUG_ASSERT(strncmp(str, "MyISAM table", 12) == 0 ||
-                strncmp(str, "Aria table", 11) == 0);
+                strncmp(str, "Aria table", 11) == 0 ||
+                (MyFlags & ME_JUST_INFO));
     error= ER_UNKNOWN_ERROR;
   }
 

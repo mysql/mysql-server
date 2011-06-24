@@ -1072,7 +1072,7 @@ int ha_myisam::repair(THD* thd, HA_CHECK_OPT *check_opt)
       param.testflag&= ~(T_RETRY_WITHOUT_QUICK | T_QUICK);
       /* Ensure we don't loose any rows when retrying without quick */
       param.testflag|= T_SAFE_REPAIR;
-      sql_print_information("Retrying repair of: '%s' without quick",
+      sql_print_information("Retrying repair of: '%s' including modifying data file",
                             table->s->path.str);
       continue;
     }
@@ -1666,15 +1666,15 @@ bool ha_myisam::check_and_repair(THD *thd)
   if ((marked_crashed= mi_is_crashed(file)) || check(thd, &check_opt))
   {
     sql_print_warning("Recovering table: '%s'",table->s->path.str);
-    if (myisam_recover_options & (HA_RECOVER_FULL_BACKUP | HA_RECOVER_BACKUP))
+    if (myisam_recover_options & HA_RECOVER_FULL_BACKUP)
     {
       char buff[MY_BACKUP_NAME_EXTRA_LENGTH+1];
       my_create_backup_name(buff, "", check_opt.start_time);
-      sql_print_information("Making backup of data with extension '%s'", buff);
-    }
-    if (myisam_recover_options & HA_RECOVER_FULL_BACKUP)
+      sql_print_information("Making backup of index file with extension '%s'",
+                            buff);
       mi_make_backup_of_index(file, check_opt.start_time,
                               MYF(MY_WME | ME_JUST_WARNING));
+    }
     check_opt.flags=
       (((myisam_recover_options &
          (HA_RECOVER_BACKUP | HA_RECOVER_FULL_BACKUP)) ? T_BACKUP_DATA : 0) |
