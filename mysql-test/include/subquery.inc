@@ -5354,3 +5354,27 @@ CREATE TABLE t(a VARCHAR(245) DEFAULT
 INSERT INTO t VALUES (''),(''),(''),(''),(''),(''),(''),(''),(''),(''),('');
 SELECT * FROM (SELECT default(a) FROM t GROUP BY a) d;
 DROP TABLE t;
+
+--echo #
+--echo # BUG#12616253 - WRONG RESULT WITH EXISTS(SUBQUERY) (MISSING ROWS)
+--echo #
+
+CREATE TABLE t1 (f1 varchar(1));
+INSERT INTO t1 VALUES ('v'),('s');
+
+CREATE TABLE t2 (f1_key varchar(1), KEY (f1_key));
+INSERT INTO t2 VALUES ('j'),('v'),('c'),('m'),('d'),
+('d'),('y'),('t'),('d'),('s');
+
+let $query=SELECT table1.f1, table2.f1_key
+FROM t1 AS table1, t2 AS table2
+WHERE EXISTS 
+( 
+SELECT DISTINCT f1_key 
+FROM t2 
+WHERE f1_key != table2.f1_key AND f1_key >= table1.f1 );
+
+eval $query;
+eval explain $query;
+
+DROP TABLE t1,t2;

@@ -6510,5 +6510,53 @@ SELECT * FROM (SELECT default(a) FROM t GROUP BY a) d;
 default(a)
 aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
 DROP TABLE t;
+#
+# BUG#12616253 - WRONG RESULT WITH EXISTS(SUBQUERY) (MISSING ROWS)
+#
+CREATE TABLE t1 (f1 varchar(1));
+INSERT INTO t1 VALUES ('v'),('s');
+CREATE TABLE t2 (f1_key varchar(1), KEY (f1_key));
+INSERT INTO t2 VALUES ('j'),('v'),('c'),('m'),('d'),
+('d'),('y'),('t'),('d'),('s');
+SELECT table1.f1, table2.f1_key
+FROM t1 AS table1, t2 AS table2
+WHERE EXISTS 
+( 
+SELECT DISTINCT f1_key 
+FROM t2 
+WHERE f1_key != table2.f1_key AND f1_key >= table1.f1 );
+f1	f1_key
+v	j
+s	j
+v	v
+s	v
+v	c
+s	c
+v	m
+s	m
+v	d
+s	d
+v	d
+s	d
+v	y
+s	y
+v	t
+s	t
+v	d
+s	d
+v	s
+s	s
+explain SELECT table1.f1, table2.f1_key
+FROM t1 AS table1, t2 AS table2
+WHERE EXISTS 
+( 
+SELECT DISTINCT f1_key 
+FROM t2 
+WHERE f1_key != table2.f1_key AND f1_key >= table1.f1 );
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	table1	ALL	NULL	NULL	NULL	NULL	2	
+1	PRIMARY	table2	index	NULL	f1_key	4	NULL	10	Using where; Using index; Using join buffer (BNL, incremental buffers)
+2	DEPENDENT SUBQUERY	t2	range	f1_key	f1_key	4	NULL	6	Using where; Using index for group-by; Using temporary
+DROP TABLE t1,t2;
 set optimizer_switch=default;
 set optimizer_join_cache_level=default;
