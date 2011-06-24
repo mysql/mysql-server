@@ -131,7 +131,7 @@ def	information_schema	PARAMETERS	CHARACTER_SET_NAME	12	NULL	YES	varchar	64	192	
 def	information_schema	PARAMETERS	COLLATION_NAME	13	NULL	YES	varchar	64	192	NULL	NULL	utf8	utf8_general_ci	varchar(64)			select	
 def	information_schema	PARAMETERS	DATA_TYPE	7		NO	varchar	64	192	NULL	NULL	utf8	utf8_general_ci	varchar(64)			select	
 def	information_schema	PARAMETERS	DTD_IDENTIFIER	14	NULL	NO	longtext	4294967295	4294967295	NULL	NULL	utf8	utf8_general_ci	longtext			select	
-def	information_schema	PARAMETERS	NUMERIC_PRECISION	10	NULL	YES	int	NULL	NULL	10	0	NULL	NULL	int(21)			select	
+def	information_schema	PARAMETERS	NUMERIC_PRECISION	10	NULL	YES	bigint	NULL	NULL	20	0	NULL	NULL	bigint(21) unsigned			select	
 def	information_schema	PARAMETERS	NUMERIC_SCALE	11	NULL	YES	int	NULL	NULL	10	0	NULL	NULL	int(21)			select	
 def	information_schema	PARAMETERS	ORDINAL_POSITION	4	0	NO	int	NULL	NULL	10	0	NULL	NULL	int(21)			select	
 def	information_schema	PARAMETERS	PARAMETER_MODE	5	NULL	YES	varchar	5	15	NULL	NULL	utf8	utf8_general_ci	varchar(5)			select	
@@ -210,7 +210,7 @@ def	information_schema	ROUTINES	EXTERNAL_LANGUAGE	17	NULL	YES	varchar	64	192	NUL
 def	information_schema	ROUTINES	EXTERNAL_NAME	16	NULL	YES	varchar	64	192	NULL	NULL	utf8	utf8_general_ci	varchar(64)			select	
 def	information_schema	ROUTINES	IS_DETERMINISTIC	19		NO	varchar	3	9	NULL	NULL	utf8	utf8_general_ci	varchar(3)			select	
 def	information_schema	ROUTINES	LAST_ALTERED	24	0000-00-00 00:00:00	NO	datetime	NULL	NULL	NULL	NULL	NULL	NULL	datetime			select	
-def	information_schema	ROUTINES	NUMERIC_PRECISION	9	NULL	YES	int	NULL	NULL	10	0	NULL	NULL	int(21)			select	
+def	information_schema	ROUTINES	NUMERIC_PRECISION	9	NULL	YES	bigint	NULL	NULL	20	0	NULL	NULL	bigint(21) unsigned			select	
 def	information_schema	ROUTINES	NUMERIC_SCALE	10	NULL	YES	int	NULL	NULL	10	0	NULL	NULL	int(21)			select	
 def	information_schema	ROUTINES	PARAMETER_STYLE	18		NO	varchar	8	24	NULL	NULL	utf8	utf8_general_ci	varchar(8)			select	
 def	information_schema	ROUTINES	ROUTINE_BODY	14		NO	varchar	8	24	NULL	NULL	utf8	utf8_general_ci	varchar(8)			select	
@@ -522,7 +522,7 @@ NULL	information_schema	PARAMETERS	ORDINAL_POSITION	int	NULL	NULL	NULL	NULL	int(
 3.0000	information_schema	PARAMETERS	DATA_TYPE	varchar	64	192	utf8	utf8_general_ci	varchar(64)
 NULL	information_schema	PARAMETERS	CHARACTER_MAXIMUM_LENGTH	int	NULL	NULL	NULL	NULL	int(21)
 NULL	information_schema	PARAMETERS	CHARACTER_OCTET_LENGTH	int	NULL	NULL	NULL	NULL	int(21)
-NULL	information_schema	PARAMETERS	NUMERIC_PRECISION	int	NULL	NULL	NULL	NULL	int(21)
+NULL	information_schema	PARAMETERS	NUMERIC_PRECISION	bigint	NULL	NULL	NULL	NULL	bigint(21) unsigned
 NULL	information_schema	PARAMETERS	NUMERIC_SCALE	int	NULL	NULL	NULL	NULL	int(21)
 3.0000	information_schema	PARAMETERS	CHARACTER_SET_NAME	varchar	64	192	utf8	utf8_general_ci	varchar(64)
 3.0000	information_schema	PARAMETERS	COLLATION_NAME	varchar	64	192	utf8	utf8_general_ci	varchar(64)
@@ -591,7 +591,7 @@ NULL	information_schema	PROCESSLIST	TIME	int	NULL	NULL	NULL	NULL	int(7)
 3.0000	information_schema	ROUTINES	DATA_TYPE	varchar	64	192	utf8	utf8_general_ci	varchar(64)
 NULL	information_schema	ROUTINES	CHARACTER_MAXIMUM_LENGTH	int	NULL	NULL	NULL	NULL	int(21)
 NULL	information_schema	ROUTINES	CHARACTER_OCTET_LENGTH	int	NULL	NULL	NULL	NULL	int(21)
-NULL	information_schema	ROUTINES	NUMERIC_PRECISION	int	NULL	NULL	NULL	NULL	int(21)
+NULL	information_schema	ROUTINES	NUMERIC_PRECISION	bigint	NULL	NULL	NULL	NULL	bigint(21) unsigned
 NULL	information_schema	ROUTINES	NUMERIC_SCALE	int	NULL	NULL	NULL	NULL	int(21)
 3.0000	information_schema	ROUTINES	CHARACTER_SET_NAME	varchar	64	192	utf8	utf8_general_ci	varchar(64)
 3.0000	information_schema	ROUTINES	COLLATION_NAME	varchar	64	192	utf8	utf8_general_ci	varchar(64)

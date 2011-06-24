@@ -13,15 +13,11 @@
    GNU General Public License for more details.
 
    You should have received a copy of the GNU General Public License
-   along with this program; if not, write to the Free Software Foundation,
-   51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA */
+   along with this program; if not, write to the Free Software
+   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
 
 /* Function items used by mysql */
-
-#ifdef USE_PRAGMA_INTERFACE
-#pragma interface			/* gcc class implementation */
-#endif
 
 #ifdef HAVE_IEEEFP_H
 extern "C"				/* Bug in BSDI include file */
@@ -41,12 +37,16 @@ protected:
   uint allowed_arg_cols;
 public:
   uint arg_count;
-  table_map used_tables_cache, not_null_tables_cache;
+  /// Value used in calculation of result of used_tables()
+  table_map used_tables_cache;
+  /// Value used in calculation of result of not_null_tables()
+  table_map not_null_tables_cache;
+  /// Value used in calculation of result of const_item()
   bool const_item_cache;
   enum Functype { UNKNOWN_FUNC,EQ_FUNC,EQUAL_FUNC,NE_FUNC,LT_FUNC,LE_FUNC,
 		  GE_FUNC,GT_FUNC,FT_FUNC,
 		  LIKE_FUNC,ISNULL_FUNC,ISNOTNULL_FUNC,
-		  COND_AND_FUNC, COND_OR_FUNC, COND_XOR_FUNC,
+		  COND_AND_FUNC, COND_OR_FUNC, XOR_FUNC,
                   BETWEEN, IN_FUNC, MULT_EQUAL_FUNC,
 		  INTERVAL_FUNC, ISNOTNULLTEST_FUNC,
 		  SP_EQUALS_FUNC, SP_DISJOINT_FUNC,SP_INTERSECTS_FUNC,
@@ -130,7 +130,8 @@ public:
   virtual bool have_rev_func() const { return 0; }
   virtual Item *key_item() const { return args[0]; }
   virtual bool const_item() const { return const_item_cache; }
-  inline Item **arguments() const { return args; }
+  inline Item **arguments() const
+  { DBUG_ASSERT(argument_count() > 0); return args; }
   void set_arguments(List<Item> &list);
   inline uint argument_count() const { return arg_count; }
   inline void remove_arguments() { arg_count=0; }
@@ -167,6 +168,11 @@ public:
   {
     return agg_item_charsets(c, func_name(), items, nitems, flags, item_sep);
   }
+  /*
+    Aggregate arguments for string result, e.g: CONCAT(a,b)
+    - convert to @@character_set_connection if all arguments are numbers
+    - allow DERIVATION_NONE
+  */
   bool agg_arg_charsets_for_string_result(DTCollation &c,
                                           Item **items, uint nitems,
                                           int item_sep= 1)
@@ -174,12 +180,32 @@ public:
     return agg_item_charsets_for_string_result(c, func_name(),
                                                items, nitems, item_sep);
   }
+  /*
+    Aggregate arguments for comparison, e.g: a=b, a LIKE b, a RLIKE b
+    - don't convert to @@character_set_connection if all arguments are numbers
+    - don't allow DERIVATION_NONE
+  */
   bool agg_arg_charsets_for_comparison(DTCollation &c,
                                        Item **items, uint nitems,
                                        int item_sep= 1)
   {
     return agg_item_charsets_for_comparison(c, func_name(),
                                             items, nitems, item_sep);
+  }
+  /*
+    Aggregate arguments for string result, when some comparison
+    is involved internally, e.g: REPLACE(a,b,c)
+    - convert to @@character_set_connection if all arguments are numbers
+    - disallow DERIVATION_NONE
+  */
+  bool agg_arg_charsets_for_string_result_with_comparison(DTCollation &c,
+                                                          Item **items,
+                                                          uint nitems,
+                                                          int item_sep= 1)
+  {
+    return agg_item_charsets_for_string_result_with_comparison(c, func_name(),
+                                                               items, nitems,
+                                                               item_sep);
   }
   bool walk(Item_processor processor, bool walk_subquery, uchar *arg);
   Item *transform(Item_transformer transformer, uchar *arg);
@@ -1469,7 +1495,7 @@ public:
   my_decimal *val_decimal_result(my_decimal *);
   bool is_null_result();
   bool update_hash(void *ptr, uint length, enum Item_result type,
-  		   CHARSET_INFO *cs, Derivation dv, bool unsigned_arg);
+  		   const CHARSET_INFO *cs, Derivation dv, bool unsigned_arg);
   bool send(Protocol *protocol, String *str_arg);
   void make_field(Send_field *tmp_field);
   bool check(bool use_result_field);
@@ -1558,8 +1584,8 @@ public:
   /* fix_fields() binds variable name with its entry structure */
   bool fix_fields(THD *thd, Item **ref);
   virtual void print(String *str, enum_query_type query_type);
-  void set_null_value(CHARSET_INFO* cs);
-  void set_value(const char *str, uint length, CHARSET_INFO* cs);
+  void set_null_value(const CHARSET_INFO* cs);
+  void set_value(const char *str, uint length, const CHARSET_INFO* cs);
 };
 
 
@@ -1610,17 +1636,6 @@ public:
   bool eq(const Item *item, bool binary_cmp) const;
 
   void cleanup();
-};
-
-
-class Item_func_inet_aton : public Item_int_func
-{
-public:
-  Item_func_inet_aton(Item *a) :Item_int_func(a) {}
-  longlong val_int();
-  const char *func_name() const { return "inet_aton"; }
-  void fix_length_and_dec()
-    { decimals= 0; max_length= 21; maybe_null= 1; unsigned_flag= 1;}
 };
 
 

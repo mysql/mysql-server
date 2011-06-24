@@ -3705,5 +3705,33 @@ CREATE TABLE t1 (a INT);
 BEGIN;
 PREPARE stmt1 FROM "SELECT * FROM t1";
 DROP TABLE t1;
+
 #
-# End of 6.0 tests.
+# Bug#56115: invalid memory reads when PS selecting from
+#            information_schema tables
+# Bug#58701: crash in Field::make_field, cursor-protocol
+#
+# NOTE: MTR should be run both with --ps-protocol and --cursor-protocol.
+#
+
+SELECT *
+FROM (SELECT 1 UNION SELECT 2) t;
+1
+1
+2
+#
+# End of 5.5 tests.
+#
+# Bug#12661349 assert in protocol::end_statement
+#
+# Note: This test case should be run with --ps-protocol
+DROP TABLE IF EXISTS t1;
+CREATE TABLE t1 (col1 INT);
+# Connection con1
+# Connection default
+KILL QUERY <con1_id>;
+# Connection con1
+SELECT * FROM t1;
+ERROR 70100: Query execution was interrupted
+# Connection default
+DROP TABLE t1;

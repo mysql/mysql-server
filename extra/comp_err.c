@@ -219,14 +219,13 @@ static void print_escaped_string(FILE *f, const char *str)
 
 static int create_header_files(struct errors *error_head)
 {
-  uint er_last;
+  uint er_last= 0;
   FILE *er_definef, *sql_statef, *er_namef;
   struct errors *tmp_error;
   struct message *er_msg;
   const char *er_text;
 
   DBUG_ENTER("create_header_files");
-  LINT_INIT(er_last);
 
   if (!(er_definef= my_fopen(HEADERFILE, O_WRONLY, MYF(MY_WME))))
   {
@@ -354,7 +353,7 @@ static int create_sys_files(struct languages *lang_head,
 
     /* continue with header of the errmsg.sys file */
     length= ftell(to) - HEADER_LENGTH - row_count * 2;
-    bzero((uchar*) head, HEADER_LENGTH);
+    memset(head, 0, HEADER_LENGTH);
     bmove((uchar *) head, (uchar *) file_head, 4);
     head[4]= 1;
     int2store(head + 6, length);

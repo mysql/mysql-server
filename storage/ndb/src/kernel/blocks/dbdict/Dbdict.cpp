@@ -15139,7 +15139,7 @@ Dbdict::createObj_prepare_start_done(Signal* signal,
   }
   
   SchemaFile::TableEntry tabEntry;
-  bzero(&tabEntry, sizeof(tabEntry));
+  memset(&tabEntry, 0, sizeof(tabEntry));
   tabEntry.m_tableVersion = createObjPtr.p->m_obj_version;
   tabEntry.m_tableType    = createObjPtr.p->m_obj_type;
   tabEntry.m_tableState   = SchemaFile::ADD_STARTED;

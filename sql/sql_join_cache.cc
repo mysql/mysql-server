@@ -23,10 +23,6 @@
   @{
 */
 
-#ifdef USE_PRAGMA_IMPLEMENTATION
-#pragma implementation				// gcc: Class implementation
-#endif
-
 #include "sql_priv.h"
 #include "sql_select.h"
 #include "key.h"
@@ -1761,7 +1757,6 @@ enum_nested_loop_state JOIN_CACHE_BNL::join_matching_records(bool skip_last)
 {
   uint cnt;
   int error;
-  JOIN_TAB *tab;
   READ_RECORD *info;
   enum_nested_loop_state rc= NESTED_LOOP_OK;
   SQL_SELECT *select= join_tab->cache_select;
@@ -1781,31 +1776,19 @@ enum_nested_loop_state JOIN_CACHE_BNL::join_matching_records(bool skip_last)
   if (skip_last)     
     put_record();     
  
-  if (join_tab->use_quick == 2 && join_tab->select->quick)
-  { 
+  if (join_tab->use_quick == QS_DYNAMIC_RANGE && join_tab->select->quick)
     /* A dynamic range access was used last. Clean up after it */
-    delete join_tab->select->quick;
-    join_tab->select->quick= 0;
-  }
-
-  for (tab= join->join_tab; tab != join_tab ; tab++)
-  {
-    tab->status= tab->table->status;
-    tab->table->status= 0;
-  }
+    join_tab->select->set_quick(NULL);
 
   /* Materialize table prior reading it */
   if (join_tab->materialize_table &&
       !join_tab->table->pos_in_table_list->materialized &&
       (error= (*join_tab->materialize_table)(join_tab)))
-    goto finish;
+    return NESTED_LOOP_ERROR;
 
   /* Start retrieving all records of the joined table */
-  if ((error= (*join_tab->read_first_record)(join_tab)))
-  {
-    rc= error < 0 ? NESTED_LOOP_NO_MORE_ROWS: NESTED_LOOP_ERROR;
-    goto finish;
-  }
+  if ((error= (*join_tab->read_first_record)(join_tab))) 
+    return error < 0 ? NESTED_LOOP_NO_MORE_ROWS: NESTED_LOOP_ERROR;
 
   info= &join_tab->read_record;
   do
@@ -1817,8 +1800,7 @@ enum_nested_loop_state JOIN_CACHE_BNL::join_matching_records(bool skip_last)
     {
       /* The user has aborted the execution of the query */
       join->thd->send_kill_message();
-      rc= NESTED_LOOP_KILLED;
-      goto finish; 
+      return NESTED_LOOP_KILLED;
     }
     
     /* 
@@ -1832,10 +1814,7 @@ enum_nested_loop_state JOIN_CACHE_BNL::join_matching_records(bool skip_last)
                              (!select->skip_record(join->thd, &skip_record) &&
                               !skip_record));
       if (select && join->thd->is_error())
-      {
-        rc= NESTED_LOOP_ERROR;
-        goto finish;
-      }
+        return NESTED_LOOP_ERROR;
       if (consider_record)
       {
         /* Prepare to read records from the join buffer */
@@ -1853,7 +1832,7 @@ enum_nested_loop_state JOIN_CACHE_BNL::join_matching_records(bool skip_last)
             get_record();
             rc= generate_full_extensions(get_curr_rec());
             if (rc != NESTED_LOOP_OK && rc != NESTED_LOOP_NO_MORE_ROWS)
-              goto finish;   
+              return rc;
           }
         }
       }
@@ -1862,9 +1841,6 @@ enum_nested_loop_state JOIN_CACHE_BNL::join_matching_records(bool skip_last)
 
   if (error > 0)				// Fatal error
     rc= NESTED_LOOP_ERROR; 
-finish:                  
-  for (tab= join->join_tab; tab != join_tab ; tab++)
-    tab->table->status= tab->status;
   return rc;
 }
 
@@ -2307,11 +2283,11 @@ enum_nested_loop_state JOIN_CACHE_BKA::join_matching_records(bool skip_last)
   if (join_tab->materialize_table &&
       !join_tab->table->pos_in_table_list->materialized &&
       (error= (*join_tab->materialize_table)(join_tab)))
-    goto finish;
+    return NESTED_LOOP_ERROR;
 
   rc= init_join_matching_records(&seq_funcs, records);
   if (rc != NESTED_LOOP_OK)
-    goto finish;
+    return rc;
 
   while (!(error= file->multi_range_read_next((char **) &rec_ptr)))
   {
@@ -2319,8 +2295,7 @@ enum_nested_loop_state JOIN_CACHE_BKA::join_matching_records(bool skip_last)
     {
       /* The user has aborted the execution of the query */
       join->thd->send_kill_message();
-      rc= NESTED_LOOP_KILLED; 
-      goto finish;
+      return NESTED_LOOP_KILLED;
     }
     if (join_tab->keep_current_rowid)
       join_tab->table->file->position(join_tab->table->record[0]);
@@ -2335,14 +2310,13 @@ enum_nested_loop_state JOIN_CACHE_BKA::join_matching_records(bool skip_last)
       get_record_by_pos(rec_ptr);
       rc= generate_full_extensions(rec_ptr);
       if (rc != NESTED_LOOP_OK && rc != NESTED_LOOP_NO_MORE_ROWS)
-	goto finish;   
+        return rc;
     }
   }
 
   if (error > 0 && error != HA_ERR_END_OF_FILE)	   
     return NESTED_LOOP_ERROR; 
-finish:                  
-  return end_join_matching_records(rc);
+  return rc;
 }
 
 
@@ -2387,12 +2361,6 @@ JOIN_CACHE_BKA::init_join_matching_records(RANGE_SEQ_IF *seq_funcs, uint ranges)
   /* Dynamic range access is never used with BKA */
   DBUG_ASSERT(join_tab->use_quick != 2);
 
-  for (JOIN_TAB *tab =join->join_tab; tab != join_tab ; tab++)
-  {
-    tab->status= tab->table->status;
-    tab->table->status= 0;
-  }
-
   init_mrr_buff();
 
   /* 
@@ -2406,31 +2374,6 @@ JOIN_CACHE_BKA::init_join_matching_records(RANGE_SEQ_IF *seq_funcs, uint ranges)
     rc= error < 0 ? NESTED_LOOP_NO_MORE_ROWS: NESTED_LOOP_ERROR;
   
   return rc;
-}
-
-
-/* 
-  Finish searching for records that match records from the join buffer
-
-  SYNOPSIS
-    end_join_matching_records()
-      rc      return code passed by the join_matching_records function
-
-  DESCRIPTION
-    This function perform final actions on searching for all matches for
-    the records from the join buffer and building all full join extensions
-    of the records with these matches. 
-    
-  RETURN
-    return code rc passed to the function as a parameter
-*/
-
-enum_nested_loop_state 
-JOIN_CACHE_BKA::end_join_matching_records(enum_nested_loop_state rc)
-{
-  for (JOIN_TAB *tab=join->join_tab; tab != join_tab ; tab++)
-    tab->table->status= tab->status;
-  return rc;  
 }
 
 
@@ -2945,7 +2888,7 @@ uint JOIN_CACHE_BKA_UNIQUE::get_hash_idx(uchar* key, uint key_len)
 void JOIN_CACHE_BKA_UNIQUE:: cleanup_hash_table()
 {
   last_key_entry= hash_table;
-  bzero(hash_table, (buff+buff_size)-hash_table);
+  memset(hash_table, 0, (buff+buff_size)-hash_table);
   key_entries= 0;
 }
 
@@ -3204,7 +3147,7 @@ JOIN_CACHE_BKA_UNIQUE::join_matching_records(bool skip_last)
                    
   rc= init_join_matching_records(&seq_funcs, key_entries);
   if (rc != NESTED_LOOP_OK)
-    goto finish;
+    return rc;
 
   while (!(error= file->multi_range_read_next((char **) &key_chain_ptr)))
   {
@@ -3239,8 +3182,7 @@ JOIN_CACHE_BKA_UNIQUE::join_matching_records(bool skip_last)
       {
         /* The user has aborted the execution of the query */
         join->thd->send_kill_message();
-        rc= NESTED_LOOP_KILLED; 
-        goto finish;
+        return NESTED_LOOP_KILLED;
       }
       /* 
         If only the first match is needed and it has been already found
@@ -3253,7 +3195,7 @@ JOIN_CACHE_BKA_UNIQUE::join_matching_records(bool skip_last)
         get_record_by_pos(rec_ptr);
         rc= generate_full_extensions(rec_ptr);
         if (rc != NESTED_LOOP_OK && rc != NESTED_LOOP_NO_MORE_ROWS)
-	  goto finish;   
+          return rc;
       }
     }
     while (next_rec_ref_ptr != last_rec_ref_ptr); 
@@ -3261,8 +3203,7 @@ JOIN_CACHE_BKA_UNIQUE::join_matching_records(bool skip_last)
 
   if (error > 0 && error != HA_ERR_END_OF_FILE)	   
     return NESTED_LOOP_ERROR; 
-finish:                  
-  return end_join_matching_records(rc);
+  return rc;
 }
 
 

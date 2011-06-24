@@ -1,17 +1,19 @@
-/* Copyright (C) 2000 MySQL AB
+/* Copyright (c) 2000, 2011, Oracle and/or its affiliates. All rights reserved.
 
-   This program is free software; you can redistribute it and/or modify
-   it under the terms of the GNU General Public License as published by
-   the Free Software Foundation; version 2 of the License.
+   This program is free software; you can redistribute it and/or
+   modify it under the terms of the GNU General Public License
+   as published by the Free Software Foundation; version 2 of
+   the License.
 
    This program is distributed in the hope that it will be useful,
    but WITHOUT ANY WARRANTY; without even the implied warranty of
-   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
    GNU General Public License for more details.
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
-   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
+   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA
+   02110-1301  USA */
 
 /*
   Note that we can't have assertion on file descriptors;  The reason for
@@ -22,35 +24,106 @@
 
 #include "vio_priv.h"
 
+#ifdef FIONREAD_IN_SYS_FILIO
+# include <sys/filio.h>
+#endif
+
 int vio_errno(Vio *vio __attribute__((unused)))
 {
-  return socket_errno;		/* On Win32 this mapped to WSAGetLastError() */
+  /* These transport types are not Winsock based. */
+#ifdef _WIN32
+  if (vio->type == VIO_TYPE_NAMEDPIPE ||
+      vio->type == VIO_TYPE_SHARED_MEMORY)
+    return GetLastError();
+#endif
+
+  /* Mapped to WSAGetLastError() on Win32. */
+  return socket_errno;
 }
 
 
-size_t vio_read(Vio * vio, uchar* buf, size_t size)
-{
-  size_t r;
-  DBUG_ENTER("vio_read");
-  DBUG_PRINT("enter", ("sd: %d  buf: 0x%lx  size: %u", vio->sd, (long) buf,
-                       (uint) size));
+/**
+  Attempt to wait for an I/O event on a socket.
 
-  /* Ensure nobody uses vio_read_buff and vio_read simultaneously */
-  DBUG_ASSERT(vio->read_end == vio->read_pos);
-#ifdef __WIN__
-  r = recv(vio->sd, buf, size,0);
-#else
-  errno=0;					/* For linux */
-  r = read(vio->sd, buf, size);
-#endif /* __WIN__ */
-#ifndef DBUG_OFF
-  if (r == (size_t) -1)
+  @param vio      VIO object representing a connected socket.
+  @param event    The type of I/O event (read or write) to wait for.
+
+  @return Return value is -1 on failure, 0 on success.
+*/
+
+int vio_socket_io_wait(Vio *vio, enum enum_vio_io_event event)
+{
+  int timeout, ret;
+
+  DBUG_ASSERT(event == VIO_IO_EVENT_READ || event == VIO_IO_EVENT_WRITE);
+
+  /* Choose an appropriate timeout. */
+  if (event == VIO_IO_EVENT_READ)
+    timeout= vio->read_timeout;
+  else
+    timeout= vio->write_timeout;
+
+  /* Wait for input data to become available. */
+  switch (vio_io_wait(vio, event, timeout))
   {
-    DBUG_PRINT("vio_error", ("Got error %d during read",errno));
+  case -1:
+    /* Upon failure, vio_read/write() shall return -1. */
+    ret= -1;
+    break;
+  case  0:
+    /* The wait timed out. */
+    ret= -1;
+    break;
+  default:
+    /* A positive value indicates an I/O event. */
+    ret= 0;
+    break;
   }
-#endif /* DBUG_OFF */
-  DBUG_PRINT("exit", ("%ld", (long) r));
-  DBUG_RETURN(r);
+
+  return ret;
+}
+
+
+/*
+  Define a stub MSG_DONTWAIT if unavailable. In this case, fcntl
+  (or a equivalent) is used to enable non-blocking operations.
+  The flag must be supported in both send and recv operations.
+*/
+#if defined(__linux__)
+#define VIO_USE_DONTWAIT  1
+#define VIO_DONTWAIT      MSG_DONTWAIT
+#else
+#define VIO_DONTWAIT 0
+#endif
+
+
+size_t vio_read(Vio *vio, uchar *buf, size_t size)
+{
+  ssize_t ret;
+  int flags= 0;
+  DBUG_ENTER("vio_read");
+
+  /* Ensure nobody uses vio_read_buff and vio_read simultaneously. */
+  DBUG_ASSERT(vio->read_end == vio->read_pos);
+
+  /* If timeout is enabled, do not block if data is unavailable. */
+  if (vio->read_timeout >= 0)
+    flags= VIO_DONTWAIT;
+
+  while ((ret= recv(vio->sd, buf, size, flags)) == -1)
+  {
+    int error= socket_errno;
+
+    /* The operation would block? */
+    if (error != SOCKET_EAGAIN && error != SOCKET_EWOULDBLOCK)
+      break;
+
+    /* Wait for input data to become available. */
+    if ((ret= vio_socket_io_wait(vio, VIO_IO_EVENT_READ)))
+      break;
+  }
+
+  DBUG_RETURN(ret);
 }
 
 
@@ -98,97 +171,144 @@ size_t vio_read_buff(Vio *vio, uchar* buf, size_t size)
 #undef VIO_UNBUFFERED_READ_MIN_SIZE
 }
 
+
 my_bool vio_buff_has_data(Vio *vio)
 {
   return (vio->read_pos != vio->read_end);
 }
 
-size_t vio_write(Vio * vio, const uchar* buf, size_t size)
+
+size_t vio_write(Vio *vio, const uchar* buf, size_t size)
 {
-  size_t r;
+  ssize_t ret;
+  int flags= 0;
   DBUG_ENTER("vio_write");
-  DBUG_PRINT("enter", ("sd: %d  buf: 0x%lx  size: %u", vio->sd, (long) buf,
-                       (uint) size));
-#ifdef __WIN__
-  r = send(vio->sd, buf, size,0);
-#else
-  r = write(vio->sd, buf, size);
-#endif /* __WIN__ */
-#ifndef DBUG_OFF
-  if (r == (size_t) -1)
+
+  /* If timeout is enabled, do not block. */
+  if (vio->write_timeout >= 0)
+    flags= VIO_DONTWAIT;
+
+  while ((ret= send(vio->sd, buf, size, flags)) == -1)
   {
-    DBUG_PRINT("vio_error", ("Got error on write: %d",socket_errno));
+    int error= socket_errno;
+
+    /* The operation would block? */
+    if (error != SOCKET_EAGAIN && error != SOCKET_EWOULDBLOCK)
+      break;
+
+    /* Wait for the output buffer to become writable.*/
+    if ((ret= vio_socket_io_wait(vio, VIO_IO_EVENT_WRITE)))
+      break;
   }
-#endif /* DBUG_OFF */
-  DBUG_PRINT("exit", ("%u", (uint) r));
-  DBUG_RETURN(r);
+
+  DBUG_RETURN(ret);
 }
 
-int vio_blocking(Vio * vio __attribute__((unused)), my_bool set_blocking_mode,
-		 my_bool *old_mode)
+
+static int vio_set_blocking(Vio *vio, my_bool status)
 {
-  int r=0;
-  DBUG_ENTER("vio_blocking");
+  DBUG_ENTER("vio_set_blocking");
 
-  *old_mode= test(!(vio->fcntl_mode & O_NONBLOCK));
-  DBUG_PRINT("enter", ("set_blocking_mode: %d  old_mode: %d",
-		       (int) set_blocking_mode, (int) *old_mode));
-
-#if !defined(__WIN__)
-#if !defined(NO_FCNTL_NONBLOCK)
-  if (vio->sd >= 0)
+#ifdef _WIN32
+  DBUG_ASSERT(vio->type != VIO_TYPE_NAMEDPIPE);
+  DBUG_ASSERT(vio->type != VIO_TYPE_SHARED_MEMORY);
   {
-    int old_fcntl=vio->fcntl_mode;
-    if (set_blocking_mode)
-      vio->fcntl_mode &= ~O_NONBLOCK; /* clear bit */
-    else
-      vio->fcntl_mode |= O_NONBLOCK; /* set bit */
-    if (old_fcntl != vio->fcntl_mode)
-    {
-      r= fcntl(vio->sd, F_SETFL, vio->fcntl_mode);
-      if (r == -1)
-      {
-        DBUG_PRINT("info", ("fcntl failed, errno %d", errno));
-        vio->fcntl_mode= old_fcntl;
-      }
-    }
+    int ret;
+    u_long arg= status ? 0 : 1;
+    ret= ioctlsocket(vio->sd, FIONBIO, &arg);
+    DBUG_RETURN(ret);
   }
 #else
-  r= set_blocking_mode ? 0 : 1;
-#endif /* !defined(NO_FCNTL_NONBLOCK) */
-#else /* !defined(__WIN__) */
-  if (vio->type != VIO_TYPE_NAMEDPIPE && vio->type != VIO_TYPE_SHARED_MEMORY)
-  { 
-    ulong arg;
-    int old_fcntl=vio->fcntl_mode;
-    if (set_blocking_mode)
+  {
+    int flags;
+
+    if ((flags= fcntl(vio->sd, F_GETFL, NULL)) < 0)
+      DBUG_RETURN(-1);
+
+    /*
+      Always set/clear the flag to avoid inheritance issues. This is
+      a issue mainly on Mac OS X Tiger (version 10.4) where although
+      the O_NONBLOCK flag is inherited from the parent socket, the
+      actual non-blocking behavior is not inherited.
+    */
+    if (status)
+      flags&= ~O_NONBLOCK;
+    else
+      flags|= O_NONBLOCK;
+
+    if (fcntl(vio->sd, F_SETFL, flags) == -1)
+      DBUG_RETURN(-1);
+  }
+#endif
+
+  DBUG_RETURN(0);
+}
+
+
+int vio_socket_timeout(Vio *vio,
+                       uint which __attribute__((unused)),
+                       my_bool old_mode __attribute__((unused)))
+{
+  int ret= 0;
+  DBUG_ENTER("vio_socket_timeout");
+
+#if defined(_WIN32)
+  {
+    int optname;
+    DWORD timeout= 0;
+    const char *optval= (const char *) &timeout;
+
+    /*
+      The default socket timeout value is zero, which means an infinite
+      timeout. Values less than 500 milliseconds are interpreted to be of
+      500 milliseconds. Hence, the VIO behavior for zero timeout, which is
+      intended to cause the send or receive operation to fail immediately
+      if no data is available, is not supported on WIN32 and neither is
+      necessary as it's not possible to set the VIO timeout value to zero.
+
+      Assert that the VIO timeout is either positive or set to infinite.
+    */
+    DBUG_ASSERT(which || vio->read_timeout);
+    DBUG_ASSERT(!which || vio->write_timeout);
+
+    if (which)
     {
-      arg = 0;
-      vio->fcntl_mode &= ~O_NONBLOCK; /* clear bit */
+      optname= SO_SNDTIMEO;
+      if (vio->write_timeout > 0)
+        timeout= vio->write_timeout;
     }
     else
     {
-      arg = 1;
-      vio->fcntl_mode |= O_NONBLOCK; /* set bit */
+      optname= SO_RCVTIMEO;
+      if (vio->read_timeout > 0)
+        timeout= vio->read_timeout;
     }
-    if (old_fcntl != vio->fcntl_mode)
-      r = ioctlsocket(vio->sd,FIONBIO,(void*) &arg);
-  }
-  else
-    r=  test(!(vio->fcntl_mode & O_NONBLOCK)) != set_blocking_mode;
-#endif /* !defined(__WIN__) */
-  DBUG_PRINT("exit", ("%d", r));
-  DBUG_RETURN(r);
-}
 
-my_bool
-vio_is_blocking(Vio * vio)
-{
-  my_bool r;
-  DBUG_ENTER("vio_is_blocking");
-  r = !(vio->fcntl_mode & O_NONBLOCK);
-  DBUG_PRINT("exit", ("%d", (int) r));
-  DBUG_RETURN(r);
+    ret= setsockopt(vio->sd, SOL_SOCKET, optname, optval, sizeof(timeout));
+  }
+#else
+  /*
+    The MSG_DONTWAIT trick is not used with SSL sockets as the send and
+    receive I/O operations are wrapped through SSL-specific functions
+    (SSL_read and SSL_write) which are not equivalent to the standard
+    recv(2) and send(2) used in vio_read() and vio_write(). Hence, the
+    socket blocking mode is changed and vio_io_wait() is used to wait
+    for I/O or timeout.
+  */
+#ifdef VIO_USE_DONTWAIT
+  if (vio->type == VIO_TYPE_SSL)
+#endif
+  {
+    /* Deduce what should be the new blocking mode of the socket. */
+    my_bool new_mode= vio->write_timeout < 0 && vio->read_timeout < 0;
+
+    /* If necessary, update the blocking mode. */
+    if (new_mode != old_mode)
+      ret= vio_set_blocking(vio, new_mode);
+  }
+#endif
+
+  DBUG_RETURN(ret);
 }
 
 
@@ -243,30 +363,37 @@ int vio_keepalive(Vio* vio, my_bool set_keep_alive)
 }
 
 
+/**
+  Indicate whether a I/O operation must be retried later.
+
+  @param vio  A VIO object
+
+  @return Whether a I/O operation should be deferred.
+  @retval TRUE    Temporary failure, retry operation.
+  @retval FALSE   Indeterminate failure.
+*/
+
 my_bool
-vio_should_retry(Vio * vio)
+vio_should_retry(Vio *vio)
 {
-  int en = socket_errno;
-  /*
-    man 2 read write
-      EAGAIN or EWOULDBLOCK when a socket is a non-blocking mode means
-      that the read/write would block.
-    man 7 socket
-      EAGAIN or EWOULDBLOCK when a socket is in a blocking mode means
-      that the corresponding receiving or sending timeout was reached.
-  */
-  return  en == SOCKET_EINTR ||
-          (!vio_is_blocking(vio) &&
-            (en == SOCKET_EAGAIN || en == SOCKET_EWOULDBLOCK));
+  return (vio_errno(vio) == SOCKET_EINTR);
 }
 
 
+/**
+  Indicate whether a I/O operation timed out.
+
+  @param vio  A VIO object
+
+  @return Whether a I/O operation timed out.
+  @retval TRUE    Operation timed out.
+  @retval FALSE   Not a timeout failure.
+*/
+
 my_bool
-vio_was_interrupted(Vio *vio __attribute__((unused)))
+vio_was_timeout(Vio *vio)
 {
-  int en= socket_errno;
-  return (en == SOCKET_EAGAIN || en == SOCKET_EINTR ||
-	  en == SOCKET_EWOULDBLOCK || en == SOCKET_ETIMEDOUT);
+  return (vio_errno(vio) == SOCKET_ETIMEDOUT);
 }
 
 
@@ -520,58 +647,6 @@ my_bool vio_peer_addr(Vio *vio, char *ip_buffer, uint16 *port,
 
 
 /**
-  Indicate whether there is data to read on a given socket.
-
-  @note An exceptional condition event and/or errors are
-        interpreted as if there is data to read.
-
-  @param sd       A connected socket.
-  @param timeout  Maximum time in seconds to poll.
-
-  @retval FALSE   There is data to read.
-  @retval TRUE    There is no data to read.
-*/
-
-static my_bool socket_poll_read(my_socket sd, uint timeout)
-{
-#ifdef __WIN__
-  int res;
-  my_socket fd= sd;
-  fd_set readfds, errorfds;
-  struct timeval tm;
-  DBUG_ENTER("socket_poll_read");
-  tm.tv_sec= timeout;
-  tm.tv_usec= 0;
-  FD_ZERO(&readfds);
-  FD_ZERO(&errorfds);
-  FD_SET(fd, &readfds);
-  FD_SET(fd, &errorfds);
-  /* The first argument is ignored on Windows, so a conversion to int is OK */
-  if ((res= select((int) fd, &readfds, NULL, &errorfds, &tm) <= 0))
-  {
-    DBUG_RETURN(res < 0 ? 0 : 1);
-  }
-  res= FD_ISSET(fd, &readfds) || FD_ISSET(fd, &errorfds);
-  DBUG_RETURN(!res);
-#elif defined(HAVE_POLL)
-  struct pollfd fds;
-  int res;
-  DBUG_ENTER("socket_poll_read");
-  fds.fd=sd;
-  fds.events=POLLIN;
-  fds.revents=0;
-  if ((res=poll(&fds,1,(int) timeout*1000)) <= 0)
-  {
-    DBUG_RETURN(res < 0 ? 0 : 1);		/* Don't return 1 on errors */
-  }
-  DBUG_RETURN(fds.revents & (POLLIN | POLLERR | POLLHUP) ? 0 : 1);
-#else
-  return 0;
-#endif
-}
-
-
-/**
   Retrieve the amount of data that can be read from a socket.
 
   @param vio          A VIO object.
@@ -583,13 +658,13 @@ static my_bool socket_poll_read(my_socket sd, uint timeout)
 
 static my_bool socket_peek_read(Vio *vio, uint *bytes)
 {
-#ifdef __WIN__
+#if defined(_WIN32)
   int len;
   if (ioctlsocket(vio->sd, FIONREAD, &len))
     return TRUE;
   *bytes= len;
   return FALSE;
-#elif FIONREAD_IN_SYS_IOCTL
+#elif defined(FIONREAD_IN_SYS_IOCTL) || defined(FIONREAD_IN_SYS_FILIO)
   int len;
   if (ioctl(vio->sd, FIONREAD, &len) < 0)
     return TRUE;
@@ -605,28 +680,258 @@ static my_bool socket_peek_read(Vio *vio, uint *bytes)
 #endif
 }
 
+#ifndef _WIN32
 
 /**
-  Indicate whether there is data to read on a given socket.
-
-  @remark Errors are interpreted as if there is data to read.
-
-  @param sd       A connected socket.
-  @param timeout  Maximum time in seconds to wait.
-
-  @retval FALSE   There is data (or EOF) to read. Also FALSE if error.
-  @retval TRUE    There is _NO_ data to read or timed out.
+  Set of event flags grouped by operations.
 */
 
-my_bool vio_poll_read(Vio *vio, uint timeout)
-{
-  my_socket sd= vio->sd;
-  DBUG_ENTER("vio_poll_read");
-#ifdef HAVE_OPENSSL
-  if (vio->type == VIO_TYPE_SSL)
-    sd= SSL_get_fd((SSL*) vio->ssl_arg);
+/*
+  Linux specific flag used to detect connection shutdown. The flag is
+  also used for half-closed notification, which here is interpreted as
+  if there is data available to be read from the socket.
+*/
+#ifndef POLLRDHUP
+#define POLLRDHUP 0
 #endif
-  DBUG_RETURN(socket_poll_read(sd, timeout));
+
+/* Data may be read. */
+#define MY_POLL_SET_IN      (POLLIN | POLLPRI)
+/* Data may be written. */
+#define MY_POLL_SET_OUT     (POLLOUT)
+/* An error or hangup. */
+#define MY_POLL_SET_ERR     (POLLERR | POLLHUP | POLLNVAL)
+
+#endif
+
+/**
+  Wait for an I/O event on a VIO socket.
+
+  @param vio      VIO object representing a connected socket.
+  @param event    The type of I/O event to wait for.
+  @param timeout  Interval (in milliseconds) to wait for an I/O event.
+                  A negative timeout value means an infinite timeout.
+
+  @remark sock_errno is set to SOCKET_ETIMEDOUT on timeout.
+
+  @return A three-state value which indicates the operation status.
+  @retval -1  Failure, socket_errno indicates the error.
+  @retval  0  The wait has timed out.
+  @retval  1  The requested I/O event has occurred.
+*/
+
+#ifndef _WIN32
+
+int vio_io_wait(Vio *vio, enum enum_vio_io_event event, int timeout)
+{
+  int ret;
+  short revents= 0;
+  struct pollfd pfd;
+  my_socket sd= vio->sd;
+  DBUG_ENTER("vio_io_wait");
+
+  memset(&pfd, 0, sizeof(pfd));
+
+  pfd.fd= sd;
+
+  /*
+    Set the poll bitmask describing the type of events.
+    The error flags are only valid in the revents bitmask.
+  */
+  switch (event)
+  {
+  case VIO_IO_EVENT_READ:
+    pfd.events= MY_POLL_SET_IN;
+    revents= MY_POLL_SET_IN | MY_POLL_SET_ERR | POLLRDHUP;
+    break;
+  case VIO_IO_EVENT_WRITE:
+  case VIO_IO_EVENT_CONNECT:
+    pfd.events= MY_POLL_SET_OUT;
+    revents= MY_POLL_SET_OUT | MY_POLL_SET_ERR;
+    break;
+  }
+
+  /*
+    Wait for the I/O event and return early in case of
+    error or timeout.
+  */
+  switch ((ret= poll(&pfd, 1, timeout)))
+  {
+  case -1:
+    /* On error, -1 is returned. */
+    break;
+  case 0:
+    /*
+      Set errno to indicate a timeout error.
+      (This is not compiled in on WIN32.)
+    */
+    errno= SOCKET_ETIMEDOUT;
+    break;
+  default:
+    /* Ensure that the requested I/O event has completed. */
+    DBUG_ASSERT(pfd.revents & revents);
+    break;
+  }
+
+  DBUG_RETURN(ret);
+}
+
+#else
+
+int vio_io_wait(Vio *vio, enum enum_vio_io_event event, int timeout)
+{
+  int ret;
+  struct timeval tm;
+  my_socket fd= vio->sd;
+  fd_set readfds, writefds, exceptfds;
+  DBUG_ENTER("vio_io_wait");
+
+  /* Convert the timeout, in milliseconds, to seconds and microseconds. */
+  if (timeout >= 0)
+  {
+    tm.tv_sec= timeout / 1000;
+    tm.tv_usec= (timeout % 1000) * 1000;
+  }
+
+  FD_ZERO(&readfds);
+  FD_ZERO(&writefds);
+  FD_ZERO(&exceptfds);
+
+  /* Always receive notification of exceptions. */
+  FD_SET(fd, &exceptfds);
+
+  switch (event)
+  {
+  case VIO_IO_EVENT_READ:
+    /* Readiness for reading. */
+    FD_SET(fd, &readfds);
+    break;
+  case VIO_IO_EVENT_WRITE:
+  case VIO_IO_EVENT_CONNECT:
+    /* Readiness for writing. */
+    FD_SET(fd, &writefds);
+    break;
+  }
+
+  /* The first argument is ignored on Windows. */
+  ret= select(0, &readfds, &writefds, &exceptfds, (timeout >= 0) ? &tm : NULL);
+
+  /* Set error code to indicate a timeout error. */
+  if (ret == 0)
+    WSASetLastError(SOCKET_ETIMEDOUT);
+
+  /* Error or timeout? */
+  if (ret <= 0)
+    DBUG_RETURN(ret);
+
+  /* The requested I/O event is ready? */
+  switch (event)
+  {
+  case VIO_IO_EVENT_READ:
+    ret= test(FD_ISSET(fd, &readfds));
+    break;
+  case VIO_IO_EVENT_WRITE:
+  case VIO_IO_EVENT_CONNECT:
+    ret= test(FD_ISSET(fd, &writefds));
+    break;
+  }
+
+  /* Error conditions pending? */
+  ret|= test(FD_ISSET(fd, &exceptfds));
+
+  /* Not a timeout, ensure that a condition was met. */
+  DBUG_ASSERT(ret);
+
+  DBUG_RETURN(ret);
+}
+
+#endif /* _WIN32 */
+
+
+/**
+  Connect to a peer address.
+
+  @param vio       A VIO object.
+  @param addr      Socket address containing the peer address.
+  @param len       Length of socket address.
+  @param timeout   Interval (in milliseconds) to wait until a
+                   connection is established.
+
+  @retval FALSE   A connection was successfully established.
+  @retval TRUE    A fatal error. See socket_errno.
+*/
+
+my_bool
+vio_socket_connect(Vio *vio, struct sockaddr *addr, socklen_t len, int timeout)
+{
+  int ret, wait;
+  DBUG_ENTER("vio_socket_connect");
+
+  /* Only for socket-based transport types. */
+  DBUG_ASSERT(vio->type == VIO_TYPE_SOCKET || vio->type == VIO_TYPE_TCPIP);
+
+  /* If timeout is not infinite, set socket to non-blocking mode. */
+  if ((timeout > -1) && vio_set_blocking(vio, FALSE))
+    DBUG_RETURN(TRUE);
+
+  /* Initiate the connection. */
+  ret= connect(vio->sd, addr, len);
+
+#ifdef _WIN32
+  wait= (ret == SOCKET_ERROR) &&
+        (WSAGetLastError() == WSAEINPROGRESS ||
+         WSAGetLastError() == WSAEWOULDBLOCK);
+#else
+  wait= (ret == -1) && (errno == EINPROGRESS || errno == EALREADY);
+#endif
+
+  /*
+    The connection is in progress. The vio_io_wait() call can be used
+    to wait up to a specified period of time for the connection to
+    succeed.
+
+    If vio_io_wait() returns 0 (after waiting however many seconds),
+    the socket never became writable (host is probably unreachable.)
+    Otherwise, if vio_io_wait() returns 1, then one of two conditions
+    exist:
+
+    1. An error occurred. Use getsockopt() to check for this.
+    2. The connection was set up successfully: getsockopt() will
+       return 0 as an error.
+  */
+  if (wait && (vio_io_wait(vio, VIO_IO_EVENT_CONNECT, timeout) == 1))
+  {
+    int error;
+    IF_WIN(int, socklen_t) optlen= sizeof(error);
+    IF_WIN(char, void) *optval= (IF_WIN(char, void) *) &error;
+
+    /*
+      At this point, we know that something happened on the socket.
+      But this does not means that everything is alright. The connect
+      might have failed. We need to retrieve the error code from the
+      socket layer. We must return success only if we are sure that
+      it was really a success. Otherwise we might prevent the caller
+      from trying another address to connect to.
+    */
+    if (!(ret= getsockopt(vio->sd, SOL_SOCKET, SO_ERROR, optval, &optlen)))
+    {
+#ifdef _WIN32
+      WSASetLastError(error);
+#else
+      errno= error;
+#endif
+      ret= test(error);
+    }
+  }
+
+  /* If necessary, restore the blocking mode, but only if connect succeeded. */
+  if ((timeout > -1) && (ret == 0))
+  {
+    if (vio_set_blocking(vio, TRUE))
+      DBUG_RETURN(TRUE);
+  }
+
+  DBUG_RETURN(test(ret));
 }
 
 
@@ -647,25 +952,28 @@ my_bool vio_is_connected(Vio *vio)
   uint bytes= 0;
   DBUG_ENTER("vio_is_connected");
 
-  /* In the presence of errors the socket is assumed to be connected. */
-
   /*
-    The first step of detecting a EOF condition is veryfing
-    whether there is data to read. Data in this case would
-    be the EOF.
+    The first step of detecting an EOF condition is verifying
+    whether there is data to read. Data in this case would be
+    the EOF. An exceptional condition event and/or errors are
+    interpreted as if there is data to read.
   */
-  if (vio_poll_read(vio, 0))
+  if (!vio_io_wait(vio, VIO_IO_EVENT_READ, 0))
     DBUG_RETURN(TRUE);
 
   /*
     The second step is read() or recv() from the socket returning
-    0 (EOF). Unfortunelly, it's not possible to call read directly
+    0 (EOF). Unfortunately, it's not possible to call read directly
     as we could inadvertently read meaningful connection data.
     Simulate a read by retrieving the number of bytes available to
-    read -- 0 meaning EOF.
+    read -- 0 meaning EOF. In the presence of unrecoverable errors,
+    the socket is assumed to be disconnected.
   */
-  if (socket_peek_read(vio, &bytes))
-    DBUG_RETURN(TRUE);
+  while (socket_peek_read(vio, &bytes))
+  {
+    if (socket_errno != SOCKET_EINTR)
+      DBUG_RETURN(FALSE);
+  }
 
 #ifdef HAVE_OPENSSL
   /* There might be buffered data at the SSL layer. */
@@ -676,386 +984,67 @@ my_bool vio_is_connected(Vio *vio)
   DBUG_RETURN(bytes ? TRUE : FALSE);
 }
 
-
-void vio_timeout(Vio *vio, uint which, uint timeout)
-{
-#if defined(SO_SNDTIMEO) && defined(SO_RCVTIMEO)
-  int r;
-  DBUG_ENTER("vio_timeout");
-
-  {
-#ifdef __WIN__
-  /* Windows expects time in milliseconds as int */
-  int wait_timeout= (int) timeout * 1000;
-#else
-  /* POSIX specifies time as struct timeval. */
-  struct timeval wait_timeout;
-  wait_timeout.tv_sec= timeout;
-  wait_timeout.tv_usec= 0;
-#endif
-
-  r= setsockopt(vio->sd, SOL_SOCKET, which ? SO_SNDTIMEO : SO_RCVTIMEO,
-                IF_WIN((const char*), (const void*))&wait_timeout,
-                sizeof(wait_timeout));
-
-  }
-
-  if (r != 0)
-    DBUG_PRINT("error", ("setsockopt failed: %d, errno: %d", r, socket_errno));
-
-  DBUG_VOID_RETURN;
-#else
-/*
-  Platforms not suporting setting of socket timeout should either use
-  thr_alarm or just run without read/write timeout(s)
-*/
-#endif
-}
-
-
-#ifdef __WIN__
-
-/*
-  Finish pending IO on pipe. Honor wait timeout
-*/
-static size_t pipe_complete_io(Vio* vio, char* buf, size_t size, DWORD timeout_ms)
-{
-  DWORD length;
-  DWORD ret;
-
-  DBUG_ENTER("pipe_complete_io");
-
-  ret= WaitForSingleObject(vio->pipe_overlapped.hEvent, timeout_ms);
-  /*
-    WaitForSingleObjects will normally return WAIT_OBJECT_O (success, IO completed)
-    or WAIT_TIMEOUT.
-  */
-  if(ret != WAIT_OBJECT_0)
-  {
-    CancelIo(vio->hPipe);
-    DBUG_PRINT("error",("WaitForSingleObject() returned  %d", ret));
-    DBUG_RETURN((size_t)-1);
-  }
-
-  if (!GetOverlappedResult(vio->hPipe,&(vio->pipe_overlapped),&length, FALSE))
-  {
-    DBUG_PRINT("error",("GetOverlappedResult() returned last error  %d", 
-      GetLastError()));
-    DBUG_RETURN((size_t)-1);
-  }
-
-  DBUG_RETURN(length);
-}
-
-
-size_t vio_read_pipe(Vio * vio, uchar *buf, size_t size)
-{
-  DWORD bytes_read;
-  size_t retval;
-  DBUG_ENTER("vio_read_pipe");
-  DBUG_PRINT("enter", ("sd: %d  buf: 0x%lx  size: %u", vio->sd, (long) buf,
-                       (uint) size));
-
-  if (ReadFile(vio->hPipe, buf, (DWORD)size, &bytes_read,
-      &(vio->pipe_overlapped)))
-  {
-    retval= bytes_read;
-  }
-  else
-  {
-    if (GetLastError() != ERROR_IO_PENDING)
-    {
-      DBUG_PRINT("error",("ReadFile() returned last error %d",
-        GetLastError()));
-      DBUG_RETURN((size_t)-1);
-    }
-    retval= pipe_complete_io(vio, buf, size,vio->read_timeout_ms);
-  }
-
-  DBUG_PRINT("exit", ("%lld", (longlong)retval));
-  DBUG_RETURN(retval);
-}
-
-
-size_t vio_write_pipe(Vio * vio, const uchar* buf, size_t size)
-{
-  DWORD bytes_written;
-  size_t retval;
-  DBUG_ENTER("vio_write_pipe");
-  DBUG_PRINT("enter", ("sd: %d  buf: 0x%lx  size: %u", vio->sd, (long) buf,
-                       (uint) size));
-
-  if (WriteFile(vio->hPipe, buf, (DWORD)size, &bytes_written, 
-      &(vio->pipe_overlapped)))
-  {
-    retval= bytes_written;
-  }
-  else
-  {
-    if (GetLastError() != ERROR_IO_PENDING)
-    {
-      DBUG_PRINT("vio_error",("WriteFile() returned last error %d",
-        GetLastError()));
-      DBUG_RETURN((size_t)-1);
-    }
-    retval= pipe_complete_io(vio, (char *)buf, size, vio->write_timeout_ms);
-  }
-
-  DBUG_PRINT("exit", ("%lld", (longlong)retval));
-  DBUG_RETURN(retval);
-}
-
-
-my_bool vio_is_connected_pipe(Vio *vio)
-{
-  if (PeekNamedPipe(vio->hPipe, NULL, 0, NULL, NULL, NULL))
-    return TRUE;
-  else
-    return (GetLastError() != ERROR_BROKEN_PIPE);
-}
-
-
-int vio_close_pipe(Vio * vio)
-{
-  int r;
-  DBUG_ENTER("vio_close_pipe");
-
-  CancelIo(vio->hPipe);
-  CloseHandle(vio->pipe_overlapped.hEvent);
-  DisconnectNamedPipe(vio->hPipe);
-  r= CloseHandle(vio->hPipe);
-  if (r)
-  {
-    DBUG_PRINT("vio_error", ("close() failed, error: %d",GetLastError()));
-    /* FIXME: error handling (not critical for MySQL) */
-  }
-  vio->type= VIO_CLOSED;
-  vio->sd=   -1;
-  DBUG_RETURN(r);
-}
-
-
-void vio_win32_timeout(Vio *vio, uint which , uint timeout_sec)
-{
-    DWORD timeout_ms;
-    /*
-      Windows is measuring timeouts in milliseconds. Check for possible int 
-      overflow.
-    */
-    if (timeout_sec > UINT_MAX/1000)
-      timeout_ms= INFINITE;
-    else
-      timeout_ms= timeout_sec * 1000;
-
-    /* which == 1 means "write", which == 0 means "read".*/
-    if(which)
-      vio->write_timeout_ms= timeout_ms;
-    else
-      vio->read_timeout_ms= timeout_ms;
-}
-
-
-#ifdef HAVE_SMEM
-
-size_t vio_read_shared_memory(Vio * vio, uchar* buf, size_t size)
-{
-  size_t length;
-  size_t remain_local;
-  char *current_postion;
-  HANDLE events[2];
-
-  DBUG_ENTER("vio_read_shared_memory");
-  DBUG_PRINT("enter", ("sd: %d  buf: 0x%lx  size: %d", vio->sd, (long) buf,
-                       size));
-
-  remain_local = size;
-  current_postion=buf;
-
-  events[0]= vio->event_server_wrote;
-  events[1]= vio->event_conn_closed;
-
-  do
-  {
-    if (vio->shared_memory_remain == 0)
-    {
-      /*
-        WaitForMultipleObjects can return next values:
-         WAIT_OBJECT_0+0 - event from vio->event_server_wrote
-         WAIT_OBJECT_0+1 - event from vio->event_conn_closed. We can't read
-		           anything
-         WAIT_ABANDONED_0 and WAIT_TIMEOUT - fail.  We can't read anything
-      */
-      if (WaitForMultipleObjects(array_elements(events), events, FALSE,
-                                 vio->read_timeout_ms) != WAIT_OBJECT_0)
-      {
-        DBUG_RETURN(-1);
-      };
-
-      vio->shared_memory_pos = vio->handle_map;
-      vio->shared_memory_remain = uint4korr((ulong*)vio->shared_memory_pos);
-      vio->shared_memory_pos+=4;
-    }
-
-    length = size;
-
-    if (vio->shared_memory_remain < length)
-       length = vio->shared_memory_remain;
-    if (length > remain_local)
-       length = remain_local;
-
-    memcpy(current_postion,vio->shared_memory_pos,length);
-
-    vio->shared_memory_remain-=length;
-    vio->shared_memory_pos+=length;
-    current_postion+=length;
-    remain_local-=length;
-
-    if (!vio->shared_memory_remain)
-    {
-      if (!SetEvent(vio->event_client_read))
-        DBUG_RETURN(-1);
-    }
-  } while (remain_local);
-  length = size;
-
-  DBUG_PRINT("exit", ("%lu", (ulong) length));
-  DBUG_RETURN(length);
-}
-
-
-size_t vio_write_shared_memory(Vio * vio, const uchar* buf, size_t size)
-{
-  size_t length, remain, sz;
-  HANDLE pos;
-  const uchar *current_postion;
-  HANDLE events[2];
-
-  DBUG_ENTER("vio_write_shared_memory");
-  DBUG_PRINT("enter", ("sd: %d  buf: 0x%lx  size: %d", vio->sd, (long) buf,
-                       size));
-
-  remain = size;
-  current_postion = buf;
-
-  events[0]= vio->event_server_read;
-  events[1]= vio->event_conn_closed;
-
-  while (remain != 0)
-  {
-    if (WaitForMultipleObjects(array_elements(events), events, FALSE,
-                               vio->write_timeout_ms) != WAIT_OBJECT_0)
-    {
-      DBUG_RETURN((size_t) -1);
-    }
-
-    sz= (remain > shared_memory_buffer_length ? shared_memory_buffer_length :
-         remain);
-
-    int4store(vio->handle_map,sz);
-    pos = vio->handle_map + 4;
-    memcpy(pos,current_postion,sz);
-    remain-=sz;
-    current_postion+=sz;
-    if (!SetEvent(vio->event_client_wrote))
-      DBUG_RETURN((size_t) -1);
-  }
-  length = size;
-
-  DBUG_PRINT("exit", ("%lu", (ulong) length));
-  DBUG_RETURN(length);
-}
-
-
-my_bool vio_is_connected_shared_memory(Vio *vio)
-{
-  return (WaitForSingleObject(vio->event_conn_closed, 0) != WAIT_OBJECT_0);
-}
-
+#ifndef DBUG_OFF
 
 /**
- Close shared memory and DBUG_PRINT any errors that happen on closing.
- @return Zero if all closing functions succeed, and nonzero otherwise.
-*/
-int vio_close_shared_memory(Vio * vio)
-{
-  int error_count= 0;
-  DBUG_ENTER("vio_close_shared_memory");
-  if (vio->type != VIO_CLOSED)
-  {
-    /*
-      Set event_conn_closed for notification of both client and server that
-      connection is closed
-    */
-    SetEvent(vio->event_conn_closed);
-    /*
-      Close all handlers. UnmapViewOfFile and CloseHandle return non-zero
-      result if they are success.
-    */
-    if (UnmapViewOfFile(vio->handle_map) == 0) 
-    {
-      error_count++;
-      DBUG_PRINT("vio_error", ("UnmapViewOfFile() failed"));
-    }
-    if (CloseHandle(vio->event_server_wrote) == 0)
-    {
-      error_count++;
-      DBUG_PRINT("vio_error", ("CloseHandle(vio->esw) failed"));
-    }
-    if (CloseHandle(vio->event_server_read) == 0)
-    {
-      error_count++;
-      DBUG_PRINT("vio_error", ("CloseHandle(vio->esr) failed"));
-    }
-    if (CloseHandle(vio->event_client_wrote) == 0)
-    {
-      error_count++;
-      DBUG_PRINT("vio_error", ("CloseHandle(vio->ecw) failed"));
-    }
-    if (CloseHandle(vio->event_client_read) == 0)
-    {
-      error_count++;
-      DBUG_PRINT("vio_error", ("CloseHandle(vio->ecr) failed"));
-    }
-    if (CloseHandle(vio->handle_file_map) == 0)
-    {
-      error_count++;
-      DBUG_PRINT("vio_error", ("CloseHandle(vio->hfm) failed"));
-    }
-    if (CloseHandle(vio->event_conn_closed) == 0)
-    {
-      error_count++;
-      DBUG_PRINT("vio_error", ("CloseHandle(vio->ecc) failed"));
-    }
-  }
-  vio->type= VIO_CLOSED;
-  vio->sd=   -1;
-  DBUG_RETURN(error_count);
-}
-#endif /* HAVE_SMEM */
-#endif /* __WIN__ */
+  Number of bytes in the read or socket buffer
 
+  @remark An EOF condition might count as one readable byte.
 
-/**
-  Number of bytes in the read buffer.
-
-  @return number of bytes in the read buffer or < 0 if error.
+  @return number of bytes in one of the buffers or < 0 if error.
 */
 
 ssize_t vio_pending(Vio *vio)
 {
-#ifdef HAVE_OPENSSL
-  SSL *ssl= (SSL*) vio->ssl_arg;
-#endif
+  uint bytes= 0;
 
+  /* Data pending on the read buffer. */
   if (vio->read_pos < vio->read_end)
     return vio->read_end - vio->read_pos;
 
-#ifdef HAVE_OPENSSL
-  if (ssl)
-    return SSL_pending(ssl);
+  /* Skip non-socket based transport types. */
+  if (vio->type == VIO_TYPE_TCPIP || vio->type == VIO_TYPE_SOCKET)
+  {
+    /* Obtain number of readable bytes in the socket buffer. */
+    if (socket_peek_read(vio, &bytes))
+      return -1;
+  }
+
+  /*
+    SSL not checked due to a yaSSL bug in SSL_pending that
+    causes it to attempt to read from the socket.
+  */
+
+  return (ssize_t) bytes;
+}
+
 #endif
 
-  return 0;
+/**
+  Checks if the error code, returned by vio_getnameinfo(), means it was the
+  "No-name" error.
+
+  Windows-specific note: getnameinfo() returns WSANO_DATA instead of
+  EAI_NODATA or EAI_NONAME when no reverse mapping is available at the host
+  (i.e. Windows can't get hostname by IP-address). This error should be
+  treated as EAI_NONAME.
+
+  @return if the error code is actually EAI_NONAME.
+  @retval true if the error code is EAI_NONAME.
+  @retval false otherwise.
+*/
+
+my_bool vio_is_no_name_error(int err_code)
+{
+#ifdef _WIN32
+
+  return err_code == WSANO_DATA || err_code == EAI_NONAME;
+
+#else
+
+  return err_code == EAI_NONAME;
+
+#endif
 }
 
 

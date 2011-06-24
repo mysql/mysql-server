@@ -1,13 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1994, 2010, Innobase Oy. All Rights Reserved.
-Copyright (c) 2009, Sun Microsystems, Inc.
-
-Portions of this file contain modifications contributed and copyrighted by
-Sun Microsystems, Inc. Those modifications are gratefully acknowledged and
-are described briefly in the InnoDB documentation. The contributions by
-Sun Microsystems are incorporated with their permission, and subject to the
-conditions contained in the file COPYING.Sun_Microsystems.
+Copyright (c) 1994, 2011, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -18,8 +11,8 @@ ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
 FOR A PARTICULAR PURPOSE. See the GNU General Public License for more details.
 
 You should have received a copy of the GNU General Public License along with
-this program; if not, write to the Free Software Foundation, Inc., 59 Temple
-Place, Suite 330, Boston, MA 02111-1307 USA
+this program; if not, write to the Free Software Foundation, Inc.,
+51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA
 
 *****************************************************************************/
 
@@ -99,26 +92,6 @@ ut_gettimeofday(
 reimplement this function. */
 #define	ut_gettimeofday		gettimeofday
 #endif
-
-/********************************************************//**
-Gets the high 32 bits in a ulint. That is makes a shift >> 32,
-but since there seem to be compiler bugs in both gcc and Visual C++,
-we do this by a special conversion.
-@return	a >> 32 */
-UNIV_INTERN
-ulint
-ut_get_high32(
-/*==========*/
-	ulint	a)	/*!< in: ulint */
-{
-	ib_int64_t	i;
-
-	i = (ib_int64_t)a;
-
-	i = i >> 32;
-
-	return((ulint)i);
-}
 
 /**********************************************************//**
 Returns system time. We do not specify the format of the time returned:
@@ -252,16 +225,16 @@ ut_print_timestamp(
 		(int)cal_tm.wMinute,
 		(int)cal_tm.wSecond);
 #else
-	struct tm  cal_tm;
 	struct tm* cal_tm_ptr;
 	time_t	   tm;
 
-	time(&tm);
-
 #ifdef HAVE_LOCALTIME_R
+	struct tm  cal_tm;
+	time(&tm);
 	localtime_r(&tm, &cal_tm);
 	cal_tm_ptr = &cal_tm;
 #else
+	time(&tm);
 	cal_tm_ptr = localtime(&tm);
 #endif
 	fprintf(file,"%02d%02d%02d %2d:%02d:%02d",
@@ -295,16 +268,16 @@ ut_sprintf_timestamp(
 		(int)cal_tm.wMinute,
 		(int)cal_tm.wSecond);
 #else
-	struct tm  cal_tm;
 	struct tm* cal_tm_ptr;
 	time_t	   tm;
 
-	time(&tm);
-
 #ifdef HAVE_LOCALTIME_R
+	struct tm  cal_tm;
+	time(&tm);
 	localtime_r(&tm, &cal_tm);
 	cal_tm_ptr = &cal_tm;
 #else
+	time(&tm);
 	cal_tm_ptr = localtime(&tm);
 #endif
 	sprintf(buf, "%02d%02d%02d %2d:%02d:%02d",
@@ -340,16 +313,16 @@ ut_sprintf_timestamp_without_extra_chars(
 		(int)cal_tm.wMinute,
 		(int)cal_tm.wSecond);
 #else
-	struct tm  cal_tm;
 	struct tm* cal_tm_ptr;
 	time_t	   tm;
 
-	time(&tm);
-
 #ifdef HAVE_LOCALTIME_R
+	struct tm  cal_tm;
+	time(&tm);
 	localtime_r(&tm, &cal_tm);
 	cal_tm_ptr = &cal_tm;
 #else
+	time(&tm);
 	cal_tm_ptr = localtime(&tm);
 #endif
 	sprintf(buf, "%02d%02d%02d_%2d_%02d_%02d",
@@ -381,16 +354,16 @@ ut_get_year_month_day(
 	*month = (ulint)cal_tm.wMonth;
 	*day = (ulint)cal_tm.wDay;
 #else
-	struct tm  cal_tm;
 	struct tm* cal_tm_ptr;
 	time_t	   tm;
 
-	time(&tm);
-
 #ifdef HAVE_LOCALTIME_R
+	struct tm  cal_tm;
+	time(&tm);
 	localtime_r(&tm, &cal_tm);
 	cal_tm_ptr = &cal_tm;
 #else
+	time(&tm);
 	cal_tm_ptr = localtime(&tm);
 #endif
 	*year = (ulint)cal_tm_ptr->tm_year + 1900;
@@ -669,6 +642,8 @@ ut_strerr(
 		return("Table is being used");
 	case DB_TOO_BIG_RECORD:
 		return("Record too big");
+	case DB_TOO_BIG_INDEX_COL:
+		return("Index columns size too big");
 	case DB_LOCK_WAIT_TIMEOUT:
 		return("Lock wait timeout");
 	case DB_NO_REFERENCED_ROW:

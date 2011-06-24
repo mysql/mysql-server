@@ -35,6 +35,10 @@ Created 7/19/1997 Heikki Tuuri
 #ifndef UNIV_HOTBACKUP
 # include "ibuf0types.h"
 
+/** Default value for maximum on-disk size of change buffer in terms
+of percentage of the buffer pool. */
+#define CHANGE_BUFFER_DEFAULT_SIZE	(25)
+
 /* Possible operations buffered in the insert/whatever buffer. See
 ibuf_insert(). DO NOT CHANGE THE VALUES OF THESE, THEY ARE STORED ON DISK. */
 typedef enum {
@@ -98,12 +102,36 @@ void
 ibuf_init_at_db_start(void);
 /*=======================*/
 /*********************************************************************//**
+Updates the max_size value for ibuf. */
+UNIV_INTERN
+void
+ibuf_max_size_update(
+/*=================*/
+	ulint	new_val);	/*!< in: new value in terms of
+				percentage of the buffer pool size */
+/*********************************************************************//**
 Reads the biggest tablespace id from the high end of the insert buffer
 tree and updates the counter in fil_system. */
 UNIV_INTERN
 void
 ibuf_update_max_tablespace_id(void);
 /*===============================*/
+/***************************************************************//**
+Starts an insert buffer mini-transaction. */
+UNIV_INLINE
+void
+ibuf_mtr_start(
+/*===========*/
+	mtr_t*	mtr)	/*!< out: mini-transaction */
+	__attribute__((nonnull));
+/***************************************************************//**
+Commits an insert buffer mini-transaction. */
+UNIV_INLINE
+void
+ibuf_mtr_commit(
+/*============*/
+	mtr_t*	mtr)	/*!< in/out: mini-transaction */
+	__attribute__((nonnull));
 /*********************************************************************//**
 Initializes an ibuf bitmap page. */
 UNIV_INTERN
@@ -224,10 +252,12 @@ routine.
 For instance, a read-ahead of non-ibuf pages is forbidden by threads
 that are executing an insert buffer routine.
 @return TRUE if inside an insert buffer routine */
-UNIV_INTERN
+UNIV_INLINE
 ibool
-ibuf_inside(void);
-/*=============*/
+ibuf_inside(
+/*========*/
+	const mtr_t*	mtr)	/*!< in: mini-transaction */
+	__attribute__((nonnull, pure));
 /***********************************************************************//**
 Checks if a page address is an ibuf bitmap page (level 3 page) address.
 @return	TRUE if a bitmap page */
@@ -358,14 +388,12 @@ will be merged from ibuf trees to the pages read, 0 if ibuf is
 empty */
 UNIV_INTERN
 ulint
-ibuf_contract_for_n_pages(
-/*======================*/
-	ibool	sync,	/*!< in: TRUE if the caller wants to wait for the
-			issued read with the highest tablespace address
-			to complete */
-	ulint	n_pages);/*!< in: try to read at least this many pages to
-			the buffer pool and merge the ibuf contents to
-			them */
+ibuf_contract_in_background(
+/*========================*/
+	ibool	full);	/*!< in: TRUE if the caller wants to do a full
+			contract based on PCT_IO(100). If FALSE then
+			the size of contract batch is determined based
+			on the current size of the ibuf tree. */
 #endif /* !UNIV_HOTBACKUP */
 /*********************************************************************//**
 Parses a redo log record of an ibuf bitmap page init.

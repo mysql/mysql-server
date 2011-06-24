@@ -3345,18 +3345,33 @@ drop tables if exists t1, t2;
 --enable_warnings
 connect (con46044, localhost, root,,);
 connect (con46044_2, localhost, root,,);
+connect (con46044_3, localhost, root,,);
 connection default;
 create table t1 (i int);
+insert into t1 values(1);
 
 --echo # Let us check that we won't deadlock if during filling
 --echo # of I_S table we encounter conflicting metadata lock
 --echo # which owner is in its turn waiting for our connection.
 lock tables t1 read;
 
+--echo # Switching to connection 'con46044_2'.
+connection con46044_2;
+--echo # Sending:
+--send update t1 set i = 2
+
 --echo # Switching to connection 'con46044'.
 connection con46044;
+
+--echo # Waiting until UPDATE t1 SET ... is blocked.
+let $wait_condition=
+  select count(*) = 1 from information_schema.processlist
+  where state = "Waiting for table level lock" and
+        info = "update t1 set i = 2";
+--source include/wait_condition.inc
+
 --echo # Sending:
---send create table t2 select * from t1 for update;
+--send create table t2 select * from t1;
 
 --echo # Switching to connection 'default'.
 connection default;
@@ -3364,7 +3379,7 @@ connection default;
 let $wait_condition=
   select count(*) = 1 from information_schema.processlist
   where state = "Waiting for table level lock" and
-        info = "create table t2 select * from t1 for update";
+        info = "create table t2 select * from t1";
 --source include/wait_condition.inc
 
 --echo # First let us check that SHOW FIELDS/DESCRIBE doesn't
@@ -3395,6 +3410,10 @@ connection con46044;
 --reap
 drop table t2;
 
+connection con46044_2;
+--echo # Reaping UPDATE t1 statement
+--reap
+
 --echo #
 --echo # Let us also check that queries to I_S wait for conflicting metadata
 --echo # locks to go away instead of skipping table with a warning in cases
@@ -3407,10 +3426,23 @@ drop table t2;
 connection con46044_2;
 lock tables t1 read;
 
+--echo # Switching to connection 'con46044_3'.
+connection con46044_3;
+--echo # Sending:
+send update t1 set i = 3;
+
 --echo # Switching to connection 'con46044'.
 connection con46044;
+
+--echo # Waiting until UPDATE t1 SET ... is blocked.
+let $wait_condition=
+  select count(*) = 1 from information_schema.processlist
+  where state = "Waiting for table level lock" and
+        info = "update t1 set i = 3";
+--source include/wait_condition.inc
+
 --echo # Sending:
---send create table t2 select * from t1 for update;
+--send create table t2 select * from t1;
 
 --echo # Switching to connection 'default'.
 connection default;
@@ -3418,7 +3450,7 @@ connection default;
 let $wait_condition=
   select count(*) = 1 from information_schema.processlist
   where state = "Waiting for table level lock" and
-        info = "create table t2 select * from t1 for update";
+        info = "create table t2 select * from t1";
 --source include/wait_condition.inc
 
 --echo # Let us check that SHOW FIELDS/DESCRIBE gets blocked.
@@ -3447,14 +3479,31 @@ connection default;
 --reap
 drop table t2;
 
+connection con46044_3;
+--echo # Reaping UPDATE t1 statement
+--reap
+
 --echo # Switching to connection 'con46044_2'.
 connection con46044_2;
 lock tables t1 read;
 
+--echo # Switching to connection 'con46044_3'.
+connection con46044_3;
+--echo # Sending:
+--send update t1 set i = 4
+
 --echo # Switching to connection 'con46044'.
 connection con46044;
+
+--echo # Waiting until UPDATE t1 SET ... is blocked.
+let $wait_condition=
+  select count(*) = 1 from information_schema.processlist
+  where state = "Waiting for table level lock" and
+        info = "update t1 set i = 4";
+--source include/wait_condition.inc
+
 --echo # Sending:
---send create table t2 select * from t1 for update;
+--send create table t2 select * from t1;
 
 --echo # Switching to connection 'default'.
 connection default;
@@ -3462,7 +3511,7 @@ connection default;
 let $wait_condition=
   select count(*) = 1 from information_schema.processlist
   where state = "Waiting for table level lock" and
-        info = "create table t2 select * from t1 for update";
+        info = "create table t2 select * from t1";
 --source include/wait_condition.inc
 
 --echo # Check that I_S query which reads only .FRMs gets blocked.
@@ -3491,14 +3540,31 @@ connection default;
 --reap
 drop table t2;
 
+connection con46044_3;
+--echo # Reaping UPDATE t1 statement
+--reap
+
 --echo # Switching to connection 'con46044_2'.
 connection con46044_2;
 lock tables t1 read;
 
+--echo # Switching to connection 'con46044_3'.
+connection con46044_3;
+--echo # Sending:
+--send update t1 set i = 5
+
 --echo # Switching to connection 'con46044'.
 connection con46044;
+
+--echo # Waiting until UPDATE t1 SET ... is blocked.
+let $wait_condition=
+  select count(*) = 1 from information_schema.processlist
+  where state = "Waiting for table level lock" and
+        info = "update t1 set i = 5";
+--source include/wait_condition.inc
+
 --echo # Sending:
---send create table t2 select * from t1 for update;
+--send create table t2 select * from t1;
 
 --echo # Switching to connection 'default'.
 connection default;
@@ -3506,7 +3572,7 @@ connection default;
 let $wait_condition=
   select count(*) = 1 from information_schema.processlist
   where state = "Waiting for table level lock" and
-        info = "create table t2 select * from t1 for update";
+        info = "create table t2 select * from t1";
 --source include/wait_condition.inc
 
 --echo # Finally, check that I_S query which does full-blown table open
@@ -3536,11 +3602,16 @@ connection default;
 --reap
 drop table t2;
 
+connection con46044_3;
+--echo # Reaping UPDATE t1 statement
+--reap
+
 --echo # Switching to connection 'default'.
 connection default;
 --echo # Clean-up.
 disconnect con46044;
 disconnect con46044_2;
+disconnect con46044_3;
 drop table t1;
 
 

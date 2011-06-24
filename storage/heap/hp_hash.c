@@ -1,4 +1,4 @@
-/* Copyright (C) 2000-2006 MySQL AB
+/* Copyright (c) 2000, 2011, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -11,7 +11,7 @@
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
-   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
+   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
 /* The hash functions used for saveing keys */
 
@@ -263,7 +263,7 @@ ulong hp_hashnr(register HP_KEYDEF *keydef, register const uchar *key)
     }
     if (seg->type == HA_KEYTYPE_TEXT)
     {
-       CHARSET_INFO *cs= seg->charset;
+       const CHARSET_INFO *cs= seg->charset;
        uint length= seg->length;
        if (cs->mbmaxlen > 1)
        {
@@ -275,7 +275,7 @@ ulong hp_hashnr(register HP_KEYDEF *keydef, register const uchar *key)
     }
     else if (seg->type == HA_KEYTYPE_VARTEXT1)  /* Any VARCHAR segments */
     {
-       CHARSET_INFO *cs= seg->charset;
+       const CHARSET_INFO *cs= seg->charset;
        uint pack_length= 2;                     /* Key packing is constant */
        uint length= uint2korr(pos);
        if (cs->mbmaxlen > 1)
@@ -322,7 +322,7 @@ ulong hp_rec_hashnr(register HP_KEYDEF *keydef, register const uchar *rec)
     }
     if (seg->type == HA_KEYTYPE_TEXT)
     {
-      CHARSET_INFO *cs= seg->charset;
+      const CHARSET_INFO *cs= seg->charset;
       uint char_length= seg->length;
       if (cs->mbmaxlen > 1)
       {
@@ -334,7 +334,7 @@ ulong hp_rec_hashnr(register HP_KEYDEF *keydef, register const uchar *rec)
     }
     else if (seg->type == HA_KEYTYPE_VARTEXT1)  /* Any VARCHAR segments */
     {
-      CHARSET_INFO *cs= seg->charset;
+      const CHARSET_INFO *cs= seg->charset;
       uint pack_length= seg->bit_start;
       uint length= (pack_length == 1 ? (uint) *(uchar*) pos : uint2korr(pos));
       if (cs->mbmaxlen > 1)
@@ -516,7 +516,7 @@ int hp_rec_key_cmp(HP_KEYDEF *keydef, const uchar *rec1, const uchar *rec2,
     }
     if (seg->type == HA_KEYTYPE_TEXT)
     {
-      CHARSET_INFO *cs= seg->charset;
+      const CHARSET_INFO *cs= seg->charset;
       uint char_length1;
       uint char_length2;
       uchar *pos1= (uchar*)rec1 + seg->start;
@@ -544,7 +544,7 @@ int hp_rec_key_cmp(HP_KEYDEF *keydef, const uchar *rec1, const uchar *rec2,
       uchar *pos2= (uchar*) rec2 + seg->start;
       uint char_length1, char_length2;
       uint pack_length= seg->bit_start;
-      CHARSET_INFO *cs= seg->charset;
+      const CHARSET_INFO *cs= seg->charset;
       if (pack_length == 1)
       {
         char_length1= (uint) *(uchar*) pos1++;
@@ -609,7 +609,7 @@ int hp_key_cmp(HP_KEYDEF *keydef, const uchar *rec, const uchar *key)
     }
     if (seg->type == HA_KEYTYPE_TEXT)
     {
-      CHARSET_INFO *cs= seg->charset;
+      const CHARSET_INFO *cs= seg->charset;
       uint char_length_key;
       uint char_length_rec;
       uchar *pos= (uchar*) rec + seg->start;
@@ -635,7 +635,7 @@ int hp_key_cmp(HP_KEYDEF *keydef, const uchar *rec, const uchar *key)
     else if (seg->type == HA_KEYTYPE_VARTEXT1)  /* Any VARCHAR segments */
     {
       uchar *pos= (uchar*) rec + seg->start;
-      CHARSET_INFO *cs= seg->charset;
+      const CHARSET_INFO *cs= seg->charset;
       uint pack_length= seg->bit_start;
       uint char_length_rec= (pack_length == 1 ? (uint) *(uchar*) pos :
                              uint2korr(pos));
@@ -676,7 +676,7 @@ void hp_make_key(HP_KEYDEF *keydef, uchar *key, const uchar *rec)
 
   for (seg=keydef->seg,endseg=seg+keydef->keysegs ; seg < endseg ; seg++)
   {
-    CHARSET_INFO *cs= seg->charset;
+    const CHARSET_INFO *cs= seg->charset;
     uint char_length= seg->length;
     uchar *pos= (uchar*) rec + seg->start;
     if (seg->null_bit)
@@ -729,7 +729,7 @@ uint hp_rb_make_key(HP_KEYDEF *keydef, uchar *key,
 	if (isnan(nr))
 	{
 	  /* Replace NAN with zero */
- 	  bzero(key, length);
+ 	  memset(key, 0, length);
 	  key+= length;
 	  continue;
 	}
@@ -740,7 +740,7 @@ uint hp_rb_make_key(HP_KEYDEF *keydef, uchar *key,
 	float8get(nr, pos);
 	if (isnan(nr))
 	{
- 	  bzero(key, length);
+ 	  memset(key, 0, length);
 	  key+= length;
 	  continue;
 	}
@@ -761,7 +761,7 @@ uint hp_rb_make_key(HP_KEYDEF *keydef, uchar *key,
       uint pack_length= seg->bit_start;
       uint tmp_length= (pack_length == 1 ? (uint) *(uchar*) pos :
                         uint2korr(pos));
-      CHARSET_INFO *cs= seg->charset;
+      const CHARSET_INFO *cs= seg->charset;
       char_length= length/cs->mbmaxlen;
 
       pos+= pack_length;			/* Skip VARCHAR length */
@@ -834,7 +834,7 @@ uint hp_rb_pack_key(HP_KEYDEF *keydef, uchar *key, const uchar *old,
       /* Length of key-part used with heap_rkey() always 2 */
       uint tmp_length=uint2korr(old);
       uint length= seg->length;
-      CHARSET_INFO *cs= seg->charset;
+      const CHARSET_INFO *cs= seg->charset;
       char_length= length/cs->mbmaxlen;
 
       old+= 2;

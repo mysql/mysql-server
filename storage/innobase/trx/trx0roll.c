@@ -72,8 +72,8 @@ trx_rollback_finish(
 Rollback a transaction used in MySQL. */
 static
 void
-trx_general_rollback_for_mysql_low(
-/*===============================*/
+trx_rollback_to_savepoint_low(
+/*==========================*/
 	trx_t*		trx,	/*!< in: transaction handle */
 	trx_savept_t*	savept)	/*!< in: pointer to savepoint undo number, if
 				partial rollback requested, or NULL for
@@ -107,8 +107,10 @@ trx_general_rollback_for_mysql_low(
 
 	if (savept == NULL) {
 		trx_rollback_finish(trx);
+		MONITOR_INC(MONITOR_TRX_ROLLBACK);
 	} else {
 		trx->lock.que_state = TRX_QUE_RUNNING;
+		MONITOR_INC(MONITOR_TRX_ROLLBACK_SAVEPOINT);
 	}
 
 	ut_a(trx->error_state == DB_SUCCESS);
@@ -116,17 +118,16 @@ trx_general_rollback_for_mysql_low(
 
 	mem_heap_free(heap);
 
-	MONITOR_INC(MONITOR_TRX_ABORT);
 	MONITOR_DEC(MONITOR_TRX_ACTIVE);
 }
 
 /*******************************************************************//**
-Rollback a transaction used in MySQL.
+Rollback a transaction to a given savepoint or do a complete rollback.
 @return	error code or DB_SUCCESS */
 UNIV_INTERN
 int
-trx_general_rollback_for_mysql(
-/*===========================*/
+trx_rollback_to_savepoint(
+/*======================*/
 	trx_t*		trx,	/*!< in: transaction handle */
 	trx_savept_t*	savept)	/*!< in: pointer to savepoint undo number, if
 				partial rollback requested, or NULL for
@@ -141,7 +142,7 @@ trx_general_rollback_for_mysql(
 
 	trx_start_if_not_started_xa(trx);
 
-	trx_general_rollback_for_mysql_low(trx, savept);
+	trx_rollback_to_savepoint_low(trx, savept);
 
 	/* Tell Innobase server that there might be work for
 	utility threads: */
@@ -184,7 +185,7 @@ trx_rollback_for_mysql(
 		object, and we set a dummy session that we use for all MySQL
 		transactions. */
 
-		trx_general_rollback_for_mysql_low(trx, NULL);
+		trx_rollback_to_savepoint_low(trx, NULL);
 
 		trx->op_info = "";
 
@@ -226,7 +227,7 @@ trx_rollback_last_sql_stat_for_mysql(
 
 		trx->op_info = "rollback of SQL statement";
 
-		err = trx_general_rollback_for_mysql(
+		err = trx_rollback_to_savepoint(
 			trx, &trx->last_sql_stat_start);
 
 		/* The following call should not be needed,
@@ -315,10 +316,10 @@ the row, these locks are naturally released in the rollback. Savepoints which
 were set after this savepoint are deleted.
 @return if no savepoint of the name found then DB_NO_SAVEPOINT,
 otherwise DB_SUCCESS */
-UNIV_INTERN
+static
 ulint
-trx_rollback_to_savepoint_low(
-/*==========================*/
+trx_rollback_to_savepoint_for_mysql_low(
+/*====================================*/
 	trx_t*			trx,	/*!< in/out: transaction */
 	trx_named_savept_t*	savep,	/*!< in/out: savepoint */
 	ib_int64_t*		mysql_binlog_cache_pos)
@@ -343,7 +344,7 @@ trx_rollback_to_savepoint_low(
 
 	trx->op_info = "rollback to a savepoint";
 
-	err = trx_general_rollback_for_mysql(trx, &savep->savept);
+	err = trx_rollback_to_savepoint(trx, &savep->savept);
 
 	/* Store the current undo_no of the transaction so that
 	we know where to roll back if we have to roll back the
@@ -400,8 +401,8 @@ trx_rollback_to_savepoint_for_mysql(
 		fputs(" though it is not started\n", stderr);
 		return(DB_ERROR);
 	case TRX_STATE_ACTIVE:
-		return(trx_rollback_to_savepoint_low(trx, savep,
-						     mysql_binlog_cache_pos));
+		return(trx_rollback_to_savepoint_for_mysql_low(
+				trx, savep, mysql_binlog_cache_pos));
 	case TRX_STATE_PREPARED:
 	case TRX_STATE_COMMITTED_IN_MEMORY:
 		/* The savepoint rollback is only allowed on an ACTIVE
@@ -572,10 +573,6 @@ trx_rollback_active(
 		" rows to undo\n",
 		(ullint) trx->id,
 		(ulong) rows_to_undo, unit);
-
-	trx->mysql_thread_id = 0;
-
-	trx->mysql_process_no = 0;
 
 	if (trx_get_dict_operation(trx) != TRX_DICT_OP_NONE) {
 		row_mysql_lock_data_dictionary(trx);

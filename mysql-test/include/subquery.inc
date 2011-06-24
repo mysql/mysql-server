@@ -4740,8 +4740,6 @@ CREATE VIEW v1 AS SELECT 1 LIKE ( 1 IN ( SELECT 1 ) );
 CREATE VIEW v2 AS SELECT 1 LIKE '%' ESCAPE ( 1 IN ( SELECT 1 ) );
 DROP VIEW v1, v2;
 
---echo End of 5.1 tests.
-
 #
 # Bug #47904 Incorrect results w/ table subquery, derived SQs, and LEFT JOIN on index
 #
@@ -5064,6 +5062,28 @@ DROP TABLE t1;
 
 
 --echo #
+--echo # Bug #11765713 58705:
+--echo # OPTIMIZER LET ENGINE DEPEND ON UNINITIALIZED VALUES
+--echo # CREATED BY OPT_SUM_QUERY
+--echo #
+
+CREATE TABLE t1(a INT NOT NULL, KEY (a));
+INSERT INTO t1 VALUES (0), (1);
+
+--error ER_SUBQUERY_NO_1_ROW
+SELECT 1 as foo FROM t1 WHERE a < SOME
+  (SELECT a FROM t1 WHERE a <=>
+    (SELECT a FROM t1)
+  );
+
+SELECT 1 as foo FROM t1 WHERE a < SOME
+  (SELECT a FROM t1 WHERE a <=>
+    (SELECT a FROM t1 where a is null)
+  ); 
+
+DROP TABLE t1;
+
+--echo #
 --echo # Bug #57704: Cleanup code dies with void TABLE::set_keyread(bool): 
 --echo #             Assertion `file' failed.
 --echo #
@@ -5079,6 +5099,54 @@ SELECT 1 FROM
 
 DROP TABLE t1;
 
+--echo #
+--echo # Bug#11764086: Null left operand to NOT IN in WHERE clause
+--echo # behaves differently than real NULL
+--echo #
+
+CREATE TABLE parent (id int);
+INSERT INTO parent VALUES (1), (2);
+
+CREATE TABLE child (parent_id int, other int);
+INSERT INTO child VALUES (1,NULL);
+
+--echo # Offending query (c.parent_id is NULL for null-complemented rows only)
+
+SELECT    p.id, c.parent_id
+FROM      parent p
+LEFT JOIN child  c
+ON        p.id = c.parent_id
+WHERE     c.parent_id NOT IN (
+              SELECT parent_id 
+              FROM   child
+              WHERE  parent_id = 3
+          );
+
+--echo # Some syntactic variations with IS FALSE and IS NOT TRUE
+
+SELECT    p.id, c.parent_id
+FROM      parent p
+LEFT JOIN child  c
+ON        p.id = c.parent_id
+WHERE     c.parent_id IN (
+              SELECT parent_id 
+              FROM   child
+              WHERE  parent_id = 3
+          ) IS NOT TRUE;
+
+SELECT    p.id, c.parent_id
+FROM      parent p
+LEFT JOIN child  c
+ON        p.id = c.parent_id
+WHERE     c.parent_id IN (
+              SELECT parent_id 
+              FROM   child
+              WHERE  parent_id = 3
+          ) IS FALSE;
+
+DROP TABLE parent, child;
+
+--echo # End of test for bug#11764086.
 
 --echo End of 5.5 tests.
 
@@ -5286,3 +5354,32 @@ CREATE TABLE t(a VARCHAR(245) DEFAULT
 INSERT INTO t VALUES (''),(''),(''),(''),(''),(''),(''),(''),(''),(''),('');
 SELECT * FROM (SELECT default(a) FROM t GROUP BY a) d;
 DROP TABLE t;
+
+--echo #
+--echo # Bug 11765699 - 58690: !TABLE || (!TABLE->READ_SET || 
+--echo #                BITMAP_IS_SET(TABLE->READ_SET, FIELD_INDEX
+--echo #
+
+CREATE TABLE t1(a INT);
+INSERT INTO t1 VALUES (0), (1); 
+
+CREATE TABLE t2(
+  b TEXT, 
+  c INT, 
+  PRIMARY KEY (b(1))
+);
+INSERT INTO t2 VALUES ('a', 2), ('b', 3);
+
+SELECT 1 FROM t1 WHERE a = 
+ (SELECT 1 FROM t2 WHERE b = 
+  (SELECT 1 FROM t1 t11 WHERE c = 1 OR t1.a = 1 AND 1 = 2)
+   ORDER BY b
+ );
+
+SELECT 1 FROM t1 WHERE a = 
+ (SELECT 1 FROM t2 WHERE b = 
+  (SELECT 1 FROM t1 t11 WHERE c = 1 OR t1.a = 1 AND 1 = 2)
+   GROUP BY b
+ );
+
+DROP TABLE t1, t2;

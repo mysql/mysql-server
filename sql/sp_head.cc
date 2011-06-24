@@ -1,4 +1,4 @@
-/* Copyright (c) 2002, 2010, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2002, 2011, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -10,8 +10,8 @@
    GNU General Public License for more details.
 
    You should have received a copy of the GNU General Public License
-   along with this program; if not, write to the Free Software Foundation,
-   51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA */
+   along with this program; if not, write to the Free Software
+   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
 #include "my_global.h"                          /* NO_EMBEDDED_ACCESS_CHECKS */
 #include "sql_priv.h"
@@ -27,9 +27,6 @@
 #include "sql_array.h"         // Dynamic_array
 #include "log_event.h"         // append_query_string, Query_log_event
 
-#ifdef USE_PRAGMA_IMPLEMENTATION
-#pragma implementation
-#endif
 #include "sp_head.h"
 #include "sp.h"
 #include "sp_pcontext.h"
@@ -159,7 +156,7 @@ sp_get_item_value(THD *thd, Item *item, String *str)
       {
         char buf_holder[STRING_BUFFER_USUAL_SIZE];
         String buf(buf_holder, sizeof(buf_holder), result->charset());
-        CHARSET_INFO *cs= thd->variables.character_set_client;
+        const CHARSET_INFO *cs= thd->variables.character_set_client;
 
         /* We must reset length of the buffer, because of String specificity. */
         buf.length(0);
@@ -237,7 +234,6 @@ sp_get_flags_for_command(LEX *lex)
   case SQLCOM_SHOW_EVENTS:
   case SQLCOM_SHOW_KEYS:
   case SQLCOM_SHOW_MASTER_STAT:
-  case SQLCOM_SHOW_NEW_MASTER:
   case SQLCOM_SHOW_OPEN_TABLES:
   case SQLCOM_SHOW_PRIVILEGES:
   case SQLCOM_SHOW_PROCESSLIST:
@@ -376,8 +372,8 @@ sp_eval_expr(THD *thd, Field *result_field, Item **expr_item_ptr)
   Item *expr_item;
   enum_check_fields save_count_cuted_fields= thd->count_cuted_fields;
   bool save_abort_on_warning= thd->abort_on_warning;
-  bool save_stmt_modified_non_trans_table= 
-    thd->transaction.stmt.modified_non_trans_table;
+  unsigned int stmt_unsafe_rollback_flags=
+    thd->transaction.stmt.get_unsafe_rollback_flags();
 
   DBUG_ENTER("sp_eval_expr");
 
@@ -398,7 +394,7 @@ sp_eval_expr(THD *thd, Field *result_field, Item **expr_item_ptr)
   thd->abort_on_warning=
     thd->variables.sql_mode &
     (MODE_STRICT_TRANS_TABLES | MODE_STRICT_ALL_TABLES);
-  thd->transaction.stmt.modified_non_trans_table= FALSE;
+  thd->transaction.stmt.reset_unsafe_rollback_flags();
 
   /* Save the value in the field. Convert the value if needed. */
 
@@ -406,7 +402,7 @@ sp_eval_expr(THD *thd, Field *result_field, Item **expr_item_ptr)
 
   thd->count_cuted_fields= save_count_cuted_fields;
   thd->abort_on_warning= save_abort_on_warning;
-  thd->transaction.stmt.modified_non_trans_table= save_stmt_modified_non_trans_table;
+  thd->transaction.stmt.set_unsafe_rollback_flags(stmt_unsafe_rollback_flags);
 
   if (!thd->is_error())
     DBUG_RETURN(FALSE);
@@ -551,7 +547,7 @@ sp_head::operator delete(void *ptr, size_t size) throw()
 
 
 sp_head::sp_head()
-  :Query_arena(&main_mem_root, INITIALIZED_FOR_SP),
+  :Query_arena(&main_mem_root, STMT_INITIALIZED_FOR_SP),
    m_flags(0),
    m_sp_cache_version(0),
    unsafe_flags(0),
@@ -724,7 +720,7 @@ static TYPELIB *
 create_typelib(MEM_ROOT *mem_root, Create_field *field_def, List<String> *src)
 {
   TYPELIB *result= NULL;
-  CHARSET_INFO *cs= field_def->charset;
+  const CHARSET_INFO *cs= field_def->charset;
   DBUG_ENTER("create_typelib");
 
   if (src->elements)
@@ -1067,7 +1063,7 @@ void sp_head::recursion_level_error(THD *thd)
   if (m_type == TYPE_ENUM_PROCEDURE)
   {
     my_error(ER_SP_RECURSION_LIMIT, MYF(0),
-             thd->variables.max_sp_recursion_depth,
+             static_cast<int>(thd->variables.max_sp_recursion_depth),
              m_name.str);
   }
   else
@@ -1145,15 +1141,15 @@ find_handler_after_execution(THD *thd, sp_rcontext *ctx)
   if (thd->is_error())
   {
     ctx->find_handler(thd,
-                      thd->stmt_da->sql_errno(),
-                      thd->stmt_da->get_sqlstate(),
+                      thd->get_stmt_da()->sql_errno(),
+                      thd->get_stmt_da()->get_sqlstate(),
                       MYSQL_ERROR::WARN_LEVEL_ERROR,
-                      thd->stmt_da->message());
+                      thd->get_stmt_da()->message());
   }
-  else if (thd->warning_info->statement_warn_count())
+  else if (thd->get_stmt_wi()->statement_warn_count())
   {
-    List_iterator<MYSQL_ERROR> it(thd->warning_info->warn_list());
-    MYSQL_ERROR *err;
+    Warning_info::Const_iterator it= thd->get_stmt_wi()->iterator();
+    const MYSQL_ERROR *err;
     while ((err= it++))
     {
       if (err->get_level() != MYSQL_ERROR::WARN_LEVEL_WARN &&
@@ -1209,7 +1205,7 @@ sp_head::execute(THD *thd, bool merge_da_on_success)
   Query_arena *old_arena;
   /* per-instruction arena */
   MEM_ROOT execute_mem_root;
-  Query_arena execute_arena(&execute_mem_root, INITIALIZED_FOR_SP),
+  Query_arena execute_arena(&execute_mem_root, STMT_INITIALIZED_FOR_SP),
               backup_arena;
   query_id_t old_query_id;
   TABLE *old_derived_tables;
@@ -1218,7 +1214,9 @@ sp_head::execute(THD *thd, bool merge_da_on_success)
   String old_packet;
   Reprepare_observer *save_reprepare_observer= thd->m_reprepare_observer;
   Object_creation_ctx *saved_creation_ctx;
-  Warning_info *saved_warning_info, warning_info(thd->warning_info->warn_id());
+  Diagnostics_area *da= thd->get_stmt_da();
+  Warning_info *saved_warning_info;
+  Warning_info warning_info(thd->get_stmt_wi()->warn_id(), false);
 
   /*
     Just reporting a stack overrun error
@@ -1289,9 +1287,9 @@ sp_head::execute(THD *thd, bool merge_da_on_success)
   old_arena= thd->stmt_arena;
 
   /* Push a new warning information area. */
-  warning_info.append_warning_info(thd, thd->warning_info);
-  saved_warning_info= thd->warning_info;
-  thd->warning_info= &warning_info;
+  warning_info.append_warning_info(thd, thd->get_stmt_wi());
+  saved_warning_info= thd->get_stmt_wi();
+  da->set_warning_info(&warning_info);
 
   /*
     Switch query context. This has to be done early as this is sometimes
@@ -1391,7 +1389,7 @@ sp_head::execute(THD *thd, bool merge_da_on_success)
     }
 
     /* Reset number of warnings for this query. */
-    thd->warning_info->reset_for_next_command();
+    thd->get_stmt_wi()->reset_for_next_command();
 
     DBUG_PRINT("execute", ("Instruction %u", ip));
 
@@ -1489,7 +1487,7 @@ sp_head::execute(THD *thd, bool merge_da_on_success)
   thd->m_reprepare_observer= save_reprepare_observer;
 
   thd->stmt_arena= old_arena;
-  state= EXECUTED;
+  state= STMT_EXECUTED;
 
   /*
     Restore the caller's original warning information area:
@@ -1499,8 +1497,8 @@ sp_head::execute(THD *thd, bool merge_da_on_success)
         propagated to the caller in any case.
   */
   if (err_status || merge_da_on_success)
-    saved_warning_info->merge_with_routine_info(thd, thd->warning_info);
-  thd->warning_info= saved_warning_info;
+    saved_warning_info->merge_with_routine_info(thd, thd->get_stmt_wi());
+  da->set_warning_info(saved_warning_info);
 
  done:
   DBUG_PRINT("info", ("err_status: %d  killed: %d  is_slave_error: %d  report_error: %d",
@@ -1647,7 +1645,7 @@ sp_head::execute_trigger(THD *thd,
   sp_rcontext *nctx = NULL;
   bool err_status= FALSE;
   MEM_ROOT call_mem_root;
-  Query_arena call_arena(&call_mem_root, Query_arena::INITIALIZED_FOR_SP);
+  Query_arena call_arena(&call_mem_root, Query_arena::STMT_INITIALIZED_FOR_SP);
   Query_arena backup_arena;
 
   DBUG_ENTER("sp_head::execute_trigger");
@@ -1788,7 +1786,7 @@ sp_head::execute_function(THD *thd, Item **argp, uint argcount,
   String binlog_buf(buf, sizeof(buf), &my_charset_bin);
   bool err_status= FALSE;
   MEM_ROOT call_mem_root;
-  Query_arena call_arena(&call_mem_root, Query_arena::INITIALIZED_FOR_SP);
+  Query_arena call_arena(&call_mem_root, Query_arena::STMT_INITIALIZED_FOR_SP);
   Query_arena backup_arena;
   DBUG_ENTER("sp_head::execute_function");
   DBUG_PRINT("info", ("function %s", m_name.str));
@@ -2132,9 +2130,9 @@ sp_head::execute_procedure(THD *thd, List<Item> *args)
 
     if (!thd->in_sub_stmt)
     {
-      thd->stmt_da->can_overwrite_status= TRUE;
+      thd->get_stmt_da()->can_overwrite_status= TRUE;
       thd->is_error() ? trans_rollback_stmt(thd) : trans_commit_stmt(thd);
-      thd->stmt_da->can_overwrite_status= FALSE;
+      thd->get_stmt_da()->can_overwrite_status= FALSE;
     }
 
     thd_proc_info(thd, "closing tables");
@@ -2543,9 +2541,24 @@ void
 sp_head::restore_thd_mem_root(THD *thd)
 {
   DBUG_ENTER("sp_head::restore_thd_mem_root");
-  Item *flist= free_list;       // The old list
+
+  /*
+   In some cases our parser detects a syntax error and calls
+   LEX::cleanup_lex_after_parse_error() method only after
+   finishing parsing the whole routine. In such a situation
+   sp_head::restore_thd_mem_root() will be called twice - the
+   first time as part of normal parsing process and the second
+   time by cleanup_lex_after_parse_error().
+   To avoid ruining active arena/mem_root state in this case we
+   skip restoration of old arena/mem_root if this method has been
+   already called for this routine.
+  */
+  if (!m_thd)
+    DBUG_VOID_RETURN;
+
+  Item *flist= free_list;	// The old list
   set_query_arena(thd);         // Get new free_list and mem_root
-  state= INITIALIZED_FOR_SP;
+  state= STMT_INITIALIZED_FOR_SP;
 
   DBUG_PRINT("info", ("mem_root 0x%lx returned from thd mem root 0x%lx",
                       (ulong) &mem_root, (ulong) &thd->mem_root));
@@ -2572,7 +2585,7 @@ sp_head::restore_thd_mem_root(THD *thd)
 bool check_show_routine_access(THD *thd, sp_head *sp, bool *full_access)
 {
   TABLE_LIST tables;
-  bzero((char*) &tables,sizeof(tables));
+  memset(&tables, 0, sizeof(tables));
   tables.db= (char*) "mysql";
   tables.table_name= tables.alias= (char*) "proc";
   *full_access= (!check_table_access(thd, SELECT_ACL, &tables, FALSE,
@@ -2917,8 +2930,9 @@ sp_lex_keeper::reset_lex_and_exec_core(THD *thd, uint *nextp,
     It's reset further in the common code part.
     It's merged with the saved parent's value at the exit of this func.
   */
-  bool parent_modified_non_trans_table= thd->transaction.stmt.modified_non_trans_table;
-  thd->transaction.stmt.modified_non_trans_table= FALSE;
+  unsigned int parent_unsafe_rollback_flags=
+    thd->transaction.stmt.get_unsafe_rollback_flags();
+  thd->transaction.stmt.reset_unsafe_rollback_flags();
   DBUG_ASSERT(!thd->derived_tables);
   DBUG_ASSERT(thd->change_list.is_empty());
   /*
@@ -2970,9 +2984,9 @@ sp_lex_keeper::reset_lex_and_exec_core(THD *thd, uint *nextp,
     /* Here we also commit or rollback the current statement. */
     if (! thd->in_sub_stmt)
     {
-      thd->stmt_da->can_overwrite_status= TRUE;
+      thd->get_stmt_da()->can_overwrite_status= TRUE;
       thd->is_error() ? trans_rollback_stmt(thd) : trans_commit_stmt(thd);
-      thd->stmt_da->can_overwrite_status= FALSE;
+      thd->get_stmt_da()->can_overwrite_status= FALSE;
     }
     thd_proc_info(thd, "closing tables");
     close_thread_tables(thd);
@@ -3006,16 +3020,16 @@ sp_lex_keeper::reset_lex_and_exec_core(THD *thd, uint *nextp,
     open_tables stage.
   */
   if (!res || !thd->is_error() ||
-      (thd->stmt_da->sql_errno() != ER_CANT_REOPEN_TABLE &&
-       thd->stmt_da->sql_errno() != ER_NO_SUCH_TABLE &&
-       thd->stmt_da->sql_errno() != ER_UPDATE_TABLE_USED))
-    thd->stmt_arena->state= Query_arena::EXECUTED;
+      (thd->get_stmt_da()->sql_errno() != ER_CANT_REOPEN_TABLE &&
+       thd->get_stmt_da()->sql_errno() != ER_NO_SUCH_TABLE &&
+       thd->get_stmt_da()->sql_errno() != ER_UPDATE_TABLE_USED))
+    thd->stmt_arena->state= Query_arena::STMT_EXECUTED;
 
   /*
     Merge here with the saved parent's values
     what is needed from the substatement gained
   */
-  thd->transaction.stmt.modified_non_trans_table |= parent_modified_non_trans_table;
+  thd->transaction.stmt.add_unsafe_rollback_flags(parent_unsafe_rollback_flags);
   /*
     Unlike for PS we should not call Item's destructors for newly created
     items after execution of each instruction in stored routine. This is
@@ -3041,8 +3055,9 @@ int sp_instr::exec_open_and_lock_tables(THD *thd, TABLE_LIST *tables)
     Check whenever we have access to tables for this statement
     and open and lock them before executing instructions core function.
   */
-  if (check_table_access(thd, SELECT_ACL, tables, FALSE, UINT_MAX, FALSE)
-      || open_and_lock_tables(thd, tables, TRUE, 0))
+  if (open_temporary_tables(thd, tables) ||
+      check_table_access(thd, SELECT_ACL, tables, FALSE, UINT_MAX, FALSE) ||
+      open_and_lock_tables(thd, tables, TRUE, 0))
     result= -1;
   else
     result= 0;
@@ -3093,7 +3108,7 @@ sp_instr_stmt::execute(THD *thd, uint *nextp)
     {
       res= m_lex_keeper.reset_lex_and_exec_core(thd, nextp, FALSE, this);
 
-      if (thd->stmt_da->is_eof())
+      if (thd->get_stmt_da()->is_eof())
       {
         /* Finalize server status flags after executing a statement. */
         thd->update_server_status();
@@ -3112,7 +3127,7 @@ sp_instr_stmt::execute(THD *thd, uint *nextp)
     thd->query_name_consts= 0;
 
     if (!thd->is_error())
-      thd->stmt_da->reset_diagnostics_area();
+      thd->get_stmt_da()->reset_diagnostics_area();
   }
   DBUG_RETURN(res || thd->is_error());
 }

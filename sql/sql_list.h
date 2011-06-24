@@ -20,15 +20,11 @@
 #include "m_string.h" /* for TRASH */
 
 
-#ifdef USE_PRAGMA_INTERFACE
-#pragma interface			/* gcc class implementation */
-#endif
-
 void *sql_alloc(size_t);
 
 #include "my_sys.h"                    /* alloc_root, TRASH, MY_WME,
                                           MY_FAE, MY_ALLOW_ZERO_PTR */
-#include "m_string.h"                           /* bfill */
+#include "m_string.h"
 #include "thr_malloc.h"                         /* sql_alloc */
 
 /* mysql standard class memory allocator */

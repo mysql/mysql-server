@@ -1,11 +1,8 @@
-/* Copyright (C) 2000-2004 MySQL AB
+/* Copyright (c) 2000, 2011, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
-   the Free Software Foundation.
-
-   There are special exceptions to the terms and conditions of the GPL as it
-   is applied to this software.
+   the Free Software Foundation; version 2 of the License.
 
    This program is distributed in the hope that it will be useful,
    but WITHOUT ANY WARRANTY; without even the implied warranty of
@@ -14,7 +11,7 @@
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
-   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
+   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
 #include <my_global.h>
 #include <my_sys.h>
@@ -34,10 +31,6 @@
 #include <pwd.h>
 #endif
 #if !defined(__WIN__)
-#include <sys/socket.h>
-#include <netinet/in.h>
-#include <arpa/inet.h>
-#include <netdb.h>
 #ifdef HAVE_SELECT_H
 #include <select.h>
 #endif
@@ -93,6 +86,11 @@ sig_handler my_pipe_sig_handler(int sig);
 
 static my_bool mysql_client_init= 0;
 static my_bool org_my_init_done= 0;
+
+typedef struct st_mysql_stmt_extension
+{
+  MEM_ROOT fields_mem_root;
+} MYSQL_STMT_EXT;
 
 
 /*
@@ -1480,11 +1478,16 @@ mysql_stmt_init(MYSQL *mysql)
   MYSQL_STMT *stmt;
   DBUG_ENTER("mysql_stmt_init");
 
-  if (!(stmt= (MYSQL_STMT *) my_malloc(sizeof(MYSQL_STMT),
+  if (!(stmt=
+          (MYSQL_STMT *) my_malloc(sizeof (MYSQL_STMT),
+                                   MYF(MY_WME | MY_ZEROFILL))) ||
+      !(stmt->extension=
+          (MYSQL_STMT_EXT *) my_malloc(sizeof (MYSQL_STMT_EXT),
                                        MYF(MY_WME | MY_ZEROFILL))))
   {
     set_mysql_error(mysql, CR_OUT_OF_MEMORY, unknown_sqlstate);
-    DBUG_RETURN(0);
+    my_free(stmt);
+    DBUG_RETURN(NULL);
   }
 
   init_alloc_root(&stmt->mem_root, 2048, 2048);
@@ -1497,7 +1500,9 @@ mysql_stmt_init(MYSQL *mysql)
   stmt->read_row_func= stmt_read_row_no_result_set;
   stmt->prefetch_rows= DEFAULT_PREFETCH_ROWS;
   strmov(stmt->sqlstate, not_error_sqlstate);
-  /* The rest of statement members was bzeroed inside malloc */
+  /* The rest of statement members was zeroed inside malloc */
+
+  init_alloc_root(&stmt->extension->fields_mem_root, 2048, 0);
 
   DBUG_RETURN(stmt);
 }
@@ -1571,6 +1576,7 @@ mysql_stmt_prepare(MYSQL_STMT *stmt, const char *query, ulong length)
     stmt->bind_param_done= stmt->bind_result_done= FALSE;
     stmt->param_count= stmt->field_count= 0;
     free_root(&stmt->mem_root, MYF(MY_KEEP_PREALLOC));
+    free_root(&stmt->extension->fields_mem_root, MYF(0));
 
     int4store(buff, stmt->stmt_id);
 
@@ -1631,21 +1637,21 @@ mysql_stmt_prepare(MYSQL_STMT *stmt, const char *query, ulong length)
 static void alloc_stmt_fields(MYSQL_STMT *stmt)
 {
   MYSQL_FIELD *fields, *field, *end;
-  MEM_ROOT *alloc= &stmt->mem_root;
+  MEM_ROOT *fields_mem_root= &stmt->extension->fields_mem_root;
   MYSQL *mysql= stmt->mysql;
 
-  DBUG_ASSERT(mysql->field_count);
+  DBUG_ASSERT(stmt->field_count);
 
-  stmt->field_count= mysql->field_count;
+  free_root(fields_mem_root, MYF(0));
 
   /*
     Get the field information for non-select statements
     like SHOW and DESCRIBE commands
   */
-  if (!(stmt->fields= (MYSQL_FIELD *) alloc_root(alloc,
+  if (!(stmt->fields= (MYSQL_FIELD *) alloc_root(fields_mem_root,
 						 sizeof(MYSQL_FIELD) *
 						 stmt->field_count)) ||
-      !(stmt->bind= (MYSQL_BIND *) alloc_root(alloc,
+      !(stmt->bind= (MYSQL_BIND *) alloc_root(fields_mem_root,
 					      sizeof(MYSQL_BIND) *
 					      stmt->field_count)))
   {
@@ -1658,18 +1664,36 @@ static void alloc_stmt_fields(MYSQL_STMT *stmt)
        field && fields < end; fields++, field++)
   {
     *field= *fields; /* To copy all numeric parts. */
-    field->catalog=   strmake_root(alloc, fields->catalog,
+    field->catalog=   strmake_root(fields_mem_root,
+                                   fields->catalog,
                                    fields->catalog_length);
-    field->db=        strmake_root(alloc, fields->db, fields->db_length);
-    field->table=     strmake_root(alloc, fields->table, fields->table_length);
-    field->org_table= strmake_root(alloc, fields->org_table,
+    field->db=        strmake_root(fields_mem_root,
+                                   fields->db,
+                                   fields->db_length);
+    field->table=     strmake_root(fields_mem_root,
+                                   fields->table,
+                                   fields->table_length);
+    field->org_table= strmake_root(fields_mem_root,
+                                   fields->org_table,
                                    fields->org_table_length);
-    field->name=      strmake_root(alloc, fields->name, fields->name_length);
-    field->org_name=  strmake_root(alloc, fields->org_name,
+    field->name=      strmake_root(fields_mem_root,
+                                   fields->name,
+                                   fields->name_length);
+    field->org_name=  strmake_root(fields_mem_root,
+                                   fields->org_name,
                                    fields->org_name_length);
-    field->def=       fields->def ? strmake_root(alloc, fields->def,
-                                                 fields->def_length) : 0;
-    field->def_length= field->def ? fields->def_length : 0;
+    if (fields->def)
+    {
+      field->def= strmake_root(fields_mem_root,
+                               fields->def,
+                               fields->def_length);
+      field->def_length= fields->def_length;
+    }
+    else
+    {
+      field->def= NULL;
+      field->def_length= 0;
+    }
     field->extension= 0; /* Avoid dangling links. */
     field->max_length= 0; /* max_length is set in mysql_stmt_store_result() */
   }
@@ -1775,7 +1799,7 @@ mysql_stmt_result_metadata(MYSQL_STMT *stmt)
   result->eof=		1;                      /* Marker for buffered */
   result->fields=	stmt->fields;
   result->field_count=	stmt->field_count;
-  /* The rest of members of 'result' was bzeroed inside malloc */
+  /* The rest of members of 'result' was zeroed inside malloc */
   DBUG_RETURN(result);
 }
 
@@ -2084,7 +2108,7 @@ int cli_stmt_execute(MYSQL_STMT *stmt)
       set_stmt_errmsg(stmt, net);
       DBUG_RETURN(1);
     }
-    bzero((char*) net->write_pos, null_count);
+    memset(net->write_pos, 0, null_count);
     net->write_pos+= null_count;
     param_end= stmt->params + stmt->param_count;
 
@@ -2387,6 +2411,9 @@ static void reinit_result_set_metadata(MYSQL_STMT *stmt)
       prepared statements can't send result set metadata for these queries
       on prepare stage. Read it now.
     */
+
+    stmt->field_count= stmt->mysql->field_count;
+
     alloc_stmt_fields(stmt);
   }
   else
@@ -2404,7 +2431,7 @@ static void reinit_result_set_metadata(MYSQL_STMT *stmt)
       previous branch always works.
       TODO: send metadata only when it's really necessary and add a warning
       'Metadata changed' when it's sent twice.
-      */
+    */
     update_stmt_fields(stmt);
   }
 }
@@ -3285,7 +3312,7 @@ static void fetch_long_with_conversion(MYSQL_BIND *param, MYSQL_FIELD *field,
         field->length < 21)
     {
       bmove_upp(buff+field->length,buff+length, length);
-      bfill(buff, field->length - length,'0');
+      memset(buff, '0', field->length - length);
       length= field->length;
     }
     fetch_string_with_conversion(param, (char*) buff, length);
@@ -3406,7 +3433,7 @@ static void fetch_float_with_conversion(MYSQL_BIND *param, MYSQL_FIELD *field,
     {
       bmove_upp((uchar*) buff + field->length, (uchar*) buff + len,
                 len);
-      bfill((char*) buff, field->length - len, '0');
+      memset(buff, '0', field->length - len);
       len= field->length;
     }
     fetch_string_with_conversion(param, buff, len);
@@ -4390,7 +4417,7 @@ int STDCALL mysql_stmt_store_result(MYSQL_STMT *stmt)
     */
     MYSQL_BIND  *my_bind, *end;
     MYSQL_FIELD *field;
-    bzero((char*) stmt->bind, sizeof(*stmt->bind)* stmt->field_count);
+    memset(stmt->bind, 0, sizeof(*stmt->bind) * stmt->field_count);
 
     for (my_bind= stmt->bind, end= my_bind + stmt->field_count,
            field= stmt->fields;
@@ -4605,6 +4632,7 @@ my_bool STDCALL mysql_stmt_close(MYSQL_STMT *stmt)
 
   free_root(&stmt->result.alloc, MYF(0));
   free_root(&stmt->mem_root, MYF(0));
+  free_root(&stmt->extension->fields_mem_root, MYF(0));
 
   if (mysql)
   {
@@ -4639,6 +4667,7 @@ my_bool STDCALL mysql_stmt_close(MYSQL_STMT *stmt)
     }
   }
 
+  my_free(stmt->extension);
   my_free(stmt);
 
   DBUG_RETURN(test(rc));
@@ -4805,15 +4834,12 @@ int STDCALL mysql_stmt_next_result(MYSQL_STMT *stmt)
 
   stmt->state= MYSQL_STMT_EXECUTE_DONE;
   stmt->bind_result_done= FALSE;
+  stmt->field_count= mysql->field_count;
 
   if (mysql->field_count)
   {
     alloc_stmt_fields(stmt);
     prepare_to_fetch_result(stmt);
-  }
-  else
-  {
-    stmt->field_count= mysql->field_count;
   }
 
   DBUG_RETURN(0);

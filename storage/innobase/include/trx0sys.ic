@@ -387,7 +387,7 @@ trx_is_active_low(
 	} else if (UNIV_UNLIKELY(trx_id >= trx_sys->max_trx_id)) {
 
 		/* There must be corruption: we let the caller handle the
-	       	diagnostic prints in this case. */
+		diagnostic prints in this case. */
 
 		trx = NULL;
 		if (corrupt != NULL) {
@@ -504,5 +504,4 @@ trx_sys_get_n_trx(void)
 
 	return(n_trx);
 }
-
 #endif /* !UNIV_HOTBACKUP */

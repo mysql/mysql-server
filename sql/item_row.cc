@@ -126,11 +126,13 @@ void Item_row::update_used_tables()
 {
   used_tables_cache= 0;
   const_item_cache= 1;
+  with_subselect= false;
   for (uint i= 0; i < arg_count; i++)
   {
     items[i]->update_used_tables();
     used_tables_cache|= items[i]->used_tables();
     const_item_cache&= items[i]->const_item();
+    with_subselect|= items[i]->has_subquery();
   }
 }
 
@@ -184,7 +186,7 @@ bool Item_row::walk(Item_processor processor, bool walk_subquery, uchar *arg)
 
 Item *Item_row::transform(Item_transformer transformer, uchar *arg)
 {
-  DBUG_ASSERT(!current_thd->is_stmt_prepare());
+  DBUG_ASSERT(!current_thd->stmt_arena->is_stmt_prepare());
 
   for (uint i= 0; i < arg_count; i++)
   {

@@ -1,12 +1,6 @@
 /***************************************************************************//**
 
-Copyright (c) 2010, Oracle Corpn. All Rights Reserved.
-
-Portions of this file contain modifications contributed and copyrighted by
-Sun Microsystems, Inc. Those modifications are gratefully acknowledged and
-are described briefly in the InnoDB documentation. The contributions by
-Sun Microsystems are incorporated with their permission, and subject to the
-conditions contained in the file COPYING.Sun_Microsystems.
+Copyright (c) 2010, 2011, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -17,8 +11,8 @@ ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
 FOR A PARTICULAR PURPOSE. See the GNU General Public License for more details.
 
 You should have received a copy of the GNU General Public License along with
-this program; if not, write to the Free Software Foundation, Inc., 59 Temple
-Place, Suite 330, Boston, MA 02111-1307 USA
+this program; if not, write to the Free Software Foundation, Inc.,
+51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA
 
 *****************************************************************************/
 
@@ -32,86 +26,11 @@ Created 2010-05-28 by Sunny Bains
 #include "ut0bh.h"
 #include "ut0mem.h"
 
+#ifdef UNIV_NONINL
+#include "ut0bh.ic"
+#endif
+
 #include <string.h>
-
-/** Binary heap data structure */
-struct ib_bh_struct {
-	ulint		max_elems;		/*!< max elements allowed */
-	ulint		n_elems;		/*!< current size */
-	ulint		sizeof_elem;		/*!< sizeof element */
-	ib_bh_cmp_t	compare;		/*!< comparator */
-};
-
-/**********************************************************************//**
-Get the number of elements in the binary heap.
-@return number of elements */
-UNIV_INTERN
-ulint
-ib_bh_size(
-/*=======*/
-	const ib_bh_t*	ib_bh)			/*!< in: instance */
-{
-	return(ib_bh->n_elems);
-}
-
-/**********************************************************************//**
-Test if binary heap is empty.
-@return TRUE if empty. */
-UNIV_INTERN
-ibool
-ib_bh_is_empty(
-/*===========*/
-	const ib_bh_t*	ib_bh)			/*!< in: instance */
-{
-	return(ib_bh_size(ib_bh) == 0);
-}
-
-/**********************************************************************//**
-Test if binary heap is full.
-@return TRUE if full. */
-UNIV_INTERN
-ibool
-ib_bh_is_full(
-/*===========*/
-	const ib_bh_t*	ib_bh)			/*!< in: instance */
-{
-	return(ib_bh_size(ib_bh) >= ib_bh->max_elems);
-}
-
-/**********************************************************************//**
-Get a pointer to the element.
-@return pointer to element */
-UNIV_INTERN
-void*
-ib_bh_get(
-/*=======*/
-	ib_bh_t*	ib_bh,			/*!< in: instance */
-	ulint		i)			/*!< in: index */
-{
-	byte*		ptr = (byte*) (ib_bh + 1);
-
-	ut_a(i < ib_bh_size(ib_bh));
-
-	return(ptr + (ib_bh->sizeof_elem * i));
-}
-
-/**********************************************************************//**
-Copy an element to the binary heap.
-@return pointer to copied element */
-UNIV_INTERN
-void*
-ib_bh_set(
-/*======*/
-	ib_bh_t*	ib_bh,			/*!< in,out: instance */
-	ulint		i,			/*!< in: index */
-	const void*	elem)			/*!< in: element to add */
-{
-	void*		ptr = ib_bh_get(ib_bh, i);
-
-	memcpy(ptr, elem, ib_bh->sizeof_elem);
-
-	return(ptr);
-}
 
 /**********************************************************************//**
 Create a binary heap.
@@ -131,7 +50,7 @@ ib_bh_create(
 
 	ib_bh = (ib_bh_t*) ut_malloc(sz);
 	memset(ib_bh, 0x0, sz);
-	
+
 	ib_bh->compare = compare;
 	ib_bh->max_elems = max_elems;
 	ib_bh->sizeof_elem = sizeof_elem;
@@ -146,7 +65,7 @@ UNIV_INTERN
 void
 ib_bh_free(
 /*=======*/
-	ib_bh_t*	ib_bh)			/*!< in,own: instance */
+	ib_bh_t*	ib_bh)			/*!< in/own: instance */
 {
 	ut_free(ib_bh);
 }
@@ -158,18 +77,18 @@ UNIV_INTERN
 void*
 ib_bh_push(
 /*=======*/
-	ib_bh_t*	ib_bh,			/*!< in,out: instance */
+	ib_bh_t*	ib_bh,			/*!< in/out: instance */
 	const void*	elem)			/*!< in: element to add */
 {
-	void*		ptr = NULL;
+	void*		ptr;
 
-	if (!ib_bh_is_full(ib_bh)) {
+	if (ib_bh_is_full(ib_bh)) {
+		return(NULL);
+	} else if (ib_bh_is_empty(ib_bh)) {
+		++ib_bh->n_elems;
+		return(ib_bh_set(ib_bh, 0, elem));
+	} else {
 		ulint	i;
-
-		if (ib_bh_is_empty(ib_bh)) {
-			++ib_bh->n_elems;
-			return(ib_bh_set(ib_bh, 0, elem));
-		}
 
 		i = ib_bh->n_elems;
 
@@ -189,38 +108,12 @@ ib_bh_push(
 }
 
 /**********************************************************************//**
-Return the first element from the binary heap. 
-@return pointer to first element or NULL if empty. */
-UNIV_INTERN
-void*
-ib_bh_first(
-/*========*/
-	ib_bh_t*	ib_bh)			/*!< in,out: instance */
-{
-	return(ib_bh_is_empty(ib_bh) ? NULL : ib_bh_get(ib_bh, 0));
-}
-
-/**********************************************************************//**
-Return the last element from the binary heap. 
-@return pointer to last element or NULL if empty. */
-UNIV_INTERN
-void*
-ib_bh_last(
-/*========*/
-	ib_bh_t*	ib_bh)			/*!< in,out: instance */
-{
-	return(ib_bh_is_empty(ib_bh)
-	       ? NULL 
-	       : ib_bh_get(ib_bh, ib_bh_size(ib_bh) - 1));
-}
-
-/**********************************************************************//**
 Remove the first element from the binary heap. */
 UNIV_INTERN
 void
 ib_bh_pop(
 /*======*/
-	ib_bh_t*	ib_bh)			/*!< in,out: instance */
+	ib_bh_t*	ib_bh)			/*!< in/out: instance */
 {
 	byte*		ptr;
 	byte*		last;
@@ -244,19 +137,20 @@ ib_bh_pop(
 			ptr += ib_bh->sizeof_elem;
 		}
 
-		if (ib_bh->compare(last, ptr) > 0) {
-			ib_bh_set(ib_bh, parent, ptr);
-		} else {
+		if (ib_bh->compare(last, ptr) <= 0) {
 			break;
 		}
 
-		parent = (ptr - (byte*) ib_bh_first(ib_bh)) / ib_bh->sizeof_elem;
+		ib_bh_set(ib_bh, parent, ptr);
 
-		if ((parent << 1) < ib_bh_size(ib_bh)) {
-			ptr = (byte*) ib_bh_get(ib_bh, parent << 1);
-		} else {
+		parent = (ptr - (byte*) ib_bh_first(ib_bh))
+		       / ib_bh->sizeof_elem;
+
+		if ((parent << 1) >= ib_bh_size(ib_bh)) {
 			break;
 		}
+
+		ptr = (byte*) ib_bh_get(ib_bh, parent << 1);
 	}
 
 	--ib_bh->n_elems;

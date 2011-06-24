@@ -245,7 +245,7 @@ connection i;
 reap;
 
 connection j;
---error ER_LOCK_WAIT_TIMEOUT
+--error ER_CANT_UPDATE_TABLE_IN_CREATE_TABLE_SELECT
 reap;
 
 connection a;

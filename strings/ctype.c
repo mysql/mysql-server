@@ -11,7 +11,7 @@
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
-   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
+   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
 #include <my_global.h>
 #include <m_ctype.h>
@@ -88,6 +88,7 @@ struct my_cs_file_section_st
 #define _CS_UCA_VERSION                 100
 #define _CS_CL_SUPPRESS_CONTRACTIONS    101
 #define _CS_CL_OPTIMIZE                 102
+#define _CS_CL_SHIFT_AFTER_METHOD       103
 
 
 /* Collation Settings */
@@ -187,6 +188,7 @@ static struct my_cs_file_section_st sec[] =
   {_CS_UCA_VERSION,              "charsets/charset/collation/version"},
   {_CS_CL_SUPPRESS_CONTRACTIONS, "charsets/charset/collation/suppress_contractions"},
   {_CS_CL_OPTIMIZE,              "charsets/charset/collation/optimize"},
+  {_CS_CL_SHIFT_AFTER_METHOD,    "charsets/charset/collation/shift-after-method"},
 
   /* Collation Settings */
   {_CS_ST_SETTINGS,              "charsets/charset/collation/settings"},
@@ -288,7 +290,7 @@ typedef struct my_cs_file_info
 static void
 my_charset_file_reset_charset(MY_CHARSET_FILE *i)
 {
- bzero(&i->cs, sizeof(i->cs));
+  memset(&i->cs, 0, sizeof(i->cs));
 }
 
 
@@ -646,6 +648,10 @@ static int cs_value(MY_XML_PARSER *st,const char *attr, size_t len)
     rc= tailoring_append(st, "[optimize %.*s]", len, attr);
     break;
 
+  case _CS_CL_SHIFT_AFTER_METHOD:
+    rc= tailoring_append(st, "[shift-after-method %.*s]", len, attr);
+    break;
+
   /* Collation Settings */
   case _CS_ST_STRENGTH:
     /* 1, 2, 3, 4, 5, or primary, secondary, tertiary, quaternary, identical */
@@ -815,7 +821,7 @@ my_parse_charset_xml(MY_CHARSET_LOADER *loader, const char *buf, size_t len)
   Check repertoire: detect pure ascii strings
 */
 uint
-my_string_repertoire(CHARSET_INFO *cs, const char *str, ulong length)
+my_string_repertoire(const CHARSET_INFO *cs, const char *str, ulong length)
 {
   const char *strend= str + length;
   if (cs->mbminlen == 1)
@@ -845,7 +851,7 @@ my_string_repertoire(CHARSET_INFO *cs, const char *str, ulong length)
 /*
   Returns repertoire for charset
 */
-uint my_charset_repertoire(CHARSET_INFO *cs)
+uint my_charset_repertoire(const CHARSET_INFO *cs)
 {
   return cs->state & MY_CS_PUREASCII ?
     MY_REPERTOIRE_ASCII : MY_REPERTOIRE_UNICODE30;
@@ -879,7 +885,7 @@ uint my_charset_repertoire(CHARSET_INFO *cs)
   to introduce new tricky character sets between 5.0 and 5.2.
 */
 my_bool
-my_charset_is_ascii_based(CHARSET_INFO *cs)
+my_charset_is_ascii_based(const CHARSET_INFO *cs)
 {
   return 
     (cs->mbmaxlen == 1 && cs->tab_to_uni && cs->tab_to_uni['{'] == '{') ||
@@ -895,7 +901,7 @@ my_charset_is_ascii_based(CHARSET_INFO *cs)
   and dynamic charsets loader in "mysqld".
 */
 my_bool
-my_charset_is_8bit_pure_ascii(CHARSET_INFO *cs)
+my_charset_is_8bit_pure_ascii(const CHARSET_INFO *cs)
 {
   size_t code;
   if (!cs->tab_to_uni)
@@ -915,7 +921,7 @@ my_charset_is_8bit_pure_ascii(CHARSET_INFO *cs)
   ascii on the range 0x00..0x7F.
 */
 my_bool
-my_charset_is_ascii_compatible(CHARSET_INFO *cs)
+my_charset_is_ascii_compatible(const CHARSET_INFO *cs)
 {
   uint i;
   if (!cs->tab_to_uni)
@@ -945,9 +951,10 @@ my_charset_is_ascii_compatible(CHARSET_INFO *cs)
 */
 
 static uint32
-my_convert_internal(char *to, uint32 to_length, CHARSET_INFO *to_cs, 
-                    const char *from, uint32 from_length,CHARSET_INFO *from_cs,
-                    uint *errors)
+my_convert_internal(char *to, uint32 to_length,
+                    const CHARSET_INFO *to_cs,
+                    const char *from, uint32 from_length,
+                    const CHARSET_INFO *from_cs, uint *errors)
 {
   int         cnvres;
   my_wc_t     wc;
@@ -1015,9 +1022,9 @@ outp:
 */
 
 uint32
-my_convert(char *to, uint32 to_length, CHARSET_INFO *to_cs, 
-           const char *from, uint32 from_length, CHARSET_INFO *from_cs,
-           uint *errors)
+my_convert(char *to, uint32 to_length, const CHARSET_INFO *to_cs,
+           const char *from, uint32 from_length,
+           const CHARSET_INFO *from_cs, uint *errors)
 {
   uint32 length, length2;
   /*

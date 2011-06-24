@@ -10,18 +10,13 @@
    GNU General Public License for more details.
 
    You should have received a copy of the GNU General Public License
-   along with this program; if not, write to the Free Software Foundation,
-   51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA */
-
+   along with this program; if not, write to the Free Software
+   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
 #ifndef SQL_CLASS_INCLUDED
 #define SQL_CLASS_INCLUDED
 
 /* Classes in mysql */
-
-#ifdef USE_PRAGMA_INTERFACE
-#pragma interface			/* gcc class implementation */
-#endif
 
 #include "my_global.h"                          /* NO_EMBEDDED_ACCESS_CHECKS */
 #ifdef MYSQL_SERVER
@@ -40,6 +35,8 @@
 #include "thr_lock.h"             /* thr_lock_type, THR_LOCK_DATA,
                                      THR_LOCK_INFO */
 
+#include <mysql/psi/mysql_stage.h>
+#include <mysql/psi/mysql_statement.h>
 
 class Reprepare_observer;
 class Relay_log_info;
@@ -119,14 +116,14 @@ class CSET_STRING
 {
 private:
   LEX_STRING string;
-  CHARSET_INFO *cs;
+  const CHARSET_INFO *cs;
 public:
   CSET_STRING() : cs(&my_charset_bin)
   {
     string.str= NULL;
     string.length= 0;
   }
-  CSET_STRING(char *str_arg, size_t length_arg, CHARSET_INFO *cs_arg) :
+  CSET_STRING(char *str_arg, size_t length_arg, const CHARSET_INFO *cs_arg) :
   cs(cs_arg)
   {
     DBUG_ASSERT(cs_arg != NULL);
@@ -136,7 +133,7 @@ public:
 
   inline char *str() const { return string.str; }
   inline uint32 length() const { return string.length; }
-  CHARSET_INFO *charset() const { return cs; }
+  const CHARSET_INFO *charset() const { return cs; }
 
   friend LEX_STRING * thd_query_string (MYSQL_THD thd);
   friend char **thd_query(MYSQL_THD thd);
@@ -495,14 +492,14 @@ typedef struct system_variables
   plugin_ref table_plugin;
 
   /* Only charset part of these variables is sensible */
-  CHARSET_INFO  *character_set_filesystem;
-  CHARSET_INFO  *character_set_client;
-  CHARSET_INFO  *character_set_results;
+  const CHARSET_INFO *character_set_filesystem;
+  const CHARSET_INFO *character_set_client;
+  const CHARSET_INFO *character_set_results;
 
   /* Both charset and collation parts of these variables are important */
-  CHARSET_INFO	*collation_server;
-  CHARSET_INFO	*collation_database;
-  CHARSET_INFO  *collation_connection;
+  const CHARSET_INFO  *collation_server;
+  const CHARSET_INFO  *collation_database;
+  const CHARSET_INFO  *collation_connection;
 
   /* Error messages */
   MY_LOCALE *lc_messages;
@@ -553,6 +550,7 @@ typedef struct system_status_var
   ulong ha_discover_count;
   ulong ha_savepoint_count;
   ulong ha_savepoint_rollback_count;
+  ulong ha_external_lock_count;
 
   /* KEY_CACHE parts. These are copies of the original */
   ulong key_blocks_changed;
@@ -563,7 +561,6 @@ typedef struct system_status_var
   ulong key_cache_write;
   /* END OF KEY_CACHE parts */
 
-  ulong net_big_packet_count;
   ulong opened_tables;
   ulong opened_shares;
   ulong select_full_join_count;
@@ -667,14 +664,14 @@ public:
   /*
     The states relfects three diffrent life cycles for three
     different types of statements:
-    Prepared statement: INITIALIZED -> PREPARED -> EXECUTED.
-    Stored procedure:   INITIALIZED_FOR_SP -> EXECUTED.
-    Other statements:   CONVENTIONAL_EXECUTION never changes.
+    Prepared statement: STMT_INITIALIZED -> STMT_PREPARED -> STMT_EXECUTED.
+    Stored procedure:   STMT_INITIALIZED_FOR_SP -> STMT_EXECUTED.
+    Other statements:   STMT_CONVENTIONAL_EXECUTION never changes.
   */
   enum enum_state
   {
-    INITIALIZED= 0, INITIALIZED_FOR_SP= 1, PREPARED= 2,
-    CONVENTIONAL_EXECUTION= 3, EXECUTED= 4, ERROR= -1
+    STMT_INITIALIZED= 0, STMT_INITIALIZED_FOR_SP= 1, STMT_PREPARED= 2,
+    STMT_CONVENTIONAL_EXECUTION= 3, STMT_EXECUTED= 4, STMT_ERROR= -1
   };
 
   enum_state state;
@@ -697,25 +694,20 @@ public:
   virtual Type type() const;
   virtual ~Query_arena() {};
 
-  inline bool is_stmt_prepare() const { return state == INITIALIZED; }
-  inline bool is_first_sp_execute() const
-  { return state == INITIALIZED_FOR_SP; }
+  inline bool is_stmt_prepare() const { return state == STMT_INITIALIZED; }
   inline bool is_stmt_prepare_or_first_sp_execute() const
-  { return (int)state < (int)PREPARED; }
+  { return (int)state < (int)STMT_PREPARED; }
   inline bool is_stmt_prepare_or_first_stmt_execute() const
-  { return (int)state <= (int)PREPARED; }
-  inline bool is_first_stmt_execute() const { return state == PREPARED; }
-  inline bool is_stmt_execute() const
-  { return state == PREPARED || state == EXECUTED; }
+  { return (int)state <= (int)STMT_PREPARED; }
   inline bool is_conventional() const
-  { return state == CONVENTIONAL_EXECUTION; }
+  { return state == STMT_CONVENTIONAL_EXECUTION; }
 
   inline void* alloc(size_t size) { return alloc_root(mem_root,size); }
   inline void* calloc(size_t size)
   {
     void *ptr;
     if ((ptr=alloc_root(mem_root,size)))
-      bzero(ptr, size);
+      memset(ptr, 0, size);
     return ptr;
   }
   inline char *strdup(const char *str)
@@ -804,13 +796,13 @@ public:
 
   inline char *query() const { return query_string.str(); }
   inline uint32 query_length() const { return query_string.length(); }
-  CHARSET_INFO *query_charset() const { return query_string.charset(); }
+  const CHARSET_INFO *query_charset() const { return query_string.charset(); }
   void set_query_inner(const CSET_STRING &string_arg)
   {
     query_string= string_arg;
   }
   void set_query_inner(char *query_arg, uint32 query_length_arg,
-                       CHARSET_INFO *cs_arg)
+                       const CHARSET_INFO *cs_arg)
   {
     set_query_inner(CSET_STRING(query_arg, query_length_arg, cs_arg));
   }
@@ -905,6 +897,208 @@ private:
   HASH names_hash;
   I_List<Statement> transient_cursor_list;
   Statement *last_found_statement;
+};
+
+class Ha_trx_info;
+
+struct THD_TRANS
+{
+  /* true is not all entries in the ht[] support 2pc */
+  bool        no_2pc;
+  /* storage engines that registered in this transaction */
+  Ha_trx_info *ha_list;
+
+private:
+  /* 
+    The purpose of this member variable (i.e. flag) is to keep track of
+    statements which cannot be rolled back safely(completely).
+    For example,
+
+    * statements that modified non-transactional tables. The value
+    MODIFIED_NON_TRANS_TABLE is set within mysql_insert, mysql_update,
+    mysql_delete, etc if a non-transactional table is modified.
+
+    * 'DROP TEMPORARY TABLE' and 'CREATE TEMPORARY TABLE' statements.
+    The former sets the value CREATED_TEMP_TABLE is set and the latter
+    the value DROPPED_TEMP_TABLE.
+    
+    The tracked statements are modified in scope of:
+
+    * transaction, when the variable is a member of THD::transaction.all
+    
+    * top-level statement or sub-statement, when the variable is a
+    member of THD::transaction.stmt
+
+    This member has the following life cycle:
+
+    * stmt.m_unsafe_rollback_flags is used to keep track of top-level statements
+    which cannot be rolled back safely. At the end of the statement, the value
+    of stmt.m_unsafe_rollback_flags is merged with all.m_unsafe_rollback_flags
+    and gets reset.
+    
+    * all.cannot_safely_rollback is reset at the end of transaction
+
+    * Since we do not have a dedicated context for execution of a sub-statement,
+    to keep track of non-transactional changes in a sub-statement, we re-use
+    stmt.m_unsafe_rollback_flags. At entrance into a sub-statement, a copy of
+    the value of stmt.m_unsafe_rollback_flags (containing the changes of the
+    outer statement) is saved on stack.  Then stmt.m_unsafe_rollback_flags is
+    reset to 0 and the substatement is executed. Then the new value is merged
+    with the saved value.
+  */
+
+  unsigned int m_unsafe_rollback_flags;
+  /*
+    Define the type of statemens which cannot be rolled back safely.
+    Each type occupies one bit in m_unsafe_rollback_flags.
+  */
+  static unsigned int const MODIFIED_NON_TRANS_TABLE= 0x01;
+  static unsigned int const CREATED_TEMP_TABLE= 0x02;
+  static unsigned int const DROPPED_TEMP_TABLE= 0x04;
+
+public:
+  bool cannot_safely_rollback() const
+  {
+    return m_unsafe_rollback_flags > 0;
+  }
+  unsigned int get_unsafe_rollback_flags() const
+  {
+    return m_unsafe_rollback_flags;
+  }
+  void set_unsafe_rollback_flags(unsigned int flags)
+  {
+    m_unsafe_rollback_flags= flags;
+  }
+  void add_unsafe_rollback_flags(unsigned int flags)
+  {
+    m_unsafe_rollback_flags|= flags;
+  }
+  void reset_unsafe_rollback_flags()
+  {
+    m_unsafe_rollback_flags= 0;
+  }
+  void mark_modified_non_trans_table()
+  {
+    m_unsafe_rollback_flags|= MODIFIED_NON_TRANS_TABLE;
+  }
+  bool has_modified_non_trans_table() const
+  {
+    return m_unsafe_rollback_flags & MODIFIED_NON_TRANS_TABLE;
+  }
+  void mark_created_temp_table()
+  {
+    m_unsafe_rollback_flags|= CREATED_TEMP_TABLE;
+  }
+  bool has_created_temp_table() const
+  {
+    return m_unsafe_rollback_flags & CREATED_TEMP_TABLE;
+  }
+  void mark_dropped_temp_table()
+  {
+    m_unsafe_rollback_flags|= DROPPED_TEMP_TABLE;
+  }
+  bool has_dropped_temp_table() const
+  {
+    return m_unsafe_rollback_flags & DROPPED_TEMP_TABLE;
+  }
+
+  void reset() { no_2pc= FALSE; reset_unsafe_rollback_flags(); }
+  bool is_empty() const { return ha_list == NULL; }
+};
+
+/**
+  Either statement transaction or normal transaction - related
+  thread-specific storage engine data.
+
+  If a storage engine participates in a statement/transaction,
+  an instance of this class is present in
+  thd->transaction.{stmt|all}.ha_list. The addition to
+  {stmt|all}.ha_list is made by trans_register_ha().
+
+  When it's time to commit or rollback, each element of ha_list
+  is used to access storage engine's prepare()/commit()/rollback()
+  methods, and also to evaluate if a full two phase commit is
+  necessary.
+
+  @sa General description of transaction handling in handler.cc.
+*/
+
+class Ha_trx_info
+{
+public:
+  /** Register this storage engine in the given transaction context. */
+  void register_ha(THD_TRANS *trans, handlerton *ht_arg)
+  {
+    DBUG_ASSERT(m_flags == 0);
+    DBUG_ASSERT(m_ht == NULL);
+    DBUG_ASSERT(m_next == NULL);
+
+    m_ht= ht_arg;
+    m_flags= (int) TRX_READ_ONLY; /* Assume read-only at start. */
+
+    m_next= trans->ha_list;
+    trans->ha_list= this;
+  }
+
+  /** Clear, prepare for reuse. */
+  void reset()
+  {
+    m_next= NULL;
+    m_ht= NULL;
+    m_flags= 0;
+  }
+
+  Ha_trx_info() { reset(); }
+
+  void set_trx_read_write()
+  {
+    DBUG_ASSERT(is_started());
+    m_flags|= (int) TRX_READ_WRITE;
+  }
+  bool is_trx_read_write() const
+  {
+    DBUG_ASSERT(is_started());
+    return m_flags & (int) TRX_READ_WRITE;
+  }
+  bool is_started() const { return m_ht != NULL; }
+  /** Mark this transaction read-write if the argument is read-write. */
+  void coalesce_trx_with(const Ha_trx_info *stmt_trx)
+  {
+    /*
+      Must be called only after the transaction has been started.
+      Can be called many times, e.g. when we have many
+      read-write statements in a transaction.
+    */
+    DBUG_ASSERT(is_started());
+    if (stmt_trx->is_trx_read_write())
+      set_trx_read_write();
+  }
+  Ha_trx_info *next() const
+  {
+    DBUG_ASSERT(is_started());
+    return m_next;
+  }
+  handlerton *ht() const
+  {
+    DBUG_ASSERT(is_started());
+    return m_ht;
+  }
+private:
+  enum { TRX_READ_ONLY= 0, TRX_READ_WRITE= 1 };
+  /** Auxiliary, used for ha_list management */
+  Ha_trx_info *m_next;
+  /**
+    Although a given Ha_trx_info instance is currently always used
+    for the same storage engine, 'ht' is not-NULL only when the
+    corresponding storage is a part of a transaction.
+  */
+  handlerton *m_ht;
+  /**
+    Transaction flags related to this engine.
+    Not-null only if this instance is a part of transaction.
+    May assume a combination of enum values above.
+  */
+  uchar       m_flags;
 };
 
 struct st_savepoint {
@@ -1195,7 +1389,8 @@ enum enum_thread_type
   SYSTEM_THREAD_SLAVE_SQL= 4,
   SYSTEM_THREAD_NDBCLUSTER_BINLOG= 8,
   SYSTEM_THREAD_EVENT_SCHEDULER= 16,
-  SYSTEM_THREAD_EVENT_WORKER= 32
+  SYSTEM_THREAD_EVENT_WORKER= 32,
+  SYSTEM_THREAD_INFO_REPOSITORY= 64
 };
 
 inline char const *
@@ -1211,6 +1406,7 @@ show_system_thread(enum_thread_type thread)
     RETURN_NAME_AS_STRING(SYSTEM_THREAD_NDBCLUSTER_BINLOG);
     RETURN_NAME_AS_STRING(SYSTEM_THREAD_EVENT_SCHEDULER);
     RETURN_NAME_AS_STRING(SYSTEM_THREAD_EVENT_WORKER);
+    RETURN_NAME_AS_STRING(SYSTEM_THREAD_INFO_REPOSITORY);
   default:
     sprintf(buf, "<UNKNOWN SYSTEM THREAD: %d>", thread);
     return buf;
@@ -1465,7 +1661,6 @@ private:
   MDL_ticket *m_mdl_blocks_commits_lock;
 };
 
-
 extern "C" void my_message_sql(uint error, const char *str, myf MyFlags);
 
 /**
@@ -1478,6 +1673,19 @@ class THD :public Statement,
            public Open_tables_state,
            public MDL_context_owner
 {
+private:
+  inline bool is_stmt_prepare() const
+  { DBUG_ASSERT(0); return Statement::is_stmt_prepare(); }
+
+  inline bool is_stmt_prepare_or_first_sp_execute() const
+  { DBUG_ASSERT(0); return Statement::is_stmt_prepare_or_first_sp_execute(); }
+
+  inline bool is_stmt_prepare_or_first_stmt_execute() const
+  { DBUG_ASSERT(0); return Statement::is_stmt_prepare_or_first_stmt_execute(); }
+
+  inline bool is_conventional() const
+  { DBUG_ASSERT(0); return Statement::is_conventional(); }
+
 public:
   MDL_context mdl_context;
 
@@ -1642,8 +1850,6 @@ public:
   /*
     Public interface to write RBR events to the binlog
   */
-  void binlog_start_trans_and_stmt();
-  void binlog_set_stmt_begin();
   int binlog_write_table_map(TABLE *table, bool is_transactional,
                              bool binlog_rows_query);
   int binlog_write_row(TABLE* table, bool is_transactional,
@@ -1767,9 +1973,35 @@ public:
     }
     st_transactions()
     {
-      bzero((char*)this, sizeof(*this));
+      memset(this, 0, sizeof(*this));
       xid_state.xid.null();
       init_sql_alloc(&mem_root, ALLOC_ROOT_MIN_BLOCK_SIZE, 0);
+    }
+    void push_unsafe_rollback_warnings(THD *thd)
+    {
+      if (all.has_modified_non_trans_table())
+        push_warning(thd, MYSQL_ERROR::WARN_LEVEL_WARN,
+                     ER_WARNING_NOT_COMPLETE_ROLLBACK,
+                     ER(ER_WARNING_NOT_COMPLETE_ROLLBACK));
+
+      if (all.has_created_temp_table())
+        push_warning(thd, MYSQL_ERROR::WARN_LEVEL_WARN,
+                     ER_WARNING_NOT_COMPLETE_ROLLBACK_WITH_CREATED_TEMP_TABLE,
+                     ER(ER_WARNING_NOT_COMPLETE_ROLLBACK_WITH_CREATED_TEMP_TABLE));
+
+      if (all.has_dropped_temp_table())
+        push_warning(thd, MYSQL_ERROR::WARN_LEVEL_WARN,
+                     ER_WARNING_NOT_COMPLETE_ROLLBACK_WITH_DROPPED_TEMP_TABLE,
+                     ER(ER_WARNING_NOT_COMPLETE_ROLLBACK_WITH_DROPPED_TEMP_TABLE));
+    }
+    void merge_unsafe_rollback_flags()
+    {
+      /*
+        Merge stmt.unsafe_rollback_flags to all.unsafe_rollback_flags. If
+        the statement cannot be rolled back safely, the transaction including
+        this statement definitely cannot rolled back safely.
+      */
+      all.add_unsafe_rollback_flags(stmt.get_unsafe_rollback_flags());
     }
   } transaction;
   Global_read_lock global_read_lock;
@@ -1993,11 +2225,12 @@ public:
 
   ha_rows    cuted_fields;
 
-  /*
-    number of rows we actually sent to the client, including "synthetic"
+private:
+  /**
+    Number of rows we actually sent to the client, including "synthetic"
     rows in ROLLUP etc.
   */
-  ha_rows    sent_row_count;
+  ha_rows m_sent_row_count;
 
   /**
     Number of rows read and/or evaluated for a statement. Used for
@@ -2009,7 +2242,35 @@ public:
     statement including ORDER BY could possibly evaluate the row in
     filesort() before reading it for e.g. update.
   */
-  ha_rows    examined_row_count;
+  ha_rows m_examined_row_count;
+
+public:
+  ha_rows get_sent_row_count() const
+  { return m_sent_row_count; }
+
+  ha_rows get_examined_row_count() const
+  { return m_examined_row_count; }
+
+  void set_sent_row_count(ha_rows count);
+  void set_examined_row_count(ha_rows count);
+
+  void inc_sent_row_count(ha_rows count);
+  void inc_examined_row_count(ha_rows count);
+
+  void inc_status_created_tmp_disk_tables();
+  void inc_status_created_tmp_files();
+  void inc_status_created_tmp_tables();
+  void inc_status_select_full_join();
+  void inc_status_select_full_range_join();
+  void inc_status_select_range();
+  void inc_status_select_range_check();
+  void inc_status_select_scan();
+  void inc_status_sort_merge_passes();
+  void inc_status_sort_range();
+  void inc_status_sort_rows(ha_rows count);
+  void inc_status_sort_scan();
+  void set_status_no_index_used();
+  void set_status_no_good_index_used();
 
   /*
     The set of those tables whose fields are referenced in all subqueries
@@ -2020,12 +2281,13 @@ public:
   */
   table_map  used_tables;
   USER_CONN *user_connect;
-  CHARSET_INFO *db_charset;
-  Warning_info *warning_info;
-  Diagnostics_area *stmt_da;
+  const CHARSET_INFO *db_charset;
 #if defined(ENABLED_PROFILING)
   PROFILING  profiling;
 #endif
+
+  /** Current statement instrumentation. */
+  PSI_statement_locker *m_statement_psi;
 
   /*
     Id of current query. Statement can be reused to execute several queries
@@ -2149,7 +2411,6 @@ public:
   bool       enable_slow_log;   /* enable slow log for current statement */
   bool	     abort_on_warning;
   bool 	     got_warning;       /* Set on call to push_warning() */
-  bool	     no_warnings_for_error; /* no warnings on call to my_error() */
   /* set during loop of derived table processing */
   bool       derived_tables_processing;
   my_bool    tablespace_op;	/* This is TRUE in DISCARD/IMPORT TABLESPACE */
@@ -2256,6 +2517,7 @@ public:
   void cleanup(void);
   void cleanup_after_query();
   bool store_globals();
+  bool restore_globals();
 #ifdef SIGNAL_WITH_VIO_CLOSE
   inline void set_active_vio(Vio* vio)
   {
@@ -2397,7 +2659,11 @@ public:
   { 
     return (IS_TIME_T_VALID_FOR_TIMESTAMP(start_time));
   }
-  void set_time_after_lock()  { utime_after_lock= my_micro_time(); }
+  void set_time_after_lock()
+  {
+    utime_after_lock= my_micro_time();
+    MYSQL_SET_STATEMENT_LOCK_TIME(m_statement_psi, (utime_after_lock - start_utime));
+  }
   ulonglong current_utime()  { return my_micro_time(); }
   /**
    Update server status after execution of a top level statement.
@@ -2498,11 +2764,12 @@ public:
                               const char* str, uint length,
                               bool allocate_lex_string);
 
-  bool convert_string(LEX_STRING *to, CHARSET_INFO *to_cs,
+  bool convert_string(LEX_STRING *to, const CHARSET_INFO *to_cs,
 		      const char *from, uint from_length,
-		      CHARSET_INFO *from_cs);
+		      const CHARSET_INFO *from_cs);
 
-  bool convert_string(String *s, CHARSET_INFO *from_cs, CHARSET_INFO *to_cs);
+  bool convert_string(String *s, const CHARSET_INFO *from_cs,
+                      const CHARSET_INFO *to_cs);
 
   void add_changed_table(TABLE *table);
   void add_changed_table(const char *key, long key_length);
@@ -2519,8 +2786,8 @@ public:
   inline void clear_error()
   {
     DBUG_ENTER("clear_error");
-    if (stmt_da->is_error())
-      stmt_da->reset_diagnostics_area();
+    if (get_stmt_da()->is_error())
+      get_stmt_da()->reset_diagnostics_area();
     is_slave_error= 0;
     DBUG_VOID_RETURN;
   }
@@ -2547,7 +2814,7 @@ public:
   */
   inline void fatal_error()
   {
-    DBUG_ASSERT(stmt_da->is_error() || killed);
+    DBUG_ASSERT(get_stmt_da()->is_error() || killed);
     is_fatal_error= 1;
     DBUG_PRINT("error",("Fatal error set"));
   }
@@ -2564,8 +2831,27 @@ public:
 
     To raise this flag, use my_error().
   */
-  inline bool is_error() const { return stmt_da->is_error(); }
-  inline CHARSET_INFO *charset() { return variables.character_set_client; }
+  inline bool is_error() const { return get_stmt_da()->is_error(); }
+
+  /// Returns Warning-information-area for the current diagnostics area.
+  Warning_info *get_stmt_wi()
+  { return get_stmt_da()->get_warning_info(); }
+
+  /// Returns Diagnostics-area for the current statement.
+  Diagnostics_area *get_stmt_da()
+  { return m_stmt_da; }
+
+  /// Returns Diagnostics-area for the current statement.
+  const Diagnostics_area *get_stmt_da() const
+  { return m_stmt_da; }
+
+  /// Sets Diagnostics-area for the current statement.
+  void set_stmt_da(Diagnostics_area *da)
+  { m_stmt_da= da; }
+
+public:
+  inline const CHARSET_INFO *charset()
+  { return variables.character_set_client; }
   void update_charset();
 
   inline Query_arena *activate_stmt_arena_if_needed(Query_arena *backup)
@@ -2606,7 +2892,7 @@ public:
   inline void send_kill_message() const
   {
     int err= killed_errno();
-    if (err)
+    if (err && !get_stmt_da()->is_set())
     {
       if ((err == KILL_CONNECTION) && !shutdown_in_progress)
         err = KILL_QUERY;
@@ -2617,7 +2903,7 @@ public:
   inline bool really_abort_on_warning()
   {
     return (abort_on_warning &&
-            (!transaction.stmt.modified_non_trans_table ||
+            (!transaction.stmt.cannot_safely_rollback() ||
              (variables.sql_mode & MODE_STRICT_ALL_TABLES)));
   }
   void set_status_var_init();
@@ -2892,7 +3178,7 @@ public:
     Protected with LOCK_thd_data mutex.
   */
   void set_query(char *query_arg, uint32 query_length_arg,
-                 CHARSET_INFO *cs_arg)
+                 const CHARSET_INFO *cs_arg)
   {
     set_query(CSET_STRING(query_arg, query_length_arg, cs_arg));
   }
@@ -2904,7 +3190,7 @@ public:
   void reset_query()               /* Mutex protected */
   { set_query(CSET_STRING()); }
   void set_query_and_id(char *query_arg, uint32 query_length_arg,
-                        CHARSET_INFO *cs, query_id_t new_query_id);
+                        const CHARSET_INFO *cs, query_id_t new_query_id);
   void set_query_id(query_id_t new_query_id);
   void set_open_tables(TABLE *open_tables_arg)
   {
@@ -2917,7 +3203,19 @@ public:
   {
     DBUG_ASSERT(locked_tables_mode == LTM_NONE);
 
-    mdl_context.set_explicit_duration_for_all_locks();
+    if (mode_arg == LTM_LOCK_TABLES)
+    {
+      /*
+        When entering LOCK TABLES mode we should set explicit duration
+        for all metadata locks acquired so far in order to avoid releasing
+        them till UNLOCK TABLES statement.
+        We don't do this when entering prelocked mode since sub-statements
+        don't release metadata locks and restoring status-quo after leaving
+        prelocking mode gets complicated.
+      */
+      mdl_context.set_explicit_duration_for_all_locks();
+    }
+
     locked_tables_mode= mode_arg;
   }
   void leave_locked_tables_mode();
@@ -2937,6 +3235,7 @@ private:
 
   /** The current internal error handler for this thread, or NULL. */
   Internal_error_handler *m_internal_handler;
+
   /**
     The lex to hold the parsed tree of conventional (non-prepared) queries.
     Whereas for prepared and stored procedure statements we use an own lex
@@ -2953,8 +3252,8 @@ private:
     tree itself is reused between executions and thus is stored elsewhere.
   */
   MEM_ROOT main_mem_root;
-  Warning_info main_warning_info;
   Diagnostics_area main_da;
+  Diagnostics_area *m_stmt_da;
 
   /**
     It will be set TURE if CURRENT_USER() is called in account management
@@ -2977,24 +3276,24 @@ private:
 };
 
 
-/** A short cut for thd->stmt_da->set_ok_status(). */
+/** A short cut for thd->get_stmt_da()->set_ok_status(). */
 
 inline void
 my_ok(THD *thd, ulonglong affected_rows= 0, ulonglong id= 0,
         const char *message= NULL)
 {
   thd->set_row_count_func(affected_rows);
-  thd->stmt_da->set_ok_status(thd, affected_rows, id, message);
+  thd->get_stmt_da()->set_ok_status(thd, affected_rows, id, message);
 }
 
 
-/** A short cut for thd->stmt_da->set_eof_status(). */
+/** A short cut for thd->get_stmt_da()->set_eof_status(). */
 
 inline void
 my_eof(THD *thd)
 {
   thd->set_row_count_func(-1);
-  thd->stmt_da->set_eof_status(thd);
+  thd->get_stmt_da()->set_eof_status(thd);
 }
 
 #define tmp_disable_binlog(A)       \
@@ -3024,7 +3323,7 @@ public:
   bool opt_enclosed;
   bool dumpfile;
   ulong skip_lines;
-  CHARSET_INFO *cs;
+  const CHARSET_INFO *cs;
   sql_exchange(char *name, bool dumpfile_flag,
                enum_filetype filetype_arg= FILETYPE_CSV);
   bool escaped_given(void);
@@ -3172,7 +3471,7 @@ class select_export :public select_to_file {
   */
   bool is_unsafe_field_sep;
   bool fixed_row_size;
-  CHARSET_INFO *write_cs; // output charset
+  const CHARSET_INFO *write_cs; // output charset
 public:
   select_export(sql_exchange *ex) :select_to_file(ex) {}
   ~select_export();
@@ -3206,7 +3505,6 @@ class select_insert :public select_result_interceptor {
   virtual int prepare2(void);
   bool send_data(List<Item> &items);
   virtual void store_values(List<Item> &values);
-  virtual bool can_rollback_data() { return 0; }
   void send_error(uint errcode,const char *err);
   bool send_eof();
   virtual void abort_result_set();
@@ -3246,7 +3544,6 @@ public:
   void send_error(uint errcode,const char *err);
   bool send_eof();
   virtual void abort_result_set();
-  virtual bool can_rollback_data() { return 1; }
 
   // Needed for access from local class MY_HOOKS in prepare(), since thd is proteted.
   const THD *get_thd(void) { return thd; }
@@ -3783,6 +4080,18 @@ public:
 #define CF_CAN_GENERATE_ROW_EVENTS (1U << 9)
 
 /**
+  Identifies statements which may deal with temporary tables and for which
+  temporary tables should be pre-opened to simplify privilege checks.
+*/
+#define CF_PREOPEN_TMP_TABLES   (1U << 10)
+
+/**
+  Identifies statements for which open handlers should be closed in the
+  beginning of the statement.
+*/
+#define CF_HA_CLOSE             (1U << 11)
+
+/**
   Identifies statements that can directly update a rpl info table.
 */
 #define CF_WRITE_RPL_INFO_COMMAND (1U << 12)
@@ -3854,5 +4163,11 @@ const char *set_thd_proc_info(void *thd_arg, const char *info,
 
 #define thd_proc_info(thd, msg) \
   set_thd_proc_info(thd, msg, __func__, __FILE__, __LINE__)
+
+#define THD_STAGE_INFO(thd, stage) \
+  { \
+    set_thd_proc_info(thd, stage.m_name, __func__, __FILE__, __LINE__); \
+    MYSQL_SET_STAGE(stage.m_key, __FILE__, __LINE__); \
+  }
 
 #endif /* SQL_CLASS_INCLUDED */

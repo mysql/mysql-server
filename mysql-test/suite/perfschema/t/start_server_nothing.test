@@ -40,7 +40,7 @@ select * from performance_schema.file_instances;
 select * from performance_schema.file_summary_by_event_name;
 select * from performance_schema.file_summary_by_instance;
 select * from performance_schema.mutex_instances;
-select * from performance_schema.threads;
+select * from performance_schema.objects_summary_global_by_type;
 select * from performance_schema.rwlock_instances;
 select * from performance_schema.threads;
 

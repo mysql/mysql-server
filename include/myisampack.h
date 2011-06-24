@@ -234,7 +234,7 @@
 #define mi_sizekorr(T)      mi_uint8korr(T)
 #else
 #define mi_sizestore(T,A)   { if ((A) == HA_OFFSET_ERROR)\
-                                bfill((char*) (T), 8, 255);\
+                                memset((T), 255, 8);\
                               else { mi_int4store((T), 0);\
                                      mi_int4store(((T) + 4), A); }}
 #define mi_sizekorr(T)      mi_uint4korr((uchar*) (T) + 4)

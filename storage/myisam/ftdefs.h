@@ -1,4 +1,4 @@
-/* Copyright (C) 2000-2005 MySQL AB
+/* Copyright (c) 2000, 2011, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -11,7 +11,7 @@
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
-   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
+   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
 /* Written by Sergei A. Golubchik, who has a shared copyright to this code */
 
@@ -105,9 +105,9 @@ int is_stopword(char *word, uint len);
 
 uint _ft_make_key(MI_INFO *, uint , uchar *, FT_WORD *, my_off_t);
 
-uchar ft_get_word(CHARSET_INFO *, uchar **, uchar *, FT_WORD *,
+uchar ft_get_word(const CHARSET_INFO *, uchar **, uchar *, FT_WORD *,
                   MYSQL_FTPARSER_BOOLEAN_INFO *);
-uchar ft_simple_get_word(CHARSET_INFO *, uchar **, const uchar *,
+uchar ft_simple_get_word(const CHARSET_INFO *, uchar **, const uchar *,
                          FT_WORD *, my_bool);
 
 typedef struct _st_ft_seg_iterator {
@@ -120,7 +120,7 @@ void _mi_ft_segiterator_init(MI_INFO *, uint, const uchar *, FT_SEG_ITERATOR *);
 void _mi_ft_segiterator_dummy_init(const uchar *, uint, FT_SEG_ITERATOR *);
 uint _mi_ft_segiterator(FT_SEG_ITERATOR *);
 
-void ft_parse_init(TREE *, CHARSET_INFO *);
+void ft_parse_init(TREE *, const CHARSET_INFO *);
 int ft_parse(TREE *, uchar *, int, struct st_mysql_ftparser *parser,
              MYSQL_FTPARSER_PARAM *, MEM_ROOT *);
 FT_WORD * ft_linearize(TREE *, MEM_ROOT *);
@@ -129,7 +129,8 @@ uint _mi_ft_parse(TREE *, MI_INFO *, uint, const uchar *,
                   MYSQL_FTPARSER_PARAM *, MEM_ROOT *);
 
 FT_INFO *ft_init_nlq_search(MI_INFO *, uint, uchar *, uint, uint, uchar *);
-FT_INFO *ft_init_boolean_search(MI_INFO *, uint, uchar *, uint, CHARSET_INFO *);
+FT_INFO *ft_init_boolean_search(MI_INFO *, uint, uchar *, uint,
+                                const CHARSET_INFO *);
 
 extern const struct _ft_vft _ft_vft_nlq;
 int ft_nlq_read_next(FT_INFO *, char *);

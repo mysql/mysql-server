@@ -2951,8 +2951,8 @@ t2.b1 IN (select c1 from t3 where c2 > '0')));
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	3	100.00	Using where
 2	DEPENDENT SUBQUERY	t1_16	ALL	NULL	NULL	NULL	NULL	3	100.00	Using where
-3	DEPENDENT SUBQUERY	t2	ALL	NULL	NULL	NULL	NULL	5	100.00	Using where
-3	DEPENDENT SUBQUERY	t2_16	ALL	NULL	NULL	NULL	NULL	3	100.00	Using where; Using join buffer (BNL, incremental buffers)
+3	DEPENDENT SUBQUERY	t2_16	ALL	NULL	NULL	NULL	NULL	3	100.00	Using where
+3	DEPENDENT SUBQUERY	t2	ALL	NULL	NULL	NULL	NULL	5	100.00	Using where; Using join buffer (BNL, incremental buffers)
 4	SUBQUERY	t3	ALL	NULL	NULL	NULL	NULL	4	100.00	Using where
 Warnings:
 Note	1003	select `test`.`t1`.`a1` AS `a1`,`test`.`t1`.`a2` AS `a2` from `test`.`t1` where <in_optimizer>(concat(`test`.`t1`.`a1`,'x'),<exists>(select 1 from `test`.`t1_16` where (<in_optimizer>((`test`.`t1_16`.`a1`,`test`.`t1_16`.`a2`),<exists>(select `test`.`t2_16`.`b1`,`test`.`t2_16`.`b2` from `test`.`t2_16` join `test`.`t2` where ((`test`.`t2`.`b2` = substr(`test`.`t2_16`.`b2`,1,6)) and <in_optimizer>(`test`.`t2`.`b1`,`test`.`t2`.`b1` in ( <materialize> (select `test`.`t3`.`c1` from `test`.`t3` where (`test`.`t3`.`c2` > '0') ), <primary_index_lookup>(`test`.`t2`.`b1` in <temporary table> on distinct_key where ((`test`.`t2`.`b1` = `materialized subselect`.`c1`))))) and (<cache>(`test`.`t1_16`.`a1`) = `test`.`t2_16`.`b1`) and (<cache>(`test`.`t1_16`.`a2`) = `test`.`t2_16`.`b2`)))) and (<cache>(concat(`test`.`t1`.`a1`,'x')) = left(`test`.`t1_16`.`a1`,8)))))
@@ -5297,7 +5297,7 @@ where t1.uid in (select t4.uid from t4, t3 where t3.uid=1 and t4.uid=t3.fid)
 and t2.uid=t1.fid;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	11	Using where
-1	PRIMARY	t2	eq_ref	PRIMARY	PRIMARY	4	test.t1.fid	1	Using where
+1	PRIMARY	t2	eq_ref	PRIMARY	PRIMARY	4	test.t1.fid	1	
 2	SUBQUERY	t3	ref	uid	uid	5	const	4	Using where
 2	SUBQUERY	t4	eq_ref	PRIMARY	PRIMARY	4	test.t3.fid	1	Using index
 select name from t2, t1 
@@ -5615,4 +5615,40 @@ a	a	a
 deallocate prepare s;
 DROP TABLE ot1, ot2, ot3, it1;
 # End of the test for bug#57623.
+#
+# Bug#11766739: Crash in tmp_table_param::init() with semijoin=on
+#
+CREATE TABLE t1 (f1 INTEGER) ENGINE=MyISAM;
+CREATE TABLE t2 (f1 INTEGER, f2 INTEGER) ENGINE=MyISAM;
+INSERT INTO t1 VALUES (1);
+INSERT INTO t2 VALUES (1,1), (2,1);
+EXPLAIN SELECT * FROM t2
+WHERE f2 IN (SELECT t1.f1
+FROM t1 LEFT OUTER JOIN (t2 AS b1 JOIN t2 AS b2 ON TRUE) ON TRUE);
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	t2	ALL	NULL	NULL	NULL	NULL	2	Using where
+2	SUBQUERY	t1	system	NULL	NULL	NULL	NULL	1	
+2	SUBQUERY	b1	ALL	NULL	NULL	NULL	NULL	2	Using where
+2	SUBQUERY	b2	ALL	NULL	NULL	NULL	NULL	2	
+SELECT * FROM t2
+WHERE f2 IN (SELECT t1.f1
+FROM t1 LEFT OUTER JOIN (t2 AS b1 JOIN t2 AS b2 ON TRUE) ON TRUE);
+f1	f2
+1	1
+2	1
+DROP TABLE t1, t2;
+# End of the test for bug#11766739.
+#
+# Bug#11766642: crash in Item_field::register_field_in_read_map with view
+#
+CREATE TABLE t1(a INT);
+CREATE VIEW v1 AS SELECT a FROM t1;
+INSERT INTO t1 VALUES (0),(1),(2);
+SELECT a FROM t1 WHERE a IN 
+(SELECT a XOR a FROM v1)
+ORDER BY a;
+a
+0
+DROP TABLE t1;
+DROP VIEW v1;
 set optimizer_switch=default;

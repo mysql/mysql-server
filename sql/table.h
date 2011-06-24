@@ -13,8 +13,8 @@
    GNU General Public License for more details.
 
    You should have received a copy of the GNU General Public License
-   along with this program; if not, write to the Free Software Foundation,
-   51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA */
+   along with this program; if not, write to the Free Software
+   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
 #include "my_global.h"                          /* NO_EMBEDDED_ACCESS_CHECKS */
 #include "sql_plist.h"
@@ -120,12 +120,12 @@ public:
 class Default_object_creation_ctx : public Object_creation_ctx
 {
 public:
-  CHARSET_INFO *get_client_cs()
+  const CHARSET_INFO *get_client_cs()
   {
     return m_client_cs;
   }
 
-  CHARSET_INFO *get_connection_cl()
+  const CHARSET_INFO *get_connection_cl()
   {
     return m_connection_cl;
   }
@@ -133,8 +133,8 @@ public:
 protected:
   Default_object_creation_ctx(THD *thd);
 
-  Default_object_creation_ctx(CHARSET_INFO *client_cs,
-                              CHARSET_INFO *connection_cl);
+  Default_object_creation_ctx(const CHARSET_INFO *client_cs,
+                              const CHARSET_INFO *connection_cl);
 
 protected:
   virtual Object_creation_ctx *create_backup_ctx(THD *thd) const;
@@ -151,7 +151,7 @@ protected:
     in order to parse the query properly we have to switch client character
     set on parsing.
   */
-  CHARSET_INFO *m_client_cs;
+  const CHARSET_INFO *m_client_cs;
 
   /**
     connection_cl stores the value of collation_connection session
@@ -161,7 +161,7 @@ protected:
     the character set and collation of text literals in internal
     representation of query (item-objects).
   */
-  CHARSET_INFO *m_connection_cl;
+  const CHARSET_INFO *m_connection_cl;
 };
 
 
@@ -190,16 +190,22 @@ private:
 
 typedef struct st_order {
   struct st_order *next;
-  Item	 **item;			/* Point at item in select fields */
-  Item	 *item_ptr;			/* Storage for initial item */
+  Item   **item;                        /* Point at item in select fields */
+  Item   *item_ptr;                     /* Storage for initial item */
   int    counter;                       /* position in SELECT list, correct
-                                           only if counter_used is true*/
-  bool	 asc;				/* true if ascending */
-  bool	 free_me;			/* true if item isn't shared  */
-  bool	 in_field_list;			/* true if in select field list */
+                                           only if counter_used is true */
+  enum enum_order {
+    ORDER_NOT_RELEVANT,
+    ORDER_ASC,
+    ORDER_DESC
+  };
+
+  enum_order direction;                 /* Requested direction of ordering */
+  bool   free_me;                       /* true if item isn't shared  */
+  bool   in_field_list;                 /* true if in select field list */
   bool   counter_used;                  /* parameter was counter of columns */
-  Field  *field;			/* If tmp-table group */
-  char	 *buff;				/* If tmp-table group */
+  Field  *field;                        /* If tmp-table group */
+  char   *buff;                         /* If tmp-table group */
   table_map used, depend_map;
 } ORDER;
 
@@ -487,6 +493,18 @@ typedef struct st_table_field_def
 
 
 #ifdef WITH_PARTITION_STORAGE_ENGINE
+/** Struct to be used for partition_name_hash */
+typedef struct st_part_name_def
+{
+  uchar *partition_name;
+  uint length;
+  uint32 part_id;
+  my_bool is_subpart;
+} PART_NAME_DEF;
+
+uchar *get_part_name(PART_NAME_DEF *part, size_t *length,
+                     my_bool not_used __attribute__((unused)));
+
 /**
   Partition specific ha_data struct.
 */
@@ -495,6 +513,11 @@ typedef struct st_ha_data_partition
   bool auto_inc_initialized;
   mysql_mutex_t LOCK_auto_inc;                 /**< protecting auto_inc val */
   ulonglong next_auto_inc_val;                 /**< first non reserved value */
+  /**
+    Hash of partition names. Initialized in the first ha_partition::open()
+    for the table_share. After that it is read-only, i.e. no locking required.
+  */
+  HASH partition_name_hash;
 } HA_DATA_PARTITION;
 #endif
 
@@ -577,8 +600,9 @@ struct TABLE_SHARE
     Doubly-linked (back-linked) lists of used and unused TABLE objects
     for this share.
   */
-  I_P_List <TABLE, TABLE_share> used_tables;
-  I_P_List <TABLE, TABLE_share> free_tables;
+  typedef I_P_List <TABLE, TABLE_share> TABLE_list;
+  TABLE_list used_tables;
+  TABLE_list free_tables;
 
   /* The following is copied to each TABLE on OPEN */
   Field **field;
@@ -589,7 +613,7 @@ struct TABLE_SHARE
 
   uchar	*default_values;		/* row with default values */
   LEX_STRING comment;			/* Comment about table */
-  CHARSET_INFO *table_charset;		/* Default charset of string fields */
+  const CHARSET_INFO *table_charset;	/* Default charset of string fields */
 
   MY_BITMAP all_set;
   /*
@@ -651,8 +675,8 @@ struct TABLE_SHARE
   uint db_options_in_use;		/* Options in use */
   uint db_record_offset;		/* if HA_REC_IN_SEQ */
   uint rowid_field_offset;		/* Field_nr +1 to rowid field */
-  /* Index of auto-updated TIMESTAMP field in field array */
-  uint primary_key;
+  /* Primary key index number, used in TABLE::key_info[] */
+  uint primary_key;                     
   uint next_number_index;               /* autoincrement key number */
   uint next_number_key_offset;          /* autoinc keypart offset in a key */
   uint next_number_keypart;             /* autoinc keypart number in a key */
@@ -674,6 +698,16 @@ struct TABLE_SHARE
     table *may* be replicated.
   */
   int cached_row_logging_check;
+
+  /*
+    Storage media to use for this table (unless another storage
+    media has been specified on an individual column - in versions
+    where that is supported)
+  */
+  enum ha_storage_media default_storage_media;
+
+  /* Name of the tablespace used for this table */
+  char *tablespace;
 
 #ifdef WITH_PARTITION_STORAGE_ENGINE
   /* filled in when reading from frm */
@@ -1424,7 +1458,7 @@ struct TABLE_LIST
                              const char *alias_arg,
                              enum thr_lock_type lock_type_arg)
   {
-    bzero((char*) this, sizeof(*this));
+    memset(this, 0, sizeof(*this));
     db= (char*) db_name_arg;
     db_length= db_length_arg;
     table_name= (char*) table_name_arg;
@@ -1670,7 +1704,6 @@ struct TABLE_LIST
   bool          check_option_processed;
   /* FRMTYPE_ERROR if any type is acceptable */
   enum frm_type_enum required_type;
-  handlerton	*db_type;		/* table_type for handler */
   char		timestamp_buffer[20];	/* buffer for timestamp (19+1) */
   /*
     This TABLE_LIST object is just placeholder for prelocking, it will be
@@ -1690,9 +1723,6 @@ struct TABLE_LIST
     /* Don't associate a table share. */
     OPEN_STUB
   } open_strategy;
-  /* For transactional locking. */
-  int           lock_timeout;           /* NOWAIT or WAIT [X]               */
-  bool          lock_transactional;     /* If transactional lock requested. */
   bool          internal_tmp_table;
   /** TRUE if an alias for this table was specified in the SQL. */
   bool          is_alias;
@@ -1749,6 +1779,11 @@ struct TABLE_LIST
   enum enum_schema_table_state schema_table_state;
 
   MDL_request mdl_request;
+
+#ifdef WITH_PARTITION_STORAGE_ENGINE
+  /* List to carry partition names from PARTITION (...) clause in statement */
+  List<String> *partition_names;
+#endif /* WITH_PARTITION_STORAGE_ENGINE */
 
   void calc_md5(char *buffer);
   void set_underlying_merge();
@@ -2185,7 +2220,7 @@ void init_mdl_requests(TABLE_LIST *table_list);
 int open_table_from_share(THD *thd, TABLE_SHARE *share, const char *alias,
                           uint db_stat, uint prgflag, uint ha_open_flags,
                           TABLE *outparam, bool is_create_table);
-TABLE_SHARE *alloc_table_share(TABLE_LIST *table_list, char *key,
+TABLE_SHARE *alloc_table_share(TABLE_LIST *table_list, const char *key,
                                uint key_length);
 void init_tmp_table_share(THD *thd, TABLE_SHARE *share, const char *key,
                           uint key_length,
@@ -2226,6 +2261,10 @@ extern LEX_STRING SLOW_LOG_NAME;
 extern LEX_STRING INFORMATION_SCHEMA_NAME;
 extern LEX_STRING MYSQL_SCHEMA_NAME;
 
+/* replication's tables */
+extern LEX_STRING RLI_INFO_NAME;
+extern LEX_STRING MI_INFO_NAME;
+
 inline bool is_infoschema_db(const char *name, size_t len)
 {
   return (INFORMATION_SCHEMA_NAME.length == len &&
@@ -2254,7 +2293,7 @@ inline void mark_as_null_row(TABLE *table)
 {
   table->null_row=1;
   table->status|=STATUS_NULL_ROW;
-  bfill(table->null_flags,table->s->null_bytes,255);
+  memset(table->null_flags, 255, table->s->null_bytes);
 }
 
 bool is_simple_order(ORDER *order);

@@ -1,12 +1,6 @@
 /***************************************************************************//**
 
-Copyright (c) 2010, Oracle Corpn. All Rights Reserved.
-
-Portions of this file contain modifications contributed and copyrighted by
-Sun Microsystems, Inc. Those modifications are gratefully acknowledged and
-are described briefly in the InnoDB documentation. The contributions by
-Sun Microsystems are incorporated with their permission, and subject to the
-conditions contained in the file COPYING.Sun_Microsystems.
+Copyright (c) 2011, Oracle Corpn. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -34,6 +28,7 @@ Created 2010-05-28 by Sunny Bains
 
 #include "univ.i"
 
+/** Comparison function for objects in the binary heap. */
 typedef int (*ib_bh_cmp_t)(const void* p1, const void* p2);
 
 typedef struct ib_bh_struct ib_bh_t;
@@ -41,7 +36,7 @@ typedef struct ib_bh_struct ib_bh_t;
 /**********************************************************************//**
 Get the number of elements in the binary heap.
 @return number of elements */
-UNIV_INTERN
+UNIV_INLINE
 ulint
 ib_bh_size(
 /*=======*/
@@ -50,7 +45,7 @@ ib_bh_size(
 /**********************************************************************//**
 Test if binary heap is empty.
 @return TRUE if empty. */
-UNIV_INTERN
+UNIV_INLINE
 ibool
 ib_bh_is_empty(
 /*===========*/
@@ -59,7 +54,7 @@ ib_bh_is_empty(
 /**********************************************************************//**
 Test if binary heap is full.
 @return TRUE if full. */
-UNIV_INTERN
+UNIV_INLINE
 ibool
 ib_bh_is_full(
 /*===========*/
@@ -68,7 +63,7 @@ ib_bh_is_full(
 /**********************************************************************//**
 Get a pointer to the element.
 @return pointer to element */
-UNIV_INTERN
+UNIV_INLINE
 void*
 ib_bh_get(
 /*=======*/
@@ -78,13 +73,31 @@ ib_bh_get(
 /**********************************************************************//**
 Copy an element to the binary heap.
 @return pointer to copied element */
-UNIV_INTERN
+UNIV_INLINE
 void*
 ib_bh_set(
 /*======*/
-	ib_bh_t*	ib_bh,			/*!< in,out: instance */
+	ib_bh_t*	ib_bh,			/*!< in/out: instance */
 	ulint		i,			/*!< in: index */
 	const void*	elem);			/*!< in: element to add */
+
+/**********************************************************************//**
+Return the first element from the binary heap.
+@return pointer to first element or NULL if empty. */
+UNIV_INLINE
+void*
+ib_bh_first(
+/*========*/
+	ib_bh_t*	ib_bh);			/*!< in: instance */
+
+/**********************************************************************//**
+Return the last element from the binary heap.
+@return pointer to last element or NULL if empty. */
+UNIV_INLINE
+void*
+ib_bh_last(
+/*========*/
+	ib_bh_t*	ib_bh);			/*!< in/out: instance */
 
 /**********************************************************************//**
 Create a binary heap.
@@ -113,26 +126,8 @@ UNIV_INTERN
 void*
 ib_bh_push(
 /*=======*/
-	ib_bh_t*	ib_bh,			/*!< in,out: instance */
+	ib_bh_t*	ib_bh,			/*!< in/out: instance */
 	const void*	elem);			/*!< in: element to add */
-
-/**********************************************************************//**
-Return the first element from the binary heap. 
-@return pointer to first element or NULL if empty. */
-UNIV_INTERN
-void*
-ib_bh_first(
-/*========*/
-	ib_bh_t*	ib_bh);			/*!< in,out: instance */
-
-/**********************************************************************//**
-Return the last element from the binary heap. 
-@return pointer to last element or NULL if empty. */
-UNIV_INTERN
-void*
-ib_bh_last(
-/*========*/
-	ib_bh_t*	ib_bh);			/*!< in,out: instance */
 
 /**********************************************************************//**
 Remove the first element from the binary heap. */
@@ -140,6 +135,18 @@ UNIV_INTERN
 void
 ib_bh_pop(
 /*======*/
-	ib_bh_t*	ib_bh);			/*!< in,out: instance */
+	ib_bh_t*	ib_bh);			/*!< in/out: instance */
+
+/** Binary heap data structure */
+struct ib_bh_struct {
+	ulint		max_elems;		/*!< max elements allowed */
+	ulint		n_elems;		/*!< current size */
+	ulint		sizeof_elem;		/*!< sizeof element */
+	ib_bh_cmp_t	compare;		/*!< comparator */
+};
+
+#ifndef UNIV_NONINL
+#include "ut0bh.ic"
+#endif
 
 #endif /* INNOBASE_UT0BH_H */

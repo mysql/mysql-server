@@ -28,6 +28,7 @@ Created 12/15/2009	Jimmy Yang
 #define srv0mon_h
 
 #include "univ.i"
+#ifndef UNIV_HOTBACKUP
 
 
 /** Possible status values for "mon_status" in "struct monitor_value" */
@@ -37,6 +38,9 @@ enum monitor_running_status {
 };
 
 typedef enum monitor_running_status	monitor_running_t;
+
+/** Monitor counter value type */
+typedef	ib_int64_t			mon_type_t;
 
 /** Two monitor structures are defined in this file. One is
 "monitor_value_t" which contains dynamic counter values for each
@@ -55,14 +59,14 @@ struct monitor_value_struct {
 	ib_time_t	mon_start_time;	/*!< Start time of monitoring  */
 	ib_time_t	mon_stop_time;	/*!< Stop time of monitoring */
 	ib_time_t	mon_reset_time;	/*!< Time counter resetted */
-	lint		mon_value;	/*!< Current counter Value */
-	lint		mon_max_value;	/*!< Current Max value */
-	lint		mon_min_value;	/*!< Current Min value */
-	lint		mon_value_reset;/*!< value at last reset */
-	lint		mon_max_value_start; /*!< Max value since start */
-	lint		mon_min_value_start; /*!< Min value since start */
-	lint		mon_start_value;/*!< Value at the start time */
-	lint		mon_last_value;	/*!< Last set of values */
+	mon_type_t	mon_value;	/*!< Current counter Value */
+	mon_type_t	mon_max_value;	/*!< Current Max value */
+	mon_type_t	mon_min_value;	/*!< Current Min value */
+	mon_type_t	mon_value_reset;/*!< value at last reset */
+	mon_type_t	mon_max_value_start; /*!< Max value since start */
+	mon_type_t	mon_min_value_start; /*!< Min value since start */
+	mon_type_t	mon_start_value;/*!< Value at the start time */
+	mon_type_t	mon_last_value;	/*!< Last set of values */
 	monitor_running_t mon_status;	/* whether monitor still running */
 };
 
@@ -75,21 +79,28 @@ enum monitor_type_value {
 				not a counter */
 	MONITOR_EXISTING = 2,	/*!< The monitor carries information from
 				an existing system status variable */
-	MONITOR_AVERAGE = 4,	/*!< Set this status if we want to
-				calculate the average value (over time)
-				for the counter. */
+	MONITOR_NO_AVERAGE = 4,	/*!< Set this status if we don't want to
+				calculate the average value for the counter */
 	MONITOR_DISPLAY_CURRENT = 8, /*!< Display current value of the
 				counter, rather than incremental value
 				over the period. Mostly for counters
 				displaying current resource usage */
-	MONITOR_GROUP_MODULE = 16 /*!< Monitor can be turned on/off
+	MONITOR_GROUP_MODULE = 16, /*!< Monitor can be turned on/off
 				only as a module, but not individually */
+	MONITOR_DEFAULT_ON = 32,/*!< Monitor will be turned on by default at
+				server start up */
+	MONITOR_SET_OWNER = 64,	/*!< Owner of "monitor set", a set of
+				monitor counters */
+	MONITOR_SET_MEMBER = 128,/*!< Being part of a "monitor set" */
+	MONITOR_HIDDEN = 256	/*!< Do not display this monitor in the
+				metrics table */
 };
 
 typedef enum monitor_type_value	monitor_type_t;
 
-/** Counter minimum value is initialized to be max value of lint */
-#define	MIN_RESERVED		((lint)(ULINT_MAX >> 1))
+/** Counter minimum value is initialized to be max value of
+ mon_type_t (ib_int64_t) */
+#define	MIN_RESERVED		((mon_type_t) (IB_ULONGLONG_MAX >> 1))
 #define	MAX_RESERVED		(~MIN_RESERVED)
 
 /** This enumeration defines internal monitor identifier used internally
@@ -114,12 +125,15 @@ enum monitor_id_value {
 	MONITOR_MODULE_METADATA,
 	MONITOR_TABLE_OPEN,
 	MONITOR_TABLE_CLOSE,
+	MONITOR_TABLE_REFERENCE,
+	MONITOR_OVLD_META_MEM_POOL,
 
 	/* Lock manager related counters */
 	MONITOR_MODULE_LOCK,
 	MONITOR_DEADLOCK,
 	MONITOR_TIMEOUT,
 	MONITOR_LOCKREC_WAIT,
+	MONITOR_TABLELOCK_WAIT,
 	MONITOR_NUM_RECLOCK_REQ,
 	MONITOR_RECLOCK_CREATED,
 	MONITOR_RECLOCK_REMOVED,
@@ -127,12 +141,15 @@ enum monitor_id_value {
 	MONITOR_TABLELOCK_CREATED,
 	MONITOR_TABLELOCK_REMOVED,
 	MONITOR_NUM_TABLELOCK,
-	MONITOR_ROW_LOCK_CURRENT_WAIT,
-	MONITOR_LOCK_WAIT_TIME,
+	MONITOR_OVLD_ROW_LOCK_CURRENT_WAIT,
+	MONITOR_OVLD_LOCK_WAIT_TIME,
+	MONITOR_OVLD_LOCK_MAX_WAIT_TIME,
 	MONITOR_OVLD_ROW_LOCK_WAIT,
+	MONITOR_OVLD_LOCK_AVG_WAIT_TIME,
 
 	/* Buffer and I/O realted counters. */
 	MONITOR_MODULE_BUFFER,
+	MONITOR_OVLD_BUFFER_POOL_SIZE,
 	MONITOR_OVLD_BUF_POOL_READS,
 	MONITOR_OVLD_BUF_POOL_READ_REQUESTS,
 	MONITOR_OVLD_BUF_POOL_WRITE_REQUEST,
@@ -158,7 +175,17 @@ enum monitor_id_value {
 	MONITOR_FLUSH_SYNC_PAGES,
 	MONITOR_NUM_MAX_DIRTY_FLUSHES,
 	MONITOR_FLUSH_MAX_DIRTY_PAGES,
+	MONITOR_NUM_FREE_MARGIN_FLUSHES,
+	MONITOR_FLUSH_FREE_MARGIN_PAGES,
 	MONITOR_FLUSH_IO_CAPACITY_PCT,
+	MONITOR_FLUSH_BATCH_SCANNED,
+	MONITOR_FLUSH_BATCH_SCANNED_NUM_CALL,
+	MONITOR_FLUSH_BATCH_SCANNED_PER_CALL,
+	MONITOR_FLUSH_BATCH_TOTAL_PAGE,
+	MONITOR_FLUSH_BATCH_COUNT,
+	MONITOR_FLUSH_BATCH_PAGES,
+	MONITOR_BUF_FLUSH_LRU,
+	MONITOR_BUF_FLUSH_LIST,
 
 	/* Buffer Page I/O specific counters. */
 	MONITOR_MODULE_BUF_PAGE,
@@ -210,29 +237,40 @@ enum monitor_id_value {
 	/* Transaction related counters */
 	MONITOR_MODULE_TRX,
 	MONITOR_TRX_COMMIT,
-	MONITOR_TRX_ABORT,
+	MONITOR_TRX_COMMIT_UNDO,
+	MONITOR_TRX_ROLLBACK,
+	MONITOR_TRX_ROLLBACK_SAVEPOINT,
+	MONITOR_TRX_ROLLBACK_ACTIVE,
 	MONITOR_TRX_ACTIVE,
-	MONITOR_NUM_ROW_PURGE,
-	MONITOR_DML_PURGE_DELAY,
 	MONITOR_RSEG_HISTORY_LEN,
 	MONITOR_NUM_UNDO_SLOT_USED,
 	MONITOR_NUM_UNDO_SLOT_CACHED,
 	MONITOR_RSEG_CUR_SIZE,
 
+	/* Purge related counters */
+	MONITOR_MODULE_PURGE,
+	MONITOR_N_DEL_ROW_PURGE,
+	MONITOR_N_UPD_EXIST_EXTERN,
+	MONITOR_PURGE_INVOKED,
+	MONITOR_PURGE_N_PAGE_HANDLED,
+	MONITOR_DML_PURGE_DELAY,
+
 	/* Recovery related counters */
 	MONITOR_MODULE_RECOVERY,
 	MONITOR_NUM_CHECKPOINT,
-	MONITOR_LSN_FLUSHDISK,
-	MONITOR_LSN_CHECKPOINT,
-	MONITOR_LSN_CURRENT,
+	MONITOR_OVLD_LSN_FLUSHDISK,
+	MONITOR_OVLD_LSN_CHECKPOINT,
+	MONITOR_OVLD_LSN_CURRENT,
+	MONITOR_LSN_CHECKPOINT_AGE,
+	MONITOR_OVLD_BUF_OLDEST_LSN,
+	MONITOR_OVLD_MAX_AGE_ASYNC,
+	MONITOR_OVLD_MAX_AGE_SYNC,
 	MONITOR_PENDING_LOG_WRITE,
 	MONITOR_PENDING_CHECKPOINT_WRITE,
 	MONITOR_LOG_IO,
 	MONITOR_OVLD_LOG_WAITS,
 	MONITOR_OVLD_LOG_WRITE_REQUEST,
 	MONITOR_OVLD_LOG_WRITES,
-
-	MONITOR_FLUSH_DIRTY_PAGE_EXCEED,
 
 	/* Page Manager related counters */
 	MONITOR_MODULE_PAGE,
@@ -244,16 +282,71 @@ enum monitor_id_value {
 	MONITOR_INDEX_SPLIT,
 	MONITOR_INDEX_MERGE,
 
+	/* Adaptive Hash Index related counters */
+	MONITOR_MODULE_ADAPTIVE_HASH,
+	MONITOR_OVLD_ADAPTIVE_HASH_SEARCH,
+	MONITOR_OVLD_ADAPTIVE_HASH_SEARCH_BTREE,
+	MONITOR_ADAPTIVE_HASH_PAGE_ADDED,
+	MONITOR_ADAPTIVE_HASH_PAGE_REMOVED,
+	MONITOR_ADAPTIVE_HASH_ROW_ADDED,
+	MONITOR_ADAPTIVE_HASH_ROW_REMOVED,
+	MONITOR_ADAPTIVE_HASH_ROW_REMOVE_NOT_FOUND,
+	MONITOR_ADAPTIVE_HASH_ROW_UPDATED,
+
 	/* Tablespace related counters */
 	MONITOR_MODULE_FIL_SYSTEM,
 	MONITOR_OVLD_N_FILE_OPENED,
 
+	/* InnoDB Change Buffer related counters */
+	MONITOR_MODULE_IBUF_SYSTEM,
+	MONITOR_OVLD_IBUF_MERGE_INSERT,
+	MONITOR_OVLD_IBUF_MERGE_DELETE,
+	MONITOR_OVLD_IBUF_MERGE_PURGE,
+	MONITOR_OVLD_IBUF_MERGE_DISCARD_INSERT,
+	MONITOR_OVLD_IBUF_MERGE_DISCARD_DELETE,
+	MONITOR_OVLD_IBUF_MERGE_DISCARD_PURGE,
+	MONITOR_OVLD_IBUF_MERGES,
+	MONITOR_OVLD_IBUF_SIZE,
+
+	/* Counters for server operations */
+	MONITOR_MODULE_SERVER,
+	MONITOR_MASTER_THREAD_SLEEP,
+	MONITOR_OVLD_SERVER_ACTIVITY,
+	MONITOR_MASTER_ACTIVE_LOOPS,
+	MONITOR_MASTER_IDLE_LOOPS,
+	MONITOR_SRV_BACKGROUND_DROP_TABLE_MICROSECOND,
+	MONITOR_SRV_IBUF_MERGE_MICROSECOND,
+	MONITOR_SRV_LOG_FLUSH_MICROSECOND,
+	MONITOR_SRV_MEM_VALIDATE_MICROSECOND,
+	MONITOR_SRV_PURGE_MICROSECOND,
+	MONITOR_SRV_DICT_LRU_MICROSECOND,
+	MONITOR_SRV_CHECKPOINT_MICROSECOND,
+	MONITOR_OVLD_SRV_DBLWR_WRITES,
+	MONITOR_OVLD_SRV_DBLWR_PAGES_WRITTEN,
+	MONITOR_OVLD_SRV_PAGE_SIZE,
+	MONITOR_OVLD_RWLOCK_S_SPIN_WAITS,
+	MONITOR_OVLD_RWLOCK_X_SPIN_WAITS,
+	MONITOR_OVLD_RWLOCK_S_SPIN_ROUNDS,
+	MONITOR_OVLD_RWLOCK_X_SPIN_ROUNDS,
+	MONITOR_OVLD_RWLOCK_S_OS_WAITS,
+	MONITOR_OVLD_RWLOCK_X_OS_WAITS,
+
 	/* Data DML related counters */
-	MONITOR_MODULE_DMLSTATS,
+	MONITOR_MODULE_DML_STATS,
 	MONITOR_OLVD_ROW_READ,
 	MONITOR_OLVD_ROW_INSERTED,
 	MONITOR_OLVD_ROW_DELETED,
 	MONITOR_OLVD_ROW_UPDTATED,
+
+	/* Data DDL related counters */
+	MONITOR_MODULE_DDL_STATS,
+	MONITOR_BACKGROUND_DROP_TABLE,
+
+	MONITOR_MODULE_ICP,
+	MONITOR_ICP_ATTEMPTS,
+	MONITOR_ICP_NO_MATCH,
+	MONITOR_ICP_OUT_OF_RANGE,
+	MONITOR_ICP_MATCH,
 
 	/* This is used only for control system to turn
 	on/off and reset all monitor counters */
@@ -280,6 +373,10 @@ struct monitor_info_struct {
 					belongs to */
 	const char*	monitor_desc;	/*!< Brief desc of monitor counter */
 	monitor_type_t	monitor_type;	/*!< Type of Monitor Info */
+	monitor_id_t	monitor_related_id;/*!< Monitor ID of counter that
+					related to this monitor. This is
+					set when the monitor belongs to
+					a "monitor set" */
 	monitor_id_t	monitor_id;	/*!< Monitor ID as defined in enum
 					monitor_id_t */
 };
@@ -380,13 +477,6 @@ module. */
 		MONITOR_FIELD((monitor), mon_stop_time) = time(NULL);	\
 	} while (0)
 
-#ifdef HAVE_ATOMIC_BUILTINS
-#define INC_VALUE(value, amount)					\
-		(value = os_atomic_increment_lint(&value, amount))
-#else
-#define INC_VALUE(value, amount)	((value) += (amount))
-#endif /* HAVE_ATOMIC_BUILTINS */
-
 #define	MONITOR_INIT_ZERO_VALUE		0
 
 /** Max and min values are initialized when we first turn on the monitor
@@ -426,7 +516,7 @@ on the counters */
 
 #define	MONITOR_INC_VALUE(monitor, value)				\
 	if (MONITOR_IS_ON(monitor)) {					\
-		MONITOR_VALUE(monitor) += (value);			\
+		MONITOR_VALUE(monitor) += (mon_type_t) (value);		\
 		if (MONITOR_VALUE(monitor) > MONITOR_MAX_VALUE(monitor)) {  \
 			MONITOR_MAX_VALUE(monitor) = MONITOR_VALUE(monitor);\
 		}							\
@@ -434,8 +524,8 @@ on the counters */
 
 #define	MONITOR_DEC_VALUE(monitor, value)				\
 	if (MONITOR_IS_ON(monitor)) {					\
-		ut_ad(MONITOR_VALUE(monitor) >= (value);		\
-		MONITOR_VALUE(monitor) -= (value);			\
+		ut_ad(MONITOR_VALUE(monitor) >= (mon_type_t) (value);	\
+		MONITOR_VALUE(monitor) -= (mon_type_t) (value);		\
 		if (MONITOR_VALUE(monitor) < MONITOR_MIN_VALUE(monitor)) {  \
 			MONITOR_MIN_VALUE(monitor) = MONITOR_VALUE(monitor);\
 		}							\
@@ -462,7 +552,7 @@ could already be checked as a module group */
 /** Directly set a monitor counter's value */
 #define	MONITOR_SET(monitor, value)					\
 	if (MONITOR_IS_ON(monitor)) {					\
-		MONITOR_VALUE(monitor) = (value);			\
+		MONITOR_VALUE(monitor) = (mon_type_t) (value);		\
 		if (MONITOR_VALUE(monitor) > MONITOR_MAX_VALUE(monitor)) {  \
 			MONITOR_MAX_VALUE(monitor) = MONITOR_VALUE(monitor);\
 		}							\
@@ -471,11 +561,48 @@ could already be checked as a module group */
 		}							\
 	}
 
+/** Add time difference between now and input "value" (in seconds) to the
+monitor counter
+@monitor	monitor to update for the time difference
+@value		the start time value */
+#define	MONITOR_INC_TIME_IN_MICRO_SECS(monitor, value)			\
+	if (MONITOR_IS_ON(monitor)) {					\
+		ullint	old_time = (value);				\
+		value = ut_time_us(NULL);				\
+		MONITOR_VALUE(monitor) += (mon_type_t) (value - old_time);\
+	}
+
+/** This macro updates 3 counters in one call. However, it only checks the
+main/first monitor counter 'monitor', to see it is on or off to decide
+whether to do the update.
+@monitor		the main monitor counter to update. It accounts for
+			the accumulative value for the counter.
+@monitor_n_calls	counter that counts number of times this macro is
+			called
+@monitor_per_call	counter that records the current and max value of
+			each incremental value
+@value			incremental value to record this time */
+#define MONITOR_INC_VALUE_CUMULATIVE(					\
+		monitor, monitor_n_calls, monitor_per_call, value)	\
+	if (MONITOR_IS_ON(monitor)) {					\
+		MONITOR_VALUE(monitor_n_calls)++;			\
+		MONITOR_VALUE(monitor_per_call) = (mon_type_t) (value);	\
+		if (MONITOR_VALUE(monitor_per_call)			\
+		    > MONITOR_MAX_VALUE(monitor_per_call)) {		\
+			MONITOR_MAX_VALUE(monitor_per_call) =		\
+				 (mon_type_t) (value);			\
+		}							\
+		MONITOR_VALUE(monitor) += (mon_type_t) (value);		\
+		if (MONITOR_VALUE(monitor) > MONITOR_MAX_VALUE(monitor)) {  \
+			MONITOR_MAX_VALUE(monitor) = MONITOR_VALUE(monitor);\
+		}							\
+	}
+
 /** Directly set a monitor counter's value, and if the value
 is monotonically increasing, only max value needs to be updated */
 #define	MONITOR_SET_UPD_MAX_ONLY(monitor, value)			\
 	if (MONITOR_IS_ON(monitor)) {					\
-		MONITOR_VALUE(monitor) = (value);			\
+		MONITOR_VALUE(monitor) = (mon_type_t) (value);		\
 		if (MONITOR_VALUE(monitor) > MONITOR_MAX_VALUE(monitor)) {  \
 			MONITOR_MAX_VALUE(monitor) = MONITOR_VALUE(monitor);\
 		}							\
@@ -485,7 +612,7 @@ is monotonically increasing, only max value needs to be updated */
 number, do not need to record max/min values */
 #define MONITOR_SET_SIMPLE(monitor, value)				\
 	if (MONITOR_IS_ON(monitor)) {					\
-		MONITOR_VALUE(monitor) = (lint)(value);			\
+		MONITOR_VALUE(monitor) = (mon_type_t) (value);		\
 	}
 
 /** Reset the monitor value and max/min value to zero. The reset
@@ -503,6 +630,8 @@ operation would only be conducted when the counter is turned off */
 					MONITOR_INIT_ZERO_VALUE;	\
 		MONITOR_FIELD(monitor, mon_stop_time) =			\
 					MONITOR_INIT_ZERO_VALUE;	\
+		MONITOR_FIELD(monitor, mon_reset_time) =		\
+					MONITOR_INIT_ZERO_VALUE;	\
 	} while (0)
 
 /** Following four macros defines necessary operations to fetch and
@@ -512,7 +641,7 @@ consolidate information from existing system status variables. */
 counters */
 #define MONITOR_SAVE_START(monitor, value)				\
 	(MONITOR_START_VALUE(monitor) =					\
-		 (value) - MONITOR_VALUE_RESET(monitor))
+		 (mon_type_t) (value) - MONITOR_VALUE_RESET(monitor))
 
 /** Save the passed-in value to mon_last_value field of monitor
 counters */
@@ -588,7 +717,7 @@ This function is used to calculate the maximum counter value
 since the start of monitor counter
 @return	max counter value since start. */
 UNIV_INLINE
-lint
+mon_type_t
 srv_mon_calc_max_since_start(
 /*=========================*/
 	monitor_id_t	monitor);	/*!< in: monitor id */
@@ -597,7 +726,7 @@ This function is used to calculate the minimum counter value
 since the start of monitor counter
 @return	min counter value since start. */
 UNIV_INLINE
-lint
+mon_type_t
 srv_mon_calc_min_since_start(
 /*=========================*/
 	monitor_id_t	monitor);	/*!< in: monitor id*/
@@ -616,9 +745,19 @@ void
 srv_mon_reset_all(
 /*==============*/
 	monitor_id_t	monitor);	/*!< in: monitor id*/
+/*************************************************************//**
+Turn on monitor counters that are marked as default ON. */
+UNIV_INTERN
+void
+srv_mon_default_on(void);
+/*====================*/
 
 #ifndef UNIV_NONINL
 #include "srv0mon.ic"
 #endif
+#else /* !UNIV_HOTBACKUP */
+# define MONITOR_INC(x)		((void) 0)
+# define MONITOR_DEC(x)		((void) 0)
+#endif /* !UNIV_HOTBACKUP */
 
 #endif

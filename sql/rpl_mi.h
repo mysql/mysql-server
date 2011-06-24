@@ -27,6 +27,7 @@
 #include "my_sys.h"
 
 typedef struct st_mysql MYSQL;
+class Rpl_info_factory;
 
 /*****************************************************************************
   Replication IO Thread
@@ -62,18 +63,9 @@ typedef struct st_mysql MYSQL;
 
 class Master_info : public Rpl_info
 {
- public:
-  Master_info(
-#ifdef HAVE_PSI_INTERFACE
-              PSI_mutex_key *param_key_info_run_lock,
-              PSI_mutex_key *param_key_info_data_lock,
-              PSI_mutex_key *param_key_info_data_cond,
-              PSI_mutex_key *param_key_info_start_cond,
-              PSI_mutex_key *param_key_info_stop_cond
-#endif
-             );
-  virtual ~Master_info();
+  friend class Rpl_info_factory;
 
+public:
   /* the variables below are needed because we can change masters on the fly */
   char host[HOSTNAME_LENGTH+1];
   char user[USERNAME_LENGTH+1];
@@ -120,6 +112,8 @@ class Master_info : public Rpl_info
 
   bool shall_ignore_server_id(ulong s_id);
 
+  virtual ~Master_info();
+
 protected:
   char master_log_name[FN_REFLEN];
   my_off_t master_log_pos;
@@ -146,8 +140,20 @@ private:
   bool read_info(Rpl_info_handler *from);
   bool write_info(Rpl_info_handler *to, bool force);
 
-  Master_info& operator=(const Master_info& info);
+  Master_info(
+#ifdef HAVE_PSI_INTERFACE
+              PSI_mutex_key *param_key_info_run_lock,
+              PSI_mutex_key *param_key_info_data_lock,
+              PSI_mutex_key *param_key_info_sleep_lock,
+              PSI_mutex_key *param_key_info_data_cond,
+              PSI_mutex_key *param_key_info_start_cond,
+              PSI_mutex_key *param_key_info_stop_cond,
+              PSI_mutex_key *param_key_info_sleep_cond
+#endif
+             );
   Master_info(const Master_info& info);
+
+  Master_info& operator=(const Master_info& info);
 };
 int change_master_server_id_cmp(ulong *id1, ulong *id2);
 

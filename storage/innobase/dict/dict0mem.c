@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1996, 2010, Innobase Oy. All Rights Reserved.
+Copyright (c) 1996, 2011, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -11,8 +11,8 @@ ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
 FOR A PARTICULAR PURPOSE. See the GNU General Public License for more details.
 
 You should have received a copy of the GNU General Public License along with
-this program; if not, write to the Free Software Foundation, Inc., 59 Temple
-Place, Suite 330, Boston, MA 02111-1307 USA
+this program; if not, write to the Free Software Foundation, Inc.,
+51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA
 
 *****************************************************************************/
 
@@ -33,11 +33,14 @@ Created 1/8/1996 Heikki Tuuri
 #include "data0type.h"
 #include "mach0data.h"
 #include "dict0dict.h"
-#include "srv0srv.h" /* srv_lower_case_table_names */
-#include "ha_prototypes.h" /* innobase_casedn_str()*/
 #ifndef UNIV_HOTBACKUP
+#include "ha_prototypes.h"	/* innobase_casedn_str(),
+				innobase_get_lower_case_table_names */
 # include "lock0lock.h"
 #endif /* !UNIV_HOTBACKUP */
+#ifdef UNIV_BLOB_DEBUG
+# include "ut0rbt.h"
+#endif /* UNIV_BLOB_DEBUG */
 
 #define	DICT_HEAP_SIZE		100	/*!< initial memory heap size when
 					creating a table or index object */
@@ -60,13 +63,15 @@ dict_mem_table_create(
 				ignored if the table is made a member of
 				a cluster */
 	ulint		n_cols,	/*!< in: number of columns */
-	ulint		flags)	/*!< in: table flags */
+	ulint		flags,	/*!< in: table flags */
+	ulint		flags2)	/*!< in: table flags2 */
 {
 	dict_table_t*	table;
 	mem_heap_t*	heap;
 
 	ut_ad(name);
-	ut_a(!(flags & (~0 << DICT_TF2_BITS)));
+	ut_a(!(flags & ~DICT_TF_BIT_MASK));
+	ut_a(!(flags2 & ~DICT_TF2_BIT_MASK));
 
 	heap = mem_heap_create(DICT_HEAP_SIZE);
 
@@ -75,6 +80,7 @@ dict_mem_table_create(
 	table->heap = heap;
 
 	table->flags = (unsigned int) flags;
+	table->flags2 = (unsigned int) flags2;
 	table->name = ut_malloc(strlen(name) + 1);
 	memcpy(table->name, name, strlen(name) + 1);
 	table->space = (unsigned int) space;
@@ -230,6 +236,7 @@ dict_mem_fill_column_struct(
 
 	column->ind = (unsigned int) col_pos;
 	column->ord_part = 0;
+	column->max_prefix = 0;
 	column->mtype = (unsigned int) mtype;
 	column->prtype = (unsigned int) prtype;
 	column->len = (unsigned int) col_len;
@@ -269,6 +276,7 @@ dict_mem_index_create(
 	return(index);
 }
 
+#ifndef UNIV_HOTBACKUP
 /**********************************************************************//**
 Creates and initializes a foreign constraint memory object.
 @return	own: foreign constraint struct */
@@ -291,9 +299,9 @@ dict_mem_foreign_create(void)
 
 /**********************************************************************//**
 Sets the foreign_table_name_lookup pointer based on the value of
-srv_lower_case_table_names.  If that is 0 or 1, foreign_table_name_lookup
-will point to foreign_table_name.  If 2, then another string is allocated
-of the heap and set to lower case. */
+lower_case_table_names.  If that is 0 or 1, foreign_table_name_lookup
+will point to foreign_table_name.  If 2, then another string is
+allocated from foreign->heap and set to lower case. */
 UNIV_INTERN
 void
 dict_mem_foreign_table_name_lookup_set(
@@ -301,7 +309,7 @@ dict_mem_foreign_table_name_lookup_set(
 	dict_foreign_t*	foreign,	/*!< in/out: foreign struct */
 	ibool		do_alloc)	/*!< in: is an alloc needed */
 {
-	if (srv_lower_case_table_names == 2) {
+	if (innobase_get_lower_case_table_names() == 2) {
 		if (do_alloc) {
 			foreign->foreign_table_name_lookup = mem_heap_alloc(
 				foreign->heap,
@@ -318,9 +326,9 @@ dict_mem_foreign_table_name_lookup_set(
 
 /**********************************************************************//**
 Sets the referenced_table_name_lookup pointer based on the value of
-srv_lower_case_table_names.  If that is 0 or 1,
-referenced_table_name_lookup will point to referenced_table_name.  If 2,
-then another string is allocated of the heap and set to lower case. */
+lower_case_table_names.  If that is 0 or 1, referenced_table_name_lookup
+will point to referenced_table_name.  If 2, then another string is
+allocated from foreign->heap and set to lower case. */
 UNIV_INTERN
 void
 dict_mem_referenced_table_name_lookup_set(
@@ -328,7 +336,7 @@ dict_mem_referenced_table_name_lookup_set(
 	dict_foreign_t*	foreign,	/*!< in/out: foreign struct */
 	ibool		do_alloc)	/*!< in: is an alloc needed */
 {
-	if (srv_lower_case_table_names == 2) {
+	if (innobase_get_lower_case_table_names() == 2) {
 		if (do_alloc) {
 			foreign->referenced_table_name_lookup = mem_heap_alloc(
 				foreign->heap,
@@ -342,6 +350,7 @@ dict_mem_referenced_table_name_lookup_set(
 			= foreign->referenced_table_name;
 	}
 }
+#endif /* !UNIV_HOTBACKUP */
 
 /**********************************************************************//**
 Adds a field definition to an index. NOTE: does not take a copy
@@ -380,6 +389,12 @@ dict_mem_index_free(
 {
 	ut_ad(index);
 	ut_ad(index->magic_n == DICT_INDEX_MAGIC_N);
+#ifdef UNIV_BLOB_DEBUG
+	if (index->blobs) {
+		mutex_free(&index->blobs_mutex);
+		rbt_free(index->blobs);
+	}
+#endif /* UNIV_BLOB_DEBUG */
 
 	mem_heap_free(index->heap);
 }

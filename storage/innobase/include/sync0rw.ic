@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1995, 2009, Innobase Oy. All Rights Reserved.
+Copyright (c) 1995, 2011, Oracle and/or its affiliates. All Rights Reserved.
 Copyright (c) 2008, Google Inc.
 
 Portions of this file contain modifications contributed and copyrighted by
@@ -504,7 +504,7 @@ rw_lock_s_unlock_func(
                 anyway. We do not wake other waiters, because they can't
                 exist without wait_ex waiter and wait_ex waiter goes first.*/
 		os_event_set(lock->wait_ex_event);
-		sync_array_object_signalled(sync_primary_wait_array);
+		sync_array_object_signalled();
 
 	}
 
@@ -578,7 +578,7 @@ rw_lock_x_unlock_func(
 		if (lock->waiters) {
 			rw_lock_reset_waiter_flag(lock);
 			os_event_set(lock->event);
-			sync_array_object_signalled(sync_primary_wait_array);
+			sync_array_object_signalled();
 		}
 	}
 
@@ -603,15 +603,15 @@ rw_lock_x_unlock_direct(
 
 	ut_ad((lock->lock_word % X_LOCK_DECR) == 0);
 
-#ifdef UNIV_SYNC_DEBUG
-	rw_lock_remove_debug_info(lock, 0, RW_LOCK_EX);
-#endif
-
 	if (lock->lock_word == 0) {
 		lock->recursive = FALSE;
 		UNIV_MEM_INVALID(&lock->writer_thread,
 				 sizeof lock->writer_thread);
 	}
+
+#ifdef UNIV_SYNC_DEBUG
+	rw_lock_remove_debug_info(lock, 0, RW_LOCK_EX);
+#endif
 
 	lock->lock_word += X_LOCK_DECR;
 

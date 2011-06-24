@@ -48,9 +48,6 @@ Created 4/20/1996 Heikki Tuuri
 #include "usr0sess.h"
 #include "buf0lru.h"
 
-#define	ROW_INS_PREV	1
-#define	ROW_INS_NEXT	2
-
 /*************************************************************************
 IMPORTANT NOTE: Any operation that generates redo MUST check that there
 is enough space in the redo log before for that operation. This is
@@ -345,9 +342,9 @@ row_ins_clust_index_entry_by_modify(
 			return(DB_LOCK_TABLE_FULL);
 
 		}
-		err = btr_cur_pessimistic_update(0, cursor,
-						 heap, big_rec, update,
-						 0, thr, mtr);
+		err = btr_cur_pessimistic_update(
+			BTR_KEEP_POS_FLAG, cursor, heap, big_rec, update,
+			0, thr, mtr);
 	}
 
 	return(err);
@@ -1930,23 +1927,22 @@ func_exit:
 }
 
 /***************************************************************//**
-Checks if an index entry has long enough common prefix with an existing
-record so that the intended insert of the entry must be changed to a modify of
-the existing record. In the case of a clustered index, the prefix must be
-n_unique fields long, and in the case of a secondary index, all fields must be
-equal.
-@return 0 if no update, ROW_INS_PREV if previous should be updated;
-currently we do the search so that only the low_match record can match
-enough to the search tuple, not the next record */
+Checks if an index entry has long enough common prefix with an
+existing record so that the intended insert of the entry must be
+changed to a modify of the existing record. In the case of a clustered
+index, the prefix must be n_unique fields long. In the case of a
+secondary index, all fields must be equal.  InnoDB never updates
+secondary index records in place, other than clearing or setting the
+delete-mark flag. We could be able to update the non-unique fields
+of a unique secondary index record by checking the cursor->up_match,
+but we do not do so, because it could have some locking implications.
+@return TRUE if the existing record should be updated; FALSE if not */
 UNIV_INLINE
-ulint
-row_ins_must_modify(
-/*================*/
-	btr_cur_t*	cursor)	/*!< in: B-tree cursor */
+ibool
+row_ins_must_modify_rec(
+/*====================*/
+	const btr_cur_t*	cursor)	/*!< in: B-tree cursor */
 {
-	ulint	enough_match;
-	rec_t*	rec;
-
 	/* NOTE: (compare to the note in row_ins_duplicate_error) Because node
 	pointers on upper levels of the B-tree may match more to entry than
 	to actual user records on the leaf level, we have to check if the
@@ -1954,19 +1950,9 @@ row_ins_must_modify(
 	node pointers contain index->n_unique first fields, and in the case
 	of a secondary index, all fields of the index. */
 
-	enough_match = dict_index_get_n_unique_in_tree(cursor->index);
-
-	if (cursor->low_match >= enough_match) {
-
-		rec = btr_cur_get_rec(cursor);
-
-		if (!page_rec_is_infimum(rec)) {
-
-			return(ROW_INS_PREV);
-		}
-	}
-
-	return(0);
+	return(cursor->low_match
+	       >= dict_index_get_n_unique_in_tree(cursor->index)
+	       && !page_rec_is_infimum(btr_cur_get_rec(cursor)));
 }
 
 /***************************************************************//**
@@ -1994,9 +1980,10 @@ row_ins_index_entry_low(
 {
 	btr_cur_t	cursor;
 	ulint		search_mode;
-	ulint		modify = 0; /* remove warning */
+	ibool		modify			= FALSE;
 	rec_t*		insert_rec;
 	rec_t*		rec;
+	ulint*		offsets;
 	ulint		err;
 	ulint		n_unique;
 	big_rec_t*	big_rec			= NULL;
@@ -2087,24 +2074,53 @@ row_ins_index_entry_low(
 		}
 	}
 
-	modify = row_ins_must_modify(&cursor);
+	modify = row_ins_must_modify_rec(&cursor);
 
-	if (modify != 0) {
+	if (modify) {
 		/* There is already an index entry with a long enough common
 		prefix, we must convert the insert into a modify of an
 		existing record */
-
-		if (modify == ROW_INS_NEXT) {
-			rec = page_rec_get_next(btr_cur_get_rec(&cursor));
-
-			btr_cur_position(index, rec,
-					 btr_cur_get_block(&cursor),&cursor);
-		}
 
 		if (dict_index_is_clust(index)) {
 			err = row_ins_clust_index_entry_by_modify(
 				mode, &cursor, &heap, &big_rec, entry,
 				thr, &mtr);
+
+			if (big_rec) {
+				ut_a(err == DB_SUCCESS);
+				/* Write out the externally stored
+				columns while still x-latching
+				index->lock and block->lock. We have
+				to mtr_commit(mtr) first, so that the
+				redo log will be written in the
+				correct order. Otherwise, we would run
+				into trouble on crash recovery if mtr
+				freed B-tree pages on which some of
+				the big_rec fields will be written. */
+				btr_cur_mtr_commit_and_start(&cursor, &mtr);
+
+				rec = btr_cur_get_rec(&cursor);
+				offsets = rec_get_offsets(
+					rec, index, NULL,
+					ULINT_UNDEFINED, &heap);
+
+				err = btr_store_big_rec_extern_fields(
+					index, btr_cur_get_block(&cursor),
+					rec, offsets, &mtr, FALSE, big_rec);
+				/* If writing big_rec fails (for
+				example, because of DB_OUT_OF_FILE_SPACE),
+				the record will be corrupted. Even if
+				we did not update any externally
+				stored columns, our update could cause
+				the record to grow so that a
+				non-updated column was selected for
+				external storage. This non-update
+				would not have been written to the
+				undo log, and thus the record cannot
+				be rolled back. */
+				ut_a(err == DB_SUCCESS);
+				goto stored_big_rec;
+			}
 		} else {
 			ut_ad(!n_ext);
 			err = row_ins_sec_index_entry_by_modify(
@@ -2133,8 +2149,6 @@ function_exit:
 	mtr_commit(&mtr);
 
 	if (UNIV_LIKELY_NULL(big_rec)) {
-		rec_t*	rec;
-		ulint*	offsets;
 		mtr_start(&mtr);
 
 		btr_cur_search_to_nth_level(index, 0, entry, PAGE_CUR_LE,
@@ -2148,6 +2162,7 @@ function_exit:
 			index, btr_cur_get_block(&cursor),
 			rec, offsets, &mtr, FALSE, big_rec);
 
+stored_big_rec:
 		if (modify) {
 			dtuple_big_rec_free(big_rec);
 		} else {

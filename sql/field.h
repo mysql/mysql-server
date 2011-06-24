@@ -1,7 +1,7 @@
 #ifndef FIELD_INCLUDED
 #define FIELD_INCLUDED
 
-/* Copyright (c) 2000, 2011 Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2011, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -15,10 +15,6 @@
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
-
-#ifdef USE_PRAGMA_INTERFACE
-#pragma interface			/* gcc class implementation */
-#endif
 
 #include "mysqld.h"                             /* system_charset_info */
 #include "table.h"                              /* TABLE */
@@ -147,12 +143,13 @@ public:
         const char *field_name_arg);
   virtual ~Field() {}
   /* Store functions returns 1 on overflow and -1 on fatal error */
-  virtual int  store(const char *to, uint length,CHARSET_INFO *cs)=0;
+  virtual int  store(const char *to, uint length,
+                     const CHARSET_INFO *cs)=0;
   virtual int  store(double nr)=0;
   virtual int  store(longlong nr, bool unsigned_val)=0;
   virtual int  store_decimal(const my_decimal *d)=0;
   virtual int store_time(MYSQL_TIME *ltime, timestamp_type t_type);
-  int store(const char *to, uint length, CHARSET_INFO *cs,
+  int store(const char *to, uint length, const CHARSET_INFO *cs,
             enum_check_fields check_level);
   virtual double val_real(void)=0;
   virtual longlong val_int(void)=0;
@@ -230,7 +227,7 @@ public:
     return pack_length();
   };
 
-  virtual int reset(void) { bzero(ptr,pack_length()); return 0; }
+  virtual int reset(void) { memset(ptr, 0, pack_length()); return 0; }
   virtual void reset_fields() {}
   virtual void set_default()
   {
@@ -372,9 +369,10 @@ public:
     if (null_ptr)
       null_ptr=ADD_TO_PTR(null_ptr,ptr_diff,uchar*);
   }
-  virtual void get_image(uchar *buff, uint length, CHARSET_INFO *cs)
+  virtual void get_image(uchar *buff, uint length, const CHARSET_INFO *cs)
     { memcpy(buff,ptr,length); }
-  virtual void set_image(const uchar *buff,uint length, CHARSET_INFO *cs)
+  virtual void set_image(const uchar *buff,uint length,
+                         const CHARSET_INFO *cs)
     { memcpy(ptr,buff,length); }
 
 
@@ -474,12 +472,12 @@ public:
   uint fill_cache_field(struct st_cache_field *copy);
   virtual bool get_date(MYSQL_TIME *ltime,uint fuzzydate);
   virtual bool get_time(MYSQL_TIME *ltime);
-  virtual CHARSET_INFO *charset(void) const { return &my_charset_bin; }
-  virtual CHARSET_INFO *charset_for_protocol(void) const
+  virtual const CHARSET_INFO *charset(void) const { return &my_charset_bin; }
+  virtual const CHARSET_INFO *charset_for_protocol(void) const
   { return binary() ? &my_charset_bin : charset(); }
-  virtual CHARSET_INFO *sort_charset(void) const { return charset(); }
+  virtual const CHARSET_INFO *sort_charset(void) const { return charset(); }
   virtual bool has_charset(void) const { return FALSE; }
-  virtual void set_charset(CHARSET_INFO *charset_arg) { }
+  virtual void set_charset(const CHARSET_INFO *charset_arg) { }
   virtual enum Derivation derivation(void) const
   { return DERIVATION_IMPLICIT; }
   virtual uint repertoire(void) const { return MY_REPERTOIRE_UNICODE30; }
@@ -751,7 +749,7 @@ public:
   Item_result result_type () const { return REAL_RESULT; }
   enum Derivation derivation(void) const { return DERIVATION_NUMERIC; }
   uint repertoire(void) const { return MY_REPERTOIRE_NUMERIC; }
-  CHARSET_INFO *charset(void) const { return &my_charset_numeric; }
+  const CHARSET_INFO *charset(void) const { return &my_charset_numeric; }
   void prepend_zeros(String *value);
   void add_zerofill_and_unsigned(String &res) const;
   friend class Create_field;
@@ -768,9 +766,9 @@ public:
                           field_metadata, length));
     return length;
   }
-  int check_int(CHARSET_INFO *cs, const char *str, int length,
+  int check_int(const CHARSET_INFO *cs, const char *str, int length,
                 const char *int_end, int error);
-  bool get_int(CHARSET_INFO *cs, const char *from, uint len, 
+  bool get_int(const CHARSET_INFO *cs, const char *from, uint len, 
                longlong *rnd, ulonglong unsigned_max, 
                longlong signed_min, longlong signed_max);
 };
@@ -778,12 +776,12 @@ public:
 
 class Field_str :public Field {
 protected:
-  CHARSET_INFO *field_charset;
+  const CHARSET_INFO *field_charset;
   enum Derivation field_derivation;
 public:
   Field_str(uchar *ptr_arg,uint32 len_arg, uchar *null_ptr_arg,
 	    uchar null_bit_arg, utype unireg_check_arg,
-	    const char *field_name_arg, CHARSET_INFO *charset);
+	    const char *field_name_arg, const CHARSET_INFO *charset);
   Item_result result_type () const { return STRING_RESULT; }
   /*
     match_collation_to_optimize_range() is to distinguish in
@@ -800,13 +798,14 @@ public:
   int  store(double nr);
   int  store(longlong nr, bool unsigned_val)=0;
   int  store_decimal(const my_decimal *);
-  int  store(const char *to,uint length,CHARSET_INFO *cs)=0;
+  int  store(const char *to,uint length, const CHARSET_INFO *cs)=0;
   uint repertoire(void) const
   {
     return my_charset_repertoire(field_charset);
   }
-  CHARSET_INFO *charset(void) const { return field_charset; }
-  void set_charset(CHARSET_INFO *charset_arg) { field_charset= charset_arg; }
+  const CHARSET_INFO *charset(void) const { return field_charset; }
+  void set_charset(const CHARSET_INFO *charset_arg)
+  { field_charset= charset_arg; }
   enum Derivation derivation(void) const { return field_derivation; }
   virtual void set_derivation(enum Derivation derivation_arg)
   { field_derivation= derivation_arg; }
@@ -829,7 +828,7 @@ protected:
 public:
   Field_longstr(uchar *ptr_arg, uint32 len_arg, uchar *null_ptr_arg,
                 uchar null_bit_arg, utype unireg_check_arg,
-                const char *field_name_arg, CHARSET_INFO *charset_arg)
+                const char *field_name_arg, const CHARSET_INFO *charset_arg)
     :Field_str(ptr_arg, len_arg, null_ptr_arg, null_bit_arg, unireg_check_arg,
                field_name_arg, charset_arg)
     {}
@@ -876,7 +875,7 @@ public:
   enum ha_base_keytype key_type() const
   { return zerofill ? HA_KEYTYPE_BINARY : HA_KEYTYPE_NUM; }
   int reset(void);
-  int store(const char *to,uint length,CHARSET_INFO *charset);
+  int store(const char *to,uint length, const CHARSET_INFO *charset);
   int store(double nr);
   int store(longlong nr, bool unsigned_val);
   double val_real(void);
@@ -935,7 +934,7 @@ public:
   int  reset(void);
   bool store_value(const my_decimal *decimal_value);
   void set_value_on_overflow(my_decimal *decimal_value, bool sign);
-  int  store(const char *to, uint length, CHARSET_INFO *charset);
+  int  store(const char *to, uint length, const CHARSET_INFO *charset);
   int  store(double nr);
   int  store(longlong nr, bool unsigned_val);
   int store_time(MYSQL_TIME *ltime, timestamp_type t_type);
@@ -983,7 +982,7 @@ public:
   enum_field_types type() const { return MYSQL_TYPE_TINY;}
   enum ha_base_keytype key_type() const
     { return unsigned_flag ? HA_KEYTYPE_BINARY : HA_KEYTYPE_INT8; }
-  int store(const char *to,uint length,CHARSET_INFO *charset);
+  int store(const char *to,uint length, const CHARSET_INFO *charset);
   int store(double nr);
   int store(longlong nr, bool unsigned_val);
   int reset(void) { ptr[0]=0; return 0; }
@@ -1039,7 +1038,7 @@ public:
   enum_field_types type() const { return MYSQL_TYPE_SHORT;}
   enum ha_base_keytype key_type() const
     { return unsigned_flag ? HA_KEYTYPE_USHORT_INT : HA_KEYTYPE_SHORT_INT;}
-  int store(const char *to,uint length,CHARSET_INFO *charset);
+  int store(const char *to,uint length, const CHARSET_INFO *charset);
   int store(double nr);
   int store(longlong nr, bool unsigned_val);
   int reset(void) { ptr[0]=ptr[1]=0; return 0; }
@@ -1087,7 +1086,7 @@ public:
   enum_field_types type() const { return MYSQL_TYPE_INT24;}
   enum ha_base_keytype key_type() const
     { return unsigned_flag ? HA_KEYTYPE_UINT24 : HA_KEYTYPE_INT24; }
-  int store(const char *to,uint length,CHARSET_INFO *charset);
+  int store(const char *to,uint length, const CHARSET_INFO *charset);
   int store(double nr);
   int store(longlong nr, bool unsigned_val);
   int reset(void) { ptr[0]=ptr[1]=ptr[2]=0; return 0; }
@@ -1141,7 +1140,7 @@ public:
   enum_field_types type() const { return MYSQL_TYPE_LONG;}
   enum ha_base_keytype key_type() const
     { return unsigned_flag ? HA_KEYTYPE_ULONG_INT : HA_KEYTYPE_LONG_INT; }
-  int store(const char *to,uint length,CHARSET_INFO *charset);
+  int store(const char *to,uint length, const CHARSET_INFO *charset);
   int store(double nr);
   int store(longlong nr, bool unsigned_val);
   int reset(void) { ptr[0]=ptr[1]=ptr[2]=ptr[3]=0; return 0; }
@@ -1198,7 +1197,7 @@ public:
   enum_field_types type() const { return MYSQL_TYPE_LONGLONG;}
   enum ha_base_keytype key_type() const
     { return unsigned_flag ? HA_KEYTYPE_ULONGLONG : HA_KEYTYPE_LONGLONG; }
-  int store(const char *to,uint length,CHARSET_INFO *charset);
+  int store(const char *to,uint length, const CHARSET_INFO *charset);
   int store(double nr);
   int store(longlong nr, bool unsigned_val);
   int reset(void)
@@ -1257,10 +1256,10 @@ public:
     {}
   enum_field_types type() const { return MYSQL_TYPE_FLOAT;}
   enum ha_base_keytype key_type() const { return HA_KEYTYPE_FLOAT; }
-  int store(const char *to,uint length,CHARSET_INFO *charset);
+  int store(const char *to,uint length, const CHARSET_INFO *charset);
   int store(double nr);
   int store(longlong nr, bool unsigned_val);
-  int reset(void) { bzero(ptr,sizeof(float)); return 0; }
+  int reset(void) { memset(ptr, 0, sizeof(float)); return 0; }
   double val_real(void);
   longlong val_int(void);
   String *val_str(String*,String *);
@@ -1305,10 +1304,10 @@ public:
     {not_fixed= not_fixed_arg; }
   enum_field_types type() const { return MYSQL_TYPE_DOUBLE;}
   enum ha_base_keytype key_type() const { return HA_KEYTYPE_DOUBLE; }
-  int  store(const char *to,uint length,CHARSET_INFO *charset);
+  int  store(const char *to,uint length, const CHARSET_INFO *charset);
   int  store(double nr);
   int  store(longlong nr, bool unsigned_val);
-  int reset(void) { bzero(ptr,sizeof(double)); return 0; }
+  int reset(void) { memset(ptr, 0, sizeof(double)); return 0; }
   double val_real(void);
   longlong val_int(void);
   String *val_str(String*,String *);
@@ -1338,13 +1337,13 @@ class Field_null :public Field_str {
 public:
   Field_null(uchar *ptr_arg, uint32 len_arg,
 	     enum utype unireg_check_arg, const char *field_name_arg,
-	     CHARSET_INFO *cs)
+	     const CHARSET_INFO *cs)
     :Field_str(ptr_arg, len_arg, null, 1,
 	       unireg_check_arg, field_name_arg, cs)
     {}
   enum_field_types type() const { return MYSQL_TYPE_NULL;}
   bool match_collation_to_optimize_range() const { return FALSE; }
-  int  store(const char *to, uint length, CHARSET_INFO *cs)
+  int  store(const char *to, uint length, const CHARSET_INFO *cs)
   { null[0]=1; return 0; }
   int store(double nr)   { null[0]=1; return 0; }
   int store(longlong nr, bool unsigned_val) { null[0]=1; return 0; }
@@ -1376,18 +1375,18 @@ public:
   Field_timestamp(uchar *ptr_arg, uint32 len_arg,
                   uchar *null_ptr_arg, uchar null_bit_arg,
 		  enum utype unireg_check_arg, const char *field_name_arg,
-		  TABLE_SHARE *share, CHARSET_INFO *cs);
+		  TABLE_SHARE *share, const CHARSET_INFO *cs);
   Field_timestamp(bool maybe_null_arg, const char *field_name_arg,
-		  CHARSET_INFO *cs);
+		  const CHARSET_INFO *cs);
   enum_field_types type() const { return MYSQL_TYPE_TIMESTAMP;}
   bool match_collation_to_optimize_range() const { return FALSE; }
   enum ha_base_keytype key_type() const { return HA_KEYTYPE_ULONG_INT; }
   enum Item_result cmp_type () const { return INT_RESULT; }
   enum Derivation derivation(void) const { return DERIVATION_NUMERIC; }
   uint repertoire(void) const { return MY_REPERTOIRE_NUMERIC; }
-  CHARSET_INFO *charset(void) const { return &my_charset_numeric; }
+  const CHARSET_INFO *charset(void) const { return &my_charset_numeric; }
   bool binary() const { return 1; }
-  int  store(const char *to,uint length,CHARSET_INFO *charset);
+  int  store(const char *to,uint length,const CHARSET_INFO *charset);
   int  store(double nr);
   int  store(longlong nr, bool unsigned_val);
   int  reset(void) { ptr[0]=ptr[1]=ptr[2]=ptr[3]=0; return 0; }
@@ -1468,7 +1467,7 @@ public:
 		unireg_check_arg, field_name_arg, 1, 1)
     {}
   enum_field_types type() const { return MYSQL_TYPE_YEAR;}
-  int  store(const char *to,uint length,CHARSET_INFO *charset);
+  int  store(const char *to,uint length, const CHARSET_INFO *charset);
   int  store(double nr);
   int  store(longlong nr, bool unsigned_val);
   double val_real(void);
@@ -1492,12 +1491,12 @@ class Field_date :public Field_str {
 public:
   Field_date(uchar *ptr_arg, uchar *null_ptr_arg, uchar null_bit_arg,
 	     enum utype unireg_check_arg, const char *field_name_arg,
-	     CHARSET_INFO *cs)
+	     const CHARSET_INFO *cs)
     :Field_str(ptr_arg, MAX_DATE_WIDTH, null_ptr_arg, null_bit_arg,
 	       unireg_check_arg, field_name_arg, cs)
     { flags|= BINARY_FLAG; }
   Field_date(bool maybe_null_arg, const char *field_name_arg,
-             CHARSET_INFO *cs)
+             const CHARSET_INFO *cs)
     :Field_str((uchar*) 0, MAX_DATE_WIDTH, maybe_null_arg ? (uchar*) "": 0,0,
 	       NONE, field_name_arg, cs) { flags|= BINARY_FLAG; }
   enum_field_types type() const { return MYSQL_TYPE_DATE;}
@@ -1506,9 +1505,9 @@ public:
   enum Item_result cmp_type () const { return INT_RESULT; }
   enum Derivation derivation(void) const { return DERIVATION_NUMERIC; }
   uint repertoire(void) const { return MY_REPERTOIRE_NUMERIC; }
-  CHARSET_INFO *charset(void) const { return &my_charset_numeric; }
+  const CHARSET_INFO *charset(void) const { return &my_charset_numeric; }
   bool binary() const { return 1; }
-  int store(const char *to,uint length,CHARSET_INFO *charset);
+  int store(const char *to,uint length, const CHARSET_INFO *charset);
   int store(double nr);
   int store(longlong nr, bool unsigned_val);
   int reset(void) { ptr[0]=ptr[1]=ptr[2]=ptr[3]=0; return 0; }
@@ -1549,12 +1548,12 @@ class Field_newdate :public Field_str {
 public:
   Field_newdate(uchar *ptr_arg, uchar *null_ptr_arg, uchar null_bit_arg,
 		enum utype unireg_check_arg, const char *field_name_arg,
-		CHARSET_INFO *cs)
+		const CHARSET_INFO *cs)
     :Field_str(ptr_arg, 10, null_ptr_arg, null_bit_arg,
 	       unireg_check_arg, field_name_arg, cs)
     { flags|= BINARY_FLAG; }
   Field_newdate(bool maybe_null_arg, const char *field_name_arg,
-                CHARSET_INFO *cs)
+                const CHARSET_INFO *cs)
     :Field_str((uchar*) 0,10, maybe_null_arg ? (uchar*) "": 0,0,
                NONE, field_name_arg, cs) { flags|= BINARY_FLAG; }
   enum_field_types type() const { return MYSQL_TYPE_DATE;}
@@ -1564,9 +1563,9 @@ public:
   enum Item_result cmp_type () const { return INT_RESULT; }
   enum Derivation derivation(void) const { return DERIVATION_NUMERIC; }
   uint repertoire(void) const { return MY_REPERTOIRE_NUMERIC; }
-  CHARSET_INFO *charset(void) const { return &my_charset_numeric; }
+  const CHARSET_INFO *charset(void) const { return &my_charset_numeric; }
   bool binary() const { return 1; }
-  int  store(const char *to,uint length,CHARSET_INFO *charset);
+  int  store(const char *to,uint length, const CHARSET_INFO *charset);
   int  store(double nr);
   int  store(longlong nr, bool unsigned_val);
   int store_time(MYSQL_TIME *ltime, timestamp_type type);
@@ -1600,12 +1599,12 @@ class Field_time :public Field_str {
 public:
   Field_time(uchar *ptr_arg, uchar *null_ptr_arg, uchar null_bit_arg,
 	     enum utype unireg_check_arg, const char *field_name_arg,
-	     CHARSET_INFO *cs)
+	     const CHARSET_INFO *cs)
     :Field_str(ptr_arg, 8, null_ptr_arg, null_bit_arg,
 	       unireg_check_arg, field_name_arg, cs)
     { flags|= BINARY_FLAG; }
   Field_time(bool maybe_null_arg, const char *field_name_arg,
-             CHARSET_INFO *cs)
+             const CHARSET_INFO *cs)
     :Field_str((uchar*) 0,8, maybe_null_arg ? (uchar*) "": 0,0,
 	       NONE, field_name_arg, cs) { flags|= BINARY_FLAG; }
   enum_field_types type() const { return MYSQL_TYPE_TIME;}
@@ -1614,10 +1613,10 @@ public:
   enum Item_result cmp_type () const { return INT_RESULT; }
   enum Derivation derivation(void) const { return DERIVATION_NUMERIC; }
   uint repertoire(void) const { return MY_REPERTOIRE_NUMERIC; }
-  CHARSET_INFO *charset(void) const { return &my_charset_numeric; }
+  const CHARSET_INFO *charset(void) const { return &my_charset_numeric; }
   bool binary() const { return 1; }
   int store_time(MYSQL_TIME *ltime, timestamp_type type);
-  int store(const char *to,uint length,CHARSET_INFO *charset);
+  int store(const char *to,uint length, const CHARSET_INFO *charset);
   int store(double nr);
   int store(longlong nr, bool unsigned_val);
   int reset(void) { ptr[0]=ptr[1]=ptr[2]=0; return 0; }
@@ -1648,12 +1647,12 @@ class Field_datetime :public Field_str {
 public:
   Field_datetime(uchar *ptr_arg, uchar *null_ptr_arg, uchar null_bit_arg,
 		 enum utype unireg_check_arg, const char *field_name_arg,
-		 CHARSET_INFO *cs)
+		 const CHARSET_INFO *cs)
     :Field_str(ptr_arg, MAX_DATETIME_WIDTH, null_ptr_arg, null_bit_arg,
 	       unireg_check_arg, field_name_arg, cs)
     { flags|= BINARY_FLAG; }
   Field_datetime(bool maybe_null_arg, const char *field_name_arg,
-		 CHARSET_INFO *cs)
+		 const CHARSET_INFO *cs)
     :Field_str((uchar*) 0, MAX_DATETIME_WIDTH, maybe_null_arg ? (uchar*) "": 0,0,
 	       NONE, field_name_arg, cs) { flags|= BINARY_FLAG; }
   enum_field_types type() const { return MYSQL_TYPE_DATETIME;}
@@ -1664,10 +1663,10 @@ public:
   enum Item_result cmp_type () const { return INT_RESULT; }
   enum Derivation derivation(void) const { return DERIVATION_NUMERIC; }
   uint repertoire(void) const { return MY_REPERTOIRE_NUMERIC; }
-  CHARSET_INFO *charset(void) const { return &my_charset_numeric; }
+  const CHARSET_INFO *charset(void) const { return &my_charset_numeric; }
   bool binary() const { return 1; }
   uint decimals() const { return DATETIME_DEC; }
-  int  store(const char *to,uint length,CHARSET_INFO *charset);
+  int  store(const char *to,uint length, const CHARSET_INFO *charset);
   int  store(double nr);
   int  store(longlong nr, bool unsigned_val);
   int store_time(MYSQL_TIME *ltime, timestamp_type type);
@@ -1716,12 +1715,12 @@ public:
   Field_string(uchar *ptr_arg, uint32 len_arg,uchar *null_ptr_arg,
 	       uchar null_bit_arg,
 	       enum utype unireg_check_arg, const char *field_name_arg,
-	       CHARSET_INFO *cs)
+	       const CHARSET_INFO *cs)
     :Field_longstr(ptr_arg, len_arg, null_ptr_arg, null_bit_arg,
                    unireg_check_arg, field_name_arg, cs),
      can_alter_field_type(1) {};
   Field_string(uint32 len_arg,bool maybe_null_arg, const char *field_name_arg,
-               CHARSET_INFO *cs)
+               const CHARSET_INFO *cs)
     :Field_longstr((uchar*) 0, len_arg, maybe_null_arg ? (uchar*) "": 0, 0,
                    NONE, field_name_arg, cs),
      can_alter_field_type(1) {};
@@ -1744,7 +1743,7 @@ public:
                           (has_charset() ? ' ' : 0));
     return 0;
   }
-  int store(const char *to,uint length,CHARSET_INFO *charset);
+  int store(const char *to,uint length, const CHARSET_INFO *charset);
   int store(longlong nr, bool unsigned_val);
   int store(double nr) { return Field_str::store(nr); } /* QQ: To be deleted */
   double val_real(void);
@@ -1804,7 +1803,7 @@ public:
                   uint32 len_arg, uint length_bytes_arg,
                   uchar *null_ptr_arg, uchar null_bit_arg,
 		  enum utype unireg_check_arg, const char *field_name_arg,
-		  TABLE_SHARE *share, CHARSET_INFO *cs)
+		  TABLE_SHARE *share, const CHARSET_INFO *cs)
     :Field_longstr(ptr_arg, len_arg, null_ptr_arg, null_bit_arg,
                    unireg_check_arg, field_name_arg, cs),
      length_bytes(length_bytes_arg)
@@ -1813,7 +1812,7 @@ public:
   }
   Field_varstring(uint32 len_arg,bool maybe_null_arg,
                   const char *field_name_arg,
-                  TABLE_SHARE *share, CHARSET_INFO *cs)
+                  TABLE_SHARE *share, const CHARSET_INFO *cs)
     :Field_longstr((uchar*) 0,len_arg, maybe_null_arg ? (uchar*) "": 0, 0,
                    NONE, field_name_arg, cs),
      length_bytes(len_arg < 256 ? 1 :2)
@@ -1826,7 +1825,7 @@ public:
   enum ha_base_keytype key_type() const;
   uint row_pack_length() { return field_length; }
   bool zero_pack() const { return 0; }
-  int  reset(void) { bzero(ptr,field_length+length_bytes); return 0; }
+  int  reset(void) { memset(ptr, 0, field_length+length_bytes); return 0; }
   uint32 pack_length() const { return (uint32) field_length+length_bytes; }
   uint32 key_length() const { return (uint32) field_length; }
   uint32 sort_length() const
@@ -1834,7 +1833,7 @@ public:
     return (uint32) field_length + (field_charset == &my_charset_bin ?
                                     length_bytes : 0);
   }
-  int  store(const char *to,uint length,CHARSET_INFO *charset);
+  int  store(const char *to,uint length, const CHARSET_INFO *charset);
   int  store(longlong nr, bool unsigned_val);
   int  store(double nr) { return Field_str::store(nr); } /* QQ: To be deleted */
   double val_real(void);
@@ -1899,9 +1898,9 @@ protected:
 public:
   Field_blob(uchar *ptr_arg, uchar *null_ptr_arg, uchar null_bit_arg,
 	     enum utype unireg_check_arg, const char *field_name_arg,
-	     TABLE_SHARE *share, uint blob_pack_length, CHARSET_INFO *cs);
+	     TABLE_SHARE *share, uint blob_pack_length, const CHARSET_INFO *cs);
   Field_blob(uint32 len_arg,bool maybe_null_arg, const char *field_name_arg,
-             CHARSET_INFO *cs)
+             const CHARSET_INFO *cs)
     :Field_longstr((uchar*) 0, len_arg, maybe_null_arg ? (uchar*) "": 0, 0,
                    NONE, field_name_arg, cs),
     packlength(4)
@@ -1909,7 +1908,7 @@ public:
     flags|= BLOB_FLAG;
   }
   Field_blob(uint32 len_arg,bool maybe_null_arg, const char *field_name_arg,
-	     CHARSET_INFO *cs, bool set_packlength)
+	     const CHARSET_INFO *cs, bool set_packlength)
     :Field_longstr((uchar*) 0,len_arg, maybe_null_arg ? (uchar*) "": 0, 0,
                    NONE, field_name_arg, cs)
   {
@@ -1930,7 +1929,7 @@ public:
   bool match_collation_to_optimize_range() const { return TRUE; }
   enum ha_base_keytype key_type() const
     { return binary() ? HA_KEYTYPE_VARBINARY2 : HA_KEYTYPE_VARTEXT2; }
-  int  store(const char *to,uint length,CHARSET_INFO *charset);
+  int  store(const char *to,uint length, const CHARSET_INFO *charset);
   int  store(double nr);
   int  store(longlong nr, bool unsigned_val);
   double val_real(void);
@@ -1965,8 +1964,8 @@ public:
   {
     return (uint32) (((ulonglong) 1 << (packlength*8)) -1);
   }
-  int reset(void) { bzero(ptr, packlength+sizeof(uchar*)); return 0; }
-  void reset_fields() { bzero((uchar*) &value,sizeof(value)); }
+  int reset(void) { memset(ptr, 0, packlength+sizeof(uchar*)); return 0; }
+  void reset_fields() { memset(&value, 0, sizeof(value)); }
   uint32 get_field_buffer_size(void) { return value.alloced_length(); }
 #ifndef WORDS_BIGENDIAN
   static
@@ -2052,7 +2051,7 @@ public:
   uint packed_col_length(const uchar *col_ptr, uint length);
   uint max_packed_col_length(uint max_length);
   void free() { value.free(); }
-  inline void clear_temporary() { bzero((uchar*) &value,sizeof(value)); }
+  inline void clear_temporary() { memset(&value, 0, sizeof(value)); }
   friend int field_conv(Field *to,Field *from);
   bool has_charset(void) const
   { return charset() == &my_charset_bin ? FALSE : TRUE; }
@@ -2086,7 +2085,7 @@ public:
   enum_field_types type() const { return MYSQL_TYPE_GEOMETRY; }
   bool match_collation_to_optimize_range() const { return FALSE; }
   void sql_type(String &str) const;
-  int  store(const char *to, uint length, CHARSET_INFO *charset);
+  int  store(const char *to, uint length, const CHARSET_INFO *charset);
   int  store(double nr);
   int  store(longlong nr, bool unsigned_val);
   int  store_decimal(const my_decimal *);
@@ -2114,7 +2113,7 @@ public:
              enum utype unireg_check_arg, const char *field_name_arg,
              uint packlength_arg,
              TYPELIB *typelib_arg,
-             CHARSET_INFO *charset_arg)
+             const CHARSET_INFO *charset_arg)
     :Field_str(ptr_arg, len_arg, null_ptr_arg, null_bit_arg,
 	       unireg_check_arg, field_name_arg, charset_arg),
     packlength(packlength_arg),typelib(typelib_arg)
@@ -2127,7 +2126,7 @@ public:
   enum Item_result cmp_type () const { return INT_RESULT; }
   enum Item_result cast_to_int_type () const { return INT_RESULT; }
   enum ha_base_keytype key_type() const;
-  int  store(const char *to,uint length,CHARSET_INFO *charset);
+  int  store(const char *to,uint length, const CHARSET_INFO *charset);
   int  store(double nr);
   int  store(longlong nr, bool unsigned_val);
   double val_real(void);
@@ -2173,7 +2172,7 @@ public:
 	    uchar null_bit_arg,
 	    enum utype unireg_check_arg, const char *field_name_arg,
 	    uint32 packlength_arg,
-	    TYPELIB *typelib_arg, CHARSET_INFO *charset_arg)
+	    TYPELIB *typelib_arg, const CHARSET_INFO *charset_arg)
     :Field_enum(ptr_arg, len_arg, null_ptr_arg, null_bit_arg,
 		    unireg_check_arg, field_name_arg,
                 packlength_arg,
@@ -2181,7 +2180,7 @@ public:
     {
       flags=(flags & ~ENUM_FLAG) | SET_FLAG;
     }
-  int  store(const char *to,uint length,CHARSET_INFO *charset);
+  int  store(const char *to,uint length, const CHARSET_INFO *charset);
   int  store(double nr) { return Field_set::store((longlong) nr, FALSE); }
   int  store(longlong nr, bool unsigned_val);
   virtual bool zero_pack() const { return 1; }
@@ -2230,12 +2229,12 @@ public:
   uint32 max_display_length() { return field_length; }
   Item_result result_type () const { return INT_RESULT; }
   int reset(void) { 
-    bzero(ptr, bytes_in_rec); 
+    memset(ptr, 0, bytes_in_rec); 
     if (bit_ptr && (bit_len > 0))  // reset odd bits among null bits
       clr_rec_bits(bit_ptr, bit_ofs, bit_len);
     return 0; 
   }
-  int store(const char *to, uint length, CHARSET_INFO *charset);
+  int store(const char *to, uint length, const CHARSET_INFO *charset);
   int store(double nr);
   int store(longlong nr, bool unsigned_val);
   int store_decimal(const my_decimal *);
@@ -2259,9 +2258,9 @@ public:
   { return cmp_binary((uchar *) a, (uchar *) b); }
   int key_cmp(const uchar *str, uint length);
   int cmp_offset(uint row_offset);
-  void get_image(uchar *buff, uint length, CHARSET_INFO *cs)
+  void get_image(uchar *buff, uint length, const CHARSET_INFO *cs)
   { get_key_image(buff, length, itRAW); }   
-  void set_image(const uchar *buff,uint length, CHARSET_INFO *cs)
+  void set_image(const uchar *buff,uint length, const CHARSET_INFO *cs)
   { Field_bit::store((char *) buff, length, cs); }
   uint get_key_image(uchar *buff, uint length, imagetype type);
   void set_key_image(const uchar *buff, uint length)
@@ -2330,7 +2329,7 @@ public:
                     uchar null_bit_arg,
                     enum utype unireg_check_arg, const char *field_name_arg);
   enum ha_base_keytype key_type() const { return HA_KEYTYPE_BINARY; }
-  int store(const char *to, uint length, CHARSET_INFO *charset);
+  int store(const char *to, uint length, const CHARSET_INFO *charset);
   int store(double nr) { return Field_bit::store(nr); }
   int store(longlong nr, bool unsigned_val)
   { return Field_bit::store(nr, unsigned_val); }
@@ -2371,7 +2370,7 @@ public:
   TYPELIB *save_interval;               // Temporary copy for the above
                                         // Used only for UCS2 intervals
   List<String> interval_list;
-  CHARSET_INFO *charset;
+  const CHARSET_INFO *charset;
   Field::geometry_type geom_type;
   Field *field;				// For alter table
 
@@ -2393,7 +2392,7 @@ public:
   bool init(THD *thd, char *field_name, enum_field_types type, char *length,
             char *decimals, uint type_modifier, Item *default_value,
             Item *on_update_value, LEX_STRING *comment, char *change,
-            List<String> *interval_list, CHARSET_INFO *cs,
+            List<String> *interval_list, const CHARSET_INFO *cs,
             uint uint_geom_type);
 
   bool field_flags_are_binary()
@@ -2451,7 +2450,7 @@ public:
 Field *make_field(TABLE_SHARE *share, uchar *ptr, uint32 field_length,
 		  uchar *null_pos, uchar null_bit,
 		  uint pack_flag, enum_field_types field_type,
-		  CHARSET_INFO *cs,
+		  const CHARSET_INFO *cs,
 		  Field::geometry_type geom_type,
 		  Field::utype unireg_check,
 		  TYPELIB *interval, const char *field_name);

@@ -11,8 +11,8 @@ ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
 FOR A PARTICULAR PURPOSE. See the GNU General Public License for more details.
 
 You should have received a copy of the GNU General Public License along with
-this program; if not, write to the Free Software Foundation, Inc., 59 Temple
-Place, Suite 330, Boston, MA 02111-1307 USA
+this program; if not, write to the Free Software Foundation, Inc.,
+51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA
 
 *****************************************************************************/
 
@@ -39,7 +39,7 @@ extern "C" {
 #include "btr0pcur.h"	/* for file sys_tables related info. */
 #include "btr0types.h"
 #include "buf0buddy.h"	/* for i_s_cmpmem */
-#include "buf0buf.h"	/* for buf_pool and PAGE_ZIP_MIN_SIZE */
+#include "buf0buf.h"	/* for buf_pool */
 #include "dict0load.h"	/* for file sys_tables related info. */
 #include "dict0mem.h"
 #include "dict0types.h"
@@ -51,8 +51,6 @@ extern "C" {
 #include "btr0btr.h"
 #include "page0zip.h"
 }
-
-static const char plugin_author[] = "Oracle Corporation";
 
 /** structure associates a name string with a file page type and/or buffer
 page state. */
@@ -123,9 +121,9 @@ struct buffer_page_info_struct{
 					/*!< Number of records on Page */
 	unsigned	data_size:UNIV_PAGE_SIZE_SHIFT;
 					/*!< Sum of the sizes of the records */
-	ib_uint64_t	newest_mod;	/*!< Log sequence number of
+	lsn_t		newest_mod;	/*!< Log sequence number of
 					the youngest modification */
-	ib_uint64_t	oldest_mod;	/*!< Log sequence number of
+	lsn_t		oldest_mod;	/*!< Log sequence number of
 					the oldest modification */
 	index_id_t	index_id;	/*!< Index ID if a index page */
 };
@@ -153,7 +151,8 @@ do {									\
 	}								\
 } while (0)
 
-#if !defined __STRICT_ANSI__ && defined __GNUC__ && (__GNUC__) > 2 && !defined __INTEL_COMPILER
+#if !defined __STRICT_ANSI__ && defined __GNUC__ && (__GNUC__) > 2 &&	\
+	!defined __INTEL_COMPILER && !defined __clang__
 #define STRUCT_FLD(name, value)	name: value
 #else
 #define STRUCT_FLD(name, value)	value
@@ -1149,7 +1148,7 @@ UNIV_INTERN struct st_mysql_plugin	i_s_innodb_lock_waits =
 
 	/* plugin author (for SHOW PLUGINS) */
 	/* const char* */
-	STRUCT_FLD(author, "Innobase Oy"),
+	STRUCT_FLD(author, plugin_author),
 
 	/* general descriptive text (for SHOW PLUGINS) */
 	/* const char* */
@@ -1373,7 +1372,7 @@ i_s_cmp_fill_low(
 	for (uint i = 0; i < PAGE_ZIP_NUM_SSIZE - 1; i++) {
 		page_zip_stat_t*	zip_stat = &page_zip_stat[i];
 
-		table->field[0]->store(PAGE_ZIP_MIN_SIZE << i);
+		table->field[0]->store(UNIV_ZIP_SIZE_MIN << i);
 
 		/* The cumulated counts are not protected by any
 		mutex.  Thus, some operation in page0zip.c could
@@ -1914,7 +1913,7 @@ static ST_FIELD_INFO	innodb_metrics_fields_info[] =
 	 STRUCT_FLD(open_method,	SKIP_OPEN_TABLE)},
 
 #define	METRIC_VALUE_RESET	6
-	{STRUCT_FLD(field_name,		"COUNT_SINCE_RESET"),
+	{STRUCT_FLD(field_name,		"COUNT_RESET"),
 	 STRUCT_FLD(field_length,	MY_INT64_NUM_DECIMAL_DIGITS),
 	 STRUCT_FLD(field_type,		MYSQL_TYPE_LONGLONG),
 	 STRUCT_FLD(value,		0),
@@ -1923,7 +1922,7 @@ static ST_FIELD_INFO	innodb_metrics_fields_info[] =
 	 STRUCT_FLD(open_method,	SKIP_OPEN_TABLE)},
 
 #define	METRIC_MAX_VALUE_RESET	7
-	{STRUCT_FLD(field_name,		"MAX_COUNT_SINCE_RESET"),
+	{STRUCT_FLD(field_name,		"MAX_COUNT_RESET"),
 	 STRUCT_FLD(field_length,	MY_INT64_NUM_DECIMAL_DIGITS),
 	 STRUCT_FLD(field_type,		MYSQL_TYPE_LONGLONG),
 	 STRUCT_FLD(value,		0),
@@ -1932,7 +1931,7 @@ static ST_FIELD_INFO	innodb_metrics_fields_info[] =
 	 STRUCT_FLD(open_method,	SKIP_OPEN_TABLE)},
 
 #define	METRIC_MIN_VALUE_RESET	8
-	{STRUCT_FLD(field_name,		"MIN_COUNT_SINCE_RESET"),
+	{STRUCT_FLD(field_name,		"MIN_COUNT_RESET"),
 	 STRUCT_FLD(field_length,	MY_INT64_NUM_DECIMAL_DIGITS),
 	 STRUCT_FLD(field_type,		MYSQL_TYPE_LONGLONG),
 	 STRUCT_FLD(value,		0),
@@ -1941,7 +1940,7 @@ static ST_FIELD_INFO	innodb_metrics_fields_info[] =
 	 STRUCT_FLD(open_method,	SKIP_OPEN_TABLE)},
 
 #define	METRIC_AVG_VALUE_RESET	9
-	{STRUCT_FLD(field_name,		"AVG_COUNT_SINCE_RESET"),
+	{STRUCT_FLD(field_name,		"AVG_COUNT_RESET"),
 	 STRUCT_FLD(field_length,	0),
 	 STRUCT_FLD(field_type,		MYSQL_TYPE_FLOAT),
 	 STRUCT_FLD(value,		0),
@@ -1967,7 +1966,16 @@ static ST_FIELD_INFO	innodb_metrics_fields_info[] =
 	 STRUCT_FLD(old_name,		""),
 	 STRUCT_FLD(open_method,	SKIP_OPEN_TABLE)},
 
-#define	METRIC_RESET_TIME	12
+#define	METRIC_TIME_ELAPSED	12
+	{STRUCT_FLD(field_name,		"TIME_ELAPSED"),
+	 STRUCT_FLD(field_length,	MY_INT64_NUM_DECIMAL_DIGITS),
+	 STRUCT_FLD(field_type,		MYSQL_TYPE_LONGLONG),
+	 STRUCT_FLD(value,		0),
+	 STRUCT_FLD(field_flags,	MY_I_S_MAYBE_NULL),
+	 STRUCT_FLD(old_name,		""),
+	 STRUCT_FLD(open_method,	SKIP_OPEN_TABLE)},
+
+#define	METRIC_RESET_TIME	13
 	{STRUCT_FLD(field_name,		"TIME_RESET"),
 	 STRUCT_FLD(field_length,	0),
 	 STRUCT_FLD(field_type,		MYSQL_TYPE_DATETIME),
@@ -1976,7 +1984,7 @@ static ST_FIELD_INFO	innodb_metrics_fields_info[] =
 	 STRUCT_FLD(old_name,		""),
 	 STRUCT_FLD(open_method,	SKIP_OPEN_TABLE)},
 
-#define	METRIC_STATUS		13
+#define	METRIC_STATUS		14
 	{STRUCT_FLD(field_name,		"STATUS"),
 	 STRUCT_FLD(field_length,	NAME_LEN + 1),
 	 STRUCT_FLD(field_type,		MYSQL_TYPE_STRING),
@@ -1985,7 +1993,7 @@ static ST_FIELD_INFO	innodb_metrics_fields_info[] =
 	 STRUCT_FLD(old_name,		""),
 	 STRUCT_FLD(open_method,	SKIP_OPEN_TABLE)},
 
-#define	METRIC_TYPE		14
+#define	METRIC_TYPE		15
 	{STRUCT_FLD(field_name,		"TYPE"),
 	 STRUCT_FLD(field_length,	NAME_LEN + 1),
 	 STRUCT_FLD(field_type,		MYSQL_TYPE_STRING),
@@ -1994,7 +2002,7 @@ static ST_FIELD_INFO	innodb_metrics_fields_info[] =
 	 STRUCT_FLD(old_name,		""),
 	 STRUCT_FLD(open_method,	SKIP_OPEN_TABLE)},
 
-#define	METRIC_DESC		15
+#define	METRIC_DESC		16
 	{STRUCT_FLD(field_name,		"COMMENT"),
 	 STRUCT_FLD(field_length,	NAME_LEN + 1),
 	 STRUCT_FLD(field_type,		MYSQL_TYPE_STRING),
@@ -2018,10 +2026,10 @@ i_s_metrics_fill(
 {
 	int		count;
 	Field**		fields;
-	double		time_diff;
+	double		time_diff = 0;
 	monitor_info_t*	monitor_info;
-	lint		min_val;
-	lint		max_val;
+	mon_type_t	min_val;
+	mon_type_t	max_val;
 
 	DBUG_ENTER("i_s_metrics_fill");
 	fields = table_to_fill->field;
@@ -2034,7 +2042,8 @@ i_s_metrics_fill(
 
 		/* If the item refers to a Module, nothing to fill,
 		continue. */
-		if (monitor_info->monitor_type & MONITOR_MODULE) {
+		if ((monitor_info->monitor_type & MONITOR_MODULE)
+		    || (monitor_info->monitor_type & MONITOR_HIDDEN)) {
 			continue;
 		}
 
@@ -2059,10 +2068,11 @@ i_s_metrics_fill(
 				      monitor_info->monitor_desc));
 
 		/* Fill in counter values */
-		OK(fields[METRIC_VALUE_RESET]->store(MONITOR_VALUE(count)));
+		OK(fields[METRIC_VALUE_RESET]->store(
+			MONITOR_VALUE(count), FALSE));
 
 		OK(fields[METRIC_VALUE_START]->store(
-			MONITOR_VALUE_SINCE_START(count)));
+			MONITOR_VALUE_SINCE_START(count), FALSE));
 
 		/* If the max value is MAX_RESERVED, counter max
 		value has not been updated. Set the column value
@@ -2072,7 +2082,7 @@ i_s_metrics_fill(
 			fields[METRIC_MAX_VALUE_RESET]->set_null();
 		} else {
 			OK(fields[METRIC_MAX_VALUE_RESET]->store(
-				MONITOR_MAX_VALUE(count)));
+				MONITOR_MAX_VALUE(count), FALSE));
 			fields[METRIC_MAX_VALUE_RESET]->set_notnull();
 		}
 
@@ -2084,7 +2094,7 @@ i_s_metrics_fill(
 			fields[METRIC_MIN_VALUE_RESET]->set_null();
 		} else {
 			OK(fields[METRIC_MIN_VALUE_RESET]->store(
-				MONITOR_MIN_VALUE(count)));
+				MONITOR_MIN_VALUE(count), FALSE));
 			fields[METRIC_MIN_VALUE_RESET]->set_notnull();
 		}
 
@@ -2095,7 +2105,8 @@ i_s_metrics_fill(
 		    || MONITOR_MAX_MIN_NOT_INIT(count)) {
 			fields[METRIC_MAX_VALUE_START]->set_null();
 		} else {
-			OK(fields[METRIC_MAX_VALUE_START]->store(max_val));
+			OK(fields[METRIC_MAX_VALUE_START]->store(
+				max_val, FALSE));
 			fields[METRIC_MAX_VALUE_START]->set_notnull();
 		}
 
@@ -2106,11 +2117,25 @@ i_s_metrics_fill(
 		    || MONITOR_MAX_MIN_NOT_INIT(count)) {
 			fields[METRIC_MIN_VALUE_START]->set_null();
 		} else {
-			OK(fields[METRIC_MIN_VALUE_START]->store(min_val));
+			OK(fields[METRIC_MIN_VALUE_START]->store(
+				min_val, FALSE));
+
 			fields[METRIC_MIN_VALUE_START]->set_notnull();
 		}
 
-		if (monitor_info->monitor_type & MONITOR_AVERAGE) {
+		/* If monitor has been enabled (no matter it is disabled
+		or not now), fill METRIC_START_TIME and METRIC_TIME_ELAPSED
+		field */
+		if (MONITOR_FIELD(count, mon_start_time)) {
+			OK(field_store_time_t(fields[METRIC_START_TIME],
+				(time_t)MONITOR_FIELD(count, mon_start_time)));
+			fields[METRIC_START_TIME]->set_notnull();
+
+			/* If monitor is enabled, the TIME_ELAPSED is the
+			time difference between current and time when monitor
+			is enabled. Otherwise, it is the time difference
+			between time when monitor is enabled and time
+			when it is disabled */
 			if (MONITOR_IS_ON(count)) {
 				time_diff = difftime(time(NULL),
 					MONITOR_FIELD(count, mon_start_time));
@@ -2120,18 +2145,83 @@ i_s_metrics_fill(
 					MONITOR_FIELD(count, mon_start_time));
 			}
 
-			if (time_diff) {
+			OK(fields[METRIC_TIME_ELAPSED]->store(
+				time_diff));
+			fields[METRIC_TIME_ELAPSED]->set_notnull();
+		} else {
+			fields[METRIC_START_TIME]->set_null();
+			fields[METRIC_TIME_ELAPSED]->set_null();
+			time_diff = 0;
+		}
+
+		/* Unless MONITOR__NO_AVERAGE is marked, we will need
+		to calculate the average value. If this is a monitor set
+		owner marked by MONITOR_SET_OWNER, divide
+		the value by another counter (number of calls) designated
+		by monitor_info->monitor_related_id.
+		Otherwise average the counter value by the time between the
+		time that the counter is enabled and time it is disabled
+		or time it is sampled. */
+		if (!(monitor_info->monitor_type & MONITOR_NO_AVERAGE)
+		    && (monitor_info->monitor_type & MONITOR_SET_OWNER)
+		    && monitor_info->monitor_related_id) {
+			mon_type_t	value_start
+				 = MONITOR_VALUE_SINCE_START(
+					monitor_info->monitor_related_id);
+
+			if (value_start) {
 				OK(fields[METRIC_AVG_VALUE_START]->store(
 					MONITOR_VALUE_SINCE_START(count)
-					/ time_diff));
+					/ value_start, FALSE));
+
 				fields[METRIC_AVG_VALUE_START]->set_notnull();
-
-				OK(fields[METRIC_AVG_VALUE_RESET]->store(
-					MONITOR_VALUE(count) / time_diff));
-
-				fields[METRIC_AVG_VALUE_RESET]->set_notnull();
 			} else {
 				fields[METRIC_AVG_VALUE_START]->set_null();
+			}
+
+			if (MONITOR_VALUE(monitor_info->monitor_related_id)) {
+				OK(fields[METRIC_AVG_VALUE_RESET]->store(
+					MONITOR_VALUE(count)
+					/ MONITOR_VALUE(
+					monitor_info->monitor_related_id),
+					FALSE));
+			} else {
+				fields[METRIC_AVG_VALUE_RESET]->set_null();
+			}
+		} else if (!(monitor_info->monitor_type & MONITOR_NO_AVERAGE)
+			   && !(monitor_info->monitor_type
+				& MONITOR_DISPLAY_CURRENT)) {
+			if (time_diff) {
+				OK(fields[METRIC_AVG_VALUE_START]->store(
+					(double) MONITOR_VALUE_SINCE_START(
+						count) / time_diff));
+				fields[METRIC_AVG_VALUE_START]->set_notnull();
+			} else {
+				fields[METRIC_AVG_VALUE_START]->set_null();
+			}
+
+			if (MONITOR_FIELD(count, mon_reset_time)) {
+				/* calculate the time difference since last
+				reset */
+				if (MONITOR_IS_ON(count)) {
+					time_diff = difftime(
+						time(NULL), MONITOR_FIELD(
+							count, mon_reset_time));
+				} else {
+					time_diff =  difftime(
+					MONITOR_FIELD(count, mon_stop_time),
+					MONITOR_FIELD(count, mon_reset_time));
+				}
+			} else {
+				time_diff = 0;
+			}
+
+			if (time_diff) {
+				OK(fields[METRIC_AVG_VALUE_RESET]->store(
+					(double )MONITOR_VALUE(count)
+					/ time_diff));
+				fields[METRIC_AVG_VALUE_RESET]->set_notnull();
+			} else {
 				fields[METRIC_AVG_VALUE_RESET]->set_null();
 			}
 		} else {
@@ -2139,13 +2229,6 @@ i_s_metrics_fill(
 			fields[METRIC_AVG_VALUE_RESET]->set_null();
 		}
 
-		if (MONITOR_FIELD(count, mon_start_time)) {
-			OK(field_store_time_t(fields[METRIC_START_TIME],
-				(time_t)MONITOR_FIELD(count, mon_start_time)));
-			fields[METRIC_START_TIME]->set_notnull();
-		} else {
-			fields[METRIC_START_TIME]->set_null();
-		}
 
 		if (MONITOR_IS_ON(count)) {
 			/* If monitor is on, the stop time will set to NULL */
@@ -2184,6 +2267,15 @@ i_s_metrics_fill(
 		if (monitor_info->monitor_type & MONITOR_DISPLAY_CURRENT) {
 			OK(field_store_string(fields[METRIC_TYPE],
 					      "value"));
+		} else if (monitor_info->monitor_type & MONITOR_EXISTING) {
+			OK(field_store_string(fields[METRIC_TYPE],
+					      "status_counter"));
+		} else if (monitor_info->monitor_type & MONITOR_SET_OWNER) {
+			OK(field_store_string(fields[METRIC_TYPE],
+					      "set_owner"));
+		} else if ( monitor_info->monitor_type & MONITOR_SET_MEMBER) {
+			OK(field_store_string(fields[METRIC_TYPE],
+					      "set_member"));
 		} else {
 			OK(field_store_string(fields[METRIC_TYPE],
 					      "counter"));
@@ -2254,7 +2346,7 @@ UNIV_INTERN struct st_mysql_plugin	i_s_innodb_metrics =
 
 	/* plugin author (for SHOW PLUGINS) */
 	/* const char* */
-	STRUCT_FLD(author, "Oracle and/or its affiliates."),
+	STRUCT_FLD(author, plugin_author),
 
 	/* general descriptive text (for SHOW PLUGINS) */
 	/* const char* */
@@ -3077,10 +3169,17 @@ i_s_innodb_buffer_page_fill(
 			do not want to hold the InnoDB mutex while
 			filling the IS table */
 			if (index) {
+				const char*	name_ptr = index->name;
+
+				if (name_ptr[0] == TEMP_INDEX_PREFIX) {
+					name_ptr++;
+				}
+
+				index_name = mem_heap_strdup(heap, name_ptr);
+
 				table_name = mem_heap_strdup(heap,
 							     index->table_name);
 
-				index_name = mem_heap_strdup(heap, index->name);
 			}
 
 			mutex_exit(&dict_sys->mutex);
@@ -3099,8 +3198,9 @@ i_s_innodb_buffer_page_fill(
 			page_info->data_size));
 
 		OK(fields[IDX_BUFFER_PAGE_ZIP_SIZE]->store(
-			page_info->zip_ssize ?
-				 512 << page_info->zip_ssize : 0));
+			page_info->zip_ssize
+			? (UNIV_ZIP_SIZE_MIN >> 1) << page_info->zip_ssize
+			: 0));
 
 #if BUF_PAGE_STATE_BITS > 3
 # error "BUF_PAGE_STATE_BITS > 3, please ensure that all 1<<BUF_PAGE_STATE_BITS values are checked for"
@@ -3177,6 +3277,8 @@ i_s_innodb_set_page_type(
 	const byte*	frame)		/*!< in: buffer frame */
 {
 	if (page_type == FIL_PAGE_INDEX) {
+		const page_t*	page = (const page_t*) frame;
+
 		/* FIL_PAGE_INDEX is a bit special, its value
 		is defined as 17855, so we cannot use FIL_PAGE_INDEX
 		to index into i_s_page_type[] array, its array index
@@ -3184,10 +3286,15 @@ i_s_innodb_set_page_type(
 		(1) */
 		page_info->page_type = I_S_PAGE_TYPE_INDEX;
 
-		page_info->index_id = btr_page_get_index_id(frame);
+		page_info->index_id = btr_page_get_index_id(page);
 
-		page_info->data_size = page_get_data_size(frame);
-		page_info->num_recs = page_get_n_recs(frame);
+		page_info->data_size = (ulint)(page_header_get_field(
+			page, PAGE_HEAP_TOP) - (page_is_comp(page)
+						? PAGE_NEW_SUPREMUM_END
+						: PAGE_OLD_SUPREMUM_END)
+			- page_header_get_field(page, PAGE_GARBAGE));
+
+		page_info->num_recs = page_get_n_recs(page);
 	} else if (page_type >= I_S_PAGE_TYPE_UNKNOWN) {
 		/* Encountered an unknown page type */
 		page_info->page_type = I_S_PAGE_TYPE_UNKNOWN;
@@ -3240,7 +3347,7 @@ i_s_innodb_buffer_page_get_info(
 
 		page_info->space_id = buf_page_get_space(bpage);
 
-		page_info->page_num = buf_page_get_page_no(bpage);;
+		page_info->page_num = buf_page_get_page_no(bpage);
 
 		page_info->flush_type = bpage->flush_type;
 
@@ -3752,10 +3859,16 @@ i_s_innodb_buf_page_lru_fill(
 			do not want to hold the InnoDB mutex while
 			filling the IS table */
 			if (index) {
+				const char*	name_ptr = index->name;
+
+				if (name_ptr[0] == TEMP_INDEX_PREFIX) {
+					name_ptr++;
+				}
+
+				index_name = mem_heap_strdup(heap, name_ptr);
+
 				table_name = mem_heap_strdup(heap,
 							     index->table_name);
-
-				index_name = mem_heap_strdup(heap, index->name);
 			}
 
 			mutex_exit(&dict_sys->mutex);
@@ -3848,7 +3961,7 @@ i_s_innodb_fill_buffer_lru(
 	buf_pool_t*		buf_pool,	/*!< in: buffer pool to scan */
 	const ulint		pool_id)	/*!< in: buffer pool id */
 {
-	int			status;
+	int			status = 0;
 	buf_page_info_t*	info_buffer;
 	ulint			lru_pos = 0;
 	const buf_page_t*	bpage;
@@ -3894,10 +4007,10 @@ i_s_innodb_fill_buffer_lru(
 exit:
 	buf_pool_mutex_exit(buf_pool);
 
-	status = i_s_innodb_buf_page_lru_fill(
-		thd, tables, info_buffer, lru_len);
-
 	if (info_buffer) {
+		status = i_s_innodb_buf_page_lru_fill(
+			thd, tables, info_buffer, lru_len);
+
 		my_free(info_buffer);
 	}
 
@@ -4159,7 +4272,7 @@ i_s_sys_tables_fill_table(
 			i_s_dict_fill_sys_tables(thd, table_rec, tables->table);
 		} else {
 			push_warning_printf(thd, MYSQL_ERROR::WARN_LEVEL_WARN,
-					    ER_CANT_FIND_SYSTEM_REC,
+					    ER_CANT_FIND_SYSTEM_REC, "%s",
 					    err_msg);
 		}
 
@@ -4441,7 +4554,7 @@ i_s_sys_tables_fill_table_stats(
 						     tables->table);
 		} else {
 			push_warning_printf(thd, MYSQL_ERROR::WARN_LEVEL_WARN,
-					    ER_CANT_FIND_SYSTEM_REC,
+					    ER_CANT_FIND_SYSTEM_REC, "%s",
 					    err_msg);
 		}
 
@@ -4614,14 +4727,19 @@ i_s_dict_fill_sys_indexes(
 	TABLE*		table_to_fill)	/*!< in/out: fill this table */
 {
 	Field**		fields;
+	const char*	name_ptr = index->name;
 
 	DBUG_ENTER("i_s_dict_fill_sys_indexes");
 
 	fields = table_to_fill->field;
 
-	OK(fields[SYS_INDEX_ID]->store(longlong(index->id), TRUE));
+	if (name_ptr[0] == TEMP_INDEX_PREFIX) {
+		name_ptr++;
+	}
 
-	OK(field_store_string(fields[SYS_INDEX_NAME], index->name));
+	OK(field_store_string(fields[SYS_INDEX_NAME], name_ptr));
+
+	OK(fields[SYS_INDEX_ID]->store(longlong(index->id), TRUE));
 
 	OK(fields[SYS_INDEX_TABLE_ID]->store(longlong(table_id), TRUE));
 
@@ -4629,7 +4747,12 @@ i_s_dict_fill_sys_indexes(
 
 	OK(fields[SYS_INDEX_NUM_FIELDS]->store(index->n_fields));
 
-	OK(fields[SYS_INDEX_PAGE_NO]->store(index->page));
+	/* FIL_NULL is ULINT32_UNDEFINED */
+	if (index->page == FIL_NULL) {
+		OK(fields[SYS_INDEX_PAGE_NO]->store(-1));
+	} else {
+		OK(fields[SYS_INDEX_PAGE_NO]->store(index->page));
+	}
 
 	OK(fields[SYS_INDEX_SPACE]->store(index->space));
 
@@ -4670,7 +4793,7 @@ i_s_sys_indexes_fill_table(
 
 	/* Process each record in the table */
 	while (rec) {
-		const char*	err_msg;;
+		const char*	err_msg;
 		table_id_t	table_id;
 		dict_index_t	index_rec;
 
@@ -4687,7 +4810,7 @@ i_s_sys_indexes_fill_table(
 						 tables->table);
 		} else {
 			push_warning_printf(thd, MYSQL_ERROR::WARN_LEVEL_WARN,
-					    ER_CANT_FIND_SYSTEM_REC,
+					    ER_CANT_FIND_SYSTEM_REC, "%s",
 					    err_msg);
 		}
 
@@ -4922,7 +5045,7 @@ i_s_sys_columns_fill_table(
 						 tables->table);
 		} else {
 			push_warning_printf(thd, MYSQL_ERROR::WARN_LEVEL_WARN,
-					    ER_CANT_FIND_SYSTEM_REC,
+					    ER_CANT_FIND_SYSTEM_REC, "%s",
 					    err_msg);
 		}
 
@@ -5129,7 +5252,7 @@ i_s_sys_fields_fill_table(
 			last_id = index_id;
 		} else {
 			push_warning_printf(thd, MYSQL_ERROR::WARN_LEVEL_WARN,
-					    ER_CANT_FIND_SYSTEM_REC,
+					    ER_CANT_FIND_SYSTEM_REC, "%s",
 					    err_msg);
 		}
 
@@ -5350,7 +5473,7 @@ i_s_sys_foreign_fill_table(
 						 tables->table);
 		} else {
 			push_warning_printf(thd, MYSQL_ERROR::WARN_LEVEL_WARN,
-					    ER_CANT_FIND_SYSTEM_REC,
+					    ER_CANT_FIND_SYSTEM_REC, "%s",
 					    err_msg);
 		}
 
@@ -5564,7 +5687,7 @@ i_s_sys_foreign_cols_fill_table(
 				tables->table);
 		} else {
 			push_warning_printf(thd, MYSQL_ERROR::WARN_LEVEL_WARN,
-					    ER_CANT_FIND_SYSTEM_REC,
+					    ER_CANT_FIND_SYSTEM_REC, "%s",
 					    err_msg);
 		}
 

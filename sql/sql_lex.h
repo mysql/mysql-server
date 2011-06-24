@@ -10,8 +10,8 @@
    GNU General Public License for more details.
 
    You should have received a copy of the GNU General Public License
-   along with this program; if not, write to the Free Software Foundation,
-   51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA */
+   along with this program; if not, write to the Free Software
+   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
 /**
   @defgroup Semantic_Analysis Semantic Analysis
@@ -24,6 +24,7 @@
 #include "sql_trigger.h"
 #include "item.h"               /* From item_subselect.h: subselect_union_engine */
 #include "thr_lock.h"                  /* thr_lock_type, TL_UNLOCK */
+#include "mem_root_array.h"
 
 /* YACC and LEX Definitions */
 
@@ -185,6 +186,7 @@ enum enum_drop_mode
 #define TL_OPTION_ALIAS         8
 
 typedef List<Item> List_item;
+typedef Mem_root_array<ORDER*, true> Group_list_ptrs;
 
 /* SERVERS CACHE CHANGES */
 typedef struct st_lex_server_options
@@ -196,8 +198,7 @@ typedef struct st_lex_server_options
 
 
 /**
-  Structure to hold parameters for CHANGE MASTER or START/STOP SLAVE
-  or SHOW NEW MASTER.
+  Structure to hold parameters for CHANGE MASTER, START SLAVE, and STOP SLAVE.
 
   Remark: this should not be confused with Master_info (and perhaps
   would better be renamed to st_lex_replication_info).  Some fields,
@@ -481,6 +482,7 @@ public:
 					thr_lock_type flags= TL_UNLOCK,
                                         enum_mdl_type mdl_type= MDL_SHARED_READ,
 					List<Index_hint> *hints= 0,
+                                        List<String> *partition_names= 0,
                                         LEX_STRING *option= 0);
   virtual void set_lock_for_tables(thr_lock_type lock_type) {}
 
@@ -598,7 +600,7 @@ public:
   inline bool is_union (); 
 
   friend void lex_start(THD *thd);
-  friend int subselect_union_engine::exec();
+  friend bool subselect_union_engine::exec();
 
   List<Item> *get_unit_column_types();
 };
@@ -630,7 +632,16 @@ public:
   enum olap_type olap;
   /* FROM clause - points to the beginning of the TABLE_LIST::next_local list. */
   SQL_I_List<TABLE_LIST>  table_list;
-  SQL_I_List<ORDER>       group_list; /* GROUP BY clause. */
+
+  /*
+    GROUP BY clause.
+    This list may be mutated during optimization (by remove_const()),
+    so for prepared statements, we keep a copy of the ORDER.next pointers in
+    group_list_ptrs, and re-establish the original list before each execution.
+  */
+  SQL_I_List<ORDER>       group_list;
+  Group_list_ptrs        *group_list_ptrs;
+
   List<Item>          item_list;  /* list of fields & expressions */
   List<String>        interval_list;
   bool	              is_item_list_lookup;
@@ -800,6 +811,7 @@ public:
 				thr_lock_type flags= TL_UNLOCK,
                                 enum_mdl_type mdl_type= MDL_SHARED_READ,
 				List<Index_hint> *hints= 0,
+                                List<String> *partition_names= 0,
                                 LEX_STRING *option= 0);
   TABLE_LIST* get_table_list();
   bool init_nested_join(THD *thd);
@@ -826,7 +838,8 @@ public:
   bool test_limit();
 
   friend void lex_start(THD *thd);
-  st_select_lex() : n_sum_items(0), n_child_sum_items(0) {}
+  st_select_lex() : group_list_ptrs(NULL), n_sum_items(0), n_child_sum_items(0)
+  {}
   void make_empty_select()
   {
     init_query();
@@ -898,21 +911,20 @@ inline bool st_select_lex_unit::is_union ()
 #define ALTER_CHANGE_COLUMN_DEFAULT (1L << 8)
 #define ALTER_KEYS_ONOFF        (1L << 9)
 #define ALTER_CONVERT           (1L << 10)
-#define ALTER_FORCE		(1L << 11)
-#define ALTER_RECREATE          (1L << 12)
-#define ALTER_ADD_PARTITION     (1L << 13)
-#define ALTER_DROP_PARTITION    (1L << 14)
-#define ALTER_COALESCE_PARTITION (1L << 15)
-#define ALTER_REORGANIZE_PARTITION (1L << 16) 
-#define ALTER_PARTITION          (1L << 17)
-#define ALTER_ADMIN_PARTITION    (1L << 18)
-#define ALTER_TABLE_REORG        (1L << 19)
-#define ALTER_REBUILD_PARTITION  (1L << 20)
-#define ALTER_ALL_PARTITION      (1L << 21)
-#define ALTER_REMOVE_PARTITIONING (1L << 22)
-#define ALTER_FOREIGN_KEY        (1L << 23)
-#define ALTER_EXCHANGE_PARTITION (1L << 24)
-#define ALTER_TRUNCATE_PARTITION (1L << 25)
+#define ALTER_RECREATE          (1L << 11)
+#define ALTER_ADD_PARTITION     (1L << 12)
+#define ALTER_DROP_PARTITION    (1L << 13)
+#define ALTER_COALESCE_PARTITION (1L << 14)
+#define ALTER_REORGANIZE_PARTITION (1L << 15) 
+#define ALTER_PARTITION          (1L << 16)
+#define ALTER_ADMIN_PARTITION    (1L << 17)
+#define ALTER_TABLE_REORG        (1L << 18)
+#define ALTER_REBUILD_PARTITION  (1L << 19)
+#define ALTER_ALL_PARTITION      (1L << 20)
+#define ALTER_REMOVE_PARTITIONING (1L << 21)
+#define ALTER_FOREIGN_KEY        (1L << 22)
+#define ALTER_EXCHANGE_PARTITION (1L << 23)
+#define ALTER_TRUNCATE_PARTITION (1L << 24)
 
 enum enum_alter_table_change_level
 {
@@ -1435,24 +1447,6 @@ public:
     DBUG_RETURN((stmt_accessed_table_flag & (1U << accessed_table)) != 0);
   }
 
-  /**
-    Checks if a temporary non-transactional table is about to be accessed
-    while executing a statement.
-
-    @return
-      @retval TRUE  if a temporary non-transactional table is about to be
-                    accessed
-      @retval FALSE otherwise
-  */
-  inline bool stmt_accessed_non_trans_temp_table()
-  {
-    DBUG_ENTER("THD::stmt_accessed_non_trans_temp_table");
-
-    DBUG_RETURN((stmt_accessed_table_flag &
-                ((1U << STMT_READS_TEMP_NON_TRANS_TABLE) |
-                 (1U << STMT_WRITES_TEMP_NON_TRANS_TABLE))) != 0);
-  }
-
   /*
     Checks if a mixed statement is unsafe.
 
@@ -1902,7 +1896,7 @@ public:
   void body_utf8_append(const char *ptr, const char *end_ptr);
   void body_utf8_append_literal(THD *thd,
                                 const LEX_STRING *txt,
-                                CHARSET_INFO *txt_cs,
+                                const CHARSET_INFO *txt_cs,
                                 const char *end_ptr);
 
   /** Current thread. */
@@ -2059,7 +2053,6 @@ struct LEX: public Query_tables_list
   char *length,*dec,*change;
   LEX_STRING name;
   char *help_arg;
-  char *backup_dir;				/* For RESTORE/BACKUP */
   char* to_log;                                 /* For PURGE MASTER LOGS TO */
   char* x509_subject,*x509_issuer,*ssl_cipher;
   String *wild;
@@ -2075,7 +2068,7 @@ struct LEX: public Query_tables_list
   DYNAMIC_ARRAY plugins;
   plugin_ref plugins_static_buffer[INITIAL_LEX_PLUGIN_LIST_SIZE];
 
-  CHARSET_INFO *charset;
+  const CHARSET_INFO *charset;
   bool text_string_is_7bit;
   /* store original leaf_tables for INSERT SELECT and PS/SP */
   TABLE_LIST *leaf_tables_insert;
@@ -2159,11 +2152,7 @@ struct LEX: public Query_tables_list
   enum SSL_type ssl_type;			/* defined in violite.h */
   enum enum_duplicates duplicates;
   enum enum_tx_isolation tx_isolation;
-  enum enum_ha_read_modes ha_read_mode;
-  union {
-    enum ha_rkey_function ha_rkey_mode;
-    enum xa_option_words xa_opt;
-  };
+  enum xa_option_words xa_opt;
   enum enum_var_type option_type;
   enum enum_view_create_mode create_view_mode;
   enum enum_drop_mode drop_mode;
@@ -2469,6 +2458,7 @@ public:
     m_set_signal_info.clear();
     m_lock_type= TL_READ_DEFAULT;
     m_mdl_type= MDL_SHARED_READ;
+    m_ha_rkey_mode= HA_READ_KEY_EXACT;
   }
 
   ~Yacc_state();
@@ -2481,6 +2471,7 @@ public:
   {
     m_lock_type= TL_READ_DEFAULT;
     m_mdl_type= MDL_SHARED_READ;
+    m_ha_rkey_mode= HA_READ_KEY_EXACT; /* Let us be future-proof. */
   }
 
   /**
@@ -2525,6 +2516,9 @@ public:
     the statement table list.
   */
   enum_mdl_type m_mdl_type;
+
+  /** Type of condition for key in HANDLER READ statement. */
+  enum ha_rkey_function m_ha_rkey_mode;
 
   /*
     TODO: move more attributes from the LEX structure here.
@@ -2591,7 +2585,7 @@ extern void lex_start(THD *thd);
 extern void lex_end(LEX *lex);
 extern int MYSQLlex(void *arg, void *yythd);
 
-extern void trim_whitespace(CHARSET_INFO *cs, LEX_STRING *str);
+extern void trim_whitespace(const CHARSET_INFO *cs, LEX_STRING *str);
 
 extern bool is_lex_native_function(const LEX_STRING *name);
 

@@ -25,7 +25,6 @@
 
 #undef HAVE_DLOPEN				/* No udf functions */
 #undef HAVE_SMEM				/* No shared memory */
-#undef HAVE_NDBCLUSTER_DB /* No NDB cluster */
 
 #endif /* EMBEDDED_LIBRARY */
 #endif /* MYSQL_EMBED_INCLUDED */

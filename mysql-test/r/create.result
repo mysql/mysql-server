@@ -2402,3 +2402,52 @@ a	b
 1	1
 drop table t1;
 #
+#
+# WL#5576 Prohibit CREATE TABLE ... SELECT to modify other tables
+#
+create function f()
+returns int
+begin
+insert into t2 values(1);
+return 1;
+end|
+#
+# 1. The function updates a base table
+#
+create table t2(c1 int);
+create table t1 select f();
+ERROR HY000: Can't update table 't2' while 't1' is being created.
+create temporary table t1 select f();
+ERROR HY000: Can't update table 't2' while 't1' is being created.
+drop table t2;
+#
+# 2. The function updates a view which derives from a base table
+#
+create table t3(c1 int);
+create view t2 as select c1 from t3;
+create table t1 select f();
+ERROR HY000: Can't update table 't2' while 't1' is being created.
+create temporary table t1 select f();
+ERROR HY000: Can't update table 't2' while 't1' is being created.
+drop view t2;
+#
+# 3. The function updates a view which derives from two base tables
+#
+create table t4(c1 int);
+create view t2 as select t3.c1 as c1 from t3, t4;
+create table t1 select f();
+ERROR HY000: Can't update table 't2' while 't1' is being created.
+create temporary table t1 select f();
+ERROR HY000: Can't update table 't2' while 't1' is being created.
+drop view t2;
+drop tables t3, t4;
+#
+# 4. The function updates a view which selects a constant number
+#
+create view t2 as select 1;
+create table t1 select f();
+ERROR HY000: Can't update table 't2' while 't1' is being created.
+create temporary table t1 select f();
+ERROR HY000: Can't update table 't2' while 't1' is being created.
+drop view t2;
+drop function f;

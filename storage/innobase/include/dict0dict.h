@@ -11,8 +11,8 @@ ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
 FOR A PARTICULAR PURPOSE. See the GNU General Public License for more details.
 
 You should have received a copy of the GNU General Public License along with
-this program; if not, write to the Free Software Foundation, Inc., 59 Temple
-Place, Suite 330, Boston, MA 02111-1307 USA
+this program; if not, write to the Free Software Foundation, Inc.,
+51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA
 
 *****************************************************************************/
 
@@ -137,6 +137,19 @@ dict_col_copy_type(
 /*===============*/
 	const dict_col_t*	col,	/*!< in: column */
 	dtype_t*		type);	/*!< out: data type */
+/**********************************************************************//**
+Determine bytes of column prefix to be stored in the undo log. Please
+note if the table format is UNIV_FORMAT_A (< UNIV_FORMAT_B), no prefix
+needs to be stored in the undo log.
+@return bytes of column prefix to be stored in the undo log */
+UNIV_INLINE
+ulint
+dict_max_field_len_store_undo(
+/*==========================*/
+	dict_table_t*		table,	/*!< in: table */
+	const dict_col_t*	col);	/*!< in: column which index prefix
+					is based on */
+
 #endif /* !UNIV_HOTBACKUP */
 #ifdef UNIV_DEBUG
 /*********************************************************************//**
@@ -417,6 +430,7 @@ dict_table_open_on_name(
 /*====================*/
 	const char*	table_name,	/*!< in: table name */
 	ibool		dict_locked);	/*!< in: TRUE=data dictionary locked */
+
 /**********************************************************************//**
 Returns a table object and increment its open handle count. Table
 statistics will not be updated if they are not initialized.
@@ -427,7 +441,10 @@ dict_table_t*
 dict_table_open_on_name_no_stats(
 /*=============================*/
 	const char*	table_name,	/*!< in: table name */
-	ibool		dict_locked);	/*!< in: TRUE=data dictionary locked */
+	ibool		dict_locked,	/*!< in: TRUE=data dictionary locked */
+	dict_err_ignore_t
+			ignore_err);	/*!< in: error to be ignored when
+					loading the table */
 /**********************************************************************//**
 Find an index that is equivalent to the one passed in and is not marked
 for deletion.
@@ -684,6 +701,7 @@ ulint
 dict_table_zip_size(
 /*================*/
 	const dict_table_t*	table);	/*!< in: table */
+#ifndef UNIV_HOTBACKUP
 /*********************************************************************//**
 Obtain exclusive locks on all index trees of the table. This is to prevent
 accessing index trees while InnoDB is updating internal metadata for
@@ -710,7 +728,6 @@ dict_table_col_in_clustered_key(
 /*============================*/
 	const dict_table_t*	table,	/*!< in: table */
 	ulint			n);	/*!< in: column number */
-#ifndef UNIV_HOTBACKUP
 /*******************************************************************//**
 Copies types of columns contained in table to tuple and sets all
 fields of the tuple to the SQL NULL value.  This function should

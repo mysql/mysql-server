@@ -1,4 +1,4 @@
-/* Copyright (c) 2008, 2010, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2008, 2011, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -88,6 +88,12 @@ struct PSI_file;
 */
 struct PSI_table_locker;
 
+/**
+  Interface for an instrumented statement.
+  This is an opaque structure.
+*/
+struct PSI_statement_locker;
+
 /** Entry point for the performance schema interface. */
 struct PSI_bootstrap
 {
@@ -108,6 +114,90 @@ struct PSI_bootstrap
 };
 
 #ifdef HAVE_PSI_INTERFACE
+
+/**
+  @def DISABLE_PSI_MUTEX
+  Compiling option to disable the mutex instrumentation.
+  This option is mostly intended to be used during development,
+  when doing special builds with only a subset of the performance schema instrumentation,
+  for code analysis / profiling / performance tuning of a specific instrumentation alone.
+  For this reason, DISABLE_PSI_MUTEX is not advertised in the cmake general options.
+  To disable mutexes, add -DDISABLE_PSI_MUTEX to CFLAGS.
+  @sa DISABLE_PSI_RWLOCK
+  @sa DISABLE_PSI_COND
+  @sa DISABLE_PSI_FILE
+  @sa DISABLE_PSI_TABLE
+  @sa DISABLE_PSI_STAGE
+  @sa DISABLE_PSI_STATEMENT
+*/
+
+#ifndef DISABLE_PSI_MUTEX
+#define HAVE_PSI_MUTEX_INTERFACE
+#endif
+
+/**
+  @def DISABLE_PSI_RWLOCK
+  Compiling option to disable the rwlock instrumentation.
+  @sa DISABLE_PSI_MUTEX
+*/
+
+#ifndef DISABLE_PSI_RWLOCK
+#define HAVE_PSI_RWLOCK_INTERFACE
+#endif
+
+/**
+  @def DISABLE_PSI_COND
+  Compiling option to disable the cond instrumentation.
+  @sa DISABLE_PSI_MUTEX
+*/
+
+#ifndef DISABLE_PSI_COND
+#define HAVE_PSI_COND_INTERFACE
+#endif
+
+/**
+  @def DISABLE_PSI_FILE
+  Compiling option to disable the file instrumentation.
+  @sa DISABLE_PSI_MUTEX
+*/
+
+#ifndef DISABLE_PSI_FILE
+#define HAVE_PSI_FILE_INTERFACE
+#endif
+
+/* No flag to disable the thread instrumentation. */
+
+#define HAVE_PSI_THREAD_INTERFACE
+
+/**
+  @def DISABLE_PSI_TABLE
+  Compiling option to disable the table instrumentation.
+  @sa DISABLE_PSI_MUTEX
+*/
+
+#ifndef DISABLE_PSI_TABLE
+#define HAVE_PSI_TABLE_INTERFACE
+#endif
+
+/**
+  @def DISABLE_PSI_STAGE
+  Compiling option to disable the stage instrumentation.
+  @sa DISABLE_PSI_MUTEX
+*/
+
+#ifndef DISABLE_PSI_STAGE
+#define HAVE_PSI_STAGE_INTERFACE
+#endif
+
+/**
+  @def DISABLE_PSI_STATEMENT
+  Compiling option to disable the statement instrumentation.
+  @sa DISABLE_PSI_MUTEX
+*/
+
+#ifndef DISABLE_PSI_STATEMENT
+#define HAVE_PSI_STATEMENT_INTERFACE
+#endif
 
 /**
   @def PSI_VERSION_1
@@ -298,6 +388,20 @@ typedef unsigned int PSI_thread_key;
 typedef unsigned int PSI_file_key;
 
 /**
+  Instrumented stage key.
+  To instrument a stage, a stage key must be obtained using @c register_stage.
+  Using a zero key always disable the instrumentation.
+*/
+typedef unsigned int PSI_stage_key;
+
+/**
+  Instrumented statement key.
+  To instrument a statement, a statement key must be obtained using @c register_statement.
+  Using a zero key always disable the instrumentation.
+*/
+typedef unsigned int PSI_statement_key;
+
+/**
   @def USE_PSI_1
   Define USE_PSI_1 to use the interface version 1.
 */
@@ -323,6 +427,13 @@ typedef unsigned int PSI_file_key;
   or a singleton.
 */
 #define PSI_FLAG_GLOBAL (1 << 0)
+
+/**
+  Global flag.
+  This flag indicate that an instrumentation point is a general placeholder,
+  that can mutate into a more specific instrumentation point.
+*/
+#define PSI_FLAG_MUTABLE (1 << 1)
 
 #ifdef USE_PSI_1
 #define HAVE_PSI_1
@@ -443,6 +554,36 @@ struct PSI_file_info_v1
     The flags of the file instrument to register.
     @sa PSI_FLAG_GLOBAL
   */
+  int m_flags;
+};
+
+/**
+  Stage instrument information.
+  @since PSI_VERSION_1
+  This structure is used to register an instrumented stage.
+*/
+struct PSI_stage_info_v1
+{
+  /** The registered stage key. */
+  PSI_stage_key m_key;
+  /** The name of the stage instrument to register. */
+  const char *m_name;
+  /** The flags of the stage instrument to register. */
+  int m_flags;
+};
+
+/**
+  Statement instrument information.
+  @since PSI_VERSION_1
+  This structure is used to register an instrumented statement.
+*/
+struct PSI_statement_info_v1
+{
+  /** The registered statement key. */
+  PSI_statement_key m_key;
+  /** The name of the statement instrument to register. */
+  const char *m_name;
+  /** The flags of the statement instrument to register. */
   int m_flags;
 };
 
@@ -617,6 +758,70 @@ struct PSI_table_locker_state_v1
   void *m_wait;
 };
 
+/**
+  State data storage for @c get_thread_statement_locker_v1_t,
+  @c get_thread_statement_locker_v1_t.
+  This structure provide temporary storage to a statement locker.
+  The content of this structure is considered opaque,
+  the fields are only hints of what an implementation
+  of the psi interface can use.
+  This memory is provided by the instrumented code for performance reasons.
+  @sa get_thread_statement_locker_v1_t
+*/
+struct PSI_statement_locker_state_v1
+{
+  /** Internal state. */
+  uint m_flags;
+  /** Instrumentation class. */
+  void *m_class;
+  /** Current thread. */
+  struct PSI_thread *m_thread;
+  /** Timer start. */
+  ulonglong m_timer_start;
+  /** Timer function. */
+  ulonglong (*m_timer)(void);
+  /** Source file. */
+  const char* m_src_file;
+  /** Source line number. */
+  int m_src_line;
+  /** Internal data. */
+  void *m_statement;
+  /** Discarded flag. */
+  my_bool m_discarded;
+  /** Locked time. */
+  ulonglong m_lock_time;
+  /** Rows sent. */
+  ulonglong m_rows_sent;
+  /** Rows examined. */
+  ulonglong m_rows_examined;
+  /** Metric, temporary tables created on disk. */
+  ulonglong m_created_tmp_disk_tables;
+  /** Metric, temporary tables created. */
+  ulonglong m_created_tmp_tables;
+  /** Metric, number of select full join. */
+  ulonglong m_select_full_join;
+  /** Metric, number of select full range join. */
+  ulonglong m_select_full_range_join;
+  /** Metric, number of select range. */
+  ulonglong m_select_range;
+  /** Metric, number of select range check. */
+  ulonglong m_select_range_check;
+  /** Metric, number of select scan. */
+  ulonglong m_select_scan;
+  /** Metric, number of sort merge passes. */
+  ulonglong m_sort_merge_passes;
+  /** Metric, number of sort merge. */
+  ulonglong m_sort_range;
+  /** Metric, number of sort rows. */
+  ulonglong m_sort_rows;
+  /** Metric, number of sort scans. */
+  ulonglong m_sort_scan;
+  /** Metric, number of no index used. */
+  ulonglong m_no_index_used;
+  /** Metric, number of no good index used. */
+  ulonglong m_no_good_index_used;
+};
+
 /* Using typedef to make reuse between PSI_v1 and PSI_v2 easier later. */
 
 /**
@@ -663,6 +868,24 @@ typedef void (*register_thread_v1_t)
 */
 typedef void (*register_file_v1_t)
   (const char *category, struct PSI_file_info_v1 *info, int count);
+
+/**
+  Stage registration API.
+  @param category a category name
+  @param info an array of stage info to register
+  @param count the size of the info array
+*/
+typedef void (*register_stage_v1_t)
+  (const char *category, struct PSI_stage_info_v1 **info, int count);
+
+/**
+  Statement registration API.
+  @param category a category name
+  @param info an array of stage info to register
+  @param count the size of the info array
+*/
+typedef void (*register_statement_v1_t)
+  (const char *category, struct PSI_statement_info_v1 *info, int count);
 
 /**
   Mutex instrumentation initialisation API.
@@ -1136,6 +1359,199 @@ typedef void (*end_file_wait_v1_t)
   (struct PSI_file_locker *locker, size_t count);
 
 /**
+  Start a new stage, and implicitly end the previous stage.
+  @param key the key of the new stage
+  @param src_file the source file name
+  @param src_line the source line number
+*/
+typedef void (*start_stage_v1_t)
+  (PSI_stage_key key, const char *src_file, int src_line);
+
+/** End the current stage. */
+typedef void (*end_stage_v1_t) (void);
+
+/**
+  Get a statement instrumentation locker.
+  @param state data storage for the locker
+  @param key the statement instrumentation key
+  @return a statement locker, or NULL
+*/
+typedef struct PSI_statement_locker* (*get_thread_statement_locker_v1_t)
+  (struct PSI_statement_locker_state_v1 *state,
+   PSI_statement_key key);
+
+/**
+  Refine a statement locker to a more specific key.
+  Note that only events declared mutable can be refined.
+  @param the statement locker for the current event
+  @param key the new key for the event
+  @sa PSI_FLAG_MUTABLE
+*/
+typedef struct PSI_statement_locker* (*refine_statement_v1_t)
+  (struct PSI_statement_locker *locker,
+   PSI_statement_key key);
+
+/**
+  Start a new statement event.
+  @param locker the statement locker for this event
+  @param db the active database name for this statement
+  @param db_length the active database name length for this statement
+  @param src_file source file name
+  @param src_line source line number
+*/
+typedef void (*start_statement_v1_t)
+  (struct PSI_statement_locker *locker,
+   const char *db, uint db_length,
+   const char *src_file, uint src_line);
+
+/**
+  Set the statement text for a statement event.
+  @param locker the current statement locker
+  @param text the statement text
+  @param text_len the statement text length
+*/
+typedef void (*set_statement_text_v1_t)
+  (struct PSI_statement_locker *locker,
+   const char *text, uint text_len);
+
+/**
+  Set a statement event lock time.
+  @param locker the statement locker
+  @param lock_time the locked time, in microseconds
+*/
+typedef void (*set_statement_lock_time_t)
+  (struct PSI_statement_locker *locker, ulonglong lock_time);
+
+/**
+  Set a statement event rows sent metric.
+  @param locker the statement locker
+  @param count the number of rows sent
+*/
+typedef void (*set_statement_rows_sent_t)
+  (struct PSI_statement_locker *locker, ulonglong count);
+
+/**
+  Set a statement event rows examined metric.
+  @param locker the statement locker
+  @param count the number of rows examined
+*/
+typedef void (*set_statement_rows_examined_t)
+  (struct PSI_statement_locker *locker, ulonglong count);
+
+/**
+  Increment a statement event "created tmp disk tables" metric.
+  @param locker the statement locker
+  @param count the metric increment value
+*/
+typedef void (*inc_statement_created_tmp_disk_tables_t)
+  (struct PSI_statement_locker *locker, ulonglong count);
+
+/**
+  Increment a statement event "created tmp tables" metric.
+  @param locker the statement locker
+  @param count the metric increment value
+*/
+typedef void (*inc_statement_created_tmp_tables_t)
+  (struct PSI_statement_locker *locker, ulonglong count);
+
+/**
+  Increment a statement event "select full join" metric.
+  @param locker the statement locker
+  @param count the metric increment value
+*/
+typedef void (*inc_statement_select_full_join_t)
+  (struct PSI_statement_locker *locker, ulonglong count);
+
+/**
+  Increment a statement event "select full range join" metric.
+  @param locker the statement locker
+  @param count the metric increment value
+*/
+typedef void (*inc_statement_select_full_range_join_t)
+  (struct PSI_statement_locker *locker, ulonglong count);
+
+/**
+  Increment a statement event "select range join" metric.
+  @param locker the statement locker
+  @param count the metric increment value
+*/
+typedef void (*inc_statement_select_range_t)
+  (struct PSI_statement_locker *locker, ulonglong count);
+
+/**
+  Increment a statement event "select range check" metric.
+  @param locker the statement locker
+  @param count the metric increment value
+*/
+typedef void (*inc_statement_select_range_check_t)
+  (struct PSI_statement_locker *locker, ulonglong count);
+
+/**
+  Increment a statement event "select scan" metric.
+  @param locker the statement locker
+  @param count the metric increment value
+*/
+typedef void (*inc_statement_select_scan_t)
+  (struct PSI_statement_locker *locker, ulonglong count);
+
+/**
+  Increment a statement event "sort merge passes" metric.
+  @param locker the statement locker
+  @param count the metric increment value
+*/
+typedef void (*inc_statement_sort_merge_passes_t)
+  (struct PSI_statement_locker *locker, ulonglong count);
+
+/**
+  Increment a statement event "sort range" metric.
+  @param locker the statement locker
+  @param count the metric increment value
+*/
+typedef void (*inc_statement_sort_range_t)
+  (struct PSI_statement_locker *locker, ulonglong count);
+
+/**
+  Increment a statement event "sort rows" metric.
+  @param locker the statement locker
+  @param count the metric increment value
+*/
+typedef void (*inc_statement_sort_rows_t)
+  (struct PSI_statement_locker *locker, ulonglong count);
+
+/**
+  Increment a statement event "sort scan" metric.
+  @param locker the statement locker
+  @param count the metric increment value
+*/
+typedef void (*inc_statement_sort_scan_t)
+  (struct PSI_statement_locker *locker, ulonglong count);
+
+/**
+  Set a statement event "no index used" metric.
+  @param locker the statement locker
+  @param count the metric value
+*/
+typedef void (*set_statement_no_index_used_t)
+  (struct PSI_statement_locker *locker);
+
+/**
+  Set a statement event "no good index used" metric.
+  @param locker the statement locker
+  @param count the metric value
+*/
+typedef void (*set_statement_no_good_index_used_t)
+  (struct PSI_statement_locker *locker);
+
+/**
+  End a statement event.
+  @param locker the statement locker
+  @param stmt_da the statement diagnostics area.
+  @sa Diagnostics_area
+*/
+typedef void (*end_statement_v1_t)
+  (struct PSI_statement_locker *locker, void *stmt_da);
+
+/**
   Performance Schema Interface, version 1.
   @since PSI_VERSION_1
 */
@@ -1151,6 +1567,10 @@ struct PSI_v1
   register_thread_v1_t register_thread;
   /** @sa register_file_v1_t. */
   register_file_v1_t register_file;
+  /** @sa register_stage_v1_t. */
+  register_stage_v1_t register_stage;
+  /** @sa register_statement_v1_t. */
+  register_statement_v1_t register_statement;
   /** @sa init_mutex_v1_t. */
   init_mutex_v1_t init_mutex;
   /** @sa destroy_mutex_v1_t. */
@@ -1262,6 +1682,52 @@ struct PSI_v1
   start_file_wait_v1_t start_file_wait;
   /** @sa end_file_wait_v1_t. */
   end_file_wait_v1_t end_file_wait;
+  /** @sa start_stage_v1_t. */
+  start_stage_v1_t start_stage;
+  /** @sa end_stage_v1_t. */
+  end_stage_v1_t end_stage;
+  /** @sa get_thread_statement_locker_v1_t. */
+  get_thread_statement_locker_v1_t get_thread_statement_locker;
+  /** @sa refine_statement_v1_t. */
+  refine_statement_v1_t refine_statement;
+  /** @sa start_statement_v1_t. */
+  start_statement_v1_t start_statement;
+  /** @sa set_statement_text_v1_t. */
+  set_statement_text_v1_t set_statement_text;
+  /** @sa set_statement_lock_time_t. */
+  set_statement_lock_time_t set_statement_lock_time;
+  /** @sa set_statement_rows_sent_t. */
+  set_statement_rows_sent_t set_statement_rows_sent;
+  /** @sa set_statement_rows_examined_t. */
+  set_statement_rows_examined_t set_statement_rows_examined;
+  /** @sa inc_statement_created_tmp_disk_tables. */
+  inc_statement_created_tmp_disk_tables_t inc_statement_created_tmp_disk_tables;
+  /** @sa inc_statement_created_tmp_tables. */
+  inc_statement_created_tmp_tables_t inc_statement_created_tmp_tables;
+  /** @sa inc_statement_select_full_join. */
+  inc_statement_select_full_join_t inc_statement_select_full_join;
+  /** @sa inc_statement_select_full_range_join. */
+  inc_statement_select_full_range_join_t inc_statement_select_full_range_join;
+  /** @sa inc_statement_select_range. */
+  inc_statement_select_range_t inc_statement_select_range;
+  /** @sa inc_statement_select_range_check. */
+  inc_statement_select_range_check_t inc_statement_select_range_check;
+  /** @sa inc_statement_select_scan. */
+  inc_statement_select_scan_t inc_statement_select_scan;
+  /** @sa inc_statement_sort_merge_passes. */
+  inc_statement_sort_merge_passes_t inc_statement_sort_merge_passes;
+  /** @sa inc_statement_sort_range. */
+  inc_statement_sort_range_t inc_statement_sort_range;
+  /** @sa inc_statement_sort_rows. */
+  inc_statement_sort_rows_t inc_statement_sort_rows;
+  /** @sa inc_statement_sort_scan. */
+  inc_statement_sort_scan_t inc_statement_sort_scan;
+  /** @sa set_statement_no_index_used. */
+  set_statement_no_index_used_t set_statement_no_index_used;
+  /** @sa set_statement_no_good_index_used. */
+  set_statement_no_good_index_used_t set_statement_no_good_index_used;
+  /** @sa end_statement_v1_t. */
+  end_statement_v1_t end_statement;
 };
 
 /** @} (end of group Group_PSI_v1) */
@@ -1327,31 +1793,57 @@ struct PSI_file_info_v2
   int placeholder;
 };
 
+/** Placeholder */
+struct PSI_stage_info_v2
+{
+  /** Placeholder */
+  int placeholder;
+};
+
+/** Placeholder */
+struct PSI_statement_info_v2
+{
+  /** Placeholder */
+  int placeholder;
+};
+
+/** Placeholder */
 struct PSI_mutex_locker_state_v2
 {
   /** Placeholder */
   int placeholder;
 };
 
+/** Placeholder */
 struct PSI_rwlock_locker_state_v2
 {
   /** Placeholder */
   int placeholder;
 };
 
+/** Placeholder */
 struct PSI_cond_locker_state_v2
 {
   /** Placeholder */
   int placeholder;
 };
 
+/** Placeholder */
 struct PSI_file_locker_state_v2
 {
   /** Placeholder */
   int placeholder;
 };
 
+/** Placeholder */
 struct PSI_table_locker_state_v2
+{
+  /** Placeholder */
+  int placeholder;
+};
+
+/** Placeholder */
+struct PSI_statement_locker_state_v2
 {
   /** Placeholder */
   int placeholder;
@@ -1400,11 +1892,14 @@ typedef struct PSI_rwlock_info_v1 PSI_rwlock_info;
 typedef struct PSI_cond_info_v1 PSI_cond_info;
 typedef struct PSI_thread_info_v1 PSI_thread_info;
 typedef struct PSI_file_info_v1 PSI_file_info;
+typedef struct PSI_stage_info_v1 PSI_stage_info;
+typedef struct PSI_statement_info_v1 PSI_statement_info;
 typedef struct PSI_mutex_locker_state_v1 PSI_mutex_locker_state;
 typedef struct PSI_rwlock_locker_state_v1 PSI_rwlock_locker_state;
 typedef struct PSI_cond_locker_state_v1 PSI_cond_locker_state;
 typedef struct PSI_file_locker_state_v1 PSI_file_locker_state;
 typedef struct PSI_table_locker_state_v1 PSI_table_locker_state;
+typedef struct PSI_statement_locker_state_v1 PSI_statement_locker_state;
 #endif
 
 #ifdef USE_PSI_2
@@ -1414,11 +1909,14 @@ typedef struct PSI_rwlock_info_v2 PSI_rwlock_info;
 typedef struct PSI_cond_info_v2 PSI_cond_info;
 typedef struct PSI_thread_info_v2 PSI_thread_info;
 typedef struct PSI_file_info_v2 PSI_file_info;
+typedef struct PSI_stage_info_v2 PSI_stage_info;
+typedef struct PSI_statement_info_v2 PSI_statement_info;
 typedef struct PSI_mutex_locker_state_v2 PSI_mutex_locker_state;
 typedef struct PSI_rwlock_locker_state_v2 PSI_rwlock_locker_state;
 typedef struct PSI_cond_locker_state_v2 PSI_cond_locker_state;
 typedef struct PSI_file_locker_state_v2 PSI_file_locker_state;
 typedef struct PSI_table_locker_state_v2 PSI_table_locker_state;
+typedef struct PSI_statement_locker_state_v2 PSI_statement_locker_state;
 #endif
 
 #else /* HAVE_PSI_INTERFACE */
@@ -1433,6 +1931,31 @@ struct PSI_none
   int opaque;
 };
 typedef struct PSI_none PSI;
+
+/**
+  Stage instrument information.
+  @since PSI_VERSION_1
+  This structure is used to register an instrumented stage.
+*/
+struct PSI_stage_info_none
+{
+  /** Unused stage key. */
+  unsigned int m_key;
+  /** The name of the stage instrument. */
+  const char *m_name;
+  /** Unused stage flags. */
+  int m_flags;
+};
+
+/**
+  The stage instrumentation has to co exist with the legacy
+  THD::set_proc_info instrumentation.
+  To avoid duplication of the instrumentation in the server,
+  the common PSI_stage_info structure is used,
+  so we export it here, even when not building
+  with HAVE_PSI_INTERFACE.
+*/
+typedef struct PSI_stage_info_none PSI_stage_info;
 
 #endif /* HAVE_PSI_INTERFACE */
 

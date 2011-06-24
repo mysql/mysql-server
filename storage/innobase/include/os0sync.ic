@@ -36,14 +36,10 @@ os_fast_mutex_trylock(
 /*==================*/
 	os_fast_mutex_t*	fast_mutex)	/*!< in: mutex to acquire */
 {
+	fast_mutex_t*	mutex = &fast_mutex->mutex;
+
 #ifdef __WIN__
-	if (TryEnterCriticalSection(fast_mutex)) {
-
-		return(0);
-	} else {
-
-		return(1);
-	}
+	return(!TryEnterCriticalSection(mutex));
 #else
 	/* NOTE that the MySQL my_pthread.h redefines pthread_mutex_trylock
 	so that it returns 0 on success. In the operating system
@@ -51,9 +47,99 @@ os_fast_mutex_trylock(
 	returns 1 on success (but MySQL remaps that to 0), while Linux,
 	FreeBSD, Solaris, AIX, Tru64 Unix, HP-UX-11.0 return 0 on success. */
 
-	return((ulint) pthread_mutex_trylock(fast_mutex));
+	return((ulint) pthread_mutex_trylock(mutex));
 #endif
 }
+
+#ifdef UNIV_PFS_MUTEX
+/*********************************************************//**
+NOTE! Please use the corresponding macro os_fast_mutex_init(), not directly
+this function!
+A wrapper function for os_fast_mutex_init_func(). Initializes an operating
+system fast mutex semaphore. */
+UNIV_INLINE
+void
+pfs_os_fast_mutex_init(
+/*===================*/
+	PSI_mutex_key		key,		/*!< in: Performance Schema
+						key */
+	os_fast_mutex_t*	fast_mutex)	/*!< out: fast mutex */
+{
+	fast_mutex->pfs_psi = (PSI_server && PFS_IS_INSTRUMENTED(key))
+				? PSI_server->init_mutex(key,
+							 &fast_mutex->mutex)
+				: NULL;
+
+	os_fast_mutex_init_func(&fast_mutex->mutex);
+}
+/******************************************************************//**
+NOTE! Please use the corresponding macro os_fast_mutex_free(), not directly
+this function!
+Wrapper function for pfs_os_fast_mutex_free(). Also destroys the performance
+schema probes when freeing the mutex */
+UNIV_INLINE
+void
+pfs_os_fast_mutex_free(
+/*===================*/
+	os_fast_mutex_t*	fast_mutex)  /*!< in/out: mutex */
+{
+	if (UNIV_LIKELY(PSI_server && fast_mutex->pfs_psi)) {
+		PSI_server->destroy_mutex(fast_mutex->pfs_psi);
+		fast_mutex->pfs_psi = NULL;
+	}
+
+	os_fast_mutex_free_func(&fast_mutex->mutex);
+}
+/**********************************************************//**
+NOTE! Please use the corresponding macro os_fast_mutex_lock, not directly
+this function!
+Wrapper function of os_fast_mutex_lock_func. Acquires ownership of a fast
+mutex. */
+UNIV_INLINE
+void
+pfs_os_fast_mutex_lock(
+/*===================*/
+	os_fast_mutex_t*	fast_mutex,	/*!< in/out: mutex to acquire */
+	const char*		file_name,	/*!< in: file name where
+						 locked */
+	ulint			line)		/*!< in: line where locked */
+{
+	struct PSI_mutex_locker*        locker = NULL;
+	PSI_mutex_locker_state          state;
+	int     result = 0;
+
+	if (UNIV_LIKELY(PSI_server && fast_mutex->pfs_psi)) {
+		locker = PSI_server->get_thread_mutex_locker(
+			&state, fast_mutex->pfs_psi, PSI_MUTEX_LOCK);
+		if (locker) {
+			PSI_server->start_mutex_wait(locker, file_name, line);
+		}
+	}
+
+	os_fast_mutex_lock_func(&fast_mutex->mutex);
+
+	if (locker) {
+		PSI_server->end_mutex_wait(locker, result);
+	}
+}
+/**********************************************************//**
+NOTE! Please use the corresponding macro os_fast_mutex_unlock, not directly
+this function!
+Wrapper function of os_fast_mutex_unlock_func. Releases ownership of a
+fast mutex. */
+UNIV_INLINE
+void
+pfs_os_fast_mutex_unlock(
+/*=====================*/
+	os_fast_mutex_t*	fast_mutex)	/*!< in/out: mutex to release */
+{
+	if (UNIV_LIKELY(PSI_server && fast_mutex->pfs_psi)) {
+		PSI_server->unlock_mutex(fast_mutex->pfs_psi);
+	}
+
+	os_fast_mutex_unlock_func(&fast_mutex->mutex);
+}
+#endif /* UNIV_PFS_MUTEX */
 
 #ifdef HAVE_WINDOWS_ATOMICS
 

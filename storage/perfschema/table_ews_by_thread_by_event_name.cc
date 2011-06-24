@@ -97,7 +97,7 @@ table_ews_by_thread_by_event_name::create(void)
 int
 table_ews_by_thread_by_event_name::delete_all_rows(void)
 {
-  reset_per_thread_wait_stat();
+  reset_events_waits_by_thread();
   return 0;
 }
 

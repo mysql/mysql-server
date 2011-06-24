@@ -173,4 +173,21 @@ DROP VIEW v1;
 
 DROP TABLE t1, t2;
 
+
+--echo #
+--echo # Test case which has failed on assertion after refactoring which was
+--echo # made as part of fix for bug #27480 "Extend CREATE TEMPORARY TABLES
+--echo # privilege to allow temp table operations".
+--echo #
+CREATE TEMPORARY TABLE t1 (id int);
+CREATE TABLE IF NOT EXISTS t2 LIKE t1;
+--echo # The below statement should succeed with warning and
+--echo # should not crash due to failing assertion.
+CREATE TABLE IF NOT EXISTS t2 LIKE t1;
+--echo # Clean-up.
+DROP TABLE t1, t2;
+sync_slave_with_master;
+connection master;
+
+
 --source include/rpl_end.inc

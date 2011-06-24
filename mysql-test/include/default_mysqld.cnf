@@ -45,9 +45,13 @@ log-bin=mysqld-bin
 loose-enable-performance-schema
 # Run tests with a small number of instrumented objects
 # to limit memory consumption with MTR
-loose-performance-schema-max-mutex-instances=10000
-loose-performance-schema-max-rwlock-instances=10000
+loose-performance-schema-max-mutex-instances=5000
+loose-performance-schema-max-rwlock-instances=5000
 loose-performance-schema-max-table-instances=500
 loose-performance-schema-max-table-handles=1000
+
+loose-performance-schema-events-stages-history-long-size=1000
+loose-performance-schema-events-statements-history-long-size=1000
+loose-performance-schema-max-thread-instances=200
 
 binlog-direct-non-transactional-updates

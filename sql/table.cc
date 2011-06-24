@@ -10,9 +10,8 @@
    GNU General Public License for more details.
 
    You should have received a copy of the GNU General Public License
-   along with this program; if not, write to the Free Software Foundation,
-   51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA */
-
+   along with this program; if not, write to the Free Software
+   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
 /* Some general useful functions */
 
@@ -108,7 +107,7 @@ Default_object_creation_ctx::Default_object_creation_ctx(THD *thd)
 { }
 
 Default_object_creation_ctx::Default_object_creation_ctx(
-  CHARSET_INFO *client_cs, CHARSET_INFO *connection_cl)
+  const CHARSET_INFO *client_cs, const CHARSET_INFO *connection_cl)
   : m_client_cs(client_cs),
     m_connection_cl(connection_cl)
 { }
@@ -206,6 +205,19 @@ static uchar *get_field_name(Field **buff, size_t *length,
 }
 
 
+#ifdef WITH_PARTITION_STORAGE_ENGINE
+/**
+  A function to return the partition name from a partition element
+*/
+uchar *get_part_name(PART_NAME_DEF *part, size_t *length,
+                            my_bool not_used __attribute__((unused)))
+{
+  *length= part->length;
+  return part->partition_name;
+}
+#endif
+
+
 /*
   Returns pointer to '.frm' extension of the file name.
 
@@ -300,7 +312,7 @@ TABLE_CATEGORY get_table_category(const LEX_STRING *db, const LEX_STRING *name)
     #  Share
 */
 
-TABLE_SHARE *alloc_table_share(TABLE_LIST *table_list, char *key,
+TABLE_SHARE *alloc_table_share(TABLE_LIST *table_list, const char *key,
                                uint key_length)
 {
   MEM_ROOT mem_root;
@@ -322,7 +334,7 @@ TABLE_SHARE *alloc_table_share(TABLE_LIST *table_list, char *key,
                        &path_buff, path_length + 1,
                        NULL))
   {
-    bzero((char*) share, sizeof(*share));
+    memset(share, 0, sizeof(*share));
 
     share->set_table_cache_key(key_buff, key, key_length);
 
@@ -386,7 +398,7 @@ void init_tmp_table_share(THD *thd, TABLE_SHARE *share, const char *key,
   DBUG_ENTER("init_tmp_table_share");
   DBUG_PRINT("enter", ("table: '%s'.'%s'", key, table_name));
 
-  bzero((char*) share, sizeof(*share));
+  memset(share, 0, sizeof(*share));
   init_sql_alloc(&share->mem_root, TABLE_ALLOC_BLOCK_SIZE, 0);
   share->table_category=         TABLE_CATEGORY_TEMPORARY;
   share->tmp_table=              INTERNAL_TMP_TABLE;
@@ -460,7 +472,7 @@ void TABLE_SHARE::destroy()
   }
 #endif /* WITH_PARTITION_STORAGE_ENGINE */
 
-#ifdef HAVE_PSI_INTERFACE
+#ifdef HAVE_PSI_TABLE_INTERFACE
   if (likely(PSI_server && m_psi))
     PSI_server->release_table_share(m_psi);
 #endif
@@ -833,6 +845,9 @@ static int open_binary_frm(THD *thd, TABLE_SHARE *share, uchar *head,
   const char **interval_array;
   enum legacy_db_type legacy_db_type;
   my_bitmap_map *bitmaps;
+  uchar *extra_segment_buff= 0;
+  const uint format_section_header_size= 8;
+  uchar *format_section_fields= 0;
   DBUG_ENTER("open_binary_frm");
 
   new_field_pack_flag= head[27];
@@ -931,7 +946,7 @@ static int open_binary_frm(THD *thd, TABLE_SHARE *share, uchar *head,
   if (!(keyinfo = (KEY*) alloc_root(&share->mem_root,
 				    n_length + uint2korr(disk_buff+4))))
     goto err;                                   /* purecov: inspected */
-  bzero((char*) keyinfo,n_length);
+  memset(keyinfo, 0, n_length);
   share->key_info= keyinfo;
   key_part= reinterpret_cast<KEY_PART_INFO*>(keyinfo+keys);
   strpos=disk_buff+6;
@@ -1025,27 +1040,27 @@ static int open_binary_frm(THD *thd, TABLE_SHARE *share, uchar *head,
   if ((n_length= uint4korr(head+55)))
   {
     /* Read extra data segment */
-    uchar *buff, *next_chunk, *buff_end;
+    uchar *next_chunk, *buff_end;
     DBUG_PRINT("info", ("extra segment size is %u bytes", n_length));
-    if (!(next_chunk= buff= (uchar*) my_malloc(n_length, MYF(MY_WME))))
+    if (!(extra_segment_buff= (uchar*) my_malloc(n_length, MYF(MY_WME))))
       goto err;
-    if (mysql_file_pread(file, buff, n_length, record_offset + share->reclength,
+    next_chunk= extra_segment_buff;
+    if (mysql_file_pread(file, extra_segment_buff,
+                         n_length, record_offset + share->reclength,
                          MYF(MY_NABP)))
     {
-      my_free(buff);
       goto err;
     }
-    share->connect_string.length= uint2korr(buff);
+    share->connect_string.length= uint2korr(next_chunk);
     if (!(share->connect_string.str= strmake_root(&share->mem_root,
                                                   (char*) next_chunk + 2,
                                                   share->connect_string.
                                                   length)))
     {
-      my_free(buff);
       goto err;
     }
     next_chunk+= share->connect_string.length + 2;
-    buff_end= buff + n_length;
+    buff_end= extra_segment_buff + n_length;
     if (next_chunk + 2 < buff_end)
     {
       uint str_db_type_length= uint2korr(next_chunk);
@@ -1062,7 +1077,6 @@ static int open_binary_frm(THD *thd, TABLE_SHARE *share, uchar *head,
                 plugin_data(tmp_plugin, handlerton *)))
         {
           /* bad file, legacy_db_type did not match the name */
-          my_free(buff);
           goto err;
         }
         /*
@@ -1092,7 +1106,6 @@ static int open_binary_frm(THD *thd, TABLE_SHARE *share, uchar *head,
           error= 8;
           my_error(ER_OPTION_PREVENTS_STATEMENT, MYF(0),
                    "--skip-partition");
-          my_free(buff);
           goto err;
         }
         plugin_unlock(NULL, share->db_plugin);
@@ -1108,7 +1121,6 @@ static int open_binary_frm(THD *thd, TABLE_SHARE *share, uchar *head,
         error= 8;
         name.str[name.length]=0;
         my_error(ER_UNKNOWN_STORAGE_ENGINE, MYF(0), name.str);
-        my_free(buff);
         goto err;
         /* purecov: end */
       }
@@ -1125,7 +1137,6 @@ static int open_binary_frm(THD *thd, TABLE_SHARE *share, uchar *head,
               memdup_root(&share->mem_root, next_chunk + 4,
                           partition_info_str_len + 1)))
         {
-          my_free(buff);
           goto err;
         }
       }
@@ -1133,7 +1144,6 @@ static int open_binary_frm(THD *thd, TABLE_SHARE *share, uchar *head,
       if (partition_info_str_len)
       {
         DBUG_PRINT("info", ("WITH_PARTITION_STORAGE_ENGINE is not defined"));
-        my_free(buff);
         goto err;
       }
 #endif
@@ -1171,7 +1181,6 @@ static int open_binary_frm(THD *thd, TABLE_SHARE *share, uchar *head,
         {
           DBUG_PRINT("error",
                      ("fulltext key uses parser that is not defined in .frm"));
-          my_free(buff);
           goto err;
         }
         parser_name.str= (char*) next_chunk;
@@ -1182,7 +1191,6 @@ static int open_binary_frm(THD *thd, TABLE_SHARE *share, uchar *head,
         if (! keyinfo->parser)
         {
           my_error(ER_PLUGIN_IS_NOT_LOADED, MYF(0), parser_name.str);
-          my_free(buff);
           goto err;
         }
       }
@@ -1194,19 +1202,68 @@ static int open_binary_frm(THD *thd, TABLE_SHARE *share, uchar *head,
       {
           DBUG_PRINT("error",
                      ("long table comment is not defined in .frm"));
-          my_free(buff);
           goto err;
       }
       share->comment.length = uint2korr(next_chunk);
       if (! (share->comment.str= strmake_root(&share->mem_root,
              (char*)next_chunk + 2, share->comment.length)))
       {
-          my_free(buff);
           goto err;
       }
       next_chunk+= 2 + share->comment.length;
     }
-    my_free(buff);
+
+    if (next_chunk + format_section_header_size < buff_end)
+    {
+      /*
+        New extra data segment called "format section" with additional
+        table and column properties introduced by MySQL Cluster
+        based on 5.1.20
+
+        Table properties:
+        TABLESPACE <ts> and STORAGE [DISK|MEMORY]
+
+        Column properties:
+        COLUMN_FORMAT [DYNAMIC|FIXED] and STORAGE [DISK|MEMORY]
+      */
+      DBUG_PRINT("info", ("Found format section"));
+
+      /* header */
+      const uint format_section_length= uint2korr(next_chunk);
+      const uint format_section_flags= uint4korr(next_chunk+2);
+      /* 2 bytes unused */
+
+      if (next_chunk + format_section_length > buff_end)
+      {
+        DBUG_PRINT("error", ("format section length too long: %u",
+                             format_section_length));
+        goto err;
+      }
+      DBUG_PRINT("info", ("format_section_length: %u, format_section_flags: %u",
+                          format_section_length, format_section_flags));
+
+      share->default_storage_media=
+        (enum ha_storage_media) (format_section_flags & 0x7);
+
+      /* tablespace */
+      const char *tablespace=
+        (const char*)next_chunk + format_section_header_size;
+      const uint tablespace_length= strlen(tablespace);
+      if (tablespace_length &&
+          !(share->tablespace= strmake_root(&share->mem_root,
+                                            tablespace, tablespace_length+1)))
+      {
+        goto err;
+      }
+      DBUG_PRINT("info", ("tablespace: '%s'",
+                          share->tablespace ? share->tablespace : "<null>"));
+
+      /* pointer to format section for fields */
+      format_section_fields=
+        next_chunk + format_section_header_size + tablespace_length + 1;
+
+      next_chunk+= format_section_length;
+    }
   }
   share->key_block_size= uint2korr(head+62);
 
@@ -1350,7 +1407,7 @@ static int open_binary_frm(THD *thd, TABLE_SHARE *share, uchar *head,
   {
     uint pack_flag, interval_nr, unireg_type, recpos, field_length;
     enum_field_types field_type;
-    CHARSET_INFO *charset=NULL;
+    const CHARSET_INFO *charset=NULL;
     Field::geometry_type geom_type= Field::GEOM_GEOMETRY;
     LEX_STRING comment;
 
@@ -1431,7 +1488,7 @@ static int open_binary_frm(THD *thd, TABLE_SHARE *share, uchar *head,
       }
       else
         charset= share->table_charset;
-      bzero((char*) &comment, sizeof(comment));
+      memset(&comment, 0, sizeof(comment));
     }
 
     if (interval_nr && charset->mbminlen > 1)
@@ -1521,14 +1578,26 @@ static int open_binary_frm(THD *thd, TABLE_SHARE *share, uchar *head,
         error= 8; 
         goto err;
       }
+
+    if (format_section_fields)
+    {
+      const uchar field_flags= format_section_fields[i];
+      const uchar field_storage= (field_flags & STORAGE_TYPE_MASK);
+      const uchar field_column_format=
+        ((field_flags >> COLUMN_FORMAT_SHIFT)& COLUMN_FORMAT_MASK);
+      DBUG_PRINT("debug", ("field flags: %u, storage: %u, column_format: %u",
+                           field_flags, field_storage, field_column_format));
+      (void)field_storage; /* Reserved by and used in MySQL Cluster */
+      (void)field_column_format; /* Reserved by and used in MySQL Cluster */
+    }
   }
   *field_ptr=0;					// End marker
 
   /* Fix key->name and key_part->field */
   if (key_parts)
   {
-    uint primary_key=(uint) (find_type((char*) primary_key_name,
-				       &share->keynames, 3) - 1);
+    uint primary_key=(uint) (find_type(primary_key_name, &share->keynames,
+                                       FIND_TYPE_NO_PREFIX) - 1);
     longlong ha_option= handler_file->ha_table_flags();
     keyinfo= share->key_info;
     key_part= keyinfo->key_part;
@@ -1709,8 +1778,8 @@ static int open_binary_frm(THD *thd, TABLE_SHARE *share, uchar *head,
   {
     /* Old file format with default as not null */
     uint null_length= (share->null_fields+7)/8;
-    bfill(share->default_values + (null_flags - (uchar*) record),
-          null_length, 255);
+    memset(share->default_values + (null_flags - (uchar*) record), 255,
+           null_length);
   }
 
   if (share->found_next_number_field)
@@ -1769,6 +1838,7 @@ static int open_binary_frm(THD *thd, TABLE_SHARE *share, uchar *head,
   if (use_hash)
     (void) my_hash_check(&share->name_hash);
 #endif
+  my_free(extra_segment_buff);
   DBUG_RETURN (0);
 
  err:
@@ -1776,6 +1846,7 @@ static int open_binary_frm(THD *thd, TABLE_SHARE *share, uchar *head,
   share->open_errno= my_errno;
   share->errarg= errarg;
   my_free(disk_buff);
+  my_free(extra_segment_buff);
   delete crypted;
   delete handler_file;
   my_hash_free(&share->name_hash);
@@ -1836,7 +1907,7 @@ int open_table_from_share(THD *thd, TABLE_SHARE *share, const char *alias,
                       share->table_name.str, (long) outparam));
 
   error= 1;
-  bzero((char*) outparam, sizeof(*outparam));
+  memset(outparam, 0, sizeof(*outparam));
   outparam->in_use= thd;
   outparam->s= share;
   outparam->db_stat= db_stat;
@@ -2002,7 +2073,8 @@ int open_table_from_share(THD *thd, TABLE_SHARE *share, const char *alias,
 
     Query_arena *backup_stmt_arena_ptr= thd->stmt_arena;
     Query_arena backup_arena;
-    Query_arena part_func_arena(&outparam->mem_root, Query_arena::INITIALIZED);
+    Query_arena part_func_arena(&outparam->mem_root,
+                                Query_arena::STMT_INITIALIZED);
     thd->set_n_backup_active_arena(&part_func_arena, &backup_arena);
     thd->stmt_arena= &part_func_arena;
     bool tmp;
@@ -2021,8 +2093,9 @@ int open_table_from_share(THD *thd, TABLE_SHARE *share, const char *alias,
     }
     outparam->part_info->is_auto_partitioned= share->auto_partitioned;
     DBUG_PRINT("info", ("autopartitioned: %u", share->auto_partitioned));
-    /* we should perform the fix_partition_func in either local or
-       caller's arena depending on work_part_info_used value
+    /*
+      We should perform the fix_partition_func in either local or
+      caller's arena depending on work_part_info_used value.
     */
     if (!work_part_info_used)
       tmp= fix_partition_func(thd, outparam, is_create_table);
@@ -2117,7 +2190,7 @@ partititon_err:
   }
 
 #if defined(HAVE_purify) && !defined(DBUG_OFF)
-  bzero((char*) bitmaps, bitmap_size*3);
+  memset(bitmaps, 0, bitmap_size*3);
 #endif
 
   outparam->no_replicate= outparam->file &&
@@ -2137,7 +2210,7 @@ partititon_err:
 #endif
   outparam->file= 0;				// For easier error checking
   outparam->db_stat=0;
-  free_root(&outparam->mem_root, MYF(0));       // Safe to call on bzero'd root
+  free_root(&outparam->mem_root, MYF(0));
   my_free((void *) outparam->alias);
   DBUG_RETURN (error);
 }
@@ -2173,6 +2246,7 @@ int closefrm(register TABLE *table, bool free_share)
 #ifdef WITH_PARTITION_STORAGE_ENGINE
   if (table->part_info)
   {
+    /* Allocated through table->mem_root, freed below */
     free_items(table->part_info->item_free_list);
     table->part_info->item_free_list= 0;
     table->part_info= 0;
@@ -2198,7 +2272,15 @@ void free_blobs(register TABLE *table)
   for (ptr= table->s->blob_field, end=ptr + table->s->blob_fields ;
        ptr != end ;
        ptr++)
-    ((Field_blob*) table->field[*ptr])->free();
+  {
+    /*
+      Reduced TABLE objects which are used by row-based replication for
+      type conversion might have some fields missing. Skip freeing BLOB
+      buffers for such missing fields.
+    */
+    if (table->field[*ptr])
+      ((Field_blob*) table->field[*ptr])->free();
+  }
 }
 
 
@@ -2328,7 +2410,7 @@ ulong make_new_entry(File file, uchar *fileinfo, TYPELIB *formnames,
 	DBUG_RETURN(0);
       endpos-=bufflength; bufflength=IO_SIZE;
     }
-    bzero(buff,IO_SIZE);			/* Null new block */
+    memset(buff, 0, IO_SIZE);			/* Null new block */
     mysql_file_seek(file, (ulong) maxlength, MY_SEEK_SET, MYF(0));
     if (mysql_file_write(file, buff, bufflength, MYF(MY_NABP+MY_WME)))
 	DBUG_RETURN(0L);
@@ -2432,7 +2514,7 @@ void open_table_error(TABLE_SHARE *share, int error, int db_errno, int errarg)
   default:				/* Better wrong error than none */
   case 4:
     strxmov(buff, share->normalized_path.str, reg_ext, NullS);
-    my_error(ER_NOT_FORM_FILE, errortype, buff, 0);
+    my_error(ER_NOT_FORM_FILE, errortype, buff);
     break;
   }
   DBUG_VOID_RETURN;
@@ -2647,7 +2729,7 @@ File create_frm(THD *thd, const char *name, const char *db,
                                name, CREATE_MODE, create_flags, MYF(0))) >= 0)
   {
     uint key_length, tmp_key_length, tmp, csid;
-    bzero((char*) fileinfo,64);
+    memset(fileinfo, 0, 64);
     /* header */
     fileinfo[0]=(uchar) 254;
     fileinfo[1]= 1;
@@ -2721,7 +2803,7 @@ File create_frm(THD *thd, const char *name, const char *db,
       61 for default_part_db_type
     */
     int2store(fileinfo+62, create_info->key_block_size);
-    bzero(fill,IO_SIZE);
+    memset(fill, 0, IO_SIZE);
     for (; length > IO_SIZE ; length-= IO_SIZE)
     {
       if (mysql_file_write(file, fill, IO_SIZE, MYF(MY_WME | MY_NABP)))
@@ -2756,6 +2838,8 @@ void update_create_info_from_table(HA_CREATE_INFO *create_info, TABLE *table)
   create_info->default_table_charset= share->table_charset;
   create_info->table_charset= 0;
   create_info->comment= share->comment;
+  create_info->storage_media= share->default_storage_media;
+  create_info->tablespace= share->tablespace;
 
   DBUG_VOID_RETURN;
 }
@@ -3019,7 +3103,8 @@ Table_check_intact::check(TABLE *table, const TABLE_FIELD_DEF *table_def)
       report_error(ER_COL_COUNT_DOESNT_MATCH_PLEASE_UPDATE,
                    ER(ER_COL_COUNT_DOESNT_MATCH_PLEASE_UPDATE),
                    table->alias, table_def->count, table->s->fields,
-                   table->s->mysql_version, MYSQL_VERSION_ID);
+                   static_cast<int>(table->s->mysql_version),
+                   MYSQL_VERSION_ID);
       DBUG_RETURN(TRUE);
     }
     else if (MYSQL_VERSION_ID == table->s->mysql_version)
@@ -3177,7 +3262,7 @@ bool TABLE_SHARE::visit_subgraph(Wait_for_flush *wait_for_flush,
   if (gvisitor->m_lock_open_count++ == 0)
     mysql_mutex_lock(&LOCK_open);
 
-  I_P_List_iterator <TABLE, TABLE_share> tables_it(used_tables);
+  TABLE_SHARE::TABLE_list::Iterator tables_it(used_tables);
 
   /*
     In case of multiple searches running in parallel, avoid going
@@ -3348,7 +3433,7 @@ void TABLE::init(THD *thd, TABLE_LIST *tl)
   force_index= 0;
   force_index_order= 0;
   force_index_group= 0;
-  status= STATUS_NO_RECORD;
+  status= STATUS_GARBAGE | STATUS_NOT_FOUND;
   insert_values= 0;
   fulltext_searched= 0;
   file->ft_handler= 0;
@@ -3803,26 +3888,32 @@ void TABLE_LIST::hide_view_error(THD *thd)
   /* Hide "Unknown column" or "Unknown function" error */
   DBUG_ASSERT(thd->is_error());
 
-  if (thd->stmt_da->sql_errno() == ER_BAD_FIELD_ERROR ||
-      thd->stmt_da->sql_errno() == ER_SP_DOES_NOT_EXIST ||
-      thd->stmt_da->sql_errno() == ER_FUNC_INEXISTENT_NAME_COLLISION ||
-      thd->stmt_da->sql_errno() == ER_PROCACCESS_DENIED_ERROR ||
-      thd->stmt_da->sql_errno() == ER_COLUMNACCESS_DENIED_ERROR ||
-      thd->stmt_da->sql_errno() == ER_TABLEACCESS_DENIED_ERROR ||
-      thd->stmt_da->sql_errno() == ER_TABLE_NOT_LOCKED ||
-      thd->stmt_da->sql_errno() == ER_NO_SUCH_TABLE)
-  {
-    TABLE_LIST *top= top_table();
-    thd->clear_error();
-    my_error(ER_VIEW_INVALID, MYF(0), top->view_db.str, top->view_name.str);
-  }
-  else if (thd->stmt_da->sql_errno() == ER_NO_DEFAULT_FOR_FIELD)
-  {
-    TABLE_LIST *top= top_table();
-    thd->clear_error();
-    // TODO: make correct error message
-    my_error(ER_NO_DEFAULT_FOR_VIEW_FIELD, MYF(0),
-             top->view_db.str, top->view_name.str);
+  switch (thd->get_stmt_da()->sql_errno()) {
+    case ER_BAD_FIELD_ERROR:
+    case ER_SP_DOES_NOT_EXIST:
+    case ER_FUNC_INEXISTENT_NAME_COLLISION:
+    case ER_PROCACCESS_DENIED_ERROR:
+    case ER_COLUMNACCESS_DENIED_ERROR:
+    case ER_TABLEACCESS_DENIED_ERROR:
+    case ER_TABLE_NOT_LOCKED:
+    case ER_NO_SUCH_TABLE:
+    {
+      TABLE_LIST *top= top_table();
+      thd->clear_error();
+      my_error(ER_VIEW_INVALID, MYF(0),
+               top->view_db.str, top->view_name.str);
+      break;
+    }
+
+    case ER_NO_DEFAULT_FOR_FIELD:
+    {
+      TABLE_LIST *top= top_table();
+      thd->clear_error();
+      // TODO: make correct error message
+      my_error(ER_NO_DEFAULT_FOR_VIEW_FIELD, MYF(0),
+               top->view_db.str, top->view_name.str);
+      break;
+    }
   }
 }
 
@@ -4765,7 +4856,7 @@ void TABLE::clear_column_bitmaps()
     bitmap_clear_all(&table->def_read_set);
     bitmap_clear_all(&table->def_write_set);
   */
-  bzero((char*) def_read_set.bitmap, s->column_bitmap_size*2);
+  memset(def_read_set.bitmap, 0, s->column_bitmap_size*2);
   column_bitmaps_set(&def_read_set, &def_write_set);
 }
 
@@ -5889,7 +5980,7 @@ st_select_lex_unit *TABLE_LIST::get_unit()
 
 bool TABLE::update_const_key_parts(Item *conds)
 {
-  bzero((char*) const_key_parts, sizeof(key_part_map) * s->keys);
+  memset(const_key_parts, 0, sizeof(key_part_map) * s->keys);
 
   if (conds == NULL)
     return FALSE;
@@ -5927,13 +6018,3 @@ bool is_simple_order(ORDER *order)
   }
   return TRUE;
 }
-
-
-/*****************************************************************************
-** Instansiate templates
-*****************************************************************************/
-
-#ifdef HAVE_EXPLICIT_TEMPLATE_INSTANTIATION
-template class List<String>;
-template class List_iterator<String>;
-#endif

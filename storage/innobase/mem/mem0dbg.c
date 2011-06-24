@@ -26,6 +26,7 @@ Created 6/9/1994 Heikki Tuuri
 
 #ifdef UNIV_MEM_DEBUG
 # ifndef UNIV_HOTBACKUP
+#  include "ha_prototypes.h"
 /* The mutex which protects in the debug version the hash table
 containing the list of live memory heaps, and also the global
 variables below. */
@@ -400,7 +401,7 @@ mem_hash_remove(
 		fprintf(stderr,
 			"Memory heap or buffer freed in %s line %lu"
 			" did not exist.\n",
-			file_name, (ulong) line);
+			innobase_basename(file_name), (ulong) line);
 		ut_error;
 	}
 
@@ -419,8 +420,9 @@ mem_hash_remove(
 			"in %s line %lu and tried to free in %s line %lu.\n"
 			"Hex dump of 400 bytes around memory heap"
 			" first block start:\n",
-			node->nth_heap, node->file_name, (ulong) node->line,
-			file_name, (ulong) line);
+			node->nth_heap,
+			innobase_basename(node->file_name), (ulong) node->line,
+			innobase_basename(file_name), (ulong) line);
 		ut_print_buf(stderr, (byte*)node->heap - 200, 400);
 		fputs("\nDump of the mem heap:\n", stderr);
 		mem_heap_validate_or_print(node->heap, NULL, TRUE, &error,
@@ -763,7 +765,8 @@ mem_validate_no_assert(void)
 					"Inconsistency in memory heap"
 					" or buffer created\n"
 					"in %s line %lu.\n",
-					node->file_name, node->line);
+					innobase_basename(node->file_name),
+					node->line);
 
 				mutex_exit(&mem_hash_mutex);
 
@@ -989,7 +992,8 @@ mem_print_info_low(
 		fprintf(outfile,
 			"%lu: file %s line %lu of size %lu phys.size %lu"
 			" with %lu blocks, type %lu\n",
-			node->nth_heap, node->file_name, node->line,
+			node->nth_heap,
+			innobase_basename(node->file_name), node->line,
 			allocated_mem, ph_size, n_blocks,
 			(node->heap)->type);
 next_heap:

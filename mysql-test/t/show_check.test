@@ -442,7 +442,7 @@ flush tables;
 
 # Create a junk frm file on disk
 let $MYSQLD_DATADIR= `select @@datadir`;
-system echo "this is a junk file for test" >> $MYSQLD_DATADIR/test/t1.frm ;
+exec echo "this is a junk file for test" >> $MYSQLD_DATADIR/test/t1.frm ;
 --replace_column 6 # 7 # 8 # 9 #
 SHOW TABLE STATUS like 't1';
 --error ER_NOT_FORM_FILE
@@ -1082,6 +1082,7 @@ DROP DATABASE `ä`;
 #
 --error ER_NO_SUCH_TABLE,ER_FILE_NOT_FOUND
 show columns from `#mysql50#????????`;
+call mtr.add_suppression("Can.t find file: '.\\\\test\\\\\\?{8}.frm'");
 
 #
 # SHOW CREATE TRIGGER test.

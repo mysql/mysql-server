@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1994, 2009, Innobase Oy. All Rights Reserved.
+Copyright (c) 1994, 2011, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -284,16 +284,42 @@ page_get_supremum_offset(
 	const page_t*	page);	/*!< in: page which must have record(s) */
 #define page_get_infimum_rec(page) ((page) + page_get_infimum_offset(page))
 #define page_get_supremum_rec(page) ((page) + page_get_supremum_offset(page))
+
 /************************************************************//**
-Returns the middle record of record list. If there are an even number
-of records in the list, returns the first record of upper half-list.
-@return	middle record */
+Returns the nth record of the record list.
+This is the inverse function of page_rec_get_n_recs_before().
+@return	nth record */
 UNIV_INTERN
+const rec_t*
+page_rec_get_nth_const(
+/*===================*/
+	const page_t*	page,	/*!< in: page */
+	ulint		nth)	/*!< in: nth record */
+	__attribute__((nonnull, warn_unused_result));
+/************************************************************//**
+Returns the nth record of the record list.
+This is the inverse function of page_rec_get_n_recs_before().
+@return	nth record */
+UNIV_INLINE
+rec_t*
+page_rec_get_nth(
+/*=============*/
+	page_t*	page,	/*< in: page */
+	ulint	nth)	/*!< in: nth record */
+	__attribute__((nonnull, warn_unused_result));
+
+#ifndef UNIV_HOTBACKUP
+/************************************************************//**
+Returns the middle record of the records on the page. If there is an
+even number of records in the list, returns the first record of the
+upper half-list.
+@return	middle record */
+UNIV_INLINE
 rec_t*
 page_get_middle_rec(
 /*================*/
-	page_t*	page);	/*!< in: page */
-#ifndef UNIV_HOTBACKUP
+	page_t*	page)	/*!< in: page */
+	__attribute__((nonnull, warn_unused_result));
 /*************************************************************//**
 Compares a data tuple to a physical record. Differs from the function
 cmp_dtuple_rec_with_match in the way that the record must reside on an
@@ -348,6 +374,7 @@ page_get_n_recs(
 /***************************************************************//**
 Returns the number of records before the given record in chain.
 The number includes infimum and supremum records.
+This is the inverse function of page_rec_get_nth().
 @return	number of records */
 UNIV_INTERN
 ulint
@@ -618,18 +645,19 @@ rec_t*
 page_rec_find_owner_rec(
 /*====================*/
 	rec_t*	rec);	/*!< in: the physical record */
+#ifndef UNIV_HOTBACKUP
 /***********************************************************************//**
-This is a low-level operation which is used in a database index creation
-to update the page number of a created B-tree to a data dictionary
-record. */
-UNIV_INTERN
+Write a 32-bit field in a data dictionary record. */
+UNIV_INLINE
 void
-page_rec_write_index_page_no(
-/*=========================*/
-	rec_t*	rec,	/*!< in: record to update */
+page_rec_write_field(
+/*=================*/
+	rec_t*	rec,	/*!< in/out: record to update */
 	ulint	i,	/*!< in: index of the field to update */
-	ulint	page_no,/*!< in: value to write */
-	mtr_t*	mtr);	/*!< in: mtr */
+	ulint	val,	/*!< in: value to write */
+	mtr_t*	mtr)	/*!< in/out: mini-transaction */
+	__attribute__((nonnull));
+#endif /* !UNIV_HOTBACKUP */
 /************************************************************//**
 Returns the maximum combined size of records which can be inserted on top
 of record heap.
@@ -952,7 +980,7 @@ UNIV_INTERN
 ibool
 page_rec_validate(
 /*==============*/
-	rec_t*		rec,	/*!< in: physical record */
+	const rec_t*	rec,	/*!< in: physical record */
 	const ulint*	offsets);/*!< in: array returned by rec_get_offsets() */
 /***************************************************************//**
 Checks that the first directory slot points to the infimum record and
@@ -972,7 +1000,7 @@ UNIV_INTERN
 ibool
 page_simple_validate_old(
 /*=====================*/
-	page_t*	page);	/*!< in: old-style index page */
+	const page_t*	page);	/*!< in: index page in ROW_FORMAT=REDUNDANT */
 /***************************************************************//**
 This function checks the consistency of an index page when we do not
 know the index. This is also resilient so that this should never crash
@@ -982,7 +1010,7 @@ UNIV_INTERN
 ibool
 page_simple_validate_new(
 /*=====================*/
-	page_t*	block);	/*!< in: new-style index page */
+	const page_t*	page);	/*!< in: index page in ROW_FORMAT!=REDUNDANT */
 /***************************************************************//**
 This function checks the consistency of an index page.
 @return	TRUE if ok */
@@ -990,7 +1018,7 @@ UNIV_INTERN
 ibool
 page_validate(
 /*==========*/
-	page_t*		page,	/*!< in: index page */
+	const page_t*	page,	/*!< in: index page */
 	dict_index_t*	index);	/*!< in: data dictionary index containing
 				the page record type definition */
 /***************************************************************//**

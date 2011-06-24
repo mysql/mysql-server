@@ -11,8 +11,8 @@ ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
 FOR A PARTICULAR PURPOSE. See the GNU General Public License for more details.
 
 You should have received a copy of the GNU General Public License along with
-this program; if not, write to the Free Software Foundation, Inc., 59 Temple
-Place, Suite 330, Boston, MA 02111-1307 USA
+this program; if not, write to the Free Software Foundation, Inc.,
+51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA
 
 *****************************************************************************/
 
@@ -64,17 +64,17 @@ combination of types */
 
 /** Table flags.  All unused bits must be 0. */
 /* @{ */
-#define DICT_TF_COMPACT			1	/* Compact page format.
-						This must be set for
-						new file formats
-						(later than
-						DICT_TF_FORMAT_51). */
+/** Compact page format.
+This flag is set for all row formats later than Redundant.  It identifies
+the Compact row format.  It is also used for the later formats, Compressed
+and Dynamic, because they add features to the Compact structure. */
+#define DICT_TF_COMPACT			1
 
 /** Compressed page size (0=uncompressed, up to 15 compressed sizes) */
 /* @{ */
 #define DICT_TF_ZSSIZE_SHIFT		1
 #define DICT_TF_ZSSIZE_MASK		(15 << DICT_TF_ZSSIZE_SHIFT)
-#define DICT_TF_ZSSIZE_MAX (UNIV_PAGE_SIZE_SHIFT - PAGE_ZIP_MIN_SIZE_SHIFT + 1)
+#define DICT_TF_ZSSIZE_MAX (UNIV_PAGE_SIZE_SHIFT - UNIV_ZIP_SIZE_SHIFT_MIN + 1)
 /* @} */
 
 /** File format */
@@ -82,38 +82,29 @@ combination of types */
 #define DICT_TF_FORMAT_SHIFT		5	/* file format */
 #define DICT_TF_FORMAT_MASK		\
 ((~(~0 << (DICT_TF_BITS - DICT_TF_FORMAT_SHIFT))) << DICT_TF_FORMAT_SHIFT)
-#define DICT_TF_FORMAT_51		0	/*!< InnoDB/MySQL up to 5.1 */
-#define DICT_TF_FORMAT_ZIP		1	/*!< InnoDB plugin for 5.1:
-						compressed tables,
-						new BLOB treatment */
-/** Maximum supported file format */
-#define DICT_TF_FORMAT_MAX		DICT_TF_FORMAT_ZIP
-
-/** Minimum supported file format */
-#define DICT_TF_FORMAT_MIN		DICT_TF_FORMAT_51
+#define DICT_N_COLS_COMPACT	0x80000000UL	/*!< Set if ROW_FORMAT!=REDUNDANT */
 
 /* @} */
 #define DICT_TF_BITS			6	/*!< number of flag bits */
-#if (1 << (DICT_TF_BITS - DICT_TF_FORMAT_SHIFT)) <= DICT_TF_FORMAT_MAX
-# error "DICT_TF_BITS is insufficient for DICT_TF_FORMAT_MAX"
+#if (1 << (DICT_TF_BITS - DICT_TF_FORMAT_SHIFT)) <= UNIV_FORMAT_MAX
+# error "DICT_TF_BITS is insufficient for UNIV_FORMAT_MAX"
 #endif
+/** Valid table flag bits */
+#define DICT_TF_BIT_MASK		(~(~0 << DICT_TF_BITS))	
 /* @} */
 
-/** @brief Additional table flags.
+/** @brief Table Flags set number 2.
 
 These flags will be stored in SYS_TABLES.MIX_LEN.  All unused flags
 will be written as 0.  The column may contain garbage for tables
 created with old versions of InnoDB that only implemented
 ROW_FORMAT=REDUNDANT. */
 /* @{ */
-#define DICT_TF2_SHIFT			DICT_TF_BITS
-						/*!< Shift value for
-						table->flags. */
-#define DICT_TF2_TEMPORARY		1	/*!< TRUE for tables from
-						CREATE TEMPORARY TABLE. */
-#define DICT_TF2_BITS			(DICT_TF2_SHIFT + 1)
-						/*!< Total number of bits
-						in table->flags. */
+/** Total number of bits in table->flags2. */
+#define DICT_TF2_BITS		1
+#define DICT_TF2_BIT_MASK	~(~0 << DICT_TF2_BITS)
+
+#define DICT_TF2_TEMPORARY	(1<<0)	/*!< 1 if CREATE TEMPORARY TABLE */
 /* @} */
 
 /** Tables could be chained together with Foreign key constraint. When
@@ -145,7 +136,8 @@ dict_mem_table_create(
 					is ignored if the table is made
 					a member of a cluster */
 	ulint		n_cols,		/*!< in: number of columns */
-	ulint		flags);		/*!< in: table flags */
+	ulint		flags,		/*!< in: table flags */
+	ulint		flags2);	/*!< in: table flags2 */
 /****************************************************************//**
 Free a table memory object. */
 UNIV_INTERN
@@ -240,7 +232,9 @@ dict_mem_foreign_create(void);
 
 /**********************************************************************//**
 Sets the foreign_table_name_lookup pointer based on the value of
-srv_lower_case_table_names. */
+lower_case_table_names.  If that is 0 or 1, foreign_table_name_lookup
+will point to foreign_table_name.  If 2, then another string is
+allocated from the heap and set to lower case. */
 UNIV_INTERN
 void
 dict_mem_foreign_table_name_lookup_set(
@@ -249,8 +243,10 @@ dict_mem_foreign_table_name_lookup_set(
 	ibool		do_alloc);	/*!< in: is an alloc needed */
 
 /**********************************************************************//**
-Sets the reference_table_name_lookup pointer based on the value of
-srv_lower_case_table_names. */
+Sets the referenced_table_name_lookup pointer based on the value of
+lower_case_table_names.  If that is 0 or 1, referenced_table_name_lookup
+will point to referenced_table_name.  If 2, then another string is
+allocated from the heap and set to lower case. */
 UNIV_INTERN
 void
 dict_mem_referenced_table_name_lookup_set(
@@ -298,32 +294,58 @@ struct dict_col_struct{
 	unsigned	ord_part:1;	/*!< nonzero if this column
 					appears in the ordering fields
 					of an index */
+	unsigned	max_prefix:12;	/*!< maximum index prefix length on
+					this column. Our current max limit is
+					3072 for Barracuda table */
 };
 
-/** @brief DICT_MAX_INDEX_COL_LEN is measured in bytes and is the maximum
-indexed column length (or indexed prefix length).
+/** @brief DICT_ANTELOPE_MAX_INDEX_COL_LEN is measured in bytes and
+is the maximum indexed column length (or indexed prefix length) in
+ROW_FORMAT=REDUNDANT and ROW_FORMAT=COMPACT. Also, in any format,
+any fixed-length field that is longer than this will be encoded as
+a variable-length field.
 
 It is set to 3*256, so that one can create a column prefix index on
 256 characters of a TEXT or VARCHAR column also in the UTF-8
 charset. In that charset, a character may take at most 3 bytes.  This
 constant MUST NOT BE CHANGED, or the compatibility of InnoDB data
 files would be at risk! */
-#define DICT_MAX_INDEX_COL_LEN		REC_MAX_INDEX_COL_LEN
+#define DICT_ANTELOPE_MAX_INDEX_COL_LEN	REC_ANTELOPE_MAX_INDEX_COL_LEN
+
+/** Find out maximum indexed column length by its table format.
+For ROW_FORMAT=REDUNDANT and ROW_FORMAT=COMPACT, the maximum
+field length is REC_ANTELOPE_MAX_INDEX_COL_LEN - 1 (767). For new
+barracuda format, the length could be REC_VERSION_56_MAX_INDEX_COL_LEN
+(3072) bytes */
+#define DICT_MAX_FIELD_LEN_BY_FORMAT(table)				\
+		((dict_table_get_format(table) < UNIV_FORMAT_B)		\
+			? (REC_ANTELOPE_MAX_INDEX_COL_LEN - 1)		\
+			: REC_VERSION_56_MAX_INDEX_COL_LEN)
+
+#define DICT_MAX_FIELD_LEN_BY_FORMAT_FLAG(flags)			\
+		((((flags & DICT_TF_FORMAT_MASK) >> DICT_TF_FORMAT_SHIFT)\
+		    < UNIV_FORMAT_B)					\
+			? (REC_ANTELOPE_MAX_INDEX_COL_LEN - 1)		\
+			: REC_VERSION_56_MAX_INDEX_COL_LEN)
+
+/** Defines the maximum fixed length column size */
+#define DICT_MAX_FIXED_COL_LEN		DICT_ANTELOPE_MAX_INDEX_COL_LEN
 
 /** Data structure for a field in an index */
 struct dict_field_struct{
 	dict_col_t*	col;		/*!< pointer to the table column */
 	const char*	name;		/*!< name of the column */
-	unsigned	prefix_len:10;	/*!< 0 or the length of the column
+	unsigned	prefix_len:12;	/*!< 0 or the length of the column
 					prefix in bytes in a MySQL index of
 					type, e.g., INDEX (textcol(25));
 					must be smaller than
-					DICT_MAX_INDEX_COL_LEN; NOTE that
-					in the UTF-8 charset, MySQL sets this
-					to 3 * the prefix len in UTF-8 chars */
+					DICT_MAX_FIELD_LEN_BY_FORMAT;
+					NOTE that in the UTF-8 charset, MySQL
+					sets this to (mbmaxlen * the prefix len)
+					in UTF-8 chars */
 	unsigned	fixed_len:10;	/*!< 0 or the fixed length of the
 					column if smaller than
-					DICT_MAX_INDEX_COL_LEN */
+					DICT_ANTELOPE_MAX_INDEX_COL_LEN */
 };
 
 /** Data structure for an index.  Most fields will be
@@ -361,6 +383,8 @@ struct dict_index_struct{
 				/*!< TRUE if this index is marked to be
 				dropped in ha_innobase::prepare_drop_index(),
 				otherwise FALSE */
+	unsigned	corrupted:1;
+				/*!< TRUE if the index object is corrupted */
 	dict_field_t*	fields;	/*!< array of field descriptions */
 #ifndef UNIV_HOTBACKUP
 	UT_LIST_NODE_T(dict_index_t)
@@ -400,6 +424,13 @@ struct dict_index_struct{
 				index, or 0 if the index existed
 				when InnoDB was started up */
 #endif /* !UNIV_HOTBACKUP */
+#ifdef UNIV_BLOB_DEBUG
+	mutex_t		blobs_mutex;
+				/*!< mutex protecting blobs */
+	void*		blobs;	/*!< map of (page_no,heap_no,field_no)
+				to first_blob_page_no; protected by
+				blobs_mutex; @see btr_blob_dbg_t */
+#endif /* UNIV_BLOB_DEBUG */
 #ifdef UNIV_DEBUG
 	ulint		magic_n;/*!< magic number */
 /** Value of dict_index_struct::magic_n */
@@ -477,7 +508,8 @@ struct dict_table_struct{
 	unsigned	space:32;
 				/*!< space where the clustered index of the
 				table is placed */
-	unsigned	flags:DICT_TF2_BITS;/*!< DICT_TF_COMPACT, ... */
+	unsigned	flags:DICT_TF_BITS;	/*!< DICT_TF_... */
+	unsigned	flags2:DICT_TF2_BITS;	/*!< DICT_TF2_... */
 	unsigned	ibd_file_missing:1;
 				/*!< TRUE if this is in a single-table
 				tablespace and the .ibd file is missing; then
@@ -495,6 +527,8 @@ struct dict_table_struct{
 	unsigned	can_be_evicted:1;
 				/*!< TRUE if it's not an InnoDB system table
 				or a table that has no FK relationships */
+	unsigned	corrupted:1;
+				/*!< TRUE if table is corrupted */
 	dict_col_t*	cols;	/*!< array of column descriptions */
 	const char*	col_names;
 				/*!< Column names packed in a character string
