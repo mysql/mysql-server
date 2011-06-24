@@ -310,6 +310,31 @@ my_bool _ma_bitmap_end(MARIA_SHARE *share)
   return res;
 }
 
+/*
+  Ensure that we have incremented open count before we try to read/write
+  a page while we have the bitmap lock.
+  This is needed to ensure that we don't call _ma_mark_file_changed() as
+  part of flushing a page to disk, as this locks share->internal_lock
+  and then mutex lock would happen in the wrong order.
+*/
+
+static inline void _ma_bitmap_mark_file_changed(MARIA_SHARE *share)
+{                                                
+  /* 
+     It's extremely unlikely that the following test is true as it
+     only happens once if the table has changed.
+  */
+  if (unlikely(!share->global_changed &&
+               (share->state.changed & STATE_CHANGED)))
+  {
+    /* purecov: begin inspected */
+    /* unlock mutex as it can't be hold during _ma_mark_file_changed() */
+    pthread_mutex_unlock(&share->bitmap.bitmap_lock);
+    _ma_mark_file_changed(share);
+    pthread_mutex_lock(&share->bitmap.bitmap_lock);
+    /* purecov: end */
+  }
+}
 
 /*
   Send updated bitmap to the page cache
@@ -413,24 +438,13 @@ my_bool _ma_bitmap_flush_all(MARIA_SHARE *share)
     DBUG_RETURN(0);
   }
 
-  /*
-    Before flusing bitmap, ensure that we have incremented open count.
-    This is needed to ensure that we don't call
-    _ma_mark_file_changed() as part of flushing bitmap page as in this
-    case we would use mutex lock in wrong order.
-    It's extremely unlikely that the following test is true as normally
-    this is happening when table is flushed.
-  */
-  if (unlikely(!share->global_changed))
-  {
-    /* purecov: begin inspected */
-    /* unlock bitmap mutex as it can't be hold during _ma_mark_file_changed */
-    pthread_mutex_unlock(&bitmap->bitmap_lock);
-    _ma_mark_file_changed(share);
-    pthread_mutex_lock(&bitmap->bitmap_lock);
-    /* purecov: end */
-  }
+  _ma_bitmap_mark_file_changed(share);
 
+  /*
+    The following should be true as it was tested above. We have to test
+    this again as _ma_bitmap_mark_file_changed() did temporarly release
+    the bitmap mutex.
+  */
   if (bitmap->changed || bitmap->changed_not_flushed)
   {
     bitmap->flush_all_requested++;
@@ -1010,6 +1024,8 @@ static my_bool _ma_change_bitmap_page(MARIA_HA *info,
 {
   DBUG_ENTER("_ma_change_bitmap_page");
 
+  _ma_bitmap_mark_file_changed(info->s);
+
   if (bitmap->changed)
   {
     if (write_changed_bitmap(info->s, bitmap))
@@ -1447,10 +1463,7 @@ static ulong allocate_full_pages(MARIA_FILE_BITMAP *bitmap,
     best_prefix_bits|= tmp;
     int6store(best_data, best_prefix_bits);
     if (!(best_area_size-= best_prefix_area_size))
-    {
-      DBUG_EXECUTE("bitmap", _ma_print_bitmap_changes(bitmap););
-      DBUG_RETURN(block->page_count);
-    }
+      goto end;
     best_data+= 6;
   }
   best_area_size*= 3;                       /* Bits to set */
@@ -1468,6 +1481,7 @@ static ulong allocate_full_pages(MARIA_FILE_BITMAP *bitmap,
     bitmap->used_size= (uint) (best_data - bitmap->map);
     DBUG_ASSERT(bitmap->used_size <= bitmap->total_size);
   }
+end:
   bitmap->changed= 1;
   DBUG_EXECUTE("bitmap", _ma_print_bitmap_changes(bitmap););
   DBUG_RETURN(block->page_count);
@@ -2142,7 +2156,7 @@ static my_bool set_page_bits(MARIA_HA *info, MARIA_FILE_BITMAP *bitmap,
   Get bitmap pattern for a given page
 
   SYNOPSIS
-    get_page_bits()
+    bitmap_get_page_bits()
     info	Maria handler
     bitmap	Bitmap handler
     page	Page number
@@ -2152,8 +2166,8 @@ static my_bool set_page_bits(MARIA_HA *info, MARIA_FILE_BITMAP *bitmap,
     ~0		Error (couldn't read page)
 */
 
-uint _ma_bitmap_get_page_bits(MARIA_HA *info, MARIA_FILE_BITMAP *bitmap,
-                              pgcache_page_no_t page)
+static uint bitmap_get_page_bits(MARIA_HA *info, MARIA_FILE_BITMAP *bitmap,
+                                 pgcache_page_no_t page)
 {
   pgcache_page_no_t bitmap_page;
   uint offset_page, offset, tmp;
@@ -2176,6 +2190,19 @@ uint _ma_bitmap_get_page_bits(MARIA_HA *info, MARIA_FILE_BITMAP *bitmap,
   data= bitmap->map + offset_page / 8;
   tmp= uint2korr(data);
   DBUG_RETURN((tmp >> offset) & 7);
+}
+
+
+/* As above, but take a lock while getting the data */
+
+uint _ma_bitmap_get_page_bits(MARIA_HA *info, MARIA_FILE_BITMAP *bitmap,
+                              pgcache_page_no_t page)
+{
+  uint tmp;
+  pthread_mutex_lock(&bitmap->bitmap_lock);
+  tmp= bitmap_get_page_bits(info, bitmap, page);
+  pthread_mutex_unlock(&bitmap->bitmap_lock);  
+  return tmp;
 }
 
 
@@ -2258,6 +2285,7 @@ my_bool _ma_bitmap_reset_full_page_bits(MARIA_HA *info,
   DBUG_RETURN(0);
 }
 
+
 /*
   Set all pages in a region as used
 
@@ -2290,7 +2318,7 @@ my_bool _ma_bitmap_set_full_page_bits(MARIA_HA *info,
 
   bitmap_page= page - page % bitmap->pages_covered;
   if (page == bitmap_page ||
-      page + page_count >= bitmap_page + bitmap->pages_covered)
+      page + page_count > bitmap_page + bitmap->pages_covered)
   {
     DBUG_ASSERT(0);                             /* Wrong in data */
     DBUG_RETURN(1);
@@ -2494,7 +2522,7 @@ my_bool _ma_bitmap_release_unused(MARIA_HA *info, MARIA_BITMAP_BLOCKS *blocks)
   else
   {
     DBUG_ASSERT(current_bitmap_value ==
-                _ma_bitmap_get_page_bits(info, bitmap, block->page));
+                bitmap_get_page_bits(info, bitmap, block->page));
   }
 
   /* Handle all full pages and tail pages (for head page and blob) */
@@ -2526,7 +2554,7 @@ my_bool _ma_bitmap_release_unused(MARIA_HA *info, MARIA_BITMAP_BLOCKS *blocks)
         to not set the bits to the same value as before.
       */
       DBUG_ASSERT(current_bitmap_value ==
-                  _ma_bitmap_get_page_bits(info, bitmap, block->page));
+                  bitmap_get_page_bits(info, bitmap, block->page));
 
       if (bits != current_bitmap_value)
       {
