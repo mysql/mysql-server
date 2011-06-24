@@ -851,8 +851,8 @@ fts_cache_find_wildcard(
 	srch_text.utf8 = term;
 
 	/* Lookup the word in the rb tree */
-	if (rbt_search_cmp(index_cache->words, &parent, &srch_text,
-			   fts_utf8_string_cmp_prefix) == 0) {
+	if (rbt_search_cmp(index_cache->words, &parent, &srch_text, NULL,
+			   innobase_fts_text_cmp_prefix) == 0) {
 		const fts_tokenizer_word_t*     word;
 		ulint				i;
 		const ib_rbt_node_t*		cur_node;
@@ -3402,10 +3402,15 @@ fts_expand_query(
 	/* Init "result_doc", to hold words from the first search pass */
 	fts_doc_init(&result_doc);
 
-	result_doc.tokens = rbt_create(
-		sizeof(fts_token_t), fts_utf8_string_cmp);
-
 	index_cache = fts_find_index_cache(index->table->fts->cache, index);
+
+	ut_a(index_cache);
+
+	result_doc.tokens = rbt_create_arg_cmp(
+		sizeof(fts_token_t), innobase_fts_text_cmp,
+		index_cache->charset);
+
+	result_doc.charset = index_cache->charset;
 
 #ifdef UNIV_DEBUG
 	fts_print_doc_id(query->doc_ids);
@@ -3416,10 +3421,8 @@ fts_expand_query(
 	     node = rbt_next(query->doc_ids, node)) {
 
 		fts_ranking_t*	ranking;
-		fts_doc_t	doc;
 		const ib_rbt_node_t*	node_word;
 
-		fts_doc_init(&doc);
 		ranking = rbt_value(fts_ranking_t, node);
 
 		/* Fetch the documents with the doc_id from the
@@ -3430,10 +3433,8 @@ fts_expand_query(
 		support some forms of document-to-word mapping */
 		fts_doc_fetch_by_doc_id(NULL, ranking->doc_id, index,
 					FTS_FETCH_DOC_BY_ID_EQUAL,
-					fts_add_fetch_document, &doc);
-		doc.charset = index_cache->charset;
-
-		fts_tokenize_document(&doc, &result_doc);
+					fts_query_expansion_fetch_doc,
+					&result_doc);
 
 		/* Remove words that have already been searched in the
 		first pass */
@@ -3455,8 +3456,6 @@ fts_expand_query(
 					(ulint)ranking->doc_id);
 			}
 		}
-
-		fts_doc_free(&doc);
 	}
 
 	/* Search the table the second time with expanded search list */

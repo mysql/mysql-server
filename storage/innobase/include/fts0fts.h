@@ -563,6 +563,26 @@ fts_init_doc_id(
 /*============*/
 	const dict_table_t*		table);		/*!< in: table */
 
+/******************************************************************//**
+compare two character string according to their charset. */
+extern
+int
+innobase_fts_text_cmp(
+/*==================*/
+	const void*	cs,		/*!< in: Character set */
+	const void*	p1,		/*!< in: key */
+	const void*	p2);		/*!< in: node */
+
+/******************************************************************//**
+compare two character string according to their charset. */
+extern
+int
+innobase_fts_text_cmp_prefix(
+/*=========================*/
+	const void*	cs,		/*!< in: Character set */
+	const void*	p1,		/*!< in: key */
+	const void*	p2);		/*!< in: node */
+
 /********************************************************************
 Fetch COUNT(*) from specified table. */
 ulint

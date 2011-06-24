@@ -1062,6 +1062,7 @@ row_fts_merge_insert(
 	ulint			height;
 	ulint			start;
 	int			counta = 0;
+	trx_t*			insert_trx;
 
 	ut_ad(trx);
 	ut_ad(index);
@@ -1070,7 +1071,9 @@ row_fts_merge_insert(
 	/* We use the insert query graph as the dummy graph
 	needed in the row module call */
 
-	trx->op_info = "inserting index entries";
+	insert_trx = trx_allocate_for_background();
+
+	insert_trx->op_info = "inserting index entries";
 
 	graph_heap = mem_heap_create(500 + sizeof(mrec_buf_t));
 
@@ -1147,7 +1150,7 @@ row_fts_merge_insert(
 				if (min_rec >= FTS_PARALLEL_DEGREE) {
 
 					row_fts_insert_tuple(
-						trx, ins_graph, index,
+						insert_trx, ins_graph, index,
 						&fts_table, &new_word,
 						positions, &last_doc_id,
 						NULL, &counta);
@@ -1173,7 +1176,7 @@ row_fts_merge_insert(
 
 			if (min_rec ==  -1) {
 				row_fts_insert_tuple(
-					trx, ins_graph, index,
+					insert_trx, ins_graph, index,
 					&fts_table, &new_word,
 					positions, &last_doc_id,
 					NULL, &counta);
@@ -1187,7 +1190,7 @@ row_fts_merge_insert(
 			tuple_heap);
 
 		row_fts_insert_tuple(
-			trx, ins_graph, index, &fts_table, &new_word,
+			insert_trx, ins_graph, index, &fts_table, &new_word,
 			positions, &last_doc_id, dtuple, &counta);
 
 
@@ -1209,7 +1212,9 @@ row_fts_merge_insert(
 	}
 
 exit:
-	trx->op_info = "";
+	fts_sql_commit(insert_trx);
+
+	insert_trx->op_info = "";
 
 	mem_heap_free(tuple_heap);
 
@@ -1218,6 +1223,8 @@ exit:
 			fts_que_graph_free(ins_graph[i]);
 		}
 	}
+
+	trx_free_for_background(insert_trx);
 
 	/* FIXME: Diagnostic printout, will be removed later */
 	ut_print_timestamp(stderr);

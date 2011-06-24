@@ -167,8 +167,8 @@ converting each column to UTF-16.
 @return: always returns NULL */
 UNIV_INTERN
 ibool
-fts_add_fetch_document(
-/*===================*/
+fts_query_expansion_fetch_doc(
+/*==========================*/
 	void*		row,		/* in: sel_node_t* */
 	void*		user_arg);	/* in: fts_doc_t* */
 /********************************************************************

@@ -4513,6 +4513,53 @@ innobase_get_fts_charset(
 }
 
 /******************************************************************//**
+compare two character string according to their charset. */
+extern "C" UNIV_INTERN
+int
+innobase_fts_text_cmp(
+/*==================*/
+	const void*	cs,		/*!< in: Character set */
+	const void*     p1,		/*!< in: key */
+        const void*     p2)		/*!< in: node */
+{
+	const CHARSET_INFO*	charset = (const CHARSET_INFO*) cs;
+        const fts_string_t*	s1 = (const fts_string_t*) p1;
+        const fts_string_t*	s2 = (const fts_string_t*) p2;
+
+        return(ha_compare_text(charset, s1->utf8, s1->len,
+			       s2->utf8, s2->len, 0, 0));
+}
+/******************************************************************//**
+compare two character string according to their charset. */
+extern "C" UNIV_INTERN
+int
+innobase_fts_text_cmp_prefix(
+/*=========================*/
+	const void*	cs,		/*!< in: Character set */
+	const void*	p1,		/*!< in: key */
+	const void*	p2)		/*!< in: node */
+{
+	const CHARSET_INFO*	charset = (const CHARSET_INFO*) cs;
+	const fts_string_t*	s1 = (const fts_string_t*) p1;
+	const fts_string_t*	s2 = (const fts_string_t*) p2;
+	int			result;
+	ulint			len;
+
+	len = ut_min(s1->len, s2->len);
+
+	result = ha_compare_text(charset, s1->utf8, len, s2->utf8, len, 0, 0);
+
+	if (result) {
+		return(result);
+	}
+
+	if (s1->len > s2->len) {
+		return(1);
+	}
+
+	return(0);
+}
+/******************************************************************//**
 Makes all characters in a string lower case. */
 extern "C" UNIV_INTERN
 void
@@ -4554,6 +4601,10 @@ innobase_mysql_fts_get_token(
 	int			mbl;
 	int			ctype;
 
+	token->len = 0;
+
+	ut_a(cs);
+
 	do {
 		for (;; doc+= (mbl > 0 ? mbl : (mbl < 0 ? -mbl : 1))) {
 			if (doc >= end) {
@@ -4587,7 +4638,7 @@ innobase_mysql_fts_get_token(
 			}
 		}
 
-		token->len= (uint)(doc - token->utf8) - mwc;
+		token->len = (uint)(doc - token->utf8) - mwc;
 
 		return(doc - start);
 	} while (doc < end);
