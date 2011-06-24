@@ -2840,9 +2840,8 @@ void fix_semijoin_strategies_for_picked_join_order(JOIN *join)
     TRUE   Error
 */
 
-bool setup_sj_materialization(JOIN_TAB *sjm_tab)
+bool setup_sj_materialization_part1(JOIN_TAB *sjm_tab)
 {
-  uint i;
   DBUG_ENTER("setup_sj_materialization");
   JOIN_TAB *tab= sjm_tab->bush_children->start;
   TABLE_LIST *emb_sj_nest= tab->table->pos_in_table_list->embedding;
@@ -2850,7 +2849,8 @@ bool setup_sj_materialization(JOIN_TAB *sjm_tab)
   THD *thd= tab->join->thd;
   /* First the calls come to the materialization function */
   List<Item> &item_list= emb_sj_nest->sj_subq_pred->unit->first_select()->item_list;
-
+  
+  DBUG_ASSERT(sjm->is_used);
   /* 
     Set up the table to write to, do as select_union::create_result_table does
   */
@@ -2878,6 +2878,22 @@ bool setup_sj_materialization(JOIN_TAB *sjm_tab)
   
   sjm->materialized= FALSE;
   sjm_tab->table= sjm->table;
+  sjm->table->pos_in_table_list= emb_sj_nest;//???? psergey ???
+ 
+  DBUG_RETURN(FALSE);
+}
+
+
+bool setup_sj_materialization_part2(JOIN_TAB *sjm_tab)
+{
+  DBUG_ENTER("setup_sj_materialization_part2");
+  JOIN_TAB *tab= sjm_tab->bush_children->start;
+  TABLE_LIST *emb_sj_nest= tab->table->pos_in_table_list->embedding;
+  SJ_MATERIALIZATION_INFO *sjm= emb_sj_nest->sj_mat_info;
+  THD *thd= tab->join->thd;
+  uint i;
+  List<Item> &item_list= emb_sj_nest->sj_subq_pred->unit->first_select()->item_list;
+  List_iterator<Item> it(item_list);
 
   if (!sjm->is_sj_scan)
   {
@@ -2992,7 +3008,7 @@ bool setup_sj_materialization(JOIN_TAB *sjm_tab)
       in the record buffers for the source tables. 
     */
     sjm->copy_field= new Copy_field[sjm->sjm_table_cols.elements];
-    it.rewind();
+    //it.rewind();
     for (uint i=0; i < sjm->sjm_table_cols.elements; i++)
     {
       bool dummy;
