@@ -268,15 +268,18 @@ int mysql_load(THD *thd,sql_exchange *ex,TABLE_LIST *table_list,
       Let us also prepare SET clause, altough it is probably empty
       in this case.
     */
-    if (setup_fields(thd, 0, set_fields, MARK_COLUMNS_WRITE, 0, 0) ||
-        setup_fields(thd, 0, set_values, MARK_COLUMNS_READ, 0, 0))
+    if (setup_fields(thd, Ref_ptr_array(),
+                     set_fields, MARK_COLUMNS_WRITE, 0, 0) ||
+        setup_fields(thd, Ref_ptr_array(), set_values, MARK_COLUMNS_READ, 0, 0))
       DBUG_RETURN(TRUE);
   }
   else
   {						// Part field list
     /* TODO: use this conds for 'WITH CHECK OPTIONS' */
-    if (setup_fields(thd, 0, fields_vars, MARK_COLUMNS_WRITE, 0, 0) ||
-        setup_fields(thd, 0, set_fields, MARK_COLUMNS_WRITE, 0, 0) ||
+    if (setup_fields(thd, Ref_ptr_array(),
+                     fields_vars, MARK_COLUMNS_WRITE, 0, 0) ||
+        setup_fields(thd, Ref_ptr_array(),
+                     set_fields, MARK_COLUMNS_WRITE, 0, 0) ||
         check_that_all_fields_are_given_values(thd, table, table_list))
       DBUG_RETURN(TRUE);
     /*
@@ -295,7 +298,7 @@ int mysql_load(THD *thd,sql_exchange *ex,TABLE_LIST *table_list,
       }
     }
     /* Fix the expressions in SET clause */
-    if (setup_fields(thd, 0, set_values, MARK_COLUMNS_READ, 0, 0))
+    if (setup_fields(thd, Ref_ptr_array(), set_values, MARK_COLUMNS_READ, 0, 0))
       DBUG_RETURN(TRUE);
   }
 

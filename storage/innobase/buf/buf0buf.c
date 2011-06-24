@@ -3451,9 +3451,6 @@ err_exit:
 		uninitialized data. */
 		data = buf_buddy_alloc(buf_pool, zip_size, &lru);
 
-		/* Initialize the buf_pool pointer. */
-		bpage->buf_pool_index = buf_pool_index(buf_pool);
-
 		rw_lock_x_lock(hash_lock);
 
 		/* If buf_buddy_alloc() allocated storage from the LRU list,
@@ -3480,6 +3477,9 @@ err_exit:
 
 		bpage = buf_page_alloc_descriptor();
 
+		/* Initialize the buf_pool pointer. */
+		bpage->buf_pool_index = buf_pool_index(buf_pool);
+
 		page_zip_des_init(&bpage->zip);
 		page_zip_set_size(&bpage->zip, zip_size);
 		bpage->zip.data = data;
@@ -3493,7 +3493,6 @@ err_exit:
 		bpage->state	= BUF_BLOCK_ZIP_PAGE;
 		bpage->space	= space;
 		bpage->offset	= offset;
-
 
 #ifdef UNIV_DEBUG
 		bpage->in_page_hash = FALSE;

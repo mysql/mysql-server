@@ -11033,7 +11033,9 @@ show:
             memset(&lex->create_info, 0, sizeof(lex->create_info));
           }
           show_param
-          {}
+          {
+            Select->parsing_place= NO_MATTER;
+          }
         ;
 
 show_param:
@@ -11375,7 +11377,10 @@ describe:
             if (prepare_schema_table(YYTHD, lex, $2, SCH_COLUMNS))
               MYSQL_YYABORT;
           }
-          opt_describe_column {}
+          opt_describe_column
+          {
+            Select->parsing_place= NO_MATTER;
+          }
         | describe_command opt_extended_describe
           { Lex->describe|= DESCRIBE_NORMAL; }
           select
