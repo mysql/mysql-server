@@ -7734,29 +7734,20 @@ bool Optimize_table_order::choose_table_order()
 
 void Optimize_table_order::set_join_buffer_properties()
 {
-  const bool force_unlinked_cache=
-    test(thd->variables.optimizer_join_cache_level & 1);
-
   for (uint tableno= 0; tableno < join->tables; tableno++)
   {
     JOIN_TAB   *const tab= join->join_tab + tableno;
-    TABLE_LIST *const tl=  tab->table->pos_in_table_list;
     /*
       Cannot use join buffering if either
        1. Join buffering is disabled by the user, or
        2. Outer joined table, and join buffering disabled for outer join, or
        3. Semi-joined table, and join buffering disabled for semi-join, or
-       4. Unlinked cache is forced and there are multiple inner tables of
-          this outer join.
     */
     if (thd->variables.optimizer_join_cache_level == 0 ||              // 1
         ((tab->table->map & join->outer_join) &&                       // 2
          thd->variables.optimizer_join_cache_level <= 2) ||            // 2
         (tab->emb_sj_nest != NULL &&                                   // 3
-         thd->variables.optimizer_join_cache_level <= 2) ||            // 3
-        (force_unlinked_cache &&                                       // 4
-         tl->in_outer_join_nest() &&                                   // 4
-         tl->embedding->nested_join->join_list.elements > 1))          // 4
+         thd->variables.optimizer_join_cache_level <= 2))              // 3
       tab->use_join_cache= JOIN_CACHE::ALG_NONE;
     else if (thd->variables.optimizer_join_cache_level <= 4)
       tab->use_join_cache= JOIN_CACHE::ALG_BNL;
@@ -10775,8 +10766,6 @@ void revise_cache_usage(JOIN_TAB *join_tab)
     join_cache_level==5|6 then a JOIN_CACHE_BKA object is employed. 
     If an index is used to access rows of the joined table and the value of
     join_cache_level==7|8 then a JOIN_CACHE_BKA_UNIQUE object is employed. 
-    If the value of join_cache_level is odd then creation of a non-linked 
-    join cache is forced.
     If the function decides that a join buffer can be used to join the table
     'tab' then it sets the value of tab->use_join_buffer to TRUE and assigns
     the selected join cache object to the field 'cache' of the previous
@@ -10785,17 +10774,11 @@ void revise_cache_usage(JOIN_TAB *join_tab)
     failure to do this results in an invocation of the function that destructs
     the created object.
 
-    Bitmap describing the chosen cache's properties is assigned to
-    tab->use_join_cache:
-    1) the algorithm (JOIN_CACHE::ALG_NONE, JOIN_CACHE::ALG_BNL,
+    Bitmap describing the chosen algorithm is assigned to
+    tab->use_join_cache (JOIN_CACHE::ALG_NONE, JOIN_CACHE::ALG_BNL,
     JOIN_CACHE::ALG_BKA, JOIN_CACHE::ALG_BKA_UNIQUE)
-    2) the buffer's type (JOIN_CACHE::NON_INCREMENTAL_BUFFER or not).
  
   @note
-    An inner table of a nested outer join or a nested semi-join can be currently
-    joined only when a linked cache object is employed. In these cases setting
-    join cache level to an odd number results in denial of usage of any join
-    buffer when joining the table.
     For a nested outer join/semi-join, currently, we either use join buffers for
     all inner tables or for none of them. 
     Some engines (e.g. Falcon) currently allow to use only a join cache
@@ -10839,8 +10822,6 @@ static bool setup_join_buffering(JOIN_TAB *tab, JOIN *join,
   uint bufsz= 4096;
   JOIN_CACHE *prev_cache=0;
   const uint cache_level= join->thd->variables.optimizer_join_cache_level;
-  const uint force_unlinked_cache= (cache_level & 1) ?
-    JOIN_CACHE::NON_INCREMENTAL_BUFFER : 0;
   const uint tableno= tab - join->join_tab;
   const uint tab_sj_strategy= tab->get_sj_strategy();
   *icp_other_tables_ok= TRUE;
@@ -10865,14 +10846,7 @@ static bool setup_join_buffering(JOIN_TAB *tab, JOIN *join,
     DBUG_ASSERT(tab->use_join_cache == JOIN_CACHE::ALG_NONE);
     goto no_join_cache;
   }
-  /* Non-linked join buffers can't guarantee one match */
-  if (force_unlinked_cache &&
-      tab->is_inner_table_of_outer_join() &&
-      !tab->is_single_inner_of_outer_join())
-  {
-    DBUG_ASSERT(tab->use_join_cache == JOIN_CACHE::ALG_NONE);
-    goto no_join_cache;
-  }
+
   /*
     An inner table of an outer join nest must not use join buffering if
     the first inner table of that outer join nest does not use join buffering.
@@ -10913,9 +10887,7 @@ static bool setup_join_buffering(JOIN_TAB *tab, JOIN *join,
   if (sj_is_materialize_strategy(tab_sj_strategy))
     goto no_join_cache;
 
-  if (!force_unlinked_cache)
-    prev_cache= tab[-1].cache;
-
+  prev_cache= tab[-1].cache;
   switch (tab->type) {
   case JT_ALL:
     /* Outer joined and semi-joined tables require join cache level > 2 */
@@ -10931,7 +10903,7 @@ static bool setup_join_buffering(JOIN_TAB *tab, JOIN *join,
     {
       *icp_other_tables_ok= FALSE;
       DBUG_ASSERT(might_do_join_buffering(cache_level, tab));
-      tab->use_join_cache= JOIN_CACHE::ALG_BNL | force_unlinked_cache;
+      tab->use_join_cache= JOIN_CACHE::ALG_BNL;
       return false;
     }
     goto no_join_cache;
@@ -10960,9 +10932,9 @@ static bool setup_join_buffering(JOIN_TAB *tab, JOIN *join,
     {
       DBUG_ASSERT(might_do_join_buffering(cache_level, tab));
       if (cache_level <= 6)
-        tab->use_join_cache= JOIN_CACHE::ALG_BKA | force_unlinked_cache;
+        tab->use_join_cache= JOIN_CACHE::ALG_BKA;
       else
-        tab->use_join_cache= JOIN_CACHE::ALG_BKA_UNIQUE | force_unlinked_cache;
+        tab->use_join_cache= JOIN_CACHE::ALG_BKA_UNIQUE;
       return false;
     }
     goto no_join_cache;

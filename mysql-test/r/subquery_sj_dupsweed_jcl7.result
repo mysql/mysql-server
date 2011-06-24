@@ -173,8 +173,8 @@ explAin extended
 select * from t1 left join (t2 A, t2 B) on ( A.A= t1.A And B.A in (select pk from t10));
 id	select_type	tABle	type	possiBle_keys	key	key_len	ref	rows	filtered	ExtrA
 1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	3	100.00	
-1	PRIMARY	A	ALL	NULL	NULL	NULL	NULL	3	100.00	Using where
-1	PRIMARY	B	ALL	NULL	NULL	NULL	NULL	3	100.00	Using where
+1	PRIMARY	A	ALL	NULL	NULL	NULL	NULL	3	100.00	Using where; Using join Buffer (Block Nested Loop)
+1	PRIMARY	B	ALL	NULL	NULL	NULL	NULL	3	100.00	Using where; Using join Buffer (Block Nested Loop)
 2	DEPENDENT SUBQUERY	t10	unique_suBquery	PRIMARY	PRIMARY	4	func	1	100.00	Using index
 Warnings:
 Note	1003	select `test`.`t1`.`A` AS `A`,`test`.`t1`.`B` AS `B`,`test`.`A`.`A` AS `A`,`test`.`A`.`B` AS `B`,`test`.`B`.`A` AS `A`,`test`.`B`.`B` AS `B` from `test`.`t1` left join (`test`.`t2` `A` join `test`.`t2` `B`) on(((`test`.`A`.`A` = `test`.`t1`.`A`) And <in_optimizer>(`test`.`B`.`A`,<exists>(<primAry_index_lookup>(<cAche>(`test`.`B`.`A`) in t10 on PRIMARY))))) where 1
@@ -5188,8 +5188,8 @@ FROM t2 LEFT JOIN (t2 AS t2inner, t3) ON t2.a=t3.a);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	2	Start temporary
 1	PRIMARY	t2	ALL	NULL	NULL	NULL	NULL	2	Using where; Using join buffer (Block Nested Loop)
-1	PRIMARY	t2inner	ALL	NULL	NULL	NULL	NULL	2	
-1	PRIMARY	t3	ALL	NULL	NULL	NULL	NULL	2	Using where; End temporary
+1	PRIMARY	t2inner	ALL	NULL	NULL	NULL	NULL	2	Using join buffer (Block Nested Loop)
+1	PRIMARY	t3	ALL	NULL	NULL	NULL	NULL	2	Using where; End temporary; Using join buffer (Block Nested Loop)
 SELECT * FROM t1
 WHERE t1.a IN (SELECT t2.a
 FROM t2 LEFT JOIN (t2 AS t2inner, t3) ON t2.a=t3.a);
@@ -5351,8 +5351,8 @@ LEFT JOIN
 ON ot1.a=ot2.a AND ot1.a IN (SELECT a from it1);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	PRIMARY	ot1	ALL	NULL	NULL	NULL	NULL	8	
-1	PRIMARY	ot3	ALL	NULL	NULL	NULL	NULL	3	Using where
-1	PRIMARY	ot2	ALL	NULL	NULL	NULL	NULL	4	Using where
+1	PRIMARY	ot3	ALL	NULL	NULL	NULL	NULL	3	Using where; Using join buffer (Block Nested Loop)
+1	PRIMARY	ot2	ALL	NULL	NULL	NULL	NULL	4	Using where; Using join buffer (Block Nested Loop)
 2	DEPENDENT SUBQUERY	it1	ALL	NULL	NULL	NULL	NULL	8	Using where
 SELECT *
 FROM   ot1
@@ -5361,12 +5361,12 @@ LEFT JOIN
 ON ot1.a=ot2.a AND ot1.a IN (SELECT a from it1);
 a	a	a
 0	0	0
+6	6	6
 1	NULL	NULL
 2	NULL	NULL
 3	NULL	NULL
 4	NULL	NULL
 5	NULL	NULL
-6	6	6
 7	NULL	NULL
 prepare s from 'SELECT *
 FROM   ot1
@@ -5376,22 +5376,22 @@ ON ot1.a=ot2.a AND ot1.a IN (SELECT a from it1)';
 execute s;
 a	a	a
 0	0	0
+6	6	6
 1	NULL	NULL
 2	NULL	NULL
 3	NULL	NULL
 4	NULL	NULL
 5	NULL	NULL
-6	6	6
 7	NULL	NULL
 execute s;
 a	a	a
 0	0	0
+6	6	6
 1	NULL	NULL
 2	NULL	NULL
 3	NULL	NULL
 4	NULL	NULL
 5	NULL	NULL
-6	6	6
 7	NULL	NULL
 deallocate prepare s;
 DROP TABLE ot1, ot2, ot3, it1;
@@ -5409,8 +5409,8 @@ FROM t1 LEFT OUTER JOIN (t2 AS b1 JOIN t2 AS b2 ON TRUE) ON TRUE);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	PRIMARY	t1	system	NULL	NULL	NULL	NULL	1	
 1	PRIMARY	t2	ALL	NULL	NULL	NULL	NULL	2	Using where; Start temporary
-1	PRIMARY	b1	ALL	NULL	NULL	NULL	NULL	2	Using where
-1	PRIMARY	b2	ALL	NULL	NULL	NULL	NULL	2	End temporary
+1	PRIMARY	b1	ALL	NULL	NULL	NULL	NULL	2	Using where; Using join buffer (Block Nested Loop)
+1	PRIMARY	b2	ALL	NULL	NULL	NULL	NULL	2	End temporary; Using join buffer (Block Nested Loop)
 SELECT * FROM t2
 WHERE f2 IN (SELECT t1.f1
 FROM t1 LEFT OUTER JOIN (t2 AS b1 JOIN t2 AS b2 ON TRUE) ON TRUE);
@@ -5549,8 +5549,8 @@ WHERE alias1.pk AND alias1.pk < 3 OR alias1.pk AND alias3.pk);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	PRIMARY	t3	ALL	NULL	NULL	NULL	NULL	2	Start temporary
 1	PRIMARY	alias1	ALL	NULL	NULL	NULL	NULL	4	Using where; Using join buffer (Block Nested Loop)
-1	PRIMARY	alias3	index	NULL	PRIMARY	4	NULL	1	Using where; Using index
-1	PRIMARY	alias2	index	NULL	col_varchar_10_latin1_key	13	NULL	4	Using where; Using index; End temporary
+1	PRIMARY	alias3	index	NULL	PRIMARY	4	NULL	1	Using where; Using index; Using join buffer (Block Nested Loop)
+1	PRIMARY	alias2	index	NULL	col_varchar_10_latin1_key	13	NULL	4	Using where; Using index; End temporary; Using join buffer (Block Nested Loop)
 SELECT * 
 FROM t3 
 WHERE col_varchar_10_latin1_key IN (

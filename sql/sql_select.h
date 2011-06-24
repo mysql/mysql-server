@@ -1006,8 +1006,7 @@ public:
   }   
 
   /** Bits describing cache's type @sa check_join_cache_usage() */
-  enum {NON_INCREMENTAL_BUFFER= 1,
-        ALG_NONE= 0, ALG_BNL= 2, ALG_BKA= 4, ALG_BKA_UNIQUE= 8};
+  enum {ALG_NONE= 0, ALG_BNL= 2, ALG_BKA= 4, ALG_BKA_UNIQUE= 8};
 
   friend class JOIN_CACHE_BNL;
   friend class JOIN_CACHE_BKA;
